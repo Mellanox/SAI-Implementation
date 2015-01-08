@@ -13,6 +13,6 @@ There is no implementation currently for route, neighbor and next hop functional
 
 The code was tested to work on X86, at Alpha level.
 No testing was done on PPC.
-The code compiles with, and was tested with, SDK version 4.1.5000.
+The code compiles with, and was tested with, SDK version 4.1.5000
 
 
