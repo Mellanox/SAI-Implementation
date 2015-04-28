@@ -19,18 +19,23 @@ libsai_la_SOURCES = \
                        mlnx_sai_interfacequery.c \
                        mlnx_sai_neighbor.c \
                        mlnx_sai_nexthop.c \
+                       mlnx_sai_nexthopgroup.c \
                        mlnx_sai_port.c \
                        mlnx_sai_route.c \
                        mlnx_sai_router.c \
                        mlnx_sai_switch.c \
                        mlnx_sai_utils.c \
                        mlnx_sai_vlan.c \
-                       mlnx_sai_rif.c
-
+                       mlnx_sai_rif.c \
+					   mlnx_sai_host_interface.c
+					   
+libsai_la_LIBADD = \
+                   -L$(APP_LIB_PATH)/lib -lsxapi
 
 libsai_apiincludedir = $(includedir)/sai
 libsai_apiinclude_HEADERS = \
 	$(top_srcdir)/inc/sai/sainexthop.h \
+	$(top_srcdir)/inc/sai/sainexthopgroup.h \
 	$(top_srcdir)/inc/sai/sai.h \
 	$(top_srcdir)/inc/sai/sairouter.h \
 	$(top_srcdir)/inc/sai/saivlan.h \
@@ -44,6 +49,7 @@ libsai_apiinclude_HEADERS = \
 	$(top_srcdir)/inc/sai/sairoute.h \
 	$(top_srcdir)/inc/sai/saitypes.h \
 	$(top_srcdir)/inc/sai/sairouterintf.h \
+	$(top_srcdir)/inc/sai/saihostintf.h \
 	\
 	$(top_srcdir)/inc/sai_windows.h
 

@@ -36,10 +36,7 @@
 
 
 #define SAI_MAX_HARDWARE_ID_LEN         255
-#define SAI_MAX_SDK_PATH_NAME_LEN       PATH_MAX
 #define SAI_MAX_FIRMWARE_PATH_NAME_LEN  PATH_MAX
-
-#define SWITCH_COUNTER_SET_DEFAULT      0
 
 /*
 *  Attribute data for SAI_SWITCH_ATTR_OPER_STATUS
@@ -60,25 +57,35 @@ typedef enum _sai_switch_oper_status_t
 
 } sai_switch_oper_status_t;
 
-
-/*  
-*  Attribute data for SAI_SWITCH_ATTR_FDB_MISS_ACTION
-*/ 
-typedef enum _sai_switch_fdb_miss_action_t
+/*
+*  Attribute data for packet action
+*/
+typedef enum _sai_packet_action_t
 {
-    SAI_SWITCH_FDB_MISS_DISCARD,
+    /* Drop Packet */
+    SAI_PACKET_ACTION_DROP,
 
-    /* Flood on VLAN, except to CPU port **/
-    SAI_SWITCH_FDB_MISS_FORWARD,
+    /* Forward Packet */
+    SAI_PACKET_ACTION_FORWARD,
 
-    /* Trap to CPU port **/
-    SAI_SWITCH_FDB_MISS_TRAP,
+    /* Trap Packet to CPU */
+    SAI_PACKET_ACTION_TRAP,
 
-    /* Forward + Trap **/
-    SAI_SWITCH_FDB_MISS_LOG
+    /* Log (Trap + Forward) Packet */
+    SAI_PACKET_ACTION_LOG
 
-} sai_switch_fdb_miss_action_t;
+} sai_packet_action_t;
 
+
+/*
+* Attribute data for SAI_SWITCH_ECMP_HASH_TYPE
+*/
+typedef enum _sai_switch_ecmp_hash_type_t
+{
+    SAI_SWITCH_ECMP_HASH_TYPE_XOR,
+
+    SAI_SWITCH_ECMP_HASH_TYPE_CRC,
+} sai_switch_ecmp_hash_type_t;
 
 typedef enum _sai_switch_ecmp_hash_fields_t
 {
@@ -90,18 +97,17 @@ typedef enum _sai_switch_ecmp_hash_fields_t
 } sai_switch_ecmp_hash_fields_t;
 
 /*
-*  Switch counter IDs in sai_get_switch_stat_counters() call
+* Attribute data for SAI_SWITCH_SWITCHING_MODE
 */
-typedef enum _sai_switch_stat_counter_t
-{
-    SAI_SWITCH_STAT_GLOBAL_LOW_DROP_PKTS,
-    SAI_SWITCH_STAT_GLOBAL_HIGH_DROP_PKTS,
-    SAI_SWITCH_STAT_GLOBAL_PRIVILEGE_DROP_PKTS,
-    SAI_SWITCH_STAT_DROP_COUNT_TX,
-    SAI_SWITCH_STAT_DROP_COUNT_RX
+typedef enum _sai_switch_switching_mode_t 
+{ 
+    /* cut-through switching mode */
+    SAI_SWITCHING_MODE_CUT_THROUGH,
 
-} sai_switch_stat_counter_t;
+    /* store-and-forward switching mode */
+    SAI_SWITCHING_MODE_STORE_AND_FORWARD
 
+} sai_switch_switching_mode_t;
 
 /*
 *  Attribute Id in sai_set_switch_attribute() and 
@@ -114,8 +120,14 @@ typedef enum _sai_switch_attr_t
     /* The number of ports on the switch [uint32_t] */
     SAI_SWITCH_ATTR_PORT_NUMBER,
 
+    /* Get the CPU Port [sai_port_id_t] */
+    SAI_SWITCH_ATTR_CPU_PORT,
+
     /* Max number of virtual routers supported [uint32_t] */
     SAI_SWITCH_ATTR_MAX_VIRTUAL_ROUTERS,
+
+    /* The size of the FDB Table in bytes [uint32_t] */
+    SAI_SWITCH_ATTR_FDB_TABLE_SIZE,
 
     /* 
     *   Local subnet routing supported [bool]
@@ -126,29 +138,45 @@ typedef enum _sai_switch_attr_t
     /* Oper state [sai_switch_oper_status_t] */
     SAI_SWITCH_ATTR_OPER_STATUS,
 
+    /* The current value of the maximum temperature 
+     * retrieved from the switch sensors, in Celsius [int32_t] */
+    SAI_SWITCH_ATTR_MAX_TEMP,
 
     /* READ-WRITE */
 
-    /* Hardware generation counter [uint64_t] */
-    SAI_SWITCH_ATTR_HW_SEQUENCE_ID,
-
-    /* Admin state [bool] */
-    SAI_SWITCH_ATTR_ADMIN_STATE,
+    /* Switching mode [sai_switch_switching_mode_t]
+       (default to SAI_SWITCHING_MODE_STORE_AND_FORWARD) */
+    SAI_SWITCH_ATTR_SWITCHING_MODE,
 
     /* L2 broadcast flood control to CPU port [bool] */
     SAI_SWITCH_ATTR_BCAST_CPU_FLOOD_ENABLE,
 
-    /* L2 multicast flood control to CPU port [bool] */
+    /* L2 multicast flood control to CPU port [bool] */ 
     SAI_SWITCH_ATTR_MCAST_CPU_FLOOD_ENABLE,
 
-    /* Default VlanID for ports that are not members of any vlans [uint16] */
+    /* Action for Packets with TTL 0 or 1 [sai_packet_action_t] 
+       (default to SAI_PACKET_ACTION_TRAP) */
+    SAI_SWITCH_ATTR_VIOLATION_TTL1_ACTION,
+
+    /* Default VlanID for ports that are not members of 
+       any vlans [sai_vlan_id_t]  (default to vlan 1)*/
     SAI_SWITCH_ATTR_DEFAULT_PORT_VLAN_ID,
 
-    /* Maximum number of learned MAC addresses [uint32_t] */
+    /* Default switch MAC Address [sai_mac_t] */
+    SAI_SWITCH_ATTR_SRC_MAC_ADDRESS,
+
+    /* Maximum number of learned MAC addresses [uint32_t]
+     * zero means learning limit disable. (default to zero) */
     SAI_SWITCH_ATTR_MAX_LEARNED_ADDRESSES,
 
+    /* Dynamic FDB entry aging time in seconds [uint32_t] 
+    *   Zero means aging is disabled.
+    *  (default to zero)
+    */
+    SAI_SWITCH_ATTR_FDB_AGING_TIME,
+
     /* Flood control for packets with unknown destination address.
-    *   [sai_switch_fdb_miss_action_t]
+    *   [sai_packet_action_t] (default to SAI_PACKET_ACTION_FORWARD)
     */
     SAI_SWITCH_ATTR_FDB_UNICAST_MISS_ACTION,
 
@@ -165,14 +193,9 @@ typedef enum _sai_switch_attr_t
     /* ECMP hashing fields [sai_switch_ecmp_hash_fields_t] */
     SAI_SWITCH_ATTR_ECMP_HASH_FIELDS,
 
-    /* LAG hashing seed [uint32_t] */
-    SAI_SWITCH_ATTR_LAG_HASH_SEED,
-
-    /* LAG hashing type [sai_lag_hash_type_t] */
-    SAI_SWITCH_ATTR_LAG_HASH_TYPE,
-
-    /* LAG hashing fileds [sai_lag_hash_fields_t] */
-    SAI_SWITCH_ATTR_LAG_HASH_FIELDS,
+    /* ECMP max number of paths per group [uint32_t]
+       (default to 64) */
+    SAI_SWITCH_ATTR_ECMP_MAX_PATHS,
 
     /* -- */
     
@@ -224,7 +247,6 @@ typedef struct _sai_switch_notification_t
     sai_switch_shutdown_request_fn          on_switch_shutdown_request;
 } sai_switch_notification_t;
   
-
 /*
 * Routine Description:
 *   SDK initialization. After the call the capability attributes should be 
@@ -233,10 +255,8 @@ typedef struct _sai_switch_notification_t
 * Arguments:
 *   [in] profile_id - Handle for the switch profile.
 *   [in] switch_hardware_id - Switch hardware ID to open
-*   [in] port_map - sai port to physical port mapping
-*   [in] number_of_ports - number of sai ports
-*   [in] sdk_path - Switch sdk library path
-*   [in/opt] firmware_path_name - Vendor specific name of the firmware file to load
+*   [in/opt] firmware_path_name - Vendor specific path name of the firmware
+*                                     to load
 *   [in] switch_notifications - switch notification table
 * Return Values:
 *   SAI_STATUS_SUCCESS on success
@@ -245,9 +265,6 @@ typedef struct _sai_switch_notification_t
 typedef sai_status_t (*sai_initialize_switch_fn)(
     _In_ sai_switch_profile_id_t profile_id,
     _In_reads_z_(SAI_MAX_HARDWARE_ID_LEN) char* switch_hardware_id,
-    _In_ sai_port_mapping_t* port_map,
-    _In_ int number_of_ports,
-    _In_reads_z_(SAI_MAX_SDK_PATH_NAME_LEN) char* sdk_path,
     _In_reads_opt_z_(SAI_MAX_FIRMWARE_PATH_NAME_LEN) char* firmware_path_name,
     _In_ sai_switch_notification_t* switch_notifications
     );
@@ -308,16 +325,14 @@ typedef void (*sai_disconnect_switch_fn)(
 *    Set switch attribute value
 *
 * Arguments:
-*    [in] attribute - switch attribute
-*    [in] value - switch attribute value
+*    [in] attr - switch attribute
 *
 * Return Values:
 *    SAI_STATUS_SUCCESS on success
 *    Failure status code on error
 */
 typedef sai_status_t (*sai_set_switch_attribute_fn)(
-    _In_ sai_switch_attr_t attribute, 
-    _In_ uint64_t value
+    _In_ const sai_attribute_t *attr
     );
 
 
@@ -326,53 +341,16 @@ typedef sai_status_t (*sai_set_switch_attribute_fn)(
 *    Get switch attribute value
 *
 * Arguments:
-*    [in] attribute - switch attribute
-*    [out] value - switch attribute value
+*    [in] attr_count - number of switch attributes
+*    [inout] attr_list - array of switch attributes
 *
 * Return Values:
 *    SAI_STATUS_SUCCESS on success
 *    Failure status code on error
 */
 typedef sai_status_t (*sai_get_switch_attribute_fn)(
-    _In_ sai_switch_attr_t attribute, 
-    _Out_ uint64_t* value
-    );
-
-
-/*
-* Routine Description:
-*   Enable/disable statistics counters for switch.
-*
-* Arguments:
-*    [in] counter_set_id - specifies the counter set
-*    [in] enable - TRUE to enable, FALSE to disable
-*
-* Return Values:
-*    SAI_STATUS_SUCCESS on success
-*    Failure status code on error
-*/ 
-typedef sai_status_t (*sai_ctl_switch_stats_fn)(
-    _In_ uint32_t counter_set_id,
-    _In_ bool enable
-    );
-
-/*
-* Routine Description:
-*   Get switch statistics counters.
-*
-* Arguments:
-*    [in] counter_ids - specifies the array of counter ids
-*    [in] number_of_counters - number of counters in the array
-*    [out] counters - array of resulting counter values.
-*
-* Return Values:
-*    SAI_STATUS_SUCCESS on success
-*    Failure status code on error
-*/ 
-typedef sai_status_t (*sai_get_switch_stats_fn)(
-    _In_ sai_switch_stat_counter_t* counter_ids,
-    _In_ uint32_t number_of_counters,
-    _Out_ uint64_t* counters
+    _In_ uint32_t attr_count,
+    _Inout_ sai_attribute_t *attr_list
     );
 
 /*
@@ -384,12 +362,9 @@ typedef struct _sai_switch_api_t
     sai_shutdown_switch_fn          shutdown_switch;
     sai_connect_switch_fn           connect_switch;
     sai_disconnect_switch_fn        disconnect_switch;
-    sai_set_switch_attribute_fn     set_attribute;
-    sai_get_switch_attribute_fn     get_attribute;
-    sai_ctl_switch_stats_fn         ctl_stats;
-    sai_get_switch_stats_fn         get_stats;
+    sai_set_switch_attribute_fn     set_switch_attribute;
+    sai_get_switch_attribute_fn     get_switch_attribute;
 
 } sai_switch_api_t;
 
 #endif  // __SAISWITCH_H_
-

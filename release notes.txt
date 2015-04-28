@@ -1,18 +1,37 @@
 Mellanox SAI implementation release notes
 ==========================================
 
-Release 1.0.0
+Release 1.1.0
 ---------------
 
 Current implementation is partial. 
 
-Some aspects aren't yet fully defined in SAI API v0.9.0 itself, such as full init flow and port mapping. Therefore it is needed, as a precondition, to run dvs_start.sh, to initialize the SDK and the switch.
+Some aspects aren't yet fully defined in SAI API v0.9.1 itself, such as full init flow and port mapping. Therefore it is needed, as a precondition, to run dvs_start.sh, to initialize the SDK and the switch.
 
 In addition, not all the APIs that are defined were fully implemented in this release. Missing flows or implementation are noted in the code as "TODO : ..." comments.
-There is no implementation currently for route, neighbor and next hop functionality.
 
 The code was tested to work on X86, at Alpha level.
 No testing was done on PPC.
-The code compiles with, and was tested with, SDK version 4.1.5000.
+The code compiles with, and was tested with, SDK version 4.1.6000.
 
+ACL, QoS, Flow control and Sflow are partially defined in v0.9.1, and will only be implemented after the definition is completed.
 
+The following functions / attributes are not supported / implemented :
+* sai_log_set() in sai.h
+* IPv6 support for routing
+* SAI_NEXT_HOP_ATTR_ROUTER_INTERFACE_ID get in router interface API
+* SAI_PORT_ATTR_UPDATE_DSCP, SAI_PORT_ATTR_MAX_LEARNED_ADDRESSES, SAI_PORT_ATTR_FDB_LEARNING_LIMIT_VIOLATION in port API
+* IP/IPv6 counters, SAI_PORT_STAT_IF_IN_VLAN_DISCARDS, SAI_PORT_STAT_IF_OUT_QLEN, SAI_PORT_STAT_ETHER_RX_OVERSIZE_PKTS, SAI_PORT_STAT_ETHER_TX_OVERSIZE_PKTS, SAI_PORT_STAT_ETHER_STATS_TX_NO_ERRORS, SAI_PORT_STAT_ETHER_STATS_RX_NO_ERRORS in port counters API
+* SAI_ROUTE_ATTR_NEXT_HOP_GROUP_ID get in route API
+* SAI_VIRTUAL_ROUTER_ATTR_ADMIN_V4_STATE set, 
+SAI_VIRTUAL_ROUTER_ATTR_ADMIN_V6_STATE set, SAI_VIRTUAL_ROUTER_ATTR_SRC_MAC_ADDRESS, 
+SAI_VIRTUAL_ROUTER_ATTR_VIOLATION_TTL1_ACTION, SAI_VIRTUAL_ROUTER_ATTR_VIOLATION_IP_OPTIONS in router API
+* SAI_SWITCH_ATTR_FDB_TABLE_SIZE, SAI_SWITCH_ATTR_MAX_TEMP, SAI_SWITCH_ATTR_BCAST_CPU_FLOOD_ENABLE, SAI_SWITCH_ATTR_MCAST_CPU_FLOOD_ENABLE, SAI_SWITCH_ATTR_VIOLATION_TTL1_ACTION get, SAI_SWITCH_ATTR_SRC_MAC_ADDRESS set, SAI_SWITCH_ATTR_MAX_LEARNED_ADDRESSES, SAI_SWITCH_ATTR_FDB_UNICAST_MISS_ACTION, SAI_SWITCH_ATTR_FDB_BROADCAST_MISS_ACTION, SAI_SWITCH_ATTR_FDB_MULTICAST_MISS_ACTION in switch API
+* SAI_VLAN_ATTR_MAX_LEARNED_ADDRESSES in vlan API
+* SAI_HOST_INTERFACE_ATTR_PORT_ID get, SAI_HOST_INTERFACE_ATTR_RIF_ID get in host interface API
+* vlan counters API
+* All the notification callbacks
+
+Next hop group implementation is partial. In case a next hop group is associated with a route, and then the next hop group members are changed, the change does not get reflected to the route. WA : Set again the next hop group attribute of the route.
+
+Host interface supports only vlan interfaces. In case a port interface is needed, add the port to a single vlan, and create an interface vlan with this single port.

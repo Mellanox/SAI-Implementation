@@ -25,16 +25,17 @@ bool                   g_initialized = false;
 
 /*
  * Routine Description:
- *     API initialization call
+ *     Adapter module initialization call. This is NOT for SDK initialization.
  *
  * Arguments:
- *     [in] flags - reserved for future use
+ *     [in] flags - reserved for future use, must be zero
+ *     [in] services - methods table with services provided by adapter host
  *
- * Return Values
+ * Return Values:
  *    SAI_STATUS_SUCCESS on success
  *    Failure status code on error
  */
-sai_status_t sai_api_initialize(_In_ uint64_t flags, _In_ service_method_table_t* services)
+sai_status_t sai_api_initialize(_In_ uint64_t flags, _In_ const service_method_table_t* services)
 {
     if ((NULL == services) || (NULL == services->profile_get_next_value) || (NULL == services->profile_get_value)) {
         fprintf(stderr, "Invalid services handle passed to SAI API initialize\n");
@@ -55,13 +56,13 @@ sai_status_t sai_api_initialize(_In_ uint64_t flags, _In_ service_method_table_t
 
 /*
  * Routine Description:
- *     Retrieve a group of SAI APIs
- *     Interfaces are C-style method tables and are queried by corresponding id.
+ *     Retrieve a pointer to the C-style method table for desired SAI
+ *     functionality as specified by the given sai_api_id.
  *
  * Arguments:
- *     [in] sai_interface_id - SAI interface ID
- *     [out] interface_method_table - Caller allocated method table
- *           The table must remain valid until the sai_api_shutdown() is called
+ *     [in] sai_api_id - SAI api ID
+ *     [out] api_method_table - Caller allocated method table
+ *           The table must remain valid until the sai_api_uninitialize() is called
  *
  * Return Values:
  *    SAI_STATUS_SUCCESS on success
@@ -85,8 +86,8 @@ sai_status_t sai_api_query(_In_ sai_api_t sai_api_id, _Out_ void** api_method_ta
         *(const sai_route_api_t**)api_method_table = &route_api;
         return SAI_STATUS_SUCCESS;
 
-    case SAI_API_VR:
-        *(const sai_vr_api_t**)api_method_table = &router_api;
+    case SAI_API_VIRTUAL_ROUTER:
+        *(const sai_virtual_router_api_t**)api_method_table = &router_api;
         return SAI_STATUS_SUCCESS;
 
     case SAI_API_SWITCH:
@@ -109,6 +110,10 @@ sai_status_t sai_api_query(_In_ sai_api_t sai_api_id, _Out_ void** api_method_ta
         *(const sai_next_hop_api_t**)api_method_table = &next_hop_api;
         return SAI_STATUS_SUCCESS;
 
+    case SAI_API_NEXT_HOP_GROUP:
+        *(const sai_next_hop_group_api_t**)api_method_table = &next_hop_group_api;
+        return SAI_STATUS_SUCCESS;
+
     case SAI_API_ROUTER_INTERFACE:
         *(const sai_router_interface_api_t**)api_method_table = &router_interface_api;
         return SAI_STATUS_SUCCESS;
@@ -125,6 +130,10 @@ sai_status_t sai_api_query(_In_ sai_api_t sai_api_id, _Out_ void** api_method_ta
         /* TODO : implement */
         return SAI_STATUS_NOT_IMPLEMENTED;
 
+    case SAI_API_HOST_INTERFACE:
+        *(const sai_host_interface_api_t**)api_method_table = &host_interface_api;
+        return SAI_STATUS_SUCCESS;
+
     default:
         fprintf(stderr, "Invalid API type %d\n", sai_api_id);
         return SAI_STATUS_INVALID_PARAMETER;
@@ -133,8 +142,8 @@ sai_status_t sai_api_query(_In_ sai_api_t sai_api_id, _Out_ void** api_method_ta
 
 /*
  * Routine Description:
- *   API shutdown call
- *   SAI interfaces, retrieved via sai_api_query() cannot be used after this call
+ *   Uninitialization of the adapter module. SAI functionalities, retrieved via
+ *   sai_api_query() cannot be used after this call.
  *
  * Arguments:
  *   None
@@ -143,10 +152,28 @@ sai_status_t sai_api_query(_In_ sai_api_t sai_api_id, _Out_ void** api_method_ta
  *   SAI_STATUS_SUCCESS on success
  *   Failure status code on error
  */
-sai_status_t sai_api_unitialize(void)
+sai_status_t sai_api_uninitialize(void)
 {
     memset(&g_services, 0, sizeof(g_services));
     g_initialized = false;
 
     return SAI_STATUS_SUCCESS;
+}
+
+/*
+ * Routine Description:
+ *     Set log level for sai api module. The default log level is SAI_LOG_WARN.
+ *
+ * Arguments:
+ *     [in] sai_api_id - SAI api ID
+ *     [in] log_level - log level
+ *
+ * Return Values:
+ *    SAI_STATUS_SUCCESS on success
+ *    Failure status code on error
+ */
+sai_status_t sai_log_set(_In_ sai_api_t sai_api_id, _In_ sai_log_level_t log_level)
+{
+    /* TODO : Change default to warning. Implement. */
+    return SAI_STATUS_NOT_IMPLEMENTED;
 }
