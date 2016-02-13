@@ -3,8 +3,8 @@ Mellanox SAI implementation
 
 This repository contains SAI implementation for Mellanox hardware.
 
-SAI headers are based on latest head (as of March 31, 2015) of release v0.9.1. SAI headers can be 
-downloaded from https://github.com/opencomputeproject/OCP-Networking-Project-Community-Contributions
+SAI headers are based on latest head (as of Feb 11, 2016) of release v0.9.3. SAI headers can be 
+downloaded from https://github.com/opencomputeproject/SAI/
 
 The implementation is written over Mellanox SwitchX interfaces API. The API and documentation for it, are available in
 https://github.com/Mellanox/SwitchX-interfaces

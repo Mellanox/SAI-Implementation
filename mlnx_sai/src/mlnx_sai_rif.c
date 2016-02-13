@@ -23,24 +23,27 @@
 #undef  __MODULE__
 #define __MODULE__ SAI_RIF
 
+static sx_verbosity_level_t LOG_VAR_NAME(__MODULE__) = SX_VERBOSITY_LEVEL_WARNING;
 static const sai_attribute_entry_t rif_attribs[] = {
-    { SAI_ROUTER_INTERFACE_ATTR_VIRTUAL_ROUTER_ID, true, true, false,
-      "Router interface virtual router ID", SAI_ATTR_VAL_TYPE_U32 },
-    { SAI_ROUTER_INTERFACE_ATTR_TYPE, true, true, false,
+    { SAI_ROUTER_INTERFACE_ATTR_VIRTUAL_ROUTER_ID, true, true, false, true,
+      "Router interface virtual router ID", SAI_ATTR_VAL_TYPE_OID },
+    { SAI_ROUTER_INTERFACE_ATTR_TYPE, true, true, false, true,
       "Router interface type", SAI_ATTR_VAL_TYPE_S32 },
-    { SAI_ROUTER_INTERFACE_ATTR_PORT_ID, false, true, false,
-      "Router interface port ID", SAI_ATTR_VAL_TYPE_U32 },
-    { SAI_ROUTER_INTERFACE_ATTR_VLAN_ID, false, true, false,
+    { SAI_ROUTER_INTERFACE_ATTR_PORT_ID, false, true, false, true,
+      "Router interface port ID", SAI_ATTR_VAL_TYPE_OID },
+    { SAI_ROUTER_INTERFACE_ATTR_VLAN_ID, false, true, false, true,
       "Router interface vlan ID", SAI_ATTR_VAL_TYPE_U16 },
-    { SAI_ROUTER_INTERFACE_ATTR_SRC_MAC_ADDRESS, false, true, true,
+    { SAI_ROUTER_INTERFACE_ATTR_SRC_MAC_ADDRESS, false, true, true, true,
       "Router interface source MAC address", SAI_ATTR_VAL_TYPE_MAC },
-    { SAI_ROUTER_INTERFACE_ATTR_ADMIN_V4_STATE, false, true, true,
+    { SAI_ROUTER_INTERFACE_ATTR_ADMIN_V4_STATE, false, true, true, true,
       "Router interface admin v4 state", SAI_ATTR_VAL_TYPE_BOOL },
-    { SAI_ROUTER_INTERFACE_ATTR_ADMIN_V6_STATE, false, true, true,
+    { SAI_ROUTER_INTERFACE_ATTR_ADMIN_V6_STATE, false, true, true, true,
       "Router interface admin v6 state", SAI_ATTR_VAL_TYPE_BOOL },
-    { SAI_ROUTER_INTERFACE_ATTR_MTU, false, true, true,
+    { SAI_ROUTER_INTERFACE_ATTR_MTU, false, true, true, true,
       "Router interface mtu", SAI_ATTR_VAL_TYPE_U32 },
-    { END_FUNCTIONALITY_ATTRIBS_ID, false, false, false,
+    { SAI_ROUTER_INTERFACE_ATTR_NEIGHBOR_MISS_PACKET_ACTION, false, true, true, true,
+      "Router interface neighbor miss action", SAI_ATTR_VAL_TYPE_S32 },
+    { END_FUNCTIONALITY_ATTRIBS_ID, false, false, false, false,
       "", SAI_ATTR_VAL_TYPE_UNDETERMINED }
 };
 
@@ -101,12 +104,22 @@ static const sai_vendor_attribute_entry_t rif_vendor_attribs[] = {
       { true, false, true, true },
       { true, false, true, true },
       mlnx_rif_attrib_get, (void*)SAI_ROUTER_INTERFACE_ATTR_MTU,
-      mlnx_rif_attrib_set, (void*)SAI_ROUTER_INTERFACE_ATTR_MTU }
+      mlnx_rif_attrib_set, (void*)SAI_ROUTER_INTERFACE_ATTR_MTU },
+    { SAI_ROUTER_INTERFACE_ATTR_NEIGHBOR_MISS_PACKET_ACTION,
+      { false, false, false, false },
+      { true, false, true, true },
+      NULL, NULL,
+      NULL, NULL }
 };
-static sx_verbosity_level_t LOG_VAR_NAME(__MODULE__) = SX_VERBOSITY_LEVEL_NOTICE;
-static void rif_key_to_str(_In_ sai_router_interface_id_t rif_id, _Out_ char *key_str)
+static void rif_key_to_str(_In_ sai_object_id_t rif_id, _Out_ char *key_str)
 {
-    snprintf(key_str, MAX_KEY_STR_LEN, "rif %u", rif_id);
+    uint32_t rifid;
+
+    if (SAI_STATUS_SUCCESS != mlnx_object_to_type(rif_id, SAI_OBJECT_TYPE_ROUTER_INTERFACE, &rifid, NULL)) {
+        snprintf(key_str, MAX_KEY_STR_LEN, "invalid rif");
+    } else {
+        snprintf(key_str, MAX_KEY_STR_LEN, "rif %u", rifid);
+    }
 }
 
 /*
@@ -122,16 +135,16 @@ static void rif_key_to_str(_In_ sai_router_interface_id_t rif_id, _Out_ char *ke
  *    SAI_STATUS_SUCCESS on success
  *    Failure status code on error
  */
-sai_status_t mlnx_create_router_interface(_Out_ sai_router_interface_id_t* rif_id,
-                                          _In_ uint32_t                    attr_count,
-                                          _In_ sai_attribute_t            *attr_list)
+sai_status_t mlnx_create_router_interface(_Out_ sai_object_id_t      *rif_id,
+                                          _In_ uint32_t               attr_count,
+                                          _In_ const sai_attribute_t *attr_list)
 {
     sx_router_interface_param_t  intf_params;
     sx_interface_attributes_t    intf_attribs;
     sai_status_t                 status;
     const sai_attribute_value_t *type, *vrid, *port, *vlan, *mtu, *mac, *adminv4, *adminv6;
     uint32_t                     type_index, vrid_index, port_index, vlan_index, mtu_index, mac_index, adminv4_index,
-                                 adminv6_index;
+                                 adminv6_index, vrid_data, port_data;
     sx_router_interface_t       sdk_rif_id = 0;
     sx_router_interface_state_t rif_state;
     char                        list_str[MAX_LIST_VALUE_STR_LEN];
@@ -146,7 +159,7 @@ sai_status_t mlnx_create_router_interface(_Out_ sai_router_interface_id_t* rif_i
 
     if (SAI_STATUS_SUCCESS !=
         (status =
-             check_attribs_metadata(attr_count, attr_list, rif_attribs, rif_vendor_attribs, SAI_OPERATION_CREATE))) {
+             check_attribs_metadata(attr_count, attr_list, rif_attribs, rif_vendor_attribs, SAI_COMMON_API_CREATE))) {
         SX_LOG_ERR("Failed attribs check\n");
         return status;
     }
@@ -159,17 +172,21 @@ sai_status_t mlnx_create_router_interface(_Out_ sai_router_interface_id_t* rif_i
     memset(&rif_state, 0, sizeof(rif_state));
 
     assert(SAI_STATUS_SUCCESS ==
+           find_attrib_in_list(attr_count, attr_list, SAI_ROUTER_INTERFACE_ATTR_TYPE, &type, &type_index));
+    assert(SAI_STATUS_SUCCESS ==
            find_attrib_in_list(attr_count, attr_list, SAI_ROUTER_INTERFACE_ATTR_VIRTUAL_ROUTER_ID, &vrid,
                                &vrid_index));
-    assert(SAI_STATUS_SUCCESS ==
-           find_attrib_in_list(attr_count, attr_list, SAI_ROUTER_INTERFACE_ATTR_TYPE, &type, &type_index));
+    if (SAI_STATUS_SUCCESS !=
+        (status = mlnx_object_to_type(vrid->oid, SAI_OBJECT_TYPE_VIRTUAL_ROUTER, &vrid_data, NULL))) {
+        return status;
+    }
 
     if (SAI_ROUTER_INTERFACE_TYPE_VLAN == type->s32) {
         if (SAI_STATUS_SUCCESS !=
             (status =
                  find_attrib_in_list(attr_count, attr_list, SAI_ROUTER_INTERFACE_ATTR_VLAN_ID, &vlan, &vlan_index))) {
             SX_LOG_ERR("Missing mandatory attribute vlan id on create\n");
-            return SAI_MANDATORY_ATTRIBUTE_MISSING;
+            return SAI_STATUS_MANDATORY_ATTRIBUTE_MISSING;
         }
         if (SAI_STATUS_ITEM_NOT_FOUND !=
             (status =
@@ -178,7 +195,7 @@ sai_status_t mlnx_create_router_interface(_Out_ sai_router_interface_id_t* rif_i
             return SAI_STATUS_INVALID_ATTRIBUTE_0 + port_index;
         }
 
-        intf_params.type = SX_L2_INTERFACE_TYPE_VLAN;
+        intf_params.type          = SX_L2_INTERFACE_TYPE_VLAN;
         intf_params.ifc.vlan.swid = DEFAULT_ETH_SWID;
         intf_params.ifc.vlan.vlan = vlan->u16;
     } else if (SAI_ROUTER_INTERFACE_TYPE_PORT == type->s32) {
@@ -186,7 +203,7 @@ sai_status_t mlnx_create_router_interface(_Out_ sai_router_interface_id_t* rif_i
             (status =
                  find_attrib_in_list(attr_count, attr_list, SAI_ROUTER_INTERFACE_ATTR_PORT_ID, &port, &port_index))) {
             SX_LOG_ERR("Missing mandatory attribute port id on create\n");
-            return SAI_MANDATORY_ATTRIBUTE_MISSING;
+            return SAI_STATUS_MANDATORY_ATTRIBUTE_MISSING;
         }
         if (SAI_STATUS_ITEM_NOT_FOUND !=
             (status =
@@ -195,15 +212,24 @@ sai_status_t mlnx_create_router_interface(_Out_ sai_router_interface_id_t* rif_i
             return SAI_STATUS_INVALID_ATTRIBUTE_0 + vlan_index;
         }
 
-        intf_params.type = SX_L2_INTERFACE_TYPE_PORT_VLAN;
-        intf_params.ifc.port_vlan.port = port->u32;
-        intf_params.ifc.port_vlan.vlan = 0;
-
-        if (SX_STATUS_SUCCESS !=
-            (status = sx_api_port_swid_bind_set(gh_sdk, port->u32, SX_SWID_ID_DISABLED))) {
-            SX_LOG_ERR("Failed to unbind router port - %s.\n", SX_STATUS_MSG(status));
-            return sdk_to_sai(status);
+        if (SAI_OBJECT_TYPE_PORT == sai_object_type_query(port->oid)) {
+            if (SAI_STATUS_SUCCESS !=
+                (status = mlnx_object_to_type(port->oid, SAI_OBJECT_TYPE_PORT, &port_data, NULL))) {
+                return status;
+            }
+        } else if (SAI_OBJECT_TYPE_LAG == sai_object_type_query(port->oid)) {
+            if (SAI_STATUS_SUCCESS !=
+                (status = mlnx_object_to_type(port->oid, SAI_OBJECT_TYPE_LAG, &port_data, NULL))) {
+                return status;
+            }
+        } else {
+            SX_LOG_ERR("Invalid router interface port ID type %s\n", SAI_TYPE_STR(sai_object_type_query(port->oid)));
+            return SAI_STATUS_INVALID_ATTR_VALUE_0 + port_index;
         }
+
+        intf_params.type               = SX_L2_INTERFACE_TYPE_PORT_VLAN;
+        intf_params.ifc.port_vlan.port = port_data;
+        intf_params.ifc.port_vlan.vlan = 0;
     } else {
         SX_LOG_ERR("Invalid router interface type %d\n", type->s32);
         return SAI_STATUS_INVALID_ATTR_VALUE_0 + type_index;
@@ -232,12 +258,13 @@ sai_status_t mlnx_create_router_interface(_Out_ sai_router_interface_id_t* rif_i
     }
 
     intf_attribs.multicast_ttl_threshold = DEFAULT_MULTICAST_TTL_THRESHOLD;
-    intf_attribs.qos_mode = SX_ROUTER_QOS_MODE_PRIO_FROM_DSCP;
+    /* Work according to global DSCP<->Prio (TC in SAI terms), SAI_SWITCH_ATTR_QOS_DSCP_TO_TC_MAP */
+    intf_attribs.qos_mode = SX_ROUTER_QOS_MODE_NOP;
 
     if (SX_STATUS_SUCCESS !=
         (status =
-             sx_api_router_interface_set(gh_sdk, SX_ACCESS_CMD_ADD, vrid->u32, &intf_params, &intf_attribs,
-                                         &sdk_rif_id))) {
+             sx_api_router_interface_set(gh_sdk, SX_ACCESS_CMD_ADD, (sx_router_id_t)vrid_data,
+                                         &intf_params, &intf_attribs, &sdk_rif_id))) {
         SX_LOG_ERR("Failed to set router interface - %s.\n", SX_STATUS_MSG(status));
         return sdk_to_sai(status);
     }
@@ -253,12 +280,11 @@ sai_status_t mlnx_create_router_interface(_Out_ sai_router_interface_id_t* rif_i
 
     if (SAI_STATUS_SUCCESS ==
         (status =
-             find_attrib_in_list(attr_count, attr_list, SAI_ROUTER_INTERFACE_ATTR_ADMIN_V4_STATE, &adminv6,
+             find_attrib_in_list(attr_count, attr_list, SAI_ROUTER_INTERFACE_ATTR_ADMIN_V6_STATE, &adminv6,
                                  &adminv6_index))) {
         rif_state.ipv6_enable = adminv6->booldata;
     } else {
-        /* TODO : by default ipv6 should be true. open in the future */
-        rif_state.ipv6_enable = false;
+        rif_state.ipv6_enable = true;
     }
 
     if (SX_STATUS_SUCCESS != (status = sx_api_router_interface_state_set(gh_sdk, sdk_rif_id, &rif_state))) {
@@ -266,7 +292,10 @@ sai_status_t mlnx_create_router_interface(_Out_ sai_router_interface_id_t* rif_i
         return sdk_to_sai(status);
     }
 
-    *rif_id = sdk_rif_id;
+    if (SAI_STATUS_SUCCESS !=
+        (status = mlnx_create_object(SAI_OBJECT_TYPE_ROUTER_INTERFACE, sdk_rif_id, NULL, rif_id))) {
+        return status;
+    }
     rif_key_to_str(*rif_id, key_str);
     SX_LOG_NTC("Created rif %s\n", key_str);
 
@@ -285,19 +314,25 @@ sai_status_t mlnx_create_router_interface(_Out_ sai_router_interface_id_t* rif_i
  *    SAI_STATUS_SUCCESS on success
  *    Failure status code on error
  */
-sai_status_t mlnx_remove_router_interface(_In_ sai_router_interface_id_t rif_id)
+sai_status_t mlnx_remove_router_interface(_In_ sai_object_id_t rif_id)
 {
     sx_router_id_t              vrid;
     sx_router_interface_param_t intf_params;
     sx_interface_attributes_t   intf_attribs;
     sx_status_t                 status;
-    sx_router_interface_t       sdk_rif_id = rif_id;
+    sx_router_interface_t       sdk_rif_id;
+    uint32_t                    data;
     char                        key_str[MAX_KEY_STR_LEN];
 
     SX_LOG_ENTER();
 
     rif_key_to_str(rif_id, key_str);
     SX_LOG_NTC("Remove rif %s\n", key_str);
+
+    if (SAI_STATUS_SUCCESS != (status = mlnx_object_to_type(rif_id, SAI_OBJECT_TYPE_ROUTER_INTERFACE, &data, NULL))) {
+        return status;
+    }
+    sdk_rif_id = (sx_router_interface_t)data;
 
     if (SX_STATUS_SUCCESS !=
         (status = sx_api_router_interface_get(gh_sdk, sdk_rif_id, &vrid, &intf_params, &intf_attribs))) {
@@ -313,14 +348,6 @@ sai_status_t mlnx_remove_router_interface(_In_ sai_router_interface_id_t rif_id)
         return sdk_to_sai(status);
     }
 
-    if (SX_L2_INTERFACE_TYPE_PORT_VLAN == intf_params.type) {
-        if (SX_STATUS_SUCCESS !=
-            (status = sx_api_port_swid_bind_set(gh_sdk, intf_params.ifc.port_vlan.port, DEFAULT_ETH_SWID))) {
-            SX_LOG_ERR("Failed to bind router port - %s.\n", SX_STATUS_MSG(status));
-            return sdk_to_sai(status);
-        }
-    }
-
     SX_LOG_EXIT();
     return SAI_STATUS_SUCCESS;
 }
@@ -330,17 +357,16 @@ sai_status_t mlnx_remove_router_interface(_In_ sai_router_interface_id_t rif_id)
  *    Set router interface attribute
  *
  * Arguments:
- *    [in] sai_router_interface_id_t - router_interface_id
+ *    [in] rif_id - router interface id
  *    [in] attr - attribute
  *
  * Return Values:
  *    SAI_STATUS_SUCCESS on success
  *    Failure status code on error
  */
-sai_status_t mlnx_set_router_interface_attribute(_In_ sai_router_interface_id_t rif_id,
-                                                 _In_ const sai_attribute_t    *attr)
+sai_status_t mlnx_set_router_interface_attribute(_In_ sai_object_id_t rif_id, _In_ const sai_attribute_t *attr)
 {
-    const sai_object_key_t key = { .rif_id = rif_id };
+    const sai_object_key_t key = { .object_id = rif_id };
     char                   key_str[MAX_KEY_STR_LEN];
 
     SX_LOG_ENTER();
@@ -354,7 +380,7 @@ sai_status_t mlnx_set_router_interface_attribute(_In_ sai_router_interface_id_t 
  *    Get router interface attribute
  *
  * Arguments:
- *    [in] sai_router_interface_id_t - router_interface_id
+ *    [in] rif_id - router interface id
  *    [in] attr_count - number of attributes
  *    [inout] attr_list - array of attributes
  *
@@ -362,11 +388,11 @@ sai_status_t mlnx_set_router_interface_attribute(_In_ sai_router_interface_id_t 
  *    SAI_STATUS_SUCCESS on success
  *    Failure status code on error
  */
-sai_status_t mlnx_get_router_interface_attribute(_In_ sai_router_interface_id_t rif_id,
-                                                 _In_ uint32_t                  attr_count,
-                                                 _Inout_ sai_attribute_t       *attr_list)
+sai_status_t mlnx_get_router_interface_attribute(_In_ sai_object_id_t     rif_id,
+                                                 _In_ uint32_t            attr_count,
+                                                 _Inout_ sai_attribute_t *attr_list)
 {
-    const sai_object_key_t key = { .rif_id = rif_id };
+    const sai_object_key_t key = { .object_id = rif_id };
     char                   key_str[MAX_KEY_STR_LEN];
 
     SX_LOG_ENTER();
@@ -383,12 +409,19 @@ sai_status_t mlnx_rif_attrib_set(_In_ const sai_object_key_t *key, _In_ const sa
     sx_router_interface_param_t intf_params;
     sx_interface_attributes_t   intf_attribs;
     sx_status_t                 status;
-    sx_router_interface_t       rif_id = key->rif_id;
+    sx_router_interface_t       rif_id;
+    uint32_t                    data;
 
     SX_LOG_ENTER();
 
-    assert((SAI_ROUTER_INTERFACE_ATTR_MTU == (int64_t)arg) ||
-           (SAI_ROUTER_INTERFACE_ATTR_SRC_MAC_ADDRESS == (int64_t)arg));
+    assert((SAI_ROUTER_INTERFACE_ATTR_MTU == (long)arg) ||
+           (SAI_ROUTER_INTERFACE_ATTR_SRC_MAC_ADDRESS == (long)arg));
+
+    if (SAI_STATUS_SUCCESS !=
+        (status = mlnx_object_to_type(key->object_id, SAI_OBJECT_TYPE_ROUTER_INTERFACE, &data, NULL))) {
+        return status;
+    }
+    rif_id = (sx_router_interface_t)data;
 
     if (SX_STATUS_SUCCESS !=
         (status = sx_api_router_interface_get(gh_sdk, rif_id, &vrid, &intf_params, &intf_attribs))) {
@@ -396,9 +429,10 @@ sai_status_t mlnx_rif_attrib_set(_In_ const sai_object_key_t *key, _In_ const sa
         return sdk_to_sai(status);
     }
 
-    if (SAI_ROUTER_INTERFACE_ATTR_MTU == (int64_t)arg) {
+    if (SAI_ROUTER_INTERFACE_ATTR_MTU == (long)arg) {
         intf_attribs.mtu = (uint16_t)value->u32;
-    } else if (SAI_ROUTER_INTERFACE_ATTR_SRC_MAC_ADDRESS == (int64_t)arg) {
+    } else if (SAI_ROUTER_INTERFACE_ATTR_SRC_MAC_ADDRESS == (long)arg) {
+        /* Note, RIF admin has to be down when editing MAC */
         memcpy(&intf_attribs.mac_addr, value->mac, sizeof(intf_attribs.mac_addr));
     }
 
@@ -417,20 +451,27 @@ sai_status_t mlnx_rif_attrib_set(_In_ const sai_object_key_t *key, _In_ const sa
 sai_status_t mlnx_rif_admin_set(_In_ const sai_object_key_t *key, _In_ const sai_attribute_value_t *value, void *arg)
 {
     sx_status_t                 status;
-    const sx_router_interface_t rif_id = key->rif_id;
+    sx_router_interface_t       rif_id;
     sx_router_interface_state_t rif_state;
+    uint32_t                    data;
 
     SX_LOG_ENTER();
 
-    assert((SAI_ROUTER_INTERFACE_ATTR_ADMIN_V4_STATE == (int64_t)arg) ||
-           (SAI_ROUTER_INTERFACE_ATTR_ADMIN_V6_STATE == (int64_t)arg));
+    assert((SAI_ROUTER_INTERFACE_ATTR_ADMIN_V4_STATE == (long)arg) ||
+           (SAI_ROUTER_INTERFACE_ATTR_ADMIN_V6_STATE == (long)arg));
+
+    if (SAI_STATUS_SUCCESS !=
+        (status = mlnx_object_to_type(key->object_id, SAI_OBJECT_TYPE_ROUTER_INTERFACE, &data, NULL))) {
+        return status;
+    }
+    rif_id = (sx_router_interface_t)data;
 
     if (SX_STATUS_SUCCESS != (status = sx_api_router_interface_state_get(gh_sdk, rif_id, &rif_state))) {
         SX_LOG_ERR("Failed to get router interface state - %s.\n", SX_STATUS_MSG(status));
         return sdk_to_sai(status);
     }
 
-    if (SAI_ROUTER_INTERFACE_ATTR_ADMIN_V4_STATE == (int64_t)arg) {
+    if (SAI_ROUTER_INTERFACE_ATTR_ADMIN_V4_STATE == (long)arg) {
         rif_state.ipv4_enable = value->booldata;
     } else {
         rif_state.ipv6_enable = value->booldata;
@@ -445,9 +486,9 @@ sai_status_t mlnx_rif_admin_set(_In_ const sai_object_key_t *key, _In_ const sai
     return SAI_STATUS_SUCCESS;
 }
 
-/* Virtual router id [sai_virtual_router_id_t] */
+/* Virtual router id [sai_object_id_t] */
 /* Type [sai_router_interface_type_t] */
-/* Assosiated Port [sai_port_id_t] */
+/* Assosiated Port or Lag object id [sai_object_id_t] */
 /* Assosiated Vlan [sai_vlan_id_t] */
 /* MAC Address [sai_mac_t] */
 /* MTU [uint32_t] */
@@ -461,15 +502,22 @@ sai_status_t mlnx_rif_attrib_get(_In_ const sai_object_key_t   *key,
     sx_router_interface_param_t intf_params;
     sx_interface_attributes_t   intf_attribs;
     sx_status_t                 status;
-    const sx_router_interface_t rif_id = key->rif_id;
+    sx_router_interface_t       rif_id;
+    uint32_t                    data;
 
     SX_LOG_ENTER();
 
-    assert((SAI_ROUTER_INTERFACE_ATTR_VIRTUAL_ROUTER_ID == (int64_t)arg) ||
-           (SAI_ROUTER_INTERFACE_ATTR_TYPE == (int64_t)arg) ||
-           (SAI_ROUTER_INTERFACE_ATTR_PORT_ID == (int64_t)arg) || (SAI_ROUTER_INTERFACE_ATTR_VLAN_ID == (int64_t)arg) ||
-           (SAI_ROUTER_INTERFACE_ATTR_SRC_MAC_ADDRESS == (int64_t)arg) ||
-           (SAI_ROUTER_INTERFACE_ATTR_MTU == (int64_t)arg));
+    assert((SAI_ROUTER_INTERFACE_ATTR_VIRTUAL_ROUTER_ID == (long)arg) ||
+           (SAI_ROUTER_INTERFACE_ATTR_TYPE == (long)arg) ||
+           (SAI_ROUTER_INTERFACE_ATTR_PORT_ID == (long)arg) || (SAI_ROUTER_INTERFACE_ATTR_VLAN_ID == (long)arg) ||
+           (SAI_ROUTER_INTERFACE_ATTR_SRC_MAC_ADDRESS == (long)arg) ||
+           (SAI_ROUTER_INTERFACE_ATTR_MTU == (long)arg));
+
+    if (SAI_STATUS_SUCCESS !=
+        (status = mlnx_object_to_type(key->object_id, SAI_OBJECT_TYPE_ROUTER_INTERFACE, &data, NULL))) {
+        return status;
+    }
+    rif_id = (sx_router_interface_t)data;
 
     if (SX_STATUS_SUCCESS !=
         (status = sx_api_router_interface_get(gh_sdk, rif_id, &vrid, &intf_params, &intf_attribs))) {
@@ -477,13 +525,26 @@ sai_status_t mlnx_rif_attrib_get(_In_ const sai_object_key_t   *key,
         return sdk_to_sai(status);
     }
 
-    switch ((int64_t)arg) {
+    switch ((long)arg) {
     case SAI_ROUTER_INTERFACE_ATTR_PORT_ID:
         if (SX_L2_INTERFACE_TYPE_PORT_VLAN != intf_params.type) {
             SX_LOG_ERR("Can't get port id from interface whose type isn't port\n");
             return SAI_STATUS_INVALID_ATTRIBUTE_0 + attr_index;
         }
-        value->u32 = intf_params.ifc.port_vlan.port;
+        if (SX_PORT_TYPE_LAG == SX_PORT_TYPE_ID_GET(intf_params.ifc.port_vlan.port)) {
+            if (SAI_STATUS_SUCCESS != (status = mlnx_create_object(SAI_OBJECT_TYPE_LAG,
+                                                                   intf_params.ifc.port_vlan.port, NULL,
+                                                                   &value->oid))) {
+                return status;
+            }
+        } else {
+            if (SAI_STATUS_SUCCESS != (status = mlnx_create_object(SAI_OBJECT_TYPE_PORT,
+                                                                   intf_params.ifc.port_vlan.port, NULL,
+                                                                   &value->oid))) {
+                return status;
+            }
+        }
+
         break;
 
     case SAI_ROUTER_INTERFACE_ATTR_VLAN_ID:
@@ -514,7 +575,10 @@ sai_status_t mlnx_rif_attrib_get(_In_ const sai_object_key_t   *key,
         break;
 
     case SAI_ROUTER_INTERFACE_ATTR_VIRTUAL_ROUTER_ID:
-        value->u32 = vrid;
+        if (SAI_STATUS_SUCCESS !=
+            (status = mlnx_create_object(SAI_OBJECT_TYPE_VIRTUAL_ROUTER, vrid, NULL, &value->oid))) {
+            return status;
+        }
         break;
     }
 
@@ -530,25 +594,39 @@ sai_status_t mlnx_rif_admin_get(_In_ const sai_object_key_t   *key,
                                 void                          *arg)
 {
     sai_status_t                status;
-    const sx_router_interface_t rif_id = key->rif_id;
+    sx_router_interface_t       rif_id;
     sx_router_interface_state_t rif_state;
+    uint32_t                    data;
 
     SX_LOG_ENTER();
 
-    assert((SAI_ROUTER_INTERFACE_ATTR_ADMIN_V4_STATE == (int64_t)arg) ||
-           (SAI_ROUTER_INTERFACE_ATTR_ADMIN_V6_STATE == (int64_t)arg));
+    assert((SAI_ROUTER_INTERFACE_ATTR_ADMIN_V4_STATE == (long)arg) ||
+           (SAI_ROUTER_INTERFACE_ATTR_ADMIN_V6_STATE == (long)arg));
+
+    if (SAI_STATUS_SUCCESS !=
+        (status = mlnx_object_to_type(key->object_id, SAI_OBJECT_TYPE_ROUTER_INTERFACE, &data, NULL))) {
+        return status;
+    }
+    rif_id = (sx_router_interface_t)data;
 
     if (SX_STATUS_SUCCESS != (status = sx_api_router_interface_state_get(gh_sdk, rif_id, &rif_state))) {
         SX_LOG_ERR("Failed to get router interface state - %s.\n", SX_STATUS_MSG(status));
         return sdk_to_sai(status);
     }
-    if (SAI_ROUTER_INTERFACE_ATTR_ADMIN_V4_STATE == (int64_t)arg) {
+    if (SAI_ROUTER_INTERFACE_ATTR_ADMIN_V4_STATE == (long)arg) {
         value->booldata = rif_state.ipv4_enable;
     } else {
         value->booldata = rif_state.ipv6_enable;
     }
 
     SX_LOG_EXIT();
+    return SAI_STATUS_SUCCESS;
+}
+
+sai_status_t mlnx_rif_log_set(sx_verbosity_level_t level)
+{
+    LOG_VAR_NAME(__MODULE__) = level;
+
     return SAI_STATUS_SUCCESS;
 }
 

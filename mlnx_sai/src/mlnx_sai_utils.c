@@ -29,7 +29,11 @@
 #undef  __MODULE__
 #define __MODULE__ SAI_UTILS
 
-static sx_verbosity_level_t LOG_VAR_NAME(__MODULE__) = SX_VERBOSITY_LEVEL_NOTICE;
+static sai_status_t sai_qos_map_to_str_oid(_In_ sai_object_id_t       qos_map_id,
+                                           _In_ sai_attribute_value_t value,
+                                           _In_ uint32_t              max_length,
+                                           _Out_ char                *value_str);
+static sx_verbosity_level_t LOG_VAR_NAME(__MODULE__) = SX_VERBOSITY_LEVEL_WARNING;
 
 sai_status_t sdk_to_sai(sx_status_t status)
 {
@@ -128,7 +132,7 @@ sai_status_t sdk_to_sai(sx_status_t status)
         return SAI_STATUS_FAILURE;
 
     case SX_STATUS_RESOURCE_IN_USE:
-        return SAI_STATUS_FAILURE;
+        return SAI_STATUS_OBJECT_IN_USE;
 
     case SX_STATUS_EVENT_TRAP_ALREADY_ASSOCIATED:
         return SAI_STATUS_FAILURE;
@@ -189,7 +193,7 @@ sai_status_t check_attribs_metadata(_In_ uint32_t                            att
                                     _In_ const sai_attribute_t              *attr_list,
                                     _In_ const sai_attribute_entry_t        *functionality_attr,
                                     _In_ const sai_vendor_attribute_entry_t *functionality_vendor_attr,
-                                    _In_ sai_operation_t                     oper)
+                                    _In_ sai_common_api_t                    oper)
 {
     uint32_t functionality_attr_count, ii, index;
     bool    *attr_present;
@@ -211,17 +215,17 @@ sai_status_t check_attribs_metadata(_In_ uint32_t                            att
         return SAI_STATUS_INVALID_PARAMETER;
     }
 
-    if (SAI_OPERATION_MAX <= oper) {
+    if (SAI_COMMON_API_MAX <= oper) {
         SX_LOG_ERR("Invalid operation %d\n", oper);
         return SAI_STATUS_INVALID_PARAMETER;
     }
 
-    if (SAI_OPERATION_REMOVE == oper) {
+    if (SAI_COMMON_API_REMOVE == oper) {
         /* No attributes expected for remove at this point */
         return SAI_STATUS_NOT_IMPLEMENTED;
     }
 
-    if (SAI_OPERATION_SET == oper) {
+    if (SAI_COMMON_API_SET == oper) {
         if (1 != attr_count) {
             SX_LOG_ERR("Set operation supports only single attribute\n");
             return SAI_STATUS_INVALID_PARAMETER;
@@ -253,16 +257,23 @@ sai_status_t check_attribs_metadata(_In_ uint32_t                            att
             return SAI_STATUS_UNKNOWN_ATTRIBUTE_0 + ii;
         }
 
-        if ((SAI_OPERATION_CREATE == oper) &&
+        if ((SAI_COMMON_API_CREATE == oper) &&
             (!(functionality_attr[index].valid_for_create))) {
             SX_LOG_ERR("Invalid attribute %s for create\n", functionality_attr[index].attrib_name);
             free(attr_present);
             return SAI_STATUS_INVALID_ATTRIBUTE_0 + ii;
         }
 
-        if ((SAI_OPERATION_SET == oper) &&
+        if ((SAI_COMMON_API_SET == oper) &&
             (!(functionality_attr[index].valid_for_set))) {
             SX_LOG_ERR("Invalid attribute %s for set\n", functionality_attr[index].attrib_name);
+            free(attr_present);
+            return SAI_STATUS_INVALID_ATTRIBUTE_0 + ii;
+        }
+
+        if ((SAI_COMMON_API_GET == oper) &&
+            (!(functionality_attr[index].valid_for_get))) {
+            SX_LOG_ERR("Invalid attribute %s for get\n", functionality_attr[index].attrib_name);
             free(attr_present);
             return SAI_STATUS_INVALID_ATTRIBUTE_0 + ii;
         }
@@ -287,16 +298,65 @@ sai_status_t check_attribs_metadata(_In_ uint32_t                            att
             return SAI_STATUS_INVALID_ATTRIBUTE_0 + ii;
         }
 
+        if (((SAI_ATTR_VAL_TYPE_OBJLIST == functionality_attr[index].type) &&
+             (NULL == attr_list[ii].value.objlist.list)) ||
+            ((SAI_ATTR_VAL_TYPE_U8LIST == functionality_attr[index].type) &&
+             (NULL == attr_list[ii].value.u8list.list)) ||
+            ((SAI_ATTR_VAL_TYPE_S8LIST == functionality_attr[index].type) &&
+             (NULL == attr_list[ii].value.s8list.list)) ||
+            ((SAI_ATTR_VAL_TYPE_U16LIST == functionality_attr[index].type) &&
+             (NULL == attr_list[ii].value.u16list.list)) ||
+            ((SAI_ATTR_VAL_TYPE_S16LIST == functionality_attr[index].type) &&
+             (NULL == attr_list[ii].value.s16list.list)) ||
+            ((SAI_ATTR_VAL_TYPE_U32LIST == functionality_attr[index].type) &&
+             (NULL == attr_list[ii].value.u32list.list)) ||
+            ((SAI_ATTR_VAL_TYPE_S32LIST == functionality_attr[index].type) &&
+             (NULL == attr_list[ii].value.s32list.list)) ||
+            ((SAI_ATTR_VAL_TYPE_VLANPORTLIST == functionality_attr[index].type) &&
+             (NULL == attr_list[ii].value.vlanportlist.list)) ||
+            ((SAI_ATTR_VAL_TYPE_PORTBREAKOUT == functionality_attr[index].type) &&
+             (NULL == attr_list[ii].value.portbreakout.port_list.list)) ||
+            ((SAI_ATTR_VAL_TYPE_VLANLIST == functionality_attr[index].type) &&
+             (NULL == attr_list[ii].value.vlanlist.list)) ||
+            ((SAI_ATTR_VAL_TYPE_ACLFIELD_OBJLIST == functionality_attr[index].type) &&
+             (NULL == attr_list[ii].value.aclfield.data.objlist.list)) ||
+            ((SAI_ATTR_VAL_TYPE_ACLFIELD_U8LIST == functionality_attr[index].type) &&
+             (NULL == attr_list[ii].value.aclfield.data.u8list.list)) ||
+            ((SAI_ATTR_VAL_TYPE_ACLFIELD_U8LIST == functionality_attr[index].type) &&
+             (NULL == attr_list[ii].value.aclfield.mask.u8list.list)) ||
+            ((SAI_ATTR_VAL_TYPE_ACLACTION_OBJLIST == functionality_attr[index].type) &&
+             (NULL == attr_list[ii].value.aclaction.parameter.objlist.list)) ||
+            ((SAI_ATTR_VAL_TYPE_QOSMAP == functionality_attr[index].type) &&
+             (NULL == attr_list[ii].value.qosmap.list))) {
+            SX_LOG_ERR("Null list attribute %s at index %d\n",
+                       functionality_attr[index].attrib_name,
+                       ii);
+            free(attr_present);
+            return SAI_STATUS_INVALID_ATTR_VALUE_0 + ii;
+        }
+
+        if (SAI_ATTR_VAL_TYPE_ACLFIELD_U8LIST == functionality_attr[index].type) {
+            if (attr_list[ii].value.aclfield.data.u8list.count != attr_list[ii].value.aclfield.mask.u8list.count) {
+                SX_LOG_ERR("Mismatch between data list count %u and mask list count %u attribute %s at index %d\n",
+                           attr_list[ii].value.aclfield.data.u8list.count,
+                           attr_list[ii].value.aclfield.mask.u8list.count,
+                           functionality_attr[index].attrib_name,
+                           ii);
+                free(attr_present);
+                return SAI_STATUS_INVALID_ATTR_VALUE_0 + ii;
+            }
+        }
+
         attr_present[index] = true;
     }
 
-    if (SAI_OPERATION_CREATE == oper) {
+    if (SAI_COMMON_API_CREATE == oper) {
         for (ii = 0; ii < functionality_attr_count; ii++) {
             if ((functionality_attr[ii].mandatory_on_create) &&
                 (!attr_present[ii])) {
                 SX_LOG_ERR("Missing mandatory attribute %s on create\n", functionality_attr[ii].attrib_name);
                 free(attr_present);
-                return SAI_MANDATORY_ATTRIBUTE_MISSING;
+                return SAI_STATUS_MANDATORY_ATTRIBUTE_MISSING;
             }
         }
     }
@@ -342,7 +402,11 @@ static sai_status_t set_dispatch_attrib_handler(_In_ const sai_attribute_t      
         return SAI_STATUS_ATTR_NOT_IMPLEMENTED_0;
     }
 
-    sai_value_to_str(attr->value, functionality_attr[index].type, MAX_VALUE_STR_LEN, value_str);
+    if (functionality_attr[index].type == SAI_ATTR_VAL_TYPE_QOSMAP) {
+        sai_qos_map_to_str_oid(key->object_id, attr->value, MAX_VALUE_STR_LEN, value_str);
+    } else {
+        sai_value_to_str(attr->value, functionality_attr[index].type, MAX_VALUE_STR_LEN, value_str);
+    }
     SX_LOG_NTC("Set %s, key:%s, val:%s\n", functionality_attr[index].attrib_name, key_str, value_str);
     err = functionality_vendor_attr[index].setter(key, &(attr->value), functionality_vendor_attr[index].setter_arg);
 
@@ -395,7 +459,11 @@ static sai_status_t get_dispatch_attribs_handler(_In_ uint32_t                  
             SX_LOG_ERR("Failed getting attrib %s\n", functionality_attr[index].attrib_name);
             return status;
         }
-        sai_value_to_str(attr_list[ii].value, functionality_attr[index].type, MAX_VALUE_STR_LEN, value_str);
+        if (functionality_attr[index].type == SAI_ATTR_VAL_TYPE_QOSMAP) {
+            sai_qos_map_to_str_oid(key->object_id, attr_list[ii].value, MAX_VALUE_STR_LEN, value_str);
+        } else {
+            sai_value_to_str(attr_list[ii].value, functionality_attr[index].type, MAX_VALUE_STR_LEN, value_str);
+        }
         SX_LOG_NTC("Got #%u, %s, key:%s, val:%s\n", ii, functionality_attr[index].attrib_name, key_str, value_str);
     }
 
@@ -431,7 +499,7 @@ sai_status_t find_attrib_in_list(_In_ uint32_t                       attr_count,
     for (ii = 0; ii < attr_count; ii++) {
         if (attr_list[ii].id == attrib_id) {
             *attr_value = &(attr_list[ii].value);
-            *index = ii;
+            *index      = ii;
             return SAI_STATUS_SUCCESS;
         }
     }
@@ -451,7 +519,7 @@ sai_status_t sai_set_attribute(_In_ const sai_object_key_t             *key,
     SX_LOG_ENTER();
 
     if (SAI_STATUS_SUCCESS !=
-        (status = check_attribs_metadata(1, attr, functionality_attr, functionality_vendor_attr, SAI_OPERATION_SET))) {
+        (status = check_attribs_metadata(1, attr, functionality_attr, functionality_vendor_attr, SAI_COMMON_API_SET))) {
         SX_LOG_ERR("Failed attribs check, key:%s\n", key_str);
         return status;
     }
@@ -480,7 +548,7 @@ sai_status_t sai_get_attributes(_In_ const sai_object_key_t             *key,
     if (SAI_STATUS_SUCCESS !=
         (status =
              check_attribs_metadata(attr_count, attr_list, functionality_attr, functionality_vendor_attr,
-                                    SAI_OPERATION_GET))) {
+                                    SAI_COMMON_API_GET))) {
         SX_LOG_ERR("Failed attribs check, key:%s\n", key_str);
         return status;
     }
@@ -516,7 +584,7 @@ static sai_status_t sai_ipv6_to_str(_In_ sai_ip6_t value,
                                     _Out_ char    *value_str,
                                     _Out_ int     *chars_written)
 {
-    inet_ntop(AF_INET6, &value, value_str, max_length);
+    inet_ntop(AF_INET6, value, value_str, max_length);
 
     if (NULL != chars_written) {
         *chars_written = (int)strlen(value_str);
@@ -582,20 +650,139 @@ sai_status_t sai_ipprefix_to_str(_In_ sai_ip_prefix_t value, _In_ uint32_t max_l
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t sai_nexthops_to_str(_In_ uint32_t                 next_hop_count,
-                                 _In_ const sai_next_hop_id_t* nexthops,
-                                 _In_ uint32_t                 max_length,
-                                 _Out_ char                   *str)
+sai_status_t mlnx_translate_sai_ip_address_to_sdk(_In_ const sai_ip_address_t *sai_addr, _Out_ sx_ip_addr_t *sdk_addr)
 {
-    uint32_t ii;
-    uint32_t pos = 0;
+    int       ii;
+    uint32_t *from, *to;
+
+    if (SAI_IP_ADDR_FAMILY_IPV4 == sai_addr->addr_family) {
+        /* SDK IPv4 is in host order, while SAI is in network order */
+        sdk_addr->version          = SX_IP_VERSION_IPV4;
+        sdk_addr->addr.ipv4.s_addr = ntohl(sai_addr->addr.ip4);
+    } else if (SAI_IP_ADDR_FAMILY_IPV6 == sai_addr->addr_family) {
+        /* SDK IPv6 is 4*uint32. Each uint32 is in host order. Between uint32s there is network byte order */
+        sdk_addr->version = SX_IP_VERSION_IPV6;
+        from              = (uint32_t*)sai_addr->addr.ip6;
+        to                = (uint32_t*)sdk_addr->addr.ipv6.s6_addr32;
+
+        for (ii = 0; ii < 4; ii++) {
+            to[ii] = ntohl(from[ii]);
+        }
+    } else {
+        SX_LOG_ERR("Invalid addr family %d\n", sai_addr->addr_family);
+        return SAI_STATUS_INVALID_PARAMETER;
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
+sai_status_t mlnx_translate_sdk_ip_address_to_sai(_In_ const sx_ip_addr_t *sdk_addr, _Out_ sai_ip_address_t *sai_addr)
+{
+    int       ii;
+    uint32_t *from, *to;
+
+    if (SX_IP_VERSION_IPV4 == sdk_addr->version) {
+        sai_addr->addr_family = SAI_IP_ADDR_FAMILY_IPV4;
+        sai_addr->addr.ip4    = htonl(sdk_addr->addr.ipv4.s_addr);
+    } else if (SX_IP_VERSION_IPV6 == sdk_addr->version) {
+        sai_addr->addr_family = SAI_IP_ADDR_FAMILY_IPV6;
+        from                  = (uint32_t*)sdk_addr->addr.ipv6.s6_addr32;
+        to                    = (uint32_t*)sai_addr->addr.ip6;
+
+        for (ii = 0; ii < 4; ii++) {
+            to[ii] = htonl(from[ii]);
+        }
+    } else {
+        SX_LOG_ERR("Invalid addr family %d\n", sdk_addr->version);
+        return SAI_STATUS_INVALID_PARAMETER;
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
+sai_status_t mlnx_translate_sai_ip_prefix_to_sdk(_In_ const sai_ip_prefix_t *sai_prefix,
+                                                 _Out_ sx_ip_prefix_t       *sdk_prefix)
+{
+    int       ii;
+    uint32_t *from_addr, *to_addr, *from_mask, *to_mask;
+
+    if (SAI_IP_ADDR_FAMILY_IPV4 == sai_prefix->addr_family) {
+        sdk_prefix->version                 = SX_IP_VERSION_IPV4;
+        sdk_prefix->prefix.ipv4.addr.s_addr = ntohl(sai_prefix->addr.ip4);
+        sdk_prefix->prefix.ipv4.mask.s_addr = ntohl(sai_prefix->mask.ip4);
+    } else if (SAI_IP_ADDR_FAMILY_IPV6 == sai_prefix->addr_family) {
+        sdk_prefix->version = SX_IP_VERSION_IPV6;
+
+        from_addr = (uint32_t*)sai_prefix->addr.ip6;
+        to_addr   = (uint32_t*)sdk_prefix->prefix.ipv6.addr.s6_addr32;
+
+        from_mask = (uint32_t*)sai_prefix->mask.ip6;
+        to_mask   = (uint32_t*)sdk_prefix->prefix.ipv6.mask.s6_addr32;
+
+        for (ii = 0; ii < 4; ii++) {
+            to_addr[ii] = htonl(from_addr[ii]);
+            to_mask[ii] = htonl(from_mask[ii]);
+        }
+    } else {
+        SX_LOG_ERR("Invalid addr family %d\n", sai_prefix->addr_family);
+        return SAI_STATUS_INVALID_PARAMETER;
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
+sai_status_t mlnx_translate_sdk_ip_prefix_to_sai(_In_ const sx_ip_prefix_t *sdk_prefix,
+                                                 _Out_ sai_ip_prefix_t     *sai_prefix)
+{
+    int       ii;
+    uint32_t *from_addr, *to_addr, *from_mask, *to_mask;
+
+    if (SX_IP_VERSION_IPV4 == sdk_prefix->version) {
+        sai_prefix->addr_family = SAI_IP_ADDR_FAMILY_IPV4;
+        sai_prefix->addr.ip4    = htonl(sdk_prefix->prefix.ipv4.addr.s_addr);
+        sai_prefix->mask.ip4    = htonl(sdk_prefix->prefix.ipv4.mask.s_addr);
+    } else if (SX_IP_VERSION_IPV6 == sdk_prefix->version) {
+        sai_prefix->addr_family = SAI_IP_ADDR_FAMILY_IPV6;
+        from_addr               = (uint32_t*)sdk_prefix->prefix.ipv6.addr.s6_addr32;
+        to_addr                 = (uint32_t*)sai_prefix->addr.ip6;
+
+        from_mask = (uint32_t*)sdk_prefix->prefix.ipv6.mask.s6_addr32;
+        to_mask   = (uint32_t*)sai_prefix->mask.ip6;
+
+        for (ii = 0; ii < 4; ii++) {
+            to_addr[ii] = htonl(from_addr[ii]);
+            to_mask[ii] = htonl(from_mask[ii]);
+        }
+    } else {
+        SX_LOG_ERR("Invalid addr family %d\n", sdk_prefix->version);
+        return SAI_STATUS_INVALID_PARAMETER;
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
+sai_status_t sai_nexthops_to_str(_In_ uint32_t               next_hop_count,
+                                 _In_ const sai_object_id_t* nexthops,
+                                 _In_ uint32_t               max_length,
+                                 _Out_ char                 *str)
+{
+    uint32_t     ii;
+    uint32_t     pos = 0;
+    uint32_t     nexthop_id;
+    sai_status_t status;
 
     pos += snprintf(str, max_length, "%u hops : [", next_hop_count);
     if (pos > max_length) {
         return SAI_STATUS_SUCCESS;
     }
     for (ii = 0; ii < next_hop_count; ii++) {
-        pos += snprintf(str + pos, max_length - pos, " %u", nexthops[ii]);
+        if (SAI_STATUS_SUCCESS !=
+            (status = mlnx_object_to_type(nexthops[ii], SAI_OBJECT_TYPE_NEXT_HOP, &nexthop_id, NULL))) {
+            snprintf(str + pos, max_length - pos, " invalid next hop]");
+            return status;
+        }
+
+        pos += snprintf(str + pos, max_length - pos, " %u", nexthop_id);
         if (pos > max_length) {
             return SAI_STATUS_SUCCESS;
         }
@@ -605,13 +792,154 @@ sai_status_t sai_nexthops_to_str(_In_ uint32_t                 next_hop_count,
     return SAI_STATUS_SUCCESS;
 }
 
+sai_status_t sai_qos_map_to_str(_In_ const sai_qos_map_list_t *qosmap,
+                                _In_ sai_qos_map_type_t        type,
+                                _In_ uint32_t                  max_length,
+                                _Out_ char                    *value_str)
+{
+    sai_qos_map_t *list;
+    uint32_t       count;
+    sai_status_t   status = SAI_STATUS_SUCCESS;
+    uint32_t       pos    = 0;
+    uint32_t       ii;
+
+    if (NULL == value_str) {
+        SX_LOG_ERR("NULL value str");
+        return SAI_STATUS_INVALID_PARAMETER;
+    }
+    *value_str = '\0';
+
+    if (!qosmap) {
+        return SAI_STATUS_SUCCESS;
+    }
+
+    list  = qosmap->list;
+    count = qosmap->count;
+
+    if (!count || !list) {
+        return SAI_STATUS_SUCCESS;
+    }
+
+    pos += snprintf(value_str + pos, max_length - pos, "%u : [", count);
+    if (pos > max_length) {
+        return SAI_STATUS_SUCCESS;
+    }
+
+    for (ii = 0; ii < count; ii++) {
+        switch (type) {
+        case SAI_QOS_MAP_DOT1P_TO_TC:
+            pos += snprintf(value_str + pos, max_length - pos, "%u->%u",
+                            list[ii].key.dot1p, list[ii].value.tc);
+            break;
+
+        case SAI_QOS_MAP_DOT1P_TO_COLOR:
+            pos += snprintf(value_str + pos, max_length - pos, "%u->%u",
+                            list[ii].key.dot1p, list[ii].value.color);
+            break;
+
+        case SAI_QOS_MAP_DSCP_TO_TC:
+            pos += snprintf(value_str + pos, max_length - pos, "%u->%u",
+                            list[ii].key.dscp, list[ii].value.tc);
+            break;
+
+        case SAI_QOS_MAP_DSCP_TO_COLOR:
+            pos += snprintf(value_str + pos, max_length - pos, "%u->%u",
+                            list[ii].key.dscp, list[ii].value.color);
+            break;
+
+        case SAI_QOS_MAP_TC_TO_QUEUE:
+            pos += snprintf(value_str + pos, max_length - pos, "%u->%u",
+                            list[ii].key.tc, list[ii].value.queue_index);
+            break;
+
+        case SAI_QOS_MAP_TC_AND_COLOR_TO_DSCP:
+            pos += snprintf(value_str + pos, max_length - pos, "(%u,%u)->%u",
+                            list[ii].key.tc, list[ii].key.color,
+                            list[ii].value.dscp);
+            break;
+
+        case SAI_QOS_MAP_TC_AND_COLOR_TO_DOT1P:
+            pos += snprintf(value_str + pos, max_length - pos, "(%u,%u)->%u",
+                            list[ii].key.tc, list[ii].key.color,
+                            list[ii].value.dot1p);
+            break;
+
+        case SAI_QOS_MAP_TC_TO_PRIORITY_GROUP:
+            pos += snprintf(value_str + pos, max_length - pos, "%u->%u",
+                            list[ii].key.tc, list[ii].value.pg);
+            break;
+
+        case SAI_QOS_MAP_PFC_PRIORITY_TO_PRIORITY_GROUP:
+            pos += snprintf(value_str + pos, max_length - pos, "%u->%u",
+                            list[ii].key.pg, list[ii].value.prio);
+            break;
+
+        case SAI_QOS_MAP_PFC_PRIORITY_TO_QUEUE:
+            pos += snprintf(value_str + pos, max_length - pos, "%u->%u",
+                            list[ii].key.prio, list[ii].value.queue_index);
+            break;
+
+        default:
+            status = SAI_STATUS_NOT_SUPPORTED;
+            break;
+        }
+
+        if (pos > max_length) {
+            return SAI_STATUS_SUCCESS;
+        }
+        if (ii < count - 1) {
+            pos += snprintf(value_str + pos, max_length - pos, ",");
+        }
+        if (pos > max_length) {
+            return SAI_STATUS_SUCCESS;
+        }
+    }
+
+    snprintf(value_str + pos, max_length - pos, "]");
+    return status;
+}
+
+static sai_status_t sai_qos_map_to_str_oid(_In_ sai_object_id_t       qos_map_id,
+                                           _In_ sai_attribute_value_t value,
+                                           _In_ uint32_t              max_length,
+                                           _Out_ char                *value_str)
+{
+    mlnx_qos_map_t *qos_map;
+    sai_status_t    status;
+
+    if (NULL == value_str) {
+        SX_LOG_ERR("NULL value str");
+        return SAI_STATUS_INVALID_PARAMETER;
+    }
+    *value_str = '\0';
+
+    if (!value.qosmap.count || !value.qosmap.list) {
+        return SAI_STATUS_SUCCESS;
+    }
+
+    sai_db_read_lock();
+
+    status = mlnx_qos_map_get_by_id(qos_map_id, &qos_map);
+    if (status != SAI_STATUS_SUCCESS) {
+        sai_db_unlock();
+        return status;
+    }
+
+    sai_db_unlock();
+
+    return sai_qos_map_to_str(&value.qosmap, qos_map->type, max_length, value_str);
+}
+
 sai_status_t sai_value_to_str(_In_ sai_attribute_value_t      value,
                               _In_ sai_attribute_value_type_t type,
                               _In_ uint32_t                   max_length,
                               _Out_ char                     *value_str)
 {
-    uint32_t ii;
-    uint32_t pos = 0;
+    uint32_t          ii;
+    uint32_t          pos = 0;
+    uint32_t          count;
+    mlnx_object_id_t *mlnx_object_id;
+    int               chars_written;
 
     if (NULL == value_str) {
         SX_LOG_ERR("NULL value str");
@@ -684,13 +1012,94 @@ sai_status_t sai_value_to_str(_In_ sai_attribute_value_t      value,
         sai_ipaddr_to_str(value.ipaddr, max_length, value_str, NULL);
         break;
 
-    case SAI_ATTR_VAL_TYPE_NHLIST:
-        pos += snprintf(value_str, max_length, "%u hops : [", value.nhlist.next_hop_count);
+    case SAI_ATTR_VAL_TYPE_OID:
+        mlnx_object_id = (mlnx_object_id_t*)&value.oid;
+        snprintf(value_str, max_length, "%s,%x,%02x%02x%02x",
+                 SAI_TYPE_STR(sai_object_type_query(value.oid)), mlnx_object_id->data,
+                 mlnx_object_id->extended_data[2], mlnx_object_id->extended_data[1], mlnx_object_id->extended_data[0]);
+        break;
+
+    case SAI_ATTR_VAL_TYPE_OBJLIST:
+    case SAI_ATTR_VAL_TYPE_U8LIST:
+    case SAI_ATTR_VAL_TYPE_S8LIST:
+    case SAI_ATTR_VAL_TYPE_U16LIST:
+    case SAI_ATTR_VAL_TYPE_S16LIST:
+    case SAI_ATTR_VAL_TYPE_U32LIST:
+    case SAI_ATTR_VAL_TYPE_S32LIST:
+    case SAI_ATTR_VAL_TYPE_VLANLIST:
+    case SAI_ATTR_VAL_TYPE_VLANPORTLIST:
+    case SAI_ATTR_VAL_TYPE_PORTBREAKOUT:
+    case SAI_ATTR_VAL_TYPE_ACLFIELD_OBJLIST:
+    case SAI_ATTR_VAL_TYPE_ACLFIELD_U8LIST:
+    case SAI_ATTR_VAL_TYPE_ACLACTION_OBJLIST:
+        if (SAI_ATTR_VAL_TYPE_PORTBREAKOUT == type) {
+            pos += snprintf(value_str, max_length, "breakout mode %d.", value.portbreakout.breakout_mode);
+        }
+        if ((SAI_ATTR_VAL_TYPE_ACLFIELD_OBJLIST == type) ||
+            (SAI_ATTR_VAL_TYPE_ACLFIELD_U8LIST == type)) {
+            pos += snprintf(value_str, max_length, "%u", value.aclfield.enable);
+        }
+        if (SAI_ATTR_VAL_TYPE_ACLACTION_OBJLIST == type) {
+            pos += snprintf(value_str, max_length, "%u", value.aclaction.enable);
+        }
         if (pos > max_length) {
             return SAI_STATUS_SUCCESS;
         }
-        for (ii = 0; ii < value.nhlist.next_hop_count; ii++) {
-            pos += snprintf(value_str + pos, max_length - pos, " %u", value.nhlist.next_hop_list[ii]);
+
+        count = (SAI_ATTR_VAL_TYPE_OBJLIST == type) ? value.objlist.count :
+                (SAI_ATTR_VAL_TYPE_U8LIST == type) ? value.u8list.count :
+                (SAI_ATTR_VAL_TYPE_S8LIST == type) ? value.s8list.count :
+                (SAI_ATTR_VAL_TYPE_U16LIST == type) ? value.u16list.count :
+                (SAI_ATTR_VAL_TYPE_S16LIST == type) ? value.s16list.count :
+                (SAI_ATTR_VAL_TYPE_U32LIST == type) ? value.u32list.count :
+                (SAI_ATTR_VAL_TYPE_S32LIST == type) ? value.s32list.count :
+                (SAI_ATTR_VAL_TYPE_VLANLIST == type) ? value.vlanlist.count :
+                (SAI_ATTR_VAL_TYPE_VLANPORTLIST == type) ? value.vlanportlist.count :
+                (SAI_ATTR_VAL_TYPE_ACLFIELD_OBJLIST == type) ? value.aclfield.data.objlist.count :
+                (SAI_ATTR_VAL_TYPE_ACLFIELD_U8LIST == type) ? value.aclfield.data.u8list.count :
+                (SAI_ATTR_VAL_TYPE_ACLACTION_OBJLIST == type) ? value.aclaction.parameter.objlist.count :
+                value.portbreakout.port_list.count;
+        pos += snprintf(value_str + pos, max_length - pos, "%u : [", count);
+        if (pos > max_length) {
+            return SAI_STATUS_SUCCESS;
+        }
+
+        for (ii = 0; ii < count; ii++) {
+            if (SAI_ATTR_VAL_TYPE_OBJLIST == type) {
+                pos += snprintf(value_str + pos, max_length - pos, " %" PRIx64, value.objlist.list[ii]);
+            } else if (SAI_ATTR_VAL_TYPE_U8LIST == type) {
+                pos += snprintf(value_str + pos, max_length - pos, " %u", value.u8list.list[ii]);
+            } else if (SAI_ATTR_VAL_TYPE_S8LIST == type) {
+                pos += snprintf(value_str + pos, max_length - pos, " %d", value.s8list.list[ii]);
+            } else if (SAI_ATTR_VAL_TYPE_U16LIST == type) {
+                pos += snprintf(value_str + pos, max_length - pos, " %u", value.u16list.list[ii]);
+            } else if (SAI_ATTR_VAL_TYPE_S16LIST == type) {
+                pos += snprintf(value_str + pos, max_length - pos, " %d", value.s16list.list[ii]);
+            } else if (SAI_ATTR_VAL_TYPE_U32LIST == type) {
+                pos += snprintf(value_str + pos, max_length - pos, " %u", value.u32list.list[ii]);
+            } else if (SAI_ATTR_VAL_TYPE_S32LIST == type) {
+                pos += snprintf(value_str + pos, max_length - pos, " %d", value.s32list.list[ii]);
+            } else if (SAI_ATTR_VAL_TYPE_VLANLIST == type) {
+                pos += snprintf(value_str + pos, max_length - pos, " %u", value.vlanlist.list[ii]);
+            } else if (SAI_ATTR_VAL_TYPE_VLANPORTLIST == type) {
+                pos += snprintf(value_str + pos,
+                                max_length - pos,
+                                " %" PRIx64 "%s",
+                                value.vlanportlist.list[ii].port_id,
+                                (SAI_VLAN_PORT_UNTAGGED == value.vlanportlist.list[ii].tagging_mode) ? "U" :
+                                (SAI_VLAN_PORT_TAGGED == value.vlanportlist.list[ii].tagging_mode) ? "T" : "PT");
+            } else if (SAI_ATTR_VAL_TYPE_ACLFIELD_OBJLIST == type) {
+                pos += snprintf(value_str + pos, max_length - pos, " %" PRIx64, value.aclfield.data.objlist.list[ii]);
+            } else if (SAI_ATTR_VAL_TYPE_ACLFIELD_U8LIST == type) {
+                pos += snprintf(value_str + pos, max_length - pos, " %02x,%02x",
+                                value.aclfield.data.u8list.list[ii], value.aclfield.mask.u8list.list[ii]);
+            } else if (SAI_ATTR_VAL_TYPE_ACLACTION_OBJLIST == type) {
+                pos +=
+                    snprintf(value_str + pos, max_length - pos, " %" PRIx64,
+                             value.aclaction.parameter.objlist.list[ii]);
+            } else {
+                pos += snprintf(value_str + pos, max_length - pos, " %" PRIx64, value.portbreakout.port_list.list[ii]);
+            }
             if (pos > max_length) {
                 return SAI_STATUS_SUCCESS;
             }
@@ -698,12 +1107,171 @@ sai_status_t sai_value_to_str(_In_ sai_attribute_value_t      value,
         snprintf(value_str + pos, max_length - pos, "]");
         break;
 
-    case SAI_ATTR_VAL_TYPE_PORTLIST:
-    case SAI_ATTR_VAL_TYPE_ACLFIELD:
-    case SAI_ATTR_VAL_TYPE_ACLDATA:
-        /* TODO : implement if in case it is used */
-        snprintf(value_str, max_length, "Not implemented value type %d", type);
-        return SAI_STATUS_NOT_IMPLEMENTED;
+    case SAI_ATTR_VAL_TYPE_U32RANGE:
+        snprintf(value_str, max_length, "[%u,%u]", value.u32range.min, value.u32range.max);
+        break;
+
+    case SAI_ATTR_VAL_TYPE_S32RANGE:
+        snprintf(value_str, max_length, "[%d,%d]", value.s32range.min, value.s32range.max);
+        break;
+
+    case SAI_ATTR_VAL_TYPE_ACLFIELD_U8:
+        snprintf(value_str,
+                 max_length,
+                 "%u,%02x,%02x",
+                 value.aclfield.enable,
+                 value.aclfield.data.u8,
+                 value.aclfield.mask.u8);
+        break;
+
+    case SAI_ATTR_VAL_TYPE_ACLFIELD_U16:
+        snprintf(value_str,
+                 max_length,
+                 "%u,%04x,%04x",
+                 value.aclfield.enable,
+                 value.aclfield.data.u16,
+                 value.aclfield.mask.u16);
+        break;
+
+    case SAI_ATTR_VAL_TYPE_ACLFIELD_U32:
+        snprintf(value_str,
+                 max_length,
+                 "%u,%08x,%08x",
+                 value.aclfield.enable,
+                 value.aclfield.data.u32,
+                 value.aclfield.mask.u32);
+        break;
+
+    case SAI_ATTR_VAL_TYPE_ACLFIELD_S8:
+        snprintf(value_str,
+                 max_length,
+                 "%u,%02x,%02x",
+                 value.aclfield.enable,
+                 value.aclfield.data.s8,
+                 value.aclfield.mask.s8);
+        break;
+
+    case SAI_ATTR_VAL_TYPE_ACLFIELD_S16:
+        snprintf(value_str,
+                 max_length,
+                 "%u,%04x,%04x",
+                 value.aclfield.enable,
+                 value.aclfield.data.s16,
+                 value.aclfield.mask.s16);
+        break;
+
+    case SAI_ATTR_VAL_TYPE_ACLFIELD_S32:
+        snprintf(value_str,
+                 max_length,
+                 "%u,%08x,%08x",
+                 value.aclfield.enable,
+                 value.aclfield.data.s32,
+                 value.aclfield.mask.s32);
+        break;
+
+    case SAI_ATTR_VAL_TYPE_ACLFIELD_MAC:
+        snprintf(value_str, max_length, "%u,[%02x:%02x:%02x:%02x:%02x:%02x],[%02x:%02x:%02x:%02x:%02x:%02x]",
+                 value.aclfield.enable,
+                 value.aclfield.data.mac[0],
+                 value.aclfield.data.mac[1],
+                 value.aclfield.data.mac[2],
+                 value.aclfield.data.mac[3],
+                 value.aclfield.data.mac[4],
+                 value.aclfield.data.mac[5],
+                 value.aclfield.mask.mac[0],
+                 value.aclfield.mask.mac[1],
+                 value.aclfield.mask.mac[2],
+                 value.aclfield.mask.mac[3],
+                 value.aclfield.mask.mac[4],
+                 value.aclfield.mask.mac[5]);
+        break;
+
+    case SAI_ATTR_VAL_TYPE_ACLFIELD_IPV4:
+        pos += snprintf(value_str, max_length, "%u,", value.aclfield.enable);
+        sai_ipv4_to_str(value.aclfield.data.ip4, max_length - pos, value_str + pos, &chars_written);
+        pos += chars_written;
+        if (pos > max_length) {
+            return SAI_STATUS_SUCCESS;
+        }
+        pos += snprintf(value_str + pos, max_length - pos, ",");
+        sai_ipv4_to_str(value.aclfield.mask.ip4, max_length - pos, value_str + pos, NULL);
+        break;
+
+    case SAI_ATTR_VAL_TYPE_ACLFIELD_IPV6:
+        pos += snprintf(value_str, max_length, "%u,", value.aclfield.enable);
+        sai_ipv6_to_str(value.aclfield.data.ip6, max_length - pos, value_str + pos, &chars_written);
+        pos += chars_written;
+        if (pos > max_length) {
+            return SAI_STATUS_SUCCESS;
+        }
+        pos += snprintf(value_str + pos, max_length - pos, ",");
+        sai_ipv6_to_str(value.aclfield.mask.ip6, max_length - pos, value_str + pos, NULL);
+        break;
+
+    case SAI_ATTR_VAL_TYPE_ACLFIELD_OID:
+        mlnx_object_id = (mlnx_object_id_t*)&value.aclfield.data.oid;
+        snprintf(value_str, max_length, "%u,%s,%x,%02x%02x%02x",
+                 value.aclfield.enable, SAI_TYPE_STR(sai_object_type_query(
+                                                         value.aclfield.data.oid)), mlnx_object_id->data,
+                 mlnx_object_id->extended_data[2], mlnx_object_id->extended_data[1], mlnx_object_id->extended_data[0]);
+        break;
+
+    case SAI_ATTR_VAL_TYPE_ACLACTION_U8:
+        snprintf(value_str, max_length, "%u,%u", value.aclaction.enable, value.aclaction.parameter.u8);
+        break;
+
+    case SAI_ATTR_VAL_TYPE_ACLACTION_U16:
+        snprintf(value_str, max_length, "%u,%u", value.aclaction.enable, value.aclaction.parameter.u16);
+        break;
+
+    case SAI_ATTR_VAL_TYPE_ACLACTION_U32:
+        snprintf(value_str, max_length, "%u,%u", value.aclaction.enable, value.aclaction.parameter.u32);
+        break;
+
+    case SAI_ATTR_VAL_TYPE_ACLACTION_S8:
+        snprintf(value_str, max_length, "%u,%d", value.aclaction.enable, value.aclaction.parameter.s8);
+        break;
+
+    case SAI_ATTR_VAL_TYPE_ACLACTION_S16:
+        snprintf(value_str, max_length, "%u,%d", value.aclaction.enable, value.aclaction.parameter.s16);
+        break;
+
+    case SAI_ATTR_VAL_TYPE_ACLACTION_S32:
+        snprintf(value_str, max_length, "%u,%d", value.aclaction.enable, value.aclaction.parameter.s32);
+        break;
+
+    case SAI_ATTR_VAL_TYPE_ACLACTION_MAC:
+        snprintf(value_str, max_length, "%u,[%02x:%02x:%02x:%02x:%02x:%02x]",
+                 value.aclaction.enable,
+                 value.aclaction.parameter.mac[0],
+                 value.aclaction.parameter.mac[1],
+                 value.aclaction.parameter.mac[2],
+                 value.aclaction.parameter.mac[3],
+                 value.aclaction.parameter.mac[4],
+                 value.aclaction.parameter.mac[5]);
+        break;
+
+    case SAI_ATTR_VAL_TYPE_ACLACTION_IPV4:
+        pos += snprintf(value_str, max_length, "%u,", value.aclaction.enable);
+        sai_ipv4_to_str(value.aclaction.parameter.ip4, max_length - pos, value_str + pos, NULL);
+        break;
+
+    case SAI_ATTR_VAL_TYPE_ACLACTION_IPV6:
+        pos += snprintf(value_str, max_length, "%u,", value.aclaction.enable);
+        sai_ipv6_to_str(value.aclaction.parameter.ip6, max_length - pos, value_str + pos, NULL);
+        break;
+
+    case SAI_ATTR_VAL_TYPE_ACLACTION_OID:
+        mlnx_object_id = (mlnx_object_id_t*)&value.aclaction.parameter.oid;
+        snprintf(value_str, max_length, "%u,%s,%x,%02x%02x%02x",
+                 value.aclaction.enable, SAI_TYPE_STR(sai_object_type_query(
+                                                          value.aclaction.parameter.oid)), mlnx_object_id->data,
+                 mlnx_object_id->extended_data[2], mlnx_object_id->extended_data[1], mlnx_object_id->extended_data[0]);
+        break;
+
+    case SAI_ATTR_VAL_TYPE_ACLACTION_NONE:
+        snprintf(value_str, max_length, "%u", value.aclaction.enable);
+        break;
 
     case SAI_ATTR_VAL_TYPE_UNDETERMINED:
     default:
@@ -749,13 +1317,47 @@ sai_status_t sai_attr_list_to_str(_In_ uint32_t                     attr_count,
         sai_value_to_str(attr_list[ii].value, functionality_attr[index].type, MAX_VALUE_STR_LEN, value_str);
         pos += snprintf(list_str + pos,
                         max_length - pos,
-                        "#%u %s val:%s ",
+                        "#%u %s=%s ",
                         ii,
                         functionality_attr[index].attrib_name,
                         value_str);
         if (pos > max_length) {
             break;
         }
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
+sai_status_t mlnx_translate_sai_trap_action_to_sdk(sai_int32_t       action,
+                                                   sx_trap_action_t *trap_action,
+                                                   uint32_t          param_index)
+{
+    if (NULL == trap_action) {
+        SX_LOG_ERR("NULL trap action value\n");
+        return SAI_STATUS_INVALID_PARAMETER;
+    }
+
+    switch (action) {
+    case SAI_PACKET_ACTION_FORWARD:
+        *trap_action = SX_TRAP_ACTION_IGNORE;
+        break;
+
+    case SAI_PACKET_ACTION_TRAP:
+        *trap_action = SX_TRAP_ACTION_TRAP_2_CPU;
+        break;
+
+    case SAI_PACKET_ACTION_LOG:
+        *trap_action = SX_TRAP_ACTION_MIRROR_2_CPU;
+        break;
+
+    case SAI_PACKET_ACTION_DROP:
+        *trap_action = SX_TRAP_ACTION_DISCARD;
+        break;
+
+    default:
+        SX_LOG_ERR("Invalid packet action %d\n", action);
+        return SAI_STATUS_INVALID_ATTR_VALUE_0 + param_index;
     }
 
     return SAI_STATUS_SUCCESS;
@@ -825,4 +1427,254 @@ sai_status_t mlnx_translate_sdk_router_action_to_sai(sx_router_action_t router_a
     }
 
     return SAI_STATUS_SUCCESS;
+}
+
+sai_status_t mlnx_object_to_type(sai_object_id_t   object_id,
+                                 sai_object_type_t type,
+                                 uint32_t         *data,
+                                 uint8_t           extended_data[])
+{
+    mlnx_object_id_t *mlnx_object_id = (mlnx_object_id_t*)&object_id;
+
+    if (NULL == data) {
+        SX_LOG_ERR("NULL data value\n");
+        return SAI_STATUS_INVALID_PARAMETER;
+    }
+
+    if (type != mlnx_object_id->object_type) {
+        SX_LOG_ERR("Expected object %s got %s\n", SAI_TYPE_STR(type), SAI_TYPE_STR(mlnx_object_id->object_type));
+        return SAI_STATUS_INVALID_PARAMETER;
+    }
+
+    *data = mlnx_object_id->data;
+    if (extended_data) {
+        memcpy(extended_data, mlnx_object_id->extended_data, EXTENDED_DATA_SIZE);
+    }
+    return SAI_STATUS_SUCCESS;
+}
+
+sai_status_t mlnx_create_object(sai_object_type_t type,
+                                uint32_t          data,
+                                uint8_t           extended_data[],
+                                sai_object_id_t  *object_id)
+{
+    mlnx_object_id_t *mlnx_object_id = (mlnx_object_id_t*)object_id;
+
+    /* guarntee same size for general object id and mellanox prvivate implementation */
+    int __attribute__((unused)) dummy[(sizeof(mlnx_object_id_t) == sizeof(sai_object_id_t) ? 1 : -1)];
+
+    UNREFERENCED_PARAMETER(dummy);
+
+    if (NULL == object_id) {
+        SX_LOG_ERR("NULL object id value\n");
+        return SAI_STATUS_INVALID_PARAMETER;
+    }
+
+    if (type >= SAI_OBJECT_TYPE_MAX) {
+        SX_LOG_ERR("Unknown object type %d\n", type);
+        return SAI_STATUS_INVALID_PARAMETER;
+    }
+
+    memset(mlnx_object_id, 0, sizeof(*mlnx_object_id));
+    mlnx_object_id->data        = data;
+    mlnx_object_id->object_type = type;
+    if (extended_data) {
+        memcpy(mlnx_object_id->extended_data, extended_data, EXTENDED_DATA_SIZE);
+    }
+    return SAI_STATUS_SUCCESS;
+}
+
+sai_status_t mlnx_create_queue(_In_ sx_port_log_id_t port_id, _In_ uint8_t index,
+                               _Out_ sai_object_id_t *id)
+{
+    uint8_t ext_data[EXTENDED_DATA_SIZE];
+
+    memset(ext_data, 0, EXTENDED_DATA_SIZE);
+    ext_data[0] = index;
+    return mlnx_create_object(SAI_OBJECT_TYPE_QUEUE, port_id, ext_data, id);
+}
+
+sai_status_t mlnx_queue_parse_id(_In_ sai_object_id_t id,
+                                 _Out_ sx_port_log_id_t *port_id,
+                                 _Out_ uint8_t *queue_index)
+{
+    uint8_t ext_data[EXTENDED_DATA_SIZE];
+    sai_status_t status;
+
+    status = mlnx_object_to_type(id, SAI_OBJECT_TYPE_QUEUE, port_id, ext_data);
+    if (status != SAI_STATUS_SUCCESS) {
+        return status;
+    }
+
+    if (queue_index) {
+        *queue_index = ext_data[0];
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
+sai_status_t mlnx_create_sched_group(_In_ sx_port_log_id_t port_id,
+                                     _In_ uint8_t level, _In_ uint8_t index,
+                                     _Out_ sai_object_id_t *id)
+{
+    uint8_t ext_data[EXTENDED_DATA_SIZE];
+
+    memset(ext_data, 0, EXTENDED_DATA_SIZE);
+    ext_data[0] = level;
+    ext_data[1] = index;
+    return mlnx_create_object(SAI_OBJECT_TYPE_SCHEDULER_GROUP, port_id, ext_data, id);
+}
+
+sai_status_t mlnx_sched_group_parse_id(_In_ sai_object_id_t id,
+                                       _Out_ sx_port_log_id_t *port_id_ptr,
+                                       _Out_ uint8_t *level_ptr,
+                                       _Out_ uint8_t *index_ptr)
+{
+    uint8_t ext_data[EXTENDED_DATA_SIZE];
+    sx_port_log_id_t port_id;
+    sai_status_t status;
+
+    status = mlnx_object_to_type(id, SAI_OBJECT_TYPE_SCHEDULER_GROUP, &port_id, ext_data);
+    if (status != SAI_STATUS_SUCCESS) {
+        return status;
+    }
+
+    if (ext_data[0] == 0 && ext_data[1] > 0) {
+        SX_LOG_ERR("Invalid root scheduler group index %u - max allowed value is 0\n", ext_data[1]);
+        return SAI_STATUS_INVALID_PARAMETER;
+    }
+
+    if (port_id_ptr) {
+        *port_id_ptr = port_id;
+    }
+    if (level_ptr) {
+        *level_ptr = ext_data[0];
+    }
+    if (index_ptr) {
+        *index_ptr = ext_data[1];
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
+sai_status_t mlnx_utils_log_set(sx_verbosity_level_t level)
+{
+    LOG_VAR_NAME(__MODULE__) = level;
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_fill_genericlist(size_t element_size, void *data, uint32_t count, void *list)
+{
+    /* all list objects have same field count in the beginning of the object, and then different data,
+     * so can be casted to one type */
+    sai_object_list_t *objlist = list;
+
+    if (NULL == data) {
+        SX_LOG_ERR("NULL data value\n");
+        return SAI_STATUS_INVALID_PARAMETER;
+    }
+
+    if (NULL == list) {
+        SX_LOG_ERR("NULL list value\n");
+        return SAI_STATUS_INVALID_PARAMETER;
+    }
+
+    if (0 == element_size) {
+        SX_LOG_ERR("Zero element size\n");
+        return SAI_STATUS_INVALID_PARAMETER;
+    }
+
+    if (count > objlist->count) {
+        SX_LOG_ERR("Insufficient list buffer size. Allocated %u needed %u\n",
+                   objlist->count, count);
+        objlist->count = count;
+        return SAI_STATUS_BUFFER_OVERFLOW;
+    }
+
+    objlist->count = count;
+    memcpy(objlist->list, data, count * element_size);
+
+    return SAI_STATUS_SUCCESS;
+}
+
+sai_status_t mlnx_fill_objlist(sai_object_id_t *data, uint32_t count, sai_object_list_t *list)
+{
+    return mlnx_fill_genericlist(sizeof(sai_object_id_t), (void*)data, count, (void*)list);
+}
+
+sai_status_t mlnx_fill_u8list(uint8_t *data, uint32_t count, sai_u8_list_t *list)
+{
+    return mlnx_fill_genericlist(sizeof(uint8_t), (void*)data, count, (void*)list);
+}
+
+sai_status_t mlnx_fill_s8list(int8_t *data, uint32_t count, sai_s8_list_t *list)
+{
+    return mlnx_fill_genericlist(sizeof(int8_t), (void*)data, count, (void*)list);
+}
+
+sai_status_t mlnx_fill_u16list(uint16_t *data, uint32_t count, sai_u16_list_t *list)
+{
+    return mlnx_fill_genericlist(sizeof(uint16_t), (void*)data, count, (void*)list);
+}
+
+sai_status_t mlnx_fill_s16list(int16_t *data, uint32_t count, sai_s16_list_t *list)
+{
+    return mlnx_fill_genericlist(sizeof(int16_t), (void*)data, count, (void*)list);
+}
+
+sai_status_t mlnx_fill_u32list(uint32_t *data, uint32_t count, sai_u32_list_t *list)
+{
+    return mlnx_fill_genericlist(sizeof(uint32_t), (void*)data, count, (void*)list);
+}
+
+sai_status_t mlnx_fill_s32list(int32_t *data, uint32_t count, sai_s32_list_t *list)
+{
+    return mlnx_fill_genericlist(sizeof(int32_t), (void*)data, count, (void*)list);
+}
+
+sai_status_t mlnx_fill_vlanlist(sai_vlan_id_t *data, uint32_t count, sai_vlan_list_t *list)
+{
+    return mlnx_fill_genericlist(sizeof(sai_vlan_id_t), (void*)data, count, (void*)list);
+}
+
+sai_status_t mlnx_fill_vlanportlist(sai_vlan_port_t *data, uint32_t count, sai_vlan_port_list_t *list)
+{
+    return mlnx_fill_genericlist(sizeof(sai_vlan_port_t), (void*)data, count, (void*)list);
+}
+
+bool mlnx_route_entries_are_equal(_In_ const sai_unicast_route_entry_t *u1, _In_ const sai_unicast_route_entry_t *u2)
+{
+    if ((NULL == u1) && (NULL == u2)) {
+        return true;
+    }
+
+    if ((NULL == u1) || (NULL == u2)) {
+        return false;
+    }
+
+    if (u1->vr_id != u2->vr_id) {
+        return false;
+    }
+    if (u1->destination.addr_family != u2->destination.addr_family) {
+        return false;
+    }
+
+    if (SAI_IP_ADDR_FAMILY_IPV4 == u1->destination.addr_family) {
+        if (u1->destination.addr.ip4 != u2->destination.addr.ip4) {
+            return false;
+        }
+        if (u1->destination.mask.ip4 != u2->destination.mask.ip4) {
+            return false;
+        }
+    } else {
+        if (memcmp(u1->destination.addr.ip6, u2->destination.addr.ip6, sizeof(u1->destination.addr.ip6))) {
+            return false;
+        }
+        if (memcmp(u1->destination.addr.ip6, u2->destination.addr.ip6, sizeof(u1->destination.addr.ip6))) {
+            return false;
+        }
+    }
+
+    return true;
 }

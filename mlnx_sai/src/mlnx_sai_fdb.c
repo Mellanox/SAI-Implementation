@@ -23,7 +23,7 @@
 #undef  __MODULE__
 #define __MODULE__ SAI_FDB
 
-static sx_verbosity_level_t LOG_VAR_NAME(__MODULE__) = SX_VERBOSITY_LEVEL_NOTICE;
+static sx_verbosity_level_t LOG_VAR_NAME(__MODULE__) = SX_VERBOSITY_LEVEL_WARNING;
 
 sai_status_t mlnx_fdb_type_set(_In_ const sai_object_key_t      *key,
                                _In_ const sai_attribute_value_t *value,
@@ -51,13 +51,13 @@ sai_status_t mlnx_fdb_action_get(_In_ const sai_object_key_t   *key,
                                  void                          *arg);
 
 static const sai_attribute_entry_t        fdb_attribs[] = {
-    { SAI_FDB_ENTRY_ATTR_TYPE, true, true, true,
+    { SAI_FDB_ENTRY_ATTR_TYPE, true, true, true, true,
       "FDB entry type", SAI_ATTR_VAL_TYPE_S32 },
-    { SAI_FDB_ENTRY_ATTR_PORT_ID, true, true, true,
-      "FDB entry port id", SAI_ATTR_VAL_TYPE_U32},
-    { SAI_FDB_ENTRY_ATTR_PACKET_ACTION, true, true, true,
+    { SAI_FDB_ENTRY_ATTR_PORT_ID, true, true, true, true,
+      "FDB entry port id", SAI_ATTR_VAL_TYPE_OID},
+    { SAI_FDB_ENTRY_ATTR_PACKET_ACTION, true, true, true, true,
       "FDB entry packet action", SAI_ATTR_VAL_TYPE_S32 },
-    { END_FUNCTIONALITY_ATTRIBS_ID, false, false, false,
+    { END_FUNCTIONALITY_ATTRIBS_ID, false, false, false, false,
       "", SAI_ATTR_VAL_TYPE_UNDETERMINED }
 };
 static const sai_vendor_attribute_entry_t fdb_vendor_attribs[] = {
@@ -256,6 +256,7 @@ sai_status_t mlnx_create_fdb_entry(_In_ const sai_fdb_entry_t* fdb_entry,
     sx_fdb_uc_mac_addr_params_t  mac_entry;
     char                         key_str[MAX_KEY_STR_LEN];
     char                         list_str[MAX_LIST_VALUE_STR_LEN];
+    sx_port_log_id_t             port_id;
 
     SX_LOG_ENTER();
 
@@ -266,7 +267,7 @@ sai_status_t mlnx_create_fdb_entry(_In_ const sai_fdb_entry_t* fdb_entry,
 
     if (SAI_STATUS_SUCCESS !=
         (status =
-             check_attribs_metadata(attr_count, attr_list, fdb_attribs, fdb_vendor_attribs, SAI_OPERATION_CREATE))) {
+             check_attribs_metadata(attr_count, attr_list, fdb_attribs, fdb_vendor_attribs, SAI_COMMON_API_CREATE))) {
         SX_LOG_ERR("Failed attribs check\n");
         return status;
     }
@@ -286,6 +287,16 @@ sai_status_t mlnx_create_fdb_entry(_In_ const sai_fdb_entry_t* fdb_entry,
     assert(SAI_STATUS_SUCCESS ==
            find_attrib_in_list(attr_count, attr_list, SAI_FDB_ENTRY_ATTR_PORT_ID, &port, &port_index));
 
+    if (SAI_OBJECT_TYPE_LAG == sai_object_type_query(port->oid)) {
+        if (SAI_STATUS_SUCCESS != (status = mlnx_object_to_type(port->oid, SAI_OBJECT_TYPE_LAG, &port_id, NULL))) {
+            return status;
+        }
+    } else {
+        if (SAI_STATUS_SUCCESS != (status = mlnx_object_to_type(port->oid, SAI_OBJECT_TYPE_PORT, &port_id, NULL))) {
+            return status;
+        }
+    }
+
     if (SAI_STATUS_SUCCESS != (status = mlnx_translate_sai_action_to_sdk(action->s32, &mac_entry, action_index))) {
         return status;
     }
@@ -294,8 +305,8 @@ sai_status_t mlnx_create_fdb_entry(_In_ const sai_fdb_entry_t* fdb_entry,
         return status;
     }
 
-    mac_entry.fid_vid = fdb_entry->vlan_id;
-    mac_entry.log_port = port->u32;
+    mac_entry.fid_vid  = fdb_entry->vlan_id;
+    mac_entry.log_port = port_id;
     memcpy(&mac_entry.mac_addr, fdb_entry->mac_address, sizeof(mac_entry.mac_addr));
 
     if (SAI_STATUS_SUCCESS != (status = mlnx_add_mac(&mac_entry))) {
@@ -333,10 +344,7 @@ sai_status_t mlnx_remove_fdb_entry(_In_ const sai_fdb_entry_t* fdb_entry)
     fdb_key_to_str(fdb_entry, key_str);
     SX_LOG_NTC("Remove FDB entry %s\n", key_str);
 
-    mac_entry.fid_vid = fdb_entry->vlan_id;
-    memcpy(&mac_entry.mac_addr, fdb_entry->mac_address, sizeof(mac_entry.mac_addr));
-
-    if (SAI_STATUS_SUCCESS != (status = mlnx_delete_mac(&mac_entry))) {
+    if (SAI_STATUS_SUCCESS != (status = mlnx_get_n_delete_mac(fdb_entry, &mac_entry))) {
         return status;
     }
 
@@ -397,20 +405,33 @@ sai_status_t mlnx_fdb_type_set(_In_ const sai_object_key_t *key, _In_ const sai_
     return SAI_STATUS_SUCCESS;
 }
 
-/* Set FDB entry port id [sai_port_id_t] */
+/* FDB entry port id [sai_object_id_t] (MANDATORY_ON_CREATE|CREATE_AND_SET)
+ * The port id here can refer to a generic port object such as SAI port object id,
+ * SAI LAG object id and etc. on. */
 sai_status_t mlnx_fdb_port_set(_In_ const sai_object_key_t *key, _In_ const sai_attribute_value_t *value, void *arg)
 {
     sai_status_t                status;
     sx_fdb_uc_mac_addr_params_t mac_entry;
     const sai_fdb_entry_t      *fdb_entry = key->fdb_entry;
+    sx_port_log_id_t            port_id;
 
     SX_LOG_ENTER();
+
+    if (SAI_OBJECT_TYPE_LAG == sai_object_type_query(value->oid)) {
+        if (SAI_STATUS_SUCCESS != (status = mlnx_object_to_type(value->oid, SAI_OBJECT_TYPE_LAG, &port_id, NULL))) {
+            return status;
+        }
+    } else {
+        if (SAI_STATUS_SUCCESS != (status = mlnx_object_to_type(value->oid, SAI_OBJECT_TYPE_PORT, &port_id, NULL))) {
+            return status;
+        }
+    }
 
     if (SAI_STATUS_SUCCESS != (status = mlnx_get_n_delete_mac(fdb_entry, &mac_entry))) {
         return status;
     }
 
-    mac_entry.log_port = (sai_port_id_t)value->u32;
+    mac_entry.log_port = port_id;
 
     if (SAI_STATUS_SUCCESS != (status = mlnx_add_mac(&mac_entry))) {
         return status;
@@ -490,9 +511,9 @@ static sai_status_t fill_fdb_cache(mlnx_fdb_cache_t *fdb_cache, const sai_fdb_en
     }
 
     fdb_cache->fdb_cache_set = true;
-    fdb_cache->action = mac_entry.action;
-    fdb_cache->entry_type = mac_entry.entry_type;
-    fdb_cache->log_port = mac_entry.log_port;
+    fdb_cache->action        = mac_entry.action;
+    fdb_cache->entry_type    = mac_entry.entry_type;
+    fdb_cache->log_port      = mac_entry.log_port;
 
     return SAI_STATUS_SUCCESS;
 }
@@ -520,7 +541,6 @@ sai_status_t mlnx_fdb_type_get(_In_ const sai_object_key_t   *key,
         break;
 
     case SX_FDB_UC_REMOTE:
-    case SX_FDB_UC_NONAGEABLE:
     case SX_FDB_UC_AGEABLE:
         value->s32 = SAI_FDB_ENTRY_DYNAMIC;
         break;
@@ -534,8 +554,9 @@ sai_status_t mlnx_fdb_type_get(_In_ const sai_object_key_t   *key,
     return SAI_STATUS_SUCCESS;
 }
 
-/*
- * Get FDB entry port id [sai_port_id_t]
+/* FDB entry port id [sai_object_id_t] (MANDATORY_ON_CREATE|CREATE_AND_SET)
+ * The port id here can refer to a generic port object such as SAI port object id,
+ * SAI LAG object id and etc. on.
  * Port 0 is returned for entries with action = drop or action = trap
  * Since port is irrelevant for these actions, even if actual port is set
  * In case the action is changed from drop/trap to forward/log, need to also set port
@@ -556,7 +577,17 @@ sai_status_t mlnx_fdb_port_get(_In_ const sai_object_key_t   *key,
         return status;
     }
 
-    value->u32 = fdb_cache->log_port;
+    if (SX_PORT_TYPE_LAG == SX_PORT_TYPE_ID_GET(fdb_cache->log_port)) {
+        if (SAI_STATUS_SUCCESS !=
+            (status = mlnx_create_object(SAI_OBJECT_TYPE_LAG, fdb_cache->log_port, NULL, &value->oid))) {
+            return status;
+        }
+    } else {
+        if (SAI_STATUS_SUCCESS !=
+            (status = mlnx_create_object(SAI_OBJECT_TYPE_PORT, fdb_cache->log_port, NULL, &value->oid))) {
+            return status;
+        }
+    }
 
     SX_LOG_EXIT();
     return SAI_STATUS_SUCCESS;
@@ -596,7 +627,6 @@ sai_status_t mlnx_fdb_action_get(_In_ const sai_object_key_t   *key,
         value->s32 = SAI_PACKET_ACTION_DROP;
         break;
 
-    /* TODO : check mapping */
     case SX_FDB_ACTION_FORWARD_TO_ROUTER:
     default:
         SX_LOG_ERR("Unexpected fdb action %d\n", fdb_cache->action);
@@ -609,118 +639,95 @@ sai_status_t mlnx_fdb_action_get(_In_ const sai_object_key_t   *key,
 
 /*
  * Routine Description:
- *    Initiate deletion of all FDB entries
+ *    Remove all FDB entries by attribute set in sai_fdb_flush_attr
  *
  * Arguments:
- *    None
+ *    [in] attr_count - number of attributes
+ *    [in] attr_list - array of attributes
  *
  * Return Values:
  *    SAI_STATUS_SUCCESS on success
  *    Failure status code on error
  */
-sai_status_t mlnx_flush_all_fdb_entries(void)
+sai_status_t mlnx_flush_fdb_entries(_In_ uint32_t attr_count, _In_ const sai_attribute_t *attr_list)
 {
-    sx_status_t status;
+    sx_status_t                  status;
+    const sai_attribute_value_t *port, *vlan, *type;
+    uint32_t                     port_index, vlan_index, type_index;
+    bool                         port_found = false, vlan_found = false;
+    sx_port_log_id_t             port_id;
 
     SX_LOG_ENTER();
 
-    if (SX_STATUS_SUCCESS != (status = sx_api_fdb_uc_flush_all_set(gh_sdk, DEFAULT_ETH_SWID))) {
-        SX_LOG_ERR("Failed to flush all fdb entries - %s.\n", SX_STATUS_MSG(status));
-        return sdk_to_sai(status);
+    if (SAI_STATUS_SUCCESS ==
+        (status =
+             find_attrib_in_list(attr_count, attr_list, SAI_FDB_FLUSH_ATTR_PORT_ID,
+                                 &port, &port_index))) {
+        port_found = true;
+        if (SAI_STATUS_SUCCESS != (status = mlnx_object_to_type(port->oid, SAI_OBJECT_TYPE_PORT, &port_id, NULL))) {
+            return status;
+        }
+    }
+
+    if (SAI_STATUS_SUCCESS ==
+        (status =
+             find_attrib_in_list(attr_count, attr_list, SAI_FDB_FLUSH_ATTR_VLAN_ID,
+                                 &vlan, &vlan_index))) {
+        vlan_found = true;
+    }
+
+    if (SAI_STATUS_SUCCESS ==
+        (status =
+             find_attrib_in_list(attr_count, attr_list, SAI_FDB_FLUSH_ATTR_ENTRY_TYPE,
+                                 &type, &type_index))) {
+        if (SAI_FDB_FLUSH_ENTRY_DYNAMIC != type->s32) {
+            SX_LOG_ERR("Flush of static FDB entries is not implemented, got %d.\n", type->s32);
+            return SAI_STATUS_ATTR_NOT_IMPLEMENTED_0 + type_index;
+        }
+    }
+
+    /* Mellanox implementation flushes only dynamic entries. Static entries should be deleted with entry remove */
+    if ((!port_found) && (!vlan_found)) {
+        if (SX_STATUS_SUCCESS != (status = sx_api_fdb_uc_flush_all_set(gh_sdk, DEFAULT_ETH_SWID))) {
+            SX_LOG_ERR("Failed to flush all fdb entries - %s.\n", SX_STATUS_MSG(status));
+            return sdk_to_sai(status);
+        }
+    } else if ((port_found) && (vlan_found)) {
+        if (SX_STATUS_SUCCESS != (status = sx_api_fdb_uc_flush_port_fid_set(gh_sdk, port_id, vlan->u16))) {
+            SX_LOG_ERR("Failed to flush port vlan fdb entries - %s.\n", SX_STATUS_MSG(status));
+            return sdk_to_sai(status);
+        }
+    } else if (port_found) {
+        if (SX_STATUS_SUCCESS != (status = sx_api_fdb_uc_flush_port_set(gh_sdk, port_id))) {
+            SX_LOG_ERR("Failed to flush port fdb entries - %s.\n", SX_STATUS_MSG(status));
+            return sdk_to_sai(status);
+        }
+    } else if (vlan_found) {
+        if (SX_STATUS_SUCCESS != (status = sx_api_fdb_uc_flush_fid_set(gh_sdk, DEFAULT_ETH_SWID, vlan->u16))) {
+            SX_LOG_ERR("Failed to flush vlan fdb entries - %s.\n", SX_STATUS_MSG(status));
+            return sdk_to_sai(status);
+        }
     }
 
     SX_LOG_EXIT();
     return SAI_STATUS_SUCCESS;
 }
 
-
-/*
- * Routine Description:
- *    Remove all FDB entries by port
- *
- * Arguments:
- *    [in] port_id - port id
- *
- * Return Values:
- *    SAI_STATUS_SUCCESS on success
- *    Failure status code on error
- */
-sai_status_t mlnx_flush_all_fdb_entries_by_port(_In_ sai_port_id_t port_id)
+sai_status_t mlnx_fdb_log_set(sx_verbosity_level_t level)
 {
-    sx_status_t status;
+    LOG_VAR_NAME(__MODULE__) = level;
 
-    SX_LOG_ENTER();
-
-    if (SX_STATUS_SUCCESS != (status = sx_api_fdb_uc_flush_port_set(gh_sdk, port_id))) {
-        SX_LOG_ERR("Failed to flush port fdb entries - %s.\n", SX_STATUS_MSG(status));
-        return sdk_to_sai(status);
+    if (gh_sdk) {
+        return sdk_to_sai(sx_api_fdb_log_verbosity_level_set(gh_sdk, SX_LOG_VERBOSITY_BOTH, level, level));
+    } else {
+        return SAI_STATUS_SUCCESS;
     }
-
-    SX_LOG_EXIT();
-    return SAI_STATUS_SUCCESS;
 }
-
-/*
- * Routine Description:
- *    Remove all FDB entries by vlan
- *
- * Arguments:
- *    [in] vlan_id - vlan id
- *
- * Return Values:
- *    SAI_STATUS_SUCCESS on success
- *    Failure status code on error
- */
-sai_status_t mlnx_flush_all_fdb_entries_by_vlan(_In_ sai_vlan_id_t vlan_id)
-{
-    sx_status_t status;
-
-    SX_LOG_ENTER();
-
-    if (SX_STATUS_SUCCESS != (status = sx_api_fdb_uc_flush_fid_set(gh_sdk, DEFAULT_ETH_SWID, vlan_id))) {
-        SX_LOG_ERR("Failed to flush vlan fdb entries - %s.\n", SX_STATUS_MSG(status));
-        return sdk_to_sai(status);
-    }
-
-    SX_LOG_EXIT();
-    return SAI_STATUS_SUCCESS;
-}
-
-/*
- * Routine Description:
- *    Remove all FDB entries by port + vlan combination
- *
- * Arguments:
- *    [in] mac_address - MAC address
- *    [in] vlan_id - VLAN id
- *
- * Return Values:
- *    SAI_STATUS_SUCCESS on success
- *    Failure status code on error
- */
-sai_status_t mlnx_flush_all_fdb_entries_by_port_vlan(_In_ sai_port_id_t port_id, _In_ sai_vlan_id_t vlan_id)
-{
-    sx_status_t status;
-
-    SX_LOG_ENTER();
-
-    if (SX_STATUS_SUCCESS != (status = sx_api_fdb_uc_flush_port_fid_set(gh_sdk, port_id, vlan_id))) {
-        SX_LOG_ERR("Failed to flush port vlan fdb entries - %s.\n", SX_STATUS_MSG(status));
-        return sdk_to_sai(status);
-    }
-
-    SX_LOG_EXIT();
-    return SAI_STATUS_SUCCESS;
-}
-
 
 const sai_fdb_api_t fdb_api = {
     mlnx_create_fdb_entry,
     mlnx_remove_fdb_entry,
     mlnx_set_fdb_entry_attribute,
     mlnx_get_fdb_entry_attribute,
-    mlnx_flush_all_fdb_entries,
-    mlnx_flush_all_fdb_entries_by_port,
-    mlnx_flush_all_fdb_entries_by_vlan,
-    mlnx_flush_all_fdb_entries_by_port_vlan,
+    mlnx_flush_fdb_entries
 };
