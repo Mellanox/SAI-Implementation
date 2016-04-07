@@ -962,51 +962,6 @@ out:
     return status;
 }
 
-sai_status_t mlnx_scheduler_init_port_sub_groups(sx_port_log_id_t port_log_id, uint32_t start_index, uint32_t count)
-{
-    sx_cos_ets_element_config_t *sub_groups;
-    sai_status_t                 status;
-    uint32_t                     ii;
-
-    assert(count != 0);
-
-    sub_groups = (sx_cos_ets_element_config_t*)malloc(sizeof(*sub_groups) * count);
-    if (NULL == sub_groups) {
-        SX_LOG_ERR("ERROR: unable to allocate memory for sx_cos_ets_element_config_t\n");
-        return SAI_STATUS_NO_MEMORY;
-    }
-
-    for (ii = 0; ii < count; ii++) {
-        sub_groups[ii].element_hierarchy  = SX_COS_ETS_HIERARCHY_SUB_GROUP_E;
-        sub_groups[ii].element_index      = start_index++;
-        sub_groups[ii].next_element_index = 0;
-        sub_groups[ii].min_shaper_enable  = TRUE;
-        sub_groups[ii].min_shaper_rate    = 0;
-        sub_groups[ii].max_shaper_enable  = TRUE;
-        sub_groups[ii].max_shaper_rate    = 0xFFFFFFF;
-        sub_groups[ii].dwrr               = TRUE;
-        sub_groups[ii].dwrr_enable        = TRUE;
-        sub_groups[ii].dwrr_weight        = 1;
-        sub_groups[ii].packets_mode       = FALSE;
-    }
-
-    /* It is enough to print ets element for single sub-group */
-    ets_element_dump(port_log_id, &sub_groups[0]);
-
-    status = sx_api_cos_port_ets_element_set(gh_sdk, SX_ACCESS_CMD_EDIT,
-                                             port_log_id, sub_groups, count);
-
-    free(sub_groups);
-
-    if (status != SX_STATUS_SUCCESS) {
-        SX_LOG_ERR("Failed to re-set scheduler sub-group on logical port 0x%x - %s.\n",
-                   port_log_id, SX_STATUS_MSG(status));
-        return sdk_to_sai(status);
-    }
-
-    return status;
-}
-
 /**
  * @brief  Scheduler methods table retrieved with sai_api_query()
  */

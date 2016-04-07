@@ -181,14 +181,6 @@ static sai_status_t mlnx_lag_setup_lag(sx_port_log_id_t lag_log_port_id)
         return sdk_to_sai(sx_status);
     }
 
-    /* TODO: This is a temporary solution till scheduler groups will be implemented */
-    sx_status = mlnx_scheduler_init_port_sub_groups(lag_log_port_id, 0, MAX_SUB_GROUPS);
-    if (sx_status != SAI_STATUS_SUCCESS) {
-        SX_LOG_ERR("scheduler init port %x failed %u\n",
-                   lag_log_port_id, sx_status);
-        return sx_status;
-    }
-
     sx_status = mlnx_hash_ecmp_cfg_apply_on_port(lag_log_port_id);
     if (sx_status != SAI_STATUS_SUCCESS) {
         return sx_status;
@@ -311,6 +303,12 @@ static sai_status_t mlnx_lag_remove_all_ports(sai_object_id_t lag_id)
             sx_status = mlnx_hash_ecmp_cfg_apply_on_port(log_port_list[ii]);
             if (sx_status != SAI_STATUS_SUCCESS) {
                 return sx_status;
+            }
+
+            sx_status = sx_api_fdb_port_learn_mode_set(gh_sdk, log_port_list[ii], SX_FDB_LEARN_MODE_AUTO_LEARN);
+            if (SX_STATUS_SUCCESS != sx_status) {
+                SX_LOG_ERR("Failed to set port learning mode - %s.\n", SX_STATUS_MSG(sx_status));
+                return sdk_to_sai(sx_status);
             }
         }
 
@@ -960,6 +958,7 @@ sai_status_t mlnx_remove_lag_member(_In_ sai_object_id_t lag_member_id)
     sx_port_log_id_t lag_log_port_id = 0;
     sx_port_log_id_t log_port_id;
     uint8_t          extended_data[EXTENDED_DATA_SIZE];
+    uint32_t         ii;
 
     if (SAI_STATUS_SUCCESS != (status = mlnx_object_to_type(lag_member_id, SAI_OBJECT_TYPE_LAG_MEMBER,
                                                             &log_port_id, extended_data))) {
@@ -975,6 +974,27 @@ sai_status_t mlnx_remove_lag_member(_In_ sai_object_id_t lag_member_id)
                                                &lag_log_port_id, &log_port_id, 1))) {
         return sdk_to_sai(sx_status);
     }
+
+    sx_status = mlnx_hash_ecmp_cfg_apply_on_port(log_port_id);
+    if (sx_status != SAI_STATUS_SUCCESS) {
+        return sx_status;
+    }
+
+    sx_status = sx_api_fdb_port_learn_mode_set(gh_sdk, log_port_id, SX_FDB_LEARN_MODE_AUTO_LEARN);
+    if (SX_STATUS_SUCCESS != sx_status) {
+        SX_LOG_ERR("Failed to set port learning mode - %s.\n", SX_STATUS_MSG(sx_status));
+        return sdk_to_sai(sx_status);
+    }
+
+    /* Update port config - clear lag id */
+    sai_db_write_lock();
+    for (ii = 0; ii < g_sai_db_ptr->ports_number; ii++) {
+        if (log_port_id == g_sai_db_ptr->ports_db[ii].logical) {
+            g_sai_db_ptr->ports_db[ii].lag_id = SAI_NULL_OBJECT_ID;
+        }
+    }
+    sai_db_sync();
+    sai_db_unlock();
 
     return SAI_STATUS_SUCCESS;
 }

@@ -24,7 +24,6 @@
 #define __MODULE__ SAI_HASH
 
 #define SAI_HASH_FIELDS_COUNT_MAX 64
-#define SAI_HASH_DEFAULT_ALGO     SAI_HASH_ALGORITHM_CRC
 #define SAI_HASH_DEFAULT_SEED     0
 
 static sx_verbosity_level_t LOG_VAR_NAME(__MODULE__) = SX_VERBOSITY_LEVEL_WARNING;
@@ -771,7 +770,11 @@ sai_status_t mlnx_hash_initialize()
     int32_t                            def_hash_fields[] = { SAI_NATIVE_HASH_FIELD_SRC_MAC,
                                                              SAI_NATIVE_HASH_FIELD_DST_MAC,
                                                              SAI_NATIVE_HASH_FIELD_ETHERTYPE,
-                                                             SAI_NATIVE_HASH_FIELD_IN_PORT };
+                                                             SAI_NATIVE_HASH_FIELD_IN_PORT,
+                                                             SAI_NATIVE_HASH_FIELD_SRC_IP,
+                                                             SAI_NATIVE_HASH_FIELD_DST_IP,
+                                                             SAI_NATIVE_HASH_FIELD_L4_SRC_PORT,
+                                                             SAI_NATIVE_HASH_FIELD_L4_DST_PORT };
 
     memset(&lag_hash_param, 0, sizeof(lag_hash_param));
     memset(&port_hash_param, 0, sizeof(port_hash_param));
@@ -803,7 +806,7 @@ sai_status_t mlnx_hash_initialize()
         return sdk_to_sai(status);
     }
 
-    port_hash_param.ecmp_hash_type = SAI_HASH_DEFAULT_ALGO;
+    port_hash_param.ecmp_hash_type = SX_ROUTER_ECMP_HASH_TYPE_CRC;
     port_hash_param.seed           = SAI_HASH_DEFAULT_SEED;
     port_hash_param.symmetric_hash = false;
 
@@ -828,6 +831,9 @@ sai_status_t mlnx_hash_initialize()
         return status;
     }
     g_sai_db_ptr->hash_list[1].hash_id = hash_obj;
+    /* TODO : temporary patch, have different hash result for ECMP and LAG to pass PTF ECMP+LAG test case 
+     * This doesn't hash on dst port, to have different hash result */
+    attr_value.s32list.count--;
     status                             = mlnx_hash_obj_native_fields_set(hash_obj, &attr_value);
     if (SAI_STATUS_SUCCESS != status) {
         return status;
@@ -835,7 +841,7 @@ sai_status_t mlnx_hash_initialize()
 
     g_sai_db_ptr->oper_hash_list[SAI_HASH_LAG_ID] = hash_obj;
     /* Set default algorithm and seed */
-    lag_hash_param.lag_hash_type = SAI_HASH_DEFAULT_ALGO;
+    lag_hash_param.lag_hash_type = SX_LAG_HASH_TYPE_CRC;
     lag_hash_param.lag_seed      = SAI_HASH_DEFAULT_SEED;
     lag_hash_param.lag_hash      = 0;
     status                       = sx_api_lag_hash_flow_params_set(gh_sdk, &lag_hash_param);

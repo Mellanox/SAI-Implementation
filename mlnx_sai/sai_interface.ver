@@ -6,4 +6,4 @@
 # MAJOR - API has completely changed
 # MINOR - API changes require code fixing
 # REV   - API is compatible with previous versions
-LIBVERSION=1:1:0
+LIBVERSION=1:0:0

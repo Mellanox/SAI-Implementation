@@ -330,9 +330,9 @@ static const sai_attribute_entry_t acl_table_attribs[] = {
       "Vlan User Meta Data", SAI_ATTR_VAL_TYPE_BOOL },
     { SAI_ACL_TABLE_ATTR_FIELD_ACL_USER_META, false, true, false, true,
       "Meta Data carried from previous ACL Stage", SAI_ATTR_VAL_TYPE_BOOL },
-    { SAI_ACL_TABLE_ATTR_FIELD_FDB_DST_NPU_META_HIT, false, true, false, false,
+    { SAI_ACL_TABLE_ATTR_FIELD_FDB_NPU_META_DST_HIT, false, true, false, false,
       "DST MAC address match in FDB", SAI_ATTR_VAL_TYPE_BOOL },
-    { SAI_ACL_TABLE_ATTR_FIELD_NEIGHBOR_DST_NPU_META_HIT, false, true, false, false,
+    { SAI_ACL_TABLE_ATTR_FIELD_NEIGHBOR_NPU_META_DST_HIT, false, true, false, false,
       "DST IP address match in neighbor table", SAI_ATTR_VAL_TYPE_BOOL },
     { END_FUNCTIONALITY_ATTRIBS_ID, false, false, false, false,
       "", SAI_ATTR_VAL_TYPE_UNDETERMINED }
@@ -485,11 +485,24 @@ static const sai_attribute_entry_t acl_entry_attribs[] = {
     { SAI_ACL_ENTRY_ATTR_ACTION_EGRESS_SAMPLEPACKET_ENABLE, false, false, false, false,
       "Set egress packet sampling", SAI_ATTR_VAL_TYPE_ACLACTION_OID },
     { SAI_ACL_ENTRY_ATTR_ACTION_SET_CPU_QUEUE, false, false, false, false,
-      "Set CPU Queue for CPU bound traffic", SAI_ATTR_VAL_TYPE_ACLACTION_OID },
+      "Set CPU Queue", SAI_ATTR_VAL_TYPE_ACLACTION_OID },
     { SAI_ACL_ENTRY_ATTR_ACTION_SET_ACL_META_DATA, false, true, true, true,
-      "Set Meta Data to carry forward to next ACL Stage", SAI_ATTR_VAL_TYPE_ACLACTION_U32 },
+      "Set Meta Data", SAI_ATTR_VAL_TYPE_ACLACTION_U32 },
+    { SAI_ACL_ENTRY_ATTR_ACTION_EGRESS_BLOCK_PORT_LIST, false, true, true, true,
+      "Egress block port list", SAI_ATTR_VAL_TYPE_ACLACTION_OBJLIST },
+    { SAI_ACL_ENTRY_ATTR_ACTION_SET_USER_TRAP_ID, false, true, true, true,
+      "Set user def trap ID", SAI_ATTR_VAL_TYPE_ACLACTION_U32 },
     { END_FUNCTIONALITY_ATTRIBS_ID,  false, false, false, false,
       "", SAI_ATTR_VAL_TYPE_UNDETERMINED }
+};
+
+static const sai_attribute_entry_t acl_range_attribs[] = {
+        { SAI_ACL_RANGE_TYPE, true, true, false, true,
+        "ACL range type", SAI_ATTR_VAL_TYPE_S32},
+        { SAI_ACL_RANGE_LIMIT, true, true, false, true,
+        "ACL range limit", SAI_ATTR_VAL_TYPE_U32RANGE },
+        { END_FUNCTIONALITY_ATTRIBS_ID, false, false, false, false,
+        "", SAI_ATTR_VAL_TYPE_UNDETERMINED }
 };
 
 /* ACL TABLE VENDOR ATTRIBUTES */
@@ -745,12 +758,12 @@ static const sai_vendor_attribute_entry_t acl_table_vendor_attribs[] = {
       { true, false, false, true },
       mlnx_acl_table_fields_get, (void*)SAI_ACL_TABLE_ATTR_FIELD_ACL_USER_META,
       NULL, NULL },
-    { SAI_ACL_TABLE_ATTR_FIELD_FDB_DST_NPU_META_HIT,
+    { SAI_ACL_TABLE_ATTR_FIELD_FDB_NPU_META_DST_HIT,
       { false, false, false, false },
       { false, false, false, false },
       NULL, NULL,
       NULL, NULL },
-    { SAI_ACL_TABLE_ATTR_FIELD_NEIGHBOR_DST_NPU_META_HIT,
+    { SAI_ACL_TABLE_ATTR_FIELD_NEIGHBOR_NPU_META_DST_HIT,
       { false, false, false, false },
       { false, false, false, false },
       NULL, NULL,
@@ -1160,7 +1173,31 @@ static const sai_vendor_attribute_entry_t acl_entry_vendor_attribs[] = {
       { true, false, true, true},
       mlnx_acl_entry_action_get, (void*)SAI_ACL_ENTRY_ATTR_ACTION_SET_ACL_META_DATA,
       mlnx_acl_entry_action_set, (void*)SAI_ACL_ENTRY_ATTR_ACTION_SET_ACL_META_DATA },
+    { SAI_ACL_ENTRY_ATTR_ACTION_EGRESS_BLOCK_PORT_LIST,
+      { false, false, false, false},
+      { false, false, false, false},
+      NULL, NULL,
+      NULL, NULL },
+    { SAI_ACL_ENTRY_ATTR_ACTION_SET_USER_TRAP_ID,
+      { false, false, false, false},
+      { true, false, true, true},
+      NULL, NULL,
+      NULL, NULL },
 };
+
+static const sai_vendor_attribute_entry_t acl_range_vendor_attribs[] = {
+        { SAI_ACL_RANGE_TYPE,
+        { true, false, false, false },
+        { true, false, false, true },
+        NULL, NULL,
+        NULL, NULL },
+        { SAI_ACL_RANGE_LIMIT,
+        { true, false, false, false },
+        { true, false, false, true },
+        NULL, NULL,
+        NULL, NULL }
+};
+
 static const sai_attribute_entry_t        acl_counter_attribs[] = {
     { SAI_ACL_COUNTER_ATTR_TABLE_ID, true, true, false, false,
       "Counter Table Id", SAI_ATTR_VAL_TYPE_OID },
@@ -8956,6 +8993,108 @@ out:
     return status;
 }
 
+static void acl_range_key_to_str(_In_ sai_object_id_t acl_range_id, _Out_ char *key_str)
+{
+    uint32_t range_id;
+
+    if (SAI_STATUS_SUCCESS != mlnx_object_to_type(acl_range_id, SAI_OBJECT_TYPE_ACL_RANGE, &range_id, NULL)) {
+        snprintf(key_str, MAX_KEY_STR_LEN, "Invalid acl range id");
+    }
+    else {
+        snprintf(key_str, MAX_KEY_STR_LEN, "ACL range [%u]", range_id);
+    }
+}
+
+/**
+*   Routine Description:
+*     @brief Create an ACL Range
+*
+*  Arguments:
+*  @param[out] acl_range_id - the acl range id
+*  @param[in] attr_count - number of attributes
+*  @param[in] attr_list - array of attributes
+*
+*  Return Values:
+*    @return  SAI_STATUS_SUCCESS on success
+*             Failure status code on error
+*/
+sai_status_t mlnx_create_acl_range(
+    _Out_ sai_object_id_t* acl_range_id,
+    _In_ uint32_t attr_count,
+    _In_ const sai_attribute_t *attr_list)
+{
+    return SAI_STATUS_NOT_IMPLEMENTED;
+}
+
+/**
+*  Routine Description:
+*    @brief Remove an ACL Range
+*
+*  Arguments:
+*    @param[in] acl_range_id - the acl range id
+*
+*  Return Values:
+*    @return  SAI_STATUS_SUCCESS on success
+*             Failure status code on error
+*/
+sai_status_t mlnx_remove_acl_range(_In_ sai_object_id_t acl_range_id)
+{
+    return SAI_STATUS_NOT_IMPLEMENTED;
+}
+
+/**
+* Routine Description:
+*   @brief Set ACL range attribute
+*
+* Arguments:
+*    @param[in] acl_range_id - the acl range id
+*    @param[in] attr - attribute
+*
+* Return Values:
+*    @return  SAI_STATUS_SUCCESS on success
+*             Failure status code on error
+*/
+sai_status_t mlnx_set_acl_range_attribute(
+    _In_ sai_object_id_t acl_range_id,
+    _In_ const sai_attribute_t *attr)
+{
+    const sai_object_key_t key = { .object_id = acl_range_id };
+    char                   key_str[MAX_KEY_STR_LEN];
+
+    SX_LOG_ENTER();
+
+    acl_range_key_to_str(acl_range_id, key_str);
+    return sai_set_attribute(&key, key_str, acl_range_attribs, acl_range_vendor_attribs, attr);
+}
+
+/**
+* Routine Description:
+*   @brief Get ACL range attribute
+*
+* Arguments:
+*    @param[in] acl_range_id - acl range id
+*    @param[in] attr_count - number of attributes
+*    @param[out] attr_list - array of attributes
+*
+* Return Values:
+*    @return  SAI_STATUS_SUCCESS on success
+*             Failure status code on error
+*/
+sai_status_t mlnx_get_acl_range_attribute(
+    _In_ sai_object_id_t acl_range_id,
+    _In_ uint32_t attr_count,
+    _Out_ sai_attribute_t *attr_list)
+{
+    const sai_object_key_t key = { .object_id = acl_range_id };
+    char                   key_str[MAX_KEY_STR_LEN];
+
+    SX_LOG_ENTER();
+
+    acl_range_key_to_str(acl_range_id, key_str);
+    return sai_get_attributes(&key, key_str, acl_range_attribs, acl_range_vendor_attribs, attr_count, attr_list);
+}
+
+
 const sai_acl_api_t acl_api = {
     mlnx_create_acl_table,
     mlnx_delete_acl_table,
@@ -8968,5 +9107,9 @@ const sai_acl_api_t acl_api = {
     mlnx_create_acl_counter,
     mlnx_delete_acl_counter,
     mlnx_set_acl_counter_attribute,
-    mlnx_get_acl_counter_attribute
+    mlnx_get_acl_counter_attribute,
+    mlnx_create_acl_range,
+    mlnx_remove_acl_range,
+    mlnx_set_acl_range_attribute,
+    mlnx_get_acl_range_attribute
 };

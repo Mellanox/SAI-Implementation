@@ -149,6 +149,11 @@ sai_status_t mlnx_switch_acl_entry_max_prio_get(_In_ const sai_object_key_t   *k
                                                 _In_ uint32_t                  attr_index,
                                                 _Inout_ vendor_cache_t        *cache,
                                                 void                          *arg);
+sai_status_t mlnx_switch_acl_trap_range_get(_In_ const sai_object_key_t   *key,
+                                            _Inout_ sai_attribute_value_t *value,
+                                            _In_ uint32_t                  attr_index,
+                                            _Inout_ vendor_cache_t        *cache,
+                                            void                          *arg);
 sai_status_t mlnx_switch_max_lag_members_get(_In_ const sai_object_key_t   *key,
                                              _Inout_ sai_attribute_value_t *value,
                                              _In_ uint32_t                  attr_index,
@@ -329,6 +334,20 @@ static const sai_attribute_entry_t        switch_attribs[] = {
       "Switch ACL entry min prio", SAI_ATTR_VAL_TYPE_U32 },
     { SAI_SWITCH_ATTR_ACL_ENTRY_MAXIMUM_PRIORITY, false, false, false, true,
       "Switch ACL entry max prio", SAI_ATTR_VAL_TYPE_U32 },
+    { SAI_SWITCH_ATTR_FDB_DST_USER_META_DATA_RANGE, false, false, false, true,
+      "Switch FDB DST meta range", SAI_ATTR_VAL_TYPE_U32RANGE },
+    { SAI_SWITCH_ATTR_ROUTE_DST_USER_META_DATA_RANGE, false, false, false, true,
+      "Switch Route DST meta range", SAI_ATTR_VAL_TYPE_U32RANGE },
+    { SAI_SWITCH_ATTR_NEIGHBOR_DST_USER_META_DATA_RANGE, false, false, false, true,
+      "Switch Neighbor DST meta range", SAI_ATTR_VAL_TYPE_U32RANGE },
+    { SAI_SWITCH_ATTR_PORT_USER_META_DATA_RANGE, false, false, false, true,
+      "Switch Port meta range", SAI_ATTR_VAL_TYPE_U32RANGE },
+    { SAI_SWITCH_ATTR_VLAN_USER_META_DATA_RANGE, false, false, false, true,
+      "Switch Vlan meta range", SAI_ATTR_VAL_TYPE_U32RANGE },
+    { SAI_SWITCH_ATTR_ACL_USER_META_DATA_RANGE, false, false, false, true,
+      "Switch ACL meta range", SAI_ATTR_VAL_TYPE_U32RANGE },
+    { SAI_SWITCH_ATTR_ACL_USER_TRAP_ID_RANGE, false, false, false, true,
+      "Switch ACL trap range", SAI_ATTR_VAL_TYPE_U32RANGE },
     { SAI_SWITCH_ATTR_DEFAULT_STP_INST_ID, false, false, false, true,
       "Switch maximum temperature", SAI_ATTR_VAL_TYPE_OID },
     { SAI_SWITCH_ATTR_LAG_MEMBERS, false, false, false, true,
@@ -491,6 +510,41 @@ static const sai_vendor_attribute_entry_t switch_vendor_attribs[] = {
       { false, false, false, true },
       { false, false, false, true },
       mlnx_switch_acl_entry_max_prio_get, NULL,
+      NULL, NULL },
+    { SAI_SWITCH_ATTR_FDB_DST_USER_META_DATA_RANGE,
+      { false, false, false, false },
+      { false, false, false, true },
+      NULL, NULL,
+      NULL, NULL },
+    { SAI_SWITCH_ATTR_ROUTE_DST_USER_META_DATA_RANGE,
+      { false, false, false, false },
+      { false, false, false, true },
+      NULL, NULL,
+      NULL, NULL },
+    { SAI_SWITCH_ATTR_NEIGHBOR_DST_USER_META_DATA_RANGE,
+      { false, false, false, false },
+      { false, false, false, true },
+      NULL, NULL,
+      NULL, NULL },
+    { SAI_SWITCH_ATTR_PORT_USER_META_DATA_RANGE,
+      { false, false, false, false },
+      { false, false, false, true },
+      NULL, NULL,
+      NULL, NULL },
+    { SAI_SWITCH_ATTR_VLAN_USER_META_DATA_RANGE,
+      { false, false, false, false },
+      { false, false, false, true },
+      NULL, NULL,
+      NULL, NULL },
+    { SAI_SWITCH_ATTR_ACL_USER_META_DATA_RANGE,
+      { false, false, false, false },
+      { false, false, false, true },
+      NULL, NULL,
+      NULL, NULL },
+    { SAI_SWITCH_ATTR_ACL_USER_TRAP_ID_RANGE,
+      { false, false, false, true },
+      { false, false, false, true },
+      mlnx_switch_acl_trap_range_get, NULL,
       NULL, NULL },
     { SAI_SWITCH_ATTR_DEFAULT_STP_INST_ID,
       { false, false, false, false },
@@ -1615,6 +1669,8 @@ static void sai_db_values_init()
     g_sai_db_ptr->switch_default_tc = 0;
     memset(g_sai_db_ptr->ports_default_tc, 0, sizeof(g_sai_db_ptr->ports_default_tc));
     memset(g_sai_db_ptr->policers_db, 0, sizeof(g_sai_db_ptr->policers_db));
+    memset(g_sai_db_ptr->mlnx_samplepacket_session, 0, sizeof(g_sai_db_ptr->mlnx_samplepacket_session));
+    memset(g_sai_db_ptr->trap_group_valid, 0, sizeof(g_sai_db_ptr->trap_group_valid));
 
     sai_db_policer_entries_init();
 
@@ -1726,7 +1782,7 @@ static sai_status_t mlnx_dvs_mng_stage()
     }
 
     /* Set MAC address */
-    snprintf(cmd, sizeof(cmd), "ifconfig swid0_eth hw ether %s > /dev/null 2>&1", g_sai_db_ptr->dev_mac);
+    snprintf(cmd, sizeof(cmd), "ip link set address %s dev swid0_eth > /dev/null 2>&1", g_sai_db_ptr->dev_mac);
     system_err = system(cmd);
     if (0 != system_err) {
         SX_LOG_ERR("Failed running \"%s\".\n", cmd);
@@ -1735,7 +1791,7 @@ static sai_status_t mlnx_dvs_mng_stage()
     }
 
     /* Take swid netdev up */
-    snprintf(cmd, sizeof(cmd), "ifconfig swid0_eth 0.0.0.0");
+    snprintf(cmd, sizeof(cmd), "ip -4 addr flush dev swid0_eth");
     system_err = system(cmd);
     if (0 != system_err) {
         SX_LOG_ERR("Failed running \"%s\".\n", cmd);
@@ -2613,7 +2669,9 @@ sai_status_t mlnx_initialize_switch(_In_ sai_switch_profile_id_t                
     sx_router_general_param_t   general_param;
     sx_router_resources_param_t resources_param;
     sx_status_t                 status;
-    const char                 *config_file;
+    const char                 *config_file, *route_table_size, *neighbor_table_size;
+    uint32_t                    routes_num = 0;
+    uint32_t                    neighbors_num = 0;
 
 #ifndef ACS_OS
     const char *initial_fan_speed;
@@ -2700,22 +2758,36 @@ sai_status_t mlnx_initialize_switch(_In_ sai_switch_profile_id_t                
     memset(&resources_param, 0, sizeof(resources_param));
     memset(&general_param, 0, sizeof(general_param));
 
-    resources_param.min_ipv4_uc_route_entries  = 13000;
-    resources_param.min_ipv6_uc_route_entries  = 64;
-    resources_param.min_ipv4_mc_route_entries  = 0;
-    resources_param.min_ipv6_mc_route_entries  = 0;
-    resources_param.max_virtual_routers_num    = 1;
+    route_table_size = g_services.profile_get_value(profile_id, SAI_KEY_L3_ROUTE_TABLE_SIZE);
+    neighbor_table_size = g_services.profile_get_value(profile_id, SAI_KEY_L3_NEIGHBOR_TABLE_SIZE);
+    if (NULL != route_table_size) {
+        routes_num = (uint32_t)atoi(route_table_size);
+        SX_LOG_NTC("Setting initial route table size %u\n", routes_num);
+    }
+    if (NULL != neighbor_table_size) {
+        neighbors_num = (uint32_t)atoi(neighbor_table_size);
+        SX_LOG_NTC("Setting initial neighbor table size %u\n", neighbors_num);
+    }
+
+    resources_param.max_virtual_routers_num = g_resource_limits.router_vrid_max;
     resources_param.max_vlan_router_interfaces = 64;
     resources_param.max_port_router_interfaces = 64;
-    resources_param.max_router_interfaces      = 128;
-    resources_param.min_ipv4_neighbor_entries  = 64;
-    resources_param.min_ipv6_neighbor_entries  = 64;
-    resources_param.max_ipv4_uc_route_entries  = 13000;
-    resources_param.max_ipv6_uc_route_entries  = 64;
+    resources_param.max_router_interfaces = g_resource_limits.router_rifs_max;
+
+    resources_param.min_ipv4_uc_route_entries = routes_num;
+    resources_param.min_ipv6_uc_route_entries = routes_num;
+    resources_param.max_ipv4_uc_route_entries = routes_num;
+    resources_param.max_ipv6_uc_route_entries = routes_num;
+
+    resources_param.min_ipv4_neighbor_entries = neighbors_num;
+    resources_param.min_ipv6_neighbor_entries = neighbors_num;
+    resources_param.max_ipv4_neighbor_entries = neighbors_num;
+    resources_param.max_ipv6_neighbor_entries = neighbors_num;
+
+    resources_param.min_ipv4_mc_route_entries  = 0;
+    resources_param.min_ipv6_mc_route_entries  = 0;
     resources_param.max_ipv4_mc_route_entries  = 0;
     resources_param.max_ipv6_mc_route_entries  = 0;
-    resources_param.max_ipv4_neighbor_entries  = 64;
-    resources_param.max_ipv6_neighbor_entries  = 64;
 
     general_param.ipv4_enable    = 1;
     general_param.ipv6_enable    = 1;
@@ -2787,17 +2859,19 @@ static sai_status_t switch_open_traps(void)
     memset(&trap_group_attributes, 0, sizeof(trap_group_attributes));
     trap_group_attributes.truncate_mode = SX_TRUNCATE_MODE_DISABLE;
     trap_group_attributes.truncate_size = 0;
-    trap_group_attributes.prio          = DEFAULT_TRAP_GROUP;
+    trap_group_attributes.prio          = DEFAULT_TRAP_GROUP_PRIO;
 
     if (SAI_STATUS_SUCCESS != (status = sx_api_host_ifc_trap_group_set(gh_sdk, DEFAULT_ETH_SWID,
-                                                                       DEFAULT_TRAP_GROUP, &trap_group_attributes))) {
+                                                                       DEFAULT_TRAP_GROUP_ID, &trap_group_attributes))) {
         SX_LOG_ERR("Failed to sx_api_host_ifc_trap_group_set %s\n", SX_STATUS_MSG(status));
         return sdk_to_sai(status);
     }
 
     cl_plock_excl_acquire(&g_sai_db_ptr->p_lock);
 
-    if (SAI_STATUS_SUCCESS != (status = mlnx_create_object(SAI_OBJECT_TYPE_TRAP_GROUP, DEFAULT_TRAP_GROUP, NULL,
+    g_sai_db_ptr->trap_group_valid[DEFAULT_TRAP_GROUP_ID] = true;
+
+    if (SAI_STATUS_SUCCESS != (status = mlnx_create_object(SAI_OBJECT_TYPE_TRAP_GROUP, DEFAULT_TRAP_GROUP_ID, NULL,
                                                            &g_sai_db_ptr->default_trap_group))) {
         goto out;
     }
@@ -2812,7 +2886,11 @@ static sai_status_t switch_open_traps(void)
     for (ii = 0; END_TRAP_INFO_ID != mlnx_traps_info[ii].trap_id; ii++) {
         g_sai_db_ptr->traps_db[ii].action       = mlnx_traps_info[ii].action;
         g_sai_db_ptr->traps_db[ii].trap_group   = g_sai_db_ptr->default_trap_group;
+#ifdef ACS_OS
+        g_sai_db_ptr->traps_db[ii].trap_channel = SAI_HOSTIF_TRAP_CHANNEL_NETDEV;
+#else
         g_sai_db_ptr->traps_db[ii].trap_channel = SAI_HOSTIF_TRAP_CHANNEL_CB;
+#endif
         g_sai_db_ptr->traps_db[ii].fd           = SAI_NULL_OBJECT_ID;
 
         if (0 == mlnx_traps_info[ii].sdk_traps_num) {
@@ -3044,6 +3122,12 @@ sai_status_t mlnx_connect_switch(_In_ sai_switch_profile_id_t                pro
 
         sai_qos_db_init();
 
+        err = cl_shm_open(SAI_BUFFER_PATH, &shmid);
+        if (err) {
+            SX_LOG_ERR("Failed to open shared memory of SAI Buffers DB %s\n", strerror(errno));
+            return SAI_STATUS_NO_MEMORY;
+        }
+
         status = sai_buffer_db_switch_connect_init(shmid);
         if(SAI_STATUS_SUCCESS != status) {
             SX_LOG_ERR("Failed to map SAI buffer db on switch connect\n");
@@ -3098,7 +3182,7 @@ sai_status_t mlnx_set_switch_attribute(_In_ const sai_attribute_t *attr)
 {
     SX_LOG_ENTER();
 
-    return sai_set_attribute(NULL, "", switch_attribs, switch_vendor_attribs, attr);
+    return sai_set_attribute(NULL, "switch", switch_attribs, switch_vendor_attribs, attr);
 }
 
 /* Switching mode [sai_switch_switching_mode_t]
@@ -3287,7 +3371,7 @@ sai_status_t mlnx_get_switch_attribute(_In_ uint32_t attr_count, _Inout_ sai_att
 {
     sai_status_t status;
     SX_LOG_ENTER();
-    status = sai_get_attributes(NULL, "", switch_attribs, switch_vendor_attribs, attr_count, attr_list);
+    status = sai_get_attributes(NULL, "switch", switch_attribs, switch_vendor_attribs, attr_count, attr_list);
     SX_LOG_EXIT();
     return status;
 }
@@ -3671,6 +3755,22 @@ sai_status_t mlnx_switch_acl_entry_max_prio_get(_In_ const sai_object_key_t   *k
 
     SX_LOG_EXIT();
     return SAI_STATUS_NOT_IMPLEMENTED;
+}
+
+/* ACL user-based trap id range [sai_u32_range_t] */
+sai_status_t mlnx_switch_acl_trap_range_get(_In_ const sai_object_key_t   *key,
+                                            _Inout_ sai_attribute_value_t *value,
+                                            _In_ uint32_t                  attr_index,
+                                            _Inout_ vendor_cache_t        *cache,
+                                            void                          *arg)
+{
+    SX_LOG_ENTER();
+
+    value->u32range.min = SX_TRAP_ID_ACL_MIN;
+    value->u32range.max = SX_TRAP_ID_ACL_MAX;
+
+    SX_LOG_EXIT();
+    return SAI_STATUS_SUCCESS;
 }
 
 /* Maximum number of ports that can be part of a LAG [uint32_t] */

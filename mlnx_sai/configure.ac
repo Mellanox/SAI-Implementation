@@ -76,13 +76,28 @@ AC_SUBST(SXD_LIBS_PATH)
 dnl Define an input config option to control applibs path
 AC_ARG_WITH(applibs,
 [  --with-applibs=<dir> define SwitchX Application libraries directory],
-AC_MSG_NOTICE(Using SwitchX Application libraries from:$with_sxapplibs),
+AC_MSG_NOTICE(Using SwitchX Application libraries from:$with_applibs),
 with_applibs="none")
 APP_LIB_PATH=/usr/local
 if test "x$with_applibs" != xnone; then
   APP_LIB_PATH=$with_applibs
 fi
 AC_SUBST(APP_LIB_PATH)
+
+dnl Define an input config option to control applibs path
+AC_ARG_WITH(xml2,
+[  --with-xml2=<dir> define xml2 libraries directory],
+AC_MSG_NOTICE(Using xml2 libraries from:$with_xml2),
+with_xml2="none")
+XML2_LIB_PATH=/usr
+if test "x$with_xml2" != xnone; then
+  XML2_LIB_PATH=$with_xml2
+fi
+AC_SUBST(XML2_LIB_PATH)
+
+dnl Define an ELDK5 xml2 la libdir setting work around condition
+AM_CONDITIONAL(XML2_ELDK5_LA_WA, test x`echo $with_xml2 | grep powerpc-4xx` != x)
+
 
 CFLAGS_SAI_INTERFACE_COMMON="-Wall -Wswitch -Wunused -Werror -fPIC -fno-strict-aliasing -Wextra -Wunused -Wno-unused-parameter"
 AC_SUBST(CFLAGS_SAI_INTERFACE_COMMON)

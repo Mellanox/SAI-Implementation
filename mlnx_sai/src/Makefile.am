@@ -45,7 +45,9 @@ libsai_la_SOURCES = \
                        mlnx_sai_lag.c \
                        mlnx_sai_scheduler_group.c \
                        mlnx_sai_mirror.c \
-                       mlnx_sai_buffer.c
+                       mlnx_sai_buffer.c \
+                       mlnx_sai_samplepacket.c \
+                       mlnx_sai_object.c
 
 if XML2_ELDK5_LA_WA
 SAI_LIBXML2_ADD = ${XML2_LIB_PATH}/lib/libxml2.so
@@ -75,18 +77,20 @@ libsai_apiinclude_HEADERS = \
 	$(top_srcdir)/inc/sai/sairouterintf.h \
 	$(top_srcdir)/inc/sai/saihostintf.h \
 	$(top_srcdir)/inc/sai/sailag.h \
-        $(top_srcdir)/inc/sai/saimirror.h \
-        $(top_srcdir)/inc/sai/saisamplepacket.h \
+    $(top_srcdir)/inc/sai/saimirror.h \
+    $(top_srcdir)/inc/sai/saisamplepacket.h \
 	$(top_srcdir)/inc/sai/saistp.h \
-        $(top_srcdir)/inc/sai/saipolicer.h \
-        $(top_srcdir)/inc/sai/saiqosmaps.h \
-        $(top_srcdir)/inc/sai/saiqueue.h \
-        $(top_srcdir)/inc/sai/saischeduler.h \
-        $(top_srcdir)/inc/sai/saischedulergroup.h \
-        $(top_srcdir)/inc/sai/saiwred.h \
+    $(top_srcdir)/inc/sai/saipolicer.h \
+    $(top_srcdir)/inc/sai/saiqosmaps.h \
+    $(top_srcdir)/inc/sai/saiqueue.h \
+    $(top_srcdir)/inc/sai/saischeduler.h \
+    $(top_srcdir)/inc/sai/saischedulergroup.h \
+    $(top_srcdir)/inc/sai/saiwred.h \
 	$(top_srcdir)/inc/sai/saibuffer.h \
-        $(top_srcdir)/inc/sai/saihash.h \
-        $(top_srcdir)/inc/sai/saiudf.h \
+    $(top_srcdir)/inc/sai/saihash.h \
+    $(top_srcdir)/inc/sai/saiudf.h \
+    $(top_srcdir)/inc/sai/saitunnel.h \
+    $(top_srcdir)/inc/sai/saiobject.h \
         \
 	$(top_srcdir)/inc/sai_windows.h \
 	$(top_srcdir)/inc/mlnx_sai.h

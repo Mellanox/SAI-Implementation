@@ -29,6 +29,28 @@ static sx_verbosity_level_t LOG_VAR_NAME(__MODULE__) = SX_VERBOSITY_LEVEL_WARNIN
 mlnx_sai_buffer_resource_limits_t buffer_limits;
 sai_status_t mlnx_get_sai_pool_data(_In_ sai_object_id_t sai_pool, _Out_ mlnx_sai_buffer_pool_attr_t*  sai_pool_attr);
 
+typedef enum _sai_buffer_alpha_bounds_t {
+    SAI_BUFFER_ALPHA_0 = -8, /* Values <= SAI_BUFFER_ALPHA_0 are interpreted as 0 */
+
+    SAI_BUFFER_ALPHA_1_128 = -7,
+    SAI_BUFFER_ALPHA_1_64 = -6,
+    SAI_BUFFER_ALPHA_1_32 = -5,
+    SAI_BUFFER_ALPHA_1_16 = -4,
+    SAI_BUFFER_ALPHA_1_8 = -3,
+    SAI_BUFFER_ALPHA_1_4 = -2,
+    SAI_BUFFER_ALPHA_1_2 = -1,
+
+    SAI_BUFFER_ALPHA_1 = 0,
+    SAI_BUFFER_ALPHA_2 = 1,
+    SAI_BUFFER_ALPHA_4 = 2,
+    SAI_BUFFER_ALPHA_8 = 3,
+    SAI_BUFFER_ALPHA_16 = 4,
+    SAI_BUFFER_ALPHA_32 = 5,
+    SAI_BUFFER_ALPHA_64 = 6,
+
+    SAI_BUFFER_ALPHA_INFINITY = 7/* Values >= SAI_BUFFER_ALPHA_INFINITY are interpreted as 'infinity'*/
+} sai_buffer_alpha_bounds_t;
+
 void init_buffer_resource_limits()
 {
     buffer_limits.num_ingress_pools   = g_resource_limits.shared_buff_num_ingress_pools;
@@ -557,6 +579,13 @@ sai_status_t mlnx_sai_set_buffer_profile_xon_attr(_In_ const sai_object_key_t   
                                                   _In_ const sai_attribute_value_t * value,
                                                   void                             * arg);
 
+sai_status_t mlnx_buffer_convert_alpha_sx_to_sai(
+    _In_ sx_cos_port_buff_alpha_e   sx_alpha,
+    _Out_ sai_int8_t*               sai_alpha);
+sai_status_t mlnx_buffer_convert_alpha_sai_to_sx(
+    _In_    sai_int8_t                  sai_alpha,
+    _Out_   sx_cos_port_buff_alpha_e*   sx_alpha);
+
 static const sai_attribute_entry_t        pg_attribs[] = {
     { SAI_INGRESS_PRIORITY_GROUP_ATTR_BUFFER_PROFILE, false, false, true, true,
       "PG buffer profile", SAI_ATTR_VAL_TYPE_OID},
@@ -631,6 +660,8 @@ static const sai_attribute_entry_t        buffer_profile_attribs[] = {
       "Buffer Profile XOFF", SAI_ATTR_VAL_TYPE_U32},
     { SAI_BUFFER_PROFILE_ATTR_XON_TH, false, true, true, true,
       "Buffer Profile XON", SAI_ATTR_VAL_TYPE_U32},
+    { SAI_BUFFER_PROFILE_ATTR_TH_MODE, false, true, true, true,
+      "Buffer Profile threshold mode", SAI_ATTR_VAL_TYPE_S32},
     { END_FUNCTIONALITY_ATTRIBS_ID, false, false, false, false,
       "", SAI_ATTR_VAL_TYPE_UNDETERMINED }
 };
@@ -676,6 +707,13 @@ static const sai_vendor_attribute_entry_t buffer_profile_vendor_attribs[] = {
         { true, false, true, true },
         mlnx_sai_get_buffer_profile_xon_attr, NULL,
         mlnx_sai_set_buffer_profile_xon_attr, NULL
+    },
+    {
+        SAI_BUFFER_PROFILE_ATTR_TH_MODE,
+        { false, false, false, false },
+        { false, false, false, false },
+        NULL, NULL,
+        NULL, NULL
     },
 };
 
@@ -740,7 +778,7 @@ void log_sx_pool_attribs(_In_ uint32_t sx_pool_id, _In_ sx_cos_pool_attr_t sx_po
 {
     SX_LOG_ENTER();
 
-    SX_LOG_NTC("sx_pool_id:%d \n", sx_pool_id);
+    SX_LOG_DBG("sx_pool_id:%d \n", sx_pool_id);
 
     if (SX_COS_PORT_BUFF_POOL_DIRECTION_INGRESS_E == sx_pool_attr.pool_dir) {
         SX_LOG_DBG("pool_dir:SX_COS_PORT_BUFF_POOL_DIRECTION_INGRESS_E \n");
@@ -774,7 +812,7 @@ sai_status_t log_sai_shared_max_size(mlnx_sai_shared_max_size_t shared_max_size)
     case SAI_BUFFER_THRESHOLD_MODE_DYNAMIC:
         str = "SAI_BUFFER_THRESHOLD_MODE_DYNAMIC";
         SX_LOG_DBG("mode:%s\n", str);
-        SX_LOG_DBG("alpha:%u\n", shared_max_size.max.alpha);
+        SX_LOG_DBG("alpha:%d\n", shared_max_size.max.alpha);
 
         break;
 
@@ -1437,7 +1475,7 @@ sai_status_t mlnx_create_sai_pool_id(_In_ uint32_t sx_pool_id, _Out_ sai_object_
     if (!pool_db_state) {
         SX_LOG_ERR("pool_id:%d not set in buffer db\n", sx_pool_id);
         SX_LOG_EXIT();
-        return sai_status;
+        return SAI_STATUS_INVALID_PARAMETER;
     }
 
     sai_status = mlnx_create_object(SAI_OBJECT_TYPE_BUFFER_POOL, sx_pool_id, NULL, sai_pool);
@@ -2567,132 +2605,118 @@ void mlnx_sai_buffer_apply_profile_to_reserved_structs(
     }
     SX_LOG_EXIT();
 }
-void mlnx_sai_shared_max_to_sx(_Inout_ sx_cos_buffer_max_t   * sx_cos_buff_max,
+sai_status_t mlnx_sai_shared_max_to_sx(_Inout_ sx_cos_buffer_max_t   * sx_cos_buff_max,
                                _In_ mlnx_sai_shared_max_size_t sai_shared_max)
 {
     if (SAI_BUFFER_THRESHOLD_MODE_DYNAMIC == sai_shared_max.mode) {
-        sx_cos_buff_max->max.alpha = sai_shared_max.max.alpha;
+        return mlnx_buffer_convert_alpha_sai_to_sx(sai_shared_max.max.alpha, &sx_cos_buff_max->max.alpha);
     } else {
         sx_cos_buff_max->max.size = bytes_to_mlnx_cells(sai_shared_max.max.static_th);
+        return SAI_STATUS_SUCCESS;
     }
 }
 
 sai_status_t mlnx_sai_buffer_apply_profile_to_shared_structs(
-    _Inout_ sx_cos_port_shared_buffer_attr_t* sx_port_shared_buff_attr_arr,
-    _In_ uint32_t                             count,
-    _In_ mlnx_sai_db_buffer_profile_entry_t   buff_db_entry,
-    _In_ mlnx_sai_buffer_pool_attr_t          sai_pool_attr,
-    _In_ mlnx_affect_port_buff_items_t      * affected_items)
+    _Inout_ sx_cos_port_shared_buffer_attr_t*   sx_port_shared_buff_attr_arr,
+    _In_    uint32_t                            count,
+    _In_    mlnx_sai_db_buffer_profile_entry_t  buff_db_entry,
+    _In_    mlnx_sai_buffer_pool_attr_t         sai_pool_attr,
+    _In_    mlnx_affect_port_buff_items_t*      affected_items
+    )
 {
-    sai_status_t             sai_status;
-    sx_cos_buffer_max_mode_e sx_pool_mode;
-    uint32_t                 ind;
-
+    sai_status_t                sai_status;
+    sx_cos_buffer_max_mode_e    sx_pool_mode;
+    uint32_t                    ind;
     SX_LOG_ENTER();
-    if (SAI_STATUS_SUCCESS !=
-        (sai_status = convert_sai_pool_mode_to_sx_pool_mode(sai_pool_attr.pool_mode, &sx_pool_mode))) {
+    if (SAI_STATUS_SUCCESS != (sai_status = convert_sai_pool_mode_to_sx_pool_mode(sai_pool_attr.pool_mode, &sx_pool_mode))) {
         SX_LOG_EXIT();
         return sai_status;
     }
     for (ind = 0; ind < count; ind++) {
-        switch (sai_pool_attr.pool_type) {
-        case SAI_BUFFER_POOL_INGRESS:
-            switch (sx_port_shared_buff_attr_arr[ind].type) {
-            case SX_COS_INGRESS_PORT_ATTR_E:
-                if (true ==
-                    affected_items->i_port_buffers[sx_port_shared_buff_attr_arr[ind].attr.ingress_port_shared_buff_attr
-                                                   .
-                                                   pool_id]) {
-                    SX_LOG_DBG("(i)port_buffers[%d], pool_id:%d\n",
-                               ind,
-                               sx_port_shared_buff_attr_arr[ind].attr.ingress_port_shared_buff_attr.pool_id);
-                    sx_port_shared_buff_attr_arr[ind].attr.ingress_port_shared_buff_attr.max.mode = sx_pool_mode;
-                    mlnx_sai_shared_max_to_sx(
-                        &sx_port_shared_buff_attr_arr[ind].attr.ingress_port_shared_buff_attr.max,
-                        buff_db_entry.shared_max);
-                    sx_port_shared_buff_attr_arr[ind].attr.ingress_port_shared_buff_attr.pool_id =
-                        sai_pool_attr.sx_pool_id;
-                    log_sx_port_shared_buffers(0, 1, &sx_port_shared_buff_attr_arr[ind]);
+        switch(sai_pool_attr.pool_type) {
+            case SAI_BUFFER_POOL_INGRESS:
+                switch(sx_port_shared_buff_attr_arr[ind].type) {
+                    case SX_COS_INGRESS_PORT_ATTR_E:
+                        if (true == affected_items->i_port_buffers[sx_port_shared_buff_attr_arr[ind].attr.ingress_port_shared_buff_attr.pool_id]) {
+                            SX_LOG_DBG("(i)port_buffers[%d], pool_id:%d\n", ind, sx_port_shared_buff_attr_arr[ind].attr.ingress_port_shared_buff_attr.pool_id);
+                            sx_port_shared_buff_attr_arr[ind].attr.ingress_port_shared_buff_attr.max.mode = sx_pool_mode;
+                            if(SAI_STATUS_SUCCESS != (sai_status = mlnx_sai_shared_max_to_sx(
+                                &sx_port_shared_buff_attr_arr[ind].attr.ingress_port_shared_buff_attr.max, 
+                                buff_db_entry.shared_max))) {
+                                SX_LOG_EXIT();
+                                return sai_status;
+                            }
+                            sx_port_shared_buff_attr_arr[ind].attr.ingress_port_shared_buff_attr.pool_id = sai_pool_attr.sx_pool_id;
+                            log_sx_port_shared_buffers(0, 1, &sx_port_shared_buff_attr_arr[ind]);
+                        }   
+                        break;
+                    case SX_COS_INGRESS_PORT_PRIORITY_GROUP_ATTR_E :
+                        if(sx_port_shared_buff_attr_arr[ind].attr.ingress_port_pg_shared_buff_attr.pg >= mlnx_sai_get_buffer_resource_limits()->num_port_pg_buff) {
+                            /* control traffic is not supported */
+                            continue;
+                        }
+                        if (true == affected_items->pgs[sx_port_shared_buff_attr_arr[ind].attr.ingress_port_pg_shared_buff_attr.pg]) {
+                            SX_LOG_DBG("item:%d, pg[%d]:\n", ind, sx_port_shared_buff_attr_arr[ind].attr.ingress_port_pg_shared_buff_attr.pg);
+                            sx_port_shared_buff_attr_arr[ind].attr.ingress_port_pg_shared_buff_attr.max.mode = sx_pool_mode;
+                            if(SAI_STATUS_SUCCESS != (sai_status = mlnx_sai_shared_max_to_sx(
+                                &sx_port_shared_buff_attr_arr[ind].attr.ingress_port_pg_shared_buff_attr.max,
+                                buff_db_entry.shared_max))) {
+                                SX_LOG_EXIT();
+                                return sai_status;
+                            }
+                            sx_port_shared_buff_attr_arr[ind].attr.ingress_port_pg_shared_buff_attr.pool_id = sai_pool_attr.sx_pool_id;
+                            log_sx_port_shared_buffers(0, 1, &sx_port_shared_buff_attr_arr[ind]);
+                        }
+                        break;
+                    default:
+                        break;                        
                 }
                 break;
-
-            case SX_COS_INGRESS_PORT_PRIORITY_GROUP_ATTR_E:
-                if (sx_port_shared_buff_attr_arr[ind].attr.ingress_port_pg_shared_buff_attr.pg >=
-                    mlnx_sai_get_buffer_resource_limits()->num_port_pg_buff) {
-                    /* control traffic is not supported */
-                    continue;
-                }
-                if (true ==
-                    affected_items->pgs[sx_port_shared_buff_attr_arr[ind].attr.ingress_port_pg_shared_buff_attr.pg]) {
-                    SX_LOG_DBG("item:%d, pg[%d]:\n",
-                               ind,
-                               sx_port_shared_buff_attr_arr[ind].attr.ingress_port_pg_shared_buff_attr.pg);
-                    sx_port_shared_buff_attr_arr[ind].attr.ingress_port_pg_shared_buff_attr.max.mode = sx_pool_mode;
-                    mlnx_sai_shared_max_to_sx(
-                        &sx_port_shared_buff_attr_arr[ind].attr.ingress_port_pg_shared_buff_attr.max,
-                        buff_db_entry.shared_max);
-                    sx_port_shared_buff_attr_arr[ind].attr.ingress_port_pg_shared_buff_attr.pool_id =
-                        sai_pool_attr.sx_pool_id;
-                    log_sx_port_shared_buffers(0, 1, &sx_port_shared_buff_attr_arr[ind]);
-                }
-                break;
-
-            default:
-                break;
-            }
-            break;
-
-        case SAI_BUFFER_POOL_EGRESS:
-            switch (sx_port_shared_buff_attr_arr[ind].type) {
-            case SX_COS_EGRESS_PORT_ATTR_E:
-                assert((sx_port_shared_buff_attr_arr[ind].attr.egress_port_shared_buff_attr.pool_id -
-                        DEFAULT_EGRESS_SX_POOL_ID) < buffer_limits.num_egress_pools);
-                if (true ==
-                    affected_items->e_port_buffers[sx_port_shared_buff_attr_arr[ind].attr.egress_port_shared_buff_attr.
-                                                   pool_id - DEFAULT_EGRESS_SX_POOL_ID]) {
-                    SX_LOG_DBG("(e)port_buffers[%d], pool_id:%d\n",
-                               ind,
-                               sx_port_shared_buff_attr_arr[ind].attr.egress_port_shared_buff_attr.pool_id);
-                    sx_port_shared_buff_attr_arr[ind].attr.egress_port_shared_buff_attr.max.mode = sx_pool_mode;
-                    mlnx_sai_shared_max_to_sx(
-                        &sx_port_shared_buff_attr_arr[ind].attr.egress_port_shared_buff_attr.max,
-                        buff_db_entry.shared_max);
-                    sx_port_shared_buff_attr_arr[ind].attr.egress_port_shared_buff_attr.pool_id =
-                        sai_pool_attr.sx_pool_id;
-                    log_sx_port_shared_buffers(0, 1, &sx_port_shared_buff_attr_arr[ind]);
+            case SAI_BUFFER_POOL_EGRESS:
+                switch(sx_port_shared_buff_attr_arr[ind].type) {
+                    case SX_COS_EGRESS_PORT_ATTR_E :
+                        assert((sx_port_shared_buff_attr_arr[ind].attr.egress_port_shared_buff_attr.pool_id - DEFAULT_EGRESS_SX_POOL_ID) < buffer_limits.num_egress_pools);
+                        if (true == affected_items->e_port_buffers[sx_port_shared_buff_attr_arr[ind].attr.egress_port_shared_buff_attr.pool_id - DEFAULT_EGRESS_SX_POOL_ID]) {
+                            SX_LOG_DBG("(e)port_buffers[%d], pool_id:%d\n", ind, sx_port_shared_buff_attr_arr[ind].attr.egress_port_shared_buff_attr.pool_id);
+                            sx_port_shared_buff_attr_arr[ind].attr.egress_port_shared_buff_attr.max.mode = sx_pool_mode;
+                            if(SAI_STATUS_SUCCESS != (sai_status = mlnx_sai_shared_max_to_sx(
+                                &sx_port_shared_buff_attr_arr[ind].attr.egress_port_shared_buff_attr.max,
+                                buff_db_entry.shared_max))) {
+                                SX_LOG_EXIT();
+                                return sai_status;
+                            }
+                            sx_port_shared_buff_attr_arr[ind].attr.egress_port_shared_buff_attr.pool_id = sai_pool_attr.sx_pool_id;
+                            log_sx_port_shared_buffers(0, 1, &sx_port_shared_buff_attr_arr[ind]);
+                        }   
+                        break;
+                    case SX_COS_EGRESS_PORT_TRAFFIC_CLASS_ATTR_E:
+                        if(sx_port_shared_buff_attr_arr[ind].attr.egress_port_tc_shared_buff_attr.tc >= mlnx_sai_get_buffer_resource_limits()->num_port_queue_buff) {
+                            /* control traffic is not supported */
+                            continue;
+                        }
+                        if (true == affected_items->tcs[sx_port_shared_buff_attr_arr[ind].attr.egress_port_tc_shared_buff_attr.tc]) {
+                            SX_LOG_DBG("item:%d, queue:%d\n", ind, sx_port_shared_buff_attr_arr[ind].attr.egress_port_tc_shared_buff_attr.tc);
+                            sx_port_shared_buff_attr_arr[ind].attr.egress_port_tc_shared_buff_attr.max.mode = sx_pool_mode;
+                            if(SAI_STATUS_SUCCESS != (sai_status = mlnx_sai_shared_max_to_sx(
+                                &sx_port_shared_buff_attr_arr[ind].attr.egress_port_tc_shared_buff_attr.max,
+                                buff_db_entry.shared_max))) {
+                                SX_LOG_EXIT();
+                                return sai_status;
+                            }
+                            sx_port_shared_buff_attr_arr[ind].attr.egress_port_tc_shared_buff_attr.pool_id = sai_pool_attr.sx_pool_id;
+                            log_sx_port_shared_buffers(0, 1, &sx_port_shared_buff_attr_arr[ind]);
+                        }
+                        break;
+                    default:
+                        break;                        
                 }
                 break;
-
-            case SX_COS_EGRESS_PORT_TRAFFIC_CLASS_ATTR_E:
-                if (sx_port_shared_buff_attr_arr[ind].attr.egress_port_tc_shared_buff_attr.tc >=
-                    mlnx_sai_get_buffer_resource_limits()->num_port_queue_buff) {
-                    /* control traffic is not supported */
-                    continue;
-                }
-                if (true ==
-                    affected_items->tcs[sx_port_shared_buff_attr_arr[ind].attr.egress_port_tc_shared_buff_attr.tc]) {
-                    SX_LOG_DBG("item:%d, queue:%d\n",
-                               ind,
-                               sx_port_shared_buff_attr_arr[ind].attr.egress_port_tc_shared_buff_attr.tc);
-                    sx_port_shared_buff_attr_arr[ind].attr.egress_port_tc_shared_buff_attr.max.mode = sx_pool_mode;
-                    mlnx_sai_shared_max_to_sx(
-                        &sx_port_shared_buff_attr_arr[ind].attr.egress_port_tc_shared_buff_attr.max,
-                        buff_db_entry.shared_max);
-                    sx_port_shared_buff_attr_arr[ind].attr.egress_port_tc_shared_buff_attr.pool_id =
-                        sai_pool_attr.sx_pool_id;
-                    log_sx_port_shared_buffers(0, 1, &sx_port_shared_buff_attr_arr[ind]);
-                }
-                break;
-
-            default:
-                break;
-            }
-            break;
         }
     }
     SX_LOG_EXIT();
     return SAI_STATUS_SUCCESS;
 }
+
 
 sai_status_t mlnx_sai_apply_buffer_settings_to_port(_In_ sx_port_log_id_t                   log_port,
                                                     _In_ mlnx_sai_db_buffer_profile_entry_t buff_db_entry,
@@ -3097,7 +3121,7 @@ sai_status_t mlnx_sai_get_buffer_profile_dynamic_th_attr(_In_ const sai_object_k
         SX_LOG_EXIT();
         return sai_status;
     }
-    value->u8 = g_sai_buffer_db_ptr->buffer_profiles[db_buffer_profile_index].shared_max.max.alpha;
+    value->s8 = g_sai_buffer_db_ptr->buffer_profiles[db_buffer_profile_index].shared_max.max.alpha;
     cl_plock_release(&g_sai_db_ptr->p_lock);
     SX_LOG_EXIT();
     return SAI_STATUS_SUCCESS;
@@ -3121,7 +3145,7 @@ sai_status_t mlnx_sai_set_buffer_profile_dynamic_th_attr(_In_ const sai_object_k
         SX_LOG_EXIT();
         return sai_status;
     }
-    g_sai_buffer_db_ptr->buffer_profiles[db_buffer_profile_index].shared_max.max.alpha = value->u8;
+    g_sai_buffer_db_ptr->buffer_profiles[db_buffer_profile_index].shared_max.max.alpha = value->s8;
     if (SAI_STATUS_SUCCESS != (sai_status = mlnx_sai_buffer_apply_buffer_change_to_references(key->object_id))) {
         cl_plock_release(&g_sai_db_ptr->p_lock);
         SX_LOG_EXIT();
@@ -3662,7 +3686,7 @@ sai_status_t mlnx_sai_get_buffer_pool_stats(_In_ sai_object_id_t                
 
     SX_LOG_ENTER();
     pool_key_to_str(pool_id, key_str);
-    SX_LOG_NTC("Get pool stats %s\n", key_str);
+    SX_LOG_DBG("Get pool stats %s\n", key_str);
     if (0 == number_of_counters) {
         SX_LOG_ERR("0 number_of_counters array param\n");
         SX_LOG_EXIT();
@@ -3731,7 +3755,7 @@ sai_status_t mlnx_sai_get_ingress_priority_group_stats(
 
     SX_LOG_ENTER();
     pg_key_to_str(ingress_pg_id, key_str);
-    SX_LOG_NTC("Get PG stats %s\n", key_str);
+    SX_LOG_DBG("Get PG stats %s\n", key_str);
     if (0 == number_of_counters) {
         SX_LOG_ERR("0 number_of_counters array param\n");
         SX_LOG_EXIT();
@@ -3766,12 +3790,32 @@ sai_status_t mlnx_sai_get_ingress_priority_group_stats(
     for (ii = 0; ii < number_of_counters; ii++) {
         switch (counter_ids[ii]) {
         case SAI_INGRESS_PRIORITY_GROUP_STAT_PACKETS:
-            SX_LOG_NTC("SAI_INGRESS_PRIORITY_GROUP_STAT_PACKETS is not supported\n");
+            SX_LOG_ERR("SAI_INGRESS_PRIORITY_GROUP_STAT_PACKETS is not supported\n");
             SX_LOG_EXIT();
             return SAI_STATUS_NOT_SUPPORTED;
 
         case SAI_INGRESS_PRIORITY_GROUP_STAT_BYTES:
-            SX_LOG_NTC("SAI_INGRESS_PRIORITY_GROUP_STAT_BYTES is not supported\n");
+            SX_LOG_ERR("SAI_INGRESS_PRIORITY_GROUP_STAT_BYTES is not supported\n");
+            SX_LOG_EXIT();
+            return SAI_STATUS_NOT_SUPPORTED;
+
+        case SAI_INGRESS_PRIORITY_GROUP_STAT_SHARED_CURR_OCCUPANCY_BYTES:
+            SX_LOG_ERR("SAI_INGRESS_PRIORITY_GROUP_STAT_SHARED_CURR_OCCUPANCY_BYTES is not supported\n");
+            SX_LOG_EXIT();
+            return SAI_STATUS_NOT_SUPPORTED;
+
+        case SAI_INGRESS_PRIORITY_GROUP_STAT_SHARED_WATERMARK_BYTES:
+            SX_LOG_ERR("SAI_INGRESS_PRIORITY_GROUP_STAT_SHARED_WATERMARK_BYTES is not supported\n");
+            SX_LOG_EXIT();
+            return SAI_STATUS_NOT_SUPPORTED;
+
+        case SAI_INGRESS_PRIORITY_GROUP_STAT_XOFF_ROOM_CURR_OCCUPANCY_BYTES:
+            SX_LOG_ERR("SAI_INGRESS_PRIORITY_GROUP_STAT_XOFF_ROOM_CURR_OCCUPANCY_BYTES is not supported\n");
+            SX_LOG_EXIT();
+            return SAI_STATUS_NOT_SUPPORTED;
+
+        case SAI_INGRESS_PRIORITY_GROUP_STAT_XOFF_ROOM_WATERMARK_BYTES:
+            SX_LOG_ERR("SAI_INGRESS_PRIORITY_GROUP_STAT_XOFF_ROOM_WATERMARK_BYTES is not supported\n");
             SX_LOG_EXIT();
             return SAI_STATUS_NOT_SUPPORTED;
 
@@ -4058,8 +4102,14 @@ sai_status_t mlnx_sai_buffer_load_port_pg_data(_In_ uint32_t                    
         g_sai_buffer_db_ptr->buffer_profiles[buff_profile_db_ind].shared_max.max.static_th =
             mlnx_cells_to_bytes(sx_port_pg_shared_buff_attr->max.max.size);
     } else {
-        g_sai_buffer_db_ptr->buffer_profiles[buff_profile_db_ind].shared_max.max.alpha =
-            sx_port_pg_shared_buff_attr->max.max.alpha; /* TODO: 1-1 mapping? */
+        if (SAI_STATUS_SUCCESS != (sai_status = 
+            mlnx_buffer_convert_alpha_sx_to_sai(
+                sx_port_pg_shared_buff_attr->max.max.alpha,
+                &g_sai_buffer_db_ptr->buffer_profiles[buff_profile_db_ind].shared_max.max.alpha))) {
+            cl_plock_release(&g_sai_db_ptr->p_lock);
+            SX_LOG_EXIT();
+            return sai_status;
+        }
     }
 
     if (SAI_STATUS_SUCCESS !=
@@ -4176,9 +4226,14 @@ sai_status_t mlnx_sai_buffer_load_port_tc_data(_In_ uint32_t                    
         g_sai_buffer_db_ptr->buffer_profiles[buff_profile_db_ind].shared_max.max.static_th = mlnx_cells_to_bytes(
             sx_port_tc_shared_buff_attr->max.max.size);
     } else {
-        /* TODO: SAI <--> SDK unit conversion */
-        g_sai_buffer_db_ptr->buffer_profiles[buff_profile_db_ind].shared_max.max.alpha =
-            sx_port_tc_shared_buff_attr->max.max.alpha;
+        if (SAI_STATUS_SUCCESS != (sai_status = 
+            mlnx_buffer_convert_alpha_sx_to_sai(
+                sx_port_tc_shared_buff_attr->max.max.alpha,
+                &g_sai_buffer_db_ptr->buffer_profiles[buff_profile_db_ind].shared_max.max.alpha))) {
+            cl_plock_release(&g_sai_db_ptr->p_lock);
+            SX_LOG_EXIT();
+            return sai_status;
+        }
     }
     msync(g_sai_db_ptr, sizeof(*g_sai_db_ptr), MS_SYNC);
     cl_plock_release(&g_sai_db_ptr->p_lock);
@@ -4251,7 +4306,14 @@ sai_status_t mlnx_sai_load_port_buffer_profile(_In_ uint32_t                    
         g_sai_buffer_db_ptr->buffer_profiles[buff_profile_db_ind].shared_max.max.static_th = mlnx_cells_to_bytes(
             buffer_max.max.size);
     } else {
-        g_sai_buffer_db_ptr->buffer_profiles[buff_profile_db_ind].shared_max.max.alpha = buffer_max.max.alpha; /* TODO: unit conversion? */
+        if (SAI_STATUS_SUCCESS != (sai_status = 
+            mlnx_buffer_convert_alpha_sx_to_sai(
+                    buffer_max.max.alpha,
+                    &g_sai_buffer_db_ptr->buffer_profiles[buff_profile_db_ind].shared_max.max.alpha))) {
+            cl_plock_release(&g_sai_db_ptr->p_lock);
+            SX_LOG_EXIT();
+            return sai_status;                
+        }
     }
 
     if (SAI_STATUS_SUCCESS !=
@@ -5026,6 +5088,94 @@ sai_status_t mlnx_sai_is_buffer_in_use(_In_ sai_object_id_t buffer_profile_id)
         return SAI_STATUS_OBJECT_IN_USE;
     }
     free_affected_items(&affected_items);
+    SX_LOG_EXIT();
+    return SAI_STATUS_SUCCESS;
+}
+
+sai_status_t mlnx_buffer_convert_alpha_sx_to_sai(
+    _In_ sx_cos_port_buff_alpha_e   sx_alpha,
+    _Out_ sai_int8_t*               sai_alpha)
+{
+    SX_LOG_ENTER();
+    if(NULL == sai_alpha) {
+        SX_LOG_ERR("NULL sai_alpha\n");
+        SX_LOG_EXIT();
+        return SAI_STATUS_INVALID_PARAMETER;
+    }
+    switch(sx_alpha) {
+        case SX_COS_PORT_BUFF_ALPHA_0_E     : *sai_alpha = SAI_BUFFER_ALPHA_0;break;
+        case SX_COS_PORT_BUFF_ALPHA_1_128_E : *sai_alpha = SAI_BUFFER_ALPHA_1_128;break;
+        case SX_COS_PORT_BUFF_ALPHA_1_64_E  : *sai_alpha = SAI_BUFFER_ALPHA_1_64;break;
+        case SX_COS_PORT_BUFF_ALPHA_1_32_E  : *sai_alpha = SAI_BUFFER_ALPHA_1_32;break;
+        case SX_COS_PORT_BUFF_ALPHA_1_16_E  : *sai_alpha = SAI_BUFFER_ALPHA_1_16;break;
+        case SX_COS_PORT_BUFF_ALPHA_1_8_E   : *sai_alpha = SAI_BUFFER_ALPHA_1_8;break;
+        case SX_COS_PORT_BUFF_ALPHA_1_4_E   : *sai_alpha = SAI_BUFFER_ALPHA_1_4;break;
+        case SX_COS_PORT_BUFF_ALPHA_1_2_E   : *sai_alpha = SAI_BUFFER_ALPHA_1_2;break;
+
+        case SX_COS_PORT_BUFF_ALPHA_1_E     : *sai_alpha = SAI_BUFFER_ALPHA_1;break;
+        case SX_COS_PORT_BUFF_ALPHA_2_E     : *sai_alpha = SAI_BUFFER_ALPHA_2;break;
+        case SX_COS_PORT_BUFF_ALPHA_4_E     : *sai_alpha = SAI_BUFFER_ALPHA_4;break;
+        case SX_COS_PORT_BUFF_ALPHA_8_E     : *sai_alpha = SAI_BUFFER_ALPHA_8;break;
+        case SX_COS_PORT_BUFF_ALPHA_16_E    : *sai_alpha = SAI_BUFFER_ALPHA_16;break;
+        case SX_COS_PORT_BUFF_ALPHA_32_E    : *sai_alpha = SAI_BUFFER_ALPHA_32;break;
+        case SX_COS_PORT_BUFF_ALPHA_64_E    : *sai_alpha = SAI_BUFFER_ALPHA_64;break;
+
+        case SX_COS_PORT_BUFF_ALPHA_INFINITY_E: *sai_alpha = SAI_BUFFER_ALPHA_INFINITY;break;
+        default:
+            SX_LOG_ERR("Invalid sx alpha value:%d\n", sx_alpha);
+            SX_LOG_EXIT();
+            return SAI_STATUS_INVALID_PARAMETER;
+    }
+    SX_LOG_DBG("input:%d, output:%d\n", sx_alpha, *sai_alpha);
+    SX_LOG_EXIT();
+    return SAI_STATUS_SUCCESS;
+}
+
+sai_status_t mlnx_buffer_convert_alpha_sai_to_sx(
+    _In_    sai_int8_t                  sai_alpha,
+    _Out_   sx_cos_port_buff_alpha_e*   sx_alpha)
+{
+    SX_LOG_ENTER();
+    if(NULL == sx_alpha) {
+        SX_LOG_ERR("NULL sx_alpha\n");
+        SX_LOG_EXIT();
+        return SAI_STATUS_INVALID_PARAMETER;
+    }
+    if(sai_alpha <= SAI_BUFFER_ALPHA_0) {
+        *sx_alpha = SX_COS_PORT_BUFF_ALPHA_0_E;
+        SX_LOG_DBG("input:%d, output:%d\n", sai_alpha, *sx_alpha);
+        SX_LOG_EXIT();
+        return SAI_STATUS_SUCCESS;
+    }
+    if(sai_alpha >= SAI_BUFFER_ALPHA_INFINITY) {
+        *sx_alpha = SX_COS_PORT_BUFF_ALPHA_INFINITY_E;
+        SX_LOG_DBG("input:%d, output:%d\n", sai_alpha, *sx_alpha);
+        SX_LOG_EXIT();
+        return SAI_STATUS_SUCCESS;
+    }
+    
+    switch(sai_alpha) {
+        case SAI_BUFFER_ALPHA_1_128 : *sx_alpha = SX_COS_PORT_BUFF_ALPHA_1_128_E;break;
+        case SAI_BUFFER_ALPHA_1_64  : *sx_alpha = SX_COS_PORT_BUFF_ALPHA_1_64_E;break;
+        case SAI_BUFFER_ALPHA_1_32  : *sx_alpha = SX_COS_PORT_BUFF_ALPHA_1_32_E;break;
+        case SAI_BUFFER_ALPHA_1_16  : *sx_alpha = SX_COS_PORT_BUFF_ALPHA_1_16_E;break;
+        case SAI_BUFFER_ALPHA_1_8   : *sx_alpha = SX_COS_PORT_BUFF_ALPHA_1_8_E;break;
+        case SAI_BUFFER_ALPHA_1_4   : *sx_alpha = SX_COS_PORT_BUFF_ALPHA_1_4_E;break;
+        case SAI_BUFFER_ALPHA_1_2   : *sx_alpha = SX_COS_PORT_BUFF_ALPHA_1_2_E;break;
+        
+        case SAI_BUFFER_ALPHA_1     : *sx_alpha = SX_COS_PORT_BUFF_ALPHA_1_E;break;
+        case SAI_BUFFER_ALPHA_2     : *sx_alpha = SX_COS_PORT_BUFF_ALPHA_2_E;break;
+        case SAI_BUFFER_ALPHA_4     : *sx_alpha = SX_COS_PORT_BUFF_ALPHA_4_E;break;
+        case SAI_BUFFER_ALPHA_8     : *sx_alpha = SX_COS_PORT_BUFF_ALPHA_8_E;break;
+        case SAI_BUFFER_ALPHA_16    : *sx_alpha = SX_COS_PORT_BUFF_ALPHA_16_E;break;
+        case SAI_BUFFER_ALPHA_32    : *sx_alpha = SX_COS_PORT_BUFF_ALPHA_32_E;break;
+        case SAI_BUFFER_ALPHA_64    : *sx_alpha = SX_COS_PORT_BUFF_ALPHA_64_E;break;
+        default:
+            SX_LOG_ERR("Invalid sai alpha value:%d\n", sai_alpha);
+            SX_LOG_EXIT();
+            return SAI_STATUS_INVALID_PARAMETER;
+    }
+    SX_LOG_DBG("input:%d, output:%d\n", sai_alpha, *sx_alpha);
     SX_LOG_EXIT();
     return SAI_STATUS_SUCCESS;
 }

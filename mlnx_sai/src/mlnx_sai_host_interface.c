@@ -52,6 +52,8 @@ static const sai_attribute_entry_t trap_group_attribs[] = {
 const sai_attribute_entry_t        host_interface_packet_attribs[] = {
     { SAI_HOSTIF_PACKET_TRAP_ID, false, false, false, false,
       "Packet trap ID", SAI_ATTR_VAL_TYPE_S32 },
+    { SAI_HOSTIF_PACKET_USER_TRAP_ID, false, false, false, false,
+      "User def trap ID", SAI_ATTR_VAL_TYPE_S32 },
     { SAI_HOSTIF_PACKET_INGRESS_PORT, false, false, false, false,
       "Packet ingress port", SAI_ATTR_VAL_TYPE_OID },
     { SAI_HOSTIF_PACKET_INGRESS_LAG, false, false, false, false,
@@ -248,6 +250,11 @@ static const sai_vendor_attribute_entry_t user_defined_trap_vendor_attribs[] = {
 };
 static const sai_vendor_attribute_entry_t host_interface_packet_vendor_attribs[] = {
     { SAI_HOSTIF_PACKET_TRAP_ID,
+      { false, false, false, false },
+      { false, false, false, false },
+      NULL, NULL,
+      NULL, NULL },
+    { SAI_HOSTIF_PACKET_USER_TRAP_ID,
       { false, false, false, false },
       { false, false, false, false },
       NULL, NULL,
@@ -562,7 +569,7 @@ sai_status_t mlnx_create_host_interface(_Out_ sai_object_id_t     * hif_id,
         cl_plock_acquire(&g_sai_db_ptr->p_lock);
         snprintf(command,
                  sizeof(command),
-                 "ifconfig %s hw ether %s > /dev/null 2>&1",
+                 "ip link set dev %s address %s > /dev/null 2>&1",
                  name->chardata,
                  g_sai_db_ptr->dev_mac);
         cl_plock_release(&g_sai_db_ptr->p_lock);
@@ -941,16 +948,25 @@ sai_status_t mlnx_trap_group_prio_get(_In_ const sai_object_key_t   *key,
                                       _Inout_ vendor_cache_t        *cache,
                                       void                          *arg)
 {
-    sai_status_t status;
+    sai_status_t               status;
+    uint32_t                   group_id;
+    sx_trap_group_attributes_t trap_group_attributes;
 
     SX_LOG_ENTER();
 
-    /* Group ID equals prio */
     if (SAI_STATUS_SUCCESS !=
-        (status = mlnx_object_to_type(key->object_id, SAI_OBJECT_TYPE_TRAP_GROUP, &value->u32, NULL))) {
+        (status = mlnx_object_to_type(key->object_id, SAI_OBJECT_TYPE_TRAP_GROUP, &group_id, NULL))) {
         SX_LOG_EXIT();
         return status;
     }
+
+    if (SAI_STATUS_SUCCESS != (status = sx_api_host_ifc_trap_group_get(gh_sdk, DEFAULT_ETH_SWID,
+        group_id, &trap_group_attributes))) {
+        SX_LOG_ERR("Failed to sx_api_host_ifc_trap_group_get %s\n", SX_STATUS_MSG(status));
+        return sdk_to_sai(status);
+    }
+
+    value->u32 = trap_group_attributes.prio;
 
     SX_LOG_EXIT();
     return SAI_STATUS_SUCCESS;
@@ -1136,11 +1152,11 @@ static void trap_group_key_to_str(_In_ sai_object_id_t group_id, _Out_ char *key
 
 sai_status_t mlnx_check_trap_group_prio(uint32_t prio, uint32_t prio_index)
 {
-    if (prio > SX_TRAP_PRIORITY_HIGH) {
+    if ((prio > g_resource_limits.trap_group_priority_max) || (prio < g_resource_limits.trap_group_priority_min)) {
         SX_LOG_ERR("Trap group priority %u out of range (%u,%u)\n",
                    prio,
-                   SX_TRAP_PRIORITY_BEST_EFFORT,
-                   SX_TRAP_PRIORITY_HIGH);
+                   g_resource_limits.trap_group_priority_min,
+                   g_resource_limits.trap_group_priority_max);
         return SAI_STATUS_INVALID_ATTR_VALUE_0 + prio_index;
     }
 
@@ -1172,8 +1188,8 @@ sai_status_t mlnx_create_hostif_trap_group(_Out_ sai_object_id_t      *hostif_tr
     sx_trap_group_attributes_t   trap_group_attributes;
     uint32_t                     policer_attr_index = 0;
     const sai_attribute_value_t *policer_id_attr    = NULL;
-    mlnx_policer_bind_params     bind_params;
-
+    uint32_t                     group_id;
+    
     SX_LOG_ENTER();
 
     memset(&trap_group_attributes, 0, sizeof(trap_group_attributes));
@@ -1204,8 +1220,21 @@ sai_status_t mlnx_create_hostif_trap_group(_Out_ sai_object_id_t      *hostif_tr
     trap_group_attributes.truncate_size = 0;
     trap_group_attributes.prio          = prio->u32;
 
+    cl_plock_excl_acquire(&g_sai_db_ptr->p_lock);
+    for (group_id = 0; group_id < MAX_TRAP_GROUPS; group_id++) {
+        if (!g_sai_db_ptr->trap_group_valid[group_id]) {
+            g_sai_db_ptr->trap_group_valid[group_id] = true;
+            break;
+        }
+    }
+    cl_plock_release(&g_sai_db_ptr->p_lock);
+    if (MAX_TRAP_GROUPS == group_id) {
+        SX_LOG_ERR("All trap groups are already used\n");
+        return SAI_STATUS_INSUFFICIENT_RESOURCES;
+    }
+
     if (SAI_STATUS_SUCCESS != (status = sx_api_host_ifc_trap_group_set(gh_sdk, DEFAULT_ETH_SWID,
-                                                                       prio->u32, &trap_group_attributes))) {
+                                                                       group_id, &trap_group_attributes))) {
         SX_LOG_ERR("Failed to sx_api_host_ifc_trap_group_set %s\n", SX_STATUS_MSG(status));
         return sdk_to_sai(status);
     }
@@ -1213,7 +1242,7 @@ sai_status_t mlnx_create_hostif_trap_group(_Out_ sai_object_id_t      *hostif_tr
     /* TODO : handle queue */
 
     if (SAI_STATUS_SUCCESS !=
-        (status = mlnx_create_object(SAI_OBJECT_TYPE_TRAP_GROUP, prio->u32, NULL, hostif_trap_group_id))) {
+        (status = mlnx_create_object(SAI_OBJECT_TYPE_TRAP_GROUP, group_id, NULL, hostif_trap_group_id))) {
         SX_LOG_EXIT();
         return status;
     }
@@ -1224,9 +1253,8 @@ sai_status_t mlnx_create_hostif_trap_group(_Out_ sai_object_id_t      *hostif_tr
         find_attrib_in_list(attr_count, attr_list, SAI_HOSTIF_TRAP_GROUP_ATTR_POLICER, &policer_id_attr,
                             &policer_attr_index)) {
         if (SAI_NULL_OBJECT_ID != policer_id_attr->oid) {
-            bind_params.trap_group_bind_params.attr_prio_value.u32 = prio->u32;
             if (SAI_STATUS_SUCCESS !=
-                (status = mlnx_sai_bind_policer(*hostif_trap_group_id, policer_id_attr->oid, &bind_params))) {
+                (status = mlnx_sai_bind_policer(*hostif_trap_group_id, policer_id_attr->oid, NULL))) {
                 SX_LOG_ERR("Failed to bind. trap_group id:0x%" PRIx64 ". sai policer object_id:0x%" PRIx64 "\n",
                            *hostif_trap_group_id,
                            policer_id_attr->oid);
@@ -1257,17 +1285,43 @@ sai_status_t mlnx_create_hostif_trap_group(_Out_ sai_object_id_t      *hostif_tr
  */
 sai_status_t mlnx_remove_hostif_trap_group(_In_ sai_object_id_t hostif_trap_group_id)
 {
-    char key_str[MAX_KEY_STR_LEN];
+    char             key_str[MAX_KEY_STR_LEN];
+    uint32_t         group_id;
+    sai_status_t     status;
 
     SX_LOG_ENTER();
 
     trap_group_key_to_str(hostif_trap_group_id, key_str);
     SX_LOG_NTC("Remove trap group %s\n", key_str);
+    
+    if (SAI_STATUS_SUCCESS !=
+        (status = mlnx_object_to_type(hostif_trap_group_id, SAI_OBJECT_TYPE_TRAP_GROUP, &group_id, NULL))) {
+        SX_LOG_EXIT();
+        return status;
+    }
 
-    /* Nothing to do */
+    if (DEFAULT_TRAP_GROUP_ID == group_id) {
+        SX_LOG_ERR("Can't delete the default trap group\n");
+        return SAI_STATUS_OBJECT_IN_USE;
+    }
+
+    if (group_id >= MAX_TRAP_GROUPS) {
+        SX_LOG_ERR("Invalid group id %u\n", group_id);
+        return SAI_STATUS_INVALID_PARAMETER;
+    }
+
+    cl_plock_excl_acquire(&g_sai_db_ptr->p_lock);
+    if (false == g_sai_db_ptr->trap_group_valid[group_id]) {
+        SX_LOG_ERR("Invalid group id %u\n", group_id);
+        status = SAI_STATUS_INVALID_PARAMETER;
+    }
+    else {
+        g_sai_db_ptr->trap_group_valid[group_id] = false;
+    }
+    cl_plock_release(&g_sai_db_ptr->p_lock);
 
     SX_LOG_EXIT();
-    return SAI_STATUS_SUCCESS;
+    return status;
 }
 
 /*

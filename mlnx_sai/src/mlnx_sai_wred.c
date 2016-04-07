@@ -1512,7 +1512,13 @@ sai_status_t mlnx_wred_init()
     return sdk_to_sai(sx_status);
 }
 
-/* Set global average queue size weight */
+/* Set global average queue size weight 
+ * Note : SDK/FW requires 2^SAI_WRED_ATTR_WEIGHT < SAI_WRED_ATTR_[GREEN/YELLOW/RED]_MIN_THRESHOLD / Cell size (=96 in SPC)
+ * The rational being 
+ * average queue size = 2^-weight * current size + previous average * (1-2^-weight)
+ * thus min size has to be bigger than 2^-weight
+ * and also min size is measured in cells
+*/
 sai_status_t mlnx_wred_weight_set(_In_ const sai_object_key_t      *key,
                                   _In_ const sai_attribute_value_t *value,
                                   void                             *arg)
@@ -1942,7 +1948,7 @@ sai_status_t mlnx_create_wred_profile(_Out_ sai_object_id_t      *wred_id,
                                                   &redecn_attr_green, &wred_profile.green_profile_id);
         if (SX_STATUS_SUCCESS != sx_status) {
             SX_LOG_ERR("Failed to create redecn green profile - %s\n", SX_STATUS_MSG(sx_status));
-            return sdk_to_sai(status);
+            return sdk_to_sai(sx_status);
         }
     }
 
@@ -1955,7 +1961,7 @@ sai_status_t mlnx_create_wred_profile(_Out_ sai_object_id_t      *wred_id,
             /* clean up previously created profile */
             mlnx_wred_cleanup_profiles(&wred_profile);
 
-            return sdk_to_sai(status);
+            return sdk_to_sai(sx_status);
         }
     }
 
@@ -1968,7 +1974,7 @@ sai_status_t mlnx_create_wred_profile(_Out_ sai_object_id_t      *wred_id,
             /* clean up previously created profiles */
             mlnx_wred_cleanup_profiles(&wred_profile);
 
-            return sdk_to_sai(status);
+            return sdk_to_sai(sx_status);
         }
     }
 
