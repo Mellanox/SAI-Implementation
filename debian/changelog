@@ -1,0 +1,5 @@
+mlnx-sai (1.mlnx.160407) unstable; urgency=low
+  [ MLNX ]
+  * Initial release. (Closes: #XXXXXX)
+
+ -- Adir Atias <adira@mellanox.com>  Thu, 10 Oct 2015 14:54:17 +0300

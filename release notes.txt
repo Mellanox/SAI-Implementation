@@ -1,7 +1,7 @@
 Mellanox SAI implementation release notes
 ==========================================
 
-Release 1.5.0
+Release 1.6.0
 ---------------
 
 Current implementation is partial. 
@@ -10,7 +10,7 @@ Not all the APIs that are defined were fully implemented in this release. Missin
 
 The code was tested to work on X86, at Beta level.
 No testing was done on PPC.
-The code compiles with, and was tested with, SDK version 4.2.1000.
+The code compiles with, and was tested with, SDK version 4.2.1008.
 
 As a precondition to running SAI initialize switch, SDK must not be running (If it's running, terminate it with dvs_stop.sh). 
 The application must provide one key/value pair on profile services, "config_file=/usr/share/sai_2700.xml" / "config_file=/usr/share/sai_2410.xml", depending on system type.
@@ -29,13 +29,15 @@ SAI_VIRTUAL_ROUTER_ATTR_VIOLATION_TTL1_ACTION, SAI_VIRTUAL_ROUTER_ATTR_VIOLATION
 * vlan counters API
 * notification callbacks - switch shutdown request
 * port storm policers
-* egress mirroring
 * SAI_INGRESS_PRIORITY_GROUP_STAT_PACKETS, SAI_INGRESS_PRIORITY_GROUP_STAT_BYTES in buffer API
-* SAI_HASH_UDF_GROUP_LIST in hash API 
+* SAI_HASH_UDF_GROUP_LIST in hash API
+* saiobject.h query objects functions
+* Sample packet is supported only on ingress traffic to port, at profile mode (exclusive instance per port). Netflow mode (shared, aggregated traffic), Egress traffic on port (SAI_PORT_ATTR_EGRESS_SAMPLEPACKET_ENABLE) and ACL ingress/egress (SAI_ACL_ENTRY_ATTR_ACTION_INGRESS_SAMPLEPACKET_ENABLE, SAI_ACL_ENTRY_ATTR_ACTION_EGRESS_SAMPLEPACKET_ENABLE) are not supported.
 
 ACL has the following limitations :
 * Only 1 Ingress group, 1 egress group, not supporting multiple groups
 * Index in HW table = table size - entry priority value, not supporting full priority functionality, 2 entries will same priority will override each other
-* Supporting limited amount of match keys / actions 
+* Supporting limited amount of match keys / actions
+* Vlan and L4 ranges not implemented
 
-
+SAI_QUEUE_STAT_PACKETS, SAI_QUEUE_STAT_BYTES assumes one to one mapping and queue num=IEEE prio.
