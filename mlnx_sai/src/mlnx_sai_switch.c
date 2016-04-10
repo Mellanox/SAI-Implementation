@@ -2912,7 +2912,7 @@ static sai_status_t switch_open_traps(void)
 #ifdef ACS_OS
     /* TODO : intermediate solution to drop traffic to unresolved neighbors, replace in long term*/
     if (SAI_STATUS_SUCCESS != (status = sx_api_host_ifc_trap_id_set(gh_sdk, DEFAULT_ETH_SWID,
-                                                                    SX_TRAP_ID_HOST_MISS_IPV4, DEFAULT_TRAP_GROUP,
+                                                                    SX_TRAP_ID_HOST_MISS_IPV4, DEFAULT_TRAP_GROUP_ID,
                                                                     SX_TRAP_ACTION_DISCARD))) {
         SX_LOG_ERR("Failed to set trap host miss, error is %s\n", SX_STATUS_MSG(status));
         status = sdk_to_sai(status);

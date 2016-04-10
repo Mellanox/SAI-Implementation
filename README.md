@@ -18,3 +18,6 @@ For example : make all_native USE_KERNEL=0 USE_SAI_INTERFACE=1
 The output result is SAI library, called libsai.
 
 User applications can then link with this library, in order to use the SAI implementation.
+
+Compilation instructions to create deb package for Sonic :
+debuild -e make_extra_flags="DEFS=-DACS_OS" -us -uc -d -b 
