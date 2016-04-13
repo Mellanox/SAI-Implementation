@@ -326,6 +326,8 @@ sai_status_t check_attribs_metadata(_In_ uint32_t                            att
              (NULL == attr_list[ii].value.aclfield.mask.u8list.list)) ||
             ((SAI_ATTR_VAL_TYPE_ACLACTION_OBJLIST == functionality_attr[index].type) &&
              (NULL == attr_list[ii].value.aclaction.parameter.objlist.list)) ||
+            ((SAI_ATTR_VAL_TYPE_TUNNELMAP == functionality_attr[index].type) &&
+             (NULL == attr_list[ii].value.tunnelmap.list)) ||
             ((SAI_ATTR_VAL_TYPE_QOSMAP == functionality_attr[index].type) &&
              (NULL == attr_list[ii].value.qosmap.list))) {
             SX_LOG_ERR("Null list attribute %s at index %d\n",
@@ -1032,6 +1034,7 @@ sai_status_t sai_value_to_str(_In_ sai_attribute_value_t      value,
     case SAI_ATTR_VAL_TYPE_ACLFIELD_OBJLIST:
     case SAI_ATTR_VAL_TYPE_ACLFIELD_U8LIST:
     case SAI_ATTR_VAL_TYPE_ACLACTION_OBJLIST:
+    case SAI_ATTR_VAL_TYPE_TUNNELMAP:
         if (SAI_ATTR_VAL_TYPE_PORTBREAKOUT == type) {
             pos += snprintf(value_str, max_length, "breakout mode %d.", value.portbreakout.breakout_mode);
         }
@@ -1058,6 +1061,7 @@ sai_status_t sai_value_to_str(_In_ sai_attribute_value_t      value,
                 (SAI_ATTR_VAL_TYPE_ACLFIELD_OBJLIST == type) ? value.aclfield.data.objlist.count :
                 (SAI_ATTR_VAL_TYPE_ACLFIELD_U8LIST == type) ? value.aclfield.data.u8list.count :
                 (SAI_ATTR_VAL_TYPE_ACLACTION_OBJLIST == type) ? value.aclaction.parameter.objlist.count :
+                (SAI_ATTR_VAL_TYPE_TUNNELMAP == type) ? value.tunnelmap.count :
                 value.portbreakout.port_list.count;
         pos += snprintf(value_str + pos, max_length - pos, "%u : [", count);
         if (pos > max_length) {
@@ -1097,6 +1101,13 @@ sai_status_t sai_value_to_str(_In_ sai_attribute_value_t      value,
                 pos +=
                     snprintf(value_str + pos, max_length - pos, " %" PRIx64,
                              value.aclaction.parameter.objlist.list[ii]);
+            } else if (SAI_ATTR_VAL_TYPE_TUNNELMAP == type) {
+                pos +=
+                    snprintf(value_str + pos, max_length - pos, " %u,%u,%u->%u,%u,%u",
+                    value.tunnelmap.list[ii].key.ecn, value.tunnelmap.list[ii].key.vlan_id, 
+                    value.tunnelmap.list[ii].key.vni_id,
+                    value.tunnelmap.list[ii].value.ecn, value.tunnelmap.list[ii].value.vlan_id, 
+                    value.tunnelmap.list[ii].value.vni_id);
             } else {
                 pos += snprintf(value_str + pos, max_length - pos, " %" PRIx64, value.portbreakout.port_list.list[ii]);
             }
@@ -1113,6 +1124,14 @@ sai_status_t sai_value_to_str(_In_ sai_attribute_value_t      value,
 
     case SAI_ATTR_VAL_TYPE_S32RANGE:
         snprintf(value_str, max_length, "[%d,%d]", value.s32range.min, value.s32range.max);
+        break;
+
+    case SAI_ATTR_VAL_TYPE_ACLFIELD_BOOLDATA:
+        snprintf(value_str,
+            max_length,
+            "%u,%02x",
+            value.aclfield.enable,
+            value.aclfield.data.booldata);
         break;
 
     case SAI_ATTR_VAL_TYPE_ACLFIELD_U8:

@@ -161,6 +161,23 @@ typedef enum _sai_hash_algorithm_t
 } sai_hash_algorithm_t;
 
 /**
+ * @brief Attribute data for SAI_SWITCH_ATTR_RESTART_TYPE
+ */
+typedef enum _sai_switch_restart_type_t
+{
+    /** NPU doesn't support warmboot */
+    SAI_RESTART_TYPE_NONE = 0,
+
+    /** Planned restart only */
+    SAI_RESTART_TYPE_PLANNED = 1,
+
+    /** Both planned and unplanned restart */
+    SAI_RESTART_TYPE_ANY = 2,
+
+
+} sai_switch_restart_type_t;
+
+/**
 *  Attribute Id in sai_set_switch_attribute() and
 *  sai_get_switch_attribute() calls
 */
@@ -259,6 +276,9 @@ typedef enum _sai_switch_attr_t
     /** ACL user-based ACL meta data range [sai_u32_range_t] */
     SAI_SWITCH_ATTR_ACL_USER_META_DATA_RANGE,
 
+    /** ACL user-based trap id range [sai_u32_range_t] */
+    SAI_SWITCH_ATTR_ACL_USER_TRAP_ID_RANGE,
+
     /** Default SAI STP instance ID [sai_object_id_t] */
     SAI_SWITCH_ATTR_DEFAULT_STP_INST_ID,
 
@@ -301,8 +321,8 @@ typedef enum _sai_switch_attr_t
 
     /** The hash object for packets going through ECMP [sai_object_id_t]
      * (default value after switch initialization
-     *   SAI_HASH_NATIVE_FIELD_LIST = [SAI_NATIVE_HASH_FIELD_SRC_MAC, 
-     *   SAI_NATIVE_HASH_FIELD_DST_MAC, SAI_NATIVE_HASH_FIELD_IN_PORT, 
+     *   SAI_HASH_NATIVE_FIELD_LIST = [SAI_NATIVE_HASH_FIELD_SRC_MAC,
+     *   SAI_NATIVE_HASH_FIELD_DST_MAC, SAI_NATIVE_HASH_FIELD_IN_PORT,
      *   SAI_NATIVE_HASH_FIELD_ETHERTYPE]
      *   SAI_HASH_UDF_GROUP_LIST empty list)
      * The object id is read only, while the object attributes can be modified */
@@ -317,6 +337,18 @@ typedef enum _sai_switch_attr_t
      * The object id is read only, while the object attributes can be modified */
     SAI_SWITCH_ATTR_LAG_HASH,
 
+    /** Type of restart supported [sai_switch_restart_type_t] */
+    SAI_SWITCH_ATTR_RESTART_TYPE,
+
+    /** Minimum interval of time required by SAI for planned restart [sai_uint32_t]
+     *  in milliseconds. Will be 0 for SAI_RESTART_TYPE_NONE.
+     *  The Host Adapter will have to wait for this minimum interval of time before it decides
+     *  to bring down SAI due to init failure. */
+    SAI_SWITCH_ATTR_MIN_PLANNED_RESTART_INTERVAL,
+
+    /** Nonvolatile storage required by both SAI and NPU in KB [sai_uint64_t]
+     * Will be 0 for SAI_RESTART_TYPE_NONE */
+    SAI_SWITCH_ATTR_NV_STORAGE_SIZE,
 
     /** READ-WRITE */
 
@@ -371,6 +403,9 @@ typedef enum _sai_switch_attr_t
     /** The hash object for IPv4 in IPv4 packets going through ECMP [sai_object_id_t] */
     SAI_SWITCH_ATTR_ECMP_HASH_IPV4_IN_IPV4,
 
+    /** The hash object for IPv6 packets going through ECMP [sai_object_id_t] */
+    SAI_SWITCH_ATTR_ECMP_HASH_IPV6,
+
     /** SAI LAG default hash algorithm [sai_hash_algorithm] (default to SAI_HASH_ALGORITHM_CRC) */
     SAI_SWITCH_ATTR_LAG_DEFAULT_HASH_ALGORITHM,
 
@@ -389,6 +424,9 @@ typedef enum _sai_switch_attr_t
 
     /** The hash object for IPv4 in IPv4 packets going through LAG [sai_object_id_t] */
     SAI_SWITCH_ATTR_LAG_HASH_IPV4_IN_IPV4,
+
+    /** The hash object for IPv6 packets going through LAG [sai_object_id_t] */
+    SAI_SWITCH_ATTR_LAG_HASH_IPV6,
 
     /** The SDK can
      * 1 - Read the counters directly from HW (or)
@@ -477,7 +515,7 @@ typedef enum _sai_switch_attr_t
  * @note This value needs to be incremented whenever a new switch attribute key
  * is added.
  */
-#define SAI_SWITCH_ATTR_MAX_KEY_COUNT         12
+#define SAI_SWITCH_ATTR_MAX_KEY_COUNT         15
 
 /**
  * List of switch attributes keys that can be set using key=value
@@ -494,6 +532,13 @@ typedef enum _sai_switch_attr_t
 #define SAI_KEY_NUM_QUEUES                    "SAI_NUM_QUEUES"
 #define SAI_KEY_NUM_CPU_QUEUES                "SAI_NUM_CPU_QUEUES"
 #define SAI_KEY_INIT_CONFIG_FILE              "SAI_INIT_CONFIG_FILE"
+/** 0: means cold boot, and 1: means warm boot */
+#define SAI_KEY_WARM_BOOT                     "SAI_WARM_BOOT"
+/** The file to recover SAI/NPU state from */
+#define SAI_KEY_WARM_BOOT_READ_FILE           "SAI_WARM_BOOT_READ_FILE"
+/** The file to write SAI/NPU state to */
+#define SAI_KEY_WARM_BOOT_WRITE_FILE          "SAI_WARM_BOOT_WRITE_FILE"
+
 
 /**
  * Routine Description:

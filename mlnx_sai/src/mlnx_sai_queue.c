@@ -375,6 +375,7 @@ sai_status_t mlnx_get_queue_statistics(_In_ sai_object_id_t                 queu
     char                             key_str[MAX_KEY_STR_LEN];
     sx_port_statistic_usage_params_t stats_usage;
     sx_port_occupancy_statistics_t   occupancy_stats;
+    sx_port_traffic_cntr_t           tc_cnts;
     uint32_t                         usage_cnt = 1;
 
     SX_LOG_ENTER();
@@ -411,6 +412,14 @@ sai_status_t mlnx_get_queue_statistics(_In_ sai_object_id_t                 queu
         return sdk_to_sai(status);
     }
 
+    /* TODO : assumes one to one mapping, with same value, of IEEE prio = queue num 
+     * SDK extension may do the mapping from IEEE prio to TC, and remove this limitation */
+    if (SX_STATUS_SUCCESS !=
+        (status = sx_api_port_counter_tc_get(gh_sdk, SX_ACCESS_CMD_READ, port_num, queue_num, &tc_cnts))) {
+        SX_LOG_ERR("Failed to get port tc counters - %s.\n", SX_STATUS_MSG(status));
+        return sdk_to_sai(status);
+    }
+
     memset(&stats_usage, 0, sizeof(stats_usage));
     stats_usage.port_cnt                                 = 1;
     stats_usage.log_port_list_p                          = &port_num;
@@ -421,13 +430,12 @@ sai_status_t mlnx_get_queue_statistics(_In_ sai_object_id_t                 queu
     if (SX_STATUS_SUCCESS !=
         (status = sx_api_cos_port_buff_type_statistic_get(gh_sdk, SX_ACCESS_CMD_READ, &stats_usage, 1,
                                                           &occupancy_stats, &usage_cnt))) {
-        SX_LOG_ERR("Failed to get port redecn counters - %s.\n", SX_STATUS_MSG(status));
+        SX_LOG_ERR("Failed to get port buff statistics - %s.\n", SX_STATUS_MSG(status));
         return sdk_to_sai(status);
     }
 
     for (ii = 0; ii < number_of_counters; ii++) {
         switch (counter_ids[ii]) {
-        case SAI_QUEUE_STAT_BYTES:
         case SAI_QUEUE_STAT_DROPPED_PACKETS:
         case SAI_QUEUE_STAT_DROPPED_BYTES:
         case SAI_QUEUE_STAT_GREEN_PACKETS:
@@ -449,8 +457,18 @@ sai_status_t mlnx_get_queue_statistics(_In_ sai_object_id_t                 queu
         case SAI_QUEUE_STAT_RED_DISCARD_DROPPED_PACKETS:
         case SAI_QUEUE_STAT_RED_DISCARD_DROPPED_BYTES:
         case SAI_QUEUE_STAT_DISCARD_DROPPED_BYTES:
+        case SAI_QUEUE_STAT_SHARED_CURR_OCCUPANCY_BYTES:
+        case SAI_QUEUE_STAT_SHARED_WATERMARK_BYTES:
             SX_LOG_ERR("Queue counter %d set item %u not supported\n", counter_ids[ii], ii);
             return SAI_STATUS_ATTR_NOT_SUPPORTED_0;
+
+        case SAI_QUEUE_STAT_PACKETS:
+            counters[ii] = tc_cnts.tx_frames;
+            break;
+
+        case SAI_QUEUE_STAT_BYTES:
+            counters[ii] = tc_cnts.tx_octet;
+            break;
 
         case SAI_QUEUE_STAT_DISCARD_DROPPED_PACKETS:
             counters[ii] = redecn_cnts.tc_red_dropped_packets[queue_num];
