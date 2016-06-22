@@ -23,17 +23,16 @@
 #define __MODULE__ SAI_VLAN
 
 static sx_verbosity_level_t LOG_VAR_NAME(__MODULE__) = SX_VERBOSITY_LEVEL_WARNING;
-
-sai_status_t mlnx_vlan_port_list_get(_In_ const sai_object_key_t   *key,
-                                     _Inout_ sai_attribute_value_t *value,
-                                     _In_ uint32_t                  attr_index,
-                                     _Inout_ vendor_cache_t        *cache,
-                                     void                          *arg);
-sai_status_t mlnx_vlan_learn_get(_In_ const sai_object_key_t   *key,
-                                 _Inout_ sai_attribute_value_t *value,
-                                 _In_ uint32_t                  attr_index,
-                                 _Inout_ vendor_cache_t        *cache,
-                                 void                          *arg);
+static sai_status_t mlnx_vlan_port_list_get(_In_ const sai_object_key_t   *key,
+                                            _Inout_ sai_attribute_value_t *value,
+                                            _In_ uint32_t                  attr_index,
+                                            _Inout_ vendor_cache_t        *cache,
+                                            void                          *arg);
+static sai_status_t mlnx_vlan_learn_get(_In_ const sai_object_key_t   *key,
+                                        _Inout_ sai_attribute_value_t *value,
+                                        _In_ uint32_t                  attr_index,
+                                        _Inout_ vendor_cache_t        *cache,
+                                        void                          *arg);
 static sai_status_t mlnx_vlan_learn_set(_In_ const sai_object_key_t      *key,
                                         _In_ const sai_attribute_value_t *value,
                                         void                             *arg);
@@ -83,11 +82,11 @@ static void vlan_key_to_str(_In_ sai_vlan_id_t vlan_id, _Out_ char *key_str)
     snprintf(key_str, MAX_KEY_STR_LEN, "vlan %u", vlan_id);
 }
 
-sai_status_t mlnx_vlan_port_list_get(_In_ const sai_object_key_t   *key,
-                                     _Inout_ sai_attribute_value_t *value,
-                                     _In_ uint32_t                  attr_index,
-                                     _Inout_ vendor_cache_t        *cache,
-                                     void                          *arg)
+static sai_status_t mlnx_vlan_port_list_get(_In_ const sai_object_key_t   *key,
+                                            _Inout_ sai_attribute_value_t *value,
+                                            _In_ uint32_t                  attr_index,
+                                            _Inout_ vendor_cache_t        *cache,
+                                            void                          *arg)
 {
     sx_status_t         status;
     sx_vlan_ports_t    *sx_vlan_port_list  = NULL;
@@ -141,11 +140,11 @@ out:
     return status;
 }
 
-sai_status_t mlnx_vlan_learn_get(_In_ const sai_object_key_t   *key,
-                                 _Inout_ sai_attribute_value_t *value,
-                                 _In_ uint32_t                  attr_index,
-                                 _Inout_ vendor_cache_t        *cache,
-                                 void                          *arg)
+static sai_status_t mlnx_vlan_learn_get(_In_ const sai_object_key_t   *key,
+                                        _Inout_ sai_attribute_value_t *value,
+                                        _In_ uint32_t                  attr_index,
+                                        _Inout_ vendor_cache_t        *cache,
+                                        void                          *arg)
 {
     sx_status_t         status;
     const sai_vlan_id_t vlan_id = key->vlan_id;
@@ -211,7 +210,7 @@ out:
  *    SAI_STATUS_SUCCESS on success
  *    Failure status code on error
  */
-sai_status_t mlnx_set_vlan_attribute(_In_ sai_vlan_id_t vlan_id, _In_ const sai_attribute_t *attr)
+static sai_status_t mlnx_set_vlan_attribute(_In_ sai_vlan_id_t vlan_id, _In_ const sai_attribute_t *attr)
 {
     const sai_object_key_t key = { .vlan_id = vlan_id };
     char                   key_str[MAX_KEY_STR_LEN];
@@ -236,9 +235,9 @@ sai_status_t mlnx_set_vlan_attribute(_In_ sai_vlan_id_t vlan_id, _In_ const sai_
  *    SAI_STATUS_SUCCESS on success
  *    Failure status code on error
  */
-sai_status_t mlnx_get_vlan_attribute(_In_ sai_vlan_id_t       vlan_id,
-                                     _In_ uint32_t            attr_count,
-                                     _Inout_ sai_attribute_t *attr_list)
+static sai_status_t mlnx_get_vlan_attribute(_In_ sai_vlan_id_t       vlan_id,
+                                            _In_ uint32_t            attr_count,
+                                            _Inout_ sai_attribute_t *attr_list)
 {
     const sai_object_key_t key = { .vlan_id = vlan_id };
     char                   key_str[MAX_KEY_STR_LEN];
@@ -515,7 +514,7 @@ sai_status_t mlnx_clear_vlan_stats(_In_ sai_vlan_id_t                  vlan_id,
     }
 
     /* TODO : implement */
-
+ 
     SX_LOG_EXIT();
     return SAI_STATUS_NOT_IMPLEMENTED;
 }
@@ -531,7 +530,7 @@ sai_status_t mlnx_vlan_log_set(sx_verbosity_level_t level)
     }
 }
 
-const sai_vlan_api_t vlan_api = {
+const sai_vlan_api_t mlnx_vlan_api = {
     mlnx_create_vlan,
     mlnx_remove_vlan,
     mlnx_set_vlan_attribute,

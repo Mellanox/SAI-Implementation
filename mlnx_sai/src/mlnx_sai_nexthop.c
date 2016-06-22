@@ -34,13 +34,11 @@ static const sai_attribute_entry_t next_hop_attribs[] = {
     { END_FUNCTIONALITY_ATTRIBS_ID, false, false, false, false,
       "", SAI_ATTR_VAL_TYPE_UNDETERMINED }
 };
-
-sai_status_t mlnx_next_hop_attr_get(_In_ const sai_object_key_t   *key,
-                                    _Inout_ sai_attribute_value_t *value,
-                                    _In_ uint32_t                  attr_index,
-                                    _Inout_ vendor_cache_t        *cache,
-                                    void                          *arg);
-
+static sai_status_t mlnx_next_hop_attr_get(_In_ const sai_object_key_t   *key,
+                                           _Inout_ sai_attribute_value_t *value,
+                                           _In_ uint32_t                  attr_index,
+                                           _Inout_ vendor_cache_t        *cache,
+                                           void                          *arg);
 static const sai_vendor_attribute_entry_t next_hop_vendor_attribs[] = {
     { SAI_NEXT_HOP_ATTR_TYPE,
       { true, false, false, true },
@@ -148,9 +146,9 @@ static sai_status_t mlnx_translate_sai_next_hop_to_sdk(_In_ sai_next_hop_type_t 
  *
  * Note: IP address expected in Network Byte Order.
  */
-sai_status_t mlnx_create_next_hop(_Out_ sai_object_id_t      *next_hop_id,
-                                  _In_ uint32_t               attr_count,
-                                  _In_ const sai_attribute_t *attr_list)
+static sai_status_t mlnx_create_next_hop(_Out_ sai_object_id_t      *next_hop_id,
+                                         _In_ uint32_t               attr_count,
+                                         _In_ const sai_attribute_t *attr_list)
 {
     sai_status_t                 status;
     const sai_attribute_value_t *type, *ip, *rif;
@@ -229,7 +227,7 @@ sai_status_t mlnx_create_next_hop(_Out_ sai_object_id_t      *next_hop_id,
  *    SAI_STATUS_SUCCESS on success
  *    Failure status code on error
  */
-sai_status_t mlnx_remove_next_hop(_In_ sai_object_id_t next_hop_id)
+static sai_status_t mlnx_remove_next_hop(_In_ sai_object_id_t next_hop_id)
 {
     sai_status_t status;
     sx_ecmp_id_t sdk_ecmp_id;
@@ -268,7 +266,7 @@ sai_status_t mlnx_remove_next_hop(_In_ sai_object_id_t next_hop_id)
  *    SAI_STATUS_SUCCESS on success
  *    Failure status code on error
  */
-sai_status_t mlnx_set_next_hop_attribute(_In_ sai_object_id_t next_hop_id, _In_ const sai_attribute_t *attr)
+static sai_status_t mlnx_set_next_hop_attribute(_In_ sai_object_id_t next_hop_id, _In_ const sai_attribute_t *attr)
 {
     const sai_object_key_t key = { .object_id = next_hop_id };
     char                   key_str[MAX_KEY_STR_LEN];
@@ -293,9 +291,9 @@ sai_status_t mlnx_set_next_hop_attribute(_In_ sai_object_id_t next_hop_id, _In_ 
  *    SAI_STATUS_SUCCESS on success
  *    Failure status code on error
  */
-sai_status_t mlnx_get_next_hop_attribute(_In_ sai_object_id_t     next_hop_id,
-                                         _In_ uint32_t            attr_count,
-                                         _Inout_ sai_attribute_t *attr_list)
+static sai_status_t mlnx_get_next_hop_attribute(_In_ sai_object_id_t     next_hop_id,
+                                                _In_ uint32_t            attr_count,
+                                                _Inout_ sai_attribute_t *attr_list)
 {
     const sai_object_key_t key = { .object_id = next_hop_id };
     char                   key_str[MAX_KEY_STR_LEN];
@@ -309,11 +307,11 @@ sai_status_t mlnx_get_next_hop_attribute(_In_ sai_object_id_t     next_hop_id,
 /* Next hop entry type [sai_next_hop_type_t] */
 /* Next hop entry ipv4 address [sai_ip_address_t] */
 /* Next hop entry router interface id [sai_object_id_t] (MANDATORY_ON_CREATE|CREATE_ONLY) */
-sai_status_t mlnx_next_hop_attr_get(_In_ const sai_object_key_t   *key,
-                                    _Inout_ sai_attribute_value_t *value,
-                                    _In_ uint32_t                  attr_index,
-                                    _Inout_ vendor_cache_t        *cache,
-                                    void                          *arg)
+static sai_status_t mlnx_next_hop_attr_get(_In_ const sai_object_key_t   *key,
+                                           _Inout_ sai_attribute_value_t *value,
+                                           _In_ uint32_t                  attr_index,
+                                           _Inout_ vendor_cache_t        *cache,
+                                           void                          *arg)
 {
     sai_status_t        status;
     long                attr = (long)arg;
@@ -382,7 +380,7 @@ sai_status_t mlnx_nexthop_log_set(sx_verbosity_level_t level)
     return SAI_STATUS_SUCCESS;
 }
 
-const sai_next_hop_api_t next_hop_api = {
+const sai_next_hop_api_t mlnx_next_hop_api = {
     mlnx_create_next_hop,
     mlnx_remove_next_hop,
     mlnx_set_next_hop_attribute,

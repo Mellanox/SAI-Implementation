@@ -34,21 +34,19 @@ static const sai_attribute_entry_t samplepacket_attribs[] = {
     { END_FUNCTIONALITY_ATTRIBS_ID, false, false, false, true,
       "", SAI_ATTR_VAL_TYPE_UNDETERMINED }
 };
-
-sai_status_t mlnx_samplepacket_sample_rate_get(_In_ const sai_object_key_t   *key,
+static sai_status_t mlnx_samplepacket_sample_rate_get(_In_ const sai_object_key_t   *key,
+                                                      _Inout_ sai_attribute_value_t *value,
+                                                      _In_ uint32_t                  attr_index,
+                                                      _Inout_ vendor_cache_t        *cache,
+                                                      void                          *arg);
+static sai_status_t mlnx_samplepacket_type_get(_In_ const sai_object_key_t   *key,
                                                _Inout_ sai_attribute_value_t *value,
                                                _In_ uint32_t                  attr_index,
                                                _Inout_ vendor_cache_t        *cache,
                                                void                          *arg);
-sai_status_t mlnx_samplepacket_type_get(_In_ const sai_object_key_t   *key,
-                                        _Inout_ sai_attribute_value_t *value,
-                                        _In_ uint32_t                  attr_index,
-                                        _Inout_ vendor_cache_t        *cache,
-                                        void                          *arg);
-
-sai_status_t mlnx_samplepacket_sample_rate_set(_In_ const sai_object_key_t      *key,
-                                               _In_ const sai_attribute_value_t *value,
-                                               void                             *arg);
+static sai_status_t mlnx_samplepacket_sample_rate_set(_In_ const sai_object_key_t      *key,
+                                                      _In_ const sai_attribute_value_t *value,
+                                                      void                             *arg);
 
 /* is_implemented: create, remove, set, get
  *   is_supported: create, remove, set, get
@@ -85,7 +83,7 @@ static void samplepacket_key_to_str(_In_ const sai_object_id_t sai_samplepacket_
     SX_LOG_EXIT();
 }
 
-sai_status_t mlnx_samplepacket_sample_rate_validate(_In_ const uint32_t internal_samplepacket_obj_idx)
+static sai_status_t mlnx_samplepacket_sample_rate_validate(_In_ const uint32_t internal_samplepacket_obj_idx)
 {
     uint32_t               index             = 0;
     uint32_t               value_sample_rate = 0;
@@ -165,11 +163,11 @@ cleanup:
     return status;
 }
 
-sai_status_t mlnx_samplepacket_sample_rate_get(_In_ const sai_object_key_t   *key,
-                                               _Inout_ sai_attribute_value_t *value,
-                                               _In_ uint32_t                  attr_index,
-                                               _Inout_ vendor_cache_t        *cache,
-                                               void                          *arg)
+static sai_status_t mlnx_samplepacket_sample_rate_get(_In_ const sai_object_key_t   *key,
+                                                      _Inout_ sai_attribute_value_t *value,
+                                                      _In_ uint32_t                  attr_index,
+                                                      _Inout_ vendor_cache_t        *cache,
+                                                      void                          *arg)
 {
     sai_status_t status                        = SAI_STATUS_FAILURE;
     uint32_t     internal_samplepacket_obj_idx = 0;
@@ -213,11 +211,11 @@ cleanup:
     return status;
 }
 
-sai_status_t mlnx_samplepacket_type_get(_In_ const sai_object_key_t   *key,
-                                        _Inout_ sai_attribute_value_t *value,
-                                        _In_ uint32_t                  attr_index,
-                                        _Inout_ vendor_cache_t        *cache,
-                                        void                          *arg)
+static sai_status_t mlnx_samplepacket_type_get(_In_ const sai_object_key_t   *key,
+                                               _Inout_ sai_attribute_value_t *value,
+                                               _In_ uint32_t                  attr_index,
+                                               _Inout_ vendor_cache_t        *cache,
+                                               void                          *arg)
 {
     sai_status_t status                        = SAI_STATUS_FAILURE;
     uint32_t     internal_samplepacket_obj_idx = 0;
@@ -253,9 +251,9 @@ cleanup:
     return status;
 }
 
-sai_status_t mlnx_samplepacket_sample_rate_set(_In_ const sai_object_key_t      *key,
-                                               _In_ const sai_attribute_value_t *value,
-                                               void                             *arg)
+static sai_status_t mlnx_samplepacket_sample_rate_set(_In_ const sai_object_key_t      *key,
+                                                      _In_ const sai_attribute_value_t *value,
+                                                      void                             *arg)
 {
     sai_status_t           status                        = SAI_STATUS_FAILURE;
     uint32_t               internal_samplepacket_obj_idx = 0;
@@ -321,7 +319,7 @@ cleanup:
     return status;
 }
 
-sai_status_t mlnx_create_empty_samplepacket_session(_Out_ uint32_t *internal_samplepacket_obj_idx)
+static sai_status_t mlnx_create_empty_samplepacket_session(_Out_ uint32_t *internal_samplepacket_obj_idx)
 {
     uint32_t     index  = 0;
     sai_status_t status = SAI_STATUS_FAILURE;
@@ -350,9 +348,9 @@ cleanup:
     return status;
 }
 
-sai_status_t mlnx_create_samplepacket_session(_Out_ sai_object_id_t      *sai_samplepacket_obj_id,
-                                              _In_ uint32_t               attr_count,
-                                              _In_ const sai_attribute_t *attr_list)
+static sai_status_t mlnx_create_samplepacket_session(_Out_ sai_object_id_t      *sai_samplepacket_obj_id,
+                                                     _In_ uint32_t               attr_count,
+                                                     _In_ const sai_attribute_t *attr_list)
 {
     char                         list_str[MAX_LIST_VALUE_STR_LEN];
     const sai_attribute_value_t *samplepacket_sample_rate      = NULL, *samplepacket_type = NULL;
@@ -439,7 +437,7 @@ cleanup:
     return status;
 }
 
-sai_status_t mlnx_remove_samplepacket_session(_In_ const sai_object_id_t sai_samplepacket_obj_id)
+static sai_status_t mlnx_remove_samplepacket_session(_In_ const sai_object_id_t sai_samplepacket_obj_id)
 {
     sai_status_t status                        = SAI_STATUS_FAILURE;
     uint32_t     internal_samplepacket_obj_idx = 0;
@@ -497,8 +495,8 @@ cleanup:
     return status;
 }
 
-sai_status_t mlnx_set_samplepacket_attribute(_In_ const sai_object_id_t  sai_samplepacket_obj_id,
-                                             _In_ const sai_attribute_t *attr)
+static sai_status_t mlnx_set_samplepacket_attribute(_In_ const sai_object_id_t  sai_samplepacket_obj_id,
+                                                    _In_ const sai_attribute_t *attr)
 {
     const sai_object_key_t key = { .object_id = sai_samplepacket_obj_id };
     char                   key_str[MAX_KEY_STR_LEN];
@@ -514,9 +512,9 @@ sai_status_t mlnx_set_samplepacket_attribute(_In_ const sai_object_id_t  sai_sam
     return status;
 }
 
-sai_status_t mlnx_get_samplepacket_attribute(_In_ const sai_object_id_t sai_samplepacket_obj_id,
-                                             _In_ uint32_t              attr_count,
-                                             _Inout_ sai_attribute_t   *attr_list)
+static sai_status_t mlnx_get_samplepacket_attribute(_In_ const sai_object_id_t sai_samplepacket_obj_id,
+                                                    _In_ uint32_t              attr_count,
+                                                    _Inout_ sai_attribute_t   *attr_list)
 {
     const sai_object_key_t key = { .object_id = sai_samplepacket_obj_id };
     char                   key_str[MAX_KEY_STR_LEN];
@@ -540,7 +538,7 @@ sai_status_t mlnx_samplepacket_log_set(sx_verbosity_level_t level)
     return SAI_STATUS_SUCCESS;
 }
 
-const sai_samplepacket_api_t samplepacket_api = {
+const sai_samplepacket_api_t mlnx_samplepacket_api = {
     mlnx_create_samplepacket_session,
     mlnx_remove_samplepacket_session,
     mlnx_set_samplepacket_attribute,

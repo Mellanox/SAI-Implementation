@@ -27,9 +27,10 @@
 #define __MODULE__ SAI_POLICER
 
 #define policer_db_cl_plock_excl_acquire(lock) \
-                                          {SX_LOG_DBG("policer_db_cl_plock_excl_acquire\n"); \
-                                           cl_plock_excl_acquire(lock); }
+    {SX_LOG_DBG("policer_db_cl_plock_excl_acquire\n"); \
+     cl_plock_excl_acquire(lock); }
 #define policer_db_cl_plock_release(lock) {SX_LOG_DBG("policer_db_cl_plock_release\n"); cl_plock_release(lock); }
+#define IR_UNITS 1000
 
 sai_status_t mlnx_sai_unbind_policer_from_trap_group(_In_ sai_object_id_t sai_object_id);
 
@@ -115,116 +116,103 @@ static sai_status_t fill_policer_data(_In_ bool                       set_defaul
                                       _In_ uint32_t                   attr_count,
                                       _In_ const sai_attribute_t     *attr_list,
                                       _Out_ sai_policer_attributes_t* sai_policer_attribs);
-
-sai_status_t sx_meter_type_to_sai(_In_ sx_policer_meter_t sx_val, _Out_ int32_t* sai_val);
-sai_status_t sx_mode_type_to_sai(_In_ sx_policer_rate_type_e sx_val, _Out_ int32_t* sai_val);
-sai_status_t sx_policer_action_to_sai(_In_ sx_policer_action_t sx_val, _Out_ int32_t* sai_val);
-
-sai_status_t sai_policer_get_sx_attribs(_In_ const sai_object_key_t   *key,
-                                        _Out_ sx_policer_attributes_t* sx_policer_attribs);
-
-sai_status_t sai_policer_meter_type_attr_get(_In_ const sai_object_key_t   *key,
-                                             _Inout_ sai_attribute_value_t *value,
-                                             _In_ uint32_t                  attr_index,
-                                             _Inout_ vendor_cache_t        *cache,
-                                             void                          *arg);
-
-sai_status_t sai_policer_mode_get(_In_ const sai_object_key_t   *key,
-                                  _Inout_ sai_attribute_value_t *value,
-                                  _In_ uint32_t                  attr_index,
-                                  _Inout_ vendor_cache_t        *cache,
-                                  void                          *arg);
-
-sai_status_t sai_policer_color_source_get(_In_ const sai_object_key_t   *key,
-                                          _Inout_ sai_attribute_value_t *value,
-                                          _In_ uint32_t                  attr_index,
-                                          _Inout_ vendor_cache_t        *cache,
-                                          void                          *arg);
-
-sai_status_t sai_policer_cbs_get(_In_ const sai_object_key_t   *key,
-                                 _Inout_ sai_attribute_value_t *value,
-                                 _In_ uint32_t                  attr_index,
-                                 _Inout_ vendor_cache_t        *cache,
-                                 void                          *arg);
-
-sai_status_t sai_policer_cir_get(_In_ const sai_object_key_t   *key,
-                                 _Inout_ sai_attribute_value_t *value,
-                                 _In_ uint32_t                  attr_index,
-                                 _Inout_ vendor_cache_t        *cache,
-                                 void                          *arg);
-
-sai_status_t sai_policer_pbs_get(_In_ const sai_object_key_t   *key,
-                                 _Inout_ sai_attribute_value_t *value,
-                                 _In_ uint32_t                  attr_index,
-                                 _Inout_ vendor_cache_t        *cache,
-                                 void                          *arg);
-
-sai_status_t sai_policer_pir_get(_In_ const sai_object_key_t   *key,
-                                 _Inout_ sai_attribute_value_t *value,
-                                 _In_ uint32_t                  attr_index,
-                                 _Inout_ vendor_cache_t        *cache,
-                                 void                          *arg);
-
-static sai_status_t sai_policer_packet_action_get_internal(_In_ const sai_object_key_t            *key,
-                                                           _In_ mlnx_sai_policer_color_indicator_t color,
-                                                           _Out_ sai_attribute_value_t            *value);
-
-sai_status_t sai_policer_green_packet_action_get(_In_ const sai_object_key_t   *key,
+static sai_status_t sx_meter_type_to_sai(_In_ sx_policer_meter_t sx_val, _Out_ int32_t* sai_val);
+static sai_status_t sx_mode_type_to_sai(_In_ sx_policer_rate_type_e sx_val, _Out_ int32_t* sai_val);
+static sai_status_t sx_policer_action_to_sai(_In_ sx_policer_action_t sx_val, _Out_ int32_t* sai_val);
+static sai_status_t sai_policer_get_sx_attribs(_In_ const sai_object_key_t   *key,
+                                               _Out_ sx_policer_attributes_t* sx_policer_attribs);
+static sai_status_t sai_policer_meter_type_attr_get(_In_ const sai_object_key_t   *key,
+                                                    _Inout_ sai_attribute_value_t *value,
+                                                    _In_ uint32_t                  attr_index,
+                                                    _Inout_ vendor_cache_t        *cache,
+                                                    void                          *arg);
+static sai_status_t sai_policer_mode_get(_In_ const sai_object_key_t   *key,
+                                         _Inout_ sai_attribute_value_t *value,
+                                         _In_ uint32_t                  attr_index,
+                                         _Inout_ vendor_cache_t        *cache,
+                                         void                          *arg);
+static sai_status_t sai_policer_color_source_get(_In_ const sai_object_key_t   *key,
                                                  _Inout_ sai_attribute_value_t *value,
                                                  _In_ uint32_t                  attr_index,
                                                  _Inout_ vendor_cache_t        *cache,
                                                  void                          *arg);
-
-
-sai_status_t sai_policer_yellow_packet_action_get(_In_ const sai_object_key_t   *key,
-                                                  _Inout_ sai_attribute_value_t *value,
-                                                  _In_ uint32_t                  attr_index,
-                                                  _Inout_ vendor_cache_t        *cache,
-                                                  void                          *arg);
-sai_status_t sai_policer_red_packet_action_get(_In_ const sai_object_key_t   *key,
-                                               _Inout_ sai_attribute_value_t *value,
-                                               _In_ uint32_t                  attr_index,
-                                               _Inout_ vendor_cache_t        *cache,
-                                               void                          *arg);
-
-sai_status_t sai_policer_attr_set(_In_ const sai_object_key_t* key, _In_ sai_attribute_t sai_attr,
-                                  _In_ char* attr_name);
-sai_status_t sai_policer_color_source_set(_In_ const sai_object_key_t      *key,
-                                          _In_ const sai_attribute_value_t *value,
-                                          void                             *arg);
-
-sai_status_t sai_policer_cbs_set(_In_ const sai_object_key_t *key, _In_ const sai_attribute_value_t *value, void *arg);
-
-sai_status_t sai_policer_cir_set(_In_ const sai_object_key_t *key, _In_ const sai_attribute_value_t *value, void *arg);
-sai_status_t sai_policer_pbs_set(_In_ const sai_object_key_t *key, _In_ const sai_attribute_value_t *value, void *arg);
-
-sai_status_t sai_policer_pir_set(_In_ const sai_object_key_t *key, _In_ const sai_attribute_value_t *value, void *arg);
-
-sai_status_t sai_policer_green_packet_action_set(_In_ const sai_object_key_t      *key,
+static sai_status_t sai_policer_cbs_get(_In_ const sai_object_key_t   *key,
+                                        _Inout_ sai_attribute_value_t *value,
+                                        _In_ uint32_t                  attr_index,
+                                        _Inout_ vendor_cache_t        *cache,
+                                        void                          *arg);
+static sai_status_t sai_policer_cir_get(_In_ const sai_object_key_t   *key,
+                                        _Inout_ sai_attribute_value_t *value,
+                                        _In_ uint32_t                  attr_index,
+                                        _Inout_ vendor_cache_t        *cache,
+                                        void                          *arg);
+static sai_status_t sai_policer_pbs_get(_In_ const sai_object_key_t   *key,
+                                        _Inout_ sai_attribute_value_t *value,
+                                        _In_ uint32_t                  attr_index,
+                                        _Inout_ vendor_cache_t        *cache,
+                                        void                          *arg);
+static sai_status_t sai_policer_pir_get(_In_ const sai_object_key_t   *key,
+                                        _Inout_ sai_attribute_value_t *value,
+                                        _In_ uint32_t                  attr_index,
+                                        _Inout_ vendor_cache_t        *cache,
+                                        void                          *arg);
+static sai_status_t sai_policer_packet_action_get_internal(_In_ const sai_object_key_t            *key,
+                                                           _In_ mlnx_sai_policer_color_indicator_t color,
+                                                           _Out_ sai_attribute_value_t            *value);
+static sai_status_t sai_policer_green_packet_action_get(_In_ const sai_object_key_t   *key,
+                                                        _Inout_ sai_attribute_value_t *value,
+                                                        _In_ uint32_t                  attr_index,
+                                                        _Inout_ vendor_cache_t        *cache,
+                                                        void                          *arg);
+static sai_status_t sai_policer_yellow_packet_action_get(_In_ const sai_object_key_t   *key,
+                                                         _Inout_ sai_attribute_value_t *value,
+                                                         _In_ uint32_t                  attr_index,
+                                                         _Inout_ vendor_cache_t        *cache,
+                                                         void                          *arg);
+static sai_status_t sai_policer_red_packet_action_get(_In_ const sai_object_key_t   *key,
+                                                      _Inout_ sai_attribute_value_t *value,
+                                                      _In_ uint32_t                  attr_index,
+                                                      _Inout_ vendor_cache_t        *cache,
+                                                      void                          *arg);
+static sai_status_t sai_policer_attr_set(_In_ const sai_object_key_t* key,
+                                         _In_ sai_attribute_t         sai_attr,
+                                         _In_ char                  * attr_name);
+static sai_status_t sai_policer_color_source_set(_In_ const sai_object_key_t      *key,
                                                  _In_ const sai_attribute_value_t *value,
                                                  void                             *arg);
-
-sai_status_t sai_policer_yellow_packet_action_set(_In_ const sai_object_key_t      *key,
-                                                  _In_ const sai_attribute_value_t *value,
-                                                  void                             *arg);
-
-sai_status_t sai_policer_red_packet_action_set(_In_ const sai_object_key_t      *key,
-                                               _In_ const sai_attribute_value_t *value,
-                                               void                             *arg);
-
+static sai_status_t sai_policer_cbs_set(_In_ const sai_object_key_t      *key,
+                                        _In_ const sai_attribute_value_t *value,
+                                        void                             *arg);
+static sai_status_t sai_policer_cir_set(_In_ const sai_object_key_t      *key,
+                                        _In_ const sai_attribute_value_t *value,
+                                        void                             *arg);
+static sai_status_t sai_policer_pbs_set(_In_ const sai_object_key_t      *key,
+                                        _In_ const sai_attribute_value_t *value,
+                                        void                             *arg);
+static sai_status_t sai_policer_pir_set(_In_ const sai_object_key_t      *key,
+                                        _In_ const sai_attribute_value_t *value,
+                                        void                             *arg);
+static sai_status_t sai_policer_green_packet_action_set(_In_ const sai_object_key_t      *key,
+                                                        _In_ const sai_attribute_value_t *value,
+                                                        void                             *arg);
+static sai_status_t sai_policer_yellow_packet_action_set(_In_ const sai_object_key_t      *key,
+                                                         _In_ const sai_attribute_value_t *value,
+                                                         void                             *arg);
+static sai_status_t sai_policer_red_packet_action_set(_In_ const sai_object_key_t      *key,
+                                                      _In_ const sai_attribute_value_t *value,
+                                                      void                             *arg);
 
 void db_reset_policer_entry(_In_ uint32_t db_policers_entry_index);
-void db_reset_policer_entry_bindings(_In_ uint32_t db_policers_entry_index_p);
-void db_reset_policer_entry_bind_item(_Inout_ mlnx_policer_bind_info_t* bind_item);
-void db_reset_policer_entry_storm_control_item(_Inout_ mlnx_port_storm_policer_bind_info_t* storm_entry,
-                                               _In_ uint32_t                                storm_pckt_ind);
+static void db_reset_policer_entry_bindings(_In_ uint32_t db_policers_entry_index_p);
+static void db_reset_policer_entry_bind_item(_Inout_ mlnx_policer_bind_info_t* bind_item);
+static void db_reset_policer_entry_storm_control_item(_Inout_ mlnx_port_storm_policer_bind_info_t* storm_entry,
+                                                      _In_ uint32_t                                storm_pckt_ind);
 
 sai_status_t db_init_sai_policer_data(_In_ sai_policer_attributes_t* policer_attr,
                                       _Out_ uint32_t               * db_policers_entry_index_p);
-sai_status_t db_remove_sai_policer_data(_In_ uint32_t db_policers_entry_index);
-sai_status_t db_write_sai_policer_attribs(_In_ sai_object_id_t          sai_policer_id,
-                                          _In_ sx_policer_attributes_t* sx_policer_attribs);
-
+static sai_status_t db_remove_sai_policer_data(_In_ uint32_t db_policers_entry_index);
+static sai_status_t db_write_sai_policer_attribs(_In_ sai_object_id_t          sai_policer_id,
+                                                 _In_ sx_policer_attributes_t* sx_policer_attribs);
 static const sai_vendor_attribute_entry_t policer_vendor_attribs[] = {
     {
         SAI_POLICER_ATTR_METER_TYPE,
@@ -304,8 +292,7 @@ static const sai_vendor_attribute_entry_t policer_vendor_attribs[] = {
         NULL, NULL
     },
 };
-
-void log_sx_policer_attrib_color_action(_In_ sx_policer_action_t sx_policer_action, _In_ char* action_name)
+static void log_sx_policer_attrib_color_action(_In_ sx_policer_action_t sx_policer_action, _In_ char* action_name)
 {
     char* val = NULL;
 
@@ -391,9 +378,9 @@ void log_sx_policer_attributes(_In_ sx_policer_id_t sx_policer, _In_ sx_policer_
 /*
  *  Calls into sx API to obtain sx policer attributes
  */
-sai_status_t sai_policer_get_sx_attribs_internal(_In_ const sai_object_key_t   *key,
-                                                 _Out_ sx_policer_attributes_t* sx_policer_attribs,
-                                                 _In_ bool                      lock_db_access)
+static sai_status_t sai_policer_get_sx_attribs_internal(_In_ const sai_object_key_t   *key,
+                                                        _Out_ sx_policer_attributes_t* sx_policer_attribs,
+                                                        _In_ bool                      lock_db_access)
 {
     sai_status_t             sai_status;
     mlnx_policer_db_entry_t* policer_db_entry = NULL;
@@ -435,18 +422,18 @@ sai_status_t sai_policer_get_sx_attribs_internal(_In_ const sai_object_key_t   *
 }
 
 
-sai_status_t sai_policer_get_sx_attribs(_In_ const sai_object_key_t   *key,
-                                        _Out_ sx_policer_attributes_t* sx_policer_attribs)
+static sai_status_t sai_policer_get_sx_attribs(_In_ const sai_object_key_t   *key,
+                                               _Out_ sx_policer_attributes_t* sx_policer_attribs)
 {
     return sai_policer_get_sx_attribs_internal(key, sx_policer_attribs, true);
 }
 
 
-sai_status_t sai_policer_meter_type_attr_get(_In_ const sai_object_key_t   *key,
-                                             _Inout_ sai_attribute_value_t *value,
-                                             _In_ uint32_t                  attr_index,
-                                             _Inout_ vendor_cache_t        *cache,
-                                             void                          *arg)
+static sai_status_t sai_policer_meter_type_attr_get(_In_ const sai_object_key_t   *key,
+                                                    _Inout_ sai_attribute_value_t *value,
+                                                    _In_ uint32_t                  attr_index,
+                                                    _Inout_ vendor_cache_t        *cache,
+                                                    void                          *arg)
 {
     sai_status_t            sai_status;
     sx_policer_attributes_t sx_policer_attrs;
@@ -476,11 +463,11 @@ sai_status_t sai_policer_meter_type_attr_get(_In_ const sai_object_key_t   *key,
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t sai_policer_mode_get(_In_ const sai_object_key_t   *key,
-                                  _Inout_ sai_attribute_value_t *value,
-                                  _In_ uint32_t                  attr_index,
-                                  _Inout_ vendor_cache_t        *cache,
-                                  void                          *arg)
+static sai_status_t sai_policer_mode_get(_In_ const sai_object_key_t   *key,
+                                         _Inout_ sai_attribute_value_t *value,
+                                         _In_ uint32_t                  attr_index,
+                                         _Inout_ vendor_cache_t        *cache,
+                                         void                          *arg)
 {
     sai_status_t            sai_status;
     sx_policer_attributes_t sx_policer_attrs;
@@ -511,11 +498,11 @@ sai_status_t sai_policer_mode_get(_In_ const sai_object_key_t   *key,
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t sai_policer_color_source_get(_In_ const sai_object_key_t   *key,
-                                          _Inout_ sai_attribute_value_t *value,
-                                          _In_ uint32_t                  attr_index,
-                                          _Inout_ vendor_cache_t        *cache,
-                                          void                          *arg)
+static sai_status_t sai_policer_color_source_get(_In_ const sai_object_key_t   *key,
+                                                 _Inout_ sai_attribute_value_t *value,
+                                                 _In_ uint32_t                  attr_index,
+                                                 _Inout_ vendor_cache_t        *cache,
+                                                 void                          *arg)
 {
     sai_status_t            sai_status;
     sx_policer_attributes_t sx_policer_attrs;
@@ -541,11 +528,11 @@ sai_status_t sai_policer_color_source_get(_In_ const sai_object_key_t   *key,
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t sai_policer_cbs_get(_In_ const sai_object_key_t   *key,
-                                 _Inout_ sai_attribute_value_t *value,
-                                 _In_ uint32_t                  attr_index,
-                                 _Inout_ vendor_cache_t        *cache,
-                                 void                          *arg)
+static sai_status_t sai_policer_cbs_get(_In_ const sai_object_key_t   *key,
+                                        _Inout_ sai_attribute_value_t *value,
+                                        _In_ uint32_t                  attr_index,
+                                        _Inout_ vendor_cache_t        *cache,
+                                        void                          *arg)
 {
     sai_status_t            sai_status;
     sx_policer_attributes_t sx_policer_attrs;
@@ -566,8 +553,8 @@ sai_status_t sai_policer_cbs_get(_In_ const sai_object_key_t   *key,
     }
 
     if (SX_POLICER_METER_PACKETS == sx_policer_attrs.meter_type) {
-        /* sai_cbs = (2^sx_cbs)*(10^3) packets */
-        value->u64 = (sai_uint64_t)pow(2, sx_policer_attrs.cbs) * 1000;
+        /* sai_cbs = (2^sx_cbs) packets */
+        value->u64 = (sai_uint64_t)pow(2, sx_policer_attrs.cbs);
     } else {
         /* sai_cbs_bytes = (2^sx_CBS)*512 [bits]/ 8 */
         value->u64 = (sai_uint64_t)pow(2, sx_policer_attrs.cbs) * 512 / 8;
@@ -577,11 +564,11 @@ sai_status_t sai_policer_cbs_get(_In_ const sai_object_key_t   *key,
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t sai_policer_cir_get(_In_ const sai_object_key_t   *key,
-                                 _Inout_ sai_attribute_value_t *value,
-                                 _In_ uint32_t                  attr_index,
-                                 _Inout_ vendor_cache_t        *cache,
-                                 void                          *arg)
+static sai_status_t sai_policer_cir_get(_In_ const sai_object_key_t   *key,
+                                        _Inout_ sai_attribute_value_t *value,
+                                        _In_ uint32_t                  attr_index,
+                                        _Inout_ vendor_cache_t        *cache,
+                                        void                          *arg)
 {
     sai_status_t            sai_status;
     sx_policer_attributes_t sx_policer_attrs;
@@ -605,18 +592,18 @@ sai_status_t sai_policer_cir_get(_In_ const sai_object_key_t   *key,
         value->u64 = sx_policer_attrs.cir;
     } else {
         /* sai_value = (sx_value * 10^3) / 8 [bytes/sec] */
-        value->u64 = (sx_policer_attrs.cir * 1000) / 8;
+        value->u64 = (((uint64_t) sx_policer_attrs.cir) * IR_UNITS) / 8;
     }
 
     SX_LOG_EXIT();
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t sai_policer_pbs_get(_In_ const sai_object_key_t   *key,
-                                 _Inout_ sai_attribute_value_t *value,
-                                 _In_ uint32_t                  attr_index,
-                                 _Inout_ vendor_cache_t        *cache,
-                                 void                          *arg)
+static sai_status_t sai_policer_pbs_get(_In_ const sai_object_key_t   *key,
+                                        _Inout_ sai_attribute_value_t *value,
+                                        _In_ uint32_t                  attr_index,
+                                        _Inout_ vendor_cache_t        *cache,
+                                        void                          *arg)
 {
     sai_status_t            sai_status;
     sx_policer_attributes_t sx_policer_attrs;
@@ -637,8 +624,8 @@ sai_status_t sai_policer_pbs_get(_In_ const sai_object_key_t   *key,
     }
 
     if (SX_POLICER_METER_PACKETS == sx_policer_attrs.meter_type) {
-        /* sai_cbs = (2^sx_cbs)*(10^3) packets */
-        value->u64 = (sai_uint64_t)pow(2, sx_policer_attrs.ebs) * 1000;
+        /* sai_cbs = (2^sx_cbs) packets */
+        value->u64 = (sai_uint64_t)pow(2, sx_policer_attrs.ebs);
     } else {
         /* sai_cbs_bytes = (2^sx_CBS)*512 [bits]/ 8 */
         value->u64 = (sai_uint64_t)pow(2, sx_policer_attrs.ebs) * 512 / 8;
@@ -648,11 +635,11 @@ sai_status_t sai_policer_pbs_get(_In_ const sai_object_key_t   *key,
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t sai_policer_pir_get(_In_ const sai_object_key_t   *key,
-                                 _Inout_ sai_attribute_value_t *value,
-                                 _In_ uint32_t                  attr_index,
-                                 _Inout_ vendor_cache_t        *cache,
-                                 void                          *arg)
+static sai_status_t sai_policer_pir_get(_In_ const sai_object_key_t   *key,
+                                        _Inout_ sai_attribute_value_t *value,
+                                        _In_ uint32_t                  attr_index,
+                                        _Inout_ vendor_cache_t        *cache,
+                                        void                          *arg)
 {
     sai_status_t            sai_status;
     sx_policer_attributes_t sx_policer_attrs;
@@ -677,7 +664,7 @@ sai_status_t sai_policer_pir_get(_In_ const sai_object_key_t   *key,
         value->u64 = sx_policer_attrs.eir;
     } else {
         /* sai_value = (sx_value * 10^3) / 8 [bytes/sec] */
-        value->u64 = (sx_policer_attrs.eir * 1000) / 8;
+        value->u64 = ((((uint64_t) sx_policer_attrs.eir)) * IR_UNITS) / 8;
     }
 
     SX_LOG_EXIT();
@@ -736,11 +723,11 @@ static sai_status_t sai_policer_packet_action_get_internal(_In_ const sai_object
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t sai_policer_green_packet_action_get(_In_ const sai_object_key_t   *key,
-                                                 _Inout_ sai_attribute_value_t *value,
-                                                 _In_ uint32_t                  attr_index,
-                                                 _Inout_ vendor_cache_t        *cache,
-                                                 void                          *arg)
+static sai_status_t sai_policer_green_packet_action_get(_In_ const sai_object_key_t   *key,
+                                                        _Inout_ sai_attribute_value_t *value,
+                                                        _In_ uint32_t                  attr_index,
+                                                        _Inout_ vendor_cache_t        *cache,
+                                                        void                          *arg)
 {
     UNREFERENCED_PARAMETER(attr_index);
     UNREFERENCED_PARAMETER(cache);
@@ -754,11 +741,11 @@ sai_status_t sai_policer_green_packet_action_get(_In_ const sai_object_key_t   *
 }
 
 
-sai_status_t sai_policer_yellow_packet_action_get(_In_ const sai_object_key_t   *key,
-                                                  _Inout_ sai_attribute_value_t *value,
-                                                  _In_ uint32_t                  attr_index,
-                                                  _Inout_ vendor_cache_t        *cache,
-                                                  void                          *arg)
+static sai_status_t sai_policer_yellow_packet_action_get(_In_ const sai_object_key_t   *key,
+                                                         _Inout_ sai_attribute_value_t *value,
+                                                         _In_ uint32_t                  attr_index,
+                                                         _Inout_ vendor_cache_t        *cache,
+                                                         void                          *arg)
 {
     sai_status_t status;
 
@@ -772,11 +759,11 @@ sai_status_t sai_policer_yellow_packet_action_get(_In_ const sai_object_key_t   
     return status;
 }
 
-sai_status_t sai_policer_red_packet_action_get(_In_ const sai_object_key_t   *key,
-                                               _Inout_ sai_attribute_value_t *value,
-                                               _In_ uint32_t                  attr_index,
-                                               _Inout_ vendor_cache_t        *cache,
-                                               void                          *arg)
+static sai_status_t sai_policer_red_packet_action_get(_In_ const sai_object_key_t   *key,
+                                                      _Inout_ sai_attribute_value_t *value,
+                                                      _In_ uint32_t                  attr_index,
+                                                      _Inout_ vendor_cache_t        *cache,
+                                                      void                          *arg)
 {
     sai_status_t status;
 
@@ -791,7 +778,7 @@ sai_status_t sai_policer_red_packet_action_get(_In_ const sai_object_key_t   *ke
 }
 
 
-sai_status_t sai_policer_commit_changes_to_port_bindings(sai_object_id_t sai_policer)
+static sai_status_t sai_policer_commit_changes_to_port_bindings(sai_object_id_t sai_policer)
 {
     sai_status_t                         sai_status;
     sx_status_t                          sx_status;
@@ -871,7 +858,7 @@ sai_status_t sai_policer_commit_changes_to_port_bindings(sai_object_id_t sai_pol
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t sai_policer_commit_changes(_In_ sai_object_id_t sai_policer)
+static sai_status_t sai_policer_commit_changes(_In_ sai_object_id_t sai_policer)
 {
     sai_status_t              sai_status;
     sx_status_t               sx_status;
@@ -910,8 +897,9 @@ sai_status_t sai_policer_commit_changes(_In_ sai_object_id_t sai_policer)
     return sai_status;
 }
 
-sai_status_t sai_policer_attr_set(_In_ const sai_object_key_t* key, _In_ sai_attribute_t sai_attr,
-                                  _In_ char* attr_name)
+static sai_status_t sai_policer_attr_set(_In_ const sai_object_key_t* key,
+                                         _In_ sai_attribute_t         sai_attr,
+                                         _In_ char                  * attr_name)
 {
     sai_status_t             sai_status;
     sai_policer_attributes_t sai_policer_attrs;
@@ -970,11 +958,11 @@ sai_status_t sai_policer_attr_set(_In_ const sai_object_key_t* key, _In_ sai_att
 }
 
 
-sai_status_t sai_policer_attr_set_wrapper(_In_ const sai_object_key_t      *key,
-                                          _In_ const sai_attribute_value_t *value,
-                                          _In_ sai_policer_attr_t           attr_id,
-                                          _In_ char                       * attr_name,
-                                          _In_ void                       * arg)
+static sai_status_t sai_policer_attr_set_wrapper(_In_ const sai_object_key_t      *key,
+                                                 _In_ const sai_attribute_value_t *value,
+                                                 _In_ sai_policer_attr_t           attr_id,
+                                                 _In_ char                       * attr_name,
+                                                 _In_ void                       * arg)
 {
     sai_attribute_t sai_attr;
     sai_status_t    sai_status;
@@ -991,9 +979,9 @@ sai_status_t sai_policer_attr_set_wrapper(_In_ const sai_object_key_t      *key,
     return sai_status;
 }
 
-sai_status_t sai_policer_color_source_set(_In_ const sai_object_key_t      *key,
-                                          _In_ const sai_attribute_value_t *value,
-                                          void                             *arg)
+static sai_status_t sai_policer_color_source_set(_In_ const sai_object_key_t      *key,
+                                                 _In_ const sai_attribute_value_t *value,
+                                                 void                             *arg)
 {
     sai_status_t status;
 
@@ -1008,7 +996,9 @@ sai_status_t sai_policer_color_source_set(_In_ const sai_object_key_t      *key,
 }
 
 
-sai_status_t sai_policer_cbs_set(_In_ const sai_object_key_t *key, _In_ const sai_attribute_value_t *value, void *arg)
+static sai_status_t sai_policer_cbs_set(_In_ const sai_object_key_t      *key,
+                                        _In_ const sai_attribute_value_t *value,
+                                        void                             *arg)
 {
     sai_status_t status;
 
@@ -1018,7 +1008,9 @@ sai_status_t sai_policer_cbs_set(_In_ const sai_object_key_t *key, _In_ const sa
     return status;
 }
 
-sai_status_t sai_policer_cir_set(_In_ const sai_object_key_t *key, _In_ const sai_attribute_value_t *value, void *arg)
+static sai_status_t sai_policer_cir_set(_In_ const sai_object_key_t      *key,
+                                        _In_ const sai_attribute_value_t *value,
+                                        void                             *arg)
 {
     sai_status_t status;
 
@@ -1029,7 +1021,9 @@ sai_status_t sai_policer_cir_set(_In_ const sai_object_key_t *key, _In_ const sa
 }
 
 
-sai_status_t sai_policer_pbs_set(_In_ const sai_object_key_t *key, _In_ const sai_attribute_value_t *value, void *arg)
+static sai_status_t sai_policer_pbs_set(_In_ const sai_object_key_t      *key,
+                                        _In_ const sai_attribute_value_t *value,
+                                        void                             *arg)
 {
     sai_status_t status;
 
@@ -1039,7 +1033,9 @@ sai_status_t sai_policer_pbs_set(_In_ const sai_object_key_t *key, _In_ const sa
     return status;
 }
 
-sai_status_t sai_policer_pir_set(_In_ const sai_object_key_t *key, _In_ const sai_attribute_value_t *value, void *arg)
+static sai_status_t sai_policer_pir_set(_In_ const sai_object_key_t      *key,
+                                        _In_ const sai_attribute_value_t *value,
+                                        void                             *arg)
 {
     sai_status_t status;
 
@@ -1050,9 +1046,9 @@ sai_status_t sai_policer_pir_set(_In_ const sai_object_key_t *key, _In_ const sa
 }
 
 
-sai_status_t sai_policer_green_packet_action_set(_In_ const sai_object_key_t      *key,
-                                                 _In_ const sai_attribute_value_t *value,
-                                                 void                             *arg)
+static sai_status_t sai_policer_green_packet_action_set(_In_ const sai_object_key_t      *key,
+                                                        _In_ const sai_attribute_value_t *value,
+                                                        void                             *arg)
 {
     sai_status_t status;
 
@@ -1067,9 +1063,9 @@ sai_status_t sai_policer_green_packet_action_set(_In_ const sai_object_key_t    
 }
 
 
-sai_status_t sai_policer_yellow_packet_action_set(_In_ const sai_object_key_t      *key,
-                                                  _In_ const sai_attribute_value_t *value,
-                                                  void                             *arg)
+static sai_status_t sai_policer_yellow_packet_action_set(_In_ const sai_object_key_t      *key,
+                                                         _In_ const sai_attribute_value_t *value,
+                                                         void                             *arg)
 {
     sai_status_t status;
 
@@ -1083,9 +1079,9 @@ sai_status_t sai_policer_yellow_packet_action_set(_In_ const sai_object_key_t   
     return status;
 }
 
-sai_status_t sai_policer_red_packet_action_set(_In_ const sai_object_key_t      *key,
-                                               _In_ const sai_attribute_value_t *value,
-                                               void                             *arg)
+static sai_status_t sai_policer_red_packet_action_set(_In_ const sai_object_key_t      *key,
+                                                      _In_ const sai_attribute_value_t *value,
+                                                      void                             *arg)
 {
     sai_status_t status;
 
@@ -1110,7 +1106,7 @@ static void policer_key_to_str(_In_ sai_object_id_t policer_id, _Out_ char *key_
     }
 }
 
-sai_status_t sx_meter_type_to_sai(_In_ sx_policer_meter_t sx_val, _Out_ int32_t* sai_val)
+static sai_status_t sx_meter_type_to_sai(_In_ sx_policer_meter_t sx_val, _Out_ int32_t* sai_val)
 {
     SX_LOG_DBG("Input SX meter type:%d\n", sx_val);
     switch (sx_val) {
@@ -1130,7 +1126,7 @@ sai_status_t sx_meter_type_to_sai(_In_ sx_policer_meter_t sx_val, _Out_ int32_t*
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t sx_mode_type_to_sai(_In_ sx_policer_rate_type_e sx_val, _Out_ int32_t* sai_val)
+static sai_status_t sx_mode_type_to_sai(_In_ sx_policer_rate_type_e sx_val, _Out_ int32_t* sai_val)
 {
     SX_LOG_DBG("Input SX mode type:%d\n", sx_val);
     switch (sx_val) {
@@ -1152,7 +1148,7 @@ sai_status_t sx_mode_type_to_sai(_In_ sx_policer_rate_type_e sx_val, _Out_ int32
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t sx_policer_action_to_sai(_In_ sx_policer_action_t sx_val, _Out_ int32_t* sai_val)
+static sai_status_t sx_policer_action_to_sai(_In_ sx_policer_action_t sx_val, _Out_ int32_t* sai_val)
 {
     SX_LOG_DBG("Input SX policer action: %d\n", sx_val);
     switch (sx_val) {
@@ -1178,7 +1174,7 @@ sai_status_t sx_policer_action_to_sai(_In_ sx_policer_action_t sx_val, _Out_ int
  *  SAI to SX conversion helper.
  *  Caller needs to make sure the Out parameter is a valid pointer
  */
-sai_status_t sai_policer_mode_to_sx(_In_ sai_policer_mode_t sai_val, _Out_ int32_t* sx_val)
+static sai_status_t sai_policer_mode_to_sx(_In_ sai_policer_mode_t sai_val, _Out_ int32_t* sx_val)
 {
     SX_LOG_DBG("Input SAI policer mode: %d\n", sai_val);
     switch (sai_val) {
@@ -1207,7 +1203,7 @@ sai_status_t sai_policer_mode_to_sx(_In_ sai_policer_mode_t sai_val, _Out_ int32
  *  SAI to SX conversion helper.
  *  Caller needs to make sure the Out parameter is a valid pointer
  */
-sai_status_t sai_meter_type_to_sx(_In_ sai_meter_type_t sai_val, _Out_ int32_t* sx_val)
+static sai_status_t sai_meter_type_to_sx(_In_ sai_meter_type_t sai_val, _Out_ int32_t* sx_val)
 {
     SX_LOG_DBG("Input SAI meter type:%d\n", sai_val);
     switch (sai_val) {
@@ -1227,9 +1223,9 @@ sai_status_t sai_meter_type_to_sx(_In_ sai_meter_type_t sai_val, _Out_ int32_t* 
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t fill_meter_type_attrib(_In_ uint32_t                   attr_count,
-                                    _In_ const sai_attribute_t     *attr_list,
-                                    _Out_ sai_policer_attributes_t* sai_policer_attribs)
+static sai_status_t fill_meter_type_attrib(_In_ uint32_t                   attr_count,
+                                           _In_ const sai_attribute_t     *attr_list,
+                                           _Out_ sai_policer_attributes_t* sai_policer_attribs)
 {
     const sai_attribute_value_t* attr_value = NULL;
     uint32_t                     index      = 0;
@@ -1252,9 +1248,9 @@ sai_status_t fill_meter_type_attrib(_In_ uint32_t                   attr_count,
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t fill_policer_mode_attrib(_In_ uint32_t                   attr_count,
-                                      _In_ const sai_attribute_t     *attr_list,
-                                      _Out_ sai_policer_attributes_t* sai_policer_attribs)
+static sai_status_t fill_policer_mode_attrib(_In_ uint32_t                   attr_count,
+                                             _In_ const sai_attribute_t     *attr_list,
+                                             _Out_ sai_policer_attributes_t* sai_policer_attribs)
 {
     const sai_attribute_value_t* attr_value = NULL;
     uint32_t                     index;
@@ -1284,10 +1280,10 @@ sai_status_t fill_policer_mode_attrib(_In_ uint32_t                   attr_count
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t fill_policer_color_source_attrib(_In_ bool                       set_defaults,
-                                              _In_ uint32_t                   attr_count,
-                                              _In_ const sai_attribute_t     *attr_list,
-                                              _Out_ sai_policer_attributes_t* sai_policer_attribs)
+static sai_status_t fill_policer_color_source_attrib(_In_ bool                       set_defaults,
+                                                     _In_ uint32_t                   attr_count,
+                                                     _In_ const sai_attribute_t     *attr_list,
+                                                     _Out_ sai_policer_attributes_t* sai_policer_attribs)
 {
     const sai_attribute_value_t* attr_value = NULL;
     uint32_t                     index;
@@ -1317,9 +1313,9 @@ sai_status_t fill_policer_color_source_attrib(_In_ bool                       se
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t fill_policer_cbs_attrib(_In_ uint32_t                   attr_count,
-                                     _In_ const sai_attribute_t     *attr_list,
-                                     _Inout_ sai_policer_attributes_t* sai_policer_attribs)
+static sai_status_t fill_policer_cbs_attrib(_In_ uint32_t                     attr_count,
+                                            _In_ const sai_attribute_t       *attr_list,
+                                            _Inout_ sai_policer_attributes_t* sai_policer_attribs)
 {
     const sai_attribute_value_t* attr_value = NULL;
     uint32_t                     index;
@@ -1337,21 +1333,21 @@ sai_status_t fill_policer_cbs_attrib(_In_ uint32_t                   attr_count,
         }
 
         if (SX_POLICER_METER_PACKETS == sai_policer_attribs->sx_policer_attribs.meter_type) {
-            /* sx_cbs == Log2 sai_cbs/10^3 */
-            sai_policer_attribs->sx_policer_attribs.cbs = (uint32_t)(log10((double)attr_value->u64 / 1000) / log10(2));
+            /* sx_cbs == Log2 sai_cbs */
+            sai_policer_attribs->sx_policer_attribs.cbs = (uint32_t) round(log10((double)attr_value->u64) / log10(2));
         } else {
             /* sx_CBS = Log2[(sai_cbs_bytes * 8) / 512] */
             sai_policer_attribs->sx_policer_attribs.cbs =
-                (uint32_t)(log10((double)attr_value->u64 * 8 / 512) / log10(2));
+                (uint32_t) round(log10((double)attr_value->u64 * 8 / 512) / log10(2));
         }
     }
 
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t fill_policer_cir_attrib(_In_ uint32_t                   attr_count,
-                                     _In_ const sai_attribute_t     *attr_list,
-                                     _Inout_ sai_policer_attributes_t* sai_policer_attribs)
+static sai_status_t fill_policer_cir_attrib(_In_ uint32_t                     attr_count,
+                                            _In_ const sai_attribute_t       *attr_list,
+                                            _Inout_ sai_policer_attributes_t* sai_policer_attribs)
 {
     const sai_attribute_value_t* attr_value = NULL;
     uint32_t                     index;
@@ -1371,16 +1367,16 @@ sai_status_t fill_policer_cir_attrib(_In_ uint32_t                   attr_count,
             sai_policer_attribs->sx_policer_attribs.cir = (uint32_t)(attr_value->u64);
         } else {
             /* 8 * sai_CIR_bytes / (10^3) = sx_value [bits/sec] */
-            sai_policer_attribs->sx_policer_attribs.cir = (uint32_t)(8 * attr_value->u64 / 1000);
+            sai_policer_attribs->sx_policer_attribs.cir = (uint32_t)(8 * attr_value->u64 / IR_UNITS);
         }
     }
 
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t fill_policer_pbs_attrib(_In_ uint32_t                   attr_count,
-                                     _In_ const sai_attribute_t     *attr_list,
-                                     _Inout_ sai_policer_attributes_t* sai_policer_attribs)
+static sai_status_t fill_policer_pbs_attrib(_In_ uint32_t                     attr_count,
+                                            _In_ const sai_attribute_t       *attr_list,
+                                            _Inout_ sai_policer_attributes_t* sai_policer_attribs)
 {
     const sai_attribute_value_t* attr_value = NULL;
     uint32_t                     index      = 0;
@@ -1396,20 +1392,20 @@ sai_status_t fill_policer_pbs_attrib(_In_ uint32_t                   attr_count,
             return SAI_STATUS_INVALID_ATTR_VALUE_0 + index;
         }
         if (SX_POLICER_METER_PACKETS == sai_policer_attribs->sx_policer_attribs.meter_type) {
-            /* sx_cbs == Log2 sai_cbs/10^3 */
-            sai_policer_attribs->sx_policer_attribs.ebs = (uint32_t)(log10((double)attr_value->u64 / 1000) / log10(2));
+            /* sx_cbs == Log2 sai_cbs */
+            sai_policer_attribs->sx_policer_attribs.ebs = (uint32_t) round(log10((double)attr_value->u64) / log10(2));
         } else {
             /* sx_CBS = Log2[(sai_cbs_bytes * 8) / 512] */
             sai_policer_attribs->sx_policer_attribs.ebs =
-                (uint32_t)(log10((double)attr_value->u64 * 8 / 512) / log10(2));
+                (uint32_t) round(log10((double)attr_value->u64 * 8 / 512) / log10(2));
         }
     }
     return status;
 }
 
-sai_status_t fill_policer_pir_attrib(_In_ uint32_t                   attr_count,
-                                     _In_ const sai_attribute_t     *attr_list,
-                                     _Inout_ sai_policer_attributes_t* sai_policer_attribs)
+static sai_status_t fill_policer_pir_attrib(_In_ uint32_t                     attr_count,
+                                            _In_ const sai_attribute_t       *attr_list,
+                                            _Inout_ sai_policer_attributes_t* sai_policer_attribs)
 {
     const sai_attribute_value_t* attr_value = NULL;
     uint32_t                     index;
@@ -1428,15 +1424,15 @@ sai_status_t fill_policer_pir_attrib(_In_ uint32_t                   attr_count,
             sai_policer_attribs->sx_policer_attribs.eir = (uint32_t)(attr_value->u64);
         } else {
             /* 8 * sai_CIR_bytes / (10^3) = sx_value [bits/sec] */
-            sai_policer_attribs->sx_policer_attribs.eir = (uint32_t)(8 * attr_value->u64 / 1000);
+            sai_policer_attribs->sx_policer_attribs.eir = (uint32_t)(8 * attr_value->u64 / IR_UNITS);
         }
     }
     return status;
 }
 
-sai_status_t fill_policer_green_action_attrib(_In_ uint32_t                   attr_count,
-                                              _In_ const sai_attribute_t     *attr_list,
-                                              _Out_ sai_policer_attributes_t* sai_policer_attribs)
+static sai_status_t fill_policer_green_action_attrib(_In_ uint32_t                   attr_count,
+                                                     _In_ const sai_attribute_t     *attr_list,
+                                                     _Out_ sai_policer_attributes_t* sai_policer_attribs)
 {
     const sai_attribute_value_t* attr_value = NULL;
     uint32_t                     index;
@@ -1462,10 +1458,10 @@ sai_status_t fill_policer_green_action_attrib(_In_ uint32_t                   at
     return status;
 }
 
-sai_status_t fill_policer_yellow_action_attrib(_In_ bool                       set_defaults,
-                                               _In_ uint32_t                   attr_count,
-                                               _In_ const sai_attribute_t     *attr_list,
-                                               _Out_ sai_policer_attributes_t* sai_policer_attribs)
+static sai_status_t fill_policer_yellow_action_attrib(_In_ bool                       set_defaults,
+                                                      _In_ uint32_t                   attr_count,
+                                                      _In_ const sai_attribute_t     *attr_list,
+                                                      _Out_ sai_policer_attributes_t* sai_policer_attribs)
 {
     const sai_attribute_value_t* attr_value = NULL;
     uint32_t                     index;
@@ -1494,10 +1490,10 @@ sai_status_t fill_policer_yellow_action_attrib(_In_ bool                       s
 }
 
 
-sai_status_t fill_policer_red_action_attrib(_In_ bool                       set_defaults,
-                                            _In_ uint32_t                   attr_count,
-                                            _In_ const sai_attribute_t     *attr_list,
-                                            _Out_ sai_policer_attributes_t* sai_policer_attribs)
+static sai_status_t fill_policer_red_action_attrib(_In_ bool                       set_defaults,
+                                                   _In_ uint32_t                   attr_count,
+                                                   _In_ const sai_attribute_t     *attr_list,
+                                                   _Out_ sai_policer_attributes_t* sai_policer_attribs)
 {
     const sai_attribute_value_t* attr_value = NULL;
     uint32_t                     index;
@@ -1529,9 +1525,9 @@ sai_status_t fill_policer_red_action_attrib(_In_ bool                       set_
     return status;
 }
 
-sai_status_t fill_policer_counter_list_attrib(_In_ uint32_t                   attr_count,
-                                              _In_ const sai_attribute_t     *attr_list,
-                                              _Out_ sai_policer_attributes_t* sai_policer_attribs)
+static sai_status_t fill_policer_counter_list_attrib(_In_ uint32_t                   attr_count,
+                                                     _In_ const sai_attribute_t     *attr_list,
+                                                     _Out_ sai_policer_attributes_t* sai_policer_attribs)
 {
     const sai_attribute_value_t* attr_value = NULL;
     uint32_t                     index;
@@ -1703,7 +1699,7 @@ sai_status_t db_get_sai_policer_data(_In_ sai_object_id_t            sai_policer
 }
 
 
-sai_status_t db_remove_sai_policer_data(_In_ uint32_t db_policers_entry_index)
+static sai_status_t db_remove_sai_policer_data(_In_ uint32_t db_policers_entry_index)
 {
     sai_status_t sai_status = SAI_STATUS_SUCCESS;
 
@@ -1730,8 +1726,8 @@ sai_status_t db_remove_sai_policer_data(_In_ uint32_t db_policers_entry_index)
     return sai_status;
 }
 
-sai_status_t db_write_sai_policer_attribs(_In_ sai_object_id_t          sai_policer_id,
-                                          _In_ sx_policer_attributes_t* sx_policer_attr)
+static sai_status_t db_write_sai_policer_attribs(_In_ sai_object_id_t          sai_policer_id,
+                                                 _In_ sx_policer_attributes_t* sx_policer_attr)
 {
     uint32_t     db_policers_entry_index;
     sai_status_t status;
@@ -1782,15 +1778,15 @@ sai_status_t db_write_sai_policer_attribs(_In_ sai_object_id_t          sai_poli
 }
 
 
-void db_reset_policer_entry_storm_control_item(_Inout_ mlnx_port_storm_policer_bind_info_t* storm_entry,
-                                               _In_ uint32_t                                storm_pckt_ind)
+static void db_reset_policer_entry_storm_control_item(_Inout_ mlnx_port_storm_policer_bind_info_t* storm_entry,
+                                                      _In_ uint32_t                                storm_pckt_ind)
 {
     storm_entry->is_valid[storm_pckt_ind] = false;
     memset(&(storm_entry->packet_types[storm_pckt_ind]), 0, sizeof(sx_port_packet_types_t));
 }
 
 
-void db_reset_policer_entry_bind_item(_Inout_ mlnx_policer_bind_info_t* bind_item)
+static void db_reset_policer_entry_bind_item(_Inout_ mlnx_policer_bind_info_t* bind_item)
 {
     uint32_t storm_pckt_type_ind = 0;
 
@@ -1801,7 +1797,7 @@ void db_reset_policer_entry_bind_item(_Inout_ mlnx_policer_bind_info_t* bind_ite
     }
 }
 
-void db_reset_policer_entry_bindings(_In_ uint32_t db_policers_entry_index_p)
+static void db_reset_policer_entry_bindings(_In_ uint32_t db_policers_entry_index_p)
 {
     uint32_t bind_ind;
     uint32_t bind_cnt = MLNX_SAI_ARRAY_LEN(g_sai_db_ptr->policers_db[db_policers_entry_index_p].bind_info);
@@ -1906,9 +1902,9 @@ sai_status_t db_find_sai_policer_entry_ind(_In_ sx_policer_id_t sx_policer, _Out
 }
 
 
-sai_status_t mlnx_sai_create_policer(_Out_ sai_object_id_t      *policer_id,
-                                     _In_ uint32_t               attr_count,
-                                     _In_ const sai_attribute_t *attr_list)
+static sai_status_t mlnx_sai_create_policer(_Out_ sai_object_id_t      *policer_id,
+                                            _In_ uint32_t               attr_count,
+                                            _In_ const sai_attribute_t *attr_list)
 {
     sai_status_t             sai_status;
     sai_object_id_t          sai_policer = SAI_NULL_OBJECT_ID;
@@ -1982,8 +1978,9 @@ sai_status_t mlnx_sai_create_policer(_Out_ sai_object_id_t      *policer_id,
     return sai_status;
 }
 
-sai_status_t mlnx_validate_port_policer_storm_bind_item_for_remove(_In_ mlnx_policer_db_entry_t* policer_db_entry,
-                                                                   _In_ uint32_t                 bind_ind)
+static sai_status_t mlnx_validate_port_policer_storm_bind_item_for_remove(
+    _In_ mlnx_policer_db_entry_t* policer_db_entry,
+    _In_ uint32_t                 bind_ind)
 {
     sai_status_t                         sai_status           = SAI_STATUS_SUCCESS;
     uint32_t                             bind_cnt             = MLNX_SAI_ARRAY_LEN(policer_db_entry->bind_info);
@@ -2016,7 +2013,7 @@ sai_status_t mlnx_validate_port_policer_storm_bind_item_for_remove(_In_ mlnx_pol
     return sai_status;
 }
 
-sai_status_t mlnx_validate_port_policers_for_remove(_In_ mlnx_policer_db_entry_t* policer_db_entry)
+static sai_status_t mlnx_validate_port_policers_for_remove(_In_ mlnx_policer_db_entry_t* policer_db_entry)
 {
     uint32_t     bind_ind;
     uint32_t     bind_cnt = MLNX_SAI_ARRAY_LEN(policer_db_entry->bind_info);
@@ -2050,7 +2047,7 @@ sai_status_t mlnx_validate_port_policers_for_remove(_In_ mlnx_policer_db_entry_t
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_sai_remove_policer(_In_ sai_object_id_t sai_policer_id)
+static sai_status_t mlnx_sai_remove_policer(_In_ sai_object_id_t sai_policer_id)
 {
     sai_status_t             sai_status;
     sx_status_t              sx_status;
@@ -2121,7 +2118,7 @@ exit:
     return sai_status;
 }
 
-sai_status_t mlnx_sai_set_policer_attribute(_In_ sai_object_id_t policer_id, _In_ const sai_attribute_t *attr)
+static sai_status_t mlnx_sai_set_policer_attribute(_In_ sai_object_id_t policer_id, _In_ const sai_attribute_t *attr)
 {
     sai_status_t           status;
     const sai_object_key_t key                      = { .object_id = policer_id };
@@ -2137,9 +2134,9 @@ sai_status_t mlnx_sai_set_policer_attribute(_In_ sai_object_id_t policer_id, _In
     return status;
 }
 
-sai_status_t mlnx_sai_get_policer_attribute(_In_ sai_object_id_t     policer_id,
-                                            _In_ uint32_t            attr_count,
-                                            _Inout_ sai_attribute_t *attr_list)
+static sai_status_t mlnx_sai_get_policer_attribute(_In_ sai_object_id_t     policer_id,
+                                                   _In_ uint32_t            attr_count,
+                                                   _Inout_ sai_attribute_t *attr_list)
 {
     const sai_object_key_t key                      = { .object_id = policer_id };
     char                   key_str[MAX_KEY_STR_LEN] = { 0 };
@@ -2154,10 +2151,10 @@ sai_status_t mlnx_sai_get_policer_attribute(_In_ sai_object_id_t     policer_id,
     return status;
 }
 
-sai_status_t mlnx_sai_get_policer_statistics(_In_ sai_object_id_t                   policer_id,
-                                             _In_ const sai_policer_stat_counter_t *counter_ids,
-                                             _In_ uint32_t                          number_of_counters,
-                                             _Out_ uint64_t                       * counters)
+static sai_status_t mlnx_sai_get_policer_statistics(_In_ sai_object_id_t                   policer_id,
+                                                    _In_ const sai_policer_stat_counter_t *counter_ids,
+                                                    _In_ uint32_t                          number_of_counters,
+                                                    _Out_ uint64_t                       * counters)
 {
     SX_LOG_ENTER();
 
@@ -2183,8 +2180,8 @@ sai_status_t mlnx_policer_log_set(sx_verbosity_level_t level)
 }
 
 
-sai_status_t db_set_storm_control_item(_Inout_ mlnx_port_storm_policer_bind_info_t* storm_bind_info,
-                                       _In_ mlnx_port_policer_type                  port_policer_type)
+static sai_status_t db_set_storm_control_item(_Inout_ mlnx_port_storm_policer_bind_info_t* storm_bind_info,
+                                              _In_ mlnx_port_policer_type                  port_policer_type)
 {
     sai_status_t sai_status = SAI_STATUS_SUCCESS;
 
@@ -2225,7 +2222,8 @@ sai_status_t db_set_storm_control_item(_Inout_ mlnx_port_storm_policer_bind_info
     return sai_status;
 }
 
-sai_status_t check_binding_policer_type(_In_ sai_object_id_t sai_policer, _In_ mlnx_policer_bind_params*  bind_params)
+static sai_status_t check_binding_policer_type(_In_ sai_object_id_t           sai_policer,
+                                               _In_ mlnx_policer_bind_params* bind_params)
 {
     sai_status_t             sai_status;
     mlnx_policer_db_entry_t* policer_entry = NULL;
@@ -2254,12 +2252,12 @@ sai_status_t check_binding_policer_type(_In_ sai_object_id_t sai_policer, _In_ m
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t setup_storm_item(_In_ sai_object_id_t                      sai_policer,
-                              _In_ mlnx_port_storm_policer_bind_info_t* curr_storm_bind_info,
-                              _In_ mlnx_port_policer_type               port_policer_type,
-                              _In_ sx_policer_attributes_t            * sx_policer_attribs,
-                              _In_ uint32_t                             port_db_index,
-                              _In_ uint32_t                             log_port)
+static sai_status_t setup_storm_item(_In_ sai_object_id_t                      sai_policer,
+                                     _In_ mlnx_port_storm_policer_bind_info_t* curr_storm_bind_info,
+                                     _In_ mlnx_port_policer_type               port_policer_type,
+                                     _In_ sx_policer_attributes_t            * sx_policer_attribs,
+                                     _In_ uint32_t                             port_db_index,
+                                     _In_ uint32_t                             log_port)
 {
     sai_status_t                   sai_status;
     sx_status_t                    sx_status;
@@ -2297,9 +2295,9 @@ sai_status_t setup_storm_item(_In_ sai_object_id_t                      sai_poli
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_sai_bind_policer_to_port(_In_ sai_object_id_t           sai_port,
-                                           _In_ sai_object_id_t           sai_policer,
-                                           _In_ mlnx_policer_bind_params* bind_params)
+static sai_status_t mlnx_sai_bind_policer_to_port(_In_ sai_object_id_t           sai_port,
+                                                  _In_ sai_object_id_t           sai_policer,
+                                                  _In_ mlnx_policer_bind_params* bind_params)
 {
     sai_status_t                         sai_status;
     mlnx_policer_db_entry_t            * policer_entry = NULL;
@@ -2454,8 +2452,8 @@ sai_status_t mlnx_sai_bind_policer_to_port(_In_ sai_object_id_t           sai_po
     return sai_status;
 }
 
-sai_status_t mlnx_sai_unbind_policer_from_port(_In_ sai_object_id_t           sai_port,
-                                               _In_ mlnx_policer_bind_params* bind_params)
+static sai_status_t mlnx_sai_unbind_policer_from_port(_In_ sai_object_id_t           sai_port,
+                                                      _In_ mlnx_policer_bind_params* bind_params)
 {
     sai_status_t                         sai_status;
     uint32_t                             port_index;
@@ -2572,8 +2570,8 @@ sai_status_t mlnx_sai_unbind_policer_from_port(_In_ sai_object_id_t           sa
     return sai_status;
 }
 
-sai_status_t mlnx_sai_get_or_create_sx_policer_for_bind(_In_ sai_object_id_t   sai_policer,
-                                                        _Out_ sx_policer_id_t* sx_policer)
+static sai_status_t mlnx_sai_get_or_create_sx_policer_for_bind(_In_ sai_object_id_t   sai_policer,
+                                                               _Out_ sx_policer_id_t* sx_policer)
 {
     sai_status_t             sai_status;
     sx_status_t              sx_status;
@@ -2619,7 +2617,7 @@ sai_status_t mlnx_sai_get_or_create_regular_sx_policer_for_bind(_In_ sai_object_
                                                                 _Out_ sx_policer_id_t* sx_policer_id)
 {
     sai_status_t             sai_status;
-    sx_policer_id_t          sx_policer;
+    sx_policer_id_t          sx_policer = 0;
     mlnx_policer_db_entry_t* policer_data;
 
     SX_LOG_ENTER();
@@ -2654,7 +2652,8 @@ sai_status_t mlnx_sai_get_or_create_regular_sx_policer_for_bind(_In_ sai_object_
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_sai_bind_policer_to_trap_group(_In_ sai_object_id_t sai_object_id, _In_ sai_object_id_t sai_policer)
+static sai_status_t mlnx_sai_bind_policer_to_trap_group(_In_ sai_object_id_t sai_object_id,
+                                                        _In_ sai_object_id_t sai_policer)
 {
     sai_status_t    sai_status;
     sx_status_t     sx_status;
@@ -2779,7 +2778,7 @@ sai_status_t mlnx_sai_unbind_policer(_In_ sai_object_id_t           sai_object,
     return status;
 }
 
-const sai_policer_api_t policer_api = {
+const sai_policer_api_t mlnx_policer_api = {
     mlnx_sai_create_policer,
     mlnx_sai_remove_policer,
     mlnx_sai_set_policer_attribute,

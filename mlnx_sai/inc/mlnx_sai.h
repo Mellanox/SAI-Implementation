@@ -50,33 +50,33 @@
 #define SAI_ERR(status) ((status) != SAI_STATUS_SUCCESS)
 
 extern sx_api_handle_t        gh_sdk;
-extern service_method_table_t g_services;
+extern service_method_table_t g_mlnx_services;
 extern rm_resources_t         g_resource_limits;
 
 sai_status_t sdk_to_sai(sx_status_t status);
-extern const sai_route_api_t            route_api;
-extern const sai_virtual_router_api_t   router_api;
-extern const sai_switch_api_t           switch_api;
-extern const sai_port_api_t             port_api;
-extern const sai_fdb_api_t              fdb_api;
-extern const sai_neighbor_api_t         neighbor_api;
-extern const sai_next_hop_api_t         next_hop_api;
-extern const sai_next_hop_group_api_t   next_hop_group_api;
-extern const sai_router_interface_api_t router_interface_api;
-extern const sai_vlan_api_t             vlan_api;
-extern const sai_hostif_api_t           host_interface_api;
-extern const sai_acl_api_t              acl_api;
-extern const sai_qos_map_api_t          qos_maps_api;
-extern const sai_wred_api_t             wred_api;
-extern const sai_policer_api_t          policer_api;
-extern const sai_buffer_api_t           buffer_api;
-extern const sai_queue_api_t            queue_api;
-extern const sai_scheduler_api_t        scheduler_api;
-extern const sai_hash_api_t             hash_api;
-extern const sai_lag_api_t              lag_api;
-extern const sai_scheduler_group_api_t  scheduler_group_api;
-extern const sai_mirror_api_t           mirror_api;
-extern const sai_samplepacket_api_t     samplepacket_api;
+extern const sai_route_api_t            mlnx_route_api;
+extern const sai_virtual_router_api_t   mlnx_router_api;
+extern const sai_switch_api_t           mlnx_switch_api;
+extern const sai_port_api_t             mlnx_port_api;
+extern const sai_fdb_api_t              mlnx_fdb_api;
+extern const sai_neighbor_api_t         mlnx_neighbor_api;
+extern const sai_next_hop_api_t         mlnx_next_hop_api;
+extern const sai_next_hop_group_api_t   mlnx_next_hop_group_api;
+extern const sai_router_interface_api_t mlnx_router_interface_api;
+extern const sai_vlan_api_t             mlnx_vlan_api;
+extern const sai_hostif_api_t           mlnx_host_interface_api;
+extern const sai_acl_api_t              mlnx_acl_api;
+extern const sai_qos_map_api_t          mlnx_qos_maps_api;
+extern const sai_wred_api_t             mlnx_wred_api;
+extern const sai_policer_api_t          mlnx_policer_api;
+extern const sai_buffer_api_t           mlnx_buffer_api;
+extern const sai_queue_api_t            mlnx_queue_api;
+extern const sai_scheduler_api_t        mlnx_scheduler_api;
+extern const sai_hash_api_t             mlnx_hash_api;
+extern const sai_lag_api_t              mlnx_lag_api;
+extern const sai_scheduler_group_api_t  mlnx_scheduler_group_api;
+extern const sai_mirror_api_t           mlnx_mirror_api;
+extern const sai_samplepacket_api_t     mlnx_samplepacket_api;
 
 #define DEFAULT_ETH_SWID                0
 #define DEFAULT_VRID                    0
@@ -465,10 +465,7 @@ sai_status_t mlnx_port_qos_map_apply(_In_ const sai_object_id_t    port,
                                      _In_ const sai_object_id_t    qos_map_id,
                                      _In_ const sai_qos_map_type_t qos_map_type);
 sai_status_t mlnx_port_tc_set(_In_ const sai_object_id_t port, _In_ const uint8_t tc);
-sai_status_t mlnx_port_tc_get(_In_ const sai_object_id_t port, _Out_ uint8_t *tc);
 
-sai_status_t mlnx_check_trap_group_prio(uint32_t prio, uint32_t prio_index);
-sai_status_t mlnx_check_trap_channel(sai_hostif_trap_channel_t channel, uint32_t channel_index);
 sai_status_t mlnx_register_trap(const sx_access_cmd_t cmd, uint32_t index);
 sai_status_t mlnx_trap_set(uint32_t index, sai_packet_action_t sai_action, sai_object_id_t trap_group);
 
@@ -822,9 +819,6 @@ sai_status_t mlnx_sai_unbind_policer(_In_ sai_object_id_t           sai_object,
                                      _In_ mlnx_policer_bind_params* bind_params);
 sai_status_t mlnx_sai_get_or_create_regular_sx_policer_for_bind(_In_ sai_object_id_t   sai_policer,
                                                                 _Out_ sx_policer_id_t* sx_policer_id);
-
-sai_status_t mlnx_sai_get_or_create_sx_policer_for_bind(_In_ sai_object_id_t   sai_policer,
-                                                        _Out_ sx_policer_id_t* sx_policer);
 
 void log_sx_policer_attributes(_In_ sx_policer_id_t sx_policer, _In_ sx_policer_attributes_t* sx_attribs);
 

@@ -72,42 +72,33 @@ static const sai_attribute_entry_t wred_attribs[] = {
     { END_FUNCTIONALITY_ATTRIBS_ID, false, false, false, false,
       "", SAI_ATTR_VAL_TYPE_UNDETERMINED }
 };
-
-sai_status_t mlnx_wred_attr_getter(_In_ const sai_object_key_t   *key,
-                                   _Inout_ sai_attribute_value_t *value,
-                                   _In_ uint32_t                  attr_index,
-                                   _Inout_ vendor_cache_t        *cache,
-                                   void                          *arg);
-
-sai_status_t mlnx_wred_attr_setter(_In_ const sai_object_key_t      *key,
-                                   _In_ const sai_attribute_value_t *value,
-                                   void                             *arg);
-
-sai_status_t mlnx_wred_attr_enable_set(_In_ const sai_object_key_t      *key,
-                                       _In_ const sai_attribute_value_t *value,
-                                       void                             *arg);
-
-sai_status_t mlnx_wred_weight_get(_In_ const sai_object_key_t   *key,
-                                  _Inout_ sai_attribute_value_t *value,
-                                  _In_ uint32_t                  attr_index,
-                                  _Inout_ vendor_cache_t        *cache,
-                                  void                          *arg);
-
-sai_status_t mlnx_wred_weight_set(_In_ const sai_object_key_t      *key,
-                                  _In_ const sai_attribute_value_t *value,
-                                  void                             *arg);
-
-sai_status_t mlnx_wred_ecn_get(_In_ const sai_object_key_t   *key,
-                               _Inout_ sai_attribute_value_t *value,
-                               _In_ uint32_t                  attr_index,
-                               _Inout_ vendor_cache_t        *cache,
-                               void                          *arg);
-
-sai_status_t mlnx_wred_ecn_set(_In_ const sai_object_key_t      *key,
-                               _In_ const sai_attribute_value_t *value,
-                               void                             *arg);
-
-
+static sai_status_t mlnx_wred_attr_getter(_In_ const sai_object_key_t   *key,
+                                          _Inout_ sai_attribute_value_t *value,
+                                          _In_ uint32_t                  attr_index,
+                                          _Inout_ vendor_cache_t        *cache,
+                                          void                          *arg);
+static sai_status_t mlnx_wred_attr_setter(_In_ const sai_object_key_t      *key,
+                                          _In_ const sai_attribute_value_t *value,
+                                          void                             *arg);
+static sai_status_t mlnx_wred_attr_enable_set(_In_ const sai_object_key_t      *key,
+                                              _In_ const sai_attribute_value_t *value,
+                                              void                             *arg);
+static sai_status_t mlnx_wred_weight_get(_In_ const sai_object_key_t   *key,
+                                         _Inout_ sai_attribute_value_t *value,
+                                         _In_ uint32_t                  attr_index,
+                                         _Inout_ vendor_cache_t        *cache,
+                                         void                          *arg);
+static sai_status_t mlnx_wred_weight_set(_In_ const sai_object_key_t      *key,
+                                         _In_ const sai_attribute_value_t *value,
+                                         void                             *arg);
+static sai_status_t mlnx_wred_ecn_get(_In_ const sai_object_key_t   *key,
+                                      _Inout_ sai_attribute_value_t *value,
+                                      _In_ uint32_t                  attr_index,
+                                      _Inout_ vendor_cache_t        *cache,
+                                      void                          *arg);
+static sai_status_t mlnx_wred_ecn_set(_In_ const sai_object_key_t      *key,
+                                      _In_ const sai_attribute_value_t *value,
+                                      void                             *arg);
 static const sai_vendor_attribute_entry_t wred_vendor_attribs[] = {
     { SAI_WRED_ATTR_GREEN_ENABLE,
       { true, false, true, true },
@@ -1074,11 +1065,11 @@ static void wred_key_to_str(_In_ sai_object_id_t wred_id, _Out_ char *key_str)
 }
 /*
  * Get WRED profile attributes */
-sai_status_t mlnx_wred_attr_getter(_In_ const sai_object_key_t   *key,
-                                   _Inout_ sai_attribute_value_t *value,
-                                   _In_ uint32_t                  attr_index,
-                                   _Inout_ vendor_cache_t        *cache,
-                                   void                          *arg)
+static sai_status_t mlnx_wred_attr_getter(_In_ const sai_object_key_t   *key,
+                                          _Inout_ sai_attribute_value_t *value,
+                                          _In_ uint32_t                  attr_index,
+                                          _Inout_ vendor_cache_t        *cache,
+                                          void                          *arg)
 {
     sai_object_id_t                    wred_id = key->object_id;
     sx_cos_redecn_profile_attributes_t redecn_attr;
@@ -1183,9 +1174,9 @@ sai_status_t mlnx_wred_attr_getter(_In_ const sai_object_key_t   *key,
 }
 
 /* Set WRED profile attributes */
-sai_status_t mlnx_wred_attr_setter(_In_ const sai_object_key_t      *key,
-                                   _In_ const sai_attribute_value_t *value,
-                                   void                             *arg)
+static sai_status_t mlnx_wred_attr_setter(_In_ const sai_object_key_t      *key,
+                                          _In_ const sai_attribute_value_t *value,
+                                          void                             *arg)
 {
     sai_object_id_t                    wred_id = key->object_id;
     sx_cos_redecn_profile_attributes_t redecn_attr;
@@ -1310,9 +1301,9 @@ sai_status_t mlnx_wred_attr_setter(_In_ const sai_object_key_t      *key,
 }
 
 /* Set WRED profile attributes */
-sai_status_t mlnx_wred_attr_enable_set(_In_ const sai_object_key_t      *key,
-                                       _In_ const sai_attribute_value_t *value,
-                                       void                             *arg)
+static sai_status_t mlnx_wred_attr_enable_set(_In_ const sai_object_key_t      *key,
+                                              _In_ const sai_attribute_value_t *value,
+                                              void                             *arg)
 {
     sai_object_id_t          wred_id = key->object_id;
     mlnx_wred_profile_t      wred_profile;
@@ -1512,16 +1503,16 @@ sai_status_t mlnx_wred_init()
     return sdk_to_sai(sx_status);
 }
 
-/* Set global average queue size weight 
+/* Set global average queue size weight
  * Note : SDK/FW requires 2^SAI_WRED_ATTR_WEIGHT < SAI_WRED_ATTR_[GREEN/YELLOW/RED]_MIN_THRESHOLD / Cell size (=96 in SPC)
- * The rational being 
+ * The rational being
  * average queue size = 2^-weight * current size + previous average * (1-2^-weight)
  * thus min size has to be bigger than 2^-weight
  * and also min size is measured in cells
-*/
-sai_status_t mlnx_wred_weight_set(_In_ const sai_object_key_t      *key,
-                                  _In_ const sai_attribute_value_t *value,
-                                  void                             *arg)
+ */
+static sai_status_t mlnx_wred_weight_set(_In_ const sai_object_key_t      *key,
+                                         _In_ const sai_attribute_value_t *value,
+                                         void                             *arg)
 {
     sai_object_id_t     wred_id = key->object_id;
     mlnx_wred_profile_t wred_profile;
@@ -1548,11 +1539,11 @@ sai_status_t mlnx_wred_weight_set(_In_ const sai_object_key_t      *key,
 }
 
 /* Get global average queue size weight */
-sai_status_t mlnx_wred_weight_get(_In_ const sai_object_key_t   *key,
-                                  _Inout_ sai_attribute_value_t *value,
-                                  _In_ uint32_t                  attr_index,
-                                  _Inout_ vendor_cache_t        *cache,
-                                  void                          *arg)
+static sai_status_t mlnx_wred_weight_get(_In_ const sai_object_key_t   *key,
+                                         _Inout_ sai_attribute_value_t *value,
+                                         _In_ uint32_t                  attr_index,
+                                         _Inout_ vendor_cache_t        *cache,
+                                         void                          *arg)
 {
     sai_object_id_t        wred_id = key->object_id;
     mlnx_wred_profile_t    wred_profile;
@@ -1585,9 +1576,9 @@ sai_status_t mlnx_wred_weight_get(_In_ const sai_object_key_t   *key,
 }
 
 /* Set whether ECN mark is enabled for WRED profile */
-sai_status_t mlnx_wred_ecn_set(_In_ const sai_object_key_t      *key,
-                               _In_ const sai_attribute_value_t *value,
-                               void                             *arg)
+static sai_status_t mlnx_wred_ecn_set(_In_ const sai_object_key_t      *key,
+                                      _In_ const sai_attribute_value_t *value,
+                                      void                             *arg)
 {
     sai_object_id_t     wred_id = key->object_id;
     mlnx_wred_profile_t wred_profile;
@@ -1620,11 +1611,11 @@ sai_status_t mlnx_wred_ecn_set(_In_ const sai_object_key_t      *key,
 }
 
 /* Get if ECN mark is enabled for WRED profile */
-sai_status_t mlnx_wred_ecn_get(_In_ const sai_object_key_t   *key,
-                               _Inout_ sai_attribute_value_t *value,
-                               _In_ uint32_t                  attr_index,
-                               _Inout_ vendor_cache_t        *cache,
-                               void                          *arg)
+static sai_status_t mlnx_wred_ecn_get(_In_ const sai_object_key_t   *key,
+                                      _Inout_ sai_attribute_value_t *value,
+                                      _In_ uint32_t                  attr_index,
+                                      _Inout_ vendor_cache_t        *cache,
+                                      void                          *arg)
 {
     sai_object_id_t     wred_id = key->object_id;
     mlnx_wred_profile_t wred_profile;
@@ -1670,7 +1661,7 @@ sai_status_t mlnx_wred_log_set(sx_verbosity_level_t level)
  *    SAI_STATUS_SUCCESS on success
  *    Failure status code on error
  */
-sai_status_t mlnx_set_wred_attribute(_In_ sai_object_id_t wred_id, _In_ const sai_attribute_t *attr)
+static sai_status_t mlnx_set_wred_attribute(_In_ sai_object_id_t wred_id, _In_ const sai_attribute_t *attr)
 {
     const sai_object_key_t key  = { .object_id = wred_id };
     uint32_t               wred = 0;
@@ -1700,9 +1691,9 @@ sai_status_t mlnx_set_wred_attribute(_In_ sai_object_id_t wred_id, _In_ const sa
  *    SAI_STATUS_SUCCESS on success
  *    Failure status code on error
  */
-sai_status_t mlnx_get_wred_attribute(_In_ sai_object_id_t     wred_id,
-                                     _In_ uint32_t            attr_count,
-                                     _Inout_ sai_attribute_t *attr_list)
+static sai_status_t mlnx_get_wred_attribute(_In_ sai_object_id_t     wred_id,
+                                            _In_ uint32_t            attr_count,
+                                            _Inout_ sai_attribute_t *attr_list)
 {
     const sai_object_key_t key = { .object_id = wred_id };
     char                   key_str[MAX_KEY_STR_LEN];
@@ -1754,9 +1745,9 @@ static void mlnx_wred_cleanup_profiles(mlnx_wred_profile_t *wred_profile_p)
  *    Failure status code on error
  *
  */
-sai_status_t mlnx_create_wred_profile(_Out_ sai_object_id_t      *wred_id,
-                                      _In_ uint32_t               attr_count,
-                                      _In_ const sai_attribute_t *attr_list)
+static sai_status_t mlnx_create_wred_profile(_Out_ sai_object_id_t      *wred_id,
+                                             _In_ uint32_t               attr_count,
+                                             _In_ const sai_attribute_t *attr_list)
 {
     sx_cos_redecn_profile_attributes_t redecn_attr_green, redecn_attr_yellow, redecn_attr_red;
     const sai_attribute_value_t       *green_en_attr = NULL, *yellow_en_attr = NULL, *red_en_attr = NULL;
@@ -2009,7 +2000,7 @@ sai_status_t mlnx_create_wred_profile(_Out_ sai_object_id_t      *wred_id,
  * @return SAI_STATUS_SUCCESS on success
  *         Failure status code on error
  */
-sai_status_t mlnx_remove_wred_profile(_In_ sai_object_id_t wred_id)
+static sai_status_t mlnx_remove_wred_profile(_In_ sai_object_id_t wred_id)
 {
     sx_cos_redecn_profile_attributes_t redecn_attr;
     mlnx_wred_profile_t                wred_profile;
@@ -2070,7 +2061,7 @@ sai_status_t mlnx_remove_wred_profile(_In_ sai_object_id_t wred_id)
     return SAI_STATUS_SUCCESS;
 }
 
-const sai_wred_api_t wred_api = {
+const sai_wred_api_t mlnx_wred_api = {
     mlnx_create_wred_profile,
     mlnx_remove_wred_profile,
     mlnx_set_wred_attribute,

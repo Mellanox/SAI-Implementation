@@ -13,17 +13,14 @@ static const sai_attribute_entry_t lag_attribs[] = {
     { END_FUNCTIONALITY_ATTRIBS_ID, false, false, false, false,
       "", SAI_ATTR_VAL_TYPE_UNDETERMINED }
 };
-
-sai_status_t mlnx_lag_port_list_get(_In_ const sai_object_key_t   *key,
-                                    _Inout_ sai_attribute_value_t *value,
-                                    _In_ uint32_t                  attr_index,
-                                    _Inout_ vendor_cache_t        *cache,
-                                    void                          *arg);
-
-sai_status_t mlnx_lag_port_list_set(_In_ const sai_object_key_t      *key,
-                                    _In_ const sai_attribute_value_t *value,
-                                    void                             *arg);
-
+static sai_status_t mlnx_lag_port_list_get(_In_ const sai_object_key_t   *key,
+                                           _Inout_ sai_attribute_value_t *value,
+                                           _In_ uint32_t                  attr_index,
+                                           _Inout_ vendor_cache_t        *cache,
+                                           void                          *arg);
+static sai_status_t mlnx_lag_port_list_set(_In_ const sai_object_key_t      *key,
+                                           _In_ const sai_attribute_value_t *value,
+                                           void                             *arg);
 static const sai_vendor_attribute_entry_t lag_vendor_attribs[] = {
     { SAI_LAG_ATTR_PORT_LIST,
       { true, false, true, true },
@@ -43,39 +40,32 @@ static const sai_attribute_entry_t        lag_member_attribs[] = {
     { END_FUNCTIONALITY_ATTRIBS_ID, false, false, false, false,
       "", SAI_ATTR_VAL_TYPE_UNDETERMINED }
 };
-
-sai_status_t mlnx_lag_member_lag_id_get(_In_ const sai_object_key_t   *key,
-                                        _Inout_ sai_attribute_value_t *value,
-                                        _In_ uint32_t                  attr_index,
-                                        _Inout_ vendor_cache_t        *cache,
-                                        void                          *arg);
-
-sai_status_t mlnx_lag_member_port_id_get(_In_ const sai_object_key_t   *key,
-                                         _Inout_ sai_attribute_value_t *value,
-                                         _In_ uint32_t                  attr_index,
-                                         _Inout_ vendor_cache_t        *cache,
-                                         void                          *arg);
-
-sai_status_t mlnx_lag_member_egress_disable_get(_In_ const sai_object_key_t   *key,
+static sai_status_t mlnx_lag_member_lag_id_get(_In_ const sai_object_key_t   *key,
+                                               _Inout_ sai_attribute_value_t *value,
+                                               _In_ uint32_t                  attr_index,
+                                               _Inout_ vendor_cache_t        *cache,
+                                               void                          *arg);
+static sai_status_t mlnx_lag_member_port_id_get(_In_ const sai_object_key_t   *key,
                                                 _Inout_ sai_attribute_value_t *value,
                                                 _In_ uint32_t                  attr_index,
                                                 _Inout_ vendor_cache_t        *cache,
                                                 void                          *arg);
-
-sai_status_t mlnx_lag_member_egress_disable_set(_In_ const sai_object_key_t      *key,
-                                                _In_ const sai_attribute_value_t *value,
-                                                void                             *arg);
-
-sai_status_t mlnx_lag_member_ingress_disable_get(_In_ const sai_object_key_t   *key,
-                                                 _Inout_ sai_attribute_value_t *value,
-                                                 _In_ uint32_t                  attr_index,
-                                                 _Inout_ vendor_cache_t        *cache,
-                                                 void                          *arg);
-
-sai_status_t mlnx_lag_member_ingress_disable_set(_In_ const sai_object_key_t      *key,
-                                                 _In_ const sai_attribute_value_t *value,
-                                                 void                             *arg);
-
+static sai_status_t mlnx_lag_member_egress_disable_get(_In_ const sai_object_key_t   *key,
+                                                       _Inout_ sai_attribute_value_t *value,
+                                                       _In_ uint32_t                  attr_index,
+                                                       _Inout_ vendor_cache_t        *cache,
+                                                       void                          *arg);
+static sai_status_t mlnx_lag_member_egress_disable_set(_In_ const sai_object_key_t      *key,
+                                                       _In_ const sai_attribute_value_t *value,
+                                                       void                             *arg);
+static sai_status_t mlnx_lag_member_ingress_disable_get(_In_ const sai_object_key_t   *key,
+                                                        _Inout_ sai_attribute_value_t *value,
+                                                        _In_ uint32_t                  attr_index,
+                                                        _Inout_ vendor_cache_t        *cache,
+                                                        void                          *arg);
+static sai_status_t mlnx_lag_member_ingress_disable_set(_In_ const sai_object_key_t      *key,
+                                                        _In_ const sai_attribute_value_t *value,
+                                                        void                             *arg);
 static const sai_vendor_attribute_entry_t lag_member_vendor_attribs[] = {
     { SAI_LAG_MEMBER_ATTR_LAG_ID,
       { true, false, false, true },
@@ -98,7 +88,6 @@ static const sai_vendor_attribute_entry_t lag_member_vendor_attribs[] = {
       mlnx_lag_member_ingress_disable_get, NULL,
       mlnx_lag_member_ingress_disable_set, NULL },
 };
-
 static void lag_key_to_str(_In_ sai_object_id_t lag_id, _Out_ char *key_str)
 {
     uint32_t lagid;
@@ -405,11 +394,11 @@ static sai_status_t mlnx_lag_add_ports(sai_object_id_t lag_id, const sai_attribu
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_lag_port_list_get(_In_ const sai_object_key_t   *key,
-                                    _Inout_ sai_attribute_value_t *value,
-                                    _In_ uint32_t                  attr_index,
-                                    _Inout_ vendor_cache_t        *cache,
-                                    void                          *arg)
+static sai_status_t mlnx_lag_port_list_get(_In_ const sai_object_key_t   *key,
+                                           _Inout_ sai_attribute_value_t *value,
+                                           _In_ uint32_t                  attr_index,
+                                           _Inout_ vendor_cache_t        *cache,
+                                           void                          *arg)
 {
     sai_status_t      status;
     sai_object_id_t   lag_id = key->object_id;
@@ -469,9 +458,9 @@ sai_status_t mlnx_lag_port_list_get(_In_ const sai_object_key_t   *key,
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_lag_port_list_set(_In_ const sai_object_key_t      *key,
-                                    _In_ const sai_attribute_value_t *value,
-                                    void                             *arg)
+static sai_status_t mlnx_lag_port_list_set(_In_ const sai_object_key_t      *key,
+                                           _In_ const sai_attribute_value_t *value,
+                                           void                             *arg)
 {
     sai_status_t    status;
     sai_object_id_t lag_id = key->object_id;
@@ -494,11 +483,11 @@ sai_status_t mlnx_lag_port_list_set(_In_ const sai_object_key_t      *key,
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_lag_member_lag_id_get(_In_ const sai_object_key_t   *key,
-                                        _Inout_ sai_attribute_value_t *value,
-                                        _In_ uint32_t                  attr_index,
-                                        _Inout_ vendor_cache_t        *cache,
-                                        void                          *arg)
+static sai_status_t mlnx_lag_member_lag_id_get(_In_ const sai_object_key_t   *key,
+                                               _Inout_ sai_attribute_value_t *value,
+                                               _In_ uint32_t                  attr_index,
+                                               _Inout_ vendor_cache_t        *cache,
+                                               void                          *arg)
 {
     sai_status_t     status;
     sx_port_log_id_t lag_log_port_id = 0;
@@ -523,11 +512,11 @@ sai_status_t mlnx_lag_member_lag_id_get(_In_ const sai_object_key_t   *key,
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_lag_member_port_id_get(_In_ const sai_object_key_t   *key,
-                                         _Inout_ sai_attribute_value_t *value,
-                                         _In_ uint32_t                  attr_index,
-                                         _Inout_ vendor_cache_t        *cache,
-                                         void                          *arg)
+static sai_status_t mlnx_lag_member_port_id_get(_In_ const sai_object_key_t   *key,
+                                                _Inout_ sai_attribute_value_t *value,
+                                                _In_ uint32_t                  attr_index,
+                                                _Inout_ vendor_cache_t        *cache,
+                                                void                          *arg)
 {
     sai_status_t     status;
     sx_port_log_id_t log_port_id;
@@ -546,11 +535,11 @@ sai_status_t mlnx_lag_member_port_id_get(_In_ const sai_object_key_t   *key,
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_lag_member_egress_disable_get(_In_ const sai_object_key_t   *key,
-                                                _Inout_ sai_attribute_value_t *value,
-                                                _In_ uint32_t                  attr_index,
-                                                _Inout_ vendor_cache_t        *cache,
-                                                void                          *arg)
+static sai_status_t mlnx_lag_member_egress_disable_get(_In_ const sai_object_key_t   *key,
+                                                       _Inout_ sai_attribute_value_t *value,
+                                                       _In_ uint32_t                  attr_index,
+                                                       _Inout_ vendor_cache_t        *cache,
+                                                       void                          *arg)
 {
     sai_status_t          status;
     sx_status_t           sx_status;
@@ -583,9 +572,9 @@ sai_status_t mlnx_lag_member_egress_disable_get(_In_ const sai_object_key_t   *k
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_lag_member_egress_disable_set(_In_ const sai_object_key_t      *key,
-                                                _In_ const sai_attribute_value_t *value,
-                                                void                             *arg)
+static sai_status_t mlnx_lag_member_egress_disable_set(_In_ const sai_object_key_t      *key,
+                                                       _In_ const sai_attribute_value_t *value,
+                                                       void                             *arg)
 {
     sai_status_t     status;
     sx_status_t      sx_status;
@@ -613,11 +602,11 @@ sai_status_t mlnx_lag_member_egress_disable_set(_In_ const sai_object_key_t     
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_lag_member_ingress_disable_get(_In_ const sai_object_key_t   *key,
-                                                 _Inout_ sai_attribute_value_t *value,
-                                                 _In_ uint32_t                  attr_index,
-                                                 _Inout_ vendor_cache_t        *cache,
-                                                 void                          *arg)
+static sai_status_t mlnx_lag_member_ingress_disable_get(_In_ const sai_object_key_t   *key,
+                                                        _Inout_ sai_attribute_value_t *value,
+                                                        _In_ uint32_t                  attr_index,
+                                                        _Inout_ vendor_cache_t        *cache,
+                                                        void                          *arg)
 {
     sai_status_t        status;
     sx_status_t         sx_status;
@@ -650,9 +639,9 @@ sai_status_t mlnx_lag_member_ingress_disable_get(_In_ const sai_object_key_t   *
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_lag_member_ingress_disable_set(_In_ const sai_object_key_t      *key,
-                                                 _In_ const sai_attribute_value_t *value,
-                                                 void                             *arg)
+static sai_status_t mlnx_lag_member_ingress_disable_set(_In_ const sai_object_key_t      *key,
+                                                        _In_ const sai_attribute_value_t *value,
+                                                        void                             *arg)
 {
     sai_status_t     status;
     sx_status_t      sx_status;
@@ -680,7 +669,9 @@ sai_status_t mlnx_lag_member_ingress_disable_set(_In_ const sai_object_key_t    
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_create_lag(_Out_ sai_object_id_t* lag_id, _In_ uint32_t attr_count, _In_ sai_attribute_t *attr_list)
+static sai_status_t mlnx_create_lag(_Out_ sai_object_id_t* lag_id,
+                                    _In_ uint32_t          attr_count,
+                                    _In_ const sai_attribute_t  *attr_list)
 {
     sai_status_t                 status;
     sx_status_t                  sx_status;
@@ -700,8 +691,8 @@ sai_status_t mlnx_create_lag(_Out_ sai_object_id_t* lag_id, _In_ uint32_t attr_c
 
     if (SAI_STATUS_SUCCESS !=
         (status =
-        check_attribs_metadata(attr_count, attr_list, lag_attribs, lag_vendor_attribs,
-                               SAI_COMMON_API_CREATE))) {
+             check_attribs_metadata(attr_count, attr_list, lag_attribs, lag_vendor_attribs,
+                                    SAI_COMMON_API_CREATE))) {
         SX_LOG_ERR("Failed attribs check\n");
         return status;
     }
@@ -763,7 +754,7 @@ sai_status_t mlnx_create_lag(_Out_ sai_object_id_t* lag_id, _In_ uint32_t attr_c
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_remove_lag(_In_ sai_object_id_t lag_id)
+static sai_status_t mlnx_remove_lag(_In_ sai_object_id_t lag_id)
 {
     sai_status_t     status;
     sx_status_t      sx_status;
@@ -807,7 +798,7 @@ sai_status_t mlnx_remove_lag(_In_ sai_object_id_t lag_id)
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_set_lag_attribute(_In_ sai_object_id_t lag_id, _In_ const sai_attribute_t *attr)
+static sai_status_t mlnx_set_lag_attribute(_In_ sai_object_id_t lag_id, _In_ const sai_attribute_t *attr)
 {
     const sai_object_key_t key = { .object_id = lag_id };
     char                   key_str[MAX_KEY_STR_LEN];
@@ -818,9 +809,9 @@ sai_status_t mlnx_set_lag_attribute(_In_ sai_object_id_t lag_id, _In_ const sai_
     return sai_set_attribute(&key, key_str, lag_attribs, lag_vendor_attribs, attr);
 }
 
-sai_status_t mlnx_get_lag_attribute(_In_ sai_object_id_t     lag_id,
-                                    _In_ uint32_t            attr_count,
-                                    _Inout_ sai_attribute_t *attr_list)
+static sai_status_t mlnx_get_lag_attribute(_In_ sai_object_id_t     lag_id,
+                                           _In_ uint32_t            attr_count,
+                                           _Inout_ sai_attribute_t *attr_list)
 {
     const sai_object_key_t key = { .object_id = lag_id };
     char                   key_str[MAX_KEY_STR_LEN];
@@ -836,9 +827,9 @@ sai_status_t mlnx_get_lag_attribute(_In_ sai_object_id_t     lag_id,
                               attr_list);
 }
 
-sai_status_t mlnx_create_lag_member(_Out_ sai_object_id_t* lag_member_id,
-                                    _In_ uint32_t          attr_count,
-                                    _In_ sai_attribute_t  *attr_list)
+static sai_status_t mlnx_create_lag_member(_Out_ sai_object_id_t* lag_member_id,
+                                           _In_ uint32_t          attr_count,
+                                           _In_ const sai_attribute_t  *attr_list)
 {
     sai_status_t                 status;
     sx_status_t                  sx_status;
@@ -951,7 +942,7 @@ sai_status_t mlnx_create_lag_member(_Out_ sai_object_id_t* lag_member_id,
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_remove_lag_member(_In_ sai_object_id_t lag_member_id)
+static sai_status_t mlnx_remove_lag_member(_In_ sai_object_id_t lag_member_id)
 {
     sai_status_t     status;
     sx_status_t      sx_status;
@@ -999,7 +990,7 @@ sai_status_t mlnx_remove_lag_member(_In_ sai_object_id_t lag_member_id)
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_set_lag_member_attribute(_In_ sai_object_id_t lag_member_id, _In_ const sai_attribute_t *attr)
+static sai_status_t mlnx_set_lag_member_attribute(_In_ sai_object_id_t lag_member_id, _In_ const sai_attribute_t *attr)
 {
     const sai_object_key_t key = { .object_id = lag_member_id };
     char                   key_str[MAX_KEY_STR_LEN];
@@ -1010,9 +1001,9 @@ sai_status_t mlnx_set_lag_member_attribute(_In_ sai_object_id_t lag_member_id, _
     return sai_set_attribute(&key, key_str, lag_member_attribs, lag_member_vendor_attribs, attr);
 }
 
-sai_status_t mlnx_get_lag_member_attribute(_In_ sai_object_id_t     lag_member_id,
-                                           _In_ uint32_t            attr_count,
-                                           _Inout_ sai_attribute_t *attr_list)
+static sai_status_t mlnx_get_lag_member_attribute(_In_ sai_object_id_t     lag_member_id,
+                                                  _In_ uint32_t            attr_count,
+                                                  _Inout_ sai_attribute_t *attr_list)
 {
     const sai_object_key_t key = { .object_id = lag_member_id };
     char                   key_str[MAX_KEY_STR_LEN];
@@ -1034,13 +1025,12 @@ sai_status_t mlnx_lag_log_set(sx_verbosity_level_t level)
 
     if (gh_sdk) {
         return sdk_to_sai(sx_api_lag_log_verbosity_level_set(gh_sdk, SX_LOG_VERBOSITY_BOTH, level, level));
-    }
-    else {
+    } else {
         return SAI_STATUS_SUCCESS;
     }
 }
 
-const sai_lag_api_t lag_api = {
+const sai_lag_api_t mlnx_lag_api = {
     mlnx_create_lag,
     mlnx_remove_lag,
     mlnx_set_lag_attribute,

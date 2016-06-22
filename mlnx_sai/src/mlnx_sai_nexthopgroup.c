@@ -34,26 +34,24 @@ static const sai_attribute_entry_t next_hop_group_attribs[] = {
     { END_FUNCTIONALITY_ATTRIBS_ID, false, false, false, false,
       "", SAI_ATTR_VAL_TYPE_UNDETERMINED }
 };
-
-sai_status_t mlnx_next_hop_group_count_get(_In_ const sai_object_key_t   *key,
-                                           _Inout_ sai_attribute_value_t *value,
-                                           _In_ uint32_t                  attr_index,
-                                           _Inout_ vendor_cache_t        *cache,
-                                           void                          *arg);
-sai_status_t mlnx_next_hop_group_type_get(_In_ const sai_object_key_t   *key,
-                                          _Inout_ sai_attribute_value_t *value,
-                                          _In_ uint32_t                  attr_index,
-                                          _Inout_ vendor_cache_t        *cache,
-                                          void                          *arg);
-sai_status_t mlnx_next_hop_group_hop_list_get(_In_ const sai_object_key_t   *key,
-                                              _Inout_ sai_attribute_value_t *value,
-                                              _In_ uint32_t                  attr_index,
-                                              _Inout_ vendor_cache_t        *cache,
-                                              void                          *arg);
-sai_status_t mlnx_next_hop_group_hop_list_set(_In_ const sai_object_key_t      *key,
-                                              _In_ const sai_attribute_value_t *value,
-                                              void                             *arg);
-
+static sai_status_t mlnx_next_hop_group_count_get(_In_ const sai_object_key_t   *key,
+                                                  _Inout_ sai_attribute_value_t *value,
+                                                  _In_ uint32_t                  attr_index,
+                                                  _Inout_ vendor_cache_t        *cache,
+                                                  void                          *arg);
+static sai_status_t mlnx_next_hop_group_type_get(_In_ const sai_object_key_t   *key,
+                                                 _Inout_ sai_attribute_value_t *value,
+                                                 _In_ uint32_t                  attr_index,
+                                                 _Inout_ vendor_cache_t        *cache,
+                                                 void                          *arg);
+static sai_status_t mlnx_next_hop_group_hop_list_get(_In_ const sai_object_key_t   *key,
+                                                     _Inout_ sai_attribute_value_t *value,
+                                                     _In_ uint32_t                  attr_index,
+                                                     _Inout_ vendor_cache_t        *cache,
+                                                     void                          *arg);
+static sai_status_t mlnx_next_hop_group_hop_list_set(_In_ const sai_object_key_t      *key,
+                                                     _In_ const sai_attribute_value_t *value,
+                                                     void                             *arg);
 static const sai_vendor_attribute_entry_t next_hop_group_vendor_attribs[] = {
     { SAI_NEXT_HOP_GROUP_ATTR_NEXT_HOP_COUNT,
       { false, false, false, true },
@@ -139,9 +137,9 @@ static sai_status_t mlnx_translate_sai_next_hop_objects(_In_ uint32_t           
  *    SAI_STATUS_SUCCESS on success
  *    Failure status code on error
  */
-sai_status_t mlnx_create_next_hop_group(_Out_ sai_object_id_t     * next_hop_group_id,
-                                        _In_ uint32_t               attr_count,
-                                        _In_ const sai_attribute_t *attr_list)
+static sai_status_t mlnx_create_next_hop_group(_Out_ sai_object_id_t     * next_hop_group_id,
+                                               _In_ uint32_t               attr_count,
+                                               _In_ const sai_attribute_t *attr_list)
 {
     sai_status_t                 status;
     const sai_attribute_value_t *type, *hop_list;
@@ -222,7 +220,7 @@ sai_status_t mlnx_create_next_hop_group(_Out_ sai_object_id_t     * next_hop_gro
  *    SAI_STATUS_SUCCESS on success
  *    Failure status code on error
  */
-sai_status_t mlnx_remove_next_hop_group(_In_ sai_object_id_t next_hop_group_id)
+static sai_status_t mlnx_remove_next_hop_group(_In_ sai_object_id_t next_hop_group_id)
 {
     char         key_str[MAX_KEY_STR_LEN];
     sai_status_t status;
@@ -261,8 +259,8 @@ sai_status_t mlnx_remove_next_hop_group(_In_ sai_object_id_t next_hop_group_id)
  *    SAI_STATUS_SUCCESS on success
  *    Failure status code on error
  */
-sai_status_t mlnx_set_next_hop_group_attribute(_In_ sai_object_id_t        next_hop_group_id,
-                                               _In_ const sai_attribute_t *attr)
+static sai_status_t mlnx_set_next_hop_group_attribute(_In_ sai_object_id_t        next_hop_group_id,
+                                                      _In_ const sai_attribute_t *attr)
 {
     const sai_object_key_t key = { .object_id = next_hop_group_id };
     char                   key_str[MAX_KEY_STR_LEN];
@@ -286,9 +284,9 @@ sai_status_t mlnx_set_next_hop_group_attribute(_In_ sai_object_id_t        next_
  *    SAI_STATUS_SUCCESS on success
  *    Failure status code on error
  */
-sai_status_t mlnx_get_next_hop_group_attribute(_In_ sai_object_id_t     next_hop_group_id,
-                                               _In_ uint32_t            attr_count,
-                                               _Inout_ sai_attribute_t *attr_list)
+static sai_status_t mlnx_get_next_hop_group_attribute(_In_ sai_object_id_t     next_hop_group_id,
+                                                      _In_ uint32_t            attr_count,
+                                                      _Inout_ sai_attribute_t *attr_list)
 {
     const sai_object_key_t key = { .object_id = next_hop_group_id };
     char                   key_str[MAX_KEY_STR_LEN];
@@ -305,11 +303,11 @@ sai_status_t mlnx_get_next_hop_group_attribute(_In_ sai_object_id_t     next_hop
 }
 
 /* Next hop group type [sai_next_hop_group_type_t] */
-sai_status_t mlnx_next_hop_group_type_get(_In_ const sai_object_key_t   *key,
-                                          _Inout_ sai_attribute_value_t *value,
-                                          _In_ uint32_t                  attr_index,
-                                          _Inout_ vendor_cache_t        *cache,
-                                          void                          *arg)
+static sai_status_t mlnx_next_hop_group_type_get(_In_ const sai_object_key_t   *key,
+                                                 _Inout_ sai_attribute_value_t *value,
+                                                 _In_ uint32_t                  attr_index,
+                                                 _Inout_ vendor_cache_t        *cache,
+                                                 void                          *arg)
 {
     SX_LOG_ENTER();
 
@@ -320,11 +318,11 @@ sai_status_t mlnx_next_hop_group_type_get(_In_ const sai_object_key_t   *key,
 }
 
 /* Number of next hops in the group [uint32_t] */
-sai_status_t mlnx_next_hop_group_count_get(_In_ const sai_object_key_t   *key,
-                                           _Inout_ sai_attribute_value_t *value,
-                                           _In_ uint32_t                  attr_index,
-                                           _Inout_ vendor_cache_t        *cache,
-                                           void                          *arg)
+static sai_status_t mlnx_next_hop_group_count_get(_In_ const sai_object_key_t   *key,
+                                                  _Inout_ sai_attribute_value_t *value,
+                                                  _In_ uint32_t                  attr_index,
+                                                  _Inout_ vendor_cache_t        *cache,
+                                                  void                          *arg)
 {
     sai_status_t status;
     uint32_t     sdk_next_hop_cnt;
@@ -349,11 +347,11 @@ sai_status_t mlnx_next_hop_group_count_get(_In_ const sai_object_key_t   *key,
 }
 
 /* Next hop list [sai_object_list_t] */
-sai_status_t mlnx_next_hop_group_hop_list_get(_In_ const sai_object_key_t   *key,
-                                              _Inout_ sai_attribute_value_t *value,
-                                              _In_ uint32_t                  attr_index,
-                                              _Inout_ vendor_cache_t        *cache,
-                                              void                          *arg)
+static sai_status_t mlnx_next_hop_group_hop_list_get(_In_ const sai_object_key_t   *key,
+                                                     _Inout_ sai_attribute_value_t *value,
+                                                     _In_ uint32_t                  attr_index,
+                                                     _Inout_ vendor_cache_t        *cache,
+                                                     void                          *arg)
 {
     sai_status_t status;
     uint32_t     group_id;
@@ -372,9 +370,9 @@ sai_status_t mlnx_next_hop_group_hop_list_get(_In_ const sai_object_key_t   *key
 }
 
 /* Next hop list [sai_object_list_t] */
-sai_status_t mlnx_next_hop_group_hop_list_set(_In_ const sai_object_key_t      *key,
-                                              _In_ const sai_attribute_value_t *value,
-                                              void                             *arg)
+static sai_status_t mlnx_next_hop_group_hop_list_set(_In_ const sai_object_key_t      *key,
+                                                     _In_ const sai_attribute_value_t *value,
+                                                     void                             *arg)
 {
     sai_status_t  status;
     sx_next_hop_t next_hops[ECMP_MAX_PATHS];
@@ -421,9 +419,9 @@ sai_status_t mlnx_next_hop_group_hop_list_set(_In_ const sai_object_key_t      *
  *    SAI_STATUS_SUCCESS on success
  *    Failure status code on error
  */
-sai_status_t mlnx_add_next_hop_to_group(_In_ sai_object_id_t        next_hop_group_id,
-                                        _In_ uint32_t               next_hop_count,
-                                        _In_ const sai_object_id_t* nexthops)
+static sai_status_t mlnx_add_next_hop_to_group(_In_ sai_object_id_t        next_hop_group_id,
+                                               _In_ uint32_t               next_hop_count,
+                                               _In_ const sai_object_id_t* nexthops)
 {
     sai_status_t  status;
     char          value[MAX_LIST_VALUE_STR_LEN];
@@ -489,9 +487,9 @@ sai_status_t mlnx_add_next_hop_to_group(_In_ sai_object_id_t        next_hop_gro
  *    SAI_STATUS_SUCCESS on success
  *    Failure status code on error
  */
-sai_status_t mlnx_remove_next_hop_from_group(_In_ sai_object_id_t        next_hop_group_id,
-                                             _In_ uint32_t               next_hop_count,
-                                             _In_ const sai_object_id_t* nexthops)
+static sai_status_t mlnx_remove_next_hop_from_group(_In_ sai_object_id_t        next_hop_group_id,
+                                                    _In_ uint32_t               next_hop_count,
+                                                    _In_ const sai_object_id_t* nexthops)
 {
     sai_status_t  status;
     char          value[MAX_LIST_VALUE_STR_LEN];
@@ -562,7 +560,7 @@ sai_status_t mlnx_nexthop_group_log_set(sx_verbosity_level_t level)
     return SAI_STATUS_SUCCESS;
 }
 
-const sai_next_hop_group_api_t next_hop_group_api = {
+const sai_next_hop_group_api_t mlnx_next_hop_group_api = {
     mlnx_create_next_hop_group,
     mlnx_remove_next_hop_group,
     mlnx_set_next_hop_group_attribute,

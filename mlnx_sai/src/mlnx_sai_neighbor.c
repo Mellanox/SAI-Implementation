@@ -34,27 +34,25 @@ static const sai_attribute_entry_t neighbor_attribs[] = {
     { END_FUNCTIONALITY_ATTRIBS_ID, false, false, false, false,
       "", SAI_ATTR_VAL_TYPE_UNDETERMINED }
 };
-
-sai_status_t mlnx_neighbor_mac_get(_In_ const sai_object_key_t   *key,
-                                   _Inout_ sai_attribute_value_t *value,
-                                   _In_ uint32_t                  attr_index,
-                                   _Inout_ vendor_cache_t        *cache,
-                                   void                          *arg);
-sai_status_t mlnx_neighbor_action_get(_In_ const sai_object_key_t   *key,
-                                      _Inout_ sai_attribute_value_t *value,
-                                      _In_ uint32_t                  attr_index,
-                                      _Inout_ vendor_cache_t        *cache,
-                                      void                          *arg);
-sai_status_t mlnx_neighbor_mac_set(_In_ const sai_object_key_t      *key,
-                                   _In_ const sai_attribute_value_t *value,
-                                   void                             *arg);
-sai_status_t mlnx_neighbor_action_set(_In_ const sai_object_key_t      *key,
-                                      _In_ const sai_attribute_value_t *value,
-                                      void                             *arg);
-sai_status_t mlnx_neighbor_no_host_set(_In_ const sai_object_key_t      *key,
-                                       _In_ const sai_attribute_value_t *value,
-                                       void                             *arg);
-
+static sai_status_t mlnx_neighbor_mac_get(_In_ const sai_object_key_t   *key,
+                                          _Inout_ sai_attribute_value_t *value,
+                                          _In_ uint32_t                  attr_index,
+                                          _Inout_ vendor_cache_t        *cache,
+                                          void                          *arg);
+static sai_status_t mlnx_neighbor_action_get(_In_ const sai_object_key_t   *key,
+                                             _Inout_ sai_attribute_value_t *value,
+                                             _In_ uint32_t                  attr_index,
+                                             _Inout_ vendor_cache_t        *cache,
+                                             void                          *arg);
+static sai_status_t mlnx_neighbor_mac_set(_In_ const sai_object_key_t      *key,
+                                          _In_ const sai_attribute_value_t *value,
+                                          void                             *arg);
+static sai_status_t mlnx_neighbor_action_set(_In_ const sai_object_key_t      *key,
+                                             _In_ const sai_attribute_value_t *value,
+                                             void                             *arg);
+static sai_status_t mlnx_neighbor_no_host_set(_In_ const sai_object_key_t      *key,
+                                              _In_ const sai_attribute_value_t *value,
+                                              void                             *arg);
 static const sai_vendor_attribute_entry_t neighbor_vendor_attribs[] = {
     { SAI_NEIGHBOR_ATTR_DST_MAC_ADDRESS,
       { true, false, true, true },
@@ -108,9 +106,9 @@ static sai_status_t mlnx_translate_sai_neighbor_entry_to_sdk(_In_ const sai_neig
  *
  * Note: IP address expected in Network Byte Order.
  */
-sai_status_t mlnx_create_neighbor_entry(_In_ const sai_neighbor_entry_t* neighbor_entry,
-                                        _In_ uint32_t                    attr_count,
-                                        _In_ const sai_attribute_t      *attr_list)
+static sai_status_t mlnx_create_neighbor_entry(_In_ const sai_neighbor_entry_t* neighbor_entry,
+                                               _In_ uint32_t                    attr_count,
+                                               _In_ const sai_attribute_t      *attr_list)
 {
     sai_status_t                 status;
     const sai_attribute_value_t *mac, *action;
@@ -192,7 +190,7 @@ sai_status_t mlnx_create_neighbor_entry(_In_ const sai_neighbor_entry_t* neighbo
  *
  * Note: IP address expected in Network Byte Order.
  */
-sai_status_t mlnx_remove_neighbor_entry(_In_ const sai_neighbor_entry_t* neighbor_entry)
+static sai_status_t mlnx_remove_neighbor_entry(_In_ const sai_neighbor_entry_t* neighbor_entry)
 {
     sai_status_t    status;
     char            key_str[MAX_KEY_STR_LEN];
@@ -246,8 +244,8 @@ sai_status_t mlnx_remove_neighbor_entry(_In_ const sai_neighbor_entry_t* neighbo
  *    SAI_STATUS_SUCCESS on success
  *    Failure status code on error
  */
-sai_status_t mlnx_set_neighbor_attribute(_In_ const sai_neighbor_entry_t* neighbor_entry,
-                                         _In_ const sai_attribute_t      *attr)
+static sai_status_t mlnx_set_neighbor_attribute(_In_ const sai_neighbor_entry_t* neighbor_entry,
+                                                _In_ const sai_attribute_t      *attr)
 {
     const sai_object_key_t key = { .neighbor_entry = neighbor_entry };
     char                   key_str[MAX_KEY_STR_LEN];
@@ -276,9 +274,9 @@ sai_status_t mlnx_set_neighbor_attribute(_In_ const sai_neighbor_entry_t* neighb
  *    SAI_STATUS_SUCCESS on success
  *    Failure status code on error
  */
-sai_status_t mlnx_get_neighbor_attribute(_In_ const sai_neighbor_entry_t* neighbor_entry,
-                                         _In_ uint32_t                    attr_count,
-                                         _Inout_ sai_attribute_t         *attr_list)
+static sai_status_t mlnx_get_neighbor_attribute(_In_ const sai_neighbor_entry_t* neighbor_entry,
+                                                _In_ uint32_t                    attr_count,
+                                                _Inout_ sai_attribute_t         *attr_list)
 {
     const sai_object_key_t key = { .neighbor_entry = neighbor_entry };
     char                   key_str[MAX_KEY_STR_LEN];
@@ -330,11 +328,11 @@ static sai_status_t mlnx_get_neighbor(const sai_neighbor_entry_t* neighbor_entry
 }
 
 /* Destination mac address for the neighbor [sai_mac_t] */
-sai_status_t mlnx_neighbor_mac_get(_In_ const sai_object_key_t   *key,
-                                   _Inout_ sai_attribute_value_t *value,
-                                   _In_ uint32_t                  attr_index,
-                                   _Inout_ vendor_cache_t        *cache,
-                                   void                          *arg)
+static sai_status_t mlnx_neighbor_mac_get(_In_ const sai_object_key_t   *key,
+                                          _Inout_ sai_attribute_value_t *value,
+                                          _In_ uint32_t                  attr_index,
+                                          _Inout_ vendor_cache_t        *cache,
+                                          void                          *arg)
 {
     sai_status_t                status;
     const sai_neighbor_entry_t* neighbor_entry = key->neighbor_entry;
@@ -353,11 +351,11 @@ sai_status_t mlnx_neighbor_mac_get(_In_ const sai_object_key_t   *key,
 }
 
 /* L3 forwarding action for this neighbor [sai_packet_action_t] */
-sai_status_t mlnx_neighbor_action_get(_In_ const sai_object_key_t   *key,
-                                      _Inout_ sai_attribute_value_t *value,
-                                      _In_ uint32_t                  attr_index,
-                                      _Inout_ vendor_cache_t        *cache,
-                                      void                          *arg)
+static sai_status_t mlnx_neighbor_action_get(_In_ const sai_object_key_t   *key,
+                                             _Inout_ sai_attribute_value_t *value,
+                                             _In_ uint32_t                  attr_index,
+                                             _Inout_ vendor_cache_t        *cache,
+                                             void                          *arg)
 {
     sai_status_t                status;
     const sai_neighbor_entry_t* neighbor_entry = key->neighbor_entry;
@@ -422,8 +420,9 @@ static sai_status_t mlnx_modify_neighbor_entry(_In_ const sai_neighbor_entry_t* 
 }
 
 /* Destination mac address for the neighbor [sai_mac_t] */
-sai_status_t mlnx_neighbor_mac_set(_In_ const sai_object_key_t *key, _In_ const sai_attribute_value_t *value,
-                                   void *arg)
+static sai_status_t mlnx_neighbor_mac_set(_In_ const sai_object_key_t      *key,
+                                          _In_ const sai_attribute_value_t *value,
+                                          void                             *arg)
 {
     sai_status_t                status;
     const sai_neighbor_entry_t* neighbor_entry = key->neighbor_entry;
@@ -446,9 +445,9 @@ sai_status_t mlnx_neighbor_mac_set(_In_ const sai_object_key_t *key, _In_ const 
 }
 
 /* L3 forwarding action for this neighbor [sai_packet_action_t] */
-sai_status_t mlnx_neighbor_action_set(_In_ const sai_object_key_t      *key,
-                                      _In_ const sai_attribute_value_t *value,
-                                      void                             *arg)
+static sai_status_t mlnx_neighbor_action_set(_In_ const sai_object_key_t      *key,
+                                             _In_ const sai_attribute_value_t *value,
+                                             void                             *arg)
 {
     sai_status_t                status;
     const sai_neighbor_entry_t* neighbor_entry = key->neighbor_entry;
@@ -476,9 +475,9 @@ sai_status_t mlnx_neighbor_action_set(_In_ const sai_object_key_t      *key,
 /* Neighbor not to be programmed as a host route entry in ASIC and to be only
  * used to setup next-hop purpose. Typical use-case is to set this true
  * for neighbor with IPv6 link-local addresses. [bool] */
-sai_status_t mlnx_neighbor_no_host_set(_In_ const sai_object_key_t      *key,
-                                       _In_ const sai_attribute_value_t *value,
-                                       void                             *arg)
+static sai_status_t mlnx_neighbor_no_host_set(_In_ const sai_object_key_t      *key,
+                                              _In_ const sai_attribute_value_t *value,
+                                              void                             *arg)
 {
     SX_LOG_ENTER();
 
@@ -499,7 +498,7 @@ sai_status_t mlnx_neighbor_no_host_set(_In_ const sai_object_key_t      *key,
  *    SAI_STATUS_SUCCESS on success
  *    Failure status code on error
  */
-sai_status_t mlnx_remove_all_neighbor_entries(void)
+static sai_status_t mlnx_remove_all_neighbor_entries(void)
 {
     sai_status_t    status;
     sx_ip_addr_t    ipaddr;
@@ -533,7 +532,7 @@ sai_status_t mlnx_neighbor_log_set(sx_verbosity_level_t level)
     return SAI_STATUS_SUCCESS;
 }
 
-const sai_neighbor_api_t neighbor_api = {
+const sai_neighbor_api_t mlnx_neighbor_api = {
     mlnx_create_neighbor_entry,
     mlnx_remove_neighbor_entry,
     mlnx_set_neighbor_attribute,

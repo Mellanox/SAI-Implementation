@@ -532,11 +532,11 @@ static sai_status_t mlnx_qos_map_type_get(_In_ const sai_object_key_t   *key,
  *   All Dot1p/DSCP maps to color SAI_PACKET_COLOR_GREEN
  *   All traffic class maps to queue 0.
  */
-sai_status_t mlnx_qos_map_list_get(_In_ const sai_object_key_t   *key,
-                                   _Inout_ sai_attribute_value_t *value,
-                                   _In_ uint32_t                  attr_index,
-                                   _Inout_ vendor_cache_t        *cache,
-                                   void                          *arg)
+static sai_status_t mlnx_qos_map_list_get(_In_ const sai_object_key_t   *key,
+                                          _Inout_ sai_attribute_value_t *value,
+                                          _In_ uint32_t                  attr_index,
+                                          _Inout_ vendor_cache_t        *cache,
+                                          void                          *arg)
 {
     sai_qos_map_list_t *qos_params = &value->qosmap;
     mlnx_qos_map_t     *qos_map;
@@ -625,9 +625,9 @@ out:
 }
 
 /* QoS Mapping List [sai_qos_map_list_t] */
-sai_status_t mlnx_qos_map_list_set(_In_ const sai_object_key_t      *key,
-                                   _In_ const sai_attribute_value_t *value,
-                                   void                             *arg)
+static sai_status_t mlnx_qos_map_list_set(_In_ const sai_object_key_t      *key,
+                                          _In_ const sai_attribute_value_t *value,
+                                          void                             *arg)
 {
     mlnx_port_config_t *port;
     mlnx_qos_map_t     *qos_map;
@@ -911,7 +911,7 @@ sai_status_t mlnx_qos_map_get_by_id(_In_ sai_object_id_t obj_id, _Inout_ mlnx_qo
     return SAI_STATUS_SUCCESS;
 }
 
-const sai_qos_map_api_t qos_maps_api = {
+const sai_qos_map_api_t mlnx_qos_maps_api = {
     mlnx_create_qos_map,
     mlnx_remove_qos_map,
     mlnx_set_qos_map_attribute,

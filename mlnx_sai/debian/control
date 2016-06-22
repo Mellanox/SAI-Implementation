@@ -8,5 +8,6 @@ Homepage: http://www.mellanox.com
 
 Package: mlnx-sai
 Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends},adduser
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Provides: libsai, libsai-dev
 Description: contains SAI implementation for Mellanox hardware

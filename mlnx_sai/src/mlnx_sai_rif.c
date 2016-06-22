@@ -46,24 +46,22 @@ static const sai_attribute_entry_t rif_attribs[] = {
     { END_FUNCTIONALITY_ATTRIBS_ID, false, false, false, false,
       "", SAI_ATTR_VAL_TYPE_UNDETERMINED }
 };
-
-sai_status_t mlnx_rif_attrib_get(_In_ const sai_object_key_t   *key,
-                                 _Inout_ sai_attribute_value_t *value,
-                                 _In_ uint32_t                  attr_index,
-                                 _Inout_ vendor_cache_t        *cache,
-                                 void                          *arg);
-sai_status_t mlnx_rif_admin_get(_In_ const sai_object_key_t   *key,
-                                _Inout_ sai_attribute_value_t *value,
-                                _In_ uint32_t                  attr_index,
-                                _Inout_ vendor_cache_t        *cache,
-                                void                          *arg);
-sai_status_t mlnx_rif_attrib_set(_In_ const sai_object_key_t      *key,
-                                 _In_ const sai_attribute_value_t *value,
-                                 void                             *arg);
-sai_status_t mlnx_rif_admin_set(_In_ const sai_object_key_t      *key,
-                                _In_ const sai_attribute_value_t *value,
-                                void                             *arg);
-
+static sai_status_t mlnx_rif_attrib_get(_In_ const sai_object_key_t   *key,
+                                        _Inout_ sai_attribute_value_t *value,
+                                        _In_ uint32_t                  attr_index,
+                                        _Inout_ vendor_cache_t        *cache,
+                                        void                          *arg);
+static sai_status_t mlnx_rif_admin_get(_In_ const sai_object_key_t   *key,
+                                       _Inout_ sai_attribute_value_t *value,
+                                       _In_ uint32_t                  attr_index,
+                                       _Inout_ vendor_cache_t        *cache,
+                                       void                          *arg);
+static sai_status_t mlnx_rif_attrib_set(_In_ const sai_object_key_t      *key,
+                                        _In_ const sai_attribute_value_t *value,
+                                        void                             *arg);
+static sai_status_t mlnx_rif_admin_set(_In_ const sai_object_key_t      *key,
+                                       _In_ const sai_attribute_value_t *value,
+                                       void                             *arg);
 static const sai_vendor_attribute_entry_t rif_vendor_attribs[] = {
     { SAI_ROUTER_INTERFACE_ATTR_VIRTUAL_ROUTER_ID,
       { true, false, false, true },
@@ -135,9 +133,9 @@ static void rif_key_to_str(_In_ sai_object_id_t rif_id, _Out_ char *key_str)
  *    SAI_STATUS_SUCCESS on success
  *    Failure status code on error
  */
-sai_status_t mlnx_create_router_interface(_Out_ sai_object_id_t      *rif_id,
-                                          _In_ uint32_t               attr_count,
-                                          _In_ const sai_attribute_t *attr_list)
+static sai_status_t mlnx_create_router_interface(_Out_ sai_object_id_t      *rif_id,
+                                                 _In_ uint32_t               attr_count,
+                                                 _In_ const sai_attribute_t *attr_list)
 {
     sx_router_interface_param_t  intf_params;
     sx_interface_attributes_t    intf_attribs;
@@ -314,7 +312,7 @@ sai_status_t mlnx_create_router_interface(_Out_ sai_object_id_t      *rif_id,
  *    SAI_STATUS_SUCCESS on success
  *    Failure status code on error
  */
-sai_status_t mlnx_remove_router_interface(_In_ sai_object_id_t rif_id)
+static sai_status_t mlnx_remove_router_interface(_In_ sai_object_id_t rif_id)
 {
     sx_router_id_t              vrid;
     sx_router_interface_param_t intf_params;
@@ -364,7 +362,7 @@ sai_status_t mlnx_remove_router_interface(_In_ sai_object_id_t rif_id)
  *    SAI_STATUS_SUCCESS on success
  *    Failure status code on error
  */
-sai_status_t mlnx_set_router_interface_attribute(_In_ sai_object_id_t rif_id, _In_ const sai_attribute_t *attr)
+static sai_status_t mlnx_set_router_interface_attribute(_In_ sai_object_id_t rif_id, _In_ const sai_attribute_t *attr)
 {
     const sai_object_key_t key = { .object_id = rif_id };
     char                   key_str[MAX_KEY_STR_LEN];
@@ -388,9 +386,9 @@ sai_status_t mlnx_set_router_interface_attribute(_In_ sai_object_id_t rif_id, _I
  *    SAI_STATUS_SUCCESS on success
  *    Failure status code on error
  */
-sai_status_t mlnx_get_router_interface_attribute(_In_ sai_object_id_t     rif_id,
-                                                 _In_ uint32_t            attr_count,
-                                                 _Inout_ sai_attribute_t *attr_list)
+static sai_status_t mlnx_get_router_interface_attribute(_In_ sai_object_id_t     rif_id,
+                                                        _In_ uint32_t            attr_count,
+                                                        _Inout_ sai_attribute_t *attr_list)
 {
     const sai_object_key_t key = { .object_id = rif_id };
     char                   key_str[MAX_KEY_STR_LEN];
@@ -403,7 +401,9 @@ sai_status_t mlnx_get_router_interface_attribute(_In_ sai_object_id_t     rif_id
 
 /* MAC Address [sai_mac_t] */
 /* MTU [uint32_t] */
-sai_status_t mlnx_rif_attrib_set(_In_ const sai_object_key_t *key, _In_ const sai_attribute_value_t *value, void *arg)
+static sai_status_t mlnx_rif_attrib_set(_In_ const sai_object_key_t      *key,
+                                        _In_ const sai_attribute_value_t *value,
+                                        void                             *arg)
 {
     sx_router_id_t              vrid;
     sx_router_interface_param_t intf_params;
@@ -448,7 +448,9 @@ sai_status_t mlnx_rif_attrib_set(_In_ const sai_object_key_t *key, _In_ const sa
 }
 
 /* Admin State V4, V6 [bool] */
-sai_status_t mlnx_rif_admin_set(_In_ const sai_object_key_t *key, _In_ const sai_attribute_value_t *value, void *arg)
+static sai_status_t mlnx_rif_admin_set(_In_ const sai_object_key_t      *key,
+                                       _In_ const sai_attribute_value_t *value,
+                                       void                             *arg)
 {
     sx_status_t                 status;
     sx_router_interface_t       rif_id;
@@ -492,11 +494,11 @@ sai_status_t mlnx_rif_admin_set(_In_ const sai_object_key_t *key, _In_ const sai
 /* Assosiated Vlan [sai_vlan_id_t] */
 /* MAC Address [sai_mac_t] */
 /* MTU [uint32_t] */
-sai_status_t mlnx_rif_attrib_get(_In_ const sai_object_key_t   *key,
-                                 _Inout_ sai_attribute_value_t *value,
-                                 _In_ uint32_t                  attr_index,
-                                 _Inout_ vendor_cache_t        *cache,
-                                 void                          *arg)
+static sai_status_t mlnx_rif_attrib_get(_In_ const sai_object_key_t   *key,
+                                        _Inout_ sai_attribute_value_t *value,
+                                        _In_ uint32_t                  attr_index,
+                                        _Inout_ vendor_cache_t        *cache,
+                                        void                          *arg)
 {
     sx_router_id_t              vrid;
     sx_router_interface_param_t intf_params;
@@ -587,11 +589,11 @@ sai_status_t mlnx_rif_attrib_get(_In_ const sai_object_key_t   *key,
 }
 
 /* Admin State V4, V6 [bool] */
-sai_status_t mlnx_rif_admin_get(_In_ const sai_object_key_t   *key,
-                                _Inout_ sai_attribute_value_t *value,
-                                _In_ uint32_t                  attr_index,
-                                _Inout_ vendor_cache_t        *cache,
-                                void                          *arg)
+static sai_status_t mlnx_rif_admin_get(_In_ const sai_object_key_t   *key,
+                                       _Inout_ sai_attribute_value_t *value,
+                                       _In_ uint32_t                  attr_index,
+                                       _Inout_ vendor_cache_t        *cache,
+                                       void                          *arg)
 {
     sai_status_t                status;
     sx_router_interface_t       rif_id;
@@ -630,7 +632,7 @@ sai_status_t mlnx_rif_log_set(sx_verbosity_level_t level)
     return SAI_STATUS_SUCCESS;
 }
 
-const sai_router_interface_api_t router_interface_api = {
+const sai_router_interface_api_t mlnx_router_interface_api = {
     mlnx_create_router_interface,
     mlnx_remove_router_interface,
     mlnx_set_router_interface_attribute,

@@ -64,118 +64,117 @@ static const sai_attribute_entry_t mirror_attribs[] = {
     { END_FUNCTIONALITY_ATTRIBS_ID, false, false, false, false,
       "", SAI_ATTR_VAL_TYPE_UNDETERMINED }
 };
-
-sai_status_t mlnx_mirror_session_type_get(_In_ const sai_object_key_t   *key,
-                                          _Inout_ sai_attribute_value_t *value,
-                                          _In_ uint32_t                  attr_index,
-                                          _Inout_ vendor_cache_t        *cache,
-                                          void                          *arg);
-sai_status_t mlnx_mirror_session_monitor_port_get(_In_ const sai_object_key_t   *key,
-                                                  _Inout_ sai_attribute_value_t *value,
-                                                  _In_ uint32_t                  attr_index,
-                                                  _Inout_ vendor_cache_t        *cache,
-                                                  void                          *arg);
-sai_status_t mlnx_mirror_session_truncate_size_get(_In_ const sai_object_key_t   *key,
-                                                   _Inout_ sai_attribute_value_t *value,
-                                                   _In_ uint32_t                  attr_index,
-                                                   _Inout_ vendor_cache_t        *cache,
-                                                   void                          *arg);
-sai_status_t mlnx_mirror_session_tc_get(_In_ const sai_object_key_t   *key,
-                                        _Inout_ sai_attribute_value_t *value,
-                                        _In_ uint32_t                  attr_index,
-                                        _Inout_ vendor_cache_t        *cache,
-                                        void                          *arg);
-sai_status_t mlnx_mirror_session_vlan_tpid_get(_In_ const sai_object_key_t   *key,
-                                               _Inout_ sai_attribute_value_t *value,
-                                               _In_ uint32_t                  attr_index,
-                                               _Inout_ vendor_cache_t        *cache,
-                                               void                          *arg);
-sai_status_t mlnx_mirror_session_vlan_id_get(_In_ const sai_object_key_t   *key,
-                                             _Inout_ sai_attribute_value_t *value,
-                                             _In_ uint32_t                  attr_index,
-                                             _Inout_ vendor_cache_t        *cache,
-                                             void                          *arg);
-sai_status_t mlnx_mirror_session_vlan_pri_get(_In_ const sai_object_key_t   *key,
-                                              _Inout_ sai_attribute_value_t *value,
-                                              _In_ uint32_t                  attr_index,
-                                              _Inout_ vendor_cache_t        *cache,
-                                              void                          *arg);
-sai_status_t mlnx_mirror_session_vlan_cfi_get(_In_ const sai_object_key_t   *key,
-                                              _Inout_ sai_attribute_value_t *value,
-                                              _In_ uint32_t                  attr_index,
-                                              _Inout_ vendor_cache_t        *cache,
-                                              void                          *arg);
-sai_status_t mlnx_mirror_session_encap_type_get(_In_ const sai_object_key_t   *key,
-                                                _Inout_ sai_attribute_value_t *value,
-                                                _In_ uint32_t                  attr_index,
-                                                _Inout_ vendor_cache_t        *cache,
-                                                void                          *arg);
-sai_status_t mlnx_mirror_session_iphdr_version_get(_In_ const sai_object_key_t   *key,
-                                                   _Inout_ sai_attribute_value_t *value,
-                                                   _In_ uint32_t                  attr_index,
-                                                   _Inout_ vendor_cache_t        *cache,
-                                                   void                          *arg);
-sai_status_t mlnx_mirror_session_tos_get(_In_ const sai_object_key_t   *key,
-                                         _Inout_ sai_attribute_value_t *value,
-                                         _In_ uint32_t                  attr_index,
-                                         _Inout_ vendor_cache_t        *cache,
-                                         void                          *arg);
-sai_status_t mlnx_mirror_session_ttl_get(_In_ const sai_object_key_t   *key,
-                                         _Inout_ sai_attribute_value_t *value,
-                                         _In_ uint32_t                  attr_index,
-                                         _Inout_ vendor_cache_t        *cache,
-                                         void                          *arg);
-sai_status_t mlnx_mirror_session_ip_address_get(_In_ const sai_object_key_t   *key,
-                                                _Inout_ sai_attribute_value_t *value,
-                                                _In_ uint32_t                  attr_index,
-                                                _Inout_ vendor_cache_t        *cache,
-                                                void                          *arg);
-sai_status_t mlnx_mirror_session_mac_address_get(_In_ const sai_object_key_t   *key,
+static sai_status_t mlnx_mirror_session_type_get(_In_ const sai_object_key_t   *key,
                                                  _Inout_ sai_attribute_value_t *value,
                                                  _In_ uint32_t                  attr_index,
                                                  _Inout_ vendor_cache_t        *cache,
                                                  void                          *arg);
-sai_status_t mlnx_mirror_session_gre_protocol_type_get(_In_ const sai_object_key_t   *key,
+static sai_status_t mlnx_mirror_session_monitor_port_get(_In_ const sai_object_key_t   *key,
+                                                         _Inout_ sai_attribute_value_t *value,
+                                                         _In_ uint32_t                  attr_index,
+                                                         _Inout_ vendor_cache_t        *cache,
+                                                         void                          *arg);
+static sai_status_t mlnx_mirror_session_truncate_size_get(_In_ const sai_object_key_t   *key,
+                                                          _Inout_ sai_attribute_value_t *value,
+                                                          _In_ uint32_t                  attr_index,
+                                                          _Inout_ vendor_cache_t        *cache,
+                                                          void                          *arg);
+static sai_status_t mlnx_mirror_session_tc_get(_In_ const sai_object_key_t   *key,
+                                               _Inout_ sai_attribute_value_t *value,
+                                               _In_ uint32_t                  attr_index,
+                                               _Inout_ vendor_cache_t        *cache,
+                                               void                          *arg);
+static sai_status_t mlnx_mirror_session_vlan_tpid_get(_In_ const sai_object_key_t   *key,
+                                                      _Inout_ sai_attribute_value_t *value,
+                                                      _In_ uint32_t                  attr_index,
+                                                      _Inout_ vendor_cache_t        *cache,
+                                                      void                          *arg);
+static sai_status_t mlnx_mirror_session_vlan_id_get(_In_ const sai_object_key_t   *key,
+                                                    _Inout_ sai_attribute_value_t *value,
+                                                    _In_ uint32_t                  attr_index,
+                                                    _Inout_ vendor_cache_t        *cache,
+                                                    void                          *arg);
+static sai_status_t mlnx_mirror_session_vlan_pri_get(_In_ const sai_object_key_t   *key,
+                                                     _Inout_ sai_attribute_value_t *value,
+                                                     _In_ uint32_t                  attr_index,
+                                                     _Inout_ vendor_cache_t        *cache,
+                                                     void                          *arg);
+static sai_status_t mlnx_mirror_session_vlan_cfi_get(_In_ const sai_object_key_t   *key,
+                                                     _Inout_ sai_attribute_value_t *value,
+                                                     _In_ uint32_t                  attr_index,
+                                                     _Inout_ vendor_cache_t        *cache,
+                                                     void                          *arg);
+static sai_status_t mlnx_mirror_session_encap_type_get(_In_ const sai_object_key_t   *key,
                                                        _Inout_ sai_attribute_value_t *value,
                                                        _In_ uint32_t                  attr_index,
                                                        _Inout_ vendor_cache_t        *cache,
                                                        void                          *arg);
-sai_status_t mlnx_mirror_session_monitor_port_set(_In_ const sai_object_key_t      *key,
-                                                  _In_ const sai_attribute_value_t *value,
-                                                  void                             *arg);
-sai_status_t mlnx_mirror_session_truncate_size_set(_In_ const sai_object_key_t      *key,
-                                                   _In_ const sai_attribute_value_t *value,
-                                                   void                             *arg);
-sai_status_t mlnx_mirror_session_tc_set(_In_ const sai_object_key_t      *key,
-                                        _In_ const sai_attribute_value_t *value,
-                                        void                             *arg);
-sai_status_t mlnx_mirror_session_vlan_tpid_set(_In_ const sai_object_key_t      *key,
+static sai_status_t mlnx_mirror_session_iphdr_version_get(_In_ const sai_object_key_t   *key,
+                                                          _Inout_ sai_attribute_value_t *value,
+                                                          _In_ uint32_t                  attr_index,
+                                                          _Inout_ vendor_cache_t        *cache,
+                                                          void                          *arg);
+static sai_status_t mlnx_mirror_session_tos_get(_In_ const sai_object_key_t   *key,
+                                                _Inout_ sai_attribute_value_t *value,
+                                                _In_ uint32_t                  attr_index,
+                                                _Inout_ vendor_cache_t        *cache,
+                                                void                          *arg);
+static sai_status_t mlnx_mirror_session_ttl_get(_In_ const sai_object_key_t   *key,
+                                                _Inout_ sai_attribute_value_t *value,
+                                                _In_ uint32_t                  attr_index,
+                                                _Inout_ vendor_cache_t        *cache,
+                                                void                          *arg);
+static sai_status_t mlnx_mirror_session_ip_address_get(_In_ const sai_object_key_t   *key,
+                                                       _Inout_ sai_attribute_value_t *value,
+                                                       _In_ uint32_t                  attr_index,
+                                                       _Inout_ vendor_cache_t        *cache,
+                                                       void                          *arg);
+static sai_status_t mlnx_mirror_session_mac_address_get(_In_ const sai_object_key_t   *key,
+                                                        _Inout_ sai_attribute_value_t *value,
+                                                        _In_ uint32_t                  attr_index,
+                                                        _Inout_ vendor_cache_t        *cache,
+                                                        void                          *arg);
+static sai_status_t mlnx_mirror_session_gre_protocol_type_get(_In_ const sai_object_key_t   *key,
+                                                              _Inout_ sai_attribute_value_t *value,
+                                                              _In_ uint32_t                  attr_index,
+                                                              _Inout_ vendor_cache_t        *cache,
+                                                              void                          *arg);
+static sai_status_t mlnx_mirror_session_monitor_port_set(_In_ const sai_object_key_t      *key,
+                                                         _In_ const sai_attribute_value_t *value,
+                                                         void                             *arg);
+static sai_status_t mlnx_mirror_session_truncate_size_set(_In_ const sai_object_key_t      *key,
+                                                          _In_ const sai_attribute_value_t *value,
+                                                          void                             *arg);
+static sai_status_t mlnx_mirror_session_tc_set(_In_ const sai_object_key_t      *key,
                                                _In_ const sai_attribute_value_t *value,
                                                void                             *arg);
-sai_status_t mlnx_mirror_session_vlan_id_set(_In_ const sai_object_key_t      *key,
-                                             _In_ const sai_attribute_value_t *value,
-                                             void                             *arg);
-sai_status_t mlnx_mirror_session_vlan_pri_set(_In_ const sai_object_key_t      *key,
-                                              _In_ const sai_attribute_value_t *value,
-                                              void                             *arg);
-sai_status_t mlnx_mirror_session_vlan_cfi_set(_In_ const sai_object_key_t      *key,
-                                              _In_ const sai_attribute_value_t *value,
-                                              void                             *arg);
-sai_status_t mlnx_mirror_session_tos_set(_In_ const sai_object_key_t      *key,
-                                         _In_ const sai_attribute_value_t *value,
-                                         void                             *arg);
-sai_status_t mlnx_mirror_session_ttl_set(_In_ const sai_object_key_t      *key,
-                                         _In_ const sai_attribute_value_t *value,
-                                         void                             *arg);
-sai_status_t mlnx_mirror_session_ip_address_set(_In_ const sai_object_key_t      *key,
+static sai_status_t mlnx_mirror_session_vlan_tpid_set(_In_ const sai_object_key_t      *key,
+                                                      _In_ const sai_attribute_value_t *value,
+                                                      void                             *arg);
+static sai_status_t mlnx_mirror_session_vlan_id_set(_In_ const sai_object_key_t      *key,
+                                                    _In_ const sai_attribute_value_t *value,
+                                                    void                             *arg);
+static sai_status_t mlnx_mirror_session_vlan_pri_set(_In_ const sai_object_key_t      *key,
+                                                     _In_ const sai_attribute_value_t *value,
+                                                     void                             *arg);
+static sai_status_t mlnx_mirror_session_vlan_cfi_set(_In_ const sai_object_key_t      *key,
+                                                     _In_ const sai_attribute_value_t *value,
+                                                     void                             *arg);
+static sai_status_t mlnx_mirror_session_tos_set(_In_ const sai_object_key_t      *key,
                                                 _In_ const sai_attribute_value_t *value,
                                                 void                             *arg);
-sai_status_t mlnx_mirror_session_mac_address_set(_In_ const sai_object_key_t      *key,
-                                                 _In_ const sai_attribute_value_t *value,
-                                                 void                             *arg);
-sai_status_t mlnx_mirror_session_gre_protocol_type_set(_In_ const sai_object_key_t      *key,
+static sai_status_t mlnx_mirror_session_ttl_set(_In_ const sai_object_key_t      *key,
+                                                _In_ const sai_attribute_value_t *value,
+                                                void                             *arg);
+static sai_status_t mlnx_mirror_session_ip_address_set(_In_ const sai_object_key_t      *key,
                                                        _In_ const sai_attribute_value_t *value,
                                                        void                             *arg);
+static sai_status_t mlnx_mirror_session_mac_address_set(_In_ const sai_object_key_t      *key,
+                                                        _In_ const sai_attribute_value_t *value,
+                                                        void                             *arg);
+static sai_status_t mlnx_mirror_session_gre_protocol_type_set(_In_ const sai_object_key_t      *key,
+                                                              _In_ const sai_attribute_value_t *value,
+                                                              void                             *arg);
 
 /* is_implemented: create, remove, set, get
  *   is_supported: create, remove, set, get
@@ -287,9 +286,9 @@ static void mirror_key_to_str(_In_ const sai_object_id_t sai_mirror_obj_id, _Out
     SX_LOG_EXIT();
 }
 
-sai_status_t mlnx_get_sdk_mirror_obj_params(_In_ sai_object_id_t            sai_mirror_obj_id,
-                                            _Inout_ sx_span_session_id_t   *sdk_mirror_obj_id,
-                                            _Out_ sx_span_session_params_t *sdk_mirror_obj_params)
+static sai_status_t mlnx_get_sdk_mirror_obj_params(_In_ sai_object_id_t            sai_mirror_obj_id,
+                                                   _Inout_ sx_span_session_id_t   *sdk_mirror_obj_id,
+                                                   _Out_ sx_span_session_params_t *sdk_mirror_obj_params)
 {
     uint32_t     sdk_mirror_obj_id_u32 = 0;
     sai_status_t status                = SAI_STATUS_FAILURE;
@@ -318,11 +317,11 @@ sai_status_t mlnx_get_sdk_mirror_obj_params(_In_ sai_object_id_t            sai_
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_mirror_session_type_get(_In_ const sai_object_key_t   *key,
-                                          _Inout_ sai_attribute_value_t *value,
-                                          _In_ uint32_t                  attr_index,
-                                          _Inout_ vendor_cache_t        *cache,
-                                          void                          *arg)
+static sai_status_t mlnx_mirror_session_type_get(_In_ const sai_object_key_t   *key,
+                                                 _Inout_ sai_attribute_value_t *value,
+                                                 _In_ uint32_t                  attr_index,
+                                                 _Inout_ vendor_cache_t        *cache,
+                                                 void                          *arg)
 {
     sai_status_t             status = SAI_STATUS_FAILURE;
     sx_span_session_params_t sdk_mirror_obj_params;
@@ -360,11 +359,11 @@ sai_status_t mlnx_mirror_session_type_get(_In_ const sai_object_key_t   *key,
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_mirror_session_monitor_port_get(_In_ const sai_object_key_t   *key,
-                                                  _Inout_ sai_attribute_value_t *value,
-                                                  _In_ uint32_t                  attr_index,
-                                                  _Inout_ vendor_cache_t        *cache,
-                                                  void                          *arg)
+static sai_status_t mlnx_mirror_session_monitor_port_get(_In_ const sai_object_key_t   *key,
+                                                         _Inout_ sai_attribute_value_t *value,
+                                                         _In_ uint32_t                  attr_index,
+                                                         _Inout_ vendor_cache_t        *cache,
+                                                         void                          *arg)
 {
     uint32_t         sdk_mirror_obj_id    = 0;
     sai_status_t     status               = SAI_STATUS_FAILURE;
@@ -406,11 +405,11 @@ sai_status_t mlnx_mirror_session_monitor_port_get(_In_ const sai_object_key_t   
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_mirror_session_truncate_size_get(_In_ const sai_object_key_t   *key,
-                                                   _Inout_ sai_attribute_value_t *value,
-                                                   _In_ uint32_t                  attr_index,
-                                                   _Inout_ vendor_cache_t        *cache,
-                                                   void                          *arg)
+static sai_status_t mlnx_mirror_session_truncate_size_get(_In_ const sai_object_key_t   *key,
+                                                          _Inout_ sai_attribute_value_t *value,
+                                                          _In_ uint32_t                  attr_index,
+                                                          _Inout_ vendor_cache_t        *cache,
+                                                          void                          *arg)
 {
     sai_status_t             status = SAI_STATUS_FAILURE;
     sx_span_session_params_t sdk_mirror_obj_params;
@@ -434,11 +433,11 @@ sai_status_t mlnx_mirror_session_truncate_size_get(_In_ const sai_object_key_t  
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_mirror_session_tc_get(_In_ const sai_object_key_t   *key,
-                                        _Inout_ sai_attribute_value_t *value,
-                                        _In_ uint32_t                  attr_index,
-                                        _Inout_ vendor_cache_t        *cache,
-                                        void                          *arg)
+static sai_status_t mlnx_mirror_session_tc_get(_In_ const sai_object_key_t   *key,
+                                               _Inout_ sai_attribute_value_t *value,
+                                               _In_ uint32_t                  attr_index,
+                                               _Inout_ vendor_cache_t        *cache,
+                                               void                          *arg)
 {
     sai_status_t             status = SAI_STATUS_FAILURE;
     sx_span_session_params_t sdk_mirror_obj_params;
@@ -476,11 +475,11 @@ sai_status_t mlnx_mirror_session_tc_get(_In_ const sai_object_key_t   *key,
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_mirror_session_vlan_tpid_get(_In_ const sai_object_key_t   *key,
-                                               _Inout_ sai_attribute_value_t *value,
-                                               _In_ uint32_t                  attr_index,
-                                               _Inout_ vendor_cache_t        *cache,
-                                               void                          *arg)
+static sai_status_t mlnx_mirror_session_vlan_tpid_get(_In_ const sai_object_key_t   *key,
+                                                      _Inout_ sai_attribute_value_t *value,
+                                                      _In_ uint32_t                  attr_index,
+                                                      _Inout_ vendor_cache_t        *cache,
+                                                      void                          *arg)
 {
     sai_status_t             status = SAI_STATUS_FAILURE;
     sx_span_session_params_t sdk_mirror_obj_params;
@@ -511,11 +510,11 @@ sai_status_t mlnx_mirror_session_vlan_tpid_get(_In_ const sai_object_key_t   *ke
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_mirror_session_vlan_id_get(_In_ const sai_object_key_t   *key,
-                                             _Inout_ sai_attribute_value_t *value,
-                                             _In_ uint32_t                  attr_index,
-                                             _Inout_ vendor_cache_t        *cache,
-                                             void                          *arg)
+static sai_status_t mlnx_mirror_session_vlan_id_get(_In_ const sai_object_key_t   *key,
+                                                    _Inout_ sai_attribute_value_t *value,
+                                                    _In_ uint32_t                  attr_index,
+                                                    _Inout_ vendor_cache_t        *cache,
+                                                    void                          *arg)
 {
     sai_status_t             status = SAI_STATUS_FAILURE;
     sx_span_session_params_t sdk_mirror_obj_params;
@@ -549,11 +548,11 @@ sai_status_t mlnx_mirror_session_vlan_id_get(_In_ const sai_object_key_t   *key,
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_mirror_session_vlan_pri_get(_In_ const sai_object_key_t   *key,
-                                              _Inout_ sai_attribute_value_t *value,
-                                              _In_ uint32_t                  attr_index,
-                                              _Inout_ vendor_cache_t        *cache,
-                                              void                          *arg)
+static sai_status_t mlnx_mirror_session_vlan_pri_get(_In_ const sai_object_key_t   *key,
+                                                     _Inout_ sai_attribute_value_t *value,
+                                                     _In_ uint32_t                  attr_index,
+                                                     _Inout_ vendor_cache_t        *cache,
+                                                     void                          *arg)
 {
     sai_status_t             status = SAI_STATUS_FAILURE;
     sx_span_session_params_t sdk_mirror_obj_params;
@@ -587,11 +586,11 @@ sai_status_t mlnx_mirror_session_vlan_pri_get(_In_ const sai_object_key_t   *key
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_mirror_session_vlan_cfi_get(_In_ const sai_object_key_t   *key,
-                                              _Inout_ sai_attribute_value_t *value,
-                                              _In_ uint32_t                  attr_index,
-                                              _Inout_ vendor_cache_t        *cache,
-                                              void                          *arg)
+static sai_status_t mlnx_mirror_session_vlan_cfi_get(_In_ const sai_object_key_t   *key,
+                                                     _Inout_ sai_attribute_value_t *value,
+                                                     _In_ uint32_t                  attr_index,
+                                                     _Inout_ vendor_cache_t        *cache,
+                                                     void                          *arg)
 {
     sai_status_t             status = SAI_STATUS_FAILURE;
     sx_span_session_params_t sdk_mirror_obj_params;
@@ -625,11 +624,11 @@ sai_status_t mlnx_mirror_session_vlan_cfi_get(_In_ const sai_object_key_t   *key
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_mirror_session_encap_type_get(_In_ const sai_object_key_t   *key,
-                                                _Inout_ sai_attribute_value_t *value,
-                                                _In_ uint32_t                  attr_index,
-                                                _Inout_ vendor_cache_t        *cache,
-                                                void                          *arg)
+static sai_status_t mlnx_mirror_session_encap_type_get(_In_ const sai_object_key_t   *key,
+                                                       _Inout_ sai_attribute_value_t *value,
+                                                       _In_ uint32_t                  attr_index,
+                                                       _Inout_ vendor_cache_t        *cache,
+                                                       void                          *arg)
 {
     sai_status_t             status = SAI_STATUS_FAILURE;
     sx_span_session_params_t sdk_mirror_obj_params;
@@ -659,11 +658,11 @@ sai_status_t mlnx_mirror_session_encap_type_get(_In_ const sai_object_key_t   *k
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_mirror_session_iphdr_version_get(_In_ const sai_object_key_t   *key,
-                                                   _Inout_ sai_attribute_value_t *value,
-                                                   _In_ uint32_t                  attr_index,
-                                                   _Inout_ vendor_cache_t        *cache,
-                                                   void                          *arg)
+static sai_status_t mlnx_mirror_session_iphdr_version_get(_In_ const sai_object_key_t   *key,
+                                                          _Inout_ sai_attribute_value_t *value,
+                                                          _In_ uint32_t                  attr_index,
+                                                          _Inout_ vendor_cache_t        *cache,
+                                                          void                          *arg)
 {
     sai_status_t             status = SAI_STATUS_FAILURE;
     sx_span_session_params_t sdk_mirror_obj_params;
@@ -701,11 +700,11 @@ sai_status_t mlnx_mirror_session_iphdr_version_get(_In_ const sai_object_key_t  
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_mirror_session_tos_get(_In_ const sai_object_key_t   *key,
-                                         _Inout_ sai_attribute_value_t *value,
-                                         _In_ uint32_t                  attr_index,
-                                         _Inout_ vendor_cache_t        *cache,
-                                         void                          *arg)
+static sai_status_t mlnx_mirror_session_tos_get(_In_ const sai_object_key_t   *key,
+                                                _Inout_ sai_attribute_value_t *value,
+                                                _In_ uint32_t                  attr_index,
+                                                _Inout_ vendor_cache_t        *cache,
+                                                void                          *arg)
 {
     sai_status_t             status = SAI_STATUS_FAILURE;
     sx_span_session_params_t sdk_mirror_obj_params;
@@ -738,11 +737,11 @@ sai_status_t mlnx_mirror_session_tos_get(_In_ const sai_object_key_t   *key,
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_mirror_session_ttl_get(_In_ const sai_object_key_t   *key,
-                                         _Inout_ sai_attribute_value_t *value,
-                                         _In_ uint32_t                  attr_index,
-                                         _Inout_ vendor_cache_t        *cache,
-                                         void                          *arg)
+static sai_status_t mlnx_mirror_session_ttl_get(_In_ const sai_object_key_t   *key,
+                                                _Inout_ sai_attribute_value_t *value,
+                                                _In_ uint32_t                  attr_index,
+                                                _Inout_ vendor_cache_t        *cache,
+                                                void                          *arg)
 {
     sai_status_t             status = SAI_STATUS_FAILURE;
     sx_span_session_params_t sdk_mirror_obj_params;
@@ -771,11 +770,11 @@ sai_status_t mlnx_mirror_session_ttl_get(_In_ const sai_object_key_t   *key,
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_mirror_session_ip_address_get(_In_ const sai_object_key_t   *key,
-                                                _Inout_ sai_attribute_value_t *value,
-                                                _In_ uint32_t                  attr_index,
-                                                _Inout_ vendor_cache_t        *cache,
-                                                void                          *arg)
+static sai_status_t mlnx_mirror_session_ip_address_get(_In_ const sai_object_key_t   *key,
+                                                       _Inout_ sai_attribute_value_t *value,
+                                                       _In_ uint32_t                  attr_index,
+                                                       _Inout_ vendor_cache_t        *cache,
+                                                       void                          *arg)
 {
     sai_status_t             status = SAI_STATUS_FAILURE;
     sx_span_session_params_t sdk_mirror_obj_params;
@@ -817,11 +816,11 @@ sai_status_t mlnx_mirror_session_ip_address_get(_In_ const sai_object_key_t   *k
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_mirror_session_mac_address_get(_In_ const sai_object_key_t   *key,
-                                                 _Inout_ sai_attribute_value_t *value,
-                                                 _In_ uint32_t                  attr_index,
-                                                 _Inout_ vendor_cache_t        *cache,
-                                                 void                          *arg)
+static sai_status_t mlnx_mirror_session_mac_address_get(_In_ const sai_object_key_t   *key,
+                                                        _Inout_ sai_attribute_value_t *value,
+                                                        _In_ uint32_t                  attr_index,
+                                                        _Inout_ vendor_cache_t        *cache,
+                                                        void                          *arg)
 {
     sai_status_t             status = SAI_STATUS_FAILURE;
     sx_span_session_params_t sdk_mirror_obj_params;
@@ -859,11 +858,11 @@ sai_status_t mlnx_mirror_session_mac_address_get(_In_ const sai_object_key_t   *
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_mirror_session_gre_protocol_type_get(_In_ const sai_object_key_t   *key,
-                                                       _Inout_ sai_attribute_value_t *value,
-                                                       _In_ uint32_t                  attr_index,
-                                                       _Inout_ vendor_cache_t        *cache,
-                                                       void                          *arg)
+static sai_status_t mlnx_mirror_session_gre_protocol_type_get(_In_ const sai_object_key_t   *key,
+                                                              _Inout_ sai_attribute_value_t *value,
+                                                              _In_ uint32_t                  attr_index,
+                                                              _Inout_ vendor_cache_t        *cache,
+                                                              void                          *arg)
 {
     sai_status_t             status = SAI_STATUS_FAILURE;
     sx_span_session_params_t sdk_mirror_obj_params;
@@ -893,7 +892,7 @@ sai_status_t mlnx_mirror_session_gre_protocol_type_get(_In_ const sai_object_key
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_delete_mirror_analyzer_port(_In_ sx_span_session_id_t sdk_mirror_obj_id)
+static sai_status_t mlnx_delete_mirror_analyzer_port(_In_ sx_span_session_id_t sdk_mirror_obj_id)
 {
     sai_status_t                   status = SAI_STATUS_FAILURE;
     sx_port_log_id_t               sdk_analyzer_port;
@@ -936,8 +935,8 @@ sai_status_t mlnx_delete_mirror_analyzer_port(_In_ sx_span_session_id_t sdk_mirr
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_add_mirror_analyzer_port(_In_ sx_span_session_id_t sdk_mirror_obj_id,
-                                           _In_ sai_object_id_t      sai_analyzer_port_id)
+static sai_status_t mlnx_add_mirror_analyzer_port(_In_ sx_span_session_id_t sdk_mirror_obj_id,
+                                                  _In_ sai_object_id_t      sai_analyzer_port_id)
 {
     sai_status_t                   status               = SAI_STATUS_FAILURE;
     uint32_t                       sdk_analyzer_port_id = 0;
@@ -998,9 +997,9 @@ sai_status_t mlnx_add_mirror_analyzer_port(_In_ sx_span_session_id_t sdk_mirror_
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_mirror_session_monitor_port_set(_In_ const sai_object_key_t      *key,
-                                                  _In_ const sai_attribute_value_t *value,
-                                                  void                             *arg)
+static sai_status_t mlnx_mirror_session_monitor_port_set(_In_ const sai_object_key_t      *key,
+                                                         _In_ const sai_attribute_value_t *value,
+                                                         void                             *arg)
 {
     uint32_t     sdk_mirror_obj_id_u32 = 0;
     sai_status_t status                = SAI_STATUS_FAILURE;
@@ -1034,9 +1033,9 @@ sai_status_t mlnx_mirror_session_monitor_port_set(_In_ const sai_object_key_t   
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_mirror_session_truncate_size_set(_In_ const sai_object_key_t      *key,
-                                                   _In_ const sai_attribute_value_t *value,
-                                                   void                             *arg)
+static sai_status_t mlnx_mirror_session_truncate_size_set(_In_ const sai_object_key_t      *key,
+                                                          _In_ const sai_attribute_value_t *value,
+                                                          void                             *arg)
 {
     sx_span_session_id_t     sdk_mirror_obj_id = 0;
     sai_status_t             status            = SAI_STATUS_FAILURE;
@@ -1073,9 +1072,9 @@ sai_status_t mlnx_mirror_session_truncate_size_set(_In_ const sai_object_key_t  
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_mirror_session_tc_set(_In_ const sai_object_key_t      *key,
-                                        _In_ const sai_attribute_value_t *value,
-                                        void                             *arg)
+static sai_status_t mlnx_mirror_session_tc_set(_In_ const sai_object_key_t      *key,
+                                               _In_ const sai_attribute_value_t *value,
+                                               void                             *arg)
 {
     sx_span_session_id_t     sdk_mirror_obj_id = 0;
     sai_status_t             status            = SAI_STATUS_FAILURE;
@@ -1127,9 +1126,9 @@ sai_status_t mlnx_mirror_session_tc_set(_In_ const sai_object_key_t      *key,
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_mirror_session_vlan_tpid_set(_In_ const sai_object_key_t      *key,
-                                               _In_ const sai_attribute_value_t *value,
-                                               void                             *arg)
+static sai_status_t mlnx_mirror_session_vlan_tpid_set(_In_ const sai_object_key_t      *key,
+                                                      _In_ const sai_attribute_value_t *value,
+                                                      void                             *arg)
 {
     sx_span_session_id_t     sdk_mirror_obj_id = 0;
     sai_status_t             status            = SAI_STATUS_FAILURE;
@@ -1166,9 +1165,9 @@ sai_status_t mlnx_mirror_session_vlan_tpid_set(_In_ const sai_object_key_t      
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_mirror_session_vlan_id_set(_In_ const sai_object_key_t      *key,
-                                             _In_ const sai_attribute_value_t *value,
-                                             void                             *arg)
+static sai_status_t mlnx_mirror_session_vlan_id_set(_In_ const sai_object_key_t      *key,
+                                                    _In_ const sai_attribute_value_t *value,
+                                                    void                             *arg)
 {
     sx_span_session_id_t     sdk_mirror_obj_id = 0;
     sai_status_t             status            = SAI_STATUS_FAILURE;
@@ -1223,9 +1222,9 @@ sai_status_t mlnx_mirror_session_vlan_id_set(_In_ const sai_object_key_t      *k
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_mirror_session_vlan_pri_set(_In_ const sai_object_key_t      *key,
-                                              _In_ const sai_attribute_value_t *value,
-                                              void                             *arg)
+static sai_status_t mlnx_mirror_session_vlan_pri_set(_In_ const sai_object_key_t      *key,
+                                                     _In_ const sai_attribute_value_t *value,
+                                                     void                             *arg)
 {
     sx_span_session_id_t     sdk_mirror_obj_id = 0;
     sai_status_t             status            = SAI_STATUS_FAILURE;
@@ -1276,9 +1275,9 @@ sai_status_t mlnx_mirror_session_vlan_pri_set(_In_ const sai_object_key_t      *
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_mirror_session_vlan_cfi_set(_In_ const sai_object_key_t      *key,
-                                              _In_ const sai_attribute_value_t *value,
-                                              void                             *arg)
+static sai_status_t mlnx_mirror_session_vlan_cfi_set(_In_ const sai_object_key_t      *key,
+                                                     _In_ const sai_attribute_value_t *value,
+                                                     void                             *arg)
 {
     sx_span_session_id_t     sdk_mirror_obj_id = 0;
     sai_status_t             status            = SAI_STATUS_FAILURE;
@@ -1329,9 +1328,9 @@ sai_status_t mlnx_mirror_session_vlan_cfi_set(_In_ const sai_object_key_t      *
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_mirror_session_tos_set(_In_ const sai_object_key_t      *key,
-                                         _In_ const sai_attribute_value_t *value,
-                                         void                             *arg)
+static sai_status_t mlnx_mirror_session_tos_set(_In_ const sai_object_key_t      *key,
+                                                _In_ const sai_attribute_value_t *value,
+                                                void                             *arg)
 {
     sx_span_session_id_t     sdk_mirror_obj_id = 0;
     sai_status_t             status            = SAI_STATUS_FAILURE;
@@ -1376,9 +1375,9 @@ sai_status_t mlnx_mirror_session_tos_set(_In_ const sai_object_key_t      *key,
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_mirror_session_ttl_set(_In_ const sai_object_key_t      *key,
-                                         _In_ const sai_attribute_value_t *value,
-                                         void                             *arg)
+static sai_status_t mlnx_mirror_session_ttl_set(_In_ const sai_object_key_t      *key,
+                                                _In_ const sai_attribute_value_t *value,
+                                                void                             *arg)
 {
     sx_span_session_id_t     sdk_mirror_obj_id = 0;
     sai_status_t             status            = SAI_STATUS_FAILURE;
@@ -1418,7 +1417,8 @@ sai_status_t mlnx_mirror_session_ttl_set(_In_ const sai_object_key_t      *key,
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_check_mirror_ip_family(_In_ sai_ip_addr_family_t sai_ip_family, _In_ sx_ip_version_t sdk_ip_version)
+static sai_status_t mlnx_check_mirror_ip_family(_In_ sai_ip_addr_family_t sai_ip_family,
+                                                _In_ sx_ip_version_t      sdk_ip_version)
 {
     switch (sai_ip_family) {
     case SAI_IP_ADDR_FAMILY_IPV4:
@@ -1445,9 +1445,9 @@ sai_status_t mlnx_check_mirror_ip_family(_In_ sai_ip_addr_family_t sai_ip_family
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_mirror_session_ip_address_set(_In_ const sai_object_key_t      *key,
-                                                _In_ const sai_attribute_value_t *value,
-                                                void                             *arg)
+static sai_status_t mlnx_mirror_session_ip_address_set(_In_ const sai_object_key_t      *key,
+                                                       _In_ const sai_attribute_value_t *value,
+                                                       void                             *arg)
 {
     sx_span_session_id_t     sdk_mirror_obj_id       = 0;
     sai_status_t             status                  = SAI_STATUS_FAILURE;
@@ -1508,9 +1508,9 @@ sai_status_t mlnx_mirror_session_ip_address_set(_In_ const sai_object_key_t     
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_mirror_session_mac_address_set(_In_ const sai_object_key_t      *key,
-                                                 _In_ const sai_attribute_value_t *value,
-                                                 void                             *arg)
+static sai_status_t mlnx_mirror_session_mac_address_set(_In_ const sai_object_key_t      *key,
+                                                        _In_ const sai_attribute_value_t *value,
+                                                        void                             *arg)
 {
     sx_span_session_id_t     sdk_mirror_obj_id = 0;
     sai_status_t             status            = SAI_STATUS_FAILURE;
@@ -1559,9 +1559,9 @@ sai_status_t mlnx_mirror_session_mac_address_set(_In_ const sai_object_key_t    
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_mirror_session_gre_protocol_type_set(_In_ const sai_object_key_t      *key,
-                                                       _In_ const sai_attribute_value_t *value,
-                                                       void                             *arg)
+static sai_status_t mlnx_mirror_session_gre_protocol_type_set(_In_ const sai_object_key_t      *key,
+                                                              _In_ const sai_attribute_value_t *value,
+                                                              void                             *arg)
 {
     sx_span_session_id_t     sdk_mirror_obj_id = 0;
     sai_status_t             status            = SAI_STATUS_FAILURE;
@@ -1599,14 +1599,15 @@ sai_status_t mlnx_mirror_session_gre_protocol_type_set(_In_ const sai_object_key
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_check_mirror_single_attribute_on_create(_In_ bool                          is_valid_mirror_type,
-                                                          _In_ uint32_t                      attr_count,
-                                                          _In_ const sai_attribute_t        *attr_list,
-                                                          _In_ sai_mirror_session_attr_t     attr_id,
-                                                          _In_ const char                   *attr_str,
-                                                          _In_ const char                   *valid_mirror_type_str,
-                                                          _In_ const sai_attribute_value_t **attr_value,
-                                                          _In_ uint32_t                     *attr_index)
+static sai_status_t mlnx_check_mirror_single_attribute_on_create(
+    _In_ bool                          is_valid_mirror_type,
+    _In_ uint32_t                      attr_count,
+    _In_ const sai_attribute_t        *attr_list,
+    _In_ sai_mirror_session_attr_t     attr_id,
+    _In_ const char                   *attr_str,
+    _In_ const char                   *valid_mirror_type_str,
+    _In_ const sai_attribute_value_t **attr_value,
+    _In_ uint32_t                     *attr_index)
 {
     sai_status_t status = SAI_STATUS_FAILURE;
 
@@ -1629,28 +1630,28 @@ sai_status_t mlnx_check_mirror_single_attribute_on_create(_In_ bool             
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_check_mirror_attribute_on_create(_In_ uint32_t                       attr_count,
-                                                   _In_ const sai_attribute_t         *attr_list,
-                                                   _Out_ const sai_attribute_value_t **mirror_type,
-                                                   _Out_ const sai_attribute_value_t **mirror_monitor_port,
-                                                   _Out_ const sai_attribute_value_t **mirror_truncate_size,
-                                                   _Out_ sai_status_t                 *status_truncate_size,
-                                                   _Out_ const sai_attribute_value_t **mirror_tc,
-                                                   _Out_ sai_status_t                 *status_tc,
-                                                   _Out_ const sai_attribute_value_t **mirror_vlan_tpid,
-                                                   _Out_ const sai_attribute_value_t **mirror_vlan_id,
-                                                   _Out_ const sai_attribute_value_t **mirror_vlan_pri,
-                                                   _Out_ const sai_attribute_value_t **mirror_vlan_cfi,
-                                                   _Out_ const sai_attribute_value_t **mirror_encap_type,
-                                                   _Out_ const sai_attribute_value_t **mirror_iphdr_version,
-                                                   _Out_ const sai_attribute_value_t **mirror_tos,
-                                                   _Out_ const sai_attribute_value_t **mirror_ttl,
-                                                   _Out_ sai_status_t                 *status_ttl,
-                                                   _Out_ const sai_attribute_value_t **mirror_src_ip_address,
-                                                   _Out_ const sai_attribute_value_t **mirror_dst_ip_address,
-                                                   _Out_ const sai_attribute_value_t **mirror_src_mac_address,
-                                                   _Out_ const sai_attribute_value_t **mirror_dst_mac_address,
-                                                   _Out_ const sai_attribute_value_t **mirror_gre_protocol_type)
+static sai_status_t mlnx_check_mirror_attribute_on_create(_In_ uint32_t                       attr_count,
+                                                          _In_ const sai_attribute_t         *attr_list,
+                                                          _Out_ const sai_attribute_value_t **mirror_type,
+                                                          _Out_ const sai_attribute_value_t **mirror_monitor_port,
+                                                          _Out_ const sai_attribute_value_t **mirror_truncate_size,
+                                                          _Out_ sai_status_t                 *status_truncate_size,
+                                                          _Out_ const sai_attribute_value_t **mirror_tc,
+                                                          _Out_ sai_status_t                 *status_tc,
+                                                          _Out_ const sai_attribute_value_t **mirror_vlan_tpid,
+                                                          _Out_ const sai_attribute_value_t **mirror_vlan_id,
+                                                          _Out_ const sai_attribute_value_t **mirror_vlan_pri,
+                                                          _Out_ const sai_attribute_value_t **mirror_vlan_cfi,
+                                                          _Out_ const sai_attribute_value_t **mirror_encap_type,
+                                                          _Out_ const sai_attribute_value_t **mirror_iphdr_version,
+                                                          _Out_ const sai_attribute_value_t **mirror_tos,
+                                                          _Out_ const sai_attribute_value_t **mirror_ttl,
+                                                          _Out_ sai_status_t                 *status_ttl,
+                                                          _Out_ const sai_attribute_value_t **mirror_src_ip_address,
+                                                          _Out_ const sai_attribute_value_t **mirror_dst_ip_address,
+                                                          _Out_ const sai_attribute_value_t **mirror_src_mac_address,
+                                                          _Out_ const sai_attribute_value_t **mirror_dst_mac_address,
+                                                          _Out_ const sai_attribute_value_t **mirror_gre_protocol_type)
 {
     uint32_t     index           = 0;
     bool         RSPAN_OR_ERSPAN = false;
@@ -1831,9 +1832,9 @@ sai_status_t mlnx_check_mirror_attribute_on_create(_In_ uint32_t                
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_set_SPAN_session_param(_Out_ sx_span_session_params_t   *sdk_mirror_obj_params,
-                                         _In_ const sai_attribute_value_t *mirror_tc,
-                                         _In_ sai_status_t                 status_tc)
+static sai_status_t mlnx_set_SPAN_session_param(_Out_ sx_span_session_params_t   *sdk_mirror_obj_params,
+                                                _In_ const sai_attribute_value_t *mirror_tc,
+                                                _In_ sai_status_t                 status_tc)
 {
     SX_LOG_ENTER();
 
@@ -1850,13 +1851,13 @@ sai_status_t mlnx_set_SPAN_session_param(_Out_ sx_span_session_params_t   *sdk_m
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_set_RSPAN_session_param(_Out_ sx_span_session_params_t   *sdk_mirror_obj_params,
-                                          _In_ const sai_attribute_value_t *mirror_tc,
-                                          _In_ sai_status_t                 status_tc,
-                                          _In_ const sai_attribute_value_t *mirror_vlan_tpid,
-                                          _In_ const sai_attribute_value_t *mirror_vlan_id,
-                                          _In_ const sai_attribute_value_t *mirror_vlan_pri,
-                                          _In_ const sai_attribute_value_t *mirror_vlan_cfi)
+static sai_status_t mlnx_set_RSPAN_session_param(_Out_ sx_span_session_params_t   *sdk_mirror_obj_params,
+                                                 _In_ const sai_attribute_value_t *mirror_tc,
+                                                 _In_ sai_status_t                 status_tc,
+                                                 _In_ const sai_attribute_value_t *mirror_vlan_tpid,
+                                                 _In_ const sai_attribute_value_t *mirror_vlan_id,
+                                                 _In_ const sai_attribute_value_t *mirror_vlan_pri,
+                                                 _In_ const sai_attribute_value_t *mirror_vlan_cfi)
 {
     SX_LOG_ENTER();
 
@@ -1897,23 +1898,23 @@ sai_status_t mlnx_set_RSPAN_session_param(_Out_ sx_span_session_params_t   *sdk_
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_set_ERSPAN_session_param(_Out_ sx_span_session_params_t   *sdk_mirror_obj_params,
-                                           _In_ const sai_attribute_value_t *mirror_tc,
-                                           _In_ sai_status_t                 status_tc,
-                                           _In_ const sai_attribute_value_t *mirror_vlan_tpid,
-                                           _In_ const sai_attribute_value_t *mirror_vlan_id,
-                                           _In_ const sai_attribute_value_t *mirror_vlan_pri,
-                                           _In_ const sai_attribute_value_t *mirror_vlan_cfi,
-                                           _In_ const sai_attribute_value_t *mirror_encap_type,
-                                           _In_ const sai_attribute_value_t *mirror_iphdr_version,
-                                           _In_ const sai_attribute_value_t *mirror_tos,
-                                           _In_ const sai_attribute_value_t *mirror_ttl,
-                                           _In_ sai_status_t                 status_ttl,
-                                           _In_ const sai_attribute_value_t *mirror_src_ip_address,
-                                           _In_ const sai_attribute_value_t *mirror_dst_ip_address,
-                                           _In_ const sai_attribute_value_t *mirror_src_mac_address,
-                                           _In_ const sai_attribute_value_t *mirror_dst_mac_address,
-                                           _In_ const sai_attribute_value_t *mirror_gre_protocol_type)
+static sai_status_t mlnx_set_ERSPAN_session_param(_Out_ sx_span_session_params_t   *sdk_mirror_obj_params,
+                                                  _In_ const sai_attribute_value_t *mirror_tc,
+                                                  _In_ sai_status_t                 status_tc,
+                                                  _In_ const sai_attribute_value_t *mirror_vlan_tpid,
+                                                  _In_ const sai_attribute_value_t *mirror_vlan_id,
+                                                  _In_ const sai_attribute_value_t *mirror_vlan_pri,
+                                                  _In_ const sai_attribute_value_t *mirror_vlan_cfi,
+                                                  _In_ const sai_attribute_value_t *mirror_encap_type,
+                                                  _In_ const sai_attribute_value_t *mirror_iphdr_version,
+                                                  _In_ const sai_attribute_value_t *mirror_tos,
+                                                  _In_ const sai_attribute_value_t *mirror_ttl,
+                                                  _In_ sai_status_t                 status_ttl,
+                                                  _In_ const sai_attribute_value_t *mirror_src_ip_address,
+                                                  _In_ const sai_attribute_value_t *mirror_dst_ip_address,
+                                                  _In_ const sai_attribute_value_t *mirror_src_mac_address,
+                                                  _In_ const sai_attribute_value_t *mirror_dst_mac_address,
+                                                  _In_ const sai_attribute_value_t *mirror_gre_protocol_type)
 {
     sai_status_t status = SAI_STATUS_FAILURE;
 
@@ -2032,9 +2033,9 @@ sai_status_t mlnx_set_ERSPAN_session_param(_Out_ sx_span_session_params_t   *sdk
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_create_mirror_session(_Out_ sai_object_id_t      *sai_mirror_obj_id,
-                                        _In_ uint32_t               attr_count,
-                                        _In_ const sai_attribute_t *attr_list)
+static sai_status_t mlnx_create_mirror_session(_Out_ sai_object_id_t      *sai_mirror_obj_id,
+                                               _In_ uint32_t               attr_count,
+                                               _In_ const sai_attribute_t *attr_list)
 {
     const sai_attribute_value_t *mirror_type              = NULL, *mirror_monitor_port = NULL, *mirror_truncate_size =
         NULL, *mirror_tc                                  = NULL;
@@ -2158,7 +2159,7 @@ sai_status_t mlnx_create_mirror_session(_Out_ sai_object_id_t      *sai_mirror_o
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_remove_mirror_session(_In_ const sai_object_id_t sai_mirror_obj_id)
+static sai_status_t mlnx_remove_mirror_session(_In_ const sai_object_id_t sai_mirror_obj_id)
 {
     sx_span_session_id_t     sdk_mirror_obj_id     = 0;
     uint32_t                 sdk_mirror_obj_id_u32 = 0;
@@ -2200,8 +2201,8 @@ sai_status_t mlnx_remove_mirror_session(_In_ const sai_object_id_t sai_mirror_ob
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_set_mirror_session_attribute(_In_ const sai_object_id_t  sai_mirror_obj_id,
-                                               _In_ const sai_attribute_t *attr)
+static sai_status_t mlnx_set_mirror_session_attribute(_In_ const sai_object_id_t  sai_mirror_obj_id,
+                                                      _In_ const sai_attribute_t *attr)
 {
     const sai_object_key_t key = { .object_id = sai_mirror_obj_id };
     char                   key_str[MAX_KEY_STR_LEN];
@@ -2217,9 +2218,9 @@ sai_status_t mlnx_set_mirror_session_attribute(_In_ const sai_object_id_t  sai_m
     return status;
 }
 
-sai_status_t mlnx_get_mirror_session_attribute(_In_ const sai_object_id_t sai_mirror_obj_id,
-                                               _In_ uint32_t              attr_count,
-                                               _Inout_ sai_attribute_t   *attr_list)
+static sai_status_t mlnx_get_mirror_session_attribute(_In_ const sai_object_id_t sai_mirror_obj_id,
+                                                      _In_ uint32_t              attr_count,
+                                                      _Inout_ sai_attribute_t   *attr_list)
 {
     const sai_object_key_t key = { .object_id = sai_mirror_obj_id };
     char                   key_str[MAX_KEY_STR_LEN];
@@ -2246,7 +2247,7 @@ sai_status_t mlnx_mirror_log_set(sx_verbosity_level_t level)
     }
 }
 
-const sai_mirror_api_t mirror_api = {
+const sai_mirror_api_t mlnx_mirror_api = {
     mlnx_create_mirror_session,
     mlnx_remove_mirror_session,
     mlnx_set_mirror_session_attribute,

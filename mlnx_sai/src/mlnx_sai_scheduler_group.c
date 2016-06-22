@@ -220,11 +220,11 @@ static mlnx_iter_ret_t groups_child_iter(mlnx_qos_port_config_t *port, mlnx_sche
     return ctx->iter(port, obj, ctx->iter_ctx);
 }
 
-sai_status_t groups_child_foreach(mlnx_qos_port_config_t *port,
-                                  uint8_t                 lvl,
-                                  uint8_t                 idx,
-                                  mlnx_sched_obj_iter_t   iter,
-                                  mlnx_sched_iter_ctx_t  *ctx)
+static sai_status_t groups_child_foreach(mlnx_qos_port_config_t *port,
+                                         uint8_t                 lvl,
+                                         uint8_t                 idx,
+                                         mlnx_sched_obj_iter_t   iter,
+                                         mlnx_sched_iter_ctx_t  *ctx)
 {
     mlnx_sched_obj_t      parent    = {.level = lvl, .index = idx };
     mlnx_sched_iter_ctx_t child_ctx = { .arg = &parent, .iter = iter, .iter_ctx = ctx };
@@ -240,7 +240,7 @@ sai_status_t groups_child_foreach(mlnx_qos_port_config_t *port,
     return ctx->sai_status;
 }
 
-sai_status_t ets_list_load(sx_port_log_id_t port_id, sx_cos_ets_element_config_t **ets)
+static sai_status_t ets_list_load(sx_port_log_id_t port_id, sx_cos_ets_element_config_t **ets)
 {
     uint32_t     max_ets_count = MAX_ETS_ELEMENTS;
     sai_status_t status;
@@ -452,7 +452,7 @@ static sai_status_t mlnx_sched_group_port_get(_In_ const sai_object_key_t   *key
 }
 
 /** Scheduler group level [sai_uint8_t]
- *  MANDATORY_ON_CREATE,  CREATE_ONLY */
+*  MANDATORY_ON_CREATE,  CREATE_ONLY */
 static sai_status_t mlnx_sched_group_level_get(_In_ const sai_object_key_t   *key,
                                                _Inout_ sai_attribute_value_t *value,
                                                _In_ uint32_t                  attr_index,
@@ -1347,7 +1347,7 @@ out:
 /**
  * @brief  Scheduler methods table retrieved with sai_api_query()
  */
-const sai_scheduler_group_api_t scheduler_group_api = {
+const sai_scheduler_group_api_t mlnx_scheduler_group_api = {
     mlnx_create_scheduler_group,
     mlnx_remove_scheduler_group,
     mlnx_set_scheduler_group_attribute,

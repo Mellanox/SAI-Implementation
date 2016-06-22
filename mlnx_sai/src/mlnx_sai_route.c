@@ -35,32 +35,30 @@ static const sai_attribute_entry_t route_attribs[] = {
     { END_FUNCTIONALITY_ATTRIBS_ID, false, false, false, false,
       "", SAI_ATTR_VAL_TYPE_UNDETERMINED }
 };
-
-sai_status_t mlnx_route_packet_action_get(_In_ const sai_object_key_t   *key,
-                                          _Inout_ sai_attribute_value_t *value,
-                                          _In_ uint32_t                  attr_index,
-                                          _Inout_ vendor_cache_t        *cache,
-                                          void                          *arg);
-sai_status_t mlnx_route_trap_priority_get(_In_ const sai_object_key_t   *key,
-                                          _Inout_ sai_attribute_value_t *value,
-                                          _In_ uint32_t                  attr_index,
-                                          _Inout_ vendor_cache_t        *cache,
-                                          void                          *arg);
-sai_status_t mlnx_route_next_hop_id_get(_In_ const sai_object_key_t   *key,
-                                        _Inout_ sai_attribute_value_t *value,
-                                        _In_ uint32_t                  attr_index,
-                                        _Inout_ vendor_cache_t        *cache,
-                                        void                          *arg);
-sai_status_t mlnx_route_packet_action_set(_In_ const sai_object_key_t      *key,
-                                          _In_ const sai_attribute_value_t *value,
-                                          void                             *arg);
-sai_status_t mlnx_route_trap_priority_set(_In_ const sai_object_key_t      *key,
-                                          _In_ const sai_attribute_value_t *value,
-                                          void                             *arg);
-sai_status_t mlnx_route_next_hop_id_set(_In_ const sai_object_key_t      *key,
-                                        _In_ const sai_attribute_value_t *value,
-                                        void                             *arg);
-
+static sai_status_t mlnx_route_packet_action_get(_In_ const sai_object_key_t   *key,
+                                                 _Inout_ sai_attribute_value_t *value,
+                                                 _In_ uint32_t                  attr_index,
+                                                 _Inout_ vendor_cache_t        *cache,
+                                                 void                          *arg);
+static sai_status_t mlnx_route_trap_priority_get(_In_ const sai_object_key_t   *key,
+                                                 _Inout_ sai_attribute_value_t *value,
+                                                 _In_ uint32_t                  attr_index,
+                                                 _Inout_ vendor_cache_t        *cache,
+                                                 void                          *arg);
+static sai_status_t mlnx_route_next_hop_id_get(_In_ const sai_object_key_t   *key,
+                                               _Inout_ sai_attribute_value_t *value,
+                                               _In_ uint32_t                  attr_index,
+                                               _Inout_ vendor_cache_t        *cache,
+                                               void                          *arg);
+static sai_status_t mlnx_route_packet_action_set(_In_ const sai_object_key_t      *key,
+                                                 _In_ const sai_attribute_value_t *value,
+                                                 void                             *arg);
+static sai_status_t mlnx_route_trap_priority_set(_In_ const sai_object_key_t      *key,
+                                                 _In_ const sai_attribute_value_t *value,
+                                                 void                             *arg);
+static sai_status_t mlnx_route_next_hop_id_set(_In_ const sai_object_key_t      *key,
+                                               _In_ const sai_attribute_value_t *value,
+                                               void                             *arg);
 static const sai_vendor_attribute_entry_t route_vendor_attribs[] = {
     { SAI_ROUTE_ATTR_PACKET_ACTION,
       { true, false, true, true },
@@ -200,9 +198,9 @@ static sai_status_t mlnx_fill_route_data(sx_uc_route_data_t              *route_
  * Note: IP prefix/mask expected in Network Byte Order.
  *
  */
-sai_status_t mlnx_create_route(_In_ const sai_unicast_route_entry_t* unicast_route_entry,
-                               _In_ uint32_t                         attr_count,
-                               _In_ const sai_attribute_t           *attr_list)
+static sai_status_t mlnx_create_route(_In_ const sai_unicast_route_entry_t* unicast_route_entry,
+                                      _In_ uint32_t                         attr_count,
+                                      _In_ const sai_attribute_t           *attr_list)
 {
     sx_status_t                  status;
     const sai_attribute_value_t *action, *priority, *next_hop;
@@ -308,7 +306,7 @@ sai_status_t mlnx_create_route(_In_ const sai_unicast_route_entry_t* unicast_rou
  *
  * Note: IP prefix/mask expected in Network Byte Order.
  */
-sai_status_t mlnx_remove_route(_In_ const sai_unicast_route_entry_t* unicast_route_entry)
+static sai_status_t mlnx_remove_route(_In_ const sai_unicast_route_entry_t* unicast_route_entry)
 {
     sx_status_t    status;
     sx_ip_prefix_t ip_prefix;
@@ -355,8 +353,8 @@ sai_status_t mlnx_remove_route(_In_ const sai_unicast_route_entry_t* unicast_rou
  *    SAI_STATUS_SUCCESS on success
  *    Failure status code on error
  */
-sai_status_t mlnx_set_route_attribute(_In_ const sai_unicast_route_entry_t* unicast_route_entry,
-                                      _In_ const sai_attribute_t           *attr)
+static sai_status_t mlnx_set_route_attribute(_In_ const sai_unicast_route_entry_t* unicast_route_entry,
+                                             _In_ const sai_attribute_t           *attr)
 {
     const sai_object_key_t key = { .unicast_route_entry = unicast_route_entry };
     char                   key_str[MAX_KEY_STR_LEN];
@@ -385,9 +383,9 @@ sai_status_t mlnx_set_route_attribute(_In_ const sai_unicast_route_entry_t* unic
  *    SAI_STATUS_SUCCESS on success
  *    Failure status code on error
  */
-sai_status_t mlnx_get_route_attribute(_In_ const sai_unicast_route_entry_t* unicast_route_entry,
-                                      _In_ uint32_t                         attr_count,
-                                      _Inout_ sai_attribute_t              *attr_list)
+static sai_status_t mlnx_get_route_attribute(_In_ const sai_unicast_route_entry_t* unicast_route_entry,
+                                             _In_ uint32_t                         attr_count,
+                                             _Inout_ sai_attribute_t              *attr_list)
 {
     const sai_object_key_t key = { .unicast_route_entry = unicast_route_entry };
     char                   key_str[MAX_KEY_STR_LEN];
@@ -435,11 +433,11 @@ static sai_status_t mlnx_get_route(const sai_unicast_route_entry_t* unicast_rout
 }
 
 /* Packet action [sai_packet_action_t] */
-sai_status_t mlnx_route_packet_action_get(_In_ const sai_object_key_t   *key,
-                                          _Inout_ sai_attribute_value_t *value,
-                                          _In_ uint32_t                  attr_index,
-                                          _Inout_ vendor_cache_t        *cache,
-                                          void                          *arg)
+static sai_status_t mlnx_route_packet_action_get(_In_ const sai_object_key_t   *key,
+                                                 _Inout_ sai_attribute_value_t *value,
+                                                 _In_ uint32_t                  attr_index,
+                                                 _Inout_ vendor_cache_t        *cache,
+                                                 void                          *arg)
 {
     sai_status_t                     status;
     const sai_unicast_route_entry_t* unicast_route_entry = key->unicast_route_entry;
@@ -462,11 +460,11 @@ sai_status_t mlnx_route_packet_action_get(_In_ const sai_object_key_t   *key,
 }
 
 /* Packet priority for trap/log actions [uint8_t] */
-sai_status_t mlnx_route_trap_priority_get(_In_ const sai_object_key_t   *key,
-                                          _Inout_ sai_attribute_value_t *value,
-                                          _In_ uint32_t                  attr_index,
-                                          _Inout_ vendor_cache_t        *cache,
-                                          void                          *arg)
+static sai_status_t mlnx_route_trap_priority_get(_In_ const sai_object_key_t   *key,
+                                                 _Inout_ sai_attribute_value_t *value,
+                                                 _In_ uint32_t                  attr_index,
+                                                 _Inout_ vendor_cache_t        *cache,
+                                                 void                          *arg)
 {
     sai_status_t                     status;
     const sai_unicast_route_entry_t* unicast_route_entry = key->unicast_route_entry;
@@ -491,11 +489,11 @@ sai_status_t mlnx_route_trap_priority_get(_In_ const sai_object_key_t   *key,
  * next hop group.
  * Directly reachable routes are the IP subnets that are directly attached to the router.
  * For such routes, fill the router interface id to which the subnet is attached */
-sai_status_t mlnx_route_next_hop_id_get(_In_ const sai_object_key_t   *key,
-                                        _Inout_ sai_attribute_value_t *value,
-                                        _In_ uint32_t                  attr_index,
-                                        _Inout_ vendor_cache_t        *cache,
-                                        void                          *arg)
+static sai_status_t mlnx_route_next_hop_id_get(_In_ const sai_object_key_t   *key,
+                                               _Inout_ sai_attribute_value_t *value,
+                                               _In_ uint32_t                  attr_index,
+                                               _Inout_ vendor_cache_t        *cache,
+                                               void                          *arg)
 {
     sai_status_t                     status;
     const sai_unicast_route_entry_t* unicast_route_entry = key->unicast_route_entry;
@@ -569,9 +567,9 @@ static sai_status_t mlnx_modify_route(sx_router_id_t           vrid,
 }
 
 /* Packet action [sai_packet_action_t] */
-sai_status_t mlnx_route_packet_action_set(_In_ const sai_object_key_t      *key,
-                                          _In_ const sai_attribute_value_t *value,
-                                          void                             *arg)
+static sai_status_t mlnx_route_packet_action_set(_In_ const sai_object_key_t      *key,
+                                                 _In_ const sai_attribute_value_t *value,
+                                                 void                             *arg)
 {
     sai_status_t                     status;
     const sai_unicast_route_entry_t* unicast_route_entry = key->unicast_route_entry;
@@ -598,9 +596,9 @@ sai_status_t mlnx_route_packet_action_set(_In_ const sai_object_key_t      *key,
 }
 
 /* Packet priority for trap/log actions [uint8_t] */
-sai_status_t mlnx_route_trap_priority_set(_In_ const sai_object_key_t      *key,
-                                          _In_ const sai_attribute_value_t *value,
-                                          void                             *arg)
+static sai_status_t mlnx_route_trap_priority_set(_In_ const sai_object_key_t      *key,
+                                                 _In_ const sai_attribute_value_t *value,
+                                                 void                             *arg)
 {
     sai_status_t                     status;
     const sai_unicast_route_entry_t* unicast_route_entry = key->unicast_route_entry;
@@ -637,9 +635,9 @@ sai_status_t mlnx_route_trap_priority_set(_In_ const sai_object_key_t      *key,
  * next hop group.
  * Directly reachable routes are the IP subnets that are directly attached to the router.
  * For such routes, fill the router interface id to which the subnet is attached */
-sai_status_t mlnx_route_next_hop_id_set(_In_ const sai_object_key_t      *key,
-                                        _In_ const sai_attribute_value_t *value,
-                                        void                             *arg)
+static sai_status_t mlnx_route_next_hop_id_set(_In_ const sai_object_key_t      *key,
+                                               _In_ const sai_attribute_value_t *value,
+                                               void                             *arg)
 {
     sai_status_t                     status;
     const sai_unicast_route_entry_t* unicast_route_entry = key->unicast_route_entry;
@@ -672,7 +670,7 @@ sai_status_t mlnx_route_log_set(sx_verbosity_level_t level)
     return SAI_STATUS_SUCCESS;
 }
 
-const sai_route_api_t route_api = {
+const sai_route_api_t mlnx_route_api = {
     mlnx_create_route,
     mlnx_remove_route,
     mlnx_set_route_attribute,

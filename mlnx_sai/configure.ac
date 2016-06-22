@@ -103,4 +103,4 @@ CFLAGS_SAI_INTERFACE_COMMON="-Wall -Wswitch -Wunused -Werror -fPIC -fno-strict-a
 AC_SUBST(CFLAGS_SAI_INTERFACE_COMMON)
 
 dnl Create the following Makefiles
-AC_OUTPUT([Makefile src/Makefile])
+AC_OUTPUT([Makefile src/Makefile etc/sai.pc etc/Makefile])

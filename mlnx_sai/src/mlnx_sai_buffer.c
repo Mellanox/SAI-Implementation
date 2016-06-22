@@ -26,30 +26,301 @@
 #define __MODULE__ SAI_BUFFER
 
 static sx_verbosity_level_t LOG_VAR_NAME(__MODULE__) = SX_VERBOSITY_LEVEL_WARNING;
-mlnx_sai_buffer_resource_limits_t buffer_limits;
-sai_status_t mlnx_get_sai_pool_data(_In_ sai_object_id_t sai_pool, _Out_ mlnx_sai_buffer_pool_attr_t*  sai_pool_attr);
+static mlnx_sai_buffer_resource_limits_t buffer_limits;
 
 typedef enum _sai_buffer_alpha_bounds_t {
     SAI_BUFFER_ALPHA_0 = -8, /* Values <= SAI_BUFFER_ALPHA_0 are interpreted as 0 */
 
     SAI_BUFFER_ALPHA_1_128 = -7,
-    SAI_BUFFER_ALPHA_1_64 = -6,
-    SAI_BUFFER_ALPHA_1_32 = -5,
-    SAI_BUFFER_ALPHA_1_16 = -4,
-    SAI_BUFFER_ALPHA_1_8 = -3,
-    SAI_BUFFER_ALPHA_1_4 = -2,
-    SAI_BUFFER_ALPHA_1_2 = -1,
+    SAI_BUFFER_ALPHA_1_64  = -6,
+    SAI_BUFFER_ALPHA_1_32  = -5,
+    SAI_BUFFER_ALPHA_1_16  = -4,
+    SAI_BUFFER_ALPHA_1_8   = -3,
+    SAI_BUFFER_ALPHA_1_4   = -2,
+    SAI_BUFFER_ALPHA_1_2   = -1,
 
-    SAI_BUFFER_ALPHA_1 = 0,
-    SAI_BUFFER_ALPHA_2 = 1,
-    SAI_BUFFER_ALPHA_4 = 2,
-    SAI_BUFFER_ALPHA_8 = 3,
+    SAI_BUFFER_ALPHA_1  = 0,
+    SAI_BUFFER_ALPHA_2  = 1,
+    SAI_BUFFER_ALPHA_4  = 2,
+    SAI_BUFFER_ALPHA_8  = 3,
     SAI_BUFFER_ALPHA_16 = 4,
     SAI_BUFFER_ALPHA_32 = 5,
     SAI_BUFFER_ALPHA_64 = 6,
 
-    SAI_BUFFER_ALPHA_INFINITY = 7/* Values >= SAI_BUFFER_ALPHA_INFINITY are interpreted as 'infinity'*/
+    SAI_BUFFER_ALPHA_INFINITY = 7 /* Values >= SAI_BUFFER_ALPHA_INFINITY are interpreted as 'infinity'*/
 } sai_buffer_alpha_bounds_t;
+typedef struct _mlnx_affect_port_buff_items {
+    bool* pgs;
+    bool* tcs;
+    bool* i_port_buffers;
+    bool* e_port_buffers;
+} mlnx_affect_port_buff_items_t;
+
+static sai_status_t mlnx_get_sai_pool_data(_In_ sai_object_id_t               sai_pool,
+                                           _Out_ mlnx_sai_buffer_pool_attr_t* sai_pool_attr);
+static sai_status_t mlnx_sai_buffer_unbind_shared_buffers(_In_ sx_port_log_id_t log_port);
+static sai_status_t mlnx_sai_buffer_unbind_reserved_buffers(_In_ sx_port_log_id_t log_port);
+static sai_status_t mlnx_sai_buffer_delete_all_buffer_config();
+static sai_status_t mlnx_sai_buffer_reset_all_sx_pools();
+static void log_buffer_profile_refs(_In_ mlnx_affect_port_buff_items_t* refs);
+sai_status_t mlnx_create_sai_pool_id(_In_ uint32_t sx_pool_id, _Out_ sai_object_id_t*  sai_pool);
+static sai_status_t mlnx_sai_is_buffer_in_use(_In_ sai_object_id_t buffer_profile_id);
+static sai_status_t mlnx_sai_collect_buffer_refs(_In_ sai_object_id_t                 sai_buffer_id,
+                                                 _In_ uint32_t                        db_port_ind,
+                                                 _Out_ mlnx_affect_port_buff_items_t* affected_items);
+static sai_status_t mlnx_sai_buffer_configure_reserved_buffers(_In_ sx_port_log_id_t            logical_port,
+                                                               _Out_ sx_cos_port_buffer_attr_t* sx_port_reserved_buff_attr_arr,
+                                                               _In_ uint32_t                    count);
+static sai_status_t mlnx_sai_buffer_configure_shared_buffers(_In_ sx_port_log_id_t                   logical_port,
+                                                             _Out_ sx_cos_port_shared_buffer_attr_t* sx_port_shared_buff_attr_arr,
+                                                             _In_ uint32_t                           count);
+static sai_status_t mlnx_sai_buffer_apply_buffer_change_to_references(sai_object_id_t sai_buffer_id);
+static sai_status_t mlnx_sai_buffer_apply_buffer_to_queue(_In_ uint32_t                           qos_db_port_ind,
+                                                          _In_ uint32_t                           qos_ind,
+                                                          _In_ mlnx_sai_db_buffer_profile_entry_t buff_db_entry,
+                                                          _In_ mlnx_sai_buffer_pool_attr_t        sai_pool_attr);
+static sai_status_t mlnx_sai_buffer_apply_buffer_to_pg(_In_ uint32_t                           port_ind,
+                                                       _In_ uint32_t                           pg_ind,
+                                                       _In_ mlnx_sai_db_buffer_profile_entry_t buff_db_entry,
+                                                       _In_ mlnx_sai_buffer_pool_attr_t        sai_pool_attr);
+static sai_status_t mlnx_get_sai_buffer_profile_data(_In_ sai_object_id_t               sai_buffer,
+                                                     _Out_ uint32_t                   * out_db_buffer_profile_index,
+                                                     _Out_ mlnx_sai_buffer_pool_attr_t* sai_pool_attr);
+static sai_status_t mlnx_sai_buffer_sx_pool_id_to_sai_pool(_In_ sx_cos_pool_id_t  sx_pool_id,
+                                                           _Out_ sai_object_id_t* sai_pool);
+static sai_status_t mlnx_sai_set_ingress_priority_group_buffer_profile_attr(_In_ const sai_object_key_t      * key,
+                                                                            _In_ const sai_attribute_value_t * value,
+                                                                            void                             * arg);
+static sai_status_t mlnx_sai_get_ingress_priority_group_buffer_profile_attr(_In_ const sai_object_key_t   * key,
+                                                                            _Inout_ sai_attribute_value_t * value,
+                                                                            _In_ uint32_t                   attr_index,
+                                                                            _Inout_ vendor_cache_t        * cache,
+                                                                            void                          * arg);
+static sai_status_t mlnx_create_sai_buffer_profile_id(_In_ uint32_t          db_buffer_profile_ind,
+                                                      _Out_ sai_object_id_t* sai_buffer_profile);
+static sai_status_t mlnx_sai_create_buffer_pool(_Out_ sai_object_id_t     * pool_id,
+                                                _In_ uint32_t               attr_count,
+                                                _In_ const sai_attribute_t *attr_list);
+static sai_status_t mlnx_sai_remove_buffer_pool(_In_ sai_object_id_t pool_id);
+static sai_status_t mlnx_sai_set_buffer_pool_attr(_In_ sai_object_id_t pool_id, _In_ const sai_attribute_t *    attr);
+static sai_status_t mlnx_sai_get_buffer_pool_attr(_In_ sai_object_id_t      pool_id,
+                                                  _In_ uint32_t             attr_count,
+                                                  _Inout_ sai_attribute_t * attr_list);
+static sai_status_t mlnx_sai_create_buffer_profile(_Out_ sai_object_id_t     * buffer_profile_id,
+                                                   _In_ uint32_t               attr_count,
+                                                   _In_ const sai_attribute_t *attr_list);
+static sai_status_t mlnx_sai_remove_buffer_profile(_In_ sai_object_id_t buffer_profile_id);
+static sai_status_t mlnx_sai_set_buffer_profile_attr(_In_ sai_object_id_t        buffer_profile_id,
+                                                     _In_ const sai_attribute_t *attr);
+static sai_status_t mlnx_sai_get_buffer_profile_attr(_In_ sai_object_id_t     buffer_profile_id,
+                                                     _In_ uint32_t            attr_count,
+                                                     _Inout_ sai_attribute_t *attr_list);
+static sai_status_t mlnx_sai_get_pool_shared_size_attr(_In_ const sai_object_key_t   * key,
+                                                       _Inout_ sai_attribute_value_t * value,
+                                                       _In_ uint32_t                   attr_index,
+                                                       _Inout_ vendor_cache_t        * cache,
+                                                       void                          * arg);
+static sai_status_t mlnx_sai_get_pool_type_attr(_In_ const sai_object_key_t   * key,
+                                                _Inout_ sai_attribute_value_t * value,
+                                                _In_ uint32_t                   attr_index,
+                                                _Inout_ vendor_cache_t        * cache,
+                                                void                          * arg);
+static sai_status_t mlnx_sai_get_pool_size_attr(_In_ const sai_object_key_t   * key,
+                                                _Inout_ sai_attribute_value_t * value,
+                                                _In_ uint32_t                   attr_index,
+                                                _Inout_ vendor_cache_t        * cache,
+                                                void                          * arg);
+static sai_status_t mlnx_sai_set_pool_size_attr(_In_ const sai_object_key_t      * key,
+                                                _In_ const sai_attribute_value_t * value,
+                                                void                             * arg);
+static sai_status_t mlnx_sai_get_pool_th_mode_attr(_In_ const sai_object_key_t   * key,
+                                                   _Inout_ sai_attribute_value_t * value,
+                                                   _In_ uint32_t                   attr_index,
+                                                   _Inout_ vendor_cache_t        * cache,
+                                                   void                          * arg);
+static sai_status_t mlnx_sai_get_buffer_profile_pool_id_attr(_In_ const sai_object_key_t   * key,
+                                                             _Inout_ sai_attribute_value_t * value,
+                                                             _In_ uint32_t                   attr_index,
+                                                             _Inout_ vendor_cache_t        * cache,
+                                                             void                          * arg);
+static sai_status_t mlnx_sai_set_buffer_profile_pool_id_attr(_In_ const sai_object_key_t      * key,
+                                                             _In_ const sai_attribute_value_t * value,
+                                                             void                             * arg);
+static sai_status_t mlnx_sai_get_buffer_profile_size_attr(_In_ const sai_object_key_t   * key,
+                                                          _Inout_ sai_attribute_value_t * value,
+                                                          _In_ uint32_t                   attr_index,
+                                                          _Inout_ vendor_cache_t        * cache,
+                                                          void                          * arg);
+static sai_status_t mlnx_sai_set_buffer_profile_size_attr(_In_ const sai_object_key_t      * key,
+                                                          _In_ const sai_attribute_value_t * value,
+                                                          void                             * arg);
+static sai_status_t mlnx_sai_get_buffer_profile_dynamic_th_attr(_In_ const sai_object_key_t   * key,
+                                                                _Inout_ sai_attribute_value_t * value,
+                                                                _In_ uint32_t                   attr_index,
+                                                                _Inout_ vendor_cache_t        * cache,
+                                                                void                          * arg);
+static sai_status_t mlnx_sai_set_buffer_profile_dynamic_th_attr(_In_ const sai_object_key_t      * key,
+                                                                _In_ const sai_attribute_value_t * value,
+                                                                void                             * arg);
+static sai_status_t mlnx_sai_get_buffer_profile_static_th_attr(_In_ const sai_object_key_t   * key,
+                                                               _Inout_ sai_attribute_value_t * value,
+                                                               _In_ uint32_t                   attr_index,
+                                                               _Inout_ vendor_cache_t        * cache,
+                                                               void                          * arg);
+static sai_status_t mlnx_sai_set_buffer_profile_static_th_attr(_In_ const sai_object_key_t      * key,
+                                                               _In_ const sai_attribute_value_t * value,
+                                                               void                             * arg);
+static sai_status_t mlnx_sai_get_buffer_profile_xoff_attr(_In_ const sai_object_key_t   * key,
+                                                          _Inout_ sai_attribute_value_t * value,
+                                                          _In_ uint32_t                   attr_index,
+                                                          _Inout_ vendor_cache_t        * cache,
+                                                          void                          * arg);
+static sai_status_t mlnx_sai_set_buffer_profile_xoff_attr(_In_ const sai_object_key_t      * key,
+                                                          _In_ const sai_attribute_value_t * value,
+                                                          void                             * arg);
+static sai_status_t mlnx_sai_get_buffer_profile_xon_attr(_In_ const sai_object_key_t   * key,
+                                                         _Inout_ sai_attribute_value_t * value,
+                                                         _In_ uint32_t                   attr_index,
+                                                         _Inout_ vendor_cache_t        * cache,
+                                                         void                          * arg);
+static sai_status_t mlnx_sai_set_buffer_profile_xon_attr(_In_ const sai_object_key_t      * key,
+                                                         _In_ const sai_attribute_value_t * value,
+                                                         void                             * arg);
+static sai_status_t mlnx_buffer_convert_alpha_sx_to_sai(_In_ sx_cos_port_buff_alpha_e sx_alpha,
+                                                        _Out_ sai_int8_t            * sai_alpha);
+static sai_status_t mlnx_buffer_convert_alpha_sai_to_sx(_In_ sai_int8_t                 sai_alpha,
+                                                        _Out_ sx_cos_port_buff_alpha_e* sx_alpha);
+static const sai_attribute_entry_t        pg_attribs[] = {
+    { SAI_INGRESS_PRIORITY_GROUP_ATTR_BUFFER_PROFILE, false, false, true, true,
+      "PG buffer profile", SAI_ATTR_VAL_TYPE_OID },
+    { END_FUNCTIONALITY_ATTRIBS_ID, false, false, false, false,
+      "", SAI_ATTR_VAL_TYPE_UNDETERMINED }
+};
+static const sai_vendor_attribute_entry_t pg_vendor_attribs[] = {
+    {
+        SAI_INGRESS_PRIORITY_GROUP_ATTR_BUFFER_PROFILE,
+        { false, false, true, true },
+        { false, false, true, true },
+        mlnx_sai_get_ingress_priority_group_buffer_profile_attr, NULL,
+        mlnx_sai_set_ingress_priority_group_buffer_profile_attr, NULL
+    }
+};
+static const sai_attribute_entry_t        pool_attribs[] = {
+    { SAI_BUFFER_POOL_ATTR_SHARED_SIZE, false, false, false, true,
+      "Pool shared size", SAI_ATTR_VAL_TYPE_U32 },
+
+    { SAI_BUFFER_POOL_ATTR_TYPE, true, true, false, true,
+      "Pool type", SAI_ATTR_VAL_TYPE_S32 },
+
+    { SAI_BUFFER_POOL_ATTR_SIZE, true, true, true, true,
+      "Pool size", SAI_ATTR_VAL_TYPE_U32 },
+
+    { SAI_BUFFER_POOL_ATTR_TH_MODE, false, true, false, true,
+      "Pool treshold mode", SAI_ATTR_VAL_TYPE_S32 },
+
+    { END_FUNCTIONALITY_ATTRIBS_ID, false, false, false, false,
+      "", SAI_ATTR_VAL_TYPE_UNDETERMINED }
+};
+static const sai_vendor_attribute_entry_t pool_vendor_attribs[] = {
+    {
+        SAI_BUFFER_POOL_ATTR_SHARED_SIZE,
+        { false, false, false, true },
+        { false, false, false, true },
+        mlnx_sai_get_pool_shared_size_attr, NULL,
+        NULL, NULL
+    },
+    {
+        SAI_BUFFER_POOL_ATTR_TYPE,
+        { true, false, false, true },
+        { true, false, false, true },
+        mlnx_sai_get_pool_type_attr, NULL,
+        NULL, NULL
+    },
+    {
+        SAI_BUFFER_POOL_ATTR_SIZE,
+        { true, false, true, true },
+        { true, false, true, true },
+        mlnx_sai_get_pool_size_attr, NULL,
+        mlnx_sai_set_pool_size_attr, NULL
+    },
+    {
+        SAI_BUFFER_POOL_ATTR_TH_MODE,
+        { true, false, false, true },
+        { true, false, false, true },
+        mlnx_sai_get_pool_th_mode_attr, NULL,
+        NULL, NULL
+    }
+};
+static const sai_attribute_entry_t        buffer_profile_attribs[] = {
+    { SAI_BUFFER_PROFILE_ATTR_POOL_ID, true, true, true, true,
+      "Buffer Profile's pool object id", SAI_ATTR_VAL_TYPE_OID },
+    { SAI_BUFFER_PROFILE_ATTR_BUFFER_SIZE, true, true, true, true,
+      "Buffer Profile size", SAI_ATTR_VAL_TYPE_U32 },
+    { SAI_BUFFER_PROFILE_ATTR_SHARED_DYNAMIC_TH, false, true, true, true,
+      "Buffer Profile shared dynamic treshold", SAI_ATTR_VAL_TYPE_S8 },
+    { SAI_BUFFER_PROFILE_ATTR_SHARED_STATIC_TH, false, true, true, true,
+      "Buffer profile shared static treshold", SAI_ATTR_VAL_TYPE_U32 },
+    { SAI_BUFFER_PROFILE_ATTR_XOFF_TH, false, true, true, true,
+      "Buffer Profile XOFF", SAI_ATTR_VAL_TYPE_U32 },
+    { SAI_BUFFER_PROFILE_ATTR_XON_TH, false, true, true, true,
+      "Buffer Profile XON", SAI_ATTR_VAL_TYPE_U32 },
+    { SAI_BUFFER_PROFILE_ATTR_TH_MODE, false, true, true, true,
+      "Buffer Profile threshold mode", SAI_ATTR_VAL_TYPE_S32 },
+    { END_FUNCTIONALITY_ATTRIBS_ID, false, false, false, false,
+      "", SAI_ATTR_VAL_TYPE_UNDETERMINED }
+};
+static const sai_vendor_attribute_entry_t buffer_profile_vendor_attribs[] = {
+    {
+        SAI_BUFFER_PROFILE_ATTR_POOL_ID,
+        { true, false, true, true },
+        { true, false, true, true },
+        mlnx_sai_get_buffer_profile_pool_id_attr, NULL,
+        mlnx_sai_set_buffer_profile_pool_id_attr, NULL
+    },
+    {
+        SAI_BUFFER_PROFILE_ATTR_BUFFER_SIZE,
+        { true, false, true, true },
+        { true, false, true, true },
+        mlnx_sai_get_buffer_profile_size_attr, NULL,
+        mlnx_sai_set_buffer_profile_size_attr, NULL
+    },
+    {
+        SAI_BUFFER_PROFILE_ATTR_SHARED_DYNAMIC_TH,
+        { true, false, true, true },
+        { true, false, true, true },
+        mlnx_sai_get_buffer_profile_dynamic_th_attr, NULL,
+        mlnx_sai_set_buffer_profile_dynamic_th_attr, NULL
+    },
+    {
+        SAI_BUFFER_PROFILE_ATTR_SHARED_STATIC_TH,
+        { true, false, true, true },
+        { true, false, true, true },
+        mlnx_sai_get_buffer_profile_static_th_attr, NULL,
+        mlnx_sai_set_buffer_profile_static_th_attr, NULL
+    },
+    {
+        SAI_BUFFER_PROFILE_ATTR_XOFF_TH,
+        { true, false, true, true },
+        { true, false, true, true },
+        mlnx_sai_get_buffer_profile_xoff_attr, NULL,
+        mlnx_sai_set_buffer_profile_xoff_attr, NULL
+    },
+    {
+        SAI_BUFFER_PROFILE_ATTR_XON_TH,
+        { true, false, true, true },
+        { true, false, true, true },
+        mlnx_sai_get_buffer_profile_xon_attr, NULL,
+        mlnx_sai_set_buffer_profile_xon_attr, NULL
+    },
+    {
+        SAI_BUFFER_PROFILE_ATTR_TH_MODE,
+        { false, false, false, false },
+        { false, false, false, false },
+        NULL, NULL,
+        NULL, NULL
+    },
+};
+
 
 void init_buffer_resource_limits()
 {
@@ -82,7 +353,7 @@ const mlnx_sai_buffer_resource_limits_t* mlnx_sai_get_buffer_resource_limits()
     return &buffer_limits;
 }
 
-uint32_t mlnx_sai_get_buffer_profile_number()
+static uint32_t mlnx_sai_get_buffer_profile_number()
 {
     return (1 + (g_sai_db_ptr->ports_number * buffer_limits.max_buffers_per_port));
 }
@@ -132,13 +403,13 @@ sai_status_t mlnx_sai_get_port_buffer_index_array(uint32_t                      
     return SAI_STATUS_SUCCESS;
 }
 
-bool mlnx_sai_buffer_check_pool_db_consistency(uint32_t sx_pool_id, bool expected);
-bool* mlnx_sai_get_port_buffer_pool_allocation_array()
+static bool mlnx_sai_buffer_check_pool_db_consistency(uint32_t sx_pool_id, bool expected);
+static bool* mlnx_sai_get_port_buffer_pool_allocation_array()
 {
     return g_sai_buffer_db_ptr->pool_allocation;
 }
 
-sai_status_t mlnx_sai_buffer_pool_db_get_state(_In_ uint32_t pool_id, _Out_ bool*     state)
+static sai_status_t mlnx_sai_buffer_pool_db_get_state(_In_ uint32_t pool_id, _Out_ bool*     state)
 {
     if (NULL == state) {
         SX_LOG_ERR("NULL state\n");
@@ -152,7 +423,7 @@ sai_status_t mlnx_sai_buffer_pool_db_get_state(_In_ uint32_t pool_id, _Out_ bool
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_sai_buffer_pool_db_set_state(_In_ uint32_t pool_id, _In_ bool state)
+static sai_status_t mlnx_sai_buffer_pool_db_set_state(_In_ uint32_t pool_id, _In_ bool state)
 {
     if (pool_id >= BUFFER_DB_POOL_FLAG_ARRAY_SIZE) {
         SX_LOG_ERR("pool_id:%d out of bounds:%d\n", pool_id, BUFFER_DB_POOL_FLAG_ARRAY_SIZE);
@@ -166,12 +437,12 @@ sai_status_t mlnx_sai_buffer_pool_db_set_state(_In_ uint32_t pool_id, _In_ bool 
     return SAI_STATUS_SUCCESS;
 }
 
-bool mlnx_sai_buffer_get_pool_create_triggered_flag()
+static bool mlnx_sai_buffer_get_pool_create_triggered_flag()
 {
     return mlnx_sai_get_port_buffer_pool_allocation_array()[BUFFER_DB_POOL_FLAG_ARRAY_SIZE];
 }
 
-sai_status_t mlnx_sai_buffer_set_pool_raise_triggered_flag()
+static sai_status_t mlnx_sai_buffer_set_pool_raise_triggered_flag()
 {
     if (mlnx_sai_get_port_buffer_pool_allocation_array()[BUFFER_DB_POOL_FLAG_ARRAY_SIZE]) {
         SX_LOG_ERR("Double setting the initial pool creation flag\n");
@@ -181,7 +452,7 @@ sai_status_t mlnx_sai_buffer_set_pool_raise_triggered_flag()
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_sai_buffer_check_pool_is_reset(_In_ sai_object_id_t pool_id, _Out_ bool*           is_reset)
+static sai_status_t mlnx_sai_buffer_check_pool_is_reset(_In_ sai_object_id_t pool_id, _Out_ bool*           is_reset)
 {
     sai_status_t                sai_status;
     mlnx_sai_buffer_pool_attr_t sai_pool_attr;
@@ -194,7 +465,7 @@ sai_status_t mlnx_sai_buffer_check_pool_is_reset(_In_ sai_object_id_t pool_id, _
     return SAI_STATUS_SUCCESS;
 }
 
-void mlnx_sai_buffer_log_pool_db()
+static void mlnx_sai_buffer_log_pool_db()
 {
     uint32_t     ii;
     sai_status_t sai_status;
@@ -212,7 +483,8 @@ void mlnx_sai_buffer_log_pool_db()
     SX_LOG_EXIT();
 }
 
-sai_status_t mlnx_sai_buffer_pool_db_alloc_slot(sai_buffer_pool_type_t pool_type, _Out_ uint32_t *        pool_id)
+static sai_status_t mlnx_sai_buffer_pool_db_alloc_slot(sai_buffer_pool_type_t pool_type,
+                                                       _Out_ uint32_t       * pool_id)
 {
     sai_status_t sai_status;
     uint32_t     ii;
@@ -262,7 +534,8 @@ sai_status_t mlnx_sai_buffer_pool_db_alloc_slot(sai_buffer_pool_type_t pool_type
     return SAI_STATUS_INSUFFICIENT_RESOURCES;
 }
 
-bool mlnx_sai_buffer_pool_db_is_full()
+#if 0
+static bool mlnx_sai_buffer_pool_db_is_full()
 {
     uint32_t ii;
 
@@ -274,7 +547,7 @@ bool mlnx_sai_buffer_pool_db_is_full()
     return true;
 }
 
-uint32_t mlnx_sai_buffer_pool_db_flag_count(_Out_ uint32_t* out_count)
+static uint32_t mlnx_sai_buffer_pool_db_flag_count(_Out_ uint32_t* out_count)
 {
     sai_status_t sai_status;
     uint32_t     ii;
@@ -292,8 +565,9 @@ uint32_t mlnx_sai_buffer_pool_db_flag_count(_Out_ uint32_t* out_count)
     *out_count = count;
     return SAI_STATUS_SUCCESS;
 }
+#endif
 
-bool mlnx_sai_buffer_check_pool_db_consistency(uint32_t sx_pool_id, bool expected)
+static bool mlnx_sai_buffer_check_pool_db_consistency(uint32_t sx_pool_id, bool expected)
 {
     bool pool_db_state;
 
@@ -330,14 +604,7 @@ buffer_units_t bytes_to_mlnx_cells(uint32_t bytes)
     return ((buffer_units_t)ceil(((double)bytes) / (double)g_resource_limits.shared_buff_buffer_unit_size));
 }
 
-typedef struct _mlnx_affect_port_buff_items {
-    bool* pgs;
-    bool* tcs;
-    bool* i_port_buffers;
-    bool* e_port_buffers;
-} mlnx_affect_port_buff_items_t;
-
-bool alloc_affected_items(_Out_ mlnx_affect_port_buff_items_t* affected_items)
+static bool alloc_affected_items(_Out_ mlnx_affect_port_buff_items_t* affected_items)
 {
     bool ret = false;
 
@@ -372,14 +639,16 @@ exit:
     }
     return ret;
 }
-void reset_affected_items(_Out_ mlnx_affect_port_buff_items_t* affected_items)
+
+static void reset_affected_items(_Out_ mlnx_affect_port_buff_items_t* affected_items)
 {
     memset(affected_items->pgs, 0, buffer_limits.num_port_pg_buff * sizeof(bool));
     memset(affected_items->tcs, 0, buffer_limits.num_port_queue_buff * sizeof(bool));
     memset(affected_items->i_port_buffers, 0, buffer_limits.num_ingress_pools * sizeof(bool));
     memset(affected_items->e_port_buffers, 0, buffer_limits.num_egress_pools * sizeof(bool));
 }
-void free_affected_items(_Out_ mlnx_affect_port_buff_items_t* affected_items)
+
+static void free_affected_items(_Out_ mlnx_affect_port_buff_items_t* affected_items)
 {
     free(affected_items->pgs);
     affected_items->pgs = NULL;
@@ -449,275 +718,7 @@ static void buffer_profile_key_to_str(_In_ sai_object_id_t sai_buffer_profile, _
     }
 }
 
-sai_status_t mlnx_sai_buffer_unbind_shared_buffers(_In_ sx_port_log_id_t log_port);
-sai_status_t mlnx_sai_buffer_unbind_reserved_buffers(_In_ sx_port_log_id_t log_port);
-sai_status_t mlnx_sai_buffer_delete_all_buffer_config();
-sai_status_t mlnx_sai_buffer_delete_all_pools();
-sai_status_t mlnx_sai_buffer_reset_all_sx_pools();
-void log_buffer_profile_refs(_In_ mlnx_affect_port_buff_items_t* refs);
-sai_status_t mlnx_create_sai_pool_id(_In_ uint32_t sx_pool_id, _Out_ sai_object_id_t*  sai_pool);
-sai_status_t mlnx_sai_is_buffer_in_use(_In_ sai_object_id_t buffer_profile_id);
-sai_status_t mlnx_sai_collect_buffer_refs(_In_ sai_object_id_t                 sai_buffer_id,
-                                          _In_ uint32_t                        db_port_ind,
-                                          _Out_ mlnx_affect_port_buff_items_t* affected_items);
-sai_status_t mlnx_sai_buffer_configure_reserved_buffers(_In_ sx_port_log_id_t            logical_port,
-                                                        _Out_ sx_cos_port_buffer_attr_t* sx_port_reserved_buff_attr_arr,
-                                                        _In_ uint32_t                    count);
-sai_status_t mlnx_sai_buffer_configure_shared_buffers(_In_ sx_port_log_id_t                   logical_port,
-                                                      _Out_ sx_cos_port_shared_buffer_attr_t* sx_port_shared_buff_attr_arr,
-                                                      _In_ uint32_t                           count);
-sai_status_t mlnx_sai_buffer_apply_buffer_change_to_references(sai_object_id_t sai_buffer_id);
-sai_status_t mlnx_sai_buffer_apply_buffer_to_queue(_In_ uint32_t                           qos_db_port_ind,
-                                                   _In_ uint32_t                           qos_ind,
-                                                   _In_ mlnx_sai_db_buffer_profile_entry_t buff_db_entry,
-                                                   _In_ mlnx_sai_buffer_pool_attr_t        sai_pool_attr);
-sai_status_t mlnx_sai_buffer_apply_buffer_to_pg(_In_ uint32_t                           port_ind,
-                                                _In_ uint32_t                           pg_ind,
-                                                _In_ mlnx_sai_db_buffer_profile_entry_t buff_db_entry,
-                                                _In_ mlnx_sai_buffer_pool_attr_t        sai_pool_attr);
-sai_status_t mlnx_get_sai_buffer_profile_data(_In_ sai_object_id_t               sai_buffer,
-                                              _Out_ uint32_t                   * out_db_buffer_profile_index,
-                                              _Out_ mlnx_sai_buffer_pool_attr_t* sai_pool_attr);
-sai_status_t mlnx_sai_buffer_sx_pool_id_to_sai_pool(_In_ sx_cos_pool_id_t  sx_pool_id,
-                                                    _Out_ sai_object_id_t* sai_pool);
-sai_status_t mlnx_sai_set_ingress_priority_group_buffer_profile_attr(_In_ const sai_object_key_t      * key,
-                                                                     _In_ const sai_attribute_value_t * value,
-                                                                     void                             * arg);
-sai_status_t mlnx_sai_get_ingress_priority_group_buffer_profile_attr(_In_ const sai_object_key_t   * key,
-                                                                     _Inout_ sai_attribute_value_t * value,
-                                                                     _In_ uint32_t                   attr_index,
-                                                                     _Inout_ vendor_cache_t        * cache,
-                                                                     void                          * arg);
-sai_status_t mlnx_create_sai_buffer_profile_id(_In_ uint32_t          db_buffer_profile_ind,
-                                               _Out_ sai_object_id_t* sai_buffer_profile);
-sai_status_t mlnx_sai_create_buffer_pool(_Out_ sai_object_id_t     * pool_id,
-                                         _In_ uint32_t               attr_count,
-                                         _In_ const sai_attribute_t *attr_list);
-sai_status_t mlnx_sai_remove_buffer_pool(_In_ sai_object_id_t pool_id);
-sai_status_t mlnx_sai_set_buffer_pool_attr(_In_ sai_object_id_t pool_id, _In_ const sai_attribute_t *    attr);
-sai_status_t mlnx_sai_get_buffer_pool_attr(_In_ sai_object_id_t      pool_id,
-                                           _In_ uint32_t             attr_count,
-                                           _Inout_ sai_attribute_t * attr_list);
-sai_status_t mlnx_sai_create_buffer_profile(_Out_ sai_object_id_t     * buffer_profile_id,
-                                            _In_ uint32_t               attr_count,
-                                            _In_ const sai_attribute_t *attr_list);
-sai_status_t mlnx_sai_remove_buffer_profile(_In_ sai_object_id_t buffer_profile_id);
-sai_status_t mlnx_sai_set_buffer_profile_attr(_In_ sai_object_id_t        buffer_profile_id,
-                                              _In_ const sai_attribute_t *attr);
-sai_status_t mlnx_sai_get_buffer_profile_attr(_In_ sai_object_id_t     buffer_profile_id,
-                                              _In_ uint32_t            attr_count,
-                                              _Inout_ sai_attribute_t *attr_list);
-sai_status_t mlnx_sai_get_pool_shared_size_attr(_In_ const sai_object_key_t   * key,
-                                                _Inout_ sai_attribute_value_t * value,
-                                                _In_ uint32_t                   attr_index,
-                                                _Inout_ vendor_cache_t        * cache,
-                                                void                          * arg);
-sai_status_t mlnx_sai_get_pool_type_attr(_In_ const sai_object_key_t   * key,
-                                         _Inout_ sai_attribute_value_t * value,
-                                         _In_ uint32_t                   attr_index,
-                                         _Inout_ vendor_cache_t        * cache,
-                                         void                          * arg);
-sai_status_t mlnx_sai_get_pool_size_attr(_In_ const sai_object_key_t   * key,
-                                         _Inout_ sai_attribute_value_t * value,
-                                         _In_ uint32_t                   attr_index,
-                                         _Inout_ vendor_cache_t        * cache,
-                                         void                          * arg);
-sai_status_t mlnx_sai_set_pool_size_attr(_In_ const sai_object_key_t      * key,
-                                         _In_ const sai_attribute_value_t * value,
-                                         void                             * arg);
-sai_status_t mlnx_sai_get_pool_th_mode_attr(_In_ const sai_object_key_t   * key,
-                                            _Inout_ sai_attribute_value_t * value,
-                                            _In_ uint32_t                   attr_index,
-                                            _Inout_ vendor_cache_t        * cache,
-                                            void                          * arg);
-sai_status_t mlnx_sai_get_buffer_profile_pool_id_attr(_In_ const sai_object_key_t   * key,
-                                                      _Inout_ sai_attribute_value_t * value,
-                                                      _In_ uint32_t                   attr_index,
-                                                      _Inout_ vendor_cache_t        * cache,
-                                                      void                          * arg);
-sai_status_t mlnx_sai_set_buffer_profile_pool_id_attr(_In_ const sai_object_key_t      * key,
-                                                      _In_ const sai_attribute_value_t * value,
-                                                      void                             * arg);
-sai_status_t mlnx_sai_get_buffer_profile_size_attr(_In_ const sai_object_key_t   * key,
-                                                   _Inout_ sai_attribute_value_t * value,
-                                                   _In_ uint32_t                   attr_index,
-                                                   _Inout_ vendor_cache_t        * cache,
-                                                   void                          * arg);
-sai_status_t mlnx_sai_set_buffer_profile_size_attr(_In_ const sai_object_key_t      * key,
-                                                   _In_ const sai_attribute_value_t * value,
-                                                   void                             * arg);
-sai_status_t mlnx_sai_get_buffer_profile_dynamic_th_attr(_In_ const sai_object_key_t   * key,
-                                                         _Inout_ sai_attribute_value_t * value,
-                                                         _In_ uint32_t                   attr_index,
-                                                         _Inout_ vendor_cache_t        * cache,
-                                                         void                          * arg);
-sai_status_t mlnx_sai_set_buffer_profile_dynamic_th_attr(_In_ const sai_object_key_t      * key,
-                                                         _In_ const sai_attribute_value_t * value,
-                                                         void                             * arg);
-sai_status_t mlnx_sai_get_buffer_profile_static_th_attr(_In_ const sai_object_key_t   * key,
-                                                        _Inout_ sai_attribute_value_t * value,
-                                                        _In_ uint32_t                   attr_index,
-                                                        _Inout_ vendor_cache_t        * cache,
-                                                        void                          * arg);
-sai_status_t mlnx_sai_set_buffer_profile_static_th_attr(_In_ const sai_object_key_t      * key,
-                                                        _In_ const sai_attribute_value_t * value,
-                                                        void                             * arg);
-sai_status_t mlnx_sai_get_buffer_profile_xoff_attr(_In_ const sai_object_key_t   * key,
-                                                   _Inout_ sai_attribute_value_t * value,
-                                                   _In_ uint32_t                   attr_index,
-                                                   _Inout_ vendor_cache_t        * cache,
-                                                   void                          * arg);
-sai_status_t mlnx_sai_set_buffer_profile_xoff_attr(_In_ const sai_object_key_t      * key,
-                                                   _In_ const sai_attribute_value_t * value,
-                                                   void                             * arg);
-sai_status_t mlnx_sai_get_buffer_profile_xon_attr(_In_ const sai_object_key_t   * key,
-                                                  _Inout_ sai_attribute_value_t * value,
-                                                  _In_ uint32_t                   attr_index,
-                                                  _Inout_ vendor_cache_t        * cache,
-                                                  void                          * arg);
-sai_status_t mlnx_sai_set_buffer_profile_xon_attr(_In_ const sai_object_key_t      * key,
-                                                  _In_ const sai_attribute_value_t * value,
-                                                  void                             * arg);
-
-sai_status_t mlnx_buffer_convert_alpha_sx_to_sai(
-    _In_ sx_cos_port_buff_alpha_e   sx_alpha,
-    _Out_ sai_int8_t*               sai_alpha);
-sai_status_t mlnx_buffer_convert_alpha_sai_to_sx(
-    _In_    sai_int8_t                  sai_alpha,
-    _Out_   sx_cos_port_buff_alpha_e*   sx_alpha);
-
-static const sai_attribute_entry_t        pg_attribs[] = {
-    { SAI_INGRESS_PRIORITY_GROUP_ATTR_BUFFER_PROFILE, false, false, true, true,
-      "PG buffer profile", SAI_ATTR_VAL_TYPE_OID},
-    { END_FUNCTIONALITY_ATTRIBS_ID, false, false, false, false,
-      "", SAI_ATTR_VAL_TYPE_UNDETERMINED }
-};
-static const sai_vendor_attribute_entry_t pg_vendor_attribs[] = {
-    {
-        SAI_INGRESS_PRIORITY_GROUP_ATTR_BUFFER_PROFILE,
-        { false, false, true, true },
-        { false, false, true, true },
-        mlnx_sai_get_ingress_priority_group_buffer_profile_attr, NULL,
-        mlnx_sai_set_ingress_priority_group_buffer_profile_attr, NULL
-    }
-};
-static const sai_attribute_entry_t        pool_attribs[] = {
-    { SAI_BUFFER_POOL_ATTR_SHARED_SIZE, false, false, false, true,
-      "Pool shared size", SAI_ATTR_VAL_TYPE_U32},
-
-    { SAI_BUFFER_POOL_ATTR_TYPE, true, true, false, true,
-      "Pool type", SAI_ATTR_VAL_TYPE_S32},
-
-    { SAI_BUFFER_POOL_ATTR_SIZE, true, true, true, true,
-      "Pool size", SAI_ATTR_VAL_TYPE_U32},
-
-    { SAI_BUFFER_POOL_ATTR_TH_MODE, false, true, false, true,
-      "Pool treshold mode", SAI_ATTR_VAL_TYPE_S32},
-
-    { END_FUNCTIONALITY_ATTRIBS_ID, false, false, false, false,
-      "", SAI_ATTR_VAL_TYPE_UNDETERMINED }
-};
-static const sai_vendor_attribute_entry_t pool_vendor_attribs[] = {
-    {
-        SAI_BUFFER_POOL_ATTR_SHARED_SIZE,
-        { false, false, false, true },
-        { false, false, false, true },
-        mlnx_sai_get_pool_shared_size_attr, NULL,
-        NULL, NULL
-    },
-    {
-        SAI_BUFFER_POOL_ATTR_TYPE,
-        { true, false, false, true },
-        { true, false, false, true },
-        mlnx_sai_get_pool_type_attr, NULL,
-        NULL, NULL
-    },
-    {
-        SAI_BUFFER_POOL_ATTR_SIZE,
-        { true, false, true, true },
-        { true, false, true, true },
-        mlnx_sai_get_pool_size_attr, NULL,
-        mlnx_sai_set_pool_size_attr, NULL
-    },
-    {
-        SAI_BUFFER_POOL_ATTR_TH_MODE,
-        { true, false, false, true },
-        { true, false, false, true },
-        mlnx_sai_get_pool_th_mode_attr, NULL,
-        NULL, NULL
-    }
-};
-static const sai_attribute_entry_t        buffer_profile_attribs[] = {
-    { SAI_BUFFER_PROFILE_ATTR_POOL_ID, true, true, true, true,
-      "Buffer Profile's pool object id", SAI_ATTR_VAL_TYPE_OID},
-    { SAI_BUFFER_PROFILE_ATTR_BUFFER_SIZE, true, true, true, true,
-      "Buffer Profile size", SAI_ATTR_VAL_TYPE_U32},
-    { SAI_BUFFER_PROFILE_ATTR_SHARED_DYNAMIC_TH, false, true, true, true,
-      "Buffer Profile shared dynamic treshold", SAI_ATTR_VAL_TYPE_S8},
-    { SAI_BUFFER_PROFILE_ATTR_SHARED_STATIC_TH, false, true, true, true,
-      "Buffer profile shared static treshold", SAI_ATTR_VAL_TYPE_U32},
-    { SAI_BUFFER_PROFILE_ATTR_XOFF_TH, false, true, true, true,
-      "Buffer Profile XOFF", SAI_ATTR_VAL_TYPE_U32},
-    { SAI_BUFFER_PROFILE_ATTR_XON_TH, false, true, true, true,
-      "Buffer Profile XON", SAI_ATTR_VAL_TYPE_U32},
-    { SAI_BUFFER_PROFILE_ATTR_TH_MODE, false, true, true, true,
-      "Buffer Profile threshold mode", SAI_ATTR_VAL_TYPE_S32},
-    { END_FUNCTIONALITY_ATTRIBS_ID, false, false, false, false,
-      "", SAI_ATTR_VAL_TYPE_UNDETERMINED }
-};
-static const sai_vendor_attribute_entry_t buffer_profile_vendor_attribs[] = {
-    {
-        SAI_BUFFER_PROFILE_ATTR_POOL_ID,
-        { true, false, true, true },
-        { true, false, true, true },
-        mlnx_sai_get_buffer_profile_pool_id_attr, NULL,
-        mlnx_sai_set_buffer_profile_pool_id_attr, NULL
-    },
-    {
-        SAI_BUFFER_PROFILE_ATTR_BUFFER_SIZE,
-        { true, false, true, true },
-        { true, false, true, true },
-        mlnx_sai_get_buffer_profile_size_attr, NULL,
-        mlnx_sai_set_buffer_profile_size_attr, NULL
-    },
-    {
-        SAI_BUFFER_PROFILE_ATTR_SHARED_DYNAMIC_TH,
-        { true, false, true, true },
-        { true, false, true, true },
-        mlnx_sai_get_buffer_profile_dynamic_th_attr, NULL,
-        mlnx_sai_set_buffer_profile_dynamic_th_attr, NULL
-    },
-    {
-        SAI_BUFFER_PROFILE_ATTR_SHARED_STATIC_TH,
-        { true, false, true, true },
-        { true, false, true, true },
-        mlnx_sai_get_buffer_profile_static_th_attr, NULL,
-        mlnx_sai_set_buffer_profile_static_th_attr, NULL
-    },
-    {
-        SAI_BUFFER_PROFILE_ATTR_XOFF_TH,
-        { true, false, true, true },
-        { true, false, true, true },
-        mlnx_sai_get_buffer_profile_xoff_attr, NULL,
-        mlnx_sai_set_buffer_profile_xoff_attr, NULL
-    },
-    {
-        SAI_BUFFER_PROFILE_ATTR_XON_TH,
-        { true, false, true, true },
-        { true, false, true, true },
-        mlnx_sai_get_buffer_profile_xon_attr, NULL,
-        mlnx_sai_set_buffer_profile_xon_attr, NULL
-    },
-    {
-        SAI_BUFFER_PROFILE_ATTR_TH_MODE,
-        { false, false, false, false },
-        { false, false, false, false },
-        NULL, NULL,
-        NULL, NULL
-    },
-};
-
-void log_buffer_profile_refs(_In_ mlnx_affect_port_buff_items_t* refs)
+static void log_buffer_profile_refs(_In_ mlnx_affect_port_buff_items_t* refs)
 {
     uint32_t ind;
 
@@ -746,7 +747,7 @@ void log_buffer_profile_refs(_In_ mlnx_affect_port_buff_items_t* refs)
     SX_LOG_EXIT();
 }
 
-void log_sx_pool_mode(_In_ sx_cos_buffer_max_mode_e mode)
+static void log_sx_pool_mode(_In_ sx_cos_buffer_max_mode_e mode)
 {
     if (SX_COS_BUFFER_MAX_MODE_STATIC_E == mode) {
         SX_LOG_DBG("SX_COS_BUFFER_MAX_MODE_STATIC_E\n");
@@ -757,7 +758,7 @@ void log_sx_pool_mode(_In_ sx_cos_buffer_max_mode_e mode)
     }
 }
 
-void log_sx_shared_max_size(sx_cos_buffer_max_t max)
+static void log_sx_shared_max_size(sx_cos_buffer_max_t max)
 {
     SX_LOG_ENTER();
 
@@ -774,7 +775,8 @@ void log_sx_shared_max_size(sx_cos_buffer_max_t max)
     SX_LOG_EXIT();
 }
 
-void log_sx_pool_attribs(_In_ uint32_t sx_pool_id, _In_ sx_cos_pool_attr_t sx_pool_attr)
+#if 0
+static void log_sx_pool_attribs(_In_ uint32_t sx_pool_id, _In_ sx_cos_pool_attr_t sx_pool_attr)
 {
     SX_LOG_ENTER();
 
@@ -794,8 +796,9 @@ void log_sx_pool_attribs(_In_ uint32_t sx_pool_id, _In_ sx_cos_pool_attr_t sx_po
 
     SX_LOG_EXIT();
 }
+#endif
 
-sai_status_t log_sai_shared_max_size(mlnx_sai_shared_max_size_t shared_max_size)
+static sai_status_t log_sai_shared_max_size(mlnx_sai_shared_max_size_t shared_max_size)
 {
     char       * str;
     sai_status_t sai_status = SAI_STATUS_SUCCESS;
@@ -826,9 +829,9 @@ sai_status_t log_sai_shared_max_size(mlnx_sai_shared_max_size_t shared_max_size)
     return sai_status;
 }
 
-void log_sx_port_buffers(uint32_t                   port_ind,
-                         uint32_t                   sx_port_buffer_attr_cnt,
-                         sx_cos_port_buffer_attr_t* sx_port_buff_attr)
+static void log_sx_port_buffers(uint32_t                   port_ind,
+                                uint32_t                   sx_port_buffer_attr_cnt,
+                                sx_cos_port_buffer_attr_t* sx_port_buff_attr)
 {
     uint32_t buff_ind;
 
@@ -886,9 +889,9 @@ void log_sx_port_buffers(uint32_t                   port_ind,
     SX_LOG_EXIT();
 }
 
-void log_sx_port_shared_buffers(uint32_t                          port_ind,
-                                uint32_t                          sx_port_shared_buffer_attr_cnt,
-                                sx_cos_port_shared_buffer_attr_t* sx_port_shared_buff_attr)
+static void log_sx_port_shared_buffers(uint32_t                          port_ind,
+                                       uint32_t                          sx_port_shared_buffer_attr_cnt,
+                                       sx_cos_port_shared_buffer_attr_t* sx_port_shared_buff_attr)
 {
     uint32_t buff_ind;
 
@@ -943,7 +946,7 @@ void log_sx_port_shared_buffers(uint32_t                          port_ind,
     SX_LOG_EXIT();
 }
 
-void log_sai_pool_mode(_In_ sai_buffer_threshold_mode_t mode)
+static void log_sai_pool_mode(_In_ sai_buffer_threshold_mode_t mode)
 {
     if (SAI_BUFFER_THRESHOLD_MODE_STATIC == mode) {
         SX_LOG_DBG("SAI_BUFFER_THRESHOLD_MODE_STATIC\n");
@@ -953,7 +956,7 @@ void log_sai_pool_mode(_In_ sai_buffer_threshold_mode_t mode)
     }
 }
 
-void log_sai_pool_type(_In_ sai_buffer_pool_type_t pool_type)
+static void log_sai_pool_type(_In_ sai_buffer_pool_type_t pool_type)
 {
     if (SAI_BUFFER_POOL_INGRESS == pool_type) {
         SX_LOG_DBG("pool_type:SAI_BUFFER_POOL_INGRESS \n");
@@ -963,7 +966,7 @@ void log_sai_pool_type(_In_ sai_buffer_pool_type_t pool_type)
     }
 }
 
-void log_sai_pool_attribs(_In_ mlnx_sai_buffer_pool_attr_t sai_pool_attr)
+static void log_sai_pool_attribs(_In_ mlnx_sai_buffer_pool_attr_t sai_pool_attr)
 {
     SX_LOG_ENTER();
     SX_LOG_DBG("sx_pool_id:%d \n", sai_pool_attr.sx_pool_id);
@@ -991,7 +994,7 @@ sai_status_t log_sai_pool_data(_In_ sai_object_id_t sai_pool)
     return sai_status;
 }
 
-sai_status_t log_sai_buffer_profile_db_entry_fields(mlnx_sai_db_buffer_profile_entry_t db_buff)
+static sai_status_t log_sai_buffer_profile_db_entry_fields(mlnx_sai_db_buffer_profile_entry_t db_buff)
 {
     sai_status_t sai_status;
     char         key_str[MAX_KEY_STR_LEN];
@@ -1012,7 +1015,7 @@ sai_status_t log_sai_buffer_profile_db_entry_fields(mlnx_sai_db_buffer_profile_e
     return sai_status;
 }
 
-sai_status_t log_sai_buffer_profile_db_entry(_In_ uint32_t db_buffer_profile_index)
+static sai_status_t log_sai_buffer_profile_db_entry(_In_ uint32_t db_buffer_profile_index)
 {
     sai_status_t sai_status = SAI_STATUS_SUCCESS;
 
@@ -1030,7 +1033,7 @@ sai_status_t log_sai_buffer_profile_db_entry(_In_ uint32_t db_buffer_profile_ind
     return sai_status;
 }
 
-sai_status_t is_valid_buffer_profile(_In_ sai_object_id_t sai_buffer)
+static sai_status_t is_valid_buffer_profile(_In_ sai_object_id_t sai_buffer)
 {
     mlnx_sai_db_buffer_profile_entry_t* db_buffer_profile;
     uint32_t                            db_buffer_profile_index;
@@ -1122,9 +1125,9 @@ sai_status_t log_sai_buffer_profile(_In_ sai_object_id_t sai_buffer_profile)
     return sai_status;
 }
 
-sai_status_t get_pg_data(_In_ sai_object_id_t sai_pg,
-                         _Out_ uint32_t     * db_port_index,
-                         _Out_ uint32_t     * port_pg_index)
+static sai_status_t get_pg_data(_In_ sai_object_id_t sai_pg,
+                                _Out_ uint32_t     * db_port_index,
+                                _Out_ uint32_t     * port_pg_index)
 {
     sai_status_t sai_status;
     uint8_t      extended_data[EXTENDED_DATA_SIZE];
@@ -1163,9 +1166,9 @@ sai_status_t get_pg_data(_In_ sai_object_id_t sai_pg,
 }
 
 /** buffer profile pointer [sai_object_id_t] */
-sai_status_t mlnx_sai_set_ingress_priority_group_buffer_profile_attr(_In_ const sai_object_key_t      * key,
-                                                                     _In_ const sai_attribute_value_t * value,
-                                                                     void                             * arg)
+static sai_status_t mlnx_sai_set_ingress_priority_group_buffer_profile_attr(_In_ const sai_object_key_t      * key,
+                                                                            _In_ const sai_attribute_value_t * value,
+                                                                            void                             * arg)
 {
     sai_status_t                       sai_status;
     uint32_t                           db_port_index                 = 0;
@@ -1275,11 +1278,11 @@ sai_status_t mlnx_sai_set_ingress_priority_group_buffer_profile_attr(_In_ const 
 }
 
 /** buffer profile pointer [sai_object_id_t] */
-sai_status_t mlnx_sai_get_ingress_priority_group_buffer_profile_attr(_In_ const sai_object_key_t   * key,
-                                                                     _Inout_ sai_attribute_value_t * value,
-                                                                     _In_ uint32_t                   attr_index,
-                                                                     _Inout_ vendor_cache_t        * cache,
-                                                                     void                          * arg)
+static sai_status_t mlnx_sai_get_ingress_priority_group_buffer_profile_attr(_In_ const sai_object_key_t   * key,
+                                                                            _Inout_ sai_attribute_value_t * value,
+                                                                            _In_ uint32_t                   attr_index,
+                                                                            _Inout_ vendor_cache_t        * cache,
+                                                                            void                          * arg)
 {
     sai_status_t    sai_status;
     uint32_t        db_port_index = 0;
@@ -1322,9 +1325,9 @@ sai_status_t mlnx_sai_get_ingress_priority_group_buffer_profile_attr(_In_ const 
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_sai_get_ingress_priority_group_attr(_In_ sai_object_id_t      ingress_pg_id,
-                                                      _In_ uint32_t             attr_count,
-                                                      _Inout_ sai_attribute_t * attr_list)
+static sai_status_t mlnx_sai_get_ingress_priority_group_attr(_In_ sai_object_id_t      ingress_pg_id,
+                                                             _In_ uint32_t             attr_count,
+                                                             _Inout_ sai_attribute_t * attr_list)
 {
     const sai_object_key_t key = { .object_id = ingress_pg_id };
     char                   key_str[MAX_KEY_STR_LEN];
@@ -1338,8 +1341,8 @@ sai_status_t mlnx_sai_get_ingress_priority_group_attr(_In_ sai_object_id_t      
     return sai_status;
 }
 
-sai_status_t mlnx_sai_set_ingress_priority_group_attr(_In_ sai_object_id_t        ingress_pg_id,
-                                                      _In_ const sai_attribute_t *attr)
+static sai_status_t mlnx_sai_set_ingress_priority_group_attr(_In_ sai_object_id_t        ingress_pg_id,
+                                                             _In_ const sai_attribute_t *attr)
 {
     const sai_object_key_t key = { .object_id = ingress_pg_id };
     char                   key_str[MAX_KEY_STR_LEN];
@@ -1352,8 +1355,8 @@ sai_status_t mlnx_sai_set_ingress_priority_group_attr(_In_ sai_object_id_t      
     return sai_status;
 }
 
-sai_status_t convert_sai_pool_type_to_sx_pool_direction(_In_ sai_buffer_pool_type_t              sai_pool_type,
-                                                        _Out_ sx_cos_port_buff_pool_direction_e* sx_pool_direction)
+static sai_status_t convert_sai_pool_type_to_sx_pool_direction(_In_ sai_buffer_pool_type_t              sai_pool_type,
+                                                               _Out_ sx_cos_port_buff_pool_direction_e* sx_pool_direction)
 {
     SX_LOG_DBG("Input pool type:%d\n", sai_pool_type);
     switch (sai_pool_type) {
@@ -1372,8 +1375,8 @@ sai_status_t convert_sai_pool_type_to_sx_pool_direction(_In_ sai_buffer_pool_typ
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t convert_sai_pool_mode_to_sx_pool_mode(_In_ sai_buffer_threshold_mode_t sai_pool_mode,
-                                                   _Out_ sx_cos_buffer_max_mode_e * sx_pool_mode)
+static sai_status_t convert_sai_pool_mode_to_sx_pool_mode(_In_ sai_buffer_threshold_mode_t sai_pool_mode,
+                                                          _Out_ sx_cos_buffer_max_mode_e * sx_pool_mode)
 {
     if (NULL == sx_pool_mode) {
         SX_LOG_ERR("NULL sx_pool_mode\n");
@@ -1395,8 +1398,8 @@ sai_status_t convert_sai_pool_mode_to_sx_pool_mode(_In_ sai_buffer_threshold_mod
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t convert_sx_pool_mode_to_sai_pool_mode(_In_ sx_cos_buffer_max_mode_e      sx_pool_mode,
-                                                   _Out_ sai_buffer_threshold_mode_t* sai_pool_mode)
+static sai_status_t convert_sx_pool_mode_to_sai_pool_mode(_In_ sx_cos_buffer_max_mode_e      sx_pool_mode,
+                                                          _Out_ sai_buffer_threshold_mode_t* sai_pool_mode)
 {
     if (NULL == sai_pool_mode) {
         SX_LOG_ERR("NULL sai_pool_mode\n");
@@ -1418,8 +1421,8 @@ sai_status_t convert_sx_pool_mode_to_sai_pool_mode(_In_ sx_cos_buffer_max_mode_e
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t convert_sx_pool_dir_to_sai_pool_type(_In_ sx_cos_port_buff_pool_direction_e sx_pool_direction,
-                                                  _Out_ sai_buffer_pool_type_t         * sai_pool_type)
+static sai_status_t convert_sx_pool_dir_to_sai_pool_type(_In_ sx_cos_port_buff_pool_direction_e sx_pool_direction,
+                                                         _Out_ sai_buffer_pool_type_t         * sai_pool_type)
 {
     if (NULL == sai_pool_type) {
         SX_LOG_ERR("NULL sai_pool_type\n");
@@ -1436,8 +1439,8 @@ sai_status_t convert_sx_pool_dir_to_sai_pool_type(_In_ sx_cos_port_buff_pool_dir
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_create_sai_buffer_profile_id(_In_ uint32_t          db_buffer_profile_ind,
-                                               _Out_ sai_object_id_t* sai_buffer_profile)
+static sai_status_t mlnx_create_sai_buffer_profile_id(_In_ uint32_t          db_buffer_profile_ind,
+                                                      _Out_ sai_object_id_t* sai_buffer_profile)
 {
     sai_status_t sai_status;
 
@@ -1471,12 +1474,12 @@ sai_status_t mlnx_create_sai_pool_id(_In_ uint32_t sx_pool_id, _Out_ sai_object_
     if (SAI_STATUS_SUCCESS != (sai_status = mlnx_sai_buffer_pool_db_get_state(sx_pool_id, &pool_db_state))) {
         SX_LOG_EXIT();
         return sai_status;
-    }
+    }/*
     if (!pool_db_state) {
         SX_LOG_ERR("pool_id:%d not set in buffer db\n", sx_pool_id);
         SX_LOG_EXIT();
         return SAI_STATUS_INVALID_PARAMETER;
-    }
+    }*/
 
     sai_status = mlnx_create_object(SAI_OBJECT_TYPE_BUFFER_POOL, sx_pool_id, NULL, sai_pool);
     pool_key_to_str(*sai_pool, key_str);
@@ -1485,9 +1488,9 @@ sai_status_t mlnx_create_sai_pool_id(_In_ uint32_t sx_pool_id, _Out_ sai_object_
     return sai_status;
 }
 
-sai_status_t mlnx_get_sai_buffer_profile_data(_In_ sai_object_id_t               sai_buffer,
-                                              _Out_ uint32_t                   * out_db_buffer_profile_index,
-                                              _Out_ mlnx_sai_buffer_pool_attr_t* sai_pool_attr)
+static sai_status_t mlnx_get_sai_buffer_profile_data(_In_ sai_object_id_t               sai_buffer,
+                                                     _Out_ uint32_t                   * out_db_buffer_profile_index,
+                                                     _Out_ mlnx_sai_buffer_pool_attr_t* sai_pool_attr)
 {
     sai_status_t                sai_status;
     uint32_t                    input_db_buffer_profile_index;
@@ -1515,7 +1518,8 @@ sai_status_t mlnx_get_sai_buffer_profile_data(_In_ sai_object_id_t              
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_get_sai_pool_data(_In_ sai_object_id_t sai_pool, _Out_ mlnx_sai_buffer_pool_attr_t*  sai_pool_attr)
+static sai_status_t mlnx_get_sai_pool_data(_In_ sai_object_id_t               sai_pool,
+                                           _Out_ mlnx_sai_buffer_pool_attr_t* sai_pool_attr)
 {
     sx_status_t        sx_status;
     sai_status_t       sai_status;
@@ -1554,11 +1558,13 @@ sai_status_t mlnx_get_sai_pool_data(_In_ sai_object_id_t sai_pool, _Out_ mlnx_sa
         SX_LOG_EXIT();
         return sai_status;
     }
-
+/*
     if (!pool_is_allocated) {
+        SX_LOG_DBG("pool not allocated:%d\n", sx_pool_id_local);
         SX_LOG_EXIT();
         return SAI_STATUS_ITEM_NOT_FOUND;
     }
+*/
     sai_pool_attr->sx_pool_id = sx_pool_id_local;
     sai_pool_attr->pool_size  = mlnx_cells_to_bytes(sx_pool_attr.pool_size);
     if (SAI_STATUS_SUCCESS !=
@@ -1645,9 +1651,9 @@ sai_status_t mlnx_sai_cleanup_buffer_config()
     return sai_status;
 }
 
-sai_status_t mlnx_sai_create_buffer_pool(_Out_ sai_object_id_t     * pool_id,
-                                         _In_ uint32_t               attr_count,
-                                         _In_ const sai_attribute_t *attr_list)
+static sai_status_t mlnx_sai_create_buffer_pool(_Out_ sai_object_id_t     * pool_id,
+                                                _In_ uint32_t               attr_count,
+                                                _In_ const sai_attribute_t *attr_list)
 {
     sx_status_t                   sx_status;
     uint32_t                      sx_pool_id;
@@ -1765,8 +1771,8 @@ sai_status_t mlnx_sai_create_buffer_pool(_Out_ sai_object_id_t     * pool_id,
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_sai_buffer_convert_sai_pool_attr_to_sx(_In_ mlnx_sai_buffer_pool_attr_t sai_pool_attr,
-                                                         _Out_ sx_cos_pool_attr_t       * sx_pool_attr)
+static sai_status_t mlnx_sai_buffer_convert_sai_pool_attr_to_sx(_In_ mlnx_sai_buffer_pool_attr_t sai_pool_attr,
+                                                                _Out_ sx_cos_pool_attr_t       * sx_pool_attr)
 {
     sai_status_t sai_status;
 
@@ -1790,7 +1796,7 @@ sai_status_t mlnx_sai_buffer_convert_sai_pool_attr_to_sx(_In_ mlnx_sai_buffer_po
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_sai_remove_buffer_pool(_In_ sai_object_id_t pool_id)
+static sai_status_t mlnx_sai_remove_buffer_pool(_In_ sai_object_id_t pool_id)
 {
     sx_status_t                 sx_status;
     sx_cos_pool_attr_t          sx_pool_attr;
@@ -1880,11 +1886,11 @@ sai_status_t mlnx_sai_set_pool_size_attr(_In_ const sai_object_key_t      * key,
 }
 
 /** buffer pool size in bytes [sai_uint32_t] */
-sai_status_t mlnx_sai_get_pool_size_attr(_In_ const sai_object_key_t   * key,
-                                         _Inout_ sai_attribute_value_t * value,
-                                         _In_ uint32_t                   attr_index,
-                                         _Inout_ vendor_cache_t        * cache,
-                                         void                          * arg)
+static sai_status_t mlnx_sai_get_pool_size_attr(_In_ const sai_object_key_t   * key,
+                                                _Inout_ sai_attribute_value_t * value,
+                                                _In_ uint32_t                   attr_index,
+                                                _Inout_ vendor_cache_t        * cache,
+                                                void                          * arg)
 {
     sai_status_t                sai_status;
     mlnx_sai_buffer_pool_attr_t sai_pool_attr;
@@ -1902,7 +1908,7 @@ sai_status_t mlnx_sai_get_pool_size_attr(_In_ const sai_object_key_t   * key,
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_sai_set_buffer_pool_attr(_In_ sai_object_id_t pool_id, _In_ const sai_attribute_t * attr)
+static sai_status_t mlnx_sai_set_buffer_pool_attr(_In_ sai_object_id_t pool_id, _In_ const sai_attribute_t * attr)
 {
     const sai_object_key_t key = { .object_id = pool_id };
     char                   key_str[MAX_KEY_STR_LEN];
@@ -1917,10 +1923,10 @@ sai_status_t mlnx_sai_set_buffer_pool_attr(_In_ sai_object_id_t pool_id, _In_ co
     return sai_status;
 }
 
-sai_status_t mlnx_sai_buffer_compute_shared_size(_In_ sai_object_id_t            sai_pool,
-                                                 _In_ sx_cos_port_buffer_attr_t* sx_port_reserved_buff_attr_arr,
-                                                 _In_ uint32_t                   arr_length,
-                                                 _Out_ uint32_t                * total_shared_bytes)
+static sai_status_t mlnx_sai_buffer_compute_shared_size(_In_ sai_object_id_t            sai_pool,
+                                                        _In_ sx_cos_port_buffer_attr_t* sx_port_reserved_buff_attr_arr,
+                                                        _In_ uint32_t                   arr_length,
+                                                        _Out_ uint32_t                * total_shared_bytes)
 {
     sai_status_t                sai_status;
     uint32_t                    port_ind;
@@ -2077,11 +2083,11 @@ sai_status_t mlnx_sai_buffer_compute_shared_size(_In_ sai_object_id_t           
 /** shared buffer size in bytes [sai_uint32_t].
  * This is derived from substracting all reversed buffers of queue/port
  * from the total pool size. */
-sai_status_t mlnx_sai_get_pool_shared_size_attr(_In_ const sai_object_key_t   * key,
-                                                _Inout_ sai_attribute_value_t * value,
-                                                _In_ uint32_t                   attr_index,
-                                                _Inout_ vendor_cache_t        * cache,
-                                                void                          * arg)
+static sai_status_t mlnx_sai_get_pool_shared_size_attr(_In_ const sai_object_key_t   * key,
+                                                       _Inout_ sai_attribute_value_t * value,
+                                                       _In_ uint32_t                   attr_index,
+                                                       _Inout_ vendor_cache_t        * cache,
+                                                       void                          * arg)
 {
     sx_cos_port_buffer_attr_t* sx_port_reserved_buff_attr_arr;
     uint32_t                   count = buffer_limits.max_buffers_per_port;
@@ -2102,11 +2108,11 @@ sai_status_t mlnx_sai_get_pool_shared_size_attr(_In_ const sai_object_key_t   * 
 }
 
 /** buffer pool type [sai_buffer_pool_type_t] */
-sai_status_t mlnx_sai_get_pool_type_attr(_In_ const sai_object_key_t   * key,
-                                         _Inout_ sai_attribute_value_t * value,
-                                         _In_ uint32_t                   attr_index,
-                                         _Inout_ vendor_cache_t        * cache,
-                                         void                          * arg)
+static sai_status_t mlnx_sai_get_pool_type_attr(_In_ const sai_object_key_t   * key,
+                                                _Inout_ sai_attribute_value_t * value,
+                                                _In_ uint32_t                   attr_index,
+                                                _Inout_ vendor_cache_t        * cache,
+                                                void                          * arg)
 {
     sai_status_t                sai_status;
     mlnx_sai_buffer_pool_attr_t sai_pool_attr;
@@ -2126,11 +2132,11 @@ sai_status_t mlnx_sai_get_pool_type_attr(_In_ const sai_object_key_t   * key,
 
 /** shared threshold mode for the buffer pool [sai_buffer_threadhold_mode_t]
  * (default to SAI_BUFFER_POOL_DYNAMIC_TH) */
-sai_status_t mlnx_sai_get_pool_th_mode_attr(_In_ const sai_object_key_t   * key,
-                                            _Inout_ sai_attribute_value_t * value,
-                                            _In_ uint32_t                   attr_index,
-                                            _Inout_ vendor_cache_t        * cache,
-                                            void                          * arg)
+static sai_status_t mlnx_sai_get_pool_th_mode_attr(_In_ const sai_object_key_t   * key,
+                                                   _Inout_ sai_attribute_value_t * value,
+                                                   _In_ uint32_t                   attr_index,
+                                                   _Inout_ vendor_cache_t        * cache,
+                                                   void                          * arg)
 {
     sai_status_t                sai_status;
     mlnx_sai_buffer_pool_attr_t sai_pool_attr;
@@ -2148,9 +2154,9 @@ sai_status_t mlnx_sai_get_pool_th_mode_attr(_In_ const sai_object_key_t   * key,
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_sai_get_buffer_pool_attr(_In_ sai_object_id_t      pool_id,
-                                           _In_ uint32_t             attr_count,
-                                           _Inout_ sai_attribute_t * attr_list)
+static sai_status_t mlnx_sai_get_buffer_pool_attr(_In_ sai_object_id_t      pool_id,
+                                                  _In_ uint32_t             attr_count,
+                                                  _Inout_ sai_attribute_t * attr_list)
 {
     const sai_object_key_t key = { .object_id = pool_id };
     char                   key_str[MAX_KEY_STR_LEN];
@@ -2165,7 +2171,7 @@ sai_status_t mlnx_sai_get_buffer_pool_attr(_In_ sai_object_id_t      pool_id,
     return sai_status;
 }
 
-sai_status_t db_buffer_profile_reserve_entry(_Out_ uint32_t* buff_profile_db_ind_out)
+static sai_status_t db_buffer_profile_reserve_entry(_Out_ uint32_t* buff_profile_db_ind_out)
 {
     sai_status_t sai_status          = SAI_STATUS_SUCCESS;
     uint32_t     buff_profile_db_ind = 0;
@@ -2195,9 +2201,9 @@ sai_status_t db_buffer_profile_reserve_entry(_Out_ uint32_t* buff_profile_db_ind
     return sai_status;
 }
 
-sai_status_t mlnx_sai_create_buffer_profile(_Out_ sai_object_id_t     * buffer_profile_id,
-                                            _In_ uint32_t               attr_count,
-                                            _In_ const sai_attribute_t *attr_list)
+static sai_status_t mlnx_sai_create_buffer_profile(_Out_ sai_object_id_t     * buffer_profile_id,
+                                                   _In_ uint32_t               attr_count,
+                                                   _In_ const sai_attribute_t *attr_list)
 {
     uint32_t                           buff_profile_db_ind = 0;
     mlnx_sai_db_buffer_profile_entry_t new_buffer_profile;
@@ -2327,7 +2333,7 @@ sai_status_t mlnx_sai_create_buffer_profile(_Out_ sai_object_id_t     * buffer_p
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_sai_remove_buffer_profile(_In_ sai_object_id_t buffer_profile_id)
+static sai_status_t mlnx_sai_remove_buffer_profile(_In_ sai_object_id_t buffer_profile_id)
 {
     sai_status_t sai_status;
     uint32_t     db_buffer_profile_index;
@@ -2363,11 +2369,11 @@ sai_status_t mlnx_sai_remove_buffer_profile(_In_ sai_object_id_t buffer_profile_
 }
 
 /** pointer to buffer pool object id [sai_object_id_t] */
-sai_status_t mlnx_sai_get_buffer_profile_pool_id_attr(_In_ const sai_object_key_t   * key,
-                                                      _Inout_ sai_attribute_value_t * value,
-                                                      _In_ uint32_t                   attr_index,
-                                                      _Inout_ vendor_cache_t        * cache,
-                                                      void                          * arg)
+static sai_status_t mlnx_sai_get_buffer_profile_pool_id_attr(_In_ const sai_object_key_t   * key,
+                                                             _Inout_ sai_attribute_value_t * value,
+                                                             _In_ uint32_t                   attr_index,
+                                                             _Inout_ vendor_cache_t        * cache,
+                                                             void                          * arg)
 {
     sai_status_t                sai_status;
     uint32_t                    db_buffer_profile_index;
@@ -2389,9 +2395,9 @@ sai_status_t mlnx_sai_get_buffer_profile_pool_id_attr(_In_ const sai_object_key_
 
 /** pointer to buffer pool object id [sai_object_id_t]
  *  NOTE: Pool id = SAI_NULL_OBJECT_ID is not a valid case for MELLANOX's implementation. */
-sai_status_t mlnx_sai_set_buffer_profile_pool_id_attr(_In_ const sai_object_key_t      * key,
-                                                      _In_ const sai_attribute_value_t * value,
-                                                      void                             * arg)
+static sai_status_t mlnx_sai_set_buffer_profile_pool_id_attr(_In_ const sai_object_key_t      * key,
+                                                             _In_ const sai_attribute_value_t * value,
+                                                             void                             * arg)
 {
     char                        key_str[MAX_KEY_STR_LEN];
     sai_status_t                sai_status;
@@ -2415,7 +2421,6 @@ sai_status_t mlnx_sai_set_buffer_profile_pool_id_attr(_In_ const sai_object_key_
         SX_LOG_EXIT();
         return sai_status;
     }
-
 
     sai_status = mlnx_sai_is_buffer_in_use(key->object_id);
     if (SAI_STATUS_OBJECT_IN_USE == sai_status) {
@@ -2450,11 +2455,11 @@ sai_status_t mlnx_sai_set_buffer_profile_pool_id_attr(_In_ const sai_object_key_
 }
 
 /** reserved buffer size in bytes [sai_uint32_t] */
-sai_status_t mlnx_sai_get_buffer_profile_size_attr(_In_ const sai_object_key_t   * key,
-                                                   _Inout_ sai_attribute_value_t * value,
-                                                   _In_ uint32_t                   attr_index,
-                                                   _Inout_ vendor_cache_t        * cache,
-                                                   void                          * arg)
+static sai_status_t mlnx_sai_get_buffer_profile_size_attr(_In_ const sai_object_key_t   * key,
+                                                          _Inout_ sai_attribute_value_t * value,
+                                                          _In_ uint32_t                   attr_index,
+                                                          _Inout_ vendor_cache_t        * cache,
+                                                          void                          * arg)
 {
     char         key_str[MAX_KEY_STR_LEN];
     sai_status_t sai_status;
@@ -2495,7 +2500,7 @@ sai_status_t mlnx_sai_get_buffer_profile_size_attr(_In_ const sai_object_key_t  
  *       affected_items.i_port_buffers[2]==true means sx_port_reserved_buff_attr_arr[2].attr.ingress_port_buff_attr is affected
  *       affected_items.e_port_buffers[0]==true means sx_port_reserved_buff_attr_arr[ind].attr.egress_port_buff_attr which has pool_id == 4 is affected
  */
-void mlnx_sai_buffer_apply_profile_to_reserved_structs(
+static void mlnx_sai_buffer_apply_profile_to_reserved_structs(
     _Inout_ sx_cos_port_buffer_attr_t     * sx_port_reserved_buff_attr_arr,
     _In_ uint32_t                           count,
     _In_ mlnx_sai_db_buffer_profile_entry_t buff_db_entry,
@@ -2540,7 +2545,7 @@ void mlnx_sai_buffer_apply_profile_to_reserved_structs(
                                ind,
                                sx_port_reserved_buff_attr_arr[ind].attr.ingress_port_pg_buff_attr.pg);
                     assert(SAI_BUFFER_POOL_INGRESS == sai_pool_attr.pool_type);
-                    sx_port_reserved_buff_attr_arr[ind].attr.ingress_port_pg_buff_attr.size     = bytes_to_mlnx_cells(
+                    sx_port_reserved_buff_attr_arr[ind].attr.ingress_port_pg_buff_attr.size = bytes_to_mlnx_cells(
                         buff_db_entry.reserved_size);
                     sx_port_reserved_buff_attr_arr[ind].attr.ingress_port_pg_buff_attr.is_lossy =
                         ((0 == buff_db_entry.xoff) && (0 == buff_db_entry.xon));
@@ -2589,7 +2594,7 @@ void mlnx_sai_buffer_apply_profile_to_reserved_structs(
                                ind,
                                sx_port_reserved_buff_attr_arr[ind].attr.egress_port_tc_buff_attr.tc);
                     assert(SAI_BUFFER_POOL_EGRESS == sai_pool_attr.pool_type);
-                    sx_port_reserved_buff_attr_arr[ind].attr.egress_port_tc_buff_attr.size    = bytes_to_mlnx_cells(
+                    sx_port_reserved_buff_attr_arr[ind].attr.egress_port_tc_buff_attr.size = bytes_to_mlnx_cells(
                         buff_db_entry.reserved_size);
                     sx_port_reserved_buff_attr_arr[ind].attr.egress_port_tc_buff_attr.pool_id =
                         sai_pool_attr.sx_pool_id;
@@ -2605,8 +2610,9 @@ void mlnx_sai_buffer_apply_profile_to_reserved_structs(
     }
     SX_LOG_EXIT();
 }
-sai_status_t mlnx_sai_shared_max_to_sx(_Inout_ sx_cos_buffer_max_t   * sx_cos_buff_max,
-                               _In_ mlnx_sai_shared_max_size_t sai_shared_max)
+
+static sai_status_t mlnx_sai_shared_max_to_sx(_Inout_ sx_cos_buffer_max_t   * sx_cos_buff_max,
+                                              _In_ mlnx_sai_shared_max_size_t sai_shared_max)
 {
     if (SAI_BUFFER_THRESHOLD_MODE_DYNAMIC == sai_shared_max.mode) {
         return mlnx_buffer_convert_alpha_sai_to_sx(sai_shared_max.max.alpha, &sx_cos_buff_max->max.alpha);
@@ -2616,101 +2622,133 @@ sai_status_t mlnx_sai_shared_max_to_sx(_Inout_ sx_cos_buffer_max_t   * sx_cos_bu
     }
 }
 
-sai_status_t mlnx_sai_buffer_apply_profile_to_shared_structs(
-    _Inout_ sx_cos_port_shared_buffer_attr_t*   sx_port_shared_buff_attr_arr,
-    _In_    uint32_t                            count,
-    _In_    mlnx_sai_db_buffer_profile_entry_t  buff_db_entry,
-    _In_    mlnx_sai_buffer_pool_attr_t         sai_pool_attr,
-    _In_    mlnx_affect_port_buff_items_t*      affected_items
-    )
+static sai_status_t mlnx_sai_buffer_apply_profile_to_shared_structs(
+    _Inout_ sx_cos_port_shared_buffer_attr_t* sx_port_shared_buff_attr_arr,
+    _In_ uint32_t                             count,
+    _In_ mlnx_sai_db_buffer_profile_entry_t   buff_db_entry,
+    _In_ mlnx_sai_buffer_pool_attr_t          sai_pool_attr,
+    _In_ mlnx_affect_port_buff_items_t      * affected_items)
 {
-    sai_status_t                sai_status;
-    sx_cos_buffer_max_mode_e    sx_pool_mode;
-    uint32_t                    ind;
+    sai_status_t             sai_status;
+    sx_cos_buffer_max_mode_e sx_pool_mode;
+    uint32_t                 ind;
+
     SX_LOG_ENTER();
-    if (SAI_STATUS_SUCCESS != (sai_status = convert_sai_pool_mode_to_sx_pool_mode(sai_pool_attr.pool_mode, &sx_pool_mode))) {
+    if (SAI_STATUS_SUCCESS !=
+        (sai_status = convert_sai_pool_mode_to_sx_pool_mode(sai_pool_attr.pool_mode, &sx_pool_mode))) {
         SX_LOG_EXIT();
         return sai_status;
     }
     for (ind = 0; ind < count; ind++) {
-        switch(sai_pool_attr.pool_type) {
-            case SAI_BUFFER_POOL_INGRESS:
-                switch(sx_port_shared_buff_attr_arr[ind].type) {
-                    case SX_COS_INGRESS_PORT_ATTR_E:
-                        if (true == affected_items->i_port_buffers[sx_port_shared_buff_attr_arr[ind].attr.ingress_port_shared_buff_attr.pool_id]) {
-                            SX_LOG_DBG("(i)port_buffers[%d], pool_id:%d\n", ind, sx_port_shared_buff_attr_arr[ind].attr.ingress_port_shared_buff_attr.pool_id);
-                            sx_port_shared_buff_attr_arr[ind].attr.ingress_port_shared_buff_attr.max.mode = sx_pool_mode;
-                            if(SAI_STATUS_SUCCESS != (sai_status = mlnx_sai_shared_max_to_sx(
-                                &sx_port_shared_buff_attr_arr[ind].attr.ingress_port_shared_buff_attr.max, 
-                                buff_db_entry.shared_max))) {
-                                SX_LOG_EXIT();
-                                return sai_status;
-                            }
-                            sx_port_shared_buff_attr_arr[ind].attr.ingress_port_shared_buff_attr.pool_id = sai_pool_attr.sx_pool_id;
-                            log_sx_port_shared_buffers(0, 1, &sx_port_shared_buff_attr_arr[ind]);
-                        }   
-                        break;
-                    case SX_COS_INGRESS_PORT_PRIORITY_GROUP_ATTR_E :
-                        if(sx_port_shared_buff_attr_arr[ind].attr.ingress_port_pg_shared_buff_attr.pg >= mlnx_sai_get_buffer_resource_limits()->num_port_pg_buff) {
-                            /* control traffic is not supported */
-                            continue;
-                        }
-                        if (true == affected_items->pgs[sx_port_shared_buff_attr_arr[ind].attr.ingress_port_pg_shared_buff_attr.pg]) {
-                            SX_LOG_DBG("item:%d, pg[%d]:\n", ind, sx_port_shared_buff_attr_arr[ind].attr.ingress_port_pg_shared_buff_attr.pg);
-                            sx_port_shared_buff_attr_arr[ind].attr.ingress_port_pg_shared_buff_attr.max.mode = sx_pool_mode;
-                            if(SAI_STATUS_SUCCESS != (sai_status = mlnx_sai_shared_max_to_sx(
-                                &sx_port_shared_buff_attr_arr[ind].attr.ingress_port_pg_shared_buff_attr.max,
-                                buff_db_entry.shared_max))) {
-                                SX_LOG_EXIT();
-                                return sai_status;
-                            }
-                            sx_port_shared_buff_attr_arr[ind].attr.ingress_port_pg_shared_buff_attr.pool_id = sai_pool_attr.sx_pool_id;
-                            log_sx_port_shared_buffers(0, 1, &sx_port_shared_buff_attr_arr[ind]);
-                        }
-                        break;
-                    default:
-                        break;                        
+        switch (sai_pool_attr.pool_type) {
+        case SAI_BUFFER_POOL_INGRESS:
+            switch (sx_port_shared_buff_attr_arr[ind].type) {
+            case SX_COS_INGRESS_PORT_ATTR_E:
+                if (true ==
+                    affected_items->i_port_buffers[sx_port_shared_buff_attr_arr[ind].attr.ingress_port_shared_buff_attr
+                                                   .
+                                                   pool_id]) {
+                    SX_LOG_DBG("(i)port_buffers[%d], pool_id:%d\n",
+                               ind,
+                               sx_port_shared_buff_attr_arr[ind].attr.ingress_port_shared_buff_attr.pool_id);
+                    sx_port_shared_buff_attr_arr[ind].attr.ingress_port_shared_buff_attr.max.mode = sx_pool_mode;
+                    if (SAI_STATUS_SUCCESS != (sai_status = mlnx_sai_shared_max_to_sx(
+                                                   &sx_port_shared_buff_attr_arr[ind].attr.
+                                                   ingress_port_shared_buff_attr.max,
+                                                   buff_db_entry.shared_max))) {
+                        SX_LOG_EXIT();
+                        return sai_status;
+                    }
+                    sx_port_shared_buff_attr_arr[ind].attr.ingress_port_shared_buff_attr.pool_id =
+                        sai_pool_attr.sx_pool_id;
+                    log_sx_port_shared_buffers(0, 1, &sx_port_shared_buff_attr_arr[ind]);
                 }
                 break;
-            case SAI_BUFFER_POOL_EGRESS:
-                switch(sx_port_shared_buff_attr_arr[ind].type) {
-                    case SX_COS_EGRESS_PORT_ATTR_E :
-                        assert((sx_port_shared_buff_attr_arr[ind].attr.egress_port_shared_buff_attr.pool_id - DEFAULT_EGRESS_SX_POOL_ID) < buffer_limits.num_egress_pools);
-                        if (true == affected_items->e_port_buffers[sx_port_shared_buff_attr_arr[ind].attr.egress_port_shared_buff_attr.pool_id - DEFAULT_EGRESS_SX_POOL_ID]) {
-                            SX_LOG_DBG("(e)port_buffers[%d], pool_id:%d\n", ind, sx_port_shared_buff_attr_arr[ind].attr.egress_port_shared_buff_attr.pool_id);
-                            sx_port_shared_buff_attr_arr[ind].attr.egress_port_shared_buff_attr.max.mode = sx_pool_mode;
-                            if(SAI_STATUS_SUCCESS != (sai_status = mlnx_sai_shared_max_to_sx(
-                                &sx_port_shared_buff_attr_arr[ind].attr.egress_port_shared_buff_attr.max,
-                                buff_db_entry.shared_max))) {
-                                SX_LOG_EXIT();
-                                return sai_status;
-                            }
-                            sx_port_shared_buff_attr_arr[ind].attr.egress_port_shared_buff_attr.pool_id = sai_pool_attr.sx_pool_id;
-                            log_sx_port_shared_buffers(0, 1, &sx_port_shared_buff_attr_arr[ind]);
-                        }   
-                        break;
-                    case SX_COS_EGRESS_PORT_TRAFFIC_CLASS_ATTR_E:
-                        if(sx_port_shared_buff_attr_arr[ind].attr.egress_port_tc_shared_buff_attr.tc >= mlnx_sai_get_buffer_resource_limits()->num_port_queue_buff) {
-                            /* control traffic is not supported */
-                            continue;
-                        }
-                        if (true == affected_items->tcs[sx_port_shared_buff_attr_arr[ind].attr.egress_port_tc_shared_buff_attr.tc]) {
-                            SX_LOG_DBG("item:%d, queue:%d\n", ind, sx_port_shared_buff_attr_arr[ind].attr.egress_port_tc_shared_buff_attr.tc);
-                            sx_port_shared_buff_attr_arr[ind].attr.egress_port_tc_shared_buff_attr.max.mode = sx_pool_mode;
-                            if(SAI_STATUS_SUCCESS != (sai_status = mlnx_sai_shared_max_to_sx(
-                                &sx_port_shared_buff_attr_arr[ind].attr.egress_port_tc_shared_buff_attr.max,
-                                buff_db_entry.shared_max))) {
-                                SX_LOG_EXIT();
-                                return sai_status;
-                            }
-                            sx_port_shared_buff_attr_arr[ind].attr.egress_port_tc_shared_buff_attr.pool_id = sai_pool_attr.sx_pool_id;
-                            log_sx_port_shared_buffers(0, 1, &sx_port_shared_buff_attr_arr[ind]);
-                        }
-                        break;
-                    default:
-                        break;                        
+
+            case SX_COS_INGRESS_PORT_PRIORITY_GROUP_ATTR_E:
+                if (sx_port_shared_buff_attr_arr[ind].attr.ingress_port_pg_shared_buff_attr.pg >=
+                    mlnx_sai_get_buffer_resource_limits()->num_port_pg_buff) {
+                    /* control traffic is not supported */
+                    continue;
+                }
+                if (true ==
+                    affected_items->pgs[sx_port_shared_buff_attr_arr[ind].attr.ingress_port_pg_shared_buff_attr.pg]) {
+                    SX_LOG_DBG("item:%d, pg[%d]:\n",
+                               ind,
+                               sx_port_shared_buff_attr_arr[ind].attr.ingress_port_pg_shared_buff_attr.pg);
+                    sx_port_shared_buff_attr_arr[ind].attr.ingress_port_pg_shared_buff_attr.max.mode = sx_pool_mode;
+                    if (SAI_STATUS_SUCCESS != (sai_status = mlnx_sai_shared_max_to_sx(
+                                                   &sx_port_shared_buff_attr_arr[ind].attr.
+                                                   ingress_port_pg_shared_buff_attr.max,
+                                                   buff_db_entry.shared_max))) {
+                        SX_LOG_EXIT();
+                        return sai_status;
+                    }
+                    sx_port_shared_buff_attr_arr[ind].attr.ingress_port_pg_shared_buff_attr.pool_id =
+                        sai_pool_attr.sx_pool_id;
+                    log_sx_port_shared_buffers(0, 1, &sx_port_shared_buff_attr_arr[ind]);
                 }
                 break;
+
+            default:
+                break;
+            }
+            break;
+
+        case SAI_BUFFER_POOL_EGRESS:
+            switch (sx_port_shared_buff_attr_arr[ind].type) {
+            case SX_COS_EGRESS_PORT_ATTR_E:
+                assert((sx_port_shared_buff_attr_arr[ind].attr.egress_port_shared_buff_attr.pool_id -
+                        DEFAULT_EGRESS_SX_POOL_ID) < buffer_limits.num_egress_pools);
+                if (true ==
+                    affected_items->e_port_buffers[sx_port_shared_buff_attr_arr[ind].attr.egress_port_shared_buff_attr.
+                                                   pool_id - DEFAULT_EGRESS_SX_POOL_ID]) {
+                    SX_LOG_DBG("(e)port_buffers[%d], pool_id:%d\n",
+                               ind,
+                               sx_port_shared_buff_attr_arr[ind].attr.egress_port_shared_buff_attr.pool_id);
+                    sx_port_shared_buff_attr_arr[ind].attr.egress_port_shared_buff_attr.max.mode = sx_pool_mode;
+                    if (SAI_STATUS_SUCCESS != (sai_status = mlnx_sai_shared_max_to_sx(
+                                                   &sx_port_shared_buff_attr_arr[ind].attr.egress_port_shared_buff_attr
+                                                   .max,
+                                                   buff_db_entry.shared_max))) {
+                        SX_LOG_EXIT();
+                        return sai_status;
+                    }
+                    sx_port_shared_buff_attr_arr[ind].attr.egress_port_shared_buff_attr.pool_id =
+                        sai_pool_attr.sx_pool_id;
+                    log_sx_port_shared_buffers(0, 1, &sx_port_shared_buff_attr_arr[ind]);
+                }
+                break;
+
+            case SX_COS_EGRESS_PORT_TRAFFIC_CLASS_ATTR_E:
+                if (sx_port_shared_buff_attr_arr[ind].attr.egress_port_tc_shared_buff_attr.tc >=
+                    mlnx_sai_get_buffer_resource_limits()->num_port_queue_buff) {
+                    /* control traffic is not supported */
+                    continue;
+                }
+                if (true ==
+                    affected_items->tcs[sx_port_shared_buff_attr_arr[ind].attr.egress_port_tc_shared_buff_attr.tc]) {
+                    SX_LOG_DBG("item:%d, queue:%d\n",
+                               ind,
+                               sx_port_shared_buff_attr_arr[ind].attr.egress_port_tc_shared_buff_attr.tc);
+                    sx_port_shared_buff_attr_arr[ind].attr.egress_port_tc_shared_buff_attr.max.mode = sx_pool_mode;
+                    if (SAI_STATUS_SUCCESS != (sai_status = mlnx_sai_shared_max_to_sx(
+                                                   &sx_port_shared_buff_attr_arr[ind].attr.
+                                                   egress_port_tc_shared_buff_attr.max,
+                                                   buff_db_entry.shared_max))) {
+                        SX_LOG_EXIT();
+                        return sai_status;
+                    }
+                    sx_port_shared_buff_attr_arr[ind].attr.egress_port_tc_shared_buff_attr.pool_id =
+                        sai_pool_attr.sx_pool_id;
+                    log_sx_port_shared_buffers(0, 1, &sx_port_shared_buff_attr_arr[ind]);
+                }
+                break;
+
+            default:
+                break;
+            }
+            break;
         }
     }
     SX_LOG_EXIT();
@@ -2718,10 +2756,10 @@ sai_status_t mlnx_sai_buffer_apply_profile_to_shared_structs(
 }
 
 
-sai_status_t mlnx_sai_apply_buffer_settings_to_port(_In_ sx_port_log_id_t                   log_port,
-                                                    _In_ mlnx_sai_db_buffer_profile_entry_t buff_db_entry,
-                                                    _In_ mlnx_sai_buffer_pool_attr_t        sai_pool_attr,
-                                                    _In_ mlnx_affect_port_buff_items_t    * affected_items)
+static sai_status_t mlnx_sai_apply_buffer_settings_to_port(_In_ sx_port_log_id_t                   log_port,
+                                                           _In_ mlnx_sai_db_buffer_profile_entry_t buff_db_entry,
+                                                           _In_ mlnx_sai_buffer_pool_attr_t        sai_pool_attr,
+                                                           _In_ mlnx_affect_port_buff_items_t    * affected_items)
 {
     sai_status_t                      sai_status;
     sx_status_t                       sx_status;
@@ -2872,10 +2910,10 @@ sai_status_t mlnx_sai_apply_buffer_settings_to_port(_In_ sx_port_log_id_t       
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_sai_buffer_apply_buffer_to_pg(_In_ uint32_t                           port_ind,
-                                                _In_ uint32_t                           pg_ind,
-                                                _In_ mlnx_sai_db_buffer_profile_entry_t buff_db_entry,
-                                                _In_ mlnx_sai_buffer_pool_attr_t        sai_pool_attr)
+static sai_status_t mlnx_sai_buffer_apply_buffer_to_pg(_In_ uint32_t                           port_ind,
+                                                       _In_ uint32_t                           pg_ind,
+                                                       _In_ mlnx_sai_db_buffer_profile_entry_t buff_db_entry,
+                                                       _In_ mlnx_sai_buffer_pool_attr_t        sai_pool_attr)
 {
     sai_status_t                  sai_status;
     mlnx_affect_port_buff_items_t affected_items;
@@ -2896,10 +2934,10 @@ sai_status_t mlnx_sai_buffer_apply_buffer_to_pg(_In_ uint32_t                   
     return sai_status;
 }
 
-sai_status_t mlnx_sai_buffer_apply_buffer_to_queue(_In_ uint32_t                           qos_db_port_ind,
-                                                   _In_ uint32_t                           qos_ind,
-                                                   _In_ mlnx_sai_db_buffer_profile_entry_t buff_db_entry,
-                                                   _In_ mlnx_sai_buffer_pool_attr_t        sai_pool_attr)
+static sai_status_t mlnx_sai_buffer_apply_buffer_to_queue(_In_ uint32_t                           qos_db_port_ind,
+                                                          _In_ uint32_t                           qos_ind,
+                                                          _In_ mlnx_sai_db_buffer_profile_entry_t buff_db_entry,
+                                                          _In_ mlnx_sai_buffer_pool_attr_t        sai_pool_attr)
 {
     sai_status_t                  sai_status;
     mlnx_affect_port_buff_items_t affected_items;
@@ -2920,9 +2958,9 @@ sai_status_t mlnx_sai_buffer_apply_buffer_to_queue(_In_ uint32_t                
     return sai_status;
 }
 
-sai_status_t mlnx_sai_collect_buffer_refs(_In_ sai_object_id_t                 sai_buffer_id,
-                                          _In_ uint32_t                        db_port_ind,
-                                          _Out_ mlnx_affect_port_buff_items_t* affected_items)
+static sai_status_t mlnx_sai_collect_buffer_refs(_In_ sai_object_id_t                 sai_buffer_id,
+                                                 _In_ uint32_t                        db_port_ind,
+                                                 _Out_ mlnx_affect_port_buff_items_t* affected_items)
 {
     uint32_t                    ind;
     sai_status_t                sai_status;
@@ -3029,7 +3067,7 @@ sai_status_t mlnx_sai_collect_buffer_refs(_In_ sai_object_id_t                 s
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_sai_buffer_apply_buffer_change_to_references(sai_object_id_t sai_buffer_id)
+static sai_status_t mlnx_sai_buffer_apply_buffer_change_to_references(sai_object_id_t sai_buffer_id)
 {
     sai_status_t                       sai_status;
     mlnx_affect_port_buff_items_t      affected_items;
@@ -3075,9 +3113,9 @@ sai_status_t mlnx_sai_buffer_apply_buffer_change_to_references(sai_object_id_t s
 }
 
 /** reserved buffer size in bytes [sai_uint32_t] */
-sai_status_t mlnx_sai_set_buffer_profile_size_attr(_In_ const sai_object_key_t      * key,
-                                                   _In_ const sai_attribute_value_t * value,
-                                                   void                             * arg)
+static sai_status_t mlnx_sai_set_buffer_profile_size_attr(_In_ const sai_object_key_t      * key,
+                                                          _In_ const sai_attribute_value_t * value,
+                                                          void                             * arg)
 {
     sai_status_t sai_status;
     uint32_t     db_buffer_profile_index;
@@ -3105,11 +3143,11 @@ sai_status_t mlnx_sai_set_buffer_profile_size_attr(_In_ const sai_object_key_t  
  * The threshold is set to the 2^n of available buffer of the pool.
  * Mandatory when SAI_BUFFER_POOL_TH_MODE = SAI_BUFFER_THRESHOLD_MODE_DYNAMIC
  */
-sai_status_t mlnx_sai_get_buffer_profile_dynamic_th_attr(_In_ const sai_object_key_t   * key,
-                                                         _Inout_ sai_attribute_value_t * value,
-                                                         _In_ uint32_t                   attr_index,
-                                                         _Inout_ vendor_cache_t        * cache,
-                                                         void                          * arg)
+static sai_status_t mlnx_sai_get_buffer_profile_dynamic_th_attr(_In_ const sai_object_key_t   * key,
+                                                                _Inout_ sai_attribute_value_t * value,
+                                                                _In_ uint32_t                   attr_index,
+                                                                _Inout_ vendor_cache_t        * cache,
+                                                                void                          * arg)
 {
     sai_status_t sai_status;
     uint32_t     db_buffer_profile_index;
@@ -3131,9 +3169,9 @@ sai_status_t mlnx_sai_get_buffer_profile_dynamic_th_attr(_In_ const sai_object_k
  * The threshold is set to the 2^n of available buffer of the pool.
  * Mandatory when SAI_BUFFER_POOL_TH_MODE = SAI_BUFFER_THRESHOLD_MODE_DYNAMIC
  */
-sai_status_t mlnx_sai_set_buffer_profile_dynamic_th_attr(_In_ const sai_object_key_t      * key,
-                                                         _In_ const sai_attribute_value_t * value,
-                                                         void                             * arg)
+static sai_status_t mlnx_sai_set_buffer_profile_dynamic_th_attr(_In_ const sai_object_key_t      * key,
+                                                                _In_ const sai_attribute_value_t * value,
+                                                                void                             * arg)
 {
     sai_status_t sai_status;
     uint32_t     db_buffer_profile_index;
@@ -3160,11 +3198,11 @@ sai_status_t mlnx_sai_set_buffer_profile_dynamic_th_attr(_In_ const sai_object_k
 /** static threshold for the shared usage in bytes [sai_uint32_t]
  * Mandatory when SAI_BUFFER_POOL_TH_MODE = SAI_BUFFER_THRESHOLD_MODE_STATIC
  */
-sai_status_t mlnx_sai_get_buffer_profile_static_th_attr(_In_ const sai_object_key_t   * key,
-                                                        _Inout_ sai_attribute_value_t * value,
-                                                        _In_ uint32_t                   attr_index,
-                                                        _Inout_ vendor_cache_t        * cache,
-                                                        void                          * arg)
+static sai_status_t mlnx_sai_get_buffer_profile_static_th_attr(_In_ const sai_object_key_t   * key,
+                                                               _Inout_ sai_attribute_value_t * value,
+                                                               _In_ uint32_t                   attr_index,
+                                                               _Inout_ vendor_cache_t        * cache,
+                                                               void                          * arg)
 {
     SX_LOG_ENTER();
     sai_status_t sai_status;
@@ -3185,9 +3223,9 @@ sai_status_t mlnx_sai_get_buffer_profile_static_th_attr(_In_ const sai_object_ke
 /** static threshold for the shared usage in bytes [sai_uint32_t]
  * Mandatory when SAI_BUFFER_POOL_TH_MODE = SAI_BUFFER_THRESHOLD_MODE_STATIC
  */
-sai_status_t mlnx_sai_set_buffer_profile_static_th_attr(_In_ const sai_object_key_t      * key,
-                                                        _In_ const sai_attribute_value_t * value,
-                                                        void                             * arg)
+static sai_status_t mlnx_sai_set_buffer_profile_static_th_attr(_In_ const sai_object_key_t      * key,
+                                                               _In_ const sai_attribute_value_t * value,
+                                                               void                             * arg)
 {
     sai_status_t sai_status;
     uint32_t     db_buffer_profile_index;
@@ -3215,11 +3253,11 @@ sai_status_t mlnx_sai_set_buffer_profile_static_th_attr(_In_ const sai_object_ke
  * Generate XOFF when available buffer in the PG buffer
  * is less than this threshold.
  * default to 0. */
-sai_status_t mlnx_sai_get_buffer_profile_xoff_attr(_In_ const sai_object_key_t   * key,
-                                                   _Inout_ sai_attribute_value_t * value,
-                                                   _In_ uint32_t                   attr_index,
-                                                   _Inout_ vendor_cache_t        * cache,
-                                                   void                          * arg)
+static sai_status_t mlnx_sai_get_buffer_profile_xoff_attr(_In_ const sai_object_key_t   * key,
+                                                          _Inout_ sai_attribute_value_t * value,
+                                                          _In_ uint32_t                   attr_index,
+                                                          _Inout_ vendor_cache_t        * cache,
+                                                          void                          * arg)
 {
     sai_status_t sai_status;
     uint32_t     db_buffer_profile_index;
@@ -3242,9 +3280,9 @@ sai_status_t mlnx_sai_get_buffer_profile_xoff_attr(_In_ const sai_object_key_t  
  * Generate XOFF when available buffer in the PG buffer
  * is less than this threshold.
  * default to 0. */
-sai_status_t mlnx_sai_set_buffer_profile_xoff_attr(_In_ const sai_object_key_t      * key,
-                                                   _In_ const sai_attribute_value_t * value,
-                                                   void                             * arg)
+static sai_status_t mlnx_sai_set_buffer_profile_xoff_attr(_In_ const sai_object_key_t      * key,
+                                                          _In_ const sai_attribute_value_t * value,
+                                                          void                             * arg)
 {
     sai_status_t sai_status;
     uint32_t     db_buffer_profile_index;
@@ -3274,11 +3312,11 @@ sai_status_t mlnx_sai_set_buffer_profile_xoff_attr(_In_ const sai_object_key_t  
  * is less this threshold and available buffer in the PG buffer
  * is larger than the XOFF threahold.
  * default to 0. */
-sai_status_t mlnx_sai_get_buffer_profile_xon_attr(_In_ const sai_object_key_t   * key,
-                                                  _Inout_ sai_attribute_value_t * value,
-                                                  _In_ uint32_t                   attr_index,
-                                                  _Inout_ vendor_cache_t        * cache,
-                                                  void                          * arg)
+static sai_status_t mlnx_sai_get_buffer_profile_xon_attr(_In_ const sai_object_key_t   * key,
+                                                         _Inout_ sai_attribute_value_t * value,
+                                                         _In_ uint32_t                   attr_index,
+                                                         _Inout_ vendor_cache_t        * cache,
+                                                         void                          * arg)
 {
     sai_status_t sai_status;
     uint32_t     db_buffer_profile_index;
@@ -3302,9 +3340,9 @@ sai_status_t mlnx_sai_get_buffer_profile_xon_attr(_In_ const sai_object_key_t   
  * is less this threshold and available buffer in the PG buffer
  * is larger than the XOFF threahold.
  * default to 0. */
-sai_status_t mlnx_sai_set_buffer_profile_xon_attr(_In_ const sai_object_key_t      * key,
-                                                  _In_ const sai_attribute_value_t * value,
-                                                  void                             * arg)
+static sai_status_t mlnx_sai_set_buffer_profile_xon_attr(_In_ const sai_object_key_t      * key,
+                                                         _In_ const sai_attribute_value_t * value,
+                                                         void                             * arg)
 {
     sai_status_t sai_status;
     uint32_t     db_buffer_profile_index;
@@ -3458,6 +3496,7 @@ sai_status_t mlnx_sai_buffer_apply_port_buffer_profile_list(_In_ bool           
         memset(&buffer_entry, 0, sizeof(buffer_entry));
         if (SAI_NULL_OBJECT_ID == buffer_profiles[ind]) {
             pool_id = is_ingress ? DEFAULT_INGRESS_SX_POOL_ID : DEFAULT_EGRESS_SX_POOL_ID;
+            pool_id += ind;
             if (SAI_STATUS_SUCCESS != (sai_status = mlnx_create_sai_pool_id(pool_id, &sai_pool))) {
                 free_affected_items(&affected_items);
                 SX_LOG_EXIT();
@@ -3837,7 +3876,7 @@ sai_status_t mlnx_sai_get_ingress_priority_group_stats(
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_sai_clear_ingress_priority_group_stats(
+static sai_status_t mlnx_sai_clear_ingress_priority_group_stats(
     _In_ sai_object_id_t                                   ingress_pg_id,
     _In_ const sai_ingress_priority_group_stat_counter_t * counter_ids,
     _In_ uint32_t                                          number_of_counters)
@@ -3874,9 +3913,10 @@ sai_status_t mlnx_sai_clear_ingress_priority_group_stats(
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_sai_buffer_load_current_shared_config_for_port(_In_ const uint32_t                     db_port_ind,
-                                                                 _In_ const uint32_t                     sx_port_shared_buffer_attr_count,
-                                                                 _Out_ sx_cos_port_shared_buffer_attr_t* sx_port_shared_buff_attr)
+static sai_status_t mlnx_sai_buffer_load_current_shared_config_for_port(
+    _In_ const uint32_t                     db_port_ind,
+    _In_ const uint32_t                     sx_port_shared_buffer_attr_count,
+    _Out_ sx_cos_port_shared_buffer_attr_t* sx_port_shared_buff_attr)
 {
     sx_status_t  sx_status;
     sai_status_t sai_status = SAI_STATUS_SUCCESS;
@@ -3946,9 +3986,9 @@ sai_status_t mlnx_sai_buffer_load_current_shared_config_for_port(_In_ const uint
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_sai_buffer_load_current_reserved_config_for_port(_In_ const uint32_t              db_port_ind,
-                                                                   _In_ const uint32_t              sx_port_buffer_attr_count,
-                                                                   _Out_ sx_cos_port_buffer_attr_t* sx_port_buff_attr)
+static sai_status_t mlnx_sai_buffer_load_current_reserved_config_for_port(_In_ const uint32_t              db_port_ind,
+                                                                          _In_ const uint32_t              sx_port_buffer_attr_count,
+                                                                          _Out_ sx_cos_port_buffer_attr_t* sx_port_buff_attr)
 {
     sai_status_t sai_status;
     sx_status_t  sx_status;
@@ -4012,7 +4052,8 @@ sai_status_t mlnx_sai_buffer_load_current_reserved_config_for_port(_In_ const ui
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_sai_buffer_sx_pool_id_to_sai_pool(_In_ sx_cos_pool_id_t sx_pool_id, _Out_ sai_object_id_t* sai_pool)
+static sai_status_t mlnx_sai_buffer_sx_pool_id_to_sai_pool(_In_ sx_cos_pool_id_t  sx_pool_id,
+                                                           _Out_ sai_object_id_t* sai_pool)
 {
     sx_status_t        sx_status;
     sai_status_t       sai_status;
@@ -4037,9 +4078,9 @@ sai_status_t mlnx_sai_buffer_sx_pool_id_to_sai_pool(_In_ sx_cos_pool_id_t sx_poo
     return sai_status;
 }
 
-sai_status_t mlnx_sai_buffer_load_port_pg_data(_In_ uint32_t                                   db_port_ind,
-                                               _In_ sx_cos_ingress_port_pg_buff_attr_t       * sx_port_pg_buff_attr,
-                                               _In_ sx_cos_ingress_port_pg_shared_buff_attr_t* sx_port_pg_shared_buff_attr)
+static sai_status_t mlnx_sai_buffer_load_port_pg_data(_In_ uint32_t                                   db_port_ind,
+                                                      _In_ sx_cos_ingress_port_pg_buff_attr_t       * sx_port_pg_buff_attr,
+                                                      _In_ sx_cos_ingress_port_pg_shared_buff_attr_t* sx_port_pg_shared_buff_attr)
 {
     sai_status_t                sai_status = SAI_STATUS_SUCCESS;
     uint32_t                    buff_profile_db_ind;
@@ -4102,10 +4143,11 @@ sai_status_t mlnx_sai_buffer_load_port_pg_data(_In_ uint32_t                    
         g_sai_buffer_db_ptr->buffer_profiles[buff_profile_db_ind].shared_max.max.static_th =
             mlnx_cells_to_bytes(sx_port_pg_shared_buff_attr->max.max.size);
     } else {
-        if (SAI_STATUS_SUCCESS != (sai_status = 
-            mlnx_buffer_convert_alpha_sx_to_sai(
-                sx_port_pg_shared_buff_attr->max.max.alpha,
-                &g_sai_buffer_db_ptr->buffer_profiles[buff_profile_db_ind].shared_max.max.alpha))) {
+        if (SAI_STATUS_SUCCESS != (sai_status =
+                                       mlnx_buffer_convert_alpha_sx_to_sai(
+                                           sx_port_pg_shared_buff_attr->max.max.alpha,
+                                           &g_sai_buffer_db_ptr->buffer_profiles[buff_profile_db_ind].shared_max.max.
+                                           alpha))) {
             cl_plock_release(&g_sai_db_ptr->p_lock);
             SX_LOG_EXIT();
             return sai_status;
@@ -4135,9 +4177,9 @@ sai_status_t mlnx_sai_buffer_load_port_pg_data(_In_ uint32_t                    
     return sai_status;
 }
 
-sai_status_t mlnx_sai_buffer_load_port_tc_data(_In_ uint32_t                                  db_port_ind,
-                                               _In_ sx_cos_egress_port_tc_buff_attr_t       * sx_port_tc_buff_attr,
-                                               _In_ sx_cos_egress_port_tc_shared_buff_attr_t* sx_port_tc_shared_buff_attr)
+static sai_status_t mlnx_sai_buffer_load_port_tc_data(_In_ uint32_t                                  db_port_ind,
+                                                      _In_ sx_cos_egress_port_tc_buff_attr_t       * sx_port_tc_buff_attr,
+                                                      _In_ sx_cos_egress_port_tc_shared_buff_attr_t* sx_port_tc_shared_buff_attr)
 {
     sai_status_t                sai_status = SAI_STATUS_SUCCESS;
     mlnx_qos_queue_config_t   * queue_cfg  = NULL;
@@ -4226,10 +4268,11 @@ sai_status_t mlnx_sai_buffer_load_port_tc_data(_In_ uint32_t                    
         g_sai_buffer_db_ptr->buffer_profiles[buff_profile_db_ind].shared_max.max.static_th = mlnx_cells_to_bytes(
             sx_port_tc_shared_buff_attr->max.max.size);
     } else {
-        if (SAI_STATUS_SUCCESS != (sai_status = 
-            mlnx_buffer_convert_alpha_sx_to_sai(
-                sx_port_tc_shared_buff_attr->max.max.alpha,
-                &g_sai_buffer_db_ptr->buffer_profiles[buff_profile_db_ind].shared_max.max.alpha))) {
+        if (SAI_STATUS_SUCCESS != (sai_status =
+                                       mlnx_buffer_convert_alpha_sx_to_sai(
+                                           sx_port_tc_shared_buff_attr->max.max.alpha,
+                                           &g_sai_buffer_db_ptr->buffer_profiles[buff_profile_db_ind].shared_max.max.
+                                           alpha))) {
             cl_plock_release(&g_sai_db_ptr->p_lock);
             SX_LOG_EXIT();
             return sai_status;
@@ -4306,13 +4349,14 @@ sai_status_t mlnx_sai_load_port_buffer_profile(_In_ uint32_t                    
         g_sai_buffer_db_ptr->buffer_profiles[buff_profile_db_ind].shared_max.max.static_th = mlnx_cells_to_bytes(
             buffer_max.max.size);
     } else {
-        if (SAI_STATUS_SUCCESS != (sai_status = 
-            mlnx_buffer_convert_alpha_sx_to_sai(
-                    buffer_max.max.alpha,
-                    &g_sai_buffer_db_ptr->buffer_profiles[buff_profile_db_ind].shared_max.max.alpha))) {
+        if (SAI_STATUS_SUCCESS != (sai_status =
+                                       mlnx_buffer_convert_alpha_sx_to_sai(
+                                           buffer_max.max.alpha,
+                                           &g_sai_buffer_db_ptr->buffer_profiles[buff_profile_db_ind].shared_max.max.
+                                           alpha))) {
             cl_plock_release(&g_sai_db_ptr->p_lock);
             SX_LOG_EXIT();
-            return sai_status;                
+            return sai_status;
         }
     }
 
@@ -4337,11 +4381,11 @@ sai_status_t mlnx_sai_load_port_buffer_profile(_In_ uint32_t                    
 }
 
 /* Loads full reserved and shared buffer configuration for given port */
-sai_status_t mlnx_sai_buffer_load_port_sx_config(_In_ uint32_t                           db_port_ind,
-                                                 _In_ uint32_t                           sx_port_buffer_attr_cnt,
-                                                 _Out_ sx_cos_port_buffer_attr_t       * sx_port_buff_attr_array,
-                                                 _In_ uint32_t                           sx_port_shared_buffer_attr_cnt,
-                                                 _Out_ sx_cos_port_shared_buffer_attr_t* sx_port_shared_buff_attr_array)
+static sai_status_t mlnx_sai_buffer_load_port_sx_config(_In_ uint32_t                           db_port_ind,
+                                                        _In_ uint32_t                           sx_port_buffer_attr_cnt,
+                                                        _Out_ sx_cos_port_buffer_attr_t       * sx_port_buff_attr_array,
+                                                        _In_ uint32_t                           sx_port_shared_buffer_attr_cnt,
+                                                        _Out_ sx_cos_port_shared_buffer_attr_t* sx_port_shared_buff_attr_array)
 {
     sai_status_t sai_status;
 
@@ -4364,7 +4408,8 @@ sai_status_t mlnx_sai_buffer_load_port_sx_config(_In_ uint32_t                  
     return sai_status;
 }
 
-void log_mlnx_sai_buffer_config()
+#if 0
+static void log_mlnx_sai_buffer_config()
 {
     uint32_t                 buff_profile_db_ind;
     uint32_t                 buff_profile_db_cnt = mlnx_sai_get_buffer_profile_number();
@@ -4465,6 +4510,7 @@ void log_mlnx_sai_buffer_config()
     sai_db_unlock();
     SX_LOG_EXIT();
 }
+#endif /* if 0 */
 
 sai_status_t mlnx_sai_buffer_init_pool_db()
 {
@@ -4804,7 +4850,7 @@ sai_status_t mlnx_buffer_apply(_In_ sai_object_id_t sai_buffer, _In_ sai_object_
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_sai_buffer_reset_all_sx_pools()
+static sai_status_t mlnx_sai_buffer_reset_all_sx_pools()
 {
     sx_cos_pool_attr_t sx_pool_attr;
     sx_status_t        sx_status;
@@ -4848,7 +4894,7 @@ sai_status_t mlnx_sai_buffer_reset_all_sx_pools()
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_sai_buffer_unbind_reserved_buffers(_In_ sx_port_log_id_t log_port)
+static sai_status_t mlnx_sai_buffer_unbind_reserved_buffers(_In_ sx_port_log_id_t log_port)
 {
     sx_status_t                sx_status;
     uint32_t                   count = buffer_limits.max_buffers_per_port;
@@ -4905,7 +4951,7 @@ sai_status_t mlnx_sai_buffer_unbind_reserved_buffers(_In_ sx_port_log_id_t log_p
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_sai_buffer_unbind_shared_buffers(_In_ sx_port_log_id_t log_port)
+static sai_status_t mlnx_sai_buffer_unbind_shared_buffers(_In_ sx_port_log_id_t log_port)
 {
     sx_status_t                       sx_status;
     sx_cos_port_shared_buffer_attr_t* sx_port_shared_buff_attr_arr;
@@ -4956,7 +5002,7 @@ sai_status_t mlnx_sai_buffer_unbind_shared_buffers(_In_ sx_port_log_id_t log_por
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_sai_buffer_delete_all_buffer_config()
+static sai_status_t mlnx_sai_buffer_delete_all_buffer_config()
 {
     sai_status_t sai_status;
     uint32_t     port_ind;
@@ -4987,9 +5033,9 @@ sai_status_t mlnx_sai_buffer_delete_all_buffer_config()
 }
 
 
-sai_status_t mlnx_sai_buffer_configure_reserved_buffers(_In_ sx_port_log_id_t            logical_port,
-                                                        _Out_ sx_cos_port_buffer_attr_t* sx_port_reserved_buff_attr_arr,
-                                                        _In_ uint32_t                    count)
+static sai_status_t mlnx_sai_buffer_configure_reserved_buffers(_In_ sx_port_log_id_t            logical_port,
+                                                               _Out_ sx_cos_port_buffer_attr_t* sx_port_reserved_buff_attr_arr,
+                                                               _In_ uint32_t                    count)
 {
     sx_status_t sx_status;
 
@@ -5023,9 +5069,9 @@ sai_status_t mlnx_sai_buffer_configure_reserved_buffers(_In_ sx_port_log_id_t   
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_sai_buffer_configure_shared_buffers(_In_ sx_port_log_id_t                   logical_port,
-                                                      _Out_ sx_cos_port_shared_buffer_attr_t* sx_port_shared_buff_attr_arr,
-                                                      _In_ uint32_t                           count)
+static sai_status_t mlnx_sai_buffer_configure_shared_buffers(_In_ sx_port_log_id_t                   logical_port,
+                                                             _Out_ sx_cos_port_shared_buffer_attr_t* sx_port_shared_buff_attr_arr,
+                                                             _In_ uint32_t                           count)
 {
     sx_status_t sx_status;
 
@@ -5057,7 +5103,8 @@ sai_status_t mlnx_sai_buffer_configure_shared_buffers(_In_ sx_port_log_id_t     
     SX_LOG_EXIT();
     return SAI_STATUS_SUCCESS;
 }
-sai_status_t mlnx_sai_is_buffer_in_use(_In_ sai_object_id_t buffer_profile_id)
+
+static sai_status_t mlnx_sai_is_buffer_in_use(_In_ sai_object_id_t buffer_profile_id)
 {
     sai_status_t                  sai_status;
     uint32_t                      port_ind;
@@ -5092,88 +5139,173 @@ sai_status_t mlnx_sai_is_buffer_in_use(_In_ sai_object_id_t buffer_profile_id)
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_buffer_convert_alpha_sx_to_sai(
-    _In_ sx_cos_port_buff_alpha_e   sx_alpha,
-    _Out_ sai_int8_t*               sai_alpha)
+static sai_status_t mlnx_buffer_convert_alpha_sx_to_sai(_In_ sx_cos_port_buff_alpha_e sx_alpha,
+                                                        _Out_ sai_int8_t            * sai_alpha)
 {
     SX_LOG_ENTER();
-    if(NULL == sai_alpha) {
+    if (NULL == sai_alpha) {
         SX_LOG_ERR("NULL sai_alpha\n");
         SX_LOG_EXIT();
         return SAI_STATUS_INVALID_PARAMETER;
     }
-    switch(sx_alpha) {
-        case SX_COS_PORT_BUFF_ALPHA_0_E     : *sai_alpha = SAI_BUFFER_ALPHA_0;break;
-        case SX_COS_PORT_BUFF_ALPHA_1_128_E : *sai_alpha = SAI_BUFFER_ALPHA_1_128;break;
-        case SX_COS_PORT_BUFF_ALPHA_1_64_E  : *sai_alpha = SAI_BUFFER_ALPHA_1_64;break;
-        case SX_COS_PORT_BUFF_ALPHA_1_32_E  : *sai_alpha = SAI_BUFFER_ALPHA_1_32;break;
-        case SX_COS_PORT_BUFF_ALPHA_1_16_E  : *sai_alpha = SAI_BUFFER_ALPHA_1_16;break;
-        case SX_COS_PORT_BUFF_ALPHA_1_8_E   : *sai_alpha = SAI_BUFFER_ALPHA_1_8;break;
-        case SX_COS_PORT_BUFF_ALPHA_1_4_E   : *sai_alpha = SAI_BUFFER_ALPHA_1_4;break;
-        case SX_COS_PORT_BUFF_ALPHA_1_2_E   : *sai_alpha = SAI_BUFFER_ALPHA_1_2;break;
+    switch (sx_alpha) {
+    case SX_COS_PORT_BUFF_ALPHA_0_E:
+        *sai_alpha = SAI_BUFFER_ALPHA_0;
+        break;
 
-        case SX_COS_PORT_BUFF_ALPHA_1_E     : *sai_alpha = SAI_BUFFER_ALPHA_1;break;
-        case SX_COS_PORT_BUFF_ALPHA_2_E     : *sai_alpha = SAI_BUFFER_ALPHA_2;break;
-        case SX_COS_PORT_BUFF_ALPHA_4_E     : *sai_alpha = SAI_BUFFER_ALPHA_4;break;
-        case SX_COS_PORT_BUFF_ALPHA_8_E     : *sai_alpha = SAI_BUFFER_ALPHA_8;break;
-        case SX_COS_PORT_BUFF_ALPHA_16_E    : *sai_alpha = SAI_BUFFER_ALPHA_16;break;
-        case SX_COS_PORT_BUFF_ALPHA_32_E    : *sai_alpha = SAI_BUFFER_ALPHA_32;break;
-        case SX_COS_PORT_BUFF_ALPHA_64_E    : *sai_alpha = SAI_BUFFER_ALPHA_64;break;
+    case SX_COS_PORT_BUFF_ALPHA_1_128_E:
+        *sai_alpha = SAI_BUFFER_ALPHA_1_128;
+        break;
 
-        case SX_COS_PORT_BUFF_ALPHA_INFINITY_E: *sai_alpha = SAI_BUFFER_ALPHA_INFINITY;break;
-        default:
-            SX_LOG_ERR("Invalid sx alpha value:%d\n", sx_alpha);
-            SX_LOG_EXIT();
-            return SAI_STATUS_INVALID_PARAMETER;
+    case SX_COS_PORT_BUFF_ALPHA_1_64_E:
+        *sai_alpha = SAI_BUFFER_ALPHA_1_64;
+        break;
+
+    case SX_COS_PORT_BUFF_ALPHA_1_32_E:
+        *sai_alpha = SAI_BUFFER_ALPHA_1_32;
+        break;
+
+    case SX_COS_PORT_BUFF_ALPHA_1_16_E:
+        *sai_alpha = SAI_BUFFER_ALPHA_1_16;
+        break;
+
+    case SX_COS_PORT_BUFF_ALPHA_1_8_E:
+        *sai_alpha = SAI_BUFFER_ALPHA_1_8;
+        break;
+
+    case SX_COS_PORT_BUFF_ALPHA_1_4_E:
+        *sai_alpha = SAI_BUFFER_ALPHA_1_4;
+        break;
+
+    case SX_COS_PORT_BUFF_ALPHA_1_2_E:
+        *sai_alpha = SAI_BUFFER_ALPHA_1_2;
+        break;
+
+    case SX_COS_PORT_BUFF_ALPHA_1_E:
+        *sai_alpha = SAI_BUFFER_ALPHA_1;
+        break;
+
+    case SX_COS_PORT_BUFF_ALPHA_2_E:
+        *sai_alpha = SAI_BUFFER_ALPHA_2;
+        break;
+
+    case SX_COS_PORT_BUFF_ALPHA_4_E:
+        *sai_alpha = SAI_BUFFER_ALPHA_4;
+        break;
+
+    case SX_COS_PORT_BUFF_ALPHA_8_E:
+        *sai_alpha = SAI_BUFFER_ALPHA_8;
+        break;
+
+    case SX_COS_PORT_BUFF_ALPHA_16_E:
+        *sai_alpha = SAI_BUFFER_ALPHA_16;
+        break;
+
+    case SX_COS_PORT_BUFF_ALPHA_32_E:
+        *sai_alpha = SAI_BUFFER_ALPHA_32;
+        break;
+
+    case SX_COS_PORT_BUFF_ALPHA_64_E:
+        *sai_alpha = SAI_BUFFER_ALPHA_64;
+        break;
+
+    case SX_COS_PORT_BUFF_ALPHA_INFINITY_E:
+        *sai_alpha = SAI_BUFFER_ALPHA_INFINITY;
+        break;
+
+    default:
+        SX_LOG_ERR("Invalid sx alpha value:%d\n", sx_alpha);
+        SX_LOG_EXIT();
+        return SAI_STATUS_INVALID_PARAMETER;
     }
     SX_LOG_DBG("input:%d, output:%d\n", sx_alpha, *sai_alpha);
     SX_LOG_EXIT();
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_buffer_convert_alpha_sai_to_sx(
-    _In_    sai_int8_t                  sai_alpha,
-    _Out_   sx_cos_port_buff_alpha_e*   sx_alpha)
+static sai_status_t mlnx_buffer_convert_alpha_sai_to_sx(_In_ sai_int8_t                 sai_alpha,
+                                                        _Out_ sx_cos_port_buff_alpha_e* sx_alpha)
 {
     SX_LOG_ENTER();
-    if(NULL == sx_alpha) {
+    if (NULL == sx_alpha) {
         SX_LOG_ERR("NULL sx_alpha\n");
         SX_LOG_EXIT();
         return SAI_STATUS_INVALID_PARAMETER;
     }
-    if(sai_alpha <= SAI_BUFFER_ALPHA_0) {
+    if (sai_alpha <= SAI_BUFFER_ALPHA_0) {
         *sx_alpha = SX_COS_PORT_BUFF_ALPHA_0_E;
         SX_LOG_DBG("input:%d, output:%d\n", sai_alpha, *sx_alpha);
         SX_LOG_EXIT();
         return SAI_STATUS_SUCCESS;
     }
-    if(sai_alpha >= SAI_BUFFER_ALPHA_INFINITY) {
+    if (sai_alpha >= SAI_BUFFER_ALPHA_INFINITY) {
         *sx_alpha = SX_COS_PORT_BUFF_ALPHA_INFINITY_E;
         SX_LOG_DBG("input:%d, output:%d\n", sai_alpha, *sx_alpha);
         SX_LOG_EXIT();
         return SAI_STATUS_SUCCESS;
     }
-    
-    switch(sai_alpha) {
-        case SAI_BUFFER_ALPHA_1_128 : *sx_alpha = SX_COS_PORT_BUFF_ALPHA_1_128_E;break;
-        case SAI_BUFFER_ALPHA_1_64  : *sx_alpha = SX_COS_PORT_BUFF_ALPHA_1_64_E;break;
-        case SAI_BUFFER_ALPHA_1_32  : *sx_alpha = SX_COS_PORT_BUFF_ALPHA_1_32_E;break;
-        case SAI_BUFFER_ALPHA_1_16  : *sx_alpha = SX_COS_PORT_BUFF_ALPHA_1_16_E;break;
-        case SAI_BUFFER_ALPHA_1_8   : *sx_alpha = SX_COS_PORT_BUFF_ALPHA_1_8_E;break;
-        case SAI_BUFFER_ALPHA_1_4   : *sx_alpha = SX_COS_PORT_BUFF_ALPHA_1_4_E;break;
-        case SAI_BUFFER_ALPHA_1_2   : *sx_alpha = SX_COS_PORT_BUFF_ALPHA_1_2_E;break;
-        
-        case SAI_BUFFER_ALPHA_1     : *sx_alpha = SX_COS_PORT_BUFF_ALPHA_1_E;break;
-        case SAI_BUFFER_ALPHA_2     : *sx_alpha = SX_COS_PORT_BUFF_ALPHA_2_E;break;
-        case SAI_BUFFER_ALPHA_4     : *sx_alpha = SX_COS_PORT_BUFF_ALPHA_4_E;break;
-        case SAI_BUFFER_ALPHA_8     : *sx_alpha = SX_COS_PORT_BUFF_ALPHA_8_E;break;
-        case SAI_BUFFER_ALPHA_16    : *sx_alpha = SX_COS_PORT_BUFF_ALPHA_16_E;break;
-        case SAI_BUFFER_ALPHA_32    : *sx_alpha = SX_COS_PORT_BUFF_ALPHA_32_E;break;
-        case SAI_BUFFER_ALPHA_64    : *sx_alpha = SX_COS_PORT_BUFF_ALPHA_64_E;break;
-        default:
-            SX_LOG_ERR("Invalid sai alpha value:%d\n", sai_alpha);
-            SX_LOG_EXIT();
-            return SAI_STATUS_INVALID_PARAMETER;
+
+    switch (sai_alpha) {
+    case SAI_BUFFER_ALPHA_1_128:
+        *sx_alpha = SX_COS_PORT_BUFF_ALPHA_1_128_E;
+        break;
+
+    case SAI_BUFFER_ALPHA_1_64:
+        *sx_alpha = SX_COS_PORT_BUFF_ALPHA_1_64_E;
+        break;
+
+    case SAI_BUFFER_ALPHA_1_32:
+        *sx_alpha = SX_COS_PORT_BUFF_ALPHA_1_32_E;
+        break;
+
+    case SAI_BUFFER_ALPHA_1_16:
+        *sx_alpha = SX_COS_PORT_BUFF_ALPHA_1_16_E;
+        break;
+
+    case SAI_BUFFER_ALPHA_1_8:
+        *sx_alpha = SX_COS_PORT_BUFF_ALPHA_1_8_E;
+        break;
+
+    case SAI_BUFFER_ALPHA_1_4:
+        *sx_alpha = SX_COS_PORT_BUFF_ALPHA_1_4_E;
+        break;
+
+    case SAI_BUFFER_ALPHA_1_2:
+        *sx_alpha = SX_COS_PORT_BUFF_ALPHA_1_2_E;
+        break;
+
+    case SAI_BUFFER_ALPHA_1:
+        *sx_alpha = SX_COS_PORT_BUFF_ALPHA_1_E;
+        break;
+
+    case SAI_BUFFER_ALPHA_2:
+        *sx_alpha = SX_COS_PORT_BUFF_ALPHA_2_E;
+        break;
+
+    case SAI_BUFFER_ALPHA_4:
+        *sx_alpha = SX_COS_PORT_BUFF_ALPHA_4_E;
+        break;
+
+    case SAI_BUFFER_ALPHA_8:
+        *sx_alpha = SX_COS_PORT_BUFF_ALPHA_8_E;
+        break;
+
+    case SAI_BUFFER_ALPHA_16:
+        *sx_alpha = SX_COS_PORT_BUFF_ALPHA_16_E;
+        break;
+
+    case SAI_BUFFER_ALPHA_32:
+        *sx_alpha = SX_COS_PORT_BUFF_ALPHA_32_E;
+        break;
+
+    case SAI_BUFFER_ALPHA_64:
+        *sx_alpha = SX_COS_PORT_BUFF_ALPHA_64_E;
+        break;
+
+    default:
+        SX_LOG_ERR("Invalid sai alpha value:%d\n", sai_alpha);
+        SX_LOG_EXIT();
+        return SAI_STATUS_INVALID_PARAMETER;
     }
     SX_LOG_DBG("input:%d, output:%d\n", sai_alpha, *sx_alpha);
     SX_LOG_EXIT();
@@ -5336,7 +5468,7 @@ bool self_check_buffer_db()
 
 #endif /* SAI_BUFFER_SELF_CHECK */
 
-const sai_buffer_api_t buffer_api = {
+const sai_buffer_api_t mlnx_buffer_api = {
     mlnx_sai_create_buffer_pool,
     mlnx_sai_remove_buffer_pool,
 
