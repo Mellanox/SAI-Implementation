@@ -1742,8 +1742,6 @@ static sai_status_t sai_db_create()
 static sai_status_t mlnx_dvs_mng_stage()
 {
     sai_status_t                              status;
-    int                                       system_err;
-    char                                      cmd[200];
     sx_port_attributes_t                     *port_attributes_p = NULL;
     uint32_t                                  ii, jj;
     sx_topolib_dev_info_t                     dev_info;
@@ -1761,24 +1759,6 @@ static sai_status_t mlnx_dvs_mng_stage()
     if (SX_STATUS_SUCCESS != (status = sx_api_port_swid_set(gh_sdk, SX_ACCESS_CMD_ADD, DEFAULT_ETH_SWID))) {
         SX_LOG_ERR("Port swid set failed - %s.\n", SX_STATUS_MSG(status));
         status = sdk_to_sai(status);
-        goto out;
-    }
-
-    /* Set MAC address */
-    snprintf(cmd, sizeof(cmd), "ip link set address %s dev swid0_eth > /dev/null 2>&1", g_sai_db_ptr->dev_mac);
-    system_err = system(cmd);
-    if (0 != system_err) {
-        SX_LOG_ERR("Failed running \"%s\".\n", cmd);
-        status = SAI_STATUS_FAILURE;
-        goto out;
-    }
-
-    /* Take swid netdev up */
-    snprintf(cmd, sizeof(cmd), "ip -4 addr flush dev swid0_eth");
-    system_err = system(cmd);
-    if (0 != system_err) {
-        SX_LOG_ERR("Failed running \"%s\".\n", cmd);
-        status = SAI_STATUS_FAILURE;
         goto out;
     }
 
