@@ -121,7 +121,7 @@ static const sai_vendor_attribute_entry_t sched_group_vendor_attribs[] = {
       mlnx_sched_group_profile_get, NULL,
       mlnx_sched_group_profile_set, NULL},
 };
-static mlnx_sched_obj_t * group_get(mlnx_qos_port_config_t *port, uint8_t level, uint8_t index)
+static mlnx_sched_obj_t * group_get(mlnx_port_config_t *port, uint8_t level, uint8_t index)
 {
     return &port->sched_hierarchy.groups[level][index];
 }
@@ -158,7 +158,7 @@ static sai_status_t ets_lookup(sx_cos_ets_element_config_t  *ets_list,
     return SAI_STATUS_ITEM_NOT_FOUND;
 }
 
-static void queue_to_sched_obj(mlnx_qos_port_config_t  *port,
+static void queue_to_sched_obj(mlnx_port_config_t      *port,
                                mlnx_qos_queue_config_t *queue,
                                uint32_t                 index,
                                mlnx_sched_obj_t        *obj)
@@ -169,9 +169,9 @@ static void queue_to_sched_obj(mlnx_qos_port_config_t  *port,
     memcpy(obj, &queue->sched_obj, sizeof(*obj));
 }
 
-sai_status_t mlnx_sched_hierarchy_foreach(mlnx_qos_port_config_t *port,
-                                          mlnx_sched_obj_iter_t   iter,
-                                          mlnx_sched_iter_ctx_t  *ctx)
+sai_status_t mlnx_sched_hierarchy_foreach(mlnx_port_config_t    *port,
+                                          mlnx_sched_obj_iter_t  iter,
+                                          mlnx_sched_iter_ctx_t *ctx)
 {
     mlnx_qos_queue_config_t *queue;
     mlnx_iter_ret_t          ret;
@@ -203,7 +203,7 @@ out:
     return SAI_STATUS_SUCCESS;
 }
 
-static mlnx_iter_ret_t groups_child_iter(mlnx_qos_port_config_t *port, mlnx_sched_obj_t *obj, void *arg)
+static mlnx_iter_ret_t groups_child_iter(mlnx_port_config_t *port, mlnx_sched_obj_t *obj, void *arg)
 {
     mlnx_sched_obj_t      *parent;
     mlnx_sched_iter_ctx_t *ctx = arg;
@@ -220,11 +220,11 @@ static mlnx_iter_ret_t groups_child_iter(mlnx_qos_port_config_t *port, mlnx_sche
     return ctx->iter(port, obj, ctx->iter_ctx);
 }
 
-sai_status_t groups_child_foreach(mlnx_qos_port_config_t *port,
-                                  uint8_t                 lvl,
-                                  uint8_t                 idx,
-                                  mlnx_sched_obj_iter_t   iter,
-                                  mlnx_sched_iter_ctx_t  *ctx)
+static sai_status_t groups_child_foreach(mlnx_port_config_t    *port,
+                                         uint8_t                lvl,
+                                         uint8_t                idx,
+                                         mlnx_sched_obj_iter_t  iter,
+                                         mlnx_sched_iter_ctx_t *ctx)
 {
     mlnx_sched_obj_t      parent    = {.level = lvl, .index = idx };
     mlnx_sched_iter_ctx_t child_ctx = { .arg = &parent, .iter = iter, .iter_ctx = ctx };
@@ -240,7 +240,7 @@ sai_status_t groups_child_foreach(mlnx_qos_port_config_t *port,
     return ctx->sai_status;
 }
 
-sai_status_t ets_list_load(sx_port_log_id_t port_id, sx_cos_ets_element_config_t **ets)
+static sai_status_t ets_list_load(sx_port_log_id_t port_id, sx_cos_ets_element_config_t **ets)
 {
     uint32_t     max_ets_count = MAX_ETS_ELEMENTS;
     sai_status_t status;
@@ -282,7 +282,7 @@ static void mlnx_sched_group_key_to_str(_In_ sai_object_id_t group_id, _Out_ cha
     snprintf(key_str, MAX_KEY_STR_LEN, "scheduler group id %u:%u", level, index);
 }
 
-static mlnx_iter_ret_t groups_child_counter(mlnx_qos_port_config_t *cfg, mlnx_sched_obj_t *obj, void *arg)
+static mlnx_iter_ret_t groups_child_counter(mlnx_port_config_t *port, mlnx_sched_obj_t *obj, void *arg)
 {
     mlnx_sched_iter_ctx_t *ctx = arg;
 
@@ -296,7 +296,7 @@ static mlnx_iter_ret_t groups_child_counter(mlnx_qos_port_config_t *cfg, mlnx_sc
     return ITER_NEXT;
 }
 
-static mlnx_iter_ret_t groups_child_to_objlist(mlnx_qos_port_config_t *cfg, mlnx_sched_obj_t *obj, void *arg)
+static mlnx_iter_ret_t groups_child_to_objlist(mlnx_port_config_t *port, mlnx_sched_obj_t *obj, void *arg)
 {
     mlnx_sched_iter_ctx_t *ctx = arg;
     sai_object_list_t     *obj_list;
@@ -312,9 +312,9 @@ static mlnx_iter_ret_t groups_child_to_objlist(mlnx_qos_port_config_t *cfg, mlnx
     ii       = obj_list->count++;
 
     if (obj->type == MLNX_SCHED_OBJ_QUEUE) {
-        ctx->sai_status = mlnx_create_queue(cfg->log_port_id, obj->index, &obj_list->list[ii]);
+        ctx->sai_status = mlnx_create_queue(port->logical, obj->index, &obj_list->list[ii]);
     } else if (obj->type == MLNX_SCHED_OBJ_GROUP) {
-        ctx->sai_status = mlnx_create_sched_group(cfg->log_port_id, obj->level, obj->index,
+        ctx->sai_status = mlnx_create_sched_group(port->logical, obj->level, obj->index,
                                                   &obj_list->list[ii]);
     } else {
         assert(false);
@@ -335,13 +335,13 @@ static sai_status_t mlnx_sched_group_child_count_get(_In_ const sai_object_key_t
                                                      _Inout_ vendor_cache_t        *cache,
                                                      void                          *arg)
 {
-    mlnx_qos_port_config_t *port;
-    sx_port_log_id_t        port_id;
-    mlnx_sched_iter_ctx_t   ctx;
-    sai_status_t            status;
-    uint32_t                count = 0;
-    uint8_t                 idx;
-    uint8_t                 lvl;
+    mlnx_port_config_t   *port;
+    sx_port_log_id_t      port_id;
+    mlnx_sched_iter_ctx_t ctx;
+    sai_status_t          status;
+    uint32_t              count = 0;
+    uint8_t               idx;
+    uint8_t               lvl;
 
     status = mlnx_sched_group_parse_id(key->object_id, &port_id, &lvl, &idx);
     if (status != SAI_STATUS_SUCCESS) {
@@ -351,7 +351,7 @@ static sai_status_t mlnx_sched_group_child_count_get(_In_ const sai_object_key_t
 
     sai_qos_db_read_lock();
 
-    status = mlnx_port_qos_cfg_lookup(port_id, &port);
+    status = mlnx_port_by_log_id(port_id, &port);
     if (SAI_ERR(status)) {
         goto out;
     }
@@ -378,14 +378,14 @@ static sai_status_t mlnx_sched_group_child_list_get(_In_ const sai_object_key_t 
                                                     _Inout_ vendor_cache_t        *cache,
                                                     void                          *arg)
 {
-    mlnx_qos_port_config_t *port;
-    sai_object_list_t       child_list = {0};
-    sx_port_log_id_t        port_id;
-    mlnx_sched_iter_ctx_t   ctx;
-    sai_status_t            status;
-    uint32_t                count;
-    uint8_t                 idx;
-    uint8_t                 lvl;
+    mlnx_port_config_t   *port;
+    sai_object_list_t     child_list = {0};
+    sx_port_log_id_t      port_id;
+    mlnx_sched_iter_ctx_t ctx;
+    sai_status_t          status;
+    uint32_t              count;
+    uint8_t               idx;
+    uint8_t               lvl;
 
     status = mlnx_sched_group_parse_id(key->object_id, &port_id, &lvl, &idx);
     if (status != SAI_STATUS_SUCCESS) {
@@ -395,7 +395,7 @@ static sai_status_t mlnx_sched_group_child_list_get(_In_ const sai_object_key_t 
 
     sai_qos_db_read_lock();
 
-    status = mlnx_port_qos_cfg_lookup(port_id, &port);
+    status = mlnx_port_by_log_id(port_id, &port);
     if (SAI_ERR(status)) {
         goto out;
     }
@@ -452,7 +452,7 @@ static sai_status_t mlnx_sched_group_port_get(_In_ const sai_object_key_t   *key
 }
 
 /** Scheduler group level [sai_uint8_t]
- *  MANDATORY_ON_CREATE,  CREATE_ONLY */
+*  MANDATORY_ON_CREATE,  CREATE_ONLY */
 static sai_status_t mlnx_sched_group_level_get(_In_ const sai_object_key_t   *key,
                                                _Inout_ sai_attribute_value_t *value,
                                                _In_ uint32_t                  attr_index,
@@ -477,11 +477,11 @@ static sai_status_t mlnx_sched_group_max_childs_get(_In_ const sai_object_key_t 
                                                     _Inout_ vendor_cache_t        *cache,
                                                     void                          *arg)
 {
-    mlnx_qos_port_config_t *port;
-    sx_port_log_id_t        port_id;
-    sai_status_t            status;
-    uint8_t                 level;
-    uint8_t                 index;
+    mlnx_port_config_t *port;
+    sx_port_log_id_t    port_id;
+    sai_status_t        status;
+    uint8_t             level;
+    uint8_t             index;
 
     SX_LOG_ENTER();
 
@@ -493,7 +493,7 @@ static sai_status_t mlnx_sched_group_max_childs_get(_In_ const sai_object_key_t 
 
     sai_qos_db_read_lock();
 
-    status = mlnx_port_qos_cfg_lookup(port_id, &port);
+    status = mlnx_port_by_log_id(port_id, &port);
     if (SAI_ERR(status)) {
         goto out;
     }
@@ -513,11 +513,11 @@ static sai_status_t mlnx_sched_group_profile_get(_In_ const sai_object_key_t   *
                                                  _Inout_ vendor_cache_t        *cache,
                                                  void                          *arg)
 {
-    mlnx_qos_port_config_t *port;
-    sx_port_log_id_t        port_id;
-    sai_status_t            status;
-    uint8_t                 level;
-    uint8_t                 index;
+    mlnx_port_config_t *port;
+    sx_port_log_id_t    port_id;
+    sai_status_t        status;
+    uint8_t             level;
+    uint8_t             index;
 
     SX_LOG_ENTER();
 
@@ -529,7 +529,7 @@ static sai_status_t mlnx_sched_group_profile_get(_In_ const sai_object_key_t   *
 
     sai_qos_db_read_lock();
 
-    status = mlnx_port_qos_cfg_lookup(port_id, &port);
+    status = mlnx_port_by_log_id(port_id, &port);
     if (SAI_ERR(status)) {
         goto out;
     }
@@ -614,7 +614,7 @@ out:
     return status;
 }
 
-static mlnx_iter_ret_t sched_obj_reset(mlnx_qos_port_config_t *port, mlnx_sched_obj_t *obj, void *arg)
+static mlnx_iter_ret_t sched_obj_reset(mlnx_port_config_t *port, mlnx_sched_obj_t *obj, void *arg)
 {
     mlnx_sched_iter_ctx_t *ctx = arg;
     sai_object_id_t        group_id;
@@ -627,7 +627,7 @@ static mlnx_iter_ret_t sched_obj_reset(mlnx_qos_port_config_t *port, mlnx_sched_
         return ITER_NEXT;
     }
 
-    ctx->sai_status = mlnx_create_sched_group(port->log_port_id, obj->level, obj->index, &group_id);
+    ctx->sai_status = mlnx_create_sched_group(port->logical, obj->level, obj->index, &group_id);
     if (SAI_ERR(ctx->sai_status)) {
         return ITER_STOP;
     }
@@ -635,14 +635,14 @@ static mlnx_iter_ret_t sched_obj_reset(mlnx_qos_port_config_t *port, mlnx_sched_
     ctx->sai_status = mlnx_scheduler_to_group_apply(SAI_NULL_OBJECT_ID, group_id);
     if (SAI_ERR(ctx->sai_status)) {
         SX_LOG_ERR("Failed to reset scheduler profile on group at port %x level %u index %u\n",
-                   port->log_port_id, obj->level, obj->index);
+                   port->logical, obj->level, obj->index);
         return ITER_STOP;
     }
 
     obj->is_used = false;
     port->sched_hierarchy.groups_count[obj->level]--;
 
-    ctx->sai_status = mlnx_sched_objlist_to_ets_update(port->log_port_id, obj, 1);
+    ctx->sai_status = mlnx_sched_objlist_to_ets_update(port->logical, obj, 1);
     if (SAI_ERR(ctx->sai_status)) {
         return ITER_STOP;
     }
@@ -650,15 +650,15 @@ static mlnx_iter_ret_t sched_obj_reset(mlnx_qos_port_config_t *port, mlnx_sched_
     return ITER_NEXT;
 }
 
-static sai_status_t sched_hierarchy_reset(mlnx_qos_port_config_t *port)
+static sai_status_t sched_hierarchy_reset(mlnx_port_config_t *port)
 {
     mlnx_sched_iter_ctx_t ctx = { .sai_status = SAI_STATUS_SUCCESS };
 
-    SX_LOG_NTC("Drop default hierarchy on log port id %x\n", port->log_port_id);
+    SX_LOG_NTC("Drop default hierarchy on log port id %x\n", port->logical);
 
     mlnx_sched_hierarchy_foreach(port, sched_obj_reset, &ctx);
     if (SAI_ERR(ctx.sai_status)) {
-        SX_LOG_ERR("Failed drop default hierarchy on log port id %x\n", port->log_port_id);
+        SX_LOG_ERR("Failed drop default hierarchy on log port id %x\n", port->logical);
         return ctx.sai_status;
     }
     port->sched_hierarchy.is_default = false;
@@ -684,7 +684,7 @@ static sai_status_t mlnx_create_scheduler_group(_Out_ sai_object_id_t      *sche
     const sai_attribute_value_t *attr;
     uint32_t                     index;
     sai_status_t                 status;
-    mlnx_qos_port_config_t      *port;
+    mlnx_port_config_t          *port;
     sx_port_log_id_t             port_id;
     uint8_t                      level;
     uint8_t                      max_child_count;
@@ -715,7 +715,7 @@ static sai_status_t mlnx_create_scheduler_group(_Out_ sai_object_id_t      *sche
 
     sai_qos_db_write_lock();
 
-    status = mlnx_port_qos_cfg_lookup(port_id, &port);
+    status = mlnx_port_by_log_id(port_id, &port);
     if (SAI_ERR(status)) {
         goto out;
     }
@@ -802,7 +802,7 @@ out:
     return status;
 }
 
-static mlnx_iter_ret_t groups_child_exist(mlnx_qos_port_config_t *cfg, mlnx_sched_obj_t *obj, void *arg)
+static mlnx_iter_ret_t groups_child_exist(mlnx_port_config_t *port, mlnx_sched_obj_t *obj, void *arg)
 {
     mlnx_sched_iter_ctx_t *ctx = arg;
 
@@ -822,13 +822,13 @@ static mlnx_iter_ret_t groups_child_exist(mlnx_qos_port_config_t *cfg, mlnx_sche
  */
 static sai_status_t mlnx_remove_scheduler_group(_In_ sai_object_id_t scheduler_group_id)
 {
-    mlnx_qos_port_config_t *port;
-    uint8_t                 level;
-    uint8_t                 index;
-    sx_port_log_id_t        port_id;
-    sai_status_t            status;
-    mlnx_sched_iter_ctx_t   ctx;
-    mlnx_sched_obj_t       *group;
+    mlnx_port_config_t   *port;
+    uint8_t               level;
+    uint8_t               index;
+    sx_port_log_id_t      port_id;
+    sai_status_t          status;
+    mlnx_sched_iter_ctx_t ctx;
+    mlnx_sched_obj_t     *group;
 
     SX_LOG_ENTER();
 
@@ -840,7 +840,7 @@ static sai_status_t mlnx_remove_scheduler_group(_In_ sai_object_id_t scheduler_g
 
     sai_qos_db_write_lock();
 
-    status = mlnx_port_qos_cfg_lookup(port_id, &port);
+    status = mlnx_port_by_log_id(port_id, &port);
     if (SAI_ERR(status)) {
         goto out;
     }
@@ -938,9 +938,9 @@ static sai_status_t mlnx_get_scheduler_group_attribute(_In_ sai_object_id_t     
 }
 
 /* DB read lock is needed */
-static sai_status_t sai_obj_to_sched_obj(mlnx_qos_port_config_t *port,
-                                         mlnx_sched_obj_t       *sch_obj,
-                                         sai_object_id_t         sai_obj)
+static sai_status_t sai_obj_to_sched_obj(mlnx_port_config_t *port,
+                                         mlnx_sched_obj_t   *sch_obj,
+                                         sai_object_id_t     sai_obj)
 {
     mlnx_qos_queue_config_t *queue;
     sx_port_log_id_t         port_id;
@@ -957,7 +957,7 @@ static sai_status_t sai_obj_to_sched_obj(mlnx_qos_port_config_t *port,
             return status;
         }
 
-        if (port->log_port_id != port_id) {
+        if (port->logical != port_id) {
             SX_LOG_ERR("Invalid queue logical port id %x\n", port_id);
             return SAI_STATUS_INVALID_PARAMETER;
         }
@@ -974,7 +974,7 @@ static sai_status_t sai_obj_to_sched_obj(mlnx_qos_port_config_t *port,
             return status;
         }
 
-        if (port->log_port_id != port_id) {
+        if (port->logical != port_id) {
             SX_LOG_ERR("Invalid scheduler group logical port id %x\n", port_id);
             return SAI_STATUS_INVALID_PARAMETER;
         }
@@ -989,10 +989,10 @@ static sai_status_t sai_obj_to_sched_obj(mlnx_qos_port_config_t *port,
 }
 
 /* DB write/read lock is needed */
-static sai_status_t sai_objlist_to_sched_objlist(mlnx_qos_port_config_t *port,
-                                                 mlnx_sched_obj_t       *sch_objlist,
-                                                 const sai_object_id_t  *objlist,
-                                                 uint32_t                count)
+static sai_status_t sai_objlist_to_sched_objlist(mlnx_port_config_t    *port,
+                                                 mlnx_sched_obj_t      *sch_objlist,
+                                                 const sai_object_id_t *objlist,
+                                                 uint32_t               count)
 {
     sai_status_t status;
     uint32_t     ii;
@@ -1012,9 +1012,9 @@ static sai_status_t sai_objlist_to_sched_objlist(mlnx_qos_port_config_t *port,
     return SAI_STATUS_SUCCESS;
 }
 
-static sai_status_t mlnx_sched_objlist_to_hierarchy_update(mlnx_qos_port_config_t *port,
-                                                           mlnx_sched_obj_t       *sch_objlist,
-                                                           uint32_t                count)
+static sai_status_t mlnx_sched_objlist_to_hierarchy_update(mlnx_port_config_t *port,
+                                                           mlnx_sched_obj_t   *sch_objlist,
+                                                           uint32_t            count)
 {
     sai_status_t status = SAI_STATUS_SUCCESS;
     uint32_t     ii;
@@ -1031,7 +1031,7 @@ static sai_status_t mlnx_sched_objlist_to_hierarchy_update(mlnx_qos_port_config_
         } else if (obj->type == MLNX_SCHED_OBJ_QUEUE) {
             mlnx_qos_queue_config_t *queue;
 
-            status = mlnx_queue_cfg_lookup(port->log_port_id, obj->index, &queue);
+            status = mlnx_queue_cfg_lookup(port->logical, obj->index, &queue);
             if (SAI_ERR(status)) {
                 return status;
             }
@@ -1053,15 +1053,15 @@ static sai_status_t sched_group_add_or_del_child_list(sai_object_id_t        sch
                                                       uint32_t               child_count,
                                                       mlnx_list_cmd_t        cmd)
 {
-    mlnx_sched_obj_t       *sch_child_list = NULL;
-    uint8_t                 group_level;
-    uint8_t                 group_index;
-    mlnx_sched_obj_t       *group_obj;
-    sx_port_log_id_t        port_id;
-    sai_status_t            status;
-    mlnx_qos_port_config_t *port;
-    mlnx_sched_iter_ctx_t   ctx;
-    uint32_t                ii, count = 0;
+    mlnx_sched_obj_t     *sch_child_list = NULL;
+    uint8_t               group_level;
+    uint8_t               group_index;
+    mlnx_sched_obj_t     *group_obj;
+    sx_port_log_id_t      port_id;
+    sai_status_t          status;
+    mlnx_port_config_t   *port;
+    mlnx_sched_iter_ctx_t ctx;
+    uint32_t              ii, count = 0;
 
     if (SAI_NULL_OBJECT_ID == scheduler_group_id) {
         SX_LOG_ERR("NULL scheduler group id param\n");
@@ -1083,7 +1083,7 @@ static sai_status_t sched_group_add_or_del_child_list(sai_object_id_t        sch
 
     sai_qos_db_write_lock();
 
-    status = mlnx_port_qos_cfg_lookup(port_id, &port);
+    status = mlnx_port_by_log_id(port_id, &port);
     if (SAI_ERR(status)) {
         goto out;
     }
@@ -1195,7 +1195,7 @@ static sai_status_t sched_group_add_or_del_child_list(sai_object_id_t        sch
     status = mlnx_sched_objlist_to_hierarchy_update(port, sch_child_list, child_count);
     if (SAI_ERR(status)) {
         SX_LOG_ERR("Failed to update sched group hierarchy on log port id 0x%x\n",
-                   port->log_port_id);
+                   port->logical);
         goto out;
     }
 
@@ -1269,14 +1269,14 @@ sai_status_t mlnx_scheduler_group_log_set(sx_verbosity_level_t level)
 }
 
 /* DB read lock is needed */
-sai_status_t mlnx_sched_group_port_init(mlnx_qos_port_config_t *port)
+sai_status_t mlnx_sched_group_port_init(mlnx_port_config_t *port)
 {
     sx_cos_ets_element_config_t *ets_list = NULL, *ets;
     uint32_t                     level, ii;
     mlnx_qos_queue_config_t     *queue;
     sai_status_t                 status;
 
-    status = ets_list_load(port->log_port_id, &ets_list);
+    status = ets_list_load(port->logical, &ets_list);
     if (SAI_ERR(status)) {
         return status;
     }
@@ -1299,7 +1299,7 @@ sai_status_t mlnx_sched_group_port_init(mlnx_qos_port_config_t *port)
             }
 
             status = sx_api_cos_port_ets_element_set(gh_sdk, SX_ACCESS_CMD_EDIT,
-                                                     port->log_port_id,
+                                                     port->logical,
                                                      sched_obj_to_ets(obj, ets),
                                                      1);
 
@@ -1326,7 +1326,7 @@ sai_status_t mlnx_sched_group_port_init(mlnx_qos_port_config_t *port)
         }
 
         status = sx_api_cos_port_ets_element_set(gh_sdk, SX_ACCESS_CMD_EDIT,
-                                                 port->log_port_id,
+                                                 port->logical,
                                                  sched_obj_to_ets(&queue->sched_obj, ets),
                                                  1);
 
@@ -1347,7 +1347,7 @@ out:
 /**
  * @brief  Scheduler methods table retrieved with sai_api_query()
  */
-const sai_scheduler_group_api_t scheduler_group_api = {
+const sai_scheduler_group_api_t mlnx_scheduler_group_api = {
     mlnx_create_scheduler_group,
     mlnx_remove_scheduler_group,
     mlnx_set_scheduler_group_attribute,

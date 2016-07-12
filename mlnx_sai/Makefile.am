@@ -2,5 +2,5 @@
 
 # note that order matters: make the lib first then use it
 
-SUBDIRS = src
+SUBDIRS = src etc
 DIST_SUBDIRS = src

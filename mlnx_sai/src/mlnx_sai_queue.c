@@ -27,22 +27,19 @@ static sx_verbosity_level_t LOG_VAR_NAME(__MODULE__) = SX_VERBOSITY_LEVEL_WARNIN
 
 typedef sai_status_t (*queue_profile_setter_t) (sai_object_id_t profile_id, sai_object_id_t queue_id);
 
-sai_status_t mlnx_queue_config_set(_In_ const sai_object_key_t      *key,
-                                   _In_ const sai_attribute_value_t *value,
-                                   void                             *arg);
-
-sai_status_t mlnx_queue_config_get(_In_ const sai_object_key_t   *key,
-                                   _Inout_ sai_attribute_value_t *value,
-                                   _In_ uint32_t                  attr_index,
-                                   _Inout_ vendor_cache_t        *cache,
-                                   void                          *arg);
-
-sai_status_t mlnx_queue_type_get(_In_ const sai_object_key_t   *key,
-                                 _Inout_ sai_attribute_value_t *value,
-                                 _In_ uint32_t                  attr_index,
-                                 _Inout_ vendor_cache_t        *cache,
-                                 void                          *arg);
-
+static sai_status_t mlnx_queue_config_set(_In_ const sai_object_key_t      *key,
+                                          _In_ const sai_attribute_value_t *value,
+                                          void                             *arg);
+static sai_status_t mlnx_queue_config_get(_In_ const sai_object_key_t   *key,
+                                          _Inout_ sai_attribute_value_t *value,
+                                          _In_ uint32_t                  attr_index,
+                                          _Inout_ vendor_cache_t        *cache,
+                                          void                          *arg);
+static sai_status_t mlnx_queue_type_get(_In_ const sai_object_key_t   *key,
+                                        _Inout_ sai_attribute_value_t *value,
+                                        _In_ uint32_t                  attr_index,
+                                        _Inout_ vendor_cache_t        *cache,
+                                        void                          *arg);
 static const sai_attribute_entry_t        queue_attribs[] = {
     { SAI_QUEUE_ATTR_TYPE, false, false, false, true,
       "Queue type", SAI_ATTR_VAL_TYPE_S32 },
@@ -101,54 +98,20 @@ static void queue_key_to_str(_In_ sai_object_id_t queue_id, _Out_ char *key_str)
     }
 }
 
-/*
- * Get index of port configuration in port qos db
- *
- * Arguments:
- *    [in]  log_port_id - logical port id
- *    [out] index       - index of the port in qos db
- *
- * Return Values:
- *    SAI_STATUS_SUCCESS
- *    SAI_STATUS_FAILURE
- *
- */
-sai_status_t mlnx_qos_get_port_index(sx_port_log_id_t log_port_id, uint32_t *index)
-{
-    uint32_t ii = 0;
-
-    if (NULL == index) {
-        return SAI_STATUS_INVALID_PARAMETER;
-    }
-
-    sai_db_read_lock();
-    for (; ii < MAX_PORTS; ii++) {
-        if (log_port_id == g_sai_qos_db_ptr->qos_port_db[ii].log_port_id) {
-            *index = ii;
-            sai_db_unlock();
-            return SAI_STATUS_SUCCESS;
-        }
-    }
-
-    sai_db_unlock();
-    SX_LOG_ERR("Port 0x%x not found in DB\n", log_port_id);
-    return SAI_STATUS_INVALID_PORT_NUMBER;
-}
-
 /* Set queue buffer and scheduler profiles */
-sai_status_t mlnx_queue_config_set(_In_ const sai_object_key_t      *key,
-                                   _In_ const sai_attribute_value_t *value,
-                                   void                             *arg)
+static sai_status_t mlnx_queue_config_set(_In_ const sai_object_key_t      *key,
+                                          _In_ const sai_attribute_value_t *value,
+                                          void                             *arg)
 {
-    sai_object_id_t          queue_id                     = key->object_id;
-    sai_object_id_t          profile_id                   = value->oid;
-    uint8_t                  ext_data[EXTENDED_DATA_SIZE] = {0};
-    sx_port_log_id_t         port_num;
-    uint32_t                 queue_num    = 0, profile_num = 0;
-    long                     attr         = (long)arg;
-    sai_object_type_t        profile_type = SAI_NULL_OBJECT_ID;
-    sai_status_t             status       = SAI_STATUS_SUCCESS;
-    queue_profile_setter_t   func_setter  = NULL;
+    sai_object_id_t        queue_id                     = key->object_id;
+    sai_object_id_t        profile_id                   = value->oid;
+    uint8_t                ext_data[EXTENDED_DATA_SIZE] = {0};
+    sx_port_log_id_t       port_num;
+    uint32_t               queue_num    = 0, profile_num = 0;
+    long                   attr         = (long)arg;
+    sai_object_type_t      profile_type = SAI_NULL_OBJECT_ID;
+    sai_status_t           status       = SAI_STATUS_SUCCESS;
+    queue_profile_setter_t func_setter  = NULL;
 
     SX_LOG_ENTER();
     assert((SAI_QUEUE_ATTR_BUFFER_PROFILE_ID == attr) ||
@@ -194,11 +157,11 @@ sai_status_t mlnx_queue_config_set(_In_ const sai_object_key_t      *key,
     return status;
 }
 
-sai_status_t mlnx_queue_config_get(_In_ const sai_object_key_t   *key,
-                                   _Inout_ sai_attribute_value_t *value,
-                                   _In_ uint32_t                  attr_index,
-                                   _Inout_ vendor_cache_t        *cache,
-                                   void                          *arg)
+static sai_status_t mlnx_queue_config_get(_In_ const sai_object_key_t   *key,
+                                          _Inout_ sai_attribute_value_t *value,
+                                          _In_ uint32_t                  attr_index,
+                                          _Inout_ vendor_cache_t        *cache,
+                                          void                          *arg)
 {
     sai_object_id_t          queue_id                     = key->object_id;
     uint8_t                  ext_data[EXTENDED_DATA_SIZE] = {0};
@@ -234,7 +197,7 @@ sai_status_t mlnx_queue_config_get(_In_ const sai_object_key_t   *key,
         break;
 
     case SAI_QUEUE_ATTR_BUFFER_PROFILE_ID:
-	if(SAI_STATUS_SUCCESS == (status = get_buffer_profile_db_index(queue_cfg->buffer_id, &buffer_db_index))) {
+        if (SAI_STATUS_SUCCESS == (status = get_buffer_profile_db_index(queue_cfg->buffer_id, &buffer_db_index))) {
             value->oid = queue_cfg->buffer_id;
         }
         break;
@@ -250,11 +213,11 @@ out:
     return status;
 }
 
-sai_status_t mlnx_queue_type_get(_In_ const sai_object_key_t   *key,
-                                 _Inout_ sai_attribute_value_t *value,
-                                 _In_ uint32_t                  attr_index,
-                                 _Inout_ vendor_cache_t        *cache,
-                                 void                          *arg)
+static sai_status_t mlnx_queue_type_get(_In_ const sai_object_key_t   *key,
+                                        _Inout_ sai_attribute_value_t *value,
+                                        _In_ uint32_t                  attr_index,
+                                        _Inout_ vendor_cache_t        *cache,
+                                        void                          *arg)
 {
     sai_object_id_t  queue_id                     = key->object_id;
     uint8_t          ext_data[EXTENDED_DATA_SIZE] = {0};
@@ -304,9 +267,9 @@ sai_status_t mlnx_queue_type_get(_In_ const sai_object_key_t   *key,
  *    SAI_STATUS_SUCCESS on success
  *    Failure status code on error
  */
-sai_status_t mlnx_set_queue_attribute(_In_ sai_object_id_t queue_id, _In_ const sai_attribute_t *attr)
+static sai_status_t mlnx_set_queue_attribute(_In_ sai_object_id_t queue_id, _In_ const sai_attribute_t *attr)
 {
-    sai_status_t sai_status;
+    sai_status_t           sai_status;
     const sai_object_key_t key                      = { .object_id = queue_id };
     char                   key_str[MAX_KEY_STR_LEN] = {0};
 
@@ -331,11 +294,11 @@ sai_status_t mlnx_set_queue_attribute(_In_ sai_object_id_t queue_id, _In_ const 
  *    SAI_STATUS_SUCCESS on success
  *    Failure status code on error
  */
-sai_status_t mlnx_get_queue_attribute(_In_ sai_object_id_t     queue_id,
-                                      _In_ uint32_t            attr_count,
-                                      _Inout_ sai_attribute_t *attr_list)
+static sai_status_t mlnx_get_queue_attribute(_In_ sai_object_id_t     queue_id,
+                                             _In_ uint32_t            attr_count,
+                                             _Inout_ sai_attribute_t *attr_list)
 {
-    sai_status_t sai_status;
+    sai_status_t           sai_status;
     const sai_object_key_t key                      = { .object_id = queue_id };
     char                   key_str[MAX_KEY_STR_LEN] = {0};
 
@@ -361,10 +324,10 @@ sai_status_t mlnx_get_queue_attribute(_In_ sai_object_id_t     queue_id,
  *    SAI_STATUS_SUCCESS on success
  *    Failure status code on error
  */
-sai_status_t mlnx_get_queue_statistics(_In_ sai_object_id_t                 queue_id,
-                                       _In_ const sai_queue_stat_counter_t *counter_ids,
-                                       _In_ uint32_t                        number_of_counters,
-                                       _Out_ uint64_t                     * counters)
+static sai_status_t mlnx_get_queue_statistics(_In_ sai_object_id_t                 queue_id,
+                                              _In_ const sai_queue_stat_counter_t *counter_ids,
+                                              _In_ uint32_t                        number_of_counters,
+                                              _Out_ uint64_t                     * counters)
 {
     sai_status_t                     status;
     uint8_t                          ext_data[EXTENDED_DATA_SIZE] = {0};
@@ -375,6 +338,7 @@ sai_status_t mlnx_get_queue_statistics(_In_ sai_object_id_t                 queu
     char                             key_str[MAX_KEY_STR_LEN];
     sx_port_statistic_usage_params_t stats_usage;
     sx_port_occupancy_statistics_t   occupancy_stats;
+    sx_port_cntr_prio_t              prio_cnts;
     uint32_t                         usage_cnt = 1;
 
     SX_LOG_ENTER();
@@ -411,6 +375,15 @@ sai_status_t mlnx_get_queue_statistics(_In_ sai_object_id_t                 queu
         return sdk_to_sai(status);
     }
 
+    /* TODO : assumes one to one mapping, with same value, of IEEE prio = queue num
+     * SDK extension may do the mapping from IEEE prio to TC, and remove this limitation
+     * and use sx_api_port_counter_tc_get */
+    if (SX_STATUS_SUCCESS !=
+        (status = sx_api_port_counter_prio_get(gh_sdk, SX_ACCESS_CMD_READ, port_num, queue_num, &prio_cnts))) {
+        SX_LOG_ERR("Failed to get port tc counters - %s.\n", SX_STATUS_MSG(status));
+        return sdk_to_sai(status);
+    }
+
     memset(&stats_usage, 0, sizeof(stats_usage));
     stats_usage.port_cnt                                 = 1;
     stats_usage.log_port_list_p                          = &port_num;
@@ -421,13 +394,12 @@ sai_status_t mlnx_get_queue_statistics(_In_ sai_object_id_t                 queu
     if (SX_STATUS_SUCCESS !=
         (status = sx_api_cos_port_buff_type_statistic_get(gh_sdk, SX_ACCESS_CMD_READ, &stats_usage, 1,
                                                           &occupancy_stats, &usage_cnt))) {
-        SX_LOG_ERR("Failed to get port redecn counters - %s.\n", SX_STATUS_MSG(status));
+        SX_LOG_ERR("Failed to get port buff statistics - %s.\n", SX_STATUS_MSG(status));
         return sdk_to_sai(status);
     }
 
     for (ii = 0; ii < number_of_counters; ii++) {
         switch (counter_ids[ii]) {
-        case SAI_QUEUE_STAT_BYTES:
         case SAI_QUEUE_STAT_DROPPED_PACKETS:
         case SAI_QUEUE_STAT_DROPPED_BYTES:
         case SAI_QUEUE_STAT_GREEN_PACKETS:
@@ -449,8 +421,18 @@ sai_status_t mlnx_get_queue_statistics(_In_ sai_object_id_t                 queu
         case SAI_QUEUE_STAT_RED_DISCARD_DROPPED_PACKETS:
         case SAI_QUEUE_STAT_RED_DISCARD_DROPPED_BYTES:
         case SAI_QUEUE_STAT_DISCARD_DROPPED_BYTES:
+        case SAI_QUEUE_STAT_SHARED_CURR_OCCUPANCY_BYTES:
+        case SAI_QUEUE_STAT_SHARED_WATERMARK_BYTES:
             SX_LOG_ERR("Queue counter %d set item %u not supported\n", counter_ids[ii], ii);
             return SAI_STATUS_ATTR_NOT_SUPPORTED_0;
+
+        case SAI_QUEUE_STAT_PACKETS:
+            counters[ii] = prio_cnts.tx_frames;
+            break;
+
+        case SAI_QUEUE_STAT_BYTES:
+            counters[ii] = prio_cnts.tx_octets;
+            break;
 
         case SAI_QUEUE_STAT_DISCARD_DROPPED_PACKETS:
             counters[ii] = redecn_cnts.tc_red_dropped_packets[queue_num];
@@ -486,9 +468,9 @@ sai_status_t mlnx_get_queue_statistics(_In_ sai_object_id_t                 queu
  * @return SAI_STATUS_SUCCESS on success
  *         Failure status code on error
  */
-sai_status_t mlnx_clear_queue_stats(_In_ sai_object_id_t                 queue_id,
-                                    _In_ const sai_queue_stat_counter_t *counter_ids,
-                                    _In_ uint32_t                        number_of_counters)
+static sai_status_t mlnx_clear_queue_stats(_In_ sai_object_id_t                 queue_id,
+                                           _In_ const sai_queue_stat_counter_t *counter_ids,
+                                           _In_ uint32_t                        number_of_counters)
 {
     UNREFERENCED_PARAMETER(queue_id);
     UNREFERENCED_PARAMETER(number_of_counters);
@@ -509,8 +491,8 @@ sai_status_t mlnx_clear_queue_stats(_In_ sai_object_id_t                 queue_i
 /* QoS DB lock is required */
 sai_status_t mlnx_queue_cfg_lookup(sx_port_log_id_t log_port_id, uint32_t queue_idx, mlnx_qos_queue_config_t **cfg)
 {
-    mlnx_qos_port_config_t *port;
-    uint32_t                ii;
+    mlnx_port_config_t *port;
+    uint32_t            ii;
 
     if (queue_idx >= MAX_QUEUES) {
         SX_LOG_ERR("Invalid queue num %u - exceed maximum %u\n", queue_idx,
@@ -518,8 +500,8 @@ sai_status_t mlnx_queue_cfg_lookup(sx_port_log_id_t log_port_id, uint32_t queue_
         return SAI_STATUS_INVALID_PARAMETER;
     }
 
-    qos_port_foreach(port, ii) {
-        if (port->log_port_id != log_port_id) {
+    mlnx_port_foreach(port, ii) {
+        if (port->logical != log_port_id) {
             continue;
         }
 
@@ -533,7 +515,7 @@ sai_status_t mlnx_queue_cfg_lookup(sx_port_log_id_t log_port_id, uint32_t queue_
     return SAI_STATUS_INVALID_PARAMETER;
 }
 
-const sai_queue_api_t queue_api = {
+const sai_queue_api_t mlnx_queue_api = {
     mlnx_set_queue_attribute,
     mlnx_get_queue_attribute,
     mlnx_get_queue_statistics,
