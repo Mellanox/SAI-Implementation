@@ -38,6 +38,8 @@ AC_HEADER_STDBOOL
 AC_C_CONST
 AC_C_INLINE
 
+AM_INIT_AUTOMAKE([foreign])
+
 dnl Checks for library functions.
 #AC_CHECK_FUNCS([strchr strstr strtol strtoull regcomp regexec])
 
@@ -103,4 +105,4 @@ CFLAGS_SAI_INTERFACE_COMMON="-Wall -Wswitch -Wunused -Werror -fPIC -fno-strict-a
 AC_SUBST(CFLAGS_SAI_INTERFACE_COMMON)
 
 dnl Create the following Makefiles
-AC_OUTPUT([Makefile src/Makefile])
+AC_OUTPUT([Makefile src/Makefile etc/sai.pc etc/Makefile])

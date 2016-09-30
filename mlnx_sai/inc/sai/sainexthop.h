@@ -71,7 +71,7 @@ typedef enum _sai_next_hop_attr_t
 
     /** Next hop entry router interface id [sai_object_id_t] (MANDATORY_ON_CREATE|CREATE_ONLY) */
     SAI_NEXT_HOP_ATTR_ROUTER_INTERFACE_ID,
-
+    
     /** Next hop entry tunnel-id [sai_object_id_t]
     * (MANDATORY_ON_CREATE when SAI_NEXT_HOP_ATTR_TYPE = SAI_NEXT_HOP_TUNNEL_ENCAP)
     * (CREATE_ONLY) */

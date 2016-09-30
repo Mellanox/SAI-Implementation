@@ -3,9 +3,7 @@ Mellanox SAI implementation
 
 This repository contains SAI implementation for Mellanox hardware.
 
-SAI headers are based on latest head (as of Apr 7, 2016) of release v0.9.3.
-In addition, it includes pull request https://github.com/opencomputeproject/SAI/pull/72
-which changes the add/remove ports to VLAN to VLAN member object.
+SAI headers are based on latest head (as of July 16, 2016) of release v0.9.4.
 The current API compiles with SONIC.
 
 SAI headers can be downloaded from https://github.com/opencomputeproject/SAI/

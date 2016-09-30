@@ -20,8 +20,8 @@
 #include "sai.h"
 #include "mlnx_sai.h"
 
-service_method_table_t g_services;
-bool                   g_initialized = false;
+service_method_table_t g_mlnx_services;
+static bool            g_initialized = false;
 
 /*
  * Routine Description:
@@ -46,7 +46,7 @@ sai_status_t sai_api_initialize(_In_ uint64_t flags, _In_ const service_method_t
         fprintf(stderr, "Invalid services handle passed to SAI API initialize\n");
         return SAI_STATUS_INVALID_PARAMETER;
     }
-    memcpy(&g_services, services, sizeof(g_services));
+    memcpy(&g_mlnx_services, services, sizeof(g_mlnx_services));
 
     if (0 != flags) {
         fprintf(stderr, "Invalid flags passed to SAI API initialize\n");
@@ -87,79 +87,79 @@ sai_status_t sai_api_query(_In_ sai_api_t sai_api_id, _Out_ void** api_method_ta
 
     switch (sai_api_id) {
     case SAI_API_SWITCH:
-        *(const sai_switch_api_t**)api_method_table = &switch_api;
+        *(const sai_switch_api_t**)api_method_table = &mlnx_switch_api;
         return SAI_STATUS_SUCCESS;
 
     case SAI_API_PORT:
-        *(const sai_port_api_t**)api_method_table = &port_api;
+        *(const sai_port_api_t**)api_method_table = &mlnx_port_api;
         return SAI_STATUS_SUCCESS;
 
     case SAI_API_FDB:
-        *(const sai_fdb_api_t**)api_method_table = &fdb_api;
+        *(const sai_fdb_api_t**)api_method_table = &mlnx_fdb_api;
         return SAI_STATUS_SUCCESS;
 
     case SAI_API_VLAN:
-        *(const sai_vlan_api_t**)api_method_table = &vlan_api;
+        *(const sai_vlan_api_t**)api_method_table = &mlnx_vlan_api;
         return SAI_STATUS_SUCCESS;
 
     case SAI_API_VIRTUAL_ROUTER:
-        *(const sai_virtual_router_api_t**)api_method_table = &router_api;
+        *(const sai_virtual_router_api_t**)api_method_table = &mlnx_router_api;
         return SAI_STATUS_SUCCESS;
 
     case SAI_API_ROUTE:
-        *(const sai_route_api_t**)api_method_table = &route_api;
+        *(const sai_route_api_t**)api_method_table = &mlnx_route_api;
         return SAI_STATUS_SUCCESS;
 
     case SAI_API_NEXT_HOP:
-        *(const sai_next_hop_api_t**)api_method_table = &next_hop_api;
+        *(const sai_next_hop_api_t**)api_method_table = &mlnx_next_hop_api;
         return SAI_STATUS_SUCCESS;
 
     case SAI_API_NEXT_HOP_GROUP:
-        *(const sai_next_hop_group_api_t**)api_method_table = &next_hop_group_api;
+        *(const sai_next_hop_group_api_t**)api_method_table = &mlnx_next_hop_group_api;
         return SAI_STATUS_SUCCESS;
 
     case SAI_API_ROUTER_INTERFACE:
-        *(const sai_router_interface_api_t**)api_method_table = &router_interface_api;
+        *(const sai_router_interface_api_t**)api_method_table = &mlnx_router_interface_api;
         return SAI_STATUS_SUCCESS;
 
     case SAI_API_NEIGHBOR:
-        *(const sai_neighbor_api_t**)api_method_table = &neighbor_api;
+        *(const sai_neighbor_api_t**)api_method_table = &mlnx_neighbor_api;
         return SAI_STATUS_SUCCESS;
 
     case SAI_API_ACL:
-        *(const sai_acl_api_t**)api_method_table = &acl_api;
+        *(const sai_acl_api_t**)api_method_table = &mlnx_acl_api;
         return SAI_STATUS_SUCCESS;
 
     case SAI_API_HOST_INTERFACE:
-        *(const sai_hostif_api_t**)api_method_table = &host_interface_api;
+        *(const sai_hostif_api_t**)api_method_table = &mlnx_host_interface_api;
         return SAI_STATUS_SUCCESS;
 
     case SAI_API_QOS_MAPS:
-        *(const sai_qos_map_api_t**)api_method_table = &qos_maps_api;
+        *(const sai_qos_map_api_t**)api_method_table = &mlnx_qos_maps_api;
         return SAI_STATUS_SUCCESS;
 
     case SAI_API_WRED:
-        *(const sai_wred_api_t**)api_method_table = &wred_api;
+        *(const sai_wred_api_t**)api_method_table = &mlnx_wred_api;
         return SAI_STATUS_SUCCESS;
 
     case SAI_API_QUEUE:
-        *(const sai_queue_api_t**)api_method_table = &queue_api;
+        *(const sai_queue_api_t**)api_method_table = &mlnx_queue_api;
         return SAI_STATUS_SUCCESS;
 
     case SAI_API_SCHEDULER:
-        *(const sai_scheduler_api_t**)api_method_table = &scheduler_api;
+        *(const sai_scheduler_api_t**)api_method_table = &mlnx_scheduler_api;
         return SAI_STATUS_SUCCESS;
 
     case SAI_API_POLICER:
-        *(const sai_policer_api_t**)api_method_table = &policer_api;
+        *(const sai_policer_api_t**)api_method_table = &mlnx_policer_api;
         return SAI_STATUS_SUCCESS;
 
     case SAI_API_MIRROR:
-        *(const sai_mirror_api_t**)api_method_table = &mirror_api;
+        *(const sai_mirror_api_t**)api_method_table = &mlnx_mirror_api;
         return SAI_STATUS_SUCCESS;
 
     case SAI_API_SAMPLEPACKET:
-        *(const sai_samplepacket_api_t**)api_method_table = &samplepacket_api;
+        *(const sai_samplepacket_api_t**)api_method_table = &mlnx_samplepacket_api;
         return SAI_STATUS_SUCCESS;
 
     case SAI_API_STP:
@@ -167,19 +167,19 @@ sai_status_t sai_api_query(_In_ sai_api_t sai_api_id, _Out_ void** api_method_ta
         return SAI_STATUS_NOT_IMPLEMENTED;
 
     case SAI_API_LAG:
-        *(const sai_lag_api_t**)api_method_table = &lag_api;
+        *(const sai_lag_api_t**)api_method_table = &mlnx_lag_api;
         return SAI_STATUS_SUCCESS;
 
     case SAI_API_SCHEDULER_GROUP:
-        *(const sai_scheduler_group_api_t**)api_method_table = &scheduler_group_api;
+        *(const sai_scheduler_group_api_t**)api_method_table = &mlnx_scheduler_group_api;
         return SAI_STATUS_SUCCESS;
 
     case SAI_API_BUFFERS:
-        *(const sai_buffer_api_t**)api_method_table = &buffer_api;
+        *(const sai_buffer_api_t**)api_method_table = &mlnx_buffer_api;
         return SAI_STATUS_SUCCESS;
 
     case SAI_API_HASH:
-        *(const sai_hash_api_t**)api_method_table = &hash_api;
+        *(const sai_hash_api_t**)api_method_table = &mlnx_hash_api;
         return SAI_STATUS_SUCCESS;
 
     case SAI_API_UDF:
@@ -187,8 +187,8 @@ sai_status_t sai_api_query(_In_ sai_api_t sai_api_id, _Out_ void** api_method_ta
         return SAI_STATUS_NOT_IMPLEMENTED;
 
     case SAI_API_TUNNEL:
-        /* TODO : implement */
-        return SAI_STATUS_NOT_IMPLEMENTED;
+        *(const sai_tunnel_api_t**)api_method_table = &mlnx_tunnel_api;
+        return SAI_STATUS_SUCCESS;
 
     default:
         fprintf(stderr, "Invalid API type %d\n", sai_api_id);
@@ -210,7 +210,7 @@ sai_status_t sai_api_query(_In_ sai_api_t sai_api_id, _Out_ void** api_method_ta
  */
 sai_status_t sai_api_uninitialize(void)
 {
-    memset(&g_services, 0, sizeof(g_services));
+    memset(&g_mlnx_services, 0, sizeof(g_mlnx_services));
     g_initialized = false;
 
     return SAI_STATUS_SUCCESS;
@@ -344,8 +344,7 @@ sai_status_t sai_log_set(_In_ sai_api_t sai_api_id, _In_ sai_log_level_t log_lev
         return SAI_STATUS_NOT_IMPLEMENTED;
 
     case SAI_API_TUNNEL:
-        /* TODO : implement */
-        return SAI_STATUS_NOT_IMPLEMENTED;
+        return mlnx_tunnel_log_set(severity);
 
     default:
         fprintf(stderr, "Invalid API type %d\n", sai_api_id);

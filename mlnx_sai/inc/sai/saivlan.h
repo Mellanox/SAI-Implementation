@@ -53,17 +53,6 @@ typedef enum _sai_vlan_tagging_mode_t
 } sai_vlan_tagging_mode_t;
 
 /**
- *   @brief Port/vlan membership structure
- */
-typedef struct _sai_vlan_port_t
-{
-    sai_object_id_t port_id;
-
-    sai_vlan_tagging_mode_t tagging_mode;
-
-} sai_vlan_port_t;
-
-/**
  *  @brief Attribute Id in sai_set_vlan_attribute() and
  *  sai_get_vlan_attribute() calls
  */
@@ -71,8 +60,8 @@ typedef enum _sai_vlan_attr_t
 {
     /** READ-ONLY */
 
-    /** List of ports in a VLAN [sai_vlan_port_list_t]*/
-    SAI_VLAN_ATTR_PORT_LIST,
+    /** List of vlan members in a VLAN [sai_object_list_t]*/
+    SAI_VLAN_ATTR_MEMBER_LIST,
 
     /** READ-WRITE */
 
@@ -111,7 +100,7 @@ typedef enum _sai_vlan_member_attr_t {
 
     /** READ_WRITE */
 
-    /** VLAN ID [sai_vlan_t] (MANDATORY_ON_CREATE|CREATE_ONLY) */
+    /** VLAN ID [sai_vlan_id_t] (MANDATORY_ON_CREATE|CREATE_ONLY) */
     SAI_VLAN_MEMBER_ATTR_VLAN_ID,
 
     /** logical port ID [sai_object_id_t] (MANDATORY_ON_CREATE|CREATE_ONLY) */

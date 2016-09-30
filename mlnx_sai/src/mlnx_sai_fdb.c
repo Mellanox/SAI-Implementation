@@ -24,31 +24,54 @@
 #define __MODULE__ SAI_FDB
 
 static sx_verbosity_level_t LOG_VAR_NAME(__MODULE__) = SX_VERBOSITY_LEVEL_WARNING;
+static sai_status_t mlnx_fdb_type_set(_In_ const sai_object_key_t      *key,
+                                      _In_ const sai_attribute_value_t *value,
+                                      void                             *arg);
+static sai_status_t mlnx_fdb_port_set(_In_ const sai_object_key_t      *key,
+                                      _In_ const sai_attribute_value_t *value,
+                                      void                             *arg);
+static sai_status_t mlnx_fdb_action_set(_In_ const sai_object_key_t      *key,
+                                        _In_ const sai_attribute_value_t *value,
+                                        void                             *arg);
+static sai_status_t mlnx_fdb_type_get(_In_ const sai_object_key_t   *key,
+                                      _Inout_ sai_attribute_value_t *value,
+                                      _In_ uint32_t                  attr_index,
+                                      _Inout_ vendor_cache_t        *cache,
+                                      void                          *arg);
+static sai_status_t mlnx_fdb_port_get(_In_ const sai_object_key_t   *key,
+                                      _Inout_ sai_attribute_value_t *value,
+                                      _In_ uint32_t                  attr_index,
+                                      _Inout_ vendor_cache_t        *cache,
+                                      void                          *arg);
+static sai_status_t mlnx_fdb_action_get(_In_ const sai_object_key_t   *key,
+                                        _Inout_ sai_attribute_value_t *value,
+                                        _In_ uint32_t                  attr_index,
+                                        _Inout_ vendor_cache_t        *cache,
+                                        void                          *arg);
+static sai_status_t check_attrs_port_type(_In_ const sai_object_key_t *key,
+                                          _In_ uint32_t                count,
+                                          _In_ const sai_attribute_t  *attrs)
+{
+    uint32_t ii;
 
-sai_status_t mlnx_fdb_type_set(_In_ const sai_object_key_t      *key,
-                               _In_ const sai_attribute_value_t *value,
-                               void                             *arg);
-sai_status_t mlnx_fdb_port_set(_In_ const sai_object_key_t      *key,
-                               _In_ const sai_attribute_value_t *value,
-                               void                             *arg);
-sai_status_t mlnx_fdb_action_set(_In_ const sai_object_key_t      *key,
-                                 _In_ const sai_attribute_value_t *value,
-                                 void                             *arg);
-sai_status_t mlnx_fdb_type_get(_In_ const sai_object_key_t   *key,
-                               _Inout_ sai_attribute_value_t *value,
-                               _In_ uint32_t                  attr_index,
-                               _Inout_ vendor_cache_t        *cache,
-                               void                          *arg);
-sai_status_t mlnx_fdb_port_get(_In_ const sai_object_key_t   *key,
-                               _Inout_ sai_attribute_value_t *value,
-                               _In_ uint32_t                  attr_index,
-                               _Inout_ vendor_cache_t        *cache,
-                               void                          *arg);
-sai_status_t mlnx_fdb_action_get(_In_ const sai_object_key_t   *key,
-                                 _Inout_ sai_attribute_value_t *value,
-                                 _In_ uint32_t                  attr_index,
-                                 _Inout_ vendor_cache_t        *cache,
-                                 void                          *arg);
+    sai_db_read_lock();
+    for (ii = 0; ii < count; ii++) {
+        const sai_attribute_t *attr  = &attrs[ii];
+        attr_port_type_check_t check = ATTR_PORT_IS_LAG_ENABLED;
+
+        if (attr->id == SAI_FDB_ENTRY_ATTR_PORT_ID) {
+            sai_status_t status;
+
+            status = check_port_type_attr(&attr->value.oid, 1, check, attr->id, ii);
+
+            sai_db_unlock();
+            return status;
+        }
+    }
+    sai_db_unlock();
+
+    return SAI_STATUS_SUCCESS;
+}
 
 static const sai_attribute_entry_t        fdb_attribs[] = {
     { SAI_FDB_ENTRY_ATTR_TYPE, true, true, true, true,
@@ -246,9 +269,9 @@ static void fdb_key_to_str(_In_ const sai_fdb_entry_t* fdb_entry, _Out_ char *ke
  *    SAI_STATUS_SUCCESS on success
  *    Failure status code on error
  */
-sai_status_t mlnx_create_fdb_entry(_In_ const sai_fdb_entry_t* fdb_entry,
-                                   _In_ uint32_t               attr_count,
-                                   _In_ const sai_attribute_t *attr_list)
+static sai_status_t mlnx_create_fdb_entry(_In_ const sai_fdb_entry_t* fdb_entry,
+                                          _In_ uint32_t               attr_count,
+                                          _In_ const sai_attribute_t *attr_list)
 {
     sai_status_t                 status;
     const sai_attribute_value_t *type, *action, *port;
@@ -257,6 +280,7 @@ sai_status_t mlnx_create_fdb_entry(_In_ const sai_fdb_entry_t* fdb_entry,
     char                         key_str[MAX_KEY_STR_LEN];
     char                         list_str[MAX_LIST_VALUE_STR_LEN];
     sx_port_log_id_t             port_id;
+    mlnx_port_config_t          *port_cfg;
 
     SX_LOG_ENTER();
 
@@ -272,29 +296,25 @@ sai_status_t mlnx_create_fdb_entry(_In_ const sai_fdb_entry_t* fdb_entry,
         return status;
     }
 
+    status = check_attrs_port_type(NULL, attr_count, attr_list);
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
     fdb_key_to_str(fdb_entry, key_str);
     sai_attr_list_to_str(attr_count, attr_list, fdb_attribs, MAX_LIST_VALUE_STR_LEN, list_str);
     SX_LOG_NTC("Create FDB entry %s\n", key_str);
     SX_LOG_NTC("Attribs %s\n", list_str);
 
-    assert(SAI_STATUS_SUCCESS == find_attrib_in_list(attr_count,
-                                                     attr_list,
-                                                     SAI_FDB_ENTRY_ATTR_TYPE,
-                                                     &type,
-                                                     &type_index));
-    assert(SAI_STATUS_SUCCESS ==
-           find_attrib_in_list(attr_count, attr_list, SAI_FDB_ENTRY_ATTR_PACKET_ACTION, &action, &action_index));
-    assert(SAI_STATUS_SUCCESS ==
-           find_attrib_in_list(attr_count, attr_list, SAI_FDB_ENTRY_ATTR_PORT_ID, &port, &port_index));
+    status = find_attrib_in_list(attr_count, attr_list, SAI_FDB_ENTRY_ATTR_TYPE, &type, &type_index);
+    assert(SAI_STATUS_SUCCESS == status);
+    status = find_attrib_in_list(attr_count, attr_list, SAI_FDB_ENTRY_ATTR_PACKET_ACTION, &action, &action_index);
+    assert(SAI_STATUS_SUCCESS == status);
+    status = find_attrib_in_list(attr_count, attr_list, SAI_FDB_ENTRY_ATTR_PORT_ID, &port, &port_index);
+    assert(SAI_STATUS_SUCCESS == status);
 
-    if (SAI_OBJECT_TYPE_LAG == sai_object_type_query(port->oid)) {
-        if (SAI_STATUS_SUCCESS != (status = mlnx_object_to_type(port->oid, SAI_OBJECT_TYPE_LAG, &port_id, NULL))) {
-            return status;
-        }
-    } else {
-        if (SAI_STATUS_SUCCESS != (status = mlnx_object_to_type(port->oid, SAI_OBJECT_TYPE_PORT, &port_id, NULL))) {
-            return status;
-        }
+    if (SAI_STATUS_SUCCESS != (status = mlnx_object_to_log_port(port->oid, &port_id))) {
+        return status;
     }
 
     if (SAI_STATUS_SUCCESS != (status = mlnx_translate_sai_action_to_sdk(action->s32, &mac_entry, action_index))) {
@@ -313,6 +333,15 @@ sai_status_t mlnx_create_fdb_entry(_In_ const sai_fdb_entry_t* fdb_entry,
         return status;
     }
 
+    sai_db_write_lock();
+    status = mlnx_port_by_log_id(port_id, &port_cfg);
+    if (SAI_ERR(status)) {
+        sai_db_unlock();
+        return status;
+    }
+    port_cfg->fdbs++;
+    sai_db_unlock();
+
     SX_LOG_EXIT();
     return SAI_STATUS_SUCCESS;
 }
@@ -328,11 +357,12 @@ sai_status_t mlnx_create_fdb_entry(_In_ const sai_fdb_entry_t* fdb_entry,
  *    SAI_STATUS_SUCCESS on success
  *    Failure status code on error
  */
-sai_status_t mlnx_remove_fdb_entry(_In_ const sai_fdb_entry_t* fdb_entry)
+static sai_status_t mlnx_remove_fdb_entry(_In_ const sai_fdb_entry_t* fdb_entry)
 {
     sx_fdb_uc_mac_addr_params_t mac_entry;
     sai_status_t                status;
     char                        key_str[MAX_KEY_STR_LEN];
+    mlnx_port_config_t         *port_cfg;
 
     SX_LOG_ENTER();
 
@@ -347,6 +377,15 @@ sai_status_t mlnx_remove_fdb_entry(_In_ const sai_fdb_entry_t* fdb_entry)
     if (SAI_STATUS_SUCCESS != (status = mlnx_get_n_delete_mac(fdb_entry, &mac_entry))) {
         return status;
     }
+
+    sai_db_write_lock();
+    status = mlnx_port_by_log_id(mac_entry.log_port, &port_cfg);
+    if (SAI_ERR(status)) {
+        sai_db_unlock();
+        return status;
+    }
+    port_cfg->fdbs--;
+    sai_db_unlock();
 
     SX_LOG_EXIT();
     return SAI_STATUS_SUCCESS;
@@ -364,10 +403,12 @@ sai_status_t mlnx_remove_fdb_entry(_In_ const sai_fdb_entry_t* fdb_entry)
  *    SAI_STATUS_SUCCESS on success
  *    Failure status code on error
  */
-sai_status_t mlnx_set_fdb_entry_attribute(_In_ const sai_fdb_entry_t* fdb_entry, _In_ const sai_attribute_t *attr)
+static sai_status_t mlnx_set_fdb_entry_attribute(_In_ const sai_fdb_entry_t* fdb_entry,
+                                                 _In_ const sai_attribute_t *attr)
 {
     const sai_object_key_t key = {.fdb_entry = fdb_entry };
     char                   key_str[MAX_KEY_STR_LEN];
+    sai_status_t           status;
 
     SX_LOG_ENTER();
 
@@ -376,12 +417,19 @@ sai_status_t mlnx_set_fdb_entry_attribute(_In_ const sai_fdb_entry_t* fdb_entry,
         return SAI_STATUS_INVALID_PARAMETER;
     }
 
+    status = check_attrs_port_type(&key, 1, attr);
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
     fdb_key_to_str(fdb_entry, key_str);
     return sai_set_attribute(&key, key_str, fdb_attribs, fdb_vendor_attribs, attr);
 }
 
 /* Set FDB entry type [sai_fdb_entry_type_t] */
-sai_status_t mlnx_fdb_type_set(_In_ const sai_object_key_t *key, _In_ const sai_attribute_value_t *value, void *arg)
+static sai_status_t mlnx_fdb_type_set(_In_ const sai_object_key_t      *key,
+                                      _In_ const sai_attribute_value_t *value,
+                                      void                             *arg)
 {
     sai_status_t                status;
     sx_fdb_uc_mac_addr_params_t mac_entry;
@@ -408,7 +456,9 @@ sai_status_t mlnx_fdb_type_set(_In_ const sai_object_key_t *key, _In_ const sai_
 /* FDB entry port id [sai_object_id_t] (MANDATORY_ON_CREATE|CREATE_AND_SET)
  * The port id here can refer to a generic port object such as SAI port object id,
  * SAI LAG object id and etc. on. */
-sai_status_t mlnx_fdb_port_set(_In_ const sai_object_key_t *key, _In_ const sai_attribute_value_t *value, void *arg)
+static sai_status_t mlnx_fdb_port_set(_In_ const sai_object_key_t      *key,
+                                      _In_ const sai_attribute_value_t *value,
+                                      void                             *arg)
 {
     sai_status_t                status;
     sx_fdb_uc_mac_addr_params_t mac_entry;
@@ -422,7 +472,7 @@ sai_status_t mlnx_fdb_port_set(_In_ const sai_object_key_t *key, _In_ const sai_
             return status;
         }
     } else {
-        if (SAI_STATUS_SUCCESS != (status = mlnx_object_to_type(value->oid, SAI_OBJECT_TYPE_PORT, &port_id, NULL))) {
+        if (SAI_STATUS_SUCCESS != (status = mlnx_object_to_log_port(value->oid, &port_id))) {
             return status;
         }
     }
@@ -442,7 +492,9 @@ sai_status_t mlnx_fdb_port_set(_In_ const sai_object_key_t *key, _In_ const sai_
 }
 
 /* Set FDB entry packet action [sai_packet_action_t] */
-sai_status_t mlnx_fdb_action_set(_In_ const sai_object_key_t *key, _In_ const sai_attribute_value_t *value, void *arg)
+static sai_status_t mlnx_fdb_action_set(_In_ const sai_object_key_t      *key,
+                                        _In_ const sai_attribute_value_t *value,
+                                        void                             *arg)
 {
     sai_status_t                status;
     sx_fdb_uc_mac_addr_params_t mac_entry;
@@ -479,9 +531,9 @@ sai_status_t mlnx_fdb_action_set(_In_ const sai_object_key_t *key, _In_ const sa
  *    SAI_STATUS_SUCCESS on success
  *    Failure status code on error
  */
-sai_status_t mlnx_get_fdb_entry_attribute(_In_ const sai_fdb_entry_t* fdb_entry,
-                                          _In_ uint32_t               attr_count,
-                                          _Inout_ sai_attribute_t    *attr_list)
+static sai_status_t mlnx_get_fdb_entry_attribute(_In_ const sai_fdb_entry_t* fdb_entry,
+                                                 _In_ uint32_t               attr_count,
+                                                 _Inout_ sai_attribute_t    *attr_list)
 {
     const sai_object_key_t key = { .fdb_entry = fdb_entry };
     char                   key_str[MAX_KEY_STR_LEN];
@@ -519,11 +571,11 @@ static sai_status_t fill_fdb_cache(mlnx_fdb_cache_t *fdb_cache, const sai_fdb_en
 }
 
 /* Get FDB entry type [sai_fdb_entry_type_t] */
-sai_status_t mlnx_fdb_type_get(_In_ const sai_object_key_t   *key,
-                               _Inout_ sai_attribute_value_t *value,
-                               _In_ uint32_t                  attr_index,
-                               _Inout_ vendor_cache_t        *cache,
-                               void                          *arg)
+static sai_status_t mlnx_fdb_type_get(_In_ const sai_object_key_t   *key,
+                                      _Inout_ sai_attribute_value_t *value,
+                                      _In_ uint32_t                  attr_index,
+                                      _Inout_ vendor_cache_t        *cache,
+                                      void                          *arg)
 {
     sai_status_t           status;
     const sai_fdb_entry_t *fdb_entry = key->fdb_entry;
@@ -561,11 +613,11 @@ sai_status_t mlnx_fdb_type_get(_In_ const sai_object_key_t   *key,
  * Since port is irrelevant for these actions, even if actual port is set
  * In case the action is changed from drop/trap to forward/log, need to also set port
  */
-sai_status_t mlnx_fdb_port_get(_In_ const sai_object_key_t   *key,
-                               _Inout_ sai_attribute_value_t *value,
-                               _In_ uint32_t                  attr_index,
-                               _Inout_ vendor_cache_t        *cache,
-                               void                          *arg)
+static sai_status_t mlnx_fdb_port_get(_In_ const sai_object_key_t   *key,
+                                      _Inout_ sai_attribute_value_t *value,
+                                      _In_ uint32_t                  attr_index,
+                                      _Inout_ vendor_cache_t        *cache,
+                                      void                          *arg)
 {
     sai_status_t           status;
     const sai_fdb_entry_t *fdb_entry = key->fdb_entry;
@@ -576,17 +628,8 @@ sai_status_t mlnx_fdb_port_get(_In_ const sai_object_key_t   *key,
     if (SAI_STATUS_SUCCESS != (status = fill_fdb_cache(fdb_cache, fdb_entry))) {
         return status;
     }
-
-    if (SX_PORT_TYPE_LAG == SX_PORT_TYPE_ID_GET(fdb_cache->log_port)) {
-        if (SAI_STATUS_SUCCESS !=
-            (status = mlnx_create_object(SAI_OBJECT_TYPE_LAG, fdb_cache->log_port, NULL, &value->oid))) {
-            return status;
-        }
-    } else {
-        if (SAI_STATUS_SUCCESS !=
-            (status = mlnx_create_object(SAI_OBJECT_TYPE_PORT, fdb_cache->log_port, NULL, &value->oid))) {
-            return status;
-        }
+    if (SAI_STATUS_SUCCESS != (status = mlnx_log_port_to_object(fdb_cache->log_port, &value->oid))) {
+        return status;
     }
 
     SX_LOG_EXIT();
@@ -594,11 +637,11 @@ sai_status_t mlnx_fdb_port_get(_In_ const sai_object_key_t   *key,
 }
 
 /* Get FDB entry packet action [sai_packet_action_t] */
-sai_status_t mlnx_fdb_action_get(_In_ const sai_object_key_t   *key,
-                                 _Inout_ sai_attribute_value_t *value,
-                                 _In_ uint32_t                  attr_index,
-                                 _Inout_ vendor_cache_t        *cache,
-                                 void                          *arg)
+static sai_status_t mlnx_fdb_action_get(_In_ const sai_object_key_t   *key,
+                                        _Inout_ sai_attribute_value_t *value,
+                                        _In_ uint32_t                  attr_index,
+                                        _Inout_ vendor_cache_t        *cache,
+                                        void                          *arg)
 {
     sai_status_t           status;
     const sai_fdb_entry_t *fdb_entry = key->fdb_entry;
@@ -649,7 +692,7 @@ sai_status_t mlnx_fdb_action_get(_In_ const sai_object_key_t   *key,
  *    SAI_STATUS_SUCCESS on success
  *    Failure status code on error
  */
-sai_status_t mlnx_flush_fdb_entries(_In_ uint32_t attr_count, _In_ const sai_attribute_t *attr_list)
+static sai_status_t mlnx_flush_fdb_entries(_In_ uint32_t attr_count, _In_ const sai_attribute_t *attr_list)
 {
     sx_status_t                  status;
     const sai_attribute_value_t *port, *vlan, *type;
@@ -664,7 +707,7 @@ sai_status_t mlnx_flush_fdb_entries(_In_ uint32_t attr_count, _In_ const sai_att
              find_attrib_in_list(attr_count, attr_list, SAI_FDB_FLUSH_ATTR_PORT_ID,
                                  &port, &port_index))) {
         port_found = true;
-        if (SAI_STATUS_SUCCESS != (status = mlnx_object_to_type(port->oid, SAI_OBJECT_TYPE_PORT, &port_id, NULL))) {
+        if (SAI_STATUS_SUCCESS != (status = mlnx_object_to_log_port(port->oid, &port_id))) {
             return status;
         }
     }
@@ -724,7 +767,7 @@ sai_status_t mlnx_fdb_log_set(sx_verbosity_level_t level)
     }
 }
 
-const sai_fdb_api_t fdb_api = {
+const sai_fdb_api_t mlnx_fdb_api = {
     mlnx_create_fdb_entry,
     mlnx_remove_fdb_entry,
     mlnx_set_fdb_entry_attribute,

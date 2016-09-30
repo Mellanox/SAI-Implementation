@@ -38,13 +38,11 @@ static const sai_attribute_entry_t router_attribs[] = {
     { END_FUNCTIONALITY_ATTRIBS_ID, false, false, false, false,
       "", SAI_ATTR_VAL_TYPE_UNDETERMINED }
 };
-
-sai_status_t mlnx_router_admin_get(_In_ const sai_object_key_t   *key,
-                                   _Inout_ sai_attribute_value_t *value,
-                                   _In_ uint32_t                  attr_index,
-                                   _Inout_ vendor_cache_t        *cache,
-                                   void                          *arg);
-
+static sai_status_t mlnx_router_admin_get(_In_ const sai_object_key_t   *key,
+                                          _Inout_ sai_attribute_value_t *value,
+                                          _In_ uint32_t                  attr_index,
+                                          _Inout_ vendor_cache_t        *cache,
+                                          void                          *arg);
 static const sai_vendor_attribute_entry_t router_vendor_attribs[] = {
     { SAI_VIRTUAL_ROUTER_ATTR_ADMIN_V4_STATE,
       { true, false, false, true },
@@ -95,7 +93,7 @@ static void router_key_to_str(_In_ sai_object_id_t vr_id, _Out_ char *key_str)
  *    SAI_STATUS_SUCCESS on success
  *    Failure status code on error
  */
-sai_status_t mlnx_set_virtual_router_attribute(_In_ sai_object_id_t vr_id, _In_ const sai_attribute_t *attr)
+static sai_status_t mlnx_set_virtual_router_attribute(_In_ sai_object_id_t vr_id, _In_ const sai_attribute_t *attr)
 {
     const sai_object_key_t key = { .object_id = vr_id };
     char                   key_str[MAX_KEY_STR_LEN];
@@ -119,9 +117,9 @@ sai_status_t mlnx_set_virtual_router_attribute(_In_ sai_object_id_t vr_id, _In_ 
  *    SAI_STATUS_SUCCESS on success
  *    Failure status code on error
  */
-sai_status_t mlnx_get_virtual_router_attribute(_In_ sai_object_id_t     vr_id,
-                                               _In_ uint32_t            attr_count,
-                                               _Inout_ sai_attribute_t *attr_list)
+static sai_status_t mlnx_get_virtual_router_attribute(_In_ sai_object_id_t     vr_id,
+                                                      _In_ uint32_t            attr_count,
+                                                      _Inout_ sai_attribute_t *attr_list)
 {
     const sai_object_key_t key = { .object_id = vr_id };
     char                   key_str[MAX_KEY_STR_LEN];
@@ -133,11 +131,11 @@ sai_status_t mlnx_get_virtual_router_attribute(_In_ sai_object_id_t     vr_id,
 }
 
 /* Admin V4, V6 State [bool] */
-sai_status_t mlnx_router_admin_get(_In_ const sai_object_key_t   *key,
-                                   _Inout_ sai_attribute_value_t *value,
-                                   _In_ uint32_t                  attr_index,
-                                   _Inout_ vendor_cache_t        *cache,
-                                   void                          *arg)
+static sai_status_t mlnx_router_admin_get(_In_ const sai_object_key_t   *key,
+                                          _Inout_ sai_attribute_value_t *value,
+                                          _In_ uint32_t                  attr_index,
+                                          _Inout_ vendor_cache_t        *cache,
+                                          void                          *arg)
 {
     sai_status_t           status;
     sx_router_id_t         vrid;
@@ -182,9 +180,9 @@ sai_status_t mlnx_router_admin_get(_In_ const sai_object_key_t   *key,
  *    SAI_STATUS_SUCCESS on success
  *    Failure status code on error
  */
-sai_status_t mlnx_create_virtual_router(_Out_ sai_object_id_t      *vr_id,
-                                        _In_ uint32_t               attr_count,
-                                        _In_ const sai_attribute_t *attr_list)
+static sai_status_t mlnx_create_virtual_router(_Out_ sai_object_id_t      *vr_id,
+                                               _In_ uint32_t               attr_count,
+                                               _In_ const sai_attribute_t *attr_list)
 {
     sx_status_t                  status;
     sx_router_attributes_t       router_attr;
@@ -261,7 +259,7 @@ sai_status_t mlnx_create_virtual_router(_Out_ sai_object_id_t      *vr_id,
  *    SAI_STATUS_SUCCESS on success
  *    Failure status code on error
  */
-sai_status_t mlnx_remove_virtual_router(_In_ sai_object_id_t vr_id)
+static sai_status_t mlnx_remove_virtual_router(_In_ sai_object_id_t vr_id)
 {
     sx_status_t    status;
     sx_router_id_t vrid;
@@ -306,7 +304,7 @@ sai_status_t mlnx_router_log_set(sx_verbosity_level_t level)
     }
 }
 
-const sai_virtual_router_api_t router_api = {
+const sai_virtual_router_api_t mlnx_router_api = {
     mlnx_create_virtual_router,
     mlnx_remove_virtual_router,
     mlnx_set_virtual_router_attribute,
