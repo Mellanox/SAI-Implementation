@@ -123,10 +123,7 @@ static sai_status_t mlnx_hash_obj_native_fields_set(const sai_object_id_t hash_i
         return SAI_STATUS_FAILURE;
     }
 
-    sai_db_write_lock();
     g_sai_db_ptr->hash_list[hash_data].field_mask = field_mask;
-    sai_db_sync();
-    sai_db_unlock();
     return status;
 }
 
@@ -144,14 +141,11 @@ static sai_status_t mlnx_hash_obj_native_fileds_get(const sai_object_id_t hash_i
         return SAI_STATUS_FAILURE;
     }
 
-    sai_db_read_lock();
     if ((g_sai_db_ptr->hash_list[hash_data].hash_id == SAI_NULL_OBJECT_ID) ||
         (g_sai_db_ptr->hash_list[hash_data].hash_id != hash_id)) {
-        sai_db_unlock();
         return SAI_STATUS_ITEM_NOT_FOUND;
     }
     field_mask = g_sai_db_ptr->hash_list[hash_data].field_mask;
-    sai_db_unlock();
 
     for (ii = SAI_NATIVE_HASH_FIELD_SRC_IP; ii <= SAI_NATIVE_HASH_FIELD_IN_PORT; ii++) {
         if (field_mask & ((uint64_t)1 << ii)) {
@@ -195,11 +189,13 @@ static sai_status_t mlnx_hash_obj_native_fields_validate(mlnx_switch_usage_hash_
         case SAI_NATIVE_HASH_FIELD_L4_SRC_PORT:
         case SAI_NATIVE_HASH_FIELD_L4_DST_PORT:
             /* valid for IP and IPinIP */
-            if ((hash_oper_id == SAI_HASH_ECMP_ID) ||
-                (hash_oper_id == SAI_HASH_LAG_ID)) {
-                status = SAI_STATUS_FAILURE;
-                SX_LOG_ERR("Invalid native field %d for object %u.\n", field, hash_oper_id);
-            }
+/*
+ *           if ((hash_oper_id == SAI_HASH_ECMP_ID) ||
+ *               (hash_oper_id == SAI_HASH_LAG_ID)) {
+ *               status = SAI_STATUS_FAILURE;
+ *               SX_LOG_ERR("Invalid native field %d for object %u.\n", field, hash_oper_id);
+ *           }
+ */
             break;
 
         case SAI_NATIVE_HASH_FIELD_INNER_SRC_IP:
@@ -227,8 +223,6 @@ static sai_status_t mlnx_hash_obj_native_fields_validate(mlnx_switch_usage_hash_
 bool mlnx_hash_obj_need_apply(mlnx_switch_usage_hash_object_id_t hash_oper_id)
 {
     bool res = true;
-
-    sai_db_read_lock();
 
     switch (hash_oper_id) {
     case SAI_HASH_ECMP_ID:
@@ -259,11 +253,12 @@ bool mlnx_hash_obj_need_apply(mlnx_switch_usage_hash_object_id_t hash_oper_id)
 
     case SAI_HASH_ECMP_IPINIP_ID:
     case SAI_HASH_LAG_IPINIP_ID:
+    case SAI_HASH_ECMP_IP6_ID:
     case SAI_HASH_MAX_OBJ_ID:
         /* do nothing */
         break;
     }
-    sai_db_unlock();
+
     return res;
 }
 
@@ -341,7 +336,8 @@ static sai_status_t mlnx_hash_convert_ecmp_sai_field_to_sx(const sai_attribute_v
                                                            sx_router_ecmp_hash_field_enable_t* enable_list,
                                                            uint32_t                          * enable_count,
                                                            sx_router_ecmp_hash_field_t       * fields_list,
-                                                           uint32_t                          * fields_count)
+                                                           uint32_t                          * fields_count,
+                                                           bool                                is_ipv6)
 {
     uint32_t     ii          = 0;
     bool         enable_ipv4 = false, enable_l4 = false, enable_inner = false;
@@ -353,21 +349,45 @@ static sai_status_t mlnx_hash_convert_ecmp_sai_field_to_sx(const sai_attribute_v
     for (ii = 0; ii < value->s32list.count; ii++) {
         switch (value->s32list.list[ii]) {
         case SAI_NATIVE_HASH_FIELD_SRC_IP:
-            fields_list[(*fields_count)++] = SX_ROUTER_ECMP_HASH_OUTER_IPV4_SIP_BYTE_0;
-            fields_list[(*fields_count)++] = SX_ROUTER_ECMP_HASH_OUTER_IPV4_SIP_BYTE_1;
-            fields_list[(*fields_count)++] = SX_ROUTER_ECMP_HASH_OUTER_IPV4_SIP_BYTE_2;
-            fields_list[(*fields_count)++] = SX_ROUTER_ECMP_HASH_OUTER_IPV4_SIP_BYTE_3;
+            if (is_ipv6) {
+                fields_list[(*fields_count)++] = SX_ROUTER_ECMP_HASH_OUTER_IPV6_SIP_BYTES_0_TO_7;
+                fields_list[(*fields_count)++] = SX_ROUTER_ECMP_HASH_OUTER_IPV6_SIP_BYTE_8;
+                fields_list[(*fields_count)++] = SX_ROUTER_ECMP_HASH_OUTER_IPV6_SIP_BYTE_9;
+                fields_list[(*fields_count)++] = SX_ROUTER_ECMP_HASH_OUTER_IPV6_SIP_BYTE_10;
+                fields_list[(*fields_count)++] = SX_ROUTER_ECMP_HASH_OUTER_IPV6_SIP_BYTE_11;
+                fields_list[(*fields_count)++] = SX_ROUTER_ECMP_HASH_OUTER_IPV6_SIP_BYTE_12;
+                fields_list[(*fields_count)++] = SX_ROUTER_ECMP_HASH_OUTER_IPV6_SIP_BYTE_13;
+                fields_list[(*fields_count)++] = SX_ROUTER_ECMP_HASH_OUTER_IPV6_SIP_BYTE_14;
+                fields_list[(*fields_count)++] = SX_ROUTER_ECMP_HASH_OUTER_IPV6_SIP_BYTE_15;
+            } else { /* ipv4 */
+                fields_list[(*fields_count)++] = SX_ROUTER_ECMP_HASH_OUTER_IPV4_SIP_BYTE_0;
+                fields_list[(*fields_count)++] = SX_ROUTER_ECMP_HASH_OUTER_IPV4_SIP_BYTE_1;
+                fields_list[(*fields_count)++] = SX_ROUTER_ECMP_HASH_OUTER_IPV4_SIP_BYTE_2;
+                fields_list[(*fields_count)++] = SX_ROUTER_ECMP_HASH_OUTER_IPV4_SIP_BYTE_3;
 
-            enable_ipv4 = true;
+                enable_ipv4 = true;
+            }
             break;
 
         case SAI_NATIVE_HASH_FIELD_DST_IP:
-            fields_list[(*fields_count)++] = SX_ROUTER_ECMP_HASH_OUTER_IPV4_DIP_BYTE_0;
-            fields_list[(*fields_count)++] = SX_ROUTER_ECMP_HASH_OUTER_IPV4_DIP_BYTE_1;
-            fields_list[(*fields_count)++] = SX_ROUTER_ECMP_HASH_OUTER_IPV4_DIP_BYTE_2;
-            fields_list[(*fields_count)++] = SX_ROUTER_ECMP_HASH_OUTER_IPV4_DIP_BYTE_3;
+            if (is_ipv6) {
+                fields_list[(*fields_count)++] = SX_ROUTER_ECMP_HASH_OUTER_IPV6_DIP_BYTES_0_TO_7;
+                fields_list[(*fields_count)++] = SX_ROUTER_ECMP_HASH_OUTER_IPV6_DIP_BYTE_8;
+                fields_list[(*fields_count)++] = SX_ROUTER_ECMP_HASH_OUTER_IPV6_DIP_BYTE_9;
+                fields_list[(*fields_count)++] = SX_ROUTER_ECMP_HASH_OUTER_IPV6_DIP_BYTE_10;
+                fields_list[(*fields_count)++] = SX_ROUTER_ECMP_HASH_OUTER_IPV6_DIP_BYTE_11;
+                fields_list[(*fields_count)++] = SX_ROUTER_ECMP_HASH_OUTER_IPV6_DIP_BYTE_12;
+                fields_list[(*fields_count)++] = SX_ROUTER_ECMP_HASH_OUTER_IPV6_DIP_BYTE_13;
+                fields_list[(*fields_count)++] = SX_ROUTER_ECMP_HASH_OUTER_IPV6_DIP_BYTE_14;
+                fields_list[(*fields_count)++] = SX_ROUTER_ECMP_HASH_OUTER_IPV6_DIP_BYTE_15;
+            } else {
+                fields_list[(*fields_count)++] = SX_ROUTER_ECMP_HASH_OUTER_IPV4_DIP_BYTE_0;
+                fields_list[(*fields_count)++] = SX_ROUTER_ECMP_HASH_OUTER_IPV4_DIP_BYTE_1;
+                fields_list[(*fields_count)++] = SX_ROUTER_ECMP_HASH_OUTER_IPV4_DIP_BYTE_2;
+                fields_list[(*fields_count)++] = SX_ROUTER_ECMP_HASH_OUTER_IPV4_DIP_BYTE_3;
 
-            enable_ipv4 = true;
+                enable_ipv4 = true;
+            }
             break;
 
         case SAI_NATIVE_HASH_FIELD_L4_SRC_PORT:
@@ -435,7 +455,6 @@ static sai_status_t mlnx_hash_convert_ecmp_sai_field_to_sx(const sai_attribute_v
 
     enable_list[(*enable_count)++] = SX_ROUTER_ECMP_HASH_FIELD_ENABLE_OUTER_L2_NON_IP;
     enable_list[(*enable_count)++] = SX_ROUTER_ECMP_HASH_FIELD_ENABLE_OUTER_L2_IPV4;
-    enable_list[(*enable_count)++] = SX_ROUTER_ECMP_HASH_FIELD_ENABLE_OUTER_L2_IPV6;
     if (enable_inner) {
         enable_list[(*enable_count)++] = SX_ROUTER_ECMP_HASH_FIELD_ENABLE_INNER_L2_IPV4;
     }
@@ -449,9 +468,17 @@ static sai_status_t mlnx_hash_convert_ecmp_sai_field_to_sx(const sai_attribute_v
         }
     }
 
+    if (is_ipv6) {
+        enable_list[(*enable_count)++] = SX_ROUTER_ECMP_HASH_FIELD_ENABLE_OUTER_L2_IPV6;
+        enable_list[(*enable_count)++] = SX_ROUTER_ECMP_HASH_FIELD_ENABLE_OUTER_IPV6_NON_TCP_UDP;
+        enable_list[(*enable_count)++] = SX_ROUTER_ECMP_HASH_FIELD_ENABLE_OUTER_IPV6_TCP_UDP;
+    }
+
     if (enable_l4) {
         enable_list[(*enable_count)++] = SX_ROUTER_ECMP_HASH_FIELD_ENABLE_OUTER_L4_IPV4;
-        enable_list[(*enable_count)++] = SX_ROUTER_ECMP_HASH_FIELD_ENABLE_OUTER_L4_IPV6;
+        if (is_ipv6) {
+            enable_list[(*enable_count)++] = SX_ROUTER_ECMP_HASH_FIELD_ENABLE_OUTER_L4_IPV6;
+        }
         if (enable_inner) {
             enable_list[(*enable_count)++] = SX_ROUTER_ECMP_HASH_FIELD_ENABLE_INNER_L4_IPV4;
             enable_list[(*enable_count)++] = SX_ROUTER_ECMP_HASH_FIELD_ENABLE_INNER_L4_IPV6;
@@ -547,21 +574,49 @@ sai_status_t mlnx_hash_ecmp_cfg_apply_on_port(sx_port_log_id_t port_log_id)
     return status;
 }
 
-/* Apply default ECMP hash algorithm, default ECMP seed or ECMP native fields.
+sai_status_t mlnx_hash_ecmp_hash_params_apply_to_ports(const sx_router_ecmp_port_hash_params_t  *port_hash_param,
+                                                       const sx_router_ecmp_hash_field_enable_t *hash_enable_list,
+                                                       uint32_t                                  enable_count,
+                                                       const sx_router_ecmp_hash_field_t        *hash_field_list,
+                                                       uint32_t                                  field_count)
+{
+    sx_status_t         sx_status;
+    mlnx_port_config_t *port;
+    uint32_t            ii;
+
+    assert(port_hash_param != NULL);
+    assert(hash_enable_list != NULL);
+    assert(hash_field_list != NULL);
+
+
+    mlnx_port_not_in_lag_foreach(port, ii) {
+        sx_status = sx_api_router_ecmp_port_hash_params_set(gh_sdk, SX_ACCESS_CMD_SET, port->logical,
+                                                            port_hash_param,
+                                                            hash_enable_list, enable_count,
+                                                            hash_field_list, field_count);
+        if (SX_STATUS_SUCCESS != sx_status) {
+            SX_LOG_ERR("Failed to set ecmp hash params for %s %x - %s.\n",
+                       mlnx_port_type_str(port),
+                       port->logical,
+                       SX_STATUS_MSG(sx_status));
+            return sdk_to_sai(sx_status);
+        }
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
+/* Apply default ECMP hash algorithm, default ECMP seed or ECMP symmetric flag.
  * The new value must be applied for all ports and configured LAGs.
  */
-sai_status_t mlnx_hash_ecmp_attr_apply(const sai_attr_id_t attr_id, const sai_attribute_value_t* value)
+sai_status_t mlnx_hash_ecmp_hash_params_apply(const sai_attr_id_t attr_id, const sai_attribute_value_t* value)
 {
-    sx_access_cmd_t                    cmd = SX_ACCESS_CMD_SET;
     sx_router_ecmp_port_hash_params_t  port_hash_param;
     sx_router_ecmp_hash_field_enable_t hash_enable_list[FIELDS_ENABLES_NUM];
     uint32_t                           enable_count = FIELDS_ENABLES_NUM;
     sx_router_ecmp_hash_field_t        hash_field_list[FIELDS_NUM];
     uint32_t                           field_count = FIELDS_NUM;
-    uint32_t                           ii          = 0;
-    sx_status_t                        sx_status   = SX_STATUS_SUCCESS;
     sai_status_t                       status      = SAI_STATUS_SUCCESS;
-    mlnx_port_config_t                *port;
 
     memset(&port_hash_param, 0, sizeof(port_hash_param));
     memset(hash_enable_list, 0, sizeof(hash_enable_list));
@@ -576,12 +631,6 @@ sai_status_t mlnx_hash_ecmp_attr_apply(const sai_attr_id_t attr_id, const sai_at
     }
 
     switch (attr_id) {
-    case SAI_HASH_ATTR_NATIVE_FIELD_LIST:
-        status = mlnx_hash_convert_ecmp_sai_field_to_sx(value, hash_enable_list,
-                                                        &enable_count, hash_field_list,
-                                                        &field_count);
-        break;
-
     case SAI_SWITCH_ATTR_ECMP_DEFAULT_HASH_SEED:
         port_hash_param.seed = value->u32;
         break;
@@ -600,19 +649,11 @@ sai_status_t mlnx_hash_ecmp_attr_apply(const sai_attr_id_t attr_id, const sai_at
     }
 
     /* apply new fields for all ports */
-    mlnx_port_not_in_lag_foreach(port, ii) {
-        sx_status = sx_api_router_ecmp_port_hash_params_set(gh_sdk, cmd, port->logical,
-                                                            &port_hash_param,
-                                                            hash_enable_list, enable_count,
-                                                            hash_field_list, field_count);
-        if (SX_STATUS_SUCCESS != sx_status) {
-            SX_LOG_ERR("Failed to set ecmp hash params for %s %x - %s.\n",
-                       mlnx_port_type_str(port),
-                       port->logical,
-                       SX_STATUS_MSG(sx_status));
-            status = sdk_to_sai(sx_status);
-            goto out;
-        }
+    status = mlnx_hash_ecmp_hash_params_apply_to_ports(&port_hash_param, hash_enable_list, enable_count,
+                                                       hash_field_list, field_count);
+
+    if (SAI_STATUS_SUCCESS != status) {
+        goto out;
     }
 
 out:
@@ -620,18 +661,156 @@ out:
     return status;
 }
 
+/* Finds the applied object IPinIP -> IPv4 -> default */
+static sai_object_id_t mlnx_hash_get_applied_object_ipv4()
+{
+    sai_object_id_t applied_object;
+
+    applied_object = g_sai_db_ptr->oper_hash_list[SAI_HASH_ECMP_IPINIP_ID];
+    if (applied_object == SAI_NULL_OBJECT_ID) {
+        applied_object = g_sai_db_ptr->oper_hash_list[SAI_HASH_ECMP_IP4_ID];
+        if (applied_object == SAI_NULL_OBJECT_ID) {
+            applied_object = g_sai_db_ptr->oper_hash_list[SAI_HASH_ECMP_ID];
+        }
+    }
+
+    /* default object SAI_HASH_ECMP_ID is always applied (on init) */
+    assert(applied_object != SAI_NULL_OBJECT_ID);
+
+    return applied_object;
+}
+
+static sai_status_t mlnx_hash_fields_merge(_In_ const sai_attribute_value_t         *value,
+                                           _In_ bool                                 is_value_ipv6,
+                                           _In_ sai_object_id_t                      applied_object,
+                                           _Out_ sx_router_ecmp_hash_field_enable_t *enable_list,
+                                           _Out_ uint32_t                           *enable_count,
+                                           _Out_ sx_router_ecmp_hash_field_t        *fields_list,
+                                           _Out_ uint32_t                           *fields_count)
+{
+    sai_status_t                       status;
+    sai_attribute_value_t              applied_value;
+    sai_native_hash_field_t            applied_field_list[SAI_HASH_FIELDS_COUNT_MAX] = {0};
+    sx_router_ecmp_hash_field_enable_t applied_enable_list[FIELDS_ENABLES_NUM]       = {0};
+    uint32_t                           applied_enable_count                          = 0;
+    sx_router_ecmp_hash_field_t        applied_filed_list[FIELDS_NUM]                = {0};
+    uint32_t                           applied_filed_count                           = 0;
+    uint32_t                           ii, jj;
+    bool                               present;
+
+    assert(value != NULL);
+    assert((enable_list != NULL) && (enable_count != NULL));
+    assert((fields_list != NULL) && (fields_count != NULL));
+
+    memset(&applied_value, 0, sizeof(applied_value));
+
+    if (applied_object != SAI_NULL_OBJECT_ID) {
+        applied_value.s32list.list  = (int32_t*)applied_field_list;
+        applied_value.s32list.count = SAI_HASH_FIELDS_COUNT_MAX;
+
+        status = mlnx_hash_obj_native_fileds_get(applied_object, &applied_value);
+        if (SAI_STATUS_SUCCESS != status) {
+            return status;
+        }
+
+        status = mlnx_hash_convert_ecmp_sai_field_to_sx(&applied_value, applied_enable_list, &applied_enable_count,
+                                                        applied_filed_list, &applied_filed_count, !is_value_ipv6);
+        if (SAI_STATUS_SUCCESS != status) {
+            return status;
+        }
+    }
+
+    status = mlnx_hash_convert_ecmp_sai_field_to_sx(value, enable_list, enable_count,
+                                                    fields_list, fields_count, is_value_ipv6);
+    if (SAI_STATUS_SUCCESS != status) {
+        return status;
+    }
+
+    /* add unique values from applied_enable_list to enable_list */
+    for (ii = 0; ii < applied_enable_count; ii++) {
+        present = false;
+        for (jj = 0; jj < *enable_count; jj++) {
+            if (applied_enable_list[ii] == enable_list[jj]) {
+                present = true;
+                break;
+            }
+        }
+
+        if (!present) {
+            enable_list[*enable_count] = applied_enable_list[ii];
+            (*enable_count)++;
+        }
+    }
+
+    /* add unique values from applied_filed_list to fields_list */
+    for (ii = 0; ii < applied_filed_count; ii++) {
+        present = false;
+        for (jj = 0; jj < *fields_count; jj++) {
+            if (applied_filed_list[ii] == fields_list[jj]) {
+                present = true;
+                break;
+            }
+        }
+
+        if (!present) {
+            fields_list[*fields_count] = applied_filed_list[ii];
+            (*fields_count)++;
+        }
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
 /* Apply native fields specified as a parameter */
 static sai_status_t mlnx_hash_obj_native_fields_apply(mlnx_switch_usage_hash_object_id_t hash_oper_id,
                                                       const sai_attribute_value_t      * value)
 {
-    sx_lag_hash_param_t hash_param;
-    sx_status_t         status = SAI_STATUS_SUCCESS;
+    sx_lag_hash_param_t                hash_param;
+    sai_status_t                       status = SAI_STATUS_SUCCESS;
+    sai_object_id_t                    applied_object;
+    sx_router_ecmp_port_hash_params_t  port_hash_param;
+    sx_router_ecmp_hash_field_enable_t hash_enable_list[FIELDS_ENABLES_NUM] = {0};
+    uint32_t                           enable_count                         = FIELDS_ENABLES_NUM;
+    sx_router_ecmp_hash_field_t        hash_field_list[FIELDS_NUM]          = {0};
+    uint32_t                           field_count                          = FIELDS_NUM;
+    bool                               is_ipv6;
 
     memset(&hash_param, 0, sizeof(hash_param));
+    memset(&port_hash_param, 0, sizeof(port_hash_param));
 
-    if (hash_oper_id <= SAI_HASH_ECMP_IPINIP_ID) {
+    if (hash_oper_id <= SAI_HASH_ECMP_ID_MAX) {
         /* ECMP */
-        status = mlnx_hash_ecmp_attr_apply(SAI_HASH_ATTR_NATIVE_FIELD_LIST, value);
+        /* enable_count = 0; */
+        /* field_count  = 0; */
+        status = mlnx_hash_get_oper_ecmp_fields(&port_hash_param,
+                                                hash_enable_list,
+                                                &enable_count,
+                                                hash_field_list,
+                                                &field_count);
+        if (SAI_STATUS_SUCCESS != status) {
+            return status;
+        }
+
+        if (hash_oper_id == SAI_HASH_ECMP_IP6_ID) {
+            applied_object = mlnx_hash_get_applied_object_ipv4();
+            is_ipv6        = true;
+        } else {
+            applied_object = g_sai_db_ptr->oper_hash_list[SAI_HASH_ECMP_IP6_ID];
+            is_ipv6        = false;
+        }
+
+        status = mlnx_hash_fields_merge(value, is_ipv6, applied_object, hash_enable_list, &enable_count,
+                                        hash_field_list, &field_count);
+        if (SAI_STATUS_SUCCESS != status) {
+            return status;
+        }
+
+        status = mlnx_hash_ecmp_hash_params_apply_to_ports(&port_hash_param, hash_enable_list, enable_count,
+                                                           hash_field_list, field_count);
+
+        if (SAI_STATUS_SUCCESS != status) {
+            return status;
+        }
     } else {
         /* LAG */
         if (SX_STATUS_SUCCESS != (status = sx_api_lag_hash_flow_params_get(gh_sdk, &hash_param))) {
@@ -660,7 +839,6 @@ static mlnx_switch_usage_hash_object_id_t mlnx_hash_get_oper_id(sai_object_id_t 
 {
     uint32_t ii = 0;
 
-    sai_db_read_lock();
     /* check if the object is not used */
     for (ii = 0; ii < SAI_HASH_MAX_OBJ_ID; ii++) {
         if (g_sai_db_ptr->oper_hash_list[ii] == hash_id) {
@@ -668,7 +846,6 @@ static mlnx_switch_usage_hash_object_id_t mlnx_hash_get_oper_id(sai_object_id_t 
             break;
         }
     }
-    sai_db_unlock();
 
     return ii;
 }
@@ -676,22 +853,27 @@ static mlnx_switch_usage_hash_object_id_t mlnx_hash_get_oper_id(sai_object_id_t 
 /* Remove hash object from DB if object is not in-use */
 static sai_status_t mlnx_hash_obj_remove(sai_object_id_t hash_id)
 {
-    uint32_t hash_data = 0;
+    sai_status_t status    = SAI_STATUS_SUCCESS;
+    uint32_t     hash_data = 0;
 
     if (SAI_STATUS_SUCCESS != mlnx_object_to_type(hash_id, SAI_OBJECT_TYPE_HASH, &hash_data, NULL)) {
         return SAI_STATUS_FAILURE;
     }
 
+    sai_db_write_lock();
+
     if (mlnx_hash_get_oper_id(hash_id) < SAI_HASH_MAX_OBJ_ID) {
-        return SAI_STATUS_OBJECT_IN_USE;
+        status = SAI_STATUS_OBJECT_IN_USE;
+        goto out;
     }
 
-    sai_db_write_lock();
     g_sai_db_ptr->hash_list[hash_data].field_mask = 0;
     g_sai_db_ptr->hash_list[hash_data].hash_id    = SAI_NULL_OBJECT_ID;
+
+out:
     sai_db_sync();
     sai_db_unlock();
-    return SAI_STATUS_SUCCESS;
+    return status;
 }
 
 /* Apply native fields of hash_id object as a hash_oper_id object.
@@ -848,9 +1030,12 @@ static sai_status_t mlnx_hash_native_field_list_get(_In_ const sai_object_key_t 
 
     hash_key_to_str(hash_id, key_str);
 
+    sai_db_read_lock();
     if (SAI_STATUS_SUCCESS != (status = mlnx_hash_obj_native_fileds_get(hash_id, value))) {
         SX_LOG_ERR("Failed to get native fields for %s.\n", key_str);
     }
+
+    sai_db_unlock();
     return status;
 }
 
@@ -871,13 +1056,15 @@ static sai_status_t mlnx_hash_native_field_list_set(_In_ const sai_object_key_t 
 
     hash_key_to_str(hash_id, key_str);
 
+    sai_db_write_lock();
+
     /* Check if object is in use - apply changes */
     hash_oper_id = mlnx_hash_get_oper_id(hash_id);
     if (hash_oper_id < SAI_HASH_MAX_OBJ_ID) {
         /* validate fields */
         status = mlnx_hash_obj_native_fields_validate(hash_oper_id, value);
         if (SAI_STATUS_SUCCESS != status) {
-            return status;
+            goto out;
         }
 
         /* check if changes need to be apply */
@@ -885,7 +1072,7 @@ static sai_status_t mlnx_hash_native_field_list_set(_In_ const sai_object_key_t 
             /* apply fields */
             status = mlnx_hash_obj_native_fields_apply(hash_oper_id, value);
             if (SAI_STATUS_SUCCESS != status) {
-                return status;
+                goto out;
             }
         }
     }
@@ -896,6 +1083,9 @@ static sai_status_t mlnx_hash_native_field_list_set(_In_ const sai_object_key_t 
         SX_LOG_ERR("Failed to update native fields for %s.\n", key_str);
     }
 
+out:
+    sai_db_sync();
+    sai_db_unlock();
     return status;
 }
 

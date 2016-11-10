@@ -312,7 +312,7 @@ static mlnx_iter_ret_t groups_child_to_objlist(mlnx_port_config_t *port, mlnx_sc
     ii       = obj_list->count++;
 
     if (obj->type == MLNX_SCHED_OBJ_QUEUE) {
-        ctx->sai_status = mlnx_create_queue(port->logical, obj->index, &obj_list->list[ii]);
+        ctx->sai_status = mlnx_create_queue_object(port->logical, obj->index, &obj_list->list[ii]);
     } else if (obj->type == MLNX_SCHED_OBJ_GROUP) {
         ctx->sai_status = mlnx_create_sched_group(port->logical, obj->level, obj->index,
                                                   &obj_list->list[ii]);
@@ -938,9 +938,8 @@ static sai_status_t mlnx_get_scheduler_group_attribute(_In_ sai_object_id_t     
 }
 
 /* DB read lock is needed */
-static sai_status_t sai_obj_to_sched_obj(mlnx_port_config_t *port,
-                                         mlnx_sched_obj_t   *sch_obj,
-                                         sai_object_id_t     sai_obj)
+static sai_status_t sai_obj_to_sched_obj(mlnx_port_config_t *port, mlnx_sched_obj_t   *sch_obj,
+                                         sai_object_id_t sai_obj)
 {
     mlnx_qos_queue_config_t *queue;
     sx_port_log_id_t         port_id;

@@ -34,6 +34,8 @@ static const sai_attribute_entry_t host_interface_attribs[] = {
       "Host interface associated port or router interface", SAI_ATTR_VAL_TYPE_OID },
     { SAI_HOSTIF_ATTR_NAME, false, true, true, true,
       "Host interface name", SAI_ATTR_VAL_TYPE_CHARDATA },
+    { SAI_HOSTIF_ATTR_OPER_STATUS, false, true, true, true,
+      "Host interface oper status", SAI_ATTR_VAL_TYPE_BOOL },
     { END_FUNCTIONALITY_ATTRIBS_ID, false, false, false, false,
       "", SAI_ATTR_VAL_TYPE_UNDETERMINED }
 };
@@ -87,7 +89,6 @@ static const sai_attribute_entry_t user_defined_trap_attribs[] = {
     { END_FUNCTIONALITY_ATTRIBS_ID, false, false, false, false,
       "", SAI_ATTR_VAL_TYPE_UNDETERMINED }
 };
-static sai_status_t mlnx_check_trap_group_prio(uint32_t prio, uint32_t prio_index);
 static sai_status_t mlnx_host_interface_type_get(_In_ const sai_object_key_t   *key,
                                                  _Inout_ sai_attribute_value_t *value,
                                                  _In_ uint32_t                  attr_index,
@@ -103,7 +104,15 @@ static sai_status_t mlnx_host_interface_name_get(_In_ const sai_object_key_t   *
                                                  _In_ uint32_t                  attr_index,
                                                  _Inout_ vendor_cache_t        *cache,
                                                  void                          *arg);
+static sai_status_t mlnx_host_interface_oper_get(_In_ const sai_object_key_t   *key,
+                                                 _Inout_ sai_attribute_value_t *value,
+                                                 _In_ uint32_t                  attr_index,
+                                                 _Inout_ vendor_cache_t        *cache,
+                                                 void                          *arg);
 static sai_status_t mlnx_host_interface_name_set(_In_ const sai_object_key_t      *key,
+                                                 _In_ const sai_attribute_value_t *value,
+                                                 void                             *arg);
+static sai_status_t mlnx_host_interface_oper_set(_In_ const sai_object_key_t      *key,
                                                  _In_ const sai_attribute_value_t *value,
                                                  void                             *arg);
 static sai_status_t mlnx_trap_group_admin_get(_In_ const sai_object_key_t   *key,
@@ -180,6 +189,11 @@ static const sai_vendor_attribute_entry_t host_interface_vendor_attribs[] = {
       { true, false, true, true },
       mlnx_host_interface_name_get, NULL,
       mlnx_host_interface_name_set, NULL },
+    { SAI_HOSTIF_ATTR_OPER_STATUS,
+      { true, false, true, true },
+      { true, false, true, true },
+      mlnx_host_interface_oper_get, NULL,
+      mlnx_host_interface_oper_set, NULL },
 };
 static const sai_vendor_attribute_entry_t trap_group_vendor_attribs[] = {
     { SAI_HOSTIF_TRAP_GROUP_ATTR_ADMIN_STATE,
@@ -326,7 +340,7 @@ const mlnx_trap_info_t                    mlnx_traps_info[] = {
       "IPv6 MLD V2 report", MLNX_TRAP_TYPE_REGULAR },
     { SAI_HOSTIF_TRAP_ID_IP2ME, 1, { SX_TRAP_ID_IP2ME }, SAI_PACKET_ACTION_TRAP, "IP2ME",
       MLNX_TRAP_TYPE_REGULAR },
-    { SAI_HOSTIF_TRAP_ID_SSH, 0, { 0 }, SAI_PACKET_ACTION_TRAP, "SSH",
+    { SAI_HOSTIF_TRAP_ID_SSH, 2, { SX_TRAP_ID_SSH_IPV4, SX_TRAP_ID_SSH_IPV6 }, SAI_PACKET_ACTION_TRAP, "SSH",
       MLNX_TRAP_TYPE_REGULAR },
     { SAI_HOSTIF_TRAP_ID_SNMP, 0, { 0 }, SAI_PACKET_ACTION_TRAP, "SNMP",
       MLNX_TRAP_TYPE_REGULAR },
@@ -476,7 +490,7 @@ static sai_status_t mlnx_create_host_interface(_Out_ sai_object_id_t     * hif_i
     sai_attr_list_to_str(attr_count, attr_list, host_interface_attribs, MAX_LIST_VALUE_STR_LEN, list_str);
     SX_LOG_NTC("Create host interface, %s\n", list_str);
 
-    find_attrib_in_list(attr_count, attr_list, SAI_HOSTIF_ATTR_TYPE, &type, &type_index);
+    status = find_attrib_in_list(attr_count, attr_list, SAI_HOSTIF_ATTR_TYPE, &type, &type_index);
     assert(SAI_STATUS_SUCCESS == status);
 
     if (SAI_HOSTIF_TYPE_NETDEV == type->s32) {
@@ -872,6 +886,22 @@ static sai_status_t mlnx_host_interface_name_get(_In_ const sai_object_key_t   *
     return SAI_STATUS_SUCCESS;
 }
 
+/* Get the operational status for this host interface [bool] */
+static sai_status_t mlnx_host_interface_oper_get(_In_ const sai_object_key_t   *key,
+                                                 _Inout_ sai_attribute_value_t *value,
+                                                 _In_ uint32_t                  attr_index,
+                                                 _Inout_ vendor_cache_t        *cache,
+                                                 void                          *arg)
+{
+    SX_LOG_ENTER();
+
+    /* automatic on Mellanox implementation */
+    value->booldata = true;
+
+    SX_LOG_EXIT();
+    return SAI_STATUS_SUCCESS;
+}
+
 /* Name [char[HOST_INTERFACE_NAME_SIZE]]
  * The maximum number of charactars for the name is HOST_INTERFACE_NAME_SIZE - 1 since
  * it needs the terminating null byte ('\0') at the end.  */
@@ -909,6 +939,19 @@ static sai_status_t mlnx_host_interface_name_set(_In_ const sai_object_key_t    
         SX_LOG_ERR("Command \"%s\" failed.\n", command);
         return SAI_STATUS_FAILURE;
     }
+
+    SX_LOG_EXIT();
+    return SAI_STATUS_SUCCESS;
+}
+
+/* Get the operational status for this host interface [bool] */
+static sai_status_t mlnx_host_interface_oper_set(_In_ const sai_object_key_t      *key,
+                                                 _In_ const sai_attribute_value_t *value,
+                                                 void                             *arg)
+{
+    SX_LOG_ENTER();
+
+    /* automatic on Mellanox implementation */
 
     SX_LOG_EXIT();
     return SAI_STATUS_SUCCESS;
@@ -965,10 +1008,7 @@ static sai_status_t mlnx_trap_group_queue_set(_In_ const sai_object_key_t      *
         return sdk_to_sai(status);
     }
 
-    if (SAI_STATUS_SUCCESS != (status = mlnx_check_trap_group_prio(value->u32, 0))) {
-        return status;
-    }
-    trap_group_attributes.prio = value->u32;
+    trap_group_attributes.prio = (value->u32 > SX_TRAP_PRIORITY_HIGH) ? SX_TRAP_PRIORITY_HIGH : value->u32;
 
     if (SAI_STATUS_SUCCESS != (status = sx_api_host_ifc_trap_group_set(gh_sdk, DEFAULT_ETH_SWID,
                                                                        group_id, &trap_group_attributes))) {
@@ -1112,7 +1152,7 @@ static sai_status_t mlnx_trap_group_policer_set_internal(_In_ sai_object_id_t tr
             return sai_status;
         }
     } else {
-        if (SAI_STATUS_SUCCESS != (sai_status = mlnx_sai_unbind_policer(trap_id, policer_id, NULL))) {
+        if (SAI_STATUS_SUCCESS != (sai_status = mlnx_sai_unbind_policer(trap_id, NULL))) {
             SX_LOG_ERR("Failed to un-bind. trap_group_id id:0x%" PRIx64 ". sai policer object_id:0x%" PRIx64 "\n",
                        trap_id,
                        policer_id);
@@ -1190,19 +1230,6 @@ static void trap_group_key_to_str(_In_ sai_object_id_t group_id, _Out_ char *key
     }
 }
 
-static sai_status_t mlnx_check_trap_group_prio(uint32_t prio, uint32_t prio_index)
-{
-    if ((prio > g_resource_limits.trap_group_priority_max) || (prio < g_resource_limits.trap_group_priority_min)) {
-        SX_LOG_ERR("Trap group priority %u out of range (%u,%u)\n",
-                   prio,
-                   g_resource_limits.trap_group_priority_min,
-                   g_resource_limits.trap_group_priority_max);
-        return SAI_STATUS_INVALID_ATTR_VALUE_0 + prio_index;
-    }
-
-    return SAI_STATUS_SUCCESS;
-}
-
 /*
  * Routine Description:
  *    Create host interface trap group
@@ -1256,10 +1283,7 @@ static sai_status_t mlnx_create_hostif_trap_group(_Out_ sai_object_id_t      *ho
 
     if (SAI_STATUS_SUCCESS ==
         find_attrib_in_list(attr_count, attr_list, SAI_HOSTIF_TRAP_GROUP_ATTR_QUEUE, &prio, &prio_index)) {
-        if (SAI_STATUS_SUCCESS != (status = mlnx_check_trap_group_prio(prio->u32, prio_index))) {
-            return status;
-        }
-        trap_group_attributes.prio = prio->u32;
+        trap_group_attributes.prio = (prio->u32 > SX_TRAP_PRIORITY_HIGH) ? SX_TRAP_PRIORITY_HIGH : prio->u32;
     }
 
     cl_plock_excl_acquire(&g_sai_db_ptr->p_lock);
@@ -2090,7 +2114,7 @@ static sai_status_t mlnx_send_hostif_packet(_In_ sai_object_id_t  hif_id,
     sai_attr_list_to_str(attr_count, attr_list, host_interface_packet_attribs, MAX_LIST_VALUE_STR_LEN, list_str);
     SX_LOG_NTC("send packet, %s\n", list_str);
 
-    find_attrib_in_list(attr_count, attr_list, SAI_HOSTIF_PACKET_ATTR_TX_TYPE, &type, &type_index);
+    status = find_attrib_in_list(attr_count, attr_list, SAI_HOSTIF_PACKET_ATTR_TX_TYPE, &type, &type_index);
     assert(SAI_STATUS_SUCCESS == status);
 
     if (SAI_HOSTIF_TX_TYPE_PIPELINE_BYPASS == type->s32) {

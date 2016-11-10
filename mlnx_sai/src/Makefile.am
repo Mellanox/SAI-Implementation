@@ -13,42 +13,56 @@ endif
 
 CFLAGS = @CFLAGS@ $(CFLAGS_SAI_INTERFACE_COMMON) $(DBGFLAGS)
 
+if CONFIG_SYSLOG
+CFLAGS += -DCONFIG_SYSLOG
+endif
+
 lib_LTLIBRARIES = libsai.la
 
 dist_data_DATA = sai_1710.xml \
 				 sai_2700.xml \
-				 sai_2410.xml
+				 sai_2410.xml \
+				 sai_2100.xml
 				 
 libsai_la_DEPENDENCIES =
 
 libsai_la_SOURCES = \
+                       mlnx_sai_acl.c \
+                       mlnx_sai_buffer.c \
+                       mlnx_sai_dbg_hash.c \
+                       mlnx_sai_dbg_hostintf.c \
+                       mlnx_sai_dbg_policer.c \
+                       mlnx_sai_dbg_port.c \
+                       mlnx_sai_dbg_samplepacket.c \
+                       mlnx_sai_dbg_stp.c \
+                       mlnx_sai_dbg_tunnel.c \
+                       mlnx_sai_dbg_vlan.c \
                        mlnx_sai_fdb.c \
+                       mlnx_sai_hash.c \
+                       mlnx_sai_host_interface.c \
                        mlnx_sai_interfacequery.c \
+                       mlnx_sai_lag.c \
+                       mlnx_sai_mirror.c \
                        mlnx_sai_neighbor.c \
                        mlnx_sai_nexthop.c \
                        mlnx_sai_nexthopgroup.c \
+                       mlnx_sai_object.c \
+                       mlnx_sai_policer.c \
                        mlnx_sai_port.c \
+                       mlnx_sai_qosmaps.c \
+                       mlnx_sai_queue.c \
+                       mlnx_sai_rif.c \
                        mlnx_sai_route.c \
                        mlnx_sai_router.c \
+                       mlnx_sai_samplepacket.c \
+                       mlnx_sai_scheduler.c \
+                       mlnx_sai_scheduler_group.c \
+                       mlnx_sai_stp.c \
                        mlnx_sai_switch.c \
+                       mlnx_sai_tunnel.c \
                        mlnx_sai_utils.c \
                        mlnx_sai_vlan.c \
-                       mlnx_sai_rif.c \
-                       mlnx_sai_host_interface.c \
-                       mlnx_sai_acl.c \
-                       mlnx_sai_qosmaps.c \
-                       mlnx_sai_wred.c \
-                       mlnx_sai_queue.c \
-                       mlnx_sai_policer.c \
-                       mlnx_sai_scheduler.c \
-                       mlnx_sai_hash.c \
-                       mlnx_sai_lag.c \
-                       mlnx_sai_scheduler_group.c \
-                       mlnx_sai_mirror.c \
-                       mlnx_sai_buffer.c \
-                       mlnx_sai_tunnel.c \
-                       mlnx_sai_samplepacket.c \
-                       mlnx_sai_object.c
+                       mlnx_sai_wred.c
 
 if XML2_ELDK5_LA_WA
 SAI_LIBXML2_ADD = ${XML2_LIB_PATH}/lib/libxml2.so

@@ -183,10 +183,13 @@ typedef enum _sai_switch_restart_type_t
 */
 typedef enum _sai_switch_attr_t
 {
+    
+    SAI_SWITCH_ATTR_START,    
+
     /** READ-ONLY */
 
     /** The number of ports on the switch [sai_uint32_t] */
-    SAI_SWITCH_ATTR_PORT_NUMBER,
+    SAI_SWITCH_ATTR_PORT_NUMBER = SAI_SWITCH_ATTR_START,
 
     /** Get the port list [sai_object_list_t] */
     SAI_SWITCH_ATTR_PORT_LIST,
@@ -285,6 +288,49 @@ typedef enum _sai_switch_attr_t
     /* Default SAI Virtual Router ID [sai_object_id_t]
      * Must return SAI_STATUS_OBJECT_IN_USE when try to delete this VR ID. */
     SAI_SWITCH_ATTR_DEFAULT_VIRTUAL_ROUTER_ID,
+
+    /** 
+     * @brief Switch/Global bind point for ingress ACL objects
+     *
+     * Bind (or unbind) an ingress acl tables/groups globally. Enable/Update 
+     * ingress ACL table(s)/group(s) filtering by assigning the list of valid 
+     * objects. Disable ingress filtering by assigning SAI_NULL_OBJECT_ID 
+     * in the attribute value. 
+     *
+     * @type sai_object_list_t
+     * @objects SAI_OBJECT_TYPE_ACL_TABLE, SAI_OBJECT_TYPE_ACL_TABLE_GROUP
+     * @flags CREATE_AND_SET
+     * @default empty
+     */
+ 
+    SAI_SWITCH_ATTR_DEFAULT_INGRESS_ACL_LIST,
+
+    /** 
+     * @brief Switch/Global bind point for egress ACL objects
+     *
+     * Bind (or unbind) an egress acl tables/groups globally. Enable/Update 
+     * egress ACL table(s)/group(s) filtering by assigning the list of valid 
+     * objects. Disable egress filtering by assigning SAI_NULL_OBJECT_ID 
+     * in the attribute value. 
+     *
+     * @type sai_object_list_t
+     * @objects SAI_OBJECT_TYPE_ACL_TABLE, SAI_OBJECT_TYPE_ACL_TABLE_GROUP
+     * @flags CREATE_AND_SET
+     * @default empty
+     */
+    SAI_SWITCH_ATTR_DEFAULT_EGRESS_ACL_LIST,
+
+    /** 
+     * @brief ACL object supports more than one ACL table (or group) at one bind point
+     *
+     * Must return bool (true) if supported or (false) if not supported. If a list
+     * of ACL table(s) or group(s) can be configured at a single bind point.
+     *
+     * @type bool
+     * @flags READ_ONLY
+     *
+     */
+    SAI_SWITCH_ATTR_ACL_LIST_SUPPORTED,
 
     /** Maximum traffic classes limit [sai_uint8_t] */
     SAI_SWITCH_ATTR_QOS_MAX_NUMBER_OF_TRAFFIC_CLASSES,
@@ -497,15 +543,18 @@ typedef enum _sai_switch_attr_t
        Default no map */
     SAI_SWITCH_ATTR_QOS_TC_AND_COLOR_TO_DSCP_MAP,
 
-    /** WRITE-ONLY */
-
-    /** Port Breakout mode [sai_port_breakout_t] */
-    SAI_SWITCH_ATTR_PORT_BREAKOUT,
+    /* Enable vendor specific switch shell [bool] (default to false) */
+    SAI_SWITCH_ATTR_SWITCH_SHELL_ENABLE,
 
     /* -- */
+    SAI_SWITCH_ATTR_END,
 
     /* Custom range base value */
-    SAI_SWITCH_ATTR_CUSTOM_RANGE_BASE  = 0x10000000
+    SAI_SWITCH_ATTR_CUSTOM_RANGE_START = 0x10000000,
+
+    /* --*/
+    SAI_SWITCH_ATTR_CUSTOM_RANGE_END
+
 
 } sai_switch_attr_t;
 

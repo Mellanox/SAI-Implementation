@@ -58,6 +58,28 @@ typedef enum _sai_acl_stage_t
 
 } sai_acl_stage_t;
 
+/**
+ * @brief Attribute data for SAI_ACL_TABLE_ATTR_BIND_POINT
+ */
+typedef enum _sai_acl_bind_point_t
+{
+    /** Port Bind Point */
+    SAI_ACL_BIND_POINT_PORT,
+
+    /** LAG Bind Point */
+    SAI_ACL_BIND_POINT_LAG,
+
+    /** VLAN Bind Point */
+    SAI_ACL_BIND_POINT_VLAN,
+
+    /** RIF Bind Point */
+    SAI_ACL_BIND_POINT_ROUTER_INTF,
+
+    /** SWITCH Bind Point */
+    SAI_ACL_BIND_POINT_SWITCH
+
+} sai_acl_bind_point_t;
+
 typedef enum _sai_acl_ip_type_t
 {
     /** Don't care */
@@ -208,7 +230,6 @@ typedef enum _sai_acl_action_list_t
 
 }sai_acl_action_list_t; 
 
-
 #define SAI_ACL_USER_DEFINED_FIELD_ATTR_ID_RANGE 0xFF
 
 /**
@@ -216,13 +237,24 @@ typedef enum _sai_acl_action_list_t
  */
 typedef enum _sai_acl_table_attr_t
 {
+
+    SAI_ACL_TABLE_ATTR_START,
+    
     /** READ-ONLY */
 
     /** READ-WRITE */
 
     /** ACL stage [sai_acl_stage_t]
      * (MANDATORY_ON_CREATE|CREATE_ONLY) */
-    SAI_ACL_TABLE_ATTR_STAGE,
+    SAI_ACL_TABLE_ATTR_STAGE = SAI_ACL_TABLE_ATTR_START,
+
+    /**
+     * @brief List of ACL bind point where this ACL can be applied
+     *
+     * @type sai_acl_bind_point_t 
+     * @flags MANDATORY_ON_CREATE | CREATE_ONLY
+     */
+    SAI_ACL_TABLE_ATTR_BIND_POINT,
 
     /** Priority [sai_uint32_t]
      * (MANDATORY_ON_CREATE|CREATE_ONLY)
@@ -287,6 +319,8 @@ typedef enum _sai_acl_table_attr_t
      * hits across the tables will be performed.
      */
     SAI_ACL_TABLE_ATTR_GROUP_ID,
+
+    SAI_ACL_TABLE_ATTR_END,
 
     /** Match fields [bool]
      * (MANDATORY_ON_CREATE, mandatory to pass at least one field during ACL Table Creation)
@@ -452,7 +486,11 @@ typedef enum _sai_acl_table_attr_t
     /* -- */
 
     /* Custom range base value */
-    SAI_ACL_TABLE_ATTR_CUSTOM_RANGE_BASE  = 0x10000000
+    SAI_ACL_TABLE_ATTR_CUSTOM_RANGE_START = 0x10000000,
+
+    /* --*/
+    SAI_ACL_TABLE_ATTR_CUSTOM_RANGE_END
+
 
 } sai_acl_table_attr_t;
 
@@ -461,11 +499,12 @@ typedef enum _sai_acl_table_attr_t
  */
 typedef enum _sai_acl_entry_attr_t
 {
+    SAI_ACL_ENTRY_ATTR_START,
     /** READ-ONLY */
 
     /** SAI acl table object id [sai_object_id_t]
      * (MANDATORY_ON_CREATE) */
-    SAI_ACL_ENTRY_ATTR_TABLE_ID,
+    SAI_ACL_ENTRY_ATTR_TABLE_ID = SAI_ACL_ENTRY_ATTR_START,
 
     /** READ-WRITE */
 
@@ -486,6 +525,8 @@ typedef enum _sai_acl_entry_attr_t
      * - When bitfield is used the comment, only those least significent bits
      *   are valid for matching.
      */
+    
+    SAI_ACL_ENTRY_ATTR_END,
 
     /** Start of Rule Match Fields */
     SAI_ACL_ENTRY_ATTR_FIELD_START = 0x00001000,
@@ -1142,7 +1183,6 @@ typedef struct _sai_acl_api_t
     sai_remove_acl_range_fn             remove_acl_range;
     sai_set_acl_range_attribute_fn      set_acl_range_attribute;
     sai_get_acl_range_attribute_fn      get_acl_range_attribute;
-
 } sai_acl_api_t;
 
 /**

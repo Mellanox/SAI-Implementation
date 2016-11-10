@@ -32,16 +32,54 @@
 
 /** Lag attribute: List of attributes for LAG object */
 typedef enum _sai_lag_attr_t {
+    
+    SAI_LAG_ATTR_START,
 
     /** READ-ONLY */
 
     /** SAI port list [sai_object_list_t] */
-    SAI_LAG_ATTR_PORT_LIST,
+    SAI_LAG_ATTR_PORT_LIST = SAI_LAG_ATTR_START,
 
     /** READ_WRITE */
 
+    /** 
+     * @brief LAG bind point for ingress ACL objects
+     *
+     * Bind (or unbind) an ingress acl tables/groups on a LAG. Enable/Update 
+     * ingress ACL table(s)/group(s) filtering by assigning the list of valid 
+     * objects. Disable ingress filtering by assigning SAI_NULL_OBJECT_ID 
+     * in the attribute value. 
+     *
+     * @type sai_object_list_t
+     * @objects SAI_OBJECT_TYPE_ACL_TABLE, SAI_OBJECT_TYPE_ACL_TABLE_GROUP
+     * @flags CREATE_AND_SET
+     * @default empty
+     */
+    SAI_LAG_ATTR_INGRESS_ACL_LIST,
+
+    /** 
+     * @brief LAG bind point for egress ACL objects
+     *
+     * Bind (or unbind) an egress acl tables/groups on a LAG. Enable/Update 
+     * egress ACL table(s)/group(s) filtering by assigning the list of valid 
+     * objects. Disable egress filtering by assigning SAI_NULL_OBJECT_ID 
+     * in the attribute value. 
+     *
+     * @type sai_object_list_t
+     * @objects SAI_OBJECT_TYPE_ACL_TABLE, SAI_OBJECT_TYPE_ACL_TABLE_GROUP
+     * @flags CREATE_AND_SET
+     * @default empty
+     */
+    SAI_LAG_ATTR_EGRESS_ACL_LIST,
+
+    SAI_LAG_ATTR_END,
+
     /** Custom range base value */
-    SAI_LAG_ATTR_CUSTOM_RANGE_BASE  = 0x10000000
+    SAI_LAG_ATTR_CUSTOM_RANGE_START = 0x10000000,
+
+    /* --*/
+    SAI_LAG_ATTR_CUSTOM_RANGE_END
+
 
 } sai_lag_attr_t;
 
@@ -102,10 +140,12 @@ typedef sai_status_t (*sai_get_lag_attribute_fn)(
  */
 typedef enum _sai_lag_member_attr_t {
 
+
+    SAI_LAG_MEMBER_ATTR_START,
     /** READ_WRITE */
 
     /* LAG ID [sai_object_id_t] (MANDATORY_ON_CREATE|CREATE_ONLY) */
-    SAI_LAG_MEMBER_ATTR_LAG_ID,
+    SAI_LAG_MEMBER_ATTR_LAG_ID = SAI_LAG_MEMBER_ATTR_START,
 
     /* logical port ID [sai_object_id_t] (MANDATORY_ON_CREATE|CREATE_ONLY) */
     SAI_LAG_MEMBER_ATTR_PORT_ID,
@@ -115,9 +155,15 @@ typedef enum _sai_lag_member_attr_t {
 
      /* Disable traffic collection from this port as part of LAG. [bool] (CREATE_AND_SET) default to FALSE. */
     SAI_LAG_MEMBER_ATTR_INGRESS_DISABLE,
+    
+    SAI_LAG_MEMBER_ATTR_END,
 
     /** Custom range base value */
-    SAI_LAG_MEMBER_ATTR_CUSTOM_RANGE_BASE  = 0x10000000
+    SAI_LAG_MEMBER_ATTR_CUSTOM_RANGE_START = 0x10000000,
+
+    /* --*/
+    SAI_LAG_MEMBER_ATTR_CUSTOM_RANGE_END
+
 
 } sai_lag_member_attr_t;
 

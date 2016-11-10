@@ -1590,8 +1590,7 @@ static sai_status_t fill_policer_red_action_attrib(_In_ bool                   s
 
         if (set_defaults) {
             SX_LOG_DBG(
-                "Setting default value SX_POLICER_ACTION_FORWARD for SAI_POLICER_ATTR_RED_PACKET_ACTION. input:%d\n",
-                attr_value->s32);
+                "Setting default value SX_POLICER_ACTION_FORWARD for SAI_POLICER_ATTR_RED_PACKET_ACTION.\n");
             sx_policer_attribs->red_action = SX_POLICER_ACTION_FORWARD_SET_RED_COLOR;
         }
         status = SAI_STATUS_SUCCESS;
@@ -2556,8 +2555,9 @@ static sai_status_t mlnx_sai_bind_policer_to_port(_In_ sai_object_id_t          
     return sai_status;
 }
 
-static sai_status_t mlnx_sai_unbind_policer_from_port(_In_ sai_object_id_t           sai_port,
-                                                      _In_ mlnx_policer_bind_params* bind_params)
+/* SAI DB R/w is required */
+sai_status_t mlnx_sai_unbind_policer_from_port(_In_ sai_object_id_t           sai_port,
+                                               _In_ mlnx_policer_bind_params* bind_params)
 {
     sai_status_t                   sai_status;
     uint32_t                       port_db_index;
@@ -2581,7 +2581,8 @@ static sai_status_t mlnx_sai_unbind_policer_from_port(_In_ sai_object_id_t      
     }
     memset(&storm_ctrl_params, 0, sizeof(storm_ctrl_params));
     memset(&all_traffic_packet_types, 0, sizeof(all_traffic_packet_types));
-    if (SAI_STATUS_SUCCESS != (sai_status = mlnx_object_to_type(sai_port, SAI_OBJECT_TYPE_PORT, &port_data, NULL))) {
+    sai_status = mlnx_object_to_log_port(sai_port, &port_data);
+    if (SAI_ERR(sai_status)) {
         SX_LOG_EXIT();
         return sai_status;
     }
@@ -2687,7 +2688,7 @@ static sai_status_t mlnx_sai_get_or_create_sx_policer_for_bind(_In_ sai_object_i
         policer_data->sx_policer_attr.is_host_ifc_policer = false;
     }
 
-    if (SX_POLICER_ID_INVALID == policer_data->sx_policer_id_trap) {
+    if (SX_POLICER_ID_INVALID == *new_sx_policer) {
         if (SX_STATUS_SUCCESS !=
             (sx_status = sx_api_policer_set(gh_sdk,
                                             SX_ACCESS_CMD_CREATE,
@@ -2821,6 +2822,11 @@ sai_status_t mlnx_sai_bind_policer(_In_ sai_object_id_t           sai_object_id,
         return SAI_STATUS_INVALID_PARAMETER;
     }
 
+    if (SAI_STATUS_SUCCESS != (status = mlnx_sai_unbind_policer(sai_object_id, bind_params))) {
+        SX_LOG_EXIT();
+        return status;
+    }
+
     object_type = sai_object_type_query(sai_object_id);
 
     policer_db_cl_plock_excl_acquire(&g_sai_db_ptr->p_lock);
@@ -2846,26 +2852,13 @@ sai_status_t mlnx_sai_bind_policer(_In_ sai_object_id_t           sai_object_id,
  *   Policer is detached from ACL when delete_acl_entry is called to delete the acl entry to which
  *   policer was attached via SAI_ACL_ENTRY_ATTR_ACTION_SET_POLICER property.
  */
-sai_status_t mlnx_sai_unbind_policer(_In_ sai_object_id_t           sai_object,
-                                     _In_ sai_object_id_t           sai_policer,
-                                     _In_ mlnx_policer_bind_params* bind_params)
+sai_status_t mlnx_sai_unbind_policer(_In_ sai_object_id_t sai_object, _In_ mlnx_policer_bind_params* bind_params)
 {
     sai_status_t      status;
     sai_object_type_t object_type = sai_object_type_query(sai_object);
 
     SX_LOG_ENTER();
-
-    if (SAI_NULL_OBJECT_ID != sai_policer) {
-        SX_LOG_ERR(
-            "Only SAI_NULL_OBJECT_ID is allowed for sai policer value. actual: obect type:%s, value:0x%" PRIx64 ".\n",
-            SAI_TYPE_STR(object_type),
-            sai_policer);
-        SX_LOG_EXIT();
-        return SAI_STATUS_INVALID_PARAMETER;
-    }
-
     policer_db_cl_plock_excl_acquire(&g_sai_db_ptr->p_lock);
-
     switch (object_type) {
     case SAI_OBJECT_TYPE_TRAP_GROUP:
         status = mlnx_sai_unbind_policer_from_trap_group(sai_object);

@@ -42,8 +42,10 @@
  */
 typedef enum _sai_ingress_priority_group_attr_t
 {
+    SAI_INGRESS_PRIORITY_GROUP_ATTR_START, 
     /** buffer profile pointer [sai_object_id_t] */
-    SAI_INGRESS_PRIORITY_GROUP_ATTR_BUFFER_PROFILE,
+    SAI_INGRESS_PRIORITY_GROUP_ATTR_BUFFER_PROFILE = SAI_INGRESS_PRIORITY_GROUP_ATTR_START,
+    SAI_INGRESS_PRIORITY_GROUP_ATTR_END
 } sai_ingress_priority_group_attr_t;
 
 /**
@@ -173,12 +175,13 @@ typedef enum _sai_buffer_threshold_mode_t
  */
 typedef enum _sai_buffer_pool_attr_t
 {
+    SAI_BUFFER_POOL_ATTR_START,
     /** READ-ONLY */
 
     /** shared buffer size in bytes [sai_uint32_t].
      * This is derived from substracting all reversed buffers of queue/port
      * from the total pool size. */
-    SAI_BUFFER_POOL_ATTR_SHARED_SIZE,
+    SAI_BUFFER_POOL_ATTR_SHARED_SIZE = SAI_BUFFER_POOL_ATTR_START,
 
     /** READ-WRITE */
 
@@ -188,9 +191,15 @@ typedef enum _sai_buffer_pool_attr_t
     /** buffer pool size in bytes [sai_uint32_t] (MANDATORY_ON_CREATE|CREATE_AND_SET) */
     SAI_BUFFER_POOL_ATTR_SIZE,
 
+    /** For the ingress buffer pool, we allocate a shared XOFF (GLOBAL HEADROOM) room for lossless traffic
+    *  default to 0. */
+    SAI_BUFFER_POOL_ATTR_XOFF_SIZE,
+
     /** shared threshold mode for the buffer pool [sai_buffer_threadhold_mode_t] (CREATE_ONLY)
      * (default to SAI_BUFFER_POOL_DYNAMIC_TH) */
     SAI_BUFFER_POOL_ATTR_TH_MODE,
+    
+    SAI_BUFFER_POOL_ATTR_END,
 
 } sai_buffer_pool_attr_t;
 
@@ -283,12 +292,14 @@ typedef sai_status_t(*sai_get_buffer_pool_stats_fn)(
  */
 typedef enum _sai_buffer_profile_attr_t
 {
+    
+    SAI_BUFFER_PROFILE_ATTR_START,
     /** READ-WRITE */
 
     /** pointer to buffer pool object id [sai_object_id_t] (MANDATORY_ON_CREATE|CREATE_AND_SET)
     *  Pool id = SAI_NULL_OBJECT_ID can be used when profile is not associated with specific
     *  pool, for example for global port buffer. Not applicable to priority group or queue buffer profile */
-    SAI_BUFFER_PROFILE_ATTR_POOL_ID,
+    SAI_BUFFER_PROFILE_ATTR_POOL_ID = SAI_BUFFER_PROFILE_ATTR_START,
 
     /** reserved buffer size in bytes [sai_uint32_t] (MANDATORY_ON_CREATE|CREATE_AND_SET) */
     SAI_BUFFER_PROFILE_ATTR_BUFFER_SIZE,
@@ -313,18 +324,40 @@ typedef enum _sai_buffer_profile_attr_t
 
     /** set the buffer profile XOFF threshold in bytes [sai_uint32_t]
      * Valid only for ingress PG (CREATE_AND_SET).
-     * Generate XOFF when available buffer in the PG buffer
-     * is less than this threshold.
+     * Specifies the maximum available buffer for a PG after XOFF is 
+     * generated (i.e. headroom buffer). Note that the available 
+     * headroom buffer is dependent on XOFF_SIZE. If the user has 
+     * set XOFF_SIZE = 0, the PG headroom buffer is equal to XOFF_TH
+     * and it is not shared. If the user has set XOFF_SIZE > 0, the 
+     * total headroom pool buffer for all PGs is equal to XOFF_SIZE
+     * and XOFF_TH specifies the maximum amount of headroom pool 
+     * buffer one PG can use.
      * default to 0. */
     SAI_BUFFER_PROFILE_ATTR_XOFF_TH,
 
-    /** set the buffer profile XON threshold in byte [sai_uint32_t]
+    /** set the buffer profile XON non-hysteresis threshold in byte [sai_uint32_t]
      * Valid only for ingress PG (CREATE_AND_SET)
-     * Generate XON when the total buffer usage of this PG
-     * is less this threshold and available buffer in the PG buffer
-     * is larger than the XOFF threahold.
-     * default to 0. */
+     * default to 0.
+     * Generate XON when the total buffer usage of this PG is less than the maximum of XON_TH
+     * and the total buffer limit minus XON_OFFSET_TH, and available buffer in the PG buffer
+     * is larger than the XOFF_TH.
+     * The XON trigger condition is governed by:
+     *     total buffer usage <= max(XON_TH, total buffer limit - XON_OFFSET_TH)
+     */
     SAI_BUFFER_PROFILE_ATTR_XON_TH,
+
+    /** set the buffer profile XON hysteresis threshold in byte [sai_uint32_t]
+     * Valid only for ingress PG (CREATE_AND_SET)
+     * default to 0xffffffff.
+     * Generate XON when the total buffer usage of this PG is less than the maximum of XON_TH
+     * and the total buffer limit minus XON_OFFSET_TH, and available buffer in the PG buffer
+     * is larger than the XOFF_TH.
+     * The XON trigger condition is governed by:
+     *     total buffer usage <= max(XON_TH, total buffer limit - XON_OFFSET_TH)
+     */
+    SAI_BUFFER_PROFILE_ATTR_XON_OFFSET_TH,
+
+    SAI_BUFFER_PROFILE_ATTR_END,
 
 } sai_buffer_profile_attr_t;
 
