@@ -333,17 +333,14 @@ static sai_status_t mlnx_get_queue_statistics(_In_ sai_object_id_t              
     uint8_t                          ext_data[EXTENDED_DATA_SIZE] = {0};
     uint8_t                          queue_num                    = 0;
     sx_port_log_id_t                 port_num;
-    sx_cos_redecn_port_counters_t    redecn_cnts;
     uint32_t                         ii = 0;
     char                             key_str[MAX_KEY_STR_LEN];
     sx_port_statistic_usage_params_t stats_usage;
     sx_port_occupancy_statistics_t   occupancy_stats;
-    sx_port_cntr_prio_t              prio_cnts;
     uint32_t                         usage_cnt = 1;
+    sx_port_traffic_cntr_t           tc_cnts;
 
     SX_LOG_ENTER();
-
-    memset(&redecn_cnts, 0, sizeof(redecn_cnts));
 
     queue_key_to_str(queue_id, key_str);
     SX_LOG_NTC("Get queue stats %s\n", key_str);
@@ -370,16 +367,7 @@ static sai_status_t mlnx_get_queue_statistics(_In_ sai_object_id_t              
     }
 
     if (SX_STATUS_SUCCESS !=
-        (status = sx_api_cos_redecn_counters_get(gh_sdk, SX_ACCESS_CMD_READ, port_num, &redecn_cnts))) {
-        SX_LOG_ERR("Failed to get port redecn counters - %s.\n", SX_STATUS_MSG(status));
-        return sdk_to_sai(status);
-    }
-
-    /* TODO : assumes one to one mapping, with same value, of IEEE prio = queue num
-     * SDK extension may do the mapping from IEEE prio to TC, and remove this limitation
-     * and use sx_api_port_counter_tc_get */
-    if (SX_STATUS_SUCCESS !=
-        (status = sx_api_port_counter_prio_get(gh_sdk, SX_ACCESS_CMD_READ, port_num, queue_num, &prio_cnts))) {
+        (status = sx_api_port_counter_tc_get(gh_sdk, SX_ACCESS_CMD_READ, port_num, queue_num, &tc_cnts))) {
         SX_LOG_ERR("Failed to get port tc counters - %s.\n", SX_STATUS_MSG(status));
         return sdk_to_sai(status);
     }
@@ -400,7 +388,6 @@ static sai_status_t mlnx_get_queue_statistics(_In_ sai_object_id_t              
 
     for (ii = 0; ii < number_of_counters; ii++) {
         switch (counter_ids[ii]) {
-        case SAI_QUEUE_STAT_DROPPED_PACKETS:
         case SAI_QUEUE_STAT_DROPPED_BYTES:
         case SAI_QUEUE_STAT_GREEN_PACKETS:
         case SAI_QUEUE_STAT_GREEN_BYTES:
@@ -427,15 +414,19 @@ static sai_status_t mlnx_get_queue_statistics(_In_ sai_object_id_t              
             return SAI_STATUS_ATTR_NOT_SUPPORTED_0;
 
         case SAI_QUEUE_STAT_PACKETS:
-            counters[ii] = prio_cnts.tx_frames;
+            counters[ii] = tc_cnts.tx_frames;
             break;
 
         case SAI_QUEUE_STAT_BYTES:
-            counters[ii] = prio_cnts.tx_octets;
+            counters[ii] = tc_cnts.tx_octet;
+            break;
+
+        case SAI_QUEUE_STAT_DROPPED_PACKETS:
+            counters[ii] = tc_cnts.tx_no_buffer_discard_uc;
             break;
 
         case SAI_QUEUE_STAT_DISCARD_DROPPED_PACKETS:
-            counters[ii] = redecn_cnts.tc_red_dropped_packets[queue_num];
+            counters[ii] = tc_cnts.tx_wred_discard;
             break;
 
         case SAI_QUEUE_STAT_CURR_OCCUPANCY_BYTES:

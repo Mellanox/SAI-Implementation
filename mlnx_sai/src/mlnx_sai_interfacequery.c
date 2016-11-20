@@ -20,6 +20,8 @@
 #include "sai.h"
 #include "mlnx_sai.h"
 
+#include <sx/utils/dbg_utils.h>
+
 service_method_table_t g_mlnx_services;
 static bool            g_initialized = false;
 
@@ -37,19 +39,25 @@ static bool            g_initialized = false;
  */
 sai_status_t sai_api_initialize(_In_ uint64_t flags, _In_ const service_method_table_t* services)
 {
+#ifdef CONFIG_SYSLOG
+    if (!g_initialized) {
+        openlog("SAI", 0, LOG_USER);
+    }
+#endif
+
     if (g_initialized) {
-        fprintf(stderr, "SAI API initialize already called before, can't re-initialize\n");
+        MLNX_SAI_LOG_ERR("SAI API initialize already called before, can't re-initialize\n");
         return SAI_STATUS_FAILURE;
     }
 
     if ((NULL == services) || (NULL == services->profile_get_next_value) || (NULL == services->profile_get_value)) {
-        fprintf(stderr, "Invalid services handle passed to SAI API initialize\n");
+        MLNX_SAI_LOG_ERR("Invalid services handle passed to SAI API initialize\n");
         return SAI_STATUS_INVALID_PARAMETER;
     }
     memcpy(&g_mlnx_services, services, sizeof(g_mlnx_services));
 
     if (0 != flags) {
-        fprintf(stderr, "Invalid flags passed to SAI API initialize\n");
+        MLNX_SAI_LOG_ERR("Invalid flags passed to SAI API initialize\n");
         return SAI_STATUS_INVALID_PARAMETER;
     }
 
@@ -74,15 +82,13 @@ sai_status_t sai_api_initialize(_In_ uint64_t flags, _In_ const service_method_t
  */
 sai_status_t sai_api_query(_In_ sai_api_t sai_api_id, _Out_ void** api_method_table)
 {
-    if (NULL == api_method_table) {
-        fprintf(stderr, "NULL method table passed to SAI API initialize\n");
-
-        return SAI_STATUS_INVALID_PARAMETER;
-    }
     if (!g_initialized) {
         fprintf(stderr, "SAI API not initialized before calling API query\n");
-
         return SAI_STATUS_UNINITIALIZED;
+    }
+    if (NULL == api_method_table) {
+        MLNX_SAI_LOG_ERR("NULL method table passed to SAI API initialize\n");
+        return SAI_STATUS_INVALID_PARAMETER;
     }
 
     switch (sai_api_id) {
@@ -163,8 +169,8 @@ sai_status_t sai_api_query(_In_ sai_api_t sai_api_id, _Out_ void** api_method_ta
         return SAI_STATUS_SUCCESS;
 
     case SAI_API_STP:
-        /* TODO : implement */
-        return SAI_STATUS_NOT_IMPLEMENTED;
+        *(const sai_stp_api_t**)api_method_table = &mlnx_stp_api;
+        return SAI_STATUS_SUCCESS;
 
     case SAI_API_LAG:
         *(const sai_lag_api_t**)api_method_table = &mlnx_lag_api;
@@ -191,7 +197,7 @@ sai_status_t sai_api_query(_In_ sai_api_t sai_api_id, _Out_ void** api_method_ta
         return SAI_STATUS_SUCCESS;
 
     default:
-        fprintf(stderr, "Invalid API type %d\n", sai_api_id);
+        MLNX_SAI_LOG_ERR("Invalid API type %d\n", sai_api_id);
         return SAI_STATUS_INVALID_PARAMETER;
     }
 }
@@ -324,8 +330,7 @@ sai_status_t sai_log_set(_In_ sai_api_t sai_api_id, _In_ sai_log_level_t log_lev
         return mlnx_samplepacket_log_set(severity);
 
     case SAI_API_STP:
-        /* TODO : implement */
-        return SAI_STATUS_NOT_IMPLEMENTED;
+        return mlnx_stp_log_set(severity);
 
     case SAI_API_LAG:
         return mlnx_lag_log_set(severity);
@@ -373,4 +378,52 @@ sai_object_type_t sai_object_type_query(_In_ sai_object_id_t sai_object_id)
         fprintf(stderr, "Unknown type %d", type);
         return SAI_OBJECT_TYPE_NULL;
     }
+}
+
+/**
+ * @brief Generate dump file. The dump file may include SAI state information and vendor SDK information.
+ *
+ * @param[in] dump_file_name Full path for dump file
+ *
+ * @return #SAI_STATUS_SUCCESS on success Failure status code on error
+ */
+sai_status_t sai_dbg_generate_dump(_In_ const char *dump_file_name)
+{
+    FILE       *file       = NULL;
+    sx_status_t sdk_status = SX_STATUS_ERROR;
+
+    sdk_status = sx_api_dbg_generate_dump(gh_sdk, dump_file_name);
+
+    if (SX_STATUS_SUCCESS != sdk_status) {
+        fprintf(stderr, "Error generating sdk dump, sx status: %s\n", SX_STATUS_MSG(sdk_status));
+    }
+
+    file = fopen(dump_file_name, "a");
+
+    if (NULL == file) {
+        fprintf(stderr, "Error opening file %s with write permission\n", dump_file_name);
+        return SAI_STATUS_FAILURE;
+    }
+
+    dbg_utils_print_module_header(file, "SAI DEBUG DUMP");
+
+    SAI_dump_hash(file);
+
+    SAI_dump_hostintf(file);
+
+    SAI_dump_policer(file);
+
+    SAI_dump_port(file);
+
+    SAI_dump_samplepacket(file);
+
+    SAI_dump_stp(file);
+
+    SAI_dump_tunnel(file);
+
+    SAI_dump_vlan(file);
+
+    fclose(file);
+
+    return SAI_STATUS_SUCCESS;
 }

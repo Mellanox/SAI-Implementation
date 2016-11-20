@@ -43,6 +43,16 @@ AM_INIT_AUTOMAKE([foreign])
 dnl Checks for library functions.
 #AC_CHECK_FUNCS([strchr strstr strtol strtoull regcomp regexec])
 
+dnl Define an input config option to control syslog support
+AC_ARG_ENABLE(syslog,
+[  --enable-syslog    Turn on syslog],
+[case "${enableval}" in
+	yes) syslog=true ;;
+	no)  syslog=false ;;
+	*) AC_MSG_ERROR(bad value ${enableval} for --enable-syslog) ;;
+esac],[syslog=false])
+AM_CONDITIONAL(CONFIG_SYSLOG, test x$syslog = xtrue)
+
 dnl Define an input config option to control debug compile
 AC_ARG_ENABLE(debug,
 [  --enable-debug    Turn on debugging],

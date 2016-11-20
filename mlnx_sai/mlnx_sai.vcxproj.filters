@@ -188,6 +188,30 @@
     <ClCompile Include="src\mlnx_sai_buffer.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\mlnx_sai_dbg_hash.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\mlnx_sai_dbg_hostintf.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\mlnx_sai_dbg_policer.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\mlnx_sai_dbg_port.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\mlnx_sai_dbg_samplepacket.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\mlnx_sai_dbg_stp.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\mlnx_sai_dbg_tunnel.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\mlnx_sai_dbg_vlan.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="src\mlnx_sai_samplepacket.c">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -195,6 +219,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\mlnx_sai_object.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\mlnx_sai_stp.c">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

@@ -192,16 +192,16 @@ typedef enum _sai_port_media_type_t
  */
 typedef enum _sai_port_attr_t
 {
+        
+    SAI_PORT_ATTR_START,
+    
     /** READ-ONLY */
 
     /** Port Type [sai_port_type_t] */
-    SAI_PORT_ATTR_TYPE,
+    SAI_PORT_ATTR_TYPE = SAI_PORT_ATTR_START,
 
     /** Operational Status [sai_port_oper_status_t] */
     SAI_PORT_ATTR_OPER_STATUS,
-
-    /** Hardware Lane list [sai_u32_list_t] */
-    SAI_PORT_ATTR_HW_LANE_LIST,
 
     /** Breakout mode(s) supported [sai_s32_list_t] */
     SAI_PORT_ATTR_SUPPORTED_BREAKOUT_MODE,
@@ -288,7 +288,13 @@ typedef enum _sai_port_attr_t
     SAI_PORT_ATTR_PRIORITY_GROUP_LIST,
 
     /** READ-WRITE */
-    /** Speed in Mbps [uint32_t] */
+
+    /** Hardware Lane list [sai_u32_list_t]
+     * (CREATE_ONLY|MANDATORY_ON_CREATE|KEY) */
+    SAI_PORT_ATTR_HW_LANE_LIST,
+
+    /** Speed in Mbps [uint32_t]
+     * (MANDATORY_ON_CREATE) */
     SAI_PORT_ATTR_SPEED,
 
     /** Full Duplex setting [bool] (default to TRUE) */
@@ -386,6 +392,36 @@ typedef enum _sai_port_attr_t
      * when FDB learning limit is reached.
      * [sai_packet_action_t] (default to SAI_PACKET_ACTION_DROP) */
     SAI_PORT_ATTR_FDB_LEARNING_LIMIT_VIOLATION,
+
+    /** 
+     * @brief Port bind point for ingress ACL objects
+     *
+     * Bind (or unbind) an ingress acl tables/groups on a port. Enable/Update 
+     * ingress ACL table(s)/group(s) filtering by assigning the list of valid 
+     * objects. Disable ingress filtering by assigning SAI_NULL_OBJECT_ID 
+     * in the attribute value. 
+     *
+     * @type sai_object_list_t
+     * @objects SAI_OBJECT_TYPE_ACL_TABLE and/or SAI_OBJECT_TYPE_ACL_TABLE_GROUP
+     * @flags CREATE_AND_SET
+     * @default empty
+     */
+    SAI_PORT_ATTR_INGRESS_ACL_LIST,
+
+    /** 
+     * @brief Port bind point for egress ACL objects
+     *
+     * Bind (or unbind) an egress acl tables/groups on a port. Enable/Update 
+     * egress ACL table(s)/group(s) filtering by assigning the list of valid 
+     * objects. Disable egress filtering by assigning SAI_NULL_OBJECT_ID 
+     * in the attribute value. 
+     *
+     * @type sai_object_list_t
+     * @objects SAI_OBJECT_TYPE_ACL_TABLE and/or SAI_OBJECT_TYPE_ACL_TABLE_GROUP
+     * @flags CREATE_AND_SET
+     * @default empty
+     */
+    SAI_PORT_ATTR_EGRESS_ACL_LIST,
 
     /** Enable/Disable Mirror session [sai_object_list_t].
      * Enable ingress mirroring by assigning list of mirror session
@@ -514,8 +550,15 @@ typedef enum _sai_port_attr_t
 
     /** -- */
 
+    SAI_PORT_ATTR_END,
+
+
     /* Custom range base value */
-    SAI_PORT_ATTR_CUSTOM_RANGE_BASE  = 0x10000000
+    SAI_PORT_ATTR_CUSTOM_RANGE_START = 0x10000000,
+
+    /* --*/
+    SAI_PORT_ATTR_CUSTOM_RANGE_END
+
 
 } sai_port_attr_t;
 
@@ -673,9 +716,7 @@ typedef enum _sai_port_stat_counter_t
 
 } sai_port_stat_counter_t;
 
-
-/**
- * Routine Description:
+/* Routine Description:
  *   @brief Set port attribute value.
  *
  * Arguments:
@@ -690,7 +731,6 @@ typedef sai_status_t (*sai_set_port_attribute_fn)(
     _In_ sai_object_id_t port_id,
     _In_ const sai_attribute_t *attr
     );
-
 
 /**
  * Routine Description:

@@ -54,9 +54,17 @@ typedef enum _sai_queue_type_t
  */
 typedef enum _sai_queue_attr_t
 {
+
+    SAI_QUEUE_ATTR_START = 0x00000000,    
+
     /** READ-ONLY */
-    /** Queue type [sai_queue_type_t] */
-    SAI_QUEUE_ATTR_TYPE = 0x00000000,
+    /** Queue type [sai_queue_type_t]
+     * (CREATE_ONLY|MANDATORY_ON_CREATE|KEY) */
+    SAI_QUEUE_ATTR_TYPE = SAI_QUEUE_ATTR_START,
+
+    /* Queue index [sai_uint8_t]
+     * (CREATE_ONLY|MANDATORY_ON_CREATE|KEY) */
+    SAI_QUEUE_ATTR_INDEX,
 
     /* READ-WRITE */
 
@@ -71,8 +79,15 @@ typedef enum _sai_queue_attr_t
     SAI_QUEUE_ATTR_SCHEDULER_PROFILE_ID = 0x00000003,
 
     /* -- */
+
+    SAI_QUEUE_ATTR_END,
+    
     /* Custom range base value */
-    SAI_QUEUE_ATTR_CUSTOM_RANGE_BASE = 0x10000000
+    SAI_QUEUE_ATTR_CUSTOM_RANGE_START = 0x10000000,
+
+    /* --*/
+    SAI_QUEUE_ATTR_CUSTOM_RANGE_END
+
 
 } sai_queue_attr_t;
 
@@ -173,7 +188,6 @@ typedef enum _sai_queue_stat_counter_t
     SAI_QUEUE_STAT_CUSTOM_RANGE_BASE = 0x10000000
 
 } sai_queue_stat_counter_t;
-
 
 /**
  * @brief Set attribute to Queue

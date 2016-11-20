@@ -57,12 +57,15 @@ typedef enum _sai_next_hop_type_t
 */
 typedef enum _sai_next_hop_attr_t
 {
+    
+    SAI_NEXT_HOP_ATTR_START,
+
     /** READ-ONLY */
 
     /** READ-WRITE */
 
     /** Next hop entry type [sai_next_hop_type_t] (MANDATORY_ON_CREATE|CREATE_ONLY) */
-    SAI_NEXT_HOP_ATTR_TYPE,
+    SAI_NEXT_HOP_ATTR_TYPE = SAI_NEXT_HOP_ATTR_START,
 
     /** Next hop entry ipv4 address [sai_ip_address_t]
      * (MANDATORY_ON_CREATE when SAI_NEXT_HOP_ATTR_TYPE = SAI_NEXT_HOP_IP)
@@ -71,7 +74,7 @@ typedef enum _sai_next_hop_attr_t
 
     /** Next hop entry router interface id [sai_object_id_t] (MANDATORY_ON_CREATE|CREATE_ONLY) */
     SAI_NEXT_HOP_ATTR_ROUTER_INTERFACE_ID,
-    
+
     /** Next hop entry tunnel-id [sai_object_id_t]
     * (MANDATORY_ON_CREATE when SAI_NEXT_HOP_ATTR_TYPE = SAI_NEXT_HOP_TUNNEL_ENCAP)
     * (CREATE_ONLY) */
@@ -79,8 +82,14 @@ typedef enum _sai_next_hop_attr_t
 
     /* -- */
 
+    SAI_NEXT_HOP_ATTR_END,
+
     /** Custom range base value */
-    SAI_NEXT_HOP_ATTR_CUSTOM_RANGE_BASE  = 0x10000000
+    SAI_NEXT_HOP_ATTR_CUSTOM_RANGE_START = 0x10000000,
+
+    /* --*/
+    SAI_NEXT_HOP_ATTR_CUSTOM_RANGE_END
+
 
 } sai_next_hop_attr_t;
 

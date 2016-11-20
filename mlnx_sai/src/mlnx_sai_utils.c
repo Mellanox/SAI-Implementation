@@ -117,7 +117,7 @@ sai_status_t sdk_to_sai(sx_status_t status)
         return SAI_STATUS_FAILURE;
 
     case SX_STATUS_ENTRY_ALREADY_BOUND:
-        return SAI_STATUS_FAILURE;
+        return SAI_STATUS_OBJECT_IN_USE;
 
     case SX_STATUS_WRONG_POLICER_TYPE:
         return SAI_STATUS_FAILURE;
@@ -366,8 +366,6 @@ sai_status_t check_attribs_metadata(_In_ uint32_t                            att
              (NULL == attr_list[ii].value.u32list.list)) ||
             ((SAI_ATTR_VAL_TYPE_S32LIST == functionality_attr[index].type) &&
              (NULL == attr_list[ii].value.s32list.list)) ||
-            ((SAI_ATTR_VAL_TYPE_PORTBREAKOUT == functionality_attr[index].type) &&
-             (NULL == attr_list[ii].value.portbreakout.port_list.list)) ||
             ((SAI_ATTR_VAL_TYPE_VLANLIST == functionality_attr[index].type) &&
              (NULL == attr_list[ii].value.vlanlist.list)) ||
             ((SAI_ATTR_VAL_TYPE_ACLFIELD_OBJLIST == functionality_attr[index].type) &&
@@ -1090,15 +1088,11 @@ sai_status_t sai_value_to_str(_In_ sai_attribute_value_t      value,
     case SAI_ATTR_VAL_TYPE_U32LIST:
     case SAI_ATTR_VAL_TYPE_S32LIST:
     case SAI_ATTR_VAL_TYPE_VLANLIST:
-    case SAI_ATTR_VAL_TYPE_PORTBREAKOUT:
     case SAI_ATTR_VAL_TYPE_ACLFIELD_OBJLIST:
     case SAI_ATTR_VAL_TYPE_ACLFIELD_U8LIST:
     case SAI_ATTR_VAL_TYPE_ACLACTION_OBJLIST:
     case SAI_ATTR_VAL_TYPE_TUNNELMAP:
     case SAI_ATTR_VAL_TYPE_ACLCAPABILITY:
-        if (SAI_ATTR_VAL_TYPE_PORTBREAKOUT == type) {
-            pos += snprintf(value_str, max_length, "breakout mode %d.", value.portbreakout.breakout_mode);
-        }
         if (SAI_ATTR_VAL_TYPE_ACLCAPABILITY == type) {
             pos += snprintf(value_str,
                             max_length,
@@ -1129,8 +1123,7 @@ sai_status_t sai_value_to_str(_In_ sai_attribute_value_t      value,
                 (SAI_ATTR_VAL_TYPE_ACLFIELD_U8LIST == type) ? value.aclfield.data.u8list.count :
                 (SAI_ATTR_VAL_TYPE_ACLACTION_OBJLIST == type) ? value.aclaction.parameter.objlist.count :
                 (SAI_ATTR_VAL_TYPE_TUNNELMAP == type) ? value.tunnelmap.count :
-                (SAI_ATTR_VAL_TYPE_ACLCAPABILITY == type) ? value.aclcapability.action_list.count :
-                value.portbreakout.port_list.count;
+                value.aclcapability.action_list.count;
         pos += snprintf(value_str + pos, max_length - pos, "%u : [", count);
         if (pos > max_length) {
             return SAI_STATUS_SUCCESS;
@@ -1171,8 +1164,6 @@ sai_status_t sai_value_to_str(_In_ sai_attribute_value_t      value,
                              value.tunnelmap.list[ii].value.vlan_id, value.tunnelmap.list[ii].value.vni_id);
             } else if (SAI_ATTR_VAL_TYPE_ACLCAPABILITY == type) {
                 pos += snprintf(value_str + pos, max_length - pos, " %d", value.aclcapability.action_list.list[ii]);
-            } else {
-                pos += snprintf(value_str + pos, max_length - pos, " %" PRIx64, value.portbreakout.port_list.list[ii]);
             }
             if (pos > max_length) {
                 return SAI_STATUS_SUCCESS;
@@ -1596,7 +1587,7 @@ sai_status_t mlnx_log_port_to_object(sx_port_log_id_t port_id, sai_object_id_t *
     return mlnx_create_object(type, port_id, NULL, object_id);
 }
 
-sai_status_t mlnx_create_queue(_In_ sx_port_log_id_t port_id, _In_ uint8_t index, _Out_ sai_object_id_t *id)
+sai_status_t mlnx_create_queue_object(_In_ sx_port_log_id_t port_id, _In_ uint8_t index, _Out_ sai_object_id_t *id)
 {
     uint8_t ext_data[EXTENDED_DATA_SIZE];
 
