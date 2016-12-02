@@ -353,35 +353,47 @@ sai_status_t check_attribs_metadata(_In_ uint32_t                            att
         }
 
         if (((SAI_ATTR_VAL_TYPE_OBJLIST == functionality_attr[index].type) &&
-             (NULL == attr_list[ii].value.objlist.list)) ||
+             (NULL == attr_list[ii].value.objlist.list) &&
+             (attr_list[ii].value.objlist.count > 0)) ||
             ((SAI_ATTR_VAL_TYPE_U8LIST == functionality_attr[index].type) &&
-             (NULL == attr_list[ii].value.u8list.list)) ||
+             (NULL == attr_list[ii].value.u8list.list) &&
+             (attr_list[ii].value.u8list.count > 0)) ||
             ((SAI_ATTR_VAL_TYPE_S8LIST == functionality_attr[index].type) &&
-             (NULL == attr_list[ii].value.s8list.list)) ||
+             (NULL == attr_list[ii].value.s8list.list) &&
+             (attr_list[ii].value.s8list.count > 0)) ||
             ((SAI_ATTR_VAL_TYPE_U16LIST == functionality_attr[index].type) &&
-             (NULL == attr_list[ii].value.u16list.list)) ||
+             (NULL == attr_list[ii].value.u16list.list) &&
+             (attr_list[ii].value.u16list.count > 0)) ||
             ((SAI_ATTR_VAL_TYPE_S16LIST == functionality_attr[index].type) &&
-             (NULL == attr_list[ii].value.s16list.list)) ||
+             (NULL == attr_list[ii].value.s16list.list) &&
+             (attr_list[ii].value.s16list.count > 0)) ||
             ((SAI_ATTR_VAL_TYPE_U32LIST == functionality_attr[index].type) &&
-             (NULL == attr_list[ii].value.u32list.list)) ||
+             (NULL == attr_list[ii].value.u32list.list) &&
+             (attr_list[ii].value.u32list.count > 0)) ||
             ((SAI_ATTR_VAL_TYPE_S32LIST == functionality_attr[index].type) &&
-             (NULL == attr_list[ii].value.s32list.list)) ||
+             (NULL == attr_list[ii].value.s32list.list) &&
+             (attr_list[ii].value.s32list.count > 0)) ||
             ((SAI_ATTR_VAL_TYPE_VLANLIST == functionality_attr[index].type) &&
-             (NULL == attr_list[ii].value.vlanlist.list)) ||
+             (NULL == attr_list[ii].value.vlanlist.list) &&
+             (attr_list[ii].value.vlanlist.count > 0)) ||
             ((SAI_ATTR_VAL_TYPE_ACLFIELD_OBJLIST == functionality_attr[index].type) &&
-             (NULL == attr_list[ii].value.aclfield.data.objlist.list)) ||
+             (NULL == attr_list[ii].value.aclfield.data.objlist.list) &&
+             (attr_list[ii].value.aclfield.data.objlist.count > 0)) ||
             ((SAI_ATTR_VAL_TYPE_ACLFIELD_U8LIST == functionality_attr[index].type) &&
-             (NULL == attr_list[ii].value.aclfield.data.u8list.list)) ||
-            ((SAI_ATTR_VAL_TYPE_ACLFIELD_U8LIST == functionality_attr[index].type) &&
-             (NULL == attr_list[ii].value.aclfield.mask.u8list.list)) ||
+             (NULL == attr_list[ii].value.aclfield.data.u8list.list) &&
+             (attr_list[ii].value.aclfield.data.u8list.count > 0)) ||
             ((SAI_ATTR_VAL_TYPE_ACLACTION_OBJLIST == functionality_attr[index].type) &&
-             (NULL == attr_list[ii].value.aclaction.parameter.objlist.list)) ||
+             (NULL == attr_list[ii].value.aclaction.parameter.objlist.list) &&
+             (attr_list[ii].value.aclaction.parameter.objlist.count > 0)) ||
             ((SAI_ATTR_VAL_TYPE_TUNNELMAP == functionality_attr[index].type) &&
-             (NULL == attr_list[ii].value.tunnelmap.list)) ||
+             (NULL == attr_list[ii].value.tunnelmap.list) &&
+             (attr_list[ii].value.tunnelmap.count > 0)) ||
             ((SAI_ATTR_VAL_TYPE_ACLCAPABILITY == functionality_attr[index].type) &&
-             (NULL == attr_list[ii].value.aclcapability.action_list.list)) ||
+             (NULL == attr_list[ii].value.aclcapability.action_list.list) &&
+             (attr_list[ii].value.aclcapability.action_list.count > 0)) ||
             ((SAI_ATTR_VAL_TYPE_QOSMAP == functionality_attr[index].type) &&
-             (NULL == attr_list[ii].value.qosmap.list))) {
+             (NULL == attr_list[ii].value.qosmap.list) &&
+             (attr_list[ii].value.qosmap.count > 0))) {
             SX_LOG_ERR("Null list attribute %s at index %d\n",
                        functionality_attr[index].attrib_name,
                        ii);
