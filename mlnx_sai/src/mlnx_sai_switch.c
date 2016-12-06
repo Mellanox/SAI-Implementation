@@ -3074,11 +3074,7 @@ static sai_status_t switch_open_traps(void)
     for (ii = 0; END_TRAP_INFO_ID != mlnx_traps_info[ii].trap_id; ii++) {
         g_sai_db_ptr->traps_db[ii].action     = mlnx_traps_info[ii].action;
         g_sai_db_ptr->traps_db[ii].trap_group = g_sai_db_ptr->default_trap_group;
-#ifdef ACS_OS
-        g_sai_db_ptr->traps_db[ii].trap_channel = SAI_HOSTIF_TRAP_CHANNEL_NETDEV;
-#else
         g_sai_db_ptr->traps_db[ii].trap_channel = SAI_HOSTIF_TRAP_CHANNEL_CB;
-#endif
         g_sai_db_ptr->traps_db[ii].fd = SAI_NULL_OBJECT_ID;
 
         if (0 == mlnx_traps_info[ii].sdk_traps_num) {
