@@ -1793,3 +1793,136 @@ bool mlnx_route_entries_are_equal(_In_ const sai_unicast_route_entry_t *u1, _In_
 
     return true;
 }
+
+static sai_status_t mlnx_fdb_or_route_action_find(_In_ sai_object_type_t  type,
+                                                  _In_ const void        *entry,
+                                                  _In_ uint32_t          *index)
+{
+    uint32_t               ii;
+    bool                   equal;
+    const sai_fdb_entry_t *saved_fdb_entry, *targed_fdb_entry;
+
+    assert((SAI_OBJECT_TYPE_FDB == type) || (SAI_OBJECT_TYPE_ROUTE == type));
+
+    for (ii = 0; ii < g_sai_db_ptr->fdb_or_route_actions.count; ii++) {
+        if (g_sai_db_ptr->fdb_or_route_actions.actions[ii].type != type) {
+            continue;
+        }
+
+        if (SAI_OBJECT_TYPE_FDB == type) {
+            saved_fdb_entry  = &g_sai_db_ptr->fdb_or_route_actions.actions[ii].fdb_entry;
+            targed_fdb_entry =  entry;
+
+            equal = ((0 == memcmp(saved_fdb_entry->mac_address, targed_fdb_entry->mac_address, sizeof(sai_mac_t))) &&
+                    (saved_fdb_entry->vlan_id == targed_fdb_entry->vlan_id));
+        } else {
+            equal = mlnx_route_entries_are_equal(&g_sai_db_ptr->fdb_or_route_actions.actions[ii].route_entry, entry);
+        }
+
+        if (equal) {
+            *index = ii;
+            return SAI_STATUS_SUCCESS;
+        }
+    }
+
+    return SAI_STATUS_ITEM_NOT_FOUND;
+}
+
+static void mlnx_fdb_or_route_action_remove(_In_ uint32_t index)
+{
+    uint32_t actions_count;
+
+    actions_count = g_sai_db_ptr->fdb_or_route_actions.count;
+
+    assert((actions_count > 0) && (index < actions_count));
+
+    g_sai_db_ptr->fdb_or_route_actions.actions[index] = g_sai_db_ptr->fdb_or_route_actions.actions[actions_count-1];
+    g_sai_db_ptr->fdb_or_route_actions.count--;
+}
+
+sai_status_t mlnx_fdb_route_action_save(_In_ sai_object_type_t    type,
+                                        _In_ const void          *entry,
+                                        _In_ sai_packet_action_t  action)
+{
+    sai_status_t status = SAI_STATUS_SUCCESS;
+    uint32_t     ii;
+
+    assert((SAI_OBJECT_TYPE_FDB == type) || (SAI_OBJECT_TYPE_ROUTE == type));
+
+    sai_db_write_lock();
+
+    status = mlnx_fdb_or_route_action_find(type, entry, &ii);
+    if (SAI_ERR(status)) {
+        if (FDB_OR_ROUTE_SAVED_ACTIONS_NUM == g_sai_db_ptr->fdb_or_route_actions.count) {
+            SX_LOG_ERR("Failed to save action - max number of saved actions reached (%d)\n",
+                    FDB_OR_ROUTE_SAVED_ACTIONS_NUM);
+            status = SAI_STATUS_INSUFFICIENT_RESOURCES;
+            goto out;
+        }
+
+        ii = g_sai_db_ptr->fdb_or_route_actions.count;
+        g_sai_db_ptr->fdb_or_route_actions.count++;
+
+        if (SAI_OBJECT_TYPE_FDB == type) {
+            g_sai_db_ptr->fdb_or_route_actions.actions[ii].fdb_entry = *(sai_fdb_entry_t*) entry;
+        } else {
+            g_sai_db_ptr->fdb_or_route_actions.actions[ii].route_entry = *(sai_unicast_route_entry_t*) entry;
+        }
+
+        g_sai_db_ptr->fdb_or_route_actions.actions[ii].type = type;
+    }
+
+    g_sai_db_ptr->fdb_or_route_actions.actions[ii].action = action;
+    status = SAI_STATUS_SUCCESS;
+
+out:
+    sai_db_unlock();
+    return status;
+}
+
+void mlnx_fdb_route_action_clear(_In_ sai_object_type_t  type,
+                                 _In_ const void        *entry)
+{
+    sai_status_t status;
+    uint32_t     ii;
+
+    assert((SAI_OBJECT_TYPE_FDB == type) || (SAI_OBJECT_TYPE_ROUTE == type));
+
+    sai_db_write_lock();
+
+    status = mlnx_fdb_or_route_action_find(type, entry, &ii);
+    if (SAI_STATUS_SUCCESS == status) {
+        mlnx_fdb_or_route_action_remove(ii);
+    }
+
+    sai_db_unlock();
+}
+
+void mlnx_fdb_route_action_fetch(_In_ sai_object_type_t  type,
+                                 _In_ const void        *entry,
+                                 _Out_ void             *entry_action)
+{
+    sai_status_t        status;
+    sai_packet_action_t action;
+    uint32_t            ii;
+
+    assert((SAI_OBJECT_TYPE_FDB == type) || (SAI_OBJECT_TYPE_ROUTE == type));
+
+    sai_db_write_lock();
+
+    status = mlnx_fdb_or_route_action_find(type, entry, &ii);
+    if (SAI_STATUS_SUCCESS == status) {
+        action = g_sai_db_ptr->fdb_or_route_actions.actions[ii].action;
+        if (SAI_OBJECT_TYPE_FDB == type) {
+            status = mlnx_translate_sai_action_to_sdk(action, entry_action, 0);
+            assert(SAI_STATUS_SUCCESS == status);
+        } else {
+            status = mlnx_translate_sai_router_action_to_sdk(action, entry_action, 0);
+            assert(SAI_STATUS_SUCCESS == status);
+        }
+
+        mlnx_fdb_or_route_action_remove(ii);
+    }
+
+    sai_db_unlock();
+}

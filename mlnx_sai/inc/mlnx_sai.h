@@ -189,6 +189,7 @@ extern const sai_stp_api_t              mlnx_stp_api;
 #define DEFAULT_TRAP_GROUP_ID           0
 #define RECV_ATTRIBS_NUM                3
 #define FDB_NOTIF_ATTRIBS_NUM           3
+#define FDB_OR_ROUTE_SAVED_ACTIONS_NUM  100
 
 #define SAI_INVALID_STP_INSTANCE (SX_MSTP_INST_ID_MAX + 1)
 
@@ -548,6 +549,9 @@ sai_status_t mlnx_translate_sai_router_action_to_sdk(sai_int32_t         action,
                                                      uint32_t            param_index);
 sai_status_t mlnx_translate_sdk_router_action_to_sai(sx_router_action_t router_action, sai_int32_t *sai_action);
 
+sai_status_t mlnx_translate_sai_action_to_sdk(sai_int32_t                  action,
+                                              sx_fdb_uc_mac_addr_params_t *mac_entry,
+                                              uint32_t                     param_index);
 
 sai_status_t mlnx_object_to_type(sai_object_id_t   object_id,
                                  sai_object_type_t type,
@@ -662,6 +666,14 @@ static inline uint32_t array_bit_test(uint32_t *bit_array, uint32_t bit)
     return ((bit_array[bit / 32] & (1 << (bit % 32))) != 0);
 }
 
+sai_status_t mlnx_fdb_route_action_save(_In_ sai_object_type_t    type,
+                                        _In_ const void          *entry,
+                                        _In_ sai_packet_action_t  action);
+void mlnx_fdb_route_action_clear(_In_ sai_object_type_t  type,
+                                 _In_ const void        *entry);
+void mlnx_fdb_route_action_fetch(_In_ sai_object_type_t  type,
+                                 _In_ const void        *entry,
+                                 _Out_ void             *entry_action);
 typedef enum _mlnx_acl_bind_point_type_t {
     MLNX_ACL_BIND_POINT_TYPE_INGRESS_DEFAULT,
     MLNX_ACL_BIND_POINT_TYPE_EGRESS_DEFAULT,
@@ -1245,6 +1257,20 @@ typedef struct _tunnel_map_t {
     uint32_t              tunnel_cnt;
 } mlnx_tunnel_map_t;
 
+typedef struct _fdb_action_t {
+    sai_object_type_t   type;
+    union {
+        sai_fdb_entry_t           fdb_entry;
+        sai_unicast_route_entry_t route_entry;
+    };
+    sai_packet_action_t action;
+} fdb_or_route_action_t;
+
+typedef struct _fdb_actions_db_t {
+    fdb_or_route_action_t actions[FDB_OR_ROUTE_SAVED_ACTIONS_NUM];
+    uint32_t              count;
+} fdb_or_route_actions_db_t;
+
 typedef struct sai_db {
     cl_plock_t         p_lock;
     sx_mac_addr_t      base_mac_addr;
@@ -1276,6 +1302,7 @@ typedef struct sai_db {
     mlnx_mstp_inst_t        mlnx_mstp_inst_db[SX_MSTP_INST_ID_MAX - SX_MSTP_INST_ID_MIN + 1];
     sai_packet_action_t     flood_action_uc;
     sai_packet_action_t     flood_action_bc;
+    fdb_or_route_actions_db_t fdb_or_route_actions;
 } sai_db_t;
 
 extern sai_db_t *g_sai_db_ptr;
