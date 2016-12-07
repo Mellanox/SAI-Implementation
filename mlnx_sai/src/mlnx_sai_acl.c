@@ -33,7 +33,7 @@
 #undef  __MODULE__
 #define __MODULE__ SAI_ACL
 
-#define IP_TYPE_KEY_SIZE              3 /* TODO: Change value to 4 when is_ip_v6 key is available */
+#define IP_TYPE_KEY_SIZE              4
 #define IP_FRAG_KEY_TYPE_SIZE         2
 #define SX_FLEX_ACL_MAX_FIELDS_IN_KEY RM_API_ACL_MAX_FIELDS_IN_KEY
 #define ACL_MAX_NUM_OF_ACTIONS        20
@@ -2234,11 +2234,10 @@ static sai_status_t mlnx_acl_table_ip_and_tos_get(_In_ const sai_object_key_t   
            (SAI_ACL_ENTRY_ATTR_FIELD_IP_TYPE == (int64_t)arg) ||
            (SAI_ACL_ENTRY_ATTR_FIELD_TOS == (int64_t)arg));
 
-    /* TODO: Uncomment ; when is_ip_v6 key is available */
     ip_type_keys[0] = FLEX_ACL_KEY_IP_OK;
     ip_type_keys[1] = FLEX_ACL_KEY_IS_IP_V4;
     ip_type_keys[2] = FLEX_ACL_KEY_IS_ARP;
-    /* ip_type_keys[3] = FLEX_ACL_KEY_IS_IP_V6; */
+    ip_type_keys[3] = FLEX_ACL_KEY_L3_TYPE;
 
     ip_frag_keys[0] = FLEX_ACL_KEY_IP_FRAGMENTED;
     ip_frag_keys[1] = FLEX_ACL_KEY_IP_FRAGMENT_NOT_FIRST;
@@ -2753,11 +2752,10 @@ static sai_status_t mlnx_acl_entry_ip_fields_get(_In_ const sai_object_key_t   *
            (SAI_ACL_ENTRY_ATTR_FIELD_IP_FRAG == (int64_t)arg) ||
            (SAI_ACL_ENTRY_ATTR_FIELD_IP_FLAGS == (int64_t)arg));
 
-    /* TODO: Uncomment, ip_type_keys[3], when is_ip_v6 key is available */
     ip_type_keys[0] = FLEX_ACL_KEY_IP_OK;
     ip_type_keys[1] = FLEX_ACL_KEY_IS_IP_V4;
     ip_type_keys[2] = FLEX_ACL_KEY_IS_ARP;
-    /* ip_type_keys[3] = FLEX_ACL_KEY_IS_IP_V6; */
+    ip_type_keys[3] = FLEX_ACL_KEY_L3_TYPE;
 
     ip_frag_key           = FLEX_ACL_KEY_IP_FRAGMENTED;
     ip_frag_not_first_key = FLEX_ACL_KEY_IP_FRAGMENT_NOT_FIRST;
@@ -2820,6 +2818,11 @@ static sai_status_t mlnx_acl_entry_ip_fields_get(_In_ const sai_object_key_t   *
                 } else {
                     value->aclfield.data.s32 = SAI_ACL_IP_TYPE_NON_IPv4;
                 }
+                break;
+
+            case FLEX_ACL_KEY_L3_TYPE:
+                assert(SX_ACL_L3_TYPE_IPV6 == flex_acl_rule.key_desc_list_p[key_desc_index].key.l3_type);
+                value->aclfield.data.s32 = SAI_ACL_IP_TYPE_IPv6ANY;
                 break;
 
             /*
@@ -4643,11 +4646,10 @@ static sai_status_t mlnx_acl_entry_ip_fields_set(_In_ const sai_object_key_t    
         goto out;
     }
 
-    /* TODO: Uncomment; when is_ip_v6 key is available */
     ip_type_keys[0] = FLEX_ACL_KEY_IP_OK;
     ip_type_keys[1] = FLEX_ACL_KEY_IS_IP_V4;
     ip_type_keys[2] = FLEX_ACL_KEY_IS_ARP;
-    /* ip_type_keys[3] = FLEX_ACL_KEY_IS_IP_V6;*/
+    ip_type_keys[3] = FLEX_ACL_KEY_L3_TYPE;
 
     for (ii = 0; ii < flex_acl_rules_num; ii++) {
         switch ((int64_t)arg) {
@@ -4719,19 +4721,12 @@ static sai_status_t mlnx_acl_entry_ip_fields_set(_In_ const sai_object_key_t    
                 flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].mask.is_ip_v4 = true;
                 flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].key_id        = FLEX_ACL_KEY_IS_IP_V4;
             } else if (SAI_ACL_IP_TYPE_IPv6ANY == value->aclfield.data.s32) {
-                SX_LOG_ERR(" Not supported in present phase \n");
-                status = SAI_STATUS_NOT_SUPPORTED;
-                goto out;
-
-                /*
-                 *  if( !is_key_type_present){
-                 *  flex_acl_rule_p[ii].key_desc_count++;
-                 *  }
-                 *
-                 *  flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].key.is_ip_v6 = 1;
-                 *  flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].mask.is_ip_v6 = 0xFF;
-                 *  flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].key_id = FLEX_ACL_KEY_IS_IP_V6;
-                 */
+                if (!is_key_type_present) {
+                    flex_acl_rule_p[ii].key_desc_count++;
+                }
+                flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].key.l3_type  = SX_ACL_L3_TYPE_IPV6;
+                flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].mask.l3_type = true;
+                flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].key_id       = FLEX_ACL_KEY_L3_TYPE;
             } else if (SAI_ACL_IP_TYPE_NON_IPv6 == value->aclfield.data.s32) {
                 SX_LOG_ERR(" Not supported in present phase \n");
                 status = SAI_STATUS_NOT_SUPPORTED;
@@ -7715,15 +7710,10 @@ sai_status_t mlnx_create_acl_entry(_Out_ sai_object_id_t     * acl_entry_id,
         }
 
         if (SAI_ACL_IP_TYPE_IPv6ANY == ip_type->aclfield.data.s32) {
-            SX_LOG_ERR(" ip_v6 IP TYPE not supported for current phase \n");
-            status = SAI_STATUS_NOT_SUPPORTED;
-            goto out;
-            /*
-             *  sx_key_descs[key_desc_index].key.is_ip_v6 = 1;
-             *  sx_key_descs[key_desc_index].mask.is_ip_v6 = 0xFF;
-             *  sx_key_descs[key_desc_index].key_id = FLEX_ACL_KEY_IS_IP_V6;
-             *  key_desc_index++;
-             */
+            sx_key_descs[key_desc_index].key.l3_type = SX_ACL_L3_TYPE_IPV6;
+            sx_key_descs[key_desc_index].mask.l3_type = true;
+            sx_key_descs[key_desc_index].key_id = FLEX_ACL_KEY_L3_TYPE;
+            key_desc_index++;
         }
 
         if (SAI_ACL_IP_TYPE_NON_IPv6 == ip_type->aclfield.data.s32) {
@@ -8679,10 +8669,8 @@ sai_status_t mlnx_create_acl_table(_Out_ sai_object_id_t     * acl_table_id,
             key_index++;
             keys[key_index] = FLEX_ACL_KEY_IS_IP_V4;
             key_index++;
-            /*
-             *  keys[key_index] = FLEX_ACL_KEY_IS_IP_V6;
-             *  key_index;
-             */
+            keys[key_index] = FLEX_ACL_KEY_L3_TYPE;
+            key_index++;
             keys[key_index] = FLEX_ACL_KEY_IS_ARP;
             key_index++;
         }
