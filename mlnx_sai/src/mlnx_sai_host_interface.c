@@ -1695,14 +1695,14 @@ sai_status_t mlnx_register_trap(const sx_access_cmd_t cmd, uint32_t index)
     case SAI_HOSTIF_TRAP_CHANNEL_NETDEV:
 #ifdef ACS_OS
         /* TODO : When adding L2 netdev to SAI spec, remove this */
-        user_channel.type = SX_USER_CHANNEL_TYPE_L2_NETDEV;
+        user_channel.type = SX_USER_CHANNEL_TYPE_PHY_PORT_NETDEV;
 #else
         user_channel.type = SX_USER_CHANNEL_TYPE_L3_NETDEV;
 #endif
         break;
 
     case SAI_HOSTIF_TRAP_CHANNEL_L2_NETDEV:
-        user_channel.type = SX_USER_CHANNEL_TYPE_L2_NETDEV;
+        user_channel.type = SX_USER_CHANNEL_TYPE_PHY_PORT_NETDEV;
         break;
 
     default:
