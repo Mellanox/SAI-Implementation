@@ -3422,6 +3422,8 @@ static sai_status_t mlnx_get_port_stats(_In_ sai_object_id_t                port
     sx_port_cntr_ieee_802_dot_3_t cntr_802;
     sx_cos_redecn_port_counters_t redecn_cnts;
     uint32_t                      ii, port_data;
+    mlnx_port_config_t           *port;
+    sx_port_log_id_t              red_port_id;
     uint32_t                      iter = 0;
     char                          key_str[MAX_KEY_STR_LEN];
 
@@ -3461,6 +3463,27 @@ static sai_status_t mlnx_get_port_stats(_In_ sai_object_id_t                port
     if (SX_STATUS_SUCCESS !=
         (status = sx_api_port_counter_ieee_802_dot_3_get(gh_sdk, SX_ACCESS_CMD_READ, port_data, &cntr_802))) {
         SX_LOG_ERR("Failed to get port ieee 802 3 counters - %s.\n", SX_STATUS_MSG(status));
+        return sdk_to_sai(status);
+    }
+
+    /* In case if port is LAG member then use LAG logical id for redecn counters */
+    sai_db_read_lock();
+    status = mlnx_port_by_log_id(port_data, &port);
+    if (SAI_ERR(status)) {
+        sai_db_unlock();
+        return status;
+    }
+    if (mlnx_port_is_lag_member(port)) {
+        red_port_id = port->lag_id;
+    }
+    else {
+        red_port_id = port_data;
+    }
+    sai_db_unlock();
+
+    if (SX_STATUS_SUCCESS !=
+        (status = sx_api_cos_redecn_counters_get(gh_sdk, SX_ACCESS_CMD_READ, red_port_id, &redecn_cnts))) {
+        SX_LOG_ERR("Failed to get port redecn counters - %s.\n", SX_STATUS_MSG(status));
         return sdk_to_sai(status);
     }
 
@@ -3613,11 +3636,6 @@ static sai_status_t mlnx_get_port_stats(_In_ sai_object_id_t                port
             return SAI_STATUS_ATTR_NOT_SUPPORTED_0;
 
         case SAI_PORT_STAT_DISCARD_DROPPED_PACKETS:
-            if (SX_STATUS_SUCCESS !=
-                (status = sx_api_cos_redecn_counters_get(gh_sdk, SX_ACCESS_CMD_READ, port_data, &redecn_cnts))) {
-                SX_LOG_ERR("Failed to get port redecn counters - %s.\n", SX_STATUS_MSG(status));
-                return sdk_to_sai(status);
-            }
             counters[ii] = 0;
             /* TODO : change to  g_resource_limits.cos_port_ets_traffic_class_max + 1 when sdk is updated to use rm */
             for (iter = 0; iter < RM_API_COS_TRAFFIC_CLASS_NUM; iter++) {
@@ -3626,11 +3644,6 @@ static sai_status_t mlnx_get_port_stats(_In_ sai_object_id_t                port
             break;
 
         case SAI_PORT_STAT_ECN_MARKED_PACKETS:
-            if (SX_STATUS_SUCCESS !=
-                (status = sx_api_cos_redecn_counters_get(gh_sdk, SX_ACCESS_CMD_READ, port_data, &redecn_cnts))) {
-                SX_LOG_ERR("Failed to get port redecn counters - %s.\n", SX_STATUS_MSG(status));
-                return sdk_to_sai(status);
-            }
             counters[ii] = redecn_cnts.ecn_marked_packets;
             break;
 
