@@ -11279,18 +11279,14 @@ sai_status_t mlnx_acl_port_lag_event_handle(_In_ const mlnx_port_config_t *port,
             goto out;
         }
     } else {
-        if (sai_acl_db->acl_bind_points->default_ingress.is_object_set) {
-            status = mlnx_acl_port_lag_bind_point_update(port, SAI_ACL_STAGE_INGRESS);
-            if (SAI_ERR(status)) {
-                goto out;
-            }
+        status = mlnx_acl_port_lag_bind_point_update(port, SAI_ACL_STAGE_INGRESS);
+        if (SAI_ERR(status)) {
+            goto out;
         }
 
-        if (sai_acl_db->acl_bind_points->default_egress.is_object_set) {
-            status = mlnx_acl_port_lag_bind_point_update(port, SAI_ACL_STAGE_EGRESS);
-            if (SAI_ERR(status)) {
-                goto out;
-            }
+        status = mlnx_acl_port_lag_bind_point_update(port, SAI_ACL_STAGE_EGRESS);
+        if (SAI_ERR(status)) {
+            goto out;
         }
     }
 
@@ -12679,17 +12675,68 @@ static void mlnx_acl_bind_point_data_tables_set(_In_ acl_bind_point_data_t *bind
     }
 }
 
+static acl_bind_point_data_t* mlnx_acl_port_lag_bind_point_data_fetch(_In_ uint32_t        index,
+                                                                      _In_ sai_acl_stage_t stage)
+{
+    acl_bind_point_port_lag_t *bind_point_port_lag;
+
+    assert(index < MAX_PORTS * 2);
+    assert((SAI_ACL_STAGE_INGRESS == stage) || (SAI_ACL_STAGE_EGRESS == stage));
+
+    bind_point_port_lag = &sai_acl_db->acl_bind_points->ports_lags[index];
+
+    if (SAI_ACL_STAGE_INGRESS == stage) {
+        return &bind_point_port_lag->ingress_data;
+    } else {
+        return &bind_point_port_lag->egress_data;
+    }
+}
+
+static sai_status_t mlnx_acl_lag_member_acl_update(_In_ uint32_t        lag_member_index,
+                                                   _In_ sai_acl_stage_t stage)
+{
+    sai_status_t           status;
+    sx_port_log_id_t       sx_lag_id;
+    acl_bind_point_data_t *bind_point_lag, *bind_point_lag_member;
+    uint32_t               lag_index;
+
+    SX_LOG_ENTER();
+
+    assert(mlnx_port_is_lag_member(&mlnx_ports_db[lag_member_index]));
+
+    sx_lag_id = mlnx_ports_db[lag_member_index].lag_id;
+
+    status = mlnx_port_idx_by_log_id(sx_lag_id, &lag_index);
+    if (SAI_ERR(status)) {
+        goto out;
+    }
+
+    bind_point_lag        = mlnx_acl_port_lag_bind_point_data_fetch(lag_index, stage);
+    bind_point_lag_member = mlnx_acl_port_lag_bind_point_data_fetch(lag_member_index, stage);
+
+    mlnx_acl_bind_point_data_tables_set(bind_point_lag, bind_point_lag_member->bound_acl_indexes,
+                                        bind_point_lag_member->bound_acl_count);
+
+    status = mlnx_acl_port_lag_bind_point_update(&mlnx_ports_db[lag_index], stage);
+    if (SAI_ERR(status)) {
+        goto out;
+    }
+
+out:
+    SX_LOG_EXIT();
+    return status;
+}
+
 sai_status_t mlnx_acl_port_lag_bind_point_set(_In_ sai_object_id_t            port_object_id,
                                               _In_ mlnx_acl_bind_point_type_t bind_point,
                                               _In_ sai_object_type_t          object_type,
                                               _In_ const uint32_t            *db_indexes,
                                               _In_ uint32_t                   db_indexes_count)
 {
-    sai_status_t               status = SAI_STATUS_SUCCESS;
-    sai_acl_stage_t            sai_acl_stage;
-    acl_bind_point_port_lag_t *bind_point_port_lag;
-    acl_bind_point_data_t     *bind_point_data;
-    uint32_t                   port_index;
+    sai_status_t           status = SAI_STATUS_SUCCESS;
+    sai_acl_stage_t        sai_acl_stage;
+    acl_bind_point_data_t *bind_point_data;
+    uint32_t               port_index;
 
     SX_LOG_ENTER();
 
@@ -12708,26 +12755,21 @@ sai_status_t mlnx_acl_port_lag_bind_point_set(_In_ sai_object_id_t            po
         goto out;
     }
 
-    if (mlnx_port_is_lag_member(&mlnx_ports_db[port_index])) {
-        SX_LOG_ERR("Failed to bind ACL - target is a lag member\n");
-        status = SAI_STATUS_INVALID_PARAMETER;
-        goto out;
-    }
-
-    bind_point_port_lag = &sai_acl_db->acl_bind_points->ports_lags[port_index];
-    sai_acl_stage       = mlnx_acl_bind_point_type_to_stage(bind_point);
-
-    if (SAI_ACL_STAGE_INGRESS == sai_acl_stage) {
-        bind_point_data = &bind_point_port_lag->ingress_data;
-    } else {
-        bind_point_data = &bind_point_port_lag->egress_data;
-    }
+    sai_acl_stage   = mlnx_acl_bind_point_type_to_stage(bind_point);
+    bind_point_data = mlnx_acl_port_lag_bind_point_data_fetch(port_index, sai_acl_stage);
 
     mlnx_acl_bind_point_data_tables_set(bind_point_data, db_indexes, db_indexes_count);
 
-    status = mlnx_acl_port_lag_bind_point_update(&mlnx_ports_db[port_index], sai_acl_stage);
-    if (SAI_ERR(status)) {
-        goto out;
+    if (mlnx_port_is_lag_member(&mlnx_ports_db[port_index])) {
+        status = mlnx_acl_lag_member_acl_update(port_index, sai_acl_stage);
+        if (SAI_ERR(status)) {
+            goto out;
+        }
+    } else {
+        status = mlnx_acl_port_lag_bind_point_update(&mlnx_ports_db[port_index], sai_acl_stage);
+        if (SAI_ERR(status)) {
+            goto out;
+        }
     }
 
 out:
@@ -12878,6 +12920,37 @@ out:
     return status;
 }
 
+static sai_status_t mlnx_acl_port_lag_bind_point_check_and_get(_In_ sai_object_id_t          oid,
+                                                               _In_ sai_acl_stage_t          stage,
+                                                               _Out_ acl_bind_point_data_t **bind_data)
+{
+    sai_status_t     status;
+    sx_port_log_id_t sx_lag_id;
+    uint32_t         port_index, lag_index;
+
+    assert(bind_data != NULL);
+
+    status = mlnx_port_idx_by_obj_id(oid, &port_index);
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+    if (mlnx_port_is_lag_member(&mlnx_ports_db[port_index])) {
+        sx_lag_id = mlnx_ports_db[port_index].lag_id;
+
+        status = mlnx_port_idx_by_log_id(sx_lag_id, &lag_index);
+        if (SAI_ERR(status)) {
+            return status;
+        }
+
+        *bind_data = mlnx_acl_port_lag_bind_point_data_fetch(lag_index, stage);
+    } else {
+        *bind_data = mlnx_acl_port_lag_bind_point_data_fetch(port_index, stage);
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
 sai_status_t mlnx_acl_bind_point_get(_In_ const sai_object_key_t   *key,
                                      _Inout_ sai_attribute_value_t *value,
                                      _In_ uint32_t                  attr_index,
@@ -12885,10 +12958,10 @@ sai_status_t mlnx_acl_bind_point_get(_In_ const sai_object_key_t   *key,
                                      void                          *arg)
 {
     sai_status_t               status = SAI_STATUS_SUCCESS;
+    sai_acl_stage_t            stage;
     mlnx_acl_bind_point_type_t bind_point_type;
-    acl_bind_point_port_lag_t *bind_point_port;
     acl_bind_point_data_t     *bind_point_data;
-    uint32_t                   port_index, ii;
+    uint32_t                   ii;
 
     SX_LOG_ENTER();
 
@@ -12910,17 +12983,11 @@ sai_status_t mlnx_acl_bind_point_get(_In_ const sai_object_key_t   *key,
     case MLNX_ACL_BIND_POINT_TYPE_EGRESS_PORT:
     case MLNX_ACL_BIND_POINT_TYPE_INGRESS_LAG:
     case MLNX_ACL_BIND_POINT_TYPE_EGRESS_LAG:
-        status = mlnx_port_idx_by_obj_id(key->object_id, &port_index);
-        if (SAI_STATUS_SUCCESS != status) {
+        stage = mlnx_acl_bind_point_type_to_stage(bind_point_type);
+
+        status = mlnx_acl_port_lag_bind_point_check_and_get(key->object_id, stage, &bind_point_data);
+        if (SAI_ERR(status)) {
             goto out;
-        }
-
-        bind_point_port = &sai_acl_db->acl_bind_points->ports_lags[port_index];
-
-        if (SAI_ACL_STAGE_INGRESS == mlnx_acl_bind_point_type_to_stage(bind_point_type)) {
-            bind_point_data = &bind_point_port->ingress_data;
-        } else {
-            bind_point_data = &bind_point_port->egress_data;
         }
         break;
 
