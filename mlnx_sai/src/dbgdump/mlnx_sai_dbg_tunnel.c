@@ -54,19 +54,19 @@ static void SAI_dump_tunnel_map_type_enum_to_str(_In_ sai_tunnel_map_type_t type
     assert(NULL != str);
 
     switch (type) {
-    case SAI_TUNNEL_MAP_OECN_TO_UECN:
+    case SAI_TUNNEL_MAP_TYPE_OECN_TO_UECN:
         strcpy(str, "oecn2uecn");
         break;
 
-    case SAI_TUNNEL_MAP_UECN_OECN_TO_OECN:
+    case SAI_TUNNEL_MAP_TYPE_UECN_OECN_TO_OECN:
         strcpy(str, "uoecn2oecn");
         break;
 
-    case SAI_TUNNEL_MAP_VNI_TO_VLAN_ID:
+    case SAI_TUNNEL_MAP_TYPE_VNI_TO_VLAN_ID:
         strcpy(str, "vni2vlan");
         break;
 
-    case SAI_TUNNEL_MAP_VLAN_ID_TO_VNI:
+    case SAI_TUNNEL_MAP_TYPE_VLAN_ID_TO_VNI:
         strcpy(str, "vlan2vni");
         break;
 
@@ -79,7 +79,7 @@ static void SAI_dump_tunnel_map_type_enum_to_str(_In_ sai_tunnel_map_type_t type
 static void SAI_dump_tunnel_map_print(_In_ FILE *file, _In_ mlnx_tunnel_map_t *mlnx_tunnel_map)
 {
     uint32_t                  ii     = 0, jj = 0;
-    sai_object_id_t           obj_id = 0;
+    sai_object_id_t           obj_id = SAI_NULL_OBJECT_ID;
     mlnx_tunnel_map_t         curr_mlnx_tunnel_map;
     sai_tunnel_map_t          curr_sai_tunnel_map;
     char                      type_str[LINE_LENGTH];
@@ -129,10 +129,9 @@ static void SAI_dump_tunnel_map_print(_In_ FILE *file, _In_ mlnx_tunnel_map_t *m
         if (mlnx_tunnel_map[ii].in_use) {
             memcpy(&curr_mlnx_tunnel_map, &mlnx_tunnel_map[ii], sizeof(mlnx_tunnel_map_t));
 
-            if (SAI_STATUS_SUCCESS ==
+            if (SAI_STATUS_SUCCESS !=
                 mlnx_create_object(SAI_OBJECT_TYPE_TUNNEL_MAP, ii, NULL, &obj_id)) {
-            } else {
-                obj_id = 0;
+                obj_id = SAI_NULL_OBJECT_ID;
             }
             SAI_dump_tunnel_map_type_enum_to_str(mlnx_tunnel_map[ii].tunnel_map_type,
                                                  type_str);
@@ -146,19 +145,19 @@ static void SAI_dump_tunnel_map_print(_In_ FILE *file, _In_ mlnx_tunnel_map_t *m
     for (ii = 0; ii < MLNX_TUNNEL_MAP_MAX; ii++) {
         if (mlnx_tunnel_map[ii].in_use) {
             switch (mlnx_tunnel_map[ii].tunnel_map_type) {
-            case SAI_TUNNEL_MAP_OECN_TO_UECN:
+            case SAI_TUNNEL_MAP_TYPE_OECN_TO_UECN:
                 dbg_utils_print_table_headline(file, sai_tunnelmap_oecn2uecn_clmns);
                 break;
 
-            case SAI_TUNNEL_MAP_UECN_OECN_TO_OECN:
+            case SAI_TUNNEL_MAP_TYPE_UECN_OECN_TO_OECN:
                 dbg_utils_print_table_headline(file, sai_tunnelmap_uecnoecn2oecn_clmns);
                 break;
 
-            case SAI_TUNNEL_MAP_VNI_TO_VLAN_ID:
+            case SAI_TUNNEL_MAP_TYPE_VNI_TO_VLAN_ID:
                 dbg_utils_print_table_headline(file, sai_tunnelmap_vni2vlan_clmns);
                 break;
 
-            case SAI_TUNNEL_MAP_VLAN_ID_TO_VNI:
+            case SAI_TUNNEL_MAP_TYPE_VLAN_ID_TO_VNI:
                 dbg_utils_print_table_headline(file, sai_tunnelmap_vlan2vni_clmns);
                 break;
 
@@ -172,19 +171,19 @@ static void SAI_dump_tunnel_map_print(_In_ FILE *file, _In_ mlnx_tunnel_map_t *m
                        sizeof(sai_tunnel_map_t));
 
                 switch (mlnx_tunnel_map[ii].tunnel_map_type) {
-                case SAI_TUNNEL_MAP_OECN_TO_UECN:
+                case SAI_TUNNEL_MAP_TYPE_OECN_TO_UECN:
                     dbg_utils_print_table_data_line(file, sai_tunnelmap_oecn2uecn_clmns);
                     break;
 
-                case SAI_TUNNEL_MAP_UECN_OECN_TO_OECN:
+                case SAI_TUNNEL_MAP_TYPE_UECN_OECN_TO_OECN:
                     dbg_utils_print_table_data_line(file, sai_tunnelmap_uecnoecn2oecn_clmns);
                     break;
 
-                case SAI_TUNNEL_MAP_VNI_TO_VLAN_ID:
+                case SAI_TUNNEL_MAP_TYPE_VNI_TO_VLAN_ID:
                     dbg_utils_print_table_data_line(file, sai_tunnelmap_vni2vlan_clmns);
                     break;
 
-                case SAI_TUNNEL_MAP_VLAN_ID_TO_VNI:
+                case SAI_TUNNEL_MAP_TYPE_VLAN_ID_TO_VNI:
                     dbg_utils_print_table_data_line(file, sai_tunnelmap_vlan2vni_clmns);
                     break;
 
@@ -199,7 +198,7 @@ static void SAI_dump_tunnel_map_print(_In_ FILE *file, _In_ mlnx_tunnel_map_t *m
 static void SAI_dump_tunnel_print(_In_ FILE *file, _In_ tunnel_db_entry_t *tunnel_db)
 {
     uint32_t                  ii     = 0, jj = 0;
-    sai_object_id_t           obj_id = 0;
+    sai_object_id_t           obj_id = SAI_NULL_OBJECT_ID;
     tunnel_db_entry_t         curr_tunnel_db;
     dbg_utils_table_columns_t tunnel_clmns[] = {
         {"sai oid",       16, PARAM_UINT64_E, &obj_id},
@@ -233,10 +232,9 @@ static void SAI_dump_tunnel_print(_In_ FILE *file, _In_ tunnel_db_entry_t *tunne
     for (ii = 0; ii < MAX_TUNNEL_DB_SIZE; ii++) {
         if (tunnel_db[ii].is_used) {
             memcpy(&curr_tunnel_db, &tunnel_db[ii], sizeof(tunnel_db_entry_t));
-            if (SAI_STATUS_SUCCESS ==
+            if (SAI_STATUS_SUCCESS !=
                 mlnx_create_object(SAI_OBJECT_TYPE_TUNNEL, ii, NULL, &obj_id)) {
-            } else {
-                obj_id = 0;
+                obj_id = SAI_NULL_OBJECT_ID;
             }
             dbg_utils_print_table_data_line(file, tunnel_clmns);
         }
@@ -326,7 +324,7 @@ static void SAI_dump_sdk_tunnel_table_type_enum_to_str(_In_ sx_tunnel_decap_key_
 static void SAI_dump_tunnel_table_print(_In_ FILE *file, _In_ mlnx_tunneltable_t *mlnx_tunneltable)
 {
     uint32_t                  ii     = 0;
-    sai_object_id_t           obj_id = 0;
+    sai_object_id_t           obj_id = SAI_NULL_OBJECT_ID;
     mlnx_tunneltable_t        curr_mlnx_tunneltable;
     char                      tunnel_type_str[LINE_LENGTH];
     char                      field_type_str[LINE_LENGTH];
@@ -355,10 +353,9 @@ static void SAI_dump_tunnel_table_print(_In_ FILE *file, _In_ mlnx_tunneltable_t
         if (mlnx_tunneltable[ii].in_use) {
             memcpy(&curr_mlnx_tunneltable, &mlnx_tunneltable[ii], sizeof(mlnx_tunneltable_t));
 
-            if (SAI_STATUS_SUCCESS ==
-                mlnx_create_object(SAI_OBJECT_TYPE_TUNNEL_TABLE_ENTRY, ii, NULL, &obj_id)) {
-            } else {
-                obj_id = 0;
+            if (SAI_STATUS_SUCCESS !=
+                mlnx_create_object(SAI_OBJECT_TYPE_TUNNEL_TERM_TABLE_ENTRY, ii, NULL, &obj_id)) {
+                obj_id = SAI_NULL_OBJECT_ID;
             }
             SAI_dump_sdk_tunnel_type_enum_to_str(mlnx_tunneltable[ii].sdk_tunnel_decap_key.tunnel_type,
                                                  tunnel_type_str);

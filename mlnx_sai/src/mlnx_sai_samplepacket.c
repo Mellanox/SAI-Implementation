@@ -188,9 +188,9 @@ static sai_status_t mlnx_samplepacket_sample_rate_get(_In_ const sai_object_key_
 
     if (SAI_STATUS_SUCCESS !=
         (status =
-             mlnx_object_to_type(key->object_id, SAI_OBJECT_TYPE_SAMPLEPACKET, &internal_samplepacket_obj_idx,
+             mlnx_object_to_type(key->key.object_id, SAI_OBJECT_TYPE_SAMPLEPACKET, &internal_samplepacket_obj_idx,
                                  NULL))) {
-        SX_LOG_ERR("Invalid sai samplepacket obj id: %" PRId64 "\n", key->object_id);
+        SX_LOG_ERR("Invalid sai samplepacket obj id: %" PRId64 "\n", key->key.object_id);
         SX_LOG_EXIT();
         return status;
     }
@@ -236,9 +236,9 @@ static sai_status_t mlnx_samplepacket_type_get(_In_ const sai_object_key_t   *ke
 
     if (SAI_STATUS_SUCCESS !=
         (status =
-             mlnx_object_to_type(key->object_id, SAI_OBJECT_TYPE_SAMPLEPACKET, &internal_samplepacket_obj_idx,
+             mlnx_object_to_type(key->key.object_id, SAI_OBJECT_TYPE_SAMPLEPACKET, &internal_samplepacket_obj_idx,
                                  NULL))) {
-        SX_LOG_ERR("Invalid sai samplepacket obj id: %" PRId64 "\n", key->object_id);
+        SX_LOG_ERR("Invalid sai samplepacket obj id: %" PRId64 "\n", key->key.object_id);
         SX_LOG_EXIT();
         return status;
     }
@@ -276,9 +276,9 @@ static sai_status_t mlnx_samplepacket_mode_get(_In_ const sai_object_key_t   *ke
 
     if (SAI_STATUS_SUCCESS !=
         (status =
-             mlnx_object_to_type(key->object_id, SAI_OBJECT_TYPE_SAMPLEPACKET, &internal_samplepacket_obj_idx,
+             mlnx_object_to_type(key->key.object_id, SAI_OBJECT_TYPE_SAMPLEPACKET, &internal_samplepacket_obj_idx,
                                  NULL))) {
-        SX_LOG_ERR("Invalid sai samplepacket obj id: %" PRId64 "\n", key->object_id);
+        SX_LOG_ERR("Invalid sai samplepacket obj id: %" PRId64 "\n", key->key.object_id);
         SX_LOG_EXIT();
         return status;
     }
@@ -317,9 +317,9 @@ static sai_status_t mlnx_samplepacket_sample_rate_set(_In_ const sai_object_key_
 
     if (SAI_STATUS_SUCCESS !=
         (status =
-             mlnx_object_to_type(key->object_id, SAI_OBJECT_TYPE_SAMPLEPACKET, &internal_samplepacket_obj_idx,
+             mlnx_object_to_type(key->key.object_id, SAI_OBJECT_TYPE_SAMPLEPACKET, &internal_samplepacket_obj_idx,
                                  NULL))) {
-        SX_LOG_ERR("Invalid sai samplepacket obj id: %" PRId64 "\n", key->object_id);
+        SX_LOG_ERR("Invalid sai samplepacket obj id: %" PRId64 "\n", key->key.object_id);
         SX_LOG_EXIT();
         return status;
     }
@@ -401,6 +401,7 @@ cleanup:
 }
 
 static sai_status_t mlnx_create_samplepacket_session(_Out_ sai_object_id_t      *sai_samplepacket_obj_id,
+                                                     _In_ sai_object_id_t        switch_id,
                                                      _In_ uint32_t               attr_count,
                                                      _In_ const sai_attribute_t *attr_list)
 {
@@ -437,7 +438,7 @@ static sai_status_t mlnx_create_samplepacket_session(_Out_ sai_object_id_t      
     status_type = find_attrib_in_list(attr_count, attr_list, SAI_SAMPLEPACKET_ATTR_TYPE, &samplepacket_type, &index);
 
     if (SAI_STATUS_SUCCESS == status_type) {
-        if (SAI_SAMPLEPACKET_SLOW_PATH != samplepacket_type->s32) {
+        if (SAI_SAMPLEPACKET_TYPE_SLOW_PATH != samplepacket_type->s32) {
             SX_LOG_ERR("Samplepacket type should be SAI_SAMPLEPACKET_SLOW_PATH but get %d instead\n",
                        samplepacket_type->s32);
             SX_LOG_EXIT();
@@ -478,7 +479,8 @@ static sai_status_t mlnx_create_samplepacket_session(_Out_ sai_object_id_t      
     if (SAI_STATUS_SUCCESS == status_type) {
         g_sai_db_ptr->mlnx_samplepacket_session[internal_samplepacket_obj_idx].sai_type = samplepacket_type->s32;
     } else {
-        g_sai_db_ptr->mlnx_samplepacket_session[internal_samplepacket_obj_idx].sai_type = SAI_SAMPLEPACKET_SLOW_PATH;
+        g_sai_db_ptr->mlnx_samplepacket_session[internal_samplepacket_obj_idx].sai_type =
+            SAI_SAMPLEPACKET_TYPE_SLOW_PATH;
     }
 
     if (SAI_STATUS_SUCCESS == status_mode) {
@@ -570,7 +572,7 @@ cleanup:
 static sai_status_t mlnx_set_samplepacket_attribute(_In_ const sai_object_id_t  sai_samplepacket_obj_id,
                                                     _In_ const sai_attribute_t *attr)
 {
-    const sai_object_key_t key = { .object_id = sai_samplepacket_obj_id };
+    const sai_object_key_t key = { .key.object_id = sai_samplepacket_obj_id };
     char                   key_str[MAX_KEY_STR_LEN];
     sai_status_t           status = SAI_STATUS_FAILURE;
 
@@ -588,7 +590,7 @@ static sai_status_t mlnx_get_samplepacket_attribute(_In_ const sai_object_id_t s
                                                     _In_ uint32_t              attr_count,
                                                     _Inout_ sai_attribute_t   *attr_list)
 {
-    const sai_object_key_t key = { .object_id = sai_samplepacket_obj_id };
+    const sai_object_key_t key = { .key.object_id = sai_samplepacket_obj_id };
     char                   key_str[MAX_KEY_STR_LEN];
     sai_status_t           status = SAI_STATUS_FAILURE;
 

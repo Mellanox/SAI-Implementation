@@ -353,35 +353,47 @@ sai_status_t check_attribs_metadata(_In_ uint32_t                            att
         }
 
         if (((SAI_ATTR_VAL_TYPE_OBJLIST == functionality_attr[index].type) &&
-             (NULL == attr_list[ii].value.objlist.list)) ||
+             (NULL == attr_list[ii].value.objlist.list) &&
+             (attr_list[ii].value.objlist.count > 0)) ||
             ((SAI_ATTR_VAL_TYPE_U8LIST == functionality_attr[index].type) &&
-             (NULL == attr_list[ii].value.u8list.list)) ||
+             (NULL == attr_list[ii].value.u8list.list) &&
+             (attr_list[ii].value.u8list.count > 0)) ||
             ((SAI_ATTR_VAL_TYPE_S8LIST == functionality_attr[index].type) &&
-             (NULL == attr_list[ii].value.s8list.list)) ||
+             (NULL == attr_list[ii].value.s8list.list) &&
+             (attr_list[ii].value.s8list.count > 0)) ||
             ((SAI_ATTR_VAL_TYPE_U16LIST == functionality_attr[index].type) &&
-             (NULL == attr_list[ii].value.u16list.list)) ||
+             (NULL == attr_list[ii].value.u16list.list) &&
+             (attr_list[ii].value.u16list.count > 0)) ||
             ((SAI_ATTR_VAL_TYPE_S16LIST == functionality_attr[index].type) &&
-             (NULL == attr_list[ii].value.s16list.list)) ||
+             (NULL == attr_list[ii].value.s16list.list) &&
+             (attr_list[ii].value.s16list.count > 0)) ||
             ((SAI_ATTR_VAL_TYPE_U32LIST == functionality_attr[index].type) &&
-             (NULL == attr_list[ii].value.u32list.list)) ||
+             (NULL == attr_list[ii].value.u32list.list) &&
+             (attr_list[ii].value.u32list.count > 0)) ||
             ((SAI_ATTR_VAL_TYPE_S32LIST == functionality_attr[index].type) &&
-             (NULL == attr_list[ii].value.s32list.list)) ||
+             (NULL == attr_list[ii].value.s32list.list) &&
+             (attr_list[ii].value.s32list.count > 0)) ||
             ((SAI_ATTR_VAL_TYPE_VLANLIST == functionality_attr[index].type) &&
-             (NULL == attr_list[ii].value.vlanlist.list)) ||
+             (NULL == attr_list[ii].value.vlanlist.list) &&
+             (attr_list[ii].value.vlanlist.count > 0)) ||
             ((SAI_ATTR_VAL_TYPE_ACLFIELD_OBJLIST == functionality_attr[index].type) &&
-             (NULL == attr_list[ii].value.aclfield.data.objlist.list)) ||
+             (NULL == attr_list[ii].value.aclfield.data.objlist.list) &&
+             (attr_list[ii].value.aclfield.data.objlist.count > 0)) ||
             ((SAI_ATTR_VAL_TYPE_ACLFIELD_U8LIST == functionality_attr[index].type) &&
-             (NULL == attr_list[ii].value.aclfield.data.u8list.list)) ||
-            ((SAI_ATTR_VAL_TYPE_ACLFIELD_U8LIST == functionality_attr[index].type) &&
-             (NULL == attr_list[ii].value.aclfield.mask.u8list.list)) ||
+             (NULL == attr_list[ii].value.aclfield.data.u8list.list) &&
+             (attr_list[ii].value.aclfield.data.u8list.count > 0)) ||
             ((SAI_ATTR_VAL_TYPE_ACLACTION_OBJLIST == functionality_attr[index].type) &&
-             (NULL == attr_list[ii].value.aclaction.parameter.objlist.list)) ||
+             (NULL == attr_list[ii].value.aclaction.parameter.objlist.list) &&
+             (attr_list[ii].value.aclaction.parameter.objlist.count > 0)) ||
             ((SAI_ATTR_VAL_TYPE_TUNNELMAP == functionality_attr[index].type) &&
-             (NULL == attr_list[ii].value.tunnelmap.list)) ||
+             (NULL == attr_list[ii].value.tunnelmap.list) &&
+             (attr_list[ii].value.tunnelmap.count > 0)) ||
             ((SAI_ATTR_VAL_TYPE_ACLCAPABILITY == functionality_attr[index].type) &&
-             (NULL == attr_list[ii].value.aclcapability.action_list.list)) ||
+             (NULL == attr_list[ii].value.aclcapability.action_list.list) &&
+             (attr_list[ii].value.aclcapability.action_list.count > 0)) ||
             ((SAI_ATTR_VAL_TYPE_QOSMAP == functionality_attr[index].type) &&
-             (NULL == attr_list[ii].value.qosmap.list))) {
+             (NULL == attr_list[ii].value.qosmap.list) &&
+             (attr_list[ii].value.qosmap.count > 0))) {
             SX_LOG_ERR("Null list attribute %s at index %d\n",
                        functionality_attr[index].attrib_name,
                        ii);
@@ -458,7 +470,7 @@ static sai_status_t set_dispatch_attrib_handler(_In_ const sai_attribute_t      
     }
 
     if (functionality_attr[index].type == SAI_ATTR_VAL_TYPE_QOSMAP) {
-        sai_qos_map_to_str_oid(key->object_id, attr->value, MAX_VALUE_STR_LEN, value_str);
+        sai_qos_map_to_str_oid(key->key.object_id, attr->value, MAX_VALUE_STR_LEN, value_str);
     } else {
         sai_value_to_str(attr->value, functionality_attr[index].type, MAX_VALUE_STR_LEN, value_str);
     }
@@ -516,7 +528,7 @@ static sai_status_t get_dispatch_attribs_handler(_In_ uint32_t                  
             return status;
         }
         if (functionality_attr[index].type == SAI_ATTR_VAL_TYPE_QOSMAP) {
-            sai_qos_map_to_str_oid(key->object_id, attr_list[ii].value, MAX_VALUE_STR_LEN, value_str);
+            sai_qos_map_to_str_oid(key->key.object_id, attr_list[ii].value, MAX_VALUE_STR_LEN, value_str);
         } else {
             sai_value_to_str(attr_list[ii].value, functionality_attr[index].type, MAX_VALUE_STR_LEN, value_str);
         }
@@ -881,6 +893,11 @@ sai_status_t sai_qos_map_to_str(_In_ const sai_qos_map_list_t *qosmap,
         return SAI_STATUS_SUCCESS;
     }
 
+    pos += snprintf(value_str + pos, max_length - pos, ", type %u, ", type);
+    if (pos > max_length) {
+        return SAI_STATUS_SUCCESS;
+    }
+
     pos += snprintf(value_str + pos, max_length - pos, "%u : [", count);
     if (pos > max_length) {
         return SAI_STATUS_SUCCESS;
@@ -888,54 +905,54 @@ sai_status_t sai_qos_map_to_str(_In_ const sai_qos_map_list_t *qosmap,
 
     for (ii = 0; ii < count; ii++) {
         switch (type) {
-        case SAI_QOS_MAP_DOT1P_TO_TC:
+        case SAI_QOS_MAP_TYPE_DOT1P_TO_TC:
             pos += snprintf(value_str + pos, max_length - pos, "%u->%u",
                             list[ii].key.dot1p, list[ii].value.tc);
             break;
 
-        case SAI_QOS_MAP_DOT1P_TO_COLOR:
+        case SAI_QOS_MAP_TYPE_DOT1P_TO_COLOR:
             pos += snprintf(value_str + pos, max_length - pos, "%u->%u",
                             list[ii].key.dot1p, list[ii].value.color);
             break;
 
-        case SAI_QOS_MAP_DSCP_TO_TC:
+        case SAI_QOS_MAP_TYPE_DSCP_TO_TC:
             pos += snprintf(value_str + pos, max_length - pos, "%u->%u",
                             list[ii].key.dscp, list[ii].value.tc);
             break;
 
-        case SAI_QOS_MAP_DSCP_TO_COLOR:
+        case SAI_QOS_MAP_TYPE_DSCP_TO_COLOR:
             pos += snprintf(value_str + pos, max_length - pos, "%u->%u",
                             list[ii].key.dscp, list[ii].value.color);
             break;
 
-        case SAI_QOS_MAP_TC_TO_QUEUE:
+        case SAI_QOS_MAP_TYPE_TC_TO_QUEUE:
             pos += snprintf(value_str + pos, max_length - pos, "%u->%u",
                             list[ii].key.tc, list[ii].value.queue_index);
             break;
 
-        case SAI_QOS_MAP_TC_AND_COLOR_TO_DSCP:
+        case SAI_QOS_MAP_TYPE_TC_AND_COLOR_TO_DSCP:
             pos += snprintf(value_str + pos, max_length - pos, "(%u,%u)->%u",
                             list[ii].key.tc, list[ii].key.color,
                             list[ii].value.dscp);
             break;
 
-        case SAI_QOS_MAP_TC_AND_COLOR_TO_DOT1P:
+        case SAI_QOS_MAP_TYPE_TC_AND_COLOR_TO_DOT1P:
             pos += snprintf(value_str + pos, max_length - pos, "(%u,%u)->%u",
                             list[ii].key.tc, list[ii].key.color,
                             list[ii].value.dot1p);
             break;
 
-        case SAI_QOS_MAP_TC_TO_PRIORITY_GROUP:
+        case SAI_QOS_MAP_TYPE_TC_TO_PRIORITY_GROUP:
             pos += snprintf(value_str + pos, max_length - pos, "%u->%u",
                             list[ii].key.tc, list[ii].value.pg);
             break;
 
-        case SAI_QOS_MAP_PFC_PRIORITY_TO_PRIORITY_GROUP:
+        case SAI_QOS_MAP_TYPE_PFC_PRIORITY_TO_PRIORITY_GROUP:
             pos += snprintf(value_str + pos, max_length - pos, "%u->%u",
                             list[ii].key.pg, list[ii].value.prio);
             break;
 
-        case SAI_QOS_MAP_PFC_PRIORITY_TO_QUEUE:
+        case SAI_QOS_MAP_TYPE_PFC_PRIORITY_TO_QUEUE:
             pos += snprintf(value_str + pos, max_length - pos, "%u->%u",
                             list[ii].key.prio, list[ii].value.queue_index);
             break;
@@ -991,6 +1008,16 @@ static sai_status_t sai_qos_map_to_str_oid(_In_ sai_object_id_t       qos_map_id
     return sai_qos_map_to_str(&value.qosmap, qos_map->type, max_length, value_str);
 }
 
+static uint32_t sai_oid_to_str(sai_object_id_t oid, uint32_t opt, uint32_t max_length, char *value_str)
+{
+    mlnx_object_id_t *mlnx_id = (mlnx_object_id_t *) &oid;
+
+    return snprintf(value_str, max_length, "%s,(%d:%d),%x,%02x%02x,%x",
+                    SAI_TYPE_STR(mlnx_id->object_type),
+                    mlnx_id->field.swid, mlnx_id->field.hif_type, mlnx_id->id.u32,
+                    mlnx_id->ext.bytes[1], mlnx_id->ext.bytes[0], opt);
+}
+
 sai_status_t sai_value_to_str(_In_ sai_attribute_value_t      value,
                               _In_ sai_attribute_value_type_t type,
                               _In_ uint32_t                   max_length,
@@ -999,7 +1026,6 @@ sai_status_t sai_value_to_str(_In_ sai_attribute_value_t      value,
     uint32_t          ii;
     uint32_t          pos = 0;
     uint32_t          count;
-    mlnx_object_id_t *mlnx_object_id;
     int               chars_written;
 
     if (NULL == value_str) {
@@ -1050,6 +1076,10 @@ sai_status_t sai_value_to_str(_In_ sai_attribute_value_t      value,
         snprintf(value_str, max_length, "%" PRId64, value.s64);
         break;
 
+    case SAI_ATTR_VAL_TYPE_PTR:
+        snprintf(value_str, max_length, "%" PRIx64, (int64_t)value.ptr);
+        break;
+
     case SAI_ATTR_VAL_TYPE_MAC:
         snprintf(value_str, max_length, "[%02x:%02x:%02x:%02x:%02x:%02x]",
                  value.mac[0],
@@ -1074,10 +1104,7 @@ sai_status_t sai_value_to_str(_In_ sai_attribute_value_t      value,
         break;
 
     case SAI_ATTR_VAL_TYPE_OID:
-        mlnx_object_id = (mlnx_object_id_t*)&value.oid;
-        snprintf(value_str, max_length, "%s,%x,%02x%02x%02x",
-                 SAI_TYPE_STR(sai_object_type_query(value.oid)), mlnx_object_id->data,
-                 mlnx_object_id->extended_data[2], mlnx_object_id->extended_data[1], mlnx_object_id->extended_data[0]);
+        sai_oid_to_str(value.oid, 0, max_length, value_str);
         break;
 
     case SAI_ATTR_VAL_TYPE_OBJLIST:
@@ -1282,11 +1309,7 @@ sai_status_t sai_value_to_str(_In_ sai_attribute_value_t      value,
         break;
 
     case SAI_ATTR_VAL_TYPE_ACLFIELD_OID:
-        mlnx_object_id = (mlnx_object_id_t*)&value.aclfield.data.oid;
-        snprintf(value_str, max_length, "%u,%s,%x,%02x%02x%02x",
-                 value.aclfield.enable, SAI_TYPE_STR(sai_object_type_query(
-                                                         value.aclfield.data.oid)), mlnx_object_id->data,
-                 mlnx_object_id->extended_data[2], mlnx_object_id->extended_data[1], mlnx_object_id->extended_data[0]);
+        sai_oid_to_str(value.aclfield.data.oid, value.aclfield.enable, max_length, value_str);
         break;
 
     case SAI_ATTR_VAL_TYPE_ACLACTION_U8:
@@ -1335,11 +1358,7 @@ sai_status_t sai_value_to_str(_In_ sai_attribute_value_t      value,
         break;
 
     case SAI_ATTR_VAL_TYPE_ACLACTION_OID:
-        mlnx_object_id = (mlnx_object_id_t*)&value.aclaction.parameter.oid;
-        snprintf(value_str, max_length, "%u,%s,%x,%02x%02x%02x",
-                 value.aclaction.enable, SAI_TYPE_STR(sai_object_type_query(
-                                                          value.aclaction.parameter.oid)), mlnx_object_id->data,
-                 mlnx_object_id->extended_data[2], mlnx_object_id->extended_data[1], mlnx_object_id->extended_data[0]);
+        sai_oid_to_str(value.aclaction.parameter.oid, value.aclaction.enable, max_length, value_str);
         break;
 
     case SAI_ATTR_VAL_TYPE_ACLACTION_NONE:
@@ -1521,10 +1540,43 @@ sai_status_t mlnx_object_to_type(sai_object_id_t   object_id,
         return SAI_STATUS_INVALID_PARAMETER;
     }
 
-    *data = mlnx_object_id->data;
+    *data = mlnx_object_id->id.u32;
     if (extended_data) {
-        memcpy(extended_data, mlnx_object_id->extended_data, EXTENDED_DATA_SIZE);
+        memcpy(extended_data, mlnx_object_id->ext.bytes, EXTENDED_DATA_SIZE);
     }
+    return SAI_STATUS_SUCCESS;
+}
+
+sai_status_t mlnx_object_id_to_sai(sai_object_type_t type, mlnx_object_id_t *mlnx_object_id,
+                                   sai_object_id_t *object_id)
+{
+    if (object_id == NULL) {
+        SX_LOG_ERR("NULL object id value\n");
+        return SAI_STATUS_INVALID_PARAMETER;
+    }
+
+    mlnx_object_id->object_type = type;
+    memcpy(object_id, mlnx_object_id, sizeof(*mlnx_object_id));
+
+    return SAI_STATUS_SUCCESS;
+}
+
+sai_status_t sai_to_mlnx_object_id(sai_object_type_t type, sai_object_id_t object_id, mlnx_object_id_t *mlnx_object_id)
+{
+    mlnx_object_id_t *mlnx_sai_oid = (mlnx_object_id_t*)&object_id;
+
+    if (mlnx_sai_oid == NULL) {
+        SX_LOG_ERR("NULL object id value\n");
+        return SAI_STATUS_INVALID_PARAMETER;
+    }
+
+    if (mlnx_sai_oid->object_type != type) {
+        SX_LOG_ERR("Invalid object type %u expected %u\n", mlnx_sai_oid->object_type, type);
+        return SAI_STATUS_INVALID_OBJECT_TYPE;
+    }
+
+    memcpy(mlnx_object_id, mlnx_sai_oid, sizeof(*mlnx_object_id));
+
     return SAI_STATUS_SUCCESS;
 }
 
@@ -1551,10 +1603,10 @@ sai_status_t mlnx_create_object(sai_object_type_t type,
     }
 
     memset(mlnx_object_id, 0, sizeof(*mlnx_object_id));
-    mlnx_object_id->data        = data;
+    mlnx_object_id->id.u32      = data;
     mlnx_object_id->object_type = type;
     if (extended_data) {
-        memcpy(mlnx_object_id->extended_data, extended_data, EXTENDED_DATA_SIZE);
+        memcpy(mlnx_object_id->ext.bytes, extended_data, EXTENDED_DATA_SIZE);
     }
     return SAI_STATUS_SUCCESS;
 }
@@ -1640,11 +1692,6 @@ sai_status_t mlnx_sched_group_parse_id(_In_ sai_object_id_t    id,
     status = mlnx_object_to_type(id, SAI_OBJECT_TYPE_SCHEDULER_GROUP, &port_id, ext_data);
     if (status != SAI_STATUS_SUCCESS) {
         return status;
-    }
-
-    if ((ext_data[0] == 0) && (ext_data[1] > 0)) {
-        SX_LOG_ERR("Invalid root scheduler group index %u - max allowed value is 0\n", ext_data[1]);
-        return SAI_STATUS_INVALID_PARAMETER;
     }
 
     if (port_id_ptr) {
@@ -1746,7 +1793,7 @@ sai_status_t mlnx_fill_tunnelmaplist(sai_tunnel_map_t *data, uint32_t count, sai
     return mlnx_fill_genericlist(sizeof(sai_tunnel_map_t), (void*)data, count, (void*)list);
 }
 
-bool mlnx_route_entries_are_equal(_In_ const sai_unicast_route_entry_t *u1, _In_ const sai_unicast_route_entry_t *u2)
+bool mlnx_route_entries_are_equal(_In_ const sai_route_entry_t *u1, _In_ const sai_route_entry_t *u2)
 {
     if ((NULL == u1) && (NULL == u2)) {
         return true;
@@ -1780,4 +1827,136 @@ bool mlnx_route_entries_are_equal(_In_ const sai_unicast_route_entry_t *u1, _In_
     }
 
     return true;
+}
+
+static sai_status_t mlnx_fdb_or_route_action_find(_In_ sai_object_type_t type,
+                                                  _In_ const void       *entry,
+                                                  _Out_ uint32_t        *index)
+{
+    uint32_t               ii;
+    bool                   equal;
+    const sai_fdb_entry_t *saved_fdb_entry, *targed_fdb_entry;
+
+    assert((SAI_OBJECT_TYPE_FDB_ENTRY == type) || (SAI_OBJECT_TYPE_ROUTE_ENTRY == type));
+
+    for (ii = 0; ii < g_sai_db_ptr->fdb_or_route_actions.count; ii++) {
+        if (g_sai_db_ptr->fdb_or_route_actions.actions[ii].type != type) {
+            continue;
+        }
+
+        if (SAI_OBJECT_TYPE_FDB_ENTRY == type) {
+            saved_fdb_entry  = &g_sai_db_ptr->fdb_or_route_actions.actions[ii].fdb_entry;
+            targed_fdb_entry = entry;
+
+            equal = ((0 == memcmp(saved_fdb_entry->mac_address, targed_fdb_entry->mac_address, sizeof(sai_mac_t))) &&
+                     (saved_fdb_entry->vlan_id == targed_fdb_entry->vlan_id));
+        } else {
+            equal = mlnx_route_entries_are_equal(&g_sai_db_ptr->fdb_or_route_actions.actions[ii].route_entry, entry);
+        }
+
+        if (equal) {
+            *index = ii;
+            return SAI_STATUS_SUCCESS;
+        }
+    }
+
+    return SAI_STATUS_ITEM_NOT_FOUND;
+}
+
+static void mlnx_fdb_or_route_action_remove(_In_ uint32_t index)
+{
+    uint32_t actions_count;
+
+    actions_count = g_sai_db_ptr->fdb_or_route_actions.count;
+
+    assert((actions_count > 0) && (index < actions_count));
+
+    g_sai_db_ptr->fdb_or_route_actions.actions[index] = g_sai_db_ptr->fdb_or_route_actions.actions[actions_count - 1];
+    g_sai_db_ptr->fdb_or_route_actions.count--;
+}
+
+sai_status_t mlnx_fdb_route_action_save(_In_ sai_object_type_t   type,
+                                        _In_ const void         *entry,
+                                        _In_ sai_packet_action_t action)
+{
+    sai_status_t status = SAI_STATUS_SUCCESS;
+    uint32_t     ii;
+
+    assert((SAI_OBJECT_TYPE_FDB_ENTRY == type) || (SAI_OBJECT_TYPE_ROUTE_ENTRY == type));
+
+    sai_db_write_lock();
+
+    status = mlnx_fdb_or_route_action_find(type, entry, &ii);
+    if (SAI_ERR(status)) {
+        if (FDB_OR_ROUTE_SAVED_ACTIONS_NUM == g_sai_db_ptr->fdb_or_route_actions.count) {
+            SX_LOG_ERR("Failed to save action - max number of saved actions reached (%d)\n",
+                       FDB_OR_ROUTE_SAVED_ACTIONS_NUM);
+            status = SAI_STATUS_INSUFFICIENT_RESOURCES;
+            goto out;
+        }
+
+        ii = g_sai_db_ptr->fdb_or_route_actions.count;
+        g_sai_db_ptr->fdb_or_route_actions.count++;
+
+        if (SAI_OBJECT_TYPE_FDB_ENTRY == type) {
+            g_sai_db_ptr->fdb_or_route_actions.actions[ii].fdb_entry = *(sai_fdb_entry_t*)entry;
+        } else {
+            g_sai_db_ptr->fdb_or_route_actions.actions[ii].route_entry = *(sai_route_entry_t*)entry;
+        }
+
+        g_sai_db_ptr->fdb_or_route_actions.actions[ii].type = type;
+    }
+
+    g_sai_db_ptr->fdb_or_route_actions.actions[ii].action = action;
+    status                                                = SAI_STATUS_SUCCESS;
+
+out:
+    sai_db_unlock();
+    return status;
+}
+
+void mlnx_fdb_route_action_clear(_In_ sai_object_type_t type, _In_ const void        *entry)
+{
+    sai_status_t status;
+    uint32_t     ii;
+
+    assert((SAI_OBJECT_TYPE_FDB_ENTRY == type) || (SAI_OBJECT_TYPE_ROUTE_ENTRY == type));
+
+    sai_db_write_lock();
+
+    status = mlnx_fdb_or_route_action_find(type, entry, &ii);
+    if (SAI_STATUS_SUCCESS == status) {
+        mlnx_fdb_or_route_action_remove(ii);
+    }
+
+    sai_db_unlock();
+}
+
+void mlnx_fdb_route_action_fetch(_In_ sai_object_type_t type,
+                                 _In_ const void       *entry,
+                                 _Out_ void            *entry_action)
+{
+    sai_status_t        status;
+    sai_packet_action_t action;
+    uint32_t            ii;
+
+    assert((SAI_OBJECT_TYPE_FDB_ENTRY == type) || (SAI_OBJECT_TYPE_ROUTE_ENTRY == type));
+
+    sai_db_write_lock();
+
+    status = mlnx_fdb_or_route_action_find(type, entry, &ii);
+    if (SAI_STATUS_SUCCESS == status) {
+        action = g_sai_db_ptr->fdb_or_route_actions.actions[ii].action;
+        if (SAI_OBJECT_TYPE_FDB_ENTRY == type) {
+            status = mlnx_translate_sai_action_to_sdk(action, entry_action, 0);
+            assert(SAI_STATUS_SUCCESS == status);
+        } else {
+            status = mlnx_translate_sai_router_action_to_sdk(action, entry_action, 0);
+            assert(SAI_STATUS_SUCCESS == status);
+        }
+
+        mlnx_fdb_or_route_action_remove(ii);
+    }
+
+    sai_db_unlock();
 }

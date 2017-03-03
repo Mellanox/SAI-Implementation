@@ -38,7 +38,7 @@ AC_HEADER_STDBOOL
 AC_C_CONST
 AC_C_INLINE
 
-AM_INIT_AUTOMAKE([foreign])
+AM_INIT_AUTOMAKE([foreign subdir-objects])
 
 dnl Checks for library functions.
 #AC_CHECK_FUNCS([strchr strstr strtol strtoull regcomp regexec])

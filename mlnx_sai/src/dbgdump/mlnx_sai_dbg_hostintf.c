@@ -120,40 +120,14 @@ static void SAI_dump_action_enum_to_str(_In_ sai_packet_action_t action, _Out_ c
     }
 }
 
-static void SAI_dump_trap_channel_enum_to_str(_In_ sai_hostif_trap_channel_t trap_channel, _Out_ char *str)
-{
-    assert(NULL != str);
-
-    switch (trap_channel) {
-    case SAI_HOSTIF_TRAP_CHANNEL_FD:
-        strcpy(str, "fd");
-        break;
-
-    case SAI_HOSTIF_TRAP_CHANNEL_CB:
-        strcpy(str, "cb");
-        break;
-
-    case SAI_HOSTIF_TRAP_CHANNEL_NETDEV:
-        strcpy(str, "netdev");
-        break;
-
-    default:
-        strcpy(str, "unknown");
-        break;
-    }
-}
-
 static void SAI_dump_traps_db_print(_In_ FILE *file, _In_ mlnx_trap_t *traps_db)
 {
     uint32_t                  ii = 0;
     char                      action_str[LINE_LENGTH];
-    char                      trap_channel_str[LINE_LENGTH];
     mlnx_trap_t               curr_traps_db;
     dbg_utils_table_columns_t traps_db_clmns[] = {
         {"db idx",       7,  PARAM_UINT32_E, &ii},
         {"action",       16, PARAM_STRING_E, &action_str},
-        {"trap channel", 12, PARAM_STRING_E, &trap_channel_str},
-        {"fd",           16, PARAM_UINT64_E, &curr_traps_db.fd},
         {"trap group",   16, PARAM_UINT64_E, &curr_traps_db.trap_group},
         {NULL,           0,  0,              NULL}
     };
@@ -171,8 +145,6 @@ static void SAI_dump_traps_db_print(_In_ FILE *file, _In_ mlnx_trap_t *traps_db)
 
         SAI_dump_action_enum_to_str(traps_db[ii].action,
                                     action_str);
-        SAI_dump_trap_channel_enum_to_str(traps_db[ii].trap_channel,
-                                          trap_channel_str);
 
         dbg_utils_print_table_data_line(file, traps_db_clmns);
     }

@@ -20,23 +20,30 @@ endif
 lib_LTLIBRARIES = libsai.la
 
 dist_data_DATA = sai_1710.xml \
-				 sai_2700.xml \
-				 sai_2410.xml \
-				 sai_2100.xml
+                 sai_2700.xml \
+                 sai_2410.xml \
+                 sai_2420.xml \
+                 sai_2100.xml
 				 
 libsai_la_DEPENDENCIES =
 
 libsai_la_SOURCES = \
+                       dbgdump/mlnx_sai_dbg_acl.c \
+                       dbgdump/mlnx_sai_dbg_buffer.c \
+                       dbgdump/mlnx_sai_dbg_hash.c \
+                       dbgdump/mlnx_sai_dbg_hostintf.c \
+                       dbgdump/mlnx_sai_dbg_policer.c \
+                       dbgdump/mlnx_sai_dbg_port.c \
+                       dbgdump/mlnx_sai_dbg_qosmaps.c \
+                       dbgdump/mlnx_sai_dbg_queue.c \
+                       dbgdump/mlnx_sai_dbg_samplepacket.c \
+                       dbgdump/mlnx_sai_dbg_scheduler.c \
+                       dbgdump/mlnx_sai_dbg_stp.c \
+                       dbgdump/mlnx_sai_dbg_tunnel.c \
+                       dbgdump/mlnx_sai_dbg_vlan.c \
+                       dbgdump/mlnx_sai_dbg_wred.c \
                        mlnx_sai_acl.c \
                        mlnx_sai_buffer.c \
-                       mlnx_sai_dbg_hash.c \
-                       mlnx_sai_dbg_hostintf.c \
-                       mlnx_sai_dbg_policer.c \
-                       mlnx_sai_dbg_port.c \
-                       mlnx_sai_dbg_samplepacket.c \
-                       mlnx_sai_dbg_stp.c \
-                       mlnx_sai_dbg_tunnel.c \
-                       mlnx_sai_dbg_vlan.c \
                        mlnx_sai_fdb.c \
                        mlnx_sai_hash.c \
                        mlnx_sai_host_interface.c \
@@ -76,39 +83,45 @@ libsai_la_LIBADD = \
 
 libsai_apiincludedir = $(includedir)/sai
 libsai_apiinclude_HEADERS = \
-	$(top_srcdir)/inc/sai/sainexthop.h \
-	$(top_srcdir)/inc/sai/sainexthopgroup.h \
-	$(top_srcdir)/inc/sai/sai.h \
-	$(top_srcdir)/inc/sai/sairouter.h \
-	$(top_srcdir)/inc/sai/saivlan.h \
-	$(top_srcdir)/inc/sai/saineighbor.h \
-	$(top_srcdir)/inc/sai/saifdb.h \
-	$(top_srcdir)/inc/sai/saiport.h \
-	$(top_srcdir)/inc/sai/saiacl.h \
-	$(top_srcdir)/inc/sai/saiswitch.h \
-	$(top_srcdir)/inc/sai/saistatus.h \
-	$(top_srcdir)/inc/sai/sairoute.h \
-	$(top_srcdir)/inc/sai/saitypes.h \
-	$(top_srcdir)/inc/sai/sairouterintf.h \
-	$(top_srcdir)/inc/sai/saihostintf.h \
-	$(top_srcdir)/inc/sai/sailag.h \
+        $(top_srcdir)/inc/sai/sai.h \
+        $(top_srcdir)/inc/sai/saiacl.h \
+        $(top_srcdir)/inc/sai/saibuffer.h \
+        $(top_srcdir)/inc/sai/saifdb.h \
+        $(top_srcdir)/inc/sai/saihash.h \
+        $(top_srcdir)/inc/sai/saihostintf.h \
+        $(top_srcdir)/inc/sai/saiipmc.h \
+        $(top_srcdir)/inc/sai/saiipmcgroup.h \
+        $(top_srcdir)/inc/sai/sail2mc.h \
+        $(top_srcdir)/inc/sai/sail2mcgroup.h \
+        $(top_srcdir)/inc/sai/sailag.h \
+        $(top_srcdir)/inc/sai/saimcfdb.h \
         $(top_srcdir)/inc/sai/saimirror.h \
-        $(top_srcdir)/inc/sai/saisamplepacket.h \
-	$(top_srcdir)/inc/sai/saistp.h \
+        $(top_srcdir)/inc/sai/saineighbor.h \
+        $(top_srcdir)/inc/sai/sainexthop.h \
+        $(top_srcdir)/inc/sai/sainexthopgroup.h \
+        $(top_srcdir)/inc/sai/saiobject.h \
         $(top_srcdir)/inc/sai/saipolicer.h \
+        $(top_srcdir)/inc/sai/saiport.h \
         $(top_srcdir)/inc/sai/saiqosmaps.h \
         $(top_srcdir)/inc/sai/saiqueue.h \
+        $(top_srcdir)/inc/sai/sairoute.h \
+        $(top_srcdir)/inc/sai/sairouter.h \
+        $(top_srcdir)/inc/sai/sairouterintf.h \
+        $(top_srcdir)/inc/sai/sairpfgroup.h \
+        $(top_srcdir)/inc/sai/saisamplepacket.h \
         $(top_srcdir)/inc/sai/saischeduler.h \
         $(top_srcdir)/inc/sai/saischedulergroup.h \
-        $(top_srcdir)/inc/sai/saiwred.h \
-	$(top_srcdir)/inc/sai/saibuffer.h \
-        $(top_srcdir)/inc/sai/saihash.h \
+        $(top_srcdir)/inc/sai/saistatus.h \
+        $(top_srcdir)/inc/sai/saistp.h \
+        $(top_srcdir)/inc/sai/saiswitch.h \
+        $(top_srcdir)/inc/sai/saitunnel.h \
+        $(top_srcdir)/inc/sai/saitypes.h \
         $(top_srcdir)/inc/sai/saiudf.h \
-    $(top_srcdir)/inc/sai/saitunnel.h \
-    $(top_srcdir)/inc/sai/saiobject.h \
+        $(top_srcdir)/inc/sai/saivlan.h \
+        $(top_srcdir)/inc/sai/saiwred.h \
         \
-	$(top_srcdir)/inc/sai_windows.h \
-	$(top_srcdir)/inc/mlnx_sai.h
+        $(top_srcdir)/inc/sai_windows.h \
+        $(top_srcdir)/inc/mlnx_sai.h
 
 
 libsai_api_version=$(shell grep LIBVERSION= $(top_srcdir)/sai_interface.ver | sed 's/LIBVERSION=//')

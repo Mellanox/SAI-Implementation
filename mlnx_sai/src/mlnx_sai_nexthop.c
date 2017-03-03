@@ -29,7 +29,7 @@ static const sai_attribute_entry_t next_hop_attribs[] = {
       "Next hop entry type", SAI_ATTR_VAL_TYPE_S32 },
     { SAI_NEXT_HOP_ATTR_IP, false, true, false, true,
       "Next hop entry IP address", SAI_ATTR_VAL_TYPE_IPADDR },
-    { SAI_NEXT_HOP_ATTR_ROUTER_INTERFACE_ID, true, true, false, true,
+    { SAI_NEXT_HOP_ATTR_ROUTER_INTERFACE_ID, false, true, false, true,
       "Next hop entry router interface ID", SAI_ATTR_VAL_TYPE_OID },
     { SAI_NEXT_HOP_ATTR_TUNNEL_ID, false, true, false, true,
       "Next hop entry tunnel ID", SAI_ATTR_VAL_TYPE_OID },
@@ -91,7 +91,7 @@ static sai_status_t mlnx_translate_sdk_next_hop_entry_to_sai(_In_ const sx_next_
 
     switch (next_hop->next_hop_key.type) {
     case SX_NEXT_HOP_TYPE_IP:
-        *type = SAI_NEXT_HOP_IP;
+        *type = SAI_NEXT_HOP_TYPE_IP;
         if (SAI_STATUS_SUCCESS != (status =
                                        mlnx_translate_sdk_ip_address_to_sai(&next_hop->next_hop_key.next_hop_key_entry.
                                                                             ip_next_hop.address, next_hop_ip))) {
@@ -108,7 +108,7 @@ static sai_status_t mlnx_translate_sdk_next_hop_entry_to_sai(_In_ const sx_next_
         break;
 
     case SX_NEXT_HOP_TYPE_TUNNEL_ENCAP:
-        *type = SAI_NEXT_HOP_TUNNEL_ENCAP;
+        *type = SAI_NEXT_HOP_TYPE_TUNNEL_ENCAP;
 
         if (SAI_STATUS_SUCCESS !=
             (status =
@@ -136,7 +136,7 @@ static sai_status_t mlnx_translate_sdk_next_hop_entry_to_sai(_In_ const sx_next_
 _Success_(return == SAI_STATUS_SUCCESS)
 static sai_status_t mlnx_translate_sai_next_hop_to_sdk(_In_ sai_next_hop_type_t     type,
                                                        _In_ const sai_ip_address_t *next_hop_ip,
-                                                       _In_ sai_object_id_t         rif_id,
+                                                       _In_ const sai_object_id_t  *rif_id,
                                                        _In_ const sai_object_id_t  *tunnel_id,
                                                        _Out_ sx_next_hop_t         *next_hop)
 {
@@ -147,9 +147,10 @@ static sai_status_t mlnx_translate_sai_next_hop_to_sdk(_In_ sai_next_hop_type_t 
     SX_LOG_ENTER();
 
     switch (type) {
-    case SAI_NEXT_HOP_IP:
+    case SAI_NEXT_HOP_TYPE_IP:
         next_hop->next_hop_key.type = SX_NEXT_HOP_TYPE_IP;
         assert(NULL != next_hop_ip);
+        assert(NULL != rif_id);
         if (SAI_STATUS_SUCCESS != (sai_status =
                                        mlnx_translate_sai_ip_address_to_sdk(next_hop_ip,
                                                                             &next_hop->next_hop_key.next_hop_key_entry.
@@ -157,16 +158,27 @@ static sai_status_t mlnx_translate_sai_next_hop_to_sdk(_In_ sai_next_hop_type_t 
             SX_LOG_EXIT();
             return sai_status;
         }
+    
+        if (SAI_STATUS_SUCCESS !=
+            (sai_status = mlnx_object_to_type(*rif_id, SAI_OBJECT_TYPE_ROUTER_INTERFACE, &rif_data, NULL))) {
+            SX_LOG_EXIT();
+            return sai_status;
+        }
+
+        next_hop->next_hop_key.next_hop_key_entry.ip_next_hop.rif = (sx_router_interface_t)rif_data;
+
         break;
 
-    case SAI_NEXT_HOP_MPLS:
+    case SAI_NEXT_HOP_TYPE_MPLS:
         SX_LOG_ERR("MPLS is not supported yet\n");
         sai_status = SAI_STATUS_NOT_SUPPORTED;
         SX_LOG_EXIT();
         return sai_status;
         break;
 
-    case SAI_NEXT_HOP_TUNNEL_ENCAP:
+    case SAI_NEXT_HOP_TYPE_TUNNEL_ENCAP:
+        assert(NULL != next_hop_ip);
+        assert(NULL != tunnel_id);
         next_hop->next_hop_key.type = SX_NEXT_HOP_TYPE_TUNNEL_ENCAP;
         if (SAI_STATUS_SUCCESS !=
             (sai_status = mlnx_object_to_type(*tunnel_id, SAI_OBJECT_TYPE_TUNNEL,
@@ -212,13 +224,6 @@ static sai_status_t mlnx_translate_sai_next_hop_to_sdk(_In_ sai_next_hop_type_t 
         break;
     }
 
-    if (SAI_STATUS_SUCCESS !=
-        (sai_status = mlnx_object_to_type(rif_id, SAI_OBJECT_TYPE_ROUTER_INTERFACE, &rif_data, NULL))) {
-        SX_LOG_EXIT();
-        return sai_status;
-    }
-
-    next_hop->next_hop_key.next_hop_key_entry.ip_next_hop.rif = (sx_router_interface_t)rif_data;
     next_hop->next_hop_data.action                            = SX_ROUTER_ACTION_FORWARD;
     next_hop->next_hop_data.trap_attr.prio                    = SX_TRAP_PRIORITY_MED;
     next_hop->next_hop_data.weight                            = 1;
@@ -243,6 +248,7 @@ static sai_status_t mlnx_translate_sai_next_hop_to_sdk(_In_ sai_next_hop_type_t 
  * Note: IP address expected in Network Byte Order.
  */
 static sai_status_t mlnx_create_next_hop(_Out_ sai_object_id_t      *next_hop_id,
+                                         _In_ sai_object_id_t        switch_id,
                                          _In_ uint32_t               attr_count,
                                          _In_ const sai_attribute_t *attr_list)
 {
@@ -251,12 +257,15 @@ static sai_status_t mlnx_create_next_hop(_Out_ sai_object_id_t      *next_hop_id
     const sai_attribute_value_t *type_attr = NULL, *ip_attr = NULL, *rif_attr = NULL, *tunnel_id_attr = NULL;
     const sai_ip_address_t      *ip        = NULL;
     const sai_object_id_t       *tunnel_id = NULL;
+    const sai_object_id_t       *rif_id    = NULL;
     uint32_t                     idx       = 0, type_idx = 0, ip_idx = 0, tunnel_id_idx = 0;
     char                         list_str[MAX_LIST_VALUE_STR_LEN];
     char                         key_str[MAX_KEY_STR_LEN];
     sx_next_hop_t                sdk_next_hop;
     sx_ecmp_id_t                 sdk_ecmp_id;
     uint32_t                     next_hop_cnt;
+    bool                         is_tunnel_ipinip = false;
+    uint32_t                     tunnel_db_idx = 0;
 
     SX_LOG_ENTER();
 
@@ -284,14 +293,10 @@ static sai_status_t mlnx_create_next_hop(_Out_ sai_object_id_t      *next_hop_id
 
     assert(SAI_STATUS_SUCCESS == sai_status);
 
-    sai_status = find_attrib_in_list(attr_count, attr_list, SAI_NEXT_HOP_ATTR_ROUTER_INTERFACE_ID, &rif_attr, &idx);
-
-    assert(SAI_STATUS_SUCCESS == sai_status);
-
     switch (type_attr->s32) {
-    case SAI_NEXT_HOP_IP:
-    case SAI_NEXT_HOP_MPLS:
-    case SAI_NEXT_HOP_TUNNEL_ENCAP:
+    case SAI_NEXT_HOP_TYPE_IP:
+    case SAI_NEXT_HOP_TYPE_MPLS:
+    case SAI_NEXT_HOP_TYPE_TUNNEL_ENCAP:
         break;
 
     default:
@@ -299,6 +304,22 @@ static sai_status_t mlnx_create_next_hop(_Out_ sai_object_id_t      *next_hop_id
         SX_LOG_EXIT();
         return SAI_STATUS_INVALID_ATTR_VALUE_0 + type_idx;
         break;
+    }
+
+    sai_status = find_attrib_in_list(attr_count, attr_list, SAI_NEXT_HOP_ATTR_ROUTER_INTERFACE_ID, &rif_attr, &idx);
+
+    if ((SAI_NEXT_HOP_TYPE_TUNNEL_ENCAP == type_attr->s32) && (SAI_STATUS_SUCCESS == sai_status)) {
+        SX_LOG_ERR("Rif is not valid for tunnel encap next hop\n");
+        SX_LOG_EXIT();
+        return SAI_STATUS_INVALID_ATTRIBUTE_0 + idx;
+    } else if ((SAI_NEXT_HOP_TYPE_TUNNEL_ENCAP != type_attr->s32) && (SAI_STATUS_SUCCESS != sai_status)) {
+        SX_LOG_ERR("Missing rif for next hop ip type and mpls type\n");
+        SX_LOG_EXIT();
+        return SAI_STATUS_MANDATORY_ATTRIBUTE_MISSING;
+    } else if (SAI_NEXT_HOP_TYPE_TUNNEL_ENCAP == type_attr->s32) {
+        rif_id = NULL;
+    } else {
+        rif_id = &rif_attr->oid;
     }
 
     /* does MPLS need IP ? */
@@ -309,10 +330,11 @@ static sai_status_t mlnx_create_next_hop(_Out_ sai_object_id_t      *next_hop_id
         ip = &ip_attr->ipaddr;
     }
 
-    if (((SAI_NEXT_HOP_IP == type_attr->s32) || (SAI_NEXT_HOP_TUNNEL_ENCAP == type_attr->s32)) && (NULL == ip)) {
+    if (((SAI_NEXT_HOP_TYPE_IP == type_attr->s32) ||
+         (SAI_NEXT_HOP_TYPE_TUNNEL_ENCAP == type_attr->s32)) && (NULL == ip)) {
         SX_LOG_ERR("Missing next hop ip on create when next hop type is ip or tunnel encap\n");
         SX_LOG_EXIT();
-        return SAI_STATUS_INVALID_ATTRIBUTE_0 + ip_idx;
+        return SAI_STATUS_MANDATORY_ATTRIBUTE_MISSING;
     }
 
     if (SAI_STATUS_SUCCESS !=
@@ -325,11 +347,11 @@ static sai_status_t mlnx_create_next_hop(_Out_ sai_object_id_t      *next_hop_id
     }
 
     /* check tunnel type (ip in ip or vxlan or something else) */
-    if ((SAI_NEXT_HOP_TUNNEL_ENCAP == type_attr->s32) && (NULL == tunnel_id)) {
+    if ((SAI_NEXT_HOP_TYPE_TUNNEL_ENCAP == type_attr->s32) && (NULL == tunnel_id)) {
         SX_LOG_ERR("Missing next hop tunnel id on create when next hop type is tunnel encap\n");
         SX_LOG_EXIT();
-        return SAI_STATUS_INVALID_ATTRIBUTE_0 + tunnel_id_idx;
-    } else if ((SAI_NEXT_HOP_TUNNEL_ENCAP != type_attr->s32) && (NULL != tunnel_id)) {
+        return SAI_STATUS_MANDATORY_ATTRIBUTE_MISSING;
+    } else if ((SAI_NEXT_HOP_TYPE_TUNNEL_ENCAP != type_attr->s32) && (NULL != tunnel_id)) {
         SX_LOG_ERR("Tunnel id is not valid for non-next-hop-tunnel_encap type\n");
         SX_LOG_EXIT();
         return SAI_STATUS_INVALID_ATTRIBUTE_0 + tunnel_id_idx;
@@ -341,26 +363,58 @@ static sai_status_t mlnx_create_next_hop(_Out_ sai_object_id_t      *next_hop_id
         SX_LOG_EXIT();
         return SAI_STATUS_INVALID_ATTR_VALUE_0 + ip_idx;
     }
-    if (SAI_STATUS_SUCCESS !=
-        (sai_status =
-             mlnx_translate_sai_next_hop_to_sdk(type_attr->s32, ip, rif_attr->oid, tunnel_id, &sdk_next_hop))) {
-        SX_LOG_EXIT();
-        return sai_status;
+
+    if (SAI_NEXT_HOP_TYPE_TUNNEL_ENCAP == type_attr->s32) {
+        if (SAI_STATUS_SUCCESS !=
+            (sai_status = mlnx_get_sai_tunnel_db_idx(*tunnel_id, &tunnel_db_idx))) {
+            SX_LOG_ERR("Not able to get SAI tunnel db idx from tunnel id: %"PRIx64"\n", *tunnel_id);
+            SX_LOG_EXIT();
+            return SAI_STATUS_INVALID_ATTRIBUTE_0 + tunnel_id_idx;
+        }
+
+        sai_db_read_lock();
+
+        switch (g_sai_db_ptr->tunnel_db[tunnel_db_idx].sai_tunnel_type) {
+        case SAI_TUNNEL_TYPE_IPINIP:
+        case SAI_TUNNEL_TYPE_IPINIP_GRE:
+            is_tunnel_ipinip = true;
+            break;
+        case SAI_TUNNEL_TYPE_VXLAN:
+            is_tunnel_ipinip = false;
+            break;
+        default:
+            is_tunnel_ipinip = false;
+            break;
+        }
+
+        sai_db_unlock();
     }
 
-    next_hop_cnt = 1;
-    if (SX_STATUS_SUCCESS !=
-        (sdk_status =
-             sx_api_router_ecmp_set(gh_sdk, SX_ACCESS_CMD_CREATE, &sdk_ecmp_id, &sdk_next_hop, &next_hop_cnt))) {
-        SX_LOG_ERR("Failed to create ecmp - %s.\n", SX_STATUS_MSG(sdk_status));
-        SX_LOG_EXIT();
-        return sdk_to_sai(sdk_status);
+    if ((SAI_NEXT_HOP_TYPE_TUNNEL_ENCAP != type_attr->s32) || is_tunnel_ipinip) {
+        if (SAI_STATUS_SUCCESS !=
+            (sai_status =
+                mlnx_translate_sai_next_hop_to_sdk(type_attr->s32, ip, rif_id, tunnel_id, &sdk_next_hop))) {
+            SX_LOG_EXIT();
+            return sai_status;
+        }
+
+        next_hop_cnt = 1;
+
+        if (SX_STATUS_SUCCESS !=
+            (sdk_status =
+                 sx_api_router_ecmp_set(gh_sdk, SX_ACCESS_CMD_CREATE, &sdk_ecmp_id, &sdk_next_hop, &next_hop_cnt))) {
+            SX_LOG_ERR("Failed to create ecmp - %s.\n", SX_STATUS_MSG(sdk_status));
+            SX_LOG_EXIT();
+            return sdk_to_sai(sdk_status);
+        }
+ 
+        if (SAI_STATUS_SUCCESS !=
+            (sai_status = mlnx_create_object(SAI_OBJECT_TYPE_NEXT_HOP, sdk_ecmp_id, NULL, next_hop_id))) {
+            SX_LOG_EXIT();
+            return sai_status;
+        }
     }
-    if (SAI_STATUS_SUCCESS !=
-        (sai_status = mlnx_create_object(SAI_OBJECT_TYPE_NEXT_HOP, sdk_ecmp_id, NULL, next_hop_id))) {
-        SX_LOG_EXIT();
-        return sai_status;
-    }
+
     next_hop_key_to_str(*next_hop_id, key_str);
     SX_LOG_NTC("Created next hop %s\n", key_str);
 
@@ -420,7 +474,7 @@ static sai_status_t mlnx_remove_next_hop(_In_ sai_object_id_t next_hop_id)
  */
 static sai_status_t mlnx_set_next_hop_attribute(_In_ sai_object_id_t next_hop_id, _In_ const sai_attribute_t *attr)
 {
-    const sai_object_key_t key = { .object_id = next_hop_id };
+    const sai_object_key_t key = { .key.object_id = next_hop_id };
     char                   key_str[MAX_KEY_STR_LEN];
 
     SX_LOG_ENTER();
@@ -447,7 +501,7 @@ static sai_status_t mlnx_get_next_hop_attribute(_In_ sai_object_id_t     next_ho
                                                 _In_ uint32_t            attr_count,
                                                 _Inout_ sai_attribute_t *attr_list)
 {
-    const sai_object_key_t key = { .object_id = next_hop_id };
+    const sai_object_key_t key = { .key.object_id = next_hop_id };
     char                   key_str[MAX_KEY_STR_LEN];
 
     SX_LOG_ENTER();
@@ -485,7 +539,7 @@ static sai_status_t mlnx_next_hop_attr_get(_In_ const sai_object_key_t   *key,
            (SAI_NEXT_HOP_ATTR_TUNNEL_ID == attr));
 
     if (SAI_STATUS_SUCCESS !=
-        (status = mlnx_object_to_type(key->object_id, SAI_OBJECT_TYPE_NEXT_HOP, &sdk_ecmp_id, NULL))) {
+        (status = mlnx_object_to_type(key->key.object_id, SAI_OBJECT_TYPE_NEXT_HOP, &sdk_ecmp_id, NULL))) {
         return status;
     }
 
@@ -518,11 +572,20 @@ static sai_status_t mlnx_next_hop_attr_get(_In_ const sai_object_key_t   *key,
         break;
 
     case SAI_NEXT_HOP_ATTR_ROUTER_INTERFACE_ID:
+        if (SAI_NEXT_HOP_TYPE_TUNNEL_ENCAP == next_hop_type) {
+            SX_LOG_ERR("rif is not valid for tunnel encap next hop\n");
+            SX_LOG_EXIT();
+            return SAI_STATUS_FAILURE;
+        }
         value->oid = rif;
         break;
 
     case SAI_NEXT_HOP_ATTR_TUNNEL_ID:
-        /* add check here to error out type other than tunnel encap? */
+        if (SAI_NEXT_HOP_TYPE_TUNNEL_ENCAP != next_hop_type) {
+            SX_LOG_ERR("tunnel id is only valid for tunnel encap next hop\n");
+            SX_LOG_EXIT();
+            return SAI_STATUS_FAILURE;
+        }
         value->oid = tunnel_id;
         break;
 

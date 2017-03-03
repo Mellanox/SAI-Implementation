@@ -239,27 +239,27 @@ sai_status_t sai_log_set(_In_ sai_api_t sai_api_id, _In_ sai_log_level_t log_lev
     sx_log_severity_t severity;
 
     switch (log_level) {
-    case SAI_LOG_DEBUG:
+    case SAI_LOG_LEVEL_DEBUG:
         severity = SX_VERBOSITY_LEVEL_DEBUG;
         break;
 
-    case SAI_LOG_INFO:
+    case SAI_LOG_LEVEL_INFO:
         severity = SX_VERBOSITY_LEVEL_INFO;
         break;
 
-    case SAI_LOG_NOTICE:
+    case SAI_LOG_LEVEL_NOTICE:
         severity = SX_VERBOSITY_LEVEL_NOTICE;
         break;
 
-    case SAI_LOG_WARN:
+    case SAI_LOG_LEVEL_WARN:
         severity = SX_VERBOSITY_LEVEL_WARNING;
         break;
 
-    case SAI_LOG_ERROR:
+    case SAI_LOG_LEVEL_ERROR:
         severity = SX_VERBOSITY_LEVEL_ERROR;
         break;
 
-    case SAI_LOG_CRITICAL:
+    case SAI_LOG_LEVEL_CRITICAL:
         severity = SX_VERBOSITY_LEVEL_ERROR;
         break;
 
@@ -372,7 +372,7 @@ sai_object_type_t sai_object_type_query(_In_ sai_object_id_t sai_object_id)
 {
     sai_object_type_t type = ((mlnx_object_id_t*)&sai_object_id)->object_type;
 
-    if SAI_TYPE_CHECK_RANGE(type) {
+    if (SAI_TYPE_CHECK_RANGE(type)) {
         return type;
     } else {
         fprintf(stderr, "Unknown type %d", type);
@@ -407,6 +407,10 @@ sai_status_t sai_dbg_generate_dump(_In_ const char *dump_file_name)
 
     dbg_utils_print_module_header(file, "SAI DEBUG DUMP");
 
+    SAI_dump_acl(file);
+
+    SAI_dump_buffer(file);
+
     SAI_dump_hash(file);
 
     SAI_dump_hostintf(file);
@@ -415,13 +419,21 @@ sai_status_t sai_dbg_generate_dump(_In_ const char *dump_file_name)
 
     SAI_dump_port(file);
 
+    SAI_dump_qosmaps(file);
+
+    SAI_dump_queue(file);
+
     SAI_dump_samplepacket(file);
+
+    SAI_dump_scheduler(file);
 
     SAI_dump_stp(file);
 
     SAI_dump_tunnel(file);
 
     SAI_dump_vlan(file);
+
+    SAI_dump_wred(file);
 
     fclose(file);
 

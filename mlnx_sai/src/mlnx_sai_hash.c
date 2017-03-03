@@ -28,7 +28,7 @@
 
 static sx_verbosity_level_t LOG_VAR_NAME(__MODULE__) = SX_VERBOSITY_LEVEL_WARNING;
 static const sai_attribute_entry_t hash_attribs[] = {
-    { SAI_HASH_ATTR_NATIVE_FIELD_LIST, false, true, true, true,
+    { SAI_HASH_ATTR_NATIVE_HASH_FIELD_LIST, false, true, true, true,
       "Hash native fields", SAI_ATTR_VAL_TYPE_S32LIST },
     { SAI_HASH_ATTR_UDF_GROUP_LIST, false, true, true, true,
       "Hash user defined fields", SAI_ATTR_VAL_TYPE_S32LIST },
@@ -44,7 +44,7 @@ static sai_status_t mlnx_hash_native_field_list_set(_In_ const sai_object_key_t 
                                                     _In_ const sai_attribute_value_t *value,
                                                     void                             *arg);
 static const sai_vendor_attribute_entry_t hash_vendor_attribs[] = {
-    { SAI_HASH_ATTR_NATIVE_FIELD_LIST,
+    { SAI_HASH_ATTR_NATIVE_HASH_FIELD_LIST,
       { true, false, true, true },
       { true, false, true, true },
       mlnx_hash_native_field_list_get, NULL,
@@ -1020,7 +1020,7 @@ static sai_status_t mlnx_hash_native_field_list_get(_In_ const sai_object_key_t 
                                                     void                          *arg)
 {
     uint32_t        hash_data                = 0;
-    sai_object_id_t hash_id                  = key->object_id;
+    sai_object_id_t hash_id                  = key->key.object_id;
     char            key_str[MAX_KEY_STR_LEN] = {0};
     sai_status_t    status                   = SAI_STATUS_SUCCESS;
 
@@ -1046,7 +1046,7 @@ static sai_status_t mlnx_hash_native_field_list_set(_In_ const sai_object_key_t 
 {
     mlnx_switch_usage_hash_object_id_t hash_oper_id             = 0;
     uint32_t                           hash_data                = 0;
-    sai_object_id_t                    hash_id                  = key->object_id;
+    sai_object_id_t                    hash_id                  = key->key.object_id;
     char                               key_str[MAX_KEY_STR_LEN] = {0};
     sai_status_t                       status                   = SAI_STATUS_SUCCESS;
 
@@ -1104,6 +1104,7 @@ out:
  *
  */
 static sai_status_t mlnx_create_hash(_Out_ sai_object_id_t     * hash_id,
+                                     _In_ sai_object_id_t        switch_id,
                                      _In_ uint32_t               attr_count,
                                      _In_ const sai_attribute_t *attr_list)
 {
@@ -1139,7 +1140,7 @@ static sai_status_t mlnx_create_hash(_Out_ sai_object_id_t     * hash_id,
         return status;
     }
 
-    status = find_attrib_in_list(attr_count, attr_list, SAI_HASH_ATTR_NATIVE_FIELD_LIST,
+    status = find_attrib_in_list(attr_count, attr_list, SAI_HASH_ATTR_NATIVE_HASH_FIELD_LIST,
                                  &native_filed_list, &index);
     if (SAI_STATUS_SUCCESS == status) {
         status = mlnx_hash_obj_native_fields_set(*hash_id, native_filed_list);
@@ -1204,7 +1205,7 @@ static sai_status_t mlnx_remove_hash(_In_ sai_object_id_t hash_id)
  */
 static sai_status_t mlnx_set_hash_attribute(_In_ sai_object_id_t hash_id, _In_ const sai_attribute_t *attr)
 {
-    const sai_object_key_t key = { .object_id = hash_id };
+    const sai_object_key_t key = { .key.object_id = hash_id };
     char                   key_str[MAX_KEY_STR_LEN];
 
     SX_LOG_ENTER();
@@ -1230,7 +1231,7 @@ static sai_status_t mlnx_get_hash_attribute(_In_ sai_object_id_t     hash_id,
                                             _In_ uint32_t            attr_count,
                                             _Inout_ sai_attribute_t *attr_list)
 {
-    const sai_object_key_t key = { .object_id = hash_id };
+    const sai_object_key_t key = { .key.object_id = hash_id };
     char                   key_str[MAX_KEY_STR_LEN];
 
     SX_LOG_ENTER();

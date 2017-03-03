@@ -43,7 +43,7 @@ static const sai_attribute_entry_t mirror_attribs[] = {
       "Mirror session attr vlan pri", SAI_ATTR_VAL_TYPE_U8 },
     { SAI_MIRROR_SESSION_ATTR_VLAN_CFI, false, true, true, true,
       "Mirror session attr vlan cfi", SAI_ATTR_VAL_TYPE_U8 },
-    { SAI_MIRROR_SESSION_ATTR_ENCAP_TYPE, false, true, false, true,
+    { SAI_MIRROR_SESSION_ATTR_ERSPAN_ENCAPSULATION_TYPE, false, true, false, true,
       "Mirror session attr encap type", SAI_ATTR_VAL_TYPE_S32 },
     { SAI_MIRROR_SESSION_ATTR_IPHDR_VERSION, false, true, false, true,
       "Mirror session attr iphdr version", SAI_ATTR_VAL_TYPE_U8 },
@@ -220,7 +220,7 @@ static const sai_vendor_attribute_entry_t mirror_vendor_attribs[] = {
       { true, false, true, true },
       mlnx_mirror_session_vlan_cfi_get, NULL,
       mlnx_mirror_session_vlan_cfi_set, NULL },
-    { SAI_MIRROR_SESSION_ATTR_ENCAP_TYPE,
+    { SAI_MIRROR_SESSION_ATTR_ERSPAN_ENCAPSULATION_TYPE,
       { true, false, false, true },
       { true, false, false, true },
       mlnx_mirror_session_encap_type_get, NULL,
@@ -273,7 +273,7 @@ static void mirror_key_to_str(_In_ const sai_object_id_t sai_mirror_obj_id, _Out
     SX_LOG_ENTER();
 
     if (SAI_STATUS_SUCCESS !=
-        mlnx_object_to_type(sai_mirror_obj_id, SAI_OBJECT_TYPE_MIRROR, &sdk_mirror_obj_id, NULL)) {
+        mlnx_object_to_type(sai_mirror_obj_id, SAI_OBJECT_TYPE_MIRROR_SESSION, &sdk_mirror_obj_id, NULL)) {
         snprintf(key_str, MAX_KEY_STR_LEN, "Invalid sai mirror obj ID %" PRId64 "", sai_mirror_obj_id);
     } else {
         snprintf(key_str,
@@ -296,7 +296,8 @@ static sai_status_t mlnx_get_sdk_mirror_obj_params(_In_ sai_object_id_t         
     SX_LOG_ENTER();
 
     if (SAI_STATUS_SUCCESS !=
-        (status = mlnx_object_to_type(sai_mirror_obj_id, SAI_OBJECT_TYPE_MIRROR, &sdk_mirror_obj_id_u32, NULL))) {
+        (status =
+             mlnx_object_to_type(sai_mirror_obj_id, SAI_OBJECT_TYPE_MIRROR_SESSION, &sdk_mirror_obj_id_u32, NULL))) {
         SX_LOG_ERR("Invalid sai mirror obj id %" PRId64 "\n", sai_mirror_obj_id);
         SX_LOG_EXIT();
         return status;
@@ -329,23 +330,23 @@ static sai_status_t mlnx_mirror_session_type_get(_In_ const sai_object_key_t   *
     SX_LOG_ENTER();
 
     if (SAI_STATUS_SUCCESS !=
-        (status = mlnx_get_sdk_mirror_obj_params(key->object_id, NULL, &sdk_mirror_obj_params))) {
-        SX_LOG_ERR("Error getting mirror session params from sai mirror obj id %" PRId64 "\n", key->object_id);
+        (status = mlnx_get_sdk_mirror_obj_params(key->key.object_id, NULL, &sdk_mirror_obj_params))) {
+        SX_LOG_ERR("Error getting mirror session params from sai mirror obj id %" PRId64 "\n", key->key.object_id);
         SX_LOG_EXIT();
         return status;
     }
 
     switch (sdk_mirror_obj_params.span_type) {
     case SX_SPAN_TYPE_LOCAL_ETH_TYPE1:
-        value->s32 = SAI_MIRROR_TYPE_LOCAL;
+        value->s32 = SAI_MIRROR_SESSION_TYPE_LOCAL;
         break;
 
     case SX_SPAN_TYPE_REMOTE_ETH_VLAN_TYPE1:
-        value->s32 = SAI_MIRROR_TYPE_REMOTE;
+        value->s32 = SAI_MIRROR_SESSION_TYPE_REMOTE;
         break;
 
     case SX_SPAN_TYPE_REMOTE_ETH_L3_TYPE1:
-        value->s32 = SAI_MIRROR_TYPE_ENHANCED_REMOTE;
+        value->s32 = SAI_MIRROR_SESSION_TYPE_ENHANCED_REMOTE;
         break;
 
     default:
@@ -372,8 +373,8 @@ static sai_status_t mlnx_mirror_session_monitor_port_get(_In_ const sai_object_k
     SX_LOG_ENTER();
 
     if (SAI_STATUS_SUCCESS !=
-        (status = mlnx_object_to_type(key->object_id, SAI_OBJECT_TYPE_MIRROR, &sdk_mirror_obj_id, NULL))) {
-        SX_LOG_ERR("Invalid mirror session id %" PRId64 "\n", key->object_id);
+        (status = mlnx_object_to_type(key->key.object_id, SAI_OBJECT_TYPE_MIRROR_SESSION, &sdk_mirror_obj_id, NULL))) {
+        SX_LOG_ERR("Invalid mirror session id %" PRId64 "\n", key->key.object_id);
         SX_LOG_EXIT();
         return status;
     }
@@ -417,8 +418,8 @@ static sai_status_t mlnx_mirror_session_truncate_size_get(_In_ const sai_object_
     SX_LOG_ENTER();
 
     if (SAI_STATUS_SUCCESS !=
-        (status = mlnx_get_sdk_mirror_obj_params(key->object_id, NULL, &sdk_mirror_obj_params))) {
-        SX_LOG_ERR("Error getting mirror session params from sai mirror obj id %" PRId64 "\n", key->object_id);
+        (status = mlnx_get_sdk_mirror_obj_params(key->key.object_id, NULL, &sdk_mirror_obj_params))) {
+        SX_LOG_ERR("Error getting mirror session params from sai mirror obj id %" PRId64 "\n", key->key.object_id);
         SX_LOG_EXIT();
         return status;
     }
@@ -445,8 +446,8 @@ static sai_status_t mlnx_mirror_session_tc_get(_In_ const sai_object_key_t   *ke
     SX_LOG_ENTER();
 
     if (SAI_STATUS_SUCCESS !=
-        (status = mlnx_get_sdk_mirror_obj_params(key->object_id, NULL, &sdk_mirror_obj_params))) {
-        SX_LOG_ERR("Error getting mirror session params from sai mirror obj id %" PRId64 "\n", key->object_id);
+        (status = mlnx_get_sdk_mirror_obj_params(key->key.object_id, NULL, &sdk_mirror_obj_params))) {
+        SX_LOG_ERR("Error getting mirror session params from sai mirror obj id %" PRId64 "\n", key->key.object_id);
         SX_LOG_EXIT();
         return status;
     }
@@ -487,8 +488,8 @@ static sai_status_t mlnx_mirror_session_vlan_tpid_get(_In_ const sai_object_key_
     SX_LOG_ENTER();
 
     if (SAI_STATUS_SUCCESS !=
-        (status = mlnx_get_sdk_mirror_obj_params(key->object_id, NULL, &sdk_mirror_obj_params))) {
-        SX_LOG_ERR("Error getting mirror session params from sai mirror obj id %" PRId64 "\n", key->object_id);
+        (status = mlnx_get_sdk_mirror_obj_params(key->key.object_id, NULL, &sdk_mirror_obj_params))) {
+        SX_LOG_ERR("Error getting mirror session params from sai mirror obj id %" PRId64 "\n", key->key.object_id);
         SX_LOG_EXIT();
         return status;
     }
@@ -522,8 +523,8 @@ static sai_status_t mlnx_mirror_session_vlan_id_get(_In_ const sai_object_key_t 
     SX_LOG_ENTER();
 
     if (SAI_STATUS_SUCCESS !=
-        (status = mlnx_get_sdk_mirror_obj_params(key->object_id, NULL, &sdk_mirror_obj_params))) {
-        SX_LOG_ERR("Error getting mirror session params from sai mirror obj id %" PRId64 "\n", key->object_id);
+        (status = mlnx_get_sdk_mirror_obj_params(key->key.object_id, NULL, &sdk_mirror_obj_params))) {
+        SX_LOG_ERR("Error getting mirror session params from sai mirror obj id %" PRId64 "\n", key->key.object_id);
         SX_LOG_EXIT();
         return status;
     }
@@ -560,8 +561,8 @@ static sai_status_t mlnx_mirror_session_vlan_pri_get(_In_ const sai_object_key_t
     SX_LOG_ENTER();
 
     if (SAI_STATUS_SUCCESS !=
-        (status = mlnx_get_sdk_mirror_obj_params(key->object_id, NULL, &sdk_mirror_obj_params))) {
-        SX_LOG_ERR("Error getting mirror session params from sai mirror obj id %" PRId64 "\n", key->object_id);
+        (status = mlnx_get_sdk_mirror_obj_params(key->key.object_id, NULL, &sdk_mirror_obj_params))) {
+        SX_LOG_ERR("Error getting mirror session params from sai mirror obj id %" PRId64 "\n", key->key.object_id);
         SX_LOG_EXIT();
         return status;
     }
@@ -598,8 +599,8 @@ static sai_status_t mlnx_mirror_session_vlan_cfi_get(_In_ const sai_object_key_t
     SX_LOG_ENTER();
 
     if (SAI_STATUS_SUCCESS !=
-        (status = mlnx_get_sdk_mirror_obj_params(key->object_id, NULL, &sdk_mirror_obj_params))) {
-        SX_LOG_ERR("Error getting mirror session params from sai mirror obj id %" PRId64 "\n", key->object_id);
+        (status = mlnx_get_sdk_mirror_obj_params(key->key.object_id, NULL, &sdk_mirror_obj_params))) {
+        SX_LOG_ERR("Error getting mirror session params from sai mirror obj id %" PRId64 "\n", key->key.object_id);
         SX_LOG_EXIT();
         return status;
     }
@@ -636,15 +637,15 @@ static sai_status_t mlnx_mirror_session_encap_type_get(_In_ const sai_object_key
     SX_LOG_ENTER();
 
     if (SAI_STATUS_SUCCESS !=
-        (status = mlnx_get_sdk_mirror_obj_params(key->object_id, NULL, &sdk_mirror_obj_params))) {
-        SX_LOG_ERR("Error getting mirror session params from sai mirror obj id %" PRId64 "\n", key->object_id);
+        (status = mlnx_get_sdk_mirror_obj_params(key->key.object_id, NULL, &sdk_mirror_obj_params))) {
+        SX_LOG_ERR("Error getting mirror session params from sai mirror obj id %" PRId64 "\n", key->key.object_id);
         SX_LOG_EXIT();
         return status;
     }
 
     switch (sdk_mirror_obj_params.span_type) {
     case SX_SPAN_TYPE_REMOTE_ETH_L3_TYPE1:
-        value->s32 = SAI_MIRROR_L3_GRE_TUNNEL;
+        value->s32 = SAI_ERSPAN_ENCAPSULATION_TYPE_MIRROR_L3_GRE_TUNNEL;
         break;
 
     default:
@@ -670,8 +671,8 @@ static sai_status_t mlnx_mirror_session_iphdr_version_get(_In_ const sai_object_
     SX_LOG_ENTER();
 
     if (SAI_STATUS_SUCCESS !=
-        (status = mlnx_get_sdk_mirror_obj_params(key->object_id, NULL, &sdk_mirror_obj_params))) {
-        SX_LOG_ERR("Error getting mirror session params from sai mirror obj id %" PRId64 "\n", key->object_id);
+        (status = mlnx_get_sdk_mirror_obj_params(key->key.object_id, NULL, &sdk_mirror_obj_params))) {
+        SX_LOG_ERR("Error getting mirror session params from sai mirror obj id %" PRId64 "\n", key->key.object_id);
         SX_LOG_EXIT();
         return status;
     }
@@ -712,8 +713,8 @@ static sai_status_t mlnx_mirror_session_tos_get(_In_ const sai_object_key_t   *k
     SX_LOG_ENTER();
 
     if (SAI_STATUS_SUCCESS !=
-        (status = mlnx_get_sdk_mirror_obj_params(key->object_id, NULL, &sdk_mirror_obj_params))) {
-        SX_LOG_ERR("Error getting mirror session params from sai mirror obj id %" PRId64 "\n", key->object_id);
+        (status = mlnx_get_sdk_mirror_obj_params(key->key.object_id, NULL, &sdk_mirror_obj_params))) {
+        SX_LOG_ERR("Error getting mirror session params from sai mirror obj id %" PRId64 "\n", key->key.object_id);
         SX_LOG_EXIT();
         return status;
     }
@@ -749,8 +750,8 @@ static sai_status_t mlnx_mirror_session_ttl_get(_In_ const sai_object_key_t   *k
     SX_LOG_ENTER();
 
     if (SAI_STATUS_SUCCESS !=
-        (status = mlnx_get_sdk_mirror_obj_params(key->object_id, NULL, &sdk_mirror_obj_params))) {
-        SX_LOG_ERR("Error getting mirror session params from sai mirror obj id %" PRId64 "\n", key->object_id);
+        (status = mlnx_get_sdk_mirror_obj_params(key->key.object_id, NULL, &sdk_mirror_obj_params))) {
+        SX_LOG_ERR("Error getting mirror session params from sai mirror obj id %" PRId64 "\n", key->key.object_id);
         SX_LOG_EXIT();
         return status;
     }
@@ -785,8 +786,8 @@ static sai_status_t mlnx_mirror_session_ip_address_get(_In_ const sai_object_key
     assert((MIRROR_SRC_IP_ADDRESS == (long)arg) || (MIRROR_DST_IP_ADDRESS == (long)arg));
 
     if (SAI_STATUS_SUCCESS !=
-        (status = mlnx_get_sdk_mirror_obj_params(key->object_id, NULL, &sdk_mirror_obj_params))) {
-        SX_LOG_ERR("Error getting mirror session params from sai mirror obj id %" PRId64 "\n", key->object_id);
+        (status = mlnx_get_sdk_mirror_obj_params(key->key.object_id, NULL, &sdk_mirror_obj_params))) {
+        SX_LOG_ERR("Error getting mirror session params from sai mirror obj id %" PRId64 "\n", key->key.object_id);
         SX_LOG_EXIT();
         return status;
     }
@@ -830,8 +831,8 @@ static sai_status_t mlnx_mirror_session_mac_address_get(_In_ const sai_object_ke
     assert((MIRROR_SRC_MAC_ADDRESS == (long)arg) || (MIRROR_DST_MAC_ADDRESS == (long)arg));
 
     if (SAI_STATUS_SUCCESS !=
-        (status = mlnx_get_sdk_mirror_obj_params(key->object_id, NULL, &sdk_mirror_obj_params))) {
-        SX_LOG_ERR("Error getting mirror session params from sai mirror obj id %" PRId64 "\n", key->object_id);
+        (status = mlnx_get_sdk_mirror_obj_params(key->key.object_id, NULL, &sdk_mirror_obj_params))) {
+        SX_LOG_ERR("Error getting mirror session params from sai mirror obj id %" PRId64 "\n", key->key.object_id);
         SX_LOG_EXIT();
         return status;
     }
@@ -870,8 +871,8 @@ static sai_status_t mlnx_mirror_session_gre_protocol_type_get(_In_ const sai_obj
     SX_LOG_ENTER();
 
     if (SAI_STATUS_SUCCESS !=
-        (status = mlnx_get_sdk_mirror_obj_params(key->object_id, NULL, &sdk_mirror_obj_params))) {
-        SX_LOG_ERR("Error getting mirror session params from sai mirror obj id %" PRId64 "\n", key->object_id);
+        (status = mlnx_get_sdk_mirror_obj_params(key->key.object_id, NULL, &sdk_mirror_obj_params))) {
+        SX_LOG_ERR("Error getting mirror session params from sai mirror obj id %" PRId64 "\n", key->key.object_id);
         SX_LOG_EXIT();
         return status;
     }
@@ -1007,8 +1008,9 @@ static sai_status_t mlnx_mirror_session_monitor_port_set(_In_ const sai_object_k
     SX_LOG_ENTER();
 
     if (SAI_STATUS_SUCCESS !=
-        (status = mlnx_object_to_type(key->object_id, SAI_OBJECT_TYPE_MIRROR, &sdk_mirror_obj_id_u32, NULL))) {
-        SX_LOG_ERR("Invalid sai mirror obj id %" PRId64 "\n", key->object_id);
+        (status =
+             mlnx_object_to_type(key->key.object_id, SAI_OBJECT_TYPE_MIRROR_SESSION, &sdk_mirror_obj_id_u32, NULL))) {
+        SX_LOG_ERR("Invalid sai mirror obj id %" PRId64 "\n", key->key.object_id);
         SX_LOG_EXIT();
         return status;
     }
@@ -1045,8 +1047,8 @@ static sai_status_t mlnx_mirror_session_truncate_size_set(_In_ const sai_object_
     SX_LOG_ENTER();
 
     if (SAI_STATUS_SUCCESS !=
-        (status = mlnx_get_sdk_mirror_obj_params(key->object_id, &sdk_mirror_obj_id, &sdk_mirror_obj_params))) {
-        SX_LOG_ERR("Error getting mirror session params from sai mirror obj id %" PRId64 "\n", key->object_id);
+        (status = mlnx_get_sdk_mirror_obj_params(key->key.object_id, &sdk_mirror_obj_id, &sdk_mirror_obj_params))) {
+        SX_LOG_ERR("Error getting mirror session params from sai mirror obj id %" PRId64 "\n", key->key.object_id);
         SX_LOG_EXIT();
         return status;
     }
@@ -1084,8 +1086,8 @@ static sai_status_t mlnx_mirror_session_tc_set(_In_ const sai_object_key_t      
     SX_LOG_ENTER();
 
     if (SAI_STATUS_SUCCESS !=
-        (status = mlnx_get_sdk_mirror_obj_params(key->object_id, &sdk_mirror_obj_id, &sdk_mirror_obj_params))) {
-        SX_LOG_ERR("Error getting mirror session params from sai mirror obj id %" PRId64 "\n", key->object_id);
+        (status = mlnx_get_sdk_mirror_obj_params(key->key.object_id, &sdk_mirror_obj_id, &sdk_mirror_obj_params))) {
+        SX_LOG_ERR("Error getting mirror session params from sai mirror obj id %" PRId64 "\n", key->key.object_id);
         SX_LOG_EXIT();
         return status;
     }
@@ -1138,8 +1140,8 @@ static sai_status_t mlnx_mirror_session_vlan_tpid_set(_In_ const sai_object_key_
     SX_LOG_ENTER();
 
     if (SAI_STATUS_SUCCESS !=
-        (status = mlnx_get_sdk_mirror_obj_params(key->object_id, &sdk_mirror_obj_id, &sdk_mirror_obj_params))) {
-        SX_LOG_ERR("Error getting mirror session params from sai mirror obj id %" PRId64 "\n", key->object_id);
+        (status = mlnx_get_sdk_mirror_obj_params(key->key.object_id, &sdk_mirror_obj_id, &sdk_mirror_obj_params))) {
+        SX_LOG_ERR("Error getting mirror session params from sai mirror obj id %" PRId64 "\n", key->key.object_id);
         SX_LOG_EXIT();
         return status;
     }
@@ -1177,8 +1179,8 @@ static sai_status_t mlnx_mirror_session_vlan_id_set(_In_ const sai_object_key_t 
     SX_LOG_ENTER();
 
     if (SAI_STATUS_SUCCESS !=
-        (status = mlnx_get_sdk_mirror_obj_params(key->object_id, &sdk_mirror_obj_id, &sdk_mirror_obj_params))) {
-        SX_LOG_ERR("Error getting mirror session params from sai mirror obj id %" PRId64 "\n", key->object_id);
+        (status = mlnx_get_sdk_mirror_obj_params(key->key.object_id, &sdk_mirror_obj_id, &sdk_mirror_obj_params))) {
+        SX_LOG_ERR("Error getting mirror session params from sai mirror obj id %" PRId64 "\n", key->key.object_id);
         SX_LOG_EXIT();
         return status;
     }
@@ -1240,8 +1242,8 @@ static sai_status_t mlnx_mirror_session_vlan_pri_set(_In_ const sai_object_key_t
     }
 
     if (SAI_STATUS_SUCCESS !=
-        (status = mlnx_get_sdk_mirror_obj_params(key->object_id, &sdk_mirror_obj_id, &sdk_mirror_obj_params))) {
-        SX_LOG_ERR("Error getting mirror session params from sai mirror obj id %" PRId64 "\n", key->object_id);
+        (status = mlnx_get_sdk_mirror_obj_params(key->key.object_id, &sdk_mirror_obj_id, &sdk_mirror_obj_params))) {
+        SX_LOG_ERR("Error getting mirror session params from sai mirror obj id %" PRId64 "\n", key->key.object_id);
         SX_LOG_EXIT();
         return status;
     }
@@ -1293,8 +1295,8 @@ static sai_status_t mlnx_mirror_session_vlan_cfi_set(_In_ const sai_object_key_t
     }
 
     if (SAI_STATUS_SUCCESS !=
-        (status = mlnx_get_sdk_mirror_obj_params(key->object_id, &sdk_mirror_obj_id, &sdk_mirror_obj_params))) {
-        SX_LOG_ERR("Error getting mirror session params from sai mirror obj id %" PRId64 "\n", key->object_id);
+        (status = mlnx_get_sdk_mirror_obj_params(key->key.object_id, &sdk_mirror_obj_id, &sdk_mirror_obj_params))) {
+        SX_LOG_ERR("Error getting mirror session params from sai mirror obj id %" PRId64 "\n", key->key.object_id);
         SX_LOG_EXIT();
         return status;
     }
@@ -1340,8 +1342,8 @@ static sai_status_t mlnx_mirror_session_tos_set(_In_ const sai_object_key_t     
     SX_LOG_ENTER();
 
     if (SAI_STATUS_SUCCESS !=
-        (status = mlnx_get_sdk_mirror_obj_params(key->object_id, &sdk_mirror_obj_id, &sdk_mirror_obj_params))) {
-        SX_LOG_ERR("Error getting mirror session params from sai mirror obj id %" PRId64 "\n", key->object_id);
+        (status = mlnx_get_sdk_mirror_obj_params(key->key.object_id, &sdk_mirror_obj_id, &sdk_mirror_obj_params))) {
+        SX_LOG_ERR("Error getting mirror session params from sai mirror obj id %" PRId64 "\n", key->key.object_id);
         SX_LOG_EXIT();
         return status;
     }
@@ -1387,8 +1389,8 @@ static sai_status_t mlnx_mirror_session_ttl_set(_In_ const sai_object_key_t     
     SX_LOG_ENTER();
 
     if (SAI_STATUS_SUCCESS !=
-        (status = mlnx_get_sdk_mirror_obj_params(key->object_id, &sdk_mirror_obj_id, &sdk_mirror_obj_params))) {
-        SX_LOG_ERR("Error getting mirror session params from sai mirror obj id %" PRId64 "\n", key->object_id);
+        (status = mlnx_get_sdk_mirror_obj_params(key->key.object_id, &sdk_mirror_obj_id, &sdk_mirror_obj_params))) {
+        SX_LOG_ERR("Error getting mirror session params from sai mirror obj id %" PRId64 "\n", key->key.object_id);
         SX_LOG_EXIT();
         return status;
     }
@@ -1461,8 +1463,8 @@ static sai_status_t mlnx_mirror_session_ip_address_set(_In_ const sai_object_key
     assert((MIRROR_SRC_IP_ADDRESS == (long)arg) || (MIRROR_DST_IP_ADDRESS == (long)arg));
 
     if (SAI_STATUS_SUCCESS !=
-        (status = mlnx_get_sdk_mirror_obj_params(key->object_id, &sdk_mirror_obj_id, &sdk_mirror_obj_params))) {
-        SX_LOG_ERR("Error getting mirror session params from sai mirror obj id %" PRId64 "\n", key->object_id);
+        (status = mlnx_get_sdk_mirror_obj_params(key->key.object_id, &sdk_mirror_obj_id, &sdk_mirror_obj_params))) {
+        SX_LOG_ERR("Error getting mirror session params from sai mirror obj id %" PRId64 "\n", key->key.object_id);
         SX_LOG_EXIT();
         return status;
     }
@@ -1522,8 +1524,8 @@ static sai_status_t mlnx_mirror_session_mac_address_set(_In_ const sai_object_ke
     assert((MIRROR_SRC_MAC_ADDRESS == (long)arg) || (MIRROR_DST_MAC_ADDRESS == (long)arg));
 
     if (SAI_STATUS_SUCCESS !=
-        (status = mlnx_get_sdk_mirror_obj_params(key->object_id, &sdk_mirror_obj_id, &sdk_mirror_obj_params))) {
-        SX_LOG_ERR("Error getting mirror session params from sai mirror obj id %" PRId64 "\n", key->object_id);
+        (status = mlnx_get_sdk_mirror_obj_params(key->key.object_id, &sdk_mirror_obj_id, &sdk_mirror_obj_params))) {
+        SX_LOG_ERR("Error getting mirror session params from sai mirror obj id %" PRId64 "\n", key->key.object_id);
         SX_LOG_EXIT();
         return status;
     }
@@ -1571,8 +1573,8 @@ static sai_status_t mlnx_mirror_session_gre_protocol_type_set(_In_ const sai_obj
     SX_LOG_ENTER();
 
     if (SAI_STATUS_SUCCESS !=
-        (status = mlnx_get_sdk_mirror_obj_params(key->object_id, &sdk_mirror_obj_id, &sdk_mirror_obj_params))) {
-        SX_LOG_ERR("Error getting mirror session params from sai mirror obj id %" PRId64 "\n", key->object_id);
+        (status = mlnx_get_sdk_mirror_obj_params(key->key.object_id, &sdk_mirror_obj_id, &sdk_mirror_obj_params))) {
+        SX_LOG_ERR("Error getting mirror session params from sai mirror obj id %" PRId64 "\n", key->key.object_id);
         SX_LOG_EXIT();
         return status;
     }
@@ -1671,9 +1673,9 @@ static sai_status_t mlnx_check_mirror_attribute_on_create(_In_ uint32_t         
     status = find_attrib_in_list(attr_count, attr_list, SAI_MIRROR_SESSION_ATTR_TYPE, mirror_type, &index);
     assert(SAI_STATUS_SUCCESS == status);
 
-    RSPAN_OR_ERSPAN = (SAI_MIRROR_TYPE_REMOTE == (*mirror_type)->u32) ||
-                      (SAI_MIRROR_TYPE_ENHANCED_REMOTE == (*mirror_type)->u32);
-    ERSPAN = SAI_MIRROR_TYPE_ENHANCED_REMOTE == (*mirror_type)->u32;
+    RSPAN_OR_ERSPAN = (SAI_MIRROR_SESSION_TYPE_REMOTE == (*mirror_type)->u32) ||
+                      (SAI_MIRROR_SESSION_TYPE_ENHANCED_REMOTE == (*mirror_type)->u32);
+    ERSPAN = SAI_MIRROR_SESSION_TYPE_ENHANCED_REMOTE == (*mirror_type)->u32;
 
     status = find_attrib_in_list(attr_count,
                                  attr_list,
@@ -1737,7 +1739,7 @@ static sai_status_t mlnx_check_mirror_attribute_on_create(_In_ uint32_t         
     if (SAI_STATUS_SUCCESS !=
         (status =
              mlnx_check_mirror_single_attribute_on_create(ERSPAN, attr_count, attr_list,
-                                                          SAI_MIRROR_SESSION_ATTR_ENCAP_TYPE,
+                                                          SAI_MIRROR_SESSION_ATTR_ERSPAN_ENCAPSULATION_TYPE,
                                                           "Encapsulate type", "ERSPAN", mirror_encap_type,
                                                           &index))) {
         SX_LOG_ERR("Error checking Encapsulate type on create\n");
@@ -1920,7 +1922,7 @@ static sai_status_t mlnx_set_ERSPAN_session_param(_Out_ sx_span_session_params_t
 
     SX_LOG_ENTER();
 
-    if (SAI_MIRROR_L3_GRE_TUNNEL == mirror_encap_type->s32) {
+    if (SAI_ERSPAN_ENCAPSULATION_TYPE_MIRROR_L3_GRE_TUNNEL == mirror_encap_type->s32) {
         sdk_mirror_obj_params->span_type = SX_SPAN_TYPE_REMOTE_ETH_L3_TYPE1;
         if (SAI_STATUS_SUCCESS == status_tc) {
             sdk_mirror_obj_params->span_type_format.remote_eth_l3_type1.qos_mode    = SX_SPAN_QOS_CONFIGURED;
@@ -2034,6 +2036,7 @@ static sai_status_t mlnx_set_ERSPAN_session_param(_Out_ sx_span_session_params_t
 }
 
 static sai_status_t mlnx_create_mirror_session(_Out_ sai_object_id_t      *sai_mirror_obj_id,
+                                               _In_ sai_object_id_t        switch_id,
                                                _In_ uint32_t               attr_count,
                                                _In_ const sai_attribute_t *attr_list)
 {
@@ -2083,7 +2086,7 @@ static sai_status_t mlnx_create_mirror_session(_Out_ sai_object_id_t      *sai_m
     }
 
     switch (mirror_type->s32) {
-    case SAI_MIRROR_TYPE_LOCAL:
+    case SAI_MIRROR_SESSION_TYPE_LOCAL:
         if (SAI_STATUS_SUCCESS !=
             (status = mlnx_set_SPAN_session_param(&sdk_mirror_obj_params,
                                                   mirror_tc, status_tc))) {
@@ -2093,7 +2096,7 @@ static sai_status_t mlnx_create_mirror_session(_Out_ sai_object_id_t      *sai_m
         }
         break;
 
-    case SAI_MIRROR_TYPE_REMOTE:
+    case SAI_MIRROR_SESSION_TYPE_REMOTE:
         if (SAI_STATUS_SUCCESS !=
             (status = mlnx_set_RSPAN_session_param(&sdk_mirror_obj_params,
                                                    mirror_tc, status_tc,
@@ -2105,7 +2108,7 @@ static sai_status_t mlnx_create_mirror_session(_Out_ sai_object_id_t      *sai_m
         }
         break;
 
-    case SAI_MIRROR_TYPE_ENHANCED_REMOTE:
+    case SAI_MIRROR_SESSION_TYPE_ENHANCED_REMOTE:
         if (SAI_STATUS_SUCCESS !=
             (status = mlnx_set_ERSPAN_session_param(&sdk_mirror_obj_params,
                                                     mirror_tc, status_tc,
@@ -2157,7 +2160,9 @@ static sai_status_t mlnx_create_mirror_session(_Out_ sai_object_id_t      *sai_m
     SX_LOG_NTC("Created sdk mirror obj id: %d\n", sdk_mirror_obj_id);
 
     if (SAI_STATUS_SUCCESS !=
-        (status = mlnx_create_object(SAI_OBJECT_TYPE_MIRROR, (uint32_t)sdk_mirror_obj_id, NULL, sai_mirror_obj_id))) {
+        (status =
+             mlnx_create_object(SAI_OBJECT_TYPE_MIRROR_SESSION, (uint32_t)sdk_mirror_obj_id, NULL,
+                                sai_mirror_obj_id))) {
         SX_LOG_ERR("Error creating mirror session object\n");
         SX_LOG_EXIT();
         return status;
@@ -2181,7 +2186,8 @@ static sai_status_t mlnx_remove_mirror_session(_In_ const sai_object_id_t sai_mi
     SX_LOG_ENTER();
 
     if (SAI_STATUS_SUCCESS !=
-        (status = mlnx_object_to_type(sai_mirror_obj_id, SAI_OBJECT_TYPE_MIRROR, &sdk_mirror_obj_id_u32, NULL))) {
+        (status =
+             mlnx_object_to_type(sai_mirror_obj_id, SAI_OBJECT_TYPE_MIRROR_SESSION, &sdk_mirror_obj_id_u32, NULL))) {
         SX_LOG_ERR("Invalid sai mirror obj id: %" PRId64 "\n", sai_mirror_obj_id);
         SX_LOG_EXIT();
         return status;
@@ -2214,7 +2220,7 @@ static sai_status_t mlnx_remove_mirror_session(_In_ const sai_object_id_t sai_mi
 static sai_status_t mlnx_set_mirror_session_attribute(_In_ const sai_object_id_t  sai_mirror_obj_id,
                                                       _In_ const sai_attribute_t *attr)
 {
-    const sai_object_key_t key = { .object_id = sai_mirror_obj_id };
+    const sai_object_key_t key = { .key.object_id = sai_mirror_obj_id };
     char                   key_str[MAX_KEY_STR_LEN];
     sai_status_t           status = SAI_STATUS_FAILURE;
 
@@ -2232,7 +2238,7 @@ static sai_status_t mlnx_get_mirror_session_attribute(_In_ const sai_object_id_t
                                                       _In_ uint32_t              attr_count,
                                                       _Inout_ sai_attribute_t   *attr_list)
 {
-    const sai_object_key_t key = { .object_id = sai_mirror_obj_id };
+    const sai_object_key_t key = { .key.object_id = sai_mirror_obj_id };
     char                   key_str[MAX_KEY_STR_LEN];
     sai_status_t           status = SAI_STATUS_FAILURE;
 

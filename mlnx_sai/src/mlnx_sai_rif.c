@@ -57,7 +57,7 @@ static const sai_attribute_entry_t rif_attribs[] = {
     { SAI_ROUTER_INTERFACE_ATTR_PORT_ID, false, true, false, true,
       "Router interface port ID", SAI_ATTR_VAL_TYPE_OID },
     { SAI_ROUTER_INTERFACE_ATTR_VLAN_ID, false, true, false, true,
-      "Router interface vlan ID", SAI_ATTR_VAL_TYPE_U16 },
+      "Router interface vlan ID", SAI_ATTR_VAL_TYPE_OID },
     { SAI_ROUTER_INTERFACE_ATTR_SRC_MAC_ADDRESS, false, true, true, true,
       "Router interface source MAC address", SAI_ATTR_VAL_TYPE_MAC },
     { SAI_ROUTER_INTERFACE_ATTR_ADMIN_V4_STATE, false, true, true, true,
@@ -66,6 +66,10 @@ static const sai_attribute_entry_t rif_attribs[] = {
       "Router interface admin v6 state", SAI_ATTR_VAL_TYPE_BOOL },
     { SAI_ROUTER_INTERFACE_ATTR_MTU, false, true, true, true,
       "Router interface mtu", SAI_ATTR_VAL_TYPE_U32 },
+    { SAI_ROUTER_INTERFACE_ATTR_INGRESS_ACL, false, true, true, true,
+      "RIF bind point for ingress ACL object", SAI_ATTR_VAL_TYPE_OID },
+    { SAI_ROUTER_INTERFACE_ATTR_EGRESS_ACL, false, true, true, true,
+      "RIF bind point for egress ACL object", SAI_ATTR_VAL_TYPE_OID },
     { SAI_ROUTER_INTERFACE_ATTR_NEIGHBOR_MISS_PACKET_ACTION, false, true, true, true,
       "Router interface neighbor miss action", SAI_ATTR_VAL_TYPE_S32 },
     { END_FUNCTIONALITY_ATTRIBS_ID, false, false, false, false,
@@ -128,6 +132,16 @@ static const sai_vendor_attribute_entry_t rif_vendor_attribs[] = {
       { true, false, true, true },
       mlnx_rif_attrib_get, (void*)SAI_ROUTER_INTERFACE_ATTR_MTU,
       mlnx_rif_attrib_set, (void*)SAI_ROUTER_INTERFACE_ATTR_MTU },
+    { SAI_ROUTER_INTERFACE_ATTR_INGRESS_ACL,
+      { true, false, true, true },
+      { true, false, true, true },
+      mlnx_acl_bind_point_get, (void*)MLNX_ACL_BIND_POINT_TYPE_INGRESS_ROUTER_INTERFACE,
+      mlnx_acl_bind_point_set, (void*)MLNX_ACL_BIND_POINT_TYPE_INGRESS_ROUTER_INTERFACE },
+    { SAI_ROUTER_INTERFACE_ATTR_EGRESS_ACL,
+      { true, false, true, true },
+      { true, false, true, true },
+      mlnx_acl_bind_point_get, (void*)MLNX_ACL_BIND_POINT_TYPE_EGRESS_ROUTER_INTERFACE,
+      mlnx_acl_bind_point_set, (void*)MLNX_ACL_BIND_POINT_TYPE_EGRESS_ROUTER_INTERFACE },
     { SAI_ROUTER_INTERFACE_ATTR_NEIGHBOR_MISS_PACKET_ACTION,
       { false, false, false, false },
       { true, false, true, true },
@@ -159,6 +173,7 @@ static void rif_key_to_str(_In_ sai_object_id_t rif_id, _Out_ char *key_str)
  *    Failure status code on error
  */
 static sai_status_t mlnx_create_router_interface(_Out_ sai_object_id_t      *rif_id,
+                                                 _In_ sai_object_id_t        switch_id,
                                                  _In_ uint32_t               attr_count,
                                                  _In_ const sai_attribute_t *attr_list)
 {
@@ -167,12 +182,16 @@ static sai_status_t mlnx_create_router_interface(_Out_ sai_object_id_t      *rif
     sai_status_t                 status;
     const sai_attribute_value_t *type, *vrid, *port, *vlan, *mtu, *mac, *adminv4, *adminv6;
     uint32_t                     type_index, vrid_index, port_index, vlan_index, mtu_index, mac_index, adminv4_index,
-                                 adminv6_index, vrid_data, port_data;
-    sx_router_interface_t       sdk_rif_id = 0;
-    sx_router_interface_state_t rif_state;
-    char                        list_str[MAX_LIST_VALUE_STR_LEN];
-    char                        key_str[MAX_KEY_STR_LEN];
-    mlnx_port_config_t         *port_cfg;
+                                 adminv6_index, vrid_data, port_data, acl_attr_index;
+    sx_router_interface_t        sdk_rif_id = 0;
+    sx_router_interface_state_t  rif_state;
+    char                         list_str[MAX_LIST_VALUE_STR_LEN];
+    char                         key_str[MAX_KEY_STR_LEN];
+    mlnx_port_config_t          *port_cfg;
+    const sai_attribute_value_t *attr_ing_acl  = NULL;
+    const sai_attribute_value_t *attr_egr_acl  = NULL;
+    acl_index_t                  ing_acl_index = ACL_INDEX_INVALID, egr_acl_index = ACL_INDEX_INVALID;
+    mlnx_object_id_t             vlan_obj;
 
     SX_LOG_ENTER();
 
@@ -224,9 +243,14 @@ static sai_status_t mlnx_create_router_interface(_Out_ sai_object_id_t      *rif
             return SAI_STATUS_INVALID_ATTRIBUTE_0 + port_index;
         }
 
+        status = sai_to_mlnx_object_id(SAI_OBJECT_TYPE_VLAN, vlan->oid, &vlan_obj);
+        if (SAI_ERR(status)) {
+            return status;
+        }
+
         intf_params.type          = SX_L2_INTERFACE_TYPE_VLAN;
         intf_params.ifc.vlan.swid = DEFAULT_ETH_SWID;
-        intf_params.ifc.vlan.vlan = vlan->u16;
+        intf_params.ifc.vlan.vlan = vlan_obj.id.vlan_id;
     } else if (SAI_ROUTER_INTERFACE_TYPE_PORT == type->s32) {
         if (SAI_STATUS_SUCCESS !=
             (status =
@@ -308,6 +332,38 @@ static sai_status_t mlnx_create_router_interface(_Out_ sai_object_id_t      *rif
         intf_attribs.mac_addr.ether_addr_octet[5] &= PORT_MAC_BITMASK;
     }
 
+    acl_global_lock();
+
+    status = find_attrib_in_list(attr_count,
+                                 attr_list,
+                                 SAI_ROUTER_INTERFACE_ATTR_INGRESS_ACL,
+                                 &attr_ing_acl,
+                                 &acl_attr_index);
+    if (status == SAI_STATUS_SUCCESS) {
+        status = mlnx_acl_bind_point_attrs_check_and_fetch(attr_ing_acl->oid,
+                                                           MLNX_ACL_BIND_POINT_TYPE_INGRESS_ROUTER_INTERFACE,
+                                                           acl_attr_index,
+                                                           &ing_acl_index);
+        if (SAI_ERR(status)) {
+            goto out;
+        }
+    }
+
+    status = find_attrib_in_list(attr_count,
+                                 attr_list,
+                                 SAI_ROUTER_INTERFACE_ATTR_EGRESS_ACL,
+                                 &attr_egr_acl,
+                                 &acl_attr_index);
+    if (status == SAI_STATUS_SUCCESS) {
+        status = mlnx_acl_bind_point_attrs_check_and_fetch(attr_egr_acl->oid,
+                                                           MLNX_ACL_BIND_POINT_TYPE_EGRESS_ROUTER_INTERFACE,
+                                                           acl_attr_index,
+                                                           &egr_acl_index);
+        if (SAI_ERR(status)) {
+            goto out;
+        }
+    }
+
     intf_attribs.multicast_ttl_threshold = DEFAULT_MULTICAST_TTL_THRESHOLD;
     /* Work according to global DSCP<->Prio (TC in SAI terms), SAI_SWITCH_ATTR_QOS_DSCP_TO_TC_MAP */
     intf_attribs.qos_mode = SX_ROUTER_QOS_MODE_NOP;
@@ -317,8 +373,8 @@ static sai_status_t mlnx_create_router_interface(_Out_ sai_object_id_t      *rif
              sx_api_router_interface_set(gh_sdk, SX_ACCESS_CMD_ADD, (sx_router_id_t)vrid_data,
                                          &intf_params, &intf_attribs, &sdk_rif_id))) {
         SX_LOG_ERR("Failed to set router interface - %s.\n", SX_STATUS_MSG(status));
-        SX_LOG_EXIT();
-        return sdk_to_sai(status);
+        status = sdk_to_sai(status);
+        goto out;
     }
 
     if (SAI_STATUS_SUCCESS ==
@@ -342,16 +398,34 @@ static sai_status_t mlnx_create_router_interface(_Out_ sai_object_id_t      *rif
     if (SAI_ROUTER_INTERFACE_TYPE_LOOPBACK != type->s32) {
         if (SX_STATUS_SUCCESS != (status = sx_api_router_interface_state_set(gh_sdk, sdk_rif_id, &rif_state))) {
             SX_LOG_ERR("Failed to set router interface state - %s.\n", SX_STATUS_MSG(status));
-            SX_LOG_EXIT();
-            return sdk_to_sai(status);
+            status = sdk_to_sai(status);
+            goto out;
         }
     }
 
     if (SAI_STATUS_SUCCESS !=
         (status = mlnx_create_object(SAI_OBJECT_TYPE_ROUTER_INTERFACE, sdk_rif_id, NULL, rif_id))) {
-        SX_LOG_EXIT();
-        return status;
+        goto out;
     }
+
+    if (attr_ing_acl) {
+        status = mlnx_acl_port_lag_rif_bind_point_set(*rif_id, MLNX_ACL_BIND_POINT_TYPE_INGRESS_ROUTER_INTERFACE,
+                                                      ing_acl_index);
+        if (SAI_ERR(status)) {
+            status = sdk_to_sai(status);
+            goto out;
+        }
+    }
+
+    if (attr_egr_acl) {
+        status = mlnx_acl_port_lag_rif_bind_point_set(*rif_id, MLNX_ACL_BIND_POINT_TYPE_EGRESS_ROUTER_INTERFACE,
+                                                      egr_acl_index);
+        if (SAI_ERR(status)) {
+            status = sdk_to_sai(status);
+            goto out;
+        }
+    }
+
     rif_key_to_str(*rif_id, key_str);
     SX_LOG_NTC("Created rif %s\n", key_str);
 
@@ -360,14 +434,16 @@ static sai_status_t mlnx_create_router_interface(_Out_ sai_object_id_t      *rif
         status = mlnx_port_by_log_id(intf_params.ifc.port_vlan.port, &port_cfg);
         if (SAI_ERR(status)) {
             sai_db_unlock();
-            return status;
+            goto out;
         }
         port_cfg->rifs++;
         sai_db_unlock();
     }
 
+out:
+    acl_global_unlock();
     SX_LOG_EXIT();
-    return SAI_STATUS_SUCCESS;
+    return status;
 }
 
 /*
@@ -408,6 +484,12 @@ static sai_status_t mlnx_remove_router_interface(_In_ sai_object_id_t rif_id)
         return sdk_to_sai(status);
     }
 
+    status = mlnx_acl_rif_bind_point_clear(rif_id);
+    if (SAI_ERR(status)) {
+        SX_LOG_EXIT();
+        return status;
+    }
+
     if (SX_STATUS_SUCCESS !=
         (status =
              sx_api_router_interface_set(gh_sdk, SX_ACCESS_CMD_DELETE, vrid, &intf_params, &intf_attribs,
@@ -445,7 +527,7 @@ static sai_status_t mlnx_remove_router_interface(_In_ sai_object_id_t rif_id)
  */
 static sai_status_t mlnx_set_router_interface_attribute(_In_ sai_object_id_t rif_id, _In_ const sai_attribute_t *attr)
 {
-    const sai_object_key_t key = { .object_id = rif_id };
+    const sai_object_key_t key = { .key.object_id = rif_id };
     char                   key_str[MAX_KEY_STR_LEN];
     sai_status_t           status;
 
@@ -477,7 +559,7 @@ static sai_status_t mlnx_get_router_interface_attribute(_In_ sai_object_id_t    
                                                         _In_ uint32_t            attr_count,
                                                         _Inout_ sai_attribute_t *attr_list)
 {
-    const sai_object_key_t key = { .object_id = rif_id };
+    const sai_object_key_t key = { .key.object_id = rif_id };
     char                   key_str[MAX_KEY_STR_LEN];
 
     SX_LOG_ENTER();
@@ -505,7 +587,7 @@ static sai_status_t mlnx_rif_attrib_set(_In_ const sai_object_key_t      *key,
            (SAI_ROUTER_INTERFACE_ATTR_SRC_MAC_ADDRESS == (long)arg));
 
     if (SAI_STATUS_SUCCESS !=
-        (status = mlnx_object_to_type(key->object_id, SAI_OBJECT_TYPE_ROUTER_INTERFACE, &data, NULL))) {
+        (status = mlnx_object_to_type(key->key.object_id, SAI_OBJECT_TYPE_ROUTER_INTERFACE, &data, NULL))) {
         return status;
     }
     rif_id = (sx_router_interface_t)data;
@@ -555,7 +637,7 @@ static sai_status_t mlnx_rif_admin_set(_In_ const sai_object_key_t      *key,
            (SAI_ROUTER_INTERFACE_ATTR_ADMIN_V6_STATE == (long)arg));
 
     if (SAI_STATUS_SUCCESS !=
-        (status = mlnx_object_to_type(key->object_id, SAI_OBJECT_TYPE_ROUTER_INTERFACE, &data, NULL))) {
+        (status = mlnx_object_to_type(key->key.object_id, SAI_OBJECT_TYPE_ROUTER_INTERFACE, &data, NULL))) {
         return status;
     }
     rif_id = (sx_router_interface_t)data;
@@ -598,6 +680,7 @@ static sai_status_t mlnx_rif_attrib_get(_In_ const sai_object_key_t   *key,
     sx_status_t                 status;
     sx_router_interface_t       rif_id;
     uint32_t                    data;
+    mlnx_object_id_t            mlnx_vlan_id = { 0 };
 
     SX_LOG_ENTER();
 
@@ -608,7 +691,7 @@ static sai_status_t mlnx_rif_attrib_get(_In_ const sai_object_key_t   *key,
            (SAI_ROUTER_INTERFACE_ATTR_MTU == (long)arg));
 
     if (SAI_STATUS_SUCCESS !=
-        (status = mlnx_object_to_type(key->object_id, SAI_OBJECT_TYPE_ROUTER_INTERFACE, &data, NULL))) {
+        (status = mlnx_object_to_type(key->key.object_id, SAI_OBJECT_TYPE_ROUTER_INTERFACE, &data, NULL))) {
         return status;
     }
     rif_id = (sx_router_interface_t)data;
@@ -637,7 +720,12 @@ static sai_status_t mlnx_rif_attrib_get(_In_ const sai_object_key_t   *key,
             SX_LOG_ERR("Can't get vlan id from interface whose type isn't vlan\n");
             return SAI_STATUS_INVALID_ATTRIBUTE_0 + attr_index;
         }
-        value->u16 = intf_params.ifc.vlan.vlan;
+        mlnx_vlan_id.id.vlan_id = intf_params.ifc.vlan.vlan;
+
+        status = mlnx_object_id_to_sai(SAI_OBJECT_TYPE_VLAN, &mlnx_vlan_id, &value->oid);
+        if (SAI_ERR(status)) {
+            return status;
+        }
         break;
 
     case SAI_ROUTER_INTERFACE_ATTR_MTU:
@@ -696,7 +784,7 @@ static sai_status_t mlnx_rif_admin_get(_In_ const sai_object_key_t   *key,
            (SAI_ROUTER_INTERFACE_ATTR_ADMIN_V6_STATE == (long)arg));
 
     if (SAI_STATUS_SUCCESS !=
-        (status = mlnx_object_to_type(key->object_id, SAI_OBJECT_TYPE_ROUTER_INTERFACE, &data, NULL))) {
+        (status = mlnx_object_to_type(key->key.object_id, SAI_OBJECT_TYPE_ROUTER_INTERFACE, &data, NULL))) {
         return status;
     }
     rif_id = (sx_router_interface_t)data;

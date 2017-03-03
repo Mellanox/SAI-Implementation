@@ -36,10 +36,10 @@ static sx_verbosity_level_t LOG_VAR_NAME(__MODULE__) = SX_VERBOSITY_LEVEL_WARNIN
 static const sai_attribute_entry_t lag_attribs[] = {
     { SAI_LAG_ATTR_PORT_LIST, false, false, false, true,
       "LAG port list", SAI_ATTR_VAL_TYPE_OBJLIST },
-    { SAI_LAG_ATTR_INGRESS_ACL_LIST, false, true, true, true,
-      "LAG bind point for ingress ACL objects", SAI_ATTR_VAL_TYPE_OBJLIST },
-    { SAI_LAG_ATTR_EGRESS_ACL_LIST, false, true, true, true,
-      "LAG bind point for egress ACL objects", SAI_ATTR_VAL_TYPE_OBJLIST },
+    { SAI_LAG_ATTR_INGRESS_ACL, false, true, true, true,
+      "LAG bind point for ingress ACL objects", SAI_ATTR_VAL_TYPE_OID },
+    { SAI_LAG_ATTR_EGRESS_ACL, false, true, true, true,
+      "LAG bind point for egress ACL objects", SAI_ATTR_VAL_TYPE_OID },
     { END_FUNCTIONALITY_ATTRIBS_ID, false, false, false, false,
       "", SAI_ATTR_VAL_TYPE_UNDETERMINED }
 };
@@ -54,12 +54,12 @@ static const sai_vendor_attribute_entry_t lag_vendor_attribs[] = {
       { false, false, false, true },
       mlnx_lag_port_list_get, NULL,
       NULL, NULL },
-    { SAI_LAG_ATTR_INGRESS_ACL_LIST,
+    { SAI_LAG_ATTR_INGRESS_ACL,
       { true, false, true, true },
       { true, false, true, true },
       mlnx_acl_bind_point_get, (void*)MLNX_ACL_BIND_POINT_TYPE_INGRESS_LAG,
       mlnx_acl_bind_point_set, (void*)MLNX_ACL_BIND_POINT_TYPE_INGRESS_LAG },
-    { SAI_LAG_ATTR_EGRESS_ACL_LIST,
+    { SAI_LAG_ATTR_EGRESS_ACL,
       { true, false, true, true },
       { true, false, true, true },
       mlnx_acl_bind_point_get, (void*)MLNX_ACL_BIND_POINT_TYPE_EGRESS_LAG,
@@ -138,12 +138,14 @@ static void lag_key_to_str(_In_ sai_object_id_t lag_id, _Out_ char *key_str)
 
 static void lag_member_key_to_str(_In_ sai_object_id_t lag_member_id, _Out_ char *key_str)
 {
-    uint32_t lag_memberid;
+    mlnx_object_id_t mlnx_lag_member = {0};
+    sai_status_t     status;
 
-    if (SAI_STATUS_SUCCESS != mlnx_object_to_type(lag_member_id, SAI_OBJECT_TYPE_LAG_MEMBER, &lag_memberid, NULL)) {
+    status = sai_to_mlnx_object_id(SAI_OBJECT_TYPE_LAG_MEMBER, lag_member_id, &mlnx_lag_member);
+    if (SAI_ERR(status)) {
         snprintf(key_str, MAX_KEY_STR_LEN, "Invalid LAG Member ID");
     } else {
-        snprintf(key_str, MAX_KEY_STR_LEN, "LAG ID Member %u", lag_memberid);
+        snprintf(key_str, MAX_KEY_STR_LEN, "LAG ID Member %u", mlnx_lag_member.id.log_port_id);
     }
 }
 
@@ -211,12 +213,13 @@ static sai_status_t mlnx_port_params_clone(mlnx_port_config_t *to, mlnx_port_con
         for (ii = 0; ii < MLNX_QOS_MAP_TYPES_MAX; ii++) {
             sai_object_id_t oid;
 
-            if ((ii == SAI_QOS_MAP_TC_TO_PRIORITY_GROUP) || (ii == SAI_QOS_MAP_PFC_PRIORITY_TO_PRIORITY_GROUP)) {
+            if ((ii == SAI_QOS_MAP_TYPE_TC_TO_PRIORITY_GROUP) ||
+                (ii == SAI_QOS_MAP_TYPE_PFC_PRIORITY_TO_PRIORITY_GROUP)) {
                 continue;
             }
 
             if (from->qos_maps[ii]) {
-                status = mlnx_create_object(SAI_OBJECT_TYPE_QOS_MAPS, from->qos_maps[ii], NULL, &oid);
+                status = mlnx_create_object(SAI_OBJECT_TYPE_QOS_MAP, from->qos_maps[ii], NULL, &oid);
                 if (SAI_ERR(status)) {
                     goto out;
                 }
@@ -431,8 +434,11 @@ static sai_status_t port_reset_vlan_params_from_port(mlnx_port_config_t *port, m
 
     /* Remove port from VLANs on the LAG */
     if (lag->vlans) {
-        vlan_list = (sx_port_vlans_t*)malloc(sizeof(sx_port_vlans_t) * vlan_count);
-        memset(vlan_list, 0, sizeof(sx_port_vlans_t) * vlan_count);
+        vlan_list = (sx_port_vlans_t*)calloc(vlan_count, sizeof(sx_port_vlans_t));
+        if (NULL == vlan_list) {
+            SX_LOG_ERR("Can't allocate vlan list\n");
+            return SAI_STATUS_NO_MEMORY;
+        }
 
         mlnx_vlan_id_foreach(vid) {
             if (!mlnx_vlan_port_is_set(vid, lag)) {
@@ -686,7 +692,7 @@ static sai_status_t mlnx_lag_port_list_get(_In_ const sai_object_key_t   *key,
                                            void                          *arg)
 {
     sai_status_t      status;
-    sai_object_id_t   lag_id = key->object_id;
+    sai_object_id_t   lag_id = key->key.object_id;
     sx_port_log_id_t  lag_log_port_id;
     sx_port_log_id_t *log_port_list = NULL;
     uint32_t          log_port_cnt  = 0;
@@ -749,23 +755,22 @@ static sai_status_t mlnx_lag_member_lag_id_get(_In_ const sai_object_key_t   *ke
                                                _Inout_ vendor_cache_t        *cache,
                                                void                          *arg)
 {
-    sai_status_t     status;
+    sai_object_id_t  lag_member_id   = key->key.object_id;
+    mlnx_object_id_t mlnx_lag_member = {0};
     sx_port_log_id_t lag_log_port_id = 0;
-    sx_port_log_id_t log_port_id;
-    uint8_t          extended_data[EXTENDED_DATA_SIZE];
-    sai_object_id_t  lag_member_id = key->object_id;
+    sai_status_t     status;
 
-    if (SAI_STATUS_SUCCESS != (status = mlnx_object_to_type(lag_member_id, SAI_OBJECT_TYPE_LAG_MEMBER,
-                                                            &log_port_id, extended_data))) {
+    status = sai_to_mlnx_object_id(SAI_OBJECT_TYPE_LAG_MEMBER, lag_member_id, &mlnx_lag_member);
+    if (SAI_ERR(status)) {
         return status;
     }
 
-    SX_PORT_TYPE_ID_SET(lag_log_port_id, extended_data[0]);
-    SX_PORT_LAG_ID_SET(lag_log_port_id, extended_data[1]);
-    SX_PORT_SUB_ID_SET(lag_log_port_id, extended_data[2]);
+    SX_PORT_TYPE_ID_SET(lag_log_port_id, SX_PORT_TYPE_LAG);
+    SX_PORT_LAG_ID_SET(lag_log_port_id, mlnx_lag_member.ext.lag.lag_id);
+    SX_PORT_SUB_ID_SET(lag_log_port_id, mlnx_lag_member.ext.lag.sub_id);
 
-    if (SAI_STATUS_SUCCESS !=
-        (status = mlnx_create_object(SAI_OBJECT_TYPE_LAG, lag_log_port_id, NULL, &value->oid))) {
+    status = mlnx_create_object(SAI_OBJECT_TYPE_LAG, lag_log_port_id, NULL, &value->oid);
+    if (SAI_ERR(status)) {
         return status;
     }
 
@@ -780,7 +785,7 @@ static sai_status_t mlnx_lag_member_port_id_get(_In_ const sai_object_key_t   *k
 {
     sai_status_t     status;
     sx_port_log_id_t log_port_id;
-    sai_object_id_t  lag_member_id = key->object_id;
+    sai_object_id_t  lag_member_id = key->key.object_id;
 
     if (SAI_STATUS_SUCCESS != (status = mlnx_object_to_type(lag_member_id, SAI_OBJECT_TYPE_LAG_MEMBER,
                                                             &log_port_id, NULL))) {
@@ -804,22 +809,23 @@ static sai_status_t mlnx_lag_member_egress_disable_get(_In_ const sai_object_key
     sai_status_t          status;
     sx_status_t           sx_status;
     sx_port_log_id_t      lag_log_port_id = 0;
-    sx_port_log_id_t      log_port_id;
-    uint8_t               extended_data[EXTENDED_DATA_SIZE];
-    sai_object_id_t       lag_member_id = key->object_id;
+    sai_object_id_t       lag_member_id   = key->key.object_id;
     sx_distributor_mode_t distributor_mode;
+    mlnx_object_id_t      mlnx_lag_member = {0};
 
-    if (SAI_STATUS_SUCCESS != (status = mlnx_object_to_type(lag_member_id, SAI_OBJECT_TYPE_LAG_MEMBER,
-                                                            &log_port_id, extended_data))) {
+    status = sai_to_mlnx_object_id(SAI_OBJECT_TYPE_LAG_MEMBER, lag_member_id, &mlnx_lag_member);
+    if (SAI_ERR(status)) {
         return status;
     }
 
-    SX_PORT_TYPE_ID_SET(lag_log_port_id, extended_data[0]);
-    SX_PORT_LAG_ID_SET(lag_log_port_id, extended_data[1]);
-    SX_PORT_SUB_ID_SET(lag_log_port_id, extended_data[2]);
+    SX_PORT_TYPE_ID_SET(lag_log_port_id, SX_PORT_TYPE_LAG);
+    SX_PORT_LAG_ID_SET(lag_log_port_id, mlnx_lag_member.ext.lag.lag_id);
+    SX_PORT_SUB_ID_SET(lag_log_port_id, mlnx_lag_member.ext.lag.sub_id);
 
     if (SX_STATUS_SUCCESS !=
-        (sx_status = sx_api_lag_port_distributor_get(gh_sdk, lag_log_port_id, log_port_id, &distributor_mode))) {
+        (sx_status =
+             sx_api_lag_port_distributor_get(gh_sdk, lag_log_port_id, mlnx_lag_member.id.log_port_id,
+                                             &distributor_mode))) {
         return sdk_to_sai(sx_status);
     }
 
@@ -839,22 +845,21 @@ static sai_status_t mlnx_lag_member_egress_disable_set(_In_ const sai_object_key
     sai_status_t     status;
     sx_status_t      sx_status;
     sx_port_log_id_t lag_log_port_id = 0;
-    sx_port_log_id_t log_port_id;
-    uint8_t          extended_data[EXTENDED_DATA_SIZE];
-    sai_object_id_t  lag_member_id = key->object_id;
+    sai_object_id_t  lag_member_id   = key->key.object_id;
+    mlnx_object_id_t mlnx_lag_member = {0};
 
-    if (SAI_STATUS_SUCCESS != (status = mlnx_object_to_type(lag_member_id, SAI_OBJECT_TYPE_LAG_MEMBER,
-                                                            &log_port_id, extended_data))) {
+    status = sai_to_mlnx_object_id(SAI_OBJECT_TYPE_LAG_MEMBER, lag_member_id, &mlnx_lag_member);
+    if (SAI_ERR(status)) {
         return status;
     }
 
-    SX_PORT_TYPE_ID_SET(lag_log_port_id, extended_data[0]);
-    SX_PORT_LAG_ID_SET(lag_log_port_id, extended_data[1]);
-    SX_PORT_SUB_ID_SET(lag_log_port_id, extended_data[2]);
+    SX_PORT_TYPE_ID_SET(lag_log_port_id, SX_PORT_TYPE_LAG);
+    SX_PORT_LAG_ID_SET(lag_log_port_id, mlnx_lag_member.ext.lag.lag_id);
+    SX_PORT_SUB_ID_SET(lag_log_port_id, mlnx_lag_member.ext.lag.sub_id);
 
     if (SX_STATUS_SUCCESS !=
         (sx_status = sx_api_lag_port_distributor_set
-                         (gh_sdk, lag_log_port_id, log_port_id,
+                         (gh_sdk, lag_log_port_id, mlnx_lag_member.id.log_port_id,
                          value->booldata ? DISTRIBUTOR_DISABLE : DISTRIBUTOR_ENABLE))) {
         return sdk_to_sai(sx_status);
     }
@@ -871,22 +876,23 @@ static sai_status_t mlnx_lag_member_ingress_disable_get(_In_ const sai_object_ke
     sai_status_t        status;
     sx_status_t         sx_status;
     sx_port_log_id_t    lag_log_port_id = 0;
-    sx_port_log_id_t    log_port_id;
-    uint8_t             extended_data[EXTENDED_DATA_SIZE];
-    sai_object_id_t     lag_member_id = key->object_id;
+    sai_object_id_t     lag_member_id   = key->key.object_id;
     sx_collector_mode_t collector_mode;
+    mlnx_object_id_t    mlnx_lag_member = {0};
 
-    if (SAI_STATUS_SUCCESS != (status = mlnx_object_to_type(lag_member_id, SAI_OBJECT_TYPE_LAG_MEMBER,
-                                                            &log_port_id, extended_data))) {
+    status = sai_to_mlnx_object_id(SAI_OBJECT_TYPE_LAG_MEMBER, lag_member_id, &mlnx_lag_member);
+    if (SAI_ERR(status)) {
         return status;
     }
 
-    SX_PORT_TYPE_ID_SET(lag_log_port_id, extended_data[0]);
-    SX_PORT_LAG_ID_SET(lag_log_port_id, extended_data[1]);
-    SX_PORT_SUB_ID_SET(lag_log_port_id, extended_data[2]);
+    SX_PORT_TYPE_ID_SET(lag_log_port_id, SX_PORT_TYPE_LAG);
+    SX_PORT_LAG_ID_SET(lag_log_port_id, mlnx_lag_member.ext.lag.lag_id);
+    SX_PORT_SUB_ID_SET(lag_log_port_id, mlnx_lag_member.ext.lag.sub_id);
 
     if (SX_STATUS_SUCCESS !=
-        (sx_status = sx_api_lag_port_collector_get(gh_sdk, lag_log_port_id, log_port_id, &collector_mode))) {
+        (sx_status =
+             sx_api_lag_port_collector_get(gh_sdk, lag_log_port_id, mlnx_lag_member.id.log_port_id,
+                                           &collector_mode))) {
         return sdk_to_sai(sx_status);
     }
 
@@ -906,22 +912,21 @@ static sai_status_t mlnx_lag_member_ingress_disable_set(_In_ const sai_object_ke
     sai_status_t     status;
     sx_status_t      sx_status;
     sx_port_log_id_t lag_log_port_id = 0;
-    sx_port_log_id_t log_port_id;
-    uint8_t          extended_data[EXTENDED_DATA_SIZE];
-    sai_object_id_t  lag_member_id = key->object_id;
+    sai_object_id_t  lag_member_id   = key->key.object_id;
+    mlnx_object_id_t mlnx_lag_member = {0};
 
-    if (SAI_STATUS_SUCCESS != (status = mlnx_object_to_type(lag_member_id, SAI_OBJECT_TYPE_LAG_MEMBER,
-                                                            &log_port_id, extended_data))) {
+    status = sai_to_mlnx_object_id(SAI_OBJECT_TYPE_LAG_MEMBER, lag_member_id, &mlnx_lag_member);
+    if (SAI_ERR(status)) {
         return status;
     }
 
-    SX_PORT_TYPE_ID_SET(lag_log_port_id, extended_data[0]);
-    SX_PORT_LAG_ID_SET(lag_log_port_id, extended_data[1]);
-    SX_PORT_SUB_ID_SET(lag_log_port_id, extended_data[2]);
+    SX_PORT_TYPE_ID_SET(lag_log_port_id, SX_PORT_TYPE_LAG);
+    SX_PORT_LAG_ID_SET(lag_log_port_id, mlnx_lag_member.ext.lag.lag_id);
+    SX_PORT_SUB_ID_SET(lag_log_port_id, mlnx_lag_member.ext.lag.sub_id);
 
     if (SX_STATUS_SUCCESS !=
         (sx_status = sx_api_lag_port_collector_set
-                         (gh_sdk, lag_log_port_id, log_port_id,
+                         (gh_sdk, lag_log_port_id, mlnx_lag_member.id.log_port_id,
                          value->booldata ? COLLECTOR_DISABLE : COLLECTOR_ENABLE))) {
         return sdk_to_sai(sx_status);
     }
@@ -930,6 +935,7 @@ static sai_status_t mlnx_lag_member_ingress_disable_set(_In_ const sai_object_ke
 }
 
 static sai_status_t mlnx_create_lag(_Out_ sai_object_id_t     * lag_id,
+                                    _In_ sai_object_id_t        switch_id,
                                     _In_ uint32_t               attr_count,
                                     _In_ const sai_attribute_t *attr_list)
 {
@@ -937,12 +943,9 @@ static sai_status_t mlnx_create_lag(_Out_ sai_object_id_t     * lag_id,
     sx_status_t                  sx_status;
     char                         list_str[MAX_LIST_VALUE_STR_LEN];
     char                         key_str[MAX_KEY_STR_LEN];
-    const sai_attribute_value_t *attr_ing_acl_list                         = NULL;
-    const sai_attribute_value_t *attr_egr_acl_list                         = NULL;
-    uint32_t                     ing_acl_db_indexes[ACL_MAX_BOUND_OBJECTS] = {0};
-    uint32_t                     egr_acl_db_indexes[ACL_MAX_BOUND_OBJECTS] = {0};
-    uint32_t                     ing_acl_db_indexes_count                  = 0, egr_acl_db_indexes_count = 0;
-    sai_object_type_t            ing_acl_object_type, egr_acl_object_type;
+    const sai_attribute_value_t *attr_ing_acl    = NULL;
+    const sai_attribute_value_t *attr_egr_acl    = NULL;
+    acl_index_t                  ing_acl_index   = ACL_INDEX_INVALID, egr_acl_index = ACL_INDEX_INVALID;
     sx_port_log_id_t             lag_log_port_id = 0;
     uint32_t                     ii              = 0, index;
     mlnx_port_config_t          *lag             = NULL;
@@ -964,26 +967,26 @@ static sai_status_t mlnx_create_lag(_Out_ sai_object_id_t     * lag_id,
     sai_db_write_lock();
     acl_global_lock();
 
-    status = find_attrib_in_list(attr_count, attr_list, SAI_LAG_ATTR_INGRESS_ACL_LIST, &attr_ing_acl_list, &index);
+    status = find_attrib_in_list(attr_count, attr_list, SAI_LAG_ATTR_INGRESS_ACL, &attr_ing_acl, &index);
     if (status == SAI_STATUS_SUCCESS) {
-        status = mlnx_acl_bind_point_attrs_check_and_fetch(attr_ing_acl_list, MLNX_ACL_BIND_POINT_TYPE_INGRESS_LAG,
-                                                           ing_acl_db_indexes, &ing_acl_object_type);
+        status = mlnx_acl_bind_point_attrs_check_and_fetch(attr_ing_acl->oid,
+                                                           MLNX_ACL_BIND_POINT_TYPE_INGRESS_LAG,
+                                                           index,
+                                                           &ing_acl_index);
         if (SAI_ERR(status)) {
             goto out;
         }
-
-        ing_acl_db_indexes_count = attr_ing_acl_list->objlist.count;
     }
 
-    status = find_attrib_in_list(attr_count, attr_list, SAI_LAG_ATTR_EGRESS_ACL_LIST, &attr_egr_acl_list, &index);
+    status = find_attrib_in_list(attr_count, attr_list, SAI_LAG_ATTR_EGRESS_ACL, &attr_egr_acl, &index);
     if (status == SAI_STATUS_SUCCESS) {
-        status = mlnx_acl_bind_point_attrs_check_and_fetch(attr_egr_acl_list, MLNX_ACL_BIND_POINT_TYPE_EGRESS_LAG,
-                                                           egr_acl_db_indexes, &egr_acl_object_type);
+        status = mlnx_acl_bind_point_attrs_check_and_fetch(attr_egr_acl->oid,
+                                                           MLNX_ACL_BIND_POINT_TYPE_EGRESS_LAG,
+                                                           index,
+                                                           &egr_acl_index);
         if (SAI_ERR(status)) {
             goto out;
         }
-
-        egr_acl_db_indexes_count = attr_egr_acl_list->objlist.count;
     }
 
     sai_attr_list_to_str(attr_count, attr_list, lag_attribs, MAX_LIST_VALUE_STR_LEN, list_str);
@@ -1032,17 +1035,17 @@ static sai_status_t mlnx_create_lag(_Out_ sai_object_id_t     * lag_id,
         goto out;
     }
 
-    if (attr_ing_acl_list) {
-        status = mlnx_acl_port_lag_bind_point_set(lag->saiport, MLNX_ACL_BIND_POINT_TYPE_INGRESS_LAG,
-                                                  ing_acl_object_type, ing_acl_db_indexes, ing_acl_db_indexes_count);
+    if (attr_ing_acl) {
+        status = mlnx_acl_port_lag_rif_bind_point_set(lag->saiport, MLNX_ACL_BIND_POINT_TYPE_INGRESS_LAG,
+                                                      ing_acl_index);
         if (SAI_ERR(status)) {
             goto out;
         }
     }
 
-    if (attr_egr_acl_list) {
-        status = mlnx_acl_port_lag_bind_point_set(lag->saiport, MLNX_ACL_BIND_POINT_TYPE_EGRESS_LAG,
-                                                  egr_acl_object_type, egr_acl_db_indexes, egr_acl_db_indexes_count);
+    if (attr_egr_acl) {
+        status = mlnx_acl_port_lag_rif_bind_point_set(lag->saiport, MLNX_ACL_BIND_POINT_TYPE_EGRESS_LAG,
+                                                      egr_acl_index);
         if (SAI_ERR(status)) {
             goto out;
         }
@@ -1118,7 +1121,7 @@ out:
 
 static sai_status_t mlnx_set_lag_attribute(_In_ sai_object_id_t lag_id, _In_ const sai_attribute_t *attr)
 {
-    const sai_object_key_t key = { .object_id = lag_id };
+    const sai_object_key_t key = { .key.object_id = lag_id };
     char                   key_str[MAX_KEY_STR_LEN];
 
     SX_LOG_ENTER();
@@ -1131,7 +1134,7 @@ static sai_status_t mlnx_get_lag_attribute(_In_ sai_object_id_t     lag_id,
                                            _In_ uint32_t            attr_count,
                                            _Inout_ sai_attribute_t *attr_list)
 {
-    const sai_object_key_t key = { .object_id = lag_id };
+    const sai_object_key_t key = { .key.object_id = lag_id };
     char                   key_str[MAX_KEY_STR_LEN];
 
     SX_LOG_ENTER();
@@ -1141,6 +1144,7 @@ static sai_status_t mlnx_get_lag_attribute(_In_ sai_object_id_t     lag_id,
 }
 
 static sai_status_t mlnx_create_lag_member(_Out_ sai_object_id_t     * lag_member_id,
+                                           _In_ sai_object_id_t        switch_id,
                                            _In_ uint32_t               attr_count,
                                            _In_ const sai_attribute_t *attr_list)
 {
@@ -1153,16 +1157,14 @@ static sai_status_t mlnx_create_lag_member(_Out_ sai_object_id_t     * lag_membe
     char                         key_str[MAX_KEY_STR_LEN];
     sx_port_log_id_t             lag_id;
     sx_port_log_id_t             port_id;
-    uint32_t                     port_cnt = 0;
-    uint8_t                      extended_data[EXTENDED_DATA_SIZE];
-    mlnx_port_config_t          *port         = NULL;
-    mlnx_port_config_t          *lag          = NULL;
-    sx_collector_mode_t          collect_mode = COLLECTOR_ENABLE;
-    sx_distributor_mode_t        dist_mode    = DISTRIBUTOR_ENABLE;
+    uint32_t                     port_cnt        = 0;
+    mlnx_port_config_t          *port            = NULL;
+    mlnx_port_config_t          *lag             = NULL;
+    sx_collector_mode_t          collect_mode    = COLLECTOR_ENABLE;
+    sx_distributor_mode_t        dist_mode       = DISTRIBUTOR_ENABLE;
+    mlnx_object_id_t             mlnx_lag_member = {0};
 
     SX_LOG_ENTER();
-
-    memset(extended_data, 0, sizeof(extended_data));
 
     if (NULL == lag_member_id) {
         SX_LOG_ERR("NULL lag member id param\n");
@@ -1280,11 +1282,11 @@ static sai_status_t mlnx_create_lag_member(_Out_ sai_object_id_t     * lag_membe
     port->lag_id = lag->logical;
 
     /* create lag member id */
-    extended_data[2] = SX_PORT_SUB_ID_GET(lag_id);     /* Port-Sub-ID */
-    extended_data[1] = SX_PORT_LAG_ID_GET(lag_id);     /* LAG-ID */
-    extended_data[0] = SX_PORT_TYPE_ID_GET(lag_id);    /* Type-ID: SX_PORT_TYPE_LAG */
+    mlnx_lag_member.id.log_port_id = port_id;
+    mlnx_lag_member.ext.lag.lag_id = SX_PORT_LAG_ID_GET(lag_id);
+    mlnx_lag_member.ext.lag.sub_id = SX_PORT_SUB_ID_GET(lag_id);
 
-    status = mlnx_create_object(SAI_OBJECT_TYPE_LAG_MEMBER, port_id, extended_data, lag_member_id);
+    status = mlnx_object_id_to_sai(SAI_OBJECT_TYPE_LAG_MEMBER, &mlnx_lag_member, lag_member_id);
     if (SAI_ERR(status)) {
         goto out;
     }
@@ -1299,29 +1301,27 @@ out:
 
 static sai_status_t mlnx_remove_lag_member(_In_ sai_object_id_t lag_member_id)
 {
-    uint8_t             extended_data[EXTENDED_DATA_SIZE];
     sai_status_t        status          = SAI_STATUS_SUCCESS;
+    mlnx_object_id_t    mlnx_lag_member = {0};
     sx_port_log_id_t    lag_log_port_id = 0;
-    sx_port_log_id_t    log_port_id;
     mlnx_port_config_t *port_config;
 
-    status = mlnx_object_to_type(lag_member_id, SAI_OBJECT_TYPE_LAG_MEMBER,
-                                 &log_port_id, extended_data);
+    status = sai_to_mlnx_object_id(SAI_OBJECT_TYPE_LAG_MEMBER, lag_member_id, &mlnx_lag_member);
     if (SAI_ERR(status)) {
         return status;
     }
 
-    SX_PORT_TYPE_ID_SET(lag_log_port_id, extended_data[0]);
-    SX_PORT_LAG_ID_SET(lag_log_port_id, extended_data[1]);
-    SX_PORT_SUB_ID_SET(lag_log_port_id, extended_data[2]);
+    SX_PORT_TYPE_ID_SET(lag_log_port_id, SX_PORT_TYPE_LAG);
+    SX_PORT_LAG_ID_SET(lag_log_port_id, mlnx_lag_member.ext.lag.lag_id);
+    SX_PORT_SUB_ID_SET(lag_log_port_id, mlnx_lag_member.ext.lag.sub_id);
 
     sai_db_write_lock();
-    status = remove_port_from_lag(lag_log_port_id, log_port_id);
+    status = remove_port_from_lag(lag_log_port_id, mlnx_lag_member.id.log_port_id);
     if (SAI_ERR(status)) {
         goto out;
     }
 
-    status = mlnx_port_by_log_id(log_port_id, &port_config);
+    status = mlnx_port_by_log_id(mlnx_lag_member.id.log_port_id, &port_config);
     if (SAI_ERR(status)) {
         goto out;
     }
@@ -1340,7 +1340,7 @@ out:
 
 static sai_status_t mlnx_set_lag_member_attribute(_In_ sai_object_id_t lag_member_id, _In_ const sai_attribute_t *attr)
 {
-    const sai_object_key_t key = { .object_id = lag_member_id };
+    const sai_object_key_t key = { .key.object_id = lag_member_id };
     char                   key_str[MAX_KEY_STR_LEN];
 
     SX_LOG_ENTER();
@@ -1353,7 +1353,7 @@ static sai_status_t mlnx_get_lag_member_attribute(_In_ sai_object_id_t     lag_m
                                                   _In_ uint32_t            attr_count,
                                                   _Inout_ sai_attribute_t *attr_list)
 {
-    const sai_object_key_t key = { .object_id = lag_member_id };
+    const sai_object_key_t key = { .key.object_id = lag_member_id };
     char                   key_str[MAX_KEY_STR_LEN];
 
     SX_LOG_ENTER();
@@ -1365,6 +1365,54 @@ static sai_status_t mlnx_get_lag_member_attribute(_In_ sai_object_id_t     lag_m
                               lag_member_vendor_attribs,
                               attr_count,
                               attr_list);
+}
+
+/**
+ * @brief Bulk lag members creation.
+ *
+ * @param[in] switch_id SAI Switch object id
+ * @param[in] object_count Number of objects to create
+ * @param[in] attr_count List of attr_count. Caller passes the number
+ *         of attribute for each object to create.
+ * @param[in] attrs List of attributes for every object.
+ * @param[in] type bulk operation type.
+ *
+ * @param[out] object_id List of object ids returned
+ * @param[out] object_statuses List of status for every object. Caller needs to allocate the buffer.
+ *
+ * @return #SAI_STATUS_SUCCESS on success when all objects are created or #SAI_STATUS_FAILURE when
+ * any of the objects fails to create. When there is failure, Caller is expected to go through the
+ * list of returned statuses to find out which fails and which succeeds.
+ */
+sai_status_t mlnx_create_lag_members(_In_ sai_object_id_t    switch_id,
+                                     _In_ uint32_t           object_count,
+                                     _In_ uint32_t          *attr_count,
+                                     _In_ sai_attribute_t  **attrs,
+                                     _In_ sai_bulk_op_type_t type,
+                                     _Out_ sai_object_id_t  *object_id,
+                                     _Out_ sai_status_t     *object_statuses)
+{
+    return SAI_STATUS_NOT_IMPLEMENTED;
+}
+
+/**
+ * @brief Bulk lag members removal.
+ *
+ * @param[in] object_count Number of objects to create
+ * @param[in] object_id List of object ids
+ * @param[in] type bulk operation type.
+ * @param[out] object_statuses List of status for every object. Caller needs to allocate the buffer.
+ *
+ * @return #SAI_STATUS_SUCCESS on success when all objects are removed or #SAI_STATUS_FAILURE when
+ * any of the objects fails to remove. When there is failure, Caller is expected to go through the
+ * list of returned statuses to find out which fails and which succeeds.
+ */
+sai_status_t mlnx_remove_lag_members(_In_ uint32_t           object_count,
+                                     _In_ sai_object_id_t   *object_id,
+                                     _In_ sai_bulk_op_type_t type,
+                                     _Out_ sai_status_t     *object_statuses)
+{
+    return SAI_STATUS_NOT_IMPLEMENTED;
 }
 
 sai_status_t mlnx_lag_log_set(sx_verbosity_level_t level)
@@ -1386,5 +1434,7 @@ const sai_lag_api_t mlnx_lag_api = {
     mlnx_create_lag_member,
     mlnx_remove_lag_member,
     mlnx_set_lag_member_attribute,
-    mlnx_get_lag_member_attribute
+    mlnx_get_lag_member_attribute,
+    mlnx_create_lag_members,
+    mlnx_remove_lag_members,
 };

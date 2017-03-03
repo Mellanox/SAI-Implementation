@@ -25,11 +25,11 @@
 
 static sx_verbosity_level_t LOG_VAR_NAME(__MODULE__) = SX_VERBOSITY_LEVEL_WARNING;
 static const sai_attribute_entry_t neighbor_attribs[] = {
-    { SAI_NEIGHBOR_ATTR_DST_MAC_ADDRESS, true, true, true, true,
+    { SAI_NEIGHBOR_ENTRY_ATTR_DST_MAC_ADDRESS, true, true, true, true,
       "Neighbor destination MAC", SAI_ATTR_VAL_TYPE_MAC },
-    { SAI_NEIGHBOR_ATTR_PACKET_ACTION, false, true, true, true,
+    { SAI_NEIGHBOR_ENTRY_ATTR_PACKET_ACTION, false, true, true, true,
       "Neighbor L3 forwarding action", SAI_ATTR_VAL_TYPE_S32 },
-    { SAI_NEIGHBOR_ATTR_NO_HOST_ROUTE, false, true, true, true,
+    { SAI_NEIGHBOR_ENTRY_ATTR_NO_HOST_ROUTE, false, true, true, true,
       "Neighbor not to be programmed as host", SAI_ATTR_VAL_TYPE_BOOL },
     { END_FUNCTIONALITY_ATTRIBS_ID, false, false, false, false,
       "", SAI_ATTR_VAL_TYPE_UNDETERMINED }
@@ -54,17 +54,17 @@ static sai_status_t mlnx_neighbor_no_host_set(_In_ const sai_object_key_t      *
                                               _In_ const sai_attribute_value_t *value,
                                               void                             *arg);
 static const sai_vendor_attribute_entry_t neighbor_vendor_attribs[] = {
-    { SAI_NEIGHBOR_ATTR_DST_MAC_ADDRESS,
+    { SAI_NEIGHBOR_ENTRY_ATTR_DST_MAC_ADDRESS,
       { true, false, true, true },
       { true, false, true, true },
       mlnx_neighbor_mac_get, NULL,
       mlnx_neighbor_mac_set, NULL },
-    { SAI_NEIGHBOR_ATTR_PACKET_ACTION,
+    { SAI_NEIGHBOR_ENTRY_ATTR_PACKET_ACTION,
       { true, false, true, true },
       { true, false, true, true },
       mlnx_neighbor_action_get, NULL,
       mlnx_neighbor_action_set, NULL },
-    { SAI_NEIGHBOR_ATTR_NO_HOST_ROUTE,
+    { SAI_NEIGHBOR_ENTRY_ATTR_NO_HOST_ROUTE,
       { true, false, true, false },
       { true, false, true, true },
       NULL, NULL,
@@ -149,13 +149,14 @@ static sai_status_t mlnx_create_neighbor_entry(_In_ const sai_neighbor_entry_t* 
     neigh_data.rif            = (sx_router_interface_t)rif_data;
     neigh_data.trap_attr.prio = SX_TRAP_PRIORITY_MED;
 
-    status = find_attrib_in_list(attr_count, attr_list, SAI_NEIGHBOR_ATTR_DST_MAC_ADDRESS, &mac, &mac_index);
+    status = find_attrib_in_list(attr_count, attr_list, SAI_NEIGHBOR_ENTRY_ATTR_DST_MAC_ADDRESS, &mac, &mac_index);
     assert(SAI_STATUS_SUCCESS == status);
     memcpy(&neigh_data.mac_addr, mac->mac, sizeof(neigh_data.mac_addr));
 
     if (SAI_STATUS_SUCCESS ==
         (status =
-             find_attrib_in_list(attr_count, attr_list, SAI_NEIGHBOR_ATTR_PACKET_ACTION, &action, &action_index))) {
+             find_attrib_in_list(attr_count, attr_list, SAI_NEIGHBOR_ENTRY_ATTR_PACKET_ACTION, &action,
+                                 &action_index))) {
         if (SAI_STATUS_SUCCESS !=
             (status = mlnx_translate_sai_router_action_to_sdk(action->s32, &neigh_data.action, action_index))) {
             return status;
@@ -247,8 +248,8 @@ static sai_status_t mlnx_remove_neighbor_entry(_In_ const sai_neighbor_entry_t* 
 static sai_status_t mlnx_set_neighbor_attribute(_In_ const sai_neighbor_entry_t* neighbor_entry,
                                                 _In_ const sai_attribute_t      *attr)
 {
-    const sai_object_key_t key = { .neighbor_entry = neighbor_entry };
-    char                   key_str[MAX_KEY_STR_LEN];
+    sai_object_key_t key;
+    char             key_str[MAX_KEY_STR_LEN];
 
     SX_LOG_ENTER();
 
@@ -256,6 +257,7 @@ static sai_status_t mlnx_set_neighbor_attribute(_In_ const sai_neighbor_entry_t*
         SX_LOG_ERR("NULL neighbor entry param\n");
         return SAI_STATUS_INVALID_PARAMETER;
     }
+    memcpy(&key.key.neighbor_entry, neighbor_entry, sizeof(*neighbor_entry));
 
     neighbor_key_to_str(neighbor_entry, key_str);
     return sai_set_attribute(&key, key_str, neighbor_attribs, neighbor_vendor_attribs, attr);
@@ -278,8 +280,8 @@ static sai_status_t mlnx_get_neighbor_attribute(_In_ const sai_neighbor_entry_t*
                                                 _In_ uint32_t                    attr_count,
                                                 _Inout_ sai_attribute_t         *attr_list)
 {
-    const sai_object_key_t key = { .neighbor_entry = neighbor_entry };
-    char                   key_str[MAX_KEY_STR_LEN];
+    sai_object_key_t key;
+    char             key_str[MAX_KEY_STR_LEN];
 
     SX_LOG_ENTER();
 
@@ -287,6 +289,7 @@ static sai_status_t mlnx_get_neighbor_attribute(_In_ const sai_neighbor_entry_t*
         SX_LOG_ERR("NULL neighbor entry param\n");
         return SAI_STATUS_INVALID_PARAMETER;
     }
+    memcpy(&key.key.neighbor_entry, neighbor_entry, sizeof(*neighbor_entry));
 
     neighbor_key_to_str(neighbor_entry, key_str);
     return sai_get_attributes(&key, key_str, neighbor_attribs, neighbor_vendor_attribs, attr_count, attr_list);
@@ -335,7 +338,7 @@ static sai_status_t mlnx_neighbor_mac_get(_In_ const sai_object_key_t   *key,
                                           void                          *arg)
 {
     sai_status_t                status;
-    const sai_neighbor_entry_t* neighbor_entry = key->neighbor_entry;
+    const sai_neighbor_entry_t* neighbor_entry = &key->key.neighbor_entry;
     sx_neigh_get_entry_t        neigh_entry;
 
     SX_LOG_ENTER();
@@ -358,7 +361,7 @@ static sai_status_t mlnx_neighbor_action_get(_In_ const sai_object_key_t   *key,
                                              void                          *arg)
 {
     sai_status_t                status;
-    const sai_neighbor_entry_t* neighbor_entry = key->neighbor_entry;
+    const sai_neighbor_entry_t* neighbor_entry = &key->key.neighbor_entry;
     sx_neigh_get_entry_t        neigh_entry;
 
     SX_LOG_ENTER();
@@ -425,7 +428,7 @@ static sai_status_t mlnx_neighbor_mac_set(_In_ const sai_object_key_t      *key,
                                           void                             *arg)
 {
     sai_status_t                status;
-    const sai_neighbor_entry_t* neighbor_entry = key->neighbor_entry;
+    const sai_neighbor_entry_t* neighbor_entry = &key->key.neighbor_entry;
     sx_neigh_get_entry_t        neigh_entry;
 
     SX_LOG_ENTER();
@@ -450,7 +453,7 @@ static sai_status_t mlnx_neighbor_action_set(_In_ const sai_object_key_t      *k
                                              void                             *arg)
 {
     sai_status_t                status;
-    const sai_neighbor_entry_t* neighbor_entry = key->neighbor_entry;
+    const sai_neighbor_entry_t* neighbor_entry = &key->key.neighbor_entry;
     sx_neigh_get_entry_t        neigh_entry;
 
     SX_LOG_ENTER();
@@ -498,7 +501,7 @@ static sai_status_t mlnx_neighbor_no_host_set(_In_ const sai_object_key_t      *
  *    SAI_STATUS_SUCCESS on success
  *    Failure status code on error
  */
-static sai_status_t mlnx_remove_all_neighbor_entries(void)
+static sai_status_t mlnx_remove_all_neighbor_entries(_In_ sai_object_id_t switch_id)
 {
     sai_status_t    status;
     sx_ip_addr_t    ipaddr;

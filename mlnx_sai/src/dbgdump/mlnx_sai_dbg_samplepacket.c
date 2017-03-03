@@ -38,7 +38,7 @@ static void SAI_dump_samplepacket_type_enum_to_str(_In_ sai_samplepacket_type_t 
     assert(NULL != str);
 
     switch (type) {
-    case SAI_SAMPLEPACKET_SLOW_PATH:
+    case SAI_SAMPLEPACKET_TYPE_SLOW_PATH:
         strcpy(str, "slow path");
         break;
 
@@ -70,7 +70,7 @@ static void SAI_dump_samplepacket_mode_enum_to_str(_In_ sai_samplepacket_mode_t 
 static void SAI_dump_samplepacket_print(_In_ FILE *file, _In_ mlnx_samplepacket_t *mlnx_samplepacket_session)
 {
     uint32_t                  ii              = 0;
-    sai_object_id_t           obj_id          = 0;
+    sai_object_id_t           obj_id          = SAI_NULL_OBJECT_ID;
     uint32_t                  sai_sample_rate = 0;
     char                      sai_type_str[LINE_LENGTH];
     char                      sai_mode_str[LINE_LENGTH];
@@ -93,10 +93,9 @@ static void SAI_dump_samplepacket_print(_In_ FILE *file, _In_ mlnx_samplepacket_
 
     for (ii = 0; ii < MLNX_SAMPLEPACKET_SESSION_MAX; ii++) {
         if (mlnx_samplepacket_session[ii].in_use) {
-            if (SAI_STATUS_SUCCESS ==
+            if (SAI_STATUS_SUCCESS !=
                 mlnx_create_object(SAI_OBJECT_TYPE_SAMPLEPACKET, ii, NULL, &obj_id)) {
-            } else {
-                obj_id = 0;
+                obj_id = SAI_NULL_OBJECT_ID;
             }
             sai_sample_rate = mlnx_samplepacket_session[ii].sai_sample_rate;
             SAI_dump_samplepacket_type_enum_to_str(mlnx_samplepacket_session[ii].sai_type,

@@ -197,11 +197,11 @@ static sai_status_t sai_dot1p_to_tc_color_mlnx_convert(mlnx_qos_map_t *qos_map, 
         if (!qos_map_dot1p_param_is_valid(qos_params->list[ii].key.dot1p, ii)) {
             return SAI_STATUS_INVALID_PARAMETER;
         }
-        if ((qos_map->type == SAI_QOS_MAP_DOT1P_TO_TC) &&
+        if ((qos_map->type == SAI_QOS_MAP_TYPE_DOT1P_TO_TC) &&
             !qos_map_tc_param_is_valid(qos_params->list[ii].value.tc, ii)) {
             return SAI_STATUS_INVALID_PARAMETER;
         }
-        if ((qos_map->type == SAI_QOS_MAP_DOT1P_TO_COLOR) &&
+        if ((qos_map->type == SAI_QOS_MAP_TYPE_DOT1P_TO_COLOR) &&
             !qos_map_color_param_is_valid(qos_params->list[ii].value.color, ii)) {
             return SAI_STATUS_INVALID_PARAMETER;
         }
@@ -231,11 +231,11 @@ static sai_status_t sai_dscp_to_tc_color_mlnx_convert(mlnx_qos_map_t *qos_map, c
         if (!qos_map_dscp_param_is_valid(qos_params->list[ii].key.dscp, ii)) {
             return SAI_STATUS_INVALID_PARAMETER;
         }
-        if ((qos_map->type == SAI_QOS_MAP_DSCP_TO_TC) &&
+        if ((qos_map->type == SAI_QOS_MAP_TYPE_DSCP_TO_TC) &&
             !qos_map_tc_param_is_valid(qos_params->list[ii].value.tc, ii)) {
             return SAI_STATUS_INVALID_PARAMETER;
         }
-        if ((qos_map->type == SAI_QOS_MAP_DSCP_TO_COLOR) &&
+        if ((qos_map->type == SAI_QOS_MAP_TYPE_DSCP_TO_COLOR) &&
             !qos_map_color_param_is_valid(qos_params->list[ii].value.color, ii)) {
             return SAI_STATUS_INVALID_PARAMETER;
         }
@@ -386,8 +386,8 @@ sai_status_t mlnx_qos_map_set_default(_Inout_ mlnx_qos_map_t *qos_map)
     qos_map->is_used = is_used;
 
     /* We fill all keys. Default values equal zero by memset */
-    if ((qos_map->type == SAI_QOS_MAP_DOT1P_TO_TC) ||
-        (qos_map->type == SAI_QOS_MAP_DOT1P_TO_COLOR)) {
+    if ((qos_map->type == SAI_QOS_MAP_TYPE_DOT1P_TO_TC) ||
+        (qos_map->type == SAI_QOS_MAP_TYPE_DOT1P_TO_COLOR)) {
         qos_map->count = COS_PCP_MAX_NUM + 1;
 
         for (ii = 0; ii < qos_map->count; ii++) {
@@ -396,33 +396,33 @@ sai_status_t mlnx_qos_map_set_default(_Inout_ mlnx_qos_map_t *qos_map)
             qos_map->from.pcp_dei[ii + qos_map->count].pcp = ii;
             qos_map->from.pcp_dei[ii + qos_map->count].dei = 1;
         }
-    } else if ((qos_map->type == SAI_QOS_MAP_DSCP_TO_TC) ||
-               (qos_map->type == SAI_QOS_MAP_DSCP_TO_COLOR)) {
+    } else if ((qos_map->type == SAI_QOS_MAP_TYPE_DSCP_TO_TC) ||
+               (qos_map->type == SAI_QOS_MAP_TYPE_DSCP_TO_COLOR)) {
         qos_map->count = SX_COS_PORT_DSCP_MAX + 1;
 
         for (ii = 0; ii < qos_map->count; ii++) {
             qos_map->from.dscp[ii] = ii;
         }
-    } else if (qos_map->type == SAI_QOS_MAP_TC_TO_QUEUE) {
+    } else if (qos_map->type == SAI_QOS_MAP_TYPE_TC_TO_QUEUE) {
         qos_map->count = MAX_PORT_PRIO + 1;
 
         for (ii = 0; ii < qos_map->count; ii++) {
             qos_map->from.prio_color[ii].priority = ii;
         }
-    } else if (qos_map->type == SAI_QOS_MAP_TC_TO_PRIORITY_GROUP) {
+    } else if (qos_map->type == SAI_QOS_MAP_TYPE_TC_TO_PRIORITY_GROUP) {
         qos_map->count = MAX_PORT_PRIO + 1;
 
         for (ii = 0; ii < qos_map->count; ii++) {
             qos_map->from.prio_color[ii].priority = ii;
         }
-    } else if (qos_map->type == SAI_QOS_MAP_PFC_PRIORITY_TO_PRIORITY_GROUP) {
+    } else if (qos_map->type == SAI_QOS_MAP_TYPE_PFC_PRIORITY_TO_PRIORITY_GROUP) {
         qos_map->count = SXD_COS_PORT_PRIO_MAX + 1;
 
         for (ii = 0; ii < qos_map->count; ii++) {
             qos_map->from.pfc[ii] = ii;
         }
-    } else if ((qos_map->type == SAI_QOS_MAP_TC_AND_COLOR_TO_DSCP) ||
-               (qos_map->type == SAI_QOS_MAP_TC_AND_COLOR_TO_DOT1P)) {
+    } else if ((qos_map->type == SAI_QOS_MAP_TYPE_TC_AND_COLOR_TO_DSCP) ||
+               (qos_map->type == SAI_QOS_MAP_TYPE_TC_AND_COLOR_TO_DOT1P)) {
         uint32_t index = 0;
 
         qos_map->count = (MAX_PORT_PRIO + 1) * (MLNX_QOS_MAP_COLOR_MAX + 1);
@@ -432,9 +432,9 @@ sai_status_t mlnx_qos_map_set_default(_Inout_ mlnx_qos_map_t *qos_map)
                 qos_map->from.prio_color[index].priority = ii;
                 qos_map->from.prio_color[index].color    = jj;
 
-                if (qos_map->type == SAI_QOS_MAP_TC_AND_COLOR_TO_DOT1P) {
+                if (qos_map->type == SAI_QOS_MAP_TYPE_TC_AND_COLOR_TO_DOT1P) {
                     qos_map->to.pcp_dei[index].pcp = (ii <= MAX_PCP_PRIO) ? ii : MAX_PCP_PRIO;
-                } else if (qos_map->type == SAI_QOS_MAP_TC_AND_COLOR_TO_DSCP) {
+                } else if (qos_map->type == SAI_QOS_MAP_TYPE_TC_AND_COLOR_TO_DSCP) {
                     qos_map->to.dscp[index] = (ii <= MAX_PCP_PRIO) ? ii * 8 : SX_COS_PORT_DSCP_MAX;
                 }
 
@@ -460,41 +460,41 @@ static sai_status_t db_qos_map_fill_params(mlnx_qos_map_t *qos_map, const sai_qo
     }
 
     switch (qos_map->type) {
-    case SAI_QOS_MAP_DOT1P_TO_TC:
-    case SAI_QOS_MAP_DOT1P_TO_COLOR:
+    case SAI_QOS_MAP_TYPE_DOT1P_TO_TC:
+    case SAI_QOS_MAP_TYPE_DOT1P_TO_COLOR:
         status = sai_dot1p_to_tc_color_mlnx_convert(qos_map, qos_params);
         break;
 
-    case SAI_QOS_MAP_DSCP_TO_TC:
-    case SAI_QOS_MAP_DSCP_TO_COLOR:
+    case SAI_QOS_MAP_TYPE_DSCP_TO_TC:
+    case SAI_QOS_MAP_TYPE_DSCP_TO_COLOR:
         status = sai_dscp_to_tc_color_mlnx_convert(qos_map, qos_params);
         break;
 
-    case SAI_QOS_MAP_TC_TO_QUEUE:
+    case SAI_QOS_MAP_TYPE_TC_TO_QUEUE:
         status = sai_tc_to_queue_mlnx_convert(qos_map, qos_params);
         break;
 
-    case SAI_QOS_MAP_TC_AND_COLOR_TO_DSCP:
+    case SAI_QOS_MAP_TYPE_TC_AND_COLOR_TO_DSCP:
         status = sai_tc_and_color_to_dscp_mlnx_convert(qos_map, qos_params);
         break;
 
-    case SAI_QOS_MAP_TC_AND_COLOR_TO_DOT1P:
+    case SAI_QOS_MAP_TYPE_TC_AND_COLOR_TO_DOT1P:
         status = sai_tc_and_color_to_dot1p_mlnx_convert(qos_map, qos_params);
         break;
 
-    case SAI_QOS_MAP_TC_TO_PRIORITY_GROUP:
+    case SAI_QOS_MAP_TYPE_TC_TO_PRIORITY_GROUP:
         status = sai_tc_to_pg_mlnx_convert(qos_map, qos_params);
         break;
 
-    case SAI_QOS_MAP_PFC_PRIORITY_TO_PRIORITY_GROUP:
+    case SAI_QOS_MAP_TYPE_PFC_PRIORITY_TO_PRIORITY_GROUP:
         status = sai_pfc_to_pg_mlnx_convert(qos_map, qos_params);
         break;
 
-    case SAI_QOS_MAP_PFC_PRIORITY_TO_QUEUE:
+    case SAI_QOS_MAP_TYPE_PFC_PRIORITY_TO_QUEUE:
         status = sai_pfc_to_queue_mlnx_convert(qos_map, qos_params);
         break;
 
-    case SAI_QOS_MAP_CUSTOM_RANGE_BASE:
+    case SAI_QOS_MAP_TYPE_CUSTOM_RANGE_BASE:
     default:
         SX_LOG_ERR("Invalid QoS map type (%u)\n", qos_map->type);
         return SAI_STATUS_INVALID_PARAMETER;
@@ -512,7 +512,7 @@ static void qos_map_key_to_str(_In_ sai_object_id_t qos_map_id, _Out_ char *key_
     sai_status_t sai_status;
     uint32_t     id;
 
-    sai_status = mlnx_object_to_type(qos_map_id, SAI_OBJECT_TYPE_QOS_MAPS,
+    sai_status = mlnx_object_to_type(qos_map_id, SAI_OBJECT_TYPE_QOS_MAP,
                                      &id, NULL);
 
     if (sai_status != SAI_STATUS_SUCCESS) {
@@ -537,7 +537,7 @@ static sai_status_t mlnx_qos_map_type_get(_In_ const sai_object_key_t   *key,
 
     sai_db_read_lock();
 
-    status = mlnx_qos_map_get_by_id(key->object_id, &qos_map);
+    status = mlnx_qos_map_get_by_id(key->key.object_id, &qos_map);
     if (status == SAI_STATUS_SUCCESS) {
         value->u32 = qos_map->type;
     }
@@ -570,7 +570,7 @@ static sai_status_t mlnx_qos_map_list_get(_In_ const sai_object_key_t   *key,
 
     sai_db_read_lock();
 
-    status = mlnx_qos_map_get_by_id(key->object_id, &qos_map);
+    status = mlnx_qos_map_get_by_id(key->key.object_id, &qos_map);
     if (status != SAI_STATUS_SUCCESS) {
         SX_LOG_ERR("Failed get QoS map by oid\n");
         goto out;
@@ -587,53 +587,53 @@ static sai_status_t mlnx_qos_map_list_get(_In_ const sai_object_key_t   *key,
 
     for (ii = 0; ii < qos_params->count; ii++) {
         switch (qos_map->type) {
-        case SAI_QOS_MAP_DOT1P_TO_TC:
-        case SAI_QOS_MAP_DOT1P_TO_COLOR:
+        case SAI_QOS_MAP_TYPE_DOT1P_TO_TC:
+        case SAI_QOS_MAP_TYPE_DOT1P_TO_COLOR:
             qos_params->list[ii].key.dot1p   = qos_map->from.pcp_dei[ii].pcp;
             qos_params->list[ii].value.tc    = qos_map->to.prio_color[ii].priority;
             qos_params->list[ii].value.color = qos_map->to.prio_color[ii].color;
             break;
 
-        case SAI_QOS_MAP_DSCP_TO_TC:
-        case SAI_QOS_MAP_DSCP_TO_COLOR:
+        case SAI_QOS_MAP_TYPE_DSCP_TO_TC:
+        case SAI_QOS_MAP_TYPE_DSCP_TO_COLOR:
             qos_params->list[ii].key.dscp    = qos_map->from.dscp[ii];
             qos_params->list[ii].value.tc    = qos_map->to.prio_color[ii].priority;
             qos_params->list[ii].value.color = qos_map->to.prio_color[ii].color;
             break;
 
-        case SAI_QOS_MAP_TC_TO_QUEUE:
+        case SAI_QOS_MAP_TYPE_TC_TO_QUEUE:
             qos_params->list[ii].key.tc            = qos_map->from.prio_color[ii].priority;
             qos_params->list[ii].value.queue_index = qos_map->to.queue[ii];
             break;
 
-        case SAI_QOS_MAP_TC_AND_COLOR_TO_DSCP:
+        case SAI_QOS_MAP_TYPE_TC_AND_COLOR_TO_DSCP:
             qos_params->list[ii].key.tc     = qos_map->from.prio_color[ii].priority;
             qos_params->list[ii].key.color  = qos_map->from.prio_color[ii].color;
             qos_params->list[ii].value.dscp = qos_map->to.dscp[ii];
             break;
 
-        case SAI_QOS_MAP_TC_AND_COLOR_TO_DOT1P:
+        case SAI_QOS_MAP_TYPE_TC_AND_COLOR_TO_DOT1P:
             qos_params->list[ii].key.tc      = qos_map->from.prio_color[ii].priority;
             qos_params->list[ii].key.color   = qos_map->from.prio_color[ii].color;
             qos_params->list[ii].value.dot1p = qos_map->to.pcp_dei[ii].pcp;
             break;
 
-        case SAI_QOS_MAP_TC_TO_PRIORITY_GROUP:
+        case SAI_QOS_MAP_TYPE_TC_TO_PRIORITY_GROUP:
             qos_params->list[ii].key.tc   = qos_map->from.prio_color[ii].priority;
             qos_params->list[ii].value.pg = qos_map->to.pg[ii];
             break;
 
-        case SAI_QOS_MAP_PFC_PRIORITY_TO_PRIORITY_GROUP:
+        case SAI_QOS_MAP_TYPE_PFC_PRIORITY_TO_PRIORITY_GROUP:
             qos_params->list[ii].key.prio = qos_map->from.pfc[ii];
             qos_params->list[ii].value.pg = qos_map->to.pg[ii];
             break;
 
-        case SAI_QOS_MAP_PFC_PRIORITY_TO_QUEUE:
+        case SAI_QOS_MAP_TYPE_PFC_PRIORITY_TO_QUEUE:
             qos_params->list[ii].key.prio          = qos_map->from.pfc[ii];
             qos_params->list[ii].value.queue_index = qos_map->to.queue[ii];
             break;
 
-        case SAI_QOS_MAP_CUSTOM_RANGE_BASE:
+        case SAI_QOS_MAP_TYPE_CUSTOM_RANGE_BASE:
         default:
             SX_LOG_ERR("Invalid QoS map type (%u)\n", qos_map->type);
             status = SAI_STATUS_INVALID_PARAMETER;
@@ -660,7 +660,7 @@ static sai_status_t mlnx_qos_map_list_set(_In_ const sai_object_key_t      *key,
 
     SX_LOG_ENTER();
 
-    status = mlnx_object_to_type(key->object_id, SAI_OBJECT_TYPE_QOS_MAPS, &qos_map_idx, NULL);
+    status = mlnx_object_to_type(key->key.object_id, SAI_OBJECT_TYPE_QOS_MAP, &qos_map_idx, NULL);
     if (status != SAI_STATUS_SUCCESS) {
         SX_LOG_ERR("Invalid qos map id\n");
         return status;
@@ -668,7 +668,7 @@ static sai_status_t mlnx_qos_map_list_set(_In_ const sai_object_key_t      *key,
 
     sai_db_write_lock();
 
-    status = mlnx_qos_map_get_by_id(key->object_id, &qos_map);
+    status = mlnx_qos_map_get_by_id(key->key.object_id, &qos_map);
     if (status != SAI_STATUS_SUCCESS) {
         goto out;
     }
@@ -684,7 +684,7 @@ static sai_status_t mlnx_qos_map_list_set(_In_ const sai_object_key_t      *key,
             continue;
         }
 
-        status = mlnx_port_qos_map_apply(port->saiport, key->object_id, qos_map->type);
+        status = mlnx_port_qos_map_apply(port->saiport, key->key.object_id, qos_map->type);
         if (status != SAI_STATUS_SUCCESS) {
             SX_LOG_ERR("Failed to update port %" PRIx64 " with new QoS map\n", port->saiport);
             goto out;
@@ -722,6 +722,7 @@ sai_status_t mlnx_qos_map_log_set(sx_verbosity_level_t level)
  *          Failure status code on error
  */
 static sai_status_t mlnx_create_qos_map(_Out_ sai_object_id_t     * qos_map_id,
+                                        _In_ sai_object_id_t        switch_id,
                                         _In_ uint32_t               attr_count,
                                         _In_ const sai_attribute_t *attr_list)
 {
@@ -776,7 +777,7 @@ static sai_status_t mlnx_create_qos_map(_Out_ sai_object_id_t     * qos_map_id,
         goto out;
     }
 
-    status = mlnx_create_object(SAI_OBJECT_TYPE_QOS_MAPS, new_id, NULL, qos_map_id);
+    status = mlnx_create_object(SAI_OBJECT_TYPE_QOS_MAP, new_id, NULL, qos_map_id);
     if (status != SAI_STATUS_SUCCESS) {
         SX_LOG_ERR("Failed create mlnx object id\n");
         db_qos_map_free(new_id);
@@ -814,7 +815,7 @@ static sai_status_t mlnx_remove_qos_map(_In_ sai_object_id_t qos_map_id)
 
     SX_LOG_ENTER();
 
-    status = mlnx_object_to_type(qos_map_id, SAI_OBJECT_TYPE_QOS_MAPS, &del_id, NULL);
+    status = mlnx_object_to_type(qos_map_id, SAI_OBJECT_TYPE_QOS_MAP, &del_id, NULL);
     if (status != SAI_STATUS_SUCCESS) {
         SX_LOG_ERR("Invalid qos map id\n");
         return status;
@@ -870,7 +871,7 @@ out:
  */
 static sai_status_t mlnx_set_qos_map_attribute(_In_ sai_object_id_t qos_map_id, _In_ const sai_attribute_t *attr)
 {
-    const sai_object_key_t key = { .object_id = qos_map_id };
+    const sai_object_key_t key = { .key.object_id = qos_map_id };
     char                   key_str[MAX_KEY_STR_LEN];
 
     SX_LOG_ENTER();
@@ -893,7 +894,7 @@ static sai_status_t mlnx_get_qos_map_attribute(_In_ sai_object_id_t     qos_map_
                                                _In_ uint32_t            attr_count,
                                                _Inout_ sai_attribute_t *attr_list)
 {
-    const sai_object_key_t key = { .object_id = qos_map_id };
+    const sai_object_key_t key = { .key.object_id = qos_map_id };
     char                   key_str[MAX_KEY_STR_LEN];
 
     SX_LOG_ENTER();
@@ -919,7 +920,7 @@ sai_status_t mlnx_qos_map_get_by_id(_In_ sai_object_id_t obj_id, _Out_ mlnx_qos_
     sai_status_t status;
     uint32_t     id;
 
-    status = mlnx_object_to_type(obj_id, SAI_OBJECT_TYPE_QOS_MAPS, &id, NULL);
+    status = mlnx_object_to_type(obj_id, SAI_OBJECT_TYPE_QOS_MAP, &id, NULL);
     if (status != SAI_STATUS_SUCCESS) {
         SX_LOG_ERR("Invalid qos map id %" PRIx64 "\n", obj_id);
         return status;

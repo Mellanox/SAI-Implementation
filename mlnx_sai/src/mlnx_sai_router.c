@@ -31,9 +31,9 @@ static const sai_attribute_entry_t router_attribs[] = {
       "Router admin V6 state", SAI_ATTR_VAL_TYPE_BOOL },
     { SAI_VIRTUAL_ROUTER_ATTR_SRC_MAC_ADDRESS, false, true, true, true,
       "Router source MAC address", SAI_ATTR_VAL_TYPE_MAC },
-    { SAI_VIRTUAL_ROUTER_ATTR_VIOLATION_TTL1_ACTION, false, true, true, true,
+    { SAI_VIRTUAL_ROUTER_ATTR_VIOLATION_TTL1_PACKET_ACTION, false, true, true, true,
       "Router action for TTL0/1", SAI_ATTR_VAL_TYPE_S32 },
-    { SAI_VIRTUAL_ROUTER_ATTR_VIOLATION_IP_OPTIONS, false, true, true, true,
+    { SAI_VIRTUAL_ROUTER_ATTR_VIOLATION_IP_OPTIONS_PACKET_ACTION, false, true, true, true,
       "Router action for IP options", SAI_ATTR_VAL_TYPE_S32 },
     { END_FUNCTIONALITY_ATTRIBS_ID, false, false, false, false,
       "", SAI_ATTR_VAL_TYPE_UNDETERMINED }
@@ -59,12 +59,12 @@ static const sai_vendor_attribute_entry_t router_vendor_attribs[] = {
       { false, false, false, false },
       NULL, NULL,
       NULL, NULL },
-    { SAI_VIRTUAL_ROUTER_ATTR_VIOLATION_TTL1_ACTION,
+    { SAI_VIRTUAL_ROUTER_ATTR_VIOLATION_TTL1_PACKET_ACTION,
       { false, false, false, false },
       { false, false, false, false },
       NULL, NULL,
       NULL, NULL },
-    { SAI_VIRTUAL_ROUTER_ATTR_VIOLATION_IP_OPTIONS,
+    { SAI_VIRTUAL_ROUTER_ATTR_VIOLATION_IP_OPTIONS_PACKET_ACTION,
       { false, false, false, false },
       { false, false, false, false },
       NULL, NULL,
@@ -95,7 +95,7 @@ static void router_key_to_str(_In_ sai_object_id_t vr_id, _Out_ char *key_str)
  */
 static sai_status_t mlnx_set_virtual_router_attribute(_In_ sai_object_id_t vr_id, _In_ const sai_attribute_t *attr)
 {
-    const sai_object_key_t key = { .object_id = vr_id };
+    const sai_object_key_t key = { .key.object_id = vr_id };
     char                   key_str[MAX_KEY_STR_LEN];
 
     SX_LOG_ENTER();
@@ -121,7 +121,7 @@ static sai_status_t mlnx_get_virtual_router_attribute(_In_ sai_object_id_t     v
                                                       _In_ uint32_t            attr_count,
                                                       _Inout_ sai_attribute_t *attr_list)
 {
-    const sai_object_key_t key = { .object_id = vr_id };
+    const sai_object_key_t key = { .key.object_id = vr_id };
     char                   key_str[MAX_KEY_STR_LEN];
 
     SX_LOG_ENTER();
@@ -148,7 +148,7 @@ static sai_status_t mlnx_router_admin_get(_In_ const sai_object_key_t   *key,
            (SAI_VIRTUAL_ROUTER_ATTR_ADMIN_V6_STATE == (long)arg));
 
     if (SAI_STATUS_SUCCESS !=
-        (status = mlnx_object_to_type(key->object_id, SAI_OBJECT_TYPE_VIRTUAL_ROUTER, &data, NULL))) {
+        (status = mlnx_object_to_type(key->key.object_id, SAI_OBJECT_TYPE_VIRTUAL_ROUTER, &data, NULL))) {
         return status;
     }
     vrid = (sx_router_id_t)data;
@@ -181,6 +181,7 @@ static sai_status_t mlnx_router_admin_get(_In_ const sai_object_key_t   *key,
  *    Failure status code on error
  */
 static sai_status_t mlnx_create_virtual_router(_Out_ sai_object_id_t      *vr_id,
+                                               _In_ sai_object_id_t        switch_id,
                                                _In_ uint32_t               attr_count,
                                                _In_ const sai_attribute_t *attr_list)
 {

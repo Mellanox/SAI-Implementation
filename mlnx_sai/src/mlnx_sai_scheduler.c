@@ -33,11 +33,11 @@ static sai_status_t mlnx_sched_attr_setter(_In_ const sai_object_key_t      *key
                                            _In_ const sai_attribute_value_t *value,
                                            void                             *arg);
 static const sai_attribute_entry_t        sched_attribs[] = {
-    { SAI_SCHEDULER_ATTR_SCHEDULING_ALGORITHM, false, true, true, true,
+    { SAI_SCHEDULER_ATTR_SCHEDULING_TYPE, false, true, true, true,
       "QoS scheduler alg", SAI_ATTR_VAL_TYPE_S32 },
     { SAI_SCHEDULER_ATTR_SCHEDULING_WEIGHT, false, true, true, true,
       "QoS scheduler weight", SAI_ATTR_VAL_TYPE_U8 },
-    { SAI_SCHEDULER_ATTR_SHAPER_TYPE, false, true, true, true,
+    { SAI_SCHEDULER_ATTR_METER_TYPE, false, true, true, true,
       "QoS scheduler type", SAI_ATTR_VAL_TYPE_S32 },
     { SAI_SCHEDULER_ATTR_MIN_BANDWIDTH_RATE, false, true, true, true,
       "QoS scheduler min rate", SAI_ATTR_VAL_TYPE_U64 },
@@ -51,21 +51,21 @@ static const sai_attribute_entry_t        sched_attribs[] = {
       "", SAI_ATTR_VAL_TYPE_UNDETERMINED }
 };
 static const sai_vendor_attribute_entry_t sched_vendor_attribs[] = {
-    { SAI_SCHEDULER_ATTR_SCHEDULING_ALGORITHM,
+    { SAI_SCHEDULER_ATTR_SCHEDULING_TYPE,
       { true, false, true, true },
       { true, false, true, true },
-      mlnx_sched_attr_getter, (void*)SAI_SCHEDULER_ATTR_SCHEDULING_ALGORITHM,
-      mlnx_sched_attr_setter, (void*)SAI_SCHEDULER_ATTR_SCHEDULING_ALGORITHM },
+      mlnx_sched_attr_getter, (void*)SAI_SCHEDULER_ATTR_SCHEDULING_TYPE,
+      mlnx_sched_attr_setter, (void*)SAI_SCHEDULER_ATTR_SCHEDULING_TYPE },
     { SAI_SCHEDULER_ATTR_SCHEDULING_WEIGHT,
       { true, false, true, true },
       { true, false, true, true },
       mlnx_sched_attr_getter, (void*)SAI_SCHEDULER_ATTR_SCHEDULING_WEIGHT,
       mlnx_sched_attr_setter, (void*)SAI_SCHEDULER_ATTR_SCHEDULING_WEIGHT},
-    { SAI_SCHEDULER_ATTR_SHAPER_TYPE,
+    { SAI_SCHEDULER_ATTR_METER_TYPE,
       { true, false, true, true },
       { true, false, true, true },
-      mlnx_sched_attr_getter, (void*)SAI_SCHEDULER_ATTR_SHAPER_TYPE,
-      mlnx_sched_attr_setter, (void*)SAI_SCHEDULER_ATTR_SHAPER_TYPE },
+      mlnx_sched_attr_getter, (void*)SAI_SCHEDULER_ATTR_METER_TYPE,
+      mlnx_sched_attr_setter, (void*)SAI_SCHEDULER_ATTR_METER_TYPE },
     { SAI_SCHEDULER_ATTR_MIN_BANDWIDTH_RATE,
       { true, false, true, true },
       { true, false, true, true },
@@ -122,7 +122,7 @@ static sai_status_t mlnx_sched_attr_getter(_In_ const sai_object_key_t   *key,
 
     sai_qos_db_read_lock();
 
-    status = sched_db_entry_get(key->object_id, &sched);
+    status = sched_db_entry_get(key->key.object_id, &sched);
     if (status != SAI_STATUS_SUCCESS) {
         goto out;
     }
@@ -131,11 +131,11 @@ static sai_status_t mlnx_sched_attr_getter(_In_ const sai_object_key_t   *key,
     assert(sched->is_used);
 
     switch (attr_id) {
-    case SAI_SCHEDULER_ATTR_SCHEDULING_ALGORITHM:
+    case SAI_SCHEDULER_ATTR_SCHEDULING_TYPE:
         if (sched->ets.dwrr == TRUE) {
-            value->s32 = SAI_SCHEDULING_DWRR;
+            value->s32 = SAI_SCHEDULING_TYPE_DWRR;
         } else {
-            value->s32 = SAI_SCHEDULING_STRICT;
+            value->s32 = SAI_SCHEDULING_TYPE_STRICT;
         }
         break;
 
@@ -149,7 +149,7 @@ static sai_status_t mlnx_sched_attr_getter(_In_ const sai_object_key_t   *key,
         }
         break;
 
-    case SAI_SCHEDULER_ATTR_SHAPER_TYPE:
+    case SAI_SCHEDULER_ATTR_METER_TYPE:
         value->s32 = SAI_METER_TYPE_BYTES;
         break;
 
@@ -309,14 +309,11 @@ static sai_status_t group_update_ets(sx_port_log_id_t             port_log_id,
                                      uint8_t                      level,
                                      uint8_t                      index)
 {
-    ets->element_hierarchy = level;
+    ets->element_hierarchy = level + 1;
     ets->element_index     = index;
-    if (level == 0) {
-        return port_update_ets(port_log_id, ets);
-    }
 
     /* The following are SDK limitations */
-    if (level == 1) {
+    if (level == 0) {
         ets->min_shaper_enable = FALSE;
         ets->max_shaper_enable = FALSE;
     }
@@ -339,7 +336,7 @@ static sai_status_t scheduler_to_group_apply(sai_object_id_t  scheduler_id,
             return status;
         }
 
-        if ((level == 1) && (sched->ets.dwrr == TRUE) && (sched->ets.dwrr_enable == TRUE)) {
+        if ((level == 0) && (sched->ets.dwrr == TRUE) && (sched->ets.dwrr_enable == TRUE)) {
             SX_LOG_ERR("DWRR alg type is not supported for groups on level 1\n");
             return SAI_STATUS_INVALID_PARAMETER;
         }
@@ -396,7 +393,7 @@ static sai_status_t mlnx_sched_attr_setter(_In_ const sai_object_key_t      *key
 
     sai_qos_db_write_lock();
 
-    status = sched_db_entry_get(key->object_id, &sched);
+    status = sched_db_entry_get(key->key.object_id, &sched);
     if (status != SAI_STATUS_SUCCESS) {
         goto out;
     }
@@ -405,10 +402,10 @@ static sai_status_t mlnx_sched_attr_setter(_In_ const sai_object_key_t      *key
     assert(sched->is_used);
 
     switch (attr_id) {
-    case SAI_SCHEDULER_ATTR_SCHEDULING_ALGORITHM:
-        if (value->s32 == SAI_SCHEDULING_DWRR) {
+    case SAI_SCHEDULER_ATTR_SCHEDULING_TYPE:
+        if (value->s32 == SAI_SCHEDULING_TYPE_DWRR) {
             sched->ets.dwrr = TRUE;
-        } else if (value->s32 == SAI_SCHEDULING_STRICT) {
+        } else if (value->s32 == SAI_SCHEDULING_TYPE_STRICT) {
             sched->ets.dwrr = FALSE;
         } else {
             SX_LOG_ERR("Not supported alg type(%u)\n", value->s32);
@@ -424,13 +421,13 @@ static sai_status_t mlnx_sched_attr_setter(_In_ const sai_object_key_t      *key
             goto out;
         }
 
-        if ((value->u32 < 1) || (value->u32 > 100)) {
-            SX_LOG_ERR("Weight must be in range 1..100, actual is %u\n", value->u32);
+        if ((value->u8 < 1) || (value->u8 > 100)) {
+            SX_LOG_ERR("Weight must be in range 1..100, actual is %u\n", value->u8);
             status = SAI_STATUS_INVALID_PARAMETER;
             goto out;
         }
 
-        sched->ets.dwrr_weight = value->u32;
+        sched->ets.dwrr_weight = value->u8;
         break;
 
     case SAI_SCHEDULER_ATTR_MIN_BANDWIDTH_RATE:
@@ -443,7 +440,7 @@ static sai_status_t mlnx_sched_attr_setter(_In_ const sai_object_key_t      *key
         check_rate(value->u64, false);
         break;
 
-    case SAI_SCHEDULER_ATTR_SHAPER_TYPE:
+    case SAI_SCHEDULER_ATTR_METER_TYPE:
         if (value->s32 != SAI_METER_TYPE_BYTES) {
             SX_LOG_ERR("Only bytes/s shaper type is supported\n");
             status = SAI_STATUS_INVALID_PARAMETER;
@@ -456,7 +453,7 @@ static sai_status_t mlnx_sched_attr_setter(_In_ const sai_object_key_t      *key
     sai_to_sdk_rate(sched->min_rate, sched->max_rate, &ets);
 
     mlnx_port_not_in_lag_foreach(port, ii) {
-        if (port->scheduler_id == key->object_id) {
+        if (port->scheduler_id == key->key.object_id) {
             status = port_update_ets(port->logical, &ets);
 
             if (status != SAI_STATUS_SUCCESS) {
@@ -465,7 +462,7 @@ static sai_status_t mlnx_sched_attr_setter(_In_ const sai_object_key_t      *key
         }
 
         port_queues_foreach(port, queue, qi) {
-            if (queue->sched_obj.scheduler_id == key->object_id) {
+            if (queue->sched_obj.scheduler_id == key->key.object_id) {
                 status = queue_update_ets(port->logical, &ets, &queue->sched_obj);
 
                 if (status != SAI_STATUS_SUCCESS) {
@@ -475,7 +472,7 @@ static sai_status_t mlnx_sched_attr_setter(_In_ const sai_object_key_t      *key
         }
 
         ctx.sai_status = SAI_STATUS_SUCCESS;
-        ctx.arg        = (void*)&key->object_id;
+        ctx.arg        = (void*)&key->key.object_id;
 
         status = mlnx_sched_hierarchy_foreach(port, sched_profile_update_groups, &ctx);
         if (status != SAI_STATUS_SUCCESS) {
@@ -517,6 +514,7 @@ sai_status_t mlnx_scheduler_log_set(sx_verbosity_level_t level)
  *          Failure status code on error
  */
 static sai_status_t mlnx_create_scheduler_profile(_Out_ sai_object_id_t      *scheduler_id,
+                                                  _In_ sai_object_id_t        switch_id,
                                                   _In_ uint32_t               attr_count,
                                                   _In_ const sai_attribute_t *attr_list)
 {
@@ -557,13 +555,13 @@ static sai_status_t mlnx_create_scheduler_profile(_Out_ sai_object_id_t      *sc
 
     /* Handle SAI_SCHEDULER_ATTR_SCHEDULING_ALGORITHM */
     status = find_attrib_in_list(attr_count, attr_list,
-                                 SAI_SCHEDULER_ATTR_SCHEDULING_ALGORITHM,
+                                 SAI_SCHEDULER_ATTR_SCHEDULING_TYPE,
                                  &attr, &index);
 
     if (status == SAI_STATUS_SUCCESS) {
-        if (attr->s32 == SAI_SCHEDULING_STRICT) {
+        if (attr->s32 == SAI_SCHEDULING_TYPE_STRICT) {
             sched.ets.dwrr = FALSE;
-        } else if (attr->s32 != SAI_SCHEDULING_DWRR) {
+        } else if (attr->s32 != SAI_SCHEDULING_TYPE_DWRR) {
             SX_LOG_ERR("Not supported alg type=%d\n", attr->s32);
             return SAI_STATUS_INVALID_PARAMETER;
         }
@@ -580,17 +578,17 @@ static sai_status_t mlnx_create_scheduler_profile(_Out_ sai_object_id_t      *sc
             return SAI_STATUS_INVALID_PARAMETER;
         }
 
-        if ((attr->u32 < 1) || (attr->u32 > 100)) {
-            SX_LOG_ERR("Weight must be in range 1..100, actual is %u\n", attr->u32);
+        if ((attr->u8 < 1) || (attr->u8 > 100)) {
+            SX_LOG_ERR("Weight must be in range 1..100, actual is %u\n", attr->u8);
             return SAI_STATUS_INVALID_PARAMETER;
         }
 
-        sched.ets.dwrr_weight = attr->u32;
+        sched.ets.dwrr_weight = attr->u8;
     }
 
     /* Handle SAI_SCHEDULER_ATTR_SHAPER_TYPE */
     status = find_attrib_in_list(attr_count, attr_list,
-                                 SAI_SCHEDULER_ATTR_SHAPER_TYPE,
+                                 SAI_SCHEDULER_ATTR_METER_TYPE,
                                  &attr, &index);
 
     if ((status == SAI_STATUS_SUCCESS) && (attr->s32 != SAI_METER_TYPE_BYTES)) {
@@ -757,7 +755,7 @@ static void mlnx_sched_key_to_str(_In_ sai_object_id_t qos_map_id, _Out_ char *k
  */
 static sai_status_t mlnx_set_scheduler_attribute(_In_ sai_object_id_t scheduler_id, _In_ const sai_attribute_t *attr)
 {
-    const sai_object_key_t key = { .object_id = scheduler_id };
+    const sai_object_key_t key = { .key.object_id = scheduler_id };
     char                   key_str[MAX_KEY_STR_LEN];
 
     SX_LOG_ENTER();
@@ -781,7 +779,7 @@ static sai_status_t mlnx_get_scheduler_attribute(_In_ sai_object_id_t     schedu
                                                  _In_ uint32_t            attr_count,
                                                  _Inout_ sai_attribute_t *attr_list)
 {
-    const sai_object_key_t key = { .object_id = scheduler_id };
+    const sai_object_key_t key = { .key.object_id = scheduler_id };
     char                   key_str[MAX_KEY_STR_LEN];
 
     SX_LOG_ENTER();

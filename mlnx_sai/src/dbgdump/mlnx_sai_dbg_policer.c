@@ -120,7 +120,7 @@ static void SAI_dump_sx_policer_ir_units_enum_to_str(_In_ sx_policer_ir_units_e 
 static void SAI_dump_policer_print(_In_ FILE *file, _In_ mlnx_policer_db_entry_t *policers_db)
 {
     uint32_t                  ii     = 0;
-    sai_object_id_t           obj_id = 0;
+    sai_object_id_t           obj_id = SAI_NULL_OBJECT_ID;
     mlnx_policer_db_entry_t   curr_policers_db;
     char                      meter_str[LINE_LENGTH];
     char                      y_action_str[LINE_LENGTH];
@@ -158,10 +158,9 @@ static void SAI_dump_policer_print(_In_ FILE *file, _In_ mlnx_policer_db_entry_t
         if (policers_db[ii].valid) {
             memcpy(&curr_policers_db, &policers_db[ii], sizeof(mlnx_policer_db_entry_t));
 
-            if (SAI_STATUS_SUCCESS ==
+            if (SAI_STATUS_SUCCESS !=
                 mlnx_create_object(SAI_OBJECT_TYPE_POLICER, ii, NULL, &obj_id)) {
-            } else {
-                obj_id = 0;
+                obj_id = SAI_NULL_OBJECT_ID;
             }
             SAI_dump_sx_policer_meter_enum_to_str(policers_db[ii].sx_policer_attr.meter_type,
                                                   meter_str);

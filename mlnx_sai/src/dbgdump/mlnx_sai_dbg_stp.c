@@ -49,7 +49,7 @@ static void SAI_dump_default_stp_print(_In_ FILE *file, _In_ sx_mstp_inst_id_t *
 static void SAI_dump_stp_print(_In_ FILE *file, _In_ mlnx_mstp_inst_t *mlnx_mstp_inst_db)
 {
     uint32_t                  ii          = 0;
-    sai_object_id_t           obj_id      = 0;
+    sai_object_id_t           obj_id      = SAI_NULL_OBJECT_ID;
     uint32_t                  vlan_count  = 0;
     dbg_utils_table_columns_t stp_clmns[] = {
         {"sai obj id", 16, PARAM_UINT64_E, &obj_id},
@@ -68,10 +68,9 @@ static void SAI_dump_stp_print(_In_ FILE *file, _In_ mlnx_mstp_inst_t *mlnx_mstp
 
     for (ii = 0; ii < SX_MSTP_INST_ID_MAX - SX_MSTP_INST_ID_MIN + 1; ii++) {
         if (mlnx_mstp_inst_db[ii].is_used) {
-            if (SAI_STATUS_SUCCESS ==
-                mlnx_create_object(SAI_OBJECT_TYPE_STP_INSTANCE, ii, NULL, &obj_id)) {
-            } else {
-                obj_id = 0;
+            if (SAI_STATUS_SUCCESS !=
+                mlnx_create_object(SAI_OBJECT_TYPE_STP, ii, NULL, &obj_id)) {
+                obj_id = SAI_NULL_OBJECT_ID;
             }
             vlan_count = mlnx_mstp_inst_db[ii].vlan_count;
             dbg_utils_print_table_data_line(file, stp_clmns);
