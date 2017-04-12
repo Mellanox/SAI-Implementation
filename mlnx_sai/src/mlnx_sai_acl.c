@@ -12663,7 +12663,8 @@ static void mlnx_acl_bind_point_data_tables_set(_In_ acl_bind_point_data_t *bind
             return;
         }
 
-        bind_point_data->is_object_set = false;
+        bind_point_data->bound_acl_count = 0;
+        bind_point_data->is_object_set   = false;
     } else {
         for (ii = 0; ii < table_count; ii++) {
             bind_point_data->bound_acl_indexes[ii] = table_indexes[ii];
