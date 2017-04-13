@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2014. Mellanox Technologies, Ltd. ALL RIGHTS RESERVED.
+ *  Copyright (C) 2017. Mellanox Technologies, Ltd. ALL RIGHTS RESERVED.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License"); you may
  *    not use this file except in compliance with the License. You may obtain
@@ -669,6 +669,11 @@ static sai_status_t ports_l1_params_check(mlnx_port_config_t *port1, mlnx_port_c
 
 static sai_status_t validate_port(mlnx_port_config_t *lag, mlnx_port_config_t *port)
 {
+    if (mlnx_port_is_in_bridge(port)) {
+        SX_LOG_ERR("Can't add port which is under bridge\n");
+        return SAI_STATUS_INVALID_PARAMETER;
+    }
+
     if (port->vlans) {
         SX_LOG_ERR("Can't add port with created VLANs count=%u\n", port->vlans);
         return SAI_STATUS_INVALID_PARAMETER;
@@ -1384,13 +1389,13 @@ static sai_status_t mlnx_get_lag_member_attribute(_In_ sai_object_id_t     lag_m
  * any of the objects fails to create. When there is failure, Caller is expected to go through the
  * list of returned statuses to find out which fails and which succeeds.
  */
-sai_status_t mlnx_create_lag_members(_In_ sai_object_id_t    switch_id,
-                                     _In_ uint32_t           object_count,
-                                     _In_ uint32_t          *attr_count,
-                                     _In_ sai_attribute_t  **attrs,
-                                     _In_ sai_bulk_op_type_t type,
-                                     _Out_ sai_object_id_t  *object_id,
-                                     _Out_ sai_status_t     *object_statuses)
+sai_status_t mlnx_create_lag_members(_In_ sai_object_id_t         switch_id,
+                                     _In_ uint32_t                object_count,
+                                     _In_ const uint32_t         *attr_count,
+                                     _In_ const sai_attribute_t **attrs,
+                                     _In_ sai_bulk_op_type_t      type,
+                                     _Out_ sai_object_id_t       *object_id,
+                                     _Out_ sai_status_t          *object_statuses)
 {
     return SAI_STATUS_NOT_IMPLEMENTED;
 }
@@ -1407,10 +1412,10 @@ sai_status_t mlnx_create_lag_members(_In_ sai_object_id_t    switch_id,
  * any of the objects fails to remove. When there is failure, Caller is expected to go through the
  * list of returned statuses to find out which fails and which succeeds.
  */
-sai_status_t mlnx_remove_lag_members(_In_ uint32_t           object_count,
-                                     _In_ sai_object_id_t   *object_id,
-                                     _In_ sai_bulk_op_type_t type,
-                                     _Out_ sai_status_t     *object_statuses)
+sai_status_t mlnx_remove_lag_members(_In_ uint32_t               object_count,
+                                     _In_ const sai_object_id_t *object_id,
+                                     _In_ sai_bulk_op_type_t     type,
+                                     _Out_ sai_status_t         *object_statuses)
 {
     return SAI_STATUS_NOT_IMPLEMENTED;
 }

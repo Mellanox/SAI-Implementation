@@ -43,6 +43,7 @@ libsai_la_SOURCES = \
                        dbgdump/mlnx_sai_dbg_vlan.c \
                        dbgdump/mlnx_sai_dbg_wred.c \
                        mlnx_sai_acl.c \
+                       mlnx_sai_bridge.c \
                        mlnx_sai_buffer.c \
                        mlnx_sai_fdb.c \
                        mlnx_sai_hash.c \
@@ -85,16 +86,17 @@ libsai_apiincludedir = $(includedir)/sai
 libsai_apiinclude_HEADERS = \
         $(top_srcdir)/inc/sai/sai.h \
         $(top_srcdir)/inc/sai/saiacl.h \
+        $(top_srcdir)/inc/sai/saibridge.h \
         $(top_srcdir)/inc/sai/saibuffer.h \
         $(top_srcdir)/inc/sai/saifdb.h \
         $(top_srcdir)/inc/sai/saihash.h \
-        $(top_srcdir)/inc/sai/saihostintf.h \
+        $(top_srcdir)/inc/sai/saihostif.h \
         $(top_srcdir)/inc/sai/saiipmc.h \
         $(top_srcdir)/inc/sai/saiipmcgroup.h \
         $(top_srcdir)/inc/sai/sail2mc.h \
         $(top_srcdir)/inc/sai/sail2mcgroup.h \
         $(top_srcdir)/inc/sai/sailag.h \
-        $(top_srcdir)/inc/sai/saimcfdb.h \
+        $(top_srcdir)/inc/sai/saimcastfdb.h \
         $(top_srcdir)/inc/sai/saimirror.h \
         $(top_srcdir)/inc/sai/saineighbor.h \
         $(top_srcdir)/inc/sai/sainexthop.h \
@@ -102,11 +104,10 @@ libsai_apiinclude_HEADERS = \
         $(top_srcdir)/inc/sai/saiobject.h \
         $(top_srcdir)/inc/sai/saipolicer.h \
         $(top_srcdir)/inc/sai/saiport.h \
-        $(top_srcdir)/inc/sai/saiqosmaps.h \
+        $(top_srcdir)/inc/sai/saiqosmap.h \
         $(top_srcdir)/inc/sai/saiqueue.h \
         $(top_srcdir)/inc/sai/sairoute.h \
-        $(top_srcdir)/inc/sai/sairouter.h \
-        $(top_srcdir)/inc/sai/sairouterintf.h \
+        $(top_srcdir)/inc/sai/sairouterinterface.h \
         $(top_srcdir)/inc/sai/sairpfgroup.h \
         $(top_srcdir)/inc/sai/saisamplepacket.h \
         $(top_srcdir)/inc/sai/saischeduler.h \
@@ -117,6 +118,7 @@ libsai_apiinclude_HEADERS = \
         $(top_srcdir)/inc/sai/saitunnel.h \
         $(top_srcdir)/inc/sai/saitypes.h \
         $(top_srcdir)/inc/sai/saiudf.h \
+        $(top_srcdir)/inc/sai/saivirtualrouter.h \
         $(top_srcdir)/inc/sai/saivlan.h \
         $(top_srcdir)/inc/sai/saiwred.h \
         \

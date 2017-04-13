@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2014. Mellanox Technologies, Ltd. ALL RIGHTS RESERVED.
+ *  Copyright (C) 2017. Mellanox Technologies, Ltd. ALL RIGHTS RESERVED.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License"); you may
  *    not use this file except in compliance with the License. You may obtain
@@ -43,9 +43,6 @@ static sai_status_t mlnx_port_drop_tags_set(_In_ const sai_object_key_t      *ke
 static sai_status_t mlnx_port_internal_loopback_set(_In_ const sai_object_key_t      *key,
                                                     _In_ const sai_attribute_value_t *value,
                                                     void                             *arg);
-static sai_status_t mlnx_port_fdb_learning_set(_In_ const sai_object_key_t      *key,
-                                               _In_ const sai_attribute_value_t *value,
-                                               void                             *arg);
 static sai_status_t mlnx_port_mtu_set(_In_ const sai_object_key_t      *key,
                                       _In_ const sai_attribute_value_t *value,
                                       void                             *arg);
@@ -55,6 +52,9 @@ static sai_status_t mlnx_port_global_flow_ctrl_set(_In_ const sai_object_key_t  
 static sai_status_t mlnx_port_speed_set(_In_ const sai_object_key_t      *key,
                                         _In_ const sai_attribute_value_t *value,
                                         void                             *arg);
+static sai_status_t mlnx_port_fec_set(_In_ const sai_object_key_t      *key,
+                                      _In_ const sai_attribute_value_t *value,
+                                      void                             *arg);
 static sai_status_t mlnx_port_auto_negotiation_set(_In_ const sai_object_key_t      *key,
                                                    _In_ const sai_attribute_value_t *value,
                                                    void                             *arg);
@@ -91,6 +91,11 @@ static sai_status_t mlnx_port_supported_speed_get(_In_ const sai_object_key_t   
                                                   _In_ uint32_t                  attr_index,
                                                   _Inout_ vendor_cache_t        *cache,
                                                   void                          *arg);
+static sai_status_t mlnx_port_supported_fec_mode_get(_In_ const sai_object_key_t   *key,
+                                                     _Inout_ sai_attribute_value_t *value,
+                                                     _In_ uint32_t                  attr_index,
+                                                     _Inout_ vendor_cache_t        *cache,
+                                                     void                          *arg);
 static sai_status_t mlnx_port_number_of_priority_groups_get(_In_ const sai_object_key_t   *key,
                                                             _Inout_ sai_attribute_value_t *value,
                                                             _In_ uint32_t                  attr_index,
@@ -106,6 +111,11 @@ static sai_status_t mlnx_port_speed_get(_In_ const sai_object_key_t   *key,
                                         _In_ uint32_t                  attr_index,
                                         _Inout_ vendor_cache_t        *cache,
                                         void                          *arg);
+static sai_status_t mlnx_port_fec_get(_In_ const sai_object_key_t   *key,
+                                      _Inout_ sai_attribute_value_t *value,
+                                      _In_ uint32_t                  attr_index,
+                                      _Inout_ vendor_cache_t        *cache,
+                                      void                          *arg);
 static sai_status_t mlnx_port_duplex_get(_In_ const sai_object_key_t   *key,
                                          _Inout_ sai_attribute_value_t *value,
                                          _In_ uint32_t                  attr_index,
@@ -141,11 +151,6 @@ static sai_status_t mlnx_port_internal_loopback_get(_In_ const sai_object_key_t 
                                                     _In_ uint32_t                  attr_index,
                                                     _Inout_ vendor_cache_t        *cache,
                                                     void                          *arg);
-static sai_status_t mlnx_port_fdb_learning_get(_In_ const sai_object_key_t   *key,
-                                               _Inout_ sai_attribute_value_t *value,
-                                               _In_ uint32_t                  attr_index,
-                                               _Inout_ vendor_cache_t        *cache,
-                                               void                          *arg);
 static sai_status_t mlnx_port_mtu_get(_In_ const sai_object_key_t   *key,
                                       _Inout_ sai_attribute_value_t *value,
                                       _In_ uint32_t                  attr_index,
@@ -261,6 +266,14 @@ static sai_status_t mlnx_port_storm_control_policer_attr_get(_In_ const sai_obje
                                                              _In_ uint32_t                  attr_index,
                                                              _Inout_ vendor_cache_t        *cache,
                                                              _In_ void                     *arg);
+static sai_status_t mlnx_port_bind_mode_set(_In_ const sai_object_key_t      *key,
+                                            _In_ const sai_attribute_value_t *value,
+                                            _In_ void                        *arg);
+static sai_status_t mlnx_port_bind_mode_get(_In_ const sai_object_key_t   *key,
+                                            _Inout_ sai_attribute_value_t *value,
+                                            _In_ uint32_t                  attr_index,
+                                            _Inout_ vendor_cache_t        *cache,
+                                            _In_ void                     *arg);
 static const sai_attribute_entry_t        port_attribs[] = {
     { SAI_PORT_ATTR_TYPE, false, false, false, true,
       "Port type", SAI_ATTR_VAL_TYPE_S32 },
@@ -274,6 +287,8 @@ static const sai_attribute_entry_t        port_attribs[] = {
       "Port current breakout mode", SAI_ATTR_VAL_TYPE_S32 },
     { SAI_PORT_ATTR_SUPPORTED_SPEED, false, false, false, true,
       "Port supported speeds", SAI_ATTR_VAL_TYPE_U32LIST },
+    { SAI_PORT_ATTR_SUPPORTED_FEC_MODE, false, false, false, true,
+      "Port supported fec mode", SAI_ATTR_VAL_TYPE_S32LIST },
     { SAI_PORT_ATTR_NUMBER_OF_INGRESS_PRIORITY_GROUPS, false, false, false, true,
       "Port priority group count", SAI_ATTR_VAL_TYPE_U32},
     { SAI_PORT_ATTR_INGRESS_PRIORITY_GROUP_LIST, false, false, false, true,
@@ -300,8 +315,8 @@ static const sai_attribute_entry_t        port_attribs[] = {
       "Port drop tageed", SAI_ATTR_VAL_TYPE_BOOL },
     { SAI_PORT_ATTR_INTERNAL_LOOPBACK_MODE, false, false, true, true,
       "Port internal loopback", SAI_ATTR_VAL_TYPE_S32 },
-    { SAI_PORT_ATTR_FDB_LEARNING_MODE, false, false, true, true,
-      "Port fdb learning", SAI_ATTR_VAL_TYPE_S32 },
+    { SAI_PORT_ATTR_FEC_MODE, false, true, true, true,
+      "Port FEC mode", SAI_ATTR_VAL_TYPE_S32 },
     { SAI_PORT_ATTR_UPDATE_DSCP, false, false, true, true,
       "Port update DSCP", SAI_ATTR_VAL_TYPE_BOOL },
     { SAI_PORT_ATTR_MTU, false, false, true, true,
@@ -314,10 +329,6 @@ static const sai_attribute_entry_t        port_attribs[] = {
       "Port multicast storm control", SAI_ATTR_VAL_TYPE_OID },
     { SAI_PORT_ATTR_GLOBAL_FLOW_CONTROL_MODE, false, false, true, true,
       "Port global flow control", SAI_ATTR_VAL_TYPE_S32 },
-    { SAI_PORT_ATTR_MAX_LEARNED_ADDRESSES, false, false, true, true,
-      "Port max learned addresses", SAI_ATTR_VAL_TYPE_U32 },
-    { SAI_PORT_ATTR_FDB_LEARNING_LIMIT_VIOLATION_PACKET_ACTION, false, false, true, true,
-      "Port fdb learning limit violation", SAI_ATTR_VAL_TYPE_S32 },
     { SAI_PORT_ATTR_INGRESS_ACL, false, true, true, true,
       "Port bind point for ingress ACL objects", SAI_ATTR_VAL_TYPE_OID },
     { SAI_PORT_ATTR_EGRESS_ACL, false, true, true, true,
@@ -372,6 +383,8 @@ static const sai_attribute_entry_t        port_attribs[] = {
       "Port egress buffer profiles", SAI_ATTR_VAL_TYPE_OBJLIST},
     { SAI_PORT_ATTR_POLICER_ID, false, true, true, true,
       "Port policer", SAI_ATTR_VAL_TYPE_OID},
+    { SAI_PORT_ATTR_BIND_MODE, false, true, true, true,
+      "Port bind mode", SAI_ATTR_VAL_TYPE_S32},
     { END_FUNCTIONALITY_ATTRIBS_ID, false, false, false, false,
       "", SAI_ATTR_VAL_TYPE_UNDETERMINED }
 };
@@ -405,6 +418,11 @@ static const sai_vendor_attribute_entry_t port_vendor_attribs[] = {
       { false, false, false, true },
       { false, false, false, true },
       mlnx_port_supported_speed_get, NULL,
+      NULL, NULL },
+    { SAI_PORT_ATTR_SUPPORTED_FEC_MODE,
+      { false, false, false, true },
+      { false, false, false, true },
+      mlnx_port_supported_fec_mode_get, NULL,
       NULL, NULL },
     { SAI_PORT_ATTR_NUMBER_OF_INGRESS_PRIORITY_GROUPS,
       { false, false, false, true },
@@ -471,11 +489,11 @@ static const sai_vendor_attribute_entry_t port_vendor_attribs[] = {
       { false, false, true, true },
       mlnx_port_internal_loopback_get, NULL,
       mlnx_port_internal_loopback_set, NULL },
-    { SAI_PORT_ATTR_FDB_LEARNING_MODE,
-      { false, false, true, true },
-      { false, false, true, true },
-      mlnx_port_fdb_learning_get, NULL,
-      mlnx_port_fdb_learning_set, NULL },
+    { SAI_PORT_ATTR_FEC_MODE,
+      { true, false, true, true },
+      { true, false, true, true },
+      mlnx_port_fec_get, NULL,
+      mlnx_port_fec_set, NULL },
     { SAI_PORT_ATTR_UPDATE_DSCP,
       { false, false, true, true },
       { false, false, true, true },
@@ -506,16 +524,6 @@ static const sai_vendor_attribute_entry_t port_vendor_attribs[] = {
       { false, false, true, true },
       mlnx_port_global_flow_ctrl_get, NULL,
       mlnx_port_global_flow_ctrl_set, NULL },
-    { SAI_PORT_ATTR_MAX_LEARNED_ADDRESSES,
-      { false, false, false, false },
-      { false, false, true, true },
-      NULL, NULL,
-      NULL, NULL },
-    { SAI_PORT_ATTR_FDB_LEARNING_LIMIT_VIOLATION_PACKET_ACTION,
-      { false, false, false, false },
-      { false, false, true, true },
-      NULL, NULL,
-      NULL, NULL },
     { SAI_PORT_ATTR_INGRESS_ACL,
       { true, false, true, true },
       { true, false, true, true },
@@ -652,6 +660,11 @@ static const sai_vendor_attribute_entry_t port_vendor_attribs[] = {
       { false, false, true, true },
       mlnx_port_storm_control_policer_attr_get, (void*)MLNX_PORT_POLICER_TYPE_REGULAR_INDEX,
       mlnx_port_storm_control_policer_attr_set, (void*)MLNX_PORT_POLICER_TYPE_REGULAR_INDEX },
+    { SAI_PORT_ATTR_BIND_MODE,
+      { true, false, true, true },
+      { true, false, true, true },
+      mlnx_port_bind_mode_get, NULL,
+      mlnx_port_bind_mode_set, NULL },
 };
 static sai_status_t check_attrs_port_type(_In_ const sai_object_key_t *key,
                                           _In_ uint32_t                count,
@@ -672,9 +685,6 @@ static sai_status_t check_attrs_port_type(_In_ const sai_object_key_t *key,
         case SAI_PORT_ATTR_INGRESS_FILTERING:
         case SAI_PORT_ATTR_DROP_UNTAGGED:
         case SAI_PORT_ATTR_DROP_TAGGED:
-        case SAI_PORT_ATTR_FDB_LEARNING_MODE:
-        case SAI_PORT_ATTR_MAX_LEARNED_ADDRESSES:
-        case SAI_PORT_ATTR_FDB_LEARNING_LIMIT_VIOLATION_PACKET_ACTION:
             check = ATTR_PORT_IS_LAG_ENABLED;
             break;
         }
@@ -876,52 +886,6 @@ static sai_status_t mlnx_port_internal_loopback_set(_In_ const sai_object_key_t 
     return SAI_STATUS_NOT_IMPLEMENTED;
 }
 
-/* FDB Learning mode [sai_port_fdb_learning_mode_t] */
-static sai_status_t mlnx_port_fdb_learning_set(_In_ const sai_object_key_t      *key,
-                                               _In_ const sai_attribute_value_t *value,
-                                               void                             *arg)
-{
-    sai_status_t        status;
-    sx_port_log_id_t    port_id;
-    sx_fdb_learn_mode_t learn_mode;
-
-    SX_LOG_ENTER();
-
-    if (SAI_STATUS_SUCCESS != (status = mlnx_object_to_log_port(key->key.object_id, &port_id))) {
-        return status;
-    }
-
-    switch (value->s32) {
-    case SAI_PORT_FDB_LEARNING_MODE_DISABLE:
-        learn_mode = SX_FDB_LEARN_MODE_DONT_LEARN;
-        break;
-
-    case SAI_PORT_FDB_LEARNING_MODE_HW:
-        learn_mode = SX_FDB_LEARN_MODE_AUTO_LEARN;
-        break;
-
-    case SAI_PORT_FDB_LEARNING_MODE_CPU_LOG:
-        learn_mode = SX_FDB_LEARN_MODE_CONTROL_LEARN;
-        break;
-
-    case SAI_PORT_FDB_LEARNING_MODE_DROP:
-    case SAI_PORT_FDB_LEARNING_MODE_CPU_TRAP:
-        return SAI_STATUS_NOT_IMPLEMENTED;
-
-    default:
-        SX_LOG_ERR("Invalid port fdb learning mode %d\n", value->s32);
-        return SAI_STATUS_INVALID_ATTR_VALUE_0;
-    }
-
-    if (SX_STATUS_SUCCESS != (status = sx_api_fdb_port_learn_mode_set(gh_sdk, port_id, learn_mode))) {
-        SX_LOG_ERR("Failed to set port learning mode - %s.\n", SX_STATUS_MSG(status));
-        return sdk_to_sai(status);
-    }
-
-    SX_LOG_EXIT();
-    return SAI_STATUS_SUCCESS;
-}
-
 /* MTU [uint32_t] */
 static sai_status_t mlnx_port_mtu_set(_In_ const sai_object_key_t      *key,
                                       _In_ const sai_attribute_value_t *value,
@@ -1086,6 +1050,66 @@ static sai_status_t mlnx_port_speed_set(_In_ const sai_object_key_t      *key,
     }
 
     status = port_speed_set(port_id, value->u32);
+
+    SX_LOG_EXIT();
+    return status;
+}
+
+static sai_status_t port_fec_set(sx_port_log_id_t port_log_id, int32_t value)
+{
+    sx_status_t         status;
+    sx_port_phy_mode_t  mode;
+    sx_port_phy_speed_t speed;
+
+    memset(&mode, 0, sizeof(mode));
+
+    switch (value) {
+    case SAI_PORT_FEC_MODE_NONE:
+        mode.fec_mode = SX_PORT_FEC_MODE_NONE;
+        break;
+
+    case SAI_PORT_FEC_MODE_RS:
+        mode.fec_mode = SX_PORT_FEC_MODE_RS;
+        break;
+
+    case SAI_PORT_FEC_MODE_FC:
+        mode.fec_mode = SX_PORT_FEC_MODE_FC;
+        break;
+
+    default:
+        SX_LOG_ERR("Invalid fec mode %d\n", value);
+        return SAI_STATUS_INVALID_ATTR_VALUE_0;
+    }
+
+    /* FEC settings are valid for 25G, 50G, 100G, not for 10G and 40G */
+    for (speed = SX_PORT_PHY_SPEED_25GB; speed <= SX_PORT_PHY_SPEED_100GB; speed++) {
+        status = sx_api_port_phy_mode_set(gh_sdk, port_log_id, speed, mode);
+        if (SX_ERR(status)) {
+            SX_LOG_ERR("Failed to set fec mode speed %d - %s.\n", speed, SX_STATUS_MSG(status));
+            return sdk_to_sai(status);
+        }
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
+/* Forward Error Correction (FEC) control [sai_port_fec_mode_t] */
+static sai_status_t mlnx_port_fec_set(_In_ const sai_object_key_t      *key,
+                                      _In_ const sai_attribute_value_t *value,
+                                      void                             *arg)
+{
+    sai_status_t     status;
+    sx_port_log_id_t port_id;
+
+    SX_LOG_ENTER();
+
+    status = mlnx_object_to_type(key->key.object_id, SAI_OBJECT_TYPE_PORT, &port_id, NULL);
+    if (SAI_ERR(status)) {
+        SX_LOG_EXIT();
+        return status;
+    }
+
+    status = port_fec_set(port_id, value->s32);
 
     SX_LOG_EXIT();
     return status;
@@ -1461,6 +1485,24 @@ static sai_status_t mlnx_port_supported_speed_get(_In_ const sai_object_key_t   
     return status;
 }
 
+/* Query list of supported port FEC mode [sai_s32_list_t] */
+static sai_status_t mlnx_port_supported_fec_mode_get(_In_ const sai_object_key_t   *key,
+                                                     _Inout_ sai_attribute_value_t *value,
+                                                     _In_ uint32_t                  attr_index,
+                                                     _Inout_ vendor_cache_t        *cache,
+                                                     void                          *arg)
+{
+    int32_t      modes[] = { SAI_PORT_FEC_MODE_NONE, SAI_PORT_FEC_MODE_RS, SAI_PORT_FEC_MODE_FC };
+    sai_status_t status;
+
+    SX_LOG_ENTER();
+
+    status = mlnx_fill_s32list(modes, sizeof(modes) / sizeof(modes[0]), &value->s32list);
+
+    SX_LOG_EXIT();
+    return status;
+}
+
 static sai_status_t mlnx_port_number_of_priority_groups_get(_In_ const sai_object_key_t   *key,
                                                             _Inout_ sai_attribute_value_t *value,
                                                             _In_ uint32_t                  attr_index,
@@ -1778,40 +1820,6 @@ static sai_status_t mlnx_port_internal_loopback_get(_In_ const sai_object_key_t 
     return SAI_STATUS_SUCCESS;
 }
 
-/* FDB Learning mode [sai_port_fdb_learning_mode_t] */
-static sai_status_t mlnx_port_fdb_learning_get(_In_ const sai_object_key_t   *key,
-                                               _Inout_ sai_attribute_value_t *value,
-                                               _In_ uint32_t                  attr_index,
-                                               _Inout_ vendor_cache_t        *cache,
-                                               void                          *arg)
-{
-    sai_status_t        status;
-    sx_port_log_id_t    port_id;
-    sx_fdb_learn_mode_t learn_mode;
-
-    SX_LOG_ENTER();
-
-    if (SAI_STATUS_SUCCESS != (status = mlnx_object_to_log_port(key->key.object_id, &port_id))) {
-        return status;
-    }
-
-    if (SX_STATUS_SUCCESS != (status = sx_api_fdb_port_learn_mode_get(gh_sdk, port_id, &learn_mode))) {
-        SX_LOG_ERR("Failed to get port learning mode - %s.\n", SX_STATUS_MSG(status));
-        return sdk_to_sai(status);
-    }
-
-    if (SX_FDB_LEARN_MODE_DONT_LEARN == learn_mode) {
-        value->s32 = SAI_PORT_FDB_LEARNING_MODE_DISABLE;
-    } else if (SX_FDB_LEARN_MODE_CONTROL_LEARN == learn_mode) {
-        value->s32 = SAI_PORT_FDB_LEARNING_MODE_CPU_LOG;
-    } else {
-        value->s32 = SAI_PORT_FDB_LEARNING_MODE_HW;
-    }
-
-    SX_LOG_EXIT();
-    return SAI_STATUS_SUCCESS;
-}
-
 /* MTU [uint32_t] */
 static sai_status_t mlnx_port_mtu_get(_In_ const sai_object_key_t   *key,
                                       _Inout_ sai_attribute_value_t *value,
@@ -1887,6 +1895,59 @@ static sai_status_t mlnx_port_global_flow_ctrl_get(_In_ const sai_object_key_t  
 
     default:
         SX_LOG_ERR("Invalid SDK global flow control mode %u\n", ctrl_mode);
+        status = SAI_STATUS_FAILURE;
+        goto out;
+    }
+
+out:
+    SX_LOG_EXIT();
+    return status;
+}
+
+/* Forward Error Correction (FEC) control [sai_port_fec_mode_t] */
+static sai_status_t mlnx_port_fec_get(_In_ const sai_object_key_t   *key,
+                                      _Inout_ sai_attribute_value_t *value,
+                                      _In_ uint32_t                  attr_index,
+                                      _Inout_ vendor_cache_t        *cache,
+                                      void                          *arg)
+{
+    sx_port_log_id_t   port_id;
+    sai_status_t       status;
+    sx_port_phy_mode_t admin, oper;
+
+    SX_LOG_ENTER();
+
+    status = mlnx_object_to_type(key->key.object_id, SAI_OBJECT_TYPE_PORT, &port_id, NULL);
+    if (status != SAI_STATUS_SUCCESS) {
+        return status;
+    }
+
+    status = sx_api_port_phy_mode_get(gh_sdk, port_id, SX_PORT_PHY_SPEED_100GB, &admin, &oper);
+    if (status != SAI_STATUS_SUCCESS) {
+        SX_LOG_ERR("Failed to get phy mode - %s\n", SX_STATUS_MSG(status));
+        return sdk_to_sai(status);
+    }
+
+    switch (admin.fec_mode) {
+    case SX_PORT_FEC_MODE_NONE:
+        value->s32 = SAI_PORT_FEC_MODE_NONE;
+        break;
+
+    case SX_PORT_FEC_MODE_FC:
+        value->s32 = SAI_PORT_FEC_MODE_FC;
+        break;
+
+    case SX_PORT_FEC_MODE_RS:
+        value->s32 = SAI_PORT_FEC_MODE_RS;
+        break;
+
+    case SX_PORT_FEC_MODE_AUTO:
+        SX_LOG_ERR("SDK FEC auto has no translation in SAI\n");
+        status = SAI_STATUS_FAILURE;
+        goto out;
+
+    default:
+        SX_LOG_ERR("Invalid SDK fec mode %u\n", admin.fec_mode);
         status = SAI_STATUS_FAILURE;
         goto out;
     }
@@ -3761,6 +3822,18 @@ static sai_status_t mlnx_get_port_stats(_In_ sai_object_id_t        port_id,
         case SAI_PORT_STAT_OUT_WATERMARK_BYTES:
         case SAI_PORT_STAT_OUT_SHARED_CURR_OCCUPANCY_BYTES:
         case SAI_PORT_STAT_OUT_SHARED_WATERMARK_BYTES:
+        case SAI_PORT_STAT_PFC_0_ON2OFF_RX_PKTS:
+        case SAI_PORT_STAT_PFC_1_ON2OFF_RX_PKTS:
+        case SAI_PORT_STAT_PFC_2_ON2OFF_RX_PKTS:
+        case SAI_PORT_STAT_PFC_3_ON2OFF_RX_PKTS:
+        case SAI_PORT_STAT_PFC_4_ON2OFF_RX_PKTS:
+        case SAI_PORT_STAT_PFC_5_ON2OFF_RX_PKTS:
+        case SAI_PORT_STAT_PFC_6_ON2OFF_RX_PKTS:
+        case SAI_PORT_STAT_PFC_7_ON2OFF_RX_PKTS:
+        case SAI_PORT_STAT_EEE_TX_EVENT_COUNT:
+        case SAI_PORT_STAT_EEE_RX_EVENT_COUNT:
+        case SAI_PORT_STAT_EEE_TX_DURATION:
+        case SAI_PORT_STAT_EEE_RX_DURATION:
             SX_LOG_ERR("Port counter %d set item %u not implemented\n", counter_ids[ii], ii);
             return SAI_STATUS_NOT_IMPLEMENTED;
 
@@ -4088,6 +4161,27 @@ static sai_status_t mlnx_port_storm_control_policer_attr_get(_In_ const sai_obje
     return status;
 }
 
+static sai_status_t mlnx_port_bind_mode_set(_In_ const sai_object_key_t      *key,
+                                            _In_ const sai_attribute_value_t *value,
+                                            _In_ void                        *arg)
+{
+    return SAI_STATUS_NOT_IMPLEMENTED;
+}
+
+static sai_status_t mlnx_port_bind_mode_get(_In_ const sai_object_key_t   *key,
+                                            _Inout_ sai_attribute_value_t *value,
+                                            _In_ uint32_t                  attr_index,
+                                            _Inout_ vendor_cache_t        *cache,
+                                            _In_ void                     *arg)
+{
+    SX_LOG_ENTER();
+
+    value->s32 = SAI_PORT_BIND_MODE_PORT;
+
+    SX_LOG_EXIT();
+    return SAI_STATUS_SUCCESS;
+}
+
 mlnx_port_config_t * mlnx_port_by_idx(uint8_t id)
 {
     return &mlnx_ports_db[id];
@@ -4202,7 +4296,6 @@ sai_status_t mlnx_port_config_init(mlnx_port_config_t *port)
 {
     sx_port_admin_state_t      state = SX_PORT_ADMIN_STATUS_DOWN;
     sx_port_speed_capability_t admin_speed;
-    sx_vlan_ports_t            vlan_port;
     sai_status_t               status;
 
     assert(port != NULL);
@@ -4210,10 +4303,6 @@ sai_status_t mlnx_port_config_init(mlnx_port_config_t *port)
     if (mlnx_port_is_lag(port)) {
         state = SX_PORT_ADMIN_STATUS_UP;
     }
-
-    memset(&vlan_port, 0, sizeof(vlan_port));
-    vlan_port.log_port    = port->logical;
-    vlan_port.is_untagged = true;
 
     memset(&admin_speed, 0, sizeof(admin_speed));
 
@@ -4277,15 +4366,6 @@ sai_status_t mlnx_port_config_init(mlnx_port_config_t *port)
         return sdk_to_sai(status);
     }
 
-    status = sx_api_vlan_ports_set(gh_sdk, SX_ACCESS_CMD_ADD, DEFAULT_ETH_SWID,
-                                   DEFAULT_VLAN, &vlan_port, 1);
-    if (SX_ERR(status)) {
-        SX_LOG_ERR("Port add port %x to vlan %u failed - %s\n", port->logical, DEFAULT_VLAN, SX_STATUS_MSG(status));
-        return sdk_to_sai(status);
-    }
-
-    mlnx_vlan_port_set(DEFAULT_VLAN, port, true);
-
     status = sx_api_vlan_port_ingr_filter_set(gh_sdk, port->logical, SX_INGR_FILTER_ENABLE);
     if (SX_ERR(status)) {
         SX_LOG_ERR("Port ingress filter set %x failed - %s\n", port->logical, SX_STATUS_MSG(status));
@@ -4324,6 +4404,8 @@ sai_status_t mlnx_port_config_init(mlnx_port_config_t *port)
         }
     }
 
+    port->bridge_id = SX_BRIDGE_ID_INVALID;
+
     return SAI_STATUS_SUCCESS;
 }
 
@@ -4356,7 +4438,6 @@ static void mlnx_port_reset_buffer_refs(uint32_t *buff_refs, uint32_t count)
 sai_status_t mlnx_port_config_uninit(mlnx_port_config_t *port)
 {
     mlnx_policer_bind_params bind_params;
-    sx_vlan_ports_t          vlan_port;
     sx_port_mapping_t        port_map;
     sai_status_t             status;
     sx_vid_t                 pvid;
@@ -4383,10 +4464,6 @@ sai_status_t mlnx_port_config_uninit(mlnx_port_config_t *port)
         return status;
     }
 
-    memset(&vlan_port, 0, sizeof(vlan_port));
-    vlan_port.log_port    = port->logical;
-    vlan_port.is_untagged = true;
-
     status = sx_api_vlan_port_pvid_get(gh_sdk, port->logical, &pvid);
     if (!SX_ERR(status)) {
         status = sx_api_vlan_port_pvid_set(gh_sdk, SX_ACCESS_CMD_DELETE, port->logical, pvid);
@@ -4394,13 +4471,6 @@ sai_status_t mlnx_port_config_uninit(mlnx_port_config_t *port)
             SX_LOG_ERR("Port pvid un-set %x failed - %s\n", port->logical, SX_STATUS_MSG(status));
             return sdk_to_sai(status);
         }
-    }
-
-    status = sx_api_vlan_ports_set(gh_sdk, SX_ACCESS_CMD_DELETE, DEFAULT_ETH_SWID,
-                                   DEFAULT_VLAN, &vlan_port, 1);
-    if (SX_ERR(status) && (status != SX_STATUS_ENTRY_NOT_FOUND)) {
-        SX_LOG_ERR("Port del port %x from vlan %u failed - %s\n", port->logical, DEFAULT_VLAN, SX_STATUS_MSG(status));
-        return sdk_to_sai(status);
     }
 
 /*    status = sx_api_rstp_port_state_set(gh_sdk, port->logical, SX_MSTP_INST_PORT_STATE_DISCARDING); */
@@ -4531,20 +4601,16 @@ sai_status_t mlnx_port_in_use_check(const mlnx_port_config_t *port)
     sx_status_t                     sx_status;
     sai_status_t                    status = SAI_STATUS_SUCCESS;
 
+    if (mlnx_port_is_in_bridge(port)) {
+        SX_LOG_ERR("Failed remove port oid %" PRIx64 " - is under bridge\n", port->saiport);
+        return SAI_STATUS_OBJECT_IN_USE;
+    }
     if (port->lag_id) {
         SX_LOG_ERR("Failed remove port oid %" PRIx64 " - is a LAG member\n", port->saiport);
         return SAI_STATUS_OBJECT_IN_USE;
     }
-    if (port->vlans) {
-        SX_LOG_ERR("Failed remove port oid %" PRIx64 " - is a VLAN member\n", port->saiport);
-        return SAI_STATUS_OBJECT_IN_USE;
-    }
     if (port->rifs) {
         SX_LOG_ERR("Failed remove port oid %" PRIx64 " - is a router interface\n", port->saiport);
-        return SAI_STATUS_OBJECT_IN_USE;
-    }
-    if (port->fdbs) {
-        SX_LOG_ERR("Failed remove port oid %" PRIx64 " - is in FDB action\n", port->saiport);
         return SAI_STATUS_OBJECT_IN_USE;
     }
 
@@ -4636,17 +4702,17 @@ static sai_status_t mlnx_create_port(_Out_ sai_object_id_t     * port_id,
     const sai_attribute_value_t *port_speed   = NULL;
     const sai_attribute_value_t *attr_ing_acl = NULL;
     const sai_attribute_value_t *attr_egr_acl = NULL;
+    const sai_attribute_value_t *fec;
     char                         list_str[MAX_LIST_VALUE_STR_LEN];
-    uint32_t                     speed_index;
+    uint32_t                     speed_index, fec_index, lane_index, acl_attr_index;
     uint32_t                     lanes_count;
     mlnx_port_config_t          *father_port;
-    uint32_t                     lane_index;
     mlnx_port_config_t          *new_port = NULL;
     sx_port_mapping_t           *port_map;
     sai_status_t                 status;
     acl_index_t                  ing_acl_index = ACL_INDEX_INVALID, egr_acl_index = ACL_INDEX_INVALID;
     uint32_t                     module;
-    uint32_t                     ii, acl_attr_index;
+    uint32_t                     ii;
 
     SX_LOG_EXIT();
 
@@ -4796,6 +4862,14 @@ static sai_status_t mlnx_create_port(_Out_ sai_object_id_t     * port_id,
     status = port_speed_set(new_port->logical, port_speed->u32);
     if (SAI_ERR(status)) {
         goto out_unlock;
+    }
+
+    status = find_attrib_in_list(attr_count, attr_list, SAI_PORT_ATTR_FEC_MODE, &fec, &fec_index);
+    if (status == SAI_STATUS_SUCCESS) {
+        status = port_fec_set(new_port->logical, fec->s32);
+        if (SAI_ERR(status)) {
+            goto out_unlock;
+        }
     }
 
     /* Mark port as splitted only if the new width != initial width */

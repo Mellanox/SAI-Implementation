@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2014. Mellanox Technologies, Ltd. ALL RIGHTS RESERVED.
+ *  Copyright (C) 2017. Mellanox Technologies, Ltd. ALL RIGHTS RESERVED.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License"); you may
  *    not use this file except in compliance with the License. You may obtain
@@ -138,6 +138,68 @@
 #define acl_table_read_lock(table_id)  cl_plock_acquire(&acl_db_table(table_id).lock)
 #define acl_table_unlock(table_id)     cl_plock_release(&acl_db_table(table_id).lock)
 
+#define MLNX_SAI_STRUCT_MEMBER_SIZE(type, member) sizeof(((type*)0)->member)
+
+#define MLNX_ACL_FIELD_INFO_DEFINE(sx_key_id, sx_key_type, type) \
+    (mlnx_acl_single_key_field_info_t) \
+    {.key_id     = sx_key_id, \
+     .key_size   = MLNX_SAI_STRUCT_MEMBER_SIZE(sx_acl_key_fields_t, sx_key_type), \
+     .field_type = type }
+
+#define MLNX_ACL_ENTRY_KEY_LIST(...) {__VA_ARGS__}
+#define MLNX_ACL_MULTI_KEY_FIELD_INFO(sx_key_count, sx_key_list, type) \
+    (mlnx_acl_multi_key_field_info_t) \
+    {.key_count  = sx_key_count,    \
+     .key_list   = (sx_acl_key_t[sx_key_count])sx_key_list,     \
+     .field_type = type }
+
+#define MLNX_ACL_FIELD_DEFINE(sx_key_id, sx_key_type) \
+    MLNX_ACL_FIELD_INFO_DEFINE(sx_key_id, sx_key_type, MLNX_ACL_FIELD_TYPE_EMPTY)
+#define MLNX_ACL_FIELD_L2_DEFINE(sx_key_id, sx_key_type) \
+    MLNX_ACL_FIELD_INFO_DEFINE(sx_key_id, sx_key_type, MLNX_ACL_FIELD_TYPE_EMPTY)
+#define MLNX_ACL_FIELD_INNER_VLAN_DEFINE(sx_key_id, sx_key_type) \
+    MLNX_ACL_FIELD_INFO_DEFINE(sx_key_id, sx_key_type, MLNX_ACL_FIELD_TYPE_INNER_VLAN_VALID)
+#define MLNX_ACL_FIELD_IP_DEFINE(sx_key_id, sx_key_type) \
+    MLNX_ACL_FIELD_INFO_DEFINE(sx_key_id, sx_key_type, MLNX_ACL_FIELD_TYPE_IP)
+#define MLNX_ACL_FIELD_IPV4_DEFINE(sx_key_id, sx_key_type) \
+    MLNX_ACL_FIELD_INFO_DEFINE(sx_key_id, sx_key_type, MLNX_ACL_FIELD_TYPE_IPV4)
+#define MLNX_ACL_FIELD_IPV6_DEFINE(sx_key_id, sx_key_type) \
+    MLNX_ACL_FIELD_INFO_DEFINE(sx_key_id, sx_key_type, MLNX_ACL_FIELD_TYPE_IPV6)
+#define MLNX_ACL_FIELD_INNER_IPV4_DEFINE(sx_key_id, sx_key_type) \
+    MLNX_ACL_FIELD_INFO_DEFINE(sx_key_id, sx_key_type, MLNX_ACL_FIELD_TYPE_INNER_IPV4)
+#define MLNX_ACL_FIELD_INNER_IPV6_DEFINE(sx_key_id, sx_key_type) \
+    MLNX_ACL_FIELD_INFO_DEFINE(sx_key_id, sx_key_type, MLNX_ACL_FIELD_TYPE_INNER_IPV6)
+#define MLNX_ACL_FIELD_L4_DEFINE(sx_key_id, sx_key_type) \
+    MLNX_ACL_FIELD_INFO_DEFINE(sx_key_id, sx_key_type, MLNX_ACL_FIELD_TYPE_L4)
+#define MLNX_ACL_FIELD_TCP_DEFINE(sx_key_id, sx_key_type) \
+    MLNX_ACL_FIELD_INFO_DEFINE(sx_key_id, sx_key_type, MLNX_ACL_FIELD_TYPE_TCP)
+
+typedef enum _mlnx_acl_field_type_t {
+    MLNX_ACL_FIELD_TYPE_INVALID            = 0,
+    MLNX_ACL_FIELD_TYPE_EMPTY              = (1 << 0),
+    MLNX_ACL_FIELD_TYPE_INNER_VLAN_VALID   = (1 << 1),
+    MLNX_ACL_FIELD_TYPE_INNER_VLAN_INVALID = (1 << 2),
+    MLNX_ACL_FIELD_TYPE_IP                 = (1 << 3),
+    MLNX_ACL_FIELD_TYPE_NON_IP             = (1 << 4),
+    MLNX_ACL_FIELD_TYPE_IPV4               = (1 << 5),
+    MLNX_ACL_FIELD_TYPE_NON_IPV4           = (1 << 6),
+    MLNX_ACL_FIELD_TYPE_IPV6               = (1 << 7),
+    MLNX_ACL_FIELD_TYPE_ARP                = (1 << 8),
+    MLNX_ACL_FIELD_TYPE_INNER_IPV4         = (1 << 9),
+    MLNX_ACL_FIELD_TYPE_INNER_IPV6         = (1 << 10),
+    MLNX_ACL_FIELD_TYPE_L4                 = (1 << 11),
+    MLNX_ACL_FIELD_TYPE_TCP                = (1 << 12),
+} mlnx_acl_field_type_t;
+typedef struct _mlnx_acl_sai_single_key_field_info_t {
+    sx_acl_key_t          key_id;
+    uint32_t              key_size;
+    mlnx_acl_field_type_t field_type;
+} mlnx_acl_single_key_field_info_t;
+typedef struct _mlnx_acl_sai_multiple_key_field_info_t {
+    uint32_t              key_count;
+    sx_acl_key_t         *key_list;
+    mlnx_acl_field_type_t field_type;
+} mlnx_acl_multi_key_field_info_t;
 typedef enum acl_psort_rpc_type {
     ACL_RPC_TERMINATE_THREAD,
     ACL_RPC_PSORT_TABLE_INIT,
@@ -179,9 +241,37 @@ static pthread_key_t      pthread_key;
 static mqd_t              fg_mq = ACL_QUEUE_INVALID_HANDLE;
 static struct sockaddr_un rpc_sv_sockaddr;
 #endif
-static sx_api_handle_t psort_sx_api    = SX_API_INVALID_HANDLE, rpc_sx_api = SX_API_INVALID_HANDLE;
-static int             rpc_cl_socket   = -1;
-static bool            is_init_process = false;
+static sx_api_handle_t      psort_sx_api                  = SX_API_INVALID_HANDLE, rpc_sx_api = SX_API_INVALID_HANDLE;
+static int                  rpc_cl_socket                 = -1;
+static bool                 is_init_process               = false;
+const sai_acl_action_type_t mlnx_acl_action_list_common[] = {
+    SAI_ACL_ACTION_TYPE_PACKET_ACTION,
+    SAI_ACL_ACTION_TYPE_COUNTER,
+    SAI_ACL_ACTION_TYPE_SET_POLICER,
+    SAI_ACL_ACTION_TYPE_SET_TC,
+    SAI_ACL_ACTION_TYPE_SET_PACKET_COLOR,
+    SAI_ACL_ACTION_TYPE_SET_INNER_VLAN_ID,
+    SAI_ACL_ACTION_TYPE_SET_INNER_VLAN_PRI,
+    SAI_ACL_ACTION_TYPE_SET_OUTER_VLAN_ID,
+    SAI_ACL_ACTION_TYPE_SET_OUTER_VLAN_PRI,
+    SAI_ACL_ACTION_TYPE_SET_SRC_MAC,
+    SAI_ACL_ACTION_TYPE_SET_DST_MAC,
+    SAI_ACL_ACTION_TYPE_SET_DSCP,
+    SAI_ACL_ACTION_TYPE_SET_ECN,
+    SAI_ACL_ACTION_TYPE_SET_ACL_META_DATA,
+};
+const sai_acl_action_type_t mlnx_acl_action_list_ingress[] = {
+    SAI_ACL_ACTION_TYPE_REDIRECT,
+    SAI_ACL_ACTION_TYPE_REDIRECT_LIST,
+    SAI_ACL_ACTION_TYPE_FLOOD,
+    SAI_ACL_ACTION_TYPE_MIRROR_INGRESS,
+};
+const sai_acl_action_type_t mlnx_acl_action_list_egress[] = {
+    SAI_ACL_ACTION_TYPE_MIRROR_EGRESS,
+};
+const uint32_t              mlnx_acl_action_list_common_count  = ARRAY_SIZE(mlnx_acl_action_list_common);
+const uint32_t              mlnx_acl_action_list_ingress_count = ARRAY_SIZE(mlnx_acl_action_list_ingress);
+const uint32_t              mlnx_acl_action_list_egress_count  = ARRAY_SIZE(mlnx_acl_action_list_egress);
 
 sai_status_t mlnx_acl_log_set(sx_verbosity_level_t level)
 {
@@ -214,26 +304,26 @@ static sai_status_t mlnx_acl_table_attrib_get(_In_ const sai_object_key_t   *key
                                               _In_ uint32_t                  attr_index,
                                               _Inout_ vendor_cache_t        *cache,
                                               void                          *arg);
-static sai_status_t mlnx_acl_table_ip_and_tos_get(_In_ const sai_object_key_t   *key,
-                                                  _Inout_ sai_attribute_value_t *value,
-                                                  _In_ uint32_t                  attr_index,
-                                                  _Inout_ vendor_cache_t        *cache,
-                                                  void                          *arg);
 static sai_status_t mlnx_acl_table_fields_get(_In_ const sai_object_key_t   *key,
                                               _Inout_ sai_attribute_value_t *value,
                                               _In_ uint32_t                  attr_index,
                                               _Inout_ vendor_cache_t        *cache,
                                               void                          *arg);
+static sai_status_t mlnx_acl_table_range_type_get(_In_ const sai_object_key_t   *key,
+                                                  _Inout_ sai_attribute_value_t *value,
+                                                  _In_ uint32_t                  attr_index,
+                                                  _Inout_ vendor_cache_t        *cache,
+                                                  void                          *arg);
 static sai_status_t mlnx_acl_entry_tos_get(_In_ const sai_object_key_t   *key,
                                            _Inout_ sai_attribute_value_t *value,
                                            _In_ uint32_t                  attr_index,
                                            _Inout_ vendor_cache_t        *cache,
                                            void                          *arg);
-static sai_status_t mlnx_acl_entry_fields_get(_In_ const sai_object_key_t   *key,
-                                              _Inout_ sai_attribute_value_t *value,
-                                              _In_ uint32_t                  attr_index,
-                                              _Inout_ vendor_cache_t        *cache,
-                                              void                          *arg);
+static sai_status_t mlnx_acl_entry_vlan_tags_get(_In_ const sai_object_key_t   *key,
+                                                 _Inout_ sai_attribute_value_t *value,
+                                                 _In_ uint32_t                  attr_index,
+                                                 _Inout_ vendor_cache_t        *cache,
+                                                 void                          *arg);
 static sai_status_t mlnx_acl_entry_ip_ident_get(_In_ const sai_object_key_t   *key,
                                                 _Inout_ sai_attribute_value_t *value,
                                                 _In_ uint32_t                  attr_index,
@@ -260,28 +350,13 @@ static sai_status_t mlnx_acl_entry_ip_ident_set(_In_ const sai_object_key_t     
 static sai_status_t mlnx_acl_entry_priority_set(_In_ const sai_object_key_t      *key,
                                                 _In_ const sai_attribute_value_t *value,
                                                 void                             *arg);
-static sai_status_t mlnx_acl_entry_mac_set(_In_ const sai_object_key_t      *key,
-                                           _In_ const sai_attribute_value_t *value,
-                                           void                             *arg);
-static sai_status_t mlnx_acl_entry_ip_set(_In_ const sai_object_key_t      *key,
-                                          _In_ const sai_attribute_value_t *value,
-                                          void                             *arg);
-static sai_status_t mlnx_acl_entry_vlan_set(_In_ const sai_object_key_t      *key,
-                                            _In_ const sai_attribute_value_t *value,
-                                            void                             *arg);
-static sai_status_t mlnx_acl_entry_l4port_set(_In_ const sai_object_key_t      *key,
-                                              _In_ const sai_attribute_value_t *value,
-                                              void                             *arg);
-static sai_status_t mlnx_acl_entry_tos_set(_In_ const sai_object_key_t      *key,
-                                           _In_ const sai_attribute_value_t *value,
-                                           void                             *arg);
+static sai_status_t mlnx_acl_entry_field_set(_In_ const sai_object_key_t      *key,
+                                             _In_ const sai_attribute_value_t *value,
+                                             void                             *arg);
 static sai_status_t mlnx_acl_entry_action_counter_set(_In_ const sai_object_key_t      *key,
                                                       _In_ const sai_attribute_value_t *value,
                                                       void                             *arg);
 static sai_status_t mlnx_acl_entry_action_mac_set(_In_ const sai_object_key_t      *key,
-                                                  _In_ const sai_attribute_value_t *value,
-                                                  void                             *arg);
-static sai_status_t mlnx_acl_entry_range_list_set(_In_ const sai_object_key_t      *key,
                                                   _In_ const sai_attribute_value_t *value,
                                                   void                             *arg);
 static sai_status_t mlnx_acl_counter_flag_get(_In_ const sai_object_key_t   *key,
@@ -302,12 +377,6 @@ static sai_status_t mlnx_acl_entry_action_mirror_get(_In_ const sai_object_key_t
 static sai_status_t mlnx_acl_entry_action_mirror_set(_In_ const sai_object_key_t      *key,
                                                      _In_ const sai_attribute_value_t *value,
                                                      void                             *arg);
-static sai_status_t mlnx_acl_entry_ip_frag_set(_In_ const sai_object_key_t      *key,
-                                               _In_ const sai_attribute_value_t *value,
-                                               void                             *arg);
-static sai_status_t mlnx_acl_entry_vlan_tags_set(_In_ const sai_object_key_t      *key,
-                                                 _In_ const sai_attribute_value_t *value,
-                                                 void                             *arg);
 static sai_status_t mlnx_acl_entry_packet_action_set(_In_ const sai_object_key_t      *key,
                                                      _In_ const sai_attribute_value_t *value,
                                                      void                             *arg);
@@ -319,26 +388,30 @@ static sai_status_t mlnx_acl_entry_ports_get(_In_ const sai_object_key_t   *key,
                                              _In_ uint32_t                  attr_index,
                                              _Inout_ vendor_cache_t        *cache,
                                              void                          *arg);
-static sai_status_t mlnx_acl_entry_mac_get(_In_ const sai_object_key_t   *key,
-                                           _Inout_ sai_attribute_value_t *value,
-                                           _In_ uint32_t                  attr_index,
-                                           _Inout_ vendor_cache_t        *cache,
-                                           void                          *arg);
+static void mlnx_acl_single_field_key_to_sai(_In_ sai_acl_entry_attr_t          attr_id,
+                                             _Out_ sai_attribute_value_t       *value,
+                                             _In_ const sx_flex_acl_key_desc_t *sx_key,
+                                             _In_ uint32_t                      key_size);
+static sai_status_t mlnx_acl_entry_single_key_field_get(_In_ const sai_object_key_t   *key,
+                                                        _Inout_ sai_attribute_value_t *value,
+                                                        _In_ uint32_t                  attr_index,
+                                                        _Inout_ vendor_cache_t        *cache,
+                                                        void                          *arg);
 static sai_status_t mlnx_acl_entry_ip_get(_In_ const sai_object_key_t   *key,
                                           _Inout_ sai_attribute_value_t *value,
                                           _In_ uint32_t                  attr_index,
                                           _Inout_ vendor_cache_t        *cache,
                                           void                          *arg);
-static sai_status_t mlnx_acl_entry_ip_fields_get(_In_ const sai_object_key_t   *key,
-                                                 _Inout_ sai_attribute_value_t *value,
-                                                 _In_ uint32_t                  attr_index,
-                                                 _Inout_ vendor_cache_t        *cache,
-                                                 void                          *arg);
-static sai_status_t mlnx_acl_entry_vlan_get(_In_ const sai_object_key_t   *key,
-                                            _Inout_ sai_attribute_value_t *value,
-                                            _In_ uint32_t                  attr_index,
-                                            _Inout_ vendor_cache_t        *cache,
-                                            void                          *arg);
+static sai_status_t mlnx_acl_entry_ip_type_get(_In_ const sai_object_key_t   *key,
+                                               _Inout_ sai_attribute_value_t *value,
+                                               _In_ uint32_t                  attr_index,
+                                               _Inout_ vendor_cache_t        *cache,
+                                               void                          *arg);
+static sai_status_t mlnx_acl_entry_ip_frag_get(_In_ const sai_object_key_t   *key,
+                                               _Inout_ sai_attribute_value_t *value,
+                                               _In_ uint32_t                  attr_index,
+                                               _Inout_ vendor_cache_t        *cache,
+                                               void                          *arg);
 static sai_status_t mlnx_acl_entry_port_get(_In_ const sai_object_key_t   *key,
                                             _Inout_ sai_attribute_value_t *value,
                                             _In_ uint32_t                  attr_index,
@@ -359,18 +432,12 @@ static sai_status_t mlnx_acl_entry_action_vlan_get(_In_ const sai_object_key_t  
                                                    _In_ uint32_t                  attr_index,
                                                    _Inout_ vendor_cache_t        *cache,
                                                    void                          *arg);
-static sai_status_t mlnx_acl_entry_ip_fields_set(_In_ const sai_object_key_t      *key,
-                                                 _In_ const sai_attribute_value_t *value,
-                                                 void                             *arg);
 static sai_status_t mlnx_acl_entry_out_ports_set(_In_ const sai_object_key_t      *key,
                                                  _In_ const sai_attribute_value_t *value,
                                                  void                             *arg);
 static sai_status_t mlnx_acl_entry_in_ports_set(_In_ const sai_object_key_t      *key,
                                                 _In_ const sai_attribute_value_t *value,
                                                 void                             *arg);
-static sai_status_t mlnx_acl_entry_fields_set(_In_ const sai_object_key_t      *key,
-                                              _In_ const sai_attribute_value_t *value,
-                                              void                             *arg);
 static sai_status_t mlnx_acl_entry_action_set(_In_ const sai_object_key_t      *key,
                                               _In_ const sai_attribute_value_t *value,
                                               void                             *arg);
@@ -684,6 +751,9 @@ static bool mlnx_acl_range_type_list_is_unique(_In_ const sai_acl_range_type_t *
 static sai_status_t mlnx_acl_range_validate_and_fetch(_In_ const sai_object_list_t   *range_list,
                                                       _Out_ sx_flex_acl_port_range_t *sx_acl_range,
                                                       _In_ uint32_t                   table_index);
+static sai_status_t mlnx_acl_action_list_validate(_In_ const sai_s32_list_t *action_list,
+                                                  _In_ sai_acl_stage_t       stage,
+                                                  _In_ uint32_t              attr_index);
 static sai_status_t acl_resources_init();
 static sai_status_t acl_background_threads_close();
 static sai_status_t acl_psort_background_close();
@@ -692,6 +762,187 @@ static void mlnx_acl_psort_deinit();
 static void mlnx_acl_table_locks_deinit();
 static void psort_background_thread(void *arg);
 static void psort_rpc_thread(void *arg);
+static bool mlnx_acl_field_is_not_trivial(sai_attr_id_t attr_id);
+static const mlnx_acl_single_key_field_info_t* mlnx_acl_single_key_field_info_fetch(_In_ sai_attr_id_t attr_id);
+static const mlnx_acl_multi_key_field_info_t* mlnx_acl_multi_key_field_info_fetch(_In_ sai_attr_id_t attr_id);
+static sai_status_t mlnx_acl_non_trivial_field_to_sx_key(_In_ sai_acl_entry_attr_t attr_id,
+                                                         _Out_ sx_acl_key_t       *sx_keys,
+                                                         _Out_ uint32_t           *sx_key_count);
+static sai_status_t mlnx_acl_table_is_entry_field_supported(_In_ uint32_t             acl_table_index,
+                                                            _In_ sai_acl_entry_attr_t attr_id,
+                                                            _Out_ bool               *is_supported);
+static sai_status_t mlnx_acl_field_info_data_fetch(_In_ sai_attr_id_t               attr_id,
+                                                   _Out_opt_ mlnx_acl_field_type_t *fields_types,
+                                                   _Out_opt_ sx_acl_key_t          *sx_keys,
+                                                   _Inout_opt_ uint32_t            *sx_key_count);
+static sai_status_t mlnx_acl_table_fields_to_sx(_In_ const sai_attribute_t *attr_list,
+                                                _In_ uint32_t               attr_count,
+                                                _Out_ sx_acl_key_t         *sx_keys,
+                                                _Inout_ uint32_t           *sx_key_count);
+static sai_status_t mlnx_acl_entry_fields_to_sx(_In_ const sai_attribute_t   *attr_list,
+                                                _In_ uint32_t                 attr_count,
+                                                _In_ uint32_t                 table_index,
+                                                _Out_ sx_flex_acl_key_desc_t *sx_keys,
+                                                _Inout_ uint32_t             *sx_key_count);
+static sai_status_t mlnx_acl_field_types_check(_Inout_ mlnx_acl_field_type_t *entry_fields_types,
+                                               _In_ mlnx_acl_field_type_t     field_type);
+static sai_status_t mlnx_acl_field_types_to_extra_sx_keys(_In_ mlnx_acl_field_type_t fields_types,
+                                                          _Out_ sx_acl_key_t        *sx_keys,
+                                                          _Inout_ uint32_t          *sx_key_count);
+static sai_status_t mlnx_acl_field_type_extend(_Inout_ mlnx_acl_field_type_t *fields_types);
+static sai_status_t mlnx_acl_extra_key_descs_merge(_Inout_ sx_flex_acl_flex_rule_t   *rule,
+                                                   _In_ const sx_flex_acl_key_desc_t *key_descs,
+                                                   _In_ uint32_t                      key_desc_count);
+static sai_status_t mlnx_acl_field_types_to_sx(_In_ mlnx_acl_field_type_t    fields_types,
+                                               _Out_ sx_flex_acl_key_desc_t *sx_keys,
+                                               _Inout_ uint32_t             *sx_key_count);
+static sai_status_t mlnx_acl_entry_field_to_sx(_In_ sai_acl_entry_attr_t         attr_id,
+                                               _In_ const sai_attribute_value_t *value,
+                                               _In_ uint32_t                     attr_index,
+                                               _In_ uint32_t                     table_index,
+                                               _Out_ sx_flex_acl_key_desc_t     *sx_keys,
+                                               _Inout_ uint32_t                 *sx_key_count,
+                                               _Inout_ mlnx_acl_field_type_t    *field_type);
+static sai_status_t mlnx_acl_single_key_field_to_sx(_In_ sai_acl_entry_attr_t         attr_id,
+                                                    _In_ const sai_attribute_value_t *value,
+                                                    _In_ uint32_t                     attr_index,
+                                                    _In_ uint32_t                     table_index,
+                                                    _Out_ sx_flex_acl_key_desc_t     *sx_keys,
+                                                    _Inout_ uint32_t                 *sx_key_count,
+                                                    _Inout_ mlnx_acl_field_type_t    *field_type);
+static sai_status_t mlnx_acl_ip_field_to_sx(_In_ sai_acl_entry_attr_t         attr_id,
+                                            _In_ const sai_attribute_value_t *vallue,
+                                            _In_ uint32_t                     attr_index,
+                                            _In_ uint32_t                     table_index,
+                                            _Out_ sx_flex_acl_key_desc_t     *sx_keys,
+                                            _Inout_ uint32_t                 *sx_key_count,
+                                            _Inout_ mlnx_acl_field_type_t    *field_type);
+static sai_status_t mlnx_acl_packet_vlan_field_to_sx(_In_ sai_acl_entry_attr_t         attr_id,
+                                                     _In_ const sai_attribute_value_t *value,
+                                                     _In_ uint32_t                     attr_index,
+                                                     _In_ uint32_t                     table_index,
+                                                     _Out_ sx_flex_acl_key_desc_t     *sx_keys,
+                                                     _Inout_ uint32_t                 *sx_key_count,
+                                                     _Inout_ mlnx_acl_field_type_t    *field_type);
+static sai_status_t mlnx_acl_tos_field_to_sx(_In_ sai_acl_entry_attr_t         attr_id,
+                                             _In_ const sai_attribute_value_t *value,
+                                             _In_ uint32_t                     attr_index,
+                                             _In_ uint32_t                     table_index,
+                                             _Out_ sx_flex_acl_key_desc_t     *sx_keys,
+                                             _Inout_ uint32_t                 *sx_key_count,
+                                             _Inout_ mlnx_acl_field_type_t    *field_type);
+static sai_status_t mlnx_acl_ip_type_field_to_sx(_In_ sai_acl_entry_attr_t         attr_id,
+                                                 _In_ const sai_attribute_value_t *value,
+                                                 _In_ uint32_t                     attr_index,
+                                                 _In_ uint32_t                     table_index,
+                                                 _Out_ sx_flex_acl_key_desc_t     *sx_keys,
+                                                 _Inout_ uint32_t                 *sx_key_count,
+                                                 _Inout_ mlnx_acl_field_type_t    *field_type);
+static sai_status_t mlnx_acl_ip_frag_field_to_sx(_In_ sai_acl_entry_attr_t         attr_id,
+                                                 _In_ const sai_attribute_value_t *value,
+                                                 _In_ uint32_t                     attr_index,
+                                                 _In_ uint32_t                     table_index,
+                                                 _Out_ sx_flex_acl_key_desc_t     *sx_keys,
+                                                 _Inout_ uint32_t                 *sx_key_count,
+                                                 _Inout_ mlnx_acl_field_type_t    *field_type);
+static sai_status_t mlnx_acl_range_type_field_to_sx(_In_ sai_acl_entry_attr_t         attr_id,
+                                                    _In_ const sai_attribute_value_t *value,
+                                                    _In_ uint32_t                     attr_index,
+                                                    _In_ uint32_t                     table_index,
+                                                    _Out_ sx_flex_acl_key_desc_t     *sx_keys,
+                                                    _Inout_ uint32_t                 *sx_key_count,
+                                                    _Inout_ mlnx_acl_field_type_t    *field_type);
+static sai_status_t mlnx_acl_user_meta_field_to_sx(_In_ sai_acl_entry_attr_t         attr_id,
+                                                   _In_ const sai_attribute_value_t *value,
+                                                   _In_ uint32_t                     attr_index,
+                                                   _In_ uint32_t                     table_index,
+                                                   _Out_ sx_flex_acl_key_desc_t     *sx_keys,
+                                                   _Inout_ uint32_t                 *sx_key_count,
+                                                   _Inout_ mlnx_acl_field_type_t    *field_type);
+static const mlnx_acl_single_key_field_info_t mlnx_acl_single_key_fields_info[] = {
+#ifndef _WIN32
+    /* L2 */
+    [SAI_ACL_ENTRY_ATTR_FIELD_SRC_MAC]        = MLNX_ACL_FIELD_L2_DEFINE(FLEX_ACL_KEY_SMAC, smac),
+    [SAI_ACL_ENTRY_ATTR_FIELD_DST_MAC]        = MLNX_ACL_FIELD_L2_DEFINE(FLEX_ACL_KEY_DMAC, dmac),
+    [SAI_ACL_ENTRY_ATTR_FIELD_ETHER_TYPE]     = MLNX_ACL_FIELD_L2_DEFINE(FLEX_ACL_KEY_ETHERTYPE, ethertype),
+    [SAI_ACL_ENTRY_ATTR_FIELD_OUTER_VLAN_ID]  = MLNX_ACL_FIELD_L2_DEFINE(FLEX_ACL_KEY_VLAN_ID, vlan_id),
+    [SAI_ACL_ENTRY_ATTR_FIELD_OUTER_VLAN_PRI] = MLNX_ACL_FIELD_L2_DEFINE(FLEX_ACL_KEY_PCP, pcp),
+    [SAI_ACL_ENTRY_ATTR_FIELD_OUTER_VLAN_CFI] = MLNX_ACL_FIELD_L2_DEFINE(FLEX_ACL_KEY_DEI, dei),
+    /* [SAI_ACL_ENTRY_ATTR_FIELD_INNER_VLAN_ID] = MLNX_ACL_FIELD_INNER_VLAN_DEFINE(FLEX_ACL_KEY_INNER_VLAN_ID, inner_vlan_id), */
+    [SAI_ACL_ENTRY_ATTR_FIELD_INNER_VLAN_PRI] = MLNX_ACL_FIELD_INNER_VLAN_DEFINE(FLEX_ACL_KEY_INNER_PCP, inner_pcp),
+    [SAI_ACL_ENTRY_ATTR_FIELD_INNER_VLAN_CFI] = MLNX_ACL_FIELD_INNER_VLAN_DEFINE(FLEX_ACL_KEY_INNER_DEI, inner_dei),
+
+    /* L3 */
+    [SAI_ACL_ENTRY_ATTR_FIELD_SRC_IP]   = MLNX_ACL_FIELD_IPV4_DEFINE(FLEX_ACL_KEY_SIP, sip),
+    [SAI_ACL_ENTRY_ATTR_FIELD_DST_IP]   = MLNX_ACL_FIELD_IPV4_DEFINE(FLEX_ACL_KEY_DIP, dip),
+    [SAI_ACL_ENTRY_ATTR_FIELD_SRC_IPV6] = MLNX_ACL_FIELD_IPV6_DEFINE(FLEX_ACL_KEY_SIPV6, sipv6),
+    [SAI_ACL_ENTRY_ATTR_FIELD_DST_IPV6] = MLNX_ACL_FIELD_IPV6_DEFINE(FLEX_ACL_KEY_DIPV6, dipv6),
+
+    [SAI_ACL_ENTRY_ATTR_FIELD_TTL]              = MLNX_ACL_FIELD_IP_DEFINE(FLEX_ACL_KEY_TTL, ttl),
+    [SAI_ACL_ENTRY_ATTR_FIELD_IP_PROTOCOL]      = MLNX_ACL_FIELD_IPV4_DEFINE(FLEX_ACL_KEY_IP_PROTO, ip_proto),
+    [SAI_ACL_ENTRY_ATTR_FIELD_IPV6_NEXT_HEADER] = MLNX_ACL_FIELD_IPV6_DEFINE(FLEX_ACL_KEY_IP_PROTO, ip_proto),
+
+    [SAI_ACL_ENTRY_ATTR_FIELD_DSCP] = MLNX_ACL_FIELD_IPV4_DEFINE(FLEX_ACL_KEY_DSCP, dscp),
+    [SAI_ACL_ENTRY_ATTR_FIELD_ECN]  = MLNX_ACL_FIELD_IPV4_DEFINE(FLEX_ACL_KEY_ECN, ecn),
+    /* [SAI_ACL_ENTRY_ATTR_FIELD_TOS] */
+
+    /* Inner L3 */
+    [SAI_ACL_ENTRY_ATTR_FIELD_INNER_SRC_IP]   = MLNX_ACL_FIELD_INNER_IPV4_DEFINE(FLEX_ACL_KEY_INNER_SIP, inner_sip),
+    [SAI_ACL_ENTRY_ATTR_FIELD_INNER_DST_IP]   = MLNX_ACL_FIELD_INNER_IPV4_DEFINE(FLEX_ACL_KEY_INNER_DIP, inner_dip),
+    [SAI_ACL_ENTRY_ATTR_FIELD_INNER_SRC_IPV6] =
+        MLNX_ACL_FIELD_INNER_IPV6_DEFINE(FLEX_ACL_KEY_INNER_SIPV6, inner_sipv6),
+    [SAI_ACL_ENTRY_ATTR_FIELD_INNER_DST_IPV6] =
+        MLNX_ACL_FIELD_INNER_IPV6_DEFINE(FLEX_ACL_KEY_INNER_DIPV6, inner_dipv6),
+
+    /* L4 */
+    [SAI_ACL_ENTRY_ATTR_FIELD_L4_SRC_PORT] = MLNX_ACL_FIELD_L4_DEFINE(FLEX_ACL_KEY_L4_SOURCE_PORT, l4_source_port),
+    [SAI_ACL_ENTRY_ATTR_FIELD_L4_DST_PORT] = MLNX_ACL_FIELD_L4_DEFINE(FLEX_ACL_KEY_L4_DESTINATION_PORT,
+                                                                      l4_destination_port),
+    [SAI_ACL_ENTRY_ATTR_FIELD_TCP_FLAGS]   = MLNX_ACL_FIELD_TCP_DEFINE(FLEX_ACL_KEY_TCP_CONTROL, tcp_control),
+
+    /* Other */
+    [SAI_ACL_ENTRY_ATTR_FIELD_TC]             = MLNX_ACL_FIELD_DEFINE(FLEX_ACL_KEY_SWITCH_PRIO, switch_prio),
+    [SAI_ACL_ENTRY_ATTR_FIELD_ACL_USER_META]  = MLNX_ACL_FIELD_DEFINE(FLEX_ACL_KEY_USER_TOKEN, user_token),
+    [SAI_ACL_ENTRY_ATTR_FIELD_ACL_RANGE_TYPE] = MLNX_ACL_FIELD_DEFINE(FLEX_ACL_KEY_L4_PORT_RANGE, l4_port_range),
+#else
+    { 0, 0, 0 }
+#endif
+};
+static const size_t                           mlnx_acl_single_key_field_max_id = ARRAY_SIZE(
+    mlnx_acl_single_key_fields_info);
+static const mlnx_acl_multi_key_field_info_t mlnx_acl_multi_key_fields_info[]  = {
+#ifndef _WIN32
+    [SAI_ACL_ENTRY_ATTR_FIELD_PACKET_VLAN] = MLNX_ACL_MULTI_KEY_FIELD_INFO(
+        2,
+        MLNX_ACL_ENTRY_KEY_LIST(FLEX_ACL_KEY_VLAN_TAGGED, FLEX_ACL_KEY_INNER_VLAN_VALID),
+        MLNX_ACL_FIELD_TYPE_EMPTY),
+    [SAI_ACL_ENTRY_ATTR_FIELD_TOS] = MLNX_ACL_MULTI_KEY_FIELD_INFO(
+        2,
+        MLNX_ACL_ENTRY_KEY_LIST(FLEX_ACL_KEY_DSCP, FLEX_ACL_KEY_ECN),
+        MLNX_ACL_FIELD_TYPE_IPV4),
+    [SAI_ACL_ENTRY_ATTR_FIELD_ACL_IP_TYPE] = MLNX_ACL_MULTI_KEY_FIELD_INFO(
+        3,
+        MLNX_ACL_ENTRY_KEY_LIST(FLEX_ACL_KEY_IP_OK, FLEX_ACL_KEY_IS_IP_V4, FLEX_ACL_KEY_L3_TYPE),
+        MLNX_ACL_FIELD_TYPE_IP | MLNX_ACL_FIELD_TYPE_IPV4 | MLNX_ACL_FIELD_TYPE_IPV6 | MLNX_ACL_FIELD_TYPE_ARP),
+    [SAI_ACL_ENTRY_ATTR_FIELD_ACL_IP_FRAG] = MLNX_ACL_MULTI_KEY_FIELD_INFO(
+        2,
+        MLNX_ACL_ENTRY_KEY_LIST(FLEX_ACL_KEY_IP_FRAGMENTED, FLEX_ACL_KEY_IP_FRAGMENT_NOT_FIRST),
+        MLNX_ACL_FIELD_TYPE_IPV4),
+#else
+    { 0, 0, 0 }
+#endif
+};
+static const size_t                          mlnx_acl_multi_key_field_max_id = ARRAY_SIZE(
+    mlnx_acl_multi_key_fields_info);
+static const sai_attr_id_t mlnx_acl_non_trivial_fields[]                     = {
+    SAI_ACL_ENTRY_ATTR_FIELD_IN_PORTS,
+    SAI_ACL_ENTRY_ATTR_FIELD_OUT_PORTS,
+    SAI_ACL_ENTRY_ATTR_FIELD_IN_PORT,
+    SAI_ACL_ENTRY_ATTR_FIELD_OUT_PORT,
+    SAI_ACL_ENTRY_ATTR_FIELD_IP_IDENTIFICATION,
+};
+static const size_t        mlnx_acl_non_trivial_field_count =
+    ARRAY_SIZE(mlnx_acl_non_trivial_fields);
 
 /* ACL TABLE ATTRIBUTES */
 static const sai_attribute_entry_t acl_table_attribs[] = {
@@ -701,14 +952,16 @@ static const sai_attribute_entry_t acl_table_attribs[] = {
       "ACL Table Bind point", SAI_ATTR_VAL_TYPE_S32 },
     { SAI_ACL_TABLE_ATTR_SIZE, false, true, false, true,
       "ACL Table Size", SAI_ATTR_VAL_TYPE_S32 },
-    { SAI_ACL_TABLE_ATTR_FIELD_SRC_IPv6, false, true, false, true,
-      "Src IPv6 Address", SAI_ATTR_VAL_TYPE_BOOL },
-    { SAI_ACL_TABLE_ATTR_FIELD_DST_IPv6, false, true, false, true,
-      "Dst IPv6 Address", SAI_ATTR_VAL_TYPE_BOOL },
-    { SAI_ACL_TABLE_ATTR_FIELD_INNER_SRC_IPv6, false, true, false, true,
-      "Inner Src IPv6 Address", SAI_ATTR_VAL_TYPE_BOOL },
-    { SAI_ACL_TABLE_ATTR_FIELD_INNER_DST_IPv6, false, true, false, true,
-      "Inner Dst IPv6 Address", SAI_ATTR_VAL_TYPE_BOOL },
+    { SAI_ACL_TABLE_ATTR_ACL_ACTION_TYPE_LIST, false, true, false, false,
+      "List of actions in sai_acl_action_type_t", SAI_ATTR_VAL_TYPE_S32LIST },
+    { SAI_ACL_TABLE_ATTR_FIELD_SRC_IPV6, false, true, false, true,
+      "Src IPV6 Address", SAI_ATTR_VAL_TYPE_BOOL },
+    { SAI_ACL_TABLE_ATTR_FIELD_DST_IPV6, false, true, false, true,
+      "Dst IPV6 Address", SAI_ATTR_VAL_TYPE_BOOL },
+    { SAI_ACL_TABLE_ATTR_FIELD_INNER_SRC_IPV6, false, true, false, true,
+      "Inner Src IPV6 Address", SAI_ATTR_VAL_TYPE_BOOL },
+    { SAI_ACL_TABLE_ATTR_FIELD_INNER_DST_IPV6, false, true, false, true,
+      "Inner Dst IPV6 Address", SAI_ATTR_VAL_TYPE_BOOL },
     { SAI_ACL_TABLE_ATTR_FIELD_SRC_MAC, false, true, false, true,
       "Src MAC Address", SAI_ATTR_VAL_TYPE_BOOL },
     { SAI_ACL_TABLE_ATTR_FIELD_DST_MAC, false, true, false, true,
@@ -769,8 +1022,8 @@ static const sai_attribute_entry_t acl_table_attribs[] = {
       "Ip Type", SAI_ATTR_VAL_TYPE_BOOL },
     { SAI_ACL_TABLE_ATTR_FIELD_ACL_IP_FRAG, false, true, false, true,
       "Ip Frag", SAI_ATTR_VAL_TYPE_BOOL },
-    { SAI_ACL_TABLE_ATTR_FIELD_IPv6_FLOW_LABEL, false, false, false, false,
-      "IPv6 Flow Label", SAI_ATTR_VAL_TYPE_BOOL },
+    { SAI_ACL_TABLE_ATTR_FIELD_IPV6_FLOW_LABEL, false, false, false, false,
+      "IPV6 Flow Label", SAI_ATTR_VAL_TYPE_BOOL },
     { SAI_ACL_TABLE_ATTR_FIELD_TC, false, true, false, true,
       "Class-of-Service", SAI_ATTR_VAL_TYPE_BOOL },
     { SAI_ACL_TABLE_ATTR_FIELD_ICMP_TYPE, false, true, false, true,
@@ -797,6 +1050,8 @@ static const sai_attribute_entry_t acl_table_attribs[] = {
       "DST IP address match in neighbor table", SAI_ATTR_VAL_TYPE_BOOL },
     { SAI_ACL_TABLE_ATTR_FIELD_ACL_RANGE_TYPE, false, true, false, true,
       "Range type", SAI_ATTR_VAL_TYPE_S32LIST },
+    { SAI_ACL_TABLE_ATTR_FIELD_IPV6_NEXT_HEADER, false, true, false, true,
+      "IPv6 Next Header", SAI_ATTR_VAL_TYPE_BOOL },
     { END_FUNCTIONALITY_ATTRIBS_ID, false, false, false, false,
       "", SAI_ATTR_VAL_TYPE_UNDETERMINED }
 };
@@ -809,14 +1064,14 @@ static const sai_attribute_entry_t acl_entry_attribs[] = {
       "ACL Entry Priority ", SAI_ATTR_VAL_TYPE_U32 },
     { SAI_ACL_ENTRY_ATTR_ADMIN_STATE, false, true, true, true,
       "ACL Entry Admin State", SAI_ATTR_VAL_TYPE_BOOL },
-    { SAI_ACL_ENTRY_ATTR_FIELD_SRC_IPv6, false, true, true, true,
-      "Src IPv6 Address", SAI_ATTR_VAL_TYPE_ACLFIELD_IPV6 },
-    { SAI_ACL_ENTRY_ATTR_FIELD_DST_IPv6, false, true, true, true,
-      "Dst IPv6 Address", SAI_ATTR_VAL_TYPE_ACLFIELD_IPV6 },
-    { SAI_ACL_ENTRY_ATTR_FIELD_INNER_SRC_IPv6, false, true, true, true,
-      "Inner Src IPv6 Address", SAI_ATTR_VAL_TYPE_ACLFIELD_IPV6 },
-    { SAI_ACL_ENTRY_ATTR_FIELD_INNER_DST_IPv6, false, true, true, true,
-      "Inner Dst IPv6 Address", SAI_ATTR_VAL_TYPE_ACLFIELD_IPV6 },
+    { SAI_ACL_ENTRY_ATTR_FIELD_SRC_IPV6, false, true, true, true,
+      "Src IPV6 Address", SAI_ATTR_VAL_TYPE_ACLFIELD_IPV6 },
+    { SAI_ACL_ENTRY_ATTR_FIELD_DST_IPV6, false, true, true, true,
+      "Dst IPV6 Address", SAI_ATTR_VAL_TYPE_ACLFIELD_IPV6 },
+    { SAI_ACL_ENTRY_ATTR_FIELD_INNER_SRC_IPV6, false, true, true, true,
+      "Inner Src IPV6 Address", SAI_ATTR_VAL_TYPE_ACLFIELD_IPV6 },
+    { SAI_ACL_ENTRY_ATTR_FIELD_INNER_DST_IPV6, false, true, true, true,
+      "Inner Dst IPV6 Address", SAI_ATTR_VAL_TYPE_ACLFIELD_IPV6 },
     { SAI_ACL_ENTRY_ATTR_FIELD_SRC_MAC, false, true, true, true,
       "Src MAC Address", SAI_ATTR_VAL_TYPE_ACLFIELD_MAC },
     { SAI_ACL_ENTRY_ATTR_FIELD_DST_MAC, false, true, true, true,
@@ -877,8 +1132,8 @@ static const sai_attribute_entry_t acl_entry_attribs[] = {
       "Ip Type",  SAI_ATTR_VAL_TYPE_ACLFIELD_S32 },
     { SAI_ACL_ENTRY_ATTR_FIELD_ACL_IP_FRAG, false, true, true, true,
       "Ip Frag", SAI_ATTR_VAL_TYPE_ACLFIELD_S32 },
-    { SAI_ACL_ENTRY_ATTR_FIELD_IPv6_FLOW_LABEL, false, false, false, false,
-      "IPv6 Flow Label",  SAI_ATTR_VAL_TYPE_ACLFIELD_U32 },
+    { SAI_ACL_ENTRY_ATTR_FIELD_IPV6_FLOW_LABEL, false, false, false, false,
+      "IPV6 Flow Label",  SAI_ATTR_VAL_TYPE_ACLFIELD_U32 },
     { SAI_ACL_ENTRY_ATTR_FIELD_TC, false, true, true, true,
       "Class-of-Service (Traffic Class)", SAI_ATTR_VAL_TYPE_ACLFIELD_U8 },
     { SAI_ACL_ENTRY_ATTR_FIELD_ICMP_TYPE, false, true, true, true,
@@ -905,6 +1160,8 @@ static const sai_attribute_entry_t acl_entry_attribs[] = {
       "DST IP address match in neighbor table", SAI_ATTR_VAL_TYPE_ACLFIELD_IPV4 },
     { SAI_ACL_ENTRY_ATTR_FIELD_ACL_RANGE_TYPE, false, true, true, true,
       "Range Type", SAI_ATTR_VAL_TYPE_ACLFIELD_OBJLIST },
+    { SAI_ACL_ENTRY_ATTR_FIELD_IPV6_NEXT_HEADER, false, true, true, true,
+      "IPv6 Next Header", SAI_ATTR_VAL_TYPE_ACLFIELD_U8 },
     { SAI_ACL_ENTRY_ATTR_ACTION_REDIRECT, false, true, true, true,
       "Redirect Packet to a destination", SAI_ATTR_VAL_TYPE_ACLACTION_OID },
     { SAI_ACL_ENTRY_ATTR_ACTION_REDIRECT_LIST, false, true, true, true,
@@ -943,10 +1200,10 @@ static const sai_attribute_entry_t acl_entry_attribs[] = {
       "Set Packet Src IPv4 Address", SAI_ATTR_VAL_TYPE_ACLACTION_IPV4 },
     { SAI_ACL_ENTRY_ATTR_ACTION_SET_DST_IP, false, false, false, false,
       "Set Packet Dst IPv4 Address", SAI_ATTR_VAL_TYPE_ACLACTION_IPV4 },
-    { SAI_ACL_ENTRY_ATTR_ACTION_SET_SRC_IPv6, false, false, false, false,
-      "Set Packet Src IPv6 Address", SAI_ATTR_VAL_TYPE_ACLACTION_IPV6 },
-    { SAI_ACL_ENTRY_ATTR_ACTION_SET_DST_IPv6, false, false, false, false,
-      "Set Packet Dst IPv6 Address", SAI_ATTR_VAL_TYPE_ACLACTION_IPV6 },
+    { SAI_ACL_ENTRY_ATTR_ACTION_SET_SRC_IPV6, false, false, false, false,
+      "Set Packet Src IPV6 Address", SAI_ATTR_VAL_TYPE_ACLACTION_IPV6 },
+    { SAI_ACL_ENTRY_ATTR_ACTION_SET_DST_IPV6, false, false, false, false,
+      "Set Packet Dst IPV6 Address", SAI_ATTR_VAL_TYPE_ACLACTION_IPV6 },
     { SAI_ACL_ENTRY_ATTR_ACTION_SET_DSCP, false, true, true, true,
       "Set Packet DSCP", SAI_ATTR_VAL_TYPE_ACLACTION_U8 },
     { SAI_ACL_ENTRY_ATTR_ACTION_SET_ECN, false, true, true, true,
@@ -1016,25 +1273,30 @@ static const sai_vendor_attribute_entry_t acl_table_vendor_attribs[] = {
       {true, false, false, true},
       mlnx_acl_table_attrib_get, (void*)SAI_ACL_TABLE_ATTR_SIZE,
       NULL, NULL },
-    { SAI_ACL_TABLE_ATTR_FIELD_SRC_IPv6,
-      { true, false, false, true },
-      { true, false, false, true },
-      mlnx_acl_table_fields_get, (void*)SAI_ACL_TABLE_ATTR_FIELD_SRC_IPv6,
+    { SAI_ACL_TABLE_ATTR_ACL_ACTION_TYPE_LIST,
+      {true, false, false, false},
+      {true, false, false, false},
+      NULL, NULL,
       NULL, NULL },
-    { SAI_ACL_TABLE_ATTR_FIELD_DST_IPv6,
+    { SAI_ACL_TABLE_ATTR_FIELD_SRC_IPV6,
       { true, false, false, true },
       { true, false, false, true },
-      mlnx_acl_table_fields_get, (void*)SAI_ACL_TABLE_ATTR_FIELD_DST_IPv6,
+      mlnx_acl_table_fields_get, (void*)SAI_ACL_TABLE_ATTR_FIELD_SRC_IPV6,
       NULL, NULL },
-    { SAI_ACL_TABLE_ATTR_FIELD_INNER_SRC_IPv6,
+    { SAI_ACL_TABLE_ATTR_FIELD_DST_IPV6,
       { true, false, false, true },
       { true, false, false, true },
-      mlnx_acl_table_fields_get, (void*)SAI_ACL_TABLE_ATTR_FIELD_INNER_SRC_IPv6,
+      mlnx_acl_table_fields_get, (void*)SAI_ACL_TABLE_ATTR_FIELD_DST_IPV6,
       NULL, NULL },
-    { SAI_ACL_TABLE_ATTR_FIELD_INNER_DST_IPv6,
+    { SAI_ACL_TABLE_ATTR_FIELD_INNER_SRC_IPV6,
       { true, false, false, true },
       { true, false, false, true },
-      mlnx_acl_table_fields_get, (void*)SAI_ACL_TABLE_ATTR_FIELD_INNER_DST_IPv6,
+      mlnx_acl_table_fields_get, (void*)SAI_ACL_TABLE_ATTR_FIELD_INNER_SRC_IPV6,
+      NULL, NULL },
+    { SAI_ACL_TABLE_ATTR_FIELD_INNER_DST_IPV6,
+      { true, false, false, true },
+      { true, false, false, true },
+      mlnx_acl_table_fields_get, (void*)SAI_ACL_TABLE_ATTR_FIELD_INNER_DST_IPV6,
       NULL, NULL },
     { SAI_ACL_TABLE_ATTR_FIELD_SRC_MAC,
       { true, false, false, true },
@@ -1164,12 +1426,12 @@ static const sai_vendor_attribute_entry_t acl_table_vendor_attribs[] = {
     { SAI_ACL_TABLE_ATTR_FIELD_TOS,
       { true, false, false, true },
       { true, false, false, true },
-      mlnx_acl_table_ip_and_tos_get, (void*)SAI_ACL_TABLE_ATTR_FIELD_TOS,
+      mlnx_acl_table_fields_get, (void*)SAI_ACL_TABLE_ATTR_FIELD_TOS,
       NULL, NULL },
     { SAI_ACL_TABLE_ATTR_FIELD_IP_FLAGS,
-      { true, false, false, true },
-      { true, false, false, true },
-      mlnx_acl_table_fields_get, (void*)SAI_ACL_TABLE_ATTR_FIELD_IP_FLAGS,
+      { false, false, false, false },
+      { false, false, false, false },
+      NULL, NULL,
       NULL, NULL },
     { SAI_ACL_TABLE_ATTR_FIELD_TCP_FLAGS,
       { true, false, false, true },
@@ -1179,14 +1441,14 @@ static const sai_vendor_attribute_entry_t acl_table_vendor_attribs[] = {
     { SAI_ACL_TABLE_ATTR_FIELD_ACL_IP_TYPE,
       { true, false, false, true },
       { true, false, false, true },
-      mlnx_acl_table_ip_and_tos_get, (void*)SAI_ACL_TABLE_ATTR_FIELD_ACL_IP_TYPE,
+      mlnx_acl_table_fields_get, (void*)SAI_ACL_TABLE_ATTR_FIELD_ACL_IP_TYPE,
       NULL, NULL },
     { SAI_ACL_TABLE_ATTR_FIELD_ACL_IP_FRAG,
       { true, false, false, true },
       { true, false, false, true },
-      mlnx_acl_table_ip_and_tos_get, (void*)SAI_ACL_TABLE_ATTR_FIELD_ACL_IP_FRAG,
+      mlnx_acl_table_fields_get, (void*)SAI_ACL_TABLE_ATTR_FIELD_ACL_IP_FRAG,
       NULL, NULL },
-    { SAI_ACL_TABLE_ATTR_FIELD_IPv6_FLOW_LABEL,
+    { SAI_ACL_TABLE_ATTR_FIELD_IPV6_FLOW_LABEL,
       { false, false, false, false },
       { false, false, false, false },
       NULL, NULL,
@@ -1254,7 +1516,12 @@ static const sai_vendor_attribute_entry_t acl_table_vendor_attribs[] = {
     { SAI_ACL_TABLE_ATTR_FIELD_ACL_RANGE_TYPE,
       { true, false, false, true },
       { true, false, false, true },
-      mlnx_acl_table_fields_get, (void*)SAI_ACL_TABLE_ATTR_FIELD_ACL_RANGE_TYPE,
+      mlnx_acl_table_range_type_get, (void*)SAI_ACL_TABLE_ATTR_FIELD_ACL_RANGE_TYPE,
+      NULL, NULL },
+    { SAI_ACL_TABLE_ATTR_FIELD_IPV6_NEXT_HEADER,
+      { true, false, false, true },
+      { true, false, false, true },
+      mlnx_acl_table_fields_get, (void*)SAI_ACL_TABLE_ATTR_FIELD_IPV6_NEXT_HEADER,
       NULL, NULL },
 };
 
@@ -1271,60 +1538,60 @@ static const sai_vendor_attribute_entry_t acl_entry_vendor_attribs[] = {
       mlnx_acl_entry_attrib_get, (void*)SAI_ACL_ENTRY_ATTR_PRIORITY,
       mlnx_acl_entry_priority_set, NULL },
     { SAI_ACL_ENTRY_ATTR_ADMIN_STATE,
-      {true, false, true, true},
-      {true, false, true, true},
-      mlnx_acl_entry_fields_get, (void*)SAI_ACL_ENTRY_ATTR_ADMIN_STATE,
-      mlnx_acl_entry_fields_set, (void*)SAI_ACL_ENTRY_ATTR_ADMIN_STATE },
-    { SAI_ACL_ENTRY_ATTR_FIELD_SRC_IPv6,
+      {true, false, false, true},
+      {true, false, false, true},
+      mlnx_acl_entry_attrib_get, (void*)SAI_ACL_ENTRY_ATTR_ADMIN_STATE,
+      NULL, NULL },
+    { SAI_ACL_ENTRY_ATTR_FIELD_SRC_IPV6,
       { true, false, true, true },
       { true, false, true, true },
-      mlnx_acl_entry_ip_get, (void*)SAI_ACL_ENTRY_ATTR_FIELD_SRC_IPv6,
-      mlnx_acl_entry_ip_set, (void*)SAI_ACL_ENTRY_ATTR_FIELD_SRC_IPv6 },
-    { SAI_ACL_ENTRY_ATTR_FIELD_DST_IPv6,
+      mlnx_acl_entry_ip_get, (void*)SAI_ACL_ENTRY_ATTR_FIELD_SRC_IPV6,
+      mlnx_acl_entry_field_set, (void*)SAI_ACL_ENTRY_ATTR_FIELD_SRC_IPV6 },
+    { SAI_ACL_ENTRY_ATTR_FIELD_DST_IPV6,
       { true, false, true, true },
       { true, false, true, true },
-      mlnx_acl_entry_ip_get, (void*)SAI_ACL_ENTRY_ATTR_FIELD_DST_IPv6,
-      mlnx_acl_entry_ip_set, (void*)SAI_ACL_ENTRY_ATTR_FIELD_DST_IPv6 },
-    { SAI_ACL_ENTRY_ATTR_FIELD_INNER_SRC_IPv6,
+      mlnx_acl_entry_ip_get, (void*)SAI_ACL_ENTRY_ATTR_FIELD_DST_IPV6,
+      mlnx_acl_entry_field_set, (void*)SAI_ACL_ENTRY_ATTR_FIELD_DST_IPV6 },
+    { SAI_ACL_ENTRY_ATTR_FIELD_INNER_SRC_IPV6,
       { true, false, true, true },
       { true, false, true, true },
-      mlnx_acl_entry_ip_get, (void*)SAI_ACL_ENTRY_ATTR_FIELD_INNER_SRC_IPv6,
-      mlnx_acl_entry_ip_set, (void*)SAI_ACL_ENTRY_ATTR_FIELD_INNER_SRC_IPv6 },
-    { SAI_ACL_ENTRY_ATTR_FIELD_INNER_DST_IPv6,
+      mlnx_acl_entry_ip_get, (void*)SAI_ACL_ENTRY_ATTR_FIELD_INNER_SRC_IPV6,
+      mlnx_acl_entry_field_set, (void*)SAI_ACL_ENTRY_ATTR_FIELD_INNER_SRC_IPV6 },
+    { SAI_ACL_ENTRY_ATTR_FIELD_INNER_DST_IPV6,
       { true, false, true, true },
       { true, false, true, true },
-      mlnx_acl_entry_ip_get, (void*)SAI_ACL_ENTRY_ATTR_FIELD_INNER_DST_IPv6,
-      mlnx_acl_entry_ip_set, (void*)SAI_ACL_ENTRY_ATTR_FIELD_INNER_DST_IPv6 },
+      mlnx_acl_entry_ip_get, (void*)SAI_ACL_ENTRY_ATTR_FIELD_INNER_DST_IPV6,
+      mlnx_acl_entry_field_set, (void*)SAI_ACL_ENTRY_ATTR_FIELD_INNER_DST_IPV6 },
     { SAI_ACL_ENTRY_ATTR_FIELD_SRC_MAC,
       { true, false, true, true },
       { true, false, true, true },
-      mlnx_acl_entry_mac_get, (void*)SAI_ACL_ENTRY_ATTR_FIELD_SRC_MAC,
-      mlnx_acl_entry_mac_set, (void*)SAI_ACL_ENTRY_ATTR_FIELD_SRC_MAC },
+      mlnx_acl_entry_single_key_field_get, (void*)SAI_ACL_ENTRY_ATTR_FIELD_SRC_MAC,
+      mlnx_acl_entry_field_set, (void*)SAI_ACL_ENTRY_ATTR_FIELD_SRC_MAC },
     { SAI_ACL_ENTRY_ATTR_FIELD_DST_MAC,
       { true, false, true, true },
       { true, false, true, true },
-      mlnx_acl_entry_mac_get, (void*)SAI_ACL_ENTRY_ATTR_FIELD_DST_MAC,
-      mlnx_acl_entry_mac_set, (void*)SAI_ACL_ENTRY_ATTR_FIELD_DST_MAC },
+      mlnx_acl_entry_single_key_field_get, (void*)SAI_ACL_ENTRY_ATTR_FIELD_DST_MAC,
+      mlnx_acl_entry_field_set, (void*)SAI_ACL_ENTRY_ATTR_FIELD_DST_MAC },
     { SAI_ACL_ENTRY_ATTR_FIELD_SRC_IP,
       { true, false, true, true },
       { true, false, true, true },
       mlnx_acl_entry_ip_get, (void*)SAI_ACL_ENTRY_ATTR_FIELD_SRC_IP,
-      mlnx_acl_entry_ip_set, (void*)SAI_ACL_ENTRY_ATTR_FIELD_SRC_IP },
+      mlnx_acl_entry_field_set, (void*)SAI_ACL_ENTRY_ATTR_FIELD_SRC_IP },
     { SAI_ACL_ENTRY_ATTR_FIELD_DST_IP,
       { true, false, true, true },
       { true, false, true, true },
       mlnx_acl_entry_ip_get, (void*)SAI_ACL_ENTRY_ATTR_FIELD_DST_IP,
-      mlnx_acl_entry_ip_set, (void*)SAI_ACL_ENTRY_ATTR_FIELD_DST_IP },
+      mlnx_acl_entry_field_set, (void*)SAI_ACL_ENTRY_ATTR_FIELD_DST_IP },
     { SAI_ACL_ENTRY_ATTR_FIELD_INNER_SRC_IP,
       { true, false, true, true },
       { true, false, true, true },
       mlnx_acl_entry_ip_get, (void*)SAI_ACL_ENTRY_ATTR_FIELD_INNER_SRC_IP,
-      mlnx_acl_entry_ip_set, (void*)SAI_ACL_ENTRY_ATTR_FIELD_INNER_SRC_IP },
+      mlnx_acl_entry_field_set, (void*)SAI_ACL_ENTRY_ATTR_FIELD_INNER_SRC_IP },
     { SAI_ACL_ENTRY_ATTR_FIELD_INNER_DST_IP,
       { true, false, true, true },
       { true, false, true, true },
       mlnx_acl_entry_ip_get, (void*)SAI_ACL_ENTRY_ATTR_FIELD_INNER_DST_IP,
-      mlnx_acl_entry_ip_set, (void*)SAI_ACL_ENTRY_ATTR_FIELD_INNER_DST_IP },
+      mlnx_acl_entry_field_set, (void*)SAI_ACL_ENTRY_ATTR_FIELD_INNER_DST_IP },
     { SAI_ACL_ENTRY_ATTR_FIELD_IN_PORTS,
       { true, false, true, true },
       { true, false, true, true },
@@ -1353,53 +1620,53 @@ static const sai_vendor_attribute_entry_t acl_entry_vendor_attribs[] = {
     { SAI_ACL_ENTRY_ATTR_FIELD_OUTER_VLAN_ID,
       { true, false, true, true },
       { true, false, true, true },
-      mlnx_acl_entry_vlan_get, (void*)SAI_ACL_ENTRY_ATTR_FIELD_OUTER_VLAN_ID,
-      mlnx_acl_entry_vlan_set, (void*)SAI_ACL_ENTRY_ATTR_FIELD_OUTER_VLAN_ID },
+      mlnx_acl_entry_single_key_field_get, (void*)SAI_ACL_ENTRY_ATTR_FIELD_OUTER_VLAN_ID,
+      mlnx_acl_entry_field_set, (void*)SAI_ACL_ENTRY_ATTR_FIELD_OUTER_VLAN_ID },
     { SAI_ACL_ENTRY_ATTR_FIELD_OUTER_VLAN_PRI,
       { true, false, true, true },
       { true, false, true, true },
-      mlnx_acl_entry_vlan_get, (void*)SAI_ACL_ENTRY_ATTR_FIELD_OUTER_VLAN_PRI,
-      mlnx_acl_entry_vlan_set, (void*)SAI_ACL_ENTRY_ATTR_FIELD_OUTER_VLAN_PRI },
+      mlnx_acl_entry_single_key_field_get, (void*)SAI_ACL_ENTRY_ATTR_FIELD_OUTER_VLAN_PRI,
+      mlnx_acl_entry_field_set, (void*)SAI_ACL_ENTRY_ATTR_FIELD_OUTER_VLAN_PRI },
     { SAI_ACL_ENTRY_ATTR_FIELD_OUTER_VLAN_CFI,
       { true, false, true, true },
       { true, false, true, true },
-      mlnx_acl_entry_vlan_get, (void*)SAI_ACL_ENTRY_ATTR_FIELD_OUTER_VLAN_CFI,
-      mlnx_acl_entry_vlan_set, (void*)SAI_ACL_ENTRY_ATTR_FIELD_OUTER_VLAN_CFI },
+      mlnx_acl_entry_single_key_field_get, (void*)SAI_ACL_ENTRY_ATTR_FIELD_OUTER_VLAN_CFI,
+      mlnx_acl_entry_field_set, (void*)SAI_ACL_ENTRY_ATTR_FIELD_OUTER_VLAN_CFI },
     { SAI_ACL_ENTRY_ATTR_FIELD_INNER_VLAN_ID,
-      { true, false, true, true },
-      { true, false, true, true },
-      mlnx_acl_entry_vlan_get, (void*)SAI_ACL_ENTRY_ATTR_FIELD_INNER_VLAN_ID,
-      mlnx_acl_entry_vlan_set, (void*)SAI_ACL_ENTRY_ATTR_FIELD_INNER_VLAN_ID },
+      { false, false, false, false },
+      { false, false, false, false },
+      NULL, NULL,
+      NULL, NULL },
     { SAI_ACL_ENTRY_ATTR_FIELD_INNER_VLAN_PRI,
       { true, false, true, true },
       { true, false, true, true },
-      mlnx_acl_entry_vlan_get, (void*)SAI_ACL_ENTRY_ATTR_FIELD_INNER_VLAN_PRI,
-      mlnx_acl_entry_vlan_set, (void*)SAI_ACL_ENTRY_ATTR_FIELD_INNER_VLAN_PRI },
+      mlnx_acl_entry_single_key_field_get, (void*)SAI_ACL_ENTRY_ATTR_FIELD_INNER_VLAN_PRI,
+      mlnx_acl_entry_field_set, (void*)SAI_ACL_ENTRY_ATTR_FIELD_INNER_VLAN_PRI },
     { SAI_ACL_ENTRY_ATTR_FIELD_INNER_VLAN_CFI,
       { true, false, true, true },
       { true, false, true, true },
-      mlnx_acl_entry_vlan_get, (void*)SAI_ACL_ENTRY_ATTR_FIELD_INNER_VLAN_CFI,
-      mlnx_acl_entry_vlan_set, (void*)SAI_ACL_ENTRY_ATTR_FIELD_INNER_VLAN_CFI },
+      mlnx_acl_entry_single_key_field_get, (void*)SAI_ACL_ENTRY_ATTR_FIELD_INNER_VLAN_CFI,
+      mlnx_acl_entry_field_set, (void*)SAI_ACL_ENTRY_ATTR_FIELD_INNER_VLAN_CFI },
     { SAI_ACL_ENTRY_ATTR_FIELD_L4_SRC_PORT,
       { true, false, true, true },
       { true, false, true, true },
-      mlnx_acl_entry_port_get, (void*)SAI_ACL_ENTRY_ATTR_FIELD_L4_SRC_PORT,
-      mlnx_acl_entry_l4port_set, (void*)SAI_ACL_ENTRY_ATTR_FIELD_L4_SRC_PORT },
+      mlnx_acl_entry_single_key_field_get, (void*)SAI_ACL_ENTRY_ATTR_FIELD_L4_SRC_PORT,
+      mlnx_acl_entry_field_set, (void*)SAI_ACL_ENTRY_ATTR_FIELD_L4_SRC_PORT },
     { SAI_ACL_ENTRY_ATTR_FIELD_L4_DST_PORT,
       { true, false, true, true },
       { true, false, true, true },
-      mlnx_acl_entry_port_get, (void*)SAI_ACL_ENTRY_ATTR_FIELD_L4_DST_PORT,
-      mlnx_acl_entry_l4port_set, (void*)SAI_ACL_ENTRY_ATTR_FIELD_L4_DST_PORT },
+      mlnx_acl_entry_single_key_field_get, (void*)SAI_ACL_ENTRY_ATTR_FIELD_L4_DST_PORT,
+      mlnx_acl_entry_field_set, (void*)SAI_ACL_ENTRY_ATTR_FIELD_L4_DST_PORT },
     { SAI_ACL_ENTRY_ATTR_FIELD_ETHER_TYPE,
       { true, false, true, true },
       { true, false, true, true },
-      mlnx_acl_entry_fields_get, (void*)SAI_ACL_ENTRY_ATTR_FIELD_ETHER_TYPE,
-      mlnx_acl_entry_fields_set, (void*)SAI_ACL_ENTRY_ATTR_FIELD_ETHER_TYPE },
+      mlnx_acl_entry_single_key_field_get, (void*)SAI_ACL_ENTRY_ATTR_FIELD_ETHER_TYPE,
+      mlnx_acl_entry_field_set, (void*)SAI_ACL_ENTRY_ATTR_FIELD_ETHER_TYPE },
     { SAI_ACL_ENTRY_ATTR_FIELD_IP_PROTOCOL,
       { true, false, true, true },
       { true, false, true, true },
-      mlnx_acl_entry_ip_fields_get, (void*)SAI_ACL_ENTRY_ATTR_FIELD_IP_PROTOCOL,
-      mlnx_acl_entry_ip_fields_set, (void*)SAI_ACL_ENTRY_ATTR_FIELD_IP_PROTOCOL },
+      mlnx_acl_entry_single_key_field_get, (void*)SAI_ACL_ENTRY_ATTR_FIELD_IP_PROTOCOL,
+      mlnx_acl_entry_field_set, (void*)SAI_ACL_ENTRY_ATTR_FIELD_IP_PROTOCOL },
     { SAI_ACL_ENTRY_ATTR_FIELD_IP_IDENTIFICATION,
       { true, false, true, true },
       { true, false, true, true },
@@ -1408,44 +1675,44 @@ static const sai_vendor_attribute_entry_t acl_entry_vendor_attribs[] = {
     { SAI_ACL_ENTRY_ATTR_FIELD_DSCP,
       { true, false, true, true },
       { true, false, true, true },
-      mlnx_acl_entry_tos_get, (void*)SAI_ACL_ENTRY_ATTR_FIELD_DSCP,
-      mlnx_acl_entry_tos_set, (void*)SAI_ACL_ENTRY_ATTR_FIELD_DSCP },
+      mlnx_acl_entry_single_key_field_get, (void*)SAI_ACL_ENTRY_ATTR_FIELD_DSCP,
+      mlnx_acl_entry_field_set, (void*)SAI_ACL_ENTRY_ATTR_FIELD_DSCP },
     { SAI_ACL_ENTRY_ATTR_FIELD_ECN,
       { true, false, true, true },
       { true, false, true, true },
-      mlnx_acl_entry_tos_get, (void*)SAI_ACL_ENTRY_ATTR_FIELD_ECN,
-      mlnx_acl_entry_tos_set, (void*)SAI_ACL_ENTRY_ATTR_FIELD_ECN },
+      mlnx_acl_entry_single_key_field_get, (void*)SAI_ACL_ENTRY_ATTR_FIELD_ECN,
+      mlnx_acl_entry_field_set, (void*)SAI_ACL_ENTRY_ATTR_FIELD_ECN },
     { SAI_ACL_ENTRY_ATTR_FIELD_TTL,
       { true, false, true, true },
       { true, false, true, true },
-      mlnx_acl_entry_fields_get, (void*)SAI_ACL_ENTRY_ATTR_FIELD_TTL,
-      mlnx_acl_entry_fields_set, (void*)SAI_ACL_ENTRY_ATTR_FIELD_TTL },
+      mlnx_acl_entry_single_key_field_get, (void*)SAI_ACL_ENTRY_ATTR_FIELD_TTL,
+      mlnx_acl_entry_field_set, (void*)SAI_ACL_ENTRY_ATTR_FIELD_TTL },
     { SAI_ACL_ENTRY_ATTR_FIELD_TOS,
       { true, false, true, true },
       { true, false, true, true },
       mlnx_acl_entry_tos_get, (void*)SAI_ACL_ENTRY_ATTR_FIELD_TOS,
-      mlnx_acl_entry_tos_set, (void*)SAI_ACL_ENTRY_ATTR_FIELD_TOS },
+      mlnx_acl_entry_field_set, (void*)SAI_ACL_ENTRY_ATTR_FIELD_TOS },
     { SAI_ACL_ENTRY_ATTR_FIELD_IP_FLAGS,
-      { true, false, true, true },
-      { true, false, true, true },
-      mlnx_acl_entry_ip_fields_get, (void*)SAI_ACL_ENTRY_ATTR_FIELD_IP_FLAGS,
-      mlnx_acl_entry_ip_fields_set, (void*)SAI_ACL_ENTRY_ATTR_FIELD_IP_FLAGS },
+      { false, false, false, false },
+      { false, false, false, false },
+      NULL, NULL,
+      NULL, NULL, },
     { SAI_ACL_ENTRY_ATTR_FIELD_TCP_FLAGS,
       { true, false, true, true },
       { true, false, true, true },
-      mlnx_acl_entry_fields_get, (void*)SAI_ACL_ENTRY_ATTR_FIELD_TCP_FLAGS,
-      mlnx_acl_entry_fields_set, (void*)SAI_ACL_ENTRY_ATTR_FIELD_TCP_FLAGS },
+      mlnx_acl_entry_single_key_field_get, (void*)SAI_ACL_ENTRY_ATTR_FIELD_TCP_FLAGS,
+      mlnx_acl_entry_field_set, (void*)SAI_ACL_ENTRY_ATTR_FIELD_TCP_FLAGS },
     { SAI_ACL_ENTRY_ATTR_FIELD_ACL_IP_TYPE,
       { true, false, true, true },
       { true, false, true, true },
-      mlnx_acl_entry_ip_fields_get, (void*)SAI_ACL_ENTRY_ATTR_FIELD_ACL_IP_TYPE,
-      mlnx_acl_entry_ip_fields_set, (void*)SAI_ACL_ENTRY_ATTR_FIELD_ACL_IP_TYPE },
+      mlnx_acl_entry_ip_type_get, (void*)SAI_ACL_ENTRY_ATTR_FIELD_ACL_IP_TYPE,
+      mlnx_acl_entry_field_set, (void*)SAI_ACL_ENTRY_ATTR_FIELD_ACL_IP_TYPE },
     { SAI_ACL_ENTRY_ATTR_FIELD_ACL_IP_FRAG,
       { true, false, true, true },
       { true, false, true, true },
-      mlnx_acl_entry_ip_fields_get, (void*)SAI_ACL_ENTRY_ATTR_FIELD_ACL_IP_FRAG,
-      mlnx_acl_entry_ip_frag_set, NULL },
-    { SAI_ACL_ENTRY_ATTR_FIELD_IPv6_FLOW_LABEL,
+      mlnx_acl_entry_ip_frag_get, (void*)SAI_ACL_ENTRY_ATTR_FIELD_ACL_IP_FRAG,
+      mlnx_acl_entry_field_set, (void*)SAI_ACL_ENTRY_ATTR_FIELD_ACL_IP_FRAG },
+    { SAI_ACL_ENTRY_ATTR_FIELD_IPV6_FLOW_LABEL,
       { false, false, false, false },
       { false, false, false, false },
       NULL, NULL,
@@ -1453,8 +1720,8 @@ static const sai_vendor_attribute_entry_t acl_entry_vendor_attribs[] = {
     { SAI_ACL_ENTRY_ATTR_FIELD_TC,
       { true, false, true, true },
       { true, false, true, true },
-      mlnx_acl_entry_fields_get, (void*)SAI_ACL_ENTRY_ATTR_FIELD_TC,
-      mlnx_acl_entry_fields_set, (void*)SAI_ACL_ENTRY_ATTR_FIELD_TC },
+      mlnx_acl_entry_single_key_field_get, (void*)SAI_ACL_ENTRY_ATTR_FIELD_TC,
+      mlnx_acl_entry_field_set, (void*)SAI_ACL_ENTRY_ATTR_FIELD_TC },
     { SAI_ACL_ENTRY_ATTR_FIELD_ICMP_TYPE,
       { false, false, false, false },
       { true, false, true, true },
@@ -1468,8 +1735,8 @@ static const sai_vendor_attribute_entry_t acl_entry_vendor_attribs[] = {
     { SAI_ACL_ENTRY_ATTR_FIELD_PACKET_VLAN,
       { true, false, false, true },
       { true, false, true, true },
-      mlnx_acl_entry_fields_get, (void*)SAI_ACL_ENTRY_ATTR_FIELD_PACKET_VLAN,
-      mlnx_acl_entry_vlan_tags_set, (void*)SAI_ACL_ENTRY_ATTR_FIELD_PACKET_VLAN },
+      mlnx_acl_entry_vlan_tags_get, (void*)SAI_ACL_ENTRY_ATTR_FIELD_PACKET_VLAN,
+      mlnx_acl_entry_field_set, (void*)SAI_ACL_ENTRY_ATTR_FIELD_PACKET_VLAN },
     { SAI_ACL_ENTRY_ATTR_FIELD_FDB_DST_USER_META,
       { false, false, false, false },
       { false, false, false, false },
@@ -1498,8 +1765,8 @@ static const sai_vendor_attribute_entry_t acl_entry_vendor_attribs[] = {
     { SAI_ACL_ENTRY_ATTR_FIELD_ACL_USER_META,
       { true, false, true, true },
       { true, false, true, true },
-      mlnx_acl_entry_fields_get, (void*)SAI_ACL_ENTRY_ATTR_FIELD_ACL_USER_META,
-      mlnx_acl_entry_fields_set, (void*)SAI_ACL_ENTRY_ATTR_FIELD_ACL_USER_META },
+      mlnx_acl_entry_single_key_field_get, (void*)SAI_ACL_ENTRY_ATTR_FIELD_ACL_USER_META,
+      mlnx_acl_entry_field_set, (void*)SAI_ACL_ENTRY_ATTR_FIELD_ACL_USER_META },
     { SAI_ACL_ENTRY_ATTR_FIELD_FDB_NPU_META_DST_HIT,
       { false, false, false, false },
       { false, false, false, false },
@@ -1514,7 +1781,12 @@ static const sai_vendor_attribute_entry_t acl_entry_vendor_attribs[] = {
       { true, false, true, true },
       { true, false, true, true },
       mlnx_acl_entry_range_list_get, (void*)SAI_ACL_ENTRY_ATTR_FIELD_ACL_RANGE_TYPE,
-      mlnx_acl_entry_range_list_set, (void*)SAI_ACL_ENTRY_ATTR_FIELD_ACL_RANGE_TYPE },
+      mlnx_acl_entry_field_set, (void*)SAI_ACL_ENTRY_ATTR_FIELD_ACL_RANGE_TYPE },
+    { SAI_ACL_ENTRY_ATTR_FIELD_IPV6_NEXT_HEADER,
+      { true, false, true, true },
+      { true, false, true, true },
+      mlnx_acl_entry_single_key_field_get, (void*)SAI_ACL_ENTRY_ATTR_FIELD_IPV6_NEXT_HEADER,
+      mlnx_acl_entry_field_set, (void*)SAI_ACL_ENTRY_ATTR_FIELD_IPV6_NEXT_HEADER },
     { SAI_ACL_ENTRY_ATTR_ACTION_REDIRECT,
       { true, false, true, true },
       { true, false, true, true },
@@ -1610,12 +1882,12 @@ static const sai_vendor_attribute_entry_t acl_entry_vendor_attribs[] = {
       { false, false, false, false},
       NULL, NULL,
       NULL, NULL },
-    { SAI_ACL_ENTRY_ATTR_ACTION_SET_SRC_IPv6,
+    { SAI_ACL_ENTRY_ATTR_ACTION_SET_SRC_IPV6,
       { false, false, false, false},
       { false, false, false, false},
       NULL, NULL,
       NULL, NULL },
-    { SAI_ACL_ENTRY_ATTR_ACTION_SET_DST_IPv6,
+    { SAI_ACL_ENTRY_ATTR_ACTION_SET_DST_IPV6,
       { false, false, false, false},
       { false, false, false, false},
       NULL, NULL,
@@ -2281,17 +2553,15 @@ static sai_status_t mlnx_acl_table_fields_get(_In_ const sai_object_key_t   *key
                                               _Inout_ vendor_cache_t        *cache,
                                               void                          *arg)
 {
-    sx_status_t       sx_status;
-    sai_status_t      status;
-    sx_acl_key_t      keys[SX_FLEX_ACL_MAX_FIELDS_IN_KEY];
-    uint32_t          key_count = 0, key_id = 0;
-    sx_acl_key_type_t key_handle;
-    uint32_t          key_desc_index, table_range_count;
-    uint32_t          acl_table_index, ii;
+    sai_status_t  status;
+    sai_attr_id_t attr_id;
+    uint32_t      acl_table_index;
 
     SX_LOG_ENTER();
 
-    assert((SAI_ACL_TABLE_ATTR_FIELD_START <= (int64_t)arg) && ((int64_t)arg <= SAI_ACL_TABLE_ATTR_FIELD_END));
+    attr_id = (long)arg;
+
+    assert((SAI_ACL_TABLE_ATTR_FIELD_START <= attr_id) && (attr_id <= SAI_ACL_TABLE_ATTR_FIELD_END));
 
     status = extract_acl_table_index(key->key.object_id, &acl_table_index);
     if (SAI_STATUS_SUCCESS != status) {
@@ -2301,177 +2571,9 @@ static sai_status_t mlnx_acl_table_fields_get(_In_ const sai_object_key_t   *key
 
     acl_table_read_lock(acl_table_index);
 
-    key_handle = acl_db_table(acl_table_index).key_type;
-
-    switch ((int64_t)arg) {
-    case SAI_ACL_TABLE_ATTR_FIELD_INNER_SRC_IP:
-        key_id = FLEX_ACL_KEY_INNER_SIP;
-        break;
-
-    case SAI_ACL_TABLE_ATTR_FIELD_INNER_DST_IP:
-        key_id = FLEX_ACL_KEY_INNER_DIP;
-        break;
-
-    case SAI_ACL_TABLE_ATTR_FIELD_SRC_IPv6:
-        key_id = FLEX_ACL_KEY_SIPV6;
-        break;
-
-    case SAI_ACL_TABLE_ATTR_FIELD_DST_IPv6:
-        key_id = FLEX_ACL_KEY_DIPV6;
-        break;
-
-    case SAI_ACL_TABLE_ATTR_FIELD_INNER_SRC_IPv6:
-        key_id = FLEX_ACL_KEY_INNER_SIPV6;
-        break;
-
-    case SAI_ACL_TABLE_ATTR_FIELD_INNER_DST_IPv6:
-        key_id = FLEX_ACL_KEY_INNER_DIPV6;
-        break;
-
-    case SAI_ACL_TABLE_ATTR_FIELD_IN_PORTS:
-        key_id = FLEX_ACL_KEY_SRC_PORT;
-        break;
-
-    case SAI_ACL_TABLE_ATTR_FIELD_OUT_PORTS:
-        key_id = FLEX_ACL_KEY_DST_PORT;
-        break;
-
-    case SAI_ACL_TABLE_ATTR_FIELD_OUTER_VLAN_CFI:
-        key_id = FLEX_ACL_KEY_DEI;
-        break;
-
-    case SAI_ACL_TABLE_ATTR_FIELD_INNER_VLAN_CFI:
-        key_id = FLEX_ACL_KEY_INNER_DEI;
-        break;
-
-    case SAI_ACL_TABLE_ATTR_FIELD_DSCP:
-        key_id = FLEX_ACL_KEY_DSCP;
-        break;
-
-    case SAI_ACL_TABLE_ATTR_FIELD_ECN:
-        key_id = FLEX_ACL_KEY_ECN;
-        break;
-
-    case SAI_ACL_TABLE_ATTR_FIELD_TTL:
-        key_id = FLEX_ACL_KEY_TTL;
-        break;
-
-    case SAI_ACL_TABLE_ATTR_FIELD_TCP_FLAGS:
-        key_id = FLEX_ACL_KEY_TCP_CONTROL;
-        break;
-
-    case SAI_ACL_TABLE_ATTR_FIELD_IP_FLAGS:
-        SX_LOG_ERR(" Not supported in present phase \n");
-        status = SAI_STATUS_NOT_SUPPORTED;
-        break;
-
-    case SAI_ACL_TABLE_ATTR_FIELD_TC:
-        key_id = FLEX_ACL_KEY_SWITCH_PRIO;
-        break;
-
-    case SAI_ACL_TABLE_ATTR_FIELD_SRC_MAC:
-        key_id = FLEX_ACL_KEY_SMAC;
-        break;
-
-    case SAI_ACL_TABLE_ATTR_FIELD_DST_MAC:
-        key_id = FLEX_ACL_KEY_DMAC;
-        break;
-
-    case SAI_ACL_TABLE_ATTR_FIELD_SRC_IP:
-        key_id = FLEX_ACL_KEY_SIP;
-        break;
-
-    case SAI_ACL_TABLE_ATTR_FIELD_DST_IP:
-        key_id = FLEX_ACL_KEY_DIP;
-        break;
-
-    case SAI_ACL_TABLE_ATTR_FIELD_IN_PORT:
-        key_id = FLEX_ACL_KEY_SRC_PORT;
-        break;
-
-    case SAI_ACL_TABLE_ATTR_FIELD_OUT_PORT:
-        key_id = FLEX_ACL_KEY_DST_PORT;
-        break;
-
-    case SAI_ACL_TABLE_ATTR_FIELD_OUTER_VLAN_ID:
-        key_id = FLEX_ACL_KEY_VLAN_ID;
-        break;
-
-    case SAI_ACL_TABLE_ATTR_FIELD_OUTER_VLAN_PRI:
-        key_id = FLEX_ACL_KEY_PCP;
-        break;
-/*
- *   case SAI_ACL_TABLE_ATTR_FIELD_INNER_VLAN_ID:
- *       key_id = FLEX_ACL_KEY_INNER_VLAN_ID;
- *       break;
- */
-
-    case SAI_ACL_TABLE_ATTR_FIELD_INNER_VLAN_PRI:
-        key_id = FLEX_ACL_KEY_INNER_PCP;
-        break;
-
-    case SAI_ACL_TABLE_ATTR_FIELD_L4_SRC_PORT:
-        key_id = FLEX_ACL_KEY_L4_SOURCE_PORT;
-        break;
-
-    case SAI_ACL_TABLE_ATTR_FIELD_L4_DST_PORT:
-        key_id = FLEX_ACL_KEY_L4_DESTINATION_PORT;
-        break;
-
-    case SAI_ACL_TABLE_ATTR_FIELD_ETHER_TYPE:
-        key_id = FLEX_ACL_KEY_ETHERTYPE;
-        break;
-
-    case SAI_ACL_TABLE_ATTR_FIELD_IP_PROTOCOL:
-        key_id = FLEX_ACL_KEY_IP_PROTO;
-        break;
-
-    case SAI_ACL_TABLE_ATTR_FIELD_ACL_USER_META:
-        key_id = FLEX_ACL_KEY_USER_TOKEN;
-        break;
-
-    case SAI_ACL_TABLE_ATTR_FIELD_PACKET_VLAN:
-        key_id = FLEX_ACL_KEY_VLAN_TAGGED;
-        break;
-
-    case SAI_ACL_TABLE_ATTR_FIELD_ACL_RANGE_TYPE:
-        table_range_count = acl_db_table(acl_table_index).range_type_count;
-        if (0 == table_range_count) {
-            value->s32list.count = 0;
-        } else {
-            if (value->s32list.count < table_range_count) {
-                SX_LOG_ERR(" Re-allocate list size as list size is not large enough \n");
-                value->s32list.count = table_range_count;
-                status               = SAI_STATUS_BUFFER_OVERFLOW;
-            } else {
-                for (ii = 0; ii < table_range_count; ii++) {
-                    value->s32list.list[ii] = acl_db_table(acl_table_index).range_types[ii];
-                }
-
-                value->s32list.count = table_range_count;
-            }
-        }
+    status = mlnx_acl_table_is_entry_field_supported(acl_table_index, attr_id, &value->booldata);
+    if (SAI_ERR(status)) {
         goto out;
-
-    default:
-        SX_LOG_ERR(" Invalid attribute to get\n");
-        status = SAI_STATUS_NOT_SUPPORTED;
-        goto out;
-    }
-
-    sx_status = sx_api_acl_flex_key_get(gh_sdk, key_handle, keys, &key_count);
-    if (SX_STATUS_SUCCESS != sx_status) {
-        SX_LOG_ERR(" Failed to get flex acl key in SDK - %s \n", SX_STATUS_MSG(sx_status));
-        status = sdk_to_sai(sx_status);
-        goto out;
-    }
-
-    value->booldata = false;
-    for (key_desc_index = 0; key_desc_index < key_count; key_desc_index++) {
-        if (key_id == keys[key_desc_index]) {
-            value->booldata = true;
-            break;
-        }
     }
 
 out:
@@ -2481,37 +2583,18 @@ out:
     return status;
 }
 
-static sai_status_t mlnx_acl_table_ip_and_tos_get(_In_ const sai_object_key_t   *key,
+static sai_status_t mlnx_acl_table_range_type_get(_In_ const sai_object_key_t   *key,
                                                   _Inout_ sai_attribute_value_t *value,
                                                   _In_ uint32_t                  attr_index,
                                                   _Inout_ vendor_cache_t        *cache,
                                                   void                          *arg)
 {
-    sx_status_t       sx_status;
-    sai_status_t      status;
-    sx_acl_key_t      keys[SX_FLEX_ACL_MAX_FIELDS_IN_KEY];
-    uint32_t          key_count = 0, index = 0;
-    sx_acl_key_type_t key_handle;
-    uint32_t          key_desc_index;
-    uint32_t          acl_table_index;
-    sx_acl_key_t      ip_type_keys[IP_TYPE_KEY_SIZE];
-    sx_acl_key_t      ip_frag_keys[IP_FRAG_KEY_TYPE_SIZE];
-    bool              is_key_type_present = false;
-    bool              is_dscp_key_present = false, is_ecn_key_present = false;
+    sai_status_t status;
+    uint32_t     acl_table_index, table_range_count, ii;
 
     SX_LOG_ENTER();
 
-    assert((SAI_ACL_TABLE_ATTR_FIELD_ACL_IP_TYPE == (int64_t)arg) ||
-           (SAI_ACL_TABLE_ATTR_FIELD_TOS == (int64_t)arg) ||
-           (SAI_ACL_TABLE_ATTR_FIELD_ACL_IP_FRAG == (int64_t)arg));
-
-    ip_type_keys[0] = FLEX_ACL_KEY_IP_OK;
-    ip_type_keys[1] = FLEX_ACL_KEY_IS_IP_V4;
-    ip_type_keys[2] = FLEX_ACL_KEY_IS_ARP;
-    ip_type_keys[3] = FLEX_ACL_KEY_L3_TYPE;
-
-    ip_frag_keys[0] = FLEX_ACL_KEY_IP_FRAGMENTED;
-    ip_frag_keys[1] = FLEX_ACL_KEY_IP_FRAGMENT_NOT_FIRST;
+    assert(SAI_ACL_TABLE_ATTR_FIELD_ACL_RANGE_TYPE == (int64_t)arg);
 
     status = extract_acl_table_index(key->key.object_id, &acl_table_index);
     if (SAI_STATUS_SUCCESS != status) {
@@ -2521,76 +2604,1198 @@ static sai_status_t mlnx_acl_table_ip_and_tos_get(_In_ const sai_object_key_t   
 
     acl_table_read_lock(acl_table_index);
 
-    key_handle = acl_db_table(acl_table_index).key_type;
+    table_range_count = acl_db_table(acl_table_index).range_type_count;
 
-    sx_status = sx_api_acl_flex_key_get(gh_sdk, key_handle, keys, &key_count);
-    if (SAI_STATUS_SUCCESS != sx_status) {
-        SX_LOG_ERR(" Failed to get flex acl key in SDK - %s \n", SX_STATUS_MSG(sx_status));
-        status = sdk_to_sai(sx_status);
-        goto out;
-    }
-
-    switch ((int64_t)arg) {
-    case SAI_ACL_TABLE_ATTR_FIELD_TOS:
-        for (key_desc_index = 0; key_desc_index < key_count; key_desc_index++) {
-            if (FLEX_ACL_KEY_DSCP == keys[key_desc_index]) {
-                is_dscp_key_present = true;
-            }
-            if (FLEX_ACL_KEY_ECN == keys[key_desc_index]) {
-                is_ecn_key_present = true;
-            }
-        }
-
-        if (is_ecn_key_present && is_dscp_key_present) {
-            value->booldata = true;
+    if (0 == table_range_count) {
+        value->s32list.count = 0;
+    } else {
+        if (value->s32list.count < table_range_count) {
+            SX_LOG_ERR(" Re-allocate list size as list size is not large enough \n");
+            value->s32list.count = table_range_count;
+            status               = SAI_STATUS_BUFFER_OVERFLOW;
         } else {
-            value->booldata = false;
-        }
-        break;
+            for (ii = 0; ii < table_range_count; ii++) {
+                value->s32list.list[ii] = acl_db_table(acl_table_index).range_types[ii];
+            }
 
-    case SAI_ACL_TABLE_ATTR_FIELD_ACL_IP_TYPE:
-        value->booldata = false;
-        for (index = 0; index < IP_TYPE_KEY_SIZE; index++) {
-            for (key_desc_index = 0; key_desc_index < key_count; key_desc_index++) {
-                if (ip_type_keys[index] == keys[key_desc_index]) {
-                    is_key_type_present = true;
-                    break;
-                }
-            }
-            if (is_key_type_present) {
-                value->booldata = true;
-                break;
-            }
+            value->s32list.count = table_range_count;
         }
-        break;
-
-    case SAI_ACL_TABLE_ATTR_FIELD_ACL_IP_FRAG:
-        value->booldata = false;
-        for (index = 0; index < IP_FRAG_KEY_TYPE_SIZE; index++) {
-            for (key_desc_index = 0; key_desc_index < key_count; key_desc_index++) {
-                if (ip_frag_keys[index] == keys[key_desc_index]) {
-                    is_key_type_present = true;
-                    break;
-                }
-            }
-            if (is_key_type_present) {
-                value->booldata = true;
-                break;
-            }
-        }
-        break;
-
-    default:
-        SX_LOG_ERR(" Invalid attribute to get\n");
-        status = SAI_STATUS_NOT_SUPPORTED;
-        goto out;
     }
 
-out:
     acl_table_unlock(acl_table_index);
 
     SX_LOG_EXIT();
     return status;
+}
+
+sai_status_t mlnx_acl_stage_action_list_fetch(_In_ uint32_t                       stage,
+                                              _Out_ const sai_acl_action_type_t **actions,
+                                              _Out_ uint32_t                     *action_count)
+{
+    assert(NULL != actions);
+    assert(NULL != action_count);
+
+    switch (stage) {
+    case SAI_ACL_STAGE_INGRESS:
+        *actions      = mlnx_acl_action_list_ingress;
+        *action_count = mlnx_acl_action_list_ingress_count;
+        break;
+
+    case SAI_ACL_STAGE_EGRESS:
+        *actions      = mlnx_acl_action_list_egress;
+        *action_count = mlnx_acl_action_list_egress_count;
+        break;
+
+    default:
+        SX_LOG_ERR("Unexpected acl stage (%d)\n", stage);
+        return SAI_STATUS_FAILURE;
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_acl_action_list_validate(_In_ const sai_s32_list_t *action_list,
+                                                  _In_ sai_acl_stage_t       stage,
+                                                  _In_ uint32_t              attr_index)
+{
+    sai_status_t                 status;
+    const sai_acl_action_type_t *stage_action_list;
+    uint32_t                     stage_action_count, ii, jj;
+    bool                         is_action_present;
+
+    assert((SAI_ACL_STAGE_INGRESS == stage) || (SAI_ACL_STAGE_EGRESS == stage));
+
+    status = mlnx_acl_stage_action_list_fetch(stage, &stage_action_list, &stage_action_count);
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+    for (ii = 0; ii < action_list->count; ii++) {
+        is_action_present = false;
+
+        for (jj = 0; jj < mlnx_acl_action_list_common_count; jj++) {
+            if (mlnx_acl_action_list_common[jj] == (sai_acl_action_type_t)action_list->list[ii]) {
+                is_action_present = true;
+                break;
+            }
+        }
+
+        if (is_action_present) {
+            continue;
+        }
+
+        for (jj = 0; jj < stage_action_count; jj++) {
+            if (stage_action_list[jj] == (sai_acl_action_type_t)action_list->list[ii]) {
+                is_action_present = true;
+                break;
+            }
+        }
+
+        if (false == is_action_present) {
+            SX_LOG_ERR("Invalid action id (%d)\n", action_list->list[ii]);
+            return SAI_STATUS_INVALID_ATTR_VALUE_0 + attr_index;
+        }
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static bool mlnx_acl_field_is_not_trivial(sai_attr_id_t attr_id)
+{
+    uint32_t ii;
+
+    assert((SAI_ACL_TABLE_ATTR_FIELD_START <= attr_id) && (attr_id <= SAI_ACL_TABLE_ATTR_FIELD_END));
+
+    for (ii = 0; ii < mlnx_acl_non_trivial_field_count; ii++) {
+        if (attr_id == mlnx_acl_non_trivial_fields[ii]) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+static const mlnx_acl_single_key_field_info_t* mlnx_acl_single_key_field_info_fetch(_In_ sai_attr_id_t attr_id)
+{
+    const mlnx_acl_single_key_field_info_t *info;
+
+    if (mlnx_acl_single_key_field_max_id <= attr_id) {
+        return NULL;
+    }
+
+    info = &mlnx_acl_single_key_fields_info[attr_id];
+
+    if (MLNX_ACL_FIELD_TYPE_INVALID == info->field_type) {
+        return NULL;
+    }
+
+    return info;
+}
+
+static const mlnx_acl_multi_key_field_info_t* mlnx_acl_multi_key_field_info_fetch(_In_ sai_attr_id_t attr_id)
+{
+    const mlnx_acl_multi_key_field_info_t *info;
+
+    if (mlnx_acl_multi_key_field_max_id <= attr_id) {
+        return NULL;
+    }
+
+    info = &mlnx_acl_multi_key_fields_info[attr_id];
+
+    if (MLNX_ACL_FIELD_TYPE_INVALID == info->field_type) {
+        return NULL;
+    }
+
+    return info;
+}
+
+static sai_status_t mlnx_acl_non_trivial_field_to_sx_key(_In_ sai_acl_entry_attr_t attr_id,
+                                                         _Out_ sx_acl_key_t       *sx_keys,
+                                                         _Out_ uint32_t           *sx_key_count)
+{
+    assert(NULL != sx_keys);
+    assert(NULL != sx_key_count);
+
+    switch (attr_id) {
+    case SAI_ACL_ENTRY_ATTR_FIELD_IN_PORTS:
+        sx_keys[*sx_key_count] = FLEX_ACL_KEY_RX_LIST;
+        break;
+
+    case SAI_ACL_ENTRY_ATTR_FIELD_OUT_PORTS:
+        sx_keys[*sx_key_count] = FLEX_ACL_KEY_DST_PORT;
+        break;
+
+    case SAI_ACL_ENTRY_ATTR_FIELD_IN_PORT:
+        sx_keys[*sx_key_count] = FLEX_ACL_KEY_SRC_PORT;
+        break;
+
+    case SAI_ACL_ENTRY_ATTR_FIELD_OUT_PORT:
+        sx_keys[*sx_key_count] = FLEX_ACL_KEY_DST_PORT;
+        break;
+
+    default:
+        SX_LOG_ERR("Invalid attr id for non-trivial field\n");
+        return SAI_STATUS_FAILURE;
+    }
+
+    (*sx_key_count)++;
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_acl_table_is_entry_field_supported(_In_ uint32_t             acl_table_index,
+                                                            _In_ sai_acl_entry_attr_t attr_id,
+                                                            _Out_ bool               *is_supported)
+{
+    sx_status_t           sx_status;
+    sai_status_t          status;
+    sx_acl_key_t          table_keys[SX_FLEX_ACL_MAX_FIELDS_IN_KEY] = {FLEX_ACL_KEY_INVALID};
+    sx_acl_key_t          field_keys[SX_FLEX_ACL_MAX_FIELDS_IN_KEY] = {FLEX_ACL_KEY_INVALID};
+    sx_acl_key_type_t     key_handle;
+    mlnx_acl_field_type_t field_type;
+    uint32_t              table_key_count, field_key_count;
+    uint32_t              table_key_index, field_key_index;
+    bool                  is_key_present;
+
+    assert(NULL != is_supported);
+
+    field_key_count = 0;
+
+    if (mlnx_acl_field_is_not_trivial(attr_id)) {
+        status = mlnx_acl_non_trivial_field_to_sx_key(attr_id, field_keys, &field_key_count);
+        if (SAI_ERR(status)) {
+            return status;
+        }
+    } else {
+        status = mlnx_acl_field_info_data_fetch(attr_id, &field_type, field_keys, &field_key_count);
+        if (SAI_ERR(status)) {
+            return status;
+        }
+
+        status = mlnx_acl_field_types_to_extra_sx_keys(field_type, field_keys, &field_key_count);
+        if (SAI_ERR(status)) {
+            return status;
+        }
+    }
+
+    key_handle = acl_db_table(acl_table_index).key_type;
+
+    sx_status = sx_api_acl_flex_key_get(gh_sdk, key_handle, table_keys, &table_key_count);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR(" Failed to get flex acl key in SDK - %s \n", SX_STATUS_MSG(sx_status));
+        return sdk_to_sai(sx_status);
+    }
+
+    *is_supported = true;
+
+    for (field_key_index = 0; field_key_index < field_key_count; field_key_index++) {
+        is_key_present = false;
+
+        for (table_key_index = 0; table_key_index < table_key_count; table_key_index++) {
+            if (field_keys[field_key_index] == table_keys[table_key_index]) {
+                is_key_present = true;
+                break;
+            }
+        }
+
+        if (false == is_key_present) {
+            *is_supported = false;
+            break;
+        }
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_acl_field_info_data_fetch(_In_ sai_attr_id_t               attr_id,
+                                                   _Out_opt_ mlnx_acl_field_type_t *fields_types,
+                                                   _Out_opt_ sx_acl_key_t          *sx_keys,
+                                                   _Inout_opt_ uint32_t            *sx_key_count)
+{
+    const mlnx_acl_single_key_field_info_t *single_key_field;
+    const mlnx_acl_multi_key_field_info_t  *multi_key_field;
+    uint32_t                                ii;
+
+    assert((sx_keys && sx_key_count) || (fields_types));
+
+    single_key_field = mlnx_acl_single_key_field_info_fetch(attr_id);
+    if (NULL != single_key_field) {
+        if (sx_keys) {
+            sx_keys[*sx_key_count] = single_key_field->key_id;
+            (*sx_key_count)++;
+        }
+
+        if (fields_types) {
+            *fields_types = single_key_field->field_type;
+        }
+
+        return SAI_STATUS_SUCCESS;
+    }
+
+    multi_key_field = mlnx_acl_multi_key_field_info_fetch(attr_id);
+
+    if (NULL != multi_key_field) {
+        if (sx_keys) {
+            for (ii = 0; ii < multi_key_field->key_count; ii++) {
+                sx_keys[*sx_key_count] = multi_key_field->key_list[ii];
+                (*sx_key_count)++;
+            }
+        }
+
+        if (fields_types) {
+            *fields_types = multi_key_field->field_type;
+        }
+
+        return SAI_STATUS_SUCCESS;
+    }
+
+    SX_LOG_ERR("Faield to find info for attribute (%d)\n", attr_id);
+    return SAI_STATUS_FAILURE;
+}
+
+static sai_status_t mlnx_acl_table_fields_to_sx(_In_ const sai_attribute_t *attr_list,
+                                                _In_ uint32_t               attr_count,
+                                                _Out_ sx_acl_key_t         *sx_keys,
+                                                _Inout_ uint32_t           *sx_key_count)
+{
+    sai_status_t          status;
+    mlnx_acl_field_type_t table_fields_types, field_type;
+    uint32_t              new_key_count, ii;
+
+    assert(NULL != attr_list);
+    assert(NULL != sx_keys);
+    assert(NULL != sx_key_count);
+
+    table_fields_types = MLNX_ACL_FIELD_TYPE_EMPTY;
+    new_key_count      = *sx_key_count;
+
+    for (ii = 0; ii < attr_count; ii++) {
+        if ((attr_list[ii].id < SAI_ACL_TABLE_ATTR_FIELD_START) || (SAI_ACL_TABLE_ATTR_FIELD_END < attr_list[ii].id)) {
+            continue;
+        }
+
+        if (mlnx_acl_field_is_not_trivial(attr_list[ii].id)) {
+            continue;
+        }
+
+        if (false == attr_list[ii].value.booldata) {
+            continue;
+        }
+
+        field_type = MLNX_ACL_FIELD_TYPE_INVALID;
+
+        /* Don't fetch IP Type's fields
+         * They will be added as a result of 'fields_types' processing */
+        if (SAI_ACL_TABLE_ATTR_FIELD_ACL_IP_TYPE != attr_list[ii].id) {
+            status = mlnx_acl_field_info_data_fetch(attr_list[ii].id, &field_type, sx_keys, &new_key_count);
+        } else {
+            status = mlnx_acl_field_info_data_fetch(attr_list[ii].id, &field_type, NULL, NULL);
+        }
+
+        if (SAI_ERR(status)) {
+            return status;
+        }
+
+        table_fields_types |= field_type;
+    }
+
+    status = mlnx_acl_field_types_to_extra_sx_keys(table_fields_types, sx_keys, &new_key_count);
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+    *sx_key_count = new_key_count;
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_acl_entry_fields_to_sx(_In_ const sai_attribute_t   *attr_list,
+                                                _In_ uint32_t                 attr_count,
+                                                _In_ uint32_t                 table_index,
+                                                _Out_ sx_flex_acl_key_desc_t *sx_keys,
+                                                _Inout_ uint32_t             *sx_key_count)
+{
+    sai_status_t          status;
+    mlnx_acl_field_type_t entry_fields_type, field_type;
+    uint32_t              ii;
+
+    assert(NULL != attr_list);
+    assert(NULL != sx_keys);
+    assert(NULL != sx_key_count);
+
+    entry_fields_type = MLNX_ACL_FIELD_TYPE_EMPTY;
+
+    for (ii = 0; ii < attr_count; ii++) {
+        if ((attr_list[ii].id < SAI_ACL_ENTRY_ATTR_FIELD_START) || (SAI_ACL_ENTRY_ATTR_FIELD_END < attr_list[ii].id)) {
+            continue;
+        }
+
+        if (mlnx_acl_field_is_not_trivial(attr_list[ii].id)) {
+            continue;
+        }
+
+        field_type = MLNX_ACL_FIELD_TYPE_EMPTY;
+
+        status = mlnx_acl_entry_field_to_sx(attr_list[ii].id,
+                                            &attr_list[ii].value,
+                                            ii,
+                                            table_index,
+                                            sx_keys,
+                                            sx_key_count,
+                                            &field_type);
+        if (SAI_ERR(status)) {
+            return status;
+        }
+
+        status = mlnx_acl_field_types_check(&entry_fields_type, field_type);
+        if (SAI_ERR(status)) {
+            return status;
+        }
+    }
+
+    status = mlnx_acl_field_types_to_sx(entry_fields_type, sx_keys, sx_key_count);
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_acl_field_types_check(_Inout_ mlnx_acl_field_type_t *entry_fields_types,
+                                               _In_ mlnx_acl_field_type_t     field_type)
+{
+    bool is_valid;
+
+    assert((NULL != entry_fields_types) && (MLNX_ACL_FIELD_TYPE_INVALID != *entry_fields_types));
+    assert(MLNX_ACL_FIELD_TYPE_INVALID != field_type);
+
+    if (MLNX_ACL_FIELD_TYPE_EMPTY == field_type) {
+        return SAI_STATUS_SUCCESS;
+    }
+
+    is_valid = true;
+
+    switch (field_type) {
+    case MLNX_ACL_FIELD_TYPE_IP:
+        if ((MLNX_ACL_FIELD_TYPE_NON_IP | MLNX_ACL_FIELD_TYPE_ARP) & (*entry_fields_types)) {
+            is_valid = false;
+        }
+        break;
+
+    case MLNX_ACL_FIELD_TYPE_NON_IP:
+        if ((MLNX_ACL_FIELD_TYPE_IP | MLNX_ACL_FIELD_TYPE_IPV4 | MLNX_ACL_FIELD_TYPE_IPV6) & (*entry_fields_types)) {
+            is_valid = false;
+        }
+        break;
+
+    case MLNX_ACL_FIELD_TYPE_IPV4:
+        if ((MLNX_ACL_FIELD_TYPE_NON_IP | MLNX_ACL_FIELD_TYPE_ARP |
+             MLNX_ACL_FIELD_TYPE_IPV6) & (*entry_fields_types)) {
+            is_valid = false;
+        }
+        break;
+
+    case MLNX_ACL_FIELD_TYPE_NON_IPV4:
+        if (MLNX_ACL_FIELD_TYPE_IPV4 & (*entry_fields_types)) {
+            is_valid = false;
+        }
+        break;
+
+    case MLNX_ACL_FIELD_TYPE_IPV6:
+        if (MLNX_ACL_FIELD_TYPE_IPV4 & (*entry_fields_types)) {
+            is_valid = false;
+        }
+        break;
+
+    case MLNX_ACL_FIELD_TYPE_ARP:
+        if ((MLNX_ACL_FIELD_TYPE_IP | MLNX_ACL_FIELD_TYPE_IPV4 | MLNX_ACL_FIELD_TYPE_IPV6) & (*entry_fields_types)) {
+            is_valid = false;
+        }
+        break;
+
+    case MLNX_ACL_FIELD_TYPE_INNER_IPV4:
+        if (MLNX_ACL_FIELD_TYPE_INNER_IPV6 & (*entry_fields_types)) {
+            is_valid = false;
+        }
+        break;
+
+    case MLNX_ACL_FIELD_TYPE_INNER_IPV6:
+        if (MLNX_ACL_FIELD_TYPE_INNER_IPV4 & (*entry_fields_types)) {
+            is_valid = false;
+        }
+        break;
+
+    case MLNX_ACL_FIELD_TYPE_L4:
+        if ((MLNX_ACL_FIELD_TYPE_NON_IP | MLNX_ACL_FIELD_TYPE_ARP) & (*entry_fields_types)) {
+            is_valid = false;
+        }
+        break;
+
+    case MLNX_ACL_FIELD_TYPE_TCP:
+        if ((MLNX_ACL_FIELD_TYPE_NON_IP | MLNX_ACL_FIELD_TYPE_ARP) & (*entry_fields_types)) {
+            is_valid = false;
+        }
+        break;
+
+    default:
+        SX_LOG_ERR("Unexpected type of ACL field type (%d)\n", field_type);
+        return SAI_STATUS_FAILURE;
+    }
+
+    if (false == is_valid) {
+        SX_LOG_ERR("Failed to validate ACL Entry field type - conflicting field types\n");
+        return SAI_STATUS_FAILURE;
+    }
+
+    (*entry_fields_types) |= field_type;
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_acl_field_types_to_extra_sx_keys(_In_ mlnx_acl_field_type_t fields_types,
+                                                          _Out_ sx_acl_key_t        *sx_keys,
+                                                          _Inout_ uint32_t          *sx_key_count)
+{
+    sai_status_t status;
+    uint32_t     new_key_count;
+
+    assert(NULL != sx_keys);
+    assert(NULL != sx_key_count);
+    assert(MLNX_ACL_FIELD_TYPE_INVALID != fields_types);
+
+    status = mlnx_acl_field_type_extend(&fields_types);
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+    new_key_count = *sx_key_count;
+
+    if ((MLNX_ACL_FIELD_TYPE_INNER_VLAN_VALID | MLNX_ACL_FIELD_TYPE_INNER_VLAN_INVALID) & fields_types) {
+        sx_keys[new_key_count] = FLEX_ACL_KEY_INNER_VLAN_VALID;
+        new_key_count++;
+    }
+
+    if ((MLNX_ACL_FIELD_TYPE_IP | MLNX_ACL_FIELD_TYPE_NON_IP) & fields_types) {
+        sx_keys[new_key_count] = FLEX_ACL_KEY_IP_OK;
+        new_key_count++;
+    }
+
+    if ((MLNX_ACL_FIELD_TYPE_IPV4 | MLNX_ACL_FIELD_TYPE_NON_IPV4) & fields_types) {
+        sx_keys[new_key_count] = FLEX_ACL_KEY_IS_IP_V4;
+        new_key_count++;
+    }
+
+    if ((MLNX_ACL_FIELD_TYPE_IPV6 | MLNX_ACL_FIELD_TYPE_ARP) & fields_types) {
+        sx_keys[new_key_count] = FLEX_ACL_KEY_L3_TYPE;
+        new_key_count++;
+    }
+
+    if ((MLNX_ACL_FIELD_TYPE_INNER_IPV4 | MLNX_ACL_FIELD_TYPE_INNER_IPV6) & fields_types) {
+        sx_keys[new_key_count] = FLEX_ACL_KEY_INNER_L3_TYPE;
+        new_key_count++;
+    }
+
+    if ((MLNX_ACL_FIELD_TYPE_L4)&fields_types) {
+        sx_keys[new_key_count] = FLEX_ACL_KEY_L4_OK;
+        new_key_count++;
+    }
+
+    if ((MLNX_ACL_FIELD_TYPE_TCP)&fields_types) {
+        sx_keys[new_key_count] = FLEX_ACL_KEY_L4_TYPE;
+        new_key_count++;
+    }
+
+    *sx_key_count = new_key_count;
+
+    return SAI_STATUS_SUCCESS;
+}
+
+/* Adds extra field types needed to generate a proper list of SX ACL Keys needed to match some specific L3/L4 field
+ * e.g. For TCP related field we add an L4 field type and for L4 - type IP
+ */
+static sai_status_t mlnx_acl_field_type_extend(_Inout_ mlnx_acl_field_type_t *fields_types)
+{
+    assert((NULL != fields_types) && (*fields_types != MLNX_ACL_FIELD_TYPE_INVALID));
+
+    if ((MLNX_ACL_FIELD_TYPE_TCP)&(*fields_types)) {
+        (*fields_types) |= MLNX_ACL_FIELD_TYPE_L4;
+    }
+
+    if ((MLNX_ACL_FIELD_TYPE_IPV4 | MLNX_ACL_FIELD_TYPE_IPV6 | MLNX_ACL_FIELD_TYPE_L4) & (*fields_types)) {
+        (*fields_types) |= MLNX_ACL_FIELD_TYPE_IP;
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_acl_field_types_to_sx(_In_ mlnx_acl_field_type_t    fields_types,
+                                               _Out_ sx_flex_acl_key_desc_t *sx_keys,
+                                               _Inout_ uint32_t             *sx_key_count)
+{
+    sai_status_t status;
+    uint32_t     new_key_count;
+
+    assert(NULL != sx_keys);
+    assert(NULL != sx_key_count);
+    assert(MLNX_ACL_FIELD_TYPE_INVALID != fields_types);
+
+    status = mlnx_acl_field_type_extend(&fields_types);
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+    new_key_count = *sx_key_count;
+
+    if ((MLNX_ACL_FIELD_TYPE_INNER_VLAN_VALID)&fields_types) {
+        sx_keys[new_key_count].key_id                = FLEX_ACL_KEY_INNER_VLAN_VALID;
+        sx_keys[new_key_count].key.inner_vlan_valid  = true;
+        sx_keys[new_key_count].mask.inner_vlan_valid = true;
+        new_key_count++;
+    }
+
+    if ((MLNX_ACL_FIELD_TYPE_INNER_VLAN_INVALID)&fields_types) {
+        sx_keys[new_key_count].key_id                = FLEX_ACL_KEY_INNER_VLAN_VALID;
+        sx_keys[new_key_count].key.inner_vlan_valid  = false;
+        sx_keys[new_key_count].mask.inner_vlan_valid = true;
+        new_key_count++;
+    }
+
+    if ((MLNX_ACL_FIELD_TYPE_IP)&fields_types) {
+        sx_keys[new_key_count].key_id     = FLEX_ACL_KEY_IP_OK;
+        sx_keys[new_key_count].key.ip_ok  = true;
+        sx_keys[new_key_count].mask.ip_ok = true;
+        new_key_count++;
+    }
+
+    if ((MLNX_ACL_FIELD_TYPE_NON_IP)&fields_types) {
+        sx_keys[new_key_count].key_id     = FLEX_ACL_KEY_IP_OK;
+        sx_keys[new_key_count].key.ip_ok  = false;
+        sx_keys[new_key_count].mask.ip_ok = true;
+        new_key_count++;
+    }
+
+    if ((MLNX_ACL_FIELD_TYPE_IPV4)&fields_types) {
+        sx_keys[new_key_count].key_id        = FLEX_ACL_KEY_IS_IP_V4;
+        sx_keys[new_key_count].key.is_ip_v4  = true;
+        sx_keys[new_key_count].mask.is_ip_v4 = true;
+        new_key_count++;
+    }
+
+    if ((MLNX_ACL_FIELD_TYPE_NON_IPV4)&fields_types) {
+        sx_keys[new_key_count].key_id        = FLEX_ACL_KEY_IS_IP_V4;
+        sx_keys[new_key_count].key.is_ip_v4  = false;
+        sx_keys[new_key_count].mask.is_ip_v4 = true;
+        new_key_count++;
+    }
+
+    if ((MLNX_ACL_FIELD_TYPE_IPV6)&fields_types) {
+        sx_keys[new_key_count].key_id       = FLEX_ACL_KEY_L3_TYPE;
+        sx_keys[new_key_count].key.l3_type  = SX_ACL_L3_TYPE_IPV6;
+        sx_keys[new_key_count].mask.l3_type = true;
+        new_key_count++;
+    }
+
+    if ((MLNX_ACL_FIELD_TYPE_ARP)&fields_types) {
+        sx_keys[new_key_count].key_id       = FLEX_ACL_KEY_L3_TYPE;
+        sx_keys[new_key_count].key.l3_type  = SX_ACL_L3_TYPE_ARP;
+        sx_keys[new_key_count].mask.l3_type = true;
+        new_key_count++;
+    }
+
+    if ((MLNX_ACL_FIELD_TYPE_INNER_IPV4)&fields_types) {
+        sx_keys[new_key_count].key_id             = FLEX_ACL_KEY_INNER_L3_TYPE;
+        sx_keys[new_key_count].key.inner_l3_type  = SX_ACL_L3_TYPE_IPV4;
+        sx_keys[new_key_count].mask.inner_l3_type = true;
+        new_key_count++;
+    }
+
+    if ((MLNX_ACL_FIELD_TYPE_INNER_IPV6)&fields_types) {
+        sx_keys[new_key_count].key_id             = FLEX_ACL_KEY_INNER_L3_TYPE;
+        sx_keys[new_key_count].key.inner_l3_type  = SX_ACL_L3_TYPE_IPV6;
+        sx_keys[new_key_count].mask.inner_l3_type = true;
+        new_key_count++;
+    }
+
+    if ((MLNX_ACL_FIELD_TYPE_L4)&fields_types) {
+        sx_keys[new_key_count].key_id     = FLEX_ACL_KEY_L4_OK;
+        sx_keys[new_key_count].key.l4_ok  = true;
+        sx_keys[new_key_count].mask.l4_ok = true;
+        new_key_count++;
+    }
+
+    if ((MLNX_ACL_FIELD_TYPE_TCP)&fields_types) {
+        sx_keys[new_key_count].key_id       = FLEX_ACL_KEY_L4_TYPE;
+        sx_keys[new_key_count].key.l4_type  = SX_ACL_L4_TYPE_TCP;
+        sx_keys[new_key_count].mask.l4_type = true;
+        new_key_count++;
+    }
+
+    *sx_key_count = new_key_count;
+
+    return SAI_STATUS_SUCCESS;
+}
+
+/* Adds extra key_desc to rule key desc list
+ * Ignores the key_desc that already present in the rule
+ */
+static sai_status_t mlnx_acl_extra_key_descs_merge(_Inout_ sx_flex_acl_flex_rule_t   *rule,
+                                                   _In_ const sx_flex_acl_key_desc_t *key_descs,
+                                                   _In_ uint32_t                      key_desc_count)
+{
+    uint32_t key_desc_index, rule_key_desc_index;
+    bool     is_key_desc_present;
+
+    assert(NULL != rule);
+    assert(NULL != key_descs);
+
+    for (key_desc_index = 0; key_desc_index < key_desc_count; key_desc_index++) {
+        is_key_desc_present = false;
+
+        for (rule_key_desc_index = 0; rule_key_desc_index < rule->key_desc_count; rule_key_desc_index++) {
+            if (rule->key_desc_list_p[rule_key_desc_index].key_id == key_descs[key_desc_index].key_id) {
+                is_key_desc_present = true;
+                break;
+            }
+        }
+
+        if (false == is_key_desc_present) {
+            memcpy(&rule->key_desc_list_p[rule->key_desc_count], &key_descs[key_desc_index],
+                   sizeof(key_descs[key_desc_index]));
+            rule->key_desc_count++;
+        }
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_acl_entry_field_to_sx(_In_ sai_acl_entry_attr_t         attr_id,
+                                               _In_ const sai_attribute_value_t *value,
+                                               _In_ uint32_t                     attr_index,
+                                               _In_ uint32_t                     table_index,
+                                               _Out_ sx_flex_acl_key_desc_t     *sx_keys,
+                                               _Inout_ uint32_t                 *sx_key_count,
+                                               _Inout_ mlnx_acl_field_type_t    *field_type)
+{
+    sai_status_t status;
+
+    assert(NULL != value);
+    assert(NULL != sx_keys);
+    assert(NULL != sx_key_count);
+    assert(NULL != field_type);
+
+    switch (attr_id) {
+    case SAI_ACL_ENTRY_ATTR_FIELD_SRC_IP:
+    case SAI_ACL_ENTRY_ATTR_FIELD_DST_IP:
+    case SAI_ACL_ENTRY_ATTR_FIELD_SRC_IPV6:
+    case SAI_ACL_ENTRY_ATTR_FIELD_DST_IPV6:
+    case SAI_ACL_ENTRY_ATTR_FIELD_INNER_SRC_IP:
+    case SAI_ACL_ENTRY_ATTR_FIELD_INNER_DST_IP:
+    case SAI_ACL_ENTRY_ATTR_FIELD_INNER_SRC_IPV6:
+    case SAI_ACL_ENTRY_ATTR_FIELD_INNER_DST_IPV6:
+        status = mlnx_acl_ip_field_to_sx(attr_id, value, attr_index, table_index, sx_keys, sx_key_count, field_type);
+        if (SAI_ERR(status)) {
+            return status;
+        }
+        break;
+
+    case SAI_ACL_ENTRY_ATTR_FIELD_PACKET_VLAN:
+        status = mlnx_acl_packet_vlan_field_to_sx(attr_id,
+                                                  value,
+                                                  attr_index,
+                                                  table_index,
+                                                  sx_keys,
+                                                  sx_key_count,
+                                                  field_type);
+        if (SAI_ERR(status)) {
+            return status;
+        }
+        break;
+
+    case SAI_ACL_ENTRY_ATTR_FIELD_TOS:
+        status = mlnx_acl_tos_field_to_sx(attr_id, value, attr_index, table_index, sx_keys, sx_key_count, field_type);
+        if (SAI_ERR(status)) {
+            return status;
+        }
+        break;
+
+    case SAI_ACL_ENTRY_ATTR_FIELD_ACL_IP_TYPE:
+        status = mlnx_acl_ip_type_field_to_sx(attr_id,
+                                              value,
+                                              attr_index,
+                                              table_index,
+                                              sx_keys,
+                                              sx_key_count,
+                                              field_type);
+        if (SAI_ERR(status)) {
+            return status;
+        }
+        break;
+
+    case SAI_ACL_ENTRY_ATTR_FIELD_ACL_IP_FRAG:
+        status = mlnx_acl_ip_frag_field_to_sx(attr_id,
+                                              value,
+                                              attr_index,
+                                              table_index,
+                                              sx_keys,
+                                              sx_key_count,
+                                              field_type);
+        if (SAI_ERR(status)) {
+            return status;
+        }
+        break;
+
+    case SAI_ACL_ENTRY_ATTR_FIELD_ACL_RANGE_TYPE:
+        status = mlnx_acl_range_type_field_to_sx(attr_id,
+                                                 value,
+                                                 attr_index,
+                                                 table_index,
+                                                 sx_keys,
+                                                 sx_key_count,
+                                                 field_type);
+        if (SAI_ERR(status)) {
+            return status;
+        }
+        break;
+
+    case SAI_ACL_ENTRY_ATTR_FIELD_ACL_USER_META:
+        status = mlnx_acl_user_meta_field_to_sx(attr_id,
+                                                value,
+                                                attr_index,
+                                                table_index,
+                                                sx_keys,
+                                                sx_key_count,
+                                                field_type);
+        if (SAI_ERR(status)) {
+            return status;
+        }
+        break;
+
+    default:
+        status = mlnx_acl_single_key_field_to_sx(attr_id,
+                                                 value,
+                                                 attr_index,
+                                                 table_index,
+                                                 sx_keys,
+                                                 sx_key_count,
+                                                 field_type);
+        if (SAI_ERR(status)) {
+            return status;
+        }
+        break;
+    }
+
+    return status;
+}
+
+static sai_status_t mlnx_acl_single_key_field_to_sx(_In_ sai_acl_entry_attr_t         attr_id,
+                                                    _In_ const sai_attribute_value_t *value,
+                                                    _In_ uint32_t                     attr_index,
+                                                    _In_ uint32_t                     table_index,
+                                                    _Out_ sx_flex_acl_key_desc_t     *sx_keys,
+                                                    _Inout_ uint32_t                 *sx_key_count,
+                                                    _Inout_ mlnx_acl_field_type_t    *field_type)
+{
+    const mlnx_acl_single_key_field_info_t *field_info;
+
+    field_info = &mlnx_acl_single_key_fields_info[attr_id];
+
+    if (NULL == field_info) {
+        SX_LOG_ERR("Failed to fetch field info for ACL field (%d)\n", attr_id);
+        return SAI_STATUS_INVALID_ATTRIBUTE_0 + attr_index;
+    }
+
+    assert(FLEX_ACL_KEY_INVALID != field_info->key_id);
+
+    sx_keys[*sx_key_count].key_id = field_info->key_id;
+    memcpy(&sx_keys[*sx_key_count].key, &value->aclfield.data, field_info->key_size);
+    memcpy(&sx_keys[*sx_key_count].mask, &value->aclfield.mask, field_info->key_size);
+    (*sx_key_count)++;
+
+    *field_type = field_info->field_type;
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_acl_ip_field_to_sx(_In_ sai_acl_entry_attr_t         attr_id,
+                                            _In_ const sai_attribute_value_t *value,
+                                            _In_ uint32_t                     attr_index,
+                                            _In_ uint32_t                     table_index,
+                                            _Out_ sx_flex_acl_key_desc_t     *sx_keys,
+                                            _Inout_ uint32_t                 *sx_key_count,
+                                            _Inout_ mlnx_acl_field_type_t    *field_type)
+{
+    sai_status_t                            status;
+    sai_ip_addr_family_t                    addr_family;
+    sai_ip_address_t                        sai_ip_addr, sai_ip_mask;
+    const mlnx_acl_single_key_field_info_t *field_info;
+    sx_ip_addr_t                            sx_ip_addr, sx_ip_mask;
+
+    assert((SAI_ACL_ENTRY_ATTR_FIELD_SRC_IPV6 == attr_id) ||
+           (SAI_ACL_ENTRY_ATTR_FIELD_DST_IPV6 == attr_id) ||
+           (SAI_ACL_ENTRY_ATTR_FIELD_SRC_IP == attr_id) ||
+           (SAI_ACL_ENTRY_ATTR_FIELD_DST_IP == attr_id) ||
+           (SAI_ACL_ENTRY_ATTR_FIELD_INNER_SRC_IP == attr_id) ||
+           (SAI_ACL_ENTRY_ATTR_FIELD_INNER_DST_IP == attr_id) ||
+           (SAI_ACL_ENTRY_ATTR_FIELD_INNER_SRC_IPV6 == attr_id) ||
+           (SAI_ACL_ENTRY_ATTR_FIELD_INNER_DST_IPV6 == attr_id));
+
+    switch (attr_id) {
+    case SAI_ACL_ENTRY_ATTR_FIELD_SRC_IP:
+    case SAI_ACL_ENTRY_ATTR_FIELD_DST_IP:
+    case SAI_ACL_ENTRY_ATTR_FIELD_INNER_SRC_IP:
+    case SAI_ACL_ENTRY_ATTR_FIELD_INNER_DST_IP:
+        addr_family = SAI_IP_ADDR_FAMILY_IPV4;
+        break;
+
+    case SAI_ACL_ENTRY_ATTR_FIELD_SRC_IPV6:
+    case SAI_ACL_ENTRY_ATTR_FIELD_DST_IPV6:
+    case SAI_ACL_ENTRY_ATTR_FIELD_INNER_SRC_IPV6:
+    case SAI_ACL_ENTRY_ATTR_FIELD_INNER_DST_IPV6:
+        addr_family = SAI_IP_ADDR_FAMILY_IPV6;
+        break;
+
+    default:
+        SX_LOG_ERR("Unexpected ip field type (%u)\n", attr_id);
+        return SAI_STATUS_FAILURE;
+    }
+
+    field_info = &mlnx_acl_single_key_fields_info[attr_id];
+    assert(NULL != field_info);
+
+    memset(&sai_ip_addr, 0, sizeof(sai_ip_addr));
+    memset(&sai_ip_mask, 0, sizeof(sai_ip_mask));
+    memset(&sx_ip_addr, 0, sizeof(sx_ip_addr));
+    memset(&sx_ip_mask, 0, sizeof(sx_ip_mask));
+
+    sai_ip_addr.addr_family = addr_family;
+    sai_ip_mask.addr_family = addr_family;
+
+    if (SAI_IP_ADDR_FAMILY_IPV4 == addr_family) {
+        sai_ip_addr.addr.ip4 = value->aclfield.data.ip4;
+        sai_ip_mask.addr.ip4 = value->aclfield.mask.ip4;
+    } else {
+        memcpy(&sai_ip_addr.addr.ip6, &value->aclfield.data.ip6, sizeof(value->aclfield.data.ip6));
+        memcpy(&sai_ip_mask.addr.ip6, &value->aclfield.mask.ip6, sizeof(value->aclfield.mask.ip6));
+    }
+
+    status = mlnx_translate_sai_ip_address_to_sdk(&sai_ip_addr, &sx_ip_addr);
+    if (SAI_ERR(status)) {
+        return SAI_STATUS_INVALID_ATTR_VALUE_0 + attr_index;
+    }
+
+    status = mlnx_translate_sai_ip_address_to_sdk(&sai_ip_mask, &sx_ip_mask);
+    if (SAI_ERR(status)) {
+        return SAI_STATUS_INVALID_ATTR_VALUE_0 + attr_index;
+    }
+
+    sx_keys[*sx_key_count].key_id = field_info->key_id;
+    memcpy(&sx_keys[*sx_key_count].key, &sx_ip_addr, sizeof(sx_ip_addr));
+    memcpy(&sx_keys[*sx_key_count].mask, &sx_ip_mask, sizeof(sx_ip_mask));
+
+    (*sx_key_count)++;
+
+    *field_type = field_info->field_type;
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_acl_packet_vlan_field_to_sx(_In_ sai_acl_entry_attr_t         attr_id,
+                                                     _In_ const sai_attribute_value_t *value,
+                                                     _In_ uint32_t                     attr_index,
+                                                     _In_ uint32_t                     table_index,
+                                                     _Out_ sx_flex_acl_key_desc_t     *sx_keys,
+                                                     _Inout_ uint32_t                 *sx_key_count,
+                                                     _Inout_ mlnx_acl_field_type_t    *field_type)
+{
+    sai_packet_vlan_t packet_vlan;
+
+    assert(SAI_ACL_ENTRY_ATTR_FIELD_PACKET_VLAN == attr_id);
+
+    packet_vlan = value->aclfield.data.s32;
+
+    switch (packet_vlan) {
+    case SAI_PACKET_VLAN_UNTAG:
+        sx_keys[*sx_key_count].key_id           = FLEX_ACL_KEY_VLAN_TAGGED;
+        sx_keys[*sx_key_count].key.vlan_tagged  = false;
+        sx_keys[*sx_key_count].mask.vlan_tagged = true;
+        (*sx_key_count)++;
+        break;
+
+    case SAI_PACKET_VLAN_SINGLE_OUTER_TAG:
+        sx_keys[*sx_key_count].key_id           = FLEX_ACL_KEY_VLAN_TAGGED;
+        sx_keys[*sx_key_count].key.vlan_tagged  = true;
+        sx_keys[*sx_key_count].mask.vlan_tagged = true;
+        (*sx_key_count)++;
+
+        *field_type = MLNX_ACL_FIELD_TYPE_INNER_VLAN_INVALID;
+        break;
+
+    case SAI_PACKET_VLAN_DOUBLE_TAG:
+        sx_keys[*sx_key_count].key_id           = FLEX_ACL_KEY_VLAN_TAGGED;
+        sx_keys[*sx_key_count].key.vlan_tagged  = true;
+        sx_keys[*sx_key_count].mask.vlan_tagged = true;
+        (*sx_key_count)++;
+
+        *field_type = MLNX_ACL_FIELD_TYPE_INNER_VLAN_VALID;
+        break;
+
+    default:
+        SX_LOG_ERR("Invalid type of packet vlan (%d)\n", packet_vlan);
+        return SAI_STATUS_INVALID_ATTR_VALUE_0 + attr_index;
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_acl_tos_field_to_sx(_In_ sai_acl_entry_attr_t         attr_id,
+                                             _In_ const sai_attribute_value_t *value,
+                                             _In_ uint32_t                     attr_index,
+                                             _In_ uint32_t                     table_index,
+                                             _Out_ sx_flex_acl_key_desc_t     *sx_keys,
+                                             _Inout_ uint32_t                 *sx_key_count,
+                                             _Inout_ mlnx_acl_field_type_t    *field_type)
+{
+    assert(SAI_ACL_ENTRY_ATTR_FIELD_TOS == attr_id);
+
+    sx_keys[*sx_key_count].key_id    = FLEX_ACL_KEY_DSCP;
+    sx_keys[*sx_key_count].key.dscp  = (value->aclfield.data.u8 >> 0x02) & 0x3f;
+    sx_keys[*sx_key_count].mask.dscp = (value->aclfield.mask.u8 >> 0x02) & 0x3f;
+    (*sx_key_count)++;
+
+    sx_keys[*sx_key_count].key_id   = FLEX_ACL_KEY_ECN;
+    sx_keys[*sx_key_count].key.ecn  = (value->aclfield.data.u8) & 0x03;
+    sx_keys[*sx_key_count].mask.ecn = (value->aclfield.mask.u8) & 0x03;
+    (*sx_key_count)++;
+
+    *field_type = MLNX_ACL_FIELD_TYPE_IPV4;
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_acl_ip_type_field_to_sx(_In_ sai_acl_entry_attr_t         attr_id,
+                                                 _In_ const sai_attribute_value_t *value,
+                                                 _In_ uint32_t                     attr_index,
+                                                 _In_ uint32_t                     table_index,
+                                                 _Out_ sx_flex_acl_key_desc_t     *sx_keys,
+                                                 _Inout_ uint32_t                 *sx_key_count,
+                                                 _Inout_ mlnx_acl_field_type_t    *field_type)
+{
+    sai_acl_ip_type_t ip_type;
+
+    assert(SAI_ACL_ENTRY_ATTR_FIELD_ACL_IP_TYPE == attr_id);
+
+    ip_type = value->aclfield.data.s32;
+
+    switch (ip_type) {
+    case SAI_ACL_IP_TYPE_ANY:
+        /* Do nothing */
+        *field_type = MLNX_ACL_FIELD_TYPE_EMPTY;
+        break;
+
+    case SAI_ACL_IP_TYPE_IP:
+        *field_type = MLNX_ACL_FIELD_TYPE_IP;
+        break;
+
+    case SAI_ACL_IP_TYPE_NON_IP:
+        *field_type = MLNX_ACL_FIELD_TYPE_NON_IP;
+        break;
+
+    case SAI_ACL_IP_TYPE_IPV4ANY:
+        *field_type = MLNX_ACL_FIELD_TYPE_IPV4;
+        break;
+
+    case SAI_ACL_IP_TYPE_NON_IPV4:
+        *field_type = MLNX_ACL_FIELD_TYPE_NON_IPV4;
+        break;
+
+    case SAI_ACL_IP_TYPE_IPV6ANY:
+        *field_type = MLNX_ACL_FIELD_TYPE_IPV6;
+        break;
+
+    case SAI_ACL_IP_TYPE_NON_IPV6:
+        SX_LOG_ERR("SAI_ACL_IP_TYPE_NON_IPV6 is not supported");
+        return SAI_STATUS_NOT_SUPPORTED;
+
+    case SAI_ACL_IP_TYPE_ARP:
+        *field_type = MLNX_ACL_FIELD_TYPE_ARP;
+        break;
+
+    case SAI_ACL_IP_TYPE_ARP_REQUEST:
+        SX_LOG_ERR("SAI_ACL_IP_TYPE_NON_IPV6 is not supported");
+        return SAI_STATUS_NOT_SUPPORTED;
+
+    case SAI_ACL_IP_TYPE_ARP_REPLY:
+        SX_LOG_ERR("SAI_ACL_IP_TYPE_NON_IPV6 is not supported");
+        return SAI_STATUS_NOT_SUPPORTED;
+
+    default:
+        SX_LOG_ERR("Invalid type of ip type (%d)\n", ip_type);
+        return SAI_STATUS_INVALID_ATTR_VALUE_0 + attr_index;
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_acl_ip_frag_field_to_sx(_In_ sai_acl_entry_attr_t         attr_id,
+                                                 _In_ const sai_attribute_value_t *value,
+                                                 _In_ uint32_t                     attr_index,
+                                                 _In_ uint32_t                     table_index,
+                                                 _Out_ sx_flex_acl_key_desc_t     *sx_keys,
+                                                 _Inout_ uint32_t                 *sx_key_count,
+                                                 _Inout_ mlnx_acl_field_type_t    *field_type)
+{
+    sai_acl_ip_frag_t ip_frag;
+
+    assert(SAI_ACL_ENTRY_ATTR_FIELD_ACL_IP_FRAG == attr_id);
+
+    ip_frag = value->aclfield.data.s32;
+
+    switch (ip_frag) {
+    case SAI_ACL_IP_FRAG_ANY:
+        sx_keys[*sx_key_count].key_id             = FLEX_ACL_KEY_IP_FRAGMENTED;
+        sx_keys[*sx_key_count].key.ip_fragmented  = true;
+        sx_keys[*sx_key_count].mask.ip_fragmented = true;
+        (*sx_key_count)++;
+        break;
+
+    case SAI_ACL_IP_FRAG_NON_FRAG:
+        sx_keys[*sx_key_count].key_id             = FLEX_ACL_KEY_IP_FRAGMENTED;
+        sx_keys[*sx_key_count].key.ip_fragmented  = false;
+        sx_keys[*sx_key_count].mask.ip_fragmented = true;
+        (*sx_key_count)++;
+        break;
+
+    case SAI_ACL_IP_FRAG_NON_FRAG_OR_HEAD:
+        sx_keys[*sx_key_count].key_id                     = FLEX_ACL_KEY_IP_FRAGMENT_NOT_FIRST;
+        sx_keys[*sx_key_count].key.ip_fragment_not_first  = false;
+        sx_keys[*sx_key_count].mask.ip_fragment_not_first = true;
+        (*sx_key_count)++;
+        break;
+
+    case SAI_ACL_IP_FRAG_HEAD:
+        sx_keys[*sx_key_count].key_id             = FLEX_ACL_KEY_IP_FRAGMENTED;
+        sx_keys[*sx_key_count].key.ip_fragmented  = true;
+        sx_keys[*sx_key_count].mask.ip_fragmented = true;
+        (*sx_key_count)++;
+
+        sx_keys[*sx_key_count].key_id                     = FLEX_ACL_KEY_IP_FRAGMENT_NOT_FIRST;
+        sx_keys[*sx_key_count].key.ip_fragment_not_first  = false;
+        sx_keys[*sx_key_count].mask.ip_fragment_not_first = true;
+        (*sx_key_count)++;
+        break;
+
+    case SAI_ACL_IP_FRAG_NON_HEAD:
+        sx_keys[*sx_key_count].key_id             = FLEX_ACL_KEY_IP_FRAGMENTED;
+        sx_keys[*sx_key_count].key.ip_fragmented  = true;
+        sx_keys[*sx_key_count].mask.ip_fragmented = true;
+        (*sx_key_count)++;
+
+        sx_keys[*sx_key_count].key_id                     = FLEX_ACL_KEY_IP_FRAGMENT_NOT_FIRST;
+        sx_keys[*sx_key_count].key.ip_fragment_not_first  = true;
+        sx_keys[*sx_key_count].mask.ip_fragment_not_first = true;
+        (*sx_key_count)++;
+        break;
+
+    default:
+        SX_LOG_ERR("Invalid type of ip frag (%d)\n", ip_frag);
+        return SAI_STATUS_INVALID_ATTR_VALUE_0 + attr_index;
+    }
+
+    *field_type = MLNX_ACL_FIELD_TYPE_IPV4;
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_acl_range_type_field_to_sx(_In_ sai_acl_entry_attr_t         attr_id,
+                                                    _In_ const sai_attribute_value_t *value,
+                                                    _In_ uint32_t                     attr_index,
+                                                    _In_ uint32_t                     table_index,
+                                                    _Out_ sx_flex_acl_key_desc_t     *sx_keys,
+                                                    _Inout_ uint32_t                 *sx_key_count,
+                                                    _Inout_ mlnx_acl_field_type_t    *field_type)
+{
+    sai_status_t status;
+
+    assert(SAI_ACL_ENTRY_ATTR_FIELD_ACL_RANGE_TYPE == attr_id);
+
+    status = mlnx_acl_range_validate_and_fetch(&value->aclfield.data.objlist,
+                                               &sx_keys[*sx_key_count].key.l4_port_range,
+                                               table_index);
+    if (SAI_ERR(status)) {
+        return SAI_STATUS_INVALID_ATTR_VALUE_0 + attr_index;
+    }
+
+    sx_keys[*sx_key_count].key_id             = FLEX_ACL_KEY_L4_PORT_RANGE;
+    sx_keys[*sx_key_count].mask.l4_port_range = true;
+    (*sx_key_count)++;
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_acl_user_meta_field_to_sx(_In_ sai_acl_entry_attr_t         attr_id,
+                                                   _In_ const sai_attribute_value_t *value,
+                                                   _In_ uint32_t                     attr_index,
+                                                   _In_ uint32_t                     table_index,
+                                                   _Out_ sx_flex_acl_key_desc_t     *sx_keys,
+                                                   _Inout_ uint32_t                 *sx_key_count,
+                                                   _Inout_ mlnx_acl_field_type_t    *field_type)
+{
+    assert(SAI_ACL_ENTRY_ATTR_FIELD_ACL_USER_META == attr_id);
+
+    if ((value->aclfield.data.u32 <= ACL_USER_META_RANGE_MAX) &&
+        (value->aclfield.mask.u32 <= ACL_USER_META_RANGE_MAX)) {
+        sx_keys[*sx_key_count].key_id          = FLEX_ACL_KEY_USER_TOKEN;
+        sx_keys[*sx_key_count].key.user_token  = (uint16_t)value->aclfield.data.u32;
+        sx_keys[*sx_key_count].mask.user_token = (uint16_t)value->aclfield.mask.u32;
+        (*sx_key_count)++;
+    } else {
+        SX_LOG_ERR("ACL user Meta values %u %u is out of range [%d, %d]\n",
+                   value->aclfield.data.u32, value->aclfield.mask.u32,
+                   ACL_USER_META_RANGE_MIN, ACL_USER_META_RANGE_MAX);
+        return SAI_STATUS_INVALID_ATTR_VALUE_0 + attr_index;
+    }
+
+    return SAI_STATUS_SUCCESS;
 }
 
 sai_status_t acl_db_find_entry_free_index(_Out_ uint32_t *free_index)
@@ -2866,7 +4071,8 @@ static sai_status_t mlnx_acl_entry_attrib_get(_In_ const sai_object_key_t   *key
     SX_LOG_ENTER();
 
     assert((SAI_ACL_ENTRY_ATTR_TABLE_ID == (int64_t)arg) ||
-           (SAI_ACL_ENTRY_ATTR_PRIORITY == (int64_t)arg));
+           (SAI_ACL_ENTRY_ATTR_PRIORITY == (int64_t)arg) ||
+           (SAI_ACL_ENTRY_ATTR_ADMIN_STATE == (int64_t)arg));
 
     status = extract_acl_table_index_and_entry_index(key->key.object_id, &acl_table_index, &acl_entry_index);
     if (SAI_STATUS_SUCCESS != status) {
@@ -2883,6 +4089,10 @@ static sai_status_t mlnx_acl_entry_attrib_get(_In_ const sai_object_key_t   *key
 
     case SAI_ACL_ENTRY_ATTR_PRIORITY:
         value->u32 = sai_acl_db->acl_entry_db[acl_entry_index].priority;
+        break;
+
+    case SAI_ACL_ENTRY_ATTR_ADMIN_STATE:
+        value->booldata = true;
         break;
     }
 
@@ -2939,62 +4149,127 @@ out:
     return status;
 }
 
-static sai_status_t mlnx_acl_entry_mac_get(_In_ const sai_object_key_t   *key,
-                                           _Inout_ sai_attribute_value_t *value,
-                                           _In_ uint32_t                  attr_index,
-                                           _Inout_ vendor_cache_t        *cache,
-                                           void                          *arg)
+static void mlnx_acl_single_field_key_to_sai(_In_ sai_acl_entry_attr_t          attr_id,
+                                             _Out_ sai_attribute_value_t       *value,
+                                             _In_ const sx_flex_acl_key_desc_t *sx_key,
+                                             _In_ uint32_t                      key_size)
 {
-    sai_status_t            status;
-    sx_flex_acl_flex_rule_t flex_acl_rule;
-    uint32_t                key_desc_index;
-    uint32_t                acl_table_index, acl_entry_index;
-    bool                    is_key_type_present = false;
+    if (SAI_ACL_ENTRY_ATTR_FIELD_ACL_USER_META == attr_id) {
+        value->aclfield.data.u32 = sx_key->key.user_token;
+        value->aclfield.mask.u32 = sx_key->mask.user_token;
+    } else {
+        memcpy(&value->aclfield.data, &sx_key->key, key_size);
+        memcpy(&value->aclfield.mask, &sx_key->mask, key_size);
+    }
+}
+
+static sai_status_t mlnx_acl_entry_single_key_field_get(_In_ const sai_object_key_t   *key,
+                                                        _Inout_ sai_attribute_value_t *value,
+                                                        _In_ uint32_t                  attr_index,
+                                                        _Inout_ vendor_cache_t        *cache,
+                                                        void                          *arg)
+{
+    sai_status_t                            status = SAI_STATUS_SUCCESS;
+    sai_attr_id_t                           attr_id;
+    const mlnx_acl_single_key_field_info_t *field_info;
+    sx_flex_acl_flex_rule_t                 flex_acl_rule;
+    sx_acl_key_t                            field_extra_keys[SX_FLEX_ACL_MAX_FIELDS_IN_KEY] = {FLEX_ACL_KEY_INVALID};
+    uint32_t                                key_desc_index, ii, field_extra_key_count;
+    uint32_t                                acl_table_index, acl_entry_index;
+    bool                                    is_field_suppoted, is_key_type_present, is_extra_keys_present;
 
     SX_LOG_ENTER();
 
-    assert((SAI_ACL_ENTRY_ATTR_FIELD_SRC_MAC == (int64_t)arg) ||
-           (SAI_ACL_ENTRY_ATTR_FIELD_DST_MAC == (int64_t)arg));
+    attr_id = (long)arg;
+
+    assert((SAI_ACL_ENTRY_ATTR_FIELD_SRC_MAC == attr_id) ||
+           (SAI_ACL_ENTRY_ATTR_FIELD_DST_MAC == attr_id) ||
+           (SAI_ACL_ENTRY_ATTR_FIELD_OUTER_VLAN_ID == attr_id) ||
+           (SAI_ACL_ENTRY_ATTR_FIELD_OUTER_VLAN_PRI == attr_id) ||
+           (SAI_ACL_ENTRY_ATTR_FIELD_OUTER_VLAN_CFI == attr_id) ||
+           (SAI_ACL_ENTRY_ATTR_FIELD_ETHER_TYPE == attr_id) ||
+           (SAI_ACL_ENTRY_ATTR_FIELD_IP_PROTOCOL == attr_id) ||
+           (SAI_ACL_ENTRY_ATTR_FIELD_DSCP == attr_id) ||
+           (SAI_ACL_ENTRY_ATTR_FIELD_ECN == attr_id) ||
+           (SAI_ACL_ENTRY_ATTR_FIELD_TTL == attr_id) ||
+           (SAI_ACL_ENTRY_ATTR_FIELD_IPV6_NEXT_HEADER == attr_id) ||
+           (SAI_ACL_ENTRY_ATTR_FIELD_INNER_VLAN_ID == attr_id) ||
+           (SAI_ACL_ENTRY_ATTR_FIELD_INNER_VLAN_PRI == attr_id) ||
+           (SAI_ACL_ENTRY_ATTR_FIELD_INNER_VLAN_CFI == attr_id) ||
+           (SAI_ACL_ENTRY_ATTR_FIELD_L4_SRC_PORT == attr_id) ||
+           (SAI_ACL_ENTRY_ATTR_FIELD_L4_DST_PORT == attr_id) ||
+           (SAI_ACL_ENTRY_ATTR_FIELD_TCP_FLAGS == attr_id) ||
+           (SAI_ACL_ENTRY_ATTR_FIELD_TC == attr_id) ||
+           (SAI_ACL_ENTRY_ATTR_FIELD_ACL_USER_META == attr_id));
 
     status = extract_acl_table_index_and_entry_index(key->key.object_id, &acl_table_index, &acl_entry_index);
-    if (SAI_STATUS_SUCCESS != status) {
+    if (SAI_ERR(status)) {
+        SX_LOG_EXIT();
+        return status;
+    }
+
+    field_info = mlnx_acl_single_key_field_info_fetch(attr_id);
+    if (NULL == field_info) {
+        SX_LOG_ERR("Faield to fetch info for attr (%d)\n", attr_id);
+        SX_LOG_EXIT();
+        return SAI_STATUS_FAILURE;
+    }
+
+    field_extra_key_count = 0;
+
+    status = mlnx_acl_field_types_to_extra_sx_keys(field_info->field_type, field_extra_keys, &field_extra_key_count);
+    if (SAI_ERR(status)) {
         SX_LOG_EXIT();
         return status;
     }
 
     acl_table_read_lock(acl_table_index);
 
-    status = fetch_flex_acl_rule_params_to_get(acl_table_index, acl_entry_index, &flex_acl_rule);
-    if (SAI_STATUS_SUCCESS != status) {
+    status = mlnx_acl_table_is_entry_field_supported(acl_table_index, attr_id, &is_field_suppoted);
+    if (SAI_ERR(status)) {
         goto out;
     }
 
-    switch ((int64_t)arg) {
-    case SAI_ACL_ENTRY_ATTR_FIELD_SRC_MAC:
-        mlnx_acl_flex_rule_key_find(&flex_acl_rule, FLEX_ACL_KEY_SMAC, &key_desc_index, &is_key_type_present);
+    if (false == is_field_suppoted) {
+        SX_LOG_ERR("ACL Entry attribute (%d) is not supported for this entry [%lx]\n", attr_id, key->key.object_id);
+        status = SAI_STATUS_INVALID_ATTRIBUTE_0 + attr_index;
+        goto out;
+    }
+
+    status = fetch_flex_acl_rule_params_to_get(acl_table_index, acl_entry_index, &flex_acl_rule);
+    if (SAI_ERR(status)) {
+        goto out;
+    }
+
+    memset(value, 0, sizeof(*value));
+
+    /* Check if all the extra keys for this field are present in the rule
+     * e.g. IS_IPV4 for src/dst ipv4
+     */
+    is_extra_keys_present = true;
+    for (ii = 0; ii < field_extra_key_count; ii++) {
+        mlnx_acl_flex_rule_key_find(&flex_acl_rule, field_extra_keys[ii], &key_desc_index, &is_key_type_present);
+
+        if (false == is_key_type_present) {
+            is_extra_keys_present = false;
+            break;
+        }
+    }
+
+    if (is_extra_keys_present) {
+        mlnx_acl_flex_rule_key_find(&flex_acl_rule, field_info->key_id, &key_desc_index, &is_key_type_present);
 
         if (is_key_type_present) {
-            memcpy(value->aclfield.data.mac, &flex_acl_rule.key_desc_list_p[key_desc_index].key.smac,
-                   sizeof(value->mac));
-            memcpy(value->aclfield.mask.mac, &flex_acl_rule.key_desc_list_p[key_desc_index].mask.smac,
-                   sizeof(value->mac));
+            value->aclfield.enable = true;
+            mlnx_acl_single_field_key_to_sai(attr_id,
+                                             value,
+                                             &flex_acl_rule.key_desc_list_p[key_desc_index],
+                                             field_info->key_size);
         } else {
-            SX_LOG_ERR(" Invalid Attribute to get : SRC MAC \n");
+            value->aclfield.enable = false;
         }
-        break;
-
-    case SAI_ACL_ENTRY_ATTR_FIELD_DST_MAC:
-        mlnx_acl_flex_rule_key_find(&flex_acl_rule, FLEX_ACL_KEY_DMAC, &key_desc_index, &is_key_type_present);
-
-        if (is_key_type_present) {
-            memcpy(value->aclfield.data.mac, &flex_acl_rule.key_desc_list_p[key_desc_index].key.dmac,
-                   sizeof(value->mac));
-            memcpy(value->aclfield.mask.mac, &flex_acl_rule.key_desc_list_p[key_desc_index].mask.dmac,
-                   sizeof(value->mac));
-        } else {
-            SX_LOG_ERR(" Invalid Attribute to get : DST MAC \n");
-        }
-        break;
+    } else {
+        value->aclfield.enable = false;
     }
 
     mlnx_acl_flex_rule_free(&flex_acl_rule);
@@ -3006,33 +4281,99 @@ out:
     return status;
 }
 
-static sai_status_t mlnx_acl_entry_ip_fields_get(_In_ const sai_object_key_t   *key,
-                                                 _Inout_ sai_attribute_value_t *value,
-                                                 _In_ uint32_t                  attr_index,
-                                                 _Inout_ vendor_cache_t        *cache,
-                                                 void                          *arg)
+static sai_status_t mlnx_acl_entry_ip_type_get(_In_ const sai_object_key_t   *key,
+                                               _Inout_ sai_attribute_value_t *value,
+                                               _In_ uint32_t                  attr_index,
+                                               _Inout_ vendor_cache_t        *cache,
+                                               void                          *arg)
+{
+    sai_status_t            status = SAI_STATUS_SUCCESS;
+    sx_flex_acl_flex_rule_t flex_acl_rule;
+    uint32_t                acl_table_index, acl_entry_index, key_desc_index;
+    bool                    is_key_present;
+
+    assert(SAI_ACL_ENTRY_ATTR_FIELD_ACL_IP_TYPE == (int64_t)arg);
+
+    status = extract_acl_table_index_and_entry_index(key->key.object_id, &acl_table_index, &acl_entry_index);
+    if (SAI_ERR(status)) {
+        SX_LOG_EXIT();
+        return status;
+    }
+
+    acl_table_read_lock(acl_table_index);
+
+    status = fetch_flex_acl_rule_params_to_get(acl_table_index, acl_entry_index, &flex_acl_rule);
+    if (SAI_ERR(status)) {
+        acl_table_unlock(acl_table_index);
+        SX_LOG_EXIT();
+        return status;
+    }
+
+    value->aclfield.enable = true;
+
+    mlnx_acl_flex_rule_key_find(&flex_acl_rule, FLEX_ACL_KEY_L3_TYPE, &key_desc_index, &is_key_present);
+
+    if (is_key_present) {
+        if (SX_ACL_L3_TYPE_IPV6 == flex_acl_rule.key_desc_list_p[key_desc_index].key.l3_type) {
+            value->aclfield.data.s32 = SAI_ACL_IP_TYPE_IPV6ANY;
+        } else {
+            assert(SX_ACL_L3_TYPE_ARP == flex_acl_rule.key_desc_list_p[key_desc_index].key.l3_type);
+            value->aclfield.data.s32 = SAI_ACL_IP_TYPE_ARP;
+        }
+
+        goto out;
+    }
+
+    mlnx_acl_flex_rule_key_find(&flex_acl_rule, FLEX_ACL_KEY_IS_IP_V4, &key_desc_index, &is_key_present);
+
+    if (is_key_present) {
+        if (flex_acl_rule.key_desc_list_p[key_desc_index].key.is_ip_v4) {
+            value->aclfield.data.s32 = SAI_ACL_IP_TYPE_IPV4ANY;
+        } else {
+            value->aclfield.data.s32 = SAI_ACL_IP_TYPE_NON_IPV4;
+        }
+
+        goto out;
+    }
+
+    mlnx_acl_flex_rule_key_find(&flex_acl_rule, FLEX_ACL_KEY_IP_OK, &key_desc_index, &is_key_present);
+
+    if (is_key_present) {
+        if (flex_acl_rule.key_desc_list_p[key_desc_index].key.ip_ok) {
+            value->aclfield.data.s32 = SAI_ACL_IP_TYPE_IP;
+        } else {
+            value->aclfield.data.s32 = SAI_ACL_IP_TYPE_NON_IP;
+        }
+    } else {
+        value->aclfield.data.s32 = SAI_ACL_IP_TYPE_ANY;
+    }
+
+out:
+    acl_table_unlock(acl_table_index);
+
+    mlnx_acl_flex_rule_free(&flex_acl_rule);
+
+    SX_LOG_EXIT();
+    return status;
+}
+
+static sai_status_t mlnx_acl_entry_ip_frag_get(_In_ const sai_object_key_t   *key,
+                                               _Inout_ sai_attribute_value_t *value,
+                                               _In_ uint32_t                  attr_index,
+                                               _Inout_ vendor_cache_t        *cache,
+                                               void                          *arg)
 {
     sai_status_t            status;
     sx_flex_acl_flex_rule_t flex_acl_rule;
-    sx_acl_key_t            ip_type_keys[IP_TYPE_KEY_SIZE];
     sx_acl_key_t            ip_frag_key, ip_frag_not_first_key;
-    uint32_t                key_id                 = 0, index, key_desc_index = 0;
+    uint32_t                key_desc_index         = 0;
     uint32_t                ip_frag_key_desc_index = 0, ip_frag_not_first_key_desc_index = 0;
     uint32_t                acl_table_index, acl_entry_index;
-    bool                    is_key_type_present    = false;
     bool                    is_ip_frag_key_present = false, is_ip_frag_not_first_key_present = false;
 
     SX_LOG_ENTER();
 
-    assert((SAI_ACL_ENTRY_ATTR_FIELD_IP_PROTOCOL == (int64_t)arg) ||
-           (SAI_ACL_ENTRY_ATTR_FIELD_ACL_IP_TYPE == (int64_t)arg) ||
-           (SAI_ACL_ENTRY_ATTR_FIELD_ACL_IP_FRAG == (int64_t)arg) ||
-           (SAI_ACL_ENTRY_ATTR_FIELD_IP_FLAGS == (int64_t)arg));
-
-    ip_type_keys[0] = FLEX_ACL_KEY_IP_OK;
-    ip_type_keys[1] = FLEX_ACL_KEY_IS_IP_V4;
-    ip_type_keys[2] = FLEX_ACL_KEY_IS_ARP;
-    ip_type_keys[3] = FLEX_ACL_KEY_L3_TYPE;
+    assert(SAI_ACL_ENTRY_ATTR_FIELD_ACL_IP_FRAG == (int64_t)arg);
 
     ip_frag_key           = FLEX_ACL_KEY_IP_FRAGMENTED;
     ip_frag_not_first_key = FLEX_ACL_KEY_IP_FRAGMENT_NOT_FIRST;
@@ -3050,125 +4391,48 @@ static sai_status_t mlnx_acl_entry_ip_fields_get(_In_ const sai_object_key_t   *
         goto out;
     }
 
-    switch ((int64_t)arg) {
-    case SAI_ACL_ENTRY_ATTR_FIELD_IP_PROTOCOL:
-        mlnx_acl_flex_rule_key_find(&flex_acl_rule, FLEX_ACL_KEY_IP_PROTO, &key_desc_index, &is_key_type_present);
+    value->aclfield.enable = true;
 
-        if (is_key_type_present) {
-            value->aclfield.data.u8 = flex_acl_rule.key_desc_list_p[key_desc_index].key.ip_proto;
-            value->aclfield.mask.u8 = flex_acl_rule.key_desc_list_p[key_desc_index].mask.ip_proto;
-        } else {
-            SX_LOG_ERR(" Invalid Attribute to Get : IP_PROTOCOL \n");
-        }
-        break;
-
-    case SAI_ACL_ENTRY_ATTR_FIELD_ACL_IP_TYPE:
-        for (index = 0; index < IP_TYPE_KEY_SIZE; index++) {
-            for (key_desc_index = 0; key_desc_index < flex_acl_rule.key_desc_count; key_desc_index++) {
-                if (flex_acl_rule.key_desc_list_p[key_desc_index].key_id == ip_type_keys[index]) {
-                    is_key_type_present = true;
-                    key_id              = ip_type_keys[index];
-                    break;
-                }
-            }
-
-            if (is_key_type_present) {
-                break;
-            }
+    for (key_desc_index = 0; key_desc_index < flex_acl_rule.key_desc_count; key_desc_index++) {
+        if (flex_acl_rule.key_desc_list_p[key_desc_index].key_id == ip_frag_key) {
+            is_ip_frag_key_present = true;
+            ip_frag_key_desc_index = key_desc_index;
         }
 
-        if (!is_key_type_present) {
-            value->aclfield.data.s32 = SAI_ACL_IP_TYPE_ANY;
-        } else {
-            switch (key_id) {
-            case FLEX_ACL_KEY_IP_OK:
-                if (flex_acl_rule.key_desc_list_p[key_desc_index].key.ip_ok) {
-                    value->aclfield.data.s32 = SAI_ACL_IP_TYPE_IP;
+        if (flex_acl_rule.key_desc_list_p[key_desc_index].key_id == ip_frag_not_first_key) {
+            is_ip_frag_not_first_key_present = true;
+            ip_frag_not_first_key_desc_index = key_desc_index;
+        }
+
+        if (is_ip_frag_key_present && ip_frag_not_first_key_desc_index) {
+            break;
+        }
+    }
+
+    if (is_ip_frag_key_present) {
+        if (is_ip_frag_not_first_key_present) {
+            if (flex_acl_rule.key_desc_list_p[ip_frag_key_desc_index].key.ip_fragmented) {
+                if (flex_acl_rule.key_desc_list_p[ip_frag_not_first_key_desc_index].key.ip_fragment_not_first) {
+                    value->aclfield.data.s32 = SAI_ACL_IP_FRAG_NON_HEAD;
                 } else {
-                    value->aclfield.data.s32 = SAI_ACL_IP_TYPE_NON_IP;
+                    value->aclfield.data.s32 = SAI_ACL_IP_FRAG_HEAD;
                 }
-                break;
-
-            case FLEX_ACL_KEY_IS_IP_V4:
-                if (flex_acl_rule.key_desc_list_p[key_desc_index].key.is_ip_v4) {
-                    value->aclfield.data.s32 = SAI_ACL_IP_TYPE_IPv4ANY;
-                } else {
-                    value->aclfield.data.s32 = SAI_ACL_IP_TYPE_NON_IPv4;
-                }
-                break;
-
-            case FLEX_ACL_KEY_L3_TYPE:
-                assert(SX_ACL_L3_TYPE_IPV6 == flex_acl_rule.key_desc_list_p[key_desc_index].key.l3_type);
-                value->aclfield.data.s32 = SAI_ACL_IP_TYPE_IPv6ANY;
-                break;
-
-            /*
-             *         case FLEX_ACL_KEY_IS_IP_V6:
-             *         if ( flex_acl_rule.key_desc_list_p[key_desc_index].key.is_ip_v6 ){
-             *         value->aclfield.data.s32 = SAI_ACL_IP_TYPE_IPv6ANY;
-             *         }
-             *         else {
-             *         value->aclfield.data.s32 = SAI_ACL_IP_TYPE_NON_IPv6;
-             *         }
-             *         break;
-             */
-            case FLEX_ACL_KEY_IS_ARP:
-                if (flex_acl_rule.key_desc_list_p[key_desc_index].key.is_arp) {
-                    value->aclfield.data.s32 = SAI_ACL_IP_TYPE_ARP;
-                }
-                break;
             }
-        }
-        break;
-
-    case SAI_ACL_ENTRY_ATTR_FIELD_ACL_IP_FRAG:
-        for (key_desc_index = 0; key_desc_index < flex_acl_rule.key_desc_count; key_desc_index++) {
-            if (flex_acl_rule.key_desc_list_p[key_desc_index].key_id == ip_frag_key) {
-                is_ip_frag_key_present = true;
-                ip_frag_key_desc_index = key_desc_index;
-            }
-
-            if (flex_acl_rule.key_desc_list_p[key_desc_index].key_id == ip_frag_not_first_key) {
-                is_ip_frag_not_first_key_present = true;
-                ip_frag_not_first_key_desc_index = key_desc_index;
-            }
-
-            if (is_ip_frag_key_present && ip_frag_not_first_key_desc_index) {
-                break;
-            }
-        }
-
-        if (is_ip_frag_key_present) {
-            if (is_ip_frag_not_first_key_present) {
-                if (flex_acl_rule.key_desc_list_p[ip_frag_key_desc_index].key.ip_fragmented) {
-                    if (flex_acl_rule.key_desc_list_p[ip_frag_not_first_key_desc_index].key.ip_fragment_not_first) {
-                        value->aclfield.data.s32 = SAI_ACL_IP_FRAG_NON_HEAD;
-                    } else {
-                        value->aclfield.data.s32 = SAI_ACL_IP_FRAG_HEAD;
-                    }
-                }
+        } else {
+            if (flex_acl_rule.key_desc_list_p[ip_frag_key_desc_index].key.ip_fragmented) {
+                value->aclfield.data.s32 = SAI_ACL_IP_FRAG_ANY;
             } else {
-                if (flex_acl_rule.key_desc_list_p[ip_frag_key_desc_index].key.ip_fragmented) {
-                    value->aclfield.data.s32 = SAI_ACL_IP_FRAG_ANY;
-                } else {
-                    value->aclfield.data.s32 = SAI_ACL_IP_FRAG_NON_FRAG;
-                }
+                value->aclfield.data.s32 = SAI_ACL_IP_FRAG_NON_FRAG;
             }
-        } else if (!is_ip_frag_key_present) {
-            if (is_ip_frag_not_first_key_present) {
-                if (!flex_acl_rule.key_desc_list_p[ip_frag_not_first_key_desc_index].key.ip_fragment_not_first) {
-                    value->aclfield.data.s32 = SAI_ACL_IP_FRAG_NON_FRAG_OR_HEAD;
-                }
-            }
-        } else {
-            SX_LOG_ERR(" Invalid Attribute to Get : IP_FRAG \n");
         }
-        break;
-
-    case SAI_ACL_ENTRY_ATTR_FIELD_IP_FLAGS:
-        SX_LOG_ERR(" IP Flags Getter Not Supported in this phase \n");
-        status = SAI_STATUS_NOT_SUPPORTED;
-        break;
+    } else if (!is_ip_frag_key_present) {
+        if (is_ip_frag_not_first_key_present) {
+            if (!flex_acl_rule.key_desc_list_p[ip_frag_not_first_key_desc_index].key.ip_fragment_not_first) {
+                value->aclfield.data.s32 = SAI_ACL_IP_FRAG_NON_FRAG_OR_HEAD;
+            }
+        }
+    } else {
+        value->aclfield.enable = false;
     }
 
     mlnx_acl_flex_rule_free(&flex_acl_rule);
@@ -3187,6 +4451,7 @@ static sai_status_t mlnx_acl_entry_ip_get(_In_ const sai_object_key_t   *key,
                                           void                          *arg)
 {
     sai_status_t            status;
+    sai_attr_id_t           attr_id;
     sx_flex_acl_flex_rule_t flex_acl_rule;
     sx_ip_addr_t            ipaddr_data, ipaddr_mask;
     sai_ip_address_t        ip_address_data, ip_address_mask;
@@ -3194,22 +4459,25 @@ static sai_status_t mlnx_acl_entry_ip_get(_In_ const sai_object_key_t   *key,
     uint32_t                key_desc_index = 0;
     uint32_t                acl_table_index, acl_entry_index;
     bool                    is_key_type_present = true;
+    bool                    is_field_suppoted;
 
     SX_LOG_ENTER();
+
+    attr_id = (long)arg;
+
+    assert((SAI_ACL_ENTRY_ATTR_FIELD_SRC_IPV6 == attr_id) ||
+           (SAI_ACL_ENTRY_ATTR_FIELD_DST_IPV6 == attr_id) ||
+           (SAI_ACL_ENTRY_ATTR_FIELD_SRC_IP == attr_id) ||
+           (SAI_ACL_ENTRY_ATTR_FIELD_DST_IP == attr_id) ||
+           (SAI_ACL_ENTRY_ATTR_FIELD_INNER_SRC_IP == attr_id) ||
+           (SAI_ACL_ENTRY_ATTR_FIELD_INNER_DST_IP == attr_id) ||
+           (SAI_ACL_ENTRY_ATTR_FIELD_INNER_SRC_IPV6 == attr_id) ||
+           (SAI_ACL_ENTRY_ATTR_FIELD_INNER_DST_IPV6 == attr_id));
 
     memset(&ipaddr_data, 0, sizeof(ipaddr_data));
     memset(&ip_address_data, 0, sizeof(ip_address_data));
     memset(&ipaddr_mask, 0, sizeof(ipaddr_mask));
     memset(&ip_address_mask, 0, sizeof(ip_address_mask));
-
-    assert((SAI_ACL_ENTRY_ATTR_FIELD_SRC_IPv6 == (int64_t)arg) ||
-           (SAI_ACL_ENTRY_ATTR_FIELD_DST_IPv6 == (int64_t)arg) ||
-           (SAI_ACL_ENTRY_ATTR_FIELD_SRC_IP == (int64_t)arg) ||
-           (SAI_ACL_ENTRY_ATTR_FIELD_DST_IP == (int64_t)arg) ||
-           (SAI_ACL_ENTRY_ATTR_FIELD_INNER_SRC_IP == (int64_t)arg) ||
-           (SAI_ACL_ENTRY_ATTR_FIELD_INNER_DST_IP == (int64_t)arg) ||
-           (SAI_ACL_ENTRY_ATTR_FIELD_INNER_SRC_IPv6 == (int64_t)arg) ||
-           (SAI_ACL_ENTRY_ATTR_FIELD_INNER_DST_IPv6 == (int64_t)arg));
 
     status = extract_acl_table_index_and_entry_index(key->key.object_id, &acl_table_index, &acl_entry_index);
     if (SAI_STATUS_SUCCESS != status) {
@@ -3219,17 +4487,28 @@ static sai_status_t mlnx_acl_entry_ip_get(_In_ const sai_object_key_t   *key,
 
     acl_table_read_lock(acl_table_index);
 
-    status = fetch_flex_acl_rule_params_to_get(acl_table_index, acl_entry_index, &flex_acl_rule);
-    if (SAI_STATUS_SUCCESS != status) {
+    status = mlnx_acl_table_is_entry_field_supported(acl_table_index, attr_id, &is_field_suppoted);
+    if (SAI_ERR(status)) {
         goto out;
     }
 
-    switch ((int64_t)arg) {
-    case SAI_ACL_ENTRY_ATTR_FIELD_SRC_IPv6:
+    if (false == is_field_suppoted) {
+        SX_LOG_ERR("ACL Entry attribute (%d) is not supported for this entry [%lx]\n", attr_id, key->key.object_id);
+        status = SAI_STATUS_INVALID_ATTRIBUTE_0 + attr_index;
+        goto out;
+    }
+
+    status = fetch_flex_acl_rule_params_to_get(acl_table_index, acl_entry_index, &flex_acl_rule);
+    if (SAI_ERR(status)) {
+        goto out;
+    }
+
+    switch (attr_id) {
+    case SAI_ACL_ENTRY_ATTR_FIELD_SRC_IPV6:
         key_id = FLEX_ACL_KEY_SIPV6;
         break;
 
-    case SAI_ACL_ENTRY_ATTR_FIELD_DST_IPv6:
+    case SAI_ACL_ENTRY_ATTR_FIELD_DST_IPV6:
         key_id = FLEX_ACL_KEY_DIPV6;
         break;
 
@@ -3249,24 +4528,26 @@ static sai_status_t mlnx_acl_entry_ip_get(_In_ const sai_object_key_t   *key,
         key_id = FLEX_ACL_KEY_INNER_DIP;
         break;
 
-    case SAI_ACL_ENTRY_ATTR_FIELD_INNER_SRC_IPv6:
+    case SAI_ACL_ENTRY_ATTR_FIELD_INNER_SRC_IPV6:
         key_id = FLEX_ACL_KEY_INNER_SIPV6;
         break;
 
-    case SAI_ACL_ENTRY_ATTR_FIELD_INNER_DST_IPv6:
+    case SAI_ACL_ENTRY_ATTR_FIELD_INNER_DST_IPV6:
         key_id = FLEX_ACL_KEY_INNER_DIPV6;
         break;
 
     default:
-        SX_LOG_ERR(" Invalid attribute to get - %lu\n", (int64_t)arg);
-        status = SAI_STATUS_NOT_SUPPORTED;
+        SX_LOG_ERR(" Unexpected attribute id - %d\n", attr_id);
+        status = SAI_STATUS_FAILURE;
         goto out;
     }
+
+    value->aclfield.enable = true;
 
     mlnx_acl_flex_rule_key_find(&flex_acl_rule, key_id, &key_desc_index, &is_key_type_present);
 
     switch ((int64_t)arg) {
-    case SAI_ACL_ENTRY_ATTR_FIELD_SRC_IPv6:
+    case SAI_ACL_ENTRY_ATTR_FIELD_SRC_IPV6:
         if (is_key_type_present) {
             status = mlnx_translate_sdk_ip_address_to_sai(&flex_acl_rule.key_desc_list_p[key_desc_index].key.dipv6,
                                                           &ip_address_data);
@@ -3284,12 +4565,11 @@ static sai_status_t mlnx_acl_entry_ip_get(_In_ const sai_object_key_t   *key,
             memcpy(&value->aclfield.mask.ip6, &ip_address_mask.addr.ip6,
                    sizeof(value->ipaddr.addr.ip6));
         } else {
-            SX_LOG_ERR(" Invalid Attribute to Get : SRC_IPv6 \n");
-            status = SAI_STATUS_INVALID_ATTRIBUTE_0 + attr_index;
+            value->aclfield.enable = false;
         }
         break;
 
-    case SAI_ACL_ENTRY_ATTR_FIELD_DST_IPv6:
+    case SAI_ACL_ENTRY_ATTR_FIELD_DST_IPV6:
         if (is_key_type_present) {
             status = mlnx_translate_sdk_ip_address_to_sai(&flex_acl_rule.key_desc_list_p[key_desc_index].key.dipv6,
                                                           &ip_address_data);
@@ -3308,8 +4588,7 @@ static sai_status_t mlnx_acl_entry_ip_get(_In_ const sai_object_key_t   *key,
             memcpy(&value->aclfield.mask.ip6, &ip_address_mask.addr.ip6,
                    sizeof(value->ipaddr.addr.ip6));
         } else {
-            SX_LOG_ERR("Invalid Attribute to Get : DST_IPv6 \n");
-            status = SAI_STATUS_INVALID_ATTRIBUTE_0 + attr_index;
+            value->aclfield.enable = false;
         }
         break;
 
@@ -3331,8 +4610,7 @@ static sai_status_t mlnx_acl_entry_ip_get(_In_ const sai_object_key_t   *key,
             memcpy(&value->aclfield.mask.ip4, &ip_address_mask.addr.ip4, \
                    sizeof(value->ipaddr.addr.ip4));
         } else {
-            SX_LOG_ERR(" Invalid Attribute to Get : SRC_IP \n");
-            status = SAI_STATUS_INVALID_ATTRIBUTE_0 + attr_index;
+            value->aclfield.enable = false;
         }
         break;
 
@@ -3355,8 +4633,7 @@ static sai_status_t mlnx_acl_entry_ip_get(_In_ const sai_object_key_t   *key,
             memcpy(&value->aclfield.mask.ip4, &ip_address_mask.addr.ip4, \
                    sizeof(value->ipaddr.addr.ip4));
         } else {
-            SX_LOG_ERR("Invalid Attribute to Get : DST_IP \n");
-            status = SAI_STATUS_INVALID_ATTRIBUTE_0 + attr_index;
+            value->aclfield.enable = false;
         }
         break;
 
@@ -3379,8 +4656,7 @@ static sai_status_t mlnx_acl_entry_ip_get(_In_ const sai_object_key_t   *key,
             memcpy(&value->aclfield.mask.ip4, &ip_address_mask.addr.ip4,
                    sizeof(value->ipaddr.addr.ip4));
         } else {
-            SX_LOG_ERR(" Invalid Attribute to Get : INNER_SRC_IP \n");
-            status = SAI_STATUS_INVALID_ATTRIBUTE_0 + attr_index;
+            value->aclfield.enable = false;
         }
         break;
 
@@ -3403,12 +4679,11 @@ static sai_status_t mlnx_acl_entry_ip_get(_In_ const sai_object_key_t   *key,
             memcpy(&value->aclfield.mask.ip4, &ip_address_mask.addr.ip4,
                    sizeof(value->ipaddr.addr.ip4));
         } else {
-            SX_LOG_ERR(" Invalid Attribute to Get : INNER_DST_IP \n");
-            status = SAI_STATUS_INVALID_ATTRIBUTE_0 + attr_index;
+            value->aclfield.enable = false;
         }
         break;
 
-    case SAI_ACL_ENTRY_ATTR_FIELD_INNER_SRC_IPv6:
+    case SAI_ACL_ENTRY_ATTR_FIELD_INNER_SRC_IPV6:
         if (is_key_type_present) {
             status = mlnx_translate_sdk_ip_address_to_sai(
                 &flex_acl_rule.key_desc_list_p[key_desc_index].key.inner_sipv6,
@@ -3428,12 +4703,11 @@ static sai_status_t mlnx_acl_entry_ip_get(_In_ const sai_object_key_t   *key,
             memcpy(&value->aclfield.mask.ip6, &ip_address_mask.addr.ip6,
                    sizeof(value->ipaddr.addr.ip6));
         } else {
-            SX_LOG_ERR(" Invalid Attribute to Get : INNER_SRC_IPv6 \n");
-            status = SAI_STATUS_INVALID_ATTRIBUTE_0 + attr_index;
+            value->aclfield.enable = false;
         }
         break;
 
-    case SAI_ACL_ENTRY_ATTR_FIELD_INNER_DST_IPv6:
+    case SAI_ACL_ENTRY_ATTR_FIELD_INNER_DST_IPV6:
         if (is_key_type_present) {
             status = mlnx_translate_sdk_ip_address_to_sai(
                 &flex_acl_rule.key_desc_list_p[key_desc_index].key.inner_dipv6,
@@ -3453,146 +4727,12 @@ static sai_status_t mlnx_acl_entry_ip_get(_In_ const sai_object_key_t   *key,
             memcpy(&value->aclfield.mask.ip6, &ip_address_mask.addr.ip6,
                    sizeof(value->ipaddr.addr.ip6));
         } else {
-            SX_LOG_ERR(" Invalid Attribute to Get : INNER_DST_IPv6 \n");
-            status = SAI_STATUS_INVALID_ATTRIBUTE_0 + attr_index;
+            value->aclfield.enable = false;
         }
         break;
     }
 
 out_deinit:
-    mlnx_acl_flex_rule_free(&flex_acl_rule);
-
-out:
-    acl_table_unlock(acl_table_index);
-
-    SX_LOG_EXIT();
-    return status;
-}
-
-static sai_status_t mlnx_acl_entry_vlan_get(_In_ const sai_object_key_t   *key,
-                                            _Inout_ sai_attribute_value_t *value,
-                                            _In_ uint32_t                  attr_index,
-                                            _Inout_ vendor_cache_t        *cache,
-                                            void                          *arg)
-{
-    sai_status_t            status;
-    sx_flex_acl_flex_rule_t flex_acl_rule;
-    sx_acl_key_t            key_id = 0;
-    uint32_t                acl_table_index, acl_entry_index, key_desc_index;
-    bool                    is_key_type_present = false;
-
-    SX_LOG_ENTER();
-
-    assert((SAI_ACL_ENTRY_ATTR_FIELD_OUTER_VLAN_ID == (int64_t)arg) ||
-           (SAI_ACL_ENTRY_ATTR_FIELD_OUTER_VLAN_PRI == (int64_t)arg) ||
-           (SAI_ACL_ENTRY_ATTR_FIELD_INNER_VLAN_ID == (int64_t)arg) ||
-           (SAI_ACL_ENTRY_ATTR_FIELD_INNER_VLAN_PRI == (int64_t)arg) ||
-           (SAI_ACL_ENTRY_ATTR_FIELD_INNER_VLAN_CFI == (int64_t)arg) ||
-           (SAI_ACL_ENTRY_ATTR_FIELD_OUTER_VLAN_CFI == (int64_t)arg));
-
-    status = extract_acl_table_index_and_entry_index(key->key.object_id, &acl_table_index, &acl_entry_index);
-    if (SAI_STATUS_SUCCESS != status) {
-        SX_LOG_EXIT();
-        return status;
-    }
-
-    acl_table_read_lock(acl_table_index);
-
-    status = fetch_flex_acl_rule_params_to_get(acl_table_index, acl_entry_index, &flex_acl_rule);
-    if (SAI_STATUS_SUCCESS != status) {
-        goto out;
-    }
-
-    switch ((int64_t)arg) {
-    case SAI_ACL_ENTRY_ATTR_FIELD_OUTER_VLAN_ID:
-        key_id = FLEX_ACL_KEY_VLAN_ID;
-        break;
-
-    case SAI_ACL_ENTRY_ATTR_FIELD_OUTER_VLAN_CFI:
-        key_id = FLEX_ACL_KEY_DEI;
-        break;
-
-    case SAI_ACL_ENTRY_ATTR_FIELD_OUTER_VLAN_PRI:
-        key_id = FLEX_ACL_KEY_PCP;
-        break;
-/*
- *   case SAI_ACL_ENTRY_ATTR_FIELD_INNER_VLAN_ID:
- *       key_id = FLEX_ACL_KEY_INNER_VLAN_ID;
- *       break;*/
-
-    case SAI_ACL_ENTRY_ATTR_FIELD_INNER_VLAN_CFI:
-        key_id = FLEX_ACL_KEY_INNER_DEI;
-        break;
-
-    case SAI_ACL_ENTRY_ATTR_FIELD_INNER_VLAN_PRI:
-        key_id = FLEX_ACL_KEY_INNER_PCP;
-        break;
-    }
-
-    mlnx_acl_flex_rule_key_find(&flex_acl_rule, key_id, &key_desc_index, &is_key_type_present);
-
-    switch ((int64_t)arg) {
-    case SAI_ACL_ENTRY_ATTR_FIELD_OUTER_VLAN_ID:
-        if (is_key_type_present) {
-            value->aclfield.data.u16 = flex_acl_rule.key_desc_list_p[key_desc_index].key.vlan_id;
-            value->aclfield.mask.u16 = flex_acl_rule.key_desc_list_p[key_desc_index].mask.vlan_id;
-        } else {
-            SX_LOG_ERR(" Invalid Attribute to get : OUTER VID \n");
-            status = SAI_STATUS_INVALID_ATTRIBUTE_0 + attr_index;
-        }
-        break;
-/*
- *   case SAI_ACL_ENTRY_ATTR_FIELD_INNER_VLAN_ID:
- *       if (is_key_type_present) {
- *           value->aclfield.data.u16 = flex_acl_rule.key_desc_list_p[key_desc_index].key.inner_vlan_id;
- *           value->aclfield.mask.u16 = flex_acl_rule.key_desc_list_p[key_desc_index].mask.inner_vlan_id;
- *       } else {
- *           SX_LOG_ERR(" Invalid Attribute to get : INNER VID \n");
- *           status = SAI_STATUS_NOT_SUPPORTED;
- *       }
- *       break;*/
-
-    case SAI_ACL_ENTRY_ATTR_FIELD_INNER_VLAN_PRI:
-        if (is_key_type_present) {
-            value->aclfield.data.u8 = flex_acl_rule.key_desc_list_p[key_desc_index].key.inner_pcp;
-            value->aclfield.mask.u8 = flex_acl_rule.key_desc_list_p[key_desc_index].mask.inner_pcp;
-        } else {
-            SX_LOG_ERR(" Invalid Attribute to get : INNER VLAN PRIORITY \n");
-            status = SAI_STATUS_INVALID_ATTRIBUTE_0 + attr_index;
-        }
-        break;
-
-    case SAI_ACL_ENTRY_ATTR_FIELD_INNER_VLAN_CFI:
-        if (is_key_type_present) {
-            value->aclfield.data.u8 = flex_acl_rule.key_desc_list_p[key_desc_index].key.inner_dei;
-            value->aclfield.mask.u8 = flex_acl_rule.key_desc_list_p[key_desc_index].mask.inner_dei;
-        } else {
-            SX_LOG_ERR(" Invalid Attribute to get : INNER VLAN CFI \n");
-            status = SAI_STATUS_INVALID_ATTRIBUTE_0 + attr_index;
-        }
-        break;
-
-    case SAI_ACL_ENTRY_ATTR_FIELD_OUTER_VLAN_PRI:
-        if (is_key_type_present) {
-            value->aclfield.data.u8 = flex_acl_rule.key_desc_list_p[key_desc_index].key.pcp;
-            value->aclfield.mask.u8 = flex_acl_rule.key_desc_list_p[key_desc_index].mask.pcp;
-        } else {
-            SX_LOG_ERR(" Invalid Attribute to get : OUTER VLAN PRIORITY \n");
-            status = SAI_STATUS_INVALID_ATTRIBUTE_0 + attr_index;
-        }
-        break;
-
-    case SAI_ACL_ENTRY_ATTR_FIELD_OUTER_VLAN_CFI:
-        if (is_key_type_present) {
-            value->aclfield.data.u8 = flex_acl_rule.key_desc_list_p[key_desc_index].key.dei;
-            value->aclfield.mask.u8 = flex_acl_rule.key_desc_list_p[key_desc_index].mask.dei;
-        } else {
-            SX_LOG_ERR(" Invalid Attribute to get : OUTER VLAN CFI \n");
-            status = SAI_STATUS_INVALID_ATTRIBUTE_0 + attr_index;
-        }
-        break;
-    }
-
     mlnx_acl_flex_rule_free(&flex_acl_rule);
 
 out:
@@ -3613,8 +4753,8 @@ static sai_status_t mlnx_acl_entry_ports_get(_In_ const sai_object_key_t   *key,
     sx_flex_acl_flex_rule_t *out_port_rules          = NULL;
     uint32_t                 acl_table_index, acl_entry_index, rule_count;
     uint32_t                 out_port_key_desc_index;
-    uint32_t                 port_count         = 0, ii;
-    bool                     is_in_port_present = false, is_out_port_present = false;
+    uint32_t                 port_count = 0, ii;
+    bool                     is_field_suppoted, is_in_port_present = false, is_out_port_present = false;
 
     SX_LOG_ENTER();
 
@@ -3628,6 +4768,19 @@ static sai_status_t mlnx_acl_entry_ports_get(_In_ const sai_object_key_t   *key,
     }
 
     acl_table_read_lock(acl_table_index);
+
+    status = mlnx_acl_table_is_entry_field_supported(acl_table_index, (int64_t)arg, &is_field_suppoted);
+    if (SAI_ERR(status)) {
+        goto out;
+    }
+
+    if (false == is_field_suppoted) {
+        SX_LOG_ERR("ACL Entry attribute (%ld) is not supported for this entry [%lx]\n",
+                   (int64_t)arg,
+                   key->key.object_id);
+        status = SAI_STATUS_INVALID_ATTRIBUTE_0 + attr_index;
+        goto out;
+    }
 
     if (SAI_ACL_ENTRY_ATTR_FIELD_OUT_PORTS == (int64_t)arg) {
         status = fetch_flex_acl_rule_params_to_set(acl_table_index, acl_entry_index,
@@ -3660,6 +4813,8 @@ static sai_status_t mlnx_acl_entry_ports_get(_In_ const sai_object_key_t   *key,
             }
         }
     }
+
+    value->aclfield.enable = (port_count > 0);
 
     if (value->aclfield.data.objlist.count < port_count) {
         value->aclfield.data.objlist.count = port_count;
@@ -3697,13 +4852,11 @@ static sai_status_t mlnx_acl_entry_port_get(_In_ const sai_object_key_t   *key,
     sx_acl_key_t            key_id = 0;
     uint32_t                key_desc_index;
     uint32_t                acl_table_index, acl_entry_index;
-    bool                    is_key_type_present = false;
+    bool                    is_field_suppoted, is_key_type_present = false;
 
     SX_LOG_ENTER();
 
-    assert((SAI_ACL_ENTRY_ATTR_FIELD_L4_SRC_PORT == (int64_t)arg) ||
-           (SAI_ACL_ENTRY_ATTR_FIELD_L4_DST_PORT == (int64_t)arg) ||
-           (SAI_ACL_ENTRY_ATTR_FIELD_IN_PORT == (int64_t)arg) ||
+    assert((SAI_ACL_ENTRY_ATTR_FIELD_IN_PORT == (int64_t)arg) ||
            (SAI_ACL_ENTRY_ATTR_FIELD_OUT_PORT == (int64_t)arg));
 
     status = extract_acl_table_index_and_entry_index(key->key.object_id, &acl_table_index, &acl_entry_index);
@@ -3714,20 +4867,25 @@ static sai_status_t mlnx_acl_entry_port_get(_In_ const sai_object_key_t   *key,
 
     acl_table_read_lock(acl_table_index);
 
+    status = mlnx_acl_table_is_entry_field_supported(acl_table_index, (int64_t)arg, &is_field_suppoted);
+    if (SAI_ERR(status)) {
+        goto out;
+    }
+
+    if (false == is_field_suppoted) {
+        SX_LOG_ERR("ACL Entry attribute (%ld) is not supported for this entry [%lx]\n",
+                   (int64_t)arg,
+                   key->key.object_id);
+        status = SAI_STATUS_INVALID_ATTRIBUTE_0 + attr_index;
+        goto out;
+    }
+
     status = fetch_flex_acl_rule_params_to_get(acl_table_index, acl_entry_index, &flex_acl_rule);
     if (SAI_STATUS_SUCCESS != status) {
         goto out;
     }
 
     switch ((int64_t)arg) {
-    case SAI_ACL_ENTRY_ATTR_FIELD_L4_SRC_PORT:
-        key_id = FLEX_ACL_KEY_L4_SOURCE_PORT;
-        break;
-
-    case SAI_ACL_ENTRY_ATTR_FIELD_L4_DST_PORT:
-        key_id = FLEX_ACL_KEY_L4_DESTINATION_PORT;
-        break;
-
     case SAI_ACL_ENTRY_ATTR_FIELD_IN_PORT:
         key_id = FLEX_ACL_KEY_SRC_PORT;
         break;
@@ -3739,27 +4897,9 @@ static sai_status_t mlnx_acl_entry_port_get(_In_ const sai_object_key_t   *key,
 
     mlnx_acl_flex_rule_key_find(&flex_acl_rule, key_id, &key_desc_index, &is_key_type_present);
 
+    value->aclfield.enable = true;
+
     switch ((int64_t)arg) {
-    case SAI_ACL_ENTRY_ATTR_FIELD_L4_SRC_PORT:
-        if (is_key_type_present) {
-            value->aclfield.data.u16 = flex_acl_rule.key_desc_list_p[key_desc_index].key.l4_source_port;
-            value->aclfield.mask.u16 = flex_acl_rule.key_desc_list_p[key_desc_index].mask.l4_source_port;
-        } else {
-            SX_LOG_ERR(" Invalid Attribute to Get : L4 SRC PORT \n");
-            status = SAI_STATUS_INVALID_ATTRIBUTE_0 + attr_index;
-        }
-        break;
-
-    case SAI_ACL_ENTRY_ATTR_FIELD_L4_DST_PORT:
-        if (is_key_type_present) {
-            value->aclfield.data.u16 = flex_acl_rule.key_desc_list_p[key_desc_index].key.l4_destination_port;
-            value->aclfield.mask.u16 = flex_acl_rule.key_desc_list_p[key_desc_index].mask.l4_destination_port;
-        } else {
-            SX_LOG_ERR(" Invalid Attribute to Get : L4 DST PORT \n");
-            status = SAI_STATUS_INVALID_ATTRIBUTE_0 + attr_index;
-        }
-        break;
-
     case SAI_ACL_ENTRY_ATTR_FIELD_IN_PORT:
         if (is_key_type_present) {
             status = mlnx_create_object(SAI_OBJECT_TYPE_PORT,
@@ -3769,8 +4909,7 @@ static sai_status_t mlnx_acl_entry_port_get(_In_ const sai_object_key_t   *key,
                 goto out_deinit;
             }
         } else {
-            SX_LOG_ERR(" Invalid Attribute to Get :  IN PORT \n");
-            status = SAI_STATUS_INVALID_ATTRIBUTE_0 + attr_index;
+            value->aclfield.enable = false;
         }
         break;
 
@@ -3788,8 +4927,7 @@ static sai_status_t mlnx_acl_entry_port_get(_In_ const sai_object_key_t   *key,
                     goto out_deinit;
                 }
             } else {
-                SX_LOG_ERR(" Invalid Attribute to Get : OUT PORT \n");
-                status = SAI_STATUS_INVALID_ATTRIBUTE_0 + attr_index;
+                value->aclfield.enable = false;
             }
         }
         break;
@@ -3805,29 +4943,22 @@ out:
     return status;
 }
 
-static sai_status_t mlnx_acl_entry_fields_get(_In_ const sai_object_key_t   *key,
-                                              _Inout_ sai_attribute_value_t *value,
-                                              _In_ uint32_t                  attr_index,
-                                              _Inout_ vendor_cache_t        *cache,
-                                              void                          *arg)
+static sai_status_t mlnx_acl_entry_vlan_tags_get(_In_ const sai_object_key_t   *key,
+                                                 _Inout_ sai_attribute_value_t *value,
+                                                 _In_ uint32_t                  attr_index,
+                                                 _Inout_ vendor_cache_t        *cache,
+                                                 void                          *arg)
 {
     sai_status_t            status;
     sx_flex_acl_flex_rule_t flex_acl_rule;
-    uint32_t                key_desc_index, key_id = 0;
+    uint32_t                key_desc_index;
     uint32_t                acl_table_index, acl_entry_index;
     uint32_t                vlan_tagged_key_desc_index = 0, inner_vlan_valid_key_desc_index = 0;
-    bool                    is_key_type_present        = false;
-    bool                    is_vlan_tagged             = false, is_inner_vlan_valid = false;
+    bool                    is_vlan_tagged             = false, is_inner_vlan_valid = false, is_field_suppoted;
 
     SX_LOG_ENTER();
 
-    assert((SAI_ACL_ENTRY_ATTR_ADMIN_STATE == (int64_t)arg) ||
-           (SAI_ACL_ENTRY_ATTR_FIELD_ETHER_TYPE == (int64_t)arg) ||
-           (SAI_ACL_ENTRY_ATTR_FIELD_TTL == (int64_t)arg) ||
-           (SAI_ACL_ENTRY_ATTR_FIELD_ACL_USER_META == (int64_t)arg) ||
-           (SAI_ACL_ENTRY_ATTR_FIELD_TC == (int64_t)arg) ||
-           (SAI_ACL_ENTRY_ATTR_FIELD_TCP_FLAGS == (int64_t)arg) ||
-           (SAI_ACL_TABLE_ATTR_FIELD_PACKET_VLAN == (int64_t)arg));
+    assert(SAI_ACL_ENTRY_ATTR_FIELD_PACKET_VLAN == (int64_t)arg);
 
     status = extract_acl_table_index_and_entry_index(key->key.object_id, &acl_table_index, &acl_entry_index);
     if (SAI_STATUS_SUCCESS != status) {
@@ -3837,119 +4968,52 @@ static sai_status_t mlnx_acl_entry_fields_get(_In_ const sai_object_key_t   *key
 
     acl_table_read_lock(acl_table_index);
 
+    status = mlnx_acl_table_is_entry_field_supported(acl_table_index, (int64_t)arg, &is_field_suppoted);
+    if (SAI_ERR(status)) {
+        goto out;
+    }
+
+    if (false == is_field_suppoted) {
+        SX_LOG_ERR("ACL Entry attribute (%ld) is not supported for this entry [%lx]\n",
+                   (int64_t)arg,
+                   key->key.object_id);
+        status = SAI_STATUS_INVALID_ATTRIBUTE_0 + attr_index;
+        goto out;
+    }
+
     status = fetch_flex_acl_rule_params_to_get(acl_table_index, acl_entry_index, &flex_acl_rule);
     if (SAI_STATUS_SUCCESS != status) {
         goto out;
     }
 
-    switch ((int64_t)arg) {
-    case SAI_ACL_ENTRY_ATTR_FIELD_ETHER_TYPE:
-        key_id = FLEX_ACL_KEY_ETHERTYPE;
-        break;
+    for (key_desc_index = 0; key_desc_index < flex_acl_rule.key_desc_count; key_desc_index++) {
+        if (flex_acl_rule.key_desc_list_p[key_desc_index].key_id == FLEX_ACL_KEY_VLAN_TAGGED) {
+            is_vlan_tagged             = true;
+            vlan_tagged_key_desc_index = key_desc_index;
+        }
 
-    case SAI_ACL_ENTRY_ATTR_FIELD_TTL:
-        key_id = FLEX_ACL_KEY_TTL;
-        break;
+        if (flex_acl_rule.key_desc_list_p[key_desc_index].key_id == FLEX_ACL_KEY_INNER_VLAN_VALID) {
+            is_inner_vlan_valid             = true;
+            inner_vlan_valid_key_desc_index = key_desc_index;
+        }
 
-    case SAI_ACL_ENTRY_ATTR_FIELD_TC:
-        key_id = FLEX_ACL_KEY_SWITCH_PRIO;
-        break;
-
-    case SAI_ACL_ENTRY_ATTR_FIELD_ACL_USER_META:
-        key_id = FLEX_ACL_KEY_USER_TOKEN;
-        break;
-
-    case SAI_ACL_ENTRY_ATTR_FIELD_TCP_FLAGS:
-        key_id = FLEX_ACL_KEY_TCP_CONTROL;
-        break;
+        if (is_vlan_tagged && is_inner_vlan_valid) {
+            break;
+        }
     }
 
-    mlnx_acl_flex_rule_key_find(&flex_acl_rule, key_id, &key_desc_index, &is_key_type_present);
+    value->aclfield.enable = true;
 
-    switch ((int64_t)arg) {
-    case SAI_ACL_ENTRY_ATTR_ADMIN_STATE:
-        value->booldata = flex_acl_rule.valid;
-        break;
-
-    case SAI_ACL_ENTRY_ATTR_FIELD_ETHER_TYPE:
-        if (is_key_type_present) {
-            value->aclfield.data.u16 = flex_acl_rule.key_desc_list_p[key_desc_index].key.ethertype;
-            value->aclfield.mask.u16 = flex_acl_rule.key_desc_list_p[key_desc_index].mask.ethertype;
+    if (is_vlan_tagged) {
+        if (!flex_acl_rule.key_desc_list_p[vlan_tagged_key_desc_index].key.vlan_tagged) {
+            value->aclfield.data.s32 = SAI_PACKET_VLAN_UNTAG;
+        } else if (!flex_acl_rule.key_desc_list_p[inner_vlan_valid_key_desc_index].key.inner_vlan_valid) {
+            value->aclfield.data.s32 = SAI_PACKET_VLAN_SINGLE_OUTER_TAG;
         } else {
-            SX_LOG_ERR(" Invalid Attribute to Get : ETHER TYPE \n");
-            status = SAI_STATUS_INVALID_ATTRIBUTE_0 + attr_index;
+            value->aclfield.data.s32 = SAI_PACKET_VLAN_DOUBLE_TAG;
         }
-        break;
-
-    case SAI_ACL_ENTRY_ATTR_FIELD_TTL:
-        if (is_key_type_present) {
-            value->aclfield.data.u8 = flex_acl_rule.key_desc_list_p[key_desc_index].key.ttl;
-            value->aclfield.mask.u8 = flex_acl_rule.key_desc_list_p[key_desc_index].mask.ttl;
-        } else {
-            SX_LOG_ERR(" Invalid Attribute to Get : TTL \n");
-            status = SAI_STATUS_INVALID_ATTRIBUTE_0 + attr_index;
-        }
-        break;
-
-    case SAI_ACL_ENTRY_ATTR_FIELD_ACL_USER_META:
-        if (is_key_type_present) {
-            value->aclfield.data.u32 = flex_acl_rule.key_desc_list_p[key_desc_index].key.user_token;
-            value->aclfield.mask.u32 = flex_acl_rule.key_desc_list_p[key_desc_index].mask.user_token;
-        } else {
-            SX_LOG_ERR(" Invalid Attribute to Get : ACL User Meta \n");
-            status = SAI_STATUS_INVALID_ATTRIBUTE_0 + attr_index;
-        }
-        break;
-
-    case SAI_ACL_ENTRY_ATTR_FIELD_TC:
-        if (is_key_type_present) {
-            value->aclfield.data.u8 = flex_acl_rule.key_desc_list_p[key_desc_index].key.switch_prio;
-            value->aclfield.mask.u8 = flex_acl_rule.key_desc_list_p[key_desc_index].mask.switch_prio;
-        } else {
-            SX_LOG_ERR(" Invalid Attribute to Get : TC \n");
-            status = SAI_STATUS_INVALID_ATTRIBUTE_0 + attr_index;
-        }
-        break;
-
-    case SAI_ACL_ENTRY_ATTR_FIELD_TCP_FLAGS:
-        if (is_key_type_present) {
-            value->aclfield.data.u8 = flex_acl_rule.key_desc_list_p[key_desc_index].key.tcp_control;
-            value->aclfield.mask.u8 = flex_acl_rule.key_desc_list_p[key_desc_index].mask.tcp_control;
-        } else {
-            SX_LOG_ERR(" Invalid Attribute to Get : TCP FLAGS \n");
-            status = SAI_STATUS_INVALID_ATTRIBUTE_0 + attr_index;
-        }
-        break;
-
-    case SAI_ACL_TABLE_ATTR_FIELD_PACKET_VLAN:
-        for (key_desc_index = 0; key_desc_index < flex_acl_rule.key_desc_count; key_desc_index++) {
-            if (flex_acl_rule.key_desc_list_p[key_desc_index].key_id == FLEX_ACL_KEY_VLAN_TAGGED) {
-                is_vlan_tagged             = true;
-                vlan_tagged_key_desc_index = key_desc_index;
-            }
-
-            if (flex_acl_rule.key_desc_list_p[key_desc_index].key_id == FLEX_ACL_KEY_INNER_VLAN_VALID) {
-                is_inner_vlan_valid             = true;
-                inner_vlan_valid_key_desc_index = key_desc_index;
-            }
-
-            if (is_vlan_tagged && is_inner_vlan_valid) {
-                break;
-            }
-        }
-
-        if (is_vlan_tagged) {
-            if (!flex_acl_rule.key_desc_list_p[vlan_tagged_key_desc_index].key.vlan_tagged) {
-                value->aclfield.data.s32 = SAI_PACKET_VLAN_UNTAG;
-            } else if (!flex_acl_rule.key_desc_list_p[inner_vlan_valid_key_desc_index].key.inner_vlan_valid) {
-                value->aclfield.data.s32 = SAI_PACKET_VLAN_SINGLE_OUTER_TAG;
-            } else {
-                value->aclfield.data.s32 = SAI_PACKET_VLAN_DOUBLE_TAG;
-            }
-        } else {
-            SX_LOG_ERR(" Invalid Attribute to Get : VLAN_TAGS \n");
-        }
-        break;
+    } else {
+        value->aclfield.enable = false;
     }
 
     mlnx_acl_flex_rule_free(&flex_acl_rule);
@@ -3971,28 +5035,6 @@ static bool mlnx_acl_ip_idnet_key_is_supported(_In_ uint32_t table_index)
     return true;
 }
 
-static void mlnx_acl_ip_ident_key_find(_In_ const sx_flex_acl_flex_rule_t *rule,
-                                       _Out_ uint32_t                     *key_index,
-                                       _Out_ bool                         *is_key_present)
-{
-    const sx_acl_key_t *sx_ip_ident_keys;
-
-    assert(NULL != rule);
-    assert(NULL != key_index);
-    assert(NULL != is_key_present);
-
-    sx_ip_ident_keys = sai_acl_db->acl_settings_tbl->ip_ident_keys.sx_keys;
-
-    mlnx_acl_flex_rule_key_find(rule, sx_ip_ident_keys[0], key_index, is_key_present);
-
-    if (false == *is_key_present) {
-        return;
-    }
-
-    assert(*key_index + 1 <= rule->key_desc_count);
-    assert(rule->key_desc_list_p[*key_index + 1].key_id == sx_ip_ident_keys[1]);
-}
-
 static sai_status_t mlnx_acl_entry_ip_ident_get(_In_ const sai_object_key_t   *key,
                                                 _Inout_ sai_attribute_value_t *value,
                                                 _In_ uint32_t                  attr_index,
@@ -4001,10 +5043,11 @@ static sai_status_t mlnx_acl_entry_ip_ident_get(_In_ const sai_object_key_t   *k
 {
     sai_status_t            status = SAI_STATUS_SUCCESS;
     sx_flex_acl_flex_rule_t flex_acl_rule;
-    uint32_t                sx_key_index;
+    const sx_acl_key_t     *sx_ip_ident_keys;
+    uint32_t                first_sx_key_index, second_sx_key_index;
     uint32_t                acl_table_index, acl_entry_index;
     uint16_t                data, mask;
-    bool                    is_sx_key_present, rule_inited = false;
+    bool                    is_first_sx_key_present, is_second_sx_key_present, rule_inited = false;
 
     SX_LOG_ENTER();
 
@@ -4031,19 +5074,27 @@ static sai_status_t mlnx_acl_entry_ip_ident_get(_In_ const sai_object_key_t   *k
 
     rule_inited = true;
 
-    mlnx_acl_ip_ident_key_find(&flex_acl_rule, &sx_key_index, &is_sx_key_present);
+    sx_ip_ident_keys = sai_acl_db->acl_settings_tbl->ip_ident_keys.sx_keys;
 
-    if (false == is_sx_key_present) {
-        SX_LOG_ERR("Invalid Attribute to Get : IP_IDENTIFICATION\n");
-        status = SAI_STATUS_INVALID_ATTRIBUTE_0 + attr_index;
+    mlnx_acl_flex_rule_key_find(&flex_acl_rule, sx_ip_ident_keys[0], &first_sx_key_index, &is_first_sx_key_present);
+    mlnx_acl_flex_rule_key_find(&flex_acl_rule, sx_ip_ident_keys[1], &second_sx_key_index, &is_second_sx_key_present);
+
+    if (is_first_sx_key_present != is_second_sx_key_present) {
+        SX_LOG_ERR("Faield to get IP_IDENTIFICATION failed - sx rule is broken\n");
+        status = SAI_STATUS_FAILURE;
         goto out;
     }
 
-    data = flex_acl_rule.key_desc_list_p[sx_key_index].key.custom_byte;
-    mask = flex_acl_rule.key_desc_list_p[sx_key_index].mask.custom_byte;
+    if (false == is_first_sx_key_present) {
+        value->aclfield.enable = false;
+        goto out;
+    }
 
-    data |= flex_acl_rule.key_desc_list_p[sx_key_index + 1].key.custom_byte << 8;
-    mask |= flex_acl_rule.key_desc_list_p[sx_key_index + 1].mask.custom_byte << 8;
+    data = flex_acl_rule.key_desc_list_p[first_sx_key_index].key.custom_byte;
+    mask = flex_acl_rule.key_desc_list_p[first_sx_key_index].mask.custom_byte;
+
+    data |= flex_acl_rule.key_desc_list_p[second_sx_key_index].key.custom_byte << 8;
+    mask |= flex_acl_rule.key_desc_list_p[second_sx_key_index].mask.custom_byte << 8;
 
     value->aclfield.enable   = true;
     value->aclfield.data.u16 = htons(data);
@@ -4070,8 +5121,9 @@ static sai_status_t mlnx_acl_entry_ip_ident_set(_In_ const sai_object_key_t     
     sx_flex_acl_flex_rule_t   *flex_acl_rule_p    = NULL;
     sx_flex_acl_rule_offset_t *offsets_list_p     = NULL;
     uint32_t                   flex_acl_rules_num = 0;
-    uint32_t                   acl_table_index, acl_entry_index, sx_key_index, ii;
-    bool                       is_sx_key_present;
+    uint32_t                   acl_table_index, acl_entry_index, ii;
+    uint32_t                   first_sx_key_index, second_sx_key_index;
+    bool                       is_first_sx_key_present, is_second_sx_key_present;
 
     SX_LOG_ENTER();
 
@@ -4098,23 +5150,27 @@ static sai_status_t mlnx_acl_entry_ip_ident_set(_In_ const sai_object_key_t     
         goto out;
     }
 
-    mlnx_acl_ip_ident_key_find(flex_acl_rule_p, &sx_key_index, &is_sx_key_present);
-
     sx_ip_ident_keys = sai_acl_db->acl_settings_tbl->ip_ident_keys.sx_keys;
 
+    mlnx_acl_flex_rule_key_find(flex_acl_rule_p, sx_ip_ident_keys[0], &first_sx_key_index, &is_first_sx_key_present);
+    mlnx_acl_flex_rule_key_find(flex_acl_rule_p, sx_ip_ident_keys[1], &second_sx_key_index, &is_second_sx_key_present);
+
+    if (is_first_sx_key_present != is_second_sx_key_present) {
+        SX_LOG_ERR("Faield to get IP_IDENTIFICATION failed - sx rule is broken\n");
+        status = SAI_STATUS_FAILURE;
+        goto out;
+    }
+
     for (ii = 0; ii < flex_acl_rules_num; ii++) {
+        if (is_first_sx_key_present) {
+            mlnx_acl_flex_rule_key_del_by_key_id(&flex_acl_rule_p[ii], sx_ip_ident_keys[0]);
+            mlnx_acl_flex_rule_key_del_by_key_id(&flex_acl_rule_p[ii], sx_ip_ident_keys[1]);
+        }
+
         if (value->aclfield.enable) {
             mlnx_acl_ip_ident_key_desc_create(value->aclfield.data.u16, value->aclfield.mask.u16,
-                                              flex_acl_rule_p[ii].key_desc_list_p, sx_key_index);
-
-            if (false == is_sx_key_present) {
-                flex_acl_rule_p[ii].key_desc_count += ACL_IP_IDENT_FIELD_BYTE_COUNT;
-            }
-        } else {
-            if (is_sx_key_present) {
-                mlnx_acl_flex_rule_key_del_by_key_id(&flex_acl_rule_p[ii], sx_ip_ident_keys[0]);
-                mlnx_acl_flex_rule_key_del_by_key_id(&flex_acl_rule_p[ii], sx_ip_ident_keys[1]);
-            }
+                                              flex_acl_rule_p[ii].key_desc_list_p, flex_acl_rule_p[ii].key_desc_count);
+            flex_acl_rule_p[ii].key_desc_count += ACL_IP_IDENT_FIELD_BYTE_COUNT;
         }
     }
 
@@ -4624,13 +5680,11 @@ static sai_status_t mlnx_acl_entry_tos_get(_In_ const sai_object_key_t   *key,
     sai_status_t            status = SAI_STATUS_SUCCESS;
     sx_flex_acl_flex_rule_t flex_acl_rule;
     uint32_t                acl_table_index, acl_entry_index, key_desc_index;
-    bool                    is_key_type_present = false, is_key_id_two_present = false;
+    bool                    is_field_suppoted, is_key_type_present = false, is_key_id_two_present = false;
 
     SX_LOG_ENTER();
 
-    assert((SAI_ACL_ENTRY_ATTR_FIELD_DSCP == (int64_t)arg) ||
-           (SAI_ACL_ENTRY_ATTR_FIELD_ECN == (int64_t)arg) ||
-           (SAI_ACL_ENTRY_ATTR_FIELD_TOS == (int64_t)arg));
+    assert((SAI_ACL_ENTRY_ATTR_FIELD_TOS == (int64_t)arg));
 
     status = extract_acl_table_index_and_entry_index(key->key.object_id, &acl_table_index, &acl_entry_index);
     if (SAI_STATUS_SUCCESS != status) {
@@ -4640,59 +5694,43 @@ static sai_status_t mlnx_acl_entry_tos_get(_In_ const sai_object_key_t   *key,
 
     acl_table_read_lock(acl_table_index);
 
+    status = mlnx_acl_table_is_entry_field_supported(acl_table_index, (int64_t)arg, &is_field_suppoted);
+    if (SAI_ERR(status)) {
+        goto out;
+    }
+
+    if (false == is_field_suppoted) {
+        SX_LOG_ERR("ACL Entry attribute (%ld) is not supported for this entry [%lx]\n",
+                   (int64_t)arg,
+                   key->key.object_id);
+        status = SAI_STATUS_INVALID_ATTRIBUTE_0 + attr_index;
+        goto out;
+    }
+
     status = fetch_flex_acl_rule_params_to_get(acl_table_index, acl_entry_index, &flex_acl_rule);
     if (SAI_STATUS_SUCCESS != status) {
         goto out;
     }
 
-    switch ((int64_t)arg) {
-    case SAI_ACL_ENTRY_ATTR_FIELD_DSCP:
-        mlnx_acl_flex_rule_key_find(&flex_acl_rule, FLEX_ACL_KEY_DSCP, &key_desc_index, &is_key_type_present);
+    value->aclfield.data.u8 = 0;      /* Initialise the value */
+    mlnx_acl_flex_rule_key_find(&flex_acl_rule, FLEX_ACL_KEY_ECN, &key_desc_index, &is_key_type_present);
 
-        if (is_key_type_present) {
-            value->aclfield.data.u8 = flex_acl_rule.key_desc_list_p[key_desc_index].key.dscp;
-            value->aclfield.mask.u8 = flex_acl_rule.key_desc_list_p[key_desc_index].mask.dscp;
-        } else {
-            SX_LOG_ERR(" Invalid Attribute to get : DSCP \n");
-            status = SAI_STATUS_INVALID_ATTRIBUTE_0 + attr_index;
-        }
-        break;
+    if (is_key_type_present) {
+        value->aclfield.data.u8 = flex_acl_rule.key_desc_list_p[key_desc_index].key.ecn;
+        value->aclfield.mask.u8 = flex_acl_rule.key_desc_list_p[key_desc_index].mask.ecn;
+    }
 
-    case SAI_ACL_ENTRY_ATTR_FIELD_ECN:
-        mlnx_acl_flex_rule_key_find(&flex_acl_rule, FLEX_ACL_KEY_ECN, &key_desc_index, &is_key_type_present);
+    mlnx_acl_flex_rule_key_find(&flex_acl_rule, FLEX_ACL_KEY_DSCP, &key_desc_index, &is_key_id_two_present);
 
-        if (is_key_type_present) {
-            value->aclfield.data.u8 = flex_acl_rule.key_desc_list_p[key_desc_index].key.ecn;
-            value->aclfield.mask.u8 = flex_acl_rule.key_desc_list_p[key_desc_index].mask.ecn;
-        } else {
-            SX_LOG_ERR(" Invalid Attribute to get : ECN \n");
-            status = SAI_STATUS_INVALID_ATTRIBUTE_0 + attr_index;
-        }
-        break;
+    if (is_key_id_two_present) {
+        value->aclfield.data.u8 = value->aclfield.data.u8 +
+                                  (flex_acl_rule.key_desc_list_p[key_desc_index].key.dscp << 0x02);
+        value->aclfield.mask.u8 = value->aclfield.mask.u8 +
+                                  (flex_acl_rule.key_desc_list_p[key_desc_index].mask.dscp << 0x02);
+    }
 
-    case SAI_ACL_ENTRY_ATTR_FIELD_TOS:
-        value->aclfield.data.u8 = 0;      /* Initialise the value */
-        mlnx_acl_flex_rule_key_find(&flex_acl_rule, FLEX_ACL_KEY_ECN, &key_desc_index, &is_key_type_present);
-
-        if (is_key_type_present) {
-            value->aclfield.data.u8 = flex_acl_rule.key_desc_list_p[key_desc_index].key.ecn;
-            value->aclfield.mask.u8 = flex_acl_rule.key_desc_list_p[key_desc_index].mask.ecn;
-        }
-
-        mlnx_acl_flex_rule_key_find(&flex_acl_rule, FLEX_ACL_KEY_DSCP, &key_desc_index, &is_key_id_two_present);
-
-        if (is_key_id_two_present) {
-            value->aclfield.data.u8 = value->aclfield.data.u8 +
-                                      (flex_acl_rule.key_desc_list_p[key_desc_index].key.dscp << 0x02);
-            value->aclfield.mask.u8 = value->aclfield.mask.u8 +
-                                      (flex_acl_rule.key_desc_list_p[key_desc_index].mask.dscp << 0x02);
-        }
-
-        if (!is_key_type_present && !is_key_id_two_present) {
-            SX_LOG_ERR(" Invalid Attribute to get : TOS \n");
-            status = SAI_STATUS_INVALID_ATTRIBUTE_0 + attr_index;
-        }
-        break;
+    if (!is_key_type_present && !is_key_id_two_present) {
+        value->aclfield.enable = false;
     }
 
     mlnx_acl_flex_rule_free(&flex_acl_rule);
@@ -5050,8 +6088,8 @@ static sai_status_t mlnx_acl_entry_priority_set(_In_ const sai_object_key_t     
 
     SX_LOG_ENTER();
 
-    if ((value->u32 <= 0) || (value->u32 > ACL_MAX_ENTRY_PRIO)) {
-        SX_LOG_ERR(" priority %u out of range (%u,%u)\n", value->u32, 1, ACL_MAX_ENTRY_PRIO);
+    if ((value->u32 < ACL_MIN_ENTRY_PRIO) || (value->u32 > ACL_MAX_ENTRY_PRIO)) {
+        SX_LOG_ERR(" priority %u out of range (%u,%u)\n", value->u32, ACL_MIN_ENTRY_PRIO, ACL_MAX_ENTRY_PRIO);
         SX_LOG_EXIT();
         return SAI_STATUS_INVALID_PARAMETER;
     }
@@ -5099,23 +6137,59 @@ out:
     return status;
 }
 
-static sai_status_t mlnx_acl_entry_mac_set(_In_ const sai_object_key_t      *key,
-                                           _In_ const sai_attribute_value_t *value,
-                                           void                             *arg)
+static sai_status_t mlnx_acl_entry_field_set(_In_ const sai_object_key_t      *key,
+                                             _In_ const sai_attribute_value_t *value,
+                                             void                             *arg)
 {
     sai_status_t               status;
     sx_acl_region_id_t         region_id = 0;
-    uint32_t                   ii, flex_acl_rules_num = 0, key_desc_index;
-    sx_flex_acl_flex_rule_t   *flex_acl_rule_p     = NULL;
-    sx_flex_acl_rule_offset_t *offsets_list_p      = NULL;
-    sx_acl_key_t               key_id              = 0;
-    bool                       is_key_type_present = false;
+    const sx_acl_key_t        *ip_type_keys;
+    sx_acl_key_t               field_keys[SX_FLEX_ACL_MAX_FIELDS_IN_KEY] = {FLEX_ACL_KEY_INVALID};
+    sx_flex_acl_key_desc_t     rule_extra_key_desc[SX_FLEX_ACL_MAX_FIELDS_IN_KEY];
+    sx_flex_acl_flex_rule_t   *flex_acl_rule_p = NULL;
+    sx_flex_acl_rule_offset_t *offsets_list_p  = NULL;
+    sai_acl_entry_attr_t       attr_id;
+    mlnx_acl_field_type_t      field_type;
     uint32_t                   acl_table_index, acl_entry_index;
+    uint32_t                   rule_count, field_key_count, field_extra_key_count, ii;
+    uint32_t                   rule_index, field_key_index, found_key_index, ip_type_key_count;
+    bool                       is_key_present;
 
     SX_LOG_ENTER();
 
-    assert((SAI_ACL_ENTRY_ATTR_FIELD_SRC_MAC == (int64_t)arg) ||
-           (SAI_ACL_ENTRY_ATTR_FIELD_DST_MAC == (int64_t)arg));
+    attr_id = (int64_t)arg;
+
+    assert((SAI_ACL_ENTRY_ATTR_FIELD_SRC_MAC == attr_id) ||
+           (SAI_ACL_ENTRY_ATTR_FIELD_DST_MAC == attr_id) ||
+           (SAI_ACL_ENTRY_ATTR_FIELD_OUTER_VLAN_ID == attr_id) ||
+           (SAI_ACL_ENTRY_ATTR_FIELD_OUTER_VLAN_PRI == attr_id) ||
+           (SAI_ACL_ENTRY_ATTR_FIELD_OUTER_VLAN_CFI == attr_id) ||
+           (SAI_ACL_ENTRY_ATTR_FIELD_ETHER_TYPE == attr_id) ||
+           (SAI_ACL_ENTRY_ATTR_FIELD_SRC_IP == attr_id) ||
+           (SAI_ACL_ENTRY_ATTR_FIELD_DST_IP == attr_id) ||
+           (SAI_ACL_ENTRY_ATTR_FIELD_SRC_IPV6 == attr_id) ||
+           (SAI_ACL_ENTRY_ATTR_FIELD_DST_IPV6 == attr_id) ||
+           (SAI_ACL_ENTRY_ATTR_FIELD_INNER_SRC_IP == attr_id) ||
+           (SAI_ACL_ENTRY_ATTR_FIELD_INNER_DST_IP == attr_id) ||
+           (SAI_ACL_ENTRY_ATTR_FIELD_INNER_SRC_IPV6 == attr_id) ||
+           (SAI_ACL_ENTRY_ATTR_FIELD_INNER_DST_IPV6 == attr_id) ||
+           (SAI_ACL_ENTRY_ATTR_FIELD_IP_PROTOCOL == attr_id) ||
+           (SAI_ACL_ENTRY_ATTR_FIELD_DSCP == attr_id) ||
+           (SAI_ACL_ENTRY_ATTR_FIELD_ECN == attr_id) ||
+           (SAI_ACL_ENTRY_ATTR_FIELD_TTL == attr_id) ||
+           (SAI_ACL_ENTRY_ATTR_FIELD_IPV6_NEXT_HEADER == attr_id) ||
+           (SAI_ACL_ENTRY_ATTR_FIELD_INNER_VLAN_PRI == attr_id) ||
+           (SAI_ACL_ENTRY_ATTR_FIELD_INNER_VLAN_CFI == attr_id) ||
+           (SAI_ACL_ENTRY_ATTR_FIELD_L4_SRC_PORT == attr_id) ||
+           (SAI_ACL_ENTRY_ATTR_FIELD_L4_DST_PORT == attr_id) ||
+           (SAI_ACL_ENTRY_ATTR_FIELD_TCP_FLAGS == attr_id) ||
+           (SAI_ACL_ENTRY_ATTR_FIELD_TC == attr_id) ||
+           (SAI_ACL_ENTRY_ATTR_FIELD_ACL_USER_META == attr_id) ||
+           (SAI_ACL_ENTRY_ATTR_FIELD_ACL_IP_TYPE == attr_id) ||
+           (SAI_ACL_ENTRY_ATTR_FIELD_PACKET_VLAN == attr_id) ||
+           (SAI_ACL_ENTRY_ATTR_FIELD_ACL_IP_FRAG == attr_id) ||
+           (SAI_ACL_ENTRY_ATTR_FIELD_TOS == attr_id) ||
+           (SAI_ACL_ENTRY_ATTR_FIELD_ACL_RANGE_TYPE) == attr_id);
 
     status = extract_acl_table_index_and_entry_index(key->key.object_id, &acl_table_index, &acl_entry_index);
     if (SAI_STATUS_SUCCESS != status) {
@@ -5123,895 +6197,86 @@ static sai_status_t mlnx_acl_entry_mac_set(_In_ const sai_object_key_t      *key
         return status;
     }
 
+    field_key_count = 0;
+
+    status = mlnx_acl_field_info_data_fetch(attr_id, &field_type, field_keys, &field_key_count);
+    if (SAI_ERR(status)) {
+        SX_LOG_EXIT();
+        return status;
+    }
+
     acl_table_write_lock(acl_table_index);
 
     status = fetch_flex_acl_rule_params_to_set(acl_table_index, acl_entry_index, &flex_acl_rule_p,
-                                               &offsets_list_p, &region_id, &flex_acl_rules_num);
-    if (SAI_STATUS_SUCCESS != status) {
+                                               &offsets_list_p, &region_id, &rule_count);
+    if (SAI_ERR(status)) {
         SX_LOG_ERR("Failed to fetch ACL rule params\n");
         goto out;
     }
 
-    switch ((int64_t)arg) {
-    case SAI_ACL_ENTRY_ATTR_FIELD_SRC_MAC:
-        key_id = FLEX_ACL_KEY_SMAC;
-        break;
+    /* Upadte of IP Type is limited
+     * because all the L3/L4 keys use IP Type related keys
+     * So it is only allowed when entry doesn't contain any L3/L4 fields
+     */
+    if (SAI_ACL_ENTRY_ATTR_FIELD_ACL_IP_TYPE == attr_id) {
+        ip_type_keys      = mlnx_acl_multi_key_fields_info[SAI_ACL_ENTRY_ATTR_FIELD_ACL_IP_TYPE].key_list;
+        ip_type_key_count = mlnx_acl_multi_key_fields_info[SAI_ACL_ENTRY_ATTR_FIELD_ACL_IP_TYPE].key_count;
 
-    case SAI_ACL_ENTRY_ATTR_FIELD_DST_MAC:
-        key_id = FLEX_ACL_KEY_DMAC;
-        break;
-    }
+        for (ii = 0; ii < ip_type_key_count; ii++) {
+            mlnx_acl_flex_rule_key_find(flex_acl_rule_p, ip_type_keys[ii], &found_key_index, &is_key_present);
 
-    mlnx_acl_flex_rule_key_find(flex_acl_rule_p, key_id, &key_desc_index, &is_key_type_present);
-
-    for (ii = 0; ii < flex_acl_rules_num; ii++) {
-        switch ((int64_t)arg) {
-        case SAI_ACL_ENTRY_ATTR_FIELD_SRC_MAC:
-            memcpy(&flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].key.smac, value->aclfield.data.mac,
-                   sizeof(flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].key.smac));
-            memcpy(&flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].mask.smac, value->aclfield.mask.mac,
-                   sizeof(flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].key.smac));
-            flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].key_id = FLEX_ACL_KEY_SMAC;
-            break;
-
-        case SAI_ACL_ENTRY_ATTR_FIELD_DST_MAC:
-            memcpy(&flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].key.dmac, value->aclfield.data.mac,
-                   sizeof(flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].key.dmac));
-            memcpy(&flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].mask.dmac, value->aclfield.mask.mac,
-                   sizeof(flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].key.dmac));
-            flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].key_id = FLEX_ACL_KEY_DMAC;
-            break;
-        }
-
-        if (!is_key_type_present) {
-            flex_acl_rule_p[ii].key_desc_count++;
+            if (is_key_present) {
+                SX_LOG_ERR("Failed to update IP Type - entry already contains a field with specific IP Type\n");
+                status = SAI_STATUS_FAILURE;
+                goto out;
+            }
         }
     }
 
-    status = mlnx_acl_flex_rules_set_helper(SX_ACCESS_CMD_SET, 0, region_id, offsets_list_p,
-                                            flex_acl_rule_p, flex_acl_rules_num);
-    if (SX_STATUS_SUCCESS != status) {
-        goto out;
-    }
+    for (rule_index = 0; rule_index < rule_count; rule_index++) {
+        /* Remove all the sx keys related to this sai field */
+        for (field_key_index = 0; field_key_index < field_key_count; field_key_index++) {
+            mlnx_acl_flex_rule_key_find(&flex_acl_rule_p[rule_index],
+                                        field_keys[field_key_index],
+                                        &found_key_index,
+                                        &is_key_present);
 
-out:
-    acl_table_unlock(acl_table_index);
+            if (is_key_present) {
+                mlnx_acl_flex_rule_key_del(&flex_acl_rule_p[rule_index], found_key_index);
+            }
+        }
 
-    mlnx_acl_flex_rule_list_free(flex_acl_rule_p, flex_acl_rules_num);
-    free(offsets_list_p);
-
-    SX_LOG_EXIT();
-    return status;
-}
-
-static sai_status_t mlnx_acl_entry_ip_fields_set(_In_ const sai_object_key_t      *key,
-                                                 _In_ const sai_attribute_value_t *value,
-                                                 void                             *arg)
-{
-    sai_status_t               status;
-    sx_acl_region_id_t         region_id          = 0;
-    uint32_t                   flex_acl_rules_num = 0;
-    uint32_t                   index, ii, key_desc_index;
-    sx_flex_acl_flex_rule_t   *flex_acl_rule_p     = NULL;
-    sx_flex_acl_rule_offset_t *offsets_list_p      = NULL;
-    bool                       is_key_type_present = false;
-    sx_acl_key_t               ip_type_keys[IP_TYPE_KEY_SIZE];
-    uint32_t                   acl_table_index, acl_entry_index;
-
-    SX_LOG_ENTER();
-
-    assert((SAI_ACL_ENTRY_ATTR_FIELD_IP_PROTOCOL == (int64_t)arg) ||
-           (SAI_ACL_ENTRY_ATTR_FIELD_ACL_IP_TYPE == (int64_t)arg) ||
-           (SAI_ACL_ENTRY_ATTR_FIELD_IP_FLAGS == (int64_t)arg));
-
-    status = extract_acl_table_index_and_entry_index(key->key.object_id, &acl_table_index, &acl_entry_index);
-    if (SAI_STATUS_SUCCESS != status) {
-        SX_LOG_EXIT();
-        return status;
-    }
-
-    acl_table_write_lock(acl_table_index);
-
-    status = fetch_flex_acl_rule_params_to_set(acl_table_index, acl_entry_index, &flex_acl_rule_p,
-                                               &offsets_list_p, &region_id, &flex_acl_rules_num);
-    if (SAI_STATUS_SUCCESS != status) {
-        SX_LOG_ERR("Failed to fetch ACL rule params \n");
-        goto out;
-    }
-
-    ip_type_keys[0] = FLEX_ACL_KEY_IP_OK;
-    ip_type_keys[1] = FLEX_ACL_KEY_IS_IP_V4;
-    ip_type_keys[2] = FLEX_ACL_KEY_IS_ARP;
-    ip_type_keys[3] = FLEX_ACL_KEY_L3_TYPE;
-
-    for (ii = 0; ii < flex_acl_rules_num; ii++) {
-        switch ((int64_t)arg) {
-        case SAI_ACL_ENTRY_ATTR_FIELD_IP_FLAGS:
-            SX_LOG_ERR(" Not supported in present phase \n");
-            status = SAI_STATUS_NOT_SUPPORTED;
+        status = mlnx_acl_entry_field_to_sx(attr_id, value, 0, acl_table_index,
+                                            flex_acl_rule_p[rule_index].key_desc_list_p,
+                                            &flex_acl_rule_p[rule_index].key_desc_count, &field_type);
+        if (SAI_ERR(status)) {
             goto out;
-        /*
-         *        flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].key.ip_flags = value->aclfield.data.u8;
-         *              flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].mask.ip_flags = value->aclfield.data.u8;
-         *              flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].key_id = FLEX_ACL_KEY_IP_FLAGS;
-         *              break;
-         *                                                                                                      */
+        }
 
-        case SAI_ACL_ENTRY_ATTR_FIELD_IP_PROTOCOL:
-            mlnx_acl_flex_rule_key_find(flex_acl_rule_p, FLEX_ACL_KEY_IP_PROTO, &key_desc_index, &is_key_type_present);
+        field_extra_key_count = 0;
+        status                = mlnx_acl_field_types_to_sx(field_type, rule_extra_key_desc, &field_extra_key_count);
+        if (SAI_ERR(status)) {
+            goto out;
+        }
 
-            if (!is_key_type_present) {
-                flex_acl_rule_p[ii].key_desc_count++;
-            }
-            flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].key.ip_proto  = value->aclfield.data.u8;
-            flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].mask.ip_proto = value->aclfield.mask.u8;
-            flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].key_id        = FLEX_ACL_KEY_IP_PROTO;
-            break;
-
-        case SAI_ACL_ENTRY_ATTR_FIELD_ACL_IP_TYPE:
-            for (index = 0; index < IP_TYPE_KEY_SIZE; index++) {
-                for (key_desc_index = 0; key_desc_index < flex_acl_rule_p[0].key_desc_count; key_desc_index++) {
-                    if (flex_acl_rule_p[0].key_desc_list_p[key_desc_index].key_id == ip_type_keys[index]) {
-                        is_key_type_present = true;
-                        break;
-                    }
-                }
-                if (is_key_type_present) {
-                    break;
-                }
-            }
-            /* Remove the key from SDK if ip type is set to ANY */
-            if (SAI_ACL_IP_TYPE_ANY == value->aclfield.data.s32) {
-                if (is_key_type_present) {
-                    mlnx_acl_flex_rule_key_del(&flex_acl_rule_p[ii], key_desc_index);
-                }
-            } else if (SAI_ACL_IP_TYPE_IP == value->aclfield.data.s32) {
-                if (!is_key_type_present) {
-                    flex_acl_rule_p[ii].key_desc_count++;
-                }
-                flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].key.ip_ok  = true;
-                flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].mask.ip_ok = true;
-                flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].key_id     = FLEX_ACL_KEY_IP_OK;
-            } else if (SAI_ACL_IP_TYPE_NON_IP == value->aclfield.data.s32) {
-                if (!is_key_type_present) {
-                    flex_acl_rule_p[ii].key_desc_count++;
-                }
-                flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].key.ip_ok  = false;
-                flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].mask.ip_ok = true;
-                flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].key_id     = FLEX_ACL_KEY_IP_OK;
-            } else if (SAI_ACL_IP_TYPE_IPv4ANY == value->aclfield.data.s32) {
-                if (!is_key_type_present) {
-                    flex_acl_rule_p[ii].key_desc_count++;
-                }
-                flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].key.is_ip_v4  = true;
-                flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].mask.is_ip_v4 = true;
-                flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].key_id        = FLEX_ACL_KEY_IS_IP_V4;
-            } else if (SAI_ACL_IP_TYPE_NON_IPv4 == value->aclfield.data.s32) {
-                if (!is_key_type_present) {
-                    flex_acl_rule_p[ii].key_desc_count++;
-                }
-                flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].key.is_ip_v4  = false;
-                flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].mask.is_ip_v4 = true;
-                flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].key_id        = FLEX_ACL_KEY_IS_IP_V4;
-            } else if (SAI_ACL_IP_TYPE_IPv6ANY == value->aclfield.data.s32) {
-                if (!is_key_type_present) {
-                    flex_acl_rule_p[ii].key_desc_count++;
-                }
-                flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].key.l3_type  = SX_ACL_L3_TYPE_IPV6;
-                flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].mask.l3_type = true;
-                flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].key_id       = FLEX_ACL_KEY_L3_TYPE;
-            } else if (SAI_ACL_IP_TYPE_NON_IPv6 == value->aclfield.data.s32) {
-                SX_LOG_ERR(" Not supported in present phase \n");
-                status = SAI_STATUS_NOT_SUPPORTED;
-                goto out;
-
-                /*
-                 *  if( !is_key_type_present){
-                 *   flex_acl_rule_p[ii].key_desc_count++;
-                 *  }
-                 *
-                 *  flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].key.is_ip_v6 = 0;
-                 *  flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].mask.is_ip_v6 = 0xFF;
-                 *  flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].key_id = FLEX_ACL_KEY_IS_IP_V6;
-                 */
-            } else if (SAI_ACL_IP_TYPE_ARP == value->aclfield.data.s32) {
-                if (!is_key_type_present) {
-                    flex_acl_rule_p[ii].key_desc_count++;
-                }
-                flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].key.is_arp  = true;
-                flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].mask.is_arp = true;
-                flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].key_id      = FLEX_ACL_KEY_IS_ARP;
-            } else if ((SAI_ACL_IP_TYPE_ARP_REQUEST == value->aclfield.data.s32) ||
-                       (SAI_ACL_IP_TYPE_ARP_REPLY == value->aclfield.data.s32)) {
-                SX_LOG_ERR(" Arp Request/Reply Not supported \n");
-                status = SAI_STATUS_NOT_SUPPORTED;
-                goto out;
-            }
-            break;
+        status = mlnx_acl_extra_key_descs_merge(&flex_acl_rule_p[rule_index],
+                                                rule_extra_key_desc,
+                                                field_extra_key_count);
+        if (SAI_ERR(status)) {
+            goto out;
         }
     }
 
     status = mlnx_acl_flex_rules_set_helper(SX_ACCESS_CMD_SET, 0, region_id, offsets_list_p,
-                                            flex_acl_rule_p, flex_acl_rules_num);
-    if (SX_STATUS_SUCCESS != status) {
+                                            flex_acl_rule_p, rule_count);
+    if (SAI_ERR(status)) {
         goto out;
     }
 
 out:
     acl_table_unlock(acl_table_index);
 
-    mlnx_acl_flex_rule_list_free(flex_acl_rule_p, flex_acl_rules_num);
-    free(offsets_list_p);
-
-    SX_LOG_EXIT();
-    return status;
-}
-
-static sai_status_t mlnx_acl_entry_ip_frag_set(_In_ const sai_object_key_t      *key,
-                                               _In_ const sai_attribute_value_t *value,
-                                               void                             *arg)
-{
-    sai_status_t               status;
-    sx_acl_region_id_t         region_id          = 0;
-    uint32_t                   flex_acl_rules_num = 0;
-    uint32_t                   ii, key_desc_index = 0;
-    sx_flex_acl_flex_rule_t   *flex_acl_rule_p = NULL;
-    sx_flex_acl_rule_offset_t *offsets_list_p  = NULL;
-    sx_acl_key_t               ip_frag_key, ip_frag_not_first_key;
-    bool                       is_ip_frag_key_present = false, is_ip_frag_not_first_key_present = false;
-    uint32_t                   acl_table_index, acl_entry_index;
-
-    SX_LOG_ENTER();
-
-    status = extract_acl_table_index_and_entry_index(key->key.object_id, &acl_table_index, &acl_entry_index);
-    if (SAI_STATUS_SUCCESS != status) {
-        SX_LOG_EXIT();
-        return status;
-    }
-
-    acl_table_write_lock(acl_table_index);
-
-    status = fetch_flex_acl_rule_params_to_set(acl_table_index, acl_entry_index, &flex_acl_rule_p,
-                                               &offsets_list_p, &region_id, &flex_acl_rules_num);
-    if (SAI_STATUS_SUCCESS != status) {
-        SX_LOG_ERR("Failed to fetch ACL rule params \n");
-        goto out;
-    }
-
-    ip_frag_key           = FLEX_ACL_KEY_IP_FRAGMENTED;
-    ip_frag_not_first_key = FLEX_ACL_KEY_IP_FRAGMENT_NOT_FIRST;
-
-    for (key_desc_index = 0; key_desc_index < flex_acl_rule_p[0].key_desc_count; key_desc_index++) {
-        if (flex_acl_rule_p[0].key_desc_list_p[key_desc_index].key_id == ip_frag_key) {
-            is_ip_frag_key_present = true;
-        }
-
-        if (flex_acl_rule_p[0].key_desc_list_p[key_desc_index].key_id == ip_frag_not_first_key) {
-            is_ip_frag_not_first_key_present = true;
-        }
-
-        if (is_ip_frag_key_present && is_ip_frag_not_first_key_present) {
-            break;
-        }
-    }
-
-    for (ii = 0; ii < flex_acl_rules_num; ii++) {
-        /* Remove previous frag keys from the rule */
-        if (is_ip_frag_key_present) {
-            mlnx_acl_flex_rule_key_del_by_key_id(&flex_acl_rule_p[ii], ip_frag_key);
-        }
-
-        if (is_ip_frag_not_first_key_present) {
-            mlnx_acl_flex_rule_key_del_by_key_id(&flex_acl_rule_p[ii], ip_frag_not_first_key);
-        }
-
-        key_desc_index = flex_acl_rule_p[0].key_desc_count;
-
-        /* Set the new key field provided in setter */
-        if (SAI_ACL_IP_FRAG_ANY == value->aclfield.data.s32) {
-            flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].key.ip_fragmented  = true;
-            flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].mask.ip_fragmented = true;
-            flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].key_id             = FLEX_ACL_KEY_IP_FRAGMENTED;
-            flex_acl_rule_p[ii].key_desc_count++;
-        }
-
-        if (SAI_ACL_IP_FRAG_NON_FRAG == value->aclfield.data.s32) {
-            flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].key.ip_fragmented  = false;
-            flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].mask.ip_fragmented = true;
-            flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].key_id             = FLEX_ACL_KEY_IP_FRAGMENTED;
-            flex_acl_rule_p[ii].key_desc_count++;
-        }
-
-        if (SAI_ACL_IP_FRAG_NON_FRAG_OR_HEAD == value->aclfield.data.s32) {
-            flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].key.ip_fragment_not_first  = false;
-            flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].mask.ip_fragment_not_first = true;
-            flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].key_id                     =
-                FLEX_ACL_KEY_IP_FRAGMENT_NOT_FIRST;
-            flex_acl_rule_p[ii].key_desc_count++;
-        }
-
-        if (SAI_ACL_IP_FRAG_HEAD == value->aclfield.data.s32) {
-            flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].key.ip_fragmented  = true;
-            flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].mask.ip_fragmented = true;
-            flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].key_id             = FLEX_ACL_KEY_IP_FRAGMENTED;
-            flex_acl_rule_p[ii].key_desc_count++;
-            key_desc_index++;
-            flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].key.ip_fragment_not_first  = false;
-            flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].mask.ip_fragment_not_first = true;
-            flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].key_id                     =
-                FLEX_ACL_KEY_IP_FRAGMENT_NOT_FIRST;
-            flex_acl_rule_p[ii].key_desc_count++;
-        }
-
-        if (SAI_ACL_IP_FRAG_NON_HEAD == value->aclfield.data.s32) {
-            flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].key.ip_fragmented  = true;
-            flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].mask.ip_fragmented = true;
-            flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].key_id             = FLEX_ACL_KEY_IP_FRAGMENTED;
-            flex_acl_rule_p[ii].key_desc_count++;
-            key_desc_index++;
-            flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].key.ip_fragment_not_first  = true;
-            flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].mask.ip_fragment_not_first = true;
-            flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].key_id                     =
-                FLEX_ACL_KEY_IP_FRAGMENT_NOT_FIRST;
-            flex_acl_rule_p[ii].key_desc_count++;
-        }
-    }
-
-    status = mlnx_acl_flex_rules_set_helper(SX_ACCESS_CMD_SET, 0, region_id, offsets_list_p,
-                                            flex_acl_rule_p, flex_acl_rules_num);
-    if (SX_STATUS_SUCCESS != status) {
-        goto out;
-    }
-
-out:
-    acl_table_unlock(acl_table_index);
-
-    mlnx_acl_flex_rule_list_free(flex_acl_rule_p, flex_acl_rules_num);
-    free(offsets_list_p);
-
-    SX_LOG_EXIT();
-    return status;
-}
-
-static sai_status_t mlnx_acl_entry_vlan_tags_set(_In_ const sai_object_key_t      *key,
-                                                 _In_ const sai_attribute_value_t *value,
-                                                 void                             *arg)
-{
-    sai_status_t               status;
-    sx_acl_region_id_t         region_id          = 0;
-    uint32_t                   flex_acl_rules_num = 0;
-    uint32_t                   ii, key_desc_index = 0;
-    sx_flex_acl_flex_rule_t   *flex_acl_rule_p = NULL;
-    sx_flex_acl_rule_offset_t *offsets_list_p  = NULL;
-    uint32_t                   acl_table_index, acl_entry_index;
-    bool                       is_vlan_tagged = false, is_inner_vlan_valid = false;
-
-    SX_LOG_ENTER();
-
-    assert(SAI_ACL_TABLE_ATTR_FIELD_PACKET_VLAN == (int64_t)arg);
-
-    status = extract_acl_table_index_and_entry_index(key->key.object_id, &acl_table_index, &acl_entry_index);
-    if (SAI_STATUS_SUCCESS != status) {
-        SX_LOG_EXIT();
-        return status;
-    }
-
-    acl_table_write_lock(acl_table_index);
-
-    status = fetch_flex_acl_rule_params_to_set(acl_table_index, acl_entry_index, &flex_acl_rule_p,
-                                               &offsets_list_p, &region_id, &flex_acl_rules_num);
-    if (SAI_STATUS_SUCCESS != status) {
-        SX_LOG_ERR("Failed to fetch ACL rule params \n");
-        goto out;
-    }
-
-    for (key_desc_index = 0; key_desc_index < flex_acl_rule_p[0].key_desc_count; key_desc_index++) {
-        if (flex_acl_rule_p[0].key_desc_list_p[key_desc_index].key_id == FLEX_ACL_KEY_VLAN_TAGGED) {
-            is_vlan_tagged = true;
-        }
-
-        if (flex_acl_rule_p[0].key_desc_list_p[key_desc_index].key_id == FLEX_ACL_KEY_INNER_VLAN_VALID) {
-            is_inner_vlan_valid = true;
-        }
-
-        if (is_vlan_tagged && is_inner_vlan_valid) {
-            break;
-        }
-    }
-
-    for (ii = 0; ii < flex_acl_rules_num; ii++) {
-        if (is_vlan_tagged) {
-            mlnx_acl_flex_rule_key_del_by_key_id(&flex_acl_rule_p[0], FLEX_ACL_KEY_VLAN_TAGGED);
-        }
-
-        if (is_inner_vlan_valid) {
-            mlnx_acl_flex_rule_key_del_by_key_id(&flex_acl_rule_p[0], FLEX_ACL_KEY_INNER_VLAN_VALID);
-        }
-
-        if (SAI_PACKET_VLAN_UNTAG == value->aclfield.data.s32) {
-            flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].key_id           = FLEX_ACL_KEY_VLAN_TAGGED;
-            flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].key.vlan_tagged  = false;
-            flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].mask.vlan_tagged = true;
-            flex_acl_rule_p[ii].key_desc_count++;
-        }
-
-        if (SAI_PACKET_VLAN_SINGLE_OUTER_TAG == value->aclfield.data.s32) {
-            flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].key_id           = FLEX_ACL_KEY_VLAN_TAGGED;
-            flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].key.vlan_tagged  = true;
-            flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].mask.vlan_tagged = true;
-            key_desc_index++;
-
-            flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].key_id                = FLEX_ACL_KEY_INNER_VLAN_VALID;
-            flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].key.inner_vlan_valid  = false;
-            flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].mask.inner_vlan_valid = true;
-
-            flex_acl_rule_p[ii].key_desc_count += 2;
-        }
-
-        if (SAI_PACKET_VLAN_DOUBLE_TAG == value->aclfield.data.s32) {
-            flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].key_id           = FLEX_ACL_KEY_VLAN_TAGGED;
-            flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].key.vlan_tagged  = true;
-            flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].mask.vlan_tagged = true;
-            key_desc_index++;
-
-            flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].key_id                = FLEX_ACL_KEY_INNER_VLAN_VALID;
-            flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].key.inner_vlan_valid  = true;
-            flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].mask.inner_vlan_valid = true;
-
-            flex_acl_rule_p[ii].key_desc_count += 2;
-        }
-    }
-
-    status = mlnx_acl_flex_rules_set_helper(SX_ACCESS_CMD_SET, 0, region_id, offsets_list_p,
-                                            flex_acl_rule_p, flex_acl_rules_num);
-    if (SX_STATUS_SUCCESS != status) {
-        goto out;
-    }
-
-out:
-    acl_table_unlock(acl_table_index);
-
-    mlnx_acl_flex_rule_list_free(flex_acl_rule_p, flex_acl_rules_num);
-    free(offsets_list_p);
-
-    SX_LOG_EXIT();
-    return status;
-}
-
-static sai_status_t mlnx_acl_entry_ip_set(_In_ const sai_object_key_t      *key,
-                                          _In_ const sai_attribute_value_t *value,
-                                          void                             *arg)
-{
-    sai_status_t               status;
-    sx_acl_region_id_t         region_id = 0;
-    uint32_t                   ii, flex_acl_rules_num = 1, key_desc_index;
-    sx_flex_acl_flex_rule_t   *flex_acl_rule_p = NULL;
-    sx_flex_acl_rule_offset_t *offsets_list_p  = NULL;
-    sx_acl_key_t               key_id          = 0;
-    sx_ip_addr_t               ipaddr_data, ipaddr_mask;
-    sai_ip_address_t           ip_address_data, ip_address_mask;
-    bool                       is_key_type_present = false;
-    uint32_t                   acl_table_index, acl_entry_index;
-
-    SX_LOG_ENTER();
-
-    assert((SAI_ACL_ENTRY_ATTR_FIELD_SRC_IPv6 == (int64_t)arg) ||
-           (SAI_ACL_ENTRY_ATTR_FIELD_DST_IPv6 == (int64_t)arg) ||
-           (SAI_ACL_ENTRY_ATTR_FIELD_SRC_IP == (int64_t)arg) ||
-           (SAI_ACL_ENTRY_ATTR_FIELD_DST_IP == (int64_t)arg) ||
-           (SAI_ACL_ENTRY_ATTR_FIELD_INNER_SRC_IP == (int64_t)arg) ||
-           (SAI_ACL_ENTRY_ATTR_FIELD_INNER_DST_IP == (int64_t)arg) ||
-           (SAI_ACL_ENTRY_ATTR_FIELD_INNER_SRC_IPv6 == (int64_t)arg) ||
-           (SAI_ACL_ENTRY_ATTR_FIELD_INNER_DST_IPv6 == (int64_t)arg));
-
-    status = extract_acl_table_index_and_entry_index(key->key.object_id, &acl_table_index, &acl_entry_index);
-    if (SAI_STATUS_SUCCESS != status) {
-        SX_LOG_EXIT();
-        return status;
-    }
-
-    acl_table_write_lock(acl_table_index);
-
-    status = fetch_flex_acl_rule_params_to_set(acl_table_index, acl_entry_index, &flex_acl_rule_p,
-                                               &offsets_list_p, &region_id, &flex_acl_rules_num);
-    if (SAI_STATUS_SUCCESS != status) {
-        SX_LOG_ERR("Failed to fetch ACL rule params \n");
-        goto out;
-    }
-
-    switch ((int64_t)arg) {
-    case SAI_ACL_ENTRY_ATTR_FIELD_SRC_IP:
-        key_id = FLEX_ACL_KEY_SIP;
-        break;
-
-    case SAI_ACL_ENTRY_ATTR_FIELD_DST_IP:
-        key_id = FLEX_ACL_KEY_DIP;
-        break;
-
-    case SAI_ACL_ENTRY_ATTR_FIELD_SRC_IPv6:
-        key_id = FLEX_ACL_KEY_SIPV6;
-        break;
-
-    case SAI_ACL_ENTRY_ATTR_FIELD_DST_IPv6:
-        key_id = FLEX_ACL_KEY_DIPV6;
-        break;
-
-    case SAI_ACL_ENTRY_ATTR_FIELD_INNER_SRC_IP:
-        key_id = FLEX_ACL_KEY_INNER_SIP;
-        break;
-
-    case SAI_ACL_ENTRY_ATTR_FIELD_INNER_DST_IP:
-        key_id = FLEX_ACL_KEY_INNER_DIP;
-        break;
-
-    case SAI_ACL_ENTRY_ATTR_FIELD_INNER_SRC_IPv6:
-        key_id = FLEX_ACL_KEY_INNER_SIPV6;
-        break;
-
-    case SAI_ACL_ENTRY_ATTR_FIELD_INNER_DST_IPv6:
-        key_id = FLEX_ACL_KEY_INNER_DIPV6;
-        break;
-
-    default:
-        SX_LOG_ERR(" Invalid attribute to set - %lu\n", (int64_t)arg);
-        status = SAI_STATUS_NOT_SUPPORTED;
-        goto out;
-    }
-
-    memset(&ipaddr_data, 0, sizeof(ipaddr_data));
-    memset(&ip_address_data, 0, sizeof(ip_address_data));
-    memset(&ipaddr_mask, 0, sizeof(ipaddr_mask));
-    memset(&ip_address_mask, 0, sizeof(ip_address_mask));
-
-    mlnx_acl_flex_rule_key_find(flex_acl_rule_p, key_id, &key_desc_index, &is_key_type_present);
-
-    for (ii = 0; ii < flex_acl_rules_num; ii++) {
-        switch ((int64_t)arg) {
-        case SAI_ACL_ENTRY_ATTR_FIELD_SRC_IP:
-            ip_address_data.addr_family = SAI_IP_ADDR_FAMILY_IPV4;
-            ip_address_data.addr.ip4    = value->aclfield.data.ip4;
-            ip_address_mask.addr_family = SAI_IP_ADDR_FAMILY_IPV4;
-            ip_address_mask.addr.ip4    = value->aclfield.mask.ip4;
-            if (SAI_STATUS_SUCCESS !=
-                (status = mlnx_translate_sai_ip_address_to_sdk(&ip_address_data, &ipaddr_data))) {
-                goto out;
-            }
-
-            if (SAI_STATUS_SUCCESS !=
-                (status = mlnx_translate_sai_ip_address_to_sdk(&ip_address_mask, &ipaddr_mask))) {
-                goto out;
-            }
-            memcpy(&flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].key.sip, &ipaddr_data,
-                   sizeof(flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].key.sip));
-            memcpy(&flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].mask.sip, &ipaddr_mask,
-                   sizeof(flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].key.sip));
-            flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].key_id = FLEX_ACL_KEY_SIP;
-            if (!is_key_type_present) {
-                flex_acl_rule_p[ii].key_desc_count++;
-            }
-            break;
-
-        case SAI_ACL_ENTRY_ATTR_FIELD_DST_IP:
-            ip_address_data.addr_family = SAI_IP_ADDR_FAMILY_IPV4;
-            ip_address_data.addr.ip4    = value->aclfield.data.ip4;
-            ip_address_mask.addr_family = SAI_IP_ADDR_FAMILY_IPV4;
-            ip_address_mask.addr.ip4    = value->aclfield.mask.ip4;
-
-            if (SAI_STATUS_SUCCESS !=
-                (status = mlnx_translate_sai_ip_address_to_sdk(&ip_address_data, &ipaddr_data))) {
-                goto out;
-            }
-            if (SAI_STATUS_SUCCESS !=
-                (status = mlnx_translate_sai_ip_address_to_sdk(&ip_address_mask, &ipaddr_mask))) {
-                goto out;
-            }
-            memcpy(&flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].key.dip, &ipaddr_data,
-                   sizeof(flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].key.dip));
-            memcpy(&flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].mask.dip, &ipaddr_mask,
-                   sizeof(flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].key.dip));
-            flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].key_id = FLEX_ACL_KEY_DIP;
-            if (!is_key_type_present) {
-                flex_acl_rule_p[ii].key_desc_count++;
-            }
-            break;
-
-        case SAI_ACL_ENTRY_ATTR_FIELD_INNER_SRC_IP:
-            ip_address_data.addr_family = SAI_IP_ADDR_FAMILY_IPV4;
-            ip_address_data.addr.ip4    = value->aclfield.data.ip4;
-            ip_address_mask.addr_family = SAI_IP_ADDR_FAMILY_IPV4;
-            ip_address_mask.addr.ip4    = value->aclfield.mask.ip4;
-
-            status = mlnx_translate_sai_ip_address_to_sdk(&ip_address_data, &ipaddr_data);
-            if (SAI_ERR(status)) {
-                goto out;
-            }
-
-            status = mlnx_translate_sai_ip_address_to_sdk(&ip_address_mask, &ipaddr_mask);
-            if (SAI_ERR(status)) {
-                goto out;
-            }
-
-            memcpy(&flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].key.inner_sip, &ipaddr_data,
-                   sizeof(flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].key.inner_sip));
-            memcpy(&flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].mask.inner_sip, &ipaddr_mask,
-                   sizeof(flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].mask.inner_sip));
-            flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].key_id = FLEX_ACL_KEY_INNER_SIP;
-            if (!is_key_type_present) {
-                flex_acl_rule_p[ii].key_desc_count++;
-            }
-            break;
-
-        case SAI_ACL_ENTRY_ATTR_FIELD_INNER_DST_IP:
-            ip_address_data.addr_family = SAI_IP_ADDR_FAMILY_IPV4;
-            ip_address_data.addr.ip4    = value->aclfield.data.ip4;
-            ip_address_mask.addr_family = SAI_IP_ADDR_FAMILY_IPV4;
-            ip_address_mask.addr.ip4    = value->aclfield.mask.ip4;
-
-            status = mlnx_translate_sai_ip_address_to_sdk(&ip_address_data, &ipaddr_data);
-            if (SAI_ERR(status)) {
-                goto out;
-            }
-
-            status = mlnx_translate_sai_ip_address_to_sdk(&ip_address_mask, &ipaddr_mask);
-            if (SAI_ERR(status)) {
-                goto out;
-            }
-
-            memcpy(&flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].key.inner_dip, &ipaddr_data,
-                   sizeof(flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].key.inner_dip));
-            memcpy(&flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].mask.inner_dip, &ipaddr_mask,
-                   sizeof(flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].mask.inner_dip));
-            flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].key_id = FLEX_ACL_KEY_INNER_DIP;
-            if (!is_key_type_present) {
-                flex_acl_rule_p[ii].key_desc_count++;
-            }
-            break;
-
-        case SAI_ACL_ENTRY_ATTR_FIELD_SRC_IPv6:
-            ip_address_data.addr_family = SAI_IP_ADDR_FAMILY_IPV6;
-            memcpy(&ip_address_data.addr.ip6, &value->aclfield.data.ip6, sizeof(ip_address_data.addr.ip6));
-            ip_address_mask.addr_family = SAI_IP_ADDR_FAMILY_IPV6;
-            memcpy(&ip_address_mask.addr.ip6, &value->aclfield.mask.ip6, sizeof(ip_address_mask.addr.ip6));
-
-            status = mlnx_translate_sai_ip_address_to_sdk(&ip_address_data, &ipaddr_data);
-            if (SAI_STATUS_SUCCESS != status) {
-                goto out;
-            }
-
-            status = mlnx_translate_sai_ip_address_to_sdk(&ip_address_mask, &ipaddr_mask);
-            if (SAI_STATUS_SUCCESS != status) {
-                goto out;
-            }
-
-            memcpy(&flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].key.sipv6, &ipaddr_data,
-                   sizeof(flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].key.sipv6));
-
-            memcpy(&flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].mask.sipv6, &ipaddr_mask,
-                   sizeof(flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].key.sipv6));
-
-            flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].key_id = FLEX_ACL_KEY_SIPV6;
-
-            if (!is_key_type_present) {
-                flex_acl_rule_p[ii].key_desc_count++;
-            }
-            break;
-
-        case SAI_ACL_ENTRY_ATTR_FIELD_DST_IPv6:
-            ip_address_data.addr_family = SAI_IP_ADDR_FAMILY_IPV6;
-            memcpy(&ip_address_data.addr.ip6, &value->aclfield.data.ip6, sizeof(ip_address_data.addr.ip6));
-            ip_address_mask.addr_family = SAI_IP_ADDR_FAMILY_IPV6;
-            memcpy(&ip_address_mask.addr.ip6, &value->aclfield.mask.ip6, sizeof(ip_address_mask.addr.ip6));
-
-            status = mlnx_translate_sai_ip_address_to_sdk(&ip_address_data, &ipaddr_data);
-            if (SAI_STATUS_SUCCESS != status) {
-                goto out;
-            }
-
-            status = mlnx_translate_sai_ip_address_to_sdk(&ip_address_mask, &ipaddr_mask);
-            if (SAI_STATUS_SUCCESS != status) {
-                goto out;
-            }
-
-            memcpy(&flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].key.dipv6, &ipaddr_data,
-                   sizeof(flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].key.dipv6));
-            memcpy(&flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].mask.dipv6, &ipaddr_mask,
-                   sizeof(flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].key.dipv6));
-            flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].key_id = FLEX_ACL_KEY_DIPV6;
-
-            if (!is_key_type_present) {
-                flex_acl_rule_p[ii].key_desc_count++;
-            }
-            break;
-
-        case SAI_ACL_ENTRY_ATTR_FIELD_INNER_SRC_IPv6:
-            ip_address_data.addr_family = SAI_IP_ADDR_FAMILY_IPV6;
-            memcpy(&ip_address_data.addr.ip6, &value->aclfield.data.ip6, sizeof(ip_address_data.addr.ip6));
-            ip_address_mask.addr_family = SAI_IP_ADDR_FAMILY_IPV6;
-            memcpy(&ip_address_mask.addr.ip6, &value->aclfield.mask.ip6, sizeof(ip_address_mask.addr.ip6));
-
-            status = mlnx_translate_sai_ip_address_to_sdk(&ip_address_data, &ipaddr_data);
-            if (SAI_STATUS_SUCCESS != status) {
-                goto out;
-            }
-
-            status = mlnx_translate_sai_ip_address_to_sdk(&ip_address_mask, &ipaddr_mask);
-            if (SAI_STATUS_SUCCESS != status) {
-                goto out;
-            }
-
-            memcpy(&flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].key.inner_sipv6, &ipaddr_data,
-                   sizeof(flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].key.inner_sipv6));
-
-            memcpy(&flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].mask.inner_sipv6, &ipaddr_mask,
-                   sizeof(flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].mask.inner_sipv6));
-
-            flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].key_id = FLEX_ACL_KEY_INNER_SIPV6;
-
-            if (!is_key_type_present) {
-                flex_acl_rule_p[ii].key_desc_count++;
-            }
-            break;
-
-        case SAI_ACL_ENTRY_ATTR_FIELD_INNER_DST_IPv6:
-            ip_address_data.addr_family = SAI_IP_ADDR_FAMILY_IPV6;
-            memcpy(&ip_address_data.addr.ip6, &value->aclfield.data.ip6, sizeof(ip_address_data.addr.ip6));
-            ip_address_mask.addr_family = SAI_IP_ADDR_FAMILY_IPV6;
-            memcpy(&ip_address_mask.addr.ip6, &value->aclfield.mask.ip6, sizeof(ip_address_mask.addr.ip6));
-
-            status = mlnx_translate_sai_ip_address_to_sdk(&ip_address_data, &ipaddr_data);
-            if (SAI_STATUS_SUCCESS != status) {
-                goto out;
-            }
-
-            status = mlnx_translate_sai_ip_address_to_sdk(&ip_address_mask, &ipaddr_mask);
-            if (SAI_STATUS_SUCCESS != status) {
-                goto out;
-            }
-
-            memcpy(&flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].key.inner_dipv6, &ipaddr_data,
-                   sizeof(flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].key.inner_dipv6));
-
-            memcpy(&flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].mask.inner_dipv6, &ipaddr_mask,
-                   sizeof(flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].mask.inner_dipv6));
-
-            flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].key_id = FLEX_ACL_KEY_INNER_DIPV6;
-
-            if (!is_key_type_present) {
-                flex_acl_rule_p[ii].key_desc_count++;
-            }
-            break;
-        }
-    }
-
-    status = mlnx_acl_flex_rules_set_helper(SX_ACCESS_CMD_SET, 0, region_id, offsets_list_p,
-                                            flex_acl_rule_p, flex_acl_rules_num);
-    if (SX_STATUS_SUCCESS != status) {
-        goto out;
-    }
-
-out:
-    acl_table_unlock(acl_table_index);
-
-    mlnx_acl_flex_rule_list_free(flex_acl_rule_p, flex_acl_rules_num);
-    free(offsets_list_p);
-
-    SX_LOG_EXIT();
-    return status;
-}
-
-static sai_status_t mlnx_acl_entry_vlan_set(_In_ const sai_object_key_t      *key,
-                                            _In_ const sai_attribute_value_t *value,
-                                            void                             *arg)
-{
-    sai_status_t               status;
-    sx_acl_region_id_t         region_id           = 0;
-    uint32_t                   flex_acl_rules_num  = 0;
-    sx_flex_acl_flex_rule_t   *flex_acl_rule_p     = NULL;
-    sx_flex_acl_rule_offset_t *offsets_list_p      = NULL;
-    sx_acl_key_t               key_id              = 0;
-    bool                       is_key_type_present = false;
-    uint32_t                   acl_table_index, acl_entry_index, key_desc_index, ii;
-
-    SX_LOG_ENTER();
-
-    assert((SAI_ACL_ENTRY_ATTR_FIELD_OUTER_VLAN_ID == (int64_t)arg) ||
-           (SAI_ACL_ENTRY_ATTR_FIELD_OUTER_VLAN_PRI == (int64_t)arg) ||
-           (SAI_ACL_ENTRY_ATTR_FIELD_INNER_VLAN_ID == (int64_t)arg) ||
-           (SAI_ACL_ENTRY_ATTR_FIELD_INNER_VLAN_PRI == (int64_t)arg) ||
-           (SAI_ACL_ENTRY_ATTR_FIELD_INNER_VLAN_CFI == (int64_t)arg) ||
-           (SAI_ACL_ENTRY_ATTR_FIELD_OUTER_VLAN_CFI == (int64_t)arg));
-
-    status = extract_acl_table_index_and_entry_index(key->key.object_id, &acl_table_index, &acl_entry_index);
-    if (SAI_STATUS_SUCCESS != status) {
-        SX_LOG_EXIT();
-        return status;
-    }
-
-    acl_table_write_lock(acl_table_index);
-
-    status = fetch_flex_acl_rule_params_to_set(acl_table_index, acl_entry_index, &flex_acl_rule_p,
-                                               &offsets_list_p, &region_id, &flex_acl_rules_num);
-    if (SAI_STATUS_SUCCESS != status) {
-        SX_LOG_ERR("Failed to fetch ACL rule params \n");
-        goto out;
-    }
-
-    switch ((int64_t)arg) {
-    case SAI_ACL_ENTRY_ATTR_FIELD_OUTER_VLAN_ID:
-        key_id = FLEX_ACL_KEY_VLAN_ID;
-        break;
-/*
- *   case SAI_ACL_ENTRY_ATTR_FIELD_INNER_VLAN_ID:
- *       key_id = FLEX_ACL_KEY_INNER_VLAN_ID;
- *       break;*/
-
-    case SAI_ACL_ENTRY_ATTR_FIELD_INNER_VLAN_PRI:
-        key_id = FLEX_ACL_KEY_INNER_PCP;
-        break;
-
-    case SAI_ACL_ENTRY_ATTR_FIELD_INNER_VLAN_CFI:
-        key_id = FLEX_ACL_KEY_INNER_DEI;
-        break;
-
-    case SAI_ACL_ENTRY_ATTR_FIELD_OUTER_VLAN_PRI:
-        key_id = FLEX_ACL_KEY_PCP;
-        break;
-
-    case SAI_ACL_ENTRY_ATTR_FIELD_OUTER_VLAN_CFI:
-        key_id = FLEX_ACL_KEY_DEI;
-        break;
-    }
-
-    mlnx_acl_flex_rule_key_find(flex_acl_rule_p, key_id, &key_desc_index, &is_key_type_present);
-
-    for (ii = 0; ii < flex_acl_rules_num; ii++) {
-        switch ((int64_t)arg) {
-        case SAI_ACL_ENTRY_ATTR_FIELD_OUTER_VLAN_ID:
-            flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].key.vlan_id  = value->aclfield.data.u16 & 0x0fff;
-            flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].mask.vlan_id = value->aclfield.mask.u16 & 0x0fff;
-            break;
-/*
- *       case SAI_ACL_ENTRY_ATTR_FIELD_INNER_VLAN_ID:
- *           flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].key.inner_vlan_id  = value->aclfield.data.u16 & 0x0fff;
- *           flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].mask.inner_vlan_id = value->aclfield.mask.u16 & 0x0fff;
- *           break;*/
-
-        case SAI_ACL_ENTRY_ATTR_FIELD_INNER_VLAN_PRI:
-            flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].key.inner_pcp  = value->aclfield.data.u8 & 0x07;
-            flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].mask.inner_pcp = value->aclfield.mask.u8 & 0x07;
-            break;
-
-        case SAI_ACL_ENTRY_ATTR_FIELD_INNER_VLAN_CFI:
-            flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].key.inner_dei  = value->aclfield.data.u8 & 0x01;
-            flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].mask.inner_dei = value->aclfield.mask.u8 & 0x01;
-            break;
-
-        case SAI_ACL_ENTRY_ATTR_FIELD_OUTER_VLAN_PRI:
-            flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].key.pcp  = value->aclfield.data.u8 & 0x07;
-            flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].mask.pcp = value->aclfield.mask.u8 & 0x07;
-            break;
-
-        case SAI_ACL_ENTRY_ATTR_FIELD_OUTER_VLAN_CFI:
-            flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].key.dei  = value->aclfield.data.u8 & 0x01;
-            flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].mask.dei = value->aclfield.mask.u8 & 0x01;
-            break;
-        }
-        flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].key_id = key_id;
-        if (!is_key_type_present) {
-            flex_acl_rule_p[ii].key_desc_count++;
-        }
-    }
-
-    status = mlnx_acl_flex_rules_set_helper(SX_ACCESS_CMD_SET, 0, region_id, offsets_list_p,
-                                            flex_acl_rule_p, flex_acl_rules_num);
-    if (SX_STATUS_SUCCESS != status) {
-        goto out;
-    }
-
-out:
-    acl_table_unlock(acl_table_index);
-
-    mlnx_acl_flex_rule_list_free(flex_acl_rule_p, flex_acl_rules_num);
+    mlnx_acl_flex_rule_list_free(flex_acl_rule_p, rule_count);
     free(offsets_list_p);
 
     SX_LOG_EXIT();
@@ -6302,308 +6567,6 @@ out:
 
     mlnx_acl_flex_rule_list_free(rules, rule_count);
     free(offsets);
-
-    SX_LOG_EXIT();
-    return status;
-}
-
-static sai_status_t mlnx_acl_entry_l4port_set(_In_ const sai_object_key_t      *key,
-                                              _In_ const sai_attribute_value_t *value,
-                                              void                             *arg)
-{
-    sai_status_t               status;
-    sx_acl_region_id_t         region_id          = 0;
-    uint32_t                   flex_acl_rules_num = 0, ii;
-    uint32_t                   key_id             = 0;
-    uint32_t                   acl_entry_index, acl_table_index, key_desc_index;
-    sx_flex_acl_flex_rule_t   *flex_acl_rule_p     = NULL;
-    sx_flex_acl_rule_offset_t *offsets_list_p      = NULL;
-    bool                       is_key_type_present = false;
-
-    SX_LOG_ENTER();
-
-    assert((SAI_ACL_ENTRY_ATTR_FIELD_L4_DST_PORT == (int64_t)arg) ||
-           (SAI_ACL_ENTRY_ATTR_FIELD_L4_SRC_PORT == (int64_t)arg));
-
-    status = extract_acl_table_index_and_entry_index(key->key.object_id, &acl_table_index, &acl_entry_index);
-    if (SAI_STATUS_SUCCESS != status) {
-        SX_LOG_EXIT();
-        return status;
-    }
-
-    acl_table_write_lock(acl_table_index);
-
-    status = fetch_flex_acl_rule_params_to_set(acl_table_index, acl_entry_index, &flex_acl_rule_p,
-                                               &offsets_list_p, &region_id, &flex_acl_rules_num);
-    if (SAI_STATUS_SUCCESS != status) {
-        SX_LOG_ERR("Failed to fetch ACL rule params \n");
-        goto out;
-    }
-
-    switch ((int64_t)arg) {
-    case SAI_ACL_ENTRY_ATTR_FIELD_L4_DST_PORT:
-        key_id = FLEX_ACL_KEY_L4_DESTINATION_PORT;
-        break;
-
-    case SAI_ACL_ENTRY_ATTR_FIELD_L4_SRC_PORT:
-        key_id = FLEX_ACL_KEY_L4_SOURCE_PORT;
-        break;
-    }
-
-    mlnx_acl_flex_rule_key_find(flex_acl_rule_p, key_id, &key_desc_index, &is_key_type_present);
-
-    for (ii = 0; ii < flex_acl_rules_num; ii++) {
-        switch ((int64_t)arg) {
-        case SAI_ACL_ENTRY_ATTR_FIELD_L4_SRC_PORT:
-            flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].key.l4_source_port  = value->aclfield.data.u16;
-            flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].mask.l4_source_port = value->aclfield.mask.u16;
-            break;
-
-        case SAI_ACL_ENTRY_ATTR_FIELD_L4_DST_PORT:
-            flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].key.l4_destination_port  = value->aclfield.data.u16;
-            flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].mask.l4_destination_port = value->aclfield.mask.u16;
-            break;
-        }
-
-        if (!is_key_type_present) {
-            flex_acl_rule_p[ii].key_desc_count++;
-        }
-
-        flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].key_id = key_id;
-    }
-
-    status = mlnx_acl_flex_rules_set_helper(SX_ACCESS_CMD_SET, 0, region_id, offsets_list_p,
-                                            flex_acl_rule_p, flex_acl_rules_num);
-    if (SX_STATUS_SUCCESS != status) {
-        goto out;
-    }
-
-out:
-    acl_table_unlock(acl_table_index);
-
-    mlnx_acl_flex_rule_list_free(flex_acl_rule_p, flex_acl_rules_num);
-    free(offsets_list_p);
-
-    SX_LOG_EXIT();
-    return status;
-}
-
-static sai_status_t mlnx_acl_entry_fields_set(_In_ const sai_object_key_t      *key,
-                                              _In_ const sai_attribute_value_t *value,
-                                              void                             *arg)
-{
-    sai_status_t               status;
-    sx_acl_region_id_t         region_id           = 0;
-    uint32_t                   flex_acl_rules_num  = 0;
-    sx_flex_acl_flex_rule_t   *flex_acl_rule_p     = NULL;
-    sx_flex_acl_rule_offset_t *offsets_list_p      = NULL;
-    sx_acl_key_t               key_id              = 0;
-    bool                       is_key_type_present = false;
-    uint32_t                   acl_table_index, acl_entry_index, key_desc_index, ii;
-
-    SX_LOG_ENTER();
-
-    assert((SAI_ACL_ENTRY_ATTR_ADMIN_STATE == (int64_t)arg) ||
-           (SAI_ACL_ENTRY_ATTR_FIELD_ETHER_TYPE == (int64_t)arg) ||
-           (SAI_ACL_ENTRY_ATTR_FIELD_TTL == (int64_t)arg) ||
-           (SAI_ACL_ENTRY_ATTR_FIELD_ACL_USER_META == (int64_t)arg) ||
-           (SAI_ACL_ENTRY_ATTR_FIELD_TC == (int64_t)arg) ||
-           (SAI_ACL_ENTRY_ATTR_FIELD_TCP_FLAGS == (int64_t)arg));
-
-    status = extract_acl_table_index_and_entry_index(key->key.object_id, &acl_table_index, &acl_entry_index);
-    if (SAI_STATUS_SUCCESS != status) {
-        SX_LOG_EXIT();
-        return status;
-    }
-
-    acl_table_write_lock(acl_table_index);
-
-    status = fetch_flex_acl_rule_params_to_set(acl_table_index, acl_entry_index, &flex_acl_rule_p,
-                                               &offsets_list_p, &region_id, &flex_acl_rules_num);
-    if (SAI_STATUS_SUCCESS != status) {
-        SX_LOG_ERR("Failed to fetch ACL rule params \n");
-        goto out;
-    }
-
-    switch ((int64_t)arg) {
-    case SAI_ACL_ENTRY_ATTR_FIELD_ETHER_TYPE:
-        key_id = FLEX_ACL_KEY_ETHERTYPE;
-        break;
-
-    case SAI_ACL_ENTRY_ATTR_FIELD_TC:
-        key_id = FLEX_ACL_KEY_SWITCH_PRIO;
-        break;
-
-    case SAI_ACL_ENTRY_ATTR_FIELD_TTL:
-        key_id = FLEX_ACL_KEY_TTL;
-        break;
-
-    case SAI_ACL_ENTRY_ATTR_FIELD_ACL_USER_META:
-        key_id = FLEX_ACL_KEY_USER_TOKEN;
-        break;
-
-    case SAI_ACL_ENTRY_ATTR_FIELD_TCP_FLAGS:
-        key_id = FLEX_ACL_KEY_TCP_CONTROL;
-        break;
-    }
-
-    mlnx_acl_flex_rule_key_find(flex_acl_rule_p, key_id, &key_desc_index, &is_key_type_present);
-
-    for (ii = 0; ii < flex_acl_rules_num; ii++) {
-        switch ((int64_t)arg) {
-        case SAI_ACL_ENTRY_ATTR_ADMIN_STATE:
-            SX_LOG_ERR(" Admin State ( if set to false ) deletes rule \n");
-            status = SAI_STATUS_NOT_SUPPORTED;
-            goto out;
-        /* flex_acl_rule_p[ii].valid = (uint8_t)value->aclfield.enable;
-         *  break; */
-
-        case SAI_ACL_ENTRY_ATTR_FIELD_ETHER_TYPE:
-            flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].key.ethertype  = value->aclfield.data.u16;
-            flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].mask.ethertype = value->aclfield.mask.u16;
-            break;
-
-        case SAI_ACL_ENTRY_ATTR_FIELD_ACL_USER_META:
-            if ((value->aclfield.data.u32 <= ACL_USER_META_RANGE_MAX) &&
-                (value->aclfield.mask.u32 <= ACL_USER_META_RANGE_MAX)) {
-                flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].key.user_token  = value->aclfield.data.u32;
-                flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].mask.user_token = value->aclfield.mask.u32;
-            } else {
-                SX_LOG_ERR(" ACL user Meta values %u %u is out of range [%d, %d]\n",
-                           value->aclfield.data.u32, value->aclfield.mask.u32,
-                           ACL_USER_META_RANGE_MIN, ACL_USER_META_RANGE_MAX);
-                status = SAI_STATUS_INVALID_PARAMETER;
-                goto out;
-            }
-            break;
-
-        case SAI_ACL_ENTRY_ATTR_FIELD_TCP_FLAGS:
-            flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].key.tcp_control  = value->aclfield.data.u8 & 0x3F;
-            flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].mask.tcp_control = value->aclfield.mask.u8 & 0x3F;
-            break;
-
-        case SAI_ACL_ENTRY_ATTR_FIELD_TC:
-            flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].key.switch_prio  = value->aclfield.data.u8;
-            flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].mask.switch_prio = value->aclfield.mask.u8;
-            break;
-
-        case SAI_ACL_ENTRY_ATTR_FIELD_TTL:
-            flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].key.ttl  = value->aclfield.data.u8;
-            flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].mask.ttl = value->aclfield.mask.u8;
-            break;
-        }
-        flex_acl_rule_p[ii].key_desc_list_p[key_desc_index].key_id = key_id;
-        if (!is_key_type_present) {
-            flex_acl_rule_p[ii].key_desc_count++;
-        }
-    }
-
-    status = mlnx_acl_flex_rules_set_helper(SX_ACCESS_CMD_SET, 0, region_id, offsets_list_p,
-                                            flex_acl_rule_p, flex_acl_rules_num);
-    if (SX_STATUS_SUCCESS != status) {
-        goto out;
-    }
-
-out:
-    acl_table_unlock(acl_table_index);
-
-    mlnx_acl_flex_rule_list_free(flex_acl_rule_p, flex_acl_rules_num);
-    free(offsets_list_p);
-
-    SX_LOG_EXIT();
-    return status;
-}
-
-static sai_status_t mlnx_acl_entry_tos_set(_In_ const sai_object_key_t      *key,
-                                           _In_ const sai_attribute_value_t *value,
-                                           void                             *arg)
-{
-    sai_status_t               status;
-    sx_acl_region_id_t         region_id          = 0;
-    sx_flex_acl_flex_rule_t   *flex_acl_rule_p    = NULL;
-    sx_flex_acl_rule_offset_t *offsets_list_p     = NULL;
-    uint32_t                   flex_acl_rules_num = 0;
-    uint32_t                   ecn_key_index, dscp_key_index, ii;
-    bool                       is_ecn_key_present = false, is_dscp_key_present = false;
-    uint32_t                   acl_table_index, acl_entry_index;
-
-    SX_LOG_ENTER();
-
-    assert((SAI_ACL_ENTRY_ATTR_FIELD_DSCP == (int64_t)arg) ||
-           (SAI_ACL_ENTRY_ATTR_FIELD_ECN == (int64_t)arg) ||
-           (SAI_ACL_ENTRY_ATTR_FIELD_TOS == (int64_t)arg));
-
-    status = extract_acl_table_index_and_entry_index(key->key.object_id, &acl_table_index, &acl_entry_index);
-    if (SAI_STATUS_SUCCESS != status) {
-        SX_LOG_EXIT();
-        return status;
-    }
-
-    acl_table_write_lock(acl_table_index);
-
-    status = fetch_flex_acl_rule_params_to_set(acl_table_index, acl_entry_index, &flex_acl_rule_p,
-                                               &offsets_list_p, &region_id, &flex_acl_rules_num);
-    if (SAI_STATUS_SUCCESS != status) {
-        SX_LOG_ERR("Failed to fetch ACL rule params \n");
-        goto out;
-    }
-
-    mlnx_acl_flex_rule_key_find(flex_acl_rule_p, FLEX_ACL_KEY_DSCP, &dscp_key_index, &is_dscp_key_present);
-    mlnx_acl_flex_rule_key_find(flex_acl_rule_p, FLEX_ACL_KEY_ECN, &ecn_key_index, &is_ecn_key_present);
-
-    for (ii = 0; ii < flex_acl_rules_num; ii++) {
-        switch ((int64_t)arg) {
-        case SAI_ACL_ENTRY_ATTR_FIELD_DSCP:
-            flex_acl_rule_p[ii].key_desc_list_p[dscp_key_index].key.dscp  = (value->aclfield.data.u8) & 0x3f;
-            flex_acl_rule_p[ii].key_desc_list_p[dscp_key_index].mask.dscp = (value->aclfield.mask.u8) & 0x3f;
-            flex_acl_rule_p[ii].key_desc_list_p[dscp_key_index].key_id    = FLEX_ACL_KEY_DSCP;
-            if (!is_dscp_key_present) {
-                flex_acl_rule_p[ii].key_desc_count++;
-            }
-            break;
-
-        case SAI_ACL_ENTRY_ATTR_FIELD_ECN:
-            flex_acl_rule_p[ii].key_desc_list_p[ecn_key_index].key.ecn  = (value->aclfield.data.u8) & 0x03;
-            flex_acl_rule_p[ii].key_desc_list_p[ecn_key_index].mask.ecn = (value->aclfield.mask.u8) & 0x03;
-            flex_acl_rule_p[ii].key_desc_list_p[ecn_key_index].key_id   = FLEX_ACL_KEY_ECN;
-            if (!is_ecn_key_present) {
-                flex_acl_rule_p[ii].key_desc_count++;
-            }
-            break;
-
-        case SAI_ACL_ENTRY_ATTR_FIELD_TOS:
-            flex_acl_rule_p[ii].key_desc_list_p[dscp_key_index].key.dscp  = (value->aclfield.data.u8 >> 0x02) & 0x3f;
-            flex_acl_rule_p[ii].key_desc_list_p[dscp_key_index].mask.dscp = (value->aclfield.mask.u8 >> 0x02) & 0x3f;
-            flex_acl_rule_p[ii].key_desc_list_p[dscp_key_index].key_id    = FLEX_ACL_KEY_DSCP;
-            if (!is_dscp_key_present) {
-                flex_acl_rule_p[ii].key_desc_count++;
-            }
-
-            if (!is_ecn_key_present) {
-                flex_acl_rule_p[ii].key_desc_count++;
-                if (is_dscp_key_present) {
-                    ecn_key_index++;
-                }
-            }
-
-            flex_acl_rule_p[ii].key_desc_list_p[ecn_key_index].key.ecn  = (value->aclfield.data.u8) & 0x03;
-            flex_acl_rule_p[ii].key_desc_list_p[ecn_key_index].mask.ecn = (value->aclfield.mask.u8) & 0x03;
-            flex_acl_rule_p[ii].key_desc_list_p[ecn_key_index].key_id   = FLEX_ACL_KEY_ECN;
-            break;
-        }
-    }
-
-    status = mlnx_acl_flex_rules_set_helper(SX_ACCESS_CMD_SET, 0, region_id, offsets_list_p,
-                                            flex_acl_rule_p, flex_acl_rules_num);
-    if (SX_STATUS_SUCCESS != status) {
-        goto out;
-    }
-
-out:
-    acl_table_unlock(acl_table_index);
-
-    mlnx_acl_flex_rule_list_free(flex_acl_rule_p, flex_acl_rules_num);
-    free(offsets_list_p);
 
     SX_LOG_EXIT();
     return status;
@@ -7438,82 +7401,6 @@ out:
     return status;
 }
 
-static sai_status_t mlnx_acl_entry_range_list_set(_In_ const sai_object_key_t      *key,
-                                                  _In_ const sai_attribute_value_t *value,
-                                                  void                             *arg)
-{
-    sai_status_t               status;
-    sx_flex_acl_flex_rule_t   *rules   = NULL;
-    sx_flex_acl_rule_offset_t *offsets = NULL;
-    sx_acl_region_id_t         sx_region_id;
-    sx_flex_acl_port_range_t   sx_acl_range;
-    uint32_t                   acl_entry_index, acl_table_index;
-    uint32_t                   rules_count = 0, range_count;
-    uint32_t                   range_key_index, ii;
-    bool                       is_key_type_present = false;
-
-    SX_LOG_ENTER();
-
-    assert((SAI_ACL_ENTRY_ATTR_FIELD_ACL_RANGE_TYPE == (int64_t)arg));
-
-    status = extract_acl_table_index_and_entry_index(key->key.object_id, &acl_table_index, &acl_entry_index);
-    if (SAI_STATUS_SUCCESS != status) {
-        SX_LOG_EXIT();
-        return status;
-    }
-
-    range_count = value->aclfield.data.objlist.count;
-    if (false == value->aclfield.enable) {
-        range_count = 0;
-    }
-
-    acl_table_write_lock(acl_table_index);
-
-    if (range_count > 0) {
-        status = mlnx_acl_range_validate_and_fetch(&value->aclfield.data.objlist, &sx_acl_range, acl_table_index);
-        if (SAI_ERR(status)) {
-            goto out;
-        }
-    }
-
-    status = fetch_flex_acl_rule_params_to_set(acl_table_index, acl_entry_index, &rules,
-                                               &offsets, &sx_region_id, &rules_count);
-    if (SAI_ERR(status)) {
-        goto out;
-    }
-
-    mlnx_acl_flex_rule_key_find(&rules[0], FLEX_ACL_KEY_L4_PORT_RANGE, &range_key_index, &is_key_type_present);
-
-    for (ii = 0; ii < rules_count; ii++) {
-        if (range_count > 0) {
-            rules[ii].key_desc_list_p[range_key_index].key_id             = FLEX_ACL_KEY_L4_PORT_RANGE;
-            rules[ii].key_desc_list_p[range_key_index].key.l4_port_range  = sx_acl_range;
-            rules[ii].key_desc_list_p[range_key_index].mask.l4_port_range = true;
-
-            if (false == is_key_type_present) {
-                rules[ii].key_desc_count++;
-            }
-        } else {
-            if (is_key_type_present) {
-                mlnx_acl_flex_rule_key_del(&rules[ii], range_key_index);
-            }
-        }
-    }
-
-    status = mlnx_acl_flex_rules_set_helper(SX_ACCESS_CMD_SET, 0, sx_region_id, offsets, rules, rules_count);
-    if (SAI_ERR(status)) {
-        goto out;
-    }
-
-out:
-    acl_table_unlock(acl_table_index);
-    mlnx_acl_flex_rule_list_free(rules, rules_count);
-    free(offsets);
-
-    SX_LOG_EXIT();
-    return status;
-}
-
 static sai_status_t mlnx_acl_entry_action_counter_set(_In_ const sai_object_key_t      *key,
                                                       _In_ const sai_attribute_value_t *value,
                                                       void                             *arg)
@@ -7840,57 +7727,30 @@ sai_status_t mlnx_create_acl_entry(_Out_ sai_object_id_t     * acl_entry_id,
     sai_packet_action_t          packet_action_type;
     sai_object_id_t              redirect_target;
     const sai_attribute_value_t *table_id, *priority;
-    const sai_attribute_value_t *src_mac, *dst_mac, *src_ip, *dst_ip, *inner_src_ip, *inner_dst_ip;
-    const sai_attribute_value_t *in_port, *in_ports, *out_port, *out_ports;
-    const sai_attribute_value_t *outer_vlan_id, *outer_vlan_pri, *outer_vlan_cfi;
-    const sai_attribute_value_t *L4_src_port, *L4_dst_port;
-    const sai_attribute_value_t *ether_type, *ip_protocol, *ip_ident;
-    const sai_attribute_value_t *ip_tos, *dscp, *ecn;
-    const sai_attribute_value_t *ip_type, *ip_frag;
-    const sai_attribute_value_t *ip_flags, *tcp_flags;
-    const sai_attribute_value_t *tc, *ttl;
+    const sai_attribute_value_t *in_port, *in_ports, *out_port, *out_ports, *ip_ident;
     const sai_attribute_value_t *packet_action, *action_counter;
     const sai_attribute_value_t *action_set_src_mac, *action_set_dst_mac;
     const sai_attribute_value_t *action_set_dscp;
     const sai_attribute_value_t *action_set_color, *action_set_ecn;
     const sai_attribute_value_t *action_mirror_ingress, *action_mirror_egress;
-    const sai_attribute_value_t *action_dec_ttl, *action_set_user_token;
-    const sai_attribute_value_t *action_set_policer, *action_set_tc, *action_redirect,
-    *action_redirect_list;
-    const sai_attribute_value_t                      *action_set_inner_vlan_id, *action_set_inner_vlan_pri;
-    const sai_attribute_value_t                      *action_set_outer_vlan_id, *action_set_outer_vlan_pri;
-    const sai_attribute_value_t                      *action_flood;
-    const sai_attribute_value_t                      *admin_state;
-    const sai_attribute_value_t                      *src_ipv6, *dst_ipv6, *inner_src_ipv6, *inner_dst_ipv6;
-    const sai_attribute_value_t /* *inner_vlan_id,*/ *inner_vlan_pri, *inner_vlan_cfi;
-    const sai_attribute_value_t                      *user_meta, *vlan_tags;
-    const sai_attribute_value_t                      *range_list;
-    const sai_object_list_t                          *out_port_obj_list = NULL;
-    acl_entry_res_refs_t                              entry_res_refs;
-    acl_entry_redirect_data_t                         entry_redirect_data = ACL_INVALID_ENTRY_REDIRECT;
-    port_pbs_index_t                                  pbs_index           = ACL_INVALID_PORT_PBS_INDEX;
-    uint32_t                                          out_port_obj_count  = 0;
-    uint32_t                                          range_list_index;
-    uint32_t /*inner_vlan_id_index,*/                 inner_vlan_pri_index, inner_vlan_cfi_index;
-    uint32_t                                          src_ipv6_index, dst_ipv6_index, inner_src_ipv6_index,
-                                                      inner_dst_ipv6_index;
-    uint32_t user_meta_index, vlan_tags_index;
-    uint32_t table_id_index, priority_index;
-    uint32_t src_mac_index, dst_mac_index, src_ip_index, dst_ip_index;
-    uint32_t inner_src_ip_index, inner_dst_ip_index;
-    uint32_t in_port_index, admin_state_index, in_ports_index;
-    uint32_t out_port_index, out_ports_index;
-    uint32_t outer_vlan_id_index, outer_vlan_pri_index, outer_vlan_cfi_index;
-    uint32_t L4_src_port_index, L4_dst_port_index;
-    uint32_t ether_type_index, ip_protocol_index, ip_ident_index;
-    uint32_t ip_tos_index, dscp_index, ecn_index;
-    uint32_t ip_type_index, ip_frag_index;
-    uint32_t ip_flags_index, tcp_flags_index;
-    uint32_t tc_index, ttl_index;
-    uint32_t action_set_src_mac_index, action_set_dst_mac_index;
-    uint32_t action_set_dscp_index;
-    uint32_t packet_action_index, action_counter_index, action_redirect_index,
-             action_redirect_list_index;
+    const sai_attribute_value_t *action_dec_ttl, *action_set_user_token, *action_set_policer;
+    const sai_attribute_value_t *action_set_tc, *action_redirect, *action_redirect_list;
+    const sai_attribute_value_t *action_set_inner_vlan_id, *action_set_inner_vlan_pri;
+    const sai_attribute_value_t *action_set_outer_vlan_id, *action_set_outer_vlan_pri;
+    const sai_attribute_value_t *action_flood;
+    const sai_attribute_value_t *admin_state;
+    const sai_object_list_t     *out_port_obj_list = NULL;
+    acl_entry_res_refs_t         entry_res_refs;
+    acl_entry_redirect_data_t    entry_redirect_data = ACL_INVALID_ENTRY_REDIRECT;
+    port_pbs_index_t             pbs_index           = ACL_INVALID_PORT_PBS_INDEX;
+    uint32_t                     out_port_obj_count  = 0;
+    uint32_t                     table_id_index, priority_index;
+    uint32_t                     in_port_index, admin_state_index, in_ports_index, ip_ident_index;
+    uint32_t                     out_port_index, out_ports_index;
+    uint32_t                     action_set_src_mac_index, action_set_dst_mac_index;
+    uint32_t                     action_set_dscp_index;
+    uint32_t                     packet_action_index, action_counter_index, action_redirect_index,
+                                 action_redirect_list_index;
     uint32_t action_set_policer_index, action_set_tc_index;
     uint32_t action_mirror_ingress_index, action_mirror_egress_index,
              egress_session_id, ingress_session_id;
@@ -7909,7 +7769,6 @@ sai_status_t mlnx_create_acl_entry(_Out_ sai_object_id_t     * acl_entry_id,
     uint8_t  flex_action_index = 0;
     char     list_str[MAX_LIST_VALUE_STR_LEN];
     char     key_str[MAX_KEY_STR_LEN];
-    bool     tos_attrib_present         = false;    /* Value is TRUE when TOS FIELD received from user */
     bool     is_redirect_action_present = false;
     bool     is_in_port_key_present     = false, is_out_port_key_present = false;
     uint32_t ii                         = 0;
@@ -7964,6 +7823,7 @@ sai_status_t mlnx_create_acl_entry(_Out_ sai_object_id_t     * acl_entry_id,
     is_table_dynamic_sized = acl_db_table(acl_table_index).is_dynamic_sized;
     is_ip_idnet_used       = acl_db_table(acl_table_index).is_ip_ident_used;
 
+
     if ((created_entry_count == table_size) &&
         (false == is_table_dynamic_sized)) {
         SX_LOG_ERR("Table is full\n");
@@ -8009,228 +7869,9 @@ sai_status_t mlnx_create_acl_entry(_Out_ sai_object_id_t     * acl_entry_id,
         flex_acl_rule.valid = true;
     }
 
-    if (SAI_STATUS_SUCCESS ==
-        find_attrib_in_list(attr_count, attr_list, SAI_ACL_ENTRY_ATTR_FIELD_SRC_IPv6, &src_ipv6, &src_ipv6_index)) {
-        ip_address_data.addr_family = SAI_IP_ADDR_FAMILY_IPV6;
-        memcpy(&ip_address_data.addr.ip6, &src_ipv6->aclfield.data.ip6, sizeof(ip_address_data.addr.ip6));
-        ip_address_mask.addr_family = SAI_IP_ADDR_FAMILY_IPV6;
-        memcpy(&ip_address_mask.addr.ip6, &src_ipv6->aclfield.mask.ip6, sizeof(ip_address_mask.addr.ip6));
-
-        status = mlnx_translate_sai_ip_address_to_sdk(&ip_address_data, &ipaddr_data);
-        if (SAI_STATUS_SUCCESS != status) {
-            goto out;
-        }
-
-        status = mlnx_translate_sai_ip_address_to_sdk(&ip_address_mask, &ipaddr_mask);
-        if (SAI_STATUS_SUCCESS != status) {
-            goto out;
-        }
-
-        memcpy(&sx_key_descs[key_desc_index].key.sipv6, &ipaddr_data,
-               sizeof(sx_key_descs[key_desc_index].key.sipv6));
-
-        memcpy(&sx_key_descs[key_desc_index].mask.sipv6, &ipaddr_mask,
-               sizeof(sx_key_descs[key_desc_index].key.sipv6));
-
-        sx_key_descs[key_desc_index].key_id = FLEX_ACL_KEY_SIPV6;
-        key_desc_index++;
-    }
-
-    if (SAI_STATUS_SUCCESS ==
-        find_attrib_in_list(attr_count, attr_list, SAI_ACL_ENTRY_ATTR_FIELD_DST_IPv6, &dst_ipv6, &dst_ipv6_index)) {
-        ip_address_data.addr_family = SAI_IP_ADDR_FAMILY_IPV6;
-        memcpy(&ip_address_data.addr.ip6, &dst_ipv6->aclfield.data.ip6, sizeof(ip_address_data.addr.ip6));
-        ip_address_mask.addr_family = SAI_IP_ADDR_FAMILY_IPV6;
-        memcpy(&ip_address_mask.addr.ip6, &dst_ipv6->aclfield.mask.ip6, sizeof(ip_address_mask.addr.ip6));
-
-        status = mlnx_translate_sai_ip_address_to_sdk(&ip_address_data, &ipaddr_data);
-        if (SAI_STATUS_SUCCESS != status) {
-            goto out;
-        }
-
-        status = mlnx_translate_sai_ip_address_to_sdk(&ip_address_mask, &ipaddr_mask);
-        if (SAI_STATUS_SUCCESS != status) {
-            goto out;
-        }
-
-        memcpy(&sx_key_descs[key_desc_index].key.dipv6, &ipaddr_data,
-               sizeof(sx_key_descs[key_desc_index].key.dipv6));
-        memcpy(&sx_key_descs[key_desc_index].mask.dipv6, &ipaddr_mask,
-               sizeof(sx_key_descs[key_desc_index].key.dipv6));
-
-        sx_key_descs[key_desc_index].key_id = FLEX_ACL_KEY_DIPV6;
-        key_desc_index++;
-    }
-
-    if (SAI_STATUS_SUCCESS ==
-        find_attrib_in_list(attr_count, attr_list, SAI_ACL_ENTRY_ATTR_FIELD_INNER_SRC_IPv6, &inner_src_ipv6,
-                            &inner_src_ipv6_index)) {
-        ip_address_data.addr_family = SAI_IP_ADDR_FAMILY_IPV6;
-        memcpy(&ip_address_data.addr.ip6, &inner_src_ipv6->aclfield.data.ip6, sizeof(ip_address_data.addr.ip6));
-        ip_address_mask.addr_family = SAI_IP_ADDR_FAMILY_IPV6;
-        memcpy(&ip_address_mask.addr.ip6, &inner_src_ipv6->aclfield.mask.ip6, sizeof(ip_address_mask.addr.ip6));
-
-        status = mlnx_translate_sai_ip_address_to_sdk(&ip_address_data, &ipaddr_data);
-        if (SAI_STATUS_SUCCESS != status) {
-            goto out;
-        }
-
-        status = mlnx_translate_sai_ip_address_to_sdk(&ip_address_mask, &ipaddr_mask);
-        if (SAI_STATUS_SUCCESS != status) {
-            goto out;
-        }
-
-        memcpy(&sx_key_descs[key_desc_index].key.inner_sipv6, &ipaddr_data,
-               sizeof(sx_key_descs[key_desc_index].key.inner_sipv6));
-
-        memcpy(&sx_key_descs[key_desc_index].mask.inner_sipv6, &ipaddr_mask,
-               sizeof(sx_key_descs[key_desc_index].mask.inner_sipv6));
-
-        sx_key_descs[key_desc_index].key_id = FLEX_ACL_KEY_INNER_SIPV6;
-        key_desc_index++;
-    }
-
-    if (SAI_STATUS_SUCCESS ==
-        find_attrib_in_list(attr_count, attr_list, SAI_ACL_ENTRY_ATTR_FIELD_INNER_DST_IPv6, &inner_dst_ipv6,
-                            &inner_dst_ipv6_index)) {
-        ip_address_data.addr_family = SAI_IP_ADDR_FAMILY_IPV6;
-        memcpy(&ip_address_data.addr.ip6, &inner_dst_ipv6->aclfield.data.ip6, sizeof(ip_address_data.addr.ip6));
-        ip_address_mask.addr_family = SAI_IP_ADDR_FAMILY_IPV6;
-        memcpy(&ip_address_mask.addr.ip6, &inner_dst_ipv6->aclfield.mask.ip6, sizeof(ip_address_mask.addr.ip6));
-
-        status = mlnx_translate_sai_ip_address_to_sdk(&ip_address_data, &ipaddr_data);
-        if (SAI_STATUS_SUCCESS != status) {
-            goto out;
-        }
-
-        status = mlnx_translate_sai_ip_address_to_sdk(&ip_address_mask, &ipaddr_mask);
-        if (SAI_STATUS_SUCCESS != status) {
-            goto out;
-        }
-
-        memcpy(&sx_key_descs[key_desc_index].key.inner_dipv6, &ipaddr_data,
-               sizeof(sx_key_descs[key_desc_index].key.inner_dipv6));
-
-        memcpy(&sx_key_descs[key_desc_index].mask.inner_dipv6, &ipaddr_mask,
-               sizeof(sx_key_descs[key_desc_index].mask.inner_dipv6));
-
-        sx_key_descs[key_desc_index].key_id = FLEX_ACL_KEY_INNER_DIPV6;
-        key_desc_index++;
-    }
-
-    if (SAI_STATUS_SUCCESS ==
-        find_attrib_in_list(attr_count, attr_list, SAI_ACL_ENTRY_ATTR_FIELD_SRC_MAC, &src_mac, &src_mac_index)) {
-        memcpy(&sx_key_descs[key_desc_index].key.smac, src_mac->aclfield.data.mac,
-               sizeof(sx_key_descs[key_desc_index].key.smac));
-        memcpy(&sx_key_descs[key_desc_index].mask.smac, src_mac->aclfield.mask.mac,
-               sizeof(sx_key_descs[key_desc_index].mask.smac));
-        sx_key_descs[key_desc_index].key_id = FLEX_ACL_KEY_SMAC;
-        key_desc_index++;
-    }
-
-    if (SAI_STATUS_SUCCESS ==
-        find_attrib_in_list(attr_count, attr_list, SAI_ACL_ENTRY_ATTR_FIELD_DST_MAC, &dst_mac, &dst_mac_index)) {
-        memcpy(&sx_key_descs[key_desc_index].key.dmac, dst_mac->aclfield.data.mac,
-               sizeof(sx_key_descs[key_desc_index].key.dmac));
-        memcpy(&sx_key_descs[key_desc_index].mask.dmac, dst_mac->aclfield.mask.mac,
-               sizeof(sx_key_descs[key_desc_index].mask.dmac));
-        sx_key_descs[key_desc_index].key_id = FLEX_ACL_KEY_DMAC;
-        key_desc_index++;
-    }
-
-    if (SAI_STATUS_SUCCESS ==
-        find_attrib_in_list(attr_count, attr_list, SAI_ACL_ENTRY_ATTR_FIELD_SRC_IP, &src_ip, &src_ip_index)) {
-        ip_address_data.addr_family = SAI_IP_ADDR_FAMILY_IPV4;
-        ip_address_data.addr.ip4    = src_ip->aclfield.data.ip4;
-        ip_address_mask.addr_family = SAI_IP_ADDR_FAMILY_IPV4;
-        ip_address_mask.addr.ip4    = src_ip->aclfield.mask.ip4;
-
-        if (SAI_STATUS_SUCCESS != (status = mlnx_translate_sai_ip_address_to_sdk(&ip_address_data, &ipaddr_data))) {
-            goto out;
-        }
-
-        if (SAI_STATUS_SUCCESS != (status = mlnx_translate_sai_ip_address_to_sdk(&ip_address_mask, &ipaddr_mask))) {
-            goto out;
-        }
-        memcpy(&sx_key_descs[key_desc_index].key.sip, &ipaddr_data,
-               sizeof(sx_key_descs[key_desc_index].key.sip));
-        memcpy(&sx_key_descs[key_desc_index].mask.sip, &ipaddr_mask,
-               sizeof(sx_key_descs[key_desc_index].key.sip));
-        sx_key_descs[key_desc_index].key_id = FLEX_ACL_KEY_SIP;
-        key_desc_index++;
-    }
-
-    if (SAI_STATUS_SUCCESS ==
-        find_attrib_in_list(attr_count, attr_list, SAI_ACL_ENTRY_ATTR_FIELD_DST_IP, &dst_ip, &dst_ip_index)) {
-        ip_address_data.addr_family = SAI_IP_ADDR_FAMILY_IPV4;
-        ip_address_data.addr.ip4    = dst_ip->aclfield.data.ip4;
-        ip_address_mask.addr_family = SAI_IP_ADDR_FAMILY_IPV4;
-        ip_address_mask.addr.ip4    = dst_ip->aclfield.mask.ip4;
-
-        if (SAI_STATUS_SUCCESS != (status = mlnx_translate_sai_ip_address_to_sdk(&ip_address_data, &ipaddr_data))) {
-            goto out;
-        }
-        if (SAI_STATUS_SUCCESS != (status = mlnx_translate_sai_ip_address_to_sdk(&ip_address_mask, &ipaddr_mask))) {
-            goto out;
-        }
-        memcpy(&sx_key_descs[key_desc_index].key.dip, &ipaddr_data,
-               sizeof(sx_key_descs[key_desc_index].key.dip));
-        memcpy(&sx_key_descs[key_desc_index].mask.dip, &ipaddr_mask,
-               sizeof(sx_key_descs[key_desc_index].key.dip));
-        sx_key_descs[key_desc_index].key_id = FLEX_ACL_KEY_DIP;
-        key_desc_index++;
-    }
-
-    if (SAI_STATUS_SUCCESS ==
-        find_attrib_in_list(attr_count, attr_list, SAI_ACL_ENTRY_ATTR_FIELD_INNER_SRC_IP,
-                            &inner_src_ip, &inner_src_ip_index)) {
-        ip_address_data.addr_family = SAI_IP_ADDR_FAMILY_IPV4;
-        ip_address_data.addr.ip4    = inner_src_ip->aclfield.data.ip4;
-        ip_address_mask.addr_family = SAI_IP_ADDR_FAMILY_IPV4;
-        ip_address_mask.addr.ip4    = inner_src_ip->aclfield.mask.ip4;
-
-        status = mlnx_translate_sai_ip_address_to_sdk(&ip_address_data, &ipaddr_data);
-        if (SAI_ERR(status)) {
-            goto out;
-        }
-
-        status = mlnx_translate_sai_ip_address_to_sdk(&ip_address_mask, &ipaddr_mask);
-        if (SAI_ERR(status)) {
-            goto out;
-        }
-
-        memcpy(&sx_key_descs[key_desc_index].key.inner_sip, &ipaddr_data,
-               sizeof(sx_key_descs[key_desc_index].key.inner_sip));
-        memcpy(&sx_key_descs[key_desc_index].mask.inner_sip, &ipaddr_mask,
-               sizeof(sx_key_descs[key_desc_index].mask.inner_sip));
-        sx_key_descs[key_desc_index].key_id = FLEX_ACL_KEY_INNER_SIP;
-        key_desc_index++;
-    }
-
-    if (SAI_STATUS_SUCCESS ==
-        find_attrib_in_list(attr_count, attr_list, SAI_ACL_ENTRY_ATTR_FIELD_INNER_DST_IP,
-                            &inner_dst_ip, &inner_dst_ip_index)) {
-        ip_address_data.addr_family = SAI_IP_ADDR_FAMILY_IPV4;
-        ip_address_data.addr.ip4    = inner_dst_ip->aclfield.data.ip4;
-        ip_address_mask.addr_family = SAI_IP_ADDR_FAMILY_IPV4;
-        ip_address_mask.addr.ip4    = inner_dst_ip->aclfield.mask.ip4;
-
-        status = mlnx_translate_sai_ip_address_to_sdk(&ip_address_data, &ipaddr_data);
-        if (SAI_ERR(status)) {
-            goto out;
-        }
-
-        status = mlnx_translate_sai_ip_address_to_sdk(&ip_address_mask, &ipaddr_mask);
-        if (SAI_ERR(status)) {
-            goto out;
-        }
-
-        memcpy(&sx_key_descs[key_desc_index].key.inner_dip, &ipaddr_data,
-               sizeof(sx_key_descs[key_desc_index].key.inner_dip));
-        memcpy(&sx_key_descs[key_desc_index].mask.inner_dip, &ipaddr_mask,
-               sizeof(sx_key_descs[key_desc_index].mask.inner_dip));
-        sx_key_descs[key_desc_index].key_id = FLEX_ACL_KEY_INNER_DIP;
-        key_desc_index++;
+    status = mlnx_acl_entry_fields_to_sx(attr_list, attr_count, acl_table_index, sx_key_descs, &key_desc_index);
+    if (SAI_ERR(status)) {
+        goto out;
     }
 
     if (SAI_STATUS_SUCCESS ==
@@ -8359,96 +8000,6 @@ sai_status_t mlnx_create_acl_entry(_Out_ sai_object_id_t     * acl_entry_id,
     }
 
     if (SAI_STATUS_SUCCESS ==
-        find_attrib_in_list(attr_count, attr_list, SAI_ACL_ENTRY_ATTR_FIELD_OUTER_VLAN_ID, &outer_vlan_id,
-                            &outer_vlan_id_index)) {
-        sx_key_descs[key_desc_index].key.vlan_id  = (outer_vlan_id->aclfield.data.u16) & 0xFFF;
-        sx_key_descs[key_desc_index].mask.vlan_id = (outer_vlan_id->aclfield.mask.u16) & 0xFFF;
-        sx_key_descs[key_desc_index].key_id       = FLEX_ACL_KEY_VLAN_ID;
-        key_desc_index++;
-    }
-
-    if (SAI_STATUS_SUCCESS ==
-        find_attrib_in_list(attr_count, attr_list, SAI_ACL_ENTRY_ATTR_FIELD_OUTER_VLAN_PRI, &outer_vlan_pri,
-                            &outer_vlan_pri_index)) {
-        sx_key_descs[key_desc_index].key.pcp  = (outer_vlan_pri->aclfield.data.u8) & 0x07;
-        sx_key_descs[key_desc_index].mask.pcp = (outer_vlan_pri->aclfield.mask.u8) & 0x07;
-        sx_key_descs[key_desc_index].key_id   = FLEX_ACL_KEY_PCP;
-        key_desc_index++;
-    }
-
-    if (SAI_STATUS_SUCCESS ==
-        find_attrib_in_list(attr_count, attr_list, SAI_ACL_ENTRY_ATTR_FIELD_OUTER_VLAN_CFI, &outer_vlan_cfi,
-                            &outer_vlan_cfi_index)) {
-        sx_key_descs[key_desc_index].key.dei  = (outer_vlan_cfi->aclfield.data.u8) & 0x01;
-        sx_key_descs[key_desc_index].mask.dei = (outer_vlan_cfi->aclfield.mask.u8) & 0x01;
-        sx_key_descs[key_desc_index].key_id   = FLEX_ACL_KEY_DEI;
-        key_desc_index++;
-    }
-/*
- *   if (SAI_STATUS_SUCCESS ==
- *       find_attrib_in_list(attr_count, attr_list, SAI_ACL_ENTRY_ATTR_FIELD_INNER_VLAN_ID, &inner_vlan_id,
- *                           &inner_vlan_id_index)) {
- *       sx_key_descs[key_desc_index].key.inner_vlan_id  = (inner_vlan_id->aclfield.data.u16) & 0xFFF;
- *       sx_key_descs[key_desc_index].mask.inner_vlan_id = (inner_vlan_id->aclfield.mask.u16) & 0xFFF;
- *       sx_key_descs[key_desc_index].key_id             = FLEX_ACL_KEY_VLAN_ID;
- *       key_desc_index++;
- *   }*/
-
-    if (SAI_STATUS_SUCCESS ==
-        find_attrib_in_list(attr_count, attr_list, SAI_ACL_ENTRY_ATTR_FIELD_INNER_VLAN_PRI, &inner_vlan_pri,
-                            &inner_vlan_pri_index)) {
-        sx_key_descs[key_desc_index].key.inner_pcp  = (inner_vlan_pri->aclfield.data.u8) & 0x07;
-        sx_key_descs[key_desc_index].mask.inner_pcp = (inner_vlan_pri->aclfield.mask.u8) & 0x07;
-        sx_key_descs[key_desc_index].key_id         = FLEX_ACL_KEY_INNER_PCP;
-        key_desc_index++;
-    }
-
-    if (SAI_STATUS_SUCCESS ==
-        find_attrib_in_list(attr_count, attr_list, SAI_ACL_ENTRY_ATTR_FIELD_INNER_VLAN_CFI, &inner_vlan_cfi,
-                            &inner_vlan_cfi_index)) {
-        sx_key_descs[key_desc_index].key.inner_dei  = (inner_vlan_cfi->aclfield.data.u8) & 0x01;
-        sx_key_descs[key_desc_index].mask.inner_dei = (inner_vlan_cfi->aclfield.mask.u8) & 0x01;
-        sx_key_descs[key_desc_index].key_id         = FLEX_ACL_KEY_INNER_DEI;
-        key_desc_index++;
-    }
-
-    if (SAI_STATUS_SUCCESS ==
-        find_attrib_in_list(attr_count, attr_list, SAI_ACL_ENTRY_ATTR_FIELD_L4_SRC_PORT, &L4_src_port,
-                            &L4_src_port_index)) {
-        sx_key_descs[key_desc_index].key.l4_source_port  = L4_src_port->aclfield.data.u16;
-        sx_key_descs[key_desc_index].mask.l4_source_port = L4_src_port->aclfield.mask.u16;
-        sx_key_descs[key_desc_index].key_id              = FLEX_ACL_KEY_L4_SOURCE_PORT;
-        key_desc_index++;
-    }
-
-    if (SAI_STATUS_SUCCESS ==
-        find_attrib_in_list(attr_count, attr_list, SAI_ACL_ENTRY_ATTR_FIELD_L4_DST_PORT, &L4_dst_port,
-                            &L4_dst_port_index)) {
-        sx_key_descs[key_desc_index].key.l4_destination_port  = L4_dst_port->aclfield.data.u16;
-        sx_key_descs[key_desc_index].mask.l4_destination_port = L4_dst_port->aclfield.mask.u16;
-        sx_key_descs[key_desc_index].key_id                   = FLEX_ACL_KEY_L4_DESTINATION_PORT;
-        key_desc_index++;
-    }
-
-    if (SAI_STATUS_SUCCESS ==
-        find_attrib_in_list(attr_count, attr_list, SAI_ACL_ENTRY_ATTR_FIELD_ETHER_TYPE, &ether_type,
-                            &ether_type_index)) {
-        sx_key_descs[key_desc_index].key.ethertype  = ether_type->aclfield.data.u16;
-        sx_key_descs[key_desc_index].mask.ethertype = ether_type->aclfield.mask.u16;
-        sx_key_descs[key_desc_index].key_id         = FLEX_ACL_KEY_ETHERTYPE;
-        key_desc_index++;
-    }
-
-    if (SAI_STATUS_SUCCESS ==
-        find_attrib_in_list(attr_count, attr_list, SAI_ACL_ENTRY_ATTR_FIELD_IP_PROTOCOL, &ip_protocol,
-                            &ip_protocol_index)) {
-        sx_key_descs[key_desc_index].key.ip_proto  = ip_protocol->aclfield.data.u8;
-        sx_key_descs[key_desc_index].mask.ip_proto = ip_protocol->aclfield.mask.u8;
-        sx_key_descs[key_desc_index].key_id        = FLEX_ACL_KEY_IP_PROTO;
-        key_desc_index++;
-    }
-
-    if (SAI_STATUS_SUCCESS ==
         find_attrib_in_list(attr_count, attr_list, SAI_ACL_ENTRY_ATTR_FIELD_IP_IDENTIFICATION, &ip_ident,
                             &ip_ident_index)) {
         if (false == is_ip_idnet_used) {
@@ -8464,268 +8015,6 @@ sai_status_t mlnx_create_acl_entry(_Out_ sai_object_id_t     * acl_entry_id,
         }
 
         key_desc_index += ACL_IP_IDENT_FIELD_BYTE_COUNT;
-    }
-
-    if (SAI_STATUS_SUCCESS ==
-        find_attrib_in_list(attr_count, attr_list, SAI_ACL_ENTRY_ATTR_FIELD_TOS, &ip_tos, &ip_tos_index)) {
-        tos_attrib_present = true;
-
-        sx_key_descs[key_desc_index].key.dscp  = (ip_tos->aclfield.data.u8 >> 0x02) & 0x3f;
-        sx_key_descs[key_desc_index].mask.dscp = (ip_tos->aclfield.mask.u8 >> 0x02) & 0x3f;
-        sx_key_descs[key_desc_index].key_id    = FLEX_ACL_KEY_DSCP;
-        key_desc_index++;
-
-        sx_key_descs[key_desc_index].key.ecn  = (ip_tos->aclfield.data.u8) & 0x03;
-        sx_key_descs[key_desc_index].mask.ecn = (ip_tos->aclfield.mask.u8) & 0x03;
-        sx_key_descs[key_desc_index].key_id   = FLEX_ACL_KEY_ECN;
-        key_desc_index++;
-    }
-    if (SAI_STATUS_SUCCESS ==
-        find_attrib_in_list(attr_count, attr_list, SAI_ACL_ENTRY_ATTR_FIELD_DSCP, &dscp, &dscp_index)) {
-        if (true == tos_attrib_present) {
-            SX_LOG_ERR(" tos attribute already received. \n");
-            status = SAI_STATUS_INVALID_ATTR_VALUE_0 + dscp_index;
-            goto out;
-        }
-        sx_key_descs[key_desc_index].key.dscp  = (dscp->aclfield.data.u8) & 0x3f;
-        sx_key_descs[key_desc_index].mask.dscp = (dscp->aclfield.mask.u8) & 0x3f;
-        sx_key_descs[key_desc_index].key_id    = FLEX_ACL_KEY_DSCP;
-        key_desc_index++;
-    }
-
-    if (SAI_STATUS_SUCCESS ==
-        find_attrib_in_list(attr_count, attr_list, SAI_ACL_ENTRY_ATTR_FIELD_ECN, &ecn, &ecn_index)) {
-        if (true == tos_attrib_present) {
-            SX_LOG_ERR(" tos attribute already received. \n");
-            status = SAI_STATUS_INVALID_ATTR_VALUE_0 + ecn_index;
-            goto out;
-        }
-        sx_key_descs[key_desc_index].key.ecn  = (ecn->aclfield.data.u8) & 0x03;
-        sx_key_descs[key_desc_index].mask.ecn = (ecn->aclfield.mask.u8) & 0x03;
-        sx_key_descs[key_desc_index].key_id   = FLEX_ACL_KEY_ECN;
-        key_desc_index++;
-    }
-
-    if (SAI_STATUS_SUCCESS ==
-        find_attrib_in_list(attr_count, attr_list, SAI_ACL_ENTRY_ATTR_FIELD_TTL, &ttl, &ttl_index)) {
-        sx_key_descs[key_desc_index].key.ttl  = ttl->aclfield.data.u8;
-        sx_key_descs[key_desc_index].mask.ttl = ttl->aclfield.mask.u8;
-        sx_key_descs[key_desc_index].key_id   = FLEX_ACL_KEY_TTL;
-        key_desc_index++;
-    }
-
-    if (SAI_STATUS_SUCCESS ==
-        find_attrib_in_list(attr_count, attr_list, SAI_ACL_ENTRY_ATTR_FIELD_IP_FLAGS, &ip_flags, &ip_flags_index)) {
-        SX_LOG_ERR(" Not supported in present phase \n");
-        status = SAI_STATUS_NOT_SUPPORTED;
-        goto out;
-
-        /*
-         *  sx_key_descs[key_desc_index].key.ip_flags = ip_flags->aclfield.data.u8;
-         *  sx_key_descs[key_desc_index].mask.ip_flags = ip_flags->aclfield.data.u8;
-         *  sx_key_descs[key_desc_index].key_id = FLEX_ACL_KEY_IP_FLAGS;
-         *  key_desc_index++;
-         */
-    }
-
-    if (SAI_STATUS_SUCCESS ==
-        find_attrib_in_list(attr_count, attr_list, SAI_ACL_ENTRY_ATTR_FIELD_TCP_FLAGS, &tcp_flags, &tcp_flags_index)) {
-        sx_key_descs[key_desc_index].key.tcp_control  = tcp_flags->aclfield.data.u8 & 0x3F;
-        sx_key_descs[key_desc_index].mask.tcp_control = tcp_flags->aclfield.data.u8 & 0x3F;
-        sx_key_descs[key_desc_index].key_id           = FLEX_ACL_KEY_TCP_CONTROL;
-        key_desc_index++;
-    }
-
-    if (SAI_STATUS_SUCCESS ==
-        find_attrib_in_list(attr_count, attr_list, SAI_ACL_ENTRY_ATTR_FIELD_ACL_IP_FRAG, &ip_frag, &ip_frag_index)) {
-        if (SAI_ACL_IP_FRAG_ANY == ip_frag->aclfield.data.s32) {
-            sx_key_descs[key_desc_index].key.ip_fragmented  = true;
-            sx_key_descs[key_desc_index].mask.ip_fragmented = true;
-            sx_key_descs[key_desc_index].key_id             = FLEX_ACL_KEY_IP_FRAGMENTED;
-            key_desc_index++;
-        }
-
-        if (SAI_ACL_IP_FRAG_NON_FRAG == ip_frag->aclfield.data.s32) {
-            sx_key_descs[key_desc_index].key.ip_fragmented  = false;
-            sx_key_descs[key_desc_index].mask.ip_fragmented = true;
-            sx_key_descs[key_desc_index].key_id             = FLEX_ACL_KEY_IP_FRAGMENTED;
-            key_desc_index++;
-        }
-
-        if (SAI_ACL_IP_FRAG_NON_FRAG_OR_HEAD == ip_frag->aclfield.data.s32) {
-            sx_key_descs[key_desc_index].key.ip_fragment_not_first  = false;
-            sx_key_descs[key_desc_index].mask.ip_fragment_not_first = true;
-            sx_key_descs[key_desc_index].key_id                     =
-                FLEX_ACL_KEY_IP_FRAGMENT_NOT_FIRST;
-            key_desc_index++;
-        }
-
-        if (SAI_ACL_IP_FRAG_HEAD == ip_frag->aclfield.data.s32) {
-            sx_key_descs[key_desc_index].key.ip_fragmented  = true;
-            sx_key_descs[key_desc_index].mask.ip_fragmented = true;
-            sx_key_descs[key_desc_index].key_id             = FLEX_ACL_KEY_IP_FRAGMENTED;
-            key_desc_index++;
-            sx_key_descs[key_desc_index].key.ip_fragment_not_first  = false;
-            sx_key_descs[key_desc_index].mask.ip_fragment_not_first = true;
-            sx_key_descs[key_desc_index].key_id                     =
-                FLEX_ACL_KEY_IP_FRAGMENT_NOT_FIRST;
-            key_desc_index++;
-        }
-
-        if (SAI_ACL_IP_FRAG_NON_HEAD == ip_frag->aclfield.data.s32) {
-            sx_key_descs[key_desc_index].key.ip_fragmented  = true;
-            sx_key_descs[key_desc_index].mask.ip_fragmented = true;
-            sx_key_descs[key_desc_index].key_id             = FLEX_ACL_KEY_IP_FRAGMENTED;
-            key_desc_index++;
-            sx_key_descs[key_desc_index].key.ip_fragment_not_first  = true;
-            sx_key_descs[key_desc_index].mask.ip_fragment_not_first = true;
-            sx_key_descs[key_desc_index].key_id                     =
-                FLEX_ACL_KEY_IP_FRAGMENT_NOT_FIRST;
-            key_desc_index++;
-        }
-    }
-
-    if (SAI_STATUS_SUCCESS ==
-        find_attrib_in_list(attr_count, attr_list, SAI_ACL_ENTRY_ATTR_FIELD_TC, &tc, &tc_index)) {
-        sx_key_descs[key_desc_index].key.switch_prio  = tc->aclfield.data.u8 & 0xF;
-        sx_key_descs[key_desc_index].mask.switch_prio = tc->aclfield.mask.u8 & 0xF;
-        sx_key_descs[key_desc_index].key_id           = FLEX_ACL_KEY_SWITCH_PRIO;
-        key_desc_index++;
-    }
-    if (SAI_STATUS_SUCCESS ==
-        find_attrib_in_list(attr_count, attr_list, SAI_ACL_ENTRY_ATTR_FIELD_ACL_IP_TYPE, &ip_type, &ip_type_index)) {
-        if (SAI_ACL_IP_TYPE_ANY == ip_type->aclfield.data.s32) {
-            /* Do Nothing */
-        }
-        if (SAI_ACL_IP_TYPE_IP == ip_type->aclfield.data.s32) {
-            sx_key_descs[key_desc_index].key.ip_ok  = true;
-            sx_key_descs[key_desc_index].mask.ip_ok = true;
-            sx_key_descs[key_desc_index].key_id     = FLEX_ACL_KEY_IP_OK;
-            key_desc_index++;
-        }
-
-        if (SAI_ACL_IP_TYPE_NON_IP == ip_type->aclfield.data.s32) {
-            sx_key_descs[key_desc_index].key.ip_ok  = false;
-            sx_key_descs[key_desc_index].mask.ip_ok = true;
-            sx_key_descs[key_desc_index].key_id     = FLEX_ACL_KEY_IP_OK;
-            key_desc_index++;
-        }
-
-        if (SAI_ACL_IP_TYPE_IPv4ANY == ip_type->aclfield.data.s32) {
-            sx_key_descs[key_desc_index].key.is_ip_v4  = true;
-            sx_key_descs[key_desc_index].mask.is_ip_v4 = true;
-            sx_key_descs[key_desc_index].key_id        = FLEX_ACL_KEY_IS_IP_V4;
-            key_desc_index++;
-        }
-
-        if (SAI_ACL_IP_TYPE_NON_IPv4 == ip_type->aclfield.data.s32) {
-            sx_key_descs[key_desc_index].key.is_ip_v4  = false;
-            sx_key_descs[key_desc_index].mask.is_ip_v4 = true;
-            sx_key_descs[key_desc_index].key_id        = FLEX_ACL_KEY_IS_IP_V4;
-            key_desc_index++;
-        }
-
-        if (SAI_ACL_IP_TYPE_IPv6ANY == ip_type->aclfield.data.s32) {
-            sx_key_descs[key_desc_index].key.l3_type  = SX_ACL_L3_TYPE_IPV6;
-            sx_key_descs[key_desc_index].mask.l3_type = true;
-            sx_key_descs[key_desc_index].key_id       = FLEX_ACL_KEY_L3_TYPE;
-            key_desc_index++;
-        }
-
-        if (SAI_ACL_IP_TYPE_NON_IPv6 == ip_type->aclfield.data.s32) {
-            SX_LOG_ERR(" ip_v6 IP TYPE not supported for current phase \n");
-            status = SAI_STATUS_NOT_SUPPORTED;
-            goto out;
-            /*
-             *  sx_key_descs[key_desc_index].key.is_ip_v6 = 0;
-             *  sx_key_descs[key_desc_index].mask.is_ip_v6 = 0xFF;
-             *  sx_key_descs[key_desc_index].key_id = FLEX_ACL_KEY_IS_IP_V6;
-             *  key_desc_index++;
-             */
-        }
-
-        if (SAI_ACL_IP_TYPE_ARP == ip_type->aclfield.data.s32) {
-            sx_key_descs[key_desc_index].key.is_arp  = true;
-            sx_key_descs[key_desc_index].mask.is_arp = true;
-            sx_key_descs[key_desc_index].key_id      = FLEX_ACL_KEY_IS_ARP;
-            key_desc_index++;
-        }
-
-        if ((SAI_ACL_IP_TYPE_ARP_REQUEST == ip_type->aclfield.data.s32) ||
-            (SAI_ACL_IP_TYPE_ARP_REPLY == ip_type->aclfield.data.s32)) {
-            SX_LOG_ERR(" Arp Request/Reply Not supported \n");
-            status = SAI_STATUS_NOT_SUPPORTED;
-            goto out;
-        }
-    }
-
-    if (SAI_STATUS_SUCCESS ==
-        find_attrib_in_list(attr_count, attr_list, SAI_ACL_ENTRY_ATTR_FIELD_ACL_USER_META, &user_meta,
-                            &user_meta_index)) {
-        if ((user_meta->aclfield.data.u32 <= ACL_USER_META_RANGE_MAX) &&
-            (user_meta->aclfield.mask.u32 <= ACL_USER_META_RANGE_MAX)) {
-            sx_key_descs[key_desc_index].key.user_token  = (uint16_t)user_meta->aclfield.data.u32;
-            sx_key_descs[key_desc_index].mask.user_token = (uint16_t)user_meta->aclfield.mask.u32;
-            sx_key_descs[key_desc_index].key_id          = FLEX_ACL_KEY_USER_TOKEN;
-            key_desc_index++;
-        } else {
-            SX_LOG_ERR(" ACL user Meta values %u %u is out of range [%d, %d]\n",
-                       user_meta->aclfield.data.u32, user_meta->aclfield.mask.u32,
-                       ACL_USER_META_RANGE_MIN, ACL_USER_META_RANGE_MAX);
-            status = SAI_STATUS_INVALID_ATTR_VALUE_0 + user_meta_index;
-            goto out;
-        }
-    }
-
-    if (SAI_STATUS_SUCCESS ==
-        find_attrib_in_list(attr_count, attr_list, SAI_ACL_TABLE_ATTR_FIELD_PACKET_VLAN, &vlan_tags,
-                            &vlan_tags_index)) {
-        if (SAI_PACKET_VLAN_UNTAG == vlan_tags->aclfield.data.s32) {
-            sx_key_descs[key_desc_index].key_id           = FLEX_ACL_KEY_VLAN_TAGGED;
-            sx_key_descs[key_desc_index].key.vlan_tagged  = false;
-            sx_key_descs[key_desc_index].mask.vlan_tagged = true;
-            key_desc_index++;
-        }
-
-        if (SAI_PACKET_VLAN_SINGLE_OUTER_TAG == vlan_tags->aclfield.data.s32) {
-            sx_key_descs[key_desc_index].key_id           = FLEX_ACL_KEY_VLAN_TAGGED;
-            sx_key_descs[key_desc_index].key.vlan_tagged  = true;
-            sx_key_descs[key_desc_index].mask.vlan_tagged = true;
-            key_desc_index++;
-
-            sx_key_descs[key_desc_index].key_id                = FLEX_ACL_KEY_INNER_VLAN_VALID;
-            sx_key_descs[key_desc_index].key.inner_vlan_valid  = false;
-            sx_key_descs[key_desc_index].mask.inner_vlan_valid = true;
-            key_desc_index++;
-        }
-
-        if (SAI_PACKET_VLAN_DOUBLE_TAG == vlan_tags->aclfield.data.s32) {
-            sx_key_descs[key_desc_index].key_id           = FLEX_ACL_KEY_VLAN_TAGGED;
-            sx_key_descs[key_desc_index].key.vlan_tagged  = true;
-            sx_key_descs[key_desc_index].mask.vlan_tagged = true;
-            key_desc_index++;
-
-            sx_key_descs[key_desc_index].key_id                = FLEX_ACL_KEY_INNER_VLAN_VALID;
-            sx_key_descs[key_desc_index].key.inner_vlan_valid  = true;
-            sx_key_descs[key_desc_index].mask.inner_vlan_valid = true;
-            key_desc_index++;
-        }
-    }
-
-    if (SAI_STATUS_SUCCESS ==
-        find_attrib_in_list(attr_count, attr_list, SAI_ACL_ENTRY_ATTR_FIELD_ACL_RANGE_TYPE,
-                            &range_list, &range_list_index)) {
-        status = mlnx_acl_range_validate_and_fetch(&range_list->aclfield.data.objlist,
-                                                   &sx_key_descs[key_desc_index].key.l4_port_range,
-                                                   acl_table_index);
-        if (SAI_ERR(status)) {
-            status = SAI_STATUS_INVALID_ATTR_VALUE_0 + range_list_index;
-            goto out;
-        }
-
-        sx_key_descs[key_desc_index].key_id             = FLEX_ACL_KEY_L4_PORT_RANGE;
-        sx_key_descs[key_desc_index].mask.l4_port_range = true;
-        key_desc_index++;
     }
 
     /* ACL Field Atributes ...End */
@@ -8807,7 +8096,7 @@ sai_status_t mlnx_create_acl_entry(_Out_ sai_object_id_t     * acl_entry_id,
                 goto out;
             }
 
-            entry_redirect_data.pbs_type       = ACL_ENTRY_REDIRECT_TYPE_REDIRECT_LIST;
+            entry_redirect_data.redirect_type  = ACL_ENTRY_REDIRECT_TYPE_REDIRECT_LIST;
             entry_redirect_data.pbs_type       = ACL_ENTRY_PBS_TYPE_PORT;
             entry_redirect_data.port_pbs_index = pbs_index;
 
@@ -9221,7 +8510,9 @@ out:
     if (SAI_STATUS_SUCCESS != status) {
         SX_LOG_ERR(" Failed to create Entry \n");
 
-        acl_db_remove_entry_from_table(acl_table_index, acl_entry_index, db_indexes_num);
+        if (db_indexes_num > 0) {
+            acl_db_remove_entry_from_table(acl_table_index, acl_entry_index, db_indexes_num);
+        }
 
         for (ii = 0; ii < psort_offsets_num; ii++) {
             release_psort_offset(acl_table_index, entry_priority, offsets_list_p[ii]);
@@ -9274,35 +8565,16 @@ sai_status_t mlnx_create_acl_table(_Out_ sai_object_id_t     * acl_table_id,
     sx_status_t                  sx_status;
     sx_acl_direction_t           sx_acl_direction;
     sai_acl_stage_t              sai_acl_stage;
-    const sai_attribute_value_t *stage, *table_size;
-    const sai_attribute_value_t *src_mac, *dst_mac, *src_ip, *dst_ip, *inner_src_ip, *inner_dst_ip;
-    const sai_attribute_value_t *outer_vlan_id, *outer_vlan_pri, *outer_vlan_cfi;
-    const sai_attribute_value_t *L4_src_port, *L4_dst_port;
-    const sai_attribute_value_t *ether_type, *ip_protocol;
-    const sai_attribute_value_t *dscp, *ecn, *ip_ident;
+    const sai_attribute_value_t *stage, *table_size, *acl_action_list, *ip_ident;
     const sai_attribute_value_t *in_port, *out_port, *in_ports, *out_ports;
-    const sai_attribute_value_t *ip_type, *ip_frag, *ip_flags, *tcp_flags;
-    const sai_attribute_value_t *tc, *ttl, *tos;
-    const sai_attribute_value_t *inner_vlan_pri, *inner_vlan_cfi, *bind_point_types;
-    const sai_attribute_value_t *user_meta, *src_ip_v6, *dst_ip_v6, *vlan_tags, *range_type;
-    const sai_attribute_value_t *inner_dst_ip_v6, *inner_src_ip_v6;
+    const sai_attribute_value_t *bind_point_types, *range_type;
     acl_bind_point_type_list_t   table_bind_point_types;
     sai_acl_range_type_t         range_types[SAI_ACL_RANGE_TYPE_COUNT] = {0};
     uint32_t                     range_type_count                      = 0;
-    uint32_t                     src_ip_v6_index, dst_ip_v6_index, range_type_index;
-    uint32_t                     inner_vlan_pri_index, inner_vlan_cfi_index;
-    uint32_t                     user_meta_index, vlan_tags_index;
-    uint32_t                     stage_index, table_size_index;
-    uint32_t                     src_mac_index, dst_mac_index, src_ip_index, dst_ip_index;
-    uint32_t                     inner_src_ip_index, inner_dst_ip_index;
-    uint32_t                     inner_src_ip_v6_index, inner_dst_ip_v6_index;
-    uint32_t                     outer_vlan_id_index, outer_vlan_pri_index, outer_vlan_cfi_index;
-    uint32_t                     L4_src_port_index, L4_dst_port_index;
-    uint32_t                     ether_type_index, ip_protocol_index;
-    uint32_t                     dscp_index, ecn_index, ip_ident_index;
+    uint32_t                     range_type_index;
+    uint32_t                     stage_index, table_size_index, acl_action_list_index, ip_ident_index;
     uint32_t                     in_port_index, out_port_index, in_ports_index, out_ports_index;
-    uint32_t                     ip_type_index, ip_frag_index, ip_flags_index, tcp_flags_index;
-    uint32_t                     tc_index, ttl_index, tos_index, bind_point_types_index;
+    uint32_t                     bind_point_types_index;
     uint32_t                     key_count      = 0, key_index = 0;
     uint32_t                     acl_table_size = 0;
     sx_acl_size_t                sx_region_size;
@@ -9315,8 +8587,7 @@ sai_status_t mlnx_create_acl_table(_Out_ sai_object_id_t     * acl_table_id,
     sx_acl_id_t                  acl_id;
     char                         list_str[MAX_LIST_VALUE_STR_LEN];
     char                         key_str[MAX_KEY_STR_LEN];
-    sx_acl_key_t                 keys[SX_FLEX_ACL_MAX_FIELDS_IN_KEY];
-    bool                         is_dscp_present = false, is_ecn_present = false;
+    sx_acl_key_t                 keys[SX_FLEX_ACL_MAX_FIELDS_IN_KEY] = {FLEX_ACL_KEY_INVALID};
     bool                         is_dynamic_sized;
     uint32_t                     acl_table_index = 0, ii;
     bool                         key_created     = false, region_created = false;
@@ -9340,105 +8611,29 @@ sai_status_t mlnx_create_acl_table(_Out_ sai_object_id_t     * acl_table_id,
     sai_attr_list_to_str(attr_count, attr_list, acl_table_attribs, MAX_LIST_VALUE_STR_LEN, list_str);
     SX_LOG_NTC("Create ACL Table, %s\n", list_str);
 
-    if (SAI_STATUS_SUCCESS !=
-        find_attrib_in_list(attr_count, attr_list, SAI_ACL_TABLE_ATTR_ACL_STAGE, &stage, &stage_index)) {
-        SX_LOG_ERR(" Missing mandatory attribute SAI_ACL_TABLE_ATTR_ACL_STAGE\n");
-        status = SAI_STATUS_MANDATORY_ATTRIBUTE_MISSING;
-        goto out;
-    }
+    status = find_attrib_in_list(attr_count, attr_list, SAI_ACL_TABLE_ATTR_ACL_STAGE, &stage, &stage_index);
+    assert(SAI_STATUS_SUCCESS == status);
 
     if ((SAI_ACL_STAGE_INGRESS != stage->s32) &&
         (SAI_ACL_STAGE_EGRESS != stage->s32)) {
         SX_LOG_ERR("Invalid value for SAI_ACL_TABLE_ATTR_ACL_STAGE - %d\n", stage->s32);
-        status = SAI_STATUS_INVALID_ATTR_VALUE_0 + stage_index;
-        goto out;
+        return SAI_STATUS_INVALID_ATTR_VALUE_0 + stage_index;
     }
 
     sai_acl_stage = stage->s32;
 
-    if (SAI_STATUS_SUCCESS ==
-        find_attrib_in_list(attr_count, attr_list, SAI_ACL_TABLE_ATTR_FIELD_SRC_IPv6, &src_ip_v6, &src_ip_v6_index)) {
-        if (true == src_ip_v6->booldata) {
-            keys[key_index] = FLEX_ACL_KEY_SIPV6;
-            key_index++;
+    status = find_attrib_in_list(attr_count, attr_list, SAI_ACL_TABLE_ATTR_ACL_ACTION_TYPE_LIST,
+                                 &acl_action_list, &acl_action_list_index);
+    if (SAI_STATUS_SUCCESS == status) {
+        status = mlnx_acl_action_list_validate(&acl_action_list->s32list, sai_acl_stage, acl_action_list_index);
+        if (SAI_ERR(status)) {
+            return status;
         }
     }
 
-    if (SAI_STATUS_SUCCESS ==
-        find_attrib_in_list(attr_count, attr_list, SAI_ACL_TABLE_ATTR_FIELD_DST_IPv6, &dst_ip_v6, &dst_ip_v6_index)) {
-        if (true == dst_ip_v6->booldata) {
-            keys[key_index] = FLEX_ACL_KEY_DIPV6;
-            key_index++;
-        }
-    }
-
-    if (SAI_STATUS_SUCCESS ==
-        find_attrib_in_list(attr_count, attr_list, SAI_ACL_TABLE_ATTR_FIELD_INNER_DST_IPv6,
-                            &inner_dst_ip_v6, &inner_dst_ip_v6_index)) {
-        if (true == inner_dst_ip_v6->booldata) {
-            keys[key_index] = FLEX_ACL_KEY_INNER_DIPV6;
-            key_index++;
-        }
-    }
-
-    if (SAI_STATUS_SUCCESS ==
-        find_attrib_in_list(attr_count, attr_list, SAI_ACL_TABLE_ATTR_FIELD_INNER_SRC_IPv6,
-                            &inner_src_ip_v6, &inner_src_ip_v6_index)) {
-        if (true == inner_src_ip_v6->booldata) {
-            keys[key_index] = FLEX_ACL_KEY_INNER_SIPV6;
-            key_index++;
-        }
-    }
-
-
-    if (SAI_STATUS_SUCCESS ==
-        find_attrib_in_list(attr_count, attr_list, SAI_ACL_TABLE_ATTR_FIELD_SRC_MAC, &src_mac, &src_mac_index)) {
-        if (true == src_mac->booldata) {
-            keys[key_index] = FLEX_ACL_KEY_SMAC;
-            key_index++;
-        }
-    }
-
-    if (SAI_STATUS_SUCCESS ==
-        find_attrib_in_list(attr_count, attr_list, SAI_ACL_TABLE_ATTR_FIELD_DST_MAC, &dst_mac, &dst_mac_index)) {
-        if (true == dst_mac->booldata) {
-            keys[key_index] = FLEX_ACL_KEY_DMAC;
-            key_index++;
-        }
-    }
-
-    if (SAI_STATUS_SUCCESS ==
-        find_attrib_in_list(attr_count, attr_list, SAI_ACL_TABLE_ATTR_FIELD_SRC_IP, &src_ip, &src_ip_index)) {
-        if (true == src_ip->booldata) {
-            keys[key_index] = FLEX_ACL_KEY_SIP;
-            key_index++;
-        }
-    }
-
-    if (SAI_STATUS_SUCCESS ==
-        find_attrib_in_list(attr_count, attr_list, SAI_ACL_TABLE_ATTR_FIELD_DST_IP, &dst_ip, &dst_ip_index)) {
-        if (true == dst_ip->booldata) {
-            keys[key_index] = FLEX_ACL_KEY_DIP;
-            key_index++;
-        }
-    }
-
-    if (SAI_STATUS_SUCCESS ==
-        find_attrib_in_list(attr_count, attr_list, SAI_ACL_TABLE_ATTR_FIELD_INNER_SRC_IP,
-                            &inner_src_ip, &inner_src_ip_index)) {
-        if (true == inner_src_ip->booldata) {
-            keys[key_index] = FLEX_ACL_KEY_INNER_SIP;
-            key_index++;
-        }
-    }
-
-    if (SAI_STATUS_SUCCESS ==
-        find_attrib_in_list(attr_count, attr_list, SAI_ACL_TABLE_ATTR_FIELD_INNER_DST_IP,
-                            &inner_dst_ip, &inner_dst_ip_index)) {
-        if (true == inner_dst_ip->booldata) {
-            keys[key_index] = FLEX_ACL_KEY_INNER_DIP;
-            key_index++;
-        }
+    status = mlnx_acl_table_fields_to_sx(attr_list, attr_count, keys, &key_index);
+    if (SAI_ERR(status)) {
+        return status;
     }
 
     if (SAI_STATUS_SUCCESS ==
@@ -9474,105 +8669,6 @@ sai_status_t mlnx_create_acl_table(_Out_ sai_object_id_t     * acl_table_id,
     }
 
     if (SAI_STATUS_SUCCESS ==
-        find_attrib_in_list(attr_count, attr_list, SAI_ACL_TABLE_ATTR_FIELD_OUTER_VLAN_ID, &outer_vlan_id,
-                            &outer_vlan_id_index)) {
-        if (true == outer_vlan_id->booldata) {
-            keys[key_index] = FLEX_ACL_KEY_VLAN_ID;
-            key_index++;
-        }
-    }
-
-    if (SAI_STATUS_SUCCESS ==
-        find_attrib_in_list(attr_count, attr_list, SAI_ACL_TABLE_ATTR_FIELD_OUTER_VLAN_PRI, &outer_vlan_pri,
-                            &outer_vlan_pri_index)) {
-        if (true == outer_vlan_pri->booldata) {
-            keys[key_index] = FLEX_ACL_KEY_PCP;
-            key_index++;
-        }
-    }
-
-    if (SAI_STATUS_SUCCESS ==
-        find_attrib_in_list(attr_count, attr_list, SAI_ACL_TABLE_ATTR_FIELD_OUTER_VLAN_CFI, &outer_vlan_cfi,
-                            &outer_vlan_cfi_index)) {
-        if (true == outer_vlan_cfi->booldata) {
-            keys[key_index] = FLEX_ACL_KEY_DEI;
-            key_index++;
-        }
-    }
-/*
- *   if (SAI_STATUS_SUCCESS ==
- *       find_attrib_in_list(attr_count, attr_list, SAI_ACL_TABLE_ATTR_FIELD_INNER_VLAN_ID, &inner_vlan_id,
- *                           &inner_vlan_id_index)) {
- *       if (true == inner_vlan_id->booldata) {
- *           keys[key_index] = FLEX_ACL_KEY_INNER_VLAN_ID;
- *           key_index++;
- *       }
- *   }*/
-
-    if (SAI_STATUS_SUCCESS ==
-        find_attrib_in_list(attr_count, attr_list, SAI_ACL_TABLE_ATTR_FIELD_INNER_VLAN_PRI, &inner_vlan_pri,
-                            &inner_vlan_pri_index)) {
-        if (true == inner_vlan_pri->booldata) {
-            keys[key_index] = FLEX_ACL_KEY_INNER_PCP;
-            key_index++;
-        }
-    }
-
-    if (SAI_STATUS_SUCCESS ==
-        find_attrib_in_list(attr_count, attr_list, SAI_ACL_TABLE_ATTR_FIELD_INNER_VLAN_CFI, &inner_vlan_cfi,
-                            &inner_vlan_cfi_index)) {
-        if (true == inner_vlan_cfi->booldata) {
-            keys[key_index] = FLEX_ACL_KEY_INNER_DEI;
-            key_index++;
-        }
-    }
-
-    if (SAI_STATUS_SUCCESS ==
-        find_attrib_in_list(attr_count, attr_list, SAI_ACL_TABLE_ATTR_FIELD_L4_SRC_PORT, &L4_src_port,
-                            &L4_src_port_index)) {
-        if (true == L4_src_port->booldata) {
-            keys[key_index] = FLEX_ACL_KEY_L4_SOURCE_PORT;
-            key_index++;
-        }
-    }
-
-    if (SAI_STATUS_SUCCESS ==
-        find_attrib_in_list(attr_count, attr_list, SAI_ACL_TABLE_ATTR_FIELD_L4_DST_PORT, &L4_dst_port,
-                            &L4_dst_port_index)) {
-        if (true == L4_dst_port->booldata) {
-            keys[key_index] = FLEX_ACL_KEY_L4_DESTINATION_PORT;
-            key_index++;
-        }
-    }
-
-    if (SAI_STATUS_SUCCESS ==
-        find_attrib_in_list(attr_count, attr_list, SAI_ACL_TABLE_ATTR_FIELD_ETHER_TYPE, &ether_type,
-                            &ether_type_index)) {
-        if (true == ether_type->booldata) {
-            keys[key_index] = FLEX_ACL_KEY_ETHERTYPE;
-            key_index++;
-        }
-    }
-
-    if (SAI_STATUS_SUCCESS ==
-        find_attrib_in_list(attr_count, attr_list, SAI_ACL_TABLE_ATTR_FIELD_IP_PROTOCOL,  &ip_protocol,
-                            &ip_protocol_index)) {
-        if (true == ip_protocol->booldata) {
-            keys[key_index] = FLEX_ACL_KEY_IP_PROTO;
-            key_index++;
-        }
-    }
-
-    if (SAI_STATUS_SUCCESS ==
-        find_attrib_in_list(attr_count, attr_list, SAI_ACL_TABLE_ATTR_FIELD_DSCP,  &dscp, &dscp_index)) {
-        if (true == dscp->booldata) {
-            is_dscp_present = true;
-            keys[key_index] = FLEX_ACL_KEY_DSCP;
-            key_index++;
-        }
-    }
-
-    if (SAI_STATUS_SUCCESS ==
         find_attrib_in_list(attr_count, attr_list, SAI_ACL_TABLE_ATTR_FIELD_IP_IDENTIFICATION, &ip_ident,
                             &ip_ident_index)) {
         if (true == ip_ident->booldata) {
@@ -9583,109 +8679,6 @@ sai_status_t mlnx_create_acl_table(_Out_ sai_object_id_t     * acl_table_id,
 
             is_ip_ident_used = true;
             key_index       += ACL_IP_IDENT_FIELD_BYTE_COUNT;
-        }
-    }
-
-    if (SAI_STATUS_SUCCESS ==
-        find_attrib_in_list(attr_count, attr_list, SAI_ACL_TABLE_ATTR_FIELD_ECN,  &ecn, &ecn_index)) {
-        if (true == ecn->booldata) {
-            is_ecn_present  = true;
-            keys[key_index] = FLEX_ACL_KEY_ECN;
-            key_index++;
-        }
-    }
-
-    if (SAI_STATUS_SUCCESS ==
-        find_attrib_in_list(attr_count, attr_list, SAI_ACL_TABLE_ATTR_FIELD_TTL,  &ttl, &ttl_index)) {
-        if (true == ttl->booldata) {
-            keys[key_index] = FLEX_ACL_KEY_TTL;
-            key_index++;
-        }
-    }
-
-    if (SAI_STATUS_SUCCESS ==
-        find_attrib_in_list(attr_count, attr_list, SAI_ACL_TABLE_ATTR_FIELD_TOS,  &tos, &tos_index)) {
-        if (true == tos->booldata) {
-            if (!is_dscp_present) {
-                keys[key_index] = FLEX_ACL_KEY_DSCP;
-                key_index++;
-            }
-            if (!is_ecn_present) {
-                keys[key_index] = FLEX_ACL_KEY_ECN;
-                key_index++;
-            }
-        }
-    }
-
-    if (SAI_STATUS_SUCCESS ==
-        find_attrib_in_list(attr_count, attr_list, SAI_ACL_TABLE_ATTR_FIELD_IP_FLAGS, &ip_flags, &ip_flags_index)) {
-        if (true == ip_flags->booldata) {
-            SX_LOG_ERR(" Not supported in present phase \n");
-            status = SAI_STATUS_NOT_SUPPORTED;
-            goto out;
-            /*
-             *  keys[key_index] = FLEX_ACL_KEY_IP_FLAGS;
-             *  key_index++; */
-        }
-    }
-
-    if (SAI_STATUS_SUCCESS ==
-        find_attrib_in_list(attr_count, attr_list, SAI_ACL_TABLE_ATTR_FIELD_TCP_FLAGS, &tcp_flags, &tcp_flags_index)) {
-        if (true == tcp_flags->booldata) {
-            keys[key_index] = FLEX_ACL_KEY_TCP_CONTROL;
-            key_index++;
-        }
-    }
-
-    if (SAI_STATUS_SUCCESS ==
-        find_attrib_in_list(attr_count, attr_list, SAI_ACL_TABLE_ATTR_FIELD_ACL_IP_TYPE, &ip_type, &ip_type_index)) {
-        if (true == ip_type->booldata) {
-            keys[key_index] = FLEX_ACL_KEY_IP_OK;
-            key_index++;
-            keys[key_index] = FLEX_ACL_KEY_IS_IP_V4;
-            key_index++;
-            keys[key_index] = FLEX_ACL_KEY_L3_TYPE;
-            key_index++;
-            keys[key_index] = FLEX_ACL_KEY_IS_ARP;
-            key_index++;
-        }
-    }
-
-    if (SAI_STATUS_SUCCESS ==
-        find_attrib_in_list(attr_count, attr_list, SAI_ACL_TABLE_ATTR_FIELD_ACL_IP_FRAG, &ip_frag, &ip_frag_index)) {
-        if (true == ip_frag->booldata) {
-            keys[key_index] = FLEX_ACL_KEY_IP_FRAGMENTED;
-            key_index++;
-            keys[key_index] = FLEX_ACL_KEY_IP_FRAGMENT_NOT_FIRST;
-            key_index++;
-        }
-    }
-
-    if (SAI_STATUS_SUCCESS ==
-        find_attrib_in_list(attr_count, attr_list, SAI_ACL_TABLE_ATTR_FIELD_TC,  &tc, &tc_index)) {
-        if (true == tc->booldata) {
-            keys[key_index] = FLEX_ACL_KEY_SWITCH_PRIO;
-            key_index++;
-        }
-    }
-
-    if (SAI_STATUS_SUCCESS ==
-        find_attrib_in_list(attr_count, attr_list, SAI_ACL_TABLE_ATTR_FIELD_ACL_USER_META, &user_meta,
-                            &user_meta_index)) {
-        if (true == user_meta->booldata) {
-            keys[key_index] = FLEX_ACL_KEY_USER_TOKEN;
-            key_index++;
-        }
-    }
-
-    if (SAI_STATUS_SUCCESS ==
-        find_attrib_in_list(attr_count, attr_list, SAI_ACL_TABLE_ATTR_FIELD_PACKET_VLAN, &vlan_tags,
-                            &vlan_tags_index)) {
-        if (true == user_meta->booldata) {
-            keys[key_index] = FLEX_ACL_KEY_VLAN_TAGGED;
-            key_index++;
-            keys[key_index] = FLEX_ACL_KEY_INNER_VLAN_VALID;
-            key_index++;
         }
     }
 
@@ -9726,7 +8719,7 @@ sai_status_t mlnx_create_acl_table(_Out_ sai_object_id_t     * acl_table_id,
                                                                   bind_point_types_index,
                                                                   &table_bind_point_types);
         if (SAI_ERR(status)) {
-            goto out;
+            return status;
         }
     } else {
         table_bind_point_types = default_bind_point_type_list;
@@ -11725,10 +10718,6 @@ static void acl_db_remove_entry_from_table(_In_ uint32_t table_index,
     SX_LOG_ENTER();
 
     assert(ACL_INVALID_DB_INDEX != table_index && ACL_INVALID_DB_INDEX != entry_index);
-
-    if (0 == entry_count) {
-        goto out;
-    }
 
     table            = &acl_db_table(table_index);
     prev_entry_index = acl_db_entry(entry_index).prev;

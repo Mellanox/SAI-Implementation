@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2014. Mellanox Technologies, Ltd. ALL RIGHTS RESERVED.
+ *  Copyright (C) 2017. Mellanox Technologies, Ltd. ALL RIGHTS RESERVED.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License"); you may
  *    not use this file except in compliance with the License. You may obtain
@@ -144,11 +144,11 @@ static sai_status_t mlnx_fill_route_data(sx_uc_route_data_t      *route_data,
         }
         route_data->type = SX_UC_ROUTE_TYPE_NEXT_HOP;
         if (SX_NEXT_HOP_TYPE_TUNNEL_ENCAP == sdk_next_hop.next_hop_key.type) {
-            route_data->next_hop_cnt               = 0;
-            route_data->uc_route_param.ecmp_id     = sdk_ecmp_id;
+            route_data->next_hop_cnt           = 0;
+            route_data->uc_route_param.ecmp_id = sdk_ecmp_id;
         } else {
-            route_data->next_hop_cnt               = sdk_next_hop_cnt;
-            route_data->uc_route_param.ecmp_id     = SX_ROUTER_ECMP_ID_INVALID;
+            route_data->next_hop_cnt           = sdk_next_hop_cnt;
+            route_data->uc_route_param.ecmp_id = SX_ROUTER_ECMP_ID_INVALID;
         }
         route_data->next_hop_list_p[0].version =
             sdk_next_hop.next_hop_key.next_hop_key_entry.ip_next_hop.address.version;

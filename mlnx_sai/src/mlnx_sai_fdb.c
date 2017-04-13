@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2014. Mellanox Technologies, Ltd. ALL RIGHTS RESERVED.
+ *  Copyright (C) 2017. Mellanox Technologies, Ltd. ALL RIGHTS RESERVED.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License"); you may
  *    not use this file except in compliance with the License. You may obtain
@@ -48,35 +48,10 @@ static sai_status_t mlnx_fdb_action_get(_In_ const sai_object_key_t   *key,
                                         _In_ uint32_t                  attr_index,
                                         _Inout_ vendor_cache_t        *cache,
                                         void                          *arg);
-static sai_status_t check_attrs_port_type(_In_ const sai_object_key_t *key,
-                                          _In_ uint32_t                count,
-                                          _In_ const sai_attribute_t  *attrs)
-{
-    uint32_t ii;
-
-    sai_db_read_lock();
-    for (ii = 0; ii < count; ii++) {
-        const sai_attribute_t *attr  = &attrs[ii];
-        attr_port_type_check_t check = ATTR_PORT_IS_LAG_ENABLED;
-
-        if (attr->id == SAI_FDB_ENTRY_ATTR_PORT_ID) {
-            sai_status_t status;
-
-            status = check_port_type_attr(&attr->value.oid, 1, check, attr->id, ii);
-
-            sai_db_unlock();
-            return status;
-        }
-    }
-    sai_db_unlock();
-
-    return SAI_STATUS_SUCCESS;
-}
-
 static const sai_attribute_entry_t        fdb_attribs[] = {
     { SAI_FDB_ENTRY_ATTR_TYPE, true, true, true, true,
       "FDB entry type", SAI_ATTR_VAL_TYPE_S32 },
-    { SAI_FDB_ENTRY_ATTR_PORT_ID, false, true, true, true,
+    { SAI_FDB_ENTRY_ATTR_BRIDGE_PORT_ID, false, true, true, true,
       "FDB entry port id", SAI_ATTR_VAL_TYPE_OID},
     { SAI_FDB_ENTRY_ATTR_PACKET_ACTION, false, true, true, true,
       "FDB entry packet action", SAI_ATTR_VAL_TYPE_S32 },
@@ -89,7 +64,7 @@ static const sai_vendor_attribute_entry_t fdb_vendor_attribs[] = {
       { true, false, true, true },
       mlnx_fdb_type_get, NULL,
       mlnx_fdb_type_set, NULL },
-    { SAI_FDB_ENTRY_ATTR_PORT_ID,
+    { SAI_FDB_ENTRY_ATTR_BRIDGE_PORT_ID,
       { true, false, true, true },
       { true, false, true, true },
       mlnx_fdb_port_get, NULL,
@@ -310,11 +285,6 @@ static sai_status_t mlnx_create_fdb_entry(_In_ const sai_fdb_entry_t* fdb_entry,
         return status;
     }
 
-    status = check_attrs_port_type(NULL, attr_count, attr_list);
-    if (SAI_ERR(status)) {
-        return status;
-    }
-
     fdb_key_to_str(fdb_entry, key_str);
     sai_attr_list_to_str(attr_count, attr_list, fdb_attribs, MAX_LIST_VALUE_STR_LEN, list_str);
     SX_LOG_NTC("Create FDB entry %s\n", key_str);
@@ -340,7 +310,7 @@ static sai_status_t mlnx_create_fdb_entry(_In_ const sai_fdb_entry_t* fdb_entry,
         goto out;
     }
 
-    status = find_attrib_in_list(attr_count, attr_list, SAI_FDB_ENTRY_ATTR_PORT_ID, &port, &port_index);
+    status = find_attrib_in_list(attr_count, attr_list, SAI_FDB_ENTRY_ATTR_BRIDGE_PORT_ID, &port, &port_index);
     if (SAI_ERR(status) || (SAI_NULL_OBJECT_ID == port->oid)) {
         if (false == SX_FDB_IS_PORT_REDUNDANT(mac_entry.entry_type, mac_entry.action)) {
             SX_LOG_NTC("Failed to create FDB Entry - action (%d) needs a port id attribute\n", packet_action);
@@ -355,7 +325,7 @@ static sai_status_t mlnx_create_fdb_entry(_In_ const sai_fdb_entry_t* fdb_entry,
         /* log port is redundant */
         port_id = 0;
     } else {
-        status = mlnx_object_to_log_port(port->oid, &port_id);
+        status = mlnx_bridge_port_sai_to_log_port(port->oid, &port_id);
         if (SAI_ERR(status)) {
             goto out;
         }
@@ -434,7 +404,6 @@ static sai_status_t mlnx_set_fdb_entry_attribute(_In_ const sai_fdb_entry_t* fdb
 {
     sai_object_key_t key;
     char             key_str[MAX_KEY_STR_LEN];
-    sai_status_t     status;
 
     SX_LOG_ENTER();
 
@@ -443,11 +412,6 @@ static sai_status_t mlnx_set_fdb_entry_attribute(_In_ const sai_fdb_entry_t* fdb
         return SAI_STATUS_INVALID_PARAMETER;
     }
     memcpy(&key.key.fdb_entry, fdb_entry, sizeof(*fdb_entry));
-
-    status = check_attrs_port_type(&key, 1, attr);
-    if (SAI_ERR(status)) {
-        return status;
-    }
 
     fdb_key_to_str(fdb_entry, key_str);
     return sai_set_attribute(&key, key_str, fdb_attribs, fdb_vendor_attribs, attr);
@@ -519,7 +483,7 @@ static sai_status_t mlnx_fdb_port_set(_In_ const sai_object_key_t      *key,
 
         new_mac_entry.log_port = 0;
     } else {
-        status = mlnx_object_to_log_port(value->oid, &port_id);
+        status = mlnx_bridge_port_sai_to_log_port(value->oid, &port_id);
         if (SAI_ERR(status)) {
             return status;
         }
@@ -705,9 +669,13 @@ static sai_status_t mlnx_fdb_port_get(_In_ const sai_object_key_t   *key,
     if (SX_FDB_ACTION_DISCARD == fdb_cache->action) {
         value->oid = SAI_NULL_OBJECT_ID;
     } else {
-        if (SAI_STATUS_SUCCESS != (status = mlnx_log_port_to_object(fdb_cache->log_port, &value->oid))) {
+        sai_db_read_lock();
+        status = mlnx_log_port_to_sai_bridge_port(fdb_cache->log_port, &value->oid);
+        if (SAI_ERR(status)) {
+            sai_db_unlock();
             return status;
         }
+        sai_db_unlock();
     }
 
     SX_LOG_EXIT();
@@ -784,10 +752,12 @@ static sai_status_t mlnx_flush_fdb_entries(_In_ sai_object_id_t        switch_id
 
     if (SAI_STATUS_SUCCESS ==
         (status =
-             find_attrib_in_list(attr_count, attr_list, SAI_FDB_FLUSH_ATTR_PORT_ID,
+             find_attrib_in_list(attr_count, attr_list, SAI_FDB_FLUSH_ATTR_BRIDGE_PORT_ID,
                                  &port, &port_index))) {
         port_found = true;
-        if (SAI_STATUS_SUCCESS != (status = mlnx_object_to_log_port(port->oid, &port_id))) {
+
+        status = mlnx_bridge_port_sai_to_log_port(port->oid, &port_id);
+        if (SAI_ERR(status)) {
             return status;
         }
     }

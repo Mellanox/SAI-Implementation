@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2014. Mellanox Technologies, Ltd. ALL RIGHTS RESERVED.
+ *  Copyright (C) 2017. Mellanox Technologies, Ltd. ALL RIGHTS RESERVED.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License"); you may
  *    not use this file except in compliance with the License. You may obtain
@@ -92,6 +92,10 @@ sai_status_t sai_api_query(_In_ sai_api_t sai_api_id, _Out_ void** api_method_ta
     }
 
     switch (sai_api_id) {
+    case SAI_API_BRIDGE:
+        *(const sai_bridge_api_t**)api_method_table = &mlnx_bridge_api;
+        return SAI_STATUS_SUCCESS;
+
     case SAI_API_SWITCH:
         *(const sai_switch_api_t**)api_method_table = &mlnx_switch_api;
         return SAI_STATUS_SUCCESS;
@@ -136,11 +140,11 @@ sai_status_t sai_api_query(_In_ sai_api_t sai_api_id, _Out_ void** api_method_ta
         *(const sai_acl_api_t**)api_method_table = &mlnx_acl_api;
         return SAI_STATUS_SUCCESS;
 
-    case SAI_API_HOST_INTERFACE:
+    case SAI_API_HOSTIF:
         *(const sai_hostif_api_t**)api_method_table = &mlnx_host_interface_api;
         return SAI_STATUS_SUCCESS;
 
-    case SAI_API_QOS_MAPS:
+    case SAI_API_QOS_MAP:
         *(const sai_qos_map_api_t**)api_method_table = &mlnx_qos_maps_api;
         return SAI_STATUS_SUCCESS;
 
@@ -180,7 +184,7 @@ sai_status_t sai_api_query(_In_ sai_api_t sai_api_id, _Out_ void** api_method_ta
         *(const sai_scheduler_group_api_t**)api_method_table = &mlnx_scheduler_group_api;
         return SAI_STATUS_SUCCESS;
 
-    case SAI_API_BUFFERS:
+    case SAI_API_BUFFER:
         *(const sai_buffer_api_t**)api_method_table = &mlnx_buffer_api;
         return SAI_STATUS_SUCCESS;
 
@@ -275,6 +279,9 @@ sai_status_t sai_log_set(_In_ sai_api_t sai_api_id, _In_ sai_log_level_t log_lev
         mlnx_switch_log_set(severity);
         return mlnx_utils_log_set(severity);
 
+    case SAI_API_BRIDGE:
+        return mlnx_bridge_log_set(severity);
+
     case SAI_API_PORT:
         return mlnx_port_log_set(severity);
 
@@ -305,10 +312,10 @@ sai_status_t sai_log_set(_In_ sai_api_t sai_api_id, _In_ sai_log_level_t log_lev
     case SAI_API_ACL:
         return mlnx_acl_log_set(severity);
 
-    case SAI_API_HOST_INTERFACE:
+    case SAI_API_HOSTIF:
         return mlnx_host_interface_log_set(severity);
 
-    case SAI_API_QOS_MAPS:
+    case SAI_API_QOS_MAP:
         return mlnx_qos_map_log_set(severity);
 
     case SAI_API_WRED:
@@ -338,7 +345,7 @@ sai_status_t sai_log_set(_In_ sai_api_t sai_api_id, _In_ sai_log_level_t log_lev
     case SAI_API_SCHEDULER_GROUP:
         return mlnx_scheduler_group_log_set(severity);
 
-    case SAI_API_BUFFERS:
+    case SAI_API_BUFFER:
         return mlnx_sai_buffer_log_set(severity);
 
     case SAI_API_HASH:
@@ -378,6 +385,27 @@ sai_object_type_t sai_object_type_query(_In_ sai_object_id_t sai_object_id)
         fprintf(stderr, "Unknown type %d", type);
         return SAI_OBJECT_TYPE_NULL;
     }
+}
+
+/**
+ * @brief Query sai switch id.
+ *
+ * @param[in] sai_object_id Object id
+ *
+ * @return Return #SAI_NULL_OBJECT_ID when sai_object_id is not valid.
+ * Otherwise, return a valid SAI_OBJECT_TYPE_SWITCH object on which
+ * provided object id belongs. If valid switch id object is provided
+ * as input parameter it should returin itself.
+ */
+sai_object_id_t sai_switch_id_query(_In_ sai_object_id_t sai_object_id)
+{
+    sai_object_id_t  switch_id;
+    mlnx_object_id_t mlnx_switch_id = { 0 };
+
+    /* return hard coded single switch instance */
+    mlnx_switch_id.id.is_created = true;
+    mlnx_object_id_to_sai(SAI_OBJECT_TYPE_SWITCH, &mlnx_switch_id, &switch_id);
+    return switch_id;
 }
 
 /**

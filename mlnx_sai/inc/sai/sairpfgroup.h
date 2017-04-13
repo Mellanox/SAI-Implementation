@@ -53,9 +53,10 @@ typedef enum _sai_rpf_group_attr_t
 
     /**
      * @brief RPF member list
+     *
      * @type sai_object_list_t
-     * @objects SAI_OBJECT_TYPE_RPF_GROUP_MEMBER
      * @flags READ_ONLY
+     * @objects SAI_OBJECT_TYPE_RPF_GROUP_MEMBER
      */
     SAI_RPF_GROUP_ATTR_RPF_MEMBER_LIST,
 
@@ -81,17 +82,19 @@ typedef enum _sai_rpf_group_member_attr_t
 
     /**
      * @brief RPF interface group id
+     *
      * @type sai_object_id_t
-     * @objects SAI_OBJECT_TYPE_RPF_GROUP
      * @flags MANDATORY_ON_CREATE | CREATE_ONLY
+     * @objects SAI_OBJECT_TYPE_RPF_GROUP
      */
     SAI_RPF_GROUP_MEMBER_ATTR_RPF_GROUP_ID = SAI_RPF_GROUP_MEMBER_ATTR_START,
 
     /**
      * @brief RPF interface id
+     *
      * @type sai_object_id_t
-     * @objects SAI_OBJECT_TYPE_ROUTER_INTERFACE
      * @flags MANDATORY_ON_CREATE | CREATE_ONLY
+     * @objects SAI_OBJECT_TYPE_ROUTER_INTERFACE
      */
     SAI_RPF_GROUP_MEMBER_ATTR_RPF_INTERFACE_ID,
 
@@ -164,18 +167,16 @@ typedef sai_status_t (*sai_get_rpf_group_attribute_fn)(
  * @brief Create RPF interface group member
  *
  * @param[out] rpf_group_member_id - RPF interface group member id
- * @param[in] switch_id Switch id
  * @param[in] attr_count - number of attributes
  * @param[in] attr_list - array of attributes
  *
  * @return #SAI_STATUS_SUCCESS on success Failure status code on error
  */
 typedef sai_status_t (*sai_create_rpf_group_member_fn)(
-    _Out_ sai_object_id_t* rpf_group_member_id,
-    _In_ sai_object_id_t switch_id,
-    _In_ uint32_t attr_count,
-    _In_ const sai_attribute_t *attr_list
-    );
+        _Out_ sai_object_id_t* rpf_group_member_id,
+        _In_ sai_object_id_t switch_id,
+        _In_ uint32_t attr_count,
+        _In_ const sai_attribute_t *attr_list);
 
 /**
  * @brief Remove RPF interface group member
@@ -185,8 +186,7 @@ typedef sai_status_t (*sai_create_rpf_group_member_fn)(
  * @return SAI_STATUS_SUCCESS on success Failure status code on error
  */
 typedef sai_status_t (*sai_remove_rpf_group_member_fn)(
-    _In_ sai_object_id_t rpf_group_member_id
-    );
+        _In_ sai_object_id_t rpf_group_member_id);
 
 /**
  * @brief Set RPF interface Group attribute
@@ -197,9 +197,8 @@ typedef sai_status_t (*sai_remove_rpf_group_member_fn)(
  * @return #SAI_STATUS_SUCCESS on success Failure status code on error
  */
 typedef sai_status_t (*sai_set_rpf_group_member_attribute_fn)(
-    _In_ sai_object_id_t rpf_group_member_id,
-    _In_ const sai_attribute_t *attr
-    );
+        _In_ sai_object_id_t rpf_group_member_id,
+        _In_ const sai_attribute_t *attr);
 
 /**
  * @brief Get RPF interface Group attribute
@@ -211,13 +210,12 @@ typedef sai_status_t (*sai_set_rpf_group_member_attribute_fn)(
  * @return SAI_STATUS_SUCCESS on success Failure status code on error
  */
 typedef sai_status_t (*sai_get_rpf_group_member_attribute_fn)(
-    _In_ sai_object_id_t rpf_group_member_id,
-    _In_ uint32_t attr_count,
-    _Inout_ sai_attribute_t *attr_list
-    );
+        _In_ sai_object_id_t rpf_group_member_id,
+        _In_ uint32_t attr_count,
+        _Inout_ sai_attribute_t *attr_list);
 
 /**
- *  @brief RPF group methods table retrieved with sai_api_query()
+ * @brief RPF group methods table retrieved with sai_api_query()
  */
 typedef struct _sai_rpf_group_api_t
 {

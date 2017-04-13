@@ -45,15 +45,33 @@ typedef enum _sai_ingress_priority_group_attr_t
 
     /**
      * @brief Buffer profile pointer
+     *
      * Default no profile
      *
      * @type sai_object_id_t
-     * @objects SAI_OBJECT_TYPE_BUFFER_PROFILE
      * @flags CREATE_AND_SET
+     * @objects SAI_OBJECT_TYPE_BUFFER_PROFILE
      * @allownull true
      * @default SAI_NULL_OBJECT_ID
      */
     SAI_INGRESS_PRIORITY_GROUP_ATTR_BUFFER_PROFILE = SAI_INGRESS_PRIORITY_GROUP_ATTR_START,
+
+    /**
+     * @brief Pord id
+     *
+     * @type sai_object_id_t
+     * @flags MANDATORY_ON_CREATE | CREATE_ONLY | KEY
+     * @objects SAI_OBJECT_TYPE_PORT
+     */
+    SAI_INGRESS_PRIORITY_GROUP_ATTR_PORT,
+
+    /**
+     * @brief PG index
+     *
+     * @type sai_uint8_t
+     * @flags MANDATORY_ON_CREATE | CREATE_ONLY | KEY
+     */
+    SAI_INGRESS_PRIORITY_GROUP_ATTR_INDEX,
 
     /**
      * @brief End of attributes
@@ -100,6 +118,32 @@ typedef enum _sai_ingress_priority_group_stat_t
 } sai_ingress_priority_group_stat_t;
 
 /**
+ * @brief Create ingress priority group
+ *
+ * @param[out] ingress_pg_id Ingress priority group
+ * @param[in] switch_id Switch id
+ * @param[in] attr_count Number of attributes
+ * @param[in] attr_list Array of attributes
+ *
+ * @return #SAI_STATUS_SUCCESS on success Failure status code on error
+ */
+typedef sai_status_t(*sai_create_ingress_priority_group_fn)(
+        _Out_ sai_object_id_t* ingress_pg_id,
+        _In_ sai_object_id_t switch_id,
+        _In_ uint32_t attr_count,
+        _In_ const sai_attribute_t *attr_list);
+
+/**
+ * @brief Remove ingress priority group
+ *
+ * @param[in] ingress_pg_id Ingress priority group
+ *
+ * @return #SAI_STATUS_SUCCESS on success Failure status code on error
+ */
+typedef sai_status_t(*sai_remove_ingress_priority_group_fn)(
+        _In_ sai_object_id_t ingress_pg_id);
+
+/**
  * @brief Set ingress priority group attribute
  *
  * @param[in] ingress_pg_id Ingress priority group id
@@ -107,7 +151,7 @@ typedef enum _sai_ingress_priority_group_stat_t
  *
  * @return #SAI_STATUS_SUCCESS on success Failure status code on error
  */
-typedef sai_status_t(*sai_set_ingress_priority_group_attr_fn)(
+typedef sai_status_t(*sai_set_ingress_priority_group_attribute_fn)(
         _In_ sai_object_id_t ingress_pg_id,
         _In_ const sai_attribute_t *attr);
 
@@ -120,7 +164,7 @@ typedef sai_status_t(*sai_set_ingress_priority_group_attr_fn)(
  *
  * @return #SAI_STATUS_SUCCESS on success Failure status code on error
  */
-typedef sai_status_t(*sai_get_ingress_priority_group_attr_fn)(
+typedef sai_status_t(*sai_get_ingress_priority_group_attribute_fn)(
         _In_ sai_object_id_t ingress_pg_id,
         _In_ uint32_t attr_count,
         _Inout_ sai_attribute_t *attr_list);
@@ -227,9 +271,11 @@ typedef enum _sai_buffer_pool_attr_t
      */
     SAI_BUFFER_POOL_ATTR_THRESHOLD_MODE,
 
-    /** @brief shared headroom pool size in bytes for lossless traffic
+    /**
+     * @brief shared headroom pool size in bytes for lossless traffic
      *
      * Only valid for the ingress buffer pool
+     *
      * @type sai_uint32_t
      * @flags CREATE_AND_SET
      * @default 0
@@ -296,7 +342,7 @@ typedef sai_status_t(*sai_remove_buffer_pool_fn)(
  *
  * @return #SAI_STATUS_SUCCESS on success Failure status code on error
  */
-typedef sai_status_t(*sai_set_buffer_pool_attr_fn)(
+typedef sai_status_t(*sai_set_buffer_pool_attribute_fn)(
         _In_ sai_object_id_t pool_id,
         _In_ const sai_attribute_t *attr);
 
@@ -309,7 +355,7 @@ typedef sai_status_t(*sai_set_buffer_pool_attr_fn)(
  *
  * @return #SAI_STATUS_SUCCESS on success Failure status code on error
  */
-typedef sai_status_t(*sai_get_buffer_pool_attr_fn)(
+typedef sai_status_t(*sai_get_buffer_pool_attribute_fn)(
         _In_ sai_object_id_t pool_id,
         _In_ uint32_t attr_count,
         _Inout_ sai_attribute_t *attr_list);
@@ -378,8 +424,8 @@ typedef enum _sai_buffer_profile_attr_t
      * to priority group or queue buffer profile.
      *
      * @type sai_object_id_t
-     * @objects SAI_OBJECT_TYPE_BUFFER_POOL
      * @flags MANDATORY_ON_CREATE | CREATE_ONLY
+     * @objects SAI_OBJECT_TYPE_BUFFER_POOL
      * @allownull true
      */
     SAI_BUFFER_PROFILE_ATTR_POOL_ID = SAI_BUFFER_PROFILE_ATTR_START,
@@ -453,7 +499,7 @@ typedef enum _sai_buffer_profile_attr_t
      * and the total buffer limit minus XON_OFFSET_TH, and available buffer in the PG buffer
      * is larger than the XOFF_TH.
      * The XON trigger condition is governed by:
-     *     total buffer usage <= max(XON_TH, total buffer limit - XON_OFFSET_TH)
+     * total buffer usage <= max(XON_TH, total buffer limit - XON_OFFSET_TH)
      *
      * @type sai_uint32_t
      * @flags CREATE_AND_SET
@@ -469,7 +515,7 @@ typedef enum _sai_buffer_profile_attr_t
      * and the total buffer limit minus XON_OFFSET_TH, and available buffer in the PG buffer
      * is larger than the XOFF_TH.
      * The XON trigger condition is governed by:
-     *     total buffer usage <= max(XON_TH, total buffer limit - XON_OFFSET_TH)
+     * total buffer usage <= max(XON_TH, total buffer limit - XON_OFFSET_TH)
      *
      * @type sai_uint32_t
      * @flags CREATE_AND_SET
@@ -518,7 +564,7 @@ typedef sai_status_t(*sai_remove_buffer_profile_fn)(
  *
  * @return #SAI_STATUS_SUCCESS on success Failure status code on error
  */
-typedef sai_status_t(*sai_set_buffer_profile_attr_fn)(
+typedef sai_status_t(*sai_set_buffer_profile_attribute_fn)(
         _In_ sai_object_id_t buffer_profile_id,
         _In_ const sai_attribute_t *attr);
 
@@ -531,34 +577,35 @@ typedef sai_status_t(*sai_set_buffer_profile_attr_fn)(
  *
  * @return #SAI_STATUS_SUCCESS on success Failure status code on error
  */
-typedef sai_status_t(*sai_get_buffer_profile_attr_fn)(
+typedef sai_status_t(*sai_get_buffer_profile_attribute_fn)(
         _In_ sai_object_id_t buffer_profile_id,
         _In_ uint32_t attr_count,
-        _Inout_ sai_attribute_t *attr_list
-        );
+        _Inout_ sai_attribute_t *attr_list);
 
 /**
  * @brief buffer methods table retrieved with sai_api_query()
  */
 typedef struct _sai_buffer_api_t
 {
-    sai_create_buffer_pool_fn                  create_buffer_pool;
-    sai_remove_buffer_pool_fn                  remove_buffer_pool;
-    sai_set_buffer_pool_attr_fn                set_buffer_pool_attr;
-    sai_get_buffer_pool_attr_fn                get_buffer_pool_attr;
-    sai_get_buffer_pool_stats_fn               get_buffer_pool_stats;
-    sai_clear_buffer_pool_stats_fn             clear_buffer_pool_stats;
-    sai_set_ingress_priority_group_attr_fn     set_ingress_priority_group_attr;
-    sai_get_ingress_priority_group_attr_fn     get_ingress_priority_group_attr;
-    sai_get_ingress_priority_group_stats_fn    get_ingress_priority_group_stats;
-    sai_clear_ingress_priority_group_stats_fn  clear_ingress_priority_group_stats;
-    sai_create_buffer_profile_fn               create_buffer_profile;
-    sai_remove_buffer_profile_fn               remove_buffer_profile;
-    sai_set_buffer_profile_attr_fn             set_buffer_profile_attr;
-    sai_get_buffer_profile_attr_fn             get_buffer_profile_attr;
+    sai_create_buffer_pool_fn                       create_buffer_pool;
+    sai_remove_buffer_pool_fn                       remove_buffer_pool;
+    sai_set_buffer_pool_attribute_fn                set_buffer_pool_attribute;
+    sai_get_buffer_pool_attribute_fn                get_buffer_pool_attribute;
+    sai_get_buffer_pool_stats_fn                    get_buffer_pool_stats;
+    sai_clear_buffer_pool_stats_fn                  clear_buffer_pool_stats;
+    sai_create_ingress_priority_group_fn            create_ingress_priority_group;
+    sai_remove_ingress_priority_group_fn            remove_ingress_priority_group;
+    sai_set_ingress_priority_group_attribute_fn     set_ingress_priority_group_attribute;
+    sai_get_ingress_priority_group_attribute_fn     get_ingress_priority_group_attribute;
+    sai_get_ingress_priority_group_stats_fn         get_ingress_priority_group_stats;
+    sai_clear_ingress_priority_group_stats_fn       clear_ingress_priority_group_stats;
+    sai_create_buffer_profile_fn                    create_buffer_profile;
+    sai_remove_buffer_profile_fn                    remove_buffer_profile;
+    sai_set_buffer_profile_attribute_fn             set_buffer_profile_attribute;
+    sai_get_buffer_profile_attribute_fn             get_buffer_profile_attribute;
 } sai_buffer_api_t;
 
 /**
- *@}
+ * @}
  */
 #endif /** __SAIBUFFER_H_ */

@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2014. Mellanox Technologies, Ltd. ALL RIGHTS RESERVED.
+ *  Copyright (C) 2017. Mellanox Technologies, Ltd. ALL RIGHTS RESERVED.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License"); you may
  *    not use this file except in compliance with the License. You may obtain
@@ -36,6 +36,8 @@ static const sai_attribute_entry_t host_interface_attribs[] = {
       "Host interface name", SAI_ATTR_VAL_TYPE_CHARDATA },
     { SAI_HOSTIF_ATTR_OPER_STATUS, false, true, true, true,
       "Host interface oper status", SAI_ATTR_VAL_TYPE_BOOL },
+    { SAI_HOSTIF_ATTR_QUEUE, false, true, true, true,
+      "Host interface queue", SAI_ATTR_VAL_TYPE_U32 },
     { END_FUNCTIONALITY_ATTRIBS_ID, false, false, false, false,
       "", SAI_ATTR_VAL_TYPE_UNDETERMINED }
 };
@@ -217,6 +219,11 @@ static const sai_vendor_attribute_entry_t host_interface_vendor_attribs[] = {
       { true, false, true, true },
       mlnx_host_interface_oper_get, NULL,
       mlnx_host_interface_oper_set, NULL },
+    { SAI_HOSTIF_ATTR_QUEUE,
+      { false, false, false, false },
+      { true, false, true, true },
+      NULL, NULL,
+      NULL, NULL },
 };
 static const sai_vendor_attribute_entry_t trap_group_vendor_attribs[] = {
     { SAI_HOSTIF_TRAP_GROUP_ATTR_ADMIN_STATE,
@@ -2669,6 +2676,7 @@ sai_status_t mlnx_create_hostif_table_entry(_Out_ sai_object_id_t      *hif_tabl
     sx_host_ifc_register_key_t   reg;
     sai_object_type_t            trap_type;
     sx_fd_t                      fd_val = { 0 };
+    uint32_t                     ii;
 
     SX_LOG_ENTER();
 
@@ -2734,46 +2742,56 @@ sai_status_t mlnx_create_hostif_table_entry(_Out_ sai_object_id_t      *hif_tabl
             return SAI_STATUS_INVALID_ATTRIBUTE_0 + obj_index;
         }
 
-        if (SAI_HOSTIF_TABLE_ENTRY_TYPE_TRAP_ID == type->s32) {
+        if ((SAI_HOSTIF_TABLE_ENTRY_TYPE_TRAP_ID == type->s32) ||
+            (SAI_HOSTIF_TABLE_ENTRY_TYPE_WILDCARD == type->s32)) {
             reg.key_type = SX_HOST_IFC_REGISTER_KEY_TYPE_GLOBAL;
-        } else if (SAI_HOSTIF_TABLE_ENTRY_TYPE_WILDCARD == type->s32) {
-            SX_LOG_ERR("wildcard host if entry not supported\n");
-            return SAI_STATUS_ATTR_NOT_SUPPORTED_0 + type_index;
         } else {
             SX_LOG_ERR("Invalid host table entry type %d", type->s32);
             return SAI_STATUS_INVALID_ATTR_VALUE_0 + type_index;
         }
     }
 
-    if (SAI_STATUS_SUCCESS !=
-        (status =
-             find_attrib_in_list(attr_count, attr_list, SAI_HOSTIF_TABLE_ENTRY_ATTR_TRAP_ID, &trap,
-                                 &trap_index))) {
-        SX_LOG_ERR("Missing mandatory attribute trap ID on create of host table entry type port/lag/vlan/trap\n");
-        return SAI_STATUS_MANDATORY_ATTRIBUTE_MISSING;
-    }
+    if (SAI_HOSTIF_TABLE_ENTRY_TYPE_WILDCARD == type->s32) {
+        if (SAI_STATUS_ITEM_NOT_FOUND !=
+            (status =
+                 find_attrib_in_list(attr_count, attr_list, SAI_HOSTIF_TABLE_ENTRY_ATTR_TRAP_ID, &trap,
+                                     &trap_index))) {
+            SX_LOG_ERR("Invalid attribute trap ID for wildcard host table entry on create\n");
+            return SAI_STATUS_INVALID_ATTRIBUTE_0 + obj_index;
+        }
+    } else {
+        if (SAI_STATUS_SUCCESS !=
+            (status =
+                 find_attrib_in_list(attr_count, attr_list, SAI_HOSTIF_TABLE_ENTRY_ATTR_TRAP_ID, &trap,
+                                     &trap_index))) {
+            SX_LOG_ERR("Missing mandatory attribute trap ID on create of host table entry type port/lag/vlan/trap\n");
+            return SAI_STATUS_MANDATORY_ATTRIBUTE_MISSING;
+        }
 
-    trap_type = sai_object_type_query(trap->oid);
+        trap_type = sai_object_type_query(trap->oid);
 
-    if ((trap_type != SAI_OBJECT_TYPE_HOSTIF_TRAP) && (trap_type != SAI_OBJECT_TYPE_HOSTIF_USER_DEFINED_TRAP)) {
-        SX_LOG_ERR("Trap ID type %s is not trap nor user defined trap\n", SAI_TYPE_STR(trap_type));
-        return SAI_STATUS_INVALID_ATTR_VALUE_0 + trap_index;
-    }
+        if ((trap_type != SAI_OBJECT_TYPE_HOSTIF_TRAP) && (trap_type != SAI_OBJECT_TYPE_HOSTIF_USER_DEFINED_TRAP)) {
+            SX_LOG_ERR("Trap ID type %s is not trap nor user defined trap\n", SAI_TYPE_STR(trap_type));
+            return SAI_STATUS_INVALID_ATTR_VALUE_0 + trap_index;
+        }
 
-    if (SAI_STATUS_SUCCESS !=
-        (status = mlnx_object_to_type(trap->oid, trap_type, &trap_id, NULL))) {
-        SX_LOG_EXIT();
-        return status;
-    }
+        if (SAI_STATUS_SUCCESS !=
+            (status = mlnx_object_to_type(trap->oid, trap_type, &trap_id, NULL))) {
+            SX_LOG_EXIT();
+            return status;
+        }
 
-    if (SAI_STATUS_SUCCESS != (status = find_sai_trap_index(trap_id,
-                                                            (SAI_OBJECT_TYPE_HOSTIF_TRAP ==
-                                                             trap_type) ? MLNX_TRAP_TYPE_REGULAR :
-                                                            MLNX_TRAP_TYPE_USER_DEFINED, &trap_db_index))) {
-        SX_LOG_ERR("Invalid %strap %x\n", (SAI_OBJECT_TYPE_HOSTIF_TRAP == trap_type) ? "" : "user defined ", trap_id);
-        return SAI_STATUS_INVALID_PARAMETER;
+        if (SAI_STATUS_SUCCESS != (status = find_sai_trap_index(trap_id,
+                                                                (SAI_OBJECT_TYPE_HOSTIF_TRAP ==
+                                                                 trap_type) ? MLNX_TRAP_TYPE_REGULAR :
+                                                                MLNX_TRAP_TYPE_USER_DEFINED, &trap_db_index))) {
+            SX_LOG_ERR("Invalid %strap %x\n",
+                       (SAI_OBJECT_TYPE_HOSTIF_TRAP == trap_type) ? "" : "user defined ",
+                       trap_id);
+            return SAI_STATUS_INVALID_PARAMETER;
+        }
+        mlnx_hif.ext.trap.id = trap_db_index;
     }
-    mlnx_hif.ext.trap.id = trap_db_index;
 
     status = find_attrib_in_list(attr_count,
                                  attr_list,
@@ -2816,9 +2834,22 @@ sai_status_t mlnx_create_hostif_table_entry(_Out_ sai_object_id_t      *hif_tabl
         }
     }
 
-    if (SAI_STATUS_SUCCESS != (status = mlnx_register_trap(SX_ACCESS_CMD_REGISTER, trap_db_index,
-                                                           channel->s32, fd_val, &reg))) {
-        return status;
+    if (SAI_HOSTIF_TABLE_ENTRY_TYPE_WILDCARD == type->s32) {
+        for (ii = 0; END_TRAP_INFO_ID != mlnx_traps_info[ii].trap_id; ii++) {
+            if (0 == mlnx_traps_info[ii].sdk_traps_num) {
+                continue;
+            }
+
+            if (SAI_STATUS_SUCCESS != (status = mlnx_register_trap(SX_ACCESS_CMD_REGISTER, ii,
+                                                                   channel->s32, fd_val, &reg))) {
+                return status;
+            }
+        }
+    } else {
+        if (SAI_STATUS_SUCCESS != (status = mlnx_register_trap(SX_ACCESS_CMD_REGISTER, trap_db_index,
+                                                               channel->s32, fd_val, &reg))) {
+            return status;
+        }
     }
 
     status = mlnx_object_id_to_sai(SAI_OBJECT_TYPE_HOSTIF_TABLE_ENTRY, &mlnx_hif, hif_table_entry);
@@ -2975,9 +3006,14 @@ static sai_status_t mlnx_table_entry_get(_In_ const sai_object_key_t   *key,
         break;
 
     case SAI_HOSTIF_TABLE_ENTRY_ATTR_TRAP_ID:
-        return mlnx_create_object((MLNX_TRAP_TYPE_REGULAR == mlnx_traps_info[mlnx_hif.ext.trap.id].trap_type) ?
-                                  SAI_OBJECT_TYPE_HOSTIF_TRAP : SAI_OBJECT_TYPE_HOSTIF_USER_DEFINED_TRAP,
-                                  mlnx_traps_info[mlnx_hif.ext.trap.id].trap_id, NULL, &value->oid);
+        if (SAI_HOSTIF_TABLE_ENTRY_TYPE_WILDCARD == mlnx_hif.field.hif_type) {
+            SX_LOG_ERR("Host table entry trap ID invalid for type wildcard\n");
+            return SAI_STATUS_INVALID_ATTRIBUTE_0 + attr_index;
+        } else {
+            return mlnx_create_object((MLNX_TRAP_TYPE_REGULAR == mlnx_traps_info[mlnx_hif.ext.trap.id].trap_type) ?
+                                      SAI_OBJECT_TYPE_HOSTIF_TRAP : SAI_OBJECT_TYPE_HOSTIF_USER_DEFINED_TRAP,
+                                      mlnx_traps_info[mlnx_hif.ext.trap.id].trap_id, NULL, &value->oid);
+        }
     }
 
     SX_LOG_EXIT();

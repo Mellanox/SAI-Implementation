@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2014. Mellanox Technologies, Ltd. ALL RIGHTS RESERVED.
+ *  Copyright (C) 2017. Mellanox Technologies, Ltd. ALL RIGHTS RESERVED.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License"); you may
  *    not use this file except in compliance with the License. You may obtain
@@ -1010,7 +1010,7 @@ static sai_status_t sai_qos_map_to_str_oid(_In_ sai_object_id_t       qos_map_id
 
 static uint32_t sai_oid_to_str(sai_object_id_t oid, uint32_t opt, uint32_t max_length, char *value_str)
 {
-    mlnx_object_id_t *mlnx_id = (mlnx_object_id_t *) &oid;
+    mlnx_object_id_t *mlnx_id = (mlnx_object_id_t*)&oid;
 
     return snprintf(value_str, max_length, "%s,(%d:%d),%x,%02x%02x,%x",
                     SAI_TYPE_STR(mlnx_id->object_type),
@@ -1023,10 +1023,10 @@ sai_status_t sai_value_to_str(_In_ sai_attribute_value_t      value,
                               _In_ uint32_t                   max_length,
                               _Out_ char                     *value_str)
 {
-    uint32_t          ii;
-    uint32_t          pos = 0;
-    uint32_t          count;
-    int               chars_written;
+    uint32_t ii;
+    uint32_t pos = 0;
+    uint32_t count;
+    int      chars_written;
 
     if (NULL == value_str) {
         SX_LOG_ERR("NULL value str");
@@ -1103,6 +1103,10 @@ sai_status_t sai_value_to_str(_In_ sai_attribute_value_t      value,
         sai_ipaddr_to_str(value.ipaddr, max_length, value_str, NULL);
         break;
 
+    case SAI_ATTR_VAL_TYPE_IPPREFIX:
+        sai_ipprefix_to_str(value.ipprefix, max_length, value_str);
+        break;
+
     case SAI_ATTR_VAL_TYPE_OID:
         sai_oid_to_str(value.oid, 0, max_length, value_str);
         break;
@@ -1123,8 +1127,7 @@ sai_status_t sai_value_to_str(_In_ sai_attribute_value_t      value,
         if (SAI_ATTR_VAL_TYPE_ACLCAPABILITY == type) {
             pos += snprintf(value_str,
                             max_length,
-                            "%d,%d.",
-                            value.aclcapability.stage,
+                            "%d.",
                             value.aclcapability.is_action_list_mandatory);
         }
         if ((SAI_ATTR_VAL_TYPE_ACLFIELD_OBJLIST == type) ||

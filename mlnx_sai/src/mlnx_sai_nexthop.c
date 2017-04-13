@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2014. Mellanox Technologies, Ltd. ALL RIGHTS RESERVED.
+ *  Copyright (C) 2017. Mellanox Technologies, Ltd. ALL RIGHTS RESERVED.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License"); you may
  *    not use this file except in compliance with the License. You may obtain
@@ -158,7 +158,7 @@ static sai_status_t mlnx_translate_sai_next_hop_to_sdk(_In_ sai_next_hop_type_t 
             SX_LOG_EXIT();
             return sai_status;
         }
-    
+
         if (SAI_STATUS_SUCCESS !=
             (sai_status = mlnx_object_to_type(*rif_id, SAI_OBJECT_TYPE_ROUTER_INTERFACE, &rif_data, NULL))) {
             SX_LOG_EXIT();
@@ -224,9 +224,9 @@ static sai_status_t mlnx_translate_sai_next_hop_to_sdk(_In_ sai_next_hop_type_t 
         break;
     }
 
-    next_hop->next_hop_data.action                            = SX_ROUTER_ACTION_FORWARD;
-    next_hop->next_hop_data.trap_attr.prio                    = SX_TRAP_PRIORITY_MED;
-    next_hop->next_hop_data.weight                            = 1;
+    next_hop->next_hop_data.action         = SX_ROUTER_ACTION_FORWARD;
+    next_hop->next_hop_data.trap_attr.prio = SX_TRAP_PRIORITY_MED;
+    next_hop->next_hop_data.weight         = 1;
 
     SX_LOG_EXIT();
     return SAI_STATUS_SUCCESS;
@@ -265,7 +265,7 @@ static sai_status_t mlnx_create_next_hop(_Out_ sai_object_id_t      *next_hop_id
     sx_ecmp_id_t                 sdk_ecmp_id;
     uint32_t                     next_hop_cnt;
     bool                         is_tunnel_ipinip = false;
-    uint32_t                     tunnel_db_idx = 0;
+    uint32_t                     tunnel_db_idx    = 0;
 
     SX_LOG_ENTER();
 
@@ -367,7 +367,7 @@ static sai_status_t mlnx_create_next_hop(_Out_ sai_object_id_t      *next_hop_id
     if (SAI_NEXT_HOP_TYPE_TUNNEL_ENCAP == type_attr->s32) {
         if (SAI_STATUS_SUCCESS !=
             (sai_status = mlnx_get_sai_tunnel_db_idx(*tunnel_id, &tunnel_db_idx))) {
-            SX_LOG_ERR("Not able to get SAI tunnel db idx from tunnel id: %"PRIx64"\n", *tunnel_id);
+            SX_LOG_ERR("Not able to get SAI tunnel db idx from tunnel id: %" PRIx64 "\n", *tunnel_id);
             SX_LOG_EXIT();
             return SAI_STATUS_INVALID_ATTRIBUTE_0 + tunnel_id_idx;
         }
@@ -379,9 +379,11 @@ static sai_status_t mlnx_create_next_hop(_Out_ sai_object_id_t      *next_hop_id
         case SAI_TUNNEL_TYPE_IPINIP_GRE:
             is_tunnel_ipinip = true;
             break;
+
         case SAI_TUNNEL_TYPE_VXLAN:
             is_tunnel_ipinip = false;
             break;
+
         default:
             is_tunnel_ipinip = false;
             break;
@@ -393,7 +395,7 @@ static sai_status_t mlnx_create_next_hop(_Out_ sai_object_id_t      *next_hop_id
     if ((SAI_NEXT_HOP_TYPE_TUNNEL_ENCAP != type_attr->s32) || is_tunnel_ipinip) {
         if (SAI_STATUS_SUCCESS !=
             (sai_status =
-                mlnx_translate_sai_next_hop_to_sdk(type_attr->s32, ip, rif_id, tunnel_id, &sdk_next_hop))) {
+                 mlnx_translate_sai_next_hop_to_sdk(type_attr->s32, ip, rif_id, tunnel_id, &sdk_next_hop))) {
             SX_LOG_EXIT();
             return sai_status;
         }
@@ -407,7 +409,7 @@ static sai_status_t mlnx_create_next_hop(_Out_ sai_object_id_t      *next_hop_id
             SX_LOG_EXIT();
             return sdk_to_sai(sdk_status);
         }
- 
+
         if (SAI_STATUS_SUCCESS !=
             (sai_status = mlnx_create_object(SAI_OBJECT_TYPE_NEXT_HOP, sdk_ecmp_id, NULL, next_hop_id))) {
             SX_LOG_EXIT();

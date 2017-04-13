@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2014. Mellanox Technologies, Ltd. ALL RIGHTS RESERVED.
+ *  Copyright (C) 2017. Mellanox Technologies, Ltd. ALL RIGHTS RESERVED.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License"); you may
  *    not use this file except in compliance with the License. You may obtain
@@ -66,32 +66,6 @@ sai_status_t validate_vlan(_In_ const sai_vlan_id_t vlan_id)
     }
 
     SX_LOG_EXIT();
-    return SAI_STATUS_SUCCESS;
-}
-
-static sai_status_t check_attrs_port_type(_In_ const sai_object_key_t *key,
-                                          _In_ uint32_t                count,
-                                          _In_ const sai_attribute_t  *attrs)
-{
-    uint32_t ii;
-
-    assert(NULL != g_sai_db_ptr);
-    sai_db_read_lock();
-    for (ii = 0; ii < count; ii++) {
-        const sai_attribute_t *attr  = &attrs[ii];
-        attr_port_type_check_t check = ATTR_PORT_IS_LAG_ENABLED;
-
-        if (attr->id == SAI_VLAN_MEMBER_ATTR_PORT_ID) {
-            sai_status_t status;
-
-            status = check_port_type_attr(&attr->value.oid, 1, check, attr->id, ii);
-
-            sai_db_unlock();
-            return status;
-        }
-    }
-    sai_db_unlock();
-
     return SAI_STATUS_SUCCESS;
 }
 
@@ -190,7 +164,7 @@ static const sai_vendor_attribute_entry_t vlan_vendor_attribs[] = {
 static const sai_attribute_entry_t        vlan_member_attribs[] = {
     { SAI_VLAN_MEMBER_ATTR_VLAN_ID, true, true, false, true,
       "Vlan member VID", SAI_ATTR_VAL_TYPE_OID },
-    { SAI_VLAN_MEMBER_ATTR_PORT_ID, true, true, false, true,
+    { SAI_VLAN_MEMBER_ATTR_BRIDGE_PORT_ID, true, true, false, true,
       "Vlan member port", SAI_ATTR_VAL_TYPE_OID },
     { SAI_VLAN_MEMBER_ATTR_VLAN_TAGGING_MODE, false, true, true, true,
       "Vlan member tagging mode", SAI_ATTR_VAL_TYPE_S32 },
@@ -203,10 +177,10 @@ static const sai_vendor_attribute_entry_t vlan_member_vendor_attribs[] = {
       { true, false, false, true },
       mlnx_vlan_member_attrib_get, (void*)SAI_VLAN_MEMBER_ATTR_VLAN_ID,
       NULL, NULL },
-    { SAI_VLAN_MEMBER_ATTR_PORT_ID,
+    { SAI_VLAN_MEMBER_ATTR_BRIDGE_PORT_ID,
       { true, false, false, true },
       { true, false, false, true },
-      mlnx_vlan_member_attrib_get, (void*)SAI_VLAN_MEMBER_ATTR_PORT_ID,
+      mlnx_vlan_member_attrib_get, (void*)SAI_VLAN_MEMBER_ATTR_BRIDGE_PORT_ID,
       NULL, NULL },
     { SAI_VLAN_MEMBER_ATTR_VLAN_TAGGING_MODE,
       { true, false, true, true },
@@ -811,6 +785,66 @@ void mlnx_vlan_port_set(uint16_t vid, mlnx_port_config_t *port, bool is_set)
     }
 }
 
+sai_status_t mlnx_vlan_port_add(uint16_t vid, sai_vlan_tagging_mode_t mode, mlnx_port_config_t *port)
+{
+    sx_vlan_ports_t vlan_port_list;
+    sx_status_t     sx_status;
+
+    memset(&vlan_port_list, 0, sizeof(vlan_port_list));
+
+    vlan_port_list.log_port = port->logical;
+
+    switch (mode) {
+    case SAI_VLAN_TAGGING_MODE_UNTAGGED:
+        vlan_port_list.is_untagged = SX_UNTAGGED_MEMBER;
+        break;
+
+    case SAI_VLAN_TAGGING_MODE_TAGGED:
+        vlan_port_list.is_untagged = SX_TAGGED_MEMBER;
+        break;
+
+    case SAI_VLAN_TAGGING_MODE_PRIORITY_TAGGED:
+        SX_LOG_ERR("Vlan port priority tagged not supported\n");
+        return SAI_STATUS_NOT_SUPPORTED;
+
+    default:
+        SX_LOG_ERR("Invalid tagging mode %d\n", mode);
+        return SAI_STATUS_INVALID_PARAMETER;
+    }
+
+    sx_status = sx_api_vlan_ports_set(gh_sdk, SX_ACCESS_CMD_ADD, DEFAULT_ETH_SWID, vid, &vlan_port_list, 1);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to add vlan ports %s.\n", SX_STATUS_MSG(sx_status));
+        return sdk_to_sai(sx_status);
+    }
+
+    mlnx_vlan_port_set(vid, port, true);
+    return SAI_STATUS_SUCCESS;
+}
+
+sai_status_t mlnx_vlan_port_del(uint16_t vid, mlnx_port_config_t *port)
+{
+    sx_vlan_ports_t port_list;
+    sx_status_t     sx_status;
+
+    memset(&port_list, 0, sizeof(port_list));
+
+    port_list.log_port = port->logical;
+
+    if (!mlnx_vlan_port_is_set(vid, port)) {
+        return SAI_STATUS_SUCCESS;
+    }
+
+    sx_status = sx_api_vlan_ports_set(gh_sdk, SX_ACCESS_CMD_DELETE, DEFAULT_ETH_SWID, vid, &port_list, 1);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to add vlan ports %s.\n", SX_STATUS_MSG(sx_status));
+        return sdk_to_sai(sx_status);
+    }
+
+    mlnx_vlan_port_set(vid, port, false);
+    return SAI_STATUS_SUCCESS;
+}
+
 /*
  *  \brief Create VLAN Member
  *  \param[out] vlan_member_id VLAN member ID
@@ -824,20 +858,20 @@ static sai_status_t mlnx_create_vlan_member(_Out_ sai_object_id_t     * vlan_mem
                                             _In_ uint32_t               attr_count,
                                             _In_ const sai_attribute_t *attr_list)
 {
-    sai_status_t                 status;
+    const sai_attribute_value_t *vid = NULL, *port = NULL, *tagging = NULL;
+    uint32_t                     vid_index, port_index, tagging_index;
+    sai_vlan_tagging_mode_t      mode = SAI_VLAN_TAGGING_MODE_UNTAGGED;
     uint8_t                      extended_data[EXTENDED_DATA_SIZE];
     char                         key_str[MAX_KEY_STR_LEN];
     char                         list_str[MAX_LIST_VALUE_STR_LEN];
-    const sai_attribute_value_t *vid, *port, *tagging;
-    uint32_t                     vid_index, port_index, tagging_index, port_data;
-    sx_vlan_ports_t              sx_vlan_port_list;
+    sx_port_log_id_t             log_port;
     mlnx_port_config_t          *port_cfg;
     uint16_t                     vlan_id;
+    sai_status_t                 status;
 
     SX_LOG_ENTER();
 
     memset(extended_data, 0, sizeof(extended_data));
-    memset(&sx_vlan_port_list, 0, sizeof(sx_vlan_port_list));
 
     if (NULL == vlan_member_id) {
         SX_LOG_ERR("NULL vlan member ID param\n");
@@ -852,11 +886,6 @@ static sai_status_t mlnx_create_vlan_member(_Out_ sai_object_id_t     * vlan_mem
         return status;
     }
 
-    status = check_attrs_port_type(NULL, attr_count, attr_list);
-    if (SAI_ERR(status)) {
-        return status;
-    }
-
     sai_attr_list_to_str(attr_count, attr_list, vlan_member_attribs, MAX_LIST_VALUE_STR_LEN, list_str);
     SX_LOG_NTC("Create vlan member, %s\n", list_str);
 
@@ -867,74 +896,57 @@ static sai_status_t mlnx_create_vlan_member(_Out_ sai_object_id_t     * vlan_mem
         return status;
     }
 
-    status = find_attrib_in_list(attr_count, attr_list, SAI_VLAN_MEMBER_ATTR_PORT_ID, &port, &port_index);
+    status = find_attrib_in_list(attr_count, attr_list, SAI_VLAN_MEMBER_ATTR_BRIDGE_PORT_ID, &port, &port_index);
     assert(SAI_STATUS_SUCCESS == status);
-    status = mlnx_object_to_log_port(port->oid, &port_data);
+
+    status = mlnx_bridge_port_sai_to_log_port(port->oid, &log_port);
     if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to convert bridge port %" PRIx64 " to log port\n", port->oid);
         return status;
-    }
-    sx_vlan_port_list.log_port = port_data;
-
-    if (SAI_STATUS_SUCCESS ==
-        (status = find_attrib_in_list(attr_count, attr_list, SAI_VLAN_MEMBER_ATTR_VLAN_TAGGING_MODE,
-                                      &tagging, &tagging_index))) {
-        switch (tagging->s32) {
-        case SAI_VLAN_TAGGING_MODE_UNTAGGED:
-            sx_vlan_port_list.is_untagged = SX_UNTAGGED_MEMBER;
-            break;
-
-        case SAI_VLAN_TAGGING_MODE_TAGGED:
-            sx_vlan_port_list.is_untagged = SX_TAGGED_MEMBER;
-            break;
-
-        case SAI_VLAN_TAGGING_MODE_PRIORITY_TAGGED:
-            SX_LOG_ERR("Vlan port priority tagged not supported\n");
-            return SAI_STATUS_NOT_SUPPORTED;
-
-        default:
-            SX_LOG_ERR("Invalid tagging mode %d\n", tagging->s32);
-            return SAI_STATUS_INVALID_PARAMETER;
-        }
-    } else {
-        sx_vlan_port_list.is_untagged = SX_UNTAGGED_MEMBER;
     }
 
     /* skip CPU port, which doesn't need to be added/removed to vlan */
-    if (CPU_PORT == port_data) {
+    if (CPU_PORT == log_port) {
         SX_LOG_NTC("add port to vlan %u - Skip CPU port\n", vlan_id);
-    } else {
-        if (SX_STATUS_SUCCESS !=
-            (status =
-                 sx_api_vlan_ports_set(gh_sdk, SX_ACCESS_CMD_ADD, DEFAULT_ETH_SWID, vlan_id, &sx_vlan_port_list,
-                                       1))) {
-            SX_LOG_ERR("Failed to add vlan ports %s.\n", SX_STATUS_MSG(status));
-            return sdk_to_sai(status);
-        }
+        return SAI_STATUS_SUCCESS;
+    }
+
+    status = find_attrib_in_list(attr_count,
+                                 attr_list,
+                                 SAI_VLAN_MEMBER_ATTR_VLAN_TAGGING_MODE,
+                                 &tagging,
+                                 &tagging_index);
+    if (!SAI_ERR(status)) {
+        mode = tagging->s32;
+    }
+
+    sai_db_write_lock();
+
+    status = mlnx_port_by_log_id(log_port, &port_cfg);
+    if (SAI_ERR(status)) {
+        goto out;
+    }
+
+    status = mlnx_vlan_port_add(vlan_id, mode, port_cfg);
+    if (SAI_ERR(status)) {
+        goto out;
     }
 
     extended_data[0] = vlan_id & 0xff;
     extended_data[1] = vlan_id >> 8;
 
-    if (SAI_STATUS_SUCCESS !=
-        (status = mlnx_create_object(SAI_OBJECT_TYPE_VLAN_MEMBER, port_data, extended_data, vlan_member_id))) {
-        return status;
+    status = mlnx_create_object(SAI_OBJECT_TYPE_VLAN_MEMBER, port_cfg->logical, extended_data, vlan_member_id);
+    if (SAI_ERR(status)) {
+        goto out;
     }
+
     vlan_member_key_to_str(*vlan_member_id, key_str);
     SX_LOG_NTC("Created vlan member %s\n", key_str);
 
-    if (CPU_PORT != port_data) {
-        sai_db_write_lock();
-        status = mlnx_port_by_obj_id(port->oid, &port_cfg);
-        if (SAI_ERR(status)) {
-            sai_db_unlock();
-            return status;
-        }
-        mlnx_vlan_port_set(vlan_id, port_cfg, true);
-        sai_db_unlock();
-    }
-
+out:
+    sai_db_unlock();
     SX_LOG_EXIT();
-    return SAI_STATUS_SUCCESS;
+    return status;
 }
 
 /*
@@ -949,13 +961,10 @@ static sai_status_t mlnx_remove_vlan_member(_In_ sai_object_id_t vlan_member_id)
     uint32_t            port_data;
     uint8_t             extended_data[EXTENDED_DATA_SIZE];
     sai_status_t        status;
-    sx_vlan_ports_t     sx_vlan_port_list;
+    mlnx_port_config_t *port;
     uint16_t            vlan;
-    mlnx_port_config_t *port_cfg;
 
     SX_LOG_ENTER();
-
-    memset(&sx_vlan_port_list, 0, sizeof(sx_vlan_port_list));
 
     vlan_member_key_to_str(vlan_member_id, key_str);
     SX_LOG_NTC("Remove vlan member interface %s\n", key_str);
@@ -979,28 +988,23 @@ static sai_status_t mlnx_remove_vlan_member(_In_ sai_object_id_t vlan_member_id)
 
     sai_db_write_lock();
 
-    status = mlnx_port_by_log_id(port_data, &port_cfg);
+    status = mlnx_port_by_log_id(port_data, &port);
     if (SAI_ERR(status)) {
         goto out_unlock;
     }
 
-    if (!mlnx_vlan_port_is_set(vlan, port_cfg)) {
+    if (!mlnx_vlan_port_is_set(vlan, port)) {
         SX_LOG_ERR("Vlan member does not exist for this vlan %u and port oid %" PRIx64 "\n",
-                   vlan, port_cfg->saiport);
+                   vlan, port->saiport);
+
         status = SAI_STATUS_INVALID_OBJECT_ID;
         goto out_unlock;
     }
 
-    sx_vlan_port_list.log_port = port_data;
-
-    status = sx_api_vlan_ports_set(gh_sdk, SX_ACCESS_CMD_DELETE, DEFAULT_ETH_SWID, vlan, &sx_vlan_port_list, 1);
+    status = mlnx_vlan_port_del(vlan, port);
     if (SAI_ERR(status)) {
-        SX_LOG_ERR("Failed to delete vlan ports %s.\n", SX_STATUS_MSG(status));
-        status = sdk_to_sai(status);
         goto out_unlock;
     }
-
-    mlnx_vlan_port_set(vlan, port_cfg, false);
 
 out_unlock:
     sai_db_unlock();
@@ -1025,13 +1029,13 @@ out_unlock:
  * any of the objects fails to create. When there is failure, Caller is expected to go through the
  * list of returned statuses to find out which fails and which succeeds.
  */
-sai_status_t mlnx_create_vlan_members(_In_ sai_object_id_t    switch_id,
-                                      _In_ uint32_t           object_count,
-                                      _In_ uint32_t          *attr_count,
-                                      _In_ sai_attribute_t  **attrs,
-                                      _In_ sai_bulk_op_type_t type,
-                                      _Out_ sai_object_id_t  *object_id,
-                                      _Out_ sai_status_t     *object_statuses)
+sai_status_t mlnx_create_vlan_members(_In_ sai_object_id_t         switch_id,
+                                      _In_ uint32_t                object_count,
+                                      _In_ const uint32_t         *attr_count,
+                                      _In_ const sai_attribute_t **attrs,
+                                      _In_ sai_bulk_op_type_t      type,
+                                      _Out_ sai_object_id_t       *object_id,
+                                      _Out_ sai_status_t          *object_statuses)
 {
     return SAI_STATUS_NOT_IMPLEMENTED;
 }
@@ -1048,10 +1052,10 @@ sai_status_t mlnx_create_vlan_members(_In_ sai_object_id_t    switch_id,
  * any of the objects fails to remove. When there is failure, Caller is expected to go through the
  * list of returned statuses to find out which fails and which succeeds.
  */
-sai_status_t mlnx_remove_vlan_members(_In_ uint32_t           object_count,
-                                      _In_ sai_object_id_t   *object_id,
-                                      _In_ sai_bulk_op_type_t type,
-                                      _Out_ sai_status_t     *object_statuses)
+sai_status_t mlnx_remove_vlan_members(_In_ uint32_t               object_count,
+                                      _In_ const sai_object_id_t *object_id,
+                                      _In_ sai_bulk_op_type_t     type,
+                                      _Out_ sai_status_t         *object_statuses)
 {
     return SAI_STATUS_NOT_IMPLEMENTED;
 }
@@ -1068,14 +1072,8 @@ static sai_status_t mlnx_set_vlan_member_attribute(_In_ sai_object_id_t        v
 {
     const sai_object_key_t key = { .key.object_id = vlan_member_id };
     char                   key_str[MAX_KEY_STR_LEN];
-    sai_status_t           status;
 
     SX_LOG_ENTER();
-
-    status = check_attrs_port_type(&key, 1, attr);
-    if (SAI_ERR(status)) {
-        return status;
-    }
 
     vlan_member_key_to_str(vlan_member_id, key_str);
     return sai_set_attribute(&key, key_str, vlan_member_attribs, vlan_member_vendor_attribs, attr);
@@ -1111,18 +1109,17 @@ static sai_status_t mlnx_vlan_member_attrib_get(_In_ const sai_object_key_t   *k
                                                 _Inout_ vendor_cache_t        *cache,
                                                 void                          *arg)
 {
-    sx_status_t       status;
-    uint32_t          port_data;
-    uint8_t           extended_data[EXTENDED_DATA_SIZE];
-    sai_object_type_t obj_type = SAI_OBJECT_TYPE_NULL;
-    mlnx_object_id_t  vlan_obj_id;
+    uint8_t          extended_data[EXTENDED_DATA_SIZE];
+    mlnx_object_id_t vlan_obj_id;
+    uint32_t         port_data;
+    sx_status_t      status;
 
     SX_LOG_ENTER();
 
     memset(&vlan_obj_id, 0, sizeof(vlan_obj_id));
 
     assert((SAI_VLAN_MEMBER_ATTR_VLAN_ID == (long)arg) ||
-           (SAI_VLAN_MEMBER_ATTR_PORT_ID == (long)arg));
+           (SAI_VLAN_MEMBER_ATTR_BRIDGE_PORT_ID == (long)arg));
 
     if (SAI_STATUS_SUCCESS !=
         (status = mlnx_object_to_type(key->key.object_id, SAI_OBJECT_TYPE_VLAN_MEMBER, &port_data, extended_data))) {
@@ -1139,20 +1136,14 @@ static sai_status_t mlnx_vlan_member_attrib_get(_In_ const sai_object_key_t   *k
         }
         break;
 
-    case SAI_VLAN_MEMBER_ATTR_PORT_ID:
-        if (SX_PORT_TYPE_ID_GET(port_data) == SX_PORT_TYPE_NETWORK) {
-            obj_type = SAI_OBJECT_TYPE_PORT;
-        } else if (SX_PORT_TYPE_ID_GET(port_data) == SX_PORT_TYPE_LAG) {
-            obj_type = SAI_OBJECT_TYPE_LAG;
-        } else {
-            SX_LOG_ERR("Invalid VLAN member port type - can be port or LAG\n");
-            return SAI_STATUS_INVALID_PARAMETER;
-        }
-
-        status = mlnx_create_object(obj_type, port_data, NULL, &value->oid);
+    case SAI_VLAN_MEMBER_ATTR_BRIDGE_PORT_ID:
+        sai_db_read_lock();
+        status = mlnx_log_port_to_sai_bridge_port(port_data, &value->oid);
         if (SAI_ERR(status)) {
+            sai_db_unlock();
             return status;
         }
+        sai_db_unlock();
         break;
     }
 

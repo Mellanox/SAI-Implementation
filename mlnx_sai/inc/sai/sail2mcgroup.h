@@ -53,9 +53,10 @@ typedef enum _sai_l2mc_group_attr_t
 
     /**
      * @brief L2MC member list
+     *
      * @type sai_object_list_t
-     * @objects SAI_OBJECT_TYPE_L2MC_GROUP_MEMBER
      * @flags READ_ONLY
+     * @objects SAI_OBJECT_TYPE_L2MC_GROUP_MEMBER
      */
     SAI_L2MC_GROUP_ATTR_L2MC_MEMBER_LIST,
 
@@ -81,17 +82,19 @@ typedef enum _sai_l2mc_group_member_attr_t
 
     /**
      * @brief L2MC group id
+     *
      * @type sai_object_id_t
-     * @objects SAI_OBJECT_TYPE_L2MC_GROUP
      * @flags MANDATORY_ON_CREATE | CREATE_ONLY
+     * @objects SAI_OBJECT_TYPE_L2MC_GROUP
      */
     SAI_L2MC_GROUP_MEMBER_ATTR_L2MC_GROUP_ID = SAI_L2MC_GROUP_MEMBER_ATTR_START,
 
     /**
      * @brief L2MC output id
+     *
      * @type sai_object_id_t
-     * @objects SAI_OBJECT_TYPE_PORT, SAI_OBJECT_TYPE_LAG, SAI_OBJECT_TYPE_TUNNEL
      * @flags MANDATORY_ON_CREATE | CREATE_ONLY
+     * @objects SAI_OBJECT_TYPE_BRIDGE_PORT
      */
     SAI_L2MC_GROUP_MEMBER_ATTR_L2MC_OUTPUT_ID,
 
@@ -164,18 +167,16 @@ typedef sai_status_t (*sai_get_l2mc_group_attribute_fn)(
  * @brief Create L2MC group member
  *
  * @param[out] l2mc_group_member_id - L2MC group member id
- * @param[in] switch_id Switch id
  * @param[in] attr_count - number of attributes
  * @param[in] attr_list - array of attributes
  *
  * @return #SAI_STATUS_SUCCESS on success Failure status code on error
  */
 typedef sai_status_t (*sai_create_l2mc_group_member_fn)(
-    _Out_ sai_object_id_t* l2mc_group_member_id,
-    _In_ sai_object_id_t switch_id,
-    _In_ uint32_t attr_count,
-    _In_ const sai_attribute_t *attr_list
-    );
+        _Out_ sai_object_id_t* l2mc_group_member_id,
+        _In_ sai_object_id_t switch_id,
+        _In_ uint32_t attr_count,
+        _In_ const sai_attribute_t *attr_list);
 
 /**
  * @brief Remove L2MC group member
@@ -185,8 +186,7 @@ typedef sai_status_t (*sai_create_l2mc_group_member_fn)(
  * @return SAI_STATUS_SUCCESS on success Failure status code on error
  */
 typedef sai_status_t (*sai_remove_l2mc_group_member_fn)(
-    _In_ sai_object_id_t l2mc_group_member_id
-    );
+        _In_ sai_object_id_t l2mc_group_member_id);
 
 /**
  * @brief Set L2MC Group attribute
@@ -197,9 +197,8 @@ typedef sai_status_t (*sai_remove_l2mc_group_member_fn)(
  * @return #SAI_STATUS_SUCCESS on success Failure status code on error
  */
 typedef sai_status_t (*sai_set_l2mc_group_member_attribute_fn)(
-    _In_ sai_object_id_t l2mc_group_member_id,
-    _In_ const sai_attribute_t *attr
-    );
+        _In_ sai_object_id_t l2mc_group_member_id,
+        _In_ const sai_attribute_t *attr);
 
 /**
  * @brief Get L2MC Group attribute
@@ -211,13 +210,12 @@ typedef sai_status_t (*sai_set_l2mc_group_member_attribute_fn)(
  * @return SAI_STATUS_SUCCESS on success Failure status code on error
  */
 typedef sai_status_t (*sai_get_l2mc_group_member_attribute_fn)(
-    _In_ sai_object_id_t l2mc_group_member_id,
-    _In_ uint32_t attr_count,
-    _Inout_ sai_attribute_t *attr_list
-    );
+        _In_ sai_object_id_t l2mc_group_member_id,
+        _In_ uint32_t attr_count,
+        _Inout_ sai_attribute_t *attr_list);
 
 /**
- *  @brief L2MC group methods table retrieved with sai_api_query()
+ * @brief L2MC group methods table retrieved with sai_api_query()
  */
 typedef struct _sai_l2mc_group_api_t
 {

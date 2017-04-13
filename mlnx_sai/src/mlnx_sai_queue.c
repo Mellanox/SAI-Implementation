@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2015. Mellanox Technologies, Ltd. ALL RIGHTS RESERVED.
+ *  Copyright (C) 2017. Mellanox Technologies, Ltd. ALL RIGHTS RESERVED.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License"); you may
  *    not use this file except in compliance with the License. You may obtain
@@ -73,6 +73,8 @@ static const sai_attribute_entry_t        queue_attribs[] = {
       "Queue buffer profile ID", SAI_ATTR_VAL_TYPE_OID },
     { SAI_QUEUE_ATTR_SCHEDULER_PROFILE_ID, false, true, true, true,
       "Queue scheduler profile ID", SAI_ATTR_VAL_TYPE_OID },
+    { SAI_QUEUE_ATTR_PAUSE_STATUS, false, false, false, true,
+      "Queue pause status", SAI_ATTR_VAL_TYPE_BOOL },
     { END_FUNCTIONALITY_ATTRIBS_ID, false, false, false, false,
       "", SAI_ATTR_VAL_TYPE_UNDETERMINED }
 };
@@ -111,7 +113,12 @@ static const sai_vendor_attribute_entry_t queue_vendor_attribs[] = {
       { true, false, true, true },
       { true, false, true, true },
       mlnx_queue_config_get, (void*)SAI_QUEUE_ATTR_SCHEDULER_PROFILE_ID,
-      mlnx_queue_config_set, (void*)SAI_QUEUE_ATTR_SCHEDULER_PROFILE_ID }
+      mlnx_queue_config_set, (void*)SAI_QUEUE_ATTR_SCHEDULER_PROFILE_ID },
+    { SAI_QUEUE_ATTR_PAUSE_STATUS,
+      { false, false, false, false },
+      { false, false, false, true },
+      NULL, NULL,
+      NULL, NULL },
 };
 
 sai_status_t mlnx_queue_log_set(sx_verbosity_level_t level)

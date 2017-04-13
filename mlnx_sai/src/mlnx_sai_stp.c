@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2014-2015. Mellanox Technologies, Ltd. ALL RIGHTS RESERVED.
+ *  Copyright (C) 2017. Mellanox Technologies, Ltd. ALL RIGHTS RESERVED.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License"); you may
  *    not use this file except in compliance with the License. You may obtain
@@ -37,6 +37,11 @@ static sai_status_t mlnx_stp_ports_get(_In_ const sai_object_key_t   *key,
                                        _In_ uint32_t                  attr_index,
                                        _Inout_ vendor_cache_t        *cache,
                                        _In_ void                     *arg);
+static sai_status_t mlnx_stp_bridge_id_get(_In_ const sai_object_key_t   *key,
+                                           _Inout_ sai_attribute_value_t *value,
+                                           _In_ uint32_t                  attr_index,
+                                           _Inout_ vendor_cache_t        *cache,
+                                           _In_ void                     *arg);
 
 /* STP instance attributes */
 static const sai_attribute_entry_t        stp_attribs[] = {
@@ -44,6 +49,8 @@ static const sai_attribute_entry_t        stp_attribs[] = {
       "List of associated VLANs", SAI_ATTR_VAL_TYPE_VLANLIST },
     { SAI_STP_ATTR_PORT_LIST, false, false, false, true,
       "List of associated ports", SAI_ATTR_VAL_TYPE_OBJLIST },
+    { SAI_STP_ATTR_BRIDGE_ID, false, false, false, true,
+      "Bridge id", SAI_ATTR_VAL_TYPE_OBJLIST },
     { END_FUNCTIONALITY_ATTRIBS_ID, false, false, false, false,
       "", SAI_ATTR_VAL_TYPE_UNDETERMINED }
 };
@@ -57,6 +64,11 @@ static const sai_vendor_attribute_entry_t stp_vendor_attribs[] = {
       { false, false, false, true },
       { false, false, false, true },
       mlnx_stp_ports_get, NULL,
+      NULL, NULL },
+    { SAI_STP_ATTR_BRIDGE_ID,
+      { false, false, false, true },
+      { false, false, false, true },
+      mlnx_stp_bridge_id_get, NULL,
       NULL, NULL }
 };
 static sai_status_t mlnx_stp_port_stp_id_get(_In_ const sai_object_key_t   *key,
@@ -82,7 +94,7 @@ static sai_status_t mlnx_stp_port_state_set(_In_ const sai_object_key_t      *ke
 static const sai_attribute_entry_t        stp_port_attribs[] = {
     { SAI_STP_PORT_ATTR_STP, true, true, false, true,
       "STP instance id", SAI_ATTR_VAL_TYPE_OID },
-    { SAI_STP_PORT_ATTR_PORT, true, true, false, true,
+    { SAI_STP_PORT_ATTR_BRIDGE_PORT, true, true, false, true,
       "Port object id", SAI_ATTR_VAL_TYPE_OID },
     { SAI_STP_PORT_ATTR_STATE, true, true, true, true,
       "STP Port state", SAI_ATTR_VAL_TYPE_S32 },
@@ -95,7 +107,7 @@ static const sai_vendor_attribute_entry_t stp_port_vendor_attribs[] = {
       { true, false, false, true },
       mlnx_stp_port_stp_id_get, NULL,
       NULL, NULL },
-    { SAI_STP_PORT_ATTR_PORT,
+    { SAI_STP_PORT_ATTR_BRIDGE_PORT,
       { true, false, false, true },
       { true, false, false, true },
       mlnx_stp_port_port_id_get, NULL,
@@ -519,6 +531,33 @@ out:
     return SAI_STATUS_SUCCESS;
 }
 
+/**
+ * @brief Bridge attached to STP instance
+ *
+ * @type sai_object_id_t
+ * @flags READ_ONLY
+ * @objects SAI_OBJECT_TYPE_BRIDGE
+ */
+static sai_status_t mlnx_stp_bridge_id_get(_In_ const sai_object_key_t   *key,
+                                           _Inout_ sai_attribute_value_t *value,
+                                           _In_ uint32_t                  attr_index,
+                                           _Inout_ vendor_cache_t        *cache,
+                                           _In_ void                     *arg)
+{
+    sai_status_t status;
+
+    SX_LOG_ENTER();
+
+    sai_db_read_lock();
+
+    status = mlnx_create_bridge_object(SAI_BRIDGE_TYPE_1Q, g_sai_db_ptr->sx_bridge_id, &value->oid);
+
+    sai_db_unlock();
+
+    SX_LOG_EXIT();
+    return status;
+}
+
 /*
  * SAI STP Port
  */
@@ -588,8 +627,8 @@ static sai_status_t mlnx_create_stp_port(_Out_ sai_object_id_t      *stp_port_id
     const sai_attribute_value_t *stp, *port, *state;
     sx_mstp_inst_port_state_t    sx_port_state;
     mlnx_object_id_t             stp_port_obj_id;
-    mlnx_object_id_t             port_obj_id;
     mlnx_object_id_t             stp_obj_id;
+    sx_port_log_id_t             log_port;
     sx_status_t                  sx_status;
     sai_status_t                 status;
 
@@ -612,7 +651,7 @@ static sai_status_t mlnx_create_stp_port(_Out_ sai_object_id_t      *stp_port_id
     status = find_attrib_in_list(attr_count, attr_list, SAI_STP_PORT_ATTR_STP, &stp, &stp_index);
     assert(status == SAI_STATUS_SUCCESS);
 
-    status = find_attrib_in_list(attr_count, attr_list, SAI_STP_PORT_ATTR_PORT, &port, &port_index);
+    status = find_attrib_in_list(attr_count, attr_list, SAI_STP_PORT_ATTR_BRIDGE_PORT, &port, &port_index);
     assert(status == SAI_STATUS_SUCCESS);
 
     status = find_attrib_in_list(attr_count, attr_list, SAI_STP_PORT_ATTR_STATE, &state, &state_index);
@@ -623,7 +662,7 @@ static sai_status_t mlnx_create_stp_port(_Out_ sai_object_id_t      *stp_port_id
         return status;
     }
 
-    status = sai_to_mlnx_object_id(SAI_OBJECT_TYPE_PORT, port->oid, &port_obj_id);
+    status = mlnx_bridge_port_sai_to_log_port(port->oid, &log_port);
     if (SAI_ERR(status)) {
         return status;
     }
@@ -637,8 +676,7 @@ static sai_status_t mlnx_create_stp_port(_Out_ sai_object_id_t      *stp_port_id
 
     sx_status = sx_api_mstp_inst_port_state_set(gh_sdk, DEFAULT_ETH_SWID,
                                                 stp_obj_id.id.stp_inst_id,
-                                                port_obj_id.id.log_port_id,
-                                                sx_port_state);
+                                                log_port, sx_port_state);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to set stp port state (%u) - %s\n", sx_port_state,
                    SX_STATUS_MSG(sx_status));
@@ -648,7 +686,7 @@ static sai_status_t mlnx_create_stp_port(_Out_ sai_object_id_t      *stp_port_id
 
     memset(&stp_port_obj_id, 0, sizeof(stp_port_obj_id));
 
-    stp_port_obj_id.id.log_port_id = port_obj_id.id.log_port_id;
+    stp_port_obj_id.id.log_port_id = log_port;
     stp_port_obj_id.ext.stp.id     = stp_obj_id.id.stp_inst_id;
 
     status = mlnx_object_id_to_sai(SAI_OBJECT_TYPE_STP_PORT, &stp_port_obj_id, stp_port_id);
@@ -692,13 +730,13 @@ static sai_status_t mlnx_remove_stp_port(_In_ sai_object_id_t stp_port_id)
  * any of the objects fails to create. When there is failure, Caller is expected to go through the
  * list of returned statuses to find out which fails and which succeeds.
  */
-sai_status_t mlnx_create_stp_ports(_In_ sai_object_id_t    switch_id,
-                                   _In_ uint32_t           object_count,
-                                   _In_ uint32_t          *attr_count,
-                                   _In_ sai_attribute_t  **attrs,
-                                   _In_ sai_bulk_op_type_t type,
-                                   _Out_ sai_object_id_t  *object_id,
-                                   _Out_ sai_status_t     *object_statuses)
+sai_status_t mlnx_create_stp_ports(_In_ sai_object_id_t         switch_id,
+                                   _In_ uint32_t                object_count,
+                                   _In_ const uint32_t         *attr_count,
+                                   _In_ const sai_attribute_t **attrs,
+                                   _In_ sai_bulk_op_type_t      type,
+                                   _Out_ sai_object_id_t       *object_id,
+                                   _Out_ sai_status_t          *object_statuses)
 {
     return SAI_STATUS_NOT_IMPLEMENTED;
 }
@@ -715,10 +753,10 @@ sai_status_t mlnx_create_stp_ports(_In_ sai_object_id_t    switch_id,
  * any of the objects fails to remove. When there is failure, Caller is expected to go through the
  * list of returned statuses to find out which fails and which succeeds.
  */
-sai_status_t mlnx_remove_stp_ports(_In_ uint32_t           object_count,
-                                   _In_ sai_object_id_t   *object_id,
-                                   _In_ sai_bulk_op_type_t type,
-                                   _Out_ sai_status_t     *object_statuses)
+sai_status_t mlnx_remove_stp_ports(_In_ uint32_t               object_count,
+                                   _In_ const sai_object_id_t *object_id,
+                                   _In_ sai_bulk_op_type_t     type,
+                                   _Out_ sai_status_t         *object_statuses)
 {
     return SAI_STATUS_NOT_IMPLEMENTED;
 }
@@ -766,7 +804,6 @@ static sai_status_t mlnx_stp_port_port_id_get(_In_ const sai_object_key_t   *key
                                               _In_ void                     *arg)
 {
     mlnx_object_id_t stp_port;
-    mlnx_object_id_t port;
     sai_status_t     status;
 
     SX_LOG_ENTER();
@@ -776,11 +813,9 @@ static sai_status_t mlnx_stp_port_port_id_get(_In_ const sai_object_key_t   *key
         goto out;
     }
 
-    memset(&port, 0, sizeof(port));
-
-    port.id.log_port_id = stp_port.id.log_port_id;
-
-    status = mlnx_object_id_to_sai(SAI_OBJECT_TYPE_PORT, &port, &value->oid);
+    sai_db_read_lock();
+    status = mlnx_log_port_to_sai_bridge_port(stp_port.id.log_port_id, &value->oid);
+    sai_db_unlock();
 
 out:
     SX_LOG_EXIT();
