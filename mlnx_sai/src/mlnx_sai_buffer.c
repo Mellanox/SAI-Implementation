@@ -1525,7 +1525,7 @@ sai_status_t reset_port_buffer_db_data()
     SX_LOG_ENTER();
     memset(g_sai_buffer_db_ptr->buffer_profiles, 0, g_sai_buffer_db_size);
 
-    mlnx_port_foreach(port, port_ind) {
+    mlnx_port_phy_foreach(port, port_ind) {
         for (queue_ind = 0; queue_ind < buffer_limits.num_port_queue_buff; queue_ind++) {
             if (SAI_STATUS_SUCCESS != (
                     sai_status =
@@ -2025,7 +2025,7 @@ static sai_status_t mlnx_sai_buffer_compute_shared_size(_In_ sai_object_id_t    
         return sai_status;
     }
 
-    mlnx_port_foreach(port, port_ind) {
+    mlnx_port_phy_foreach(port, port_ind) {
         memset(sx_port_reserved_buff_attr_arr, 0, arr_length * sizeof(sx_port_reserved_buff_attr_arr[0]));
         get_count = arr_length;
         if (SX_STATUS_SUCCESS != (sx_status = sx_api_cos_port_buff_type_get(gh_sdk,
@@ -3053,7 +3053,7 @@ static sai_status_t mlnx_sai_apply_buffer_settings_to_port(_In_ sx_port_log_id_t
         }
         log_sai_pool_attribs(prev_pool_attr);
     }
-    mlnx_port_foreach(port, db_port_ind) {
+    mlnx_port_phy_foreach(port, db_port_ind) {
         if (port->logical == log_port) {
             break;
         }
@@ -3396,7 +3396,7 @@ static sai_status_t mlnx_sai_buffer_apply_buffer_change_to_references(_In_ sai_o
         return sai_status;
     }
     buff_db_entry = g_sai_buffer_db_ptr->buffer_profiles[db_buffer_profile_index];
-    mlnx_port_foreach(port, port_ind) {
+    mlnx_port_phy_foreach(port, port_ind) {
         sai_status = mlnx_sai_collect_buffer_refs(sai_buffer_id, port_ind, &affected_items);
         if (SAI_STATUS_ITEM_NOT_FOUND == sai_status) {
             continue;
@@ -4520,7 +4520,7 @@ static sai_status_t mlnx_sai_buffer_unbind_shared_buffers(_In_ sx_port_log_id_t 
                                                                                log_port,
                                                                                sx_port_shared_buff_attr_arr,
                                                                                &count))) {
-        SX_LOG_ERR("Failed to obtains sx shared buffers for logical:%d, sx_status:%d, message %s. line:%d\n",
+        SX_LOG_ERR("Failed to obtains sx shared buffers for logical:%x, sx_status:%d, message %s. line:%d\n",
                    log_port,  sx_status, SX_STATUS_MSG(sx_status), __LINE__);
         free(sx_port_shared_buff_attr_arr);
         SX_LOG_EXIT();
@@ -4562,7 +4562,7 @@ static sai_status_t mlnx_sai_buffer_delete_all_buffer_config()
     mlnx_port_config_t *port;
 
     SX_LOG_ENTER();
-    mlnx_port_foreach(port, port_ind) {
+    mlnx_port_phy_foreach(port, port_ind) {
         if (SAI_STATUS_SUCCESS !=
             (sai_status = mlnx_sai_buffer_unbind_shared_buffers(port->logical))) {
             if (sai_status != SAI_STATUS_ITEM_NOT_FOUND) {
@@ -4666,7 +4666,7 @@ static sai_status_t mlnx_sai_is_buffer_in_use(_In_ sai_object_id_t buffer_profil
         SX_LOG_EXIT();
         return SAI_STATUS_NO_MEMORY;
     }
-    mlnx_port_foreach(port, port_ind) {
+    mlnx_port_phy_foreach(port, port_ind) {
         sai_status = mlnx_sai_collect_buffer_refs(buffer_profile_id, port_ind, &affected_items);
         if (SAI_STATUS_ITEM_NOT_FOUND == sai_status) {
             continue;
