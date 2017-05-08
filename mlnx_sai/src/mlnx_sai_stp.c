@@ -50,7 +50,7 @@ static const sai_attribute_entry_t        stp_attribs[] = {
     { SAI_STP_ATTR_PORT_LIST, false, false, false, true,
       "List of associated ports", SAI_ATTR_VAL_TYPE_OBJLIST },
     { SAI_STP_ATTR_BRIDGE_ID, false, false, false, true,
-      "Bridge id", SAI_ATTR_VAL_TYPE_OBJLIST },
+      "Bridge id", SAI_ATTR_VAL_TYPE_OID },
     { END_FUNCTIONALITY_ATTRIBS_ID, false, false, false, false,
       "", SAI_ATTR_VAL_TYPE_UNDETERMINED }
 };
