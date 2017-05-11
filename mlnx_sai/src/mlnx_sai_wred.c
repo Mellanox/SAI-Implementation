@@ -841,6 +841,7 @@ sai_status_t mlnx_wred_apply(sai_object_id_t wred_id, sai_object_id_t to_obj_id)
     sx_cos_traffic_class_t  *tc_list      = NULL;
     uint32_t                 tc_count     = g_resource_limits.cos_port_ets_traffic_class_max + 1;
     sx_port_log_id_t         port_id;
+    mlnx_port_config_t      *port_conf    = NULL;
     uint32_t                 wred_num                     = 0, index = 0;
     sai_object_type_t        to_obj_type                  = sai_object_type_query(to_obj_id);
     uint8_t                  ext_data[EXTENDED_DATA_SIZE] = {0};
@@ -853,22 +854,33 @@ sai_status_t mlnx_wred_apply(sai_object_id_t wred_id, sai_object_id_t to_obj_id)
         SX_LOG_ERR("Failed to alloc memory for tc list\n");
         return SAI_STATUS_NO_MEMORY;
     }
-
     /* get port id and TC list based on object type */
     switch (to_obj_type) {
     case SAI_OBJECT_TYPE_PORT:
-        if ((SAI_STATUS_SUCCESS !=
-             (status = mlnx_object_to_type(to_obj_id, SAI_OBJECT_TYPE_PORT, &port_id, NULL))) ||
-            (SAI_STATUS_SUCCESS !=
-             (status = mlnx_port_idx_by_log_id(port_id, &index))) ||
-            (SAI_STATUS_SUCCESS !=
-             (status = mlnx_wred_get_tc_unbind_list(port_id, tc_list, &tc_count)))) {
-            free(tc_list);
+    case SAI_OBJECT_TYPE_LAG:
+        sai_db_read_lock();
+
+        status = mlnx_port_by_obj_id(to_obj_id, &port_conf);
+        if (SAI_ERR(status)) {
+            sai_db_unlock();
+            return status;
+        }
+        port_id = port_conf->logical;
+
+        status = mlnx_wred_get_tc_unbind_list(port_id, tc_list, &tc_count);
+        if (SAI_ERR(status)) {
+            sai_db_unlock();
             return status;
         }
 
-        sai_db_read_lock();
-        curr_wred_id = g_sai_db_ptr->ports_db[index].wred_id;
+        status = mlnx_port_idx_by_log_id(port_id, &index);
+        if (SAI_ERR(status)) {
+            sai_db_unlock();
+            return status;
+        }
+
+        curr_wred_id = port_conf->wred_id;
+
         sai_db_unlock();
         break;
 
@@ -966,7 +978,7 @@ sai_status_t mlnx_wred_apply(sai_object_id_t wred_id, sai_object_id_t to_obj_id)
         /* Update DB */
         sai_db_write_lock();
 
-        if (to_obj_type == SAI_OBJECT_TYPE_PORT) {
+        if (to_obj_type == SAI_OBJECT_TYPE_PORT || to_obj_type == SAI_OBJECT_TYPE_LAG) {
             g_sai_db_ptr->ports_db[index].wred_id = wred_id;
         } else {
             status = mlnx_queue_cfg_lookup(port_id, tc_list[0], &queue_cfg);

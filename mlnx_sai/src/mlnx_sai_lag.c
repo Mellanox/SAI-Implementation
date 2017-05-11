@@ -1159,6 +1159,7 @@ static sai_status_t mlnx_create_lag_member(_Out_ sai_object_id_t     * lag_membe
     mlnx_port_config_t          *lag          = NULL;
     sx_collector_mode_t          collect_mode = COLLECTOR_ENABLE;
     sx_distributor_mode_t        dist_mode    = DISTRIBUTOR_ENABLE;
+    sai_object_id_t              wred_oid = SAI_NULL_OBJECT_ID;
 
     SX_LOG_ENTER();
 
@@ -1214,9 +1215,7 @@ static sai_status_t mlnx_create_lag_member(_Out_ sai_object_id_t     * lag_membe
         return status;
     }
 
-    /* Add port to lag */
-    sai_db_write_lock();
-
+    sai_db_read_lock();
     status = mlnx_port_by_log_id(port_id, &port);
     if (SAI_ERR(status)) {
         goto out;
@@ -1226,10 +1225,24 @@ static sai_status_t mlnx_create_lag_member(_Out_ sai_object_id_t     * lag_membe
         goto out;
     }
 
+    wred_oid = port->wred_id;
+
     status = validate_port(lag, port);
     if (SAI_ERR(status)) {
         goto out;
     }
+    sai_db_unlock();
+
+    status = mlnx_wred_apply(SAI_NULL_OBJECT_ID, port_oid);
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+    /* Add port to lag */
+    sai_db_write_lock();
+
+    /* We need to keep it when port is removing from the LAG, to restore the original WRED profile */
+    port->wred_id = wred_oid;
 
     sx_status = sx_api_lag_port_group_get(gh_sdk, DEFAULT_ETH_SWID, lag->logical, NULL, &port_cnt);
     if (SAI_ERR(status = sdk_to_sai(sx_status))) {
@@ -1292,6 +1305,15 @@ static sai_status_t mlnx_create_lag_member(_Out_ sai_object_id_t     * lag_membe
 out:
     sai_db_unlock();
 
+    if (SAI_ERR(status) && wred_oid != SAI_NULL_OBJECT_ID) {
+        port->wred_id = SAI_NULL_OBJECT_ID;
+        status = mlnx_wred_apply(wred_oid, port_oid);
+        if (SAI_ERR(status)) {
+            return status;
+        }
+        port->wred_id = wred_oid;
+    }
+
     lag_member_key_to_str(*lag_member_id, key_str);
     SX_LOG_NTC("Created LAG member %s\n", key_str);
     return status;
@@ -1303,7 +1325,13 @@ static sai_status_t mlnx_remove_lag_member(_In_ sai_object_id_t lag_member_id)
     sai_status_t        status          = SAI_STATUS_SUCCESS;
     sx_port_log_id_t    lag_log_port_id = 0;
     sx_port_log_id_t    log_port_id;
+    uint32_t            members_count = 0;
     mlnx_port_config_t *port_config;
+    mlnx_port_config_t *lag_config;
+    sx_status_t         sx_status;
+    sai_object_id_t     lag_oid;
+
+    SX_LOG_NTC("Remove SAI LAG member oid %" PRIx64 "\n", (uint64_t)lag_member_id);
 
     status = mlnx_object_to_type(lag_member_id, SAI_OBJECT_TYPE_LAG_MEMBER,
                                  &log_port_id, extended_data);
@@ -1318,23 +1346,50 @@ static sai_status_t mlnx_remove_lag_member(_In_ sai_object_id_t lag_member_id)
     sai_db_write_lock();
     status = remove_port_from_lag(lag_log_port_id, log_port_id);
     if (SAI_ERR(status)) {
+        sai_db_unlock();
         goto out;
     }
 
     status = mlnx_port_by_log_id(log_port_id, &port_config);
     if (SAI_ERR(status)) {
+        sai_db_unlock();
         goto out;
     }
+    status = mlnx_port_by_log_id(lag_log_port_id, &lag_config);
+    if (SAI_ERR(status)) {
+        sai_db_unlock();
+        goto out;
+    }
+    lag_oid = lag_config->saiport;
+
     acl_global_lock();
     status = mlnx_acl_port_lag_event_handle(port_config, ACL_EVENT_TYPE_LAG_MEMBER_DEL);
     acl_global_unlock();
+
     if (SAI_ERR(status)) {
         SX_LOG_NTC("Failed to remove Lag member port[%x] from ACLs\n", port_config->logical);
+        sai_db_unlock();
         goto out;
     }
 
-out:
     sai_db_unlock();
+
+    sx_status = sx_api_lag_port_group_get(gh_sdk, DEFAULT_ETH_SWID, lag_log_port_id, NULL, &members_count);
+    if (SX_ERR(sx_status)) {
+        return sdk_to_sai(sx_status);
+    }
+
+    /* WRED API uses own locking mechanism */
+    if (members_count == 0) {
+        status = mlnx_wred_apply(SAI_NULL_OBJECT_ID, lag_oid);
+        if (SAI_ERR(status)) {
+            return status;
+        }
+    }
+
+    SX_LOG_NTC("Removed SAI LAG member\n");
+
+out:
     return status;
 }
 
