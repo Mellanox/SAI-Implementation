@@ -152,7 +152,9 @@ static sai_status_t mlnx_queue_config_set(_In_ const sai_object_key_t      *key,
         }
     }
 
+    sai_db_write_lock();
     status = func_setter(profile_id, queue_id);
+    sai_db_unlock();
     SX_LOG_EXIT();
     return status;
 }

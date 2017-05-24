@@ -1160,6 +1160,10 @@ static sai_status_t mlnx_create_lag_member(_Out_ sai_object_id_t     * lag_membe
     sx_collector_mode_t          collect_mode = COLLECTOR_ENABLE;
     sx_distributor_mode_t        dist_mode    = DISTRIBUTOR_ENABLE;
     sai_object_id_t              wred_oid = SAI_NULL_OBJECT_ID;
+    sai_object_id_t              tmp_oid;
+    sai_object_id_t              queue_id;
+    mlnx_qos_queue_config_t     *queue;
+    uint32_t                     ii;
 
     SX_LOG_ENTER();
 
@@ -1215,7 +1219,7 @@ static sai_status_t mlnx_create_lag_member(_Out_ sai_object_id_t     * lag_membe
         return status;
     }
 
-    sai_db_read_lock();
+    sai_db_write_lock();
     status = mlnx_port_by_log_id(port_id, &port);
     if (SAI_ERR(status)) {
         goto out;
@@ -1231,15 +1235,33 @@ static sai_status_t mlnx_create_lag_member(_Out_ sai_object_id_t     * lag_membe
     if (SAI_ERR(status)) {
         goto out;
     }
-    sai_db_unlock();
+
+    /* Reset WRED from port & queues */
+    port_queues_foreach(port, queue, ii) {
+        if (ii >= RM_API_COS_TRAFFIC_CLASS_NUM) {
+            continue;
+        }
+
+        status = mlnx_queue_cfg_lookup(port->logical, ii, &queue);
+        if (SAI_ERR(status)) {
+            goto out;
+        }
+        tmp_oid = queue->wred_id;
+        status = mlnx_create_queue_object(port->logical, ii, &queue_id);
+        if (SAI_ERR(status)) {
+        }
+
+        status = mlnx_wred_apply(SAI_NULL_OBJECT_ID, queue_id);
+        if (SAI_ERR(status)) {
+            goto out;
+        }
+        queue->wred_id = tmp_oid;
+    }
 
     status = mlnx_wred_apply(SAI_NULL_OBJECT_ID, port_oid);
     if (SAI_ERR(status)) {
-        return status;
+        goto out;
     }
-
-    /* Add port to lag */
-    sai_db_write_lock();
 
     /* We need to keep it when port is removing from the LAG, to restore the original WRED profile */
     port->wred_id = wred_oid;
@@ -1303,16 +1325,36 @@ static sai_status_t mlnx_create_lag_member(_Out_ sai_object_id_t     * lag_membe
     }
 
 out:
-    sai_db_unlock();
-
     if (SAI_ERR(status) && wred_oid != SAI_NULL_OBJECT_ID) {
+        port_queues_foreach(port, queue, ii) {
+            if (ii >= RM_API_COS_TRAFFIC_CLASS_NUM) {
+                continue;
+            }
+            status = mlnx_queue_cfg_lookup(port->logical, ii, &queue);
+            if (SAI_ERR(status)) {
+                goto out;
+            }
+            tmp_oid = queue->wred_id;
+            queue->wred_id = SAI_NULL_OBJECT_ID;
+            status = mlnx_create_queue_object(port->logical, ii, &queue_id);
+            if (SAI_ERR(status)) {
+            }
+
+            status = mlnx_wred_apply(tmp_oid, queue_id);
+            if (SAI_ERR(status)) {
+                goto out;
+            }
+        }
+
         port->wred_id = SAI_NULL_OBJECT_ID;
         status = mlnx_wred_apply(wred_oid, port_oid);
         if (SAI_ERR(status)) {
+            sai_db_unlock();
             return status;
         }
-        port->wred_id = wred_oid;
     }
+
+    sai_db_unlock();
 
     lag_member_key_to_str(*lag_member_id, key_str);
     SX_LOG_NTC("Created LAG member %s\n", key_str);
@@ -1372,24 +1414,45 @@ static sai_status_t mlnx_remove_lag_member(_In_ sai_object_id_t lag_member_id)
         goto out;
     }
 
-    sai_db_unlock();
-
     sx_status = sx_api_lag_port_group_get(gh_sdk, DEFAULT_ETH_SWID, lag_log_port_id, NULL, &members_count);
     if (SX_ERR(sx_status)) {
-        return sdk_to_sai(sx_status);
+        status = sdk_to_sai(sx_status);
+        goto out;
     }
 
-    /* WRED API uses own locking mechanism */
     if (members_count == 0) {
+        sai_object_id_t              queue_id;
+        mlnx_qos_queue_config_t     *queue;
+        uint32_t                     ii;
+
         status = mlnx_wred_apply(SAI_NULL_OBJECT_ID, lag_oid);
         if (SAI_ERR(status)) {
-            return status;
+            goto out;
+        }
+        port_queues_foreach(lag_config, queue, ii) {
+            if (ii >= RM_API_COS_TRAFFIC_CLASS_NUM) {
+                continue;
+            }
+
+            status = mlnx_queue_cfg_lookup(lag_config->logical, ii, &queue);
+            if (SAI_ERR(status)) {
+                goto out;
+            }
+            status = mlnx_create_queue_object(lag_config->logical, ii, &queue_id);
+            if (SAI_ERR(status)) {
+            }
+
+            status = mlnx_wred_apply(SAI_NULL_OBJECT_ID, queue_id);
+            if (SAI_ERR(status)) {
+                goto out;
+            }
         }
     }
 
     SX_LOG_NTC("Removed SAI LAG member\n");
 
 out:
+    sai_db_unlock();
     return status;
 }
 

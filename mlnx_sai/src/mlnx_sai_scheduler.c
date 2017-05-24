@@ -794,10 +794,10 @@ static sai_status_t mlnx_get_scheduler_attribute(_In_ sai_object_id_t     schedu
 sai_status_t mlnx_scheduler_to_port_apply(sai_object_id_t scheduler_id, sai_object_id_t port_id)
 {
     sx_port_log_id_t            port_log_id;
-    sx_cos_ets_element_config_t ets;
-    mlnx_sched_profile_t       *sched;
     sai_status_t                status;
-    uint32_t                    port_idx;
+    mlnx_sched_profile_t       *sched;
+    mlnx_port_config_t         *port;
+    sx_cos_ets_element_config_t ets;
 
     status = mlnx_object_to_type(port_id, SAI_OBJECT_TYPE_PORT, &port_log_id, NULL);
     if (status != SAI_STATUS_SUCCESS) {
@@ -806,9 +806,14 @@ sai_status_t mlnx_scheduler_to_port_apply(sai_object_id_t scheduler_id, sai_obje
 
     sai_qos_db_write_lock();
 
-    status = mlnx_port_idx_by_log_id(port_log_id, &port_idx);
-    if (status != SAI_STATUS_SUCCESS) {
+    status = mlnx_port_by_log_id(port_log_id, &port);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to lookup port by log id %x\n", port_log_id);
         goto out;
+    }
+
+    if (mlnx_port_is_lag_member(port)) {
+        port_log_id = port->lag_id;
     }
 
     memset(&ets, 0, sizeof(ets));
@@ -842,8 +847,7 @@ sai_status_t mlnx_scheduler_to_port_apply(sai_object_id_t scheduler_id, sai_obje
         goto out;
     }
 
-    g_sai_db_ptr->ports_db[port_idx].scheduler_id = scheduler_id;
-    sai_qos_db_sync();
+    port->scheduler_id = scheduler_id;
 
 out:
     sai_qos_db_unlock();
@@ -853,23 +857,26 @@ out:
 /* DB write lock is required */
 sai_status_t mlnx_scheduler_to_group_apply(sai_object_id_t scheduler_id, sai_object_id_t group_id)
 {
-    mlnx_port_config_t *port;
     sx_port_log_id_t    port_id;
     sai_status_t        status;
     uint8_t             level;
     uint8_t             index;
+    mlnx_port_config_t *port;
 
     status = mlnx_sched_group_parse_id(group_id, &port_id, &level, &index);
     if (SAI_ERR(status)) {
         return status;
     }
 
-    status = scheduler_to_group_apply(scheduler_id, port_id, level, index);
+    status = mlnx_port_by_log_id(port_id, &port);
     if (SAI_ERR(status)) {
         return status;
     }
+    if (mlnx_port_is_lag_member(port)) {
+        port_id = port->lag_id;
+    }
 
-    status = mlnx_port_by_log_id(port_id, &port);
+    status = scheduler_to_group_apply(scheduler_id, port_id, level, index);
     if (SAI_ERR(status)) {
         return status;
     }
@@ -934,8 +941,6 @@ sai_status_t mlnx_scheduler_to_queue_apply(sai_object_id_t scheduler_id, sai_obj
         return SAI_STATUS_NOT_SUPPORTED;
     }
 
-    sai_qos_db_write_lock();
-
     status = mlnx_queue_cfg_lookup(port_log_id, queue_index, &queue);
     if (status != SAI_STATUS_SUCCESS) {
         goto out;
@@ -950,10 +955,7 @@ sai_status_t mlnx_scheduler_to_queue_apply(sai_object_id_t scheduler_id, sai_obj
 
     queue->sched_obj.scheduler_id = scheduler_id;
 
-    sai_qos_db_sync();
-
 out:
-    sai_qos_db_unlock();
     return status;
 }
 
