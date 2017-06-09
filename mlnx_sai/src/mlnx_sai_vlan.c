@@ -233,7 +233,7 @@ static sai_status_t mlnx_vlan_member_list_get(_In_ const sai_object_key_t   *key
     uint32_t            ports_cnt = 0;
     uint16_t            vlan_id;
     sx_status_t         status = SAI_STATUS_SUCCESS;
-    mlnx_port_config_t *port;
+    mlnx_bridge_port_t *port;
     uint32_t            ii;
 
     SX_LOG_ENTER();
@@ -645,8 +645,10 @@ out:
 static sai_status_t mlnx_remove_vlan(_In_ sai_object_id_t sai_vlan_id)
 {
     char         key_str[MAX_KEY_STR_LEN];
-    sai_status_t status;
+    mlnx_bridge_port_t *port;
     uint16_t     vlan_id;
+    sai_status_t status;
+    uint32_t port_idx;
 
     SX_LOG_ENTER();
 
@@ -661,6 +663,14 @@ static sai_status_t mlnx_remove_vlan(_In_ sai_object_id_t sai_vlan_id)
         return status;
     }
 
+    sai_db_write_lock();
+
+    mlnx_vlan_ports_foreach(vlan_id, port, port_idx) {
+        SX_LOG_ERR("Failed to remove vlan which has vlan members\n");
+        status = SAI_STATUS_OBJECT_IN_USE;
+        goto out;
+    }
+
     vlan_key_to_str(vlan_id, key_str);
     SX_LOG_NTC("Remove %s\n", key_str);
 
@@ -670,9 +680,6 @@ static sai_status_t mlnx_remove_vlan(_In_ sai_object_id_t sai_vlan_id)
     if (SAI_ERR(status)) {
         goto out;
     }
-
-    assert(NULL != g_sai_db_ptr);
-    sai_db_write_lock();
 
     status = mlnx_vlan_stp_unbind(vlan_id);
     if (SAI_ERR(status)) {
@@ -690,15 +697,15 @@ out:
  * @brief Get vlan statistics counters.
  *
  * @param[in] vlan_id VLAN id
- * @param[in] counter_ids Specifies the array of counter ids
  * @param[in] number_of_counters Number of counters in the array
+ * @param[in] counter_ids Specifies the array of counter ids
  * @param[out] counters Array of resulting counter values.
  *
  * @return #SAI_STATUS_SUCCESS on success Failure status code on error
  */
 static sai_status_t mlnx_get_vlan_stats(_In_ sai_object_id_t        sai_vlan_id,
-                                        _In_ const sai_vlan_stat_t *counter_ids,
                                         _In_ uint32_t               number_of_counters,
+                                        _In_ const sai_vlan_stat_t *counter_ids,
                                         _Out_ uint64_t             *counters)
 {
     UNREFERENCED_PARAMETER(sai_vlan_id);
@@ -726,14 +733,14 @@ static sai_status_t mlnx_get_vlan_stats(_In_ sai_object_id_t        sai_vlan_id,
  * @brief Clear vlan statistics counters.
  *
  * @param[in] vlan_id Vlan id
- * @param[in] counter_ids Specifies the array of counter ids
  * @param[in] number_of_counters Number of counters in the array
+ * @param[in] counter_ids Specifies the array of counter ids
  *
  * @return SAI_STATUS_SUCCESS on success Failure status code on error
  */
 static sai_status_t mlnx_clear_vlan_stats(_In_ sai_object_id_t        sai_vlan_id,
-                                          _In_ const sai_vlan_stat_t *counter_ids,
-                                          _In_ uint32_t               number_of_counters)
+                                          _In_ uint32_t               number_of_counters,
+                                          _In_ const sai_vlan_stat_t *counter_ids)
 {
     UNREFERENCED_PARAMETER(sai_vlan_id);
     UNREFERENCED_PARAMETER(number_of_counters);
@@ -765,12 +772,12 @@ static void vlan_member_key_to_str(_In_ sai_object_id_t vlan_member_id, _Out_ ch
     }
 }
 
-bool mlnx_vlan_port_is_set(uint16_t vid, mlnx_port_config_t *port)
+bool mlnx_vlan_port_is_set(uint16_t vid, mlnx_bridge_port_t *port)
 {
     return array_bit_test(g_sai_db_ptr->vlans_db[vid - 1].ports_map, port->index);
 }
 
-void mlnx_vlan_port_set(uint16_t vid, mlnx_port_config_t *port, bool is_set)
+void mlnx_vlan_port_set(uint16_t vid, mlnx_bridge_port_t *port, bool is_set)
 {
     assert(port->index < MAX_PORTS * 2);
 
@@ -785,7 +792,7 @@ void mlnx_vlan_port_set(uint16_t vid, mlnx_port_config_t *port, bool is_set)
     }
 }
 
-sai_status_t mlnx_vlan_port_add(uint16_t vid, sai_vlan_tagging_mode_t mode, mlnx_port_config_t *port)
+sai_status_t mlnx_vlan_port_add(uint16_t vid, sai_vlan_tagging_mode_t mode, mlnx_bridge_port_t *port)
 {
     sx_vlan_ports_t vlan_port_list;
     sx_status_t     sx_status;
@@ -822,7 +829,7 @@ sai_status_t mlnx_vlan_port_add(uint16_t vid, sai_vlan_tagging_mode_t mode, mlnx
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_vlan_port_del(uint16_t vid, mlnx_port_config_t *port)
+sai_status_t mlnx_vlan_port_del(uint16_t vid, mlnx_bridge_port_t *port)
 {
     sx_vlan_ports_t port_list;
     sx_status_t     sx_status;
@@ -865,7 +872,7 @@ static sai_status_t mlnx_create_vlan_member(_Out_ sai_object_id_t     * vlan_mem
     char                         key_str[MAX_KEY_STR_LEN];
     char                         list_str[MAX_LIST_VALUE_STR_LEN];
     sx_port_log_id_t             log_port;
-    mlnx_port_config_t          *port_cfg;
+    mlnx_bridge_port_t          *port_cfg;
     uint16_t                     vlan_id;
     sai_status_t                 status;
 
@@ -922,7 +929,7 @@ static sai_status_t mlnx_create_vlan_member(_Out_ sai_object_id_t     * vlan_mem
 
     sai_db_write_lock();
 
-    status = mlnx_port_by_log_id(log_port, &port_cfg);
+    status = mlnx_bridge_port_by_log(log_port, &port_cfg);
     if (SAI_ERR(status)) {
         goto out;
     }
@@ -961,7 +968,7 @@ static sai_status_t mlnx_remove_vlan_member(_In_ sai_object_id_t vlan_member_id)
     uint32_t            port_data;
     uint8_t             extended_data[EXTENDED_DATA_SIZE];
     sai_status_t        status;
-    mlnx_port_config_t *port;
+    mlnx_bridge_port_t *port;
     uint16_t            vlan;
 
     SX_LOG_ENTER();
@@ -988,14 +995,14 @@ static sai_status_t mlnx_remove_vlan_member(_In_ sai_object_id_t vlan_member_id)
 
     sai_db_write_lock();
 
-    status = mlnx_port_by_log_id(port_data, &port);
+    status = mlnx_bridge_port_by_log(port_data, &port);
     if (SAI_ERR(status)) {
         goto out_unlock;
     }
 
     if (!mlnx_vlan_port_is_set(vlan, port)) {
-        SX_LOG_ERR("Vlan member does not exist for this vlan %u and port oid %" PRIx64 "\n",
-                   vlan, port->saiport);
+        SX_LOG_ERR("Vlan member does not exist for this vlan %u and bridge port %x\n",
+                   vlan, port->logical);
 
         status = SAI_STATUS_INVALID_OBJECT_ID;
         goto out_unlock;
@@ -1137,13 +1144,10 @@ static sai_status_t mlnx_vlan_member_attrib_get(_In_ const sai_object_key_t   *k
         break;
 
     case SAI_VLAN_MEMBER_ATTR_BRIDGE_PORT_ID:
-        sai_db_read_lock();
         status = mlnx_log_port_to_sai_bridge_port(port_data, &value->oid);
         if (SAI_ERR(status)) {
-            sai_db_unlock();
             return status;
         }
-        sai_db_unlock();
         break;
     }
 

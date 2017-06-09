@@ -248,5 +248,8 @@
     <ClCompile Include="src\mlnx_sai_bridge.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\dbgdump\mlnx_sai_dbg_bridge.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>

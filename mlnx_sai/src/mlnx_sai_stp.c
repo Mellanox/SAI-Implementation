@@ -442,7 +442,7 @@ static sai_status_t mlnx_stp_ports_get(_In_ const sai_object_key_t   *key,
     sai_object_id_t      *ports_list  = NULL;
     sx_mstp_inst_id_t     sx_stp_id;
     sai_status_t          status;
-    mlnx_port_config_t   *port;
+    mlnx_bridge_port_t   *port;
     uint32_t              data;
     uint32_t              idx;
     uint32_t              ii = 0;
@@ -627,8 +627,8 @@ static sai_status_t mlnx_create_stp_port(_Out_ sai_object_id_t      *stp_port_id
     const sai_attribute_value_t *stp, *port, *state;
     sx_mstp_inst_port_state_t    sx_port_state;
     mlnx_object_id_t             stp_port_obj_id;
+    mlnx_bridge_port_t          *bridge_port;
     mlnx_object_id_t             stp_obj_id;
-    sx_port_log_id_t             log_port;
     sx_status_t                  sx_status;
     sai_status_t                 status;
 
@@ -662,41 +662,57 @@ static sai_status_t mlnx_create_stp_port(_Out_ sai_object_id_t      *stp_port_id
         return status;
     }
 
-    status = mlnx_bridge_port_sai_to_log_port(port->oid, &log_port);
+    sai_db_write_lock();
+
+    status = mlnx_bridge_port_by_oid(port->oid, &bridge_port);
     if (SAI_ERR(status)) {
-        return status;
+        SX_LOG_ERR("Failed to lookup bridge port by oid %"PRIx64"\n", port->oid);
+        goto out;
+    }
+
+    if (bridge_port->port_type != SAI_BRIDGE_PORT_TYPE_PORT &&
+            bridge_port->port_type != SAI_BRIDGE_PORT_TYPE_SUB_PORT) {
+
+        SX_LOG_ERR("Invalid bridge port type - should be port or sub-port\n");
+        status = SAI_STATUS_INVALID_PARAMETER;
+        goto out;
     }
 
     status = sai_stp_port_state_validate(state->s32);
     if (SAI_ERR(status)) {
-        return status;
+        goto out;
     }
 
     sx_port_state = sai_stp_port_state_to_sdk(state->s32);
 
     sx_status = sx_api_mstp_inst_port_state_set(gh_sdk, DEFAULT_ETH_SWID,
                                                 stp_obj_id.id.stp_inst_id,
-                                                log_port, sx_port_state);
+                                                bridge_port->logical, sx_port_state);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to set stp port state (%u) - %s\n", sx_port_state,
                    SX_STATUS_MSG(sx_status));
 
-        return sdk_to_sai(status);
+        status = sdk_to_sai(status);
+        goto out;
     }
 
     memset(&stp_port_obj_id, 0, sizeof(stp_port_obj_id));
 
-    stp_port_obj_id.id.log_port_id = log_port;
+    stp_port_obj_id.id.log_port_id = bridge_port->logical;
     stp_port_obj_id.ext.stp.id     = stp_obj_id.id.stp_inst_id;
 
     status = mlnx_object_id_to_sai(SAI_OBJECT_TYPE_STP_PORT, &stp_port_obj_id, stp_port_id);
     if (SAI_ERR(status)) {
-        return status;
+        goto out;
     }
 
     stp_port_id_to_str(*stp_port_id, key_str);
     SX_LOG_NTC("Created STP Port %s\n", key_str);
 
+    bridge_port->stps++;
+
+out:
+    sai_db_unlock();
     SX_LOG_EXIT();
     return status;
 }
@@ -710,7 +726,38 @@ static sai_status_t mlnx_create_stp_port(_Out_ sai_object_id_t      *stp_port_id
  */
 static sai_status_t mlnx_remove_stp_port(_In_ sai_object_id_t stp_port_id)
 {
-    return SAI_STATUS_NOT_SUPPORTED;
+
+    mlnx_object_id_t stp_port_obj_id = {0};
+    mlnx_bridge_port_t *port;
+    sai_status_t status;
+
+    SX_LOG_ENTER();
+    SX_LOG_EXIT();
+
+    status = sai_to_mlnx_object_id(SAI_OBJECT_TYPE_STP_PORT, stp_port_id, &stp_port_obj_id);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to convert stp port oid to mlnx id\n");
+        return status;
+    }
+
+    sai_db_write_lock();
+
+    status = mlnx_bridge_port_by_log(stp_port_obj_id.id.log_port_id, &port);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to lookup bridge port for stp port\n");
+        goto out;
+    }
+
+    /* We need to be careful as we do not track existence of STP port so app
+     * may mistakenly remove it twice */
+    if (port->stps) {
+        port->stps--;
+    }
+
+out:
+    SX_LOG_EXIT();
+    sai_db_unlock();
+    return status;
 }
 
 /**

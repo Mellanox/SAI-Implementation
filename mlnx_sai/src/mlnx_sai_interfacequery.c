@@ -463,6 +463,8 @@ sai_status_t sai_dbg_generate_dump(_In_ const char *dump_file_name)
 
     SAI_dump_wred(file);
 
+    SAI_dump_bridge(file);
+
     fclose(file);
 
     return SAI_STATUS_SUCCESS;

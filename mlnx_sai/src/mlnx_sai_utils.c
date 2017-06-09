@@ -1014,7 +1014,7 @@ static uint32_t sai_oid_to_str(sai_object_id_t oid, uint32_t opt, uint32_t max_l
 
     return snprintf(value_str, max_length, "%s,(%d:%d),%x,%02x%02x,%x",
                     SAI_TYPE_STR(mlnx_id->object_type),
-                    mlnx_id->field.swid, mlnx_id->field.hif_type, mlnx_id->id.u32,
+                    mlnx_id->field.swid, mlnx_id->field.sub_type, mlnx_id->id.u32,
                     mlnx_id->ext.bytes[1], mlnx_id->ext.bytes[0], opt);
 }
 

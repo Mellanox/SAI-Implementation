@@ -400,7 +400,7 @@ const mlnx_trap_info_t                    mlnx_traps_info[] = {
       MLNX_TRAP_TYPE_REGULAR },
     { SAI_HOSTIF_TRAP_TYPE_SSH, 2, { SX_TRAP_ID_SSH_IPV4, SX_TRAP_ID_SSH_IPV6 }, SAI_PACKET_ACTION_TRAP, "SSH",
       MLNX_TRAP_TYPE_REGULAR },
-    { SAI_HOSTIF_TRAP_TYPE_SNMP, 0, { 0 }, SAI_PACKET_ACTION_TRAP, "SNMP",
+    { SAI_HOSTIF_TRAP_TYPE_SNMP, 2, { SX_TRAP_ID_SNMP_IPV4, SX_TRAP_ID_SNMP_IPV6 }, SAI_PACKET_ACTION_TRAP, "SNMP",
       MLNX_TRAP_TYPE_REGULAR },
     { SAI_HOSTIF_TRAP_TYPE_L3_MTU_ERROR, 1, { SX_TRAP_ID_ETH_L3_MTUERROR }, SAI_PACKET_ACTION_TRAP, "MTU error",
       MLNX_TRAP_TYPE_REGULAR },
@@ -593,12 +593,12 @@ static sai_status_t mlnx_create_host_interface(_Out_ sai_object_id_t     * hif_i
                 snprintf(command, sizeof(command), "ip link add link swid%u_eth name %s type vlan id %u",
                          intf_params.ifc.vlan.swid, name->chardata, intf_params.ifc.vlan.vlan);
 
-                mlnx_hif.field.hif_type = SAI_HOSTIF_OBJECT_TYPE_VLAN;
+                mlnx_hif.field.sub_type = SAI_HOSTIF_OBJECT_TYPE_VLAN;
             } else if (SX_L2_INTERFACE_TYPE_PORT_VLAN == intf_params.type) {
                 snprintf(command, sizeof(command), "ip link add %s type sx_netdev swid %u port 0x%x type l3",
                          name->chardata, intf_params.ifc.vlan.swid, intf_params.ifc.port_vlan.port);
 
-                mlnx_hif.field.hif_type = SAI_HOSTIF_OBJECT_TYPE_ROUTER_PORT;
+                mlnx_hif.field.sub_type = SAI_HOSTIF_OBJECT_TYPE_ROUTER_PORT;
             } else {
                 SX_LOG_ERR("RIF type %s not implemented\n", SX_ROUTER_RIF_TYPE_STR(intf_params.type));
                 return SAI_STATUS_ATTR_NOT_IMPLEMENTED_0 + rif_port_index;
@@ -614,7 +614,7 @@ static sai_status_t mlnx_create_host_interface(_Out_ sai_object_id_t     * hif_i
             snprintf(command, sizeof(command), "ip link add %s type sx_netdev swid %u port 0x%x type l2",
                      name->chardata, DEFAULT_ETH_SWID, port_id);
 
-            mlnx_hif.field.hif_type  = SAI_HOSTIF_OBJECT_TYPE_L2_PORT;
+            mlnx_hif.field.sub_type  = SAI_HOSTIF_OBJECT_TYPE_L2_PORT;
             mlnx_hif.ext.port.dev_id = SX_PORT_DEV_ID_GET(port_id);
             mlnx_hif.ext.port.phy_id = SX_PORT_PHY_ID_GET(port_id);
         } else if (SAI_OBJECT_TYPE_LAG == sai_object_type_query(rif_port->oid)) {
@@ -628,7 +628,7 @@ static sai_status_t mlnx_create_host_interface(_Out_ sai_object_id_t     * hif_i
             snprintf(command, sizeof(command), "ip link add %s type sx_netdev swid %u port 0x%x type l2",
                      name->chardata, DEFAULT_ETH_SWID, port_id);
 
-            mlnx_hif.field.hif_type = SAI_HOSTIF_OBJECT_TYPE_LAG;
+            mlnx_hif.field.sub_type = SAI_HOSTIF_OBJECT_TYPE_LAG;
             mlnx_hif.ext.lag.lag_id = SX_PORT_LAG_ID_GET(port_id);
             mlnx_hif.ext.lag.sub_id = SX_PORT_SUB_ID_GET(port_id);
         } else {
@@ -703,7 +703,7 @@ static sai_status_t mlnx_create_host_interface(_Out_ sai_object_id_t     * hif_i
         msync(g_sai_db_ptr, sizeof(*g_sai_db_ptr), MS_SYNC);
         cl_plock_release(&g_sai_db_ptr->p_lock);
         hif_data                = ii;
-        mlnx_hif.field.hif_type = SAI_HOSTIF_OBJECT_TYPE_FD;
+        mlnx_hif.field.sub_type = SAI_HOSTIF_OBJECT_TYPE_FD;
     } else {
         SX_LOG_ERR("Invalid host interface type %d\n", type->s32);
         return SAI_STATUS_INVALID_ATTR_VALUE_0 + type_index;
@@ -753,7 +753,7 @@ static sai_status_t mlnx_remove_host_interface(_In_ sai_object_id_t hif_id)
         return status;
     }
 
-    if (SAI_HOSTIF_OBJECT_TYPE_FD == mlnx_hif.field.hif_type) {
+    if (SAI_HOSTIF_OBJECT_TYPE_FD == mlnx_hif.field.sub_type) {
         if (mlnx_hif.id.u32 >= MAX_FDS) {
             SX_LOG_ERR("Invalid FD ID %u\n", mlnx_hif.id.u32);
             return SAI_STATUS_INVALID_PARAMETER;
@@ -858,7 +858,7 @@ static sai_status_t mlnx_host_interface_type_get(_In_ const sai_object_key_t   *
         return status;
     }
 
-    if (SAI_HOSTIF_OBJECT_TYPE_FD == mlnx_hif.field.hif_type) {
+    if (SAI_HOSTIF_OBJECT_TYPE_FD == mlnx_hif.field.sub_type) {
         value->s32 = SAI_HOSTIF_TYPE_FD;
     } else {
         value->s32 = SAI_HOSTIF_TYPE_NETDEV;
@@ -887,14 +887,14 @@ static sai_status_t mlnx_host_interface_rif_port_get(_In_ const sai_object_key_t
         return status;
     }
 
-    if (SAI_HOSTIF_OBJECT_TYPE_FD == mlnx_hif.field.hif_type) {
+    if (SAI_HOSTIF_OBJECT_TYPE_FD == mlnx_hif.field.sub_type) {
         SX_LOG_ERR("Rif_port can not be retreived for host interface channel type FD\n");
         return SAI_STATUS_INVALID_PARAMETER;
-    } else if (SAI_HOSTIF_OBJECT_TYPE_L2_PORT == mlnx_hif.field.hif_type) {
+    } else if (SAI_HOSTIF_OBJECT_TYPE_L2_PORT == mlnx_hif.field.sub_type) {
         SX_PORT_DEV_ID_SET(mlnx_port.id.log_port_id, mlnx_hif.ext.port.dev_id);
         SX_PORT_PHY_ID_SET(mlnx_port.id.log_port_id, mlnx_hif.ext.port.phy_id);
         object_type = SAI_OBJECT_TYPE_PORT;
-    } else if (SAI_HOSTIF_OBJECT_TYPE_LAG == mlnx_hif.field.hif_type) {
+    } else if (SAI_HOSTIF_OBJECT_TYPE_LAG == mlnx_hif.field.sub_type) {
         SX_PORT_TYPE_ID_SET(mlnx_port.id.log_port_id, SX_PORT_TYPE_LAG);
         SX_PORT_LAG_ID_SET(mlnx_port.id.log_port_id, mlnx_hif.ext.lag.lag_id);
         SX_PORT_SUB_ID_SET(mlnx_port.id.log_port_id, mlnx_hif.ext.lag.sub_id);
@@ -929,7 +929,7 @@ static sai_status_t mlnx_host_interface_name_get(_In_ const sai_object_key_t   *
         return status;
     }
 
-    if (SAI_HOSTIF_OBJECT_TYPE_FD == mlnx_hif.field.hif_type) {
+    if (SAI_HOSTIF_OBJECT_TYPE_FD == mlnx_hif.field.sub_type) {
         SX_LOG_ERR("Name can not be retreived for host interface channel type FD\n");
         return SAI_STATUS_INVALID_PARAMETER;
     }
@@ -981,7 +981,7 @@ static sai_status_t mlnx_host_interface_name_set(_In_ const sai_object_key_t    
         return status;
     }
 
-    if (SAI_HOSTIF_OBJECT_TYPE_FD == mlnx_hif.field.hif_type) {
+    if (SAI_HOSTIF_OBJECT_TYPE_FD == mlnx_hif.field.sub_type) {
         SX_LOG_ERR("Name can not be set for host interface channel type FD\n");
         return SAI_STATUS_INVALID_PARAMETER;
     }
@@ -2446,8 +2446,8 @@ static sai_status_t mlnx_recv_hostif_packet(_In_ sai_object_id_t   hif_id,
         return status;
     }
 
-    if (SAI_HOSTIF_OBJECT_TYPE_FD != mlnx_hif.field.hif_type) {
-        SX_LOG_ERR("Can't recv on non FD host interface type %u\n", mlnx_hif.field.hif_type);
+    if (SAI_HOSTIF_OBJECT_TYPE_FD != mlnx_hif.field.sub_type) {
+        SX_LOG_ERR("Can't recv on non FD host interface type %u\n", mlnx_hif.field.sub_type);
         return SAI_STATUS_INVALID_PARAMETER;
     }
 
@@ -2601,8 +2601,8 @@ static sai_status_t mlnx_send_hostif_packet(_In_ sai_object_id_t  hif_id,
             return status;
         }
 
-        if (SAI_HOSTIF_OBJECT_TYPE_FD != mlnx_hif.field.hif_type) {
-            SX_LOG_ERR("Can't send on non FD host interface type %u\n", mlnx_hif.field.hif_type);
+        if (SAI_HOSTIF_OBJECT_TYPE_FD != mlnx_hif.field.sub_type) {
+            SX_LOG_ERR("Can't send on non FD host interface type %u\n", mlnx_hif.field.sub_type);
             return SAI_STATUS_INVALID_PARAMETER;
         }
 
@@ -2646,7 +2646,7 @@ static void host_table_entry_key_to_str(_In_ sai_object_id_t hif_id, _Out_ char 
                  "host table entry %x,ind %u,%u",
                  mlnx_hif.id.u32,
                  mlnx_hif.ext.trap.id,
-                 mlnx_hif.field.hif_type);
+                 mlnx_hif.field.sub_type);
     }
 }
 
@@ -2700,7 +2700,7 @@ sai_status_t mlnx_create_hostif_table_entry(_Out_ sai_object_id_t      *hif_tabl
 
     status = find_attrib_in_list(attr_count, attr_list, SAI_HOSTIF_TABLE_ENTRY_ATTR_TYPE, &type, &type_index);
     assert(SAI_STATUS_SUCCESS == status);
-    mlnx_hif.field.hif_type = type->s32;
+    mlnx_hif.field.sub_type = type->s32;
 
     if ((SAI_HOSTIF_TABLE_ENTRY_TYPE_PORT == type->s32) || (SAI_HOSTIF_TABLE_ENTRY_TYPE_LAG == type->s32) ||
         (SAI_HOSTIF_TABLE_ENTRY_TYPE_VLAN == type->s32)) {
@@ -2813,8 +2813,8 @@ sai_status_t mlnx_create_hostif_table_entry(_Out_ sai_object_id_t      *hif_tabl
         if (SAI_ERR(status)) {
             return status;
         }
-        if (SAI_HOSTIF_OBJECT_TYPE_FD != mlnx_fd.field.hif_type) {
-            SX_LOG_ERR("Can't set non FD host interface type %u\n", mlnx_fd.field.hif_type);
+        if (SAI_HOSTIF_OBJECT_TYPE_FD != mlnx_fd.field.sub_type) {
+            SX_LOG_ERR("Can't set non FD host interface type %u\n", mlnx_fd.field.sub_type);
             return SAI_STATUS_INVALID_ATTR_VALUE_0 + fd_index;
         }
         cl_plock_acquire(&g_sai_db_ptr->p_lock);
@@ -2889,11 +2889,11 @@ sai_status_t mlnx_remove_hostif_table_entry(_In_ sai_object_id_t hif_table_entry
         return status;
     }
 
-    if ((SAI_HOSTIF_TABLE_ENTRY_TYPE_PORT == mlnx_hif.field.hif_type) ||
-        (SAI_HOSTIF_TABLE_ENTRY_TYPE_LAG == mlnx_hif.field.hif_type)) {
+    if ((SAI_HOSTIF_TABLE_ENTRY_TYPE_PORT == mlnx_hif.field.sub_type) ||
+        (SAI_HOSTIF_TABLE_ENTRY_TYPE_LAG == mlnx_hif.field.sub_type)) {
         reg.key_type          = SX_HOST_IFC_REGISTER_KEY_TYPE_PORT;
         reg.key_value.port_id = mlnx_hif.id.u32;
-    } else if (SAI_HOSTIF_TABLE_ENTRY_TYPE_VLAN == mlnx_hif.field.hif_type) {
+    } else if (SAI_HOSTIF_TABLE_ENTRY_TYPE_VLAN == mlnx_hif.field.sub_type) {
         reg.key_type          = SX_HOST_IFC_REGISTER_KEY_TYPE_VLAN;
         reg.key_value.vlan_id = mlnx_hif.id.u32;
     } else {
@@ -2984,11 +2984,11 @@ static sai_status_t mlnx_table_entry_get(_In_ const sai_object_key_t   *key,
 
     switch ((long)arg) {
     case SAI_HOSTIF_TABLE_ENTRY_ATTR_TYPE:
-        value->s32 = mlnx_hif.field.hif_type;
+        value->s32 = mlnx_hif.field.sub_type;
         break;
 
     case SAI_HOSTIF_TABLE_ENTRY_ATTR_OBJ_ID:
-        switch (mlnx_hif.field.hif_type) {
+        switch (mlnx_hif.field.sub_type) {
         case SAI_HOSTIF_TABLE_ENTRY_TYPE_PORT:
             return mlnx_create_object(SAI_OBJECT_TYPE_PORT, mlnx_hif.id.u32, NULL, &value->oid);
 
@@ -3000,13 +3000,13 @@ static sai_status_t mlnx_table_entry_get(_In_ const sai_object_key_t   *key,
             return mlnx_object_id_to_sai(SAI_OBJECT_TYPE_VLAN, &vlan_obj_id, &value->oid);
 
         default:
-            SX_LOG_ERR("Host table entry object ID invalid for type trap/wildcard %u\n", mlnx_hif.field.hif_type);
+            SX_LOG_ERR("Host table entry object ID invalid for type trap/wildcard %u\n", mlnx_hif.field.sub_type);
             return SAI_STATUS_INVALID_ATTRIBUTE_0 + attr_index;
         }
         break;
 
     case SAI_HOSTIF_TABLE_ENTRY_ATTR_TRAP_ID:
-        if (SAI_HOSTIF_TABLE_ENTRY_TYPE_WILDCARD == mlnx_hif.field.hif_type) {
+        if (SAI_HOSTIF_TABLE_ENTRY_TYPE_WILDCARD == mlnx_hif.field.sub_type) {
             SX_LOG_ERR("Host table entry trap ID invalid for type wildcard\n");
             return SAI_STATUS_INVALID_ATTRIBUTE_0 + attr_index;
         } else {

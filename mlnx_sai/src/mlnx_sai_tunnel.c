@@ -1027,7 +1027,19 @@ static sai_status_t mlnx_sai_get_sai_rif_id(_In_ sai_object_id_t        sai_tunn
             break;
 
         case MLNX_TUNNEL_UNDERLAY:
-            sdk_rif = sx_tunnel_attr->attributes.ipinip_p2p.underlay_rif;
+            sai_db_read_lock();
+            if (SAI_STATUS_SUCCESS !=
+                (sai_status = mlnx_get_tunnel_db_entry(sai_tunnel_id,
+                                                       &sai_tunnel_db_entry))) {
+                SX_LOG_ERR("Failed to get tunnel db entry for sai tunnel id %" PRIx64 "\n", sai_tunnel_id);
+                sai_db_unlock();
+                SX_LOG_EXIT();
+                return sai_status;
+            }
+            sai_db_unlock();
+
+            *sai_rif = sai_tunnel_db_entry.sai_underlay_rif;
+
             break;
 
         default:
@@ -1045,7 +1057,19 @@ static sai_status_t mlnx_sai_get_sai_rif_id(_In_ sai_object_id_t        sai_tunn
             break;
 
         case MLNX_TUNNEL_UNDERLAY:
-            sdk_rif = sx_tunnel_attr->attributes.ipinip_p2p_gre.underlay_rif;
+            sai_db_read_lock();
+            if (SAI_STATUS_SUCCESS !=
+                (sai_status = mlnx_get_tunnel_db_entry(sai_tunnel_id,
+                                                       &sai_tunnel_db_entry))) {
+                SX_LOG_ERR("Failed to get tunnel db entry for sai tunnel id %" PRIx64 "\n", sai_tunnel_id);
+                sai_db_unlock();
+                SX_LOG_EXIT();
+                return sai_status;
+            }
+            sai_db_unlock();
+
+            *sai_rif = sai_tunnel_db_entry.sai_underlay_rif;
+
             break;
 
         default:
@@ -1073,7 +1097,7 @@ static sai_status_t mlnx_sai_get_sai_rif_id(_In_ sai_object_id_t        sai_tunn
             break;
 
         case MLNX_TUNNEL_UNDERLAY:
-            *sai_rif = sai_tunnel_db_entry.sai_vxlan_underlay_rif;
+            *sai_rif = sai_tunnel_db_entry.sai_underlay_rif;
             break;
 
         default:
@@ -1090,8 +1114,9 @@ static sai_status_t mlnx_sai_get_sai_rif_id(_In_ sai_object_id_t        sai_tunn
         return SAI_STATUS_NOT_IMPLEMENTED;
     }
 
-    if ((SX_TUNNEL_TYPE_IPINIP_P2P_IPV4_IN_IPV4 == sx_tunnel_attr->type) ||
-        ((SX_TUNNEL_TYPE_IPINIP_P2P_IPV4_IN_GRE == sx_tunnel_attr->type))) {
+    if ((MLNX_TUNNEL_OVERLAY == sai_tunnel_rif_type) &&
+        ((SX_TUNNEL_TYPE_IPINIP_P2P_IPV4_IN_IPV4 == sx_tunnel_attr->type) ||
+         (SX_TUNNEL_TYPE_IPINIP_P2P_IPV4_IN_GRE == sx_tunnel_attr->type))) {
         if (SAI_STATUS_SUCCESS !=
             (sai_status = mlnx_create_object(SAI_OBJECT_TYPE_ROUTER_INTERFACE,
                                              sdk_rif,
@@ -2514,7 +2539,6 @@ static sai_status_t mlnx_sai_reserve_tunnel_db_item(_In_ sx_tunnel_id_t sx_tunne
         if (!g_sai_db_ptr->tunnel_db[ii].is_used) {
             g_sai_db_ptr->tunnel_db[ii].is_used      = true;
             g_sai_db_ptr->tunnel_db[ii].sx_tunnel_id = sx_tunnel_id;
-            g_sai_db_ptr->tunnel_db[ii].bridge_id    = SX_BRIDGE_ID_INVALID;
             *tunnel_db_idx                           = ii;
             SX_LOG_DBG("tunnel db: reserved slot:%d, sx_tunnel_id:%d\n", ii, sx_tunnel_id);
             SX_LOG_EXIT();
@@ -2985,7 +3009,8 @@ static sai_status_t mlnx_sdk_fill_ipinip_p2p_attrib(_In_ uint32_t               
                                                     _Out_ sx_tunnel_cos_data_t             *sdk_encap_cos_data,
                                                     _Out_ sx_tunnel_cos_data_t             *sdk_decap_cos_data,
                                                     _Out_ bool                             *has_encap_attr,
-                                                    _Out_ bool                             *has_decap_attr)
+                                                    _Out_ bool                             *has_decap_attr,
+                                                    _Out_ sai_object_id_t                  *underlay_rif)
 {
     sai_status_t                 sai_status = SAI_STATUS_FAILURE;
     uint32_t                     data;
@@ -3019,6 +3044,8 @@ static sai_status_t mlnx_sdk_fill_ipinip_p2p_attrib(_In_ uint32_t               
         }
         sdk_ipinip_p2p_attrib->underlay_rif = (sx_router_interface_t)data;
 
+        *underlay_rif = attr->oid;
+
         if (SAI_STATUS_SUCCESS !=
             (sai_status = mlnx_sai_get_sx_vrid_from_sx_rif((sx_router_interface_t)data, &sdk_vrid))) {
             SX_LOG_ERR("mlnx_sai_get_sx_vrid_from_sx_rif failed\n");
@@ -3032,6 +3059,8 @@ static sai_status_t mlnx_sdk_fill_ipinip_p2p_attrib(_In_ uint32_t               
         SX_LOG_EXIT();
         return SAI_STATUS_INVALID_ATTR_VALUE_0 + attr_idx;
     }
+
+    sdk_ipinip_p2p_attrib->underlay_domain_type = SX_TUNNEL_UNDERLAY_DOMAIN_TYPE_VRID;
 
     if (SAI_STATUS_SUCCESS ==
         (sai_status = find_attrib_in_list(attr_count, attr_list, SAI_TUNNEL_ATTR_ENCAP_SRC_IP, &attr, &attr_idx))) {
@@ -3139,6 +3168,7 @@ static sai_status_t mlnx_sai_fill_sx_ipinip_p2p_tunnel_data(_In_ sai_tunnel_type
                                                             _Out_ sx_tunnel_ttl_data_t  *sdk_decap_ttl_data_attrib,
                                                             _Out_ sx_tunnel_cos_data_t  *sdk_encap_cos_data,
                                                             _Out_ sx_tunnel_cos_data_t  *sdk_decap_cos_data,
+                                                            _Out_ sai_object_id_t       *underlay_rif,
                                                             _In_ uint32_t                attr_count,
                                                             _In_ const sai_attribute_t  *attr_list)
 {
@@ -3192,7 +3222,8 @@ static sai_status_t mlnx_sai_fill_sx_ipinip_p2p_tunnel_data(_In_ sai_tunnel_type
                                                       sdk_encap_cos_data,
                                                       sdk_decap_cos_data,
                                                       &has_encap_attr,
-                                                      &has_decap_attr))) {
+                                                      &has_decap_attr,
+                                                      underlay_rif))) {
         SX_LOG_ERR("Error filling sdk ipinip p2p attribute\n");
         SX_LOG_EXIT();
         return SAI_STATUS_FAILURE;
@@ -3764,7 +3795,7 @@ static sai_status_t mlnx_sai_fill_sx_vxlan_tunnel_data(_In_ sai_tunnel_type_t   
             return SAI_STATUS_INVALID_ATTR_VALUE_0 + attr_idx;
         }
 
-        mlnx_tunnel_db_entry->sai_vxlan_underlay_rif = attr->oid;
+        mlnx_tunnel_db_entry->sai_underlay_rif = attr->oid;
 
         if (SAI_STATUS_SUCCESS !=
             (sai_status = mlnx_sai_get_sx_vrid_from_sx_rif((sx_router_interface_t)data, &sdk_vrid))) {
@@ -3792,6 +3823,8 @@ static sai_status_t mlnx_sai_fill_sx_vxlan_tunnel_data(_In_ sai_tunnel_type_t   
         }
         has_encap_attr = true;
     }
+
+    sx_tunnel_attribute->attributes.vxlan.underlay_domain_type = SX_TUNNEL_UNDERLAY_DOMAIN_TYPE_VRID;
 
     if (SAI_STATUS_SUCCESS !=
         (sai_status = mlnx_sdk_fill_tunnel_ttl_data(attr_count,
@@ -3892,7 +3925,7 @@ static sai_status_t mlnx_fill_vxlan_tunnel_db(_In_ sai_object_id_t    sai_tunnel
     }
 
     g_sai_db_ptr->tunnel_db[tunnel_db_idx].sai_vxlan_overlay_rif  = mlnx_tunnel_db_entry->sai_vxlan_overlay_rif;
-    g_sai_db_ptr->tunnel_db[tunnel_db_idx].sai_vxlan_underlay_rif = mlnx_tunnel_db_entry->sai_vxlan_underlay_rif;
+    g_sai_db_ptr->tunnel_db[tunnel_db_idx].sai_underlay_rif = mlnx_tunnel_db_entry->sai_underlay_rif;
     memcpy(g_sai_db_ptr->tunnel_db[tunnel_db_idx].sai_tunnel_map_encap_id_array,
            mlnx_tunnel_db_entry->sai_tunnel_map_encap_id_array,
            mlnx_tunnel_db_entry->sai_tunnel_map_encap_cnt * sizeof(sai_object_id_t));
@@ -3932,6 +3965,7 @@ static sai_status_t mlnx_create_tunnel(_Out_ sai_object_id_t     * sai_tunnel_ob
     sx_tunnel_ttl_data_t         sdk_decap_ttl_data_attrib;
     sx_tunnel_cos_data_t         sdk_encap_cos_data;
     sx_tunnel_cos_data_t         sdk_decap_cos_data;
+    sai_object_id_t              underlay_rif = SAI_NULL_OBJECT_ID;
 
     if (SAI_STATUS_SUCCESS !=
         (sai_status =
@@ -3969,6 +4003,7 @@ static sai_status_t mlnx_create_tunnel(_Out_ sai_object_id_t     * sai_tunnel_ob
                                            &sdk_decap_ttl_data_attrib,
                                            &sdk_encap_cos_data,
                                            &sdk_decap_cos_data,
+                                           &underlay_rif,
                                            attr_count,
                                            attr_list))) {
             SX_LOG_ERR("Failed to fill sx ipinip p2p tunnel data\n");
@@ -4103,6 +4138,13 @@ static sai_status_t mlnx_create_tunnel(_Out_ sai_object_id_t     * sai_tunnel_ob
             SX_LOG_ERR("Failed to create sai vxlan decap tunnel map list\n");
             goto cleanup;
         }
+    } else if ((SAI_TUNNEL_TYPE_IPINIP == sai_tunnel_type) ||
+               (SAI_TUNNEL_TYPE_IPINIP_GRE == sai_tunnel_type)) {
+        sai_db_write_lock();
+
+        g_sai_db_ptr->tunnel_db[tunnel_db_idx].sai_underlay_rif = underlay_rif;
+
+        sai_db_unlock();
     }
 
     SX_LOG_NTC("created tunnel:0x%" PRIx64 "\n", *sai_tunnel_obj_id);

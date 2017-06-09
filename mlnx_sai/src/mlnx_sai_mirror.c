@@ -43,6 +43,8 @@ static const sai_attribute_entry_t mirror_attribs[] = {
       "Mirror session attr vlan pri", SAI_ATTR_VAL_TYPE_U8 },
     { SAI_MIRROR_SESSION_ATTR_VLAN_CFI, false, true, true, true,
       "Mirror session attr vlan cfi", SAI_ATTR_VAL_TYPE_U8 },
+    { SAI_MIRROR_SESSION_ATTR_VLAN_HEADER_VALID, false, true, false, true,
+      "Mirror session attr vlan header valid", SAI_ATTR_VAL_TYPE_BOOL },
     { SAI_MIRROR_SESSION_ATTR_ERSPAN_ENCAPSULATION_TYPE, false, true, false, true,
       "Mirror session attr encap type", SAI_ATTR_VAL_TYPE_S32 },
     { SAI_MIRROR_SESSION_ATTR_IPHDR_VERSION, false, true, false, true,
@@ -104,6 +106,11 @@ static sai_status_t mlnx_mirror_session_vlan_cfi_get(_In_ const sai_object_key_t
                                                      _In_ uint32_t                  attr_index,
                                                      _Inout_ vendor_cache_t        *cache,
                                                      void                          *arg);
+static sai_status_t mlnx_mirror_session_vlan_header_valid_get(_In_ const sai_object_key_t   *key,
+                                                              _Inout_ sai_attribute_value_t *value,
+                                                              _In_ uint32_t                  attr_index,
+                                                              _Inout_ vendor_cache_t        *cache,
+                                                              void                          *arg);
 static sai_status_t mlnx_mirror_session_encap_type_get(_In_ const sai_object_key_t   *key,
                                                        _Inout_ sai_attribute_value_t *value,
                                                        _In_ uint32_t                  attr_index,
@@ -220,6 +227,11 @@ static const sai_vendor_attribute_entry_t mirror_vendor_attribs[] = {
       { true, false, true, true },
       mlnx_mirror_session_vlan_cfi_get, NULL,
       mlnx_mirror_session_vlan_cfi_set, NULL },
+    { SAI_MIRROR_SESSION_ATTR_VLAN_HEADER_VALID,
+      { true, false, false, true },
+      { true, false, false, true },
+      mlnx_mirror_session_vlan_header_valid_get, NULL,
+      NULL, NULL },
     { SAI_MIRROR_SESSION_ATTR_ERSPAN_ENCAPSULATION_TYPE,
       { true, false, false, true },
       { true, false, false, true },
@@ -495,8 +507,13 @@ static sai_status_t mlnx_mirror_session_vlan_tpid_get(_In_ const sai_object_key_
     }
 
     switch (sdk_mirror_obj_params.span_type) {
-    case SX_SPAN_TYPE_REMOTE_ETH_VLAN_TYPE1:
     case SX_SPAN_TYPE_REMOTE_ETH_L3_TYPE1:
+        if (0 == sdk_mirror_obj_params.span_type_format.remote_eth_l3_type1.vid) {
+            SX_LOG_ERR("Vlan TPID should not be got for ERSPAN when vlan header valid is false\n");
+            SX_LOG_EXIT();
+            return SAI_STATUS_FAILURE;
+        }
+    case SX_SPAN_TYPE_REMOTE_ETH_VLAN_TYPE1:
         value->u16 = MLNX_MIRROR_VLAN_TPID;
         break;
 
@@ -535,6 +552,11 @@ static sai_status_t mlnx_mirror_session_vlan_id_get(_In_ const sai_object_key_t 
         break;
 
     case SX_SPAN_TYPE_REMOTE_ETH_L3_TYPE1:
+        if (0 == sdk_mirror_obj_params.span_type_format.remote_eth_l3_type1.vid) {
+            SX_LOG_ERR("Vlan ID should not be got for ERSPAN when vlan header valid is false\n");
+            SX_LOG_EXIT();
+            return SAI_STATUS_FAILURE;
+        }
         value->u16 = sdk_mirror_obj_params.span_type_format.remote_eth_l3_type1.vid;
         break;
 
@@ -573,6 +595,11 @@ static sai_status_t mlnx_mirror_session_vlan_pri_get(_In_ const sai_object_key_t
         break;
 
     case SX_SPAN_TYPE_REMOTE_ETH_L3_TYPE1:
+        if (0 == sdk_mirror_obj_params.span_type_format.remote_eth_l3_type1.vid) {
+            SX_LOG_ERR("Vlan pri should not be got for ERSPAN when vlan header valid is false\n");
+            SX_LOG_EXIT();
+            return SAI_STATUS_FAILURE;
+        }
         value->u8 = sdk_mirror_obj_params.span_type_format.remote_eth_l3_type1.pcp;
         break;
 
@@ -611,11 +638,54 @@ static sai_status_t mlnx_mirror_session_vlan_cfi_get(_In_ const sai_object_key_t
         break;
 
     case SX_SPAN_TYPE_REMOTE_ETH_L3_TYPE1:
+        if (0 == sdk_mirror_obj_params.span_type_format.remote_eth_l3_type1.vid) {
+            SX_LOG_ERR("Vlan cfi should not be got for ERSPAN when vlan header valid is false\n");
+            SX_LOG_EXIT();
+            return SAI_STATUS_FAILURE;
+        }
         value->u8 = sdk_mirror_obj_params.span_type_format.remote_eth_l3_type1.dei;
         break;
 
     default:
         SX_LOG_ERR("Error: VLAN cfi is only valid for RSPAN or ERSPAN, but getting %d\n",
+                   sdk_mirror_obj_params.span_type);
+        SX_LOG_EXIT();
+        return SAI_STATUS_FAILURE;
+    }
+
+    SX_LOG_EXIT();
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_mirror_session_vlan_header_valid_get(_In_ const sai_object_key_t   *key,
+                                                              _Inout_ sai_attribute_value_t *value,
+                                                              _In_ uint32_t                  attr_index,
+                                                              _Inout_ vendor_cache_t        *cache,
+                                                              void                          *arg)
+{
+    sai_status_t             status = SAI_STATUS_FAILURE;
+    sx_span_session_params_t sdk_mirror_obj_params;
+
+    SX_LOG_ENTER();
+
+    if (SAI_STATUS_SUCCESS !=
+        (status = mlnx_get_sdk_mirror_obj_params(key->key.object_id, NULL, &sdk_mirror_obj_params))) {
+        SX_LOG_ERR("Error getting mirror session params from sai mirror obj id %" PRId64 "\n", key->key.object_id);
+        SX_LOG_EXIT();
+        return status;
+    }
+
+    switch (sdk_mirror_obj_params.span_type) {
+    case SX_SPAN_TYPE_REMOTE_ETH_L3_TYPE1:
+        if (0 != sdk_mirror_obj_params.span_type_format.remote_eth_l3_type1.vid) {
+            value->booldata= true;
+        } else {
+            value->booldata= false;
+        }
+        break;
+
+    default:
+        SX_LOG_ERR("Error: VLAN header valid is only valid for ERSPAN, but getting %d\n",
                    sdk_mirror_obj_params.span_type);
         SX_LOG_EXIT();
         return SAI_STATUS_FAILURE;
@@ -1147,8 +1217,13 @@ static sai_status_t mlnx_mirror_session_vlan_tpid_set(_In_ const sai_object_key_
     }
 
     switch (sdk_mirror_obj_params.span_type) {
-    case SX_SPAN_TYPE_REMOTE_ETH_VLAN_TYPE1:
     case SX_SPAN_TYPE_REMOTE_ETH_L3_TYPE1:
+        if (0 == sdk_mirror_obj_params.span_type_format.remote_eth_l3_type1.vid) {
+            SX_LOG_ERR("Vlan TPID should not be set for ERSPAN when vlan header valid is false\n");
+            SX_LOG_EXIT();
+            return SAI_STATUS_FAILURE;
+        }
+    case SX_SPAN_TYPE_REMOTE_ETH_VLAN_TYPE1:
         if (MLNX_MIRROR_VLAN_TPID != value->u16) {
             SX_LOG_ERR("VLAN TPID must be %x on set\n", MLNX_MIRROR_VLAN_TPID);
             SX_LOG_EXIT();
@@ -1196,6 +1271,11 @@ static sai_status_t mlnx_mirror_session_vlan_id_set(_In_ const sai_object_key_t 
         break;
 
     case SX_SPAN_TYPE_REMOTE_ETH_L3_TYPE1:
+        if (0 == sdk_mirror_obj_params.span_type_format.remote_eth_l3_type1.vid) {
+            SX_LOG_ERR("Vlan ID should not be set for ERSPAN when vlan header valid is false\n");
+            SX_LOG_EXIT();
+            return SAI_STATUS_FAILURE;
+        }
         if (MLNX_VLAN_ID_WHEN_TP_DISABLED == value->u16) {
             sdk_mirror_obj_params.span_type_format.remote_eth_l3_type1.tp = MLNX_MIRROR_TP_DISABLE;
         } else {
@@ -1254,6 +1334,11 @@ static sai_status_t mlnx_mirror_session_vlan_pri_set(_In_ const sai_object_key_t
         break;
 
     case SX_SPAN_TYPE_REMOTE_ETH_L3_TYPE1:
+        if (0 == sdk_mirror_obj_params.span_type_format.remote_eth_l3_type1.vid) {
+            SX_LOG_ERR("Vlan pri should not be set for ERSPAN when vlan header valid is false\n");
+            SX_LOG_EXIT();
+            return SAI_STATUS_FAILURE;
+        }
         sdk_mirror_obj_params.span_type_format.remote_eth_l3_type1.pcp = value->u8;
         break;
 
@@ -1307,6 +1392,11 @@ static sai_status_t mlnx_mirror_session_vlan_cfi_set(_In_ const sai_object_key_t
         break;
 
     case SX_SPAN_TYPE_REMOTE_ETH_L3_TYPE1:
+        if (0 == sdk_mirror_obj_params.span_type_format.remote_eth_l3_type1.vid) {
+            SX_LOG_ERR("Vlan cfi should not be set for ERSPAN when vlan header valid is false\n");
+            SX_LOG_EXIT();
+            return SAI_STATUS_FAILURE;
+        }
         sdk_mirror_obj_params.span_type_format.remote_eth_l3_type1.dei = value->u8;
         break;
 
@@ -1609,6 +1699,7 @@ static sai_status_t mlnx_check_mirror_single_attribute_on_create(
     _In_ const char                   *attr_str,
     _In_ const char                   *valid_mirror_type_str,
     _In_ const sai_attribute_value_t **attr_value,
+    _In_ bool                          is_mandatory,
     _In_ uint32_t                     *attr_index)
 {
     sai_status_t status = SAI_STATUS_FAILURE;
@@ -1617,7 +1708,7 @@ static sai_status_t mlnx_check_mirror_single_attribute_on_create(
 
     status = find_attrib_in_list(attr_count, attr_list, attr_id, attr_value, attr_index);
 
-    if (is_valid_mirror_type && (SAI_STATUS_SUCCESS != status)) {
+    if (is_mandatory && is_valid_mirror_type && (SAI_STATUS_SUCCESS != status)) {
         SX_LOG_ERR("Missing mandatory attribute %s on create\n", attr_str);
         SX_LOG_EXIT();
         return status;
@@ -1644,6 +1735,7 @@ static sai_status_t mlnx_check_mirror_attribute_on_create(_In_ uint32_t         
                                                           _Out_ const sai_attribute_value_t **mirror_vlan_id,
                                                           _Out_ const sai_attribute_value_t **mirror_vlan_pri,
                                                           _Out_ const sai_attribute_value_t **mirror_vlan_cfi,
+                                                          _Out_ const sai_attribute_value_t **mirror_vlan_header_valid,
                                                           _Out_ const sai_attribute_value_t **mirror_encap_type,
                                                           _Out_ const sai_attribute_value_t **mirror_iphdr_version,
                                                           _Out_ const sai_attribute_value_t **mirror_tos,
@@ -1659,6 +1751,7 @@ static sai_status_t mlnx_check_mirror_attribute_on_create(_In_ uint32_t         
     bool         RSPAN_OR_ERSPAN = false;
     bool         ERSPAN          = false;
     sai_status_t status          = SAI_STATUS_FAILURE;
+    const bool   is_mandatory    = true;
 
     SX_LOG_ENTER();
 
@@ -1697,7 +1790,7 @@ static sai_status_t mlnx_check_mirror_attribute_on_create(_In_ uint32_t         
              mlnx_check_mirror_single_attribute_on_create(RSPAN_OR_ERSPAN, attr_count, attr_list,
                                                           SAI_MIRROR_SESSION_ATTR_VLAN_TPID,
                                                           "Vlan TPID",    "RSPAN or ERSPAN", mirror_vlan_tpid,
-                                                          &index))) {
+                                                          !is_mandatory, &index))) {
         SX_LOG_ERR("Error checking Vlan TPID on create\n");
         SX_LOG_EXIT();
         return status;
@@ -1708,7 +1801,7 @@ static sai_status_t mlnx_check_mirror_attribute_on_create(_In_ uint32_t         
              mlnx_check_mirror_single_attribute_on_create(RSPAN_OR_ERSPAN, attr_count, attr_list,
                                                           SAI_MIRROR_SESSION_ATTR_VLAN_ID,
                                                           "Vlan ID",  "RSPAN or ERSPAN", mirror_vlan_id,
-                                                          &index))) {
+                                                          !is_mandatory, &index))) {
         SX_LOG_ERR("Error checking Vlan ID on create\n");
         SX_LOG_EXIT();
         return status;
@@ -1719,7 +1812,7 @@ static sai_status_t mlnx_check_mirror_attribute_on_create(_In_ uint32_t         
              mlnx_check_mirror_single_attribute_on_create(RSPAN_OR_ERSPAN, attr_count, attr_list,
                                                           SAI_MIRROR_SESSION_ATTR_VLAN_PRI,
                                                           "Vlan PRI", "RSPAN or ERSPAN", mirror_vlan_pri,
-                                                          &index))) {
+                                                          !is_mandatory, &index))) {
         SX_LOG_ERR("Error checking Vlan PRI on create\n");
         SX_LOG_EXIT();
         return status;
@@ -1730,8 +1823,19 @@ static sai_status_t mlnx_check_mirror_attribute_on_create(_In_ uint32_t         
              mlnx_check_mirror_single_attribute_on_create(RSPAN_OR_ERSPAN, attr_count, attr_list,
                                                           SAI_MIRROR_SESSION_ATTR_VLAN_CFI,
                                                           "Vlan CFI", "RSPAN or ERSPAN", mirror_vlan_cfi,
-                                                          &index))) {
+                                                          !is_mandatory, &index))) {
         SX_LOG_ERR("Error checking Vlan CFI on create\n");
+        SX_LOG_EXIT();
+        return status;
+    }
+
+    if (SAI_STATUS_SUCCESS !=
+        (status =
+             mlnx_check_mirror_single_attribute_on_create(ERSPAN, attr_count, attr_list,
+                                                          SAI_MIRROR_SESSION_ATTR_VLAN_HEADER_VALID,
+                                                          "Vlan header valid", "ERSPAN", mirror_vlan_header_valid,
+                                                          !is_mandatory, &index))) {
+        SX_LOG_ERR("Error checking Vlan header valid on create\n");
         SX_LOG_EXIT();
         return status;
     }
@@ -1741,7 +1845,7 @@ static sai_status_t mlnx_check_mirror_attribute_on_create(_In_ uint32_t         
              mlnx_check_mirror_single_attribute_on_create(ERSPAN, attr_count, attr_list,
                                                           SAI_MIRROR_SESSION_ATTR_ERSPAN_ENCAPSULATION_TYPE,
                                                           "Encapsulate type", "ERSPAN", mirror_encap_type,
-                                                          &index))) {
+                                                          is_mandatory, &index))) {
         SX_LOG_ERR("Error checking Encapsulate type on create\n");
         SX_LOG_EXIT();
         return status;
@@ -1752,7 +1856,7 @@ static sai_status_t mlnx_check_mirror_attribute_on_create(_In_ uint32_t         
              mlnx_check_mirror_single_attribute_on_create(ERSPAN, attr_count, attr_list,
                                                           SAI_MIRROR_SESSION_ATTR_IPHDR_VERSION,
                                                           "IP header version", "ERSPAN", mirror_iphdr_version,
-                                                          &index))) {
+                                                          is_mandatory, &index))) {
         SX_LOG_ERR("Error checking IP header version on create\n");
         SX_LOG_EXIT();
         return status;
@@ -1761,7 +1865,8 @@ static sai_status_t mlnx_check_mirror_attribute_on_create(_In_ uint32_t         
     if (SAI_STATUS_SUCCESS !=
         (status =
              mlnx_check_mirror_single_attribute_on_create(ERSPAN, attr_count, attr_list, SAI_MIRROR_SESSION_ATTR_TOS,
-                                                          "TOS", "ERSPAN", mirror_tos, &index))) {
+                                                          "TOS", "ERSPAN", mirror_tos,
+                                                          is_mandatory, &index))) {
         SX_LOG_ERR("Error checking TOS on create\n");
         SX_LOG_EXIT();
         return status;
@@ -1780,7 +1885,7 @@ static sai_status_t mlnx_check_mirror_attribute_on_create(_In_ uint32_t         
              mlnx_check_mirror_single_attribute_on_create(ERSPAN, attr_count, attr_list,
                                                           SAI_MIRROR_SESSION_ATTR_SRC_IP_ADDRESS,
                                                           "SRC IP address", "ERSPAN", mirror_src_ip_address,
-                                                          &index))) {
+                                                          is_mandatory, &index))) {
         SX_LOG_ERR("Error checking SRC IP address on create\n");
         SX_LOG_EXIT();
         return status;
@@ -1791,7 +1896,7 @@ static sai_status_t mlnx_check_mirror_attribute_on_create(_In_ uint32_t         
              mlnx_check_mirror_single_attribute_on_create(ERSPAN, attr_count, attr_list,
                                                           SAI_MIRROR_SESSION_ATTR_DST_IP_ADDRESS,
                                                           "DST IP address", "ERSPAN", mirror_dst_ip_address,
-                                                          &index))) {
+                                                          is_mandatory, &index))) {
         SX_LOG_ERR("Error checking DST IP address on create\n");
         SX_LOG_EXIT();
         return status;
@@ -1802,7 +1907,7 @@ static sai_status_t mlnx_check_mirror_attribute_on_create(_In_ uint32_t         
              mlnx_check_mirror_single_attribute_on_create(ERSPAN, attr_count, attr_list,
                                                           SAI_MIRROR_SESSION_ATTR_SRC_MAC_ADDRESS,
                                                           "SRC MAC address", "ERSPAN", mirror_src_mac_address,
-                                                          &index))) {
+                                                          is_mandatory, &index))) {
         SX_LOG_ERR("Error checking SRC MAC address on create\n");
         SX_LOG_EXIT();
         return status;
@@ -1813,7 +1918,7 @@ static sai_status_t mlnx_check_mirror_attribute_on_create(_In_ uint32_t         
              mlnx_check_mirror_single_attribute_on_create(ERSPAN, attr_count, attr_list,
                                                           SAI_MIRROR_SESSION_ATTR_DST_MAC_ADDRESS,
                                                           "DST MAC address", "ERSPAN", mirror_dst_mac_address,
-                                                          &index))) {
+                                                          is_mandatory, &index))) {
         SX_LOG_ERR("Error checking DST MAC address on create\n");
         SX_LOG_EXIT();
         return status;
@@ -1824,7 +1929,7 @@ static sai_status_t mlnx_check_mirror_attribute_on_create(_In_ uint32_t         
              mlnx_check_mirror_single_attribute_on_create(ERSPAN, attr_count, attr_list,
                                                           SAI_MIRROR_SESSION_ATTR_GRE_PROTOCOL_TYPE,
                                                           "GRE protocol type", "ERSPAN", mirror_gre_protocol_type,
-                                                          &index))) {
+                                                          is_mandatory, &index))) {
         SX_LOG_ERR("Error checking GRE protocol type on create\n");
         SX_LOG_EXIT();
         return status;
@@ -1861,6 +1966,10 @@ static sai_status_t mlnx_set_RSPAN_session_param(_Out_ sx_span_session_params_t 
                                                  _In_ const sai_attribute_value_t *mirror_vlan_pri,
                                                  _In_ const sai_attribute_value_t *mirror_vlan_cfi)
 {
+    uint16_t     vlan_tpid         = 0;
+    uint8_t      vlan_pri          = 0;
+    uint8_t      vlan_cfi          = 0;
+
     SX_LOG_ENTER();
 
     sdk_mirror_obj_params->span_type = SX_SPAN_TYPE_REMOTE_ETH_VLAN_TYPE1;
@@ -1871,30 +1980,54 @@ static sai_status_t mlnx_set_RSPAN_session_param(_Out_ sx_span_session_params_t 
         sdk_mirror_obj_params->span_type_format.remote_eth_vlan_type1.qos_mode    = SX_SPAN_QOS_MAINTAIN;
         sdk_mirror_obj_params->span_type_format.remote_eth_vlan_type1.switch_prio = MLNX_MIRROR_DEFAULT_SWITCH_PRIO;
     }
+
+    if (NULL == mirror_vlan_id) {
+        SX_LOG_ERR("Missing VLAN ID for RSPAN on create\n");
+        SX_LOG_EXIT();
+        return SAI_STATUS_MANDATORY_ATTRIBUTE_MISSING;
+    }
     if (MLNX_VLAN_ID_WHEN_TP_DISABLED == mirror_vlan_id->u16) {
         SX_LOG_ERR("VLAN ID cannot be %d for RSPAN on create\n", MLNX_VLAN_ID_WHEN_TP_DISABLED);
         SX_LOG_EXIT();
         return SAI_STATUS_INVALID_ATTR_VALUE_0 + mirror_vlan_id->u16;
     }
     sdk_mirror_obj_params->span_type_format.remote_eth_vlan_type1.vid = mirror_vlan_id->u16;
-    if (MLNX_MIRROR_VLAN_TPID != mirror_vlan_tpid->u16) {
-        SX_LOG_ERR("VLAN TPID must be %x on create, but getting %x\n", MLNX_MIRROR_VLAN_TPID, mirror_vlan_tpid->u16);
-        SX_LOG_EXIT();
-        return SAI_STATUS_INVALID_ATTR_VALUE_0 + mirror_vlan_tpid->u16;
+
+    if (NULL != mirror_vlan_tpid) {
+        vlan_tpid = mirror_vlan_tpid->u16;
+    } else {
+        vlan_tpid = MLNX_MIRROR_VLAN_TPID;
     }
-    if (MIRROR_VLAN_PRI_MAX < mirror_vlan_pri->u8) {
-        SX_LOG_ERR("Error: VLAN PRI should be at most %d but getting %d\n", MIRROR_VLAN_PRI_MAX, mirror_vlan_pri->u8);
+    if (MLNX_MIRROR_VLAN_TPID != vlan_tpid) {
+        SX_LOG_ERR("VLAN TPID must be %x on create, but getting %x\n", MLNX_MIRROR_VLAN_TPID, vlan_tpid);
         SX_LOG_EXIT();
-        return SAI_STATUS_INVALID_ATTR_VALUE_0 + mirror_vlan_pri->u8;
+        return SAI_STATUS_INVALID_ATTR_VALUE_0 + vlan_tpid;
     }
-    if (MIRROR_VLAN_CFI_MAX < mirror_vlan_cfi->u8) {
-        SX_LOG_ERR("Error: VLAN CFI should be at most %d but getting %d\n", MIRROR_VLAN_CFI_MAX, mirror_vlan_cfi->u8);
+
+    if (NULL != mirror_vlan_pri) {
+        vlan_pri = mirror_vlan_pri->u8;
+    } else {
+        vlan_pri = 0;
+    }
+    if (MIRROR_VLAN_PRI_MAX < vlan_pri) {
+        SX_LOG_ERR("Error: VLAN PRI should be at most %d but getting %d\n", MIRROR_VLAN_PRI_MAX, vlan_pri);
         SX_LOG_EXIT();
-        return SAI_STATUS_INVALID_ATTR_VALUE_0 + mirror_vlan_cfi->u8;
+        return SAI_STATUS_INVALID_ATTR_VALUE_0 + vlan_pri;
+    }
+
+    if (NULL != mirror_vlan_cfi) {
+        vlan_cfi = mirror_vlan_cfi->u8;
+    } else {
+        vlan_cfi = 0;
+    }
+    if (MIRROR_VLAN_CFI_MAX < vlan_cfi) {
+        SX_LOG_ERR("Error: VLAN CFI should be at most %d but getting %d\n", MIRROR_VLAN_CFI_MAX, vlan_cfi);
+        SX_LOG_EXIT();
+        return SAI_STATUS_INVALID_ATTR_VALUE_0 + vlan_cfi;
     }
     sdk_mirror_obj_params->span_type_format.remote_eth_vlan_type1.vlan_ethertype_id = MLNX_VLAN_ETHERTYPE_ID;
-    sdk_mirror_obj_params->span_type_format.remote_eth_vlan_type1.pcp               = mirror_vlan_pri->u8;
-    sdk_mirror_obj_params->span_type_format.remote_eth_vlan_type1.dei               = mirror_vlan_cfi->u8;
+    sdk_mirror_obj_params->span_type_format.remote_eth_vlan_type1.pcp               = vlan_pri;
+    sdk_mirror_obj_params->span_type_format.remote_eth_vlan_type1.dei               = vlan_cfi;
 
     SX_LOG_EXIT();
     return SAI_STATUS_SUCCESS;
@@ -1907,6 +2040,7 @@ static sai_status_t mlnx_set_ERSPAN_session_param(_Out_ sx_span_session_params_t
                                                   _In_ const sai_attribute_value_t *mirror_vlan_id,
                                                   _In_ const sai_attribute_value_t *mirror_vlan_pri,
                                                   _In_ const sai_attribute_value_t *mirror_vlan_cfi,
+                                                  _In_ const sai_attribute_value_t *mirror_vlan_header_valid,
                                                   _In_ const sai_attribute_value_t *mirror_encap_type,
                                                   _In_ const sai_attribute_value_t *mirror_iphdr_version,
                                                   _In_ const sai_attribute_value_t *mirror_tos,
@@ -1918,7 +2052,12 @@ static sai_status_t mlnx_set_ERSPAN_session_param(_Out_ sx_span_session_params_t
                                                   _In_ const sai_attribute_value_t *mirror_dst_mac_address,
                                                   _In_ const sai_attribute_value_t *mirror_gre_protocol_type)
 {
-    sai_status_t status = SAI_STATUS_FAILURE;
+    sai_status_t status            = SAI_STATUS_FAILURE;
+    bool         vlan_header_valid = false;
+    uint16_t     vlan_tpid         = 0;
+    uint16_t     vlan_id           = 0;
+    uint8_t      vlan_pri          = 0;
+    uint8_t      vlan_cfi          = 0;
 
     SX_LOG_ENTER();
 
@@ -1931,35 +2070,95 @@ static sai_status_t mlnx_set_ERSPAN_session_param(_Out_ sx_span_session_params_t
             sdk_mirror_obj_params->span_type_format.remote_eth_l3_type1.qos_mode    = SX_SPAN_QOS_MAINTAIN;
             sdk_mirror_obj_params->span_type_format.remote_eth_l3_type1.switch_prio = MLNX_MIRROR_DEFAULT_SWITCH_PRIO;
         }
-        if (MLNX_VLAN_ID_WHEN_TP_DISABLED == mirror_vlan_id->u16) {
+        if ((NULL == mirror_vlan_header_valid) || !mirror_vlan_header_valid->booldata) {
+            vlan_header_valid = false;
+        } else {
+            assert(mirror_vlan_header_valid->booldata);
+            vlan_header_valid = true;
+        }
+
+        if (vlan_header_valid) {
+            if (NULL != mirror_vlan_tpid) {
+                vlan_tpid = mirror_vlan_tpid->u16;
+            } else {
+                vlan_tpid = MLNX_MIRROR_VLAN_TPID;
+            }
+            if (NULL == mirror_vlan_id) {
+                SX_LOG_ERR("Missing vlan id for ERSPAN when vlan header valid is true\n");
+                SX_LOG_EXIT();
+                return SAI_STATUS_MANDATORY_ATTRIBUTE_MISSING;
+            }
+            if (0 == mirror_vlan_id->u16) {
+                SX_LOG_ERR("Vlan id should not be 0 when vlan header valid is true\n");
+                SX_LOG_EXIT();
+                return SAI_STATUS_INVALID_ATTR_VALUE_0;
+            }
+            vlan_id = mirror_vlan_id->u16;
+            if (NULL != mirror_vlan_pri) {
+                vlan_pri = mirror_vlan_pri->u8;
+            } else {
+                vlan_pri = 0;
+            }
+            if (NULL != mirror_vlan_cfi) {
+                vlan_cfi = mirror_vlan_cfi->u8;
+            } else {
+                vlan_cfi = 0;
+            }
+        } else {
+            if (NULL != mirror_vlan_tpid) {
+                SX_LOG_ERR("VLAN tpid is not valid when vlan header valid is false\n");
+                SX_LOG_EXIT();
+                return SAI_STATUS_FAILURE;
+            }
+            if (NULL != mirror_vlan_id) {
+                SX_LOG_ERR("VLAN id is not valid when vlan header valid is false\n");
+                SX_LOG_EXIT();
+                return SAI_STATUS_FAILURE;
+            }
+            if (NULL != mirror_vlan_pri) {
+                SX_LOG_ERR("VLAN pri is not valid when vlan header valid is false\n");
+                SX_LOG_EXIT();
+                return SAI_STATUS_FAILURE;
+            }
+            if (NULL != mirror_vlan_cfi) {
+                SX_LOG_ERR("VLAN cfi is not valid when vlan header valid is false\n");
+                SX_LOG_EXIT();
+                return SAI_STATUS_FAILURE;
+            }
+            vlan_tpid = MLNX_MIRROR_VLAN_TPID;
+            vlan_id  = 0;
+            vlan_pri = 0;
+            vlan_cfi = 0;
+        }
+        if (MLNX_VLAN_ID_WHEN_TP_DISABLED == vlan_id) {
             sdk_mirror_obj_params->span_type_format.remote_eth_l3_type1.tp = MLNX_MIRROR_TP_DISABLE;
         } else {
             sdk_mirror_obj_params->span_type_format.remote_eth_l3_type1.tp = MLNX_MIRROR_TP_ENABLE;
         }
-        sdk_mirror_obj_params->span_type_format.remote_eth_l3_type1.vid = mirror_vlan_id->u16;
-        if (MLNX_MIRROR_VLAN_TPID != mirror_vlan_tpid->u16) {
+        if (MLNX_MIRROR_VLAN_TPID != vlan_tpid) {
             SX_LOG_ERR("VLAN TPID must be %x on create, but getting %x\n", MLNX_MIRROR_VLAN_TPID,
                        mirror_vlan_tpid->u16);
             SX_LOG_EXIT();
-            return SAI_STATUS_INVALID_ATTR_VALUE_0 + mirror_vlan_tpid->u16;
+            return SAI_STATUS_INVALID_ATTR_VALUE_0 + vlan_tpid;
         }
-        if (MIRROR_VLAN_PRI_MAX < mirror_vlan_pri->u8) {
+        if (MIRROR_VLAN_PRI_MAX < vlan_pri) {
             SX_LOG_ERR("Error: VLAN PRI should be at most %d but getting %d\n",
                        MIRROR_VLAN_PRI_MAX,
                        mirror_vlan_pri->u8);
             SX_LOG_EXIT();
-            return SAI_STATUS_INVALID_ATTR_VALUE_0 + mirror_vlan_pri->u8;
+            return SAI_STATUS_INVALID_ATTR_VALUE_0 + vlan_pri;
         }
-        if (MIRROR_VLAN_CFI_MAX < mirror_vlan_cfi->u8) {
+        if (MIRROR_VLAN_CFI_MAX < vlan_cfi) {
             SX_LOG_ERR("Error: VLAN CFI should be at most %d but getting %d\n",
                        MIRROR_VLAN_CFI_MAX,
                        mirror_vlan_cfi->u8);
             SX_LOG_EXIT();
-            return SAI_STATUS_INVALID_ATTR_VALUE_0 + mirror_vlan_cfi->u8;
+            return SAI_STATUS_INVALID_ATTR_VALUE_0 + vlan_cfi;
         }
+        sdk_mirror_obj_params->span_type_format.remote_eth_l3_type1.vid = vlan_id;
         sdk_mirror_obj_params->span_type_format.remote_eth_l3_type1.vlan_ethertype_id = MLNX_VLAN_ETHERTYPE_ID;
-        sdk_mirror_obj_params->span_type_format.remote_eth_l3_type1.pcp               = mirror_vlan_pri->u8;
-        sdk_mirror_obj_params->span_type_format.remote_eth_l3_type1.dei               = mirror_vlan_cfi->u8;
+        sdk_mirror_obj_params->span_type_format.remote_eth_l3_type1.pcp               = vlan_pri;
+        sdk_mirror_obj_params->span_type_format.remote_eth_l3_type1.dei               = vlan_cfi;
         sdk_mirror_obj_params->span_type_format.remote_eth_l3_type1.dscp              =
             (mirror_tos->u8 >> DSCP_OFFSET) & DSCP_MASK_AFTER_SHIFT;
         sdk_mirror_obj_params->span_type_format.remote_eth_l3_type1.ecn = mirror_tos->u8 & ~DSCP_MASK;
@@ -2044,6 +2243,7 @@ static sai_status_t mlnx_create_mirror_session(_Out_ sai_object_id_t      *sai_m
         NULL, *mirror_tc                                  = NULL;
     const sai_attribute_value_t *mirror_vlan_tpid         = NULL, *mirror_vlan_id = NULL, *mirror_vlan_pri = NULL,
     *mirror_vlan_cfi                                      = NULL;
+    const sai_attribute_value_t *mirror_vlan_header_valid = NULL;
     const sai_attribute_value_t *mirror_encap_type        = NULL, *mirror_iphdr_version = NULL, *mirror_tos = NULL,
     *mirror_ttl                                           = NULL;
     const sai_attribute_value_t *mirror_src_ip_address    = NULL, *mirror_dst_ip_address = NULL;
@@ -2067,6 +2267,7 @@ static sai_status_t mlnx_create_mirror_session(_Out_ sai_object_id_t      *sai_m
                                                         &mirror_tc, &status_tc,
                                                         &mirror_vlan_tpid, &mirror_vlan_id, &mirror_vlan_pri,
                                                         &mirror_vlan_cfi,
+                                                        &mirror_vlan_header_valid,
                                                         &mirror_encap_type, &mirror_iphdr_version, &mirror_tos,
                                                         &mirror_ttl, &status_ttl,
                                                         &mirror_src_ip_address, &mirror_dst_ip_address,
@@ -2113,6 +2314,7 @@ static sai_status_t mlnx_create_mirror_session(_Out_ sai_object_id_t      *sai_m
             (status = mlnx_set_ERSPAN_session_param(&sdk_mirror_obj_params,
                                                     mirror_tc, status_tc,
                                                     mirror_vlan_tpid, mirror_vlan_id, mirror_vlan_pri, mirror_vlan_cfi,
+                                                    mirror_vlan_header_valid,
                                                     mirror_encap_type, mirror_iphdr_version, mirror_tos, mirror_ttl,
                                                     status_ttl,
                                                     mirror_src_ip_address, mirror_dst_ip_address,

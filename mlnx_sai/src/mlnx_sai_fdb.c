@@ -80,7 +80,7 @@ static sai_status_t mlnx_add_or_del_mac(sx_fdb_uc_mac_addr_params_t *mac_entry, 
     uint32_t            entries_count = 1;
     const char         *cmd_name      = cmd == SX_ACCESS_CMD_ADD ? "add" : "del";
     sx_status_t         status;
-    mlnx_port_config_t *port;
+    mlnx_bridge_port_t *port;
 
     SX_LOG_ENTER();
 
@@ -114,7 +114,7 @@ static sai_status_t mlnx_add_or_del_mac(sx_fdb_uc_mac_addr_params_t *mac_entry, 
     }
 
     sai_db_write_lock();
-    status = mlnx_port_by_log_id(mac_entry->log_port, &port);
+    status = mlnx_bridge_port_by_log(mac_entry->log_port, &port);
     if (SAI_ERR(status)) {
         sai_db_unlock();
         return status;
@@ -140,17 +140,43 @@ static sai_status_t mlnx_del_mac(sx_fdb_uc_mac_addr_params_t *mac_entry)
     return mlnx_add_or_del_mac(mac_entry, SX_ACCESS_CMD_DELETE);
 }
 
+static sai_status_t mlnx_fdb_entry_to_sdk(const sai_fdb_entry_t *fdb_entry, sx_fdb_uc_mac_addr_params_t *mac_entry)
+{
+    sai_status_t status;
+
+    if (fdb_entry->bridge_type == SAI_FDB_ENTRY_BRIDGE_TYPE_1Q) {
+        mac_entry->fid_vid  = fdb_entry->vlan_id;
+    } else if (fdb_entry->bridge_type == SAI_FDB_ENTRY_BRIDGE_TYPE_1D) {
+        status = mlnx_bridge_oid_to_id(fdb_entry->bridge_id, (sx_bridge_id_t *) &mac_entry->fid_vid);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to fill fid_vid with bridge id\n");
+            return status;
+        }
+    } else {
+        SX_LOG_ERR("Invalid fdb entry bridge type %u\n", fdb_entry->bridge_type);
+        return SAI_STATUS_INVALID_PARAMETER;
+    }
+
+    memcpy(&mac_entry->mac_addr, fdb_entry->mac_address, sizeof(mac_entry->mac_addr));
+
+    return SAI_STATUS_SUCCESS;
+}
+
 static sai_status_t mlnx_get_mac(const sai_fdb_entry_t *fdb_entry, sx_fdb_uc_mac_addr_params_t *mac_entry)
 {
-    sx_status_t                 status;
     uint32_t                    entries_count = 1;
     sx_fdb_uc_mac_addr_params_t mac_key;
     sx_fdb_uc_key_filter_t      filter;
+    sx_status_t                 status;
 
     SX_LOG_ENTER();
 
-    mac_key.fid_vid = fdb_entry->vlan_id;
-    memcpy(&mac_key.mac_addr, fdb_entry->mac_address, sizeof(mac_key.mac_addr));
+    status = mlnx_fdb_entry_to_sdk(fdb_entry, &mac_key);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to convert sai_fdb_entry_t to SDK params\n");
+        return status;
+    }
+
     memset(&filter, 0, sizeof(filter));
 
     if (SX_STATUS_SUCCESS !=
@@ -234,14 +260,15 @@ static sai_status_t mlnx_translate_sai_type_to_sdk(sai_int32_t                  
 
 static void fdb_key_to_str(_In_ const sai_fdb_entry_t* fdb_entry, _Out_ char *key_str)
 {
-    snprintf(key_str, MAX_KEY_STR_LEN, "fdb entry mac [%02x:%02x:%02x:%02x:%02x:%02x] vlan %u",
+    snprintf(key_str, MAX_KEY_STR_LEN, "fdb entry mac [%02x:%02x:%02x:%02x:%02x:%02x] vlan %u bridge %lx",
              fdb_entry->mac_address[0],
              fdb_entry->mac_address[1],
              fdb_entry->mac_address[2],
              fdb_entry->mac_address[3],
              fdb_entry->mac_address[4],
              fdb_entry->mac_address[5],
-             fdb_entry->vlan_id);
+             fdb_entry->vlan_id,
+             fdb_entry->bridge_id);
 }
 
 /*
@@ -336,9 +363,13 @@ static sai_status_t mlnx_create_fdb_entry(_In_ const sai_fdb_entry_t* fdb_entry,
         goto out;
     }
 
-    mac_entry.fid_vid  = fdb_entry->vlan_id;
+    status = mlnx_fdb_entry_to_sdk(fdb_entry, &mac_entry);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to convert sai_fdb_entry_t to SDK params\n");
+        return status;
+    }
+
     mac_entry.log_port = port_id;
-    memcpy(&mac_entry.mac_addr, fdb_entry->mac_address, sizeof(mac_entry.mac_addr));
 
     status = mlnx_add_mac(&mac_entry);
     if (SAI_ERR(status)) {
@@ -669,13 +700,10 @@ static sai_status_t mlnx_fdb_port_get(_In_ const sai_object_key_t   *key,
     if (SX_FDB_ACTION_DISCARD == fdb_cache->action) {
         value->oid = SAI_NULL_OBJECT_ID;
     } else {
-        sai_db_read_lock();
         status = mlnx_log_port_to_sai_bridge_port(fdb_cache->log_port, &value->oid);
         if (SAI_ERR(status)) {
-            sai_db_unlock();
             return status;
         }
-        sai_db_unlock();
     }
 
     SX_LOG_EXIT();
@@ -806,7 +834,7 @@ static sai_status_t mlnx_flush_fdb_entries(_In_ sai_object_id_t        switch_id
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_fdb_port_event_handle(mlnx_port_config_t *port, uint16_t vid, sai_port_event_t event)
+sai_status_t mlnx_fdb_port_event_handle(mlnx_bridge_port_t *port, uint16_t vid, sai_port_event_t event)
 {
     sx_status_t     sx_status = SX_STATUS_SUCCESS;
     sx_access_cmd_t flood_cmd;

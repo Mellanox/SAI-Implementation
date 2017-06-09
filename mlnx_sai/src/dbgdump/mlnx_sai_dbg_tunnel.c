@@ -341,7 +341,7 @@ static void SAI_dump_tunnel_print(_In_ FILE *file, _In_ tunnel_db_entry_t *tunne
         {"db idx",        7,  PARAM_UINT32_E, &ii},
         {"sx tunnel id",  12, PARAM_UINT32_E, &curr_tunnel_db.sx_tunnel_id},
         {"vxlan o if",    16, PARAM_UINT64_E, &curr_tunnel_db.sai_vxlan_overlay_rif},
-        {"vxlan u if",    16, PARAM_UINT64_E, &curr_tunnel_db.sai_vxlan_underlay_rif},
+        {"vxlan u if",    16, PARAM_UINT64_E, &curr_tunnel_db.sai_underlay_rif},
         {"encap map cnt", 13, PARAM_UINT32_E, &curr_tunnel_db.sai_tunnel_map_encap_cnt},
         {"decap map cnt", 13, PARAM_UINT32_E, &curr_tunnel_db.sai_tunnel_map_decap_cnt},
         {NULL,            0,  0,              NULL}

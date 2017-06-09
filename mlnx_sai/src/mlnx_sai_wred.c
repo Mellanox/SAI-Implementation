@@ -193,7 +193,6 @@ static sai_status_t mlnx_wred_db_create(sai_object_id_t *wred_id, mlnx_wred_prof
     uint32_t     ii     = 0;
     sai_status_t status = SAI_STATUS_SUCCESS;
 
-    sai_db_write_lock();
     for (; ii < g_resource_limits.cos_redecn_profiles_max; ii++) {
         if (!g_sai_qos_db_ptr->wred_db[ii].in_use) {
             if (SAI_STATUS_SUCCESS !=
@@ -206,7 +205,6 @@ static sai_status_t mlnx_wred_db_create(sai_object_id_t *wred_id, mlnx_wred_prof
             break;
         }
     }
-    sai_db_unlock();
 
     if (g_resource_limits.cos_redecn_profiles_max == ii) {
         return SAI_STATUS_TABLE_FULL;
@@ -235,8 +233,6 @@ static sai_status_t mlnx_wred_db_remove(sai_object_id_t wred_id)
         return SAI_STATUS_INVALID_OBJECT_ID;
     }
 
-    sai_db_write_lock();
-
     if ((wred_num >= g_resource_limits.cos_redecn_profiles_max) ||
         (!g_sai_qos_db_ptr->wred_db[wred_num].in_use)) {
         status = SAI_STATUS_ITEM_NOT_FOUND;
@@ -246,7 +242,6 @@ static sai_status_t mlnx_wred_db_remove(sai_object_id_t wred_id)
         sai_qos_db_sync();
     }
 
-    sai_db_unlock();
     return status;
 }
 
@@ -291,14 +286,11 @@ static sai_status_t mlnx_wred_db_get(sai_object_id_t wred_id, mlnx_wred_profile_
     sai_status_t         status = SAI_STATUS_SUCCESS;
     mlnx_wred_profile_t *profile;
 
-    sai_db_read_lock();
-
     status = __mlnx_wred_db_get(wred_id, &profile);
     if (!SAI_ERR(status)) {
         memcpy(wred_profile, profile, sizeof(mlnx_wred_profile_t));
     }
 
-    sai_db_unlock();
     return status;
 }
 
@@ -324,7 +316,6 @@ static sai_status_t mlnx_wred_db_set(sai_object_id_t wred_id, mlnx_wred_profile_
         return SAI_STATUS_INVALID_OBJECT_ID;
     }
 
-    sai_db_write_lock();
     if ((wred_num >= g_resource_limits.cos_redecn_profiles_max) ||
         (!g_sai_qos_db_ptr->wred_db[wred_num].in_use)) {
         status = SAI_STATUS_ITEM_NOT_FOUND;
@@ -333,7 +324,6 @@ static sai_status_t mlnx_wred_db_set(sai_object_id_t wred_id, mlnx_wred_profile_
         g_sai_qos_db_ptr->wred_db[wred_num].in_use = true;
         sai_qos_db_sync();
     }
-    sai_db_unlock();
 
     return status;
 }
@@ -351,58 +341,17 @@ static bool mlnx_wred_db_isfull()
 {
     uint32_t ii = 0;
 
-    cl_plock_acquire(&g_sai_db_ptr->p_lock);
-
     for (; ii < g_resource_limits.cos_redecn_profiles_max; ii++) {
         if (!g_sai_qos_db_ptr->wred_db[ii].in_use) {
             break;
         }
     }
 
-    cl_plock_release(&g_sai_db_ptr->p_lock);
-
     if (g_resource_limits.cos_redecn_profiles_max == ii) {
         return true;
     }
 
     return false;
-}
-
-/*
- * Get configured WRED profile id for specified port
- *
- * Arguments:
- *    [in]  port_id - sai object id of the port
- *    [out] wred_id - ptr to store the configured WRED id
- *
- * Return Values:
- *    SAI_STATUS_SUCCESS
- *    SAI_STATUS_FAILURE
- *
- */
-sai_status_t mlnx_wred_get_wred_id(sai_object_id_t port_id, sai_object_id_t *wred_id)
-{
-    uint32_t         index = 0;
-    sx_port_log_id_t port_num;
-    sai_status_t     status = SAI_STATUS_SUCCESS;
-
-    if (NULL == wred_id) {
-        SX_LOG_ERR("NULL wred id param\n");
-        return SAI_STATUS_INVALID_PARAMETER;
-    }
-
-    if (SAI_STATUS_SUCCESS != (status = mlnx_object_to_type(port_id, SAI_OBJECT_TYPE_PORT, &port_num, NULL))) {
-        return status;
-    }
-
-    if (SAI_STATUS_SUCCESS == (status = mlnx_port_idx_by_log_id(port_num, &index))) {
-        cl_plock_acquire(&g_sai_db_ptr->p_lock);
-        *wred_id = g_sai_db_ptr->ports_db[index].wred_id;
-        cl_plock_release(&g_sai_db_ptr->p_lock);
-    }
-
-
-    return status;
 }
 
 static void tc_list_to_str(sx_cos_traffic_class_t *tc_list, uint32_t tc_count, char* buf)
@@ -485,17 +434,13 @@ static sai_status_t mlnx_wred_get_tc_unbind_list(sx_port_log_id_t        port_id
     sai_status_t        status;
     mlnx_port_config_t *port;
 
-    sai_db_read_lock();
-
     status = mlnx_port_by_log_id(port_id, &port);
     if (status != SAI_STATUS_SUCCESS) {
-        sai_db_unlock();
         return status;
     }
 
     status = __wred_get_tc_unbind_list(port, tc_list, tc_count);
 
-    sai_db_unlock();
     return status;
 }
 
@@ -623,7 +568,6 @@ static sai_status_t mlnx_wred_bind_sxwred_to_all_port(sai_object_id_t           
         return SAI_STATUS_NO_MEMORY;
     }
 
-    cl_plock_acquire(&g_sai_db_ptr->p_lock);
 
     mlnx_port_not_in_lag_foreach(port, ii) {
         tc_count = g_resource_limits.cos_port_ets_traffic_class_max + 1;
@@ -641,7 +585,6 @@ static sai_status_t mlnx_wred_bind_sxwred_to_all_port(sai_object_id_t           
         }
     }
 
-    cl_plock_release(&g_sai_db_ptr->p_lock);
 
     if (tc_list) {
         free(tc_list);
@@ -666,8 +609,6 @@ static bool mlnx_wred_check_in_use(sai_object_id_t wred_id)
     bool                     in_use = false;
     uint32_t                 ii, jj;
 
-    sai_db_read_lock();
-
     mlnx_port_foreach(port, ii) {
         if (port->wred_id == wred_id) {
             in_use = true;
@@ -683,7 +624,6 @@ static bool mlnx_wred_check_in_use(sai_object_id_t wred_id)
     }
 
 out:
-    sai_db_unlock();
     return in_use;
 }
 
@@ -773,7 +713,6 @@ static sai_status_t mlnx_wred_bind_saiwred_to_all_port(sai_object_id_t wred_id, 
         return SAI_STATUS_NO_MEMORY;
     }
 
-    cl_plock_acquire(&g_sai_db_ptr->p_lock);
     mlnx_port_not_in_lag_foreach(port, ii) {
         tc_count = g_resource_limits.cos_port_ets_traffic_class_max + 1;
         if (SAI_STATUS_SUCCESS !=
@@ -800,7 +739,6 @@ static sai_status_t mlnx_wred_bind_saiwred_to_all_port(sai_object_id_t wred_id, 
         }
     }
 
-    cl_plock_release(&g_sai_db_ptr->p_lock);
     free(tc_list);
     return status;
 }
@@ -853,7 +791,8 @@ sai_status_t mlnx_wred_apply(sai_object_id_t wred_id, sai_object_id_t to_obj_id)
     sx_cos_traffic_class_t  *tc_list      = NULL;
     uint32_t                 tc_count     = g_resource_limits.cos_port_ets_traffic_class_max + 1;
     sx_port_log_id_t         port_id;
-    uint32_t                 wred_num                     = 0, index = 0;
+    mlnx_port_config_t      *port_conf    = NULL;
+    uint32_t                 wred_num                     = 0;
     sai_object_type_t        to_obj_type                  = sai_object_type_query(to_obj_id);
     uint8_t                  ext_data[EXTENDED_DATA_SIZE] = {0};
     char                     buf[MAX_VALUE_STR_LEN]       = {0};
@@ -865,33 +804,46 @@ sai_status_t mlnx_wred_apply(sai_object_id_t wred_id, sai_object_id_t to_obj_id)
         SX_LOG_ERR("Failed to alloc memory for tc list\n");
         return SAI_STATUS_NO_MEMORY;
     }
-
     /* get port id and TC list based on object type */
     switch (to_obj_type) {
     case SAI_OBJECT_TYPE_PORT:
-        if ((SAI_STATUS_SUCCESS !=
-             (status = mlnx_object_to_type(to_obj_id, SAI_OBJECT_TYPE_PORT, &port_id, NULL))) ||
-            (SAI_STATUS_SUCCESS !=
-             (status = mlnx_port_idx_by_log_id(port_id, &index))) ||
-            (SAI_STATUS_SUCCESS !=
-             (status = mlnx_wred_get_tc_unbind_list(port_id, tc_list, &tc_count)))) {
+    case SAI_OBJECT_TYPE_LAG:
+        status = mlnx_port_by_obj_id(to_obj_id, &port_conf);
+        if (SAI_ERR(status)) {
+            free(tc_list);
+            return status;
+        }
+        if (mlnx_port_is_lag_member(port_conf)) {
+            port_id = port_conf->lag_id;
+        } else {
+            port_id = port_conf->logical;
+        }
+
+        status = mlnx_wred_get_tc_unbind_list(port_id, tc_list, &tc_count);
+        if (SAI_ERR(status)) {
             free(tc_list);
             return status;
         }
 
-        sai_db_read_lock();
-        curr_wred_id = g_sai_db_ptr->ports_db[index].wred_id;
-        sai_db_unlock();
+        curr_wred_id = port_conf->wred_id;
         break;
 
     case SAI_OBJECT_TYPE_QUEUE:
-        if ((SAI_STATUS_SUCCESS !=
-             (status = mlnx_object_to_type(to_obj_id, SAI_OBJECT_TYPE_QUEUE, &port_id, ext_data))) ||
-            (SAI_STATUS_SUCCESS !=
-             (status = mlnx_port_idx_by_log_id(port_id, &index)))) {
+        status = mlnx_object_to_type(to_obj_id, SAI_OBJECT_TYPE_QUEUE, &port_id, ext_data);
+        if (SAI_ERR(status)) {
             free(tc_list);
             return status;
         }
+
+        status = mlnx_port_by_log_id(port_id, &port_conf);
+        if (SAI_ERR(status)) {
+            free(tc_list);
+            return status;
+        }
+        if (mlnx_port_is_lag_member(port_conf)) {
+            port_id = port_conf->lag_id;
+        }
+
         tc_list[0] = ext_data[0];
         tc_count   = 1;
         if (tc_list[0] > g_resource_limits.cos_port_ets_traffic_class_max) {
@@ -900,17 +852,12 @@ sai_status_t mlnx_wred_apply(sai_object_id_t wred_id, sai_object_id_t to_obj_id)
             return SAI_STATUS_FAILURE;
         }
 
-        sai_db_read_lock();
-
         status = mlnx_queue_cfg_lookup(port_id, tc_list[0], &queue_cfg);
         if (status != SAI_STATUS_SUCCESS) {
-            sai_db_unlock();
             free(tc_list);
             return status;
         }
         curr_wred_id = queue_cfg->wred_id;
-
-        sai_db_unlock();
         break;
 
     default:
@@ -927,9 +874,7 @@ sai_status_t mlnx_wred_apply(sai_object_id_t wred_id, sai_object_id_t to_obj_id)
     }
 
     if ((to_obj_type == SAI_OBJECT_TYPE_QUEUE) && (curr_wred_id == SAI_NULL_OBJECT_ID)) {
-        sai_db_read_lock();
-        curr_wred_id = g_sai_db_ptr->ports_db[index].wred_id;
-        sai_db_unlock();
+        curr_wred_id = port_conf->wred_id;
     }
 
     if (SAI_NULL_OBJECT_ID != curr_wred_id) {
@@ -960,10 +905,8 @@ sai_status_t mlnx_wred_apply(sai_object_id_t wred_id, sai_object_id_t to_obj_id)
             free(tc_list);
             return SAI_STATUS_INVALID_PARAMETER;
         }
-        sai_db_read_lock();
         wred_enabled = g_sai_qos_db_ptr->wred_db[wred_num].wred_enabled;
         ecn_enabled  = g_sai_qos_db_ptr->wred_db[wred_num].ecn_enabled;
-        sai_db_unlock();
 
         if ((SAI_STATUS_SUCCESS !=
              (status = mlnx_wred_ecn_enable_set(port_id, tc_list, tc_count, wred_enabled, ecn_enabled))) ||
@@ -980,21 +923,15 @@ sai_status_t mlnx_wred_apply(sai_object_id_t wred_id, sai_object_id_t to_obj_id)
 
     if (SAI_STATUS_SUCCESS == status) {
         /* Update DB */
-        sai_db_write_lock();
-
-        if (to_obj_type == SAI_OBJECT_TYPE_PORT) {
-            g_sai_db_ptr->ports_db[index].wred_id = wred_id;
+        if (to_obj_type == SAI_OBJECT_TYPE_PORT || to_obj_type == SAI_OBJECT_TYPE_LAG) {
+            port_conf->wred_id = wred_id;
         } else {
             status = mlnx_queue_cfg_lookup(port_id, tc_list[0], &queue_cfg);
             if (status != SAI_STATUS_SUCCESS) {
-                sai_db_unlock();
                 return status;
             }
             queue_cfg->wred_id = wred_id;
         }
-
-        sai_qos_db_sync();
-        sai_db_unlock();
     }
 
     free(tc_list);
@@ -1015,16 +952,11 @@ static void mlnx_wred_reset_from_port(_In_ sai_object_id_t wred_id)
     uint32_t            ii = 0;
     mlnx_port_config_t *port;
 
-    sai_db_write_lock();
-
     mlnx_port_foreach(port, ii) {
         if (port->wred_id == wred_id) {
             port->wred_id = SAI_NULL_OBJECT_ID;
         }
     }
-
-    sai_qos_db_sync();
-    sai_db_unlock();
 }
 
 /*
@@ -1547,7 +1479,6 @@ static sai_status_t mlnx_wred_sx_weight_validate(sai_object_id_t wred_id, uint8_
         SX_LOG_ERR("Failed to set weight, invalid value %u\n", weight_val);
         return SAI_STATUS_NOT_SUPPORTED;
     }
-    cl_plock_acquire(&g_sai_db_ptr->p_lock);
     /* Check for how many WREDs are configured,
      * actually we only need to know if it 0, 1 or more than 1 */
     while ((wred_num < g_resource_limits.cos_redecn_profiles_max) && (count < 2)) {
@@ -1557,7 +1488,6 @@ static sai_status_t mlnx_wred_sx_weight_validate(sai_object_id_t wred_id, uint8_
         }
         wred_num++;
     }
-    cl_plock_release(&g_sai_db_ptr->p_lock);
 
     if (SAI_STATUS_SUCCESS != (status = mlnx_create_object(SAI_OBJECT_TYPE_WRED, wred_last_num,
                                                            NULL, &wred_last))) {
@@ -2002,6 +1932,7 @@ static sai_status_t mlnx_set_wred_attribute(_In_ sai_object_id_t wred_id, _In_ c
     const sai_object_key_t key  = { .key.object_id = wred_id };
     uint32_t               wred = 0;
     char                   key_str[MAX_KEY_STR_LEN];
+    sai_status_t           status;
 
     SX_LOG_ENTER();
 
@@ -2010,7 +1941,12 @@ static sai_status_t mlnx_set_wred_attribute(_In_ sai_object_id_t wred_id, _In_ c
     }
 
     wred_key_to_str(wred_id, key_str);
-    return sai_set_attribute(&key, key_str, wred_attribs, wred_vendor_attribs, attr);
+
+    sai_db_write_lock();
+    status = sai_set_attribute(&key, key_str, wred_attribs, wred_vendor_attribs, attr);
+    sai_db_unlock();
+
+    return status;
 }
 
 
@@ -2034,6 +1970,7 @@ static sai_status_t mlnx_get_wred_attribute(_In_ sai_object_id_t     wred_id,
     const sai_object_key_t key = { .key.object_id = wred_id };
     char                   key_str[MAX_KEY_STR_LEN];
     uint32_t               wred = 0;
+    sai_status_t           status;
 
     SX_LOG_ENTER();
 
@@ -2042,7 +1979,12 @@ static sai_status_t mlnx_get_wred_attribute(_In_ sai_object_id_t     wred_id,
     }
 
     wred_key_to_str(wred_id, key_str);
-    return sai_get_attributes(&key, key_str, wred_attribs, wred_vendor_attribs, attr_count, attr_list);
+
+    sai_db_read_lock();
+    status = sai_get_attributes(&key, key_str, wred_attribs, wred_vendor_attribs, attr_count, attr_list);
+    sai_db_unlock();
+
+    return status;
 }
 
 /* Remove all profiles from wred_profile structure if they exist
@@ -2357,14 +2299,18 @@ static sai_status_t mlnx_create_wred_profile(_Out_ sai_object_id_t      *wred_id
         weight_val = DEFAULT_WEIGHT_VAL;
     }
 
+    sai_db_write_lock();
+
     if (SAI_STATUS_SUCCESS != mlnx_wred_sx_weight_validate(SAI_NULL_OBJECT_ID, weight_val)) {
-        return SAI_STATUS_INVALID_ATTRIBUTE_0 + index;
+        status = SAI_STATUS_INVALID_ATTRIBUTE_0 + index;
+        goto out;
     }
 
     /* check if we have free slot for profile */
     if (mlnx_wred_db_isfull()) {
         SX_LOG_ERR("Failed to create redecn profile - WRED DB is full\n");
-        return SAI_STATUS_TABLE_FULL;
+        status = SAI_STATUS_TABLE_FULL;
+        goto out;
     }
 
     /* Create new SAI WRED profile */
@@ -2373,7 +2319,8 @@ static sai_status_t mlnx_create_wred_profile(_Out_ sai_object_id_t      *wred_id
                                                   &redecn_attr_green, &wred_profile.green_profile_id);
         if (SX_STATUS_SUCCESS != sx_status) {
             SX_LOG_ERR("Failed to create redecn green profile - %s\n", SX_STATUS_MSG(sx_status));
-            return sdk_to_sai(sx_status);
+            status = sdk_to_sai(sx_status);
+            goto out;
         }
     }
 
@@ -2386,7 +2333,8 @@ static sai_status_t mlnx_create_wred_profile(_Out_ sai_object_id_t      *wred_id
             /* clean up previously created profile */
             mlnx_wred_cleanup_profiles(&wred_profile);
 
-            return sdk_to_sai(sx_status);
+            status = sdk_to_sai(sx_status);
+            goto out;
         }
     }
 
@@ -2399,7 +2347,8 @@ static sai_status_t mlnx_create_wred_profile(_Out_ sai_object_id_t      *wred_id
             /* clean up previously created profiles */
             mlnx_wred_cleanup_profiles(&wred_profile);
 
-            return sdk_to_sai(sx_status);
+            status = sdk_to_sai(sx_status);
+            goto out;
         }
     }
 
@@ -2421,6 +2370,8 @@ static sai_status_t mlnx_create_wred_profile(_Out_ sai_object_id_t      *wred_id
         SX_LOG_ERR("Failed to set weight %u\n", weight_val);
     }
 
+out:
+    sai_db_unlock();
     SX_LOG_EXIT();
     return status;
 }
@@ -2452,21 +2403,24 @@ static sai_status_t mlnx_remove_wred_profile(_In_ sai_object_id_t wred_id)
 
     wred_key_to_str(wred_id, key_str);
 
+    sai_db_write_lock();
+
     if (SAI_STATUS_SUCCESS != (status = mlnx_wred_db_get(wred_id, &wred_profile))) {
         SX_LOG_ERR("Failed to remove, %s not exists\n", key_str);
-        return status;
+        goto out;
     }
 
     if (mlnx_wred_check_in_use(wred_id)) {
         SX_LOG_ERR("Failed to remove %s, profile is in use\n", key_str);
-        return SAI_STATUS_OBJECT_IN_USE;
+        status = SAI_STATUS_OBJECT_IN_USE;
+        goto out;
     }
 
     if (SAI_INVALID_PROFILE_ID != wred_profile.green_profile_id) {
         status = mlnx_wred_remove_profile(wred_id, wred_profile.green_profile_id, FLOW_COLOR_GREEN);
         if (SAI_STATUS_SUCCESS != status) {
             SX_LOG_ERR("Failed to remove redecn green profile \n");
-            return status;
+            goto out;
         }
     }
 
@@ -2474,7 +2428,7 @@ static sai_status_t mlnx_remove_wred_profile(_In_ sai_object_id_t wred_id)
         status = mlnx_wred_remove_profile(wred_id, wred_profile.yellow_profile_id, FLOW_COLOR_YELLOW);
         if (SAI_STATUS_SUCCESS != status) {
             SX_LOG_ERR("Failed to remove redecn yellow profile \n");
-            return status;
+            goto out;
         }
     }
 
@@ -2482,7 +2436,7 @@ static sai_status_t mlnx_remove_wred_profile(_In_ sai_object_id_t wred_id)
         status = mlnx_wred_remove_profile(wred_id, wred_profile.red_profile_id, FLOW_COLOR_RED);
         if (SAI_STATUS_SUCCESS != status) {
             SX_LOG_ERR("Failed to remove redecn red profile \n");
-            return status;
+            goto out;
         }
     }
 
@@ -2491,8 +2445,10 @@ static sai_status_t mlnx_remove_wred_profile(_In_ sai_object_id_t wred_id)
     mlnx_wred_reset_from_port(wred_id);
     mlnx_wred_db_remove(wred_id);
 
+out:
+    sai_db_unlock();
     SX_LOG_EXIT();
-    return SAI_STATUS_SUCCESS;
+    return status;
 }
 
 sai_status_t __mlnx_wred_apply_to_queue_idx(mlnx_port_config_t *port, uint8_t qi, sai_object_id_t wred_oid)

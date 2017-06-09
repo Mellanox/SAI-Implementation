@@ -706,8 +706,11 @@ static sai_status_t mlnx_port_state_set(_In_ const sai_object_key_t      *key,
                                         _In_ const sai_attribute_value_t *value,
                                         void                             *arg)
 {
-    sai_status_t     status;
-    sx_port_log_id_t port_id;
+    sx_port_log_id_t    port_id;
+    sai_status_t        status;
+    mlnx_bridge_port_t *bridge_port;
+    mlnx_port_config_t *port;
+    bool sdk_state = value->booldata;
 
     SX_LOG_ENTER();
 
@@ -716,15 +719,35 @@ static sai_status_t mlnx_port_state_set(_In_ const sai_object_key_t      *key,
         return status;
     }
 
-    if (SX_STATUS_SUCCESS != (status = sx_api_port_state_set(gh_sdk, port_id,
-                                                             value->booldata ? SX_PORT_ADMIN_STATUS_UP :
-                                                             SX_PORT_ADMIN_STATUS_DOWN))) {
-        SX_LOG_ERR("Failed to set port admin state - %s.\n", SX_STATUS_MSG(status));
-        return sdk_to_sai(status);
+    sai_db_read_lock();
+
+    status = mlnx_port_by_log_id(port_id, &port);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed lookup port by log id %x\n", port_id);
+        goto out;
     }
 
+    port->admin_state = sdk_state;
+
+    /* Try to lookup bridge port by same logical id as phy port, which means that
+     * port is bridged with SAI_BRIDGE_PORT_TYPE_PORT via .1Q bridge, if it is bridged then
+     * we set a "real" admin state only in case the both ports are set in 'true'. */
+    status = mlnx_bridge_port_by_log(port_id, &bridge_port);
+    if (!SAI_ERR(status)) {
+        sdk_state = port->admin_state && bridge_port->admin_state; 
+    }
+
+    status = sx_api_port_state_set(gh_sdk, port_id, sdk_state ? SX_PORT_ADMIN_STATUS_UP : SX_PORT_ADMIN_STATUS_DOWN);
+    if (SX_ERR(status)) {
+        SX_LOG_ERR("Failed to set port admin state - %s.\n", SX_STATUS_MSG(status));
+        status = sdk_to_sai(status);
+        goto out;
+    }
+
+out:
+    sai_db_unlock();
     SX_LOG_EXIT();
-    return SAI_STATUS_SUCCESS;
+    return status;
 }
 
 /* Port VLAN ID [sai_vlan_id_t]
@@ -916,18 +939,30 @@ static sai_status_t mlnx_port_global_flow_ctrl_set(_In_ const sai_object_key_t  
                                                    _In_ const sai_attribute_value_t *value,
                                                    void                             *arg)
 {
+    sx_port_flow_ctrl_mode_t ctrl_mode = SX_PORT_FLOW_CTRL_MODE_TX_DIS_RX_DIS;
     sx_port_log_id_t         port_id;
     sai_status_t             status;
-    sx_port_flow_ctrl_mode_t ctrl_mode = SX_PORT_FLOW_CTRL_MODE_TX_DIS_RX_DIS;
+    mlnx_port_config_t      *port;
 
     SX_LOG_ENTER();
+
+    sai_db_read_lock();
 
     status = mlnx_object_to_type(key->key.object_id, SAI_OBJECT_TYPE_PORT, &port_id, NULL);
     if (SAI_ERR(status)) {
         goto out;
     }
 
-    switch (value->u8) {
+    status = mlnx_port_by_log_id(port_id, &port);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to lookup port by log id %x\n", port_id);
+        goto out;
+    }
+    if (mlnx_port_is_lag_member(port)) {
+        port_id = port->lag_id;
+    }
+
+    switch (value->s32) {
     case SAI_PORT_FLOW_CONTROL_MODE_DISABLE:
         ctrl_mode = SX_PORT_FLOW_CTRL_MODE_TX_DIS_RX_DIS;
         break;
@@ -958,6 +993,7 @@ static sai_status_t mlnx_port_global_flow_ctrl_set(_In_ const sai_object_key_t  
     }
 
 out:
+    sai_db_unlock();
     SX_LOG_EXIT();
     return status;
 }
@@ -1155,10 +1191,12 @@ static sai_status_t mlnx_port_wred_set(_In_ const sai_object_key_t      *key,
 
     SX_LOG_ENTER();
 
-    if (SAI_STATUS_SUCCESS !=
-        (status = mlnx_object_to_type(key->key.object_id, SAI_OBJECT_TYPE_PORT, &port_id, NULL))) {
+    status = mlnx_object_to_type(key->key.object_id, SAI_OBJECT_TYPE_PORT, &port_id, NULL);
+    if (SAI_ERR(status)) {
         return status;
     }
+
+    sai_db_write_lock();
 
     status = mlnx_wred_apply(wred_id, key->key.object_id);
 
@@ -1167,6 +1205,8 @@ static sai_status_t mlnx_port_wred_set(_In_ const sai_object_key_t      *key,
     } else {
         SX_LOG_ERR("Failed to apply WRED profile to port 0%x\n", port_id);
     }
+
+    sai_db_unlock();
 
     SX_LOG_EXIT();
     return status;
@@ -1261,23 +1301,24 @@ static sai_status_t mlnx_port_state_get(_In_ const sai_object_key_t   *key,
             value->s32 = SAI_PORT_OPER_STATUS_UNKNOWN;
         }
     } else {
-        switch (state_admin) {
-        case SX_PORT_ADMIN_STATUS_UP:
-            value->booldata = true;
-            break;
+        mlnx_port_config_t *port;
 
-        case SX_PORT_ADMIN_STATUS_DOWN:
-            value->booldata = false;
-            break;
+        sai_db_read_lock();
 
-        default:
-            SX_LOG_ERR("Unexpected port admin state %d\n", state_admin);
-            return SAI_STATUS_FAILURE;
+        status = mlnx_port_by_log_id(port_id, &port);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to lookup port by log id %x\n", port_id);
+            goto out_unlock;
         }
+
+        value->booldata = port->admin_state;
+
+out_unlock:
+        sai_db_unlock();
     }
 
     SX_LOG_EXIT();
-    return SAI_STATUS_SUCCESS;
+    return status;
 }
 
 _Success_(return == SAI_STATUS_SUCCESS)
@@ -1878,19 +1919,19 @@ static sai_status_t mlnx_port_global_flow_ctrl_get(_In_ const sai_object_key_t  
 
     switch (ctrl_mode) {
     case SX_PORT_FLOW_CTRL_MODE_TX_DIS_RX_DIS:
-        value->u8 = SAI_PORT_FLOW_CONTROL_MODE_DISABLE;
+        value->s32 = SAI_PORT_FLOW_CONTROL_MODE_DISABLE;
         break;
 
     case SX_PORT_FLOW_CTRL_MODE_TX_EN_RX_DIS:
-        value->u8 = SAI_PORT_FLOW_CONTROL_MODE_TX_ONLY;
+        value->s32 = SAI_PORT_FLOW_CONTROL_MODE_TX_ONLY;
         break;
 
     case SX_PORT_FLOW_CTRL_MODE_TX_DIS_RX_EN:
-        value->u8 = SAI_PORT_FLOW_CONTROL_MODE_RX_ONLY;
+        value->s32 = SAI_PORT_FLOW_CONTROL_MODE_RX_ONLY;
         break;
 
     case SX_PORT_FLOW_CTRL_MODE_TX_EN_RX_EN:
-        value->u8 = SAI_PORT_FLOW_CONTROL_MODE_BOTH_ENABLE;
+        value->s32 = SAI_PORT_FLOW_CONTROL_MODE_BOTH_ENABLE;
         break;
 
     default:
@@ -1995,6 +2036,7 @@ static sai_status_t mlnx_port_update_dscp_set(_In_ const sai_object_key_t      *
     sx_cos_rewrite_enable_t rewrite_enable;
     sx_port_log_id_t        port_id;
     sai_status_t            status;
+    mlnx_port_config_t     *port;
 
     SX_LOG_ENTER();
 
@@ -2003,19 +2045,36 @@ static sai_status_t mlnx_port_update_dscp_set(_In_ const sai_object_key_t      *
         return status;
     }
 
+    sai_db_read_lock();
+
+    status = mlnx_port_by_log_id(port_id, &port);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed lookup port by log id %x\n", port_id);
+        goto out;
+    }
+
+    /* In case the port is a LAG member - delegate it to the LAG */
+    if (mlnx_port_is_lag_member(port)) {
+        port_id = port->lag_id;
+    }
+
     status = sx_api_cos_port_rewrite_enable_get(gh_sdk, port_id, &rewrite_enable);
     if (status != SAI_STATUS_SUCCESS) {
         SX_LOG_ERR("Failed to get dscp rewrite enable - %s\n", SX_STATUS_MSG(status));
-        return sdk_to_sai(status);
+        status = sdk_to_sai(status);
+        goto out;
     }
 
     rewrite_enable.rewrite_dscp = value->booldata;
     status                      = sx_api_cos_port_rewrite_enable_set(gh_sdk, port_id, rewrite_enable);
     if (status != SAI_STATUS_SUCCESS) {
         SX_LOG_ERR("Failed to set dscp rewrite enable - %s\n", SX_STATUS_MSG(status));
-        return sdk_to_sai(status);
+        status = sdk_to_sai(status);
+        goto out;
     }
 
+out:
+    sai_db_unlock();
     SX_LOG_EXIT();
     return status;
 }
@@ -2427,10 +2486,26 @@ static sai_status_t mlnx_port_qos_default_tc_set(_In_ const sai_object_key_t    
         goto out;
     }
 
-    status = mlnx_port_tc_set(port, tc);
-    if (status != SAI_STATUS_SUCCESS) {
-        goto out;
+    /* In case the port is a LAG member - apply TC on the LAG */
+    if (mlnx_port_is_lag_member(port)) {
+        mlnx_port_config_t *lag;
+
+        status = mlnx_port_by_log_id(port->lag_id, &lag);
+        if (SAI_ERR(status)) {
+            goto out;
+        }
+
+        status = mlnx_port_tc_set(lag, tc);
+        if (SAI_ERR(status)) {
+            goto out;
+        }
+    } else {
+        status = mlnx_port_tc_set(port, tc);
+        if (SAI_ERR(status)) {
+            goto out;
+        }
     }
+
     port->default_tc = value->u8;
 
 out:
@@ -2878,16 +2953,38 @@ sai_status_t mlnx_port_qos_map_apply(_In_ const sai_object_id_t    port,
                                      _In_ const sai_object_id_t    qos_map_id,
                                      _In_ const sai_qos_map_type_t qos_map_type)
 {
-    bool             is_map_enabled = true;
-    mlnx_qos_map_t   default_map;
-    mlnx_qos_map_t  *qos_map = NULL;
-    sai_status_t     status;
-    sx_port_log_id_t port_id;
+    bool                is_map_enabled = true;
+    mlnx_qos_map_t      default_map;
+    mlnx_qos_map_t     *qos_map = NULL;
+    sai_status_t        status;
+    sx_port_log_id_t    port_id;
+    mlnx_port_config_t *port_cfg;
 
     status = mlnx_object_to_log_port(port, &port_id);
     if (status != SAI_STATUS_SUCCESS) {
         SX_LOG_ERR("Failed to convert port oid to logical port id\n");
         return status;
+    }
+
+    status = mlnx_port_by_log_id(port_id, &port_cfg);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed lookup port config by log id %x\n", port_id);
+        return status;
+    }
+
+    /* Check if we can delegate applying QoS map to the LAG, in case of
+     * SDK does not support applying it on LAG but to the port only */
+    if (qos_map_type != SAI_QOS_MAP_TYPE_TC_TO_PRIORITY_GROUP &&
+            qos_map_type != SAI_QOS_MAP_TYPE_PFC_PRIORITY_TO_PRIORITY_GROUP) {
+        /* in case the port is a LAG member - delegate QoS settings to the LAG */
+        if (mlnx_port_is_lag_member(port_cfg)) {
+            port_id = port_cfg->lag_id;
+            status = mlnx_port_by_log_id(port_id, &port_cfg);
+            if (SAI_ERR(status)) {
+                SX_LOG_ERR("Failed lookup port's LAG config by log id %x\n", port_id);
+                return status;
+            }
+        }
     }
 
     if (qos_map_id != SAI_NULL_OBJECT_ID) {
@@ -3131,16 +3228,28 @@ static sai_status_t mlnx_port_pfc_control_set(_In_ const sai_object_key_t      *
                                               _In_ const sai_attribute_value_t *value,
                                               void                             *arg)
 {
-    sx_port_log_id_t port_id;
-    sai_status_t     status;
-    uint8_t          pfc_prio;
+    uint8_t             pfc_prio;
+    sx_port_log_id_t    port_id;
+    sai_status_t        status;
+    mlnx_port_config_t *port;
 
     SX_LOG_ENTER();
+
+    sai_db_read_lock();
 
     status = mlnx_object_to_type(key->key.object_id, SAI_OBJECT_TYPE_PORT, &port_id, NULL);
     if (status != SAI_STATUS_SUCCESS) {
         SX_LOG_ERR("Failed to convert port oid to logical port id\n");
-        return status;
+        goto out;
+    }
+
+    status = mlnx_port_by_log_id(port_id, &port);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to lookup port by log id %x\n", port_id);
+        goto out;
+    }
+    if (mlnx_port_is_lag_member(port)) {
+        port_id = port->lag_id;
     }
 
     for (pfc_prio = 0; pfc_prio < COS_IEEE_PRIO_MAX_NUM + 1; pfc_prio++) {
@@ -3153,10 +3262,13 @@ static sai_status_t mlnx_port_pfc_control_set(_In_ const sai_object_key_t      *
         status = sx_api_port_pfc_enable_set(gh_sdk, port_id, pfc_prio, flow_mode);
         if (status != SAI_STATUS_SUCCESS) {
             SX_LOG_ERR("Failed to enable/disable pfc control for prio=%u\n", pfc_prio);
-            return sdk_to_sai(status);
+            status = sdk_to_sai(status);
+            goto out;
         }
     }
 
+out:
+    sai_db_unlock();
     SX_LOG_EXIT();
     return SAI_STATUS_SUCCESS;
 }
@@ -3168,24 +3280,28 @@ static sai_status_t mlnx_port_wred_get(_In_ const sai_object_key_t   *key,
                                        _Inout_ vendor_cache_t        *cache,
                                        void                          *arg)
 {
-    sai_status_t     status      = SAI_STATUS_SUCCESS;
-    sai_object_id_t  wred_id_val = SAI_NULL_OBJECT_ID;
-    sx_port_log_id_t port_id;
+    sx_port_log_id_t    port_id;
+    sai_status_t        status;
+    mlnx_port_config_t *port;
 
     SX_LOG_ENTER();
 
-    if (SAI_STATUS_SUCCESS !=
-        (status = mlnx_object_to_type(key->key.object_id, SAI_OBJECT_TYPE_PORT, &port_id, NULL))) {
+    status = mlnx_object_to_type(key->key.object_id, SAI_OBJECT_TYPE_PORT, &port_id, NULL);
+    if (SAI_ERR(status)) {
         return status;
     }
 
-    if (SAI_STATUS_SUCCESS != (status = mlnx_wred_get_wred_id(key->key.object_id, &wred_id_val))) {
-        SX_LOG_ERR("Failed to get WRED for the port 0x%x\n", port_id);
-        return status;
+    sai_db_read_lock();
+
+    status = mlnx_port_by_log_id(port_id, &port);
+    if (SAI_ERR(status)) {
+        goto out;
     }
 
-    value->oid = wred_id_val;
+    value->oid = port->wred_id;
 
+out:
+    sai_db_unlock();
     SX_LOG_EXIT();
     return SAI_STATUS_SUCCESS;
 }
@@ -3489,8 +3605,8 @@ static sai_status_t mlnx_get_port_attribute(_In_ sai_object_id_t     port_id,
  *
  * Arguments:
  *    [in] port_id - port id
- *    [in] counter_ids - specifies the array of counter ids
  *    [in] number_of_counters - number of counters in the array
+ *    [in] counter_ids - specifies the array of counter ids
  *    [out] counters - array of resulting counter values.
  *
  * Return Values:
@@ -3498,8 +3614,8 @@ static sai_status_t mlnx_get_port_attribute(_In_ sai_object_id_t     port_id,
  *    Failure status code on error
  */
 static sai_status_t mlnx_get_port_stats(_In_ sai_object_id_t        port_id,
-                                        _In_ const sai_port_stat_t *counter_ids,
                                         _In_ uint32_t               number_of_counters,
+                                        _In_ const sai_port_stat_t *counter_ids,
                                         _Out_ uint64_t             *counters)
 {
     sai_status_t                  status;
@@ -3776,6 +3892,49 @@ static sai_status_t mlnx_get_port_stats(_In_ sai_object_id_t        port_id,
             counters[ii] = cntr_prio.tx_pause;
             break;
 
+        case SAI_PORT_STAT_PFC_0_RX_PAUSE_DURATION:
+        case SAI_PORT_STAT_PFC_1_RX_PAUSE_DURATION:
+        case SAI_PORT_STAT_PFC_2_RX_PAUSE_DURATION:
+        case SAI_PORT_STAT_PFC_3_RX_PAUSE_DURATION:
+        case SAI_PORT_STAT_PFC_4_RX_PAUSE_DURATION:
+        case SAI_PORT_STAT_PFC_5_RX_PAUSE_DURATION:
+        case SAI_PORT_STAT_PFC_6_RX_PAUSE_DURATION:
+        case SAI_PORT_STAT_PFC_7_RX_PAUSE_DURATION:
+            if (SX_STATUS_SUCCESS !=
+                (status = sx_api_port_counter_prio_get(gh_sdk, SX_ACCESS_CMD_READ, port_data,
+                /* Extract Prio i from SAI RXi,TXi */
+                SX_PORT_PRIO_ID_0 +
+                (counter_ids[ii] - SAI_PORT_STAT_PFC_0_RX_PAUSE_DURATION) / 2,
+                &cntr_prio))) {
+                SX_LOG_ERR("Failed to get port prio %d counters - %s.\n",
+                    SX_PORT_PRIO_ID_0 + (counter_ids[ii] - SAI_PORT_STAT_PFC_0_RX_PAUSE_DURATION) / 2,
+                    SX_STATUS_MSG(status));
+                return sdk_to_sai(status);
+            }
+            counters[ii] = cntr_prio.rx_pause_duration;
+            break;
+
+        case SAI_PORT_STAT_PFC_0_TX_PAUSE_DURATION:
+        case SAI_PORT_STAT_PFC_1_TX_PAUSE_DURATION:
+        case SAI_PORT_STAT_PFC_2_TX_PAUSE_DURATION:
+        case SAI_PORT_STAT_PFC_3_TX_PAUSE_DURATION:
+        case SAI_PORT_STAT_PFC_4_TX_PAUSE_DURATION:
+        case SAI_PORT_STAT_PFC_5_TX_PAUSE_DURATION:
+        case SAI_PORT_STAT_PFC_6_TX_PAUSE_DURATION:
+        case SAI_PORT_STAT_PFC_7_TX_PAUSE_DURATION:
+            if (SX_STATUS_SUCCESS !=
+                (status = sx_api_port_counter_prio_get(gh_sdk, SX_ACCESS_CMD_READ, port_data,
+                SX_PORT_PRIO_ID_0 +
+                (counter_ids[ii] - SAI_PORT_STAT_PFC_0_TX_PAUSE_DURATION) / 2,
+                &cntr_prio))) {
+                SX_LOG_ERR("Failed to get port prio %d counters - %s.\n",
+                    SX_PORT_PRIO_ID_0 + (counter_ids[ii] - SAI_PORT_STAT_PFC_0_TX_PAUSE_DURATION) / 2,
+                    SX_STATUS_MSG(status));
+                return sdk_to_sai(status);
+            }
+            counters[ii] = cntr_prio.tx_pause_duration;
+            break;
+
         case SAI_PORT_STAT_IF_IN_VLAN_DISCARDS:
         case SAI_PORT_STAT_IF_OUT_QLEN:
         case SAI_PORT_STAT_ETHER_RX_OVERSIZE_PKTS:
@@ -3853,16 +4012,16 @@ static sai_status_t mlnx_get_port_stats(_In_ sai_object_id_t        port_id,
  *
  * Arguments:
  *    [in] port_id - port id
- *    [in] counter_ids - specifies the array of counter ids
  *    [in] number_of_counters - number of counters in the array
+ *    [in] counter_ids - specifies the array of counter ids
  *
  * Return Values:
  *    SAI_STATUS_SUCCESS on success
  *    Failure status code on error
  */
 static sai_status_t mlnx_clear_port_stats(_In_ sai_object_id_t        port_id,
-                                          _In_ const sai_port_stat_t *counter_ids,
-                                          _In_ uint32_t               number_of_counters)
+                                          _In_ uint32_t               number_of_counters,
+                                          _In_ const sai_port_stat_t *counter_ids)
 {
     return SAI_STATUS_NOT_IMPLEMENTED;
 }
@@ -4029,6 +4188,11 @@ bool mlnx_port_is_lag_member(const mlnx_port_config_t *port)
 bool mlnx_log_port_is_cpu(sx_port_log_id_t log_id)
 {
     return log_id == CPU_PORT;
+}
+
+bool mlnx_log_port_is_vport(sx_port_log_id_t log_id)
+{
+    return SX_PORT_TYPE_ID_GET(log_id) == SX_PORT_TYPE_VPORT;
 }
 
 const char * mlnx_port_type_str(const mlnx_port_config_t *port)
@@ -4302,6 +4466,7 @@ sai_status_t mlnx_port_config_init(mlnx_port_config_t *port)
 
     if (mlnx_port_is_lag(port)) {
         state = SX_PORT_ADMIN_STATUS_UP;
+        port->admin_state = true;
     }
 
     memset(&admin_speed, 0, sizeof(admin_speed));
@@ -4403,8 +4568,6 @@ sai_status_t mlnx_port_config_init(mlnx_port_config_t *port)
             return status;
         }
     }
-
-    port->bridge_id = SX_BRIDGE_ID_INVALID;
 
     return SAI_STATUS_SUCCESS;
 }

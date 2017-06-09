@@ -198,7 +198,9 @@ static sai_status_t mlnx_queue_config_set(_In_ const sai_object_key_t      *key,
         }
     }
 
+    sai_db_write_lock();
     status = func_setter(profile_id, queue_id);
+    sai_db_unlock();
     SX_LOG_EXIT();
     return status;
 }
@@ -463,15 +465,15 @@ static sai_status_t mlnx_get_queue_attribute(_In_ sai_object_id_t     queue_id,
  * @brief Get queue statistics counters.
  *
  * @param[in] queue_id Queue id
- * @param[in] counter_ids Specifies the array of counter ids
  * @param[in] number_of_counters Number of counters in the array
+ * @param[in] counter_ids Specifies the array of counter ids
  * @param[out] counters Array of resulting counter values.
  *
  * @return #SAI_STATUS_SUCCESS on success Failure status code on error
  */
 static sai_status_t mlnx_get_queue_statistics(_In_ sai_object_id_t         queue_id,
-                                              _In_ const sai_queue_stat_t *counter_ids,
                                               _In_ uint32_t                number_of_counters,
+                                              _In_ const sai_queue_stat_t *counter_ids,
                                               _Out_ uint64_t              *counters)
 {
     sai_status_t                     status;
@@ -598,14 +600,14 @@ static sai_status_t mlnx_get_queue_statistics(_In_ sai_object_id_t         queue
  * @brief Clear queue statistics counters.
  *
  * @param[in] queue_id Queue id
- * @param[in] counter_ids Specifies the array of counter ids
  * @param[in] number_of_counters Number of counters in the array
+ * @param[in] counter_ids Specifies the array of counter ids
  *
  * @return #SAI_STATUS_SUCCESS on success Failure status code on error
  */
 static sai_status_t mlnx_clear_queue_stats(_In_ sai_object_id_t         queue_id,
-                                           _In_ const sai_queue_stat_t *counter_ids,
-                                           _In_ uint32_t                number_of_counters)
+                                           _In_ uint32_t                number_of_counters,
+                                           _In_ const sai_queue_stat_t *counter_ids)
 {
     sai_status_t                     status;
     uint8_t                          ext_data[EXTENDED_DATA_SIZE] = { 0 };
@@ -871,6 +873,8 @@ sai_status_t mlnx_remove_queue(_In_ sai_object_id_t queue_id)
         goto out;
     }
 
+    sai_db_write_lock();
+
     status = mlnx_scheduler_to_queue_apply(SAI_NULL_OBJECT_ID, queue_id);
     if (SAI_ERR(status)) {
         SX_LOG_ERR("Failed to reset scheduler profile for queue\n");
@@ -890,6 +894,7 @@ sai_status_t mlnx_remove_queue(_In_ sai_object_id_t queue_id)
     }
 
 out:
+    sai_db_unlock();
     SX_LOG_EXIT();
     return status;
 }

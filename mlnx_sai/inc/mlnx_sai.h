@@ -293,7 +293,7 @@ typedef struct _sai_attribute_entry_t {
 PACKED(struct _mlnx_object_id_t {
            sai_uint8_t object_type;
            PACKED(struct {
-                      uint8_t hif_type: 3;
+                      uint8_t sub_type: 3;
                       uint8_t swid: 5;
                   }, field);
            union {
@@ -340,7 +340,7 @@ PACKED(struct _mlnx_object_id_t {
                           uint16_t nhop_id;
                       }, nhop_group_member_low);
            } id;
-       }, mlnx_object_id);
+       }, );
 
 typedef struct _mlnx_object_id_t mlnx_object_id_t;
 
@@ -531,6 +531,43 @@ static __attribute__((__used__)) const char *sai_type2str_arr[] = {
 
     /* SAI_OBJECT_TYPE_MAX                   = 60 */
 };
+
+/* Used in case RIF type bridge */
+typedef enum mlnx_rif_type_ {
+    MLNX_RIF_TYPE_DEFAULT,
+    MLNX_RIF_TYPE_BRIDGE,
+} mlnx_rif_type_t;
+
+/* This DB structure is for the special type of router interface - bridge router interface,
+ * if in case it will be needed to store any kind of RIF in the DB then it is better to rename
+ * it to the mlnx_rif_t and use it */
+typedef struct mlnx_bridge_rif_ {
+    sx_interface_attributes_t    intf_attribs;
+    sx_router_interface_param_t  intf_params;
+    sx_router_interface_state_t  intf_state;
+    sx_bridge_id_t               bridge_id;
+    bool                         is_created; /* if rif is created via SDK (bridged) */
+    bool                         is_used;
+    sx_router_interface_t        rif_id;
+    sx_router_id_t               vrf_id;
+    uint32_t                     index;
+} mlnx_bridge_rif_t;
+
+typedef struct mlnx_bridge_port_ {
+    uint32_t               index;
+    bool                   is_present;
+    bool                   admin_state;
+    sx_port_log_id_t       parent;
+    sx_port_log_id_t       logical;
+    sx_tunnel_id_t         tunnel_id;
+    sx_bridge_id_t         bridge_id;
+    sai_bridge_port_type_t port_type;
+    uint16_t               rif_index;
+    sx_vlan_id_t           vlan_id;
+    uint16_t               vlans;
+    uint32_t               fdbs;
+    uint16_t               stps;
+} mlnx_bridge_port_t;
 
 typedef sai_status_t (*sai_attribute_set_fn)(_In_ const sai_object_key_t *key, _In_ const sai_attribute_value_t *value,
                                              void *arg);
@@ -741,7 +778,6 @@ sai_status_t mlnx_fill_tunnelmaplist(sai_tunnel_map_t *data, uint32_t count, sai
 
 sai_status_t mlnx_wred_apply(sai_object_id_t wred_id, sai_object_id_t to_obj_id);
 sai_status_t mlnx_wred_init();
-sai_status_t mlnx_wred_get_wred_id(sai_object_id_t port_id, sai_object_id_t *wred_id);
 
 sai_status_t mlnx_scheduler_to_queue_apply(sai_object_id_t scheduler_id, sai_object_id_t queue_id);
 
@@ -888,10 +924,13 @@ extern const mlnx_trap_info_t mlnx_traps_info[];
 
 
 #define MAX_PORTS       64
+#define MAX_BRIDGE_PORTS 512
+#define MAX_BRIDGE_RIFS  MAX_PORTS
 #define MAX_LANES       4
 #define MAX_FDS         100
 #define MAX_POLICERS    100
 #define MAX_TRAP_GROUPS 32
+#define MIN_SX_BRIDGE_ID 0x1000
 
 #define DEFAULT_INGRESS_SX_POOL_ID 0
 #define DEFAULT_EGRESS_SX_POOL_ID  4
@@ -982,7 +1021,7 @@ typedef struct _mlnx_port_config_t {
     uint8_t                         default_tc;
     bool                            is_present;
     uint32_t                        qos_maps[MLNX_QOS_MAP_TYPES_MAX];
-    sx_bridge_id_t                  bridge_id;
+    bool                            admin_state;
 
     /*  SAI Port can have up to MLNX_PORT_POLICER_TYPE_MAX SDK port storm
      *  policers in use internally.  For each storm item we keep type of
@@ -1000,8 +1039,6 @@ typedef struct _mlnx_port_config_t {
     uint32_t               start_queues_index;
     mlnx_sched_hierarchy_t sched_hierarchy;
     uint16_t               rifs;
-    uint16_t               vlans;
-    uint32_t               fdbs;
 } mlnx_port_config_t;
 typedef struct _mlnx_vlan_db_t {
     /* We keep here phy ports + LAGs */
@@ -1009,27 +1046,32 @@ typedef struct _mlnx_vlan_db_t {
     sx_mstp_inst_id_t stp_id;
 } mlnx_vlan_db_t;
 
-
-sai_status_t mlnx_create_bridge_object(sai_bridge_type_t sai_br_type,
-                                       sx_bridge_id_t    sx_br_id,
-                                       sai_object_id_t  *bridge_oid);
+/* MLNX Bridge API */
+sai_status_t mlnx_bridge_init(void);
+sx_bridge_id_t mlnx_bridge_default_1q(void);
+sai_status_t mlnx_create_bridge_object(sai_bridge_type_t sai_br_type, sx_bridge_id_t    sx_br_id, sai_object_id_t  *bridge_oid);
+sai_status_t mlnx_bridge_oid_to_id(sai_object_id_t oid, sx_bridge_id_t *bridge_id);
 sai_status_t mlnx_bridge_port_sai_to_log_port(sai_object_id_t oid, sx_port_log_id_t *log_port);
 sai_status_t mlnx_log_port_to_sai_bridge_port(sx_port_log_id_t log_port, sai_object_id_t *oid);
 sai_status_t mlnx_tunnel_idx_to_sai_bridge_port(uint32_t tunnel_idx, sai_object_id_t *oid);
-sai_status_t mlnx_bridge_phy_port_add(sx_bridge_id_t bridge_id, mlnx_port_config_t *port);
-sai_status_t mlnx_bridge_phy_port_del(mlnx_port_config_t *port);
-sai_status_t mlnx_bridge_port_sai_to_port(sai_object_id_t oid, sai_object_id_t *port);
 sai_status_t mlnx_port_is_in_bridge(const mlnx_port_config_t *port);
+sai_status_t mlnx_bridge_port_by_log(sx_port_log_id_t log, mlnx_bridge_port_t **port);
+sai_status_t mlnx_bridge_port_by_oid(sai_object_id_t oid, mlnx_bridge_port_t **port);
+sai_status_t mlnx_bridge_rif_add(sx_router_id_t vrf_id, mlnx_bridge_rif_t **rif);
+sai_status_t mlnx_bridge_rif_del(mlnx_bridge_rif_t *rif);
+sai_status_t mlnx_bridge_rif_by_idx(uint32_t idx, mlnx_bridge_rif_t **rif);
+sai_status_t mlnx_bridge_rif_to_oid(mlnx_bridge_rif_t *rif, sai_object_id_t *oid);
 
 sx_mstp_inst_id_t mlnx_stp_get_default_stp();
 sai_status_t mlnx_vlan_stp_bind(sai_vlan_id_t vlan_id, sx_mstp_inst_id_t sx_stp_id);
 sai_status_t mlnx_vlan_stp_unbind(sai_vlan_id_t vlan_id);
 void mlnx_vlan_stp_id_set(sai_vlan_id_t vlan_id, sx_mstp_inst_id_t sx_stp_id);
 sx_mstp_inst_id_t mlnx_vlan_stp_id_get(sai_vlan_id_t vlan_id);
-void mlnx_vlan_port_set(uint16_t vid, mlnx_port_config_t *port, bool is_set);
-bool mlnx_vlan_port_is_set(uint16_t vid, mlnx_port_config_t *port);
-sai_status_t mlnx_vlan_port_add(uint16_t vid, sai_vlan_tagging_mode_t mode, mlnx_port_config_t *port);
-sai_status_t mlnx_vlan_port_del(uint16_t vid, mlnx_port_config_t *port);
+
+void mlnx_vlan_port_set(uint16_t vid, mlnx_bridge_port_t *port, bool is_set);
+bool mlnx_vlan_port_is_set(uint16_t vid, mlnx_bridge_port_t *port);
+sai_status_t mlnx_vlan_port_add(uint16_t vid, sai_vlan_tagging_mode_t mode, mlnx_bridge_port_t *port);
+sai_status_t mlnx_vlan_port_del(uint16_t vid, mlnx_bridge_port_t *port);
 sai_status_t sai_object_to_vlan(sai_object_id_t oid, uint16_t *vlan_id);
 sai_status_t validate_vlan(_In_ const sai_vlan_id_t vlan_id);
 /**
@@ -1042,7 +1084,7 @@ typedef enum _sai_port_event_t {
     /** Delete/Invalidate an existing port */
     SAI_PORT_EVENT_DELETE,
 } sai_port_event_t;
-sai_status_t mlnx_fdb_port_event_handle(mlnx_port_config_t *port, uint16_t vid, sai_port_event_t event);
+sai_status_t mlnx_fdb_port_event_handle(mlnx_bridge_port_t *port, uint16_t vid, sai_port_event_t event);
 
 sai_status_t mlnx_buffer_port_profile_list_get(_In_ const sai_object_id_t     port_id,
                                                _Inout_ sai_attribute_value_t *value,
@@ -1063,12 +1105,6 @@ sai_status_t mlnx_buffer_apply(_In_ sai_object_id_t sai_buffer, _In_ sai_object_
 #define mlnx_stp_vlans_foreach(stp_id, vid) \
     for (vid = SXD_VID_MIN; vid <= SXD_VID_MAX; vid++) \
         if (mlnx_vlan_stp_id_get(vid) == stp_id)
-
-#define mlnx_vlan_ports_foreach(vid, port, idx) \
-    for (idx = 0; \
-         (idx < MAX_PORTS * 2) && \
-         (port = &mlnx_ports_db[idx]); idx++) \
-        if (port->is_present && mlnx_vlan_port_is_set(vid, port))
 
 #define mlnx_port_local_foreach(port, idx) \
     for (idx = 0; idx < MAX_PORTS && \
@@ -1099,6 +1135,17 @@ sai_status_t mlnx_buffer_apply(_In_ sai_object_id_t sai_buffer, _In_ sai_object_
     for (idx = 0; idx < MAX_TUNNEL_DB_SIZE && \
          (tun = &g_sai_db_ptr->tunnel_db[idx]); idx++) \
         if (tun->is_used && tun->sai_tunnel_type == SAI_TUNNEL_TYPE_VXLAN)
+
+#define mlnx_bridge_port_foreach(port, idx) \
+    for (idx = 0; idx < (MAX_BRIDGE_PORTS) && \
+         (port = &g_sai_db_ptr->bridge_ports_db[idx]); idx++) \
+            if (port->is_present)
+
+#define mlnx_vlan_ports_foreach(vid, port, idx) \
+    for (idx = 0; \
+         (idx < MAX_BRIDGE_PORTS) && \
+         (port = &g_sai_db_ptr->bridge_ports_db[idx]); idx++) \
+        if (port->is_present && mlnx_vlan_port_is_set(vid, port))
 
 typedef struct _mlnx_trap_t {
     sai_packet_action_t action;
@@ -1504,11 +1551,10 @@ typedef struct _mlnx_tunneltable_t {
 
 typedef struct _tunnel_db_entry_t {
     bool              is_used;
-    sx_bridge_id_t    bridge_id;
     sx_tunnel_id_t    sx_tunnel_id;
     sai_tunnel_type_t sai_tunnel_type;
     sai_object_id_t   sai_vxlan_overlay_rif;
-    sai_object_id_t   sai_vxlan_underlay_rif;
+    sai_object_id_t   sai_underlay_rif;
     sai_object_id_t   sai_tunnel_map_encap_id_array[MLNX_TUNNEL_MAP_MAX];
     uint32_t          sai_tunnel_map_encap_cnt;
     sai_object_id_t   sai_tunnel_map_decap_id_array[MLNX_TUNNEL_MAP_MAX];
@@ -1566,6 +1612,8 @@ typedef struct sai_db {
     uint32_t           ports_number;
     uint32_t           ports_configured;
     mlnx_port_config_t ports_db[MAX_PORTS * 2];
+    mlnx_bridge_port_t bridge_ports_db[MAX_BRIDGE_PORTS];
+    mlnx_bridge_rif_t  bridge_rifs_db[MAX_BRIDGE_RIFS];
     mlnx_vlan_db_t     vlans_db[SXD_VID_MAX];
     sx_fd_t            fd_db[MAX_FDS];
     sai_object_id_t    default_trap_group;
@@ -1592,6 +1640,7 @@ typedef struct sai_db {
     sai_packet_action_t       flood_action_uc;
     sai_packet_action_t       flood_action_bc;
     fdb_or_route_actions_db_t fdb_or_route_actions;
+    bool                      transaction_mode_enable;
 } sai_db_t;
 
 extern sai_db_t *g_sai_db_ptr;
@@ -1767,7 +1816,11 @@ bool mlnx_port_is_virt(const mlnx_port_config_t *port);
 bool mlnx_port_is_lag(const mlnx_port_config_t *port);
 bool mlnx_port_is_lag_member(const mlnx_port_config_t *port);
 bool mlnx_log_port_is_cpu(sx_port_log_id_t log_id);
+bool mlnx_log_port_is_vport(sx_port_log_id_t log_id);
 const char * mlnx_port_type_str(const mlnx_port_config_t *port);
+
+/* DB read lock is needed */
+sai_status_t mlnx_switch_get_mac(sx_mac_addr_t *mac);
 
 /* DB read lock is needed */
 sai_status_t __mlnx_wred_apply_to_port(mlnx_port_config_t *port, sai_object_id_t wred_oid);
@@ -1928,5 +1981,6 @@ void SAI_dump_stp(_In_ FILE *file);
 void SAI_dump_tunnel(_In_ FILE *file);
 void SAI_dump_vlan(_In_ FILE *file);
 void SAI_dump_wred(_In_ FILE *file);
+void SAI_dump_bridge(_In_ FILE *file);
 
 #endif /* __MLNXSAI_H_ */

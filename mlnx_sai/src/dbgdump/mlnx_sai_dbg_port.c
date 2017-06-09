@@ -145,8 +145,8 @@ static void SAI_dump_port_print(_In_ FILE *file, _In_ mlnx_port_config_t *mlnx_p
         {"start queue index",          17, PARAM_UINT32_E, &curr_mlnx_port_config.start_queues_index},
         {"is default sched hierarchy", 17, PARAM_BOOL_E,   &curr_mlnx_port_config.sched_hierarchy.is_default},
         {"rif",                        5,  PARAM_UINT16_E, &curr_mlnx_port_config.rifs},
-        {"vlan",                       5,  PARAM_UINT16_E, &curr_mlnx_port_config.vlans},
-        {"fdb",                        5,  PARAM_UINT32_E, &curr_mlnx_port_config.fdbs},
+        /* {"vlan",                       5,  PARAM_UINT16_E, &curr_mlnx_port_config.vlans}, */
+        /* {"fdb",                        5,  PARAM_UINT32_E, &curr_mlnx_port_config.fdbs}, */
         {NULL,                         0,  0,              NULL}
     };
     dbg_utils_table_columns_t qos_maps_clmns[] = {

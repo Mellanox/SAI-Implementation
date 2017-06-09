@@ -42,11 +42,11 @@
 #define __MODULE__ SAI_SWITCH
 
 typedef struct _sai_switch_notification_t {
-    sai_switch_state_change_notification_fn on_switch_state_change;
-    sai_fdb_event_notification_fn           on_fdb_event;
-    sai_port_state_change_notification_fn   on_port_state_change;
-    sai_switch_shutdown_request_fn          on_switch_shutdown_request;
-    sai_packet_event_notification_fn        on_packet_event;
+    sai_switch_state_change_notification_fn     on_switch_state_change;
+    sai_fdb_event_notification_fn               on_fdb_event;
+    sai_port_state_change_notification_fn       on_port_state_change;
+    sai_switch_shutdown_request_notification_fn on_switch_shutdown_request;
+    sai_packet_event_notification_fn            on_packet_event;
 } sai_switch_notification_t;
 
 static sx_verbosity_level_t LOG_VAR_NAME(__MODULE__) = SX_VERBOSITY_LEVEL_WARNING;
@@ -381,6 +381,14 @@ static sai_status_t mlnx_default_stp_id_get(_In_ const sai_object_key_t   *key,
 static sai_status_t mlnx_switch_event_func_set(_In_ const sai_object_key_t      *key,
                                                _In_ const sai_attribute_value_t *value,
                                                void                             *arg);
+static sai_status_t mlnx_switch_transaction_mode_set(_In_ const sai_object_key_t      *key,
+                                                     _In_ const sai_attribute_value_t *value,
+                                                     void                             *arg);
+static sai_status_t mlnx_switch_transaction_mode_get(_In_ const sai_object_key_t   *key,
+                                                     _Inout_ sai_attribute_value_t *value,
+                                                     _In_ uint32_t                  attr_index,
+                                                     _Inout_ vendor_cache_t        *cache,
+                                                     void                          *arg);
 static sai_status_t mlnx_default_bridge_id_get(_In_ const sai_object_key_t   *key,
                                                _Inout_ sai_attribute_value_t *value,
                                                _In_ uint32_t                  attr_index,
@@ -547,6 +555,8 @@ static const sai_attribute_entry_t        switch_attribs[] = {
       "Port state change notify", SAI_ATTR_VAL_TYPE_PTR },
     { SAI_SWITCH_ATTR_PACKET_EVENT_NOTIFY, false, true, true, true,
       "Packet event notify", SAI_ATTR_VAL_TYPE_PTR },
+    { SAI_SWITCH_ATTR_FAST_API_ENABLE, false, true, true, true,
+      "Fast API enable", SAI_ATTR_VAL_TYPE_BOOL },
     { SAI_SWITCH_ATTR_ACL_STAGE_INGRESS, false, false, false, true,
       "Ingress acl stage", SAI_ATTR_VAL_TYPE_ACLCAPABILITY },
     { SAI_SWITCH_ATTR_ACL_STAGE_EGRESS, false, false, false, true,
@@ -959,6 +969,11 @@ static const sai_vendor_attribute_entry_t switch_vendor_attribs[] = {
       { true, false, true, true },
       mlnx_switch_event_func_get, (void*)SAI_SWITCH_ATTR_PACKET_EVENT_NOTIFY,
       mlnx_switch_event_func_set, (void*)SAI_SWITCH_ATTR_PACKET_EVENT_NOTIFY },
+    { SAI_SWITCH_ATTR_FAST_API_ENABLE,
+      { true, false, true, true },
+      { true, false, true, true },
+      mlnx_switch_transaction_mode_get, NULL,
+      mlnx_switch_transaction_mode_set, NULL},
     { SAI_SWITCH_ATTR_ACL_STAGE_INGRESS,
       { false, false, false, true },
       { false, false, false, true },
@@ -1139,11 +1154,13 @@ static struct sx_pci_profile pci_profile_single_eth_spectrum = {
         0, /*-21-*/
         0, /*-22-*/
         0 /*-23-55*/
-    }
+    },
+    .dev_id = SX_DEVICE_ID
 };
 
 /* device profile */
 static struct ku_profile single_part_eth_device_profile_spectrum = {
+    .dev_id                     = SX_DEVICE_ID,
     .set_mask_0_63              = 0x70073ff, /* bit 9 and bits 10-11 are turned off*/
     .set_mask_64_127            = 0,
     .max_vepa_channels          = 0,
@@ -1221,24 +1238,23 @@ void log_cb(sx_log_severity_t severity, const char *module_name, char *msg)
 }
 #endif /* CONFIG_SYSLOG */
 
-static sai_status_t mlnx_resource_mng_stage(const char *config_file)
+static void switch_key_to_str(_In_ sai_object_id_t switch_id, _Out_ char *key_str)
 {
-    int                       system_err;
-    sxd_status_t              sxd_ret = SXD_STATUS_SUCCESS;
-    sxd_ctrl_pack_t           ctrl_pack;
-    struct ku_dpt_path_add    path;
-    struct ku_dpt_path_modify path_modify;
-    struct ku_swid_details    swid_details;
-    char                      dev_name[MAX_NAME_LEN];
-    char                     *dev_names[1] = { dev_name };
-    uint32_t                  dev_num      = 1;
-    sxd_handle                sxd_handle   = 0;
-    uint32_t                  ii;
-    sai_status_t              status;
+    mlnx_object_id_t mlnx_switch_id = { 0 };
+    sai_status_t     status;
 
-    memset(&ctrl_pack, 0, sizeof(sxd_ctrl_pack_t));
-    memset(&swid_details, 0, sizeof(swid_details));
-    memset(&path_modify, 0, sizeof(path_modify));
+    status = sai_to_mlnx_object_id(SAI_OBJECT_TYPE_SWITCH, switch_id, &mlnx_switch_id);
+    if (SAI_ERR(status)) {
+        snprintf(key_str, MAX_KEY_STR_LEN, "Invalid Switch ID");
+    }
+    else {
+        snprintf(key_str, MAX_KEY_STR_LEN, "Switch ID %u", mlnx_switch_id.id.is_created);
+    }
+}
+
+static sai_status_t mlnx_sai_db_initialize(const char *config_file)
+{
+    sai_status_t status = SAI_STATUS_FAILURE;
 
     if (SAI_STATUS_SUCCESS != (status = sai_db_create())) {
         return status;
@@ -1264,19 +1280,25 @@ static sai_status_t mlnx_resource_mng_stage(const char *config_file)
     }
     sai_acl_db_init();
 
-    system_err = system("pidof sx_sdk");
-    if (0 == system_err) {
-        MLNX_SAI_LOG_ERR("SDK already running. Please terminate it before running SAI init.\n");
-        return SAI_STATUS_FAILURE;
-    }
+    return SAI_STATUS_SUCCESS;
+}
 
-#if (!defined ACS_OS) || (defined ACS_OS_NO_DOCKERS)
-    system_err = system("/etc/init.d/sxdkernel start");
-    if (0 != system_err) {
-        MLNX_SAI_LOG_ERR("Failed running sxdkernel start.\n");
-        return SAI_STATUS_FAILURE;
-    }
-#endif
+static sai_status_t mlnx_resource_mng_stage()
+{
+    sxd_status_t              sxd_ret = SXD_STATUS_SUCCESS;
+    sxd_ctrl_pack_t           ctrl_pack;
+    struct ku_dpt_path_add    path;
+    struct ku_dpt_path_modify path_modify;
+    struct ku_swid_details    swid_details;
+    char                      dev_name[MAX_NAME_LEN];
+    char                     *dev_names[1] = { dev_name };
+    uint32_t                  dev_num      = 1;
+    sxd_handle                sxd_handle   = 0;
+    uint32_t                  ii;
+
+    memset(&ctrl_pack, 0, sizeof(sxd_ctrl_pack_t));
+    memset(&swid_details, 0, sizeof(swid_details));
+    memset(&path_modify, 0, sizeof(path_modify));
 
     sxd_ret = sxd_dpt_init(SYS_TYPE_EN, sai_log_cb, LOG_VAR_NAME(__MODULE__));
     if (SXD_CHECK_FAIL(sxd_ret)) {
@@ -1410,27 +1432,61 @@ static sai_status_t mlnx_resource_mng_stage(const char *config_file)
     return SAI_STATUS_SUCCESS;
 }
 
-static sai_status_t mlnx_chassis_mng_stage()
+static sai_status_t mlnx_wait_for_sdk()
+{
+    const double time_unit = 0.001;
+
+    while (0 != access("/tmp/sdk_ready", F_OK)) {
+#ifndef _WIN32
+        usleep(time_unit);
+#endif
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_chassis_mng_stage(bool fastboot_enable, bool transaction_mode_enable)
 {
     int                  system_err;
     sx_status_t          status;
     sx_api_sx_sdk_init_t sdk_init_params;
-    uint32_t             bridge_acls = 0;
+    uint32_t             bridge_acls          = 0;
     uint8_t              port_phy_bits_num;
     uint8_t              port_pth_bits_num;
     uint8_t              port_sub_bits_num;
+    sai_status_t         sai_status           = SAI_STATUS_FAILURE;
+    sx_access_cmd_t      transaction_mode_cmd = SX_ACCESS_CMD_NONE;
 
     memset(&sdk_init_params, 0, sizeof(sdk_init_params));
+
+    system_err = system("rm /tmp/sdk_ready");
+    if (0 == system_err) {
+        MLNX_SAI_LOG_DBG("sdk_ready removed\n");
+    } else {
+        MLNX_SAI_LOG_DBG("unable to remove sdk_ready\n");
+    }
 
 #ifdef SDK_VALGRIND
     system_err = system(
         "valgrind --tool=memcheck --leak-check=full --error-exitcode=1 --undef-value-errors=no --run-libc-freeres=yes --max-stackframe=15310736 sx_sdk --logger libsai.so &");
 #elif SDK_SNIFFER
-    system_err = system("LD_PRELOAD=\"libsxsniffer.so\" sx_sdk --logger libsai.so &");
+    if (fastboot_enable) {
+        system_err = system("LD_PRELOAD=\"libsxsniffer.so\" env FAST_BOOT=1 sx_sdk --logger libsai.so &");
+    } else {
+        system_err = system("LD_PRELOAD=\"libsxsniffer.so\" sx_sdk --logger libsai.so &");
+    }
 #elif defined CONFIG_SYSLOG
-    system_err = system("sx_sdk --logger libsai.so &");
+    if (fastboot_enable) {
+        system_err = system("env FAST_BOOT=1 sx_sdk --logger libsai.so &");
+    } else {
+        system_err = system("sx_sdk --logger libsai.so &");
+    }
 #else
-    system_err = system("sx_sdk &");
+    if (fastboot_enable) {
+        system_err = system("env FAST_BOOT=1 sx_sdk &");
+    } else {
+        system_err = system("sx_sdk &");
+    }
 #endif
     if (0 != system_err) {
         MLNX_SAI_LOG_ERR("Failed running sx_sdk\n");
@@ -1443,11 +1499,8 @@ static sai_status_t mlnx_chassis_mng_stage()
         return SAI_STATUS_FAILURE;
     }
 
-#ifdef SDK_VALGRIND
-    sleep(10);
-#else
-    sleep(1);
-#endif
+    sai_status = mlnx_wait_for_sdk();
+    assert(SAI_STATUS_SUCCESS == sai_status);
 
     /* Open an handle */
     if (SX_STATUS_SUCCESS != (status = sx_api_open(sai_log_cb, &gh_sdk))) {
@@ -1529,6 +1582,16 @@ static sai_status_t mlnx_chassis_mng_stage()
     }
 
     SX_LOG_NTC("SDK initialized successfully\n");
+
+    /* transaction mode is disabled by default */
+    if (transaction_mode_enable) {
+        transaction_mode_cmd = SX_ACCESS_CMD_ENABLE;
+        if (SX_STATUS_SUCCESS !=
+            (status = sx_api_transaction_mode_set(gh_sdk, transaction_mode_cmd))) {
+            MLNX_SAI_LOG_ERR("Failed to set transaction mode to %d: %s\n", transaction_mode_cmd, SX_STATUS_MSG(status));
+            return sdk_to_sai(status);
+        }
+    }
 
     if (SX_STATUS_SUCCESS != (status = sx_api_system_log_verbosity_level_set(gh_sdk,
                                                                              SX_LOG_VERBOSITY_BOTH,
@@ -2148,12 +2211,12 @@ static sai_status_t mlnx_switch_parse_fdb_event(uint8_t                         
 {
     uint32_t                    ii       = 0;
     sx_fdb_notify_data_t       *packet   = (sx_fdb_notify_data_t*)p_packet;
+    sx_fid_t                    sx_fid;
     sai_attribute_t            *attr_ptr = attr_list;
     sai_status_t                status   = SAI_STATUS_SUCCESS;
     sx_fdb_uc_mac_addr_params_t mac_entry;
     uint32_t                    entries_count = 1;
     sai_object_id_t             port_id       = SAI_NULL_OBJECT_ID;
-    uint16_t                    vlan_id       = 0;
     sai_mac_t                   mac_addr;
     sx_access_cmd_t             cmd = SX_ACCESS_CMD_ADD;
 
@@ -2176,15 +2239,16 @@ static sai_status_t mlnx_switch_parse_fdb_event(uint8_t                         
                    packet->records_arr[ii].type);
 
         port_id = SAI_NULL_OBJECT_ID;
-        vlan_id = 0;
+        sx_fid  = 0;
         memset(mac_addr, 0, sizeof(mac_addr));
+        memset(&fdb_events[ii], 0, sizeof(fdb_events[ii]));
 
         switch (packet->records_arr[ii].type) {
         case SX_FDB_NOTIFY_TYPE_NEW_MAC_LAG:
         case SX_FDB_NOTIFY_TYPE_NEW_MAC_PORT:
             fdb_events[ii].event_type = SAI_FDB_EVENT_LEARNED;
             memcpy(&mac_addr, packet->records_arr[ii].mac_addr.ether_addr_octet, sizeof(mac_addr));
-            vlan_id  = packet->records_arr[ii].fid;
+            sx_fid   = packet->records_arr[ii].fid;
             cmd      = SX_ACCESS_CMD_ADD;
             has_port = true;
             break;
@@ -2193,7 +2257,7 @@ static sai_status_t mlnx_switch_parse_fdb_event(uint8_t                         
         case SX_FDB_NOTIFY_TYPE_AGED_MAC_PORT:
             fdb_events[ii].event_type = SAI_FDB_EVENT_AGED;
             memcpy(&mac_addr, packet->records_arr[ii].mac_addr.ether_addr_octet, sizeof(mac_addr));
-            vlan_id  = packet->records_arr[ii].fid;
+            sx_fid   = packet->records_arr[ii].fid;
             cmd      = SX_ACCESS_CMD_DELETE;
             has_port = true;
             break;
@@ -2214,7 +2278,7 @@ static sai_status_t mlnx_switch_parse_fdb_event(uint8_t                         
 
         case SX_FDB_NOTIFY_TYPE_FLUSH_FID:
             fdb_events[ii].event_type = SAI_FDB_EVENT_FLUSHED;
-            vlan_id                   = packet->records_arr[ii].fid;
+            sx_fid                    = packet->records_arr[ii].fid;
             break;
 
         default:
@@ -2224,21 +2288,24 @@ static sai_status_t mlnx_switch_parse_fdb_event(uint8_t                         
         memcpy(&fdb_events[ii].fdb_entry.mac_address, mac_addr,
                sizeof(fdb_events[ii].fdb_entry.mac_address));
 
-        sai_db_read_lock();
-
-        fdb_events[ii].fdb_entry.bridge_type = SAI_BRIDGE_TYPE_1Q;
-
         if (has_port) {
             status = mlnx_log_port_to_sai_bridge_port(packet->records_arr[ii].log_port, &port_id);
             if (SAI_ERR(status)) {
-                sai_db_unlock();
                 return status;
             }
         }
 
-        sai_db_unlock();
-
-        fdb_events[ii].fdb_entry.vlan_id = vlan_id;
+        if (packet->records_arr[ii].fid < MIN_SX_BRIDGE_ID) {
+            fdb_events[ii].fdb_entry.bridge_type = SAI_FDB_ENTRY_BRIDGE_TYPE_1Q;
+            fdb_events[ii].fdb_entry.vlan_id     = sx_fid;
+        } else {
+            fdb_events[ii].fdb_entry.bridge_type = SAI_FDB_ENTRY_BRIDGE_TYPE_1D;
+            status = mlnx_create_bridge_object(SAI_BRIDGE_TYPE_1D, (sx_bridge_id_t) sx_fid, &fdb_events[ii].fdb_entry.bridge_id);
+            if (SAI_ERR(status)) {
+                SX_LOG_ERR("Failed to convert fid to bridge oid\n");
+                return status;
+            }
+        }
 
         fdb_events[ii].attr       = attr_ptr;
         fdb_events[ii].attr_count = FDB_NOTIF_ATTRIBS_NUM;
@@ -2957,16 +3024,18 @@ static sai_status_t sai_acl_db_switch_connect_init(int shmid)
     return SAI_STATUS_SUCCESS;
 }
 
-static sai_status_t mlnx_initialize_switch(sai_object_id_t switch_id)
+static sai_status_t mlnx_initialize_switch(sai_object_id_t switch_id, bool *transaction_mode_enable)
 {
+    int                         system_err;
     const char                 *config_file, *route_table_size, *neighbor_table_size;
-    uint32_t                    routes_num    = 0;
-    uint32_t                    neighbors_num = 0;
+    const char                 *boot_type_char;
+    uint8_t                     boot_type       = 0;
+    uint32_t                    routes_num      = 0;
+    uint32_t                    neighbors_num   = 0;
     sx_router_resources_param_t resources_param;
     sx_router_general_param_t   general_param;
     sx_status_t                 status;
-    mlnx_port_config_t         *port;
-
+    bool                        fastboot_enable = false;
 #ifndef ACS_OS
     const char *initial_fan_speed;
     uint8_t     fan_percent;
@@ -2977,8 +3046,6 @@ static sai_status_t mlnx_initialize_switch(sai_object_id_t switch_id)
     sx_span_init_params_t      span_init_params;
     sx_tunnel_general_params_t sx_tunnel_general_params;
     sx_tunnel_attribute_t      sx_tunnel_attribute;
-    sx_bridge_id_t             sx_bridge_id;
-    uint32_t                   ii;
 
     memset(&span_init_params, 0, sizeof(sx_span_init_params_t));
     memset(&sx_tunnel_general_params, 0, sizeof(sx_tunnel_general_params_t));
@@ -2986,18 +3053,79 @@ static sai_status_t mlnx_initialize_switch(sai_object_id_t switch_id)
     assert(sizeof(sx_tunnel_attribute.attributes.ipinip_p2p) ==
            sizeof(sx_tunnel_attribute.attributes.ipinip_p2p_gre));
 
+    if (NULL == transaction_mode_enable) {
+        MLNX_SAI_LOG_ERR("transaction mode enable is null\n");
+        return SAI_STATUS_FAILURE;
+    }
+
     config_file = g_mlnx_services.profile_get_value(g_profile_id, SAI_KEY_INIT_CONFIG_FILE);
     if (NULL == config_file) {
         MLNX_SAI_LOG_ERR("NULL config file for profile %u\n", g_profile_id);
-
         return SAI_STATUS_INVALID_PARAMETER;
     }
 
-    if (SAI_STATUS_SUCCESS != (status = mlnx_resource_mng_stage(config_file))) {
+    if (SAI_STATUS_SUCCESS != (status = mlnx_sai_db_initialize(config_file))) {
         return status;
     }
 
-    if (SAI_STATUS_SUCCESS != (status = mlnx_chassis_mng_stage())) {
+    system_err = system("pidof sx_sdk");
+    if (0 == system_err) {
+        MLNX_SAI_LOG_ERR("SDK already running. Please terminate it before running SAI init.\n");
+        return SAI_STATUS_FAILURE;
+    }
+
+    boot_type_char = g_mlnx_services.profile_get_value(g_profile_id, SAI_KEY_BOOT_TYPE);
+    if (NULL != boot_type_char) {
+        boot_type = (uint8_t)atoi(boot_type_char);
+    } else {
+        boot_type = 0;
+    }
+
+    switch (boot_type) {
+    /* cold boot */
+    case 0:
+#if (!defined ACS_OS) || (defined ACS_OS_NO_DOCKERS)
+        system_err = system("/etc/init.d/sxdkernel start");
+        if (0 != system_err) {
+            MLNX_SAI_LOG_ERR("Failed running sxdkernel start.\n");
+            return SAI_STATUS_FAILURE;
+        }
+#endif
+        if (SAI_STATUS_SUCCESS != (status = mlnx_resource_mng_stage())) {
+            return status;
+        }
+        fastboot_enable = false;
+        break;
+    /* warm boot */
+    case 1:
+        MLNX_SAI_LOG_ERR("Warm boot not supported yet\n");
+        return SAI_STATUS_INVALID_PARAMETER;
+        break;
+    /* fast boot */
+    case 2:
+#if (!defined ACS_OS) || (defined ACS_OS_NO_DOCKERS)
+        system_err = system("env FAST_BOOT=1 /etc/init.d/sxdkernel start");
+        if (0 != system_err) {
+            MLNX_SAI_LOG_ERR("Failed running sxdkernel start.\n");
+            return SAI_STATUS_FAILURE;
+        }
+#endif
+        if (SAI_STATUS_SUCCESS != (status = mlnx_resource_mng_stage())) {
+            return status;
+        }
+        fastboot_enable = true;
+        if (!(*transaction_mode_enable)) {
+            MLNX_SAI_LOG_ERR("Transaction mode should be enabled, enabling now\n");
+            *transaction_mode_enable = true;
+        }
+        break;
+    /* default */
+    default:
+        MLNX_SAI_LOG_ERR("Boot type %d not recognized, must be 0 (cold) or 1 (warm) or 2 (fast)\n", boot_type);
+        return SAI_STATUS_INVALID_PARAMETER;
+    }
+
+    if (SAI_STATUS_SUCCESS != (status = mlnx_chassis_mng_stage(fastboot_enable, *transaction_mode_enable))) {
         return status;
     }
 
@@ -3133,29 +3261,11 @@ static sai_status_t mlnx_initialize_switch(sai_object_id_t switch_id)
         return status;
     }
 
-    /* TODO: remove this logic after SAI bridge being officially introduced */
-    if (SAI_STATUS_SUCCESS !=
-        (status = sdk_to_sai(sx_api_bridge_set(gh_sdk, SX_ACCESS_CMD_CREATE, &sx_bridge_id)))) {
-        SX_LOG_ERR("Error creating sx bridge\n");
-        SX_LOG_EXIT();
+    status = mlnx_bridge_init();
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed initialize default bridge\n");
         return status;
     }
-
-    sai_db_write_lock();
-
-    g_sai_db_ptr->sx_bridge_id = sx_bridge_id;
-
-    mlnx_port_phy_foreach(port, ii) {
-        status = mlnx_bridge_phy_port_add(sx_bridge_id, port);
-        if (SAI_ERR(status)) {
-            SX_LOG_ERR("Failed to add port %" PRIx64 " to the default bridge\n", port->saiport);
-            sai_db_unlock();
-            return status;
-        }
-    }
-
-    sai_db_unlock();
-
     return SAI_STATUS_SUCCESS;
 }
 
@@ -3262,10 +3372,11 @@ static sai_status_t mlnx_create_switch(_Out_ sai_object_id_t     * switch_id,
                                        _In_ const sai_attribute_t *attr_list)
 {
     char                         list_str[MAX_LIST_VALUE_STR_LEN];
-    const sai_attribute_value_t *attr_val       = NULL;
-    mlnx_object_id_t             mlnx_switch_id = {0};
+    const sai_attribute_value_t *attr_val        = NULL;
+    mlnx_object_id_t             mlnx_switch_id  = {0};
     sai_status_t                 sai_status;
     uint32_t                     attr_idx;
+    bool                         transaction_mode_enable = false;
     sx_status_t                  status;
 
     if (NULL == switch_id) {
@@ -3312,7 +3423,7 @@ static sai_status_t mlnx_create_switch(_Out_ sai_object_id_t     * switch_id,
                                      &attr_val,
                                      &attr_idx);
     if (!SAI_ERR(sai_status)) {
-        g_notification_callbacks.on_switch_shutdown_request = (sai_switch_shutdown_request_fn)attr_val->ptr;
+        g_notification_callbacks.on_switch_shutdown_request = (sai_switch_shutdown_request_notification_fn)attr_val->ptr;
     }
 
     sai_status = find_attrib_in_list(attr_count, attr_list, SAI_SWITCH_ATTR_FDB_EVENT_NOTIFY, &attr_val, &attr_idx);
@@ -3341,11 +3452,24 @@ static sai_status_t mlnx_create_switch(_Out_ sai_object_id_t     * switch_id,
         return sdk_to_sai(status);
     }
 
+    sai_status = find_attrib_in_list(attr_count, attr_list, SAI_SWITCH_ATTR_FAST_API_ENABLE, &attr_val, &attr_idx);
+    if (!SAI_ERR(sai_status) && attr_val->booldata) {
+        transaction_mode_enable = true;
+    } else {
+        transaction_mode_enable = false;
+    }
+
     if (mlnx_switch_id.id.is_created) {
-        sai_status = mlnx_initialize_switch(*switch_id);
+        sai_status = mlnx_initialize_switch(*switch_id, &transaction_mode_enable);
     } else {
         sai_status = mlnx_connect_switch(*switch_id);
     }
+
+    sai_db_write_lock();
+
+    g_sai_db_ptr->transaction_mode_enable = transaction_mode_enable;
+
+    sai_db_unlock();
 
     if (SAI_ERR(sai_status)) {
         return sai_status;
@@ -3556,9 +3680,15 @@ static sai_status_t mlnx_disconnect_switch(void)
  */
 static sai_status_t mlnx_set_switch_attribute(_In_ sai_object_id_t switch_id, _In_ const sai_attribute_t *attr)
 {
-    SX_LOG_ENTER();
+    const sai_object_key_t key = { .key.object_id = switch_id };
+    char                   key_str[MAX_KEY_STR_LEN];
+    sai_status_t           sai_status;
 
-    return sai_set_attribute(NULL, "switch", switch_attribs, switch_vendor_attribs, attr);
+    SX_LOG_ENTER();
+    switch_key_to_str(switch_id, key_str);
+    sai_status = sai_set_attribute(&key, key_str, switch_attribs, switch_vendor_attribs, attr);
+    SX_LOG_EXIT();
+    return sai_status;
 }
 
 /* Switching mode [sai_switch_switching_mode_t]
@@ -3567,25 +3697,43 @@ static sai_status_t mlnx_switch_mode_set(_In_ const sai_object_key_t      *key,
                                          _In_ const sai_attribute_value_t *value,
                                          void                             *arg)
 {
+    mlnx_port_config_t       *port;
+    uint32_t                  ii;
+    sx_port_forwarding_mode_t mode;
+    sai_status_t              status = SAI_STATUS_SUCCESS;
+
     SX_LOG_ENTER();
+
+    memset(&mode, 0, sizeof(mode));
 
     switch (value->s32) {
     case SAI_SWITCH_SWITCHING_MODE_CUT_THROUGH:
+        mode.packet_store = SX_PORT_PACKET_STORING_MODE_CUT_THROUGH;
         break;
 
-    /* Note Mellanox implementation does not support store and forward.
-    * The default is cut through, different then SAI defined default */
     case SAI_SWITCH_SWITCHING_MODE_STORE_AND_FORWARD:
-        SX_LOG_ERR("Switching mode store and forward not supported\n");
-        return SAI_STATUS_ATTR_NOT_SUPPORTED_0;
+        mode.packet_store = SX_PORT_PACKET_STORING_MODE_STORE_AND_FORWARD;
+        break;
 
     default:
         SX_LOG_ERR("Invalid switching mode value %d\n", value->s32);
         return SAI_STATUS_INVALID_ATTR_VALUE_0;
     }
 
+    sai_db_read_lock();
+    mlnx_port_phy_foreach(port, ii) {
+        if (SX_STATUS_SUCCESS !=
+            (status = sx_api_port_forwarding_mode_set(gh_sdk, port->logical, mode))) {
+            SX_LOG_ERR("Failed to set forwarding mode - %s %x %u.\n", SX_STATUS_MSG(status), port->logical, ii);
+            status = sdk_to_sai(status);
+            goto out;
+        }
+    }
+
+out:
+    sai_db_unlock();
     SX_LOG_EXIT();
-    return SAI_STATUS_SUCCESS;
+    return status;
 }
 
 /* Dynamic FDB entry aging time in seconds [uint32_t]
@@ -3633,7 +3781,6 @@ static sai_status_t mlnx_switch_fdb_flood_ctrl_set(_In_ const sai_object_key_t  
     sx_flood_control_type_t flood_type;
     sai_status_t            status;
     sai_packet_action_t     action = (sai_packet_action_t)value->s32;
-    mlnx_port_config_t     *port;
     sx_fid_t                fid;
 
     SX_LOG_ENTER();
@@ -3665,9 +3812,10 @@ static sai_status_t mlnx_switch_fdb_flood_ctrl_set(_In_ const sai_object_key_t  
     }
 
     mlnx_vlan_id_foreach(fid) {
-        sx_status_t sx_status   = SX_STATUS_SUCCESS;
-        uint16_t    ports_count = 0;
-        uint32_t    ii          = 0;
+        sx_status_t             sx_status   = SX_STATUS_SUCCESS;
+        mlnx_bridge_port_t     *port;
+        uint16_t                ports_count = 0;
+        uint32_t                ii          = 0;
 
         if (action == SAI_PACKET_ACTION_DROP) {
             mlnx_vlan_ports_foreach(fid, port, ii) {
@@ -3840,9 +3988,12 @@ static sai_status_t mlnx_get_switch_attribute(_In_ sai_object_id_t     switch_id
                                               _Inout_ sai_attribute_t *attr_list)
 {
     sai_status_t status;
+    const sai_object_key_t key = { .key.object_id = switch_id };
+    char                   key_str[MAX_KEY_STR_LEN];
 
     SX_LOG_ENTER();
-    status = sai_get_attributes(NULL, "switch", switch_attribs, switch_vendor_attribs, attr_count, attr_list);
+    switch_key_to_str(switch_id, key_str);
+    status = sai_get_attributes(&key, key_str, switch_attribs, switch_vendor_attribs, attr_count, attr_list);
     SX_LOG_EXIT();
     return status;
 }
@@ -4396,11 +4547,79 @@ static sai_status_t mlnx_switch_mode_get(_In_ const sai_object_key_t   *key,
                                          _Inout_ vendor_cache_t        *cache,
                                          void                          *arg)
 {
+    mlnx_port_config_t       *first_port = NULL;
+    mlnx_port_config_t       *port = NULL;
+    uint32_t                  port_idx;
+    sai_status_t              status;
+    sx_port_forwarding_mode_t mode;
+
     SX_LOG_ENTER();
 
-    value->s32 = SAI_SWITCH_SWITCHING_MODE_CUT_THROUGH;
+    sai_db_read_lock();
 
+    mlnx_port_phy_foreach(port, port_idx) {
+        first_port = port;
+        break;
+    }
+
+    if (!first_port) {
+        SX_LOG_ERR("Failed to get switch mode - first port not found\n");
+        status = SAI_STATUS_FAILURE;
+        goto out;
+    }
+
+    status = sx_api_port_forwarding_mode_get(gh_sdk, first_port->logical, &mode);
+    if (SX_ERR(status)) {
+        SX_LOG_ERR("Failed to get port forwarding mode - %s %x.\n", SX_STATUS_MSG(status), first_port->logical);
+        status = sdk_to_sai(status);
+        goto out;
+    }
+
+    switch (mode.packet_store) {
+    case SX_PORT_PACKET_STORING_MODE_CUT_THROUGH:
+        value->s32 = SAI_SWITCH_SWITCHING_MODE_CUT_THROUGH;
+        break;
+    case SX_PORT_PACKET_STORING_MODE_STORE_AND_FORWARD:
+        value->s32 = SAI_SWITCH_SWITCHING_MODE_STORE_AND_FORWARD;
+        break;
+    default:
+        SX_LOG_ERR("Unexpected forwarding mode %u\n", mode.packet_store);
+        status = SAI_STATUS_FAILURE;
+        goto out;
+    }
+
+out:
+    sai_db_unlock();
     SX_LOG_EXIT();
+    return status;
+}
+
+sai_status_t mlnx_switch_get_mac(sx_mac_addr_t *mac)
+{
+
+    mlnx_port_config_t *first_port = NULL;
+    mlnx_port_config_t *port = NULL;
+    uint32_t            port_idx;
+    sai_status_t        status;
+
+    mlnx_port_phy_foreach(port, port_idx) {
+        first_port = port;
+        break;
+    }
+
+    if (!first_port) {
+        SX_LOG_ERR("Failed to get switch mac - first port not found\n");
+        return SAI_STATUS_FAILURE;
+    }
+
+    /* Use switch first port, and zero down lower 6 bits port part (64 ports) */
+    status = sx_api_port_phys_addr_get(gh_sdk, first_port->logical, mac);
+    if (SX_ERR(status)) {
+        SX_LOG_ERR("Failed to get port %x address - %s.\n", first_port->logical, SX_STATUS_MSG(status));
+        return sdk_to_sai(status);
+    }
+    mac->ether_addr_octet[5] &= PORT_MAC_BITMASK;
+
     return SAI_STATUS_SUCCESS;
 }
 
@@ -4416,17 +4635,19 @@ static sai_status_t mlnx_switch_src_mac_get(_In_ const sai_object_key_t   *key,
 
     SX_LOG_ENTER();
 
-    /* Use switch first port, and zero down lower 6 bits port part (64 ports) */
-    if (SX_STATUS_SUCCESS !=
-        (status = sx_api_port_phys_addr_get(gh_sdk, FIRST_PORT, &mac))) {
-        SX_LOG_ERR("Failed to get port address - %s.\n", SX_STATUS_MSG(status));
-        return sdk_to_sai(status);
+    sai_db_read_lock();
+
+    status = mlnx_switch_get_mac(&mac);
+    if (SAI_ERR(status)) {
+        goto out;
     }
-    mac.ether_addr_octet[5] &= PORT_MAC_BITMASK;
 
     memcpy(value->mac, &mac,  sizeof(value->mac));
 
+out:
+    sai_db_unlock();
     SX_LOG_EXIT();
+
     return SAI_STATUS_SUCCESS;
 }
 
@@ -5164,7 +5385,7 @@ static sai_status_t mlnx_switch_event_func_set(_In_ const sai_object_key_t      
         break;
 
     case SAI_SWITCH_ATTR_SHUTDOWN_REQUEST_NOTIFY:
-        g_notification_callbacks.on_switch_shutdown_request = (sai_switch_shutdown_request_fn)value->ptr;
+        g_notification_callbacks.on_switch_shutdown_request = (sai_switch_shutdown_request_notification_fn)value->ptr;
         break;
 
     case SAI_SWITCH_ATTR_FDB_EVENT_NOTIFY:
@@ -5184,6 +5405,58 @@ static sai_status_t mlnx_switch_event_func_set(_In_ const sai_object_key_t      
     return SAI_STATUS_SUCCESS;
 }
 
+static sai_status_t mlnx_switch_transaction_mode_set(_In_ const sai_object_key_t      *key,
+                                                     _In_ const sai_attribute_value_t *value,
+                                                     void                             *arg)
+{
+    sx_status_t     sdk_status           = SX_STATUS_ERROR;
+    sx_access_cmd_t transaction_mode_cmd = SX_ACCESS_CMD_NONE;
+
+    SX_LOG_ENTER();
+
+    if (value->booldata) {
+        transaction_mode_cmd = SX_ACCESS_CMD_ENABLE;
+    } else {
+        transaction_mode_cmd = SX_ACCESS_CMD_DISABLE;
+    }
+
+    if (SX_STATUS_SUCCESS !=
+        (sdk_status = sx_api_transaction_mode_set(gh_sdk, transaction_mode_cmd))) {
+        SX_LOG_ERR("Failed to set transaction mode to %d: %s\n", transaction_mode_cmd, SX_STATUS_MSG(sdk_status));
+        SX_LOG_EXIT();
+        return sdk_to_sai(sdk_status);
+    }
+
+    sai_db_write_lock();
+
+    g_sai_db_ptr->transaction_mode_enable = value->booldata;
+
+    sai_db_unlock(); 
+
+    SX_LOG_EXIT();
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_switch_transaction_mode_get(_In_ const sai_object_key_t   *key,
+                                                     _Inout_ sai_attribute_value_t *value,
+                                                     _In_ uint32_t                  attr_index,
+                                                     _Inout_ vendor_cache_t        *cache,
+                                                     void                          *arg)
+{
+    SX_LOG_ENTER();
+
+    sai_db_read_lock();
+
+    value->booldata = g_sai_db_ptr->transaction_mode_enable;
+
+    sai_db_unlock();
+
+    SX_LOG_EXIT();
+
+    return SAI_STATUS_SUCCESS;
+}
+
 static sai_status_t mlnx_default_bridge_id_get(_In_ const sai_object_key_t   *key,
                                                _Inout_ sai_attribute_value_t *value,
                                                _In_ uint32_t                  attr_index,
@@ -5196,7 +5469,7 @@ static sai_status_t mlnx_default_bridge_id_get(_In_ const sai_object_key_t   *ke
 
     sai_db_read_lock();
 
-    status = mlnx_create_bridge_object(SAI_BRIDGE_TYPE_1Q, g_sai_db_ptr->sx_bridge_id, &value->oid);
+    status = mlnx_create_bridge_object(SAI_BRIDGE_TYPE_1Q, mlnx_bridge_default_1q(), &value->oid);
 
     sai_db_unlock();
 

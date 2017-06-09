@@ -1,7 +1,7 @@
 Mellanox SAI implementation release notes
 ==========================================
 
-Release 1.8.1
+Release 1.8.2
 ---------------
 
 Current implementation is partial. 
@@ -10,7 +10,7 @@ Not all the APIs that are defined were fully implemented in this release. Missin
 
 The code was tested to work on X86, at Beta level.
 No testing was done on PPC.
-The code compiles with, and was tested with, SDK version 4.2.4000.
+The code compiles with, and was tested with, SDK version 4.2.5008.
 
 As a precondition to running SAI initialize switch, SDK must not be running (If it's running, terminate it with dvs_stop.sh). 
 The application must provide one key/value pair on profile services, "config_file=/usr/share/sai_2700.xml" / "config_file=/usr/share/sai_2410.xml" / / "config_file=/usr/share/sai_2420.xml" / "config_file=/usr/share/sai_2100.xml", depending on system type.
@@ -65,5 +65,5 @@ IP over IP has the following limitations :
 
 In case WRED profile has WRED enabled for at least one color and ECN mark mode enabled for at least one color, the enabled colors for WRED and ECN must be the same (For example, can't have SAI_WRED_ATTR_GREEN_ENABLE=true and SAI_WRED_ATTR_ECN_MARK_MODE=SAI_ECN_MARK_MODE_YELLOW)
 Clear queue stats for specific counters always clears all available counters
-Host interface user defined traps support a single instance of each user defined trap
+Host interface user defined traps support a single instance of each user defined trap.
 Host interface wildcard table entry overwrites the configured channel value for all traps at the time of the creation, there is no priority implemented. WA - first create wildcard entry and then specific entries.
