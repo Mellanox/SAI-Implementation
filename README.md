@@ -1,7 +1,7 @@
 Mellanox SAI implementation
 ============================
 
-This repository contains SAI implementation for Mellanox hardware.
+This repository contains SAI implementation and SDK image for Mellanox hardware for SONIC project (https://github.com/Azure/sonic).
 
 SAI headers are based on latest head (as of May 2, 2017) of release v1.0 SAI headers can be 
 downloaded from https://github.com/opencomputeproject/SAI/
