@@ -981,6 +981,13 @@ sai_status_t mlnx_hash_initialize()
         return status;
     }
 
+    g_sai_db_ptr->oper_hash_list[SAI_HASH_ECMP_IP6_ID] = hash_obj;
+    /* apply default object */
+    status = mlnx_hash_obj_native_fields_apply(SAI_HASH_ECMP_IP6_ID, &attr_value);
+    if (SAI_STATUS_SUCCESS != status) {
+        return status;
+    }
+
     /* Default LAG object */
     if (SAI_STATUS_SUCCESS !=
         (status = mlnx_create_object(SAI_OBJECT_TYPE_HASH, 1, NULL, &hash_obj))) {
