@@ -20,9 +20,10 @@ endif
 lib_LTLIBRARIES = libsai.la
 
 dist_data_DATA = sai_1710.xml \
-				 sai_2700.xml \
-				 sai_2410.xml \
-				 sai_2100.xml
+                 sai_2700.xml \
+                 sai_2740.xml \
+                 sai_2410.xml \
+                 sai_2100.xml
 				 
 libsai_la_DEPENDENCIES =
 
