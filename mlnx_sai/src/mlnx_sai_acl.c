@@ -13926,6 +13926,7 @@ sai_status_t mlnx_acl_bind_point_get(_In_ const sai_object_key_t   *key,
     mlnx_acl_bind_point_type_t bind_point_type;
     acl_bind_point_data_t     *bind_point_data = NULL;
     bool                       is_vlan_bound;
+    sx_port_log_id_t           port_id;
 
     SX_LOG_ENTER();
 
@@ -13938,6 +13939,16 @@ sai_status_t mlnx_acl_bind_point_get(_In_ const sai_object_key_t   *key,
     switch (bind_point_type) {
     case MLNX_ACL_BIND_POINT_TYPE_INGRESS_PORT:
     case MLNX_ACL_BIND_POINT_TYPE_EGRESS_PORT:
+        if (SAI_STATUS_SUCCESS !=
+            (status = mlnx_object_to_type(key->key.object_id, SAI_OBJECT_TYPE_PORT, &port_id, NULL))) {
+            goto out;
+        }
+
+        if (mlnx_log_port_is_cpu(port_id)) {
+            value->oid = SAI_NULL_OBJECT_ID;
+            goto out;
+        }
+
         status = mlnx_acl_port_lag_bind_point_check_and_get(target, bind_point_type, &bind_point_data);
         if (SAI_ERR(status)) {
             goto out;

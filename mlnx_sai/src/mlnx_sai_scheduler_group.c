@@ -291,7 +291,7 @@ static void mlnx_sched_group_key_to_str(_In_ sai_object_id_t group_id, _Out_ cha
         return;
     }
 
-    snprintf(key_str, MAX_KEY_STR_LEN, "scheduler group id %u:%u", level, index);
+    snprintf(key_str, MAX_KEY_STR_LEN, "scheduler group id %x:%u:%u", port_id, level, index);
 }
 
 static mlnx_iter_ret_t groups_child_counter(mlnx_port_config_t *port, mlnx_sched_obj_t *obj, void *arg)

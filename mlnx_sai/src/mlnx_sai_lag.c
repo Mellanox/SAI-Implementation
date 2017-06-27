@@ -30,6 +30,9 @@ typedef enum port_params_ {
         PORT_PARAMS_FOR_LAG = PORT_PARAMS_QOS | PORT_PARAMS_WRED | PORT_PARAMS_MIRROR,
         PORT_PARAMS_FLOOD   = 1 << 3,
         PORT_PARAMS_VLAN    = 1 << 4,
+        PORT_PARAMS_PVID    = 1 << 5,
+        PORT_PARAMS_SFLOW   = 1 << 6,
+        PORT_PARAMS_POLICER = 1 << 7,
 } port_params_t;
 
 static sx_verbosity_level_t LOG_VAR_NAME(__MODULE__) = SX_VERBOSITY_LEVEL_WARNING;
@@ -151,11 +154,12 @@ static void lag_member_key_to_str(_In_ sai_object_id_t lag_member_id, _Out_ char
 
 static sai_status_t mlnx_port_params_clone(mlnx_port_config_t *to, mlnx_port_config_t *from, port_params_t clone)
 {
+    sx_status_t                  sx_status;
     sx_cos_rewrite_enable_t      rewrite_enable;
     uint32_t                     max_ets_count;
     sx_cos_trust_level_t         trust_level;
     sx_cos_ets_element_config_t *ets = NULL;
-    sx_span_session_id_t         mirror_id;
+    sx_vid_t                     pvid;
     mlnx_qos_queue_config_t     *queue_cfg;
     sai_status_t                 status = SAI_STATUS_SUCCESS;
     uint8_t                      prio;
@@ -296,36 +300,10 @@ static sai_status_t mlnx_port_params_clone(mlnx_port_config_t *to, mlnx_port_con
     }
     /* Mirroring */
     if (clone & PORT_PARAMS_MIRROR) {
-        status = sx_api_span_mirror_get(gh_sdk, from->logical, SX_SPAN_MIRROR_INGRESS, &mirror_id);
-        if ((status != SX_STATUS_ENTRY_NOT_FOUND) && SX_ERR(status)) {
-            SX_LOG_ERR("Failed to get ingress mirror id - %s\n", SX_STATUS_MSG(status));
-            status = sdk_to_sai(status);
+        status = mlnx_port_mirror_sessions_clone(to, from);
+        if (SAI_ERR(status)) {
             goto out;
         }
-        if (status != SX_STATUS_ENTRY_NOT_FOUND) {
-            status = sx_api_span_mirror_set(gh_sdk, SX_ACCESS_CMD_ADD,
-                                            to->logical, SX_SPAN_MIRROR_INGRESS, mirror_id);
-            SX_LOG_ERR("Failed to set ingress mirror id %u to port %" PRIx64 "(0x%x) - %s\n",
-                       mirror_id, to->saiport, to->logical, SX_STATUS_MSG(status));
-            status = sdk_to_sai(status);
-            goto out;
-        }
-
-        status = sx_api_span_mirror_get(gh_sdk, from->logical, SX_SPAN_MIRROR_EGRESS, &mirror_id);
-        if ((status != SX_STATUS_ENTRY_NOT_FOUND) && SX_ERR(status)) {
-            SX_LOG_ERR("Failed to get egress mirror id - %s\n", SX_STATUS_MSG(status));
-            status = sdk_to_sai(status);
-            goto out;
-        }
-        if (status != SX_STATUS_ENTRY_NOT_FOUND) {
-            status = sx_api_span_mirror_set(gh_sdk, SX_ACCESS_CMD_ADD,
-                                            to->logical, SX_SPAN_MIRROR_EGRESS, mirror_id);
-            SX_LOG_ERR("Failed to set egress mirror id %u to port %" PRIx64 "(0x%x) - %s\n",
-                       mirror_id, to->saiport, to->logical, SX_STATUS_MSG(status));
-            status = sdk_to_sai(status);
-            goto out;
-        }
-        status = SAI_STATUS_SUCCESS;
     }
     if ((clone & PORT_PARAMS_FLOOD) && is_flood_disabled && mlnx_port_is_in_bridge(from)) {
         mlnx_bridge_port_t *bridge_port;
@@ -369,7 +347,6 @@ static sai_status_t mlnx_port_params_clone(mlnx_port_config_t *to, mlnx_port_con
         sx_vlan_frame_types_t frame_types;
         sx_ingr_filter_mode_t mode;
         sx_status_t           sx_status;
-        sx_vid_t              pvid;
 
         /* Align VLAN accepted frame types */
         sx_status = sx_api_vlan_port_accptd_frm_types_get(gh_sdk, from->logical, &frame_types);
@@ -383,23 +360,6 @@ static sai_status_t mlnx_port_params_clone(mlnx_port_config_t *to, mlnx_port_con
         sx_status = sx_api_vlan_port_accptd_frm_types_set(gh_sdk, to->logical, &frame_types);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to set port accepted frame types for port oid %" PRIx64 " - %s.\n",
-                       to->saiport, SX_STATUS_MSG(sx_status));
-
-            return sdk_to_sai(sx_status);
-        }
-
-        /* Align port's PVID */
-        sx_status = sx_api_vlan_port_pvid_get(gh_sdk, from->logical, &pvid);
-        if (SX_ERR(sx_status)) {
-            SX_LOG_ERR("Failed to get port pvid for port oid %" PRIx64 " - %s.\n",
-                       from->saiport, SX_STATUS_MSG(sx_status));
-
-            return sdk_to_sai(sx_status);
-        }
-
-        sx_status = sx_api_vlan_port_pvid_set(gh_sdk, SX_ACCESS_CMD_ADD, to->logical, pvid);
-        if (SX_ERR(sx_status)) {
-            SX_LOG_ERR("Failed to set port pvid for port oid %" PRIx64 " - %s.\n",
                        to->saiport, SX_STATUS_MSG(sx_status));
 
             return sdk_to_sai(sx_status);
@@ -420,6 +380,38 @@ static sai_status_t mlnx_port_params_clone(mlnx_port_config_t *to, mlnx_port_con
                        to->saiport, SX_STATUS_MSG(sx_status));
 
             return sdk_to_sai(sx_status);
+        }
+    }
+
+    if (clone & PORT_PARAMS_PVID) {
+        sx_status = sx_api_vlan_port_pvid_get(gh_sdk, from->logical, &pvid);
+        if (SX_ERR(sx_status)) {
+            SX_LOG_ERR("Failed to get port pvid for port oid %" PRIx64 " - %s.\n",
+                       from->saiport, SX_STATUS_MSG(sx_status));
+
+            return sdk_to_sai(sx_status);
+        }
+
+        sx_status = sx_api_vlan_port_pvid_set(gh_sdk, SX_ACCESS_CMD_ADD, to->logical, pvid);
+        if (SX_ERR(sx_status)) {
+            SX_LOG_ERR("Failed to set port pvid for port oid %" PRIx64 " - %s.\n",
+                       to->saiport, SX_STATUS_MSG(sx_status));
+
+            return sdk_to_sai(sx_status);
+        }
+    }
+
+    if (clone & PORT_PARAMS_SFLOW) {
+        status = mlnx_port_samplepacket_params_clone(to, from);
+        if (SAI_ERR(status)) {
+            goto out;
+        }
+    }
+
+    if (clone & PORT_PARAMS_POLICER) {
+        status = mlnx_port_storm_control_policer_params_clone(to, from);
+        if (SAI_ERR(status)) {
+            goto out;
         }
     }
 
@@ -558,7 +550,8 @@ static sai_status_t remove_port_from_lag(sx_port_log_id_t lag_id, sx_port_log_id
     }
 
     /* Do re-apply for port params which were removed by us before add to the LAG */
-    status = mlnx_port_params_clone(port, lag, PORT_PARAMS_WRED | PORT_PARAMS_MIRROR);
+    status = mlnx_port_params_clone(port, lag, PORT_PARAMS_WRED | PORT_PARAMS_MIRROR | PORT_PARAMS_SFLOW |
+                                               PORT_PARAMS_POLICER | PORT_PARAMS_PVID);
     if (SAI_ERR(status)) {
         return status;
     }
@@ -614,11 +607,12 @@ out:
 }
 
 /* TODO: print profiles info on error */
-/* SDK already validate QoS settings, so just check WRED, Policer & Mirroring profiles */
+/* SDK already validate QoS settings, so just check WRED, Policer & Mirroring profiles and Sample Packet sessions*/
 static sai_status_t ports_l1_params_check(mlnx_port_config_t *port1, mlnx_port_config_t *port2)
 {
+    sx_status_t              sx_status;
+    sx_vid_t                 pvid1, pvid2;
     mlnx_qos_queue_config_t *queue_cfg1, *queue_cfg2;
-    sx_span_session_id_t     mirror_id1, mirror_id2;
     sai_status_t             status;
     uint32_t                 ii;
 
@@ -649,41 +643,43 @@ static sai_status_t ports_l1_params_check(mlnx_port_config_t *port1, mlnx_port_c
         }
     }
 
+    /* PVID */
+    sx_status = sx_api_vlan_port_pvid_get(gh_sdk, port1->logical, &pvid1);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to get port pvid for port oid %" PRIx64 " - %s.\n",
+                   port1->saiport, SX_STATUS_MSG(sx_status));
+        return sdk_to_sai(sx_status);
+    }
+
+    sx_status = sx_api_vlan_port_pvid_get(gh_sdk, port2->logical, &pvid2);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to get port pvid for port oid %" PRIx64 " - %s.\n",
+                   port1->saiport, SX_STATUS_MSG(sx_status));
+        return sdk_to_sai(sx_status);
+    }
+
+    if (pvid1 != pvid2) {
+        SX_LOG_ERR("Port oid %" PRIx64 " and port oid %" PRIx64 " have different pvid (%d and %d)\n",
+                    port1->saiport, port2->saiport, pvid1, pvid2);
+        return SAI_STATUS_INVALID_PARAMETER;
+    }
+
     /* Mirroring */
-    mirror_id1 = mirror_id2 = 0xff;
-    status     = sx_api_span_mirror_get(gh_sdk, port1->logical, SX_SPAN_MIRROR_INGRESS, &mirror_id1);
-    if ((status != SX_STATUS_ENTRY_NOT_FOUND) && SX_ERR(status)) {
-        SX_LOG_ERR("Failed to get ingress mirror id - %s\n", SX_STATUS_MSG(status));
-        return sdk_to_sai(status);
-    }
-    status = sx_api_span_mirror_get(gh_sdk, port2->logical, SX_SPAN_MIRROR_INGRESS, &mirror_id2);
-    if ((status != SX_STATUS_ENTRY_NOT_FOUND) && SX_ERR(status)) {
-        SX_LOG_ERR("Failed to get ingress mirror id - %s\n", SX_STATUS_MSG(status));
-        return sdk_to_sai(status);
-    }
-    if (mirror_id1 != mirror_id2) {
-        SX_LOG_ERR("Port oid %" PRIx64 " and port oid %" PRIx64 " have different mirror ingress session id\n",
-                   port1->saiport, port2->saiport);
-
-        return SAI_STATUS_INVALID_PARAMETER;
+    status = mlnx_port_mirror_params_check(port1, port2);
+    if (SAI_ERR(status)) {
+        return status;
     }
 
-    mirror_id1 = mirror_id2 = 0xff;
-    status     = sx_api_span_mirror_get(gh_sdk, port1->logical, SX_SPAN_MIRROR_EGRESS, &mirror_id1);
-    if ((status != SX_STATUS_ENTRY_NOT_FOUND) && SX_ERR(status)) {
-        SX_LOG_ERR("Failed to get ingress mirror id - %s\n", SX_STATUS_MSG(status));
-        return sdk_to_sai(status);
+    /* Sample packet */
+    status = mlnx_port_samplepacket_params_check(port1, port2);
+    if (SAI_ERR(status)) {
+        return status;
     }
-    status = sx_api_span_mirror_get(gh_sdk, port2->logical, SX_SPAN_MIRROR_EGRESS, &mirror_id2);
-    if ((status != SX_STATUS_ENTRY_NOT_FOUND) && SX_ERR(status)) {
-        SX_LOG_ERR("Failed to get ingress mirror id - %s\n", SX_STATUS_MSG(status));
-        return sdk_to_sai(status);
-    }
-    if (mirror_id1 != mirror_id2) {
-        SX_LOG_ERR("Port oid %" PRIx64 " and port oid %" PRIx64 " have different mirror egress session id\n",
-                   port1->saiport, port2->saiport);
 
-        return SAI_STATUS_INVALID_PARAMETER;
+    /* Policers */
+    status = mlnx_port_storm_control_params_check(port1, port2);
+    if (SAI_ERR(status)) {
+        return status;
     }
 
     return SAI_STATUS_SUCCESS;
@@ -1298,13 +1294,28 @@ static sai_status_t mlnx_create_lag_member(_Out_ sai_object_id_t     * lag_membe
             goto out;
         }
     } else {
-        status = mlnx_port_params_clone(lag, port, PORT_PARAMS_FOR_LAG);
+        status = mlnx_port_params_clone(lag, port, PORT_PARAMS_FOR_LAG | PORT_PARAMS_SFLOW | PORT_PARAMS_POLICER | PORT_PARAMS_PVID);
         if (SAI_ERR(status)) {
             goto out;
         }
     }
 
     status = mlnx_port_params_clone(port, lag, PORT_PARAMS_FLOOD | PORT_PARAMS_VLAN);
+    if (SAI_ERR(status)) {
+        goto out;
+    }
+
+    status = mlnx_port_samplepacket_params_clear(port, true);
+    if (SAI_ERR(status)) {
+        goto out;
+    }
+
+    status = mlnx_port_storm_control_policer_params_clear(port, true);
+    if (SAI_ERR(status)) {
+        goto out;
+    }
+
+    status = mlnx_port_mirror_params_clear(port);
     if (SAI_ERR(status)) {
         goto out;
     }
@@ -1345,6 +1356,9 @@ static sai_status_t mlnx_create_lag_member(_Out_ sai_object_id_t     * lag_membe
         goto out;
     }
 
+    lag_member_key_to_str(*lag_member_id, key_str);
+    SX_LOG_NTC("Created LAG member %s\n", key_str);
+
 out:
     if (SAI_ERR(status) && wred_oid != SAI_NULL_OBJECT_ID) {
         port_queues_foreach(port, queue, ii) {
@@ -1376,9 +1390,6 @@ out:
     }
 
     sai_db_unlock();
-
-    lag_member_key_to_str(*lag_member_id, key_str);
-    SX_LOG_NTC("Created LAG member %s\n", key_str);
     return status;
 }
 
@@ -1407,18 +1418,15 @@ static sai_status_t mlnx_remove_lag_member(_In_ sai_object_id_t lag_member_id)
     sai_db_write_lock();
     status = remove_port_from_lag(lag_log_port_id, mlnx_lag_member.id.log_port_id);
     if (SAI_ERR(status)) {
-        sai_db_unlock();
         goto out;
     }
 
     status = mlnx_port_by_log_id(mlnx_lag_member.id.log_port_id, &port_config);
     if (SAI_ERR(status)) {
-        sai_db_unlock();
         goto out;
     }
     status = mlnx_port_by_log_id(lag_log_port_id, &lag_config);
     if (SAI_ERR(status)) {
-        sai_db_unlock();
         goto out;
     }
     lag_oid = lag_config->saiport;
@@ -1429,7 +1437,6 @@ static sai_status_t mlnx_remove_lag_member(_In_ sai_object_id_t lag_member_id)
 
     if (SAI_ERR(status)) {
         SX_LOG_NTC("Failed to remove Lag member port[%x] from ACLs\n", port_config->logical);
-        sai_db_unlock();
         goto out;
     }
 
@@ -1439,6 +1446,9 @@ static sai_status_t mlnx_remove_lag_member(_In_ sai_object_id_t lag_member_id)
         goto out;
     }
 
+    /* When removing the last member from the LAG, we no longer need to keep on the LAG the settings 
+       that were cloned to it from the first port, and any additional settings. Instead we need to
+       clear these settings, so it will be possible to add any new member to this LAG. */
     if (members_count == 0) {
         sai_object_id_t              queue_id;
         mlnx_qos_queue_config_t     *queue;
@@ -1465,6 +1475,21 @@ static sai_status_t mlnx_remove_lag_member(_In_ sai_object_id_t lag_member_id)
             if (SAI_ERR(status)) {
                 goto out;
             }
+        }
+
+        status = mlnx_port_samplepacket_params_clear(lag_config, false);
+        if (SAI_ERR(status)) {
+            goto out;
+        }
+
+        status = mlnx_port_storm_control_policer_params_clear(lag_config, false);
+        if (SAI_ERR(status)) {
+            goto out;
+        }
+
+        status = mlnx_port_mirror_params_clear(lag_config);
+        if (SAI_ERR(status)) {
+            goto out;
         }
     }
 

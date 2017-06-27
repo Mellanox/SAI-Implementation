@@ -104,8 +104,6 @@ static sai_status_t mlnx_sai_get_ingress_priority_group_attrib(_In_ const sai_ob
                                                                _In_ uint32_t                   attr_index,
                                                                _Inout_ vendor_cache_t        * cache,
                                                                void                          * arg);
-static sai_status_t mlnx_create_sai_buffer_profile_id(_In_ uint32_t          db_buffer_profile_ind,
-                                                      _Out_ sai_object_id_t* sai_buffer_profile);
 static sai_status_t mlnx_sai_create_buffer_pool(_Out_ sai_object_id_t     * pool_id,
                                                 _In_ sai_object_id_t        switch_id,
                                                 _In_ uint32_t               attr_count,
@@ -1250,15 +1248,10 @@ static sai_status_t mlnx_sai_set_ingress_priority_group_buffer_profile_attr(_In_
 {
     sai_status_t sai_status;
     uint32_t     db_port_index = 0;
-    char         key_str[MAX_KEY_STR_LEN];
     uint32_t     port_pg_ind = 0;
 
-    memset(key_str, 0, sizeof(key_str));
     SX_LOG_ENTER();
-    pg_key_to_str(key->key.object_id, key_str);
-    SX_LOG_DBG("Input priority group:%s\n", key_str);
-    buffer_profile_key_to_str(value->oid, key_str);
-    SX_LOG_DBG("Input buffer profile:%s\n", key_str);
+
     if (SAI_STATUS_SUCCESS != (sai_status = get_pg_data(key->key.object_id, &db_port_index, &port_pg_ind))) {
         SX_LOG_EXIT();
         return sai_status;
@@ -1316,15 +1309,11 @@ static sai_status_t mlnx_sai_get_ingress_priority_group_buffer_profile_attr(_In_
 {
     sai_status_t    sai_status;
     uint32_t        db_port_index = 0;
-    sai_object_id_t sai_buffer;
-    char            key_str[MAX_KEY_STR_LEN];
     uint32_t        port_pg_ind          = 0;
     uint16_t        pg_buffer_db_ind     = 0;
     uint32_t      * port_pg_profile_refs = NULL;
 
     SX_LOG_ENTER();
-    pg_key_to_str(key->key.object_id, key_str);
-    SX_LOG_DBG("Input priority group:%s\n", key_str);
     if (SAI_STATUS_SUCCESS != (sai_status = get_pg_data(key->key.object_id, &db_port_index, &port_pg_ind))) {
         SX_LOG_EXIT();
         return sai_status;
@@ -1339,18 +1328,15 @@ static sai_status_t mlnx_sai_get_ingress_priority_group_buffer_profile_attr(_In_
     }
     pg_buffer_db_ind = port_pg_profile_refs[port_pg_ind];
     if (SENTINEL_BUFFER_DB_ENTRY_INDEX == pg_buffer_db_ind) {
-        sai_buffer = SAI_NULL_OBJECT_ID;
+        value->oid = SAI_NULL_OBJECT_ID;
     } else {
-        if (SAI_STATUS_SUCCESS != (sai_status = mlnx_create_sai_buffer_profile_id(pg_buffer_db_ind, &sai_buffer))) {
+        if (SAI_STATUS_SUCCESS != (sai_status = mlnx_create_object(SAI_OBJECT_TYPE_BUFFER_PROFILE, pg_buffer_db_ind, NULL, &value->oid))) {
             cl_plock_release(&g_sai_db_ptr->p_lock);
             SX_LOG_EXIT();
             return sai_status;
         }
     }
     cl_plock_release(&g_sai_db_ptr->p_lock);
-    buffer_profile_key_to_str(sai_buffer, key_str);
-    SX_LOG_DBG("Created sai buffer profile id:%s\n", key_str);
-    value->oid = sai_buffer;
     SX_LOG_EXIT();
     return SAI_STATUS_SUCCESS;
 }
@@ -1497,7 +1483,6 @@ static sai_status_t mlnx_sai_get_ingress_priority_group_attr(_In_ sai_object_id_
 
     SX_LOG_ENTER();
     pg_key_to_str(ingress_pg_id, key_str);
-    SX_LOG_DBG("Priority group:%s\n", key_str);
     sai_status = sai_get_attributes(&key, key_str, pg_attribs, pg_vendor_attribs, attr_count, attr_list);
     SX_LOG_EXIT();
     return sai_status;
@@ -1606,25 +1591,9 @@ static sai_status_t convert_sx_pool_dir_to_sai_pool_type(_In_ sx_cos_port_buff_p
     return SAI_STATUS_SUCCESS;
 }
 
-static sai_status_t mlnx_create_sai_buffer_profile_id(_In_ uint32_t          db_buffer_profile_ind,
-                                                      _Out_ sai_object_id_t* sai_buffer_profile)
-{
-    sai_status_t sai_status;
-
-    SX_LOG_ENTER();
-    if (NULL == sai_buffer_profile) {
-        SX_LOG_ERR("NULL sai_buffer_profile\n");
-        return SAI_STATUS_INVALID_PARAMETER;
-    }
-    sai_status = mlnx_create_object(SAI_OBJECT_TYPE_BUFFER_PROFILE, db_buffer_profile_ind, NULL, sai_buffer_profile);
-    SX_LOG_EXIT();
-    return sai_status;
-}
-
 sai_status_t mlnx_create_sai_pool_id(_In_ uint32_t sx_pool_id, _Out_ sai_object_id_t*    sai_pool)
 {
     sai_status_t sai_status;
-    char         key_str[MAX_KEY_STR_LEN];
 
     SX_LOG_ENTER();
     if (NULL == sai_pool) {
@@ -1638,8 +1607,6 @@ sai_status_t mlnx_create_sai_pool_id(_In_ uint32_t sx_pool_id, _Out_ sai_object_
         return SAI_STATUS_INVALID_PARAMETER;
     }
     sai_status = mlnx_create_object(SAI_OBJECT_TYPE_BUFFER_POOL, sx_pool_id, NULL, sai_pool);
-    pool_key_to_str(*sai_pool, key_str);
-    SX_LOG_DBG("pool:%s\n", key_str);
     SX_LOG_EXIT();
     return sai_status;
 }
@@ -1913,6 +1880,7 @@ static sai_status_t mlnx_sai_create_buffer_pool(_Out_ sai_object_id_t     * pool
     sai_object_id_t                  sai_pool;
     uint32_t                         pool_size = 0;
     mlnx_sai_buffer_pool_attr_t      sai_pool_attr;
+    char                             key_str[MAX_KEY_STR_LEN];
 
     SX_LOG_ENTER();
 
@@ -2016,6 +1984,8 @@ static sai_status_t mlnx_sai_create_buffer_pool(_Out_ sai_object_id_t     * pool
         SX_LOG_EXIT();
         return sai_status;
     }
+    pool_key_to_str(sai_pool, key_str);
+    SX_LOG_NTC("Created %s\n", key_str);
     log_sai_pool_data(sai_pool);
     *pool_id = sai_pool;
     msync(g_sai_db_ptr, sizeof(*g_sai_db_ptr), MS_SYNC);
@@ -2197,7 +2167,6 @@ static sai_status_t mlnx_sai_set_buffer_pool_attr(_In_ sai_object_id_t pool_id, 
     SX_LOG_ENTER();
 
     pool_key_to_str(pool_id, key_str);
-    SX_LOG_DBG("SAI pool:%s\n", key_str);
     sai_status = sai_set_attribute(&key, key_str, pool_attribs, pool_vendor_attribs, attr);
     SX_LOG_EXIT();
     return sai_status;
@@ -2453,7 +2422,6 @@ static sai_status_t mlnx_sai_get_buffer_pool_attr(_In_ sai_object_id_t      pool
 
     SX_LOG_ENTER();
     pool_key_to_str(pool_id, key_str);
-    SX_LOG_DBG("SAI pool:%s\n", key_str);
 
     sai_status = sai_get_attributes(&key, key_str, pool_attribs, pool_vendor_attribs, attr_count, attr_list);
     SX_LOG_EXIT();
@@ -2497,7 +2465,8 @@ static sai_status_t mlnx_sai_create_buffer_profile(_Out_ sai_object_id_t     * b
 {
     uint32_t                           buff_profile_db_ind = 0;
     mlnx_sai_db_buffer_profile_entry_t new_buffer_profile;
-    char                               list_str[MAX_LIST_VALUE_STR_LEN] = { 0 };
+    char                               list_str[MAX_LIST_VALUE_STR_LEN];
+    char                               key_str[MAX_KEY_STR_LEN];
     sai_status_t                       sai_status;
     const sai_attribute_value_t      * attr;
     uint32_t                           attr_ind;
@@ -2613,11 +2582,12 @@ static sai_status_t mlnx_sai_create_buffer_profile(_Out_ sai_object_id_t     * b
     msync(g_sai_db_ptr, sizeof(*g_sai_db_ptr), MS_SYNC);
     cl_plock_release(&g_sai_db_ptr->p_lock);
     if (SAI_STATUS_SUCCESS !=
-        (sai_status = mlnx_create_sai_buffer_profile_id(buff_profile_db_ind, buffer_profile_id))) {
+        (sai_status = mlnx_create_object(SAI_OBJECT_TYPE_BUFFER_PROFILE, buff_profile_db_ind, NULL, buffer_profile_id))) {
         SX_LOG_EXIT();
         return sai_status;
     }
-    SX_LOG_DBG("New buffer profile id:0x%" PRIx64 "\n", *buffer_profile_id);
+    buffer_profile_key_to_str(*buffer_profile_id, key_str);
+    SX_LOG_NTC("Created %s\n", key_str);
     log_sai_buffer_profile_db_entry(buff_profile_db_ind);
     SX_LOG_EXIT();
     return SAI_STATUS_SUCCESS;
@@ -2698,8 +2668,6 @@ static sai_status_t mlnx_sai_set_buffer_profile_pool_id_attr(_In_ const sai_obje
     sai_object_id_t             prev_pool = SAI_NULL_OBJECT_ID;
 
     SX_LOG_ENTER();
-    buffer_profile_key_to_str(key->key.object_id, key_str);
-    SX_LOG_DBG("Buffer profile:%s\n", key_str);
     cl_plock_excl_acquire(&g_sai_db_ptr->p_lock);
     if (SAI_STATUS_SUCCESS !=
         (sai_status =
@@ -2757,7 +2725,6 @@ static sai_status_t mlnx_sai_get_buffer_profile_size_attr(_In_ const sai_object_
                                                           _Inout_ vendor_cache_t        * cache,
                                                           void                          * arg)
 {
-    char         key_str[MAX_KEY_STR_LEN];
     sai_status_t sai_status;
     uint32_t     db_buffer_profile_ind;
 
@@ -2769,8 +2736,6 @@ static sai_status_t mlnx_sai_get_buffer_profile_size_attr(_In_ const sai_object_
         SX_LOG_EXIT();
         return sai_status;
     }
-    buffer_profile_key_to_str(key->key.object_id, key_str);
-    SX_LOG_DBG("Buffer profile:%s\n", key_str);
     value->u32 = g_sai_buffer_db_ptr->buffer_profiles[db_buffer_profile_ind].reserved_size;
     cl_plock_release(&g_sai_db_ptr->p_lock);
     SX_LOG_EXIT();
@@ -4207,7 +4172,7 @@ sai_status_t mlnx_buffer_port_profile_list_get(_In_ const sai_object_id_t      p
     sai_status_t     sai_status;
     uint32_t         db_port_ind;
     uint32_t         ind;
-    sai_object_id_t* buffer_profiles;
+    sai_object_id_t* buffer_profiles = NULL;
     uint32_t         buff_count;
     uint32_t       * port_buff_profile_refs = NULL;
     uint32_t         ref_arr_count          = 0;
@@ -4221,63 +4186,53 @@ sai_status_t mlnx_buffer_port_profile_list_get(_In_ const sai_object_id_t      p
         return sai_status;
     }
 
-    buff_count      = max_value(buffer_limits.num_egress_pools, buffer_limits.num_ingress_pools);
-    buffer_profiles = calloc(buff_count, sizeof(sai_object_id_t));
-    if (NULL == buffer_profiles) {
-        SX_LOG_EXIT();
-        return SAI_STATUS_NO_MEMORY;
-    }
     cl_plock_excl_acquire(&g_sai_db_ptr->p_lock);
-    sai_status = mlnx_port_idx_by_log_id(log_port, &db_port_ind);
-    if (sai_status != SAI_STATUS_SUCCESS) {
-        free(buffer_profiles);
-        cl_plock_release(&g_sai_db_ptr->p_lock);
-        SX_LOG_EXIT();
-        return sai_status;
+
+    if (mlnx_log_port_is_cpu(log_port)) {
+        value->objlist.count = 0;
+    }
+    else {
+        buff_count = max_value(buffer_limits.num_egress_pools, buffer_limits.num_ingress_pools);
+        buffer_profiles = calloc(buff_count, sizeof(sai_object_id_t));
+        if (NULL == buffer_profiles) {
+            sai_status = SAI_STATUS_NO_MEMORY;
+            goto out;
+        }
+        sai_status = mlnx_port_idx_by_log_id(log_port, &db_port_ind);
+        if (sai_status != SAI_STATUS_SUCCESS) {
+            goto out;
+        }
+
+        if (SAI_STATUS_SUCCESS !=
+            (sai_status =
+            mlnx_sai_get_port_buffer_index_array(db_port_ind, 
+                                                 (is_ingress) ? PORT_BUFF_TYPE_INGRESS : PORT_BUFF_TYPE_EGRESS, 
+                                                 &port_buff_profile_refs))) {
+            goto out;
+        }
+        ref_arr_count = (is_ingress) ? buffer_limits.num_ingress_pools : buffer_limits.num_egress_pools;
+        
+        for (ind = 0; ind < ref_arr_count; ind++) {
+            if (SENTINEL_BUFFER_DB_ENTRY_INDEX == port_buff_profile_refs[ind]) {
+                continue;
+            }
+            else {
+                if (SAI_STATUS_SUCCESS != (sai_status =
+                    mlnx_create_object(SAI_OBJECT_TYPE_BUFFER_PROFILE, port_buff_profile_refs[ind], NULL, &buffer_profiles[list_cnt]))) {
+                    goto out;
+                }
+                list_cnt++;
+            }
+        }
+        sai_status = mlnx_fill_objlist(buffer_profiles, list_cnt, &value->objlist);
     }
 
-    if (is_ingress) {
-        if (SAI_STATUS_SUCCESS !=
-            (sai_status =
-                 mlnx_sai_get_port_buffer_index_array(db_port_ind, PORT_BUFF_TYPE_INGRESS, &port_buff_profile_refs))) {
-            cl_plock_release(&g_sai_db_ptr->p_lock);
-            free(buffer_profiles);
-            SX_LOG_EXIT();
-            return sai_status;
-        }
-        ref_arr_count = buffer_limits.num_ingress_pools;
-    } else {
-        if (SAI_STATUS_SUCCESS !=
-            (sai_status =
-                 mlnx_sai_get_port_buffer_index_array(db_port_ind, PORT_BUFF_TYPE_EGRESS, &port_buff_profile_refs))) {
-            cl_plock_release(&g_sai_db_ptr->p_lock);
-            free(buffer_profiles);
-            SX_LOG_EXIT();
-            return sai_status;
-        }
-        ref_arr_count = buffer_limits.num_egress_pools;
-    }
-    for (ind = 0; ind < ref_arr_count; ind++) {
-        if (SENTINEL_BUFFER_DB_ENTRY_INDEX == port_buff_profile_refs[ind]) {
-            continue;
-        } else {
-            SX_LOG_DBG("g_sai_db_ptr->ports_db[%d] %s port_buffers[%d]:%d\n", db_port_ind,
-                       (is_ingress ? "ingress" : "egress"), ind, port_buff_profile_refs[ind]);
-            if (SAI_STATUS_SUCCESS != (sai_status =
-                                           mlnx_create_sai_buffer_profile_id(port_buff_profile_refs[ind],
-                                                                             &buffer_profiles[list_cnt]))) {
-                free(buffer_profiles);
-                cl_plock_release(&g_sai_db_ptr->p_lock);
-                SX_LOG_EXIT();
-                return sai_status;
-            }
-            list_cnt++;
-        }
-    }
-    cl_plock_release(&g_sai_db_ptr->p_lock);
-    sai_status = mlnx_fill_objlist(buffer_profiles, list_cnt, &value->objlist);
+out:
     SX_LOG_EXIT();
-    free(buffer_profiles);
+    cl_plock_release(&g_sai_db_ptr->p_lock);
+    if (buffer_profiles) {
+        free(buffer_profiles);
+    }
     return sai_status;
 }
 

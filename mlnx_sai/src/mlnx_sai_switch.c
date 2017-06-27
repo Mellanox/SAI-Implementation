@@ -64,6 +64,7 @@ uint32_t                         g_sai_acl_db_size         = 0;
 uint32_t                         g_sai_acl_db_pbs_map_size = 0;
 static cl_thread_t               event_thread;
 static bool                      event_thread_asked_to_stop = false;
+static uint32_t                  g_route_table_size, g_neighbor_table_size;
 
 void log_cb(sx_log_severity_t severity, const char *module_name, char *msg);
 #ifdef CONFIG_SYSLOG
@@ -138,6 +139,16 @@ static sai_status_t mlnx_switch_max_vr_get(_In_ const sai_object_key_t   *key,
                                            _In_ uint32_t                  attr_index,
                                            _Inout_ vendor_cache_t        *cache,
                                            void                          *arg);
+static sai_status_t mlnx_switch_neighbor_size_get(_In_ const sai_object_key_t   *key,
+                                                  _Inout_ sai_attribute_value_t *value,
+                                                  _In_ uint32_t                  attr_index,
+                                                  _Inout_ vendor_cache_t        *cache,
+                                                  void                          *arg);
+static sai_status_t mlnx_switch_route_size_get(_In_ const sai_object_key_t   *key,
+                                               _Inout_ sai_attribute_value_t *value,
+                                               _In_ uint32_t                  attr_index,
+                                               _Inout_ vendor_cache_t        *cache,
+                                               void                          *arg);
 static sai_status_t mlnx_switch_on_link_get(_In_ const sai_object_key_t   *key,
                                             _Inout_ sai_attribute_value_t *value,
                                             _In_ uint32_t                  attr_index,
@@ -407,6 +418,10 @@ static const sai_attribute_entry_t        switch_attribs[] = {
       "Switch max virtual routers", SAI_ATTR_VAL_TYPE_U32 },
     { SAI_SWITCH_ATTR_FDB_TABLE_SIZE, false, false, false, true,
       "Switch FDB table size", SAI_ATTR_VAL_TYPE_U32 },
+    { SAI_SWITCH_ATTR_L3_NEIGHBOR_TABLE_SIZE, false, false, false, true,
+      "Switch neighbor table size", SAI_ATTR_VAL_TYPE_U32 },
+    { SAI_SWITCH_ATTR_L3_ROUTE_TABLE_SIZE, false, false, false, true,
+      "Switch route table size", SAI_ATTR_VAL_TYPE_U32 },
     { SAI_SWITCH_ATTR_ON_LINK_ROUTE_SUPPORTED, false, false, false, true,
       "Switch on link route supported", SAI_ATTR_VAL_TYPE_BOOL },
     { SAI_SWITCH_ATTR_OPER_STATUS, false, false, false, true,
@@ -598,6 +613,16 @@ static const sai_vendor_attribute_entry_t switch_vendor_attribs[] = {
       { false, false, false, false },
       { false, false, false, true },
       NULL, NULL,
+      NULL, NULL },
+    { SAI_SWITCH_ATTR_L3_NEIGHBOR_TABLE_SIZE,
+      { false, false, false, true },
+      { false, false, false, true },
+      mlnx_switch_neighbor_size_get, NULL,
+      NULL, NULL },
+    { SAI_SWITCH_ATTR_L3_ROUTE_TABLE_SIZE,
+      { false, false, false, true },
+      { false, false, false, true },
+      mlnx_switch_route_size_get, NULL,
       NULL, NULL },
     { SAI_SWITCH_ATTR_ON_LINK_ROUTE_SUPPORTED,
       { false, false, false, true },
@@ -3166,15 +3191,24 @@ static sai_status_t mlnx_initialize_switch(sai_object_id_t switch_id, bool *tran
     memset(&resources_param, 0, sizeof(resources_param));
     memset(&general_param, 0, sizeof(general_param));
 
-    route_table_size    = g_mlnx_services.profile_get_value(g_profile_id, SAI_KEY_L3_ROUTE_TABLE_SIZE);
-    neighbor_table_size = g_mlnx_services.profile_get_value(g_profile_id, SAI_KEY_L3_NEIGHBOR_TABLE_SIZE);
+    g_route_table_size    = single_part_eth_device_profile_spectrum.kvd_hash_single_size;
+    g_neighbor_table_size = single_part_eth_device_profile_spectrum.kvd_hash_single_size;
+    route_table_size      = g_mlnx_services.profile_get_value(g_profile_id, SAI_KEY_L3_ROUTE_TABLE_SIZE);
+    neighbor_table_size   = g_mlnx_services.profile_get_value(g_profile_id, SAI_KEY_L3_NEIGHBOR_TABLE_SIZE);
     if (NULL != route_table_size) {
         routes_num = (uint32_t)atoi(route_table_size);
         SX_LOG_NTC("Setting initial route table size %u\n", routes_num);
+        // 0 is full kvd
+        if (routes_num) {
+            g_route_table_size = routes_num;
+        }
     }
     if (NULL != neighbor_table_size) {
         neighbors_num = (uint32_t)atoi(neighbor_table_size);
         SX_LOG_NTC("Setting initial neighbor table size %u\n", neighbors_num);
+        if (neighbors_num) {
+            g_neighbor_table_size = neighbors_num;
+        }
     }
 
     resources_param.max_virtual_routers_num    = g_resource_limits.router_vrid_max;
@@ -4087,6 +4121,36 @@ static sai_status_t mlnx_switch_max_vr_get(_In_ const sai_object_key_t   *key,
     SX_LOG_ENTER();
 
     value->u32 = g_resource_limits.router_vrid_max;
+
+    SX_LOG_EXIT();
+    return SAI_STATUS_SUCCESS;
+}
+
+/* The L3 Host Table size [uint32_t] */
+static sai_status_t mlnx_switch_neighbor_size_get(_In_ const sai_object_key_t   *key,
+                                                  _Inout_ sai_attribute_value_t *value,
+                                                  _In_ uint32_t                  attr_index,
+                                                  _Inout_ vendor_cache_t        *cache,
+                                                  void                          *arg)
+{
+    SX_LOG_ENTER();
+
+    value->u32 = g_neighbor_table_size;
+
+    SX_LOG_EXIT();
+    return SAI_STATUS_SUCCESS;
+}
+
+/* The L3 Route Table size [uint32_t] */
+static sai_status_t mlnx_switch_route_size_get(_In_ const sai_object_key_t   *key,
+                                               _Inout_ sai_attribute_value_t *value,
+                                               _In_ uint32_t                  attr_index,
+                                               _Inout_ vendor_cache_t        *cache,
+                                               void                          *arg)
+{
+    SX_LOG_ENTER();
+
+    value->u32 = g_route_table_size;
 
     SX_LOG_EXIT();
     return SAI_STATUS_SUCCESS;

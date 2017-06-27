@@ -97,6 +97,7 @@ static void samplepacket_key_to_str(_In_ const sai_object_id_t sai_samplepacket_
 
 static sai_status_t mlnx_samplepacket_sample_rate_validate(_In_ const uint32_t internal_samplepacket_obj_idx)
 {
+    mlnx_port_config_t    *port_config;
     uint32_t               index             = 0;
     uint32_t               value_sample_rate = 0;
     sx_port_sflow_params_t sdk_sflow_params;
@@ -108,14 +109,13 @@ static sai_status_t mlnx_samplepacket_sample_rate_validate(_In_ const uint32_t i
 
     value_sample_rate = g_sai_db_ptr->mlnx_samplepacket_session[internal_samplepacket_obj_idx].sai_sample_rate;
 
-    for (index = 0; index < MAX_PORTS; index++) {
-        if (internal_samplepacket_obj_idx == g_sai_db_ptr->ports_db[index].internal_ingress_samplepacket_obj_idx) {
+    mlnx_port_foreach(port_config, index) {
+        if (internal_samplepacket_obj_idx == port_config->internal_ingress_samplepacket_obj_idx) {
             if (SAI_STATUS_SUCCESS !=
                 (status =
-                     (sdk_to_sai(sx_api_port_sflow_get(gh_sdk, g_sai_db_ptr->ports_db[index].logical,
-                                                       &sdk_sflow_params))))) {
+                     (sdk_to_sai(sx_api_port_sflow_get(gh_sdk, port_config->logical, &sdk_sflow_params))))) {
                 SX_LOG_ERR("Error getting sflow params for sdk port id %d with internal samplepacket obj id %d\n",
-                           g_sai_db_ptr->ports_db[index].logical,
+                           port_config->logical,
                            internal_samplepacket_obj_idx);
                 goto cleanup;
             }
@@ -165,9 +165,10 @@ static sai_status_t mlnx_samplepacket_sample_rate_validate(_In_ const uint32_t i
                            true);
             }
 
-            SX_LOG_DBG("Verified sflow params for sdk port id %d\n", g_sai_db_ptr->ports_db[index].logical);
+            SX_LOG_DBG("Verified sflow params for sdk port id %d\n", port_config->logical);
         }
     }
+
     status = SAI_STATUS_SUCCESS;
 
 cleanup:
@@ -308,6 +309,7 @@ static sai_status_t mlnx_samplepacket_sample_rate_set(_In_ const sai_object_key_
                                                       void                             *arg)
 {
     sai_status_t           status                        = SAI_STATUS_FAILURE;
+    mlnx_port_config_t    *port_config;
     uint32_t               internal_samplepacket_obj_idx = 0;
     uint32_t               index                         = 0;
     sx_port_sflow_params_t sdk_sflow_params;
@@ -336,8 +338,8 @@ static sai_status_t mlnx_samplepacket_sample_rate_set(_In_ const sai_object_key_
         goto cleanup;
     }
 
-    for (index = 0; index < MAX_PORTS; index++) {
-        if (internal_samplepacket_obj_idx == g_sai_db_ptr->ports_db[index].internal_ingress_samplepacket_obj_idx) {
+    mlnx_port_foreach(port_config, index) {
+        if (internal_samplepacket_obj_idx == port_config->internal_ingress_samplepacket_obj_idx) {
             sdk_sflow_params.ratio            = value->u32;
             sdk_sflow_params.deviation        = 0;
             sdk_sflow_params.packet_types.uc  = true;
@@ -349,16 +351,16 @@ static sai_status_t mlnx_samplepacket_sample_rate_set(_In_ const sai_object_key_
             if (SAI_STATUS_SUCCESS !=
                 (status =
                      (sdk_to_sai(sx_api_port_sflow_set(gh_sdk, SX_ACCESS_CMD_EDIT,
-                                                       g_sai_db_ptr->ports_db[index].logical,
+                                                       port_config->logical,
                                                        &sdk_sflow_params))))) {
                 SX_LOG_ERR("Error updating sflow params for sdk port id %d with internal samplepacket obj idx %d\n",
-                           g_sai_db_ptr->ports_db[index].logical,
+                           port_config->logical,
                            internal_samplepacket_obj_idx);
                 goto cleanup;
             }
 
             SX_LOG_NTC("Updated sflow params for sdk port id %d with internal samplepacket obj idx %d\n",
-                       g_sai_db_ptr->ports_db[index].logical,
+                       port_config->logical,
                        internal_samplepacket_obj_idx);
         }
     }
@@ -513,10 +515,11 @@ cleanup:
 
 static sai_status_t mlnx_remove_samplepacket_session(_In_ const sai_object_id_t sai_samplepacket_obj_id)
 {
-    sai_status_t status                        = SAI_STATUS_FAILURE;
-    uint32_t     internal_samplepacket_obj_idx = 0;
-    uint32_t     index                         = 0;
-    bool         port_associated               = false;
+    sai_status_t        status                        = SAI_STATUS_FAILURE;
+    mlnx_port_config_t *port_config;
+    uint32_t            internal_samplepacket_obj_idx = 0;
+    uint32_t            index                         = 0;
+    bool                port_associated               = false;
 
     SX_LOG_ENTER();
 
@@ -533,11 +536,11 @@ static sai_status_t mlnx_remove_samplepacket_session(_In_ const sai_object_id_t 
 
     sai_db_write_lock();
 
-    for (index = 0; index < MAX_PORTS; index++) {
-        if (internal_samplepacket_obj_idx == g_sai_db_ptr->ports_db[index].internal_ingress_samplepacket_obj_idx) {
+    mlnx_port_foreach(port_config, index) {
+        if (internal_samplepacket_obj_idx == port_config->internal_ingress_samplepacket_obj_idx) {
             SX_LOG_ERR(
                 "Please disassociate sdk port id %d with internal samplepacket obj id %d before removing samplepacket obj idx\n",
-                g_sai_db_ptr->ports_db[index].logical,
+                port_config->logical,
                 internal_samplepacket_obj_idx);
             port_associated = true;
         }

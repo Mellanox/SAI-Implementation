@@ -1516,10 +1516,31 @@ sai_status_t mlnx_sai_get_or_create_regular_sx_policer_for_bind(_In_ sai_object_
 /* SAI DB R/w is required */
 sai_status_t mlnx_sai_unbind_policer_from_port(_In_ sai_object_id_t           sai_port,
                                                _In_ mlnx_policer_bind_params* bind_params);
+sai_status_t mlnx_sai_bind_policer_to_port(_In_ sai_object_id_t           sai_port,
+                                           _In_ sai_object_id_t           sai_policer,
+                                           _In_ mlnx_policer_bind_params* bind_params);
 
 void log_sx_policer_attributes(_In_ sx_policer_id_t sx_policer, _In_ sx_policer_attributes_t* sx_attribs);
 
 sai_status_t mlnx_sai_buffer_log_set(_In_ sx_verbosity_level_t level);
+
+sai_status_t mlnx_port_samplepacket_params_check(_In_ const mlnx_port_config_t *lag_config,
+                                                 _In_ const mlnx_port_config_t *port_config);
+sai_status_t mlnx_port_samplepacket_params_clear(_In_ mlnx_port_config_t *port_config,
+                                                 _In_ bool                is_soft);
+sai_status_t mlnx_port_samplepacket_params_clone(_In_ mlnx_port_config_t       *to,
+                                                 _In_ const mlnx_port_config_t *from);
+sai_status_t mlnx_port_mirror_params_check(_In_ const mlnx_port_config_t *port1,
+                                           _In_ const mlnx_port_config_t *port2);
+sai_status_t mlnx_port_mirror_params_clear(_In_ mlnx_port_config_t *port_config);
+sai_status_t mlnx_port_mirror_sessions_clone(_In_ mlnx_port_config_t       *to,
+                                             _In_ const mlnx_port_config_t *from);
+sai_status_t mlnx_port_storm_control_params_check(_In_ const mlnx_port_config_t *port1,
+                                                      _In_ const mlnx_port_config_t *port2);
+sai_status_t mlnx_port_storm_control_policer_params_clear(_In_ mlnx_port_config_t *port_config,
+                                                          _In_ bool                is_soft);
+sai_status_t mlnx_port_storm_control_policer_params_clone(_In_ mlnx_port_config_t       *to,
+                                                          _In_ const mlnx_port_config_t *from);
 
 #define SAI_LAG_NUM_MAX 64
 
@@ -1796,7 +1817,11 @@ sai_status_t mlnx_queue_cfg_lookup(sx_port_log_id_t log_port_id, uint32_t queue_
 /* DB read lock is needed */
 sai_status_t mlnx_port_by_log_id(sx_port_log_id_t log_id, mlnx_port_config_t **port);
 /* DB read lock is needed */
+sai_status_t mlnx_lag_by_log_id(sx_port_log_id_t log_id, mlnx_port_config_t **lag);
+/* DB read lock is needed */
 sai_status_t mlnx_port_by_obj_id(sai_object_id_t obj_id, mlnx_port_config_t **port);
+/* DB read lock is needed */
+sai_status_t mlnx_port_fetch_lag_if_lag_member(_Inout_ mlnx_port_config_t **port_config);
 /* DB read lock is needed */
 sai_status_t mlnx_port_idx_by_log_id(sx_port_log_id_t log_port_id, uint32_t *index);
 /* DB read lock is needed */

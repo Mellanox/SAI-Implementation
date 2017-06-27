@@ -1345,29 +1345,31 @@ static sai_status_t mlnx_create_hostif_trap_group(_Out_ sai_object_id_t      *ho
         trap_group_attributes.prio = (prio->u32 > SX_TRAP_PRIORITY_HIGH) ? SX_TRAP_PRIORITY_HIGH : prio->u32;
     }
 
-    cl_plock_excl_acquire(&g_sai_db_ptr->p_lock);
+    sai_db_write_lock();
+
     for (group_id = 0; group_id < MAX_TRAP_GROUPS; group_id++) {
         if (!g_sai_db_ptr->trap_group_valid[group_id]) {
             g_sai_db_ptr->trap_group_valid[group_id] = true;
             break;
         }
     }
-    cl_plock_release(&g_sai_db_ptr->p_lock);
+
     if (MAX_TRAP_GROUPS == group_id) {
         SX_LOG_ERR("All trap groups are already used\n");
-        return SAI_STATUS_INSUFFICIENT_RESOURCES;
+        status = SAI_STATUS_INSUFFICIENT_RESOURCES;
+        goto out;
     }
 
     if (SAI_STATUS_SUCCESS != (status = sx_api_host_ifc_trap_group_set(gh_sdk, DEFAULT_ETH_SWID,
                                                                        group_id, &trap_group_attributes))) {
         SX_LOG_ERR("Failed to sx_api_host_ifc_trap_group_set %s\n", SX_STATUS_MSG(status));
-        return sdk_to_sai(status);
+        status = sdk_to_sai(status);
+        goto out;
     }
 
     if (SAI_STATUS_SUCCESS !=
         (status = mlnx_create_object(SAI_OBJECT_TYPE_HOSTIF_TRAP_GROUP, group_id, NULL, hostif_trap_group_id))) {
-        SX_LOG_EXIT();
-        return status;
+         goto out;
     }
 
     trap_group_key_to_str(*hostif_trap_group_id, key_str);
@@ -1381,8 +1383,7 @@ static sai_status_t mlnx_create_hostif_trap_group(_Out_ sai_object_id_t      *ho
                 SX_LOG_ERR("Failed to bind. trap_group id:0x%" PRIx64 ". sai policer object_id:0x%" PRIx64 "\n",
                            *hostif_trap_group_id,
                            policer_id_attr->oid);
-                SX_LOG_EXIT();
-                return status;
+                goto out;
             }
         }
     }
@@ -1390,8 +1391,10 @@ static sai_status_t mlnx_create_hostif_trap_group(_Out_ sai_object_id_t      *ho
 
     SX_LOG_NTC("Created trap group %s\n", key_str);
 
+out:
+    sai_db_unlock();
     SX_LOG_EXIT();
-    return SAI_STATUS_SUCCESS;
+    return status;
 }
 
 /*
