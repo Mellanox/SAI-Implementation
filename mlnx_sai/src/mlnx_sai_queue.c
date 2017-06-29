@@ -345,7 +345,7 @@ static sai_status_t mlnx_get_queue_statistics(_In_ sai_object_id_t              
     SX_LOG_ENTER();
 
     queue_key_to_str(queue_id, key_str);
-    SX_LOG_NTC("Get queue stats %s\n", key_str);
+    SX_LOG_DBG("Get queue stats %s\n", key_str);
 
     if (NULL == counter_ids) {
         SX_LOG_ERR("NULL counter ids array param\n");
