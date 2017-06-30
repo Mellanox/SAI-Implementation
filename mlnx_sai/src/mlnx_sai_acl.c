@@ -3262,9 +3262,15 @@ static sai_status_t mlnx_acl_entry_ports_get(_In_ const sai_object_key_t   *key,
     }
 
     if (value->aclfield.data.objlist.count < port_count) {
+        if (0 == value->aclfield.data.objlist.count) {
+            status = MLNX_SAI_STATUS_BUFFER_OVERFLOW_EMPTY_LIST;
+        }
+        else {
+            status = SAI_STATUS_BUFFER_OVERFLOW;
+        }
+        SX_LOG((0 == value->aclfield.data.objlist.count) ? SX_LOG_NOTICE : SX_LOG_ERROR,
+            " Re-allocate list size as list size is not large enough \n");
         value->aclfield.data.objlist.count = port_count;
-        status                             = SAI_STATUS_BUFFER_OVERFLOW;
-        SX_LOG_ERR(" Re-allocate list size as list size is not large enough \n");
         goto out;
     } else if (value->aclfield.data.objlist.count > port_count) {
         value->aclfield.data.objlist.count = port_count;
@@ -3694,9 +3700,15 @@ static sai_status_t mlnx_acl_entry_range_list_get(_In_ const sai_object_key_t   
     }
 
     if (value->aclfield.data.objlist.count < range_count) {
+        if (0 == value->aclfield.data.objlist.count) {
+            status = MLNX_SAI_STATUS_BUFFER_OVERFLOW_EMPTY_LIST;
+        }
+        else {
+            status = SAI_STATUS_BUFFER_OVERFLOW;
+        }
+        SX_LOG((0 == value->aclfield.data.objlist.count) ? SX_LOG_NOTICE : SX_LOG_ERROR,
+            " Re-allocate list size as list size is not large enough \n");
         value->aclfield.data.objlist.count = range_count;
-        status                             = SAI_STATUS_BUFFER_OVERFLOW;
-        SX_LOG_ERR(" Re-allocate list size as list size is not large enough \n");
         goto out;
     }
 
@@ -13018,9 +13030,15 @@ sai_status_t mlnx_acl_bind_point_get(_In_ const sai_object_key_t   *key,
             assert(bind_point_data->bound_acl_count <= ACL_MAX_BOUND_OBJECTS);
 
             if (value->objlist.count < bind_point_data->bound_acl_count) {
+                if (0 == value->objlist.count) {
+                    status = MLNX_SAI_STATUS_BUFFER_OVERFLOW_EMPTY_LIST;
+                }
+                else {
+                    status = SAI_STATUS_BUFFER_OVERFLOW;
+                }
+                SX_LOG((0 == value->objlist.count) ? SX_LOG_NOTICE : SX_LOG_ERROR,
+                    " Re-allocate list size as list size is not large enough \n");
                 value->objlist.count = bind_point_data->bound_acl_count;
-                status               = SAI_STATUS_BUFFER_OVERFLOW;
-                SX_LOG_ERR(" Re-allocate list size as list size is not large enough \n");
                 goto out;
             }
 

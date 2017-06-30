@@ -524,7 +524,12 @@ static sai_status_t get_dispatch_attribs_handler(_In_ uint32_t                  
             (status =
                  functionality_vendor_attr[index].getter(key, &(attr_list[ii].value), ii, &cache,
                                                          functionality_vendor_attr[index].getter_arg))) {
-            SX_LOG_ERR("Failed getting attrib %s\n", functionality_attr[index].attrib_name);
+            if (MLNX_SAI_STATUS_BUFFER_OVERFLOW_EMPTY_LIST == status) {
+                SX_LOG_NTC("Queried list length %s\n", functionality_attr[index].attrib_name);
+            }
+            else {
+                SX_LOG_ERR("Failed getting attrib %s\n", functionality_attr[index].attrib_name);
+            }
             return status;
         }
         if (functionality_attr[index].type == SAI_ATTR_VAL_TYPE_QOSMAP) {
@@ -626,7 +631,12 @@ sai_status_t sai_get_attributes(_In_ const sai_object_key_t             *key,
         (status =
              get_dispatch_attribs_handler(attr_count, attr_list, functionality_attr, functionality_vendor_attr, key,
                                           key_str))) {
-        SX_LOG_ERR("Failed attribs dispatch\n");
+        if (MLNX_SAI_STATUS_BUFFER_OVERFLOW_EMPTY_LIST == status) {
+            status = SAI_STATUS_BUFFER_OVERFLOW;
+        }
+        else {
+            SX_LOG_ERR("Failed attribs dispatch\n");
+        }
         return status;
     }
 
@@ -1684,6 +1694,7 @@ static sai_status_t mlnx_fill_genericlist(size_t element_size, void *data, uint3
     /* all list objects have same field count in the beginning of the object, and then different data,
      * so can be casted to one type */
     sai_object_list_t *objlist = list;
+    sai_status_t       status;
 
     if (NULL == data) {
         SX_LOG_ERR("NULL data value\n");
@@ -1701,10 +1712,16 @@ static sai_status_t mlnx_fill_genericlist(size_t element_size, void *data, uint3
     }
 
     if (count > objlist->count) {
-        SX_LOG_ERR("Insufficient list buffer size. Allocated %u needed %u\n",
-                   objlist->count, count);
+        if (0 == objlist->count) {
+            status = MLNX_SAI_STATUS_BUFFER_OVERFLOW_EMPTY_LIST;
+        }
+        else {
+            status = SAI_STATUS_BUFFER_OVERFLOW;
+        }
+        SX_LOG((0 == objlist->count) ? SX_LOG_NOTICE : SX_LOG_ERROR,
+            "Insufficient list buffer size. Allocated %u needed %u\n", objlist->count, count);
         objlist->count = count;
-        return SAI_STATUS_BUFFER_OVERFLOW;
+        return status;
     }
 
     objlist->count = count;

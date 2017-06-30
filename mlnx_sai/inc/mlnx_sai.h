@@ -106,6 +106,8 @@ inline static char * mlnx_severity_to_syslog(sx_log_severity_t severity)
 #define MLNX_SAI_LOG_ERR(fmt, ...) MLNX_SAI_LOG(SX_LOG_ERROR, fmt, ## __VA_ARGS__)
 #define MLNX_SAI_LOG_NTC(fmt, ...) MLNX_SAI_LOG(SX_LOG_NOTICE, fmt, ## __VA_ARGS__)
 
+#define MLNX_SAI_STATUS_BUFFER_OVERFLOW_EMPTY_LIST SAI_STATUS_CODE(0x01000000L)
+
 #define SAI_ERR(status) ((status) != SAI_STATUS_SUCCESS)
 #define SX_ERR(status)  ((status) != SX_STATUS_SUCCESS)
 

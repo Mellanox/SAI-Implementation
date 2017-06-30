@@ -508,8 +508,15 @@ static sai_status_t mlnx_stp_vlanlist_get(_In_ const sai_object_key_t   *key,
 
     /* Check if user has got enough memory to store the vlanlist */
     if (value->vlanlist.count < stp_db_entry->vlan_count) {
-        SX_LOG_ERR("Not enough memory to store %u VLANs\n", stp_db_entry->vlan_count);
-        status = SAI_STATUS_BUFFER_OVERFLOW;
+        if (0 == value->vlanlist.count) {
+            status = MLNX_SAI_STATUS_BUFFER_OVERFLOW_EMPTY_LIST;
+        }
+        else {
+            status = SAI_STATUS_BUFFER_OVERFLOW;
+        }
+        SX_LOG((0 == value->vlanlist.count) ? SX_LOG_NOTICE : SX_LOG_ERROR,
+            "Not enough memory to store %u VLANs\n", stp_db_entry->vlan_count);
+        value->vlanlist.count = stp_db_entry->vlan_count;
         goto out;
     }
 
