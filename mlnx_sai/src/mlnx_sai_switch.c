@@ -2097,6 +2097,14 @@ static sai_status_t mlnx_dvs_mng_stage(sai_object_id_t switch_id)
         goto out;
     }
 
+    snprintf(cmd, sizeof(cmd), "ip link set dev swid0_eth up");
+    system_err = system(cmd);
+    if (0 != system_err) {
+        SX_LOG_ERR("Failed running \"%s\".\n", cmd);
+        status = SAI_STATUS_FAILURE;
+        goto out;
+    }
+
     port_attributes_p = (sx_port_attributes_t*)malloc(sizeof(*port_attributes_p) * (1 + MAX_PORTS));
 
     if (NULL == port_attributes_p) {
