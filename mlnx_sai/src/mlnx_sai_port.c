@@ -1382,7 +1382,8 @@ static sai_status_t mlnx_port_hw_lanes_get(_In_ const sai_object_key_t   *key,
     sx_port_log_id_t  port_id;
     uint32_t          lanes[4];
     sai_status_t      status;
-    uint32_t          ii;
+    uint32_t          ii = 0;
+    uint32_t          jj;
 
     SX_LOG_ENTER();
 
@@ -1398,11 +1399,12 @@ static sai_status_t mlnx_port_hw_lanes_get(_In_ const sai_object_key_t   *key,
 
     memset(lanes, 0, sizeof(lanes));
 
-    for (ii = 0; ii < port_map.width; ii++) {
-        if (port_map.lane_bmap & (1 << ii)) {
-            lanes[ii] = port_map.module_port * MAX_LANES + ii;
+    for (jj = 0; jj < MAX_LANES; jj++) {
+        if (port_map.lane_bmap & (1 << jj)) {
+            lanes[ii++] = port_map.module_port * MAX_LANES + jj;
         }
     }
+    assert(ii == port_map.width);
 
     status = mlnx_fill_u32list(lanes, port_map.width, &value->u32list);
 
