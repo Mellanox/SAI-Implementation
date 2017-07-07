@@ -395,7 +395,7 @@ static sai_status_t mlnx_sched_group_child_list_get(_In_ const sai_object_key_t 
     sx_port_log_id_t      port_id;
     mlnx_sched_iter_ctx_t ctx;
     sai_status_t          status;
-    uint32_t              count;
+    uint32_t              count = 0;
     uint8_t               idx;
     uint8_t               lvl;
 
