@@ -1965,7 +1965,7 @@ static const sai_attribute_entry_t        acl_counter_attribs[] = {
     { SAI_ACL_COUNTER_ATTR_PACKETS, false, true, true, true,
       "Packet Counter Value", SAI_ATTR_VAL_TYPE_U64 },
     { SAI_ACL_COUNTER_ATTR_BYTES, false, true, true, true,
-      "Packet Counter Value", SAI_ATTR_VAL_TYPE_U64 },
+      "Bytes Counter Value", SAI_ATTR_VAL_TYPE_U64 },
     { END_FUNCTIONALITY_ATTRIBS_ID,  false, false, false, false,
       "", SAI_ATTR_VAL_TYPE_UNDETERMINED }
 };
