@@ -72,27 +72,6 @@ static sai_status_t sched_group_add_or_del_child_list(sai_object_id_t       sche
                                                       mlnx_list_cmd_t       cmd);
 static sai_status_t sai_obj_to_sched_obj(mlnx_port_config_t *port, mlnx_sched_obj_t   *sch_obj,
                                          sai_object_id_t sai_obj);
-static const sai_attribute_entry_t        sched_group_attribs[] = {
-    /* READ-ONLY */
-    { SAI_SCHEDULER_GROUP_ATTR_CHILD_COUNT, false, false, false, true,
-      "QoS scheduler group child count", SAI_ATTR_VAL_TYPE_S32 },
-    { SAI_SCHEDULER_GROUP_ATTR_CHILD_LIST, false, false, false, true,
-      "QoS scheduler group child list", SAI_ATTR_VAL_TYPE_OBJLIST },
-    /* CREATE-ONLY */
-    { SAI_SCHEDULER_GROUP_ATTR_PORT_ID, true, true, false, true,
-      "QoS scheduler group port id", SAI_ATTR_VAL_TYPE_OID },
-    { SAI_SCHEDULER_GROUP_ATTR_LEVEL, true, true, false, true,
-      "QoS scheduler group level", SAI_ATTR_VAL_TYPE_U8 },
-    { SAI_SCHEDULER_GROUP_ATTR_MAX_CHILDS, true, true, false, true,
-      "QoS scheduler group max child", SAI_ATTR_VAL_TYPE_U8 },
-    /* READ, WRITE, CREATE */
-    { SAI_SCHEDULER_GROUP_ATTR_SCHEDULER_PROFILE_ID, false, true, true, true,
-      "QoS scheduler group profile id", SAI_ATTR_VAL_TYPE_OID },
-    { SAI_SCHEDULER_GROUP_ATTR_PARENT_NODE, false, true, true, true,
-      "QoS scheduler group parent node", SAI_ATTR_VAL_TYPE_OID },
-    { END_FUNCTIONALITY_ATTRIBS_ID, false, false, false, false,
-      "", SAI_ATTR_VAL_TYPE_UNDETERMINED }
-};
 static const sai_vendor_attribute_entry_t sched_group_vendor_attribs[] = {
     /* READ-ONLY */
     { SAI_SCHEDULER_GROUP_ATTR_CHILD_COUNT,
@@ -132,6 +111,11 @@ static const sai_vendor_attribute_entry_t sched_group_vendor_attribs[] = {
       { true, false, true, true },
       mlnx_sched_group_parent_get, NULL,
       mlnx_sched_group_parent_set, NULL},
+    { END_FUNCTIONALITY_ATTRIBS_ID,
+      { false, false, false, false },
+      { false, false, false, false },
+      NULL, NULL,
+      NULL, NULL }
 };
 static mlnx_sched_obj_t * group_get(mlnx_port_config_t *port, uint8_t level, uint8_t index)
 {
@@ -291,7 +275,7 @@ static void mlnx_sched_group_key_to_str(_In_ sai_object_id_t group_id, _Out_ cha
         return;
     }
 
-    snprintf(key_str, MAX_KEY_STR_LEN, "scheduler group id %u:%u", level, index);
+    snprintf(key_str, MAX_KEY_STR_LEN, "scheduler group id %x:%u:%u", port_id, level, index);
 }
 
 static mlnx_iter_ret_t groups_child_counter(mlnx_port_config_t *port, mlnx_sched_obj_t *obj, void *arg)
@@ -395,7 +379,7 @@ static sai_status_t mlnx_sched_group_child_list_get(_In_ const sai_object_key_t 
     sx_port_log_id_t      port_id;
     mlnx_sched_iter_ctx_t ctx;
     sai_status_t          status;
-    uint32_t              count;
+    uint32_t              count = 0;
     uint8_t               idx;
     uint8_t               lvl;
 
@@ -797,7 +781,7 @@ static sai_status_t mlnx_create_scheduler_group(_Out_ sai_object_id_t      *sche
 
     SX_LOG_ENTER();
 
-    status = check_attribs_metadata(attr_count, attr_list, sched_group_attribs,
+    status = check_attribs_metadata(attr_count, attr_list, SAI_OBJECT_TYPE_SCHEDULER_GROUP,
                                     sched_group_vendor_attribs,
                                     SAI_COMMON_API_CREATE);
 
@@ -806,7 +790,7 @@ static sai_status_t mlnx_create_scheduler_group(_Out_ sai_object_id_t      *sche
         return status;
     }
 
-    sai_attr_list_to_str(attr_count, attr_list, sched_group_attribs, MAX_LIST_VALUE_STR_LEN, list_str);
+    sai_attr_list_to_str(attr_count, attr_list, SAI_OBJECT_TYPE_SCHEDULER_GROUP, MAX_LIST_VALUE_STR_LEN, list_str);
     SX_LOG_NTC("Create scheduler group, %s\n", list_str);
 
     /* Handle SAI_SCHEDULER_GROUP_ATTR_PORT_ID */
@@ -1033,7 +1017,7 @@ static sai_status_t mlnx_set_scheduler_group_attribute(_In_ sai_object_id_t     
     SX_LOG_ENTER();
 
     mlnx_sched_group_key_to_str(scheduler_group_id, key_str);
-    status = sai_set_attribute(&key, key_str, sched_group_attribs,
+    status = sai_set_attribute(&key, key_str, SAI_OBJECT_TYPE_SCHEDULER_GROUP,
                                sched_group_vendor_attribs, attr);
     SX_LOG_EXIT();
     return status;
@@ -1061,7 +1045,7 @@ static sai_status_t mlnx_get_scheduler_group_attribute(_In_ sai_object_id_t     
     SX_LOG_ENTER();
 
     mlnx_sched_group_key_to_str(scheduler_group_id, key_str);
-    status = sai_get_attributes(&key, key_str, sched_group_attribs,
+    status = sai_get_attributes(&key, key_str, SAI_OBJECT_TYPE_SCHEDULER_GROUP,
                                 sched_group_vendor_attribs, attr_count, attr_list);
     SX_LOG_EXIT();
     return status;

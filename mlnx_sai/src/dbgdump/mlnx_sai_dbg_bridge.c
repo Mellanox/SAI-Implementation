@@ -47,8 +47,7 @@ static void SAI_dump_bridge_rif_getdb(_Out_ mlnx_bridge_rif_t *mlnx_bridge_rif_d
     sai_db_unlock();
 }
 
-static void SAI_dump_bridge_port_type_enum_to_str(_In_ sai_bridge_port_type_t  type,
-                                                  _Out_ char                  *str)
+static void SAI_dump_bridge_port_type_enum_to_str(_In_ sai_bridge_port_type_t type, _Out_ char                  *str)
 {
     assert(str);
 
@@ -79,13 +78,11 @@ static void SAI_dump_bridge_port_type_enum_to_str(_In_ sai_bridge_port_type_t  t
     }
 }
 
-static void SAI_dump_bridge_port_print(_In_ FILE                     *file,
-                                       _In_ const mlnx_bridge_port_t *mlnx_bridge_port_db)
+static void SAI_dump_bridge_port_print(_In_ FILE *file, _In_ const mlnx_bridge_port_t *mlnx_bridge_port_db)
 {
-    mlnx_bridge_port_t cur_bridge_port;
-    char               bridge_port_type_str[LINE_LENGTH];
-    uint32_t           ii;
-
+    mlnx_bridge_port_t        cur_bridge_port;
+    char                      bridge_port_type_str[LINE_LENGTH];
+    uint32_t                  ii;
     dbg_utils_table_columns_t bridge_port_clmns[] = {
         {"db idx",       7, PARAM_UINT32_E, &ii},
         {"admin_state", 12, PARAM_UINT16_E, &cur_bridge_port.admin_state},
@@ -120,12 +117,10 @@ static void SAI_dump_bridge_port_print(_In_ FILE                     *file,
     }
 }
 
-static void SAI_dump_bridge_rif_sx_intf_attrs_print(_In_ FILE                      *file,
-                                                    _In_ sx_interface_attributes_t  intf_attribs)
+static void SAI_dump_bridge_rif_sx_intf_attrs_print(_In_ FILE *file, _In_ sx_interface_attributes_t intf_attribs)
 {
-    sx_router_qos_mode_t qos_mode;
-    char                 qos_mode_str[LINE_LENGTH];
-
+    sx_router_qos_mode_t      qos_mode;
+    char                      qos_mode_str[LINE_LENGTH];
     dbg_utils_table_columns_t sx_if_clmns[] = {
         {"intf_mac",         17, PARAM_MAC_ADDR_E, &intf_attribs.mac_addr},
         {"mtu",               6, PARAM_UINT16_E,   &intf_attribs.mtu},
@@ -139,7 +134,7 @@ static void SAI_dump_bridge_rif_sx_intf_attrs_print(_In_ FILE                   
 
     qos_mode = intf_attribs.qos_mode;
 
-    if (SX_ROUTER_QOS_MODE_CHECK_RANGE((int) qos_mode)) {
+    if (SX_ROUTER_QOS_MODE_CHECK_RANGE((int)qos_mode)) {
         strncpy(qos_mode_str, sx_router_qos_mode_type_str[qos_mode], LINE_LENGTH);
         qos_mode_str[LINE_LENGTH - 1] = 0;
     } else {
@@ -151,8 +146,7 @@ static void SAI_dump_bridge_rif_sx_intf_attrs_print(_In_ FILE                   
     dbg_utils_print_table_data_line(file, sx_if_clmns);
 }
 
-static void SAI_dump_bridge_rif_sx_rif_param_print(_In_ FILE                       *file,
-                                                  _In_ sx_router_interface_param_t  intf_params)
+static void SAI_dump_bridge_rif_sx_rif_param_print(_In_ FILE *file, _In_ sx_router_interface_param_t intf_params)
 {
     assert(file);
 
@@ -182,8 +176,7 @@ static void SAI_dump_bridge_rif_sx_rif_param_print(_In_ FILE                    
     }
 }
 
-static void SAI_dump_bridge_rif_sx_rif_state_print(_In_ FILE                        *file,
-                                                   _In_ sx_router_interface_state_t  intf_state)
+static void SAI_dump_bridge_rif_sx_rif_state_print(_In_ FILE *file, _In_ sx_router_interface_state_t intf_state)
 {
     assert(file);
 
@@ -201,8 +194,7 @@ static void SAI_dump_bridge_rif_sx_rif_state_print(_In_ FILE                    
     dbg_utils_print_table_data_line(file, sx_rif_state_clmns);
 }
 
-static void SAI_dump_bridge_rif_sx_data_print(_In_ FILE              *file,
-                                              _In_ mlnx_bridge_rif_t  mlnx_bridge_rif)
+static void SAI_dump_bridge_rif_sx_data_print(_In_ FILE *file, _In_ mlnx_bridge_rif_t mlnx_bridge_rif)
 {
     assert(file);
 
@@ -213,12 +205,10 @@ static void SAI_dump_bridge_rif_sx_data_print(_In_ FILE              *file,
     SAI_dump_bridge_rif_sx_rif_state_print(file, mlnx_bridge_rif.intf_state);
 }
 
-static void SAI_dump_bridge_rif_print(_In_ FILE                    *file,
-                                      _In_ const mlnx_bridge_rif_t *mlnx_bridge_rif_db)
+static void SAI_dump_bridge_rif_print(_In_ FILE *file, _In_ const mlnx_bridge_rif_t *mlnx_bridge_rif_db)
 {
-    mlnx_bridge_rif_t cur_bridge_rif;
-    uint32_t          ii;
-
+    mlnx_bridge_rif_t         cur_bridge_rif;
+    uint32_t                  ii;
     dbg_utils_table_columns_t bridge_rif_clmns[] = {
         {"db idx",      7,  PARAM_UINT32_E, &ii},
         {"index",       7,  PARAM_UINT32_E, &cur_bridge_rif.index},
@@ -250,7 +240,7 @@ static void SAI_dump_bridge_rif_print(_In_ FILE                    *file,
 void SAI_dump_bridge(_In_ FILE *file)
 {
     mlnx_bridge_port_t *mlnx_bridge_port_db = NULL;
-    mlnx_bridge_rif_t  *mlnx_bridge_rifs_db      = NULL;
+    mlnx_bridge_rif_t  *mlnx_bridge_rifs_db = NULL;
 
     mlnx_bridge_port_db = calloc(MAX_BRIDGE_PORTS, sizeof(mlnx_bridge_port_t));
     if (!mlnx_bridge_port_db) {

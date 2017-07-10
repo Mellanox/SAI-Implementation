@@ -1,7 +1,7 @@
 Mellanox SAI implementation release notes
 ==========================================
 
-Release 1.8.2
+Release 1.9.0
 ---------------
 
 Current implementation is partial. 
@@ -31,7 +31,6 @@ SAI_VIRTUAL_ROUTER_ATTR_VIOLATION_TTL1_ACTION, SAI_VIRTUAL_ROUTER_ATTR_VIOLATION
 * vlan counters API
 * notification callbacks - switch shutdown request
 * SAI_INGRESS_PRIORITY_GROUP_STAT_PACKETS, SAI_INGRESS_PRIORITY_GROUP_STAT_BYTES in buffer API
-* SAI_HASH_UDF_GROUP_LIST in hash API
 * saiobject.h query objects functions
 * bulk functions
 * Sample packet is supported only on ingress traffic to port, at profile mode (exclusive instance per port). Netflow mode (shared, aggregated traffic), Egress traffic on port (SAI_PORT_ATTR_EGRESS_SAMPLEPACKET_ENABLE) and ACL ingress/egress (SAI_ACL_ENTRY_ATTR_ACTION_INGRESS_SAMPLEPACKET_ENABLE, SAI_ACL_ENTRY_ATTR_ACTION_EGRESS_SAMPLEPACKET_ENABLE) are not supported.
@@ -44,6 +43,7 @@ ACL has the following limitations :
 * ACL table can only be a member of a single ACL group, and can't be a member in multiple groups
 * ACL VLAN bind point only works for ingress stage, SAI_VLAN_ATTR_EGRESS_ACL isn't supported
 * ACL should be applied on LAG and not on member ports of a LAG
+* ACL egress block list action can be applied only on egress stage, not on ingress stage
 
 IP over IP has the following limitations :
 * Set is not supported on any attribute in sai_tunnel_attr_t
@@ -51,8 +51,6 @@ IP over IP has the following limitations :
 * Only SAI_TUNNEL_TTL_PIPE_MODEL is supported for SAI_TUNNEL_ATTR_DECAP_TTL_MODE on create and set
 * Only IPv4 address is supported for SAI_TUNNEL_TERM_TABLE_ENTRY_ATTR_SRC_IP and SAI_TUNNEL_TERM_TABLE_ENTRY_ATTR_DST_IP on create
 * Only SAI_TUNNEL_IPINIP and SAI_TUNNEL_IPINIP_GRE are supported for SAI_TUNNEL_ATTR_TYPE and SAI_TUNNEL_TERM_TABLE_ENTRY_ATTR_TUNNEL_TYPE on create
-* SAI_TUNNEL_ENCAP_ECN_MODE_USER_DEFINED is not supported
-* SAI_TUNNEL_DECAP_ECN_MODE_USER_DEFINED is not supported
 * get_tunnel_attribute function will fail when trying to get the following values from a tunnel created without any encap attributes
   a.	SAI_TUNNEL_ATTR_ENCAP_DSCP_MODE
   b.	SAI_TUNNEL_ATTR_ENCAP_DSCP_VAL
@@ -67,3 +65,13 @@ In case WRED profile has WRED enabled for at least one color and ECN mark mode e
 Clear queue stats for specific counters always clears all available counters
 Host interface user defined traps support a single instance of each user defined trap.
 Host interface wildcard table entry overwrites the configured channel value for all traps at the time of the creation, there is no priority implemented. WA - first create wildcard entry and then specific entries.
+
+UDF has the following limitations :
+* UDF Match:
+  a. Only L2 matches which can be ARP/IPv4/IPv6 ethertype or empty are supported
+  b. Empty match is only supported for SAI_UDF_BASE_L2
+  c. Non-empty matches (ARP/IPv4/IPv6) are only supported for SAI_UDF_BASE_L3
+* UDF Base:
+  a. If L2 – Support only one UDF in the UDF group
+  b. If L3 – Support up to 3 UDFs in the UDF group. UDF matches should be unique within the UDF group
+* UDF Group - Empty UDF group cannot be used as hash or ACL attribute. In additiion, is is not allowed to remove the last UDF from the UDF group if it is in use

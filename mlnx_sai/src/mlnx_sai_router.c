@@ -24,20 +24,6 @@
 #define __MODULE__ SAI_ROUTER
 
 static sx_verbosity_level_t LOG_VAR_NAME(__MODULE__) = SX_VERBOSITY_LEVEL_WARNING;
-static const sai_attribute_entry_t router_attribs[] = {
-    { SAI_VIRTUAL_ROUTER_ATTR_ADMIN_V4_STATE, false, true, true, true,
-      "Router admin V4 state", SAI_ATTR_VAL_TYPE_BOOL },
-    { SAI_VIRTUAL_ROUTER_ATTR_ADMIN_V6_STATE, false, true, true, true,
-      "Router admin V6 state", SAI_ATTR_VAL_TYPE_BOOL },
-    { SAI_VIRTUAL_ROUTER_ATTR_SRC_MAC_ADDRESS, false, true, true, true,
-      "Router source MAC address", SAI_ATTR_VAL_TYPE_MAC },
-    { SAI_VIRTUAL_ROUTER_ATTR_VIOLATION_TTL1_PACKET_ACTION, false, true, true, true,
-      "Router action for TTL0/1", SAI_ATTR_VAL_TYPE_S32 },
-    { SAI_VIRTUAL_ROUTER_ATTR_VIOLATION_IP_OPTIONS_PACKET_ACTION, false, true, true, true,
-      "Router action for IP options", SAI_ATTR_VAL_TYPE_S32 },
-    { END_FUNCTIONALITY_ATTRIBS_ID, false, false, false, false,
-      "", SAI_ATTR_VAL_TYPE_UNDETERMINED }
-};
 static sai_status_t mlnx_router_admin_get(_In_ const sai_object_key_t   *key,
                                           _Inout_ sai_attribute_value_t *value,
                                           _In_ uint32_t                  attr_index,
@@ -65,6 +51,11 @@ static const sai_vendor_attribute_entry_t router_vendor_attribs[] = {
       NULL, NULL,
       NULL, NULL },
     { SAI_VIRTUAL_ROUTER_ATTR_VIOLATION_IP_OPTIONS_PACKET_ACTION,
+      { false, false, false, false },
+      { false, false, false, false },
+      NULL, NULL,
+      NULL, NULL },
+    { END_FUNCTIONALITY_ATTRIBS_ID,
       { false, false, false, false },
       { false, false, false, false },
       NULL, NULL,
@@ -101,7 +92,7 @@ static sai_status_t mlnx_set_virtual_router_attribute(_In_ sai_object_id_t vr_id
     SX_LOG_ENTER();
 
     router_key_to_str(vr_id, key_str);
-    return sai_set_attribute(&key, key_str, router_attribs, router_vendor_attribs, attr);
+    return sai_set_attribute(&key, key_str, SAI_OBJECT_TYPE_VIRTUAL_ROUTER, router_vendor_attribs, attr);
 }
 
 /*
@@ -127,7 +118,12 @@ static sai_status_t mlnx_get_virtual_router_attribute(_In_ sai_object_id_t     v
     SX_LOG_ENTER();
 
     router_key_to_str(vr_id, key_str);
-    return sai_get_attributes(&key, key_str, router_attribs, router_vendor_attribs, attr_count, attr_list);
+    return sai_get_attributes(&key,
+                              key_str,
+                              SAI_OBJECT_TYPE_VIRTUAL_ROUTER,
+                              router_vendor_attribs,
+                              attr_count,
+                              attr_list);
 }
 
 /* Admin V4, V6 State [bool] */
@@ -202,13 +198,13 @@ static sai_status_t mlnx_create_virtual_router(_Out_ sai_object_id_t      *vr_id
 
     if (SAI_STATUS_SUCCESS !=
         (status =
-             check_attribs_metadata(attr_count, attr_list, router_attribs, router_vendor_attribs,
+             check_attribs_metadata(attr_count, attr_list, SAI_OBJECT_TYPE_VIRTUAL_ROUTER, router_vendor_attribs,
                                     SAI_COMMON_API_CREATE))) {
         SX_LOG_ERR("Failed attribs check\n");
         return status;
     }
 
-    sai_attr_list_to_str(attr_count, attr_list, router_attribs, MAX_LIST_VALUE_STR_LEN, list_str);
+    sai_attr_list_to_str(attr_count, attr_list, SAI_OBJECT_TYPE_VIRTUAL_ROUTER, MAX_LIST_VALUE_STR_LEN, list_str);
     SX_LOG_NTC("Create router, %s\n", list_str);
 
     memset(&router_attr, 0, sizeof(router_attr));

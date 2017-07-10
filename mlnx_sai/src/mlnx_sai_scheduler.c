@@ -32,24 +32,6 @@ static sai_status_t mlnx_sched_attr_getter(_In_ const sai_object_key_t   *key,
 static sai_status_t mlnx_sched_attr_setter(_In_ const sai_object_key_t      *key,
                                            _In_ const sai_attribute_value_t *value,
                                            void                             *arg);
-static const sai_attribute_entry_t        sched_attribs[] = {
-    { SAI_SCHEDULER_ATTR_SCHEDULING_TYPE, false, true, true, true,
-      "QoS scheduler alg", SAI_ATTR_VAL_TYPE_S32 },
-    { SAI_SCHEDULER_ATTR_SCHEDULING_WEIGHT, false, true, true, true,
-      "QoS scheduler weight", SAI_ATTR_VAL_TYPE_U8 },
-    { SAI_SCHEDULER_ATTR_METER_TYPE, false, true, true, true,
-      "QoS scheduler type", SAI_ATTR_VAL_TYPE_S32 },
-    { SAI_SCHEDULER_ATTR_MIN_BANDWIDTH_RATE, false, true, true, true,
-      "QoS scheduler min rate", SAI_ATTR_VAL_TYPE_U64 },
-    { SAI_SCHEDULER_ATTR_MIN_BANDWIDTH_BURST_RATE, false, true, true, true,
-      "QoS scheduler min burst rate", SAI_ATTR_VAL_TYPE_U64 },
-    { SAI_SCHEDULER_ATTR_MAX_BANDWIDTH_RATE, false, true, true, true,
-      "QoS scheduler max rate", SAI_ATTR_VAL_TYPE_U64 },
-    { SAI_SCHEDULER_ATTR_MAX_BANDWIDTH_BURST_RATE, false, true, true, true,
-      "QoS scheduler max burst rate", SAI_ATTR_VAL_TYPE_U64 },
-    { END_FUNCTIONALITY_ATTRIBS_ID, false, false, false, false,
-      "", SAI_ATTR_VAL_TYPE_UNDETERMINED }
-};
 static const sai_vendor_attribute_entry_t sched_vendor_attribs[] = {
     { SAI_SCHEDULER_ATTR_SCHEDULING_TYPE,
       { true, false, true, true },
@@ -86,6 +68,11 @@ static const sai_vendor_attribute_entry_t sched_vendor_attribs[] = {
       { false, false, false, false },
       NULL, NULL,
       NULL, NULL },
+    { END_FUNCTIONALITY_ATTRIBS_ID,
+      { false, false, false, false },
+      { false, false, false, false },
+      NULL, NULL,
+      NULL, NULL }
 };
 static sai_status_t sched_db_entry_get(sai_object_id_t oid, mlnx_sched_profile_t **sched)
 {
@@ -523,6 +510,7 @@ static sai_status_t mlnx_create_scheduler_profile(_Out_ sai_object_id_t      *sc
     sai_status_t                 status;
     uint32_t                     index;
     uint32_t                     ii;
+    char                         list_str[MAX_LIST_VALUE_STR_LEN];
 
     SX_LOG_ENTER();
 
@@ -531,7 +519,7 @@ static sai_status_t mlnx_create_scheduler_profile(_Out_ sai_object_id_t      *sc
         return SAI_STATUS_INVALID_PARAMETER;
     }
 
-    status = check_attribs_metadata(attr_count, attr_list, sched_attribs,
+    status = check_attribs_metadata(attr_count, attr_list, SAI_OBJECT_TYPE_SCHEDULER,
                                     sched_vendor_attribs,
                                     SAI_COMMON_API_CREATE);
 
@@ -539,6 +527,9 @@ static sai_status_t mlnx_create_scheduler_profile(_Out_ sai_object_id_t      *sc
         SX_LOG_ERR("Failed attribs check\n");
         return status;
     }
+
+    sai_attr_list_to_str(attr_count, attr_list, SAI_OBJECT_TYPE_SCHEDULER, MAX_LIST_VALUE_STR_LEN, list_str);
+    SX_LOG_NTC("Create scheduler, %s\n", list_str);
 
     /* Set default values */
     sched.ets.max_shaper_rate   = 0;
@@ -761,7 +752,7 @@ static sai_status_t mlnx_set_scheduler_attribute(_In_ sai_object_id_t scheduler_
     SX_LOG_ENTER();
 
     mlnx_sched_key_to_str(scheduler_id, key_str);
-    return sai_set_attribute(&key, key_str, sched_attribs, sched_vendor_attribs, attr);
+    return sai_set_attribute(&key, key_str, SAI_OBJECT_TYPE_SCHEDULER, sched_vendor_attribs, attr);
 }
 
 /**
@@ -785,7 +776,7 @@ static sai_status_t mlnx_get_scheduler_attribute(_In_ sai_object_id_t     schedu
     SX_LOG_ENTER();
 
     mlnx_sched_key_to_str(scheduler_id, key_str);
-    return sai_get_attributes(&key, key_str, sched_attribs,
+    return sai_get_attributes(&key, key_str, SAI_OBJECT_TYPE_SCHEDULER,
                               sched_vendor_attribs, attr_count, attr_list);
 }
 

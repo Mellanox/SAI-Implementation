@@ -97,46 +97,6 @@ typedef enum _mlnx_sai_policer_color_indicator {
     MLNX_POLICER_COLOR_RED
 } mlnx_sai_policer_color_indicator_t;
 
-static const sai_attribute_entry_t policer_attribs[] = {
-    { SAI_POLICER_ATTR_METER_TYPE, true, true, false, true,
-      "Policer meter type", SAI_ATTR_VAL_TYPE_S32 },
-
-    { SAI_POLICER_ATTR_MODE, true, true, false, true,
-      "Policer mode", SAI_ATTR_VAL_TYPE_S32 },
-
-    { SAI_POLICER_ATTR_COLOR_SOURCE, false, true, true, true,
-      "Policer color source", SAI_ATTR_VAL_TYPE_S32 },
-
-    { SAI_POLICER_ATTR_CBS, false, true, true, true,
-      "Policer Committed burst size", SAI_ATTR_VAL_TYPE_U64 },
-
-    { SAI_POLICER_ATTR_CIR, false, true, true, true,
-      "Policer Commited Information rate", SAI_ATTR_VAL_TYPE_U64 },
-
-    { SAI_POLICER_ATTR_PBS, false, true, true, true,
-      "Policer Peak burst size bytes or packets", SAI_ATTR_VAL_TYPE_U64 },
-
-    /* Mandatory only for SAI_POLICER_MODE_TR_TCM */
-    { SAI_POLICER_ATTR_PIR, false, true, true, true,
-      "Policer Peak information rate", SAI_ATTR_VAL_TYPE_U64 },
-
-    /* mlnx supports only forward action for this attribute. Other values will result in error*/
-    { SAI_POLICER_ATTR_GREEN_PACKET_ACTION, false, true, true, true,
-      "Policer action on green packet", SAI_ATTR_VAL_TYPE_S32 },
-
-    { SAI_POLICER_ATTR_YELLOW_PACKET_ACTION, false, true, true, true,
-      "Policer action on yellow packet", SAI_ATTR_VAL_TYPE_S32 },
-
-    { SAI_POLICER_ATTR_RED_PACKET_ACTION, false, true, true, true,
-      "Policer action on red packet", SAI_ATTR_VAL_TYPE_S32 },
-
-    /* TODO: Not supported currently by SDK. Keep track of SDK to add support in future.*/
-    { SAI_POLICER_ATTR_ENABLE_COUNTER_PACKET_ACTION_LIST, false, true, true, true,
-      "Policer counter settings", SAI_ATTR_VAL_TYPE_OBJLIST },
-
-    { END_FUNCTIONALITY_ATTRIBS_ID, false, false, false, false,
-      "", SAI_ATTR_VAL_TYPE_UNDETERMINED }
-};
 static sai_status_t fill_policer_data(_In_ bool                   set_defaults,
                                       _In_ uint32_t               attr_count,
                                       _In_ const sai_attribute_t *attr_list,
@@ -244,7 +204,7 @@ static const sai_vendor_attribute_entry_t policer_vendor_attribs[] = {
     {
         SAI_POLICER_ATTR_MODE,
         { true, false, false, true },
-        { true, false, true, true },
+        { true, false, false, true },
         sai_policer_mode_get, NULL,
         NULL, NULL
     },
@@ -311,6 +271,13 @@ static const sai_vendor_attribute_entry_t policer_vendor_attribs[] = {
         NULL, NULL,
         NULL, NULL
     },
+    {
+        END_FUNCTIONALITY_ATTRIBS_ID,
+        { false, false, false, false },
+        { false, false, false, false },
+        NULL, NULL,
+        NULL, NULL
+    }
 };
 static void log_sx_policer_attrib_color_action(_In_ sx_policer_action_t sx_policer_action, _In_ char* action_name)
 {
@@ -390,15 +357,6 @@ void log_sx_policer_attributes(_In_ sx_policer_id_t sx_policer, _In_ sx_policer_
     SX_LOG_INF("is_host_ifc_policer:%d\n", sx_attribs->is_host_ifc_policer);
     SX_LOG_INF("[end]:log sx_policer_attributes_t\n");
     SX_LOG_EXIT();
-}
-
-static bool is_valid_port_db_ind(_In_ uint32_t port_db_index)
-{
-    if (port_db_index >= MAX_PORTS) {
-        SX_LOG_ERR("Invalid port_db index:%d\n", port_db_index);
-        return false;
-    }
-    return true;
 }
 
 /*
@@ -803,20 +761,14 @@ static sai_status_t sai_policer_red_packet_action_get(_In_ const sai_object_key_
     return status;
 }
 
-static sai_status_t sai_policer_get_packet_flags_for_policer_type(_In_ mlnx_port_policer_type   port_policer_type,
-                                                                  _In_ uint32_t                 port_db_index,
-                                                                  _Out_ sx_port_packet_types_t *packet_types_out)
+static sai_status_t sai_policer_get_packet_flags_for_policer_type(_In_ mlnx_port_policer_type    port_policer_type,
+                                                                  _In_ const mlnx_port_config_t *port_config,
+                                                                  _Out_ sx_port_packet_types_t  *packet_types_out)
 {
     sx_port_packet_types_t packet_types;
-    mlnx_port_config_t    *port_config = NULL;
 
     SX_LOG_ENTER();
     memset(&packet_types, 0, sizeof(packet_types));
-    if (!is_valid_port_db_ind(port_db_index)) {
-        SX_LOG_EXIT();
-        return SAI_STATUS_INVALID_PARAMETER;
-    }
-    port_config = &(g_sai_db_ptr->ports_db[port_db_index]);
 
     switch (port_policer_type) {
     case MLNX_PORT_POLICER_TYPE_REGULAR_INDEX:
@@ -872,6 +824,7 @@ static sai_status_t sai_policer_commit_changes_to_port_bindings(sai_object_id_t 
 {
     sai_status_t                   sai_status;
     sx_status_t                    sx_status;
+    mlnx_port_config_t            *port_config;
     mlnx_policer_db_entry_t      * policer_entry     = NULL;
     uint32_t                       storm_control_ind = 0;
     sx_port_storm_control_params_t storm_ctrl_params;
@@ -883,13 +836,14 @@ static sai_status_t sai_policer_commit_changes_to_port_bindings(sai_object_id_t 
         SX_LOG_EXIT();
         return sai_status;
     }
-    for (port_ind = 0; port_ind < MAX_PORTS; port_ind++) {
+
+    mlnx_port_foreach(port_config, port_ind) {
         for (ii = 0; ii < MLNX_PORT_POLICER_TYPE_MAX; ii++) {
             memset(&storm_ctrl_params, 0, sizeof(storm_ctrl_params));
-            if (sai_policer == g_sai_db_ptr->ports_db[port_ind].port_policers[ii]) {
+            if (sai_policer == port_config->port_policers[ii]) {
                 if (SAI_STATUS_SUCCESS !=
                     (sai_status =
-                         sai_policer_get_packet_flags_for_policer_type(ii, port_ind,
+                         sai_policer_get_packet_flags_for_policer_type(ii, port_config,
                                                                        &storm_ctrl_params.packet_types))) {
                     SX_LOG_EXIT();
                     return sai_status;
@@ -903,7 +857,7 @@ static sai_status_t sai_policer_commit_changes_to_port_bindings(sai_object_id_t 
                          storm_policer_functions.sx_api_port_storm_control_set_p(
                              gh_sdk,
                              SX_ACCESS_CMD_EDIT,
-                             g_sai_db_ptr->ports_db[port_ind].logical,
+                             port_config->logical,
                              storm_control_ind, &storm_ctrl_params))) {
                     SX_LOG_ERR(
                         "Failed to commit policer port storm_binding[%d] changes. sdk message:%s. saipolicer:0x%" PRIx64 "\n",
@@ -1726,7 +1680,6 @@ static sai_status_t fill_policer_data(_In_ bool                   set_defaults,
         return status;
     }
 
-
     if (SAI_STATUS_SUCCESS !=
         (status = fill_policer_counter_list_attrib(attr_count, attr_list, sx_policer_attribs))) {
         SX_LOG_EXIT();
@@ -1979,7 +1932,7 @@ static sai_status_t mlnx_sai_create_policer(_Out_ sai_object_id_t      *policer_
         (sai_status = check_attribs_metadata(
              attr_count,
              attr_list,
-             policer_attribs,
+             SAI_OBJECT_TYPE_POLICER,
              policer_vendor_attribs,
              SAI_COMMON_API_CREATE))) {
         SX_LOG_ERR("Failed policer attribs check during create operation, SAI status:%d\n", sai_status);
@@ -1991,7 +1944,7 @@ static sai_status_t mlnx_sai_create_policer(_Out_ sai_object_id_t      *policer_
         (sai_status = sai_attr_list_to_str(
              attr_count,
              attr_list,
-             policer_attribs,
+             SAI_OBJECT_TYPE_POLICER,
              MAX_LIST_VALUE_STR_LEN,
              list_str))) {
         SX_LOG_EXIT();
@@ -2034,6 +1987,7 @@ static sai_status_t mlnx_validate_port_policer_for_remove(_In_ sai_object_id_t s
 {
     uint32_t                 port_ind, ii;
     sai_status_t             status;
+    mlnx_port_config_t      *port_config;
     mlnx_policer_db_entry_t* policer_db_data = NULL;
 
     SX_LOG_ENTER();
@@ -2048,13 +2002,14 @@ static sai_status_t mlnx_validate_port_policer_for_remove(_In_ sai_object_id_t s
         return status;
     }
 
-    for (port_ind = 0; port_ind < MAX_PORTS; port_ind++) {
+    mlnx_port_foreach(port_config, port_ind) {
         for (ii = 0; ii < MLNX_PORT_POLICER_TYPE_MAX; ii++) {
-            if (sai_policer == g_sai_db_ptr->ports_db[port_ind].port_policers[ii]) {
+            if (sai_policer == port_config->port_policers[ii]) {
                 return SAI_STATUS_OBJECT_IN_USE;
             }
         }
     }
+
     SX_LOG_EXIT();
     return SAI_STATUS_SUCCESS;
 }
@@ -2154,7 +2109,7 @@ static sai_status_t mlnx_sai_set_policer_attribute(_In_ sai_object_id_t policer_
     SX_LOG_ENTER();
 
     policer_key_to_str(policer_id, key_str);
-    status = sai_set_attribute(&key, key_str, policer_attribs, policer_vendor_attribs, attr);
+    status = sai_set_attribute(&key, key_str, SAI_OBJECT_TYPE_POLICER, policer_vendor_attribs, attr);
 
     SX_LOG_EXIT();
 
@@ -2172,7 +2127,7 @@ static sai_status_t mlnx_sai_get_policer_attribute(_In_ sai_object_id_t     poli
     SX_LOG_ENTER();
 
     policer_key_to_str(policer_id, key_str);
-    status = sai_get_attributes(&key, key_str, policer_attribs, policer_vendor_attribs, attr_count, attr_list);
+    status = sai_get_attributes(&key, key_str, SAI_OBJECT_TYPE_POLICER, policer_vendor_attribs, attr_count, attr_list);
 
     SX_LOG_EXIT();
     return status;
@@ -2186,6 +2141,7 @@ static sai_status_t mlnx_do_policer_stats(_In_ sai_object_id_t           policer
 {
     sai_status_t                sai_status;
     sx_status_t                 sx_status;
+    mlnx_port_config_t         *port_config;
     mlnx_policer_db_entry_t   * policer_entry = NULL;
     sx_policer_counters_t       policer_counters;
     sx_policer_counters_clear_t policer_counters_clear;
@@ -2282,14 +2238,13 @@ static sai_status_t mlnx_do_policer_stats(_In_ sai_object_id_t           policer
         }
     }
 
-    for (port_ind = 0; port_ind < MAX_PORTS; port_ind++) {
+    mlnx_port_foreach(port_config, port_ind) {
         for (packet_type_ind = 0; packet_type_ind < MLNX_PORT_POLICER_TYPE_MAX; packet_type_ind++) {
-            if (policer_id == g_sai_db_ptr->ports_db[port_ind].port_policers[packet_type_ind]) {
+            if (policer_id == port_config->port_policers[packet_type_ind]) {
                 if (is_clear) {
                     if (SX_STATUS_SUCCESS != (sx_status =
                                                   sx_api_port_storm_control_counters_clear_set(gh_sdk,
-                                                                                               g_sai_db_ptr->ports_db[
-                                                                                                   port_ind].logical,
+                                                                                               port_config->logical,
                                                                                                packet_type_ind,
                                                                                                &policer_counters_clear)))
                     {
@@ -2297,8 +2252,8 @@ static sai_status_t mlnx_do_policer_stats(_In_ sai_object_id_t           policer
                             "Failed to clear storm counters for policer:0x%" PRIx64 ", storm control id:%d, port_db ind:%d, log_port:%d, message:%s.\n",
                             policer_id,
                             packet_type_ind,
-                            port_ind,
-                            g_sai_db_ptr->ports_db[port_ind].logical,
+                            port_config->index,
+                            port_config->logical,
                             SX_STATUS_MSG(sx_status));
                         sai_status = sdk_to_sai(sx_status);
                         goto exit;
@@ -2306,16 +2261,15 @@ static sai_status_t mlnx_do_policer_stats(_In_ sai_object_id_t           policer
                 } else {
                     if (SX_STATUS_SUCCESS != (sx_status =
                                                   sx_api_port_storm_control_counters_get(gh_sdk,
-                                                                                         g_sai_db_ptr->ports_db[
-                                                                                             port_ind].logical,
+                                                                                         port_config->logical,
                                                                                          packet_type_ind,
                                                                                          &policer_counters))) {
                         SX_LOG_ERR(
                             "Failed to obtain storm counters for policer:0x%" PRIx64 ", storm control id:%d, port_db ind:%d, log_port:%d, message:%s.\n",
                             policer_id,
                             packet_type_ind,
-                            port_ind,
-                            g_sai_db_ptr->ports_db[port_ind].logical,
+                            port_config->index,
+                            port_config->logical,
                             SX_STATUS_MSG(sx_status));
                         sai_status = sdk_to_sai(sx_status);
                         goto exit;
@@ -2373,7 +2327,7 @@ sai_status_t mlnx_policer_log_set(sx_verbosity_level_t level)
 
 static sai_status_t sai_policer_remove_packets_for_type_from_all_traffic(
     _In_ mlnx_port_policer_type       port_policer_type_to_remove,
-    _In_ uint32_t                     port_db_index,
+    _In_ mlnx_port_config_t          *port_config,
     _Out_opt_ sx_port_packet_types_t *packet_types_out)
 {
     SX_LOG_ENTER();
@@ -2382,26 +2336,23 @@ static sai_status_t sai_policer_remove_packets_for_type_from_all_traffic(
     SX_LOG_DBG("Initial state of packets: uc:%d, mc:%d, bc:%d, uuc:%d, umc:%d\n",
                packet_types_out->uc, packet_types_out->mc,
                packet_types_out->bc, packet_types_out->uuc, packet_types_out->umc);
-    if (!is_valid_port_db_ind(port_db_index)) {
-        SX_LOG_EXIT();
-        return SAI_STATUS_INVALID_PARAMETER;
-    }
+
     if (MLNX_PORT_POLICER_TYPE_REGULAR_INDEX == port_policer_type_to_remove) {
         SX_LOG_ERR("all traffic policer is not a valid source entry for removal of storm flags. port_db:%d\n",
-                   port_db_index);
+                   port_config->index);
         SX_LOG_EXIT();
         return SAI_STATUS_FAILURE;
     }
     if (SAI_NULL_OBJECT_ID ==
-        g_sai_db_ptr->ports_db[port_db_index].port_policers[MLNX_PORT_POLICER_TYPE_REGULAR_INDEX]) {
-        SX_LOG_ERR("all traffic policer db entry is NULL, port_db:%d\n", port_db_index);
+        port_config->port_policers[MLNX_PORT_POLICER_TYPE_REGULAR_INDEX]) {
+        SX_LOG_ERR("all traffic policer db entry is NULL, port_db:%d\n", port_config->index);
         SX_LOG_EXIT();
         return SAI_STATUS_INVALID_PARAMETER;
     }
-    if (SAI_NULL_OBJECT_ID != g_sai_db_ptr->ports_db[port_db_index].port_policers[port_policer_type_to_remove]) {
+    if (SAI_NULL_OBJECT_ID != port_config->port_policers[port_policer_type_to_remove]) {
         SX_LOG_ERR("port_db[%d] policer type:%d must be in reset state, but has policer:0x%" PRIx64 "\n",
-                   port_db_index, port_policer_type_to_remove,
-                   g_sai_db_ptr->ports_db[port_db_index].port_policers[port_policer_type_to_remove]);
+                   port_config->index, port_policer_type_to_remove,
+                   port_config->port_policers[port_policer_type_to_remove]);
         SX_LOG_EXIT();
         return SAI_STATUS_INVALID_PARAMETER;
     }
@@ -2431,21 +2382,19 @@ static sai_status_t sai_policer_remove_packets_for_type_from_all_traffic(
     return SAI_STATUS_SUCCESS;
 }
 
-static sai_status_t sai_policer_apply_packet_types_to_all_traffic_policer(_In_ uint32_t               port_db_index,
+static sai_status_t sai_policer_apply_packet_types_to_all_traffic_policer(_In_ mlnx_port_config_t    *port_config,
                                                                           _In_ sx_port_packet_types_t new_packet_types)
 {
     sai_status_t                   sai_status;
     sx_status_t                    sx_status;
-    mlnx_port_config_t            *port_config = NULL;
     sx_port_storm_control_params_t storm_ctrl_params;
     mlnx_policer_db_entry_t       *policer_db_entry = NULL;
 
     SX_LOG_ENTER();
     memset(&storm_ctrl_params, 0, sizeof(storm_ctrl_params));
-    port_config = &(g_sai_db_ptr->ports_db[port_db_index]);
 
     if (SAI_NULL_OBJECT_ID == port_config->port_policers[MLNX_PORT_POLICER_TYPE_REGULAR_INDEX]) {
-        SX_LOG_ERR("all traffic policer db entry is NULL, port_db:%d\n", port_db_index);
+        SX_LOG_ERR("all traffic policer db entry is NULL, port_db:%d\n", port_config->index);
         return SAI_STATUS_INVALID_PARAMETER;
     }
     if (SAI_STATUS_SUCCESS !=
@@ -2453,7 +2402,7 @@ static sai_status_t sai_policer_apply_packet_types_to_all_traffic_policer(_In_ u
              db_get_sai_policer_data(port_config->port_policers[MLNX_PORT_POLICER_TYPE_REGULAR_INDEX],
                                      &policer_db_entry))) {
         SX_LOG_ERR("Failed to retrieve all traffic policer db entry. sai policer:0x%" PRIx64 ", pord_db:%d\n",
-                   port_config->port_policers[MLNX_PORT_POLICER_TYPE_REGULAR_INDEX], port_db_index);
+                   port_config->port_policers[MLNX_PORT_POLICER_TYPE_REGULAR_INDEX], port_config->index);
         SX_LOG_EXIT();
         return sai_status;
     }
@@ -2468,15 +2417,15 @@ static sai_status_t sai_policer_apply_packet_types_to_all_traffic_policer(_In_ u
              storm_policer_functions.sx_api_port_storm_control_set_p(
                  gh_sdk,
                  SX_ACCESS_CMD_EDIT,
-                 g_sai_db_ptr->ports_db[port_db_index].logical,
+                 port_config->logical,
                  MLNX_PORT_POLICER_TYPE_REGULAR_INDEX,
                  &storm_ctrl_params))) {
         SX_LOG_ERR(
             "Failed to update all traffic port storm_binding changes. sdk message:%s. saipolicer:0x%" PRIx64 ", db_port:%d, logical:%d\n",
             SX_STATUS_MSG(sx_status),
             port_config->port_policers[MLNX_PORT_POLICER_TYPE_REGULAR_INDEX],
-            port_db_index,
-            g_sai_db_ptr->ports_db[port_db_index].logical);
+            port_config->index,
+            port_config->logical);
         SX_LOG_EXIT();
         sai_status = sdk_to_sai(sx_status);
         return sai_status;
@@ -2486,7 +2435,7 @@ static sai_status_t sai_policer_apply_packet_types_to_all_traffic_policer(_In_ u
 }
 
 static sai_status_t setup_storm_item(_In_ sai_object_id_t        sai_policer,
-                                     _In_ uint32_t               port_db_index,
+                                     _In_ mlnx_port_config_t    *port_config,
                                      _In_ mlnx_port_policer_type port_policer_type)
 {
     sai_status_t                   sai_status;
@@ -2503,20 +2452,17 @@ static sai_status_t setup_storm_item(_In_ sai_object_id_t        sai_policer,
         SX_LOG_EXIT();
         return SAI_STATUS_INVALID_PARAMETER;
     }
-    if (!is_valid_port_db_ind(port_db_index)) {
-        SX_LOG_EXIT();
-        return SAI_STATUS_INVALID_PARAMETER;
-    }
+
     if (SAI_STATUS_SUCCESS != (sai_status = db_get_sai_policer_data(sai_policer, &policer_entry))) {
         SX_LOG_ERR("Failed to obtain policer db entry. object_id:0x%" PRIx64 "\n", sai_policer);
         SX_LOG_EXIT();
         return sai_status;
     }
-    if (SAI_NULL_OBJECT_ID != g_sai_db_ptr->ports_db[port_db_index].port_policers[port_policer_type]) {
+    if (SAI_NULL_OBJECT_ID != port_config->port_policers[port_policer_type]) {
         SX_LOG_ERR("port_db[%d] policer type index:%d. Already has a value:0x%" PRIx64 "\n",
-                   port_db_index,
+                   port_config->index,
                    port_policer_type,
-                   g_sai_db_ptr->ports_db[port_db_index].port_policers[port_policer_type]);
+                   port_config->port_policers[port_policer_type]);
         SX_LOG_EXIT();
         return SAI_STATUS_INVALID_PARAMETER;
     }
@@ -2524,13 +2470,12 @@ static sai_status_t setup_storm_item(_In_ sai_object_id_t        sai_policer,
     if (SAI_STATUS_SUCCESS != (sai_status =
                                    sai_policer_get_packet_flags_for_policer_type(
                                        port_policer_type,
-                                       port_db_index,
+                                       port_config,
                                        &storm_ctrl_params.packet_types))) {
         SX_LOG_EXIT();
         return sai_status;
     }
-    if ((SAI_NULL_OBJECT_ID !=
-         g_sai_db_ptr->ports_db[port_db_index].port_policers[MLNX_PORT_POLICER_TYPE_REGULAR_INDEX]) &&
+    if ((SAI_NULL_OBJECT_ID != port_config->port_policers[MLNX_PORT_POLICER_TYPE_REGULAR_INDEX]) &&
         (MLNX_PORT_POLICER_TYPE_REGULAR_INDEX != port_policer_type)) {
         /*  A new storm control policer (one of - flood, broadcast, multicast) is being setup.
          *   SDK has requirement that all storm policers must handle disjoint set of packet types.
@@ -2540,7 +2485,7 @@ static sai_status_t setup_storm_item(_In_ sai_object_id_t        sai_policer,
         if (SAI_STATUS_SUCCESS != (sai_status =
                                        sai_policer_get_packet_flags_for_policer_type(
                                            MLNX_PORT_POLICER_TYPE_REGULAR_INDEX,
-                                           port_db_index,
+                                           port_config,
                                            &all_traffic_packet_types))) {
             SX_LOG_EXIT();
             return sai_status;
@@ -2548,14 +2493,14 @@ static sai_status_t setup_storm_item(_In_ sai_object_id_t        sai_policer,
         if (SAI_STATUS_SUCCESS != (sai_status =
                                        sai_policer_remove_packets_for_type_from_all_traffic(
                                            port_policer_type,
-                                           port_db_index,
+                                           port_config,
                                            &all_traffic_packet_types))) {
             SX_LOG_EXIT();
             return sai_status;
         }
         if (SAI_STATUS_SUCCESS !=
             (sai_status =
-                 sai_policer_apply_packet_types_to_all_traffic_policer(port_db_index, all_traffic_packet_types))) {
+                 sai_policer_apply_packet_types_to_all_traffic_policer(port_config, all_traffic_packet_types))) {
             SX_LOG_EXIT();
             return sai_status;
         }
@@ -2568,7 +2513,7 @@ static sai_status_t setup_storm_item(_In_ sai_object_id_t        sai_policer,
         (sx_status = storm_policer_functions.sx_api_port_storm_control_set_p(
              gh_sdk,
              SX_ACCESS_CMD_ADD,
-             g_sai_db_ptr->ports_db[port_db_index].logical,
+             port_config->logical,
              port_policer_type,
              &storm_ctrl_params))) {
         sai_status = sdk_to_sai(sx_status);
@@ -2576,19 +2521,17 @@ static sai_status_t setup_storm_item(_In_ sai_object_id_t        sai_policer,
         SX_LOG_EXIT();
         return sai_status;
     }
-    g_sai_db_ptr->ports_db[port_db_index].port_policers[port_policer_type] = sai_policer;
+    port_config->port_policers[port_policer_type] = sai_policer;
     SX_LOG_EXIT();
     return SAI_STATUS_SUCCESS;
 }
 
-static sai_status_t mlnx_sai_bind_policer_to_port(_In_ sai_object_id_t           sai_port,
-                                                  _In_ sai_object_id_t           sai_policer,
-                                                  _In_ mlnx_policer_bind_params* bind_params)
+sai_status_t mlnx_sai_bind_policer_to_port(_In_ sai_object_id_t           sai_port,
+                                           _In_ sai_object_id_t           sai_policer,
+                                           _In_ mlnx_policer_bind_params* bind_params)
 {
     sai_status_t        sai_status;
-    uint32_t            port_db_index;
     mlnx_port_config_t *port_config = NULL;
-    sx_port_log_id_t    port_data;
 
     SX_LOG_ENTER();
     if (NULL == bind_params) {
@@ -2601,28 +2544,30 @@ static sai_status_t mlnx_sai_bind_policer_to_port(_In_ sai_object_id_t          
         SX_LOG_EXIT();
         return SAI_STATUS_INVALID_PARAMETER;
     }
-    if (SAI_STATUS_SUCCESS != (sai_status = mlnx_object_to_type(sai_port, SAI_OBJECT_TYPE_PORT, &port_data, NULL))) {
+
+    sai_status = mlnx_port_by_obj_id(sai_port, &port_config);
+    if (SAI_ERR(sai_status)) {
         SX_LOG_EXIT();
         return sai_status;
     }
 
-    if (SAI_STATUS_SUCCESS != (sai_status = mlnx_port_idx_by_log_id(port_data, &port_db_index))) {
+    sai_status = mlnx_port_fetch_lag_if_lag_member(&port_config);
+    if (SAI_ERR(sai_status)) {
         SX_LOG_EXIT();
         return sai_status;
     }
 
-    port_config = &(g_sai_db_ptr->ports_db[port_db_index]);
     if (SAI_NULL_OBJECT_ID != port_config->port_policers[bind_params->port_policer_type]) {
         SX_LOG_ERR(
             "Cannot bind policer:0x%" PRIx64 " for storm type:%d, to port:0x%" PRIx64 ", db:%d, because it already has a binding to another policer:0x%" PRIx64 "\n",
             sai_policer,
             bind_params->port_policer_type,
             port_config->saiport,
-            port_db_index,
+            port_config->index,
             port_config->port_policers[bind_params->port_policer_type]);
         return SAI_STATUS_OBJECT_IN_USE;
     }
-    sai_status = setup_storm_item(sai_policer, port_db_index, bind_params->port_policer_type);
+    sai_status = setup_storm_item(sai_policer, port_config, bind_params->port_policer_type);
     if (SAI_STATUS_SUCCESS != sai_status) {
         SX_LOG_ERR(
             "Failed to bind policer to port. policer:0x%" PRIx64 ", port:0x%" PRIx64 ", policer type:%d. status:%d\n",
@@ -2633,7 +2578,7 @@ static sai_status_t mlnx_sai_bind_policer_to_port(_In_ sai_object_id_t          
     } else {
         SX_LOG_NTC(
             "Created binding to port_db[%d] policer type:%d. sai port:0x%" PRIx64 ".sai policer:0x%" PRIx64 "\n",
-            port_db_index,
+            port_config->index,
             bind_params->port_policer_type,
             sai_port,
             sai_policer);
@@ -2647,13 +2592,12 @@ sai_status_t mlnx_sai_unbind_policer_from_port(_In_ sai_object_id_t           sa
                                                _In_ mlnx_policer_bind_params* bind_params)
 {
     sai_status_t                   sai_status;
-    uint32_t                       port_db_index;
+    mlnx_port_config_t            *port_config;
     mlnx_policer_db_entry_t       *policer_entry = NULL;
     sai_object_id_t                sai_policer   = SAI_NULL_OBJECT_ID;
     sx_status_t                    sx_status;
     sx_port_storm_control_params_t storm_ctrl_params;
     sx_port_packet_types_t         all_traffic_packet_types;
-    sx_port_log_id_t               port_data;
 
     SX_LOG_ENTER();
     if (NULL == bind_params) {
@@ -2668,29 +2612,32 @@ sai_status_t mlnx_sai_unbind_policer_from_port(_In_ sai_object_id_t           sa
     }
     memset(&storm_ctrl_params, 0, sizeof(storm_ctrl_params));
     memset(&all_traffic_packet_types, 0, sizeof(all_traffic_packet_types));
-    sai_status = mlnx_object_to_log_port(sai_port, &port_data);
+
+    sai_status = mlnx_port_by_obj_id(sai_port, &port_config);
     if (SAI_ERR(sai_status)) {
         SX_LOG_EXIT();
         return sai_status;
     }
 
-    if (SAI_STATUS_SUCCESS != (sai_status = mlnx_port_idx_by_log_id(port_data, &port_db_index))) {
+    sai_status = mlnx_port_fetch_lag_if_lag_member(&port_config);
+    if (SAI_ERR(sai_status)) {
         SX_LOG_EXIT();
         return sai_status;
     }
-    SX_LOG_NTC("sai port at port_db[%d]==:0x%" PRIx64 ". policer type:%d\n", port_db_index,
-               g_sai_db_ptr->ports_db[port_db_index].saiport, bind_params->port_policer_type);
 
-    if (SAI_NULL_OBJECT_ID == g_sai_db_ptr->ports_db[port_db_index].port_policers[bind_params->port_policer_type]) {
+    SX_LOG_NTC("sai port at port_db[%d]==:0x%" PRIx64 ". policer type:%d\n", port_config->index,
+               sai_port, bind_params->port_policer_type);
+
+    if (SAI_NULL_OBJECT_ID == port_config->port_policers[bind_params->port_policer_type]) {
         /* no sai policer to unbind */
         SX_LOG_WRN("sai port at port_db[%d]==:0x%" PRIx64 " has no policer binding for policer type:%d\n",
-                   port_db_index,
-                   g_sai_db_ptr->ports_db[port_db_index].saiport,
+                   port_config->index,
+                   port_config->saiport,
                    bind_params->port_policer_type);
         SX_LOG_EXIT();
         return SAI_STATUS_SUCCESS;
     }
-    sai_policer = g_sai_db_ptr->ports_db[port_db_index].port_policers[bind_params->port_policer_type];
+    sai_policer = port_config->port_policers[bind_params->port_policer_type];
     if (SAI_STATUS_SUCCESS != (sai_status = db_get_sai_policer_data(sai_policer, &policer_entry))) {
         SX_LOG_ERR("Failed to obtain policer db entry. object_id:0x%" PRIx64 "\n", sai_policer);
         SX_LOG_EXIT();
@@ -2699,7 +2646,7 @@ sai_status_t mlnx_sai_unbind_policer_from_port(_In_ sai_object_id_t           sa
     if (SAI_STATUS_SUCCESS != (sai_status =
                                    sai_policer_get_packet_flags_for_policer_type(
                                        bind_params->port_policer_type,
-                                       port_db_index,
+                                       port_config,
                                        &storm_ctrl_params.packet_types))) {
         SX_LOG_EXIT();
         return sai_status;
@@ -2712,7 +2659,7 @@ sai_status_t mlnx_sai_unbind_policer_from_port(_In_ sai_object_id_t           sa
     if (SX_STATUS_SUCCESS !=
         (sx_status =
              storm_policer_functions.sx_api_port_storm_control_set_p(gh_sdk, SX_ACCESS_CMD_DELETE,
-                                                                     g_sai_db_ptr->ports_db[port_db_index].logical,
+                                                                     port_config->logical,
                                                                      bind_params->port_policer_type,
                                                                      &storm_ctrl_params))) {
         sai_status = sdk_to_sai(sx_status);
@@ -2725,23 +2672,23 @@ sai_status_t mlnx_sai_unbind_policer_from_port(_In_ sai_object_id_t           sa
         SX_LOG_EXIT();
         return sai_status;
     }
-    g_sai_db_ptr->ports_db[port_db_index].port_policers[bind_params->port_policer_type] = SAI_NULL_OBJECT_ID;
+    port_config->port_policers[bind_params->port_policer_type] = SAI_NULL_OBJECT_ID;
 
     /* Need to redistribute storm flags only when non-regular storm item is being removed. */
     if ((SAI_NULL_OBJECT_ID !=
-         g_sai_db_ptr->ports_db[port_db_index].port_policers[MLNX_PORT_POLICER_TYPE_REGULAR_INDEX]) &&
+         port_config->port_policers[MLNX_PORT_POLICER_TYPE_REGULAR_INDEX]) &&
         (MLNX_PORT_POLICER_TYPE_REGULAR_INDEX != bind_params->port_policer_type)) {
         if (SAI_STATUS_SUCCESS != (sai_status =
                                        sai_policer_get_packet_flags_for_policer_type(
                                            MLNX_PORT_POLICER_TYPE_REGULAR_INDEX,
-                                           port_db_index,
+                                           port_config,
                                            &all_traffic_packet_types))) {
             SX_LOG_EXIT();
             return sai_status;
         }
         if (SAI_STATUS_SUCCESS !=
             (sai_status =
-                 sai_policer_apply_packet_types_to_all_traffic_policer(port_db_index, all_traffic_packet_types))) {
+                 sai_policer_apply_packet_types_to_all_traffic_policer(port_config, all_traffic_packet_types))) {
             SX_LOG_EXIT();
             return sai_status;
         }
@@ -2887,6 +2834,7 @@ static sai_status_t mlnx_sai_bind_policer_to_trap_group(_In_ sai_object_id_t sai
 
 /* NOTE: bind/unbind mechanism for ACLs is different, due to specifics of the ACL model.
  *   Policer is attached to ACL by setting SAI_ACL_ENTRY_ATTR_ACTION_SET_POLICER property on an acl entry.
+ * SAI DB should be locked
  */
 sai_status_t mlnx_sai_bind_policer(_In_ sai_object_id_t           sai_object_id,
                                    _In_ sai_object_id_t           sai_policer,
@@ -2916,7 +2864,6 @@ sai_status_t mlnx_sai_bind_policer(_In_ sai_object_id_t           sai_object_id,
 
     object_type = sai_object_type_query(sai_object_id);
 
-    policer_db_cl_plock_excl_acquire(&g_sai_db_ptr->p_lock);
     switch (object_type) {
     case SAI_OBJECT_TYPE_HOSTIF_TRAP_GROUP:
         status = mlnx_sai_bind_policer_to_trap_group(sai_object_id, sai_policer);
@@ -2929,8 +2876,7 @@ sai_status_t mlnx_sai_bind_policer(_In_ sai_object_id_t           sai_object_id,
     default:
         status = SAI_STATUS_NOT_SUPPORTED;
     }
-    msync(g_sai_db_ptr, sizeof(*g_sai_db_ptr), MS_SYNC);
-    policer_db_cl_plock_release(&g_sai_db_ptr->p_lock);
+
     SX_LOG_EXIT();
     return status;
 }
@@ -2938,6 +2884,7 @@ sai_status_t mlnx_sai_bind_policer(_In_ sai_object_id_t           sai_object_id,
 /* NOTE: unbind mechanism is different for ACLs, due to ACL model specifics.
  *   Policer is detached from ACL when delete_acl_entry is called to delete the acl entry to which
  *   policer was attached via SAI_ACL_ENTRY_ATTR_ACTION_SET_POLICER property.
+ *   SAI DB should be locked
  */
 sai_status_t mlnx_sai_unbind_policer(_In_ sai_object_id_t sai_object, _In_ mlnx_policer_bind_params* bind_params)
 {
@@ -2945,7 +2892,7 @@ sai_status_t mlnx_sai_unbind_policer(_In_ sai_object_id_t sai_object, _In_ mlnx_
     sai_object_type_t object_type = sai_object_type_query(sai_object);
 
     SX_LOG_ENTER();
-    policer_db_cl_plock_excl_acquire(&g_sai_db_ptr->p_lock);
+
     switch (object_type) {
     case SAI_OBJECT_TYPE_HOSTIF_TRAP_GROUP:
         status = mlnx_sai_unbind_policer_from_trap_group(sai_object);
@@ -2958,7 +2905,7 @@ sai_status_t mlnx_sai_unbind_policer(_In_ sai_object_id_t sai_object, _In_ mlnx_
     default:
         status = SAI_STATUS_NOT_SUPPORTED;
     }
-    policer_db_cl_plock_release(&g_sai_db_ptr->p_lock);
+
     SX_LOG_EXIT();
     return status;
 }

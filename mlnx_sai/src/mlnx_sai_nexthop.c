@@ -24,18 +24,6 @@
 #define __MODULE__ SAI_NEXT_HOP
 
 static sx_verbosity_level_t LOG_VAR_NAME(__MODULE__) = SX_VERBOSITY_LEVEL_WARNING;
-static const sai_attribute_entry_t next_hop_attribs[] = {
-    { SAI_NEXT_HOP_ATTR_TYPE, true, true, false, true,
-      "Next hop entry type", SAI_ATTR_VAL_TYPE_S32 },
-    { SAI_NEXT_HOP_ATTR_IP, false, true, false, true,
-      "Next hop entry IP address", SAI_ATTR_VAL_TYPE_IPADDR },
-    { SAI_NEXT_HOP_ATTR_ROUTER_INTERFACE_ID, false, true, false, true,
-      "Next hop entry router interface ID", SAI_ATTR_VAL_TYPE_OID },
-    { SAI_NEXT_HOP_ATTR_TUNNEL_ID, false, true, false, true,
-      "Next hop entry tunnel ID", SAI_ATTR_VAL_TYPE_OID },
-    { END_FUNCTIONALITY_ATTRIBS_ID, false, false, false, false,
-      "", SAI_ATTR_VAL_TYPE_UNDETERMINED }
-};
 static sai_status_t mlnx_next_hop_attr_get(_In_ const sai_object_key_t   *key,
                                            _Inout_ sai_attribute_value_t *value,
                                            _In_ uint32_t                  attr_index,
@@ -62,6 +50,11 @@ static const sai_vendor_attribute_entry_t next_hop_vendor_attribs[] = {
       { true, false, false, true },
       mlnx_next_hop_attr_get, (void*)SAI_NEXT_HOP_ATTR_TUNNEL_ID,
       NULL, NULL },
+    { END_FUNCTIONALITY_ATTRIBS_ID,
+      { false, false, false, false },
+      { false, false, false, false },
+      NULL, NULL,
+      NULL, NULL }
 };
 static void next_hop_key_to_str(_In_ sai_object_id_t next_hop_id, _Out_ char *key_str)
 {
@@ -279,14 +272,14 @@ static sai_status_t mlnx_create_next_hop(_Out_ sai_object_id_t      *next_hop_id
 
     if (SAI_STATUS_SUCCESS !=
         (sai_status =
-             check_attribs_metadata(attr_count, attr_list, next_hop_attribs, next_hop_vendor_attribs,
+             check_attribs_metadata(attr_count, attr_list, SAI_OBJECT_TYPE_NEXT_HOP, next_hop_vendor_attribs,
                                     SAI_COMMON_API_CREATE))) {
         SX_LOG_ERR("Failed attribs check\n");
         SX_LOG_EXIT();
         return sai_status;
     }
 
-    sai_attr_list_to_str(attr_count, attr_list, next_hop_attribs, MAX_LIST_VALUE_STR_LEN, list_str);
+    sai_attr_list_to_str(attr_count, attr_list, SAI_OBJECT_TYPE_NEXT_HOP, MAX_LIST_VALUE_STR_LEN, list_str);
     SX_LOG_NTC("Create next hop, %s\n", list_str);
 
     sai_status = find_attrib_in_list(attr_count, attr_list, SAI_NEXT_HOP_ATTR_TYPE, &type_attr, &type_idx);
@@ -482,7 +475,7 @@ static sai_status_t mlnx_set_next_hop_attribute(_In_ sai_object_id_t next_hop_id
     SX_LOG_ENTER();
 
     next_hop_key_to_str(next_hop_id, key_str);
-    return sai_set_attribute(&key, key_str, next_hop_attribs, next_hop_vendor_attribs, attr);
+    return sai_set_attribute(&key, key_str, SAI_OBJECT_TYPE_NEXT_HOP, next_hop_vendor_attribs, attr);
 }
 
 
@@ -509,7 +502,7 @@ static sai_status_t mlnx_get_next_hop_attribute(_In_ sai_object_id_t     next_ho
     SX_LOG_ENTER();
 
     next_hop_key_to_str(next_hop_id, key_str);
-    return sai_get_attributes(&key, key_str, next_hop_attribs, next_hop_vendor_attribs, attr_count, attr_list);
+    return sai_get_attributes(&key, key_str, SAI_OBJECT_TYPE_NEXT_HOP, next_hop_vendor_attribs, attr_count, attr_list);
 }
 
 /* Next hop entry type [sai_next_hop_type_t] */

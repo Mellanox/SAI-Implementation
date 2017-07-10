@@ -24,48 +24,6 @@
 #define __MODULE__ SAI_MIRROR
 
 static sx_verbosity_level_t LOG_VAR_NAME(__MODULE__) = SX_VERBOSITY_LEVEL_WARNING;
-
-/* mandatory_on_create, valid_for_create, valid_for_set, valid_for_get */
-static const sai_attribute_entry_t mirror_attribs[] = {
-    { SAI_MIRROR_SESSION_ATTR_TYPE, true, true, false, true,
-      "Mirror session attr type", SAI_ATTR_VAL_TYPE_S32 },
-    { SAI_MIRROR_SESSION_ATTR_MONITOR_PORT, true, true, true, true,
-      "Mirror session attr monitor port", SAI_ATTR_VAL_TYPE_OID },
-    { SAI_MIRROR_SESSION_ATTR_TRUNCATE_SIZE, false, true, true, true,
-      "Mirror session attr truncate size", SAI_ATTR_VAL_TYPE_U16 },
-    { SAI_MIRROR_SESSION_ATTR_TC, false, true, true, true,
-      "Mirror session attr tc", SAI_ATTR_VAL_TYPE_U8 },
-    { SAI_MIRROR_SESSION_ATTR_VLAN_TPID, false, true, true, true,
-      "Mirror session attr vlan tpid", SAI_ATTR_VAL_TYPE_U16 },
-    { SAI_MIRROR_SESSION_ATTR_VLAN_ID, false, true, true, true,
-      "Mirror session attr vlan id", SAI_ATTR_VAL_TYPE_U16 },
-    { SAI_MIRROR_SESSION_ATTR_VLAN_PRI, false, true, true, true,
-      "Mirror session attr vlan pri", SAI_ATTR_VAL_TYPE_U8 },
-    { SAI_MIRROR_SESSION_ATTR_VLAN_CFI, false, true, true, true,
-      "Mirror session attr vlan cfi", SAI_ATTR_VAL_TYPE_U8 },
-    { SAI_MIRROR_SESSION_ATTR_VLAN_HEADER_VALID, false, true, false, true,
-      "Mirror session attr vlan header valid", SAI_ATTR_VAL_TYPE_BOOL },
-    { SAI_MIRROR_SESSION_ATTR_ERSPAN_ENCAPSULATION_TYPE, false, true, false, true,
-      "Mirror session attr encap type", SAI_ATTR_VAL_TYPE_S32 },
-    { SAI_MIRROR_SESSION_ATTR_IPHDR_VERSION, false, true, false, true,
-      "Mirror session attr iphdr version", SAI_ATTR_VAL_TYPE_U8 },
-    { SAI_MIRROR_SESSION_ATTR_TOS, false, true, true, true,
-      "Mirror session attr tos", SAI_ATTR_VAL_TYPE_U8 },
-    { SAI_MIRROR_SESSION_ATTR_TTL, false, true, true, true,
-      "Mirror session attr ttl", SAI_ATTR_VAL_TYPE_U8 },
-    { SAI_MIRROR_SESSION_ATTR_SRC_IP_ADDRESS, false, true, true, true,
-      "Mirror session attr src ip address", SAI_ATTR_VAL_TYPE_IPADDR },
-    { SAI_MIRROR_SESSION_ATTR_DST_IP_ADDRESS, false, true, true, true,
-      "Mirror session attr dst ip address", SAI_ATTR_VAL_TYPE_IPADDR },
-    { SAI_MIRROR_SESSION_ATTR_SRC_MAC_ADDRESS, false, true, true, true,
-      "Mirror session attr src mac address", SAI_ATTR_VAL_TYPE_MAC },
-    { SAI_MIRROR_SESSION_ATTR_DST_MAC_ADDRESS, false, true, true, true,
-      "Mirror session attr dst mac address", SAI_ATTR_VAL_TYPE_MAC },
-    { SAI_MIRROR_SESSION_ATTR_GRE_PROTOCOL_TYPE, false, true, true, true,
-      "Mirror session attr gre protocol type", SAI_ATTR_VAL_TYPE_U16 },
-    { END_FUNCTIONALITY_ATTRIBS_ID, false, false, false, false,
-      "", SAI_ATTR_VAL_TYPE_UNDETERMINED }
-};
 static sai_status_t mlnx_mirror_session_type_get(_In_ const sai_object_key_t   *key,
                                                  _Inout_ sai_attribute_value_t *value,
                                                  _In_ uint32_t                  attr_index,
@@ -277,6 +235,11 @@ static const sai_vendor_attribute_entry_t mirror_vendor_attribs[] = {
       { true, false, true, true },
       mlnx_mirror_session_gre_protocol_type_get, NULL,
       mlnx_mirror_session_gre_protocol_type_set, NULL },
+    { END_FUNCTIONALITY_ATTRIBS_ID,
+      { false, false, false, false },
+      { false, false, false, false },
+      NULL, NULL,
+      NULL, NULL }
 };
 static void mirror_key_to_str(_In_ const sai_object_id_t sai_mirror_obj_id, _Out_ char *key_str)
 {
@@ -513,6 +476,7 @@ static sai_status_t mlnx_mirror_session_vlan_tpid_get(_In_ const sai_object_key_
             SX_LOG_EXIT();
             return SAI_STATUS_FAILURE;
         }
+
     case SX_SPAN_TYPE_REMOTE_ETH_VLAN_TYPE1:
         value->u16 = MLNX_MIRROR_VLAN_TPID;
         break;
@@ -678,9 +642,9 @@ static sai_status_t mlnx_mirror_session_vlan_header_valid_get(_In_ const sai_obj
     switch (sdk_mirror_obj_params.span_type) {
     case SX_SPAN_TYPE_REMOTE_ETH_L3_TYPE1:
         if (0 != sdk_mirror_obj_params.span_type_format.remote_eth_l3_type1.vid) {
-            value->booldata= true;
+            value->booldata = true;
         } else {
-            value->booldata= false;
+            value->booldata = false;
         }
         break;
 
@@ -1223,6 +1187,7 @@ static sai_status_t mlnx_mirror_session_vlan_tpid_set(_In_ const sai_object_key_
             SX_LOG_EXIT();
             return SAI_STATUS_FAILURE;
         }
+
     case SX_SPAN_TYPE_REMOTE_ETH_VLAN_TYPE1:
         if (MLNX_MIRROR_VLAN_TPID != value->u16) {
             SX_LOG_ERR("VLAN TPID must be %x on set\n", MLNX_MIRROR_VLAN_TPID);
@@ -1752,16 +1717,20 @@ static sai_status_t mlnx_check_mirror_attribute_on_create(_In_ uint32_t         
     bool         ERSPAN          = false;
     sai_status_t status          = SAI_STATUS_FAILURE;
     const bool   is_mandatory    = true;
+    char         list_str[MAX_LIST_VALUE_STR_LEN];
 
     SX_LOG_ENTER();
 
     if (SAI_STATUS_SUCCESS !=
-        (status = check_attribs_metadata(attr_count, attr_list, mirror_attribs, mirror_vendor_attribs,
+        (status = check_attribs_metadata(attr_count, attr_list, SAI_OBJECT_TYPE_MIRROR_SESSION, mirror_vendor_attribs,
                                          SAI_COMMON_API_CREATE))) {
         SX_LOG_ERR("Mirror: metadata check failed\n");
         SX_LOG_EXIT();
         return status;
     }
+
+    sai_attr_list_to_str(attr_count, attr_list, SAI_OBJECT_TYPE_MIRROR_SESSION, MAX_LIST_VALUE_STR_LEN, list_str);
+    SX_LOG_NTC("Create mirror, %s\n", list_str);
 
     status = find_attrib_in_list(attr_count, attr_list, SAI_MIRROR_SESSION_ATTR_TYPE, mirror_type, &index);
     assert(SAI_STATUS_SUCCESS == status);
@@ -1966,9 +1935,9 @@ static sai_status_t mlnx_set_RSPAN_session_param(_Out_ sx_span_session_params_t 
                                                  _In_ const sai_attribute_value_t *mirror_vlan_pri,
                                                  _In_ const sai_attribute_value_t *mirror_vlan_cfi)
 {
-    uint16_t     vlan_tpid         = 0;
-    uint8_t      vlan_pri          = 0;
-    uint8_t      vlan_cfi          = 0;
+    uint16_t vlan_tpid = 0;
+    uint8_t  vlan_pri  = 0;
+    uint8_t  vlan_cfi  = 0;
 
     SX_LOG_ENTER();
 
@@ -2126,9 +2095,9 @@ static sai_status_t mlnx_set_ERSPAN_session_param(_Out_ sx_span_session_params_t
                 return SAI_STATUS_FAILURE;
             }
             vlan_tpid = MLNX_MIRROR_VLAN_TPID;
-            vlan_id  = 0;
-            vlan_pri = 0;
-            vlan_cfi = 0;
+            vlan_id   = 0;
+            vlan_pri  = 0;
+            vlan_cfi  = 0;
         }
         if (MLNX_VLAN_ID_WHEN_TP_DISABLED == vlan_id) {
             sdk_mirror_obj_params->span_type_format.remote_eth_l3_type1.tp = MLNX_MIRROR_TP_DISABLE;
@@ -2155,7 +2124,7 @@ static sai_status_t mlnx_set_ERSPAN_session_param(_Out_ sx_span_session_params_t
             SX_LOG_EXIT();
             return SAI_STATUS_INVALID_ATTR_VALUE_0 + vlan_cfi;
         }
-        sdk_mirror_obj_params->span_type_format.remote_eth_l3_type1.vid = vlan_id;
+        sdk_mirror_obj_params->span_type_format.remote_eth_l3_type1.vid               = vlan_id;
         sdk_mirror_obj_params->span_type_format.remote_eth_l3_type1.vlan_ethertype_id = MLNX_VLAN_ETHERTYPE_ID;
         sdk_mirror_obj_params->span_type_format.remote_eth_l3_type1.pcp               = vlan_pri;
         sdk_mirror_obj_params->span_type_format.remote_eth_l3_type1.dei               = vlan_cfi;
@@ -2430,7 +2399,7 @@ static sai_status_t mlnx_set_mirror_session_attribute(_In_ const sai_object_id_t
 
     mirror_key_to_str(sai_mirror_obj_id, key_str);
 
-    status = sai_set_attribute(&key, key_str, mirror_attribs, mirror_vendor_attribs, attr);
+    status = sai_set_attribute(&key, key_str, SAI_OBJECT_TYPE_MIRROR_SESSION, mirror_vendor_attribs, attr);
 
     SX_LOG_EXIT();
     return status;
@@ -2448,7 +2417,12 @@ static sai_status_t mlnx_get_mirror_session_attribute(_In_ const sai_object_id_t
 
     mirror_key_to_str(sai_mirror_obj_id, key_str);
 
-    status = sai_get_attributes(&key, key_str, mirror_attribs, mirror_vendor_attribs, attr_count, attr_list);
+    status = sai_get_attributes(&key,
+                                key_str,
+                                SAI_OBJECT_TYPE_MIRROR_SESSION,
+                                mirror_vendor_attribs,
+                                attr_count,
+                                attr_list);
 
     SX_LOG_EXIT();
     return status;

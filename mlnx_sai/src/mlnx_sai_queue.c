@@ -58,26 +58,6 @@ static sai_status_t mlnx_queue_parent_sched_node_get(_In_ const sai_object_key_t
 static sai_status_t mlnx_queue_parent_sched_node_set(_In_ const sai_object_key_t      *key,
                                                      _In_ const sai_attribute_value_t *value,
                                                      void                             *arg);
-static const sai_attribute_entry_t        queue_attribs[] = {
-    { SAI_QUEUE_ATTR_TYPE, true, true, false, true,
-      "Queue type", SAI_ATTR_VAL_TYPE_S32 },
-    { SAI_QUEUE_ATTR_PORT, true, true, false, true,
-      "Port ID", SAI_ATTR_VAL_TYPE_OID },
-    { SAI_QUEUE_ATTR_INDEX, true, true, false, true,
-      "Queue index", SAI_ATTR_VAL_TYPE_U8 },
-    { SAI_QUEUE_ATTR_PARENT_SCHEDULER_NODE, true, true, true, true,
-      "Parent scheduler node ID", SAI_ATTR_VAL_TYPE_OID },
-    { SAI_QUEUE_ATTR_WRED_PROFILE_ID, false, true, true, true,
-      "Queue WRED profile ID", SAI_ATTR_VAL_TYPE_OID },
-    { SAI_QUEUE_ATTR_BUFFER_PROFILE_ID, false, true, true, true,
-      "Queue buffer profile ID", SAI_ATTR_VAL_TYPE_OID },
-    { SAI_QUEUE_ATTR_SCHEDULER_PROFILE_ID, false, true, true, true,
-      "Queue scheduler profile ID", SAI_ATTR_VAL_TYPE_OID },
-    { SAI_QUEUE_ATTR_PAUSE_STATUS, false, false, false, true,
-      "Queue pause status", SAI_ATTR_VAL_TYPE_BOOL },
-    { END_FUNCTIONALITY_ATTRIBS_ID, false, false, false, false,
-      "", SAI_ATTR_VAL_TYPE_UNDETERMINED }
-};
 static const sai_vendor_attribute_entry_t queue_vendor_attribs[] = {
     { SAI_QUEUE_ATTR_TYPE,
       { true, false, false, true },
@@ -119,6 +99,11 @@ static const sai_vendor_attribute_entry_t queue_vendor_attribs[] = {
       { false, false, false, true },
       NULL, NULL,
       NULL, NULL },
+    { END_FUNCTIONALITY_ATTRIBS_ID,
+      { false, false, false, false },
+      { false, false, false, false },
+      NULL, NULL,
+      NULL, NULL }
 };
 
 sai_status_t mlnx_queue_log_set(sx_verbosity_level_t level)
@@ -427,7 +412,7 @@ static sai_status_t mlnx_set_queue_attribute(_In_ sai_object_id_t queue_id, _In_
     SX_LOG_ENTER();
 
     queue_key_to_str(queue_id, key_str);
-    sai_status = sai_set_attribute(&key, key_str, queue_attribs, queue_vendor_attribs, attr);
+    sai_status = sai_set_attribute(&key, key_str, SAI_OBJECT_TYPE_QUEUE, queue_vendor_attribs, attr);
     SX_LOG_EXIT();
     return sai_status;
 }
@@ -456,7 +441,7 @@ static sai_status_t mlnx_get_queue_attribute(_In_ sai_object_id_t     queue_id,
     SX_LOG_ENTER();
 
     queue_key_to_str(queue_id, key_str);
-    sai_status = sai_get_attributes(&key, key_str, queue_attribs, queue_vendor_attribs, attr_count, attr_list);
+    sai_status = sai_get_attributes(&key, key_str, SAI_OBJECT_TYPE_QUEUE, queue_vendor_attribs, attr_count, attr_list);
     SX_LOG_EXIT();
     return sai_status;
 }
@@ -738,13 +723,13 @@ sai_status_t mlnx_create_queue(_Out_ sai_object_id_t      *queue_id,
         return SAI_STATUS_INVALID_PARAMETER;
     }
 
-    status = check_attribs_metadata(attr_count, attr_list, queue_attribs, queue_vendor_attribs,
+    status = check_attribs_metadata(attr_count, attr_list, SAI_OBJECT_TYPE_QUEUE, queue_vendor_attribs,
                                     SAI_COMMON_API_CREATE);
     if (SAI_ERR(status)) {
         return status;
     }
 
-    sai_attr_list_to_str(attr_count, attr_list, queue_attribs, MAX_LIST_VALUE_STR_LEN, list_str);
+    sai_attr_list_to_str(attr_count, attr_list, SAI_OBJECT_TYPE_QUEUE, MAX_LIST_VALUE_STR_LEN, list_str);
     SX_LOG_NTC("Create queue, %s\n", list_str);
 
     /* Mandatory attributes */

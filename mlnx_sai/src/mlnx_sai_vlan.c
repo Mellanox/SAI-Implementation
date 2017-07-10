@@ -99,26 +99,6 @@ static sai_status_t mlnx_vlan_stp_get(_In_ const sai_object_key_t   *key,
 static sai_status_t mlnx_vlan_stp_set(_In_ const sai_object_key_t      *key,
                                       _In_ const sai_attribute_value_t *value,
                                       void                             *arg);
-static const sai_attribute_entry_t        vlan_attribs[] = {
-    { SAI_VLAN_ATTR_VLAN_ID, true, true, false, true,
-      "Vlan id", SAI_ATTR_VAL_TYPE_U16 },
-    { SAI_VLAN_ATTR_MEMBER_LIST, false, false, false, true,
-      "Vlan member list", SAI_ATTR_VAL_TYPE_OBJLIST },
-    { SAI_VLAN_ATTR_MAX_LEARNED_ADDRESSES, false, true, true, true,
-      "Vlan Maximum number of learned MAC addresses", SAI_ATTR_VAL_TYPE_U32 },
-    { SAI_VLAN_ATTR_STP_INSTANCE, false, true, true, true,
-      "Vlan associated STP instance", SAI_ATTR_VAL_TYPE_U64 },
-    { SAI_VLAN_ATTR_LEARN_DISABLE, false, true, true, true,
-      "Vlan learn disable", SAI_ATTR_VAL_TYPE_BOOL },
-    { SAI_VLAN_ATTR_INGRESS_ACL, false, true, true, true,
-      "VLAN bind point for ingress ACL object", SAI_ATTR_VAL_TYPE_OID},
-    { SAI_VLAN_ATTR_EGRESS_ACL, false, false, false, false,
-      "VLAN bind point for egress ACL object", SAI_ATTR_VAL_TYPE_OID },
-    { SAI_VLAN_ATTR_META_DATA, false, true, true, true,
-      "Vlan meta data", SAI_ATTR_VAL_TYPE_U32 },
-    { END_FUNCTIONALITY_ATTRIBS_ID, false, false, false, false,
-      "", SAI_ATTR_VAL_TYPE_UNDETERMINED }
-};
 static const sai_vendor_attribute_entry_t vlan_vendor_attribs[] = {
     { SAI_VLAN_ATTR_VLAN_ID,
       { true, false, false, true },
@@ -160,16 +140,11 @@ static const sai_vendor_attribute_entry_t vlan_vendor_attribs[] = {
       { false, false, false, false },
       NULL, NULL,
       NULL, NULL },
-};
-static const sai_attribute_entry_t        vlan_member_attribs[] = {
-    { SAI_VLAN_MEMBER_ATTR_VLAN_ID, true, true, false, true,
-      "Vlan member VID", SAI_ATTR_VAL_TYPE_OID },
-    { SAI_VLAN_MEMBER_ATTR_BRIDGE_PORT_ID, true, true, false, true,
-      "Vlan member port", SAI_ATTR_VAL_TYPE_OID },
-    { SAI_VLAN_MEMBER_ATTR_VLAN_TAGGING_MODE, false, true, true, true,
-      "Vlan member tagging mode", SAI_ATTR_VAL_TYPE_S32 },
-    { END_FUNCTIONALITY_ATTRIBS_ID, false, false, false, false,
-      "", SAI_ATTR_VAL_TYPE_UNDETERMINED }
+    { END_FUNCTIONALITY_ATTRIBS_ID,
+      { false, false, false, false },
+      { false, false, false, false },
+      NULL, NULL,
+      NULL, NULL }
 };
 static const sai_vendor_attribute_entry_t vlan_member_vendor_attribs[] = {
     { SAI_VLAN_MEMBER_ATTR_VLAN_ID,
@@ -187,6 +162,11 @@ static const sai_vendor_attribute_entry_t vlan_member_vendor_attribs[] = {
       { true, false, true, true },
       mlnx_vlan_member_tagging_get, NULL,
       mlnx_vlan_member_tagging_set, NULL },
+    { END_FUNCTIONALITY_ATTRIBS_ID,
+      { false, false, false, false },
+      { false, false, false, false },
+      NULL, NULL,
+      NULL, NULL }
 };
 static void vlan_key_to_str(_In_ sai_vlan_id_t vlan_id, _Out_ char *key_str)
 {
@@ -484,7 +464,7 @@ static sai_status_t mlnx_set_vlan_attribute(_In_ sai_object_id_t vlan_id, _In_ c
     }
 
     vlan_key_to_str(vid, key_str);
-    return sai_set_attribute(&key, key_str, vlan_attribs, vlan_vendor_attribs, attr);
+    return sai_set_attribute(&key, key_str, SAI_OBJECT_TYPE_VLAN, vlan_vendor_attribs, attr);
 }
 
 
@@ -518,7 +498,7 @@ static sai_status_t mlnx_get_vlan_attribute(_In_ sai_object_id_t     vlan_id,
     }
 
     vlan_key_to_str(vid, key_str);
-    return sai_get_attributes(&key, key_str, vlan_attribs, vlan_vendor_attribs, attr_count, attr_list);
+    return sai_get_attributes(&key, key_str, SAI_OBJECT_TYPE_VLAN, vlan_vendor_attribs, attr_count, attr_list);
 }
 
 /**
@@ -535,7 +515,7 @@ sai_status_t mlnx_create_vlan(_Out_ sai_object_id_t      *sai_vlan_id,
                               _In_ uint32_t               attr_count,
                               _In_ const sai_attribute_t *attr_list)
 {
-    char                         key_str[MAX_KEY_STR_LEN];
+    char                         list_str[MAX_LIST_VALUE_STR_LEN];
     const sai_attribute_value_t *vid = NULL, *stp = NULL, *learn = NULL;
     uint32_t                     vid_index, stp_index, learn_index;
     sx_mstp_inst_id_t            sx_stp_id = mlnx_stp_get_default_stp();
@@ -549,11 +529,14 @@ sai_status_t mlnx_create_vlan(_Out_ sai_object_id_t      *sai_vlan_id,
 
     SX_LOG_ENTER();
 
-    status = check_attribs_metadata(attr_count, attr_list, vlan_attribs, vlan_vendor_attribs,
+    status = check_attribs_metadata(attr_count, attr_list, SAI_OBJECT_TYPE_VLAN, vlan_vendor_attribs,
                                     SAI_COMMON_API_CREATE);
     if (SAI_ERR(status)) {
         return status;
     }
+
+    sai_attr_list_to_str(attr_count, attr_list, SAI_OBJECT_TYPE_VLAN, MAX_LIST_VALUE_STR_LEN, list_str);
+    SX_LOG_NTC("Create VLAN, %s\n", list_str);
 
     status = find_attrib_in_list(attr_count, attr_list, SAI_VLAN_ATTR_VLAN_ID, &vid, &vid_index);
     assert(SAI_STATUS_SUCCESS == status);
@@ -579,10 +562,6 @@ sai_status_t mlnx_create_vlan(_Out_ sai_object_id_t      *sai_vlan_id,
         }
         sx_stp_id = stp_obj_id.id.stp_inst_id;
     }
-
-    vlan_key_to_str(vid->u16, key_str);
-
-    SX_LOG_NTC("Create %s\n", key_str);
 
     /* no need to call SDK */
 
@@ -644,11 +623,11 @@ out:
  */
 static sai_status_t mlnx_remove_vlan(_In_ sai_object_id_t sai_vlan_id)
 {
-    char         key_str[MAX_KEY_STR_LEN];
+    char                key_str[MAX_KEY_STR_LEN];
     mlnx_bridge_port_t *port;
-    uint16_t     vlan_id;
-    sai_status_t status;
-    uint32_t port_idx;
+    uint16_t            vlan_id;
+    sai_status_t        status;
+    uint32_t            port_idx;
 
     SX_LOG_ENTER();
 
@@ -887,13 +866,13 @@ static sai_status_t mlnx_create_vlan_member(_Out_ sai_object_id_t     * vlan_mem
 
     if (SAI_STATUS_SUCCESS !=
         (status =
-             check_attribs_metadata(attr_count, attr_list, vlan_member_attribs, vlan_member_vendor_attribs,
+             check_attribs_metadata(attr_count, attr_list, SAI_OBJECT_TYPE_VLAN_MEMBER, vlan_member_vendor_attribs,
                                     SAI_COMMON_API_CREATE))) {
         SX_LOG_ERR("Failed attribs check\n");
         return status;
     }
 
-    sai_attr_list_to_str(attr_count, attr_list, vlan_member_attribs, MAX_LIST_VALUE_STR_LEN, list_str);
+    sai_attr_list_to_str(attr_count, attr_list, SAI_OBJECT_TYPE_VLAN_MEMBER, MAX_LIST_VALUE_STR_LEN, list_str);
     SX_LOG_NTC("Create vlan member, %s\n", list_str);
 
     status = find_attrib_in_list(attr_count, attr_list, SAI_VLAN_MEMBER_ATTR_VLAN_ID, &vid, &vid_index);
@@ -1083,7 +1062,7 @@ static sai_status_t mlnx_set_vlan_member_attribute(_In_ sai_object_id_t        v
     SX_LOG_ENTER();
 
     vlan_member_key_to_str(vlan_member_id, key_str);
-    return sai_set_attribute(&key, key_str, vlan_member_attribs, vlan_member_vendor_attribs, attr);
+    return sai_set_attribute(&key, key_str, SAI_OBJECT_TYPE_VLAN_MEMBER, vlan_member_vendor_attribs, attr);
 }
 
 /*
@@ -1104,7 +1083,12 @@ static sai_status_t mlnx_get_vlan_member_attribute(_In_ sai_object_id_t     vlan
     SX_LOG_ENTER();
 
     vlan_member_key_to_str(vlan_member_id, key_str);
-    return sai_get_attributes(&key, key_str, vlan_member_attribs, vlan_member_vendor_attribs, attr_count, attr_list);
+    return sai_get_attributes(&key,
+                              key_str,
+                              SAI_OBJECT_TYPE_VLAN_MEMBER,
+                              vlan_member_vendor_attribs,
+                              attr_count,
+                              attr_list);
 }
 
 /* VLAN ID [sai_vlan_t] */

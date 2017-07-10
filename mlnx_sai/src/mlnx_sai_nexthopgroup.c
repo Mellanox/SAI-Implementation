@@ -24,16 +24,6 @@
 #define __MODULE__ SAI_NEXT_HOP_GROUP
 
 static sx_verbosity_level_t LOG_VAR_NAME(__MODULE__) = SX_VERBOSITY_LEVEL_WARNING;
-static const sai_attribute_entry_t next_hop_group_attribs[] = {
-    { SAI_NEXT_HOP_GROUP_ATTR_NEXT_HOP_COUNT, false, false, false, true,
-      "Next hop group entries count", SAI_ATTR_VAL_TYPE_U32 },
-    { SAI_NEXT_HOP_GROUP_ATTR_TYPE, true, true, false, true,
-      "Next hop group type", SAI_ATTR_VAL_TYPE_S32 },
-    { SAI_NEXT_HOP_GROUP_ATTR_NEXT_HOP_MEMBER_LIST, false, false, false, true,
-      "Next hop group hop list", SAI_ATTR_VAL_TYPE_OBJLIST },
-    { END_FUNCTIONALITY_ATTRIBS_ID, false, false, false, false,
-      "", SAI_ATTR_VAL_TYPE_UNDETERMINED }
-};
 static sai_status_t mlnx_next_hop_group_count_get(_In_ const sai_object_key_t   *key,
                                                   _Inout_ sai_attribute_value_t *value,
                                                   _In_ uint32_t                  attr_index,
@@ -60,6 +50,11 @@ static const sai_vendor_attribute_entry_t next_hop_group_vendor_attribs[] = {
       { false, false, false, false },
       NULL, NULL,
       NULL, NULL },
+    { END_FUNCTIONALITY_ATTRIBS_ID,
+      { false, false, false, false },
+      { false, false, false, false },
+      NULL, NULL,
+      NULL, NULL }
 };
 static sai_status_t mlnx_next_hop_group_member_group_id_get(_In_ const sai_object_key_t   *key,
                                                             _Inout_ sai_attribute_value_t *value,
@@ -79,16 +74,6 @@ static sai_status_t mlnx_next_hop_group_member_hop_weight_get(_In_ const sai_obj
 static sai_status_t mlnx_next_hop_group_member_hop_weight_set(_In_ const sai_object_key_t      *key,
                                                               _In_ const sai_attribute_value_t *value,
                                                               void                             *arg);
-static const sai_attribute_entry_t        next_hop_group_member_attribs[] = {
-    { SAI_NEXT_HOP_GROUP_MEMBER_ATTR_NEXT_HOP_GROUP_ID, true, true, false, true,
-      "Next hop group member grupd id", SAI_ATTR_VAL_TYPE_OID },
-    { SAI_NEXT_HOP_GROUP_MEMBER_ATTR_NEXT_HOP_ID, true, true, false, true,
-      "Next hop group member hop id", SAI_ATTR_VAL_TYPE_OID },
-    { SAI_NEXT_HOP_GROUP_MEMBER_ATTR_WEIGHT, false, true, true, true,
-      "Next hop group member hop weight", SAI_ATTR_VAL_TYPE_U32 },
-    { END_FUNCTIONALITY_ATTRIBS_ID, false, false, false, false,
-      "", SAI_ATTR_VAL_TYPE_UNDETERMINED }
-};
 static const sai_vendor_attribute_entry_t next_hop_group_member_vendor_attribs[] = {
     { SAI_NEXT_HOP_GROUP_MEMBER_ATTR_NEXT_HOP_GROUP_ID,
       { true, false, false, true },
@@ -105,6 +90,11 @@ static const sai_vendor_attribute_entry_t next_hop_group_member_vendor_attribs[]
       { true, false, true, true },
       mlnx_next_hop_group_member_hop_weight_get, NULL,
       mlnx_next_hop_group_member_hop_weight_set, NULL },
+    { END_FUNCTIONALITY_ATTRIBS_ID,
+      { false, false, false, false },
+      { false, false, false, false },
+      NULL, NULL,
+      NULL, NULL }
 };
 static void next_hop_group_key_to_str(_In_ sai_object_id_t next_hop_group_id, _Out_ char *key_str)
 {
@@ -234,13 +224,14 @@ static sai_status_t mlnx_create_next_hop_group(_Out_ sai_object_id_t     * next_
 
     if (SAI_STATUS_SUCCESS !=
         (status =
-             check_attribs_metadata(attr_count, attr_list, next_hop_group_attribs, next_hop_group_vendor_attribs,
+             check_attribs_metadata(attr_count, attr_list, SAI_OBJECT_TYPE_NEXT_HOP_GROUP,
+                                    next_hop_group_vendor_attribs,
                                     SAI_COMMON_API_CREATE))) {
         SX_LOG_ERR("Failed attribs check\n");
         return status;
     }
 
-    sai_attr_list_to_str(attr_count, attr_list, next_hop_group_attribs, MAX_LIST_VALUE_STR_LEN, list_str);
+    sai_attr_list_to_str(attr_count, attr_list, SAI_OBJECT_TYPE_NEXT_HOP_GROUP, MAX_LIST_VALUE_STR_LEN, list_str);
     SX_LOG_NTC("Create next hop group, %s\n", list_str);
 
     status = find_attrib_in_list(attr_count, attr_list, SAI_NEXT_HOP_GROUP_ATTR_TYPE, &type, &type_index);
@@ -328,7 +319,7 @@ static sai_status_t mlnx_set_next_hop_group_attribute(_In_ sai_object_id_t      
     SX_LOG_ENTER();
 
     next_hop_group_key_to_str(next_hop_group_id, key_str);
-    return sai_set_attribute(&key, key_str, next_hop_group_attribs, next_hop_group_vendor_attribs, attr);
+    return sai_set_attribute(&key, key_str, SAI_OBJECT_TYPE_NEXT_HOP_GROUP, next_hop_group_vendor_attribs, attr);
 }
 
 /*
@@ -356,7 +347,7 @@ static sai_status_t mlnx_get_next_hop_group_attribute(_In_ sai_object_id_t     n
     next_hop_group_key_to_str(next_hop_group_id, key_str);
     return sai_get_attributes(&key,
                               key_str,
-                              next_hop_group_attribs,
+                              SAI_OBJECT_TYPE_NEXT_HOP_GROUP,
                               next_hop_group_vendor_attribs,
                               attr_count,
                               attr_list);
@@ -640,14 +631,15 @@ static sai_status_t mlnx_create_next_hop_group_member(_Out_ sai_object_id_t     
 
     status = check_attribs_metadata(attr_count,
                                     attr_list,
-                                    next_hop_group_member_attribs,
+                                    SAI_OBJECT_TYPE_NEXT_HOP_GROUP_MEMBER,
                                     next_hop_group_member_vendor_attribs,
                                     SAI_COMMON_API_CREATE);
     if (SAI_ERR(status)) {
         return status;
     }
 
-    sai_attr_list_to_str(attr_count, attr_list, next_hop_group_member_attribs, MAX_LIST_VALUE_STR_LEN, list_str);
+    sai_attr_list_to_str(attr_count, attr_list, SAI_OBJECT_TYPE_NEXT_HOP_GROUP_MEMBER, MAX_LIST_VALUE_STR_LEN,
+                         list_str);
     SX_LOG_NTC("Create next hop group member, %s\n", list_str);
 
     status = find_attrib_in_list(attr_count,
@@ -849,7 +841,11 @@ static sai_status_t mlnx_set_next_hop_group_member_attribute(_In_ sai_object_id_
     SX_LOG_ENTER();
 
     next_hop_group_member_key_to_str(next_hop_group_member_id, key_str);
-    return sai_set_attribute(&key, key_str, next_hop_group_member_attribs, next_hop_group_member_vendor_attribs, attr);
+    return sai_set_attribute(&key,
+                             key_str,
+                             SAI_OBJECT_TYPE_NEXT_HOP_GROUP_MEMBER,
+                             next_hop_group_member_vendor_attribs,
+                             attr);
 }
 
 /**
@@ -873,7 +869,7 @@ static sai_status_t mlnx_get_next_hop_group_member_attribute(_In_ sai_object_id_
     next_hop_group_member_key_to_str(next_hop_group_member_id, key_str);
     return sai_get_attributes(&key,
                               key_str,
-                              next_hop_group_member_attribs,
+                              SAI_OBJECT_TYPE_NEXT_HOP_GROUP_MEMBER,
                               next_hop_group_member_vendor_attribs,
                               attr_count,
                               attr_list);

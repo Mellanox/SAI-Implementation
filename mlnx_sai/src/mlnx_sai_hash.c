@@ -27,14 +27,6 @@
 #define SAI_HASH_DEFAULT_SEED     0
 
 static sx_verbosity_level_t LOG_VAR_NAME(__MODULE__) = SX_VERBOSITY_LEVEL_WARNING;
-static const sai_attribute_entry_t hash_attribs[] = {
-    { SAI_HASH_ATTR_NATIVE_HASH_FIELD_LIST, false, true, true, true,
-      "Hash native fields", SAI_ATTR_VAL_TYPE_S32LIST },
-    { SAI_HASH_ATTR_UDF_GROUP_LIST, false, true, true, true,
-      "Hash user defined fields", SAI_ATTR_VAL_TYPE_S32LIST },
-    { END_FUNCTIONALITY_ATTRIBS_ID, false, false, false, false,
-      "", SAI_ATTR_VAL_TYPE_UNDETERMINED }
-};
 static sai_status_t mlnx_hash_native_field_list_get(_In_ const sai_object_key_t   *key,
                                                     _Inout_ sai_attribute_value_t *value,
                                                     _In_ uint32_t                  attr_index,
@@ -43,6 +35,14 @@ static sai_status_t mlnx_hash_native_field_list_get(_In_ const sai_object_key_t 
 static sai_status_t mlnx_hash_native_field_list_set(_In_ const sai_object_key_t      *key,
                                                     _In_ const sai_attribute_value_t *value,
                                                     void                             *arg);
+static sai_status_t mlnx_hash_udf_group_list_get(_In_ const sai_object_key_t   *key,
+                                                 _Inout_ sai_attribute_value_t *value,
+                                                 _In_ uint32_t                  attr_index,
+                                                 _Inout_ vendor_cache_t        *cache,
+                                                 void                          *arg);
+static sai_status_t mlnx_hash_udf_group_list_set(_In_ const sai_object_key_t      *key,
+                                                 _In_ const sai_attribute_value_t *value,
+                                                 void                             *arg);
 static const sai_vendor_attribute_entry_t hash_vendor_attribs[] = {
     { SAI_HASH_ATTR_NATIVE_HASH_FIELD_LIST,
       { true, false, true, true },
@@ -50,8 +50,13 @@ static const sai_vendor_attribute_entry_t hash_vendor_attribs[] = {
       mlnx_hash_native_field_list_get, NULL,
       mlnx_hash_native_field_list_set, NULL },
     { SAI_HASH_ATTR_UDF_GROUP_LIST,
-      { false, false, false, false },
       { true, false, true, true },
+      { true, false, true, true },
+      mlnx_hash_udf_group_list_get, NULL,
+      mlnx_hash_udf_group_list_set, NULL },
+    { END_FUNCTIONALITY_ATTRIBS_ID,
+      { false, false, false, false },
+      { false, false, false, false },
       NULL, NULL,
       NULL, NULL }
 };
@@ -158,6 +163,49 @@ static sai_status_t mlnx_hash_obj_native_fileds_get(const sai_object_id_t hash_i
     return status;
 }
 
+static sai_status_t mlnx_hash_object_udf_group_mask_get(_In_ const sai_object_id_t hash_id,
+                                                        _Out_ udf_group_mask_t    *group_mask)
+{
+    sai_status_t status;
+    uint32_t     hash_index;
+
+    status = mlnx_object_to_type(hash_id, SAI_OBJECT_TYPE_HASH, &hash_index, NULL);
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+    *group_mask = g_sai_db_ptr->hash_list[hash_index].udf_group_mask;
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_hash_obj_udf_group_list_set(_In_ const sai_object_id_t        hash_id,
+                                                     _In_ uint32_t                     attr_index,
+                                                     _In_ const sai_attribute_value_t *value)
+{
+    sai_status_t     status;
+    udf_group_mask_t udf_group_mask;
+    uint32_t         hash_index;
+
+    status = mlnx_object_to_type(hash_id, SAI_OBJECT_TYPE_HASH, &hash_index, NULL);
+    if (SAI_ERR(status)) {
+        return SAI_STATUS_INVALID_ATTR_VALUE_0 + attr_index;
+    }
+
+    status = mlnx_udf_group_objlist_validate_and_fetch_mask(&value->objlist, attr_index, &udf_group_mask);
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+    assert(MLNX_UDF_GROUP_MASK_EMPTY == g_sai_db_ptr->hash_list[hash_index].udf_group_mask);
+
+    g_sai_db_ptr->hash_list[hash_index].udf_group_mask = udf_group_mask;
+
+    mlnx_udf_group_mask_references_add(udf_group_mask);
+
+    return SAI_STATUS_SUCCESS;
+}
+
 /* Check if specified native fields are valid
  * for mentioned hash object id (L2, IPv4 or IpinIP) */
 static sai_status_t mlnx_hash_obj_native_fields_validate(mlnx_switch_usage_hash_object_id_t hash_oper_id,
@@ -254,6 +302,7 @@ bool mlnx_hash_obj_need_apply(mlnx_switch_usage_hash_object_id_t hash_oper_id)
     case SAI_HASH_ECMP_IPINIP_ID:
     case SAI_HASH_LAG_IPINIP_ID:
     case SAI_HASH_ECMP_IP6_ID:
+    case SAI_HASH_LAG_IP6_ID:
     case SAI_HASH_MAX_OBJ_ID:
         /* do nothing */
         break;
@@ -761,18 +810,21 @@ static sai_status_t mlnx_hash_fields_merge(_In_ const sai_attribute_value_t     
     return SAI_STATUS_SUCCESS;
 }
 
-/* Apply native fields specified as a parameter */
-static sai_status_t mlnx_hash_obj_native_fields_apply(mlnx_switch_usage_hash_object_id_t hash_oper_id,
-                                                      const sai_attribute_value_t      * value)
+/* Apply native fields and UDF Group list specified as a parameters */
+static sai_status_t mlnx_hash_obj_native_fields_and_udf_groups_apply(mlnx_switch_usage_hash_object_id_t hash_oper_id,
+                                                                     const sai_attribute_value_t      * value,
+                                                                     udf_group_mask_t                   udf_group_mask)
 {
     sx_lag_hash_param_t                hash_param;
     sai_status_t                       status = SAI_STATUS_SUCCESS;
     sai_object_id_t                    applied_object;
     sx_router_ecmp_port_hash_params_t  port_hash_param;
-    sx_router_ecmp_hash_field_enable_t hash_enable_list[FIELDS_ENABLES_NUM] = {0};
-    uint32_t                           enable_count                         = FIELDS_ENABLES_NUM;
-    sx_router_ecmp_hash_field_t        hash_field_list[FIELDS_NUM]          = {0};
-    uint32_t                           field_count                          = FIELDS_NUM;
+    sx_router_ecmp_hash_field_enable_t hash_enable_list[FIELDS_ENABLES_NUM]       = {0};
+    uint32_t                           enable_count                               = FIELDS_ENABLES_NUM;
+    sx_router_ecmp_hash_field_t        hash_field_list[FIELDS_NUM]                = {0};
+    uint32_t                           field_count                                = FIELDS_NUM;
+    sx_router_ecmp_hash_field_t        udf_groups_hash_fields[GENERAL_FIELDS_NUM] = {0};
+    uint32_t                           udf_groups_hash_field_count;
     bool                               is_ipv6;
 
     memset(&hash_param, 0, sizeof(hash_param));
@@ -803,6 +855,24 @@ static sai_status_t mlnx_hash_obj_native_fields_apply(mlnx_switch_usage_hash_obj
                                         hash_field_list, &field_count);
         if (SAI_STATUS_SUCCESS != status) {
             return status;
+        }
+
+        if (MLNX_UDF_GROUP_MASK_EMPTY != udf_group_mask) {
+            status = mlnx_udf_group_mask_to_ecmp_hash_fields(udf_group_mask, udf_groups_hash_fields,
+                                                             &udf_groups_hash_field_count);
+            if (SAI_ERR(status)) {
+                return status;
+            }
+
+            memcpy(&hash_field_list[field_count], udf_groups_hash_fields,
+                   sizeof(sx_router_ecmp_hash_field_t) * udf_groups_hash_field_count);
+
+            field_count += udf_groups_hash_field_count;
+        }
+
+        if (0 == field_count) {
+            SX_LOG_ERR("Cannot apply empty Hash object\n");
+            return SAI_STATUS_FAILURE;
         }
 
         status = mlnx_hash_ecmp_hash_params_apply_to_ports(&port_hash_param, hash_enable_list, enable_count,
@@ -867,8 +937,9 @@ static sai_status_t mlnx_hash_obj_remove(sai_object_id_t hash_id)
         goto out;
     }
 
-    g_sai_db_ptr->hash_list[hash_data].field_mask = 0;
-    g_sai_db_ptr->hash_list[hash_data].hash_id    = SAI_NULL_OBJECT_ID;
+    g_sai_db_ptr->hash_list[hash_data].field_mask     = 0;
+    g_sai_db_ptr->hash_list[hash_data].udf_group_mask = MLNX_UDF_GROUP_MASK_EMPTY;
+    g_sai_db_ptr->hash_list[hash_data].hash_id        = SAI_NULL_OBJECT_ID;
 
 out:
     sai_db_sync();
@@ -884,6 +955,7 @@ sai_status_t mlnx_hash_object_apply(const sai_object_id_t                    has
     sai_status_t          status = SAI_STATUS_SUCCESS;
     sai_attribute_value_t value;
     int32_t               field_list[SAI_HASH_FIELDS_COUNT_MAX] = {0};
+    udf_group_mask_t      udf_group_mask;
 
     value.s32list.list  = field_list;
     value.s32list.count = SAI_HASH_FIELDS_COUNT_MAX;
@@ -893,16 +965,23 @@ sai_status_t mlnx_hash_object_apply(const sai_object_id_t                    has
         return status;
     }
 
-    /* validate fields */
-    status = mlnx_hash_obj_native_fields_validate(hash_oper_id, &value);
-    if (SAI_STATUS_SUCCESS != status) {
+    status = mlnx_hash_object_udf_group_mask_get(hash_id, &udf_group_mask);
+    if (SAI_ERR(status)) {
         return status;
+    }
+
+    /* validate fields */
+    if (value.s32list.count > 0) {
+        status = mlnx_hash_obj_native_fields_validate(hash_oper_id, &value);
+        if (SAI_STATUS_SUCCESS != status) {
+            return status;
+        }
     }
 
     /* check if need apply */
     if (mlnx_hash_obj_need_apply(hash_oper_id)) {
         /* apply fields */
-        status = mlnx_hash_obj_native_fields_apply(hash_oper_id, &value);
+        status = mlnx_hash_obj_native_fields_and_udf_groups_apply(hash_oper_id, &value, udf_group_mask);
     }
 
     return status;
@@ -976,14 +1055,17 @@ sai_status_t mlnx_hash_initialize()
 
     g_sai_db_ptr->oper_hash_list[SAI_HASH_ECMP_ID] = hash_obj;
     /* apply default object */
-    status = mlnx_hash_obj_native_fields_apply(SAI_HASH_ECMP_ID, &attr_value);
+    status =
+        mlnx_hash_obj_native_fields_and_udf_groups_apply(SAI_HASH_ECMP_ID, &attr_value, MLNX_UDF_GROUP_MASK_EMPTY);
     if (SAI_STATUS_SUCCESS != status) {
         return status;
     }
 
     g_sai_db_ptr->oper_hash_list[SAI_HASH_ECMP_IP6_ID] = hash_obj;
     /* apply default object */
-    status = mlnx_hash_obj_native_fields_apply(SAI_HASH_ECMP_IP6_ID, &attr_value);
+    status = mlnx_hash_obj_native_fields_and_udf_groups_apply(SAI_HASH_ECMP_IP6_ID,
+                                                              &attr_value,
+                                                              MLNX_UDF_GROUP_MASK_EMPTY);
     if (SAI_STATUS_SUCCESS != status) {
         return status;
     }
@@ -1014,7 +1096,7 @@ sai_status_t mlnx_hash_initialize()
     }
 
     /* apply default object */
-    status = mlnx_hash_obj_native_fields_apply(SAI_HASH_LAG_ID, &attr_value);
+    status = mlnx_hash_obj_native_fields_and_udf_groups_apply(SAI_HASH_LAG_ID, &attr_value, MLNX_UDF_GROUP_MASK_EMPTY);
 
     return status;
 }
@@ -1056,6 +1138,7 @@ static sai_status_t mlnx_hash_native_field_list_set(_In_ const sai_object_key_t 
     sai_object_id_t                    hash_id                  = key->key.object_id;
     char                               key_str[MAX_KEY_STR_LEN] = {0};
     sai_status_t                       status                   = SAI_STATUS_SUCCESS;
+    udf_group_mask_t                   udf_group_mask;
 
     if (SAI_STATUS_SUCCESS != (status = mlnx_object_to_type(hash_id, SAI_OBJECT_TYPE_HASH, &hash_data, NULL))) {
         return status;
@@ -1074,10 +1157,15 @@ static sai_status_t mlnx_hash_native_field_list_set(_In_ const sai_object_key_t 
             goto out;
         }
 
+        status = mlnx_hash_object_udf_group_mask_get(hash_id, &udf_group_mask);
+        if (SAI_ERR(status)) {
+            goto out;
+        }
+
         /* check if changes need to be apply */
         if (mlnx_hash_obj_need_apply(hash_oper_id)) {
             /* apply fields */
-            status = mlnx_hash_obj_native_fields_apply(hash_oper_id, value);
+            status = mlnx_hash_obj_native_fields_and_udf_groups_apply(hash_oper_id, value, udf_group_mask);
             if (SAI_STATUS_SUCCESS != status) {
                 goto out;
             }
@@ -1092,6 +1180,109 @@ static sai_status_t mlnx_hash_native_field_list_set(_In_ const sai_object_key_t 
 
 out:
     sai_db_sync();
+    sai_db_unlock();
+    return status;
+}
+
+static sai_status_t mlnx_hash_udf_group_list_get(_In_ const sai_object_key_t   *key,
+                                                 _Inout_ sai_attribute_value_t *value,
+                                                 _In_ uint32_t                  attr_index,
+                                                 _Inout_ vendor_cache_t        *cache,
+                                                 void                          *arg)
+{
+    sai_status_t     status = SAI_STATUS_SUCCESS;
+    udf_group_mask_t udf_group_mask;
+
+    sai_db_read_lock();
+
+    status = mlnx_hash_object_udf_group_mask_get(key->key.object_id, &udf_group_mask);
+    if (SAI_ERR(status)) {
+        goto out;
+    }
+
+    if (MLNX_UDF_GROUP_MASK_EMPTY == udf_group_mask) {
+        value->objlist.count = 0;
+        goto out;
+    }
+
+    status = mlnx_udf_group_mask_to_objlist(udf_group_mask, &value->objlist);
+    if (SAI_ERR(status)) {
+        goto out;
+    }
+
+out:
+    sai_db_unlock();
+    return status;
+}
+
+static sai_status_t mlnx_hash_udf_group_list_set(_In_ const sai_object_key_t      *key,
+                                                 _In_ const sai_attribute_value_t *value,
+                                                 void                             *arg)
+{
+    sai_status_t                       status;
+    sai_object_id_t                    hash_id;
+    sai_attribute_value_t              hash_object_native_fields_attr;
+    sai_native_hash_field_t            hash_object_native_fields[SAI_HASH_FIELDS_COUNT_MAX];
+    mlnx_switch_usage_hash_object_id_t hash_oper_id;
+    udf_group_mask_t                   udf_group_mask, old_udf_group_mask;
+    uint32_t                           hash_index;
+    bool                               is_applicable;
+
+    hash_id = key->key.object_id;
+
+    status = mlnx_object_to_type(hash_id, SAI_OBJECT_TYPE_HASH, &hash_index, NULL);
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+    sai_db_write_lock();
+
+    status = mlnx_udf_group_objlist_validate_and_fetch_mask(&value->objlist, 0, &udf_group_mask);
+    if (SAI_ERR(status)) {
+        goto out;
+    }
+
+    hash_oper_id = mlnx_hash_get_oper_id(hash_id);
+
+    if (hash_oper_id <= SAI_HASH_MAX_OBJ_ID) {
+        status = mlnx_udf_group_mask_is_hash_applicable(udf_group_mask, hash_oper_id, &is_applicable);
+        if (SAI_ERR(status)) {
+            goto out;
+        }
+
+        hash_object_native_fields_attr.s32list.list  = (int32_t*)hash_object_native_fields;
+        hash_object_native_fields_attr.s32list.count = SAI_HASH_FIELDS_COUNT_MAX;
+
+        status = mlnx_hash_obj_native_fileds_get(hash_id, &hash_object_native_fields_attr);
+        if (SAI_ERR(status)) {
+            goto out;
+        }
+
+        if (mlnx_hash_obj_need_apply(hash_oper_id)) {
+            status = mlnx_hash_obj_native_fields_and_udf_groups_apply(hash_oper_id,
+                                                                      &hash_object_native_fields_attr,
+                                                                      udf_group_mask);
+            if (SAI_ERR(status)) {
+                goto out;
+            }
+        }
+    }
+
+    old_udf_group_mask = g_sai_db_ptr->hash_list[hash_index].udf_group_mask;
+
+    status = mlnx_udf_group_mask_references_del(old_udf_group_mask);
+    if (SAI_ERR(status)) {
+        goto out;
+    }
+
+    status = mlnx_udf_group_mask_references_add(udf_group_mask);
+    if (SAI_ERR(status)) {
+        goto out;
+    }
+
+    g_sai_db_ptr->hash_list[hash_index].udf_group_mask = udf_group_mask;
+
+out:
     sai_db_unlock();
     return status;
 }
@@ -1116,7 +1307,7 @@ static sai_status_t mlnx_create_hash(_Out_ sai_object_id_t     * hash_id,
                                      _In_ const sai_attribute_t *attr_list)
 {
     uint32_t                     index = 0;
-    const sai_attribute_value_t *native_filed_list;
+    const sai_attribute_value_t *native_filed_list, *udf_group_list;
     char                         list_str[MAX_LIST_VALUE_STR_LEN] = {0};
     char                         key_str[MAX_KEY_STR_LEN]         = {0};
     sai_status_t                 status                           = SAI_STATUS_SUCCESS;
@@ -1131,14 +1322,14 @@ static sai_status_t mlnx_create_hash(_Out_ sai_object_id_t     * hash_id,
 
     if (SAI_STATUS_SUCCESS !=
         (status =
-             check_attribs_metadata(attr_count, attr_list, hash_attribs, hash_vendor_attribs,
+             check_attribs_metadata(attr_count, attr_list, SAI_OBJECT_TYPE_HASH, hash_vendor_attribs,
                                     SAI_COMMON_API_CREATE))) {
         SX_LOG_ERR("Failed attribs check.\n");
         SX_LOG_EXIT();
         return status;
     }
 
-    sai_attr_list_to_str(attr_count, attr_list, hash_attribs, MAX_LIST_VALUE_STR_LEN, list_str);
+    sai_attr_list_to_str(attr_count, attr_list, SAI_OBJECT_TYPE_HASH, MAX_LIST_VALUE_STR_LEN, list_str);
     SX_LOG_NTC("Create hash object.\n");
     SX_LOG_NTC("Attribs %s.\n", list_str);
 
@@ -1154,11 +1345,30 @@ static sai_status_t mlnx_create_hash(_Out_ sai_object_id_t     * hash_id,
         if (SAI_STATUS_SUCCESS != status) {
             SX_LOG_ERR("Failed to create %s.\n", key_str);
             mlnx_hash_obj_remove(*hash_id);
+            SX_LOG_EXIT();
+            return status;
         }
     }
+
+    sai_db_write_lock();
+
+    status = find_attrib_in_list(attr_count, attr_list, SAI_HASH_ATTR_UDF_GROUP_LIST,
+                                 &udf_group_list, &index);
+    if (SAI_STATUS_SUCCESS == status) {
+        status = mlnx_hash_obj_udf_group_list_set(*hash_id, index, udf_group_list);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to create %s.\n", key_str);
+            mlnx_hash_obj_remove(*hash_id);
+            goto out;
+        }
+    }
+
     hash_key_to_str(*hash_id, key_str);
     SX_LOG_NTC("Created %s.\n", key_str);
+    status = SAI_STATUS_SUCCESS;
 
+out:
+    sai_db_unlock();
     SX_LOG_EXIT();
     return status;
 }
@@ -1218,7 +1428,7 @@ static sai_status_t mlnx_set_hash_attribute(_In_ sai_object_id_t hash_id, _In_ c
     SX_LOG_ENTER();
 
     hash_key_to_str(hash_id, key_str);
-    return sai_set_attribute(&key, key_str, hash_attribs, hash_vendor_attribs, attr);
+    return sai_set_attribute(&key, key_str, SAI_OBJECT_TYPE_HASH, hash_vendor_attribs, attr);
 }
 
 /**
@@ -1244,7 +1454,7 @@ static sai_status_t mlnx_get_hash_attribute(_In_ sai_object_id_t     hash_id,
     SX_LOG_ENTER();
 
     hash_key_to_str(hash_id, key_str);
-    return sai_get_attributes(&key, key_str, hash_attribs, hash_vendor_attribs, attr_count, attr_list);
+    return sai_get_attributes(&key, key_str, SAI_OBJECT_TYPE_HASH, hash_vendor_attribs, attr_count, attr_list);
 }
 
 sai_status_t mlnx_hash_log_set(sx_verbosity_level_t level)

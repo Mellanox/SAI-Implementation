@@ -82,7 +82,7 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
-      <AdditionalIncludeDirectories>.\inc\sai;.\inc;..\l2w\include;..\ms_complib\inc;..\ms_complib\inc\user\;..\..\applibs\include;..\..\sxd_libs\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>.\inc\sai;.\inc;.\src\meta;..\l2w\include;..\ms_complib\inc;..\ms_complib\inc\user\;..\..\applibs\include;..\..\sxd_libs\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <ForcedIncludeFiles>unistd.h</ForcedIncludeFiles>
       <PreprocessorDefinitions>NO_UNISTD_SOCK;_MBCS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
@@ -156,6 +156,8 @@
     <ClInclude Include="inc\sai\saivlan.h" />
     <ClInclude Include="inc\sai\saiwred.h" />
     <ClInclude Include="inc\sai_windows.h" />
+    <ClInclude Include="src\meta\saimetadata.h" />
+    <ClInclude Include="src\meta\saimetadatautils.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\dbgdump\mlnx_sai_dbg_acl.c" />
@@ -171,8 +173,11 @@
     <ClCompile Include="src\dbgdump\mlnx_sai_dbg_scheduler.c" />
     <ClCompile Include="src\dbgdump\mlnx_sai_dbg_stp.c" />
     <ClCompile Include="src\dbgdump\mlnx_sai_dbg_tunnel.c" />
+    <ClCompile Include="src\dbgdump\mlnx_sai_dbg_udf.c" />
     <ClCompile Include="src\dbgdump\mlnx_sai_dbg_vlan.c" />
     <ClCompile Include="src\dbgdump\mlnx_sai_dbg_wred.c" />
+    <ClCompile Include="src\meta\saimetadata.c" />
+    <ClCompile Include="src\meta\saimetadatautils.c" />
     <ClCompile Include="src\mlnx_sai_acl.c" />
     <ClCompile Include="src\mlnx_sai_bridge.c" />
     <ClCompile Include="src\mlnx_sai_fdb.c" />
@@ -199,6 +204,7 @@
     <ClCompile Include="src\mlnx_sai_switch.c" />
     <ClCompile Include="src\mlnx_sai_buffer.c" />
     <ClCompile Include="src\mlnx_sai_tunnel.c" />
+    <ClCompile Include="src\mlnx_sai_udf.c" />
     <ClCompile Include="src\mlnx_sai_utils.c" />
     <ClCompile Include="src\mlnx_sai_vlan.c" />
     <ClCompile Include="src\mlnx_sai_wred.c" />
