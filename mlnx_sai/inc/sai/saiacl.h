@@ -923,7 +923,8 @@ typedef enum _sai_acl_table_attr_t
      * @brief Range type defined
      *
      * @type sai_s32_list_t sai_acl_range_type_t
-     * @flags MANDATORY_ON_CREATE | CREATE_ONLY
+     * @flags CREATE_ONLY
+     * @default empty
      */
     SAI_ACL_TABLE_ATTR_FIELD_ACL_RANGE_TYPE,
 
@@ -1912,7 +1913,7 @@ typedef enum _sai_acl_range_attr_t
      * Range will include the start and end values.
      * Range Limit cannot be changed after the range is created.
      *
-     * @type sai_uint32_t
+     * @type sai_u32_range_t
      * @flags MANDATORY_ON_CREATE | CREATE_ONLY
      */
     SAI_ACL_RANGE_ATTR_LIMIT,
