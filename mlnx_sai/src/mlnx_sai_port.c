@@ -4981,6 +4981,29 @@ static sai_status_t mlnx_port_speed_convert_bitmap_to_capability(const sx_port_s
     return SAI_STATUS_SUCCESS;
 }
 
+sai_status_t mlnx_port_speed_bitmap_apply(_In_ const mlnx_port_config_t *port)
+{
+    sai_status_t               status;
+    sx_status_t                sx_status;
+    sx_port_speed_capability_t speed;
+
+    memset(&speed, 0, sizeof(speed));
+
+    status = mlnx_port_speed_convert_bitmap_to_capability(port->speed_bitmap, &speed);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to convert port %x speed bitmap %d\n", port->logical, port->speed_bitmap);
+        return status;
+    }
+
+    sx_status = sx_api_port_speed_admin_set(gh_sdk, port->logical, &speed);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to set port speed - %s.\n", SX_STATUS_MSG(sx_status));
+        return sdk_to_sai(sx_status);
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
 sai_status_t mlnx_port_config_init(mlnx_port_config_t *port)
 {
     sx_port_admin_state_t      state = SX_PORT_ADMIN_STATUS_DOWN;
@@ -4995,18 +5018,6 @@ sai_status_t mlnx_port_config_init(mlnx_port_config_t *port)
     }
 
     memset(&admin_speed, 0, sizeof(admin_speed));
-
-    if (mlnx_port_is_lag(port)) {
-        admin_speed.mode_40GB_CR4     = true;
-        admin_speed.mode_40GB_SR4     = true;
-        admin_speed.mode_40GB_LR4_ER4 = true;
-    } else {
-        status = mlnx_port_speed_convert_bitmap_to_capability(port->port_speed, &admin_speed);
-        if (SAI_ERR(status)) {
-            SX_LOG_ERR("Failed to convert port %x speed %d\n", port->logical, port->port_speed);
-            return status;
-        }
-    }
 
     port->start_queues_index = port->index * (MAX_ETS_TC + 1);
 
@@ -5035,12 +5046,6 @@ sai_status_t mlnx_port_config_init(mlnx_port_config_t *port)
                                              port->logical, SX_MSTP_INST_PORT_STATE_FORWARDING);
     if (SX_ERR(status)) {
         SX_LOG_ERR("%s\n", SX_STATUS_MSG(status));
-        return sdk_to_sai(status);
-    }
-
-    status = sx_api_port_speed_admin_set(gh_sdk, port->logical, &admin_speed);
-    if (SX_ERR(status)) {
-        SX_LOG_ERR("Port admin speed set %x failed - %s\n", port->logical, SX_STATUS_MSG(status));
         return sdk_to_sai(status);
     }
 
@@ -5523,8 +5528,6 @@ static sai_status_t mlnx_create_port(_Out_ sai_object_id_t     * port_id,
         status = sdk_to_sai(status);
         goto out_unlock;
     }
-
-    new_port->port_speed = port_speed->u32;
 
     SX_LOG_NTC("Initialize new port oid %" PRIx64 "\n", new_port->saiport);
 

@@ -1012,7 +1012,7 @@ typedef struct _mlnx_port_config_t {
     uint32_t                        module;
     uint32_t                        width;
     mlnx_port_breakout_capability_t breakout_modes;
-    sx_port_speed_t                 port_speed;
+    sx_port_speed_t                 speed_bitmap;
     sx_port_log_id_t                logical;
     sai_object_id_t                 saiport;
     bool                            is_split;
@@ -1053,6 +1053,7 @@ sai_status_t mlnx_create_bridge_object(sai_bridge_type_t sai_br_type, sx_bridge_
 sai_status_t mlnx_bridge_oid_to_id(sai_object_id_t oid, sx_bridge_id_t *bridge_id);
 sai_status_t mlnx_bridge_port_sai_to_log_port(sai_object_id_t oid, sx_port_log_id_t *log_port);
 sai_status_t mlnx_log_port_to_sai_bridge_port(sx_port_log_id_t log_port, sai_object_id_t *oid);
+sai_status_t mlnx_log_port_to_sai_bridge_port_soft(sx_port_log_id_t log_port, sai_object_id_t *oid);
 sai_status_t mlnx_tunnel_idx_to_sai_bridge_port(uint32_t tunnel_idx, sai_object_id_t *oid);
 sai_status_t mlnx_port_is_in_bridge(const mlnx_port_config_t *port);
 sai_status_t mlnx_bridge_port_by_log(sx_port_log_id_t log, mlnx_bridge_port_t **port);
@@ -1232,7 +1233,9 @@ typedef struct _acl_table_db_t {
     bool                       is_used;
     bool                       is_lock_inited;
     uint32_t                   queued;
-    uint32_t                   group_index;
+    /* Valid only when group_references > 0 */
+    sai_acl_table_group_type_t group_type;
+    uint32_t                   group_references;
     sx_acl_id_t                table_id;
     sai_acl_stage_t            stage;
     sx_acl_size_t              table_size;
@@ -1834,6 +1837,7 @@ sai_status_t mlnx_port_add(mlnx_port_config_t *port);
 sai_status_t mlnx_port_del(mlnx_port_config_t *port);
 sai_status_t mlnx_port_config_init(mlnx_port_config_t *port);
 sai_status_t mlnx_port_config_uninit(mlnx_port_config_t *port);
+sai_status_t mlnx_port_speed_bitmap_apply(_In_ const mlnx_port_config_t *port);
 
 sai_status_t mlnx_port_in_use_check(const mlnx_port_config_t *port);
 bool mlnx_port_is_net(const mlnx_port_config_t *port);

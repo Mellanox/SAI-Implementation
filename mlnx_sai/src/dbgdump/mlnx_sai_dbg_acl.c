@@ -215,12 +215,14 @@ static void SAI_dump_acl_table_print(_In_ FILE *file, _In_ acl_table_db_t *acl_t
     char                      stage_str[LINE_LENGTH];
     char                      key_type_str[LINE_LENGTH];
     char                      range_type_str[LINE_LENGTH];
+    char                      group_type_str[LINE_LENGTH];
     dbg_utils_table_columns_t acl_table_clmns[] = {
         {"sai oid",           16, PARAM_UINT64_E, &obj_id},
         {"db idx",            13, PARAM_UINT32_E, &ii},
         {"is lock inited",    14, PARAM_UINT8_E,  &curr_acl_table_db.is_lock_inited},
         {"queued",            13, PARAM_UINT32_E, &curr_acl_table_db.queued},
-        {"table id",          13, PARAM_UINT32_E, &curr_acl_table_db.group_index},
+        {"group type",        13, PARAM_STRING_E, &group_type_str},
+        {"group refs",        13, PARAM_UINT32_E, &curr_acl_table_db.group_references},
         {"table id",          13, PARAM_UINT32_E, &curr_acl_table_db.table_id},
         {"stage",             14, PARAM_STRING_E, &stage_str},
         {"table size",        13, PARAM_UINT32_E, &curr_acl_table_db.table_size},
@@ -276,6 +278,9 @@ static void SAI_dump_acl_table_print(_In_ FILE *file, _In_ acl_table_db_t *acl_t
             for (jj = 0; jj < acl_table_db[ii].range_type_count; jj++) {
                 SAI_dump_acl_range_type_enum_to_str(acl_table_db[ii].range_types[jj],
                                                     range_type_str);
+
+                SAI_dump_acl_table_group_type_enum_to_str(acl_table_db[ii].group_type, group_type_str);
+
                 dbg_utils_print_table_data_line(file, range_types_clmns);
             }
         }

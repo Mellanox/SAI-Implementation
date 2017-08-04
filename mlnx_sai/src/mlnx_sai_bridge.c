@@ -448,21 +448,33 @@ out:
 /* Used in case the log_port is a bridge port in .1Q bridge (actually regular log port) or vport */
 sai_status_t mlnx_log_port_to_sai_bridge_port(sx_port_log_id_t log_port, sai_object_id_t *oid)
 {
-    mlnx_bridge_port_t *port;
     sai_status_t status;
+
+    status = mlnx_log_port_to_sai_bridge_port_soft(log_port, oid);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed lookup bridge port by logical id %x\n", log_port);
+    }
+
+    return status;
+}
+
+/* The same as mlnx_log_port_to_sai_bridge_port but without error message */
+sai_status_t mlnx_log_port_to_sai_bridge_port_soft(sx_port_log_id_t log_port, sai_object_id_t *oid)
+{
+    sai_status_t        status;
+    mlnx_bridge_port_t *port;
 
     sai_db_read_lock();
 
     status = mlnx_bridge_port_by_log(log_port, &port);
     if (SAI_ERR(status)) {
-        SX_LOG_ERR("Failed lookup bridge port by logical id %x\n", log_port);
-        sai_db_unlock();
-        return status;
+        goto out;
     }
 
     status = mlnx_bridge_port_to_oid(port, oid);
-    sai_db_unlock();
 
+out:
+    sai_db_unlock();
     return status;
 }
 

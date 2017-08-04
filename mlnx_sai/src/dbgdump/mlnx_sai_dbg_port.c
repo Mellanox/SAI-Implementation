@@ -124,7 +124,7 @@ static void SAI_dump_port_print(_In_ FILE *file, _In_ mlnx_port_config_t *mlnx_p
         {"module",                     6,  PARAM_UINT32_E, &curr_mlnx_port_config.module},
         {"width",                      5,  PARAM_UINT32_E, &curr_mlnx_port_config.width},
         {"breakout mode",              13, PARAM_STRING_E, &breakout_modes_str},
-        {"port speed",                 11, PARAM_UINT32_E, &curr_mlnx_port_config.port_speed},
+        {"speed bitmap",               11, PARAM_UINT32_E, &curr_mlnx_port_config.speed_bitmap},
         {"logical",                    11, PARAM_UINT32_E, &curr_mlnx_port_config.logical},
         {"is split",                   8,  PARAM_BOOL_E,   &curr_mlnx_port_config.is_split},
         {"split count",                11, PARAM_UINT8_E,  &curr_mlnx_port_config.split_count},

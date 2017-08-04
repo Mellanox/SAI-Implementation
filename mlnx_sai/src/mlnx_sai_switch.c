@@ -1714,7 +1714,7 @@ static sai_status_t parse_port_info(xmlDoc *doc, xmlNode * port_node)
 
     port->breakout_modes = breakout_modes;
     port->split_count    = split_count;
-    port->port_speed     = port_speed;
+    port->speed_bitmap   = port_speed;
     port->module         = module;
     port->width          = width;
     port->is_present     = true;
@@ -1739,7 +1739,7 @@ static sai_status_t parse_port_info(xmlDoc *doc, xmlNode * port_node)
                      port->port_map.width,
                      port->port_map.lane_bmap,
                      port->breakout_modes,
-                     port->port_speed);
+                     port->speed_bitmap);
 
     return SAI_STATUS_SUCCESS;
 }
@@ -2029,7 +2029,7 @@ static sai_status_t mlnx_port_auto_split(mlnx_port_config_t *port)
 
         /* Inherite module & speed from the init port */
         new_port->port_map.mapping_mode = SX_PORT_MAPPING_MODE_ENABLE;
-        new_port->port_speed            = port->port_speed;
+        new_port->speed_bitmap          = port->speed_bitmap;
         new_port->port_map.module_port  = port->module;
         new_port->is_present            = true;
         new_port->is_split              = true;
@@ -2050,6 +2050,11 @@ static sai_status_t mlnx_port_auto_split(mlnx_port_config_t *port)
         status = mlnx_port_config_init(new_port);
         if (SAI_ERR(status)) {
             SX_LOG_ERR("Failed initialize log port 0x%x on split\n", new_port->logical);
+            return status;
+        }
+
+        status = mlnx_port_speed_bitmap_apply(new_port);
+        if (SAI_ERR(status)) {
             return status;
         }
     }
@@ -2213,6 +2218,11 @@ static sai_status_t mlnx_dvs_mng_stage(sai_object_id_t switch_id)
             SX_LOG_ERR("Failed initialize port oid %" PRIx64 " config\n", port->saiport);
             goto out;
         }
+
+        status = mlnx_port_speed_bitmap_apply(port);
+        if (SAI_ERR(status)) {
+            return status;
+        }
     }
 
     mlnx_port_phy_foreach(port, ii) {
@@ -2322,7 +2332,12 @@ static sai_status_t mlnx_switch_parse_fdb_event(uint8_t                         
                sizeof(fdb_events[ii].fdb_entry.mac_address));
 
         if (has_port) {
-            status = mlnx_log_port_to_sai_bridge_port(packet->records_arr[ii].log_port, &port_id);
+            /*
+             * In some cases, FDB event is generated for the port that is not on the bridge
+             * e.g. when the port is added to the LAG
+             * In this case we don't need to print en error message for user
+             */
+            status = mlnx_log_port_to_sai_bridge_port_soft(packet->records_arr[ii].log_port, &port_id);
             if (SAI_ERR(status)) {
                 return status;
             }

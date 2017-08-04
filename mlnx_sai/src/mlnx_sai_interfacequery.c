@@ -420,8 +420,12 @@ sai_status_t sai_dbg_generate_dump(_In_ const char *dump_file_name)
     FILE       *file       = NULL;
     sx_status_t sdk_status = SX_STATUS_ERROR;
 
-    sdk_status = sx_api_dbg_generate_dump(gh_sdk, dump_file_name);
+    if (!gh_sdk) {
+        fprintf(stderr, "Can't generate debug dump before creating switch\n");
+        return SAI_STATUS_FAILURE;
+    }
 
+    sdk_status = sx_api_dbg_generate_dump(gh_sdk, dump_file_name);
     if (SX_STATUS_SUCCESS != sdk_status) {
         fprintf(stderr, "Error generating sdk dump, sx status: %s\n", SX_STATUS_MSG(sdk_status));
     }
