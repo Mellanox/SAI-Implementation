@@ -194,6 +194,11 @@ static sai_status_t mlnx_sai_get_buffer_profile_xon_attr(_In_ const sai_object_k
 static sai_status_t mlnx_sai_set_buffer_profile_xon_attr(_In_ const sai_object_key_t      * key,
                                                          _In_ const sai_attribute_value_t * value,
                                                          void                             * arg);
+static sai_status_t mlnx_sai_get_buffer_profile_th_mode(_In_ const sai_object_key_t   * key,
+                                                        _Inout_ sai_attribute_value_t * value,
+                                                        _In_ uint32_t                   attr_index,
+                                                        _Inout_ vendor_cache_t        * cache,
+                                                        void                          * arg);
 sai_status_t mlnx_buffer_convert_alpha_sai_to_sx(_In_ sai_int8_t sai_alpha, _Out_ sx_cos_port_buff_alpha_e* sx_alpha);
 static const sai_attribute_entry_t        pg_attribs[] = {
     { SAI_INGRESS_PRIORITY_GROUP_ATTR_BUFFER_PROFILE, false, true, true, true,
@@ -337,9 +342,9 @@ static const sai_vendor_attribute_entry_t buffer_profile_vendor_attribs[] = {
     },
     {
         SAI_BUFFER_PROFILE_ATTR_THRESHOLD_MODE,
-        { false, false, false, false },
-        { false, false, false, false },
-        NULL, NULL,
+        { true, false, false, true },
+        { true, false, false, true },
+        mlnx_sai_get_buffer_profile_th_mode, NULL,
         NULL, NULL
     },
 };
@@ -2559,6 +2564,23 @@ static sai_status_t mlnx_sai_create_buffer_profile(_Out_ sai_object_id_t     * b
     }
 
     if (SAI_STATUS_SUCCESS ==
+        (sai_status =
+             find_attrib_in_list(attr_count, attr_list, SAI_BUFFER_PROFILE_ATTR_THRESHOLD_MODE, &attr,
+                                 &attr_ind))) {
+        if (SAI_BUFFER_PROFILE_THRESHOLD_MODE_INHERIT_BUFFER_POOL_MODE == attr->s32) {
+            /* TODO : Clean in SAI 1.2 and make attribute mandatory */
+            SX_LOG_ERR("Buffer profile inherit from pool mode isn't implemented. Please use explicit static or dynamic values.\n");
+            SX_LOG_EXIT();
+            return SAI_STATUS_INVALID_ATTR_VALUE_0 + attr_ind;
+        }
+        else if (new_buffer_profile.shared_max.mode != (sai_buffer_profile_threshold_mode_t) attr->s32) {
+            SX_LOG_ERR("Threshold mode %d mixed with threshold value %d.\n", attr->s32, new_buffer_profile.shared_max.mode);
+            SX_LOG_EXIT();
+            return SAI_STATUS_INVALID_ATTR_VALUE_0 + attr_ind;
+        }
+    }
+
+    if (SAI_STATUS_SUCCESS ==
         (sai_status = find_attrib_in_list(attr_count, attr_list, SAI_BUFFER_PROFILE_ATTR_XOFF_TH, &attr, &attr_ind))) {
         new_buffer_profile.xoff = attr->u32;
     } else {
@@ -3873,6 +3895,30 @@ static sai_status_t mlnx_sai_set_buffer_profile_xon_attr(_In_ const sai_object_k
         return sai_status;
     }
     msync(g_sai_db_ptr, sizeof(*g_sai_db_ptr), MS_SYNC);
+    cl_plock_release(&g_sai_db_ptr->p_lock);
+    SX_LOG_EXIT();
+    return SAI_STATUS_SUCCESS;
+}
+
+/* get the buffer profile threshold mode [sai_int32_t] */
+static sai_status_t mlnx_sai_get_buffer_profile_th_mode(_In_ const sai_object_key_t   * key,
+                                                        _Inout_ sai_attribute_value_t * value,
+                                                        _In_ uint32_t                   attr_index,
+                                                        _Inout_ vendor_cache_t        * cache,
+                                                        void                          * arg)
+{
+    sai_status_t sai_status;
+    uint32_t     db_buffer_profile_index;
+
+    SX_LOG_ENTER();
+    cl_plock_acquire(&g_sai_db_ptr->p_lock);
+    if (SAI_STATUS_SUCCESS !=
+        (sai_status = get_buffer_profile_db_index(key->key.object_id, &db_buffer_profile_index))) {
+        cl_plock_release(&g_sai_db_ptr->p_lock);
+        SX_LOG_EXIT();
+        return sai_status;
+    }
+    value->s32 = g_sai_buffer_db_ptr->buffer_profiles[db_buffer_profile_index].shared_max.mode;
     cl_plock_release(&g_sai_db_ptr->p_lock);
     SX_LOG_EXIT();
     return SAI_STATUS_SUCCESS;

@@ -254,8 +254,8 @@ static const sai_vendor_attribute_entry_t trap_vendor_attribs[] = {
       mlnx_trap_action_get, NULL,
       mlnx_trap_action_set, NULL },
     { SAI_HOSTIF_TRAP_ATTR_TRAP_PRIORITY,
-      { false, false, false, false },
-      { false, false, false, false },
+      { true, false, false, false },
+      { true, false, true, true },
       NULL, NULL,
       NULL, NULL },
     { SAI_HOSTIF_TRAP_ATTR_EXCLUDE_PORT_LIST,
@@ -1575,6 +1575,8 @@ sai_status_t mlnx_create_hostif_trap(_Out_ sai_object_id_t      *hostif_trap_id,
     }
 
     sai_attr_list_to_str(attr_count, attr_list, trap_attribs, MAX_LIST_VALUE_STR_LEN, list_str);
+    /* In Mellanox platform, trap group queue defines the trap priority */
+
     SX_LOG_NTC("Create trap, %s\n", list_str);
 
     status = find_attrib_in_list(attr_count, attr_list, SAI_HOSTIF_TRAP_ATTR_TRAP_TYPE, &trap_id, &trap_id_index);
