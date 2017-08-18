@@ -2262,12 +2262,15 @@ static sai_status_t mlnx_switch_parse_fdb_event(uint8_t                         
     sai_object_id_t             port_id       = SAI_NULL_OBJECT_ID;
     sai_mac_t                   mac_addr;
     sx_access_cmd_t             cmd = SX_ACCESS_CMD_ADD;
+    sai_object_id_t             switch_id;
+    mlnx_object_id_t            mlnx_switch_id = { 0 };
+    bool                        has_port;
 
-    memset(&mac_entry, 0, sizeof(mac_entry));
+    /* hard coded single switch instance */
+    mlnx_switch_id.id.is_created = true;
+    mlnx_object_id_to_sai(SAI_OBJECT_TYPE_SWITCH, &mlnx_switch_id, &switch_id);
 
     for (ii = 0; ii < packet->records_num; ii++) {
-        bool has_port = false;
-
         SX_LOG_INF("FDB event received [%u] vlan: %4u ; mac: %x:%x:%x:%x:%x:%x ; log_port: (0x%08X) ; type: %s(%d)\n",
                    ii,
                    packet->records_arr[ii].fid,
@@ -2285,6 +2288,8 @@ static sai_status_t mlnx_switch_parse_fdb_event(uint8_t                         
         sx_fid  = 0;
         memset(mac_addr, 0, sizeof(mac_addr));
         memset(&fdb_events[ii], 0, sizeof(fdb_events[ii]));
+        memset(&mac_entry, 0, sizeof(mac_entry));
+        has_port = false;
 
         switch (packet->records_arr[ii].type) {
         case SX_FDB_NOTIFY_TYPE_NEW_MAC_LAG:
@@ -2354,6 +2359,8 @@ static sai_status_t mlnx_switch_parse_fdb_event(uint8_t                         
                 return status;
             }
         }
+
+        fdb_events[ii].fdb_entry.switch_id = switch_id;
 
         fdb_events[ii].attr       = attr_ptr;
         fdb_events[ii].attr_count = FDB_NOTIF_ATTRIBS_NUM;
