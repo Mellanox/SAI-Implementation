@@ -44,18 +44,12 @@
 #define MLNX_UDF_ACL_ATTR_SHORT_NAME_OFFSET (19)
 
 static const sai_u32_list_t        mlnx_sai_not_mandatory_attrs[SAI_OBJECT_TYPE_MAX] = {
-    [SAI_OBJECT_TYPE_BUFFER_PROFILE] =
-    {.count = 2, .list = (sai_attr_id_t[2]) {SAI_BUFFER_PROFILE_ATTR_SHARED_DYNAMIC_TH,
-                                             SAI_BUFFER_PROFILE_ATTR_SHARED_STATIC_TH}
-    },
-
     [SAI_OBJECT_TYPE_QOS_MAP] =
     {.count = 1, .list = (sai_attr_id_t[1]) {SAI_QOS_MAP_ATTR_MAP_TO_VALUE_LIST}
     },
 
     [SAI_OBJECT_TYPE_SCHEDULER_GROUP] =
-    {.count = 2, .list = (sai_attr_id_t[2]) {SAI_SCHEDULER_GROUP_ATTR_SCHEDULER_PROFILE_ID,
-                                             SAI_SCHEDULER_GROUP_ATTR_PARENT_NODE}
+    {.count = 1, .list = (sai_attr_id_t[1]) {SAI_SCHEDULER_GROUP_ATTR_PARENT_NODE}
     },
 
     [SAI_OBJECT_TYPE_TUNNEL] =
@@ -67,28 +61,6 @@ static const sai_u32_list_t        mlnx_sai_not_mandatory_attrs[SAI_OBJECT_TYPE_
     },
 };
 static const sai_u32_list_t        mlnx_sai_attrs_valid_for_set[SAI_OBJECT_TYPE_MAX] = {
-    [SAI_OBJECT_TYPE_PORT] =
-    {.count = 1, .list = (sai_attr_id_t[1]) {SAI_PORT_ATTR_AUTO_NEG_MODE}
-    },
-
-    [SAI_OBJECT_TYPE_SWITCH] = {.count = 6, .list = (sai_attr_id_t[6])
-                                { SAI_SWITCH_ATTR_LAG_HASH_IPV4, SAI_SWITCH_ATTR_LAG_HASH_IPV4_IN_IPV4,
-                                  SAI_SWITCH_ATTR_LAG_HASH_IPV6,
-                                  SAI_SWITCH_ATTR_ECMP_HASH_IPV4, SAI_SWITCH_ATTR_ECMP_HASH_IPV4_IN_IPV4,
-                                  SAI_SWITCH_ATTR_ECMP_HASH_IPV6 }
-    },
-
-    [SAI_OBJECT_TYPE_QOS_MAP] =
-    {.count = 1, .list = (sai_attr_id_t[1]) {SAI_QOS_MAP_ATTR_MAP_TO_VALUE_LIST}
-    },
-
-    [SAI_OBJECT_TYPE_POLICER] = {.count = 7, .list = (sai_attr_id_t[7])
-                                 { SAI_POLICER_ATTR_CBS, SAI_POLICER_ATTR_CIR, SAI_POLICER_ATTR_PBS,
-                                   SAI_POLICER_ATTR_PIR,
-                                   SAI_POLICER_ATTR_GREEN_PACKET_ACTION, SAI_POLICER_ATTR_YELLOW_PACKET_ACTION,
-                                   SAI_POLICER_ATTR_RED_PACKET_ACTION}
-    },
-
     [SAI_OBJECT_TYPE_TUNNEL] =
     {.count = 1, .list = (sai_attr_id_t[1]) {SAI_TUNNEL_ATTR_DECAP_MAPPERS}
     },
@@ -232,8 +204,12 @@ static sai_status_t sai_attr_metadata_to_str(_In_ const sai_attr_metadata_t   *m
                                              _In_ const sai_attribute_value_t *value,
                                              _In_ uint32_t                     max_length,
                                              _Out_ char                       *value_str);
+static sai_status_t sai_attr_meta_enum_value_to_str(_In_ const sai_attr_metadata_t *meta_data,
+                                                    _In_ sai_int32_t                value,
+                                                    _In_ uint32_t                   max_length,
+                                                    _Out_ char                     *value_str);
 static sai_status_t sai_attr_meta_enum_to_str(_In_ const sai_attr_metadata_t *meta_data,
-                                              _In_ sai_int32_t                value,
+                                              _In_ const sai_attribute_value_t *value,
                                               _In_ uint32_t                   max_length,
                                               _Out_ char                     *value_str);
 static sai_status_t sai_object_type_attr_count_meta_get(_In_ const sai_object_type_t object_type,
@@ -1007,6 +983,12 @@ static sai_status_t sai_attribute_value_list_type_validate(_In_ const sai_attr_m
         list_elems_count = value->qosmap.count;
         break;
 
+    case SAI_ATTR_VALUE_TYPE_MAP_LIST:
+        list_type_size = sizeof(value->maplist.list[0]);
+        list_ptr = value->maplist.list;
+        list_elems_count = value->maplist.count;
+        break;
+
     default:
         is_value_type_list = false;
         break;
@@ -1483,7 +1465,7 @@ static sai_status_t sai_attr_metadata_conditions_print(_In_ sai_attr_condition_t
             return SAI_STATUS_FAILURE;
         }
 
-        status = sai_attr_meta_enum_to_str(attr_metadata, conditions[ii]->condition.s32, MAX_VALUE_STR_LEN, value_str);
+        status = sai_attr_meta_enum_to_str(attr_metadata, &conditions[ii]->condition, MAX_VALUE_STR_LEN, value_str);
         if (SAI_ERR(status)) {
             return status;
         }
@@ -2014,10 +1996,18 @@ static sai_status_t get_dispatch_attribs_handler(_In_ uint32_t                  
             sai_attr_metadata_to_str(meta_data, &attr_list[ii].value, MAX_VALUE_STR_LEN, value_str);
         }
 
+        /* lower log level for ACL counter stats */
         if ((SAI_OBJECT_TYPE_ACL_COUNTER == object_type) &&
             ((SAI_ACL_COUNTER_ATTR_BYTES == attr_id) || (SAI_ACL_COUNTER_ATTR_PACKETS == attr_id))) {
             log_level = SX_LOG_DEBUG;
         }
+        /* lower log level for frequent attribs used in Sonic */
+#ifdef ACS_OS
+        if ((SAI_OBJECT_TYPE_SWITCH == object_type) &&
+            ((SAI_SWITCH_ATTR_PORT_NUMBER == attr_id) || (SAI_SWITCH_ATTR_PORT_LIST == attr_id))) {
+            log_level = SX_LOG_DEBUG;
+        }
+#endif
 
         SX_LOG(log_level, "Got #%u, %s, key:%s, val:%s\n", ii, short_attr_name, key_str, value_str);
     }
@@ -2619,6 +2609,7 @@ static sai_status_t sai_value_to_str(_In_ sai_attribute_value_t value,
     case SAI_ATTR_VALUE_TYPE_ACL_ACTION_DATA_OBJECT_LIST:
     case SAI_ATTR_VALUE_TYPE_TUNNEL_MAP_LIST:
     case SAI_ATTR_VALUE_TYPE_ACL_CAPABILITY:
+    case SAI_ATTR_VALUE_TYPE_MAP_LIST:
         if (SAI_ATTR_VALUE_TYPE_ACL_CAPABILITY == type) {
             pos += snprintf(value_str,
                             max_length,
@@ -2648,6 +2639,7 @@ static sai_status_t sai_value_to_str(_In_ sai_attribute_value_t value,
                 (SAI_ATTR_VALUE_TYPE_ACL_FIELD_DATA_UINT8_LIST == type) ? value.aclfield.data.u8list.count :
                 (SAI_ATTR_VALUE_TYPE_ACL_ACTION_DATA_OBJECT_LIST == type) ? value.aclaction.parameter.objlist.count :
                 (SAI_ATTR_VALUE_TYPE_TUNNEL_MAP_LIST == type) ? value.tunnelmap.count :
+                (SAI_ATTR_VALUE_TYPE_MAP_LIST == type) ? value.maplist.count :
                 value.aclcapability.action_list.count;
         pos += snprintf(value_str + pos, max_length - pos, "%u : [", count);
         if (pos > max_length) {
@@ -2687,6 +2679,8 @@ static sai_status_t sai_value_to_str(_In_ sai_attribute_value_t value,
                              value.tunnelmap.list[ii].key.vlan_id, value.tunnelmap.list[ii].key.vni_id,
                              value.tunnelmap.list[ii].value.oecn, value.tunnelmap.list[ii].value.uecn,
                              value.tunnelmap.list[ii].value.vlan_id, value.tunnelmap.list[ii].value.vni_id);
+            } else if (SAI_ATTR_VALUE_TYPE_MAP_LIST == type) {
+                pos += snprintf(value_str + pos, max_length - pos, " %u->%d", value.maplist.list[ii].key, value.maplist.list[ii].value);
             } else if (SAI_ATTR_VALUE_TYPE_ACL_CAPABILITY == type) {
                 pos += snprintf(value_str + pos, max_length - pos, " %d", value.aclcapability.action_list.list[ii]);
             }
@@ -2867,21 +2861,49 @@ static sai_status_t sai_value_to_str(_In_ sai_attribute_value_t value,
     return SAI_STATUS_SUCCESS;
 }
 
-static sai_status_t sai_attr_meta_enum_to_str(_In_ const sai_attr_metadata_t *meta_data,
-                                              _In_ sai_int32_t                value,
-                                              _In_ uint32_t                   max_length,
-                                              _Out_ char                     *value_str)
+static sai_status_t sai_attr_meta_enum_value_to_str(_In_ const sai_attr_metadata_t *meta_data,
+                                                    _In_ sai_int32_t                value,
+                                                    _In_ uint32_t                   max_length,
+                                                    _Out_ char                     *value_str)
 {
+    uint32_t index;
+
     assert(meta_data);
     assert(value_str);
 
-    if ((0 <= value) && (value < (sai_int32_t)meta_data->enummetadata->valuescount)) {
-        snprintf(value_str, max_length, "%s", meta_data->enummetadata->valuesshortnames[value]);
-    } else {
-        snprintf(value_str, max_length, "invalid %d", value);
+    for (index = 0; index < meta_data->enummetadata->valuescount; index++) {
+        if (value == meta_data->enummetadata->values[index]) {
+            snprintf(value_str, max_length, "%s", meta_data->enummetadata->valuesshortnames[index]);
+            return SAI_STATUS_SUCCESS;
+        }
     }
 
+    snprintf(value_str, max_length, "invalid %d", value);
     return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t sai_attr_meta_enum_to_str(_In_ const sai_attr_metadata_t   *meta_data,
+                                              _In_ const sai_attribute_value_t *value,
+                                              _In_ uint32_t                     max_length,
+                                              _Out_ char                       *value_str)
+{
+    sai_int32_t enum_value;
+
+    assert(meta_data);
+    assert(value);
+    assert(value_str);
+
+    if (meta_data->isaclfield) {
+        enum_value = value->aclfield.data.s32;
+    }
+    else if (meta_data->isaclaction) {
+        enum_value = value->aclaction.parameter.s32;
+    }
+    else {
+        enum_value = value->s32;
+    }
+
+    return sai_attr_meta_enum_value_to_str(meta_data, enum_value, max_length, value_str);
 }
 
 sai_status_t sai_attr_meta_enumlist_to_str(_In_ const sai_attr_metadata_t *meta_data,
@@ -2905,7 +2927,7 @@ sai_status_t sai_attr_meta_enumlist_to_str(_In_ const sai_attr_metadata_t *meta_
     pos += snprintf(list_str, max_length, "[");
 
     for (ii = 0; ii < values->count; ii++) {
-        status = sai_attr_meta_enum_to_str(meta_data, values->list[ii], MAX_VALUE_STR_LEN, enum_str);
+        status = sai_attr_meta_enum_value_to_str(meta_data, values->list[ii], MAX_VALUE_STR_LEN, enum_str);
         if (SAI_ERR(status)) {
             return status;
         }
@@ -2935,7 +2957,7 @@ static sai_status_t sai_attr_metadata_to_str(_In_ const sai_attr_metadata_t   *m
     assert(value_str);
 
     if (meta_data->isenum) {
-        status = sai_attr_meta_enum_to_str(meta_data, value->s32, max_length, value_str);
+        status = sai_attr_meta_enum_to_str(meta_data, value, max_length, value_str);
         if (SAI_ERR(status)) {
             return status;
         }

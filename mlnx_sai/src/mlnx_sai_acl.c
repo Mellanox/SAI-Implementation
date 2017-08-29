@@ -9410,7 +9410,7 @@ sai_status_t mlnx_create_acl_table(_Out_ sai_object_id_t     * acl_table_id,
     acl_db_table(acl_table_index).created_rule_count     = 0;
     acl_db_table(acl_table_index).head_entry_index       = ACL_INVALID_DB_INDEX;
     acl_db_table(acl_table_index).range_type_count       = range_type_count;
-    acl_db_table(acl_table_index).group_index            = ACL_INVALID_DB_INDEX;
+    acl_db_table(acl_table_index).group_references       = 0;
     acl_db_table(acl_table_index).def_rules_offset       = default_rule_offset;
     acl_db_table(acl_table_index).def_rule_key           = keys[0];
     acl_db_table(acl_table_index).wrapping_group.created = false;
@@ -10080,7 +10080,7 @@ static sai_status_t mlnx_delete_acl_table(_In_ sai_object_id_t acl_table_id)
     sx_acl_key_type_t     key_handle;
     sai_acl_stage_t       stage;
     uint32_t              key_count = 0;
-    uint32_t              table_index;
+    uint32_t              table_index, group_references;
     sx_acl_key_t          keys[SX_FLEX_ACL_MAX_FIELDS_IN_KEY];
     bool                  is_ip_idnet_used;
 
@@ -10106,8 +10106,10 @@ static sai_status_t mlnx_delete_acl_table(_In_ sai_object_id_t acl_table_id)
         return SAI_STATUS_OBJECT_IN_USE;
     }
 
-    if (ACL_INVALID_DB_INDEX != acl_db_table(table_index).group_index) {
-        SX_LOG_ERR("Table is member of group [%d]\n", acl_db_table(table_index).group_index);
+    group_references = acl_db_table(table_index).group_references;
+
+    if (0 != group_references) {
+        SX_LOG_ERR("Table is member of %d group%c\n", group_references, (group_references > 1) ? 's' : ' ');
         acl_table_unlock(table_index);
         sai_db_unlock();
         SX_LOG_EXIT();
@@ -13135,8 +13137,7 @@ static sai_status_t mlnx_acl_bind_point_oid_fetch_data(_In_ sai_object_id_t oid,
 {
     sai_status_t               status;
     sai_object_type_t          object_type;
-    uint32_t                   object_data, table_group_index;
-    sai_acl_table_group_type_t table_group_type;
+    uint32_t                   object_data;
 
     assert(NULL != acl_index);
 
@@ -13164,13 +13165,10 @@ static sai_status_t mlnx_acl_bind_point_oid_fetch_data(_In_ sai_object_id_t oid,
             return SAI_STATUS_INVALID_ATTR_VALUE_0 + attr_index;
         }
 
-        table_group_index = acl_db_table(object_data).group_index;
-        if (ACL_INVALID_DB_INDEX != table_group_index) {
-            table_group_type = sai_acl_db_group_ptr(table_group_index)->search_type;
-            if (SAI_ACL_TABLE_GROUP_TYPE_SEQUENTIAL != table_group_type) {
-                SX_LOG_ERR("The table [%lx] is a member of sequential group\n", oid);
-                return SAI_STATUS_INVALID_ATTR_VALUE_0 + attr_index;
-            }
+        if ((acl_db_table(object_data).group_references > 0) &&
+            (acl_db_table(object_data).group_type == SAI_ACL_TABLE_GROUP_TYPE_SEQUENTIAL)) {
+            SX_LOG_ERR("The table [%lx] is a member of sequential group\n", oid);
+            return SAI_STATUS_INVALID_ATTR_VALUE_0 + attr_index;
         }
     }
 
@@ -14844,8 +14842,6 @@ static sai_status_t mlnx_acl_group_add_table(_In_ uint32_t group_index,
     group_members       = sai_acl_db_group_ptr(group_index)->members;
     group_members_count = sai_acl_db_group_ptr(group_index)->members_count;
 
-    assert(ACL_INVALID_DB_INDEX == acl_db_table(table_index).group_index);
-
     if (SAI_ACL_TABLE_GROUP_TYPE_SEQUENTIAL == group_type) {
         if (group_members_count > 0) {
             for (ii = 0; ii < group_members_count; ii++) {
@@ -14910,7 +14906,8 @@ static sai_status_t mlnx_acl_group_add_table(_In_ uint32_t group_index,
         goto out;
     }
 
-    acl_db_table(table_index).group_index = group_index;
+    acl_db_table(table_index).group_references++;
+    acl_db_table(table_index).group_type = group_type;
 
 out:
     return status;
@@ -15009,7 +15006,7 @@ static sai_status_t mlnx_acl_group_del_table(_In_ uint32_t group_index, _In_ uin
         }
     }
 
-    acl_db_table(table_index).group_index = ACL_INVALID_DB_INDEX;
+    acl_db_table(table_index).group_references--;
 
 out:
     return status;
@@ -15729,14 +15726,15 @@ static sai_status_t mlnx_create_acl_table_group_member(_Out_ sai_object_id_t    
     acl_table_write_lock(table_index);
     acl_global_lock();
 
-    if (ACL_INVALID_DB_INDEX != acl_db_table(table_index).group_index) {
-        SX_LOG_ERR("Table [%d] is a member of group [%d]\n", table_index, group_index);
+    if (false == acl_table_index_check_range(table_index)) {
+        SX_LOG_ERR("Invalid acl group object id (%lx)\n", table_id->oid);
         status = SAI_STATUS_INVALID_ATTR_VALUE_0 + attr_index;
         goto out_unlock;
     }
 
-    if (false == acl_table_index_check_range(table_index)) {
-        SX_LOG_ERR("Invalid acl group object id (%lx)\n", table_id->oid);
+    if ((acl_db_table(table_index).group_references > 0) &&
+        (acl_db_table(table_index).group_type == SAI_ACL_TABLE_GROUP_TYPE_SEQUENTIAL)) {
+        SX_LOG_ERR("Table [%d] is a member of sequential group\n", table_index);
         status = SAI_STATUS_INVALID_ATTR_VALUE_0 + attr_index;
         goto out_unlock;
     }
@@ -15829,8 +15827,8 @@ static sai_status_t mlnx_remove_acl_table_group_member(_In_ sai_object_id_t acl_
     acl_table_write_lock(table_index);
     acl_global_lock();
 
-    if (group_index != acl_db_table(table_index).group_index) {
-        SX_LOG_ERR("Table [%d] is not a member of group [%d]\n", table_index, group_index);
+    if (0 == acl_db_table(table_index).group_references) {
+        SX_LOG_ERR("Table [%d] is not a member of any group\n", table_index);
         status = SAI_STATUS_INVALID_OBJECT_ID;
         goto out_unlock;
     }
@@ -15839,8 +15837,6 @@ static sai_status_t mlnx_remove_acl_table_group_member(_In_ sai_object_id_t acl_
     if (SAI_ERR(status)) {
         goto out_unlock;
     }
-
-    acl_db_table(table_index).group_index = ACL_INVALID_DB_INDEX;
 
 out_unlock:
     acl_global_unlock();

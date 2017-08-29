@@ -77,6 +77,14 @@ static sai_status_t mlnx_vlan_learn_get(_In_ const sai_object_key_t   *key,
 static sai_status_t mlnx_vlan_learn_set(_In_ const sai_object_key_t      *key,
                                         _In_ const sai_attribute_value_t *value,
                                         void                             *arg);
+static sai_status_t mlnx_vlan_max_learned_addresses_get(_In_ const sai_object_key_t   *key,
+                                                        _Inout_ sai_attribute_value_t *value,
+                                                        _In_ uint32_t                  attr_index,
+                                                        _Inout_ vendor_cache_t        *cache,
+                                                        void                          *arg);
+static sai_status_t mlnx_vlan_max_learned_addresses_set(_In_ const sai_object_key_t      *key,
+                                                        _In_ const sai_attribute_value_t *value,
+                                                        void                             *arg);
 static sai_status_t mlnx_vlan_member_attrib_get(_In_ const sai_object_key_t   *key,
                                                 _Inout_ sai_attribute_value_t *value,
                                                 _In_ uint32_t                  attr_index,
@@ -111,10 +119,10 @@ static const sai_vendor_attribute_entry_t vlan_vendor_attribs[] = {
       mlnx_vlan_member_list_get, NULL,
       NULL, NULL },
     { SAI_VLAN_ATTR_MAX_LEARNED_ADDRESSES,
-      { false, false, false, false },
-      { false, false, true, true },
-      NULL, NULL,
-      NULL, NULL },
+      { true, false, true, true },
+      { true, false, true, true },
+      mlnx_vlan_max_learned_addresses_get, NULL,
+      mlnx_vlan_max_learned_addresses_set, NULL },
     { SAI_VLAN_ATTR_STP_INSTANCE,
       { true, false, true, true },
       { true, false, true, true },
@@ -171,6 +179,55 @@ static const sai_vendor_attribute_entry_t vlan_member_vendor_attribs[] = {
 static void vlan_key_to_str(_In_ sai_vlan_id_t vlan_id, _Out_ char *key_str)
 {
     snprintf(key_str, MAX_KEY_STR_LEN, "vlan %u", vlan_id);
+}
+
+sai_status_t mlnx_max_learned_addresses_value_validate(_In_ uint32_t limit,
+                                                       _In_ uint32_t attr_index)
+{
+    if (!SX_FDB_UC_LIMIT_CHECK_RANGE(limit)) {
+        SX_LOG_ERR("Invalid value for learning limit - %d. Valid range is [%d, %d)\n",
+                   limit, 0, SX_FDB_MAX_ENTRIES);
+        return SAI_STATUS_INVALID_ATTR_VALUE_0 + attr_index;
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
+sai_status_t mlnx_vlan_bridge_max_learned_addresses_set(_In_ sx_vid_t sx_vid,
+                                                        _In_ uint32_t limit)
+{
+    sx_status_t  sx_status;
+    uint32_t     sx_limit;
+
+    /* Conversion from SAI to SDK for disabled limit */
+    sx_limit = MLNX_FDB_LIMIT_SAI_TO_SX(limit);
+
+    sx_status = sx_api_fdb_uc_limit_fid_set(gh_sdk, SX_ACCESS_CMD_SET, DEFAULT_ETH_SWID, sx_vid, sx_limit);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to set learning limit - %s.\n", SX_STATUS_MSG(sx_status));
+        return sdk_to_sai(sx_status);
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
+sai_status_t mlnx_vlan_bridge_max_learned_addresses_get(_In_ sx_vid_t sx_vid,
+                                                        _In_ uint32_t *limit)
+{
+    sx_status_t sx_status;
+    uint32_t    sx_limit;
+
+    assert(limit);
+
+    sx_status = sx_api_fdb_uc_limit_fid_get(gh_sdk, DEFAULT_ETH_SWID, sx_vid, &sx_limit);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to get learning limit - %s.\n", SX_STATUS_MSG(sx_status));
+        return sdk_to_sai(sx_status);
+    }
+
+    *limit = MLNX_FDB_LIMIT_SX_TO_SAI(sx_limit);
+
+    return SAI_STATUS_SUCCESS;
 }
 
 /**
@@ -331,7 +388,62 @@ static sai_status_t mlnx_vlan_learn_set(_In_ const sai_object_key_t      *key,
 
 out:
     SX_LOG_EXIT();
-    return SAI_STATUS_SUCCESS;
+    return status;
+}
+
+static sai_status_t mlnx_vlan_max_learned_addresses_get(_In_ const sai_object_key_t   *key,
+                                                        _Inout_ sai_attribute_value_t *value,
+                                                        _In_ uint32_t                  attr_index,
+                                                        _Inout_ vendor_cache_t        *cache,
+                                                        void                          *arg)
+{
+    sai_status_t status = SAI_STATUS_SUCCESS;
+    uint16_t     vlan_id;
+
+    SX_LOG_ENTER();
+
+    status = sai_object_to_vlan(key->key.object_id, &vlan_id);
+    if (SAI_ERR(status)) {
+        goto out;
+    }
+
+    status = mlnx_vlan_bridge_max_learned_addresses_get(vlan_id, &value->u32);
+    if (SAI_ERR(status)) {
+        goto out;
+    }
+
+out:
+    SX_LOG_EXIT();
+    return status;
+}
+
+static sai_status_t mlnx_vlan_max_learned_addresses_set(_In_ const sai_object_key_t      *key,
+                                                        _In_ const sai_attribute_value_t *value,
+                                                        void                             *arg)
+{
+    sai_status_t status = SAI_STATUS_SUCCESS;
+    uint16_t     vlan_id;
+
+    SX_LOG_ENTER();
+
+    status = sai_object_to_vlan(key->key.object_id, &vlan_id);
+    if (SAI_ERR(status)) {
+        goto out;
+    }
+
+    status = mlnx_max_learned_addresses_value_validate(value->u32, 0);
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+    status = mlnx_vlan_bridge_max_learned_addresses_set(vlan_id, value->u32);
+    if (SAI_ERR(status)) {
+        goto out;
+    }
+
+out:
+    SX_LOG_EXIT();
+    return status;
 }
 
 /* STP id getter */
@@ -516,8 +628,8 @@ sai_status_t mlnx_create_vlan(_Out_ sai_object_id_t      *sai_vlan_id,
                               _In_ const sai_attribute_t *attr_list)
 {
     char                         list_str[MAX_LIST_VALUE_STR_LEN];
-    const sai_attribute_value_t *vid = NULL, *stp = NULL, *learn = NULL;
-    uint32_t                     vid_index, stp_index, learn_index;
+    const sai_attribute_value_t *vid = NULL, *stp = NULL, *learn = NULL, *max_learned_addresses = NULL;
+    uint32_t                     vid_index, stp_index, learn_index, max_learned_addresses_index;
     sx_mstp_inst_id_t            sx_stp_id = mlnx_stp_get_default_stp();
     mlnx_object_id_t             stp_obj_id;
     mlnx_object_id_t             vlan_obj_id;
@@ -563,6 +675,15 @@ sai_status_t mlnx_create_vlan(_Out_ sai_object_id_t      *sai_vlan_id,
         sx_stp_id = stp_obj_id.id.stp_inst_id;
     }
 
+    status = find_attrib_in_list(attr_count, attr_list, SAI_BRIDGE_ATTR_MAX_LEARNED_ADDRESSES,
+                                 &max_learned_addresses, &max_learned_addresses_index);
+    if (!SAI_ERR(status)) {
+        status = mlnx_max_learned_addresses_value_validate(max_learned_addresses->u32, max_learned_addresses_index);
+        if (SAI_ERR(status)) {
+            return status;
+        }
+    }
+
     /* no need to call SDK */
 
     assert(NULL != g_sai_db_ptr);
@@ -578,6 +699,13 @@ sai_status_t mlnx_create_vlan(_Out_ sai_object_id_t      *sai_vlan_id,
         }
 
         status = mlnx_acl_vlan_bind_point_set(vlan_oid, MLNX_ACL_BIND_POINT_TYPE_INGRESS_VLAN, ing_acl_index);
+        if (SAI_ERR(status)) {
+            goto out;
+        }
+    }
+
+    if (max_learned_addresses) {
+        status = mlnx_vlan_bridge_max_learned_addresses_set(vid->u16, max_learned_addresses->u32);
         if (SAI_ERR(status)) {
             goto out;
         }

@@ -4067,6 +4067,14 @@ static sai_status_t mlnx_get_port_stats(_In_ sai_object_id_t        port_id,
             counters[ii] = cnts_2819.ether_stats_pkts1024to1518octets;
             break;
 
+        case SAI_PORT_STAT_ETHER_STATS_PKTS_1519_TO_2047_OCTETS:
+            counters[ii] = cnts_2819.ether_stats_pkts1519to2047octets;
+            break;
+
+        case SAI_PORT_STAT_ETHER_STATS_PKTS_2048_TO_4095_OCTETS:
+            counters[ii] = cnts_2819.ether_stats_pkts2048to4095octets;
+            break;
+
         case SAI_PORT_STAT_ETHER_STATS_OVERSIZE_PKTS:
             counters[ii] = cnts_2819.ether_stats_oversize_pkts;
             break;
@@ -4089,6 +4097,14 @@ static sai_status_t mlnx_get_port_stats(_In_ sai_object_id_t        port_id,
 
         case SAI_PORT_STAT_ETHER_STATS_CRC_ALIGN_ERRORS:
             counters[ii] = cnts_2819.ether_stats_crc_align_errors;
+            break;
+
+        case SAI_PORT_STAT_ETHER_STATS_TX_NO_ERRORS:
+            counters[ii] = cntr_802.a_frames_transmitted_ok;
+            break;
+
+        case SAI_PORT_STAT_ETHER_STATS_RX_NO_ERRORS:
+            counters[ii] = cntr_802.a_frames_received_ok;
             break;
 
         case SAI_PORT_STAT_PAUSE_RX_PKTS:
@@ -4212,10 +4228,10 @@ static sai_status_t mlnx_get_port_stats(_In_ sai_object_id_t        port_id,
             break;
 
         case SAI_PORT_STAT_IF_OUT_QLEN:
+        case SAI_PORT_STAT_ETHER_STATS_PKTS_4096_TO_9216_OCTETS:
+        case SAI_PORT_STAT_ETHER_STATS_PKTS_9217_TO_16383_OCTETS:
         case SAI_PORT_STAT_ETHER_RX_OVERSIZE_PKTS:
         case SAI_PORT_STAT_ETHER_TX_OVERSIZE_PKTS:
-        case SAI_PORT_STAT_ETHER_STATS_TX_NO_ERRORS:
-        case SAI_PORT_STAT_ETHER_STATS_RX_NO_ERRORS:
         case SAI_PORT_STAT_IP_IN_RECEIVES:
         case SAI_PORT_STAT_IP_IN_OCTETS:
         case SAI_PORT_STAT_IP_IN_UCAST_PKTS:
@@ -4242,12 +4258,20 @@ static sai_status_t mlnx_get_port_stats(_In_ sai_object_id_t        port_id,
         case SAI_PORT_STAT_ETHER_IN_PKTS_256_TO_511_OCTETS:
         case SAI_PORT_STAT_ETHER_IN_PKTS_512_TO_1023_OCTETS:
         case SAI_PORT_STAT_ETHER_IN_PKTS_1024_TO_1518_OCTETS:
+        case SAI_PORT_STAT_ETHER_IN_PKTS_1519_TO_2047_OCTETS:
+        case SAI_PORT_STAT_ETHER_IN_PKTS_2048_TO_4095_OCTETS:
+        case SAI_PORT_STAT_ETHER_IN_PKTS_4096_TO_9216_OCTETS:
+        case SAI_PORT_STAT_ETHER_IN_PKTS_9217_TO_16383_OCTETS:
         case SAI_PORT_STAT_ETHER_OUT_PKTS_64_OCTETS:
         case SAI_PORT_STAT_ETHER_OUT_PKTS_65_TO_127_OCTETS:
         case SAI_PORT_STAT_ETHER_OUT_PKTS_128_TO_255_OCTETS:
         case SAI_PORT_STAT_ETHER_OUT_PKTS_256_TO_511_OCTETS:
         case SAI_PORT_STAT_ETHER_OUT_PKTS_512_TO_1023_OCTETS:
         case SAI_PORT_STAT_ETHER_OUT_PKTS_1024_TO_1518_OCTETS:
+        case SAI_PORT_STAT_ETHER_OUT_PKTS_1519_TO_2047_OCTETS:
+        case SAI_PORT_STAT_ETHER_OUT_PKTS_2048_TO_4095_OCTETS:
+        case SAI_PORT_STAT_ETHER_OUT_PKTS_4096_TO_9216_OCTETS:
+        case SAI_PORT_STAT_ETHER_OUT_PKTS_9217_TO_16383_OCTETS:
         case SAI_PORT_STAT_IN_CURR_OCCUPANCY_BYTES:
         case SAI_PORT_STAT_IN_WATERMARK_BYTES:
         case SAI_PORT_STAT_IN_SHARED_CURR_OCCUPANCY_BYTES:
@@ -4866,6 +4890,29 @@ static sai_status_t mlnx_port_speed_convert_bitmap_to_capability(const sx_port_s
     return SAI_STATUS_SUCCESS;
 }
 
+sai_status_t mlnx_port_speed_bitmap_apply(_In_ const mlnx_port_config_t *port)
+{
+    sai_status_t               status;
+    sx_status_t                sx_status;
+    sx_port_speed_capability_t speed;
+
+    memset(&speed, 0, sizeof(speed));
+
+    status = mlnx_port_speed_convert_bitmap_to_capability(port->speed_bitmap, &speed);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to convert port %x speed bitmap %d\n", port->logical, port->speed_bitmap);
+        return status;
+    }
+
+    sx_status = sx_api_port_speed_admin_set(gh_sdk, port->logical, &speed);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to set port speed - %s.\n", SX_STATUS_MSG(sx_status));
+        return sdk_to_sai(sx_status);
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
 sai_status_t mlnx_port_config_init(mlnx_port_config_t *port)
 {
     sx_port_admin_state_t      state = SX_PORT_ADMIN_STATUS_DOWN;
@@ -4880,18 +4927,6 @@ sai_status_t mlnx_port_config_init(mlnx_port_config_t *port)
     }
 
     memset(&admin_speed, 0, sizeof(admin_speed));
-
-    if (mlnx_port_is_lag(port)) {
-        admin_speed.mode_40GB_CR4     = true;
-        admin_speed.mode_40GB_SR4     = true;
-        admin_speed.mode_40GB_LR4_ER4 = true;
-    } else {
-        status = mlnx_port_speed_convert_bitmap_to_capability(port->port_speed, &admin_speed);
-        if (SAI_ERR(status)) {
-            SX_LOG_ERR("Failed to convert port %x speed %d\n", port->logical, port->port_speed);
-            return status;
-        }
-    }
 
     port->start_queues_index = port->index * (MAX_ETS_TC + 1);
 
@@ -4920,12 +4955,6 @@ sai_status_t mlnx_port_config_init(mlnx_port_config_t *port)
                                              port->logical, SX_MSTP_INST_PORT_STATE_FORWARDING);
     if (SX_ERR(status)) {
         SX_LOG_ERR("%s\n", SX_STATUS_MSG(status));
-        return sdk_to_sai(status);
-    }
-
-    status = sx_api_port_speed_admin_set(gh_sdk, port->logical, &admin_speed);
-    if (SX_ERR(status)) {
-        SX_LOG_ERR("Port admin speed set %x failed - %s\n", port->logical, SX_STATUS_MSG(status));
         return sdk_to_sai(status);
     }
 
@@ -5408,8 +5437,6 @@ static sai_status_t mlnx_create_port(_Out_ sai_object_id_t     * port_id,
         status = sdk_to_sai(status);
         goto out_unlock;
     }
-
-    new_port->port_speed = port_speed->u32;
 
     SX_LOG_NTC("Initialize new port oid %" PRIx64 "\n", new_port->saiport);
 

@@ -311,192 +311,8 @@ PACKED(struct _mlnx_object_id_t {
 typedef struct _mlnx_object_id_t mlnx_object_id_t;
 
 #define SAI_TYPE_CHECK_RANGE(type) (type < SAI_OBJECT_TYPE_MAX)
-
-#define SAI_TYPE_STR(type) SAI_TYPE_CHECK_RANGE(type) ? sai_type2str_arr[type] : "Unknown object type"
-
-static __attribute__((__used__)) const char *sai_type2str_arr[] = {
-    /* SAI_OBJECT_TYPE_NULL = 0 */
-    "NULL",
-
-    /*SAI_OBJECT_TYPE_PORT = 1 */
-    "Port",
-
-    /*SAI_OBJECT_TYPE_LAG = 2 */
-    "LAG",
-
-    /*SAI_OBJECT_TYPE_VIRTUAL_ROUTER = 3 */
-    "Virtual router",
-
-    /* SAI_OBJECT_TYPE_NEXT_HOP = 4 */
-    "Next hop",
-
-    /* SAI_OBJECT_TYPE_NEXT_HOP_GROUP = 5 */
-    "Next hop group",
-
-    /* SAI_OBJECT_TYPE_ROUTER_INTERFACE = 6 */
-    "Router interface",
-
-    /* SAI_OBJECT_TYPE_ACL_TABLE = 7 */
-    "ACL table",
-
-    /* SAI_OBJECT_TYPE_ACL_ENTRY = 8 */
-    "ACL entry",
-
-    /* SAI_OBJECT_TYPE_ACL_COUNTER = 9 */
-    "ACL counter",
-
-    /* SAI_OBJECT_TYPE_ACL_RANGE = 10 */
-    "ACL range",
-
-    /* SAI_OBJECT_TYPE_ACL_TABLE_GROUP = 11 */
-    "ACL table group",
-
-    /* SAI_OBJECT_TYPE_ACL_TABLE_GROUP_MEMBER = 12 */
-    "ACL table group member",
-
-    /* SAI_OBJECT_TYPE_HOST_INTERFACE = 13 */
-    "Host interface",
-
-    /* SAI_OBJECT_TYPE_MIRROR = 14 */
-    "Mirror",
-
-    /* SAI_OBJECT_TYPE_SAMPLEPACKET = 15 */
-    "Sample packet",
-
-    /* SAI_OBJECT_TYPE_STP = 16 */
-    "Stp",
-
-    /* SAI_OBJECT_TYPE_TRAP_GROUP = 17 */
-    "Trap group",
-
-    /* SAI_OBJECT_TYPE_POLICER = 18 */
-    "Policer",
-
-    /* SAI_OBJECT_TYPE_WRED = 19 */
-    "WRED",
-
-    /* SAI_OBJECT_TYPE_QOS_MAPS = 20 */
-    "QoS Map",
-
-    /* SAI_OBJECT_TYPE_QUEUE = 21 */
-    "Queue",
-
-    /* SAI_OBJECT_TYPE_SCHEDULER = 22 */
-    "Scheduler",
-
-    /* SAI_OBJECT_TYPE_SCHEDULER_GROUP = 23 */
-    "Scheduler group",
-
-    /* SAI_OBJECT_TYPE_BUFFER_POOL = 24 */
-    "Buffer pool",
-
-    /* SAI_OBJECT_TYPE_BUFFER_PROFILE = 25 */
-    "Buffer profile",
-
-    /* SAI_OBJECT_TYPE_INGRESS_PRIORITY_GROUP = 26 */
-    "Priority group",
-
-    /* SAI_OBJECT_TYPE_LAG_MEMBER = 27 */
-    "LAG member",
-
-    /* SAI_OBJECT_TYPE_HASH = 28 */
-    "Hash",
-
-    /* SAI_OBJECT_TYPE_UDF = 29 */
-    "UDF",
-
-    /* SAI_OBJECT_TYPE_UDF_MATCH = 30 */
-    "UDF match",
-
-    /* SAI_OBJECT_TYPE_UDF_GROUP = 31 */
-    "UDF group",
-
-    /* SAI_OBJECT_TYPE_FDB_ENTRY = 32 */
-    "FDB",
-
-    /*SAI_OBJECT_TYPE_SWITCH = 33 */
-    "Switch",
-
-    /* SAI_OBJECT_TYPE_HOSTIF_TRAP = 34 */
-    "Trap",
-
-    /* SAI_OBJECT_TYPE_HOSTIF_TABLE_ENTRY = 35 */
-    "Host table entry",
-
-    /* SAI_OBJECT_TYPE_NEIGHBOR_ENTRY = 36 */
-    "Neighbor",
-
-    /* SAI_OBJECT_TYPE_ROUTE_ENTRY = 37 */
-    "Route",
-
-    /* SAI_OBJECT_TYPE_VLAN = 38 */
-    "VLAN",
-
-    /* SAI_OBJECT_TYPE_VLAN_MEMBER = 39 */
-    "VLAN member",
-
-    /* SAI_OBJECT_TYPE_HOSTIF_PACKET = 40 */
-    "Packet",
-
-    /* SAI_OBJECT_TYPE_TUNNEL_MAP = 41 */
-    "Tunnel map",
-
-    /* SAI_OBJECT_TYPE_TUNNEL = 42 */
-    "Tunnel",
-
-    /* SAI_OBJECT_TYPE_TUNNEL_TERM_TABLE_ENTRY = 43 */
-    "Tunnel table entry",
-
-    /* SAI_OBJECT_TYPE_FDB_FLUSH             = 44, */
-    "FDB flush",
-
-    /* SAI_OBJECT_TYPE_NEXT_HOP_GROUP_MEMBER = 45, */
-    "Next hop group member",
-
-    /* SAI_OBJECT_TYPE_STP_PORT              = 46, */
-    "STP port",
-
-    /* SAI_OBJECT_TYPE_RPF_GROUP             = 47, */
-    "RPF group",
-
-    /* SAI_OBJECT_TYPE_RPF_GROUP_MEMBER      = 48, */
-    "RPF group member",
-
-    /* SAI_OBJECT_TYPE_L2MC_GROUP            = 49, */
-    "L2MC Group",
-
-    /* SAI_OBJECT_TYPE_L2MC_GROUP_MEMBER     = 50, */
-    "L2MC Group member",
-
-    /* SAI_OBJECT_TYPE_IPMC_GROUP            = 51, */
-    "IPMC group",
-
-    /* SAI_OBJECT_TYPE_IPMC_GROUP_MEMBER     = 52, */
-    "IPMC group member",
-
-    /* SAI_OBJECT_TYPE_L2MC_ENTRY            = 53, */
-    "L2MC",
-
-    /* SAI_OBJECT_TYPE_IPMC_ENTRY            = 54, */
-    "IPMC",
-
-    /* SAI_OBJECT_TYPE_MCAST_FDB_ENTRY       = 55, */
-    "Mcast FDB",
-
-    /* SAI_OBJECT_TYPE_HOSTIF_USER_DEFINED_TRAP = 56,*/
-    "User defined trap",
-
-    /*SAI_OBJECT_TYPE_BRIDGE                 = 57, */
-    "Bridge",
-
-    /* SAI_OBJECT_TYPE_BRIDGE_PORT           = 58, */
-    "Bridge port",
-
-    /* SAI_OBJECT_TYPE_TUNNEL_MAP_ENTRY      = 59, */
-    "Tunnel map entry",
-
-    /* SAI_OBJECT_TYPE_MAX                   = 60 */
-};
+extern const char* sai_metadata_sai_object_type_t_enum_values_short_names[];
+#define SAI_TYPE_STR(type) SAI_TYPE_CHECK_RANGE(type) ? sai_metadata_sai_object_type_t_enum_values_short_names[type] : "Unknown object type"
 
 /* Used in case RIF type bridge */
 typedef enum mlnx_rif_type_ {
@@ -896,6 +712,13 @@ extern const mlnx_trap_info_t mlnx_traps_info[];
 
 #define SENTINEL_BUFFER_DB_ENTRY_INDEX 0
 
+#define MLNX_FDB_LEARNING_NO_LIMIT_VALUE         (0)
+#define MLNX_FDB_IS_LEARNING_LIMIT_EXISTS(limit) ((limit) != MLNX_FDB_LEARNING_NO_LIMIT_VALUE)
+
+#define MLNX_FDB_LIMIT_SAI_TO_SX(limit)    (MLNX_FDB_IS_LEARNING_LIMIT_EXISTS(limit) ? (limit) : SX_FDB_UC_NO_LIMIT)
+#define MLNX_FDB_LIMIT_SX_TO_SAI(sx_limit) (SX_FDB_IS_LIMIT_EXIST(sx_limit) ?             \
+                                           (sx_limit) : MLNX_FDB_LEARNING_NO_LIMIT_VALUE)
+
 typedef enum _mlnx_port_breakout_capability_t {
     MLNX_PORT_BREAKOUT_CAPABILITY_NONE     = 0,
     MLNX_PORT_BREAKOUT_CAPABILITY_TWO      = 1,
@@ -970,7 +793,7 @@ typedef struct _mlnx_port_config_t {
     uint32_t                        module;
     uint32_t                        width;
     mlnx_port_breakout_capability_t breakout_modes;
-    sx_port_speed_t                 port_speed;
+    sx_port_speed_t                 speed_bitmap;
     sx_port_log_id_t                logical;
     sai_object_id_t                 saiport;
     bool                            is_split;
@@ -1013,6 +836,7 @@ sai_status_t mlnx_create_bridge_object(sai_bridge_type_t sai_br_type,
 sai_status_t mlnx_bridge_oid_to_id(sai_object_id_t oid, sx_bridge_id_t *bridge_id);
 sai_status_t mlnx_bridge_port_sai_to_log_port(sai_object_id_t oid, sx_port_log_id_t *log_port);
 sai_status_t mlnx_log_port_to_sai_bridge_port(sx_port_log_id_t log_port, sai_object_id_t *oid);
+sai_status_t mlnx_log_port_to_sai_bridge_port_soft(sx_port_log_id_t log_port, sai_object_id_t *oid);
 sai_status_t mlnx_tunnel_idx_to_sai_bridge_port(uint32_t tunnel_idx, sai_object_id_t *oid);
 sai_status_t mlnx_port_is_in_bridge(const mlnx_port_config_t *port);
 sai_status_t mlnx_bridge_port_by_log(sx_port_log_id_t log, mlnx_bridge_port_t **port);
@@ -1034,6 +858,12 @@ sai_status_t mlnx_vlan_port_add(uint16_t vid, sai_vlan_tagging_mode_t mode, mlnx
 sai_status_t mlnx_vlan_port_del(uint16_t vid, mlnx_bridge_port_t *port);
 sai_status_t sai_object_to_vlan(sai_object_id_t oid, uint16_t *vlan_id);
 sai_status_t validate_vlan(_In_ const sai_vlan_id_t vlan_id);
+sai_status_t mlnx_max_learned_addresses_value_validate(_In_ uint32_t limit,
+                                                       _In_ uint32_t attr_index);
+sai_status_t mlnx_vlan_bridge_max_learned_addresses_set(_In_ sx_vid_t sx_vid,
+                                                        _In_ uint32_t limit);
+sai_status_t mlnx_vlan_bridge_max_learned_addresses_get(_In_ sx_vid_t sx_vid,
+                                                        _In_ uint32_t *limit);
 /**
  * @brief Port Add/Delete Event
  */
@@ -1248,7 +1078,9 @@ typedef struct _acl_table_db_t {
     bool                       is_used;
     bool                       is_lock_inited;
     uint32_t                   queued;
-    uint32_t                   group_index;
+    /* Valid only when group_references > 0 */
+    sai_acl_table_group_type_t group_type;
+    uint32_t                   group_references;
     sx_acl_id_t                table_id;
     sai_acl_stage_t            stage;
     sx_acl_size_t              table_size;
@@ -1874,6 +1706,7 @@ sai_status_t mlnx_port_add(mlnx_port_config_t *port);
 sai_status_t mlnx_port_del(mlnx_port_config_t *port);
 sai_status_t mlnx_port_config_init(mlnx_port_config_t *port);
 sai_status_t mlnx_port_config_uninit(mlnx_port_config_t *port);
+sai_status_t mlnx_port_speed_bitmap_apply(_In_ const mlnx_port_config_t *port);
 
 sai_status_t mlnx_port_in_use_check(const mlnx_port_config_t *port);
 bool mlnx_port_is_net(const mlnx_port_config_t *port);

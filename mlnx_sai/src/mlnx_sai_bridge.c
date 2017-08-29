@@ -118,6 +118,14 @@ static sai_status_t mlnx_bridge_port_fdb_learning_mode_get(_In_ const sai_object
 static sai_status_t mlnx_bridge_port_fdb_learning_mode_set(_In_ const sai_object_key_t      *key,
                                                            _In_ const sai_attribute_value_t *value,
                                                            void                             *arg);
+static sai_status_t mlnx_bridge_port_max_learned_addresses_get(_In_ const sai_object_key_t   *key,
+                                                               _Inout_ sai_attribute_value_t *value,
+                                                               _In_ uint32_t                  attr_index,
+                                                               _Inout_ vendor_cache_t        *cache,
+                                                                void                          *arg);
+static sai_status_t mlnx_bridge_port_max_learned_addresses_set(_In_ const sai_object_key_t      *key,
+                                                               _In_ const sai_attribute_value_t *value,
+                                                               void                             *arg);
 static sai_status_t mlnx_bridge_port_admin_state_get(_In_ const sai_object_key_t   *key,
                                                      _Inout_ sai_attribute_value_t *value,
                                                      _In_ uint32_t                  attr_index,
@@ -164,10 +172,10 @@ static const sai_vendor_attribute_entry_t bridge_port_vendor_attribs[] = {
       mlnx_bridge_port_fdb_learning_mode_get, NULL,
       mlnx_bridge_port_fdb_learning_mode_set, NULL },
     { SAI_BRIDGE_PORT_ATTR_MAX_LEARNED_ADDRESSES,
-      { true, false, false, false },
       { true, false, true, true },
-      NULL, NULL,
-      NULL, NULL },
+      { true, false, true, true },
+      mlnx_bridge_port_max_learned_addresses_get, NULL,
+      mlnx_bridge_port_max_learned_addresses_set, NULL },
     { SAI_BRIDGE_PORT_ATTR_FDB_LEARNING_LIMIT_VIOLATION_PACKET_ACTION,
       { true, false, false, false },
       { true, false, true, true },
@@ -418,21 +426,33 @@ out:
 /* Used in case the log_port is a bridge port in .1Q bridge (actually regular log port) or vport */
 sai_status_t mlnx_log_port_to_sai_bridge_port(sx_port_log_id_t log_port, sai_object_id_t *oid)
 {
-    mlnx_bridge_port_t *port;
+    sai_status_t status;
+
+    status = mlnx_log_port_to_sai_bridge_port_soft(log_port, oid);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed lookup bridge port by logical id %x\n", log_port);
+    }
+
+    return status;
+}
+
+/* The same as mlnx_log_port_to_sai_bridge_port but without error message */
+sai_status_t mlnx_log_port_to_sai_bridge_port_soft(sx_port_log_id_t log_port, sai_object_id_t *oid)
+{
     sai_status_t        status;
+    mlnx_bridge_port_t *port;
 
     sai_db_read_lock();
 
     status = mlnx_bridge_port_by_log(log_port, &port);
     if (SAI_ERR(status)) {
-        SX_LOG_ERR("Failed lookup bridge port by logical id %x\n", log_port);
-        sai_db_unlock();
-        return status;
+        goto out;
     }
 
     status = mlnx_bridge_port_to_oid(port, oid);
-    sai_db_unlock();
 
+out:
+    sai_db_unlock();
     return status;
 }
 
@@ -545,11 +565,29 @@ static sai_status_t mlnx_bridge_max_learned_addresses_get(_In_ const sai_object_
                                                           _Inout_ vendor_cache_t        *cache,
                                                           void                          *arg)
 {
-    SX_LOG_ENTER();
-    value->u32 = 0;
-    SX_LOG_EXIT();
+    sai_status_t   status = SAI_STATUS_SUCCESS;
+    sx_bridge_id_t sx_bridge_id;
 
-    return SAI_STATUS_SUCCESS;
+    SX_LOG_ENTER();
+
+    status = mlnx_bridge_oid_to_id(key->key.object_id, &sx_bridge_id);
+    if (SAI_ERR(status)) {
+        goto out;
+    }
+
+    if (sx_bridge_id == mlnx_bridge_default_1q()) {
+        value->u32 = MLNX_FDB_LEARNING_NO_LIMIT_VALUE;
+        goto out;
+    }
+
+    status = mlnx_vlan_bridge_max_learned_addresses_get(sx_bridge_id, &value->u32);
+    if (SAI_ERR(status)) {
+        goto out;
+    }
+
+out:
+    SX_LOG_EXIT();
+    return status;
 }
 
 /**
@@ -565,7 +603,44 @@ static sai_status_t mlnx_bridge_max_learned_addresses_set(_In_ const sai_object_
                                                           _In_ const sai_attribute_value_t *value,
                                                           void                             *arg)
 {
-    return SAI_STATUS_NOT_IMPLEMENTED;
+    sai_status_t   status = SAI_STATUS_SUCCESS;
+    sx_bridge_id_t sx_bridge_id;
+    uint32_t       limit;
+
+    SX_LOG_ENTER();
+
+    status = mlnx_bridge_oid_to_id(key->key.object_id, &sx_bridge_id);
+    if (SAI_ERR(status)) {
+        goto out;
+    }
+
+    limit = value->u32;
+
+    if (sx_bridge_id == mlnx_bridge_default_1q()) {
+        if (MLNX_FDB_IS_LEARNING_LIMIT_EXISTS(limit)) {
+            SX_LOG_ERR("Unsupported value for the default .1Q Bridge. The only supported is %d (no limit)\n",
+                       MLNX_FDB_LEARNING_NO_LIMIT_VALUE);
+            status = SAI_STATUS_NOT_SUPPORTED;
+        } else {
+            status = SAI_STATUS_SUCCESS;
+        }
+
+        goto out;
+    }
+
+    status = mlnx_max_learned_addresses_value_validate(limit, 0);
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+    status = mlnx_vlan_bridge_max_learned_addresses_set(sx_bridge_id, limit);
+    if (SAI_ERR(status)) {
+        goto out;
+    }
+
+out:
+    SX_LOG_EXIT();
+    return status;
 }
 
 /**
@@ -638,8 +713,8 @@ static sai_status_t mlnx_create_bridge(_Out_ sai_object_id_t     * bridge_id,
     char                         key_str[MAX_KEY_STR_LEN];
     sx_bridge_id_t               sx_bridge_id;
     sx_status_t                  sx_status;
-    const sai_attribute_value_t *attr_val;
-    uint32_t                     attr_idx;
+    const sai_attribute_value_t *attr_val, *max_learned_addresses = NULL;
+    uint32_t                     attr_idx, max_learned_addresses_index;
     sai_status_t                 status;
 
     SX_LOG_ENTER();
@@ -669,11 +744,27 @@ static sai_status_t mlnx_create_bridge(_Out_ sai_object_id_t     * bridge_id,
         goto out;
     }
 
+    status = find_attrib_in_list(attr_count, attr_list, SAI_BRIDGE_ATTR_MAX_LEARNED_ADDRESSES,
+                                 &max_learned_addresses, &max_learned_addresses_index);
+    if (!SAI_ERR(status)) {
+        status = mlnx_max_learned_addresses_value_validate(max_learned_addresses->u32, max_learned_addresses_index);
+        if (SAI_ERR(status)) {
+            goto out;
+        }
+    }
+
     sx_status = sx_api_bridge_set(gh_sdk, SX_ACCESS_CMD_CREATE, &sx_bridge_id);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to create .1D bridge - %s\n", SX_STATUS_MSG(sx_status));
         status = sdk_to_sai(sx_status);
         goto out;
+    }
+
+    if (max_learned_addresses) {
+        status = mlnx_vlan_bridge_max_learned_addresses_set(sx_bridge_id, max_learned_addresses->u32);
+        if (SAI_ERR(status)) {
+            goto out;
+        }
     }
 
     status = mlnx_create_bridge_object(SAI_BRIDGE_TYPE_1D, sx_bridge_id, bridge_id);
@@ -1254,6 +1345,98 @@ static sai_status_t mlnx_bridge_port_fdb_learning_mode_set(_In_ const sai_object
 }
 
 /**
+ * @brief Maximum number of learned MAC addresses
+ *
+ * @type sai_uint32_t
+ * @flags CREATE_AND_SET
+ * @default 0
+ */
+static sai_status_t mlnx_bridge_port_max_learned_addresses_get(_In_ const sai_object_key_t   *key,
+                                                               _Inout_ sai_attribute_value_t *value,
+                                                               _In_ uint32_t                  attr_index,
+                                                               _Inout_ vendor_cache_t        *cache,
+                                                                void                          *arg)
+{
+    sai_status_t     status = SAI_STATUS_SUCCESS;
+    sx_status_t      sx_status;
+    sx_port_log_id_t sx_log_port_id;
+    uint32_t         sx_limit = 0;
+
+    SX_LOG_ENTER();
+
+    status = mlnx_bridge_port_sai_to_log_port(key->key.object_id, &sx_log_port_id);
+    if (SAI_ERR(status)) {
+        goto out;
+    }
+
+    sx_status = sx_api_fdb_uc_limit_port_get(gh_sdk, sx_log_port_id, &sx_limit);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to get FDB learning limit for port %x - %s\n", sx_log_port_id, SX_STATUS_MSG(sx_status));
+        status = sdk_to_sai(status);
+        goto out;
+    }
+
+    value->u32 = MLNX_FDB_LIMIT_SX_TO_SAI(sx_limit);
+
+out:
+    SX_LOG_EXIT();
+    return status;
+}
+
+static sai_status_t mlnx_port_max_learned_addresses_set(_In_ sx_port_log_id_t sx_port,
+                                                        _In_ uint32_t         limit)
+{
+    sx_status_t sx_status;
+    uint32_t    sx_limit;
+
+    sx_limit = MLNX_FDB_LIMIT_SAI_TO_SX(limit);
+
+    sx_status = sx_api_fdb_uc_limit_port_set(gh_sdk, SX_ACCESS_CMD_SET, sx_port, sx_limit);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to set FDB learning limit for port %x - %s\n", sx_port, SX_STATUS_MSG(sx_status));
+        return sdk_to_sai(sx_status);
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
+/**
+ * @brief Maximum number of learned MAC addresses
+ *
+ * @type sai_uint32_t
+ * @flags CREATE_AND_SET
+ * @default 0
+ */
+static sai_status_t mlnx_bridge_port_max_learned_addresses_set(_In_ const sai_object_key_t      *key,
+                                                               _In_ const sai_attribute_value_t *value,
+                                                               void                             *arg)
+{
+    sai_status_t     status = SAI_STATUS_SUCCESS;
+    sx_port_log_id_t sx_log_port_id;
+
+    SX_LOG_ENTER();
+
+    status = mlnx_bridge_port_sai_to_log_port(key->key.object_id, &sx_log_port_id);
+    if (SAI_ERR(status)) {
+        goto out;
+    }
+
+    status = mlnx_max_learned_addresses_value_validate(value->u32, 0);
+    if (SAI_ERR(status)) {
+        goto out;
+    }
+
+    status = mlnx_port_max_learned_addresses_set(sx_log_port_id, value->u32);
+    if (SAI_ERR(status)) {
+        goto out;
+    }
+
+out:
+    SX_LOG_EXIT();
+    return status;
+}
+
+/**
  * @brief Admin Mode.
  *
  * Before removing a bridge port, need to disable it by setting admin mode
@@ -1396,8 +1579,8 @@ static sai_status_t mlnx_create_bridge_port(_Out_ sai_object_id_t     * bridge_p
     sx_port_log_id_t             log_port;
     sx_port_log_id_t             vport_id = 0;
     sx_vlan_id_t                 vlan_id  = 0;
-    const sai_attribute_value_t *attr_val;
-    uint32_t                     attr_idx;
+    const sai_attribute_value_t *attr_val, *max_learned_addresses = NULL;
+    uint32_t                     attr_idx, max_learned_addresses_index;
     bool                         admin_state;
 
     SX_LOG_ENTER();
@@ -1438,8 +1621,24 @@ static sai_status_t mlnx_create_bridge_port(_Out_ sai_object_id_t     * bridge_p
         bridge_id = mlnx_bridge_default_1q();
     }
 
+    status = find_attrib_in_list(attr_count, attr_list, SAI_BRIDGE_PORT_ATTR_MAX_LEARNED_ADDRESSES,
+                                 &max_learned_addresses, &max_learned_addresses_index);
+    if (!SAI_ERR(status)) {
+        status = mlnx_max_learned_addresses_value_validate(max_learned_addresses->u32, max_learned_addresses_index);
+        if (SAI_ERR(status)) {
+            goto out;
+        }
+    }
+
     status = find_attrib_in_list(attr_count, attr_list, SAI_BRIDGE_PORT_ATTR_TYPE, &attr_val, &attr_idx);
     assert(!SAI_ERR(status));
+
+    if (max_learned_addresses &&
+            ((attr_val->s32 != SAI_BRIDGE_PORT_TYPE_PORT) && (attr_val->s32 != SAI_BRIDGE_PORT_TYPE_SUB_PORT))) {
+        SX_LOG_ERR("The SAI_BRIDGE_ATTR_MAX_LEARNED_ADDRESSES is only supported for PORT and SUB_PORT\n");
+        status = SAI_STATUS_ATTR_NOT_SUPPORTED_0 + max_learned_addresses_index;
+        goto out;
+    }
 
     status = mlnx_bridge_port_add(bridge_id, attr_val->s32, &bridge_port);
     if (SAI_ERR(status)) {
@@ -1600,6 +1799,13 @@ static sai_status_t mlnx_create_bridge_port(_Out_ sai_object_id_t     * bridge_p
         admin_state = false;
     } else {
         admin_state = attr_val->booldata;
+    }
+
+    if (max_learned_addresses) {
+        status = mlnx_port_max_learned_addresses_set(bridge_port->logical, max_learned_addresses->u32);
+        if (SAI_ERR(status)) {
+            goto out;
+        }
     }
 
     status = mlnx_bridge_port_admin_state_set_internal(bridge_port, admin_state);

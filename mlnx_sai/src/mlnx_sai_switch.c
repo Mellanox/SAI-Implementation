@@ -728,6 +728,11 @@ static const sai_vendor_attribute_entry_t switch_vendor_attribs[] = {
       { false, false, false, true },
       mlnx_switch_queue_num_get, (void*)SAI_SWITCH_ATTR_NUMBER_OF_QUEUES,
       NULL, NULL },
+    { SAI_SWITCH_ATTR_QOS_NUM_LOSSLESS_QUEUES,
+      { false, false, false, true },
+      { false, false, false, true },
+      mlnx_switch_queue_num_get, (void*)SAI_SWITCH_ATTR_QOS_NUM_LOSSLESS_QUEUES,
+      NULL, NULL },
     { SAI_SWITCH_ATTR_NUMBER_OF_CPU_QUEUES,
       { false, false, false, false },
       { false, false, false, false },
@@ -1548,7 +1553,7 @@ static sai_status_t parse_port_info(xmlDoc *doc, xmlNode * port_node)
 
     port->breakout_modes = breakout_modes;
     port->split_count    = split_count;
-    port->port_speed     = port_speed;
+    port->speed_bitmap   = port_speed;
     port->module         = module;
     port->width          = width;
     port->is_present     = true;
@@ -1573,7 +1578,7 @@ static sai_status_t parse_port_info(xmlDoc *doc, xmlNode * port_node)
                      port->port_map.width,
                      port->port_map.lane_bmap,
                      port->breakout_modes,
-                     port->port_speed);
+                     port->speed_bitmap);
 
     return SAI_STATUS_SUCCESS;
 }
@@ -1863,7 +1868,7 @@ static sai_status_t mlnx_port_auto_split(mlnx_port_config_t *port)
 
         /* Inherite module & speed from the init port */
         new_port->port_map.mapping_mode = SX_PORT_MAPPING_MODE_ENABLE;
-        new_port->port_speed            = port->port_speed;
+        new_port->speed_bitmap          = port->speed_bitmap;
         new_port->port_map.module_port  = port->module;
         new_port->is_present            = true;
         new_port->is_split              = true;
@@ -1884,6 +1889,11 @@ static sai_status_t mlnx_port_auto_split(mlnx_port_config_t *port)
         status = mlnx_port_config_init(new_port);
         if (SAI_ERR(status)) {
             SX_LOG_ERR("Failed initialize log port 0x%x on split\n", new_port->logical);
+            return status;
+        }
+
+        status = mlnx_port_speed_bitmap_apply(new_port);
+        if (SAI_ERR(status)) {
             return status;
         }
     }
@@ -2047,6 +2057,11 @@ static sai_status_t mlnx_dvs_mng_stage(sai_object_id_t switch_id)
             SX_LOG_ERR("Failed initialize port oid %" PRIx64 " config\n", port->saiport);
             goto out;
         }
+
+        status = mlnx_port_speed_bitmap_apply(port);
+        if (SAI_ERR(status)) {
+            return status;
+        }
     }
 
     mlnx_port_phy_foreach(port, ii) {
@@ -2086,12 +2101,15 @@ static sai_status_t mlnx_switch_parse_fdb_event(uint8_t                         
     sai_object_id_t             port_id       = SAI_NULL_OBJECT_ID;
     sai_mac_t                   mac_addr;
     sx_access_cmd_t             cmd = SX_ACCESS_CMD_ADD;
+    sai_object_id_t             switch_id;
+    mlnx_object_id_t            mlnx_switch_id = { 0 };
+    bool                        has_port;
 
-    memset(&mac_entry, 0, sizeof(mac_entry));
+    /* hard coded single switch instance */
+    mlnx_switch_id.id.is_created = true;
+    mlnx_object_id_to_sai(SAI_OBJECT_TYPE_SWITCH, &mlnx_switch_id, &switch_id);
 
     for (ii = 0; ii < packet->records_num; ii++) {
-        bool has_port = false;
-
         SX_LOG_INF("FDB event received [%u] vlan: %4u ; mac: %x:%x:%x:%x:%x:%x ; log_port: (0x%08X) ; type: %s(%d)\n",
                    ii,
                    packet->records_arr[ii].fid,
@@ -2109,6 +2127,8 @@ static sai_status_t mlnx_switch_parse_fdb_event(uint8_t                         
         sx_fid  = 0;
         memset(mac_addr, 0, sizeof(mac_addr));
         memset(&fdb_events[ii], 0, sizeof(fdb_events[ii]));
+        memset(&mac_entry, 0, sizeof(mac_entry));
+        has_port = false;
 
         switch (packet->records_arr[ii].type) {
         case SX_FDB_NOTIFY_TYPE_NEW_MAC_LAG:
@@ -2156,7 +2176,12 @@ static sai_status_t mlnx_switch_parse_fdb_event(uint8_t                         
                sizeof(fdb_events[ii].fdb_entry.mac_address));
 
         if (has_port) {
-            status = mlnx_log_port_to_sai_bridge_port(packet->records_arr[ii].log_port, &port_id);
+            /*
+             * In some cases, FDB event is generated for the port that is not on the bridge
+             * e.g. when the port is added to the LAG
+             * In this case we don't need to print en error message for user
+             */
+            status = mlnx_log_port_to_sai_bridge_port_soft(packet->records_arr[ii].log_port, &port_id);
             if (SAI_ERR(status)) {
                 return status;
             }
@@ -2175,6 +2200,8 @@ static sai_status_t mlnx_switch_parse_fdb_event(uint8_t                         
                 return status;
             }
         }
+
+        fdb_events[ii].fdb_entry.switch_id = switch_id;
 
         fdb_events[ii].attr       = attr_ptr;
         fdb_events[ii].attr_count = FDB_NOTIF_ATTRIBS_NUM;
@@ -4877,7 +4904,8 @@ static sai_status_t mlnx_switch_sched_max_child_groups_count_get(_In_ const sai_
 
 /* The number of Unicast Queues per port [sai_uint32_t]
 * The number of Multicast Queues per port [sai_uint32_t]
-* The total number of Queues per port [sai_uint32_t] */
+* The total number of Queues per port [sai_uint32_t]
+* The number of lossless queues per port supported by the switch [sai_uint32_t] */
 static sai_status_t mlnx_switch_queue_num_get(_In_ const sai_object_key_t   *key,
                                               _Inout_ sai_attribute_value_t *value,
                                               _In_ uint32_t                  attr_index,
@@ -4890,7 +4918,8 @@ static sai_status_t mlnx_switch_queue_num_get(_In_ const sai_object_key_t   *key
 
     assert((SAI_SWITCH_ATTR_NUMBER_OF_UNICAST_QUEUES == attr) ||
            (SAI_SWITCH_ATTR_NUMBER_OF_MULTICAST_QUEUES == attr) ||
-           (SAI_SWITCH_ATTR_NUMBER_OF_QUEUES == attr));
+           (SAI_SWITCH_ATTR_NUMBER_OF_QUEUES == attr) ||
+           (SAI_SWITCH_ATTR_QOS_NUM_LOSSLESS_QUEUES == attr));
 
     switch (attr) {
     case SAI_SWITCH_ATTR_NUMBER_OF_UNICAST_QUEUES:
@@ -4902,6 +4931,7 @@ static sai_status_t mlnx_switch_queue_num_get(_In_ const sai_object_key_t   *key
         break;
 
     case SAI_SWITCH_ATTR_NUMBER_OF_QUEUES:
+    case SAI_SWITCH_ATTR_QOS_NUM_LOSSLESS_QUEUES:
         value->u32 = g_resource_limits.cos_port_ets_traffic_class_max + 1;
         break;
     }

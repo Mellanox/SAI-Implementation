@@ -197,6 +197,9 @@ typedef enum _sai_hostif_trap_type_t
     /** default action is drop */
     SAI_HOSTIF_TRAP_TYPE_SAMPLEPACKET = 0x00000000a,
 
+    /** Default action is drop */
+    SAI_HOSTIF_TRAP_TYPE_UDLD = 0x0000000b,
+
     /** Switch traps custom range start */
     SAI_HOSTIF_TRAP_TYPE_SWITCH_CUSTOM_RANGE_BASE = 0x00001000,
 
@@ -588,6 +591,37 @@ typedef enum _sai_hostif_type_t
 } sai_hostif_type_t;
 
 /**
+ * @brief Attribute data for SAI_HOSTIF_ATTR_VLAN_TAG
+ */
+typedef enum _sai_hostif_vlan_tag_t
+{
+    /**
+     * @brief Strip vlan tag
+     * Strip vlan tag from the incoming packet
+     * when delivering the packet to host interface.
+     */
+    SAI_HOSTIF_VLAN_TAG_STRIP,
+
+    /**
+     * @brief Keep vlan tag.
+     * When incoming packet is untagged, add PVID tag to the packet when delivering
+     * the packet to host interface.
+     */
+    SAI_HOSTIF_VLAN_TAG_KEEP,
+
+    /**
+     * @brief Keep the packet same as the incoming packet
+     *
+     * The packet delivered to host interface is the same as the original packet.
+     * When the host interface is PORT and LAG, the packet delivered to host interface is the
+     * same as the original packet seen by the PORT and LAG.
+     * When the host interface is VLAN, the packet delivered to host interface will not have tag.
+     */
+    SAI_HOSTIF_VLAN_TAG_ORIGINAL,
+
+} sai_hostif_vlan_tag_t;
+
+/**
  * @brief Host interface attribute IDs
  */
 typedef enum _sai_hostif_attr_t
@@ -651,6 +685,16 @@ typedef enum _sai_hostif_attr_t
      * @default 0
      */
     SAI_HOSTIF_ATTR_QUEUE,
+
+    /**
+     * @brief Strip/keep vlan tag for received packet
+     *
+     * @type sai_hostif_vlan_tag_t
+     * @flags CREATE_AND_SET
+     * @default SAI_HOSTIF_VLAN_TAG_STRIP
+     * @validonly SAI_HOSTIF_ATTR_TYPE == SAI_HOSTIF_TYPE_NETDEV
+     */
+    SAI_HOSTIF_ATTR_VLAN_TAG,
 
     /**
      * @brief End of attributes

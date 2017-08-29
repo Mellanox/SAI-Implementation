@@ -58,6 +58,7 @@ extern const sai_enum_metadata_t sai_metadata_enum_sai_hostif_tx_type_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_hostif_type_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_hostif_user_defined_trap_attr_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_hostif_user_defined_trap_type_t;
+extern const sai_enum_metadata_t sai_metadata_enum_sai_hostif_vlan_tag_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_ingress_priority_group_attr_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_ingress_priority_group_stat_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_ip_addr_family_t;
@@ -104,6 +105,7 @@ extern const sai_enum_metadata_t sai_metadata_enum_sai_port_type_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_qos_map_attr_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_qos_map_type_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_queue_attr_t;
+extern const sai_enum_metadata_t sai_metadata_enum_sai_queue_pfc_deadlock_event_type_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_queue_stat_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_queue_type_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_route_entry_attr_t;
@@ -223,6 +225,8 @@ extern const char* sai_metadata_get_hostif_type_name(
         _In_ sai_hostif_type_t value);
 extern const char* sai_metadata_get_hostif_user_defined_trap_type_name(
         _In_ sai_hostif_user_defined_trap_type_t value);
+extern const char* sai_metadata_get_hostif_vlan_tag_name(
+        _In_ sai_hostif_vlan_tag_t value);
 extern const char* sai_metadata_get_ingress_priority_group_stat_name(
         _In_ sai_ingress_priority_group_stat_t value);
 extern const char* sai_metadata_get_ip_addr_family_name(
@@ -277,6 +281,8 @@ extern const char* sai_metadata_get_port_type_name(
         _In_ sai_port_type_t value);
 extern const char* sai_metadata_get_qos_map_type_name(
         _In_ sai_qos_map_type_t value);
+extern const char* sai_metadata_get_queue_pfc_deadlock_event_type_name(
+        _In_ sai_queue_pfc_deadlock_event_type_t value);
 extern const char* sai_metadata_get_queue_stat_name(
         _In_ sai_queue_stat_t value);
 extern const char* sai_metadata_get_queue_type_name(

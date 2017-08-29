@@ -148,6 +148,11 @@ static const sai_vendor_attribute_entry_t host_interface_vendor_attribs[] = {
       { true, false, true, true },
       NULL, NULL,
       NULL, NULL },
+    { SAI_HOSTIF_ATTR_VLAN_TAG,
+      { false, false, false, false },
+      { true, false, true, true },
+      NULL, NULL,
+      NULL, NULL },
     { END_FUNCTIONALITY_ATTRIBS_ID,
       { false, false, false, false },
       { false, false, false, false },
@@ -188,8 +193,8 @@ static const sai_vendor_attribute_entry_t trap_vendor_attribs[] = {
       mlnx_trap_action_get, NULL,
       mlnx_trap_action_set, NULL },
     { SAI_HOSTIF_TRAP_ATTR_TRAP_PRIORITY,
-      { false, false, false, false },
-      { false, false, false, false },
+      { true, false, false, false },
+      { true, false, true, true },
       NULL, NULL,
       NULL, NULL },
     { SAI_HOSTIF_TRAP_ATTR_EXCLUDE_PORT_LIST,
@@ -319,6 +324,8 @@ const mlnx_trap_info_t                    mlnx_traps_info[] = {
       "IGMP V3 report", MLNX_TRAP_TYPE_REGULAR },
     { SAI_HOSTIF_TRAP_TYPE_SAMPLEPACKET, 1, { SX_TRAP_ID_ETH_L2_PACKET_SAMPLING }, SAI_PACKET_ACTION_TRAP,
       "Sample packet", MLNX_TRAP_TYPE_REGULAR },
+    { SAI_HOSTIF_TRAP_TYPE_UDLD, 1, { SX_TRAP_ID_ETH_L2_UDLD }, SAI_PACKET_ACTION_DROP, "UDLD",
+      MLNX_TRAP_TYPE_REGULAR },
     { SAI_HOSTIF_TRAP_TYPE_ARP_REQUEST, 1, { SX_TRAP_ID_ARP_REQUEST }, SAI_PACKET_ACTION_FORWARD, "ARP request",
       MLNX_TRAP_TYPE_REGULAR },
     { SAI_HOSTIF_TRAP_TYPE_ARP_RESPONSE, 1, { SX_TRAP_ID_ARP_RESPONSE }, SAI_PACKET_ACTION_FORWARD, "ARP response",
@@ -366,17 +373,10 @@ const mlnx_trap_info_t                    mlnx_traps_info[] = {
       { SX_TRAP_ID_L3_UC_IP_BASE + SX_TRAP_PRIORITY_BEST_EFFORT, SX_TRAP_ID_L3_UC_IP_BASE + SX_TRAP_PRIORITY_LOW,
         SX_TRAP_ID_L3_UC_IP_BASE + SX_TRAP_PRIORITY_MED, SX_TRAP_ID_L3_UC_IP_BASE + SX_TRAP_PRIORITY_HIGH },
       SAI_PACKET_ACTION_TRAP, "Router", MLNX_TRAP_TYPE_USER_DEFINED },
-    { SAI_HOSTIF_USER_DEFINED_TRAP_TYPE_NEIGH,
-#ifdef ACS_OS
-      4,
-      { SX_TRAP_ID_L3_NEIGH_IP_BASE + SX_TRAP_PRIORITY_BEST_EFFORT, SX_TRAP_ID_L3_NEIGH_IP_BASE + SX_TRAP_PRIORITY_LOW,
-        SX_TRAP_ID_L3_NEIGH_IP_BASE + SX_TRAP_PRIORITY_MED, SX_TRAP_ID_L3_NEIGH_IP_BASE + SX_TRAP_PRIORITY_HIGH },
-#else
-      ((SX_TRAP_ID_HOST_MISS_IPV4 == SX_TRAP_ID_HOST_MISS_IPV6) ? 5 : 5),
+    { SAI_HOSTIF_USER_DEFINED_TRAP_TYPE_NEIGH, 6,
       { SX_TRAP_ID_L3_NEIGH_IP_BASE + SX_TRAP_PRIORITY_BEST_EFFORT, SX_TRAP_ID_L3_NEIGH_IP_BASE + SX_TRAP_PRIORITY_LOW,
         SX_TRAP_ID_L3_NEIGH_IP_BASE + SX_TRAP_PRIORITY_MED, SX_TRAP_ID_L3_NEIGH_IP_BASE + SX_TRAP_PRIORITY_HIGH,
         SX_TRAP_ID_HOST_MISS_IPV4, SX_TRAP_ID_HOST_MISS_IPV6 },
-#endif
       SAI_PACKET_ACTION_TRAP, "Neigh", MLNX_TRAP_TYPE_USER_DEFINED },
     { SAI_HOSTIF_USER_DEFINED_TRAP_TYPE_FDB, 1, {SX_TRAP_ID_FDB_EVENT}, SAI_PACKET_ACTION_TRAP, "FDB EVENT",
       MLNX_TRAP_TYPE_USER_DEFINED },
@@ -1528,6 +1528,8 @@ sai_status_t mlnx_create_hostif_trap(_Out_ sai_object_id_t      *hostif_trap_id,
         SX_LOG_ERR("Failed attribs check\n");
         return status;
     }
+
+    /* In Mellanox platform, trap group queue defines the trap priority */
 
     sai_attr_list_to_str(attr_count, attr_list, SAI_OBJECT_TYPE_HOSTIF_TRAP, MAX_LIST_VALUE_STR_LEN, list_str);
     SX_LOG_NTC("Create trap, %s\n", list_str);
