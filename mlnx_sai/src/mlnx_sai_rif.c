@@ -268,6 +268,15 @@ static sai_status_t mlnx_create_router_interface(_Out_ sai_object_id_t      *rif
         intf_params.type               = SX_L2_INTERFACE_TYPE_PORT_VLAN;
         intf_params.ifc.port_vlan.port = port_data;
         intf_params.ifc.port_vlan.vlan = 0;
+
+        /* disable learn for router port / sub port, as unlike interface vlan, router port holds one vector in FDB 
+         * as all neighbors always egress through the router port. Otherwise FDB events for router port generate 
+         * unsupported VID mode error. TODO : should be internal in SDK, clean this afterwards */
+        status = sx_api_fdb_port_learn_mode_set(gh_sdk, port_data, SX_FDB_LEARN_MODE_DONT_LEARN);
+        if (SX_ERR(status)) {
+            SX_LOG_ERR("Failed to set port learning mode disable for router port - %s.\n", SX_STATUS_MSG(status));
+            return sdk_to_sai(status);
+        }
     } else if (SAI_ROUTER_INTERFACE_TYPE_LOOPBACK == type->s32) {
         if (SAI_STATUS_ITEM_NOT_FOUND !=
             (status =
