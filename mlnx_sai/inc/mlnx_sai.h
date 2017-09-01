@@ -116,6 +116,8 @@ inline static char * mlnx_severity_to_syslog(sx_log_severity_t severity)
 #define SAI_ERR(status) ((status) != SAI_STATUS_SUCCESS)
 #define SX_ERR(status)  ((status) != SX_STATUS_SUCCESS)
 
+#define MLNX_SAI_STATUS_BUFFER_OVERFLOW_EMPTY_LIST SAI_STATUS_CODE(0x01000000L)
+
 #ifndef _WIN32
 #define UNREFERENCED_PARAMETER(X)
 #define _Inout_opt_
@@ -171,6 +173,7 @@ extern const sai_mirror_api_t           mlnx_mirror_api;
 extern const sai_samplepacket_api_t     mlnx_samplepacket_api;
 extern const sai_tunnel_api_t           mlnx_tunnel_api;
 extern const sai_stp_api_t              mlnx_stp_api;
+extern const sai_udf_api_t              mlnx_udf_api;
 
 #define DEFAULT_ETH_SWID 0
 #define DEFAULT_VRID     0
@@ -201,6 +204,40 @@ extern const sai_stp_api_t              mlnx_stp_api;
 
 #define SAI_INVALID_STP_INSTANCE (SX_MSTP_INST_ID_MAX + 1)
 
+#define MLNX_UDF_GROUP_SIZE_MAX   (3) /* max of extraction points in one custom bytes set */
+#define MLNX_UDF_GROUP_LENGTH_MAX (g_resource_limits.acl_custom_bytes_set_size_max)
+#define MLNX_UDF_GROUP_COUNT_MAX  (g_resource_limits.acl_custom_bytes_set_max)
+#define MLNX_UDF_COUNT_MAX        (MLNX_UDF_GROUP_SIZE_MAX * MLNX_UDF_GROUP_COUNT_MAX)
+#define MLNX_UDF_MATCH_COUNT_MAX  (MLNX_UDF_COUNT_MAX)
+#define MLNX_UDF_OFFSET_MAX       (g_resource_limits.acl_custom_bytes_extraction_point_offset_max)
+
+#define MLNX_UDF_DB_UDF_GROUP_SIZE \
+    (sizeof(mlnx_udf_group_t) + \
+     sizeof(sx_acl_key_t) * MLNX_UDF_GROUP_LENGTH_MAX)
+#define MLNX_UDF_DB_UDF_GROUPS_SIZE      (MLNX_UDF_DB_UDF_GROUP_SIZE * MLNX_UDF_GROUP_COUNT_MAX)
+#define MLNX_UDF_DB_UDF_GROUP_UDFS_SIZE  (sizeof(mlnx_udf_list_t) + sizeof(uint32_t) * MLNX_UDF_GROUP_SIZE_MAX)
+#define MLNX_UDF_DB_UDF_GROUPS_UDFS_SIZE (MLNX_UDF_DB_UDF_GROUP_UDFS_SIZE * MLNX_UDF_GROUP_COUNT_MAX)
+#define MLNX_UDF_DB_UDFS_SIZE            (sizeof(mlnx_udf_t) * MLNX_UDF_COUNT_MAX)
+#define MLNX_UDF_DB_MATCHES_SIZE         (sizeof(mlnx_match_t) * MLNX_UDF_MATCH_COUNT_MAX)
+
+#define MLNX_UDF_GROUP_MASK_EMPTY (0)
+
+#define MLNX_UDF_ACL_ATTR_COUNT  (10)
+#define MLNX_UDF_ACL_ATTR_MAX_ID (MLNX_UDF_ACL_ATTR_COUNT - 1)
+
+#define mlnx_udf_db (g_sai_acl_db_ptr->udf_db)
+#define udf_db_group_ptr(index) \
+    ((mlnx_udf_group_t*)((uint8_t*)mlnx_udf_db.groups + \
+                         (MLNX_UDF_DB_UDF_GROUP_SIZE * index)))
+#define udf_db_group_udfs_ptr(index) \
+    ((mlnx_udf_list_t*)((uint8_t*)mlnx_udf_db.groups_udfs + \
+                        (MLNX_UDF_DB_UDF_GROUP_UDFS_SIZE * index)))
+#define udf_db_udf(index)   (mlnx_udf_db.udfs[index])
+#define udf_db_match(index) (mlnx_udf_db.matches[index])
+
+typedef uint64_t udf_group_mask_t;
+
+
 #define ARRAY_SIZE(_x) (sizeof(_x) / sizeof(_x[0]))
 
 /* TODO: Remove it, this is really common thing to have a vendor specific name */
@@ -216,77 +253,6 @@ extern const sai_stp_api_t              mlnx_stp_api;
 #endif
 
 typedef struct _mlnx_port_config_t mlnx_port_config_t;
-
-/*
- *  Attribute value types
- */
-typedef enum _sai_attribute_value_type_t {
-    SAI_ATTR_VAL_TYPE_UNDETERMINED,
-    SAI_ATTR_VAL_TYPE_BOOL,
-    SAI_ATTR_VAL_TYPE_CHARDATA,
-    SAI_ATTR_VAL_TYPE_U8,
-    SAI_ATTR_VAL_TYPE_S8,
-    SAI_ATTR_VAL_TYPE_U16,
-    SAI_ATTR_VAL_TYPE_S16,
-    SAI_ATTR_VAL_TYPE_U32,
-    SAI_ATTR_VAL_TYPE_S32,
-    SAI_ATTR_VAL_TYPE_U64,
-    SAI_ATTR_VAL_TYPE_S64,
-    SAI_ATTR_VAL_TYPE_MAC,
-    SAI_ATTR_VAL_TYPE_IPV4,
-    SAI_ATTR_VAL_TYPE_IPV6,
-    SAI_ATTR_VAL_TYPE_IPADDR,
-    SAI_ATTR_VAL_TYPE_IPPREFIX,
-    SAI_ATTR_VAL_TYPE_OID,
-    SAI_ATTR_VAL_TYPE_OBJLIST,
-    SAI_ATTR_VAL_TYPE_U8LIST,
-    SAI_ATTR_VAL_TYPE_S8LIST,
-    SAI_ATTR_VAL_TYPE_U16LIST,
-    SAI_ATTR_VAL_TYPE_S16LIST,
-    SAI_ATTR_VAL_TYPE_U32LIST,
-    SAI_ATTR_VAL_TYPE_S32LIST,
-    SAI_ATTR_VAL_TYPE_U32RANGE,
-    SAI_ATTR_VAL_TYPE_S32RANGE,
-    SAI_ATTR_VAL_TYPE_VLANLIST,
-    SAI_ATTR_VAL_TYPE_ACLFIELD_BOOLDATA,
-    SAI_ATTR_VAL_TYPE_ACLFIELD_U8,
-    SAI_ATTR_VAL_TYPE_ACLFIELD_S8,
-    SAI_ATTR_VAL_TYPE_ACLFIELD_U16,
-    SAI_ATTR_VAL_TYPE_ACLFIELD_S16,
-    SAI_ATTR_VAL_TYPE_ACLFIELD_U32,
-    SAI_ATTR_VAL_TYPE_ACLFIELD_S32,
-    SAI_ATTR_VAL_TYPE_ACLFIELD_MAC,
-    SAI_ATTR_VAL_TYPE_ACLFIELD_IPV4,
-    SAI_ATTR_VAL_TYPE_ACLFIELD_IPV6,
-    SAI_ATTR_VAL_TYPE_ACLFIELD_OID,
-    SAI_ATTR_VAL_TYPE_ACLFIELD_OBJLIST,
-    SAI_ATTR_VAL_TYPE_ACLFIELD_U8LIST,
-    SAI_ATTR_VAL_TYPE_ACLACTION_U8,
-    SAI_ATTR_VAL_TYPE_ACLACTION_S8,
-    SAI_ATTR_VAL_TYPE_ACLACTION_U16,
-    SAI_ATTR_VAL_TYPE_ACLACTION_S16,
-    SAI_ATTR_VAL_TYPE_ACLACTION_U32,
-    SAI_ATTR_VAL_TYPE_ACLACTION_S32,
-    SAI_ATTR_VAL_TYPE_ACLACTION_MAC,
-    SAI_ATTR_VAL_TYPE_ACLACTION_IPV4,
-    SAI_ATTR_VAL_TYPE_ACLACTION_IPV6,
-    SAI_ATTR_VAL_TYPE_ACLACTION_OID,
-    SAI_ATTR_VAL_TYPE_ACLACTION_OBJLIST,
-    SAI_ATTR_VAL_TYPE_ACLACTION_NONE,
-    SAI_ATTR_VAL_TYPE_QOSMAP,
-    SAI_ATTR_VAL_TYPE_TUNNELMAP,
-    SAI_ATTR_VAL_TYPE_ACLCAPABILITY,
-    SAI_ATTR_VAL_TYPE_PTR,
-} sai_attribute_value_type_t;
-typedef struct _sai_attribute_entry_t {
-    sai_attr_id_t              id;
-    bool                       mandatory_on_create;
-    bool                       valid_for_create;
-    bool                       valid_for_set;
-    bool                       valid_for_get;
-    const char                *attrib_name;
-    sai_attribute_value_type_t type;
-} sai_attribute_entry_t;
 
 #define EXTENDED_DATA_SIZE 2
 
@@ -345,192 +311,8 @@ PACKED(struct _mlnx_object_id_t {
 typedef struct _mlnx_object_id_t mlnx_object_id_t;
 
 #define SAI_TYPE_CHECK_RANGE(type) (type < SAI_OBJECT_TYPE_MAX)
-
-#define SAI_TYPE_STR(type) SAI_TYPE_CHECK_RANGE(type) ? sai_type2str_arr[type] : "Unknown object type"
-
-static __attribute__((__used__)) const char *sai_type2str_arr[] = {
-    /* SAI_OBJECT_TYPE_NULL = 0 */
-    "NULL",
-
-    /*SAI_OBJECT_TYPE_PORT = 1 */
-    "Port",
-
-    /*SAI_OBJECT_TYPE_LAG = 2 */
-    "LAG",
-
-    /*SAI_OBJECT_TYPE_VIRTUAL_ROUTER = 3 */
-    "Virtual router",
-
-    /* SAI_OBJECT_TYPE_NEXT_HOP = 4 */
-    "Next hop",
-
-    /* SAI_OBJECT_TYPE_NEXT_HOP_GROUP = 5 */
-    "Next hop group",
-
-    /* SAI_OBJECT_TYPE_ROUTER_INTERFACE = 6 */
-    "Router interface",
-
-    /* SAI_OBJECT_TYPE_ACL_TABLE = 7 */
-    "ACL table",
-
-    /* SAI_OBJECT_TYPE_ACL_ENTRY = 8 */
-    "ACL entry",
-
-    /* SAI_OBJECT_TYPE_ACL_COUNTER = 9 */
-    "ACL counter",
-
-    /* SAI_OBJECT_TYPE_ACL_RANGE = 10 */
-    "ACL range",
-
-    /* SAI_OBJECT_TYPE_ACL_TABLE_GROUP = 11 */
-    "ACL table group",
-
-    /* SAI_OBJECT_TYPE_ACL_TABLE_GROUP_MEMBER = 12 */
-    "ACL table group member",
-
-    /* SAI_OBJECT_TYPE_HOST_INTERFACE = 13 */
-    "Host interface",
-
-    /* SAI_OBJECT_TYPE_MIRROR = 14 */
-    "Mirror",
-
-    /* SAI_OBJECT_TYPE_SAMPLEPACKET = 15 */
-    "Sample packet",
-
-    /* SAI_OBJECT_TYPE_STP = 16 */
-    "Stp",
-
-    /* SAI_OBJECT_TYPE_TRAP_GROUP = 17 */
-    "Trap group",
-
-    /* SAI_OBJECT_TYPE_POLICER = 18 */
-    "Policer",
-
-    /* SAI_OBJECT_TYPE_WRED = 19 */
-    "WRED",
-
-    /* SAI_OBJECT_TYPE_QOS_MAPS = 20 */
-    "QoS Map",
-
-    /* SAI_OBJECT_TYPE_QUEUE = 21 */
-    "Queue",
-
-    /* SAI_OBJECT_TYPE_SCHEDULER = 22 */
-    "Scheduler",
-
-    /* SAI_OBJECT_TYPE_SCHEDULER_GROUP = 23 */
-    "Scheduler group",
-
-    /* SAI_OBJECT_TYPE_BUFFER_POOL = 24 */
-    "Buffer pool",
-
-    /* SAI_OBJECT_TYPE_BUFFER_PROFILE = 25 */
-    "Buffer profile",
-
-    /* SAI_OBJECT_TYPE_INGRESS_PRIORITY_GROUP = 26 */
-    "Priority group",
-
-    /* SAI_OBJECT_TYPE_LAG_MEMBER = 27 */
-    "LAG member",
-
-    /* SAI_OBJECT_TYPE_HASH = 28 */
-    "Hash",
-
-    /* SAI_OBJECT_TYPE_UDF = 29 */
-    "UDF",
-
-    /* SAI_OBJECT_TYPE_UDF_MATCH = 30 */
-    "UDF match",
-
-    /* SAI_OBJECT_TYPE_UDF_GROUP = 31 */
-    "UDF group",
-
-    /* SAI_OBJECT_TYPE_FDB_ENTRY = 32 */
-    "FDB",
-
-    /*SAI_OBJECT_TYPE_SWITCH = 33 */
-    "Switch",
-
-    /* SAI_OBJECT_TYPE_HOSTIF_TRAP = 34 */
-    "Trap",
-
-    /* SAI_OBJECT_TYPE_HOSTIF_TABLE_ENTRY = 35 */
-    "Host table entry",
-
-    /* SAI_OBJECT_TYPE_NEIGHBOR_ENTRY = 36 */
-    "Neighbor",
-
-    /* SAI_OBJECT_TYPE_ROUTE_ENTRY = 37 */
-    "Route",
-
-    /* SAI_OBJECT_TYPE_VLAN = 38 */
-    "VLAN",
-
-    /* SAI_OBJECT_TYPE_VLAN_MEMBER = 39 */
-    "VLAN member",
-
-    /* SAI_OBJECT_TYPE_HOSTIF_PACKET = 40 */
-    "Packet",
-
-    /* SAI_OBJECT_TYPE_TUNNEL_MAP = 41 */
-    "Tunnel map",
-
-    /* SAI_OBJECT_TYPE_TUNNEL = 42 */
-    "Tunnel",
-
-    /* SAI_OBJECT_TYPE_TUNNEL_TERM_TABLE_ENTRY = 43 */
-    "Tunnel table entry",
-
-    /* SAI_OBJECT_TYPE_FDB_FLUSH             = 44, */
-    "FDB flush",
-
-    /* SAI_OBJECT_TYPE_NEXT_HOP_GROUP_MEMBER = 45, */
-    "Next hop group member",
-
-    /* SAI_OBJECT_TYPE_STP_PORT              = 46, */
-    "STP port",
-
-    /* SAI_OBJECT_TYPE_RPF_GROUP             = 47, */
-    "RPF group",
-
-    /* SAI_OBJECT_TYPE_RPF_GROUP_MEMBER      = 48, */
-    "RPF group member",
-
-    /* SAI_OBJECT_TYPE_L2MC_GROUP            = 49, */
-    "L2MC Group",
-
-    /* SAI_OBJECT_TYPE_L2MC_GROUP_MEMBER     = 50, */
-    "L2MC Group member",
-
-    /* SAI_OBJECT_TYPE_IPMC_GROUP            = 51, */
-    "IPMC group",
-
-    /* SAI_OBJECT_TYPE_IPMC_GROUP_MEMBER     = 52, */
-    "IPMC group member",
-
-    /* SAI_OBJECT_TYPE_L2MC_ENTRY            = 53, */
-    "L2MC",
-
-    /* SAI_OBJECT_TYPE_IPMC_ENTRY            = 54, */
-    "IPMC",
-
-    /* SAI_OBJECT_TYPE_MCAST_FDB_ENTRY       = 55, */
-    "Mcast FDB",
-
-    /* SAI_OBJECT_TYPE_HOSTIF_USER_DEFINED_TRAP = 56,*/
-    "User defined trap",
-
-    /*SAI_OBJECT_TYPE_BRIDGE                 = 57, */
-    "Bridge",
-
-    /* SAI_OBJECT_TYPE_BRIDGE_PORT           = 58, */
-    "Bridge port",
-
-    /* SAI_OBJECT_TYPE_TUNNEL_MAP_ENTRY      = 59, */
-    "Tunnel map entry",
-
-    /* SAI_OBJECT_TYPE_MAX                   = 60 */
-};
+extern const char* sai_metadata_sai_object_type_t_enum_values_short_names[];
+#define SAI_TYPE_STR(type) SAI_TYPE_CHECK_RANGE(type) ? sai_metadata_sai_object_type_t_enum_values_short_names[type] : "Unknown object type"
 
 /* Used in case RIF type bridge */
 typedef enum mlnx_rif_type_ {
@@ -542,17 +324,16 @@ typedef enum mlnx_rif_type_ {
  * if in case it will be needed to store any kind of RIF in the DB then it is better to rename
  * it to the mlnx_rif_t and use it */
 typedef struct mlnx_bridge_rif_ {
-    sx_interface_attributes_t    intf_attribs;
-    sx_router_interface_param_t  intf_params;
-    sx_router_interface_state_t  intf_state;
-    sx_bridge_id_t               bridge_id;
-    bool                         is_created; /* if rif is created via SDK (bridged) */
-    bool                         is_used;
-    sx_router_interface_t        rif_id;
-    sx_router_id_t               vrf_id;
-    uint32_t                     index;
+    sx_interface_attributes_t   intf_attribs;
+    sx_router_interface_param_t intf_params;
+    sx_router_interface_state_t intf_state;
+    sx_bridge_id_t              bridge_id;
+    bool                        is_created;  /* if rif is created via SDK (bridged) */
+    bool                        is_used;
+    sx_router_interface_t       rif_id;
+    sx_router_id_t              vrf_id;
+    uint32_t                    index;
 } mlnx_bridge_rif_t;
-
 typedef struct mlnx_bridge_port_ {
     uint32_t               index;
     bool                   is_present;
@@ -568,7 +349,6 @@ typedef struct mlnx_bridge_port_ {
     uint32_t               fdbs;
     uint16_t               stps;
 } mlnx_bridge_port_t;
-
 typedef sai_status_t (*sai_attribute_set_fn)(_In_ const sai_object_key_t *key, _In_ const sai_attribute_value_t *value,
                                              void *arg);
 typedef struct _mlnx_fdb_cache_t {
@@ -623,33 +403,31 @@ typedef enum {
         ATTR_PORT_IS_IN_LAG_ENABLED = 1 << 2,
 } attr_port_type_check_t;
 
+void mlnx_udf_acl_attrs_metadata_init();
+bool mlnx_udf_acl_attribute_id_is_not_supported(_In_ sai_attr_id_t attr_id);
 sai_status_t check_port_type_attr(const sai_object_id_t *ports,
                                   uint32_t               count,
                                   attr_port_type_check_t check,
                                   sai_attr_id_t          attr_id,
                                   uint32_t               idx);
-
 sai_status_t check_attribs_metadata(_In_ uint32_t                            attr_count,
                                     _In_ const sai_attribute_t              *attr_list,
-                                    _In_ const sai_attribute_entry_t        *functionality_attr,
+                                    _In_ sai_object_type_t                   object_type,
                                     _In_ const sai_vendor_attribute_entry_t *functionality_vendor_attr,
                                     _In_ sai_common_api_t                    oper);
-
 sai_status_t find_attrib_in_list(_In_ uint32_t                       attr_count,
                                  _In_ const sai_attribute_t         *attr_list,
                                  _In_ sai_attr_id_t                  attrib_id,
                                  _Out_ const sai_attribute_value_t **attr_value,
                                  _Out_ uint32_t                     *index);
-
 sai_status_t sai_set_attribute(_In_ const sai_object_key_t             *key,
                                _In_ const char                         *key_str,
-                               _In_ const sai_attribute_entry_t        *functionality_attr,
+                               _In_ sai_object_type_t                   object_type,
                                _In_ const sai_vendor_attribute_entry_t *functionality_vendor_attr,
                                _In_ const sai_attribute_t              *attr);
-
 sai_status_t sai_get_attributes(_In_ const sai_object_key_t             *key,
                                 _In_ const char                         *key_str,
-                                _In_ const sai_attribute_entry_t        *functionality_attr,
+                                _In_ sai_object_type_t                   object_type,
                                 _In_ const sai_vendor_attribute_entry_t *functionality_vendor_attr,
                                 _In_ uint32_t                            attr_count,
                                 _Inout_ sai_attribute_t                 *attr_list);
@@ -658,15 +436,11 @@ sai_status_t sai_get_attributes(_In_ const sai_object_key_t             *key,
 #define MAX_VALUE_STR_LEN      100
 #define MAX_LIST_VALUE_STR_LEN 1000
 
-sai_status_t sai_value_to_str(_In_ sai_attribute_value_t      value,
-                              _In_ sai_attribute_value_type_t type,
-                              _In_ uint32_t                   max_length,
-                              _Out_ char                     *value_str);
-sai_status_t sai_attr_list_to_str(_In_ uint32_t                     attr_count,
-                                  _In_ const sai_attribute_t       *attr_list,
-                                  _In_ const sai_attribute_entry_t *functionality_attr,
-                                  _In_ uint32_t                     max_length,
-                                  _Out_ char                       *list_str);
+sai_status_t sai_attr_list_to_str(_In_ uint32_t               attr_count,
+                                  _In_ const sai_attribute_t *attr_list,
+                                  _In_ sai_object_type_t      object_type,
+                                  _In_ uint32_t               max_length,
+                                  _Out_ char                 *list_str);
 sai_status_t sai_ipprefix_to_str(_In_ sai_ip_prefix_t value, _In_ uint32_t max_length, _Out_ char *value_str);
 sai_status_t sai_ipaddr_to_str(_In_ sai_ip_address_t value,
                                _In_ uint32_t         max_length,
@@ -765,6 +539,7 @@ sai_status_t mlnx_tunnel_log_set(sx_verbosity_level_t level);
 sai_status_t mlnx_samplepacket_log_set(sx_verbosity_level_t level);
 sai_status_t mlnx_stp_log_set(sx_verbosity_level_t severity);
 sai_status_t mlnx_bridge_log_set(sx_verbosity_level_t severity);
+sai_status_t mlnx_udf_log_set(sx_verbosity_level_t severity);
 
 sai_status_t mlnx_fill_objlist(sai_object_id_t *data, uint32_t count, sai_object_list_t *list);
 sai_status_t mlnx_fill_u8list(uint8_t *data, uint32_t count, sai_u8_list_t *list);
@@ -775,6 +550,7 @@ sai_status_t mlnx_fill_u32list(uint32_t *data, uint32_t count, sai_u32_list_t *l
 sai_status_t mlnx_fill_s32list(int32_t *data, uint32_t count, sai_s32_list_t *list);
 sai_status_t mlnx_fill_vlanlist(sai_vlan_id_t *data, uint32_t count, sai_vlan_list_t *list);
 sai_status_t mlnx_fill_tunnelmaplist(sai_tunnel_map_t *data, uint32_t count, sai_tunnel_map_list_t *list);
+sai_status_t mlnx_attribute_value_list_size_check(_Inout_ uint32_t *out_size, _In_ uint32_t in_size);
 
 sai_status_t mlnx_wred_apply(sai_object_id_t wred_id, sai_object_id_t to_obj_id);
 sai_status_t mlnx_wred_init();
@@ -895,7 +671,6 @@ sai_status_t mlnx_stp_initialize();
 
 /* Helper for mlnx_mstp_inst_db */
 mlnx_mstp_inst_t * get_stp_db_entry(sx_mstp_inst_id_t sx_stp_id);
-extern const sai_attribute_entry_t host_interface_packet_attribs[];
 #define END_TRAP_INFO_ID 0xFFFFFFFF
 typedef enum _mlnx_trap_type_t {
     MLNX_TRAP_TYPE_REGULAR,
@@ -922,14 +697,13 @@ extern const mlnx_trap_info_t mlnx_traps_info[];
 #define MAX_SCHED_CHILD_GROUPS 8
 #define MAX_ETS_ELEMENTS       (g_resource_limits.cos_port_ets_elements_num)
 
-
-#define MAX_PORTS       64
+#define MAX_PORTS        64
 #define MAX_BRIDGE_PORTS 512
 #define MAX_BRIDGE_RIFS  MAX_PORTS
-#define MAX_LANES       4
-#define MAX_FDS         100
-#define MAX_POLICERS    100
-#define MAX_TRAP_GROUPS 32
+#define MAX_LANES        4
+#define MAX_FDS          100
+#define MAX_POLICERS     100
+#define MAX_TRAP_GROUPS  32
 #define MIN_SX_BRIDGE_ID 0x1000
 
 #define DEFAULT_INGRESS_SX_POOL_ID 0
@@ -937,6 +711,13 @@ extern const mlnx_trap_info_t mlnx_traps_info[];
 #define EGRESS_CPU_PORT_SX_POOL_ID 7
 
 #define SENTINEL_BUFFER_DB_ENTRY_INDEX 0
+
+#define MLNX_FDB_LEARNING_NO_LIMIT_VALUE         (0)
+#define MLNX_FDB_IS_LEARNING_LIMIT_EXISTS(limit) ((limit) != MLNX_FDB_LEARNING_NO_LIMIT_VALUE)
+
+#define MLNX_FDB_LIMIT_SAI_TO_SX(limit)    (MLNX_FDB_IS_LEARNING_LIMIT_EXISTS(limit) ? (limit) : SX_FDB_UC_NO_LIMIT)
+#define MLNX_FDB_LIMIT_SX_TO_SAI(sx_limit) (SX_FDB_IS_LIMIT_EXIST(sx_limit) ?             \
+                                           (sx_limit) : MLNX_FDB_LEARNING_NO_LIMIT_VALUE)
 
 typedef enum _mlnx_port_breakout_capability_t {
     MLNX_PORT_BREAKOUT_CAPABILITY_NONE     = 0,
@@ -1049,7 +830,9 @@ typedef struct _mlnx_vlan_db_t {
 /* MLNX Bridge API */
 sai_status_t mlnx_bridge_init(void);
 sx_bridge_id_t mlnx_bridge_default_1q(void);
-sai_status_t mlnx_create_bridge_object(sai_bridge_type_t sai_br_type, sx_bridge_id_t    sx_br_id, sai_object_id_t  *bridge_oid);
+sai_status_t mlnx_create_bridge_object(sai_bridge_type_t sai_br_type,
+                                       sx_bridge_id_t    sx_br_id,
+                                       sai_object_id_t  *bridge_oid);
 sai_status_t mlnx_bridge_oid_to_id(sai_object_id_t oid, sx_bridge_id_t *bridge_id);
 sai_status_t mlnx_bridge_port_sai_to_log_port(sai_object_id_t oid, sx_port_log_id_t *log_port);
 sai_status_t mlnx_log_port_to_sai_bridge_port(sx_port_log_id_t log_port, sai_object_id_t *oid);
@@ -1062,6 +845,7 @@ sai_status_t mlnx_bridge_rif_add(sx_router_id_t vrf_id, mlnx_bridge_rif_t **rif)
 sai_status_t mlnx_bridge_rif_del(mlnx_bridge_rif_t *rif);
 sai_status_t mlnx_bridge_rif_by_idx(uint32_t idx, mlnx_bridge_rif_t **rif);
 sai_status_t mlnx_bridge_rif_to_oid(mlnx_bridge_rif_t *rif, sai_object_id_t *oid);
+sai_status_t mlnx_rif_oid_to_sdk_rif_id(sai_object_id_t rif_oid, sx_router_interface_t *sdk_rif_id);
 
 sx_mstp_inst_id_t mlnx_stp_get_default_stp();
 sai_status_t mlnx_vlan_stp_bind(sai_vlan_id_t vlan_id, sx_mstp_inst_id_t sx_stp_id);
@@ -1075,6 +859,12 @@ sai_status_t mlnx_vlan_port_add(uint16_t vid, sai_vlan_tagging_mode_t mode, mlnx
 sai_status_t mlnx_vlan_port_del(uint16_t vid, mlnx_bridge_port_t *port);
 sai_status_t sai_object_to_vlan(sai_object_id_t oid, uint16_t *vlan_id);
 sai_status_t validate_vlan(_In_ const sai_vlan_id_t vlan_id);
+sai_status_t mlnx_max_learned_addresses_value_validate(_In_ uint32_t limit,
+                                                       _In_ uint32_t attr_index);
+sai_status_t mlnx_vlan_bridge_max_learned_addresses_set(_In_ sx_vid_t sx_vid,
+                                                        _In_ uint32_t limit);
+sai_status_t mlnx_vlan_bridge_max_learned_addresses_get(_In_ sx_vid_t sx_vid,
+                                                        _In_ uint32_t *limit);
 /**
  * @brief Port Add/Delete Event
  */
@@ -1140,7 +930,7 @@ sai_status_t mlnx_buffer_apply(_In_ sai_object_id_t sai_buffer, _In_ sai_object_
 #define mlnx_bridge_port_foreach(port, idx) \
     for (idx = 0; idx < (MAX_BRIDGE_PORTS) && \
          (port = &g_sai_db_ptr->bridge_ports_db[idx]); idx++) \
-            if (port->is_present)
+        if (port->is_present)
 
 #define mlnx_vlan_ports_foreach(vid, port, idx) \
     for (idx = 0; \
@@ -1161,6 +951,53 @@ typedef struct _mlnx_wred_profile_t {
     bool                    ecn_enabled;
     bool                    in_use;
 } mlnx_wred_profile_t;
+
+/* UDF db */
+typedef struct _mlnx_udf_list_t {
+    uint32_t count;
+    uint32_t udf_indexes[]; /* MLNX_UDF_GROUP_SIZE_MAX */
+} mlnx_udf_list_t;
+
+typedef struct _mlnx_udf_group_t {
+    bool                 is_created;
+    bool                 is_sx_custom_bytes_created;
+    uint32_t             refs;
+    sai_udf_group_type_t type;
+    uint32_t             length;
+    sai_object_id_t      sai_object;
+    sx_acl_key_t         sx_custom_bytes_keys[]; /* MLNX_UDF_GROUP_LENGTH_MAX */
+} mlnx_udf_group_t;
+
+typedef struct _mlnx_udf_t {
+    bool            is_created;
+    uint32_t        match_index;
+    uint32_t        group_index;
+    sai_udf_base_t  base;
+    sai_uint16_t    offset;
+    sai_object_id_t sai_object;
+} mlnx_udf_t;
+
+typedef enum _mlnx_udf_match_type_t {
+    MLNX_UDF_MATCH_TYPE_EMPTY,
+    MLNX_UDF_MATCH_TYPE_ARP,
+    MLNX_UDF_MATCH_TYPE_IPv4,
+    MLNX_UDF_MATCH_TYPE_IPv6,
+} mlnx_udf_match_type_t;
+
+typedef struct _mlnx_match_t {
+    bool                  is_created;
+    uint32_t              refs;
+    mlnx_udf_match_type_t type;
+    uint8_t               priority;
+    sai_object_id_t       sai_object;
+} mlnx_match_t;
+
+typedef struct _mlnx_udf_db_t {
+    mlnx_udf_group_t *groups;      /* MLNX_UDF_GROUP_COUNT_MAX */
+    mlnx_udf_list_t  *groups_udfs; /* MLNX_UDF_GROUP_COUNT_MAX */
+    mlnx_udf_t       *udfs;        /* MLNX_UDF_COUNT_MAX */
+    mlnx_match_t     *matches;     /* MLNX_UDF_MATCH_COUNT_MAX */
+} mlnx_udf_db_t;
 
 #define MAX_QOS_MAPS           MAX_PORTS
 #define SAI_INVALID_PROFILE_ID 0xFFFFFFFF
@@ -1217,6 +1054,9 @@ typedef struct _mlnx_wred_profile_t {
 #define SAI_ACL_BIND_POINT_TYPE_COUNT (SAI_ACL_BIND_POINT_TYPE_SWITCH + 1)
 #define SAI_ACL_MAX_BIND_POINT_BOUND  (MAX(MAX_PORTS + ACL_VLAN_GROUP_COUNT, ACL_RIF_COUNT))
 
+#define ACL_IP_IDENT_FIELD_BYTE_COUNT 2
+#define ACL_UDF_GROUP_COUNT_MAX       (SAI_ACL_USER_DEFINED_FIELD_ATTR_ID_RANGE + 1)
+
 typedef struct _acl_bind_point_type_list_t {
     sai_acl_bind_point_type_t types[SAI_ACL_BIND_POINT_TYPE_COUNT];
     uint32_t                  count;
@@ -1227,7 +1067,13 @@ typedef struct _acl_table_wrapping_group_t {
     sx_acl_id_t sx_group_id;
 } acl_table_wrapping_group_t;
 
-#define ACL_IP_IDENT_FIELD_BYTE_COUNT 2
+
+typedef struct _acl_udf_group_t {
+    bool     is_set;
+    uint32_t udf_group_db_index;
+} acl_udf_group_t;
+
+typedef acl_udf_group_t acl_udf_group_list_t[ACL_UDF_GROUP_COUNT_MAX];
 
 typedef struct _acl_table_db_t {
     bool                       is_used;
@@ -1255,6 +1101,7 @@ typedef struct _acl_table_db_t {
     sx_acl_rule_offset_t       def_rules_offset;
     sx_acl_key_t               def_rule_key;
     bool                       is_ip_ident_used;
+    acl_udf_group_list_t       udf_group_list;
 } acl_table_db_t;
 
 typedef struct _acl_counter_db_t {
@@ -1331,6 +1178,7 @@ typedef struct _acl_entry_db_t {
     bool                      is_used;
     acl_entry_res_refs_t      res_refs;
     acl_entry_redirect_data_t redirect_data;
+    sx_mc_container_id_t      sx_mc_container_egress_block;
 } acl_entry_db_t;
 
 typedef struct _acl_res_ref_t {
@@ -1446,6 +1294,7 @@ typedef struct _mlnx_acl_db_t {
     acl_group_db_t       *acl_groups_db;
     acl_vlan_group_t     *acl_vlan_groups_db;
     acl_group_bound_to_t *acl_group_bound_to_db;
+    mlnx_udf_db_t         udf_db;
 } mlnx_acl_db_t;
 
 extern mlnx_acl_db_t              *g_sai_acl_db_ptr;
@@ -1461,8 +1310,9 @@ typedef struct _mlnx_policer_to_trap_group_bind_params {
     sai_attribute_value_t attr_prio_value;
 } mlnx_policer_to_trap_group_bind_params;
 typedef struct _mlnx_hash_obj_t {
-    sai_object_id_t hash_id;
-    uint64_t        field_mask;
+    sai_object_id_t  hash_id;
+    uint64_t         field_mask;
+    udf_group_mask_t udf_group_mask;
 } mlnx_hash_obj_t;
 typedef enum _mlnx_switch_hash_object_id {
     SAI_HASH_ECMP_ID = 0,
@@ -1473,6 +1323,7 @@ typedef enum _mlnx_switch_hash_object_id {
     SAI_HASH_LAG_ID,
     SAI_HASH_LAG_IP4_ID,
     SAI_HASH_LAG_IPINIP_ID,
+    SAI_HASH_LAG_IP6_ID,
     SAI_HASH_MAX_OBJ_ID
 } mlnx_switch_usage_hash_object_id_t;
 
@@ -1488,7 +1339,31 @@ sai_status_t mlnx_hash_get_oper_ecmp_fields(sx_router_ecmp_port_hash_params_t  *
                                             uint32_t                           *enable_count,
                                             sx_router_ecmp_hash_field_t        *hash_field_list,
                                             uint32_t                           *field_count);
-
+sai_status_t mlnx_udf_group_db_index_to_sx_acl_keys(_In_ uint32_t       udf_group_db_index,
+                                                    _Out_ sx_acl_key_t *sx_acl_keys,
+                                                    _Out_ uint32_t     *sx_acl_key_count);
+sai_status_t mlnx_udf_group_length_get(_In_ uint32_t udf_group_db_index, _Out_ uint32_t *size);
+sai_status_t mlnx_udf_group_oid_validate_and_fetch(_In_ sai_object_id_t udf_group_id,
+                                                   _In_ uint32_t        attr_index,
+                                                   _Out_ uint32_t      *udf_group_db_index);
+sai_status_t mlnx_udf_group_objlist_validate_and_fetch_mask(_In_ const sai_object_list_t *udf_groups,
+                                                            _In_ uint32_t                 attr_index,
+                                                            _Out_ udf_group_mask_t       *udf_group_mask);
+sai_status_t mlnx_acl_udf_group_list_references_add(_In_ const acl_udf_group_list_t udf_group_list);
+sai_status_t mlnx_acl_udf_group_list_references_del(_In_ const acl_udf_group_list_t udf_group_list);
+sai_status_t mlnx_udf_group_mask_references_add(_In_ udf_group_mask_t udf_group_mask);
+sai_status_t mlnx_udf_group_mask_references_del(_In_ udf_group_mask_t udf_group_mask);
+sai_status_t mlnx_udf_group_mask_to_objlist(_In_ udf_group_mask_t udf_group_mask, _Out_ sai_object_list_t *objlist);
+sai_status_t mlnx_udf_group_mask_to_ecmp_hash_fields(_In_ udf_group_mask_t              udf_group_mask,
+                                                     _Out_ sx_router_ecmp_hash_field_t *ecmp_hash_fields,
+                                                     _Out_ uint32_t                    *ecmp_hash_field_count);
+sai_status_t mlnx_udf_group_mask_is_hash_applicable(_In_ udf_group_mask_t                   udf_group_mask,
+                                                    _In_ mlnx_switch_usage_hash_object_id_t hash_oper_type,
+                                                    _In_ bool                              *is_applicable);
+sai_status_t mlnx_custom_bytes_set(_In_ sx_access_cmd_t                             cmd,
+                                   _In_ const sx_acl_custom_bytes_set_attributes_t *attrs,
+                                   _Inout_ sx_acl_key_t                            *keys,
+                                   _In_ uint32_t                                    length);
 /*
  *  Corresponding union member should be picked by mlnx_sai_bind_policer based on the type of sai_object
  */
@@ -1529,19 +1404,14 @@ sai_status_t mlnx_sai_buffer_log_set(_In_ sx_verbosity_level_t level);
 
 sai_status_t mlnx_port_samplepacket_params_check(_In_ const mlnx_port_config_t *lag_config,
                                                  _In_ const mlnx_port_config_t *port_config);
-sai_status_t mlnx_port_samplepacket_params_clear(_In_ mlnx_port_config_t *port_config,
-                                                 _In_ bool                is_soft);
-sai_status_t mlnx_port_samplepacket_params_clone(_In_ mlnx_port_config_t       *to,
-                                                 _In_ const mlnx_port_config_t *from);
-sai_status_t mlnx_port_mirror_params_check(_In_ const mlnx_port_config_t *port1,
-                                           _In_ const mlnx_port_config_t *port2);
+sai_status_t mlnx_port_samplepacket_params_clear(_In_ mlnx_port_config_t *port_config, _In_ bool is_soft);
+sai_status_t mlnx_port_samplepacket_params_clone(_In_ mlnx_port_config_t *to, _In_ const mlnx_port_config_t *from);
+sai_status_t mlnx_port_mirror_params_check(_In_ const mlnx_port_config_t *port1, _In_ const mlnx_port_config_t *port2);
 sai_status_t mlnx_port_mirror_params_clear(_In_ mlnx_port_config_t *port_config);
-sai_status_t mlnx_port_mirror_sessions_clone(_In_ mlnx_port_config_t       *to,
-                                             _In_ const mlnx_port_config_t *from);
+sai_status_t mlnx_port_mirror_sessions_clone(_In_ mlnx_port_config_t *to, _In_ const mlnx_port_config_t *from);
 sai_status_t mlnx_port_storm_control_params_check(_In_ const mlnx_port_config_t *port1,
-                                                      _In_ const mlnx_port_config_t *port2);
-sai_status_t mlnx_port_storm_control_policer_params_clear(_In_ mlnx_port_config_t *port_config,
-                                                          _In_ bool                is_soft);
+                                                  _In_ const mlnx_port_config_t *port2);
+sai_status_t mlnx_port_storm_control_policer_params_clear(_In_ mlnx_port_config_t *port_config, _In_ bool is_soft);
 sai_status_t mlnx_port_storm_control_policer_params_clone(_In_ mlnx_port_config_t       *to,
                                                           _In_ const mlnx_port_config_t *from);
 
@@ -1562,7 +1432,7 @@ typedef struct _mlnx_samplepacket_t {
 #define MLNX_TUNNELTABLE_SIZE         256
 #define MLNX_TUNNEL_MAP_LIST_MAX      50
 #define MLNX_TUNNEL_MAP_MIN           0
-#define MLNX_TUNNEL_MAP_MAX           50
+#define MLNX_TUNNEL_MAP_MAX           4
 #define MLNX_TUNNEL_MAP_ENTRY_INVALID 0
 #define MLNX_TUNNEL_MAP_ENTRY_MIN     1
 #define MLNX_TUNNEL_MAP_ENTRY_MAX     50
@@ -1997,6 +1867,7 @@ sai_status_t mlnx_get_sai_tunnel_db_idx(_In_ sai_object_id_t sai_tunnel_id, _Out
 #define LINE_LENGTH 120
 
 void SAI_dump_acl(_In_ FILE *file);
+void SAI_dump_bridge(_In_ FILE *file);
 void SAI_dump_buffer(_In_ FILE *file);
 void SAI_dump_hash(_In_ FILE *file);
 void SAI_dump_hostintf(_In_ FILE *file);
@@ -2008,8 +1879,8 @@ void SAI_dump_samplepacket(_In_ FILE *file);
 void SAI_dump_scheduler(_In_ FILE *file);
 void SAI_dump_stp(_In_ FILE *file);
 void SAI_dump_tunnel(_In_ FILE *file);
+void SAI_dump_udf(_In_ FILE *file);
 void SAI_dump_vlan(_In_ FILE *file);
 void SAI_dump_wred(_In_ FILE *file);
-void SAI_dump_bridge(_In_ FILE *file);
 
 #endif /* __MLNXSAI_H_ */

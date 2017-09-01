@@ -193,8 +193,8 @@ sai_status_t sai_api_query(_In_ sai_api_t sai_api_id, _Out_ void** api_method_ta
         return SAI_STATUS_SUCCESS;
 
     case SAI_API_UDF:
-        /* TODO : implement */
-        return SAI_STATUS_NOT_IMPLEMENTED;
+        *(const sai_udf_api_t**)api_method_table = &mlnx_udf_api;
+        return SAI_STATUS_SUCCESS;
 
     case SAI_API_TUNNEL:
         *(const sai_tunnel_api_t**)api_method_table = &mlnx_tunnel_api;
@@ -352,8 +352,7 @@ sai_status_t sai_log_set(_In_ sai_api_t sai_api_id, _In_ sai_log_level_t log_lev
         return mlnx_hash_log_set(severity);
 
     case SAI_API_UDF:
-        /* TODO : implement */
-        return SAI_STATUS_NOT_IMPLEMENTED;
+        return mlnx_udf_log_set(severity);
 
     case SAI_API_TUNNEL:
         return mlnx_tunnel_log_set(severity);
@@ -468,6 +467,8 @@ sai_status_t sai_dbg_generate_dump(_In_ const char *dump_file_name)
     SAI_dump_wred(file);
 
     SAI_dump_bridge(file);
+
+    SAI_dump_udf(file);
 
     fclose(file);
 

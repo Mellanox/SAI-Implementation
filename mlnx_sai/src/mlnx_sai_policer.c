@@ -97,46 +97,6 @@ typedef enum _mlnx_sai_policer_color_indicator {
     MLNX_POLICER_COLOR_RED
 } mlnx_sai_policer_color_indicator_t;
 
-static const sai_attribute_entry_t policer_attribs[] = {
-    { SAI_POLICER_ATTR_METER_TYPE, true, true, false, true,
-      "Policer meter type", SAI_ATTR_VAL_TYPE_S32 },
-
-    { SAI_POLICER_ATTR_MODE, true, true, false, true,
-      "Policer mode", SAI_ATTR_VAL_TYPE_S32 },
-
-    { SAI_POLICER_ATTR_COLOR_SOURCE, false, true, true, true,
-      "Policer color source", SAI_ATTR_VAL_TYPE_S32 },
-
-    { SAI_POLICER_ATTR_CBS, false, true, true, true,
-      "Policer Committed burst size", SAI_ATTR_VAL_TYPE_U64 },
-
-    { SAI_POLICER_ATTR_CIR, false, true, true, true,
-      "Policer Commited Information rate", SAI_ATTR_VAL_TYPE_U64 },
-
-    { SAI_POLICER_ATTR_PBS, false, true, true, true,
-      "Policer Peak burst size bytes or packets", SAI_ATTR_VAL_TYPE_U64 },
-
-    /* Mandatory only for SAI_POLICER_MODE_TR_TCM */
-    { SAI_POLICER_ATTR_PIR, false, true, true, true,
-      "Policer Peak information rate", SAI_ATTR_VAL_TYPE_U64 },
-
-    /* mlnx supports only forward action for this attribute. Other values will result in error*/
-    { SAI_POLICER_ATTR_GREEN_PACKET_ACTION, false, true, true, true,
-      "Policer action on green packet", SAI_ATTR_VAL_TYPE_S32 },
-
-    { SAI_POLICER_ATTR_YELLOW_PACKET_ACTION, false, true, true, true,
-      "Policer action on yellow packet", SAI_ATTR_VAL_TYPE_S32 },
-
-    { SAI_POLICER_ATTR_RED_PACKET_ACTION, false, true, true, true,
-      "Policer action on red packet", SAI_ATTR_VAL_TYPE_S32 },
-
-    /* TODO: Not supported currently by SDK. Keep track of SDK to add support in future.*/
-    { SAI_POLICER_ATTR_ENABLE_COUNTER_PACKET_ACTION_LIST, false, true, true, true,
-      "Policer counter settings", SAI_ATTR_VAL_TYPE_OBJLIST },
-
-    { END_FUNCTIONALITY_ATTRIBS_ID, false, false, false, false,
-      "", SAI_ATTR_VAL_TYPE_UNDETERMINED }
-};
 static sai_status_t fill_policer_data(_In_ bool                   set_defaults,
                                       _In_ uint32_t               attr_count,
                                       _In_ const sai_attribute_t *attr_list,
@@ -244,7 +204,7 @@ static const sai_vendor_attribute_entry_t policer_vendor_attribs[] = {
     {
         SAI_POLICER_ATTR_MODE,
         { true, false, false, true },
-        { true, false, true, true },
+        { true, false, false, true },
         sai_policer_mode_get, NULL,
         NULL, NULL
     },
@@ -311,6 +271,13 @@ static const sai_vendor_attribute_entry_t policer_vendor_attribs[] = {
         NULL, NULL,
         NULL, NULL
     },
+    {
+        END_FUNCTIONALITY_ATTRIBS_ID,
+        { false, false, false, false },
+        { false, false, false, false },
+        NULL, NULL,
+        NULL, NULL
+    }
 };
 static void log_sx_policer_attrib_color_action(_In_ sx_policer_action_t sx_policer_action, _In_ char* action_name)
 {
@@ -1965,7 +1932,7 @@ static sai_status_t mlnx_sai_create_policer(_Out_ sai_object_id_t      *policer_
         (sai_status = check_attribs_metadata(
              attr_count,
              attr_list,
-             policer_attribs,
+             SAI_OBJECT_TYPE_POLICER,
              policer_vendor_attribs,
              SAI_COMMON_API_CREATE))) {
         SX_LOG_ERR("Failed policer attribs check during create operation, SAI status:%d\n", sai_status);
@@ -1977,7 +1944,7 @@ static sai_status_t mlnx_sai_create_policer(_Out_ sai_object_id_t      *policer_
         (sai_status = sai_attr_list_to_str(
              attr_count,
              attr_list,
-             policer_attribs,
+             SAI_OBJECT_TYPE_POLICER,
              MAX_LIST_VALUE_STR_LEN,
              list_str))) {
         SX_LOG_EXIT();
@@ -2142,7 +2109,7 @@ static sai_status_t mlnx_sai_set_policer_attribute(_In_ sai_object_id_t policer_
     SX_LOG_ENTER();
 
     policer_key_to_str(policer_id, key_str);
-    status = sai_set_attribute(&key, key_str, policer_attribs, policer_vendor_attribs, attr);
+    status = sai_set_attribute(&key, key_str, SAI_OBJECT_TYPE_POLICER, policer_vendor_attribs, attr);
 
     SX_LOG_EXIT();
 
@@ -2160,7 +2127,7 @@ static sai_status_t mlnx_sai_get_policer_attribute(_In_ sai_object_id_t     poli
     SX_LOG_ENTER();
 
     policer_key_to_str(policer_id, key_str);
-    status = sai_get_attributes(&key, key_str, policer_attribs, policer_vendor_attribs, attr_count, attr_list);
+    status = sai_get_attributes(&key, key_str, SAI_OBJECT_TYPE_POLICER, policer_vendor_attribs, attr_count, attr_list);
 
     SX_LOG_EXIT();
     return status;
@@ -2415,8 +2382,8 @@ static sai_status_t sai_policer_remove_packets_for_type_from_all_traffic(
     return SAI_STATUS_SUCCESS;
 }
 
-static sai_status_t sai_policer_apply_packet_types_to_all_traffic_policer(_In_ mlnx_port_config_t     *port_config,
-                                                                          _In_ sx_port_packet_types_t  new_packet_types)
+static sai_status_t sai_policer_apply_packet_types_to_all_traffic_policer(_In_ mlnx_port_config_t    *port_config,
+                                                                          _In_ sx_port_packet_types_t new_packet_types)
 {
     sai_status_t                   sai_status;
     sx_status_t                    sx_status;
@@ -2467,9 +2434,9 @@ static sai_status_t sai_policer_apply_packet_types_to_all_traffic_policer(_In_ m
     return SAI_STATUS_SUCCESS;
 }
 
-static sai_status_t setup_storm_item(_In_ sai_object_id_t         sai_policer,
-                                     _In_ mlnx_port_config_t     *port_config,
-                                     _In_ mlnx_port_policer_type  port_policer_type)
+static sai_status_t setup_storm_item(_In_ sai_object_id_t        sai_policer,
+                                     _In_ mlnx_port_config_t    *port_config,
+                                     _In_ mlnx_port_policer_type port_policer_type)
 {
     sai_status_t                   sai_status;
     sx_status_t                    sx_status;

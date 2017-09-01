@@ -114,6 +114,8 @@ static sai_status_t sai_acl_db_create();
 static void sai_acl_db_init();
 static sai_status_t sai_acl_db_switch_connect_init(int shmid);
 static sai_status_t sai_acl_db_unload(boolean_t erase_db);
+static uint32_t sai_udf_db_size_get();
+static void sai_udf_db_init();
 static sai_status_t mlnx_switch_port_number_get(_In_ const sai_object_key_t   *key,
                                                 _Inout_ sai_attribute_value_t *value,
                                                 _In_ uint32_t                  attr_index,
@@ -405,184 +407,6 @@ static sai_status_t mlnx_default_bridge_id_get(_In_ const sai_object_key_t   *ke
                                                _In_ uint32_t                  attr_index,
                                                _Inout_ vendor_cache_t        *cache,
                                                void                          *arg);
-static const sai_attribute_entry_t        switch_attribs[] = {
-    { SAI_SWITCH_ATTR_PORT_NUMBER, false, false, false, true,
-      "Switch ports number", SAI_ATTR_VAL_TYPE_U32 },
-    { SAI_SWITCH_ATTR_PORT_LIST, false, false, false, true,
-      "Switch ports list", SAI_ATTR_VAL_TYPE_OBJLIST },
-    { SAI_SWITCH_ATTR_PORT_MAX_MTU, false, false, false, true,
-      "Switch max MTU", SAI_ATTR_VAL_TYPE_U32 },
-    { SAI_SWITCH_ATTR_CPU_PORT, false, false, false, true,
-      "Switch CPU port", SAI_ATTR_VAL_TYPE_OID },
-    { SAI_SWITCH_ATTR_MAX_VIRTUAL_ROUTERS, false, false, false, true,
-      "Switch max virtual routers", SAI_ATTR_VAL_TYPE_U32 },
-    { SAI_SWITCH_ATTR_FDB_TABLE_SIZE, false, false, false, true,
-      "Switch FDB table size", SAI_ATTR_VAL_TYPE_U32 },
-    { SAI_SWITCH_ATTR_L3_NEIGHBOR_TABLE_SIZE, false, false, false, true,
-      "Switch neighbor table size", SAI_ATTR_VAL_TYPE_U32 },
-    { SAI_SWITCH_ATTR_L3_ROUTE_TABLE_SIZE, false, false, false, true,
-      "Switch route table size", SAI_ATTR_VAL_TYPE_U32 },
-    { SAI_SWITCH_ATTR_ON_LINK_ROUTE_SUPPORTED, false, false, false, true,
-      "Switch on link route supported", SAI_ATTR_VAL_TYPE_BOOL },
-    { SAI_SWITCH_ATTR_OPER_STATUS, false, false, false, true,
-      "Switch operational status", SAI_ATTR_VAL_TYPE_S32 },
-    { SAI_SWITCH_ATTR_MAX_TEMP, false, false, false, true,
-      "Switch maximum temperature", SAI_ATTR_VAL_TYPE_S32 },
-    { SAI_SWITCH_ATTR_ACL_TABLE_MINIMUM_PRIORITY, false, false, false, true,
-      "Switch ACL table min prio", SAI_ATTR_VAL_TYPE_U32 },
-    { SAI_SWITCH_ATTR_ACL_TABLE_MAXIMUM_PRIORITY, false, false, false, true,
-      "Switch ACL table max prio", SAI_ATTR_VAL_TYPE_U32 },
-    { SAI_SWITCH_ATTR_ACL_ENTRY_MINIMUM_PRIORITY, false, false, false, true,
-      "Switch ACL entry min prio", SAI_ATTR_VAL_TYPE_U32 },
-    { SAI_SWITCH_ATTR_ACL_ENTRY_MAXIMUM_PRIORITY, false, false, false, true,
-      "Switch ACL entry max prio", SAI_ATTR_VAL_TYPE_U32 },
-    { SAI_SWITCH_ATTR_ACL_TABLE_GROUP_MINIMUM_PRIORITY, false, false, false, true,
-      "Minimum priority for ACL table group", SAI_ATTR_VAL_TYPE_U32 },
-    { SAI_SWITCH_ATTR_ACL_TABLE_GROUP_MAXIMUM_PRIORITY, false, false, false, true,
-      "Maximum priority for ACL table group", SAI_ATTR_VAL_TYPE_U32 },
-    { SAI_SWITCH_ATTR_FDB_DST_USER_META_DATA_RANGE, false, false, false, true,
-      "Switch FDB DST meta range", SAI_ATTR_VAL_TYPE_U32RANGE },
-    { SAI_SWITCH_ATTR_ROUTE_DST_USER_META_DATA_RANGE, false, false, false, true,
-      "Switch Route DST meta range", SAI_ATTR_VAL_TYPE_U32RANGE },
-    { SAI_SWITCH_ATTR_NEIGHBOR_DST_USER_META_DATA_RANGE, false, false, false, true,
-      "Switch Neighbor DST meta range", SAI_ATTR_VAL_TYPE_U32RANGE },
-    { SAI_SWITCH_ATTR_PORT_USER_META_DATA_RANGE, false, false, false, true,
-      "Switch Port meta range", SAI_ATTR_VAL_TYPE_U32RANGE },
-    { SAI_SWITCH_ATTR_VLAN_USER_META_DATA_RANGE, false, false, false, true,
-      "Switch Vlan meta range", SAI_ATTR_VAL_TYPE_U32RANGE },
-    { SAI_SWITCH_ATTR_ACL_USER_META_DATA_RANGE, false, false, false, true,
-      "Switch ACL meta range", SAI_ATTR_VAL_TYPE_U32RANGE },
-    { SAI_SWITCH_ATTR_ACL_USER_TRAP_ID_RANGE, false, false, false, true,
-      "Switch ACL trap range", SAI_ATTR_VAL_TYPE_U32RANGE },
-    { SAI_SWITCH_ATTR_DEFAULT_VLAN_ID, false, false, false, true,
-      "Switch default vlan id", SAI_ATTR_VAL_TYPE_OID },
-    { SAI_SWITCH_ATTR_DEFAULT_STP_INST_ID, false, false, false, true,
-      "Switch default STP instance id", SAI_ATTR_VAL_TYPE_OID },
-    { SAI_SWITCH_ATTR_LAG_MEMBERS, false, false, false, true,
-      "Switch number of LAG members", SAI_ATTR_VAL_TYPE_U32 },
-    { SAI_SWITCH_ATTR_NUMBER_OF_LAGS, false, false, false, true,
-      "Switch number of LAGs", SAI_ATTR_VAL_TYPE_U32 },
-    { SAI_SWITCH_ATTR_SWITCHING_MODE, false, false, true, true,
-      "Switch switching mode", SAI_ATTR_VAL_TYPE_S32 },
-    { SAI_SWITCH_ATTR_BCAST_CPU_FLOOD_ENABLE, false, false, true, true,
-      "Switch broadcast flood control to cpu", SAI_ATTR_VAL_TYPE_BOOL },
-    { SAI_SWITCH_ATTR_MCAST_CPU_FLOOD_ENABLE, false, false, true, true,
-      "Switch multicast flood control to cpu", SAI_ATTR_VAL_TYPE_BOOL },
-    { SAI_SWITCH_ATTR_SRC_MAC_ADDRESS, false, false, true, true,
-      "Switch source MAC address", SAI_ATTR_VAL_TYPE_MAC },
-    { SAI_SWITCH_ATTR_MAX_LEARNED_ADDRESSES, false, false, true, true,
-      "Switch maximum number of learned MAC addresses", SAI_ATTR_VAL_TYPE_U32 },
-    { SAI_SWITCH_ATTR_FDB_AGING_TIME, false, false, true, true,
-      "Switch FDB aging time", SAI_ATTR_VAL_TYPE_U32 },
-    { SAI_SWITCH_ATTR_FDB_UNICAST_MISS_PACKET_ACTION, false, false, true, true,
-      "Switch flood control for unknown unicast address", SAI_ATTR_VAL_TYPE_S32 },
-    { SAI_SWITCH_ATTR_FDB_BROADCAST_MISS_PACKET_ACTION, false, false, true, true,
-      "Switch flood control for unknown broadcast address", SAI_ATTR_VAL_TYPE_S32 },
-    { SAI_SWITCH_ATTR_FDB_MULTICAST_MISS_PACKET_ACTION, false, false, true, true,
-      "Switch flood control for unknown multicast address", SAI_ATTR_VAL_TYPE_S32 },
-    { SAI_SWITCH_ATTR_LAG_DEFAULT_HASH_SEED, false, false, true, true,
-      "Switch LAG hash seed", SAI_ATTR_VAL_TYPE_U32 },
-    { SAI_SWITCH_ATTR_LAG_DEFAULT_HASH_ALGORITHM, false, false, true, true,
-      "Switch LAG hash algorithm", SAI_ATTR_VAL_TYPE_S32 },
-    { SAI_SWITCH_ATTR_LAG_DEFAULT_SYMMETRIC_HASH, false, false, true, true,
-      "Switch LAG symmetric hash", SAI_ATTR_VAL_TYPE_BOOL },
-    { SAI_SWITCH_ATTR_ECMP_DEFAULT_HASH_SEED, false, false, true, true,
-      "Switch ECMP hash seed", SAI_ATTR_VAL_TYPE_U32 },
-    { SAI_SWITCH_ATTR_ECMP_DEFAULT_HASH_ALGORITHM, false, false, true, true,
-      "Switch ECMP hash algorithm", SAI_ATTR_VAL_TYPE_S32 },
-    { SAI_SWITCH_ATTR_ECMP_DEFAULT_SYMMETRIC_HASH, false, false, true, true,
-      "Switch ECMP symmetric hash", SAI_ATTR_VAL_TYPE_BOOL },
-    { SAI_SWITCH_ATTR_ECMP_MEMBERS, false, false, false, true,
-      "Switch number of ECMP members", SAI_ATTR_VAL_TYPE_U32 },
-    { SAI_SWITCH_ATTR_NUMBER_OF_ECMP_GROUPS, false, false, false, true,
-      "Switch number of ECMP groups", SAI_ATTR_VAL_TYPE_U32 },
-    { SAI_SWITCH_ATTR_COUNTER_REFRESH_INTERVAL, false, false, true, true,
-      "Switch counter refresh interval", SAI_ATTR_VAL_TYPE_U32 },
-    { SAI_SWITCH_ATTR_QOS_DEFAULT_TC, false, false, true, true,
-      "Switch default tc", SAI_ATTR_VAL_TYPE_U8 },
-    { SAI_SWITCH_ATTR_QOS_DOT1P_TO_TC_MAP, false, false, true, true,
-      "Switch dot1p to tc mapping", SAI_ATTR_VAL_TYPE_OID },
-    { SAI_SWITCH_ATTR_QOS_DOT1P_TO_COLOR_MAP, false, false, true, true,
-      "Switch dot1p to color mapping", SAI_ATTR_VAL_TYPE_OID },
-    { SAI_SWITCH_ATTR_QOS_DSCP_TO_TC_MAP, false, false, true, true,
-      "Switch dscp to tc mapping", SAI_ATTR_VAL_TYPE_OID },
-    { SAI_SWITCH_ATTR_QOS_DSCP_TO_COLOR_MAP, false, false, true, true,
-      "Switch dscp to color mapping", SAI_ATTR_VAL_TYPE_OID },
-    { SAI_SWITCH_ATTR_QOS_TC_TO_QUEUE_MAP, false, false, true, true,
-      "Switch tc to queue mapping", SAI_ATTR_VAL_TYPE_OID },
-    { SAI_SWITCH_ATTR_QOS_TC_AND_COLOR_TO_DOT1P_MAP, false, false, true, true,
-      "Switch tc & color to dot1p mapping", SAI_ATTR_VAL_TYPE_OID },
-    { SAI_SWITCH_ATTR_QOS_TC_AND_COLOR_TO_DSCP_MAP, false, false, true, true,
-      "Switch tc & color to dscp mapping", SAI_ATTR_VAL_TYPE_OID },
-    { SAI_SWITCH_ATTR_DEFAULT_TRAP_GROUP, false, false, false, true,
-      "Switch default trap group", SAI_ATTR_VAL_TYPE_OID },
-    { SAI_SWITCH_ATTR_DEFAULT_VIRTUAL_ROUTER_ID, false, false, false, true,
-      "Switch default router", SAI_ATTR_VAL_TYPE_OID },
-    { SAI_SWITCH_ATTR_INGRESS_ACL, false, false, false, false,
-      "Switch/Global bind point for ingress ACL objects", SAI_ATTR_VAL_TYPE_OBJLIST },
-    { SAI_SWITCH_ATTR_EGRESS_ACL, false, false, false, false,
-      "Switch/Global bind point for egress ACL objects", SAI_ATTR_VAL_TYPE_OBJLIST },
-    { SAI_SWITCH_ATTR_QOS_MAX_NUMBER_OF_SCHEDULER_GROUP_HIERARCHY_LEVELS, false, false, false, true,
-      "Switch scheduler group levels", SAI_ATTR_VAL_TYPE_U32 },
-    { SAI_SWITCH_ATTR_QOS_MAX_NUMBER_OF_SCHEDULER_GROUPS_PER_HIERARCHY_LEVEL, false, false, false, true,
-      "Switch scheduler groups number per level", SAI_ATTR_VAL_TYPE_U32LIST },
-    { SAI_SWITCH_ATTR_QOS_MAX_NUMBER_OF_CHILDS_PER_SCHEDULER_GROUP, false, false, false, true,
-      "Switch scheduler max child groups per group", SAI_ATTR_VAL_TYPE_U32 },
-    { SAI_SWITCH_ATTR_NUMBER_OF_UNICAST_QUEUES, false, false, false, true,
-      "Switch unicast queue number", SAI_ATTR_VAL_TYPE_U32 },
-    { SAI_SWITCH_ATTR_NUMBER_OF_MULTICAST_QUEUES, false, false, false, true,
-      "Switch multicast queue number", SAI_ATTR_VAL_TYPE_U32 },
-    { SAI_SWITCH_ATTR_NUMBER_OF_QUEUES, false, false, false, true,
-      "Switch total queue number", SAI_ATTR_VAL_TYPE_U32 },
-    { SAI_SWITCH_ATTR_NUMBER_OF_CPU_QUEUES, false, false, false, true,
-      "Switch CPU queue number", SAI_ATTR_VAL_TYPE_U32 },
-    { SAI_SWITCH_ATTR_ECMP_HASH, false, false, false, true,
-      "Switch ECMP hash OID", SAI_ATTR_VAL_TYPE_OID },
-    { SAI_SWITCH_ATTR_LAG_HASH, false, false, false, true,
-      "Switch LAG hash OID", SAI_ATTR_VAL_TYPE_OID },
-    { SAI_SWITCH_ATTR_ECMP_HASH_IPV4, false, false, true, true,
-      "Switch ECMP IPv4 hash OID", SAI_ATTR_VAL_TYPE_OID },
-    { SAI_SWITCH_ATTR_ECMP_HASH_IPV4_IN_IPV4, false, false, true, true,
-      "Switch ECMP IPinIP hash OID", SAI_ATTR_VAL_TYPE_OID },
-    { SAI_SWITCH_ATTR_ECMP_HASH_IPV6, false, false, true, true,
-      "Switch ECMP IPv6 hash OID", SAI_ATTR_VAL_TYPE_OID },
-    { SAI_SWITCH_ATTR_LAG_HASH_IPV4, false, false, true, true,
-      "Switch LAG IPv4 hash OID", SAI_ATTR_VAL_TYPE_OID },
-    { SAI_SWITCH_ATTR_LAG_HASH_IPV4_IN_IPV4, false, false, true, true,
-      "Switch LAG IPinIP hash OID", SAI_ATTR_VAL_TYPE_OID },
-    { SAI_SWITCH_ATTR_TOTAL_BUFFER_SIZE, false, false, false, true,
-      "Total buffer size", SAI_ATTR_VAL_TYPE_U32 },
-    { SAI_SWITCH_ATTR_INGRESS_BUFFER_POOL_NUM, false, false, false, true,
-      "Number of ingress pools", SAI_ATTR_VAL_TYPE_U32 },
-    { SAI_SWITCH_ATTR_EGRESS_BUFFER_POOL_NUM, false, false, false, true,
-      "Number of egress pools", SAI_ATTR_VAL_TYPE_U32 },
-    { SAI_SWITCH_ATTR_INIT_SWITCH, true, true, false, true,
-      "Switch initialize/connect", SAI_ATTR_VAL_TYPE_BOOL },
-    { SAI_SWITCH_ATTR_SWITCH_PROFILE_ID, false, true, false, true,
-      "Switch profile id", SAI_ATTR_VAL_TYPE_U32 },
-    { SAI_SWITCH_ATTR_SWITCH_STATE_CHANGE_NOTIFY, false, true, true, true,
-      "Switch change state notify", SAI_ATTR_VAL_TYPE_PTR },
-    { SAI_SWITCH_ATTR_SHUTDOWN_REQUEST_NOTIFY, false, true, true, true,
-      "Switch shutdown notify", SAI_ATTR_VAL_TYPE_PTR },
-    { SAI_SWITCH_ATTR_FDB_EVENT_NOTIFY, false, true, true, true,
-      "FDB event notify", SAI_ATTR_VAL_TYPE_PTR },
-    { SAI_SWITCH_ATTR_PORT_STATE_CHANGE_NOTIFY, false, true, true, true,
-      "Port state change notify", SAI_ATTR_VAL_TYPE_PTR },
-    { SAI_SWITCH_ATTR_PACKET_EVENT_NOTIFY, false, true, true, true,
-      "Packet event notify", SAI_ATTR_VAL_TYPE_PTR },
-    { SAI_SWITCH_ATTR_FAST_API_ENABLE, false, true, true, true,
-      "Fast API enable", SAI_ATTR_VAL_TYPE_BOOL },
-    { SAI_SWITCH_ATTR_ACL_STAGE_INGRESS, false, false, false, true,
-      "Ingress acl stage", SAI_ATTR_VAL_TYPE_ACLCAPABILITY },
-    { SAI_SWITCH_ATTR_ACL_STAGE_EGRESS, false, false, false, true,
-      "Egress acl stage", SAI_ATTR_VAL_TYPE_ACLCAPABILITY },
-    { SAI_SWITCH_ATTR_MAX_ACL_ACTION_COUNT, false, false, false, true,
-      "Count of the total number of actions supported by NPU", SAI_ATTR_VAL_TYPE_U32 },
-    { SAI_SWITCH_ATTR_DEFAULT_1Q_BRIDGE_ID, false, false, false, true,
-      "Switch default bridge id", SAI_ATTR_VAL_TYPE_OID },
-    { END_FUNCTIONALITY_ATTRIBS_ID, false, false, false, false,
-      "", SAI_ATTR_VAL_TYPE_UNDETERMINED }
-};
 static const sai_vendor_attribute_entry_t switch_vendor_attribs[] = {
     { SAI_SWITCH_ATTR_PORT_NUMBER,
       { false, false, false, true },
@@ -904,6 +728,11 @@ static const sai_vendor_attribute_entry_t switch_vendor_attribs[] = {
       { false, false, false, true },
       mlnx_switch_queue_num_get, (void*)SAI_SWITCH_ATTR_NUMBER_OF_QUEUES,
       NULL, NULL },
+    { SAI_SWITCH_ATTR_QOS_NUM_LOSSLESS_QUEUES,
+      { false, false, false, true },
+      { false, false, false, true },
+      mlnx_switch_queue_num_get, (void*)SAI_SWITCH_ATTR_QOS_NUM_LOSSLESS_QUEUES,
+      NULL, NULL },
     { SAI_SWITCH_ATTR_NUMBER_OF_CPU_QUEUES,
       { false, false, false, false },
       { false, false, false, false },
@@ -944,6 +773,11 @@ static const sai_vendor_attribute_entry_t switch_vendor_attribs[] = {
       { false, false, true, true },
       mlnx_switch_hash_object_get, (void*)SAI_SWITCH_ATTR_LAG_HASH_IPV4_IN_IPV4,
       mlnx_switch_hash_object_set, (void*)SAI_SWITCH_ATTR_LAG_HASH_IPV4_IN_IPV4 },
+    { SAI_SWITCH_ATTR_LAG_HASH_IPV6,
+      { false, false, true, true },
+      { false, false, true, true },
+      mlnx_switch_hash_object_get, (void*)SAI_SWITCH_ATTR_LAG_HASH_IPV6,
+      mlnx_switch_hash_object_set, (void*)SAI_SWITCH_ATTR_LAG_HASH_IPV6 },
     { SAI_SWITCH_ATTR_TOTAL_BUFFER_SIZE,
       { false, false, false, true },
       { false, false, false, true },
@@ -1019,6 +853,11 @@ static const sai_vendor_attribute_entry_t switch_vendor_attribs[] = {
       { false, false, false, true },
       mlnx_default_bridge_id_get, NULL,
       NULL, NULL },
+    { END_FUNCTIONALITY_ATTRIBS_ID,
+      { false, false, false, false },
+      { false, false, false, false },
+      NULL, NULL,
+      NULL, NULL }
 };
 
 #define RDQ_ETH_DEFAULT_SIZE 4200
@@ -1271,8 +1110,7 @@ static void switch_key_to_str(_In_ sai_object_id_t switch_id, _Out_ char *key_st
     status = sai_to_mlnx_object_id(SAI_OBJECT_TYPE_SWITCH, switch_id, &mlnx_switch_id);
     if (SAI_ERR(status)) {
         snprintf(key_str, MAX_KEY_STR_LEN, "Invalid Switch ID");
-    }
-    else {
+    } else {
         snprintf(key_str, MAX_KEY_STR_LEN, "Switch ID %u", mlnx_switch_id.id.is_created);
     }
 }
@@ -1475,7 +1313,7 @@ static sai_status_t mlnx_chassis_mng_stage(bool fastboot_enable, bool transactio
     int                  system_err;
     sx_status_t          status;
     sx_api_sx_sdk_init_t sdk_init_params;
-    uint32_t             bridge_acls          = 0;
+    uint32_t             bridge_acls = 0;
     uint8_t              port_phy_bits_num;
     uint8_t              port_pth_bits_num;
     uint8_t              port_sub_bits_num;
@@ -1613,7 +1451,8 @@ static sai_status_t mlnx_chassis_mng_stage(bool fastboot_enable, bool transactio
         transaction_mode_cmd = SX_ACCESS_CMD_ENABLE;
         if (SX_STATUS_SUCCESS !=
             (status = sx_api_transaction_mode_set(gh_sdk, transaction_mode_cmd))) {
-            MLNX_SAI_LOG_ERR("Failed to set transaction mode to %d: %s\n", transaction_mode_cmd, SX_STATUS_MSG(status));
+            MLNX_SAI_LOG_ERR("Failed to set transaction mode to %d: %s\n", transaction_mode_cmd,
+                             SX_STATUS_MSG(status));
             return sdk_to_sai(status);
         }
     }
@@ -2252,8 +2091,8 @@ static sai_status_t mlnx_switch_parse_fdb_event(uint8_t                         
                                                 uint32_t                          *event_count,
                                                 sai_attribute_t                   *attr_list)
 {
-    uint32_t                    ii       = 0;
-    sx_fdb_notify_data_t       *packet   = (sx_fdb_notify_data_t*)p_packet;
+    uint32_t                    ii     = 0;
+    sx_fdb_notify_data_t       *packet = (sx_fdb_notify_data_t*)p_packet;
     sx_fid_t                    sx_fid;
     sai_attribute_t            *attr_ptr = attr_list;
     sai_status_t                status   = SAI_STATUS_SUCCESS;
@@ -2353,7 +2192,9 @@ static sai_status_t mlnx_switch_parse_fdb_event(uint8_t                         
             fdb_events[ii].fdb_entry.vlan_id     = sx_fid;
         } else {
             fdb_events[ii].fdb_entry.bridge_type = SAI_FDB_ENTRY_BRIDGE_TYPE_1D;
-            status = mlnx_create_bridge_object(SAI_BRIDGE_TYPE_1D, (sx_bridge_id_t) sx_fid, &fdb_events[ii].fdb_entry.bridge_id);
+            status                               = mlnx_create_bridge_object(SAI_BRIDGE_TYPE_1D,
+                                                                             (sx_bridge_id_t)sx_fid,
+                                                                             &fdb_events[ii].fdb_entry.bridge_id);
             if (SAI_ERR(status)) {
                 SX_LOG_ERR("Failed to convert fid to bridge oid\n");
                 return status;
@@ -2939,8 +2780,15 @@ static uint32_t sai_acl_db_size_get()
             (sizeof(acl_bind_points_db_t) + sizeof(acl_bind_point_t) * ACL_RIF_COUNT) +
             (sizeof(acl_group_db_t) + sizeof(acl_group_member_t) * ACL_GROUP_SIZE) * ACL_GROUP_NUMBER +
             sizeof(acl_vlan_group_t) * ACL_VLAN_GROUP_COUNT) +
-           (sizeof(acl_group_bound_to_t) + (sizeof(acl_bind_point_index_t) * SAI_ACL_MAX_BIND_POINT_BOUND))
-           * ACL_GROUP_NUMBER;
+           ((sizeof(acl_group_bound_to_t) + (sizeof(acl_bind_point_index_t) * SAI_ACL_MAX_BIND_POINT_BOUND))
+            * ACL_GROUP_NUMBER) +
+           sai_udf_db_size_get();
+}
+
+static uint32_t sai_udf_db_size_get()
+{
+    return MLNX_UDF_DB_UDF_GROUPS_SIZE + MLNX_UDF_DB_UDF_GROUPS_UDFS_SIZE +
+           MLNX_UDF_DB_UDFS_SIZE + MLNX_UDF_DB_MATCHES_SIZE;
 }
 
 static void sai_acl_db_init()
@@ -2983,6 +2831,26 @@ static void sai_acl_db_init()
 
     g_sai_acl_db_ptr->acl_group_bound_to_db = (acl_group_bound_to_t*)((uint8_t*)g_sai_acl_db_ptr->acl_vlan_groups_db +
                                                                       sizeof(acl_vlan_group_t) * ACL_VLAN_GROUP_COUNT);
+
+    sai_udf_db_init();
+}
+
+static void sai_udf_db_init()
+{
+    g_sai_acl_db_ptr->udf_db.groups = (mlnx_udf_group_t*)((uint8_t*)g_sai_acl_db_ptr->acl_group_bound_to_db +
+                                                          ((sizeof(acl_group_bound_to_t) +
+                                                            (sizeof(acl_bind_point_index_t)
+                                                             *
+                                                             SAI_ACL_MAX_BIND_POINT_BOUND)) * ACL_GROUP_NUMBER));
+
+    g_sai_acl_db_ptr->udf_db.groups_udfs =
+        (mlnx_udf_list_t*)((uint8_t*)g_sai_acl_db_ptr->udf_db.groups + MLNX_UDF_DB_UDF_GROUPS_SIZE);
+
+    g_sai_acl_db_ptr->udf_db.udfs =
+        (mlnx_udf_t*)((uint8_t*)g_sai_acl_db_ptr->udf_db.groups_udfs + MLNX_UDF_DB_UDF_GROUPS_UDFS_SIZE);
+
+    g_sai_acl_db_ptr->udf_db.matches =
+        (mlnx_match_t*)((uint8_t*)g_sai_acl_db_ptr->udf_db.udfs + MLNX_UDF_DB_UDFS_SIZE);
 }
 
 static sai_status_t sai_acl_db_create()
@@ -3084,13 +2952,14 @@ static sai_status_t mlnx_initialize_switch(sai_object_id_t switch_id, bool *tran
     int                         system_err;
     const char                 *config_file, *route_table_size, *neighbor_table_size;
     const char                 *boot_type_char;
-    uint8_t                     boot_type       = 0;
-    uint32_t                    routes_num      = 0;
-    uint32_t                    neighbors_num   = 0;
+    uint8_t                     boot_type     = 0;
+    uint32_t                    routes_num    = 0;
+    uint32_t                    neighbors_num = 0;
     sx_router_resources_param_t resources_param;
     sx_router_general_param_t   general_param;
     sx_status_t                 status;
     bool                        fastboot_enable = false;
+
 #ifndef ACS_OS
     const char *initial_fan_speed;
     uint8_t     fan_percent;
@@ -3151,11 +3020,13 @@ static sai_status_t mlnx_initialize_switch(sai_object_id_t switch_id, bool *tran
         }
         fastboot_enable = false;
         break;
+
     /* warm boot */
     case 1:
         MLNX_SAI_LOG_ERR("Warm boot not supported yet\n");
         return SAI_STATUS_INVALID_PARAMETER;
         break;
+
     /* fast boot */
     case 2:
 #if (!defined ACS_OS) || (defined ACS_OS_NO_DOCKERS)
@@ -3174,6 +3045,7 @@ static sai_status_t mlnx_initialize_switch(sai_object_id_t switch_id, bool *tran
             *transaction_mode_enable = true;
         }
         break;
+
     /* default */
     default:
         MLNX_SAI_LOG_ERR("Boot type %d not recognized, must be 0 (cold) or 1 (warm) or 2 (fast)\n", boot_type);
@@ -3228,7 +3100,7 @@ static sai_status_t mlnx_initialize_switch(sai_object_id_t switch_id, bool *tran
     if (NULL != route_table_size) {
         routes_num = (uint32_t)atoi(route_table_size);
         SX_LOG_NTC("Setting initial route table size %u\n", routes_num);
-        // 0 is full kvd
+        /* 0 is full kvd */
         if (routes_num) {
             g_route_table_size = routes_num;
         }
@@ -3436,8 +3308,8 @@ static sai_status_t mlnx_create_switch(_Out_ sai_object_id_t     * switch_id,
                                        _In_ const sai_attribute_t *attr_list)
 {
     char                         list_str[MAX_LIST_VALUE_STR_LEN];
-    const sai_attribute_value_t *attr_val        = NULL;
-    mlnx_object_id_t             mlnx_switch_id  = {0};
+    const sai_attribute_value_t *attr_val       = NULL;
+    mlnx_object_id_t             mlnx_switch_id = {0};
     sai_status_t                 sai_status;
     uint32_t                     attr_idx;
     bool                         transaction_mode_enable = false;
@@ -3448,14 +3320,14 @@ static sai_status_t mlnx_create_switch(_Out_ sai_object_id_t     * switch_id,
         return SAI_STATUS_INVALID_PARAMETER;
     }
 
-    sai_status = check_attribs_metadata(attr_count, attr_list, switch_attribs, switch_vendor_attribs,
+    sai_status = check_attribs_metadata(attr_count, attr_list, SAI_OBJECT_TYPE_SWITCH, switch_vendor_attribs,
                                         SAI_COMMON_API_CREATE);
     if (SAI_ERR(sai_status)) {
         MLNX_SAI_LOG_ERR("Failed attribs check\n");
         return sai_status;
     }
 
-    sai_attr_list_to_str(attr_count, attr_list, switch_attribs, MAX_LIST_VALUE_STR_LEN, list_str);
+    sai_attr_list_to_str(attr_count, attr_list, SAI_OBJECT_TYPE_SWITCH, MAX_LIST_VALUE_STR_LEN, list_str);
     MLNX_SAI_LOG_NTC("Create switch, %s\n", list_str);
 
     sai_status = mlnx_object_id_to_sai(SAI_OBJECT_TYPE_SWITCH, &mlnx_switch_id, switch_id);
@@ -3487,7 +3359,8 @@ static sai_status_t mlnx_create_switch(_Out_ sai_object_id_t     * switch_id,
                                      &attr_val,
                                      &attr_idx);
     if (!SAI_ERR(sai_status)) {
-        g_notification_callbacks.on_switch_shutdown_request = (sai_switch_shutdown_request_notification_fn)attr_val->ptr;
+        g_notification_callbacks.on_switch_shutdown_request =
+            (sai_switch_shutdown_request_notification_fn)attr_val->ptr;
     }
 
     sai_status = find_attrib_in_list(attr_count, attr_list, SAI_SWITCH_ATTR_FDB_EVENT_NOTIFY, &attr_val, &attr_idx);
@@ -3528,6 +3401,12 @@ static sai_status_t mlnx_create_switch(_Out_ sai_object_id_t     * switch_id,
     } else {
         sai_status = mlnx_connect_switch(*switch_id);
     }
+
+    /*
+     * Temprorary.
+     * Inits the sai_attr_metadata_t structures for ACL UDF attributes
+     */
+    mlnx_udf_acl_attrs_metadata_init();
 
     sai_db_write_lock();
 
@@ -3739,7 +3618,7 @@ static sai_status_t mlnx_set_switch_attribute(_In_ sai_object_id_t switch_id, _I
 
     SX_LOG_ENTER();
     switch_key_to_str(switch_id, key_str);
-    sai_status = sai_set_attribute(&key, key_str, switch_attribs, switch_vendor_attribs, attr);
+    sai_status = sai_set_attribute(&key, key_str, SAI_OBJECT_TYPE_SWITCH, switch_vendor_attribs, attr);
     SX_LOG_EXIT();
     return sai_status;
 }
@@ -3865,10 +3744,10 @@ static sai_status_t mlnx_switch_fdb_flood_ctrl_set(_In_ const sai_object_key_t  
     }
 
     mlnx_vlan_id_foreach(fid) {
-        sx_status_t             sx_status   = SX_STATUS_SUCCESS;
-        mlnx_bridge_port_t     *port;
-        uint16_t                ports_count = 0;
-        uint32_t                ii          = 0;
+        sx_status_t         sx_status = SX_STATUS_SUCCESS;
+        mlnx_bridge_port_t *port;
+        uint16_t            ports_count = 0;
+        uint32_t            ii          = 0;
 
         if (action == SAI_PACKET_ACTION_DROP) {
             mlnx_vlan_ports_foreach(fid, port, ii) {
@@ -4040,13 +3919,13 @@ static sai_status_t mlnx_get_switch_attribute(_In_ sai_object_id_t     switch_id
                                               _In_ sai_uint32_t        attr_count,
                                               _Inout_ sai_attribute_t *attr_list)
 {
-    sai_status_t status;
+    sai_status_t           status;
     const sai_object_key_t key = { .key.object_id = switch_id };
     char                   key_str[MAX_KEY_STR_LEN];
 
     SX_LOG_ENTER();
     switch_key_to_str(switch_id, key_str);
-    status = sai_get_attributes(&key, key_str, switch_attribs, switch_vendor_attribs, attr_count, attr_list);
+    status = sai_get_attributes(&key, key_str, SAI_OBJECT_TYPE_SWITCH, switch_vendor_attribs, attr_count, attr_list);
     SX_LOG_EXIT();
     return status;
 }
@@ -4521,10 +4400,15 @@ static sai_status_t mlnx_switch_acl_capability_get(_In_ const sai_object_key_t  
     action_count = stage_action_count + mlnx_acl_action_list_common_count;
 
     if (value->aclcapability.action_list.count < action_count) {
-        SX_LOG_ERR("Invalide size of aclcapability's action list (%d), min - (%d)\n",
-                   value->aclcapability.action_list.count, action_count);
+        if (0 == value->aclcapability.action_list.count) {
+            status = MLNX_SAI_STATUS_BUFFER_OVERFLOW_EMPTY_LIST;
+        } else {
+            status = SAI_STATUS_BUFFER_OVERFLOW;
+        }
+        SX_LOG((0 == value->aclcapability.action_list.count) ? SX_LOG_NOTICE : SX_LOG_ERROR,
+               "Invalid size of aclcapability's action list (%d), min - (%d)\n",
+               value->aclcapability.action_list.count, action_count);
         value->aclcapability.action_list.count = action_count;
-        status                                 = SAI_STATUS_BUFFER_OVERFLOW;
         goto out;
     }
 
@@ -4631,7 +4515,7 @@ static sai_status_t mlnx_switch_mode_get(_In_ const sai_object_key_t   *key,
                                          void                          *arg)
 {
     mlnx_port_config_t       *first_port = NULL;
-    mlnx_port_config_t       *port = NULL;
+    mlnx_port_config_t       *port       = NULL;
     uint32_t                  port_idx;
     sai_status_t              status;
     sx_port_forwarding_mode_t mode;
@@ -4662,9 +4546,11 @@ static sai_status_t mlnx_switch_mode_get(_In_ const sai_object_key_t   *key,
     case SX_PORT_PACKET_STORING_MODE_CUT_THROUGH:
         value->s32 = SAI_SWITCH_SWITCHING_MODE_CUT_THROUGH;
         break;
+
     case SX_PORT_PACKET_STORING_MODE_STORE_AND_FORWARD:
         value->s32 = SAI_SWITCH_SWITCHING_MODE_STORE_AND_FORWARD;
         break;
+
     default:
         SX_LOG_ERR("Unexpected forwarding mode %u\n", mode.packet_store);
         status = SAI_STATUS_FAILURE;
@@ -4679,9 +4565,8 @@ out:
 
 sai_status_t mlnx_switch_get_mac(sx_mac_addr_t *mac)
 {
-
     mlnx_port_config_t *first_port = NULL;
-    mlnx_port_config_t *port = NULL;
+    mlnx_port_config_t *port       = NULL;
     uint32_t            port_idx;
     sai_status_t        status;
 
@@ -5019,7 +4904,8 @@ static sai_status_t mlnx_switch_sched_max_child_groups_count_get(_In_ const sai_
 
 /* The number of Unicast Queues per port [sai_uint32_t]
 * The number of Multicast Queues per port [sai_uint32_t]
-* The total number of Queues per port [sai_uint32_t] */
+* The total number of Queues per port [sai_uint32_t]
+* The number of lossless queues per port supported by the switch [sai_uint32_t] */
 static sai_status_t mlnx_switch_queue_num_get(_In_ const sai_object_key_t   *key,
                                               _Inout_ sai_attribute_value_t *value,
                                               _In_ uint32_t                  attr_index,
@@ -5032,7 +4918,8 @@ static sai_status_t mlnx_switch_queue_num_get(_In_ const sai_object_key_t   *key
 
     assert((SAI_SWITCH_ATTR_NUMBER_OF_UNICAST_QUEUES == attr) ||
            (SAI_SWITCH_ATTR_NUMBER_OF_MULTICAST_QUEUES == attr) ||
-           (SAI_SWITCH_ATTR_NUMBER_OF_QUEUES == attr));
+           (SAI_SWITCH_ATTR_NUMBER_OF_QUEUES == attr) ||
+           (SAI_SWITCH_ATTR_QOS_NUM_LOSSLESS_QUEUES == attr));
 
     switch (attr) {
     case SAI_SWITCH_ATTR_NUMBER_OF_UNICAST_QUEUES:
@@ -5044,6 +4931,7 @@ static sai_status_t mlnx_switch_queue_num_get(_In_ const sai_object_key_t   *key
         break;
 
     case SAI_SWITCH_ATTR_NUMBER_OF_QUEUES:
+    case SAI_SWITCH_ATTR_QOS_NUM_LOSSLESS_QUEUES:
         value->u32 = g_resource_limits.cos_port_ets_traffic_class_max + 1;
         break;
     }
@@ -5094,6 +4982,10 @@ static sai_status_t mlnx_switch_hash_object_get(_In_ const sai_object_key_t   *k
         hash_id = SAI_HASH_LAG_IPINIP_ID;
         break;
 
+    case SAI_SWITCH_ATTR_LAG_HASH_IPV6:
+        hash_id = SAI_HASH_LAG_IP6_ID;
+        break;
+
     default:
         /* Should not reach this */
         assert(false);
@@ -5120,6 +5012,8 @@ static sai_status_t mlnx_switch_hash_object_set(_In_ const sai_object_key_t     
     mlnx_switch_usage_hash_object_id_t hash_oper_id, target_hash_oper_id;
     uint32_t                           hash_data = 0;
     sai_status_t                       status    = SAI_STATUS_SUCCESS;
+    udf_group_mask_t                   udf_group_mask;
+    bool                               is_applicable;
 
     SX_LOG_ENTER();
 
@@ -5151,6 +5045,10 @@ static sai_status_t mlnx_switch_hash_object_set(_In_ const sai_object_key_t     
         target_hash_oper_id = SAI_HASH_LAG_IPINIP_ID;
         break;
 
+    case SAI_SWITCH_ATTR_LAG_HASH_IPV6:
+        target_hash_oper_id = SAI_HASH_LAG_IP6_ID;
+        break;
+
     default:
         /* Should not reach this */
         assert(false);
@@ -5161,6 +5059,18 @@ static sai_status_t mlnx_switch_hash_object_set(_In_ const sai_object_key_t     
 
     if (g_sai_db_ptr->oper_hash_list[target_hash_oper_id] == hash_obj_id) {
         /* Config didn't change. Just return here. */
+        goto out;
+    }
+
+    udf_group_mask = g_sai_db_ptr->hash_list[hash_data].udf_group_mask;
+
+    status = mlnx_udf_group_mask_is_hash_applicable(udf_group_mask, target_hash_oper_id, &is_applicable);
+    if (SAI_ERR(status)) {
+        goto out;
+    }
+
+    if (false == is_applicable) {
+        status = SAI_STATUS_NOT_SUPPORTED;
         goto out;
     }
 
@@ -5176,6 +5086,10 @@ static sai_status_t mlnx_switch_hash_object_set(_In_ const sai_object_key_t     
             switch (hash_oper_id) {
             case SAI_HASH_ECMP_IP6_ID:
                 hash_oper_id = SAI_HASH_ECMP_IPINIP_ID;
+                break;
+
+            case SAI_HASH_LAG_IP6_ID:
+                hash_oper_id = SAI_HASH_LAG_IPINIP_ID;
                 break;
 
             case SAI_HASH_LAG_IPINIP_ID:
@@ -5195,7 +5109,9 @@ static sai_status_t mlnx_switch_hash_object_set(_In_ const sai_object_key_t     
                 break;
 
             default:
-                assert(false);
+                SX_LOG_ERR("Invalid type of oper_id - %d\n", hash_oper_id);
+                status = SAI_STATUS_FAILURE;
+                goto out;
             }
 
             hash_obj_id = g_sai_db_ptr->oper_hash_list[hash_oper_id];
@@ -5514,7 +5430,7 @@ static sai_status_t mlnx_switch_transaction_mode_set(_In_ const sai_object_key_t
 
     g_sai_db_ptr->transaction_mode_enable = value->booldata;
 
-    sai_db_unlock(); 
+    sai_db_unlock();
 
     SX_LOG_EXIT();
 

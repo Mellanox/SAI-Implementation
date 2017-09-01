@@ -39,38 +39,6 @@ typedef enum _flow_color_type_t {
     FLOW_COLOR_RED
 } flow_color_type_t;
 
-static const sai_attribute_entry_t wred_attribs[] = {
-    { SAI_WRED_ATTR_GREEN_ENABLE, false, true, true, true,
-      "WRED Green mode", SAI_ATTR_VAL_TYPE_BOOL },
-    { SAI_WRED_ATTR_GREEN_MIN_THRESHOLD, false, true, true, true,
-      "WRED Green min threshold", SAI_ATTR_VAL_TYPE_U32 },
-    { SAI_WRED_ATTR_GREEN_MAX_THRESHOLD, false, true, true, true,
-      "WRED Green max threshold", SAI_ATTR_VAL_TYPE_U32 },
-    { SAI_WRED_ATTR_GREEN_DROP_PROBABILITY, false, true, true, true,
-      "WRED Green drop probability", SAI_ATTR_VAL_TYPE_U32 },
-    { SAI_WRED_ATTR_YELLOW_ENABLE, false, true, true, true,
-      "WRED Yellow mode", SAI_ATTR_VAL_TYPE_BOOL },
-    { SAI_WRED_ATTR_YELLOW_MIN_THRESHOLD, false, true, true, true,
-      "WRED Yellow min threshold", SAI_ATTR_VAL_TYPE_U32 },
-    { SAI_WRED_ATTR_YELLOW_MAX_THRESHOLD, false, true, true, true,
-      "WRED Yellow max threshold", SAI_ATTR_VAL_TYPE_U32 },
-    { SAI_WRED_ATTR_YELLOW_DROP_PROBABILITY, false, true, true, true,
-      "WRED Yellow drop probability", SAI_ATTR_VAL_TYPE_U32 },
-    { SAI_WRED_ATTR_RED_ENABLE, false, true, true, true,
-      "WRED Red mode", SAI_ATTR_VAL_TYPE_BOOL },
-    { SAI_WRED_ATTR_RED_MIN_THRESHOLD, false, true, true, true,
-      "WRED Red min threshold", SAI_ATTR_VAL_TYPE_U32 },
-    { SAI_WRED_ATTR_RED_MAX_THRESHOLD, false, true, true, true,
-      "WRED Red max threshold", SAI_ATTR_VAL_TYPE_U32 },
-    { SAI_WRED_ATTR_RED_DROP_PROBABILITY, false, true, true, true,
-      "WRED Red drop probability", SAI_ATTR_VAL_TYPE_U32 },
-    { SAI_WRED_ATTR_WEIGHT, false, true, true, true,
-      "WRED weight", SAI_ATTR_VAL_TYPE_U8},
-    { SAI_WRED_ATTR_ECN_MARK_MODE, false, true, true, true,
-      "WRED ECN mark mode", SAI_ATTR_VAL_TYPE_S32},
-    { END_FUNCTIONALITY_ATTRIBS_ID, false, false, false, false,
-      "", SAI_ATTR_VAL_TYPE_UNDETERMINED }
-};
 static sai_status_t mlnx_wred_attr_getter(_In_ const sai_object_key_t   *key,
                                           _Inout_ sai_attribute_value_t *value,
                                           _In_ uint32_t                  attr_index,
@@ -173,7 +141,12 @@ static const sai_vendor_attribute_entry_t wred_vendor_attribs[] = {
       { true, false, true, true },
       { true, false, true, true },
       mlnx_wred_ecn_get, NULL,
-      mlnx_wred_ecn_set, NULL}
+      mlnx_wred_ecn_set, NULL},
+    { END_FUNCTIONALITY_ATTRIBS_ID,
+      { false, false, false, false },
+      { false, false, false, false },
+      NULL, NULL,
+      NULL, NULL }
 };
 
 /*
@@ -791,7 +764,7 @@ sai_status_t mlnx_wred_apply(sai_object_id_t wred_id, sai_object_id_t to_obj_id)
     sx_cos_traffic_class_t  *tc_list      = NULL;
     uint32_t                 tc_count     = g_resource_limits.cos_port_ets_traffic_class_max + 1;
     sx_port_log_id_t         port_id;
-    mlnx_port_config_t      *port_conf    = NULL;
+    mlnx_port_config_t      *port_conf                    = NULL;
     uint32_t                 wred_num                     = 0;
     sai_object_type_t        to_obj_type                  = sai_object_type_query(to_obj_id);
     uint8_t                  ext_data[EXTENDED_DATA_SIZE] = {0};
@@ -923,7 +896,7 @@ sai_status_t mlnx_wred_apply(sai_object_id_t wred_id, sai_object_id_t to_obj_id)
 
     if (SAI_STATUS_SUCCESS == status) {
         /* Update DB */
-        if (to_obj_type == SAI_OBJECT_TYPE_PORT || to_obj_type == SAI_OBJECT_TYPE_LAG) {
+        if ((to_obj_type == SAI_OBJECT_TYPE_PORT) || (to_obj_type == SAI_OBJECT_TYPE_LAG)) {
             port_conf->wred_id = wred_id;
         } else {
             status = mlnx_queue_cfg_lookup(port_id, tc_list[0], &queue_cfg);
@@ -1943,7 +1916,7 @@ static sai_status_t mlnx_set_wred_attribute(_In_ sai_object_id_t wred_id, _In_ c
     wred_key_to_str(wred_id, key_str);
 
     sai_db_write_lock();
-    status = sai_set_attribute(&key, key_str, wred_attribs, wred_vendor_attribs, attr);
+    status = sai_set_attribute(&key, key_str, SAI_OBJECT_TYPE_WRED, wred_vendor_attribs, attr);
     sai_db_unlock();
 
     return status;
@@ -1981,7 +1954,7 @@ static sai_status_t mlnx_get_wred_attribute(_In_ sai_object_id_t     wred_id,
     wred_key_to_str(wred_id, key_str);
 
     sai_db_read_lock();
-    status = sai_get_attributes(&key, key_str, wred_attribs, wred_vendor_attribs, attr_count, attr_list);
+    status = sai_get_attributes(&key, key_str, SAI_OBJECT_TYPE_WRED, wred_vendor_attribs, attr_count, attr_list);
     sai_db_unlock();
 
     return status;
@@ -2068,14 +2041,14 @@ static sai_status_t mlnx_create_wred_profile(_Out_ sai_object_id_t      *wred_id
         return SAI_STATUS_INVALID_PARAMETER;
     }
 
-    status = check_attribs_metadata(attr_count, attr_list, wred_attribs, wred_vendor_attribs,
+    status = check_attribs_metadata(attr_count, attr_list, SAI_OBJECT_TYPE_WRED, wred_vendor_attribs,
                                     SAI_COMMON_API_CREATE);
     if (SAI_ERR(status)) {
         SX_LOG_ERR("Failed attributes check\n");
         return status;
     }
 
-    sai_attr_list_to_str(attr_count, attr_list, wred_attribs, MAX_LIST_VALUE_STR_LEN, list_str);
+    sai_attr_list_to_str(attr_count, attr_list, SAI_OBJECT_TYPE_WRED, MAX_LIST_VALUE_STR_LEN, list_str);
     SX_LOG_NTC("Create new wred profile\n");
     SX_LOG_NTC("Attribs %s\n", list_str);
 

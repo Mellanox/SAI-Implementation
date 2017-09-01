@@ -23,18 +23,6 @@
 #define __MODULE__ SAI_ROUTE
 
 static sx_verbosity_level_t LOG_VAR_NAME(__MODULE__) = SX_VERBOSITY_LEVEL_WARNING;
-static const sai_attribute_entry_t route_attribs[] = {
-    { SAI_ROUTE_ENTRY_ATTR_PACKET_ACTION, false, true, true, true,
-      "Route packet action", SAI_ATTR_VAL_TYPE_S32 },
-    { SAI_ROUTE_ENTRY_ATTR_TRAP_PRIORITY, false, true, true, true,
-      "Route trap priority", SAI_ATTR_VAL_TYPE_U8 },
-    { SAI_ROUTE_ENTRY_ATTR_NEXT_HOP_ID, false, true, true, true,
-      "Route next hop ID", SAI_ATTR_VAL_TYPE_OID },
-    { SAI_ROUTE_ENTRY_ATTR_META_DATA, false, true, true, true,
-      "Route meta data", SAI_ATTR_VAL_TYPE_U32 },
-    { END_FUNCTIONALITY_ATTRIBS_ID, false, false, false, false,
-      "", SAI_ATTR_VAL_TYPE_UNDETERMINED }
-};
 static sai_status_t mlnx_route_packet_action_get(_In_ const sai_object_key_t   *key,
                                                  _Inout_ sai_attribute_value_t *value,
                                                  _In_ uint32_t                  attr_index,
@@ -80,6 +68,11 @@ static const sai_vendor_attribute_entry_t route_vendor_attribs[] = {
       { false, false, false, false },
       NULL, NULL,
       NULL, NULL },
+    { END_FUNCTIONALITY_ATTRIBS_ID,
+      { false, false, false, false },
+      { false, false, false, false },
+      NULL, NULL,
+      NULL, NULL }
 };
 static void route_key_to_str(_In_ const sai_route_entry_t* route_entry, _Out_ char *key_str)
 {
@@ -120,7 +113,6 @@ static sai_status_t mlnx_fill_route_data(sx_uc_route_data_t      *route_data,
     sx_ecmp_id_t  sdk_ecmp_id;
     sx_next_hop_t sdk_next_hop;
     uint32_t      sdk_next_hop_cnt;
-    uint32_t      rif_data;
     uint32_t      port_data;
 
     SX_LOG_ENTER();
@@ -175,10 +167,11 @@ static sai_status_t mlnx_fill_route_data(sx_uc_route_data_t      *route_data,
         route_data->uc_route_param.ecmp_id = sdk_ecmp_id;
     } else if (SAI_OBJECT_TYPE_ROUTER_INTERFACE == sai_object_type_query(oid)) {
         if (SAI_STATUS_SUCCESS !=
-            (status = mlnx_object_to_type(oid, SAI_OBJECT_TYPE_ROUTER_INTERFACE, &rif_data, NULL))) {
+            (status = mlnx_rif_oid_to_sdk_rif_id(oid, &route_data->uc_route_param.local_egress_rif))) {
+            SX_LOG_ERR("Fail to get sdk rif id from rif oid %"PRIx64"\n", oid);
+            SX_LOG_EXIT();
             return status;
         }
-        route_data->uc_route_param.local_egress_rif = (sx_router_interface_t)rif_data;
         route_data->type                            = SX_UC_ROUTE_TYPE_LOCAL;
     } else if (SAI_OBJECT_TYPE_PORT == sai_object_type_query(oid)) {
         if (SAI_STATUS_SUCCESS !=
@@ -246,14 +239,14 @@ static sai_status_t mlnx_create_route(_In_ const sai_route_entry_t* route_entry,
 
     if (SAI_STATUS_SUCCESS !=
         (status =
-             check_attribs_metadata(attr_count, attr_list, route_attribs, route_vendor_attribs,
+             check_attribs_metadata(attr_count, attr_list, SAI_OBJECT_TYPE_ROUTE_ENTRY, route_vendor_attribs,
                                     SAI_COMMON_API_CREATE))) {
         SX_LOG_ERR("Failed attribs check\n");
         return status;
     }
 
     route_key_to_str(route_entry, key_str);
-    sai_attr_list_to_str(attr_count, attr_list, route_attribs, MAX_LIST_VALUE_STR_LEN, list_str);
+    sai_attr_list_to_str(attr_count, attr_list, SAI_OBJECT_TYPE_ROUTE_ENTRY, MAX_LIST_VALUE_STR_LEN, list_str);
     SX_LOG_NTC("Create route %s\n", key_str);
     SX_LOG_NTC("Attribs %s\n", list_str);
 
@@ -398,7 +391,7 @@ static sai_status_t mlnx_set_route_attribute(_In_ const sai_route_entry_t* route
     memcpy(&key.key.route_entry, route_entry, sizeof(*route_entry));
 
     route_key_to_str(route_entry, key_str);
-    return sai_set_attribute(&key, key_str, route_attribs, route_vendor_attribs, attr);
+    return sai_set_attribute(&key, key_str, SAI_OBJECT_TYPE_ROUTE_ENTRY, route_vendor_attribs, attr);
 }
 
 /*
@@ -430,7 +423,7 @@ static sai_status_t mlnx_get_route_attribute(_In_ const sai_route_entry_t* route
     memcpy(&key.key.route_entry, route_entry, sizeof(*route_entry));
 
     route_key_to_str(route_entry, key_str);
-    return sai_get_attributes(&key, key_str, route_attribs, route_vendor_attribs, attr_count, attr_list);
+    return sai_get_attributes(&key, key_str, SAI_OBJECT_TYPE_ROUTE_ENTRY, route_vendor_attribs, attr_count, attr_list);
 }
 
 static sai_status_t mlnx_get_route(const sai_route_entry_t* route_entry,

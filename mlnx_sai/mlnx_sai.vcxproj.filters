@@ -117,6 +117,12 @@
     <ClInclude Include="inc\sai\saiqosmap.h">
       <Filter>Header Files\sai</Filter>
     </ClInclude>
+    <ClInclude Include="src\meta\saimetadatautils.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\meta\saimetadata.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\mlnx_sai_route.c">
@@ -249,6 +255,18 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\dbgdump\mlnx_sai_dbg_bridge.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\meta\saimetadata.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\meta\saimetadatautils.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\mlnx_sai_udf.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\dbgdump\mlnx_sai_dbg_udf.c">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

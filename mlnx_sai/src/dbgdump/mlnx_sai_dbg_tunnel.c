@@ -248,6 +248,14 @@ static void SAI_dump_tunnel_map_print(_In_ FILE                    *file,
                 dbg_utils_print_table_headline(file, sai_tunnelmap_vlan2vni_clmns);
                 break;
 
+            case SAI_TUNNEL_MAP_TYPE_VNI_TO_BRIDGE_IF:
+                dbg_utils_print_table_headline(file, sai_tunnelmap_vni2bridgeif_clmns);
+                break;
+
+            case SAI_TUNNEL_MAP_TYPE_BRIDGE_IF_TO_VNI:
+                dbg_utils_print_table_headline(file, sai_tunnelmap_bridgeif2vni_clmns);
+                break;
+
             default:
                 break;
             }

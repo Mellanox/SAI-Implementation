@@ -42,18 +42,6 @@ static sai_status_t mlnx_stp_bridge_id_get(_In_ const sai_object_key_t   *key,
                                            _In_ uint32_t                  attr_index,
                                            _Inout_ vendor_cache_t        *cache,
                                            _In_ void                     *arg);
-
-/* STP instance attributes */
-static const sai_attribute_entry_t        stp_attribs[] = {
-    { SAI_STP_ATTR_VLAN_LIST, false, false, false, true,
-      "List of associated VLANs", SAI_ATTR_VAL_TYPE_VLANLIST },
-    { SAI_STP_ATTR_PORT_LIST, false, false, false, true,
-      "List of associated ports", SAI_ATTR_VAL_TYPE_OBJLIST },
-    { SAI_STP_ATTR_BRIDGE_ID, false, false, false, true,
-      "Bridge id", SAI_ATTR_VAL_TYPE_OID },
-    { END_FUNCTIONALITY_ATTRIBS_ID, false, false, false, false,
-      "", SAI_ATTR_VAL_TYPE_UNDETERMINED }
-};
 static const sai_vendor_attribute_entry_t stp_vendor_attribs[] = {
     { SAI_STP_ATTR_VLAN_LIST,
       { false, false, false, true },
@@ -69,6 +57,11 @@ static const sai_vendor_attribute_entry_t stp_vendor_attribs[] = {
       { false, false, false, true },
       { false, false, false, true },
       mlnx_stp_bridge_id_get, NULL,
+      NULL, NULL },
+    { END_FUNCTIONALITY_ATTRIBS_ID,
+      { false, false, false, false },
+      { false, false, false, false },
+      NULL, NULL,
       NULL, NULL }
 };
 static sai_status_t mlnx_stp_port_stp_id_get(_In_ const sai_object_key_t   *key,
@@ -89,18 +82,6 @@ static sai_status_t mlnx_stp_port_state_get(_In_ const sai_object_key_t   *key,
 static sai_status_t mlnx_stp_port_state_set(_In_ const sai_object_key_t      *key,
                                             _In_ const sai_attribute_value_t *value,
                                             void                             *arg);
-
-/* STP Port object attributes */
-static const sai_attribute_entry_t        stp_port_attribs[] = {
-    { SAI_STP_PORT_ATTR_STP, true, true, false, true,
-      "STP instance id", SAI_ATTR_VAL_TYPE_OID },
-    { SAI_STP_PORT_ATTR_BRIDGE_PORT, true, true, false, true,
-      "Port object id", SAI_ATTR_VAL_TYPE_OID },
-    { SAI_STP_PORT_ATTR_STATE, true, true, true, true,
-      "STP Port state", SAI_ATTR_VAL_TYPE_S32 },
-    { END_FUNCTIONALITY_ATTRIBS_ID, false, false, false, false,
-      "", SAI_ATTR_VAL_TYPE_UNDETERMINED }
-};
 static const sai_vendor_attribute_entry_t stp_port_vendor_attribs[] = {
     { SAI_STP_PORT_ATTR_STP,
       { true, false, false, true },
@@ -116,7 +97,12 @@ static const sai_vendor_attribute_entry_t stp_port_vendor_attribs[] = {
       { true, false, true, true },
       { true, false, true, true },
       mlnx_stp_port_state_get, NULL,
-      mlnx_stp_port_state_set, NULL }
+      mlnx_stp_port_state_set, NULL },
+    { END_FUNCTIONALITY_ATTRIBS_ID,
+      { false, false, false, false },
+      { false, false, false, false },
+      NULL, NULL,
+      NULL, NULL }
 };
 static void stp_id_to_str(_In_ sai_object_id_t sai_stp_id, _Out_ char *key_str)
 {
@@ -203,7 +189,7 @@ static sai_status_t mlnx_create_stp(_Out_ sai_object_id_t      *sai_stp_id,
         return SAI_STATUS_INVALID_PARAMETER;
     }
 
-    status = check_attribs_metadata(attr_count, attr_list, stp_attribs,
+    status = check_attribs_metadata(attr_count, attr_list, SAI_OBJECT_TYPE_STP,
                                     stp_vendor_attribs, SAI_COMMON_API_CREATE);
     if (SAI_ERR(status)) {
         SX_LOG_ERR("Failed attribs check\n");
@@ -330,7 +316,7 @@ sai_status_t mlnx_set_stp_attribute(_In_ sai_object_id_t sai_stp_id, _In_ const 
 
     stp_id_to_str(sai_stp_id, key_str);
 
-    status = sai_set_attribute(&key, key_str, stp_attribs, stp_vendor_attribs, attr);
+    status = sai_set_attribute(&key, key_str, SAI_OBJECT_TYPE_STP, stp_vendor_attribs, attr);
     if (SAI_ERR(status)) {
         return status;
     }
@@ -360,7 +346,7 @@ static sai_status_t mlnx_get_stp_attribute(_In_ const sai_object_id_t sai_stp_id
 
     stp_id_to_str(sai_stp_id, key_str);
 
-    status = sai_get_attributes(&key, key_str, stp_attribs, stp_vendor_attribs, attr_count, attr_list);
+    status = sai_get_attributes(&key, key_str, SAI_OBJECT_TYPE_STP, stp_vendor_attribs, attr_count, attr_list);
     if (SAI_ERR(status)) {
         return status;
     }
@@ -409,8 +395,14 @@ static sai_status_t mlnx_stp_vlanlist_get(_In_ const sai_object_key_t   *key,
 
     /* Check if user has got enough memory to store the vlanlist */
     if (value->vlanlist.count < stp_db_entry->vlan_count) {
-        SX_LOG_ERR("Not enough memory to store %u VLANs\n", stp_db_entry->vlan_count);
-        status = SAI_STATUS_BUFFER_OVERFLOW;
+        if (0 == value->vlanlist.count) {
+            status = MLNX_SAI_STATUS_BUFFER_OVERFLOW_EMPTY_LIST;
+        } else {
+            status = SAI_STATUS_BUFFER_OVERFLOW;
+        }
+        SX_LOG((0 == value->vlanlist.count) ? SX_LOG_NOTICE : SX_LOG_ERROR,
+               "Not enough memory to store %u VLANs\n", stp_db_entry->vlan_count);
+        value->vlanlist.count = stp_db_entry->vlan_count;
         goto out;
     }
 
@@ -639,13 +631,13 @@ static sai_status_t mlnx_create_stp_port(_Out_ sai_object_id_t      *stp_port_id
         return SAI_STATUS_INVALID_PARAMETER;
     }
 
-    status = check_attribs_metadata(attr_count, attr_list, stp_port_attribs,
+    status = check_attribs_metadata(attr_count, attr_list, SAI_OBJECT_TYPE_STP_PORT,
                                     stp_port_vendor_attribs, SAI_COMMON_API_CREATE);
     if (SAI_ERR(status)) {
         return status;
     }
 
-    sai_attr_list_to_str(attr_count, attr_list, stp_port_attribs, MAX_LIST_VALUE_STR_LEN, list_str);
+    sai_attr_list_to_str(attr_count, attr_list, SAI_OBJECT_TYPE_STP_PORT, MAX_LIST_VALUE_STR_LEN, list_str);
     SX_LOG_NTC("Create STP Port, %s\n", list_str);
 
     status = find_attrib_in_list(attr_count, attr_list, SAI_STP_PORT_ATTR_STP, &stp, &stp_index);
@@ -666,13 +658,12 @@ static sai_status_t mlnx_create_stp_port(_Out_ sai_object_id_t      *stp_port_id
 
     status = mlnx_bridge_port_by_oid(port->oid, &bridge_port);
     if (SAI_ERR(status)) {
-        SX_LOG_ERR("Failed to lookup bridge port by oid %"PRIx64"\n", port->oid);
+        SX_LOG_ERR("Failed to lookup bridge port by oid %" PRIx64 "\n", port->oid);
         goto out;
     }
 
-    if (bridge_port->port_type != SAI_BRIDGE_PORT_TYPE_PORT &&
-            bridge_port->port_type != SAI_BRIDGE_PORT_TYPE_SUB_PORT) {
-
+    if ((bridge_port->port_type != SAI_BRIDGE_PORT_TYPE_PORT) &&
+        (bridge_port->port_type != SAI_BRIDGE_PORT_TYPE_SUB_PORT)) {
         SX_LOG_ERR("Invalid bridge port type - should be port or sub-port\n");
         status = SAI_STATUS_INVALID_PARAMETER;
         goto out;
@@ -726,10 +717,9 @@ out:
  */
 static sai_status_t mlnx_remove_stp_port(_In_ sai_object_id_t stp_port_id)
 {
-
-    mlnx_object_id_t stp_port_obj_id = {0};
+    mlnx_object_id_t    stp_port_obj_id = {0};
     mlnx_bridge_port_t *port;
-    sai_status_t status;
+    sai_status_t        status;
 
     SX_LOG_ENTER();
     SX_LOG_EXIT();
@@ -983,7 +973,7 @@ static sai_status_t mlnx_set_stp_port_attribute(_In_ sai_object_id_t stp_port_id
 
     stp_port_id_to_str(stp_port_id, key_str);
 
-    status = sai_set_attribute(&key, key_str, stp_port_attribs, stp_port_vendor_attribs, attr);
+    status = sai_set_attribute(&key, key_str, SAI_OBJECT_TYPE_STP_PORT, stp_port_vendor_attribs, attr);
     if (SAI_ERR(status)) {
         return status;
     }
@@ -1013,7 +1003,8 @@ static sai_status_t mlnx_get_stp_port_attribute(_In_ sai_object_id_t     stp_por
 
     stp_port_id_to_str(stp_port_id, key_str);
 
-    status = sai_get_attributes(&key, key_str, stp_port_attribs, stp_port_vendor_attribs, attr_count, attr_list);
+    status =
+        sai_get_attributes(&key, key_str, SAI_OBJECT_TYPE_STP_PORT, stp_port_vendor_attribs, attr_count, attr_list);
     if (SAI_ERR(status)) {
         return status;
     }

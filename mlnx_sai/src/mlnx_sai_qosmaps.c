@@ -37,14 +37,6 @@ static sai_status_t mlnx_qos_map_list_set(_In_ const sai_object_key_t      *key,
                                           _In_ const sai_attribute_value_t *value,
                                           void                             *arg);
 static sx_verbosity_level_t LOG_VAR_NAME(__MODULE__) = SX_VERBOSITY_LEVEL_WARNING;
-static const sai_attribute_entry_t        qos_map_attribs[] = {
-    { SAI_QOS_MAP_ATTR_TYPE, true, true, false, true,
-      "QoS map type", SAI_ATTR_VAL_TYPE_S32 },
-    { SAI_QOS_MAP_ATTR_MAP_TO_VALUE_LIST, false, true, true, true,
-      "QoS map params list", SAI_ATTR_VAL_TYPE_QOSMAP },
-    { END_FUNCTIONALITY_ATTRIBS_ID, false, false, false, false,
-      "", SAI_ATTR_VAL_TYPE_UNDETERMINED }
-};
 static const sai_vendor_attribute_entry_t qos_map_vendor_attribs[] = {
     { SAI_QOS_MAP_ATTR_TYPE,
       { true, false, false, true },
@@ -56,6 +48,11 @@ static const sai_vendor_attribute_entry_t qos_map_vendor_attribs[] = {
       { true, false, true, true },
       mlnx_qos_map_list_get, NULL,
       mlnx_qos_map_list_set, NULL },
+    { END_FUNCTIONALITY_ATTRIBS_ID,
+      { false, false, false, false },
+      { false, false, false, false },
+      NULL, NULL,
+      NULL, NULL }
 };
 
 /* db read lock is needed */
@@ -577,10 +574,14 @@ static sai_status_t mlnx_qos_map_list_get(_In_ const sai_object_key_t   *key,
     }
 
     if (qos_params->count < qos_map->count) {
-        SX_LOG_ERR("Insufficient list buffer size.Allocated %u needed %u\n",
-                   qos_map->count, qos_params->count);
+        if (0 == qos_params->count) {
+            status = MLNX_SAI_STATUS_BUFFER_OVERFLOW_EMPTY_LIST;
+        } else {
+            status = SAI_STATUS_BUFFER_OVERFLOW;
+        }
+        SX_LOG((0 == qos_params->count) ? SX_LOG_NOTICE : SX_LOG_ERROR,
+               "Insufficient list buffer size.Allocated %u needed %u\n", qos_map->count, qos_params->count);
         qos_params->count = qos_map->count;
-        status            = SAI_STATUS_BUFFER_OVERFLOW;
         goto out;
     }
     qos_params->count = qos_map->count;
@@ -742,7 +743,7 @@ static sai_status_t mlnx_create_qos_map(_Out_ sai_object_id_t     * qos_map_id,
         return SAI_STATUS_INVALID_PARAMETER;
     }
 
-    status = check_attribs_metadata(attr_count, attr_list, qos_map_attribs,
+    status = check_attribs_metadata(attr_count, attr_list, SAI_OBJECT_TYPE_QOS_MAP,
                                     qos_map_vendor_attribs,
                                     SAI_COMMON_API_CREATE);
 
@@ -877,7 +878,7 @@ static sai_status_t mlnx_set_qos_map_attribute(_In_ sai_object_id_t qos_map_id, 
     SX_LOG_ENTER();
 
     qos_map_key_to_str(qos_map_id, key_str);
-    return sai_set_attribute(&key, key_str, qos_map_attribs, qos_map_vendor_attribs, attr);
+    return sai_set_attribute(&key, key_str, SAI_OBJECT_TYPE_QOS_MAP, qos_map_vendor_attribs, attr);
 }
 
 /**
@@ -900,7 +901,7 @@ static sai_status_t mlnx_get_qos_map_attribute(_In_ sai_object_id_t     qos_map_
     SX_LOG_ENTER();
 
     qos_map_key_to_str(qos_map_id, key_str);
-    return sai_get_attributes(&key, key_str, qos_map_attribs,
+    return sai_get_attributes(&key, key_str, SAI_OBJECT_TYPE_QOS_MAP,
                               qos_map_vendor_attribs, attr_count, attr_list);
 }
 

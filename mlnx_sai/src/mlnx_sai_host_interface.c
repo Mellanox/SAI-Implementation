@@ -27,82 +27,6 @@
 #define __MODULE__ SAI_HOST_INTERFACE
 
 static sx_verbosity_level_t LOG_VAR_NAME(__MODULE__) = SX_VERBOSITY_LEVEL_WARNING;
-static const sai_attribute_entry_t host_interface_attribs[] = {
-    { SAI_HOSTIF_ATTR_TYPE, true, true, false, true,
-      "Host interface type", SAI_ATTR_VAL_TYPE_S32 },
-    { SAI_HOSTIF_ATTR_OBJ_ID, false, true, false, true,
-      "Host interface associated port or router interface", SAI_ATTR_VAL_TYPE_OID },
-    { SAI_HOSTIF_ATTR_NAME, false, true, true, true,
-      "Host interface name", SAI_ATTR_VAL_TYPE_CHARDATA },
-    { SAI_HOSTIF_ATTR_OPER_STATUS, false, true, true, true,
-      "Host interface oper status", SAI_ATTR_VAL_TYPE_BOOL },
-    { SAI_HOSTIF_ATTR_QUEUE, false, true, true, true,
-      "Host interface queue", SAI_ATTR_VAL_TYPE_U32 },
-    { END_FUNCTIONALITY_ATTRIBS_ID, false, false, false, false,
-      "", SAI_ATTR_VAL_TYPE_UNDETERMINED }
-};
-static const sai_attribute_entry_t trap_group_attribs[] = {
-    { SAI_HOSTIF_TRAP_GROUP_ATTR_ADMIN_STATE, false, true, true, true,
-      "Trap group admin mode", SAI_ATTR_VAL_TYPE_BOOL },
-    { SAI_HOSTIF_TRAP_GROUP_ATTR_QUEUE, false, true, true, true,
-      "Trap group queue", SAI_ATTR_VAL_TYPE_U32 },
-    { SAI_HOSTIF_TRAP_GROUP_ATTR_POLICER, false, true, true, true,
-      "Trap group policer", SAI_ATTR_VAL_TYPE_OID },
-    { END_FUNCTIONALITY_ATTRIBS_ID, false, false, false, false,
-      "", SAI_ATTR_VAL_TYPE_UNDETERMINED }
-};
-const sai_attribute_entry_t        host_interface_packet_attribs[] = {
-    { SAI_HOSTIF_PACKET_ATTR_HOSTIF_TRAP_ID, false, false, false, false,
-      "Packet trap ID", SAI_ATTR_VAL_TYPE_OID },
-    { SAI_HOSTIF_PACKET_ATTR_INGRESS_PORT, false, false, false, false,
-      "Packet ingress port", SAI_ATTR_VAL_TYPE_OID },
-    { SAI_HOSTIF_PACKET_ATTR_INGRESS_LAG, false, false, false, false,
-      "Packet ingress LAG", SAI_ATTR_VAL_TYPE_OID },
-    { SAI_HOSTIF_PACKET_ATTR_HOSTIF_TX_TYPE, true, true, false, false,
-      "Packet transmit type", SAI_ATTR_VAL_TYPE_S32 },
-    { SAI_HOSTIF_PACKET_ATTR_EGRESS_PORT_OR_LAG, false, true, false, false,
-      "Packet egress port or LAG", SAI_ATTR_VAL_TYPE_OID },
-    { END_FUNCTIONALITY_ATTRIBS_ID, false, false, false, false,
-      "", SAI_ATTR_VAL_TYPE_UNDETERMINED }
-};
-static const sai_attribute_entry_t trap_attribs[] = {
-    { SAI_HOSTIF_TRAP_ATTR_TRAP_TYPE, true, true, false, true,
-      "Trap type", SAI_ATTR_VAL_TYPE_S32 },
-    { SAI_HOSTIF_TRAP_ATTR_PACKET_ACTION, true, true, true, true,
-      "Trap action", SAI_ATTR_VAL_TYPE_S32 },
-    { SAI_HOSTIF_TRAP_ATTR_TRAP_PRIORITY, false, true, true, true,
-      "Trap priority", SAI_ATTR_VAL_TYPE_U32 },
-    { SAI_HOSTIF_TRAP_ATTR_EXCLUDE_PORT_LIST, false, true, true, true,
-      "Trap port list", SAI_ATTR_VAL_TYPE_OBJLIST },
-    { SAI_HOSTIF_TRAP_ATTR_TRAP_GROUP, false, true, true, true,
-      "Trap group", SAI_ATTR_VAL_TYPE_OID },
-    { END_FUNCTIONALITY_ATTRIBS_ID, false, false, false, false,
-      "", SAI_ATTR_VAL_TYPE_UNDETERMINED }
-};
-static const sai_attribute_entry_t user_defined_trap_attribs[] = {
-    { SAI_HOSTIF_USER_DEFINED_TRAP_ATTR_TYPE, true, true, false, true,
-      "User defined trap type", SAI_ATTR_VAL_TYPE_S32 },
-    { SAI_HOSTIF_USER_DEFINED_TRAP_ATTR_TRAP_PRIORITY, false, true, true, true,
-      "User defined trap priority", SAI_ATTR_VAL_TYPE_OID },
-    { SAI_HOSTIF_USER_DEFINED_TRAP_ATTR_TRAP_GROUP, false, true, true, true,
-      "User defined trap group", SAI_ATTR_VAL_TYPE_OID },
-    { END_FUNCTIONALITY_ATTRIBS_ID, false, false, false, false,
-      "", SAI_ATTR_VAL_TYPE_UNDETERMINED }
-};
-static const sai_attribute_entry_t host_table_entry_attribs[] = {
-    { SAI_HOSTIF_TABLE_ENTRY_ATTR_TYPE, true, true, false, true,
-      "Host table entry type", SAI_ATTR_VAL_TYPE_S32 },
-    { SAI_HOSTIF_TABLE_ENTRY_ATTR_OBJ_ID, false, true, false, true,
-      "Host table entry object", SAI_ATTR_VAL_TYPE_OID },
-    { SAI_HOSTIF_TABLE_ENTRY_ATTR_TRAP_ID, false, true, false, true,
-      "Host table entry trap", SAI_ATTR_VAL_TYPE_OID },
-    { SAI_HOSTIF_TABLE_ENTRY_ATTR_CHANNEL_TYPE, true, true, false, true,
-      "Host table entry channel", SAI_ATTR_VAL_TYPE_S32 },
-    { SAI_HOSTIF_TABLE_ENTRY_ATTR_HOST_IF, false, true, false, true,
-      "Host table entry hostif", SAI_ATTR_VAL_TYPE_OID },
-    { END_FUNCTIONALITY_ATTRIBS_ID, false, false, false, false,
-      "", SAI_ATTR_VAL_TYPE_UNDETERMINED }
-};
 static sai_status_t mlnx_host_interface_type_get(_In_ const sai_object_key_t   *key,
                                                  _Inout_ sai_attribute_value_t *value,
                                                  _In_ uint32_t                  attr_index,
@@ -224,6 +148,16 @@ static const sai_vendor_attribute_entry_t host_interface_vendor_attribs[] = {
       { true, false, true, true },
       NULL, NULL,
       NULL, NULL },
+    { SAI_HOSTIF_ATTR_VLAN_TAG,
+      { false, false, false, false },
+      { true, false, true, true },
+      NULL, NULL,
+      NULL, NULL },
+    { END_FUNCTIONALITY_ATTRIBS_ID,
+      { false, false, false, false },
+      { false, false, false, false },
+      NULL, NULL,
+      NULL, NULL }
 };
 static const sai_vendor_attribute_entry_t trap_group_vendor_attribs[] = {
     { SAI_HOSTIF_TRAP_GROUP_ATTR_ADMIN_STATE,
@@ -241,6 +175,11 @@ static const sai_vendor_attribute_entry_t trap_group_vendor_attribs[] = {
       { true, false, true, true},
       mlnx_trap_group_policer_get, NULL,
       mlnx_trap_group_policer_set, NULL },
+    { END_FUNCTIONALITY_ATTRIBS_ID,
+      { false, false, false, false },
+      { false, false, false, false },
+      NULL, NULL,
+      NULL, NULL }
 };
 static const sai_vendor_attribute_entry_t trap_vendor_attribs[] = {
     { SAI_HOSTIF_TRAP_ATTR_TRAP_TYPE,
@@ -268,6 +207,11 @@ static const sai_vendor_attribute_entry_t trap_vendor_attribs[] = {
       { true, false, true, true },
       mlnx_trap_group_get, NULL,
       mlnx_trap_group_set, NULL },
+    { END_FUNCTIONALITY_ATTRIBS_ID,
+      { false, false, false, false },
+      { false, false, false, false },
+      NULL, NULL,
+      NULL, NULL }
 };
 static const sai_vendor_attribute_entry_t user_defined_trap_vendor_attribs[] = {
     { SAI_HOSTIF_USER_DEFINED_TRAP_ATTR_TYPE,
@@ -285,6 +229,11 @@ static const sai_vendor_attribute_entry_t user_defined_trap_vendor_attribs[] = {
       { true, false, true, true },
       mlnx_user_defined_trap_group_get, NULL,
       mlnx_user_defined_trap_group_set, NULL },
+    { END_FUNCTIONALITY_ATTRIBS_ID,
+      { false, false, false, false },
+      { false, false, false, false },
+      NULL, NULL,
+      NULL, NULL }
 };
 static const sai_vendor_attribute_entry_t host_interface_packet_vendor_attribs[] = {
     { SAI_HOSTIF_PACKET_ATTR_HOSTIF_TRAP_ID,
@@ -312,6 +261,11 @@ static const sai_vendor_attribute_entry_t host_interface_packet_vendor_attribs[]
       { true, false, false, false },
       NULL, NULL,
       NULL, NULL },
+    { END_FUNCTIONALITY_ATTRIBS_ID,
+      { false, false, false, false },
+      { false, false, false, false },
+      NULL, NULL,
+      NULL, NULL }
 };
 static const sai_vendor_attribute_entry_t host_table_entry_vendor_attribs[] = {
     { SAI_HOSTIF_TABLE_ENTRY_ATTR_TYPE,
@@ -339,6 +293,11 @@ static const sai_vendor_attribute_entry_t host_table_entry_vendor_attribs[] = {
       { true, false, false, true },
       NULL, NULL,
       NULL, NULL },
+    { END_FUNCTIONALITY_ATTRIBS_ID,
+      { false, false, false, false },
+      { false, false, false, false },
+      NULL, NULL,
+      NULL, NULL }
 };
 const mlnx_trap_info_t                    mlnx_traps_info[] = {
     { SAI_HOSTIF_TRAP_TYPE_STP, 1, { SX_TRAP_ID_ETH_L2_STP }, SAI_PACKET_ACTION_DROP, "STP", MLNX_TRAP_TYPE_REGULAR },
@@ -365,6 +324,8 @@ const mlnx_trap_info_t                    mlnx_traps_info[] = {
       "IGMP V3 report", MLNX_TRAP_TYPE_REGULAR },
     { SAI_HOSTIF_TRAP_TYPE_SAMPLEPACKET, 1, { SX_TRAP_ID_ETH_L2_PACKET_SAMPLING }, SAI_PACKET_ACTION_TRAP,
       "Sample packet", MLNX_TRAP_TYPE_REGULAR },
+    { SAI_HOSTIF_TRAP_TYPE_UDLD, 1, { SX_TRAP_ID_ETH_L2_UDLD }, SAI_PACKET_ACTION_DROP, "UDLD",
+      MLNX_TRAP_TYPE_REGULAR },
     { SAI_HOSTIF_TRAP_TYPE_ARP_REQUEST, 1, { SX_TRAP_ID_ARP_REQUEST }, SAI_PACKET_ACTION_FORWARD, "ARP request",
       MLNX_TRAP_TYPE_REGULAR },
     { SAI_HOSTIF_TRAP_TYPE_ARP_RESPONSE, 1, { SX_TRAP_ID_ARP_RESPONSE }, SAI_PACKET_ACTION_FORWARD, "ARP response",
@@ -539,13 +500,13 @@ static sai_status_t mlnx_create_host_interface(_Out_ sai_object_id_t     * hif_i
 
     if (SAI_STATUS_SUCCESS !=
         (status =
-             check_attribs_metadata(attr_count, attr_list, host_interface_attribs, host_interface_vendor_attribs,
+             check_attribs_metadata(attr_count, attr_list, SAI_OBJECT_TYPE_HOSTIF, host_interface_vendor_attribs,
                                     SAI_COMMON_API_CREATE))) {
         SX_LOG_ERR("Failed attribs check\n");
         return status;
     }
 
-    sai_attr_list_to_str(attr_count, attr_list, host_interface_attribs, MAX_LIST_VALUE_STR_LEN, list_str);
+    sai_attr_list_to_str(attr_count, attr_list, SAI_OBJECT_TYPE_HOSTIF, MAX_LIST_VALUE_STR_LEN, list_str);
     SX_LOG_NTC("Create host interface, %s\n", list_str);
 
     status = find_attrib_in_list(attr_count, attr_list, SAI_HOSTIF_ATTR_TYPE, &type, &type_index);
@@ -800,7 +761,7 @@ static sai_status_t mlnx_set_host_interface_attribute(_In_ sai_object_id_t hif_i
     SX_LOG_ENTER();
 
     host_interface_key_to_str(hif_id, key_str);
-    return sai_set_attribute(&key, key_str, host_interface_attribs, host_interface_vendor_attribs, attr);
+    return sai_set_attribute(&key, key_str, SAI_OBJECT_TYPE_HOSTIF, host_interface_vendor_attribs, attr);
 }
 
 /*
@@ -828,7 +789,7 @@ static sai_status_t mlnx_get_host_interface_attribute(_In_ sai_object_id_t     h
     host_interface_key_to_str(hif_id, key_str);
     return sai_get_attributes(&key,
                               key_str,
-                              host_interface_attribs,
+                              SAI_OBJECT_TYPE_HOSTIF,
                               host_interface_vendor_attribs,
                               attr_count,
                               attr_list);
@@ -1320,13 +1281,14 @@ static sai_status_t mlnx_create_hostif_trap_group(_Out_ sai_object_id_t      *ho
 
     if (SAI_STATUS_SUCCESS !=
         (status =
-             check_attribs_metadata(attr_count, attr_list, trap_group_attribs, trap_group_vendor_attribs,
+             check_attribs_metadata(attr_count, attr_list, SAI_OBJECT_TYPE_HOSTIF_TRAP_GROUP,
+                                    trap_group_vendor_attribs,
                                     SAI_COMMON_API_CREATE))) {
         SX_LOG_ERR("Failed attribs check\n");
         return status;
     }
 
-    sai_attr_list_to_str(attr_count, attr_list, trap_group_attribs, MAX_LIST_VALUE_STR_LEN, list_str);
+    sai_attr_list_to_str(attr_count, attr_list, SAI_OBJECT_TYPE_HOSTIF_TRAP_GROUP, MAX_LIST_VALUE_STR_LEN, list_str);
     SX_LOG_NTC("Create trap group, %s\n", list_str);
 
     trap_group_attributes.truncate_mode = SX_TRUNCATE_MODE_DISABLE;
@@ -1362,7 +1324,7 @@ static sai_status_t mlnx_create_hostif_trap_group(_Out_ sai_object_id_t      *ho
 
     if (SAI_STATUS_SUCCESS !=
         (status = mlnx_create_object(SAI_OBJECT_TYPE_HOSTIF_TRAP_GROUP, group_id, NULL, hostif_trap_group_id))) {
-         goto out;
+        goto out;
     }
 
     trap_group_key_to_str(*hostif_trap_group_id, key_str);
@@ -1463,7 +1425,7 @@ static sai_status_t mlnx_set_hostif_trap_group_attribute(_In_ sai_object_id_t   
     SX_LOG_ENTER();
 
     trap_group_key_to_str(hostif_trap_group_id, key_str);
-    return sai_set_attribute(&key, key_str, trap_group_attribs, trap_group_vendor_attribs, attr);
+    return sai_set_attribute(&key, key_str, SAI_OBJECT_TYPE_HOSTIF_TRAP_GROUP, trap_group_vendor_attribs, attr);
 }
 
 /*
@@ -1492,7 +1454,7 @@ static sai_status_t mlnx_get_hostif_trap_group_attribute(_In_ sai_object_id_t   
     trap_group_key_to_str(hostif_trap_group_id, key_str);
     return sai_get_attributes(&key,
                               key_str,
-                              trap_group_attribs,
+                              SAI_OBJECT_TYPE_HOSTIF_TRAP_GROUP,
                               trap_group_vendor_attribs,
                               attr_count,
                               attr_list);
@@ -1561,15 +1523,15 @@ sai_status_t mlnx_create_hostif_trap(_Out_ sai_object_id_t      *hostif_trap_id,
 
     if (SAI_STATUS_SUCCESS !=
         (status =
-             check_attribs_metadata(attr_count, attr_list, trap_attribs, trap_vendor_attribs,
+             check_attribs_metadata(attr_count, attr_list, SAI_OBJECT_TYPE_HOSTIF_TRAP, trap_vendor_attribs,
                                     SAI_COMMON_API_CREATE))) {
         SX_LOG_ERR("Failed attribs check\n");
         return status;
     }
 
-    sai_attr_list_to_str(attr_count, attr_list, trap_attribs, MAX_LIST_VALUE_STR_LEN, list_str);
     /* In Mellanox platform, trap group queue defines the trap priority */
 
+    sai_attr_list_to_str(attr_count, attr_list, SAI_OBJECT_TYPE_HOSTIF_TRAP, MAX_LIST_VALUE_STR_LEN, list_str);
     SX_LOG_NTC("Create trap, %s\n", list_str);
 
     status = find_attrib_in_list(attr_count, attr_list, SAI_HOSTIF_TRAP_ATTR_TRAP_TYPE, &trap_id, &trap_id_index);
@@ -1702,7 +1664,7 @@ static sai_status_t mlnx_set_hostif_trap_attribute(_In_ sai_object_id_t        h
     SX_LOG_ENTER();
 
     trap_key_to_str(hostif_trap_id, key_str);
-    return sai_set_attribute(&key, key_str, trap_attribs, trap_vendor_attribs, attr);
+    return sai_set_attribute(&key, key_str, SAI_OBJECT_TYPE_HOSTIF_TRAP, trap_vendor_attribs, attr);
 }
 
 /*
@@ -1730,7 +1692,7 @@ static sai_status_t mlnx_get_hostif_trap_attribute(_In_ sai_object_id_t     host
     trap_key_to_str(hostif_trap_id, key_str);
     return sai_get_attributes(&key,
                               key_str,
-                              trap_attribs,
+                              SAI_OBJECT_TYPE_HOSTIF_TRAP,
                               trap_vendor_attribs,
                               attr_count,
                               attr_list);
@@ -1767,13 +1729,18 @@ sai_status_t mlnx_create_hostif_user_defined_trap(_Out_ sai_object_id_t      *ho
 
     if (SAI_STATUS_SUCCESS !=
         (status =
-             check_attribs_metadata(attr_count, attr_list, user_defined_trap_attribs, user_defined_trap_vendor_attribs,
+             check_attribs_metadata(attr_count, attr_list, SAI_OBJECT_TYPE_HOSTIF_USER_DEFINED_TRAP,
+                                    user_defined_trap_vendor_attribs,
                                     SAI_COMMON_API_CREATE))) {
         SX_LOG_ERR("Failed attribs check\n");
         return status;
     }
 
-    sai_attr_list_to_str(attr_count, attr_list, trap_attribs, MAX_LIST_VALUE_STR_LEN, list_str);
+    sai_attr_list_to_str(attr_count,
+                         attr_list,
+                         SAI_OBJECT_TYPE_HOSTIF_USER_DEFINED_TRAP,
+                         MAX_LIST_VALUE_STR_LEN,
+                         list_str);
     SX_LOG_NTC("Create user defined trap, %s\n", list_str);
 
     status = find_attrib_in_list(attr_count,
@@ -1897,7 +1864,11 @@ static sai_status_t mlnx_set_hostif_user_defined_trap_attribute(
     SX_LOG_ENTER();
 
     user_defined_trap_key_to_str(hostif_user_defined_trap_id, key_str);
-    return sai_set_attribute(&key, key_str, user_defined_trap_attribs, user_defined_trap_vendor_attribs, attr);
+    return sai_set_attribute(&key,
+                             key_str,
+                             SAI_OBJECT_TYPE_HOSTIF_USER_DEFINED_TRAP,
+                             user_defined_trap_vendor_attribs,
+                             attr);
 }
 
 /*
@@ -1925,7 +1896,7 @@ static sai_status_t mlnx_get_hostif_user_defined_trap_attribute(_In_ sai_object_
     user_defined_trap_key_to_str(hostif_user_defined_trap_id, key_str);
     return sai_get_attributes(&key,
                               key_str,
-                              user_defined_trap_attribs,
+                              SAI_OBJECT_TYPE_HOSTIF_USER_DEFINED_TRAP,
                               user_defined_trap_vendor_attribs,
                               attr_count,
                               attr_list);
@@ -2540,7 +2511,7 @@ static sai_status_t mlnx_send_hostif_packet(_In_ sai_object_id_t  hif_id,
 
     memset(&fd, 0, sizeof(fd));
 
-    status = check_attribs_metadata(attr_count, attr_list, host_interface_packet_attribs,
+    status = check_attribs_metadata(attr_count, attr_list, SAI_OBJECT_TYPE_HOSTIF_PACKET,
                                     host_interface_packet_vendor_attribs,
                                     SAI_COMMON_API_CREATE);
     if (SAI_ERR(status)) {
@@ -2548,7 +2519,7 @@ static sai_status_t mlnx_send_hostif_packet(_In_ sai_object_id_t  hif_id,
         return status;
     }
 
-    sai_attr_list_to_str(attr_count, attr_list, host_interface_packet_attribs, MAX_LIST_VALUE_STR_LEN, list_str);
+    sai_attr_list_to_str(attr_count, attr_list, SAI_OBJECT_TYPE_HOSTIF_PACKET, MAX_LIST_VALUE_STR_LEN, list_str);
     SX_LOG_NTC("send packet, %s\n", list_str);
 
     status = find_attrib_in_list(attr_count, attr_list, SAI_HOSTIF_PACKET_ATTR_HOSTIF_TX_TYPE, &type, &type_index);
@@ -2687,13 +2658,14 @@ sai_status_t mlnx_create_hostif_table_entry(_Out_ sai_object_id_t      *hif_tabl
 
     if (SAI_STATUS_SUCCESS !=
         (status =
-             check_attribs_metadata(attr_count, attr_list, host_table_entry_attribs, host_table_entry_vendor_attribs,
+             check_attribs_metadata(attr_count, attr_list, SAI_OBJECT_TYPE_HOSTIF_TABLE_ENTRY,
+                                    host_table_entry_vendor_attribs,
                                     SAI_COMMON_API_CREATE))) {
         SX_LOG_ERR("Failed attribs check\n");
         return status;
     }
 
-    sai_attr_list_to_str(attr_count, attr_list, host_table_entry_attribs, MAX_LIST_VALUE_STR_LEN, list_str);
+    sai_attr_list_to_str(attr_count, attr_list, SAI_OBJECT_TYPE_HOSTIF_TABLE_ENTRY, MAX_LIST_VALUE_STR_LEN, list_str);
     SX_LOG_NTC("Create host table entry, %s\n", list_str);
 
     status = find_attrib_in_list(attr_count, attr_list, SAI_HOSTIF_TABLE_ENTRY_ATTR_TYPE, &type, &type_index);
@@ -2927,7 +2899,7 @@ sai_status_t mlnx_set_hostif_table_entry_attribute(_In_ sai_object_id_t        h
     SX_LOG_ENTER();
 
     host_table_entry_key_to_str(hif_table_entry, key_str);
-    return sai_set_attribute(&key, key_str, host_table_entry_attribs, host_table_entry_vendor_attribs, attr);
+    return sai_set_attribute(&key, key_str, SAI_OBJECT_TYPE_HOSTIF_TABLE_ENTRY, host_table_entry_vendor_attribs, attr);
 }
 
 /**
@@ -2951,7 +2923,7 @@ sai_status_t mlnx_get_hostif_table_entry_attribute(_In_ sai_object_id_t     hif_
     host_table_entry_key_to_str(hif_table_entry, key_str);
     return sai_get_attributes(&key,
                               key_str,
-                              host_table_entry_attribs,
+                              SAI_OBJECT_TYPE_HOSTIF_TABLE_ENTRY,
                               host_table_entry_vendor_attribs,
                               attr_count,
                               attr_list);

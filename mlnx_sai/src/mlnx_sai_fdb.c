@@ -48,16 +48,6 @@ static sai_status_t mlnx_fdb_action_get(_In_ const sai_object_key_t   *key,
                                         _In_ uint32_t                  attr_index,
                                         _Inout_ vendor_cache_t        *cache,
                                         void                          *arg);
-static const sai_attribute_entry_t        fdb_attribs[] = {
-    { SAI_FDB_ENTRY_ATTR_TYPE, true, true, true, true,
-      "FDB entry type", SAI_ATTR_VAL_TYPE_S32 },
-    { SAI_FDB_ENTRY_ATTR_BRIDGE_PORT_ID, false, true, true, true,
-      "FDB entry port id", SAI_ATTR_VAL_TYPE_OID},
-    { SAI_FDB_ENTRY_ATTR_PACKET_ACTION, false, true, true, true,
-      "FDB entry packet action", SAI_ATTR_VAL_TYPE_S32 },
-    { END_FUNCTIONALITY_ATTRIBS_ID, false, false, false, false,
-      "", SAI_ATTR_VAL_TYPE_UNDETERMINED }
-};
 static const sai_vendor_attribute_entry_t fdb_vendor_attribs[] = {
     { SAI_FDB_ENTRY_ATTR_TYPE,
       { true, false, true, true },
@@ -73,7 +63,12 @@ static const sai_vendor_attribute_entry_t fdb_vendor_attribs[] = {
       { true, false, true, true },
       { true, false, true, true },
       mlnx_fdb_action_get, NULL,
-      mlnx_fdb_action_set, NULL }
+      mlnx_fdb_action_set, NULL },
+    { END_FUNCTIONALITY_ATTRIBS_ID,
+      { false, false, false, false },
+      { false, false, false, false },
+      NULL, NULL,
+      NULL, NULL }
 };
 static sai_status_t mlnx_add_or_del_mac(sx_fdb_uc_mac_addr_params_t *mac_entry, sx_access_cmd_t cmd)
 {
@@ -145,9 +140,9 @@ static sai_status_t mlnx_fdb_entry_to_sdk(const sai_fdb_entry_t *fdb_entry, sx_f
     sai_status_t status;
 
     if (fdb_entry->bridge_type == SAI_FDB_ENTRY_BRIDGE_TYPE_1Q) {
-        mac_entry->fid_vid  = fdb_entry->vlan_id;
+        mac_entry->fid_vid = fdb_entry->vlan_id;
     } else if (fdb_entry->bridge_type == SAI_FDB_ENTRY_BRIDGE_TYPE_1D) {
-        status = mlnx_bridge_oid_to_id(fdb_entry->bridge_id, (sx_bridge_id_t *) &mac_entry->fid_vid);
+        status = mlnx_bridge_oid_to_id(fdb_entry->bridge_id, (sx_bridge_id_t*)&mac_entry->fid_vid);
         if (SAI_ERR(status)) {
             SX_LOG_ERR("Failed to fill fid_vid with bridge id\n");
             return status;
@@ -307,13 +302,14 @@ static sai_status_t mlnx_create_fdb_entry(_In_ const sai_fdb_entry_t* fdb_entry,
 
     if (SAI_STATUS_SUCCESS !=
         (status =
-             check_attribs_metadata(attr_count, attr_list, fdb_attribs, fdb_vendor_attribs, SAI_COMMON_API_CREATE))) {
+             check_attribs_metadata(attr_count, attr_list, SAI_OBJECT_TYPE_FDB_ENTRY, fdb_vendor_attribs,
+                                    SAI_COMMON_API_CREATE))) {
         SX_LOG_ERR("Failed attribs check\n");
         return status;
     }
 
     fdb_key_to_str(fdb_entry, key_str);
-    sai_attr_list_to_str(attr_count, attr_list, fdb_attribs, MAX_LIST_VALUE_STR_LEN, list_str);
+    sai_attr_list_to_str(attr_count, attr_list, SAI_OBJECT_TYPE_FDB_ENTRY, MAX_LIST_VALUE_STR_LEN, list_str);
     SX_LOG_NTC("Create FDB entry %s\n", key_str);
     SX_LOG_NTC("Attribs %s\n", list_str);
 
@@ -445,7 +441,7 @@ static sai_status_t mlnx_set_fdb_entry_attribute(_In_ const sai_fdb_entry_t* fdb
     memcpy(&key.key.fdb_entry, fdb_entry, sizeof(*fdb_entry));
 
     fdb_key_to_str(fdb_entry, key_str);
-    return sai_set_attribute(&key, key_str, fdb_attribs, fdb_vendor_attribs, attr);
+    return sai_set_attribute(&key, key_str, SAI_OBJECT_TYPE_FDB_ENTRY, fdb_vendor_attribs, attr);
 }
 
 /* Set FDB entry type [sai_fdb_entry_type_t] */
@@ -614,7 +610,7 @@ static sai_status_t mlnx_get_fdb_entry_attribute(_In_ const sai_fdb_entry_t* fdb
     memcpy(&key.key.fdb_entry, fdb_entry, sizeof(*fdb_entry));
 
     fdb_key_to_str(fdb_entry, key_str);
-    return sai_get_attributes(&key, key_str, fdb_attribs, fdb_vendor_attribs, attr_count, attr_list);
+    return sai_get_attributes(&key, key_str, SAI_OBJECT_TYPE_FDB_ENTRY, fdb_vendor_attribs, attr_count, attr_list);
 }
 
 static sai_status_t fill_fdb_cache(mlnx_fdb_cache_t *fdb_cache, const sai_fdb_entry_t *fdb_entry)

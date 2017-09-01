@@ -3,7 +3,8 @@
 INCLUDES = -I$(top_srcdir) -I$(top_srcdir)/include -I$(srcdir) \
            -I$(srcdir)/../inc -I$(srcdir)/../inc/sai \
            -I$(APP_LIB_PATH)/include \
-           -I$(XML2_LIB_PATH)/include/libxml2
+           -I$(XML2_LIB_PATH)/include/libxml2 \
+		   -I$(srcdir)/meta
 
 if DEBUG
 DBGFLAGS = -ggdb -D_DEBUG_
@@ -44,6 +45,7 @@ libsai_la_SOURCES = \
                        dbgdump/mlnx_sai_dbg_vlan.c \
                        dbgdump/mlnx_sai_dbg_wred.c \
 					   dbgdump/mlnx_sai_dbg_bridge.c \
+                       dbgdump/mlnx_sai_dbg_udf.c \
                        mlnx_sai_acl.c \
                        mlnx_sai_bridge.c \
                        mlnx_sai_buffer.c \
@@ -72,7 +74,10 @@ libsai_la_SOURCES = \
                        mlnx_sai_tunnel.c \
                        mlnx_sai_utils.c \
                        mlnx_sai_vlan.c \
-                       mlnx_sai_wred.c
+                       mlnx_sai_wred.c \
+					   mlnx_sai_udf.c \
+					   meta/saimetadata.c \
+					   meta/saimetadatautils.c
 
 if XML2_ELDK5_LA_WA
 SAI_LIBXML2_ADD = ${XML2_LIB_PATH}/lib/libxml2.so
