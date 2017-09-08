@@ -601,26 +601,39 @@ sai_status_t mlnx_hash_ecmp_cfg_apply_on_port(sx_port_log_id_t port_log_id)
     sx_router_ecmp_hash_field_t        hash_field_list[FIELDS_NUM];
     uint32_t                           field_count = FIELDS_NUM;
     sx_status_t                        status      = SAI_STATUS_SUCCESS;
+    const mlnx_port_config_t           *port;
+    uint32_t                           ii;
 
     memset(&port_hash_param, 0, sizeof(port_hash_param));
     memset(hash_enable_list, 0, sizeof(hash_enable_list));
     memset(hash_field_list, 0, sizeof(hash_field_list));
 
-    status = mlnx_hash_get_oper_ecmp_fields(&port_hash_param, hash_enable_list, &enable_count,
-                                            hash_field_list, &field_count);
-    if (SAI_STATUS_SUCCESS != status) {
-        SX_LOG_ERR("Failed to get operational ECMP config.\n");
-        return status;
+    mlnx_port_not_in_lag_foreach(port, ii) {
+        if (port->logical == port_log_id) {
+            continue;
+        }
+
+        break;
+    }
+
+    status = sx_api_router_ecmp_port_hash_params_get(gh_sdk, port->logical, &port_hash_param,
+                                                     hash_enable_list, &enable_count,
+                                                     hash_field_list, &field_count);
+    if (SX_ERR(status)) {
+        SX_LOG_ERR("Failed to get ECMP port %x hash params - %s.\n", port->logical, SX_STATUS_MSG(status));
+        return sdk_to_sai(status);
     }
 
     status = sx_api_router_ecmp_port_hash_params_set(gh_sdk, cmd, port_log_id,
                                                      &port_hash_param,
                                                      hash_enable_list, enable_count,
                                                      hash_field_list, field_count);
-    if (SAI_STATUS_SUCCESS != status) {
+    if (SX_ERR(status)) {
         SX_LOG_ERR("Failed to set ECMP hash params for port %x.\n", port_log_id);
+        return sdk_to_sai(status);
     }
-    return status;
+
+    return SAI_STATUS_SUCCESS;
 }
 
 sai_status_t mlnx_hash_ecmp_hash_params_apply_to_ports(const sx_router_ecmp_port_hash_params_t  *port_hash_param,

@@ -5445,6 +5445,12 @@ static sai_status_t mlnx_create_port(_Out_ sai_object_id_t     * port_id,
         goto out_unlock;
     }
 
+    status = mlnx_hash_ecmp_cfg_apply_on_port(new_port->logical);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to apply ECMP config on port %x\n", new_port->logical);
+        goto out;
+    }
+
     if (attr_ing_acl) {
         status = mlnx_acl_port_lag_rif_bind_point_set(new_port->saiport, MLNX_ACL_BIND_POINT_TYPE_INGRESS_PORT,
                                                       ing_acl_index);
