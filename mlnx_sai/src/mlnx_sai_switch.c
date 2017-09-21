@@ -1308,6 +1308,68 @@ static sai_status_t mlnx_wait_for_sdk()
     return SAI_STATUS_SUCCESS;
 }
 
+static sx_status_t get_chip_type(enum sxd_chip_types* chip_type)
+{
+    uint16_t           device_hw_revision;
+    uint16_t           device_id;
+    FILE             * f = NULL;
+    int                rc;
+#ifdef _WIN32
+#define SCNu16 "u"
+#endif 
+
+    f = fopen("/sys/module/sx_core/parameters/chip_info_type", "r");
+    if (f == NULL) {
+        SX_LOG_ERR("failed to open /sys/module/sx_core/parameters/chip_info_type\n");
+        return SX_STATUS_ERROR;
+    }
+
+    rc = fscanf(f, "%" SCNu16, &device_id);
+    fclose(f);
+
+    if (rc != 1) {
+        SX_LOG_ERR("failed to open /sys/module/sx_core/parameters/chip_info_type\n");
+        return SX_STATUS_ERROR;
+    }
+
+    f = fopen("/sys/module/sx_core/parameters/chip_info_revision", "r");
+    if (f == NULL) {
+        SX_LOG_ERR("failed to open /sys/module/sx_core/parameters/chip_info_revision\n");
+        return SX_STATUS_ERROR;
+    }
+
+    rc = fscanf(f, "%" SCNu16, &device_hw_revision);
+    fclose(f);
+
+    if (rc != 1) {
+        SX_LOG_ERR("failed to open /sys/module/sx_core/parameters/chip_info_revision\n");
+        return SX_STATUS_ERROR;
+    }
+
+    switch (device_id) {
+    case SXD_MGIR_HW_DEV_ID_SPECTRUM:
+        if (device_hw_revision == 0xA0) {
+            *chip_type = SXD_CHIP_TYPE_SPECTRUM;
+        } else if (device_hw_revision == 0xA1) {
+            *chip_type = SXD_CHIP_TYPE_SPECTRUM_A1;
+        } else {
+            SX_LOG_ERR("Unsupported spectrum revision %u\n", device_hw_revision);
+            return SX_STATUS_ERROR;
+        }
+        break;
+
+    case SXD_MGIR_HW_DEV_ID_SPECTRUM2:
+        *chip_type = SXD_CHIP_TYPE_SPECTRUM2;
+        break;
+
+    default:
+        SX_LOG_ERR("Unsupported device %u %u\n", device_id, device_hw_revision);
+        return SX_STATUS_ERROR;
+    }
+
+    return SX_STATUS_SUCCESS;
+}
+
 static sai_status_t mlnx_chassis_mng_stage(bool fastboot_enable, bool transaction_mode_enable)
 {
     int                  system_err;
@@ -1319,6 +1381,7 @@ static sai_status_t mlnx_chassis_mng_stage(bool fastboot_enable, bool transactio
     uint8_t              port_sub_bits_num;
     sai_status_t         sai_status           = SAI_STATUS_FAILURE;
     sx_access_cmd_t      transaction_mode_cmd = SX_ACCESS_CMD_NONE;
+    sxd_chip_types_t     chip_type;
 
     memset(&sdk_init_params, 0, sizeof(sdk_init_params));
 
@@ -1433,11 +1496,17 @@ static sai_status_t mlnx_chassis_mng_stage(bool fastboot_enable, bool transactio
         sdk_init_params.port_params.port_sub_bits_num = port_sub_bits_num;
     }
 
+    status = get_chip_type(&chip_type);
+    if (SX_STATUS_SUCCESS != status) {
+        SX_LOG_ERR("get_chip_type failed\n");
+        return SAI_STATUS_FAILURE;
+    }
+
     memcpy(&(sdk_init_params.profile), &single_part_eth_device_profile_spectrum, sizeof(struct ku_profile));
     memcpy(&(sdk_init_params.pci_profile), &pci_profile_single_eth_spectrum, sizeof(struct sx_pci_profile));
     sdk_init_params.applibs_mask = SX_API_FLOW_COUNTER | SX_API_POLICER | SX_API_HOST_IFC | SX_API_SPAN |
                                    SX_API_ETH_L2 | SX_API_ACL;
-    sdk_init_params.profile.chip_type = SXD_CHIP_TYPE_SPECTRUM;
+    sdk_init_params.profile.chip_type = chip_type;
 
     if (SX_STATUS_SUCCESS != (status = sx_api_sdk_init_set(gh_sdk, &sdk_init_params))) {
         SX_LOG_ERR("Failed to initialize SDK (%s)\n", SX_STATUS_MSG(status));
@@ -3382,7 +3451,9 @@ static sai_status_t mlnx_create_switch(_Out_ sai_object_id_t     * switch_id,
         g_notification_callbacks.on_packet_event = (sai_packet_event_notification_fn)attr_val->ptr;
     }
 
-    /* Get resource limits before shared memory creation as we need it for memory allocation. */
+    /* Get resource limits before shared memory creation as we need it for memory allocation. 
+     * TODO : change flow, read chip type before reading limits, which require driver to be running
+     */
     if (SX_STATUS_SUCCESS !=
         (status = rm_chip_limits_get(SX_CHIP_TYPE_SPECTRUM, &g_resource_limits))) {
         MLNX_SAI_LOG_ERR("Failed to get chip resources - %s.\n", SX_STATUS_MSG(status));
