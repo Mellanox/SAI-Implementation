@@ -14808,16 +14808,16 @@ static bool mlnx_acl_table_bind_point_list_fits_group(_In_ uint32_t group_index,
     table_bind_point_type_count = acl_db_table(table_index).bind_point_types.count;
     table_bind_point_types      = acl_db_table(table_index).bind_point_types.types;
 
-    for (ii = 0; ii < table_bind_point_type_count; ii++) {
-        for (jj = 0; jj < group_bind_point_type_count; jj++) {
-            if (table_bind_point_types[ii] == group_bind_point_types[jj]) {
+    for (ii = 0; ii < group_bind_point_type_count; ii++) {
+        for (jj = 0; jj < table_bind_point_type_count; jj++) {
+            if (group_bind_point_types[ii] == table_bind_point_types[jj]) {
                 break;
             }
         }
 
-        if (jj == group_bind_point_type_count) {
-            SX_LOG_ERR("Table's bind point type (%d) is not supported for group (%d)\n",
-                       table_bind_point_types[ii], group_index);
+        if (jj == table_bind_point_type_count) {
+            SX_LOG_ERR("ACL Group's bind point type (%d) is not supported for ACL Table (%d)\n",
+                       group_bind_point_types[ii], table_index);
             return false;
         }
     }
@@ -15498,14 +15498,11 @@ static sai_status_t mlnx_create_acl_table_group(_Out_ sai_object_id_t      *acl_
     sai_attr_list_to_str(attr_count, attr_list, SAI_OBJECT_TYPE_ACL_TABLE_GROUP, MAX_LIST_VALUE_STR_LEN, list_str);
     SX_LOG_NTC("Create ACL Group, %s\n", list_str);
 
-    status = find_attrib_in_list(attr_count, attr_list, SAI_ACL_TABLE_GROUP_ATTR_TYPE, &group_attr_type, &attr_index);
-    assert(SAI_STATUS_SUCCESS == status);
+    group_type = SAI_ACL_TABLE_GROUP_TYPE_SEQUENTIAL;
 
-    group_type = group_attr_type->s32;
-    if (group_type > SAI_ACL_TABLE_GROUP_TYPE_PARALLEL) {
-        SX_LOG_ERR("Invalid attribute value (%d) for SAI_ACL_TABLE_GROUP_ATTR_TYPE\n", group_type);
-        status = SAI_STATUS_INVALID_ATTR_VALUE_0 + attr_index;
-        goto out;
+    status = find_attrib_in_list(attr_count, attr_list, SAI_ACL_TABLE_GROUP_ATTR_TYPE, &group_attr_type, &attr_index);
+    if (!SAI_ERR(status)) {
+        group_type = group_attr_type->s32;
     }
 
     status = find_attrib_in_list(attr_count,
