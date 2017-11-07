@@ -101,9 +101,6 @@ static sai_status_t sai_buffer_db_switch_connect_init(int shmid);
 static void sai_buffer_db_data_reset();
 static uint32_t sai_buffer_db_size_get();
 static void sai_buffer_db_pointers_init();
-#ifdef SAI_BUFFER_SELF_CHECK
-bool self_check_buffer_db();
-#endif /* SAI_BUFFER_SELF_CHECK */
 
 static sai_status_t sai_buffer_db_unload(boolean_t erase_db);
 static sai_status_t sai_buffer_db_create();
@@ -863,7 +860,7 @@ static const sai_vendor_attribute_entry_t switch_vendor_attribs[] = {
 #define RDQ_ETH_DEFAULT_SIZE 4200
 /* the needed value is 10000 but added more for align */
 #define RDQ_ETH_LARGE_SIZE                 10240
-#define RDQ_DEFAULT_NUMBER_OF_ENTRIES      128
+#define RDQ_DEFAULT_NUMBER_OF_ENTRIES      1024
 #define RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT 10
 #define SAI_PATH                           "/sai_db"
 #define SAI_QOS_PATH                       "/sai_qos_db"
@@ -957,52 +954,52 @@ static struct sx_pci_profile pci_profile_single_eth_spectrum = {
     /* rdq_properties */
     .rdq_properties = {
         /* SWID 0 */
-        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT}, /*-0-best effort priority*/
-        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT},   /*-1-low priority*/
-        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT}, /*-2-medium priority*/
-        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT},   /*-3-high priority*/
-        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT}, /*-4-*/
-        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT}, /*-5-*/
-        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT}, /*-6-*/
-        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT}, /*-7-*/
-        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT}, /*-8-*/
-        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT}, /*-9-*/
-        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT}, /*-10-*/
-        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT}, /*-11-*/
-        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT}, /*-12-*/
-        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT}, /*-13-*/
-        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT}, /*-14-*/
-        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT}, /*-15-*/
-        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT}, /*-16-*/
-        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT}, /*-17-*/
-        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT}, /*-18-*/
-        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT}, /*-19-*/
-        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT}, /*-20-*/
-        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT}, /*-21-*/
-        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT}, /*-22-*/
-        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT}, /*-23-*/
-        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT}, /*-24-*/
-        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT}, /*-25-*/
-        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT}, /*-26-*/
-        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT}, /*-27-*/
-        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT}, /*-28-*/
-        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT}, /*-29-*/
-        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT}, /*-30-*/
-        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT}, /*-31-*/
-        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT}, /*-32-mirror agent*/
-        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT}, /*-33-emad*/
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-0-best effort priority*/
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0},   /*-1-low priority*/
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-2-medium priority*/
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0},   /*-3-high priority*/
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-4-*/
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-5-*/
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-6-*/
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-7-*/
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-8-*/
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-9-*/
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-10-*/
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-11-*/
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-12-*/
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-13-*/
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-14-*/
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-15-*/
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-16-*/
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-17-*/
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-18-*/
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-19-*/
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-20-*/
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-21-*/
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-22-*/
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-23-*/
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-24-*/
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-25-*/
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-26-*/
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-27-*/
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-28-*/
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-29-*/
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-30-*/
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-31-*/
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-32-mirror agent*/
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-33-emad*/
     },
     /* cpu_egress_tclass */
     .cpu_egress_tclass = {
-        2, /*-0-critical prio*/
-        1, /*-1-high ptio*/
-        0, /*-2-all other prios*/
+        2, /*-0-EMAD SDQ */
+        1, /*-1-Control SDQ */
+        0, /*-2-Data SDQ */
         0, /*-3-*/
         0, /*-4-*/
         0, /*-5-*/
         0, /*-6-*/
         0, /*-7-*/
-        4, /*-8-EMADs*/
+        0, /*-8-*/
         0, /*-9-*/
         0, /*-10-*/
         0, /*-11-*/
@@ -1451,7 +1448,7 @@ static sai_status_t mlnx_chassis_mng_stage(bool fastboot_enable, bool transactio
     sdk_init_params.fdb_params.max_mc_group = SX_FDB_MAX_MC_GROUPS;
     sdk_init_params.fdb_params.flood_mode   = FLOOD_PER_VLAN;
 
-    sdk_init_params.mstp_params.mode = SX_MSTP_MODE_MSTP;
+    sdk_init_params.mstp_params.mode = SX_MSTP_MODE_RSTP;
 
     sdk_init_params.router_profile_params.min_router_counters = 16;
 
@@ -1462,10 +1459,10 @@ static sai_status_t mlnx_chassis_mng_stage(bool fastboot_enable, bool transactio
     sdk_init_params.flow_counter_params.flow_counter_byte_type_max_number   = ACL_MAX_COUNTER_BYTE_NUM;
     sdk_init_params.flow_counter_params.flow_counter_packet_type_max_number = ACL_MAX_COUNTER_PACKET_NUM;
 
-    sdk_init_params.acl_params.max_acl_ingress_groups = 95;
-    sdk_init_params.acl_params.max_acl_egress_groups  = 31;
+    sdk_init_params.acl_params.max_acl_ingress_groups = 200;
+    sdk_init_params.acl_params.max_acl_egress_groups  = 200;
 
-    sdk_init_params.acl_params.min_acl_rules   = 16;
+    sdk_init_params.acl_params.min_acl_rules   = 0;
     sdk_init_params.acl_params.max_acl_rules   = ACL_MAX_ENTRY_NUMBER;
     sdk_init_params.acl_params.acl_search_type = SX_API_ACL_SEARCH_TYPE_PARALLEL;
 
@@ -1811,6 +1808,8 @@ static void sai_db_values_init()
         port->index                 = ii;
     }
 
+    mlnx_vlan_db_create_vlan(DEFAULT_VLAN);
+
     sai_qos_db_sync();
     cl_plock_release(&g_sai_db_ptr->p_lock);
 }
@@ -2115,7 +2114,7 @@ static sai_status_t mlnx_dvs_mng_stage(sai_object_id_t switch_id)
         }
     }
 
-    status = mlnx_stp_initialize();
+    status = mlnx_stp_preinitialize();
     if (SAI_ERR(status)) {
         goto out;
     }
@@ -2129,7 +2128,7 @@ static sai_status_t mlnx_dvs_mng_stage(sai_object_id_t switch_id)
 
         status = mlnx_port_speed_bitmap_apply(port);
         if (SAI_ERR(status)) {
-            return status;
+            goto out;
         }
     }
 
@@ -2653,10 +2652,6 @@ static void sai_buffer_db_values_init()
     cl_plock_excl_acquire(&g_sai_db_ptr->p_lock);
     assert(g_sai_db_ptr->ports_number != 0);
     sai_buffer_db_pointers_init();
-#ifdef SAI_BUFFER_SELF_CHECK
-    sai_buffer_db_data_reset();
-    assert(true == self_check_buffer_db());
-#endif /* SAI_BUFFER_SELF_CHECK */
     sai_buffer_db_data_reset();
     cl_plock_release(&g_sai_db_ptr->p_lock);
 }
@@ -2694,17 +2689,10 @@ static void sai_buffer_db_pointers_init()
 {
     assert(g_sai_db_ptr->ports_number != 0);
     g_sai_buffer_db_ptr->buffer_profiles  = (mlnx_sai_db_buffer_profile_entry_t*)(g_sai_buffer_db_ptr->db_base_ptr);
-    g_sai_buffer_db_ptr->port_buffer_data =
-        (uint32_t*)
-        (
-            g_sai_buffer_db_ptr->buffer_profiles +
-            (1 + (MAX_PORTS * mlnx_sai_get_buffer_resource_limits()->max_buffers_per_port))
-        );
-    g_sai_buffer_db_ptr->pool_allocation = (bool*)
-                                           (g_sai_buffer_db_ptr->port_buffer_data +
+    g_sai_buffer_db_ptr->port_buffer_data = (uint32_t*) (g_sai_buffer_db_ptr->buffer_profiles +
+            (1 + (MAX_PORTS * mlnx_sai_get_buffer_resource_limits()->max_buffers_per_port)));
+    g_sai_buffer_db_ptr->pool_allocation = (bool*) (g_sai_buffer_db_ptr->port_buffer_data +
                                             BUFFER_DB_PER_PORT_PROFILE_INDEX_ARRAY_SIZE * MAX_PORTS);
-    g_sai_buffer_db_ptr->e_cpu_pool_startup_size =
-        (uint32_t*)(g_sai_buffer_db_ptr->pool_allocation + sizeof(bool) * (BUFFER_DB_POOL_FLAG_ARRAY_SIZE + 1));
 }
 
 static sai_status_t sai_buffer_db_unload(boolean_t erase_db)
@@ -2751,9 +2739,7 @@ static uint32_t sai_buffer_db_size_get()
          */
         sizeof(uint32_t) * BUFFER_DB_PER_PORT_PROFILE_INDEX_ARRAY_SIZE * MAX_PORTS +
         /*size for pool db flags + 1 bool field for flag specifying whether has user ever called create_pool function.*/
-        sizeof(bool) * (1 + BUFFER_DB_POOL_FLAG_ARRAY_SIZE) +
-        /*slot to keep original size of e_cpu_pool#7*/
-        sizeof(uint32_t)
+        sizeof(bool) * (1 + mlnx_sai_get_buffer_resource_limits()->num_ingress_pools + mlnx_sai_get_buffer_resource_limits()->num_egress_pools)
         );
 }
 
@@ -2845,7 +2831,6 @@ static uint32_t sai_acl_db_size_get()
             sizeof(acl_lag_pbs_db_t) * ACL_LAG_PBS_NUMBER +
             sizeof(acl_pbs_map_db_t) * ACL_PBS_MAP_PREDEF_REG_SIZE +
             sizeof(acl_pbs_map_db_t) * g_sai_acl_db_pbs_map_size +
-            sizeof(acl_port_list_db_t) * ACL_MAX_PORT_LISTS_COUNT +
             (sizeof(acl_bind_points_db_t) + sizeof(acl_bind_point_t) * ACL_RIF_COUNT) +
             (sizeof(acl_group_db_t) + sizeof(acl_group_member_t) * ACL_GROUP_SIZE) * ACL_GROUP_NUMBER +
             sizeof(acl_vlan_group_t) * ACL_VLAN_GROUP_COUNT) +
@@ -2883,12 +2868,8 @@ static void sai_acl_db_init()
                                                                      sizeof(acl_pbs_map_db_t) *
                                                                      ACL_PBS_MAP_PREDEF_REG_SIZE);
 
-    g_sai_acl_db_ptr->acl_port_list_db = (acl_port_list_db_t*)
-                                         ((uint8_t*)g_sai_acl_db_ptr->acl_port_comb_pbs_map_db +
-                                          sizeof(acl_pbs_map_db_t) * g_sai_acl_db_pbs_map_size);
-
-    g_sai_acl_db_ptr->acl_bind_points = (acl_bind_points_db_t*)((uint8_t*)g_sai_acl_db_ptr->acl_port_list_db +
-                                                                sizeof(acl_port_list_db_t) * ACL_MAX_PORT_LISTS_COUNT);
+    g_sai_acl_db_ptr->acl_bind_points = (acl_bind_points_db_t*)((uint8_t*)g_sai_acl_db_ptr->acl_port_comb_pbs_map_db +
+                                                                 sizeof(acl_pbs_map_db_t) * g_sai_acl_db_pbs_map_size);
 
     g_sai_acl_db_ptr->acl_groups_db = (acl_group_db_t*)((uint8_t*)g_sai_acl_db_ptr->acl_bind_points +
                                                         (sizeof(acl_bind_points_db_t) + sizeof(acl_bind_point_t) *
@@ -5433,10 +5414,11 @@ static sai_status_t mlnx_default_stp_id_get(_In_ const sai_object_key_t   *key,
                                 NULL, &value->oid);
     if (SAI_ERR(status)) {
         SX_LOG_ERR("Failed to create object of default STP id\n");
+        goto out;
     }
 
+out:
     sai_db_unlock();
-
     SX_LOG_EXIT();
     return status;
 }

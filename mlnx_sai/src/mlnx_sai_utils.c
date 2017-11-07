@@ -32,6 +32,8 @@
 #undef  __MODULE__
 #define __MODULE__ SAI_UTILS
 
+#define MLNX_UTILS_BOOL_TO_STR(a) ((a) ? "true" : "false")
+
 #define MLNX_SAI_UTILS_NULL_OBJECT_ALLOWED
 
 /*
@@ -59,6 +61,9 @@ static const sai_u32_list_t        mlnx_sai_not_mandatory_attrs[SAI_OBJECT_TYPE_
     [SAI_OBJECT_TYPE_TUNNEL_MAP] =
     {.count = 1, .list = (sai_attr_id_t[1]) {SAI_TUNNEL_MAP_ATTR_MAP_TO_VALUE_LIST}
     },
+
+    [SAI_OBJECT_TYPE_NEXT_HOP] = {.count = 1, .list = (sai_attr_id_t[1]) {SAI_NEXT_HOP_ATTR_ROUTER_INTERFACE_ID}
+    },
 };
 static const sai_u32_list_t        mlnx_sai_attrs_valid_for_set[SAI_OBJECT_TYPE_MAX] = {
     [SAI_OBJECT_TYPE_TUNNEL] =
@@ -66,8 +71,9 @@ static const sai_u32_list_t        mlnx_sai_attrs_valid_for_set[SAI_OBJECT_TYPE_
     },
 };
 static const sai_u32_list_t        mlnx_sai_attrs_with_empty_list[SAI_OBJECT_TYPE_MAX] = {
-    [SAI_OBJECT_TYPE_PORT] = {.count = 2, .list = (sai_attr_id_t[2])
-                              {SAI_PORT_ATTR_INGRESS_MIRROR_SESSION, SAI_PORT_ATTR_EGRESS_MIRROR_SESSION}
+    [SAI_OBJECT_TYPE_PORT] = {.count = 3, .list = (sai_attr_id_t[3])
+                              {SAI_PORT_ATTR_INGRESS_MIRROR_SESSION, SAI_PORT_ATTR_EGRESS_MIRROR_SESSION,
+                               SAI_PORT_ATTR_EGRESS_BLOCK_PORT_LIST}
     },
 
     [SAI_OBJECT_TYPE_TUNNEL_MAP] =
@@ -303,12 +309,6 @@ sai_status_t sdk_to_sai(sx_status_t status)
     case SX_STATUS_ERROR:
         return SAI_STATUS_FAILURE;
 
-    case SX_STATUS_ALREADY_INITIALIZED:
-        return SAI_STATUS_ITEM_ALREADY_EXISTS;
-
-    case SX_STATUS_MODULE_UNINITIALIZED:
-        return SAI_STATUS_UNINITIALIZED;
-
     case SX_STATUS_SDK_NOT_INITIALIZED:
         return SAI_STATUS_UNINITIALIZED;
 
@@ -396,8 +396,14 @@ sai_status_t sdk_to_sai(sx_status_t status)
     case SX_STATUS_EVENT_TRAP_ALREADY_ASSOCIATED:
         return SAI_STATUS_FAILURE;
 
+    case SX_STATUS_ALREADY_INITIALIZED:
+        return SAI_STATUS_ITEM_ALREADY_EXISTS;
+
     case SX_STATUS_TIMEOUT:
         return SAI_STATUS_FAILURE;
+
+    case SX_STATUS_MODULE_UNINITIALIZED:
+        return SAI_STATUS_UNINITIALIZED;
 
     case SX_STATUS_UNSUPPORTED:
         return SAI_STATUS_NOT_SUPPORTED;
@@ -2522,7 +2528,7 @@ static sai_status_t sai_value_to_str(_In_ sai_attribute_value_t value,
 
     switch (type) {
     case SAI_ATTR_VALUE_TYPE_BOOL:
-        snprintf(value_str, max_length, "%s", value.booldata ? "true" : "false");
+        snprintf(value_str, max_length, "%s", MLNX_UTILS_BOOL_TO_STR(value.booldata));
         break;
 
     case SAI_ATTR_VALUE_TYPE_CHARDATA:
@@ -2702,16 +2708,16 @@ static sai_status_t sai_value_to_str(_In_ sai_attribute_value_t value,
     case SAI_ATTR_VALUE_TYPE_ACL_FIELD_DATA_BOOL:
         snprintf(value_str,
                  max_length,
-                 "%u,%02x",
-                 value.aclfield.enable,
+                 "%s,%02x",
+                 MLNX_UTILS_BOOL_TO_STR(value.aclfield.enable),
                  value.aclfield.data.booldata);
         break;
 
     case SAI_ATTR_VALUE_TYPE_ACL_FIELD_DATA_UINT8:
         snprintf(value_str,
                  max_length,
-                 "%u,%02x,%02x",
-                 value.aclfield.enable,
+                 "%s,%02x,%02x",
+                 MLNX_UTILS_BOOL_TO_STR(value.aclfield.enable),
                  value.aclfield.data.u8,
                  value.aclfield.mask.u8);
         break;
@@ -2719,8 +2725,8 @@ static sai_status_t sai_value_to_str(_In_ sai_attribute_value_t value,
     case SAI_ATTR_VALUE_TYPE_ACL_FIELD_DATA_UINT16:
         snprintf(value_str,
                  max_length,
-                 "%u,%04x,%04x",
-                 value.aclfield.enable,
+                 "%s,%04x,%04x",
+                 MLNX_UTILS_BOOL_TO_STR(value.aclfield.enable),
                  value.aclfield.data.u16,
                  value.aclfield.mask.u16);
         break;
@@ -2728,8 +2734,8 @@ static sai_status_t sai_value_to_str(_In_ sai_attribute_value_t value,
     case SAI_ATTR_VALUE_TYPE_ACL_FIELD_DATA_UINT32:
         snprintf(value_str,
                  max_length,
-                 "%u,%08x,%08x",
-                 value.aclfield.enable,
+                 "%s,%08x,%08x",
+                 MLNX_UTILS_BOOL_TO_STR(value.aclfield.enable),
                  value.aclfield.data.u32,
                  value.aclfield.mask.u32);
         break;
@@ -2737,8 +2743,8 @@ static sai_status_t sai_value_to_str(_In_ sai_attribute_value_t value,
     case SAI_ATTR_VALUE_TYPE_ACL_FIELD_DATA_INT8:
         snprintf(value_str,
                  max_length,
-                 "%u,%02x,%02x",
-                 value.aclfield.enable,
+                 "%s,%02x,%02x",
+                 MLNX_UTILS_BOOL_TO_STR(value.aclfield.enable),
                  value.aclfield.data.s8,
                  value.aclfield.mask.s8);
         break;
@@ -2746,8 +2752,8 @@ static sai_status_t sai_value_to_str(_In_ sai_attribute_value_t value,
     case SAI_ATTR_VALUE_TYPE_ACL_FIELD_DATA_INT16:
         snprintf(value_str,
                  max_length,
-                 "%u,%04x,%04x",
-                 value.aclfield.enable,
+                 "%s,%04x,%04x",
+                 MLNX_UTILS_BOOL_TO_STR(value.aclfield.enable),
                  value.aclfield.data.s16,
                  value.aclfield.mask.s16);
         break;
@@ -2755,15 +2761,15 @@ static sai_status_t sai_value_to_str(_In_ sai_attribute_value_t value,
     case SAI_ATTR_VALUE_TYPE_ACL_FIELD_DATA_INT32:
         snprintf(value_str,
                  max_length,
-                 "%u,%08x,%08x",
-                 value.aclfield.enable,
+                 "%s,%08x,%08x",
+                 MLNX_UTILS_BOOL_TO_STR(value.aclfield.enable),
                  value.aclfield.data.s32,
                  value.aclfield.mask.s32);
         break;
 
     case SAI_ATTR_VALUE_TYPE_ACL_FIELD_DATA_MAC:
-        snprintf(value_str, max_length, "%u,[%02x:%02x:%02x:%02x:%02x:%02x],[%02x:%02x:%02x:%02x:%02x:%02x]",
-                 value.aclfield.enable,
+        snprintf(value_str, max_length, "%s,[%02x:%02x:%02x:%02x:%02x:%02x],[%02x:%02x:%02x:%02x:%02x:%02x]",
+                 MLNX_UTILS_BOOL_TO_STR(value.aclfield.enable),
                  value.aclfield.data.mac[0],
                  value.aclfield.data.mac[1],
                  value.aclfield.data.mac[2],
@@ -2779,7 +2785,7 @@ static sai_status_t sai_value_to_str(_In_ sai_attribute_value_t value,
         break;
 
     case SAI_ATTR_VALUE_TYPE_ACL_FIELD_DATA_IPV4:
-        pos += snprintf(value_str, max_length, "%u,", value.aclfield.enable);
+        pos += snprintf(value_str, max_length, "%s,", MLNX_UTILS_BOOL_TO_STR(value.aclfield.enable));
         sai_ipv4_to_str(value.aclfield.data.ip4, max_length - pos, value_str + pos, &chars_written);
         pos += chars_written;
         if (pos > max_length) {
@@ -2790,7 +2796,7 @@ static sai_status_t sai_value_to_str(_In_ sai_attribute_value_t value,
         break;
 
     case SAI_ATTR_VALUE_TYPE_ACL_FIELD_DATA_IPV6:
-        pos += snprintf(value_str, max_length, "%u,", value.aclfield.enable);
+        pos += snprintf(value_str, max_length, "%s,", MLNX_UTILS_BOOL_TO_STR(value.aclfield.enable));
         sai_ipv6_to_str(value.aclfield.data.ip6, max_length - pos, value_str + pos, &chars_written);
         pos += chars_written;
         if (pos > max_length) {
@@ -2805,32 +2811,38 @@ static sai_status_t sai_value_to_str(_In_ sai_attribute_value_t value,
         break;
 
     case SAI_ATTR_VALUE_TYPE_ACL_ACTION_DATA_UINT8:
-        snprintf(value_str, max_length, "%u,%u", value.aclaction.enable, value.aclaction.parameter.u8);
+        snprintf(value_str, max_length, "%s,%u", MLNX_UTILS_BOOL_TO_STR(value.aclaction.enable),
+                 value.aclaction.parameter.u8);
         break;
 
     case SAI_ATTR_VALUE_TYPE_ACL_ACTION_DATA_UINT16:
-        snprintf(value_str, max_length, "%u,%u", value.aclaction.enable, value.aclaction.parameter.u16);
+        snprintf(value_str, max_length, "%s,%u", MLNX_UTILS_BOOL_TO_STR(value.aclaction.enable),
+                 value.aclaction.parameter.u16);
         break;
 
     case SAI_ATTR_VALUE_TYPE_ACL_ACTION_DATA_UINT32:
-        snprintf(value_str, max_length, "%u,%u", value.aclaction.enable, value.aclaction.parameter.u32);
+        snprintf(value_str, max_length, "%s,%u", MLNX_UTILS_BOOL_TO_STR(value.aclaction.enable),
+                 value.aclaction.parameter.u32);
         break;
 
     case SAI_ATTR_VALUE_TYPE_ACL_ACTION_DATA_INT8:
-        snprintf(value_str, max_length, "%u,%d", value.aclaction.enable, value.aclaction.parameter.s8);
+        snprintf(value_str, max_length, "%s,%d", MLNX_UTILS_BOOL_TO_STR(value.aclaction.enable),
+                 value.aclaction.parameter.s8);
         break;
 
     case SAI_ATTR_VALUE_TYPE_ACL_ACTION_DATA_INT16:
-        snprintf(value_str, max_length, "%u,%d", value.aclaction.enable, value.aclaction.parameter.s16);
+        snprintf(value_str, max_length, "%s,%d", MLNX_UTILS_BOOL_TO_STR(value.aclaction.enable),
+                 value.aclaction.parameter.s16);
         break;
 
     case SAI_ATTR_VALUE_TYPE_ACL_ACTION_DATA_INT32:
-        snprintf(value_str, max_length, "%u,%d", value.aclaction.enable, value.aclaction.parameter.s32);
+        snprintf(value_str, max_length, "%s,%d", MLNX_UTILS_BOOL_TO_STR(value.aclaction.enable),
+                 value.aclaction.parameter.s32);
         break;
 
     case SAI_ATTR_VALUE_TYPE_ACL_ACTION_DATA_MAC:
-        snprintf(value_str, max_length, "%u,[%02x:%02x:%02x:%02x:%02x:%02x]",
-                 value.aclaction.enable,
+        snprintf(value_str, max_length, "%s,[%02x:%02x:%02x:%02x:%02x:%02x]",
+                 MLNX_UTILS_BOOL_TO_STR(value.aclaction.enable),
                  value.aclaction.parameter.mac[0],
                  value.aclaction.parameter.mac[1],
                  value.aclaction.parameter.mac[2],
@@ -2845,7 +2857,7 @@ static sai_status_t sai_value_to_str(_In_ sai_attribute_value_t value,
         break;
 
     case SAI_ATTR_VALUE_TYPE_ACL_ACTION_DATA_IPV6:
-        pos += snprintf(value_str, max_length, "%u,", value.aclaction.enable);
+        pos += snprintf(value_str, max_length, "%s,", MLNX_UTILS_BOOL_TO_STR(value.aclaction.enable));
         sai_ipv6_to_str(value.aclaction.parameter.ip6, max_length - pos, value_str + pos, NULL);
         break;
 
@@ -2888,43 +2900,76 @@ static sai_status_t sai_attr_meta_enum_to_str(_In_ const sai_attr_metadata_t   *
                                               _Out_ char                       *value_str)
 {
     sai_int32_t enum_value;
+    uint32_t    pos;
+    bool        acl_value_present, acl_enable_value;
 
     assert(meta_data);
     assert(value);
     assert(value_str);
 
+    acl_value_present = false;
+
     if (meta_data->isaclfield) {
-        enum_value = value->aclfield.data.s32;
+        enum_value        = value->aclfield.data.s32;
+        acl_value_present = true;
+        acl_enable_value  = value->aclfield.enable;
     }
     else if (meta_data->isaclaction) {
-        enum_value = value->aclaction.parameter.s32;
+        enum_value        = value->aclaction.parameter.s32;
+        acl_value_present = true;
+        acl_enable_value  = value->aclaction.enable;
     }
     else {
         enum_value = value->s32;
     }
 
+    if (acl_value_present) {
+        pos = snprintf(value_str, max_length, "%s,", MLNX_UTILS_BOOL_TO_STR(acl_enable_value));
+        max_length -= pos;
+        value_str  += pos;
+    }
+
     return sai_attr_meta_enum_value_to_str(meta_data, enum_value, max_length, value_str);
 }
 
-sai_status_t sai_attr_meta_enumlist_to_str(_In_ const sai_attr_metadata_t *meta_data,
-                                           _In_ const sai_s32_list_t      *values,
-                                           _In_ uint32_t                   max_length,
-                                           _Out_ char                     *list_str)
+sai_status_t sai_attr_meta_enumlist_to_str(_In_ const sai_attr_metadata_t   *meta_data,
+                                           _In_ const sai_attribute_value_t *value,
+                                           _In_ uint32_t                     max_length,
+                                           _Out_ char                       *list_str)
 {
-    sai_status_t status;
-    char         enum_str[MAX_VALUE_STR_LEN] = {0};
-    uint32_t     pos, ii;
+    sai_status_t          status;
+    const sai_s32_list_t *values;
+    char                  enum_str[MAX_VALUE_STR_LEN] = {0};
+    uint32_t              pos, ii;
+    bool                  acl_value_present, acl_enable_value;
 
     assert(meta_data);
+    assert(value);
     assert(list_str);
 
+    pos               = 0;
+    values            = &value->s32list;
+    acl_value_present = false;
+
+    if (meta_data->isaclfield) {
+        acl_value_present = true;
+        acl_enable_value  = value->aclfield.enable;
+    }
+    else if (meta_data->isaclaction) {
+        acl_value_present = true;
+        acl_enable_value  = value->aclaction.enable;
+    }
+
+    if (acl_value_present) {
+        pos = snprintf(list_str, max_length, "%s,", MLNX_UTILS_BOOL_TO_STR(acl_enable_value));
+    }
+
     if (0 == values->count) {
-        snprintf(list_str, max_length, "[]");
+        snprintf(list_str + pos, max_length - pos, "[]");
         return SAI_STATUS_SUCCESS;
     }
 
-    pos  = 0;
-    pos += snprintf(list_str, max_length, "[");
+    pos += snprintf(list_str + pos, max_length - pos, "[");
 
     for (ii = 0; ii < values->count; ii++) {
         status = sai_attr_meta_enum_value_to_str(meta_data, values->list[ii], MAX_VALUE_STR_LEN, enum_str);
@@ -2962,7 +3007,7 @@ static sai_status_t sai_attr_metadata_to_str(_In_ const sai_attr_metadata_t   *m
             return status;
         }
     } else if (meta_data->isenumlist) {
-        status = sai_attr_meta_enumlist_to_str(meta_data, &value->s32list, max_length, value_str);
+        status = sai_attr_meta_enumlist_to_str(meta_data, value, max_length, value_str);
         if (SAI_ERR(status)) {
             return status;
         }

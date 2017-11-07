@@ -34,6 +34,7 @@ typedef enum port_params_ {
         PORT_PARAMS_SFLOW   = 1 << 6,
         PORT_PARAMS_POLICER = 1 << 7,
         PORT_PARAMS_LEARN_MODE = 1 << 8,
+        PORT_PARAMS_EGRESS_BLOCK = 1 << 9,
 } port_params_t;
 
 static sx_verbosity_level_t LOG_VAR_NAME(__MODULE__) = SX_VERBOSITY_LEVEL_WARNING;
@@ -156,10 +157,7 @@ static sai_status_t mlnx_port_params_clone(mlnx_port_config_t *to, mlnx_port_con
     uint32_t                     ii;
     bool                         is_flood_disabled = false;
 
-    if ((g_sai_db_ptr->flood_action_uc == SAI_PACKET_ACTION_DROP) ||
-        (g_sai_db_ptr->flood_action_bc == SAI_PACKET_ACTION_DROP)) {
-        is_flood_disabled = true;
-    }
+    is_flood_disabled = mlnx_fdb_is_flood_disabled();
 
     /* QoS */
     if (clone & PORT_PARAMS_QOS) {
@@ -425,6 +423,13 @@ static sai_status_t mlnx_port_params_clone(mlnx_port_config_t *to, mlnx_port_con
                    from->logical, to->logical);
     }
 
+    if (clone & PORT_PARAMS_EGRESS_BLOCK) {
+        status = mlnx_port_egress_block_clone(to, from);
+        if (SAI_ERR(status)) {
+            goto out;
+        }
+    }
+
 out:
     free(ets);
     return status;
@@ -561,7 +566,7 @@ static sai_status_t remove_port_from_lag(sx_port_log_id_t lag_id, sx_port_log_id
 
     /* Do re-apply for port params which were removed by us before add to the LAG */
     status = mlnx_port_params_clone(port, lag, PORT_PARAMS_WRED | PORT_PARAMS_MIRROR | PORT_PARAMS_SFLOW |
-                                    PORT_PARAMS_POLICER | PORT_PARAMS_PVID);
+                                    PORT_PARAMS_POLICER | PORT_PARAMS_PVID | PORT_PARAMS_EGRESS_BLOCK);
     if (SAI_ERR(status)) {
         return status;
     }
@@ -625,6 +630,7 @@ static sai_status_t ports_l1_params_check(mlnx_port_config_t *port1, mlnx_port_c
     mlnx_qos_queue_config_t *queue_cfg1, *queue_cfg2;
     sai_status_t             status;
     uint32_t                 ii;
+    bool                     egress_block_equal;
 
     assert(port1 != NULL);
     assert(port2 != NULL);
@@ -692,11 +698,26 @@ static sai_status_t ports_l1_params_check(mlnx_port_config_t *port1, mlnx_port_c
         return status;
     }
 
+    /* Egress block list */
+    status = mlnx_port_egress_block_compare(port1, port2, &egress_block_equal);
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+    if (!egress_block_equal) {
+        SX_LOG_ERR("Port oid %" PRIx64 " and port oid %" PRIx64 " have different EGRESS_BLOCK_PORT_LIST\n",
+                   port1->saiport, port2->saiport);
+        return SAI_STATUS_INVALID_PARAMETER;
+    }
+
     return SAI_STATUS_SUCCESS;
 }
 
 static sai_status_t validate_port(mlnx_port_config_t *lag, mlnx_port_config_t *port)
 {
+    sai_status_t status;
+    bool         is_in_use_for_egress_block;
+
     if (mlnx_port_is_in_bridge(port)) {
         SX_LOG_ERR("Can't add port which is under bridge\n");
         return SAI_STATUS_INVALID_PARAMETER;
@@ -705,6 +726,16 @@ static sai_status_t validate_port(mlnx_port_config_t *lag, mlnx_port_config_t *p
     if (port->rifs) {
         SX_LOG_ERR("Can't add port with created RIFs count=%u\n", port->rifs);
         return SAI_STATUS_INVALID_PARAMETER;
+    }
+
+    status = mlnx_port_egress_block_is_in_use(port->logical, &is_in_use_for_egress_block);
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+    if (is_in_use_for_egress_block) {
+        SX_LOG_ERR("Can't add port oid %" PRIx64 " - is a member another port's EGRESS_BLOCK_LISTS\n", port->saiport);
+        return SAI_STATUS_OBJECT_IN_USE;
     }
 
     return SAI_STATUS_SUCCESS;
@@ -1314,7 +1345,7 @@ static sai_status_t mlnx_create_lag_member(_Out_ sai_object_id_t     * lag_membe
         status = mlnx_port_params_clone(lag,
                                         port,
                                         PORT_PARAMS_FOR_LAG | PORT_PARAMS_SFLOW | PORT_PARAMS_POLICER |
-                                        PORT_PARAMS_PVID);
+                                        PORT_PARAMS_PVID | PORT_PARAMS_EGRESS_BLOCK);
         if (SAI_ERR(status)) {
             goto out;
         }
@@ -1336,6 +1367,11 @@ static sai_status_t mlnx_create_lag_member(_Out_ sai_object_id_t     * lag_membe
     }
 
     status = mlnx_port_mirror_params_clear(port);
+    if (SAI_ERR(status)) {
+        goto out;
+    }
+
+    status = mlnx_port_egress_block_clear(port->logical);
     if (SAI_ERR(status)) {
         goto out;
     }
@@ -1508,6 +1544,11 @@ static sai_status_t mlnx_remove_lag_member(_In_ sai_object_id_t lag_member_id)
         }
 
         status = mlnx_port_mirror_params_clear(lag_config);
+        if (SAI_ERR(status)) {
+            goto out;
+        }
+
+        status = mlnx_port_egress_block_clear(lag_config->logical);
         if (SAI_ERR(status)) {
             goto out;
         }

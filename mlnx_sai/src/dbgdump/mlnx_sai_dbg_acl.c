@@ -28,7 +28,6 @@ static void SAI_dump_acl_getdb(_Out_ acl_table_db_t       *acl_table_db,
                                _Out_ acl_lag_pbs_db_t     *acl_lag_pbs_db,
                                _Out_ acl_pbs_map_db_t     *acl_pbs_map_db,
                                _Out_ acl_pbs_map_db_t     *acl_port_comb_pbs_map_db,
-                               _Out_ acl_port_list_db_t   *acl_port_list_db,
                                _Out_ acl_bind_points_db_t *acl_bind_points,
                                _Out_ acl_group_db_t       *acl_group_db,
                                _Out_ acl_vlan_group_t     *acl_vlan_group,
@@ -41,7 +40,6 @@ static void SAI_dump_acl_getdb(_Out_ acl_table_db_t       *acl_table_db,
     assert(NULL != acl_lag_pbs_db);
     assert(NULL != acl_pbs_map_db);
     assert(NULL != acl_port_comb_pbs_map_db);
-    assert(NULL != acl_port_list_db);
     assert(NULL != acl_bind_points);
     assert(NULL != acl_group_db);
     assert(NULL != acl_vlan_group);
@@ -77,10 +75,6 @@ static void SAI_dump_acl_getdb(_Out_ acl_table_db_t       *acl_table_db,
     memcpy(acl_port_comb_pbs_map_db,
            g_sai_acl_db_ptr->acl_port_comb_pbs_map_db,
            g_sai_acl_db_pbs_map_size * sizeof(acl_pbs_map_db_t));
-
-    memcpy(acl_port_list_db,
-           g_sai_acl_db_ptr->acl_port_list_db,
-           ACL_MAX_PORT_LISTS_COUNT * sizeof(acl_port_list_db_t));
 
     memcpy(acl_bind_points,
            g_sai_acl_db_ptr->acl_bind_points,
@@ -231,8 +225,6 @@ static void SAI_dump_acl_table_print(_In_ FILE *file, _In_ acl_table_db_t *acl_t
         {"key type",          9,  PARAM_STRING_E, &key_type_str},
         {"is dynamic sized",  16, PARAM_UINT8_E,   &curr_acl_table_db.is_dynamic_sized},
         {"created entry cnt", 16, PARAM_UINT32_E, &curr_acl_table_db.created_entry_count},
-        {"created rule cnt",  16, PARAM_UINT32_E, &curr_acl_table_db.created_rule_count},
-        {"head entry index",  16, PARAM_UINT32_E, &curr_acl_table_db.head_entry_index},
         {"psort handle",      16, PARAM_UINT32_E, &curr_acl_table_db.psort_handle},
         {"range type count",  16, PARAM_UINT32_E, &curr_acl_table_db.range_type_count},
         {"bind type count",   16, PARAM_UINT32_E, &curr_acl_table_db.bind_point_types.count},
@@ -444,12 +436,12 @@ static void SAI_dump_acl_entry_print(_In_ FILE *file, _In_ acl_entry_db_t *acl_e
         {"sai obj id",           13, PARAM_UINT64_E, &obj_id},
         {"db idx",               11, PARAM_UINT32_E, &ii},
         {"offset",               6,  PARAM_UINT16_E, &curr_acl_entry_db.offset},
-        {"rule number",          11, PARAM_UINT8_E,  &curr_acl_entry_db.rule_number},
-        {"priority",             8,  PARAM_UINT16_E, &curr_acl_entry_db.priority},
+        {"priority",             13, PARAM_UINT16_E, &curr_acl_entry_db.priority},
+        {"table_index",          13, PARAM_UINT32_E, &curr_acl_entry_db.table_index},
+        {"mc_container rx",      13, PARAM_UINT32_E, &curr_acl_entry_db.sx_mc_container_rx},
+        {"mc_container tx",      13, PARAM_UINT32_E, &curr_acl_entry_db.sx_mc_container_tx},
+        {"mc_container eg block",24, PARAM_UINT32_E, &curr_acl_entry_db.sx_mc_container_egress_block},
         {"counter id",           13, PARAM_UINT32_E, &curr_acl_entry_db.counter_id},
-        {"rx list idx",          13, PARAM_UINT32_E, &curr_acl_entry_db.rx_list_index},
-        {"next",                 13, PARAM_UINT32_E, &curr_acl_entry_db.next},
-        {"prev",                 13, PARAM_UINT32_E, &curr_acl_entry_db.prev},
         {"is src ports present", 20, PARAM_UINT8_E,   &curr_acl_entry_db.res_refs.is_src_ports_present},
         {"src ports mask",       14, PARAM_UINT64_E, &curr_acl_entry_db.res_refs.src_ports_mask},
         {"is dst ports present", 20, PARAM_UINT8_E,   &curr_acl_entry_db.res_refs.is_dst_ports_present},
@@ -653,34 +645,6 @@ static void SAI_dump_acl_pbs_map_print(_In_ FILE             *file,
             memcpy(&curr_acl_pbs_map_db, &acl_port_comb_pbs_map_db[ii], sizeof(acl_pbs_map_db_t));
 
             dbg_utils_print_table_data_line(file, acl_pbs_map_clmns);
-        }
-    }
-}
-
-static void SAI_dump_acl_port_list_print(_In_ FILE *file, _In_ acl_port_list_db_t *acl_port_list_db)
-{
-    uint32_t                  ii = 0;
-    acl_port_list_db_t        curr_acl_port_list_db;
-    dbg_utils_table_columns_t acl_port_list_clmns[] = {
-        {"db idx",          13, PARAM_UINT32_E, &ii},
-        {"port mask",       16, PARAM_UINT64_E, &curr_acl_port_list_db.port_mask},
-        {"sx port list id", 15, PARAM_UINT32_E, &curr_acl_port_list_db.sx_port_list_id},
-        {NULL,              0,  0,              NULL}
-    };
-
-    assert(NULL != acl_port_list_db);
-
-    dbg_utils_print_general_header(file, "ACL port list db");
-
-    dbg_utils_print_secondary_header(file, "acl_port_list_db");
-
-    dbg_utils_print_table_headline(file, acl_port_list_clmns);
-
-    for (ii = 0; ii < ACL_MAX_PORT_LISTS_COUNT; ii++) {
-        if (acl_port_list_db[ii].is_used) {
-            memcpy(&curr_acl_port_list_db, &acl_port_list_db[ii], sizeof(acl_port_list_db_t));
-
-            dbg_utils_print_table_data_line(file, acl_port_list_clmns);
         }
     }
 }
@@ -963,7 +927,6 @@ void SAI_dump_acl(_In_ FILE *file)
     acl_lag_pbs_db_t     *acl_lag_pbs_db           = NULL;
     acl_pbs_map_db_t     *acl_pbs_map_db           = NULL;
     acl_pbs_map_db_t     *acl_port_comb_pbs_map_db = NULL;
-    acl_port_list_db_t   *acl_port_list_db         = NULL;
     acl_bind_points_db_t *acl_bind_points          = NULL;
     acl_group_db_t       *acl_group_db             = NULL;
     acl_vlan_group_t     *acl_vlan_group           = NULL;
@@ -976,7 +939,6 @@ void SAI_dump_acl(_In_ FILE *file)
     acl_lag_pbs_db           = (acl_lag_pbs_db_t*)calloc(ACL_LAG_PBS_NUMBER, sizeof(acl_lag_pbs_db_t));
     acl_pbs_map_db           = (acl_pbs_map_db_t*)calloc(ACL_PBS_MAP_PREDEF_REG_SIZE, sizeof(acl_pbs_map_db_t));
     acl_port_comb_pbs_map_db = (acl_pbs_map_db_t*)calloc(g_sai_acl_db_pbs_map_size, sizeof(acl_pbs_map_db_t));
-    acl_port_list_db         = (acl_port_list_db_t*)calloc(ACL_MAX_PORT_LISTS_COUNT, sizeof(acl_port_list_db_t));
     acl_bind_points          = (acl_bind_points_db_t*)calloc(1, sizeof(acl_bind_points_db_t) +
                                                              sizeof(acl_bind_point_t) * ACL_RIF_COUNT);
     acl_group_db = (acl_group_db_t*)calloc(ACL_GROUP_NUMBER,
@@ -988,7 +950,7 @@ void SAI_dump_acl(_In_ FILE *file)
 
     if ((!acl_table_db) || (!acl_counter_db) || (!acl_entry_db) ||
         (!acl_settings_tbl) || (!acl_lag_pbs_db) || (!acl_pbs_map_db) ||
-        (!acl_port_comb_pbs_map_db) || (!acl_port_list_db) || (!acl_bind_points) ||
+        (!acl_port_comb_pbs_map_db) || (!acl_bind_points) ||
         (!acl_group_db) || (!acl_vlan_group) || !(acl_group_bound_to)) {
         goto cleanup;
     }
@@ -1000,7 +962,6 @@ void SAI_dump_acl(_In_ FILE *file)
                        acl_lag_pbs_db,
                        acl_pbs_map_db,
                        acl_port_comb_pbs_map_db,
-                       acl_port_list_db,
                        acl_bind_points,
                        acl_group_db,
                        acl_vlan_group,
@@ -1019,7 +980,6 @@ void SAI_dump_acl(_In_ FILE *file)
     SAI_dump_acl_settings_tbl_print(file, acl_settings_tbl);
     SAI_dump_acl_lag_pbs_print(file, acl_lag_pbs_db);
     SAI_dump_acl_pbs_map_print(file, acl_pbs_map_db, acl_port_comb_pbs_map_db);
-    SAI_dump_acl_port_list_print(file, acl_port_list_db);
     SAI_dump_acl_bind_points_print(file, acl_bind_points);
     SAI_dump_acl_groups_db_print(file, acl_group_db, acl_group_bound_to);
     SAI_dump_acl_vlan_groups_db_print(file, acl_vlan_group);
@@ -1032,7 +992,6 @@ cleanup:
     free(acl_lag_pbs_db);
     free(acl_pbs_map_db);
     free(acl_port_comb_pbs_map_db);
-    free(acl_port_list_db);
     free(acl_bind_points);
     free(acl_group_db);
     free(acl_vlan_group);

@@ -199,6 +199,11 @@ static sai_status_t mlnx_create_stp(_Out_ sai_object_id_t      *sai_stp_id,
     assert(NULL != g_sai_db_ptr);
     sai_db_write_lock();
 
+    status = mlnx_stp_initialize();
+    if (SAI_ERR(status)) {
+        goto out;
+    }
+
     status = create_stp_id(&sx_stp_id);
     if (SAI_ERR(status)) {
         SX_LOG_ERR("Failed to generate STP instance id\n");
@@ -365,7 +370,8 @@ static sai_status_t mlnx_stp_vlanlist_get(_In_ const sai_object_key_t   *key,
     sx_status_t           status;
     const sai_object_id_t sai_stp_id = key->key.object_id;
     sx_mstp_inst_id_t     sx_stp_id;
-    uint32_t              data;
+    uint32_t              data, vlans_count;
+    sx_vid_t              vid;
     mlnx_mstp_inst_t     *stp_db_entry;
 
     SX_LOG_ENTER();
@@ -406,15 +412,13 @@ static sai_status_t mlnx_stp_vlanlist_get(_In_ const sai_object_key_t   *key,
         goto out;
     }
 
-    /* Call SDK API to read VLAN list */
-    status = sx_api_mstp_inst_vlan_list_get(gh_sdk, DEFAULT_ETH_SWID, sx_stp_id,
-                                            value->vlanlist.list,
-                                            &value->vlanlist.count);
-    if (SX_ERR(status)) {
-        SX_LOG_ERR("%s\n", SX_STATUS_MSG(status));
-        status = sdk_to_sai(status);
-        goto out;
+    vlans_count = 0;
+    mlnx_stp_vlans_foreach(sx_stp_id, vid) {
+        value->vlanlist.list[vlans_count] = vid;
+        vlans_count++;
     }
+
+    value->vlanlist.count = vlans_count;
 
 out:
     sai_db_unlock();
@@ -621,7 +625,6 @@ static sai_status_t mlnx_create_stp_port(_Out_ sai_object_id_t      *stp_port_id
     mlnx_object_id_t             stp_port_obj_id;
     mlnx_bridge_port_t          *bridge_port;
     mlnx_object_id_t             stp_obj_id;
-    sx_status_t                  sx_status;
     sai_status_t                 status;
 
     SX_LOG_ENTER();
@@ -676,14 +679,8 @@ static sai_status_t mlnx_create_stp_port(_Out_ sai_object_id_t      *stp_port_id
 
     sx_port_state = sai_stp_port_state_to_sdk(state->s32);
 
-    sx_status = sx_api_mstp_inst_port_state_set(gh_sdk, DEFAULT_ETH_SWID,
-                                                stp_obj_id.id.stp_inst_id,
-                                                bridge_port->logical, sx_port_state);
-    if (SX_ERR(sx_status)) {
-        SX_LOG_ERR("Failed to set stp port state (%u) - %s\n", sx_port_state,
-                   SX_STATUS_MSG(sx_status));
-
-        status = sdk_to_sai(status);
+    status = mlnx_stp_port_state_set_impl(bridge_port->logical, sx_port_state, stp_obj_id.id.stp_inst_id);
+    if (SAI_ERR(status)) {
         goto out;
     }
 
@@ -870,9 +867,12 @@ static sai_status_t mlnx_stp_port_state_get(_In_ const sai_object_key_t   *key,
                                             _Inout_ vendor_cache_t        *cache,
                                             _In_ void                     *arg)
 {
+    sai_status_t              status;
+    sx_status_t               sx_status;
     sx_mstp_inst_port_state_t sx_port_state;
+    sx_port_log_id_t          sx_port;
+    sx_mstp_inst_id_t         sx_mstp_inst;
     mlnx_object_id_t          stp_port;
-    sx_status_t               status;
 
     SX_LOG_ENTER();
 
@@ -881,13 +881,25 @@ static sai_status_t mlnx_stp_port_state_get(_In_ const sai_object_key_t   *key,
         return status;
     }
 
-    status = sx_api_mstp_inst_port_state_get(gh_sdk, DEFAULT_ETH_SWID,
-                                             stp_port.ext.stp.id,
-                                             stp_port.id.log_port_id,
-                                             &sx_port_state);
-    if (SX_ERR(status)) {
-        SX_LOG_ERR("Failed to get stp state - %s\n", SX_STATUS_MSG(status));
-        return sdk_to_sai(status);
+    sx_mstp_inst = stp_port.ext.stp.id;
+    sx_port      = stp_port.id.log_port_id;
+
+    sai_db_read_lock();
+
+    if (mlnx_stp_is_initialized()) {
+        sx_status = sx_api_mstp_inst_port_state_get(gh_sdk, DEFAULT_ETH_SWID, sx_mstp_inst, sx_port, &sx_port_state);
+        if (SX_ERR(sx_status)) {
+            SX_LOG_ERR("Failed to get port [%x] mstp state - %s\n", sx_port, SX_STATUS_MSG(sx_status));
+            status = sdk_to_sai(sx_status);
+            goto out;
+        }
+    } else {
+        sx_status = sx_api_rstp_port_state_get(gh_sdk, sx_port, &sx_port_state);
+        if (SX_ERR(sx_status)) {
+            SX_LOG_ERR("Failed to get port [%x] rstp state - %s\n", sx_port, SX_STATUS_MSG(sx_status));
+            status = sdk_to_sai(sx_status);
+            goto out;
+        }
     }
 
     switch (sx_port_state) {
@@ -905,11 +917,14 @@ static sai_status_t mlnx_stp_port_state_get(_In_ const sai_object_key_t   *key,
 
     default:
         SX_LOG_ERR("Invalid port state - %u\n", sx_port_state);
-        return SAI_STATUS_INVALID_PARAMETER;
+        sx_status = SAI_STATUS_INVALID_PARAMETER;
+        goto out;
     }
 
+out:
+    sai_db_unlock();
     SX_LOG_EXIT();
-    return SAI_STATUS_SUCCESS;
+    return status;
 }
 
 /**
@@ -922,6 +937,8 @@ static sai_status_t mlnx_stp_port_state_set(_In_ const sai_object_key_t      *ke
                                             void                             *arg)
 {
     sx_mstp_inst_port_state_t sx_port_state;
+    sx_port_log_id_t          sx_port;
+    sx_mstp_inst_id_t         sx_mstp_inst;
     mlnx_object_id_t          stp_port;
     sx_status_t               status;
 
@@ -929,30 +946,25 @@ static sai_status_t mlnx_stp_port_state_set(_In_ const sai_object_key_t      *ke
 
     status = sai_to_mlnx_object_id(SAI_OBJECT_TYPE_STP_PORT, key->key.object_id, &stp_port);
     if (SAI_ERR(status)) {
+        SX_LOG_EXIT();
         return status;
     }
 
-    status = sai_stp_port_state_validate(value->s32);
-    if (SAI_ERR(status)) {
-        return status;
-    }
-
+    sx_mstp_inst  = stp_port.ext.stp.id;
+    sx_port       = stp_port.id.log_port_id;
     sx_port_state = sai_stp_port_state_to_sdk(value->s32);
 
-    status = sx_api_mstp_inst_port_state_set(gh_sdk, DEFAULT_ETH_SWID,
-                                             stp_port.ext.stp.id,
-                                             stp_port.id.log_port_id,
-                                             sx_port_state);
+    sai_db_read_lock();
 
-    if (SX_ERR(status)) {
-        SX_LOG_ERR("Failed to set stp port state (%u) - %s\n", sx_port_state,
-                   SX_STATUS_MSG(status));
-
-        return sdk_to_sai(status);
+    status = mlnx_stp_port_state_set_impl(sx_port, sx_port_state, sx_mstp_inst);
+    if (SAI_ERR(status)) {
+        goto out;
     }
 
+out:
+    sai_db_unlock();
     SX_LOG_EXIT();
-    return SAI_STATUS_SUCCESS;
+    return status;
 }
 
 /**
@@ -1013,20 +1025,17 @@ static sai_status_t mlnx_get_stp_port_attribute(_In_ sai_object_id_t     stp_por
     return SAI_STATUS_SUCCESS;
 }
 
-/* STP initializer. */
-/* Called when switch is starting. */
-sai_status_t mlnx_stp_initialize()
+bool mlnx_stp_is_initialized()
 {
-    sx_status_t status;
+    return g_sai_db_ptr->is_stp_initialized;
+}
 
-    SX_LOG_ENTER();
+sai_status_t mlnx_stp_preinitialize()
+{
+    sai_status_t  status;
+    sai_vlan_id_t vid;
 
-    /* set MSTP mode */
-    status = sx_api_mstp_mode_set(gh_sdk, DEFAULT_ETH_SWID, SX_MSTP_MODE_MSTP);
-    if (SX_ERR(status)) {
-        SX_LOG_ERR("%s\n", SX_STATUS_MSG(status));
-        return sdk_to_sai(status);
-    }
+    g_sai_db_ptr->is_stp_initialized = false;
 
     /* Generate default STP instance id */
     SX_LOG_DBG("Generating default STP id\n");
@@ -1034,38 +1043,125 @@ sai_status_t mlnx_stp_initialize()
     status = create_stp_id(&g_sai_db_ptr->def_stp_id);
     if (SAI_ERR(status)) {
         SX_LOG_ERR("Failed to generate default STP id\n");
-        goto out;
+        return status;
     }
 
     SX_LOG_DBG("Default STP id = %u\n", mlnx_stp_get_default_stp());
 
-    /* Create default STP instance */
-    status = sx_api_mstp_inst_set(gh_sdk, SX_ACCESS_CMD_ADD,
-                                  DEFAULT_ETH_SWID, mlnx_stp_get_default_stp());
-    if (SX_ERR(status)) {
-        SX_LOG_ERR("%s\n", SX_STATUS_MSG(status));
-        remove_stp_id(mlnx_stp_get_default_stp());
-        status = sdk_to_sai(status);
-        goto out;
+    mlnx_vlan_id_foreach(vid) {
+        mlnx_vlan_stp_id_set(vid, SAI_INVALID_STP_INSTANCE);
     }
 
-    /* init VLAN db with INVALID STPs */
-    sai_vlan_id_t ii;
-    mlnx_vlan_id_foreach(ii) {
-        mlnx_vlan_stp_id_set(ii, SAI_INVALID_STP_INSTANCE);
-    }
-
-    /* Add VLAN 1 to default STP */
     status = mlnx_vlan_stp_bind(DEFAULT_VLAN, mlnx_stp_get_default_stp());
     if (SAI_ERR(status)) {
-        remove_stp_id(mlnx_stp_get_default_stp());
-        SX_LOG_ERR("Failed to add VLAN %u to default STP\n", DEFAULT_VLAN);
+        return status;
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
+/* STP initializer. */
+/* Called when first STP id is created */
+sai_status_t mlnx_stp_initialize()
+{
+    sai_status_t              status = SAI_STATUS_SUCCESS;
+    sx_status_t               sx_status;
+    sx_vlan_id_t              sx_vlan_id;
+    sx_vlan_id_t              sx_vlan_ids[MAX_VLANS] = {0};
+    sx_mstp_inst_port_state_t ports_states[MAX_BRIDGE_PORTS] = {0};
+    uint32_t                  vlans_count, ii;
+    const mlnx_bridge_port_t *bport;
+
+    SX_LOG_ENTER();
+
+    if (mlnx_stp_is_initialized()) {
+        status = SAI_STATUS_SUCCESS;
         goto out;
+    }
+
+    g_sai_db_ptr->is_stp_initialized = true;
+
+    /* Fetch rstp state for each port so we can applay it after setting mstp mode to SX_MSTP_MODE_MSTP */
+    mlnx_bridge_port_foreach(bport, ii) {
+        if (bport->port_type == SAI_BRIDGE_PORT_TYPE_PORT) {
+            sx_status = sx_api_rstp_port_state_get(gh_sdk, bport->logical, &ports_states[ii]);
+            if (SX_ERR(sx_status)) {
+                SX_LOG_ERR("Failed to get rstp status for port %x - %s\n", bport->logical, SX_ACCESS_CMD_STR(sx_status));
+                status = sdk_to_sai(sx_status);
+                goto out;
+            }
+        }
+    }
+
+    /* set MSTP mode */
+    sx_status = sx_api_mstp_mode_set(gh_sdk, DEFAULT_ETH_SWID, SX_MSTP_MODE_MSTP);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("%s\n", SX_STATUS_MSG(sx_status));
+        status = sdk_to_sai(sx_status);
+        goto out;
+    }
+
+    /* Create default STP instance */
+    sx_status = sx_api_mstp_inst_set(gh_sdk, SX_ACCESS_CMD_ADD, DEFAULT_ETH_SWID, mlnx_stp_get_default_stp());
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("%s\n", SX_STATUS_MSG(sx_status));
+        status = sdk_to_sai(sx_status);
+        goto out;
+    }
+
+    vlans_count = 0;
+    mlnx_vlan_id_foreach(sx_vlan_id) {
+        if (mlnx_vlan_is_created(sx_vlan_id)) {
+            SX_LOG_DBG("Adding VALN %d to default STP %d\n", sx_vlan_id, mlnx_stp_get_default_stp());
+
+            sx_vlan_ids[vlans_count] = sx_vlan_id;
+            vlans_count++;
+        }
+    }
+
+    status = mlnx_vlan_list_stp_bind(sx_vlan_ids, vlans_count, mlnx_stp_get_default_stp());
+    if (SAI_ERR(status)) {
+        goto out;
+    }
+
+    mlnx_bridge_port_foreach(bport, ii) {
+        if (bport->port_type == SAI_BRIDGE_PORT_TYPE_PORT) {
+            sx_status = sx_api_mstp_inst_port_state_set(gh_sdk, DEFAULT_ETH_SWID, mlnx_stp_get_default_stp(),
+                                                        bport->logical, ports_states[ii]);
+            if (SX_ERR(sx_status)) {
+                SX_LOG_ERR("Port mstp state set %x failed - %s\n", bport->logical, SX_STATUS_MSG(sx_status));
+                status = sdk_to_sai(sx_status);
+                goto out;
+            }
+        }
     }
 
 out:
     SX_LOG_EXIT();
     return status;
+}
+
+sai_status_t mlnx_stp_port_state_set_impl(_In_ sx_port_log_id_t          port,
+                                          _In_ sx_mstp_inst_port_state_t state,
+                                          _In_ sx_mstp_inst_id_t         mstp_instance)
+{
+    sx_status_t sx_status;
+
+    if (mlnx_stp_is_initialized()) {
+        sx_status = sx_api_mstp_inst_port_state_set(gh_sdk, DEFAULT_ETH_SWID, mstp_instance, port, state);
+        if (SX_ERR(sx_status)) {
+            SX_LOG_ERR("Failed to set mstp instance [%d] port [%x] state (%u) - %s\n", mstp_instance, port, state, SX_STATUS_MSG(sx_status));
+            return sdk_to_sai(sx_status);
+        }
+    } else {
+        sx_status = sx_api_rstp_port_state_set(gh_sdk, port, state);
+        if (SX_ERR(sx_status)) {
+            SX_LOG_ERR("Failed to set rstp port [%x] state (%u) - %s\n", port, state, SX_STATUS_MSG(sx_status));
+            return sdk_to_sai(sx_status);
+        }
+    }
+
+    return SAI_STATUS_SUCCESS;
 }
 
 sai_status_t mlnx_stp_log_set(sx_verbosity_level_t level)

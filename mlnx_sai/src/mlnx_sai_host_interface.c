@@ -53,6 +53,9 @@ static sai_status_t mlnx_host_interface_name_set(_In_ const sai_object_key_t    
 static sai_status_t mlnx_host_interface_oper_set(_In_ const sai_object_key_t      *key,
                                                  _In_ const sai_attribute_value_t *value,
                                                  void                             *arg);
+static sai_status_t mlnx_host_interface_vlan_tag_set(_In_ const sai_object_key_t      *key,
+                                                     _In_ const sai_attribute_value_t *value,
+                                                     void                             *arg);
 static sai_status_t mlnx_trap_group_admin_get(_In_ const sai_object_key_t   *key,
                                               _Inout_ sai_attribute_value_t *value,
                                               _In_ uint32_t                  attr_index,
@@ -149,10 +152,10 @@ static const sai_vendor_attribute_entry_t host_interface_vendor_attribs[] = {
       NULL, NULL,
       NULL, NULL },
     { SAI_HOSTIF_ATTR_VLAN_TAG,
-      { false, false, false, false },
+      { true, false, true, false },
       { true, false, true, true },
       NULL, NULL,
-      NULL, NULL },
+      mlnx_host_interface_vlan_tag_set, NULL },
     { END_FUNCTIONALITY_ATTRIBS_ID,
       { false, false, false, false },
       { false, false, false, false },
@@ -964,6 +967,19 @@ static sai_status_t mlnx_host_interface_oper_set(_In_ const sai_object_key_t    
     SX_LOG_ENTER();
 
     /* automatic on Mellanox implementation */
+
+    SX_LOG_EXIT();
+    return SAI_STATUS_SUCCESS;
+}
+
+/* Strip/keep vlan tag for received packet [sai_hostif_vlan_tag_t] */
+static sai_status_t mlnx_host_interface_vlan_tag_set(_In_ const sai_object_key_t      *key,
+                                                     _In_ const sai_attribute_value_t *value,
+                                                     void                             *arg)
+{
+    SX_LOG_ENTER();
+
+    /* No handling needed on Mellanox implementation. Currently driver passes packet as is */
 
     SX_LOG_EXIT();
     return SAI_STATUS_SUCCESS;

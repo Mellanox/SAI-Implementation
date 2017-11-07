@@ -3524,7 +3524,8 @@ static sai_status_t mlnx_bridge_vport_set(_In_ sai_object_id_t  sai_tunnel_obj_i
         return sai_status;
     }
 
-    g_sai_db_ptr->tunnel_db[tunnel_db_idx].vport_set = true;
+    g_sai_db_ptr->tunnel_db[tunnel_db_idx].dot1q_vport_set = true;
+    g_sai_db_ptr->tunnel_db[tunnel_db_idx].dot1q_vport_id = sx_log_vport;
 
     SX_LOG_DBG("Set bridge port for bridge id %x\n", sx_bridge_id);
     SX_LOG_EXIT();
@@ -4602,7 +4603,15 @@ static sai_status_t mlnx_remove_tunnel(_In_ const sai_object_id_t sai_tunnel_obj
 
     /* Remove the following bridge logic after SAI bridge being officially introduced */
     if (SX_TUNNEL_TYPE_NVE_VXLAN == sx_tunnel_attr.type) {
-        if (g_sai_db_ptr->tunnel_db[tunnel_db_idx].vport_set) {
+        if (g_sai_db_ptr->tunnel_db[tunnel_db_idx].dot1q_vport_set) {
+            log_vport = g_sai_db_ptr->tunnel_db[tunnel_db_idx].dot1q_vport_id;
+            if (SX_STATUS_SUCCESS !=
+                (sdk_status = sx_api_port_state_set(gh_sdk, log_vport, SX_PORT_ADMIN_STATUS_DOWN))) {
+                sai_status = sdk_to_sai(sdk_status);
+                SX_LOG_ERR("Error setting vport admin state, SX STATUS: %s\n", SX_STATUS_MSG(sdk_status));
+                goto cleanup;
+            }
+
             if (SX_STATUS_SUCCESS != (sdk_status = sx_api_bridge_vport_set(
                                           gh_sdk,
                                           SX_ACCESS_CMD_DELETE_ALL,

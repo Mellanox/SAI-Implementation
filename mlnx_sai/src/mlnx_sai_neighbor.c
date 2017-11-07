@@ -34,6 +34,11 @@ static sai_status_t mlnx_neighbor_action_get(_In_ const sai_object_key_t   *key,
                                              _In_ uint32_t                  attr_index,
                                              _Inout_ vendor_cache_t        *cache,
                                              void                          *arg);
+static sai_status_t mlnx_neighbor_no_host_get(_In_ const sai_object_key_t   *key,
+                                              _Inout_ sai_attribute_value_t *value,
+                                              _In_ uint32_t                  attr_index,
+                                              _Inout_ vendor_cache_t        *cache,
+                                              void                          *arg);
 static sai_status_t mlnx_neighbor_mac_set(_In_ const sai_object_key_t      *key,
                                           _In_ const sai_attribute_value_t *value,
                                           void                             *arg);
@@ -55,9 +60,9 @@ static const sai_vendor_attribute_entry_t neighbor_vendor_attribs[] = {
       mlnx_neighbor_action_get, NULL,
       mlnx_neighbor_action_set, NULL },
     { SAI_NEIGHBOR_ENTRY_ATTR_NO_HOST_ROUTE,
-      { true, false, true, false },
       { true, false, true, true },
-      NULL, NULL,
+      { true, false, true, true },
+      mlnx_neighbor_no_host_get, NULL,
       mlnx_neighbor_no_host_set, NULL },
     { END_FUNCTIONALITY_ATTRIBS_ID,
       { false, false, false, false },
@@ -106,8 +111,8 @@ static sai_status_t mlnx_create_neighbor_entry(_In_ const sai_neighbor_entry_t* 
                                                _In_ const sai_attribute_t      *attr_list)
 {
     sai_status_t                 status;
-    const sai_attribute_value_t *mac, *action;
-    uint32_t                     mac_index, action_index;
+    const sai_attribute_value_t *mac, *action, *no_host;
+    uint32_t                     mac_index, action_index, no_host_index;
     char                         key_str[MAX_KEY_STR_LEN];
     char                         list_str[MAX_LIST_VALUE_STR_LEN];
     sx_ip_addr_t                 ipaddr;
@@ -160,6 +165,13 @@ static sai_status_t mlnx_create_neighbor_entry(_In_ const sai_neighbor_entry_t* 
         }
     }
 
+    if (SAI_STATUS_SUCCESS ==
+        (status =
+             find_attrib_in_list(attr_count, attr_list, SAI_NEIGHBOR_ENTRY_ATTR_NO_HOST_ROUTE, &no_host,
+                                 &no_host_index))) {
+        neigh_data.is_software_only = no_host->booldata;
+    }
+
     if (SAI_STATUS_SUCCESS != (status = mlnx_translate_sai_neighbor_entry_to_sdk(neighbor_entry, &ipaddr))) {
         return status;
     }
@@ -190,11 +202,10 @@ static sai_status_t mlnx_create_neighbor_entry(_In_ const sai_neighbor_entry_t* 
  */
 static sai_status_t mlnx_remove_neighbor_entry(_In_ const sai_neighbor_entry_t* neighbor_entry)
 {
-    sai_status_t    status;
-    char            key_str[MAX_KEY_STR_LEN];
-    sx_ip_addr_t    ipaddr;
-    sx_neigh_data_t neigh_data;
-    uint32_t        rif_data;
+    sai_status_t          status;
+    char                  key_str[MAX_KEY_STR_LEN];
+    sx_ip_addr_t          ipaddr;
+    sx_neigh_data_t       neigh_data;
 
     SX_LOG_ENTER();
 
@@ -214,14 +225,15 @@ static sai_status_t mlnx_remove_neighbor_entry(_In_ const sai_neighbor_entry_t* 
     }
 
     if (SAI_STATUS_SUCCESS !=
-        (status = mlnx_object_to_type(neighbor_entry->rif_id, SAI_OBJECT_TYPE_ROUTER_INTERFACE, &rif_data, NULL))) {
+        (status = mlnx_rif_oid_to_sdk_rif_id(neighbor_entry->rif_id, &neigh_data.rif))) {
+        SX_LOG_ERR("Fail to get sdk rif id from rif oid %"PRIx64"\n", neighbor_entry->rif_id);
+        SX_LOG_EXIT();
         return status;
     }
 
     if (SX_STATUS_SUCCESS !=
         (status =
-             sx_api_router_neigh_set(gh_sdk, SX_ACCESS_CMD_DELETE, (sx_router_interface_t)rif_data, &ipaddr,
-                                     &neigh_data))) {
+             sx_api_router_neigh_set(gh_sdk, SX_ACCESS_CMD_DELETE, neigh_data.rif, &ipaddr, &neigh_data))) {
         SX_LOG_ERR("Failed to remove neighbor entry - %s.\n", SX_STATUS_MSG(status));
         return sdk_to_sai(status);
     }
@@ -381,6 +393,31 @@ static sai_status_t mlnx_neighbor_action_get(_In_ const sai_object_key_t   *key,
     return SAI_STATUS_SUCCESS;
 }
 
+/* Neighbor not to be programmed as a host route entry in ASIC and to be only
+ * used to setup next-hop purpose. Typical use-case is to set this true
+ * for neighbor with IPv6 link-local addresses. [bool] */
+static sai_status_t mlnx_neighbor_no_host_get(_In_ const sai_object_key_t   *key,
+                                              _Inout_ sai_attribute_value_t *value,
+                                              _In_ uint32_t                  attr_index,
+                                              _Inout_ vendor_cache_t        *cache,
+                                              void                          *arg)
+{
+    sai_status_t                status;
+    const sai_neighbor_entry_t* neighbor_entry = &key->key.neighbor_entry;
+    sx_neigh_get_entry_t        neigh_entry;
+
+    SX_LOG_ENTER();
+
+    if (SAI_STATUS_SUCCESS != (status = mlnx_get_neighbor(neighbor_entry, &neigh_entry))) {
+        return status;
+    }
+
+    value->booldata = neigh_entry.neigh_data.is_software_only;
+
+    SX_LOG_EXIT();
+    return SAI_STATUS_SUCCESS;
+}
+
 static sai_status_t mlnx_modify_neighbor_entry(_In_ const sai_neighbor_entry_t* neighbor_entry,
                                                _In_ const sx_neigh_data_t      *new_neigh_data)
 {
@@ -484,9 +521,21 @@ static sai_status_t mlnx_neighbor_no_host_set(_In_ const sai_object_key_t      *
                                               _In_ const sai_attribute_value_t *value,
                                               void                             *arg)
 {
+    sai_status_t                status;
+    const sai_neighbor_entry_t* neighbor_entry = &key->key.neighbor_entry;
+    sx_neigh_get_entry_t        neigh_entry;
+
     SX_LOG_ENTER();
 
-    /* This attribute is HW optimization. We skip it at this stage */
+    if (SAI_STATUS_SUCCESS != (status = mlnx_get_neighbor(neighbor_entry, &neigh_entry))) {
+        return status;
+    }
+
+    neigh_entry.neigh_data.is_software_only = value->booldata;
+
+    if (SAI_STATUS_SUCCESS != (status = mlnx_modify_neighbor_entry(neighbor_entry, &neigh_entry.neigh_data))) {
+        return status;
+    }
 
     SX_LOG_EXIT();
     return SAI_STATUS_SUCCESS;

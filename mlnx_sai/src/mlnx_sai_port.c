@@ -274,6 +274,25 @@ static sai_status_t mlnx_port_bind_mode_get(_In_ const sai_object_key_t   *key,
                                             _In_ uint32_t                  attr_index,
                                             _Inout_ vendor_cache_t        *cache,
                                             _In_ void                     *arg);
+static sai_status_t mlnx_port_egress_block_set(_In_ const sai_object_key_t      *key,
+                                               _In_ const sai_attribute_value_t *value,
+                                               _In_ void                        *arg);
+static sai_status_t mlnx_port_egress_block_get(_In_ const sai_object_key_t   *key,
+                                               _Inout_ sai_attribute_value_t *value,
+                                               _In_ uint32_t                  attr_index,
+                                               _Inout_ vendor_cache_t        *cache,
+                                               _In_ void                     *arg);
+static sai_status_t mlnx_port_egress_block_sai_ports_to_sx(_In_ sx_port_log_id_t       sx_ing_port_id,
+                                                           _In_ const sai_object_id_t *egress_ports,
+                                                           _In_ uint32_t               egress_ports_count,
+                                                           _In_ uint32_t               attr_index,
+                                                           _Out_ sx_port_log_id_t     *sx_egress_ports);
+static sai_status_t mlnx_port_egress_block_set_impl(_In_ sx_port_log_id_t        sx_ing_port_id,
+                                                    _In_ const sx_port_log_id_t *sx_egress_block_port_list,
+                                                    _In_ uint32_t                egress_ports_count);
+static sai_status_t mlnx_port_egress_block_get_impl(_In_ sx_port_log_id_t   sx_ing_port_id,
+                                                    _Out_ sx_port_log_id_t *sx_egress_block_ports,
+                                                    _Inout_ uint32_t       *sx_egress_block_ports_count);
 static sai_status_t mlnx_port_mirror_session_clear(_In_ mlnx_port_config_t   *port_config,
                                                    _In_ sx_mirror_direction_t sx_mirror_direction);
 static sai_status_t mlnx_port_mirror_session_apply(_In_ mlnx_port_config_t   *port_config,
@@ -563,10 +582,10 @@ static const sai_vendor_attribute_entry_t port_vendor_attribs[] = {
       mlnx_port_bind_mode_get, NULL,
       mlnx_port_bind_mode_set, NULL },
     { SAI_PORT_ATTR_EGRESS_BLOCK_PORT_LIST,
-      { false, false, false, false },
-      { false, false, true, true },
-      NULL, NULL,
-      NULL, NULL },
+      { true, false, true, true },
+      { true, false, true, true },
+      mlnx_port_egress_block_get, NULL,
+      mlnx_port_egress_block_set, NULL },
     { END_FUNCTIONALITY_ATTRIBS_ID,
       { false, false, false, false },
       { false, false, false, false },
@@ -4423,7 +4442,7 @@ sai_status_t mlnx_port_idx_by_obj_id(sai_object_id_t obj_id, uint32_t *index)
 }
 
 /* DB read lock is needed */
-sai_status_t mlnx_port_by_log_id(sx_port_log_id_t log_id, mlnx_port_config_t **port)
+sai_status_t mlnx_port_by_log_id_soft(sx_port_log_id_t log_id, mlnx_port_config_t **port)
 {
     mlnx_port_config_t *port_cfg;
     uint32_t            ii;
@@ -4437,8 +4456,20 @@ sai_status_t mlnx_port_by_log_id(sx_port_log_id_t log_id, mlnx_port_config_t **p
         }
     }
 
-    SX_LOG_ERR("Failed lookup port config by log id 0x%x\n", log_id);
     return SAI_STATUS_INVALID_PORT_NUMBER;
+}
+
+/* DB read lock is needed */
+sai_status_t mlnx_port_by_log_id(sx_port_log_id_t log_id, mlnx_port_config_t **port)
+{
+    sai_status_t status;
+
+    status = mlnx_port_by_log_id_soft(log_id, port);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed lookup port config by log id 0x%x\n", log_id);
+    }
+
+    return status;
 }
 
 /* DB read lock is needed */
@@ -4780,6 +4811,338 @@ static sai_status_t mlnx_port_bind_mode_get(_In_ const sai_object_key_t   *key,
     return SAI_STATUS_SUCCESS;
 }
 
+static sai_status_t mlnx_port_egress_block_set(_In_ const sai_object_key_t      *key,
+                                               _In_ const sai_attribute_value_t *value,
+                                               _In_ void                        *arg)
+{
+    sai_status_t        status;
+    mlnx_port_config_t *port;
+    sx_port_log_id_t    sx_egress_ports[MAX_PORTS] = {0};
+
+    SX_LOG_ENTER();
+
+    sai_db_write_lock();
+
+    status = mlnx_port_by_obj_id(key->key.object_id, &port);
+    if (SAI_ERR(status)) {
+        goto out;
+    }
+
+    /* In case if port is LAG member then use LAG logical id */
+    status = mlnx_port_fetch_lag_if_lag_member(&port);
+    if (SAI_ERR(status)) {
+        goto out;
+    }
+
+    status = mlnx_port_egress_block_sai_ports_to_sx(port->logical, value->objlist.list, value->objlist.count, 0, sx_egress_ports);
+    if (SAI_ERR(status)) {
+        goto out;
+    }
+
+    status = mlnx_port_egress_block_set_impl(port->logical, sx_egress_ports, value->objlist.count);
+    if (SAI_ERR(status)) {
+        goto out;
+    }
+
+out:
+    sai_db_unlock();
+    SX_LOG_EXIT();
+    return status;
+}
+
+static sai_status_t mlnx_port_egress_block_get(_In_ const sai_object_key_t   *key,
+                                               _Inout_ sai_attribute_value_t *value,
+                                               _In_ uint32_t                  attr_index,
+                                               _Inout_ vendor_cache_t        *cache,
+                                               _In_ void                     *arg)
+{
+    sai_status_t        status;
+    mlnx_port_config_t *port;
+    sx_port_log_id_t    sx_egress_block_ports[MAX_PORTS];
+    sai_object_id_t     sai_egress_block_ports[MAX_PORTS];
+    uint32_t            egress_block_ports_count, ii;
+
+    SX_LOG_ENTER();
+
+    sai_db_read_lock();
+
+    status = mlnx_port_by_obj_id(key->key.object_id, &port);
+    if (SAI_ERR(status)) {
+        goto out;
+    }
+
+    /* In case if port is LAG member then use LAG logical id */
+    status = mlnx_port_fetch_lag_if_lag_member(&port);
+    if (SAI_ERR(status)) {
+        goto out;
+    }
+
+    egress_block_ports_count = 0;
+    status = mlnx_port_egress_block_get_impl(port->logical, sx_egress_block_ports, &egress_block_ports_count);
+    if (SAI_ERR(status)) {
+        goto out;
+    }
+
+    for (ii = 0; ii < egress_block_ports_count; ii++) {
+        status = mlnx_create_object(SAI_OBJECT_TYPE_PORT, sx_egress_block_ports[ii],
+                                    NULL, &sai_egress_block_ports[ii]);
+        if (SAI_ERR(status)) {
+            goto out;
+        }
+    }
+
+    status = mlnx_fill_objlist(sai_egress_block_ports, egress_block_ports_count, &value->objlist);
+    if (SAI_ERR(status)) {
+        goto out;
+    }
+
+out:
+    sai_db_unlock();
+    SX_LOG_EXIT();
+    return status;
+}
+
+static sai_status_t mlnx_port_egress_block_sai_ports_to_sx(_In_ sx_port_log_id_t       sx_ing_port_id,
+                                                           _In_ const sai_object_id_t *egress_ports,
+                                                           _In_ uint32_t               egress_ports_count,
+                                                           _In_ uint32_t               attr_index,
+                                                           _Out_ sx_port_log_id_t     *sx_egress_ports)
+{
+    sai_status_t status;
+    uint32_t     ii;
+
+    assert(egress_ports);
+    assert(sx_egress_ports);
+
+    if (egress_ports_count > MAX_PORTS) {
+        SX_LOG_ERR("Ports count is to big (%d), max allowed - %d\n", egress_ports_count, MAX_PORTS);
+        return SAI_STATUS_INVALID_ATTR_VALUE_0 + attr_index;
+    }
+
+    for (ii = 0; ii < egress_ports_count; ii++) {
+        status = mlnx_object_to_type(egress_ports[ii], SAI_OBJECT_TYPE_PORT, &sx_egress_ports[ii], NULL);
+        if (SAI_ERR(status)) {
+            return status;
+        }
+
+        if (sx_egress_ports[ii] == sx_ing_port_id) {
+            SX_LOG_ERR("The port itself must not be in the EGRESS_BLOCK_LIST\n");
+            return SAI_STATUS_INVALID_ATTR_VALUE_0 + attr_index;
+        }
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_port_egress_block_set_impl(_In_ sx_port_log_id_t        sx_ing_port_id,
+                                                    _In_ const sx_port_log_id_t *sx_egress_block_port_list,
+                                                    _In_ uint32_t                egress_ports_count)
+{
+    sx_status_t               sx_status;
+    sx_access_cmd_t           sx_cmd;
+    const mlnx_port_config_t *port;
+    uint32_t                  ii, jj;
+    bool                      need_to_block;
+
+    assert(sx_egress_block_port_list || (egress_ports_count == 0));
+
+    mlnx_port_not_in_lag_foreach(port, ii) {
+        if (port->logical == sx_ing_port_id) {
+            continue;
+        }
+
+        need_to_block = false;
+        for (jj = 0; jj < egress_ports_count; jj++) {
+            if (port->logical == sx_egress_block_port_list[jj]) {
+                need_to_block = true;
+                break;
+            }
+        }
+
+        sx_cmd = need_to_block ? SX_ACCESS_CMD_ADD : SX_ACCESS_CMD_DELETE;
+
+        SX_LOG_DBG("%s a port [%x] for port [%x] isolation group\n", SX_ACCESS_CMD_STR(sx_cmd), sx_ing_port_id, port->logical);
+
+        sx_status = sx_api_port_isolate_set(gh_sdk, sx_cmd, port->logical, &sx_ing_port_id, 1);
+        if (SX_ERR(sx_status)) {
+            SX_LOG_ERR("Failed to %s a port [%x] for port [%x] isolation group - %s\n",
+                       SX_ACCESS_CMD_STR(sx_cmd),sx_ing_port_id, port->logical, SX_STATUS_MSG(sx_status));
+            return sdk_to_sai(sx_status);
+        }
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
+/*
+ * Returns a list of ports that have sx_ing_port_id as member of isolation group
+ * sx_egress_block_ports should have at least MAX_PORTS elements
+ */
+static sai_status_t mlnx_port_egress_block_get_impl(_In_ sx_port_log_id_t   sx_ing_port_id,
+                                                    _Out_ sx_port_log_id_t *sx_egress_block_ports,
+                                                    _Out_ uint32_t         *sx_egress_block_ports_count)
+{
+    sx_status_t               sx_status;
+    sx_port_log_id_t          sx_port_isolation_group[MAX_PORTS];
+    const mlnx_port_config_t *port;
+    uint32_t                  sx_port_isolation_group_size, egress_block_ports_count;
+    uint32_t                  ii, jj;
+
+    assert(sx_egress_block_ports);
+    assert(sx_egress_block_ports_count);
+
+    egress_block_ports_count = 0;
+    mlnx_port_foreach(port, ii) {
+        if (port->logical == sx_ing_port_id) {
+            continue;
+        }
+
+        memset(sx_port_isolation_group, 0, sizeof(sx_port_isolation_group));
+        sx_port_isolation_group_size = MAX_PORTS;
+
+        sx_status = sx_api_port_isolate_get(gh_sdk, port->logical, sx_port_isolation_group,
+                                            &sx_port_isolation_group_size);
+        if (SX_ERR(sx_status)) {
+            SX_LOG_ERR("Failed to get isolation group for port [%x] - %s\n", port->logical, SX_STATUS_MSG(sx_status));
+            return sdk_to_sai(sx_status);
+        }
+
+        SX_LOG_DBG("Got isolation group for port %x, size = %d\n", port->logical, sx_port_isolation_group_size);
+
+        for (jj = 0; jj < sx_port_isolation_group_size; jj++) {
+            if (sx_ing_port_id == sx_port_isolation_group[jj]) {
+                SX_LOG_DBG("port %x has a port %x in isolation group\n", sx_port_isolation_group[jj], sx_ing_port_id);
+
+                sx_egress_block_ports[egress_block_ports_count] = port->logical;
+                egress_block_ports_count++;
+                break;
+            }
+        }
+    }
+
+    *sx_egress_block_ports_count = egress_block_ports_count;
+
+    return SAI_STATUS_SUCCESS;
+}
+
+/*
+ * is_in_use = true if sx_port_id is a member of another port's EGRESS_PORT_BLOCK_LIST
+ */
+sai_status_t mlnx_port_egress_block_is_in_use(_In_ sx_port_log_id_t  sx_port_id,
+                                              _Out_ bool            *is_in_use)
+{
+    sx_status_t sx_status;
+    uint32_t    sx_port_isolation_group_size;
+
+    assert(is_in_use);
+
+    sx_status = sx_api_port_isolate_get(gh_sdk, sx_port_id, NULL, &sx_port_isolation_group_size);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to get isolation group for port [%x] - %s\n", sx_port_id, SX_STATUS_MSG(sx_status));
+        return sdk_to_sai(sx_status);
+    }
+
+    *is_in_use = (sx_port_isolation_group_size != 0);
+
+    return SAI_STATUS_SUCCESS;
+}
+
+sai_status_t mlnx_port_egress_block_clear(_In_ sx_port_log_id_t sx_port_id)
+{
+    SX_LOG_DBG("Clear egress block on %x\n", sx_port_id);
+
+    return mlnx_port_egress_block_set_impl(sx_port_id, NULL, 0);
+}
+
+sai_status_t mlnx_sx_port_list_compare(_In_ const sx_port_log_id_t *ports1,
+                                       _In_ uint32_t                ports1_count,
+                                       _In_ const sx_port_log_id_t *ports2,
+                                       _In_ uint32_t                ports2_count,
+                                       _Out_ bool                  *equal)
+{
+    uint32_t ii, jj;
+
+    assert(ports1);
+    assert(ports2);
+    assert(equal);
+
+    if (ports1_count != ports2_count) {
+        SX_LOG_ERR("Ports counts are not equal (%d and %d)\n", ports1_count, ports2_count);
+        *equal = false;
+        return SAI_STATUS_SUCCESS;
+    }
+
+    *equal = true;
+    for (ii = 0; ii < ports1_count; ii++) {
+        for(jj = ii + 1; jj < ports2_count; jj++) {
+            if (ports1[ii] == ports2[jj]) {
+                *equal = false;
+                return SAI_STATUS_SUCCESS;
+            }
+        }
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
+sai_status_t mlnx_port_egress_block_compare(_In_ const mlnx_port_config_t *port1,
+                                            _In_ const mlnx_port_config_t *port2,
+                                            _Out_ bool                    *equal)
+{
+    sai_status_t     status;
+    sx_port_log_id_t sx_port1_egress_block_ports[MAX_PORTS] = {0};
+    sx_port_log_id_t sx_port2_egress_block_ports[MAX_PORTS] = {0};
+    uint32_t         sx_port1_egress_block_ports_count, sx_port2_egress_block_ports_count;
+
+    status = mlnx_port_egress_block_get_impl(port1->logical, sx_port1_egress_block_ports, &sx_port1_egress_block_ports_count);
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+    status = mlnx_port_egress_block_get_impl(port2->logical, sx_port2_egress_block_ports, &sx_port2_egress_block_ports_count);
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+    status = mlnx_sx_port_list_compare(sx_port1_egress_block_ports, sx_port1_egress_block_ports_count,
+                                       sx_port2_egress_block_ports, sx_port2_egress_block_ports_count,
+                                       equal);
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
+sai_status_t mlnx_port_egress_block_clone(_In_ mlnx_port_config_t       *to,
+                                          _In_ const mlnx_port_config_t *from)
+{
+    sai_status_t     status;
+    sx_port_log_id_t sx_port_egress_block_ports[MAX_PORTS] = {0};
+    uint32_t         sx_port_egress_block_ports_count;
+
+    assert(to);
+    assert(from);
+
+    SX_LOG_DBG("Clone egress block list from [%lx] to [%lx]\n", from->saiport, to->saiport);
+
+    status = mlnx_port_egress_block_get_impl(from->logical, sx_port_egress_block_ports, &sx_port_egress_block_ports_count);
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+    if (sx_port_egress_block_ports_count == 0) {
+        return SAI_STATUS_SUCCESS;
+    }
+
+    status = mlnx_port_egress_block_set_impl(to->logical, sx_port_egress_block_ports, sx_port_egress_block_ports_count);
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
 mlnx_port_config_t * mlnx_port_by_idx(uint8_t id)
 {
     return &mlnx_ports_db[id];
@@ -4951,11 +5314,9 @@ sai_status_t mlnx_port_config_init(mlnx_port_config_t *port)
         }
     }
 
-    status = sx_api_mstp_inst_port_state_set(gh_sdk, DEFAULT_ETH_SWID, mlnx_stp_get_default_stp(),
-                                             port->logical, SX_MSTP_INST_PORT_STATE_FORWARDING);
+    status = mlnx_stp_port_state_set_impl(port->logical, SX_MSTP_INST_PORT_STATE_FORWARDING, mlnx_stp_get_default_stp());
     if (SX_ERR(status)) {
-        SX_LOG_ERR("%s\n", SX_STATUS_MSG(status));
-        return sdk_to_sai(status);
+       return status;
     }
 
     status = sx_api_port_state_set(gh_sdk, port->logical, state);
@@ -5078,12 +5439,14 @@ sai_status_t mlnx_port_config_uninit(mlnx_port_config_t *port)
         }
     }
 
-/*    status = sx_api_rstp_port_state_set(gh_sdk, port->logical, SX_MSTP_INST_PORT_STATE_DISCARDING); */
-    status = sx_api_mstp_inst_port_state_set(gh_sdk, DEFAULT_ETH_SWID, mlnx_stp_get_default_stp(),
-                                             port->logical, SX_MSTP_INST_PORT_STATE_FORWARDING);
+	status = mlnx_port_egress_block_clear(port->logical);
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+    status = mlnx_stp_port_state_set_impl(port->logical, SX_MSTP_INST_PORT_STATE_FORWARDING, mlnx_stp_get_default_stp());
     if (SX_ERR(status)) {
-        SX_LOG_ERR("Port rstp state set %x failed - %s\n", port->logical, SX_STATUS_MSG(status));
-        return sdk_to_sai(status);
+        return status;
     }
 
     if (mlnx_port_is_phy(port)) {
@@ -5205,6 +5568,7 @@ sai_status_t mlnx_port_in_use_check(const mlnx_port_config_t *port)
     sx_span_analyzer_port_params_t *span_params   = NULL;
     sx_status_t                     sx_status;
     sai_status_t                    status = SAI_STATUS_SUCCESS;
+    bool                            is_in_use_for_egress_block = true;
 
     if (mlnx_port_is_in_bridge(port)) {
         SX_LOG_ERR("Failed remove port oid %" PRIx64 " - is under bridge\n", port->saiport);
@@ -5239,6 +5603,17 @@ sai_status_t mlnx_port_in_use_check(const mlnx_port_config_t *port)
     sx_status = sx_api_span_analyzer_get(gh_sdk, port->logical, span_params, span_sessions, &span_count);
     if (sx_status != SX_STATUS_ENTRY_NOT_FOUND) {
         SX_LOG_ERR("Failed remove port oid %" PRIx64 " - is Mirror analyzer(monitor) port\n", port->saiport);
+        status = SAI_STATUS_OBJECT_IN_USE;
+        goto out;
+    }
+
+    status = mlnx_port_egress_block_is_in_use(port->logical, &is_in_use_for_egress_block);
+    if (SAI_ERR(status)) {
+        goto out;
+    }
+
+    if (is_in_use_for_egress_block) {
+        SX_LOG_ERR("Failed remove port oid %" PRIx64 " - is a member another port's EGRESS_BLOCK_LISTS\n", port->saiport);
         status = SAI_STATUS_OBJECT_IN_USE;
         goto out;
     }
@@ -5307,10 +5682,12 @@ static sai_status_t mlnx_create_port(_Out_ sai_object_id_t     * port_id,
     const sai_attribute_value_t *port_speed   = NULL;
     const sai_attribute_value_t *attr_ing_acl = NULL;
     const sai_attribute_value_t *attr_egr_acl = NULL;
+    const sai_attribute_value_t *egress_block_list = NULL;
     const sai_attribute_value_t *fec;
     char                         list_str[MAX_LIST_VALUE_STR_LEN];
     uint32_t                     speed_index, fec_index, lane_index, acl_attr_index;
-    uint32_t                     lanes_count;
+    uint32_t                     lanes_count, egress_block_list_index;
+    sx_port_log_id_t             sx_egress_block_port_list[MAX_PORTS] = {0};
     mlnx_port_config_t          *father_port;
     mlnx_port_config_t          *new_port = NULL;
     sx_port_mapping_t           *port_map;
@@ -5476,6 +5853,23 @@ static sai_status_t mlnx_create_port(_Out_ sai_object_id_t     * port_id,
     status = find_attrib_in_list(attr_count, attr_list, SAI_PORT_ATTR_FEC_MODE, &fec, &fec_index);
     if (status == SAI_STATUS_SUCCESS) {
         status = port_fec_set(new_port->logical, fec->s32);
+        if (SAI_ERR(status)) {
+            goto out_unlock;
+        }
+    }
+
+    status = find_attrib_in_list(attr_count, attr_list, SAI_PORT_ATTR_EGRESS_BLOCK_PORT_LIST,
+                                 &egress_block_list, &egress_block_list_index);
+    if (!SAI_ERR(status)) {
+        status = mlnx_port_egress_block_sai_ports_to_sx(new_port->logical, egress_block_list->objlist.list,
+                                                        egress_block_list->objlist.count, egress_block_list_index,
+                                                        sx_egress_block_port_list);
+        if (SAI_ERR(status)) {
+            goto out_unlock;
+        }
+
+        status = mlnx_port_egress_block_set_impl(new_port->logical, sx_egress_block_port_list,
+                                                 egress_block_list->objlist.count);
         if (SAI_ERR(status)) {
             goto out_unlock;
         }
