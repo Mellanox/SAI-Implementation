@@ -288,12 +288,11 @@ static sai_status_t mlnx_queue_type_get(_In_ const sai_object_key_t   *key,
         return sdk_to_sai(sx_status);
     }
 
-    if (false == mc_aware) {
+    /* if (false == mc_aware) {
         value->s32 = SAI_QUEUE_TYPE_ALL;
-    } else {
-        value->s32 = (queue_num < ((g_resource_limits.cos_port_ets_traffic_class_max + 1) / 2)) ?
-                     SAI_QUEUE_TYPE_UNICAST : SAI_QUEUE_TYPE_MULTICAST;
-    }
+    } else {*/
+    value->s32 = (queue_num < ((g_resource_limits.cos_port_ets_traffic_class_max + 1) / 2)) ?
+    SAI_QUEUE_TYPE_UNICAST : SAI_QUEUE_TYPE_MULTICAST;
 
     SX_LOG_EXIT();
     return SAI_STATUS_SUCCESS;
@@ -720,6 +719,7 @@ sai_status_t mlnx_create_queue(_Out_ sai_object_id_t      *queue_id,
     char                         list_str[MAX_LIST_VALUE_STR_LEN];
     sai_object_id_t              queue_oid;
     mlnx_port_config_t          *port;
+    sai_object_key_t             object_key;
 
     SX_LOG_ENTER();
 
@@ -761,7 +761,7 @@ sai_status_t mlnx_create_queue(_Out_ sai_object_id_t      *queue_id,
         goto out;
     }
 
-    sai_object_key_t object_key = { .key.object_id = queue_oid };
+    object_key.key.object_id = queue_oid;
 
     sai_db_write_lock();
 

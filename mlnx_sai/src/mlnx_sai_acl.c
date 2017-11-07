@@ -41,11 +41,11 @@
 #define ACL_TABLE_SIZE_DEC_PERCENT    0.2
 #define ACL_TABLE_SIZE_MIN_DELTA      16
 #define ACL_DEFAULT_ENTRY_PRIO        ACL_MIN_ENTRY_PRIO
-#define ACL_INVALID_PORT_PBS_INDEX    {.index = ACL_INVALID_DB_INDEX}
+#define ACL_INVALID_PORT_PBS_INDEX    (port_pbs_index_t){.index = ACL_INVALID_DB_INDEX}
 #define ACL_INVALID_LAG_PBS_INDEX     ACL_INVALID_DB_INDEX
-#define ACL_INVALID_ENTRY_REDIRECT    {.redirect_type = ACL_ENTRY_REDIRECT_TYPE_EMPTY}
-#define ACL_ENTRY_PORT_PBS(index) {.type = ACL_ENTRY_PBS_TYPE_PORT, .pbs_index = index}
-#define ACL_ENTRY_LAG_PBS(index)  {.type = ACL_ENTRY_PBS_TYPE_LAG, .lag_pbs_index = index}
+#define ACL_INVALID_ENTRY_REDIRECT    (acl_entry_redirect_data_t){.redirect_type = ACL_ENTRY_REDIRECT_TYPE_EMPTY}
+#define ACL_ENTRY_PORT_PBS(index)     (port_pbs_index_t){.type = ACL_ENTRY_PBS_TYPE_PORT, .pbs_index = index}
+#define ACL_ENTRY_LAG_PBS(index)      (port_pbs_index_t){.type = ACL_ENTRY_PBS_TYPE_LAG, .lag_pbs_index = index}
 
 #define ACL_DEFAULT_TABLE_SIZE       128
 #define ACL_TABLE_SIZE_INCREASE_AUTO 1
@@ -125,18 +125,12 @@
 #define is_entry_redirect_pbs_type_lag(redirect_data)  ((redirect_data).pbs_type == ACL_ENTRY_PBS_TYPE_LAG)
 #define is_entry_redirect_pbs_type_port(redirect_data) ((redirect_data).pbs_type == ACL_ENTRY_PBS_TYPE_PORT)
 
-#define ACL_FOREACH_ENTRY_IN_TABLE(table_index, entry_index)       \
-    for (entry_index = acl_db_table(table_index).head_entry_index; \
-         ACL_INVALID_DB_INDEX != entry_index; entry_index = acl_db_entry(entry_index).next)
-
-#define ACL_FOREACH_ENTRY(enrty, entry_index, entry_count)              \
-    for (; (entry_count > 0) && (ACL_INVALID_DB_INDEX != entry_index) && \
-         (enrty = acl_db_entry_ptr(entry_index));                      \
-         entry_count--, entry_index = (entry_count > 0) ? enrty->next : entry_index)
-
 #define acl_table_write_lock(table_id) cl_plock_excl_acquire(&acl_db_table(table_id).lock)
 #define acl_table_read_lock(table_id)  cl_plock_acquire(&acl_db_table(table_id).lock)
 #define acl_table_unlock(table_id)     cl_plock_release(&acl_db_table(table_id).lock)
+
+#define MLNX_ACL_SX_FLEX_RULE_EMPTY ((sx_flex_acl_flex_rule_t){.key_desc_list_p = NULL, .action_list_p = NULL})
+#define MLNX_ACL_SX_FLEX_RULE_IS_EMPTY(rule) ((NULL == (rule)->key_desc_list_p) && (NULL == (rule)->action_list_p))
 
 #define MLNX_SAI_STRUCT_MEMBER_SIZE(type, member) sizeof(((type*)0)->member)
 
@@ -238,7 +232,8 @@ typedef enum _acl_port_stat_type {
     ACL_PORT_REFS_SRC,
     ACL_PORT_REFS_DST,
     ACL_PORT_REFS_PBS,
-    ACL_PORT_REFS_MAX = ACL_PORT_REFS_PBS
+    ACL_PORT_REFS_EGR_BLOCK,
+    ACL_PORT_REFS_MAX = ACL_PORT_REFS_EGR_BLOCK
 } acl_port_stat_type_t;
 
 static const acl_bind_point_type_list_t default_bind_point_type_list =
@@ -464,12 +459,12 @@ static sai_status_t mlnx_acl_entry_action_vlan_get(_In_ const sai_object_key_t  
                                                    _In_ uint32_t                  attr_index,
                                                    _Inout_ vendor_cache_t        *cache,
                                                    void                          *arg);
-static sai_status_t mlnx_acl_entry_out_ports_set(_In_ const sai_object_key_t      *key,
+static sai_status_t mlnx_acl_entry_ports_set(_In_ const sai_object_key_t      *key,
                                                  _In_ const sai_attribute_value_t *value,
                                                  void                             *arg);
-static sai_status_t mlnx_acl_entry_in_ports_set(_In_ const sai_object_key_t      *key,
-                                                _In_ const sai_attribute_value_t *value,
-                                                void                             *arg);
+static sai_status_t mlnx_acl_entry_port_set(_In_ const sai_object_key_t      *key,
+                                            _In_ const sai_attribute_value_t *value,
+                                            void                             *arg);
 static sai_status_t mlnx_acl_entry_action_set(_In_ const sai_object_key_t      *key,
                                               _In_ const sai_attribute_value_t *value,
                                               void                             *arg);
@@ -482,15 +477,6 @@ static sai_status_t mlnx_acl_entry_action_redirect_set(_In_ const sai_object_key
 static sai_status_t mlnx_acl_entry_action_vlan_set(_In_ const sai_object_key_t      *key,
                                                    _In_ const sai_attribute_value_t *value,
                                                    void                             *arg);
-static sai_status_t fetch_flex_acl_rule_params_to_get(_In_ uint32_t                    acl_table_index,
-                                                      _In_ uint32_t                    acl_entry_index,
-                                                      _Inout_ sx_flex_acl_flex_rule_t *flex_acl_rule_p);
-static sai_status_t fetch_flex_acl_rule_params_to_set(_In_ uint32_t                      acl_table_index,
-                                                      _In_ uint32_t                      acl_entry_index,
-                                                      _Inout_ sx_flex_acl_flex_rule_t  **rules,
-                                                      _Inout_opt_ sx_acl_rule_offset_t **offsets,
-                                                      _Inout_opt_ sx_acl_region_id_t    *region_id,
-                                                      _Inout_ uint32_t                  *rule_count);
 static sai_status_t mlnx_acl_packet_actions_handler(_In_ sai_packet_action_t         packet_action_type,
                                                     _In_ uint16_t                    trap_id,
                                                     _Inout_ sx_flex_acl_flex_rule_t *flex_rule,
@@ -524,13 +510,7 @@ static void acl_group_member_key_to_str(_In_ sai_object_id_t acl_group_memeber_i
 static void mlnx_acl_flex_rule_key_del(_Inout_ sx_flex_acl_flex_rule_t *rule, _In_ uint32_t key_index);
 static void mlnx_acl_flex_rule_key_del_by_key_id(_Inout_ sx_flex_acl_flex_rule_t *rule, _In_ sx_acl_key_t key_id);
 static void mlnx_acl_flex_rule_action_del(_Inout_ sx_flex_acl_flex_rule_t *rule, _In_ uint32_t action_index);
-static void mlnx_acl_flex_rule_copy(_Out_ sx_flex_acl_flex_rule_t      *dst_rule,
-                                    _In_ const sx_flex_acl_flex_rule_t *src_rule);
 static sai_status_t mlnx_acl_flex_rule_free(_In_ sx_flex_acl_flex_rule_t *rule);
-static sai_status_t mlnx_acl_flex_rule_list_free(_In_ sx_flex_acl_flex_rule_t *rules, _In_ uint32_t rules_count);
-static sai_status_t mlnx_acl_flex_rule_list_init(_Inout_ sx_flex_acl_flex_rule_t **rules,
-                                                 _In_ uint32_t                     rules_count,
-                                                 _In_ sx_acl_key_type_t            key_type);
 static void mlnx_acl_flex_rule_key_find(_In_ const sx_flex_acl_flex_rule_t *rule,
                                         _In_ sx_acl_key_t                   key,
                                         _Out_ uint32_t                     *key_index,
@@ -539,15 +519,17 @@ static void mlnx_acl_flex_rule_action_find(_In_ const sx_flex_acl_flex_rule_t *r
                                            _In_ sx_flex_acl_flex_action_type_t action_type,
                                            _Out_ uint32_t                     *action_index,
                                            _Out_ bool                         *is_action_present);
-static sai_status_t mlnx_acl_flex_rules_set_helper(_In_ sx_access_cmd_t                cmd,
-                                                   _In_ const sx_acl_key_type_t        key_type,
-                                                   _In_ const sx_acl_region_id_t       region_id,
-                                                   _In_ sx_acl_rule_offset_t          *offsets_list_p,
-                                                   _In_ const sx_flex_acl_flex_rule_t *rules_list_p,
-                                                   _In_ uint32_t                       rules_count);
+static sai_status_t mlnx_acl_entry_sx_acl_rule_get(_In_ uint32_t                    acl_table_index,
+                                                   _In_ uint32_t                    acl_entry_index,
+                                                   _Inout_ sx_flex_acl_flex_rule_t *flex_acl_rule_p);
+static sai_status_t mlnx_acl_entry_sx_acl_rule_set(_In_ uint32_t                       acl_table_index,
+                                                   _In_ uint32_t                       acl_entry_index,
+                                                   _In_ const sx_flex_acl_flex_rule_t *sx_flex_rule);
+static sai_status_t mlnx_acl_flex_rule_delete(_In_ uint32_t             acl_table_index,
+                                              _In_ sx_acl_rule_offset_t sx_acl_rule_offset);
+static sai_status_t mlnx_acl_entry_mc_containers_remove(_In_ uint32_t acl_entry_index);
 static sai_status_t mlnx_delete_acl_entry_data(_In_ uint32_t table_index,
-                                               _In_ uint32_t entry_index,
-                                               _In_ uint32_t entry_count);
+                                               _In_ uint32_t entry_index);
 static sx_utils_status_t psort_notification_func(_In_ psort_notification_type_e notif_type,
                                                  _In_ void                     *data,
                                                  _In_ void                     *cookie);
@@ -556,13 +538,11 @@ static sai_status_t __init_psort_table(_In_ uint32_t table_id, _In_ bool is_tabl
 static sai_status_t get_new_psort_offset(_In_ uint32_t                 table_id,
                                          _In_ uint32_t                 entry_id,
                                          _In_ uint32_t                 priority,
-                                         _Inout_ sx_acl_rule_offset_t *offset,
-                                         _In_ uint32_t                 request_num);
+                                         _Inout_ sx_acl_rule_offset_t *offset);
 static sai_status_t __get_new_psort_offset(_In_ uint32_t                 table_id,
                                            _In_ uint32_t                 entry_id,
                                            _In_ uint32_t                 priority,
-                                           _Inout_ sx_acl_rule_offset_t *offset,
-                                           _In_ uint32_t                 requested_num);
+                                           _Inout_ sx_acl_rule_offset_t *offset);
 static sai_status_t release_psort_offset(_In_ uint32_t             table_id,
                                          _In_ uint32_t             priority,
                                          _In_ sx_acl_rule_offset_t offset);
@@ -577,21 +557,16 @@ static sai_status_t create_rpc_socket(_Inout_ int *s, _Inout_opt_ struct sockadd
 static sai_status_t acl_psort_rpc_call(_Inout_ acl_rpc_info_t *rpc_info);
 static sai_status_t update_rules_offsets(_In_ const psort_shift_param_t *shift_param, _In_ uint32_t acl_table_index);
 static uint32_t acl_calculate_delta(_In_ uint32_t acl_table_index);
-static sai_status_t acl_table_size_increase(_In_ uint32_t table_index, _In_ uint32_t size);
+static sai_status_t acl_table_size_increase(_In_ uint32_t table_index);
 static sai_status_t acl_table_size_decrease(_In_ uint32_t table_index);
 static void acl_psort_optimize_table(_In_ uint32_t table_index);
 static sai_status_t acl_enqueue_table(_In_ uint32_t table_index);
 static sai_status_t acl_db_find_entry_free_index(_Out_ uint32_t *free_index);
 static sai_status_t acl_db_find_table_free_index(_Out_ uint32_t *free_index);
 static sai_status_t acl_db_find_group_free_index(_Out_ uint32_t *free_index);
-static sai_status_t acl_db_find_port_list_free_index(_Out_ uint32_t *free_index);
-static sai_status_t acl_db_insert_entries(_In_ uint32_t table_index,
-                                          _In_ uint32_t entry_index,
-                                          _In_ uint32_t entry_count);
-static void acl_db_add_entry_to_table(_In_ uint32_t table_index, _In_ uint32_t new_entry_index);
-static void acl_db_remove_entry_from_table(_In_ uint32_t table_index,
-                                           _In_ uint32_t entry_index,
-                                           _In_ uint32_t entry_count);
+static sai_status_t mlnx_acl_db_entry_delete(_In_ uint32_t entry_index);
+static sai_status_t mlnx_acl_db_entry_remove_from_table(_In_ uint32_t table_index,
+                                                        _In_ uint32_t entry_index);
 static sai_status_t extract_acl_table_index_and_entry_index(_In_ sai_object_id_t entry_object_id,
                                                             _Out_ uint32_t      *acl_table_index,
                                                             _Out_ uint32_t      *acl_entry_index);
@@ -602,12 +577,15 @@ static sai_status_t extract_acl_counter_index(_In_ sai_object_id_t counter_objec
 static sai_status_t acl_create_entry_object_id(_Out_ sai_object_id_t *entry_oid,
                                                _In_ uint32_t          entry_index,
                                                _In_ uint16_t          table_index);
-static sai_status_t acl_get_entries_offsets(_In_ uint32_t                 entry_index,
-                                            _In_ uint32_t                 entry_number,
-                                            _Inout_ sx_acl_rule_offset_t *offsets_list);
 static sai_status_t mlnx_sai_port_to_index(_In_ sai_object_id_t sai_port_id, _Out_ uint32_t *port_index);
 static sai_status_t mlnx_sx_port_to_index(_In_ sx_port_log_id_t sx_port_id, _Out_ uint32_t *port_index);
 static void mlnx_acl_entry_res_ref_invalidate(_In_ acl_entry_res_refs_t *entry_stats);
+static sai_status_t mlnx_acl_entry_port_ref_update(_In_ uint32_t            entry_index,
+                                                  _In_ acl_port_stat_type_t stat_type,
+                                                  _In_ sai_object_id_t      port);
+static sai_status_t mlnx_acl_entry_port_obj_list_ref_update(_In_ uint32_t                 entry_index,
+                                                            _In_ acl_port_stat_type_t     stat_type,
+                                                            _In_ const sai_object_list_t *ports);
 static sai_status_t mlnx_acl_entry_res_ref_update(_In_ uint32_t               entry_index,
                                                   _In_ acl_port_stat_type_t   stat_type,
                                                   _In_ const sai_object_id_t *port_list,
@@ -646,27 +624,9 @@ static uint32_t mlnx_acl_pbs_map_key_to_index(_In_ acl_pbs_map_key_t key, uint32
 static sai_status_t mlnx_acl_range_attr_get_by_oid(_In_ sai_object_id_t           acl_range_oid,
                                                    _In_ sai_attr_id_t             attr_id,
                                                    _Inout_ sai_attribute_value_t *value);
-static void mlnx_acl_fill_rule_list(_In_ sx_flex_acl_flex_rule_t     src_rule,
-                                    _Inout_ sx_flex_acl_flex_rule_t *dst_rules,
-                                    _In_ uint32_t                    dst_rules_count,
-                                    _In_ const sx_port_log_id_t     *ports,
-                                    _In_ uint32_t                    port_count,
-                                    _In_ uint32_t                    port_key_index);
-static sai_status_t mlnx_acl_entry_modify_rules(_In_ uint32_t                       entry_index,
-                                                _In_ uint32_t                       table_index,
-                                                _In_ const sx_flex_acl_flex_rule_t *rules,
-                                                _In_ uint32_t                       rules_count);
-static sai_status_t mlnx_acl_sx_list_set(_In_ sx_access_cmd_t           cmd,
-                                         _In_ const sai_object_list_t  *ports,
-                                         _Inout_ sx_acl_port_list_id_t *sx_port_list_id);
-static sai_status_t mlnx_acl_sx_list_delete(_In_ uint32_t port_list_index);
-static sai_status_t mlnx_acl_fetch_sx_port_list(_In_ uint32_t           port_list_index,
-                                                _Out_ sx_port_log_id_t *ports,
-                                                _Out_ uint32_t         *port_count);
-static void mlnx_acl_port_mask_to_sx_list(_In_ uint64_t           mask,
-                                          _Out_ sx_port_log_id_t *ports,
-                                          _Inout_ uint32_t       *port_count);
-static sai_status_t mlnx_acl_sx_port_lists_update(_In_ sx_access_cmd_t cmd, _In_ sx_port_log_id_t sx_port);
+static void mlnx_acl_port_mask_to_sai_list(_In_ uint64_t          mask,
+                                           _Out_ sai_object_id_t *objects,
+                                           _Inout_ uint32_t      *object_count);
 static sai_status_t mlnx_sai_port_to_sx(_In_ sai_object_id_t sai_port, _Out_ sx_port_log_id_t *sx_port);
 static sai_status_t mlnx_sai_lag_to_sx(_In_ sai_object_id_t    sai_lag,
                                        _Out_ sx_port_log_id_t *sx_lag,
@@ -789,17 +749,17 @@ static sai_status_t mlnx_acl_range_validate_and_fetch(_In_ const sai_object_list
 static sai_status_t mlnx_acl_action_list_validate(_In_ const sai_s32_list_t *action_list,
                                                   _In_ sai_acl_stage_t       stage,
                                                   _In_ uint32_t              attr_index);
-static sai_status_t mlnx_acl_sx_mc_countainer_set_impl(_In_ sx_access_cmd_t          sx_cmd,
+static sai_status_t mlnx_acl_sx_mc_container_set_impl(_In_ sx_access_cmd_t          sx_cmd,
                                                        _In_ const sai_object_list_t *port_obj_list,
                                                        _Out_ sx_mc_container_id_t   *sx_mc_container_id);
-static sai_status_t mlnx_acl_sx_mc_countainer_create(_In_ const sai_object_list_t *port_obj_list,
-                                                     _Out_ sx_mc_container_id_t   *sx_mc_container_id);
-static sai_status_t mlnx_acl_sx_mc_countainer_update(_In_ const sai_object_list_t *port_obj_list,
-                                                     _Inout_ sx_mc_container_id_t *sx_mc_container_id);
-static sai_status_t mlnx_acl_sx_mc_countainer_sai_ports_get(_In_ sx_mc_container_id_t sx_mc_container_id,
-                                                            _Out_ sai_object_id_t    *sai_port_objects,
-                                                            _Inout_ uint32_t         *sai_port_count);
-static sai_status_t mlnx_acl_sx_mc_countainer_remove(_In_ sx_mc_container_id_t sx_mc_container_id);
+static sai_status_t mlnx_acl_sx_mc_container_create(_In_ const sai_object_list_t *port_obj_list,
+                                                    _Out_ sx_mc_container_id_t   *sx_mc_container_id);
+static sai_status_t mlnx_acl_sx_mc_container_update(_In_ const sai_object_list_t *port_obj_list,
+                                                    _Inout_ sx_mc_container_id_t *sx_mc_container_id);
+static sai_status_t mlnx_acl_sx_mc_container_sai_ports_get(_In_ sx_mc_container_id_t  sx_mc_container_id,
+                                                           _Out_ sai_object_id_t     *sai_port_objects,
+                                                           _Inout_ uint32_t          *sai_port_count) __attribute__((used));
+static sai_status_t mlnx_acl_sx_mc_container_remove(_In_ sx_mc_container_id_t sx_mc_container_id);
 static sai_status_t mlnx_acl_taable_udf_attrs_parse(_In_ uint32_t               attr_count,
                                                     _In_ const sai_attribute_t *attr_list,
                                                     _Out_ sx_acl_key_t         *sx_keys,
@@ -1361,22 +1321,22 @@ static const sai_vendor_attribute_entry_t acl_entry_vendor_attribs[] = {
       { true, false, true, true },
       { true, false, true, true },
       mlnx_acl_entry_ports_get, (void*)SAI_ACL_ENTRY_ATTR_FIELD_IN_PORTS,
-      mlnx_acl_entry_in_ports_set, (void*)SAI_ACL_ENTRY_ATTR_FIELD_IN_PORTS },
+      mlnx_acl_entry_ports_set, (void*)SAI_ACL_ENTRY_ATTR_FIELD_IN_PORTS },
     { SAI_ACL_ENTRY_ATTR_FIELD_OUT_PORTS,
       { true, false, true, true },
       { true, false, true, true },
       mlnx_acl_entry_ports_get, (void*)SAI_ACL_ENTRY_ATTR_FIELD_OUT_PORTS,
-      mlnx_acl_entry_out_ports_set, (void*)SAI_ACL_ENTRY_ATTR_FIELD_OUT_PORTS },
+      mlnx_acl_entry_ports_set, (void*)SAI_ACL_ENTRY_ATTR_FIELD_OUT_PORTS },
     { SAI_ACL_ENTRY_ATTR_FIELD_IN_PORT,
       { true, false, true, true },
       { true, false, true, true },
       mlnx_acl_entry_port_get, (void*)SAI_ACL_ENTRY_ATTR_FIELD_IN_PORT,
-      mlnx_acl_entry_in_ports_set, (void*)SAI_ACL_ENTRY_ATTR_FIELD_IN_PORT },
+      mlnx_acl_entry_port_set, (void*)SAI_ACL_ENTRY_ATTR_FIELD_IN_PORT },
     { SAI_ACL_ENTRY_ATTR_FIELD_OUT_PORT,
       { true, false, true, true },
       { true, false, true, true },
       mlnx_acl_entry_port_get, (void*)SAI_ACL_ENTRY_ATTR_FIELD_OUT_PORT,
-      mlnx_acl_entry_out_ports_set, (void*)SAI_ACL_ENTRY_ATTR_FIELD_OUT_PORT },
+      mlnx_acl_entry_port_set, (void*)SAI_ACL_ENTRY_ATTR_FIELD_OUT_PORT },
     { SAI_ACL_ENTRY_ATTR_FIELD_SRC_PORT,
       { false, false, false, false },
       { true, false, true, true },
@@ -2540,9 +2500,9 @@ static sai_status_t mlnx_acl_action_list_validate(_In_ const sai_s32_list_t *act
     return SAI_STATUS_SUCCESS;
 }
 
-static sai_status_t mlnx_acl_sx_mc_countainer_set_impl(_In_ sx_access_cmd_t          sx_cmd,
-                                                       _In_ const sai_object_list_t *port_obj_list,
-                                                       _Out_ sx_mc_container_id_t   *sx_mc_container_id)
+static sai_status_t mlnx_acl_sx_mc_container_set_impl(_In_ sx_access_cmd_t          sx_cmd,
+                                                      _In_ const sai_object_list_t *port_obj_list,
+                                                      _Out_ sx_mc_container_id_t   *sx_mc_container_id)
 {
     sai_status_t                 status;
     sx_status_t                  sx_status;
@@ -2557,13 +2517,13 @@ static sai_status_t mlnx_acl_sx_mc_countainer_set_impl(_In_ sx_access_cmd_t     
     memset(&sx_mc_next_hops, 0, sizeof(sx_mc_next_hops));
 
     if (0 == port_obj_list->count) {
-        SX_LOG_ERR("Failed to create sx_mc_container - object list is empty\n");
+        SX_LOG_ERR("Failed to %s sx_mc_container - object list is empty\n", SX_ACCESS_CMD_STR(sx_cmd));
         return SAI_STATUS_FAILURE;
     }
 
     if (MAX_PORTS < port_obj_list->count) {
-        SX_LOG_ERR("Failed to create sx_mc_container - invalid port count (%d), max allowed (%d)",
-                   port_obj_list->count, MAX_PORTS);
+        SX_LOG_ERR("Failed to %s sx_mc_container - invalid port count (%d), max allowed (%d)",
+                   SX_ACCESS_CMD_STR(sx_cmd), port_obj_list->count, MAX_PORTS);
         return SAI_STATUS_FAILURE;
     }
 
@@ -2587,8 +2547,8 @@ static sai_status_t mlnx_acl_sx_mc_countainer_set_impl(_In_ sx_access_cmd_t     
     return SAI_STATUS_SUCCESS;
 }
 
-static sai_status_t mlnx_acl_sx_mc_countainer_create(_In_ const sai_object_list_t *port_obj_list,
-                                                     _Out_ sx_mc_container_id_t   *sx_mc_container_id)
+static sai_status_t mlnx_acl_sx_mc_container_create(_In_ const sai_object_list_t *port_obj_list,
+                                                    _Out_ sx_mc_container_id_t   *sx_mc_container_id)
 {
     sai_status_t         status;
     sx_mc_container_id_t sx_mc_container_id_tmp = SX_MC_CONTAINER_ID_INVALID;
@@ -2596,7 +2556,7 @@ static sai_status_t mlnx_acl_sx_mc_countainer_create(_In_ const sai_object_list_
     assert(NULL != port_obj_list);
     assert(NULL != sx_mc_container_id);
 
-    status = mlnx_acl_sx_mc_countainer_set_impl(SX_ACCESS_CMD_CREATE, port_obj_list, &sx_mc_container_id_tmp);
+    status = mlnx_acl_sx_mc_container_set_impl(SX_ACCESS_CMD_CREATE, port_obj_list, &sx_mc_container_id_tmp);
     if (SAI_ERR(status)) {
         SX_LOG_ERR("Failed to create sx_mc_container\n");
         return status;
@@ -2609,9 +2569,9 @@ static sai_status_t mlnx_acl_sx_mc_countainer_create(_In_ const sai_object_list_
     return SAI_STATUS_SUCCESS;
 }
 
-static sai_status_t mlnx_acl_sx_mc_countainer_sai_ports_get(_In_ sx_mc_container_id_t sx_mc_container_id,
-                                                            _Out_ sai_object_id_t    *sai_port_objects,
-                                                            _Inout_ uint32_t         *sai_port_count)
+static sai_status_t mlnx_acl_sx_mc_container_sai_ports_get(_In_ sx_mc_container_id_t  sx_mc_container_id,
+                                                           _Out_ sai_object_id_t     *sai_port_objects,
+                                                           _Inout_ uint32_t          *sai_port_count)
 {
     sai_status_t                 status;
     sx_status_t                  sx_status;
@@ -2663,8 +2623,8 @@ static sai_status_t mlnx_acl_sx_mc_countainer_sai_ports_get(_In_ sx_mc_container
     return SAI_STATUS_SUCCESS;
 }
 
-static sai_status_t mlnx_acl_sx_mc_countainer_update(_In_ const sai_object_list_t *port_obj_list,
-                                                     _Inout_ sx_mc_container_id_t *sx_mc_container_id)
+static sai_status_t mlnx_acl_sx_mc_container_update(_In_ const sai_object_list_t *port_obj_list,
+                                                    _Inout_ sx_mc_container_id_t *sx_mc_container_id)
 {
     sai_status_t status;
 
@@ -2676,7 +2636,7 @@ static sai_status_t mlnx_acl_sx_mc_countainer_update(_In_ const sai_object_list_
         return SAI_STATUS_FAILURE;
     }
 
-    status = mlnx_acl_sx_mc_countainer_set_impl(SX_ACCESS_CMD_SET, port_obj_list, sx_mc_container_id);
+    status = mlnx_acl_sx_mc_container_set_impl(SX_ACCESS_CMD_SET, port_obj_list, sx_mc_container_id);
     if (SAI_ERR(status)) {
         SX_LOG_ERR("Failed to update sx_mc_container (%d)\n", *sx_mc_container_id);
         return status;
@@ -2687,7 +2647,7 @@ static sai_status_t mlnx_acl_sx_mc_countainer_update(_In_ const sai_object_list_
     return SAI_STATUS_SUCCESS;
 }
 
-static sai_status_t mlnx_acl_sx_mc_countainer_remove(_In_ sx_mc_container_id_t sx_mc_container_id)
+static sai_status_t mlnx_acl_sx_mc_container_remove(_In_ sx_mc_container_id_t sx_mc_container_id)
 {
     sx_status_t sx_status;
 
@@ -2764,11 +2724,11 @@ static sai_status_t mlnx_acl_non_trivial_field_to_sx_key(_In_ sai_acl_entry_attr
 
     switch (attr_id) {
     case SAI_ACL_ENTRY_ATTR_FIELD_IN_PORTS:
-        sx_keys[*sx_key_count] = FLEX_ACL_KEY_RX_LIST;
+        sx_keys[*sx_key_count] = FLEX_ACL_KEY_RX_PORT_LIST;
         break;
 
     case SAI_ACL_ENTRY_ATTR_FIELD_OUT_PORTS:
-        sx_keys[*sx_key_count] = FLEX_ACL_KEY_DST_PORT;
+        sx_keys[*sx_key_count] = FLEX_ACL_KEY_TX_PORT_LIST;
         break;
 
     case SAI_ACL_ENTRY_ATTR_FIELD_IN_PORT:
@@ -3893,33 +3853,6 @@ static sai_status_t acl_db_find_group_free_index(_Out_ uint32_t *free_index)
     return status;
 }
 
-static sai_status_t acl_db_find_port_list_free_index(_Out_ uint32_t *free_index)
-{
-    sai_status_t status;
-    uint32_t     ii;
-
-    SX_LOG_ENTER();
-    assert(free_index != NULL);
-
-    for (ii = 0; ii < ACL_MAX_PORT_LISTS_COUNT; ii++) {
-        if (false == acl_db_port_list(ii).is_used) {
-            *free_index                  = ii;
-            acl_db_port_list(ii).is_used = true;
-            status                       = SAI_STATUS_SUCCESS;
-            sai_acl_db->acl_settings_tbl->port_lists_count++;
-            break;
-        }
-    }
-
-    if (ii == ACL_MAX_PORT_LISTS_COUNT) {
-        SX_LOG_ERR("Max Limit of ACL Port lists Reached\n");
-        status = SAI_STATUS_INSUFFICIENT_RESOURCES;
-    }
-
-    SX_LOG_EXIT();
-    return status;
-}
-
 /*
  *     Routine Description:
  *         Get ACL Table Id and ACL Entry Index in ACL Table
@@ -4118,9 +4051,15 @@ static sai_status_t mlnx_acl_entry_attrib_get(_In_ const sai_object_key_t   *key
     return status;
 }
 
-static sai_status_t fetch_flex_acl_rule_params_to_get(_In_ uint32_t                    acl_table_index,
-                                                      _In_ uint32_t                    acl_entry_index,
-                                                      _Inout_ sx_flex_acl_flex_rule_t *flex_acl_rule_p)
+/*
+ * Returns a sx_flex_acl_flex_rule_t located in
+ * [SAI ACL Table (acl_table_index) : SAI ACL Entry (acl_entry_index)]
+ *
+ * The caller is resonible for calling a mlnx_acl_flex_rule_free for flex_acl_rule_p
+ */
+static sai_status_t mlnx_acl_entry_sx_acl_rule_get(_In_ uint32_t                    acl_table_index,
+                                                   _In_ uint32_t                    acl_entry_index,
+                                                   _Inout_ sx_flex_acl_flex_rule_t *flex_acl_rule_p)
 {
     sx_status_t          sx_status;
     sai_status_t         status    = SAI_STATUS_SUCCESS;
@@ -4129,7 +4068,7 @@ static sai_status_t fetch_flex_acl_rule_params_to_get(_In_ uint32_t             
     sx_acl_key_type_t    key_type;
     uint32_t             rule_count;
 
-    assert(flex_acl_rule_p != NULL);
+    assert(MLNX_ACL_SX_FLEX_RULE_IS_EMPTY(flex_acl_rule_p));
 
     SX_LOG_ENTER();
 
@@ -4188,7 +4127,7 @@ static sai_status_t mlnx_acl_entry_single_key_field_get(_In_ const sai_object_ke
     sai_status_t                            status = SAI_STATUS_SUCCESS;
     sai_attr_id_t                           attr_id;
     const mlnx_acl_single_key_field_info_t *field_info;
-    sx_flex_acl_flex_rule_t                 flex_acl_rule;
+    sx_flex_acl_flex_rule_t                 flex_acl_rule = MLNX_ACL_SX_FLEX_RULE_EMPTY;
     sx_acl_key_t                            field_extra_keys[SX_FLEX_ACL_MAX_FIELDS_IN_KEY] = {FLEX_ACL_KEY_INVALID};
     uint32_t                                key_desc_index, ii, field_extra_key_count;
     uint32_t                                acl_table_index, acl_entry_index;
@@ -4252,7 +4191,7 @@ static sai_status_t mlnx_acl_entry_single_key_field_get(_In_ const sai_object_ke
         goto out;
     }
 
-    status = fetch_flex_acl_rule_params_to_get(acl_table_index, acl_entry_index, &flex_acl_rule);
+    status = mlnx_acl_entry_sx_acl_rule_get(acl_table_index, acl_entry_index, &flex_acl_rule);
     if (SAI_ERR(status)) {
         goto out;
     }
@@ -4304,7 +4243,7 @@ static sai_status_t mlnx_acl_entry_ip_type_get(_In_ const sai_object_key_t   *ke
                                                void                          *arg)
 {
     sai_status_t            status = SAI_STATUS_SUCCESS;
-    sx_flex_acl_flex_rule_t flex_acl_rule;
+    sx_flex_acl_flex_rule_t flex_acl_rule = MLNX_ACL_SX_FLEX_RULE_EMPTY;
     uint32_t                acl_table_index, acl_entry_index, key_desc_index;
     bool                    is_key_present;
 
@@ -4318,11 +4257,9 @@ static sai_status_t mlnx_acl_entry_ip_type_get(_In_ const sai_object_key_t   *ke
 
     acl_table_read_lock(acl_table_index);
 
-    status = fetch_flex_acl_rule_params_to_get(acl_table_index, acl_entry_index, &flex_acl_rule);
+    status = mlnx_acl_entry_sx_acl_rule_get(acl_table_index, acl_entry_index, &flex_acl_rule);
     if (SAI_ERR(status)) {
-        acl_table_unlock(acl_table_index);
-        SX_LOG_EXIT();
-        return status;
+        goto out;
     }
 
     value->aclfield.enable = true;
@@ -4381,12 +4318,12 @@ static sai_status_t mlnx_acl_entry_udf_get(_In_ const sai_object_key_t   *key,
 {
     sai_status_t            status                                          = SAI_STATUS_SUCCESS;
     sx_acl_key_t            custom_byte_keys[SX_FLEX_ACL_MAX_FIELDS_IN_KEY] = {0};
-    sx_flex_acl_flex_rule_t flex_acl_rule;
+    sx_flex_acl_flex_rule_t flex_acl_rule = MLNX_ACL_SX_FLEX_RULE_EMPTY;
     sai_acl_entry_attr_t    entry_udf_attr;
     const acl_udf_group_t  *udf_group_list;
     uint32_t                udf_group_length, custom_byte_count, sx_key_index, ii;
     uint32_t                acl_table_index, acl_entry_index, acl_table_udf_attr_index, udf_group_db_index;
-    bool                    is_sx_key_present, rule_inited = false;
+    bool                    is_sx_key_present;
 
     SX_LOG_ENTER();
 
@@ -4438,12 +4375,10 @@ static sai_status_t mlnx_acl_entry_udf_get(_In_ const sai_object_key_t   *key,
         goto out;
     }
 
-    status = fetch_flex_acl_rule_params_to_get(acl_table_index, acl_entry_index, &flex_acl_rule);
+    status = mlnx_acl_entry_sx_acl_rule_get(acl_table_index, acl_entry_index, &flex_acl_rule);
     if (SAI_ERR(status)) {
         goto out;
     }
-
-    rule_inited = true;
 
     for (ii = 0; ii < custom_byte_count; ii++) {
         mlnx_acl_flex_rule_key_find(&flex_acl_rule, custom_byte_keys[ii], &sx_key_index, &is_sx_key_present);
@@ -4468,9 +4403,7 @@ out:
     acl_table_unlock(acl_table_index);
     sai_db_unlock();
 
-    if (rule_inited) {
-        mlnx_acl_flex_rule_free(&flex_acl_rule);
-    }
+    mlnx_acl_flex_rule_free(&flex_acl_rule);
 
     SX_LOG_EXIT();
     return status;
@@ -4648,7 +4581,7 @@ static sai_status_t mlnx_acl_entry_ip_frag_get(_In_ const sai_object_key_t   *ke
                                                void                          *arg)
 {
     sai_status_t            status;
-    sx_flex_acl_flex_rule_t flex_acl_rule;
+    sx_flex_acl_flex_rule_t flex_acl_rule = MLNX_ACL_SX_FLEX_RULE_EMPTY;
     sx_acl_key_t            ip_frag_key, ip_frag_not_first_key;
     uint32_t                key_desc_index         = 0;
     uint32_t                ip_frag_key_desc_index = 0, ip_frag_not_first_key_desc_index = 0;
@@ -4670,7 +4603,7 @@ static sai_status_t mlnx_acl_entry_ip_frag_get(_In_ const sai_object_key_t   *ke
 
     acl_table_read_lock(acl_table_index);
 
-    status = fetch_flex_acl_rule_params_to_get(acl_table_index, acl_entry_index, &flex_acl_rule);
+    status = mlnx_acl_entry_sx_acl_rule_get(acl_table_index, acl_entry_index, &flex_acl_rule);
     if (SAI_STATUS_SUCCESS != status) {
         goto out;
     }
@@ -4713,10 +4646,15 @@ static sai_status_t mlnx_acl_entry_ip_frag_get(_In_ const sai_object_key_t   *ke
         if (is_ip_frag_not_first_key_present) {
             if (!flex_acl_rule.key_desc_list_p[ip_frag_not_first_key_desc_index].key.ip_fragment_not_first) {
                 value->aclfield.data.s32 = SAI_ACL_IP_FRAG_NON_FRAG_OR_HEAD;
+            } else {
+                SX_LOG_ERR("Invalid sx region state - FLEX_ACL_KEY_IP_FRAGMENT_NOT_FIRST value is true but "
+                           "FLEX_ACL_KEY_IP_FRAGMENTED is not present\n");
+                status = SAI_STATUS_FAILURE;
+                goto out;
             }
+        } else {
+            value->aclfield.enable = false;
         }
-    } else {
-        value->aclfield.enable = false;
     }
 
     mlnx_acl_flex_rule_free(&flex_acl_rule);
@@ -4733,13 +4671,12 @@ static sai_status_t mlnx_acl_entry_udf_set(_In_ const sai_object_key_t      *key
                                            void                             *arg)
 {
     sai_status_t               status;
-    sx_acl_region_id_t         region_id;
-    sx_flex_acl_flex_rule_t   *flex_acl_rule_p                                 = NULL;
+    sx_flex_acl_flex_rule_t    flex_acl_rule = MLNX_ACL_SX_FLEX_RULE_EMPTY;
     sx_flex_acl_rule_offset_t *offsets_list_p                                  = NULL;
     sx_acl_key_t               custom_byte_keys[SX_FLEX_ACL_MAX_FIELDS_IN_KEY] = {0};
     sai_acl_entry_attr_t       entry_udf_attr;
     uint32_t                   acl_table_index, acl_entry_index, sx_key_index;
-    uint32_t                   flex_acl_rules_num, custom_byte_count, ii, jj;
+    uint32_t                   custom_byte_count, ii;
     bool                       is_sx_key_present;
 
     SX_LOG_ENTER();
@@ -4764,37 +4701,32 @@ static sai_status_t mlnx_acl_entry_udf_set(_In_ const sai_object_key_t      *key
         goto out;
     }
 
-    status = fetch_flex_acl_rule_params_to_set(acl_table_index, acl_entry_index, &flex_acl_rule_p,
-                                               &offsets_list_p, &region_id, &flex_acl_rules_num);
+    status = mlnx_acl_entry_sx_acl_rule_get(acl_table_index, acl_entry_index, &flex_acl_rule);
     if (SAI_ERR(status)) {
-        SX_LOG_ERR("Failed to fetch ACL rule params \n");
         goto out;
     }
 
-    for (ii = 0; ii < flex_acl_rules_num; ii++) {
-        for (jj = 0; jj < custom_byte_count; jj++) {
-            mlnx_acl_flex_rule_key_find(&flex_acl_rule_p[ii], custom_byte_keys[jj], &sx_key_index, &is_sx_key_present);
+    for (ii = 0; ii < custom_byte_count; ii++) {
+        mlnx_acl_flex_rule_key_find(&flex_acl_rule, custom_byte_keys[ii], &sx_key_index, &is_sx_key_present);
 
-            if (value->aclfield.enable) {
-                flex_acl_rule_p[ii].key_desc_list_p[sx_key_index].key_id          = custom_byte_keys[jj];
-                flex_acl_rule_p[ii].key_desc_list_p[sx_key_index].key.custom_byte =
-                    value->aclfield.data.u8list.list[jj];
-                flex_acl_rule_p[ii].key_desc_list_p[sx_key_index].mask.custom_byte =
-                    value->aclfield.mask.u8list.list[jj];
+        if (value->aclfield.enable) {
+            flex_acl_rule.key_desc_list_p[sx_key_index].key_id          = custom_byte_keys[ii];
+            flex_acl_rule.key_desc_list_p[sx_key_index].key.custom_byte =
+                    value->aclfield.data.u8list.list[ii];
+            flex_acl_rule.key_desc_list_p[sx_key_index].mask.custom_byte =
+                    value->aclfield.mask.u8list.list[ii];
 
-                if (false == is_sx_key_present) {
-                    flex_acl_rule_p[ii].key_desc_count += 1;
-                }
-            } else {
-                if (is_sx_key_present) {
-                    mlnx_acl_flex_rule_key_del(&flex_acl_rule_p[ii], sx_key_index);
-                }
+            if (false == is_sx_key_present) {
+                flex_acl_rule.key_desc_count += 1;
+            }
+        } else {
+            if (is_sx_key_present) {
+                mlnx_acl_flex_rule_key_del(&flex_acl_rule, sx_key_index);
             }
         }
     }
 
-    status = mlnx_acl_flex_rules_set_helper(SX_ACCESS_CMD_SET, 0, region_id, offsets_list_p,
-                                            flex_acl_rule_p, flex_acl_rules_num);
+    status = mlnx_acl_entry_sx_acl_rule_set(acl_table_index, acl_entry_index, &flex_acl_rule);
     if (SAI_ERR(status)) {
         goto out;
     }
@@ -4803,7 +4735,7 @@ out:
     acl_table_unlock(acl_table_index);
     sai_db_unlock();
 
-    mlnx_acl_flex_rule_list_free(flex_acl_rule_p, flex_acl_rules_num);
+    mlnx_acl_flex_rule_free(&flex_acl_rule);
     free(offsets_list_p);
 
     SX_LOG_EXIT();
@@ -4818,7 +4750,7 @@ static sai_status_t mlnx_acl_entry_ip_get(_In_ const sai_object_key_t   *key,
 {
     sai_status_t            status;
     sai_attr_id_t           attr_id;
-    sx_flex_acl_flex_rule_t flex_acl_rule;
+    sx_flex_acl_flex_rule_t flex_acl_rule = MLNX_ACL_SX_FLEX_RULE_EMPTY;
     sx_ip_addr_t            ipaddr_data, ipaddr_mask;
     sai_ip_address_t        ip_address_data, ip_address_mask;
     uint32_t                key_id         = 0;
@@ -4864,7 +4796,7 @@ static sai_status_t mlnx_acl_entry_ip_get(_In_ const sai_object_key_t   *key,
         goto out;
     }
 
-    status = fetch_flex_acl_rule_params_to_get(acl_table_index, acl_entry_index, &flex_acl_rule);
+    status = mlnx_acl_entry_sx_acl_rule_get(acl_table_index, acl_entry_index, &flex_acl_rule);
     if (SAI_ERR(status)) {
         goto out;
     }
@@ -4918,13 +4850,13 @@ static sai_status_t mlnx_acl_entry_ip_get(_In_ const sai_object_key_t   *key,
             status = mlnx_translate_sdk_ip_address_to_sai(&flex_acl_rule.key_desc_list_p[key_desc_index].key.dipv6,
                                                           &ip_address_data);
             if (SAI_STATUS_SUCCESS != status) {
-                goto out_deinit;
+                goto out;
             }
 
             status = mlnx_translate_sdk_ip_address_to_sai(&flex_acl_rule.key_desc_list_p[key_desc_index].mask.dipv6,
                                                           &ip_address_mask);
             if (SAI_STATUS_SUCCESS != status) {
-                goto out_deinit;
+                goto out;
             }
             memcpy(&value->aclfield.data.ip6, &ip_address_data.addr.ip6,
                    sizeof(value->ipaddr.addr.ip6));
@@ -4940,13 +4872,13 @@ static sai_status_t mlnx_acl_entry_ip_get(_In_ const sai_object_key_t   *key,
             status = mlnx_translate_sdk_ip_address_to_sai(&flex_acl_rule.key_desc_list_p[key_desc_index].key.dipv6,
                                                           &ip_address_data);
             if (SAI_STATUS_SUCCESS != status) {
-                goto out_deinit;
+                goto out;
             }
 
             status = mlnx_translate_sdk_ip_address_to_sai(&flex_acl_rule.key_desc_list_p[key_desc_index].mask.dipv6,
                                                           &ip_address_mask);
             if (SAI_STATUS_SUCCESS != status) {
-                goto out_deinit;
+                goto out;
             }
 
             memcpy(&value->aclfield.data.ip6, &ip_address_data.addr.ip6,
@@ -4963,13 +4895,13 @@ static sai_status_t mlnx_acl_entry_ip_get(_In_ const sai_object_key_t   *key,
             if (SAI_STATUS_SUCCESS !=
                 (status = mlnx_translate_sdk_ip_address_to_sai(&flex_acl_rule.key_desc_list_p[key_desc_index].key.sip,
                                                                &ip_address_data))) {
-                goto out_deinit;
+                goto out;
             }
 
             if (SAI_STATUS_SUCCESS !=
                 (status = mlnx_translate_sdk_ip_address_to_sai(&flex_acl_rule.key_desc_list_p[key_desc_index].mask.sip,
                                                                &ip_address_mask))) {
-                goto out_deinit;
+                goto out;
             }
             memcpy(&value->aclfield.data.ip4, &ip_address_data.addr.ip4, \
                    sizeof(value->ipaddr.addr.ip4));
@@ -4985,13 +4917,13 @@ static sai_status_t mlnx_acl_entry_ip_get(_In_ const sai_object_key_t   *key,
             if (SAI_STATUS_SUCCESS !=
                 (status = mlnx_translate_sdk_ip_address_to_sai(&flex_acl_rule.key_desc_list_p[key_desc_index].key.dip,
                                                                &ip_address_data))) {
-                goto out_deinit;
+                goto out;
             }
 
             if (SAI_STATUS_SUCCESS !=
                 (status = mlnx_translate_sdk_ip_address_to_sai(&flex_acl_rule.key_desc_list_p[key_desc_index].mask.dip,
                                                                &ip_address_mask))) {
-                goto out_deinit;
+                goto out;
             }
 
             memcpy(&value->aclfield.data.ip4, &ip_address_data.addr.ip4, \
@@ -5008,14 +4940,14 @@ static sai_status_t mlnx_acl_entry_ip_get(_In_ const sai_object_key_t   *key,
             status = mlnx_translate_sdk_ip_address_to_sai(&flex_acl_rule.key_desc_list_p[key_desc_index].key.inner_sip,
                                                           &ip_address_data);
             if (SAI_ERR(status)) {
-                goto out_deinit;
+                goto out;
             }
 
             status = mlnx_translate_sdk_ip_address_to_sai(
                 &flex_acl_rule.key_desc_list_p[key_desc_index].mask.inner_sip,
                 &ip_address_mask);
             if (SAI_ERR(status)) {
-                goto out_deinit;
+                goto out;
             }
             memcpy(&value->aclfield.data.ip4, &ip_address_data.addr.ip4,
                    sizeof(value->ipaddr.addr.ip4));
@@ -5031,14 +4963,14 @@ static sai_status_t mlnx_acl_entry_ip_get(_In_ const sai_object_key_t   *key,
             status = mlnx_translate_sdk_ip_address_to_sai(&flex_acl_rule.key_desc_list_p[key_desc_index].key.inner_dip,
                                                           &ip_address_data);
             if (SAI_ERR(status)) {
-                goto out_deinit;
+                goto out;
             }
 
             status = mlnx_translate_sdk_ip_address_to_sai(
                 &flex_acl_rule.key_desc_list_p[key_desc_index].mask.inner_dip,
                 &ip_address_mask);
             if (SAI_ERR(status)) {
-                goto out_deinit;
+                goto out;
             }
             memcpy(&value->aclfield.data.ip4, &ip_address_data.addr.ip4,
                    sizeof(value->ipaddr.addr.ip4));
@@ -5055,14 +4987,14 @@ static sai_status_t mlnx_acl_entry_ip_get(_In_ const sai_object_key_t   *key,
                 &flex_acl_rule.key_desc_list_p[key_desc_index].key.inner_sipv6,
                 &ip_address_data);
             if (SAI_STATUS_SUCCESS != status) {
-                goto out_deinit;
+                goto out;
             }
 
             status = mlnx_translate_sdk_ip_address_to_sai(
                 &flex_acl_rule.key_desc_list_p[key_desc_index].mask.inner_sipv6,
                 &ip_address_mask);
             if (SAI_STATUS_SUCCESS != status) {
-                goto out_deinit;
+                goto out;
             }
             memcpy(&value->aclfield.data.ip6, &ip_address_data.addr.ip6,
                    sizeof(value->ipaddr.addr.ip6));
@@ -5079,14 +5011,14 @@ static sai_status_t mlnx_acl_entry_ip_get(_In_ const sai_object_key_t   *key,
                 &flex_acl_rule.key_desc_list_p[key_desc_index].key.inner_dipv6,
                 &ip_address_data);
             if (SAI_STATUS_SUCCESS != status) {
-                goto out_deinit;
+                goto out;
             }
 
             status = mlnx_translate_sdk_ip_address_to_sai(
                 &flex_acl_rule.key_desc_list_p[key_desc_index].mask.inner_dipv6,
                 &ip_address_mask);
             if (SAI_STATUS_SUCCESS != status) {
-                goto out_deinit;
+                goto out;
             }
             memcpy(&value->aclfield.data.ip6, &ip_address_data.addr.ip6,
                    sizeof(value->ipaddr.addr.ip6));
@@ -5098,11 +5030,10 @@ static sai_status_t mlnx_acl_entry_ip_get(_In_ const sai_object_key_t   *key,
         break;
     }
 
-out_deinit:
-    mlnx_acl_flex_rule_free(&flex_acl_rule);
-
 out:
     acl_table_unlock(acl_table_index);
+
+    mlnx_acl_flex_rule_free(&flex_acl_rule);
 
     SX_LOG_EXIT();
     return status;
@@ -5114,18 +5045,21 @@ static sai_status_t mlnx_acl_entry_ports_get(_In_ const sai_object_key_t   *key,
                                              _Inout_ vendor_cache_t        *cache,
                                              void                          *arg)
 {
-    sai_status_t             status;
-    sx_port_log_id_t         sx_port_list[MAX_PORTS] = {0};
-    sx_flex_acl_flex_rule_t *out_port_rules          = NULL;
-    uint32_t                 acl_table_index, acl_entry_index, rule_count;
-    uint32_t                 out_port_key_desc_index;
-    uint32_t                 port_count = 0, ii;
-    bool                     is_field_suppoted, is_in_port_present = false, is_out_port_present = false;
+    sai_status_t                status = SAI_STATUS_SUCCESS;
+    sai_attr_id_t               attr_id;
+    sai_object_id_t             port_object_list[MAX_PORTS];
+    uint64_t                    ports_mask;
+    const sx_mc_container_id_t *mc_container;
+    uint32_t                    acl_table_index, acl_entry_index;
+    uint32_t                    port_count = MAX_PORTS;
+    bool                        is_field_suppoted;
 
     SX_LOG_ENTER();
 
-    assert((SAI_ACL_ENTRY_ATTR_FIELD_IN_PORTS == (int64_t)arg) ||
-           (SAI_ACL_ENTRY_ATTR_FIELD_OUT_PORTS == (int64_t)arg));
+    attr_id = (long)arg;
+
+    assert((SAI_ACL_ENTRY_ATTR_FIELD_IN_PORTS == attr_id) ||
+           (SAI_ACL_ENTRY_ATTR_FIELD_OUT_PORTS == attr_id));
 
     status = extract_acl_table_index_and_entry_index(key->key.object_id, &acl_table_index, &acl_entry_index);
     if (SAI_STATUS_SUCCESS != status) {
@@ -5133,81 +5067,61 @@ static sai_status_t mlnx_acl_entry_ports_get(_In_ const sai_object_key_t   *key,
         return status;
     }
 
+    sai_db_read_lock();
     acl_table_read_lock(acl_table_index);
 
-    status = mlnx_acl_table_is_entry_field_supported(acl_table_index, (int64_t)arg, &is_field_suppoted);
+    status = mlnx_acl_table_is_entry_field_supported(acl_table_index, attr_id, &is_field_suppoted);
     if (SAI_ERR(status)) {
         goto out;
     }
 
     if (false == is_field_suppoted) {
-        SX_LOG_ERR("ACL Entry attribute (%ld) is not supported for this entry [%lx]\n",
-                   (int64_t)arg,
+        SX_LOG_ERR("ACL Entry attribute (%d) is not supported for this entry [%lx]\n",
+                   attr_id,
                    key->key.object_id);
         status = SAI_STATUS_INVALID_ATTRIBUTE_0 + attr_index;
         goto out;
     }
 
-    if (SAI_ACL_ENTRY_ATTR_FIELD_OUT_PORTS == (int64_t)arg) {
-        status = fetch_flex_acl_rule_params_to_set(acl_table_index, acl_entry_index,
-                                                   &out_port_rules, NULL, NULL, &rule_count);
-        if (SAI_STATUS_SUCCESS != status) {
+    switch (attr_id) {
+    case SAI_ACL_ENTRY_ATTR_FIELD_IN_PORTS:
+        mc_container = &acl_db_entry(acl_entry_index).sx_mc_container_rx;
+        ports_mask   = acl_db_entry(acl_entry_index).res_refs.src_ports_mask;
+        break;
+
+    case SAI_ACL_ENTRY_ATTR_FIELD_OUT_PORTS:
+        mc_container = &acl_db_entry(acl_entry_index).sx_mc_container_tx;
+        ports_mask   = acl_db_entry(acl_entry_index).res_refs.dst_ports_mask;
+        break;
+
+    default:
+        SX_LOG_ERR("Unexpeceted attr_id (%d)\n", attr_id);
+        status = SAI_STATUS_FAILURE;
+        goto out;
+    }
+
+    if (SX_MC_CONTAINER_ID_CHECK_RANGE(*mc_container)) {
+        if (0 == ports_mask) {
+            SX_LOG_ERR("Empty port mask while mc_container (%d) is not\n", *mc_container);
+            status = SAI_STATUS_FAILURE;
             goto out;
         }
 
-        mlnx_acl_flex_rule_key_find(&out_port_rules[0], FLEX_ACL_KEY_DST_PORT, &out_port_key_desc_index,
-                                    &is_out_port_present);
-
-        if (false == is_out_port_present) {
-            assert(rule_count == 1);
-            port_count = 0;
-        } else {
-            port_count = rule_count;
-            for (ii = 0; ii < port_count; ii++) {
-                sx_port_list[ii] = out_port_rules[ii].key_desc_list_p[out_port_key_desc_index].key.dst_port;
-            }
-        }
-    } else { /* IN_PORTS */
-        is_in_port_present = (ACL_INVALID_DB_INDEX != acl_db_entry(acl_entry_index).rx_list_index);
-        if (false == is_in_port_present) {
-            port_count = 0;
-        } else {
-            status = mlnx_acl_fetch_sx_port_list(acl_db_entry(acl_entry_index).rx_list_index,
-                                                 sx_port_list, &port_count);
-            if (SAI_STATUS_SUCCESS != status) {
-                goto out;
-            }
-        }
+        mlnx_acl_port_mask_to_sai_list(ports_mask, port_object_list, &port_count);
+    } else {
+        port_count = 0;
     }
 
     value->aclfield.enable = (port_count > 0);
 
-    if (value->aclfield.data.objlist.count < port_count) {
-        if (0 == value->aclfield.data.objlist.count) {
-            status = MLNX_SAI_STATUS_BUFFER_OVERFLOW_EMPTY_LIST;
-        } else {
-            status = SAI_STATUS_BUFFER_OVERFLOW;
-        }
-        SX_LOG((0 == value->aclfield.data.objlist.count) ? SX_LOG_NOTICE : SX_LOG_ERROR,
-               " Re-allocate list size as list size is not large enough \n");
-        value->aclfield.data.objlist.count = port_count;
+    status = mlnx_fill_objlist(port_object_list, port_count, &value->aclfield.data.objlist);
+    if (SAI_ERR(status)) {
         goto out;
-    } else if (value->aclfield.data.objlist.count > port_count) {
-        value->aclfield.data.objlist.count = port_count;
-    }
-
-    for (ii = 0; ii < port_count; ii++) {
-        status = mlnx_create_object(SAI_OBJECT_TYPE_PORT, sx_port_list[ii], NULL,
-                                    &value->aclfield.data.objlist.list[ii]);
-        if (SAI_STATUS_SUCCESS != status) {
-            goto out;
-        }
     }
 
 out:
     acl_table_unlock(acl_table_index);
-
-    mlnx_acl_flex_rule_list_free(out_port_rules, rule_count);
+    sai_db_unlock();
 
     SX_LOG_EXIT();
     return status;
@@ -5220,7 +5134,8 @@ static sai_status_t mlnx_acl_entry_port_get(_In_ const sai_object_key_t   *key,
                                             void                          *arg)
 {
     sai_status_t            status;
-    sx_flex_acl_flex_rule_t flex_acl_rule;
+    sai_attr_id_t           attr_id;
+    sx_flex_acl_flex_rule_t flex_acl_rule = MLNX_ACL_SX_FLEX_RULE_EMPTY;
     sx_acl_key_t            key_id = 0;
     uint32_t                key_desc_index;
     uint32_t                acl_table_index, acl_entry_index;
@@ -5228,13 +5143,29 @@ static sai_status_t mlnx_acl_entry_port_get(_In_ const sai_object_key_t   *key,
 
     SX_LOG_ENTER();
 
-    assert((SAI_ACL_ENTRY_ATTR_FIELD_IN_PORT == (int64_t)arg) ||
-           (SAI_ACL_ENTRY_ATTR_FIELD_OUT_PORT == (int64_t)arg));
+    attr_id = (long)arg;
+
+    assert((SAI_ACL_ENTRY_ATTR_FIELD_IN_PORT == attr_id) ||
+           (SAI_ACL_ENTRY_ATTR_FIELD_OUT_PORT == attr_id));
 
     status = extract_acl_table_index_and_entry_index(key->key.object_id, &acl_table_index, &acl_entry_index);
     if (SAI_STATUS_SUCCESS != status) {
         SX_LOG_EXIT();
         return status;
+    }
+
+    switch (attr_id) {
+    case SAI_ACL_ENTRY_ATTR_FIELD_IN_PORT:
+        key_id = FLEX_ACL_KEY_SRC_PORT;
+        break;
+
+    case SAI_ACL_ENTRY_ATTR_FIELD_OUT_PORT:
+        key_id = FLEX_ACL_KEY_DST_PORT;
+        break;
+
+    default:
+        SX_LOG_ERR("Unexpeceted attr_id (%d)\n", attr_id);
+        return SAI_STATUS_FAILURE;
     }
 
     acl_table_read_lock(acl_table_index);
@@ -5245,71 +5176,37 @@ static sai_status_t mlnx_acl_entry_port_get(_In_ const sai_object_key_t   *key,
     }
 
     if (false == is_field_suppoted) {
-        SX_LOG_ERR("ACL Entry attribute (%ld) is not supported for this entry [%lx]\n",
-                   (int64_t)arg,
+        SX_LOG_ERR("ACL Entry attribute (%d) is not supported for this entry [%lx]\n",
+                   attr_id,
                    key->key.object_id);
         status = SAI_STATUS_INVALID_ATTRIBUTE_0 + attr_index;
         goto out;
     }
 
-    status = fetch_flex_acl_rule_params_to_get(acl_table_index, acl_entry_index, &flex_acl_rule);
-    if (SAI_STATUS_SUCCESS != status) {
+    status = mlnx_acl_entry_sx_acl_rule_get(acl_table_index, acl_entry_index, &flex_acl_rule);
+    if (SAI_ERR(status)) {
         goto out;
-    }
-
-    switch ((int64_t)arg) {
-    case SAI_ACL_ENTRY_ATTR_FIELD_IN_PORT:
-        key_id = FLEX_ACL_KEY_SRC_PORT;
-        break;
-
-    case SAI_ACL_ENTRY_ATTR_FIELD_OUT_PORT:
-        key_id = FLEX_ACL_KEY_DST_PORT;
-        break;
     }
 
     mlnx_acl_flex_rule_key_find(&flex_acl_rule, key_id, &key_desc_index, &is_key_type_present);
 
     value->aclfield.enable = true;
 
-    switch ((int64_t)arg) {
-    case SAI_ACL_ENTRY_ATTR_FIELD_IN_PORT:
-        if (is_key_type_present) {
-            status = mlnx_create_object(SAI_OBJECT_TYPE_PORT,
-                                        flex_acl_rule.key_desc_list_p[key_desc_index].key.
-                                        src_port, NULL, &value->aclfield.data.oid);
-            if (SAI_STATUS_SUCCESS != status) {
-                goto out_deinit;
-            }
-        } else {
-            value->aclfield.enable = false;
+    if (is_key_type_present) {
+        status = mlnx_create_object(SAI_OBJECT_TYPE_PORT,
+                                    flex_acl_rule.key_desc_list_p[key_desc_index].key.
+                                    src_port, NULL, &value->aclfield.data.oid);
+        if (SAI_ERR(status)) {
+            goto out;
         }
-        break;
-
-    case SAI_ACL_ENTRY_ATTR_FIELD_OUT_PORT:
-        if (acl_db_entry(acl_entry_index).rule_number > 1) {
-            SX_LOG_ERR(" Entry contains more then one OUT_PORT\n");
-            status = SAI_STATUS_INVALID_ATTRIBUTE_0 + attr_index;
-        } else {
-            if (is_key_type_present) {
-                status = mlnx_create_object(SAI_OBJECT_TYPE_PORT,
-                                            flex_acl_rule.key_desc_list_p[key_desc_index].key.dst_port,
-                                            NULL,
-                                            &value->aclfield.data.oid);
-                if (SAI_STATUS_SUCCESS != status) {
-                    goto out_deinit;
-                }
-            } else {
-                value->aclfield.enable = false;
-            }
-        }
-        break;
+    } else {
+        value->aclfield.enable = false;
     }
-
-out_deinit:
-    mlnx_acl_flex_rule_free(&flex_acl_rule);
 
 out:
     acl_table_unlock(acl_table_index);
+
+    mlnx_acl_flex_rule_free(&flex_acl_rule);
 
     SX_LOG_EXIT();
     return status;
@@ -5322,7 +5219,7 @@ static sai_status_t mlnx_acl_entry_vlan_tags_get(_In_ const sai_object_key_t   *
                                                  void                          *arg)
 {
     sai_status_t            status;
-    sx_flex_acl_flex_rule_t flex_acl_rule;
+    sx_flex_acl_flex_rule_t flex_acl_rule = MLNX_ACL_SX_FLEX_RULE_EMPTY;
     uint32_t                key_desc_index;
     uint32_t                acl_table_index, acl_entry_index;
     uint32_t                vlan_tagged_key_desc_index = 0, inner_vlan_valid_key_desc_index = 0;
@@ -5353,7 +5250,7 @@ static sai_status_t mlnx_acl_entry_vlan_tags_get(_In_ const sai_object_key_t   *
         goto out;
     }
 
-    status = fetch_flex_acl_rule_params_to_get(acl_table_index, acl_entry_index, &flex_acl_rule);
+    status = mlnx_acl_entry_sx_acl_rule_get(acl_table_index, acl_entry_index, &flex_acl_rule);
     if (SAI_STATUS_SUCCESS != status) {
         goto out;
     }
@@ -5414,12 +5311,12 @@ static sai_status_t mlnx_acl_entry_ip_ident_get(_In_ const sai_object_key_t   *k
                                                 void                          *arg)
 {
     sai_status_t            status = SAI_STATUS_SUCCESS;
-    sx_flex_acl_flex_rule_t flex_acl_rule;
+    sx_flex_acl_flex_rule_t flex_acl_rule = MLNX_ACL_SX_FLEX_RULE_EMPTY;
     const sx_acl_key_t     *sx_ip_ident_keys;
     uint32_t                first_sx_key_index, second_sx_key_index;
     uint32_t                acl_table_index, acl_entry_index;
     uint16_t                data, mask;
-    bool                    is_first_sx_key_present, is_second_sx_key_present, rule_inited = false;
+    bool                    is_first_sx_key_present, is_second_sx_key_present;
 
     SX_LOG_ENTER();
 
@@ -5439,12 +5336,10 @@ static sai_status_t mlnx_acl_entry_ip_ident_get(_In_ const sai_object_key_t   *k
         goto out;
     }
 
-    status = fetch_flex_acl_rule_params_to_get(acl_table_index, acl_entry_index, &flex_acl_rule);
+    status = mlnx_acl_entry_sx_acl_rule_get(acl_table_index, acl_entry_index, &flex_acl_rule);
     if (SAI_ERR(status)) {
         goto out;
     }
-
-    rule_inited = true;
 
     sx_ip_ident_keys = sai_acl_db->acl_settings_tbl->ip_ident_keys.sx_keys;
 
@@ -5475,9 +5370,7 @@ static sai_status_t mlnx_acl_entry_ip_ident_get(_In_ const sai_object_key_t   *k
 out:
     acl_table_unlock(acl_table_index);
 
-    if (rule_inited) {
-        mlnx_acl_flex_rule_free(&flex_acl_rule);
-    }
+    mlnx_acl_flex_rule_free(&flex_acl_rule);
 
     SX_LOG_EXIT();
     return status;
@@ -5488,12 +5381,9 @@ static sai_status_t mlnx_acl_entry_ip_ident_set(_In_ const sai_object_key_t     
                                                 void                             *arg)
 {
     sai_status_t               status;
-    sx_acl_region_id_t         region_id = 0;
     const sx_acl_key_t        *sx_ip_ident_keys;
-    sx_flex_acl_flex_rule_t   *flex_acl_rule_p    = NULL;
-    sx_flex_acl_rule_offset_t *offsets_list_p     = NULL;
-    uint32_t                   flex_acl_rules_num = 0;
-    uint32_t                   acl_table_index, acl_entry_index, ii;
+    sx_flex_acl_flex_rule_t    flex_acl_rule = MLNX_ACL_SX_FLEX_RULE_EMPTY;
+    uint32_t                   acl_table_index, acl_entry_index;
     uint32_t                   first_sx_key_index, second_sx_key_index;
     bool                       is_first_sx_key_present, is_second_sx_key_present;
 
@@ -5515,8 +5405,7 @@ static sai_status_t mlnx_acl_entry_ip_ident_set(_In_ const sai_object_key_t     
         goto out;
     }
 
-    status = fetch_flex_acl_rule_params_to_set(acl_table_index, acl_entry_index, &flex_acl_rule_p,
-                                               &offsets_list_p, &region_id, &flex_acl_rules_num);
+    status = mlnx_acl_entry_sx_acl_rule_get(acl_table_index, acl_entry_index, &flex_acl_rule);
     if (SAI_STATUS_SUCCESS != status) {
         SX_LOG_ERR("Failed to fetch ACL rule params \n");
         goto out;
@@ -5524,8 +5413,8 @@ static sai_status_t mlnx_acl_entry_ip_ident_set(_In_ const sai_object_key_t     
 
     sx_ip_ident_keys = sai_acl_db->acl_settings_tbl->ip_ident_keys.sx_keys;
 
-    mlnx_acl_flex_rule_key_find(flex_acl_rule_p, sx_ip_ident_keys[0], &first_sx_key_index, &is_first_sx_key_present);
-    mlnx_acl_flex_rule_key_find(flex_acl_rule_p, sx_ip_ident_keys[1], &second_sx_key_index, &is_second_sx_key_present);
+    mlnx_acl_flex_rule_key_find(&flex_acl_rule, sx_ip_ident_keys[0], &first_sx_key_index, &is_first_sx_key_present);
+    mlnx_acl_flex_rule_key_find(&flex_acl_rule, sx_ip_ident_keys[1], &second_sx_key_index, &is_second_sx_key_present);
 
     if (is_first_sx_key_present != is_second_sx_key_present) {
         SX_LOG_ERR("Faield to get IP_IDENTIFICATION failed - sx rule is broken\n");
@@ -5533,21 +5422,18 @@ static sai_status_t mlnx_acl_entry_ip_ident_set(_In_ const sai_object_key_t     
         goto out;
     }
 
-    for (ii = 0; ii < flex_acl_rules_num; ii++) {
-        if (is_first_sx_key_present) {
-            mlnx_acl_flex_rule_key_del_by_key_id(&flex_acl_rule_p[ii], sx_ip_ident_keys[0]);
-            mlnx_acl_flex_rule_key_del_by_key_id(&flex_acl_rule_p[ii], sx_ip_ident_keys[1]);
-        }
-
-        if (value->aclfield.enable) {
-            mlnx_acl_ip_ident_key_desc_create(value->aclfield.data.u16, value->aclfield.mask.u16,
-                                              flex_acl_rule_p[ii].key_desc_list_p, flex_acl_rule_p[ii].key_desc_count);
-            flex_acl_rule_p[ii].key_desc_count += ACL_IP_IDENT_FIELD_BYTE_COUNT;
-        }
+    if (is_first_sx_key_present) {
+        mlnx_acl_flex_rule_key_del_by_key_id(&flex_acl_rule, sx_ip_ident_keys[0]);
+        mlnx_acl_flex_rule_key_del_by_key_id(&flex_acl_rule, sx_ip_ident_keys[1]);
     }
 
-    status = mlnx_acl_flex_rules_set_helper(SX_ACCESS_CMD_SET, 0, region_id, offsets_list_p,
-                                            flex_acl_rule_p, flex_acl_rules_num);
+    if (value->aclfield.enable) {
+        mlnx_acl_ip_ident_key_desc_create(value->aclfield.data.u16, value->aclfield.mask.u16,
+                                          flex_acl_rule.key_desc_list_p, flex_acl_rule.key_desc_count);
+        flex_acl_rule.key_desc_count += ACL_IP_IDENT_FIELD_BYTE_COUNT;
+    }
+
+    status = mlnx_acl_entry_sx_acl_rule_set(acl_table_index, acl_entry_index, &flex_acl_rule);
     if (SAI_ERR(status)) {
         goto out;
     }
@@ -5555,8 +5441,7 @@ static sai_status_t mlnx_acl_entry_ip_ident_set(_In_ const sai_object_key_t     
 out:
     acl_table_unlock(acl_table_index);
 
-    mlnx_acl_flex_rule_list_free(flex_acl_rule_p, flex_acl_rules_num);
-    free(offsets_list_p);
+    mlnx_acl_flex_rule_free(&flex_acl_rule);
 
     SX_LOG_EXIT();
     return status;
@@ -5569,7 +5454,7 @@ static sai_status_t mlnx_acl_entry_packet_action_get(_In_ const sai_object_key_t
                                                      void                          *arg)
 {
     sai_status_t                 status;
-    sx_flex_acl_flex_rule_t      flex_acl_rule;
+    sx_flex_acl_flex_rule_t      flex_acl_rule = MLNX_ACL_SX_FLEX_RULE_EMPTY;
     uint32_t                     flex_action_index;
     uint32_t                     forward_action_index = 0, trap_action_index = 0;
     uint32_t                     action_type;
@@ -5589,7 +5474,7 @@ static sai_status_t mlnx_acl_entry_packet_action_get(_In_ const sai_object_key_t
 
     acl_table_read_lock(acl_table_index);
 
-    status = fetch_flex_acl_rule_params_to_get(acl_table_index, acl_entry_index, &flex_acl_rule);
+    status = mlnx_acl_entry_sx_acl_rule_get(acl_table_index, acl_entry_index, &flex_acl_rule);
     if (SAI_STATUS_SUCCESS != status) {
         goto out;
     }
@@ -5609,6 +5494,7 @@ static sai_status_t mlnx_acl_entry_packet_action_get(_In_ const sai_object_key_t
 
     if (!is_trap_action_present && !is_forward_action_present) {
         SX_LOG_ERR(" Invalid Attribute to Get : PACKET ACTION \n");
+        status = SAI_STATUS_INVALID_ATTRIBUTE_0 + attr_index;
         goto out;
     } else if (is_forward_action_present && !is_trap_action_present) {
         forward_action = flex_acl_rule.action_list_p[forward_action_index].fields.action_forward.action;
@@ -5661,11 +5547,11 @@ static sai_status_t mlnx_acl_entry_range_list_get(_In_ const sai_object_key_t   
                                                   void                          *arg)
 {
     sai_status_t                    status = SAI_STATUS_SUCCESS;
-    sx_flex_acl_flex_rule_t         rule;
+    sx_flex_acl_flex_rule_t         rule = MLNX_ACL_SX_FLEX_RULE_EMPTY;
     const sx_flex_acl_port_range_t *sx_port_range;
     uint32_t                        acl_table_index, acl_entry_index;
     uint32_t                        key_desc_index, range_count, ii;
-    bool                            is_range_key_present = false, rule_inited = false;
+    bool                            is_range_key_present = false;
 
     SX_LOG_ENTER();
 
@@ -5679,11 +5565,10 @@ static sai_status_t mlnx_acl_entry_range_list_get(_In_ const sai_object_key_t   
 
     acl_table_read_lock(acl_table_index);
 
-    status = fetch_flex_acl_rule_params_to_get(acl_table_index, acl_entry_index, &rule);
+    status = mlnx_acl_entry_sx_acl_rule_get(acl_table_index, acl_entry_index, &rule);
     if (SAI_STATUS_SUCCESS != status) {
         goto out;
     }
-    rule_inited = true;
 
     mlnx_acl_flex_rule_key_find(&rule, FLEX_ACL_KEY_L4_PORT_RANGE, &key_desc_index, &is_range_key_present);
 
@@ -5718,10 +5603,7 @@ static sai_status_t mlnx_acl_entry_range_list_get(_In_ const sai_object_key_t   
 
 out:
     acl_table_unlock(acl_table_index);
-
-    if (rule_inited) {
-        mlnx_acl_flex_rule_free(&rule);
-    }
+    mlnx_acl_flex_rule_free(&rule);
 
     SX_LOG_EXIT();
     return status;
@@ -5734,7 +5616,7 @@ static sai_status_t mlnx_acl_entry_action_get(_In_ const sai_object_key_t   *key
                                               void                          *arg)
 {
     sai_status_t            status;
-    sx_flex_acl_flex_rule_t flex_acl_rule;
+    sx_flex_acl_flex_rule_t flex_acl_rule = MLNX_ACL_SX_FLEX_RULE_EMPTY;
     uint32_t                acl_table_index, acl_entry_index, counter_id;
     bool                    is_action_type_present = false;
     sx_acl_pbs_id_t         action_id              = 0, action_index;
@@ -5759,7 +5641,7 @@ static sai_status_t mlnx_acl_entry_action_get(_In_ const sai_object_key_t   *key
 
     acl_table_read_lock(acl_table_index);
 
-    status = fetch_flex_acl_rule_params_to_get(acl_table_index, acl_entry_index, &flex_acl_rule);
+    status = mlnx_acl_entry_sx_acl_rule_get(acl_table_index, acl_entry_index, &flex_acl_rule);
     if (SAI_STATUS_SUCCESS != status) {
         goto out;
     }
@@ -5794,9 +5676,9 @@ static sai_status_t mlnx_acl_entry_action_get(_In_ const sai_object_key_t   *key
         break;
 
     default:
-        SX_LOG_ERR(" Invalid Attrib to get \n");
+        SX_LOG_ERR(" Invalid Attrib to get - %lu\n", (int64_t)arg);
         status = SAI_STATUS_FAILURE;
-        goto out_deinit;
+        goto out;
     }
 
     mlnx_acl_flex_rule_action_find(&flex_acl_rule, action_id, &action_index, &is_action_type_present);
@@ -5808,10 +5690,10 @@ static sai_status_t mlnx_acl_entry_action_get(_In_ const sai_object_key_t   *key
             status     = mlnx_create_object(SAI_OBJECT_TYPE_ACL_COUNTER, counter_id, NULL,
                                             &value->aclaction.parameter.oid);
             if (SAI_STATUS_SUCCESS != status) {
-                goto out_deinit;
+                goto out;
             }
         } else {
-            SX_LOG_ERR(" Invalid Attribute to Get : Action Counter \n");
+            status = SAI_STATUS_INVALID_ATTRIBUTE_0 + attr_index;
         }
         break;
 
@@ -5833,7 +5715,7 @@ static sai_status_t mlnx_acl_entry_action_get(_In_ const sai_object_key_t   *key
 
             value->aclaction.parameter.oid = sai_policer;
         } else {
-            SX_LOG_ERR(" Invalid Attribute to Get : Action Set Policer \n");
+            status = SAI_STATUS_INVALID_ATTRIBUTE_0 + attr_index;
         }
         break;
 
@@ -5841,7 +5723,7 @@ static sai_status_t mlnx_acl_entry_action_get(_In_ const sai_object_key_t   *key
         if (is_action_type_present) {
             value->aclaction.parameter.u8 = flex_acl_rule.action_list_p[action_index].fields.action_set_prio.prio_val;
         } else {
-            SX_LOG_ERR(" Invalid Attribute to Get : Action Set TC \n");
+            status = SAI_STATUS_INVALID_ATTRIBUTE_0 + attr_index;
         }
         break;
 
@@ -5849,7 +5731,7 @@ static sai_status_t mlnx_acl_entry_action_get(_In_ const sai_object_key_t   *key
         if (is_action_type_present) {
             value->aclaction.parameter.u8 = flex_acl_rule.action_list_p[action_index].fields.action_set_dscp.dscp_val;
         } else {
-            SX_LOG_ERR(" Invalid Attribute to Get : Action Set DSCP \n");
+            status = SAI_STATUS_INVALID_ATTRIBUTE_0 + attr_index;
         }
         break;
 
@@ -5858,7 +5740,7 @@ static sai_status_t mlnx_acl_entry_action_get(_In_ const sai_object_key_t   *key
             value->aclaction.parameter.s32 =
                 flex_acl_rule.action_list_p[action_index].fields.action_set_color.color_val;
         } else {
-            SX_LOG_ERR(" Invalid Attribute to Get : Action Set Color \n");
+            status = SAI_STATUS_INVALID_ATTRIBUTE_0 + attr_index;
         }
         break;
 
@@ -5866,7 +5748,7 @@ static sai_status_t mlnx_acl_entry_action_get(_In_ const sai_object_key_t   *key
         if (is_action_type_present) {
             value->aclaction.parameter.u8 = flex_acl_rule.action_list_p[action_index].fields.action_set_ecn.ecn_val;
         } else {
-            SX_LOG_ERR(" Invalid Attribute to Get : Action Set Ecn \n");
+            status = SAI_STATUS_INVALID_ATTRIBUTE_0 + attr_index;
         }
         break;
 
@@ -5875,16 +5757,14 @@ static sai_status_t mlnx_acl_entry_action_get(_In_ const sai_object_key_t   *key
             value->aclaction.parameter.u32 =
                 flex_acl_rule.action_list_p[action_index].fields.action_set_user_token.user_token;
         } else {
-            SX_LOG_ERR(" Invalid Attribute to Get : Set Acl Meta Data \n");
+            status = SAI_STATUS_INVALID_ATTRIBUTE_0 + attr_index;
         }
         break;
     }
 
-out_deinit:
-    mlnx_acl_flex_rule_free(&flex_acl_rule);
-
 out:
     acl_table_unlock(acl_table_index);
+    mlnx_acl_flex_rule_free(&flex_acl_rule);
 
     SX_LOG_EXIT();
     return status;
@@ -5899,6 +5779,7 @@ static sai_status_t mlnx_acl_entry_action_egress_block_port_get(_In_ const sai_o
     sai_status_t         status = SAI_STATUS_SUCCESS;
     sai_object_id_t      port_object_list[MAX_PORTS];
     sx_mc_container_id_t mc_container;
+    uint64_t             ports_mask;
     uint32_t             acl_table_index, acl_entry_index;
     uint32_t             port_count = MAX_PORTS;
 
@@ -5914,30 +5795,25 @@ static sai_status_t mlnx_acl_entry_action_egress_block_port_get(_In_ const sai_o
     acl_table_read_lock(acl_table_index);
 
     mc_container = acl_db_entry(acl_entry_index).sx_mc_container_egress_block;
+    ports_mask   = acl_db_entry(acl_entry_index).res_refs.egress_block_mask;
 
-    status = mlnx_acl_sx_mc_countainer_sai_ports_get(mc_container, port_object_list, &port_count);
-    if (SAI_ERR(status)) {
-        goto out;
+    if (SX_MC_CONTAINER_ID_CHECK_RANGE(mc_container)) {
+        if (0 == ports_mask) {
+            SX_LOG_ERR("Empty port mask while mc_container (%d) is not\n", mc_container);
+            status = SAI_STATUS_FAILURE;
+            goto out;
+        }
+
+        mlnx_acl_port_mask_to_sai_list(ports_mask, port_object_list, &port_count);
+    } else {
+        port_count = 0;
     }
 
     value->aclaction.enable = (port_count > 0);
 
-    if (value->aclaction.parameter.objlist.count < port_count) {
-        if (0 == value->aclaction.parameter.objlist.count) {
-            status = MLNX_SAI_STATUS_BUFFER_OVERFLOW_EMPTY_LIST;
-        } else {
-            status = SAI_STATUS_BUFFER_OVERFLOW;
-        }
-        SX_LOG((0 == value->aclaction.parameter.objlist.count) ? SX_LOG_NOTICE : SX_LOG_ERROR,
-               " Re-allocate list size as list size is not large enough \n");
-        value->aclaction.parameter.objlist.count = port_count;
+    status = mlnx_fill_objlist(port_object_list, port_count, &value->aclaction.parameter.objlist);
+    if (SAI_ERR(status)) {
         goto out;
-    }
-
-    value->aclaction.parameter.objlist.count = port_count;
-
-    if (port_count > 0) {
-        memcpy(value->aclaction.parameter.objlist.list, port_object_list, sizeof(sai_object_id_t) * port_count);
     }
 
 out:
@@ -5955,7 +5831,7 @@ static sai_status_t mlnx_acl_entry_action_redirect_get(_In_ const sai_object_key
                                                        void                          *arg)
 {
     sai_status_t                     status;
-    sx_flex_acl_flex_rule_t          rule;
+    sx_flex_acl_flex_rule_t          rule = MLNX_ACL_SX_FLEX_RULE_EMPTY;
     uint32_t                         acl_table_index, acl_entry_index;
     sx_port_id_t                     object_id_data;
     sx_ecmp_id_t                     sx_ecmp_id;
@@ -5966,7 +5842,7 @@ static sai_status_t mlnx_acl_entry_action_redirect_get(_In_ const sai_object_key
     const acl_entry_redirect_data_t *entry_redirect_data;
     lag_pbs_index_t                  lag_pbs_index;
     uint32_t                         action_index = 0, pbs_ports_number, ii;
-    bool                             is_action_present, rule_inited = false;
+    bool                             is_action_present;
 
     SX_LOG_ENTER();
 
@@ -6005,11 +5881,10 @@ static sai_status_t mlnx_acl_entry_action_redirect_get(_In_ const sai_object_key
         assert(false);
     }
 
-    status = fetch_flex_acl_rule_params_to_get(acl_table_index, acl_entry_index, &rule);
+    status = mlnx_acl_entry_sx_acl_rule_get(acl_table_index, acl_entry_index, &rule);
     if (SAI_STATUS_SUCCESS != status) {
         goto out;
     }
-    rule_inited = true;
 
     is_action_present = false;
     for (ii = 0; ii < rule.action_count; ii++) {
@@ -6097,10 +5972,7 @@ static sai_status_t mlnx_acl_entry_action_redirect_get(_In_ const sai_object_key
 
 out:
     acl_table_unlock(acl_table_index);
-
-    if (rule_inited) {
-        mlnx_acl_flex_rule_free(&rule);
-    }
+    mlnx_acl_flex_rule_free(&rule);
 
     SX_LOG_EXIT();
     return status;
@@ -6113,7 +5985,7 @@ static sai_status_t mlnx_acl_entry_tos_get(_In_ const sai_object_key_t   *key,
                                            void                          *arg)
 {
     sai_status_t            status = SAI_STATUS_SUCCESS;
-    sx_flex_acl_flex_rule_t flex_acl_rule;
+    sx_flex_acl_flex_rule_t flex_acl_rule = MLNX_ACL_SX_FLEX_RULE_EMPTY;
     uint32_t                acl_table_index, acl_entry_index, key_desc_index;
     bool                    is_field_suppoted, is_key_type_present = false, is_key_id_two_present = false;
 
@@ -6142,11 +6014,12 @@ static sai_status_t mlnx_acl_entry_tos_get(_In_ const sai_object_key_t   *key,
         goto out;
     }
 
-    status = fetch_flex_acl_rule_params_to_get(acl_table_index, acl_entry_index, &flex_acl_rule);
+    status = mlnx_acl_entry_sx_acl_rule_get(acl_table_index, acl_entry_index, &flex_acl_rule);
     if (SAI_STATUS_SUCCESS != status) {
         goto out;
     }
 
+    value->aclfield.enable  = false;
     value->aclfield.data.u8 = 0;      /* Initialise the value */
     mlnx_acl_flex_rule_key_find(&flex_acl_rule, FLEX_ACL_KEY_ECN, &key_desc_index, &is_key_type_present);
 
@@ -6164,8 +6037,8 @@ static sai_status_t mlnx_acl_entry_tos_get(_In_ const sai_object_key_t   *key,
                                   (flex_acl_rule.key_desc_list_p[key_desc_index].mask.dscp << 0x02);
     }
 
-    if (!is_key_type_present && !is_key_id_two_present) {
-        value->aclfield.enable = false;
+    if (is_key_type_present || is_key_id_two_present) {
+        value->aclfield.enable = true;
     }
 
     mlnx_acl_flex_rule_free(&flex_acl_rule);
@@ -6184,7 +6057,7 @@ static sai_status_t mlnx_acl_entry_action_vlan_get(_In_ const sai_object_key_t  
                                                    void                          *arg)
 {
     sai_status_t                   status = SAI_STATUS_SUCCESS;
-    sx_flex_acl_flex_rule_t        flex_acl_rule;
+    sx_flex_acl_flex_rule_t        flex_acl_rule = MLNX_ACL_SX_FLEX_RULE_EMPTY;
     sx_flex_acl_flex_action_type_t action_type = 0;
     uint32_t                       acl_table_index, acl_entry_index, flex_action_index;
     bool                           is_action_type_present = false;
@@ -6196,8 +6069,6 @@ static sai_status_t mlnx_acl_entry_action_vlan_get(_In_ const sai_object_key_t  
            (SAI_ACL_ENTRY_ATTR_ACTION_SET_OUTER_VLAN_ID == (int64_t)arg) ||
            (SAI_ACL_ENTRY_ATTR_ACTION_SET_OUTER_VLAN_PRI == (int64_t)arg));
 
-    memset(&flex_acl_rule, 0, sizeof(sx_flex_acl_flex_rule_t));
-
     status = extract_acl_table_index_and_entry_index(key->key.object_id, &acl_table_index, &acl_entry_index);
     if (SAI_STATUS_SUCCESS != status) {
         SX_LOG_EXIT();
@@ -6206,7 +6077,7 @@ static sai_status_t mlnx_acl_entry_action_vlan_get(_In_ const sai_object_key_t  
 
     acl_table_read_lock(acl_table_index);
 
-    status = fetch_flex_acl_rule_params_to_get(acl_table_index, acl_entry_index, &flex_acl_rule);
+    status = mlnx_acl_entry_sx_acl_rule_get(acl_table_index, acl_entry_index, &flex_acl_rule);
     if (SAI_STATUS_SUCCESS != status) {
         goto out;
     }
@@ -6289,7 +6160,7 @@ static sai_status_t mlnx_acl_entry_action_mirror_get(_In_ const sai_object_key_t
                                                      void                          *arg)
 {
     sai_status_t            status;
-    sx_flex_acl_flex_rule_t flex_acl_rule;
+    sx_flex_acl_flex_rule_t flex_acl_rule = MLNX_ACL_SX_FLEX_RULE_EMPTY;
     sai_acl_stage_t         acl_stage = SAI_ACL_STAGE_INGRESS;
     uint32_t                acl_entry_index, acl_table_index, flex_action_index;
     bool                    is_action_type_present = false;
@@ -6307,7 +6178,7 @@ static sai_status_t mlnx_acl_entry_action_mirror_get(_In_ const sai_object_key_t
 
     acl_table_read_lock(acl_table_index);
 
-    status = fetch_flex_acl_rule_params_to_get(acl_table_index, acl_entry_index, &flex_acl_rule);
+    status = mlnx_acl_entry_sx_acl_rule_get(acl_table_index, acl_entry_index, &flex_acl_rule);
     if (SAI_STATUS_SUCCESS != status) {
         goto out;
     }
@@ -6366,7 +6237,7 @@ static sai_status_t mlnx_acl_entry_action_mac_get(_In_ const sai_object_key_t   
                                                   void                          *arg)
 {
     sai_status_t                   status;
-    sx_flex_acl_flex_rule_t        flex_acl_rule;
+    sx_flex_acl_flex_rule_t        flex_acl_rule = MLNX_ACL_SX_FLEX_RULE_EMPTY;
     sx_flex_acl_flex_action_type_t action_type = 0;
     uint32_t                       acl_table_index, acl_entry_index, flex_action_index;
     bool                           is_action_type_present = false;
@@ -6384,7 +6255,7 @@ static sai_status_t mlnx_acl_entry_action_mac_get(_In_ const sai_object_key_t   
 
     acl_table_read_lock(acl_table_index);
 
-    status = fetch_flex_acl_rule_params_to_get(acl_table_index, acl_entry_index, &flex_acl_rule);
+    status = mlnx_acl_entry_sx_acl_rule_get(acl_table_index, acl_entry_index, &flex_acl_rule);
     if (SAI_STATUS_SUCCESS != status) {
         goto out;
     }
@@ -6435,80 +6306,6 @@ out:
     return status;
 }
 
-static sai_status_t fetch_flex_acl_rule_params_to_set(_In_ uint32_t                      acl_table_index,
-                                                      _In_ uint32_t                      acl_entry_index,
-                                                      _Inout_ sx_flex_acl_flex_rule_t  **rules,
-                                                      _Inout_opt_ sx_acl_rule_offset_t **offsets,
-                                                      _Inout_opt_ sx_acl_region_id_t    *region_id,
-                                                      _Inout_ uint32_t                  *rule_count)
-{
-    sai_status_t             status;
-    sx_status_t              sx_status;
-    sx_acl_key_type_t        enrty_key_type;
-    sx_acl_region_id_t       entry_region_id, entry_rule_count;
-    sx_acl_rule_offset_t    *entry_offsets = NULL;
-    sx_flex_acl_flex_rule_t *entry_rules   = NULL;
-
-    assert((rules != NULL) && (rule_count != NULL));
-
-    enrty_key_type   = acl_db_table(acl_table_index).key_type;
-    entry_region_id  = acl_db_table(acl_table_index).region_id;
-    entry_rule_count = acl_db_entry(acl_entry_index).rule_number;
-
-    status = mlnx_acl_flex_rule_list_init(&entry_rules, entry_rule_count, enrty_key_type);
-    if (SAI_STATUS_SUCCESS != status) {
-        goto out;
-    }
-
-    entry_offsets = (sx_acl_rule_offset_t*)malloc(sizeof(sx_acl_rule_offset_t) * entry_rule_count);
-    if (NULL == entry_offsets) {
-        SX_LOG_ERR("ERROR: unable to allocate memory for sx_acl_rule\n");
-        status = SAI_STATUS_NO_MEMORY;
-        goto out;
-    }
-    memset(entry_offsets, 0, sizeof(sx_acl_rule_offset_t) * entry_rule_count);
-
-    status = acl_get_entries_offsets(acl_entry_index, entry_rule_count, entry_offsets);
-    if (SAI_STATUS_SUCCESS != status) {
-        goto out;
-    }
-
-    sx_status = sx_api_acl_flex_rules_get(gh_sdk, entry_region_id, entry_offsets, entry_rules,
-                                          &entry_rule_count);
-    if (SX_STATUS_SUCCESS != sx_status) {
-        SX_LOG_ERR("Failed to get rules from region - %s\n", SX_STATUS_MSG(sx_status));
-        status = sdk_to_sai(sx_status);
-        goto out;
-    }
-
-    *rules      = entry_rules;
-    *rule_count = entry_rule_count;
-
-    if (region_id) {
-        *region_id = entry_region_id;
-    }
-
-    if (offsets) {
-        *offsets = entry_offsets;
-    } else {
-        free(entry_offsets);
-        entry_offsets = NULL;
-    }
-
-out:
-    if (SAI_STATUS_SUCCESS != status) {
-        free(entry_offsets);
-        mlnx_acl_flex_rule_list_free(entry_rules, entry_rule_count);
-        *rules = NULL;
-        if (offsets) {
-            *offsets = NULL;
-        }
-    }
-
-    SX_LOG_EXIT();
-    return status;
-}
-
 static sai_status_t mlnx_acl_entry_priority_set(_In_ const sai_object_key_t      *key,
                                                 _In_ const sai_attribute_value_t *value,
                                                 void                             *arg)
@@ -6517,53 +6314,60 @@ static sai_status_t mlnx_acl_entry_priority_set(_In_ const sai_object_key_t     
     sai_status_t         status;
     sx_acl_region_id_t   region_id = 0;
     sx_acl_rule_offset_t new_rule_offset, old_rule_offset;
-    uint32_t             entry_rules_num;
+    uint32_t             old_entry_prioriy, new_entry_priority;
+    uint32_t             table_size, table_entries_count;
     uint32_t             acl_entry_index, acl_table_index;
-    acl_entry_db_t      *entry_ptr;
 
     SX_LOG_ENTER();
 
-    if ((value->u32 < ACL_MIN_ENTRY_PRIO) || (value->u32 > ACL_MAX_ENTRY_PRIO)) {
-        SX_LOG_ERR(" priority %u out of range (%u,%u)\n", value->u32, ACL_MIN_ENTRY_PRIO, ACL_MAX_ENTRY_PRIO);
+    new_entry_priority = value->u32;
+
+    if ((new_entry_priority < ACL_MIN_ENTRY_PRIO) || (new_entry_priority > ACL_MAX_ENTRY_PRIO)) {
+        SX_LOG_ERR(" priority %u out of range (%u,%u)\n", new_entry_priority, ACL_MIN_ENTRY_PRIO, ACL_MAX_ENTRY_PRIO);
         SX_LOG_EXIT();
         return SAI_STATUS_INVALID_PARAMETER;
     }
 
     status = extract_acl_table_index_and_entry_index(key->key.object_id, &acl_table_index, &acl_entry_index);
-    if (SAI_STATUS_SUCCESS != status) {
+    if (SAI_ERR(status)) {
         SX_LOG_EXIT();
         return status;
     }
 
     acl_table_write_lock(acl_table_index);
 
-    entry_rules_num = acl_db_entry(acl_entry_index).rule_number;
-    region_id       = acl_db_table(acl_table_index).region_id;
+    region_id           = acl_db_table(acl_table_index).region_id;
+    table_size          = acl_db_table(acl_table_index).table_size;
+    table_entries_count = acl_db_table(acl_table_index).created_entry_count;
+    old_entry_prioriy   = acl_db_entry(acl_entry_index).priority;
+    old_rule_offset     = acl_db_entry(acl_entry_index).offset;
 
-    ACL_FOREACH_ENTRY(entry_ptr, acl_entry_index, entry_rules_num) {
-        old_rule_offset = entry_ptr->offset;
-
-        status = release_psort_offset(acl_table_index, entry_ptr->priority, old_rule_offset);
-        if (SAI_STATUS_SUCCESS != status) {
-            goto out;
-        }
-
-        status = get_new_psort_offset(acl_table_index, acl_entry_index, value->u32, &new_rule_offset, 1);
-        if (SAI_STATUS_SUCCESS != status) {
-            goto out;
-        }
-
-        entry_ptr->offset = new_rule_offset;
-
-        sx_status = sx_api_acl_rule_block_move_set(gh_sdk, region_id, old_rule_offset, 1, new_rule_offset);
-        if (SX_STATUS_SUCCESS != sx_status) {
-            SX_LOG_ERR("Failed to move rule block\n");
-            status = sdk_to_sai(sx_status);
-            goto out;
-        }
-
-        entry_ptr->priority = value->u32;
+    if (table_size < table_entries_count + 1) {
+        SX_LOG_ERR("Imposible to change a priority for SAI ACL Entry since SAI ACL Table [%d] is full\n",
+                   acl_table_index);
+        status = SAI_STATUS_FAILURE;
+        goto out;
     }
+
+    status = get_new_psort_offset(acl_table_index, acl_entry_index, new_entry_priority, &new_rule_offset);
+    if (SAI_ERR(status)) {
+        goto out;
+    }
+
+    sx_status = sx_api_acl_rule_block_move_set(gh_sdk, region_id, old_rule_offset, 1, new_rule_offset);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to move rule block\n");
+        status = sdk_to_sai(sx_status);
+        goto out;
+    }
+
+    status = release_psort_offset(acl_table_index, old_entry_prioriy, old_rule_offset);
+    if (SAI_ERR(status)) {
+        goto out;
+    }
+
+    acl_db_entry(acl_entry_index).offset   = new_rule_offset;
+    acl_db_entry(acl_entry_index).priority = new_entry_priority;
 
 out:
     acl_table_unlock(acl_table_index);
@@ -6577,17 +6381,15 @@ static sai_status_t mlnx_acl_entry_field_set(_In_ const sai_object_key_t      *k
                                              void                             *arg)
 {
     sai_status_t               status;
-    sx_acl_region_id_t         region_id = 0;
+    sai_acl_entry_attr_t       attr_id;
     const sx_acl_key_t        *ip_type_keys;
     sx_acl_key_t               field_keys[SX_FLEX_ACL_MAX_FIELDS_IN_KEY] = {FLEX_ACL_KEY_INVALID};
     sx_flex_acl_key_desc_t     rule_extra_key_desc[SX_FLEX_ACL_MAX_FIELDS_IN_KEY];
-    sx_flex_acl_flex_rule_t   *flex_acl_rule_p = NULL;
-    sx_flex_acl_rule_offset_t *offsets_list_p  = NULL;
-    sai_acl_entry_attr_t       attr_id;
+    sx_flex_acl_flex_rule_t    flex_acl_rule = MLNX_ACL_SX_FLEX_RULE_EMPTY;
     mlnx_acl_field_type_t      field_type;
     uint32_t                   acl_table_index, acl_entry_index;
-    uint32_t                   rule_count, field_key_count, field_extra_key_count, ii;
-    uint32_t                   rule_index, field_key_index, found_key_index, ip_type_key_count;
+    uint32_t                   field_key_count, field_extra_key_count, ii;
+    uint32_t                   field_key_index, found_key_index, ip_type_key_count;
     bool                       is_key_present;
 
     SX_LOG_ENTER();
@@ -6642,10 +6444,8 @@ static sai_status_t mlnx_acl_entry_field_set(_In_ const sai_object_key_t      *k
 
     acl_table_write_lock(acl_table_index);
 
-    status = fetch_flex_acl_rule_params_to_set(acl_table_index, acl_entry_index, &flex_acl_rule_p,
-                                               &offsets_list_p, &region_id, &rule_count);
+    status = mlnx_acl_entry_sx_acl_rule_get(acl_table_index, acl_entry_index, &flex_acl_rule);
     if (SAI_ERR(status)) {
-        SX_LOG_ERR("Failed to fetch ACL rule params\n");
         goto out;
     }
 
@@ -6658,7 +6458,7 @@ static sai_status_t mlnx_acl_entry_field_set(_In_ const sai_object_key_t      *k
         ip_type_key_count = mlnx_acl_multi_key_fields_info[SAI_ACL_ENTRY_ATTR_FIELD_ACL_IP_TYPE].key_count;
 
         for (ii = 0; ii < ip_type_key_count; ii++) {
-            mlnx_acl_flex_rule_key_find(flex_acl_rule_p, ip_type_keys[ii], &found_key_index, &is_key_present);
+            mlnx_acl_flex_rule_key_find(&flex_acl_rule, ip_type_keys[ii], &found_key_index, &is_key_present);
 
             if (is_key_present) {
                 SX_LOG_ERR("Failed to update IP Type - entry already contains a field with specific IP Type\n");
@@ -6668,42 +6468,37 @@ static sai_status_t mlnx_acl_entry_field_set(_In_ const sai_object_key_t      *k
         }
     }
 
-    for (rule_index = 0; rule_index < rule_count; rule_index++) {
-        /* Remove all the sx keys related to this sai field */
-        for (field_key_index = 0; field_key_index < field_key_count; field_key_index++) {
-            mlnx_acl_flex_rule_key_find(&flex_acl_rule_p[rule_index],
-                                        field_keys[field_key_index],
-                                        &found_key_index,
-                                        &is_key_present);
+    /* Remove all the sx keys related to this sai field */
+    for (field_key_index = 0; field_key_index < field_key_count; field_key_index++) {
+        mlnx_acl_flex_rule_key_find(&flex_acl_rule,
+                                    field_keys[field_key_index],
+                                    &found_key_index,
+                                    &is_key_present);
 
-            if (is_key_present) {
-                mlnx_acl_flex_rule_key_del(&flex_acl_rule_p[rule_index], found_key_index);
-            }
-        }
-
-        status = mlnx_acl_entry_field_to_sx(attr_id, value, 0, acl_table_index,
-                                            flex_acl_rule_p[rule_index].key_desc_list_p,
-                                            &flex_acl_rule_p[rule_index].key_desc_count, &field_type);
-        if (SAI_ERR(status)) {
-            goto out;
-        }
-
-        field_extra_key_count = 0;
-        status                = mlnx_acl_field_types_to_sx(field_type, rule_extra_key_desc, &field_extra_key_count);
-        if (SAI_ERR(status)) {
-            goto out;
-        }
-
-        status = mlnx_acl_extra_key_descs_merge(&flex_acl_rule_p[rule_index],
-                                                rule_extra_key_desc,
-                                                field_extra_key_count);
-        if (SAI_ERR(status)) {
-            goto out;
+        if (is_key_present) {
+            mlnx_acl_flex_rule_key_del(&flex_acl_rule, found_key_index);
         }
     }
 
-    status = mlnx_acl_flex_rules_set_helper(SX_ACCESS_CMD_SET, 0, region_id, offsets_list_p,
-                                            flex_acl_rule_p, rule_count);
+    status = mlnx_acl_entry_field_to_sx(attr_id, value, 0, acl_table_index,
+                                        flex_acl_rule.key_desc_list_p,
+                                        &flex_acl_rule.key_desc_count, &field_type);
+    if (SAI_ERR(status)) {
+        goto out;
+    }
+
+    field_extra_key_count = 0;
+    status                = mlnx_acl_field_types_to_sx(field_type, rule_extra_key_desc, &field_extra_key_count);
+    if (SAI_ERR(status)) {
+        goto out;
+    }
+
+    status = mlnx_acl_extra_key_descs_merge(&flex_acl_rule, rule_extra_key_desc, field_extra_key_count);
+    if (SAI_ERR(status)) {
+        goto out;
+    }
+
+    status = mlnx_acl_entry_sx_acl_rule_set(acl_table_index, acl_entry_index, &flex_acl_rule);
     if (SAI_ERR(status)) {
         goto out;
     }
@@ -6711,32 +6506,34 @@ static sai_status_t mlnx_acl_entry_field_set(_In_ const sai_object_key_t      *k
 out:
     acl_table_unlock(acl_table_index);
 
-    mlnx_acl_flex_rule_list_free(flex_acl_rule_p, rule_count);
-    free(offsets_list_p);
+    mlnx_acl_flex_rule_free(&flex_acl_rule);
 
     SX_LOG_EXIT();
     return status;
 }
 
-static sai_status_t mlnx_acl_entry_out_ports_set(_In_ const sai_object_key_t      *key,
-                                                 _In_ const sai_attribute_value_t *value,
-                                                 void                             *arg)
+static sai_status_t mlnx_acl_entry_ports_set(_In_ const sai_object_key_t      *key,
+                                             _In_ const sai_attribute_value_t *value,
+                                             void                             *arg)
 {
-    sai_status_t            status;
-    sx_flex_acl_flex_rule_t first_rule, *rules = NULL;
-    sx_acl_key_type_t       key_type;
-    sx_port_log_id_t        sx_port_list[MAX_PORTS] = {0};
-    const sai_object_id_t  *port_obj_list           = NULL;
-    uint32_t                acl_table_index, acl_entry_index;
-    uint32_t                rule_count = 0, inited_rule_count = 0, port_count;
-    uint32_t                port_key_index;
-    bool                    is_key_type_present = false, first_rule_inited = false;
-    uint32_t                ii;
+    sai_status_t                status;
+    sai_attr_id_t               attr_id;
+    acl_port_stat_type_t        port_stat_type;
+    sx_acl_key_t                key_id;
+    sx_flex_acl_flex_rule_t     flex_acl_rule = MLNX_ACL_SX_FLEX_RULE_EMPTY;
+    sx_mc_container_id_t       *mc_container_ptr = NULL;
+    sx_mc_container_id_t        mc_container_to_delete = SX_MC_CONTAINER_ID_INVALID;
+    const sai_object_list_t    *new_ports_obj_list = NULL;
+    uint32_t                    acl_table_index, acl_entry_index;
+    uint32_t                    key_desc_index, new_key_desc_index;
+    bool                        is_key_type_present = false, update_sx_rule = false;
 
     SX_LOG_ENTER();
 
-    assert((SAI_ACL_ENTRY_ATTR_FIELD_OUT_PORTS == (int64_t)arg) ||
-           (SAI_ACL_ENTRY_ATTR_FIELD_OUT_PORT == (int64_t)arg));
+    attr_id = (long)arg;
+
+    assert((SAI_ACL_ENTRY_ATTR_FIELD_IN_PORTS == attr_id) ||
+           (SAI_ACL_ENTRY_ATTR_FIELD_OUT_PORTS == attr_id));
 
     status = extract_acl_table_index_and_entry_index(key->key.object_id, &acl_table_index, &acl_entry_index);
     if (SAI_STATUS_SUCCESS != status) {
@@ -6747,71 +6544,122 @@ static sai_status_t mlnx_acl_entry_out_ports_set(_In_ const sai_object_key_t    
     sai_db_read_lock();
     acl_table_write_lock(acl_table_index);
 
-    if (acl_db_table(acl_table_index).stage != SAI_ACL_STAGE_EGRESS) {
-        SX_LOG_ERR("Port type(OUT PORT) and stage do not match\n");
+    if ((SAI_ACL_ENTRY_ATTR_FIELD_OUT_PORTS == attr_id) &&
+        (acl_db_table(acl_table_index).stage != SAI_ACL_STAGE_EGRESS)) {
+        SX_LOG_ERR("FIELD_OUT_PORTS in only supported for SAI_ACL_STAGE_EGRESS\n");
         status = SAI_STATUS_NOT_SUPPORTED;
         goto out;
     }
 
-    key_type = acl_db_table(acl_table_index).key_type;
+    switch (attr_id) {
+    case SAI_ACL_ENTRY_ATTR_FIELD_IN_PORTS:
+        mc_container_ptr = &acl_db_entry(acl_entry_index).sx_mc_container_rx;
+        key_id           = FLEX_ACL_KEY_RX_PORT_LIST;
+        port_stat_type   = ACL_PORT_REFS_SRC;
+        break;
 
-    port_count = 0;
-    if (SAI_ACL_ENTRY_ATTR_FIELD_OUT_PORTS == (int64_t)arg) {
-        if (true == value->aclfield.enable) {
-            port_obj_list = value->aclfield.data.objlist.list;
-            port_count    = value->aclfield.data.objlist.count;
-            for (ii = 0; ii < port_count; ii++) {
-                status = mlnx_sai_port_to_sx(value->aclfield.data.objlist.list[ii], &sx_port_list[ii]);
-                if (SAI_STATUS_SUCCESS != status) {
-                    goto out;
-                }
-            }
-        }
-    } else {
-        if (true == value->aclfield.enable) {
-            port_obj_list = &value->aclfield.data.oid;
-            port_count    = 1;
-            status        = mlnx_sai_port_to_sx(value->aclfield.data.oid, &sx_port_list[0]);
-            if (SAI_STATUS_SUCCESS != status) {
-                goto out;
-            }
-        }
-    }
+    case SAI_ACL_ENTRY_ATTR_FIELD_OUT_PORTS:
+        mc_container_ptr = &acl_db_entry(acl_entry_index).sx_mc_container_tx;
+        key_id           = FLEX_ACL_KEY_TX_PORT_LIST;
+        port_stat_type   = ACL_PORT_REFS_DST;
+        break;
 
-    status = fetch_flex_acl_rule_params_to_get(acl_table_index, acl_entry_index, &first_rule);
-    if (SAI_STATUS_SUCCESS != status) {
+    default:
+        SX_LOG_ERR("Unexpeceted attr_id (%d)\n", attr_id);
+        status = SAI_STATUS_FAILURE;
         goto out;
     }
-    first_rule_inited = true;
 
-    mlnx_acl_flex_rule_key_find(&first_rule, FLEX_ACL_KEY_DST_PORT, &port_key_index, &is_key_type_present);
+    new_ports_obj_list = NULL;
 
-    if ((false == is_key_type_present) && (0 != port_count)) {
-        first_rule.key_desc_count++;
-        first_rule.key_desc_list_p[port_key_index].key_id = FLEX_ACL_KEY_DST_PORT;
+    if ((true == value->aclfield.enable) && (value->aclfield.data.objlist.count > 0)) {
+        new_ports_obj_list = &value->aclfield.data.objlist;
     }
 
-    if ((true == is_key_type_present) && (0 == port_count)) {
-        mlnx_acl_flex_rule_key_del(&first_rule, port_key_index);
-    }
-
-    rule_count = MAX(port_count, 1);
-
-    status = mlnx_acl_flex_rule_list_init(&rules, rule_count, key_type);
+    status = mlnx_acl_entry_sx_acl_rule_get(acl_table_index, acl_entry_index, &flex_acl_rule);
     if (SAI_ERR(status)) {
         goto out;
     }
-    inited_rule_count = rule_count;
 
-    mlnx_acl_fill_rule_list(first_rule, rules, rule_count, sx_port_list, port_count, port_key_index);
+    mlnx_acl_flex_rule_key_find(&flex_acl_rule, key_id, &key_desc_index, &is_key_type_present);
 
-    status = mlnx_acl_entry_modify_rules(acl_entry_index, acl_table_index, rules, rule_count);
-    if (SAI_STATUS_SUCCESS != status) {
+    /* Make sure that SAI DB and SX region are syncronized */
+    if (SX_MC_CONTAINER_ID_CHECK_RANGE(*mc_container_ptr) ^ is_key_type_present) {
+        SX_LOG_ERR("Invalid SAI DB state - sx_key and mc_container states are different (key is %s, mc_container - %x)\n",
+                   is_key_type_present ? "present" : "not present", *mc_container_ptr);
+        status = SAI_STATUS_FAILURE;
         goto out;
     }
 
-    status = mlnx_acl_entry_res_ref_update(acl_entry_index, ACL_PORT_REFS_DST, port_obj_list, port_count);
-    if (SAI_STATUS_SUCCESS != status) {
+    if (new_ports_obj_list) {
+        if (is_key_type_present) {
+            status = mlnx_acl_sx_mc_container_update(new_ports_obj_list, mc_container_ptr);
+            if (SAI_ERR(status)) {
+                goto out;
+            }
+        } else {
+            status = mlnx_acl_sx_mc_container_create(new_ports_obj_list, mc_container_ptr);
+            if (SAI_ERR(status)) {
+                goto out;
+            }
+
+            update_sx_rule = true;
+        }
+    } else {
+        if (is_key_type_present) {
+            mlnx_acl_flex_rule_key_del(&flex_acl_rule, key_desc_index);
+            update_sx_rule = true;
+
+            /* Will be deleted after sx rule update */
+            mc_container_to_delete = *mc_container_ptr;
+            *mc_container_ptr      = SX_MC_CONTAINER_ID_INVALID;
+        }
+    }
+
+    if (update_sx_rule) {
+        if (new_ports_obj_list) {
+            new_key_desc_index = flex_acl_rule.key_desc_count;
+
+            switch (attr_id) {
+            case SAI_ACL_ENTRY_ATTR_FIELD_IN_PORTS:
+                flex_acl_rule.key_desc_list_p[new_key_desc_index].key_id            = key_id;
+                flex_acl_rule.key_desc_list_p[new_key_desc_index].key.rx_port_list.match_type
+                        = SX_ACL_PORT_LIST_MATCH_POSITIVE;
+                flex_acl_rule.key_desc_list_p[new_key_desc_index].key.rx_port_list.mc_container_id = *mc_container_ptr;
+                flex_acl_rule.key_desc_list_p[new_key_desc_index].mask.rx_port_list = true;
+                flex_acl_rule.key_desc_count++;
+                break;
+
+            case SAI_ACL_ENTRY_ATTR_FIELD_OUT_PORTS:
+                flex_acl_rule.key_desc_list_p[new_key_desc_index].key_id            = key_id;
+                flex_acl_rule.key_desc_list_p[new_key_desc_index].key.tx_port_list.match_type
+                        = SX_ACL_PORT_LIST_MATCH_POSITIVE;
+                flex_acl_rule.key_desc_list_p[new_key_desc_index].key.tx_port_list.mc_container_id = *mc_container_ptr;
+                flex_acl_rule.key_desc_list_p[new_key_desc_index].mask.tx_port_list = true;
+                flex_acl_rule.key_desc_count++;
+                break;
+
+            default:
+                SX_LOG_ERR("Unexpeceted attr_id (%d)\n", attr_id);
+                status = SAI_STATUS_FAILURE;
+                goto out;
+            }
+        }
+
+        status = mlnx_acl_entry_sx_acl_rule_set(acl_table_index, acl_entry_index, &flex_acl_rule);
+        if (SAI_ERR(status)) {
+            goto out;
+        }
+    }
+
+    status = mlnx_acl_entry_port_obj_list_ref_update(acl_entry_index, port_stat_type, new_ports_obj_list);
+    if (SAI_ERR(status)) {
+        goto out;
+    }
+
+    status = mlnx_acl_sx_mc_container_remove(mc_container_to_delete);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to remove old sx_mc_container (%d)\n", mc_container_to_delete);
         goto out;
     }
 
@@ -6819,180 +6667,122 @@ out:
     acl_table_unlock(acl_table_index);
     sai_db_unlock();
 
-    if (first_rule_inited) {
-        mlnx_acl_flex_rule_free(&first_rule);
-    }
-
-    mlnx_acl_flex_rule_list_free(rules, inited_rule_count);
+    mlnx_acl_flex_rule_free(&flex_acl_rule);
 
     SX_LOG_EXIT();
     return status;
 }
 
-static sai_status_t mlnx_acl_entry_in_ports_set(_In_ const sai_object_key_t      *key,
-                                                _In_ const sai_attribute_value_t *value,
-                                                void                             *arg)
+static sai_status_t mlnx_acl_entry_port_set(_In_ const sai_object_key_t      *key,
+                                            _In_ const sai_attribute_value_t *value,
+                                            void                             *arg)
 {
     sai_status_t               status;
-    sx_acl_region_id_t         region_id;
-    sx_flex_acl_flex_rule_t   *rules        = NULL;
-    sx_flex_acl_rule_offset_t *offsets      = NULL;
-    sx_acl_port_list_id_t      sx_port_list = 0;
-    sx_port_log_id_t           sx_port;
-    const sai_object_id_t     *port_obj_list = NULL;
-    uint32_t                   port_list_index, port_list_index_to_delete = ACL_INVALID_DB_INDEX;
-    uint32_t                   rule_count = 0, ii;
-    uint32_t                   acl_entry_index, acl_table_index, new_port_count = 0;
-    uint8_t                    key_desc_index, src_port_key_index = 0, rx_key_index = 0;
-    bool                       is_src_port_key_present = false, is_rx_key_present = false;
+    sai_attr_id_t              attr_id;
+    sai_object_id_t            new_port_object_id;
+    sx_flex_acl_flex_rule_t    flex_acl_rule = MLNX_ACL_SX_FLEX_RULE_EMPTY;
+    sx_port_log_id_t           sx_port = SX_INVALID_PORT;
+    sx_acl_key_t               key_id;
+    acl_port_stat_type_t       port_stat_type;
+    uint32_t                   acl_entry_index, acl_table_index, key_desc_index, new_key_desc_index;
+    bool                       is_key_type_present = false;
 
     SX_LOG_ENTER();
 
-    assert((SAI_ACL_ENTRY_ATTR_FIELD_IN_PORT == (int64_t)arg) ||
-           (SAI_ACL_ENTRY_ATTR_FIELD_IN_PORTS == (int64_t)arg));
+    attr_id = (long)arg;
+
+    assert((SAI_ACL_ENTRY_ATTR_FIELD_IN_PORT == attr_id) ||
+           (SAI_ACL_ENTRY_ATTR_FIELD_OUT_PORT == attr_id));
 
     status = extract_acl_table_index_and_entry_index(key->key.object_id, &acl_table_index, &acl_entry_index);
-    if (SAI_STATUS_SUCCESS != status) {
+    if (SAI_ERR(status)) {
         SX_LOG_EXIT();
         return status;
+    }
+
+    new_port_object_id = SAI_NULL_OBJECT_ID;
+    if (value->aclfield.enable) {
+        new_port_object_id = value->aclfield.data.oid;
+    }
+
+    switch (attr_id) {
+    case SAI_ACL_ENTRY_ATTR_FIELD_IN_PORT:
+        key_id         = FLEX_ACL_KEY_SRC_PORT;
+        port_stat_type = ACL_PORT_REFS_SRC;
+        break;
+
+    case SAI_ACL_ENTRY_ATTR_FIELD_OUT_PORT:
+        key_id         = FLEX_ACL_KEY_DST_PORT;
+        port_stat_type = ACL_PORT_REFS_DST;
+        break;
+
+    default:
+        SX_LOG_ERR("Unexpeceted attr_id (%d)\n", attr_id);
+        return SAI_STATUS_FAILURE;
     }
 
     sai_db_read_lock();
     acl_table_write_lock(acl_table_index);
 
-    status = fetch_flex_acl_rule_params_to_set(acl_table_index, acl_entry_index, &rules,
-                                               &offsets, &region_id, &rule_count);
-    if (SAI_STATUS_SUCCESS != status) {
-        SX_LOG_ERR("Failed to fetch ACL rule params \n");
+    if ((SAI_ACL_ENTRY_ATTR_FIELD_OUT_PORT == attr_id) &&
+        (acl_db_table(acl_table_index).stage != SAI_ACL_STAGE_EGRESS)) {
+        SX_LOG_ERR("FIELD_OUT_PORT in only supported for SAI_ACL_STAGE_EGRESS\n");
+        status = SAI_STATUS_NOT_SUPPORTED;
         goto out;
     }
 
-    for (key_desc_index = 0; key_desc_index < rules[0].key_desc_count; key_desc_index++) {
-        if (FLEX_ACL_KEY_SRC_PORT == rules[0].key_desc_list_p[key_desc_index].key_id) {
-            is_src_port_key_present = true;
-            src_port_key_index      = key_desc_index;
-        }
-
-        if (FLEX_ACL_KEY_RX_LIST == rules[0].key_desc_list_p[key_desc_index].key_id) {
-            is_rx_key_present = true;
-            rx_key_index      = key_desc_index;
-        }
-
-        if (is_src_port_key_present && is_rx_key_present) {
-            break;
-        }
-    }
-
-    if ((SAI_ACL_ENTRY_ATTR_FIELD_IN_PORT == (int64_t)arg) &&
-        (true == is_rx_key_present)) {
-        SX_LOG_ERR("Entry already has IN_PORTS attribute\n");
-        status = SAI_STATUS_FAILURE;
+    status = mlnx_acl_entry_sx_acl_rule_get(acl_table_index, acl_entry_index, &flex_acl_rule);
+    if (SAI_ERR(status)) {
         goto out;
     }
 
-    if ((SAI_ACL_ENTRY_ATTR_FIELD_IN_PORTS == (int64_t)arg) &&
-        (true == is_src_port_key_present)) {
-        SX_LOG_ERR("Entry already has IN_PORT attribute\n");
-        status = SAI_STATUS_FAILURE;
-        goto out;
-    }
+    mlnx_acl_flex_rule_key_find(&flex_acl_rule, key_id, &key_desc_index, &is_key_type_present);
 
-    if (SAI_ACL_ENTRY_ATTR_FIELD_IN_PORTS == (int64_t)arg) {
-        if ((false == value->aclfield.enable) || (0 == value->aclfield.data.objlist.count)) {
-            port_list_index_to_delete = acl_db_entry(acl_entry_index).rx_list_index;
-        } else {
-            if (ACL_INVALID_DB_INDEX == acl_db_entry(acl_entry_index).rx_list_index) {
-                status = mlnx_acl_sx_list_set(SX_ACCESS_CMD_CREATE, &value->aclfield.data.objlist,
-                                              &acl_db_entry(acl_entry_index).rx_list_index);
-                if (SAI_STATUS_SUCCESS != status) {
-                    goto out;
-                }
-            } else {
-                status = mlnx_acl_sx_list_set(SX_ACCESS_CMD_SET, &value->aclfield.data.objlist,
-                                              &acl_db_entry(acl_entry_index).rx_list_index);
-                if (SAI_STATUS_SUCCESS != status) {
-                    goto out;
-                }
-            }
-
-            port_list_index = acl_db_entry(acl_entry_index).rx_list_index;
-            sx_port_list    = acl_db_port_list(port_list_index).sx_port_list_id;
-
-            if (false == is_rx_key_present) {
-                rx_key_index = key_desc_index;
-            }
-
-            new_port_count = value->aclfield.data.objlist.count;
-            port_obj_list  = value->aclfield.data.objlist.list;
-        }
-    } else { /* IN_PORT */
-        if (value->aclfield.enable) {
-            status = mlnx_sai_port_to_sx(value->aclfield.data.oid, &sx_port);
-            if (SAI_STATUS_SUCCESS != status) {
-                goto out;
-            }
-
-            if (false == is_src_port_key_present) {
-                src_port_key_index = key_desc_index;
-            }
-
-            new_port_count = 1;
-            port_obj_list  = &value->aclfield.data.oid;
-        }
-    }
-
-    for (ii = 0; ii < rule_count; ii++) {
-        switch ((int64_t)arg) {
-        case SAI_ACL_ENTRY_ATTR_FIELD_IN_PORT:
-            if (value->aclfield.enable) {
-                if (false == is_src_port_key_present) {
-                    rules[ii].key_desc_count++;
-                    rules[ii].key_desc_list_p[src_port_key_index].key_id = FLEX_ACL_KEY_SRC_PORT;
-                }
-
-                rules[ii].key_desc_list_p[src_port_key_index].key.src_port  = sx_port;
-                rules[ii].key_desc_list_p[src_port_key_index].mask.src_port = true;
-            } else {
-                if (is_src_port_key_present) {
-                    mlnx_acl_flex_rule_key_del(&rules[ii], src_port_key_index);
-                }
-            }
-            break;
-
-        case SAI_ACL_ENTRY_ATTR_FIELD_IN_PORTS:
-            if (value->aclfield.enable && (0 != value->aclfield.data.objlist.count)) {
-                if (false == is_rx_key_present) {
-                    rules[ii].key_desc_count++;
-                    rules[ii].key_desc_list_p[rx_key_index].key_id = FLEX_ACL_KEY_RX_LIST;
-                }
-
-                rules[ii].key_desc_list_p[rx_key_index].key.rx_list  = sx_port_list;
-                rules[ii].key_desc_list_p[rx_key_index].mask.rx_list = true;
-            } else {
-                if (is_rx_key_present) {
-                    mlnx_acl_flex_rule_key_del(&rules[ii], rx_key_index);
-                }
-            }
-            break;
-        }
-    }
-
-    status = mlnx_acl_flex_rules_set_helper(SX_ACCESS_CMD_SET, 0, region_id, offsets, rules, rule_count);
-    if (SAI_STATUS_SUCCESS != status) {
-        goto out;
-    }
-
-    if (port_list_index_to_delete != ACL_INVALID_DB_INDEX) {
-        status = mlnx_acl_sx_list_delete(port_list_index_to_delete);
-        if (SAI_STATUS_SUCCESS != status) {
+    if (SAI_NULL_OBJECT_ID != new_port_object_id) {
+        status = mlnx_sai_port_to_sx(new_port_object_id, &sx_port);
+        if (SAI_ERR(status)) {
             goto out;
         }
-
-        acl_db_entry(acl_entry_index).rx_list_index = ACL_INVALID_DB_INDEX;
     }
 
-    status = mlnx_acl_entry_res_ref_update(acl_entry_index, ACL_PORT_REFS_SRC, port_obj_list, new_port_count);
-    if (SAI_STATUS_SUCCESS != status) {
+    if (is_key_type_present) {
+        mlnx_acl_flex_rule_key_del(&flex_acl_rule, key_desc_index);
+    }
+
+    new_key_desc_index = flex_acl_rule.key_desc_count;
+
+    switch (attr_id) {
+    case SAI_ACL_ENTRY_ATTR_FIELD_IN_PORT:
+        if (SX_INVALID_PORT != sx_port) {
+            flex_acl_rule.key_desc_list_p[new_key_desc_index].key_id        = key_id;
+            flex_acl_rule.key_desc_list_p[new_key_desc_index].key.src_port  = sx_port;
+            flex_acl_rule.key_desc_list_p[new_key_desc_index].mask.src_port = true;
+            flex_acl_rule.key_desc_count++;
+        }
+        break;
+
+    case SAI_ACL_ENTRY_ATTR_FIELD_OUT_PORT:
+        if (SX_INVALID_PORT != sx_port) {
+            flex_acl_rule.key_desc_list_p[new_key_desc_index].key_id        = key_id;
+            flex_acl_rule.key_desc_list_p[new_key_desc_index].key.dst_port  = sx_port;
+            flex_acl_rule.key_desc_list_p[new_key_desc_index].mask.dst_port = true;
+            flex_acl_rule.key_desc_count++;
+        }
+        break;
+
+    default:
+        SX_LOG_ERR("Unexpeceted attr_id (%d)\n", attr_id);
+        status = SAI_STATUS_FAILURE;
+        goto out;
+    }
+
+    status = mlnx_acl_entry_sx_acl_rule_set(acl_table_index, acl_entry_index, &flex_acl_rule);
+    if (SAI_ERR(status)) {
+        goto out;
+    }
+
+    status = mlnx_acl_entry_port_ref_update(acl_entry_index, port_stat_type, new_port_object_id);
+    if (SAI_ERR(status)) {
         goto out;
     }
 
@@ -7000,8 +6790,7 @@ out:
     acl_table_unlock(acl_table_index);
     sai_db_unlock();
 
-    mlnx_acl_flex_rule_list_free(rules, rule_count);
-    free(offsets);
+    mlnx_acl_flex_rule_free(&flex_acl_rule);
 
     SX_LOG_EXIT();
     return status;
@@ -7012,15 +6801,11 @@ static sai_status_t mlnx_acl_entry_packet_action_set(_In_ const sai_object_key_t
                                                      void                             *arg)
 {
     sai_status_t                   status;
-    sx_acl_region_id_t             region_id       = 0;
-    sx_flex_acl_flex_rule_t       *flex_acl_rule_p = NULL;
-    sx_flex_acl_rule_offset_t     *offsets_list_p  = NULL;
+    sx_flex_acl_flex_rule_t        flex_acl_rule = MLNX_ACL_SX_FLEX_RULE_EMPTY;
     sai_packet_action_t            packet_action_type;
     sx_flex_acl_flex_action_type_t action_type;
-    uint32_t                       flex_acl_rules_num = 0;
     uint16_t                       trap_id            = SX_TRAP_ID_ACL_MIN;
     uint8_t                        flex_action_index;
-    uint8_t                        ii;
     uint8_t                        trap_action_index      = 0, forward_action_index = 0;
     bool                           is_trap_action_present = false, is_forward_action_present = false;
     uint32_t                       acl_table_index, acl_entry_index;
@@ -7035,15 +6820,13 @@ static sai_status_t mlnx_acl_entry_packet_action_set(_In_ const sai_object_key_t
 
     acl_table_write_lock(acl_table_index);
 
-    status = fetch_flex_acl_rule_params_to_set(acl_table_index, acl_entry_index, &flex_acl_rule_p,
-                                               &offsets_list_p, &region_id, &flex_acl_rules_num);
-    if (SAI_STATUS_SUCCESS != status) {
-        SX_LOG_ERR("Failed to fetch ACL rule params \n");
+    status = mlnx_acl_entry_sx_acl_rule_get(acl_table_index, acl_entry_index, &flex_acl_rule);
+    if (SAI_ERR(status)) {
         goto out;
     }
 
-    for (flex_action_index = 0; flex_action_index < flex_acl_rule_p[0].action_count; flex_action_index++) {
-        action_type = flex_acl_rule_p[0].action_list_p[flex_action_index].type;
+    for (flex_action_index = 0; flex_action_index < flex_acl_rule.action_count; flex_action_index++) {
+        action_type = flex_acl_rule.action_list_p[flex_action_index].type;
         if (action_type == SX_FLEX_ACL_ACTION_TRAP) {
             is_trap_action_present = true;
             trap_action_index      = flex_action_index;
@@ -7061,39 +6844,35 @@ static sai_status_t mlnx_acl_entry_packet_action_set(_In_ const sai_object_key_t
 
     packet_action_type = value->aclaction.parameter.s32;
 
-    for (ii = 0; ii < flex_acl_rules_num; ii++) {
-        if (is_forward_action_present) {
-            mlnx_acl_flex_rule_action_del(&flex_acl_rule_p[ii], forward_action_index);
-        }
-
-        if (is_trap_action_present) {
-            mlnx_acl_flex_rule_action_del(&flex_acl_rule_p[ii], trap_action_index);
-        }
-
-        flex_action_index = flex_acl_rule_p[ii].action_count;
-
-        if (value->aclaction.enable == true) {
-            status = mlnx_acl_packet_actions_handler(packet_action_type, trap_id, &flex_acl_rule_p[ii],
-                                                     &flex_action_index);
-            if (SAI_STATUS_SUCCESS != status) {
-                goto out;
-            }
-
-            flex_acl_rule_p[ii].action_count = flex_action_index;
-        }
+    if (is_forward_action_present) {
+        mlnx_acl_flex_rule_action_del(&flex_acl_rule, forward_action_index);
     }
 
-    status = mlnx_acl_flex_rules_set_helper(SX_ACCESS_CMD_SET, 0, region_id, offsets_list_p,
-                                            flex_acl_rule_p, flex_acl_rules_num);
-    if (SX_STATUS_SUCCESS != status) {
+    if (is_trap_action_present) {
+        mlnx_acl_flex_rule_action_del(&flex_acl_rule, trap_action_index);
+    }
+
+    flex_action_index = flex_acl_rule.action_count;
+
+    if (value->aclaction.enable == true) {
+        status = mlnx_acl_packet_actions_handler(packet_action_type, trap_id, &flex_acl_rule,
+                                                 &flex_action_index);
+        if (SAI_ERR(status)) {
+            goto out;
+        }
+
+        flex_acl_rule.action_count = flex_action_index;
+    }
+
+    status = mlnx_acl_entry_sx_acl_rule_set(acl_table_index, acl_entry_index, &flex_acl_rule);
+    if (SAI_ERR(status)) {
         goto out;
     }
 
 out:
     acl_table_unlock(acl_table_index);
 
-    mlnx_acl_flex_rule_list_free(flex_acl_rule_p, flex_acl_rules_num);
-    free(offsets_list_p);
+    mlnx_acl_flex_rule_free(&flex_acl_rule);
 
     SX_LOG_EXIT();
     return status;
@@ -7104,12 +6883,9 @@ static sai_status_t mlnx_acl_entry_action_set(_In_ const sai_object_key_t      *
                                               void                             *arg)
 {
     sai_status_t                   status;
-    sx_acl_region_id_t             region_id          = 0;
-    uint32_t                       flex_acl_rules_num = 0;
-    uint32_t                       ii, flex_action_index;
+    uint32_t                       flex_action_index;
     uint32_t                       action_set_policer_id_data;
-    sx_flex_acl_flex_rule_t       *flex_acl_rule_p        = NULL;
-    sx_flex_acl_rule_offset_t     *offsets_list_p         = NULL;
+    sx_flex_acl_flex_rule_t        flex_acl_rule = MLNX_ACL_SX_FLEX_RULE_EMPTY;
     bool                           is_action_type_present = false;
     sx_flex_acl_flex_action_type_t action_type            = 0;
     uint32_t                       acl_table_index, acl_entry_index;
@@ -7132,10 +6908,8 @@ static sai_status_t mlnx_acl_entry_action_set(_In_ const sai_object_key_t      *
 
     acl_table_write_lock(acl_table_index);
 
-    status = fetch_flex_acl_rule_params_to_set(acl_table_index, acl_entry_index, &flex_acl_rule_p,
-                                               &offsets_list_p, &region_id, &flex_acl_rules_num);
-    if (SAI_STATUS_SUCCESS != status) {
-        SX_LOG_ERR("Failed to fetch ACL rule params \n");
+    status = mlnx_acl_entry_sx_acl_rule_get(acl_table_index, acl_entry_index, &flex_acl_rule);
+    if (SAI_ERR(status)) {
         goto out;
     }
 
@@ -7174,117 +6948,114 @@ static sai_status_t mlnx_acl_entry_action_set(_In_ const sai_object_key_t      *
         goto out;
     }
 
-    mlnx_acl_flex_rule_action_find(flex_acl_rule_p, action_type, &flex_action_index, &is_action_type_present);
+    mlnx_acl_flex_rule_action_find(&flex_acl_rule, action_type, &flex_action_index, &is_action_type_present);
 
-    for (ii = 0; ii < flex_acl_rules_num; ii++) {
-        switch ((int64_t)arg) {
-        case SAI_ACL_ENTRY_ATTR_ACTION_SET_POLICER:
-            if (value->aclaction.enable == true) {
-                status = mlnx_object_to_type(value->aclaction.parameter.oid, SAI_OBJECT_TYPE_POLICER,
-                                             &action_set_policer_id_data, NULL);
-                if (SAI_STATUS_SUCCESS != status) {
-                    goto out;
-                }
-
-                /* cl_plock_acquire(&g_sai_db_ptr->p_lock); */
-                status = mlnx_sai_get_or_create_regular_sx_policer_for_bind(
-                    value->aclaction.parameter.oid,
-                    false,
-                    &flex_acl_rule_p[ii].action_list_p[flex_action_index].fields.
-                    action_policer.policer_id);
-                if (SAI_STATUS_SUCCESS != status) {
-                    SX_LOG_ERR("Failed to obtain sx_policer_id. input sai policer object_id:0x%" PRIx64 "\n",
-                               value->aclaction.parameter.oid);
-                    /* cl_plock_release(&g_sai_db_ptr->p_lock); */
-                    goto out;
-                }
-                /*cl_plock_release(&g_sai_db_ptr->p_lock); */
-                flex_acl_rule_p[ii].action_list_p[flex_action_index].type = SX_FLEX_ACL_ACTION_POLICER;
+    switch ((int64_t)arg) {
+    case SAI_ACL_ENTRY_ATTR_ACTION_SET_POLICER:
+        if (value->aclaction.enable == true) {
+            status = mlnx_object_to_type(value->aclaction.parameter.oid, SAI_OBJECT_TYPE_POLICER,
+                                         &action_set_policer_id_data, NULL);
+            if (SAI_STATUS_SUCCESS != status) {
+                goto out;
             }
-            break;
 
-        case SAI_ACL_ENTRY_ATTR_ACTION_SET_TC:
-            if (value->aclaction.enable == true) {
-                flex_acl_rule_p[ii].action_list_p[flex_action_index].fields.action_set_prio.prio_val =
-                    value->aclaction.parameter.u8;
-                flex_acl_rule_p[ii].action_list_p[flex_action_index].type =
-                    SX_FLEX_ACL_ACTION_SET_PRIO;
+            /* cl_plock_acquire(&g_sai_db_ptr->p_lock); */
+            status = mlnx_sai_get_or_create_regular_sx_policer_for_bind(
+                        value->aclaction.parameter.oid,
+                        false,
+                        &flex_acl_rule.action_list_p[flex_action_index].fields.
+                        action_policer.policer_id);
+            if (SAI_STATUS_SUCCESS != status) {
+                SX_LOG_ERR("Failed to obtain sx_policer_id. input sai policer object_id:0x%" PRIx64 "\n",
+                           value->aclaction.parameter.oid);
+                /* cl_plock_release(&g_sai_db_ptr->p_lock); */
+                goto out;
             }
-            break;
-
-        case SAI_ACL_ENTRY_ATTR_ACTION_SET_DSCP:
-            if (value->aclaction.enable == true) {
-                flex_acl_rule_p[ii].action_list_p[flex_action_index].fields.action_set_dscp.dscp_val =
-                    value->aclaction.parameter.u8;
-                flex_acl_rule_p[ii].action_list_p[flex_action_index].type =
-                    SX_FLEX_ACL_ACTION_SET_DSCP;
-            }
-            break;
-
-        case SAI_ACL_ENTRY_ATTR_ACTION_SET_ECN:
-            if (value->aclaction.enable == true) {
-                flex_acl_rule_p[ii].action_list_p[flex_action_index].fields.action_set_ecn.ecn_val =
-                    value->aclaction.parameter.u8;
-                flex_acl_rule_p[ii].action_list_p[flex_action_index].type =
-                    SX_FLEX_ACL_ACTION_SET_ECN;
-            }
-            break;
-
-        case SAI_ACL_ACTION_TYPE_SET_PACKET_COLOR:
-            if (value->aclaction.enable == true) {
-                flex_acl_rule_p[ii].action_list_p[flex_action_index].fields.action_set_color.color_val =
-                    value->aclaction.parameter.s32;
-                flex_acl_rule_p[ii].action_list_p[flex_action_index].type =
-                    SX_FLEX_ACL_ACTION_SET_COLOR;
-            }
-            break;
-
-        case SAI_ACL_ENTRY_ATTR_ACTION_DECREMENT_TTL:
-            if (value->aclaction.enable == true) {
-                flex_acl_rule_p[ii].action_list_p[flex_action_index].fields.action_dec_ttl.ttl_val = 1;
-                flex_acl_rule_p[ii].action_list_p[flex_action_index].type                          =
-                    SX_FLEX_ACL_ACTION_DEC_TTL;
-            }
-            break;
-
-        case SAI_ACL_ENTRY_ATTR_ACTION_SET_ACL_META_DATA:
-            if (value->aclaction.enable == true) {
-                if (value->aclaction.parameter.u32 >> 0x10 == 0) {
-                    flex_acl_rule_p[ii].action_list_p[flex_action_index].fields.action_set_user_token.user_token =
-                        (uint16_t)value->aclaction.parameter.u32;
-                    flex_acl_rule_p[ii].action_list_p[flex_action_index].fields.action_set_user_token.mask = 0xFFFF;
-                    flex_acl_rule_p[ii].action_list_p[flex_action_index].type                              =
-                        SX_FLEX_ACL_ACTION_SET_USER_TOKEN;
-                } else {
-                    SX_LOG_ERR(" Acl Meta Data to Set is not in range \n");
-                    status = SAI_STATUS_INVALID_PARAMETER;
-                }
-            }
-            break;
+            /*cl_plock_release(&g_sai_db_ptr->p_lock); */
+            flex_acl_rule.action_list_p[flex_action_index].type = SX_FLEX_ACL_ACTION_POLICER;
         }
+        break;
 
-        if (value->aclaction.enable == false) {
-            if (is_action_type_present) {
-                mlnx_acl_flex_rule_action_del(&flex_acl_rule_p[ii], flex_action_index);
+    case SAI_ACL_ENTRY_ATTR_ACTION_SET_TC:
+        if (value->aclaction.enable == true) {
+            flex_acl_rule.action_list_p[flex_action_index].fields.action_set_prio.prio_val =
+                    value->aclaction.parameter.u8;
+            flex_acl_rule.action_list_p[flex_action_index].type =
+                    SX_FLEX_ACL_ACTION_SET_PRIO;
+        }
+        break;
+
+    case SAI_ACL_ENTRY_ATTR_ACTION_SET_DSCP:
+        if (value->aclaction.enable == true) {
+            flex_acl_rule.action_list_p[flex_action_index].fields.action_set_dscp.dscp_val =
+                    value->aclaction.parameter.u8;
+            flex_acl_rule.action_list_p[flex_action_index].type =
+                    SX_FLEX_ACL_ACTION_SET_DSCP;
+        }
+        break;
+
+    case SAI_ACL_ENTRY_ATTR_ACTION_SET_ECN:
+        if (value->aclaction.enable == true) {
+            flex_acl_rule.action_list_p[flex_action_index].fields.action_set_ecn.ecn_val =
+                    value->aclaction.parameter.u8;
+            flex_acl_rule.action_list_p[flex_action_index].type =
+                    SX_FLEX_ACL_ACTION_SET_ECN;
+        }
+        break;
+
+    case SAI_ACL_ACTION_TYPE_SET_PACKET_COLOR:
+        if (value->aclaction.enable == true) {
+            flex_acl_rule.action_list_p[flex_action_index].fields.action_set_color.color_val =
+                    value->aclaction.parameter.s32;
+            flex_acl_rule.action_list_p[flex_action_index].type =
+                    SX_FLEX_ACL_ACTION_SET_COLOR;
+        }
+        break;
+
+    case SAI_ACL_ENTRY_ATTR_ACTION_DECREMENT_TTL:
+        if (value->aclaction.enable == true) {
+            flex_acl_rule.action_list_p[flex_action_index].fields.action_dec_ttl.ttl_val = 1;
+            flex_acl_rule.action_list_p[flex_action_index].type                          =
+                    SX_FLEX_ACL_ACTION_DEC_TTL;
+        }
+        break;
+
+    case SAI_ACL_ENTRY_ATTR_ACTION_SET_ACL_META_DATA:
+        if (value->aclaction.enable == true) {
+            if (value->aclaction.parameter.u32 >> 0x10 == 0) {
+                flex_acl_rule.action_list_p[flex_action_index].fields.action_set_user_token.user_token =
+                        (uint16_t)value->aclaction.parameter.u32;
+                flex_acl_rule.action_list_p[flex_action_index].fields.action_set_user_token.mask = 0xFFFF;
+                flex_acl_rule.action_list_p[flex_action_index].type                              =
+                        SX_FLEX_ACL_ACTION_SET_USER_TOKEN;
+            } else {
+                SX_LOG_ERR(" Acl Meta Data to Set is not in range \n");
+                status = SAI_STATUS_INVALID_PARAMETER;
+                goto out;
             }
-        } else {
-            if (!is_action_type_present) {
-                flex_acl_rule_p[ii].action_count++;
-            }
+        }
+        break;
+    }
+
+    if (value->aclaction.enable == false) {
+        if (is_action_type_present) {
+            mlnx_acl_flex_rule_action_del(&flex_acl_rule, flex_action_index);
+        }
+    } else {
+        if (!is_action_type_present) {
+            flex_acl_rule.action_count++;
         }
     }
 
-    status = mlnx_acl_flex_rules_set_helper(SX_ACCESS_CMD_SET, 0, region_id, offsets_list_p,
-                                            flex_acl_rule_p, flex_acl_rules_num);
-    if (SX_STATUS_SUCCESS != status) {
+    status = mlnx_acl_entry_sx_acl_rule_set(acl_table_index, acl_entry_index, &flex_acl_rule);
+    if (SAI_ERR(status)) {
         goto out;
     }
 
 out:
     acl_table_unlock(acl_table_index);
 
-    mlnx_acl_flex_rule_list_free(flex_acl_rule_p, flex_acl_rules_num);
-    free(offsets_list_p);
+    mlnx_acl_flex_rule_free(&flex_acl_rule);
 
     SX_LOG_EXIT();
     return status;
@@ -7296,15 +7067,13 @@ static sai_status_t mlnx_acl_entry_action_egress_block_port_set(_In_ const sai_o
 {
     sai_status_t                   status;
     sx_flex_acl_flex_action_type_t sx_action_type;
-    sx_acl_region_id_t             sx_region_id;
-    sx_flex_acl_flex_rule_t       *rules                  = NULL;
-    sx_acl_rule_offset_t          *offsets                = NULL;
+    sx_flex_acl_flex_rule_t        flex_acl_rule          = MLNX_ACL_SX_FLEX_RULE_EMPTY;
     sx_mc_container_id_t          *mc_container_ptr       = NULL;
     sx_mc_container_id_t           mc_container_to_delete = SX_MC_CONTAINER_ID_INVALID;
     const sai_object_list_t       *new_ports_obj_list     = NULL;
-    uint32_t                       acl_table_index, acl_entry_index, ii;
-    uint32_t                       rule_count, sx_action_index, new_sx_action_index;
-    bool                           is_action_present = false, add_new_container = false, remove_container = false;
+    uint32_t                       acl_table_index, acl_entry_index;
+    uint32_t                       sx_action_index, new_sx_action_index;
+    bool                           is_action_present = false, update_sx_rule = false;
 
     SX_LOG_ENTER();
 
@@ -7320,7 +7089,6 @@ static sai_status_t mlnx_acl_entry_action_egress_block_port_set(_In_ const sai_o
     acl_table_write_lock(acl_table_index);
 
     mc_container_ptr = &acl_db_entry(acl_entry_index).sx_mc_container_egress_block;
-    sx_region_id     = acl_db_table(acl_table_index).region_id;
 
     new_ports_obj_list = NULL;
 
@@ -7328,78 +7096,69 @@ static sai_status_t mlnx_acl_entry_action_egress_block_port_set(_In_ const sai_o
         new_ports_obj_list = &value->aclaction.parameter.objlist;
     }
 
-    status = fetch_flex_acl_rule_params_to_set(acl_table_index, acl_entry_index, &rules,
-                                               &offsets, &sx_region_id, &rule_count);
+    status = mlnx_acl_entry_sx_acl_rule_get(acl_table_index, acl_entry_index, &flex_acl_rule);
     if (SAI_ERR(status)) {
-        SX_LOG_ERR("Failed to fetch ACL rule params \n");
         goto out;
     }
 
-    mlnx_acl_flex_rule_action_find(&rules[0], sx_action_type, &sx_action_index, &is_action_present);
+    mlnx_acl_flex_rule_action_find(&flex_acl_rule, sx_action_type, &sx_action_index, &is_action_present);
 
-    /* Make sure that SAI DB and SX region are syncronized */
-    if ((false == SX_MC_CONTAINER_ID_CHECK_RANGE(*mc_container_ptr)) && is_action_present) {
-        SX_LOG_ERR("Invalid SAI DB state - sx_action exists in sx_region but mc_container is invalid\n");
-        status = SAI_STATUS_FAILURE;
-        goto out;
-    }
-
-    if (SX_MC_CONTAINER_ID_CHECK_RANGE(*mc_container_ptr) && (false == is_action_present)) {
-        SX_LOG_ERR("Invalid SAI DB state - mc_container is valid but sx_action is not present in sx_region\n");
+    if (SX_MC_CONTAINER_ID_CHECK_RANGE(*mc_container_ptr) ^ is_action_present) {
+        SX_LOG_ERR("Invalid SAI DB state - sx_key and mc_container states are different (action is %s, mc_container - %x)\n",
+                   is_action_present ? "present" : "not present", *mc_container_ptr);
         status = SAI_STATUS_FAILURE;
         goto out;
     }
 
     if (new_ports_obj_list) {
         if (is_action_present) {
-            status = mlnx_acl_sx_mc_countainer_update(new_ports_obj_list, mc_container_ptr);
+            status = mlnx_acl_sx_mc_container_update(new_ports_obj_list, mc_container_ptr);
             if (SAI_ERR(status)) {
                 goto out;
             }
         } else {
-            status = mlnx_acl_sx_mc_countainer_create(new_ports_obj_list, mc_container_ptr);
+            status = mlnx_acl_sx_mc_container_create(new_ports_obj_list, mc_container_ptr);
             if (SAI_ERR(status)) {
                 goto out;
             }
 
-            add_new_container = true;
+            update_sx_rule = true;
         }
     } else {
         if (is_action_present) {
-            remove_container = true;
+            mlnx_acl_flex_rule_action_del(&flex_acl_rule, sx_action_index);
+            update_sx_rule = true;
 
             /* Will be deleted after sx rule update */
             mc_container_to_delete = *mc_container_ptr;
-
-            *mc_container_ptr = SX_MC_CONTAINER_ID_INVALID;
+            *mc_container_ptr      = SX_MC_CONTAINER_ID_INVALID;
         }
     }
 
-    if (add_new_container || remove_container) {
-        for (ii = 0; ii < rule_count; ii++) {
-            if (add_new_container) {
-                new_sx_action_index                               = rules[ii].action_count;
-                rules[ii].action_list_p[new_sx_action_index].type = sx_action_type;
-                rules[ii].action_list_p[new_sx_action_index].fields.action_port_filter.mc_container_id
-                    = *mc_container_ptr;
-                rules[ii].action_count++;
-            }
+    if (update_sx_rule) {
+        if (new_ports_obj_list) {
+            new_sx_action_index = flex_acl_rule.action_count;
 
-            if (remove_container) {
-                mlnx_acl_flex_rule_action_del(&rules[ii], sx_action_index);
-            }
+            flex_acl_rule.action_list_p[new_sx_action_index].type = sx_action_type;
+            flex_acl_rule.action_list_p[new_sx_action_index].fields.action_port_filter.mc_container_id
+                    = *mc_container_ptr;
+            flex_acl_rule.action_count++;
         }
 
-        status = mlnx_acl_flex_rules_set_helper(SX_ACCESS_CMD_SET, 0, sx_region_id, offsets,
-                                                rules, rule_count);
+        status = mlnx_acl_entry_sx_acl_rule_set(acl_table_index, acl_entry_index, &flex_acl_rule);
         if (SAI_ERR(status)) {
             goto out;
         }
     }
 
-    status = mlnx_acl_sx_mc_countainer_remove(mc_container_to_delete);
+    status = mlnx_acl_sx_mc_container_remove(mc_container_to_delete);
     if (SAI_ERR(status)) {
         SX_LOG_ERR("Failed to remove old sx_mc_container (%d)\n", mc_container_to_delete);
+        goto out;
+    }
+
+    status = mlnx_acl_entry_port_obj_list_ref_update(acl_entry_index, ACL_PORT_REFS_EGR_BLOCK, new_ports_obj_list);
+    if (SAI_ERR(status)) {
         goto out;
     }
 
@@ -7407,8 +7166,7 @@ out:
     acl_table_unlock(acl_table_index);
     sai_db_unlock();
 
-    mlnx_acl_flex_rule_list_free(rules, rule_count);
-    free(offsets);
+    mlnx_acl_flex_rule_free(&flex_acl_rule);
 
     SX_LOG_EXIT();
     return status;
@@ -7419,10 +7177,7 @@ static sai_status_t mlnx_acl_entry_action_redirect_set(_In_ const sai_object_key
                                                        void                             *arg)
 {
     sai_status_t               status;
-    sx_acl_region_id_t         region_id          = 0;
-    uint32_t                   flex_acl_rules_num = 0;
-    sx_flex_acl_flex_rule_t   *rules              = NULL;
-    sx_flex_acl_rule_offset_t *offsets            = NULL;
+    sx_flex_acl_flex_rule_t    flex_acl_rule           = MLNX_ACL_SX_FLEX_RULE_EMPTY;
     sx_acl_pbs_id_t            sx_pbs_id;
     sx_port_log_id_t           sx_ports[MAX_PORTS]     = {0};
     acl_entry_redirect_data_t  new_entry_redirect_data = ACL_INVALID_ENTRY_REDIRECT;
@@ -7494,17 +7249,15 @@ static sai_status_t mlnx_acl_entry_action_redirect_set(_In_ const sai_object_key
         break;
     }
 
-    status = fetch_flex_acl_rule_params_to_set(acl_table_index, acl_entry_index, &rules,
-                                               &offsets, &region_id, &flex_acl_rules_num);
-    if (SAI_STATUS_SUCCESS != status) {
-        SX_LOG_ERR("Failed to fetch ACL rule params \n");
+    status = mlnx_acl_entry_sx_acl_rule_get(acl_table_index, acl_entry_index, &flex_acl_rule);
+    if (SAI_ERR(status)) {
         goto out;
     }
 
     is_action_present = false;
-    for (ii = 0; ii < rules[0].action_count; ii++) {
-        if ((rules[0].action_list_p[ii].type == SX_FLEX_ACL_ACTION_PBS) ||
-            (rules[0].action_list_p[ii].type == SX_FLEX_ACL_ACTION_UC_ROUTE)) {
+    for (ii = 0; ii < flex_acl_rule.action_count; ii++) {
+        if ((flex_acl_rule.action_list_p[ii].type == SX_FLEX_ACL_ACTION_PBS) ||
+            (flex_acl_rule.action_list_p[ii].type == SX_FLEX_ACL_ACTION_UC_ROUTE)) {
             if (is_action_present) {
                 SX_LOG_ERR("Flex action type related to SAI Redirect actions appears twice in flex rule\n");
                 assert(false);
@@ -7516,7 +7269,7 @@ static sai_status_t mlnx_acl_entry_action_redirect_set(_In_ const sai_object_key
         }
     }
 
-    if (ii == rules[0].action_count) {
+    if (ii == flex_acl_rule.action_count) {
         action_index = ii;
     }
 
@@ -7533,8 +7286,8 @@ static sai_status_t mlnx_acl_entry_action_redirect_set(_In_ const sai_object_key
             new_entry_redirect_data.redirect_type = ACL_ENTRY_REDIRECT_TYPE_FLOOD;
             new_entry_redirect_data.pbs_type      = ACL_ENTRY_PBS_TYPE_EMPTY;
 
-            rules[0].action_list_p[action_index].type                     = SX_FLEX_ACL_ACTION_PBS;
-            rules[0].action_list_p[action_index].fields.action_pbs.pbs_id = sx_pbs_id;
+            flex_acl_rule.action_list_p[action_index].type                     = SX_FLEX_ACL_ACTION_PBS;
+            flex_acl_rule.action_list_p[action_index].fields.action_pbs.pbs_id = sx_pbs_id;
         }
         break;
 
@@ -7562,8 +7315,8 @@ static sai_status_t mlnx_acl_entry_action_redirect_set(_In_ const sai_object_key
                 goto out;
             }
 
-            rules[0].action_list_p[action_index].type                     = SX_FLEX_ACL_ACTION_PBS;
-            rules[0].action_list_p[action_index].fields.action_pbs.pbs_id = sx_pbs_id;
+            flex_acl_rule.action_list_p[action_index].type                     = SX_FLEX_ACL_ACTION_PBS;
+            flex_acl_rule.action_list_p[action_index].fields.action_pbs.pbs_id = sx_pbs_id;
 
             new_entry_redirect_data.redirect_type  = ACL_ENTRY_REDIRECT_TYPE_REDIRECT_LIST;
             new_entry_redirect_data.pbs_type       = ACL_ENTRY_PBS_TYPE_PORT;
@@ -7585,7 +7338,7 @@ static sai_status_t mlnx_acl_entry_action_redirect_set(_In_ const sai_object_key
         if (value->aclaction.enable) {
             status = mlnx_sai_acl_redirect_action_create(value->aclaction.parameter.oid, &new_entry_res_refs,
                                                          &new_entry_redirect_data,
-                                                         &rules[0].action_list_p[action_index]);
+                                                         &flex_acl_rule.action_list_p[action_index]);
             if (SAI_STATUS_SUCCESS != status) {
                 goto out;
             }
@@ -7601,22 +7354,18 @@ static sai_status_t mlnx_acl_entry_action_redirect_set(_In_ const sai_object_key
         assert(false);
     }
 
-    for (ii = 0; ii < flex_acl_rules_num; ii++) {
-        if (value->aclaction.enable) {
-            rules[ii].action_list_p[action_index] = rules[0].action_list_p[action_index];
-            if (false == is_action_present) {
-                rules[ii].action_count++;
-            }
-        } else {
-            if (is_action_present) {
-                mlnx_acl_flex_rule_action_del(&rules[ii], action_index);
-            }
+    if (value->aclaction.enable) {
+        if (false == is_action_present) {
+            flex_acl_rule.action_count++;
+        }
+    } else {
+        if (is_action_present) {
+            mlnx_acl_flex_rule_action_del(&flex_acl_rule, action_index);
         }
     }
 
-    status = mlnx_acl_flex_rules_set_helper(SX_ACCESS_CMD_SET, 0, region_id, offsets,
-                                            rules, flex_acl_rules_num);
-    if (SX_STATUS_SUCCESS != status) {
+    status = mlnx_acl_entry_sx_acl_rule_set(acl_table_index, acl_entry_index, &flex_acl_rule);
+    if (SAI_ERR(status)) {
         goto out;
     }
 
@@ -7640,8 +7389,7 @@ out:
         mlnx_acl_entry_redirect_pbs_delete(&new_entry_redirect_data);
     }
 
-    mlnx_acl_flex_rule_list_free(rules, flex_acl_rules_num);
-    free(offsets);
+    mlnx_acl_flex_rule_free(&flex_acl_rule);
 
     SX_LOG_EXIT();
     return status;
@@ -7652,13 +7400,10 @@ static sai_status_t mlnx_acl_entry_action_mirror_set(_In_ const sai_object_key_t
                                                      void                             *arg)
 {
     sai_status_t               status;
-    sx_acl_region_id_t         region_id          = 0;
-    uint32_t                   flex_acl_rules_num = 0, ii;
     sai_acl_stage_t            acl_stage          = SAI_ACL_STAGE_INGRESS;
     uint32_t                   acl_table_index, acl_entry_index, flex_action_index;
     uint32_t                   session_id;
-    sx_flex_acl_rule_offset_t *offsets_list_p         = NULL;
-    sx_flex_acl_flex_rule_t   *flex_acl_rule_p        = NULL;
+    sx_flex_acl_flex_rule_t    flex_acl_rule = MLNX_ACL_SX_FLEX_RULE_EMPTY;
     bool                       is_action_type_present = false;
 
     SX_LOG_ENTER();
@@ -7674,10 +7419,8 @@ static sai_status_t mlnx_acl_entry_action_mirror_set(_In_ const sai_object_key_t
 
     acl_table_write_lock(acl_table_index);
 
-    status = fetch_flex_acl_rule_params_to_set(acl_table_index, acl_entry_index, &flex_acl_rule_p,
-                                               &offsets_list_p, &region_id, &flex_acl_rules_num);
-    if (SAI_STATUS_SUCCESS != status) {
-        SX_LOG_ERR("Failed to fetch ACL rule params \n");
+    status = mlnx_acl_entry_sx_acl_rule_get(acl_table_index, acl_entry_index, &flex_acl_rule);
+    if (SAI_ERR(status)) {
         goto out;
     }
 
@@ -7697,7 +7440,7 @@ static sai_status_t mlnx_acl_entry_action_mirror_set(_In_ const sai_object_key_t
         goto out;
     }
 
-    mlnx_acl_flex_rule_action_find(flex_acl_rule_p,
+    mlnx_acl_flex_rule_action_find(&flex_acl_rule,
                                    SX_FLEX_ACL_ACTION_MIRROR,
                                    &flex_action_index,
                                    &is_action_type_present);
@@ -7708,39 +7451,35 @@ static sai_status_t mlnx_acl_entry_action_mirror_set(_In_ const sai_object_key_t
         goto out;
     }
 
-    for (ii = 0; ii < flex_acl_rules_num; ii++) {
-        if (value->aclaction.enable == true) {
-            if (!is_action_type_present) {
-                flex_acl_rule_p[ii].action_count++;
-            }
+    if (value->aclaction.enable == true) {
+        if (!is_action_type_present) {
+            flex_acl_rule.action_count++;
+        }
 
-            status = mlnx_object_to_type(value->aclaction.parameter.objlist.list[0], SAI_OBJECT_TYPE_MIRROR_SESSION,
-                                         &session_id, NULL);
-            if (SAI_STATUS_SUCCESS != status) {
-                goto out;
-            }
+        status = mlnx_object_to_type(value->aclaction.parameter.objlist.list[0], SAI_OBJECT_TYPE_MIRROR_SESSION,
+                &session_id, NULL);
+        if (SAI_STATUS_SUCCESS != status) {
+            goto out;
+        }
 
-            flex_acl_rule_p[ii].action_list_p[flex_action_index].fields.action_mirror.session_id = session_id;
-            flex_acl_rule_p[ii].action_list_p[flex_action_index].type                            =
+        flex_acl_rule.action_list_p[flex_action_index].fields.action_mirror.session_id = session_id;
+        flex_acl_rule.action_list_p[flex_action_index].type                            =
                 SX_FLEX_ACL_ACTION_MIRROR;
-        } else {
-            if (is_action_type_present) {
-                mlnx_acl_flex_rule_action_del(&flex_acl_rule_p[ii], flex_action_index);
-            }
+    } else {
+        if (is_action_type_present) {
+            mlnx_acl_flex_rule_action_del(&flex_acl_rule, flex_action_index);
         }
     }
 
-    status = mlnx_acl_flex_rules_set_helper(SX_ACCESS_CMD_SET, 0, region_id, offsets_list_p,
-                                            flex_acl_rule_p, flex_acl_rules_num);
-    if (SX_STATUS_SUCCESS != status) {
+    status = mlnx_acl_entry_sx_acl_rule_set(acl_table_index, acl_entry_index, &flex_acl_rule);
+    if (SAI_ERR(status)) {
         goto out;
     }
 
 out:
     acl_table_unlock(acl_table_index);
 
-    mlnx_acl_flex_rule_list_free(flex_acl_rule_p, flex_acl_rules_num);
-    free(offsets_list_p);
+    mlnx_acl_flex_rule_free(&flex_acl_rule);
 
     SX_LOG_EXIT();
     return status;
@@ -7751,10 +7490,7 @@ static sai_status_t mlnx_acl_entry_action_mac_set(_In_ const sai_object_key_t   
                                                   void                             *arg)
 {
     sai_status_t                   status;
-    sx_acl_region_id_t             region_id              = 0;
-    uint32_t                       flex_acl_rules_num     = 0, ii;
-    sx_flex_acl_rule_offset_t     *offsets_list_p         = NULL;
-    sx_flex_acl_flex_rule_t       *flex_acl_rule_p        = NULL;
+    sx_flex_acl_flex_rule_t        flex_acl_rule          = MLNX_ACL_SX_FLEX_RULE_EMPTY;
     sx_flex_acl_flex_action_type_t action_type            = SX_FLEX_ACL_ACTION_SET_SRC_MAC;
     bool                           is_action_type_present = false;
     uint32_t                       acl_table_index, acl_entry_index, flex_action_index;
@@ -7772,10 +7508,8 @@ static sai_status_t mlnx_acl_entry_action_mac_set(_In_ const sai_object_key_t   
 
     acl_table_write_lock(acl_table_index);
 
-    status = fetch_flex_acl_rule_params_to_set(acl_table_index, acl_entry_index, &flex_acl_rule_p,
-                                               &offsets_list_p, &region_id, &flex_acl_rules_num);
-    if (SAI_STATUS_SUCCESS != status) {
-        SX_LOG_ERR("Failed to fetch ACL rule params \n");
+    status = mlnx_acl_entry_sx_acl_rule_get(acl_table_index, acl_entry_index, &flex_acl_rule);
+    if (SAI_ERR(status)) {
         goto out;
     }
 
@@ -7789,51 +7523,47 @@ static sai_status_t mlnx_acl_entry_action_mac_set(_In_ const sai_object_key_t   
         break;
     }
 
-    mlnx_acl_flex_rule_action_find(flex_acl_rule_p, action_type, &flex_action_index, &is_action_type_present);
+    mlnx_acl_flex_rule_action_find(&flex_acl_rule, action_type, &flex_action_index, &is_action_type_present);
 
-    for (ii = 0; ii < flex_acl_rules_num; ii++) {
-        switch ((int64_t)arg) {
-        case SAI_ACL_ENTRY_ATTR_ACTION_SET_SRC_MAC:
-            if (value->aclaction.enable == true) {
-                memcpy(&flex_acl_rule_p[ii].action_list_p[flex_action_index].fields.action_set_src_mac.mac,
-                       value->aclaction.parameter.mac,
-                       sizeof(flex_acl_rule_p[ii].action_list_p[flex_action_index].fields.action_set_src_mac.mac));
-                flex_acl_rule_p[ii].action_list_p[flex_action_index].type = SX_FLEX_ACL_ACTION_SET_SRC_MAC;
-            }
-            break;
-
-        case SAI_ACL_ENTRY_ATTR_ACTION_SET_DST_MAC:
-            if (value->aclaction.enable == true) {
-                memcpy(&flex_acl_rule_p[ii].action_list_p[flex_action_index].fields.action_set_dst_mac.mac,
-                       value->aclaction.parameter.mac,
-                       sizeof(flex_acl_rule_p[ii].action_list_p[flex_action_index].fields.action_set_dst_mac.mac));
-                flex_acl_rule_p[ii].action_list_p[flex_action_index].type = SX_FLEX_ACL_ACTION_SET_DST_MAC;
-            }
-            break;
+    switch ((int64_t)arg) {
+    case SAI_ACL_ENTRY_ATTR_ACTION_SET_SRC_MAC:
+        if (value->aclaction.enable == true) {
+            memcpy(&flex_acl_rule.action_list_p[flex_action_index].fields.action_set_src_mac.mac,
+                   value->aclaction.parameter.mac,
+                   sizeof(flex_acl_rule.action_list_p[flex_action_index].fields.action_set_src_mac.mac));
+            flex_acl_rule.action_list_p[flex_action_index].type = SX_FLEX_ACL_ACTION_SET_SRC_MAC;
         }
+        break;
 
-        if (value->aclaction.enable == false) {
-            if (is_action_type_present) {
-                mlnx_acl_flex_rule_action_del(&flex_acl_rule_p[ii], flex_action_index);
-            }
-        } else {
-            if (!is_action_type_present) {
-                flex_acl_rule_p[ii].action_count++;
-            }
+    case SAI_ACL_ENTRY_ATTR_ACTION_SET_DST_MAC:
+        if (value->aclaction.enable == true) {
+            memcpy(&flex_acl_rule.action_list_p[flex_action_index].fields.action_set_dst_mac.mac,
+                   value->aclaction.parameter.mac,
+                   sizeof(flex_acl_rule.action_list_p[flex_action_index].fields.action_set_dst_mac.mac));
+            flex_acl_rule.action_list_p[flex_action_index].type = SX_FLEX_ACL_ACTION_SET_DST_MAC;
+        }
+        break;
+    }
+
+    if (value->aclaction.enable == false) {
+        if (is_action_type_present) {
+            mlnx_acl_flex_rule_action_del(&flex_acl_rule, flex_action_index);
+        }
+    } else {
+        if (!is_action_type_present) {
+            flex_acl_rule.action_count++;
         }
     }
 
-    status = mlnx_acl_flex_rules_set_helper(SX_ACCESS_CMD_SET, 0, region_id, offsets_list_p,
-                                            flex_acl_rule_p, flex_acl_rules_num);
-    if (SX_STATUS_SUCCESS != status) {
+    status = mlnx_acl_entry_sx_acl_rule_set(acl_table_index, acl_entry_index, &flex_acl_rule);
+    if (SAI_ERR(status)) {
         goto out;
     }
 
 out:
     acl_table_unlock(acl_table_index);
 
-    mlnx_acl_flex_rule_list_free(flex_acl_rule_p, flex_acl_rules_num);
-    free(offsets_list_p);
+    mlnx_acl_flex_rule_free(&flex_acl_rule);
 
     SX_LOG_EXIT();
     return status;
@@ -7844,10 +7574,7 @@ static sai_status_t mlnx_acl_entry_action_vlan_set(_In_ const sai_object_key_t  
                                                    void                             *arg)
 {
     sai_status_t                   status;
-    sx_acl_region_id_t             region_id              = 0;
-    uint32_t                       flex_acl_rules_num     = 0, ii;
-    sx_flex_acl_rule_offset_t     *offsets_list_p         = NULL;
-    sx_flex_acl_flex_rule_t       *flex_acl_rule_p        = NULL;
+    sx_flex_acl_flex_rule_t        flex_acl_rule          = MLNX_ACL_SX_FLEX_RULE_EMPTY;
     sx_flex_acl_flex_action_type_t action_type            = 0;
     bool                           is_action_type_present = false;
     uint32_t                       acl_table_index, acl_entry_index, flex_action_index;
@@ -7867,10 +7594,8 @@ static sai_status_t mlnx_acl_entry_action_vlan_set(_In_ const sai_object_key_t  
 
     acl_table_write_lock(acl_table_index);
 
-    status = fetch_flex_acl_rule_params_to_set(acl_table_index, acl_entry_index, &flex_acl_rule_p,
-                                               &offsets_list_p, &region_id, &flex_acl_rules_num);
-    if (SAI_STATUS_SUCCESS != status) {
-        SX_LOG_ERR("Failed to fetch ACL rule params \n");
+    status = mlnx_acl_entry_sx_acl_rule_get(acl_table_index, acl_entry_index, &flex_acl_rule);
+    if (SAI_ERR(status)) {
         goto out;
     }
 
@@ -7892,69 +7617,65 @@ static sai_status_t mlnx_acl_entry_action_vlan_set(_In_ const sai_object_key_t  
         break;
     }
 
-    mlnx_acl_flex_rule_action_find(flex_acl_rule_p, action_type, &flex_action_index, &is_action_type_present);
+    mlnx_acl_flex_rule_action_find(&flex_acl_rule, action_type, &flex_action_index, &is_action_type_present);
 
-    for (ii = 0; ii < flex_acl_rules_num; ii++) {
-        switch ((int64_t)arg) {
-        case SAI_ACL_ENTRY_ATTR_ACTION_SET_INNER_VLAN_ID:
-            if (value->aclaction.enable == true) {
-                flex_acl_rule_p[ii].action_list_p[flex_action_index].type =
+    switch ((int64_t)arg) {
+    case SAI_ACL_ENTRY_ATTR_ACTION_SET_INNER_VLAN_ID:
+        if (value->aclaction.enable == true) {
+            flex_acl_rule.action_list_p[flex_action_index].type =
                     SX_FLEX_ACL_ACTION_SET_INNER_VLAN_ID;
-                flex_acl_rule_p[ii].action_list_p[flex_action_index].fields.action_set_inner_vlan_id.vlan_id =
+            flex_acl_rule.action_list_p[flex_action_index].fields.action_set_inner_vlan_id.vlan_id =
                     value->aclaction.parameter.u16;
-            }
-            break;
+        }
+        break;
 
-        case SAI_ACL_ENTRY_ATTR_ACTION_SET_INNER_VLAN_PRI:
-            if (value->aclaction.enable == true) {
-                flex_acl_rule_p[ii].action_list_p[flex_action_index].type =
+    case SAI_ACL_ENTRY_ATTR_ACTION_SET_INNER_VLAN_PRI:
+        if (value->aclaction.enable == true) {
+            flex_acl_rule.action_list_p[flex_action_index].type =
                     SX_FLEX_ACL_ACTION_SET_INNER_VLAN_PRI;
-                flex_acl_rule_p[ii].action_list_p[flex_action_index].fields.action_set_inner_vlan_prio.pcp =
+            flex_acl_rule.action_list_p[flex_action_index].fields.action_set_inner_vlan_prio.pcp =
                     value->aclaction.parameter.u8;
-            }
-            break;
+        }
+        break;
 
-        case SAI_ACL_ENTRY_ATTR_ACTION_SET_OUTER_VLAN_ID:
-            if (value->aclaction.enable == true) {
-                flex_acl_rule_p[ii].action_list_p[flex_action_index].type =
+    case SAI_ACL_ENTRY_ATTR_ACTION_SET_OUTER_VLAN_ID:
+        if (value->aclaction.enable == true) {
+            flex_acl_rule.action_list_p[flex_action_index].type =
                     SX_FLEX_ACL_ACTION_SET_OUTER_VLAN_ID;
-                flex_acl_rule_p[ii].action_list_p[flex_action_index].fields.action_set_outer_vlan_id.vlan_id =
+            flex_acl_rule.action_list_p[flex_action_index].fields.action_set_outer_vlan_id.vlan_id =
                     value->aclaction.parameter.u16;
-            }
-            break;
+        }
+        break;
 
-        case SAI_ACL_ENTRY_ATTR_ACTION_SET_OUTER_VLAN_PRI:
-            if (value->aclaction.enable == true) {
-                flex_acl_rule_p[ii].action_list_p[flex_action_index].type =
+    case SAI_ACL_ENTRY_ATTR_ACTION_SET_OUTER_VLAN_PRI:
+        if (value->aclaction.enable == true) {
+            flex_acl_rule.action_list_p[flex_action_index].type =
                     SX_FLEX_ACL_ACTION_SET_OUTER_VLAN_PRI;
-                flex_acl_rule_p[ii].action_list_p[flex_action_index].fields.action_set_outer_vlan_prio.pcp =
+            flex_acl_rule.action_list_p[flex_action_index].fields.action_set_outer_vlan_prio.pcp =
                     value->aclaction.parameter.u8;
-                break;
-            }
             break;
         }
-        if (value->aclaction.enable == false) {
-            if (is_action_type_present) {
-                mlnx_acl_flex_rule_action_del(&flex_acl_rule_p[ii], flex_action_index);
-            }
-        } else {
-            if (!is_action_type_present) {
-                flex_acl_rule_p[ii].action_count++;
-            }
+        break;
+    }
+    if (value->aclaction.enable == false) {
+        if (is_action_type_present) {
+            mlnx_acl_flex_rule_action_del(&flex_acl_rule, flex_action_index);
+        }
+    } else {
+        if (!is_action_type_present) {
+            flex_acl_rule.action_count++;
         }
     }
 
-    status = mlnx_acl_flex_rules_set_helper(SX_ACCESS_CMD_SET, 0, region_id, offsets_list_p,
-                                            flex_acl_rule_p, flex_acl_rules_num);
-    if (SX_STATUS_SUCCESS != status) {
+    status = mlnx_acl_entry_sx_acl_rule_set(acl_table_index, acl_entry_index, &flex_acl_rule);
+    if (SAI_ERR(status)) {
         goto out;
     }
 
 out:
     acl_table_unlock(acl_table_index);
 
-    mlnx_acl_flex_rule_list_free(flex_acl_rule_p, flex_acl_rules_num);
-    free(offsets_list_p);
+    mlnx_acl_flex_rule_free(&flex_acl_rule);
 
     SX_LOG_EXIT();
     return status;
@@ -7965,12 +7686,9 @@ static sai_status_t mlnx_acl_entry_action_counter_set(_In_ const sai_object_key_
                                                       void                             *arg)
 {
     sai_status_t             status;
-    sx_acl_region_id_t       region_id;
-    sx_acl_rule_offset_t    *offsets_list_p  = NULL;
-    sx_flex_acl_flex_rule_t *flex_acl_rule_p = NULL;
-    uint32_t                 flex_acl_rules_num, flex_action_index;
+    sx_flex_acl_flex_rule_t  flex_acl_rule = MLNX_ACL_SX_FLEX_RULE_EMPTY;
+    uint32_t                 flex_action_index;
     uint32_t                 acl_table_index, acl_entry_index;
-    uint32_t                 rule_counter;
     bool                     is_action_type_present = false;
     uint32_t                 counter_index;
 
@@ -7984,21 +7702,17 @@ static sai_status_t mlnx_acl_entry_action_counter_set(_In_ const sai_object_key_
 
     acl_table_write_lock(acl_table_index);
 
-    status = fetch_flex_acl_rule_params_to_set(acl_table_index, acl_entry_index, &flex_acl_rule_p,
-                                               &offsets_list_p, &region_id, &flex_acl_rules_num);
-    if (SAI_STATUS_SUCCESS != status) {
-        SX_LOG_ERR("Failed to fetch ACL rule params \n");
+    status = mlnx_acl_entry_sx_acl_rule_get(acl_table_index, acl_entry_index, &flex_acl_rule);
+    if (SAI_ERR(status)) {
         goto out;
     }
 
-    mlnx_acl_flex_rule_action_find(flex_acl_rule_p, SX_FLEX_ACL_ACTION_COUNTER,
+    mlnx_acl_flex_rule_action_find(&flex_acl_rule, SX_FLEX_ACL_ACTION_COUNTER,
                                    &flex_action_index, &is_action_type_present);
 
     if (value->aclaction.enable == false) {
         if (is_action_type_present) {
-            for (rule_counter = 0; rule_counter < flex_acl_rules_num; rule_counter++) {
-                mlnx_acl_flex_rule_action_del(&flex_acl_rule_p[rule_counter], flex_action_index);
-            }
+            mlnx_acl_flex_rule_action_del(&flex_acl_rule, flex_action_index);
 
             acl_db_entry(acl_entry_index).counter_id = ACL_INVALID_DB_INDEX;
         }
@@ -8008,29 +7722,25 @@ static sai_status_t mlnx_acl_entry_action_counter_set(_In_ const sai_object_key_
             goto out;
         }
 
-        for (rule_counter = 0; rule_counter < flex_acl_rules_num; rule_counter++) {
-            flex_acl_rule_p[rule_counter].action_list_p[flex_action_index].fields.action_counter.counter_id =
+        flex_acl_rule.action_list_p[flex_action_index].fields.action_counter.counter_id =
                 sai_acl_db->acl_counter_db[counter_index].counter_id;
-            flex_acl_rule_p[rule_counter].action_list_p[flex_action_index].type = SX_FLEX_ACL_ACTION_COUNTER;
-            if (!is_action_type_present) {
-                flex_acl_rule_p[rule_counter].action_count++;
-            }
+        flex_acl_rule.action_list_p[flex_action_index].type = SX_FLEX_ACL_ACTION_COUNTER;
+        if (!is_action_type_present) {
+            flex_acl_rule.action_count++;
         }
 
         acl_db_entry(acl_entry_index).counter_id = counter_index;
     }
 
-    status = mlnx_acl_flex_rules_set_helper(SX_ACCESS_CMD_SET, 0, region_id, offsets_list_p,
-                                            flex_acl_rule_p, flex_acl_rules_num);
-    if (SX_STATUS_SUCCESS != status) {
+    status = mlnx_acl_entry_sx_acl_rule_set(acl_table_index, acl_entry_index, &flex_acl_rule);
+    if (SAI_ERR(status)) {
         goto out;
     }
 
 out:
     acl_table_unlock(acl_table_index);
 
-    mlnx_acl_flex_rule_list_free(flex_acl_rule_p, flex_acl_rules_num);
-    free(offsets_list_p);
+    mlnx_acl_flex_rule_free(&flex_acl_rule);
 
     SX_LOG_EXIT();
     return status;
@@ -8257,16 +7967,14 @@ sai_status_t mlnx_create_acl_entry(_Out_ sai_object_id_t     * acl_entry_id,
                                    _In_ const sai_attribute_t *attr_list)
 {
     sai_status_t                 status;
-    sx_status_t                  sx_status;
-    sx_flex_acl_flex_rule_t      flex_acl_rule;
-    sx_flex_acl_flex_rule_t     *flex_acl_rule_p     = NULL;
+    sx_flex_acl_flex_rule_t      flex_acl_rule = MLNX_ACL_SX_FLEX_RULE_EMPTY;
     sx_acl_pbs_id_t              pbs_id              = 0;
     sx_port_log_id_t             port_arr[MAX_PORTS] = {0};
-    sx_acl_region_id_t           region_id;
-    sx_acl_rule_offset_t        *offsets_list_p = NULL;
+    sx_acl_rule_offset_t         sx_acl_rule_offset;
     sx_ip_addr_t                 ipaddr_data, ipaddr_mask;
-    sx_port_log_id_t             sx_port_list[MAX_PORTS]      = {0};
-    sx_flex_acl_key_desc_t      *sx_key_descs                 = NULL;
+    sx_flex_acl_key_desc_t      *sx_key_descs            = NULL;
+    sx_mc_container_id_t         sx_mc_container_rx = SX_MC_CONTAINER_ID_INVALID;
+    sx_mc_container_id_t         sx_mc_container_tx = SX_MC_CONTAINER_ID_INVALID;
     sx_mc_container_id_t         sx_mc_container_egress_block = SX_MC_CONTAINER_ID_INVALID;
     sai_acl_stage_t              stage;
     sai_ip_address_t             ip_address_data, ip_address_mask;
@@ -8285,11 +7993,9 @@ sai_status_t mlnx_create_acl_entry(_Out_ sai_object_id_t     * acl_entry_id,
     const sai_attribute_value_t *action_set_outer_vlan_id, *action_set_outer_vlan_pri;
     const sai_attribute_value_t *action_flood, *action_egress_block;
     const sai_attribute_value_t *admin_state;
-    const sai_object_list_t     *out_port_obj_list = NULL;
     acl_entry_res_refs_t         entry_res_refs;
     acl_entry_redirect_data_t    entry_redirect_data = ACL_INVALID_ENTRY_REDIRECT;
     port_pbs_index_t             pbs_index           = ACL_INVALID_PORT_PBS_INDEX;
-    uint32_t                     out_port_obj_count  = 0;
     uint32_t                     table_id_index, priority_index;
     uint32_t                     in_port_index, admin_state_index, in_ports_index, ip_ident_index;
     uint32_t                     out_port_index, out_ports_index;
@@ -8304,25 +8010,24 @@ sai_status_t mlnx_create_acl_entry(_Out_ sai_object_id_t     * acl_entry_id,
     uint32_t action_set_user_token_index, action_dec_ttl_index;
     uint32_t action_set_inner_vlan_id_index, action_set_inner_vlan_pri_index;
     uint32_t action_set_outer_vlan_id_index, action_set_outer_vlan_pri_index;
-    uint32_t action_flood_index, action_egress_block_index, port_key_index = 0;
+    uint32_t action_flood_index, action_egress_block_index;
     uint32_t in_port_data, out_port_data, action_set_policer_data;
-    uint32_t acl_table_index, acl_entry_index, counter_index =
-        ACL_INVALID_DB_INDEX;
-    uint32_t rule_number       = 0, set_flex_rules_num = 0;
-    uint32_t flex_rules_num    = 0, db_indexes_num = 0, psort_offsets_num = 0;
-    uint32_t key_desc_index    = 0;    /* acl_table_size = 0; */
+    uint32_t acl_table_index, acl_entry_index = ACL_INVALID_DB_INDEX;
+    uint32_t counter_index = ACL_INVALID_DB_INDEX;
+    uint32_t key_desc_index    = 0;
     uint16_t trap_id           = SX_TRAP_ID_ACL_MIN;
     uint8_t  flex_action_index = 0;
     char     list_str[MAX_LIST_VALUE_STR_LEN];
     char     key_str[MAX_KEY_STR_LEN];
     bool     is_redirect_action_present = false;
-    bool     is_in_port_key_present     = false, is_out_port_key_present = false;
+    bool     is_in_port_key_present     = false;
+    bool     is_out_port_key_present    = false;
     uint32_t ii                         = 0;
     uint32_t table_size, created_entry_count, max_flex_keys;
     bool     is_table_dynamic_sized, is_ip_idnet_used;
     uint32_t entry_priority;
-    uint32_t port_list_index  = ACL_INVALID_DB_INDEX;
     uint32_t pbs_ports_number = 0;
+    bool     is_psort_offset_alloced = false, is_sx_rule_set = false;
 
     SX_LOG_ENTER();
 
@@ -8363,12 +8068,10 @@ sai_status_t mlnx_create_acl_entry(_Out_ sai_object_id_t     * acl_entry_id,
     acl_global_lock();
 
     stage                  = acl_db_table(acl_table_index).stage;
-    region_id              = acl_db_table(acl_table_index).region_id;
     table_size             = acl_db_table(acl_table_index).table_size;
     created_entry_count    = acl_db_table(acl_table_index).created_entry_count;
     is_table_dynamic_sized = acl_db_table(acl_table_index).is_dynamic_sized;
     is_ip_idnet_used       = acl_db_table(acl_table_index).is_ip_ident_used;
-
 
     if ((created_entry_count == table_size) &&
         (false == is_table_dynamic_sized)) {
@@ -8377,7 +8080,7 @@ sai_status_t mlnx_create_acl_entry(_Out_ sai_object_id_t     * acl_entry_id,
         goto out;
     }
 
-    sx_key_descs = malloc(sizeof(*sx_key_descs) * ACL_MAX_FLEX_KEY_COUNT);
+    sx_key_descs = calloc(ACL_MAX_FLEX_KEY_COUNT, sizeof(*sx_key_descs));
     if (NULL == sx_key_descs) {
         SX_LOG_ERR(" Unable to allocate memory for sx_key_descs\n");
         status = SAI_STATUS_NO_MEMORY;
@@ -8434,30 +8137,37 @@ sai_status_t mlnx_create_acl_entry(_Out_ sai_object_id_t     * acl_entry_id,
         }
         is_in_port_key_present = true;
 
-        status = mlnx_acl_sx_list_set(SX_ACCESS_CMD_CREATE, &in_ports->aclfield.data.objlist, &port_list_index);
-        if (SAI_STATUS_SUCCESS != status) {
+        if (0 == in_ports->aclfield.data.objlist.count) {
+            SX_LOG_ERR("Empty object list for FIELD_IN_PORTS is not allowed\n");
+            status = SAI_STATUS_INVALID_ATTR_VALUE_0 + in_ports_index;
             goto out;
         }
 
         status = mlnx_acl_sai_port_list_to_mask(in_ports->aclfield.data.objlist.list,
                                                 in_ports->aclfield.data.objlist.count,
                                                 &entry_res_refs.src_ports_mask);
-        if (SAI_STATUS_SUCCESS != status) {
+        if (SAI_ERR(status)) {
             goto out;
         }
 
         entry_res_refs.is_src_ports_present = true;
 
-        sx_key_descs[key_desc_index].key_id       = FLEX_ACL_KEY_RX_LIST;
-        sx_key_descs[key_desc_index].key.rx_list  = acl_db_port_list(port_list_index).sx_port_list_id;
-        sx_key_descs[key_desc_index].mask.rx_list = true;
+        status = mlnx_acl_sx_mc_container_create(&in_ports->aclfield.data.objlist, &sx_mc_container_rx);
+        if (SAI_ERR(status)) {
+            goto out;
+        }
+
+        sx_key_descs[key_desc_index].key_id                           = FLEX_ACL_KEY_RX_PORT_LIST;
+        sx_key_descs[key_desc_index].key.rx_port_list.match_type      = SX_ACL_PORT_LIST_MATCH_POSITIVE;
+        sx_key_descs[key_desc_index].key.rx_port_list.mc_container_id = sx_mc_container_rx;
+        sx_key_descs[key_desc_index].mask.rx_port_list                = true;
         key_desc_index++;
     }
 
     if (SAI_STATUS_SUCCESS ==
         find_attrib_in_list(attr_count, attr_list, SAI_ACL_ENTRY_ATTR_FIELD_OUT_PORTS, &out_ports, &out_ports_index)) {
         if (stage != SAI_ACL_STAGE_EGRESS) {
-            SX_LOG_ERR("Port type and stage do not match\n");
+            SX_LOG_ERR("FIELD_OUT_PORTS in only supported for SAI_ACL_STAGE_EGRESS\n");
             status = SAI_STATUS_NOT_SUPPORTED;
             goto out;
         }
@@ -8469,19 +8179,31 @@ sai_status_t mlnx_create_acl_entry(_Out_ sai_object_id_t     * acl_entry_id,
         }
         is_out_port_key_present = true;
 
+
+        if (0 == out_ports->aclfield.data.objlist.count) {
+            SX_LOG_ERR("Empty object list for FIELD_OUT_PORTS is not allowed\n");
+            status = SAI_STATUS_INVALID_ATTR_VALUE_0 + out_ports_index;
+            goto out;
+        }
+
         status = mlnx_acl_sai_port_list_to_mask(out_ports->aclfield.data.objlist.list,
                                                 out_ports->aclfield.data.objlist.count,
                                                 &entry_res_refs.dst_ports_mask);
-        if (SAI_STATUS_SUCCESS != status) {
+        if (SAI_ERR(status)) {
             goto out;
         }
 
         entry_res_refs.is_dst_ports_present = true;
 
-        out_port_obj_list                   = &out_ports->aclfield.data.objlist;
-        out_port_obj_count                  = out_port_obj_list->count;
-        sx_key_descs[key_desc_index].key_id = FLEX_ACL_KEY_DST_PORT;
-        port_key_index                      = key_desc_index;
+        status = mlnx_acl_sx_mc_container_create(&out_ports->aclfield.data.objlist, &sx_mc_container_tx);
+        if (SAI_ERR(status)) {
+            goto out;
+        }
+
+        sx_key_descs[key_desc_index].key_id                           = FLEX_ACL_KEY_TX_PORT_LIST;
+        sx_key_descs[key_desc_index].key.tx_port_list.match_type      = SX_ACL_PORT_LIST_MATCH_POSITIVE;
+        sx_key_descs[key_desc_index].key.tx_port_list.mc_container_id = sx_mc_container_tx;
+        sx_key_descs[key_desc_index].mask.tx_port_list                = true;
         key_desc_index++;
     }
 
@@ -8516,6 +8238,12 @@ sai_status_t mlnx_create_acl_entry(_Out_ sai_object_id_t     * acl_entry_id,
 
     if (SAI_STATUS_SUCCESS ==
         find_attrib_in_list(attr_count, attr_list, SAI_ACL_ENTRY_ATTR_FIELD_OUT_PORT, &out_port, &out_port_index)) {
+        if (stage != SAI_ACL_STAGE_EGRESS) {
+            SX_LOG_ERR("FIELD_OUT_PORT in only supported for SAI_ACL_STAGE_INGRESS\n");
+            status = SAI_STATUS_NOT_SUPPORTED;
+            goto out;
+        }
+
         if (is_out_port_key_present) {
             SX_LOG_ERR("Both OUT_PORT and OUT_PORTS in one entry are not allowed\n");
             status = SAI_STATUS_NOT_SUPPORTED;
@@ -8526,12 +8254,6 @@ sai_status_t mlnx_create_acl_entry(_Out_ sai_object_id_t     * acl_entry_id,
 
         status = mlnx_sai_port_to_sx(out_port->aclfield.data.oid, &out_port_data);
         if (SAI_STATUS_SUCCESS != status) {
-            goto out;
-        }
-
-        if (stage != SAI_ACL_STAGE_EGRESS) {
-            SX_LOG_ERR("Port type and stage do not match\n");
-            status = SAI_STATUS_NOT_SUPPORTED;
             goto out;
         }
 
@@ -8589,7 +8311,16 @@ sai_status_t mlnx_create_acl_entry(_Out_ sai_object_id_t     * acl_entry_id,
                             &action_egress_block,
                             &action_egress_block_index)) {
         if (action_egress_block->aclaction.enable) {
-            status = mlnx_acl_sx_mc_countainer_create(&action_egress_block->aclaction.parameter.objlist,
+            status = mlnx_acl_sai_port_list_to_mask(action_egress_block->aclaction.parameter.objlist.list,
+                                                    action_egress_block->aclaction.parameter.objlist.count,
+                                                    &entry_res_refs.egress_block_mask);
+            if (SAI_ERR(status)) {
+                goto out;
+            }
+
+            entry_res_refs.is_egress_block_present = true;
+
+            status = mlnx_acl_sx_mc_container_create(&action_egress_block->aclaction.parameter.objlist,
                                                       &sx_mc_container_egress_block);
             if (SAI_ERR(status)) {
                 goto out;
@@ -8985,78 +8716,34 @@ sai_status_t mlnx_create_acl_entry(_Out_ sai_object_id_t     * acl_entry_id,
     flex_acl_rule.key_desc_count = key_desc_index;
     flex_acl_rule.action_count   = flex_action_index;
 
-    rule_number = MAX(out_port_obj_count, 1);
-
-    flex_acl_rule_p = (sx_flex_acl_flex_rule_t*)malloc(rule_number * sizeof(sx_flex_acl_flex_rule_t));
-    if (flex_acl_rule_p == NULL) {
-        SX_LOG_ERR("ERROR: unable to allocate memory for sx_acl_rule\n");
-        status = SAI_STATUS_NO_MEMORY;
+    status = acl_db_find_entry_free_index(&acl_entry_index);
+    if (SAI_ERR(status)) {
         goto out;
     }
 
-    offsets_list_p = (sx_acl_rule_offset_t*)malloc(rule_number * sizeof(sx_acl_rule_offset_t));
-    if (offsets_list_p == NULL) {
-        SX_LOG_ERR("ERROR: unable to allocate memory for offsets list\n");
-        status = SAI_STATUS_NO_MEMORY;
+    status = get_new_psort_offset(acl_table_index, acl_entry_index, entry_priority, &sx_acl_rule_offset);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to get offset form pSort\n");
         goto out;
     }
 
-    for (ii = 0; ii < rule_number; ii++) {
-        sx_status = sx_lib_flex_acl_rule_init(acl_db_table(acl_table_index).key_type,
-                                              ACL_MAX_NUM_OF_ACTIONS, &flex_acl_rule_p[ii]);
-        if (SX_STATUS_SUCCESS != sx_status) {
-            SX_LOG_ERR("Failed to init acl rule - %s\n", SX_STATUS_MSG(sx_status));
-            goto out;
-        }
+    is_psort_offset_alloced = true;
 
-        flex_rules_num = ii + 1;
+    acl_db_entry(acl_entry_index).table_index   = acl_table_index;
+    acl_db_entry(acl_entry_index).priority      = entry_priority;
+    acl_db_entry(acl_entry_index).offset        = sx_acl_rule_offset;
+    acl_db_entry(acl_entry_index).counter_id    = counter_index;
+    acl_db_entry(acl_entry_index).redirect_data = entry_redirect_data;
+    acl_db_entry(acl_entry_index).sx_mc_container_rx  = sx_mc_container_rx;
+    acl_db_entry(acl_entry_index).sx_mc_container_tx  = sx_mc_container_tx;
+    acl_db_entry(acl_entry_index).sx_mc_container_egress_block = sx_mc_container_egress_block;
+
+    status = mlnx_acl_entry_sx_acl_rule_set(acl_table_index, acl_entry_index, &flex_acl_rule);
+    if (SAI_ERR(status)) {
+        goto out;
     }
 
-    if (out_port_obj_count > 0) {
-        for (ii = 0; ii < out_port_obj_count; ii++) {
-            status = mlnx_sai_port_to_sx(out_port_obj_list->list[ii], &sx_port_list[ii]);
-            if (SAI_STATUS_SUCCESS != status) {
-                goto out;
-            }
-        }
-    }
-
-    mlnx_acl_fill_rule_list(flex_acl_rule, flex_acl_rule_p, rule_number,
-                            sx_port_list, out_port_obj_count, port_key_index);
-
-    for (ii = 0; ii < rule_number; ii++) {
-        status = acl_db_find_entry_free_index(&acl_entry_index);
-        if (SAI_STATUS_SUCCESS != status) {
-            goto out;
-        }
-
-        acl_db_add_entry_to_table(acl_table_index, acl_entry_index);
-        db_indexes_num = ii + 1;
-
-        status = get_new_psort_offset(acl_table_index, acl_entry_index, entry_priority,
-                                      &offsets_list_p[ii], rule_number - ii);
-        if (SAI_STATUS_SUCCESS != status) {
-            SX_LOG_ERR("Failed to get offset form pSort\n");
-            goto out;
-        }
-        psort_offsets_num = ii + 1;
-
-        acl_db_entry(acl_entry_index).priority                     = entry_priority;
-        acl_db_entry(acl_entry_index).offset                       = offsets_list_p[ii];
-        acl_db_entry(acl_entry_index).rule_number                  = rule_number;
-        acl_db_entry(acl_entry_index).counter_id                   = counter_index;
-        acl_db_entry(acl_entry_index).rx_list_index                = port_list_index;
-        acl_db_entry(acl_entry_index).redirect_data                = entry_redirect_data;
-        acl_db_entry(acl_entry_index).sx_mc_container_egress_block = sx_mc_container_egress_block;
-
-        status = mlnx_acl_flex_rules_set_helper(SX_ACCESS_CMD_SET, 0, region_id,
-                                                &offsets_list_p[ii], &flex_acl_rule_p[ii], 1);
-        if (SX_STATUS_SUCCESS != status) {
-            goto out;
-        }
-
-        set_flex_rules_num = ii + 1;
-    }
+    is_sx_rule_set = true;
 
     acl_create_entry_object_id(acl_entry_id, acl_entry_index, acl_table_index);
 
@@ -9081,24 +8768,23 @@ out:
     if (SAI_STATUS_SUCCESS != status) {
         SX_LOG_ERR(" Failed to create Entry \n");
 
-        if (db_indexes_num > 0) {
-            acl_db_remove_entry_from_table(acl_table_index, acl_entry_index, db_indexes_num);
+        if (ACL_INVALID_DB_INDEX != acl_entry_index) {
+            mlnx_acl_db_entry_delete(acl_entry_index);
         }
 
-        for (ii = 0; ii < psort_offsets_num; ii++) {
-            release_psort_offset(acl_table_index, entry_priority, offsets_list_p[ii]);
+        if (is_psort_offset_alloced) {
+            release_psort_offset(acl_table_index, entry_priority, sx_acl_rule_offset);
         }
 
-        mlnx_acl_flex_rules_set_helper(SX_ACCESS_CMD_DELETE, acl_db_table(acl_table_index).key_type,
-                                       region_id, offsets_list_p, NULL, set_flex_rules_num);
+        if (is_sx_rule_set) {
+            mlnx_acl_flex_rule_delete(acl_table_index, sx_acl_rule_offset);
+        }
 
-        mlnx_acl_sx_mc_countainer_remove(sx_mc_container_egress_block);
+        mlnx_acl_sx_mc_container_remove(sx_mc_container_rx);
+        mlnx_acl_sx_mc_container_remove(sx_mc_container_tx);
+        mlnx_acl_sx_mc_container_remove(sx_mc_container_egress_block);
 
         mlnx_acl_entry_redirect_pbs_delete(&entry_redirect_data);
-
-        if (ACL_INVALID_DB_INDEX != port_list_index) {
-            mlnx_acl_sx_list_delete(port_list_index);
-        }
     }
 
     acl_global_unlock();
@@ -9106,9 +8792,7 @@ out:
     sai_db_unlock();
 
     mlnx_acl_flex_rule_free(&flex_acl_rule);
-    mlnx_acl_flex_rule_list_free(flex_acl_rule_p, flex_rules_num);
 
-    free(offsets_list_p);
     free(sx_key_descs);
 
     SX_LOG_EXIT();
@@ -9215,7 +8899,7 @@ sai_status_t mlnx_create_acl_table(_Out_ sai_object_id_t     * acl_table_id,
     if (SAI_STATUS_SUCCESS ==
         find_attrib_in_list(attr_count, attr_list, SAI_ACL_TABLE_ATTR_FIELD_IN_PORTS, &in_ports, &in_ports_index)) {
         if (true == in_ports->booldata) {
-            keys[key_index] = FLEX_ACL_KEY_RX_LIST;
+            keys[key_index] = FLEX_ACL_KEY_RX_PORT_LIST;
             key_index++;
         }
     }
@@ -9223,7 +8907,7 @@ sai_status_t mlnx_create_acl_table(_Out_ sai_object_id_t     * acl_table_id,
     if (SAI_STATUS_SUCCESS ==
         find_attrib_in_list(attr_count, attr_list, SAI_ACL_TABLE_ATTR_FIELD_OUT_PORTS, &out_ports, &out_ports_index)) {
         if (true == out_ports->booldata) {
-            keys[key_index] = FLEX_ACL_KEY_DST_PORT;
+            keys[key_index] = FLEX_ACL_KEY_TX_PORT_LIST;
             key_index++;
         }
     }
@@ -9378,7 +9062,7 @@ sai_status_t mlnx_create_acl_table(_Out_ sai_object_id_t     * acl_table_id,
     psort_table_created = true;
 
     status = get_new_psort_offset(acl_table_index, ACL_INVALID_DB_INDEX,
-                                  ACL_DEFAULT_RULE_PRIO, &default_rule_offset, 1);
+                                  ACL_DEFAULT_RULE_PRIO, &default_rule_offset);
     if (SAI_STATUS_SUCCESS != status) {
         goto out;
     }
@@ -9407,8 +9091,6 @@ sai_status_t mlnx_create_acl_table(_Out_ sai_object_id_t     * acl_table_id,
     acl_db_table(acl_table_index).region_id              = region_id;
     acl_db_table(acl_table_index).is_dynamic_sized       = is_dynamic_sized;
     acl_db_table(acl_table_index).created_entry_count    = 0;
-    acl_db_table(acl_table_index).created_rule_count     = 0;
-    acl_db_table(acl_table_index).head_entry_index       = ACL_INVALID_DB_INDEX;
     acl_db_table(acl_table_index).range_type_count       = range_type_count;
     acl_db_table(acl_table_index).group_references       = 0;
     acl_db_table(acl_table_index).def_rules_offset       = default_rule_offset;
@@ -9988,11 +9670,10 @@ static sai_status_t mlnx_delete_acl_entry(_In_ sai_object_id_t acl_entry_id)
 {
     sai_status_t               status;
     char                       key_str[MAX_KEY_STR_LEN];
-    uint32_t                   acl_entry_index, acl_table_index, rule_number;
-    acl_entry_redirect_data_t *entry_redirect_data;
-    uint32_t                   rx_list_index;
+    uint32_t                   acl_entry_index, acl_table_index;
 
     SX_LOG_ENTER();
+
     acl_entry_key_to_str(acl_entry_id, key_str);
     SX_LOG_NTC("Delete ACL Entry %s\n", key_str);
 
@@ -10011,40 +9692,15 @@ static sai_status_t mlnx_delete_acl_entry(_In_ sai_object_id_t acl_entry_id)
         goto out;
     }
 
-    rx_list_index       = acl_db_entry(acl_entry_index).rx_list_index;
-    entry_redirect_data = &acl_db_entry(acl_entry_index).redirect_data;
-    rule_number         = acl_db_entry(acl_entry_index).rule_number;
-
-    status = mlnx_delete_acl_entry_data(acl_table_index, acl_entry_index, rule_number);
-    if (SAI_STATUS_SUCCESS != status) {
+    status = mlnx_delete_acl_entry_data(acl_table_index, acl_entry_index);
+    if (SAI_ERR(status)) {
         goto out;
     }
-
-    status = mlnx_acl_entry_redirect_pbs_delete(entry_redirect_data);
-    if (SAI_STATUS_SUCCESS != status) {
-        SX_LOG_ERR("failed to delete pbs entry\n");
-        goto out;
-    }
-
-    memset(entry_redirect_data, 0, sizeof(*entry_redirect_data));
-
-    if (rx_list_index != ACL_INVALID_DB_INDEX) {
-        status = mlnx_acl_sx_list_delete(rx_list_index);
-        if (SAI_STATUS_SUCCESS != status) {
-            SX_LOG_ERR("failed to delete sx port list\n");
-            goto out;
-        }
-    }
-
-    acl_db_table(acl_table_index).created_entry_count--;
 
     status = acl_enqueue_table(acl_table_index);
-    if (SAI_STATUS_SUCCESS != status) {
+    if (SAI_ERR(status)) {
         goto out;
     }
-
-    mlnx_acl_entry_res_ref_set(&acl_db_entry(acl_entry_index).res_refs, false);
-    mlnx_acl_entry_res_ref_invalidate(&acl_db_entry(acl_entry_index).res_refs);
 
 out:
     acl_global_unlock();
@@ -10326,89 +9982,24 @@ static void mlnx_acl_flex_rule_action_del(_Inout_ sx_flex_acl_flex_rule_t *rule,
     rule->action_count--;
 }
 
-static void mlnx_acl_flex_rule_copy(_Out_ sx_flex_acl_flex_rule_t      *dst_rule,
-                                    _In_ const sx_flex_acl_flex_rule_t *src_rule)
-{
-    dst_rule->valid          = src_rule->valid;
-    dst_rule->key_desc_count = src_rule->key_desc_count;
-    dst_rule->action_count   = src_rule->action_count;
-
-    memcpy(dst_rule->key_desc_list_p, src_rule->key_desc_list_p,
-           src_rule->key_desc_count * sizeof(sx_flex_acl_key_desc_t));
-    memcpy(dst_rule->action_list_p, src_rule->action_list_p,
-           src_rule->action_count * sizeof(sx_flex_acl_flex_action_t));
-}
-
+/*
+ * It is safe to call this function if rule was inited with MLNX_ACL_SX_FLEX_RULE_EMPTY value
+ */
 static sai_status_t mlnx_acl_flex_rule_free(_In_ sx_flex_acl_flex_rule_t *rule)
 {
     sx_status_t sx_status;
 
+    if (MLNX_ACL_SX_FLEX_RULE_IS_EMPTY(rule)) {
+        return SAI_STATUS_SUCCESS;
+    }
+
     sx_status = sx_lib_flex_acl_rule_deinit(rule);
-    if (SX_STATUS_SUCCESS != sx_status) {
+    if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to deinit acl rule - %s\n", SX_STATUS_MSG(sx_status));
         return sdk_to_sai(sx_status);
     }
 
     return SAI_STATUS_SUCCESS;
-}
-
-static sai_status_t mlnx_acl_flex_rule_list_free(_In_ sx_flex_acl_flex_rule_t *rules, _In_ uint32_t rules_count)
-{
-    sx_status_t sx_status;
-    uint32_t    ii;
-
-    if (rules) {
-        for (ii = 0; ii < rules_count; ii++) {
-            sx_status = sx_lib_flex_acl_rule_deinit(&rules[ii]);
-            if (SX_STATUS_SUCCESS != sx_status) {
-                SX_LOG_ERR("Failed to deinit acl rule - %s\n", SX_STATUS_MSG(sx_status));
-                return sdk_to_sai(sx_status);
-            }
-        }
-    }
-
-    free(rules);
-    return SAI_STATUS_SUCCESS;
-}
-
-static sai_status_t mlnx_acl_flex_rule_list_init(_Inout_ sx_flex_acl_flex_rule_t **rules,
-                                                 _In_ uint32_t                     rules_count,
-                                                 _In_ sx_acl_key_type_t            key_type)
-{
-    sai_status_t             status = SAI_STATUS_SUCCESS;
-    sx_status_t              sx_status;
-    sx_flex_acl_flex_rule_t *flex_rules = NULL;
-    uint32_t                 ii, rules_inited = 0;
-
-    assert(rules != NULL);
-
-    flex_rules = (sx_flex_acl_flex_rule_t*)malloc(sizeof(sx_flex_acl_flex_rule_t) * rules_count);
-    if (flex_rules == NULL) {
-        SX_LOG_ERR("ERROR: unable to allocate memory for sx_acl_rule\n");
-        status = SAI_STATUS_NO_MEMORY;
-        goto out;
-    }
-    memset(flex_rules, 0, sizeof(sx_flex_acl_flex_rule_t) * rules_count);
-
-    for (ii = 0; ii < rules_count; ii++) {
-        sx_status = sx_lib_flex_acl_rule_init(key_type, ACL_MAX_NUM_OF_ACTIONS, &flex_rules[ii]);
-        if (SX_STATUS_SUCCESS != sx_status) {
-            SX_LOG_ERR("Failed to init acl rule - %s\n", SX_STATUS_MSG(sx_status));
-            status       = sdk_to_sai(sx_status);
-            rules_inited = ii;
-            goto out;
-        }
-    }
-
-    *rules = flex_rules;
-
-out:
-    if (SAI_STATUS_SUCCESS != status) {
-        mlnx_acl_flex_rule_list_free(flex_rules, rules_inited);
-        *rules = NULL;
-    }
-
-    return status;
 }
 
 static void mlnx_acl_flex_rule_key_find(_In_ const sx_flex_acl_flex_rule_t *rule,
@@ -10451,125 +10042,194 @@ static void mlnx_acl_flex_rule_action_find(_In_ const sx_flex_acl_flex_rule_t *r
     *action_index = index;
 }
 
-static sai_status_t mlnx_acl_flex_rules_set_helper(_In_ sx_access_cmd_t                cmd,
-                                                   _In_ const sx_acl_key_type_t        key_type,
-                                                   _In_ const sx_acl_region_id_t       region_id,
-                                                   _In_ sx_acl_rule_offset_t          *offsets_list_p,
-                                                   _In_ const sx_flex_acl_flex_rule_t *rules_list_p,
-                                                   _In_ uint32_t                       rules_count)
+static sai_status_t mlnx_acl_entry_sx_acl_rule_set(_In_ uint32_t                       acl_table_index,
+                                                   _In_ uint32_t                       acl_entry_index,
+                                                   _In_ const sx_flex_acl_flex_rule_t *sx_flex_rule)
 {
-    sx_status_t              sx_status;
-    sai_status_t             status              = SAI_STATUS_SUCCESS;
-    sx_flex_acl_flex_rule_t *delete_rules_list_p = NULL;
-    uint32_t                 ii, set_rules_num;
+    sx_status_t          sx_status;
+    sx_acl_region_id_t   sx_region_id;
+    sx_acl_rule_offset_t sx_rule_offset;
 
-    if (0 == rules_count) {
+    assert(NULL != sx_flex_rule);
+    assert(acl_table_index_check_range(acl_table_index));
+    assert(acl_entry_index_check_range(acl_entry_index));
+
+    sx_region_id   = acl_db_table(acl_table_index).region_id;
+    sx_rule_offset = acl_db_entry(acl_entry_index).offset;
+
+    sx_status = sx_api_acl_flex_rules_set(gh_sdk, SX_ACCESS_CMD_SET, sx_region_id, &sx_rule_offset, sx_flex_rule, 1);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to set ACL rule - %s.\n", SX_STATUS_MSG(sx_status));
+        return sdk_to_sai(sx_status);
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_acl_flex_rule_delete(_In_ uint32_t             acl_table_index,
+                                              _In_ sx_acl_rule_offset_t sx_acl_rule_offset)
+{
+    sai_status_t            status = SAI_STATUS_SUCCESS;
+    sx_status_t             sx_status;
+    sx_flex_acl_flex_rule_t sx_flex_rule = MLNX_ACL_SX_FLEX_RULE_EMPTY;
+    sx_acl_key_type_t       sx_key_type;
+    sx_acl_region_id_t      sx_region_id;
+
+    assert(acl_table_index_check_range(acl_table_index));
+
+    sx_key_type  = acl_db_table(acl_table_index).key_type;
+    sx_region_id = acl_db_table(acl_table_index).region_id;
+
+    sx_status = sx_lib_flex_acl_rule_init(sx_key_type, ACL_MAX_NUM_OF_ACTIONS, &sx_flex_rule);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to init acl rule - %s\n", SX_STATUS_MSG(sx_status));
+        return sdk_to_sai(sx_status);
+    }
+
+    sx_flex_rule.valid  = false;
+
+    sx_status = sx_api_acl_flex_rules_set(gh_sdk, SX_ACCESS_CMD_DELETE, sx_region_id, &sx_acl_rule_offset, &sx_flex_rule, 1);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to set ACL rule - %s.\n", SX_STATUS_MSG(sx_status));
+        status = sdk_to_sai(sx_status);
         goto out;
     }
 
-    assert(offsets_list_p != NULL);
-    assert((cmd == SX_ACCESS_CMD_DELETE) || (rules_list_p != NULL));
-
-    if (SX_ACCESS_CMD_DELETE == cmd) {
-        delete_rules_list_p = (sx_flex_acl_flex_rule_t*)malloc(sizeof(sx_flex_acl_flex_rule_t) * rules_count);
-        if (delete_rules_list_p == NULL) {
-            SX_LOG_ERR("ERROR: unable to allocate memory for sx_acl_rule\n");
-            status = SAI_STATUS_NO_MEMORY;
-            goto out;
-        }
-
-        memset(delete_rules_list_p, 0, sizeof(sx_flex_acl_flex_rule_t) * rules_count);
-
-        for (ii = 0; ii < rules_count; ii++) {
-            sx_status = sx_lib_flex_acl_rule_init(key_type, ACL_MAX_NUM_OF_ACTIONS, &delete_rules_list_p[ii]);
-            if (SX_STATUS_SUCCESS != sx_status) {
-                SX_LOG_ERR("Failed to init acl rule - %s\n", SX_STATUS_MSG(sx_status));
-                rules_count = ii;
-                status      = sdk_to_sai(sx_status);
-                goto out;
-            }
-
-            delete_rules_list_p[ii].valid = false;
-        }
-
-        rules_list_p = delete_rules_list_p;
-    }
-
-    ii = 0;
-    while (ii < rules_count) {
-        set_rules_num = MIN(g_resource_limits.acl_rules_block_max, rules_count - ii);
-
-        sx_status = sx_api_acl_flex_rules_set(gh_sdk, cmd, region_id,
-                                              &offsets_list_p[ii], &rules_list_p[ii], set_rules_num);
-        if (SX_STATUS_SUCCESS != sx_status) {
-            SX_LOG_ERR("Failed to set ACL rule - %s.\n", SX_STATUS_MSG(sx_status));
-            status = sdk_to_sai(sx_status);
-            goto out;
-        }
-
-        ii += set_rules_num;
-    }
-
 out:
-    mlnx_acl_flex_rule_list_free(delete_rules_list_p, rules_count);
+    mlnx_acl_flex_rule_free(&sx_flex_rule);
+
     return status;
 }
 
+static sai_status_t mlnx_acl_entry_mc_containers_remove(_In_ uint32_t acl_entry_index)
+{
+    sai_status_t status;
+
+    assert(acl_entry_index_check_range(acl_entry_index));
+
+    status = mlnx_acl_sx_mc_container_remove(acl_db_entry(acl_entry_index).sx_mc_container_rx);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Faield to destroy RX sx_mc_container (%d) for SAI ACL Entry (%d)\n",
+                   acl_db_entry(acl_entry_index).sx_mc_container_rx, acl_entry_index);
+        return status;
+    }
+
+    status = mlnx_acl_sx_mc_container_remove(acl_db_entry(acl_entry_index).sx_mc_container_tx);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Faield to destroy TX sx_mc_container (%d) for SAI ACL Entry (%d)\n",
+                   acl_db_entry(acl_entry_index).sx_mc_container_rx, acl_entry_index);
+        return status;
+    }
+
+    status = mlnx_acl_sx_mc_container_remove(acl_db_entry(acl_entry_index).sx_mc_container_egress_block);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Faield to destroy Egress block sx_mc_container (%d) for SAI ACL Entry (%d)\n",
+                   acl_db_entry(acl_entry_index).sx_mc_container_rx, acl_entry_index);
+        return status;
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
 static sai_status_t mlnx_delete_acl_entry_data(_In_ uint32_t table_index,
-                                               _In_ uint32_t entry_index,
-                                               _In_ uint32_t entry_count)
+                                               _In_ uint32_t entry_index)
 {
     sai_status_t               status = SAI_STATUS_SUCCESS;
-    sx_acl_key_type_t          key_type;
-    sx_acl_region_id_t         region_id;
-    sx_flex_acl_rule_offset_t *offsets_list_p = NULL;
-    uint32_t                   priority, ii;
+    acl_entry_redirect_data_t *redirect_data;
+    sx_flex_acl_rule_offset_t  rule_offset;
+    uint32_t                   priority;
 
     SX_LOG_ENTER();
 
-    assert(table_index != ACL_INVALID_DB_INDEX && entry_index != ACL_INVALID_DB_INDEX);
+    assert(acl_table_index_check_range(table_index));
+    assert(acl_entry_index_check_range(entry_index));
 
-    key_type  = acl_db_table(table_index).key_type;
-    region_id = acl_db_table(table_index).region_id;
-    priority  = acl_db_entry(entry_index).priority;
+    priority      = acl_db_entry(entry_index).priority;
+    rule_offset   = acl_db_entry(entry_index).offset;
+    redirect_data = &acl_db_entry(entry_index).redirect_data;
 
-    offsets_list_p = (sx_acl_rule_offset_t*)malloc(sizeof(sx_acl_rule_offset_t) * entry_count);
-    if (offsets_list_p == NULL) {
-        SX_LOG_ERR(" Unable to allocate memory for sx_acl_rule\n");
-        status = SAI_STATUS_NO_MEMORY;
+    status = mlnx_acl_flex_rule_delete(table_index, rule_offset);
+    if (SAI_ERR(status)) {
         goto out;
     }
 
-    status = acl_get_entries_offsets(entry_index, entry_count, offsets_list_p);
-    if (SAI_STATUS_SUCCESS != status) {
+    status = release_psort_offset(table_index, priority, rule_offset);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to delete psort entry\n");
         goto out;
     }
 
-    for (ii = 0; ii < entry_count; ii++) {
-        status = release_psort_offset(table_index, priority, offsets_list_p[ii]);
-        if (SAI_STATUS_SUCCESS != status) {
-            SX_LOG_ERR("Failed to delete psort entry\n");
-            goto out;
-        }
-    }
-
-    status = mlnx_acl_flex_rules_set_helper(SX_ACCESS_CMD_DELETE,
-                                            key_type,
-                                            region_id,
-                                            offsets_list_p,
-                                            NULL,
-                                            entry_count);
-    if (SAI_STATUS_SUCCESS != status) {
+    status = mlnx_acl_entry_redirect_pbs_delete(redirect_data);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("failed to delete pbs entry\n");
         goto out;
     }
 
-    acl_db_remove_entry_from_table(table_index, entry_index, entry_count);
+    status = mlnx_acl_entry_mc_containers_remove(entry_index);
+    if (SAI_ERR(status)) {
+        goto out;
+    }
+
+    status = mlnx_acl_db_entry_remove_from_table(table_index, entry_index);
+    if (SAI_ERR(status)) {
+        goto out;
+    }
+
+    mlnx_acl_entry_res_ref_set(&acl_db_entry(entry_index).res_refs, false);
+    mlnx_acl_entry_res_ref_invalidate(&acl_db_entry(entry_index).res_refs);
+
+    status = mlnx_acl_db_entry_delete(entry_index);
+    if (SAI_ERR(status)) {
+        goto out;
+    }
 
 out:
-    free(offsets_list_p);
-
     SX_LOG_EXIT();
     return status;
+}
+
+static sai_status_t mlnx_acl_db_entry_delete(_In_ uint32_t entry_index)
+{
+    acl_entry_db_t *entry;
+
+    assert(acl_entry_index_check_range(entry_index));
+
+    entry = acl_db_entry_ptr(entry_index);
+
+    memset(entry, 0, sizeof(*entry));
+
+    entry->is_used = false;
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_acl_db_entry_remove_from_table(_In_ uint32_t table_index,
+                                                        _In_ uint32_t entry_index)
+{
+    acl_table_db_t *table;
+    acl_entry_db_t *entry;
+
+    assert(acl_table_index_check_range(table_index));
+    assert(acl_entry_index_check_range(entry_index));
+
+    table = &acl_db_table(table_index);
+    entry = &acl_db_entry(entry_index);
+
+    if (0 == table->created_entry_count) {
+        SX_LOG_ERR("Failed to remove acl entry (%d) from acl table (%d) - Table is empty\n",
+                   entry_index, table_index);
+        return SAI_STATUS_FAILURE;
+    }
+
+    if (entry->table_index != table_index) {
+        SX_LOG_ERR("Failed to remove acl entry (%d) from acl table (%d) - Invalid entry's table index (%d)",
+                   entry_index, table_index, entry->table_index);
+        return SAI_STATUS_FAILURE;
+    }
+
+    table->created_entry_count--;
+
+    return SAI_STATUS_SUCCESS;
 }
 
 static sx_utils_status_t psort_notification_func(_In_ psort_notification_type_e notif_type,
@@ -10596,7 +10256,7 @@ static sx_utils_status_t psort_notification_func(_In_ psort_notification_type_e 
         break;
 
     case PSORT_TABLE_ALMOST_FULL_E:
-        if (SAI_STATUS_SUCCESS != acl_table_size_increase(acl_table_id, ACL_TABLE_SIZE_INCREASE_AUTO)) {
+        if (SAI_STATUS_SUCCESS != acl_table_size_increase(acl_table_id)) {
             status = SX_UTILS_STATUS_ERROR;
         }
         break;
@@ -10619,7 +10279,7 @@ static uint32_t acl_calculate_delta(_In_ uint32_t acl_table_index)
     return delta;
 }
 
-static sai_status_t acl_table_size_increase(_In_ uint32_t table_index, _In_ uint32_t size)
+static sai_status_t acl_table_size_increase(_In_ uint32_t table_index)
 {
     sai_status_t       status = SAI_STATUS_SUCCESS;
     sx_status_t        sx_status;
@@ -10641,7 +10301,6 @@ static sai_status_t acl_table_size_increase(_In_ uint32_t table_index, _In_ uint
     old_size     = acl_db_table(table_index).region_size;
 
     delta    = acl_calculate_delta(table_index);
-    delta    = MAX(delta, size);
     new_size = old_size + delta;
 
 #ifndef _WIN32
@@ -10690,7 +10349,7 @@ static sai_status_t acl_table_size_decrease(_In_ uint32_t table_index)
     psort_handle_t     psort_handle;
     sx_acl_size_t      new_size, old_size;
     uint32_t           table_size;
-    uint32_t           rule_count;
+    uint32_t           entry_count;
 
     SX_LOG_ENTER();
 
@@ -10701,10 +10360,10 @@ static sai_status_t acl_table_size_decrease(_In_ uint32_t table_index)
     key_type     = acl_db_table(table_index).key_type;
     table_size   = acl_db_table(table_index).table_size;
     old_size     = acl_db_table(table_index).region_size;
-    rule_count   = acl_db_table(table_index).created_rule_count;
+    entry_count  = acl_db_table(table_index).created_entry_count;
 
     if (false == acl_db_table(table_index).is_dynamic_sized) {
-        new_size = rule_count + (uint32_t)(rule_count * ACL_TABLE_SIZE_DEC_PERCENT);
+        new_size = entry_count + (uint32_t)(entry_count * ACL_TABLE_SIZE_DEC_PERCENT);
 
         /* Don't decrease static-sized table to size less then value specified by user */
         if (new_size <= table_size) {
@@ -10713,7 +10372,8 @@ static sai_status_t acl_table_size_decrease(_In_ uint32_t table_index)
         }
     } else {
         new_size = old_size / 2;
-        new_size = MAX(new_size, ACL_DEFAULT_TABLE_SIZE);
+        /* A table has one extra rule for goto action, so the real defaul size is ACL_DEFAULT_TABLE_SIZE + 1 */
+        new_size = MAX(new_size, ACL_DEFAULT_TABLE_SIZE + 1);
 
         if (old_size <= new_size) {
             status = SAI_STATUS_SUCCESS;
@@ -10984,8 +10644,7 @@ out:
 static sai_status_t get_new_psort_offset(_In_ uint32_t                 table_id,
                                          _In_ uint32_t                 entry_id,
                                          _In_ uint32_t                 priority,
-                                         _Inout_ sx_acl_rule_offset_t *offset,
-                                         _In_ uint32_t                 request_num)
+                                         _Inout_ sx_acl_rule_offset_t *offset)
 {
     sai_status_t   status;
     acl_rpc_info_t rpc_info;
@@ -10993,14 +10652,13 @@ static sai_status_t get_new_psort_offset(_In_ uint32_t                 table_id,
     SX_LOG_ENTER();
 
     if (is_init_process) {
-        status = __get_new_psort_offset(table_id, entry_id, priority, offset, request_num);
+        status = __get_new_psort_offset(table_id, entry_id, priority, offset);
     } else {
         memset(&rpc_info, 0, sizeof(rpc_info));
         rpc_info.type            = ACL_RPC_PSORT_ENTRY_CREATE;
         rpc_info.args.table_id   = table_id;
         rpc_info.args.entry_id   = entry_id;
         rpc_info.args.entry_prio = priority;
-        rpc_info.args.size       = request_num;
 
         status  = acl_psort_rpc_call(&rpc_info);
         *offset = rpc_info.args.entry_offset;
@@ -11013,8 +10671,7 @@ static sai_status_t get_new_psort_offset(_In_ uint32_t                 table_id,
 static sai_status_t __get_new_psort_offset(_In_ uint32_t                 table_id,
                                            _In_ uint32_t                 entry_id,
                                            _In_ uint32_t                 priority,
-                                           _Inout_ sx_acl_rule_offset_t *offset,
-                                           _In_ uint32_t                 requested_num)
+                                           _Inout_ sx_acl_rule_offset_t *offset)
 {
     sai_status_t      status = SAI_STATUS_SUCCESS;
     sx_utils_status_t sx_status;
@@ -11028,8 +10685,8 @@ static sai_status_t __get_new_psort_offset(_In_ uint32_t                 table_i
     if (ACL_INVALID_DB_INDEX != entry_id) {
         assert(acl_entry_index_check_range(entry_id));
 
-        if (acl_db_table(table_id).created_rule_count + requested_num > acl_db_table(table_id).region_size) {
-            if (SAI_STATUS_SUCCESS != acl_table_size_increase(table_id, requested_num)) {
+        if (acl_db_table(table_id).created_entry_count + 1 > acl_db_table(table_id).table_size) {
+            if (SAI_STATUS_SUCCESS != acl_table_size_increase(table_id)) {
                 SX_LOG_ERR("Failed to increase a size of psort table\n");
                 status = SAI_STATUS_FAILURE;
                 goto out;
@@ -11189,7 +10846,7 @@ static void acl_psort_optimize_table(_In_ uint32_t table_index)
 
     acl_table_write_lock(table_index);
 
-    if (0 == acl_db_table(table_index).created_rule_count) {
+    if (0 == acl_db_table(table_index).created_entry_count) {
         goto out;
     }
 
@@ -11248,119 +10905,6 @@ out:
     return status;
 }
 
-static sai_status_t acl_db_insert_entries(_In_ uint32_t table_index,
-                                          _In_ uint32_t entry_index,
-                                          _In_ uint32_t entry_count)
-{
-    sai_status_t status           = SAI_STATUS_SUCCESS;
-    uint32_t     last_entry_index = ACL_INVALID_DB_INDEX;
-    uint32_t     new_entry_index;
-    uint32_t     ii;
-
-    SX_LOG_ENTER();
-
-    assert(entry_count != 0 && entry_index != ACL_INVALID_DB_INDEX);
-
-    if (ACL_INVALID_DB_INDEX != acl_db_entry(entry_index).next) {
-        last_entry_index = acl_db_entry(entry_index).next;
-    }
-
-    for (ii = 0; ii < entry_count; ii++) {
-        if (SAI_STATUS_SUCCESS != acl_db_find_entry_free_index(&new_entry_index)) {
-            status = SAI_STATUS_FAILURE;
-            goto out;
-        }
-
-        acl_db_table(table_index).created_rule_count++;
-
-        acl_db_entry(new_entry_index).prev = entry_index;
-        acl_db_entry(entry_index).next     = new_entry_index;
-        entry_index                        = new_entry_index;
-    }
-
-    if (ACL_INVALID_DB_INDEX != last_entry_index) {
-        acl_db_entry(last_entry_index).prev = new_entry_index;
-        acl_db_entry(new_entry_index).next  = last_entry_index;
-    } else {
-        acl_db_entry(new_entry_index).next = ACL_INVALID_DB_INDEX;
-    }
-
-out:
-    SX_LOG_EXIT();
-    return status;
-}
-
-static void acl_db_add_entry_to_table(_In_ uint32_t table_index, _In_ uint32_t new_entry_index)
-{
-    uint32_t       *head_entry_index = &acl_db_table(table_index).head_entry_index;
-    acl_table_db_t *table            = &acl_db_table(table_index);
-    acl_entry_db_t *new_entry        = &acl_db_entry(new_entry_index);
-    acl_entry_db_t *table_head_entry;
-
-    SX_LOG_ENTER();
-
-    if (ACL_INVALID_DB_INDEX == *head_entry_index) {
-        *head_entry_index = new_entry_index;
-        new_entry->next   = ACL_INVALID_DB_INDEX;
-        new_entry->prev   = ACL_INVALID_DB_INDEX;
-    } else {
-        table_head_entry       = &acl_db_entry(*head_entry_index);
-        new_entry->next        = *head_entry_index;
-        new_entry->prev        = ACL_INVALID_DB_INDEX;
-        table_head_entry->prev = new_entry_index;
-
-        *head_entry_index = new_entry_index;
-    }
-
-    table->created_rule_count++;
-    SX_LOG_EXIT();
-}
-
-static void acl_db_remove_entry_from_table(_In_ uint32_t table_index,
-                                           _In_ uint32_t entry_index,
-                                           _In_ uint32_t entry_count)
-{
-    acl_table_db_t *table;
-    acl_entry_db_t *entry;
-    uint32_t        prev_entry_index, ii;
-
-    SX_LOG_ENTER();
-
-    assert(ACL_INVALID_DB_INDEX != table_index && ACL_INVALID_DB_INDEX != entry_index);
-
-    table            = &acl_db_table(table_index);
-    prev_entry_index = acl_db_entry(entry_index).prev;
-
-    for (ii = 0; ii < entry_count; ii++) {
-        if (ACL_INVALID_DB_INDEX == entry_index) {
-            SX_LOG_ERR("ACL DB is corrupted\n");
-            goto out;
-        }
-
-        entry       = &acl_db_entry(entry_index);
-        entry_index = entry->next;
-
-        entry->is_used = false;
-        entry->next    = ACL_INVALID_DB_INDEX;
-        entry->prev    = ACL_INVALID_DB_INDEX;
-
-        acl_db_table(table_index).created_rule_count--;
-    }
-
-    if (ACL_INVALID_DB_INDEX == prev_entry_index) {
-        table->head_entry_index = entry_index;
-    } else {
-        acl_db_entry(prev_entry_index).next = entry_index;
-
-        if (ACL_INVALID_DB_INDEX != entry_index) {
-            acl_db_entry(entry_index).prev = prev_entry_index;
-        }
-    }
-
-out:
-    SX_LOG_EXIT();
-}
-
 static sai_status_t acl_create_entry_object_id(_Out_ sai_object_id_t *entry_oid,
                                                _In_ uint32_t          entry_index,
                                                _In_ uint16_t          table_index)
@@ -11376,32 +10920,6 @@ static sai_status_t acl_create_entry_object_id(_Out_ sai_object_id_t *entry_oid,
 
     status = mlnx_create_object(SAI_OBJECT_TYPE_ACL_ENTRY, entry_index, table_data, entry_oid);
 
-    SX_LOG_EXIT();
-    return status;
-}
-
-static sai_status_t acl_get_entries_offsets(_In_ uint32_t                 entry_index,
-                                            _In_ uint32_t                 entry_number,
-                                            _Inout_ sx_acl_rule_offset_t *offsets_list)
-{
-    sai_status_t status = SAI_STATUS_SUCCESS;
-    uint32_t     ii;
-
-    SX_LOG_ENTER();
-    assert(offsets_list != NULL);
-
-    for (ii = 0; ii < entry_number; ii++) {
-        if (ACL_INVALID_DB_INDEX == entry_index) {
-            SX_LOG_ERR("Failed to get offset list for rules from ACL Entry DB\n");
-            status = SAI_STATUS_FAILURE;
-            goto out;
-        }
-
-        offsets_list[ii] = acl_db_entry(entry_index).offset;
-        entry_index      = acl_db_entry(entry_index).next;
-    }
-
-out:
     SX_LOG_EXIT();
     return status;
 }
@@ -11572,8 +11090,7 @@ static void psort_rpc_thread(void *arg)
                 rpc_info.args.table_id,
                 rpc_info.args.entry_id,
                 rpc_info.args.entry_prio,
-                &rpc_info.args.entry_offset,
-                rpc_info.args.size);
+                &rpc_info.args.entry_offset);
             break;
 
         case ACL_RPC_PSORT_ENTRY_DELETE:
@@ -11699,6 +11216,28 @@ static void mlnx_acl_entry_res_ref_invalidate(_In_ acl_entry_res_refs_t *entry_s
     memset(entry_stats, 0, sizeof(*entry_stats));
 }
 
+static sai_status_t mlnx_acl_entry_port_ref_update(_In_ uint32_t             entry_index,
+                                                   _In_ acl_port_stat_type_t stat_type,
+                                                   _In_ sai_object_id_t      port)
+{
+    if (SAI_NULL_OBJECT_ID == port) {
+        return mlnx_acl_entry_res_ref_update(entry_index, stat_type, SAI_NULL_OBJECT_ID, 0);
+    } else {
+        return mlnx_acl_entry_res_ref_update(entry_index, stat_type, &port, 1);
+    }
+}
+
+static sai_status_t mlnx_acl_entry_port_obj_list_ref_update(_In_ uint32_t                 entry_index,
+                                                            _In_ acl_port_stat_type_t     stat_type,
+                                                            _In_ const sai_object_list_t *ports)
+{
+    if (NULL == ports) {
+        return mlnx_acl_entry_res_ref_update(entry_index, stat_type, SAI_NULL_OBJECT_ID, 0);
+    } else {
+        return mlnx_acl_entry_res_ref_update(entry_index, stat_type, ports->list, ports->count);
+    }
+}
+
 static sai_status_t mlnx_acl_entry_res_ref_update(_In_ uint32_t               entry_index,
                                                   _In_ acl_port_stat_type_t   stat_type,
                                                   _In_ const sai_object_id_t *port_list,
@@ -11740,6 +11279,11 @@ static sai_status_t mlnx_acl_entry_res_ref_update(_In_ uint32_t               en
         new_entry_res_refs.pbs_ports_mask       = port_mask;
         break;
 
+    case ACL_PORT_REFS_EGR_BLOCK:
+        new_entry_res_refs.is_egress_block_present = is_ports_present;
+        new_entry_res_refs.egress_block_mask       = port_mask;
+        break;
+
     default:
         assert(false);
         break;
@@ -11771,6 +11315,10 @@ static void mlnx_acl_entry_res_ref_set(_In_ const acl_entry_res_refs_t *entry_st
 
     if (entry_stats->is_lags_present) {
         mlnx_acl_res_ref_update(entry_stats->lag_index, true, add_reference);
+    }
+
+    if (entry_stats->is_egress_block_present) {
+        mlnx_acl_port_list_ref_update(entry_stats->egress_block_mask, add_reference);
     }
 }
 
@@ -11931,13 +11479,6 @@ sai_status_t mlnx_acl_port_lag_event_handle(_In_ const mlnx_port_config_t *port,
         if (SX_STATUS_SUCCESS != sx_status) {
             SX_LOG_ERR("Failed to update ACL Flood PBS Entry %s.\n", SX_STATUS_MSG(sx_status));
             status = sdk_to_sai(sx_status);
-            goto out;
-        }
-    }
-
-    if (false == mlnx_port_is_lag(port)) {
-        status = mlnx_acl_sx_port_lists_update(sx_port_cmd, sx_port_id);
-        if (SAI_STATUS_SUCCESS != status) {
             goto out;
         }
     }
@@ -12396,402 +11937,27 @@ out:
     return status;
 }
 
-/**
- * Routine Description:
- *   @brief Fills flex rule list with port keys.
- *
- * Arguments:
- *    @param[in] src_rule - flex rule to copy into dst_rules
- *    @param[inout] dst_rules - array of flex rules to fill
- *    @param[in] ports - array of ports
- *    @param[in] port_count - port array size
- *    @param[in] port_key_index - index of port key in flex rule
- *
- * Return Values:
- *    @return  void
- */
-static void mlnx_acl_fill_rule_list(_In_ sx_flex_acl_flex_rule_t     src_rule,
-                                    _Inout_ sx_flex_acl_flex_rule_t *dst_rules,
-                                    _In_ uint32_t                    dst_rules_count,
-                                    _In_ const sx_port_log_id_t     *ports,
-                                    _In_ uint32_t                    port_count,
-                                    _In_ uint32_t                    port_key_index)
+static void mlnx_acl_port_mask_to_sai_list(_In_ uint64_t          mask,
+                                           _Out_ sai_object_id_t *objects,
+                                           _Inout_ uint32_t      *object_count)
 {
-    uint32_t port_index, ii;
+    uint32_t port_db_index, object_index;
 
-    SX_LOG_ENTER();
+    assert((objects != NULL) && (object_count != NULL));
+    assert(*object_count >= MAX_PORTS);
 
-    assert((ports != NULL) || (0 == port_count));
-
-    port_index = 0;
-    for (ii = 0; ii < dst_rules_count; ii++) {
-        mlnx_acl_flex_rule_copy(&dst_rules[ii], &src_rule);
-
-        if (port_count > 0) {
-            dst_rules[ii].key_desc_list_p[port_key_index].key.dst_port  = ports[port_index];
-            dst_rules[ii].key_desc_list_p[port_key_index].mask.dst_port = true;
-            port_index++;
-        }
-    }
-
-    SX_LOG_EXIT();
-}
-
-/**
- *   Routine Description:
- *     @brief Sets rules into HW and updates SAI DB (removes unneeded or creates new records)
- *
- *  Arguments:
- *  @param[in] entry_index - entry index in SAI DB
- *  @param[in] table_index - table index in SAI DB
- *  @param[in] rules - array of rules
- *  @param[in] rules_count - rules array size
- *
- *  Return Values:
- *    @return  SAI_STATUS_SUCCESS on success
- *             Failure status code on error
- */
-static sai_status_t mlnx_acl_entry_modify_rules(_In_ uint32_t                       entry_index,
-                                                _In_ uint32_t                       table_index,
-                                                _In_ const sx_flex_acl_flex_rule_t *rules,
-                                                _In_ uint32_t                       rules_count)
-{
-    sai_status_t               status = SAI_STATUS_SUCCESS;
-    sx_acl_region_id_t         region_id;
-    sx_acl_key_type_t          key_type;
-    sx_flex_acl_rule_offset_t *offsets_list_p;
-    uint32_t                   entry_priority, old_entry_rule_num, new_entry_rule_num, new_entry_index,
-                               delete_entry_index;
-    uint32_t flex_rules_num, update_rules_num;
-    uint32_t processed_entry_count, last_processed_entry_index;
-    uint32_t create_entries_num, created_entries_num;
-
-    assert(acl_entry_index_check_range(entry_index) && acl_table_index_check_range(table_index));
-
-    region_id          = acl_db_table(table_index).region_id;
-    key_type           = acl_db_table(table_index).key_type;
-    entry_priority     = acl_db_entry(entry_index).priority;
-    old_entry_rule_num = acl_db_entry(entry_index).rule_number;
-    new_entry_rule_num = rules_count;
-    flex_rules_num     = MAX(new_entry_rule_num, old_entry_rule_num);
-
-    last_processed_entry_index = entry_index;
-
-    offsets_list_p = (sx_flex_acl_rule_offset_t*)malloc(flex_rules_num * sizeof(sx_flex_acl_rule_offset_t));
-    if (offsets_list_p == NULL) {
-        SX_LOG_ERR("ERROR: unable to allocate memory for offsets list\n");
-        status = SAI_STATUS_NO_MEMORY;
-        goto out;
-    }
-
-    processed_entry_count = 0;
-    update_rules_num      = MIN(new_entry_rule_num, old_entry_rule_num);
-
-    while (processed_entry_count < update_rules_num) {
-        offsets_list_p[processed_entry_count] = acl_db_entry(last_processed_entry_index).offset;
-        processed_entry_count++;
-
-        if (processed_entry_count != update_rules_num) {
-            last_processed_entry_index = acl_db_entry(last_processed_entry_index).next;
-        }
-    }
-
-    status = mlnx_acl_flex_rules_set_helper(SX_ACCESS_CMD_SET, key_type, region_id,
-                                            offsets_list_p, rules, update_rules_num);
-    if (SAI_STATUS_SUCCESS != status) {
-        goto out;
-    }
-
-    if (update_rules_num < new_entry_rule_num) {
-        assert(update_rules_num == old_entry_rule_num);
-        create_entries_num = new_entry_rule_num - old_entry_rule_num;
-        status             = acl_db_insert_entries(table_index, last_processed_entry_index, create_entries_num);
-        if (SAI_STATUS_SUCCESS != status) {
-            goto out;
-        }
-
-        new_entry_index     = acl_db_entry(last_processed_entry_index).next;
-        created_entries_num = 0;
-        while (created_entries_num < create_entries_num) {
-            status = get_new_psort_offset(table_index, new_entry_index, entry_priority,
-                                          &offsets_list_p[processed_entry_count],
-                                          create_entries_num - created_entries_num);
-            if (SAI_STATUS_SUCCESS != status) {
-                goto out;
-            }
-
-            acl_db_entry(new_entry_index).offset   = offsets_list_p[processed_entry_count];
-            acl_db_entry(new_entry_index).priority = entry_priority;
-
-            status = mlnx_acl_flex_rules_set_helper(SX_ACCESS_CMD_SET, key_type, region_id,
-                                                    &offsets_list_p[processed_entry_count],
-                                                    &rules[processed_entry_count], 1);
-            if (SX_STATUS_SUCCESS != status) {
-                goto out;
-            }
-
-            new_entry_index = acl_db_entry(new_entry_index).next;
-
-            created_entries_num++;
-            processed_entry_count++;
-        }
-    } else if (update_rules_num < old_entry_rule_num) {
-        assert(update_rules_num == new_entry_rule_num);
-
-        /* delete starting from next entry */
-        delete_entry_index = acl_db_entry(last_processed_entry_index).next;
-
-        status = mlnx_delete_acl_entry_data(table_index, delete_entry_index, old_entry_rule_num - new_entry_rule_num);
-        if (SAI_STATUS_SUCCESS != status) {
-            goto out;
-        }
-    }
-
-    acl_db_entry(entry_index).rule_number = new_entry_rule_num;
-
-out:
-    free(offsets_list_p);
-    SX_LOG_EXIT();
-    return status;
-}
-
-static sai_status_t mlnx_acl_sx_list_set(_In_ sx_access_cmd_t          cmd,
-                                         _In_ const sai_object_list_t *ports,
-                                         _Inout_ uint32_t             *port_list_index)
-{
-    sai_status_t             status = SAI_STATUS_SUCCESS;
-    sx_status_t              sx_status;
-    sx_acl_port_list_id_t   *sx_port_list_id;
-    sx_acl_port_list_entry_t sx_list_entry[MAX_PORTS];
-    sx_port_log_id_t         sx_ports[MAX_PORTS];
-    mlnx_port_config_t      *port_config;
-    uint32_t                 ii, jj, entries_count;
-    uint64_t                 port_mask;
-    bool                     is_port_present, is_port_list_index_created = false;
-
-    assert((cmd == SX_ACCESS_CMD_CREATE) || (cmd == SX_ACCESS_CMD_SET));
-    assert(port_list_index != NULL);
-
-    memset(sx_list_entry, 0, sizeof(sx_list_entry));
-    memset(sx_ports, 0, sizeof(sx_ports));
-
-    if (ports->count > MAX_PORTS) {
-        SX_LOG_ERR("Too many ports (%d) for IN_PORTS attribute, max - %d\n", ports->count, MAX_PORTS);
-        return SAI_STATUS_FAILURE;
-    }
-
-    if (SX_ACCESS_CMD_CREATE == cmd) {
-        status = acl_db_find_port_list_free_index(port_list_index);
-        if (SAI_STATUS_SUCCESS != status) {
-            return SAI_STATUS_FAILURE;
-        }
-
-        is_port_list_index_created = true;
-    }
-
-    assert(acl_db_port_list(*port_list_index).is_used);
-
-    entries_count = 0;
-    port_mask     = 0;
-    mlnx_port_phy_foreach(port_config, ii) {
-        is_port_present = false;
-        for (jj = 0; jj < ports->count; jj++) {
-            if (port_config->saiport == ports->list[jj]) {
-                is_port_present = true;
-                break;
-            }
-        }
-
-        if (false == is_port_present) {
-            port_mask                              |= UINT64_C(1) << ii;
-            sx_ports[entries_count]                 = port_config->logical;
-            sx_list_entry[entries_count].log_port   = port_config->logical;
-            sx_list_entry[entries_count].port_match = SX_ACL_PORT_LIST_MATCH_NEGATIVE;
-            entries_count++;
-        }
-    }
-
-    sx_port_list_id = &acl_db_port_list(*port_list_index).sx_port_list_id;
-
-    sx_status = sx_api_acl_port_list_set(gh_sdk, cmd, sx_list_entry, entries_count, sx_port_list_id);
-    if (SX_STATUS_SUCCESS != sx_status) {
-        SX_LOG_ERR("Failed to %s sx port list %s.\n", (SX_ACCESS_CMD_CREATE == cmd) ? "create" : "set",
-                   SX_STATUS_MSG(sx_status));
-        status = sdk_to_sai(sx_status);
-        goto out;
-    }
-
-    acl_db_port_list(*port_list_index).port_mask = port_mask;
-
-out:
-    if ((SAI_STATUS_SUCCESS != status) && (is_port_list_index_created)) {
-        acl_db_port_list(*port_list_index).is_used = false;
-        sai_acl_db->acl_settings_tbl->port_lists_count--;
-    }
-
-    return SAI_STATUS_SUCCESS;
-}
-
-static sai_status_t mlnx_acl_sx_list_delete(_In_ uint32_t port_list_index)
-{
-    sx_status_t            sx_status;
-    sx_acl_port_list_id_t *sx_port_list_id;
-
-    assert(port_list_index != ACL_INVALID_DB_INDEX);
-    assert(acl_db_port_list(port_list_index).is_used);
-
-    sx_port_list_id = &acl_db_port_list(port_list_index).sx_port_list_id;
-
-    sx_status = sx_api_acl_port_list_set(gh_sdk, SX_ACCESS_CMD_DESTROY, NULL, 0, sx_port_list_id);
-    if (SX_STATUS_SUCCESS != sx_status) {
-        SX_LOG_ERR("Failed to delete sx port list %s.\n", SX_STATUS_MSG(sx_status));
-        return sdk_to_sai(sx_status);
-    }
-
-    acl_db_port_list(port_list_index).is_used = false;
-    sai_acl_db->acl_settings_tbl->port_lists_count--;
-
-    return SAI_STATUS_SUCCESS;
-}
-
-static sai_status_t mlnx_acl_fetch_sx_port_list(_In_ uint32_t           port_list_index,
-                                                _Out_ sx_port_log_id_t *ports,
-                                                _Out_ uint32_t         *port_count)
-{
-    sx_status_t              sx_status;
-    mlnx_port_config_t      *port;
-    sx_acl_port_list_id_t    sx_port_list_id;
-    sx_acl_port_list_entry_t sx_list_entry[MAX_PORTS];
-    uint32_t                 sx_port_count, ii, jj, target_port_count;
-    bool                     is_port_present;
-
-    assert((ports != NULL) && (port_count != NULL));
-    assert((port_list_index != ACL_INVALID_DB_INDEX) && (port_list_index < ACL_MAX_PORT_LISTS_COUNT));
-    assert(acl_db_port_list(port_list_index).is_used);
-
-    sx_port_list_id = acl_db_port_list(port_list_index).sx_port_list_id;
-
-    sx_port_count = MAX_PORTS;
-    sx_status     = sx_api_acl_port_list_get(gh_sdk, sx_port_list_id, sx_list_entry, &sx_port_count);
-    if (SX_STATUS_SUCCESS != sx_status) {
-        SX_LOG_ERR("Failed to get sx port list %s.\n", SX_STATUS_MSG(sx_status));
-        return sdk_to_sai(sx_status);
-    }
-
-    target_port_count = 0;
-    mlnx_port_phy_foreach(port, ii) {
-        is_port_present = false;
-        for (jj = 0; jj < sx_port_count; jj++) {
-            if (port->logical == sx_list_entry[jj].log_port) {
-                is_port_present = true;
-                break;
-            }
-        }
-
-        if (false == is_port_present) {
-            ports[target_port_count] = port->logical;
-            target_port_count++;
-        }
-    }
-
-    *port_count = target_port_count;
-
-    return SAI_STATUS_SUCCESS;
-}
-
-static void mlnx_acl_port_mask_to_sx_list(_In_ uint64_t           mask,
-                                          _Out_ sx_port_log_id_t *ports,
-                                          _Inout_ uint32_t       *port_count)
-{
-    uint32_t port_db_index, port_out_index;
-
-    assert((ports != NULL) && (port_count != NULL));
-    assert(*port_count >= MAX_PORTS);
-
-    port_db_index = port_out_index = 0;
+    port_db_index = object_index = 0;
     while (mask) {
         if (mask & 1) {
-            ports[port_out_index] = g_sai_db_ptr->ports_db[port_db_index].logical;
-            port_out_index++;
+            objects[object_index] = g_sai_db_ptr->ports_db[port_db_index].saiport;
+            object_index++;
         }
 
         mask >>= 1;
         port_db_index++;
     }
 
-    *port_count = port_out_index;
-}
-
-static sai_status_t mlnx_acl_sx_port_lists_update(_In_ sx_access_cmd_t cmd, _In_ sx_port_log_id_t sx_port)
-{
-    sx_status_t              sx_status;
-    sx_acl_port_list_entry_t sx_port_list_entry[MAX_PORTS];
-    sx_port_log_id_t         sx_ports[MAX_PORTS];
-    uint64_t                 port_mask;
-    uint32_t                 ii, jj, checked_count, port_lists_count, port_count;
-
-    assert((SX_ACCESS_CMD_ADD_PORTS == cmd) || (SX_ACCESS_CMD_DELETE_PORTS == cmd));
-
-    memset(&sx_port_list_entry, 0, sizeof(sx_port_list_entry));
-
-    for (ii = 0; ii < MAX_PORTS; ii++) {
-        if (g_sai_db_ptr->ports_db[ii].logical == sx_port) {
-            break;
-        }
-    }
-
-    assert(ii < MAX_PORTS);
-    port_mask = UINT64_C(1) << ii;
-
-    port_lists_count = sai_acl_db->acl_settings_tbl->port_lists_count;
-
-    checked_count = 0;
-    for (ii = 0; (ii < ACL_MAX_PORT_LISTS_COUNT) && (checked_count < port_lists_count); ii++) {
-        if (acl_db_port_list(ii).is_used) {
-            port_count = MAX_PORTS;
-
-            mlnx_acl_port_mask_to_sx_list(acl_db_port_list(ii).port_mask, sx_ports, &port_count);
-            assert((SX_ACCESS_CMD_DELETE_PORTS == cmd) || (port_count < MAX_PORTS));
-
-            if (SX_ACCESS_CMD_ADD_PORTS == cmd) {
-                sx_ports[port_count] = sx_port;
-                port_count++;
-
-                acl_db_port_list(ii).port_mask |= port_mask;
-            } else { /* delete */
-                if (acl_db_port_list(ii).port_mask & port_mask) {
-                    for (jj = 0; jj < port_count; jj++) {
-                        if (sx_ports[jj] == sx_port) {
-                            break;
-                        }
-                    }
-                    assert(jj != port_count);
-
-                    sx_ports[jj] = sx_ports[port_count - 1];
-                    port_count--;
-
-                    acl_db_port_list(ii).port_mask &= ~port_mask;
-                }
-            }
-
-            for (jj = 0; jj < port_count; jj++) {
-                sx_port_list_entry[jj].port_match = SX_ACL_PORT_LIST_MATCH_NEGATIVE;
-                sx_port_list_entry[jj].log_port   = sx_ports[jj];
-            }
-
-            sx_status = sx_api_acl_port_list_set(gh_sdk, SX_ACCESS_CMD_SET, sx_port_list_entry, port_count,
-                                                 &acl_db_port_list(ii).sx_port_list_id);
-            if (SX_STATUS_SUCCESS != sx_status) {
-                SX_LOG_ERR("Failed to update sx port list[%d] %s.\n",  acl_db_port_list(ii).sx_port_list_id,
-                           SX_STATUS_MSG(sx_status));
-                return sdk_to_sai(sx_status);
-            }
-
-            checked_count++;
-        }
-    }
-
-    return SAI_STATUS_SUCCESS;
+    *object_count = object_index;
 }
 
 static sai_status_t mlnx_sai_port_to_sx(_In_ sai_object_id_t sai_port, _Out_ sx_port_log_id_t *sx_port)
@@ -14808,16 +13974,16 @@ static bool mlnx_acl_table_bind_point_list_fits_group(_In_ uint32_t group_index,
     table_bind_point_type_count = acl_db_table(table_index).bind_point_types.count;
     table_bind_point_types      = acl_db_table(table_index).bind_point_types.types;
 
-    for (ii = 0; ii < table_bind_point_type_count; ii++) {
-        for (jj = 0; jj < group_bind_point_type_count; jj++) {
-            if (table_bind_point_types[ii] == group_bind_point_types[jj]) {
+    for (ii = 0; ii < group_bind_point_type_count; ii++) {
+        for (jj = 0; jj < table_bind_point_type_count; jj++) {
+            if (group_bind_point_types[ii] == table_bind_point_types[jj]) {
                 break;
             }
         }
 
-        if (jj == group_bind_point_type_count) {
-            SX_LOG_ERR("Table's bind point type (%d) is not supported for group (%d)\n",
-                       table_bind_point_types[ii], group_index);
+        if (jj == table_bind_point_type_count) {
+            SX_LOG_ERR("ACL Group's bind point type (%d) is not supported for ACL Table (%d)\n",
+                       group_bind_point_types[ii], table_index);
             return false;
         }
     }
@@ -15498,14 +14664,11 @@ static sai_status_t mlnx_create_acl_table_group(_Out_ sai_object_id_t      *acl_
     sai_attr_list_to_str(attr_count, attr_list, SAI_OBJECT_TYPE_ACL_TABLE_GROUP, MAX_LIST_VALUE_STR_LEN, list_str);
     SX_LOG_NTC("Create ACL Group, %s\n", list_str);
 
-    status = find_attrib_in_list(attr_count, attr_list, SAI_ACL_TABLE_GROUP_ATTR_TYPE, &group_attr_type, &attr_index);
-    assert(SAI_STATUS_SUCCESS == status);
+    group_type = SAI_ACL_TABLE_GROUP_TYPE_SEQUENTIAL;
 
-    group_type = group_attr_type->s32;
-    if (group_type > SAI_ACL_TABLE_GROUP_TYPE_PARALLEL) {
-        SX_LOG_ERR("Invalid attribute value (%d) for SAI_ACL_TABLE_GROUP_ATTR_TYPE\n", group_type);
-        status = SAI_STATUS_INVALID_ATTR_VALUE_0 + attr_index;
-        goto out;
+    status = find_attrib_in_list(attr_count, attr_list, SAI_ACL_TABLE_GROUP_ATTR_TYPE, &group_attr_type, &attr_index);
+    if (!SAI_ERR(status)) {
+        group_type = group_attr_type->s32;
     }
 
     status = find_attrib_in_list(attr_count,

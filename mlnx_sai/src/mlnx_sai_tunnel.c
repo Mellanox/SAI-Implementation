@@ -1013,6 +1013,12 @@ static sai_status_t mlnx_sai_get_sai_rif_id(_In_ sai_object_id_t        sai_tunn
         switch (sai_tunnel_rif_type) {
         case MLNX_TUNNEL_OVERLAY:
             *sai_rif = sai_tunnel_db_entry.sai_vxlan_overlay_rif;
+            if (SAI_NULL_OBJECT_ID == *sai_rif) {
+                SX_LOG_ERR("Overlay rif is not valid for .1D bridge vxlan tunnel\n");
+                sai_db_unlock();
+                SX_LOG_EXIT();
+                return SAI_STATUS_FAILURE;
+            }
             break;
 
         case MLNX_TUNNEL_UNDERLAY:
@@ -1654,6 +1660,14 @@ static sai_status_t mlnx_tunnel_vxlan_mapper_set(_In_ sai_object_id_t           
 
     assert((TUNNEL_ENCAP == (long)arg) || (TUNNEL_DECAP == (long)arg));
 
+    if (MLNX_TUNNEL_MAP_MAX < value->objlist.count) {
+        SX_LOG_ERR("tunnel map list count %d is greater than maximum allowed size %d\n",
+                   value->objlist.count,
+                   MLNX_TUNNEL_MAP_MAX);
+        SX_LOG_EXIT();
+        return SAI_STATUS_FAILURE;
+    }
+
     sai_db_read_lock();
     sai_status = mlnx_get_tunnel_db_entry(sai_tunnel_obj_id, &old_mlnx_tunnel_db_entry);
     sai_db_unlock();
@@ -1700,6 +1714,22 @@ static sai_status_t mlnx_tunnel_vxlan_mapper_set(_In_ sai_object_id_t           
         SX_LOG_EXIT();
         return sai_status;
     }
+
+    sai_db_write_lock();
+
+    if (TUNNEL_ENCAP == (long)arg) {
+        g_sai_db_ptr->tunnel_db[sai_tunnel_db_idx].sai_tunnel_map_encap_cnt = value->objlist.count;
+        memcpy(g_sai_db_ptr->tunnel_db[sai_tunnel_db_idx].sai_tunnel_map_encap_id_array,
+               value->objlist.list,
+               value->objlist.count * sizeof(sai_object_id_t));
+    } else if (TUNNEL_DECAP == (long)arg) {
+        g_sai_db_ptr->tunnel_db[sai_tunnel_db_idx].sai_tunnel_map_decap_cnt = value->objlist.count;
+        memcpy(g_sai_db_ptr->tunnel_db[sai_tunnel_db_idx].sai_tunnel_map_decap_id_array,
+               value->objlist.list,
+               value->objlist.count * sizeof(sai_object_id_t));
+    }
+
+    sai_db_unlock();
 
     sai_status = SAI_STATUS_SUCCESS;
 
@@ -3494,7 +3524,8 @@ static sai_status_t mlnx_bridge_vport_set(_In_ sai_object_id_t  sai_tunnel_obj_i
         return sai_status;
     }
 
-    g_sai_db_ptr->tunnel_db[tunnel_db_idx].vport_set = true;
+    g_sai_db_ptr->tunnel_db[tunnel_db_idx].dot1q_vport_set = true;
+    g_sai_db_ptr->tunnel_db[tunnel_db_idx].dot1q_vport_id = sx_log_vport;
 
     SX_LOG_DBG("Set bridge port for bridge id %x\n", sx_bridge_id);
     SX_LOG_EXIT();
@@ -3502,7 +3533,7 @@ static sai_status_t mlnx_bridge_vport_set(_In_ sai_object_id_t  sai_tunnel_obj_i
     return SAI_STATUS_SUCCESS;
 }
 
-static sai_status_t mlnx_sai_tunnel_bridge_get(_Out_ sx_bridge_id_t *sx_bridge_id)
+static sai_status_t mlnx_sai_tunnel_1Qbridge_get(_Out_ sx_bridge_id_t *sx_bridge_id)
 {
     SX_LOG_ENTER();
 
@@ -3522,16 +3553,27 @@ static sai_status_t mlnx_sai_tunnel_bridge_get(_Out_ sx_bridge_id_t *sx_bridge_i
     return SAI_STATUS_SUCCESS;
 }
 
-static sai_status_t mlnx_sai_tunnel_bridge_port_get(_In_ sai_object_id_t    sai_bridge_port_id,
-                                                    _Out_ sx_port_log_id_t *sx_bridge_port_id)
+static sai_status_t mlnx_sai_tunnel_1Dbridge_get(_In_ sai_object_id_t    sai_bridge_id,
+                                                 _Out_ sx_bridge_id_t   *sx_bridge_id)
 {
+    mlnx_object_id_t mlnx_bridge_id = {0};
+    sai_status_t     sai_status    = SAI_STATUS_FAILURE;
     SX_LOG_ENTER();
 
-    if (NULL == sx_bridge_port_id) {
-        SX_LOG_ERR("sx_bridge_port_id is NULL\n");
+    if (NULL == sx_bridge_id) {
+        SX_LOG_ERR("sx_bridge_id is NULL\n");
         SX_LOG_EXIT();
         return SAI_STATUS_FAILURE;
     }
+
+    sai_status = sai_to_mlnx_object_id(SAI_OBJECT_TYPE_BRIDGE, sai_bridge_id, &mlnx_bridge_id);
+    if (SAI_ERR(sai_status)) {
+        SX_LOG_ERR("Error getting mlnx object id from bridge id %"PRIx64"\n", sai_bridge_id);
+        SX_LOG_EXIT();
+        return sai_status;
+    }
+
+    *sx_bridge_id = mlnx_bridge_id.id.bridge_id;
 
     SX_LOG_EXIT();
     return SAI_STATUS_SUCCESS;
@@ -3558,9 +3600,9 @@ static sai_status_t mlnx_sai_tunnel_map_entry_vlan_vni_bridge_set(_In_ sai_objec
 
     assert((SX_ACCESS_CMD_ADD == cmd) || (SX_ACCESS_CMD_DELETE == cmd));
 
+    /* use .1Q bridge as default bridge */
     if (SAI_STATUS_SUCCESS !=
-        (sai_status = mlnx_sai_tunnel_bridge_get(&sx_bridge_id))) {
-        sai_db_unlock();
+        (sai_status = mlnx_sai_tunnel_1Qbridge_get(&sx_bridge_id))) {
         SX_LOG_ERR("fail to get sx bridge id\n");
         SX_LOG_EXIT();
         return sai_status;
@@ -3635,8 +3677,8 @@ static sai_status_t mlnx_sai_tunnel_map_entry_vlan_vni_bridge_set(_In_ sai_objec
             case SAI_TUNNEL_MAP_TYPE_BRIDGE_IF_TO_VNI:
                 if (SAI_STATUS_SUCCESS !=
                     (sai_status =
-                         mlnx_sai_tunnel_bridge_port_get(g_sai_db_ptr->mlnx_tunnel_map_entry[ii].bridge_id_key,
-                                                         &sx_bridge_port_id))) {
+                         mlnx_sai_tunnel_1Dbridge_get(g_sai_db_ptr->mlnx_tunnel_map_entry[ii].bridge_id_key,
+                                                      &sx_bridge_id))) {
                     sai_db_unlock();
                     SX_LOG_ERR("missing bridge port\n");
                     SX_LOG_EXIT();
@@ -3648,8 +3690,8 @@ static sai_status_t mlnx_sai_tunnel_map_entry_vlan_vni_bridge_set(_In_ sai_objec
             case SAI_TUNNEL_MAP_TYPE_VNI_TO_BRIDGE_IF:
                 if (SAI_STATUS_SUCCESS !=
                     (sai_status =
-                         mlnx_sai_tunnel_bridge_port_get(g_sai_db_ptr->mlnx_tunnel_map_entry[ii].bridge_id_value,
-                                                         &sx_bridge_port_id))) {
+                         mlnx_sai_tunnel_1Dbridge_get(g_sai_db_ptr->mlnx_tunnel_map_entry[ii].bridge_id_value,
+                                                      &sx_bridge_id))) {
                     sai_db_unlock();
                     SX_LOG_ERR("missing bridge port\n");
                     SX_LOG_EXIT();
@@ -3800,13 +3842,6 @@ static sai_status_t mlnx_sai_tunnel_map_vlan_vni_bridge_set(_In_ sai_object_id_t
         }
     }
 
-    if (SAI_STATUS_SUCCESS !=
-        (sai_status = mlnx_sai_tunnel_bridge_get(&sx_bridge_id))) {
-        SX_LOG_ERR("fail to get sx bridge id\n");
-        SX_LOG_EXIT();
-        return sai_status;
-    }
-
     if (0 == mlnx_tunnel_map.tunnel_map_list_count) {
         if (SAI_STATUS_SUCCESS !=
             (sai_status = mlnx_sai_tunnel_map_entry_vlan_vni_bridge_set(sai_mapper_obj_id,
@@ -3821,6 +3856,13 @@ static sai_status_t mlnx_sai_tunnel_map_vlan_vni_bridge_set(_In_ sai_object_id_t
         }
         SX_LOG_EXIT();
         return SAI_STATUS_SUCCESS;
+    }
+
+    if (SAI_STATUS_SUCCESS !=
+        (sai_status = mlnx_sai_tunnel_1Qbridge_get(&sx_bridge_id))) {
+        SX_LOG_ERR("fail to get sx bridge id\n");
+        SX_LOG_EXIT();
+        return sai_status;
     }
 
     for (ii = 0; ii < mlnx_tunnel_map.tunnel_map_list_count; ii++) {
@@ -3922,8 +3964,10 @@ static sai_status_t mlnx_sai_create_vxlan_tunnel_map_list(_In_ sai_object_id_t  
 
     sai_db_unlock();
 
-    if (SAI_STATUS_SUCCESS !=
-        (sai_status = mlnx_object_to_type(overlay_bridge_port_id, SAI_OBJECT_TYPE_PORT, &sx_bridge_port_id, NULL))) {
+    if (SAI_NULL_OBJECT_ID == overlay_bridge_port_id) {
+        sx_bridge_port_id = 0;
+    } else if (SAI_STATUS_SUCCESS !=
+               (sai_status = mlnx_object_to_type(overlay_bridge_port_id, SAI_OBJECT_TYPE_PORT, &sx_bridge_port_id, NULL))) {
         SX_LOG_ERR("Fail to get bridge port for overlay interface\n");
         sx_bridge_port_id = 0;
     }
@@ -4013,6 +4057,8 @@ static sai_status_t mlnx_sai_fill_sx_vxlan_tunnel_data(_In_ sai_tunnel_type_t   
             return SAI_STATUS_INVALID_ATTR_VALUE_0 + attr_idx;
         }
         mlnx_tunnel_db_entry->sai_vxlan_overlay_rif = attr->oid;
+    } else {
+        mlnx_tunnel_db_entry->sai_vxlan_overlay_rif = SAI_NULL_OBJECT_ID;
     }
 
     if (SAI_STATUS_SUCCESS ==
@@ -4020,6 +4066,7 @@ static sai_status_t mlnx_sai_fill_sx_vxlan_tunnel_data(_In_ sai_tunnel_type_t   
              find_attrib_in_list(attr_count, attr_list, SAI_TUNNEL_ATTR_UNDERLAY_INTERFACE, &attr, &attr_idx))) {
         if (SAI_STATUS_SUCCESS !=
             (sai_status = mlnx_object_to_type(attr->oid, SAI_OBJECT_TYPE_ROUTER_INTERFACE, &data, NULL))) {
+            SX_LOG_ERR("underlay interface %"PRIx64" is not rif type\n", attr->oid);
             SX_LOG_EXIT();
             return SAI_STATUS_INVALID_ATTR_VALUE_0 + attr_idx;
         }
@@ -4556,7 +4603,15 @@ static sai_status_t mlnx_remove_tunnel(_In_ const sai_object_id_t sai_tunnel_obj
 
     /* Remove the following bridge logic after SAI bridge being officially introduced */
     if (SX_TUNNEL_TYPE_NVE_VXLAN == sx_tunnel_attr.type) {
-        if (g_sai_db_ptr->tunnel_db[tunnel_db_idx].vport_set) {
+        if (g_sai_db_ptr->tunnel_db[tunnel_db_idx].dot1q_vport_set) {
+            log_vport = g_sai_db_ptr->tunnel_db[tunnel_db_idx].dot1q_vport_id;
+            if (SX_STATUS_SUCCESS !=
+                (sdk_status = sx_api_port_state_set(gh_sdk, log_vport, SX_PORT_ADMIN_STATUS_DOWN))) {
+                sai_status = sdk_to_sai(sdk_status);
+                SX_LOG_ERR("Error setting vport admin state, SX STATUS: %s\n", SX_STATUS_MSG(sdk_status));
+                goto cleanup;
+            }
+
             if (SX_STATUS_SUCCESS != (sdk_status = sx_api_bridge_vport_set(
                                           gh_sdk,
                                           SX_ACCESS_CMD_DELETE_ALL,
@@ -5285,7 +5340,7 @@ static sai_status_t mlnx_init_tunnel_map_entry_param(_In_ uint32_t              
         return SAI_STATUS_INVALID_ATTR_VALUE_0 + attr_idx;
     }
     if (SAI_STATUS_SUCCESS == sai_status) {
-        mlnx_tunnel_map_entry->bridge_id_value = bridge_id_value->u16;
+        mlnx_tunnel_map_entry->bridge_id_value = bridge_id_value->oid;
     }
 
     sai_status = find_attrib_in_list(attr_count,

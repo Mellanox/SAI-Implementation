@@ -113,7 +113,6 @@ static sai_status_t mlnx_fill_route_data(sx_uc_route_data_t      *route_data,
     sx_ecmp_id_t  sdk_ecmp_id;
     sx_next_hop_t sdk_next_hop;
     uint32_t      sdk_next_hop_cnt;
-    uint32_t      rif_data;
     uint32_t      port_data;
 
     SX_LOG_ENTER();
@@ -168,10 +167,11 @@ static sai_status_t mlnx_fill_route_data(sx_uc_route_data_t      *route_data,
         route_data->uc_route_param.ecmp_id = sdk_ecmp_id;
     } else if (SAI_OBJECT_TYPE_ROUTER_INTERFACE == sai_object_type_query(oid)) {
         if (SAI_STATUS_SUCCESS !=
-            (status = mlnx_object_to_type(oid, SAI_OBJECT_TYPE_ROUTER_INTERFACE, &rif_data, NULL))) {
+            (status = mlnx_rif_oid_to_sdk_rif_id(oid, &route_data->uc_route_param.local_egress_rif))) {
+            SX_LOG_ERR("Fail to get sdk rif id from rif oid %"PRIx64"\n", oid);
+            SX_LOG_EXIT();
             return status;
         }
-        route_data->uc_route_param.local_egress_rif = (sx_router_interface_t)rif_data;
         route_data->type                            = SX_UC_ROUTE_TYPE_LOCAL;
     } else if (SAI_OBJECT_TYPE_PORT == sai_object_type_query(oid)) {
         if (SAI_STATUS_SUCCESS !=

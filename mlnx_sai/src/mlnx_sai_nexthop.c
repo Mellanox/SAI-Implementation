@@ -134,7 +134,6 @@ static sai_status_t mlnx_translate_sai_next_hop_to_sdk(_In_ sai_next_hop_type_t 
                                                        _Out_ sx_next_hop_t         *next_hop)
 {
     sai_status_t sai_status;
-    uint32_t     rif_data;
     uint32_t     tunnel_idx;
 
     SX_LOG_ENTER();
@@ -153,12 +152,10 @@ static sai_status_t mlnx_translate_sai_next_hop_to_sdk(_In_ sai_next_hop_type_t 
         }
 
         if (SAI_STATUS_SUCCESS !=
-            (sai_status = mlnx_object_to_type(*rif_id, SAI_OBJECT_TYPE_ROUTER_INTERFACE, &rif_data, NULL))) {
+            (sai_status = mlnx_rif_oid_to_sdk_rif_id(*rif_id, &next_hop->next_hop_key.next_hop_key_entry.ip_next_hop.rif))) {
             SX_LOG_EXIT();
             return sai_status;
         }
-
-        next_hop->next_hop_key.next_hop_key_entry.ip_next_hop.rif = (sx_router_interface_t)rif_data;
 
         break;
 

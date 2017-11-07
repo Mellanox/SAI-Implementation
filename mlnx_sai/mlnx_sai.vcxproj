@@ -180,6 +180,7 @@
     <ClCompile Include="src\meta\saimetadatautils.c" />
     <ClCompile Include="src\mlnx_sai_acl.c" />
     <ClCompile Include="src\mlnx_sai_bridge.c" />
+    <ClCompile Include="src\mlnx_sai_buffer.c" />
     <ClCompile Include="src\mlnx_sai_fdb.c" />
     <ClCompile Include="src\mlnx_sai_hash.c" />
     <ClCompile Include="src\mlnx_sai_host_interface.c" />
@@ -202,7 +203,6 @@
     <ClCompile Include="src\mlnx_sai_scheduler_group.c" />
     <ClCompile Include="src\mlnx_sai_stp.c" />
     <ClCompile Include="src\mlnx_sai_switch.c" />
-    <ClCompile Include="src\mlnx_sai_buffer.c" />
     <ClCompile Include="src\mlnx_sai_tunnel.c" />
     <ClCompile Include="src\mlnx_sai_udf.c" />
     <ClCompile Include="src\mlnx_sai_utils.c" />

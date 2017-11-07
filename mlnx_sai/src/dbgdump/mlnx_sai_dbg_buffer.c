@@ -22,13 +22,11 @@
 static void SAI_dump_buffer_getdb(_Out_ mlnx_sai_db_buffer_profile_entry_t *buffer_profiles,
                                   _Out_ uint32_t                           *port_buffer_data,
                                   _Out_ bool                               *pool_allocation,
-                                  _Out_ uint32_t                           *e_cpu_pool_startup_size,
                                   _Out_ uint32_t                           *sai_buffer_db_size)
 {
     assert(NULL != buffer_profiles);
     assert(NULL != port_buffer_data);
     assert(NULL != pool_allocation);
-    assert(NULL != e_cpu_pool_startup_size);
     assert(NULL != sai_buffer_db_size);
     assert(NULL != g_sai_buffer_db_ptr);
 
@@ -44,9 +42,8 @@ static void SAI_dump_buffer_getdb(_Out_ mlnx_sai_db_buffer_profile_entry_t *buff
 
     memcpy(pool_allocation,
            g_sai_buffer_db_ptr->pool_allocation,
-           (BUFFER_DB_POOL_FLAG_ARRAY_SIZE + 1) * sizeof(bool));
-
-    *e_cpu_pool_startup_size = *g_sai_buffer_db_ptr->e_cpu_pool_startup_size;
+           (mlnx_sai_get_buffer_resource_limits()->num_ingress_pools + 
+           mlnx_sai_get_buffer_resource_limits()->num_egress_pools + 1) * sizeof(bool));
 
     *sai_buffer_db_size = g_sai_buffer_db_size;
 
@@ -262,21 +259,12 @@ static void SAI_dump_pool_allocation_print(_In_ FILE *file, _In_ bool *pool_allo
 
     dbg_utils_print_table_headline(file, pool_allocation_data_clmns);
 
-    for (ii = 0; ii < BUFFER_DB_POOL_FLAG_ARRAY_SIZE + 1; ii++) {
+    for (ii = 0; ii < mlnx_sai_get_buffer_resource_limits()->num_ingress_pools + 
+        mlnx_sai_get_buffer_resource_limits()->num_egress_pools + 1; ii++) {
         curr_pool_allocation = pool_allocation[ii];
 
         dbg_utils_print_table_data_line(file, pool_allocation_data_clmns);
     }
-}
-
-static void SAI_dump_e_cpu_pool_startup_size_print(_In_ FILE *file, _In_ uint32_t *e_cpu_pool_startup_size)
-{
-    assert(NULL != e_cpu_pool_startup_size);
-
-    dbg_utils_print_general_header(file, "e cpu pool startup size");
-
-    dbg_utils_print_field(file, "e cpu pool startup size", e_cpu_pool_startup_size, PARAM_UINT32_E);
-    dbg_utils_print(file, "\n");
 }
 
 void SAI_dump_buffer(_In_ FILE *file)
@@ -284,7 +272,6 @@ void SAI_dump_buffer(_In_ FILE *file)
     mlnx_sai_db_buffer_profile_entry_t *buffer_profile          = NULL;
     uint32_t                           *port_buffer_data        = NULL;
     bool                               *pool_allocation         = NULL;
-    uint32_t                            e_cpu_pool_startup_size = 0;
     uint32_t                            sai_buffer_db_size      = 0;
 
     buffer_profile =
@@ -292,7 +279,8 @@ void SAI_dump_buffer(_In_ FILE *file)
             mlnx_sai_get_buffer_profile_number(), sizeof(mlnx_sai_db_buffer_profile_entry_t));
     port_buffer_data = (uint32_t*)calloc(BUFFER_DB_PER_PORT_PROFILE_INDEX_ARRAY_SIZE * MAX_PORTS,
                                          sizeof(uint32_t));
-    pool_allocation = (bool*)calloc(BUFFER_DB_POOL_FLAG_ARRAY_SIZE + 1, sizeof(bool));
+    pool_allocation = (bool*)calloc(mlnx_sai_get_buffer_resource_limits()->num_ingress_pools + 
+        mlnx_sai_get_buffer_resource_limits()->num_egress_pools + 1, sizeof(bool));
 
     if ((!buffer_profile) || (!port_buffer_data) || (!pool_allocation)) {
         if (buffer_profile) {
@@ -310,7 +298,6 @@ void SAI_dump_buffer(_In_ FILE *file)
     SAI_dump_buffer_getdb(buffer_profile,
                           port_buffer_data,
                           pool_allocation,
-                          &e_cpu_pool_startup_size,
                           &sai_buffer_db_size);
 
     dbg_utils_print_module_header(file, "SAI Buffer");
@@ -318,7 +305,6 @@ void SAI_dump_buffer(_In_ FILE *file)
     SAI_dump_buffer_profile_print(file, buffer_profile);
     SAI_dump_port_buffer_data_print(file, port_buffer_data);
     SAI_dump_pool_allocation_print(file, pool_allocation);
-    SAI_dump_e_cpu_pool_startup_size_print(file, &e_cpu_pool_startup_size);
     SAI_dump_sai_buffer_db_size_print(file, &sai_buffer_db_size);
 
     free(buffer_profile);
