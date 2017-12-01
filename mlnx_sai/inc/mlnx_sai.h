@@ -146,10 +146,10 @@ int msync(void *addr, size_t length, int flags);
 #define MS_SYNC     4
 #endif
 
-extern sx_api_handle_t        gh_sdk;
-extern service_method_table_t g_mlnx_services;
-extern rm_resources_t         g_resource_limits;
-extern sx_log_cb_t            sai_log_cb;
+extern sx_api_handle_t            gh_sdk;
+extern sai_service_method_table_t g_mlnx_services;
+extern rm_resources_t             g_resource_limits;
+extern sx_log_cb_t                sai_log_cb;
 
 sai_status_t sdk_to_sai(sx_status_t status);
 
@@ -556,7 +556,6 @@ sai_status_t mlnx_fill_s16list(int16_t *data, uint32_t count, sai_s16_list_t *li
 sai_status_t mlnx_fill_u32list(uint32_t *data, uint32_t count, sai_u32_list_t *list);
 sai_status_t mlnx_fill_s32list(int32_t *data, uint32_t count, sai_s32_list_t *list);
 sai_status_t mlnx_fill_vlanlist(sai_vlan_id_t *data, uint32_t count, sai_vlan_list_t *list);
-sai_status_t mlnx_fill_tunnelmaplist(sai_tunnel_map_t *data, uint32_t count, sai_tunnel_map_list_t *list);
 sai_status_t mlnx_attribute_value_list_size_check(_Inout_ uint32_t *out_size, _In_ uint32_t in_size);
 
 sai_status_t mlnx_wred_apply(sai_object_id_t wred_id, sai_object_id_t to_obj_id);
@@ -868,9 +867,10 @@ sai_status_t mlnx_bridge_rif_del(mlnx_bridge_rif_t *rif);
 sai_status_t mlnx_bridge_rif_by_idx(uint32_t idx, mlnx_bridge_rif_t **rif);
 sai_status_t mlnx_bridge_rif_to_oid(mlnx_bridge_rif_t *rif, sai_object_id_t *oid);
 sai_status_t mlnx_rif_oid_to_sdk_rif_id(sai_object_id_t rif_oid, sx_router_interface_t *sdk_rif_id);
-sai_status_t mlnx_bridge_sx_vport_create(_In_ sx_port_log_id_t   sx_port,
-                                         _In_ sx_vlan_id_t       sx_vlan_id,
-                                         _Out_ sx_port_log_id_t *sx_vport);
+sai_status_t mlnx_bridge_sx_vport_create(_In_ sx_port_log_id_t            sx_port,
+                                         _In_ sx_vlan_id_t                sx_vlan_id,
+                                         _In_ sx_untagged_member_state_t  sx_tagging_mode,
+                                         _Out_ sx_port_log_id_t          *sx_vport);
 sai_status_t mlnx_bridge_sx_vport_delete(_In_ sx_port_log_id_t  sx_port,
                                          _In_ sx_vlan_id_t      sx_vlan_id,
                                          _In_ sx_port_log_id_t  sx_vport);
@@ -889,6 +889,9 @@ bool mlnx_vlan_port_is_set(uint16_t vid, mlnx_bridge_port_t *port);
 sai_status_t mlnx_vlan_sai_tagging_to_sx(_In_ sai_vlan_tagging_mode_t      mode,
                                          _Out_ sx_untagged_member_state_t *tagging,
                                          _Out_ sx_untagged_prio_state_t   *prio_tagging);
+sai_status_t mlnx_vlan_log_port_tagging_get(_In_ sx_port_log_id_t             sx_port_id,
+                                            _In_ sx_vlan_id_t                 sx_vlan_id,
+                                            _Out_ sx_untagged_member_state_t *sx_tagging_mode);
 sai_status_t mlnx_vlan_port_add(uint16_t vid, sai_vlan_tagging_mode_t mode, mlnx_bridge_port_t *port);
 sai_status_t mlnx_vlan_port_del(uint16_t vid, mlnx_bridge_port_t *port);
 sai_status_t sai_object_to_vlan(sai_object_id_t oid, uint16_t *vlan_id);
@@ -1502,11 +1505,37 @@ typedef struct _tunnel_db_entry_t {
     sx_port_log_id_t  dot1q_vport_id;
 } tunnel_db_entry_t;
 
+typedef struct _mlnx_tunnel_map_params_t
+{
+    /** inner ECN */
+    sai_uint8_t oecn;
+
+    /** outer ECN */
+    sai_uint8_t uecn;
+
+    /** vlan id */
+    sai_vlan_id_t vlan_id;
+
+    /** VNI id */
+    sai_uint32_t vni_id;
+
+} mlnx_tunnel_map_params_t;
+
+typedef struct _sai_tunnel_map_t
+{
+    /** Input parameters to match */
+    mlnx_tunnel_map_params_t key;
+
+    /** Output map parameters */
+    mlnx_tunnel_map_params_t value;
+
+} mlnx_tunnel_map_value_t;
+
 typedef struct _tunnel_map_t {
     bool                  in_use;
     sai_tunnel_map_type_t tunnel_map_type;
     uint32_t              tunnel_map_list_count;
-    sai_tunnel_map_t      tunnel_map_list[MLNX_TUNNEL_MAP_LIST_MAX];
+    mlnx_tunnel_map_value_t tunnel_map_list[MLNX_TUNNEL_MAP_LIST_MAX];
     uint32_t              tunnel_cnt;
     uint32_t              tunnel_map_entry_cnt;
     uint32_t              tunnel_map_entry_head_idx;
@@ -1580,8 +1609,10 @@ typedef struct sai_db {
     mlnx_mstp_inst_t          mlnx_mstp_inst_db[SX_MSTP_INST_ID_MAX - SX_MSTP_INST_ID_MIN + 1];
     sai_packet_action_t       flood_action_uc;
     sai_packet_action_t       flood_action_bc;
+    sai_packet_action_t       flood_action_mc;
     fdb_or_route_actions_db_t fdb_or_route_actions;
     bool                      transaction_mode_enable;
+    sx_port_packet_storing_mode_t packet_storing_mode;
 } sai_db_t;
 
 extern sai_db_t *g_sai_db_ptr;
@@ -1755,6 +1786,30 @@ bool mlnx_port_is_lag_member(const mlnx_port_config_t *port);
 bool mlnx_log_port_is_cpu(sx_port_log_id_t log_id);
 bool mlnx_log_port_is_vport(sx_port_log_id_t log_id);
 const char * mlnx_port_type_str(const mlnx_port_config_t *port);
+sai_status_t mlnx_port_lag_pvid_attr_set(_In_ const sai_object_key_t      *key,
+                                         _In_ const sai_attribute_value_t *value,
+                                         void                             *arg);
+sai_status_t mlnx_port_lag_pvid_attr_get(_In_ const sai_object_key_t   *key,
+                                         _Inout_ sai_attribute_value_t *value,
+                                         _In_ uint32_t                  attr_index,
+                                         _Inout_ vendor_cache_t        *cache,
+                                         void                          *arg);
+sai_status_t mlnx_port_lag_default_vlan_prio_set(_In_ const sai_object_key_t      *key,
+                                                 _In_ const sai_attribute_value_t *value,
+                                                 void                             *arg);
+sai_status_t mlnx_port_lag_default_vlan_prio_get(_In_ const sai_object_key_t   *key,
+                                                    _Inout_ sai_attribute_value_t *value,
+                                                    _In_ uint32_t                  attr_index,
+                                                    _Inout_ vendor_cache_t        *cache,
+                                                    void                          *arg);
+sai_status_t mlnx_port_lag_drop_tags_set(_In_ const sai_object_key_t      *key,
+                                         _In_ const sai_attribute_value_t *value,
+                                         void                             *arg);
+sai_status_t mlnx_port_lag_drop_tags_get(_In_ const sai_object_key_t   *key,
+                                         _Inout_ sai_attribute_value_t *value,
+                                         _In_ uint32_t                  attr_index,
+                                         _Inout_ vendor_cache_t        *cache,
+                                         void                          *arg);
 
 /* DB read lock is needed */
 sai_status_t mlnx_switch_get_mac(sx_mac_addr_t *mac);

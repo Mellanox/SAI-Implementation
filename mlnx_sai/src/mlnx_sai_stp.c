@@ -753,9 +753,9 @@ out:
  * @param[in] switch_id SAI Switch object id
  * @param[in] object_count Number of objects to create
  * @param[in] attr_count List of attr_count. Caller passes the number
- *         of attribute for each object to create.
- * @param[in] attrs List of attributes for every object.
- * @param[in] type bulk operation type.
+ *    of attribute for each object to create.
+ * @param[in] attr_list List of attributes for every object.
+ * @param[in] mode Bulk operation error handling mode.
  *
  * @param[out] object_id List of object ids returned
  * @param[out] object_statuses List of status for every object. Caller needs to allocate the buffer.
@@ -764,13 +764,13 @@ out:
  * any of the objects fails to create. When there is failure, Caller is expected to go through the
  * list of returned statuses to find out which fails and which succeeds.
  */
-sai_status_t mlnx_create_stp_ports(_In_ sai_object_id_t         switch_id,
-                                   _In_ uint32_t                object_count,
-                                   _In_ const uint32_t         *attr_count,
-                                   _In_ const sai_attribute_t **attrs,
-                                   _In_ sai_bulk_op_type_t      type,
-                                   _Out_ sai_object_id_t       *object_id,
-                                   _Out_ sai_status_t          *object_statuses)
+sai_status_t mlnx_create_stp_ports(_In_ sai_object_id_t          switch_id,
+                                   _In_ uint32_t                 object_count,
+                                   _In_ const uint32_t          *attr_count,
+                                   _In_ const sai_attribute_t  **attr_list,
+                                   _In_ sai_bulk_op_error_mode_t mode,
+                                   _Out_ sai_object_id_t        *object_id,
+                                   _Out_ sai_status_t           *object_statuses)
 {
     return SAI_STATUS_NOT_IMPLEMENTED;
 }
@@ -787,10 +787,10 @@ sai_status_t mlnx_create_stp_ports(_In_ sai_object_id_t         switch_id,
  * any of the objects fails to remove. When there is failure, Caller is expected to go through the
  * list of returned statuses to find out which fails and which succeeds.
  */
-sai_status_t mlnx_remove_stp_ports(_In_ uint32_t               object_count,
-                                   _In_ const sai_object_id_t *object_id,
-                                   _In_ sai_bulk_op_type_t     type,
-                                   _Out_ sai_status_t         *object_statuses)
+sai_status_t mlnx_remove_stp_ports(_In_ uint32_t                 object_count,
+                                   _In_ const sai_object_id_t   *object_id,
+                                   _In_ sai_bulk_op_error_mode_t mode,
+                                   _Out_ sai_status_t           *object_statuses)
 {
     return SAI_STATUS_NOT_IMPLEMENTED;
 }
@@ -1067,7 +1067,7 @@ sai_status_t mlnx_stp_initialize()
     sai_status_t              status = SAI_STATUS_SUCCESS;
     sx_status_t               sx_status;
     sx_vlan_id_t              sx_vlan_id;
-    sx_vlan_id_t              sx_vlan_ids[MAX_VLANS] = {0};
+    sx_vlan_id_t              sx_vlan_ids[MAX_VLANS]         = {0};
     sx_mstp_inst_port_state_t ports_states[MAX_BRIDGE_PORTS] = {0};
     uint32_t                  vlans_count, ii;
     const mlnx_bridge_port_t *bport;
@@ -1086,7 +1086,8 @@ sai_status_t mlnx_stp_initialize()
         if (bport->port_type == SAI_BRIDGE_PORT_TYPE_PORT) {
             sx_status = sx_api_rstp_port_state_get(gh_sdk, bport->logical, &ports_states[ii]);
             if (SX_ERR(sx_status)) {
-                SX_LOG_ERR("Failed to get rstp status for port %x - %s\n", bport->logical, SX_ACCESS_CMD_STR(sx_status));
+                SX_LOG_ERR("Failed to get rstp status for port %x - %s\n", bport->logical,
+                           SX_ACCESS_CMD_STR(sx_status));
                 status = sdk_to_sai(sx_status);
                 goto out;
             }
@@ -1150,7 +1151,11 @@ sai_status_t mlnx_stp_port_state_set_impl(_In_ sx_port_log_id_t          port,
     if (mlnx_stp_is_initialized()) {
         sx_status = sx_api_mstp_inst_port_state_set(gh_sdk, DEFAULT_ETH_SWID, mstp_instance, port, state);
         if (SX_ERR(sx_status)) {
-            SX_LOG_ERR("Failed to set mstp instance [%d] port [%x] state (%u) - %s\n", mstp_instance, port, state, SX_STATUS_MSG(sx_status));
+            SX_LOG_ERR("Failed to set mstp instance [%d] port [%x] state (%u) - %s\n",
+                       mstp_instance,
+                       port,
+                       state,
+                       SX_STATUS_MSG(sx_status));
             return sdk_to_sai(sx_status);
         }
     } else {

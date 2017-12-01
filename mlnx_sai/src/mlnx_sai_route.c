@@ -28,11 +28,11 @@ static sai_status_t mlnx_route_packet_action_get(_In_ const sai_object_key_t   *
                                                  _In_ uint32_t                  attr_index,
                                                  _Inout_ vendor_cache_t        *cache,
                                                  void                          *arg);
-static sai_status_t mlnx_route_trap_priority_get(_In_ const sai_object_key_t   *key,
-                                                 _Inout_ sai_attribute_value_t *value,
-                                                 _In_ uint32_t                  attr_index,
-                                                 _Inout_ vendor_cache_t        *cache,
-                                                 void                          *arg);
+static sai_status_t mlnx_route_trap_id_get(_In_ const sai_object_key_t   *key,
+                                           _Inout_ sai_attribute_value_t *value,
+                                           _In_ uint32_t                  attr_index,
+                                           _Inout_ vendor_cache_t        *cache,
+                                           void                          *arg);
 static sai_status_t mlnx_route_next_hop_id_get(_In_ const sai_object_key_t   *key,
                                                _Inout_ sai_attribute_value_t *value,
                                                _In_ uint32_t                  attr_index,
@@ -41,9 +41,9 @@ static sai_status_t mlnx_route_next_hop_id_get(_In_ const sai_object_key_t   *ke
 static sai_status_t mlnx_route_packet_action_set(_In_ const sai_object_key_t      *key,
                                                  _In_ const sai_attribute_value_t *value,
                                                  void                             *arg);
-static sai_status_t mlnx_route_trap_priority_set(_In_ const sai_object_key_t      *key,
-                                                 _In_ const sai_attribute_value_t *value,
-                                                 void                             *arg);
+static sai_status_t mlnx_route_trap_id_set(_In_ const sai_object_key_t      *key,
+                                           _In_ const sai_attribute_value_t *value,
+                                           void                             *arg);
 static sai_status_t mlnx_route_next_hop_id_set(_In_ const sai_object_key_t      *key,
                                                _In_ const sai_attribute_value_t *value,
                                                void                             *arg);
@@ -53,11 +53,11 @@ static const sai_vendor_attribute_entry_t route_vendor_attribs[] = {
       { true, false, true, true },
       mlnx_route_packet_action_get, NULL,
       mlnx_route_packet_action_set, NULL },
-    { SAI_ROUTE_ENTRY_ATTR_TRAP_PRIORITY,
+    { SAI_ROUTE_ENTRY_ATTR_USER_TRAP_ID,
       { true, false, true, true },
       { true, false, true, true },
-      mlnx_route_trap_priority_get, NULL,
-      mlnx_route_trap_priority_set, NULL },
+      mlnx_route_trap_id_get, NULL,
+      mlnx_route_trap_id_set, NULL },
     { SAI_ROUTE_ENTRY_ATTR_NEXT_HOP_ID,
       { true, false, true, true },
       { true, false, true, true },
@@ -168,11 +168,11 @@ static sai_status_t mlnx_fill_route_data(sx_uc_route_data_t      *route_data,
     } else if (SAI_OBJECT_TYPE_ROUTER_INTERFACE == sai_object_type_query(oid)) {
         if (SAI_STATUS_SUCCESS !=
             (status = mlnx_rif_oid_to_sdk_rif_id(oid, &route_data->uc_route_param.local_egress_rif))) {
-            SX_LOG_ERR("Fail to get sdk rif id from rif oid %"PRIx64"\n", oid);
+            SX_LOG_ERR("Fail to get sdk rif id from rif oid %" PRIx64 "\n", oid);
             SX_LOG_EXIT();
             return status;
         }
-        route_data->type                            = SX_UC_ROUTE_TYPE_LOCAL;
+        route_data->type = SX_UC_ROUTE_TYPE_LOCAL;
     } else if (SAI_OBJECT_TYPE_PORT == sai_object_type_query(oid)) {
         if (SAI_STATUS_SUCCESS !=
             (status = mlnx_object_to_type(oid, SAI_OBJECT_TYPE_PORT, &port_data, NULL))) {
@@ -220,9 +220,9 @@ static sai_status_t mlnx_create_route(_In_ const sai_route_entry_t* route_entry,
                                       _In_ const sai_attribute_t   *attr_list)
 {
     sx_status_t                  status;
-    const sai_attribute_value_t *action, *priority, *next_hop;
+    const sai_attribute_value_t *action, *next_hop;
     sai_object_id_t              next_hop_oid;
-    uint32_t                     action_index, priority_index, next_hop_index;
+    uint32_t                     action_index, next_hop_index;
     char                         list_str[MAX_LIST_VALUE_STR_LEN];
     char                         key_str[MAX_KEY_STR_LEN];
     sx_ip_prefix_t               ip_prefix;
@@ -262,21 +262,6 @@ static sai_status_t mlnx_create_route(_In_ const sai_route_entry_t* route_entry,
             (status = mlnx_translate_sai_router_action_to_sdk(action->s32, &route_data.action, action_index))) {
             return status;
         }
-    }
-
-    if (SAI_STATUS_SUCCESS ==
-        (status =
-             find_attrib_in_list(attr_count, attr_list, SAI_ROUTE_ENTRY_ATTR_TRAP_PRIORITY, &priority,
-                                 &priority_index))) {
-        /* TODO : better define priority mappings */
-        if (priority->u8 > SX_TRAP_PRIORITY_MAX) {
-            SX_LOG_ERR("Trap priority %u out of range (%u,%u)\n",
-                       priority->u8,
-                       SX_TRAP_PRIORITY_MIN,
-                       SX_TRAP_PRIORITY_MAX);
-            return SAI_STATUS_INVALID_ATTR_VALUE_0 + priority_index;
-        }
-        route_data.trap_attr.prio = priority->u8;
     }
 
     status = find_attrib_in_list(attr_count, attr_list, SAI_ROUTE_ENTRY_ATTR_NEXT_HOP_ID, &next_hop, &next_hop_index);
@@ -484,28 +469,13 @@ static sai_status_t mlnx_route_packet_action_get(_In_ const sai_object_key_t   *
     return SAI_STATUS_SUCCESS;
 }
 
-/* Packet priority for trap/log actions [uint8_t] */
-static sai_status_t mlnx_route_trap_priority_get(_In_ const sai_object_key_t   *key,
-                                                 _Inout_ sai_attribute_value_t *value,
-                                                 _In_ uint32_t                  attr_index,
-                                                 _Inout_ vendor_cache_t        *cache,
-                                                 void                          *arg)
+static sai_status_t mlnx_route_trap_id_get(_In_ const sai_object_key_t   *key,
+                                           _Inout_ sai_attribute_value_t *value,
+                                           _In_ uint32_t                  attr_index,
+                                           _Inout_ vendor_cache_t        *cache,
+                                           void                          *arg)
 {
-    sai_status_t             status;
-    const sai_route_entry_t* route_entry = &key->key.route_entry;
-    sx_uc_route_get_entry_t  route_get_entry;
-    sx_router_id_t           vrid;
-
-    SX_LOG_ENTER();
-
-    if (SAI_STATUS_SUCCESS != (status = mlnx_get_route(route_entry, &route_get_entry, &vrid))) {
-        return status;
-    }
-
-    value->u8 = route_get_entry.route_data.trap_attr.prio;
-
-    SX_LOG_EXIT();
-    return SAI_STATUS_SUCCESS;
+    return SAI_STATUS_NOT_IMPLEMENTED;
 }
 
 /* Next hop or next hop group id for the packet or a router interface
@@ -635,38 +605,11 @@ static sai_status_t mlnx_route_packet_action_set(_In_ const sai_object_key_t    
     return SAI_STATUS_SUCCESS;
 }
 
-/* Packet priority for trap/log actions [uint8_t] */
-static sai_status_t mlnx_route_trap_priority_set(_In_ const sai_object_key_t      *key,
-                                                 _In_ const sai_attribute_value_t *value,
-                                                 void                             *arg)
+static sai_status_t mlnx_route_trap_id_set(_In_ const sai_object_key_t      *key,
+                                           _In_ const sai_attribute_value_t *value,
+                                           void                             *arg)
 {
-    sai_status_t             status;
-    const sai_route_entry_t* route_entry = &key->key.route_entry;
-    sx_uc_route_get_entry_t  route_get_entry;
-    sx_router_id_t           vrid;
-
-    SX_LOG_ENTER();
-
-    if (SAI_STATUS_SUCCESS != (status = mlnx_get_route(route_entry, &route_get_entry, &vrid))) {
-        return status;
-    }
-
-    /* TODO : better define priority mappings */
-    if (value->u8 > SX_TRAP_PRIORITY_MAX) {
-        SX_LOG_ERR("Trap priority %u out of range (%u,%u)\n",
-                   value->u8,
-                   SX_TRAP_PRIORITY_MIN,
-                   SX_TRAP_PRIORITY_MAX);
-        return SAI_STATUS_INVALID_ATTR_VALUE_0;
-    }
-    route_get_entry.route_data.trap_attr.prio = value->u8;
-
-    if (SAI_STATUS_SUCCESS != (status = mlnx_modify_route(vrid, &route_get_entry, SX_ACCESS_CMD_ADD))) {
-        return status;
-    }
-
-    SX_LOG_EXIT();
-    return SAI_STATUS_SUCCESS;
+    return SAI_STATUS_NOT_IMPLEMENTED;
 }
 
 /* Next hop or next hop group id for the packet or a router interface
@@ -712,9 +655,113 @@ sai_status_t mlnx_route_log_set(sx_verbosity_level_t level)
     return SAI_STATUS_SUCCESS;
 }
 
+/**
+ * @brief Bulk create route entry
+ *
+ * @param[in] object_count Number of objects to create
+ * @param[in] route_entry List of object to create
+ * @param[in] attr_count List of attr_count. Caller passes the number
+ *    of attribute for each object to create.
+ * @param[in] attr_list List of attributes for every object.
+ * @param[in] mode Bulk operation error handling mode.
+ * @param[out] object_statuses List of status for every object. Caller needs to
+ * allocate the buffer
+ *
+ * @return #SAI_STATUS_SUCCESS on success when all objects are created or
+ * #SAI_STATUS_FAILURE when any of the objects fails to create. When there is
+ * failure, Caller is expected to go through the list of returned statuses to
+ * find out which fails and which succeeds.
+ */
+static sai_status_t mlnx_bulk_create_route_entry(_In_ uint32_t                 object_count,
+                                                 _In_ const sai_route_entry_t *route_entry,
+                                                 _In_ const uint32_t          *attr_count,
+                                                 _In_ const sai_attribute_t  **attr_list,
+                                                 _In_ sai_bulk_op_error_mode_t mode,
+                                                 _Out_ sai_status_t           *object_statuses)
+{
+    return SAI_STATUS_NOT_IMPLEMENTED;
+}
+
+/**
+ * @brief Bulk remove route entry
+ *
+ * @param[in] object_count Number of objects to remove
+ * @param[in] route_entry List of objects to remove
+ * @param[in] mode Bulk operation error handling mode.
+ * @param[out] object_statuses List of status for every object. Caller needs to
+ * allocate the buffer
+ *
+ * @return #SAI_STATUS_SUCCESS on success when all objects are removed or
+ * #SAI_STATUS_FAILURE when any of the objects fails to remove. When there is
+ * failure, Caller is expected to go through the list of returned statuses to
+ * find out which fails and which succeeds.
+ */
+static sai_status_t mlnx_bulk_remove_route_entry(_In_ uint32_t                 object_count,
+                                                 _In_ const sai_route_entry_t *route_entry,
+                                                 _In_ sai_bulk_op_error_mode_t mode,
+                                                 _Out_ sai_status_t           *object_statuses)
+{
+    return SAI_STATUS_NOT_IMPLEMENTED;
+}
+
+/**
+ * @brief Bulk set attribute on route entry
+ *
+ * @param[in] object_count Number of objects to set attribute
+ * @param[in] route_entry List of objects to set attribute
+ * @param[in] attr_list List of attributes to set on objects, one attribute per object
+ * @param[in] mode Bulk operation error handling mode.
+ * @param[out] object_statuses List of status for every object. Caller needs to
+ * allocate the buffer
+ *
+ * @return #SAI_STATUS_SUCCESS on success when all objects are removed or
+ * #SAI_STATUS_FAILURE when any of the objects fails to remove. When there is
+ * failure, Caller is expected to go through the list of returned statuses to
+ * find out which fails and which succeeds.
+ */
+static sai_status_t mlnx_bulk_set_route_entry_attribute(_In_ uint32_t                 object_count,
+                                                        _In_ const sai_route_entry_t *route_entry,
+                                                        _In_ const sai_attribute_t   *attr_list,
+                                                        _In_ sai_bulk_op_error_mode_t mode,
+                                                        _Out_ sai_status_t           *object_statuses)
+{
+    return SAI_STATUS_NOT_IMPLEMENTED;
+}
+
+/**
+ * @brief Bulk get attribute on route entry
+ *
+ * @param[in] object_count Number of objects to set attribute
+ * @param[in] route_entry List of objects to set attribute
+ * @param[in] attr_count List of attr_count. Caller passes the number
+ *    of attribute for each object to get
+ * @param[inout] attr_list List of attributes to set on objects, one attribute per object
+ * @param[in] mode Bulk operation error handling mode
+ * @param[out] object_statuses List of status for every object. Caller needs to
+ * allocate the buffer
+ *
+ * @return #SAI_STATUS_SUCCESS on success when all objects are removed or
+ * #SAI_STATUS_FAILURE when any of the objects fails to remove. When there is
+ * failure, Caller is expected to go through the list of returned statuses to
+ * find out which fails and which succeeds.
+ */
+static sai_status_t mlnx_bulk_get_route_entry_attribute(_In_ uint32_t                 object_count,
+                                                        _In_ const sai_route_entry_t *route_entry,
+                                                        _In_ const uint32_t          *attr_count,
+                                                        _Inout_ sai_attribute_t     **attr_list,
+                                                        _In_ sai_bulk_op_error_mode_t mode,
+                                                        _Out_ sai_status_t           *object_statuses)
+{
+    return SAI_STATUS_NOT_IMPLEMENTED;
+}
+
 const sai_route_api_t mlnx_route_api = {
     mlnx_create_route,
     mlnx_remove_route,
     mlnx_set_route_attribute,
     mlnx_get_route_attribute,
+    mlnx_bulk_create_route_entry,
+    mlnx_bulk_remove_route_entry,
+    mlnx_bulk_set_route_entry_attribute,
+    mlnx_bulk_get_route_entry_attribute
 };

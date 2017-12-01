@@ -133,6 +133,7 @@
     <ClInclude Include="inc\sai\saihostif.h" />
     <ClInclude Include="inc\sai\sailag.h" />
     <ClInclude Include="inc\sai\saimirror.h" />
+    <ClInclude Include="inc\sai\saimpls.h" />
     <ClInclude Include="inc\sai\saineighbor.h" />
     <ClInclude Include="inc\sai\sainexthop.h" />
     <ClInclude Include="inc\sai\sainexthopgroup.h" />
@@ -142,6 +143,9 @@
     <ClInclude Include="inc\sai\saiqosmap.h" />
     <ClInclude Include="inc\sai\saiqueue.h" />
     <ClInclude Include="inc\sai\sairoute.h" />
+    <ClInclude Include="inc\sai\saisegmentroute.h" />
+    <ClInclude Include="inc\sai\saitam.h" />
+    <ClInclude Include="inc\sai\saiuburst.h" />
     <ClInclude Include="inc\sai\saivirtualrouter.h" />
     <ClInclude Include="inc\sai\sairouterinterface.h" />
     <ClInclude Include="inc\sai\saisamplepacket.h" />
@@ -178,6 +182,7 @@
     <ClCompile Include="src\dbgdump\mlnx_sai_dbg_wred.c" />
     <ClCompile Include="src\meta\saimetadata.c" />
     <ClCompile Include="src\meta\saimetadatautils.c" />
+    <ClCompile Include="src\meta\saiserialize.c" />
     <ClCompile Include="src\mlnx_sai_acl.c" />
     <ClCompile Include="src\mlnx_sai_bridge.c" />
     <ClCompile Include="src\mlnx_sai_buffer.c" />

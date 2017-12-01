@@ -24,17 +24,16 @@
 #define __MODULE__ SAI_LAG
 
 typedef enum port_params_ {
-    PORT_PARAMS_QOS         = 1 << 0,
-        PORT_PARAMS_WRED    = 1 << 1,
-        PORT_PARAMS_MIRROR  = 1 << 2,
-        PORT_PARAMS_FOR_LAG = PORT_PARAMS_QOS | PORT_PARAMS_WRED | PORT_PARAMS_MIRROR,
-        PORT_PARAMS_FLOOD   = 1 << 3,
-        PORT_PARAMS_VLAN    = 1 << 4,
-        PORT_PARAMS_PVID    = 1 << 5,
-        PORT_PARAMS_SFLOW   = 1 << 6,
-        PORT_PARAMS_POLICER = 1 << 7,
-        PORT_PARAMS_LEARN_MODE = 1 << 8,
-        PORT_PARAMS_EGRESS_BLOCK = 1 << 9,
+    PORT_PARAMS_QOS              = 1 << 0,
+        PORT_PARAMS_WRED         = 1 << 1,
+        PORT_PARAMS_MIRROR       = 1 << 2,
+        PORT_PARAMS_FOR_LAG      = PORT_PARAMS_QOS | PORT_PARAMS_WRED | PORT_PARAMS_MIRROR,
+        PORT_PARAMS_FLOOD        = 1 << 3,
+        PORT_PARAMS_VLAN         = 1 << 4,
+        PORT_PARAMS_SFLOW        = 1 << 5,
+        PORT_PARAMS_POLICER      = 1 << 6,
+        PORT_PARAMS_LEARN_MODE   = 1 << 7,
+        PORT_PARAMS_EGRESS_BLOCK = 1 << 8,
 } port_params_t;
 
 static sx_verbosity_level_t LOG_VAR_NAME(__MODULE__) = SX_VERBOSITY_LEVEL_WARNING;
@@ -59,6 +58,26 @@ static const sai_vendor_attribute_entry_t lag_vendor_attribs[] = {
       { true, false, true, true },
       mlnx_acl_bind_point_get, (void*)MLNX_ACL_BIND_POINT_TYPE_EGRESS_LAG,
       mlnx_acl_bind_point_set, (void*)MLNX_ACL_BIND_POINT_TYPE_EGRESS_LAG },
+    { SAI_LAG_ATTR_PORT_VLAN_ID,
+      { true, false, true, true },
+      { true, false, true, true },
+      mlnx_port_lag_pvid_attr_get, NULL,
+      mlnx_port_lag_pvid_attr_set, NULL },
+    { SAI_LAG_ATTR_DEFAULT_VLAN_PRIORITY,
+      { true, false, true, true },
+      { true, false, true, true },
+      mlnx_port_lag_default_vlan_prio_get, NULL,
+      mlnx_port_lag_default_vlan_prio_set, NULL },
+    { SAI_LAG_ATTR_DROP_UNTAGGED,
+      { true, false, true, true },
+      { true, false, true, true },
+      mlnx_port_lag_drop_tags_get, (void*)SAI_LAG_ATTR_DROP_UNTAGGED,
+      mlnx_port_lag_drop_tags_set, (void*)SAI_LAG_ATTR_DROP_UNTAGGED },
+    { SAI_LAG_ATTR_DROP_TAGGED,
+      { true, false, true, true },
+      { true, false, true, true },
+      mlnx_port_lag_drop_tags_get, (void*)SAI_LAG_ATTR_DROP_TAGGED,
+      mlnx_port_lag_drop_tags_set, (void*)SAI_LAG_ATTR_DROP_TAGGED },
     { END_FUNCTIONALITY_ATTRIBS_ID,
       { false, false, false, false },
       { false, false, false, false },
@@ -149,7 +168,6 @@ static sai_status_t mlnx_port_params_clone(mlnx_port_config_t *to, mlnx_port_con
     uint32_t                     max_ets_count;
     sx_cos_trust_level_t         trust_level;
     sx_cos_ets_element_config_t *ets = NULL;
-    sx_vid_t                     pvid;
     sx_fdb_learn_mode_t          sx_fdb_learn_mode;
     mlnx_qos_queue_config_t     *queue_cfg;
     sai_status_t                 status = SAI_STATUS_SUCCESS;
@@ -293,7 +311,7 @@ static sai_status_t mlnx_port_params_clone(mlnx_port_config_t *to, mlnx_port_con
             goto out;
         }
     }
-    if ((clone & PORT_PARAMS_FLOOD) && is_flood_disabled && mlnx_port_is_in_bridge(from)) {
+    if ((clone & PORT_PARAMS_FLOOD) && mlnx_port_is_in_bridge(from)) {
         mlnx_bridge_port_t *bridge_port;
         uint16_t            fid;
 
@@ -305,53 +323,77 @@ static sai_status_t mlnx_port_params_clone(mlnx_port_config_t *to, mlnx_port_con
 
         mlnx_vlan_id_foreach(fid) {
             if (mlnx_vlan_port_is_set(fid, bridge_port)) {
-                sx_status_t sx_status;
+                sx_status_t         sx_status;
+                sx_port_log_id_t    log_ports[MAX_PORTS];
+                mlnx_bridge_port_t *port;
+                uint32_t            ii                = 0;
+                uint32_t            ports_count       = 0;
+                bool                from_port_in_vlan = false;
+                bool                to_port_in_vlan   = false;
 
-                if (g_sai_db_ptr->flood_action_uc == SAI_PACKET_ACTION_DROP) {
-                    sx_status = sx_api_fdb_flood_control_set(gh_sdk, SX_ACCESS_CMD_ADD_PORTS,
-                                                             DEFAULT_ETH_SWID, fid, SX_FLOOD_CONTROL_TYPE_UNICAST_E,
-                                                             1, &to->logical);
+                if (is_flood_disabled) {
+                    if (g_sai_db_ptr->flood_action_uc == SAI_PACKET_ACTION_DROP) {
+                        sx_status = sx_api_fdb_flood_control_set(gh_sdk,
+                                                                 SX_ACCESS_CMD_ADD_PORTS,
+                                                                 DEFAULT_ETH_SWID,
+                                                                 fid,
+                                                                 SX_FLOOD_CONTROL_TYPE_UNICAST_E,
+                                                                 1,
+                                                                 &to->logical);
 
-                    status = sdk_to_sai(sx_status);
+                        status = sdk_to_sai(sx_status);
+                    }
+                    if (SAI_ERR(status)) {
+                        goto out;
+                    }
+
+                    if (g_sai_db_ptr->flood_action_bc == SAI_PACKET_ACTION_DROP) {
+                        sx_status = sx_api_fdb_flood_control_set(gh_sdk,
+                                                                 SX_ACCESS_CMD_ADD_PORTS,
+                                                                 DEFAULT_ETH_SWID,
+                                                                 fid,
+                                                                 SX_FLOOD_CONTROL_TYPE_BROADCAST_E,
+                                                                 1,
+                                                                 &to->logical);
+
+                        status = sdk_to_sai(sx_status);
+                    }
+                    if (SAI_ERR(status)) {
+                        goto out;
+                    }
                 }
+
+                if (SAI_PACKET_ACTION_FORWARD == g_sai_db_ptr->flood_action_mc) {
+                    mlnx_vlan_ports_foreach(fid, port, ii) {
+                        log_ports[ports_count++] = port->logical;
+                        if (from->logical == port->logical) {
+                            from_port_in_vlan = true;
+                        }
+                        if (to->logical == port->logical) {
+                            to_port_in_vlan = true;
+                        }
+                    }
+                    if (from_port_in_vlan && !to_port_in_vlan) {
+                        log_ports[ports_count] = to->logical;
+                        ports_count++;
+                    }
+                } else if (SAI_PACKET_ACTION_DROP == g_sai_db_ptr->flood_action_mc) {
+                    ports_count = 0;
+                }
+                sx_status = sx_api_vlan_unreg_mc_flood_ports_set(gh_sdk, DEFAULT_ETH_SWID,
+                                                                 fid, log_ports, ports_count);
+
+                status = sdk_to_sai(sx_status);
                 if (SAI_ERR(status)) {
-                    goto out;
-                }
-
-                if (g_sai_db_ptr->flood_action_bc == SAI_PACKET_ACTION_DROP) {
-                    sx_status = sx_api_fdb_flood_control_set(gh_sdk, SX_ACCESS_CMD_ADD_PORTS,
-                                                             DEFAULT_ETH_SWID, fid, SX_FLOOD_CONTROL_TYPE_BROADCAST_E,
-                                                             1, &to->logical);
-
-                    status = sdk_to_sai(sx_status);
-                }
-                if (SAI_ERR(status)) {
+                    SX_LOG_ERR("Failed to set unregistered mc flood port\n");
                     goto out;
                 }
             }
         }
     }
     if (clone & PORT_PARAMS_VLAN) {
-        sx_vlan_frame_types_t frame_types;
         sx_ingr_filter_mode_t mode;
         sx_status_t           sx_status;
-
-        /* Align VLAN accepted frame types */
-        sx_status = sx_api_vlan_port_accptd_frm_types_get(gh_sdk, from->logical, &frame_types);
-        if (SX_ERR(sx_status)) {
-            SX_LOG_ERR("Failed to get port accepted frame types for port oid %" PRIx64 " - %s.\n",
-                       from->saiport, SX_STATUS_MSG(sx_status));
-
-            return sdk_to_sai(sx_status);
-        }
-
-        sx_status = sx_api_vlan_port_accptd_frm_types_set(gh_sdk, to->logical, &frame_types);
-        if (SX_ERR(sx_status)) {
-            SX_LOG_ERR("Failed to set port accepted frame types for port oid %" PRIx64 " - %s.\n",
-                       to->saiport, SX_STATUS_MSG(sx_status));
-
-            return sdk_to_sai(sx_status);
-        }
 
         /* Align VLAN ingress filter */
         sx_status = sx_api_vlan_port_ingr_filter_get(gh_sdk, from->logical, &mode);
@@ -365,24 +407,6 @@ static sai_status_t mlnx_port_params_clone(mlnx_port_config_t *to, mlnx_port_con
         sx_status = sx_api_vlan_port_ingr_filter_set(gh_sdk, to->logical, mode);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Port ingress filter set for port oid %" PRIx64 " failed - %s\n",
-                       to->saiport, SX_STATUS_MSG(sx_status));
-
-            return sdk_to_sai(sx_status);
-        }
-    }
-
-    if (clone & PORT_PARAMS_PVID) {
-        sx_status = sx_api_vlan_port_pvid_get(gh_sdk, from->logical, &pvid);
-        if (SX_ERR(sx_status)) {
-            SX_LOG_ERR("Failed to get port pvid for port oid %" PRIx64 " - %s.\n",
-                       from->saiport, SX_STATUS_MSG(sx_status));
-
-            return sdk_to_sai(sx_status);
-        }
-
-        sx_status = sx_api_vlan_port_pvid_set(gh_sdk, SX_ACCESS_CMD_ADD, to->logical, pvid);
-        if (SX_ERR(sx_status)) {
-            SX_LOG_ERR("Failed to set port pvid for port oid %" PRIx64 " - %s.\n",
                        to->saiport, SX_STATUS_MSG(sx_status));
 
             return sdk_to_sai(sx_status);
@@ -439,34 +463,18 @@ out:
  * SDK do not remove the port from this VLAN when the port is removed from LAG */
 static sai_status_t port_reset_vlan_params_from_port(mlnx_port_config_t *port, mlnx_port_config_t *lag)
 {
-    uint16_t              vlan_count = 0;
-    sx_vlan_frame_types_t frame_types;
-    mlnx_bridge_port_t   *lag_bport;
-    sx_port_vlans_t      *vlan_list;
-    sx_status_t           sx_status;
-    sai_status_t          status;
-    uint16_t              vid;
-    uint16_t              ii = 0;
+    uint16_t            vlan_count = 0;
+    mlnx_bridge_port_t *lag_bport;
+    sx_port_vlans_t    *vlan_list;
+    sx_status_t         sx_status;
+    sai_status_t        status;
+    uint16_t            vid;
+    uint16_t            ii = 0;
 
     /* Reset to default VLAN ingress filter */
     sx_status = sx_api_vlan_port_ingr_filter_set(gh_sdk, port->logical, SX_INGR_FILTER_ENABLE);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Port ingress filter set %x failed - %s\n", port->logical, SX_STATUS_MSG(sx_status));
-        return sdk_to_sai(sx_status);
-    }
-
-    /* Reset to default VLAN accepted frame types */
-    sx_status = sx_api_vlan_port_accptd_frm_types_get(gh_sdk, port->logical, &frame_types);
-    if (SX_ERR(sx_status)) {
-        SX_LOG_ERR("Failed to get port accepted frame types - %s.\n", SX_STATUS_MSG(sx_status));
-        return sdk_to_sai(sx_status);
-    }
-
-    frame_types.allow_untagged = true;
-    frame_types.allow_tagged   = true;
-    sx_status                  = sx_api_vlan_port_accptd_frm_types_set(gh_sdk, port->logical, &frame_types);
-    if (SX_ERR(sx_status)) {
-        SX_LOG_ERR("Failed to set port accepted frame types - %s.\n", SX_STATUS_MSG(sx_status));
         return sdk_to_sai(sx_status);
     }
 
@@ -566,7 +574,7 @@ static sai_status_t remove_port_from_lag(sx_port_log_id_t lag_id, sx_port_log_id
 
     /* Do re-apply for port params which were removed by us before add to the LAG */
     status = mlnx_port_params_clone(port, lag, PORT_PARAMS_WRED | PORT_PARAMS_MIRROR | PORT_PARAMS_SFLOW |
-                                    PORT_PARAMS_POLICER | PORT_PARAMS_PVID | PORT_PARAMS_EGRESS_BLOCK);
+                                    PORT_PARAMS_POLICER | PORT_PARAMS_EGRESS_BLOCK);
     if (SAI_ERR(status)) {
         return status;
     }
@@ -1006,12 +1014,19 @@ static sai_status_t mlnx_create_lag(_Out_ sai_object_id_t     * lag_id,
     sx_status_t                  sx_status;
     char                         list_str[MAX_LIST_VALUE_STR_LEN];
     char                         key_str[MAX_KEY_STR_LEN];
-    const sai_attribute_value_t *attr_ing_acl    = NULL;
-    const sai_attribute_value_t *attr_egr_acl    = NULL;
-    acl_index_t                  ing_acl_index   = ACL_INDEX_INVALID, egr_acl_index = ACL_INDEX_INVALID;
-    sx_port_log_id_t             lag_log_port_id = 0;
-    uint32_t                     ii              = 0, index;
-    mlnx_port_config_t          *lag             = NULL;
+    const sai_attribute_value_t *attr_ing_acl       = NULL;
+    const sai_attribute_value_t *attr_egr_acl       = NULL;
+    const sai_attribute_value_t *attr_pvid          = NULL;
+    const sai_attribute_value_t *attr_def_vlan_prio = NULL;
+    const sai_attribute_value_t *attr_drop_untagged = NULL;
+    const sai_attribute_value_t *attr_drop_tagged   = NULL;
+    acl_index_t                  ing_acl_index      = ACL_INDEX_INVALID, egr_acl_index = ACL_INDEX_INVALID;
+    sx_port_log_id_t             lag_log_port_id    = 0;
+    sx_vlan_frame_types_t        accptd_frm_types;
+    uint32_t                     ii = 0, index;
+    uint32_t                     attr_pvid_index, attr_def_vlan_prio_index, attr_drop_untagged_index,
+                                 attr_drop_tagged_index;
+    mlnx_port_config_t *lag = NULL;
 
     SX_LOG_ENTER();
 
@@ -1026,6 +1041,9 @@ static sai_status_t mlnx_create_lag(_Out_ sai_object_id_t     * lag_id,
         SX_LOG_ERR("Failed attribs check\n");
         return status;
     }
+
+    sai_attr_list_to_str(attr_count, attr_list, SAI_OBJECT_TYPE_LAG, MAX_LIST_VALUE_STR_LEN, list_str);
+    SX_LOG_NTC("Create lag, %s\n", list_str);
 
     sai_db_write_lock();
     acl_global_lock();
@@ -1052,8 +1070,18 @@ static sai_status_t mlnx_create_lag(_Out_ sai_object_id_t     * lag_id,
         }
     }
 
-    sai_attr_list_to_str(attr_count, attr_list, SAI_OBJECT_TYPE_LAG, MAX_LIST_VALUE_STR_LEN, list_str);
-    SX_LOG_NTC("Create lag, %s\n", list_str);
+    find_attrib_in_list(attr_count, attr_list, SAI_LAG_ATTR_PORT_VLAN_ID, &attr_pvid, &attr_pvid_index);
+    find_attrib_in_list(attr_count,
+                        attr_list,
+                        SAI_LAG_ATTR_DEFAULT_VLAN_PRIORITY,
+                        &attr_def_vlan_prio,
+                        &attr_def_vlan_prio_index);
+    find_attrib_in_list(attr_count,
+                        attr_list,
+                        SAI_LAG_ATTR_DROP_UNTAGGED,
+                        &attr_drop_untagged,
+                        &attr_drop_untagged_index);
+    find_attrib_in_list(attr_count, attr_list, SAI_LAG_ATTR_DROP_TAGGED, &attr_drop_tagged, &attr_drop_tagged_index);
 
     sx_status = sx_api_lag_port_group_set(gh_sdk, SX_ACCESS_CMD_CREATE, DEFAULT_ETH_SWID,
                                           &lag_log_port_id, NULL, 0);
@@ -1110,6 +1138,45 @@ static sai_status_t mlnx_create_lag(_Out_ sai_object_id_t     * lag_id,
         status = mlnx_acl_port_lag_rif_bind_point_set(lag->saiport, MLNX_ACL_BIND_POINT_TYPE_EGRESS_LAG,
                                                       egr_acl_index);
         if (SAI_ERR(status)) {
+            goto out;
+        }
+    }
+
+    if (attr_pvid) {
+        sx_status = sx_api_vlan_port_pvid_set(gh_sdk, SX_ACCESS_CMD_ADD, lag->logical, attr_pvid->u16);
+        if (SX_ERR(sx_status)) {
+            SX_LOG_ERR("Failed to set pvid %d to LAG %x - %s\n", attr_pvid->u16, lag->logical,
+                       SX_STATUS_MSG(sx_status));
+            status = sdk_to_sai(sx_status);
+            goto out;
+        }
+    }
+
+    if (attr_def_vlan_prio) {
+        sx_status = sx_api_cos_port_default_prio_set(gh_sdk, lag->logical, attr_def_vlan_prio->u8);
+        if (SX_ERR(sx_status)) {
+            SX_LOG_ERR("Failed to set LAG %x default prio - %s.\n", lag->logical, SX_STATUS_MSG(sx_status));
+            status = sdk_to_sai(sx_status);
+            goto out;
+        }
+    }
+
+    if (attr_drop_tagged || attr_drop_untagged) {
+        memset(&accptd_frm_types, 0, sizeof(accptd_frm_types));
+        accptd_frm_types.allow_untagged = accptd_frm_types.allow_tagged = accptd_frm_types.allow_priotagged = true;
+
+        if (attr_drop_tagged) {
+            accptd_frm_types.allow_tagged = !(attr_drop_tagged->booldata);
+        }
+
+        if (attr_drop_untagged) {
+            accptd_frm_types.allow_untagged = !(attr_drop_untagged->booldata);
+        }
+
+        sx_status = sx_api_vlan_port_accptd_frm_types_set(gh_sdk, lag->logical, &accptd_frm_types);
+        if (SX_ERR(sx_status)) {
+            SX_LOG_ERR("Failed to set LAG %x accepted frame types - %s.\n", lag->logical, SX_STATUS_MSG(status));
+            status = sdk_to_sai(status);
             goto out;
         }
     }
@@ -1345,7 +1412,7 @@ static sai_status_t mlnx_create_lag_member(_Out_ sai_object_id_t     * lag_membe
         status = mlnx_port_params_clone(lag,
                                         port,
                                         PORT_PARAMS_FOR_LAG | PORT_PARAMS_SFLOW | PORT_PARAMS_POLICER |
-                                        PORT_PARAMS_PVID | PORT_PARAMS_EGRESS_BLOCK);
+                                        PORT_PARAMS_EGRESS_BLOCK);
         if (SAI_ERR(status)) {
             goto out;
         }
@@ -1596,9 +1663,9 @@ static sai_status_t mlnx_get_lag_member_attribute(_In_ sai_object_id_t     lag_m
  * @param[in] switch_id SAI Switch object id
  * @param[in] object_count Number of objects to create
  * @param[in] attr_count List of attr_count. Caller passes the number
- *         of attribute for each object to create.
- * @param[in] attrs List of attributes for every object.
- * @param[in] type bulk operation type.
+ *    of attribute for each object to create.
+ * @param[in] attr_list List of attributes for every object.
+ * @param[in] mode Bulk operation error handling mode.
  *
  * @param[out] object_id List of object ids returned
  * @param[out] object_statuses List of status for every object. Caller needs to allocate the buffer.
@@ -1607,13 +1674,13 @@ static sai_status_t mlnx_get_lag_member_attribute(_In_ sai_object_id_t     lag_m
  * any of the objects fails to create. When there is failure, Caller is expected to go through the
  * list of returned statuses to find out which fails and which succeeds.
  */
-sai_status_t mlnx_create_lag_members(_In_ sai_object_id_t         switch_id,
-                                     _In_ uint32_t                object_count,
-                                     _In_ const uint32_t         *attr_count,
-                                     _In_ const sai_attribute_t **attrs,
-                                     _In_ sai_bulk_op_type_t      type,
-                                     _Out_ sai_object_id_t       *object_id,
-                                     _Out_ sai_status_t          *object_statuses)
+static sai_status_t mlnx_create_lag_members(_In_ sai_object_id_t          switch_id,
+                                            _In_ uint32_t                 object_count,
+                                            _In_ const uint32_t          *attr_count,
+                                            _In_ const sai_attribute_t  **attr_list,
+                                            _In_ sai_bulk_op_error_mode_t mode,
+                                            _Out_ sai_object_id_t        *object_id,
+                                            _Out_ sai_status_t           *object_statuses)
 {
     return SAI_STATUS_NOT_IMPLEMENTED;
 }
@@ -1623,17 +1690,17 @@ sai_status_t mlnx_create_lag_members(_In_ sai_object_id_t         switch_id,
  *
  * @param[in] object_count Number of objects to create
  * @param[in] object_id List of object ids
- * @param[in] type bulk operation type.
+ * @param[in] mode Bulk operation error handling mode.
  * @param[out] object_statuses List of status for every object. Caller needs to allocate the buffer.
  *
  * @return #SAI_STATUS_SUCCESS on success when all objects are removed or #SAI_STATUS_FAILURE when
  * any of the objects fails to remove. When there is failure, Caller is expected to go through the
  * list of returned statuses to find out which fails and which succeeds.
  */
-sai_status_t mlnx_remove_lag_members(_In_ uint32_t               object_count,
-                                     _In_ const sai_object_id_t *object_id,
-                                     _In_ sai_bulk_op_type_t     type,
-                                     _Out_ sai_status_t         *object_statuses)
+static sai_status_t mlnx_remove_lag_members(_In_ uint32_t                 object_count,
+                                            _In_ const sai_object_id_t   *object_id,
+                                            _In_ sai_bulk_op_error_mode_t mode,
+                                            _Out_ sai_status_t           *object_statuses)
 {
     return SAI_STATUS_NOT_IMPLEMENTED;
 }

@@ -42,8 +42,8 @@ static void SAI_dump_buffer_getdb(_Out_ mlnx_sai_db_buffer_profile_entry_t *buff
 
     memcpy(pool_allocation,
            g_sai_buffer_db_ptr->pool_allocation,
-           (mlnx_sai_get_buffer_resource_limits()->num_ingress_pools + 
-           mlnx_sai_get_buffer_resource_limits()->num_egress_pools + 1) * sizeof(bool));
+           (mlnx_sai_get_buffer_resource_limits()->num_ingress_pools +
+            mlnx_sai_get_buffer_resource_limits()->num_egress_pools + 1) * sizeof(bool));
 
     *sai_buffer_db_size = g_sai_buffer_db_size;
 
@@ -102,10 +102,6 @@ static void SAI_dump_buffer_profile_mode_enum_to_str(_In_ sai_buffer_profile_thr
         strcpy(str, "dynamic");
         break;
 
-    case SAI_BUFFER_PROFILE_THRESHOLD_MODE_INHERIT_BUFFER_POOL_MODE:
-        strcpy(str, "inherit buffer pool");
-        break;
-
     default:
         strcpy(str, "unknown");
         break;
@@ -160,10 +156,6 @@ static void SAI_dump_buffer_profile_print(_In_ FILE *file, _In_ mlnx_sai_db_buff
             case SAI_BUFFER_PROFILE_THRESHOLD_MODE_DYNAMIC:
                 curr_max = buffer_profile[ii].shared_max.max.alpha;
                 break;
-
-            /*case SAI_BUFFER_PROFILE_THRESHOLD_MODE_INHERIT_BUFFER_POOL_MODE:
-             *   curr_max = 0;
-             *   break;*/
 
             default:
                 curr_max = 0;
@@ -259,8 +251,8 @@ static void SAI_dump_pool_allocation_print(_In_ FILE *file, _In_ bool *pool_allo
 
     dbg_utils_print_table_headline(file, pool_allocation_data_clmns);
 
-    for (ii = 0; ii < mlnx_sai_get_buffer_resource_limits()->num_ingress_pools + 
-        mlnx_sai_get_buffer_resource_limits()->num_egress_pools + 1; ii++) {
+    for (ii = 0; ii < mlnx_sai_get_buffer_resource_limits()->num_ingress_pools +
+         mlnx_sai_get_buffer_resource_limits()->num_egress_pools + 1; ii++) {
         curr_pool_allocation = pool_allocation[ii];
 
         dbg_utils_print_table_data_line(file, pool_allocation_data_clmns);
@@ -269,18 +261,18 @@ static void SAI_dump_pool_allocation_print(_In_ FILE *file, _In_ bool *pool_allo
 
 void SAI_dump_buffer(_In_ FILE *file)
 {
-    mlnx_sai_db_buffer_profile_entry_t *buffer_profile          = NULL;
-    uint32_t                           *port_buffer_data        = NULL;
-    bool                               *pool_allocation         = NULL;
-    uint32_t                            sai_buffer_db_size      = 0;
+    mlnx_sai_db_buffer_profile_entry_t *buffer_profile     = NULL;
+    uint32_t                           *port_buffer_data   = NULL;
+    bool                               *pool_allocation    = NULL;
+    uint32_t                            sai_buffer_db_size = 0;
 
     buffer_profile =
         (mlnx_sai_db_buffer_profile_entry_t*)calloc(
             mlnx_sai_get_buffer_profile_number(), sizeof(mlnx_sai_db_buffer_profile_entry_t));
     port_buffer_data = (uint32_t*)calloc(BUFFER_DB_PER_PORT_PROFILE_INDEX_ARRAY_SIZE * MAX_PORTS,
                                          sizeof(uint32_t));
-    pool_allocation = (bool*)calloc(mlnx_sai_get_buffer_resource_limits()->num_ingress_pools + 
-        mlnx_sai_get_buffer_resource_limits()->num_egress_pools + 1, sizeof(bool));
+    pool_allocation = (bool*)calloc(mlnx_sai_get_buffer_resource_limits()->num_ingress_pools +
+                                    mlnx_sai_get_buffer_resource_limits()->num_egress_pools + 1, sizeof(bool));
 
     if ((!buffer_profile) || (!port_buffer_data) || (!pool_allocation)) {
         if (buffer_profile) {

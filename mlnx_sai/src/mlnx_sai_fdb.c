@@ -56,6 +56,7 @@ static sai_status_t mlnx_fdb_endpoint_ip_get(_In_ const sai_object_key_t   *key,
                                              _In_ uint32_t                  attr_index,
                                              _Inout_ vendor_cache_t        *cache,
                                              void                          *arg);
+static sai_status_t mlnx_fdb_bv_id_to_sx_fid(_In_ sai_object_id_t bv_id, _Out_ sx_fid_t       *sx_fid);
 static const sai_vendor_attribute_entry_t fdb_vendor_attribs[] = {
     { SAI_FDB_ENTRY_ATTR_TYPE,
       { true, false, true, true },
@@ -160,21 +161,51 @@ static sai_status_t mlnx_del_mac(sx_fdb_uc_mac_addr_params_t *mac_entry)
     return mlnx_add_or_del_mac(mac_entry, SX_ACCESS_CMD_DELETE);
 }
 
+static sai_status_t mlnx_fdb_bv_id_to_sx_fid(_In_ sai_object_id_t bv_id, _Out_ sx_fid_t       *sx_fid)
+{
+    sai_status_t      status;
+    sai_object_type_t bv_id_type;
+    sx_vlan_id_t      vlan_id;
+    sx_bridge_id_t    bridge_id;
+
+    assert(sx_fid);
+
+    bv_id_type = sai_object_type_query(bv_id);
+    if (bv_id_type == SAI_NULL_OBJECT_ID) {
+        SX_LOG_ERR("Bad object id - %lx\n", bv_id);
+        return SAI_STATUS_INVALID_OBJECT_ID;
+    }
+
+    if (bv_id_type == SAI_OBJECT_TYPE_VLAN) {
+        status = sai_object_to_vlan(bv_id, &vlan_id);
+        if (SAI_ERR(status)) {
+            return status;
+        }
+
+        *sx_fid = vlan_id;
+    } else if (bv_id_type == SAI_OBJECT_TYPE_BRIDGE) {
+        status = mlnx_bridge_oid_to_id(bv_id, &bridge_id);
+        if (SAI_ERR(status)) {
+            return status;
+        }
+
+        *sx_fid = bridge_id;
+    } else {
+        SX_LOG_ERR("Invalid fdb entry bv_id object type - %s, should be VLAN or Bridge\n", SAI_TYPE_STR(bv_id_type));
+        return SAI_STATUS_INVALID_PARAMETER;
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
 static sai_status_t mlnx_fdb_entry_to_sdk(const sai_fdb_entry_t *fdb_entry, sx_fdb_uc_mac_addr_params_t *mac_entry)
 {
     sai_status_t status;
 
-    if (fdb_entry->bridge_type == SAI_FDB_ENTRY_BRIDGE_TYPE_1Q) {
-        mac_entry->fid_vid = fdb_entry->vlan_id;
-    } else if (fdb_entry->bridge_type == SAI_FDB_ENTRY_BRIDGE_TYPE_1D) {
-        status = mlnx_bridge_oid_to_id(fdb_entry->bridge_id, (sx_bridge_id_t*)&mac_entry->fid_vid);
-        if (SAI_ERR(status)) {
-            SX_LOG_ERR("Failed to fill fid_vid with bridge id\n");
-            return status;
-        }
-    } else {
-        SX_LOG_ERR("Invalid fdb entry bridge type %u\n", fdb_entry->bridge_type);
-        return SAI_STATUS_INVALID_PARAMETER;
+    status = mlnx_fdb_bv_id_to_sx_fid(fdb_entry->bv_id, &mac_entry->fid_vid);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to convert bv_id %lx to sx_fid\n", fdb_entry->bv_id);
+        return status;
     }
 
     memcpy(&mac_entry->mac_addr, fdb_entry->mac_address, sizeof(mac_entry->mac_addr));
@@ -282,15 +313,15 @@ static sai_status_t mlnx_translate_sai_type_to_sdk(sai_int32_t                  
 
 static void fdb_key_to_str(_In_ const sai_fdb_entry_t* fdb_entry, _Out_ char *key_str)
 {
-    snprintf(key_str, MAX_KEY_STR_LEN, "fdb entry mac [%02x:%02x:%02x:%02x:%02x:%02x] vlan %u bridge %lx",
+    snprintf(key_str, MAX_KEY_STR_LEN, "fdb entry mac [%02x:%02x:%02x:%02x:%02x:%02x] bv_id %lx (%s)",
              fdb_entry->mac_address[0],
              fdb_entry->mac_address[1],
              fdb_entry->mac_address[2],
              fdb_entry->mac_address[3],
              fdb_entry->mac_address[4],
              fdb_entry->mac_address[5],
-             fdb_entry->vlan_id,
-             fdb_entry->bridge_id);
+             fdb_entry->bv_id,
+             SAI_TYPE_STR(sai_object_type_query(fdb_entry->bv_id)));
 }
 
 /*
@@ -392,8 +423,9 @@ static sai_status_t mlnx_create_fdb_entry(_In_ const sai_fdb_entry_t* fdb_entry,
             goto out;
         }
         if (bridge_port->port_type != SAI_BRIDGE_PORT_TYPE_TUNNEL) {
-            SX_LOG_ERR("Invalid bridge port type %d, SAI_BRIDGE_PORT_TYPE_TUNNEL is only supported when endpoint ip is passed\n",
-                       bridge_port->port_type);
+            SX_LOG_ERR(
+                "Invalid bridge port type %d, SAI_BRIDGE_PORT_TYPE_TUNNEL is only supported when endpoint ip is passed\n",
+                bridge_port->port_type);
             sai_db_unlock();
             status = SAI_STATUS_INVALID_PARAMETER;
             goto out;
@@ -401,11 +433,13 @@ static sai_status_t mlnx_create_fdb_entry(_In_ const sai_fdb_entry_t* fdb_entry,
 
         sx_tunnel_id = g_sai_db_ptr->tunnel_db[bridge_port->tunnel_id].sx_tunnel_id;
         sai_db_unlock();
-        mac_entry.dest_type = SX_FDB_UC_MAC_ADDR_DEST_TYPE_NEXT_HOP;
-        mac_entry.dest.next_hop.next_hop_key.type = SX_NEXT_HOP_TYPE_TUNNEL_ENCAP;
+        mac_entry.dest_type =
+            SX_FDB_UC_MAC_ADDR_DEST_TYPE_NEXT_HOP;
+        mac_entry.dest.next_hop.next_hop_key.type                                   = SX_NEXT_HOP_TYPE_TUNNEL_ENCAP;
         mac_entry.dest.next_hop.next_hop_key.next_hop_key_entry.ip_tunnel.tunnel_id = sx_tunnel_id;
-        status = mlnx_translate_sai_ip_address_to_sdk(&ip_addr->ipaddr,
-                                                      &mac_entry.dest.next_hop.next_hop_key.next_hop_key_entry.ip_tunnel.underlay_dip);
+        status                                                                      =
+            mlnx_translate_sai_ip_address_to_sdk(&ip_addr->ipaddr,
+                                                 &mac_entry.dest.next_hop.next_hop_key.next_hop_key_entry.ip_tunnel.underlay_dip);
         if (SAI_ERR(status)) {
             SX_LOG_ERR("Error translating sai ip to sdk ip\n");
             goto out;
@@ -894,10 +928,11 @@ static sai_status_t mlnx_flush_fdb_entries(_In_ sai_object_id_t        switch_id
                                            _In_ const sai_attribute_t *attr_list)
 {
     sx_status_t                  status;
-    const sai_attribute_value_t *port, *vlan, *type;
-    uint32_t                     port_index, vlan_index, type_index;
-    bool                         port_found = false, vlan_found = false;
+    const sai_attribute_value_t *port, *bv_id, *type;
+    uint32_t                     port_index, bv_id_index, type_index;
+    bool                         port_found = false, bv_id_found = false;
     sx_port_log_id_t             port_id;
+    sx_fid_t                     sx_fid;
 
     SX_LOG_ENTER();
 
@@ -915,9 +950,13 @@ static sai_status_t mlnx_flush_fdb_entries(_In_ sai_object_id_t        switch_id
 
     if (SAI_STATUS_SUCCESS ==
         (status =
-             find_attrib_in_list(attr_count, attr_list, SAI_FDB_FLUSH_ATTR_VLAN_ID,
-                                 &vlan, &vlan_index))) {
-        vlan_found = true;
+             find_attrib_in_list(attr_count, attr_list, SAI_FDB_FLUSH_ATTR_BV_ID,
+                                 &bv_id, &bv_id_index))) {
+        bv_id_found = true;
+        status      = mlnx_fdb_bv_id_to_sx_fid(bv_id->oid, &sx_fid);
+        if (SAI_ERR(status)) {
+            return status;
+        }
     }
 
     if (SAI_STATUS_SUCCESS ==
@@ -931,13 +970,13 @@ static sai_status_t mlnx_flush_fdb_entries(_In_ sai_object_id_t        switch_id
     }
 
     /* Mellanox implementation flushes only dynamic entries. Static entries should be deleted with entry remove */
-    if ((!port_found) && (!vlan_found)) {
+    if ((!port_found) && (!bv_id_found)) {
         if (SX_STATUS_SUCCESS != (status = sx_api_fdb_uc_flush_all_set(gh_sdk, DEFAULT_ETH_SWID))) {
             SX_LOG_ERR("Failed to flush all fdb entries - %s.\n", SX_STATUS_MSG(status));
             return sdk_to_sai(status);
         }
-    } else if ((port_found) && (vlan_found)) {
-        if (SX_STATUS_SUCCESS != (status = sx_api_fdb_uc_flush_port_fid_set(gh_sdk, port_id, vlan->u16))) {
+    } else if ((port_found) && (bv_id_found)) {
+        if (SX_STATUS_SUCCESS != (status = sx_api_fdb_uc_flush_port_fid_set(gh_sdk, port_id, sx_fid))) {
             SX_LOG_ERR("Failed to flush port vlan fdb entries - %s.\n", SX_STATUS_MSG(status));
             return sdk_to_sai(status);
         }
@@ -946,8 +985,8 @@ static sai_status_t mlnx_flush_fdb_entries(_In_ sai_object_id_t        switch_id
             SX_LOG_ERR("Failed to flush port fdb entries - %s.\n", SX_STATUS_MSG(status));
             return sdk_to_sai(status);
         }
-    } else if (vlan_found) {
-        if (SX_STATUS_SUCCESS != (status = sx_api_fdb_uc_flush_fid_set(gh_sdk, DEFAULT_ETH_SWID, vlan->u16))) {
+    } else if (bv_id_found) {
+        if (SX_STATUS_SUCCESS != (status = sx_api_fdb_uc_flush_fid_set(gh_sdk, DEFAULT_ETH_SWID, sx_fid))) {
             SX_LOG_ERR("Failed to flush vlan fdb entries - %s.\n", SX_STATUS_MSG(status));
             return sdk_to_sai(status);
         }
@@ -963,19 +1002,10 @@ bool mlnx_fdb_is_flood_disabled()
             (g_sai_db_ptr->flood_action_bc == SAI_PACKET_ACTION_DROP));
 }
 
-sai_status_t mlnx_fdb_port_event_handle(mlnx_bridge_port_t *port, uint16_t vid, sai_port_event_t event)
-{
-    bool add;
-
-    add = (event == SAI_PORT_EVENT_ADD);
-
-    return mlnx_fdb_flood_control_set(vid, &port->logical, 1, add);
-}
-
-sai_status_t mlnx_fdb_flood_control_set(_In_ sx_vid_t                vlan_id,
-                                        _In_ const sx_port_log_id_t *sx_ports,
-                                        _In_ uint32_t                ports_count,
-                                        _In_ bool                    add)
+static sai_status_t mlnx_fdb_flood_uc_bc_control_set(_In_ sx_vid_t                vlan_id,
+                                                     _In_ const sx_port_log_id_t *sx_ports,
+                                                     _In_ uint32_t                ports_count,
+                                                     _In_ bool                    add)
 {
     sx_status_t     sx_status;
     sx_access_cmd_t flood_cmd;
@@ -1003,6 +1033,125 @@ sai_status_t mlnx_fdb_flood_control_set(_In_ sx_vid_t                vlan_id,
     }
 
     return SAI_STATUS_SUCCESS;
+}
+
+/* make sure this function call is guarded by lock */
+static sai_packet_action_t mlnx_flood_action_mc_get()
+{
+    sai_packet_action_t flood_action_mc;
+
+    flood_action_mc = g_sai_db_ptr->flood_action_mc;
+
+    return flood_action_mc;
+}
+
+static sai_status_t mlnx_fdb_flood_mc_control_set(_In_ sx_vid_t                vlan_id,
+                                                  _In_ const sx_port_log_id_t *sx_ports,
+                                                  _In_ uint32_t                ports_count,
+                                                  _In_ bool                    add)
+{
+    sx_status_t         sx_status;
+    sx_port_log_id_t    log_ports[MAX_PORTS];
+    uint32_t            sx_ports_count = 0;
+    sai_packet_action_t flood_action_mc;
+    uint32_t            ii              = 0, jj = 0;
+    mlnx_bridge_port_t *mlnx_port       = NULL;
+    bool                port_is_in_list = false;
+
+    assert(sx_ports);
+
+    /* mlnx_fdb_flood_control_set is always guarded by a lock */
+    flood_action_mc = mlnx_flood_action_mc_get();
+
+    assert((SAI_PACKET_ACTION_DROP == flood_action_mc) ||
+           (SAI_PACKET_ACTION_FORWARD == flood_action_mc));
+
+    if (SAI_PACKET_ACTION_DROP == flood_action_mc) {
+        sx_ports_count = 0;
+    } else if (SAI_PACKET_ACTION_FORWARD == flood_action_mc) {
+        mlnx_vlan_ports_foreach(vlan_id, mlnx_port, ii) {
+            port_is_in_list = false;
+            for (jj = 0; jj < ports_count; jj++) {
+                if (mlnx_port->logical == sx_ports[jj]) {
+                    port_is_in_list = true;
+                    break;
+                }
+            }
+            if (!port_is_in_list) {
+                log_ports[sx_ports_count++] = mlnx_port->logical;
+            }
+        }
+
+        if (add) {
+            for (jj = 0; jj < ports_count; jj++) {
+                log_ports[sx_ports_count++] = sx_ports[jj];
+            }
+        }
+    }
+
+    sx_status = sx_api_vlan_unreg_mc_flood_ports_set(gh_sdk, DEFAULT_ETH_SWID, vlan_id,
+                                                     log_ports, sx_ports_count);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to update FDB unregistered mc flood list - %s.\n", SX_STATUS_MSG(sx_status));
+        return sdk_to_sai(sx_status);
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
+sai_status_t mlnx_fdb_flood_control_set(_In_ sx_vid_t                vlan_id,
+                                        _In_ const sx_port_log_id_t *sx_ports,
+                                        _In_ uint32_t                ports_count,
+                                        _In_ bool                    add)
+{
+    sai_status_t sai_status = SAI_STATUS_FAILURE;
+
+    SX_LOG_ENTER();
+
+    sai_status = mlnx_fdb_flood_uc_bc_control_set(vlan_id, sx_ports, ports_count, add);
+    if (SAI_STATUS_SUCCESS != sai_status) {
+        SX_LOG_ERR("Error setting fdb flood control\n");
+        SX_LOG_EXIT();
+        return sai_status;
+    }
+
+    sai_status = mlnx_fdb_flood_mc_control_set(vlan_id, sx_ports, ports_count, add);
+    if (SAI_STATUS_SUCCESS != sai_status) {
+        SX_LOG_ERR("Error setting fdb flood mc control\n");
+        SX_LOG_EXIT();
+        return sai_status;
+    }
+
+    SX_LOG_EXIT();
+    return sai_status;
+
+    return SAI_STATUS_SUCCESS;
+}
+
+sai_status_t mlnx_fdb_port_event_handle(mlnx_bridge_port_t *port, uint16_t vid, sai_port_event_t event)
+{
+    const bool     add         = (event == SAI_PORT_EVENT_ADD);
+    sai_status_t   sai_status  = SAI_STATUS_FAILURE;
+    const uint32_t ports_count = 1;
+
+    SX_LOG_ENTER();
+
+    sai_status = mlnx_fdb_flood_uc_bc_control_set(vid, &port->logical, 1, add);
+    if (SAI_STATUS_SUCCESS != sai_status) {
+        SX_LOG_ERR("Error setting fdb flood control\n");
+        SX_LOG_EXIT();
+        return sai_status;
+    }
+
+    sai_status = mlnx_fdb_flood_mc_control_set(vid, &port->logical, ports_count, add);
+    if (SAI_STATUS_SUCCESS != sai_status) {
+        SX_LOG_ERR("Error setting fdb flood mc control\n");
+        SX_LOG_EXIT();
+        return sai_status;
+    }
+
+    SX_LOG_EXIT();
+    return sai_status;
 }
 
 sai_status_t mlnx_fdb_log_set(sx_verbosity_level_t level)

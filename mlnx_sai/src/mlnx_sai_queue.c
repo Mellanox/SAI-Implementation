@@ -289,10 +289,10 @@ static sai_status_t mlnx_queue_type_get(_In_ const sai_object_key_t   *key,
     }
 
     /* if (false == mc_aware) {
-        value->s32 = SAI_QUEUE_TYPE_ALL;
-    } else {*/
+     *   value->s32 = SAI_QUEUE_TYPE_ALL;
+     *  } else {*/
     value->s32 = (queue_num < ((g_resource_limits.cos_port_ets_traffic_class_max + 1) / 2)) ?
-    SAI_QUEUE_TYPE_UNICAST : SAI_QUEUE_TYPE_MULTICAST;
+                 SAI_QUEUE_TYPE_UNICAST : SAI_QUEUE_TYPE_MULTICAST;
 
     SX_LOG_EXIT();
     return SAI_STATUS_SUCCESS;
@@ -537,13 +537,13 @@ static sai_status_t mlnx_get_queue_statistics(_In_ sai_object_id_t         queue
         case SAI_QUEUE_STAT_RED_BYTES:
         case SAI_QUEUE_STAT_RED_DROPPED_PACKETS:
         case SAI_QUEUE_STAT_RED_DROPPED_BYTES:
-        case SAI_QUEUE_STAT_GREEN_DISCARD_DROPPED_PACKETS:
-        case SAI_QUEUE_STAT_GREEN_DISCARD_DROPPED_BYTES:
-        case SAI_QUEUE_STAT_YELLOW_DISCARD_DROPPED_PACKETS:
-        case SAI_QUEUE_STAT_YELLOW_DISCARD_DROPPED_BYTES:
-        case SAI_QUEUE_STAT_RED_DISCARD_DROPPED_PACKETS:
-        case SAI_QUEUE_STAT_RED_DISCARD_DROPPED_BYTES:
-        case SAI_QUEUE_STAT_DISCARD_DROPPED_BYTES:
+        case SAI_QUEUE_STAT_GREEN_WRED_DROPPED_PACKETS:
+        case SAI_QUEUE_STAT_GREEN_WRED_DROPPED_BYTES:
+        case SAI_QUEUE_STAT_YELLOW_WRED_DROPPED_PACKETS:
+        case SAI_QUEUE_STAT_YELLOW_WRED_DROPPED_BYTES:
+        case SAI_QUEUE_STAT_RED_WRED_DROPPED_PACKETS:
+        case SAI_QUEUE_STAT_RED_WRED_DROPPED_BYTES:
+        case SAI_QUEUE_STAT_WRED_DROPPED_BYTES:
         case SAI_QUEUE_STAT_SHARED_CURR_OCCUPANCY_BYTES:
         case SAI_QUEUE_STAT_SHARED_WATERMARK_BYTES:
             SX_LOG_ERR("Queue counter %d set item %u not supported\n", counter_ids[ii], ii);
@@ -561,7 +561,7 @@ static sai_status_t mlnx_get_queue_statistics(_In_ sai_object_id_t         queue
             counters[ii] = tc_cnts.tx_no_buffer_discard_uc;
             break;
 
-        case SAI_QUEUE_STAT_DISCARD_DROPPED_PACKETS:
+        case SAI_QUEUE_STAT_WRED_DROPPED_PACKETS:
             counters[ii] = tc_cnts.tx_wred_discard;
             break;
 

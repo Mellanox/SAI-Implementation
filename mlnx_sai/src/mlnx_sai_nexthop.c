@@ -152,7 +152,8 @@ static sai_status_t mlnx_translate_sai_next_hop_to_sdk(_In_ sai_next_hop_type_t 
         }
 
         if (SAI_STATUS_SUCCESS !=
-            (sai_status = mlnx_rif_oid_to_sdk_rif_id(*rif_id, &next_hop->next_hop_key.next_hop_key_entry.ip_next_hop.rif))) {
+            (sai_status =
+                 mlnx_rif_oid_to_sdk_rif_id(*rif_id, &next_hop->next_hop_key.next_hop_key_entry.ip_next_hop.rif))) {
             SX_LOG_EXIT();
             return sai_status;
         }

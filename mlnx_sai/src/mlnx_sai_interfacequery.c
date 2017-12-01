@@ -22,8 +22,8 @@
 
 #include <sx/utils/dbg_utils.h>
 
-service_method_table_t g_mlnx_services;
-static bool            g_initialized = false;
+sai_service_method_table_t g_mlnx_services;
+static bool                g_initialized = false;
 
 /*
  * Routine Description:
@@ -37,7 +37,7 @@ static bool            g_initialized = false;
  *    SAI_STATUS_SUCCESS on success
  *    Failure status code on error
  */
-sai_status_t sai_api_initialize(_In_ uint64_t flags, _In_ const service_method_table_t* services)
+sai_status_t sai_api_initialize(_In_ uint64_t flags, _In_ const sai_service_method_table_t* services)
 {
 #ifdef CONFIG_SYSLOG
     if (!g_initialized) {

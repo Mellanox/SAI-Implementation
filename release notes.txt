@@ -1,7 +1,7 @@
 Mellanox SAI implementation release notes
 ==========================================
 
-Release 1.9.2
+Release 1.10.0
 ---------------
 
 Current implementation is partial. 
@@ -10,7 +10,7 @@ Not all the APIs that are defined were fully implemented in this release. Missin
 
 The code was tested to work on X86, at Beta level.
 No testing was done on PPC.
-The code compiles with, and was tested with, SDK version 4.2.6011.
+The code compiles with, and was tested with, SDK version 4.2.6106.
 
 As a precondition to running SAI initialize switch, SDK must not be running (If it's running, terminate it with dvs_stop.sh). 
 The application must provide one key/value pair on profile services, "config_file=/usr/share/sai_2700.xml" / "config_file=/usr/share/sai_2410.xml" / / "config_file=/usr/share/sai_2420.xml" / "config_file=/usr/share/sai_2100.xml", depending on system type.
@@ -42,6 +42,7 @@ ACL has the following limitations :
 * ACL Switch bind points SAI_SWITCH_ATTR_DEFAULT_INGRESS_ACL_LIST, SAI_SWITCH_ATTR_DEFAULT_EGRESS_ACL_LIST are not implemented
 * ACL table can only be a member of a single sequential ACL group. ACL table can only be a member in multiple groups if all these groups are parallel.
 * ACL VLAN bind point only works for ingress stage, SAI_VLAN_ATTR_EGRESS_ACL isn't supported
+* VLAN matching on egress RIF or egress Port is supported for Vlan interfaces (802.1Q) and for Port-vlan interfaces. It’s not supported for bridge interfaces (802.1D). Vlan matching not supported when there is no RIF attached to the port. 
 * ACL should be applied on LAG and not on member ports of a LAG
 * ACL egress block list action can be applied only on egress stage, not on ingress stage
 

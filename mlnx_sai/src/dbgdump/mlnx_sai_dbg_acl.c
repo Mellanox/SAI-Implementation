@@ -440,7 +440,7 @@ static void SAI_dump_acl_entry_print(_In_ FILE *file, _In_ acl_entry_db_t *acl_e
         {"table_index",          13, PARAM_UINT32_E, &curr_acl_entry_db.table_index},
         {"mc_container rx",      13, PARAM_UINT32_E, &curr_acl_entry_db.sx_mc_container_rx},
         {"mc_container tx",      13, PARAM_UINT32_E, &curr_acl_entry_db.sx_mc_container_tx},
-        {"mc_container eg block",24, PARAM_UINT32_E, &curr_acl_entry_db.sx_mc_container_egress_block},
+        {"mc_container eg block", 24, PARAM_UINT32_E, &curr_acl_entry_db.sx_mc_container_egress_block},
         {"counter id",           13, PARAM_UINT32_E, &curr_acl_entry_db.counter_id},
         {"is src ports present", 20, PARAM_UINT8_E,   &curr_acl_entry_db.res_refs.is_src_ports_present},
         {"src ports mask",       14, PARAM_UINT64_E, &curr_acl_entry_db.res_refs.src_ports_mask},

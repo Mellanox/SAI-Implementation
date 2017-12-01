@@ -601,7 +601,7 @@ sai_status_t mlnx_hash_ecmp_cfg_apply_on_port(sx_port_log_id_t port_log_id)
     sx_router_ecmp_hash_field_t        hash_field_list[FIELDS_NUM];
     uint32_t                           field_count = FIELDS_NUM;
     sx_status_t                        status      = SAI_STATUS_SUCCESS;
-    const mlnx_port_config_t           *port;
+    const mlnx_port_config_t          *port;
     uint32_t                           ii;
 
     memset(&port_hash_param, 0, sizeof(port_hash_param));

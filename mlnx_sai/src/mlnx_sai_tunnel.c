@@ -48,11 +48,11 @@ static sai_status_t mlnx_tunnel_map_attr_type_get(_In_ const sai_object_key_t   
                                                   _In_ uint32_t                  attr_index,
                                                   _Inout_ vendor_cache_t        *cache,
                                                   void                          *arg);
-static sai_status_t mlnx_tunnel_map_attr_map_to_value_list_get(_In_ const sai_object_key_t   *key,
-                                                               _Inout_ sai_attribute_value_t *value,
-                                                               _In_ uint32_t                  attr_index,
-                                                               _Inout_ vendor_cache_t        *cache,
-                                                               void                          *arg);
+static sai_status_t mlnx_tunnel_map_attr_entry_list_get(_In_ const sai_object_key_t   *key,
+                                                        _Inout_ sai_attribute_value_t *value,
+                                                        _In_ uint32_t                  attr_index,
+                                                        _Inout_ vendor_cache_t        *cache,
+                                                        void                          *arg);
 static sai_status_t mlnx_tunnel_map_entry_attr_tunnel_map_type_get(_In_ const sai_object_key_t   *key,
                                                                    _Inout_ sai_attribute_value_t *value,
                                                                    _In_ uint32_t                  attr_index,
@@ -232,10 +232,10 @@ static const sai_vendor_attribute_entry_t tunnel_map_vendor_attribs[] = {
       { true, false, false, true },
       mlnx_tunnel_map_attr_type_get, NULL,
       NULL, NULL },
-    { SAI_TUNNEL_MAP_ATTR_MAP_TO_VALUE_LIST,
-      { true, false, false, true },
-      { true, false, false, true },
-      mlnx_tunnel_map_attr_map_to_value_list_get, NULL,
+    { SAI_TUNNEL_MAP_ATTR_ENTRY_LIST,
+      { false, false, false, true },
+      { false, false, false, true },
+      mlnx_tunnel_map_attr_entry_list_get, NULL,
       NULL, NULL },
     { END_FUNCTIONALITY_ATTRIBS_ID,
       { false, false, false, false },
@@ -578,33 +578,58 @@ static sai_status_t mlnx_tunnel_map_attr_type_get(_In_ const sai_object_key_t   
     return sai_status;
 }
 
-static sai_status_t mlnx_tunnel_map_attr_map_to_value_list_get(_In_ const sai_object_key_t   *key,
-                                                               _Inout_ sai_attribute_value_t *value,
-                                                               _In_ uint32_t                  attr_index,
-                                                               _Inout_ vendor_cache_t        *cache,
-                                                               void                          *arg)
+static sai_status_t mlnx_tunnel_map_attr_entry_list_get(_In_ const sai_object_key_t   *key,
+                                                        _Inout_ sai_attribute_value_t *value,
+                                                        _In_ uint32_t                  attr_index,
+                                                        _Inout_ vendor_cache_t        *cache,
+                                                        void                          *arg)
 {
     mlnx_tunnel_map_t mlnx_tunnel_map;
-    sai_status_t      sai_status = SAI_STATUS_FAILURE;
+    sai_status_t      sai_status         = SAI_STATUS_FAILURE;
+    sai_object_id_t  *tunnel_map_entries = NULL;
+    uint32_t          tunnel_map_entries_count, ii;
 
     SX_LOG_ENTER();
 
-    if (SAI_STATUS_SUCCESS !=
-        (sai_status = mlnx_tunnel_map_db_param_get_from_db(key->key.object_id, &mlnx_tunnel_map))) {
+    sai_status = mlnx_tunnel_map_db_param_get_from_db(key->key.object_id, &mlnx_tunnel_map);
+    if (SAI_ERR(sai_status)) {
         SX_LOG_ERR("Fail to get mlnx tunnel map for tunnel map obj id %" PRIx64 "\n", key->key.object_id);
         SX_LOG_EXIT();
         return sai_status;
     }
 
-    if (SAI_STATUS_SUCCESS !=
-        (sai_status = mlnx_fill_tunnelmaplist(mlnx_tunnel_map.tunnel_map_list,
-                                              mlnx_tunnel_map.tunnel_map_list_count,
-                                              &value->tunnelmap))) {
-        SX_LOG_ERR("fail to fill tunnel map list\n");
+    tunnel_map_entries = calloc(mlnx_tunnel_map.tunnel_map_entry_cnt, sizeof(sai_object_id_t));
+    if (!tunnel_map_entries) {
+        SX_LOG_ERR("Failed to allocate memory\n");
         SX_LOG_EXIT();
-        return sai_status;
+        return SAI_STATUS_NO_MEMORY;
     }
 
+    sai_db_read_lock();
+
+    tunnel_map_entries_count = 0;
+    for (ii = mlnx_tunnel_map.tunnel_map_entry_head_idx;
+         ii != MLNX_TUNNEL_MAP_ENTRY_INVALID;
+         ii = g_sai_db_ptr->mlnx_tunnel_map_entry[ii].next_tunnel_map_entry_idx) {
+        sai_status = mlnx_create_object(SAI_OBJECT_TYPE_TUNNEL_MAP_ENTRY, ii, NULL,
+                                        &tunnel_map_entries[tunnel_map_entries_count]);
+        if (SAI_ERR(sai_status)) {
+            goto out;
+        }
+
+        tunnel_map_entries_count++;
+    }
+
+    assert(tunnel_map_entries_count == mlnx_tunnel_map.tunnel_map_entry_cnt);
+
+    sai_status = mlnx_fill_objlist(tunnel_map_entries, tunnel_map_entries_count, &value->objlist);
+    if (SAI_ERR(sai_status)) {
+        goto out;
+    }
+
+out:
+    sai_db_unlock();
+    free(tunnel_map_entries);
     SX_LOG_EXIT();
     return sai_status;
 }
@@ -2227,7 +2252,7 @@ static sai_status_t mlnx_init_tunnel_map_param(_In_ uint32_t               attr_
                                                _In_ const sai_attribute_t *attr_list,
                                                _Out_ mlnx_tunnel_map_t    *mlnx_tunnel_map)
 {
-    const sai_attribute_value_t *tunnel_map_type = NULL, *tunnel_map_list = NULL;
+    const sai_attribute_value_t *tunnel_map_type = NULL;
     uint32_t                     attr_idx        = 0;
     sai_status_t                 sai_status      = SAI_STATUS_FAILURE;
 
@@ -2238,21 +2263,9 @@ static sai_status_t mlnx_init_tunnel_map_param(_In_ uint32_t               attr_
 
     mlnx_tunnel_map->tunnel_map_type = tunnel_map_type->s32;
 
-    if (SAI_STATUS_SUCCESS ==
-        (sai_status =
-             find_attrib_in_list(attr_count, attr_list, SAI_TUNNEL_MAP_ATTR_MAP_TO_VALUE_LIST, &tunnel_map_list,
-                                 &attr_idx))) {
-        if (tunnel_map_list->tunnelmap.count > MLNX_TUNNEL_MAP_LIST_MAX) {
-            SX_LOG_ERR("Tunnel map overflow: size %u is greater than maxium size %u\n",
-                       tunnel_map_list->tunnelmap.count, MLNX_TUNNEL_MAP_LIST_MAX);
-            SX_LOG_EXIT();
-            return SAI_STATUS_BUFFER_OVERFLOW;
-        }
+    mlnx_tunnel_map->tunnel_map_list_count = 0;
 
-        mlnx_tunnel_map->tunnel_map_list_count = tunnel_map_list->tunnelmap.count;
-        memcpy(mlnx_tunnel_map->tunnel_map_list, tunnel_map_list->tunnelmap.list,
-               tunnel_map_list->tunnelmap.count * sizeof(sai_tunnel_map_t));
-    }
+    memset(mlnx_tunnel_map->tunnel_map_list, 0, sizeof(mlnx_tunnel_map->tunnel_map_list));
 
     mlnx_tunnel_map->tunnel_cnt = 0;
 
@@ -3525,7 +3538,7 @@ static sai_status_t mlnx_bridge_vport_set(_In_ sai_object_id_t  sai_tunnel_obj_i
     }
 
     g_sai_db_ptr->tunnel_db[tunnel_db_idx].dot1q_vport_set = true;
-    g_sai_db_ptr->tunnel_db[tunnel_db_idx].dot1q_vport_id = sx_log_vport;
+    g_sai_db_ptr->tunnel_db[tunnel_db_idx].dot1q_vport_id  = sx_log_vport;
 
     SX_LOG_DBG("Set bridge port for bridge id %x\n", sx_bridge_id);
     SX_LOG_EXIT();
@@ -3553,11 +3566,12 @@ static sai_status_t mlnx_sai_tunnel_1Qbridge_get(_Out_ sx_bridge_id_t *sx_bridge
     return SAI_STATUS_SUCCESS;
 }
 
-static sai_status_t mlnx_sai_tunnel_1Dbridge_get(_In_ sai_object_id_t    sai_bridge_id,
-                                                 _Out_ sx_bridge_id_t   *sx_bridge_id)
+static sai_status_t mlnx_sai_tunnel_1Dbridge_get(_In_ sai_object_id_t  sai_bridge_id,
+                                                 _Out_ sx_bridge_id_t *sx_bridge_id)
 {
     mlnx_object_id_t mlnx_bridge_id = {0};
-    sai_status_t     sai_status    = SAI_STATUS_FAILURE;
+    sai_status_t     sai_status     = SAI_STATUS_FAILURE;
+
     SX_LOG_ENTER();
 
     if (NULL == sx_bridge_id) {
@@ -3568,7 +3582,7 @@ static sai_status_t mlnx_sai_tunnel_1Dbridge_get(_In_ sai_object_id_t    sai_bri
 
     sai_status = sai_to_mlnx_object_id(SAI_OBJECT_TYPE_BRIDGE, sai_bridge_id, &mlnx_bridge_id);
     if (SAI_ERR(sai_status)) {
-        SX_LOG_ERR("Error getting mlnx object id from bridge id %"PRIx64"\n", sai_bridge_id);
+        SX_LOG_ERR("Error getting mlnx object id from bridge id %" PRIx64 "\n", sai_bridge_id);
         SX_LOG_EXIT();
         return sai_status;
     }
@@ -3967,7 +3981,8 @@ static sai_status_t mlnx_sai_create_vxlan_tunnel_map_list(_In_ sai_object_id_t  
     if (SAI_NULL_OBJECT_ID == overlay_bridge_port_id) {
         sx_bridge_port_id = 0;
     } else if (SAI_STATUS_SUCCESS !=
-               (sai_status = mlnx_object_to_type(overlay_bridge_port_id, SAI_OBJECT_TYPE_PORT, &sx_bridge_port_id, NULL))) {
+               (sai_status =
+                    mlnx_object_to_type(overlay_bridge_port_id, SAI_OBJECT_TYPE_PORT, &sx_bridge_port_id, NULL))) {
         SX_LOG_ERR("Fail to get bridge port for overlay interface\n");
         sx_bridge_port_id = 0;
     }
@@ -4066,7 +4081,7 @@ static sai_status_t mlnx_sai_fill_sx_vxlan_tunnel_data(_In_ sai_tunnel_type_t   
              find_attrib_in_list(attr_count, attr_list, SAI_TUNNEL_ATTR_UNDERLAY_INTERFACE, &attr, &attr_idx))) {
         if (SAI_STATUS_SUCCESS !=
             (sai_status = mlnx_object_to_type(attr->oid, SAI_OBJECT_TYPE_ROUTER_INTERFACE, &data, NULL))) {
-            SX_LOG_ERR("underlay interface %"PRIx64" is not rif type\n", attr->oid);
+            SX_LOG_ERR("underlay interface %" PRIx64 " is not rif type\n", attr->oid);
             SX_LOG_EXIT();
             return SAI_STATUS_INVALID_ATTR_VALUE_0 + attr_idx;
         }
@@ -5728,6 +5743,40 @@ sai_status_t mlnx_tunnel_log_set(sx_verbosity_level_t level)
     }
 }
 
+/**
+ * @brief Get tunnel statistics counters.
+ *
+ * @param[in] tunnel_id Tunnel id
+ * @param[in] number_of_counters Number of counters in the array
+ * @param[in] counter_ids Specifies the array of counter ids
+ * @param[out] counters Array of resulting counter values.
+ *
+ * @return #SAI_STATUS_SUCCESS on success, failure status code on error
+ */
+static sai_status_t mlnx_get_tunnel_stats(_In_ sai_object_id_t          tunnel_id,
+                                          _In_ uint32_t                 number_of_counters,
+                                          _In_ const sai_tunnel_stat_t *counter_ids,
+                                          _Out_ uint64_t               *counters)
+{
+    return SAI_STATUS_NOT_IMPLEMENTED;
+}
+
+/**
+ * @brief Clear tunnel statistics counters.
+ *
+ * @param[in] tunnel_id Tunnel id
+ * @param[in] number_of_counters Number of counters in the array
+ * @param[in] counter_ids Specifies the array of counter ids
+ *
+ * @return #SAI_STATUS_SUCCESS on success, failure status code on error
+ */
+static sai_status_t mlnx_clear_tunnel_stats(_In_ sai_object_id_t          tunnel_id,
+                                            _In_ uint32_t                 number_of_counters,
+                                            _In_ const sai_tunnel_stat_t *counter_ids)
+{
+    return SAI_STATUS_NOT_IMPLEMENTED;
+}
+
 const sai_tunnel_api_t mlnx_tunnel_api = {
     mlnx_create_tunnel_map,
     mlnx_remove_tunnel_map,
@@ -5737,6 +5786,8 @@ const sai_tunnel_api_t mlnx_tunnel_api = {
     mlnx_remove_tunnel,
     mlnx_set_tunnel_attribute,
     mlnx_get_tunnel_attribute,
+    mlnx_get_tunnel_stats,
+    mlnx_clear_tunnel_stats,
     mlnx_create_tunnel_term_table_entry,
     mlnx_remove_tunnel_term_table_entry,
     mlnx_set_tunnel_term_table_entry_attribute,

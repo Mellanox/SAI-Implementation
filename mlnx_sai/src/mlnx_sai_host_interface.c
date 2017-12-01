@@ -896,7 +896,7 @@ static sai_status_t mlnx_host_interface_name_get(_In_ const sai_object_key_t   *
         return SAI_STATUS_FAILURE;
     }
 
-    strncpy(value->chardata, ifname, HOSTIF_NAME_SIZE);
+    strncpy(value->chardata, ifname, SAI_HOSTIF_NAME_SIZE);
 
     SX_LOG_EXIT();
     return SAI_STATUS_SUCCESS;

@@ -121,7 +121,7 @@ static const sai_vendor_attribute_entry_t rif_vendor_attribs[] = {
 };
 static void rif_key_to_str(_In_ sai_object_id_t rif_id, _Out_ char *key_str)
 {
-    const mlnx_object_id_t *mlnx_oid = (const mlnx_object_id_t*) &rif_id;
+    const mlnx_object_id_t *mlnx_oid = (const mlnx_object_id_t*)&rif_id;
     uint32_t                rifid;
     bool                    is_bridge_rif;
 
@@ -134,8 +134,7 @@ static void rif_key_to_str(_In_ sai_object_id_t rif_id, _Out_ char *key_str)
     }
 }
 
-sai_status_t mlnx_rif_oid_to_sdk_rif_id(_In_ sai_object_id_t rif_oid,
-                                        _Out_ sx_router_interface_t *sdk_rif_id)
+sai_status_t mlnx_rif_oid_to_sdk_rif_id(_In_ sai_object_id_t rif_oid, _Out_ sx_router_interface_t *sdk_rif_id)
 {
     mlnx_object_id_t   mlnx_rif_obj = {0};
     mlnx_bridge_rif_t *br_rif       = NULL;
@@ -150,7 +149,6 @@ sai_status_t mlnx_rif_oid_to_sdk_rif_id(_In_ sai_object_id_t rif_oid,
     if (mlnx_rif_obj.field.sub_type != MLNX_RIF_TYPE_BRIDGE) {
         *sdk_rif_id = (sx_router_interface_t)mlnx_rif_obj.id.u32;
     } else { /* SAI_ROUTER_INTERFACE_TYPE_BRIDGE */
-
         sai_db_read_lock();
 
         status = mlnx_bridge_rif_by_idx(mlnx_rif_obj.id.u32, &br_rif);
@@ -311,7 +309,7 @@ static sai_status_t mlnx_create_router_interface(_Out_ sai_object_id_t      *rif
         intf_params.type             = SX_L2_INTERFACE_TYPE_LOOPBACK;
         intf_attribs.loopback_enable = true;
     } else if (SAI_ROUTER_INTERFACE_TYPE_BRIDGE == type->s32) {
-        intf_params.type = SX_L2_INTERFACE_TYPE_BRIDGE;
+        intf_params.type             = SX_L2_INTERFACE_TYPE_BRIDGE;
         intf_attribs.loopback_enable = true;
     } else if (SAI_ROUTER_INTERFACE_TYPE_SUB_PORT == type->s32) {
         status = sai_object_to_vlan(vlan->oid, &sx_vlan_id);
@@ -326,7 +324,7 @@ static sai_status_t mlnx_create_router_interface(_Out_ sai_object_id_t      *rif
             return SAI_STATUS_INVALID_ATTR_VALUE_0 + port_index;
         }
 
-        status = mlnx_bridge_sx_vport_create(sx_port_id, sx_vlan_id, &sx_vport_id);
+        status = mlnx_bridge_sx_vport_create(sx_port_id, sx_vlan_id, SX_TAGGED_MEMBER, &sx_vport_id);
         if (SAI_ERR(status)) {
             SX_LOG_EXIT();
             return status;
@@ -339,7 +337,7 @@ static sai_status_t mlnx_create_router_interface(_Out_ sai_object_id_t      *rif
             return sdk_to_sai(sx_status);
         }
 
-        intf_params.type = SX_L2_INTERFACE_TYPE_VPORT;
+        intf_params.type            = SX_L2_INTERFACE_TYPE_VPORT;
         intf_params.ifc.vport.vport = sx_vport_id;
     } else {
         SX_LOG_ERR("Invalid router interface type %d\n", type->s32);
@@ -562,7 +560,7 @@ static sai_status_t mlnx_remove_router_interface(_In_ sai_object_id_t rif_id)
     sx_router_interface_t       sdk_rif_id;
     char                        key_str[MAX_KEY_STR_LEN];
     mlnx_port_config_t         *port_cfg;
-    mlnx_object_id_t            mlnx_rif_obj = {0};
+    mlnx_object_id_t            mlnx_rif_obj        = {0};
     bool                        is_port_or_sub_port = false;
 
     SX_LOG_ENTER();
@@ -621,7 +619,8 @@ static sai_status_t mlnx_remove_router_interface(_In_ sai_object_id_t rif_id)
         if (is_port_or_sub_port) {
             status = sx_api_fdb_port_learn_mode_set(gh_sdk, sx_port_id, SX_FDB_LEARN_MODE_AUTO_LEARN);
             if (SX_ERR(status)) {
-                SX_LOG_ERR("Failed to set port learning mode auto for removed router port - %s.\n", SX_STATUS_MSG(status));
+                SX_LOG_ERR("Failed to set port learning mode auto for removed router port - %s.\n",
+                           SX_STATUS_MSG(status));
                 return sdk_to_sai(status);
             }
 
@@ -879,8 +878,8 @@ static sai_status_t mlnx_rif_attrib_get(_In_ const sai_object_key_t   *key,
     sx_vlan_id_t                sx_vlan_id = 0;
     sx_router_interface_t       rif_id;
     bool                        is_admin_state;
-    mlnx_object_id_t            mlnx_rif_id  = { 0 };
-    sai_router_interface_attr_t attr         = (sai_router_interface_attr_t)arg;
+    mlnx_object_id_t            mlnx_rif_id = { 0 };
+    sai_router_interface_attr_t attr        = (sai_router_interface_attr_t)arg;
 
     SX_LOG_ENTER();
 
@@ -927,11 +926,12 @@ static sai_status_t mlnx_rif_attrib_get(_In_ const sai_object_key_t   *key,
                 return sdk_to_sai(status);
             }
 
-            if (SX_L2_INTERFACE_TYPE_VPORT == intf_params.type)
-            {
+            if (SX_L2_INTERFACE_TYPE_VPORT == intf_params.type) {
                 status = sx_api_port_vport_base_get(gh_sdk, intf_params.ifc.vport.vport, &sx_vlan_id, &sx_port_id);
                 if (SX_ERR(status)) {
-                    SX_LOG_ERR("Failed to get base port and vlan for vport %x - %s\n", intf_params.ifc.vport.vport, SX_STATUS_MSG(status));
+                    SX_LOG_ERR("Failed to get base port and vlan for vport %x - %s\n",
+                               intf_params.ifc.vport.vport,
+                               SX_STATUS_MSG(status));
                     return sdk_to_sai(status);
                 }
             } else {
@@ -984,18 +984,23 @@ static sai_status_t mlnx_rif_attrib_get(_In_ const sai_object_key_t   *key,
         case SX_L2_INTERFACE_TYPE_PORT_VLAN:
             value->s32 = SAI_ROUTER_INTERFACE_TYPE_PORT;
             break;
+
         case SX_L2_INTERFACE_TYPE_VLAN:
             value->s32 = SAI_ROUTER_INTERFACE_TYPE_VLAN;
             break;
+
         case SX_L2_INTERFACE_TYPE_LOOPBACK:
             value->s32 = SAI_ROUTER_INTERFACE_TYPE_LOOPBACK;
             break;
+
         case SX_L2_INTERFACE_TYPE_BRIDGE:
             value->s32 = SAI_ROUTER_INTERFACE_TYPE_BRIDGE;
             break;
+
         case SX_L2_INTERFACE_TYPE_VPORT:
             value->s32 = SAI_ROUTER_INTERFACE_TYPE_SUB_PORT;
             break;
+
         default:
             SX_LOG_ERR("Unexpected router intrerface type %d\n", intf_params.type);
             return SAI_STATUS_FAILURE;

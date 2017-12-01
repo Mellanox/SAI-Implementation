@@ -338,7 +338,8 @@ static void tc_list_to_str(sx_cos_traffic_class_t *tc_list, uint32_t tc_count, c
     }
 }
 
-/* Util to convert SAI threshold in bytes to sx threshold in cells */
+/* Util to convert SAI threshold in bytes to sx threshold in cells
+ * Note SDK further rounds up to 64 cells g_resource_limits.cos_redecn_cell_multiplier */
 static uint16_t mlnx_wred_sai_threshold_to_sx(uint32_t sai_threshold)
 {
     uint16_t new_threshold = ROUNDUP(sai_threshold, g_resource_limits.shared_buff_buffer_unit_size) /
@@ -1280,10 +1281,12 @@ static sai_status_t mlnx_wred_attr_enable_set(_In_ const sai_object_key_t      *
     case SAI_WRED_ATTR_GREEN_ENABLE:
         if (wred_profile.ecn_enabled) {
             if (value->booldata) {
-                if ((wred_profile.yellow_profile_id != SAI_INVALID_PROFILE_ID) ||
-                    (wred_profile.red_profile_id != SAI_INVALID_PROFILE_ID)) {
-                    SX_LOG_ERR("Can't set Green WRED enable when Yellow or Red ECN mark mode enabled\n");
-                    return SAI_STATUS_INVALID_PARAMETER;
+                if (wred_profile.green_profile_id == SAI_INVALID_PROFILE_ID) {
+                    if ((wred_profile.yellow_profile_id != SAI_INVALID_PROFILE_ID) ||
+                        (wred_profile.red_profile_id != SAI_INVALID_PROFILE_ID)) {
+                        SX_LOG_ERR("Can't set Green WRED enable when Yellow or Red ECN mark mode enabled\n");
+                        return SAI_STATUS_INVALID_PARAMETER;
+                    }
                 }
             } else {
                 if (wred_profile.green_profile_id != SAI_INVALID_PROFILE_ID) {
@@ -1308,10 +1311,12 @@ static sai_status_t mlnx_wred_attr_enable_set(_In_ const sai_object_key_t      *
     case SAI_WRED_ATTR_YELLOW_ENABLE:
         if (wred_profile.ecn_enabled) {
             if (value->booldata) {
-                if ((wred_profile.green_profile_id != SAI_INVALID_PROFILE_ID) ||
-                    (wred_profile.red_profile_id != SAI_INVALID_PROFILE_ID)) {
-                    SX_LOG_ERR("Can't set Yellow WRED enable when Green or Red ECN mark mode enabled\n");
-                    return SAI_STATUS_INVALID_PARAMETER;
+                if (wred_profile.yellow_profile_id == SAI_INVALID_PROFILE_ID) {
+                    if ((wred_profile.green_profile_id != SAI_INVALID_PROFILE_ID) ||
+                        (wred_profile.red_profile_id != SAI_INVALID_PROFILE_ID)) {
+                        SX_LOG_ERR("Can't set Yellow WRED enable when Green or Red ECN mark mode enabled\n");
+                        return SAI_STATUS_INVALID_PARAMETER;
+                    }
                 }
             } else {
                 if (wred_profile.yellow_profile_id != SAI_INVALID_PROFILE_ID) {
@@ -1336,10 +1341,12 @@ static sai_status_t mlnx_wred_attr_enable_set(_In_ const sai_object_key_t      *
     case SAI_WRED_ATTR_RED_ENABLE:
         if (wred_profile.ecn_enabled) {
             if (value->booldata) {
-                if ((wred_profile.green_profile_id != SAI_INVALID_PROFILE_ID) ||
-                    (wred_profile.yellow_profile_id != SAI_INVALID_PROFILE_ID)) {
-                    SX_LOG_ERR("Can't set Red WRED enable when Green or Yellow ECN mark mode enabled\n");
-                    return SAI_STATUS_INVALID_PARAMETER;
+                if (wred_profile.red_profile_id == SAI_INVALID_PROFILE_ID) {
+                    if ((wred_profile.green_profile_id != SAI_INVALID_PROFILE_ID) ||
+                        (wred_profile.yellow_profile_id != SAI_INVALID_PROFILE_ID)) {
+                        SX_LOG_ERR("Can't set Red WRED enable when Green or Yellow ECN mark mode enabled\n");
+                        return SAI_STATUS_INVALID_PARAMETER;
+                    }
                 }
             } else {
                 if (wred_profile.red_profile_id != SAI_INVALID_PROFILE_ID) {

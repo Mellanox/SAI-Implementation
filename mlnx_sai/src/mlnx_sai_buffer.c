@@ -2149,13 +2149,7 @@ static sai_status_t mlnx_sai_create_buffer_profile(_Out_ sai_object_id_t     * b
     if (SAI_STATUS_SUCCESS ==
         (sai_status = find_attrib_in_list(attr_count, attr_list, SAI_BUFFER_PROFILE_ATTR_THRESHOLD_MODE, &attr,
                                           &attr_ind))) {
-        if (SAI_BUFFER_PROFILE_THRESHOLD_MODE_INHERIT_BUFFER_POOL_MODE == attr->s32) {
-            /* TODO : Clean in SAI 1.2 and make attribute mandatory */
-            SX_LOG_ERR(
-                "Buffer profile inherit from pool mode isn't implemented. Please use explicit static or dynamic values.\n");
-            SX_LOG_EXIT();
-            return SAI_STATUS_INVALID_ATTR_VALUE_0 + attr_ind;
-        } else if (new_buffer_profile.shared_max.mode != (sai_buffer_profile_threshold_mode_t)attr->s32) {
+        if (new_buffer_profile.shared_max.mode != (sai_buffer_profile_threshold_mode_t)attr->s32) {
             SX_LOG_ERR("Threshold mode %d mixed with threshold value %d.\n",
                        attr->s32,
                        new_buffer_profile.shared_max.mode);
@@ -3984,8 +3978,9 @@ sai_status_t mlnx_sai_get_ingress_priority_group_stats(_In_ sai_object_id_t     
     }
 
     if (SX_STATUS_SUCCESS !=
-        (sai_status = sx_api_port_counter_buff_get(gh_sdk, SX_ACCESS_CMD_READ, g_sai_db_ptr->ports_db[db_port_index].logical, 
-                                                   pg_ind, &pg_cnts))) {
+        (sai_status =
+             sx_api_port_counter_buff_get(gh_sdk, SX_ACCESS_CMD_READ, g_sai_db_ptr->ports_db[db_port_index].logical,
+                                          pg_ind, &pg_cnts))) {
         SX_LOG_ERR("Failed to get port pg counters - %s.\n", SX_STATUS_MSG(sai_status));
         return sdk_to_sai(sai_status);
     }
@@ -4019,7 +4014,7 @@ sai_status_t mlnx_sai_get_ingress_priority_group_stats(_In_ sai_object_id_t     
             break;
 
         case SAI_INGRESS_PRIORITY_GROUP_STAT_BYTES:
-            counters[ii] = pg_cnts.rx_octet; 
+            counters[ii] = pg_cnts.rx_octet;
             break;
 
         case SAI_INGRESS_PRIORITY_GROUP_STAT_DROPPED_PACKETS:
@@ -4068,8 +4063,10 @@ static sai_status_t mlnx_sai_clear_ingress_priority_group_stats(
     }
 
     if (SX_STATUS_SUCCESS !=
-        (sai_status = sx_api_port_counter_buff_get(gh_sdk, SX_ACCESS_CMD_READ_CLEAR, g_sai_db_ptr->ports_db[db_port_index].logical, 
-                                                   pg_ind, &pg_cnts))) {
+        (sai_status =
+             sx_api_port_counter_buff_get(gh_sdk, SX_ACCESS_CMD_READ_CLEAR,
+                                          g_sai_db_ptr->ports_db[db_port_index].logical,
+                                          pg_ind, &pg_cnts))) {
         SX_LOG_ERR("Failed to get port pg counters - %s.\n", SX_STATUS_MSG(sai_status));
         return sdk_to_sai(sai_status);
     }
@@ -4194,8 +4191,7 @@ static bool mlnx_sai_skip_pool(uint32_t pool_id)
 {
     if ((MANAGEMENT_INGRESS_POOL_ID == pool_id) ||
         (MANAGEMENT_EGRESS_POOL_ID == pool_id) ||
-        (DEFAULT_MULTICAST_POOL_ID == pool_id))
-    {
+        (DEFAULT_MULTICAST_POOL_ID == pool_id)) {
         return true;
     }
 
@@ -4251,9 +4247,9 @@ static sai_status_t mlnx_sai_buffer_unbind_reserved_buffers(_In_ sx_port_log_id_
             /* leave usage of default egress for multicast. TODO : replace with multicast usage on user pools */
             continue;
             /*if (mlnx_sai_skip_pool(sx_port_reserved_buff_attr_arr[ii].attr.egress_port_buff_attr.pool_id)) {
-                continue;
-            }
-            sx_port_reserved_buff_attr_arr[ii].attr.egress_port_buff_attr.size = 0;*/
+             *   continue;
+             *  }
+             *  sx_port_reserved_buff_attr_arr[ii].attr.egress_port_buff_attr.size = 0;*/
             break;
 
         case SX_COS_EGRESS_PORT_TRAFFIC_CLASS_ATTR_E:
@@ -4344,9 +4340,9 @@ static sai_status_t mlnx_sai_buffer_unbind_shared_buffers(_In_ sx_port_log_id_t 
             /* leave usage of default egress for multicast. TODO : replace with multicast usage on user pools */
             continue;
             /*max = &sx_port_shared_buff_attr_arr[ii].attr.egress_port_shared_buff_attr.max;
-            if (mlnx_sai_skip_pool(sx_port_shared_buff_attr_arr[ii].attr.egress_port_shared_buff_attr.pool_id)) {
-                continue;
-            }*/
+             *  if (mlnx_sai_skip_pool(sx_port_shared_buff_attr_arr[ii].attr.egress_port_shared_buff_attr.pool_id)) {
+             *   continue;
+             *  }*/
             break;
 
         case SX_COS_EGRESS_PORT_TRAFFIC_CLASS_ATTR_E:

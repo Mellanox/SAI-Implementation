@@ -31,14 +31,14 @@ static sx_verbosity_level_t LOG_VAR_NAME(__MODULE__) = SX_VERBOSITY_LEVEL_WARNIN
 /* Converts sx value for vlan member taggin to state for mlnx_vlan_port_pair_t */
 #define MLNX_VLAN_MEMBER_BULK_PAIR_TAGGING_SET(tagging) \
     ((tagging == SX_TAGGED_MEMBER) ?                    \
-      MLNX_VLAN_MEMBER_BULK_PAIR_STATE_TAGGED :          \
-      MLNX_VLAN_MEMBER_BULK_PAIR_STATE_UNTAGGED)
+     MLNX_VLAN_MEMBER_BULK_PAIR_STATE_TAGGED :          \
+     MLNX_VLAN_MEMBER_BULK_PAIR_STATE_UNTAGGED)
 
 /* Converts a state of mlnx_vlan_port_pair_t to sx value for vlan member */
 #define MLNX_VLAN_MEMBER_BULK_PAIR_TAGGING_GET(p)          \
     ((p.state == MLNX_VLAN_MEMBER_BULK_PAIR_STATE_TAGGED) ? \
-    SX_TAGGED_MEMBER :                                     \
-    SX_UNTAGGED_MEMBER)
+     SX_TAGGED_MEMBER :                                     \
+     SX_UNTAGGED_MEMBER)
 
 typedef struct _mlnx_vlan_member_data_t {
     sai_object_id_t            oid;
@@ -47,37 +47,33 @@ typedef struct _mlnx_vlan_member_data_t {
     sx_untagged_member_state_t tagging;
     sx_untagged_prio_state_t   prio_tagging;
 } mlnx_vlan_member_data_t;
-
 typedef enum _mlnx_vlan_member_bulk_pair_state_t {
     MLNX_VLAN_MEMBER_BULK_PAIR_STATE_NOT_USED = 0,
     MLNX_VLAN_MEMBER_BULK_PAIR_STATE_USED     = 1,
-    MLNX_VLAN_MEMBER_BULK_PAIR_STATE_UNTAGGED  = ((0 << 1) | MLNX_VLAN_MEMBER_BULK_PAIR_STATE_USED),
-    MLNX_VLAN_MEMBER_BULK_PAIR_STATE_TAGGED    = ((1 << 1) | MLNX_VLAN_MEMBER_BULK_PAIR_STATE_USED),
+    MLNX_VLAN_MEMBER_BULK_PAIR_STATE_UNTAGGED = ((0 << 1) | MLNX_VLAN_MEMBER_BULK_PAIR_STATE_USED),
+    MLNX_VLAN_MEMBER_BULK_PAIR_STATE_TAGGED   = ((1 << 1) | MLNX_VLAN_MEMBER_BULK_PAIR_STATE_USED),
 } PACKED_ENUM mlnx_vlan_member_bulk_pair_state_t;
 
 PACKED(
-        struct _mlnx_vlan_port_pair_t {
-            mlnx_vlan_member_bulk_pair_state_t state;
-            uint32_t                           object_index;
-        }, );
-typedef struct _mlnx_vlan_port_pair_t  mlnx_vlan_port_pair_t;
+    struct _mlnx_vlan_port_pair_t {
+        mlnx_vlan_member_bulk_pair_state_t state;
+        uint32_t object_index;
+    }, );
+typedef struct _mlnx_vlan_port_pair_t mlnx_vlan_port_pair_t;
 
 PACKED(struct _mlnx_vlan_member_flood_ctrl_data_t {
-           bool     is_flood_ctrl_present;
-           bool     vlan_port_present[MAX_BRIDGE_PORTS][MAX_VLANS];
+           bool is_flood_ctrl_present;
+           bool vlan_port_present[MAX_BRIDGE_PORTS][MAX_VLANS];
            uint16_t vlan_ports_count[MAX_VLANS];
        }, );
 typedef struct _mlnx_vlan_member_flood_ctrl_data_t mlnx_vlan_member_flood_ctrl_data_t;
-
 typedef struct _mlnx_vlan_member_prio_tag_port_data_t {
     bool                     is_used;
     sx_untagged_prio_state_t prio_tagging;
 } mlnx_vlan_member_prio_tag_port_data_t;
-
 typedef struct _mlnx_vlan_member_prio_tag_data_t {
     mlnx_vlan_member_prio_tag_port_data_t ports[MAX_BRIDGE_PORTS];
 } mlnx_vlan_member_prio_tag_data_t;
-
 typedef struct _mlnx_vlan_member_bulk_data_t {
     mlnx_vlan_port_pair_t              pairs[MAX_BRIDGE_PORTS][MAX_VLANS];
     uint16_t                           vlan_ports[MAX_VLANS];
@@ -95,7 +91,6 @@ typedef struct _mlnx_vlan_member_bulk_sequence_data_t {
 } mlnx_vlan_member_bulk_sequence_data_t;
 
 static mlnx_vlan_member_bulk_data_t mlnx_vlan_member_bulk_data;
-
 static void mlnx_vlan_db_remove_vlan(_In_ sai_vlan_id_t vlan_id);
 static sai_status_t mlnx_vlan_id_get(_In_ const sai_object_key_t   *key,
                                      _Inout_ sai_attribute_value_t *value,
@@ -225,8 +220,7 @@ static void vlan_key_to_str(_In_ sai_vlan_id_t vlan_id, _Out_ char *key_str)
     snprintf(key_str, MAX_KEY_STR_LEN, "vlan %u", vlan_id);
 }
 
-sai_status_t mlnx_max_learned_addresses_value_validate(_In_ uint32_t limit,
-                                                       _In_ uint32_t attr_index)
+sai_status_t mlnx_max_learned_addresses_value_validate(_In_ uint32_t limit, _In_ uint32_t attr_index)
 {
     if (!SX_FDB_UC_LIMIT_CHECK_RANGE(limit)) {
         SX_LOG_ERR("Invalid value for learning limit - %d. Valid range is [%d, %d)\n",
@@ -237,11 +231,10 @@ sai_status_t mlnx_max_learned_addresses_value_validate(_In_ uint32_t limit,
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_vlan_bridge_max_learned_addresses_set(_In_ sx_vid_t sx_vid,
-                                                        _In_ uint32_t limit)
+sai_status_t mlnx_vlan_bridge_max_learned_addresses_set(_In_ sx_vid_t sx_vid, _In_ uint32_t limit)
 {
-    sx_status_t  sx_status;
-    uint32_t     sx_limit;
+    sx_status_t sx_status;
+    uint32_t    sx_limit;
 
     /* Conversion from SAI to SDK for disabled limit */
     sx_limit = MLNX_FDB_LIMIT_SAI_TO_SX(limit);
@@ -255,8 +248,7 @@ sai_status_t mlnx_vlan_bridge_max_learned_addresses_set(_In_ sx_vid_t sx_vid,
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_vlan_bridge_max_learned_addresses_get(_In_ sx_vid_t sx_vid,
-                                                        _In_ uint32_t *limit)
+sai_status_t mlnx_vlan_bridge_max_learned_addresses_get(_In_ sx_vid_t sx_vid, _In_ uint32_t *limit)
 {
     sx_status_t sx_status;
     uint32_t    sx_limit;
@@ -1312,7 +1304,9 @@ static sai_status_t mlnx_vlan_member_bulk_attrs_parse(_In_ const sai_attribute_t
     status = find_attrib_in_list(attr_count, attr_list, SAI_VLAN_MEMBER_ATTR_VLAN_TAGGING_MODE,
                                  &attr_value, &attr_index);
     if (!SAI_ERR(status)) {
-        status = mlnx_vlan_sai_tagging_to_sx(attr_value->s32, &vlan_member_data->tagging, &vlan_member_data->prio_tagging);
+        status = mlnx_vlan_sai_tagging_to_sx(attr_value->s32,
+                                             &vlan_member_data->tagging,
+                                             &vlan_member_data->prio_tagging);
         if (SAI_ERR(status)) {
             return status;
         }
@@ -1350,7 +1344,7 @@ static sai_status_t mlnx_vlan_member_bulk_pair_add(_In_ const mlnx_vlan_member_d
     }
 
     mlnx_vlan_member_bulk_data.pairs[port_index][vlan_index].state =
-            MLNX_VLAN_MEMBER_BULK_PAIR_TAGGING_SET(vlan_member_data->tagging);
+        MLNX_VLAN_MEMBER_BULK_PAIR_TAGGING_SET(vlan_member_data->tagging);
     mlnx_vlan_member_bulk_data.pairs[port_index][vlan_index].object_index = pair_index;
 
     mlnx_vlan_member_bulk_data.port_vlans[port_index]++;
@@ -1401,7 +1395,7 @@ static bool mlnx_vlan_member_bulk_find_next_sequence(_Out_ mlnx_vlan_member_bulk
         if (vlan_ports[vid] > max_value) {
             max_value = vlan_ports[vid];
             max_index = vid;
-            is_port = false;
+            is_port   = false;
         }
     }
 
@@ -1411,9 +1405,7 @@ static bool mlnx_vlan_member_bulk_find_next_sequence(_Out_ mlnx_vlan_member_bulk
     return !is_empty;
 }
 
-static void mlnx_vlan_member_bulk_fdb_ctrl_set(_In_ uint16_t vlan_id,
-                                               _In_ uint32_t bport_index,
-                                               _In_ bool     is_set)
+static void mlnx_vlan_member_bulk_fdb_ctrl_set(_In_ uint16_t vlan_id, _In_ uint32_t bport_index, _In_ bool is_set)
 {
     if (!mlnx_vlan_member_bulk_data.flood_ctrl_data.is_flood_ctrl_present) {
         return;
@@ -1428,9 +1420,7 @@ static void mlnx_vlan_member_bulk_fdb_ctrl_set(_In_ uint16_t vlan_id,
     mlnx_vlan_member_bulk_data.flood_ctrl_data.vlan_port_present[bport_index][vlan_id] = is_set;
 }
 
-static void mlnx_vlan_member_bulk_db_port_vlan_set(_In_ uint16_t            vid,
-                                                   _In_ mlnx_bridge_port_t *port,
-                                                   _In_ bool                add)
+static void mlnx_vlan_member_bulk_db_port_vlan_set(_In_ uint16_t vid, _In_ mlnx_bridge_port_t *port, _In_ bool add)
 {
     assert(port->index < MAX_BRIDGE_PORTS);
     assert(vid < MAX_VLANS);
@@ -1529,7 +1519,7 @@ static sai_status_t mlnx_vlan_member_bulk_prio_tagging_state_apply(bool create)
 
 static sai_status_t mlnx_vlan_member_bulk_port_to_vlans_apply(_In_ uint32_t       port_index,
                                                               _Out_ sai_status_t *object_statuses,
-                                                              _In_  bool          create)
+                                                              _In_ bool           create)
 {
     sai_status_t     status = SAI_STATUS_SUCCESS;
     sx_status_t      sx_status;
@@ -1558,7 +1548,8 @@ static sai_status_t mlnx_vlan_member_bulk_port_to_vlans_apply(_In_ uint32_t     
         if (MLNX_VLAN_MEMBER_BULK_PAIR_IS_USED(mlnx_vlan_member_bulk_data.pairs[port_index][vlan_id])) {
             /* Fetch the data for sx call */
             sx_port_vlans[vlan_count].vid         = vlan_id;
-            sx_port_vlans[vlan_count].is_untagged = MLNX_VLAN_MEMBER_BULK_PAIR_TAGGING_GET(mlnx_vlan_member_bulk_data.pairs[port_index][vlan_id]);
+            sx_port_vlans[vlan_count].is_untagged = MLNX_VLAN_MEMBER_BULK_PAIR_TAGGING_GET(
+                mlnx_vlan_member_bulk_data.pairs[port_index][vlan_id]);
             vlan_count++;
 
             /* Update a DB */
@@ -1613,7 +1604,7 @@ static sai_status_t mlnx_vlan_member_bulk_port_to_vlans_apply(_In_ uint32_t     
 
 static sai_status_t mlnx_vlan_member_bulk_vlan_to_ports_apply(_In_ uint32_t       vlan_id,
                                                               _Out_ sai_status_t *object_statuses,
-                                                              _In_  bool          create)
+                                                              _In_ bool           create)
 {
     sai_status_t        status = SAI_STATUS_SUCCESS;
     sai_status_t        rollback_status;
@@ -1633,7 +1624,7 @@ static sai_status_t mlnx_vlan_member_bulk_vlan_to_ports_apply(_In_ uint32_t     
             /* Fetch the data for sx call */
             sx_vlan_ports[port_count].log_port    = g_sai_db_ptr->bridge_ports_db[port_index].logical;
             sx_vlan_ports[port_count].is_untagged =
-                    MLNX_VLAN_MEMBER_BULK_PAIR_TAGGING_GET(mlnx_vlan_member_bulk_data.pairs[port_index][vlan_id]);
+                MLNX_VLAN_MEMBER_BULK_PAIR_TAGGING_GET(mlnx_vlan_member_bulk_data.pairs[port_index][vlan_id]);
             port_count++;
 
             /* Update a DB */
@@ -1690,7 +1681,7 @@ static sai_status_t mlnx_vlan_member_bulk_vlan_to_ports_apply(_In_ uint32_t     
 
 static sai_status_t mlnx_vlan_member_bulk_sequence_apply(_In_ const mlnx_vlan_member_bulk_sequence_data_t *sequence,
                                                          _Out_ sai_status_t                               *object_statuses,
-                                                         _In_  bool                                        create)
+                                                         _In_ bool                                         create)
 {
     assert(sequence);
     assert(object_statuses);
@@ -1714,19 +1705,19 @@ static sai_status_t mlnx_vlan_member_bulk_process(_Out_ sai_status_t *object_sta
 
     failure = false;
     while (true) {
-       more_sequences = mlnx_vlan_member_bulk_find_next_sequence(&sequnece);
-       if (!more_sequences) {
-           break;
-       }
+        more_sequences = mlnx_vlan_member_bulk_find_next_sequence(&sequnece);
+        if (!more_sequences) {
+            break;
+        }
 
-       status = mlnx_vlan_member_bulk_sequence_apply(&sequnece, object_statuses, create);
-       if (SAI_ERR(status)) {
-           failure = true;
+        status = mlnx_vlan_member_bulk_sequence_apply(&sequnece, object_statuses, create);
+        if (SAI_ERR(status)) {
+            failure = true;
 
-           if (stop_on_error) {
-               break;
-           }
-       }
+            if (stop_on_error) {
+                break;
+            }
+        }
     }
 
     status = mlnx_vlan_memeber_bulk_fdb_ctrl_apply(create);
@@ -1742,14 +1733,12 @@ static sai_status_t mlnx_vlan_member_bulk_process(_Out_ sai_status_t *object_sta
     return failure ? SAI_STATUS_FAILURE : SAI_STATUS_SUCCESS;
 }
 
-static sai_status_t mlnx_vlan_member_bulk_create(_Out_ sai_status_t *object_statuses,
-                                                 _In_ bool           stop_on_error)
+static sai_status_t mlnx_vlan_member_bulk_create(_Out_ sai_status_t *object_statuses, _In_ bool stop_on_error)
 {
     return mlnx_vlan_member_bulk_process(object_statuses, stop_on_error, true);
 }
 
-static sai_status_t mlnx_vlan_member_bulk_remove(_Out_ sai_status_t *object_statuses,
-                                                 _In_ bool           stop_on_error)
+static sai_status_t mlnx_vlan_member_bulk_remove(_Out_ sai_status_t *object_statuses, _In_ bool stop_on_error)
 {
     return mlnx_vlan_member_bulk_process(object_statuses, stop_on_error, false);
 }
@@ -1805,9 +1794,9 @@ static sai_status_t mlnx_vlan_member_bulk_remove_statuses_print(_In_ const sai_s
  * @param[in] switch_id SAI Switch object id
  * @param[in] object_count Number of objects to create
  * @param[in] attr_count List of attr_count. Caller passes the number
- *         of attribute for each object to create.
- * @param[in] attrs List of attributes for every object.
- * @param[in] type bulk operation type.
+ *    of attribute for each object to create.
+ * @param[in] attr_list List of attributes for every object.
+ * @param[in] mode Bulk operation error handling mode.
  *
  * @param[out] object_id List of object ids returned
  * @param[out] object_statuses List of status for every object. Caller needs to allocate the buffer.
@@ -1816,13 +1805,13 @@ static sai_status_t mlnx_vlan_member_bulk_remove_statuses_print(_In_ const sai_s
  * any of the objects fails to create. When there is failure, Caller is expected to go through the
  * list of returned statuses to find out which fails and which succeeds.
  */
-sai_status_t mlnx_create_vlan_members(_In_ sai_object_id_t         switch_id,
-                                      _In_ uint32_t                object_count,
-                                      _In_ const uint32_t         *attr_count,
-                                      _In_ const sai_attribute_t **attrs,
-                                      _In_ sai_bulk_op_type_t      type,
-                                      _Out_ sai_object_id_t       *object_id,
-                                      _Out_ sai_status_t          *object_statuses)
+sai_status_t mlnx_create_vlan_members(_In_ sai_object_id_t          switch_id,
+                                      _In_ uint32_t                 object_count,
+                                      _In_ const uint32_t          *attr_count,
+                                      _In_ const sai_attribute_t  **attr_list,
+                                      _In_ sai_bulk_op_error_mode_t mode,
+                                      _Out_ sai_object_id_t        *object_id,
+                                      _Out_ sai_status_t           *object_statuses)
 {
     sai_status_t            status;
     mlnx_vlan_member_data_t vlan_member_data;
@@ -1839,7 +1828,7 @@ sai_status_t mlnx_create_vlan_members(_In_ sai_object_id_t         switch_id,
         return SAI_STATUS_INVALID_PARAMETER;
     }
 
-    if (!attrs) {
+    if (!attr_list) {
         SX_LOG_ERR("attrs is NULL\n");
         return SAI_STATUS_INVALID_PARAMETER;
     }
@@ -1854,12 +1843,12 @@ sai_status_t mlnx_create_vlan_members(_In_ sai_object_id_t         switch_id,
         return SAI_STATUS_INVALID_PARAMETER;
     }
 
-    if (SAI_BULK_OP_TYPE_INGORE_ERROR < type) {
-        SX_LOG_ERR("Invalid value for sai_bulk_op_type_t - %d\n", type);
+    if (SAI_BULK_OP_ERROR_MODE_IGNORE_ERROR < mode) {
+        SX_LOG_ERR("Invalid value for sai_bulk_op_type_t - %d\n", mode);
         return SAI_STATUS_INVALID_PARAMETER;
     }
 
-    stop_on_error = (type == SAI_BULK_OP_TYPE_STOP_ON_ERROR);
+    stop_on_error = (mode == SAI_BULK_OP_ERROR_MODE_STOP_ON_ERROR);
 
     sai_db_write_lock();
 
@@ -1867,7 +1856,7 @@ sai_status_t mlnx_create_vlan_members(_In_ sai_object_id_t         switch_id,
 
     failure = false;
     for (ii = 0; ii < object_count; ii++) {
-        status = mlnx_vlan_member_bulk_attrs_parse(attrs[ii], attr_count[ii], &vlan_member_data);
+        status = mlnx_vlan_member_bulk_attrs_parse(attr_list[ii], attr_count[ii], &vlan_member_data);
         if (!SAI_ERR(status)) {
             status = mlnx_vlan_member_bulk_pair_add(&vlan_member_data, ii);
         }
@@ -1908,17 +1897,17 @@ out:
  *
  * @param[in] object_count Number of objects to create
  * @param[in] object_id List of object ids
- * @param[in] type bulk operation type.
+ * @param[in] mode Bulk operation error handling mode.
  * @param[out] object_statuses List of status for every object. Caller needs to allocate the buffer.
  *
  * @return #SAI_STATUS_SUCCESS on success when all objects are removed or #SAI_STATUS_FAILURE when
  * any of the objects fails to remove. When there is failure, Caller is expected to go through the
  * list of returned statuses to find out which fails and which succeeds.
  */
-sai_status_t mlnx_remove_vlan_members(_In_ uint32_t               object_count,
-                                      _In_ const sai_object_id_t *object_id,
-                                      _In_ sai_bulk_op_type_t     type,
-                                      _Out_ sai_status_t         *object_statuses)
+sai_status_t mlnx_remove_vlan_members(_In_ uint32_t                 object_count,
+                                      _In_ const sai_object_id_t   *object_id,
+                                      _In_ sai_bulk_op_error_mode_t mode,
+                                      _Out_ sai_status_t           *object_statuses)
 {
     sai_status_t            status;
     mlnx_vlan_member_data_t vlan_member_data;
@@ -1940,12 +1929,12 @@ sai_status_t mlnx_remove_vlan_members(_In_ uint32_t               object_count,
         return SAI_STATUS_INVALID_PARAMETER;
     }
 
-    if (SAI_BULK_OP_TYPE_INGORE_ERROR < type) {
-        SX_LOG_ERR("Invalid value for sai_bulk_op_type_t - %d\n", type);
+    if (SAI_BULK_OP_ERROR_MODE_IGNORE_ERROR < mode) {
+        SX_LOG_ERR("Invalid value for sai_bulk_op_type_t - %d\n", mode);
         return SAI_STATUS_INVALID_PARAMETER;
     }
 
-    stop_on_error = (type == SAI_BULK_OP_TYPE_STOP_ON_ERROR);
+    stop_on_error = (mode == SAI_BULK_OP_ERROR_MODE_STOP_ON_ERROR);
 
     sai_db_write_lock();
 
@@ -2086,12 +2075,12 @@ static sai_status_t mlnx_vlan_member_tagging_set(_In_ const sai_object_key_t    
                                                  _In_ const sai_attribute_value_t *value,
                                                  void                             *arg)
 {
-    sx_status_t               sx_status;
-    mlnx_bridge_port_t       *port;
-    sai_status_t              status;
-    sx_vlan_ports_t           sx_vlan_port_list;
-    sx_untagged_prio_state_t  sx_prio_tagging;
-    uint16_t                  vlan;
+    sx_status_t              sx_status;
+    mlnx_bridge_port_t      *port;
+    sai_status_t             status;
+    sx_vlan_ports_t          sx_vlan_port_list;
+    sx_untagged_prio_state_t sx_prio_tagging;
+    uint16_t                 vlan;
 
     SX_LOG_ENTER();
 
@@ -2139,14 +2128,12 @@ static sai_status_t mlnx_vlan_member_tagging_get(_In_ const sai_object_key_t   *
                                                  _Inout_ vendor_cache_t        *cache,
                                                  void                          *arg)
 {
-    sai_status_t        status;
-    sx_status_t         sx_status;
-    sx_vlan_ports_t    *sx_vlan_port_list = NULL;
-    sx_untagged_prio_state_t sx_prio_tagging_state;
-    mlnx_bridge_port_t *port;
-    uint32_t            port_cnt          = g_resource_limits.port_ext_num_max;
-    uint32_t            ii;
-    uint16_t            vlan;
+    sai_status_t               status;
+    sx_status_t                sx_status;
+    sx_untagged_prio_state_t   sx_prio_tagging_state;
+    sx_untagged_member_state_t sx_tagging_mode;
+    mlnx_bridge_port_t        *port;
+    uint16_t                   vlan;
 
     SX_LOG_ENTER();
 
@@ -2164,44 +2151,53 @@ static sai_status_t mlnx_vlan_member_tagging_get(_In_ const sai_object_key_t   *
 
     if (sx_prio_tagging_state == SX_PRIO_TAGGED_STATE) {
         value->s32 = SAI_VLAN_TAGGING_MODE_PRIORITY_TAGGED;
-        status = SAI_STATUS_SUCCESS;
+        status     = SAI_STATUS_SUCCESS;
         goto out;
     }
 
-    sx_vlan_port_list = (sx_vlan_ports_t*)malloc(sizeof(sx_vlan_ports_t) * port_cnt);
-    if (NULL == sx_vlan_port_list) {
-        SX_LOG_ERR("Can't allocate memory\n");
-        status = SAI_STATUS_NO_MEMORY;
+    status = mlnx_vlan_log_port_tagging_get(port->logical, vlan, &sx_tagging_mode);
+    if (SAI_ERR(status)) {
         goto out;
     }
 
-    if (SX_STATUS_SUCCESS !=
-        (sx_status = sx_api_vlan_ports_get(gh_sdk, DEFAULT_ETH_SWID, vlan, sx_vlan_port_list, &port_cnt))) {
-        SX_LOG_ERR("Failed to get vlan ports %s.\n", SX_STATUS_MSG(sx_status));
-        status = sdk_to_sai(sx_status);
-        goto out;
+    value->s32 = (sx_tagging_mode == SX_TAGGED_MEMBER) ? SAI_VLAN_TAGGING_MODE_TAGGED : SAI_VLAN_TAGGING_MODE_UNTAGGED;
+
+out:
+    SX_LOG_EXIT();
+    return status;
+}
+
+sai_status_t mlnx_vlan_log_port_tagging_get(_In_ sx_port_log_id_t             sx_port_id,
+                                            _In_ sx_vlan_id_t                 sx_vlan_id,
+                                            _Out_ sx_untagged_member_state_t *sx_tagging_mode)
+{
+    sx_status_t     sx_status;
+    sx_vlan_ports_t sx_vlan_port_list[MAX_BRIDGE_PORTS];
+    uint32_t        vlan_ports_count = MAX_BRIDGE_PORTS, ii;
+
+    assert(sx_tagging_mode);
+
+    memset(sx_vlan_port_list, 0, sizeof(sx_vlan_port_list));
+
+    sx_status = sx_api_vlan_ports_get(gh_sdk, DEFAULT_ETH_SWID, sx_vlan_id, sx_vlan_port_list, &vlan_ports_count);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to get vlan members for vlan %d - %s\n", sx_vlan_id, SX_STATUS_MSG(sx_status));
+        return sdk_to_sai(sx_status);
     }
 
-    for (ii = 0; ii < port_cnt; ii++) {
-        if (sx_vlan_port_list[ii].log_port == port->logical) {
-            if (sx_vlan_port_list[ii].is_untagged) {
-                value->s32 = SAI_VLAN_TAGGING_MODE_UNTAGGED;
-            } else {
-                value->s32 = SAI_VLAN_TAGGING_MODE_TAGGED;
-            }
+    for (ii = 0; ii < vlan_ports_count; ii++) {
+        if (sx_vlan_port_list[ii].log_port == sx_port_id) {
+            *sx_tagging_mode = sx_vlan_port_list[ii].is_untagged;
             break;
         }
     }
-    if (ii == port_cnt) {
-        SX_LOG_ERR("Failed to find port %x in vlan %u, %u members\n", port->logical, vlan, port_cnt);
-        status = SAI_STATUS_FAILURE;
-        goto out;
+
+    if (ii == vlan_ports_count) {
+        SX_LOG_ERR("Failed to find port %x in vlan %u, %u members\n", sx_port_id, sx_vlan_id, vlan_ports_count);
+        return SAI_STATUS_FAILURE;
     }
 
-out:
-    free(sx_vlan_port_list);
-    SX_LOG_EXIT();
-    return status;
+    return SAI_STATUS_SUCCESS;
 }
 
 sai_status_t mlnx_vlan_list_stp_bind(_In_ const sx_vlan_id_t *vlan_ids,
@@ -2220,7 +2216,7 @@ sai_status_t mlnx_vlan_list_stp_bind(_In_ const sx_vlan_id_t *vlan_ids,
 
     if (mlnx_stp_is_initialized()) {
         sx_status = sx_api_mstp_inst_vlan_list_set(gh_sdk, SX_ACCESS_CMD_ADD, DEFAULT_ETH_SWID,
-                                                sx_stp_id, vlan_ids, vlan_count);
+                                                   sx_stp_id, vlan_ids, vlan_count);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to set STP to vlan %s.\n", SX_STATUS_MSG(sx_status));
             return sdk_to_sai(sx_status);
@@ -2231,7 +2227,7 @@ sai_status_t mlnx_vlan_list_stp_bind(_In_ const sx_vlan_id_t *vlan_ids,
         mlnx_vlan_stp_id_set(vlan_ids[ii], sx_stp_id);
     }
 
-    stp_db_entry = get_stp_db_entry(sx_stp_id);
+    stp_db_entry              = get_stp_db_entry(sx_stp_id);
     stp_db_entry->vlan_count += vlan_count;
 
     return SAI_STATUS_SUCCESS;
@@ -2317,8 +2313,7 @@ sai_status_t validate_vlan(_In_ const sai_vlan_id_t vlan_id)
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_vlan_oid_create(_In_ sai_vlan_id_t     vlan_id,
-                                  _Out_ sai_object_id_t *vlan_oid)
+sai_status_t mlnx_vlan_oid_create(_In_ sai_vlan_id_t vlan_id, _Out_ sai_object_id_t *vlan_oid)
 {
     sai_status_t     status;
     mlnx_object_id_t vlan_obj_id;

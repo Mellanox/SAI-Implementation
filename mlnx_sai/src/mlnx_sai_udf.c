@@ -876,6 +876,8 @@ static sai_status_t mlnx_udf_group_sx_custom_bytes_remove(_In_ uint32_t group_db
         return status;
     }
 
+    memset(sx_keys, 0, sizeof(sx_keys[0]) * MLNX_UDF_GROUP_LENGTH_MAX);
+
     udf_db_group_ptr(group_db_index)->is_sx_custom_bytes_created = false;
 
     SX_LOG_NTC("Removed the Custom Bytes Set for UDF Group %lx\n", udf_db_group_ptr(group_db_index)->sai_object);

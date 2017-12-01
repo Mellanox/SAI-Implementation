@@ -25,7 +25,8 @@ dist_data_DATA = sai_1710.xml \
                  sai_2740.xml \
                  sai_2410.xml \
                  sai_2420.xml \
-                 sai_2100.xml
+                 sai_2100.xml \
+                 sai_2010.xml
 				 
 libsai_la_DEPENDENCIES =
 
@@ -44,7 +45,7 @@ libsai_la_SOURCES = \
                        dbgdump/mlnx_sai_dbg_tunnel.c \
                        dbgdump/mlnx_sai_dbg_vlan.c \
                        dbgdump/mlnx_sai_dbg_wred.c \
-					   dbgdump/mlnx_sai_dbg_bridge.c \
+                       dbgdump/mlnx_sai_dbg_bridge.c \
                        dbgdump/mlnx_sai_dbg_udf.c \
                        mlnx_sai_acl.c \
                        mlnx_sai_bridge.c \
@@ -75,9 +76,10 @@ libsai_la_SOURCES = \
                        mlnx_sai_utils.c \
                        mlnx_sai_vlan.c \
                        mlnx_sai_wred.c \
-					   mlnx_sai_udf.c \
-					   meta/saimetadata.c \
-					   meta/saimetadatautils.c
+                       mlnx_sai_udf.c \
+                       meta/saimetadata.c \
+                       meta/saimetadatautils.c \
+                       meta/saiserialize.c
 
 if XML2_ELDK5_LA_WA
 SAI_LIBXML2_ADD = ${XML2_LIB_PATH}/lib/libxml2.so
@@ -105,6 +107,7 @@ libsai_apiinclude_HEADERS = \
         $(top_srcdir)/inc/sai/sailag.h \
         $(top_srcdir)/inc/sai/saimcastfdb.h \
         $(top_srcdir)/inc/sai/saimirror.h \
+        $(top_srcdir)/inc/sai/saimpls.h \
         $(top_srcdir)/inc/sai/saineighbor.h \
         $(top_srcdir)/inc/sai/sainexthop.h \
         $(top_srcdir)/inc/sai/sainexthopgroup.h \
@@ -119,11 +122,14 @@ libsai_apiinclude_HEADERS = \
         $(top_srcdir)/inc/sai/saisamplepacket.h \
         $(top_srcdir)/inc/sai/saischeduler.h \
         $(top_srcdir)/inc/sai/saischedulergroup.h \
+        $(top_srcdir)/inc/sai/saisegmentroute.h \
         $(top_srcdir)/inc/sai/saistatus.h \
         $(top_srcdir)/inc/sai/saistp.h \
         $(top_srcdir)/inc/sai/saiswitch.h \
+        $(top_srcdir)/inc/sai/saitam.h \
         $(top_srcdir)/inc/sai/saitunnel.h \
         $(top_srcdir)/inc/sai/saitypes.h \
+        $(top_srcdir)/inc/sai/saiuburst.h \
         $(top_srcdir)/inc/sai/saiudf.h \
         $(top_srcdir)/inc/sai/saivirtualrouter.h \
         $(top_srcdir)/inc/sai/saivlan.h \

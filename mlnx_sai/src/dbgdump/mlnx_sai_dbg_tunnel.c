@@ -147,7 +147,7 @@ static void SAI_dump_tunnel_map_print(_In_ FILE                    *file,
     sai_object_id_t           obj_id       = SAI_NULL_OBJECT_ID;
     sai_object_id_t           bridge_if_id = SAI_NULL_OBJECT_ID;
     mlnx_tunnel_map_t         curr_mlnx_tunnel_map;
-    sai_tunnel_map_t          curr_sai_tunnel_map;
+    mlnx_tunnel_map_value_t   curr_sai_tunnel_map;
     uint32_t                  tunnel_map_entry_idx = MLNX_TUNNEL_MAP_ENTRY_INVALID;
     char                      type_str[LINE_LENGTH];
     dbg_utils_table_columns_t tunnelmap_clmns[] = {
@@ -264,7 +264,7 @@ static void SAI_dump_tunnel_map_print(_In_ FILE                    *file,
                 for (jj = 0; jj < mlnx_tunnel_map[ii].tunnel_map_list_count; jj++) {
                     memcpy(&curr_sai_tunnel_map,
                            &mlnx_tunnel_map[ii].tunnel_map_list[jj],
-                           sizeof(sai_tunnel_map_t));
+                           sizeof(mlnx_tunnel_map_value_t));
 
                     switch (mlnx_tunnel_map[ii].tunnel_map_type) {
                     case SAI_TUNNEL_MAP_TYPE_OECN_TO_UECN:
