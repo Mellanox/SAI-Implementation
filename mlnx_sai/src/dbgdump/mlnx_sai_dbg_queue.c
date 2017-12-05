@@ -95,7 +95,7 @@ static void SAI_dump_queue_db_print(_In_ FILE *file, _In_ mlnx_qos_queue_config_
         {"type",            5,  PARAM_STRING_E, type_str},
         {"scheduler id",    14, PARAM_UINT64_E, &curr_queue_db.sched_obj.scheduler_id},
         {"index",           14, PARAM_UINT8_E,  &curr_queue_db.sched_obj.index},
-        {"is used",         14, PARAM_BOOL_E,   &curr_queue_db.sched_obj.is_used},
+        {"is used",         14, PARAM_UINT8_E,  &curr_queue_db.sched_obj.is_used},
         {"next index",      14, PARAM_INT_E,    &curr_queue_db.sched_obj.next_index},
         {"level",           14, PARAM_UINT8_E,  &curr_queue_db.sched_obj.level},
         {"max child count", 14, PARAM_UINT32_E, &curr_queue_db.sched_obj.max_child_count},

@@ -140,8 +140,8 @@ static void SAI_dump_policer_print(_In_ FILE *file, _In_ mlnx_policer_db_entry_t
         {"r action",           13, PARAM_STRING_E, &r_action_str},
         {"eir",                11, PARAM_UINT32_E, &curr_policers_db.sx_policer_attr.eir},
         {"rate type",          10, PARAM_STRING_E, &rate_str},
-        {"color aware",        11, PARAM_BOOL_E,   &curr_policers_db.sx_policer_attr.color_aware},
-        {"host ifc policer",   16, PARAM_BOOL_E,   &curr_policers_db.sx_policer_attr.is_host_ifc_policer},
+        {"color aware",        11, PARAM_UINT8_E,  &curr_policers_db.sx_policer_attr.color_aware},
+        {"host ifc policer",   16, PARAM_UINT8_E,  &curr_policers_db.sx_policer_attr.is_host_ifc_policer},
         {"ir units",           11, PARAM_STRING_E, &ir_units_str},
         {NULL,                 0,  0,              NULL}
     };

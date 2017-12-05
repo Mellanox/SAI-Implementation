@@ -244,7 +244,7 @@ static void SAI_dump_port_buffer_data_print(_In_ FILE *file, _In_ uint32_t *port
 static void SAI_dump_pool_allocation_print(_In_ FILE *file, _In_ bool *pool_allocation)
 {
     uint32_t                  ii                           = 0;
-    bool                      curr_pool_allocation         = false;
+    uint32_t                  curr_pool_allocation         = false;
     dbg_utils_table_columns_t pool_allocation_data_clmns[] = {
         {"db idx",          11, PARAM_UINT32_E, &ii},
         {"pool allocation", 15, PARAM_BOOL_E,   &curr_pool_allocation},

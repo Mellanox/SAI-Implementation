@@ -384,6 +384,8 @@ typedef struct _sai_vendor_attribute_entry_t {
 #define MLNX_QOS_MAP_COLOR_MAX 2
 #define MLNX_QOS_MAP_TYPES_MAX 10
 #define MLNX_QOS_MAP_CODES_MAX (SX_COS_PORT_DSCP_MAX + 1)
+#define MLNX_QOS_MAP_PFC_PG_INDEX 0
+#define MLNX_QOS_MAP_PFC_QUEUE_INDEX 1
 
 /* TODO: Add MPLS support here */
 typedef union {
@@ -400,6 +402,7 @@ typedef struct _mlnx_qos_map_t {
     mlnx_qos_map_params_t to;
     uint8_t               count;
     bool                  is_used;
+    bool                  is_set;
 } mlnx_qos_map_t;
 typedef enum {
     /* TODO: IS_PHY_NONE_MEMBER */
