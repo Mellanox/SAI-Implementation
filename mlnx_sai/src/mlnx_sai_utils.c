@@ -2446,7 +2446,7 @@ sai_status_t sai_qos_map_to_str(_In_ const sai_qos_map_list_t *qosmap,
 
         case SAI_QOS_MAP_TYPE_PFC_PRIORITY_TO_PRIORITY_GROUP:
             pos += snprintf(value_str + pos, max_length - pos, "%u->%u",
-                            list[ii].key.pg, list[ii].value.prio);
+                            list[ii].key.prio, list[ii].value.pg);
             break;
 
         case SAI_QOS_MAP_TYPE_PFC_PRIORITY_TO_QUEUE:

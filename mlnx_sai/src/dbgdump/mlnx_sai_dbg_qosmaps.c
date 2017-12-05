@@ -120,6 +120,7 @@ static void SAI_dump_qos_maps_db_print(_In_ FILE *file, _In_ mlnx_qos_map_t *qos
         {"db idx", 11, PARAM_UINT32_E, &ii},
         {"type",   22, PARAM_STRING_E, &type_str},
         {"cnt",    3,  PARAM_UINT8_E,  &curr_qos_maps_db.count},
+        {"set",    3,  PARAM_UINT8_E,  &curr_qos_maps_db.is_set },
         {NULL,     0,  0,              NULL}
     };
     dbg_utils_table_columns_t qos_maps_param_dot1p_2_tc_clmns[] = {

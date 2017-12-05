@@ -44,8 +44,8 @@ static void SAI_dump_wred_db_print(_In_ FILE *file, _In_ mlnx_wred_profile_t *wr
         {"green profile id",  16, PARAM_UINT32_E, &curr_wred_db.green_profile_id},
         {"yellow profile id", 17, PARAM_UINT32_E, &curr_wred_db.yellow_profile_id},
         {"red profile id",    14, PARAM_UINT32_E, &curr_wred_db.red_profile_id},
-        {"wred enabled",      12, PARAM_BOOL_E,   &curr_wred_db.wred_enabled},
-        {"ecn enabled",       11, PARAM_BOOL_E,   &curr_wred_db.ecn_enabled},
+        {"wred enabled",      12, PARAM_UINT8_E,  &curr_wred_db.wred_enabled},
+        {"ecn enabled",       11, PARAM_UINT8_E,  &curr_wred_db.ecn_enabled},
         {NULL,                 0,  0,              NULL}
     };
 

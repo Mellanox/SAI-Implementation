@@ -2947,33 +2947,6 @@ static sai_status_t mlnx_port_qos_map_assign_tc_color_to_dot1p(sx_port_log_id_t 
     return SAI_STATUS_SUCCESS;
 }
 
-static sai_status_t mlnx_port_qos_map_assign_tc_to_pg(sx_port_log_id_t port_id, mlnx_qos_map_t *qos_map)
-{
-    sx_cos_port_prio_buff_t prio_buff;
-    sx_status_t             status;
-    uint32_t                ii;
-
-    status = sx_api_cos_port_prio_buff_map_get(gh_sdk, port_id, &prio_buff);
-    if (status != SX_STATUS_SUCCESS) {
-        SX_LOG_ERR("Failed to get prio to buff qos map - %s\n", SX_STATUS_MSG(status));
-        return sdk_to_sai(status);
-    }
-
-    for (ii = 0; ii < qos_map->count; ii++) {
-        uint8_t pri = qos_map->from.prio_color[ii].priority;
-
-        prio_buff.prio_to_buff[pri] = qos_map->to.pg[ii];
-    }
-
-    status = sx_api_cos_port_prio_buff_map_set(gh_sdk, SX_ACCESS_CMD_SET, port_id, &prio_buff);
-    if (status != SX_STATUS_SUCCESS) {
-        SX_LOG_ERR("Failed to set prio to buff qos map - %s\n", SX_STATUS_MSG(status));
-        return sdk_to_sai(status);
-    }
-
-    return SAI_STATUS_SUCCESS;
-}
-
 static sai_status_t mlnx_port_qos_map_assign_pfc_to_pg(sx_port_log_id_t port_id, mlnx_qos_map_t *qos_map)
 {
     sx_cos_port_prio_buff_t prio_buff;
@@ -3014,6 +2987,9 @@ static sai_status_t mlnx_port_qos_map_assign_pfc_to_pg(sx_port_log_id_t port_id,
         }
     }
 
+    memcpy(&g_sai_db_ptr->qos_maps_db[MLNX_QOS_MAP_PFC_PG_INDEX], qos_map, sizeof(*qos_map));
+    g_sai_db_ptr->qos_maps_db[MLNX_QOS_MAP_PFC_PG_INDEX].is_set = true;
+
     return status;
 }
 
@@ -3053,7 +3029,57 @@ static sai_status_t mlnx_port_qos_map_assign_pfc_to_queue(sx_port_log_id_t port_
         }
     }
 
+    memcpy(&g_sai_db_ptr->qos_maps_db[MLNX_QOS_MAP_PFC_QUEUE_INDEX], qos_map, sizeof(*qos_map));
+    g_sai_db_ptr->qos_maps_db[MLNX_QOS_MAP_PFC_QUEUE_INDEX].is_set = true;
+
     return status;
+}
+
+static sai_status_t mlnx_port_qos_map_assign_tc_to_pg(sx_port_log_id_t port_id, mlnx_qos_map_t *qos_map)
+{
+    sx_cos_port_prio_buff_t prio_buff;
+    sx_status_t             status;
+    uint32_t                ii;
+
+    status = sx_api_cos_port_prio_buff_map_get(gh_sdk, port_id, &prio_buff);
+    if (status != SX_STATUS_SUCCESS) {
+        SX_LOG_ERR("Failed to get prio to buff qos map - %s\n", SX_STATUS_MSG(status));
+        return sdk_to_sai(status);
+    }
+
+    for (ii = 0; ii < qos_map->count; ii++) {
+        uint8_t pri = qos_map->from.prio_color[ii].priority;
+
+        prio_buff.prio_to_buff[pri] = qos_map->to.pg[ii];
+    }
+
+    status = sx_api_cos_port_prio_buff_map_set(gh_sdk, SX_ACCESS_CMD_SET, port_id, &prio_buff);
+    if (status != SX_STATUS_SUCCESS) {
+        SX_LOG_ERR("Failed to set prio to buff qos map - %s\n", SX_STATUS_MSG(status));
+        return sdk_to_sai(status);
+    }
+
+    /* Reapply PFC->PG, PFC->Queue maps, since they are dependent on TC->PG value, and in case they were applied prior 
+       the values would be incorrect. */
+    if (g_sai_db_ptr->qos_maps_db[MLNX_QOS_MAP_PFC_PG_INDEX].is_set) {
+        SX_LOG_NTC("Reapplying PFC->PG\n");
+        status = mlnx_port_qos_map_assign_pfc_to_pg(port_id, &g_sai_db_ptr->qos_maps_db[MLNX_QOS_MAP_PFC_PG_INDEX]);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to reapply PFC to PG\n");
+            return status;
+        }
+    }
+
+    if (g_sai_db_ptr->qos_maps_db[MLNX_QOS_MAP_PFC_QUEUE_INDEX].is_set) {
+        SX_LOG_NTC("Reapplying PFC->Queue\n");
+        status = mlnx_port_qos_map_assign_pfc_to_queue(port_id, &g_sai_db_ptr->qos_maps_db[MLNX_QOS_MAP_PFC_QUEUE_INDEX]);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to reapply PFC to QUEUE\n");
+            return status;
+        }
+    }
+
+    return SAI_STATUS_SUCCESS;
 }
 
 /*

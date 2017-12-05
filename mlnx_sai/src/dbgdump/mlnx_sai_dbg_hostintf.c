@@ -56,7 +56,7 @@ static void SAI_dump_default_trap_group_print(_In_ FILE *file, _In_ sai_object_i
 static void SAI_dump_trap_group_valid_print(_In_ FILE *file, _In_ bool *trap_group_valid)
 {
     uint32_t                  ii                       = 0;
-    bool                      curr_trap_group_valid    = 0;
+    uint32_t                  curr_trap_group_valid    = 0;
     dbg_utils_table_columns_t trap_group_valid_clmns[] = {
         {"db idx",           11, PARAM_UINT32_E, &ii},
         {"trap group valid", 16, PARAM_BOOL_E,   &curr_trap_group_valid},
