@@ -29,6 +29,7 @@
 #include <sys/socket.h>
 #include <complib/cl_thread.h>
 #include <sys/types.h>
+#include <sx/sdk/sx_api_rm.h>
 
 #undef  __MODULE__
 #define __MODULE__ SAI_ACL
@@ -333,11 +334,16 @@ static sai_status_t mlnx_acl_table_entry_list_get(_In_ const sai_object_key_t   
                                                   _In_ uint32_t                  attr_index,
                                                   _Inout_ vendor_cache_t        *cache,
                                                   void                          *arg);
-static sai_status_t mlnx_acl_table_available_get(_In_ const sai_object_key_t   *key,
-                                                 _Inout_ sai_attribute_value_t *value,
-                                                 _In_ uint32_t                  attr_index,
-                                                 _Inout_ vendor_cache_t        *cache,
-                                                 void                          *arg);
+static sai_status_t mlnx_acl_table_available_entries_get(_In_ const sai_object_key_t   *key,
+                                                         _Inout_ sai_attribute_value_t *value,
+                                                         _In_ uint32_t                  attr_index,
+                                                         _Inout_ vendor_cache_t        *cache,
+                                                         void                          *arg);
+static sai_status_t mlnx_acl_table_available_counters_get(_In_ const sai_object_key_t   *key,
+                                                          _Inout_ sai_attribute_value_t *value,
+                                                          _In_ uint32_t                  attr_index,
+                                                          _Inout_ vendor_cache_t        *cache,
+                                                          void                          *arg);
 static sai_status_t mlnx_acl_entry_tos_get(_In_ const sai_object_key_t   *key,
                                            _Inout_ sai_attribute_value_t *value,
                                            _In_ uint32_t                  attr_index,
@@ -1265,12 +1271,12 @@ static const sai_vendor_attribute_entry_t acl_table_vendor_attribs[] = {
     { SAI_ACL_TABLE_ATTR_AVAILABLE_ACL_ENTRY,
       {false, false, false, true},
       {false, false, false, true},
-      mlnx_acl_table_available_get, (void*)SAI_ACL_TABLE_ATTR_AVAILABLE_ACL_ENTRY,
+      mlnx_acl_table_available_entries_get, NULL,
       NULL, NULL },
     { SAI_ACL_TABLE_ATTR_AVAILABLE_ACL_COUNTER,
       {false, false, false, true},
       {false, false, false, true},
-      mlnx_acl_table_available_get, (void*)SAI_ACL_TABLE_ATTR_AVAILABLE_ACL_COUNTER,
+      mlnx_acl_table_available_counters_get, NULL,
       NULL, NULL },
     { END_FUNCTIONALITY_ATTRIBS_ID,
       { false, false, false, false },
@@ -2491,27 +2497,116 @@ out:
     return status;
 }
 
-static sai_status_t mlnx_acl_table_available_get(_In_ const sai_object_key_t   *key,
-                                                 _Inout_ sai_attribute_value_t *value,
-                                                 _In_ uint32_t                  attr_index,
-                                                 _Inout_ vendor_cache_t        *cache,
-                                                 void                          *arg)
+static sai_status_t mlnx_acl_dynamic_table_max_entries_get(_In_ uint32_t   acl_table_id,
+                                                           _Out_ uint32_t *entries)
 {
+    sx_status_t            sx_status;
+    rm_sdk_table_type_e    table_type;
+    sx_acl_flex_key_attr_t key_attr;
+
+    assert(entries);
+
+    memset(&key_attr, 0, sizeof(key_attr));
+
+    sx_status = sx_api_acl_flex_key_attr_get(gh_sdk, acl_db_table(acl_table_id).key_type, &key_attr);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to get ACL key attr - %s\n", SX_STATUS_MSG(sx_status));
+        return sdk_to_sai(sx_status);
+    }
+
+    switch (key_attr.key_width) {
+    case SX_ACL_FLEX_KEY_WIDTH_9_E:
+    case SX_ACL_FLEX_KEY_WIDTH_18_E:
+        table_type = RM_SDK_TABLE_TYPE_ACL_RULES_TWO_KEY_BLOCK_E;
+        break;
+    case SX_ACL_FLEX_KEY_WIDTH_36_E:
+        table_type = RM_SDK_TABLE_TYPE_ACL_RULES_FOUR_KEY_BLOCK_E;
+        break;
+    case SX_ACL_FLEX_KEY_WIDTH_54_E:
+        table_type = RM_SDK_TABLE_TYPE_ACL_RULES_SIX_KEY_BLOCK_E;
+        break;
+    default:
+        SX_LOG_ERR("Unexpected ACL key width - %d\n", key_attr.key_width);
+        return SAI_STATUS_FAILURE;
+    }
+
+    sx_status = sx_api_rm_free_entries_by_type_get(gh_sdk, table_type, entries);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to get a number of free entries for ACL Table [%d] - %s\n",
+                   acl_table_id, SX_STATUS_MSG(sx_status));
+        return sdk_to_sai(sx_status);
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_acl_table_available_entries_get(_In_ const sai_object_key_t   *key,
+                                                         _Inout_ sai_attribute_value_t *value,
+                                                         _In_ uint32_t                  attr_index,
+                                                         _Inout_ vendor_cache_t        *cache,
+                                                         void                          *arg)
+{
+    sai_status_t          status = SAI_STATUS_SUCCESS;
+    const acl_table_db_t *acl_table;
+    uint32_t              table_index, free_entries;
+
     SX_LOG_ENTER();
 
-    switch ((int64_t)arg) {
-    case SAI_ACL_TABLE_ATTR_AVAILABLE_ACL_ENTRY:
-        value->u32 = 0;
-        break;
-
-    case SAI_ACL_TABLE_ATTR_AVAILABLE_ACL_COUNTER:
-        value->u32 = 0;
-        break;
-
-    default:
-        SX_LOG_ERR("Unexpected type of arg (%ld)\n", (int64_t)arg);
-        assert(false);
+    status = extract_acl_table_index(key->key.object_id, &table_index);
+    if (SAI_ERR(status)) {
+        SX_LOG_EXIT();
+        return status;
     }
+
+    acl_table_read_lock(table_index);
+
+    acl_table = &acl_db_table(table_index);
+
+    if (acl_table->is_dynamic_sized) {
+        status = mlnx_acl_dynamic_table_max_entries_get(table_index, &free_entries);
+        if (SAI_ERR(status)) {
+            goto out;
+        }
+    } else {
+        free_entries = acl_table->table_size - acl_table->created_entry_count;
+    }
+
+    value->u32 = MIN(ACL_MAX_ENTRY_NUMBER, free_entries);
+
+out:
+    acl_table_unlock(table_index);
+    SX_LOG_EXIT();
+    return status;
+}
+
+static sai_status_t mlnx_acl_table_available_counters_get(_In_ const sai_object_key_t   *key,
+                                                          _Inout_ sai_attribute_value_t *value,
+                                                          _In_ uint32_t                  attr_index,
+                                                          _Inout_ vendor_cache_t        *cache,
+                                                          void                          *arg)
+{
+    sai_status_t  status;
+    sx_status_t   sx_status;
+    uint32_t      table_index;
+    uint32_t      free_counters;
+
+    SX_LOG_ENTER();
+
+    status = extract_acl_table_index(key->key.object_id, &table_index);
+    if (SAI_ERR(status)) {
+        SX_LOG_EXIT();
+        return status;
+    }
+
+    sx_status = sx_api_rm_free_entries_by_type_get(gh_sdk, RM_SDK_TABLE_TYPE_FLOW_COUNTER_E, &free_counters);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to get a number of free flow counters for ACL Table [%d] - %s\n",
+                   table_index, SX_STATUS_MSG(sx_status));
+        SX_LOG_EXIT();
+        return sdk_to_sai(sx_status);
+    }
+
+    value->u32 = MIN(free_counters, ACL_MAX_COUNTER_NUM);
 
     SX_LOG_EXIT();
     return SAI_STATUS_SUCCESS;
@@ -3940,6 +4035,32 @@ static sai_status_t acl_db_find_group_free_index(_Out_ uint32_t *free_index)
 
     SX_LOG_EXIT();
     return status;
+}
+
+sai_status_t mlnx_acl_db_free_entries_get(_In_ sai_object_type_t  resource_type,
+                                          _Out_ uint32_t         *free_entries)
+{
+    uint32_t ii, count = 0;
+
+    assert((resource_type == SAI_OBJECT_TYPE_ACL_TABLE_GROUP) || (resource_type == SAI_OBJECT_TYPE_ACL_TABLE));
+
+    if (resource_type == SAI_OBJECT_TYPE_ACL_TABLE_GROUP) {
+        for (ii = 0; ii < ACL_GROUP_NUMBER; ii++) {
+            if (false == sai_acl_db_group_ptr(ii)->is_used) {
+                count++;
+            }
+        }
+    } else { /* SAI_OBJECT_TYPE_ACL_TABLE */
+        for (ii = 0; ii < ACL_MAX_TABLE_NUMBER; ii++) {
+            if (false == acl_db_table(ii).is_used) {
+                count++;
+            }
+        }
+    }
+
+    *free_entries = count;
+
+    return SAI_STATUS_SUCCESS;
 }
 
 /*
@@ -13926,8 +14047,58 @@ static sai_status_t mlnx_acl_wrapping_group_delete(_In_ uint32_t table_index)
     return SAI_STATUS_SUCCESS;
 }
 
-static sai_status_t mlnx_acl_def_rule_key_fill(_In_ sx_acl_key_t sx_key, _Out_ sx_flex_acl_flex_rule_t *sx_rule)
+static sai_status_t mlnx_acl_def_rule_port_list_fill(_In_  sx_acl_key_t             sx_key,
+                                                     _Out_ sx_flex_acl_flex_rule_t *sx_rule)
 {
+    sx_status_t                   sx_status;
+    sx_mc_container_attributes_t  sx_mc_container_attributes;
+    acl_def_rule_mc_container_t  *def_mc_container;
+
+    assert((sx_key == FLEX_ACL_KEY_RX_PORT_LIST) || (sx_key == FLEX_ACL_KEY_TX_PORT_LIST));
+    assert(sx_rule);
+
+    def_mc_container = &sai_acl_db->acl_settings_tbl->def_mc_container;
+
+    if (!def_mc_container->is_created) {
+        memset(&sx_mc_container_attributes, 0, sizeof(sx_mc_container_attributes));
+
+        sx_mc_container_attributes.type = SX_MC_CONTAINER_TYPE_PORT;
+
+        sx_status = sx_api_mc_container_set(gh_sdk, SX_ACCESS_CMD_CREATE, &def_mc_container->mc_container, NULL, 0, &sx_mc_container_attributes);
+        if (SX_ERR(sx_status)) {
+            SX_LOG_ERR("Failed to create sx_mc_container - %s\n", SX_STATUS_MSG(sx_status));
+            return sdk_to_sai(sx_status);
+        }
+
+        SX_LOG_DBG("Created mc container %d\n", def_mc_container->mc_container);
+
+        def_mc_container->is_created = true;
+    }
+
+    switch (sx_key) {
+    case FLEX_ACL_KEY_RX_PORT_LIST:
+        sx_rule->key_desc_list_p[0].key.rx_port_list.match_type      = SX_ACL_PORT_LIST_MATCH_POSITIVE;
+        sx_rule->key_desc_list_p[0].key.rx_port_list.mc_container_id = def_mc_container->mc_container;
+        sx_rule->key_desc_list_p[0].mask.rx_port_list                = false;
+        break;
+
+    case FLEX_ACL_KEY_TX_PORT_LIST:
+        sx_rule->key_desc_list_p[0].key.tx_port_list.match_type      = SX_ACL_PORT_LIST_MATCH_POSITIVE;
+        sx_rule->key_desc_list_p[0].key.tx_port_list.mc_container_id = def_mc_container->mc_container;
+        sx_rule->key_desc_list_p[0].mask.tx_port_list                = false;
+        break;
+
+    default:
+        return SAI_STATUS_FAILURE;
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_acl_def_rule_key_fill(_In_  sx_acl_key_t             sx_key,
+                                               _Out_ sx_flex_acl_flex_rule_t *sx_rule)
+{
+    sai_status_t            status;
     sx_flex_acl_key_desc_t *sx_key_desc;
 
     assert(sx_rule);
@@ -13976,6 +14147,13 @@ static sai_status_t mlnx_acl_def_rule_key_fill(_In_ sx_acl_key_t sx_key, _Out_ s
         sx_key_desc->key.inner_dipv6.version  = SX_IP_VERSION_IPV6;
         sx_key_desc->mask.inner_dipv6.version = SX_IP_VERSION_IPV6;
         break;
+
+    case FLEX_ACL_KEY_RX_PORT_LIST:
+    case FLEX_ACL_KEY_TX_PORT_LIST:
+        status = mlnx_acl_def_rule_port_list_fill(sx_key, sx_rule);
+        if (SAI_ERR(status)) {
+            return status;
+        }
 
     default:
         break;

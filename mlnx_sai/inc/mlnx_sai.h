@@ -559,6 +559,7 @@ sai_status_t mlnx_fill_s16list(int16_t *data, uint32_t count, sai_s16_list_t *li
 sai_status_t mlnx_fill_u32list(uint32_t *data, uint32_t count, sai_u32_list_t *list);
 sai_status_t mlnx_fill_s32list(int32_t *data, uint32_t count, sai_s32_list_t *list);
 sai_status_t mlnx_fill_vlanlist(sai_vlan_id_t *data, uint32_t count, sai_vlan_list_t *list);
+sai_status_t mlnx_fill_aclresourcelist(sai_acl_resource_t *data, uint32_t count, sai_acl_resource_list_t *list);
 sai_status_t mlnx_attribute_value_list_size_check(_Inout_ uint32_t *out_size, _In_ uint32_t in_size);
 
 sai_status_t mlnx_wred_apply(sai_object_id_t wred_id, sai_object_id_t to_obj_id);
@@ -666,6 +667,8 @@ sai_status_t mlnx_acl_bind_point_get(_In_ const sai_object_key_t   *key,
 sai_status_t mlnx_acl_stage_action_list_fetch(_In_ uint32_t                       stage,
                                               _Out_ const sai_acl_action_type_t **actions,
                                               _Out_ uint32_t                     *action_count);
+sai_status_t mlnx_acl_db_free_entries_get(_In_ sai_object_type_t  resource_type,
+                                          _Out_ uint32_t         *free_entries);
 #define acl_global_lock()   cl_plock_excl_acquire(&g_sai_acl_db_ptr->acl_settings_tbl->lock)
 #define acl_global_unlock() cl_plock_release(&g_sai_acl_db_ptr->acl_settings_tbl->lock)
 
@@ -1090,6 +1093,9 @@ typedef struct _mlnx_udf_db_t {
 #define ACL_MAX_COUNTER_PACKET_NUM ACL_MAX_ENTRY_NUMBER
 #define ACL_MAX_COUNTER_NUM        (ACL_MAX_COUNTER_BYTE_NUM + ACL_MAX_COUNTER_PACKET_NUM)
 
+#define ACL_MAX_SX_ING_GROUP_NUMBER    ACL_GROUP_NUMBER
+#define ACL_MAX_SX_EGR_GROUP_NUMBER    ACL_GROUP_NUMBER
+
 #define ACL_LAG_PBS_NUMBER          MAX_PORTS
 #define ACL_PBS_MAP_PREDEF_REG_SIZE MAX_PORTS
 #define ACL_MAX_PBS_NUMBER          (g_resource_limits.acl_pbs_entries_max)
@@ -1229,6 +1235,11 @@ typedef struct _acl_ip_ident_keys_t {
     sx_acl_key_t sx_keys[ACL_IP_IDENT_FIELD_BYTE_COUNT];
 } acl_ip_ident_keys_t;
 
+typedef struct _acl_def_rule_mc_container_t {
+    bool                 is_created;
+    sx_mc_container_id_t mc_container;
+} acl_def_rule_mc_container_t;
+
 typedef struct _acl_setting_tbl_t {
     bool            bg_stop;
     bool            initialized;
@@ -1245,6 +1256,7 @@ typedef struct _acl_setting_tbl_t {
     bool                rpc_thread_start_flag;
     uint32_t            port_lists_count;
     acl_ip_ident_keys_t ip_ident_keys;
+    acl_def_rule_mc_container_t def_mc_container;
 } acl_setting_tbl_t;
 
 typedef uint64_t acl_pbs_map_key_t;
@@ -1372,11 +1384,6 @@ sai_status_t mlnx_hash_object_apply(const sai_object_id_t                    has
 
 sai_status_t mlnx_hash_ecmp_cfg_apply_on_port(sx_port_log_id_t port_log_id);
 
-sai_status_t mlnx_hash_get_oper_ecmp_fields(sx_router_ecmp_port_hash_params_t  *port_hash_param,
-                                            sx_router_ecmp_hash_field_enable_t *hash_enable_list,
-                                            uint32_t                           *enable_count,
-                                            sx_router_ecmp_hash_field_t        *hash_field_list,
-                                            uint32_t                           *field_count);
 sai_status_t mlnx_udf_group_db_index_to_sx_acl_keys(_In_ uint32_t       udf_group_db_index,
                                                     _Out_ sx_acl_key_t *sx_acl_keys,
                                                     _Out_ uint32_t     *sx_acl_key_count);
@@ -1600,6 +1607,7 @@ typedef struct sai_db {
     mlnx_policer_db_entry_t   policers_db[MAX_POLICERS];
     mlnx_hash_obj_t           hash_list[SAI_HASH_MAX_OBJ_COUNT];
     sai_object_id_t           oper_hash_list[SAI_HASH_MAX_OBJ_ID];
+    sx_router_ecmp_port_hash_params_t port_hash_params;
     mlnx_samplepacket_t       mlnx_samplepacket_session[MLNX_SAMPLEPACKET_SESSION_MAX];
     mlnx_tunneltable_t        mlnx_tunneltable[MLNX_TUNNELTABLE_SIZE];
     tunnel_db_entry_t         tunnel_db[MAX_TUNNEL_DB_SIZE];

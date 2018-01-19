@@ -3484,6 +3484,11 @@ sai_status_t mlnx_fill_vlanlist(sai_vlan_id_t *data, uint32_t count, sai_vlan_li
     return mlnx_fill_genericlist(sizeof(sai_vlan_id_t), (void*)data, count, (void*)list);
 }
 
+sai_status_t mlnx_fill_aclresourcelist(sai_acl_resource_t *data, uint32_t count, sai_acl_resource_list_t *list)
+{
+    return mlnx_fill_genericlist(sizeof(sai_acl_resource_t), (void*)data, count, (void*)list);
+}
+
 bool mlnx_route_entries_are_equal(_In_ const sai_route_entry_t *u1, _In_ const sai_route_entry_t *u2)
 {
     if ((NULL == u1) && (NULL == u2)) {

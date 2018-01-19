@@ -1089,8 +1089,7 @@ static sai_status_t mlnx_fdb_flood_mc_control_set(_In_ sx_vid_t                v
         }
     }
 
-    sx_status = sx_api_vlan_unreg_mc_flood_ports_set(gh_sdk, DEFAULT_ETH_SWID, vlan_id,
-                                                     log_ports, sx_ports_count);
+    sx_status = sx_api_fdb_unreg_mc_flood_ports_set(gh_sdk, DEFAULT_ETH_SWID, vlan_id, log_ports, sx_ports_count);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to update FDB unregistered mc flood list - %s.\n", SX_STATUS_MSG(sx_status));
         return sdk_to_sai(sx_status);
