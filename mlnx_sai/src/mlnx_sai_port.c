@@ -3038,44 +3038,75 @@ static sai_status_t mlnx_port_qos_map_assign_pfc_to_queue(sx_port_log_id_t port_
 static sai_status_t mlnx_port_qos_map_assign_tc_to_pg(sx_port_log_id_t port_id, mlnx_qos_map_t *qos_map)
 {
     sx_cos_port_prio_buff_t prio_buff;
-    sx_status_t             status;
+    sai_status_t            sai_status;
+    sx_status_t             sx_status;
     uint32_t                ii;
+    uint8_t                 pg;
+    mlnx_port_config_t     *mlnx_port_config = NULL;
 
-    status = sx_api_cos_port_prio_buff_map_get(gh_sdk, port_id, &prio_buff);
-    if (status != SX_STATUS_SUCCESS) {
-        SX_LOG_ERR("Failed to get prio to buff qos map - %s\n", SX_STATUS_MSG(status));
-        return sdk_to_sai(status);
+    sx_status = sx_api_cos_port_prio_buff_map_get(gh_sdk, port_id, &prio_buff);
+    if (sx_status != SX_STATUS_SUCCESS) {
+        SX_LOG_ERR("Failed to get prio to buff qos map - %s\n", SX_STATUS_MSG(sx_status));
+        return sdk_to_sai(sx_status);
+    }
+    sai_status = mlnx_port_by_log_id(port_id, &mlnx_port_config);
+    if (SAI_STATUS_SUCCESS != sai_status) {
+        SX_LOG_ERR("Error retrive mlnx port config from sx port id 0x%x\n", port_id);
+        return sai_status;
+    }
+    if (NULL == mlnx_port_config) {
+        SX_LOG_ERR("Null mlnx_port_config\n");
+        return SAI_STATUS_FAILURE;
     }
 
     for (ii = 0; ii < qos_map->count; ii++) {
         uint8_t pri = qos_map->from.prio_color[ii].priority;
-
-        prio_buff.prio_to_buff[pri] = qos_map->to.pg[ii];
+        pg = qos_map->to.pg[ii];
+        prio_buff.prio_to_buff[pri] = pg;
+        if (MAX_LOSSLESS_SP <= pri) {
+            SX_LOG_ERR("pri %d is greater or equal than SP limit %d\n",
+                        pri, MAX_LOSSLESS_SP);
+            return SAI_STATUS_FAILURE;
+        }
+        if (MAX_PG <= pg) {
+            SX_LOG_ERR("pg %d is greater or equal than PG limit %d\n",
+                        pg, MAX_PG);
+            return SAI_STATUS_FAILURE;
+        }
+        if ((mlnx_port_config->lossless_pg[pg]) &&
+            !g_sai_db_ptr->is_switch_priority_lossless[pri]) {
+            sai_status = set_mc_sp_zero(pri);
+            if (SAI_STATUS_SUCCESS != sai_status) {
+                SX_LOG_ERR("Error setting multicast size of switch priority %d to zero\n", pri);
+                return sai_status;
+            }
+            g_sai_db_ptr->is_switch_priority_lossless[pri] = true;
+        }
     }
 
-    status = sx_api_cos_port_prio_buff_map_set(gh_sdk, SX_ACCESS_CMD_SET, port_id, &prio_buff);
-    if (status != SX_STATUS_SUCCESS) {
-        SX_LOG_ERR("Failed to set prio to buff qos map - %s\n", SX_STATUS_MSG(status));
-        return sdk_to_sai(status);
+    sx_status = sx_api_cos_port_prio_buff_map_set(gh_sdk, SX_ACCESS_CMD_SET, port_id, &prio_buff);
+    if (sx_status != SX_STATUS_SUCCESS) {
+        SX_LOG_ERR("Failed to set prio to buff qos map - %s\n", SX_STATUS_MSG(sx_status));
+        return sdk_to_sai(sx_status);
     }
 
     /* Reapply PFC->PG, PFC->Queue maps, since they are dependent on TC->PG value, and in case they were applied prior 
        the values would be incorrect. */
     if (g_sai_db_ptr->qos_maps_db[MLNX_QOS_MAP_PFC_PG_INDEX].is_set) {
         SX_LOG_NTC("Reapplying PFC->PG\n");
-        status = mlnx_port_qos_map_assign_pfc_to_pg(port_id, &g_sai_db_ptr->qos_maps_db[MLNX_QOS_MAP_PFC_PG_INDEX]);
-        if (SAI_ERR(status)) {
+        sai_status = mlnx_port_qos_map_assign_pfc_to_pg(port_id, &g_sai_db_ptr->qos_maps_db[MLNX_QOS_MAP_PFC_PG_INDEX]);
+        if (SAI_ERR(sai_status)) {
             SX_LOG_ERR("Failed to reapply PFC to PG\n");
-            return status;
+            return sai_status;
         }
     }
 
     if (g_sai_db_ptr->qos_maps_db[MLNX_QOS_MAP_PFC_QUEUE_INDEX].is_set) {
         SX_LOG_NTC("Reapplying PFC->Queue\n");
-        status = mlnx_port_qos_map_assign_pfc_to_queue(port_id, &g_sai_db_ptr->qos_maps_db[MLNX_QOS_MAP_PFC_QUEUE_INDEX]);
-        if (SAI_ERR(status)) {
+        sai_status = mlnx_port_qos_map_assign_pfc_to_queue(port_id, &g_sai_db_ptr->qos_maps_db[MLNX_QOS_MAP_PFC_QUEUE_INDEX]);
+        if (SAI_ERR(sai_status)) {
             SX_LOG_ERR("Failed to reapply PFC to QUEUE\n");
-            return status;
+            return sai_status;
         }
     }
 

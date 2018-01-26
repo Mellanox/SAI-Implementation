@@ -1898,6 +1898,8 @@ static void sai_db_values_init()
 
     g_sai_db_ptr->packet_storing_mode = SX_PORT_PACKET_STORING_MODE_CUT_THROUGH;
 
+    memset(g_sai_db_ptr->is_switch_priority_lossless, 0, MAX_LOSSLESS_SP * sizeof(bool));
+
     sai_db_policer_entries_init();
 
     msync(g_sai_db_ptr, sizeof(*g_sai_db_ptr), MS_SYNC);

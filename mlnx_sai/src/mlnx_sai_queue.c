@@ -469,12 +469,14 @@ static sai_status_t mlnx_get_queue_statistics(_In_ sai_object_id_t         queue
     uint8_t                          ext_data[EXTENDED_DATA_SIZE] = {0};
     uint8_t                          queue_num                    = 0;
     sx_port_log_id_t                 port_num;
+    const uint8_t                    port_prio_id = 0;
     uint32_t                         ii = 0;
     char                             key_str[MAX_KEY_STR_LEN];
     sx_port_statistic_usage_params_t stats_usage;
     sx_port_occupancy_statistics_t   occupancy_stats;
     uint32_t                         usage_cnt = 1;
     sx_port_traffic_cntr_t           tc_cnts;
+    sx_port_cntr_perf_t              perf_cnts;
 
     SX_LOG_ENTER();
 
@@ -497,9 +499,57 @@ static sai_status_t mlnx_get_queue_statistics(_In_ sai_object_id_t         queue
     queue_num = ext_data[0];
     /* TODO : change to > g_resource_limits.cos_port_ets_traffic_class_max when sdk is updated to use rm */
     if (queue_num >= RM_API_COS_TRAFFIC_CLASS_NUM) {
-        SX_LOG_ERR("Invalid queue num %u - exceed maximum %u\n", queue_num,
-                   g_resource_limits.cos_port_ets_traffic_class_max);
-        return SAI_STATUS_INVALID_PARAMETER;
+        status = sx_api_port_counter_perf_get(gh_sdk, SX_ACCESS_CMD_READ,
+                                              port_num,
+                                              port_prio_id,
+                                              &perf_cnts);
+        if (SX_STATUS_SUCCESS != status) {
+            SX_LOG_ERR("Error getting port counter perf for port 0x%x\n", port_num);
+            return sdk_to_sai(status);
+        }
+
+        for (ii = 0; ii < number_of_counters; ii++) {
+            switch (counter_ids[ii]) {
+            case SAI_QUEUE_STAT_DROPPED_BYTES:
+            case SAI_QUEUE_STAT_GREEN_PACKETS:
+            case SAI_QUEUE_STAT_GREEN_BYTES:
+            case SAI_QUEUE_STAT_GREEN_DROPPED_PACKETS:
+            case SAI_QUEUE_STAT_GREEN_DROPPED_BYTES:
+            case SAI_QUEUE_STAT_YELLOW_PACKETS:
+            case SAI_QUEUE_STAT_YELLOW_BYTES:
+            case SAI_QUEUE_STAT_YELLOW_DROPPED_PACKETS:
+            case SAI_QUEUE_STAT_YELLOW_DROPPED_BYTES:
+            case SAI_QUEUE_STAT_RED_PACKETS:
+            case SAI_QUEUE_STAT_RED_BYTES:
+            case SAI_QUEUE_STAT_RED_DROPPED_PACKETS:
+            case SAI_QUEUE_STAT_RED_DROPPED_BYTES:
+            case SAI_QUEUE_STAT_GREEN_WRED_DROPPED_PACKETS:
+            case SAI_QUEUE_STAT_GREEN_WRED_DROPPED_BYTES:
+            case SAI_QUEUE_STAT_YELLOW_WRED_DROPPED_PACKETS:
+            case SAI_QUEUE_STAT_YELLOW_WRED_DROPPED_BYTES:
+            case SAI_QUEUE_STAT_RED_WRED_DROPPED_PACKETS:
+            case SAI_QUEUE_STAT_RED_WRED_DROPPED_BYTES:
+            case SAI_QUEUE_STAT_WRED_DROPPED_BYTES:
+            case SAI_QUEUE_STAT_SHARED_CURR_OCCUPANCY_BYTES:
+            case SAI_QUEUE_STAT_SHARED_WATERMARK_BYTES:
+            case SAI_QUEUE_STAT_BYTES:
+            case SAI_QUEUE_STAT_DROPPED_PACKETS:
+            case SAI_QUEUE_STAT_WRED_DROPPED_PACKETS:
+            case SAI_QUEUE_STAT_CURR_OCCUPANCY_BYTES:
+            case SAI_QUEUE_STAT_WATERMARK_BYTES:
+                SX_LOG_ERR("Queue counter %d set item %u not supported for queue num greater than %d\n", counter_ids[ii], ii, RM_API_COS_TRAFFIC_CLASS_NUM);
+                return SAI_STATUS_ATTR_NOT_SUPPORTED_0 + ii;
+
+            case SAI_QUEUE_STAT_PACKETS:
+                counters[ii] = perf_cnts.no_buffer_discard_mc;
+                break;
+
+            default:
+                SX_LOG_ERR("Invalid queue counter %d\n", counter_ids[ii]);
+                return SAI_STATUS_INVALID_PARAMETER;
+            }
+        }
+        return SAI_STATUS_SUCCESS;
     }
 
     if (SX_STATUS_SUCCESS !=

@@ -811,6 +811,9 @@ typedef struct _mlnx_sched_hierarchy_t {
     uint8_t          groups_count[MAX_SCHED_LEVELS];
     mlnx_sched_obj_t groups[MAX_SCHED_LEVELS][MAX_SCHED_CHILD_GROUPS];
 } mlnx_sched_hierarchy_t;
+
+#define MAX_PG 32
+
 typedef struct _mlnx_port_config_t {
     uint8_t                         index;
     uint32_t                        module;
@@ -843,6 +846,7 @@ typedef struct _mlnx_port_config_t {
     uint32_t               start_queues_index;
     mlnx_sched_hierarchy_t sched_hierarchy;
     uint16_t               rifs;
+    bool                   lossless_pg[MAX_PG];
 } mlnx_port_config_t;
 typedef struct _mlnx_vlan_db_t {
     /* We keep here phy ports + LAGs */
@@ -940,6 +944,7 @@ sai_status_t mlnx_port_tc_set(mlnx_port_config_t *port, _In_ const uint8_t tc);
 sai_status_t get_buffer_profile_db_index(_In_ sai_object_id_t oid, _Out_ uint32_t* db_index);
 sai_status_t mlnx_buffer_apply(_In_ sai_object_id_t sai_buffer, _In_ sai_object_id_t to_obj_id);
 
+sai_status_t set_mc_sp_zero(_In_ uint32_t sp);
 
 #define mlnx_vlan_id_foreach(vid) \
     for (vid = SXD_VID_MIN; vid <= SXD_VID_MAX; vid++)
@@ -1584,6 +1589,9 @@ typedef struct _fdb_actions_db_t {
     uint32_t              count;
 } fdb_or_route_actions_db_t;
 
+/* g_resource_liits.shared_buff_mc_max_num_prio 15*/
+#define MAX_LOSSLESS_SP 15
+
 typedef struct sai_db {
     cl_plock_t         p_lock;
     sx_mac_addr_t      base_mac_addr;
@@ -1624,6 +1632,7 @@ typedef struct sai_db {
     fdb_or_route_actions_db_t fdb_or_route_actions;
     bool                      transaction_mode_enable;
     sx_port_packet_storing_mode_t packet_storing_mode;
+    bool                      is_switch_priority_lossless[MAX_LOSSLESS_SP];
 } sai_db_t;
 
 extern sai_db_t *g_sai_db_ptr;
