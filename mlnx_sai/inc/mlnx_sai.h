@@ -384,6 +384,8 @@ typedef struct _sai_vendor_attribute_entry_t {
 #define MLNX_QOS_MAP_COLOR_MAX 2
 #define MLNX_QOS_MAP_TYPES_MAX 10
 #define MLNX_QOS_MAP_CODES_MAX (SX_COS_PORT_DSCP_MAX + 1)
+#define MLNX_QOS_MAP_PFC_PG_INDEX 0
+#define MLNX_QOS_MAP_PFC_QUEUE_INDEX 1
 
 /* TODO: Add MPLS support here */
 typedef union {
@@ -400,6 +402,7 @@ typedef struct _mlnx_qos_map_t {
     mlnx_qos_map_params_t to;
     uint8_t               count;
     bool                  is_used;
+    bool                  is_set;
 } mlnx_qos_map_t;
 typedef enum {
     /* TODO: IS_PHY_NONE_MEMBER */
@@ -438,6 +441,28 @@ sai_status_t sai_get_attributes(_In_ const sai_object_key_t             *key,
                                 _In_ const sai_vendor_attribute_entry_t *functionality_vendor_attr,
                                 _In_ uint32_t                            attr_count,
                                 _Inout_ sai_attribute_t                 *attr_list);
+sai_status_t mlnx_bulk_attrs_validate(_In_ uint32_t                 object_count,
+                                             _In_ const uint32_t          *attr_count,
+                                             _In_ const sai_attribute_t  **attr_list_for_create, sai_attribute_t **attr_list_for_get,
+                                             _In_ const sai_attribute_t   *attr_list_for_set,
+                                             _In_ sai_bulk_op_error_mode_t mode,
+                                             _In_ sai_status_t            *object_statuses,
+                                             _In_ sai_common_api_t         api,
+                                             _Out_ bool                   *stop_on_error);
+sai_status_t mlnx_bulk_create_attrs_validate(_In_ uint32_t                 object_count,
+                                             _In_ const uint32_t          *attr_count,
+                                             _In_ const sai_attribute_t  **attr_list,
+                                             _In_ sai_bulk_op_error_mode_t mode,
+                                             _In_ sai_status_t            *object_statuses,
+                                             _Out_ bool                   *stop_on_error);
+sai_status_t mlnx_bulk_remove_attrs_validate(_In_ uint32_t                 object_count,
+                                             _In_ sai_bulk_op_error_mode_t mode,
+                                             _In_ sai_status_t            *object_statuses,
+                                             _Out_ bool                   *stop_on_error);
+sai_status_t mlnx_bulk_statuses_print(_In_ const char         *object_type_str,
+                                      _In_ const sai_status_t *object_statuses,
+                                      _In_ uint32_t            object_count,
+                                      _In_ sai_common_api_t    api);
 
 #define MAX_KEY_STR_LEN        100
 #define MAX_VALUE_STR_LEN      100
@@ -556,6 +581,7 @@ sai_status_t mlnx_fill_s16list(int16_t *data, uint32_t count, sai_s16_list_t *li
 sai_status_t mlnx_fill_u32list(uint32_t *data, uint32_t count, sai_u32_list_t *list);
 sai_status_t mlnx_fill_s32list(int32_t *data, uint32_t count, sai_s32_list_t *list);
 sai_status_t mlnx_fill_vlanlist(sai_vlan_id_t *data, uint32_t count, sai_vlan_list_t *list);
+sai_status_t mlnx_fill_aclresourcelist(sai_acl_resource_t *data, uint32_t count, sai_acl_resource_list_t *list);
 sai_status_t mlnx_attribute_value_list_size_check(_Inout_ uint32_t *out_size, _In_ uint32_t in_size);
 
 sai_status_t mlnx_wred_apply(sai_object_id_t wred_id, sai_object_id_t to_obj_id);
@@ -663,6 +689,8 @@ sai_status_t mlnx_acl_bind_point_get(_In_ const sai_object_key_t   *key,
 sai_status_t mlnx_acl_stage_action_list_fetch(_In_ uint32_t                       stage,
                                               _Out_ const sai_acl_action_type_t **actions,
                                               _Out_ uint32_t                     *action_count);
+sai_status_t mlnx_acl_db_free_entries_get(_In_ sai_object_type_t  resource_type,
+                                          _Out_ uint32_t         *free_entries);
 #define acl_global_lock()   cl_plock_excl_acquire(&g_sai_acl_db_ptr->acl_settings_tbl->lock)
 #define acl_global_unlock() cl_plock_release(&g_sai_acl_db_ptr->acl_settings_tbl->lock)
 
@@ -743,6 +771,14 @@ typedef enum _mlnx_port_breakout_capability_t {
     MLNX_PORT_BREAKOUT_CAPABILITY_TWO_FOUR = 3
 } mlnx_port_breakout_capability_t;
 
+typedef enum _mlnx_sai_port_custom_stat_t {
+    /**
+     * @brief A count of frames received on a particular interface
+     * that are an integral number of octets in length but do not pass the FCS check. [uint64_t]
+     */
+    SAI_PORT_STAT_FCS_ERRORS = 0x10000000,
+} mlnx_sai_port_custom_stat_t;
+
 /*
  *  Indexes for items in mlnx_port_config_t::port_policers[].
  *  Also represents storm_control_id value which wwill be used for calling sx_api_port_storm_control_set/get. This also means
@@ -805,6 +841,9 @@ typedef struct _mlnx_sched_hierarchy_t {
     uint8_t          groups_count[MAX_SCHED_LEVELS];
     mlnx_sched_obj_t groups[MAX_SCHED_LEVELS][MAX_SCHED_CHILD_GROUPS];
 } mlnx_sched_hierarchy_t;
+
+#define MAX_PG 32
+
 typedef struct _mlnx_port_config_t {
     uint8_t                         index;
     uint32_t                        module;
@@ -837,6 +876,7 @@ typedef struct _mlnx_port_config_t {
     uint32_t               start_queues_index;
     mlnx_sched_hierarchy_t sched_hierarchy;
     uint16_t               rifs;
+    bool                   lossless_pg[MAX_PG];
 } mlnx_port_config_t;
 typedef struct _mlnx_vlan_db_t {
     /* We keep here phy ports + LAGs */
@@ -934,6 +974,7 @@ sai_status_t mlnx_port_tc_set(mlnx_port_config_t *port, _In_ const uint8_t tc);
 sai_status_t get_buffer_profile_db_index(_In_ sai_object_id_t oid, _Out_ uint32_t* db_index);
 sai_status_t mlnx_buffer_apply(_In_ sai_object_id_t sai_buffer, _In_ sai_object_id_t to_obj_id);
 
+sai_status_t set_mc_sp_zero(_In_ uint32_t sp);
 
 #define mlnx_vlan_id_foreach(vid) \
     for (vid = SXD_VID_MIN; vid <= SXD_VID_MAX; vid++)
@@ -1087,6 +1128,9 @@ typedef struct _mlnx_udf_db_t {
 #define ACL_MAX_COUNTER_PACKET_NUM ACL_MAX_ENTRY_NUMBER
 #define ACL_MAX_COUNTER_NUM        (ACL_MAX_COUNTER_BYTE_NUM + ACL_MAX_COUNTER_PACKET_NUM)
 
+#define ACL_MAX_SX_ING_GROUP_NUMBER    ACL_GROUP_NUMBER
+#define ACL_MAX_SX_EGR_GROUP_NUMBER    ACL_GROUP_NUMBER
+
 #define ACL_LAG_PBS_NUMBER          MAX_PORTS
 #define ACL_PBS_MAP_PREDEF_REG_SIZE MAX_PORTS
 #define ACL_MAX_PBS_NUMBER          (g_resource_limits.acl_pbs_entries_max)
@@ -1226,6 +1270,11 @@ typedef struct _acl_ip_ident_keys_t {
     sx_acl_key_t sx_keys[ACL_IP_IDENT_FIELD_BYTE_COUNT];
 } acl_ip_ident_keys_t;
 
+typedef struct _acl_def_rule_mc_container_t {
+    bool                 is_created;
+    sx_mc_container_id_t mc_container;
+} acl_def_rule_mc_container_t;
+
 typedef struct _acl_setting_tbl_t {
     bool            bg_stop;
     bool            initialized;
@@ -1242,6 +1291,7 @@ typedef struct _acl_setting_tbl_t {
     bool                rpc_thread_start_flag;
     uint32_t            port_lists_count;
     acl_ip_ident_keys_t ip_ident_keys;
+    acl_def_rule_mc_container_t def_mc_container;
 } acl_setting_tbl_t;
 
 typedef uint64_t acl_pbs_map_key_t;
@@ -1369,11 +1419,6 @@ sai_status_t mlnx_hash_object_apply(const sai_object_id_t                    has
 
 sai_status_t mlnx_hash_ecmp_cfg_apply_on_port(sx_port_log_id_t port_log_id);
 
-sai_status_t mlnx_hash_get_oper_ecmp_fields(sx_router_ecmp_port_hash_params_t  *port_hash_param,
-                                            sx_router_ecmp_hash_field_enable_t *hash_enable_list,
-                                            uint32_t                           *enable_count,
-                                            sx_router_ecmp_hash_field_t        *hash_field_list,
-                                            uint32_t                           *field_count);
 sai_status_t mlnx_udf_group_db_index_to_sx_acl_keys(_In_ uint32_t       udf_group_db_index,
                                                     _Out_ sx_acl_key_t *sx_acl_keys,
                                                     _Out_ uint32_t     *sx_acl_key_count);
@@ -1574,6 +1619,9 @@ typedef struct _fdb_actions_db_t {
     uint32_t              count;
 } fdb_or_route_actions_db_t;
 
+/* g_resource_liits.shared_buff_mc_max_num_prio 15*/
+#define MAX_LOSSLESS_SP 15
+
 typedef struct sai_db {
     cl_plock_t         p_lock;
     sx_mac_addr_t      base_mac_addr;
@@ -1597,11 +1645,13 @@ typedef struct sai_db {
     mlnx_policer_db_entry_t   policers_db[MAX_POLICERS];
     mlnx_hash_obj_t           hash_list[SAI_HASH_MAX_OBJ_COUNT];
     sai_object_id_t           oper_hash_list[SAI_HASH_MAX_OBJ_ID];
+    sx_router_ecmp_port_hash_params_t port_hash_params;
     mlnx_samplepacket_t       mlnx_samplepacket_session[MLNX_SAMPLEPACKET_SESSION_MAX];
     mlnx_tunneltable_t        mlnx_tunneltable[MLNX_TUNNELTABLE_SIZE];
     tunnel_db_entry_t         tunnel_db[MAX_TUNNEL_DB_SIZE];
     mlnx_tunnel_map_t         mlnx_tunnel_map[MLNX_TUNNEL_MAP_MAX];
     mlnx_tunnel_map_entry_t   mlnx_tunnel_map_entry[MLNX_TUNNEL_MAP_ENTRY_MAX];
+    bool                      tunnel_module_initialized;
     sx_bridge_id_t            sx_bridge_id;
     sx_port_log_id_t          sx_nve_log_port;
     bool                      is_stp_initialized;
@@ -1613,6 +1663,7 @@ typedef struct sai_db {
     fdb_or_route_actions_db_t fdb_or_route_actions;
     bool                      transaction_mode_enable;
     sx_port_packet_storing_mode_t packet_storing_mode;
+    bool                      is_switch_priority_lossless[MAX_LOSSLESS_SP];
 } sai_db_t;
 
 extern sai_db_t *g_sai_db_ptr;

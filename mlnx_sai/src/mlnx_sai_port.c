@@ -2947,33 +2947,6 @@ static sai_status_t mlnx_port_qos_map_assign_tc_color_to_dot1p(sx_port_log_id_t 
     return SAI_STATUS_SUCCESS;
 }
 
-static sai_status_t mlnx_port_qos_map_assign_tc_to_pg(sx_port_log_id_t port_id, mlnx_qos_map_t *qos_map)
-{
-    sx_cos_port_prio_buff_t prio_buff;
-    sx_status_t             status;
-    uint32_t                ii;
-
-    status = sx_api_cos_port_prio_buff_map_get(gh_sdk, port_id, &prio_buff);
-    if (status != SX_STATUS_SUCCESS) {
-        SX_LOG_ERR("Failed to get prio to buff qos map - %s\n", SX_STATUS_MSG(status));
-        return sdk_to_sai(status);
-    }
-
-    for (ii = 0; ii < qos_map->count; ii++) {
-        uint8_t pri = qos_map->from.prio_color[ii].priority;
-
-        prio_buff.prio_to_buff[pri] = qos_map->to.pg[ii];
-    }
-
-    status = sx_api_cos_port_prio_buff_map_set(gh_sdk, SX_ACCESS_CMD_SET, port_id, &prio_buff);
-    if (status != SX_STATUS_SUCCESS) {
-        SX_LOG_ERR("Failed to set prio to buff qos map - %s\n", SX_STATUS_MSG(status));
-        return sdk_to_sai(status);
-    }
-
-    return SAI_STATUS_SUCCESS;
-}
-
 static sai_status_t mlnx_port_qos_map_assign_pfc_to_pg(sx_port_log_id_t port_id, mlnx_qos_map_t *qos_map)
 {
     sx_cos_port_prio_buff_t prio_buff;
@@ -3014,6 +2987,9 @@ static sai_status_t mlnx_port_qos_map_assign_pfc_to_pg(sx_port_log_id_t port_id,
         }
     }
 
+    memcpy(&g_sai_db_ptr->qos_maps_db[MLNX_QOS_MAP_PFC_PG_INDEX], qos_map, sizeof(*qos_map));
+    g_sai_db_ptr->qos_maps_db[MLNX_QOS_MAP_PFC_PG_INDEX].is_set = true;
+
     return status;
 }
 
@@ -3053,7 +3029,90 @@ static sai_status_t mlnx_port_qos_map_assign_pfc_to_queue(sx_port_log_id_t port_
         }
     }
 
+    memcpy(&g_sai_db_ptr->qos_maps_db[MLNX_QOS_MAP_PFC_QUEUE_INDEX], qos_map, sizeof(*qos_map));
+    g_sai_db_ptr->qos_maps_db[MLNX_QOS_MAP_PFC_QUEUE_INDEX].is_set = true;
+
     return status;
+}
+
+static sai_status_t mlnx_port_qos_map_assign_tc_to_pg(sx_port_log_id_t port_id, mlnx_qos_map_t *qos_map)
+{
+    sx_cos_port_prio_buff_t prio_buff;
+    sai_status_t            sai_status;
+    sx_status_t             sx_status;
+    uint32_t                ii;
+    uint8_t                 pg;
+    mlnx_port_config_t     *mlnx_port_config = NULL;
+
+    sx_status = sx_api_cos_port_prio_buff_map_get(gh_sdk, port_id, &prio_buff);
+    if (sx_status != SX_STATUS_SUCCESS) {
+        SX_LOG_ERR("Failed to get prio to buff qos map - %s\n", SX_STATUS_MSG(sx_status));
+        return sdk_to_sai(sx_status);
+    }
+    sai_status = mlnx_port_by_log_id(port_id, &mlnx_port_config);
+    if (SAI_STATUS_SUCCESS != sai_status) {
+        SX_LOG_ERR("Error retrive mlnx port config from sx port id 0x%x\n", port_id);
+        return sai_status;
+    }
+    if (NULL == mlnx_port_config) {
+        SX_LOG_ERR("Null mlnx_port_config\n");
+        return SAI_STATUS_FAILURE;
+    }
+
+    for (ii = 0; ii < qos_map->count; ii++) {
+        uint8_t pri = qos_map->from.prio_color[ii].priority;
+        pg = qos_map->to.pg[ii];
+        prio_buff.prio_to_buff[pri] = pg;
+        if (MAX_LOSSLESS_SP <= pri) {
+            SX_LOG_ERR("pri %d is greater or equal than SP limit %d\n",
+                        pri, MAX_LOSSLESS_SP);
+            return SAI_STATUS_FAILURE;
+        }
+        if (MAX_PG <= pg) {
+            SX_LOG_ERR("pg %d is greater or equal than PG limit %d\n",
+                        pg, MAX_PG);
+            return SAI_STATUS_FAILURE;
+        }
+#ifdef ACS_OS
+        if ((mlnx_port_config->lossless_pg[pg]) &&
+            !g_sai_db_ptr->is_switch_priority_lossless[pri]) {
+            sai_status = set_mc_sp_zero(pri);
+            if (SAI_STATUS_SUCCESS != sai_status) {
+                SX_LOG_ERR("Error setting multicast size of switch priority %d to zero\n", pri);
+                return sai_status;
+            }
+            g_sai_db_ptr->is_switch_priority_lossless[pri] = true;
+        }
+#endif
+    }
+
+    sx_status = sx_api_cos_port_prio_buff_map_set(gh_sdk, SX_ACCESS_CMD_SET, port_id, &prio_buff);
+    if (sx_status != SX_STATUS_SUCCESS) {
+        SX_LOG_ERR("Failed to set prio to buff qos map - %s\n", SX_STATUS_MSG(sx_status));
+        return sdk_to_sai(sx_status);
+    }
+
+    /* Reapply PFC->PG, PFC->Queue maps, since they are dependent on TC->PG value, and in case they were applied prior 
+       the values would be incorrect. */
+    if (g_sai_db_ptr->qos_maps_db[MLNX_QOS_MAP_PFC_PG_INDEX].is_set) {
+        SX_LOG_NTC("Reapplying PFC->PG\n");
+        sai_status = mlnx_port_qos_map_assign_pfc_to_pg(port_id, &g_sai_db_ptr->qos_maps_db[MLNX_QOS_MAP_PFC_PG_INDEX]);
+        if (SAI_ERR(sai_status)) {
+            SX_LOG_ERR("Failed to reapply PFC to PG\n");
+            return sai_status;
+        }
+    }
+
+    if (g_sai_db_ptr->qos_maps_db[MLNX_QOS_MAP_PFC_QUEUE_INDEX].is_set) {
+        SX_LOG_NTC("Reapplying PFC->Queue\n");
+        sai_status = mlnx_port_qos_map_assign_pfc_to_queue(port_id, &g_sai_db_ptr->qos_maps_db[MLNX_QOS_MAP_PFC_QUEUE_INDEX]);
+        if (SAI_ERR(sai_status)) {
+            SX_LOG_ERR("Failed to reapply PFC to QUEUE\n");
+            return sai_status;
+        }
+    }
+
+    return SAI_STATUS_SUCCESS;
 }
 
 /*
@@ -3390,7 +3449,7 @@ static sai_status_t mlnx_port_pfc_control_set(_In_ const sai_object_key_t      *
 out:
     sai_db_unlock();
     SX_LOG_EXIT();
-    return SAI_STATUS_SUCCESS;
+    return status;
 }
 
 /* Get number of queues for the port */
@@ -3726,7 +3785,8 @@ static sai_status_t mlnx_get_port_stats(_In_ sai_object_id_t        port_id,
     sai_status_t                  status;
     sx_port_cntr_rfc_2863_t       cnts_2863;
     sx_port_cntr_rfc_2819_t       cnts_2819;
-    sx_port_cntr_prio_t           cntr_prio;
+    sx_port_cntr_rfc_3635_t       cnts_3635;
+    sx_port_cntr_prio_t           cntr_prio[COS_IEEE_PRIO_MAX_NUM+1];
     sx_port_cntr_ieee_802_dot_3_t cntr_802;
     sx_cos_redecn_port_counters_t redecn_cnts;
     sx_port_cntr_discard_t        discard_cnts;
@@ -3736,6 +3796,10 @@ static sai_status_t mlnx_get_port_stats(_In_ sai_object_id_t        port_id,
     sx_port_log_id_t              red_port_id;
     uint32_t                      iter = 0;
     char                          key_str[MAX_KEY_STR_LEN];
+    bool                          cnts_2863_needed = false, cnts_2819_needed = false, cntr_802_needed = false;
+    bool                          redecn_cnts_needed = false, discard_cnts_needed = false, perf_cnts_needed = false;
+    bool                          cntr_prio_needed[COS_IEEE_PRIO_MAX_NUM+1] = { 0 };
+    bool                          cnts_3635_needed = false;
 
     SX_LOG_ENTER();
 
@@ -3758,58 +3822,221 @@ static sai_status_t mlnx_get_port_stats(_In_ sai_object_id_t        port_id,
         return status;
     }
 
-    if (SX_STATUS_SUCCESS !=
-        (status = sx_api_port_counter_rfc_2863_get(gh_sdk, SX_ACCESS_CMD_READ, port_data, &cnts_2863))) {
-        SX_LOG_ERR("Failed to get port rfc 2863 counters - %s.\n", SX_STATUS_MSG(status));
-        return sdk_to_sai(status);
+    for (ii = 0; ii < number_of_counters; ii++) {
+        switch ((int) counter_ids[ii]) {
+        case SAI_PORT_STAT_IF_IN_OCTETS:
+        case SAI_PORT_STAT_IF_IN_UCAST_PKTS:
+        case SAI_PORT_STAT_IF_IN_NON_UCAST_PKTS:
+        case SAI_PORT_STAT_IF_IN_DISCARDS:
+        case SAI_PORT_STAT_IF_IN_ERRORS:
+        case SAI_PORT_STAT_IF_IN_UNKNOWN_PROTOS:
+        case SAI_PORT_STAT_IF_IN_BROADCAST_PKTS:
+        case SAI_PORT_STAT_IF_IN_MULTICAST_PKTS:
+        case SAI_PORT_STAT_IF_OUT_OCTETS:
+        case SAI_PORT_STAT_IF_OUT_UCAST_PKTS:
+        case SAI_PORT_STAT_IF_OUT_NON_UCAST_PKTS:
+        case SAI_PORT_STAT_IF_OUT_DISCARDS:
+        case SAI_PORT_STAT_IF_OUT_ERRORS:
+        case SAI_PORT_STAT_IF_OUT_BROADCAST_PKTS:
+        case SAI_PORT_STAT_IF_OUT_MULTICAST_PKTS:
+            cnts_2863_needed = true;
+            break;
+
+        case SAI_PORT_STAT_ETHER_STATS_DROP_EVENTS:
+        case SAI_PORT_STAT_ETHER_STATS_MULTICAST_PKTS:
+        case SAI_PORT_STAT_ETHER_STATS_BROADCAST_PKTS:
+        case SAI_PORT_STAT_ETHER_STATS_UNDERSIZE_PKTS:
+        case SAI_PORT_STAT_ETHER_STATS_FRAGMENTS:
+        case SAI_PORT_STAT_ETHER_STATS_PKTS_64_OCTETS:
+        case SAI_PORT_STAT_ETHER_IN_PKTS_64_OCTETS:
+        case SAI_PORT_STAT_ETHER_STATS_PKTS_65_TO_127_OCTETS:
+        case SAI_PORT_STAT_ETHER_IN_PKTS_65_TO_127_OCTETS:
+        case SAI_PORT_STAT_ETHER_STATS_PKTS_128_TO_255_OCTETS:
+        case SAI_PORT_STAT_ETHER_IN_PKTS_128_TO_255_OCTETS:
+        case SAI_PORT_STAT_ETHER_STATS_PKTS_256_TO_511_OCTETS:
+        case SAI_PORT_STAT_ETHER_IN_PKTS_256_TO_511_OCTETS:
+        case SAI_PORT_STAT_ETHER_STATS_PKTS_512_TO_1023_OCTETS:
+        case SAI_PORT_STAT_ETHER_IN_PKTS_512_TO_1023_OCTETS:
+        case SAI_PORT_STAT_ETHER_STATS_PKTS_1024_TO_1518_OCTETS:
+        case SAI_PORT_STAT_ETHER_IN_PKTS_1024_TO_1518_OCTETS:
+        case SAI_PORT_STAT_ETHER_STATS_PKTS_1519_TO_2047_OCTETS:
+        case SAI_PORT_STAT_ETHER_IN_PKTS_1519_TO_2047_OCTETS:
+        case SAI_PORT_STAT_ETHER_STATS_PKTS_2048_TO_4095_OCTETS:
+        case SAI_PORT_STAT_ETHER_IN_PKTS_2048_TO_4095_OCTETS:
+        case SAI_PORT_STAT_ETHER_STATS_PKTS_4096_TO_9216_OCTETS:
+        case SAI_PORT_STAT_ETHER_IN_PKTS_4096_TO_9216_OCTETS:
+        case SAI_PORT_STAT_ETHER_STATS_OVERSIZE_PKTS:
+        case SAI_PORT_STAT_ETHER_STATS_JABBERS:
+        case SAI_PORT_STAT_ETHER_STATS_OCTETS:
+        case SAI_PORT_STAT_ETHER_STATS_PKTS:
+        case SAI_PORT_STAT_ETHER_STATS_COLLISIONS:
+        case SAI_PORT_STAT_ETHER_STATS_CRC_ALIGN_ERRORS:
+            cnts_2819_needed = true;
+            break;
+
+        case SAI_PORT_STAT_ETHER_STATS_TX_NO_ERRORS:
+        case SAI_PORT_STAT_ETHER_STATS_RX_NO_ERRORS:
+        case SAI_PORT_STAT_PAUSE_RX_PKTS:
+        case SAI_PORT_STAT_PAUSE_TX_PKTS:
+            cntr_802_needed = true;
+            break;
+
+        case SAI_PORT_STAT_WRED_DROPPED_PACKETS:
+        case SAI_PORT_STAT_ECN_MARKED_PACKETS:
+            redecn_cnts_needed = true;
+            break;
+
+        case SAI_PORT_STAT_PFC_0_RX_PKTS:
+        case SAI_PORT_STAT_PFC_1_RX_PKTS:
+        case SAI_PORT_STAT_PFC_2_RX_PKTS:
+        case SAI_PORT_STAT_PFC_3_RX_PKTS:
+        case SAI_PORT_STAT_PFC_4_RX_PKTS:
+        case SAI_PORT_STAT_PFC_5_RX_PKTS:
+        case SAI_PORT_STAT_PFC_6_RX_PKTS:
+        case SAI_PORT_STAT_PFC_7_RX_PKTS:
+            cntr_prio_needed[(counter_ids[ii] - SAI_PORT_STAT_PFC_0_RX_PKTS) / 2] = true;
+            break;
+
+        case SAI_PORT_STAT_PFC_0_TX_PKTS:
+        case SAI_PORT_STAT_PFC_1_TX_PKTS:
+        case SAI_PORT_STAT_PFC_2_TX_PKTS:
+        case SAI_PORT_STAT_PFC_3_TX_PKTS:
+        case SAI_PORT_STAT_PFC_4_TX_PKTS:
+        case SAI_PORT_STAT_PFC_5_TX_PKTS:
+        case SAI_PORT_STAT_PFC_6_TX_PKTS:
+        case SAI_PORT_STAT_PFC_7_TX_PKTS:
+            cntr_prio_needed[(counter_ids[ii] - SAI_PORT_STAT_PFC_0_TX_PKTS) / 2] = true;
+            break;
+
+        case SAI_PORT_STAT_PFC_0_RX_PAUSE_DURATION:
+        case SAI_PORT_STAT_PFC_1_RX_PAUSE_DURATION:
+        case SAI_PORT_STAT_PFC_2_RX_PAUSE_DURATION:
+        case SAI_PORT_STAT_PFC_3_RX_PAUSE_DURATION:
+        case SAI_PORT_STAT_PFC_4_RX_PAUSE_DURATION:
+        case SAI_PORT_STAT_PFC_5_RX_PAUSE_DURATION:
+        case SAI_PORT_STAT_PFC_6_RX_PAUSE_DURATION:
+        case SAI_PORT_STAT_PFC_7_RX_PAUSE_DURATION:
+            cntr_prio_needed[(counter_ids[ii] - SAI_PORT_STAT_PFC_0_RX_PAUSE_DURATION) / 2] = true;
+            break;
+
+        case SAI_PORT_STAT_PFC_0_TX_PAUSE_DURATION:
+        case SAI_PORT_STAT_PFC_1_TX_PAUSE_DURATION:
+        case SAI_PORT_STAT_PFC_2_TX_PAUSE_DURATION:
+        case SAI_PORT_STAT_PFC_3_TX_PAUSE_DURATION:
+        case SAI_PORT_STAT_PFC_4_TX_PAUSE_DURATION:
+        case SAI_PORT_STAT_PFC_5_TX_PAUSE_DURATION:
+        case SAI_PORT_STAT_PFC_6_TX_PAUSE_DURATION:
+        case SAI_PORT_STAT_PFC_7_TX_PAUSE_DURATION:
+            cntr_prio_needed[(counter_ids[ii] - SAI_PORT_STAT_PFC_0_TX_PAUSE_DURATION) / 2] = true;
+            break;
+
+        case SAI_PORT_STAT_IF_IN_VLAN_DISCARDS:
+            discard_cnts_needed = true;
+            break;
+
+        case SAI_PORT_STAT_ETHER_OUT_PKTS_64_OCTETS:
+        case SAI_PORT_STAT_ETHER_OUT_PKTS_65_TO_127_OCTETS:
+        case SAI_PORT_STAT_ETHER_OUT_PKTS_128_TO_255_OCTETS:
+        case SAI_PORT_STAT_ETHER_OUT_PKTS_256_TO_511_OCTETS:
+        case SAI_PORT_STAT_ETHER_OUT_PKTS_512_TO_1023_OCTETS:
+        case SAI_PORT_STAT_ETHER_OUT_PKTS_1024_TO_1518_OCTETS:
+        case SAI_PORT_STAT_ETHER_OUT_PKTS_1519_TO_2047_OCTETS:
+        case SAI_PORT_STAT_ETHER_OUT_PKTS_2048_TO_4095_OCTETS:
+        case SAI_PORT_STAT_ETHER_OUT_PKTS_4096_TO_9216_OCTETS:
+            perf_cnts_needed = true;
+            break;
+
+        case SAI_PORT_STAT_FCS_ERRORS:
+            cnts_3635_needed = true;
+            break;
+        }
     }
 
-    if (SX_STATUS_SUCCESS !=
-        (status = sx_api_port_counter_rfc_2819_get(gh_sdk, SX_ACCESS_CMD_READ, port_data, &cnts_2819))) {
-        SX_LOG_ERR("Failed to get port rfc 2819 counters - %s.\n", SX_STATUS_MSG(status));
-        return sdk_to_sai(status);
+    if (cnts_2863_needed) {
+        if (SX_STATUS_SUCCESS !=
+            (status = sx_api_port_counter_rfc_2863_get(gh_sdk, SX_ACCESS_CMD_READ, port_data, &cnts_2863))) {
+            SX_LOG_ERR("Failed to get port rfc 2863 counters - %s.\n", SX_STATUS_MSG(status));
+            return sdk_to_sai(status);
+        }
     }
 
-    if (SX_STATUS_SUCCESS !=
-        (status = sx_api_port_counter_ieee_802_dot_3_get(gh_sdk, SX_ACCESS_CMD_READ, port_data, &cntr_802))) {
-        SX_LOG_ERR("Failed to get port ieee 802 3 counters - %s.\n", SX_STATUS_MSG(status));
-        return sdk_to_sai(status);
+    if (cnts_2819_needed) {
+        if (SX_STATUS_SUCCESS !=
+            (status = sx_api_port_counter_rfc_2819_get(gh_sdk, SX_ACCESS_CMD_READ, port_data, &cnts_2819))) {
+            SX_LOG_ERR("Failed to get port rfc 2819 counters - %s.\n", SX_STATUS_MSG(status));
+            return sdk_to_sai(status);
+        }
     }
 
-    if (SX_STATUS_SUCCESS !=
-        (status = sx_api_port_counter_discard_get(gh_sdk, SX_ACCESS_CMD_READ, port_data, &discard_cnts))) {
-        SX_LOG_ERR("Failed to get port discard counters - %s.\n", SX_STATUS_MSG(status));
-        return sdk_to_sai(status);
+    if (cntr_802_needed) {
+        if (SX_STATUS_SUCCESS !=
+            (status = sx_api_port_counter_ieee_802_dot_3_get(gh_sdk, SX_ACCESS_CMD_READ, port_data, &cntr_802))) {
+            SX_LOG_ERR("Failed to get port ieee 802 3 counters - %s.\n", SX_STATUS_MSG(status));
+            return sdk_to_sai(status);
+        }
     }
 
-    if (SX_STATUS_SUCCESS !=
-        (status = sx_api_port_counter_perf_get(gh_sdk, SX_ACCESS_CMD_READ, port_data, 0, &perf_cnts))) {
-        SX_LOG_ERR("Failed to get port perf counters - %s.\n", SX_STATUS_MSG(status));
-        return sdk_to_sai(status);
+    if (discard_cnts_needed) {
+        if (SX_STATUS_SUCCESS !=
+            (status = sx_api_port_counter_discard_get(gh_sdk, SX_ACCESS_CMD_READ, port_data, &discard_cnts))) {
+            SX_LOG_ERR("Failed to get port discard counters - %s.\n", SX_STATUS_MSG(status));
+            return sdk_to_sai(status);
+        }
     }
 
-    /* In case if port is LAG member then use LAG logical id for redecn counters */
-    sai_db_read_lock();
-    status = mlnx_port_by_log_id(port_data, &port);
-    if (SAI_ERR(status)) {
+    if (perf_cnts_needed) {
+        if (SX_STATUS_SUCCESS !=
+            (status = sx_api_port_counter_perf_get(gh_sdk, SX_ACCESS_CMD_READ, port_data, 0, &perf_cnts))) {
+            SX_LOG_ERR("Failed to get port perf counters - %s.\n", SX_STATUS_MSG(status));
+            return sdk_to_sai(status);
+        }
+    }
+
+    if (cnts_3635_needed) {
+        if (SX_STATUS_SUCCESS !=
+            (status = sx_api_port_counter_rfc_3635_get(gh_sdk, SX_ACCESS_CMD_READ, port_data, &cnts_3635))) {
+            SX_LOG_ERR("Failed to get port rfc 3635 counters - %s.\n", SX_STATUS_MSG(status));
+            return sdk_to_sai(status);
+        }
+    }
+
+    if (redecn_cnts_needed) {
+        /* In case if port is LAG member then use LAG logical id for redecn counters */
+        sai_db_read_lock();
+        status = mlnx_port_by_log_id(port_data, &port);
+        if (SAI_ERR(status)) {
+            sai_db_unlock();
+            return status;
+        }
+        if (mlnx_port_is_lag_member(port)) {
+            red_port_id = port->lag_id;
+        }
+        else {
+            red_port_id = port_data;
+        }
         sai_db_unlock();
-        return status;
-    }
-    if (mlnx_port_is_lag_member(port)) {
-        red_port_id = port->lag_id;
-    } else {
-        red_port_id = port_data;
-    }
-    sai_db_unlock();
 
-    if (SX_STATUS_SUCCESS !=
-        (status = sx_api_cos_redecn_counters_get(gh_sdk, SX_ACCESS_CMD_READ, red_port_id, &redecn_cnts))) {
-        SX_LOG_ERR("Failed to get port redecn counters - %s.\n", SX_STATUS_MSG(status));
-        return sdk_to_sai(status);
+        if (SX_STATUS_SUCCESS !=
+            (status = sx_api_cos_redecn_counters_get(gh_sdk, SX_ACCESS_CMD_READ, red_port_id, &redecn_cnts))) {
+            SX_LOG_ERR("Failed to get port redecn counters - %s.\n", SX_STATUS_MSG(status));
+            return sdk_to_sai(status);
+        }
+    }
+
+    for (ii = 0; ii <= COS_IEEE_PRIO_MAX_NUM; ii++) {
+        if (cntr_prio_needed[ii]) {
+            if (SX_STATUS_SUCCESS !=
+                (status = sx_api_port_counter_prio_get(gh_sdk, SX_ACCESS_CMD_READ, port_data,
+                SX_PORT_PRIO_ID_0 + ii, &cntr_prio[ii]))) {
+                SX_LOG_ERR("Failed to get port prio %d counters - %s.\n",
+                    SX_PORT_PRIO_ID_0 + ii, SX_STATUS_MSG(status));
+                return sdk_to_sai(status);
+            }
+        }
     }
 
     for (ii = 0; ii < number_of_counters; ii++) {
-        switch (counter_ids[ii]) {
+        switch ((int) counter_ids[ii]) {
         case SAI_PORT_STAT_IF_IN_OCTETS:
             counters[ii] = cnts_2863.if_in_octets;
             break;
@@ -3930,6 +4157,11 @@ static sai_status_t mlnx_get_port_stats(_In_ sai_object_id_t        port_id,
             counters[ii] = cnts_2819.ether_stats_pkts2048to4095octets;
             break;
 
+        case SAI_PORT_STAT_ETHER_STATS_PKTS_4096_TO_9216_OCTETS:
+        case SAI_PORT_STAT_ETHER_IN_PKTS_4096_TO_9216_OCTETS:
+            counters[ii] = cnts_2819.ether_stats_pkts4096to8191octets;
+            break;
+
         case SAI_PORT_STAT_ETHER_STATS_OVERSIZE_PKTS:
             counters[ii] = cnts_2819.ether_stats_oversize_pkts;
             break;
@@ -4000,18 +4232,7 @@ static sai_status_t mlnx_get_port_stats(_In_ sai_object_id_t        port_id,
         case SAI_PORT_STAT_PFC_5_RX_PKTS:
         case SAI_PORT_STAT_PFC_6_RX_PKTS:
         case SAI_PORT_STAT_PFC_7_RX_PKTS:
-            if (SX_STATUS_SUCCESS !=
-                (status = sx_api_port_counter_prio_get(gh_sdk, SX_ACCESS_CMD_READ, port_data,
-                                                       /* Extract Prio i from SAI RXi,TXi */
-                                                       SX_PORT_PRIO_ID_0 +
-                                                       (counter_ids[ii] - SAI_PORT_STAT_PFC_0_RX_PKTS) / 2,
-                                                       &cntr_prio))) {
-                SX_LOG_ERR("Failed to get port prio %d counters - %s.\n",
-                           SX_PORT_PRIO_ID_0 + (counter_ids[ii] - SAI_PORT_STAT_PFC_0_RX_PKTS) / 2,
-                           SX_STATUS_MSG(status));
-                return sdk_to_sai(status);
-            }
-            counters[ii] = cntr_prio.rx_pause;
+            counters[ii] = cntr_prio[(counter_ids[ii] - SAI_PORT_STAT_PFC_0_RX_PKTS) / 2].rx_pause;
             break;
 
         case SAI_PORT_STAT_PFC_0_TX_PKTS:
@@ -4022,17 +4243,7 @@ static sai_status_t mlnx_get_port_stats(_In_ sai_object_id_t        port_id,
         case SAI_PORT_STAT_PFC_5_TX_PKTS:
         case SAI_PORT_STAT_PFC_6_TX_PKTS:
         case SAI_PORT_STAT_PFC_7_TX_PKTS:
-            if (SX_STATUS_SUCCESS !=
-                (status = sx_api_port_counter_prio_get(gh_sdk, SX_ACCESS_CMD_READ, port_data,
-                                                       SX_PORT_PRIO_ID_0 +
-                                                       (counter_ids[ii] - SAI_PORT_STAT_PFC_0_TX_PKTS) / 2,
-                                                       &cntr_prio))) {
-                SX_LOG_ERR("Failed to get port prio %d counters - %s.\n",
-                           SX_PORT_PRIO_ID_0 + (counter_ids[ii] - SAI_PORT_STAT_PFC_0_TX_PKTS) / 2,
-                           SX_STATUS_MSG(status));
-                return sdk_to_sai(status);
-            }
-            counters[ii] = cntr_prio.tx_pause;
+            counters[ii] = cntr_prio[(counter_ids[ii] - SAI_PORT_STAT_PFC_0_TX_PKTS) / 2].tx_pause;
             break;
 
         case SAI_PORT_STAT_PFC_0_RX_PAUSE_DURATION:
@@ -4043,18 +4254,7 @@ static sai_status_t mlnx_get_port_stats(_In_ sai_object_id_t        port_id,
         case SAI_PORT_STAT_PFC_5_RX_PAUSE_DURATION:
         case SAI_PORT_STAT_PFC_6_RX_PAUSE_DURATION:
         case SAI_PORT_STAT_PFC_7_RX_PAUSE_DURATION:
-            if (SX_STATUS_SUCCESS !=
-                (status = sx_api_port_counter_prio_get(gh_sdk, SX_ACCESS_CMD_READ, port_data,
-                                                       /* Extract Prio i from SAI RXi,TXi */
-                                                       SX_PORT_PRIO_ID_0 +
-                                                       (counter_ids[ii] - SAI_PORT_STAT_PFC_0_RX_PAUSE_DURATION) / 2,
-                                                       &cntr_prio))) {
-                SX_LOG_ERR("Failed to get port prio %d counters - %s.\n",
-                           SX_PORT_PRIO_ID_0 + (counter_ids[ii] - SAI_PORT_STAT_PFC_0_RX_PAUSE_DURATION) / 2,
-                           SX_STATUS_MSG(status));
-                return sdk_to_sai(status);
-            }
-            counters[ii] = cntr_prio.rx_pause_duration;
+            counters[ii] = cntr_prio[(counter_ids[ii] - SAI_PORT_STAT_PFC_0_RX_PAUSE_DURATION) / 2].rx_pause_duration;
             break;
 
         case SAI_PORT_STAT_PFC_0_TX_PAUSE_DURATION:
@@ -4065,17 +4265,7 @@ static sai_status_t mlnx_get_port_stats(_In_ sai_object_id_t        port_id,
         case SAI_PORT_STAT_PFC_5_TX_PAUSE_DURATION:
         case SAI_PORT_STAT_PFC_6_TX_PAUSE_DURATION:
         case SAI_PORT_STAT_PFC_7_TX_PAUSE_DURATION:
-            if (SX_STATUS_SUCCESS !=
-                (status = sx_api_port_counter_prio_get(gh_sdk, SX_ACCESS_CMD_READ, port_data,
-                                                       SX_PORT_PRIO_ID_0 +
-                                                       (counter_ids[ii] - SAI_PORT_STAT_PFC_0_TX_PAUSE_DURATION) / 2,
-                                                       &cntr_prio))) {
-                SX_LOG_ERR("Failed to get port prio %d counters - %s.\n",
-                           SX_PORT_PRIO_ID_0 + (counter_ids[ii] - SAI_PORT_STAT_PFC_0_TX_PAUSE_DURATION) / 2,
-                           SX_STATUS_MSG(status));
-                return sdk_to_sai(status);
-            }
-            counters[ii] = cntr_prio.tx_pause_duration;
+            counters[ii] = cntr_prio[(counter_ids[ii] - SAI_PORT_STAT_PFC_0_TX_PAUSE_DURATION) / 2].tx_pause_duration;
             break;
 
         case SAI_PORT_STAT_IF_IN_VLAN_DISCARDS:
@@ -4114,8 +4304,15 @@ static sai_status_t mlnx_get_port_stats(_In_ sai_object_id_t        port_id,
             counters[ii] = perf_cnts.tx_stats_pkts2048to4095octets;
             break;
 
+        case SAI_PORT_STAT_ETHER_OUT_PKTS_4096_TO_9216_OCTETS:
+            counters[ii] = perf_cnts.tx_stats_pkts4096to8191octets;
+            break;
+
+        case SAI_PORT_STAT_FCS_ERRORS:
+            counters[ii] = cnts_3635.dot3stats_fcs_errors;
+            break;
+
         case SAI_PORT_STAT_IF_OUT_QLEN:
-        case SAI_PORT_STAT_ETHER_STATS_PKTS_4096_TO_9216_OCTETS:
         case SAI_PORT_STAT_ETHER_STATS_PKTS_9217_TO_16383_OCTETS:
         case SAI_PORT_STAT_ETHER_RX_OVERSIZE_PKTS:
         case SAI_PORT_STAT_ETHER_TX_OVERSIZE_PKTS:
@@ -4139,9 +4336,7 @@ static sai_status_t mlnx_get_port_stats(_In_ sai_object_id_t        port_id,
         case SAI_PORT_STAT_IPV6_OUT_NON_UCAST_PKTS:
         case SAI_PORT_STAT_IPV6_OUT_MCAST_PKTS:
         case SAI_PORT_STAT_IPV6_OUT_DISCARDS:
-        case SAI_PORT_STAT_ETHER_IN_PKTS_4096_TO_9216_OCTETS:
         case SAI_PORT_STAT_ETHER_IN_PKTS_9217_TO_16383_OCTETS:
-        case SAI_PORT_STAT_ETHER_OUT_PKTS_4096_TO_9216_OCTETS:
         case SAI_PORT_STAT_ETHER_OUT_PKTS_9217_TO_16383_OCTETS:
         case SAI_PORT_STAT_IN_CURR_OCCUPANCY_BYTES:
         case SAI_PORT_STAT_IN_WATERMARK_BYTES:
@@ -5679,13 +5874,11 @@ static sai_status_t mlnx_create_port(_Out_ sai_object_id_t     * port_id,
         goto out_unlock;
     }
 
-#ifndef ECMP_CONFIG_DISABLED
     status = mlnx_hash_ecmp_cfg_apply_on_port(new_port->logical);
     if (SAI_ERR(status)) {
         SX_LOG_ERR("Failed to apply ECMP config on port %x\n", new_port->logical);
-        goto out;
+        goto out_unlock;
     }
-#endif
 
     if (attr_ing_acl) {
         status = mlnx_acl_port_lag_rif_bind_point_set(new_port->saiport, MLNX_ACL_BIND_POINT_TYPE_INGRESS_PORT,

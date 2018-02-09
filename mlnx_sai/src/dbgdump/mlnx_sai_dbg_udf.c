@@ -152,6 +152,9 @@ static void SAI_dump_udfs_print(_In_ FILE *file)
     assert(file);
 
     udf_indexes       = calloc(MLNX_UDF_COUNT_MAX, sizeof(uint32_t));
+    if (!udf_indexes) {
+        return;
+    }
     udf_indexes_count = 0;
 
     for (ii = 0; ii < MLNX_UDF_COUNT_MAX; ii++) {

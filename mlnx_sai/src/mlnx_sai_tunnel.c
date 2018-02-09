@@ -3426,7 +3426,7 @@ static sai_status_t mlnx_sai_fill_sx_ipinip_p2p_tunnel_data(_In_ sai_tunnel_type
     sx_tunnel_type_e                  sx_type;
     bool                              has_encap_attr = false;
     bool                              has_decap_attr = false;
-    sx_tunnel_ipinip_p2p_attribute_t *sdk_ipinip_p2p_attrib;
+    sx_tunnel_ipinip_p2p_attribute_t *sdk_ipinip_p2p_attrib = NULL;
 
     SX_LOG_ENTER();
 
@@ -4234,6 +4234,7 @@ static sai_status_t mlnx_create_tunnel(_Out_ sai_object_id_t     * sai_tunnel_ob
     sx_tunnel_cos_data_t         sdk_encap_cos_data;
     sx_tunnel_cos_data_t         sdk_decap_cos_data;
     sai_object_id_t              underlay_rif = SAI_NULL_OBJECT_ID;
+    sx_tunnel_general_params_t   sx_tunnel_general_params;
 
     if (SAI_STATUS_SUCCESS !=
         (sai_status =
@@ -4311,11 +4312,28 @@ static sai_status_t mlnx_create_tunnel(_Out_ sai_object_id_t     * sai_tunnel_ob
         return SAI_STATUS_NOT_SUPPORTED;
     }
 
+    sai_db_write_lock();
+
+    if (!g_sai_db_ptr->tunnel_module_initialized) {
+        memset(&sx_tunnel_general_params, 0, sizeof(sx_tunnel_general_params_t));
+        sdk_status = sx_api_tunnel_init_set(gh_sdk, &sx_tunnel_general_params); 
+        if (SX_STATUS_SUCCESS != sdk_status) {
+            sai_db_unlock();
+            sai_status = sdk_to_sai(sdk_status);
+            SX_LOG_ERR("Failed to init tunnel: %s\n", SX_STATUS_MSG(sdk_status));
+            SX_LOG_EXIT();
+            return sai_status;
+        }
+
+        g_sai_db_ptr->tunnel_module_initialized = true;
+    }
+
     if (SX_STATUS_SUCCESS != (sdk_status = sx_api_tunnel_set(
                                   gh_sdk,
                                   SX_ACCESS_CMD_CREATE,
                                   &sx_tunnel_attr,
                                   &sx_tunnel_id))) {
+        sai_db_unlock();
         sai_status = sdk_to_sai(sdk_status);
         SX_LOG_ERR("Error creating sdk tunnel, sx status: %s\n", SX_STATUS_MSG(sdk_status));
         SX_LOG_EXIT();
@@ -4323,7 +4341,6 @@ static sai_status_t mlnx_create_tunnel(_Out_ sai_object_id_t     * sai_tunnel_ob
     }
     sdk_tunnel_created = true;
 
-    sai_db_write_lock();
     sai_status = mlnx_sai_tunnel_create_tunnel_object_id(sx_tunnel_id, sai_tunnel_obj_id);
 
     if (SAI_STATUS_SUCCESS != sai_status) {

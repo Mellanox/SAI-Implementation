@@ -504,8 +504,14 @@ sai_status_t mlnx_udf_group_mask_is_hash_applicable(_In_ udf_group_mask_t       
     uint32_t              udf_group_db_index, udf_db_index, udf_match_db_index, ii;
 
     assert(NULL != is_applicable);
+    assert(hash_oper_type <= SAI_HASH_MAX_OBJ_ID);
 
     if (MLNX_UDF_GROUP_MASK_EMPTY == udf_group_mask) {
+        *is_applicable = true;
+        return SAI_STATUS_SUCCESS;
+    }
+
+    if (SAI_HASH_MAX_OBJ_ID == hash_oper_type) {
         *is_applicable = true;
         return SAI_STATUS_SUCCESS;
     }

@@ -380,9 +380,7 @@ static sai_status_t mlnx_port_params_clone(mlnx_port_config_t *to, mlnx_port_con
                 } else if (SAI_PACKET_ACTION_DROP == g_sai_db_ptr->flood_action_mc) {
                     ports_count = 0;
                 }
-                sx_status = sx_api_vlan_unreg_mc_flood_ports_set(gh_sdk, DEFAULT_ETH_SWID,
-                                                                 fid, log_ports, ports_count);
-
+                sx_status = sx_api_fdb_unreg_mc_flood_ports_set(gh_sdk, DEFAULT_ETH_SWID, fid, log_ports, ports_count);
                 status = sdk_to_sai(sx_status);
                 if (SAI_ERR(status)) {
                     SX_LOG_ERR("Failed to set unregistered mc flood port\n");

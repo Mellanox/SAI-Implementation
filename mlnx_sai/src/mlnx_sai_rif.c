@@ -234,6 +234,7 @@ static sai_status_t mlnx_create_router_interface(_Out_ sai_object_id_t      *rif
     memset(&intf_params, 0, sizeof(intf_params));
     memset(&intf_attribs, 0, sizeof(intf_attribs));
     memset(&rif_state, 0, sizeof(rif_state));
+    intf_attribs.loopback_enable = true;
 
     status = find_attrib_in_list(attr_count, attr_list, SAI_ROUTER_INTERFACE_ATTR_TYPE, &type, &type_index);
     assert(SAI_STATUS_SUCCESS == status);
@@ -307,10 +308,8 @@ static sai_status_t mlnx_create_router_interface(_Out_ sai_object_id_t      *rif
             return SAI_STATUS_INVALID_ATTRIBUTE_0 + vlan_index;
         }
         intf_params.type             = SX_L2_INTERFACE_TYPE_LOOPBACK;
-        intf_attribs.loopback_enable = true;
     } else if (SAI_ROUTER_INTERFACE_TYPE_BRIDGE == type->s32) {
         intf_params.type             = SX_L2_INTERFACE_TYPE_BRIDGE;
-        intf_attribs.loopback_enable = true;
     } else if (SAI_ROUTER_INTERFACE_TYPE_SUB_PORT == type->s32) {
         status = sai_object_to_vlan(vlan->oid, &sx_vlan_id);
         if (SAI_ERR(status)) {

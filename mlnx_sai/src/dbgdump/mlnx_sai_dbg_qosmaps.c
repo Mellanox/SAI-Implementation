@@ -21,12 +21,14 @@
 
 static void SAI_dump_qosmaps_getdb(_Out_ mlnx_qos_map_t *qos_maps_db,
                                    _Out_ uint32_t       *switch_qos_maps,
-                                   _Out_ uint8_t        *switch_default_tc)
+                                   _Out_ uint8_t        *switch_default_tc,
+                                   _Out_ bool           *is_switch_priority_lossless)
 {
     assert(NULL != qos_maps_db);
     assert(NULL != switch_qos_maps);
     assert(NULL != switch_default_tc);
     assert(NULL != g_sai_db_ptr);
+    assert(NULL != is_switch_priority_lossless);
 
     sai_db_read_lock();
 
@@ -39,6 +41,10 @@ static void SAI_dump_qosmaps_getdb(_Out_ mlnx_qos_map_t *qos_maps_db,
            MLNX_QOS_MAP_TYPES_MAX * sizeof(uint32_t));
 
     *switch_default_tc = g_sai_db_ptr->switch_default_tc;
+
+    memcpy(is_switch_priority_lossless,
+           g_sai_db_ptr->is_switch_priority_lossless,
+           MAX_LOSSLESS_SP * sizeof(bool));
 
     sai_db_unlock();
 }
@@ -120,6 +126,7 @@ static void SAI_dump_qos_maps_db_print(_In_ FILE *file, _In_ mlnx_qos_map_t *qos
         {"db idx", 11, PARAM_UINT32_E, &ii},
         {"type",   22, PARAM_STRING_E, &type_str},
         {"cnt",    3,  PARAM_UINT8_E,  &curr_qos_maps_db.count},
+        {"set",    3,  PARAM_UINT8_E,  &curr_qos_maps_db.is_set },
         {NULL,     0,  0,              NULL}
     };
     dbg_utils_table_columns_t qos_maps_param_dot1p_2_tc_clmns[] = {
@@ -383,21 +390,51 @@ static void SAI_dump_switch_default_tc_print(_In_ FILE *file, _In_ uint8_t *swit
     dbg_utils_print(file, "\n");
 }
 
+static void SAI_dump_is_switch_priority_lossless_print(_In_ FILE *file,
+                                                       _In_ bool *is_switch_priority_lossless)
+{
+    uint32_t                  ii                               = 0;
+    uint32_t                  curr_is_sp_lossless = 0;
+    dbg_utils_table_columns_t is_sp_lossless_clmns[] = {
+        {"sp idx",          7,  PARAM_UINT32_E, &ii},
+        {"is lossless",     12, PARAM_UINT32_E, &curr_is_sp_lossless},
+        {NULL,              0,  0,              NULL}
+    };
+
+    assert(NULL != is_switch_priority_lossless);
+
+    dbg_utils_print_general_header(file, "Lossless Switch Priority");
+
+    dbg_utils_print_secondary_header(file, "is_switch_priority_lossless");
+
+    dbg_utils_print_table_headline(file, is_sp_lossless_clmns);
+
+    for (ii = 0; ii < MAX_LOSSLESS_SP; ii++) {
+        curr_is_sp_lossless = is_switch_priority_lossless[ii];
+        dbg_utils_print_table_data_line(file, is_sp_lossless_clmns);
+    }
+}
+
 void SAI_dump_qosmaps(_In_ FILE *file)
 {
-    mlnx_qos_map_t *qos_maps_db       = NULL;
-    uint32_t       *switch_qos_maps   = NULL;
-    uint8_t         switch_default_tc = 0;
+    mlnx_qos_map_t *qos_maps_db                 = NULL;
+    uint32_t       *switch_qos_maps             = NULL;
+    uint8_t         switch_default_tc           = 0;
+    bool           *is_switch_priority_lossless = NULL;
 
-    qos_maps_db     = (mlnx_qos_map_t*)calloc(MAX_QOS_MAPS, sizeof(mlnx_qos_map_t));
-    switch_qos_maps = (uint32_t*)calloc(MLNX_QOS_MAP_TYPES_MAX, sizeof(uint32_t));
+    qos_maps_db                 = (mlnx_qos_map_t*)calloc(MAX_QOS_MAPS, sizeof(mlnx_qos_map_t));
+    switch_qos_maps             = (uint32_t*)calloc(MLNX_QOS_MAP_TYPES_MAX, sizeof(uint32_t));
+    is_switch_priority_lossless = (bool*)calloc(MAX_LOSSLESS_SP, sizeof(bool));
 
-    if ((!qos_maps_db) || (!switch_qos_maps)) {
+    if ((!qos_maps_db) || (!switch_qos_maps) || (!is_switch_priority_lossless)) {
         if (qos_maps_db) {
             free(qos_maps_db);
         }
         if (switch_qos_maps) {
             free(switch_qos_maps);
+        }
+        if (is_switch_priority_lossless) {
+            free(is_switch_priority_lossless);
         }
 
         return;
@@ -405,14 +442,17 @@ void SAI_dump_qosmaps(_In_ FILE *file)
 
     SAI_dump_qosmaps_getdb(qos_maps_db,
                            switch_qos_maps,
-                           &switch_default_tc);
+                           &switch_default_tc,
+                           is_switch_priority_lossless);
 
     dbg_utils_print_module_header(file, "SAI Qosmaps");
 
     SAI_dump_qos_maps_db_print(file, qos_maps_db);
     SAI_dump_switch_qos_maps_print(file, switch_qos_maps);
     SAI_dump_switch_default_tc_print(file, &switch_default_tc);
+    SAI_dump_is_switch_priority_lossless_print(file, is_switch_priority_lossless);
 
     free(qos_maps_db);
     free(switch_qos_maps);
+    free(is_switch_priority_lossless);
 }

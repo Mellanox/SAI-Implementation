@@ -18,6 +18,7 @@
 #include "sai_windows.h"
 #include "sai.h"
 #include "mlnx_sai.h"
+#include "assert.h"
 
 #undef  __MODULE__
 #define __MODULE__ SAI_ROUTE
@@ -199,6 +200,82 @@ static sai_status_t mlnx_fill_route_data(sx_uc_route_data_t      *route_data,
     return SAI_STATUS_SUCCESS;
 }
 
+static sai_status_t mlnx_route_attr_to_sx_data(_In_ const sai_route_entry_t *route_entry,
+                                               _In_ uint32_t                 attr_count,
+                                               _In_ const sai_attribute_t   *attr_list,
+                                               _Out_ sx_ip_prefix_t         *sx_ip_prefix,
+                                               _Out_ sx_router_id_t         *sx_vrid,
+                                               _Out_ sx_uc_route_data_t     *sx_route_data)
+{
+    sai_status_t                 status;
+    const sai_attribute_value_t *action, *next_hop;
+    sai_object_id_t              next_hop_oid;
+    uint32_t                     action_index, next_hop_index;
+    char                         list_str[MAX_LIST_VALUE_STR_LEN];
+    char                         key_str[MAX_KEY_STR_LEN];
+    bool                         next_hop_id_found = false;
+
+    assert(sx_ip_prefix);
+    assert(sx_vrid);
+    assert(sx_route_data);
+
+    if (NULL == route_entry) {
+        SX_LOG_ERR("NULL route_entry param\n");
+        return SAI_STATUS_INVALID_PARAMETER;
+    }
+
+    status = check_attribs_metadata(attr_count, attr_list, SAI_OBJECT_TYPE_ROUTE_ENTRY, route_vendor_attribs,
+                                     SAI_COMMON_API_CREATE);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed attribs check\n");
+        return status;
+    }
+
+    route_key_to_str(route_entry, key_str);
+    sai_attr_list_to_str(attr_count, attr_list, SAI_OBJECT_TYPE_ROUTE_ENTRY, MAX_LIST_VALUE_STR_LEN, list_str);
+    SX_LOG_NTC("Create route %s\n", key_str);
+    SX_LOG_NTC("Attribs %s\n", list_str);
+
+    sx_route_data->action         = SX_ROUTER_ACTION_FORWARD;
+    sx_route_data->trap_attr.prio = SX_TRAP_PRIORITY_MED;
+
+    status = find_attrib_in_list(attr_count, attr_list, SAI_ROUTE_ENTRY_ATTR_PACKET_ACTION, &action, &action_index);
+    if (SAI_STATUS_SUCCESS == status) {
+        status = mlnx_translate_sai_router_action_to_sdk(action->s32, &sx_route_data->action, action_index);
+        if (SAI_ERR(status)) {
+            return status;
+        }
+    }
+
+    status = find_attrib_in_list(attr_count, attr_list, SAI_ROUTE_ENTRY_ATTR_NEXT_HOP_ID, &next_hop, &next_hop_index);
+    if (SAI_ERR(status)) {
+        next_hop_oid   = SAI_NULL_OBJECT_ID;
+        next_hop_index = 0;
+    } else {
+        next_hop_oid      = next_hop->oid;
+        next_hop_id_found = true;
+    }
+
+    if (((SX_ROUTER_ACTION_FORWARD == sx_route_data->action) || (SX_ROUTER_ACTION_MIRROR == sx_route_data->action)) &&
+        (!next_hop_id_found)) {
+        SX_LOG_ERR(
+            "Packet action forward/log without next hop / next hop group is not allowed for non directly reachable route\n");
+        return SAI_STATUS_INVALID_PARAMETER;
+    }
+
+    status = mlnx_fill_route_data(sx_route_data, next_hop_oid, next_hop_index, route_entry);
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+    status = mlnx_translate_sai_route_entry_to_sdk(route_entry, sx_ip_prefix, sx_vrid);
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
 /*
  * Routine Description:
  *    Create Route
@@ -219,82 +296,28 @@ static sai_status_t mlnx_create_route(_In_ const sai_route_entry_t* route_entry,
                                       _In_ uint32_t                 attr_count,
                                       _In_ const sai_attribute_t   *attr_list)
 {
-    sx_status_t                  status;
-    const sai_attribute_value_t *action, *next_hop;
-    sai_object_id_t              next_hop_oid;
-    uint32_t                     action_index, next_hop_index;
-    char                         list_str[MAX_LIST_VALUE_STR_LEN];
-    char                         key_str[MAX_KEY_STR_LEN];
-    sx_ip_prefix_t               ip_prefix;
-    sx_router_id_t               vrid = DEFAULT_VRID;
-    sx_uc_route_data_t           route_data;
-    bool                         next_hop_id_found = false;
+    sai_status_t       status;
+    sx_status_t        sx_status;
+    sx_ip_prefix_t     ip_prefix;
+    sx_router_id_t     vrid = DEFAULT_VRID;
+    sx_uc_route_data_t route_data;
 
     SX_LOG_ENTER();
 
-    if (NULL == route_entry) {
-        SX_LOG_ERR("NULL route_entry param\n");
-        return SAI_STATUS_INVALID_PARAMETER;
-    }
-
-    if (SAI_STATUS_SUCCESS !=
-        (status =
-             check_attribs_metadata(attr_count, attr_list, SAI_OBJECT_TYPE_ROUTE_ENTRY, route_vendor_attribs,
-                                    SAI_COMMON_API_CREATE))) {
-        SX_LOG_ERR("Failed attribs check\n");
-        return status;
-    }
-
-    route_key_to_str(route_entry, key_str);
-    sai_attr_list_to_str(attr_count, attr_list, SAI_OBJECT_TYPE_ROUTE_ENTRY, MAX_LIST_VALUE_STR_LEN, list_str);
-    SX_LOG_NTC("Create route %s\n", key_str);
-    SX_LOG_NTC("Attribs %s\n", list_str);
-
     memset(&ip_prefix, 0, sizeof(ip_prefix));
     memset(&route_data, 0, sizeof(route_data));
-    route_data.action         = SX_ROUTER_ACTION_FORWARD;
-    route_data.trap_attr.prio = SX_TRAP_PRIORITY_MED;
 
-    if (SAI_STATUS_SUCCESS ==
-        (status =
-             find_attrib_in_list(attr_count, attr_list, SAI_ROUTE_ENTRY_ATTR_PACKET_ACTION, &action, &action_index))) {
-        if (SAI_STATUS_SUCCESS !=
-            (status = mlnx_translate_sai_router_action_to_sdk(action->s32, &route_data.action, action_index))) {
-            return status;
-        }
-    }
-
-    status = find_attrib_in_list(attr_count, attr_list, SAI_ROUTE_ENTRY_ATTR_NEXT_HOP_ID, &next_hop, &next_hop_index);
+    status = mlnx_route_attr_to_sx_data(route_entry, attr_count, attr_list, &ip_prefix, &vrid, &route_data);
     if (SAI_ERR(status)) {
-        next_hop_oid   = SAI_NULL_OBJECT_ID;
-        next_hop_index = 0;
-    } else {
-        next_hop_oid      = next_hop->oid;
-        next_hop_id_found = true;
-    }
-
-    status = mlnx_fill_route_data(&route_data, next_hop_oid, next_hop_index, route_entry);
-    if (SAI_ERR(status)) {
+        SX_LOG_EXIT();
         return status;
     }
 
-    if (((SX_ROUTER_ACTION_FORWARD == route_data.action) || (SX_ROUTER_ACTION_MIRROR == route_data.action)) &&
-        (!next_hop_id_found)) {
-        SX_LOG_ERR(
-            "Packet action forward/log without next hop / next hop group is not allowed for non directly reachable route\n");
-        return SAI_STATUS_INVALID_PARAMETER;
-    }
-
-    if (SAI_STATUS_SUCCESS !=
-        (status = mlnx_translate_sai_route_entry_to_sdk(route_entry, &ip_prefix, &vrid))) {
-        return status;
-    }
-
-    if (SX_STATUS_SUCCESS !=
-        (status =
-             sx_api_router_uc_route_set(gh_sdk, SX_ACCESS_CMD_ADD, vrid, &ip_prefix, &route_data))) {
-        SX_LOG_ERR("Failed to set route - %s.\n", SX_STATUS_MSG(status));
-        return sdk_to_sai(status);
+    sx_status = sx_api_router_uc_route_set(gh_sdk, SX_ACCESS_CMD_ADD, vrid, &ip_prefix, &route_data);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to set route - %s.\n", SX_STATUS_MSG(sx_status));
+        SX_LOG_EXIT();
+        return sdk_to_sai(sx_status);
     }
 
     SX_LOG_EXIT();
@@ -655,6 +678,80 @@ sai_status_t mlnx_route_log_set(sx_verbosity_level_t level)
     return SAI_STATUS_SUCCESS;
 }
 
+static sai_status_t mlnx_route_bulk_api_impl(_In_ sai_common_api_t         api,
+                                             _In_ uint32_t                 object_count,
+                                             _In_ const sai_route_entry_t *route_entry,
+                                             _In_ const uint32_t          *attr_count,
+                                             _In_ const sai_attribute_t  **attr_list_for_create,
+                                             _In_ sai_attribute_t        **attr_list_for_get,
+                                             _In_ const sai_attribute_t   *attr_list_for_set,
+                                             _In_ sai_bulk_op_error_mode_t mode,
+                                             _Out_ sai_status_t           *object_statuses)
+{
+    sai_status_t status;
+    uint32_t     ii;
+    bool         stop_on_error, failure = false;
+
+    SX_LOG_ENTER();
+
+    assert((api == SAI_COMMON_API_BULK_CREATE) || (api == SAI_COMMON_API_BULK_REMOVE) ||
+           (api == SAI_COMMON_API_BULK_GET) || (api == SAI_COMMON_API_BULK_SET));
+
+    status = mlnx_bulk_attrs_validate(object_count, attr_count, attr_list_for_create, attr_list_for_get,
+                                      attr_list_for_set, mode, object_statuses, api, &stop_on_error);
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+    if (!route_entry) {
+        SX_LOG_ERR("route_entry is NULL");
+        return SAI_STATUS_INVALID_PARAMETER;
+    }
+
+    if (stop_on_error) {
+        for (ii = 0; ii < object_count; ii++) {
+            object_statuses[ii] = SAI_STATUS_NOT_EXECUTED;
+        }
+    }
+
+    for (ii = 0; ii < object_count; ii++) {
+        switch (api) {
+        case SAI_COMMON_API_BULK_CREATE:
+            object_statuses[ii] = mlnx_create_route(&route_entry[ii], attr_count[ii], attr_list_for_create[ii]);
+            break;
+
+        case SAI_COMMON_API_BULK_GET:
+            object_statuses[ii] = mlnx_get_route_attribute(&route_entry[ii], attr_count[ii], attr_list_for_get[ii]);
+            break;
+
+        case SAI_COMMON_API_BULK_SET:
+            object_statuses[ii] = mlnx_set_route_attribute(&route_entry[ii], &attr_list_for_set[ii]);
+            break;
+
+        case SAI_COMMON_API_BULK_REMOVE:
+            object_statuses[ii] = mlnx_remove_route(&route_entry[ii]);
+            break;
+
+        default:
+            assert(false);
+        }
+
+        if (SAI_ERR(object_statuses[ii])) {
+            failure = true;
+            if (stop_on_error) {
+                goto out;
+            } else {
+                continue;
+            }
+        }
+    }
+
+out:
+    mlnx_bulk_statuses_print("Routes", object_statuses, object_count, api);
+    SX_LOG_EXIT();
+    return failure ? SAI_STATUS_FAILURE : SAI_STATUS_SUCCESS;
+}
+
 /**
  * @brief Bulk create route entry
  *
@@ -679,7 +776,8 @@ static sai_status_t mlnx_bulk_create_route_entry(_In_ uint32_t                 o
                                                  _In_ sai_bulk_op_error_mode_t mode,
                                                  _Out_ sai_status_t           *object_statuses)
 {
-    return SAI_STATUS_NOT_IMPLEMENTED;
+    return mlnx_route_bulk_api_impl(SAI_COMMON_API_BULK_CREATE, object_count, route_entry, attr_count,
+                                    attr_list, NULL, NULL, mode, object_statuses);
 }
 
 /**
@@ -701,7 +799,8 @@ static sai_status_t mlnx_bulk_remove_route_entry(_In_ uint32_t                 o
                                                  _In_ sai_bulk_op_error_mode_t mode,
                                                  _Out_ sai_status_t           *object_statuses)
 {
-    return SAI_STATUS_NOT_IMPLEMENTED;
+    return mlnx_route_bulk_api_impl(SAI_COMMON_API_BULK_REMOVE, object_count, route_entry, NULL,
+                                    NULL, NULL, NULL, mode, object_statuses);
 }
 
 /**
@@ -725,7 +824,8 @@ static sai_status_t mlnx_bulk_set_route_entry_attribute(_In_ uint32_t           
                                                         _In_ sai_bulk_op_error_mode_t mode,
                                                         _Out_ sai_status_t           *object_statuses)
 {
-    return SAI_STATUS_NOT_IMPLEMENTED;
+    return mlnx_route_bulk_api_impl(SAI_COMMON_API_BULK_SET, object_count, route_entry, NULL, NULL, NULL,
+                                    attr_list, mode, object_statuses);
 }
 
 /**
@@ -752,7 +852,8 @@ static sai_status_t mlnx_bulk_get_route_entry_attribute(_In_ uint32_t           
                                                         _In_ sai_bulk_op_error_mode_t mode,
                                                         _Out_ sai_status_t           *object_statuses)
 {
-    return SAI_STATUS_NOT_IMPLEMENTED;
+    return mlnx_route_bulk_api_impl(SAI_COMMON_API_BULK_GET, object_count, route_entry, attr_count, NULL, attr_list,
+                                    NULL, mode, object_statuses);
 }
 
 const sai_route_api_t mlnx_route_api = {

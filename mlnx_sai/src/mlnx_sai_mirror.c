@@ -952,7 +952,7 @@ static sai_status_t mlnx_delete_mirror_analyzer_port(_In_ sx_span_session_id_t s
         return status;
     }
 
-    sdk_analyzer_port_params.cng_mng = SX_SPAN_CNG_MNG_DONT_DISCARD;
+    sdk_analyzer_port_params.cng_mng = SX_SPAN_CNG_MNG_DISCARD;
 
     if (SAI_STATUS_SUCCESS !=
         (status =
@@ -1006,7 +1006,7 @@ static sai_status_t mlnx_add_mirror_analyzer_port(_In_ sx_span_session_id_t sdk_
         break;
     }
 
-    sdk_analyzer_port_params.cng_mng = SX_SPAN_CNG_MNG_DONT_DISCARD;
+    sdk_analyzer_port_params.cng_mng = SX_SPAN_CNG_MNG_DISCARD;
 
     if (SAI_STATUS_SUCCESS !=
         (status =

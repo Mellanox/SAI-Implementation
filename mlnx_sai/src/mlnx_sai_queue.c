@@ -469,12 +469,15 @@ static sai_status_t mlnx_get_queue_statistics(_In_ sai_object_id_t         queue
     uint8_t                          ext_data[EXTENDED_DATA_SIZE] = {0};
     uint8_t                          queue_num                    = 0;
     sx_port_log_id_t                 port_num;
+    const uint8_t                    port_prio_id = 0;
     uint32_t                         ii = 0;
     char                             key_str[MAX_KEY_STR_LEN];
     sx_port_statistic_usage_params_t stats_usage;
     sx_port_occupancy_statistics_t   occupancy_stats;
     uint32_t                         usage_cnt = 1;
-    sx_port_traffic_cntr_t           tc_cnts;
+    sx_port_traffic_cntr_t           tc_cnts = { 0 };
+    sx_port_cntr_perf_t              perf_cnts;
+    bool                             tc_cnts_needed = false, occupancy_stats_needed = false;
 
     SX_LOG_ENTER();
 
@@ -495,31 +498,107 @@ static sai_status_t mlnx_get_queue_statistics(_In_ sai_object_id_t         queue
         return SAI_STATUS_INVALID_PARAMETER;
     }
     queue_num = ext_data[0];
-    /* TODO : change to > g_resource_limits.cos_port_ets_traffic_class_max when sdk is updated to use rm */
-    if (queue_num >= RM_API_COS_TRAFFIC_CLASS_NUM) {
+    if (queue_num > g_resource_limits.cos_port_ets_traffic_class_max) {
         SX_LOG_ERR("Invalid queue num %u - exceed maximum %u\n", queue_num,
-                   g_resource_limits.cos_port_ets_traffic_class_max);
+            g_resource_limits.cos_port_ets_traffic_class_max);
         return SAI_STATUS_INVALID_PARAMETER;
     }
+    /* TODO : change to > g_resource_limits.cos_port_ets_traffic_class_max when sdk is updated to use rm */
+    if (queue_num >= RM_API_COS_TRAFFIC_CLASS_NUM) {
+        status = sx_api_port_counter_perf_get(gh_sdk, SX_ACCESS_CMD_READ,
+                                              port_num,
+                                              port_prio_id,
+                                              &perf_cnts);
+        if (SX_STATUS_SUCCESS != status) {
+            SX_LOG_ERR("Error getting port counter perf for port 0x%x\n", port_num);
+            return sdk_to_sai(status);
+        }
 
-    if (SX_STATUS_SUCCESS !=
-        (status = sx_api_port_counter_tc_get(gh_sdk, SX_ACCESS_CMD_READ, port_num, queue_num, &tc_cnts))) {
-        SX_LOG_ERR("Failed to get port tc counters - %s.\n", SX_STATUS_MSG(status));
-        return sdk_to_sai(status);
+        for (ii = 0; ii < number_of_counters; ii++) {
+            switch (counter_ids[ii]) {
+            case SAI_QUEUE_STAT_DROPPED_BYTES:
+            case SAI_QUEUE_STAT_GREEN_PACKETS:
+            case SAI_QUEUE_STAT_GREEN_BYTES:
+            case SAI_QUEUE_STAT_GREEN_DROPPED_PACKETS:
+            case SAI_QUEUE_STAT_GREEN_DROPPED_BYTES:
+            case SAI_QUEUE_STAT_YELLOW_PACKETS:
+            case SAI_QUEUE_STAT_YELLOW_BYTES:
+            case SAI_QUEUE_STAT_YELLOW_DROPPED_PACKETS:
+            case SAI_QUEUE_STAT_YELLOW_DROPPED_BYTES:
+            case SAI_QUEUE_STAT_RED_PACKETS:
+            case SAI_QUEUE_STAT_RED_BYTES:
+            case SAI_QUEUE_STAT_RED_DROPPED_PACKETS:
+            case SAI_QUEUE_STAT_RED_DROPPED_BYTES:
+            case SAI_QUEUE_STAT_GREEN_WRED_DROPPED_PACKETS:
+            case SAI_QUEUE_STAT_GREEN_WRED_DROPPED_BYTES:
+            case SAI_QUEUE_STAT_YELLOW_WRED_DROPPED_PACKETS:
+            case SAI_QUEUE_STAT_YELLOW_WRED_DROPPED_BYTES:
+            case SAI_QUEUE_STAT_RED_WRED_DROPPED_PACKETS:
+            case SAI_QUEUE_STAT_RED_WRED_DROPPED_BYTES:
+            case SAI_QUEUE_STAT_WRED_DROPPED_BYTES:
+            case SAI_QUEUE_STAT_SHARED_CURR_OCCUPANCY_BYTES:
+            case SAI_QUEUE_STAT_SHARED_WATERMARK_BYTES:
+            case SAI_QUEUE_STAT_BYTES:
+            case SAI_QUEUE_STAT_DROPPED_PACKETS:
+            case SAI_QUEUE_STAT_WRED_DROPPED_PACKETS:
+            case SAI_QUEUE_STAT_CURR_OCCUPANCY_BYTES:
+            case SAI_QUEUE_STAT_WATERMARK_BYTES:
+                SX_LOG_ERR("Queue counter %d set item %u not supported for queue num greater than %d\n", counter_ids[ii], ii, RM_API_COS_TRAFFIC_CLASS_NUM);
+                return SAI_STATUS_ATTR_NOT_SUPPORTED_0 + ii;
+
+            case SAI_QUEUE_STAT_PACKETS:
+                counters[ii] = perf_cnts.no_buffer_discard_mc;
+                break;
+
+            default:
+                SX_LOG_ERR("Invalid queue counter %d\n", counter_ids[ii]);
+                return SAI_STATUS_INVALID_PARAMETER;
+            }
+        }
+        return SAI_STATUS_SUCCESS;
     }
 
-    memset(&stats_usage, 0, sizeof(stats_usage));
-    stats_usage.port_cnt                                 = 1;
-    stats_usage.log_port_list_p                          = &port_num;
-    stats_usage.sx_port_params.port_params_type          = SX_COS_EGRESS_PORT_TRAFFIC_CLASS_ATTR_E;
-    stats_usage.sx_port_params.port_params_cnt           = 1;
-    stats_usage.sx_port_params.port_param.port_tc_list_p = &queue_num;
+    for (ii = 0; ii < number_of_counters; ii++) {
+        switch (counter_ids[ii]) {
+        case SAI_QUEUE_STAT_PACKETS:
+        case SAI_QUEUE_STAT_BYTES:
+        case SAI_QUEUE_STAT_DROPPED_PACKETS:
+        case SAI_QUEUE_STAT_WRED_DROPPED_PACKETS:
+            tc_cnts_needed = true;
+            break;
 
-    if (SX_STATUS_SUCCESS !=
-        (status = sx_api_cos_port_buff_type_statistic_get(gh_sdk, SX_ACCESS_CMD_READ, &stats_usage, 1,
-                                                          &occupancy_stats, &usage_cnt))) {
-        SX_LOG_ERR("Failed to get port buff statistics - %s.\n", SX_STATUS_MSG(status));
-        return sdk_to_sai(status);
+        case SAI_QUEUE_STAT_CURR_OCCUPANCY_BYTES:
+        case SAI_QUEUE_STAT_WATERMARK_BYTES:
+            occupancy_stats_needed = true;
+            break;
+
+        default:
+            break;
+        }
+    }
+
+    if (tc_cnts_needed) {
+        if (SX_STATUS_SUCCESS !=
+            (status = sx_api_port_counter_tc_get(gh_sdk, SX_ACCESS_CMD_READ, port_num, queue_num, &tc_cnts))) {
+            SX_LOG_ERR("Failed to get port tc counters - %s.\n", SX_STATUS_MSG(status));
+            return sdk_to_sai(status);
+        }
+    }
+
+    if (occupancy_stats_needed) {
+        memset(&stats_usage, 0, sizeof(stats_usage));
+        stats_usage.port_cnt = 1;
+        stats_usage.log_port_list_p = &port_num;
+        stats_usage.sx_port_params.port_params_type = SX_COS_EGRESS_PORT_TRAFFIC_CLASS_ATTR_E;
+        stats_usage.sx_port_params.port_params_cnt = 1;
+        stats_usage.sx_port_params.port_param.port_tc_list_p = &queue_num;
+
+        if (SX_STATUS_SUCCESS !=
+            (status = sx_api_cos_port_buff_type_statistic_get(gh_sdk, SX_ACCESS_CMD_READ, &stats_usage, 1,
+            &occupancy_stats, &usage_cnt))) {
+            SX_LOG_ERR("Failed to get port buff statistics - %s.\n", SX_STATUS_MSG(status));
+            return sdk_to_sai(status);
+        }
     }
 
     for (ii = 0; ii < number_of_counters; ii++) {
@@ -607,6 +686,8 @@ static sai_status_t mlnx_clear_queue_stats(_In_ sai_object_id_t         queue_id
     sx_port_occupancy_statistics_t   occupancy_stats;
     uint32_t                         usage_cnt = 1;
     sx_port_traffic_cntr_t           tc_cnts;
+    sx_port_cntr_perf_t              perf_cnts;
+    const uint8_t                    port_prio_id = 0;
 
     SX_LOG_ENTER();
 
@@ -622,11 +703,20 @@ static sai_status_t mlnx_clear_queue_stats(_In_ sai_object_id_t         queue_id
         return SAI_STATUS_INVALID_PARAMETER;
     }
     queue_num = ext_data[0];
+    if (queue_num > g_resource_limits.cos_port_ets_traffic_class_max) {
+        SX_LOG_ERR("Invalid queue num %u - exceed maximum %u\n", queue_num,
+            g_resource_limits.cos_port_ets_traffic_class_max);
+        return SAI_STATUS_INVALID_PARAMETER;
+    }
     /* TODO : change to > g_resource_limits.cos_port_ets_traffic_class_max when sdk is updated to use rm */
     if (queue_num >= RM_API_COS_TRAFFIC_CLASS_NUM) {
-        SX_LOG_ERR("Invalid queue num %u - exceed maximum %u\n", queue_num,
-                   g_resource_limits.cos_port_ets_traffic_class_max);
-        return SAI_STATUS_INVALID_PARAMETER;
+        status = sx_api_port_counter_perf_get(gh_sdk, SX_ACCESS_CMD_READ_CLEAR,
+                                              port_num, port_prio_id, &perf_cnts);
+        if (SX_STATUS_SUCCESS != status) {
+            SX_LOG_ERR("Error clearing port counter perf for port 0x%x\n", port_num);
+            return sdk_to_sai(status);
+        }
+        return SAI_STATUS_SUCCESS;
     }
 
     if (SX_STATUS_SUCCESS !=
