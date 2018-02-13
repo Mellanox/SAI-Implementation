@@ -2440,18 +2440,22 @@ static sai_status_t mlnx_switch_parse_fdb_event(uint8_t                         
             }
         }
 
-        if (packet->records_arr[ii].fid < MIN_SX_BRIDGE_ID) {
-            status = mlnx_vlan_oid_create(sx_fid, &fdb_events[ii].fdb_entry.bv_id);
-            if (SAI_ERR(status)) {
-                SX_LOG_ERR("Failed to convert sx fid to bv_id\n");
-                return status;
+        if (sx_fid > 0) {
+            if (packet->records_arr[ii].fid < MIN_SX_BRIDGE_ID) {
+                status = mlnx_vlan_oid_create(sx_fid, &fdb_events[ii].fdb_entry.bv_id);
+                if (SAI_ERR(status)) {
+                    SX_LOG_ERR("Failed to convert sx fid to bv_id\n");
+                    return status;
+                }
+            } else {
+                status = mlnx_create_bridge_object(SAI_BRIDGE_TYPE_1D, sx_fid, &fdb_events[ii].fdb_entry.bv_id);
+                if (SAI_ERR(status)) {
+                    SX_LOG_ERR("Failed to convert sx fid to bv_id\n");
+                    return status;
+                }
             }
-        } else {
-            status = mlnx_create_bridge_object(SAI_BRIDGE_TYPE_1D, sx_fid, &fdb_events[ii].fdb_entry.bv_id);
-            if (SAI_ERR(status)) {
-                SX_LOG_ERR("Failed to convert sx fid to bv_id\n");
-                return status;
-            }
+        } else{
+            fdb_events[ii].fdb_entry.bv_id = SAI_NULL_OBJECT_ID;
         }
 
         fdb_events[ii].fdb_entry.switch_id = switch_id;
