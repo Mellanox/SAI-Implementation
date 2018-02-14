@@ -1531,162 +1531,6 @@ sai_status_t reset_port_buffer_db_data()
     return SAI_STATUS_SUCCESS;
 }
 
-static sai_status_t mlnx_sai_cleanup_mc_port_reserved_buffer_config()
-{
-    sai_status_t               sai_status = SAI_STATUS_FAILURE;
-    sx_status_t                sx_status;
-    sx_port_log_id_t           port_log_id;
-    sx_cos_port_buffer_attr_t *sx_port_reserved_buff_attr_array = NULL;
-    sx_cos_port_buffer_attr_t *sx_port_reserved_mc_buff_attr_array = NULL;
-    uint32_t                   port_reserved_attr_count = buffer_limits.max_buffers_per_port;
-    uint32_t                   port_reserved_mc_attr_count = 0;
-    uint32_t                   idx = 0;
-    uint32_t                   port_idx = 0;
-    mlnx_port_config_t        *port_config;
-
-    SX_LOG_ENTER();
-
-    sx_port_reserved_buff_attr_array = calloc(port_reserved_attr_count, sizeof(sx_cos_port_buffer_attr_t));
-    if (!sx_port_reserved_buff_attr_array) {
-        sai_status = SAI_STATUS_NO_MEMORY;
-        goto cleanup;
-    }
-
-    sx_port_reserved_mc_buff_attr_array = calloc(port_reserved_attr_count, sizeof(sx_cos_port_buffer_attr_t));
-    if (!sx_port_reserved_mc_buff_attr_array) {
-        sai_status = SAI_STATUS_NO_MEMORY;
-        goto cleanup;
-    }
-
-    mlnx_port_foreach(port_config, port_idx) {
-        port_log_id = port_config->logical;
-
-        if (SX_STATUS_SUCCESS !=
-            (sx_status = sx_api_cos_port_buff_type_get(gh_sdk,
-                                                       port_log_id,
-                                                       sx_port_reserved_buff_attr_array,
-                                                       &port_reserved_attr_count))) {
-            SX_LOG_ERR("Failed to get multicast reserved buffers. Error: %s\n",
-                       SX_STATUS_MSG(sx_status));
-            sai_status = sdk_to_sai(sx_status);
-            goto cleanup;
-        }
-
-        for (idx = 0; idx < port_reserved_attr_count; idx++) {
-            if (SX_COS_MULTICAST_PORT_ATTR_E == sx_port_reserved_buff_attr_array[idx].type) {
-                memcpy(&sx_port_reserved_mc_buff_attr_array[port_reserved_mc_attr_count],
-                       &sx_port_reserved_buff_attr_array[idx],
-                       sizeof(sx_port_reserved_buff_attr_array[idx]));
-                sx_port_reserved_mc_buff_attr_array[port_reserved_mc_attr_count].attr.multicast_port_buff_attr.size = 0;
-                port_reserved_mc_attr_count++;
-            }
-        }
-
-        if (SAI_STATUS_SUCCESS !=
-            (sai_status = mlnx_sai_buffer_configure_reserved_buffers(port_log_id,
-                                                                     sx_port_reserved_mc_buff_attr_array,
-                                                                     port_reserved_mc_attr_count))) {
-            SX_LOG_ERR("Failed to configure reserved buffers\n");
-            goto cleanup;
-        }
-    }
-
-    sai_status = SAI_STATUS_SUCCESS;
-
-cleanup:
-    if (sx_port_reserved_buff_attr_array) {
-        free(sx_port_reserved_buff_attr_array);
-    }
-    if (sx_port_reserved_mc_buff_attr_array) {
-        free(sx_port_reserved_mc_buff_attr_array);
-    }
-
-    SX_LOG_EXIT();
-    return sai_status;
-}
-
-static sai_status_t mlnx_sai_cleanup_mc_port_shared_buffer_config()
-{
-    sai_status_t                      sai_status = SAI_STATUS_FAILURE;
-    sx_status_t                       sx_status;
-    sx_port_log_id_t                  port_log_id;
-    sx_cos_port_shared_buffer_attr_t *sx_port_shared_buff_attr_array    = NULL;
-    sx_cos_port_shared_buffer_attr_t *sx_port_shared_mc_buff_attr_array = NULL;
-    uint32_t                          port_shared_attr_count = buffer_limits.max_buffers_per_port;
-    uint32_t                          port_shared_mc_attr_count = 0;
-    uint32_t                          idx = 0;
-    uint32_t                          port_idx = 0;
-    mlnx_port_config_t               *port_config;
-    sx_cos_buffer_max_mode_e          max_mode;
-
-    SX_LOG_ENTER();
-
-    sx_port_shared_buff_attr_array = calloc(port_shared_attr_count, sizeof(sx_cos_port_shared_buffer_attr_t));
-    if (!sx_port_shared_buff_attr_array) {
-        sai_status = SAI_STATUS_NO_MEMORY;
-        goto cleanup;
-    }
-
-    sx_port_shared_mc_buff_attr_array = calloc(port_shared_attr_count, sizeof(sx_cos_port_shared_buffer_attr_t));
-    if (!sx_port_shared_mc_buff_attr_array) {
-        sai_status = SAI_STATUS_NO_MEMORY;
-        goto cleanup;
-    }
-
-    mlnx_port_foreach(port_config, port_idx) {
-
-        port_log_id = port_config->logical;
-
-        if (SX_STATUS_SUCCESS !=
-            (sx_status = sx_api_cos_port_shared_buff_type_get(gh_sdk,
-                                                              port_log_id,
-                                                              sx_port_shared_buff_attr_array,
-                                                              &port_shared_attr_count))) {
-            SX_LOG_ERR("Failed to get multicast shared buffers. Error: %s\n",
-                       SX_STATUS_MSG(sx_status));
-            sai_status = sdk_to_sai(sx_status);
-            goto cleanup;
-        }
-
-        for (idx = 0; idx < port_shared_attr_count; idx++) {
-            if (SX_COS_MULTICAST_PORT_ATTR_E == sx_port_shared_buff_attr_array[idx].type) {
-                memcpy(&sx_port_shared_mc_buff_attr_array[port_shared_mc_attr_count],
-                       &sx_port_shared_buff_attr_array[idx],
-                       sizeof(sx_port_shared_buff_attr_array[idx]));
-                max_mode = sx_port_shared_buff_attr_array[idx].attr.multicast_port_shared_buff_attr.max.mode;
-                if ((SX_COS_BUFFER_MAX_MODE_STATIC_E == max_mode) || (SX_COS_BUFFER_MAX_MODE_BUFFER_UNITS_E == max_mode)) {
-                    sx_port_shared_mc_buff_attr_array[port_shared_mc_attr_count].attr.multicast_port_shared_buff_attr.max.max.size = 0;
-                } else if (SX_COS_BUFFER_MAX_MODE_DYNAMIC_E == max_mode) {
-                    sx_port_shared_mc_buff_attr_array[port_shared_mc_attr_count].attr.multicast_port_shared_buff_attr.max.max.alpha = 0;
-                }
-                port_shared_mc_attr_count++;
-            }
-        }
-
-        if (SAI_STATUS_SUCCESS !=
-           (sai_status = mlnx_sai_buffer_configure_shared_buffers(port_log_id,
-                                                                  sx_port_shared_mc_buff_attr_array,
-                                                                  port_shared_mc_attr_count))) {
-            SX_LOG_ERR("Failed to configure shared buffers\n");
-            goto cleanup;
-        }
-    }
-
-    sai_status = SAI_STATUS_SUCCESS;
-
-cleanup:
-    if (sx_port_shared_buff_attr_array) {
-        free(sx_port_shared_buff_attr_array);
-    }
-    if (sx_port_shared_mc_buff_attr_array) {
-        free(sx_port_shared_mc_buff_attr_array);
-    }
-
-    SX_LOG_EXIT();
-
-    return sai_status;
-}
-
 sai_status_t mlnx_sai_cleanup_buffer_config()
 {
     sai_status_t sai_status;
@@ -1700,18 +1544,6 @@ sai_status_t mlnx_sai_cleanup_buffer_config()
     }
     if (SAI_STATUS_SUCCESS != (sai_status = mlnx_sai_buffer_delete_all_buffer_config())) {
         SX_LOG_ERR("Failed deleting all buffer configuration\n, line:%d", __LINE__);
-        SX_LOG_EXIT();
-        return sai_status;
-    }
-
-    if (SAI_STATUS_SUCCESS != (sai_status = mlnx_sai_cleanup_mc_port_reserved_buffer_config())) {
-        SX_LOG_ERR("Failed to cleanup mc port reserved buffer config\n");
-        SX_LOG_EXIT();
-        return sai_status;
-    }
-
-    if (SAI_STATUS_SUCCESS != (sai_status = mlnx_sai_cleanup_mc_port_shared_buffer_config())) {
-        SX_LOG_ERR("Failed to cleanup mc port shared buffer config\n");
         SX_LOG_EXIT();
         return sai_status;
     }
@@ -3201,8 +3033,8 @@ sai_status_t set_mc_sp_zero(_In_ uint32_t sp)
         goto cleanup;
     }
     for (idx = 0; idx < attr_count; idx++) {
-        SX_LOG_NTC("sp: %d zero sp buff idx: %d, buff type: %d, pool id: %d\n", sp, idx, sx_port_reserved_buff_attr_array[idx].type,
-   sx_port_reserved_buff_attr_array[idx].attr.multicast_buff_attr.pool_id);
+        SX_LOG_DBG("sp: %d zero sp buff idx: %d, buff type: %d, pool id: %d\n", sp, idx, sx_port_reserved_buff_attr_array[idx].type,
+            sx_port_reserved_buff_attr_array[idx].attr.multicast_buff_attr.pool_id);
         if (sp == sx_port_reserved_buff_attr_array[idx].attr.multicast_buff_attr.sp) {
             sx_port_reserved_buff_attr_array[idx].attr.multicast_buff_attr.size = 0;
         }
@@ -3232,8 +3064,6 @@ sai_status_t set_mc_sp_zero(_In_ uint32_t sp)
         goto cleanup;
     }
 
-    sai_status = SAI_STATUS_SUCCESS;
-
 cleanup:
     if (sx_port_shared_buff_attr_array) {
         free(sx_port_shared_buff_attr_array);
@@ -3252,32 +3082,32 @@ static sai_status_t mlnx_sai_buffer_apply_buffer_to_pg(_In_ uint32_t            
                                                        _In_ sai_object_id_t                    prev_pool)
 {
     sai_status_t                  sai_status = SAI_STATUS_FAILURE;
-    sx_status_t                   sx_status = SX_STATUS_ERROR;
     mlnx_affect_port_buff_items_t affected_items;
-    sx_cos_port_prio_buff_t       prio_buff;
     sx_port_log_id_t              sx_port_id;
+#ifdef ACS_OS
     bool                          is_lossy = false;
     uint32_t                      sp = 0;
+    sx_status_t                   sx_status = SX_STATUS_ERROR;
+    sx_cos_port_prio_buff_t       prio_buff;
+#endif
 
     SX_LOG_ENTER();
     if (!alloc_affected_items(&affected_items)) {
         SX_LOG_EXIT();
         return SAI_STATUS_NO_MEMORY;
     }
+    sx_port_id                    = g_sai_db_ptr->ports_db[port_ind].logical;
     affected_items.pgs[pg_ind]    = true;
     affected_items.affected_count = 1;
-    sai_status                    = mlnx_sai_apply_buffer_settings_to_port(g_sai_db_ptr->ports_db[port_ind].logical,
+    sai_status                    = mlnx_sai_apply_buffer_settings_to_port(sx_port_id,
                                                                            buff_db_entry, &affected_items, prev_pool);
-
     if (SAI_STATUS_SUCCESS != sai_status) {
         SX_LOG_ERR("Error applying buffer settings to port\n");
         goto cleanup;
     }
 
-    sx_port_id = g_sai_db_ptr->ports_db[port_ind].logical;
-
+#ifdef ACS_OS
     sx_status = sx_api_cos_port_prio_buff_map_get(gh_sdk, sx_port_id, &prio_buff);
-
     if (SX_STATUS_SUCCESS != sx_status) {
         SX_LOG_ERR("Error getting cos port prio buff map for sx port id 0x%x, sx error message: %s\n", sx_port_id, SX_STATUS_MSG(sx_status));
         sai_status = sdk_to_sai(sx_status);
@@ -3300,8 +3130,7 @@ static sai_status_t mlnx_sai_buffer_apply_buffer_to_pg(_In_ uint32_t            
             }
         }
     }
-
-    sai_status = SAI_STATUS_SUCCESS;
+#endif
 
 cleanup:
     free_affected_items(&affected_items);
@@ -4557,6 +4386,12 @@ static sai_status_t mlnx_sai_buffer_unbind_reserved_buffers(_In_ sx_port_log_id_
             sx_port_reserved_buff_attr_arr[ii].attr.egress_port_tc_buff_attr.size = 0;
             break;
 
+#ifdef ACS_OS
+        case SX_COS_MULTICAST_PORT_ATTR_E:
+            sx_port_reserved_buff_attr_arr[ii].attr.multicast_port_buff_attr.size = 0;
+            break;
+#endif
+
         default:
             continue;
         }
@@ -4650,11 +4485,17 @@ static sai_status_t mlnx_sai_buffer_unbind_shared_buffers(_In_ sx_port_log_id_t 
             }
             break;
 
+#ifdef ACS_OS
+        case SX_COS_MULTICAST_PORT_ATTR_E:
+            max = &sx_port_shared_buff_attr_arr[ii].attr.multicast_port_shared_buff_attr.max;
+            break;
+#endif
+
         default:
             continue;
         }
         /* zero according to shared/dynamic mode */
-        if (SX_COS_BUFFER_MAX_MODE_STATIC_E == max->mode) {
+        if ((SX_COS_BUFFER_MAX_MODE_STATIC_E == max->mode) || (SX_COS_BUFFER_MAX_MODE_BUFFER_UNITS_E == max->mode)) {
             max->max.size = 0;
         } else {
             max->max.alpha = 0;
