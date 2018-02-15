@@ -23,6 +23,21 @@
 #undef  __MODULE__
 #define __MODULE__ SAI_NEXT_HOP_GROUP
 
+typedef struct _mlnx_nh_data_t {
+    sx_next_hop_t nh_id;
+    uint32_t      object_index;
+} mlnx_nh_bulk_data_t;
+
+typedef struct _mlnx_nh_bulk_pair_t {
+    sx_ecmp_id_t        group_id;
+    mlnx_nh_bulk_data_t nh;
+} mlnx_nh_bulk_pair_t;
+
+typedef struct _mlnx_nh_bulk_data_t {
+    mlnx_nh_bulk_pair_t *pairs;
+    uint32_t             count;
+} mlnx_nh_bulk_pair_list_t;
+
 static sx_verbosity_level_t LOG_VAR_NAME(__MODULE__) = SX_VERBOSITY_LEVEL_WARNING;
 static sai_status_t mlnx_next_hop_group_count_get(_In_ const sai_object_key_t   *key,
                                                   _Inout_ sai_attribute_value_t *value,
@@ -126,15 +141,15 @@ static sai_status_t mlnx_sdk_nhop_by_ecmp_id_get(sx_ecmp_id_t sdk_ecmp_id, sx_ne
     return SAI_STATUS_SUCCESS;
 }
 
-static int sx_nhop_equal(sx_next_hop_t *nhop1, sx_next_hop_t *nhop2)
+static int sx_nhop_equal(const sx_next_hop_t *nhop1, const sx_next_hop_t *nhop2)
 {
     return !memcmp(&nhop1->next_hop_key, &nhop2->next_hop_key, sizeof(nhop2->next_hop_key));
 }
 
-static sai_status_t mlnx_sdk_nhop_find_in_list(sx_next_hop_t *next_hops,
-                                               uint32_t       count,
-                                               sx_next_hop_t *match,
-                                               uint32_t      *index)
+static sai_status_t mlnx_sdk_nhop_find_in_list(const sx_next_hop_t *next_hops,
+                                               uint32_t             count,
+                                               const sx_next_hop_t *match,
+                                               uint32_t            *index)
 {
     uint32_t ii;
 
@@ -762,6 +777,444 @@ static sai_status_t mlnx_remove_next_hop_group_member(_In_ sai_object_id_t next_
     return SAI_STATUS_SUCCESS;
 }
 
+static sai_status_t mlnx_next_hop_bulk_init(_In_ mlnx_nh_bulk_pair_list_t *nh_bulk_data,
+                                            _In_ uint32_t                  object_count)
+{
+    assert(nh_bulk_data);
+    assert(!nh_bulk_data->pairs);
+
+    nh_bulk_data->pairs = calloc(object_count, sizeof(mlnx_nh_bulk_pair_t));
+    if (!nh_bulk_data->pairs) {
+        return SAI_STATUS_NO_MEMORY;
+    }
+
+    nh_bulk_data->count = 0;
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static void mlnx_next_hop_bulk_deinit(_In_ mlnx_nh_bulk_pair_list_t *nh_bulk_data)
+{
+    assert(nh_bulk_data);
+
+    free(nh_bulk_data->pairs);
+}
+
+static sai_status_t mlnx_next_hop_bulk_map_add(_In_ mlnx_nh_bulk_pair_list_t  *nh_bulk_data,
+                                               _In_ const mlnx_nh_bulk_pair_t *bulk_pair)
+{
+    assert(nh_bulk_data);
+    assert(bulk_pair);
+
+    memcpy(&nh_bulk_data->pairs[nh_bulk_data->count], bulk_pair, sizeof(mlnx_nh_bulk_pair_t));
+    nh_bulk_data->count++;
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_next_hop_bulk_create_member_add(_In_ mlnx_nh_bulk_pair_list_t *nh_bulk_data,
+                                                         _In_ uint32_t                  attr_count,
+                                                         _In_ const sai_attribute_t    *attr_list,
+                                                         _In_ uint32_t                  object_index,
+                                                         _Out_ sai_object_id_t         *group_member_oid)
+{
+    sai_status_t                 status;
+    const sai_attribute_value_t *group_attr = NULL, *next_hop_attr = NULL, *weight_attr = NULL;
+    uint32_t                     group_index, next_hop_index, weight_index;
+    sx_ecmp_id_t                 group_ecmp_id, nhop_ecmp_id;
+    mlnx_nh_bulk_pair_t          bulk_pair;
+
+    assert(nh_bulk_data);
+    assert(attr_list);
+    assert(group_member_oid);
+
+    status = check_attribs_metadata(attr_count,
+                                    attr_list,
+                                    SAI_OBJECT_TYPE_NEXT_HOP_GROUP_MEMBER,
+                                    next_hop_group_member_vendor_attribs,
+                                    SAI_COMMON_API_CREATE);
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+    status = find_attrib_in_list(attr_count,
+                                 attr_list,
+                                 SAI_NEXT_HOP_GROUP_MEMBER_ATTR_NEXT_HOP_GROUP_ID,
+                                 &group_attr,
+                                 &group_index);
+    assert(SAI_STATUS_SUCCESS == status);
+
+    status = find_attrib_in_list(attr_count,
+                                 attr_list,
+                                 SAI_NEXT_HOP_GROUP_MEMBER_ATTR_NEXT_HOP_ID,
+                                 &next_hop_attr,
+                                 &next_hop_index);
+    assert(SAI_STATUS_SUCCESS == status);
+
+    find_attrib_in_list(attr_count, attr_list, SAI_NEXT_HOP_GROUP_MEMBER_ATTR_WEIGHT, &weight_attr, &weight_index);
+
+    status = mlnx_object_to_type(group_attr->oid, SAI_OBJECT_TYPE_NEXT_HOP_GROUP, &group_ecmp_id, NULL);
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+    bulk_pair.group_id = group_ecmp_id;
+
+    status = mlnx_object_to_type(next_hop_attr->oid, SAI_OBJECT_TYPE_NEXT_HOP, &nhop_ecmp_id, NULL);
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+    status = mlnx_translate_sai_next_hop_object(object_index, next_hop_attr->oid, &bulk_pair.nh.nh_id);
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+    if (weight_attr) {
+        bulk_pair.nh.nh_id.next_hop_data.weight = weight_attr->u32;
+    } else {
+        bulk_pair.nh.nh_id.next_hop_data.weight = 1;
+    }
+
+    bulk_pair.nh.object_index = object_index;
+
+    status = nhop_group_member_to_oid(group_ecmp_id, nhop_ecmp_id, group_member_oid);
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+    status = mlnx_next_hop_bulk_map_add(nh_bulk_data, &bulk_pair);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to add next hop %lx to next hop group %lx\n", next_hop_attr->oid, group_attr->oid);
+        return status;
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_next_hop_bulk_sx_nh_add(_In_ sx_ecmp_id_t               sx_ecmp_id,
+                                                 _In_ const mlnx_nh_bulk_data_t *nh_list,
+                                                 _Out_ sai_status_t             *object_statuses)
+{
+    sx_status_t   sx_status;
+    sx_next_hop_t sx_next_hops[ECMP_MAX_PATHS];
+    uint32_t      nh_added, next_hop_count = ECMP_MAX_PATHS;
+    bool          failure = false;
+
+    assert(nh_list);
+    assert(object_statuses);
+
+    memset(sx_next_hops, 0, sizeof(sx_next_hops));
+
+    nh_added = 0;
+
+    sx_status = sx_api_router_ecmp_get(gh_sdk, sx_ecmp_id, sx_next_hops, &next_hop_count);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to get ecmp group %d - %s.\n", sx_ecmp_id, SX_STATUS_MSG(sx_status));
+        failure = true;
+    }
+
+    if (!failure) {
+        for (nh_added = 0; nh_added < ECMP_MAX_PATHS; nh_added++) {
+            if (nh_list[nh_added].nh_id.next_hop_data.weight == 0) {
+                break;
+            }
+
+            if (next_hop_count + 1 > ECMP_MAX_PATHS) {
+                SX_LOG_ERR("Cannot add sx next hop to sx ecmp id %x - current next hop count is maximum (%u)\n",
+                           sx_ecmp_id, ECMP_MAX_PATHS);
+                failure = true;
+                break;
+            }
+
+            object_statuses[nh_list[nh_added].object_index] = SAI_STATUS_SUCCESS;
+            sx_next_hops[next_hop_count]                    = nh_list[nh_added].nh_id;
+            next_hop_count++;
+        }
+    }
+
+    if (nh_added > 0) {
+        sx_status = sx_api_router_ecmp_set(gh_sdk, SX_ACCESS_CMD_SET, &sx_ecmp_id, sx_next_hops, &next_hop_count);
+        if (SX_ERR(sx_status)) {
+            SX_LOG_ERR("Failed to update sx ecmp id (%x) - %s.\n", sx_ecmp_id, SX_STATUS_MSG(sx_status));
+            failure  = true;
+            nh_added = 0;
+        }
+    }
+
+    if (failure) {
+        for (; nh_added < ECMP_MAX_PATHS; nh_added++) {
+            if (nh_list[nh_added].nh_id.next_hop_data.weight == 0) {
+                break;
+            }
+
+            object_statuses[nh_list[nh_added].object_index] = SAI_STATUS_FAILURE;
+        }
+    }
+
+    return failure ? SAI_STATUS_FAILURE : SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_next_hop_bulk_sx_nh_del(_In_ sx_ecmp_id_t               sx_ecmp_id,
+                                                 _In_ const mlnx_nh_bulk_data_t *nh_list,
+                                                 _In_ bool                       stop_on_error,
+                                                 _Out_ sai_status_t             *object_statuses)
+{
+    sai_status_t  status;
+    sx_status_t   sx_status;
+    sx_next_hop_t sx_next_hops[ECMP_MAX_PATHS];
+    uint32_t      next_hop_count = ECMP_MAX_PATHS;
+    uint32_t      ii, nh_removed, nh_index_to_remove;
+    bool          failure = false, update_sdk = false;
+
+    assert(nh_list);
+    assert(object_statuses);
+
+    memset(sx_next_hops, 0, sizeof(sx_next_hops));
+
+    nh_removed = 0;
+
+    sx_status = sx_api_router_ecmp_get(gh_sdk, sx_ecmp_id, sx_next_hops, &next_hop_count);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to get ecmp group %d - %s.\n", sx_ecmp_id, SX_STATUS_MSG(sx_status));
+        failure = true;
+    }
+
+    if (!failure) {
+        for (nh_removed = 0; nh_removed < ECMP_MAX_PATHS; nh_removed++) {
+            if (nh_list[nh_removed].nh_id.next_hop_data.weight == 0) {
+                break;
+            }
+
+            status = mlnx_sdk_nhop_find_in_list(sx_next_hops, next_hop_count, &nh_list[nh_removed].nh_id, &nh_index_to_remove);
+            object_statuses[nh_list[nh_removed].object_index] = status;
+            if (SAI_ERR(status)) {
+                SX_LOG_ERR("Failed to remove next hop group member at index %d\n", nh_list[nh_removed].object_index);
+                failure = true;
+                if (stop_on_error) {
+                    break;
+                } else{
+                    continue;
+                }
+            }
+
+            if (next_hop_count == 0) {
+                SX_LOG_ERR("Failed to update next_hop_count - underflow\n");
+                return SAI_STATUS_FAILURE;
+            }
+
+            sx_next_hops[nh_index_to_remove] = sx_next_hops[next_hop_count - 1];
+            next_hop_count--;
+
+            update_sdk = true;
+        }
+    }
+
+    if (update_sdk) {
+        sx_status = sx_api_router_ecmp_set(gh_sdk, SX_ACCESS_CMD_SET, &sx_ecmp_id, sx_next_hops, &next_hop_count);
+        if (SX_ERR(sx_status)) {
+            SX_LOG_ERR("Failed to update sx ecmp id (%x) - %s.\n", sx_ecmp_id, SX_STATUS_MSG(sx_status));
+            failure  = true;
+            for (ii = 0; ii < nh_removed; ii++) {
+                object_statuses[nh_list[ii].object_index] = sdk_to_sai(sx_status);
+            }
+        }
+    }
+
+    return failure ? SAI_STATUS_FAILURE : SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_next_hop_bulk_sx_update(_In_ sai_common_api_t           api,
+                                                 _In_ sx_ecmp_id_t               sx_ecmp_id,
+                                                 _In_ const mlnx_nh_bulk_data_t *nh_list,
+                                                 _In_ bool                       stop_on_error,
+                                                 _Out_ sai_status_t             *object_statuses)
+{
+    assert((api == SAI_COMMON_API_BULK_CREATE) || (api == SAI_COMMON_API_BULK_REMOVE));
+
+    if (api == SAI_COMMON_API_BULK_CREATE) {
+        return mlnx_next_hop_bulk_sx_nh_add(sx_ecmp_id, nh_list, object_statuses);
+    } else { /* SAI_COMMON_API_BULK_REMOVE */
+        return mlnx_next_hop_bulk_sx_nh_del(sx_ecmp_id, nh_list, stop_on_error, object_statuses);
+    }
+}
+
+static int mlnx_next_hop_bulk_data_sort_fn(_In_ const void  *nha,
+                                           _In_ const void  *nhb)
+{
+    const mlnx_nh_bulk_pair_t *pair_a, *pair_b;
+
+    assert(nha && nhb);
+
+    pair_a = nha;
+    pair_b = nhb;
+
+    return pair_b->group_id - pair_a->group_id;
+}
+
+static sai_status_t mlnx_next_hop_bulk_apply(_In_ mlnx_nh_bulk_pair_list_t *nh_bulk_data,
+                                             _Out_ sai_status_t            *object_statuses,
+                                             _In_ bool                      stop_on_error,
+                                             _In_ sai_common_api_t          api)
+{
+    sai_status_t         status;
+    sx_ecmp_id_t         sx_ecmp_id;
+    mlnx_nh_bulk_data_t *nh_list = NULL;
+    uint32_t             nh_to_update, ii;
+    bool                 failure = false;
+
+    assert((api == SAI_COMMON_API_BULK_CREATE) || (api == SAI_COMMON_API_BULK_REMOVE));
+
+    qsort(nh_bulk_data->pairs, nh_bulk_data->count, sizeof(mlnx_nh_bulk_pair_t), mlnx_next_hop_bulk_data_sort_fn);
+
+    nh_list = calloc(ECMP_MAX_PATHS, sizeof(mlnx_nh_bulk_data_t));
+    if (!nh_list) {
+        return SAI_STATUS_NO_MEMORY;
+    }
+
+    sx_ecmp_id = nh_bulk_data->pairs[0].group_id;
+
+    nh_list[0]   = nh_bulk_data->pairs[0].nh;
+    nh_to_update = 1;
+
+    for (ii = 1; ii < nh_bulk_data->count; ii++) {
+        if (nh_bulk_data->pairs[ii].group_id != sx_ecmp_id) {
+            status = mlnx_next_hop_bulk_sx_update(api, sx_ecmp_id, nh_list, stop_on_error, object_statuses);
+            if (SAI_ERR(status)) {
+                failure = true;
+                if (stop_on_error) {
+                    goto out;
+                }
+            }
+
+            memset(nh_list, 0, sizeof(mlnx_nh_bulk_data_t) * ECMP_MAX_PATHS);
+            nh_to_update = 0;
+        }
+
+        nh_list[nh_to_update] = nh_bulk_data->pairs[ii].nh;
+        nh_to_update++;
+
+        sx_ecmp_id = nh_bulk_data->pairs[ii].group_id;
+    }
+
+    status = mlnx_next_hop_bulk_sx_update(api, sx_ecmp_id, nh_list, stop_on_error, object_statuses);
+    if (SAI_ERR(status)) {
+        failure = true;
+    }
+
+out:
+    free(nh_list);
+    return failure ? SAI_STATUS_FAILURE : SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_next_hop_bulk_remove_member_add(_In_ mlnx_nh_bulk_pair_list_t *nh_bulk_data,
+                                                         _In_ sai_object_id_t           group_member_oid,
+                                                         _In_ uint32_t                  object_index)
+{
+    sai_status_t            status;
+    sx_ecmp_id_t            group_ecmp_id, nh_ecmp_id;
+    mlnx_nh_bulk_pair_t     nh_pair;
+
+    assert(nh_bulk_data);
+
+    status = nhop_group_member_parse_oid(group_member_oid, &group_ecmp_id, &nh_ecmp_id);
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+    status = mlnx_sdk_nhop_by_ecmp_id_get(nh_ecmp_id, &nh_pair.nh.nh_id);
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+    nh_pair.group_id        = group_ecmp_id;
+    nh_pair.nh.object_index = object_index;
+
+    status = mlnx_next_hop_bulk_map_add(nh_bulk_data, &nh_pair);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to remove next hop group member %lx\n", group_member_oid);
+        return status;
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_next_hop_bulk_impl(_In_ sai_object_id_t          switch_id,
+                                            _In_ uint32_t                 object_count,
+                                            _In_ const uint32_t          *attr_count,
+                                            _In_ const sai_attribute_t  **attr_list,
+                                            _In_ sai_bulk_op_error_mode_t mode,
+                                            _Inout_ sai_object_id_t      *object_id,
+                                            _Out_ sai_status_t           *object_statuses,
+                                            _In_ sai_common_api_t         api)
+{
+    sai_status_t             status;
+    mlnx_nh_bulk_pair_list_t nh_bulk_data = (mlnx_nh_bulk_pair_list_t) {.pairs = NULL, .count = 0};
+    uint32_t                 ii;
+    bool                     stop_on_error, failure = false;
+
+    assert((api == SAI_COMMON_API_BULK_CREATE) || (api == SAI_COMMON_API_BULK_REMOVE));
+    assert((api != SAI_COMMON_API_BULK_REMOVE) || (!attr_count && !attr_list));
+
+    SX_LOG_ENTER();
+
+    status = mlnx_bulk_attrs_validate(object_count, attr_count, attr_list, NULL,
+                                      NULL, mode, object_statuses, api, &stop_on_error);
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+    if (!object_id) {
+        SX_LOG_ERR("object_id is NULL");
+        return SAI_STATUS_INVALID_PARAMETER;
+    }
+
+    if (stop_on_error) {
+        for (ii = 0; ii < object_count; ii++) {
+            object_statuses[ii] = SAI_STATUS_NOT_EXECUTED;
+        }
+    }
+
+    status = mlnx_next_hop_bulk_init(&nh_bulk_data, object_count);
+    if (SAI_ERR(status)) {
+        return SAI_STATUS_FAILURE;
+    }
+
+    sai_db_write_lock();
+
+    for (ii = 0; ii < object_count; ii++) {
+        if (api == SAI_COMMON_API_BULK_CREATE) {
+            status = mlnx_next_hop_bulk_create_member_add(&nh_bulk_data, attr_count[ii],
+                                                          attr_list[ii], ii, &object_id[ii]);
+        } else { /* SAI_COMMON_API_BULK_REMOVE */
+            status = mlnx_next_hop_bulk_remove_member_add(&nh_bulk_data, object_id[ii], ii);
+        }
+
+        if (SAI_ERR(status)) {
+            object_statuses[ii] = status;
+            failure             = true;
+            if (stop_on_error) {
+                break;
+            } else {
+                continue;
+            }
+        }
+    }
+
+    status = mlnx_next_hop_bulk_apply(&nh_bulk_data, object_statuses, stop_on_error, api);
+    if (SAI_ERR(status)) {
+        failure = true;
+        goto out;
+    }
+
+out:
+    sai_db_unlock();
+    mlnx_next_hop_bulk_deinit(&nh_bulk_data);
+    mlnx_bulk_statuses_print("Next hop group membes", object_statuses, object_count, api);
+    SX_LOG_EXIT();
+    return failure ? SAI_STATUS_FAILURE : SAI_STATUS_SUCCESS;
+}
+
 /**
  * @brief Bulk next hop group members creation.
  *
@@ -787,7 +1240,8 @@ sai_status_t mlnx_create_next_hop_group_members(_In_ sai_object_id_t          sw
                                                 _Out_ sai_object_id_t        *object_id,
                                                 _Out_ sai_status_t           *object_statuses)
 {
-    return SAI_STATUS_NOT_IMPLEMENTED;
+    return mlnx_next_hop_bulk_impl(switch_id, object_count, attr_count, attr_list, mode,
+                                   object_id, object_statuses, SAI_COMMON_API_BULK_CREATE);
 }
 
 /**
@@ -807,7 +1261,8 @@ sai_status_t mlnx_remove_next_hop_group_members(_In_ uint32_t                 ob
                                                 _In_ sai_bulk_op_error_mode_t mode,
                                                 _Out_ sai_status_t           *object_statuses)
 {
-    return SAI_STATUS_NOT_IMPLEMENTED;
+    return mlnx_next_hop_bulk_impl(SAI_NULL_OBJECT_ID, object_count, NULL, NULL, mode, (sai_object_id_t*) object_id,
+                                   object_statuses, SAI_COMMON_API_BULK_REMOVE);
 }
 
 static void next_hop_group_member_key_to_str(_In_ sai_object_id_t group_member_id, _Out_ char *key_str)

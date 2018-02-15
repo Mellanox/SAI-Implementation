@@ -7988,7 +7988,7 @@ static sai_status_t mlnx_acl_packet_actions_handler(_In_ sai_packet_action_t    
 
     case SAI_PACKET_ACTION_COPY:
         flex_rule->action_list_p[a_index].type                         = SX_FLEX_ACL_ACTION_TRAP;
-        flex_rule->action_list_p[a_index].fields.action_forward.action =
+        flex_rule->action_list_p[a_index].fields.action_trap.action =
             SX_ACL_TRAP_ACTION_TYPE_TRAP;
         flex_rule->action_list_p[a_index].fields.action_trap.trap_id = trap_id;
         a_index++;
@@ -8073,7 +8073,7 @@ static sai_status_t mlnx_acl_ip_ident_key_create_or_get(_Out_ sx_acl_key_t *keys
         sx_custom_bytes_attrs.extraction_point.extraction_group_type =
             SX_ACL_CUSTOM_BYTES_EXTRACTION_GROUP_L3;
         sx_custom_bytes_attrs.extraction_point.params.extraction_l3_group.extraction_ipv4.extraction_point_type =
-            ACL_EXTRACTION_POINT_TYPE_IPV4_START_OF_HEADER;
+            SX_ACL_CUSTOM_BYTES_EXTRACTION_POINT_TYPE_IPV4_START_OF_HEADER;
 
         sx_custom_bytes_attrs.extraction_point.params.extraction_l3_group.extraction_ipv4.offset =
             ACL_IP_IDENT_FIELD_START_OFFSET;
@@ -10905,7 +10905,7 @@ static sai_status_t __get_new_psort_offset(_In_ uint32_t                 table_i
     if (ACL_INVALID_DB_INDEX != entry_id) {
         assert(acl_entry_index_check_range(entry_id));
 
-        if (acl_db_table(table_id).created_entry_count + 1 > acl_db_table(table_id).table_size) {
+        if (acl_db_table(table_id).created_entry_count + 1 > (acl_db_table(table_id).region_size - 1)) {
             if (SAI_STATUS_SUCCESS != acl_table_size_increase(table_id)) {
                 SX_LOG_ERR("Failed to increase a size of psort table\n");
                 status = SAI_STATUS_FAILURE;

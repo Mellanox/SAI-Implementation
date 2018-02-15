@@ -441,6 +441,28 @@ sai_status_t sai_get_attributes(_In_ const sai_object_key_t             *key,
                                 _In_ const sai_vendor_attribute_entry_t *functionality_vendor_attr,
                                 _In_ uint32_t                            attr_count,
                                 _Inout_ sai_attribute_t                 *attr_list);
+sai_status_t mlnx_bulk_attrs_validate(_In_ uint32_t                 object_count,
+                                             _In_ const uint32_t          *attr_count,
+                                             _In_ const sai_attribute_t  **attr_list_for_create, sai_attribute_t **attr_list_for_get,
+                                             _In_ const sai_attribute_t   *attr_list_for_set,
+                                             _In_ sai_bulk_op_error_mode_t mode,
+                                             _In_ sai_status_t            *object_statuses,
+                                             _In_ sai_common_api_t         api,
+                                             _Out_ bool                   *stop_on_error);
+sai_status_t mlnx_bulk_create_attrs_validate(_In_ uint32_t                 object_count,
+                                             _In_ const uint32_t          *attr_count,
+                                             _In_ const sai_attribute_t  **attr_list,
+                                             _In_ sai_bulk_op_error_mode_t mode,
+                                             _In_ sai_status_t            *object_statuses,
+                                             _Out_ bool                   *stop_on_error);
+sai_status_t mlnx_bulk_remove_attrs_validate(_In_ uint32_t                 object_count,
+                                             _In_ sai_bulk_op_error_mode_t mode,
+                                             _In_ sai_status_t            *object_statuses,
+                                             _Out_ bool                   *stop_on_error);
+sai_status_t mlnx_bulk_statuses_print(_In_ const char         *object_type_str,
+                                      _In_ const sai_status_t *object_statuses,
+                                      _In_ uint32_t            object_count,
+                                      _In_ sai_common_api_t    api);
 
 #define MAX_KEY_STR_LEN        100
 #define MAX_VALUE_STR_LEN      100
@@ -748,6 +770,14 @@ typedef enum _mlnx_port_breakout_capability_t {
     MLNX_PORT_BREAKOUT_CAPABILITY_FOUR     = 2,
     MLNX_PORT_BREAKOUT_CAPABILITY_TWO_FOUR = 3
 } mlnx_port_breakout_capability_t;
+
+typedef enum _mlnx_sai_port_custom_stat_t {
+    /**
+     * @brief A count of frames received on a particular interface
+     * that are an integral number of octets in length but do not pass the FCS check. [uint64_t]
+     */
+    SAI_PORT_STAT_FCS_ERRORS = 0x10000000,
+} mlnx_sai_port_custom_stat_t;
 
 /*
  *  Indexes for items in mlnx_port_config_t::port_policers[].
@@ -1589,6 +1619,13 @@ typedef struct _fdb_actions_db_t {
     uint32_t              count;
 } fdb_or_route_actions_db_t;
 
+#define SPAN_SESSION_MAX 8
+
+typedef struct _trap_mirror_db_t {
+    sai_object_id_t mirror_oid[SPAN_SESSION_MAX];
+    uint32_t        count;
+} trap_mirror_db_t;
+
 /* g_resource_liits.shared_buff_mc_max_num_prio 15*/
 #define MAX_LOSSLESS_SP 15
 
@@ -1621,6 +1658,7 @@ typedef struct sai_db {
     tunnel_db_entry_t         tunnel_db[MAX_TUNNEL_DB_SIZE];
     mlnx_tunnel_map_t         mlnx_tunnel_map[MLNX_TUNNEL_MAP_MAX];
     mlnx_tunnel_map_entry_t   mlnx_tunnel_map_entry[MLNX_TUNNEL_MAP_ENTRY_MAX];
+    bool                      tunnel_module_initialized;
     sx_bridge_id_t            sx_bridge_id;
     sx_port_log_id_t          sx_nve_log_port;
     bool                      is_stp_initialized;
@@ -1632,6 +1670,8 @@ typedef struct sai_db {
     fdb_or_route_actions_db_t fdb_or_route_actions;
     bool                      transaction_mode_enable;
     sx_port_packet_storing_mode_t packet_storing_mode;
+    trap_mirror_db_t          trap_mirror_discard_wred_db;
+    trap_mirror_db_t          trap_mirror_discard_router_db;
     bool                      is_switch_priority_lossless[MAX_LOSSLESS_SP];
 } sai_db_t;
 

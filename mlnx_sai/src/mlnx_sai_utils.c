@@ -2131,6 +2131,133 @@ sai_status_t sai_get_attributes(_In_ const sai_object_key_t             *key,
     return SAI_STATUS_SUCCESS;
 }
 
+sai_status_t mlnx_bulk_attrs_validate(_In_ uint32_t                 object_count,
+                                      _In_ const uint32_t          *attr_count,
+                                      _In_ const sai_attribute_t  **attr_list_for_create,
+                                      _In_ sai_attribute_t        **attr_list_for_get,
+                                      _In_ const sai_attribute_t   *attr_list_for_set,
+                                      _In_ sai_bulk_op_error_mode_t mode,
+                                      _In_ sai_status_t            *object_statuses,
+                                      _In_ sai_common_api_t         api,
+                                      _Out_ bool                   *stop_on_error)
+{
+    assert((api == SAI_COMMON_API_BULK_CREATE) || (api == SAI_COMMON_API_BULK_REMOVE) ||
+           (api == SAI_COMMON_API_BULK_GET) || (api == SAI_COMMON_API_BULK_SET));
+    assert((api != SAI_COMMON_API_BULK_CREATE) || (!attr_list_for_get && !attr_list_for_set));
+    assert((api != SAI_COMMON_API_BULK_REMOVE) ||
+           (!attr_count && !attr_list_for_create && !attr_list_for_get && !attr_list_for_set));
+    assert((api != SAI_COMMON_API_BULK_GET) || (!attr_list_for_create && !attr_list_for_set));
+    assert((api != SAI_COMMON_API_BULK_SET) || (!attr_count && !attr_list_for_create && !attr_list_for_get));
+    assert(stop_on_error);
+
+    if (api == SAI_COMMON_API_BULK_CREATE) {
+        if (!attr_count) {
+            SX_LOG_ERR("attr_count is NULL\n");
+            return SAI_STATUS_INVALID_PARAMETER;
+        }
+
+        if (!attr_list_for_create) {
+            SX_LOG_ERR("attrs is NULL\n");
+            return SAI_STATUS_INVALID_PARAMETER;
+        }
+    }
+
+    if (api == SAI_COMMON_API_BULK_GET) {
+        if (!attr_count) {
+            SX_LOG_ERR("attr_count is NULL\n");
+            return SAI_STATUS_INVALID_PARAMETER;
+        }
+
+        if (!attr_list_for_get) {
+            SX_LOG_ERR("attrs is NULL\n");
+            return SAI_STATUS_INVALID_PARAMETER;
+        }
+    }
+
+    if (api == SAI_COMMON_API_BULK_SET) {
+        if (!attr_list_for_set) {
+            SX_LOG_ERR("attrs is NULL\n");
+            return SAI_STATUS_INVALID_PARAMETER;
+        }
+    }
+
+    if (0 == object_count) {
+        SX_LOG_ERR("object_count is 0\n");
+        return SAI_STATUS_INVALID_PARAMETER;
+    }
+
+    if (!object_statuses) {
+        SX_LOG_ERR("object_statuses is NULL\n");
+        return SAI_STATUS_INVALID_PARAMETER;
+    }
+
+    if (SAI_BULK_OP_ERROR_MODE_IGNORE_ERROR < mode) {
+        SX_LOG_ERR("Invalid value for sai_bulk_op_type_t - %d\n", mode);
+        return SAI_STATUS_INVALID_PARAMETER;
+    }
+
+    *stop_on_error = (mode == SAI_BULK_OP_ERROR_MODE_STOP_ON_ERROR);
+
+    return SAI_STATUS_SUCCESS;
+}
+
+sai_status_t mlnx_bulk_create_attrs_validate(_In_ uint32_t                 object_count,
+                                             _In_ const uint32_t          *attr_count,
+                                             _In_ const sai_attribute_t  **attr_list,
+                                             _In_ sai_bulk_op_error_mode_t mode,
+                                             _In_ sai_status_t            *object_statuses,
+                                             _Out_ bool                   *stop_on_error)
+{
+    return mlnx_bulk_attrs_validate(object_count, attr_count, attr_list, NULL, NULL, mode,
+                                    object_statuses, SAI_COMMON_API_BULK_CREATE, stop_on_error);
+}
+
+sai_status_t mlnx_bulk_remove_attrs_validate(_In_ uint32_t                 object_count,
+                                             _In_ sai_bulk_op_error_mode_t mode,
+                                             _In_ sai_status_t            *object_statuses,
+                                             _Out_ bool                   *stop_on_error)
+{
+    return mlnx_bulk_attrs_validate(object_count, NULL, NULL, NULL, NULL, mode,
+                                    object_statuses, SAI_COMMON_API_BULK_REMOVE, stop_on_error);
+}
+
+sai_status_t mlnx_bulk_statuses_print(_In_ const char         *object_type_str,
+                                      _In_ const sai_status_t *object_statuses,
+                                      _In_ uint32_t            object_count,
+                                      _In_ sai_common_api_t    api)
+{
+    const char *api_str;
+    uint32_t    success_count, not_executed_count, failed_count, ii;
+
+    assert(object_type_str);
+    assert(object_statuses);
+    assert((api == SAI_COMMON_API_BULK_CREATE) || (api == SAI_COMMON_API_BULK_REMOVE) ||
+           (api == SAI_COMMON_API_BULK_GET) || (api == SAI_COMMON_API_BULK_SET));
+
+    api_str = sai_metadata_enum_sai_common_api_t.valuesshortnames[api];
+
+    success_count = not_executed_count = failed_count = 0;
+
+    for (ii = 0; ii < object_count; ii++) {
+        if (SAI_STATUS_SUCCESS == object_statuses[ii]) {
+            success_count++;
+            continue;
+        }
+
+        if (SAI_STATUS_NOT_EXECUTED == object_statuses[ii]) {
+            not_executed_count++;
+            continue;
+        }
+
+        failed_count++;
+    }
+
+    SX_LOG_NTC("[%s] %d %s: %d success, %d not executed, %d failed\n",
+               api_str, object_count, object_type_str, success_count, not_executed_count, failed_count);
+
+    return SAI_STATUS_SUCCESS;
+}
+
 static sai_status_t sai_ipv4_to_str(_In_ sai_ip4_t value,
                                     _In_ uint32_t  max_length,
                                     _Out_ char    *value_str,

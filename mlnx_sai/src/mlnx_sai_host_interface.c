@@ -87,6 +87,11 @@ static sai_status_t mlnx_trap_group_get(_In_ const sai_object_key_t   *key,
                                         _In_ uint32_t                  attr_index,
                                         _Inout_ vendor_cache_t        *cache,
                                         void                          *arg);
+static sai_status_t mlnx_trap_mirror_session_get(_In_ const sai_object_key_t   *key,
+                                                 _Inout_ sai_attribute_value_t *value,
+                                                 _In_ uint32_t                  attr_index,
+                                                 _Inout_ vendor_cache_t        *cache,
+                                                 void                          *arg);
 static sai_status_t mlnx_user_defined_trap_group_get(_In_ const sai_object_key_t   *key,
                                                      _Inout_ sai_attribute_value_t *value,
                                                      _In_ uint32_t                  attr_index,
@@ -113,6 +118,9 @@ static sai_status_t mlnx_trap_group_set(_In_ const sai_object_key_t      *key,
 static sai_status_t mlnx_trap_exclude_port_list_set(_In_ const sai_object_key_t      *key,
                                                     _In_ const sai_attribute_value_t *value,
                                                     void                             *arg);
+static sai_status_t mlnx_trap_mirror_session_set(_In_ const sai_object_key_t      *key,
+                                                 _In_ const sai_attribute_value_t *value,
+                                                 void                             *arg);
 static sai_status_t mlnx_user_defined_trap_group_set(_In_ const sai_object_key_t      *key,
                                                      _In_ const sai_attribute_value_t *value,
                                                      void                             *arg);
@@ -210,6 +218,11 @@ static const sai_vendor_attribute_entry_t trap_vendor_attribs[] = {
       { true, false, true, true },
       mlnx_trap_group_get, NULL,
       mlnx_trap_group_set, NULL },
+    { SAI_HOSTIF_TRAP_ATTR_MIRROR_SESSION,
+      { true, false, true, true },
+      { true, false, true, true },
+      mlnx_trap_mirror_session_get, NULL,
+      mlnx_trap_mirror_session_set, NULL },
     { END_FUNCTIONALITY_ATTRIBS_ID,
       { false, false, false, false },
       { false, false, false, false },
@@ -370,6 +383,10 @@ const mlnx_trap_info_t                    mlnx_traps_info[] = {
       MLNX_TRAP_TYPE_REGULAR },
     { SAI_HOSTIF_TRAP_TYPE_TTL_ERROR, 1, { SX_TRAP_ID_ETH_L3_TTLERROR }, SAI_PACKET_ACTION_TRAP, "TTL error",
       MLNX_TRAP_TYPE_REGULAR },
+    { SAI_HOSTIF_TRAP_TYPE_PIPELINE_DISCARD_WRED, 0, { 0 }, SAI_PACKET_ACTION_DROP, "Discard WRED",
+     MLNX_TRAP_TYPE_REGULAR },
+    { SAI_HOSTIF_TRAP_TYPE_PIPELINE_DISCARD_ROUTER, 0, { 0 }, SAI_PACKET_ACTION_DROP, "Discard Router",
+     MLNX_TRAP_TYPE_REGULAR },
     { SAI_HOSTIF_USER_DEFINED_TRAP_TYPE_ACL, 1, { SX_TRAP_ID_ACL_MIN }, SAI_PACKET_ACTION_TRAP, "ACL",
       MLNX_TRAP_TYPE_USER_DEFINED },
     { SAI_HOSTIF_USER_DEFINED_TRAP_TYPE_ROUTER, 4,
@@ -385,6 +402,21 @@ const mlnx_trap_info_t                    mlnx_traps_info[] = {
       MLNX_TRAP_TYPE_USER_DEFINED },
     { END_TRAP_INFO_ID, 1, { END_TRAP_INFO_ID }, 0, "", 0 }
 };
+
+static sai_status_t mlnx_trap_mirror_drop_set(_In_ uint32_t        trap_db_idx,
+                                              _In_ sai_object_id_t sai_mirror_oid,
+                                              _In_ bool            is_create);
+
+static sai_status_t mlnx_trap_mirror_array_drop_set(_In_ uint32_t         trap_db_idx,
+                                                    _In_ sai_object_id_t *sai_mirror_oid,
+                                                    _In_ uint32_t         sai_mirror_oid_count,
+                                                    _In_ bool             is_create);
+
+static sai_status_t mlnx_trap_mirror_array_drop_clear(_In_ uint32_t trap_db_idx);
+
+static sai_status_t mlnx_trap_mirror_db_fill(_In_ uint32_t                 trap_db_idx,
+                                             _In_ const sai_object_list_t *sai_mirror_objlist);
+
 static sai_status_t find_sai_trap_index(_In_ uint32_t         trap_id,
                                         _In_ mlnx_trap_type_t trap_type,
                                         _Out_ uint32_t       *index)
@@ -863,7 +895,7 @@ static sai_status_t mlnx_host_interface_rif_port_get(_In_ const sai_object_key_t
 
     status = mlnx_object_id_to_sai(object_type, &mlnx_port, &value->oid);
     SX_LOG_EXIT();
-    return SAI_STATUS_SUCCESS;
+    return status;
 }
 
 /* Name [char[HOST_INTERFACE_NAME_SIZE]] (MANDATORY_ON_CREATE)
@@ -1523,12 +1555,16 @@ sai_status_t mlnx_create_hostif_trap(_Out_ sai_object_id_t      *hostif_trap_id,
                                      _In_ const sai_attribute_t *attr_list)
 {
     sai_status_t                 status;
-    const sai_attribute_value_t *trap_id, *action, *exclude, *group = NULL;
+    sai_status_t                 sai_status_mirror_session;
+    const sai_attribute_value_t *trap_id = NULL, *action = NULL, *exclude = NULL;
+    const sai_attribute_value_t *group = NULL, *mirror_session = NULL;
     uint32_t                     trap_id_index, action_index, exclude_index, group_index;
+    uint32_t                     mirror_session_index;
     char                         key_str[MAX_KEY_STR_LEN];
     char                         list_str[MAX_LIST_VALUE_STR_LEN];
     uint32_t                     index, prio;
     sx_trap_action_t             sx_action;
+    const bool                   is_create = true;
 
     SX_LOG_ENTER();
 
@@ -1574,12 +1610,37 @@ sai_status_t mlnx_create_hostif_trap(_Out_ sai_object_id_t      *hostif_trap_id,
         }
     }
 
+    sai_status_mirror_session = find_attrib_in_list(attr_count, attr_list, SAI_HOSTIF_TRAP_ATTR_MIRROR_SESSION, &mirror_session, &mirror_session_index);
+    if (SAI_STATUS_SUCCESS == sai_status_mirror_session) {
+        status = mlnx_trap_mirror_array_drop_clear(index);
+        if (SAI_STATUS_SUCCESS != status) {
+            SX_LOG_ERR("Error clearing trap mirror array\n");
+            return status;
+        }
+        status = mlnx_trap_mirror_array_drop_set(index,
+                                                 mirror_session->objlist.list,
+                                                 mirror_session->objlist.count,
+                                                 is_create);
+        if (SAI_STATUS_SUCCESS != status) {
+            SX_LOG_ERR("Error setting trap mirror session\n");
+            return status;
+        }
+    }
+
     cl_plock_excl_acquire(&g_sai_db_ptr->p_lock);
 
-    if (SAI_STATUS_SUCCESS != (status = mlnx_trap_set(index, action->s32, (group) ? group->oid :
-                                                      g_sai_db_ptr->default_trap_group))) {
-        cl_plock_release(&g_sai_db_ptr->p_lock);
-        return status;
+    if (SAI_STATUS_SUCCESS != sai_status_mirror_session) {
+        if (SAI_STATUS_SUCCESS != (status = mlnx_trap_set(index, action->s32, (group) ? group->oid :
+                                                          g_sai_db_ptr->default_trap_group))) {
+            cl_plock_release(&g_sai_db_ptr->p_lock);
+            return status;
+        }
+    } else {
+        status = mlnx_trap_mirror_db_fill(index, &mirror_session->objlist);
+        if (SAI_STATUS_SUCCESS != status) {
+            SX_LOG_ERR("Error filling trap mirror db for index %d\n", index);
+            return status;
+        }
     }
 
     g_sai_db_ptr->traps_db[index].action     = action->s32;
@@ -1618,10 +1679,11 @@ sai_status_t mlnx_create_hostif_trap(_Out_ sai_object_id_t      *hostif_trap_id,
  */
 sai_status_t mlnx_remove_hostif_trap(_In_ sai_object_id_t hostif_trap_id)
 {
-    char              key_str[MAX_KEY_STR_LEN];
-    uint32_t          trap_id, index;
-    sai_status_t      status;
-    sai_object_list_t exclude;
+    char                   key_str[MAX_KEY_STR_LEN];
+    uint32_t               trap_id, index;
+    sai_status_t           status;
+    sai_object_list_t      exclude;
+    sai_hostif_trap_type_t sai_trap_type;
 
     SX_LOG_ENTER();
     trap_key_to_str(hostif_trap_id, key_str);
@@ -1641,16 +1703,28 @@ sai_status_t mlnx_remove_hostif_trap(_In_ sai_object_id_t hostif_trap_id)
     g_sai_db_ptr->traps_db[index].action     = mlnx_traps_info[index].action;
     g_sai_db_ptr->traps_db[index].trap_group = g_sai_db_ptr->default_trap_group;
 
-    if (SAI_STATUS_SUCCESS != (status = mlnx_trap_set(index, mlnx_traps_info[index].action,
-                                                      g_sai_db_ptr->default_trap_group))) {
-        cl_plock_release(&g_sai_db_ptr->p_lock);
-        return status;
-    }
+    sai_trap_type = mlnx_traps_info[index].trap_id;
+    if ((SAI_HOSTIF_TRAP_TYPE_PIPELINE_DISCARD_WRED != sai_trap_type) &&
+        (SAI_HOSTIF_TRAP_TYPE_PIPELINE_DISCARD_ROUTER != sai_trap_type)) {
+        if (SAI_STATUS_SUCCESS != (status = mlnx_trap_set(index, mlnx_traps_info[index].action,
+                                                          g_sai_db_ptr->default_trap_group))) {
+            cl_plock_release(&g_sai_db_ptr->p_lock);
+            return status;
+        }
 
-    exclude.count = 0;
-    if (SAI_STATUS_SUCCESS != (status = mlnx_trap_filter_set(index, exclude))) {
-        cl_plock_release(&g_sai_db_ptr->p_lock);
-        return status;
+        exclude.count = 0;
+        if (SAI_STATUS_SUCCESS != (status = mlnx_trap_filter_set(index, exclude))) {
+            cl_plock_release(&g_sai_db_ptr->p_lock);
+            return status;
+        }
+    } else {
+        status = mlnx_trap_mirror_array_drop_clear(index);
+        if (SAI_STATUS_SUCCESS != status) {
+            cl_plock_release(&g_sai_db_ptr->p_lock);
+            SX_LOG_ERR("Error clearing trap mirror array for trap index %d\n", index);
+            SX_LOG_EXIT();
+            return status;
+        }
     }
 
     cl_plock_release(&g_sai_db_ptr->p_lock);
@@ -2311,6 +2385,421 @@ static sai_status_t mlnx_trap_exclude_port_list_set(_In_ const sai_object_key_t 
     }
 
     return mlnx_trap_filter_set(index, value->objlist);
+}
+
+static sai_status_t mlnx_trap_mirror_drop_by_wred_set(_In_ sx_span_session_id_t span_session_id,
+                                                      _In_ bool is_create)
+{
+    sai_status_t          sai_status       = SAI_STATUS_FAILURE;
+    sx_status_t           sx_status        = SX_STATUS_ERROR;
+    uint32_t              port_idx         = 0;
+    mlnx_port_config_t   *port             = NULL;
+    const sx_access_cmd_t cmd              = is_create ?
+                                             SX_ACCESS_CMD_ADD :
+                                             SX_ACCESS_CMD_DELETE;
+    sx_port_log_id_t      ingress_port;
+    sx_port_log_id_t      sdk_analyzer_port[SPAN_SESSION_MAX];
+    sx_span_session_id_t  span_session_list[SPAN_SESSION_MAX];
+    uint32_t              span_cnt         = SPAN_SESSION_MAX;
+    sx_span_session_id_t *span_session_key = NULL;
+    sx_span_filter_t     *sx_span_filter   = NULL;
+    bool                  is_analyzer_port = false;
+    uint32_t              ii               = 0;
+
+    SX_LOG_ENTER();
+
+    sx_status = sx_api_span_session_iter_get(gh_sdk,
+                                             SX_ACCESS_CMD_GET_FIRST,
+                                             span_session_key,
+                                             sx_span_filter,
+                                             span_session_list,
+                                             &span_cnt);
+    if (SX_STATUS_SUCCESS != sx_status) {
+        SX_LOG_ERR("Error getting sdk mirror obj: %s\n", SX_STATUS_MSG(sx_status));
+        sai_status = sdk_to_sai(sx_status);
+        SX_LOG_EXIT();
+        return sai_status;
+    }
+
+    for (ii = 0; ii < span_cnt; ii++) {
+        sx_status = sx_api_span_session_analyzer_get(gh_sdk,
+                                                     span_session_list[ii],
+                                                     &sdk_analyzer_port[ii]);
+        if (SX_STATUS_SUCCESS != sx_status) {
+            SX_LOG_ERR("Error getting analyzer port from sdk mirror obj id: %d, reason: %s\n",
+                       span_session_list[ii], SX_STATUS_MSG(sx_status));
+            sai_status = sdk_to_sai(sx_status);
+            SX_LOG_EXIT();
+            return sai_status;
+        }
+    }
+
+    mlnx_port_phy_foreach(port, port_idx) {
+        assert(NULL != port);
+        ingress_port = port->logical;
+        is_analyzer_port = false;
+        for (ii = 0; ii < span_cnt; ii++) {
+            if (ingress_port == sdk_analyzer_port[ii]) {
+                is_analyzer_port = true;
+                break;
+            }
+        }
+        if (is_analyzer_port) {
+            continue;
+        }
+        sx_status = sx_api_cos_redecn_mirroring_set(gh_sdk, cmd,
+                                                    ingress_port, span_session_id);
+        if (SX_STATUS_SUCCESS != sx_status) {
+            SX_LOG_ERR("Error setting cos redecn mirror for ingress port 0x%x, "
+                       "span session id %d: %s\n",
+                       ingress_port, span_session_id, SX_STATUS_MSG(sx_status));
+            sai_status = sdk_to_sai(sx_status);
+            SX_LOG_EXIT();
+            return sai_status;
+        }
+    }
+
+    SX_LOG_EXIT();
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_trap_mirror_drop_by_router_set(_In_ sx_span_session_id_t span_session_id,
+                                                        _In_ bool is_create)
+{
+
+    sx_span_drop_mirroring_attr_t drop_mirroring_attr_p;
+    sx_span_drop_reason_t         drop_reason_list_p = SX_SPAN_DROP_REASON_ALL_ROUTER_DROPS_E;
+    const uint32_t                drop_reason_cnt    = 1;
+    sai_status_t                  sai_status         = SAI_STATUS_FAILURE;
+    sx_status_t                   sx_status          = SX_STATUS_ERROR;
+    const sx_access_cmd_t         cmd                = is_create ?
+                                                       SX_ACCESS_CMD_SET :
+                                                       SX_ACCESS_CMD_DELETE_ALL;
+
+    SX_LOG_ENTER();
+
+    memset(&drop_mirroring_attr_p, 0, sizeof(drop_mirroring_attr_p));
+    sx_status = sx_api_span_drop_mirror_set(gh_sdk, cmd, span_session_id,
+                                            &drop_mirroring_attr_p,
+                                            &drop_reason_list_p,
+                                            drop_reason_cnt);
+
+    if (SX_STATUS_SUCCESS != sx_status) {
+        SX_LOG_ERR("Error setting drop mirror session 0x%x: %s\n",
+                   span_session_id, SX_STATUS_MSG(sx_status));
+        sai_status = sdk_to_sai(sx_status);
+        SX_LOG_EXIT();
+        return sai_status;
+    }
+
+    SX_LOG_EXIT();
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_trap_mirror_drop_set(_In_ uint32_t        trap_db_idx,
+                                              _In_ sai_object_id_t sai_mirror_oid,
+                                              _In_ bool            is_create)
+{
+    sai_hostif_trap_type_t trap_id;
+    uint32_t               sdk_mirror_id   = 0;
+    sx_span_session_id_t   span_session_id = 0;
+    sai_status_t           sai_status      = SAI_STATUS_FAILURE;
+
+    SX_LOG_ENTER();
+
+    sai_status = mlnx_object_to_type(sai_mirror_oid, SAI_OBJECT_TYPE_MIRROR_SESSION, &sdk_mirror_id, NULL);
+
+    if (SAI_STATUS_SUCCESS != sai_status) {
+        SX_LOG_ERR("Error getting span session id from sai mirror id %"PRIx64"\n", sai_mirror_oid);
+        SX_LOG_EXIT();
+        return sai_status;
+    }
+
+    span_session_id = (sx_span_session_id_t)sdk_mirror_id;
+    trap_id = mlnx_traps_info[trap_db_idx].trap_id;
+    if (SAI_HOSTIF_TRAP_TYPE_PIPELINE_DISCARD_WRED == trap_id) {
+        sai_status = mlnx_trap_mirror_drop_by_wred_set(span_session_id, is_create);
+        if (SAI_STATUS_SUCCESS != sai_status) {
+            SX_LOG_ERR("Error setting trap mirror drop by wred for span session id %d\n",
+                       span_session_id);
+            SX_LOG_EXIT();
+            return sai_status;
+        }
+    } else if (SAI_HOSTIF_TRAP_TYPE_PIPELINE_DISCARD_ROUTER == trap_id) {
+        sai_status = mlnx_trap_mirror_drop_by_router_set(span_session_id, is_create);
+        if (SAI_STATUS_SUCCESS != sai_status) {
+            SX_LOG_ERR("Error setting trap mirror drop by router for span session id %d\n",
+                       span_session_id);
+            SX_LOG_EXIT();
+            return sai_status;
+        }
+    }
+
+    SX_LOG_EXIT();
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_trap_mirror_array_drop_set(_In_ uint32_t         trap_db_idx,
+                                                    _In_ sai_object_id_t *sai_mirror_oid,
+                                                    _In_ uint32_t         sai_mirror_oid_count,
+                                                    _In_ bool             is_create)
+{
+    sai_status_t sai_status = SAI_STATUS_FAILURE;
+    uint32_t     ii         = 0;
+
+    SX_LOG_ENTER();
+
+    if (NULL == sai_mirror_oid) {
+        SX_LOG_ERR("sai mirror oid ptr is NULL\n");
+        SX_LOG_EXIT();
+        return SAI_STATUS_FAILURE;
+    }
+
+    for (ii = 0; ii < sai_mirror_oid_count; ii++) {
+        sai_status = mlnx_trap_mirror_drop_set(trap_db_idx, sai_mirror_oid[ii], is_create);
+        if (SAI_STATUS_SUCCESS != sai_status) {
+            SX_LOG_ERR("Error setting mirror drop trap for trap db idx %d "
+                       "and sai mirror id %"PRIx64"\n",
+                       trap_db_idx, sai_mirror_oid[ii]);
+            SX_LOG_EXIT();
+            return sai_status;
+        }
+    }
+
+    SX_LOG_EXIT();
+    return SAI_STATUS_SUCCESS;
+}
+
+/* This function should be guarded by lock */
+static sai_status_t mlnx_trap_mirror_array_drop_clear(_In_ uint32_t trap_db_idx)
+{
+    sai_status_t           sai_status         = SAI_STATUS_FAILURE;
+    const bool             is_create          = false;
+    sai_hostif_trap_type_t trap_id;
+    sai_object_id_t       *sai_mirror_oid     = NULL;
+    uint32_t               sai_mirror_oid_cnt = 0;
+
+    SX_LOG_ENTER();
+
+    trap_id = mlnx_traps_info[trap_db_idx].trap_id;
+    if (SAI_HOSTIF_TRAP_TYPE_PIPELINE_DISCARD_WRED == trap_id) {
+        sai_mirror_oid = g_sai_db_ptr->trap_mirror_discard_wred_db.mirror_oid;
+        sai_mirror_oid_cnt = g_sai_db_ptr->trap_mirror_discard_wred_db.count;
+    } else if (SAI_HOSTIF_TRAP_TYPE_PIPELINE_DISCARD_ROUTER == trap_id) {
+        sai_mirror_oid = g_sai_db_ptr->trap_mirror_discard_router_db.mirror_oid;
+        sai_mirror_oid_cnt = g_sai_db_ptr->trap_mirror_discard_router_db.count;
+    } else {
+        SX_LOG_ERR("trap mirror session set is only supported for "
+                   "SAI_HOSTIF_TRAP_TYPE_PIPELINE_DISCARD_WRED and "
+                   "SAI_HOSTIF_TRAP_TYPE_PIPELINE_DISCARD_ROUTER, "
+                   "current trap type is %d\n", trap_id);
+        SX_LOG_EXIT();
+        return SAI_STATUS_INVALID_PARAMETER;
+    }
+
+    sai_status = mlnx_trap_mirror_array_drop_set(trap_db_idx,
+                                                 sai_mirror_oid,
+                                                 sai_mirror_oid_cnt,
+                                                 is_create);
+    if (SAI_STATUS_SUCCESS != sai_status) {
+        SX_LOG_ERR("Error deleting trap mirror array\n");
+        SX_LOG_EXIT();
+        return sai_status;
+    }
+
+    if (SAI_HOSTIF_TRAP_TYPE_PIPELINE_DISCARD_WRED == trap_id) {
+        g_sai_db_ptr->trap_mirror_discard_wred_db.count = 0;
+    } else if (SAI_HOSTIF_TRAP_TYPE_PIPELINE_DISCARD_ROUTER == trap_id) {
+        g_sai_db_ptr->trap_mirror_discard_router_db.count = 0;
+    }
+
+    SX_LOG_EXIT();
+    return SAI_STATUS_SUCCESS;
+}
+
+/* This function should be guarded by lock */
+static sai_status_t mlnx_trap_mirror_db_fill(_In_ uint32_t                 trap_db_idx,
+                                             _In_ const sai_object_list_t *sai_mirror_objlist)
+{
+    const sai_hostif_trap_type_t trap_id    = mlnx_traps_info[trap_db_idx].trap_id;
+
+    SX_LOG_ENTER();
+
+    if (NULL == sai_mirror_objlist) {
+        SX_LOG_ERR("sai mirror objlist is null\n");
+        SX_LOG_EXIT();
+        return SAI_STATUS_FAILURE;
+    }
+
+    if (SPAN_SESSION_MAX < sai_mirror_objlist->count) {
+        SX_LOG_ERR("mirror objlist count %d is greater than limit %d\n",
+                   sai_mirror_objlist->count, SPAN_SESSION_MAX);
+        SX_LOG_EXIT();
+        return SAI_STATUS_FAILURE;
+    }
+
+    if (SAI_HOSTIF_TRAP_TYPE_PIPELINE_DISCARD_WRED == trap_id) {
+        g_sai_db_ptr->trap_mirror_discard_wred_db.count = sai_mirror_objlist->count;
+        memcpy(g_sai_db_ptr->trap_mirror_discard_wred_db.mirror_oid,
+               sai_mirror_objlist->list,
+               sai_mirror_objlist->count * sizeof(sai_object_id_t));
+    } else if (SAI_HOSTIF_TRAP_TYPE_PIPELINE_DISCARD_ROUTER == trap_id) {
+        g_sai_db_ptr->trap_mirror_discard_router_db.count = sai_mirror_objlist->count;
+        memcpy(g_sai_db_ptr->trap_mirror_discard_router_db.mirror_oid,
+               sai_mirror_objlist->list,
+               sai_mirror_objlist->count * sizeof(sai_object_id_t));
+    } else {
+        SX_LOG_ERR("trap mirror session set is only supported for "
+                   "SAI_HOSTIF_TRAP_TYPE_PIPELINE_DISCARD_WRED and "
+                   "SAI_HOSTIF_TRAP_TYPE_PIPELINE_DISCARD_ROUTER, "
+                   "current trap type is %d\n", trap_id);
+        SX_LOG_EXIT();
+        return SAI_STATUS_FAILURE;
+    }
+
+    SX_LOG_EXIT();
+    return SAI_STATUS_SUCCESS;
+}
+
+/* mirror session for the trap [sai_object_id_t] */
+static sai_status_t mlnx_trap_mirror_session_set(_In_ const sai_object_key_t      *key,
+                                                 _In_ const sai_attribute_value_t *value,
+                                                 void                             *arg)
+{
+    uint32_t               trap_db_idx = 0;
+    uint32_t               trap_data   = 0;
+    bool                   is_create   = false;
+    sai_hostif_trap_type_t trap_id;
+    sai_status_t           sai_status  = SAI_STATUS_FAILURE;
+
+    SX_LOG_ENTER();
+
+    sai_status = mlnx_object_to_type(key->key.object_id,
+                                     SAI_OBJECT_TYPE_HOSTIF_TRAP,
+                                     &trap_data,
+                                     NULL);
+    if (SAI_STATUS_SUCCESS != sai_status) {
+        SX_LOG_EXIT();
+        return sai_status;
+    }
+
+    sai_status = find_sai_trap_index(trap_data, MLNX_TRAP_TYPE_REGULAR, &trap_db_idx);
+    if (SAI_STATUS_SUCCESS != sai_status) {
+        SX_LOG_ERR("Invalid trap %x\n", trap_data);
+        SX_LOG_EXIT();
+        return SAI_STATUS_INVALID_PARAMETER;
+    }
+
+    trap_id = mlnx_traps_info[trap_db_idx].trap_id;
+    if ((SAI_HOSTIF_TRAP_TYPE_PIPELINE_DISCARD_WRED != trap_id)
+        && (SAI_HOSTIF_TRAP_TYPE_PIPELINE_DISCARD_ROUTER != trap_id)) {
+        SX_LOG_ERR("trap mirror session set is only supported for "
+                   "SAI_HOSTIF_TRAP_TYPE_PIPELINE_DISCARD_WRED and "
+                   "SAI_HOSTIF_TRAP_TYPE_PIPELINE_DISCARD_ROUTER, "
+                   "current trap type is %d\n", trap_id);
+        SX_LOG_EXIT();
+        return SAI_STATUS_INVALID_PARAMETER;
+    }
+
+    sai_db_write_lock();
+
+    sai_status = mlnx_trap_mirror_array_drop_clear(trap_db_idx);
+    if (SAI_STATUS_SUCCESS != sai_status) {
+        sai_db_unlock();
+        SX_LOG_ERR("Error clearing trap mirror array\n");
+        SX_LOG_EXIT();
+        return sai_status;
+    }
+
+    is_create = true;
+    sai_status = mlnx_trap_mirror_array_drop_set(trap_db_idx,
+                                                 value->objlist.list,
+                                                 value->objlist.count,
+                                                 is_create);
+    if (SAI_STATUS_SUCCESS != sai_status) {
+        sai_db_unlock();
+        SX_LOG_ERR("Error adding mirror drop trap for trap db idx %d\n", trap_db_idx);
+        SX_LOG_EXIT();
+        return sai_status;
+    }
+
+    sai_status = mlnx_trap_mirror_db_fill(trap_db_idx, &value->objlist);
+    if (SAI_STATUS_SUCCESS != sai_status) {
+        sai_db_unlock();
+        SX_LOG_ERR("Error filling trap mirror db for trap idx %d\n", trap_db_idx);
+        SX_LOG_EXIT();
+        return sai_status;
+    }
+
+    sai_db_unlock();
+
+    SX_LOG_EXIT();
+
+    return SAI_STATUS_SUCCESS;
+}
+
+/* mirror sesison for the trap [sai_object_id_t] */
+static sai_status_t mlnx_trap_mirror_session_get(_In_ const sai_object_key_t   *key,
+                                                 _Inout_ sai_attribute_value_t *value,
+                                                 _In_ uint32_t                  attr_index,
+                                                 _Inout_ vendor_cache_t        *cache,
+                                                 void                          *arg)
+{
+    sai_status_t           sai_status = SAI_STATUS_FAILURE;
+    uint32_t               trap_db_idx, trap_data;
+    sai_hostif_trap_type_t trap_id;
+
+    SX_LOG_ENTER();
+
+    sai_status = mlnx_object_to_type(key->key.object_id,
+                                     SAI_OBJECT_TYPE_HOSTIF_TRAP,
+                                     &trap_data,
+                                     NULL);
+    if (SAI_STATUS_SUCCESS != sai_status) {
+        SX_LOG_EXIT();
+        return sai_status;
+    }
+
+    sai_status = find_sai_trap_index(trap_data, MLNX_TRAP_TYPE_REGULAR, &trap_db_idx);
+    if (SAI_STATUS_SUCCESS != sai_status) {
+        SX_LOG_ERR("Invalid trap %x\n", trap_data);
+        SX_LOG_EXIT();
+        return SAI_STATUS_INVALID_PARAMETER;
+    }
+
+    trap_id = mlnx_traps_info[trap_db_idx].trap_id;
+    if ((SAI_HOSTIF_TRAP_TYPE_PIPELINE_DISCARD_WRED != trap_id)
+        && (SAI_HOSTIF_TRAP_TYPE_PIPELINE_DISCARD_ROUTER != trap_id)) {
+        SX_LOG_ERR("trap mirror session get is only supported for "
+                   "SAI_HOSTIF_TRAP_TYPE_PIPELINE_DISCARD_WRED and "
+                   "SAI_HOSTIF_TRAP_TYPE_PIPELINE_DISCARD_ROUTER, "
+                   "current trap type is %d\n", trap_id);
+        SX_LOG_EXIT();
+        return SAI_STATUS_INVALID_PARAMETER;
+    }
+
+    sai_db_read_lock();
+
+    if (SAI_HOSTIF_TRAP_TYPE_PIPELINE_DISCARD_WRED == trap_id) {
+        sai_status = mlnx_fill_objlist(g_sai_db_ptr->trap_mirror_discard_wred_db.mirror_oid,
+                                       g_sai_db_ptr->trap_mirror_discard_wred_db.count,
+                                       &value->objlist);
+    } else if (SAI_HOSTIF_TRAP_TYPE_PIPELINE_DISCARD_ROUTER == trap_id) {
+        sai_status = mlnx_fill_objlist(g_sai_db_ptr->trap_mirror_discard_router_db.mirror_oid,
+                                       g_sai_db_ptr->trap_mirror_discard_router_db.count,
+                                       &value->objlist);
+    }
+
+    if (SAI_STATUS_SUCCESS != sai_status) {
+        sai_db_unlock();
+        SX_LOG_ERR("Error filling objlist for trap id %d\n", trap_id);
+        SX_LOG_EXIT();
+        return sai_status;
+    }
+
+    sai_db_unlock();
+
+    return SAI_STATUS_SUCCESS;
 }
 
 /* trap-group ID for the trap [sai_object_id_t] */

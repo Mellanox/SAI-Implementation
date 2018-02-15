@@ -43,6 +43,8 @@
 #undef  __MODULE__
 #define __MODULE__ SAI_SWITCH
 
+#define SDK_START_CMD_STR_LEN 255
+
 typedef struct _sai_switch_notification_t {
     sai_switch_state_change_notification_fn     on_switch_state_change;
     sai_fdb_event_notification_fn               on_fdb_event;
@@ -1469,20 +1471,15 @@ static sx_status_t get_chip_type(enum sxd_chip_types* chip_type)
     return SX_STATUS_SUCCESS;
 }
 
-static sai_status_t mlnx_chassis_mng_stage(bool fastboot_enable, bool transaction_mode_enable)
-{
-    int                  system_err;
-    sx_status_t          status;
-    sx_api_sx_sdk_init_t sdk_init_params;
-    uint32_t             bridge_acls = 0;
-    uint8_t              port_phy_bits_num;
-    uint8_t              port_pth_bits_num;
-    uint8_t              port_sub_bits_num;
-    sai_status_t         sai_status           = SAI_STATUS_FAILURE;
-    sx_access_cmd_t      transaction_mode_cmd = SX_ACCESS_CMD_NONE;
-    sxd_chip_types_t     chip_type;
-
-    memset(&sdk_init_params, 0, sizeof(sdk_init_params));
+static sai_status_t mlnx_sdk_start(bool fastboot_enable) {
+    sai_status_t sai_status;
+    int          system_err, cmd_len;
+    char         sdk_start_cmd[SDK_START_CMD_STR_LEN] = {0};
+    const char  *sniffer_var = NULL;
+    const char  *sniffer_cmd = "";
+    const char  *vlagrind_cmd = "";
+    const char  *syslog_cmd = "";
+    const char  *fastboot_cmd = "";
 
     system_err = system("rm /tmp/sdk_ready");
     if (0 == system_err) {
@@ -1491,28 +1488,26 @@ static sai_status_t mlnx_chassis_mng_stage(bool fastboot_enable, bool transactio
         MLNX_SAI_LOG_DBG("unable to remove sdk_ready\n");
     }
 
+    sniffer_var = getenv("SX_SNIFFER_ENABLE");
+    if (sniffer_var && (0 == strcmp(sniffer_var, "1"))) {
+        sniffer_cmd = "LD_PRELOAD=\"libsxsniffer.so\"";
+    }
+
 #ifdef SDK_VALGRIND
-    system_err = system(
-        "valgrind --tool=memcheck --leak-check=full --error-exitcode=1 --undef-value-errors=no --run-libc-freeres=yes --max-stackframe=15310736 sx_sdk --logger libsai.so &");
-#elif SDK_SNIFFER
-    if (fastboot_enable) {
-        system_err = system("LD_PRELOAD=\"libsxsniffer.so\" env FAST_BOOT=1 sx_sdk --logger libsai.so &");
-    } else {
-        system_err = system("LD_PRELOAD=\"libsxsniffer.so\" sx_sdk --logger libsai.so &");
-    }
-#elif defined CONFIG_SYSLOG
-    if (fastboot_enable) {
-        system_err = system("env FAST_BOOT=1 sx_sdk --logger libsai.so &");
-    } else {
-        system_err = system("sx_sdk --logger libsai.so &");
-    }
-#else
-    if (fastboot_enable) {
-        system_err = system("env FAST_BOOT=1 sx_sdk &");
-    } else {
-        system_err = system("sx_sdk &");
-    }
+    vlagrind_cmd = "valgrind --tool=memcheck --leak-check=full --error-exitcode=1 --undef-value-errors=no "
+                   "--run-libc-freeres=yes --max-stackframe=15310736";
 #endif
+#ifdef CONFIG_SYSLOG
+    syslog_cmd = "--logger libsai.so";
+#endif
+    if (fastboot_enable) {
+        fastboot_cmd = "env FAST_BOOT=1";
+    }
+
+    cmd_len = snprintf(sdk_start_cmd, SDK_START_CMD_STR_LEN, "%s %s %s sx_sdk %s &", sniffer_cmd, vlagrind_cmd, fastboot_cmd, syslog_cmd);
+    assert(cmd_len < SDK_START_CMD_STR_LEN);
+
+    system_err = system(sdk_start_cmd);
     if (0 != system_err) {
         MLNX_SAI_LOG_ERR("Failed running sx_sdk\n");
         return SAI_STATUS_FAILURE;
@@ -1526,6 +1521,28 @@ static sai_status_t mlnx_chassis_mng_stage(bool fastboot_enable, bool transactio
 
     sai_status = mlnx_wait_for_sdk();
     assert(SAI_STATUS_SUCCESS == sai_status);
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_chassis_mng_stage(bool fastboot_enable, bool transaction_mode_enable)
+{
+    sx_status_t          status;
+    sx_api_sx_sdk_init_t sdk_init_params;
+    uint32_t             bridge_acls = 0;
+    uint8_t              port_phy_bits_num;
+    uint8_t              port_pth_bits_num;
+    uint8_t              port_sub_bits_num;
+    sai_status_t         sai_status           = SAI_STATUS_FAILURE;
+    sx_access_cmd_t      transaction_mode_cmd = SX_ACCESS_CMD_NONE;
+    sxd_chip_types_t     chip_type;
+
+    memset(&sdk_init_params, 0, sizeof(sdk_init_params));
+
+    sai_status = mlnx_sdk_start(fastboot_enable);
+    if (SAI_ERR(sai_status)) {
+        return sai_status;
+    }
 
     /* Open an handle */
     if (SX_STATUS_SUCCESS != (status = sx_api_open(sai_log_cb, &gh_sdk))) {
@@ -1897,6 +1914,8 @@ static void sai_db_values_init()
     g_sai_db_ptr->flood_action_mc = SAI_PACKET_ACTION_FORWARD;
 
     g_sai_db_ptr->packet_storing_mode = SX_PORT_PACKET_STORING_MODE_CUT_THROUGH;
+
+    g_sai_db_ptr->tunnel_module_initialized = false;
 
     memset(g_sai_db_ptr->is_switch_priority_lossless, 0, MAX_LOSSLESS_SP * sizeof(bool));
 
@@ -3194,6 +3213,7 @@ static sai_status_t mlnx_initialize_switch(sai_object_id_t switch_id, bool *tran
     sx_router_general_param_t   general_param;
     sx_status_t                 status;
     bool                        fastboot_enable = false;
+    sx_tunnel_attribute_t       sx_tunnel_attribute;
 
 #ifndef ACS_OS
     const char *initial_fan_speed;
@@ -3203,11 +3223,8 @@ static sai_status_t mlnx_initialize_switch(sai_object_id_t switch_id, bool *tran
     sx_router_attributes_t     router_attr;
     sx_router_id_t             vrid;
     sx_span_init_params_t      span_init_params;
-    sx_tunnel_general_params_t sx_tunnel_general_params;
-    sx_tunnel_attribute_t      sx_tunnel_attribute;
 
     memset(&span_init_params, 0, sizeof(sx_span_init_params_t));
-    memset(&sx_tunnel_general_params, 0, sizeof(sx_tunnel_general_params_t));
 
     assert(sizeof(sx_tunnel_attribute.attributes.ipinip_p2p) ==
            sizeof(sx_tunnel_attribute.attributes.ipinip_p2p_gre));
@@ -3423,12 +3440,6 @@ static sai_status_t mlnx_initialize_switch(sai_object_id_t switch_id, bool *tran
     if (SAI_STATUS_SUCCESS !=
         (status = sdk_to_sai(sx_api_span_init_set(gh_sdk, &span_init_params)))) {
         SX_LOG_ERR("Failed to init SPAN\n");
-        return status;
-    }
-
-    if (SAI_STATUS_SUCCESS !=
-        (status = sdk_to_sai(sx_api_tunnel_init_set(gh_sdk, &sx_tunnel_general_params)))) {
-        SX_LOG_ERR("Failed to init tunnel\n");
         return status;
     }
 
@@ -3794,10 +3805,18 @@ static sai_status_t mlnx_shutdown_switch(void)
     }
 
     memset(&g_notification_callbacks, 0, sizeof(g_notification_callbacks));
-
+#ifdef SDK_VALGRIND
+    system_err = system("killall -w memcheck-amd64- sx_acl_rm");
+#else
     system_err = system("killall -w sx_sdk sx_acl_rm");
+#endif
+
     if (0 != system_err) {
+#ifdef SDK_VALGRIND
+        MLNX_SAI_LOG_ERR("killall -w memcheck-amd64- sx_acl_rm failed.\n");
+#else
         MLNX_SAI_LOG_ERR("killall -w sx_sdk sx_acl_rm failed.\n");
+#endif
     }
 
 #if (!defined ACS_OS) || (defined ACS_OS_NO_DOCKERS)
@@ -4065,7 +4084,7 @@ static sai_status_t mlnx_switch_fdb_flood_mc_ctrl_set(_In_ const sai_object_key_
             ports_count = 0;
 
             sx_status = sx_api_fdb_unreg_mc_flood_mode_set(gh_sdk, DEFAULT_ETH_SWID,
-                                                            fid, SX_VLAN_UNREG_MC_PRUNE);
+                                                            fid, SX_FDB_UNREG_MC_PRUNE);
             status = sdk_to_sai(sx_status);
             if (SX_ERR(sx_status)) {
                 SX_LOG_ERR("Failed to set unreg fdb flood list for fid %u - %s.\n", fid, SX_STATUS_MSG(sx_status));
@@ -4081,7 +4100,7 @@ static sai_status_t mlnx_switch_fdb_flood_mc_ctrl_set(_In_ const sai_object_key_
             }
         } else {
             sx_status = sx_api_fdb_unreg_mc_flood_mode_set(gh_sdk, DEFAULT_ETH_SWID,
-                                                            fid, SX_VLAN_UNREG_MC_FLOOD);
+                                                            fid, SX_FDB_UNREG_MC_FLOOD);
             status = sdk_to_sai(sx_status);
             if (SX_ERR(sx_status)) {
                 SX_LOG_ERR("Failed to set unreg fdb flood list for fid %u - %s.\n", fid, SX_STATUS_MSG(sx_status));
@@ -5578,7 +5597,7 @@ static sai_status_t mlnx_switch_available_get(_In_ const sai_object_key_t   *key
         break;
 
     case SAI_SWITCH_ATTR_AVAILABLE_FDB_ENTRY:
-        table_type = RM_SDK_TABLE_TYPE_MC_MAC_E;
+        table_type = RM_SDK_TABLE_TYPE_UC_MAC_E;
         break;
 
     default:

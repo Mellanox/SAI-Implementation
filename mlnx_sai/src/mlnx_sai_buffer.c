@@ -2396,10 +2396,6 @@ static void mlnx_sai_buffer_apply_profile_to_reserved_structs(
                     log_sai_buffer_profile_db_entry_fields(buff_db_entry);
                     sx_port_reserved_buff_attr_arr[ind].attr.ingress_port_pg_buff_attr.size = bytes_to_mlnx_cells(
                         buff_db_entry.reserved_size);
-                    /* TODO : temp WA to enable headroom with 0 reserved PG, to be removed after SDK fix */
-                    if (0 == sx_port_reserved_buff_attr_arr[ind].attr.ingress_port_pg_buff_attr.size) {
-                        sx_port_reserved_buff_attr_arr[ind].attr.ingress_port_pg_buff_attr.size++;
-                    }
                     sx_port_reserved_buff_attr_arr[ind].attr.ingress_port_pg_buff_attr.is_lossy =
                         ((0 == buff_db_entry.xoff) && (0 == buff_db_entry.xon));
                     sx_port_reserved_buff_attr_arr[ind].attr.ingress_port_pg_buff_attr.xon = bytes_to_mlnx_cells(

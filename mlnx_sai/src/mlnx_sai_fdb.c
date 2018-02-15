@@ -403,10 +403,6 @@ static sai_status_t mlnx_create_fdb_entry(_In_ const sai_fdb_entry_t* fdb_entry,
             goto out;
         }
 
-        if (SAI_PACKET_ACTION_TRAP != packet_action) {
-            packet_action = SAI_PACKET_ACTION_DROP;
-        }
-
         /* log port is redundant */
         port_id = 0;
     } else if (SAI_ERR(ip_status)) {

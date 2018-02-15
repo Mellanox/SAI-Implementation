@@ -385,7 +385,7 @@ static sai_status_t mlnx_vlan_learn_get(_In_ const sai_object_key_t   *key,
 
 out:
     SX_LOG_EXIT();
-    return SAI_STATUS_SUCCESS;
+    return status;
 }
 
 static sai_status_t mlnx_vlan_learn_set(_In_ const sai_object_key_t      *key,
@@ -1743,49 +1743,16 @@ static sai_status_t mlnx_vlan_member_bulk_remove(_Out_ sai_status_t *object_stat
     return mlnx_vlan_member_bulk_process(object_statuses, stop_on_error, false);
 }
 
-static sai_status_t mlnx_vlan_member_bulk_statuses_print(_In_ const sai_status_t *object_statuses,
-                                                         _In_ uint32_t            object_count,
-                                                         _In_ bool                create)
-{
-    uint32_t success_count, not_executed_count, failed_count, ii;
-
-    assert(object_statuses);
-
-    success_count = not_executed_count = failed_count = 0;
-
-    for (ii = 0; ii < object_count; ii++) {
-        if (!(SAI_ERR(object_statuses[ii]))) {
-            success_count++;
-            continue;
-        }
-
-        if (SAI_STATUS_NOT_EXECUTED == object_statuses[ii]) {
-            not_executed_count++;
-            continue;
-        }
-
-        if (SAI_ERR(object_statuses[ii])) {
-            failed_count++;
-            continue;
-        }
-    }
-
-    SX_LOG_NTC("%s %d vlan members: %d success, %d not executed, %d failed\n",
-               create ? "Created" : "Removed", object_count, success_count, not_executed_count, failed_count);
-
-    return SAI_STATUS_SUCCESS;
-}
-
 static sai_status_t mlnx_vlan_member_bulk_create_statuses_print(_In_ const sai_status_t *object_statuses,
                                                                 _In_ uint32_t            object_count)
 {
-    return mlnx_vlan_member_bulk_statuses_print(object_statuses, object_count, true);
+    return mlnx_bulk_statuses_print("VLAN Members", object_statuses, object_count, SAI_COMMON_API_BULK_CREATE);
 }
 
 static sai_status_t mlnx_vlan_member_bulk_remove_statuses_print(_In_ const sai_status_t *object_statuses,
                                                                 _In_ uint32_t            object_count)
 {
-    return mlnx_vlan_member_bulk_statuses_print(object_statuses, object_count, false);
+    return mlnx_bulk_statuses_print("VLAN Members", object_statuses, object_count, SAI_COMMON_API_BULK_REMOVE);
 }
 
 /**
@@ -1818,37 +1785,19 @@ sai_status_t mlnx_create_vlan_members(_In_ sai_object_id_t          switch_id,
     uint32_t                ii;
     bool                    stop_on_error, failure;
 
-    if (0 == object_count) {
-        SX_LOG_ERR("object_count is NULL\n");
-        return SAI_STATUS_INVALID_PARAMETER;
-    }
+    SX_LOG_ENTER();
 
-    if (!attr_count) {
-        SX_LOG_ERR("attr_count is NULL\n");
-        return SAI_STATUS_INVALID_PARAMETER;
-    }
-
-    if (!attr_list) {
-        SX_LOG_ERR("attrs is NULL\n");
-        return SAI_STATUS_INVALID_PARAMETER;
+    status = mlnx_bulk_create_attrs_validate(object_count, attr_count, attr_list, mode, object_statuses, &stop_on_error);
+    if (SAI_ERR(status)) {
+        SX_LOG_EXIT();
+        return status;
     }
 
     if (!object_id) {
         SX_LOG_ERR("object_id is NULL\n");
+        SX_LOG_EXIT();
         return SAI_STATUS_INVALID_PARAMETER;
     }
-
-    if (!object_statuses) {
-        SX_LOG_ERR("object_statuses is NULL\n");
-        return SAI_STATUS_INVALID_PARAMETER;
-    }
-
-    if (SAI_BULK_OP_ERROR_MODE_IGNORE_ERROR < mode) {
-        SX_LOG_ERR("Invalid value for sai_bulk_op_type_t - %d\n", mode);
-        return SAI_STATUS_INVALID_PARAMETER;
-    }
-
-    stop_on_error = (mode == SAI_BULK_OP_ERROR_MODE_STOP_ON_ERROR);
 
     sai_db_write_lock();
 
@@ -1889,6 +1838,7 @@ out:
     sai_db_unlock();
 
     mlnx_vlan_member_bulk_create_statuses_print(object_statuses, object_count);
+    SX_LOG_EXIT();
     return failure ? SAI_STATUS_FAILURE : SAI_STATUS_SUCCESS;
 }
 
@@ -1914,27 +1864,19 @@ sai_status_t mlnx_remove_vlan_members(_In_ uint32_t                 object_count
     uint32_t                ii;
     bool                    stop_on_error, failure;
 
-    if (0 == object_count) {
-        SX_LOG_ERR("object_count is NULL\n");
-        return SAI_STATUS_INVALID_PARAMETER;
+    SX_LOG_ENTER();
+
+    status = mlnx_bulk_remove_attrs_validate(object_count, mode, object_statuses, &stop_on_error);
+    if (SAI_ERR(status)) {
+        SX_LOG_EXIT();
+        return status;
     }
 
     if (!object_id) {
         SX_LOG_ERR("object_id is NULL\n");
+        SX_LOG_EXIT();
         return SAI_STATUS_INVALID_PARAMETER;
     }
-
-    if (!object_statuses) {
-        SX_LOG_ERR("object_statuses is NULL\n");
-        return SAI_STATUS_INVALID_PARAMETER;
-    }
-
-    if (SAI_BULK_OP_ERROR_MODE_IGNORE_ERROR < mode) {
-        SX_LOG_ERR("Invalid value for sai_bulk_op_type_t - %d\n", mode);
-        return SAI_STATUS_INVALID_PARAMETER;
-    }
-
-    stop_on_error = (mode == SAI_BULK_OP_ERROR_MODE_STOP_ON_ERROR);
 
     sai_db_write_lock();
 
@@ -1974,6 +1916,7 @@ out:
     sai_db_unlock();
 
     mlnx_vlan_member_bulk_remove_statuses_print(object_statuses, object_count);
+    SX_LOG_EXIT();
     return failure ? SAI_STATUS_FAILURE : SAI_STATUS_SUCCESS;
 }
 
@@ -2223,12 +2166,16 @@ sai_status_t mlnx_vlan_list_stp_bind(_In_ const sx_vlan_id_t *vlan_ids,
         }
     }
 
-    for (ii = 0; ii < vlan_count; ii++) {
-        mlnx_vlan_stp_id_set(vlan_ids[ii], sx_stp_id);
-    }
+    stp_db_entry = get_stp_db_entry(sx_stp_id);
 
-    stp_db_entry              = get_stp_db_entry(sx_stp_id);
-    stp_db_entry->vlan_count += vlan_count;
+
+    for (ii = 0; ii < vlan_count; ii++) {
+        /* Checking to avoid adding the same reference twice */
+        if (mlnx_vlan_stp_id_get(vlan_ids[ii]) != sx_stp_id) {
+            mlnx_vlan_stp_id_set(vlan_ids[ii], sx_stp_id);
+            stp_db_entry->vlan_count += 1;
+        }
+    }
 
     return SAI_STATUS_SUCCESS;
 }

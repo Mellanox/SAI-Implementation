@@ -19,13 +19,17 @@
 #include <sx/utils/dbg_utils.h>
 #include "assert.h"
 
-static void SAI_dump_hostintf_getdb(_Out_ sai_object_id_t *default_trap_group,
-                                    _Out_ bool            *trap_group_valid,
-                                    _Out_ mlnx_trap_t     *traps_db)
+static void SAI_dump_hostintf_getdb(_Out_ sai_object_id_t  *default_trap_group,
+                                    _Out_ bool             *trap_group_valid,
+                                    _Out_ mlnx_trap_t      *traps_db,
+                                    _Out_ trap_mirror_db_t *trap_mirror_discard_wred_db,
+                                    _Out_ trap_mirror_db_t *trap_mirror_discard_router_db)
 {
     assert(NULL != default_trap_group);
     assert(NULL != trap_group_valid);
     assert(NULL != traps_db);
+    assert(NULL != trap_mirror_discard_wred_db);
+    assert(NULL != trap_mirror_discard_router_db);
     assert(NULL != g_sai_db_ptr);
 
     sai_db_read_lock();
@@ -39,6 +43,14 @@ static void SAI_dump_hostintf_getdb(_Out_ sai_object_id_t *default_trap_group,
     memcpy(traps_db,
            g_sai_db_ptr->traps_db,
            SXD_TRAP_ID_ACL_MAX * sizeof(mlnx_trap_t));
+
+    memcpy(trap_mirror_discard_wred_db,
+           &g_sai_db_ptr->trap_mirror_discard_wred_db,
+           sizeof(trap_mirror_db_t));
+
+    memcpy(trap_mirror_discard_router_db,
+           &g_sai_db_ptr->trap_mirror_discard_router_db,
+           sizeof(trap_mirror_db_t));
 
     sai_db_unlock();
 }
@@ -150,14 +162,67 @@ static void SAI_dump_traps_db_print(_In_ FILE *file, _In_ mlnx_trap_t *traps_db)
     }
 }
 
+static void SAI_dump_trap_mirror_discard_db(_In_ FILE             *file,
+                                            _In_ trap_mirror_db_t *trap_mirror_discard_wred_db,
+                                            _In_ trap_mirror_db_t *trap_mirror_discard_router_db)
+{
+    uint32_t        ii    = 0;
+    sai_object_id_t curr_mirror_oid;
+    uint32_t        count = 0;
+    dbg_utils_table_columns_t traps_mirror_oid_clmns[] = {
+        {"db idx",       7,  PARAM_UINT32_E, &ii},
+        {"mirror oid",   16, PARAM_UINT64_E, &curr_mirror_oid},
+        {NULL,           0,  0,              NULL}
+    };
+
+    assert(NULL != trap_mirror_discard_wred_db);
+    assert(NULL != trap_mirror_discard_router_db);
+
+    dbg_utils_print_general_header(file, "Trap mirror discard wred db");
+
+    dbg_utils_print_secondary_header(file, "trap_mirror_discard_wred_db");
+
+    count = trap_mirror_discard_wred_db->count;
+
+    dbg_utils_print_field(file, "trap mirror discard wred db count", &count, PARAM_UINT32_E);
+
+    dbg_utils_print_table_headline(file, traps_mirror_oid_clmns);
+
+    for (ii = 0; ii < count; ii++) {
+        curr_mirror_oid = trap_mirror_discard_wred_db->mirror_oid[ii];
+
+        dbg_utils_print_table_data_line(file, traps_mirror_oid_clmns);
+    }
+
+    dbg_utils_print_general_header(file, "Trap mirror discard router db");
+
+    dbg_utils_print_secondary_header(file, "trap_mirror_discard_router_db");
+
+    count = trap_mirror_discard_router_db->count;
+
+    dbg_utils_print_field(file, "trap mirror discard router db count", &count, PARAM_UINT32_E);
+
+    dbg_utils_print_table_headline(file, traps_mirror_oid_clmns);
+
+    for (ii = 0; ii < count; ii++) {
+        curr_mirror_oid = trap_mirror_discard_router_db->mirror_oid[ii];
+
+        dbg_utils_print_table_data_line(file, traps_mirror_oid_clmns);
+    }
+}
+
 void SAI_dump_hostintf(_In_ FILE *file)
 {
-    sai_object_id_t default_trap_group = 0;
-    bool            trap_group_valid[MAX_TRAP_GROUPS];
-    mlnx_trap_t    *traps_db;
+    sai_object_id_t   default_trap_group = 0;
+    bool              trap_group_valid[MAX_TRAP_GROUPS];
+    mlnx_trap_t      *traps_db;
+    trap_mirror_db_t  trap_mirror_discard_wred_db;
+    trap_mirror_db_t  trap_mirror_discard_router_db;
 
     memset(trap_group_valid, 0, MAX_TRAP_GROUPS * sizeof(bool));
     traps_db = (mlnx_trap_t*)calloc(SXD_TRAP_ID_ACL_MAX, sizeof(mlnx_trap_t));
+    memset(&trap_mirror_discard_wred_db, 0, sizeof(trap_mirror_db_t));
+    memset(&trap_mirror_discard_router_db, 0, sizeof(trap_mirror_db_t));
 
     if (!traps_db) {
         return;
@@ -165,11 +230,16 @@ void SAI_dump_hostintf(_In_ FILE *file)
 
     SAI_dump_hostintf_getdb(&default_trap_group,
                             trap_group_valid,
-                            traps_db);
+                            traps_db,
+                            &trap_mirror_discard_wred_db,
+                            &trap_mirror_discard_router_db);
     dbg_utils_print_module_header(file, "SAI HOSTINTF");
     SAI_dump_default_trap_group_print(file, &default_trap_group);
     SAI_dump_trap_group_valid_print(file, trap_group_valid);
     SAI_dump_traps_db_print(file, traps_db);
+    SAI_dump_trap_mirror_discard_db(file,
+                                    &trap_mirror_discard_wred_db,
+                                    &trap_mirror_discard_router_db);
 
     free(traps_db);
 }

@@ -1822,6 +1822,9 @@ static sai_status_t mlnx_wred_ecn_set(_In_ const sai_object_key_t      *key,
         }
 
         status      = mlnx_wred_remove_profile(wred_id, *sx_profile, color);
+        if (SAI_ERR(status)) {
+            goto out;
+        }
         *sx_profile = SAI_INVALID_PROFILE_ID;
         if (SAI_STATUS_SUCCESS != (status = mlnx_wred_db_set(wred_id, &wred_profile))) {
             SX_LOG_ERR("Failed to update WRED db for %s\n", key_str);

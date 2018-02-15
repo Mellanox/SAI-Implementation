@@ -423,7 +423,7 @@ static sai_status_t mlnx_stp_vlanlist_get(_In_ const sai_object_key_t   *key,
 out:
     sai_db_unlock();
     SX_LOG_EXIT();
-    return SAI_STATUS_SUCCESS;
+    return status;
 }
 
 /* port list getter */
@@ -524,7 +524,7 @@ out:
     free(ports_list);
     SX_LOG_EXIT();
 
-    return SAI_STATUS_SUCCESS;
+    return status;
 }
 
 /**
