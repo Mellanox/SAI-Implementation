@@ -543,7 +543,15 @@ static sai_status_t mlnx_get_queue_statistics(_In_ sai_object_id_t         queue
             case SAI_QUEUE_STAT_WRED_DROPPED_PACKETS:
             case SAI_QUEUE_STAT_CURR_OCCUPANCY_BYTES:
             case SAI_QUEUE_STAT_WATERMARK_BYTES:
-                SX_LOG_ERR("Queue counter %d set item %u not supported for queue num greater than %d\n", counter_ids[ii], ii, RM_API_COS_TRAFFIC_CLASS_NUM);
+            case SAI_QUEUE_STAT_GREEN_WRED_ECN_MARKED_PACKETS:
+            case SAI_QUEUE_STAT_GREEN_WRED_ECN_MARKED_BYTES:
+            case SAI_QUEUE_STAT_YELLOW_WRED_ECN_MARKED_PACKETS:
+            case SAI_QUEUE_STAT_YELLOW_WRED_ECN_MARKED_BYTES:
+            case SAI_QUEUE_STAT_RED_WRED_ECN_MARKED_PACKETS:
+            case SAI_QUEUE_STAT_RED_WRED_ECN_MARKED_BYTES:
+            case SAI_QUEUE_STAT_WRED_ECN_MARKED_PACKETS:
+            case SAI_QUEUE_STAT_WRED_ECN_MARKED_BYTES:
+                SX_LOG_NTC("Queue counter %d set item %u not supported for queue num greater than %d\n", counter_ids[ii], ii, RM_API_COS_TRAFFIC_CLASS_NUM);
                 return SAI_STATUS_ATTR_NOT_SUPPORTED_0 + ii;
 
             case SAI_QUEUE_STAT_PACKETS:
@@ -625,7 +633,15 @@ static sai_status_t mlnx_get_queue_statistics(_In_ sai_object_id_t         queue
         case SAI_QUEUE_STAT_WRED_DROPPED_BYTES:
         case SAI_QUEUE_STAT_SHARED_CURR_OCCUPANCY_BYTES:
         case SAI_QUEUE_STAT_SHARED_WATERMARK_BYTES:
-            SX_LOG_ERR("Queue counter %d set item %u not supported\n", counter_ids[ii], ii);
+        case SAI_QUEUE_STAT_GREEN_WRED_ECN_MARKED_PACKETS:
+        case SAI_QUEUE_STAT_GREEN_WRED_ECN_MARKED_BYTES:
+        case SAI_QUEUE_STAT_YELLOW_WRED_ECN_MARKED_PACKETS:
+        case SAI_QUEUE_STAT_YELLOW_WRED_ECN_MARKED_BYTES:
+        case SAI_QUEUE_STAT_RED_WRED_ECN_MARKED_PACKETS:
+        case SAI_QUEUE_STAT_RED_WRED_ECN_MARKED_BYTES:
+        case SAI_QUEUE_STAT_WRED_ECN_MARKED_PACKETS:
+        case SAI_QUEUE_STAT_WRED_ECN_MARKED_BYTES:
+            SX_LOG_NTC("Queue counter %d set item %u not supported\n", counter_ids[ii], ii);
             return SAI_STATUS_ATTR_NOT_SUPPORTED_0;
 
         case SAI_QUEUE_STAT_PACKETS:

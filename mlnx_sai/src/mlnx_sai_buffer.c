@@ -4007,7 +4007,23 @@ sai_status_t mlnx_sai_get_buffer_pool_stats(_In_ sai_object_id_t                
             break;
 
         case SAI_BUFFER_POOL_STAT_DROPPED_PACKETS:
-            SX_LOG_ERR("Pool counter %d set item %u not implemented\n", counter_ids[ii], ii);
+        case SAI_BUFFER_POOL_STAT_GREEN_WRED_DROPPED_PACKETS:
+        case SAI_BUFFER_POOL_STAT_GREEN_WRED_DROPPED_BYTES:
+        case SAI_BUFFER_POOL_STAT_YELLOW_WRED_DROPPED_PACKETS:
+        case SAI_BUFFER_POOL_STAT_YELLOW_WRED_DROPPED_BYTES:
+        case SAI_BUFFER_POOL_STAT_RED_WRED_DROPPED_PACKETS:
+        case SAI_BUFFER_POOL_STAT_RED_WRED_DROPPED_BYTES :
+        case SAI_BUFFER_POOL_STAT_WRED_DROPPED_PACKETS :
+        case SAI_BUFFER_POOL_STAT_WRED_DROPPED_BYTES :
+        case SAI_BUFFER_POOL_STAT_GREEN_WRED_ECN_MARKED_PACKETS :
+        case SAI_BUFFER_POOL_STAT_GREEN_WRED_ECN_MARKED_BYTES :
+        case SAI_BUFFER_POOL_STAT_YELLOW_WRED_ECN_MARKED_PACKETS :
+        case SAI_BUFFER_POOL_STAT_YELLOW_WRED_ECN_MARKED_BYTES :
+        case SAI_BUFFER_POOL_STAT_RED_WRED_ECN_MARKED_PACKETS :
+        case SAI_BUFFER_POOL_STAT_RED_WRED_ECN_MARKED_BYTES :
+        case SAI_BUFFER_POOL_STAT_WRED_ECN_MARKED_PACKETS :
+        case SAI_BUFFER_POOL_STAT_WRED_ECN_MARKED_BYTES :
+            SX_LOG_NTC("Pool counter %d set item %u not implemented\n", counter_ids[ii], ii);
             return SAI_STATUS_NOT_IMPLEMENTED;
 
         default:
@@ -4128,7 +4144,7 @@ sai_status_t mlnx_sai_get_ingress_priority_group_stats(_In_ sai_object_id_t     
         case SAI_INGRESS_PRIORITY_GROUP_STAT_SHARED_WATERMARK_BYTES:
         case SAI_INGRESS_PRIORITY_GROUP_STAT_XOFF_ROOM_CURR_OCCUPANCY_BYTES:
         case SAI_INGRESS_PRIORITY_GROUP_STAT_XOFF_ROOM_WATERMARK_BYTES:
-            SX_LOG_ERR("PG counter %d set item %u not supported\n", counter_ids[ii], ii);
+            SX_LOG_NTC("PG counter %d set item %u not supported\n", counter_ids[ii], ii);
             SX_LOG_EXIT();
             return SAI_STATUS_NOT_SUPPORTED;
 

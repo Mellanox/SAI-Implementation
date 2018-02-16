@@ -2163,7 +2163,7 @@ static sai_status_t mlnx_do_policer_stats(_In_ sai_object_id_t           policer
     }
     /* SDK supports only dropped packets. */
     if (SAI_POLICER_STAT_PACKETS != counter_ids[0]) {
-        SX_LOG_ERR("Only SAI_POLICER_STAT_PACKETS are supported. policer:0x%" PRIx64 ".\n", policer_id);
+        SX_LOG_NTC("Only SAI_POLICER_STAT_PACKETS are supported. policer:0x%" PRIx64 ".\n", policer_id);
         sai_status = SAI_STATUS_ATTR_NOT_SUPPORTED_0;
         goto exit;
     }

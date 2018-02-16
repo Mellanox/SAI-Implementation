@@ -4209,7 +4209,7 @@ static sai_status_t mlnx_get_port_stats(_In_ sai_object_id_t        port_id,
         case SAI_PORT_STAT_RED_WRED_DROPPED_PACKETS:
         case SAI_PORT_STAT_RED_WRED_DROPPED_BYTES:
         case SAI_PORT_STAT_WRED_DROPPED_BYTES:
-            SX_LOG_ERR("Port counter %d set item %u not supported\n", counter_ids[ii], ii);
+            SX_LOG_NTC("Port counter %d set item %u not supported\n", counter_ids[ii], ii);
             return SAI_STATUS_ATTR_NOT_SUPPORTED_0;
 
         case SAI_PORT_STAT_WRED_DROPPED_PACKETS:
@@ -4346,6 +4346,8 @@ static sai_status_t mlnx_get_port_stats(_In_ sai_object_id_t        port_id,
         case SAI_PORT_STAT_OUT_WATERMARK_BYTES:
         case SAI_PORT_STAT_OUT_SHARED_CURR_OCCUPANCY_BYTES:
         case SAI_PORT_STAT_OUT_SHARED_WATERMARK_BYTES:
+        case SAI_PORT_STAT_IN_DROPPED_PKTS:
+        case SAI_PORT_STAT_OUT_DROPPED_PKTS:
         case SAI_PORT_STAT_PFC_0_ON2OFF_RX_PKTS:
         case SAI_PORT_STAT_PFC_1_ON2OFF_RX_PKTS:
         case SAI_PORT_STAT_PFC_2_ON2OFF_RX_PKTS:
@@ -4358,7 +4360,7 @@ static sai_status_t mlnx_get_port_stats(_In_ sai_object_id_t        port_id,
         case SAI_PORT_STAT_EEE_RX_EVENT_COUNT:
         case SAI_PORT_STAT_EEE_TX_DURATION:
         case SAI_PORT_STAT_EEE_RX_DURATION:
-            SX_LOG_ERR("Port counter %d set item %u not implemented\n", counter_ids[ii], ii);
+            SX_LOG_NTC("Port counter %d set item %u not implemented\n", counter_ids[ii], ii);
             return SAI_STATUS_NOT_IMPLEMENTED;
 
         default:
