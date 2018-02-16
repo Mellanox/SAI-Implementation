@@ -5414,6 +5414,7 @@ const sai_router_interface_attr_t sai_metadata_sai_router_interface_attr_t_enum_
     SAI_ROUTER_INTERFACE_ATTR_NEIGHBOR_MISS_PACKET_ACTION,
     SAI_ROUTER_INTERFACE_ATTR_V4_MCAST_ENABLE,
     SAI_ROUTER_INTERFACE_ATTR_V6_MCAST_ENABLE,
+    SAI_ROUTER_INTERFACE_ATTR_LOOPBACK_PACKET_ACTION,
     -1
 };
 const char* const sai_metadata_sai_router_interface_attr_t_enum_values_names[] = {
@@ -5432,6 +5433,7 @@ const char* const sai_metadata_sai_router_interface_attr_t_enum_values_names[] =
     "SAI_ROUTER_INTERFACE_ATTR_NEIGHBOR_MISS_PACKET_ACTION",
     "SAI_ROUTER_INTERFACE_ATTR_V4_MCAST_ENABLE",
     "SAI_ROUTER_INTERFACE_ATTR_V6_MCAST_ENABLE",
+    "SAI_ROUTER_INTERFACE_ATTR_LOOPBACK_PACKET_ACTION",
     NULL
 };
 const char* const sai_metadata_sai_router_interface_attr_t_enum_values_short_names[] = {
@@ -5450,11 +5452,12 @@ const char* const sai_metadata_sai_router_interface_attr_t_enum_values_short_nam
     "NEIGHBOR_MISS_PACKET_ACTION",
     "V4_MCAST_ENABLE",
     "V6_MCAST_ENABLE",
+    "LOOPBACK_PACKET_ACTION",
     NULL
 };
 const sai_enum_metadata_t sai_metadata_enum_sai_router_interface_attr_t = {
     .name              = "sai_router_interface_attr_t",
-    .valuescount       = 15,
+    .valuescount       = 16,
     .values            = (const int*)sai_metadata_sai_router_interface_attr_t_enum_values,
     .valuesnames       = sai_metadata_sai_router_interface_attr_t_enum_values_names,
     .valuesshortnames  = sai_metadata_sai_router_interface_attr_t_enum_values_short_names,
@@ -27969,6 +27972,48 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ROUTER_INTERFACE_ATTR_V6_MCAST_E
     .iskey                         = false,
     .isprimitive                   = true,
 };
+const sai_attribute_value_t sai_metadata_SAI_ROUTER_INTERFACE_ATTR_LOOPBACK_PACKET_ACTION_default_value = { .s32 = SAI_PACKET_ACTION_FORWARD };
+const sai_attr_metadata_t sai_metadata_attr_SAI_ROUTER_INTERFACE_ATTR_LOOPBACK_PACKET_ACTION = {
+    .objecttype                    = SAI_OBJECT_TYPE_ROUTER_INTERFACE,
+    .attrid                        = SAI_ROUTER_INTERFACE_ATTR_LOOPBACK_PACKET_ACTION,
+    .attridname                    = "SAI_ROUTER_INTERFACE_ATTR_LOOPBACK_PACKET_ACTION",
+    .brief                         = "Packet action when a packet ingress and gets routed on the same RIF.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_INT32,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
+    .defaultvalue                  = &sai_metadata_SAI_ROUTER_INTERFACE_ATTR_LOOPBACK_PACKET_ACTION_default_value,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = true,
+    .isenumlist                    = false,
+    .enummetadata                  = &sai_metadata_enum_sai_packet_action_t,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = false,
+    .iscreateandset                = true,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+};
 const sai_attr_metadata_t sai_metadata_attr_SAI_RPF_GROUP_ATTR_RPF_INTERFACE_COUNT = {
     .objecttype                    = SAI_OBJECT_TYPE_RPF_GROUP,
     .attrid                        = SAI_RPF_GROUP_ATTR_RPF_INTERFACE_COUNT,
@@ -40722,6 +40767,7 @@ const sai_attr_metadata_t* const sai_metadata_object_type_sai_router_interface_a
     &sai_metadata_attr_SAI_ROUTER_INTERFACE_ATTR_NEIGHBOR_MISS_PACKET_ACTION,
     &sai_metadata_attr_SAI_ROUTER_INTERFACE_ATTR_V4_MCAST_ENABLE,
     &sai_metadata_attr_SAI_ROUTER_INTERFACE_ATTR_V6_MCAST_ENABLE,
+    &sai_metadata_attr_SAI_ROUTER_INTERFACE_ATTR_LOOPBACK_PACKET_ACTION,
     NULL
 };
 const sai_attr_metadata_t* const sai_metadata_object_type_sai_acl_table_attr_t[] = {
@@ -43777,7 +43823,7 @@ const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_ROUTE
     .attridend            = SAI_ROUTER_INTERFACE_ATTR_END,
     .enummetadata         = &sai_metadata_enum_sai_router_interface_attr_t,
     .attrmetadata         = sai_metadata_object_type_sai_router_interface_attr_t,
-    .attrmetadatalength   = 15,
+    .attrmetadatalength   = 16,
     .isnonobjectid        = false,
     .isobjectid           = !false,
     .structmembers        = NULL,
@@ -48755,6 +48801,7 @@ const sai_attr_metadata_t* const sai_metadata_attr_sorted_by_id_name[] = {
     &sai_metadata_attr_SAI_ROUTER_INTERFACE_ATTR_EGRESS_ACL,
     &sai_metadata_attr_SAI_ROUTER_INTERFACE_ATTR_INGRESS_ACL,
     &sai_metadata_attr_SAI_ROUTER_INTERFACE_ATTR_INNER_VLAN_ID,
+    &sai_metadata_attr_SAI_ROUTER_INTERFACE_ATTR_LOOPBACK_PACKET_ACTION,
     &sai_metadata_attr_SAI_ROUTER_INTERFACE_ATTR_MTU,
     &sai_metadata_attr_SAI_ROUTER_INTERFACE_ATTR_NEIGHBOR_MISS_PACKET_ACTION,
     &sai_metadata_attr_SAI_ROUTER_INTERFACE_ATTR_OUTER_VLAN_ID,
@@ -49059,7 +49106,7 @@ const sai_attr_metadata_t* const sai_metadata_attr_sorted_by_id_name[] = {
     &sai_metadata_attr_SAI_WRED_ATTR_YELLOW_MIN_THRESHOLD,
     NULL
 };
-const size_t sai_metadata_attr_sorted_by_id_name_count = 741;
+const size_t sai_metadata_attr_sorted_by_id_name_count = 742;
 
 /* SAI notifications struct */
 
