@@ -4139,7 +4139,10 @@ const sai_port_attr_t sai_metadata_sai_port_attr_t_enum_values[] = {
     SAI_PORT_ATTR_QOS_SCHEDULER_PROFILE_ID,
     SAI_PORT_ATTR_QOS_INGRESS_BUFFER_PROFILE_LIST,
     SAI_PORT_ATTR_QOS_EGRESS_BUFFER_PROFILE_LIST,
+    SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL_MODE,
     SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL,
+    SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL_RX,
+    SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL_TX,
     SAI_PORT_ATTR_META_DATA,
     SAI_PORT_ATTR_EGRESS_BLOCK_PORT_LIST,
     SAI_PORT_ATTR_HW_PROFILE_ID,
@@ -4222,7 +4225,10 @@ const char* const sai_metadata_sai_port_attr_t_enum_values_names[] = {
     "SAI_PORT_ATTR_QOS_SCHEDULER_PROFILE_ID",
     "SAI_PORT_ATTR_QOS_INGRESS_BUFFER_PROFILE_LIST",
     "SAI_PORT_ATTR_QOS_EGRESS_BUFFER_PROFILE_LIST",
+    "SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL_MODE",
     "SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL",
+    "SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL_RX",
+    "SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL_TX",
     "SAI_PORT_ATTR_META_DATA",
     "SAI_PORT_ATTR_EGRESS_BLOCK_PORT_LIST",
     "SAI_PORT_ATTR_HW_PROFILE_ID",
@@ -4305,7 +4311,10 @@ const char* const sai_metadata_sai_port_attr_t_enum_values_short_names[] = {
     "QOS_SCHEDULER_PROFILE_ID",
     "QOS_INGRESS_BUFFER_PROFILE_LIST",
     "QOS_EGRESS_BUFFER_PROFILE_LIST",
+    "PRIORITY_FLOW_CONTROL_MODE",
     "PRIORITY_FLOW_CONTROL",
+    "PRIORITY_FLOW_CONTROL_RX",
+    "PRIORITY_FLOW_CONTROL_TX",
     "META_DATA",
     "EGRESS_BLOCK_PORT_LIST",
     "HW_PROFILE_ID",
@@ -4317,7 +4326,7 @@ const char* const sai_metadata_sai_port_attr_t_enum_values_short_names[] = {
 };
 const sai_enum_metadata_t sai_metadata_enum_sai_port_attr_t = {
     .name              = "sai_port_attr_t",
-    .valuescount       = 80,
+    .valuescount       = 83,
     .values            = (const int*)sai_metadata_sai_port_attr_t_enum_values,
     .valuesnames       = sai_metadata_sai_port_attr_t_enum_values_names,
     .valuesshortnames  = sai_metadata_sai_port_attr_t_enum_values_short_names,
@@ -4598,6 +4607,29 @@ const sai_enum_metadata_t sai_metadata_enum_sai_port_pool_stat_t = {
     .values            = (const int*)sai_metadata_sai_port_pool_stat_t_enum_values,
     .valuesnames       = sai_metadata_sai_port_pool_stat_t_enum_values_names,
     .valuesshortnames  = sai_metadata_sai_port_pool_stat_t_enum_values_short_names,
+    .containsflags     = false,
+};
+const sai_port_priority_flow_control_mode_t sai_metadata_sai_port_priority_flow_control_mode_t_enum_values[] = {
+    SAI_PORT_PRIORITY_FLOW_CONTROL_MODE_COMBINED,
+    SAI_PORT_PRIORITY_FLOW_CONTROL_MODE_SEPARATE,
+    -1
+};
+const char* const sai_metadata_sai_port_priority_flow_control_mode_t_enum_values_names[] = {
+    "SAI_PORT_PRIORITY_FLOW_CONTROL_MODE_COMBINED",
+    "SAI_PORT_PRIORITY_FLOW_CONTROL_MODE_SEPARATE",
+    NULL
+};
+const char* const sai_metadata_sai_port_priority_flow_control_mode_t_enum_values_short_names[] = {
+    "COMBINED",
+    "SEPARATE",
+    NULL
+};
+const sai_enum_metadata_t sai_metadata_enum_sai_port_priority_flow_control_mode_t = {
+    .name              = "sai_port_priority_flow_control_mode_t",
+    .valuescount       = 2,
+    .values            = (const int*)sai_metadata_sai_port_priority_flow_control_mode_t_enum_values,
+    .valuesnames       = sai_metadata_sai_port_priority_flow_control_mode_t_enum_values_names,
+    .valuesshortnames  = sai_metadata_sai_port_priority_flow_control_mode_t_enum_values_short_names,
     .containsflags     = false,
 };
 const sai_port_stat_t sai_metadata_sai_port_stat_t_enum_values[] = {
@@ -5161,6 +5193,7 @@ const sai_queue_attr_t sai_metadata_sai_queue_attr_t_enum_values[] = {
     SAI_QUEUE_ATTR_SCHEDULER_PROFILE_ID,
     SAI_QUEUE_ATTR_PAUSE_STATUS,
     SAI_QUEUE_ATTR_ENABLE_PFC_DLDR,
+    SAI_QUEUE_ATTR_PFC_DLR_INIT,
     -1
 };
 const char* const sai_metadata_sai_queue_attr_t_enum_values_names[] = {
@@ -5173,6 +5206,7 @@ const char* const sai_metadata_sai_queue_attr_t_enum_values_names[] = {
     "SAI_QUEUE_ATTR_SCHEDULER_PROFILE_ID",
     "SAI_QUEUE_ATTR_PAUSE_STATUS",
     "SAI_QUEUE_ATTR_ENABLE_PFC_DLDR",
+    "SAI_QUEUE_ATTR_PFC_DLR_INIT",
     NULL
 };
 const char* const sai_metadata_sai_queue_attr_t_enum_values_short_names[] = {
@@ -5185,11 +5219,12 @@ const char* const sai_metadata_sai_queue_attr_t_enum_values_short_names[] = {
     "SCHEDULER_PROFILE_ID",
     "PAUSE_STATUS",
     "ENABLE_PFC_DLDR",
+    "PFC_DLR_INIT",
     NULL
 };
 const sai_enum_metadata_t sai_metadata_enum_sai_queue_attr_t = {
     .name              = "sai_queue_attr_t",
-    .valuescount       = 9,
+    .valuescount       = 10,
     .values            = (const int*)sai_metadata_sai_queue_attr_t_enum_values,
     .valuesnames       = sai_metadata_sai_queue_attr_t_enum_values_names,
     .valuesshortnames  = sai_metadata_sai_queue_attr_t_enum_values_short_names,
@@ -7965,6 +8000,7 @@ const sai_enum_metadata_t* const sai_metadata_all_enums[] = {
     &sai_metadata_enum_sai_port_oper_status_t,
     &sai_metadata_enum_sai_port_pool_attr_t,
     &sai_metadata_enum_sai_port_pool_stat_t,
+    &sai_metadata_enum_sai_port_priority_flow_control_mode_t,
     &sai_metadata_enum_sai_port_stat_t,
     &sai_metadata_enum_sai_port_type_t,
     &sai_metadata_enum_sai_qos_map_attr_t,
@@ -8034,7 +8070,7 @@ const sai_enum_metadata_t* const sai_metadata_all_enums[] = {
     &sai_metadata_enum_sai_wred_attr_t,
     NULL
 };
-const size_t sai_metadata_all_enums_count = 171;
+const size_t sai_metadata_all_enums_count = 172;
 const sai_enum_metadata_t* const sai_metadata_attr_enums[] = {
     &sai_metadata_enum_sai_acl_counter_attr_t,
     &sai_metadata_enum_sai_acl_entry_attr_t,
@@ -26169,7 +26205,57 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_QOS_EGRESS_BUFFER_PROF
     .iskey                         = false,
     .isprimitive                   = false,
 };
+const sai_attribute_value_t sai_metadata_SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL_MODE_default_value = { .s32 = SAI_PORT_PRIORITY_FLOW_CONTROL_MODE_COMBINED };
+const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL_MODE = {
+    .objecttype                    = SAI_OBJECT_TYPE_PORT,
+    .attrid                        = SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL_MODE,
+    .attridname                    = "SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL_MODE",
+    .brief                         = "Combined or separate Bit vectors for port PFC RX/TX.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_INT32,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
+    .defaultvalue                  = &sai_metadata_SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL_MODE_default_value,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = true,
+    .isenumlist                    = false,
+    .enummetadata                  = &sai_metadata_enum_sai_port_priority_flow_control_mode_t,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = false,
+    .iscreateandset                = true,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+};
 const sai_attribute_value_t sai_metadata_SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL_default_value = { .u8 = 0 };
+const sai_attr_condition_t sai_metadata_validonly_SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL_0 = {
+    .attrid = SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL_MODE,
+    .condition = { .s32 = SAI_PORT_PRIORITY_FLOW_CONTROL_MODE_COMBINED }
+};
+const sai_attr_condition_t* const sai_metadata_validonlys_SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL[] = {
+    &sai_metadata_validonly_SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL_0,
+    NULL
+};
 const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL = {
     .objecttype                    = SAI_OBJECT_TYPE_PORT,
     .attrid                        = SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL,
@@ -26196,10 +26282,110 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL 
     .conditions                    = NULL,
     .conditionslength              = 0,
     .isconditional                 = (0 != 0),
-    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
-    .validonly                     = NULL,
-    .validonlylength               = 0,
-    .isvalidonly                   = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_OR,
+    .validonly                     = sai_metadata_validonlys_SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL,
+    .validonlylength               = 1,
+    .isvalidonly                   = (1 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = false,
+    .iscreateandset                = true,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+};
+const sai_attribute_value_t sai_metadata_SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL_RX_default_value = { .u8 = 0 };
+const sai_attr_condition_t sai_metadata_validonly_SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL_RX_0 = {
+    .attrid = SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL_MODE,
+    .condition = { .s32 = SAI_PORT_PRIORITY_FLOW_CONTROL_MODE_SEPARATE }
+};
+const sai_attr_condition_t* const sai_metadata_validonlys_SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL_RX[] = {
+    &sai_metadata_validonly_SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL_RX_0,
+    NULL
+};
+const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL_RX = {
+    .objecttype                    = SAI_OBJECT_TYPE_PORT,
+    .attrid                        = SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL_RX,
+    .attridname                    = "SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL_RX",
+    .brief                         = "Bit vector enable/disable port PFC RX.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_UINT8,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
+    .defaultvalue                  = &sai_metadata_SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL_RX_default_value,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_OR,
+    .validonly                     = sai_metadata_validonlys_SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL_RX,
+    .validonlylength               = 1,
+    .isvalidonly                   = (1 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = false,
+    .iscreateandset                = true,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+};
+const sai_attribute_value_t sai_metadata_SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL_TX_default_value = { .u8 = 0 };
+const sai_attr_condition_t sai_metadata_validonly_SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL_TX_0 = {
+    .attrid = SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL_MODE,
+    .condition = { .s32 = SAI_PORT_PRIORITY_FLOW_CONTROL_MODE_SEPARATE }
+};
+const sai_attr_condition_t* const sai_metadata_validonlys_SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL_TX[] = {
+    &sai_metadata_validonly_SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL_TX_0,
+    NULL
+};
+const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL_TX = {
+    .objecttype                    = SAI_OBJECT_TYPE_PORT,
+    .attrid                        = SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL_TX,
+    .attridname                    = "SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL_TX",
+    .brief                         = "Bit vector enable/disable port PFC TX.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_UINT8,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
+    .defaultvalue                  = &sai_metadata_SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL_TX_default_value,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_OR,
+    .validonly                     = sai_metadata_validonlys_SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL_TX,
+    .validonlylength               = 1,
+    .isvalidonly                   = (1 != 0),
     .getsave                       = false,
     .isvlan                        = false,
     .isaclfield                    = false,
@@ -27087,6 +27273,48 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_QUEUE_ATTR_ENABLE_PFC_DLDR = {
     .isoidattribute                = (0 > 0),
     .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
     .defaultvalue                  = &sai_metadata_SAI_QUEUE_ATTR_ENABLE_PFC_DLDR_default_value,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = false,
+    .iscreateandset                = true,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+};
+const sai_attribute_value_t sai_metadata_SAI_QUEUE_ATTR_PFC_DLR_INIT_default_value = { .booldata = false };
+const sai_attr_metadata_t sai_metadata_attr_SAI_QUEUE_ATTR_PFC_DLR_INIT = {
+    .objecttype                    = SAI_OBJECT_TYPE_QUEUE,
+    .attrid                        = SAI_QUEUE_ATTR_PFC_DLR_INIT,
+    .attridname                    = "SAI_QUEUE_ATTR_PFC_DLR_INIT",
+    .brief                         = "Start PFC deadlock recovery on a lossless queue.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_BOOL,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
+    .defaultvalue                  = &sai_metadata_SAI_QUEUE_ATTR_PFC_DLR_INIT_default_value,
     .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
     .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
     .storedefaultvalue             = false,
@@ -36696,21 +36924,13 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TUNNEL_ATTR_ENCAP_ECN_MODE = {
 const sai_object_type_t sai_metadata_SAI_TUNNEL_ATTR_ENCAP_MAPPERS_allowed_objects[] = {
     SAI_OBJECT_TYPE_TUNNEL_MAP,
 };
-const sai_attr_condition_t sai_metadata_condition_SAI_TUNNEL_ATTR_ENCAP_MAPPERS_0 = {
-    .attrid = SAI_TUNNEL_ATTR_ENCAP_ECN_MODE,
-    .condition = { .s32 = SAI_TUNNEL_ENCAP_ECN_MODE_USER_DEFINED }
-};
-const sai_attr_condition_t* const sai_metadata_conditions_SAI_TUNNEL_ATTR_ENCAP_MAPPERS[] = {
-    &sai_metadata_condition_SAI_TUNNEL_ATTR_ENCAP_MAPPERS_0,
-    NULL
-};
 const sai_attr_metadata_t sai_metadata_attr_SAI_TUNNEL_ATTR_ENCAP_MAPPERS = {
     .objecttype                    = SAI_OBJECT_TYPE_TUNNEL,
     .attrid                        = SAI_TUNNEL_ATTR_ENCAP_MAPPERS,
     .attridname                    = "SAI_TUNNEL_ATTR_ENCAP_MAPPERS",
     .brief                         = "Tunnel encap mappers.",
     .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_OBJECT_LIST,
-    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_MANDATORY_ON_CREATE|SAI_ATTR_FLAGS_CREATE_ONLY),
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_ONLY),
     .allowedobjecttypes            = sai_metadata_SAI_TUNNEL_ATTR_ENCAP_MAPPERS_allowed_objects,
     .allowedobjecttypeslength      = 1,
     .allowrepetitiononlist         = false,
@@ -36718,7 +36938,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TUNNEL_ATTR_ENCAP_MAPPERS = {
     .allowemptylist                = false,
     .allownullobjectid             = false,
     .isoidattribute                = (1 > 0),
-    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_NONE,
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_EMPTY_LIST,
     .defaultvalue                  = NULL,
     .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
     .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
@@ -36726,10 +36946,10 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TUNNEL_ATTR_ENCAP_MAPPERS = {
     .isenum                        = false,
     .isenumlist                    = false,
     .enummetadata                  = NULL,
-    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_OR,
-    .conditions                    = sai_metadata_conditions_SAI_TUNNEL_ATTR_ENCAP_MAPPERS,
-    .conditionslength              = 1,
-    .isconditional                 = (1 != 0),
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
     .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
     .validonly                     = NULL,
     .validonlylength               = 0,
@@ -36738,7 +36958,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TUNNEL_ATTR_ENCAP_MAPPERS = {
     .isvlan                        = false,
     .isaclfield                    = false,
     .isaclaction                   = false,
-    .ismandatoryoncreate           = true,
+    .ismandatoryoncreate           = false,
     .iscreateonly                  = true,
     .iscreateandset                = false,
     .isreadonly                    = false,
@@ -36790,21 +37010,13 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TUNNEL_ATTR_DECAP_ECN_MODE = {
 const sai_object_type_t sai_metadata_SAI_TUNNEL_ATTR_DECAP_MAPPERS_allowed_objects[] = {
     SAI_OBJECT_TYPE_TUNNEL_MAP,
 };
-const sai_attr_condition_t sai_metadata_condition_SAI_TUNNEL_ATTR_DECAP_MAPPERS_0 = {
-    .attrid = SAI_TUNNEL_ATTR_DECAP_ECN_MODE,
-    .condition = { .s32 = SAI_TUNNEL_DECAP_ECN_MODE_USER_DEFINED }
-};
-const sai_attr_condition_t* const sai_metadata_conditions_SAI_TUNNEL_ATTR_DECAP_MAPPERS[] = {
-    &sai_metadata_condition_SAI_TUNNEL_ATTR_DECAP_MAPPERS_0,
-    NULL
-};
 const sai_attr_metadata_t sai_metadata_attr_SAI_TUNNEL_ATTR_DECAP_MAPPERS = {
     .objecttype                    = SAI_OBJECT_TYPE_TUNNEL,
     .attrid                        = SAI_TUNNEL_ATTR_DECAP_MAPPERS,
     .attridname                    = "SAI_TUNNEL_ATTR_DECAP_MAPPERS",
     .brief                         = "Tunnel decap mappers.",
     .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_OBJECT_LIST,
-    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_MANDATORY_ON_CREATE|SAI_ATTR_FLAGS_CREATE_ONLY),
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_ONLY),
     .allowedobjecttypes            = sai_metadata_SAI_TUNNEL_ATTR_DECAP_MAPPERS_allowed_objects,
     .allowedobjecttypeslength      = 1,
     .allowrepetitiononlist         = false,
@@ -36812,7 +37024,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TUNNEL_ATTR_DECAP_MAPPERS = {
     .allowemptylist                = false,
     .allownullobjectid             = false,
     .isoidattribute                = (1 > 0),
-    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_NONE,
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_EMPTY_LIST,
     .defaultvalue                  = NULL,
     .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
     .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
@@ -36820,10 +37032,10 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TUNNEL_ATTR_DECAP_MAPPERS = {
     .isenum                        = false,
     .isenumlist                    = false,
     .enummetadata                  = NULL,
-    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_OR,
-    .conditions                    = sai_metadata_conditions_SAI_TUNNEL_ATTR_DECAP_MAPPERS,
-    .conditionslength              = 1,
-    .isconditional                 = (1 != 0),
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
     .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
     .validonly                     = NULL,
     .validonlylength               = 0,
@@ -36832,7 +37044,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TUNNEL_ATTR_DECAP_MAPPERS = {
     .isvlan                        = false,
     .isaclfield                    = false,
     .isaclaction                   = false,
-    .ismandatoryoncreate           = true,
+    .ismandatoryoncreate           = false,
     .iscreateonly                  = true,
     .iscreateandset                = false,
     .isreadonly                    = false,
@@ -39515,7 +39727,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_VLAN_ATTR_UNKNOWN_MULTICAST_FLOO
     .objecttype                    = SAI_OBJECT_TYPE_VLAN,
     .attrid                        = SAI_VLAN_ATTR_UNKNOWN_MULTICAST_FLOOD_CONTROL_TYPE,
     .attridname                    = "SAI_VLAN_ATTR_UNKNOWN_MULTICAST_FLOOD_CONTROL_TYPE",
-    .brief                         = "Unknown unicast flood control type.",
+    .brief                         = "Unknown multicast flood control type.",
     .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_INT32,
     .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
     .allowedobjecttypes            = NULL,
@@ -40704,7 +40916,10 @@ const sai_attr_metadata_t* const sai_metadata_object_type_sai_port_attr_t[] = {
     &sai_metadata_attr_SAI_PORT_ATTR_QOS_SCHEDULER_PROFILE_ID,
     &sai_metadata_attr_SAI_PORT_ATTR_QOS_INGRESS_BUFFER_PROFILE_LIST,
     &sai_metadata_attr_SAI_PORT_ATTR_QOS_EGRESS_BUFFER_PROFILE_LIST,
+    &sai_metadata_attr_SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL_MODE,
     &sai_metadata_attr_SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL,
+    &sai_metadata_attr_SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL_RX,
+    &sai_metadata_attr_SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL_TX,
     &sai_metadata_attr_SAI_PORT_ATTR_META_DATA,
     &sai_metadata_attr_SAI_PORT_ATTR_EGRESS_BLOCK_PORT_LIST,
     &sai_metadata_attr_SAI_PORT_ATTR_HW_PROFILE_ID,
@@ -41059,6 +41274,7 @@ const sai_attr_metadata_t* const sai_metadata_object_type_sai_queue_attr_t[] = {
     &sai_metadata_attr_SAI_QUEUE_ATTR_SCHEDULER_PROFILE_ID,
     &sai_metadata_attr_SAI_QUEUE_ATTR_PAUSE_STATUS,
     &sai_metadata_attr_SAI_QUEUE_ATTR_ENABLE_PFC_DLDR,
+    &sai_metadata_attr_SAI_QUEUE_ATTR_PFC_DLR_INIT,
     NULL
 };
 const sai_attr_metadata_t* const sai_metadata_object_type_sai_scheduler_attr_t[] = {
@@ -41986,6 +42202,11 @@ const char* sai_metadata_get_port_pool_stat_name(
         _In_ sai_port_pool_stat_t value)
 {
     return sai_metadata_get_enum_value_name(&sai_metadata_enum_sai_port_pool_stat_t, value);
+}
+const char* sai_metadata_get_port_priority_flow_control_mode_name(
+        _In_ sai_port_priority_flow_control_mode_t value)
+{
+    return sai_metadata_get_enum_value_name(&sai_metadata_enum_sai_port_priority_flow_control_mode_t, value);
 }
 const char* sai_metadata_get_port_stat_name(
         _In_ sai_port_stat_t value)
@@ -43324,7 +43545,7 @@ const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_PORT 
     .attridend            = SAI_PORT_ATTR_END,
     .enummetadata         = &sai_metadata_enum_sai_port_attr_t,
     .attrmetadata         = sai_metadata_object_type_sai_port_attr_t,
-    .attrmetadatalength   = 80,
+    .attrmetadatalength   = 83,
     .isnonobjectid        = false,
     .isobjectid           = !false,
     .structmembers        = NULL,
@@ -45061,7 +45282,7 @@ const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_QUEUE
     .attridend            = SAI_QUEUE_ATTR_END,
     .enummetadata         = &sai_metadata_enum_sai_queue_attr_t,
     .attrmetadata         = sai_metadata_object_type_sai_queue_attr_t,
-    .attrmetadatalength   = 9,
+    .attrmetadatalength   = 10,
     .isnonobjectid        = false,
     .isobjectid           = !false,
     .structmembers        = NULL,
@@ -48745,6 +48966,9 @@ const sai_attr_metadata_t* const sai_metadata_attr_sorted_by_id_name[] = {
     &sai_metadata_attr_SAI_PORT_ATTR_PORT_POOL_LIST,
     &sai_metadata_attr_SAI_PORT_ATTR_PORT_VLAN_ID,
     &sai_metadata_attr_SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL,
+    &sai_metadata_attr_SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL_MODE,
+    &sai_metadata_attr_SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL_RX,
+    &sai_metadata_attr_SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL_TX,
     &sai_metadata_attr_SAI_PORT_ATTR_QOS_DEFAULT_TC,
     &sai_metadata_attr_SAI_PORT_ATTR_QOS_DOT1P_TO_COLOR_MAP,
     &sai_metadata_attr_SAI_PORT_ATTR_QOS_DOT1P_TO_TC_MAP,
@@ -48792,6 +49016,7 @@ const sai_attr_metadata_t* const sai_metadata_attr_sorted_by_id_name[] = {
     &sai_metadata_attr_SAI_QUEUE_ATTR_INDEX,
     &sai_metadata_attr_SAI_QUEUE_ATTR_PARENT_SCHEDULER_NODE,
     &sai_metadata_attr_SAI_QUEUE_ATTR_PAUSE_STATUS,
+    &sai_metadata_attr_SAI_QUEUE_ATTR_PFC_DLR_INIT,
     &sai_metadata_attr_SAI_QUEUE_ATTR_PORT,
     &sai_metadata_attr_SAI_QUEUE_ATTR_SCHEDULER_PROFILE_ID,
     &sai_metadata_attr_SAI_QUEUE_ATTR_TYPE,
@@ -49106,7 +49331,7 @@ const sai_attr_metadata_t* const sai_metadata_attr_sorted_by_id_name[] = {
     &sai_metadata_attr_SAI_WRED_ATTR_YELLOW_MIN_THRESHOLD,
     NULL
 };
-const size_t sai_metadata_attr_sorted_by_id_name_count = 742;
+const size_t sai_metadata_attr_sorted_by_id_name_count = 746;
 
 /* SAI notifications struct */
 
@@ -49560,6 +49785,12 @@ int sai_serialize_port_pool_stat(
         _In_ sai_port_pool_stat_t port_pool_stat)
 {
     return sai_serialize_enum(buffer, &sai_metadata_enum_sai_port_pool_stat_t, port_pool_stat);
+}
+int sai_serialize_port_priority_flow_control_mode(
+        _Out_ char *buffer,
+        _In_ sai_port_priority_flow_control_mode_t port_priority_flow_control_mode)
+{
+    return sai_serialize_enum(buffer, &sai_metadata_enum_sai_port_priority_flow_control_mode_t, port_priority_flow_control_mode);
 }
 int sai_serialize_port_stat(
         _Out_ char *buffer,
@@ -50556,6 +50787,14 @@ int sai_serialize_queue_deadlock_notification_data(
     }
     buf += ret;
     buf += sprintf(buf, "\"");
+    buf += sprintf(buf, ",\"app_managed_recovery\":");
+    ret = sai_serialize_bool(buf, queue_deadlock_notification_data->app_managed_recovery);
+    if (ret < 0)
+    {
+        SAI_META_LOG_WARN("failed to serialize 'app_managed_recovery'");
+        return SAI_SERIALIZE_ERROR;
+    }
+    buf += ret;
     buf += sprintf(buf, "}");
     return (int)(buf - start_buf);
 }

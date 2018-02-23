@@ -184,6 +184,11 @@ static sai_status_t mlnx_port_queue_list_get(_In_ const sai_object_key_t   *key,
                                              _In_ uint32_t                  attr_index,
                                              _Inout_ vendor_cache_t        *cache,
                                              void                          *arg);
+static sai_status_t mlnx_port_pool_list_get(_In_ const sai_object_key_t   *key,
+                                            _Inout_ sai_attribute_value_t *value,
+                                            _In_ uint32_t                  attr_index,
+                                            _Inout_ vendor_cache_t        *cache,
+                                            void                          *arg);
 static sai_status_t mlnx_port_sched_groups_num_get(_In_ const sai_object_key_t   *key,
                                                    _Inout_ sai_attribute_value_t *value,
                                                    _In_ uint32_t                  attr_index,
@@ -523,6 +528,11 @@ static const sai_vendor_attribute_entry_t port_vendor_attribs[] = {
       { true, false, true, true },
       mlnx_port_egress_block_get, NULL,
       mlnx_port_egress_block_set, NULL },
+    { SAI_PORT_ATTR_PORT_POOL_LIST,
+      { false, false, false, true },
+      { false, false, false, true },
+      mlnx_port_pool_list_get, NULL,
+      NULL, NULL },
     { END_FUNCTIONALITY_ATTRIBS_ID,
       { false, false, false, false },
       { false, false, false, false },
@@ -3524,6 +3534,30 @@ out:
     return status;
 }
 
+/* Get list of pools for the port */
+static sai_status_t mlnx_port_pool_list_get(_In_ const sai_object_key_t   *key,
+                                            _Inout_ sai_attribute_value_t *value,
+                                            _In_ uint32_t                  attr_index,
+                                            _Inout_ vendor_cache_t        *cache,
+                                            void                          *arg)
+{
+    sai_status_t     status = SAI_STATUS_SUCCESS;
+    sx_port_log_id_t port_id;
+
+    SX_LOG_ENTER();
+
+    if (SAI_STATUS_SUCCESS !=
+        (status = mlnx_object_to_type(key->key.object_id, SAI_OBJECT_TYPE_PORT, &port_id, NULL))) {
+        return status;
+    }
+
+    /* port pool is not implemented so return empty list */
+    value->objlist.count = 0;
+
+    SX_LOG_EXIT();
+    return status;
+}
+
 static uint32_t sched_groups_count(mlnx_port_config_t *port)
 {
     uint32_t count = 0;
@@ -4893,41 +4927,52 @@ static sai_status_t mlnx_port_egress_block_get(_In_ const sai_object_key_t   *ke
     sx_port_log_id_t    sx_egress_block_ports[MAX_PORTS];
     sai_object_id_t     sai_egress_block_ports[MAX_PORTS];
     uint32_t            egress_block_ports_count, ii;
+    sx_port_log_id_t    port_id;
 
     SX_LOG_ENTER();
 
+    if (SAI_STATUS_SUCCESS !=
+        (status = mlnx_object_to_type(key->key.object_id, SAI_OBJECT_TYPE_PORT, &port_id, NULL))) {
+        return status;
+    }
+
     sai_db_read_lock();
 
-    status = mlnx_port_by_obj_id(key->key.object_id, &port);
-    if (SAI_ERR(status)) {
-        goto out;
+    if (mlnx_log_port_is_cpu(port_id)) {
+        value->objlist.count = 0;
     }
-
-    /* In case if port is LAG member then use LAG logical id */
-    status = mlnx_port_fetch_lag_if_lag_member(&port);
-    if (SAI_ERR(status)) {
-        goto out;
-    }
-
-    egress_block_ports_count = 0;
-    status                   = mlnx_port_egress_block_get_impl(port->logical,
-                                                               sx_egress_block_ports,
-                                                               &egress_block_ports_count);
-    if (SAI_ERR(status)) {
-        goto out;
-    }
-
-    for (ii = 0; ii < egress_block_ports_count; ii++) {
-        status = mlnx_create_object(SAI_OBJECT_TYPE_PORT, sx_egress_block_ports[ii],
-                                    NULL, &sai_egress_block_ports[ii]);
+    else {
+        status = mlnx_port_by_obj_id(key->key.object_id, &port);
         if (SAI_ERR(status)) {
             goto out;
         }
-    }
 
-    status = mlnx_fill_objlist(sai_egress_block_ports, egress_block_ports_count, &value->objlist);
-    if (SAI_ERR(status)) {
-        goto out;
+        /* In case if port is LAG member then use LAG logical id */
+        status = mlnx_port_fetch_lag_if_lag_member(&port);
+        if (SAI_ERR(status)) {
+            goto out;
+        }
+
+        egress_block_ports_count = 0;
+        status = mlnx_port_egress_block_get_impl(port->logical,
+            sx_egress_block_ports,
+            &egress_block_ports_count);
+        if (SAI_ERR(status)) {
+            goto out;
+        }
+
+        for (ii = 0; ii < egress_block_ports_count; ii++) {
+            status = mlnx_create_object(SAI_OBJECT_TYPE_PORT, sx_egress_block_ports[ii],
+                NULL, &sai_egress_block_ports[ii]);
+            if (SAI_ERR(status)) {
+                goto out;
+            }
+        }
+
+        status = mlnx_fill_objlist(sai_egress_block_ports, egress_block_ports_count, &value->objlist);
+        if (SAI_ERR(status)) {
+            goto out;
+        }
     }
 
 out:

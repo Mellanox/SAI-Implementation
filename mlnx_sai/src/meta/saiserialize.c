@@ -931,4 +931,3 @@ int sai_serialize_attribute(
     SAI_META_LOG_WARN("not implemented");
     return SAI_SERIALIZE_ERROR;
 }
-

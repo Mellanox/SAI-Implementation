@@ -324,6 +324,104 @@ static void fdb_key_to_str(_In_ const sai_fdb_entry_t* fdb_entry, _Out_ char *ke
              SAI_TYPE_STR(sai_object_type_query(fdb_entry->bv_id)));
 }
 
+static sai_status_t mlnx_fdb_attrs_to_sx(_In_ const sai_attribute_value_t  *type_attr,
+                                         _In_ uint32_t                      type_attr_index,
+                                         _In_ const sai_attribute_value_t  *bport_attr,
+                                         _In_ uint32_t                      bport_attr_index,
+                                         _In_ const sai_attribute_value_t  *action_attr,
+                                         _In_ uint32_t                      action_index,
+                                         _In_ const sai_attribute_value_t  *ip_addr,
+                                         _Out_ sx_fdb_uc_mac_addr_params_t *fdb_entry)
+{
+    sai_status_t         status = SAI_STATUS_SUCCESS;
+    sai_packet_action_t  packet_action;
+    sx_tunnel_id_t       sx_tunnel_id;
+    mlnx_bridge_port_t  *bport;
+
+    assert(type_attr);
+    assert(fdb_entry);
+
+    status = mlnx_translate_sai_type_to_sdk(type_attr->s32, fdb_entry, type_attr_index);
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+    if (!action_attr) {
+        packet_action = SAI_PACKET_ACTION_FORWARD;
+    } else {
+        packet_action = action_attr->s32;
+    }
+
+    status = mlnx_translate_sai_action_to_sdk(packet_action, fdb_entry, action_index);
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+    if (!bport_attr || (SAI_NULL_OBJECT_ID == bport_attr->oid)) {
+        if (false == SX_FDB_IS_PORT_REDUNDANT(fdb_entry->entry_type, fdb_entry->action)) {
+            SX_LOG_NTC("Failed to create FDB Entry - action (%d) needs a port id attribute\n", packet_action);
+            return SAI_STATUS_MANDATORY_ATTRIBUTE_MISSING;
+        }
+
+        fdb_entry->log_port = SX_INVALID_PORT;
+        return SAI_STATUS_SUCCESS;
+    }
+
+    sai_db_read_lock();
+
+    status = mlnx_bridge_port_by_oid(bport_attr->oid, &bport);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to lookup bridge port by oid %" PRIx64 "\n", bport_attr->oid);
+        goto out;
+    }
+
+    switch (bport->port_type) {
+    case SAI_BRIDGE_PORT_TYPE_PORT:
+    case SAI_BRIDGE_PORT_TYPE_SUB_PORT:
+        fdb_entry->log_port = bport->logical;
+        break;
+
+    case SAI_BRIDGE_PORT_TYPE_1D_ROUTER:
+    case SAI_BRIDGE_PORT_TYPE_1Q_ROUTER:
+        if (packet_action != SAI_PACKET_ACTION_FORWARD) {
+            SX_LOG_ERR("Bridge port type 1D/1Q router is only valid for SAI_PACKET_ACTION_FORWARD\n");
+            status = SAI_STATUS_INVALID_ATTR_VALUE_0 + bport_attr_index;
+            goto out;
+        }
+        fdb_entry->action = SX_FDB_ACTION_FORWARD_TO_ROUTER;
+        break;
+
+    case SAI_BRIDGE_PORT_TYPE_TUNNEL:
+        if (!ip_addr) {
+            SX_LOG_ERR("Invalid bridge port type %d, SAI_BRIDGE_PORT_TYPE_TUNNEL "
+                       "is only supported when endpoint ip is passed\n", bport->port_type);
+            status = SAI_STATUS_INVALID_ATTR_VALUE_0 + bport_attr_index;
+            goto out;
+        }
+
+        sx_tunnel_id = g_sai_db_ptr->tunnel_db[bport->tunnel_id].sx_tunnel_id;
+        fdb_entry->dest_type = SX_FDB_UC_MAC_ADDR_DEST_TYPE_NEXT_HOP;
+        fdb_entry->dest.next_hop.next_hop_key.type                                   = SX_NEXT_HOP_TYPE_TUNNEL_ENCAP;
+        fdb_entry->dest.next_hop.next_hop_key.next_hop_key_entry.ip_tunnel.tunnel_id = sx_tunnel_id;
+        status = mlnx_translate_sai_ip_address_to_sdk(&ip_addr->ipaddr,
+                                                      &fdb_entry->dest.next_hop.next_hop_key.next_hop_key_entry.ip_tunnel.underlay_dip);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Error translating sai ip to sdk ip\n");
+            goto out;
+        }
+        break;
+
+    default:
+        SX_LOG_ERR("Unsupported type of bridge port - %d\n", bport->port_type);
+        status = SAI_STATUS_FAILURE;
+        goto out;
+    }
+
+out:
+    sai_db_unlock();
+    return status;
+}
+
 /*
  * Routine Description:
  *    Create FDB entry
@@ -341,17 +439,13 @@ static sai_status_t mlnx_create_fdb_entry(_In_ const sai_fdb_entry_t* fdb_entry,
                                           _In_ uint32_t               attr_count,
                                           _In_ const sai_attribute_t *attr_list)
 {
-    sai_status_t                 status, ip_status;
-    const sai_attribute_value_t *type, *action, *port, *ip_addr;
-    sai_packet_action_t          packet_action;
+    sai_status_t                 status;
+    const sai_attribute_value_t *type = NULL, *action = NULL, *port = NULL, *ip_addr = NULL;
     uint32_t                     type_index, action_index, port_index, ip_index;
     sx_fdb_uc_mac_addr_params_t  check_entry;
     sx_fdb_uc_mac_addr_params_t  mac_entry;
-    sx_tunnel_id_t               sx_tunnel_id;
     char                         key_str[MAX_KEY_STR_LEN];
     char                         list_str[MAX_LIST_VALUE_STR_LEN];
-    sx_port_log_id_t             port_id;
-    mlnx_bridge_port_t          *bridge_port;
 
     SX_LOG_ENTER();
 
@@ -373,73 +467,14 @@ static sai_status_t mlnx_create_fdb_entry(_In_ const sai_fdb_entry_t* fdb_entry,
     SX_LOG_NTC("Create FDB entry %s\n", key_str);
     SX_LOG_NTC("Attribs %s\n", list_str);
 
-    status = find_attrib_in_list(attr_count, attr_list, SAI_FDB_ENTRY_ATTR_TYPE, &type, &type_index);
-    assert(SAI_STATUS_SUCCESS == status);
+    find_attrib_in_list(attr_count, attr_list, SAI_FDB_ENTRY_ATTR_TYPE, &type, &type_index);
+    find_attrib_in_list(attr_count, attr_list, SAI_FDB_ENTRY_ATTR_PACKET_ACTION, &action, &action_index);
+    find_attrib_in_list(attr_count, attr_list, SAI_FDB_ENTRY_ATTR_ENDPOINT_IP, &ip_addr, &ip_index);
+    find_attrib_in_list(attr_count, attr_list, SAI_FDB_ENTRY_ATTR_BRIDGE_PORT_ID, &port, &port_index);
 
-    status = mlnx_translate_sai_type_to_sdk(type->s32, &mac_entry, type_index);
+    status = mlnx_fdb_attrs_to_sx(type, type_index, port, port_index, action, action_index, ip_addr, &mac_entry);
     if (SAI_ERR(status)) {
         goto out;
-    }
-
-    status = find_attrib_in_list(attr_count, attr_list, SAI_FDB_ENTRY_ATTR_PACKET_ACTION, &action, &action_index);
-    if (SAI_ERR(status)) {
-        packet_action = SAI_PACKET_ACTION_FORWARD;
-    } else {
-        packet_action = action->s32;
-    }
-
-    status = mlnx_translate_sai_action_to_sdk(packet_action, &mac_entry, action_index);
-    if (SAI_ERR(status)) {
-        goto out;
-    }
-
-    ip_status = find_attrib_in_list(attr_count, attr_list, SAI_FDB_ENTRY_ATTR_ENDPOINT_IP, &ip_addr, &ip_index);
-
-    status = find_attrib_in_list(attr_count, attr_list, SAI_FDB_ENTRY_ATTR_BRIDGE_PORT_ID, &port, &port_index);
-    if (SAI_ERR(status) || (SAI_NULL_OBJECT_ID == port->oid)) {
-        if (false == SX_FDB_IS_PORT_REDUNDANT(mac_entry.entry_type, mac_entry.action)) {
-            SX_LOG_NTC("Failed to create FDB Entry - action (%d) needs a port id attribute\n", packet_action);
-            status = SAI_STATUS_MANDATORY_ATTRIBUTE_MISSING;
-            goto out;
-        }
-
-        /* log port is redundant */
-        port_id = 0;
-    } else if (SAI_ERR(ip_status)) {
-        status = mlnx_bridge_port_sai_to_log_port(port->oid, &port_id);
-        if (SAI_ERR(status)) {
-            goto out;
-        }
-    } else {
-        sai_db_read_lock();
-        status = mlnx_bridge_port_by_oid(port->oid, &bridge_port);
-        if (SAI_ERR(status)) {
-            sai_db_unlock();
-            SX_LOG_ERR("Failed to lookup bridge port by oid %" PRIx64 "\n", port->oid);
-            goto out;
-        }
-        if (bridge_port->port_type != SAI_BRIDGE_PORT_TYPE_TUNNEL) {
-            SX_LOG_ERR(
-                "Invalid bridge port type %d, SAI_BRIDGE_PORT_TYPE_TUNNEL is only supported when endpoint ip is passed\n",
-                bridge_port->port_type);
-            sai_db_unlock();
-            status = SAI_STATUS_INVALID_PARAMETER;
-            goto out;
-        }
-
-        sx_tunnel_id = g_sai_db_ptr->tunnel_db[bridge_port->tunnel_id].sx_tunnel_id;
-        sai_db_unlock();
-        mac_entry.dest_type =
-            SX_FDB_UC_MAC_ADDR_DEST_TYPE_NEXT_HOP;
-        mac_entry.dest.next_hop.next_hop_key.type                                   = SX_NEXT_HOP_TYPE_TUNNEL_ENCAP;
-        mac_entry.dest.next_hop.next_hop_key.next_hop_key_entry.ip_tunnel.tunnel_id = sx_tunnel_id;
-        status                                                                      =
-            mlnx_translate_sai_ip_address_to_sdk(&ip_addr->ipaddr,
-                                                 &mac_entry.dest.next_hop.next_hop_key.next_hop_key_entry.ip_tunnel.underlay_dip);
-        if (SAI_ERR(status)) {
-            SX_LOG_ERR("Error translating sai ip to sdk ip\n");
-            goto out;
-        }
     }
 
     if (!SAI_ERR(mlnx_get_mac(fdb_entry, &check_entry))) {
@@ -450,10 +485,8 @@ static sai_status_t mlnx_create_fdb_entry(_In_ const sai_fdb_entry_t* fdb_entry,
     status = mlnx_fdb_entry_to_sdk(fdb_entry, &mac_entry);
     if (SAI_ERR(status)) {
         SX_LOG_ERR("Failed to convert sai_fdb_entry_t to SDK params\n");
-        return status;
+        goto out;
     }
-
-    mac_entry.log_port = port_id;
 
     status = mlnx_add_mac(&mac_entry);
     if (SAI_ERR(status)) {
@@ -580,7 +613,7 @@ static sai_status_t mlnx_fdb_port_set(_In_ const sai_object_key_t      *key,
     sai_status_t                status;
     sx_fdb_uc_mac_addr_params_t old_mac_entry, new_mac_entry;
     const sai_fdb_entry_t      *fdb_entry = &key->key.fdb_entry;
-    sx_port_log_id_t            port_id;
+    mlnx_bridge_port_t         *bport;
 
     SX_LOG_ENTER();
 
@@ -598,14 +631,29 @@ static sai_status_t mlnx_fdb_port_set(_In_ const sai_object_key_t      *key,
 
         new_mac_entry.log_port = 0;
     } else {
-        status = mlnx_bridge_port_sai_to_log_port(value->oid, &port_id);
+        status = mlnx_bridge_port_by_oid(value->oid, &bport);
         if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to lookup bridge port by oid %" PRIx64 "\n", value->oid);
             return status;
         }
 
         mlnx_fdb_route_action_fetch(SAI_OBJECT_TYPE_FDB_ENTRY, fdb_entry, &new_mac_entry);
 
-        new_mac_entry.log_port = port_id;
+        if ((bport->port_type == SAI_BRIDGE_PORT_TYPE_1Q_ROUTER) ||
+            (bport->port_type == SAI_BRIDGE_PORT_TYPE_1D_ROUTER)) {
+            if ((new_mac_entry.action != SX_FDB_ACTION_FORWARD) &&
+                (new_mac_entry.action != SX_FDB_ACTION_FORWARD_TO_ROUTER)) {
+                SX_LOG_ERR("Failed to update bridge port id - 1Q/1D router is only supported for SAI_PACKET_ACTION_FORWARD. "
+                    "Current sx action is %d\n", new_mac_entry.action);
+                return SAI_STATUS_FAILURE;
+            }
+
+            new_mac_entry.action = SX_FDB_ACTION_FORWARD_TO_ROUTER;
+            new_mac_entry.log_port = SX_INVALID_PORT;
+        }
+        else {
+            new_mac_entry.log_port = bport->logical;
+        }
     }
 
     status = mlnx_del_mac(&old_mac_entry);
@@ -824,6 +872,11 @@ static sai_status_t mlnx_fdb_port_get(_In_ const sai_object_key_t   *key,
 
     if (SX_FDB_ACTION_DISCARD == fdb_cache->action) {
         value->oid = SAI_NULL_OBJECT_ID;
+    }
+    else if (SX_FDB_ACTION_FORWARD_TO_ROUTER == fdb_cache->action) {
+        SX_LOG_ERR("Getting a bridge port while it's 1D/1Q router is not supported\n");
+        SX_LOG_EXIT();
+        return SAI_STATUS_NOT_SUPPORTED;
     } else {
         status = mlnx_log_port_to_sai_bridge_port(fdb_cache->log_port, &value->oid);
         if (SAI_ERR(status)) {
@@ -854,6 +907,7 @@ static sai_status_t mlnx_fdb_action_get(_In_ const sai_object_key_t   *key,
 
     switch (fdb_cache->action) {
     case SX_FDB_ACTION_FORWARD:
+    case SX_FDB_ACTION_FORWARD_TO_ROUTER:
         value->s32 = SAI_PACKET_ACTION_FORWARD;
         break;
 
@@ -869,7 +923,6 @@ static sai_status_t mlnx_fdb_action_get(_In_ const sai_object_key_t   *key,
         value->s32 = SAI_PACKET_ACTION_DROP;
         break;
 
-    case SX_FDB_ACTION_FORWARD_TO_ROUTER:
     default:
         SX_LOG_ERR("Unexpected fdb action %d\n", fdb_cache->action);
         return SAI_STATUS_FAILURE;
