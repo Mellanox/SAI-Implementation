@@ -1112,18 +1112,26 @@ static sai_status_t mlnx_hash_native_field_list_set(_In_ const sai_object_key_t 
 
         /* check if changes need to be apply */
         if (mlnx_hash_obj_need_apply(hash_oper_id)) {
+            /* SAI DB is updated so further logic can fetch an ECMP state */
+            status = mlnx_hash_obj_native_fields_set(hash_id, value);
+            if (SAI_STATUS_SUCCESS != status) {
+                SX_LOG_ERR("Failed to update native fields for %s.\n", key_str);
+                goto out;
+            }
+
             /* apply fields */
             status = mlnx_hash_obj_native_fields_update(hash_oper_id, value);
             if (SAI_STATUS_SUCCESS != status) {
                 goto out;
             }
         }
-    }
-
-    /* update DB */
-    status = mlnx_hash_obj_native_fields_set(hash_id, value);
-    if (SAI_STATUS_SUCCESS != status) {
-        SX_LOG_ERR("Failed to update native fields for %s.\n", key_str);
+    } else {
+        /* update DB */
+        status = mlnx_hash_obj_native_fields_set(hash_id, value);
+        if (SAI_STATUS_SUCCESS != status) {
+            SX_LOG_ERR("Failed to update native fields for %s.\n", key_str);
+            goto out;
+        }
     }
 
 out:

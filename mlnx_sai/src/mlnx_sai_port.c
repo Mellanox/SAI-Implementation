@@ -171,6 +171,9 @@ static sai_status_t mlnx_port_pfc_control_get(_In_ const sai_object_key_t   *key
                                               _In_ uint32_t                  attr_index,
                                               _Inout_ vendor_cache_t        *cache,
                                               void                          *arg);
+static sai_status_t mlnx_port_pfc_control_mode_set(_In_ const sai_object_key_t      *key,
+                                                   _In_ const sai_attribute_value_t *value,
+                                                   void                             *arg);
 static sai_status_t mlnx_port_pfc_control_set(_In_ const sai_object_key_t      *key,
                                               _In_ const sai_attribute_value_t *value,
                                               void                             *arg);
@@ -477,11 +480,26 @@ static const sai_vendor_attribute_entry_t port_vendor_attribs[] = {
       { false, false, true, true },
       mlnx_port_qos_map_id_get, (void*)SAI_QOS_MAP_TYPE_PFC_PRIORITY_TO_QUEUE,
       mlnx_port_qos_map_id_set, (void*)SAI_QOS_MAP_TYPE_PFC_PRIORITY_TO_QUEUE },
+    { SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL_MODE,
+      { false, false, true, false },
+      { false, false, true, true },
+      NULL, NULL,
+      mlnx_port_pfc_control_mode_set, NULL },
     { SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL,
       { false, false, true, true },
       { false, false, true, true },
-      mlnx_port_pfc_control_get, NULL,
-      mlnx_port_pfc_control_set, NULL },
+      mlnx_port_pfc_control_get, (void*)SX_PORT_FLOW_CTRL_MODE_TX_EN_RX_EN,
+      mlnx_port_pfc_control_set, (void*)SX_PORT_FLOW_CTRL_MODE_TX_EN_RX_EN },
+    { SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL_RX,
+      { false, false, true, true },
+      { false, false, true, true },
+      mlnx_port_pfc_control_get, (void*)SX_PORT_FLOW_CTRL_MODE_TX_DIS_RX_EN,
+      mlnx_port_pfc_control_set, (void*)SX_PORT_FLOW_CTRL_MODE_TX_DIS_RX_EN },
+    { SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL_TX,
+      { false, false, true, true },
+      { false, false, true, true },
+      mlnx_port_pfc_control_get, (void*)SX_PORT_FLOW_CTRL_MODE_TX_EN_RX_DIS,
+      mlnx_port_pfc_control_set, (void*)SX_PORT_FLOW_CTRL_MODE_TX_EN_RX_DIS },
     { SAI_PORT_ATTR_QOS_SCHEDULER_PROFILE_ID,
       { false, false, true, true },
       { false, false, true, true },
@@ -3385,6 +3403,9 @@ static sai_status_t mlnx_port_pfc_control_get(_In_ const sai_object_key_t   *key
 
     SX_LOG_ENTER();
 
+    assert((SX_PORT_FLOW_CTRL_MODE_TX_EN_RX_EN == (long)arg) || (SX_PORT_FLOW_CTRL_MODE_TX_EN_RX_DIS == (long)arg) || 
+           (SX_PORT_FLOW_CTRL_MODE_TX_DIS_RX_EN == (long)arg));
+
     status = mlnx_object_to_type(key->key.object_id, SAI_OBJECT_TYPE_PORT, &port_id, NULL);
     if (status != SAI_STATUS_SUCCESS) {
         SX_LOG_ERR("Failed to convert port oid to logical port id\n");
@@ -3400,7 +3421,7 @@ static sai_status_t mlnx_port_pfc_control_get(_In_ const sai_object_key_t   *key
             return sdk_to_sai(status);
         }
 
-        if (flow_mode == SX_PORT_FLOW_CTRL_MODE_TX_EN_RX_EN) {
+        if (flow_mode == (long)arg) {
             pfc_ctrl_map |= (1 << pfc_prio);
         }
     }
@@ -3409,6 +3430,37 @@ static sai_status_t mlnx_port_pfc_control_get(_In_ const sai_object_key_t   *key
 
     SX_LOG_EXIT();
     return SAI_STATUS_SUCCESS;
+}
+
+/** Combined or separate Bit vectors for port PFC RX/TX [sai_port_priority_flow_control_mode_t] */
+static sai_status_t mlnx_port_pfc_control_mode_set(_In_ const sai_object_key_t      *key,
+                                                   _In_ const sai_attribute_value_t *value,
+                                                   void                             *arg)
+{
+    sai_status_t        status;
+    sx_port_log_id_t    port_id;
+
+    status = mlnx_object_to_type(key->key.object_id, SAI_OBJECT_TYPE_PORT, &port_id, NULL);
+    if (status != SAI_STATUS_SUCCESS) {
+        SX_LOG_ERR("Failed to convert port oid to logical port id\n");
+        goto out;
+    }
+
+    switch (value->s32) {
+    case SAI_PORT_PRIORITY_FLOW_CONTROL_MODE_COMBINED:
+    case SAI_PORT_PRIORITY_FLOW_CONTROL_MODE_SEPARATE:
+        break;
+
+    default:
+        SX_LOG_ERR("Invalid pfc control mode %d\n", value->s32);
+        return SAI_STATUS_INVALID_ATTR_VALUE_0;
+    }
+
+    /* mode doesn't exist in SDK and not really needed for DB, attributes are always valid */
+
+out:
+    SX_LOG_EXIT();
+    return status;
 }
 
 /** bit vector enable/disable port PFC [sai_uint8_t].
@@ -3423,6 +3475,9 @@ static sai_status_t mlnx_port_pfc_control_set(_In_ const sai_object_key_t      *
     mlnx_port_config_t *port;
 
     SX_LOG_ENTER();
+
+    assert((SX_PORT_FLOW_CTRL_MODE_TX_EN_RX_EN == (long)arg) || (SX_PORT_FLOW_CTRL_MODE_TX_EN_RX_DIS == (long)arg) || 
+           (SX_PORT_FLOW_CTRL_MODE_TX_DIS_RX_EN == (long)arg));
 
     sai_db_read_lock();
 
@@ -3445,7 +3500,7 @@ static sai_status_t mlnx_port_pfc_control_set(_In_ const sai_object_key_t      *
         sx_port_flow_ctrl_mode_t flow_mode = SX_PORT_FLOW_CTRL_MODE_TX_DIS_RX_DIS;
 
         if (value->u8 & (1 << pfc_prio)) {
-            flow_mode = SX_PORT_FLOW_CTRL_MODE_TX_EN_RX_EN;
+            flow_mode = (long)arg;
         }
 
         status = sx_api_port_pfc_enable_set(gh_sdk, port_id, pfc_prio, flow_mode);

@@ -7237,14 +7237,16 @@ static sai_status_t mlnx_acl_entry_action_set(_In_ const sai_object_key_t      *
 
     case SAI_ACL_ENTRY_ATTR_ACTION_SET_ACL_META_DATA:
         if (value->aclaction.enable == true) {
-            if (value->aclaction.parameter.u32 >> 0x10 == 0) {
+            if (value->aclaction.parameter.u32 <= ACL_USER_META_RANGE_MAX) {
                 flex_acl_rule.action_list_p[flex_action_index].fields.action_set_user_token.user_token =
                     (uint16_t)value->aclaction.parameter.u32;
-                flex_acl_rule.action_list_p[flex_action_index].fields.action_set_user_token.mask = 0xFFFF;
-                flex_acl_rule.action_list_p[flex_action_index].type                              =
+                flex_acl_rule.action_list_p[flex_action_index].fields.action_set_user_token.mask = ACL_USER_META_RANGE_MAX;
+                flex_acl_rule.action_list_p[flex_action_index].type =
                     SX_FLEX_ACL_ACTION_SET_USER_TOKEN;
             } else {
-                SX_LOG_ERR(" Acl Meta Data to Set is not in range \n");
+                SX_LOG_ERR(" ACL user Meta value %u to Set is out of range [%d, %d] \n",
+                    value->aclaction.parameter.u32,
+                    ACL_USER_META_RANGE_MIN, ACL_USER_META_RANGE_MAX);
                 status = SAI_STATUS_INVALID_PARAMETER;
                 goto out;
             }
