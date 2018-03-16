@@ -1540,47 +1540,16 @@ typedef struct _tunnel_db_entry_t {
     bool              is_used;
     sx_tunnel_id_t    sx_tunnel_id;
     sai_tunnel_type_t sai_tunnel_type;
-    sai_object_id_t   sai_vxlan_overlay_rif;
     sai_object_id_t   sai_underlay_rif;
     sai_object_id_t   sai_tunnel_map_encap_id_array[MLNX_TUNNEL_MAP_MAX];
     uint32_t          sai_tunnel_map_encap_cnt;
     sai_object_id_t   sai_tunnel_map_decap_id_array[MLNX_TUNNEL_MAP_MAX];
     uint32_t          sai_tunnel_map_decap_cnt;
-    bool              dot1q_vport_set;
-    sx_port_log_id_t  dot1q_vport_id;
 } tunnel_db_entry_t;
-
-typedef struct _mlnx_tunnel_map_params_t
-{
-    /** inner ECN */
-    sai_uint8_t oecn;
-
-    /** outer ECN */
-    sai_uint8_t uecn;
-
-    /** vlan id */
-    sai_vlan_id_t vlan_id;
-
-    /** VNI id */
-    sai_uint32_t vni_id;
-
-} mlnx_tunnel_map_params_t;
-
-typedef struct _sai_tunnel_map_t
-{
-    /** Input parameters to match */
-    mlnx_tunnel_map_params_t key;
-
-    /** Output map parameters */
-    mlnx_tunnel_map_params_t value;
-
-} mlnx_tunnel_map_value_t;
 
 typedef struct _tunnel_map_t {
     bool                  in_use;
     sai_tunnel_map_type_t tunnel_map_type;
-    uint32_t              tunnel_map_list_count;
-    mlnx_tunnel_map_value_t tunnel_map_list[MLNX_TUNNEL_MAP_LIST_MAX];
     uint32_t              tunnel_cnt;
     uint32_t              tunnel_map_entry_cnt;
     uint32_t              tunnel_map_entry_head_idx;
@@ -1604,6 +1573,12 @@ typedef struct _tunnel_map_entry_t {
     uint32_t              prev_tunnel_map_entry_idx;
     uint32_t              next_tunnel_map_entry_idx;
 } mlnx_tunnel_map_entry_t;
+
+typedef enum _nve_tunnel_type_t {
+    NVE_8021Q_TUNNEL,
+    NVE_8021D_TUNNEL,
+    NVE_TUNNEL_UNKNOWN
+} mlnx_nve_tunnel_type_t;
 
 typedef struct _fdb_action_t {
     sai_object_type_t type;
@@ -1661,6 +1636,7 @@ typedef struct sai_db {
     bool                      tunnel_module_initialized;
     sx_bridge_id_t            sx_bridge_id;
     sx_port_log_id_t          sx_nve_log_port;
+    mlnx_nve_tunnel_type_t    nve_tunnel_type;
     bool                      is_stp_initialized;
     sx_mstp_inst_id_t         def_stp_id;
     mlnx_mstp_inst_t          mlnx_mstp_inst_db[SX_MSTP_INST_ID_MAX - SX_MSTP_INST_ID_MIN + 1];

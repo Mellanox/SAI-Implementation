@@ -1917,6 +1917,8 @@ static void sai_db_values_init()
 
     g_sai_db_ptr->tunnel_module_initialized = false;
 
+    g_sai_db_ptr->nve_tunnel_type = NVE_TUNNEL_UNKNOWN;
+
     memset(g_sai_db_ptr->is_switch_priority_lossless, 0, MAX_LOSSLESS_SP * sizeof(bool));
 
     sai_db_policer_entries_init();
