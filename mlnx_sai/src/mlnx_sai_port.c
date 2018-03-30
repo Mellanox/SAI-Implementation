@@ -488,18 +488,18 @@ static const sai_vendor_attribute_entry_t port_vendor_attribs[] = {
     { SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL,
       { false, false, true, true },
       { false, false, true, true },
-      mlnx_port_pfc_control_get, (void*)SX_PORT_FLOW_CTRL_MODE_TX_EN_RX_EN,
-      mlnx_port_pfc_control_set, (void*)SX_PORT_FLOW_CTRL_MODE_TX_EN_RX_EN },
+      mlnx_port_pfc_control_get, (void*)SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL,
+      mlnx_port_pfc_control_set, (void*)SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL },
     { SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL_RX,
       { false, false, true, true },
       { false, false, true, true },
-      mlnx_port_pfc_control_get, (void*)SX_PORT_FLOW_CTRL_MODE_TX_DIS_RX_EN,
-      mlnx_port_pfc_control_set, (void*)SX_PORT_FLOW_CTRL_MODE_TX_DIS_RX_EN },
+      mlnx_port_pfc_control_get, (void*)SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL_RX,
+      mlnx_port_pfc_control_set, (void*)SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL_RX },
     { SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL_TX,
       { false, false, true, true },
       { false, false, true, true },
-      mlnx_port_pfc_control_get, (void*)SX_PORT_FLOW_CTRL_MODE_TX_EN_RX_DIS,
-      mlnx_port_pfc_control_set, (void*)SX_PORT_FLOW_CTRL_MODE_TX_EN_RX_DIS },
+      mlnx_port_pfc_control_get, (void*)SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL_TX,
+      mlnx_port_pfc_control_set, (void*)SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL_TX },
     { SAI_PORT_ATTR_QOS_SCHEDULER_PROFILE_ID,
       { false, false, true, true },
       { false, false, true, true },
@@ -3396,15 +3396,16 @@ static sai_status_t mlnx_port_pfc_control_get(_In_ const sai_object_key_t   *key
                                               _Inout_ vendor_cache_t        *cache,
                                               void                          *arg)
 {
-    sx_port_log_id_t port_id;
-    uint8_t          pfc_ctrl_map = 0;
-    sai_status_t     status;
-    uint8_t          pfc_prio;
+    sx_port_log_id_t         port_id;
+    uint8_t                  pfc_ctrl_map = 0;
+    sai_status_t             status;
+    uint8_t                  pfc_prio;
+    sx_port_flow_ctrl_mode_t flow_mode;
 
     SX_LOG_ENTER();
 
-    assert((SX_PORT_FLOW_CTRL_MODE_TX_EN_RX_EN == (long)arg) || (SX_PORT_FLOW_CTRL_MODE_TX_EN_RX_DIS == (long)arg) || 
-           (SX_PORT_FLOW_CTRL_MODE_TX_DIS_RX_EN == (long)arg));
+    assert((SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL == (long)arg) || (SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL_RX == (long)arg) ||
+           (SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL_TX == (long)arg));
 
     status = mlnx_object_to_type(key->key.object_id, SAI_OBJECT_TYPE_PORT, &port_id, NULL);
     if (status != SAI_STATUS_SUCCESS) {
@@ -3413,15 +3414,15 @@ static sai_status_t mlnx_port_pfc_control_get(_In_ const sai_object_key_t   *key
     }
 
     for (pfc_prio = 0; pfc_prio < COS_IEEE_PRIO_MAX_NUM + 1; pfc_prio++) {
-        sx_port_flow_ctrl_mode_t flow_mode = SX_PORT_FLOW_CTRL_MODE_TX_DIS_RX_DIS;
-
         status = sx_api_port_pfc_enable_get(gh_sdk, port_id, pfc_prio, &flow_mode);
         if (status != SAI_STATUS_SUCCESS) {
             SX_LOG_ERR("Failed to get pfc control for prio=%u\n", pfc_prio);
             return sdk_to_sai(status);
         }
 
-        if (flow_mode == (long)arg) {
+        if ((SX_PORT_FLOW_CTRL_MODE_TX_EN_RX_EN == flow_mode) ||
+            ((SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL_RX == (long)arg) && (SX_PORT_FLOW_CTRL_MODE_TX_DIS_RX_EN == flow_mode)) ||
+            ((SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL_TX == (long)arg) && (SX_PORT_FLOW_CTRL_MODE_TX_EN_RX_DIS == flow_mode))) {
             pfc_ctrl_map |= (1 << pfc_prio);
         }
     }
@@ -3469,15 +3470,16 @@ static sai_status_t mlnx_port_pfc_control_set(_In_ const sai_object_key_t      *
                                               _In_ const sai_attribute_value_t *value,
                                               void                             *arg)
 {
-    uint8_t             pfc_prio;
-    sx_port_log_id_t    port_id;
-    sai_status_t        status;
-    mlnx_port_config_t *port;
+    uint8_t                  pfc_prio;
+    sx_port_log_id_t         port_id;
+    sai_status_t             status;
+    mlnx_port_config_t      *port;
+    sx_port_flow_ctrl_mode_t flow_mode;
 
     SX_LOG_ENTER();
 
-    assert((SX_PORT_FLOW_CTRL_MODE_TX_EN_RX_EN == (long)arg) || (SX_PORT_FLOW_CTRL_MODE_TX_EN_RX_DIS == (long)arg) || 
-           (SX_PORT_FLOW_CTRL_MODE_TX_DIS_RX_EN == (long)arg));
+    assert((SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL == (long)arg) || (SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL_RX == (long)arg) ||
+           (SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL_TX == (long)arg));
 
     sai_db_read_lock();
 
@@ -3497,10 +3499,62 @@ static sai_status_t mlnx_port_pfc_control_set(_In_ const sai_object_key_t      *
     }
 
     for (pfc_prio = 0; pfc_prio < COS_IEEE_PRIO_MAX_NUM + 1; pfc_prio++) {
-        sx_port_flow_ctrl_mode_t flow_mode = SX_PORT_FLOW_CTRL_MODE_TX_DIS_RX_DIS;
+        /* controlling both RX and TX values */
+        if (SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL == (long)arg) {
+            if (value->u8 & (1 << pfc_prio)) {
+                flow_mode = SX_PORT_FLOW_CTRL_MODE_TX_EN_RX_EN;
+            }
+            else {
+                flow_mode = SX_PORT_FLOW_CTRL_MODE_TX_DIS_RX_DIS;
+            }
+        }
+        else {
+            status = sx_api_port_pfc_enable_get(gh_sdk, port_id, pfc_prio, &flow_mode);
+            if (status != SAI_STATUS_SUCCESS) {
+                SX_LOG_ERR("Failed to get pfc control for prio=%u\n", pfc_prio);
+                status = sdk_to_sai(status);
+                goto out;
+            }
 
-        if (value->u8 & (1 << pfc_prio)) {
-            flow_mode = (long)arg;
+            /* controlling just RX value, not changing TX */
+            if (SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL_RX == (long)arg) {
+                if (value->u8 & (1 << pfc_prio)) {
+                    if (SX_PORT_FLOW_CTRL_MODE_TX_DIS_RX_DIS == flow_mode) {
+                        flow_mode = SX_PORT_FLOW_CTRL_MODE_TX_DIS_RX_EN;
+                    }
+                    else if (SX_PORT_FLOW_CTRL_MODE_TX_EN_RX_DIS == flow_mode) {
+                        flow_mode = SX_PORT_FLOW_CTRL_MODE_TX_EN_RX_EN;
+                    }
+                }
+                else {
+                    if (SX_PORT_FLOW_CTRL_MODE_TX_DIS_RX_EN == flow_mode) {
+                        flow_mode = SX_PORT_FLOW_CTRL_MODE_TX_DIS_RX_DIS;
+                    }
+                    else if (SX_PORT_FLOW_CTRL_MODE_TX_EN_RX_EN == flow_mode) {
+                        flow_mode = SX_PORT_FLOW_CTRL_MODE_TX_EN_RX_DIS;
+                    }
+                }
+            }
+
+            /* controlling just TX value, not changing RX */
+            if (SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL_TX == (long)arg) {
+                if (value->u8 & (1 << pfc_prio)) {
+                    if (SX_PORT_FLOW_CTRL_MODE_TX_DIS_RX_DIS == flow_mode) {
+                        flow_mode = SX_PORT_FLOW_CTRL_MODE_TX_EN_RX_DIS;
+                    }
+                    else if (SX_PORT_FLOW_CTRL_MODE_TX_DIS_RX_EN == flow_mode) {
+                        flow_mode = SX_PORT_FLOW_CTRL_MODE_TX_EN_RX_EN;
+                    }
+                }
+                else {
+                    if (SX_PORT_FLOW_CTRL_MODE_TX_EN_RX_DIS == flow_mode) {
+                        flow_mode = SX_PORT_FLOW_CTRL_MODE_TX_DIS_RX_DIS;
+                    }
+                    else if (SX_PORT_FLOW_CTRL_MODE_TX_EN_RX_EN == flow_mode) {
+                        flow_mode = SX_PORT_FLOW_CTRL_MODE_TX_DIS_RX_EN;
+                    }
+                }
+            }
         }
 
         status = sx_api_port_pfc_enable_set(gh_sdk, port_id, pfc_prio, flow_mode);
