@@ -1007,7 +1007,10 @@ sai_status_t mlnx_hash_initialize()
     }
 
     g_sai_db_ptr->hash_list[0].hash_id = hash_obj;
-    mlnx_hash_obj_native_fields_set(hash_obj, &attr_value);
+    status = mlnx_hash_obj_native_fields_set(hash_obj, &attr_value);
+    if (SAI_ERR(status)) {
+        return status;
+    }
 
     g_sai_db_ptr->port_hash_params.ecmp_hash_type = SX_ROUTER_ECMP_HASH_TYPE_CRC;
     g_sai_db_ptr->port_hash_params.seed           = SAI_HASH_DEFAULT_SEED;

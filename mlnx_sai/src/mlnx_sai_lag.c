@@ -328,8 +328,6 @@ static sai_status_t mlnx_port_params_clone(mlnx_port_config_t *to, mlnx_port_con
                 mlnx_bridge_port_t *port;
                 uint32_t            ii                = 0;
                 uint32_t            ports_count       = 0;
-                bool                from_port_in_vlan = false;
-                bool                to_port_in_vlan   = false;
 
                 if (is_flood_disabled) {
                     if (g_sai_db_ptr->flood_action_uc == SAI_PACKET_ACTION_DROP) {
@@ -365,17 +363,11 @@ static sai_status_t mlnx_port_params_clone(mlnx_port_config_t *to, mlnx_port_con
 
                 if (SAI_PACKET_ACTION_FORWARD == g_sai_db_ptr->flood_action_mc) {
                     mlnx_vlan_ports_foreach(fid, port, ii) {
-                        log_ports[ports_count++] = port->logical;
-                        if (from->logical == port->logical) {
-                            from_port_in_vlan = true;
-                        }
+                        /* do not add port to prune list before adding to lag (mc is container, enter empty) */
                         if (to->logical == port->logical) {
-                            to_port_in_vlan = true;
+                            continue;
                         }
-                    }
-                    if (from_port_in_vlan && !to_port_in_vlan) {
-                        log_ports[ports_count] = to->logical;
-                        ports_count++;
+                        log_ports[ports_count++] = port->logical;
                     }
                 } else if (SAI_PACKET_ACTION_DROP == g_sai_db_ptr->flood_action_mc) {
                     ports_count = 0;
@@ -1025,6 +1017,7 @@ static sai_status_t mlnx_create_lag(_Out_ sai_object_id_t     * lag_id,
     uint32_t                     attr_pvid_index, attr_def_vlan_prio_index, attr_drop_untagged_index,
                                  attr_drop_tagged_index;
     mlnx_port_config_t *lag = NULL;
+    const bool          is_add = true;
 
     SX_LOG_ENTER();
 
@@ -1179,6 +1172,12 @@ static sai_status_t mlnx_create_lag(_Out_ sai_object_id_t     * lag_id,
         }
     }
 
+    status = mlnx_port_mirror_wred_discard_set(lag->logical, is_add);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Error setting port mirror wred discard for lag 0x%x\n", lag->logical);
+        goto out;
+    }
+
 out:
     acl_global_unlock();
     if (SAI_ERR(status)) {
@@ -1296,6 +1295,8 @@ static sai_status_t mlnx_create_lag_member(_Out_ sai_object_id_t     * lag_membe
     sai_object_id_t              queue_id;
     mlnx_qos_queue_config_t     *queue;
     uint32_t                     ii;
+    const bool                   is_add          = false;
+    bool                         is_acl_rollback_needed = false;
 
     SX_LOG_ENTER();
 
@@ -1441,11 +1442,16 @@ static sai_status_t mlnx_create_lag_member(_Out_ sai_object_id_t     * lag_membe
         goto out;
     }
 
-    acl_global_lock();
-    status = mlnx_acl_port_lag_event_handle(port, ACL_EVENT_TYPE_LAG_MEMBER_ADD);
-    acl_global_unlock();
+    status = mlnx_acl_port_lag_event_handle_unlocked(port, ACL_EVENT_TYPE_LAG_MEMBER_ADD);
     if (SAI_ERR(status)) {
         SX_LOG_NTC("Failed to remove Lag member port[%x] from ACLs\n", lag->logical);
+        goto out;
+    }
+    is_acl_rollback_needed = true;
+
+    status = mlnx_port_mirror_wred_discard_set(port->logical, is_add);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Error removing port mirror wred discard for 0x%x\n", port->logical);
         goto out;
     }
 
@@ -1481,32 +1487,42 @@ static sai_status_t mlnx_create_lag_member(_Out_ sai_object_id_t     * lag_membe
     SX_LOG_NTC("Created LAG member %s\n", key_str);
 
 out:
-    if (SAI_ERR(status) && (wred_oid != SAI_NULL_OBJECT_ID)) {
-        port_queues_foreach(port, queue, ii) {
-            if (ii >= RM_API_COS_TRAFFIC_CLASS_NUM) {
-                continue;
-            }
-            status = mlnx_queue_cfg_lookup(port->logical, ii, &queue);
-            if (SAI_ERR(status)) {
-                goto out;
-            }
-            tmp_oid        = queue->wred_id;
-            queue->wred_id = SAI_NULL_OBJECT_ID;
-            status         = mlnx_create_queue_object(port->logical, ii, &queue_id);
-            if (SAI_ERR(status)) {
+    if (SAI_ERR(status)) {
+        if  (wred_oid != SAI_NULL_OBJECT_ID) {
+            port_queues_foreach(port, queue, ii) {
+                if (ii >= RM_API_COS_TRAFFIC_CLASS_NUM) {
+                    continue;
+                }
+                status = mlnx_queue_cfg_lookup(port->logical, ii, &queue);
+                if (SAI_ERR(status)) {
+                    sai_db_unlock();
+                    return status;
+                }
+                tmp_oid        = queue->wred_id;
+                queue->wred_id = SAI_NULL_OBJECT_ID;
+                status         = mlnx_create_queue_object(port->logical, ii, &queue_id);
+                if (SAI_ERR(status)) {
+                    sai_db_unlock();
+                    return status;
+                }
+
+                status = mlnx_wred_apply(tmp_oid, queue_id);
+                if (SAI_ERR(status)) {
+                    sai_db_unlock();
+                    return status;
+                }
             }
 
-            status = mlnx_wred_apply(tmp_oid, queue_id);
+            port->wred_id = SAI_NULL_OBJECT_ID;
+            status        = mlnx_wred_apply(wred_oid, port_oid);
             if (SAI_ERR(status)) {
-                goto out;
+                sai_db_unlock();
+                return status;
             }
         }
 
-        port->wred_id = SAI_NULL_OBJECT_ID;
-        status        = mlnx_wred_apply(wred_oid, port_oid);
-        if (SAI_ERR(status)) {
-            sai_db_unlock();
-            return status;
+        if (is_acl_rollback_needed) {
+            mlnx_acl_port_lag_event_handle_unlocked(port, ACL_EVENT_TYPE_LAG_MEMBER_DEL);
         }
     }
 
@@ -1524,6 +1540,7 @@ static sai_status_t mlnx_remove_lag_member(_In_ sai_object_id_t lag_member_id)
     mlnx_port_config_t *lag_config;
     sx_status_t         sx_status;
     sai_object_id_t     lag_oid;
+    const bool          is_add          = true;
 
     SX_LOG_NTC("Remove SAI LAG member oid %" PRIx64 "\n", (uint64_t)lag_member_id);
 
@@ -1552,10 +1569,7 @@ static sai_status_t mlnx_remove_lag_member(_In_ sai_object_id_t lag_member_id)
     }
     lag_oid = lag_config->saiport;
 
-    acl_global_lock();
-    status = mlnx_acl_port_lag_event_handle(port_config, ACL_EVENT_TYPE_LAG_MEMBER_DEL);
-    acl_global_unlock();
-
+    status = mlnx_acl_port_lag_event_handle_unlocked(port_config, ACL_EVENT_TYPE_LAG_MEMBER_DEL);
     if (SAI_ERR(status)) {
         SX_LOG_NTC("Failed to remove Lag member port[%x] from ACLs\n", port_config->logical);
         goto out;
@@ -1564,6 +1578,12 @@ static sai_status_t mlnx_remove_lag_member(_In_ sai_object_id_t lag_member_id)
     sx_status = sx_api_lag_port_group_get(gh_sdk, DEFAULT_ETH_SWID, lag_log_port_id, NULL, &members_count);
     if (SX_ERR(sx_status)) {
         status = sdk_to_sai(sx_status);
+        goto out;
+    }
+
+    status = mlnx_port_mirror_wred_discard_set(port_config->logical, is_add);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Error setting port mirror wred discard for port 0x%x\n", port_config->logical);
         goto out;
     }
 

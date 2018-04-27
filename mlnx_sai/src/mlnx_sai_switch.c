@@ -1575,14 +1575,14 @@ static sai_status_t mlnx_chassis_mng_stage(bool fastboot_enable, bool transactio
 
     sdk_init_params.flow_counter_params.flow_counter_byte_type_min_number   = 0;
     sdk_init_params.flow_counter_params.flow_counter_packet_type_min_number = 0;
-    sdk_init_params.flow_counter_params.flow_counter_byte_type_max_number   = ACL_MAX_COUNTER_BYTE_NUM;
-    sdk_init_params.flow_counter_params.flow_counter_packet_type_max_number = ACL_MAX_COUNTER_PACKET_NUM;
+    sdk_init_params.flow_counter_params.flow_counter_byte_type_max_number   = ACL_MAX_SX_COUNTER_BYTE_NUM;
+    sdk_init_params.flow_counter_params.flow_counter_packet_type_max_number = ACL_MAX_SX_COUNTER_PACKET_NUM;
 
     sdk_init_params.acl_params.max_acl_ingress_groups = ACL_MAX_SX_ING_GROUP_NUMBER;
-    sdk_init_params.acl_params.max_acl_egress_groups  = ACL_MAX_SX_ING_GROUP_NUMBER;
+    sdk_init_params.acl_params.max_acl_egress_groups  = ACL_MAX_SX_EGR_GROUP_NUMBER;
 
     sdk_init_params.acl_params.min_acl_rules   = 0;
-    sdk_init_params.acl_params.max_acl_rules   = ACL_MAX_ENTRY_NUMBER;
+    sdk_init_params.acl_params.max_acl_rules   = ACL_MAX_SX_RULES_NUMBER;
     sdk_init_params.acl_params.acl_search_type = SX_API_ACL_SEARCH_TYPE_PARALLEL;
 
     sdk_init_params.bridge_init_params.sdk_mode                                          = SX_MODE_HYBRID;
@@ -2502,16 +2502,16 @@ static sai_status_t mlnx_switch_parse_fdb_event(uint8_t                         
 
 static void event_thread_func(void *context)
 {
-    sx_status_t       status;
-    sx_api_handle_t   api_handle;
-    sx_user_channel_t port_channel, callback_channel;
-    fd_set            descr_set;
-    int               ret_val;
-    sai_object_id_t   switch_id = (sai_object_id_t)context;
+#define MAX_PACKET_SIZE MAX(g_resource_limits.port_mtu_max, SX_HOST_EVENT_BUFFER_SIZE_MAX)
 
-    #define MAX_PACKET_SIZE 10240
+    sx_status_t                         status;
+    sx_api_handle_t                     api_handle;
+    sx_user_channel_t                   port_channel, callback_channel;
+    fd_set                              descr_set;
+    int                                 ret_val;
+    sai_object_id_t                     switch_id = (sai_object_id_t)context;
     uint8_t                            *p_packet    = NULL;
-    uint32_t                            packet_size = MAX_PACKET_SIZE;
+    uint32_t                            packet_size;
     sx_receive_info_t                  *receive_info = NULL;
     sai_port_oper_status_notification_t port_data;
     struct timeval                      timeout;
@@ -2556,6 +2556,7 @@ static void event_thread_func(void *context)
         status = SX_STATUS_ERROR;
         goto out;
     }
+    SX_LOG_NTC("Event packet buffer size %u\n", MAX_PACKET_SIZE);
 
     fdb_events = calloc(SX_FDB_NOTIFY_SIZE_MAX, sizeof(sai_fdb_event_notification_data_t));
     if (NULL == fdb_events) {
@@ -2599,13 +2600,13 @@ static void event_thread_func(void *context)
             goto out;
         }
 
-        packet_size = MAX_PACKET_SIZE;
-
         if (ret_val > 0) {
             if (FD_ISSET(port_channel.channel.fd.fd, &descr_set)) {
+                packet_size = MAX_PACKET_SIZE;
                 if (SX_STATUS_SUCCESS !=
                     (status = sx_lib_host_ifc_recv(&port_channel.channel.fd, p_packet, &packet_size, receive_info))) {
-                    SX_LOG_ERR("sx_api_host_ifc_recv on port fd failed with error %s\n", SX_STATUS_MSG(status));
+                    SX_LOG_ERR("sx_api_host_ifc_recv on port fd failed with error %s out size %u\n", 
+                        SX_STATUS_MSG(status), packet_size);
                     goto out;
                 }
 
@@ -2634,10 +2635,12 @@ static void event_thread_func(void *context)
             }
 
             if (FD_ISSET(callback_channel.channel.fd.fd, &descr_set)) {
+                packet_size = MAX_PACKET_SIZE;
                 if (SX_STATUS_SUCCESS !=
                     (status =
                          sx_lib_host_ifc_recv(&callback_channel.channel.fd, p_packet, &packet_size, receive_info))) {
-                    SX_LOG_ERR("sx_api_host_ifc_recv on callback fd failed with error %s\n", SX_STATUS_MSG(status));
+                    SX_LOG_ERR("sx_api_host_ifc_recv on callback fd failed with error %s out size %u\n", 
+                        SX_STATUS_MSG(status), packet_size);
                     goto out;
                 }
 
@@ -3030,13 +3033,10 @@ static uint32_t sai_acl_db_size_get()
 {
     g_sai_acl_db_pbs_map_size = sai_acl_db_pbs_map_size_get();
 
-    return (sizeof(acl_table_db_t) * ACL_MAX_TABLE_NUMBER +
-            sizeof(acl_counter_db_t) * ACL_MAX_COUNTER_NUM +
-            sizeof(acl_entry_db_t) * ACL_MAX_ENTRY_NUMBER +
-            sizeof(acl_setting_tbl_t) +
-            sizeof(acl_lag_pbs_db_t) * ACL_LAG_PBS_NUMBER +
-            sizeof(acl_pbs_map_db_t) * ACL_PBS_MAP_PREDEF_REG_SIZE +
-            sizeof(acl_pbs_map_db_t) * g_sai_acl_db_pbs_map_size +
+    return (sizeof(acl_table_db_t) * ACL_TABLE_DB_SIZE +
+            sizeof(acl_entry_db_t) * ACL_ENTRY_DB_SIZE +
+            sizeof(acl_setting_tbl_t)  +
+            sizeof(acl_pbs_map_entry_t) * (ACL_PBS_MAP_PREDEF_REG_SIZE + g_sai_acl_db_pbs_map_size) +
             (sizeof(acl_bind_points_db_t) + sizeof(acl_bind_point_t) * ACL_RIF_COUNT) +
             (sizeof(acl_group_db_t) + sizeof(acl_group_member_t) * ACL_GROUP_SIZE) * ACL_GROUP_NUMBER +
             sizeof(acl_vlan_group_t) * ACL_VLAN_GROUP_COUNT) +
@@ -3055,27 +3055,18 @@ static void sai_acl_db_init()
 {
     g_sai_acl_db_ptr->acl_table_db = (acl_table_db_t*)(g_sai_acl_db_ptr->db_base_ptr);
 
-    g_sai_acl_db_ptr->acl_counter_db = (acl_counter_db_t*)((uint8_t*)g_sai_acl_db_ptr->acl_table_db +
-                                                           sizeof(acl_table_db_t) * ACL_MAX_TABLE_NUMBER);
-
-    g_sai_acl_db_ptr->acl_entry_db = (acl_entry_db_t*)((uint8_t*)g_sai_acl_db_ptr->acl_counter_db +
-                                                       sizeof(acl_counter_db_t) * ACL_MAX_COUNTER_NUM);
+    g_sai_acl_db_ptr->acl_entry_db = (acl_entry_db_t*)((uint8_t*)g_sai_acl_db_ptr->acl_table_db +
+                                                       sizeof(acl_table_db_t) * ACL_TABLE_DB_SIZE);
 
     g_sai_acl_db_ptr->acl_settings_tbl = (acl_setting_tbl_t*)((uint8_t*)g_sai_acl_db_ptr->acl_entry_db +
-                                                              sizeof(acl_entry_db_t) * ACL_MAX_ENTRY_NUMBER);
+                                                              sizeof(acl_entry_db_t) * ACL_ENTRY_DB_SIZE);
 
-    g_sai_acl_db_ptr->acl_lag_pbs_db = (acl_lag_pbs_db_t*)((uint8_t*)g_sai_acl_db_ptr->acl_settings_tbl +
+    g_sai_acl_db_ptr->acl_pbs_map_db = (acl_pbs_map_entry_t*)((uint8_t*)g_sai_acl_db_ptr->acl_settings_tbl +
                                                            sizeof(acl_setting_tbl_t));
 
-    g_sai_acl_db_ptr->acl_pbs_map_db = (acl_pbs_map_db_t*)((uint8_t*)g_sai_acl_db_ptr->acl_lag_pbs_db +
-                                                           sizeof(acl_lag_pbs_db_t) * ACL_LAG_PBS_NUMBER);
-
-    g_sai_acl_db_ptr->acl_port_comb_pbs_map_db = (acl_pbs_map_db_t*)((uint8_t*)g_sai_acl_db_ptr->acl_pbs_map_db +
-                                                                     sizeof(acl_pbs_map_db_t) *
-                                                                     ACL_PBS_MAP_PREDEF_REG_SIZE);
-
-    g_sai_acl_db_ptr->acl_bind_points = (acl_bind_points_db_t*)((uint8_t*)g_sai_acl_db_ptr->acl_port_comb_pbs_map_db +
-                                                                sizeof(acl_pbs_map_db_t) * g_sai_acl_db_pbs_map_size);
+    g_sai_acl_db_ptr->acl_bind_points = (acl_bind_points_db_t*)((uint8_t*)g_sai_acl_db_ptr->acl_pbs_map_db +
+                                                                (sizeof(acl_pbs_map_entry_t) *
+                                                                (ACL_PBS_MAP_PREDEF_REG_SIZE + g_sai_acl_db_pbs_map_size)));
 
     g_sai_acl_db_ptr->acl_groups_db = (acl_group_db_t*)((uint8_t*)g_sai_acl_db_ptr->acl_bind_points +
                                                         (sizeof(acl_bind_points_db_t) + sizeof(acl_bind_point_t) *
@@ -3430,7 +3421,6 @@ static sai_status_t mlnx_initialize_switch(sai_object_id_t switch_id, bool *tran
     if (SAI_STATUS_SUCCESS != (status = mlnx_hash_initialize())) {
         return status;
     }
-
 
     if (SAI_STATUS_SUCCESS != (status = mlnx_acl_init())) {
         SX_LOG_ERR("Failed to init acl DB\n");

@@ -927,11 +927,13 @@ static sai_status_t mlnx_mirror_session_gre_protocol_type_get(_In_ const sai_obj
     return SAI_STATUS_SUCCESS;
 }
 
+/* Calls to this function should be guarded by lock */
 static sai_status_t mlnx_delete_mirror_analyzer_port(_In_ sx_span_session_id_t sdk_mirror_obj_id)
 {
     sai_status_t                   status = SAI_STATUS_FAILURE;
     sx_port_log_id_t               sdk_analyzer_port;
     sx_span_analyzer_port_params_t sdk_analyzer_port_params;
+    mlnx_port_config_t            *port_config = NULL;
 
     memset(&sdk_analyzer_port_params, 0, sizeof(sx_span_analyzer_port_params_t));
 
@@ -966,16 +968,26 @@ static sai_status_t mlnx_delete_mirror_analyzer_port(_In_ sx_span_session_id_t s
         return status;
     }
 
+    status = mlnx_port_by_log_id(sdk_analyzer_port, &port_config);
+    if (SAI_STATUS_SUCCESS != status) {
+        SX_LOG_ERR("Error getting port config from port log id 0x%x\n", sdk_analyzer_port);
+        SX_LOG_EXIT();
+        return status;
+    }
+    port_config->is_span_analyzer_port = false;
+
     SX_LOG_EXIT();
     return SAI_STATUS_SUCCESS;
 }
 
+/* Calls to this function should be guarded by lock */
 static sai_status_t mlnx_add_mirror_analyzer_port(_In_ sx_span_session_id_t sdk_mirror_obj_id,
                                                   _In_ sai_object_id_t      sai_analyzer_port_id)
 {
     sai_status_t                   status               = SAI_STATUS_FAILURE;
     uint32_t                       sdk_analyzer_port_id = 0;
     sx_span_analyzer_port_params_t sdk_analyzer_port_params;
+    mlnx_port_config_t            *port_config          = NULL;
 
     memset(&sdk_analyzer_port_params, 0, sizeof(sx_span_analyzer_port_params_t));
     SX_LOG_ENTER();
@@ -1028,6 +1040,14 @@ static sai_status_t mlnx_add_mirror_analyzer_port(_In_ sx_span_session_id_t sdk_
         return status;
     }
 
+    status = mlnx_port_by_log_id(sdk_analyzer_port_id, &port_config);
+    if (SAI_STATUS_SUCCESS != status) {
+        SX_LOG_ERR("Error getting port config from port log id 0x%x\n", sdk_analyzer_port_id);
+        SX_LOG_EXIT();
+        return status;
+    }
+    port_config->is_span_analyzer_port = true;
+
     SX_LOG_EXIT();
     return SAI_STATUS_SUCCESS;
 }
@@ -1049,8 +1069,11 @@ static sai_status_t mlnx_mirror_session_monitor_port_set(_In_ const sai_object_k
         return status;
     }
 
+    sai_db_write_lock();
+
     if (SAI_STATUS_SUCCESS !=
         (status = mlnx_delete_mirror_analyzer_port((sx_span_session_id_t)sdk_mirror_obj_id_u32))) {
+        sai_db_unlock();
         SX_LOG_ERR("Error deleting mirror analyzer port on sdk mirror obj id %d\n", sdk_mirror_obj_id_u32);
         SX_LOG_EXIT();
         return status;
@@ -1058,12 +1081,15 @@ static sai_status_t mlnx_mirror_session_monitor_port_set(_In_ const sai_object_k
 
     if (SAI_STATUS_SUCCESS !=
         (status = mlnx_add_mirror_analyzer_port((sx_span_session_id_t)sdk_mirror_obj_id_u32, value->oid))) {
+        sai_db_unlock();
         SX_LOG_ERR("Error adding mirror analyzer port %" PRIx64 " on sdk mirror obj id %d\n",
                    value->oid,
                    sdk_mirror_obj_id_u32);
         SX_LOG_EXIT();
         return status;
     }
+
+    sai_db_unlock();
 
     SX_LOG_EXIT();
     return SAI_STATUS_SUCCESS;
@@ -2310,23 +2336,29 @@ static sai_status_t mlnx_create_mirror_session(_Out_ sai_object_id_t      *sai_m
         return status;
     }
 
+    sai_db_write_lock();
+
     if (SAI_STATUS_SUCCESS !=
         (status = mlnx_add_mirror_analyzer_port(sdk_mirror_obj_id, mirror_monitor_port->oid))) {
         if (SAI_STATUS_SUCCESS !=
             (status_remove =
                  sdk_to_sai(sx_api_span_session_set(gh_sdk, SX_ACCESS_CMD_DESTROY, &sdk_mirror_obj_params,
                                                     &sdk_mirror_obj_id)))) {
+            sai_db_unlock();
             SX_LOG_ERR("Error destorying mirror session, sdk mirror obj id: %d\n", sdk_mirror_obj_id);
             SX_LOG_EXIT();
             return status_remove;
         }
 
+        sai_db_unlock();
         SX_LOG_ERR("Error adding mirror analyzer port %" PRIx64 " on sdk mirror obj id %d\n",
                    mirror_monitor_port->oid,
                    sdk_mirror_obj_id);
         SX_LOG_EXIT();
         return status;
     }
+
+    sai_db_unlock();
 
     SX_LOG_NTC("Created sdk mirror obj id: %d\n", sdk_mirror_obj_id);
 
@@ -2366,12 +2398,17 @@ static sai_status_t mlnx_remove_mirror_session(_In_ const sai_object_id_t sai_mi
 
     sdk_mirror_obj_id = (sx_span_session_id_t)sdk_mirror_obj_id_u32;
 
+    sai_db_write_lock();
+
     if (SAI_STATUS_SUCCESS !=
         (status = mlnx_delete_mirror_analyzer_port(sdk_mirror_obj_id))) {
+        sai_db_unlock();
         SX_LOG_ERR("Error deleting mirror analyzer port on sdk mirror obj id %d\n", sdk_mirror_obj_id);
         SX_LOG_EXIT();
         return status;
     }
+
+    sai_db_unlock();
 
     if (SAI_STATUS_SUCCESS !=
         (status =

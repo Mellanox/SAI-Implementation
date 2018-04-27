@@ -258,8 +258,6 @@ typedef uint64_t udf_group_mask_t;
 #define MAX(a, b) (((a) > (b)) ? (a) : (b))
 #endif
 
-typedef struct _mlnx_port_config_t mlnx_port_config_t;
-
 #define EXTENDED_DATA_SIZE 2
 
 PACKED(struct _mlnx_object_id_t {
@@ -298,6 +296,10 @@ PACKED(struct _mlnx_object_id_t {
                           sx_bridge_id_t id;
                           uint8_t type;
                       }, bridge);
+               PACKED(struct {
+                          uint8_t byte_flag;
+                          uint8_t packet_flag;
+                      }, flow_counter_type);
            } ext;
            union {
                bool is_created;
@@ -307,6 +309,7 @@ PACKED(struct _mlnx_object_id_t {
                sx_bridge_id_t bridge_id;
                uint16_t vlan_id;
                sai_uint32_t u32;
+               sx_flow_counter_id_t flow_counter_id;
                PACKED(struct {
                           uint16_t group_id;
                           uint16_t nhop_id;
@@ -616,6 +619,8 @@ sai_status_t mlnx_sched_group_parent_set(_In_ const sai_object_key_t      *key,
                                          _In_ const sai_attribute_value_t *value,
                                          void                             *arg);
 
+#define MLNX_U32BITARRAY_SIZE(bits) (((bits) / 32) + 1)
+
 static inline void array_bit_set(uint32_t *bit_array, uint32_t bit)
 {
     bit_array[bit / 32] |= 1 << (bit % 32);
@@ -626,7 +631,7 @@ static inline void array_bit_clear(uint32_t *bit_array, uint32_t bit)
     bit_array[bit / 32] &= ~(1 << (bit % 32));
 }
 
-static inline uint32_t array_bit_test(uint32_t *bit_array, uint32_t bit)
+static inline uint32_t array_bit_test(const uint32_t *bit_array, uint32_t bit)
 {
     return ((bit_array[bit / 32] & (1 << (bit % 32))) != 0);
 }
@@ -664,8 +669,6 @@ typedef struct _acl_index_t {
 sai_status_t mlnx_acl_init();
 sai_status_t mlnx_acl_deinit();
 void mlnx_acl_foreground_ipc_deinit();
-sai_status_t mlnx_acl_port_lag_event_handle(_In_ const mlnx_port_config_t *port, _In_ acl_event_type_t event);
-bool mlnx_acl_is_port_lag_used(_In_ const mlnx_port_config_t *config);
 sai_status_t mlnx_acl_bind_point_set(_In_ const sai_object_key_t      *key,
                                      _In_ const sai_attribute_value_t *value,
                                      void                             *arg);
@@ -859,6 +862,7 @@ typedef struct _mlnx_port_config_t {
     bool                            is_present;
     uint32_t                        qos_maps[MLNX_QOS_MAP_TYPES_MAX];
     bool                            admin_state;
+    bool                            is_span_analyzer_port;
 
     /*  SAI Port can have up to MLNX_PORT_POLICER_TYPE_MAX SDK port storm
      *  policers in use internally.  For each storm item we keep type of
@@ -877,6 +881,7 @@ typedef struct _mlnx_port_config_t {
     mlnx_sched_hierarchy_t sched_hierarchy;
     uint16_t               rifs;
     bool                   lossless_pg[MAX_PG];
+    uint16_t               acl_refs;
 } mlnx_port_config_t;
 typedef struct _mlnx_vlan_db_t {
     /* We keep here phy ports + LAGs */
@@ -968,6 +973,8 @@ sai_status_t mlnx_buffer_port_profile_list_get(_In_ const sai_object_id_t     po
 sai_status_t mlnx_buffer_port_profile_list_set(_In_ const sai_object_id_t        port_id,
                                                _In_ const sai_attribute_value_t *value,
                                                _In_ bool                         is_ingress);
+sai_status_t mlnx_get_sai_pool_data(_In_ sai_object_id_t               sai_pool,
+                                    _Out_ mlnx_sai_buffer_pool_attr_t* sai_pool_attr);
 
 sai_status_t mlnx_port_tc_set(mlnx_port_config_t *port, _In_ const uint8_t tc);
 
@@ -1095,28 +1102,27 @@ typedef struct _mlnx_udf_db_t {
 #define MAX_PORT_PRIO          (g_resource_limits.cos_port_prio_max)
 #define MAX_PCP_PRIO           7
 
-#define MAX_ACL_COUNTER_NUM    1000
-#define DEFAULT_ACL_TABLE_SIZE 1000
-
 #define ACL_USER_META_RANGE_MIN 0
 #define ACL_USER_META_RANGE_MAX 0x0FFF
 
-#define ACL_INVALID_DB_INDEX (0xFFFFFFFF)
+#define ACL_INVALID_DB_INDEX (0x7FFFF)
 #define ACL_INDEX_INVALID    ((acl_index_t) {.acl_db_index = ACL_INVALID_DB_INDEX})
 
 #define ACL_MIN_TABLE_PRIO        0
 #define ACL_MAX_TABLE_PRIO        UINT32_MAX
-#define ACL_MAX_ENTRY_NUMBER      16000
-#define ACL_MAX_ENTRY_PRIO        ACL_MAX_ENTRY_NUMBER
+#define ACL_ENTRY_DB_SIZE         16000
+#define ACL_MAX_SX_RULES_NUMBER   16000
+#define ACL_MAX_ENTRY_PRIO        ACL_MAX_SX_RULES_NUMBER
 #define ACL_MIN_ENTRY_PRIO        1
 #define ACL_DEFAULT_RULE_PRIO     0
 #define ACL_PSORT_TABLE_MIN_PRIO  ACL_DEFAULT_RULE_PRIO
 #define ACL_PSORT_TABLE_MAX_PRIO  ACL_MAX_ENTRY_PRIO
 #define ACL_GROUP_MEMBER_PRIO_MIN 0
 #define ACL_GROUP_MEMBER_PRIO_MAX UINT16_MAX
-#define ACL_MAX_TABLE_NUMBER      (g_resource_limits.acl_regions_max)
+#define ACL_SX_TABLES_NUMBER      (g_resource_limits.acl_regions_max)
+#define ACL_TABLE_DB_SIZE         ACL_SX_TABLES_NUMBER
 
-#define ACL_SEQ_GROUP_SIZE   ACL_MAX_TABLE_NUMBER
+#define ACL_SEQ_GROUP_SIZE   ACL_SX_TABLES_NUMBER
 #define ACL_PAR_GROUP_SIZE   (g_resource_limits.acl_groups_size_max)
 #define ACL_GROUP_SIZE       MAX(ACL_SEQ_GROUP_SIZE, ACL_PAR_GROUP_SIZE)
 #define ACL_GROUP_NUMBER     (g_resource_limits.acl_groups_num_max)
@@ -1124,17 +1130,23 @@ typedef struct _mlnx_udf_db_t {
 #define ACL_VLAN_GROUP_COUNT (g_resource_limits.acl_vlan_groups_max)
 #define ACL_VLAN_COUNT       4096
 
-#define ACL_MAX_COUNTER_BYTE_NUM   ACL_MAX_ENTRY_NUMBER
-#define ACL_MAX_COUNTER_PACKET_NUM ACL_MAX_ENTRY_NUMBER
-#define ACL_MAX_COUNTER_NUM        (ACL_MAX_COUNTER_BYTE_NUM + ACL_MAX_COUNTER_PACKET_NUM)
+#define ACL_MAX_SX_COUNTER_BYTE_NUM   ACL_MAX_SX_RULES_NUMBER
+#define ACL_MAX_SX_COUNTER_PACKET_NUM ACL_MAX_SX_RULES_NUMBER
 
 #define ACL_MAX_SX_ING_GROUP_NUMBER    ACL_GROUP_NUMBER
 #define ACL_MAX_SX_EGR_GROUP_NUMBER    ACL_GROUP_NUMBER
 
-#define ACL_LAG_PBS_NUMBER          MAX_PORTS
-#define ACL_PBS_MAP_PREDEF_REG_SIZE MAX_PORTS
+#define ACL_PBS_TRIVIAL_RANGE_START ((acl_pbs_index_t) 0)
+#define ACL_PBS_FLOOD_PBS_INDEX     ((acl_pbs_index_t) (MAX_PORTS * 2))
+#define ACL_PBS_HASH_INDEX_START    ((acl_pbs_index_t) (ACL_PBS_FLOOD_PBS_INDEX + 1))
+
+#define ACL_PBS_MAP_PREDEF_REG_SIZE (ACL_PBS_HASH_INDEX_START - ACL_PBS_TRIVIAL_RANGE_START) /* Ports LAGs and Flood PBS */
 #define ACL_MAX_PBS_NUMBER          (g_resource_limits.acl_pbs_entries_max)
 #define ACL_PBS_MAP_RESERVE_PERCENT 1.2
+
+#define ACL_PBS_INVALID_INDEX          ((acl_pbs_index_t)-1)
+#define ACL_PBS_INDEX_IS_VALID(index)  ((index) != ACL_PBS_INVALID_INDEX)
+#define ACL_PBS_INDEX_IS_TRIVIAL(index) ((index) < ACL_PBS_FLOOD_PBS_INDEX)
 
 #define SAI_HASH_MAX_OBJ_COUNT        32
 #define SAI_ACL_RANGE_TYPE_COUNT      (SAI_ACL_RANGE_TYPE_PACKET_LENGTH + 1)
@@ -1187,83 +1199,32 @@ typedef struct _acl_table_db_t {
     sx_acl_key_t               def_rule_key;
     bool                       is_ip_ident_used;
     acl_udf_group_list_t       udf_group_list;
+    uint32_t                   head_entry_index;
 } acl_table_db_t;
 
-typedef struct _acl_counter_db_t {
-    sx_flow_counter_id_t counter_id;
-    bool                 byte_counter_flag;
-    bool                 packet_counter_flag;
-    bool                 is_valid;
-} acl_counter_db_t;
+typedef uint16_t acl_pbs_index_t;
+typedef struct _acl_pbs_map_key_t {
+    uint32_t data[MLNX_U32BITARRAY_SIZE(MAX_PORTS * 2)];
+} acl_pbs_map_key_t;
 
-typedef struct _port_pbs_index_t {
-    bool     is_simple;
-    uint32_t index;
-} port_pbs_index_t;
+typedef struct _acl_pbs_map_db_t {
+    acl_pbs_map_key_t key;
+    sx_acl_pbs_id_t   pbs_id;
+    uint32_t          ref_counter;
+} acl_pbs_map_entry_t;
 
-typedef struct _acl_lag_pbs_db_t {
-    sx_acl_pbs_id_t pbs_id;
-    uint32_t        ref_counter;
-} acl_lag_pbs_db_t;
-
-typedef uint32_t lag_pbs_index_t;
-
-typedef struct _acl_flood_pbs_t {
-    sx_acl_pbs_id_t pbs_id;
-    uint32_t        ref_counter;
-} acl_flood_pbs_t;
-
-typedef struct _acl_entry_res_ref_t {
-    bool     is_src_ports_present;
-    uint64_t src_ports_mask;
-    bool     is_dst_ports_present;
-    uint64_t dst_ports_mask;
-    bool     is_pbs_ports_present;
-    uint64_t pbs_ports_mask;
-    bool     is_lags_present;
-    uint32_t lag_index;
-    bool     is_egress_block_present;
-    uint64_t egress_block_mask;
-} acl_entry_res_refs_t;
-
-typedef enum _acl_entry_redirect_type_t {
-    ACL_ENTRY_REDIRECT_TYPE_EMPTY,
-    ACL_ENTRY_REDIRECT_TYPE_REDIRECT,
-    ACL_ENTRY_REDIRECT_TYPE_REDIRECT_LIST,
-    ACL_ENTRY_REDIRECT_TYPE_FLOOD,
-} acl_entry_redirect_type_t;
-
-typedef enum _acl_entry_pbs_type_t {
-    ACL_ENTRY_PBS_TYPE_EMPTY,
-    ACL_ENTRY_PBS_TYPE_PORT,
-    ACL_ENTRY_PBS_TYPE_LAG,
-} acl_entry_pbs_type_t;
-
-typedef struct _acl_entry_redirect_data_t {
-    acl_entry_redirect_type_t redirect_type;
-    acl_entry_pbs_type_t      pbs_type;
-    union {
-        port_pbs_index_t port_pbs_index;
-        lag_pbs_index_t  lag_pbs_index;
-    };
-} acl_entry_redirect_data_t;
-
-typedef struct _acl_entry_db_t {
-    sx_acl_rule_offset_t      offset;
-    uint16_t                  priority;
-    uint32_t                  counter_id;
-    uint32_t                  table_index;
-    bool                      is_used;
-    acl_entry_res_refs_t      res_refs;
-    acl_entry_redirect_data_t redirect_data;
-    sx_mc_container_id_t      sx_mc_container_rx;
-    sx_mc_container_id_t      sx_mc_container_tx;
-    sx_mc_container_id_t      sx_mc_container_egress_block;
-} acl_entry_db_t;
-
-typedef struct _acl_res_ref_t {
-    uint32_t ref_counter;
-} acl_res_ref_t;
+PACKED(struct _acl_entry_db_t {
+           bool                 counter_byte_flag : 1;
+           bool                 counter_packet_flag : 1;
+           uint32_t             next_entry_index : 19;
+           uint32_t             prev_entry_index : 19;
+           bool                 is_used;
+           uint16_t             priority;
+           acl_pbs_index_t      pbs_index;
+           sx_acl_rule_offset_t offset;
+           sx_flow_counter_id_t sx_counter_id;
+       }, );
+typedef struct _acl_entry_db_t acl_entry_db_t;
 
 typedef struct _acl_ip_ident_keys_t {
     uint32_t     refs;
@@ -1278,10 +1239,7 @@ typedef struct _acl_def_rule_mc_container_t {
 typedef struct _acl_setting_tbl_t {
     bool            bg_stop;
     bool            initialized;
-    acl_res_ref_t   ports_used[MAX_PORTS];
-    acl_res_ref_t   lags_used[MAX_PORTS];
     cl_plock_t      lock;
-    acl_flood_pbs_t flood_pbs;
 #ifndef _WIN32
     pthread_cond_t  background_thread_init_cond;
     pthread_cond_t  rpc_thread_init_cond;
@@ -1292,14 +1250,8 @@ typedef struct _acl_setting_tbl_t {
     uint32_t            port_lists_count;
     acl_ip_ident_keys_t ip_ident_keys;
     acl_def_rule_mc_container_t def_mc_container;
+    uint32_t                    entry_db_first_free_index;
 } acl_setting_tbl_t;
-
-typedef uint64_t acl_pbs_map_key_t;
-typedef struct _acl_pbs_map_db_t {
-    acl_pbs_map_key_t key;
-    sx_acl_pbs_id_t   pbs_id;
-    uint32_t          ref_counter;
-} acl_pbs_map_db_t;
 
 typedef struct _acl_bind_point_target_data_t {
     bool                      is_set;
@@ -1369,18 +1321,20 @@ typedef struct _acl_group_db_t {
 typedef struct _mlnx_acl_db_t {
     uint8_t              *db_base_ptr;
     acl_table_db_t       *acl_table_db;
-    acl_counter_db_t     *acl_counter_db;
     acl_entry_db_t       *acl_entry_db;
     acl_setting_tbl_t    *acl_settings_tbl;
-    acl_lag_pbs_db_t     *acl_lag_pbs_db;
-    acl_pbs_map_db_t     *acl_pbs_map_db;
-    acl_pbs_map_db_t     *acl_port_comb_pbs_map_db;
+    acl_pbs_map_entry_t  *acl_pbs_map_db;
     acl_bind_points_db_t *acl_bind_points;
     acl_group_db_t       *acl_groups_db;
     acl_vlan_group_t     *acl_vlan_groups_db;
     acl_group_bound_to_t *acl_group_bound_to_db;
     mlnx_udf_db_t         udf_db;
 } mlnx_acl_db_t;
+
+sai_status_t mlnx_acl_port_lag_event_handle_locked(_In_ const mlnx_port_config_t *port,
+                                                   _In_ acl_event_type_t          event);
+sai_status_t mlnx_acl_port_lag_event_handle_unlocked(_In_ const mlnx_port_config_t *port,
+                                                     _In_ acl_event_type_t          event);
 
 extern mlnx_acl_db_t              *g_sai_acl_db_ptr;
 extern uint32_t                    g_sai_acl_db_pbs_map_size;
@@ -1846,6 +1800,8 @@ sai_status_t mlnx_port_lag_drop_tags_get(_In_ const sai_object_key_t   *key,
                                          _In_ uint32_t                  attr_index,
                                          _Inout_ vendor_cache_t        *cache,
                                          void                          *arg);
+sai_status_t mlnx_port_mirror_wred_discard_set(_In_ sx_port_log_id_t port_log_id,
+                                               _In_ bool             is_add);
 
 /* DB read lock is needed */
 sai_status_t mlnx_switch_get_mac(sx_mac_addr_t *mac);

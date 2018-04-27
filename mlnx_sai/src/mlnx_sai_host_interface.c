@@ -1610,10 +1610,13 @@ sai_status_t mlnx_create_hostif_trap(_Out_ sai_object_id_t      *hostif_trap_id,
         }
     }
 
+    cl_plock_excl_acquire(&g_sai_db_ptr->p_lock);
+
     sai_status_mirror_session = find_attrib_in_list(attr_count, attr_list, SAI_HOSTIF_TRAP_ATTR_MIRROR_SESSION, &mirror_session, &mirror_session_index);
     if (SAI_STATUS_SUCCESS == sai_status_mirror_session) {
         status = mlnx_trap_mirror_array_drop_clear(index);
         if (SAI_STATUS_SUCCESS != status) {
+            cl_plock_release(&g_sai_db_ptr->p_lock);
             SX_LOG_ERR("Error clearing trap mirror array\n");
             return status;
         }
@@ -1622,12 +1625,11 @@ sai_status_t mlnx_create_hostif_trap(_Out_ sai_object_id_t      *hostif_trap_id,
                                                  mirror_session->objlist.count,
                                                  is_create);
         if (SAI_STATUS_SUCCESS != status) {
+            cl_plock_release(&g_sai_db_ptr->p_lock);
             SX_LOG_ERR("Error setting trap mirror session\n");
             return status;
         }
     }
-
-    cl_plock_excl_acquire(&g_sai_db_ptr->p_lock);
 
     if (SAI_STATUS_SUCCESS != sai_status_mirror_session) {
         if (SAI_STATUS_SUCCESS != (status = mlnx_trap_set(index, action->s32, (group) ? group->oid :
@@ -1638,6 +1640,7 @@ sai_status_t mlnx_create_hostif_trap(_Out_ sai_object_id_t      *hostif_trap_id,
     } else {
         status = mlnx_trap_mirror_db_fill(index, &mirror_session->objlist);
         if (SAI_STATUS_SUCCESS != status) {
+            cl_plock_release(&g_sai_db_ptr->p_lock);
             SX_LOG_ERR("Error filling trap mirror db for index %d\n", index);
             return status;
         }
@@ -2387,6 +2390,7 @@ static sai_status_t mlnx_trap_exclude_port_list_set(_In_ const sai_object_key_t 
     return mlnx_trap_filter_set(index, value->objlist);
 }
 
+/* This function should be guarded by lock */
 static sai_status_t mlnx_trap_mirror_drop_by_wred_set(_In_ sx_span_session_id_t span_session_id,
                                                       _In_ bool is_create)
 {
@@ -2398,55 +2402,15 @@ static sai_status_t mlnx_trap_mirror_drop_by_wred_set(_In_ sx_span_session_id_t 
                                              SX_ACCESS_CMD_ADD :
                                              SX_ACCESS_CMD_DELETE;
     sx_port_log_id_t      ingress_port;
-    sx_port_log_id_t      sdk_analyzer_port[SPAN_SESSION_MAX];
-    sx_span_session_id_t  span_session_list[SPAN_SESSION_MAX];
-    uint32_t              span_cnt         = SPAN_SESSION_MAX;
-    sx_span_session_id_t *span_session_key = NULL;
-    sx_span_filter_t     *sx_span_filter   = NULL;
-    bool                  is_analyzer_port = false;
-    uint32_t              ii               = 0;
 
     SX_LOG_ENTER();
 
-    sx_status = sx_api_span_session_iter_get(gh_sdk,
-                                             SX_ACCESS_CMD_GET_FIRST,
-                                             span_session_key,
-                                             sx_span_filter,
-                                             span_session_list,
-                                             &span_cnt);
-    if (SX_STATUS_SUCCESS != sx_status) {
-        SX_LOG_ERR("Error getting sdk mirror obj: %s\n", SX_STATUS_MSG(sx_status));
-        sai_status = sdk_to_sai(sx_status);
-        SX_LOG_EXIT();
-        return sai_status;
-    }
-
-    for (ii = 0; ii < span_cnt; ii++) {
-        sx_status = sx_api_span_session_analyzer_get(gh_sdk,
-                                                     span_session_list[ii],
-                                                     &sdk_analyzer_port[ii]);
-        if (SX_STATUS_SUCCESS != sx_status) {
-            SX_LOG_ERR("Error getting analyzer port from sdk mirror obj id: %d, reason: %s\n",
-                       span_session_list[ii], SX_STATUS_MSG(sx_status));
-            sai_status = sdk_to_sai(sx_status);
-            SX_LOG_EXIT();
-            return sai_status;
-        }
-    }
-
-    mlnx_port_phy_foreach(port, port_idx) {
+    mlnx_port_not_in_lag_foreach(port, port_idx) {
         assert(NULL != port);
-        ingress_port = port->logical;
-        is_analyzer_port = false;
-        for (ii = 0; ii < span_cnt; ii++) {
-            if (ingress_port == sdk_analyzer_port[ii]) {
-                is_analyzer_port = true;
-                break;
-            }
-        }
-        if (is_analyzer_port) {
+        if (port->is_span_analyzer_port) {
             continue;
         }
+        ingress_port = port->logical;
         sx_status = sx_api_cos_redecn_mirroring_set(gh_sdk, cmd,
                                                     ingress_port, span_session_id);
         if (SX_STATUS_SUCCESS != sx_status) {
@@ -2496,6 +2460,7 @@ static sai_status_t mlnx_trap_mirror_drop_by_router_set(_In_ sx_span_session_id_
     return SAI_STATUS_SUCCESS;
 }
 
+/* This function should be guarded by lock */
 static sai_status_t mlnx_trap_mirror_drop_set(_In_ uint32_t        trap_db_idx,
                                               _In_ sai_object_id_t sai_mirror_oid,
                                               _In_ bool            is_create)
@@ -2539,6 +2504,7 @@ static sai_status_t mlnx_trap_mirror_drop_set(_In_ uint32_t        trap_db_idx,
     return SAI_STATUS_SUCCESS;
 }
 
+/* This function should be guarded by lock */
 static sai_status_t mlnx_trap_mirror_array_drop_set(_In_ uint32_t         trap_db_idx,
                                                     _In_ sai_object_id_t *sai_mirror_oid,
                                                     _In_ uint32_t         sai_mirror_oid_count,
