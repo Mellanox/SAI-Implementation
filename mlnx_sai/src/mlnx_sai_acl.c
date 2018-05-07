@@ -2598,8 +2598,7 @@ static sai_status_t mlnx_acl_table_available_counters_get(_In_ const sai_object_
         return sdk_to_sai(sx_status);
     }
 
-    free_counters = MIN(free_counters, ACL_MAX_SX_COUNTER_BYTE_NUM);
-    value->u32 = MIN(free_counters, ACL_MAX_SX_COUNTER_PACKET_NUM);
+    value->u32 = MIN(free_counters, ACL_MAX_SX_COUNTER_BYTE_NUM + ACL_MAX_SX_COUNTER_PACKET_NUM);
 
     SX_LOG_EXIT();
     return SAI_STATUS_SUCCESS;
