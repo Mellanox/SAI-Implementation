@@ -1007,7 +1007,10 @@ sai_status_t mlnx_hash_initialize()
     }
 
     g_sai_db_ptr->hash_list[0].hash_id = hash_obj;
-    mlnx_hash_obj_native_fields_set(hash_obj, &attr_value);
+    status = mlnx_hash_obj_native_fields_set(hash_obj, &attr_value);
+    if (SAI_ERR(status)) {
+        return status;
+    }
 
     g_sai_db_ptr->port_hash_params.ecmp_hash_type = SX_ROUTER_ECMP_HASH_TYPE_CRC;
     g_sai_db_ptr->port_hash_params.seed           = SAI_HASH_DEFAULT_SEED;
@@ -1112,18 +1115,26 @@ static sai_status_t mlnx_hash_native_field_list_set(_In_ const sai_object_key_t 
 
         /* check if changes need to be apply */
         if (mlnx_hash_obj_need_apply(hash_oper_id)) {
+            /* SAI DB is updated so further logic can fetch an ECMP state */
+            status = mlnx_hash_obj_native_fields_set(hash_id, value);
+            if (SAI_STATUS_SUCCESS != status) {
+                SX_LOG_ERR("Failed to update native fields for %s.\n", key_str);
+                goto out;
+            }
+
             /* apply fields */
             status = mlnx_hash_obj_native_fields_update(hash_oper_id, value);
             if (SAI_STATUS_SUCCESS != status) {
                 goto out;
             }
         }
-    }
-
-    /* update DB */
-    status = mlnx_hash_obj_native_fields_set(hash_id, value);
-    if (SAI_STATUS_SUCCESS != status) {
-        SX_LOG_ERR("Failed to update native fields for %s.\n", key_str);
+    } else {
+        /* update DB */
+        status = mlnx_hash_obj_native_fields_set(hash_id, value);
+        if (SAI_STATUS_SUCCESS != status) {
+            SX_LOG_ERR("Failed to update native fields for %s.\n", key_str);
+            goto out;
+        }
     }
 
 out:

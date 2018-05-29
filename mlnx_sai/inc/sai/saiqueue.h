@@ -164,6 +164,18 @@ typedef enum _sai_queue_attr_t
     SAI_QUEUE_ATTR_ENABLE_PFC_DLDR = 0x00000008,
 
     /**
+     * @brief Start PFC deadlock recovery on a lossless queue.
+     *
+     * If the attribute is true, start the recovery and ignore if recovery has been started.
+     * If the attribute is false, stop the recovery and ignore if recovery hasn't been started.
+     *
+     * @type bool
+     * @flags CREATE_AND_SET
+     * @default false
+     */
+    SAI_QUEUE_ATTR_PFC_DLR_INIT = 0x00000009,
+
+    /**
      * @brief End of attributes
      */
     SAI_QUEUE_ATTR_END,
@@ -317,6 +329,17 @@ typedef struct _sai_queue_deadlock_notification_data_t
 
     /** Deadlock event */
     sai_queue_pfc_deadlock_event_type_t event;
+
+    /**
+     * @brief Application based recovery management indicator.
+     *
+     * This is a return value from host adapter.
+     * If set to TRUE then host application will manage deadlock recovery
+     * else SAI adapter or SDK will manage deadlock recovery
+     * and also generate recovery ended notification.
+     * Applicable only when event is == SAI_QUEUE_PFC_DEADLOCK_EVENT_TYPE_DETECTED.
+     */
+    bool app_managed_recovery;
 
 } sai_queue_deadlock_notification_data_t;
 

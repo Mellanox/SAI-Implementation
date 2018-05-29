@@ -104,6 +104,11 @@ static const sai_vendor_attribute_entry_t queue_vendor_attribs[] = {
       { true, false, true, true },
       NULL, NULL,
       NULL, NULL },
+    { SAI_QUEUE_ATTR_PFC_DLR_INIT,
+      { false, false, false, false },
+      { true, false, true, true },
+      NULL, NULL,
+      NULL, NULL },
     { END_FUNCTIONALITY_ATTRIBS_ID,
       { false, false, false, false },
       { false, false, false, false },
@@ -130,7 +135,7 @@ static void queue_key_to_str(_In_ sai_object_id_t queue_id, _Out_ char *key_str)
     if (SAI_STATUS_SUCCESS != mlnx_object_to_type(queue_id, SAI_OBJECT_TYPE_QUEUE, &port_num, ext_data)) {
         snprintf(key_str, MAX_KEY_STR_LEN, "invalid queue");
     } else {
-        snprintf(key_str, MAX_KEY_STR_LEN, "queue %u:%u", port_num, ext_data[0]);
+        snprintf(key_str, MAX_KEY_STR_LEN, "queue %x:%u", port_num, ext_data[0]);
     }
 }
 
@@ -470,7 +475,7 @@ static sai_status_t mlnx_get_queue_statistics(_In_ sai_object_id_t         queue
     uint8_t                          queue_num                    = 0;
     sx_port_log_id_t                 port_num;
     const uint8_t                    port_prio_id = 0;
-    uint32_t                         ii = 0;
+    uint32_t                         ii;
     char                             key_str[MAX_KEY_STR_LEN];
     sx_port_statistic_usage_params_t stats_usage;
     sx_port_occupancy_statistics_t   occupancy_stats;
@@ -478,6 +483,8 @@ static sai_status_t mlnx_get_queue_statistics(_In_ sai_object_id_t         queue
     sx_port_traffic_cntr_t           tc_cnts = { 0 };
     sx_port_cntr_perf_t              perf_cnts;
     bool                             tc_cnts_needed = false, occupancy_stats_needed = false;
+    mlnx_qos_queue_config_t         *queue_cfg = NULL;
+    uint32_t                         db_buffer_profile_index;
 
     SX_LOG_ENTER();
 
@@ -543,7 +550,15 @@ static sai_status_t mlnx_get_queue_statistics(_In_ sai_object_id_t         queue
             case SAI_QUEUE_STAT_WRED_DROPPED_PACKETS:
             case SAI_QUEUE_STAT_CURR_OCCUPANCY_BYTES:
             case SAI_QUEUE_STAT_WATERMARK_BYTES:
-                SX_LOG_ERR("Queue counter %d set item %u not supported for queue num greater than %d\n", counter_ids[ii], ii, RM_API_COS_TRAFFIC_CLASS_NUM);
+            case SAI_QUEUE_STAT_GREEN_WRED_ECN_MARKED_PACKETS:
+            case SAI_QUEUE_STAT_GREEN_WRED_ECN_MARKED_BYTES:
+            case SAI_QUEUE_STAT_YELLOW_WRED_ECN_MARKED_PACKETS:
+            case SAI_QUEUE_STAT_YELLOW_WRED_ECN_MARKED_BYTES:
+            case SAI_QUEUE_STAT_RED_WRED_ECN_MARKED_PACKETS:
+            case SAI_QUEUE_STAT_RED_WRED_ECN_MARKED_BYTES:
+            case SAI_QUEUE_STAT_WRED_ECN_MARKED_PACKETS:
+            case SAI_QUEUE_STAT_WRED_ECN_MARKED_BYTES:
+                SX_LOG_INF("Queue counter %d set item %u not supported for queue num greater than %d\n", counter_ids[ii], ii, RM_API_COS_TRAFFIC_CLASS_NUM);
                 return SAI_STATUS_ATTR_NOT_SUPPORTED_0 + ii;
 
             case SAI_QUEUE_STAT_PACKETS:
@@ -569,6 +584,7 @@ static sai_status_t mlnx_get_queue_statistics(_In_ sai_object_id_t         queue
 
         case SAI_QUEUE_STAT_CURR_OCCUPANCY_BYTES:
         case SAI_QUEUE_STAT_WATERMARK_BYTES:
+        case SAI_QUEUE_STAT_SHARED_WATERMARK_BYTES:
             occupancy_stats_needed = true;
             break;
 
@@ -624,8 +640,15 @@ static sai_status_t mlnx_get_queue_statistics(_In_ sai_object_id_t         queue
         case SAI_QUEUE_STAT_RED_WRED_DROPPED_BYTES:
         case SAI_QUEUE_STAT_WRED_DROPPED_BYTES:
         case SAI_QUEUE_STAT_SHARED_CURR_OCCUPANCY_BYTES:
-        case SAI_QUEUE_STAT_SHARED_WATERMARK_BYTES:
-            SX_LOG_ERR("Queue counter %d set item %u not supported\n", counter_ids[ii], ii);
+        case SAI_QUEUE_STAT_GREEN_WRED_ECN_MARKED_PACKETS:
+        case SAI_QUEUE_STAT_GREEN_WRED_ECN_MARKED_BYTES:
+        case SAI_QUEUE_STAT_YELLOW_WRED_ECN_MARKED_PACKETS:
+        case SAI_QUEUE_STAT_YELLOW_WRED_ECN_MARKED_BYTES:
+        case SAI_QUEUE_STAT_RED_WRED_ECN_MARKED_PACKETS:
+        case SAI_QUEUE_STAT_RED_WRED_ECN_MARKED_BYTES:
+        case SAI_QUEUE_STAT_WRED_ECN_MARKED_PACKETS:
+        case SAI_QUEUE_STAT_WRED_ECN_MARKED_BYTES:
+            SX_LOG_INF("Queue counter %d set item %u not supported\n", counter_ids[ii], ii);
             return SAI_STATUS_ATTR_NOT_SUPPORTED_0;
 
         case SAI_QUEUE_STAT_PACKETS:
@@ -652,6 +675,36 @@ static sai_status_t mlnx_get_queue_statistics(_In_ sai_object_id_t         queue
         case SAI_QUEUE_STAT_WATERMARK_BYTES:
             counters[ii] = (uint64_t)occupancy_stats.statistics.watermark *
                            g_resource_limits.shared_buff_buffer_unit_size;
+            break;
+
+        case SAI_QUEUE_STAT_SHARED_WATERMARK_BYTES:
+            counters[ii] = (uint64_t)occupancy_stats.statistics.watermark *
+                           g_resource_limits.shared_buff_buffer_unit_size;
+
+            sai_db_read_lock();
+
+            if (SAI_STATUS_SUCCESS !=
+                (status = mlnx_queue_cfg_lookup(port_num, queue_num, &queue_cfg))) {
+                SX_LOG_EXIT();
+                sai_db_unlock();
+                return status;
+            }
+
+            if (SAI_NULL_OBJECT_ID != queue_cfg->buffer_id) {
+                if (SAI_STATUS_SUCCESS != (status = get_buffer_profile_db_index(queue_cfg->buffer_id, &db_buffer_profile_index))) {
+                    SX_LOG_EXIT();
+                    sai_db_unlock();
+                    return status;
+                }
+
+                if (counters[ii] >= g_sai_buffer_db_ptr->buffer_profiles[db_buffer_profile_index].reserved_size) {
+                    counters[ii] -= g_sai_buffer_db_ptr->buffer_profiles[db_buffer_profile_index].reserved_size;
+                }
+                else {
+                    counters[ii] = 0;
+                }
+            }
+            sai_db_unlock();
             break;
 
         default:
@@ -688,6 +741,8 @@ static sai_status_t mlnx_clear_queue_stats(_In_ sai_object_id_t         queue_id
     sx_port_traffic_cntr_t           tc_cnts;
     sx_port_cntr_perf_t              perf_cnts;
     const uint8_t                    port_prio_id = 0;
+    bool                             tc_cnts_needed = false, occupancy_stats_needed = false;
+    uint32_t                         ii;
 
     SX_LOG_ENTER();
 
@@ -719,24 +774,48 @@ static sai_status_t mlnx_clear_queue_stats(_In_ sai_object_id_t         queue_id
         return SAI_STATUS_SUCCESS;
     }
 
-    if (SX_STATUS_SUCCESS !=
-        (status = sx_api_port_counter_tc_get(gh_sdk, SX_ACCESS_CMD_READ_CLEAR, port_num, queue_num, &tc_cnts))) {
-        SX_LOG_ERR("Failed to get clear port tc counters - %s.\n", SX_STATUS_MSG(status));
-        return sdk_to_sai(status);
+    for (ii = 0; ii < number_of_counters; ii++) {
+        switch (counter_ids[ii]) {
+        case SAI_QUEUE_STAT_BYTES:
+        case SAI_QUEUE_STAT_DROPPED_PACKETS:
+        case SAI_QUEUE_STAT_WRED_DROPPED_PACKETS:
+        case SAI_QUEUE_STAT_PACKETS:
+            tc_cnts_needed = true;
+            break;
+
+        case SAI_QUEUE_STAT_CURR_OCCUPANCY_BYTES:
+        case SAI_QUEUE_STAT_WATERMARK_BYTES:
+        case SAI_QUEUE_STAT_SHARED_WATERMARK_BYTES:
+            occupancy_stats_needed = true;
+            break;
+
+        default:
+            break;
+        }
     }
 
-    memset(&stats_usage, 0, sizeof(stats_usage));
-    stats_usage.port_cnt                                 = 1;
-    stats_usage.log_port_list_p                          = &port_num;
-    stats_usage.sx_port_params.port_params_type          = SX_COS_EGRESS_PORT_TRAFFIC_CLASS_ATTR_E;
-    stats_usage.sx_port_params.port_params_cnt           = 1;
-    stats_usage.sx_port_params.port_param.port_tc_list_p = &queue_num;
+    if (tc_cnts_needed) {
+        if (SX_STATUS_SUCCESS !=
+            (status = sx_api_port_counter_tc_get(gh_sdk, SX_ACCESS_CMD_READ_CLEAR, port_num, queue_num, &tc_cnts))) {
+            SX_LOG_ERR("Failed to get clear port tc counters - %s.\n", SX_STATUS_MSG(status));
+            return sdk_to_sai(status);
+        }
+    }
 
-    if (SX_STATUS_SUCCESS !=
-        (status = sx_api_cos_port_buff_type_statistic_get(gh_sdk, SX_ACCESS_CMD_READ_CLEAR, &stats_usage, 1,
-                                                          &occupancy_stats, &usage_cnt))) {
-        SX_LOG_ERR("Failed to get clear port buff statistics - %s.\n", SX_STATUS_MSG(status));
-        return sdk_to_sai(status);
+    if (occupancy_stats_needed) {
+        memset(&stats_usage, 0, sizeof(stats_usage));
+        stats_usage.port_cnt = 1;
+        stats_usage.log_port_list_p = &port_num;
+        stats_usage.sx_port_params.port_params_type = SX_COS_EGRESS_PORT_TRAFFIC_CLASS_ATTR_E;
+        stats_usage.sx_port_params.port_params_cnt = 1;
+        stats_usage.sx_port_params.port_param.port_tc_list_p = &queue_num;
+
+        if (SX_STATUS_SUCCESS !=
+            (status = sx_api_cos_port_buff_type_statistic_get(gh_sdk, SX_ACCESS_CMD_READ_CLEAR, &stats_usage, 1,
+            &occupancy_stats, &usage_cnt))) {
+            SX_LOG_ERR("Failed to get clear port buff statistics - %s.\n", SX_STATUS_MSG(status));
+            return sdk_to_sai(status);
+        }
     }
 
     SX_LOG_EXIT();
@@ -917,10 +996,11 @@ sai_status_t mlnx_create_queue(_Out_ sai_object_id_t      *queue_id,
     SX_LOG_NTC("Created %s\n", key_str);
 
     *queue_id = queue_oid;
+    status = SAI_STATUS_SUCCESS;
 
 out:
     SX_LOG_EXIT();
-    return SAI_STATUS_SUCCESS;
+    return status;
 }
 
 /**

@@ -171,6 +171,9 @@ static sai_status_t mlnx_port_pfc_control_get(_In_ const sai_object_key_t   *key
                                               _In_ uint32_t                  attr_index,
                                               _Inout_ vendor_cache_t        *cache,
                                               void                          *arg);
+static sai_status_t mlnx_port_pfc_control_mode_set(_In_ const sai_object_key_t      *key,
+                                                   _In_ const sai_attribute_value_t *value,
+                                                   void                             *arg);
 static sai_status_t mlnx_port_pfc_control_set(_In_ const sai_object_key_t      *key,
                                               _In_ const sai_attribute_value_t *value,
                                               void                             *arg);
@@ -184,6 +187,11 @@ static sai_status_t mlnx_port_queue_list_get(_In_ const sai_object_key_t   *key,
                                              _In_ uint32_t                  attr_index,
                                              _Inout_ vendor_cache_t        *cache,
                                              void                          *arg);
+static sai_status_t mlnx_port_pool_list_get(_In_ const sai_object_key_t   *key,
+                                            _Inout_ sai_attribute_value_t *value,
+                                            _In_ uint32_t                  attr_index,
+                                            _Inout_ vendor_cache_t        *cache,
+                                            void                          *arg);
 static sai_status_t mlnx_port_sched_groups_num_get(_In_ const sai_object_key_t   *key,
                                                    _Inout_ sai_attribute_value_t *value,
                                                    _In_ uint32_t                  attr_index,
@@ -256,6 +264,11 @@ static sai_status_t mlnx_port_mirror_session_set_internal(_In_ sx_port_log_id_t 
                                                           _In_ bool                  add);
 static sai_status_t mlnx_port_samplepacket_session_set_internal(_In_ mlnx_port_config_t *port_config,
                                                                 _In_ uint32_t            samplepacket_obj_idx);
+static sai_status_t mlnx_port_pool_attr_get(_In_ const sai_object_key_t   *key,
+                                            _Inout_ sai_attribute_value_t *value,
+                                            _In_ uint32_t                  attr_index,
+                                            _Inout_ vendor_cache_t        *cache,
+                                            _In_ void                     *arg);
 static const sai_vendor_attribute_entry_t port_vendor_attribs[] = {
     { SAI_PORT_ATTR_TYPE,
       { false, false, false, true },
@@ -472,11 +485,26 @@ static const sai_vendor_attribute_entry_t port_vendor_attribs[] = {
       { false, false, true, true },
       mlnx_port_qos_map_id_get, (void*)SAI_QOS_MAP_TYPE_PFC_PRIORITY_TO_QUEUE,
       mlnx_port_qos_map_id_set, (void*)SAI_QOS_MAP_TYPE_PFC_PRIORITY_TO_QUEUE },
+    { SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL_MODE,
+      { false, false, true, false },
+      { false, false, true, true },
+      NULL, NULL,
+      mlnx_port_pfc_control_mode_set, NULL },
     { SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL,
       { false, false, true, true },
       { false, false, true, true },
-      mlnx_port_pfc_control_get, NULL,
-      mlnx_port_pfc_control_set, NULL },
+      mlnx_port_pfc_control_get, (void*)SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL,
+      mlnx_port_pfc_control_set, (void*)SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL },
+    { SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL_RX,
+      { false, false, true, true },
+      { false, false, true, true },
+      mlnx_port_pfc_control_get, (void*)SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL_RX,
+      mlnx_port_pfc_control_set, (void*)SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL_RX },
+    { SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL_TX,
+      { false, false, true, true },
+      { false, false, true, true },
+      mlnx_port_pfc_control_get, (void*)SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL_TX,
+      mlnx_port_pfc_control_set, (void*)SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL_TX },
     { SAI_PORT_ATTR_QOS_SCHEDULER_PROFILE_ID,
       { false, false, true, true },
       { false, false, true, true },
@@ -523,11 +551,38 @@ static const sai_vendor_attribute_entry_t port_vendor_attribs[] = {
       { true, false, true, true },
       mlnx_port_egress_block_get, NULL,
       mlnx_port_egress_block_set, NULL },
+    { SAI_PORT_ATTR_PORT_POOL_LIST,
+      { false, false, false, true },
+      { false, false, false, true },
+      mlnx_port_pool_list_get, NULL,
+      NULL, NULL },
     { END_FUNCTIONALITY_ATTRIBS_ID,
       { false, false, false, false },
       { false, false, false, false },
       NULL, NULL,
       NULL, NULL }
+};
+static const sai_vendor_attribute_entry_t port_pool_vendor_attribs[] = {
+    { SAI_PORT_POOL_ATTR_PORT_ID,
+        { true, false, false, true },
+        { true, false, false, true },
+        mlnx_port_pool_attr_get, (void*)SAI_PORT_POOL_ATTR_PORT_ID,
+        NULL, NULL },
+    { SAI_PORT_POOL_ATTR_BUFFER_POOL_ID,
+        { true, false, false, true },
+        { true, false, false, true },
+        mlnx_port_pool_attr_get, (void*)SAI_PORT_POOL_ATTR_BUFFER_POOL_ID,
+        NULL, NULL },
+    { SAI_PORT_POOL_ATTR_QOS_WRED_PROFILE_ID,
+        { false, false, false, false },
+        { true, false, true, true },
+        NULL, NULL,
+        NULL, NULL },
+    { END_FUNCTIONALITY_ATTRIBS_ID,
+      { false, false, false, false },
+      { false, false, false, false },
+      NULL, NULL,
+      NULL, NULL}
 };
 
 /* Admin Mode [bool] */
@@ -901,6 +956,7 @@ static sai_status_t port_speed_set(sx_port_log_id_t port_log_id, uint32_t value)
     case PORT_SPEED_50:
         speed.mode_50GB_CR2 = true;
         speed.mode_50GB_KR2 = true;
+        speed.mode_50GB_SR2 = true;
         break;
 
     case PORT_SPEED_25:
@@ -913,6 +969,8 @@ static sai_status_t port_speed_set(sx_port_log_id_t port_log_id, uint32_t value)
         SX_LOG_ERR("Invalid speed %u\n", value);
         return SAI_STATUS_INVALID_ATTR_VALUE_0;
     }
+
+    speed.force = true;
 
     status = sx_api_port_speed_admin_set(gh_sdk, port_log_id, &speed);
     if (SX_ERR(status)) {
@@ -943,6 +1001,55 @@ static sai_status_t mlnx_port_speed_set(_In_ const sai_object_key_t      *key,
 
     SX_LOG_EXIT();
     return status;
+}
+
+/* This function needs to be guarded by lock */
+sai_status_t mlnx_port_mirror_wred_discard_set(_In_ sx_port_log_id_t port_log_id,
+                                               _In_ bool             is_add)
+{
+    sx_status_t           sx_status       = SX_STATUS_ERROR;
+    sai_status_t          sai_status      = SAI_STATUS_FAILURE;
+    uint32_t              mirror_cnt      = 0;
+    sai_object_id_t       sai_mirror_oid  = SAI_NULL_OBJECT_ID;
+    sx_span_session_id_t  span_session_id = 0;
+    uint32_t              ii              = 0;
+    uint32_t              sdk_mirror_id   = 0;
+    const sx_access_cmd_t cmd             = is_add ? SX_ACCESS_CMD_ADD : SX_ACCESS_CMD_DELETE;
+
+    SX_LOG_ENTER();
+
+    mirror_cnt = g_sai_db_ptr->trap_mirror_discard_wred_db.count;
+    assert(SPAN_SESSION_MAX > mirror_cnt);
+
+    for (ii = 0; ii < mirror_cnt; ii++) { 
+        sai_mirror_oid = g_sai_db_ptr->trap_mirror_discard_wred_db.mirror_oid[ii];
+        sai_status = mlnx_object_to_type(sai_mirror_oid, SAI_OBJECT_TYPE_MIRROR_SESSION, &sdk_mirror_id, NULL);
+
+        if (SAI_STATUS_SUCCESS != sai_status) {
+            SX_LOG_ERR("Error getting span session id from sai mirror id %"PRIx64"\n", sai_mirror_oid);
+            SX_LOG_EXIT();
+            return sai_status;
+        }
+
+        span_session_id = (sx_span_session_id_t)sdk_mirror_id;
+
+        sx_status = sx_api_cos_redecn_mirroring_set(gh_sdk,
+                                                    cmd,
+                                                    port_log_id,
+                                                    span_session_id);
+
+        if (SX_STATUS_SUCCESS != sx_status) {
+            SX_LOG_ERR("Error setting cos redecn mirror for port 0x%x: %s\n",
+                       port_log_id, SX_STATUS_MSG(sx_status));
+            sai_status = sdk_to_sai(sx_status);
+            SX_LOG_EXIT();
+            return sai_status;
+        }
+    }
+
+    SX_LOG_EXIT();
+
+    return SAI_STATUS_SUCCESS;
 }
 
 static sai_status_t port_fec_set(sx_port_log_id_t port_log_id, int32_t value)
@@ -1013,6 +1120,7 @@ static sai_status_t mlnx_port_auto_negotiation_set(_In_ const sai_object_key_t  
     sai_status_t               status;
     sx_port_log_id_t           port_id;
     sx_port_speed_capability_t speed;
+    sx_port_oper_speed_t       speed_oper;
 
     SX_LOG_ENTER();
 
@@ -1023,7 +1131,13 @@ static sai_status_t mlnx_port_auto_negotiation_set(_In_ const sai_object_key_t  
 
     memset(&speed, 0, sizeof(speed));
 
+    if (SX_STATUS_SUCCESS != (status = sx_api_port_speed_get(gh_sdk, port_id, &speed, &speed_oper))) {
+        SX_LOG_ERR("Failed to get port speed - %s.\n", SX_STATUS_MSG(status));
+        return sdk_to_sai(status);
+    }
+
     speed.mode_auto = value->booldata;
+    speed.force     = !value->booldata;
 
     if (SX_STATUS_SUCCESS != (status = sx_api_port_speed_admin_set(gh_sdk, port_id, &speed))) {
         SX_LOG_ERR("Failed to set port speed - %s.\n", SX_STATUS_MSG(status));
@@ -1320,7 +1434,8 @@ static sai_status_t mlnx_port_supported_speed_get(_In_ const sai_object_key_t   
         speed_cap.speed_capability.mode_25GB_SR) {
         speeds[speeds_num++] = PORT_SPEED_25;
     }
-    if (speed_cap.speed_capability.mode_50GB_CR2 || speed_cap.speed_capability.mode_50GB_KR2) {
+    if (speed_cap.speed_capability.mode_50GB_CR2 || speed_cap.speed_capability.mode_50GB_KR2 ||
+        speed_cap.speed_capability.mode_50GB_SR2) {
         speeds[speeds_num++] = PORT_SPEED_50;
     }
     if (speed_cap.speed_capability.mode_56GB_KX4 || speed_cap.speed_capability.mode_56GB_KR4) {
@@ -1482,7 +1597,7 @@ static sai_status_t mlnx_port_speed_get(_In_ const sai_object_key_t   *key,
         value->u32 = PORT_SPEED_100;
     } else if (speed_cap.mode_56GB_KX4 || speed_cap.mode_56GB_KR4) {
         value->u32 = PORT_SPEED_56;
-    } else if (speed_cap.mode_50GB_CR2 || speed_cap.mode_50GB_KR2) {
+    } else if (speed_cap.mode_50GB_CR2 || speed_cap.mode_50GB_KR2 || speed_cap.mode_50GB_SR2) {
         value->u32 = PORT_SPEED_50;
     } else if (speed_cap.mode_40GB_KR4 || speed_cap.mode_40GB_CR4 || speed_cap.mode_40GB_SR4 ||
                speed_cap.mode_40GB_LR4_ER4) {
@@ -1497,7 +1612,7 @@ static sai_status_t mlnx_port_speed_get(_In_ const sai_object_key_t   *key,
     } else if (speed_cap.mode_1GB_CX_SGMII || speed_cap.mode_1GB_KX) {
         value->u32 = PORT_SPEED_1;
     } else if (speed_cap.mode_auto) {
-        value->u32 = PORT_SPEED_100;
+        value->u32 = PORT_SPEED_MAX;
     } else {
         SX_LOG_ERR("Unexpected port speed\n");
         return SAI_STATUS_FAILURE;
@@ -3368,12 +3483,16 @@ static sai_status_t mlnx_port_pfc_control_get(_In_ const sai_object_key_t   *key
                                               _Inout_ vendor_cache_t        *cache,
                                               void                          *arg)
 {
-    sx_port_log_id_t port_id;
-    uint8_t          pfc_ctrl_map = 0;
-    sai_status_t     status;
-    uint8_t          pfc_prio;
+    sx_port_log_id_t         port_id;
+    uint8_t                  pfc_ctrl_map = 0;
+    sai_status_t             status;
+    uint8_t                  pfc_prio;
+    sx_port_flow_ctrl_mode_t flow_mode;
 
     SX_LOG_ENTER();
+
+    assert((SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL == (long)arg) || (SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL_RX == (long)arg) ||
+           (SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL_TX == (long)arg));
 
     status = mlnx_object_to_type(key->key.object_id, SAI_OBJECT_TYPE_PORT, &port_id, NULL);
     if (status != SAI_STATUS_SUCCESS) {
@@ -3382,15 +3501,15 @@ static sai_status_t mlnx_port_pfc_control_get(_In_ const sai_object_key_t   *key
     }
 
     for (pfc_prio = 0; pfc_prio < COS_IEEE_PRIO_MAX_NUM + 1; pfc_prio++) {
-        sx_port_flow_ctrl_mode_t flow_mode = SX_PORT_FLOW_CTRL_MODE_TX_DIS_RX_DIS;
-
         status = sx_api_port_pfc_enable_get(gh_sdk, port_id, pfc_prio, &flow_mode);
         if (status != SAI_STATUS_SUCCESS) {
             SX_LOG_ERR("Failed to get pfc control for prio=%u\n", pfc_prio);
             return sdk_to_sai(status);
         }
 
-        if (flow_mode == SX_PORT_FLOW_CTRL_MODE_TX_EN_RX_EN) {
+        if ((SX_PORT_FLOW_CTRL_MODE_TX_EN_RX_EN == flow_mode) ||
+            ((SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL_RX == (long)arg) && (SX_PORT_FLOW_CTRL_MODE_TX_DIS_RX_EN == flow_mode)) ||
+            ((SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL_TX == (long)arg) && (SX_PORT_FLOW_CTRL_MODE_TX_EN_RX_DIS == flow_mode))) {
             pfc_ctrl_map |= (1 << pfc_prio);
         }
     }
@@ -3401,18 +3520,53 @@ static sai_status_t mlnx_port_pfc_control_get(_In_ const sai_object_key_t   *key
     return SAI_STATUS_SUCCESS;
 }
 
+/** Combined or separate Bit vectors for port PFC RX/TX [sai_port_priority_flow_control_mode_t] */
+static sai_status_t mlnx_port_pfc_control_mode_set(_In_ const sai_object_key_t      *key,
+                                                   _In_ const sai_attribute_value_t *value,
+                                                   void                             *arg)
+{
+    sai_status_t        status;
+    sx_port_log_id_t    port_id;
+
+    status = mlnx_object_to_type(key->key.object_id, SAI_OBJECT_TYPE_PORT, &port_id, NULL);
+    if (status != SAI_STATUS_SUCCESS) {
+        SX_LOG_ERR("Failed to convert port oid to logical port id\n");
+        goto out;
+    }
+
+    switch (value->s32) {
+    case SAI_PORT_PRIORITY_FLOW_CONTROL_MODE_COMBINED:
+    case SAI_PORT_PRIORITY_FLOW_CONTROL_MODE_SEPARATE:
+        break;
+
+    default:
+        SX_LOG_ERR("Invalid pfc control mode %d\n", value->s32);
+        return SAI_STATUS_INVALID_ATTR_VALUE_0;
+    }
+
+    /* mode doesn't exist in SDK and not really needed for DB, attributes are always valid */
+
+out:
+    SX_LOG_EXIT();
+    return status;
+}
+
 /** bit vector enable/disable port PFC [sai_uint8_t].
  * Valid from bit 0 to bit 7 */
 static sai_status_t mlnx_port_pfc_control_set(_In_ const sai_object_key_t      *key,
                                               _In_ const sai_attribute_value_t *value,
                                               void                             *arg)
 {
-    uint8_t             pfc_prio;
-    sx_port_log_id_t    port_id;
-    sai_status_t        status;
-    mlnx_port_config_t *port;
+    uint8_t                  pfc_prio;
+    sx_port_log_id_t         port_id;
+    sai_status_t             status;
+    mlnx_port_config_t      *port;
+    sx_port_flow_ctrl_mode_t flow_mode;
 
     SX_LOG_ENTER();
+
+    assert((SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL == (long)arg) || (SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL_RX == (long)arg) ||
+           (SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL_TX == (long)arg));
 
     sai_db_read_lock();
 
@@ -3432,10 +3586,62 @@ static sai_status_t mlnx_port_pfc_control_set(_In_ const sai_object_key_t      *
     }
 
     for (pfc_prio = 0; pfc_prio < COS_IEEE_PRIO_MAX_NUM + 1; pfc_prio++) {
-        sx_port_flow_ctrl_mode_t flow_mode = SX_PORT_FLOW_CTRL_MODE_TX_DIS_RX_DIS;
+        /* controlling both RX and TX values */
+        if (SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL == (long)arg) {
+            if (value->u8 & (1 << pfc_prio)) {
+                flow_mode = SX_PORT_FLOW_CTRL_MODE_TX_EN_RX_EN;
+            }
+            else {
+                flow_mode = SX_PORT_FLOW_CTRL_MODE_TX_DIS_RX_DIS;
+            }
+        }
+        else {
+            status = sx_api_port_pfc_enable_get(gh_sdk, port_id, pfc_prio, &flow_mode);
+            if (status != SAI_STATUS_SUCCESS) {
+                SX_LOG_ERR("Failed to get pfc control for prio=%u\n", pfc_prio);
+                status = sdk_to_sai(status);
+                goto out;
+            }
 
-        if (value->u8 & (1 << pfc_prio)) {
-            flow_mode = SX_PORT_FLOW_CTRL_MODE_TX_EN_RX_EN;
+            /* controlling just RX value, not changing TX */
+            if (SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL_RX == (long)arg) {
+                if (value->u8 & (1 << pfc_prio)) {
+                    if (SX_PORT_FLOW_CTRL_MODE_TX_DIS_RX_DIS == flow_mode) {
+                        flow_mode = SX_PORT_FLOW_CTRL_MODE_TX_DIS_RX_EN;
+                    }
+                    else if (SX_PORT_FLOW_CTRL_MODE_TX_EN_RX_DIS == flow_mode) {
+                        flow_mode = SX_PORT_FLOW_CTRL_MODE_TX_EN_RX_EN;
+                    }
+                }
+                else {
+                    if (SX_PORT_FLOW_CTRL_MODE_TX_DIS_RX_EN == flow_mode) {
+                        flow_mode = SX_PORT_FLOW_CTRL_MODE_TX_DIS_RX_DIS;
+                    }
+                    else if (SX_PORT_FLOW_CTRL_MODE_TX_EN_RX_EN == flow_mode) {
+                        flow_mode = SX_PORT_FLOW_CTRL_MODE_TX_EN_RX_DIS;
+                    }
+                }
+            }
+
+            /* controlling just TX value, not changing RX */
+            if (SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL_TX == (long)arg) {
+                if (value->u8 & (1 << pfc_prio)) {
+                    if (SX_PORT_FLOW_CTRL_MODE_TX_DIS_RX_DIS == flow_mode) {
+                        flow_mode = SX_PORT_FLOW_CTRL_MODE_TX_EN_RX_DIS;
+                    }
+                    else if (SX_PORT_FLOW_CTRL_MODE_TX_DIS_RX_EN == flow_mode) {
+                        flow_mode = SX_PORT_FLOW_CTRL_MODE_TX_EN_RX_EN;
+                    }
+                }
+                else {
+                    if (SX_PORT_FLOW_CTRL_MODE_TX_EN_RX_DIS == flow_mode) {
+                        flow_mode = SX_PORT_FLOW_CTRL_MODE_TX_DIS_RX_DIS;
+                    }
+                    else if (SX_PORT_FLOW_CTRL_MODE_TX_EN_RX_EN == flow_mode) {
+                        flow_mode = SX_PORT_FLOW_CTRL_MODE_TX_DIS_RX_EN;
+                    }
+                }
+            }
         }
 
         status = sx_api_port_pfc_enable_set(gh_sdk, port_id, pfc_prio, flow_mode);
@@ -3521,6 +3727,30 @@ out:
     if (port_queues) {
         free(port_queues);
     }
+    return status;
+}
+
+/* Get list of pools for the port */
+static sai_status_t mlnx_port_pool_list_get(_In_ const sai_object_key_t   *key,
+                                            _Inout_ sai_attribute_value_t *value,
+                                            _In_ uint32_t                  attr_index,
+                                            _Inout_ vendor_cache_t        *cache,
+                                            void                          *arg)
+{
+    sai_status_t     status = SAI_STATUS_SUCCESS;
+    sx_port_log_id_t port_id;
+
+    SX_LOG_ENTER();
+
+    if (SAI_STATUS_SUCCESS !=
+        (status = mlnx_object_to_type(key->key.object_id, SAI_OBJECT_TYPE_PORT, &port_id, NULL))) {
+        return status;
+    }
+
+    /* port pool is not implemented so return empty list */
+    value->objlist.count = 0;
+
+    SX_LOG_EXIT();
     return status;
 }
 
@@ -4209,7 +4439,7 @@ static sai_status_t mlnx_get_port_stats(_In_ sai_object_id_t        port_id,
         case SAI_PORT_STAT_RED_WRED_DROPPED_PACKETS:
         case SAI_PORT_STAT_RED_WRED_DROPPED_BYTES:
         case SAI_PORT_STAT_WRED_DROPPED_BYTES:
-            SX_LOG_ERR("Port counter %d set item %u not supported\n", counter_ids[ii], ii);
+            SX_LOG_INF("Port counter %d set item %u not supported\n", counter_ids[ii], ii);
             return SAI_STATUS_ATTR_NOT_SUPPORTED_0;
 
         case SAI_PORT_STAT_WRED_DROPPED_PACKETS:
@@ -4346,6 +4576,8 @@ static sai_status_t mlnx_get_port_stats(_In_ sai_object_id_t        port_id,
         case SAI_PORT_STAT_OUT_WATERMARK_BYTES:
         case SAI_PORT_STAT_OUT_SHARED_CURR_OCCUPANCY_BYTES:
         case SAI_PORT_STAT_OUT_SHARED_WATERMARK_BYTES:
+        case SAI_PORT_STAT_IN_DROPPED_PKTS:
+        case SAI_PORT_STAT_OUT_DROPPED_PKTS:
         case SAI_PORT_STAT_PFC_0_ON2OFF_RX_PKTS:
         case SAI_PORT_STAT_PFC_1_ON2OFF_RX_PKTS:
         case SAI_PORT_STAT_PFC_2_ON2OFF_RX_PKTS:
@@ -4358,7 +4590,7 @@ static sai_status_t mlnx_get_port_stats(_In_ sai_object_id_t        port_id,
         case SAI_PORT_STAT_EEE_RX_EVENT_COUNT:
         case SAI_PORT_STAT_EEE_TX_DURATION:
         case SAI_PORT_STAT_EEE_RX_DURATION:
-            SX_LOG_ERR("Port counter %d set item %u not implemented\n", counter_ids[ii], ii);
+            SX_LOG_INF("Port counter %d set item %u not implemented\n", counter_ids[ii], ii);
             return SAI_STATUS_NOT_IMPLEMENTED;
 
         default:
@@ -4843,7 +5075,7 @@ static sai_status_t mlnx_port_egress_block_set(_In_ const sai_object_key_t      
 {
     sai_status_t        status;
     mlnx_port_config_t *port;
-    sx_port_log_id_t    sx_egress_ports[MAX_PORTS] = {0};
+    sx_port_log_id_t   *sx_egress_ports = NULL;
 
     SX_LOG_ENTER();
 
@@ -4857,6 +5089,13 @@ static sai_status_t mlnx_port_egress_block_set(_In_ const sai_object_key_t      
     /* In case if port is LAG member then use LAG logical id */
     status = mlnx_port_fetch_lag_if_lag_member(&port);
     if (SAI_ERR(status)) {
+        goto out;
+    }
+
+    sx_egress_ports = calloc(MAX_PORTS, sizeof(*sx_egress_ports));
+    if (!sx_egress_ports) {
+        SX_LOG_ERR("Failed to allocate memory\n");
+        status = SAI_STATUS_NO_MEMORY;
         goto out;
     }
 
@@ -4876,6 +5115,7 @@ static sai_status_t mlnx_port_egress_block_set(_In_ const sai_object_key_t      
 
 out:
     sai_db_unlock();
+    free(sx_egress_ports);
     SX_LOG_EXIT();
     return status;
 }
@@ -4888,48 +5128,75 @@ static sai_status_t mlnx_port_egress_block_get(_In_ const sai_object_key_t   *ke
 {
     sai_status_t        status;
     mlnx_port_config_t *port;
-    sx_port_log_id_t    sx_egress_block_ports[MAX_PORTS];
-    sai_object_id_t     sai_egress_block_ports[MAX_PORTS];
+    sx_port_log_id_t   *sx_egress_block_ports = NULL;
+    sai_object_id_t    *sai_egress_block_ports = NULL;
     uint32_t            egress_block_ports_count, ii;
+    sx_port_log_id_t    port_id;
 
     SX_LOG_ENTER();
 
+    if (SAI_STATUS_SUCCESS !=
+        (status = mlnx_object_to_type(key->key.object_id, SAI_OBJECT_TYPE_PORT, &port_id, NULL))) {
+        return status;
+    }
+
     sai_db_read_lock();
 
-    status = mlnx_port_by_obj_id(key->key.object_id, &port);
-    if (SAI_ERR(status)) {
-        goto out;
+    if (mlnx_log_port_is_cpu(port_id)) {
+        value->objlist.count = 0;
     }
+    else {
+        status = mlnx_port_by_obj_id(key->key.object_id, &port);
+        if (SAI_ERR(status)) {
+            goto out;
+        }
 
-    /* In case if port is LAG member then use LAG logical id */
-    status = mlnx_port_fetch_lag_if_lag_member(&port);
-    if (SAI_ERR(status)) {
-        goto out;
-    }
+        /* In case if port is LAG member then use LAG logical id */
+        status = mlnx_port_fetch_lag_if_lag_member(&port);
+        if (SAI_ERR(status)) {
+            goto out;
+        }
 
-    egress_block_ports_count = 0;
-    status                   = mlnx_port_egress_block_get_impl(port->logical,
-                                                               sx_egress_block_ports,
-                                                               &egress_block_ports_count);
-    if (SAI_ERR(status)) {
-        goto out;
-    }
+        sx_egress_block_ports = calloc(MAX_PORTS, sizeof(*sx_egress_block_ports));
+        if (!sx_egress_block_ports) {
+            SX_LOG_ERR("Failed to allocate memory\n");
+            status = SAI_STATUS_NO_MEMORY;
+            goto out;
+        }
 
-    for (ii = 0; ii < egress_block_ports_count; ii++) {
-        status = mlnx_create_object(SAI_OBJECT_TYPE_PORT, sx_egress_block_ports[ii],
-                                    NULL, &sai_egress_block_ports[ii]);
+        sai_egress_block_ports = calloc(MAX_PORTS, sizeof(*sai_egress_block_ports));
+        if (!sai_egress_block_ports) {
+            SX_LOG_ERR("Failed to allocate memory\n");
+            status = SAI_STATUS_NO_MEMORY;
+            goto out;
+        }
+
+        egress_block_ports_count = 0;
+        status = mlnx_port_egress_block_get_impl(port->logical,
+            sx_egress_block_ports,
+            &egress_block_ports_count);
+        if (SAI_ERR(status)) {
+            goto out;
+        }
+
+        for (ii = 0; ii < egress_block_ports_count; ii++) {
+            status = mlnx_create_object(SAI_OBJECT_TYPE_PORT, sx_egress_block_ports[ii],
+                NULL, &sai_egress_block_ports[ii]);
+            if (SAI_ERR(status)) {
+                goto out;
+            }
+        }
+
+        status = mlnx_fill_objlist(sai_egress_block_ports, egress_block_ports_count, &value->objlist);
         if (SAI_ERR(status)) {
             goto out;
         }
     }
 
-    status = mlnx_fill_objlist(sai_egress_block_ports, egress_block_ports_count, &value->objlist);
-    if (SAI_ERR(status)) {
-        goto out;
-    }
-
 out:
     sai_db_unlock();
+    free(sx_egress_block_ports);
+    free(sai_egress_block_ports);
     SX_LOG_EXIT();
     return status;
 }
@@ -5015,8 +5282,9 @@ static sai_status_t mlnx_port_egress_block_get_impl(_In_ sx_port_log_id_t   sx_i
                                                     _Out_ sx_port_log_id_t *sx_egress_block_ports,
                                                     _Out_ uint32_t         *sx_egress_block_ports_count)
 {
+    sai_status_t              status = SAI_STATUS_SUCCESS;
     sx_status_t               sx_status;
-    sx_port_log_id_t          sx_port_isolation_group[MAX_PORTS];
+    sx_port_log_id_t         *sx_port_isolation_group = NULL;
     const mlnx_port_config_t *port;
     uint32_t                  sx_port_isolation_group_size, egress_block_ports_count;
     uint32_t                  ii, jj;
@@ -5024,20 +5292,25 @@ static sai_status_t mlnx_port_egress_block_get_impl(_In_ sx_port_log_id_t   sx_i
     assert(sx_egress_block_ports);
     assert(sx_egress_block_ports_count);
 
+    sx_port_isolation_group = calloc(MAX_PORTS, sizeof(*sx_port_isolation_group));
+    if (!sx_port_isolation_group) {
+        SX_LOG_ERR("Failed to allocate memory\n");
+        return SAI_STATUS_NO_MEMORY;
+    }
+
     egress_block_ports_count = 0;
     mlnx_port_foreach(port, ii) {
         if (port->logical == sx_ing_port_id) {
             continue;
         }
 
-        memset(sx_port_isolation_group, 0, sizeof(sx_port_isolation_group));
         sx_port_isolation_group_size = MAX_PORTS;
-
         sx_status = sx_api_port_isolate_get(gh_sdk, port->logical, sx_port_isolation_group,
                                             &sx_port_isolation_group_size);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to get isolation group for port [%x] - %s\n", port->logical, SX_STATUS_MSG(sx_status));
-            return sdk_to_sai(sx_status);
+            status = sdk_to_sai(sx_status);
+            goto out;
         }
 
         SX_LOG_DBG("Got isolation group for port %x, size = %d\n", port->logical, sx_port_isolation_group_size);
@@ -5055,7 +5328,9 @@ static sai_status_t mlnx_port_egress_block_get_impl(_In_ sx_port_log_id_t   sx_i
 
     *sx_egress_block_ports_count = egress_block_ports_count;
 
-    return SAI_STATUS_SUCCESS;
+out:
+    free(sx_port_isolation_group);
+    return status;
 }
 
 /*
@@ -5121,64 +5396,90 @@ sai_status_t mlnx_port_egress_block_compare(_In_ const mlnx_port_config_t *port1
                                             _In_ const mlnx_port_config_t *port2,
                                             _Out_ bool                    *equal)
 {
-    sai_status_t     status;
-    sx_port_log_id_t sx_port1_egress_block_ports[MAX_PORTS] = {0};
-    sx_port_log_id_t sx_port2_egress_block_ports[MAX_PORTS] = {0};
-    uint32_t         sx_port1_egress_block_ports_count, sx_port2_egress_block_ports_count;
+    sai_status_t      status;
+    sx_port_log_id_t *sx_port1_egress_block_ports = NULL;
+    sx_port_log_id_t *sx_port2_egress_block_ports = NULL;
+    uint32_t          sx_port1_egress_block_ports_count, sx_port2_egress_block_ports_count;
+
+    sx_port1_egress_block_ports = calloc(MAX_PORTS, sizeof(*sx_port1_egress_block_ports));
+    if (!sx_port1_egress_block_ports) {
+        SX_LOG_ERR("Failed to allocate memory\n");
+        status = SAI_STATUS_NO_MEMORY;
+        goto out;
+    }
+
+    sx_port2_egress_block_ports = calloc(MAX_PORTS, sizeof(*sx_port2_egress_block_ports));
+    if (!sx_port2_egress_block_ports) {
+        SX_LOG_ERR("Failed to allocate memory\n");
+        status = SAI_STATUS_NO_MEMORY;
+        goto out;
+    }
 
     status = mlnx_port_egress_block_get_impl(port1->logical,
                                              sx_port1_egress_block_ports,
                                              &sx_port1_egress_block_ports_count);
     if (SAI_ERR(status)) {
-        return status;
+        goto out;
     }
 
     status = mlnx_port_egress_block_get_impl(port2->logical,
                                              sx_port2_egress_block_ports,
                                              &sx_port2_egress_block_ports_count);
     if (SAI_ERR(status)) {
-        return status;
+        goto out;
     }
 
     status = mlnx_sx_port_list_compare(sx_port1_egress_block_ports, sx_port1_egress_block_ports_count,
                                        sx_port2_egress_block_ports, sx_port2_egress_block_ports_count,
                                        equal);
     if (SAI_ERR(status)) {
-        return status;
+        goto out;
     }
 
-    return SAI_STATUS_SUCCESS;
+out:
+    free(sx_port1_egress_block_ports);
+    free(sx_port2_egress_block_ports);
+    return status;
 }
 
 sai_status_t mlnx_port_egress_block_clone(_In_ mlnx_port_config_t *to, _In_ const mlnx_port_config_t *from)
 {
-    sai_status_t     status;
-    sx_port_log_id_t sx_port_egress_block_ports[MAX_PORTS] = {0};
-    uint32_t         sx_port_egress_block_ports_count;
+    sai_status_t      status = SAI_STATUS_SUCCESS;
+    sx_port_log_id_t *sx_port_egress_block_ports = NULL;
+    uint32_t          sx_port_egress_block_ports_count;
 
     assert(to);
     assert(from);
 
     SX_LOG_DBG("Clone egress block list from [%lx] to [%lx]\n", from->saiport, to->saiport);
 
+    sx_port_egress_block_ports = calloc(MAX_PORTS, sizeof(*sx_port_egress_block_ports));
+    if (!sx_port_egress_block_ports) {
+        SX_LOG_ERR("Failed to allocate memory\n");
+        return SAI_STATUS_NO_MEMORY;
+    }
+
     status = mlnx_port_egress_block_get_impl(from->logical,
                                              sx_port_egress_block_ports,
                                              &sx_port_egress_block_ports_count);
     if (SAI_ERR(status)) {
-        return status;
+        goto out;
     }
 
     if (sx_port_egress_block_ports_count == 0) {
-        return SAI_STATUS_SUCCESS;
+        status = SAI_STATUS_SUCCESS;
+        goto out;
     }
 
     status =
         mlnx_port_egress_block_set_impl(to->logical, sx_port_egress_block_ports, sx_port_egress_block_ports_count);
     if (SAI_ERR(status)) {
-        return status;
+        goto out;
     }
 
-    return SAI_STATUS_SUCCESS;
+out:
+    free(sx_port_egress_block_ports);
+    return status;
 }
 
 mlnx_port_config_t * mlnx_port_by_idx(uint8_t id)
@@ -5256,6 +5557,9 @@ static sai_status_t mlnx_port_speed_convert_bitmap_to_capability(const sx_port_s
     }
     if (speed_bitmap & 1 << 16) {
         speed_capability->mode_40GB_LR4_ER4 = TRUE;
+    }
+    if (speed_bitmap & 1 << 18) {
+        speed_capability->mode_50GB_SR2 = TRUE;
     }
     if (speed_bitmap & 1 << 20) {
         speed_capability->mode_100GB_CR4 = TRUE;
@@ -5434,7 +5738,7 @@ sai_status_t mlnx_port_add(mlnx_port_config_t *port)
         return status;
     }
 
-    status = mlnx_acl_port_lag_event_handle(port, ACL_EVENT_TYPE_PORT_LAG_ADD);
+    status = mlnx_acl_port_lag_event_handle_locked(port, ACL_EVENT_TYPE_PORT_LAG_ADD);
     if (SAI_ERR(status)) {
         return status;
     }
@@ -5593,9 +5897,7 @@ sai_status_t mlnx_port_del(mlnx_port_config_t *port)
         return sdk_to_sai(status);
     }
 
-    acl_global_lock();
-    status = mlnx_acl_port_lag_event_handle(port, ACL_EVENT_TYPE_PORT_LAG_DEL);
-    acl_global_unlock();
+    status = mlnx_acl_port_lag_event_handle_unlocked(port, ACL_EVENT_TYPE_PORT_LAG_DEL);
     if (SAI_ERR(status)) {
         return status;
     }
@@ -5614,10 +5916,6 @@ sai_status_t mlnx_port_del(mlnx_port_config_t *port)
 
 sai_status_t mlnx_port_in_use_check(const mlnx_port_config_t *port)
 {
-    uint32_t                        span_count    = SPAN_MAX_COUNT;
-    sx_span_session_id_t           *span_sessions = NULL;
-    sx_span_analyzer_port_params_t *span_params   = NULL;
-    sx_status_t                     sx_status;
     sai_status_t                    status                     = SAI_STATUS_SUCCESS;
     bool                            is_in_use_for_egress_block = true;
 
@@ -5634,8 +5932,9 @@ sai_status_t mlnx_port_in_use_check(const mlnx_port_config_t *port)
         return SAI_STATUS_OBJECT_IN_USE;
     }
 
-    if (mlnx_acl_is_port_lag_used(port)) {
-        SX_LOG_ERR("Failed remove port oid %" PRIx64 " - is in ACL\n", port->saiport);
+    if (port->acl_refs > 0) {
+        SX_LOG_ERR("Failed remove port oid %" PRIx64 " - is in use for %d ACL field(s)/action(s)\n",
+                   port->saiport, port->acl_refs);
         return SAI_STATUS_OBJECT_IN_USE;
     }
 
@@ -5643,40 +5942,22 @@ sai_status_t mlnx_port_in_use_check(const mlnx_port_config_t *port)
         return SAI_STATUS_SUCCESS;
     }
 
-    span_sessions = malloc(sizeof(sx_span_session_id_t) * SPAN_MAX_COUNT);
-    span_params   = malloc(sizeof(sx_span_analyzer_port_params_t) * SPAN_MAX_COUNT);
-    if ((!span_params) || (!span_sessions)) {
-        SX_LOG_ERR("Failed to alloc memory for span params\n");
-        status = SAI_STATUS_NO_MEMORY;
-        goto out;
-    }
-
-    sx_status = sx_api_span_analyzer_get(gh_sdk, port->logical, span_params, span_sessions, &span_count);
-    if (sx_status != SX_STATUS_ENTRY_NOT_FOUND) {
+    if (port->is_span_analyzer_port) {
         SX_LOG_ERR("Failed remove port oid %" PRIx64 " - is Mirror analyzer(monitor) port\n", port->saiport);
-        status = SAI_STATUS_OBJECT_IN_USE;
-        goto out;
+        return SAI_STATUS_OBJECT_IN_USE;
     }
 
     status = mlnx_port_egress_block_is_in_use(port->logical, &is_in_use_for_egress_block);
     if (SAI_ERR(status)) {
-        goto out;
+        return status;
     }
 
     if (is_in_use_for_egress_block) {
         SX_LOG_ERR("Failed remove port oid %" PRIx64 " - is a member another port's EGRESS_BLOCK_LISTS\n",
                    port->saiport);
-        status = SAI_STATUS_OBJECT_IN_USE;
-        goto out;
+        return SAI_STATUS_OBJECT_IN_USE;
     }
 
-out:
-    if (span_sessions) {
-        free(span_sessions);
-    }
-    if (span_params) {
-        free(span_params);
-    }
     return status;
 }
 
@@ -5739,7 +6020,7 @@ static sai_status_t mlnx_create_port(_Out_ sai_object_id_t     * port_id,
     char                         list_str[MAX_LIST_VALUE_STR_LEN];
     uint32_t                     speed_index, fec_index, lane_index, acl_attr_index;
     uint32_t                     lanes_count, egress_block_list_index;
-    sx_port_log_id_t             sx_egress_block_port_list[MAX_PORTS] = {0};
+    sx_port_log_id_t            *sx_egress_block_port_list = NULL;
     mlnx_port_config_t          *father_port;
     mlnx_port_config_t          *new_port = NULL;
     sx_port_mapping_t           *port_map;
@@ -5747,6 +6028,7 @@ static sai_status_t mlnx_create_port(_Out_ sai_object_id_t     * port_id,
     acl_index_t                  ing_acl_index = ACL_INDEX_INVALID, egr_acl_index = ACL_INDEX_INVALID;
     uint32_t                     module;
     uint32_t                     ii;
+    const bool                   is_add = true;
 
     SX_LOG_EXIT();
 
@@ -5902,6 +6184,12 @@ static sai_status_t mlnx_create_port(_Out_ sai_object_id_t     * port_id,
         goto out_unlock;
     }
 
+    status = mlnx_port_mirror_wred_discard_set(new_port->logical, is_add);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Error setting port mirror wred discard for new port 0x%x\n", new_port->logical);
+        goto out_unlock;
+    }
+
     status = find_attrib_in_list(attr_count, attr_list, SAI_PORT_ATTR_FEC_MODE, &fec, &fec_index);
     if (status == SAI_STATUS_SUCCESS) {
         status = port_fec_set(new_port->logical, fec->s32);
@@ -5913,6 +6201,13 @@ static sai_status_t mlnx_create_port(_Out_ sai_object_id_t     * port_id,
     status = find_attrib_in_list(attr_count, attr_list, SAI_PORT_ATTR_EGRESS_BLOCK_PORT_LIST,
                                  &egress_block_list, &egress_block_list_index);
     if (!SAI_ERR(status)) {
+        sx_egress_block_port_list = calloc(MAX_PORTS, sizeof(*sx_egress_block_port_list));
+        if (!sx_egress_block_port_list) {
+            SX_LOG_ERR("Failed to allocate memory\n");
+            status = SAI_STATUS_NO_MEMORY;
+            goto out_unlock;
+        }
+
         status = mlnx_port_egress_block_sai_ports_to_sx(new_port->logical, egress_block_list->objlist.list,
                                                         egress_block_list->objlist.count, egress_block_list_index,
                                                         sx_egress_block_port_list);
@@ -5942,7 +6237,7 @@ out_unlock:
     acl_global_unlock();
     sai_db_unlock();
 out:
-
+    free(sx_egress_block_port_list);
     SX_LOG_EXIT();
     return status;
 }
@@ -5963,6 +6258,7 @@ sai_status_t mlnx_remove_port(_In_ sai_object_id_t port_id)
     sai_status_t        status = SAI_STATUS_SUCCESS;
     sx_port_log_id_t    port_log_id;
     mlnx_port_config_t *port;
+    const bool          is_add = false;
 
     SX_LOG_ENTER();
 
@@ -5982,6 +6278,12 @@ sai_status_t mlnx_remove_port(_In_ sai_object_id_t port_id)
 
     status = mlnx_port_in_use_check(port);
     if (SAI_ERR(status)) {
+        goto out_unlock;
+    }
+
+    status = mlnx_port_mirror_wred_discard_set(port->logical, is_add);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Error removing port mirror wred discard for port 0x%x\n", port->logical);
         goto out_unlock;
     }
 
@@ -6007,6 +6309,18 @@ out:
     return status;
 }
 
+static void port_pool_key_to_str(_In_ sai_object_id_t port_pool_id, _Out_ char *key_str)
+{
+    uint32_t port_num;
+    uint8_t  ext_data[EXTENDED_DATA_SIZE] = {0};
+
+    if (SAI_STATUS_SUCCESS != mlnx_object_to_type(port_pool_id, SAI_OBJECT_TYPE_PORT_POOL, &port_num, ext_data)) {
+        snprintf(key_str, MAX_KEY_STR_LEN, "invalid port pool");
+    } else {
+        snprintf(key_str, MAX_KEY_STR_LEN, "port pool %x:%u", port_num, ext_data[0]);
+    }
+}
+
 /**
  * @brief Create port pool
  *
@@ -6022,7 +6336,82 @@ static sai_status_t mlnx_create_port_pool(_Out_ sai_object_id_t      *port_pool_
                                           _In_ uint32_t               attr_count,
                                           _In_ const sai_attribute_t *attr_list)
 {
-    return SAI_STATUS_NOT_IMPLEMENTED;
+    const sai_attribute_value_t *port_attr = NULL;
+    const sai_attribute_value_t *pool_attr = NULL;
+    uint32_t                     pool_idx;
+    uint32_t                     port_idx;
+    sx_port_log_id_t             port_id;
+    uint32_t                     pool_id;
+    sai_status_t                 status;
+    char                         key_str[MAX_KEY_STR_LEN];
+    char                         list_str[MAX_LIST_VALUE_STR_LEN];
+    mlnx_port_config_t          *port;
+    mlnx_sai_buffer_pool_attr_t  sai_pool_attr;
+    uint8_t                      extended_data[EXTENDED_DATA_SIZE];
+
+    SX_LOG_ENTER();
+
+    if (port_pool_id == NULL) {
+        SX_LOG_ERR("Invalid NULL port_pool_id param\n");
+        return SAI_STATUS_INVALID_PARAMETER;
+    }
+
+    status = check_attribs_metadata(attr_count, attr_list, SAI_OBJECT_TYPE_PORT_POOL, port_pool_vendor_attribs,
+        SAI_COMMON_API_CREATE);
+    if (SAI_ERR(status)) {
+        goto out;
+    }
+
+    sai_attr_list_to_str(attr_count, attr_list, SAI_OBJECT_TYPE_PORT_POOL, MAX_LIST_VALUE_STR_LEN, list_str);
+    SX_LOG_NTC("Create port pool, %s\n", list_str);
+
+    /* Mandatory attributes */
+    status = find_attrib_in_list(attr_count, attr_list, SAI_PORT_POOL_ATTR_BUFFER_POOL_ID, &pool_attr, &pool_idx);
+    assert(SAI_STATUS_SUCCESS == status);
+
+    status = find_attrib_in_list(attr_count, attr_list, SAI_PORT_POOL_ATTR_PORT_ID, &port_attr, &port_idx);
+    assert(SAI_STATUS_SUCCESS == status);
+
+    status = mlnx_object_to_type(port_attr->oid, SAI_OBJECT_TYPE_PORT, &port_id, NULL);
+    if (SAI_ERR(status)) {
+        goto out;
+    }
+
+    status = mlnx_object_to_type(pool_attr->oid, SAI_OBJECT_TYPE_BUFFER_POOL, &pool_id, NULL);
+    if (SAI_ERR(status)) {
+        goto out;
+    }
+
+    sai_db_read_lock();
+
+    /* validate port existence */
+    status = mlnx_port_by_log_id(port_id, &port);
+    if (SAI_ERR(status)) {
+        sai_db_unlock();
+        goto out;
+    }
+
+    if (SAI_STATUS_SUCCESS != (status = mlnx_get_sai_pool_data(pool_attr->oid, &sai_pool_attr))) {
+        sai_db_unlock();
+        goto out;
+    }
+
+    sai_db_unlock();
+
+    extended_data[0] = (uint8_t) pool_id;
+    extended_data[1] = (uint8_t) sai_pool_attr.pool_type;
+    if (SAI_STATUS_SUCCESS !=
+        (status = mlnx_create_object(SAI_OBJECT_TYPE_PORT_POOL, port_id, extended_data,
+                                     port_pool_id))) {
+        goto out;
+    }
+
+    port_pool_key_to_str(*port_pool_id, key_str);
+    SX_LOG_NTC("Created %s\n", key_str);
+
+out:
+    SX_LOG_EXIT();
+    return status;
 }
 
 /**
@@ -6034,7 +6423,23 @@ static sai_status_t mlnx_create_port_pool(_Out_ sai_object_id_t      *port_pool_
  */
 static sai_status_t mlnx_remove_port_pool(_In_ sai_object_id_t port_pool_id)
 {
-    return SAI_STATUS_NOT_IMPLEMENTED;
+    char             key_str[MAX_KEY_STR_LEN];
+    sai_status_t     status;
+    sx_port_log_id_t port_id;
+
+    SX_LOG_ENTER();
+
+    port_pool_key_to_str(port_pool_id, key_str);
+    SX_LOG_NTC("Removing %s\n", key_str);
+
+    if (SAI_STATUS_SUCCESS !=
+        (status = mlnx_object_to_type(port_pool_id, SAI_OBJECT_TYPE_PORT_POOL, &port_id, NULL))) {
+        goto out;
+    }
+
+out:
+    SX_LOG_EXIT();
+    return status;
 }
 
 /**
@@ -6047,7 +6452,16 @@ static sai_status_t mlnx_remove_port_pool(_In_ sai_object_id_t port_pool_id)
  */
 static sai_status_t mlnx_set_port_pool_attribute(_In_ sai_object_id_t port_pool_id, _In_ const sai_attribute_t *attr)
 {
-    return SAI_STATUS_NOT_IMPLEMENTED;
+    sai_status_t           sai_status;
+    const sai_object_key_t key = { .key.object_id = port_pool_id };
+    char                   key_str[MAX_KEY_STR_LEN] = { 0 };
+
+    SX_LOG_ENTER();
+
+    port_pool_key_to_str(port_pool_id, key_str);
+    sai_status = sai_set_attribute(&key, key_str, SAI_OBJECT_TYPE_PORT_POOL, port_pool_vendor_attribs, attr);
+    SX_LOG_EXIT();
+    return sai_status;
 }
 
 /**
@@ -6063,7 +6477,49 @@ static sai_status_t mlnx_get_port_pool_attribute(_In_ sai_object_id_t     port_p
                                                  _In_ uint32_t            attr_count,
                                                  _Inout_ sai_attribute_t *attr_list)
 {
-    return SAI_STATUS_NOT_IMPLEMENTED;
+    sai_status_t           sai_status;
+    const sai_object_key_t key = { .key.object_id = port_pool_id };
+    char                   key_str[MAX_KEY_STR_LEN] = { 0 };
+
+    SX_LOG_ENTER();
+
+    port_pool_key_to_str(port_pool_id, key_str);
+    sai_status = sai_get_attributes(&key, key_str, SAI_OBJECT_TYPE_PORT_POOL, port_pool_vendor_attribs, attr_count, attr_list);
+    SX_LOG_EXIT();
+    return sai_status;
+}
+
+static sai_status_t mlnx_port_pool_attr_get(_In_ const sai_object_key_t   *key,
+                                            _Inout_ sai_attribute_value_t *value,
+                                            _In_ uint32_t                  attr_index,
+                                            _Inout_ vendor_cache_t        *cache,
+                                            _In_ void                     *arg)
+{
+    sai_status_t          status;
+    sai_attr_id_t         attr_id;
+    sx_port_log_id_t      port_id;
+    uint8_t               extended_data[EXTENDED_DATA_SIZE] = { 0 };
+
+    SX_LOG_ENTER();
+
+    attr_id = (long)arg;
+
+    assert((SAI_PORT_POOL_ATTR_BUFFER_POOL_ID == attr_id) || (SAI_PORT_POOL_ATTR_PORT_ID == attr_id));
+
+    if (SAI_STATUS_SUCCESS !=
+        (status = mlnx_object_to_type(key->key.object_id, SAI_OBJECT_TYPE_PORT_POOL, &port_id, extended_data))) {
+        return status;
+    }
+
+    if (SAI_PORT_POOL_ATTR_PORT_ID == attr_id) {
+        status = mlnx_create_object(SAI_OBJECT_TYPE_PORT, port_id, NULL, &value->oid);
+    }
+    else {
+        status = mlnx_create_object(SAI_OBJECT_TYPE_BUFFER_POOL, extended_data[0], NULL, &value->oid);
+    }
+
+    SX_LOG_EXIT();
+    return SAI_STATUS_SUCCESS;
 }
 
 /**
@@ -6081,7 +6537,140 @@ static sai_status_t mlnx_get_port_pool_stats(_In_ sai_object_id_t             po
                                              _In_ const sai_port_pool_stat_t *counter_ids,
                                              _Out_ uint64_t                  *counters)
 {
-    return SAI_STATUS_NOT_IMPLEMENTED;
+    sai_status_t                        status;
+    uint8_t                             ext_data[EXTENDED_DATA_SIZE] = {0};
+    sx_cos_pool_id_t                    pool_num;
+    sx_port_log_id_t                    port_num;
+    uint32_t                            ii;
+    char                                key_str[MAX_KEY_STR_LEN];
+    sx_port_statistic_usage_params_t    stats_usage;
+    sx_port_occupancy_statistics_t      occupancy_stats;
+    uint32_t                            usage_cnt = 1;
+    uint32_t                            db_port_index, pool_base_ind, buff_ind;
+    uint32_t                           *port_buff_profile_refs = NULL;
+    mlnx_sai_db_buffer_profile_entry_t *buff_db_entry = NULL;
+
+    SX_LOG_ENTER();
+
+    port_pool_key_to_str(port_pool_id, key_str);
+    SX_LOG_DBG("Get port pool stats %s\n", key_str);
+
+    if (NULL == counter_ids) {
+        SX_LOG_ERR("NULL counter ids array param\n");
+        return SAI_STATUS_INVALID_PARAMETER;
+    }
+
+    if (NULL == counters) {
+        SX_LOG_ERR("NULL counters array param\n");
+        return SAI_STATUS_INVALID_PARAMETER;
+    }
+
+    if (SAI_STATUS_SUCCESS != mlnx_object_to_type(port_pool_id, SAI_OBJECT_TYPE_PORT_POOL, &port_num, ext_data)) {
+        return SAI_STATUS_INVALID_PARAMETER;
+    }
+    pool_num = ext_data[0];
+
+    memset(&stats_usage, 0, sizeof(stats_usage));
+    stats_usage.port_cnt = 1;
+    stats_usage.log_port_list_p = &port_num;
+    stats_usage.sx_port_params.port_params_cnt = 1;
+    if (SAI_BUFFER_POOL_TYPE_INGRESS == ext_data[1]) {
+        stats_usage.sx_port_params.port_params_type = SX_COS_INGRESS_PORT_ATTR_E;
+        stats_usage.sx_port_params.port_param.ingress_port_pool_list_p = &pool_num;
+    }
+    else {
+        stats_usage.sx_port_params.port_params_type = SX_COS_EGRESS_PORT_ATTR_E;
+        stats_usage.sx_port_params.port_param.egress_port_pool_list_p = &pool_num;
+    }
+
+    if (SX_STATUS_SUCCESS !=
+        (status = sx_api_cos_port_buff_type_statistic_get(gh_sdk, SX_ACCESS_CMD_READ, &stats_usage, 1,
+        &occupancy_stats, &usage_cnt))) {
+        SX_LOG_ERR("Failed to get port buff statistics - %s.\n", SX_STATUS_MSG(status));
+        return sdk_to_sai(status);
+    }
+
+    for (ii = 0; ii < number_of_counters; ii++) {
+        switch (counter_ids[ii]) {
+        case SAI_PORT_POOL_STAT_IF_OCTETS:
+        case SAI_PORT_POOL_STAT_GREEN_WRED_DROPPED_PACKETS:
+        case SAI_PORT_POOL_STAT_GREEN_WRED_DROPPED_BYTES:
+        case SAI_PORT_POOL_STAT_YELLOW_WRED_DROPPED_PACKETS:
+        case SAI_PORT_POOL_STAT_YELLOW_WRED_DROPPED_BYTES:
+        case SAI_PORT_POOL_STAT_RED_WRED_DROPPED_PACKETS:
+        case SAI_PORT_POOL_STAT_RED_WRED_DROPPED_BYTES:
+        case SAI_PORT_POOL_STAT_WRED_DROPPED_PACKETS:
+        case SAI_PORT_POOL_STAT_WRED_DROPPED_BYTES:
+        case SAI_PORT_POOL_STAT_GREEN_WRED_ECN_MARKED_PACKETS:
+        case SAI_PORT_POOL_STAT_GREEN_WRED_ECN_MARKED_BYTES:
+        case SAI_PORT_POOL_STAT_YELLOW_WRED_ECN_MARKED_PACKETS:
+        case SAI_PORT_POOL_STAT_YELLOW_WRED_ECN_MARKED_BYTES:
+        case SAI_PORT_POOL_STAT_RED_WRED_ECN_MARKED_PACKETS:
+        case SAI_PORT_POOL_STAT_RED_WRED_ECN_MARKED_BYTES:
+        case SAI_PORT_POOL_STAT_WRED_ECN_MARKED_PACKETS:
+        case SAI_PORT_POOL_STAT_WRED_ECN_MARKED_BYTES:
+        case SAI_PORT_POOL_STAT_SHARED_CURR_OCCUPANCY_BYTES:
+        case SAI_PORT_POOL_STAT_DROPPED_PKTS:
+            SX_LOG_NTC("Port pool counter %d set item %u not supported\n", counter_ids[ii], ii);
+            return SAI_STATUS_ATTR_NOT_SUPPORTED_0;
+
+        case SAI_PORT_POOL_STAT_CURR_OCCUPANCY_BYTES:
+            counters[ii] = (uint64_t)occupancy_stats.statistics.curr_occupancy * g_resource_limits.shared_buff_buffer_unit_size;
+            break;
+
+        case SAI_PORT_POOL_STAT_WATERMARK_BYTES:
+            counters[ii] = (uint64_t)occupancy_stats.statistics.watermark * g_resource_limits.shared_buff_buffer_unit_size;
+            break;
+
+        case SAI_PORT_POOL_STAT_SHARED_WATERMARK_BYTES:
+            counters[ii] = (uint64_t)occupancy_stats.statistics.watermark * g_resource_limits.shared_buff_buffer_unit_size;
+
+            sai_db_read_lock();
+
+            status = mlnx_port_idx_by_log_id(port_num, &db_port_index);
+            if (status != SAI_STATUS_SUCCESS) {
+                sai_db_unlock();
+                SX_LOG_EXIT();
+                return status;
+            }
+
+            if (SAI_STATUS_SUCCESS !=
+                (status = mlnx_sai_get_port_buffer_index_array(db_port_index, 
+                (SAI_BUFFER_POOL_TYPE_INGRESS == ext_data[1]) ? PORT_BUFF_TYPE_INGRESS : PORT_BUFF_TYPE_EGRESS, &port_buff_profile_refs))) {
+                sai_db_unlock();
+                SX_LOG_EXIT();
+                return status;
+            }
+
+            if (SAI_BUFFER_POOL_TYPE_INGRESS == ext_data[1]) {
+                pool_base_ind = BASE_INGRESS_USER_SX_POOL_ID;
+            }
+            else {
+                pool_base_ind = BASE_EGRESS_USER_SX_POOL_ID;
+            }
+            buff_ind = port_buff_profile_refs[pool_num - pool_base_ind];
+            
+            if (SENTINEL_BUFFER_DB_ENTRY_INDEX != buff_ind) {
+                buff_db_entry = &g_sai_buffer_db_ptr->buffer_profiles[buff_ind];
+                if (counters[ii] > buff_db_entry->reserved_size) {
+                    counters[ii] -= buff_db_entry->reserved_size;
+                }
+                else {
+                    counters[ii] = 0;
+                }
+            }
+
+            sai_db_unlock();
+            break;
+
+        default:
+            SX_LOG_ERR("Invalid port pool counter %d\n", counter_ids[ii]);
+            return SAI_STATUS_INVALID_PARAMETER;
+        }
+    }
+
+    SX_LOG_EXIT();
+    return SAI_STATUS_SUCCESS;
 }
 
 /**
@@ -6097,7 +6686,52 @@ static sai_status_t mlnx_clear_port_pool_stats(_In_ sai_object_id_t             
                                                _In_ uint32_t                    number_of_counters,
                                                _In_ const sai_port_pool_stat_t *counter_ids)
 {
-    return SAI_STATUS_NOT_IMPLEMENTED;
+    sai_status_t                     status;
+    uint8_t                          ext_data[EXTENDED_DATA_SIZE] = { 0 };
+    sx_cos_pool_id_t                 pool_num;
+    sx_port_log_id_t                 port_num;
+    char                             key_str[MAX_KEY_STR_LEN];
+    sx_port_statistic_usage_params_t stats_usage;
+    sx_port_occupancy_statistics_t   occupancy_stats;
+    uint32_t                         usage_cnt = 1;
+
+    SX_LOG_ENTER();
+
+    port_pool_key_to_str(port_pool_id, key_str);
+    SX_LOG_NTC("Clear port pool stats %s\n", key_str);
+
+    if (NULL == counter_ids) {
+        SX_LOG_ERR("NULL counter ids array param\n");
+        return SAI_STATUS_INVALID_PARAMETER;
+    }
+
+    if (SAI_STATUS_SUCCESS != mlnx_object_to_type(port_pool_id, SAI_OBJECT_TYPE_PORT_POOL, &port_num, ext_data)) {
+        return SAI_STATUS_INVALID_PARAMETER;
+    }
+    pool_num = ext_data[0];
+
+    memset(&stats_usage, 0, sizeof(stats_usage));
+    stats_usage.port_cnt = 1;
+    stats_usage.log_port_list_p = &port_num;
+    stats_usage.sx_port_params.port_params_cnt = 1;
+    if (SAI_BUFFER_POOL_TYPE_INGRESS == ext_data[1]) {
+        stats_usage.sx_port_params.port_params_type = SX_COS_INGRESS_PORT_ATTR_E;
+        stats_usage.sx_port_params.port_param.ingress_port_pool_list_p = &pool_num;
+    }
+    else {
+        stats_usage.sx_port_params.port_params_type = SX_COS_EGRESS_PORT_ATTR_E;
+        stats_usage.sx_port_params.port_param.egress_port_pool_list_p = &pool_num;
+    }
+
+    if (SX_STATUS_SUCCESS !=
+        (status = sx_api_cos_port_buff_type_statistic_get(gh_sdk, SX_ACCESS_CMD_READ_CLEAR, &stats_usage, 1,
+        &occupancy_stats, &usage_cnt))) {
+        SX_LOG_ERR("Failed to get clear port pool buff statistics - %s.\n", SX_STATUS_MSG(status));
+        return sdk_to_sai(status);
+    }
+
+    SX_LOG_EXIT();
+    return SAI_STATUS_SUCCESS;
 }
 
 const sai_port_api_t mlnx_port_api = {

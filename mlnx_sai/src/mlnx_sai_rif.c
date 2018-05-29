@@ -57,6 +57,9 @@ static sai_status_t mlnx_rif_attrib_get(_In_ const sai_object_key_t   *key,
 static sai_status_t mlnx_rif_attrib_set(_In_ const sai_object_key_t      *key,
                                         _In_ const sai_attribute_value_t *value,
                                         void                             *arg);
+static sai_status_t mlnx_rif_loopback_action_sai_to_sx(_In_ const sai_attribute_value_t *loopback_action,
+                                                       _In_ uint32_t                     attr_index,
+                                                       _Out_ sx_interface_attributes_t  *intf_attribs);
 static const sai_vendor_attribute_entry_t rif_vendor_attribs[] = {
     { SAI_ROUTER_INTERFACE_ATTR_VIRTUAL_ROUTER_ID,
       { true, false, false, true },
@@ -98,6 +101,11 @@ static const sai_vendor_attribute_entry_t rif_vendor_attribs[] = {
       { true, false, true, true },
       mlnx_rif_attrib_get, (void*)SAI_ROUTER_INTERFACE_ATTR_MTU,
       mlnx_rif_attrib_set, (void*)SAI_ROUTER_INTERFACE_ATTR_MTU },
+    { SAI_ROUTER_INTERFACE_ATTR_LOOPBACK_PACKET_ACTION,
+      { true, false, true, true },
+      { true, false, true, true },
+      mlnx_rif_attrib_get, (void*)SAI_ROUTER_INTERFACE_ATTR_LOOPBACK_PACKET_ACTION,
+      mlnx_rif_attrib_set, (void*)SAI_ROUTER_INTERFACE_ATTR_LOOPBACK_PACKET_ACTION },
     { SAI_ROUTER_INTERFACE_ATTR_INGRESS_ACL,
       { true, false, true, true },
       { true, false, true, true },
@@ -199,9 +207,9 @@ static sai_status_t mlnx_create_router_interface(_Out_ sai_object_id_t      *rif
     sx_port_log_id_t             sx_vport_id, sx_port_id = SX_INVALID_PORT;
     sx_status_t                  sx_status;
     sai_status_t                 status;
-    const sai_attribute_value_t *type, *vrid, *port = NULL, *vlan = NULL, *mtu, *mac, *adminv4, *adminv6;
+    const sai_attribute_value_t *type, *vrid, *port = NULL, *vlan = NULL, *mtu, *mac, *adminv4, *adminv6, *loopback_action = NULL;
     uint32_t                     type_index, vrid_index, port_index, vlan_index, mtu_index, mac_index, adminv4_index,
-                                 adminv6_index, vrid_data, acl_attr_index;
+                                 adminv6_index, vrid_data, acl_attr_index, loopback_action_index;
     sx_router_interface_t        sdk_rif_id = 0;
     sx_router_interface_state_t  rif_state;
     char                         list_str[MAX_LIST_VALUE_STR_LEN];
@@ -252,6 +260,7 @@ static sai_status_t mlnx_create_router_interface(_Out_ sai_object_id_t      *rif
 
     find_attrib_in_list(attr_count, attr_list, SAI_ROUTER_INTERFACE_ATTR_PORT_ID, &port, &port_index);
 
+    find_attrib_in_list(attr_count, attr_list, SAI_ROUTER_INTERFACE_ATTR_LOOPBACK_PACKET_ACTION, &loopback_action, &loopback_action_index);
 
     if (SAI_ROUTER_INTERFACE_TYPE_VLAN == type->s32) {
         if (!vlan) {
@@ -344,16 +353,22 @@ static sai_status_t mlnx_create_router_interface(_Out_ sai_object_id_t      *rif
         return SAI_STATUS_INVALID_ATTR_VALUE_0 + type_index;
     }
 
-    status = check_attrs_port_type(NULL, attr_count, attr_list);
-    if (SAI_ERR(status)) {
-        return status;
-    }
-
     if (SAI_STATUS_SUCCESS ==
         (status = find_attrib_in_list(attr_count, attr_list, SAI_ROUTER_INTERFACE_ATTR_MTU, &mtu, &mtu_index))) {
         intf_attribs.mtu = mtu->u32;
     } else {
         intf_attribs.mtu = DEFAULT_RIF_MTU;
+    }
+
+    sai_db_write_lock();
+    acl_global_lock();
+
+    if (port) {
+        status = check_port_type_attr(&port->oid, 1, ATTR_PORT_IS_LAG_ENABLED,
+                                      SAI_ROUTER_INTERFACE_ATTR_PORT_ID, port_index);
+        if (SAI_ERR(status)) {
+            goto out;
+        }
     }
 
     /* do not fill src mac address for loop back interface */
@@ -363,24 +378,17 @@ static sai_status_t mlnx_create_router_interface(_Out_ sai_object_id_t      *rif
                                  &mac_index))) {
         if (SAI_ROUTER_INTERFACE_TYPE_LOOPBACK == type->s32) {
             SX_LOG_ERR("src mac address is not valid for loopback router interface type\n");
-            SX_LOG_EXIT();
-            return SAI_STATUS_INVALID_ATTRIBUTE_0 + mac_index;
+            status = SAI_STATUS_INVALID_ATTRIBUTE_0 + mac_index;
+            goto out;
         }
         memcpy(&intf_attribs.mac_addr, mac->mac, sizeof(intf_attribs.mac_addr));
     } else {
         /* Get default mac from switch object */
-        sai_db_read_lock();
-
         status = mlnx_switch_get_mac(&intf_attribs.mac_addr);
         if (SAI_ERR(status)) {
-            sai_db_unlock();
-            return status;
+            goto out;
         }
-
-        sai_db_unlock();
     }
-
-    acl_global_lock();
 
     if (SAI_ROUTER_INTERFACE_TYPE_BRIDGE != type->s32) {
         status = find_attrib_in_list(attr_count,
@@ -411,6 +419,13 @@ static sai_status_t mlnx_create_router_interface(_Out_ sai_object_id_t      *rif
             if (SAI_ERR(status)) {
                 goto out;
             }
+        }
+    }
+
+    if (loopback_action) {
+        status = mlnx_rif_loopback_action_sai_to_sx(loopback_action, loopback_action_index, &intf_attribs);
+        if (SAI_ERR(status)) {
+            goto out;
         }
     }
 
@@ -478,7 +493,6 @@ static sai_status_t mlnx_create_router_interface(_Out_ sai_object_id_t      *rif
             status = mlnx_acl_port_lag_rif_bind_point_set(*rif_id, MLNX_ACL_BIND_POINT_TYPE_INGRESS_ROUTER_INTERFACE,
                                                           ing_acl_index);
             if (SAI_ERR(status)) {
-                status = sdk_to_sai(status);
                 goto out;
             }
         }
@@ -487,19 +501,14 @@ static sai_status_t mlnx_create_router_interface(_Out_ sai_object_id_t      *rif
             status = mlnx_acl_port_lag_rif_bind_point_set(*rif_id, MLNX_ACL_BIND_POINT_TYPE_EGRESS_ROUTER_INTERFACE,
                                                           egr_acl_index);
             if (SAI_ERR(status)) {
-                status = sdk_to_sai(status);
                 goto out;
             }
         }
     } else { /* Create bridge router interface in DB for a while */
         mlnx_bridge_rif_t *br_rif;
-
-        sai_db_write_lock();
-
         status = mlnx_bridge_rif_add((sx_router_id_t)vrid_data, &br_rif);
         if (SAI_ERR(status)) {
             SX_LOG_ERR("Failed to allocate bridge rif entry\n");
-            sai_db_unlock();
             goto out;
         }
 
@@ -510,29 +519,24 @@ static sai_status_t mlnx_create_router_interface(_Out_ sai_object_id_t      *rif
         status = mlnx_bridge_rif_to_oid(br_rif, rif_id);
         if (SAI_ERR(status)) {
             SX_LOG_ERR("Failed to convert bridge rif entry idx to oid\n");
-            sai_db_unlock();
             goto out;
         }
-
-        sai_db_unlock();
     }
 
     rif_key_to_str(*rif_id, key_str);
     SX_LOG_NTC("Created rif %s\n", key_str);
 
     if ((SAI_ROUTER_INTERFACE_TYPE_PORT == type->s32) || (SAI_ROUTER_INTERFACE_TYPE_SUB_PORT == type->s32)) {
-        sai_db_write_lock();
         status = mlnx_port_by_log_id(sx_port_id, &port_cfg);
         if (SAI_ERR(status)) {
-            sai_db_unlock();
             goto out;
         }
         port_cfg->rifs++;
-        sai_db_unlock();
     }
 
 out:
     acl_global_unlock();
+    sai_db_unlock();
     SX_LOG_EXIT();
     return status;
 }
@@ -724,12 +728,32 @@ static sai_status_t mlnx_get_router_interface_attribute(_In_ sai_object_id_t    
                               attr_list);
 }
 
+static sai_status_t mlnx_rif_loopback_action_sai_to_sx(_In_ const sai_attribute_value_t *loopback_action,
+                                                       _In_ uint32_t                     attr_index,
+                                                       _Out_ sx_interface_attributes_t  *intf_attribs)
+{
+    assert(loopback_action);
+    assert(intf_attribs);
+
+    if ((loopback_action->s32 !=  SAI_PACKET_ACTION_DROP) && (loopback_action->s32 !=  SAI_PACKET_ACTION_FORWARD)) {
+        SX_LOG_ERR("Unsupported value for LOOPBACK_PACKET_ACTION - %d. Supported: "
+                   "SAI_PACKET_ACTION_DROP, SAI_PACKET_ACTION_FORWARD\n", loopback_action->s32);
+        return SAI_STATUS_ATTR_NOT_SUPPORTED_0 + attr_index;
+    }
+
+    intf_attribs->loopback_enable = (loopback_action->s32 == SAI_PACKET_ACTION_FORWARD);
+
+    return SAI_STATUS_SUCCESS;
+}
+
 static sai_status_t mlnx_rif_attr_to_sdk(sai_router_interface_attr_t  attr,
                                          const sai_attribute_value_t *value,
                                          sx_interface_attributes_t   *intf_attribs,
                                          sx_router_interface_param_t *intf_params,
                                          sx_router_interface_state_t *rif_state)
 {
+    sai_status_t status;
+
     switch (attr) {
     case SAI_ROUTER_INTERFACE_ATTR_MTU:
         intf_attribs->mtu = (uint16_t)value->u32;
@@ -751,6 +775,13 @@ static sai_status_t mlnx_rif_attr_to_sdk(sai_router_interface_attr_t  attr,
 
     case SAI_ROUTER_INTERFACE_ATTR_ADMIN_V6_STATE:
         rif_state->ipv6_enable = value->booldata;
+        break;
+
+    case SAI_ROUTER_INTERFACE_ATTR_LOOPBACK_PACKET_ACTION:
+        status = mlnx_rif_loopback_action_sai_to_sx(value, 0, intf_attribs);
+        if (SAI_ERR(status)) {
+            return status;
+        }
         break;
 
     default:
@@ -797,6 +828,14 @@ static sai_status_t mlnx_rif_attrib_set(_In_ const sai_object_key_t      *key,
             SX_LOG_ERR("Failed to lookup bridge rif entry by idx %u\n", mlnx_rif_id.id.u32);
             sai_db_unlock();
             return status;
+        }
+
+        if (!br_rif->is_created) {
+            SX_LOG_ERR("RIF %lx is not created yet. Bridge port of a type "
+                       "SAI_BRIDGE_PORT_TYPE_1D_ROUTER needs to be created first\n", key->key.object_id);
+            SX_LOG_EXIT();
+            sai_db_unlock();
+            return SAI_STATUS_INVALID_PARAMETER;
         }
 
         status = mlnx_rif_attr_to_sdk(attr, value, &br_rif->intf_attribs, &br_rif->intf_params, &br_rif->intf_state);
@@ -1019,6 +1058,10 @@ static sai_status_t mlnx_rif_attrib_get(_In_ const sai_object_key_t   *key,
 
     case SAI_ROUTER_INTERFACE_ATTR_ADMIN_V6_STATE:
         value->booldata = rif_state.ipv6_enable;
+        break;
+
+    case SAI_ROUTER_INTERFACE_ATTR_LOOPBACK_PACKET_ACTION:
+        value->s32 = intf_attribs.loopback_enable ? SAI_PACKET_ACTION_FORWARD : SAI_PACKET_ACTION_DROP;
         break;
 
     default:

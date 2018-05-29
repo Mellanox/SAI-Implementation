@@ -81,7 +81,7 @@ static sai_status_t db_qos_map_check_if_exist(uint32_t id)
 /* db read/write lock is needed */
 static sai_status_t db_qos_map_alloc(uint32_t *id)
 {
-    int ii;
+    uint32_t ii;
 
     for (ii = 1; ii <= MAX_QOS_MAPS; ii++) {
         mlnx_qos_map_t *qos_map = db_qos_map_get(ii);

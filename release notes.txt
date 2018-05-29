@@ -1,7 +1,7 @@
 Mellanox SAI implementation release notes
 ==========================================
 
-Release 1.11.0
+Release 1.12.0
 ---------------
 
 Current implementation is partial. 
@@ -10,7 +10,7 @@ Not all the APIs that are defined were fully implemented in this release. Missin
 
 The code was tested to work on X86, at Beta level.
 No testing was done on PPC.
-The code compiles with, and was tested with, SDK version 4.2.7004.
+The code compiles with, and was tested with, SDK version 4.2.8002.
 
 As a precondition to running SAI initialize switch, SDK must not be running (If it's running, terminate it with dvs_stop.sh). 
 The application must provide one key/value pair on profile services, "config_file=/usr/share/sai_2700.xml" / "config_file=/usr/share/sai_2410.xml" / / "config_file=/usr/share/sai_2420.xml" / "config_file=/usr/share/sai_2100.xml", depending on system type.
@@ -79,5 +79,6 @@ UDF has the following limitations :
 * UDF Group - Empty UDF group cannot be used as hash or ACL attribute. In additiion, is is not allowed to remove the last UDF from the UDF group if it is in use
 
 When using 3 mirror sessions, it is not possible to edit a session. As a WA, remove and re-create it. It is possible to edit a session when using 1 or 2 sessions.
+When working with WRED discards mirroring, it has to be configured last after regular mirror sessions, as with WRED discard mirroring all ports which are not analyzer ports of any session, are set as monitor port, and analyzer and monitor behavior for port is mutually exclusive.
 Switch Prio (SAI TC) <-> IEEE PFC is a global property, therefor when setting different PFC->PG on different ports last value overrides.
  

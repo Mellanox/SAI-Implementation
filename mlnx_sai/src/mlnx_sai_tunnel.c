@@ -1037,13 +1037,9 @@ static sai_status_t mlnx_sai_get_sai_rif_id(_In_ sai_object_id_t        sai_tunn
         sai_db_unlock();
         switch (sai_tunnel_rif_type) {
         case MLNX_TUNNEL_OVERLAY:
-            *sai_rif = sai_tunnel_db_entry.sai_vxlan_overlay_rif;
-            if (SAI_NULL_OBJECT_ID == *sai_rif) {
-                SX_LOG_ERR("Overlay rif is not valid for .1D bridge vxlan tunnel\n");
-                sai_db_unlock();
-                SX_LOG_EXIT();
-                return SAI_STATUS_FAILURE;
-            }
+            SX_LOG_ERR("Overlay rif is not valid for vxlan tunnel\n");
+            SX_LOG_EXIT();
+            return SAI_STATUS_FAILURE;
             break;
 
         case MLNX_TUNNEL_UNDERLAY:
@@ -2261,15 +2257,20 @@ static sai_status_t mlnx_init_tunnel_map_param(_In_ uint32_t               attr_
     sai_status = find_attrib_in_list(attr_count, attr_list, SAI_TUNNEL_MAP_ATTR_TYPE, &tunnel_map_type, &attr_idx);
     assert(SAI_STATUS_SUCCESS == sai_status);
 
+    /* 802.1Q vxlan encap is not supported, which means vlan to vni map is not supported */
+    if (SAI_TUNNEL_MAP_TYPE_VLAN_ID_TO_VNI == tunnel_map_type->s32) {
+        SX_LOG_ERR("vlan id to vni is not supported\n");
+        SX_LOG_EXIT();
+        return SAI_STATUS_INVALID_ATTR_VALUE_0 + attr_idx;
+    }
+
     mlnx_tunnel_map->tunnel_map_type = tunnel_map_type->s32;
-
-    mlnx_tunnel_map->tunnel_map_list_count = 0;
-
-    memset(mlnx_tunnel_map->tunnel_map_list, 0, sizeof(mlnx_tunnel_map->tunnel_map_list));
 
     mlnx_tunnel_map->tunnel_cnt = 0;
 
     mlnx_tunnel_map->in_use = true;
+
+    mlnx_tunnel_map->tunnel_map_entry_cnt = 0;
 
     SX_LOG_EXIT();
 
@@ -3492,60 +3493,6 @@ static sai_status_t mlnx_sai_fill_sx_ipinip_p2p_tunnel_data(_In_ sai_tunnel_type
     return SAI_STATUS_SUCCESS;
 }
 
-/* This function needs to be guarded by lock */
-static sai_status_t mlnx_bridge_vport_set(_In_ sai_object_id_t  sai_tunnel_obj_id,
-                                          _In_ sx_bridge_id_t   sx_bridge_id,
-                                          _In_ sx_port_log_id_t sx_bridge_port_id,
-                                          _In_ sai_vlan_id_t    vlan_id)
-{
-    sx_status_t      sdk_status    = SX_STATUS_ERROR;
-    sai_status_t     sai_status    = SAI_STATUS_FAILURE;
-    uint32_t         tunnel_db_idx = 0;
-    sx_port_log_id_t sx_log_vport  = 0;
-
-    SX_LOG_ENTER();
-
-    /* TODO: change the logic here after SAI bridge port being officially introduced */
-    if (SX_STATUS_SUCCESS !=
-        (sdk_status =
-             sx_api_port_vport_set(gh_sdk, SX_ACCESS_CMD_ADD, sx_bridge_port_id,
-                                   vlan_id, &sx_log_vport))) {
-        SX_LOG_ERR("Error setting vport of port, SX STATUS: %s\n", SX_STATUS_MSG(sdk_status));
-        SX_LOG_EXIT();
-        return sdk_to_sai(sdk_status);
-    }
-
-    if (SX_STATUS_SUCCESS !=
-        (sdk_status = sx_api_port_state_set(gh_sdk, sx_log_vport, SX_PORT_ADMIN_STATUS_UP))) {
-        SX_LOG_ERR("Error setting vport admin state, SX STATUS: %s\n", SX_STATUS_MSG(sdk_status));
-        SX_LOG_EXIT();
-        return sdk_to_sai(sdk_status);
-    }
-
-    if (SX_STATUS_SUCCESS !=
-        (sdk_status = sx_api_bridge_vport_set(gh_sdk, SX_ACCESS_CMD_ADD, sx_bridge_id, sx_log_vport))) {
-        SX_LOG_ERR("Error setting sx bridge vport, SX STATUS: %s\n", SX_STATUS_MSG(sdk_status));
-        SX_LOG_EXIT();
-        return sdk_to_sai(sdk_status);
-    }
-
-    if (SAI_STATUS_SUCCESS !=
-        (sai_status = mlnx_get_sai_tunnel_db_idx(sai_tunnel_obj_id, &tunnel_db_idx))) {
-        sai_db_unlock();
-        SX_LOG_ERR("Error getting sai tunnel db idx from sai tunnel id %" PRIx64 "\n", sai_tunnel_obj_id);
-        SX_LOG_EXIT();
-        return sai_status;
-    }
-
-    g_sai_db_ptr->tunnel_db[tunnel_db_idx].dot1q_vport_set = true;
-    g_sai_db_ptr->tunnel_db[tunnel_db_idx].dot1q_vport_id  = sx_log_vport;
-
-    SX_LOG_DBG("Set bridge port for bridge id %x\n", sx_bridge_id);
-    SX_LOG_EXIT();
-
-    return SAI_STATUS_SUCCESS;
-}
-
 static sai_status_t mlnx_sai_tunnel_1Qbridge_get(_Out_ sx_bridge_id_t *sx_bridge_id)
 {
     SX_LOG_ENTER();
@@ -3597,7 +3544,6 @@ static sai_status_t mlnx_sai_tunnel_map_entry_vlan_vni_bridge_set(_In_ sai_objec
                                                                   _In_ tunnel_direction_type sai_tunnel_map_direction,
                                                                   _In_ sai_object_id_t       sai_tunnel_obj_id,
                                                                   _In_ sx_tunnel_id_t        sx_tunnel_id,
-                                                                  _In_ sx_port_log_id_t      sx_bridge_port_id,
                                                                   _In_ sx_access_cmd_t       cmd)
 {
     sai_status_t          sai_status = SAI_STATUS_FAILURE;
@@ -3725,22 +3671,29 @@ static sai_status_t mlnx_sai_tunnel_map_entry_vlan_vni_bridge_set(_In_ sai_objec
 
             if ((SAI_TUNNEL_MAP_TYPE_VLAN_ID_TO_VNI == g_sai_db_ptr->mlnx_tunnel_map_entry[ii].tunnel_map_type) ||
                 (SAI_TUNNEL_MAP_TYPE_VNI_TO_VLAN_ID == g_sai_db_ptr->mlnx_tunnel_map_entry[ii].tunnel_map_type)) {
-                if (SAI_STATUS_SUCCESS !=
-                    (sai_status = mlnx_bridge_vport_set(sai_tunnel_obj_id,
-                                                        sx_bridge_id,
-                                                        sx_bridge_port_id,
-                                                        vlan_id))) {
+                sx_tunnel_map_entry.params.nve.bridge_id = vlan_id;
+                sx_tunnel_map_entry.params.nve.direction = SX_TUNNEL_MAP_DIR_DECAP;
+                if (NVE_8021D_TUNNEL == g_sai_db_ptr->nve_tunnel_type) {
                     sai_db_unlock();
-                    SX_LOG_ERR("Error setting bridge vport\n");
+                    SX_LOG_ERR("802.1Q tunnel map cannot be applied with 802.1D tunnel map at the same time\n");
                     SX_LOG_EXIT();
-                    return sai_status;
+                    return SAI_STATUS_FAILURE;
                 }
+                g_sai_db_ptr->nve_tunnel_type = NVE_8021Q_TUNNEL;
+            } else {
+                sx_tunnel_map_entry.params.nve.bridge_id = sx_bridge_id;
+                sx_tunnel_map_entry.params.nve.direction = SX_TUNNEL_MAP_DIR_BIDIR;
+                if (NVE_8021Q_TUNNEL == g_sai_db_ptr->nve_tunnel_type) {
+                    sai_db_unlock();
+                    SX_LOG_ERR("802.1D tunnel map cannot be applied with 802.1Q tunnel map at the same time\n");
+                    SX_LOG_EXIT();
+                    return SAI_STATUS_FAILURE;
+                }
+                g_sai_db_ptr->nve_tunnel_type = NVE_8021D_TUNNEL;
             }
 
             sx_tunnel_map_entry.type                 = SX_TUNNEL_TYPE_NVE_VXLAN;
-            sx_tunnel_map_entry.params.nve.bridge_id = sx_bridge_id;
             sx_tunnel_map_entry.params.nve.vni       = vni_id;
-            sx_tunnel_map_entry.params.nve.direction = SX_TUNNEL_MAP_DIR_BIDIR;
 
             if (SX_STATUS_SUCCESS !=
                 (sdk_status = sx_api_tunnel_map_set(gh_sdk,
@@ -3768,19 +3721,11 @@ static sai_status_t mlnx_sai_tunnel_map_vlan_vni_bridge_set(_In_ sai_object_id_t
                                                             _In_ tunnel_direction_type sai_tunnel_map_direction,
                                                             _In_ sai_object_id_t       sai_tunnel_obj_id,
                                                             _In_ sx_tunnel_id_t        sx_tunnel_id,
-                                                            _In_ sx_port_log_id_t      sx_bridge_port_id,
                                                             _In_ sx_access_cmd_t       cmd)
 {
     sai_status_t          sai_status            = SAI_STATUS_FAILURE;
-    sx_status_t           sdk_status            = SX_STATUS_ERROR;
     uint32_t              sai_tunnel_mapper_idx = 0;
     mlnx_tunnel_map_t     mlnx_tunnel_map;
-    sai_vlan_id_t         vlan_id = 1;
-    uint32_t              vni_id  = 0;
-    sx_tunnel_map_entry_t sx_tunnel_map_entry;
-    const uint32_t        sx_tunnel_map_entry_cnt = 1;
-    sx_bridge_id_t        sx_bridge_id            = 0;
-    uint32_t              ii                      = 0;
 
     SX_LOG_ENTER();
 
@@ -3856,80 +3801,15 @@ static sai_status_t mlnx_sai_tunnel_map_vlan_vni_bridge_set(_In_ sai_object_id_t
         }
     }
 
-    if (0 == mlnx_tunnel_map.tunnel_map_list_count) {
-        if (SAI_STATUS_SUCCESS !=
-            (sai_status = mlnx_sai_tunnel_map_entry_vlan_vni_bridge_set(sai_mapper_obj_id,
-                                                                        sai_tunnel_map_direction,
-                                                                        sai_tunnel_obj_id,
-                                                                        sx_tunnel_id,
-                                                                        sx_bridge_port_id,
-                                                                        cmd))) {
-            SX_LOG_ERR("Error getting vlan vni id from sai tunnel map obj %" PRIx64 "\n ", sai_mapper_obj_id);
-            SX_LOG_EXIT();
-            return sai_status;
-        }
-        SX_LOG_EXIT();
-        return SAI_STATUS_SUCCESS;
-    }
-
     if (SAI_STATUS_SUCCESS !=
-        (sai_status = mlnx_sai_tunnel_1Qbridge_get(&sx_bridge_id))) {
-        SX_LOG_ERR("fail to get sx bridge id\n");
+        (sai_status = mlnx_sai_tunnel_map_entry_vlan_vni_bridge_set(sai_mapper_obj_id,
+                                                                    sai_tunnel_map_direction,
+                                                                    sai_tunnel_obj_id,
+                                                                    sx_tunnel_id,
+                                                                    cmd))) {
+        SX_LOG_ERR("Error getting vlan vni id from sai tunnel map obj %" PRIx64 "\n ", sai_mapper_obj_id);
         SX_LOG_EXIT();
         return sai_status;
-    }
-
-    for (ii = 0; ii < mlnx_tunnel_map.tunnel_map_list_count; ii++) {
-        switch (mlnx_tunnel_map.tunnel_map_type) {
-        case SAI_TUNNEL_MAP_TYPE_VLAN_ID_TO_VNI:
-            vlan_id = mlnx_tunnel_map.tunnel_map_list[ii].key.vlan_id;
-            vni_id  = mlnx_tunnel_map.tunnel_map_list[ii].value.vni_id;
-            break;
-
-        case SAI_TUNNEL_MAP_TYPE_VNI_TO_VLAN_ID:
-            vni_id  = mlnx_tunnel_map.tunnel_map_list[ii].key.vni_id;
-            vlan_id = mlnx_tunnel_map.tunnel_map_list[ii].value.vlan_id;
-            break;
-
-        default:
-            SX_LOG_ERR("Unsupported SAI tunnel map type %d\n", mlnx_tunnel_map.tunnel_map_type);
-            SX_LOG_EXIT();
-            return SAI_STATUS_FAILURE;
-            break;
-        }
-
-        SX_LOG_DBG("ii: %d\n", ii);
-
-        sai_db_write_lock();
-        if (SAI_STATUS_SUCCESS !=
-            (sai_status = mlnx_bridge_vport_set(sai_tunnel_obj_id,
-                                                sx_bridge_id,
-                                                sx_bridge_port_id,
-                                                vlan_id))) {
-            sai_db_unlock();
-            SX_LOG_ERR("Error setting bridge vport\n");
-            SX_LOG_EXIT();
-            return sai_status;
-        }
-        sai_db_unlock();
-
-        sx_tunnel_map_entry.type                 = SX_TUNNEL_TYPE_NVE_VXLAN;
-        sx_tunnel_map_entry.params.nve.bridge_id = sx_bridge_id;
-        sx_tunnel_map_entry.params.nve.vni       = vni_id;
-        sx_tunnel_map_entry.params.nve.direction = SX_TUNNEL_MAP_DIR_BIDIR;
-
-        if (SX_STATUS_SUCCESS !=
-            (sdk_status = sx_api_tunnel_map_set(gh_sdk,
-                                                cmd,
-                                                sx_tunnel_id,
-                                                &sx_tunnel_map_entry,
-                                                sx_tunnel_map_entry_cnt))) {
-            sai_status = sdk_to_sai(sdk_status);
-            SX_LOG_ERR("Error adding tunnel map associated with sx tunnel id %d, sx status %s\n",
-                       sx_tunnel_id, SX_STATUS_MSG(sdk_status));
-            SX_LOG_EXIT();
-            return sai_status;
-        }
     }
 
     SX_LOG_EXIT();
@@ -3944,8 +3824,6 @@ static sai_status_t mlnx_sai_create_vxlan_tunnel_map_list(_In_ sai_object_id_t  
 {
     sai_object_id_t       sai_mapper_obj_id      = SAI_NULL_OBJECT_ID;
     sai_status_t          sai_status             = SAI_STATUS_FAILURE;
-    sai_object_id_t       overlay_bridge_port_id = SAI_NULL_OBJECT_ID;
-    sx_port_log_id_t      sx_bridge_port_id      = 0;
     uint32_t              tunnel_db_idx          = 0;
     uint32_t              ii                     = 0;
     sx_tunnel_map_entry_t sx_tunnel_map_entry;
@@ -3957,7 +3835,6 @@ static sai_status_t mlnx_sai_create_vxlan_tunnel_map_list(_In_ sai_object_id_t  
     memset(&sx_tunnel_map_entry, 0, sizeof(sx_tunnel_map_entry_t));
 
     if (0 == sai_tunnel_mapper_cnt) {
-        SX_LOG_ERR("tunnel mapper cnt is zero\n");
         SX_LOG_EXIT();
         return SAI_STATUS_SUCCESS;
     }
@@ -3972,20 +3849,9 @@ static sai_status_t mlnx_sai_create_vxlan_tunnel_map_list(_In_ sai_object_id_t  
         return sai_status;
     }
 
-    overlay_bridge_port_id = g_sai_db_ptr->tunnel_db[tunnel_db_idx].sai_vxlan_overlay_rif;
-
     sx_tunnel_id = g_sai_db_ptr->tunnel_db[tunnel_db_idx].sx_tunnel_id;
 
     sai_db_unlock();
-
-    if (SAI_NULL_OBJECT_ID == overlay_bridge_port_id) {
-        sx_bridge_port_id = 0;
-    } else if (SAI_STATUS_SUCCESS !=
-               (sai_status =
-                    mlnx_object_to_type(overlay_bridge_port_id, SAI_OBJECT_TYPE_PORT, &sx_bridge_port_id, NULL))) {
-        SX_LOG_ERR("Fail to get bridge port for overlay interface\n");
-        sx_bridge_port_id = 0;
-    }
 
     for (ii = 0; ii < sai_tunnel_mapper_cnt; ii++) {
         sai_mapper_obj_id = sai_tunnel_mapper_list[ii];
@@ -3998,7 +3864,6 @@ static sai_status_t mlnx_sai_create_vxlan_tunnel_map_list(_In_ sai_object_id_t  
                                                                       sai_tunnel_map_direction,
                                                                       sai_tunnel_obj_id,
                                                                       sx_tunnel_id,
-                                                                      sx_bridge_port_id,
                                                                       cmd))) {
                 SX_LOG_ERR("Error getting vlan vni id from sai tunnel map obj %" PRIx64 "\n ", sai_mapper_obj_id);
                 SX_LOG_EXIT();
@@ -4066,14 +3931,9 @@ static sai_status_t mlnx_sai_fill_sx_vxlan_tunnel_data(_In_ sai_tunnel_type_t   
     if (SAI_STATUS_SUCCESS ==
         (sai_status =
              find_attrib_in_list(attr_count, attr_list, SAI_TUNNEL_ATTR_OVERLAY_INTERFACE, &attr, &attr_idx))) {
-        if (SAI_STATUS_SUCCESS !=
-            (sai_status = mlnx_object_to_type(attr->oid, SAI_OBJECT_TYPE_PORT, &data, NULL))) {
-            SX_LOG_EXIT();
-            return SAI_STATUS_INVALID_ATTR_VALUE_0 + attr_idx;
-        }
-        mlnx_tunnel_db_entry->sai_vxlan_overlay_rif = attr->oid;
-    } else {
-        mlnx_tunnel_db_entry->sai_vxlan_overlay_rif = SAI_NULL_OBJECT_ID;
+        SX_LOG_ERR("Overlay interface is not valid for vxlan tunnel\n");
+        SX_LOG_EXIT();
+        return SAI_STATUS_INVALID_ATTR_VALUE_0 + attr_idx;
     }
 
     if (SAI_STATUS_SUCCESS ==
@@ -4096,10 +3956,6 @@ static sai_status_t mlnx_sai_fill_sx_vxlan_tunnel_data(_In_ sai_tunnel_type_t   
         }
 
         sx_tunnel_attribute->attributes.vxlan.encap.underlay_vrid = sdk_vrid;
-    } else {
-        SX_LOG_ERR("underlay interface should be specified on creating vxlan type tunnel\n");
-        SX_LOG_EXIT();
-        return SAI_STATUS_INVALID_ATTR_VALUE_0 + attr_idx;
     }
 
     if (SAI_STATUS_SUCCESS ==
@@ -4192,7 +4048,6 @@ static sai_status_t mlnx_fill_tunnel_db(_In_ sai_object_id_t    sai_tunnel_obj_i
         return sai_status;
     }
 
-    g_sai_db_ptr->tunnel_db[tunnel_db_idx].sai_vxlan_overlay_rif = mlnx_tunnel_db_entry->sai_vxlan_overlay_rif;
     g_sai_db_ptr->tunnel_db[tunnel_db_idx].sai_underlay_rif      = mlnx_tunnel_db_entry->sai_underlay_rif;
     memcpy(g_sai_db_ptr->tunnel_db[tunnel_db_idx].sai_tunnel_map_encap_id_array,
            mlnx_tunnel_db_entry->sai_tunnel_map_encap_id_array,
@@ -4430,6 +4285,24 @@ static sai_status_t mlnx_create_tunnel(_Out_ sai_object_id_t     * sai_tunnel_ob
             SX_LOG_ERR("Failed to create sai vxlan decap tunnel map list\n");
             goto cleanup;
         }
+
+        sai_db_write_lock();
+        if (NVE_8021Q_TUNNEL == g_sai_db_ptr->nve_tunnel_type) {
+            /* currently only one vxlan tunnel can exist at the same time,
+             * so it is OK to set nve log port to do not learn when this only
+             * vxlan tunnel is created */
+            sdk_status = sx_api_fdb_port_learn_mode_set(gh_sdk,
+                                                        g_sai_db_ptr->sx_nve_log_port,
+                                                        SX_FDB_LEARN_MODE_DONT_LEARN);
+            if (SX_STATUS_SUCCESS != sdk_status) {
+                sai_db_unlock();
+                sai_status = sdk_to_sai(sdk_status);
+                SX_LOG_ERR("Error setting nve log port learn mode to dont learn: %s\n",
+                           SX_STATUS_MSG(sdk_status));
+                goto cleanup;
+            }
+        }
+        sai_db_unlock();
     }
 
     SX_LOG_NTC("created tunnel:0x%" PRIx64 "\n", *sai_tunnel_obj_id);
@@ -4511,9 +4384,6 @@ static sai_status_t mlnx_remove_tunnel(_In_ const sai_object_id_t sai_tunnel_obj
     sai_object_id_t             sai_tunnel_map_id  = 0;
     uint32_t                    ii                 = 0;
     uint32_t                    sai_tunnel_map_idx = 0;
-    sx_port_log_id_t            log_port           = 0;
-    sx_port_log_id_t            log_vport          = 0;
-    sx_vlan_id_t                vlan_id            = 0;
 
     SX_LOG_ENTER();
 
@@ -4569,6 +4439,22 @@ static sai_status_t mlnx_remove_tunnel(_In_ const sai_object_id_t sai_tunnel_obj
             sai_status = sdk_to_sai(sdk_status);
             goto cleanup;
         }
+    } else if (SX_TUNNEL_TYPE_NVE_VXLAN == sx_tunnel_attr.type) {
+        if (NVE_8021Q_TUNNEL == g_sai_db_ptr->nve_tunnel_type) {
+            /* currently only one vxlan tunnel can exist at the same time,
+             * so it is OK to set nve log port to auto learn when this only
+             * vxlan tunnel is removed */
+            sdk_status = sx_api_fdb_port_learn_mode_set(gh_sdk,
+                                                        g_sai_db_ptr->sx_nve_log_port,
+                                                        SX_FDB_LEARN_MODE_AUTO_LEARN);
+            if (SX_STATUS_SUCCESS != sdk_status) {
+                sai_status = sdk_to_sai(sdk_status);
+                SX_LOG_ERR("Error setting nve log port learn mode to auto learn: %s\n",
+                           SX_STATUS_MSG(sdk_status));
+                goto cleanup;
+            }
+        }
+        g_sai_db_ptr->nve_tunnel_type = NVE_TUNNEL_UNKNOWN;
     }
 
     if ((0 != g_sai_db_ptr->tunnel_db[tunnel_db_idx].sai_tunnel_map_encap_cnt) ||
@@ -4631,47 +4517,6 @@ static sai_status_t mlnx_remove_tunnel(_In_ const sai_object_id_t sai_tunnel_obj
         sai_status = sdk_to_sai(sdk_status);
         SX_LOG_ERR("Error destroying sx tunnel id %d, sx status: %s\n", sx_tunnel_id, SX_STATUS_MSG(sdk_status));
         goto cleanup;
-    }
-
-    /* Remove the following bridge logic after SAI bridge being officially introduced */
-    if (SX_TUNNEL_TYPE_NVE_VXLAN == sx_tunnel_attr.type) {
-        if (g_sai_db_ptr->tunnel_db[tunnel_db_idx].dot1q_vport_set) {
-            log_vport = g_sai_db_ptr->tunnel_db[tunnel_db_idx].dot1q_vport_id;
-            if (SX_STATUS_SUCCESS !=
-                (sdk_status = sx_api_port_state_set(gh_sdk, log_vport, SX_PORT_ADMIN_STATUS_DOWN))) {
-                sai_status = sdk_to_sai(sdk_status);
-                SX_LOG_ERR("Error setting vport admin state, SX STATUS: %s\n", SX_STATUS_MSG(sdk_status));
-                goto cleanup;
-            }
-
-            if (SX_STATUS_SUCCESS != (sdk_status = sx_api_bridge_vport_set(
-                                          gh_sdk,
-                                          SX_ACCESS_CMD_DELETE_ALL,
-                                          g_sai_db_ptr->sx_bridge_id,
-                                          log_vport))) {
-                sai_status = sdk_to_sai(sdk_status);
-                SX_LOG_ERR("Error deleting all vport for sx bridge id %d, sx status: %s\n",
-                           g_sai_db_ptr->sx_bridge_id, SX_STATUS_MSG(sdk_status));
-                goto cleanup;
-            }
-
-            if (SAI_STATUS_SUCCESS !=
-                (sai_status = mlnx_object_to_type(g_sai_db_ptr->tunnel_db[tunnel_db_idx].sai_vxlan_overlay_rif,
-                                                  SAI_OBJECT_TYPE_PORT,
-                                                  &log_port, NULL))) {
-            }
-            if (SX_STATUS_SUCCESS != (sdk_status = sx_api_port_vport_set(
-                                          gh_sdk,
-                                          SX_ACCESS_CMD_DELETE_ALL,
-                                          log_port,
-                                          vlan_id,
-                                          &log_vport))) {
-                sai_status = sdk_to_sai(sdk_status);
-                SX_LOG_ERR("Error deleting all vport for sx bridge id %d, sx status: %s\n",
-                           g_sai_db_ptr->sx_bridge_id, SX_STATUS_MSG(sdk_status));
-                goto cleanup;
-            }
-        }
     }
 
     memset(&g_sai_db_ptr->tunnel_db[tunnel_db_idx], 0, sizeof(tunnel_db_entry_t));
@@ -5230,6 +5075,13 @@ static sai_status_t mlnx_init_tunnel_map_entry_param(_In_ uint32_t              
                                      &attr_idx);
     assert(SAI_STATUS_SUCCESS == sai_status);
 
+    /* 802.1Q vxlan encap is not supported, which means vlan to vni map is not supported */
+    if (SAI_TUNNEL_MAP_TYPE_VLAN_ID_TO_VNI == tunnel_map_type->s32) {
+        SX_LOG_ERR("vlan id to vni is not supported\n");
+        SX_LOG_EXIT();
+        return SAI_STATUS_INVALID_ATTR_VALUE_0 + attr_idx;
+    }
+
     mlnx_tunnel_map_entry->tunnel_map_type = tunnel_map_type->s32;
 
     sai_status = find_attrib_in_list(attr_count, attr_list, SAI_TUNNEL_MAP_ENTRY_ATTR_OECN_KEY,
@@ -5393,15 +5245,6 @@ static sai_status_t mlnx_init_tunnel_map_entry_param(_In_ uint32_t              
                        tunnel_map->oid,
                        tunnel_map_type->s32,
                        g_sai_db_ptr->mlnx_tunnel_map[tunnel_map_idx].tunnel_map_type);
-            SX_LOG_EXIT();
-            return SAI_STATUS_INVALID_ATTR_VALUE_0 + attr_idx;
-        }
-
-        if (0 != g_sai_db_ptr->mlnx_tunnel_map[tunnel_map_idx].tunnel_map_list_count) {
-            sai_db_unlock();
-            SX_LOG_ERR("Tunnel map oid %" PRIx64 " has %d tunnel map list elements which is greater than 0\n",
-                       tunnel_map->oid,
-                       g_sai_db_ptr->mlnx_tunnel_map[tunnel_map_idx].tunnel_map_list_count);
             SX_LOG_EXIT();
             return SAI_STATUS_INVALID_ATTR_VALUE_0 + attr_idx;
         }

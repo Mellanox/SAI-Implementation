@@ -135,6 +135,8 @@ static void SAI_dump_port_print(_In_ FILE *file, _In_ mlnx_port_config_t *mlnx_p
         {"mapping lane bamp",          17, PARAM_UINT8_E,  &curr_mlnx_port_config.port_map.lane_bmap},
         {"mapping config hw",          17, PARAM_UINT8_E,  &curr_mlnx_port_config.port_map.config_hw},
         {"default tc",                 10, PARAM_UINT8_E,  &curr_mlnx_port_config.default_tc},
+        {"admin state",                11, PARAM_UINT8_E,  &curr_mlnx_port_config.admin_state},
+        {"is analyzer port",           16, PARAM_UINT8_E,  &curr_mlnx_port_config.is_span_analyzer_port},
         {"lag id",                     11, PARAM_UINT32_E, &curr_mlnx_port_config.lag_id},
         {"ingress samplepacket idx",   24, PARAM_UINT32_E,
          &curr_mlnx_port_config.internal_ingress_samplepacket_obj_idx},
@@ -145,6 +147,7 @@ static void SAI_dump_port_print(_In_ FILE *file, _In_ mlnx_port_config_t *mlnx_p
         {"start queue index",          17, PARAM_UINT32_E, &curr_mlnx_port_config.start_queues_index},
         {"is default sched hierarchy", 17, PARAM_UINT8_E,  &curr_mlnx_port_config.sched_hierarchy.is_default},
         {"rif",                        5,  PARAM_UINT16_E, &curr_mlnx_port_config.rifs},
+        {"acls",                       5,  PARAM_UINT16_E, &curr_mlnx_port_config.acl_refs},
         /* {"vlan",                       5,  PARAM_UINT16_E, &curr_mlnx_port_config.vlans}, */
         /* {"fdb",                        5,  PARAM_UINT32_E, &curr_mlnx_port_config.fdbs}, */
         {NULL,                         0,  0,              NULL}
