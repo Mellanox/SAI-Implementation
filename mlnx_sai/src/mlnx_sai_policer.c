@@ -1328,7 +1328,7 @@ static sai_status_t fill_policer_color_source_attrib(_In_ bool                  
     SX_LOG_ENTER();
     if (SAI_STATUS_SUCCESS !=
         (status = find_attrib_in_list(attr_count, attr_list, SAI_POLICER_ATTR_COLOR_SOURCE, &attr_value, &index))) {
-        SX_LOG_NTC("Attribute SAI_POLICER_ATTR_COLOR_SOURCE not present\n");
+        SX_LOG_DBG("Attribute SAI_POLICER_ATTR_COLOR_SOURCE not present\n");
 
         /* Default is SAI_POLICER_COLOR_SOURCE_AWARE*/
         if (set_defaults) {
@@ -1865,7 +1865,7 @@ sai_status_t db_init_sai_policer_data(_In_ sx_policer_attributes_t* policer_attr
 
     *db_policers_entry_index_p = ii;
 
-    SX_LOG_NTC("Created sai_policer db entry, at index : %d. NOTE, no sx_policer created.\n", ii);
+    SX_LOG_DBG("Created sai_policer db entry, at index : %d. NOTE, no sx_policer created.\n", ii);
     log_sx_policer_attributes(g_sai_db_ptr->policers_db[ii].sx_policer_id_trap,
                               &(g_sai_db_ptr->policers_db[ii].sx_policer_attr));
 
@@ -2814,7 +2814,7 @@ static sai_status_t mlnx_sai_bind_policer_to_trap_group(_In_ sai_object_id_t sai
                 DEFAULT_ETH_SWID,
                 group_id,
                 sx_policer))) {
-        SX_LOG_ERR("Policer bind failed - %s. line:%d\n", SX_STATUS_MSG(sx_status), __LINE__);
+        SX_LOG_ERR("Policer bind failed - %s\n", SX_STATUS_MSG(sx_status));
         sai_status = sdk_to_sai(sx_status);
         SX_LOG_EXIT();
         return sai_status;

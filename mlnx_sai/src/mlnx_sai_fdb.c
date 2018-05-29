@@ -1099,8 +1099,9 @@ static sai_status_t mlnx_fdb_flood_mc_control_set(_In_ sx_vid_t                v
                                                   _In_ uint32_t                ports_count,
                                                   _In_ bool                    add)
 {
+    sai_status_t        status = SAI_STATUS_SUCCESS;
     sx_status_t         sx_status;
-    sx_port_log_id_t    log_ports[MAX_PORTS];
+    sx_port_log_id_t   *log_ports = NULL;
     uint32_t            sx_ports_count = 0;
     sai_packet_action_t flood_action_mc;
     uint32_t            ii              = 0, jj = 0;
@@ -1114,6 +1115,12 @@ static sai_status_t mlnx_fdb_flood_mc_control_set(_In_ sx_vid_t                v
 
     assert((SAI_PACKET_ACTION_DROP == flood_action_mc) ||
            (SAI_PACKET_ACTION_FORWARD == flood_action_mc));
+
+    log_ports = calloc(MAX_BRIDGE_PORTS, sizeof(*log_ports));
+    if (!log_ports) {
+        SX_LOG_ERR("Failed to allocate memory\n");
+        return SAI_STATUS_NO_MEMORY;
+    }
 
     if (SAI_PACKET_ACTION_DROP == flood_action_mc) {
         sx_ports_count = 0;
@@ -1141,10 +1148,13 @@ static sai_status_t mlnx_fdb_flood_mc_control_set(_In_ sx_vid_t                v
     sx_status = sx_api_fdb_unreg_mc_flood_ports_set(gh_sdk, DEFAULT_ETH_SWID, vlan_id, log_ports, sx_ports_count);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to update FDB unregistered mc flood list - %s.\n", SX_STATUS_MSG(sx_status));
-        return sdk_to_sai(sx_status);
+        status = sdk_to_sai(sx_status);
+        goto out;
     }
 
-    return SAI_STATUS_SUCCESS;
+out:
+    free(log_ports);
+    return status;
 }
 
 sai_status_t mlnx_fdb_flood_control_set(_In_ sx_vid_t                vlan_id,

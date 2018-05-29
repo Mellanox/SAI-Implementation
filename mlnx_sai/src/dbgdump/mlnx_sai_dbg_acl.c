@@ -202,7 +202,6 @@ static void SAI_dump_acl_table_print(_In_ FILE *file, _In_ acl_table_db_t *acl_t
         {"group refs",        13, PARAM_UINT32_E, &curr_acl_table_db.group_references},
         {"table id",          13, PARAM_UINT32_E, &curr_acl_table_db.table_id},
         {"stage",             14, PARAM_STRING_E, &stage_str},
-        {"table size",        13, PARAM_UINT32_E, &curr_acl_table_db.table_size},
         {"region id",         13, PARAM_UINT32_E, &curr_acl_table_db.region_id},
         {"region size",       13, PARAM_UINT32_E, &curr_acl_table_db.region_size},
         {"key type",          9,  PARAM_STRING_E, &key_type_str},
@@ -329,7 +328,7 @@ static void SAI_dump_acl_entry_print(_In_ FILE *file, _In_ acl_entry_db_t *acl_e
         {"sai obj id",           13, PARAM_UINT64_E, &obj_id},
         {"db idx",               11, PARAM_UINT32_E, &ii},
         {"offset",               6,  PARAM_UINT16_E, &curr_acl_entry_db.offset},
-        {"priority",             13, PARAM_UINT16_E, &curr_acl_entry_db.priority},
+        {"sx prio",              13, PARAM_UINT16_E, &curr_acl_entry_db.sx_prio},
         {"pbs index",            13, PARAM_UINT16_E, &curr_acl_entry_db.pbs_index},
         {NULL,                   0,  0,              NULL}
     };
@@ -361,8 +360,8 @@ static void SAI_dump_acl_settings_tbl_print(_In_ FILE *file, _In_ acl_setting_tb
     acl_setting_tbl_t         curr_acl_setting_tbl;
     dbg_utils_table_columns_t acl_settings_clmns[] = {
         {"bg stop",                      7,  PARAM_UINT8_E,   &curr_acl_setting_tbl.bg_stop},
-        {"initialized",                  11, PARAM_UINT8_E,   &curr_acl_setting_tbl.initialized},
-        {"background thread start flag", 27, PARAM_UINT8_E,   &curr_acl_setting_tbl.background_thread_start_flag},
+        {"initialized",                  11, PARAM_UINT8_E,   &curr_acl_setting_tbl.lazy_initialized},
+        {"background thread start flag", 27, PARAM_UINT8_E,   &curr_acl_setting_tbl.psort_thread_start_flag},
         {"rpc thread start flag",        21, PARAM_UINT8_E,   &curr_acl_setting_tbl.rpc_thread_start_flag},
         {"port lists count",             16, PARAM_UINT32_E, &curr_acl_setting_tbl.port_lists_count},
         {NULL,                           0,  0,              NULL}
@@ -421,12 +420,12 @@ static void SAI_dump_acl_pbs_map_db_print(_In_ FILE *file, _In_ acl_pbs_map_entr
     acl_pbs_map_entry_t curr_pbs_entry;
     acl_pbs_index_t     ii;
     char                pbs_entry_type[LINE_LENGTH]= {0};
-    char                pbs_key[MAX_PORTS * 2 + 1]= {0};
+    char                pbs_key[MAX_PORTS_DB * 2 + 1]= {0};
 
     dbg_utils_table_columns_t acl_pbs_map_clmns[] = {
         {"idx",               7, PARAM_UINT16_E, &ii},
         {"type",             13, PARAM_STRING_E, &pbs_entry_type},
-        {"key",   MAX_PORTS * 2, PARAM_STRING_E, &pbs_key},
+        {"key",  MAX_PORTS_DB*2, PARAM_STRING_E, &pbs_key},
         {"sx id",            10, PARAM_UINT32_E, &curr_pbs_entry.pbs_id},
         {"refs",             10, PARAM_UINT32_E, &curr_pbs_entry.ref_counter},
         {NULL,               0,               0, NULL}
@@ -762,7 +761,7 @@ void SAI_dump_acl(_In_ FILE *file)
 
     dbg_utils_print_module_header(file, "SAI ACL");
 
-    if (false == acl_settings_tbl->initialized) {
+    if (false == acl_settings_tbl->lazy_initialized) {
         dbg_utils_print_general_header(file, "SAI ACL DB is not initialized\n");
         goto cleanup;
     }

@@ -80,11 +80,6 @@ static const sai_u32_list_t        mlnx_sai_attrs_with_empty_list[SAI_OBJECT_TYP
     [SAI_OBJECT_TYPE_HASH] = {.count = 1, .list = (sai_attr_id_t[1]) {SAI_HASH_ATTR_UDF_GROUP_LIST}
     },
 };
-static const sai_u32_list_t        mlnx_sai_hostif_valid_obj_types[] = {
-    [SAI_HOSTIF_ATTR_OBJ_ID] =
-    {.count = 1, .list = (uint32_t[1]) {SAI_OBJECT_TYPE_ROUTER_INTERFACE}
-    },
-};
 static const sai_u32_list_t        mlnx_sai_hostif_table_valid_obj_types[] = {
     [SAI_HOSTIF_TABLE_ENTRY_ATTR_OBJ_ID] =
     {.count = 1, .list = (uint32_t[1]) {SAI_OBJECT_TYPE_VLAN}
@@ -96,8 +91,6 @@ static const sai_u32_list_t        mlnx_sai_tunnel_valid_obj_types[] = {
     },
 };
 static const sai_u32_list_t        mlnx_sai_valid_obj_types[SAI_OBJECT_TYPE_MAX] = {
-    [SAI_OBJECT_TYPE_HOSTIF] =
-    {.count = ARRAY_SIZE(mlnx_sai_hostif_valid_obj_types), .list = (void*)mlnx_sai_hostif_valid_obj_types},
     [SAI_OBJECT_TYPE_HOSTIF_TABLE_ENTRY] =
     {.count = ARRAY_SIZE(mlnx_sai_hostif_table_valid_obj_types), .list = (void*)mlnx_sai_hostif_table_valid_obj_types},
     [SAI_OBJECT_TYPE_TUNNEL] =
@@ -1872,6 +1865,7 @@ static sai_status_t set_dispatch_attrib_handler(_In_ const sai_attribute_t      
     const char                *short_attr_name;
     char                       value_str[MAX_VALUE_STR_LEN];
     uint32_t                   index;
+    sx_log_severity_t          log_level = SX_LOG_NOTICE;
 
     SX_LOG_ENTER();
 
@@ -1919,7 +1913,15 @@ static sai_status_t set_dispatch_attrib_handler(_In_ const sai_attribute_t      
         sai_attr_metadata_to_str(meta_data, &attr->value, MAX_VALUE_STR_LEN, value_str);
     }
 
-    SX_LOG_NTC("Set %s, key:%s, val:%s\n", short_attr_name, key_str, value_str);
+    /* lower log level for route entry next hop updated often in Sonic */
+#ifdef ACS_OS
+    if ((SAI_OBJECT_TYPE_ROUTE_ENTRY == object_type) &&
+        (SAI_ROUTE_ENTRY_ATTR_NEXT_HOP_ID == attr->id)) {
+        log_level = SX_LOG_INFO;
+    }
+#endif
+
+    SX_LOG(log_level, "Set %s, key:%s, val:%s\n", short_attr_name, key_str, value_str);
     status = functionality_vendor_attr[index].setter(key, &(attr->value), functionality_vendor_attr[index].setter_arg);
 
     SX_LOG_EXIT();
@@ -2008,6 +2010,10 @@ static sai_status_t get_dispatch_attribs_handler(_In_ uint32_t                  
             sai_attr_metadata_to_str(meta_data, &attr_list[ii].value, MAX_VALUE_STR_LEN, value_str);
         }
 
+        /* lower log level for all gets in Sonic */
+#ifdef ACS_OS
+        log_level = SX_LOG_INFO;
+#endif
         /* lower log level for ACL counter stats */
         if ((SAI_OBJECT_TYPE_ACL_COUNTER == object_type) &&
             ((SAI_ACL_COUNTER_ATTR_BYTES == attr_id) || (SAI_ACL_COUNTER_ATTR_PACKETS == attr_id))) {
@@ -3559,7 +3565,7 @@ static sai_status_t mlnx_fill_genericlist(size_t element_size, void *data, uint3
         } else {
             status = SAI_STATUS_BUFFER_OVERFLOW;
         }
-        SX_LOG((0 == objlist->count) ? SX_LOG_NOTICE : SX_LOG_ERROR,
+        SX_LOG((0 == objlist->count) ? SX_LOG_INFO : SX_LOG_ERROR,
                "Insufficient list buffer size. Allocated %u needed %u\n", objlist->count, count);
         objlist->count = count;
         return status;

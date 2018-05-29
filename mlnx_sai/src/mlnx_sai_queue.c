@@ -135,7 +135,7 @@ static void queue_key_to_str(_In_ sai_object_id_t queue_id, _Out_ char *key_str)
     if (SAI_STATUS_SUCCESS != mlnx_object_to_type(queue_id, SAI_OBJECT_TYPE_QUEUE, &port_num, ext_data)) {
         snprintf(key_str, MAX_KEY_STR_LEN, "invalid queue");
     } else {
-        snprintf(key_str, MAX_KEY_STR_LEN, "queue %u:%u", port_num, ext_data[0]);
+        snprintf(key_str, MAX_KEY_STR_LEN, "queue %x:%u", port_num, ext_data[0]);
     }
 }
 
@@ -558,7 +558,7 @@ static sai_status_t mlnx_get_queue_statistics(_In_ sai_object_id_t         queue
             case SAI_QUEUE_STAT_RED_WRED_ECN_MARKED_BYTES:
             case SAI_QUEUE_STAT_WRED_ECN_MARKED_PACKETS:
             case SAI_QUEUE_STAT_WRED_ECN_MARKED_BYTES:
-                SX_LOG_NTC("Queue counter %d set item %u not supported for queue num greater than %d\n", counter_ids[ii], ii, RM_API_COS_TRAFFIC_CLASS_NUM);
+                SX_LOG_INF("Queue counter %d set item %u not supported for queue num greater than %d\n", counter_ids[ii], ii, RM_API_COS_TRAFFIC_CLASS_NUM);
                 return SAI_STATUS_ATTR_NOT_SUPPORTED_0 + ii;
 
             case SAI_QUEUE_STAT_PACKETS:
@@ -648,7 +648,7 @@ static sai_status_t mlnx_get_queue_statistics(_In_ sai_object_id_t         queue
         case SAI_QUEUE_STAT_RED_WRED_ECN_MARKED_BYTES:
         case SAI_QUEUE_STAT_WRED_ECN_MARKED_PACKETS:
         case SAI_QUEUE_STAT_WRED_ECN_MARKED_BYTES:
-            SX_LOG_NTC("Queue counter %d set item %u not supported\n", counter_ids[ii], ii);
+            SX_LOG_INF("Queue counter %d set item %u not supported\n", counter_ids[ii], ii);
             return SAI_STATUS_ATTR_NOT_SUPPORTED_0;
 
         case SAI_QUEUE_STAT_PACKETS:

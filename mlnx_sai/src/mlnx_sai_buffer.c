@@ -1536,12 +1536,12 @@ sai_status_t mlnx_sai_cleanup_buffer_config()
     SX_LOG_ENTER();
 
     if (SAI_STATUS_SUCCESS != (sai_status = reset_port_buffer_db_data())) {
-        SX_LOG_ERR("Failed resetting buffer db data\n, line:%d", __LINE__);
+        SX_LOG_ERR("Failed resetting buffer db data\n");
         SX_LOG_EXIT();
         return sai_status;
     }
     if (SAI_STATUS_SUCCESS != (sai_status = mlnx_sai_buffer_delete_all_buffer_config())) {
-        SX_LOG_ERR("Failed deleting all buffer configuration\n, line:%d", __LINE__);
+        SX_LOG_ERR("Failed deleting all buffer configuration\n");
         SX_LOG_EXIT();
         return sai_status;
     }
@@ -1820,13 +1820,12 @@ static sai_status_t mlnx_sai_buffer_compute_shared_size(_In_ sai_object_id_t    
             (sx_status = sx_api_cos_port_buff_type_get(gh_sdk, port->logical, sx_port_reserved_buff_attr_arr,
                                                        &get_count))) {
             SX_LOG_ERR(
-                "Failed to get bindings for reserved buffers. port[%d].logical:%x, number of items:%d sx_status:%d, message %s. line:%d\n",
+                "Failed to get bindings for reserved buffers. port[%d].logical:%x, number of items:%d sx_status:%d, message %s\n",
                 port_ind,
                 port->logical,
                 get_count,
                 sx_status,
-                SX_STATUS_MSG(sx_status),
-                __LINE__);
+                SX_STATUS_MSG(sx_status));
             SX_LOG_EXIT();
             return sdk_to_sai(sx_status);
         }
@@ -1902,12 +1901,11 @@ static sai_status_t mlnx_sai_buffer_compute_shared_size(_In_ sai_object_id_t    
     if (SX_STATUS_SUCCESS != (sx_status = sx_api_cos_port_buff_type_get(gh_sdk, mc_port_logical,
                                                                         sx_port_reserved_buff_attr_arr, &get_count))) {
         SX_LOG_ERR(
-            "Failed to get bindings for MC reserved buffers. MC logical:%x, number of items:%d sx_status:%d, message %s. line:%d\n",
+            "Failed to get bindings for MC reserved buffers. MC logical:%x, number of items:%d sx_status:%d, message %s\n",
             mc_port_logical,
             get_count,
             sx_status,
-            SX_STATUS_MSG(sx_status),
-            __LINE__);
+            SX_STATUS_MSG(sx_status));
         SX_LOG_EXIT();
         return sdk_to_sai(sx_status);
     }
@@ -1918,8 +1916,8 @@ static sai_status_t mlnx_sai_buffer_compute_shared_size(_In_ sai_object_id_t    
         }
     }
     if (sai_pool_attr.pool_size < mlnx_cells_to_bytes(total_reserved_size)) {
-        SX_LOG_ERR("Pool size:%d is less than total reserved sizes:%d. line:%d\n",
-                   sai_pool_attr.pool_size, total_reserved_size, __LINE__);
+        SX_LOG_ERR("Pool size:%d is less than total reserved sizes:%d\n",
+                   sai_pool_attr.pool_size, total_reserved_size);
         SX_LOG_EXIT();
         return SAI_STATUS_FAILURE;
     }
@@ -2902,24 +2900,22 @@ static sai_status_t mlnx_sai_apply_buffer_settings_to_port(_In_ sx_port_log_id_t
                                                   count);
         if (SX_STATUS_SUCCESS != sx_status) {
             SX_LOG_ERR(
-                "Failed to reset bindings for reserved buffers. port.logical:%x, number of items:%d sx_status:%d, message %s. line:%d\n",
+                "Failed to reset bindings for reserved buffers. port.logical:%x, number of items:%d sx_status:%d, message %s\n",
                 log_port,
                 count,
                 sx_status,
-                SX_STATUS_MSG(sx_status),
-                __LINE__);
+                SX_STATUS_MSG(sx_status));
             free(sx_port_shared_buff_attr_arr);
             free(sx_port_reserved_buff_attr_arr);
             SX_LOG_EXIT();
             return sdk_to_sai(sx_status);
         }
         SX_LOG_DBG(
-            "Removed bindings for sx reserved buffers for port.logical:%x, number of items:%d, sx_status:%d, message %s. line:%d\n",
+            "Removed bindings for sx reserved buffers for port.logical:%x, number of items:%d, sx_status:%d, message %s\n",
             log_port,
             count,
             sx_status,
-            SX_STATUS_MSG(sx_status),
-            __LINE__);
+            SX_STATUS_MSG(sx_status));
     }
 
     mlnx_sai_buffer_apply_profile_to_reserved_structs(sx_port_reserved_buff_attr_arr,
@@ -2948,24 +2944,22 @@ static sai_status_t mlnx_sai_apply_buffer_settings_to_port(_In_ sx_port_log_id_t
                                                          count);
         if (SX_STATUS_SUCCESS != sx_status) {
             SX_LOG_ERR(
-                "Failed to reset bindings for shared buffers. port.logical:%x, number of items:%d sx_status:%d, message %s. line:%d\n",
+                "Failed to reset bindings for shared buffers. port.logical:%x, number of items:%d sx_status:%d, message %s\n",
                 log_port,
                 count,
                 sx_status,
-                SX_STATUS_MSG(sx_status),
-                __LINE__);
+                SX_STATUS_MSG(sx_status));
             free(sx_port_shared_buff_attr_arr);
             free(sx_port_reserved_buff_attr_arr);
             SX_LOG_EXIT();
             return sdk_to_sai(sx_status);
         }
         SX_LOG_DBG(
-            "Removed bindings for sx shared buffers for port.logical:%x, number of items:%d, sx_status:%d, message %s. line:%d\n",
+            "Removed bindings for sx shared buffers for port.logical:%x, number of items:%d, sx_status:%d, message %s\n",
             log_port,
             count,
             sx_status,
-            SX_STATUS_MSG(sx_status),
-            __LINE__);
+            SX_STATUS_MSG(sx_status));
     }
     if (SAI_STATUS_SUCCESS != (sai_status = mlnx_sai_buffer_apply_profile_to_shared_structs(
                                    sx_port_shared_buff_attr_arr, count, buff_db_entry, new_pool_attr,
@@ -4486,12 +4480,11 @@ static sai_status_t mlnx_sai_buffer_unbind_reserved_buffers(_In_ sx_port_log_id_
     if (SX_STATUS_SUCCESS !=
         (sx_status = sx_api_cos_port_buff_type_get(gh_sdk, log_port, sx_port_reserved_buff_attr_arr, &count))) {
         SX_LOG_ERR(
-            "Failed to get number of bindings for reserved buffers. logical:%x, number of items:%d sx_status:%d, message %s. line:%d\n",
+            "Failed to get number of bindings for reserved buffers. logical:%x, number of items:%d sx_status:%d, message %s\n",
             log_port,
             count,
             sx_status,
-            SX_STATUS_MSG(sx_status),
-            __LINE__);
+            SX_STATUS_MSG(sx_status));
         status = sdk_to_sai(sx_status);
         goto out;
     }
@@ -4546,22 +4539,20 @@ static sai_status_t mlnx_sai_buffer_unbind_reserved_buffers(_In_ sx_port_log_id_
                                               out_count);
     if (SX_STATUS_SUCCESS != sx_status) {
         SX_LOG_ERR(
-            "Failed to set bindings for reserved buffers. logical:%x, number of items:%d sx_status:%d, message %s. line:%d\n",
+            "Failed to set bindings for reserved buffers. logical:%x, number of items:%d sx_status:%d, message %s\n",
             log_port,
             out_count,
             sx_status,
-            SX_STATUS_MSG(sx_status),
-            __LINE__);
+            SX_STATUS_MSG(sx_status));
         status = sdk_to_sai(sx_status);
         goto out;
     }
     SX_LOG_DBG(
-        "clear bindings for sx reserved buffers for logical:%x, number of items:%d, sx_status:%d, message %s. line:%d\n",
+        "clear bindings for sx reserved buffers for logical:%x, number of items:%d, sx_status:%d, message %s\n",
         log_port,
         out_count,
         sx_status,
-        SX_STATUS_MSG(sx_status),
-        __LINE__);
+        SX_STATUS_MSG(sx_status));
 out:
     free(sx_port_reserved_buff_attr_arr);
     free(out_arr);
@@ -4589,8 +4580,8 @@ static sai_status_t mlnx_sai_buffer_unbind_shared_buffers(_In_ sx_port_log_id_t 
     }
     if (SX_STATUS_SUCCESS !=
         (sx_status = sx_api_cos_port_shared_buff_type_get(gh_sdk, log_port, sx_port_shared_buff_attr_arr, &count))) {
-        SX_LOG_ERR("Failed to obtains sx shared buffers for logical:%x, sx_status:%d, message %s. line:%d\n",
-                   log_port,  sx_status, SX_STATUS_MSG(sx_status), __LINE__);
+        SX_LOG_ERR("Failed to obtains sx shared buffers for logical:%x, sx_status:%d, message %s\n",
+                   log_port, sx_status, SX_STATUS_MSG(sx_status));
         status = sdk_to_sai(sx_status);
         goto out;
     }
@@ -4647,22 +4638,20 @@ static sai_status_t mlnx_sai_buffer_unbind_shared_buffers(_In_ sx_port_log_id_t 
     sx_status = sx_api_cos_port_shared_buff_type_set(gh_sdk, SX_ACCESS_CMD_SET, log_port, out_arr, out_count);
     if (SX_STATUS_SUCCESS != sx_status) {
         SX_LOG_ERR(
-            "Failed to set bindings for shared buffers. logical:%x, number of items:%d sx_status:%d, message %s. line:%d\n",
+            "Failed to set bindings for shared buffers. logical:%x, number of items:%d sx_status:%d, message %s\n",
             log_port,
             out_count,
             sx_status,
-            SX_STATUS_MSG(sx_status),
-            __LINE__);
+            SX_STATUS_MSG(sx_status));
         status = sdk_to_sai(sx_status);
         goto out;
     }
     SX_LOG_DBG(
-        "clear bindings for sx shared buffers for logical:%x, number of items:%d, sx_status:%d, message %s. line:%d\n",
+        "clear bindings for sx shared buffers for logical:%x, number of items:%d, sx_status:%d, message %s\n",
         log_port,
         out_count,
         sx_status,
-        SX_STATUS_MSG(sx_status),
-        __LINE__);
+        SX_STATUS_MSG(sx_status));
 out:
     SX_LOG_EXIT();
     free(sx_port_shared_buff_attr_arr);
@@ -4707,22 +4696,20 @@ static sai_status_t mlnx_sai_buffer_configure_reserved_buffers(_In_ sx_port_log_
                                               sx_port_reserved_buff_attr_arr, count);
     if (SX_STATUS_SUCCESS != sx_status) {
         SX_LOG_ERR(
-            "Failed to configure reserved buffers. logical port:%x, number of items:%d sx_status:%d, message %s. line:%d\n",
+            "Failed to configure reserved buffers. logical port:%x, number of items:%d sx_status:%d, message %s\n",
             logical_port,
             count,
             sx_status,
-            SX_STATUS_MSG(sx_status),
-            __LINE__);
+            SX_STATUS_MSG(sx_status));
         SX_LOG_EXIT();
         return sdk_to_sai(sx_status);
     }
     SX_LOG_DBG(
-        "Configured bindings for sx reserved buffers for logical port:%x, number of items:%d, sx_status:%d, message %s. line:%d\n",
+        "Configured bindings for sx reserved buffers for logical port:%x, number of items:%d, sx_status:%d, message %s\n",
         logical_port,
         count,
         sx_status,
-        SX_STATUS_MSG(sx_status),
-        __LINE__);
+        SX_STATUS_MSG(sx_status));
 
     SX_LOG_EXIT();
     return SAI_STATUS_SUCCESS;
@@ -4739,22 +4726,20 @@ static sai_status_t mlnx_sai_buffer_configure_shared_buffers(_In_ sx_port_log_id
                                                      sx_port_shared_buff_attr_arr, count);
     if (SX_STATUS_SUCCESS != sx_status) {
         SX_LOG_ERR(
-            "Failed to configure shared buffers. logical port:%x, number of items:%d sx_status:%d, message %s. line:%d\n",
+            "Failed to configure shared buffers. logical port:%x, number of items:%d sx_status:%d, message %s\n",
             logical_port,
             count,
             sx_status,
-            SX_STATUS_MSG(sx_status),
-            __LINE__);
+            SX_STATUS_MSG(sx_status));
         SX_LOG_EXIT();
         return sdk_to_sai(sx_status);
     }
     SX_LOG_DBG(
-        "Configured bindings for sx shared buffers for logical port:%x, number of items:%d, sx_status:%d, message %s. line:%d\n",
+        "Configured bindings for sx shared buffers for logical port:%x, number of items:%d, sx_status:%d, message %s\n",
         logical_port,
         count,
         sx_status,
-        SX_STATUS_MSG(sx_status),
-        __LINE__);
+        SX_STATUS_MSG(sx_status));
     SX_LOG_EXIT();
     return SAI_STATUS_SUCCESS;
 }

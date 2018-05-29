@@ -956,6 +956,7 @@ static sai_status_t port_speed_set(sx_port_log_id_t port_log_id, uint32_t value)
     case PORT_SPEED_50:
         speed.mode_50GB_CR2 = true;
         speed.mode_50GB_KR2 = true;
+        speed.mode_50GB_SR2 = true;
         break;
 
     case PORT_SPEED_25:
@@ -968,6 +969,8 @@ static sai_status_t port_speed_set(sx_port_log_id_t port_log_id, uint32_t value)
         SX_LOG_ERR("Invalid speed %u\n", value);
         return SAI_STATUS_INVALID_ATTR_VALUE_0;
     }
+
+    speed.force = true;
 
     status = sx_api_port_speed_admin_set(gh_sdk, port_log_id, &speed);
     if (SX_ERR(status)) {
@@ -1117,6 +1120,7 @@ static sai_status_t mlnx_port_auto_negotiation_set(_In_ const sai_object_key_t  
     sai_status_t               status;
     sx_port_log_id_t           port_id;
     sx_port_speed_capability_t speed;
+    sx_port_oper_speed_t       speed_oper;
 
     SX_LOG_ENTER();
 
@@ -1127,7 +1131,13 @@ static sai_status_t mlnx_port_auto_negotiation_set(_In_ const sai_object_key_t  
 
     memset(&speed, 0, sizeof(speed));
 
+    if (SX_STATUS_SUCCESS != (status = sx_api_port_speed_get(gh_sdk, port_id, &speed, &speed_oper))) {
+        SX_LOG_ERR("Failed to get port speed - %s.\n", SX_STATUS_MSG(status));
+        return sdk_to_sai(status);
+    }
+
     speed.mode_auto = value->booldata;
+    speed.force     = !value->booldata;
 
     if (SX_STATUS_SUCCESS != (status = sx_api_port_speed_admin_set(gh_sdk, port_id, &speed))) {
         SX_LOG_ERR("Failed to set port speed - %s.\n", SX_STATUS_MSG(status));
@@ -1424,7 +1434,8 @@ static sai_status_t mlnx_port_supported_speed_get(_In_ const sai_object_key_t   
         speed_cap.speed_capability.mode_25GB_SR) {
         speeds[speeds_num++] = PORT_SPEED_25;
     }
-    if (speed_cap.speed_capability.mode_50GB_CR2 || speed_cap.speed_capability.mode_50GB_KR2) {
+    if (speed_cap.speed_capability.mode_50GB_CR2 || speed_cap.speed_capability.mode_50GB_KR2 ||
+        speed_cap.speed_capability.mode_50GB_SR2) {
         speeds[speeds_num++] = PORT_SPEED_50;
     }
     if (speed_cap.speed_capability.mode_56GB_KX4 || speed_cap.speed_capability.mode_56GB_KR4) {
@@ -1586,7 +1597,7 @@ static sai_status_t mlnx_port_speed_get(_In_ const sai_object_key_t   *key,
         value->u32 = PORT_SPEED_100;
     } else if (speed_cap.mode_56GB_KX4 || speed_cap.mode_56GB_KR4) {
         value->u32 = PORT_SPEED_56;
-    } else if (speed_cap.mode_50GB_CR2 || speed_cap.mode_50GB_KR2) {
+    } else if (speed_cap.mode_50GB_CR2 || speed_cap.mode_50GB_KR2 || speed_cap.mode_50GB_SR2) {
         value->u32 = PORT_SPEED_50;
     } else if (speed_cap.mode_40GB_KR4 || speed_cap.mode_40GB_CR4 || speed_cap.mode_40GB_SR4 ||
                speed_cap.mode_40GB_LR4_ER4) {
@@ -1601,7 +1612,7 @@ static sai_status_t mlnx_port_speed_get(_In_ const sai_object_key_t   *key,
     } else if (speed_cap.mode_1GB_CX_SGMII || speed_cap.mode_1GB_KX) {
         value->u32 = PORT_SPEED_1;
     } else if (speed_cap.mode_auto) {
-        value->u32 = PORT_SPEED_100;
+        value->u32 = PORT_SPEED_MAX;
     } else {
         SX_LOG_ERR("Unexpected port speed\n");
         return SAI_STATUS_FAILURE;
@@ -4428,7 +4439,7 @@ static sai_status_t mlnx_get_port_stats(_In_ sai_object_id_t        port_id,
         case SAI_PORT_STAT_RED_WRED_DROPPED_PACKETS:
         case SAI_PORT_STAT_RED_WRED_DROPPED_BYTES:
         case SAI_PORT_STAT_WRED_DROPPED_BYTES:
-            SX_LOG_NTC("Port counter %d set item %u not supported\n", counter_ids[ii], ii);
+            SX_LOG_INF("Port counter %d set item %u not supported\n", counter_ids[ii], ii);
             return SAI_STATUS_ATTR_NOT_SUPPORTED_0;
 
         case SAI_PORT_STAT_WRED_DROPPED_PACKETS:
@@ -4579,7 +4590,7 @@ static sai_status_t mlnx_get_port_stats(_In_ sai_object_id_t        port_id,
         case SAI_PORT_STAT_EEE_RX_EVENT_COUNT:
         case SAI_PORT_STAT_EEE_TX_DURATION:
         case SAI_PORT_STAT_EEE_RX_DURATION:
-            SX_LOG_NTC("Port counter %d set item %u not implemented\n", counter_ids[ii], ii);
+            SX_LOG_INF("Port counter %d set item %u not implemented\n", counter_ids[ii], ii);
             return SAI_STATUS_NOT_IMPLEMENTED;
 
         default:
@@ -5064,7 +5075,7 @@ static sai_status_t mlnx_port_egress_block_set(_In_ const sai_object_key_t      
 {
     sai_status_t        status;
     mlnx_port_config_t *port;
-    sx_port_log_id_t    sx_egress_ports[MAX_PORTS] = {0};
+    sx_port_log_id_t   *sx_egress_ports = NULL;
 
     SX_LOG_ENTER();
 
@@ -5078,6 +5089,13 @@ static sai_status_t mlnx_port_egress_block_set(_In_ const sai_object_key_t      
     /* In case if port is LAG member then use LAG logical id */
     status = mlnx_port_fetch_lag_if_lag_member(&port);
     if (SAI_ERR(status)) {
+        goto out;
+    }
+
+    sx_egress_ports = calloc(MAX_PORTS, sizeof(*sx_egress_ports));
+    if (!sx_egress_ports) {
+        SX_LOG_ERR("Failed to allocate memory\n");
+        status = SAI_STATUS_NO_MEMORY;
         goto out;
     }
 
@@ -5097,6 +5115,7 @@ static sai_status_t mlnx_port_egress_block_set(_In_ const sai_object_key_t      
 
 out:
     sai_db_unlock();
+    free(sx_egress_ports);
     SX_LOG_EXIT();
     return status;
 }
@@ -5109,8 +5128,8 @@ static sai_status_t mlnx_port_egress_block_get(_In_ const sai_object_key_t   *ke
 {
     sai_status_t        status;
     mlnx_port_config_t *port;
-    sx_port_log_id_t    sx_egress_block_ports[MAX_PORTS];
-    sai_object_id_t     sai_egress_block_ports[MAX_PORTS];
+    sx_port_log_id_t   *sx_egress_block_ports = NULL;
+    sai_object_id_t    *sai_egress_block_ports = NULL;
     uint32_t            egress_block_ports_count, ii;
     sx_port_log_id_t    port_id;
 
@@ -5138,6 +5157,20 @@ static sai_status_t mlnx_port_egress_block_get(_In_ const sai_object_key_t   *ke
             goto out;
         }
 
+        sx_egress_block_ports = calloc(MAX_PORTS, sizeof(*sx_egress_block_ports));
+        if (!sx_egress_block_ports) {
+            SX_LOG_ERR("Failed to allocate memory\n");
+            status = SAI_STATUS_NO_MEMORY;
+            goto out;
+        }
+
+        sai_egress_block_ports = calloc(MAX_PORTS, sizeof(*sai_egress_block_ports));
+        if (!sai_egress_block_ports) {
+            SX_LOG_ERR("Failed to allocate memory\n");
+            status = SAI_STATUS_NO_MEMORY;
+            goto out;
+        }
+
         egress_block_ports_count = 0;
         status = mlnx_port_egress_block_get_impl(port->logical,
             sx_egress_block_ports,
@@ -5162,6 +5195,8 @@ static sai_status_t mlnx_port_egress_block_get(_In_ const sai_object_key_t   *ke
 
 out:
     sai_db_unlock();
+    free(sx_egress_block_ports);
+    free(sai_egress_block_ports);
     SX_LOG_EXIT();
     return status;
 }
@@ -5247,8 +5282,9 @@ static sai_status_t mlnx_port_egress_block_get_impl(_In_ sx_port_log_id_t   sx_i
                                                     _Out_ sx_port_log_id_t *sx_egress_block_ports,
                                                     _Out_ uint32_t         *sx_egress_block_ports_count)
 {
+    sai_status_t              status = SAI_STATUS_SUCCESS;
     sx_status_t               sx_status;
-    sx_port_log_id_t          sx_port_isolation_group[MAX_PORTS];
+    sx_port_log_id_t         *sx_port_isolation_group = NULL;
     const mlnx_port_config_t *port;
     uint32_t                  sx_port_isolation_group_size, egress_block_ports_count;
     uint32_t                  ii, jj;
@@ -5256,20 +5292,25 @@ static sai_status_t mlnx_port_egress_block_get_impl(_In_ sx_port_log_id_t   sx_i
     assert(sx_egress_block_ports);
     assert(sx_egress_block_ports_count);
 
+    sx_port_isolation_group = calloc(MAX_PORTS, sizeof(*sx_port_isolation_group));
+    if (!sx_port_isolation_group) {
+        SX_LOG_ERR("Failed to allocate memory\n");
+        return SAI_STATUS_NO_MEMORY;
+    }
+
     egress_block_ports_count = 0;
     mlnx_port_foreach(port, ii) {
         if (port->logical == sx_ing_port_id) {
             continue;
         }
 
-        memset(sx_port_isolation_group, 0, sizeof(sx_port_isolation_group));
         sx_port_isolation_group_size = MAX_PORTS;
-
         sx_status = sx_api_port_isolate_get(gh_sdk, port->logical, sx_port_isolation_group,
                                             &sx_port_isolation_group_size);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to get isolation group for port [%x] - %s\n", port->logical, SX_STATUS_MSG(sx_status));
-            return sdk_to_sai(sx_status);
+            status = sdk_to_sai(sx_status);
+            goto out;
         }
 
         SX_LOG_DBG("Got isolation group for port %x, size = %d\n", port->logical, sx_port_isolation_group_size);
@@ -5287,7 +5328,9 @@ static sai_status_t mlnx_port_egress_block_get_impl(_In_ sx_port_log_id_t   sx_i
 
     *sx_egress_block_ports_count = egress_block_ports_count;
 
-    return SAI_STATUS_SUCCESS;
+out:
+    free(sx_port_isolation_group);
+    return status;
 }
 
 /*
@@ -5353,64 +5396,90 @@ sai_status_t mlnx_port_egress_block_compare(_In_ const mlnx_port_config_t *port1
                                             _In_ const mlnx_port_config_t *port2,
                                             _Out_ bool                    *equal)
 {
-    sai_status_t     status;
-    sx_port_log_id_t sx_port1_egress_block_ports[MAX_PORTS] = {0};
-    sx_port_log_id_t sx_port2_egress_block_ports[MAX_PORTS] = {0};
-    uint32_t         sx_port1_egress_block_ports_count, sx_port2_egress_block_ports_count;
+    sai_status_t      status;
+    sx_port_log_id_t *sx_port1_egress_block_ports = NULL;
+    sx_port_log_id_t *sx_port2_egress_block_ports = NULL;
+    uint32_t          sx_port1_egress_block_ports_count, sx_port2_egress_block_ports_count;
+
+    sx_port1_egress_block_ports = calloc(MAX_PORTS, sizeof(*sx_port1_egress_block_ports));
+    if (!sx_port1_egress_block_ports) {
+        SX_LOG_ERR("Failed to allocate memory\n");
+        status = SAI_STATUS_NO_MEMORY;
+        goto out;
+    }
+
+    sx_port2_egress_block_ports = calloc(MAX_PORTS, sizeof(*sx_port2_egress_block_ports));
+    if (!sx_port2_egress_block_ports) {
+        SX_LOG_ERR("Failed to allocate memory\n");
+        status = SAI_STATUS_NO_MEMORY;
+        goto out;
+    }
 
     status = mlnx_port_egress_block_get_impl(port1->logical,
                                              sx_port1_egress_block_ports,
                                              &sx_port1_egress_block_ports_count);
     if (SAI_ERR(status)) {
-        return status;
+        goto out;
     }
 
     status = mlnx_port_egress_block_get_impl(port2->logical,
                                              sx_port2_egress_block_ports,
                                              &sx_port2_egress_block_ports_count);
     if (SAI_ERR(status)) {
-        return status;
+        goto out;
     }
 
     status = mlnx_sx_port_list_compare(sx_port1_egress_block_ports, sx_port1_egress_block_ports_count,
                                        sx_port2_egress_block_ports, sx_port2_egress_block_ports_count,
                                        equal);
     if (SAI_ERR(status)) {
-        return status;
+        goto out;
     }
 
-    return SAI_STATUS_SUCCESS;
+out:
+    free(sx_port1_egress_block_ports);
+    free(sx_port2_egress_block_ports);
+    return status;
 }
 
 sai_status_t mlnx_port_egress_block_clone(_In_ mlnx_port_config_t *to, _In_ const mlnx_port_config_t *from)
 {
-    sai_status_t     status;
-    sx_port_log_id_t sx_port_egress_block_ports[MAX_PORTS] = {0};
-    uint32_t         sx_port_egress_block_ports_count;
+    sai_status_t      status = SAI_STATUS_SUCCESS;
+    sx_port_log_id_t *sx_port_egress_block_ports = NULL;
+    uint32_t          sx_port_egress_block_ports_count;
 
     assert(to);
     assert(from);
 
     SX_LOG_DBG("Clone egress block list from [%lx] to [%lx]\n", from->saiport, to->saiport);
 
+    sx_port_egress_block_ports = calloc(MAX_PORTS, sizeof(*sx_port_egress_block_ports));
+    if (!sx_port_egress_block_ports) {
+        SX_LOG_ERR("Failed to allocate memory\n");
+        return SAI_STATUS_NO_MEMORY;
+    }
+
     status = mlnx_port_egress_block_get_impl(from->logical,
                                              sx_port_egress_block_ports,
                                              &sx_port_egress_block_ports_count);
     if (SAI_ERR(status)) {
-        return status;
+        goto out;
     }
 
     if (sx_port_egress_block_ports_count == 0) {
-        return SAI_STATUS_SUCCESS;
+        status = SAI_STATUS_SUCCESS;
+        goto out;
     }
 
     status =
         mlnx_port_egress_block_set_impl(to->logical, sx_port_egress_block_ports, sx_port_egress_block_ports_count);
     if (SAI_ERR(status)) {
-        return status;
+        goto out;
     }
 
-    return SAI_STATUS_SUCCESS;
+out:
+    free(sx_port_egress_block_ports);
+    return status;
 }
 
 mlnx_port_config_t * mlnx_port_by_idx(uint8_t id)
@@ -5488,6 +5557,9 @@ static sai_status_t mlnx_port_speed_convert_bitmap_to_capability(const sx_port_s
     }
     if (speed_bitmap & 1 << 16) {
         speed_capability->mode_40GB_LR4_ER4 = TRUE;
+    }
+    if (speed_bitmap & 1 << 18) {
+        speed_capability->mode_50GB_SR2 = TRUE;
     }
     if (speed_bitmap & 1 << 20) {
         speed_capability->mode_100GB_CR4 = TRUE;
@@ -5948,7 +6020,7 @@ static sai_status_t mlnx_create_port(_Out_ sai_object_id_t     * port_id,
     char                         list_str[MAX_LIST_VALUE_STR_LEN];
     uint32_t                     speed_index, fec_index, lane_index, acl_attr_index;
     uint32_t                     lanes_count, egress_block_list_index;
-    sx_port_log_id_t             sx_egress_block_port_list[MAX_PORTS] = {0};
+    sx_port_log_id_t            *sx_egress_block_port_list = NULL;
     mlnx_port_config_t          *father_port;
     mlnx_port_config_t          *new_port = NULL;
     sx_port_mapping_t           *port_map;
@@ -6129,6 +6201,13 @@ static sai_status_t mlnx_create_port(_Out_ sai_object_id_t     * port_id,
     status = find_attrib_in_list(attr_count, attr_list, SAI_PORT_ATTR_EGRESS_BLOCK_PORT_LIST,
                                  &egress_block_list, &egress_block_list_index);
     if (!SAI_ERR(status)) {
+        sx_egress_block_port_list = calloc(MAX_PORTS, sizeof(*sx_egress_block_port_list));
+        if (!sx_egress_block_port_list) {
+            SX_LOG_ERR("Failed to allocate memory\n");
+            status = SAI_STATUS_NO_MEMORY;
+            goto out_unlock;
+        }
+
         status = mlnx_port_egress_block_sai_ports_to_sx(new_port->logical, egress_block_list->objlist.list,
                                                         egress_block_list->objlist.count, egress_block_list_index,
                                                         sx_egress_block_port_list);
@@ -6158,7 +6237,7 @@ out_unlock:
     acl_global_unlock();
     sai_db_unlock();
 out:
-
+    free(sx_egress_block_port_list);
     SX_LOG_EXIT();
     return status;
 }

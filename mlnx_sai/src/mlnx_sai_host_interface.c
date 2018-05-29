@@ -342,9 +342,9 @@ const mlnx_trap_info_t                    mlnx_traps_info[] = {
       "Sample packet", MLNX_TRAP_TYPE_REGULAR },
     { SAI_HOSTIF_TRAP_TYPE_UDLD, 1, { SX_TRAP_ID_ETH_L2_UDLD }, SAI_PACKET_ACTION_DROP, "UDLD",
       MLNX_TRAP_TYPE_REGULAR },
-    { SAI_HOSTIF_TRAP_TYPE_ARP_REQUEST, 1, { SX_TRAP_ID_ARP_REQUEST }, SAI_PACKET_ACTION_FORWARD, "ARP request",
+    { SAI_HOSTIF_TRAP_TYPE_ARP_REQUEST, 1, { SX_TRAP_ID_ROUTER_ARPBC }, SAI_PACKET_ACTION_FORWARD, "ARP request",
       MLNX_TRAP_TYPE_REGULAR },
-    { SAI_HOSTIF_TRAP_TYPE_ARP_RESPONSE, 1, { SX_TRAP_ID_ARP_RESPONSE }, SAI_PACKET_ACTION_FORWARD, "ARP response",
+    { SAI_HOSTIF_TRAP_TYPE_ARP_RESPONSE, 1, { SX_TRAP_ID_ROUTER_ARPUC }, SAI_PACKET_ACTION_FORWARD, "ARP response",
       MLNX_TRAP_TYPE_REGULAR },
     { SAI_HOSTIF_TRAP_TYPE_DHCP, 1, { SX_TRAP_ID_ETH_L2_DHCP }, SAI_PACKET_ACTION_FORWARD, "DHCP",
       MLNX_TRAP_TYPE_REGULAR },
@@ -517,11 +517,7 @@ static sai_status_t mlnx_create_host_interface(_Out_ sai_object_id_t     * hif_i
     char                         key_str[MAX_KEY_STR_LEN];
     char                         list_str[MAX_LIST_VALUE_STR_LEN];
     char                         command[100];
-    sx_router_interface_param_t  intf_params;
-    sx_interface_attributes_t    intf_attribs;
-    sx_router_id_t               vrid;
     int                          system_err;
-    sx_router_interface_t        rif_id;
     sx_port_log_id_t             port_id;
     uint32_t                     ii;
     mlnx_object_id_t             mlnx_hif = {0};
@@ -562,37 +558,18 @@ static sai_status_t mlnx_create_host_interface(_Out_ sai_object_id_t     * hif_i
             return SAI_STATUS_MANDATORY_ATTRIBUTE_MISSING;
         }
 
-        if (SAI_OBJECT_TYPE_ROUTER_INTERFACE == sai_object_type_query(rif_port->oid)) {
-            if (SAI_STATUS_SUCCESS !=
-                (status =
-                     mlnx_object_to_type(rif_port->oid, SAI_OBJECT_TYPE_ROUTER_INTERFACE, &rif_port_data, NULL))) {
+        if (SAI_OBJECT_TYPE_VLAN == sai_object_type_query(rif_port->oid)) {
+            status = sai_object_to_vlan(rif_port->oid, &mlnx_hif.ext.vlan.id);
+            if (SAI_ERR(status)) {
                 return status;
             }
 
-            rif_id              = (sx_router_interface_t)rif_port_data;
-            mlnx_hif.ext.rif.id = rif_id;
+            snprintf(command, sizeof(command), "ip link add link swid%u_eth name %s type vlan id %u",
+                DEFAULT_ETH_SWID, name->chardata, mlnx_hif.ext.vlan.id);
 
-            if (SX_STATUS_SUCCESS !=
-                (status = sx_api_router_interface_get(gh_sdk, rif_id, &vrid, &intf_params, &intf_attribs))) {
-                SX_LOG_ERR("Failed to get router interface - %s.\n", SX_STATUS_MSG(status));
-                return sdk_to_sai(status);
-            }
-
-            if (SX_L2_INTERFACE_TYPE_VLAN == intf_params.type) {
-                snprintf(command, sizeof(command), "ip link add link swid%u_eth name %s type vlan id %u",
-                         intf_params.ifc.vlan.swid, name->chardata, intf_params.ifc.vlan.vlan);
-
-                mlnx_hif.field.sub_type = SAI_HOSTIF_OBJECT_TYPE_VLAN;
-            } else if (SX_L2_INTERFACE_TYPE_PORT_VLAN == intf_params.type) {
-                snprintf(command, sizeof(command), "ip link add %s type sx_netdev swid %u port 0x%x type l3",
-                         name->chardata, intf_params.ifc.vlan.swid, intf_params.ifc.port_vlan.port);
-
-                mlnx_hif.field.sub_type = SAI_HOSTIF_OBJECT_TYPE_ROUTER_PORT;
-            } else {
-                SX_LOG_ERR("RIF type %s not implemented\n", SX_ROUTER_RIF_TYPE_STR(intf_params.type));
-                return SAI_STATUS_ATTR_NOT_IMPLEMENTED_0 + rif_port_index;
-            }
-        } else if (SAI_OBJECT_TYPE_PORT == sai_object_type_query(rif_port->oid)) {
+            mlnx_hif.field.sub_type = SAI_HOSTIF_OBJECT_TYPE_VLAN;
+        }
+        else if (SAI_OBJECT_TYPE_PORT == sai_object_type_query(rif_port->oid)) {
             if (SAI_STATUS_SUCCESS !=
                 (status = mlnx_object_to_type(rif_port->oid, SAI_OBJECT_TYPE_PORT, &rif_port_data, NULL))) {
                 return status;
@@ -600,10 +577,10 @@ static sai_status_t mlnx_create_host_interface(_Out_ sai_object_id_t     * hif_i
 
             port_id = (sx_port_log_id_t)rif_port_data;
 
-            snprintf(command, sizeof(command), "ip link add %s type sx_netdev swid %u port 0x%x type l2",
+            snprintf(command, sizeof(command), "ip link add %s type sx_netdev swid %u port 0x%x",
                      name->chardata, DEFAULT_ETH_SWID, port_id);
 
-            mlnx_hif.field.sub_type  = SAI_HOSTIF_OBJECT_TYPE_L2_PORT;
+            mlnx_hif.field.sub_type  = SAI_HOSTIF_OBJECT_TYPE_PORT;
             mlnx_hif.ext.port.dev_id = SX_PORT_DEV_ID_GET(port_id);
             mlnx_hif.ext.port.phy_id = SX_PORT_PHY_ID_GET(port_id);
         } else if (SAI_OBJECT_TYPE_LAG == sai_object_type_query(rif_port->oid)) {
@@ -614,7 +591,7 @@ static sai_status_t mlnx_create_host_interface(_Out_ sai_object_id_t     * hif_i
 
             port_id = (sx_port_log_id_t)rif_port_data;
 
-            snprintf(command, sizeof(command), "ip link add %s type sx_netdev swid %u port 0x%x type l2",
+            snprintf(command, sizeof(command), "ip link add %s type sx_netdev swid %u port 0x%x",
                      name->chardata, DEFAULT_ETH_SWID, port_id);
 
             mlnx_hif.field.sub_type = SAI_HOSTIF_OBJECT_TYPE_LAG;
@@ -646,6 +623,23 @@ static sai_status_t mlnx_create_host_interface(_Out_ sai_object_id_t     * hif_i
         if (0 != system_err) {
             SX_LOG_ERR("Failed running \"%s\".\n", command);
             return SAI_STATUS_FAILURE;
+        }
+
+        /* Enable ipv6 for router port (by default, ipv6 is off on port/lag netdev)
+         * TODO : Right now we are enabling on any port/lag netdev, could improve by enabling just on router port.
+         * This will require iteration on all router ports and checking port id match, and also different order sequences.
+         */
+        if ((mlnx_hif.field.sub_type == SAI_HOSTIF_OBJECT_TYPE_PORT) || (mlnx_hif.field.sub_type == SAI_HOSTIF_OBJECT_TYPE_LAG)) {
+            snprintf(command,
+                sizeof(command),
+                "sysctl -w net.ipv6.conf.%s.disable_ipv6=0",
+                name->chardata);
+
+            system_err = system(command);
+            if (0 != system_err) {
+                SX_LOG_ERR("Failed running \"%s\".\n", command);
+                return SAI_STATUS_FAILURE;
+            }
         }
 
         hif_data = if_nametoindex(name->chardata);
@@ -879,7 +873,7 @@ static sai_status_t mlnx_host_interface_rif_port_get(_In_ const sai_object_key_t
     if (SAI_HOSTIF_OBJECT_TYPE_FD == mlnx_hif.field.sub_type) {
         SX_LOG_ERR("Rif_port can not be retreived for host interface channel type FD\n");
         return SAI_STATUS_INVALID_PARAMETER;
-    } else if (SAI_HOSTIF_OBJECT_TYPE_L2_PORT == mlnx_hif.field.sub_type) {
+    } else if (SAI_HOSTIF_OBJECT_TYPE_PORT == mlnx_hif.field.sub_type) {
         SX_PORT_DEV_ID_SET(mlnx_port.id.log_port_id, mlnx_hif.ext.port.dev_id);
         SX_PORT_PHY_ID_SET(mlnx_port.id.log_port_id, mlnx_hif.ext.port.phy_id);
         object_type = SAI_OBJECT_TYPE_PORT;
@@ -888,9 +882,13 @@ static sai_status_t mlnx_host_interface_rif_port_get(_In_ const sai_object_key_t
         SX_PORT_LAG_ID_SET(mlnx_port.id.log_port_id, mlnx_hif.ext.lag.lag_id);
         SX_PORT_SUB_ID_SET(mlnx_port.id.log_port_id, mlnx_hif.ext.lag.sub_id);
         object_type = SAI_OBJECT_TYPE_LAG;
-    } else {
-        mlnx_port.id.log_port_id = mlnx_hif.ext.rif.id;
-        object_type              = SAI_OBJECT_TYPE_ROUTER_INTERFACE;
+    } else if (SAI_HOSTIF_OBJECT_TYPE_VLAN == mlnx_hif.field.sub_type) {
+        mlnx_port.id.vlan_id = mlnx_hif.ext.vlan.id;
+        object_type          = SAI_OBJECT_TYPE_VLAN;
+    }
+    else {
+        SX_LOG_ERR("Unexpected host if type %d\n", mlnx_hif.field.sub_type);
+        return SAI_STATUS_INVALID_PARAMETER;
     }
 
     status = mlnx_object_id_to_sai(object_type, &mlnx_port, &value->oid);
@@ -1147,8 +1145,7 @@ static sai_status_t mlnx_trap_group_policer_get(_In_ const sai_object_key_t   *k
             return sai_status;
         }
 
-        SX_LOG_ERR("Failed to obtain sx_policer for trap group:%d. err:%s. line:%d\n", group_id,
-                   SX_STATUS_MSG(sx_status), __LINE__);
+        SX_LOG_ERR("Failed to obtain sx_policer for trap group:%d. err:%s\n", group_id, SX_STATUS_MSG(sx_status));
         SX_LOG_EXIT();
         sai_status = sdk_to_sai(sx_status);
         return sai_status;
@@ -1250,8 +1247,7 @@ sai_status_t mlnx_sai_unbind_policer_from_trap_group(_In_ sai_object_id_t sai_tr
             return SAI_STATUS_SUCCESS;
         }
 
-        SX_LOG_ERR("Failed to obtain sx_policer for trap group:%d. err:%s. line:%d\n", group_id,
-                   SX_STATUS_MSG(sx_status), __LINE__);
+        SX_LOG_ERR("Failed to obtain sx_policer for trap group:%d. err:%s\n", group_id, SX_STATUS_MSG(sx_status));
         SX_LOG_EXIT();
         return sdk_to_sai(sx_status);
     }
@@ -1263,17 +1259,16 @@ sai_status_t mlnx_sai_unbind_policer_from_trap_group(_In_ sai_object_id_t sai_tr
                 DEFAULT_ETH_SWID,
                 group_id,
                 sx_policer))) {
-        SX_LOG_ERR("Policer unbind failed - %s. line:%d\n", SX_STATUS_MSG(sx_status), __LINE__);
+        SX_LOG_ERR("Policer unbind failed - %s\n", SX_STATUS_MSG(sx_status));
         sai_status = sdk_to_sai(sx_status);
         SX_LOG_EXIT();
         return sdk_to_sai(sx_status);
     }
 
-    SX_LOG_NTC("Sai trap goup :0x%" PRIx64 ". sx_policer_id:0x%" PRIx64 ". group prio:%u\n",
+    SX_LOG_NTC("Sai trap group :0x%" PRIx64 ". sx_policer_id:0x%" PRIx64 ". group prio:%u\n",
                sai_trap_group_id,
                sx_policer,
                group_id);
-
 
     SX_LOG_EXIT();
     return SAI_STATUS_SUCCESS;

@@ -142,9 +142,9 @@ static void lag_key_to_str(_In_ sai_object_id_t lag_id, _Out_ char *key_str)
     uint32_t lagid;
 
     if (SAI_STATUS_SUCCESS != mlnx_object_to_type(lag_id, SAI_OBJECT_TYPE_LAG, &lagid, NULL)) {
-        snprintf(key_str, MAX_KEY_STR_LEN, "Invalid LAG ID");
+        snprintf(key_str, MAX_KEY_STR_LEN, "Invalid LAG");
     } else {
-        snprintf(key_str, MAX_KEY_STR_LEN, "LAG ID %u", lagid);
+        snprintf(key_str, MAX_KEY_STR_LEN, "LAG %x", lagid);
     }
 }
 
@@ -155,9 +155,9 @@ static void lag_member_key_to_str(_In_ sai_object_id_t lag_member_id, _Out_ char
 
     status = sai_to_mlnx_object_id(SAI_OBJECT_TYPE_LAG_MEMBER, lag_member_id, &mlnx_lag_member);
     if (SAI_ERR(status)) {
-        snprintf(key_str, MAX_KEY_STR_LEN, "Invalid LAG Member ID");
+        snprintf(key_str, MAX_KEY_STR_LEN, "Invalid LAG Member");
     } else {
-        snprintf(key_str, MAX_KEY_STR_LEN, "LAG ID Member %u", mlnx_lag_member.id.log_port_id);
+        snprintf(key_str, MAX_KEY_STR_LEN, "LAG member (%x,%x,%x)", mlnx_lag_member.id.log_port_id, mlnx_lag_member.ext.lag.lag_id, mlnx_lag_member.ext.lag.sub_id);
     }
 }
 
@@ -169,6 +169,7 @@ static sai_status_t mlnx_port_params_clone(mlnx_port_config_t *to, mlnx_port_con
     sx_cos_trust_level_t         trust_level;
     sx_cos_ets_element_config_t *ets = NULL;
     sx_fdb_learn_mode_t          sx_fdb_learn_mode;
+    sx_port_log_id_t            *log_ports = NULL;
     mlnx_qos_queue_config_t     *queue_cfg;
     sai_status_t                 status = SAI_STATUS_SUCCESS;
     uint8_t                      prio;
@@ -321,10 +322,16 @@ static sai_status_t mlnx_port_params_clone(mlnx_port_config_t *to, mlnx_port_con
             goto out;
         }
 
+        log_ports = calloc(MAX_BRIDGE_PORTS, sizeof(*log_ports));
+        if (!log_ports) {
+            SX_LOG_ERR("Failed to allocate memory\n");
+            status = SAI_STATUS_NO_MEMORY;
+            goto out;
+        }
+
         mlnx_vlan_id_foreach(fid) {
             if (mlnx_vlan_port_is_set(fid, bridge_port)) {
                 sx_status_t         sx_status;
-                sx_port_log_id_t    log_ports[MAX_PORTS];
                 mlnx_bridge_port_t *port;
                 uint32_t            ii                = 0;
                 uint32_t            ports_count       = 0;
@@ -390,16 +397,16 @@ static sai_status_t mlnx_port_params_clone(mlnx_port_config_t *to, mlnx_port_con
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Port ingress filter get for port oid %" PRIx64 " failed - %s\n",
                        from->saiport, SX_STATUS_MSG(sx_status));
-
-            return sdk_to_sai(sx_status);
+            status = sdk_to_sai(sx_status);
+            goto out;
         }
 
         sx_status = sx_api_vlan_port_ingr_filter_set(gh_sdk, to->logical, mode);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Port ingress filter set for port oid %" PRIx64 " failed - %s\n",
                        to->saiport, SX_STATUS_MSG(sx_status));
-
-            return sdk_to_sai(sx_status);
+            status = sdk_to_sai(sx_status);
+            goto out;
         }
     }
 
@@ -446,6 +453,7 @@ static sai_status_t mlnx_port_params_clone(mlnx_port_config_t *to, mlnx_port_con
 
 out:
     free(ets);
+    free(log_ports);
     return status;
 }
 
@@ -1203,8 +1211,10 @@ static sai_status_t mlnx_remove_lag(_In_ sai_object_id_t lag_id)
     sx_status_t         sx_status;
     sai_status_t        status;
     mlnx_port_config_t *lag;
+    char                key_str[MAX_KEY_STR_LEN];
 
-    SX_LOG_NTC("Remove SAI LAG oid %" PRIx64 "\n", (uint64_t)lag_id);
+    lag_key_to_str(lag_id, key_str);
+    SX_LOG_NTC("Removing %s\n", key_str);
 
     status = mlnx_object_to_type(lag_id, SAI_OBJECT_TYPE_LAG, &lag_log_port_id, NULL);
     if (SAI_ERR(status)) {
@@ -1541,8 +1551,10 @@ static sai_status_t mlnx_remove_lag_member(_In_ sai_object_id_t lag_member_id)
     sx_status_t         sx_status;
     sai_object_id_t     lag_oid;
     const bool          is_add          = true;
+    char                key_str[MAX_KEY_STR_LEN];
 
-    SX_LOG_NTC("Remove SAI LAG member oid %" PRIx64 "\n", (uint64_t)lag_member_id);
+    lag_member_key_to_str(lag_member_id, key_str);
+    SX_LOG_NTC("Removing %s\n", key_str);
 
     status = sai_to_mlnx_object_id(SAI_OBJECT_TYPE_LAG_MEMBER, lag_member_id, &mlnx_lag_member);
     if (SAI_ERR(status)) {

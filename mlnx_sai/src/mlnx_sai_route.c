@@ -214,6 +214,7 @@ static sai_status_t mlnx_route_attr_to_sx_data(_In_ const sai_route_entry_t *rou
     char                         list_str[MAX_LIST_VALUE_STR_LEN];
     char                         key_str[MAX_KEY_STR_LEN];
     bool                         next_hop_id_found = false;
+    sx_log_severity_t            log_level = SX_LOG_NOTICE;
 
     assert(sx_ip_prefix);
     assert(sx_vrid);
@@ -233,8 +234,12 @@ static sai_status_t mlnx_route_attr_to_sx_data(_In_ const sai_route_entry_t *rou
 
     route_key_to_str(route_entry, key_str);
     sai_attr_list_to_str(attr_count, attr_list, SAI_OBJECT_TYPE_ROUTE_ENTRY, MAX_LIST_VALUE_STR_LEN, list_str);
-    SX_LOG_NTC("Create route %s\n", key_str);
-    SX_LOG_NTC("Attribs %s\n", list_str);
+    /* lower log level for route created often in Sonic */    
+#ifdef ACS_OS
+    log_level = SX_LOG_INFO;
+#endif
+    SX_LOG(log_level, "Create route %s\n", key_str);
+    SX_LOG(log_level, "Attribs %s\n", list_str);
 
     sx_route_data->action         = SX_ROUTER_ACTION_FORWARD;
     sx_route_data->trap_attr.prio = SX_TRAP_PRIORITY_MED;

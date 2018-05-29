@@ -30,6 +30,7 @@
 #include <complib/cl_thread.h>
 #include <sys/types.h>
 #include <sx/sdk/sx_api_rm.h>
+#include "meta/saimetadata.h"
 
 #undef  __MODULE__
 #define __MODULE__ SAI_ACL
@@ -39,19 +40,20 @@
 #define SX_FLEX_ACL_MAX_FIELDS_IN_KEY RM_API_ACL_MAX_FIELDS_IN_KEY
 #define ACL_MAX_NUM_OF_ACTIONS        20
 #define ACL_TABLE_SIZE_INC_PERCENT    0.2
-#define ACL_TABLE_SIZE_DEC_PERCENT    0.2
 #define ACL_TABLE_SIZE_MIN_DELTA      16
-#define ACL_DEFAULT_ENTRY_PRIO        ACL_MIN_ENTRY_PRIO
+#define ACL_DEFAULT_ENTRY_PRIO        ACL_SAI_ENTRY_MIN_PRIO
 
-#define ACL_DEFAULT_TABLE_SIZE       128
-#define ACL_TABLE_SIZE_INCREASE_AUTO 1
+/* Region contains 'default' rule */
+#define ACL_SX_REG_SIZE_TO_TABLE_SIZE(size) ((size) - 1)
+#define ACL_TABLE_SIZE_TO_SX_REG_SIZE(size) ((size) + 1)
+#define ACL_DEFAULT_TABLE_SIZE       126
 
 #define PSORT_ALMOST_FULL_PERC_STATIC  100
-#define PSORT_ALMOST_EMPTY_PERC_STATIC 33
+#define PSORT_ALMOST_EMPTY_PERC_STATIC 0
 #define PSORT_ALMOST_FULL_PERC_DYN     90
 #define PSORT_ALMOST_EMPTY_PERC_DYN    33
 
-#define ACL_QUEUE_INVALID_HANDLE -1
+#define ACL_QUEUE_INVALID_HANDLE ((mqd_t) -1)
 #define ACL_QUEUE_NAME           "/sai_acl_queue"
 #define ACL_QUEUE_TIMEOUT        2
 #define ACL_QUEUE_SIZE           3
@@ -116,12 +118,18 @@
 #define MLNX_ACL_SX_FLEX_RULE_IS_EMPTY(rule) ((NULL == (rule)->key_desc_list_p) && (NULL == (rule)->action_list_p))
 
 #define MLNX_SAI_STRUCT_MEMBER_SIZE(type, member) sizeof(((type*)0)->member)
+#define MLNX_ACL_FIELD_INFO_DEFINE_WITH_STAGE(sx_key_id, sx_key_type, type, stage)      \
+    (mlnx_acl_single_key_field_info_t)                                                  \
+    {.key_id          = sx_key_id,                                                      \
+     .key_size        = MLNX_SAI_STRUCT_MEMBER_SIZE(sx_acl_key_fields_t, sx_key_type),  \
+     .field_type      = type,                                                           \
+     .supported_stage = stage }
 
 #define MLNX_ACL_FIELD_INFO_DEFINE(sx_key_id, sx_key_type, type) \
-    (mlnx_acl_single_key_field_info_t) \
-    {.key_id     = sx_key_id, \
-     .key_size   = MLNX_SAI_STRUCT_MEMBER_SIZE(sx_acl_key_fields_t, sx_key_type), \
-     .field_type = type }
+    MLNX_ACL_FIELD_INFO_DEFINE_WITH_STAGE(sx_key_id, sx_key_type, type, MLNX_ACL_FIELD_STAGE_BOTH)
+
+#define MLNX_ACL_FIELD_INFO_DEFINE_INGRESS(sx_key_id, sx_key_type, type) \
+    MLNX_ACL_FIELD_INFO_DEFINE_WITH_STAGE(sx_key_id, sx_key_type, type, MLNX_ACL_FIELD_STAGE_INGRESS)
 
 #define MLNX_ACL_ENTRY_KEY_LIST(...) {__VA_ARGS__}
 #define MLNX_ACL_MULTI_KEY_FIELD_INFO(sx_key_count, sx_key_list, type) \
@@ -134,6 +142,8 @@
     MLNX_ACL_FIELD_INFO_DEFINE(sx_key_id, sx_key_type, MLNX_ACL_FIELD_TYPE_EMPTY)
 #define MLNX_ACL_FIELD_L2_DEFINE(sx_key_id, sx_key_type) \
     MLNX_ACL_FIELD_INFO_DEFINE(sx_key_id, sx_key_type, MLNX_ACL_FIELD_TYPE_EMPTY)
+#define MLNX_ACL_FIELD_L2_DEFINE_INGRESS(sx_key_id, sx_key_type) \
+    MLNX_ACL_FIELD_INFO_DEFINE_INGRESS(sx_key_id, sx_key_type, MLNX_ACL_FIELD_TYPE_EMPTY)
 #define MLNX_ACL_FIELD_INNER_VLAN_DEFINE(sx_key_id, sx_key_type) \
     MLNX_ACL_FIELD_INFO_DEFINE(sx_key_id, sx_key_type, MLNX_ACL_FIELD_TYPE_INNER_VLAN_VALID)
 #define MLNX_ACL_FIELD_IP_DEFINE(sx_key_id, sx_key_type) \
@@ -181,38 +191,47 @@ typedef enum _mlnx_acl_field_type_t {
     MLNX_ACL_FIELD_TYPE_L4                 = (1 << 11),
     MLNX_ACL_FIELD_TYPE_TCP                = (1 << 12),
 } mlnx_acl_field_type_t;
+typedef enum _mlnx_acl_field_stage_t {
+    MLNX_ACL_FIELD_STAGE_INGRESS   = SAI_ACL_STAGE_INGRESS,
+    MLNX_ACL_FIELD_STAGE_EGRESS    = SAI_ACL_STAGE_EGRESS,
+    MLNX_ACL_FIELD_STAGE_BOTH      = SAI_ACL_STAGE_EGRESS + 1,
+    MLNX_ACL_FIELD_STAGE_MAX       = MLNX_ACL_FIELD_STAGE_BOTH
+} mlnx_acl_field_stage_t;
+
 typedef struct _mlnx_acl_sai_single_key_field_info_t {
-    sx_acl_key_t          key_id;
-    uint32_t              key_size;
-    mlnx_acl_field_type_t field_type;
+    sx_acl_key_t           key_id;
+    uint32_t               key_size;
+    mlnx_acl_field_type_t  field_type;
+    mlnx_acl_field_stage_t supported_stage;
 } mlnx_acl_single_key_field_info_t;
 typedef struct _mlnx_acl_sai_multiple_key_field_info_t {
     uint32_t              key_count;
     sx_acl_key_t         *key_list;
     mlnx_acl_field_type_t field_type;
 } mlnx_acl_multi_key_field_info_t;
-typedef enum acl_psort_rpc_type {
+typedef enum acl_rpc_type_t {
     ACL_RPC_TERMINATE_THREAD,
-    ACL_RPC_PSORT_TABLE_INIT,
-    ACL_RPC_PSORT_TABLE_DELETE,
-    ACL_RPC_PSORT_ENTRY_CREATE,
-    ACL_RPC_PSORT_ENTRY_DELETE
+    ACL_RPC_TABLE_INIT,
+    ACL_RPC_TABLE_DELETE,
+    ACL_RPC_ENTRY_OFFSET_GET,
+    ACL_RPC_ENTRY_OFFSET_DEL
 } acl_rpc_type_t;
-typedef struct acl_psort_rpc_args {
-    bool                 table_is_dynamic;
-    uint32_t             table_id;
-    uint32_t             size;
-    uint32_t             entry_id;
-    uint32_t             entry_prio;
-    sx_acl_rule_offset_t entry_offset;
-} acl_rpc_args_t;
-typedef struct acl_psort_rpc_call_info {
-    acl_rpc_type_t type;
-    acl_rpc_args_t args;
-    sai_status_t   status;
-} acl_rpc_info_t;
-
-typedef uint32_t mlnx_acl_port_db_refs_t[MAX_PORTS * 2];
+PACKED(struct _acl_rpc_args_t {
+           bool                 table_is_dynamic;
+           uint32_t             table_id;
+           uint32_t             size;
+           uint32_t             entry_id;
+           uint32_t             entry_prio;
+           sx_acl_rule_offset_t entry_offset;
+       }, );
+typedef struct _acl_rpc_args_t acl_rpc_args_t;
+PACKED(struct _acl_rpc_info_t {
+           acl_rpc_type_t type;
+           acl_rpc_args_t args;
+           sai_status_t   status;
+       }, );
+typedef struct _acl_rpc_info_t acl_rpc_info_t;
+typedef uint32_t mlnx_acl_port_db_refs_t[MAX_PORTS_DB * 2];
 
 static const acl_bind_point_type_list_t default_bind_point_type_list =
 {.count = 3,
@@ -224,11 +243,10 @@ static sx_verbosity_level_t LOG_VAR_NAME(__MODULE__) = SX_VERBOSITY_LEVEL_WARNIN
 static cl_thread_t psort_thread;
 static cl_thread_t rpc_thread;
 #ifndef _WIN32
-static pthread_key_t      pthread_key;
-static mqd_t              fg_mq = ACL_QUEUE_INVALID_HANDLE;
+static pthread_key_t      pthread_sx_handle_key;
+static mqd_t              psort_opt_queue_client = ACL_QUEUE_INVALID_HANDLE;
 static struct sockaddr_un rpc_sv_sockaddr;
 #endif
-static sx_api_handle_t      psort_sx_api                  = SX_API_INVALID_HANDLE, rpc_sx_api = SX_API_INVALID_HANDLE;
 static int                  rpc_cl_socket                 = -1;
 static bool                 is_init_process               = false;
 const sai_acl_action_type_t mlnx_acl_action_list_common[] = {
@@ -259,6 +277,60 @@ const sai_acl_action_type_t mlnx_acl_action_list_egress[] = {
 const uint32_t              mlnx_acl_action_list_common_count  = ARRAY_SIZE(mlnx_acl_action_list_common);
 const uint32_t              mlnx_acl_action_list_ingress_count = ARRAY_SIZE(mlnx_acl_action_list_ingress);
 const uint32_t              mlnx_acl_action_list_egress_count  = ARRAY_SIZE(mlnx_acl_action_list_egress);
+
+typedef sai_status_t (*mlnx_acl_table_init_f)(_In_ uint32_t table_db_idx,
+                                              _In_ bool     is_table_dynamic,
+                                              _In_ uint32_t size);
+typedef sai_status_t (*mlnx_acl_table_deinit_f)(_In_ uint32_t table_db_idx);
+typedef sai_status_t (*mlnx_acl_entry_offset_get_f)(_In_ uint32_t table_db_idx,
+                                                    _In_ uint32_t entry_db_idx,
+                                                    _In_ uint32_t priority,
+                                                    _Out_ sx_acl_rule_offset_t *sx_offset);
+typedef sai_status_t (*mlnx_acl_entry_offset_del_f)(_In_ uint32_t             table_db_idx,
+                                                    _In_ uint32_t             priority,
+                                                    _In_ sx_acl_rule_offset_t offset);
+typedef sai_status_t (*mlnx_acl_entry_prio_set_f)(_In_ uint32_t table_db_idx,
+                                                  _In_ uint32_t entry_db_idx,
+                                                  _In_ uint32_t sx_prio);
+typedef sai_status_t (*mlnx_acl_sx_rule_prio_set_f)(_In_ sx_flex_acl_flex_rule_t *rule,
+                                                    _In_ uint32_t                 sx_prio);
+typedef sai_status_t (*mlnx_acl_init_f)(void);
+typedef sai_status_t (*mlnx_acl_lazy_init_f)(void);
+typedef sai_status_t (*mlnx_acl_deinit_f)(void);
+typedef sai_status_t (*mlnx_acl_table_size_set_f)(_In_ uint32_t table_db_idx,
+                                                  _In_ uint32_t size);
+typedef sai_status_t (*mlnx_acl_table_optimize_f)(_In_ uint32_t table_db_idx);
+
+typedef struct _mlnx_acl_cb_list_t {
+    mlnx_acl_table_init_f       table_init;
+    mlnx_acl_table_deinit_f     table_deinit;
+    mlnx_acl_entry_offset_get_f entry_offset_get;
+    mlnx_acl_entry_offset_del_f entry_offset_del;
+    mlnx_acl_entry_prio_set_f   entry_prio_set;
+    mlnx_acl_init_f             init;
+    mlnx_acl_lazy_init_f        lazy_init;
+    mlnx_acl_deinit_f           deinit;
+    mlnx_acl_table_size_set_f   table_size_set;
+    mlnx_acl_table_optimize_f   table_optimize;
+    mlnx_acl_sx_rule_prio_set_f rule_prio_set;
+} mlnx_acl_cb_list_t;
+
+typedef struct _mlnx_acl_sp2_reg_offset_t {
+    uint32_t next_free_offset_idx;
+} mlnx_acl_sp2_reg_offset_t;
+
+typedef struct _mlnx_acl_sp2_table_t {
+    bool                       is_inited;
+    uint32_t                   size;
+    uint32_t                   allocated;
+    uint32_t                   next_free_index;
+    mlnx_acl_sp2_reg_offset_t *offsets;
+} mlnx_acl_sp2_table_t;
+
+typedef struct _mlnx_acl_sp2_table_db_t {
+    mlnx_acl_sp2_table_t *tables; /* ACL_TABLE_DB_SIZE */
+    bool                  is_inited;
+} mlnx_acl_sp2_table_db_t;
 
 sai_status_t mlnx_acl_log_set(sx_verbosity_level_t level)
 {
@@ -475,7 +547,7 @@ static sai_status_t mlnx_acl_packet_actions_handler(_In_ sai_packet_action_t    
                                                     _Inout_ sx_flex_acl_flex_rule_t *flex_rule,
                                                     _Inout_ uint8_t                 *flex_action_index);
 static sai_status_t mlnx_acl_ip_ident_key_create_or_get(_Out_ sx_acl_key_t *keys);
-static sai_status_t mlnx_acl_ip_ident_key_ref_remove();
+static sai_status_t mlnx_acl_ip_ident_key_ref_remove(void);
 static sai_status_t mlnx_acl_ip_ident_key_desc_create(_In_ uint16_t                   value,
                                                       _In_ uint16_t                   mask,
                                                       _Inout_ sx_flex_acl_key_desc_t *key_descs,
@@ -531,34 +603,46 @@ static sai_status_t mlnx_delete_acl_entry_data(_In_ uint32_t table_index, _In_ u
 static sx_utils_status_t psort_notification_func(_In_ psort_notification_type_e notif_type,
                                                  _In_ void                     *data,
                                                  _In_ void                     *cookie);
-static sai_status_t init_psort_table(_In_ uint32_t table_id, _In_ bool is_table_dynamic, _In_ uint32_t size);
-static sai_status_t __init_psort_table(_In_ uint32_t table_id, _In_ bool is_table_dynamic, _In_ uint32_t size);
-static sai_status_t get_new_psort_offset(_In_ uint32_t                 table_id,
-                                         _In_ uint32_t                 entry_id,
-                                         _In_ uint32_t                 priority,
-                                         _Inout_ sx_acl_rule_offset_t *offset);
-static sai_status_t __get_new_psort_offset(_In_ uint32_t                 table_id,
-                                           _In_ uint32_t                 entry_id,
-                                           _In_ uint32_t                 priority,
-                                           _Inout_ sx_acl_rule_offset_t *offset);
-static sai_status_t release_psort_offset(_In_ uint32_t             table_id,
-                                         _In_ uint32_t             priority,
-                                         _In_ sx_acl_rule_offset_t offset);
-static sai_status_t __release_psort_offset(_In_ uint32_t             table_id,
-                                           _In_ uint32_t             priority,
-                                           _In_ sx_acl_rule_offset_t offset);
-static sai_status_t delete_psort_table(_In_ uint32_t table_id);
-static sai_status_t __delete_psort_table(_In_ uint32_t table_id);
 static sai_status_t create_rpc_server(_Inout_ int *s);
 static sai_status_t create_rpc_client(_Inout_ int *s, _Inout_ struct sockaddr_un *sv_sockaddr);
 static sai_status_t create_rpc_socket(_Inout_ int *s, _Inout_opt_ struct sockaddr_un *sockaddr, _In_ bool is_server);
-static sai_status_t acl_psort_rpc_call(_Inout_ acl_rpc_info_t *rpc_info);
-static sai_status_t update_rules_offsets(_In_ const psort_shift_param_t *shift_param, _In_ uint32_t acl_table_index);
-static uint32_t acl_calculate_delta(_In_ uint32_t acl_table_index);
-static sai_status_t acl_table_size_increase(_In_ uint32_t table_index);
-static sai_status_t acl_table_size_decrease(_In_ uint32_t table_index);
+static sai_status_t mlnx_acl_rpc_call(_Inout_ acl_rpc_info_t *rpc_info);
+static sai_status_t mlnx_acl_cb_table_init(void);
+static sai_status_t mlnx_acl_lazy_init(void);
+static sai_status_t acl_psort_background_close(void);
+static sai_status_t mlnx_acl_rpc_thread_close(void);
+static sai_status_t mlnx_acl_rpc_client_close(void);
+static sai_status_t mlnx_acl_psort_opt_queue_create(void);
+static sai_status_t mlnx_acl_psort_opt_queue_client_create(void);
+static sai_status_t mlnx_acl_psort_opt_queue_client_close(void);
+static void mlnx_acl_table_locks_deinit(void);
+static void psort_background_thread(void *arg);
+static void mlnx_acl_rpc_thread(void *arg);
+static sai_status_t mlnx_acl_sx_rule_offset_update(_In_ const psort_shift_param_t *shift_param,
+                                                   _In_ uint32_t                   acl_table_index);
+static sai_status_t mlnx_acl_table_init(_In_ uint32_t table_db_idx,
+                                        _In_ bool     is_table_dynamic,
+                                        _In_ uint32_t size);
+static sai_status_t mlnx_acl_table_deinit(_In_ uint32_t table_db_idx);
+static sai_status_t mlnx_acl_entry_offset_get(_In_ uint32_t                 table_db_idx,
+                                              _In_ uint32_t                 entry_db_idx,
+                                              _In_ uint32_t                 sx_prio,
+                                              _Inout_ sx_acl_rule_offset_t *offset);
+static sai_status_t mlnx_acl_entry_offset_del(_In_ uint32_t             table_db_idx,
+                                              _In_ uint32_t             sx_prio,
+                                              _In_ sx_acl_rule_offset_t offset);
+static sai_status_t mlnx_acl_entry_prio_set(_In_ uint32_t table_db_idx,
+                                            _In_ uint32_t entry_db_idx,
+                                            _In_ uint32_t sx_prio);
+static sai_status_t mlnx_acl_sx_rule_prio_set(_In_ sx_flex_acl_flex_rule_t *rule,
+                                              _In_ uint32_t                 sx_prio);
+static sai_status_t mlnx_acl_table_check_size_increase(_In_ uint32_t table_db_idx);
+static sai_status_t mlnx_acl_table_optimize(_In_ uint32_t table_db_idx);
+static sai_status_t mlnx_acl_table_size_increase(_In_ uint32_t table_index);
+static sai_status_t mlnx_acl_table_size_decrease(_In_ uint32_t table_index);
+static sai_status_t mlnx_acl_table_size_delta_get(_In_ uint32_t   acl_table_index,
+                                                  _Out_ uint32_t *delta);
 static void acl_psort_optimize_table(_In_ uint32_t table_index);
-static sai_status_t acl_enqueue_table(_In_ uint32_t table_index);
 static sai_status_t acl_db_find_entry_free_index(_Out_ uint32_t *free_index);
 static sai_status_t acl_db_find_table_free_index(_Out_ uint32_t *free_index);
 static sai_status_t acl_db_find_group_free_index(_Out_ uint32_t *free_index);
@@ -755,11 +839,11 @@ static sai_status_t mlnx_acl_sx_mc_container_sai_ports_get(_In_ sx_mc_container_
                                                            _Out_ sai_object_id_t     *ports,
                                                            _Inout_ uint32_t          *ports_count);
 static sai_status_t mlnx_acl_sx_mc_container_remove(_In_ sx_mc_container_id_t sx_mc_container_id);
-static sai_status_t mlnx_acl_taable_udf_attrs_parse(_In_ uint32_t               attr_count,
-                                                    _In_ const sai_attribute_t *attr_list,
-                                                    _Out_ sx_acl_key_t         *sx_keys,
-                                                    _Inout_ uint32_t           *sx_key_count,
-                                                    _Out_ acl_udf_group_list_t  udf_group_list);
+static sai_status_t mlnx_acl_table_udf_attrs_parse(_In_ uint32_t               attr_count,
+                                                   _In_ const sai_attribute_t *attr_list,
+                                                   _Out_ sx_acl_key_t         *sx_keys,
+                                                   _Inout_ uint32_t           *sx_key_count,
+                                                   _Out_ acl_udf_group_list_t  udf_group_list);
 static sai_status_t mlnx_acl_entry_udf_attrs_parse(_In_ _In_ uint32_t            attr_count,
                                                    _In_ const sai_attribute_t   *attr_list,
                                                    _In_ uint32_t                 acl_table_index,
@@ -771,14 +855,6 @@ static sai_status_t mlnx_acl_entry_udf_attrs_validate_and_fetch(_In_ const sai_a
                                                                 _In_ uint32_t                     acl_table_index,
                                                                 _Out_ sx_acl_key_t               *custom_byte_keys,
                                                                 _Inout_ uint32_t                 *custom_byte_count);
-static sai_status_t acl_resources_init();
-static sai_status_t acl_background_threads_close();
-static sai_status_t acl_psort_background_close();
-static sai_status_t acl_psort_rpc_thread_close();
-static void mlnx_acl_psort_deinit();
-static void mlnx_acl_table_locks_deinit();
-static void psort_background_thread(void *arg);
-static void psort_rpc_thread(void *arg);
 static bool mlnx_acl_field_is_not_trivial(sai_attr_id_t attr_id);
 static const mlnx_acl_single_key_field_info_t* mlnx_acl_single_key_field_info_fetch(_In_ sai_attr_id_t attr_id);
 static const mlnx_acl_multi_key_field_info_t* mlnx_acl_multi_key_field_info_fetch(_In_ sai_attr_id_t attr_id);
@@ -791,9 +867,11 @@ static sai_status_t mlnx_acl_table_is_entry_field_supported(_In_ uint32_t       
 static sai_status_t mlnx_acl_field_info_data_fetch(_In_ sai_attr_id_t               attr_id,
                                                    _Out_opt_ mlnx_acl_field_type_t *fields_types,
                                                    _Out_opt_ sx_acl_key_t          *sx_keys,
-                                                   _Inout_opt_ uint32_t            *sx_key_count);
+                                                   _Inout_opt_ uint32_t            *sx_key_count,
+                                                   _Out_ mlnx_acl_field_stage_t    *supported_stage);
 static sai_status_t mlnx_acl_table_fields_to_sx(_In_ const sai_attribute_t *attr_list,
                                                 _In_ uint32_t               attr_count,
+                                                _In_ sai_acl_stage_t        table_stage,
                                                 _Out_ sx_acl_key_t         *sx_keys,
                                                 _Inout_ uint32_t           *sx_key_count);
 static sai_status_t mlnx_acl_entry_fields_to_sx(_In_ const sai_attribute_t   *attr_list,
@@ -876,13 +954,87 @@ static sai_status_t mlnx_acl_user_meta_field_to_sx(_In_ sai_acl_entry_attr_t    
                                                    _Out_ sx_flex_acl_key_desc_t     *sx_keys,
                                                    _Inout_ uint32_t                 *sx_key_count,
                                                    _Inout_ mlnx_acl_field_type_t    *field_type);
+static sai_status_t mlnx_acl_table_init_sp(_In_ uint32_t table_db_idx,
+                                           _In_ bool     is_table_dynamic,
+                                           _In_ uint32_t size);
+static sai_status_t mlnx_acl_table_deinit_sp(_In_ uint32_t table_db_idx);
+static sai_status_t mlnx_acl_entry_offset_get_sp(_In_ uint32_t               table_db_idx,
+                                                 _In_ uint32_t               entry_db_idx,
+                                                 _In_ uint32_t               priority,
+                                                 _Out_ sx_acl_rule_offset_t *sx_offset);
+static sai_status_t mlnx_acl_entry_offset_del_sp(_In_ uint32_t             table_db_idx,
+                                                 _In_ uint32_t             priority,
+                                                 _In_ sx_acl_rule_offset_t offset);
+static sai_status_t mlnx_acl_entry_prio_set_sp(_In_ uint32_t table_db_idx,
+                                               _In_ uint32_t entry_db_idx,
+                                               _In_ uint32_t sx_prio);
+static sai_status_t mlnx_acl_init_sp(void);
+static sai_status_t mlnx_acl_lazy_init_sp(void);
+static sai_status_t mlnx_acl_deinit_sp(void);
+static sai_status_t mlnx_acl_table_size_set_sp(_In_ uint32_t table_db_idx,
+                                               _In_ uint32_t size);
+static sai_status_t mlnx_acl_table_optimize_sp(_In_ uint32_t table_db_idx);
+static sai_status_t mlnx_acl_sx_rule_prio_set_sp(_In_ sx_flex_acl_flex_rule_t *rule,
+                                                 _In_ uint32_t                 sx_prio);
+static sai_status_t mlnx_acl_table_init_sp2(_In_ uint32_t table_db_idx,
+                                            _In_ bool     is_table_dynamic,
+                                            _In_ uint32_t size);
+static sai_status_t mlnx_acl_table_deinit_sp2(_In_ uint32_t table_db_idx);
+static sai_status_t mlnx_acl_entry_offset_get_sp2(_In_ uint32_t               table_db_idx,
+                                                  _In_ uint32_t               entry_db_idx,
+                                                  _In_ uint32_t               priority,
+                                                  _Out_ sx_acl_rule_offset_t *sx_offset);
+static sai_status_t mlnx_acl_entry_offset_del_sp2(_In_ uint32_t             table_db_idx,
+                                                  _In_ uint32_t             priority,
+                                                  _In_ sx_acl_rule_offset_t offset);
+static sai_status_t mlnx_acl_entry_prio_set_sp2(_In_ uint32_t table_db_idx,
+                                                _In_ uint32_t entry_db_idx,
+                                                _In_ uint32_t sx_prio);
+static sai_status_t mlnx_acl_init_sp2(void);
+static sai_status_t mlnx_acl_deinit_sp2(void);
+static sai_status_t mlnx_acl_table_size_set_sp2(_In_ uint32_t table_db_idx,
+                                                _In_ uint32_t size);
+static sai_status_t mlnx_acl_sx_rule_prio_set_sp2(_In_ sx_flex_acl_flex_rule_t *rule,
+                                                  _In_ uint32_t                 sx_prio);
+
+static const mlnx_acl_cb_list_t mlnx_acl_cb_sp = {
+    mlnx_acl_table_init_sp,
+    mlnx_acl_table_deinit_sp,
+    mlnx_acl_entry_offset_get_sp,
+    mlnx_acl_entry_offset_del_sp,
+    mlnx_acl_entry_prio_set_sp,
+    mlnx_acl_init_sp,
+    mlnx_acl_lazy_init_sp,
+    mlnx_acl_deinit_sp,
+    mlnx_acl_table_size_set_sp,
+    mlnx_acl_table_optimize_sp,
+    mlnx_acl_sx_rule_prio_set_sp
+};
+
+static const mlnx_acl_cb_list_t mlnx_acl_cb_sp2 = {
+    mlnx_acl_table_init_sp2,
+    mlnx_acl_table_deinit_sp2,
+    mlnx_acl_entry_offset_get_sp2,
+    mlnx_acl_entry_offset_del_sp2,
+    mlnx_acl_entry_prio_set_sp2,
+    mlnx_acl_init_sp2,
+    NULL, /* mlnx_acl_lazy_init_f */
+    mlnx_acl_deinit_sp2,
+    mlnx_acl_table_size_set_sp2,
+    NULL,/* mlnx_acl_table_optimize_f */
+    mlnx_acl_sx_rule_prio_set_sp2
+};
+
+static mlnx_acl_sp2_table_db_t   acl_sp2_table_db = {.tables = NULL, .is_inited = false};
+static const mlnx_acl_cb_list_t *mlnx_acl_cb      = NULL;
+
 static const mlnx_acl_single_key_field_info_t mlnx_acl_single_key_fields_info[] = {
 #ifndef _WIN32
     /* L2 */
     [SAI_ACL_ENTRY_ATTR_FIELD_SRC_MAC]        = MLNX_ACL_FIELD_L2_DEFINE(FLEX_ACL_KEY_SMAC, smac),
     [SAI_ACL_ENTRY_ATTR_FIELD_DST_MAC]        = MLNX_ACL_FIELD_L2_DEFINE(FLEX_ACL_KEY_DMAC, dmac),
     [SAI_ACL_ENTRY_ATTR_FIELD_ETHER_TYPE]     = MLNX_ACL_FIELD_L2_DEFINE(FLEX_ACL_KEY_ETHERTYPE, ethertype),
-    [SAI_ACL_ENTRY_ATTR_FIELD_OUTER_VLAN_ID]  = MLNX_ACL_FIELD_L2_DEFINE(FLEX_ACL_KEY_VLAN_ID, vlan_id),
+    [SAI_ACL_ENTRY_ATTR_FIELD_OUTER_VLAN_ID]  = MLNX_ACL_FIELD_L2_DEFINE_INGRESS(FLEX_ACL_KEY_VLAN_ID, vlan_id),
     [SAI_ACL_ENTRY_ATTR_FIELD_OUTER_VLAN_PRI] = MLNX_ACL_FIELD_L2_DEFINE(FLEX_ACL_KEY_PCP, pcp),
     [SAI_ACL_ENTRY_ATTR_FIELD_OUTER_VLAN_CFI] = MLNX_ACL_FIELD_L2_DEFINE(FLEX_ACL_KEY_DEI, dei),
     /* [SAI_ACL_ENTRY_ATTR_FIELD_INNER_VLAN_ID] = MLNX_ACL_FIELD_INNER_VLAN_DEFINE(FLEX_ACL_KEY_INNER_VLAN_ID, inner_vlan_id), */
@@ -1811,244 +1963,109 @@ acl_group_bound_to_t* sai_acl_db_group_bount_to(_In_ uint32_t group_index)
  *             Failure status code on error
  */
 
-sai_status_t mlnx_acl_deinit()
+sai_status_t mlnx_acl_deinit(void)
 {
     sai_status_t status;
 
     SX_LOG_ENTER();
 
-    status = acl_background_threads_close();
-    if (SAI_STATUS_SUCCESS != status) {
-        SX_LOG_ERR("Failed to close ACL background threads\n");
+    status = mlnx_acl_rpc_thread_close();
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to close ACL RPC thread\n");
+        return status;
     }
 
-    mlnx_acl_foreground_ipc_deinit();
-    mlnx_acl_psort_deinit();
+    status = mlnx_acl_rpc_client_close();
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
     mlnx_acl_table_locks_deinit();
 
-#ifndef _WIN32
-    if (0 != pthread_key_delete(pthread_key)) {
-        SX_LOG_ERR("Failed to delete pthread_key\n");
+    if (mlnx_acl_cb->deinit) {
+        status = mlnx_acl_cb->deinit();
+        if (SAI_ERR(status)) {
+            return status;
+        }
     }
-#endif
-
-    SX_LOG_EXIT();
-    return status;
-}
-
-/*
- *   Routine Description:
- *       Initialize ACL D.B
- *
- *      Arguments:
- *          None
- *
- *         Return Values:
- *             SAI_STATUS_SUCCESS on success
- *             Failure status code on error
- */
-
-sai_status_t mlnx_acl_init()
-{
-    sai_status_t status = SAI_STATUS_SUCCESS;
-
-    SX_LOG_ENTER();
-
-    is_init_process = true;
-
-    sai_acl_db->acl_settings_tbl->initialized                  = false;
-    sai_acl_db->acl_settings_tbl->bg_stop                      = false;
-    sai_acl_db->acl_settings_tbl->background_thread_start_flag = false;
-    sai_acl_db->acl_settings_tbl->rpc_thread_start_flag        = false;
-
-#ifndef _WIN32
-    pthread_condattr_t  cond_attr;
-    pthread_mutexattr_t mutex_attr;
-    uint32_t            ii;
-
-    if (0 != pthread_condattr_init(&cond_attr)) {
-        SX_LOG_ERR("Failed to init contition variable attribute for ACL\n");
-        SX_LOG_EXIT();
-        return SAI_STATUS_NO_MEMORY;
-    }
-
-    if (0 != pthread_mutexattr_init(&mutex_attr)) {
-        SX_LOG_ERR("Failed to init contition variable attribute for ACL\n");
-        status = SAI_STATUS_NO_MEMORY;
-        goto err_cond_attr;
-    }
-
-    if (0 != pthread_condattr_setpshared(&cond_attr, PTHREAD_PROCESS_SHARED)) {
-        SX_LOG_ERR("Failed to set contition variable attribute for ACL - %s\n", strerror(errno));
-        status = SAI_STATUS_FAILURE;
-        goto out;
-    }
-
-    if (0 != pthread_cond_init(&sai_acl_db->acl_settings_tbl->background_thread_init_cond, &cond_attr)) {
-        SX_LOG_ERR("Failed to init contition variable for ACL - %s\n", strerror(errno));
-        status = SAI_STATUS_FAILURE;
-        goto out;
-    }
-
-    if (0 != pthread_cond_init(&sai_acl_db->acl_settings_tbl->rpc_thread_init_cond, &cond_attr)) {
-        SX_LOG_ERR("Failed to init contition variable for ACL - %s\n", strerror(errno));
-        status = SAI_STATUS_FAILURE;
-        goto out;
-    }
-
-    if (0 != pthread_mutexattr_setpshared(&mutex_attr, PTHREAD_PROCESS_SHARED)) {
-        SX_LOG_ERR("Failed to set contition variable attribute for ACL - %s\n", strerror(errno));
-        status = SAI_STATUS_FAILURE;
-        goto out;
-    }
-
-    if (0 != pthread_mutex_init(&acl_cond_mutex, &mutex_attr)) {
-        SX_LOG_ERR("Failed to init mutex for ACL - %s\n", strerror(errno));
-        status = SAI_STATUS_FAILURE;
-        goto out;
-    }
-
-    if (CL_SUCCESS != cl_plock_init_pshared(&sai_acl_db->acl_settings_tbl->lock)) {
-        SX_LOG_ERR("Failed to init cl_plock for ACL\n");
-        status = SAI_STATUS_INSUFFICIENT_RESOURCES;
-        goto out;
-    }
-
-    if (0 != pthread_key_create(&pthread_key, NULL)) {
-        SX_LOG_ERR("Failed to init pthread_key for ACL\n");
-        status = SAI_STATUS_INSUFFICIENT_RESOURCES;
-        goto out;
-    }
-
-    if (0 != pthread_setspecific(pthread_key, &gh_sdk)) {
-        SX_LOG_ERR("Failed to call pthread_setspecific\n");
-        goto out;
-    }
-
-    if (CL_SUCCESS != cl_thread_init(&psort_thread, psort_background_thread, NULL, NULL)) {
-        SX_LOG_ERR("Failed to init acl bg thread\n");
-        status = SAI_STATUS_FAILURE;
-        goto out;
-    }
-
-    if (CL_SUCCESS != cl_thread_init(&rpc_thread, psort_rpc_thread, NULL, NULL)) {
-        SX_LOG_ERR("Failed to init acl req thread\n");
-        status = SAI_STATUS_FAILURE;
-        goto out;
-    }
-
-    sai_acl_db->acl_settings_tbl->entry_db_first_free_index = 0;
-
-    /* Inint ACL entry db */
-    for (ii = 0; ii < ACL_ENTRY_DB_SIZE - 1; ii++) {
-        sai_acl_db->acl_entry_db[ii].is_used = false;
-        sai_acl_db->acl_entry_db[ii].next_entry_index = ii + 1;
-    }
-
-    sai_acl_db->acl_entry_db[ACL_ENTRY_DB_SIZE - 1].is_used = false;
-    sai_acl_db->acl_entry_db[ACL_ENTRY_DB_SIZE - 1].next_entry_index = ACL_INVALID_DB_INDEX;
-
-out:
-    if (0 != pthread_mutexattr_destroy(&mutex_attr)) {
-        SX_LOG_ERR("Failed to destory mutex attribute for ACL\n");
-        status = SAI_STATUS_FAILURE;
-    }
-
-err_cond_attr:
-    if (0 != pthread_condattr_destroy(&cond_attr)) {
-        SX_LOG_ERR("Failed to destory contition variable attribute for ACL\n");
-        status = SAI_STATUS_FAILURE;
-    }
-#endif /* ifndef _WIN32 */
-
-    SX_LOG_EXIT();
-    return status;
-}
-
-/*
- *   Routine Description:
- *       Unitialize ACL Respurces
- *
- *      Arguments:
- *          None
- *
- *         Return Values:
- *             SAI_STATUS_SUCCESS on success
- *             Failure status code on error
- */
-static sai_status_t acl_resources_init()
-{
-    sai_status_t status = SAI_STATUS_SUCCESS;
-
-#ifndef _WIN32
-    struct mq_attr mq_attributes;
-#endif
-
-    SX_LOG_ENTER();
-
-#ifndef _WIN32
-    mq_attributes.mq_flags   = 0;
-    mq_attributes.mq_maxmsg  = ACL_QUEUE_SIZE;
-    mq_attributes.mq_msgsize = ACL_QUEUE_MSG_SIZE;
-    mq_attributes.mq_curmsgs = 0;
-
-    mq_unlink(ACL_QUEUE_NAME);
-
-    fg_mq = mq_open(ACL_QUEUE_NAME, O_CREAT | O_WRONLY | O_NONBLOCK, (S_IRWXU | S_IRWXG | S_IRWXO), &mq_attributes);
-    if (ACL_QUEUE_INVALID_HANDLE == fg_mq) {
-        SX_LOG_ERR("Failed to open acl fg_mq - %s\n", strerror(errno));
-        status = SAI_STATUS_FAILURE;
-        goto out;
-    }
-
-    /* trigger background thread */
-    acl_cond_mutex_lock();
-    sai_acl_db->acl_settings_tbl->background_thread_start_flag = true;
-    if (0 != pthread_cond_signal(&sai_acl_db->acl_settings_tbl->background_thread_init_cond)) {
-        SX_LOG_ERR("Failed to signal condition variable to wake up ACL background thread\n");
-        status = SAI_STATUS_FAILURE;
-        acl_cond_mutex_unlock();
-        goto out;
-    }
-    acl_cond_mutex_unlock();
-#endif
-
-    sai_acl_db->acl_settings_tbl->initialized = true;
-
-#ifndef _WIN32
-out:
-#endif
-    SX_LOG_EXIT();
-    return status;
-}
-
-/*
- *   Routine Description:
- *       Close ACL background threads
- *
- *      Arguments:
- *          None
- *
- *         Return Values:
- *             SAI_STATUS_SUCCESS on success
- *             Failure status code on error
- */
-
-static sai_status_t acl_background_threads_close()
-{
-    sai_status_t status;
-
-    status = acl_psort_background_close();
-    status = acl_psort_rpc_thread_close();
 
 #ifndef _WIN32
     if (0 != pthread_mutex_destroy(&sai_acl_db->acl_settings_tbl->cond_mutex)) {
-        SX_LOG_ERR("Failed to destroy cond variable\n");
-        status = SAI_STATUS_FAILURE;
+        SX_LOG_ERR("Failed to destroy cond_mutex\n");
+        return SAI_STATUS_FAILURE;
     }
-#endif
+
+    if (0 != pthread_key_delete(pthread_sx_handle_key)) {
+        SX_LOG_ERR("Failed to delete pthread_key\n");
+        return SAI_STATUS_FAILURE;
+    }
+#endif /* _WIN32 */
+
+    SX_LOG_EXIT();
+    return status;
+}
+
+sai_status_t mlnx_acl_connect(void)
+{
+    sai_status_t status;
+
+    status = mlnx_acl_cb_table_init();
+    if (SAI_ERR(status)) {
+        return status;
+    }
 
     return status;
+}
+
+sai_status_t mlnx_acl_disconnect(void)
+{
+    sai_status_t status;
+
+    SX_LOG_DBG("Deinitializing ACL on swictch disconnect\n");
+
+    status = mlnx_acl_psort_opt_queue_client_close();
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+    status = mlnx_acl_rpc_client_close();
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_acl_lazy_init(void)
+{
+    sai_status_t status;
+
+    if (sai_acl_db->acl_settings_tbl->lazy_initialized) {
+        return SAI_STATUS_SUCCESS;
+    }
+
+    if (mlnx_acl_cb->lazy_init) {
+        status = mlnx_acl_cb->lazy_init();
+        if (SAI_ERR(status)) {
+            return status;
+        }
+    }
+
+#ifndef _WIN32
+    /* Wake up RPC thread */
+    acl_cond_mutex_lock();
+    sai_acl_db->acl_settings_tbl->rpc_thread_start_flag = true;
+    if (0 != pthread_cond_signal(&sai_acl_db->acl_settings_tbl->rpc_thread_init_cond)) {
+        SX_LOG_ERR("Failed to signal condition variable to wake up ACL RPC thread\n");
+        acl_cond_mutex_unlock();
+        return SAI_STATUS_FAILURE;
+    }
+    acl_cond_mutex_unlock();
+#endif /* _WIN32 */
+
+    sai_acl_db->acl_settings_tbl->lazy_initialized = true;
+
+    return SAI_STATUS_SUCCESS;
 }
 
 /*
@@ -2063,32 +2080,29 @@ static sai_status_t acl_background_threads_close()
  *             Failure status code on error
  */
 
-static sai_status_t acl_psort_background_close()
+static sai_status_t acl_psort_background_close(void)
 {
 #ifndef _WIN32
-    uint32_t msg = ACL_BCKG_THREAD_EXIT_MSG;
+    sai_status_t   status;
+    const uint32_t msg = ACL_BCKG_THREAD_EXIT_MSG;
 
-    if (false == sai_acl_db->acl_settings_tbl->initialized) {
+    if (false == sai_acl_db->acl_settings_tbl->lazy_initialized) {
         sai_acl_db->acl_settings_tbl->bg_stop = true;
-
         acl_cond_mutex_lock();
-        sai_acl_db->acl_settings_tbl->background_thread_start_flag = true;
-        if (0 != pthread_cond_signal(&sai_acl_db->acl_settings_tbl->background_thread_init_cond)) {
+        sai_acl_db->acl_settings_tbl->psort_thread_start_flag = true;
+        if (0 != pthread_cond_signal(&sai_acl_db->acl_settings_tbl->psort_thread_init_cond)) {
             SX_LOG_ERR("Failed to signal condition var to wake up ACL background thread\n");
             acl_cond_mutex_unlock();
             return SAI_STATUS_FAILURE;
         }
         acl_cond_mutex_unlock();
     } else {
-        if (ACL_QUEUE_INVALID_HANDLE == fg_mq) {
-            fg_mq = mq_open(ACL_QUEUE_NAME, O_WRONLY);
-            if (ACL_QUEUE_INVALID_HANDLE == fg_mq) {
-                SX_LOG_ERR("Failed to open mq - %s\n", strerror(errno));
-                return SAI_STATUS_FAILURE;
-            }
+        status = mlnx_acl_psort_opt_queue_client_create();
+        if (SAI_ERR(status)) {
+            return status;
         }
 
-        if (-1 == mq_send(fg_mq, (const char*)&msg, sizeof(msg), ACL_QUEUE_EXIT_MSG_PRIO)) {
+        if (-1 == mq_send(psort_opt_queue_client, (const char*)&msg, sizeof(msg), ACL_QUEUE_EXIT_MSG_PRIO)) {
             SX_LOG_ERR("Failed to send exit msg to background thread - %s\n", strerror(errno));
             return SAI_STATUS_FAILURE;
         }
@@ -2096,7 +2110,7 @@ static sai_status_t acl_psort_background_close()
 
     cl_thread_destroy(&psort_thread);
 
-    if (0 != pthread_cond_destroy(&sai_acl_db->acl_settings_tbl->background_thread_init_cond)) {
+    if (0 != pthread_cond_destroy(&sai_acl_db->acl_settings_tbl->psort_thread_init_cond)) {
         SX_LOG_ERR("Failed to destroy cond variable\n");
         return SAI_STATUS_FAILURE;
     }
@@ -2105,19 +2119,7 @@ static sai_status_t acl_psort_background_close()
     return SAI_STATUS_SUCCESS;
 }
 
-/*
- *   Routine Description:
- *       Close ACL RPC thread
- *
- *      Arguments:
- *          None
- *
- *         Return Values:
- *             SAI_STATUS_SUCCESS on success
- *             Failure status code on error
- */
-
-static sai_status_t acl_psort_rpc_thread_close()
+static sai_status_t mlnx_acl_rpc_thread_close(void)
 {
     sai_status_t status = SAI_STATUS_SUCCESS;
 
@@ -2135,7 +2137,7 @@ static sai_status_t acl_psort_rpc_thread_close()
         acl_cond_mutex_unlock();
     } else {
         rpc_info.type = ACL_RPC_TERMINATE_THREAD;
-        status        = acl_psort_rpc_call(&rpc_info);
+        status        = mlnx_acl_rpc_call(&rpc_info);
     }
 
     cl_thread_destroy(&rpc_thread);
@@ -2149,54 +2151,22 @@ static sai_status_t acl_psort_rpc_thread_close()
     return status;
 }
 
-/*
- *   Routine Description:
- *       Deinitialize ACL IPC
- *
- *      Arguments:
- *          None
- *
- *         Return Values:
- *             None
- */
-
-void mlnx_acl_foreground_ipc_deinit()
+static sai_status_t mlnx_acl_rpc_client_close(void)
 {
 #ifndef _WIN32
-    if (ACL_QUEUE_INVALID_HANDLE != fg_mq) {
-        if (0 != mq_close(fg_mq)) {
-            SX_LOG_ERR("Failed to close ACL mq\n");
-        }
-    }
+    int st;
 
     if (-1 != rpc_cl_socket) {
-        close(rpc_cl_socket);
-    }
-#endif
-}
-
-/*
- *   Routine Description:
- *       Deinitialize pSort recourses
- *
- *      Arguments:
- *          None
- *
- *         Return Values:
- *             None
- */
-
-static void mlnx_acl_psort_deinit()
-{
-    uint32_t table_index;
-
-    for (table_index = 0; table_index < ACL_TABLE_DB_SIZE; table_index++) {
-        if (acl_db_table(table_index).is_used) {
-            __delete_psort_table(table_index);
+        st = close(rpc_cl_socket);
+        if (0 != st) {
+            SX_LOG_ERR("Failed to close ACL RPC socket - %s\n", strerror(errno));
+            return SAI_STATUS_FAILURE;
         }
     }
-}
+#endif
 
+    return SAI_STATUS_SUCCESS;
+}
 
 /*
  *   Routine Description:
@@ -2209,7 +2179,7 @@ static void mlnx_acl_psort_deinit()
  *             None
  */
 
-static void mlnx_acl_table_locks_deinit()
+static void mlnx_acl_table_locks_deinit(void)
 {
     uint32_t ii;
 
@@ -2268,7 +2238,7 @@ static sai_status_t mlnx_acl_table_attrib_get(_In_ const sai_object_key_t   *key
         break;
 
     case SAI_ACL_TABLE_ATTR_SIZE:
-        value->u32 = acl_db_table(acl_table_index).table_size;
+        value->u32 = ACL_SX_REG_SIZE_TO_TABLE_SIZE(acl_db_table(acl_table_index).region_size);
         break;
 
     case SAI_ACL_TABLE_ATTR_ACL_BIND_POINT_TYPE_LIST:
@@ -2540,7 +2510,7 @@ static sai_status_t mlnx_acl_table_available_entries_get(_In_ const sai_object_k
 {
     sai_status_t          status = SAI_STATUS_SUCCESS;
     const acl_table_db_t *acl_table;
-    uint32_t              table_index, free_entries;
+    uint32_t              table_index, free_entries, db_limit;
 
     SX_LOG_ENTER();
 
@@ -2560,10 +2530,12 @@ static sai_status_t mlnx_acl_table_available_entries_get(_In_ const sai_object_k
             goto out;
         }
     } else {
-        free_entries = acl_table->table_size - acl_table->created_entry_count;
+        free_entries = ACL_SX_REG_SIZE_TO_TABLE_SIZE(acl_table->region_size) - acl_table->created_entry_count;
     }
 
-    value->u32 = MIN(ACL_MAX_SX_RULES_NUMBER, free_entries);
+    db_limit = ACL_ENTRY_DB_SIZE - sai_acl_db->acl_settings_tbl->entry_db_indexes_allocated;
+
+    value->u32 = MIN(db_limit, free_entries);
 
 out:
     acl_table_unlock(table_index);
@@ -2683,14 +2655,13 @@ static sai_status_t mlnx_acl_sx_mc_container_set_impl(_In_ sx_access_cmd_t      
     sai_status_t                 status;
     sx_status_t                  sx_status;
     sx_mc_container_attributes_t sx_mc_container_attributes;
-    sx_mc_next_hop_t             sx_mc_next_hops[MAX_PORTS];
+    sx_mc_next_hop_t            *sx_mc_next_hops = NULL;
     uint32_t                     ii;
 
     assert(NULL != port_obj_list);
     assert(NULL != sx_mc_container_id);
 
     memset(&sx_mc_container_attributes, 0, sizeof(sx_mc_container_attributes));
-    memset(&sx_mc_next_hops, 0, sizeof(sx_mc_next_hops));
 
     if (0 == port_obj_list->count) {
         SX_LOG_ERR("Failed to %s sx_mc_container - object list is empty\n", SX_ACCESS_CMD_STR(sx_cmd));
@@ -2703,11 +2674,17 @@ static sai_status_t mlnx_acl_sx_mc_container_set_impl(_In_ sx_access_cmd_t      
         return SAI_STATUS_FAILURE;
     }
 
+    sx_mc_next_hops = calloc(MAX_PORTS, sizeof(*sx_mc_next_hops));
+    if (!sx_mc_next_hops) {
+        SX_LOG_ERR("Failed to allocate memory\n");
+        return SAI_STATUS_NO_MEMORY;
+    }
+
     for (ii = 0; ii < port_obj_list->count; ii++) {
         sx_mc_next_hops[ii].type = SX_MC_NEXT_HOP_TYPE_LOG_PORT;
         status                   = mlnx_sai_port_to_sx(port_obj_list->list[ii], &sx_mc_next_hops[ii].data.log_port);
         if (SAI_ERR(status)) {
-            return status;
+            goto out;
         }
     }
 
@@ -2717,10 +2694,13 @@ static sai_status_t mlnx_acl_sx_mc_container_set_impl(_In_ sx_access_cmd_t      
                                         sx_mc_next_hops, port_obj_list->count, &sx_mc_container_attributes);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Faield to %s sx_mc_container - %s\n", SX_ACCESS_CMD_STR(sx_cmd), SX_STATUS_MSG(sx_status));
-        return sdk_to_sai(sx_status);
+        status = sdk_to_sai(sx_status);
+        goto out;
     }
 
-    return SAI_STATUS_SUCCESS;
+out:
+    free(sx_mc_next_hops);
+    return status;
 }
 
 static sai_status_t mlnx_acl_sx_mc_container_create(_In_ const sai_object_list_t *port_obj_list,
@@ -2749,9 +2729,10 @@ static sai_status_t mlnx_acl_sx_mc_container_sx_ports_get(_In_ sx_mc_container_i
                                                           _Out_ sx_port_log_id_t   *sx_ports,
                                                           _Inout_ uint32_t         *sx_ports_count)
 {
+    sai_status_t                 status = SAI_STATUS_SUCCESS;
     sx_status_t                  sx_status;
     sx_mc_container_attributes_t sx_mc_container_attributes;
-    sx_mc_next_hop_t             sx_mc_next_hops[MAX_PORTS];
+    sx_mc_next_hop_t            *sx_mc_next_hops = NULL;
     uint32_t                     sx_mc_hext_hop_count = MAX_PORTS;
     uint32_t                     ii;
 
@@ -2764,18 +2745,25 @@ static sai_status_t mlnx_acl_sx_mc_container_sx_ports_get(_In_ sx_mc_container_i
     }
 
     memset(&sx_mc_container_attributes, 0, sizeof(sx_mc_container_attributes));
-    memset(sx_mc_next_hops, 0, sizeof(sx_mc_next_hops));
+
+    sx_mc_next_hops = calloc(MAX_PORTS, sizeof(*sx_mc_next_hops));
+    if (!sx_mc_next_hops) {
+        SX_LOG_ERR("Failed to allocate memory\n");
+        return SAI_STATUS_NO_MEMORY;
+    }
 
     sx_status = sx_api_mc_container_get(gh_sdk, SX_ACCESS_CMD_GET, sx_mc_container_id,
                                         sx_mc_next_hops, &sx_mc_hext_hop_count, &sx_mc_container_attributes);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to get sx_mc_container (%d) next hops -%s\n", sx_mc_container_id, SX_STATUS_MSG(sx_status));
-        return sdk_to_sai(sx_status);
+        status = sdk_to_sai(sx_status);
+        goto out;
     }
 
     if (*sx_ports_count < sx_mc_hext_hop_count) {
         SX_LOG_ERR("sx port objects array is to small (%d), needed (%d)\n", *sx_ports_count, sx_mc_hext_hop_count);
-        return SAI_STATUS_BUFFER_OVERFLOW;
+        status = SAI_STATUS_BUFFER_OVERFLOW;
+        goto out;
     }
 
     *sx_ports_count = sx_mc_hext_hop_count;
@@ -2784,13 +2772,16 @@ static sai_status_t mlnx_acl_sx_mc_container_sx_ports_get(_In_ sx_mc_container_i
         if (SX_MC_NEXT_HOP_TYPE_LOG_PORT != sx_mc_next_hops[ii].type) {
             SX_LOG_ERR("Invalid next hop type - %d in sx_mc_container (%d)\n",
                        sx_mc_next_hops[ii].type, sx_mc_container_id);
-            return SAI_STATUS_FAILURE;
+            status = SAI_STATUS_FAILURE;
+            goto out;
         }
 
         sx_ports[ii] = sx_mc_next_hops[ii].data.log_port;
     }
 
-    return SAI_STATUS_SUCCESS;
+out:
+    free(sx_mc_next_hops);
+    return status;
 }
 
 static sai_status_t mlnx_acl_sx_mc_container_sai_ports_get(_In_ sx_mc_container_id_t sx_mc_container_id,
@@ -2798,7 +2789,7 @@ static sai_status_t mlnx_acl_sx_mc_container_sai_ports_get(_In_ sx_mc_container_
                                                            _Inout_ uint32_t         *ports_count)
 {
     sai_status_t        status;
-    sx_port_log_id_t    sx_ports[MAX_PORTS] = {0};
+    sx_port_log_id_t   *sx_ports = NULL;
     mlnx_port_config_t *port_config;
     uint32_t            sx_ports_count = MAX_PORTS, ii;
 
@@ -2810,15 +2801,21 @@ static sai_status_t mlnx_acl_sx_mc_container_sai_ports_get(_In_ sx_mc_container_
         return SAI_STATUS_SUCCESS;
     }
 
+    sx_ports = calloc(MAX_PORTS, sizeof(*sx_ports));
+    if (!sx_ports) {
+        SX_LOG_ERR("Failed to allocate memory\n");
+        return SAI_STATUS_NO_MEMORY;
+    }
+
     status = mlnx_acl_sx_mc_container_sx_ports_get(sx_mc_container_id, sx_ports, &sx_ports_count);
     if (SAI_ERR(status)) {
-        return status;
+        goto out;
     }
 
     for (ii = 0; ii < sx_ports_count; ii++) {
         status = mlnx_port_by_log_id(sx_ports[ii], &port_config);
         if (SAI_ERR(status)) {
-            return status;
+            goto out;
         }
 
         ports[ii] = port_config->saiport;
@@ -2826,7 +2823,9 @@ static sai_status_t mlnx_acl_sx_mc_container_sai_ports_get(_In_ sx_mc_container_
 
     *ports_count = sx_ports_count;
 
-    return SAI_STATUS_SUCCESS;
+out:
+    free(sx_ports);
+    return status;
 }
 
 static sai_status_t mlnx_acl_sx_mc_container_update(_In_ const sai_object_list_t *port_obj_list,
@@ -2954,21 +2953,49 @@ static sai_status_t mlnx_acl_non_trivial_field_to_sx_key(_In_ sai_acl_entry_attr
     return SAI_STATUS_SUCCESS;
 }
 
+static sai_status_t mlxn_acl_field_stage_is_supported(_In_ sai_acl_stage_t         table_stage,
+                                                      _In_ mlnx_acl_field_stage_t  field_stage,
+                                                      _Out_ bool                  *is_supported)
+{
+    assert((table_stage == SAI_ACL_STAGE_INGRESS) || (table_stage == SAI_ACL_STAGE_EGRESS));
+    assert(field_stage <= MLNX_ACL_FIELD_STAGE_MAX);
+    assert(is_supported);
+
+    if (field_stage == MLNX_ACL_FIELD_STAGE_BOTH) {
+        *is_supported = true;
+        return SAI_STATUS_SUCCESS;
+    }
+
+    if (table_stage == (sai_acl_stage_t) field_stage) {
+        *is_supported = true;
+    } else {
+        SX_LOG_ERR("Field's supported stage %s and table's stage %s doesn't match\n",
+                   sai_metadata_get_acl_stage_name(field_stage), sai_metadata_get_acl_stage_name(table_stage));
+        *is_supported = false;
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
 static sai_status_t mlnx_acl_table_is_entry_field_supported(_In_ uint32_t             acl_table_index,
                                                             _In_ sai_acl_entry_attr_t attr_id,
                                                             _Out_ bool               *is_supported)
 {
     sx_status_t           sx_status;
     sai_status_t          status;
+    sai_acl_stage_t       table_stage;
     sx_acl_key_t          table_keys[SX_FLEX_ACL_MAX_FIELDS_IN_KEY] = {FLEX_ACL_KEY_INVALID};
     sx_acl_key_t          field_keys[SX_FLEX_ACL_MAX_FIELDS_IN_KEY] = {FLEX_ACL_KEY_INVALID};
     sx_acl_key_type_t     key_handle;
     mlnx_acl_field_type_t field_type;
+    mlnx_acl_field_stage_t field_stage;
     uint32_t              table_key_count, field_key_count;
     uint32_t              table_key_index, field_key_index;
     bool                  is_key_present;
 
     assert(NULL != is_supported);
+
+    table_stage = acl_db_table(acl_table_index).stage;
 
     field_key_count = 0;
 
@@ -2978,9 +3005,18 @@ static sai_status_t mlnx_acl_table_is_entry_field_supported(_In_ uint32_t       
             return status;
         }
     } else {
-        status = mlnx_acl_field_info_data_fetch(attr_id, &field_type, field_keys, &field_key_count);
+        status = mlnx_acl_field_info_data_fetch(attr_id, &field_type, field_keys, &field_key_count, &field_stage);
         if (SAI_ERR(status)) {
             return status;
+        }
+
+        status = mlxn_acl_field_stage_is_supported(table_stage, field_stage, is_supported);
+        if (SAI_ERR(status)) {
+            return status;
+        }
+
+        if (!*is_supported) {
+            return SAI_STATUS_SUCCESS;
         }
 
         status = mlnx_acl_field_types_to_extra_sx_keys(field_type, field_keys, &field_key_count);
@@ -3021,7 +3057,8 @@ static sai_status_t mlnx_acl_table_is_entry_field_supported(_In_ uint32_t       
 static sai_status_t mlnx_acl_field_info_data_fetch(_In_ sai_attr_id_t               attr_id,
                                                    _Out_opt_ mlnx_acl_field_type_t *fields_types,
                                                    _Out_opt_ sx_acl_key_t          *sx_keys,
-                                                   _Inout_opt_ uint32_t            *sx_key_count)
+                                                   _Inout_opt_ uint32_t            *sx_key_count,
+                                                   _Out_ mlnx_acl_field_stage_t    *supported_stage)
 {
     const mlnx_acl_single_key_field_info_t *single_key_field;
     const mlnx_acl_multi_key_field_info_t  *multi_key_field;
@@ -3038,6 +3075,10 @@ static sai_status_t mlnx_acl_field_info_data_fetch(_In_ sai_attr_id_t           
 
         if (fields_types) {
             *fields_types = single_key_field->field_type;
+        }
+
+        if (supported_stage) {
+            *supported_stage = single_key_field->supported_stage;
         }
 
         return SAI_STATUS_SUCCESS;
@@ -3057,6 +3098,11 @@ static sai_status_t mlnx_acl_field_info_data_fetch(_In_ sai_attr_id_t           
             *fields_types = multi_key_field->field_type;
         }
 
+        if (supported_stage) {
+            /* Currently, all the 'multi_key_field' fields are supported for both stages */
+            *supported_stage = MLNX_ACL_FIELD_STAGE_BOTH;
+        }
+
         return SAI_STATUS_SUCCESS;
     }
 
@@ -3066,12 +3112,15 @@ static sai_status_t mlnx_acl_field_info_data_fetch(_In_ sai_attr_id_t           
 
 static sai_status_t mlnx_acl_table_fields_to_sx(_In_ const sai_attribute_t *attr_list,
                                                 _In_ uint32_t               attr_count,
+                                                _In_ sai_acl_stage_t        table_stage,
                                                 _Out_ sx_acl_key_t         *sx_keys,
                                                 _Inout_ uint32_t           *sx_key_count)
 {
-    sai_status_t          status;
-    mlnx_acl_field_type_t table_fields_types, field_type;
-    uint32_t              new_key_count, ii;
+    sai_status_t           status;
+    mlnx_acl_field_type_t  table_fields_types, field_type;
+    mlnx_acl_field_stage_t field_supported_stage;
+    uint32_t               new_key_count, ii;
+    bool                   is_field_stage_supported;
 
     assert(NULL != attr_list);
     assert(NULL != sx_keys);
@@ -3103,13 +3152,21 @@ static sai_status_t mlnx_acl_table_fields_to_sx(_In_ const sai_attribute_t *attr
         /* Don't fetch IP Type's fields
          * They will be added as a result of 'fields_types' processing */
         if (SAI_ACL_TABLE_ATTR_FIELD_ACL_IP_TYPE != attr_list[ii].id) {
-            status = mlnx_acl_field_info_data_fetch(attr_list[ii].id, &field_type, sx_keys, &new_key_count);
+            status = mlnx_acl_field_info_data_fetch(attr_list[ii].id, &field_type, sx_keys, &new_key_count, &field_supported_stage);
         } else {
-            status = mlnx_acl_field_info_data_fetch(attr_list[ii].id, &field_type, NULL, NULL);
+            status = mlnx_acl_field_info_data_fetch(attr_list[ii].id, &field_type, NULL, NULL, &field_supported_stage);
         }
-
         if (SAI_ERR(status)) {
             return status;
+        }
+
+        status = mlxn_acl_field_stage_is_supported(table_stage, field_supported_stage, &is_field_stage_supported);
+        if (SAI_ERR(status)) {
+            return status;
+        }
+
+        if (!is_field_stage_supported) {
+            return SAI_STATUS_INVALID_ATTRIBUTE_0 + ii;
         }
 
         table_fields_types |= field_type;
@@ -3996,6 +4053,7 @@ sai_status_t acl_db_find_entry_free_index(_Out_ uint32_t *free_index)
     sai_acl_db->acl_settings_tbl->entry_db_first_free_index = new_free_index;
 
     sai_acl_db->acl_entry_db[last_free_index].is_used = true;
+    sai_acl_db->acl_settings_tbl->entry_db_indexes_allocated++;
 
     *free_index = last_free_index;
 
@@ -4226,7 +4284,7 @@ static sai_status_t mlnx_acl_entry_attrib_get(_In_ const sai_object_key_t   *key
         break;
 
     case SAI_ACL_ENTRY_ATTR_PRIORITY:
-        value->u32 = sai_acl_db->acl_entry_db[acl_entry_index].priority;
+        value->u32 = ACL_SX_RULE_PRIO_TO_SAI(sai_acl_db->acl_entry_db[acl_entry_index].sx_prio);
         break;
 
     case SAI_ACL_ENTRY_ATTR_ADMIN_STATE:
@@ -4599,11 +4657,11 @@ out:
     return status;
 }
 
-static sai_status_t mlnx_acl_taable_udf_attrs_parse(_In_ uint32_t               attr_count,
-                                                    _In_ const sai_attribute_t *attr_list,
-                                                    _Out_ sx_acl_key_t         *sx_keys,
-                                                    _Inout_ uint32_t           *sx_key_count,
-                                                    _Out_ acl_udf_group_list_t  udf_group_list)
+static sai_status_t mlnx_acl_table_udf_attrs_parse(_In_ uint32_t               attr_count,
+                                                   _In_ const sai_attribute_t *attr_list,
+                                                   _Out_ sx_acl_key_t         *sx_keys,
+                                                   _Inout_ uint32_t           *sx_key_count,
+                                                   _Out_ acl_udf_group_list_t  udf_group_list)
 {
     sai_status_t                 status;
     sai_acl_table_attr_t         udf_group_attr_id;
@@ -5240,7 +5298,7 @@ static sai_status_t mlnx_acl_entry_ports_get(_In_ const sai_object_key_t   *key,
     sx_flex_acl_flex_rule_t     rule = MLNX_ACL_SX_FLEX_RULE_EMPTY;
     sx_acl_key_t                key_id;
     sx_mc_container_id_t        mc_container = SX_MC_CONTAINER_ID_INVALID;
-    sai_object_id_t             port_object_list[MAX_PORTS] = {0};
+    sai_object_id_t            *port_object_list = NULL;
     uint32_t                    acl_table_index, acl_entry_index, key_index;
     uint32_t                    port_count = MAX_PORTS;
     bool                        is_field_suppoted, is_key_present;
@@ -5306,6 +5364,13 @@ static sai_status_t mlnx_acl_entry_ports_get(_In_ const sai_object_key_t   *key,
         mc_container = SX_MC_CONTAINER_ID_INVALID;
     }
 
+    port_object_list = calloc(MAX_PORTS, sizeof(*port_object_list));
+    if (!port_object_list) {
+        SX_LOG_ERR("Failed to allocate memory\n");
+        status = SAI_STATUS_NO_MEMORY;
+        goto out;
+    }
+
     status = mlnx_acl_sx_mc_container_sai_ports_get(mc_container, port_object_list, &port_count);
     if (SAI_ERR(status)) {
         goto out;
@@ -5323,6 +5388,7 @@ out:
     sai_db_unlock();
 
     mlnx_acl_flex_rule_free(&rule);
+    free(port_object_list);
 
     SX_LOG_EXIT();
     return status;
@@ -5981,7 +6047,7 @@ static sai_status_t mlnx_acl_entry_action_egress_block_port_get(_In_ const sai_o
     sai_status_t         status = SAI_STATUS_SUCCESS;
     sx_flex_acl_flex_rule_t rule = MLNX_ACL_SX_FLEX_RULE_EMPTY;
     sx_mc_container_id_t mc_container;
-    sai_object_id_t      port_object_list[MAX_PORTS] = {0};
+    sai_object_id_t     *port_object_list = NULL;
     uint32_t             acl_table_index, acl_entry_index, action_index;
     uint32_t             port_count = MAX_PORTS;
     bool                 is_action_present;
@@ -6010,6 +6076,13 @@ static sai_status_t mlnx_acl_entry_action_egress_block_port_get(_In_ const sai_o
         mc_container = SX_MC_CONTAINER_ID_INVALID;
     }
 
+    port_object_list = calloc(MAX_PORTS, sizeof(*port_object_list));
+    if (!port_object_list) {
+        SX_LOG_ERR("Failed to allocate memory\n");
+        status = SAI_STATUS_NO_MEMORY;
+        goto out;
+    }
+
     status = mlnx_acl_sx_mc_container_sai_ports_get(mc_container, port_object_list, &port_count);
     if (SAI_ERR(status)) {
         goto out;
@@ -6027,6 +6100,7 @@ out:
     sai_db_unlock();
 
     mlnx_acl_flex_rule_free(&rule);
+    free(port_object_list);
 
     SX_LOG_EXIT();
     return status;
@@ -6042,7 +6116,7 @@ static sai_status_t mlnx_acl_entry_action_redirect_get(_In_ const sai_object_key
     sx_flex_acl_flex_rule_t rule = MLNX_ACL_SX_FLEX_RULE_EMPTY;
     uint32_t                acl_table_index, acl_entry_index;
     sx_ecmp_id_t            sx_ecmp_id;
-    sai_object_id_t         pbs_ports[MAX_PORTS * 2] = {0};
+    sai_object_id_t        *pbs_ports = NULL;
     acl_pbs_index_t         pbs_index;
     uint32_t                action_index = 0, pbs_ports_number, ii;
     bool                    is_action_present;
@@ -6128,7 +6202,14 @@ static sai_status_t mlnx_acl_entry_action_redirect_get(_In_ const sai_object_key
         break;
 
     case SAI_ACL_ENTRY_ATTR_ACTION_REDIRECT_LIST:
-        pbs_ports_number = ARRAY_SIZE(pbs_ports);
+        pbs_ports_number = MAX_PORTS;
+        pbs_ports = calloc(MAX_PORTS, sizeof(*pbs_ports));
+        if (!pbs_ports) {
+            SX_LOG_ERR("Failed to allocate memory\n");
+            status = SAI_STATUS_NO_MEMORY;
+            goto out;
+        }
+
         status = mlnx_acl_pbs_sai_ports_get(pbs_index, pbs_ports, &pbs_ports_number);
         if (SAI_ERR(status)) {
             goto out;
@@ -6147,6 +6228,7 @@ static sai_status_t mlnx_acl_entry_action_redirect_get(_In_ const sai_object_key
 out:
     acl_table_unlock(acl_table_index);
     mlnx_acl_flex_rule_free(&rule);
+    free(pbs_ports);
 
     SX_LOG_EXIT();
     return status;
@@ -6484,23 +6566,20 @@ static sai_status_t mlnx_acl_entry_priority_set(_In_ const sai_object_key_t     
                                                 _In_ const sai_attribute_value_t *value,
                                                 void                             *arg)
 {
-    sx_status_t          sx_status;
-    sai_status_t         status;
-    sx_acl_region_id_t   region_id = 0;
-    sx_acl_rule_offset_t new_rule_offset, old_rule_offset;
-    uint32_t             old_entry_prioriy, new_entry_priority;
-    uint32_t             table_size, table_entries_count;
-    uint32_t             acl_entry_index, acl_table_index;
+    sai_status_t status;
+    uint32_t     prio, sx_prio, acl_entry_index, acl_table_index;
 
     SX_LOG_ENTER();
 
-    new_entry_priority = value->u32;
+    prio = value->u32;
 
-    if ((new_entry_priority < ACL_MIN_ENTRY_PRIO) || (new_entry_priority > ACL_MAX_ENTRY_PRIO)) {
-        SX_LOG_ERR(" priority %u out of range (%u,%u)\n", new_entry_priority, ACL_MIN_ENTRY_PRIO, ACL_MAX_ENTRY_PRIO);
+    if (!ACL_SAI_ENTRY_PRIO_CHECK_RANGE(prio)) {
+        SX_LOG_ERR("Priority %u is out of range (%u,%u)\n", prio, ACL_SAI_ENTRY_MIN_PRIO, ACL_SAI_ENTRY_MAX_PRIO);
         SX_LOG_EXIT();
-        return SAI_STATUS_INVALID_PARAMETER;
+        return SAI_STATUS_INVALID_ATTR_VALUE_0;
     }
+
+    sx_prio = ACL_SAI_ENTRY_PRIO_TO_SX(prio);
 
     status = extract_acl_table_index_and_entry_index(key->key.object_id, &acl_table_index, &acl_entry_index);
     if (SAI_ERR(status)) {
@@ -6510,38 +6589,12 @@ static sai_status_t mlnx_acl_entry_priority_set(_In_ const sai_object_key_t     
 
     acl_table_write_lock(acl_table_index);
 
-    region_id           = acl_db_table(acl_table_index).region_id;
-    table_size          = acl_db_table(acl_table_index).table_size;
-    table_entries_count = acl_db_table(acl_table_index).created_entry_count;
-    old_entry_prioriy   = acl_db_entry(acl_entry_index).priority;
-    old_rule_offset     = acl_db_entry(acl_entry_index).offset;
-
-    if (table_size < table_entries_count + 1) {
-        SX_LOG_ERR("Imposible to change a priority for SAI ACL Entry since SAI ACL Table [%d] is full\n",
-                   acl_table_index);
-        status = SAI_STATUS_FAILURE;
-        goto out;
-    }
-
-    status = get_new_psort_offset(acl_table_index, acl_entry_index, new_entry_priority, &new_rule_offset);
+    status = mlnx_acl_entry_prio_set(acl_table_index, acl_entry_index, sx_prio);
     if (SAI_ERR(status)) {
         goto out;
     }
 
-    sx_status = sx_api_acl_rule_block_move_set(gh_sdk, region_id, old_rule_offset, 1, new_rule_offset);
-    if (SX_ERR(sx_status)) {
-        SX_LOG_ERR("Failed to move rule block\n");
-        status = sdk_to_sai(sx_status);
-        goto out;
-    }
-
-    status = release_psort_offset(acl_table_index, old_entry_prioriy, old_rule_offset);
-    if (SAI_ERR(status)) {
-        goto out;
-    }
-
-    acl_db_entry(acl_entry_index).offset   = new_rule_offset;
-    acl_db_entry(acl_entry_index).priority = new_entry_priority;
+    acl_db_entry(acl_entry_index).sx_prio = sx_prio;
 
 out:
     acl_table_unlock(acl_table_index);
@@ -6561,10 +6614,11 @@ static sai_status_t mlnx_acl_entry_field_set(_In_ const sai_object_key_t      *k
     sx_flex_acl_key_desc_t  rule_extra_key_desc[SX_FLEX_ACL_MAX_FIELDS_IN_KEY];
     sx_flex_acl_flex_rule_t flex_acl_rule = MLNX_ACL_SX_FLEX_RULE_EMPTY;
     mlnx_acl_field_type_t   field_type;
+    mlnx_acl_field_stage_t  field_stage;
     uint32_t                acl_table_index, acl_entry_index;
     uint32_t                field_key_count, field_extra_key_count, ii;
     uint32_t                field_key_index, found_key_index, ip_type_key_count;
-    bool                    is_key_present;
+    bool                    is_key_present, is_field_stage_supported;
 
     SX_LOG_ENTER();
 
@@ -6610,13 +6664,23 @@ static sai_status_t mlnx_acl_entry_field_set(_In_ const sai_object_key_t      *k
 
     field_key_count = 0;
 
-    status = mlnx_acl_field_info_data_fetch(attr_id, &field_type, field_keys, &field_key_count);
+    status = mlnx_acl_field_info_data_fetch(attr_id, &field_type, field_keys, &field_key_count, &field_stage);
     if (SAI_ERR(status)) {
         SX_LOG_EXIT();
         return status;
     }
 
     acl_table_write_lock(acl_table_index);
+
+    status = mlxn_acl_field_stage_is_supported(acl_db_table(acl_table_index).stage, field_stage, &is_field_stage_supported);
+    if (SAI_ERR(status)) {
+        goto out;
+    }
+
+    if (!is_field_stage_supported) {
+        status = SAI_STATUS_INVALID_ATTRIBUTE_0;
+        goto out;
+    }
 
     status = mlnx_acl_entry_sx_acl_rule_get(acl_table_index, acl_entry_index, &flex_acl_rule);
     if (SAI_ERR(status)) {
@@ -8048,7 +8112,7 @@ static sai_status_t mlnx_acl_ip_ident_key_create_or_get(_Out_ sx_acl_key_t *keys
     return SAI_STATUS_SUCCESS;
 }
 
-static sai_status_t mlnx_acl_ip_ident_key_ref_remove()
+static sai_status_t mlnx_acl_ip_ident_key_ref_remove(void)
 {
     sai_status_t                         status;
     sx_acl_custom_bytes_set_attributes_t sx_custom_bytes_attrs;
@@ -8193,8 +8257,8 @@ sai_status_t mlnx_create_acl_entry(_Out_ sai_object_id_t     * acl_entry_id,
     bool     is_out_port_key_present    = false;
     uint32_t table_size, created_entry_count, max_flex_keys;
     bool     is_table_dynamic_sized, is_ip_idnet_used;
-    uint32_t entry_priority;
-    bool     is_psort_offset_alloced = false, is_sx_rule_set = false;
+    uint32_t sx_rule_prio;
+    bool     is_offset_allocated = false, is_sx_rule_set = false;
 
     SX_LOG_ENTER();
 
@@ -8234,7 +8298,7 @@ sai_status_t mlnx_create_acl_entry(_Out_ sai_object_id_t     * acl_entry_id,
     acl_global_lock();
 
     stage                  = acl_db_table(acl_table_index).stage;
-    table_size             = acl_db_table(acl_table_index).table_size;
+    table_size             = ACL_SX_REG_SIZE_TO_TABLE_SIZE(acl_db_table(acl_table_index).region_size);
     created_entry_count    = acl_db_table(acl_table_index).created_entry_count;
     is_table_dynamic_sized = acl_db_table(acl_table_index).is_dynamic_sized;
     is_ip_idnet_used       = acl_db_table(acl_table_index).is_ip_ident_used;
@@ -8264,15 +8328,15 @@ sai_status_t mlnx_create_acl_entry(_Out_ sai_object_id_t     * acl_entry_id,
     if (SAI_STATUS_SUCCESS ==
         (status =
              find_attrib_in_list(attr_count, attr_list, SAI_ACL_ENTRY_ATTR_PRIORITY, &priority, &priority_index))) {
-        if ((priority->u32 < ACL_MIN_ENTRY_PRIO) || (ACL_MAX_ENTRY_PRIO < priority->u32)) {
-            SX_LOG_ERR(" priority %u out of range (%u,%u)\n", priority->u32, ACL_MIN_ENTRY_PRIO, ACL_MAX_ENTRY_PRIO);
+        if (!ACL_SAI_ENTRY_PRIO_CHECK_RANGE(priority->u32)) {
+            SX_LOG_ERR("Priority %u is out of range (%u,%u)\n", priority->u32, ACL_SAI_ENTRY_MIN_PRIO, ACL_SAI_ENTRY_MAX_PRIO);
             status = SAI_STATUS_INVALID_ATTR_VALUE_0 + priority_index;
             goto out;
         }
 
-        entry_priority = priority->u32;
+        sx_rule_prio = ACL_SAI_ENTRY_PRIO_TO_SX(priority->u32);
     } else {
-        entry_priority = ACL_DEFAULT_ENTRY_PRIO;
+        sx_rule_prio = ACL_SAI_ENTRY_PRIO_TO_SX(ACL_DEFAULT_ENTRY_PRIO);
     }
 
     if (SAI_STATUS_SUCCESS ==
@@ -8810,15 +8874,20 @@ sai_status_t mlnx_create_acl_entry(_Out_ sai_object_id_t     * acl_entry_id,
         goto out;
     }
 
-    status = get_new_psort_offset(acl_table_index, acl_entry_index, entry_priority, &sx_acl_rule_offset);
+    status = mlnx_acl_entry_offset_get(acl_table_index, acl_entry_index, sx_rule_prio, &sx_acl_rule_offset);
     if (SAI_ERR(status)) {
-        SX_LOG_ERR("Failed to get offset form pSort\n");
+        SX_LOG_ERR("Failed to get offset for entry\n");
         goto out;
     }
 
-    is_psort_offset_alloced = true;
+    is_offset_allocated = true;
 
-    acl_db_entry(acl_entry_index).priority                     = entry_priority;
+    status = mlnx_acl_sx_rule_prio_set(&flex_acl_rule, sx_rule_prio);
+    if (SAI_ERR(status)) {
+        goto out;
+    }
+
+    acl_db_entry(acl_entry_index).sx_prio                      = sx_rule_prio;
     acl_db_entry(acl_entry_index).offset                       = sx_acl_rule_offset;
     acl_db_entry(acl_entry_index).sx_counter_id                = sx_counter_id;
     acl_db_entry(acl_entry_index).next_entry_index             = ACL_INVALID_DB_INDEX;
@@ -8870,8 +8939,8 @@ out:
             mlnx_acl_db_entry_delete(acl_entry_index);
         }
 
-        if (is_psort_offset_alloced) {
-            release_psort_offset(acl_table_index, entry_priority, sx_acl_rule_offset);
+        if (is_offset_allocated) {
+            mlnx_acl_entry_offset_del(acl_table_index, sx_rule_prio, sx_acl_rule_offset);
         }
 
         if (is_sx_rule_set) {
@@ -8947,7 +9016,7 @@ sai_status_t mlnx_create_acl_table(_Out_ sai_object_id_t     * acl_table_id,
     bool                         is_dynamic_sized;
     uint32_t                     acl_table_index = 0, ii;
     bool                         key_created     = false, region_created = false;
-    bool                         acl_created     = false, psort_table_created = false;
+    bool                         acl_created     = false, is_table_inited = false;
     bool                         is_range_types_unique, is_ip_ident_used = false;
 
     SX_LOG_ENTER();
@@ -8989,7 +9058,7 @@ sai_status_t mlnx_create_acl_table(_Out_ sai_object_id_t     * acl_table_id,
         }
     }
 
-    status = mlnx_acl_table_fields_to_sx(attr_list, attr_count, keys, &key_index);
+    status = mlnx_acl_table_fields_to_sx(attr_list, attr_count, sai_acl_stage, keys, &key_index);
     if (SAI_ERR(status)) {
         return status;
     }
@@ -9088,12 +9157,9 @@ sai_status_t mlnx_create_acl_table(_Out_ sai_object_id_t     * acl_table_id,
     sai_db_write_lock();
     acl_global_lock();
 
-    if (false == sai_acl_db->acl_settings_tbl->initialized) {
-        status = acl_resources_init();
-        if (SAI_STATUS_SUCCESS != status) {
-            SX_LOG_ERR("Failed to initialize ACL resources\n");
-            goto out;
-        }
+    status = mlnx_acl_lazy_init();
+    if (SAI_ERR(status)) {
+        goto out;
     }
 
     status = find_attrib_in_list(attr_count, attr_list, SAI_ACL_TABLE_ATTR_FIELD_IP_IDENTIFICATION, &ip_ident,
@@ -9110,7 +9176,7 @@ sai_status_t mlnx_create_acl_table(_Out_ sai_object_id_t     * acl_table_id,
         }
     }
 
-    status = mlnx_acl_taable_udf_attrs_parse(attr_count, attr_list, keys, &key_index, udf_group_list);
+    status = mlnx_acl_table_udf_attrs_parse(attr_count, attr_list, keys, &key_index, udf_group_list);
     if (SAI_ERR(status)) {
         goto out;
     }
@@ -9129,8 +9195,7 @@ sai_status_t mlnx_create_acl_table(_Out_ sai_object_id_t     * acl_table_id,
     }
     key_created = true;
 
-    /* Additional space for GOTO rule */
-    sx_region_size = acl_table_size + 1;
+    sx_region_size = ACL_TABLE_SIZE_TO_SX_REG_SIZE(acl_table_size);
 
     sx_status = sx_api_acl_region_set(gh_sdk, SX_ACCESS_CMD_CREATE, key_handle,
                                       action_type, sx_region_size, &region_id);
@@ -9153,14 +9218,14 @@ sai_status_t mlnx_create_acl_table(_Out_ sai_object_id_t     * acl_table_id,
     }
     acl_created = true;
 
-    status = init_psort_table(acl_table_index, is_dynamic_sized, sx_region_size);
+    status = mlnx_acl_table_init(acl_table_index, is_dynamic_sized, sx_region_size);
     if (SAI_STATUS_SUCCESS != status) {
         goto out;
     }
-    psort_table_created = true;
+    is_table_inited = true;
 
-    status = get_new_psort_offset(acl_table_index, ACL_INVALID_DB_INDEX,
-                                  ACL_DEFAULT_RULE_PRIO, &default_rule_offset);
+    status = mlnx_acl_entry_offset_get(acl_table_index, ACL_INVALID_DB_INDEX,
+                                  ACL_SX_RULE_DEF_PRIO, &default_rule_offset);
     if (SAI_STATUS_SUCCESS != status) {
         goto out;
     }
@@ -9182,7 +9247,6 @@ sai_status_t mlnx_create_acl_table(_Out_ sai_object_id_t     * acl_table_id,
 
     /* Update D.B */
     acl_db_table(acl_table_index).table_id               = acl_id;
-    acl_db_table(acl_table_index).table_size             = acl_table_size;
     acl_db_table(acl_table_index).region_size            = sx_region_size;
     acl_db_table(acl_table_index).stage                  = sai_acl_stage;
     acl_db_table(acl_table_index).key_type               = key_handle;
@@ -9216,9 +9280,9 @@ out:
     if (status != SAI_STATUS_SUCCESS) {
         acl_db_table(acl_table_index).is_used = false;
 
-        if (psort_table_created) {
-            if (SAI_STATUS_SUCCESS != delete_psort_table(acl_table_index)) {
-                SX_LOG_ERR(" Failed to delete psort table\n");
+        if (is_table_inited) {
+            if (SAI_STATUS_SUCCESS != mlnx_acl_table_deinit(acl_table_index)) {
+                SX_LOG_ERR(" Failed to deinit ACL table\n");
             }
         }
 
@@ -9848,7 +9912,7 @@ static sai_status_t mlnx_delete_acl_table(_In_ sai_object_id_t acl_table_id)
     uint32_t              key_count = 0;
     uint32_t              table_index, group_references;
     sx_acl_key_t          keys[SX_FLEX_ACL_MAX_FIELDS_IN_KEY];
-    bool                  is_ip_idnet_used;
+    bool                  is_ip_ident_used;
 
     SX_LOG_ENTER();
 
@@ -9889,7 +9953,7 @@ static sai_status_t mlnx_delete_acl_table(_In_ sai_object_id_t acl_table_id)
     sx_acl_id        = acl_db_table(table_index).table_id;
     stage            = acl_db_table(table_index).stage;
     key_handle       = acl_db_table(table_index).key_type;
-    is_ip_idnet_used = acl_db_table(table_index).is_ip_ident_used;
+    is_ip_ident_used = acl_db_table(table_index).is_ip_ident_used;
     acl_direction    = acl_sai_stage_to_sx_dir(stage);
 
     /* destroy the ACL */
@@ -9927,13 +9991,19 @@ static sai_status_t mlnx_delete_acl_table(_In_ sai_object_id_t acl_table_id)
         goto out;
     }
 
-    status = delete_psort_table(table_index);
+    status = mlnx_acl_entry_offset_del(table_index, ACL_SX_RULE_DEF_PRIO, acl_db_table(table_index).def_rules_offset);
     if (SAI_ERR(status)) {
-        SX_LOG_ERR(" Failed to delete psort table\n");
+        SX_LOG_ERR("Failed to remove default rule offset\n");
         goto out;
     }
 
-    if (is_ip_idnet_used) {
+    status = mlnx_acl_table_deinit(table_index);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to deinit ACL offset table\n");
+        goto out;
+    }
+
+    if (is_ip_ident_used) {
         status = mlnx_acl_ip_ident_key_ref_remove();
         if (SAI_ERR(status)) {
             goto out;
@@ -10223,14 +10293,14 @@ static sai_status_t mlnx_delete_acl_entry_data(_In_ uint32_t table_index, _In_ u
     sx_flex_acl_rule_offset_t  rule_offset;
     mlnx_acl_port_db_refs_t    refs;
     acl_pbs_index_t            pbs_index;
-    uint32_t                   priority;
+    uint32_t                   sx_prio;
 
     SX_LOG_ENTER();
 
     assert(acl_table_index_check_range(table_index));
     assert(acl_entry_index_check_range(entry_index));
 
-    priority      = acl_db_entry(entry_index).priority;
+    sx_prio       = acl_db_entry(entry_index).sx_prio;
     rule_offset   = acl_db_entry(entry_index).offset;
     pbs_index     = acl_db_entry(entry_index).pbs_index;
 
@@ -10274,9 +10344,8 @@ static sai_status_t mlnx_delete_acl_entry_data(_In_ uint32_t table_index, _In_ u
         goto out;
     }
 
-    status = release_psort_offset(table_index, priority, rule_offset);
+    status = mlnx_acl_entry_offset_del(table_index, sx_prio, rule_offset);
     if (SAI_ERR(status)) {
-        SX_LOG_ERR("Failed to delete psort entry\n");
         goto out;
     }
 
@@ -10307,6 +10376,8 @@ static sai_status_t mlnx_acl_db_entry_delete(_In_ uint32_t entry_index)
 
     sai_acl_db->acl_entry_db[entry_index].is_used = false;
 
+    sai_acl_db->acl_settings_tbl->entry_db_indexes_allocated--;
+
     return SAI_STATUS_SUCCESS;
 }
 
@@ -10314,17 +10385,9 @@ static sai_status_t mlnx_acl_db_entry_add_to_table(_In_ uint32_t table_index, _I
 {
     sai_status_t status;
     uint32_t     old_head_table;
-    bool         is_table_dynamic_sized;
 
     assert(acl_table_index_check_range(table_index));
     assert(acl_entry_index_check_range(entry_index));
-
-    is_table_dynamic_sized = acl_db_table(table_index).is_dynamic_sized;
-
-    if (is_table_dynamic_sized &&
-            (acl_db_table(table_index).created_entry_count > acl_db_table(table_index).table_size)) {
-        acl_db_table(table_index).table_size = acl_db_table(table_index).created_entry_count;
-    }
 
     old_head_table = acl_db_table(table_index).head_entry_index;
 
@@ -10339,7 +10402,7 @@ static sai_status_t mlnx_acl_db_entry_add_to_table(_In_ uint32_t table_index, _I
 
     acl_db_table(table_index).created_entry_count++;
 
-    status = acl_enqueue_table(table_index);
+    status = mlnx_acl_table_optimize(table_index);
     if (SAI_ERR(status)) {
         return status;
     }
@@ -10379,7 +10442,7 @@ static sai_status_t mlnx_acl_db_entry_remove_from_table(_In_ uint32_t table_inde
 
     table->created_entry_count--;
 
-    status = acl_enqueue_table(table_index);
+    status = mlnx_acl_table_optimize(table_index);
     if (SAI_ERR(status)) {
         return status;
     }
@@ -10399,19 +10462,19 @@ static sx_utils_status_t psort_notification_func(_In_ psort_notification_type_e 
 
     switch (notif_type) {
     case PSORT_TABLE_SHIFT_E:
-        if (SAI_STATUS_SUCCESS != update_rules_offsets(shift_param, acl_table_id)) {
+        if (SAI_STATUS_SUCCESS != mlnx_acl_sx_rule_offset_update(shift_param, acl_table_id)) {
             status = SX_UTILS_STATUS_ERROR;
         }
         break;
 
     case PSORT_TABLE_ALMOST_EMPTY_E:
-        if (SAI_STATUS_SUCCESS != acl_table_size_decrease(acl_table_id)) {
+        if (SAI_STATUS_SUCCESS != mlnx_acl_table_size_decrease(acl_table_id)) {
             status = SX_UTILS_STATUS_ERROR;
         }
         break;
 
     case PSORT_TABLE_ALMOST_FULL_E:
-        if (SAI_STATUS_SUCCESS != acl_table_size_increase(acl_table_id)) {
+        if (SAI_STATUS_SUCCESS != mlnx_acl_table_size_increase(acl_table_id)) {
             status = SX_UTILS_STATUS_ERROR;
         }
         break;
@@ -10424,151 +10487,17 @@ static sx_utils_status_t psort_notification_func(_In_ psort_notification_type_e 
     return status;
 }
 
-static uint32_t acl_calculate_delta(_In_ uint32_t acl_table_index)
+static sai_status_t mlnx_acl_table_size_delta_get(_In_ uint32_t   acl_table_index,
+                                                  _Out_ uint32_t *delta)
 {
-    uint32_t delta;
+    uint32_t     res;
 
-    delta = (uint32_t)(acl_db_table(acl_table_index).region_size * ACL_TABLE_SIZE_INC_PERCENT);
-    delta = (delta > ACL_TABLE_SIZE_MIN_DELTA) ? delta : ACL_TABLE_SIZE_MIN_DELTA;
+    res = (uint32_t)(acl_db_table(acl_table_index).region_size * ACL_TABLE_SIZE_INC_PERCENT);
+    res = MAX(res, ACL_TABLE_SIZE_MIN_DELTA);
 
-    return delta;
-}
+    *delta = res;
 
-static sai_status_t acl_table_size_increase(_In_ uint32_t table_index)
-{
-    sai_status_t       status = SAI_STATUS_SUCCESS;
-    sx_status_t        sx_status;
-    sx_utils_status_t  sx_utils_status;
-    sx_acl_key_type_t  key_type;
-    sx_acl_region_id_t region_id;
-    sx_api_handle_t   *sdk_api_handle = NULL;
-    psort_handle_t     psort_handle;
-    sx_acl_size_t      old_size, new_size;
-    uint32_t           delta;
-
-    SX_LOG_ENTER();
-
-    assert(ACL_INVALID_DB_INDEX != table_index);
-
-    psort_handle = acl_db_table(table_index).psort_handle;
-    region_id    = acl_db_table(table_index).region_id;
-    key_type     = acl_db_table(table_index).key_type;
-    old_size     = acl_db_table(table_index).region_size;
-
-    delta    = acl_calculate_delta(table_index);
-    new_size = old_size + delta;
-
-#ifndef _WIN32
-    sdk_api_handle = pthread_getspecific(pthread_key);
-#endif
-    if (NULL == sdk_api_handle) {
-        SX_LOG_ERR("Failed to get sdk_api_handle for thread\n");
-        status = SAI_STATUS_FAILURE;
-        goto out;
-    }
-
-    sx_status = sx_api_acl_region_set(*sdk_api_handle,
-                                      SX_ACCESS_CMD_EDIT,
-                                      key_type,
-                                      SX_ACL_ACTION_TYPE_BASIC,
-                                      new_size,
-                                      &region_id);
-    if (SX_STATUS_SUCCESS != sx_status) {
-        SX_LOG_ERR("Failed to resize a region[%d] %s.\n", table_index, SX_STATUS_MSG(sx_status));
-        status = SAI_STATUS_FAILURE;
-        goto out;
-    }
-
-    sx_utils_status = psort_table_resize(psort_handle, new_size, false, NULL);
-    if (SX_UTILS_STATUS_SUCCESS != sx_utils_status) {
-        SX_LOG_ERR("Failed to resize a table[%d] %s.\n", table_index, SX_UTILS_STATUS_MSG(sx_utils_status));
-        status = SAI_STATUS_FAILURE;
-        goto out;
-    }
-
-    acl_db_table(table_index).region_size = new_size;
-
-out:
-    SX_LOG_EXIT();
-    return status;
-}
-
-static sai_status_t acl_table_size_decrease(_In_ uint32_t table_index)
-{
-    sai_status_t       status = SAI_STATUS_SUCCESS;
-    sx_status_t        sx_status;
-    sx_utils_status_t  sx_utils_status;
-    sx_acl_key_type_t  key_type;
-    sx_acl_region_id_t region_id;
-    sx_api_handle_t   *sdk_api_handle = NULL;
-    psort_handle_t     psort_handle;
-    sx_acl_size_t      new_size, old_size;
-    uint32_t           table_size;
-    uint32_t           entry_count;
-
-    SX_LOG_ENTER();
-
-    assert(ACL_INVALID_DB_INDEX != table_index);
-
-    psort_handle = acl_db_table(table_index).psort_handle;
-    region_id    = acl_db_table(table_index).region_id;
-    key_type     = acl_db_table(table_index).key_type;
-    table_size   = acl_db_table(table_index).table_size;
-    old_size     = acl_db_table(table_index).region_size;
-    entry_count  = acl_db_table(table_index).created_entry_count;
-
-    if (false == acl_db_table(table_index).is_dynamic_sized) {
-        new_size = entry_count + (uint32_t)(entry_count * ACL_TABLE_SIZE_DEC_PERCENT);
-
-        /* Don't decrease static-sized table to size less then value specified by user */
-        if (new_size <= table_size) {
-            status = SAI_STATUS_SUCCESS;
-            goto out;
-        }
-    } else {
-        new_size = old_size / 2;
-        /* A table has one extra rule for goto action, so the real defaul size is ACL_DEFAULT_TABLE_SIZE + 1 */
-        new_size = MAX(new_size, ACL_DEFAULT_TABLE_SIZE + 1);
-
-        if (old_size <= new_size) {
-            status = SAI_STATUS_SUCCESS;
-            goto out;
-        }
-    }
-
-#ifndef _WIN32
-    sdk_api_handle = pthread_getspecific(pthread_key);
-#endif
-    if (NULL == sdk_api_handle) {
-        SX_LOG_ERR("Failed to get sdk_api_handle for thread\n");
-        status = SAI_STATUS_FAILURE;
-        goto out;
-    }
-
-    sx_utils_status = psort_table_resize(psort_handle, new_size, false, NULL);
-    if (SX_UTILS_STATUS_SUCCESS != sx_utils_status) {
-        SX_LOG_ERR("Failed to resize a table[%d] %s.\n", table_index, SX_UTILS_STATUS_MSG(sx_utils_status));
-        status = SAI_STATUS_FAILURE;
-        goto out;
-    }
-
-    sx_status = sx_api_acl_region_set(*sdk_api_handle,
-                                      SX_ACCESS_CMD_EDIT,
-                                      key_type,
-                                      SX_ACL_ACTION_TYPE_BASIC,
-                                      new_size,
-                                      &region_id);
-    if (SX_STATUS_SUCCESS != sx_status) {
-        SX_LOG_ERR("Failed to resize a region[%d] %s.\n", table_index, SX_STATUS_MSG(sx_status));
-        status = SAI_STATUS_FAILURE;
-        goto out;
-    }
-
-    acl_db_table(table_index).region_size = new_size;
-
-out:
-    SX_LOG_EXIT();
-    return status;
+    return SAI_STATUS_SUCCESS;
 }
 
 static sai_status_t create_rpc_server(_Inout_ int *s)
@@ -10625,7 +10554,7 @@ static sai_status_t create_rpc_socket(_Inout_ int *s, _Inout_opt_ struct sockadd
     return status;
 }
 
-static sai_status_t acl_psort_rpc_call(_Inout_ acl_rpc_info_t *rpc_info)
+static sai_status_t mlnx_acl_rpc_call(_Inout_ acl_rpc_info_t *rpc_info)
 {
     sai_status_t status = SAI_STATUS_SUCCESS;
 
@@ -10635,16 +10564,9 @@ static sai_status_t acl_psort_rpc_call(_Inout_ acl_rpc_info_t *rpc_info)
 
     SX_LOG_ENTER();
 
-    if (false == sai_acl_db->acl_settings_tbl->rpc_thread_start_flag) {
-        acl_cond_mutex_lock();
-        sai_acl_db->acl_settings_tbl->rpc_thread_start_flag = true;
-        if (0 != pthread_cond_signal(&sai_acl_db->acl_settings_tbl->rpc_thread_init_cond)) {
-            SX_LOG_ERR("Failed to signal condition var to wake up RPC thread\n");
-            status = SAI_STATUS_FAILURE;
-            acl_cond_mutex_unlock();
-            goto out;
-        }
-        acl_cond_mutex_unlock();
+    if (!sai_acl_db->acl_settings_tbl->rpc_thread_start_flag) {
+        SX_LOG_ERR("Failed to use RPC - RPC thread is not working\n");
+        return SAI_STATUS_FAILURE;
     }
 
     if (-1 == rpc_cl_socket) {
@@ -10683,47 +10605,281 @@ out:
     return status;
 }
 
-static sai_status_t init_psort_table(_In_ uint32_t table_id, _In_ bool is_table_dynamic, _In_ uint32_t size)
+/* SP2 */
+static sai_status_t mlnx_acl_sp2_table_db_init(void)
 {
-    sai_status_t   status;
-    acl_rpc_info_t rpc_info;
+    assert((!acl_sp2_table_db.is_inited) && (acl_sp2_table_db.tables == NULL));
 
-    SX_LOG_ENTER();
-
-    if (is_init_process) {
-        status = __init_psort_table(table_id, is_table_dynamic, size);
-    } else {
-        memset(&rpc_info, 0, sizeof(rpc_info));
-        rpc_info.type                  = ACL_RPC_PSORT_TABLE_INIT;
-        rpc_info.args.table_id         = table_id;
-        rpc_info.args.table_is_dynamic = is_table_dynamic;
-        rpc_info.args.size             = size;
-
-        status = acl_psort_rpc_call(&rpc_info);
+    acl_sp2_table_db.tables = calloc(ACL_TABLE_DB_SIZE, sizeof(acl_sp2_table_db.tables[0]));
+    if (!acl_sp2_table_db.tables) {
+        SX_LOG_ERR("Failed to allocate memory for acl_sp2_table_db\n");
+        return SAI_STATUS_NO_MEMORY;
     }
 
-    SX_LOG_EXIT();
+    acl_sp2_table_db.is_inited = true;
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_acl_table_init_sp2(_In_ uint32_t table_db_idx,
+                                            _In_ bool     is_table_dynamic,
+                                            _In_ uint32_t size)
+{
+    mlnx_acl_sp2_table_t *table;
+    uint32_t              ii;
+
+    assert(acl_sp2_table_db.is_inited);
+    assert(acl_table_index_check_range(table_db_idx));
+
+    table = &acl_sp2_table_db.tables[table_db_idx];
+
+    if (table->is_inited) {
+        SX_LOG_ERR("Table %d in acl_sp2_table_db is ininted\n", table_db_idx);
+        return SAI_STATUS_FAILURE;
+    }
+
+    table->offsets = calloc(size, sizeof(table->offsets[0]));
+    if (!table->offsets) {
+        SX_LOG_ERR("Failed to allocate memory for mlnx_acl_sp2_reg_offset_t\n");
+        return SAI_STATUS_NO_MEMORY;
+    }
+
+    table->size = size;
+    table->allocated = 0;
+    table->is_inited = true;
+    table->next_free_index = 0;
+
+    for (ii = 0; ii < size - 1; ii++) {
+        table->offsets[ii].next_free_offset_idx = ii + 1;
+    }
+
+    table->offsets[size - 1].next_free_offset_idx = ACL_INVALID_DB_INDEX;
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_acl_table_deinit_sp2(_In_ uint32_t table_db_idx)
+{
+    mlnx_acl_sp2_table_t *table;
+
+    assert(acl_sp2_table_db.is_inited);
+
+    table = &acl_sp2_table_db.tables[table_db_idx];
+
+    if (!table->is_inited) {
+        SX_LOG_ERR("Table %u in acl_sp2_table_db is not inited\n", table_db_idx);
+        return SAI_STATUS_FAILURE;
+    }
+
+    if (table->allocated > 0) {
+        SX_LOG_ERR("Table %u in acl_sp2_table_db is not empty, allocated offsets - %u\n", table_db_idx, table->allocated);
+        return SAI_STATUS_FAILURE;
+    }
+
+    free(table->offsets);
+
+    memset(table, 0, sizeof(*table));
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_acl_entry_offset_get_sp2(_In_ uint32_t               table_db_idx,
+                                                  _In_ uint32_t               entry_db_idx,
+                                                  _In_ uint32_t               priority,
+                                                  _Out_ sx_acl_rule_offset_t *sx_offset)
+{
+    sai_status_t          status;
+    mlnx_acl_sp2_table_t *table;
+    int32_t               free_offset;
+
+    assert(acl_sp2_table_db.is_inited);
+
+    table = &acl_sp2_table_db.tables[table_db_idx];
+
+    if (!table->is_inited) {
+        SX_LOG_ERR("Table %u in acl_sp2_table_db is not inited\n", table_db_idx);
+        return SAI_STATUS_FAILURE;
+    }
+
+    status = mlnx_acl_table_check_size_increase(table_db_idx);
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+    if (table->next_free_index == ACL_INVALID_DB_INDEX) {
+        SX_LOG_ERR("Failed to allocate new offset - table %u is full\n", table_db_idx);
+        return SAI_STATUS_FAILURE;
+    }
+
+    free_offset = table->next_free_index;
+    table->next_free_index = table->offsets[free_offset].next_free_offset_idx;
+    table->offsets[free_offset].next_free_offset_idx = ACL_INVALID_DB_INDEX;
+
+    *sx_offset = free_offset;
+    table->allocated++;
+
+    SX_LOG_DBG("ACL table idx %d: added entry offset %u, allocated - %u, table size = %u\n", table_db_idx, free_offset,
+               table->allocated, table->size);
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_acl_entry_offset_del_sp2(_In_ uint32_t             table_db_idx,
+                                                  _In_ uint32_t             priority,
+                                                  _In_ sx_acl_rule_offset_t offset)
+{    
+    mlnx_acl_sp2_table_t *table;
+    uint32_t              next_free_offset;
+
+    assert(acl_sp2_table_db.is_inited);
+
+    table = &acl_sp2_table_db.tables[table_db_idx];
+
+    if (!table->is_inited) {
+        SX_LOG_ERR("Table %u in acl_sp2_table_db is not inited\n", table_db_idx);
+        return SAI_STATUS_FAILURE;
+    }
+
+    if (table->allocated == 0) {
+        SX_LOG_ERR("Attempt to free offset while table->allocated = 0\n");
+        return SAI_STATUS_FAILURE;
+    }
+
+    if (table->size <= offset) {
+        SX_LOG_ERR("Offset %u is out of range, table size - %u\n", offset, table->size);
+        return SAI_STATUS_FAILURE;
+    }
+
+    next_free_offset = table->next_free_index;
+    table->offsets[offset].next_free_offset_idx = next_free_offset;
+    table->next_free_index = offset;
+
+    table->allocated--;
+
+    SX_LOG_DBG("ACL table idx %d: deinited entry offset %u, allocated - %u, table size = %u\n", table_db_idx, offset,
+               table->allocated, table->size);
+
+    return SAI_STATUS_SUCCESS;
+}
+
+
+static sai_status_t mlnx_acl_entry_prio_set_sp2(_In_ uint32_t table_db_idx,
+                                                _In_ uint32_t entry_db_idx,
+                                                _In_ uint32_t sx_prio)
+{
+    sai_status_t            status;
+    sx_flex_acl_flex_rule_t sx_rule = MLNX_ACL_SX_FLEX_RULE_EMPTY;
+
+    status = mlnx_acl_entry_sx_acl_rule_get(table_db_idx, entry_db_idx, &sx_rule);
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+    sx_rule.priority = sx_prio;
+
+    status = mlnx_acl_entry_sx_acl_rule_set(table_db_idx, entry_db_idx, &sx_rule);
+    if (SAI_ERR(status)) {
+        goto out;
+    }
+
+out:
+    mlnx_acl_flex_rule_free(&sx_rule);
     return status;
 }
 
-static sai_status_t __init_psort_table(_In_ uint32_t table_id, _In_ bool is_table_dynamic, _In_ uint32_t size)
+static sai_status_t mlnx_acl_deinit_sp2(void)
 {
-    sai_status_t       status = SAI_STATUS_SUCCESS;
+    uint32_t ii;
+
+    if (!acl_sp2_table_db.is_inited) {
+        return SAI_STATUS_SUCCESS;
+    }
+
+    for (ii = 0; ii < ACL_TABLE_DB_SIZE; ii++) {
+        if (acl_sp2_table_db.tables[ii].is_inited) {
+            free(acl_sp2_table_db.tables[ii].offsets);
+        }
+    }
+
+    free(acl_sp2_table_db.tables);
+    acl_sp2_table_db.is_inited = false;
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_acl_table_size_set_sp2(_In_ uint32_t table_db_idx,
+                                                _In_ uint32_t size)
+{
+    mlnx_acl_sp2_table_t *table;
+    uint32_t              ii, new_offsets_idx_start;
+
+    assert(acl_sp2_table_db.is_inited);
+    assert(acl_sp2_table_db.tables);
+
+    table = &acl_sp2_table_db.tables[table_db_idx];
+
+    /* Tables don't get decreased */
+    if (size <= table->size) {
+        return SAI_STATUS_SUCCESS;
+    }
+
+    table->offsets = realloc(table->offsets, size * sizeof(table->offsets[0]));
+    if (!table->offsets) {
+        SX_LOG_ERR("Failed to realloc table->offsets for table %d\n", table_db_idx);
+        return SAI_STATUS_NO_MEMORY;
+    }
+
+    new_offsets_idx_start = table->size;
+
+    /* Building a linked list of new free offsets */
+    for (ii = new_offsets_idx_start; ii < size - 1; ii++) {
+        table->offsets[ii].next_free_offset_idx = ii + 1;
+    }
+
+    table->offsets[size - 1].next_free_offset_idx = table->next_free_index;
+    table->next_free_index = new_offsets_idx_start;
+
+    table->size = size;
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_acl_sx_rule_prio_set_sp2(_In_ sx_flex_acl_flex_rule_t *rule,
+                                                  _In_ uint32_t                 sx_prio)
+{
+    rule->priority = sx_prio;
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_acl_init_sp2(void) {
+    sai_status_t status;
+
+    status = mlnx_acl_sp2_table_db_init();
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
+/* SP1 */
+static sai_status_t mlnx_acl_table_init_sp(_In_ uint32_t table_db_idx,
+                                           _In_ bool     is_table_dynamic,
+                                           _In_ uint32_t size)
+{
     sx_utils_status_t  sx_status;
     psort_init_param_t psort_init_param;
 
-    SX_LOG_ENTER();
-
-    if (!acl_table_index_check_range(table_id)) {
+    if (!acl_table_index_check_range(table_db_idx)) {
         SX_LOG_ERR("Attempt to use invalid ACL Table DB index\n");
-        status = SAI_STATUS_FAILURE;
-        goto out;
+        return SAI_STATUS_FAILURE;
     }
 
     memset(&psort_init_param, 0, sizeof(psort_init_param));
 
     psort_init_param.table_size     = size;
-    psort_init_param.cookie         = (void*)(intptr_t)table_id;
+    psort_init_param.cookie         = (void*)(intptr_t)table_db_idx;
     psort_init_param.delta_size     = 1;
     psort_init_param.min_priority   = ACL_PSORT_TABLE_MIN_PRIO;
     psort_init_param.max_priority   = ACL_PSORT_TABLE_MAX_PRIO;
@@ -10737,85 +10893,417 @@ static sai_status_t __init_psort_table(_In_ uint32_t table_id, _In_ bool is_tabl
         psort_init_param.table_almost_full_precentage_threshold  = PSORT_ALMOST_FULL_PERC_STATIC;
     }
 
-    sx_status = psort_init(&acl_db_table(table_id).psort_handle, &psort_init_param);
+    sx_status = psort_init(&acl_db_table(table_db_idx).psort_handle, &psort_init_param);
     if (SX_UTILS_STATUS_SUCCESS != sx_status) {
         SX_LOG_ERR("Failed to create psort table - %s\n", SX_UTILS_STATUS_MSG(sx_status));
-        status = SAI_STATUS_FAILURE;
+        return SAI_STATUS_FAILURE;
     }
 
-out:
-    SX_LOG_EXIT();
-    return status;
+    return SAI_STATUS_SUCCESS;
 }
 
-static sai_status_t delete_psort_table(_In_ uint32_t table_id)
+static sai_status_t mlnx_acl_table_deinit_sp(_In_ uint32_t table_db_idx)
 {
-    sai_status_t   status;
-    acl_rpc_info_t rpc_info;
-
-    SX_LOG_ENTER();
-
-    if (is_init_process) {
-        status = __delete_psort_table(table_id);
-    } else {
-        memset(&rpc_info, 0, sizeof(rpc_info));
-        rpc_info.type          = ACL_RPC_PSORT_TABLE_DELETE;
-        rpc_info.args.table_id = table_id;
-
-        status = acl_psort_rpc_call(&rpc_info);
-    }
-
-    SX_LOG_EXIT();
-    return status;
-}
-
-static sai_status_t __delete_psort_table(_In_ uint32_t table_id)
-{
-    sai_status_t      status = SAI_STATUS_SUCCESS;
     sx_utils_status_t sx_status;
     psort_handle_t    psort_handle;
 
-    SX_LOG_ENTER();
-
-    if (!acl_table_index_check_range(table_id)) {
+    if (!acl_table_index_check_range(table_db_idx)) {
         SX_LOG_ERR("Attempt to use invalid ACL Table DB index\n");
-        status = SAI_STATUS_FAILURE;
-        goto out;
+        return SAI_STATUS_FAILURE;
     }
 
-    psort_handle = acl_db_table(table_id).psort_handle;
+    psort_handle = acl_db_table(table_db_idx).psort_handle;
 
     sx_status = psort_clear_table(psort_handle);
     if (SX_UTILS_STATUS_SUCCESS != sx_status) {
         SX_LOG_ERR("Failed to delete psort table - %s\n", SX_UTILS_STATUS_MSG(sx_status));
-        status = SAI_STATUS_FAILURE;
+        return SAI_STATUS_FAILURE;
     }
 
-out:
-    SX_LOG_EXIT();
-    return status;
+    return SAI_STATUS_SUCCESS;
 }
 
-static sai_status_t get_new_psort_offset(_In_ uint32_t                 table_id,
-                                         _In_ uint32_t                 entry_id,
-                                         _In_ uint32_t                 priority,
-                                         _Inout_ sx_acl_rule_offset_t *offset)
+static sai_status_t mlnx_acl_entry_offset_get_sp(_In_ uint32_t               table_db_idx,
+                                                 _In_ uint32_t               entry_db_idx,
+                                                 _In_ uint32_t               priority,
+                                                 _Out_ sx_acl_rule_offset_t *sx_offset)
+{
+    sai_status_t      status = SAI_STATUS_SUCCESS;
+    sx_utils_status_t sx_status;
+    psort_handle_t    psort_handle;
+    psort_entry_t     psort_entry;
+
+    assert(acl_table_index_check_range(table_db_idx));
+
+    status = mlnx_acl_table_check_size_increase(table_db_idx);
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+    psort_handle         = acl_db_table(table_db_idx).psort_handle;
+    psort_entry.key      = entry_db_idx;
+    psort_entry.priority = priority;
+
+    sx_status = psort_entry_set(psort_handle, SX_UTILS_CMD_ADD, &psort_entry);
+    if (SX_UTILS_STATUS_SUCCESS != sx_status) {
+        SX_LOG_ERR("Failed to get offset form pSort - %s\n", SX_UTILS_STATUS_MSG(sx_status));
+        return SAI_STATUS_FAILURE;
+    }
+
+    SX_LOG_DBG("Added psort entry (index %u, prio %u)\n", psort_entry.index, psort_entry.priority);
+
+    *sx_offset = psort_entry.index;
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_acl_entry_offset_del_sp(_In_ uint32_t             table_db_idx,
+                                                 _In_ uint32_t             priority,
+                                                 _In_ sx_acl_rule_offset_t offset)
+{
+    sx_utils_status_t sx_status;
+    psort_handle_t    psort_handle;
+    psort_entry_t     psort_entry;
+
+    if (!acl_table_index_check_range(table_db_idx)) {
+        SX_LOG_ERR("Attempt to use invalid ACL Table DB index\n");
+        return SAI_STATUS_FAILURE;
+    }
+
+    psort_handle         = acl_db_table(table_db_idx).psort_handle;
+    psort_entry.priority = priority;
+    psort_entry.index    = offset;
+
+    sx_status = psort_entry_set(psort_handle, SX_UTILS_CMD_DELETE, &psort_entry);
+    if (SX_UTILS_STATUS_SUCCESS != sx_status) {
+        SX_LOG_ERR("Failed to remove (index %u, prio %u) from psort - %s\n", offset, priority,
+                   SX_UTILS_STATUS_MSG(sx_status));
+        return SAI_STATUS_FAILURE;
+    }
+
+    SX_LOG_DBG("Removed psort entry (index %u, prio %u)\n", priority, offset);
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_acl_entry_prio_set_sp(_In_ uint32_t table_db_idx,
+                                               _In_ uint32_t entry_db_idx,
+                                               _In_ uint32_t sx_prio)
+{
+    sx_status_t          sx_status;
+    sai_status_t         status;
+    sx_acl_region_id_t   region_id;
+    sx_acl_rule_offset_t new_rule_offset, old_rule_offset;
+    uint32_t             old_sx_prio, table_size, table_entries_count;
+
+    table_size          = ACL_SX_REG_SIZE_TO_TABLE_SIZE(acl_db_table(table_db_idx).region_size);
+    region_id           = acl_db_table(table_db_idx).region_id;
+    table_entries_count = acl_db_table(table_db_idx).created_entry_count;
+    old_sx_prio         = acl_db_entry(entry_db_idx).sx_prio;
+
+    if (table_size < table_entries_count + 1) {
+        SX_LOG_ERR("Impossible to change a priority for SAI ACL Entry since SAI ACL Table [%d] is full\n",
+                   table_db_idx);
+        return SAI_STATUS_FAILURE;
+    }
+
+    status = mlnx_acl_entry_offset_get(table_db_idx, entry_db_idx, sx_prio, &new_rule_offset);
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+    /* It can be changed in mlnx_acl_entry_offset_get */
+    old_rule_offset = acl_db_entry(entry_db_idx).offset;
+
+    SX_LOG_DBG("Moving ACL table %u entry idx %u: %u -> %u\n", table_db_idx, entry_db_idx, old_rule_offset, new_rule_offset);
+
+    sx_status = sx_api_acl_rule_block_move_set(gh_sdk, region_id, old_rule_offset, 1, new_rule_offset);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to move rule block - %s\n", SX_STATUS_MSG(sx_status));
+        return status;
+    }
+
+    status = mlnx_acl_entry_offset_del(table_db_idx, old_sx_prio, old_rule_offset);
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+    acl_db_entry(entry_db_idx).offset = new_rule_offset;
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_acl_init_sp(void)
+{
+#ifndef _WIN32
+    pthread_condattr_t  cond_attr;
+
+    if (0 != pthread_condattr_init(&cond_attr)) {
+        SX_LOG_ERR("Failed to init condition variable attribute for ACL\n");
+        return SAI_STATUS_NO_MEMORY;
+    }
+
+    if (0 != pthread_condattr_setpshared(&cond_attr, PTHREAD_PROCESS_SHARED)) {
+        SX_LOG_ERR("Failed to set condition variable attribute for ACL - %s\n", strerror(errno));
+        return SAI_STATUS_NO_MEMORY;
+    }
+
+    if (0 != pthread_cond_init(&sai_acl_db->acl_settings_tbl->psort_thread_init_cond, &cond_attr)) {
+        SX_LOG_ERR("Failed to init condition variable for ACL - %s\n", strerror(errno));
+        return SAI_STATUS_NO_MEMORY;
+    }
+
+    if (CL_SUCCESS != cl_thread_init(&psort_thread, psort_background_thread, NULL, NULL)) {
+        SX_LOG_ERR("Failed to init psort thread\n");
+        return SAI_STATUS_NO_MEMORY;
+    }
+
+    if (0 != pthread_condattr_destroy(&cond_attr)) {
+        SX_LOG_ERR("Failed to destory condition variable attribute for ACL\n");
+        return SAI_STATUS_FAILURE;
+    }
+#endif /* _WIN32 */
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_acl_psort_opt_queue_create(void)
+{
+#ifndef _WIN32
+    struct mq_attr mq_attributes;
+
+    memset(&mq_attributes, 0, sizeof(mq_attributes));
+
+    mq_attributes.mq_flags   = 0;
+    mq_attributes.mq_maxmsg  = ACL_QUEUE_SIZE;
+    mq_attributes.mq_msgsize = ACL_QUEUE_MSG_SIZE;
+    mq_attributes.mq_curmsgs = 0;
+
+    mq_unlink(ACL_QUEUE_NAME);
+
+    psort_opt_queue_client = mq_open(ACL_QUEUE_NAME, O_CREAT | O_WRONLY | O_NONBLOCK, (S_IRWXU | S_IRWXG | S_IRWXO), &mq_attributes);
+    if (ACL_QUEUE_INVALID_HANDLE == psort_opt_queue_client) {
+        SX_LOG_ERR("Failed to open acl fg_mq - %s\n", strerror(errno));
+        return SAI_STATUS_FAILURE;
+    }
+#endif /* _WIN32 */
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_acl_psort_opt_queue_client_create(void)
+{
+#ifndef _WIN32
+    if (ACL_QUEUE_INVALID_HANDLE == psort_opt_queue_client) {
+        psort_opt_queue_client = mq_open(ACL_QUEUE_NAME, O_WRONLY | O_NONBLOCK);
+        if (ACL_QUEUE_INVALID_HANDLE == psort_opt_queue_client) {
+            SX_LOG_ERR("Failed to open mq - %s\n", strerror(errno));
+            return SAI_STATUS_FAILURE;
+        }
+    }
+#endif /* _WIN32 */
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_acl_psort_opt_queue_client_close(void)
+{
+#ifndef _WIN32
+    if (ACL_QUEUE_INVALID_HANDLE != psort_opt_queue_client) {
+        if (0 != mq_close(psort_opt_queue_client)) {
+            SX_LOG_ERR("Failed to close ACL psort optimization queue - %s\n", strerror(errno));
+            return SAI_STATUS_FAILURE;
+        }
+    }
+#endif /* _WIN32 */
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_acl_lazy_init_sp(void)
+{
+    sai_status_t status;
+
+    status = mlnx_acl_psort_opt_queue_create();
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+#ifndef _WIN32
+    /* Wake up ACL pSort optimizations thread */
+    acl_cond_mutex_lock();
+    sai_acl_db->acl_settings_tbl->psort_thread_start_flag = true;
+    if (0 != pthread_cond_signal(&sai_acl_db->acl_settings_tbl->psort_thread_init_cond)) {
+        SX_LOG_ERR("Failed to signal condition var to wake up ACL psort thread\n");
+        acl_cond_mutex_unlock();
+        return SAI_STATUS_FAILURE;
+    }
+    acl_cond_mutex_unlock();
+#endif /* _WIN32 */
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_acl_deinit_sp(void)
+{
+    sai_status_t status;
+    uint32_t     table_index;
+
+    status = acl_psort_background_close();
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to close pSort background thread\n");
+        return status;
+    }
+
+    status = mlnx_acl_psort_opt_queue_client_close();
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+    for (table_index = 0; table_index < ACL_TABLE_DB_SIZE; table_index++) {
+        if (acl_db_table(table_index).is_used) {
+            status = mlnx_acl_table_deinit_sp(table_index);
+            if (SAI_ERR(status)) {
+                return status;
+            }
+        }
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_acl_table_size_set_sp(_In_ uint32_t table_db_idx,
+                                               _In_ uint32_t size)
+{
+    sx_utils_status_t  sx_utils_status;
+    psort_handle_t     psort_handle;
+
+    assert(acl_table_index_check_range(table_db_idx));
+
+    psort_handle = acl_db_table(table_db_idx).psort_handle;
+
+    sx_utils_status = psort_table_resize(psort_handle, size, false, NULL);
+    if (SX_UTILS_STATUS_SUCCESS != sx_utils_status) {
+        SX_LOG_ERR("Failed to resize a table[%d] %s.\n", table_db_idx, SX_UTILS_STATUS_MSG(sx_utils_status));
+        return SAI_STATUS_FAILURE;
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_acl_table_optimize_sp(_In_ uint32_t table_db_idx)
+{
+#ifndef _WIN32
+    sai_status_t status;
+
+    if (!sai_acl_db->acl_settings_tbl->psort_thread_start_flag) {
+        SX_LOG_ERR("Failed to optimize - ACL pSort thread is not working\n");
+        return SAI_STATUS_FAILURE;
+    }
+
+    status = mlnx_acl_psort_opt_queue_client_create();
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+    acl_db_table(table_db_idx).queued++;
+    if (-1 == mq_send(psort_opt_queue_client, (const char*)&table_db_idx,
+                      sizeof(table_db_idx), ACL_QUEUE_DEF_MSG_PRIO)) {
+        if (EAGAIN == errno) {
+            SX_LOG_NTC("Failed to enqueue table %d - queue is full\n", table_db_idx);
+            acl_db_table(table_db_idx).queued--;
+            return SAI_STATUS_SUCCESS;
+        } else {
+            SX_LOG_ERR("Failed to enqueue table %d - %s\n", table_db_idx, strerror(errno));
+            acl_db_table(table_db_idx).queued--;
+            return SAI_STATUS_FAILURE;
+        }
+    }
+
+#endif
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_acl_sx_rule_prio_set_sp(_In_ sx_flex_acl_flex_rule_t *rule,
+                                                 _In_ uint32_t                 sx_prio)
+{
+    rule->priority = FLEX_ACL_INVALID_RULE_PRIORITY;
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_acl_table_init(_In_ uint32_t table_db_idx,
+                                        _In_ bool     is_table_dynamic,
+                                        _In_ uint32_t size)
 {
     sai_status_t   status;
     acl_rpc_info_t rpc_info;
 
     SX_LOG_ENTER();
 
+    assert(mlnx_acl_cb);
+
     if (is_init_process) {
-        status = __get_new_psort_offset(table_id, entry_id, priority, offset);
+        status = mlnx_acl_cb->table_init(table_db_idx, is_table_dynamic, size);
     } else {
         memset(&rpc_info, 0, sizeof(rpc_info));
-        rpc_info.type            = ACL_RPC_PSORT_ENTRY_CREATE;
-        rpc_info.args.table_id   = table_id;
-        rpc_info.args.entry_id   = entry_id;
-        rpc_info.args.entry_prio = priority;
+        rpc_info.type                  = ACL_RPC_TABLE_INIT;
+        rpc_info.args.table_id         = table_db_idx;
+        rpc_info.args.table_is_dynamic = is_table_dynamic;
+        rpc_info.args.size             = size;
 
-        status  = acl_psort_rpc_call(&rpc_info);
+        status = mlnx_acl_rpc_call(&rpc_info);
+    }
+
+    SX_LOG_EXIT();
+    return status;
+}
+
+static sai_status_t mlnx_acl_table_deinit(_In_ uint32_t table_db_idx)
+{
+    sai_status_t   status;
+    acl_rpc_info_t rpc_info;
+
+    SX_LOG_ENTER();
+
+    assert(mlnx_acl_cb);
+
+    if (is_init_process) {
+        status = mlnx_acl_cb->table_deinit(table_db_idx);
+    } else {
+        memset(&rpc_info, 0, sizeof(rpc_info));
+        rpc_info.type          = ACL_RPC_TABLE_DELETE;
+        rpc_info.args.table_id = table_db_idx;
+
+        status = mlnx_acl_rpc_call(&rpc_info);
+    }
+
+    SX_LOG_EXIT();
+    return status;
+}
+
+static sai_status_t mlnx_acl_entry_offset_get(_In_ uint32_t                 table_db_idx,
+                                              _In_ uint32_t                 entry_db_idx,
+                                              _In_ uint32_t                 sx_prio,
+                                              _Inout_ sx_acl_rule_offset_t *offset)
+{
+    sai_status_t   status;
+    acl_rpc_info_t rpc_info;
+
+    SX_LOG_ENTER();
+
+    assert(mlnx_acl_cb);
+
+    if (is_init_process) {
+        status = mlnx_acl_cb->entry_offset_get(table_db_idx, entry_db_idx, sx_prio, offset);
+    } else {
+        memset(&rpc_info, 0, sizeof(rpc_info));
+        rpc_info.type            = ACL_RPC_ENTRY_OFFSET_GET;
+        rpc_info.args.table_id   = table_db_idx;
+        rpc_info.args.entry_id   = entry_db_idx;
+        rpc_info.args.entry_prio = sx_prio;
+
+        status  = mlnx_acl_rpc_call(&rpc_info);
         *offset = rpc_info.args.entry_offset;
     }
 
@@ -10823,110 +11311,311 @@ static sai_status_t get_new_psort_offset(_In_ uint32_t                 table_id,
     return status;
 }
 
-static sai_status_t __get_new_psort_offset(_In_ uint32_t                 table_id,
-                                           _In_ uint32_t                 entry_id,
-                                           _In_ uint32_t                 priority,
-                                           _Inout_ sx_acl_rule_offset_t *offset)
-{
-    sai_status_t      status = SAI_STATUS_SUCCESS;
-    sx_utils_status_t sx_status;
-    psort_handle_t    psort_handle;
-    psort_entry_t     psort_entry;
-
-    SX_LOG_ENTER();
-
-    assert(acl_table_index_check_range(table_id));
-
-    if (ACL_INVALID_DB_INDEX != entry_id) {
-        assert(acl_entry_index_check_range(entry_id));
-
-        if (acl_db_table(table_id).created_entry_count + 1 > (acl_db_table(table_id).region_size - 1)) {
-            if (SAI_STATUS_SUCCESS != acl_table_size_increase(table_id)) {
-                SX_LOG_ERR("Failed to increase a size of psort table\n");
-                status = SAI_STATUS_FAILURE;
-                goto out;
-            }
-        }
-    }
-
-    psort_handle         = acl_db_table(table_id).psort_handle;
-    psort_entry.key      = entry_id;
-    psort_entry.priority = priority;
-
-    sx_status = psort_entry_set(psort_handle, SX_UTILS_CMD_ADD, &psort_entry);
-    if (SX_UTILS_STATUS_SUCCESS != sx_status) {
-        SX_LOG_ERR("Failed to get offset form pSort - %s\n", SX_UTILS_STATUS_MSG(sx_status));
-        status = SAI_STATUS_FAILURE;
-        goto out;
-    }
-
-    *offset = psort_entry.index;
-out:
-    SX_LOG_EXIT();
-    return status;
-}
-
-static sai_status_t release_psort_offset(_In_ uint32_t             table_id,
-                                         _In_ uint32_t             priority,
-                                         _In_ sx_acl_rule_offset_t offset)
+static sai_status_t mlnx_acl_entry_offset_del(_In_ uint32_t             table_db_idx,
+                                              _In_ uint32_t             sx_prio,
+                                              _In_ sx_acl_rule_offset_t offset)
 {
     sai_status_t   status;
     acl_rpc_info_t rpc_info;
 
     SX_LOG_ENTER();
 
+    assert(mlnx_acl_cb);
+
     if (is_init_process) {
-        status = __release_psort_offset(table_id, priority, offset);
+        status = mlnx_acl_cb->entry_offset_del(table_db_idx, sx_prio, offset);
     } else {
         memset(&rpc_info, 0, sizeof(rpc_info));
-        rpc_info.type              = ACL_RPC_PSORT_ENTRY_DELETE;
-        rpc_info.args.table_id     = table_id;
-        rpc_info.args.entry_prio   = priority;
+        rpc_info.type              = ACL_RPC_ENTRY_OFFSET_DEL;
+        rpc_info.args.table_id     = table_db_idx;
+        rpc_info.args.entry_prio   = sx_prio;
         rpc_info.args.entry_offset = offset;
 
-        status = acl_psort_rpc_call(&rpc_info);
+        status = mlnx_acl_rpc_call(&rpc_info);
     }
 
     SX_LOG_EXIT();
     return status;
 }
 
-static sai_status_t __release_psort_offset(_In_ uint32_t             table_id,
-                                           _In_ uint32_t             priority,
-                                           _In_ sx_acl_rule_offset_t offset)
+static sai_status_t mlnx_acl_entry_prio_set(_In_ uint32_t table_db_idx,
+                                            _In_ uint32_t entry_db_idx,
+                                            _In_ uint32_t sx_prio)
 {
-    sai_status_t      status = SAI_STATUS_SUCCESS;
-    sx_utils_status_t sx_status;
-    psort_handle_t    psort_handle;
-    psort_entry_t     psort_entry;
+    assert(mlnx_acl_cb);
+
+    return mlnx_acl_cb->entry_prio_set(table_db_idx, entry_db_idx, sx_prio);
+}
+
+static sai_status_t mlnx_acl_sx_rule_prio_set(_In_ sx_flex_acl_flex_rule_t *rule,
+                                              _In_ uint32_t                 sx_prio)
+{
+    assert(mlnx_acl_cb);
+
+    return mlnx_acl_cb->rule_prio_set(rule, sx_prio);
+}
+
+static sai_status_t mlnx_acl_table_check_size_increase(_In_ uint32_t table_db_idx)
+{
+    sai_status_t status;
+
+    if ((acl_db_table(table_db_idx).created_entry_count + 1) >
+            (ACL_SX_REG_SIZE_TO_TABLE_SIZE(acl_db_table(table_db_idx).region_size))) {
+        status = mlnx_acl_table_size_increase(table_db_idx);
+        if (SAI_ERR(status)) {
+            return status;
+        }
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_acl_cb_table_init(void)
+{
+    sx_chip_types_t chip_type;
+
+    chip_type = g_sai_db_ptr->sx_chip_type;
+
+    switch (chip_type) {
+    case SX_CHIP_TYPE_SPECTRUM:
+    case SX_CHIP_TYPE_SPECTRUM_A1:
+        mlnx_acl_cb = &mlnx_acl_cb_sp;
+        break;
+
+    case SX_CHIP_TYPE_SPECTRUM2:
+        mlnx_acl_cb = &mlnx_acl_cb_sp2;
+        break;
+
+    default:
+        SX_LOG_ERR("g_sai_db_ptr->sxd_chip_type = %s\n", SX_CHIP_TYPE_STR(chip_type));
+        return SAI_STATUS_FAILURE;
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
+sai_status_t mlnx_acl_init(void)
+{
+    sai_status_t    status = SAI_STATUS_SUCCESS;
+    uint32_t        ii;
 
     SX_LOG_ENTER();
 
-    if (!acl_table_index_check_range(table_id)) {
-        SX_LOG_ERR("Attempt to use invalid ACL Table DB index\n");
-        status = SAI_STATUS_FAILURE;
-        goto out;
+    is_init_process = true;
+
+    sai_acl_db->acl_settings_tbl->lazy_initialized        = false;
+    sai_acl_db->acl_settings_tbl->bg_stop                 = false;
+    sai_acl_db->acl_settings_tbl->psort_thread_start_flag = false;
+    sai_acl_db->acl_settings_tbl->rpc_thread_start_flag   = false;
+
+    status = mlnx_acl_cb_table_init();
+    if (SAI_ERR(status)) {
+        return status;
     }
 
-    psort_handle         = acl_db_table(table_id).psort_handle;
-    psort_entry.priority = priority;
-    psort_entry.index    = offset;
+#ifndef _WIN32
+    pthread_condattr_t  cond_attr;
+    pthread_mutexattr_t mutex_attr;
 
-    sx_status = psort_entry_set(psort_handle, SX_UTILS_CMD_DELETE, &psort_entry);
-    if (SX_UTILS_STATUS_SUCCESS != sx_status) {
-        SX_LOG_ERR("Failed to remove index from psort - %s\n", SX_UTILS_STATUS_MSG(sx_status));
-        status = SAI_STATUS_FAILURE;
+    if (0 != pthread_condattr_init(&cond_attr)) {
+        SX_LOG_ERR("Failed to init condition variable attribute for ACL\n");
+        return SAI_STATUS_NO_MEMORY;
     }
 
-out:
+    if (0 != pthread_mutexattr_init(&mutex_attr)) {
+        SX_LOG_ERR("Failed to init condition variable attribute for ACL\n");
+        return SAI_STATUS_NO_MEMORY;
+    }
+
+    if (0 != pthread_mutexattr_setpshared(&mutex_attr, PTHREAD_PROCESS_SHARED)) {
+        SX_LOG_ERR("Failed to set condition variable attribute for ACL - %s\n", strerror(errno));
+        return SAI_STATUS_NO_MEMORY;
+    }
+
+    if (0 != pthread_condattr_setpshared(&cond_attr, PTHREAD_PROCESS_SHARED)) {
+        SX_LOG_ERR("Failed to set condition variable attribute for ACL - %s\n", strerror(errno));
+        return SAI_STATUS_FAILURE;
+    }
+
+    if (0 != pthread_mutex_init(&sai_acl_db->acl_settings_tbl->cond_mutex, &mutex_attr)) {
+        SX_LOG_ERR("Failed to init mutex for ACL - %s\n", strerror(errno));
+        return SAI_STATUS_FAILURE;
+    }
+
+    if (0 != pthread_cond_init(&sai_acl_db->acl_settings_tbl->rpc_thread_init_cond, &cond_attr)) {
+        SX_LOG_ERR("Failed to init condition variable for ACL - %s\n", strerror(errno));
+        return SAI_STATUS_FAILURE;
+    }
+
+    if (0 != pthread_mutexattr_destroy(&mutex_attr)) {
+        SX_LOG_ERR("Failed to destory mutex attribute for ACL\n");
+        return SAI_STATUS_FAILURE;
+    }
+
+    if (0 != pthread_condattr_destroy(&cond_attr)) {
+        SX_LOG_ERR("Failed to destory condition variable attribute for ACL\n");
+        return SAI_STATUS_FAILURE;
+    }
+
+    if (CL_SUCCESS != cl_plock_init_pshared(&sai_acl_db->acl_settings_tbl->lock)) {
+        SX_LOG_ERR("Failed to init cl_plock for ACL\n");
+        return SAI_STATUS_FAILURE;
+    }
+
+    if (0 != pthread_key_create(&pthread_sx_handle_key, NULL)) {
+        SX_LOG_ERR("Failed to init pthread_key for ACL\n");
+        return SAI_STATUS_INSUFFICIENT_RESOURCES;
+    }
+
+    if (CL_SUCCESS != cl_thread_init(&rpc_thread, mlnx_acl_rpc_thread, NULL, NULL)) {
+        SX_LOG_ERR("Failed to init acl req thread\n");
+        return SAI_STATUS_FAILURE;
+    }
+#endif /* _WIN32 */
+
+    /* Inint ACL entry db */
+    sai_acl_db->acl_settings_tbl->entry_db_first_free_index = 0;
+
+    for (ii = 0; ii < ACL_ENTRY_DB_SIZE - 1; ii++) {
+        sai_acl_db->acl_entry_db[ii].is_used = false;
+        sai_acl_db->acl_entry_db[ii].next_entry_index = ii + 1;
+    }
+
+    sai_acl_db->acl_entry_db[ACL_ENTRY_DB_SIZE - 1].is_used = false;
+    sai_acl_db->acl_entry_db[ACL_ENTRY_DB_SIZE - 1].next_entry_index = ACL_INVALID_DB_INDEX;
+
+    /* Platform-specific init */
+    status = mlnx_acl_cb->init();
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
     SX_LOG_EXIT();
     return status;
 }
 
-static sai_status_t update_rules_offsets(_In_ const psort_shift_param_t *shift_param, _In_ uint32_t acl_table_index)
+static sai_status_t mlnx_acl_table_optimize(_In_ uint32_t table_db_idx)
+{
+    assert(mlnx_acl_cb);
+
+    /* SP2 doesn't use pSort so there is no optimization */
+    if (mlnx_acl_cb->table_optimize) {
+        return mlnx_acl_cb->table_optimize(table_db_idx);
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static sx_api_handle_t* mlnx_acl_sx_handle_get(void)
+{
+#ifndef _WIN32
+    sx_api_handle_t *handle;
+
+    handle = pthread_getspecific(pthread_sx_handle_key);
+    if (handle) {
+        return handle;
+    }
+#endif /* _WIN32 */
+    return &gh_sdk;
+}
+
+static sai_status_t mlnx_acl_table_size_increase(_In_ uint32_t table_index)
+{
+    sai_status_t       status;
+    sx_status_t        sx_status;
+    sx_api_handle_t   *sx_api_handle = NULL;
+    sx_acl_key_type_t  key_type;
+    sx_acl_region_id_t region_id;
+    sx_acl_size_t      old_size, new_size;
+    uint32_t           delta;
+
+    assert(acl_table_index_check_range(table_index));
+
+    sx_api_handle = mlnx_acl_sx_handle_get();
+
+    region_id    = acl_db_table(table_index).region_id;
+    key_type     = acl_db_table(table_index).key_type;
+    old_size     = acl_db_table(table_index).region_size;
+
+    status = mlnx_acl_table_size_delta_get(table_index, &delta);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to get size delta for table %d\n", table_index);
+        return status;
+    }
+
+    new_size = old_size + delta;
+
+    SX_LOG_DBG("Resizing table %u: [%u, %u]\n", table_index, old_size, new_size);
+
+    sx_status = sx_api_acl_region_set(*sx_api_handle, SX_ACCESS_CMD_EDIT, key_type,
+                                      SX_ACL_ACTION_TYPE_BASIC, new_size, &region_id);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to resize a region[%u] - %s.\n", region_id, SX_STATUS_MSG(sx_status));
+        return sdk_to_sai(sx_status);
+    }
+
+    status = mlnx_acl_cb->table_size_set(table_index, new_size);
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+    acl_db_table(table_index).region_size = new_size;
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_acl_table_size_decrease(_In_ uint32_t table_index)
+{
+    sai_status_t       status = SAI_STATUS_SUCCESS;
+    sx_status_t        sx_status;
+    sx_api_handle_t   *sx_api_handle = NULL;
+    sx_acl_key_type_t  key_type;
+    sx_acl_region_id_t region_id;
+    sx_acl_size_t      new_size, old_size;
+
+    assert(acl_table_index_check_range(table_index));
+
+    if (!acl_db_table(table_index).is_dynamic_sized) {
+        return SAI_STATUS_SUCCESS;
+    }
+
+    sx_api_handle = mlnx_acl_sx_handle_get();
+
+    region_id    = acl_db_table(table_index).region_id;
+    key_type     = acl_db_table(table_index).key_type;
+    old_size     = acl_db_table(table_index).region_size;
+
+    new_size = old_size / 2;
+    new_size = MAX(new_size, ACL_TABLE_SIZE_TO_SX_REG_SIZE(ACL_DEFAULT_TABLE_SIZE));
+
+    if (old_size <= new_size) {
+        return SAI_STATUS_SUCCESS;
+    }
+
+    SX_LOG_DBG("Decreasing a size of a table %u: [%u -> %u]\n", table_index, old_size, new_size);
+
+    status = mlnx_acl_cb->table_size_set(table_index, new_size);
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+    sx_status = sx_api_acl_region_set(*sx_api_handle, SX_ACCESS_CMD_EDIT, key_type, SX_ACL_ACTION_TYPE_BASIC,
+                                      new_size, &region_id);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to resize a region[%d] - %s.\n", table_index, SX_STATUS_MSG(sx_status));
+        return sdk_to_sai(sx_status);
+    }
+
+    acl_db_table(table_index).region_size = new_size;
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_acl_sx_rule_offset_update(_In_ const psort_shift_param_t *shift_param,
+                                                   _In_ uint32_t                   acl_table_index)
 {
     sx_status_t          sx_status;
-    sx_api_handle_t     *sdk_api_handle = NULL;
+    sx_api_handle_t     *sx_api_handle = NULL;
     sx_acl_region_id_t   region_id;
     sx_acl_rule_offset_t old_offset;
     sx_acl_rule_offset_t new_offset;
@@ -10934,19 +11623,12 @@ static sai_status_t update_rules_offsets(_In_ const psort_shift_param_t *shift_p
 
     SX_LOG_ENTER();
 
+    sx_api_handle = mlnx_acl_sx_handle_get();
+
     region_id       = acl_db_table(acl_table_index).region_id;
     acl_entry_index = (uint32_t)shift_param->key;
     old_offset      = shift_param->old_index;
     new_offset      = shift_param->new_index;
-
-#ifndef _WIN32
-    sdk_api_handle = pthread_getspecific(pthread_key);
-#endif
-    if (NULL == sdk_api_handle) {
-        SX_LOG_ERR("Failed to get sdk_api_handle for thread\n");
-        sx_status = SX_STATUS_ERROR;
-        goto out;
-    }
 
     if (acl_db_table(acl_table_index).region_size <= new_offset) {
         SX_LOG_ERR("New offset from pSort is bigger then sx_region size\n");
@@ -10974,7 +11656,10 @@ static sai_status_t update_rules_offsets(_In_ const psort_shift_param_t *shift_p
         acl_db_entry(acl_entry_index).offset = new_offset;
     }
 
-    sx_status = sx_api_acl_rule_block_move_set(*sdk_api_handle, region_id, old_offset, 1, new_offset);
+    SX_LOG_DBG("Moving ACL table %u entry idx %u: %u -> %u %s\n", acl_table_index, acl_entry_index,
+               old_offset, new_offset, (ACL_INVALID_DB_INDEX == acl_entry_index) ? "(default rule)" : " ");
+
+    sx_status = sx_api_acl_rule_block_move_set(*sx_api_handle, region_id, old_offset, 1, new_offset);
     if (SX_STATUS_SUCCESS != sx_status) {
         SX_LOG_ERR("Failed to move rule block\n");
         goto out;
@@ -10993,13 +11678,12 @@ static void acl_psort_optimize_table(_In_ uint32_t table_index)
 
     SX_LOG_ENTER();
 
+    acl_table_write_lock(table_index);
+
     if (false == acl_db_table(table_index).is_used) {
         SX_LOG_DBG("Attempt to use deleted ACL Table DB index - %u\n", table_index);
-        SX_LOG_EXIT();
-        return;
+        goto out;
     }
-
-    acl_table_write_lock(table_index);
 
     if (0 == acl_db_table(table_index).created_entry_count) {
         goto out;
@@ -11019,45 +11703,6 @@ static void acl_psort_optimize_table(_In_ uint32_t table_index)
 out:
     acl_table_unlock(table_index);
     SX_LOG_EXIT();
-}
-
-static sai_status_t acl_enqueue_table(_In_ uint32_t table_index)
-{
-    sai_status_t status = SAI_STATUS_SUCCESS;
-
-    SX_LOG_ENTER();
-
-#ifndef _WIN32
-    if (ACL_QUEUE_INVALID_HANDLE == fg_mq) {
-        fg_mq = mq_open(ACL_QUEUE_NAME, O_WRONLY | O_NONBLOCK);
-        if (ACL_QUEUE_INVALID_HANDLE == fg_mq) {
-            SX_LOG_ERR("Failed to open mq - %s\n", strerror(errno));
-            status = SAI_STATUS_FAILURE;
-            goto out;
-        }
-    }
-
-    acl_db_table(table_index).queued++;
-
-    if (-1 == mq_send(fg_mq, (const char*)&table_index,
-                      sizeof(table_index), ACL_QUEUE_DEF_MSG_PRIO)) {
-        if (EAGAIN == errno) {
-            SX_LOG_NTC("Failed to enqueue table %d - queue is full\n", table_index);
-            acl_db_table(table_index).queued--;
-            status = SAI_STATUS_SUCCESS;
-            goto out;
-        } else {
-            SX_LOG_ERR("Failed to enqueue table %d - %s\n", table_index, strerror(errno));
-            acl_db_table(table_index).queued--;
-            status = SAI_STATUS_FAILURE;
-            goto out;
-        }
-    }
-
-out:
-#endif
-    SX_LOG_EXIT();
-    return status;
 }
 
 static sai_status_t acl_create_entry_object_id(_Out_ sai_object_id_t *entry_oid,
@@ -11083,39 +11728,45 @@ static void psort_background_thread(void *arg)
 {
 #ifndef _WIN32
     sx_status_t     sx_status;
+    sx_api_handle_t psort_sx_api;
     mqd_t           bg_mq;
     struct timespec tm;
+    int             pthread_status;
     uint32_t        mq_message;
     uint32_t        last_used_table;
 
     SX_LOG_ENTER();
 
     acl_cond_mutex_lock();
-    while (false == sai_acl_db->acl_settings_tbl->background_thread_start_flag) {
-        pthread_cond_wait(&sai_acl_db->acl_settings_tbl->background_thread_init_cond, &acl_cond_mutex);
+    while (false == sai_acl_db->acl_settings_tbl->psort_thread_start_flag) {
+        pthread_cond_wait(&sai_acl_db->acl_settings_tbl->psort_thread_init_cond, &acl_cond_mutex);
     }
     acl_cond_mutex_unlock();
 
+    SX_LOG_DBG("psort_background_thread is started\n");
+
     /* cond is triggered from resource_deinit() */
     if (true == sai_acl_db->acl_settings_tbl->bg_stop) {
-        goto out;
+        SX_LOG_DBG("Exiting psort_background_thread\n");
+        return;
     }
 
     sx_status = sx_api_open(sai_log_cb, &psort_sx_api);
-    if (SX_STATUS_SUCCESS != sx_status) {
-        SX_LOG_ERR("Can't open connection to SDK from pSort thread - %s.\n", SX_STATUS_MSG(sx_status));
-        goto out;
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to open sx_api_handle_t for pSort thread - %s.\n", SX_STATUS_MSG(sx_status));
+        return;
     }
 
-    if (0 != pthread_setspecific(pthread_key, &psort_sx_api)) {
-        SX_LOG_ERR("Failed to call pthread_setspecific\n");
-        goto out;
+    pthread_status = pthread_setspecific(pthread_sx_handle_key, &psort_sx_api);
+    if (0 != pthread_status) {
+        SX_LOG_ERR("Failed to set pthread_sx_handle_key value - %s\n", strerror(pthread_status));
+        return;
     }
 
     bg_mq = mq_open(ACL_QUEUE_NAME, O_RDONLY);
     if (ACL_QUEUE_INVALID_HANDLE == bg_mq) {
         SX_LOG_ERR("Failed to open acl bg_mq");
-        goto out;
+        return;
     }
 
     last_used_table = ACL_INVALID_DB_INDEX;
@@ -11161,25 +11812,21 @@ static void psort_background_thread(void *arg)
         }
     }
 
+    sx_status = sx_api_close(&psort_sx_api);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to close sx_api_handle_t for pSort thread - %s\n", SX_STATUS_MSG(sx_status));
+    }
+
     mq_close(bg_mq);
     mq_unlink(ACL_QUEUE_NAME);
-
-out:
-    if (psort_sx_api != SX_API_INVALID_HANDLE) {
-        sx_status = sx_api_close(&psort_sx_api);
-        if (SX_STATUS_SUCCESS != sx_status) {
-            SX_LOG_ERR("API close failed.\n");
-        }
-    }
 
 #endif /* ifndef _WIN32 */
     SX_LOG_EXIT();
 }
 
-static void psort_rpc_thread(void *arg)
+static void mlnx_acl_rpc_thread(void *arg)
 {
 #ifndef _WIN32
-    sx_status_t        sx_status;
     sai_status_t       status;
     acl_rpc_info_t     rpc_info;
     int                rpc_socket;
@@ -11206,17 +11853,6 @@ static void psort_rpc_thread(void *arg)
         goto out;
     }
 
-    sx_status = sx_api_open(sai_log_cb, &rpc_sx_api);
-    if (SX_STATUS_SUCCESS != sx_status) {
-        SX_LOG_ERR("Can't open connection to SDK from pSort thread - %s.\n", SX_STATUS_MSG(sx_status));
-        goto out;
-    }
-
-    if (0 != pthread_setspecific(pthread_key, &rpc_sx_api)) {
-        SX_LOG_ERR("Failed to call pthread_setspecific\n");
-        goto out;
-    }
-
     sockaddr_len = sizeof(cl_sockaddr);
 
     while (false == exit_request) {
@@ -11232,26 +11868,28 @@ static void psort_rpc_thread(void *arg)
         }
 
         switch (rpc_info.type) {
-        case ACL_RPC_PSORT_TABLE_INIT:
-            status = __init_psort_table(rpc_info.args.table_id, rpc_info.args.table_is_dynamic, rpc_info.args.size);
+        case ACL_RPC_TABLE_INIT:
+            status = mlnx_acl_cb->table_init(rpc_info.args.table_id,
+                                             rpc_info.args.table_is_dynamic,
+                                             rpc_info.args.size);
             break;
 
-        case ACL_RPC_PSORT_TABLE_DELETE:
-            status = __delete_psort_table(rpc_info.args.table_id);
+        case ACL_RPC_TABLE_DELETE:
+            status = mlnx_acl_cb->table_deinit(rpc_info.args.table_id);
             break;
 
-        case ACL_RPC_PSORT_ENTRY_CREATE:
-            status = __get_new_psort_offset(
+        case ACL_RPC_ENTRY_OFFSET_GET:
+            status = mlnx_acl_cb->entry_offset_get(
                 rpc_info.args.table_id,
                 rpc_info.args.entry_id,
                 rpc_info.args.entry_prio,
                 &rpc_info.args.entry_offset);
             break;
 
-        case ACL_RPC_PSORT_ENTRY_DELETE:
-            status = __release_psort_offset(rpc_info.args.table_id,
-                                            rpc_info.args.entry_prio,
-                                            rpc_info.args.entry_offset);
+        case ACL_RPC_ENTRY_OFFSET_DEL:
+            status = mlnx_acl_cb->entry_offset_del(rpc_info.args.table_id,
+                                                   rpc_info.args.entry_prio,
+                                                   rpc_info.args.entry_offset);
             break;
 
         case ACL_RPC_TERMINATE_THREAD:
@@ -11278,13 +11916,6 @@ static void psort_rpc_thread(void *arg)
 out:
     close(rpc_socket);
     unlink(ACL_RPC_SV_SOCKET_ADDR);
-
-    if (rpc_sx_api != SX_API_INVALID_HANDLE) {
-        sx_status = sx_api_close(&rpc_sx_api);
-        if (SX_STATUS_SUCCESS != sx_status) {
-            SX_LOG_ERR("API close failed.\n");
-        }
-    }
 
     SX_LOG_EXIT();
 #endif /* ifndef _WIN32 */
@@ -11335,29 +11966,35 @@ static sai_status_t mlnx_acl_entry_sx_mc_container_refs_get(_In_ sx_mc_container
                                                             _Out_ mlnx_acl_port_db_refs_t refs)
 
 {
-    sai_status_t     status;
-    sx_port_log_id_t sx_ports[MAX_PORTS] = {0};
-    uint32_t         port_db_index, sx_ports_count = MAX_PORTS, ii;
+    sai_status_t      status = SAI_STATUS_SUCCESS;
+    sx_port_log_id_t *sx_ports = NULL;
+    uint32_t          port_db_index, sx_ports_count = MAX_PORTS, ii;
 
     if (SX_MC_CONTAINER_ID_CHECK_RANGE(sx_mc_container)) {
-        memset(sx_ports, 0, sizeof(sx_ports));
+        sx_ports = calloc(MAX_PORTS, sizeof(*sx_ports));
+        if (!sx_ports) {
+            SX_LOG_ERR("Failed to allocate memory\n");
+            return SAI_STATUS_NO_MEMORY;
+        }
 
         status = mlnx_acl_sx_mc_container_sx_ports_get(sx_mc_container, sx_ports, &sx_ports_count);
         if (SAI_ERR(status)) {
-            return status;
+            goto out;
         }
 
         for (ii = 0; ii < sx_ports_count; ii++) {
             status = mlnx_port_idx_by_log_id(sx_ports[ii], &port_db_index);
             if (SAI_ERR(status)) {
-                return status;
+                goto out;
             }
 
             refs[port_db_index]++;
         }
     }
 
-    return SAI_STATUS_SUCCESS;
+out:
+    free(sx_ports);
+    return status;
 }
 
 static sai_status_t mlnx_acl_entry_sx_rule_port_refs_get(_In_  const sx_flex_acl_flex_rule_t *rule,
@@ -11485,7 +12122,7 @@ static sai_status_t mlnx_acl_port_lag_event_handle(_In_ const mlnx_port_config_t
 
     assert(port != NULL);
 
-    if (false == sai_acl_db->acl_settings_tbl->initialized) {
+    if (false == sai_acl_db->acl_settings_tbl->lazy_initialized) {
         return SAI_STATUS_SUCCESS;
     }
 
@@ -11776,7 +12413,7 @@ static sai_status_t mlnx_acl_pbs_entry_create_or_get(_In_ sai_object_id_t  *port
     sai_status_t       status = SAI_STATUS_SUCCESS;
     acl_pbs_index_t    pbs_index_tmp = ACL_PBS_INVALID_INDEX;
     sx_status_t        sx_status;
-    sx_port_log_id_t   sx_ports[MAX_PORTS * 2] = {0};
+    sx_port_log_id_t  *sx_ports = NULL;
     sx_acl_pbs_entry_t sx_pbs_entry;
     sx_acl_pbs_id_t    sx_pbs_id_tmp;
 
@@ -11792,9 +12429,15 @@ static sai_status_t mlnx_acl_pbs_entry_create_or_get(_In_ sai_object_id_t  *port
     if (0 != (acl_db_pbs(pbs_index_tmp).ref_counter)) {
         acl_db_pbs(pbs_index_tmp).ref_counter++;
     } else {
+        sx_ports = calloc(ports_number, sizeof(*sx_ports));
+        if (!sx_ports) {
+            SX_LOG_ERR("Failed to allocate memory\n");
+            return SAI_STATUS_NO_MEMORY;
+        }
+
         status = mlnx_acl_sai_ports_to_sx(ports, ports_number, sx_ports);
         if (SAI_ERR(status)) {
-            return status;
+            goto out;
         }
 
         memset(&sx_pbs_entry, 0, sizeof(sx_pbs_entry));
@@ -11807,7 +12450,8 @@ static sai_status_t mlnx_acl_pbs_entry_create_or_get(_In_ sai_object_id_t  *port
             sx_api_acl_policy_based_switching_set(gh_sdk, SX_ACCESS_CMD_ADD, DEFAULT_ETH_SWID, &sx_pbs_entry, &sx_pbs_id_tmp);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to create PBS %s.\n", SX_STATUS_MSG(sx_status));
-            return sdk_to_sai(sx_status);
+            status = sdk_to_sai(sx_status);
+            goto out;
         }
 
         acl_db_pbs(pbs_index_tmp).pbs_id      = sx_pbs_id_tmp;
@@ -11817,15 +12461,18 @@ static sai_status_t mlnx_acl_pbs_entry_create_or_get(_In_ sai_object_id_t  *port
     *pbs_index = pbs_index_tmp;
     *pbs_id = acl_db_pbs(pbs_index_tmp).pbs_id;
 
-    return SAI_STATUS_SUCCESS;
+out:
+    free(sx_ports);
+    return status;
 }
 
 static sai_status_t mlnx_acl_flood_pbs_create_or_get(_Out_ sx_acl_pbs_id_t *sx_pbs_id,
                                                      _Out_ acl_pbs_index_t *pbs_index)
 {
+    sai_status_t         status = SAI_STATUS_SUCCESS;
     mlnx_port_config_t  *port_config;
     sx_status_t          sx_status;
-    sx_port_log_id_t     sx_port_ids[MAX_PORTS * 2] = {0};
+    sx_port_log_id_t    *sx_port_ids = NULL;
     sx_acl_pbs_entry_t   sx_pbs_entry;
     sx_swid_t            swid_id = DEFAULT_ETH_SWID;
     acl_pbs_map_entry_t *flood_pbs_entry;
@@ -11839,6 +12486,12 @@ static sai_status_t mlnx_acl_flood_pbs_create_or_get(_Out_ sx_acl_pbs_id_t *sx_p
     if (flood_pbs_entry->ref_counter > 0) {
         flood_pbs_entry->ref_counter++;
     } else {
+        sx_port_ids = calloc(MAX_PORTS * 2, sizeof(*sx_port_ids));
+        if (!sx_port_ids) {
+            SX_LOG_ERR("Failed to allocate memory\n");
+            return SAI_STATUS_NO_MEMORY;
+        }
+
         port_count = 0;
         mlnx_port_not_in_lag_foreach(port_config, ii) {
             sx_port_ids[port_count++] = port_config->logical;
@@ -11853,7 +12506,8 @@ static sai_status_t mlnx_acl_flood_pbs_create_or_get(_Out_ sx_acl_pbs_id_t *sx_p
                                                           &sx_pbs_entry, sx_pbs_id);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to create Flood PBS %s.\n", SX_STATUS_MSG(sx_status));
-            return sdk_to_sai(sx_status);
+            status = sdk_to_sai(sx_status);
+            goto out;
         }
 
         flood_pbs_entry->pbs_id      = *sx_pbs_id;
@@ -11863,7 +12517,9 @@ static sai_status_t mlnx_acl_flood_pbs_create_or_get(_Out_ sx_acl_pbs_id_t *sx_p
     *sx_pbs_id = flood_pbs_entry->pbs_id;
     *pbs_index = ACL_PBS_FLOOD_PBS_INDEX;
 
-    return SAI_STATUS_SUCCESS;
+out:
+    free(sx_port_ids);
+    return status;
 }
 
 static sai_status_t mlnx_acl_pbs_entry_delete(_In_ acl_pbs_index_t pbs_index)
@@ -12499,7 +13155,7 @@ sai_status_t mlnx_acl_rif_bind_point_clear(_In_ sai_object_id_t rif)
 
     acl_index = ACL_INDEX_INVALID;
 
-    if (false == sai_acl_db->acl_settings_tbl->initialized) {
+    if (false == sai_acl_db->acl_settings_tbl->lazy_initialized) {
         return SAI_STATUS_SUCCESS;
     }
 
@@ -12529,7 +13185,7 @@ sai_status_t mlnx_acl_vlan_bind_point_clear(_In_ sai_object_id_t vlan_oid)
 
     acl_index.acl_db_index = ACL_INVALID_DB_INDEX;
 
-    if (false == sai_acl_db->acl_settings_tbl->initialized) {
+    if (false == sai_acl_db->acl_settings_tbl->lazy_initialized) {
         return SAI_STATUS_SUCCESS;
     }
 
@@ -13744,22 +14400,29 @@ static sai_status_t mlnx_acl_wrapping_group_create(_In_ uint32_t table_index)
 {
     sx_status_t        sx_status;
     sx_acl_direction_t sx_acl_direction;
-    sx_acl_id_t        sx_group_id;
+    sx_acl_id_t        sx_group_id, sx_acl_id;
 
     assert(acl_db_table(table_index).wrapping_group.created == false);
 
     sx_acl_direction = acl_sai_stage_to_sx_dir(acl_db_table(table_index).stage);
+    sx_acl_id        = acl_db_table(table_index).table_id;
 
     sx_status = sx_api_acl_group_set(gh_sdk, SX_ACCESS_CMD_CREATE, sx_acl_direction, NULL, 0, &sx_group_id);
     if (SX_STATUS_SUCCESS != sx_status) {
-        SX_LOG_ERR("Failed to create sx wrapping group - %s", SX_STATUS_MSG(sx_status));
+        SX_LOG_ERR("Failed to create sx wrapping group - %s\n", SX_STATUS_MSG(sx_status));
+        return sdk_to_sai(sx_status);
+    }
+
+    sx_status = sx_api_acl_group_set(gh_sdk, SX_ACCESS_CMD_SET, sx_acl_direction, &sx_acl_id, 1, &sx_group_id);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to update sx group (%x) - %s\n", sx_group_id, SX_STATUS_MSG(sx_status));
         return sdk_to_sai(sx_status);
     }
 
     acl_db_table(table_index).wrapping_group.created     = true;
     acl_db_table(table_index).wrapping_group.sx_group_id = sx_group_id;
 
-    SX_LOG_NTC("Created wrapping group sx_id[%u] for table[%u]\n", sx_group_id, table_index);
+    SX_LOG_DBG("Created wrapping group sx_id[%u] for table[%u]\n", sx_group_id, table_index);
 
     return SAI_STATUS_SUCCESS;
 }
@@ -13770,7 +14433,7 @@ static sai_status_t mlnx_acl_wrapping_group_delete(_In_ uint32_t table_index)
     sx_acl_direction_t sx_acl_direction;
     sx_acl_id_t        sx_group_id;
 
-    SX_LOG_NTC("Removing wrapping group sx_id[%u] for table[%u]\n", acl_db_table(
+    SX_LOG_DBG("Removing wrapping group sx_id[%u] for table[%u]\n", acl_db_table(
                    table_index).wrapping_group.sx_group_id,
                table_index);
 
@@ -13935,6 +14598,11 @@ static sai_status_t mlnx_acl_table_set_def_rule(_In_ uint32_t src_table_index, _
     }
 
     status = mlnx_acl_def_rule_key_fill(key, &default_rule);
+    if (SAI_ERR(status)) {
+        goto out;
+    }
+
+    status = mlnx_acl_sx_rule_prio_set(&default_rule, ACL_SX_RULE_DEF_PRIO);
     if (SAI_ERR(status)) {
         goto out;
     }

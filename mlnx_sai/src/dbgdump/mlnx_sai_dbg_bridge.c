@@ -135,7 +135,7 @@ static void SAI_dump_bridge_rif_sx_intf_attrs_print(_In_ FILE *file, _In_ sx_int
     qos_mode = intf_attribs.qos_mode;
 
     if (SX_ROUTER_QOS_MODE_CHECK_RANGE((int)qos_mode)) {
-        strncpy(qos_mode_str, sx_router_qos_mode_type_str[qos_mode], LINE_LENGTH);
+        strncpy(qos_mode_str, sx_router_qos_mode_str(qos_mode), LINE_LENGTH);
         qos_mode_str[LINE_LENGTH - 1] = 0;
     } else {
         strncpy(qos_mode_str, "invalid", LINE_LENGTH);

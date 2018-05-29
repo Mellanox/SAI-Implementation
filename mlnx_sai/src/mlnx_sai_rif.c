@@ -353,16 +353,22 @@ static sai_status_t mlnx_create_router_interface(_Out_ sai_object_id_t      *rif
         return SAI_STATUS_INVALID_ATTR_VALUE_0 + type_index;
     }
 
-    status = check_attrs_port_type(NULL, attr_count, attr_list);
-    if (SAI_ERR(status)) {
-        return status;
-    }
-
     if (SAI_STATUS_SUCCESS ==
         (status = find_attrib_in_list(attr_count, attr_list, SAI_ROUTER_INTERFACE_ATTR_MTU, &mtu, &mtu_index))) {
         intf_attribs.mtu = mtu->u32;
     } else {
         intf_attribs.mtu = DEFAULT_RIF_MTU;
+    }
+
+    sai_db_write_lock();
+    acl_global_lock();
+
+    if (port) {
+        status = check_port_type_attr(&port->oid, 1, ATTR_PORT_IS_LAG_ENABLED,
+                                      SAI_ROUTER_INTERFACE_ATTR_PORT_ID, port_index);
+        if (SAI_ERR(status)) {
+            goto out;
+        }
     }
 
     /* do not fill src mac address for loop back interface */
@@ -372,24 +378,17 @@ static sai_status_t mlnx_create_router_interface(_Out_ sai_object_id_t      *rif
                                  &mac_index))) {
         if (SAI_ROUTER_INTERFACE_TYPE_LOOPBACK == type->s32) {
             SX_LOG_ERR("src mac address is not valid for loopback router interface type\n");
-            SX_LOG_EXIT();
-            return SAI_STATUS_INVALID_ATTRIBUTE_0 + mac_index;
+            status = SAI_STATUS_INVALID_ATTRIBUTE_0 + mac_index;
+            goto out;
         }
         memcpy(&intf_attribs.mac_addr, mac->mac, sizeof(intf_attribs.mac_addr));
     } else {
         /* Get default mac from switch object */
-        sai_db_read_lock();
-
         status = mlnx_switch_get_mac(&intf_attribs.mac_addr);
         if (SAI_ERR(status)) {
-            sai_db_unlock();
-            return status;
+            goto out;
         }
-
-        sai_db_unlock();
     }
-
-    acl_global_lock();
 
     if (SAI_ROUTER_INTERFACE_TYPE_BRIDGE != type->s32) {
         status = find_attrib_in_list(attr_count,
@@ -494,7 +493,6 @@ static sai_status_t mlnx_create_router_interface(_Out_ sai_object_id_t      *rif
             status = mlnx_acl_port_lag_rif_bind_point_set(*rif_id, MLNX_ACL_BIND_POINT_TYPE_INGRESS_ROUTER_INTERFACE,
                                                           ing_acl_index);
             if (SAI_ERR(status)) {
-                status = sdk_to_sai(status);
                 goto out;
             }
         }
@@ -503,19 +501,14 @@ static sai_status_t mlnx_create_router_interface(_Out_ sai_object_id_t      *rif
             status = mlnx_acl_port_lag_rif_bind_point_set(*rif_id, MLNX_ACL_BIND_POINT_TYPE_EGRESS_ROUTER_INTERFACE,
                                                           egr_acl_index);
             if (SAI_ERR(status)) {
-                status = sdk_to_sai(status);
                 goto out;
             }
         }
     } else { /* Create bridge router interface in DB for a while */
         mlnx_bridge_rif_t *br_rif;
-
-        sai_db_write_lock();
-
         status = mlnx_bridge_rif_add((sx_router_id_t)vrid_data, &br_rif);
         if (SAI_ERR(status)) {
             SX_LOG_ERR("Failed to allocate bridge rif entry\n");
-            sai_db_unlock();
             goto out;
         }
 
@@ -526,29 +519,24 @@ static sai_status_t mlnx_create_router_interface(_Out_ sai_object_id_t      *rif
         status = mlnx_bridge_rif_to_oid(br_rif, rif_id);
         if (SAI_ERR(status)) {
             SX_LOG_ERR("Failed to convert bridge rif entry idx to oid\n");
-            sai_db_unlock();
             goto out;
         }
-
-        sai_db_unlock();
     }
 
     rif_key_to_str(*rif_id, key_str);
     SX_LOG_NTC("Created rif %s\n", key_str);
 
     if ((SAI_ROUTER_INTERFACE_TYPE_PORT == type->s32) || (SAI_ROUTER_INTERFACE_TYPE_SUB_PORT == type->s32)) {
-        sai_db_write_lock();
         status = mlnx_port_by_log_id(sx_port_id, &port_cfg);
         if (SAI_ERR(status)) {
-            sai_db_unlock();
             goto out;
         }
         port_cfg->rifs++;
-        sai_db_unlock();
     }
 
 out:
     acl_global_unlock();
+    sai_db_unlock();
     SX_LOG_EXIT();
     return status;
 }
