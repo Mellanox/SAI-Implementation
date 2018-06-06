@@ -4034,6 +4034,11 @@ static sai_status_t switch_open_traps(void)
     sx_trap_group_attributes_t trap_group_attributes;
     sai_status_t               status;
     sx_host_ifc_register_key_t reg;
+#ifdef ACS_OS
+    struct ku_hpkt_reg         tmp_reg;
+    sxd_reg_meta_t             reg_meta;
+    sxd_status_t               sxd_status;
+#endif
 
     memset(&trap_group_attributes, 0, sizeof(trap_group_attributes));
     memset(&reg, 0, sizeof(reg));
@@ -4085,6 +4090,25 @@ static sai_status_t switch_open_traps(void)
             goto out;
         }
     }
+
+#ifdef ACS_OS
+    /* Set action NOP for SIP=DIP router ingress discard to allow such traffic */
+    memset(&tmp_reg, 0, sizeof(tmp_reg));
+    memset(&reg_meta, 0, sizeof(reg_meta));
+    /* TODO : replace with trap id define when exposed in SDK */
+    tmp_reg.trap_id = 0x169;
+    tmp_reg.action = 0;
+    reg_meta.access_cmd = SXD_ACCESS_CMD_SET;
+    reg_meta.dev_id = SX_DEVICE_ID;
+    reg_meta.swid = DEFAULT_ETH_SWID;
+
+    sxd_status = sxd_access_reg_hpkt(&tmp_reg, &reg_meta, 1, NULL, NULL);
+    if (sxd_status) {
+        SX_LOG_ERR("Access_hpkt_reg failed with status (%s:%d)\n", SXD_STATUS_MSG(sxd_status), sxd_status);
+        status = SAI_STATUS_FAILURE;
+        goto out;
+    }
+#endif
 
 out:
     msync(g_sai_db_ptr, sizeof(*g_sai_db_ptr), MS_SYNC);
