@@ -135,6 +135,12 @@
     <ClInclude Include="inc\sai\saiuburst.h">
       <Filter>Header Files\sai</Filter>
     </ClInclude>
+    <ClInclude Include="inc\sai\saibfd.h">
+      <Filter>Header Files\sai</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\sai\saidtel.h">
+      <Filter>Header Files\sai</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\mlnx_sai_acl.c">

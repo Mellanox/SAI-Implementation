@@ -157,7 +157,12 @@ static void lag_member_key_to_str(_In_ sai_object_id_t lag_member_id, _Out_ char
     if (SAI_ERR(status)) {
         snprintf(key_str, MAX_KEY_STR_LEN, "Invalid LAG Member");
     } else {
-        snprintf(key_str, MAX_KEY_STR_LEN, "LAG member (%x,%x,%x)", mlnx_lag_member.id.log_port_id, mlnx_lag_member.ext.lag.lag_id, mlnx_lag_member.ext.lag.sub_id);
+        snprintf(key_str,
+                 MAX_KEY_STR_LEN,
+                 "LAG member (%x,%x,%x)",
+                 mlnx_lag_member.id.log_port_id,
+                 mlnx_lag_member.ext.lag.lag_id,
+                 mlnx_lag_member.ext.lag.sub_id);
     }
 }
 
@@ -312,17 +317,17 @@ static sai_status_t mlnx_port_params_clone(mlnx_port_config_t *to, mlnx_port_con
             goto out;
         }
     }
-    if ((clone & PORT_PARAMS_FLOOD) && mlnx_port_is_in_bridge(from)) {
+    if ((clone & PORT_PARAMS_FLOOD) && mlnx_port_is_in_bridge_1q(from)) {
         mlnx_bridge_port_t *bridge_port;
         uint16_t            fid;
 
-        status = mlnx_bridge_port_by_log(from->logical, &bridge_port);
+        status = mlnx_bridge_1q_port_by_log(from->logical, &bridge_port);
         if (SAI_ERR(status)) {
             SX_LOG_ERR("Failed to lookup bridge port by log port id %x\n", from->logical);
             goto out;
         }
 
-        log_ports = calloc(MAX_BRIDGE_PORTS, sizeof(*log_ports));
+        log_ports = calloc(MAX_BRIDGE_1Q_PORTS, sizeof(*log_ports));
         if (!log_ports) {
             SX_LOG_ERR("Failed to allocate memory\n");
             status = SAI_STATUS_NO_MEMORY;
@@ -333,8 +338,8 @@ static sai_status_t mlnx_port_params_clone(mlnx_port_config_t *to, mlnx_port_con
             if (mlnx_vlan_port_is_set(fid, bridge_port)) {
                 sx_status_t         sx_status;
                 mlnx_bridge_port_t *port;
-                uint32_t            ii                = 0;
-                uint32_t            ports_count       = 0;
+                uint32_t            ii          = 0;
+                uint32_t            ports_count = 0;
 
                 if (is_flood_disabled) {
                     if (g_sai_db_ptr->flood_action_uc == SAI_PACKET_ACTION_DROP) {
@@ -380,7 +385,7 @@ static sai_status_t mlnx_port_params_clone(mlnx_port_config_t *to, mlnx_port_con
                     ports_count = 0;
                 }
                 sx_status = sx_api_fdb_unreg_mc_flood_ports_set(gh_sdk, DEFAULT_ETH_SWID, fid, log_ports, ports_count);
-                status = sdk_to_sai(sx_status);
+                status    = sdk_to_sai(sx_status);
                 if (SAI_ERR(status)) {
                     SX_LOG_ERR("Failed to set unregistered mc flood port\n");
                     goto out;
@@ -483,11 +488,11 @@ static sai_status_t port_reset_vlan_params_from_port(mlnx_port_config_t *port, m
         return sdk_to_sai(sx_status);
     }
 
-    if (!mlnx_port_is_in_bridge(lag)) {
+    if (!mlnx_port_is_in_bridge_1q(lag)) {
         return SAI_STATUS_SUCCESS;
     }
 
-    status = mlnx_bridge_port_by_log(lag->logical, &lag_bport);
+    status = mlnx_bridge_1q_port_by_log(lag->logical, &lag_bport);
     if (SAI_ERR(status)) {
         SX_LOG_ERR("Failed to lookup bridge port by LAG log id %x\n", lag->logical);
         return status;
@@ -724,7 +729,7 @@ static sai_status_t validate_port(mlnx_port_config_t *lag, mlnx_port_config_t *p
     sai_status_t status;
     bool         is_in_use_for_egress_block;
 
-    if (mlnx_port_is_in_bridge(port)) {
+    if (mlnx_port_is_in_bridge_1q(port)) {
         SX_LOG_ERR("Can't add port which is under bridge\n");
         return SAI_STATUS_INVALID_PARAMETER;
     }
@@ -1024,7 +1029,7 @@ static sai_status_t mlnx_create_lag(_Out_ sai_object_id_t     * lag_id,
     uint32_t                     ii = 0, index;
     uint32_t                     attr_pvid_index, attr_def_vlan_prio_index, attr_drop_untagged_index,
                                  attr_drop_tagged_index;
-    mlnx_port_config_t *lag = NULL;
+    mlnx_port_config_t *lag    = NULL;
     const bool          is_add = true;
 
     SX_LOG_ENTER();
@@ -1305,7 +1310,7 @@ static sai_status_t mlnx_create_lag_member(_Out_ sai_object_id_t     * lag_membe
     sai_object_id_t              queue_id;
     mlnx_qos_queue_config_t     *queue;
     uint32_t                     ii;
-    const bool                   is_add          = false;
+    const bool                   is_add                 = false;
     bool                         is_acl_rollback_needed = false;
 
     SX_LOG_ENTER();
@@ -1498,7 +1503,7 @@ static sai_status_t mlnx_create_lag_member(_Out_ sai_object_id_t     * lag_membe
 
 out:
     if (SAI_ERR(status)) {
-        if  (wred_oid != SAI_NULL_OBJECT_ID) {
+        if (wred_oid != SAI_NULL_OBJECT_ID) {
             port_queues_foreach(port, queue, ii) {
                 if (ii >= RM_API_COS_TRAFFIC_CLASS_NUM) {
                     continue;
@@ -1550,7 +1555,7 @@ static sai_status_t mlnx_remove_lag_member(_In_ sai_object_id_t lag_member_id)
     mlnx_port_config_t *lag_config;
     sx_status_t         sx_status;
     sai_object_id_t     lag_oid;
-    const bool          is_add          = true;
+    const bool          is_add = true;
     char                key_str[MAX_KEY_STR_LEN];
 
     lag_member_key_to_str(lag_member_id, key_str);

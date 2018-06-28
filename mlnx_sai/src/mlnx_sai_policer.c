@@ -2299,6 +2299,26 @@ static sai_status_t mlnx_sai_get_policer_statistics(_In_ sai_object_id_t        
 }
 
 /**
+ * @brief Get Policer Statistics extended
+ *
+ * @param[in] policer_id Policer id
+ * @param[in] number_of_counters Number of counters in the array
+ * @param[in] counter_ids Array of counter ids
+ * @param[in] mode Statistics mode
+ * @param[out] counters Array of resulting counter values.
+ *
+ * @return #SAI_STATUS_SUCCESS on success, failure status code on error
+ */
+sai_status_t mlnx_sai_get_policer_statistics_ext(_In_ sai_object_id_t           policer_id,
+                                                 _In_ uint32_t                  number_of_counters,
+                                                 _In_ const sai_policer_stat_t *counter_ids,
+                                                 _In_ sai_stats_mode_t          mode,
+                                                 _Out_ uint64_t                *counters)
+{
+    return SAI_STATUS_NOT_IMPLEMENTED;
+}
+
+/**
  * @brief Clear Policer statistics counters.
  *
  * @param[in] policer_id Policer id
@@ -2916,5 +2936,6 @@ const sai_policer_api_t mlnx_policer_api = {
     mlnx_sai_set_policer_attribute,
     mlnx_sai_get_policer_attribute,
     mlnx_sai_get_policer_statistics,
+    mlnx_sai_get_policer_statistics_ext,
     mlnx_sai_clear_policer_stats,
 };

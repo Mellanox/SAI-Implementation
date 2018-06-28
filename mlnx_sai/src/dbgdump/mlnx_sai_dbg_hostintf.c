@@ -166,9 +166,9 @@ static void SAI_dump_trap_mirror_discard_db(_In_ FILE             *file,
                                             _In_ trap_mirror_db_t *trap_mirror_discard_wred_db,
                                             _In_ trap_mirror_db_t *trap_mirror_discard_router_db)
 {
-    uint32_t        ii    = 0;
-    sai_object_id_t curr_mirror_oid;
-    uint32_t        count = 0;
+    uint32_t                  ii = 0;
+    sai_object_id_t           curr_mirror_oid;
+    uint32_t                  count                    = 0;
     dbg_utils_table_columns_t traps_mirror_oid_clmns[] = {
         {"db idx",       7,  PARAM_UINT32_E, &ii},
         {"mirror oid",   16, PARAM_UINT64_E, &curr_mirror_oid},
@@ -213,11 +213,11 @@ static void SAI_dump_trap_mirror_discard_db(_In_ FILE             *file,
 
 void SAI_dump_hostintf(_In_ FILE *file)
 {
-    sai_object_id_t   default_trap_group = 0;
-    bool              trap_group_valid[MAX_TRAP_GROUPS];
-    mlnx_trap_t      *traps_db;
-    trap_mirror_db_t  trap_mirror_discard_wred_db;
-    trap_mirror_db_t  trap_mirror_discard_router_db;
+    sai_object_id_t  default_trap_group = 0;
+    bool             trap_group_valid[MAX_TRAP_GROUPS];
+    mlnx_trap_t     *traps_db;
+    trap_mirror_db_t trap_mirror_discard_wred_db;
+    trap_mirror_db_t trap_mirror_discard_router_db;
 
     memset(trap_group_valid, 0, MAX_TRAP_GROUPS * sizeof(bool));
     traps_db = (mlnx_trap_t*)calloc(SXD_TRAP_ID_ACL_MAX, sizeof(mlnx_trap_t));

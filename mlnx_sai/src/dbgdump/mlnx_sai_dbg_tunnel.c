@@ -143,8 +143,8 @@ static void SAI_dump_tunnel_map_print(_In_ FILE                    *file,
                                       _In_ mlnx_tunnel_map_t       *mlnx_tunnel_map,
                                       _In_ mlnx_tunnel_map_entry_t *mlnx_tunnel_map_entry)
 {
-    uint32_t                  ii           = 0, jj = 0;
-    sai_object_id_t           obj_id       = SAI_NULL_OBJECT_ID;
+    uint32_t                  ii     = 0, jj = 0;
+    sai_object_id_t           obj_id = SAI_NULL_OBJECT_ID;
     mlnx_tunnel_map_t         curr_mlnx_tunnel_map;
     mlnx_tunnel_map_entry_t   curr_mlnx_tunnel_map_entry;
     uint32_t                  tunnel_map_entry_idx = MLNX_TUNNEL_MAP_ENTRY_INVALID;

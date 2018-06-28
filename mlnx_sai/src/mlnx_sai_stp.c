@@ -917,7 +917,7 @@ static sai_status_t mlnx_stp_port_state_get(_In_ const sai_object_key_t   *key,
 
     default:
         SX_LOG_ERR("Invalid port state - %u\n", sx_port_state);
-        sx_status = SAI_STATUS_INVALID_PARAMETER;
+        status = SAI_STATUS_INVALID_PARAMETER;
         goto out;
     }
 
@@ -1067,8 +1067,8 @@ sai_status_t mlnx_stp_initialize()
     sai_status_t              status = SAI_STATUS_SUCCESS;
     sx_status_t               sx_status;
     sx_vlan_id_t              sx_vlan_id;
-    sx_vlan_id_t              sx_vlan_ids[MAX_VLANS]         = {0};
-    sx_mstp_inst_port_state_t ports_states[MAX_BRIDGE_PORTS] = {0};
+    sx_vlan_id_t              sx_vlan_ids[MAX_VLANS]            = {0};
+    sx_mstp_inst_port_state_t ports_states[MAX_BRIDGE_1Q_PORTS] = {0};
     uint32_t                  vlans_count, ii;
     const mlnx_bridge_port_t *bport;
 
@@ -1082,7 +1082,7 @@ sai_status_t mlnx_stp_initialize()
     g_sai_db_ptr->is_stp_initialized = true;
 
     /* Fetch rstp state for each port so we can applay it after setting mstp mode to SX_MSTP_MODE_MSTP */
-    mlnx_bridge_port_foreach(bport, ii) {
+    mlnx_bridge_1q_port_foreach(bport, ii) {
         if (bport->port_type == SAI_BRIDGE_PORT_TYPE_PORT) {
             sx_status = sx_api_rstp_port_state_get(gh_sdk, bport->logical, &ports_states[ii]);
             if (SX_ERR(sx_status)) {
@@ -1125,7 +1125,7 @@ sai_status_t mlnx_stp_initialize()
         goto out;
     }
 
-    mlnx_bridge_port_foreach(bport, ii) {
+    mlnx_bridge_1q_port_foreach(bport, ii) {
         if (bport->port_type == SAI_BRIDGE_PORT_TYPE_PORT) {
             sx_status = sx_api_mstp_inst_port_state_set(gh_sdk, DEFAULT_ETH_SWID, mlnx_stp_get_default_stp(),
                                                         bport->logical, ports_states[ii]);

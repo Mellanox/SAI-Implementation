@@ -735,7 +735,7 @@ static sai_status_t mlnx_wred_ecn_enable_set(sx_port_log_id_t        port,
     ecn_param.red_enabled = red_enable;
 
     tc_list_to_str(tc_list, tc_count, buf);
-    SX_LOG_NTC("Set ecn_enabled (%d), red_enabled (%d) for port 0%x tc = %s\n",
+    SX_LOG_INF("Set ecn_enabled (%d), red_enabled (%d) for port 0%x tc = %s\n",
                ecn_enable, red_enable, port, buf);
 
     sx_status = sx_api_cos_redecn_tc_enable_set(gh_sdk, port, tc_list, tc_count, &ecn_param);
@@ -861,7 +861,7 @@ sai_status_t mlnx_wred_apply(sai_object_id_t wred_id, sai_object_id_t to_obj_id)
         status = mlnx_wred_apply_saiwred_to_port(&wred_profile, port_id, tc_list, tc_count, SX_ACCESS_CMD_UNBIND);
         tc_list_to_str(tc_list, tc_count, buf);
         if (SAI_STATUS_SUCCESS == status) {
-            SX_LOG_NTC("Removed WRED profile from port 0x%x tc list %s\n", port_id, buf);
+            SX_LOG_INF("Removed WRED profile from port 0x%x tc list %s\n", port_id, buf);
         } else {
             SX_LOG_ERR("Failed to remove WRED profile from port 0%x tc list %s\n", port_id, buf);
             free(tc_list);
@@ -1821,7 +1821,7 @@ static sai_status_t mlnx_wred_ecn_set(_In_ const sai_object_key_t      *key,
             assert(false);
         }
 
-        status      = mlnx_wred_remove_profile(wred_id, *sx_profile, color);
+        status = mlnx_wred_remove_profile(wred_id, *sx_profile, color);
         if (SAI_ERR(status)) {
             goto out;
         }
@@ -2059,8 +2059,7 @@ static sai_status_t mlnx_create_wred_profile(_Out_ sai_object_id_t      *wred_id
     }
 
     sai_attr_list_to_str(attr_count, attr_list, SAI_OBJECT_TYPE_WRED, MAX_LIST_VALUE_STR_LEN, list_str);
-    SX_LOG_NTC("Create new wred profile\n");
-    SX_LOG_NTC("Attribs %s\n", list_str);
+    SX_LOG_NTC("Create wred profile, %s\n", list_str);
 
     /* WRED Green - enable, drop prob */
     status = find_attrib_in_list(attr_count, attr_list, SAI_WRED_ATTR_GREEN_ENABLE, &green_en_attr, &index);

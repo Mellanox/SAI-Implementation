@@ -390,11 +390,10 @@ static void SAI_dump_switch_default_tc_print(_In_ FILE *file, _In_ uint8_t *swit
     dbg_utils_print(file, "\n");
 }
 
-static void SAI_dump_is_switch_priority_lossless_print(_In_ FILE *file,
-                                                       _In_ bool *is_switch_priority_lossless)
+static void SAI_dump_is_switch_priority_lossless_print(_In_ FILE *file, _In_ bool *is_switch_priority_lossless)
 {
-    uint32_t                  ii                               = 0;
-    uint32_t                  curr_is_sp_lossless = 0;
+    uint32_t                  ii                     = 0;
+    uint32_t                  curr_is_sp_lossless    = 0;
     dbg_utils_table_columns_t is_sp_lossless_clmns[] = {
         {"sp idx",          7,  PARAM_UINT32_E, &ii},
         {"is lossless",     12, PARAM_UINT32_E, &curr_is_sp_lossless},

@@ -207,9 +207,10 @@ static sai_status_t mlnx_create_router_interface(_Out_ sai_object_id_t      *rif
     sx_port_log_id_t             sx_vport_id, sx_port_id = SX_INVALID_PORT;
     sx_status_t                  sx_status;
     sai_status_t                 status;
-    const sai_attribute_value_t *type, *vrid, *port = NULL, *vlan = NULL, *mtu, *mac, *adminv4, *adminv6, *loopback_action = NULL;
-    uint32_t                     type_index, vrid_index, port_index, vlan_index, mtu_index, mac_index, adminv4_index,
-                                 adminv6_index, vrid_data, acl_attr_index, loopback_action_index;
+    const sai_attribute_value_t *type, *vrid, *port = NULL, *vlan = NULL, *mtu, *mac, *adminv4, *adminv6,
+    *loopback_action = NULL;
+    uint32_t type_index, vrid_index, port_index, vlan_index, mtu_index, mac_index, adminv4_index,
+             adminv6_index, vrid_data, acl_attr_index, loopback_action_index;
     sx_router_interface_t        sdk_rif_id = 0;
     sx_router_interface_state_t  rif_state;
     char                         list_str[MAX_LIST_VALUE_STR_LEN];
@@ -260,7 +261,11 @@ static sai_status_t mlnx_create_router_interface(_Out_ sai_object_id_t      *rif
 
     find_attrib_in_list(attr_count, attr_list, SAI_ROUTER_INTERFACE_ATTR_PORT_ID, &port, &port_index);
 
-    find_attrib_in_list(attr_count, attr_list, SAI_ROUTER_INTERFACE_ATTR_LOOPBACK_PACKET_ACTION, &loopback_action, &loopback_action_index);
+    find_attrib_in_list(attr_count,
+                        attr_list,
+                        SAI_ROUTER_INTERFACE_ATTR_LOOPBACK_PACKET_ACTION,
+                        &loopback_action,
+                        &loopback_action_index);
 
     if (SAI_ROUTER_INTERFACE_TYPE_VLAN == type->s32) {
         if (!vlan) {
@@ -316,9 +321,9 @@ static sai_status_t mlnx_create_router_interface(_Out_ sai_object_id_t      *rif
             SX_LOG_EXIT();
             return SAI_STATUS_INVALID_ATTRIBUTE_0 + vlan_index;
         }
-        intf_params.type             = SX_L2_INTERFACE_TYPE_LOOPBACK;
+        intf_params.type = SX_L2_INTERFACE_TYPE_LOOPBACK;
     } else if (SAI_ROUTER_INTERFACE_TYPE_BRIDGE == type->s32) {
-        intf_params.type             = SX_L2_INTERFACE_TYPE_BRIDGE;
+        intf_params.type = SX_L2_INTERFACE_TYPE_BRIDGE;
     } else if (SAI_ROUTER_INTERFACE_TYPE_SUB_PORT == type->s32) {
         status = sai_object_to_vlan(vlan->oid, &sx_vlan_id);
         if (SAI_ERR(status)) {
@@ -735,7 +740,7 @@ static sai_status_t mlnx_rif_loopback_action_sai_to_sx(_In_ const sai_attribute_
     assert(loopback_action);
     assert(intf_attribs);
 
-    if ((loopback_action->s32 !=  SAI_PACKET_ACTION_DROP) && (loopback_action->s32 !=  SAI_PACKET_ACTION_FORWARD)) {
+    if ((loopback_action->s32 != SAI_PACKET_ACTION_DROP) && (loopback_action->s32 != SAI_PACKET_ACTION_FORWARD)) {
         SX_LOG_ERR("Unsupported value for LOOPBACK_PACKET_ACTION - %d. Supported: "
                    "SAI_PACKET_ACTION_DROP, SAI_PACKET_ACTION_FORWARD\n", loopback_action->s32);
         return SAI_STATUS_ATTR_NOT_SUPPORTED_0 + attr_index;

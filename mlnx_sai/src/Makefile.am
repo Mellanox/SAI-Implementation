@@ -95,8 +95,10 @@ libsai_apiincludedir = $(includedir)/sai
 libsai_apiinclude_HEADERS = \
         $(top_srcdir)/inc/sai/sai.h \
         $(top_srcdir)/inc/sai/saiacl.h \
+        $(top_srcdir)/inc/sai/saibfd.h \
         $(top_srcdir)/inc/sai/saibridge.h \
         $(top_srcdir)/inc/sai/saibuffer.h \
+        $(top_srcdir)/inc/sai/saidtel.h \
         $(top_srcdir)/inc/sai/saifdb.h \
         $(top_srcdir)/inc/sai/saihash.h \
         $(top_srcdir)/inc/sai/saihostif.h \

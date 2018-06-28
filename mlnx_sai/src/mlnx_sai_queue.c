@@ -480,10 +480,10 @@ static sai_status_t mlnx_get_queue_statistics(_In_ sai_object_id_t         queue
     sx_port_statistic_usage_params_t stats_usage;
     sx_port_occupancy_statistics_t   occupancy_stats;
     uint32_t                         usage_cnt = 1;
-    sx_port_traffic_cntr_t           tc_cnts = { 0 };
+    sx_port_traffic_cntr_t           tc_cnts   = { 0 };
     sx_port_cntr_perf_t              perf_cnts;
     bool                             tc_cnts_needed = false, occupancy_stats_needed = false;
-    mlnx_qos_queue_config_t         *queue_cfg = NULL;
+    mlnx_qos_queue_config_t         *queue_cfg      = NULL;
     uint32_t                         db_buffer_profile_index;
 
     SX_LOG_ENTER();
@@ -507,7 +507,7 @@ static sai_status_t mlnx_get_queue_statistics(_In_ sai_object_id_t         queue
     queue_num = ext_data[0];
     if (queue_num > g_resource_limits.cos_port_ets_traffic_class_max) {
         SX_LOG_ERR("Invalid queue num %u - exceed maximum %u\n", queue_num,
-            g_resource_limits.cos_port_ets_traffic_class_max);
+                   g_resource_limits.cos_port_ets_traffic_class_max);
         return SAI_STATUS_INVALID_PARAMETER;
     }
     /* TODO : change to > g_resource_limits.cos_port_ets_traffic_class_max when sdk is updated to use rm */
@@ -558,7 +558,10 @@ static sai_status_t mlnx_get_queue_statistics(_In_ sai_object_id_t         queue
             case SAI_QUEUE_STAT_RED_WRED_ECN_MARKED_BYTES:
             case SAI_QUEUE_STAT_WRED_ECN_MARKED_PACKETS:
             case SAI_QUEUE_STAT_WRED_ECN_MARKED_BYTES:
-                SX_LOG_INF("Queue counter %d set item %u not supported for queue num greater than %d\n", counter_ids[ii], ii, RM_API_COS_TRAFFIC_CLASS_NUM);
+                SX_LOG_INF("Queue counter %d set item %u not supported for queue num greater than %d\n",
+                           counter_ids[ii],
+                           ii,
+                           RM_API_COS_TRAFFIC_CLASS_NUM);
                 return SAI_STATUS_ATTR_NOT_SUPPORTED_0 + ii;
 
             case SAI_QUEUE_STAT_PACKETS:
@@ -603,15 +606,15 @@ static sai_status_t mlnx_get_queue_statistics(_In_ sai_object_id_t         queue
 
     if (occupancy_stats_needed) {
         memset(&stats_usage, 0, sizeof(stats_usage));
-        stats_usage.port_cnt = 1;
-        stats_usage.log_port_list_p = &port_num;
-        stats_usage.sx_port_params.port_params_type = SX_COS_EGRESS_PORT_TRAFFIC_CLASS_ATTR_E;
-        stats_usage.sx_port_params.port_params_cnt = 1;
+        stats_usage.port_cnt                                 = 1;
+        stats_usage.log_port_list_p                          = &port_num;
+        stats_usage.sx_port_params.port_params_type          = SX_COS_EGRESS_PORT_TRAFFIC_CLASS_ATTR_E;
+        stats_usage.sx_port_params.port_params_cnt           = 1;
         stats_usage.sx_port_params.port_param.port_tc_list_p = &queue_num;
 
         if (SX_STATUS_SUCCESS !=
             (status = sx_api_cos_port_buff_type_statistic_get(gh_sdk, SX_ACCESS_CMD_READ, &stats_usage, 1,
-            &occupancy_stats, &usage_cnt))) {
+                                                              &occupancy_stats, &usage_cnt))) {
             SX_LOG_ERR("Failed to get port buff statistics - %s.\n", SX_STATUS_MSG(status));
             return sdk_to_sai(status);
         }
@@ -691,7 +694,8 @@ static sai_status_t mlnx_get_queue_statistics(_In_ sai_object_id_t         queue
             }
 
             if (SAI_NULL_OBJECT_ID != queue_cfg->buffer_id) {
-                if (SAI_STATUS_SUCCESS != (status = get_buffer_profile_db_index(queue_cfg->buffer_id, &db_buffer_profile_index))) {
+                if (SAI_STATUS_SUCCESS !=
+                    (status = get_buffer_profile_db_index(queue_cfg->buffer_id, &db_buffer_profile_index))) {
                     SX_LOG_EXIT();
                     sai_db_unlock();
                     return status;
@@ -699,8 +703,7 @@ static sai_status_t mlnx_get_queue_statistics(_In_ sai_object_id_t         queue
 
                 if (counters[ii] >= g_sai_buffer_db_ptr->buffer_profiles[db_buffer_profile_index].reserved_size) {
                     counters[ii] -= g_sai_buffer_db_ptr->buffer_profiles[db_buffer_profile_index].reserved_size;
-                }
-                else {
+                } else {
                     counters[ii] = 0;
                 }
             }
@@ -715,6 +718,26 @@ static sai_status_t mlnx_get_queue_statistics(_In_ sai_object_id_t         queue
 
     SX_LOG_EXIT();
     return SAI_STATUS_SUCCESS;
+}
+
+/**
+ * @brief Get queue statistics counters extended.
+ *
+ * @param[in] queue_id Queue id
+ * @param[in] number_of_counters Number of counters in the array
+ * @param[in] counter_ids Specifies the array of counter ids
+ * @param[in] mode Statistics mode
+ * @param[out] counters Array of resulting counter values.
+ *
+ * @return #SAI_STATUS_SUCCESS on success, failure status code on error
+ */
+sai_status_t mlnx_get_queue_statistics_ext(_In_ sai_object_id_t         queue_id,
+                                           _In_ uint32_t                number_of_counters,
+                                           _In_ const sai_queue_stat_t *counter_ids,
+                                           _In_ sai_stats_mode_t        mode,
+                                           _Out_ uint64_t              *counters)
+{
+    return SAI_STATUS_NOT_IMPLEMENTED;
 }
 
 /**
@@ -740,7 +763,7 @@ static sai_status_t mlnx_clear_queue_stats(_In_ sai_object_id_t         queue_id
     uint32_t                         usage_cnt = 1;
     sx_port_traffic_cntr_t           tc_cnts;
     sx_port_cntr_perf_t              perf_cnts;
-    const uint8_t                    port_prio_id = 0;
+    const uint8_t                    port_prio_id   = 0;
     bool                             tc_cnts_needed = false, occupancy_stats_needed = false;
     uint32_t                         ii;
 
@@ -760,7 +783,7 @@ static sai_status_t mlnx_clear_queue_stats(_In_ sai_object_id_t         queue_id
     queue_num = ext_data[0];
     if (queue_num > g_resource_limits.cos_port_ets_traffic_class_max) {
         SX_LOG_ERR("Invalid queue num %u - exceed maximum %u\n", queue_num,
-            g_resource_limits.cos_port_ets_traffic_class_max);
+                   g_resource_limits.cos_port_ets_traffic_class_max);
         return SAI_STATUS_INVALID_PARAMETER;
     }
     /* TODO : change to > g_resource_limits.cos_port_ets_traffic_class_max when sdk is updated to use rm */
@@ -804,15 +827,15 @@ static sai_status_t mlnx_clear_queue_stats(_In_ sai_object_id_t         queue_id
 
     if (occupancy_stats_needed) {
         memset(&stats_usage, 0, sizeof(stats_usage));
-        stats_usage.port_cnt = 1;
-        stats_usage.log_port_list_p = &port_num;
-        stats_usage.sx_port_params.port_params_type = SX_COS_EGRESS_PORT_TRAFFIC_CLASS_ATTR_E;
-        stats_usage.sx_port_params.port_params_cnt = 1;
+        stats_usage.port_cnt                                 = 1;
+        stats_usage.log_port_list_p                          = &port_num;
+        stats_usage.sx_port_params.port_params_type          = SX_COS_EGRESS_PORT_TRAFFIC_CLASS_ATTR_E;
+        stats_usage.sx_port_params.port_params_cnt           = 1;
         stats_usage.sx_port_params.port_param.port_tc_list_p = &queue_num;
 
         if (SX_STATUS_SUCCESS !=
             (status = sx_api_cos_port_buff_type_statistic_get(gh_sdk, SX_ACCESS_CMD_READ_CLEAR, &stats_usage, 1,
-            &occupancy_stats, &usage_cnt))) {
+                                                              &occupancy_stats, &usage_cnt))) {
             SX_LOG_ERR("Failed to get clear port buff statistics - %s.\n", SX_STATUS_MSG(status));
             return sdk_to_sai(status);
         }
@@ -996,7 +1019,7 @@ sai_status_t mlnx_create_queue(_Out_ sai_object_id_t      *queue_id,
     SX_LOG_NTC("Created %s\n", key_str);
 
     *queue_id = queue_oid;
-    status = SAI_STATUS_SUCCESS;
+    status    = SAI_STATUS_SUCCESS;
 
 out:
     SX_LOG_EXIT();
@@ -1065,5 +1088,6 @@ const sai_queue_api_t mlnx_queue_api = {
     mlnx_set_queue_attribute,
     mlnx_get_queue_attribute,
     mlnx_get_queue_statistics,
+    mlnx_get_queue_statistics_ext,
     mlnx_clear_queue_stats
 };

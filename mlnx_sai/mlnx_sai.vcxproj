@@ -126,8 +126,10 @@
     <ClInclude Include="inc\mlnx_sai.h" />
     <ClInclude Include="inc\sai\sai.h" />
     <ClInclude Include="inc\sai\saiacl.h" />
+    <ClInclude Include="inc\sai\saibfd.h" />
     <ClInclude Include="inc\sai\saibridge.h" />
     <ClInclude Include="inc\sai\saibuffer.h" />
+    <ClInclude Include="inc\sai\saidtel.h" />
     <ClInclude Include="inc\sai\saifdb.h" />
     <ClInclude Include="inc\sai\saihash.h" />
     <ClInclude Include="inc\sai\saihostif.h" />

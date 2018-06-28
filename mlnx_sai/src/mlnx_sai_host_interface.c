@@ -384,9 +384,15 @@ const mlnx_trap_info_t                    mlnx_traps_info[] = {
     { SAI_HOSTIF_TRAP_TYPE_TTL_ERROR, 1, { SX_TRAP_ID_ETH_L3_TTLERROR }, SAI_PACKET_ACTION_TRAP, "TTL error",
       MLNX_TRAP_TYPE_REGULAR },
     { SAI_HOSTIF_TRAP_TYPE_PIPELINE_DISCARD_WRED, 0, { 0 }, SAI_PACKET_ACTION_DROP, "Discard WRED",
-     MLNX_TRAP_TYPE_REGULAR },
+      MLNX_TRAP_TYPE_REGULAR },
     { SAI_HOSTIF_TRAP_TYPE_PIPELINE_DISCARD_ROUTER, 0, { 0 }, SAI_PACKET_ACTION_DROP, "Discard Router",
-     MLNX_TRAP_TYPE_REGULAR },
+      MLNX_TRAP_TYPE_REGULAR },
+#ifdef PTP
+    { SAI_HOSTIF_TRAP_TYPE_CUSTOM_EXCEPTION_RANGE_BASE, 4,
+      { SX_TRAP_ID_PTP_EVENT, SX_TRAP_ID_PTP_GENERAL, SX_TRAP_ID_PTP_ING_EVENT,
+        SX_TRAP_ID_PTP_EGR_EVENT }, SAI_PACKET_ACTION_TRAP, "PTP",
+      MLNX_TRAP_TYPE_REGULAR },
+#endif
     { SAI_HOSTIF_USER_DEFINED_TRAP_TYPE_ACL, 1, { SX_TRAP_ID_ACL_MIN }, SAI_PACKET_ACTION_TRAP, "ACL",
       MLNX_TRAP_TYPE_USER_DEFINED },
     { SAI_HOSTIF_USER_DEFINED_TRAP_TYPE_ROUTER, 4,
@@ -402,21 +408,16 @@ const mlnx_trap_info_t                    mlnx_traps_info[] = {
       MLNX_TRAP_TYPE_USER_DEFINED },
     { END_TRAP_INFO_ID, 1, { END_TRAP_INFO_ID }, 0, "", 0 }
 };
-
 static sai_status_t mlnx_trap_mirror_drop_set(_In_ uint32_t        trap_db_idx,
                                               _In_ sai_object_id_t sai_mirror_oid,
                                               _In_ bool            is_create);
-
 static sai_status_t mlnx_trap_mirror_array_drop_set(_In_ uint32_t         trap_db_idx,
                                                     _In_ sai_object_id_t *sai_mirror_oid,
                                                     _In_ uint32_t         sai_mirror_oid_count,
                                                     _In_ bool             is_create);
-
 static sai_status_t mlnx_trap_mirror_array_drop_clear(_In_ uint32_t trap_db_idx);
-
 static sai_status_t mlnx_trap_mirror_db_fill(_In_ uint32_t                 trap_db_idx,
                                              _In_ const sai_object_list_t *sai_mirror_objlist);
-
 static sai_status_t find_sai_trap_index(_In_ uint32_t         trap_id,
                                         _In_ mlnx_trap_type_t trap_type,
                                         _Out_ uint32_t       *index)
@@ -565,11 +566,10 @@ static sai_status_t mlnx_create_host_interface(_Out_ sai_object_id_t     * hif_i
             }
 
             snprintf(command, sizeof(command), "ip link add link swid%u_eth name %s type vlan id %u",
-                DEFAULT_ETH_SWID, name->chardata, mlnx_hif.ext.vlan.id);
+                     DEFAULT_ETH_SWID, name->chardata, mlnx_hif.ext.vlan.id);
 
             mlnx_hif.field.sub_type = SAI_HOSTIF_OBJECT_TYPE_VLAN;
-        }
-        else if (SAI_OBJECT_TYPE_PORT == sai_object_type_query(rif_port->oid)) {
+        } else if (SAI_OBJECT_TYPE_PORT == sai_object_type_query(rif_port->oid)) {
             if (SAI_STATUS_SUCCESS !=
                 (status = mlnx_object_to_type(rif_port->oid, SAI_OBJECT_TYPE_PORT, &rif_port_data, NULL))) {
                 return status;
@@ -629,11 +629,12 @@ static sai_status_t mlnx_create_host_interface(_Out_ sai_object_id_t     * hif_i
          * TODO : Right now we are enabling on any port/lag netdev, could improve by enabling just on router port.
          * This will require iteration on all router ports and checking port id match, and also different order sequences.
          */
-        if ((mlnx_hif.field.sub_type == SAI_HOSTIF_OBJECT_TYPE_PORT) || (mlnx_hif.field.sub_type == SAI_HOSTIF_OBJECT_TYPE_LAG)) {
+        if ((mlnx_hif.field.sub_type == SAI_HOSTIF_OBJECT_TYPE_PORT) ||
+            (mlnx_hif.field.sub_type == SAI_HOSTIF_OBJECT_TYPE_LAG)) {
             snprintf(command,
-                sizeof(command),
-                "sysctl -w net.ipv6.conf.%s.disable_ipv6=0",
-                name->chardata);
+                     sizeof(command),
+                     "sysctl -w net.ipv6.conf.%s.disable_ipv6=0",
+                     name->chardata);
 
             system_err = system(command);
             if (0 != system_err) {
@@ -885,8 +886,7 @@ static sai_status_t mlnx_host_interface_rif_port_get(_In_ const sai_object_key_t
     } else if (SAI_HOSTIF_OBJECT_TYPE_VLAN == mlnx_hif.field.sub_type) {
         mlnx_port.id.vlan_id = mlnx_hif.ext.vlan.id;
         object_type          = SAI_OBJECT_TYPE_VLAN;
-    }
-    else {
+    } else {
         SX_LOG_ERR("Unexpected host if type %d\n", mlnx_hif.field.sub_type);
         return SAI_STATUS_INVALID_PARAMETER;
     }
@@ -1552,7 +1552,7 @@ sai_status_t mlnx_create_hostif_trap(_Out_ sai_object_id_t      *hostif_trap_id,
     sai_status_t                 status;
     sai_status_t                 sai_status_mirror_session;
     const sai_attribute_value_t *trap_id = NULL, *action = NULL, *exclude = NULL;
-    const sai_attribute_value_t *group = NULL, *mirror_session = NULL;
+    const sai_attribute_value_t *group   = NULL, *mirror_session = NULL;
     uint32_t                     trap_id_index, action_index, exclude_index, group_index;
     uint32_t                     mirror_session_index;
     char                         key_str[MAX_KEY_STR_LEN];
@@ -1607,7 +1607,11 @@ sai_status_t mlnx_create_hostif_trap(_Out_ sai_object_id_t      *hostif_trap_id,
 
     cl_plock_excl_acquire(&g_sai_db_ptr->p_lock);
 
-    sai_status_mirror_session = find_attrib_in_list(attr_count, attr_list, SAI_HOSTIF_TRAP_ATTR_MIRROR_SESSION, &mirror_session, &mirror_session_index);
+    sai_status_mirror_session = find_attrib_in_list(attr_count,
+                                                    attr_list,
+                                                    SAI_HOSTIF_TRAP_ATTR_MIRROR_SESSION,
+                                                    &mirror_session,
+                                                    &mirror_session_index);
     if (SAI_STATUS_SUCCESS == sai_status_mirror_session) {
         status = mlnx_trap_mirror_array_drop_clear(index);
         if (SAI_STATUS_SUCCESS != status) {
@@ -2386,17 +2390,16 @@ static sai_status_t mlnx_trap_exclude_port_list_set(_In_ const sai_object_key_t 
 }
 
 /* This function should be guarded by lock */
-static sai_status_t mlnx_trap_mirror_drop_by_wred_set(_In_ sx_span_session_id_t span_session_id,
-                                                      _In_ bool is_create)
+static sai_status_t mlnx_trap_mirror_drop_by_wred_set(_In_ sx_span_session_id_t span_session_id, _In_ bool is_create)
 {
-    sai_status_t          sai_status       = SAI_STATUS_FAILURE;
-    sx_status_t           sx_status        = SX_STATUS_ERROR;
-    uint32_t              port_idx         = 0;
-    mlnx_port_config_t   *port             = NULL;
-    const sx_access_cmd_t cmd              = is_create ?
-                                             SX_ACCESS_CMD_ADD :
-                                             SX_ACCESS_CMD_DELETE;
-    sx_port_log_id_t      ingress_port;
+    sai_status_t          sai_status = SAI_STATUS_FAILURE;
+    sx_status_t           sx_status  = SX_STATUS_ERROR;
+    uint32_t              port_idx   = 0;
+    mlnx_port_config_t   *port       = NULL;
+    const sx_access_cmd_t cmd        = is_create ?
+                                       SX_ACCESS_CMD_ADD :
+                                       SX_ACCESS_CMD_DELETE;
+    sx_port_log_id_t ingress_port;
 
     SX_LOG_ENTER();
 
@@ -2406,8 +2409,8 @@ static sai_status_t mlnx_trap_mirror_drop_by_wred_set(_In_ sx_span_session_id_t 
             continue;
         }
         ingress_port = port->logical;
-        sx_status = sx_api_cos_redecn_mirroring_set(gh_sdk, cmd,
-                                                    ingress_port, span_session_id);
+        sx_status    = sx_api_cos_redecn_mirroring_set(gh_sdk, cmd,
+                                                       ingress_port, span_session_id);
         if (SX_STATUS_SUCCESS != sx_status) {
             SX_LOG_ERR("Error setting cos redecn mirror for ingress port 0x%x, "
                        "span session id %d: %s\n",
@@ -2422,10 +2425,8 @@ static sai_status_t mlnx_trap_mirror_drop_by_wred_set(_In_ sx_span_session_id_t 
     return SAI_STATUS_SUCCESS;
 }
 
-static sai_status_t mlnx_trap_mirror_drop_by_router_set(_In_ sx_span_session_id_t span_session_id,
-                                                        _In_ bool is_create)
+static sai_status_t mlnx_trap_mirror_drop_by_router_set(_In_ sx_span_session_id_t span_session_id, _In_ bool is_create)
 {
-
     sx_span_drop_mirroring_attr_t drop_mirroring_attr_p;
     sx_span_drop_reason_t         drop_reason_list_p = SX_SPAN_DROP_REASON_ALL_ROUTER_DROPS_E;
     const uint32_t                drop_reason_cnt    = 1;
@@ -2470,13 +2471,13 @@ static sai_status_t mlnx_trap_mirror_drop_set(_In_ uint32_t        trap_db_idx,
     sai_status = mlnx_object_to_type(sai_mirror_oid, SAI_OBJECT_TYPE_MIRROR_SESSION, &sdk_mirror_id, NULL);
 
     if (SAI_STATUS_SUCCESS != sai_status) {
-        SX_LOG_ERR("Error getting span session id from sai mirror id %"PRIx64"\n", sai_mirror_oid);
+        SX_LOG_ERR("Error getting span session id from sai mirror id %" PRIx64 "\n", sai_mirror_oid);
         SX_LOG_EXIT();
         return sai_status;
     }
 
     span_session_id = (sx_span_session_id_t)sdk_mirror_id;
-    trap_id = mlnx_traps_info[trap_db_idx].trap_id;
+    trap_id         = mlnx_traps_info[trap_db_idx].trap_id;
     if (SAI_HOSTIF_TRAP_TYPE_PIPELINE_DISCARD_WRED == trap_id) {
         sai_status = mlnx_trap_mirror_drop_by_wred_set(span_session_id, is_create);
         if (SAI_STATUS_SUCCESS != sai_status) {
@@ -2520,7 +2521,7 @@ static sai_status_t mlnx_trap_mirror_array_drop_set(_In_ uint32_t         trap_d
         sai_status = mlnx_trap_mirror_drop_set(trap_db_idx, sai_mirror_oid[ii], is_create);
         if (SAI_STATUS_SUCCESS != sai_status) {
             SX_LOG_ERR("Error setting mirror drop trap for trap db idx %d "
-                       "and sai mirror id %"PRIx64"\n",
+                       "and sai mirror id %" PRIx64 "\n",
                        trap_db_idx, sai_mirror_oid[ii]);
             SX_LOG_EXIT();
             return sai_status;
@@ -2534,8 +2535,8 @@ static sai_status_t mlnx_trap_mirror_array_drop_set(_In_ uint32_t         trap_d
 /* This function should be guarded by lock */
 static sai_status_t mlnx_trap_mirror_array_drop_clear(_In_ uint32_t trap_db_idx)
 {
-    sai_status_t           sai_status         = SAI_STATUS_FAILURE;
-    const bool             is_create          = false;
+    sai_status_t           sai_status = SAI_STATUS_FAILURE;
+    const bool             is_create  = false;
     sai_hostif_trap_type_t trap_id;
     sai_object_id_t       *sai_mirror_oid     = NULL;
     uint32_t               sai_mirror_oid_cnt = 0;
@@ -2544,10 +2545,10 @@ static sai_status_t mlnx_trap_mirror_array_drop_clear(_In_ uint32_t trap_db_idx)
 
     trap_id = mlnx_traps_info[trap_db_idx].trap_id;
     if (SAI_HOSTIF_TRAP_TYPE_PIPELINE_DISCARD_WRED == trap_id) {
-        sai_mirror_oid = g_sai_db_ptr->trap_mirror_discard_wred_db.mirror_oid;
+        sai_mirror_oid     = g_sai_db_ptr->trap_mirror_discard_wred_db.mirror_oid;
         sai_mirror_oid_cnt = g_sai_db_ptr->trap_mirror_discard_wred_db.count;
     } else if (SAI_HOSTIF_TRAP_TYPE_PIPELINE_DISCARD_ROUTER == trap_id) {
-        sai_mirror_oid = g_sai_db_ptr->trap_mirror_discard_router_db.mirror_oid;
+        sai_mirror_oid     = g_sai_db_ptr->trap_mirror_discard_router_db.mirror_oid;
         sai_mirror_oid_cnt = g_sai_db_ptr->trap_mirror_discard_router_db.count;
     } else {
         SX_LOG_ERR("trap mirror session set is only supported for "
@@ -2582,7 +2583,7 @@ static sai_status_t mlnx_trap_mirror_array_drop_clear(_In_ uint32_t trap_db_idx)
 static sai_status_t mlnx_trap_mirror_db_fill(_In_ uint32_t                 trap_db_idx,
                                              _In_ const sai_object_list_t *sai_mirror_objlist)
 {
-    const sai_hostif_trap_type_t trap_id    = mlnx_traps_info[trap_db_idx].trap_id;
+    const sai_hostif_trap_type_t trap_id = mlnx_traps_info[trap_db_idx].trap_id;
 
     SX_LOG_ENTER();
 
@@ -2631,7 +2632,7 @@ static sai_status_t mlnx_trap_mirror_session_set(_In_ const sai_object_key_t    
     uint32_t               trap_data   = 0;
     bool                   is_create   = false;
     sai_hostif_trap_type_t trap_id;
-    sai_status_t           sai_status  = SAI_STATUS_FAILURE;
+    sai_status_t           sai_status = SAI_STATUS_FAILURE;
 
     SX_LOG_ENTER();
 
@@ -2672,7 +2673,7 @@ static sai_status_t mlnx_trap_mirror_session_set(_In_ const sai_object_key_t    
         return sai_status;
     }
 
-    is_create = true;
+    is_create  = true;
     sai_status = mlnx_trap_mirror_array_drop_set(trap_db_idx,
                                                  value->objlist.list,
                                                  value->objlist.count,
@@ -2838,8 +2839,8 @@ static sai_status_t mlnx_user_defined_trap_group_get(_In_ const sai_object_key_t
  *
  * Arguments:
  *    [in]  hif_id  - host interface id
- *    [out] buffer - packet buffer
  *    [in,out] buffer_size - [in] allocated buffer size. [out] actual packet size in bytes
+ *    [out] buffer - packet buffer
  *    [in,out] attr_count - [in] allocated list size. [out] number of attributes
  *    [out] attr_list - array of attributes
  *
@@ -2852,13 +2853,13 @@ static sai_status_t mlnx_user_defined_trap_group_get(_In_ const sai_object_key_t
  *    Failure status code on error
  */
 static sai_status_t mlnx_recv_hostif_packet(_In_ sai_object_id_t   hif_id,
-                                            _Out_ void            *buffer,
                                             _Inout_ sai_size_t    *buffer_size,
+                                            _Out_ void            *buffer,
                                             _Inout_ uint32_t      *attr_count,
                                             _Out_ sai_attribute_t *attr_list)
 {
     sx_receive_info_t     *receive_info = NULL;
-    mlnx_object_id_t       mlnx_hif = {0};
+    mlnx_object_id_t       mlnx_hif     = {0};
     uint32_t               packet_size;
     const char            *trap_name;
     sai_hostif_trap_type_t trap_id;
@@ -2876,7 +2877,7 @@ static sai_status_t mlnx_recv_hostif_packet(_In_ sai_object_id_t   hif_id,
         return SAI_STATUS_BUFFER_OVERFLOW;
     }
 
-    receive_info = (sx_receive_info_t*) calloc(1, sizeof(*receive_info));
+    receive_info = (sx_receive_info_t*)calloc(1, sizeof(*receive_info));
     if (NULL == receive_info) {
         SX_LOG_ERR("Can't allocate receive_info memory\n");
         status = SX_STATUS_NO_MEMORY;
@@ -2903,7 +2904,7 @@ static sai_status_t mlnx_recv_hostif_packet(_In_ sai_object_id_t   hif_id,
         if (SX_STATUS_NO_MEMORY == status) {
             SX_LOG_ERR("sx_api_host_ifc_recv failed with insufficient buffer %u %zu\n", packet_size, *buffer_size);
             *buffer_size = packet_size;
-            status = SAI_STATUS_BUFFER_OVERFLOW;
+            status       = SAI_STATUS_BUFFER_OVERFLOW;
             goto out;
         }
         SX_LOG_ERR("sx_api_host_ifc_recv failed with error %s\n", SX_STATUS_MSG(status));
@@ -2943,8 +2944,9 @@ static sai_status_t mlnx_recv_hostif_packet(_In_ sai_object_id_t   hif_id,
     }
 
     if (receive_info->is_lag) {
-        if (SAI_STATUS_SUCCESS != (status = mlnx_create_object(SAI_OBJECT_TYPE_LAG, receive_info->source_lag_port, NULL,
-                                                               &attr_list[2].value.oid))) {
+        if (SAI_STATUS_SUCCESS !=
+            (status = mlnx_create_object(SAI_OBJECT_TYPE_LAG, receive_info->source_lag_port, NULL,
+                                         &attr_list[2].value.oid))) {
             goto out;
         }
     } else {
@@ -2965,8 +2967,8 @@ out:
  *
  * Arguments:
  *    [in] hif_id  - host interface id. only valid for send through FD channel. Use SAI_NULL_OBJECT_ID for send through CB channel.
- *    [In] buffer - packet buffer
  *    [in] buffer size - packet size in bytes
+ *    [In] buffer - packet buffer
  *    [in] attr_count - number of attributes
  *    [in] attr_list - array of attributes
  *
@@ -2974,11 +2976,11 @@ out:
  *    SAI_STATUS_SUCCESS on success
  *    Failure status code on error
  */
-static sai_status_t mlnx_send_hostif_packet(_In_ sai_object_id_t  hif_id,
-                                            _In_ void            *buffer,
-                                            _In_ sai_size_t       buffer_size,
-                                            _In_ uint32_t         attr_count,
-                                            _In_ sai_attribute_t *attr_list)
+static sai_status_t mlnx_send_hostif_packet(_In_ sai_object_id_t        hif_id,
+                                            _In_ sai_size_t             buffer_size,
+                                            _In_ const void            *buffer,
+                                            _In_ uint32_t               attr_count,
+                                            _In_ const sai_attribute_t *attr_list)
 {
     char                         list_str[MAX_LIST_VALUE_STR_LEN];
     uint32_t                     type_index, port_index;

@@ -98,9 +98,8 @@ static void SAI_dump_oper_hash_print(_In_ FILE *file, _In_ sai_object_id_t *oper
 static void SAI_dump_hash_ecmp_print(_In_ FILE *file, _In_ const sx_router_ecmp_port_hash_params_t *ecmp_params)
 {
     sx_router_ecmp_port_hash_params_t curr_ecmp_params;
-    char hash_type_str[LINE_LENGTH];
-
-    dbg_utils_table_columns_t ecmp_params_columns[] = {
+    char                              hash_type_str[LINE_LENGTH];
+    dbg_utils_table_columns_t         ecmp_params_columns[] = {
         {"hash type",  32, PARAM_STRING_E, &hash_type_str},
         {"symmetric",  10, PARAM_BOOL_E,   &curr_ecmp_params.symmetric_hash},
         {"seed",       10, PARAM_UINT32_E, &curr_ecmp_params.seed},
@@ -113,7 +112,7 @@ static void SAI_dump_hash_ecmp_print(_In_ FILE *file, _In_ const sx_router_ecmp_
 
     dbg_utils_print_general_header(file, "Port ECMP hash params");
 
-    strncpy(hash_type_str, SX_ROUTER_ECMP_HASH_TYPE_STR(curr_ecmp_params.ecmp_hash_type), sizeof(hash_type_str)-1);
+    strncpy(hash_type_str, SX_ROUTER_ECMP_HASH_TYPE_STR(curr_ecmp_params.ecmp_hash_type), sizeof(hash_type_str) - 1);
     hash_type_str[LINE_LENGTH - 1] = 0;
 
     dbg_utils_print_table_headline(file, ecmp_params_columns);
@@ -122,8 +121,8 @@ static void SAI_dump_hash_ecmp_print(_In_ FILE *file, _In_ const sx_router_ecmp_
 
 void SAI_dump_hash(_In_ FILE *file)
 {
-    mlnx_hash_obj_t hash_list[SAI_HASH_MAX_OBJ_COUNT];
-    sai_object_id_t oper_hash_list[SAI_HASH_MAX_OBJ_ID];
+    mlnx_hash_obj_t                   hash_list[SAI_HASH_MAX_OBJ_COUNT];
+    sai_object_id_t                   oper_hash_list[SAI_HASH_MAX_OBJ_ID];
     sx_router_ecmp_port_hash_params_t ecmp_params;
 
     memset(hash_list, 0, SAI_HASH_MAX_OBJ_COUNT * sizeof(mlnx_hash_obj_t));

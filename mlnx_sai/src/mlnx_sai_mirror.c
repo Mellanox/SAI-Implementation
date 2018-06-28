@@ -987,7 +987,7 @@ static sai_status_t mlnx_add_mirror_analyzer_port(_In_ sx_span_session_id_t sdk_
     sai_status_t                   status               = SAI_STATUS_FAILURE;
     uint32_t                       sdk_analyzer_port_id = 0;
     sx_span_analyzer_port_params_t sdk_analyzer_port_params;
-    mlnx_port_config_t            *port_config          = NULL;
+    mlnx_port_config_t            *port_config = NULL;
 
     memset(&sdk_analyzer_port_params, 0, sizeof(sx_span_analyzer_port_params_t));
     SX_LOG_ENTER();

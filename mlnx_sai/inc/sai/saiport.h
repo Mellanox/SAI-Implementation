@@ -1528,6 +1528,48 @@ typedef enum _sai_port_stat_t
     /** SAI port stat PFC 7 on to off rx pkts */
     SAI_PORT_STAT_PFC_7_ON2OFF_RX_PKTS,
 
+    /** Frames received that are not an integral number of octets in length and do not pass the FCS check */
+    SAI_PORT_STAT_DOT3_STATS_ALIGNMENT_ERRORS,
+
+    /** Frames received that are an integral number of octets in length but do not pass the FCS check */
+    SAI_PORT_STAT_DOT3_STATS_FCS_ERRORS,
+
+    /** Frames that are involved in a single collision, and are subsequently transmitted successfully */
+    SAI_PORT_STAT_DOT3_STATS_SINGLE_COLLISION_FRAMES,
+
+    /** Frames that are involved in a more than one collision collision, and are subsequently transmitted successfully */
+    SAI_PORT_STAT_DOT3_STATS_MULTIPLE_COLLISION_FRAMES,
+
+    /** Number of times that the SQE TEST ERROR is received */
+    SAI_PORT_STAT_DOT3_STATS_SQE_TEST_ERRORS,
+
+    /** Frames for which the first transmission attempt is delayed because the medium is busy */
+    SAI_PORT_STAT_DOT3_STATS_DEFERRED_TRANSMISSIONS,
+
+    /** Number of times that a collision is detected later than one slot time into the transmission of a packet */
+    SAI_PORT_STAT_DOT3_STATS_LATE_COLLISIONS,
+
+    /** Frames for which transmission fails due to excessive collisions */
+    SAI_PORT_STAT_DOT3_STATS_EXCESSIVE_COLLISIONS,
+
+    /** Frames for which transmission fails due to an internal MAC sublayer transmit error */
+    SAI_PORT_STAT_DOT3_STATS_INTERNAL_MAC_TRANSMIT_ERRORS,
+
+    /** Number of times that the carrier sense condition was lost or never asserted when attempting to transmit a frame */
+    SAI_PORT_STAT_DOT3_STATS_CARRIER_SENSE_ERRORS,
+
+    /** Frames received that exceed the maximum permitted frame size */
+    SAI_PORT_STAT_DOT3_STATS_FRAME_TOO_LONGS,
+
+    /** Frames for which reception fails due to an internal MAC sublayer receive error */
+    SAI_PORT_STAT_DOT3_STATS_INTERNAL_MAC_RECEIVE_ERRORS,
+
+    /** Number of times there was an invalid data symbol, incremented at most once per carrier event */
+    SAI_PORT_STAT_DOT3_STATS_SYMBOL_ERRORS,
+
+    /** MAC Control frames received that contain an opcode that is not supported by this device */
+    SAI_PORT_STAT_DOT3_CONTROL_IN_UNKNOWN_OPCODES,
+
     /**
      * @brief Number of times port state changed from
      * high power mode to low power mode in TX direction [uint64_t]
@@ -1609,7 +1651,7 @@ typedef sai_status_t (*sai_get_port_attribute_fn)(
         _Inout_ sai_attribute_t *attr_list);
 
 /**
- * @brief Get port statistics counters.
+ * @brief Get port statistics counters. Deprecated for backward compatibility.
  *
  * @param[in] port_id Port id
  * @param[in] number_of_counters Number of counters in the array
@@ -1622,6 +1664,24 @@ typedef sai_status_t (*sai_get_port_stats_fn)(
         _In_ sai_object_id_t port_id,
         _In_ uint32_t number_of_counters,
         _In_ const sai_port_stat_t *counter_ids,
+        _Out_ uint64_t *counters);
+
+/**
+ * @brief Get port statistics counters extended.
+ *
+ * @param[in] port_id Port id
+ * @param[in] number_of_counters Number of counters in the array
+ * @param[in] counter_ids Specifies the array of counter ids
+ * @param[in] mode Statistics mode
+ * @param[out] counters Array of resulting counter values.
+ *
+ * @return #SAI_STATUS_SUCCESS on success, failure status code on error
+ */
+typedef sai_status_t (*sai_get_port_stats_ext_fn)(
+        _In_ sai_object_id_t port_id,
+        _In_ uint32_t number_of_counters,
+        _In_ const sai_port_stat_t *counter_ids,
+        _In_ sai_stats_mode_t mode,
         _Out_ uint64_t *counters);
 
 /**
@@ -1660,7 +1720,7 @@ typedef sai_status_t (*sai_clear_port_all_stats_fn)(
  */
 typedef void (*sai_port_state_change_notification_fn)(
         _In_ uint32_t count,
-        _In_ sai_port_oper_status_notification_t *data);
+        _In_ const sai_port_oper_status_notification_t *data);
 
 /**
  * @brief List of Port buffer pool attributes
@@ -1847,7 +1907,7 @@ typedef sai_status_t (*sai_get_port_pool_attribute_fn)(
         _Inout_ sai_attribute_t *attr_list);
 
 /**
- * @brief Get port pool statistics counters.
+ * @brief Get port pool statistics counters. Deprecated for backward compatibility.
  *
  * @param[in] port_pool_id Port pool id
  * @param[in] number_of_counters Number of counters in the array
@@ -1860,6 +1920,24 @@ typedef sai_status_t (*sai_get_port_pool_stats_fn)(
         _In_ sai_object_id_t port_pool_id,
         _In_ uint32_t number_of_counters,
         _In_ const sai_port_pool_stat_t *counter_ids,
+        _Out_ uint64_t *counters);
+
+/**
+ * @brief Get port pool statistics counters extended.
+ *
+ * @param[in] port_pool_id Port pool id
+ * @param[in] number_of_counters Number of counters in the array
+ * @param[in] counter_ids Specifies the array of counter ids
+ * @param[in] mode Statistics mode
+ * @param[out] counters Array of resulting counter values.
+ *
+ * @return #SAI_STATUS_SUCCESS on success, failure status code on error
+ */
+typedef sai_status_t (*sai_get_port_pool_stats_ext_fn)(
+        _In_ sai_object_id_t port_pool_id,
+        _In_ uint32_t number_of_counters,
+        _In_ const sai_port_pool_stat_t *counter_ids,
+        _In_ sai_stats_mode_t mode,
         _Out_ uint64_t *counters);
 
 /**
@@ -1886,6 +1964,7 @@ typedef struct _sai_port_api_t
     sai_set_port_attribute_fn         set_port_attribute;
     sai_get_port_attribute_fn         get_port_attribute;
     sai_get_port_stats_fn             get_port_stats;
+    sai_get_port_stats_ext_fn         get_port_stats_ext;
     sai_clear_port_stats_fn           clear_port_stats;
     sai_clear_port_all_stats_fn       clear_port_all_stats;
     sai_create_port_pool_fn           create_port_pool;
@@ -1893,6 +1972,7 @@ typedef struct _sai_port_api_t
     sai_set_port_pool_attribute_fn    set_port_pool_attribute;
     sai_get_port_pool_attribute_fn    get_port_pool_attribute;
     sai_get_port_pool_stats_fn        get_port_pool_stats;
+    sai_get_port_pool_stats_ext_fn    get_port_pool_stats_ext;
     sai_clear_port_pool_stats_fn      clear_port_pool_stats;
 
 } sai_port_api_t;

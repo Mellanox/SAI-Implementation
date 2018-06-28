@@ -277,9 +277,17 @@ static sai_status_t mlnx_bridge_port_add(sx_bridge_id_t         bridge_id,
                                          mlnx_bridge_port_t   **port)
 {
     mlnx_bridge_port_t *new_port;
-    uint32_t            ii;
+    uint32_t            ii, db_start, db_end;
 
-    for (ii = 0; ii < MAX_BRIDGE_PORTS; ii++) {
+    if (port_type == SAI_BRIDGE_PORT_TYPE_PORT) {
+        db_start = 0;
+        db_end   = MAX_BRIDGE_1Q_PORTS;
+    } else {
+        db_start = MAX_BRIDGE_1Q_PORTS;
+        db_end   = MAX_BRIDGE_PORTS;
+    }
+
+    for (ii = db_start; ii < db_end; ii++) {
         if (!g_sai_db_ptr->bridge_ports_db[ii].is_present) {
             new_port = &g_sai_db_ptr->bridge_ports_db[ii];
 
@@ -287,6 +295,10 @@ static sai_status_t mlnx_bridge_port_add(sx_bridge_id_t         bridge_id,
             new_port->port_type  = port_type;
             new_port->is_present = true;
             new_port->index      = ii;
+
+            if (port_type != SAI_BRIDGE_PORT_TYPE_PORT) {
+                g_sai_db_ptr->non_1q_bports_created++;
+            }
 
             *port = new_port;
             return SAI_STATUS_SUCCESS;
@@ -298,6 +310,11 @@ static sai_status_t mlnx_bridge_port_add(sx_bridge_id_t         bridge_id,
 
 static sai_status_t mlnx_bridge_port_del(mlnx_bridge_port_t *port)
 {
+    if (port->index > MAX_BRIDGE_1Q_PORTS) {
+        assert(g_sai_db_ptr->non_1q_bports_created > 0);
+        g_sai_db_ptr->non_1q_bports_created--;
+    }
+
     memset(port, 0, sizeof(*port));
     return SAI_STATUS_SUCCESS;
 }
@@ -335,9 +352,31 @@ sai_status_t mlnx_bridge_port_by_oid(sai_object_id_t oid, mlnx_bridge_port_t **p
 sai_status_t mlnx_bridge_port_by_log(sx_port_log_id_t log, mlnx_bridge_port_t **port)
 {
     mlnx_bridge_port_t *it;
+    uint32_t            ii, checked;
+
+    mlnx_bridge_1q_port_foreach(it, ii) {
+        if (it->logical == log) {
+            *port = it;
+            return SAI_STATUS_SUCCESS;
+        }
+    }
+
+    mlnx_bridge_non1q_port_foreach(it, ii, checked) {
+        if (it->logical == log) {
+            *port = it;
+            return SAI_STATUS_SUCCESS;
+        }
+    }
+
+    return SAI_STATUS_INVALID_PORT_NUMBER;
+}
+
+sai_status_t mlnx_bridge_1q_port_by_log(sx_port_log_id_t log, mlnx_bridge_port_t **port)
+{
+    mlnx_bridge_port_t *it;
     uint32_t            ii;
 
-    mlnx_bridge_port_foreach(it, ii) {
+    mlnx_bridge_1q_port_foreach(it, ii) {
         if (it->logical == log) {
             *port = it;
             return SAI_STATUS_SUCCESS;
@@ -361,7 +400,7 @@ static bool mlnx_bridge_port_in_1q_by_log(sx_port_log_id_t log_id)
     mlnx_bridge_port_t *port;
     sai_status_t        status;
 
-    status = mlnx_bridge_port_by_log(log_id, &port);
+    status = mlnx_bridge_1q_port_by_log(log_id, &port);
     if (SAI_ERR(status)) {
         return false;
     }
@@ -443,11 +482,11 @@ static sai_status_t check_attrs_port_type(_In_ const sai_object_key_t *key,
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_port_is_in_bridge(const mlnx_port_config_t *port)
+sai_status_t mlnx_port_is_in_bridge_1q(const mlnx_port_config_t *port)
 {
     mlnx_bridge_port_t *bridge_port;
 
-    return mlnx_bridge_port_by_log(port->logical, &bridge_port) == SAI_STATUS_SUCCESS;
+    return mlnx_bridge_1q_port_by_log(port->logical, &bridge_port) == SAI_STATUS_SUCCESS;
 }
 
 sai_status_t mlnx_create_bridge_object(sai_bridge_type_t sai_br_type,
@@ -674,10 +713,9 @@ static sai_status_t mlnx_bridge_port_list_get(_In_ const sai_object_key_t   *key
 {
     mlnx_object_id_t    mlnx_bridge_id = {0};
     sx_bridge_id_t      bridge_id;
-    uint32_t            ii, jj = 0;
     sai_status_t        status;
     sai_object_id_t    *ports = NULL;
-    uint32_t            count = 0;
+    uint32_t            ii, count = 0, checked;
     mlnx_bridge_port_t *port;
 
     SX_LOG_ENTER();
@@ -690,26 +728,30 @@ static sai_status_t mlnx_bridge_port_list_get(_In_ const sai_object_key_t   *key
 
     sai_db_read_lock();
 
-    mlnx_bridge_port_foreach(port, ii) {
-        if (port->bridge_id != bridge_id) {
-            continue;
-        }
-
-        count++;
-    }
-
-    ports = calloc(count, sizeof(*ports));
+    ports = calloc(MAX_BRIDGE_1Q_PORTS + g_sai_db_ptr->non_1q_bports_created, sizeof(*ports));
     if (!ports) {
         status = SAI_STATUS_NO_MEMORY;
         goto out;
     }
 
-    mlnx_bridge_port_foreach(port, ii) {
+    mlnx_bridge_1q_port_foreach(port, ii) {
         if (port->bridge_id != bridge_id) {
             continue;
         }
 
-        status = mlnx_bridge_port_to_oid(port, &ports[jj++]);
+        status = mlnx_bridge_port_to_oid(port, &ports[count++]);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to convert bridge port to oid\n");
+            goto out;
+        }
+    }
+
+    mlnx_bridge_non1q_port_foreach(port, ii, checked) {
+        if (port->bridge_id != bridge_id) {
+            continue;
+        }
+
+        status = mlnx_bridge_port_to_oid(port, &ports[count++]);
         if (SAI_ERR(status)) {
             SX_LOG_ERR("Failed to convert bridge port to oid\n");
             goto out;
@@ -1018,7 +1060,7 @@ static sai_status_t mlnx_remove_bridge(_In_ sai_object_id_t bridge_id)
     sx_status_t         sx_status;
     sai_status_t        status;
     mlnx_bridge_port_t *port;
-    uint32_t            ii;
+    uint32_t            ii, checked;
 
     SX_LOG_ENTER();
 
@@ -1037,10 +1079,19 @@ static sai_status_t mlnx_remove_bridge(_In_ sai_object_id_t bridge_id)
         goto out;
     }
 
-    mlnx_bridge_port_foreach(port, ii) {
+    mlnx_bridge_1q_port_foreach(port, ii) {
         if (port->bridge_id == sx_bridge_id) {
             has_ports = true;
             break;
+        }
+    }
+
+    if (!has_ports) {
+        mlnx_bridge_non1q_port_foreach(port, ii, checked) {
+            if (port->bridge_id == sx_bridge_id) {
+                has_ports = true;
+                break;
+            }
         }
     }
 
@@ -2560,6 +2611,26 @@ static sai_status_t mlnx_get_bridge_stats(_In_ sai_object_id_t          bridge_i
 }
 
 /**
+ * @brief Get bridge statistics counters extended.
+ *
+ * @param[in] bridge_id Bridge id
+ * @param[in] number_of_counters Number of counters in the array
+ * @param[in] counter_ids Specifies the array of counter ids
+ * @param[in] mode Statistics mode
+ * @param[out] counters Array of resulting counter values.
+ *
+ * @return #SAI_STATUS_SUCCESS on success, failure status code on error
+ */
+sai_status_t mlnx_get_bridge_stats_ext(_In_ sai_object_id_t          bridge_id,
+                                       _In_ uint32_t                 number_of_counters,
+                                       _In_ const sai_bridge_stat_t *counter_ids,
+                                       _In_ sai_stats_mode_t         mode,
+                                       _Out_ uint64_t               *counters)
+{
+    return SAI_STATUS_NOT_IMPLEMENTED;
+}
+
+/**
  * @brief Clear bridge statistics counters.
  *
  * @param[in] bridge_id Bridge id
@@ -2665,6 +2736,26 @@ out:
 }
 
 /**
+ * @brief Get bridge port statistics counters extended.
+ *
+ * @param[in] bridge_port_id Bridge port id
+ * @param[in] number_of_counters Number of counters in the array
+ * @param[in] counter_ids Specifies the array of counter ids
+ * @param[in] mode Statistics mode
+ * @param[out] counters Array of resulting counter values.
+ *
+ * @return #SAI_STATUS_SUCCESS on success, failure status code on error
+ */
+sai_status_t mlnx_get_bridge_port_stats_ext(_In_ sai_object_id_t               bridge_port_id,
+                                            _In_ uint32_t                      number_of_counters,
+                                            _In_ const sai_bridge_port_stat_t *counter_ids,
+                                            _In_ sai_stats_mode_t              mode,
+                                            _Out_ uint64_t                    *counters)
+{
+    return SAI_STATUS_NOT_IMPLEMENTED;
+}
+
+/**
  * @brief Clear bridge port statistics counters.
  *
  * @param[in] bridge_port_id Bridge port id
@@ -2686,11 +2777,13 @@ const sai_bridge_api_t mlnx_bridge_api = {
     mlnx_set_bridge_attribute,
     mlnx_get_bridge_attribute,
     mlnx_get_bridge_stats,
+    mlnx_get_bridge_stats_ext,
     mlnx_clear_bridge_stats,
     mlnx_create_bridge_port,
     mlnx_remove_bridge_port,
     mlnx_set_bridge_port_attribute,
     mlnx_get_bridge_port_attribute,
     mlnx_get_bridge_port_stats,
+    mlnx_get_bridge_port_stats_ext,
     mlnx_clear_bridge_port_stats
 };

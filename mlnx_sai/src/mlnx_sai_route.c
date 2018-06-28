@@ -214,7 +214,7 @@ static sai_status_t mlnx_route_attr_to_sx_data(_In_ const sai_route_entry_t *rou
     char                         list_str[MAX_LIST_VALUE_STR_LEN];
     char                         key_str[MAX_KEY_STR_LEN];
     bool                         next_hop_id_found = false;
-    sx_log_severity_t            log_level = SX_LOG_NOTICE;
+    sx_log_severity_t            log_level         = SX_LOG_NOTICE;
 
     assert(sx_ip_prefix);
     assert(sx_vrid);
@@ -226,7 +226,7 @@ static sai_status_t mlnx_route_attr_to_sx_data(_In_ const sai_route_entry_t *rou
     }
 
     status = check_attribs_metadata(attr_count, attr_list, SAI_OBJECT_TYPE_ROUTE_ENTRY, route_vendor_attribs,
-                                     SAI_COMMON_API_CREATE);
+                                    SAI_COMMON_API_CREATE);
     if (SAI_ERR(status)) {
         SX_LOG_ERR("Failed attribs check\n");
         return status;
@@ -234,7 +234,7 @@ static sai_status_t mlnx_route_attr_to_sx_data(_In_ const sai_route_entry_t *rou
 
     route_key_to_str(route_entry, key_str);
     sai_attr_list_to_str(attr_count, attr_list, SAI_OBJECT_TYPE_ROUTE_ENTRY, MAX_LIST_VALUE_STR_LEN, list_str);
-    /* lower log level for route created often in Sonic */    
+    /* lower log level for route created often in Sonic */
 #ifdef ACS_OS
     log_level = SX_LOG_INFO;
 #endif

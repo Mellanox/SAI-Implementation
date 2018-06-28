@@ -84,7 +84,7 @@ typedef enum _sai_mirror_session_attr_t
      *
      * @type sai_object_id_t
      * @flags MANDATORY_ON_CREATE | CREATE_AND_SET
-     * @objects SAI_OBJECT_TYPE_PORT
+     * @objects SAI_OBJECT_TYPE_PORT, SAI_OBJECT_TYPE_LAG
      */
     SAI_MIRROR_SESSION_ATTR_MONITOR_PORT,
 
@@ -99,6 +99,18 @@ typedef enum _sai_mirror_session_attr_t
      * @default 0
      */
     SAI_MIRROR_SESSION_ATTR_TRUNCATE_SIZE,
+
+    /**
+     * @brief Mirror sample rate. Every 1/sample_rate the packets will be mirrored.
+     *
+     * Value 0 to no sampling
+     * Value 1 to every packet sampling (normal mirror)
+     *
+     * @type sai_uint32_t
+     * @flags CREATE_AND_SET
+     * @default 1
+     */
+    SAI_MIRROR_SESSION_ATTR_SAMPLE_RATE,
 
     /**
      * @brief Class-of-Service (Traffic Class)

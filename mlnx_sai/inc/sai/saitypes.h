@@ -238,7 +238,13 @@ typedef enum _sai_object_type_t
     SAI_OBJECT_TYPE_INSEG_ENTRY              = 67,
     SAI_OBJECT_TYPE_TAM_HISTOGRAM            = 68,
     SAI_OBJECT_TYPE_TAM_MICROBURST           = 69,
-    SAI_OBJECT_TYPE_MAX                      = 70,
+    SAI_OBJECT_TYPE_DTEL                     = 70, /**< experimental */
+    SAI_OBJECT_TYPE_DTEL_QUEUE_REPORT        = 71, /**< experimental */
+    SAI_OBJECT_TYPE_DTEL_INT_SESSION         = 72, /**< experimental */
+    SAI_OBJECT_TYPE_DTEL_REPORT_SESSION      = 73, /**< experimental */
+    SAI_OBJECT_TYPE_DTEL_EVENT               = 74, /**< experimental */
+    SAI_OBJECT_TYPE_BFD_SESSION              = 75,
+    SAI_OBJECT_TYPE_MAX                      = 76,
 } sai_object_type_t;
 
 typedef struct _sai_u8_list_t
@@ -324,6 +330,12 @@ typedef struct _sai_ip_address_t
     } addr;
 } sai_ip_address_t;
 
+typedef struct _sai_ip_address_list_t
+{
+    uint32_t count;
+    sai_ip_address_t *list;
+} sai_ip_address_list_t;
+
 typedef struct _sai_ip_prefix_t
 {
     sai_ip_addr_family_t addr_family;
@@ -402,6 +414,7 @@ typedef struct _sai_acl_action_data_t
      * @brief Action parameter
      */
     union _parameter {
+        bool booldata;
         sai_uint8_t u8;
         sai_int8_t s8;
         sai_uint16_t u16;
@@ -413,6 +426,7 @@ typedef struct _sai_acl_action_data_t
         sai_ip6_t ip6;
         sai_object_id_t oid;
         sai_object_list_t objlist;
+        sai_ip_address_t ipaddr;
     } parameter;
 
 } sai_acl_action_data_t;
@@ -570,10 +584,10 @@ typedef enum _sai_acl_bind_point_type_t
     SAI_ACL_BIND_POINT_TYPE_VLAN,
 
     /** Bind Point Type RIF */
-    SAI_ACL_BIND_POINT_TYPE_ROUTER_INTFERFACE,
+    SAI_ACL_BIND_POINT_TYPE_ROUTER_INTERFACE,
 
     /** @ignore - for backward compatibility */
-    SAI_ACL_BIND_POINT_TYPE_ROUTER_INTF = SAI_ACL_BIND_POINT_TYPE_ROUTER_INTFERFACE,
+    SAI_ACL_BIND_POINT_TYPE_ROUTER_INTF = SAI_ACL_BIND_POINT_TYPE_ROUTER_INTERFACE,
 
     /** Bind Point Type Switch */
     SAI_ACL_BIND_POINT_TYPE_SWITCH
@@ -719,6 +733,7 @@ typedef union _sai_attribute_value_t
     sai_acl_resource_list_t aclresource;
     sai_tlv_list_t tlvlist;
     sai_segment_list_t segmentlist;
+    sai_ip_address_list_t ipaddrlist;
 
 } sai_attribute_value_t;
 
@@ -786,6 +801,19 @@ typedef sai_status_t (*sai_bulk_object_remove_fn)(
         _In_ const sai_object_id_t *object_id,
         _In_ sai_bulk_op_error_mode_t mode,
         _Out_ sai_status_t *object_statuses);
+
+typedef enum _sai_stats_mode_t
+{
+    /**
+     * @brief Read statistics
+     */
+    SAI_STATS_MODE_READ,
+
+    /**
+     * @brief Read and clear after reading
+     */
+    SAI_STATS_MODE_READ_AND_CLEAR,
+} sai_stats_mode_t;
 
 /**
  * @}
