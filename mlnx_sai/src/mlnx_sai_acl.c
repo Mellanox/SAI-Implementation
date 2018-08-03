@@ -58,9 +58,10 @@
 #define ACL_QUEUE_TIMEOUT        2
 #define ACL_QUEUE_SIZE           3
 #define ACL_QUEUE_MSG_SIZE       sizeof(uint32_t)
-#define ACL_QUEUE_DEF_MSG_PRIO   0
-#define ACL_QUEUE_EXIT_MSG_PRIO  31
-#define ACL_BCKG_THREAD_EXIT_MSG 0xFFFFFFFF
+#define ACL_QUEUE_DEF_MSG_PRIO     0
+#define ACL_QUEUE_UNBLOCK_MSG_PRIO 31
+#define ACL_PSORT_OPT_MAX_TIME_MS  2000
+#define ACL_QUEUE_UNBLOCK_MSG      0xFFFFFFFF
 #define ACL_MAX_FLEX_KEY_COUNT   (SAI_ACL_ENTRY_ATTR_FIELD_END - SAI_ACL_ENTRY_ATTR_FIELD_START + 1)
 
 #define ACL_PBS_MAP_FLOOD_INDEX 64
@@ -602,6 +603,7 @@ static sai_status_t mlnx_acl_rpc_client_close(void);
 static sai_status_t mlnx_acl_psort_opt_queue_create(void);
 static sai_status_t mlnx_acl_psort_opt_queue_client_create(void);
 static sai_status_t mlnx_acl_psort_opt_queue_client_close(void);
+static sai_status_t mlnx_acl_psort_thread_wake(void);
 static void mlnx_acl_table_locks_deinit(void);
 static void psort_background_thread(void *arg);
 static void mlnx_acl_rpc_thread(void *arg);
@@ -1947,14 +1949,14 @@ sai_status_t mlnx_acl_deinit(void)
         return status;
     }
 
-    mlnx_acl_table_locks_deinit();
-
     if (mlnx_acl_cb->deinit) {
         status = mlnx_acl_cb->deinit();
         if (SAI_ERR(status)) {
             return status;
         }
     }
+
+    mlnx_acl_table_locks_deinit();
 
 #ifndef _WIN32
     if (0 != pthread_mutex_destroy(&sai_acl_db->acl_settings_tbl->cond_mutex)) {
@@ -2023,6 +2025,32 @@ static sai_status_t mlnx_acl_lazy_init(void)
     return SAI_STATUS_SUCCESS;
 }
 
+static sai_status_t mlnx_acl_psort_thread_unblock(void)
+{
+    sai_status_t   status;
+    const uint32_t unblock_msg = ACL_QUEUE_UNBLOCK_MSG;
+
+    status = mlnx_acl_psort_opt_queue_client_create();
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+#ifndef _WIN32
+    if (-1 == mq_send(psort_opt_queue_client, (const char*)&unblock_msg, sizeof(unblock_msg ), ACL_QUEUE_UNBLOCK_MSG_PRIO)) {
+        if (EAGAIN == errno) {
+            /* Not an issue. If queue is full it's going to get unblocked anyway */
+            SX_LOG_NTC("Failed to send unblock message to pSort queue - queue is full\n");
+            return SAI_STATUS_SUCCESS;
+        }
+
+        SX_LOG_ERR("Failed to send unblock msg to pSort queue - %s\n", strerror(errno));
+        return SAI_STATUS_FAILURE;
+    }
+#endif /* _WIN32 */
+
+    return SAI_STATUS_SUCCESS;
+}
+
 /*
  *   Routine Description:
  *       Close ACL pSort background thread
@@ -2038,28 +2066,19 @@ static sai_status_t mlnx_acl_lazy_init(void)
 static sai_status_t acl_psort_background_close(void)
 {
 #ifndef _WIN32
-    sai_status_t   status;
-    const uint32_t msg = ACL_BCKG_THREAD_EXIT_MSG;
+    sai_status_t status;
 
-    if (false == sai_acl_db->acl_settings_tbl->lazy_initialized) {
-        sai_acl_db->acl_settings_tbl->bg_stop = true;
-        acl_cond_mutex_lock();
-        sai_acl_db->acl_settings_tbl->psort_thread_start_flag = true;
-        if (0 != pthread_cond_signal(&sai_acl_db->acl_settings_tbl->psort_thread_init_cond)) {
-            SX_LOG_ERR("Failed to signal condition var to wake up ACL background thread\n");
-            acl_cond_mutex_unlock();
-            return SAI_STATUS_FAILURE;
-        }
-        acl_cond_mutex_unlock();
-    } else {
-        status = mlnx_acl_psort_opt_queue_client_create();
+    sai_acl_db->acl_settings_tbl->psort_thread_stop_flag = true;
+
+    if (sai_acl_db->acl_settings_tbl->psort_thread_start_flag) {
+        status = mlnx_acl_psort_thread_unblock();
         if (SAI_ERR(status)) {
             return status;
         }
-
-        if (-1 == mq_send(psort_opt_queue_client, (const char*)&msg, sizeof(msg), ACL_QUEUE_EXIT_MSG_PRIO)) {
-            SX_LOG_ERR("Failed to send exit msg to background thread - %s\n", strerror(errno));
-            return SAI_STATUS_FAILURE;
+    } else {
+        status = mlnx_acl_psort_thread_wake();
+        if (SAI_ERR(status)) {
+            return status;
         }
     }
 
@@ -2082,7 +2101,7 @@ static sai_status_t mlnx_acl_rpc_thread_close(void)
     acl_rpc_info_t rpc_info;
 
     if (false == sai_acl_db->acl_settings_tbl->rpc_thread_start_flag) {
-        sai_acl_db->acl_settings_tbl->bg_stop = true;
+        sai_acl_db->acl_settings_tbl->rpc_thread_stop_flag = true;
         acl_cond_mutex_lock();
         sai_acl_db->acl_settings_tbl->rpc_thread_start_flag = true;
         if (0 != pthread_cond_signal(&sai_acl_db->acl_settings_tbl->rpc_thread_init_cond)) {
@@ -4906,7 +4925,7 @@ static sai_status_t mlnx_acl_entry_udf_set(_In_ const sai_object_key_t      *key
     sai_db_read_lock();
     acl_table_write_lock(acl_table_index);
 
-    status = mlnx_acl_entry_udf_attrs_validate_and_fetch(value, entry_udf_attr, acl_table_index, 0,
+    status = mlnx_acl_entry_udf_attrs_validate_and_fetch(value, entry_udf_attr, 0, acl_table_index,
                                                          custom_byte_keys, &custom_byte_count);
     if (SAI_ERR(status)) {
         goto out;
@@ -11073,6 +11092,8 @@ static sai_status_t mlnx_acl_psort_opt_queue_client_create(void)
             SX_LOG_ERR("Failed to open mq - %s\n", strerror(errno));
             return SAI_STATUS_FAILURE;
         }
+
+        SX_LOG_DBG("Created psort_opt_queue_client - %d\n", psort_opt_queue_client);
     }
 #endif /* _WIN32 */
 
@@ -11087,7 +11108,28 @@ static sai_status_t mlnx_acl_psort_opt_queue_client_close(void)
             SX_LOG_ERR("Failed to close ACL psort optimization queue - %s\n", strerror(errno));
             return SAI_STATUS_FAILURE;
         }
+
+        SX_LOG_DBG("Removed psort_opt_queue_client - %d\n", psort_opt_queue_client);
+
+        psort_opt_queue_client = ACL_QUEUE_INVALID_HANDLE;
     }
+#endif /* _WIN32 */
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_acl_psort_thread_wake(void)
+{
+#ifndef _WIN32
+    /* Wake up ACL pSort optimizations thread */
+    acl_cond_mutex_lock();
+    sai_acl_db->acl_settings_tbl->psort_thread_start_flag = true;
+    if (0 != pthread_cond_signal(&sai_acl_db->acl_settings_tbl->psort_thread_init_cond)) {
+        SX_LOG_ERR("Failed to signal condition var to wake up ACL psort thread\n");
+        acl_cond_mutex_unlock();
+        return SAI_STATUS_FAILURE;
+    }
+    acl_cond_mutex_unlock();
 #endif /* _WIN32 */
 
     return SAI_STATUS_SUCCESS;
@@ -11102,17 +11144,10 @@ static sai_status_t mlnx_acl_lazy_init_sp(void)
         return status;
     }
 
-#ifndef _WIN32
-    /* Wake up ACL pSort optimizations thread */
-    acl_cond_mutex_lock();
-    sai_acl_db->acl_settings_tbl->psort_thread_start_flag = true;
-    if (0 != pthread_cond_signal(&sai_acl_db->acl_settings_tbl->psort_thread_init_cond)) {
-        SX_LOG_ERR("Failed to signal condition var to wake up ACL psort thread\n");
-        acl_cond_mutex_unlock();
-        return SAI_STATUS_FAILURE;
+    status = mlnx_acl_psort_thread_wake();
+    if (SAI_ERR(status)) {
+        return status;
     }
-    acl_cond_mutex_unlock();
-#endif /* _WIN32 */
 
     return SAI_STATUS_SUCCESS;
 }
@@ -11171,6 +11206,11 @@ static sai_status_t mlnx_acl_table_optimize_sp(_In_ uint32_t table_db_idx)
     if (!sai_acl_db->acl_settings_tbl->psort_thread_start_flag) {
         SX_LOG_ERR("Failed to optimize - ACL pSort thread is not working\n");
         return SAI_STATUS_FAILURE;
+    }
+
+    if (sai_acl_db->acl_settings_tbl->psort_thread_suspended) {
+        SX_LOG_NTC("Failed to optimize - ACL pSort thread is suspended\n");
+        return SAI_STATUS_SUCCESS;
     }
 
     status = mlnx_acl_psort_opt_queue_client_create();
@@ -11372,9 +11412,12 @@ sai_status_t mlnx_acl_init(void)
     is_init_process = true;
 
     sai_acl_db->acl_settings_tbl->lazy_initialized        = false;
-    sai_acl_db->acl_settings_tbl->bg_stop                 = false;
+    sai_acl_db->acl_settings_tbl->psort_thread_stop_flag  = false;
     sai_acl_db->acl_settings_tbl->psort_thread_start_flag = false;
+    sai_acl_db->acl_settings_tbl->rpc_thread_stop_flag    = false;
     sai_acl_db->acl_settings_tbl->rpc_thread_start_flag   = false;
+    sai_acl_db->acl_settings_tbl->psort_thread_suspended  = false;
+    sai_acl_db->acl_settings_tbl->psort_thread_suspended_ack = false;
 
 #ifndef _WIN32
     pthread_condattr_t  cond_attr;
@@ -11637,7 +11680,9 @@ static void acl_psort_optimize_table(_In_ uint32_t table_index)
 {
     sx_utils_status_t status;
     psort_handle_t    psort_handle;
-    boolean_t         is_complete;
+    uint64_t          start_ms = 0, current_ms = 0;
+    struct timeval    tv;
+    boolean_t         is_complete = false;
 
     SX_LOG_ENTER();
 
@@ -11654,14 +11699,19 @@ static void acl_psort_optimize_table(_In_ uint32_t table_index)
 
     psort_handle = acl_db_table(table_index).psort_handle;
 
-    is_complete = false;
-    while (!is_complete) {
+    gettimeofday(&tv, NULL);
+    start_ms = tv.tv_sec * 1000 + tv.tv_usec / 1000;
+
+    do {
         status = psort_background_worker(psort_handle, &is_complete);
         if (SX_UTILS_STATUS_SUCCESS != status) {
             SX_LOG_ERR("Failed to run psort bg\n");
-            break;
+            goto out;
         }
-    }
+
+        gettimeofday(&tv, NULL);
+        current_ms = tv.tv_sec * 1000 + tv.tv_usec / 1000;
+    } while (!is_complete && ((current_ms - start_ms) <= (ACL_PSORT_OPT_MAX_TIME_MS / 2)));
 
 out:
     acl_table_unlock(table_index);
@@ -11687,6 +11737,112 @@ static sai_status_t acl_create_entry_object_id(_Out_ sai_object_id_t *entry_oid,
     return status;
 }
 
+sai_status_t mlnx_acl_psort_thread_suspend(void)
+{
+    sai_status_t         status;
+    const volatile bool *suspend_ack = &sai_acl_db->acl_settings_tbl->psort_thread_suspended_ack;
+
+    if (false == sai_acl_db->acl_settings_tbl->psort_thread_start_flag) {
+        SX_LOG_DBG("ACL pSort thread is not running - nothing to suspend\n");
+        return SAI_STATUS_SUCCESS;
+    }
+
+    sai_acl_db->acl_settings_tbl->psort_thread_suspended = true;
+
+    status = mlnx_acl_psort_thread_unblock();
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+    status = mlnx_acl_psort_opt_queue_client_close();
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+    /* suspend_ack is volatile since otherwise compiler assumes that the following loop is infinite */
+    while (!(*suspend_ack)) {
+#ifndef _WIN32
+        usleep(0);
+#endif
+    };
+
+    SX_LOG_DBG("ACL pSort thread is now suspended\n");
+
+    return SAI_STATUS_SUCCESS;
+}
+
+sai_status_t mlnx_acl_psort_thread_resume(void)
+{
+    sai_status_t status;
+
+    if (!sai_acl_db->acl_settings_tbl->psort_thread_suspended) {
+        SX_LOG_DBG("ACL pSort thread is not suspended - nothing to resume\n");
+        return SAI_STATUS_SUCCESS;
+    }
+
+    status = mlnx_acl_psort_opt_queue_create();
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+    sai_acl_db->acl_settings_tbl->psort_thread_suspended = false;
+    sai_acl_db->acl_settings_tbl->psort_thread_suspended_ack = false;
+
+    status = mlnx_acl_psort_thread_wake();
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+    SX_LOG_DBG("ACL pSort thread is now resumed\n");
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static void mlnx_acl_psort_queue_drain(void)
+{
+#ifndef _WIN32
+    mqd_t    mq;
+    uint32_t table_idx, ii;
+
+    mq = mq_open(ACL_QUEUE_NAME, O_RDONLY | O_NONBLOCK);
+    if (ACL_QUEUE_INVALID_HANDLE == mq) {
+        SX_LOG_ERR("Failed to open mqueue handle - %s\n", strerror(errno));
+        return;
+    }
+
+    for (ii = 0; ii < ACL_QUEUE_SIZE; ii++) {
+        if (-1 == mq_receive(mq, (char*)&table_idx, sizeof(table_idx), NULL)) {
+            if (errno == EAGAIN) {
+                break;
+            }
+
+            SX_LOG_ERR("Failed to drain pSort mqueue - %s\n", strerror(errno));
+            break;
+        }
+
+        if (table_idx == ACL_QUEUE_UNBLOCK_MSG) {
+            continue;
+        }
+
+        if (!acl_table_index_check_range(table_idx)) {
+            SX_LOG_ERR("Attempt to use invalid ACL Table DB index while draining mqueue - %u\n", table_idx);
+            continue;
+        }
+
+        acl_db_table(table_idx).queued = 0;
+    }
+
+    mq_close(mq);
+#endif /* ifndef _WIN32 */
+}
+
+/* Thread can be in 3 states:
+ * - not started (psort_thread_start_flag = false)
+ * - running (psort_thread_start_flag = true, suspended = false)
+ * - suspended (psort_thread_start_flag = true, suspended = true)
+ *
+ * The state is controlled via 'psort_thread_start_flag', 'psort_thread_stop_flag' and 'psort_thread_suspended'
+ */
 static void psort_background_thread(void *arg)
 {
 #ifndef _WIN32
@@ -11697,19 +11853,23 @@ static void psort_background_thread(void *arg)
     int             pthread_status;
     uint32_t        mq_message;
     uint32_t        last_used_table;
+    bool            timeout = false;
+    const volatile bool *start = &sai_acl_db->acl_settings_tbl->psort_thread_start_flag;
+    const volatile bool *stop = &sai_acl_db->acl_settings_tbl->psort_thread_stop_flag;
+    const volatile bool *suspended = &sai_acl_db->acl_settings_tbl->psort_thread_suspended;
+    volatile bool       *suspend_ack = &sai_acl_db->acl_settings_tbl->psort_thread_suspended_ack;
 
     SX_LOG_ENTER();
 
+wait_restart:
     acl_cond_mutex_lock();
-    while (false == sai_acl_db->acl_settings_tbl->psort_thread_start_flag) {
+    while ((!(*start) || *suspended) && (!*stop)) {
         pthread_cond_wait(&sai_acl_db->acl_settings_tbl->psort_thread_init_cond, &acl_cond_mutex);
     }
     acl_cond_mutex_unlock();
 
-    SX_LOG_DBG("psort_background_thread is started\n");
-
     /* cond is triggered from resource_deinit() */
-    if (true == sai_acl_db->acl_settings_tbl->bg_stop) {
+    if (*stop) {
         SX_LOG_DBG("Exiting psort_background_thread\n");
         return;
     }
@@ -11728,16 +11888,17 @@ static void psort_background_thread(void *arg)
 
     bg_mq = mq_open(ACL_QUEUE_NAME, O_RDONLY);
     if (ACL_QUEUE_INVALID_HANDLE == bg_mq) {
-        SX_LOG_ERR("Failed to open acl bg_mq");
+        SX_LOG_ERR("Failed to open acl bg_mq - %s\n", strerror(errno));
         return;
     }
 
     last_used_table = ACL_INVALID_DB_INDEX;
 
-    while (false == sai_acl_db->acl_settings_tbl->bg_stop) {
+    while (!(*stop) && !(*suspended)) {
         if (ACL_INVALID_DB_INDEX == last_used_table) {
             if (-1 == mq_receive(bg_mq, (char*)&mq_message, sizeof(mq_message), NULL)) {
-                SX_LOG_ERR("Failed to read from mq in blocked mode\n");
+                SX_LOG_ERR("Failed to read from mq in blocked mode - %s\n", strerror(errno));
+                continue;
             }
         } else {
             clock_gettime(CLOCK_REALTIME, &tm);
@@ -11745,33 +11906,50 @@ static void psort_background_thread(void *arg)
 
             if (-1 == mq_timedreceive(bg_mq, (char*)&mq_message, sizeof(mq_message), NULL, &tm)) {
                 if (ETIMEDOUT == errno) {
-                    acl_psort_optimize_table(last_used_table);
-                    last_used_table = ACL_INVALID_DB_INDEX;
+                    timeout = true;
+                } else {
+                    SX_LOG_ERR("Failed to read from mq in timed mode - %s\n", strerror(errno));
                     continue;
                 }
             }
         }
 
-        if (ACL_BCKG_THREAD_EXIT_MSG == mq_message) {
-            break;
-        }
-
-        if (!acl_table_index_check_range(mq_message)) {
-            SX_LOG_ERR("Attempt to use invalid ACL Table DB index - %u\n", mq_message);
+        if (mq_message == ACL_QUEUE_UNBLOCK_MSG) {
             continue;
         }
 
-        assert(acl_db_table(mq_message).queued > 0);
-        acl_db_table(mq_message).queued--;
-
-        if (ACL_INVALID_DB_INDEX == last_used_table) {
-            last_used_table = mq_message;
-            continue;
-        }
-
-        if (mq_message != last_used_table) {
+        if (timeout) {
             acl_psort_optimize_table(last_used_table);
-            last_used_table = mq_message;
+            last_used_table = ACL_INVALID_DB_INDEX;
+            timeout = false;
+            continue;
+        } else {
+            if (!acl_table_index_check_range(mq_message)) {
+                SX_LOG_ERR("Attempt to use invalid ACL Table DB index - %u\n", mq_message);
+                continue;
+            }
+
+            if (acl_db_table(mq_message).queued == 0) {
+                SX_LOG_ERR("Received a table idx %d with 'queued' = 0\n", mq_message);
+                continue;
+            }
+
+            acl_db_table(mq_message).queued--;
+
+            if (*suspended) {
+                SX_LOG_DBG("Ignoring table idx %d while thread is in the suspended state\n", mq_message);
+                continue;
+            }
+
+            if (ACL_INVALID_DB_INDEX == last_used_table) {
+                last_used_table = mq_message;
+                continue;
+            }
+
+            if (mq_message != last_used_table) {
+                acl_psort_optimize_table(last_used_table);
+                last_used_table = mq_message;
+            }
         }
     }
 
@@ -11780,8 +11958,23 @@ static void psort_background_thread(void *arg)
         SX_LOG_ERR("Failed to close sx_api_handle_t for pSort thread - %s\n", SX_STATUS_MSG(sx_status));
     }
 
-    mq_close(bg_mq);
-    mq_unlink(ACL_QUEUE_NAME);
+    if (0 != mq_close(bg_mq)) {
+        SX_LOG_ERR("Failed to close bg_mq - %s\n", strerror(errno));
+    }
+
+    if (*suspended) {
+        mlnx_acl_psort_queue_drain();
+        if (0 != mq_unlink(ACL_QUEUE_NAME)) {
+            SX_LOG_ERR("Failed to unlink message queue - %s\n", strerror(errno));
+        }
+
+        *suspend_ack = true;
+        goto wait_restart;
+    } else {
+        if (0 != mq_unlink(ACL_QUEUE_NAME)) {
+            SX_LOG_ERR("Failed to unlink message queue - %s\n", strerror(errno));
+        }
+    }
 
 #endif /* ifndef _WIN32 */
     SX_LOG_EXIT();
@@ -11800,11 +11993,6 @@ static void mlnx_acl_rpc_thread(void *arg)
 
     SX_LOG_ENTER();
 
-    status = create_rpc_server(&rpc_socket);
-    if (status != SAI_STATUS_SUCCESS) {
-        return;
-    }
-
     acl_cond_mutex_lock();
     while (false == sai_acl_db->acl_settings_tbl->rpc_thread_start_flag) {
         pthread_cond_wait(&sai_acl_db->acl_settings_tbl->rpc_thread_init_cond, &acl_cond_mutex);
@@ -11812,8 +12000,13 @@ static void mlnx_acl_rpc_thread(void *arg)
     acl_cond_mutex_unlock();
 
     /* cond is triggered from resource_deinit() */
-    if (true == sai_acl_db->acl_settings_tbl->bg_stop) {
+    if (true == sai_acl_db->acl_settings_tbl->rpc_thread_stop_flag) {
         goto out;
+    }
+
+    status = create_rpc_server(&rpc_socket);
+    if (SAI_ERR(status)) {
+        return;
     }
 
     sockaddr_len = sizeof(cl_sockaddr);

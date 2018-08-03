@@ -138,7 +138,6 @@ void * mmap(void *addr, size_t length, int prot, int flags, int fd, off_t offset
 int munmap(void *addr, size_t length);
 cl_status_t cl_plock_init_pshared(IN cl_plock_t * const p_lock);
 int msync(void *addr, size_t length, int flags);
-#define IF_NAMESIZE 32
 #define PROT_READ   1
 #define PROT_WRITE  2
 #define MAP_SHARED  1
@@ -505,6 +504,7 @@ sai_status_t mlnx_translate_sai_router_action_to_sdk(sai_int32_t         action,
                                                      sx_router_action_t *router_action,
                                                      uint32_t            param_index);
 sai_status_t mlnx_translate_sdk_router_action_to_sai(sx_router_action_t router_action, sai_int32_t *sai_action);
+sai_status_t mlnx_translate_sai_stats_mode_to_sdk(sai_stats_mode_t sai_mode, sx_access_cmd_t *sdk_mode);
 
 sai_status_t mlnx_translate_sai_action_to_sdk(sai_int32_t                  action,
                                               sx_fdb_uc_mac_addr_params_t *mac_entry,
@@ -556,6 +556,7 @@ sai_status_t mlnx_register_trap(const sx_access_cmd_t                 cmd,
                                 sx_fd_t                               fd,
                                 sx_host_ifc_register_key_t           *reg);
 sai_status_t mlnx_trap_set(uint32_t index, sai_packet_action_t sai_action, sai_object_id_t trap_group);
+sai_status_t mlnx_netdev_restore(void);
 
 sai_status_t mlnx_fdb_log_set(sx_verbosity_level_t level);
 sai_status_t mlnx_host_interface_log_set(sx_verbosity_level_t level);
@@ -596,7 +597,7 @@ sai_status_t mlnx_fill_vlanlist(sai_vlan_id_t *data, uint32_t count, sai_vlan_li
 sai_status_t mlnx_fill_aclresourcelist(sai_acl_resource_t *data, uint32_t count, sai_acl_resource_list_t *list);
 sai_status_t mlnx_attribute_value_list_size_check(_Inout_ uint32_t *out_size, _In_ uint32_t in_size);
 
-sai_status_t mlnx_wred_apply(sai_object_id_t wred_id, sai_object_id_t to_obj_id);
+sai_status_t mlnx_wred_apply_to_queue_oid(_In_ sai_object_id_t wred_id, _In_ sai_object_id_t queue_oid);
 sai_status_t mlnx_wred_init();
 
 sai_status_t mlnx_scheduler_to_queue_apply(sai_object_id_t scheduler_id, sai_object_id_t queue_id);
@@ -757,7 +758,7 @@ extern const mlnx_trap_info_t mlnx_traps_info[];
 #define MAX_BRIDGE_RIFS     64
 #define MAX_BRIDGE_PORTS    (MAX_VPORTS + MAX_BRIDGE_1Q_PORTS + MAX_BRIDGE_RIFS)
 #define MAX_LANES           4
-#define MAX_FDS             100
+#define MAX_HOSTIFS         200
 #define MAX_POLICERS        100
 #define MAX_TRAP_GROUPS     32
 #define MIN_SX_BRIDGE_ID    0x1000
@@ -879,7 +880,6 @@ typedef struct _mlnx_port_config_t {
     sx_port_log_id_t lag_id;
     uint32_t         internal_ingress_samplepacket_obj_idx;
     uint32_t         internal_egress_samplepacket_obj_idx;
-    sai_object_id_t  wred_id;
     sai_object_id_t  scheduler_id;
     /* index of the 1st queue in the queue_db array */
     uint32_t               start_queues_index;
@@ -983,6 +983,11 @@ sai_status_t get_buffer_profile_db_index(_In_ sai_object_id_t oid, _Out_ uint32_
 sai_status_t mlnx_buffer_apply(_In_ sai_object_id_t sai_buffer, _In_ sai_object_id_t to_obj_id);
 
 sai_status_t set_mc_sp_zero(_In_ uint32_t sp);
+
+sai_status_t mlnx_wred_apply_to_queue(_In_ mlnx_port_config_t *port,
+                                      _In_ uint32_t            queue_idx,
+                                      _In_ sai_object_id_t     wred_id);
+sai_status_t mlnx_wred_port_queue_db_clear(_In_ mlnx_port_config_t *port);
 
 #define mlnx_vlan_id_foreach(vid) \
     for (vid = SXD_VID_MIN; vid <= SXD_VID_MAX; vid++)
@@ -1259,7 +1264,6 @@ typedef struct _acl_def_rule_mc_container_t {
 } acl_def_rule_mc_container_t;
 
 typedef struct _acl_setting_tbl_t {
-    bool       bg_stop;
     bool       lazy_initialized;
     cl_plock_t lock;
 #ifndef _WIN32
@@ -1268,7 +1272,11 @@ typedef struct _acl_setting_tbl_t {
     pthread_mutex_t cond_mutex;
 #endif
     bool                        psort_thread_start_flag;
+    bool                        psort_thread_stop_flag;
     bool                        rpc_thread_start_flag;
+    bool                        rpc_thread_stop_flag;
+    bool                        psort_thread_suspended;
+    bool                        psort_thread_suspended_ack;
     uint32_t                    port_lists_count;
     acl_ip_ident_keys_t         ip_ident_keys;
     acl_def_rule_mc_container_t def_mc_container;
@@ -1457,21 +1465,14 @@ void log_sx_policer_attributes(_In_ sx_policer_id_t sx_policer, _In_ sx_policer_
 
 sai_status_t mlnx_sai_buffer_log_set(_In_ sx_verbosity_level_t level);
 
-sai_status_t mlnx_port_samplepacket_params_check(_In_ const mlnx_port_config_t *lag_config,
-                                                 _In_ const mlnx_port_config_t *port_config);
 sai_status_t mlnx_port_samplepacket_params_clear(_In_ mlnx_port_config_t *port_config, _In_ bool is_soft);
 sai_status_t mlnx_port_samplepacket_params_clone(_In_ mlnx_port_config_t *to, _In_ const mlnx_port_config_t *from);
 sai_status_t mlnx_port_mirror_params_check(_In_ const mlnx_port_config_t *port1, _In_ const mlnx_port_config_t *port2);
 sai_status_t mlnx_port_mirror_params_clear(_In_ mlnx_port_config_t *port_config);
 sai_status_t mlnx_port_mirror_sessions_clone(_In_ mlnx_port_config_t *to, _In_ const mlnx_port_config_t *from);
-sai_status_t mlnx_port_storm_control_params_check(_In_ const mlnx_port_config_t *port1,
-                                                  _In_ const mlnx_port_config_t *port2);
 sai_status_t mlnx_port_storm_control_policer_params_clear(_In_ mlnx_port_config_t *port_config, _In_ bool is_soft);
 sai_status_t mlnx_port_storm_control_policer_params_clone(_In_ mlnx_port_config_t       *to,
                                                           _In_ const mlnx_port_config_t *from);
-sai_status_t mlnx_port_egress_block_compare(_In_ const mlnx_port_config_t *port1,
-                                            _In_ const mlnx_port_config_t *port2,
-                                            _Out_ bool                    *equal);
 sai_status_t mlnx_port_egress_block_clone(_In_ mlnx_port_config_t *to, _In_ const mlnx_port_config_t *from);
 sai_status_t mlnx_port_egress_block_clear(_In_ sx_port_log_id_t sx_port_id);
 sai_status_t mlnx_port_egress_block_is_in_use(_In_ sx_port_log_id_t sx_port_id, _Out_ bool            *is_in_use);
@@ -1504,18 +1505,30 @@ typedef struct _mlnx_samplepacket_t {
 
 typedef struct _mlnx_tunneltable_t {
     bool                        in_use;
-    sx_tunnel_decap_entry_key_t sdk_tunnel_decap_key;
+    sx_tunnel_decap_entry_key_t sdk_tunnel_decap_key_ipv4;
+    uint32_t                    tunnel_db_idx;
+    bool                        tunnel_lazy_created;
 } mlnx_tunneltable_t;
 
 typedef struct _tunnel_db_entry_t {
-    bool              is_used;
-    sx_tunnel_id_t    sx_tunnel_id;
-    sai_tunnel_type_t sai_tunnel_type;
-    sai_object_id_t   sai_underlay_rif;
-    sai_object_id_t   sai_tunnel_map_encap_id_array[MLNX_TUNNEL_MAP_MAX];
-    uint32_t          sai_tunnel_map_encap_cnt;
-    sai_object_id_t   sai_tunnel_map_decap_id_array[MLNX_TUNNEL_MAP_MAX];
-    uint32_t          sai_tunnel_map_decap_cnt;
+    bool                  is_used;
+    sai_tunnel_type_t     sai_tunnel_type;
+    sx_tunnel_id_t        sx_tunnel_id_ipv4;
+    sx_tunnel_id_t        sx_tunnel_id_ipv6;
+    bool                  ipv4_created;
+    bool                  ipv6_created;
+    sx_router_interface_t sx_overlay_rif_ipv6;
+    sai_object_id_t       sai_underlay_rif;
+    sai_object_id_t       sai_tunnel_map_encap_id_array[MLNX_TUNNEL_MAP_MAX];
+    uint32_t              sai_tunnel_map_encap_cnt;
+    sai_object_id_t       sai_tunnel_map_decap_id_array[MLNX_TUNNEL_MAP_MAX];
+    uint32_t              sai_tunnel_map_decap_cnt;
+    sx_tunnel_attribute_t sx_tunnel_attr;
+    sx_tunnel_ttl_data_t  sdk_encap_ttl_data_attrib;
+    sx_tunnel_ttl_data_t  sdk_decap_ttl_data_attrib;
+    sx_tunnel_cos_data_t  sdk_encap_cos_data;
+    sx_tunnel_cos_data_t  sdk_decap_cos_data;
+    uint32_t              term_table_cnt;
 } tunnel_db_entry_t;
 
 typedef struct _tunnel_map_t {
@@ -1575,6 +1588,25 @@ typedef struct _trap_mirror_db_t {
 /* g_resource_liits.shared_buff_mc_max_num_prio 15*/
 #define MAX_LOSSLESS_SP 15
 
+/*
+ *  SAI host if type
+ */
+typedef enum _sai_host_object_type_t {
+    SAI_HOSTIF_OBJECT_TYPE_VLAN,
+    SAI_HOSTIF_OBJECT_TYPE_PORT,
+    SAI_HOSTIF_OBJECT_TYPE_LAG,
+    SAI_HOSTIF_OBJECT_TYPE_FD
+} sai_host_object_type_t;
+
+typedef struct sai_netdev {
+    bool                   is_used;
+    sai_host_object_type_t sub_type;
+    char                   ifname[SAI_HOSTIF_NAME_SIZE+1];
+    sx_port_log_id_t       port_id;
+    uint16_t               vid;
+    sx_fd_t                fd;
+} sai_netdev_t;
+
 typedef struct sai_db {
     cl_plock_t         p_lock;
     sx_mac_addr_t      base_mac_addr;
@@ -1586,7 +1618,7 @@ typedef struct sai_db {
     uint32_t           non_1q_bports_created; /* to optimize mlnx_bridge_non1q_port_foreach */
     mlnx_bridge_rif_t  bridge_rifs_db[MAX_BRIDGE_RIFS];
     mlnx_vlan_db_t     vlans_db[SXD_VID_MAX];
-    sx_fd_t            fd_db[MAX_FDS];
+    sai_netdev_t       hostif_db[MAX_HOSTIFS];
     sai_object_id_t    default_trap_group;
     sai_object_id_t    default_vrid;
     sx_user_channel_t  callback_channel;
@@ -1606,6 +1638,7 @@ typedef struct sai_db {
     mlnx_tunnel_map_t                 mlnx_tunnel_map[MLNX_TUNNEL_MAP_MAX];
     mlnx_tunnel_map_entry_t           mlnx_tunnel_map_entry[MLNX_TUNNEL_MAP_ENTRY_MAX];
     bool                              tunnel_module_initialized;
+    bool                              port_parsing_depth_set_for_tunnel;
     sx_bridge_id_t                    sx_bridge_id;
     sx_port_log_id_t                  sx_nve_log_port;
     mlnx_nve_tunnel_type_t            nve_tunnel_type;
@@ -1825,10 +1858,6 @@ sai_status_t mlnx_port_mirror_wred_discard_set(_In_ sx_port_log_id_t port_log_id
 sai_status_t mlnx_switch_get_mac(sx_mac_addr_t *mac);
 
 /* DB read lock is needed */
-sai_status_t __mlnx_wred_apply_to_port(mlnx_port_config_t *port, sai_object_id_t wred_oid);
-sai_status_t __mlnx_wred_apply_to_queue_idx(mlnx_port_config_t *port, uint8_t qi, sai_object_id_t wred_oid);
-
-/* DB read lock is needed */
 sai_status_t __mlnx_scheduler_to_queue_apply(sai_object_id_t   scheduler_id,
                                              sx_port_log_id_t  port_log_id,
                                              mlnx_sched_obj_t *obj);
@@ -1851,17 +1880,6 @@ typedef struct mlnx_iter_ctx {
 sai_status_t mlnx_sched_hierarchy_foreach(mlnx_port_config_t    *port,
                                           mlnx_sched_obj_iter_t  it,
                                           mlnx_sched_iter_ctx_t *ctx);
-
-/*
- *  SAI host if type
- *  Values must not be bigger than 255
- */
-typedef enum _sai_host_object_type_t {
-    SAI_HOSTIF_OBJECT_TYPE_VLAN,
-    SAI_HOSTIF_OBJECT_TYPE_PORT,
-    SAI_HOSTIF_OBJECT_TYPE_LAG,
-    SAI_HOSTIF_OBJECT_TYPE_FD
-} sai_host_object_type_t;
 
 #define KV_DEVICE_MAC_ADDRESS "DEVICE_MAC_ADDRESS"
 #define KV_INITIAL_FAN_SPEED  "INITIAL_FAN_SPEED"
@@ -1965,6 +1983,9 @@ sai_status_t mlnx_translate_sdk_tunnel_id_to_sai_tunnel_id(_In_ const sx_tunnel_
 
 /* caller needs to guard this function with lock */
 sai_status_t mlnx_get_sai_tunnel_db_idx(_In_ sai_object_id_t sai_tunnel_id, _Out_ uint32_t *tunnel_db_idx);
+
+sai_status_t mlnx_acl_psort_thread_suspend(void);
+sai_status_t mlnx_acl_psort_thread_resume(void);
 
 sai_status_t mlnx_port_cb_table_init(void);
 sai_status_t mlnx_acl_cb_table_init(void);

@@ -359,10 +359,12 @@ static void SAI_dump_acl_settings_tbl_print(_In_ FILE *file, _In_ acl_setting_tb
 {
     acl_setting_tbl_t         curr_acl_setting_tbl;
     dbg_utils_table_columns_t acl_settings_clmns[] = {
-        {"bg stop",                      7,  PARAM_UINT8_E,   &curr_acl_setting_tbl.bg_stop},
         {"initialized",                  11, PARAM_UINT8_E,   &curr_acl_setting_tbl.lazy_initialized},
-        {"background thread start flag", 27, PARAM_UINT8_E,   &curr_acl_setting_tbl.psort_thread_start_flag},
-        {"rpc thread start flag",        21, PARAM_UINT8_E,   &curr_acl_setting_tbl.rpc_thread_start_flag},
+        {"psort_thread_start_flag",      27, PARAM_UINT8_E,   &curr_acl_setting_tbl.psort_thread_start_flag},
+        {"rpc_thread_start_flag",        21, PARAM_UINT8_E,   &curr_acl_setting_tbl.rpc_thread_start_flag},
+        {"psort_thread_stop_flag",       7,  PARAM_UINT8_E,   &curr_acl_setting_tbl.psort_thread_stop_flag},
+        {"rpc_thread_stop_flag",         7,  PARAM_UINT8_E,   &curr_acl_setting_tbl.rpc_thread_stop_flag},
+        {"psort_thread_suspended",       7,  PARAM_UINT8_E,   &curr_acl_setting_tbl.psort_thread_suspended},
         {"port lists count",             16, PARAM_UINT32_E, &curr_acl_setting_tbl.port_lists_count},
         {NULL,                           0,  0,              NULL}
     };

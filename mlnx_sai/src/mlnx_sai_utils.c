@@ -3362,6 +3362,30 @@ sai_status_t mlnx_translate_sdk_router_action_to_sai(sx_router_action_t router_a
     return SAI_STATUS_SUCCESS;
 }
 
+sai_status_t mlnx_translate_sai_stats_mode_to_sdk(sai_stats_mode_t sai_mode, sx_access_cmd_t *sdk_mode)
+{
+    if (NULL == sdk_mode) {
+        SX_LOG_ERR("NULL sdk mode value\n");
+        return SAI_STATUS_INVALID_PARAMETER;
+    }
+
+    switch (sai_mode) {
+    case SAI_STATS_MODE_READ:
+        *sdk_mode = SX_ACCESS_CMD_READ;
+        break;
+
+    case SAI_STATS_MODE_READ_AND_CLEAR:
+        *sdk_mode = SX_ACCESS_CMD_READ_CLEAR;
+        break;
+
+    default:
+        SX_LOG_ERR("Invalid stats mode %d\n", sai_mode);
+        return SAI_STATUS_INVALID_PARAMETER;
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
 sai_status_t mlnx_object_to_type(sai_object_id_t   object_id,
                                  sai_object_type_t type,
                                  uint32_t         *data,

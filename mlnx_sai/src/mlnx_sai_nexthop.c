@@ -195,7 +195,7 @@ static sai_status_t mlnx_translate_sai_next_hop_to_sdk(_In_ sai_next_hop_type_t 
         }
 
         next_hop->next_hop_key.next_hop_key_entry.ip_tunnel.tunnel_id =
-            g_sai_db_ptr->tunnel_db[tunnel_idx].sx_tunnel_id;
+            g_sai_db_ptr->tunnel_db[tunnel_idx].sx_tunnel_id_ipv4;
 
         sai_db_unlock();
 

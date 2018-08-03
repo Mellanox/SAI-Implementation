@@ -172,7 +172,7 @@ static sai_status_t mlnx_queue_config_set(_In_ const sai_object_key_t      *key,
     switch (attr) {
     case SAI_QUEUE_ATTR_WRED_PROFILE_ID:
         profile_type = SAI_OBJECT_TYPE_WRED;
-        func_setter  = mlnx_wred_apply;
+        func_setter  = mlnx_wred_apply_to_queue_oid;
         break;
 
     case SAI_QUEUE_ATTR_BUFFER_PROFILE_ID:
@@ -213,6 +213,7 @@ static sai_status_t mlnx_queue_config_get(_In_ const sai_object_key_t   *key,
     long                     attr      = (long)arg;
     sai_status_t             status;
     mlnx_qos_queue_config_t *queue_cfg;
+    mlnx_port_config_t      *port;
     uint32_t                 buffer_db_index;
 
     SX_LOG_ENTER();
@@ -229,7 +230,17 @@ static sai_status_t mlnx_queue_config_get(_In_ const sai_object_key_t   *key,
 
     sai_db_read_lock();
 
-    status = mlnx_queue_cfg_lookup(port_num, queue_num, &queue_cfg);
+    status = mlnx_port_by_log_id(port_num, &port);
+    if (SAI_ERR(status)) {
+        goto out;
+    }
+
+    status = mlnx_port_fetch_lag_if_lag_member(&port);
+    if (SAI_ERR(status)) {
+        goto out;
+    }
+
+    status = mlnx_queue_cfg_lookup(port->logical, queue_num, &queue_cfg);
     if (status != SAI_STATUS_SUCCESS) {
         goto out;
     }
@@ -456,19 +467,21 @@ static sai_status_t mlnx_get_queue_attribute(_In_ sai_object_id_t     queue_id,
 }
 
 /**
- * @brief Get queue statistics counters.
+ * @brief Get queue statistics counters extended.
  *
  * @param[in] queue_id Queue id
  * @param[in] number_of_counters Number of counters in the array
  * @param[in] counter_ids Specifies the array of counter ids
+ * @param[in] mode Statistics mode
  * @param[out] counters Array of resulting counter values.
  *
- * @return #SAI_STATUS_SUCCESS on success Failure status code on error
+ * @return #SAI_STATUS_SUCCESS on success, failure status code on error
  */
-static sai_status_t mlnx_get_queue_statistics(_In_ sai_object_id_t         queue_id,
-                                              _In_ uint32_t                number_of_counters,
-                                              _In_ const sai_queue_stat_t *counter_ids,
-                                              _Out_ uint64_t              *counters)
+sai_status_t mlnx_get_queue_statistics_ext(_In_ sai_object_id_t         queue_id,
+                                           _In_ uint32_t                number_of_counters,
+                                           _In_ const sai_queue_stat_t *counter_ids,
+                                           _In_ sai_stats_mode_t        mode,
+                                           _Out_ uint64_t              *counters)
 {
     sai_status_t                     status;
     uint8_t                          ext_data[EXTENDED_DATA_SIZE] = {0};
@@ -485,6 +498,7 @@ static sai_status_t mlnx_get_queue_statistics(_In_ sai_object_id_t         queue
     bool                             tc_cnts_needed = false, occupancy_stats_needed = false;
     mlnx_qos_queue_config_t         *queue_cfg      = NULL;
     uint32_t                         db_buffer_profile_index;
+    sx_access_cmd_t                  cmd;
 
     SX_LOG_ENTER();
 
@@ -501,6 +515,11 @@ static sai_status_t mlnx_get_queue_statistics(_In_ sai_object_id_t         queue
         return SAI_STATUS_INVALID_PARAMETER;
     }
 
+    if (SAI_STATUS_SUCCESS !=
+        (status = mlnx_translate_sai_stats_mode_to_sdk(mode, &cmd))) {
+        return status;
+    }
+
     if (SAI_STATUS_SUCCESS != mlnx_object_to_type(queue_id, SAI_OBJECT_TYPE_QUEUE, &port_num, ext_data)) {
         return SAI_STATUS_INVALID_PARAMETER;
     }
@@ -512,7 +531,7 @@ static sai_status_t mlnx_get_queue_statistics(_In_ sai_object_id_t         queue
     }
     /* TODO : change to > g_resource_limits.cos_port_ets_traffic_class_max when sdk is updated to use rm */
     if (queue_num >= RM_API_COS_TRAFFIC_CLASS_NUM) {
-        status = sx_api_port_counter_perf_get(gh_sdk, SX_ACCESS_CMD_READ,
+        status = sx_api_port_counter_perf_get(gh_sdk, cmd,
                                               port_num,
                                               port_prio_id,
                                               &perf_cnts);
@@ -598,7 +617,7 @@ static sai_status_t mlnx_get_queue_statistics(_In_ sai_object_id_t         queue
 
     if (tc_cnts_needed) {
         if (SX_STATUS_SUCCESS !=
-            (status = sx_api_port_counter_tc_get(gh_sdk, SX_ACCESS_CMD_READ, port_num, queue_num, &tc_cnts))) {
+            (status = sx_api_port_counter_tc_get(gh_sdk, cmd, port_num, queue_num, &tc_cnts))) {
             SX_LOG_ERR("Failed to get port tc counters - %s.\n", SX_STATUS_MSG(status));
             return sdk_to_sai(status);
         }
@@ -613,7 +632,7 @@ static sai_status_t mlnx_get_queue_statistics(_In_ sai_object_id_t         queue
         stats_usage.sx_port_params.port_param.port_tc_list_p = &queue_num;
 
         if (SX_STATUS_SUCCESS !=
-            (status = sx_api_cos_port_buff_type_statistic_get(gh_sdk, SX_ACCESS_CMD_READ, &stats_usage, 1,
+            (status = sx_api_cos_port_buff_type_statistic_get(gh_sdk, cmd, &stats_usage, 1,
                                                               &occupancy_stats, &usage_cnt))) {
             SX_LOG_ERR("Failed to get port buff statistics - %s.\n", SX_STATUS_MSG(status));
             return sdk_to_sai(status);
@@ -721,23 +740,21 @@ static sai_status_t mlnx_get_queue_statistics(_In_ sai_object_id_t         queue
 }
 
 /**
- * @brief Get queue statistics counters extended.
+ * @brief Get queue statistics counters.
  *
  * @param[in] queue_id Queue id
  * @param[in] number_of_counters Number of counters in the array
  * @param[in] counter_ids Specifies the array of counter ids
- * @param[in] mode Statistics mode
  * @param[out] counters Array of resulting counter values.
  *
- * @return #SAI_STATUS_SUCCESS on success, failure status code on error
+ * @return #SAI_STATUS_SUCCESS on success Failure status code on error
  */
-sai_status_t mlnx_get_queue_statistics_ext(_In_ sai_object_id_t         queue_id,
-                                           _In_ uint32_t                number_of_counters,
-                                           _In_ const sai_queue_stat_t *counter_ids,
-                                           _In_ sai_stats_mode_t        mode,
-                                           _Out_ uint64_t              *counters)
+static sai_status_t mlnx_get_queue_statistics(_In_ sai_object_id_t         queue_id,
+                                              _In_ uint32_t                number_of_counters,
+                                              _In_ const sai_queue_stat_t *counter_ids,
+                                              _Out_ uint64_t              *counters)
 {
-    return SAI_STATUS_NOT_IMPLEMENTED;
+    return mlnx_get_queue_statistics_ext(queue_id, number_of_counters, counter_ids, SAI_STATS_MODE_READ, counters);
 }
 
 /**
@@ -848,8 +865,8 @@ static sai_status_t mlnx_clear_queue_stats(_In_ sai_object_id_t         queue_id
 /* QoS DB lock is required */
 sai_status_t mlnx_queue_cfg_lookup(sx_port_log_id_t log_port_id, uint32_t queue_idx, mlnx_qos_queue_config_t **cfg)
 {
+    sai_status_t        status;
     mlnx_port_config_t *port;
-    uint32_t            ii;
 
     if (queue_idx >= MAX_QUEUES) {
         SX_LOG_ERR("Invalid queue num %u - exceed maximum %u\n", queue_idx,
@@ -857,19 +874,15 @@ sai_status_t mlnx_queue_cfg_lookup(sx_port_log_id_t log_port_id, uint32_t queue_
         return SAI_STATUS_INVALID_PARAMETER;
     }
 
-    mlnx_port_foreach(port, ii) {
-        if (port->logical != log_port_id) {
-            continue;
-        }
-
-        *cfg = &g_sai_qos_db_ptr->queue_db[port->start_queues_index + queue_idx];
-        return SAI_STATUS_SUCCESS;
+    status = mlnx_port_by_log_id(log_port_id, &port);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Filed to lookup queue by index %u on port log id %x\n",
+                   queue_idx, log_port_id);
+        return status;
     }
 
-    SX_LOG_ERR("Filed to lookup queue by index %u on port log id %x\n",
-               queue_idx, log_port_id);
-
-    return SAI_STATUS_INVALID_PARAMETER;
+    *cfg = &g_sai_qos_db_ptr->queue_db[port->start_queues_index + queue_idx];
+    return SAI_STATUS_SUCCESS;
 }
 
 /**
@@ -1070,7 +1083,7 @@ sai_status_t mlnx_remove_queue(_In_ sai_object_id_t queue_id)
         goto out;
     }
 
-    status = mlnx_wred_apply(SAI_NULL_OBJECT_ID, queue_id);
+    status = mlnx_wred_apply_to_queue_oid(SAI_NULL_OBJECT_ID, queue_id);
     if (SAI_ERR(status)) {
         SX_LOG_ERR("Failed to reset wred profile for queue\n");
         goto out;

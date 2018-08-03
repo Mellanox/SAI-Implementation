@@ -3966,19 +3966,21 @@ out:
     return sai_status;
 }
 
-sai_status_t mlnx_sai_get_buffer_pool_stats(_In_ sai_object_id_t                pool_id,
-                                            _In_ uint32_t                       number_of_counters,
-                                            _In_ const sai_buffer_pool_stat_t * counter_ids,
-                                            _Out_ uint64_t                    * counters)
+sai_status_t mlnx_sai_get_buffer_pool_stats_ext(_In_ sai_object_id_t               buffer_pool_id,
+                                                _In_ uint32_t                      number_of_counters,
+                                                _In_ const sai_buffer_pool_stat_t *counter_ids,
+                                                _In_ sai_stats_mode_t              mode,
+                                                _Out_ uint64_t                    *counters)
 {
     sai_status_t                       sai_status;
     sx_cos_pool_occupancy_statistics_t occupancy_stats;
     mlnx_sai_buffer_pool_attr_t        sai_pool_attr;
     char                               key_str[MAX_KEY_STR_LEN];
     uint32_t                           ii;
+    sx_access_cmd_t                    cmd;
 
     SX_LOG_ENTER();
-    pool_key_to_str(pool_id, key_str);
+    pool_key_to_str(buffer_pool_id, key_str);
     SX_LOG_DBG("Get pool stats %s\n", key_str);
     if (0 == number_of_counters) {
         SX_LOG_ERR("0 number_of_counters array param\n");
@@ -3995,14 +3997,18 @@ sai_status_t mlnx_sai_get_buffer_pool_stats(_In_ sai_object_id_t                
         SX_LOG_EXIT();
         return SAI_STATUS_INVALID_PARAMETER;
     }
+    if (SAI_STATUS_SUCCESS !=
+        (sai_status = mlnx_translate_sai_stats_mode_to_sdk(mode, &cmd))) {
+        return sai_status;
+    }
     cl_plock_excl_acquire(&g_sai_db_ptr->p_lock);
-    if (SAI_STATUS_SUCCESS != (sai_status = mlnx_get_sai_pool_data(pool_id, &sai_pool_attr))) {
+    if (SAI_STATUS_SUCCESS != (sai_status = mlnx_get_sai_pool_data(buffer_pool_id, &sai_pool_attr))) {
         cl_plock_release(&g_sai_db_ptr->p_lock);
         SX_LOG_EXIT();
         return sai_status;
     }
     cl_plock_release(&g_sai_db_ptr->p_lock);
-    if (SX_STATUS_SUCCESS != (sai_status = sx_api_cos_pool_statistic_get(gh_sdk, SX_ACCESS_CMD_READ,
+    if (SX_STATUS_SUCCESS != (sai_status = sx_api_cos_pool_statistic_get(gh_sdk, cmd,
                                                                          &sai_pool_attr.sx_pool_id, 1,
                                                                          &occupancy_stats))) {
         SX_LOG_ERR("Failed to get pool stat counters - error:%s.\n", SX_STATUS_MSG(sai_status));
@@ -4049,13 +4055,12 @@ sai_status_t mlnx_sai_get_buffer_pool_stats(_In_ sai_object_id_t                
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_sai_get_buffer_pool_stats_ext(_In_ sai_object_id_t               buffer_pool_id,
-                                                _In_ uint32_t                      number_of_counters,
-                                                _In_ const sai_buffer_pool_stat_t *counter_ids,
-                                                _In_ sai_stats_mode_t              mode,
-                                                _Out_ uint64_t                    *counters)
+sai_status_t mlnx_sai_get_buffer_pool_stats(_In_ sai_object_id_t                pool_id,
+                                            _In_ uint32_t                       number_of_counters,
+                                            _In_ const sai_buffer_pool_stat_t * counter_ids,
+                                            _Out_ uint64_t                    * counters)
 {
-    return SAI_STATUS_NOT_IMPLEMENTED;
+    return mlnx_sai_get_buffer_pool_stats_ext(pool_id, number_of_counters, counter_ids, SAI_STATS_MODE_READ, counters);
 }
 
 sai_status_t mlnx_clear_buffer_pool_stats(_In_ sai_object_id_t               pool_id,
@@ -4101,10 +4106,11 @@ sai_status_t mlnx_clear_buffer_pool_stats(_In_ sai_object_id_t               poo
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_sai_get_ingress_priority_group_stats(_In_ sai_object_id_t                           ingress_pg_id,
-                                                       _In_ uint32_t                                  number_of_counters,
-                                                       _In_ const sai_ingress_priority_group_stat_t * counter_ids,
-                                                       _Out_ uint64_t                               * counters)
+sai_status_t mlnx_sai_get_ingress_priority_group_stats_ext(_In_ sai_object_id_t                          ingress_priority_group_id,
+                                                           _In_ uint32_t                                 number_of_counters,
+                                                           _In_ const sai_ingress_priority_group_stat_t *counter_ids,
+                                                           _In_ sai_stats_mode_t                         mode,
+                                                           _Out_ uint64_t                               *counters)
 {
     sai_status_t                     sai_status;
     uint32_t                         db_port_index, pg_ind, buff_ind;
@@ -4118,9 +4124,10 @@ sai_status_t mlnx_sai_get_ingress_priority_group_stats(_In_ sai_object_id_t     
                                      headroom_occupancy_stats_needed = false;
     uint32_t                           *port_pg_profile_refs         = NULL;
     mlnx_sai_db_buffer_profile_entry_t *buff_db_entry                = NULL;
+    sx_access_cmd_t                  cmd;
 
     SX_LOG_ENTER();
-    pg_key_to_str(ingress_pg_id, key_str);
+    pg_key_to_str(ingress_priority_group_id, key_str);
     SX_LOG_DBG("Get PG stats %s\n", key_str);
     if (0 == number_of_counters) {
         SX_LOG_ERR("0 number_of_counters array param\n");
@@ -4137,7 +4144,11 @@ sai_status_t mlnx_sai_get_ingress_priority_group_stats(_In_ sai_object_id_t     
         SX_LOG_EXIT();
         return SAI_STATUS_INVALID_PARAMETER;
     }
-    if (SAI_STATUS_SUCCESS != (sai_status = get_pg_data(ingress_pg_id, &db_port_index, &pg_ind))) {
+    if (SAI_STATUS_SUCCESS !=
+        (sai_status = mlnx_translate_sai_stats_mode_to_sdk(mode, &cmd))) {
+        return sai_status;
+    }
+    if (SAI_STATUS_SUCCESS != (sai_status = get_pg_data(ingress_priority_group_id, &db_port_index, &pg_ind))) {
         SX_LOG_EXIT();
         return sai_status;
     }
@@ -4168,7 +4179,7 @@ sai_status_t mlnx_sai_get_ingress_priority_group_stats(_In_ sai_object_id_t     
     if (pg_cnts_needed) {
         if (SX_STATUS_SUCCESS !=
             (sai_status =
-                 sx_api_port_counter_buff_get(gh_sdk, SX_ACCESS_CMD_READ,
+                 sx_api_port_counter_buff_get(gh_sdk, cmd,
                                               g_sai_db_ptr->ports_db[db_port_index].logical,
                                               pg_ind, &pg_cnts))) {
             SX_LOG_ERR("Failed to get port pg counters - %s.\n", SX_STATUS_MSG(sai_status));
@@ -4185,7 +4196,7 @@ sai_status_t mlnx_sai_get_ingress_priority_group_stats(_In_ sai_object_id_t     
         stats_usage.sx_port_params.port_param.port_pg_list_p = &pg_ind;
 
         if (SX_STATUS_SUCCESS !=
-            (sai_status = sx_api_cos_port_buff_type_statistic_get(gh_sdk, SX_ACCESS_CMD_READ, &stats_usage, 1,
+            (sai_status = sx_api_cos_port_buff_type_statistic_get(gh_sdk, cmd, &stats_usage, 1,
                                                                   &occupancy_stats, &usage_cnt))) {
             SX_LOG_ERR("Failed to get PG stat counters - %s.\n", SX_STATUS_MSG(sai_status));
             return sdk_to_sai(sai_status);
@@ -4201,7 +4212,7 @@ sai_status_t mlnx_sai_get_ingress_priority_group_stats(_In_ sai_object_id_t     
         stats_usage.sx_port_params.port_param.port_pg_list_p = &pg_ind;
 
         if (SX_STATUS_SUCCESS !=
-            (sai_status = sx_api_cos_port_buff_type_statistic_get(gh_sdk, SX_ACCESS_CMD_READ, &stats_usage, 1,
+            (sai_status = sx_api_cos_port_buff_type_statistic_get(gh_sdk, cmd, &stats_usage, 1,
                                                                   &headroom_occupancy_stats, &usage_cnt))) {
             SX_LOG_ERR("Failed to get PG headroom stat counters - %s.\n", SX_STATUS_MSG(sai_status));
             return sdk_to_sai(sai_status);
@@ -4277,14 +4288,12 @@ sai_status_t mlnx_sai_get_ingress_priority_group_stats(_In_ sai_object_id_t     
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_sai_get_ingress_priority_group_stats_ext(
-    _In_ sai_object_id_t                          ingress_priority_group_id,
-    _In_ uint32_t                                 number_of_counters,
-    _In_ const sai_ingress_priority_group_stat_t *counter_ids,
-    _In_ sai_stats_mode_t                         mode,
-    _Out_ uint64_t                               *counters)
+sai_status_t mlnx_sai_get_ingress_priority_group_stats(_In_ sai_object_id_t                           ingress_pg_id,
+                                                       _In_ uint32_t                                  number_of_counters,
+                                                       _In_ const sai_ingress_priority_group_stat_t * counter_ids,
+                                                       _Out_ uint64_t                               * counters)
 {
-    return SAI_STATUS_NOT_IMPLEMENTED;
+    return mlnx_sai_get_ingress_priority_group_stats_ext(ingress_pg_id, number_of_counters, counter_ids, SAI_STATS_MODE_READ, counters);
 }
 
 static sai_status_t mlnx_sai_clear_ingress_priority_group_stats(

@@ -400,7 +400,7 @@ static sai_status_t mlnx_fdb_attrs_to_sx(_In_ const sai_attribute_value_t  *type
         }
 
         sx_tunnel_id =
-            g_sai_db_ptr->tunnel_db[bport->tunnel_id].sx_tunnel_id;
+            g_sai_db_ptr->tunnel_db[bport->tunnel_id].sx_tunnel_id_ipv4;
         fdb_entry->dest_type =
             SX_FDB_UC_MAC_ADDR_DEST_TYPE_NEXT_HOP;
         fdb_entry->dest.next_hop.next_hop_key.type                                   = SX_NEXT_HOP_TYPE_TUNNEL_ENCAP;

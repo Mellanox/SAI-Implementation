@@ -23,13 +23,15 @@ static void SAI_dump_hostintf_getdb(_Out_ sai_object_id_t  *default_trap_group,
                                     _Out_ bool             *trap_group_valid,
                                     _Out_ mlnx_trap_t      *traps_db,
                                     _Out_ trap_mirror_db_t *trap_mirror_discard_wred_db,
-                                    _Out_ trap_mirror_db_t *trap_mirror_discard_router_db)
+                                    _Out_ trap_mirror_db_t *trap_mirror_discard_router_db,
+                                    _Out_ sai_netdev_t     *hostif_db)
 {
     assert(NULL != default_trap_group);
     assert(NULL != trap_group_valid);
     assert(NULL != traps_db);
     assert(NULL != trap_mirror_discard_wred_db);
     assert(NULL != trap_mirror_discard_router_db);
+    assert(NULL != hostif_db);
     assert(NULL != g_sai_db_ptr);
 
     sai_db_read_lock();
@@ -51,6 +53,10 @@ static void SAI_dump_hostintf_getdb(_Out_ sai_object_id_t  *default_trap_group,
     memcpy(trap_mirror_discard_router_db,
            &g_sai_db_ptr->trap_mirror_discard_router_db,
            sizeof(trap_mirror_db_t));
+
+    memcpy(hostif_db,
+           g_sai_db_ptr->hostif_db,
+           sizeof(g_sai_db_ptr->hostif_db));
 
     sai_db_unlock();
 }
@@ -162,6 +168,66 @@ static void SAI_dump_traps_db_print(_In_ FILE *file, _In_ mlnx_trap_t *traps_db)
     }
 }
 
+static void SAI_dump_hostif_subtype_enum_to_str(_In_ sai_host_object_type_t subtype, _Out_ char *str)
+{
+    assert(NULL != str);
+
+    switch (subtype) {
+    case SAI_HOSTIF_OBJECT_TYPE_VLAN:
+        strcpy(str, "vlan");
+        break;
+
+    case SAI_HOSTIF_OBJECT_TYPE_PORT:
+        strcpy(str, "port");
+        break;
+
+    case SAI_HOSTIF_OBJECT_TYPE_LAG:
+        strcpy(str, "LAG");
+        break;
+
+    case SAI_HOSTIF_OBJECT_TYPE_FD:
+        strcpy(str, "FD");
+        break;
+
+    default:
+        strcpy(str, "unknown");
+        break;
+    }
+}
+
+static void SAI_dump_hostif_db_print(_In_ FILE *file, _In_ sai_netdev_t *hostif_db)
+{
+    uint32_t                  ii = 0;
+    sai_netdev_t              curr_host_if;
+    char                      subtype_str[LINE_LENGTH];
+    dbg_utils_table_columns_t hostif_db_clmns[] = {
+        {"db idx",       7, PARAM_UINT32_E, &ii},
+        {"subtype",      8, PARAM_STRING_E, &subtype_str },
+        {"ifname",      16, PARAM_STRING_E, &curr_host_if.ifname },
+        {"port",        12, PARAM_HEX_E,    &curr_host_if.port_id },
+        {"vlan",         7, PARAM_UINT16_E, &curr_host_if.vid },
+        {NULL,           0,  0,              NULL}
+    };
+
+    assert(NULL != hostif_db);
+
+    dbg_utils_print_general_header(file, "Host IF db");
+
+    dbg_utils_print_secondary_header(file, "hostif_db");
+
+    dbg_utils_print_table_headline(file, hostif_db_clmns);
+
+    for (ii = 0; ii < MAX_HOSTIFS; ii++) {
+        if (hostif_db[ii].is_used) {
+            memcpy(&curr_host_if, &hostif_db[ii], sizeof(sai_netdev_t));
+
+            SAI_dump_hostif_subtype_enum_to_str(curr_host_if.sub_type, subtype_str);
+
+            dbg_utils_print_table_data_line(file, hostif_db_clmns);
+        }
+    }
+}
+
 static void SAI_dump_trap_mirror_discard_db(_In_ FILE             *file,
                                             _In_ trap_mirror_db_t *trap_mirror_discard_wred_db,
                                             _In_ trap_mirror_db_t *trap_mirror_discard_router_db)
@@ -215,11 +281,13 @@ void SAI_dump_hostintf(_In_ FILE *file)
 {
     sai_object_id_t  default_trap_group = 0;
     bool             trap_group_valid[MAX_TRAP_GROUPS];
+    sai_netdev_t     hostif_db[MAX_HOSTIFS];
     mlnx_trap_t     *traps_db;
     trap_mirror_db_t trap_mirror_discard_wred_db;
     trap_mirror_db_t trap_mirror_discard_router_db;
 
     memset(trap_group_valid, 0, MAX_TRAP_GROUPS * sizeof(bool));
+    memset(hostif_db, 0, sizeof(hostif_db));
     traps_db = (mlnx_trap_t*)calloc(SXD_TRAP_ID_ACL_MAX, sizeof(mlnx_trap_t));
     memset(&trap_mirror_discard_wred_db, 0, sizeof(trap_mirror_db_t));
     memset(&trap_mirror_discard_router_db, 0, sizeof(trap_mirror_db_t));
@@ -232,7 +300,8 @@ void SAI_dump_hostintf(_In_ FILE *file)
                             trap_group_valid,
                             traps_db,
                             &trap_mirror_discard_wred_db,
-                            &trap_mirror_discard_router_db);
+                            &trap_mirror_discard_router_db,
+                            hostif_db);
     dbg_utils_print_module_header(file, "SAI HOSTINTF");
     SAI_dump_default_trap_group_print(file, &default_trap_group);
     SAI_dump_trap_group_valid_print(file, trap_group_valid);
@@ -240,6 +309,7 @@ void SAI_dump_hostintf(_In_ FILE *file)
     SAI_dump_trap_mirror_discard_db(file,
                                     &trap_mirror_discard_wred_db,
                                     &trap_mirror_discard_router_db);
+    SAI_dump_hostif_db_print(file, hostif_db);
 
     free(traps_db);
 }

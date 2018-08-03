@@ -442,6 +442,11 @@ static sai_status_t mlnx_switch_max_sampled_mirror_sessions_get(_In_ const sai_o
                                                                 _In_ uint32_t                  attr_index,
                                                                 _Inout_ vendor_cache_t        *cache,
                                                                 void                          *arg);
+static sai_status_t mlnx_switch_supported_stats_modes_get(_In_ const sai_object_key_t   *key,
+                                                          _Inout_ sai_attribute_value_t *value,
+                                                          _In_ uint32_t                  attr_index,
+                                                          _Inout_ vendor_cache_t        *cache,
+                                                          void                          *arg);
 static const sai_vendor_attribute_entry_t switch_vendor_attribs[] = {
     { SAI_SWITCH_ATTR_PORT_NUMBER,
       { false, false, false, true },
@@ -972,6 +977,11 @@ static const sai_vendor_attribute_entry_t switch_vendor_attribs[] = {
       { false, false, false, true },
       { false, false, false, true },
       mlnx_switch_max_sampled_mirror_sessions_get, NULL,
+      NULL, NULL },
+    { SAI_SWITCH_ATTR_SUPPORTED_EXTENDED_STATS_MODE,
+      { false, false, false, true },
+      { false, false, false, true },
+      mlnx_switch_supported_stats_modes_get, NULL,
       NULL, NULL },
     { END_FUNCTIONALITY_ATTRIBS_ID,
       { false, false, false, false },
@@ -2222,7 +2232,7 @@ static void sai_db_values_init()
     g_sai_db_ptr->ports_configured = 0;
     g_sai_db_ptr->ports_number     = 0;
     memset(g_sai_db_ptr->ports_db, 0, sizeof(g_sai_db_ptr->ports_db));
-    memset(g_sai_db_ptr->fd_db, 0, sizeof(g_sai_db_ptr->fd_db));
+    memset(g_sai_db_ptr->hostif_db, 0, sizeof(g_sai_db_ptr->hostif_db));
     g_sai_db_ptr->default_trap_group = SAI_NULL_OBJECT_ID;
     g_sai_db_ptr->default_vrid       = SAI_NULL_OBJECT_ID;
     memset(&g_sai_db_ptr->callback_channel, 0, sizeof(g_sai_db_ptr->callback_channel));
@@ -2242,6 +2252,7 @@ static void sai_db_values_init()
     g_sai_db_ptr->packet_storing_mode = SX_PORT_PACKET_STORING_MODE_CUT_THROUGH;
 
     g_sai_db_ptr->tunnel_module_initialized = false;
+    g_sai_db_ptr->port_parsing_depth_set_for_tunnel = false;
 
     g_sai_db_ptr->nve_tunnel_type = NVE_TUNNEL_UNKNOWN;
 
@@ -6195,6 +6206,24 @@ static sai_status_t mlnx_switch_max_sampled_mirror_sessions_get(_In_ const sai_o
 
     SX_LOG_EXIT();
     return SAI_STATUS_SUCCESS;
+}
+
+/* Get the list of supported get statistics extended modes [sai_s32_list_t] */
+static sai_status_t mlnx_switch_supported_stats_modes_get(_In_ const sai_object_key_t   *key,
+                                                          _Inout_ sai_attribute_value_t *value,
+                                                          _In_ uint32_t                  attr_index,
+                                                          _Inout_ vendor_cache_t        *cache,
+                                                          void                          *arg)
+{
+    int32_t             modes[] = { SAI_STATS_MODE_READ, SAI_STATS_MODE_READ_AND_CLEAR };
+    sai_status_t        status;
+
+    SX_LOG_ENTER();
+
+    status = mlnx_fill_s32list(modes, sizeof(modes)/sizeof(*modes), &value->s32list);
+
+    SX_LOG_EXIT();
+    return status;
 }
 
 static sai_status_t mlnx_switch_init_connect_get(_In_ const sai_object_key_t   *key,

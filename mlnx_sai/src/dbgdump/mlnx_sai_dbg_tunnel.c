@@ -308,19 +308,53 @@ static void SAI_dump_tunnel_map_print(_In_ FILE                    *file,
     }
 }
 
+static void SAI_dump_tunnel_sai_tunnel_type_enum_to_str(_In_ sai_tunnel_type_t type, _Out_ char *str)
+{
+    assert(NULL != str);
+
+    switch (type) {
+    case SAI_TUNNEL_TYPE_IPINIP:
+        strcpy(str, "IPinIP");
+        break;
+
+    case SAI_TUNNEL_TYPE_IPINIP_GRE:
+        strcpy(str, "IPinIP GRE");
+        break;
+
+    case SAI_TUNNEL_TYPE_VXLAN:
+        strcpy(str, "VXLAN");
+        break;
+
+    case SAI_TUNNEL_TYPE_MPLS:
+        strcpy(str, "MPLS");
+        break;
+
+    default:
+        strcpy(str, "unknown");
+        break;
+    }
+}
+
 static void SAI_dump_tunnel_print(_In_ FILE *file, _In_ tunnel_db_entry_t *tunnel_db)
 {
     uint32_t                  ii     = 0, jj = 0;
     sai_object_id_t           obj_id = SAI_NULL_OBJECT_ID;
     tunnel_db_entry_t         curr_tunnel_db;
+    char                      sai_tunnel_type_str[LINE_LENGTH];
     dbg_utils_table_columns_t tunnel_clmns[] = {
-        {"sai oid",       16, PARAM_UINT64_E, &obj_id},
-        {"db idx",        7,  PARAM_UINT32_E, &ii},
-        {"sx tunnel id",  12, PARAM_UINT32_E, &curr_tunnel_db.sx_tunnel_id},
-        {"vxlan u if",    16, PARAM_UINT64_E, &curr_tunnel_db.sai_underlay_rif},
-        {"encap map cnt", 13, PARAM_UINT32_E, &curr_tunnel_db.sai_tunnel_map_encap_cnt},
-        {"decap map cnt", 13, PARAM_UINT32_E, &curr_tunnel_db.sai_tunnel_map_decap_cnt},
-        {NULL,            0,  0,              NULL}
+        {"sai oid",            16, PARAM_UINT64_E, &obj_id},
+        {"db idx",             7,  PARAM_UINT32_E, &ii},
+        {"SAI tunnel type",    15, PARAM_STRING_E, &sai_tunnel_type_str},
+        {"sx tunnel id ipv4",  17, PARAM_UINT32_E, &curr_tunnel_db.sx_tunnel_id_ipv4},
+        {"sx tunnel id ipv6",  17, PARAM_UINT32_E, &curr_tunnel_db.sx_tunnel_id_ipv6},
+        {"ipv4 created",       12, PARAM_UINT8_E,  &curr_tunnel_db.ipv4_created},
+        {"ipv6 created",       12, PARAM_UINT8_E,  &curr_tunnel_db.ipv6_created},
+        {"sx o rif ipv6",      16, PARAM_UINT16_E, &curr_tunnel_db.sx_overlay_rif_ipv6}, 
+        {"vxlan u rif",        16, PARAM_UINT64_E, &curr_tunnel_db.sai_underlay_rif},
+        {"encap map cnt",      13, PARAM_UINT32_E, &curr_tunnel_db.sai_tunnel_map_encap_cnt},
+        {"decap map cnt",      13, PARAM_UINT32_E, &curr_tunnel_db.sai_tunnel_map_decap_cnt},
+        {"term table cnt",     14, PARAM_UINT32_E, &curr_tunnel_db.term_table_cnt},
+        {NULL,                 0,  0,              NULL}
     };
     dbg_utils_table_columns_t tunnel_encap_map_clmns[] = {
         {"db idx",       7,  PARAM_UINT32_E, &ii},
@@ -348,6 +382,8 @@ static void SAI_dump_tunnel_print(_In_ FILE *file, _In_ tunnel_db_entry_t *tunne
                 mlnx_create_object(SAI_OBJECT_TYPE_TUNNEL, ii, NULL, &obj_id)) {
                 obj_id = SAI_NULL_OBJECT_ID;
             }
+
+            SAI_dump_tunnel_sai_tunnel_type_enum_to_str(curr_tunnel_db.sai_tunnel_type, sai_tunnel_type_str);
             dbg_utils_print_table_data_line(file, tunnel_clmns);
         }
     }
@@ -441,16 +477,18 @@ static void SAI_dump_tunnel_table_print(_In_ FILE *file, _In_ mlnx_tunneltable_t
     char                      tunnel_type_str[LINE_LENGTH];
     char                      field_type_str[LINE_LENGTH];
     dbg_utils_table_columns_t tunneltable_clmns[] = {
-        {"sai obj id",  11, PARAM_UINT64_E, &obj_id},
-        {"db idx",      8,  PARAM_UINT32_E, &ii},
-        {"tunnel type", 11, PARAM_STRING_E, &tunnel_type_str},
-        {"field type",  10, PARAM_STRING_E, &field_type_str},
-        {"u vrid",      10, PARAM_STRING_E, &curr_mlnx_tunneltable.sdk_tunnel_decap_key.underlay_vrid},
-        {"u dipv4",     15, PARAM_IPV4_E,   &curr_mlnx_tunneltable.sdk_tunnel_decap_key.underlay_dip.addr.ipv4},
-        {"u dipv6",     15, PARAM_IPV6_E,   &curr_mlnx_tunneltable.sdk_tunnel_decap_key.underlay_dip.addr.ipv6},
-        {"u sipv4",     15, PARAM_IPV4_E,   &curr_mlnx_tunneltable.sdk_tunnel_decap_key.underlay_sip.addr.ipv4},
-        {"u sipv6",     15, PARAM_IPV6_E,   &curr_mlnx_tunneltable.sdk_tunnel_decap_key.underlay_sip.addr.ipv6},
-        {NULL,          0,  0,              NULL}
+        {"sai obj id",          11, PARAM_UINT64_E, &obj_id},
+        {"db idx",              8,  PARAM_UINT32_E, &ii},
+        {"tunnel type",         11, PARAM_STRING_E, &tunnel_type_str},
+        {"tunnel db idx",       13, PARAM_UINT32_E, &curr_mlnx_tunneltable.tunnel_db_idx},
+        {"tunnel lazy created", 19, PARAM_UINT8_E,  &curr_mlnx_tunneltable.tunnel_lazy_created},
+        {"field type",          10, PARAM_STRING_E, &field_type_str},
+        {"u vrid",              10, PARAM_STRING_E, &curr_mlnx_tunneltable.sdk_tunnel_decap_key_ipv4.underlay_vrid},
+        {"u dipv4",             15, PARAM_IPV4_E,   &curr_mlnx_tunneltable.sdk_tunnel_decap_key_ipv4.underlay_dip.addr.ipv4},
+        {"u dipv6",             39, PARAM_IPV6_E,   &curr_mlnx_tunneltable.sdk_tunnel_decap_key_ipv4.underlay_dip.addr.ipv6},
+        {"u sipv4",             15, PARAM_IPV4_E,   &curr_mlnx_tunneltable.sdk_tunnel_decap_key_ipv4.underlay_sip.addr.ipv4},
+        {"u sipv6",             39, PARAM_IPV6_E,   &curr_mlnx_tunneltable.sdk_tunnel_decap_key_ipv4.underlay_sip.addr.ipv6},
+        {NULL,                  0,  0,              NULL}
     };
 
     assert(NULL != mlnx_tunneltable);
@@ -469,9 +507,9 @@ static void SAI_dump_tunnel_table_print(_In_ FILE *file, _In_ mlnx_tunneltable_t
                 mlnx_create_object(SAI_OBJECT_TYPE_TUNNEL_TERM_TABLE_ENTRY, ii, NULL, &obj_id)) {
                 obj_id = SAI_NULL_OBJECT_ID;
             }
-            SAI_dump_sdk_tunnel_type_enum_to_str(mlnx_tunneltable[ii].sdk_tunnel_decap_key.tunnel_type,
+            SAI_dump_sdk_tunnel_type_enum_to_str(mlnx_tunneltable[ii].sdk_tunnel_decap_key_ipv4.tunnel_type,
                                                  tunnel_type_str);
-            SAI_dump_sdk_tunnel_table_type_enum_to_str(mlnx_tunneltable[ii].sdk_tunnel_decap_key.type,
+            SAI_dump_sdk_tunnel_table_type_enum_to_str(mlnx_tunneltable[ii].sdk_tunnel_decap_key_ipv4.type,
                                                        field_type_str);
 
             dbg_utils_print_table_data_line(file, tunneltable_clmns);

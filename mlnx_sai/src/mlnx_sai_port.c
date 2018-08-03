@@ -253,12 +253,12 @@ static sai_status_t mlnx_port_egress_block_set_impl(_In_ sx_port_log_id_t       
 static sai_status_t mlnx_port_egress_block_get_impl(_In_ sx_port_log_id_t   sx_ing_port_id,
                                                     _Out_ sx_port_log_id_t *sx_egress_block_ports,
                                                     _Inout_ uint32_t       *sx_egress_block_ports_count);
-static sai_status_t mlnx_port_mirror_session_clear(_In_ mlnx_port_config_t   *port_config,
-                                                   _In_ sx_mirror_direction_t sx_mirror_direction);
+static sai_status_t mlnx_port_mirror_session_clear(_In_ const mlnx_port_config_t *port_config,
+                                                   _In_ sx_mirror_direction_t     sx_mirror_direction);
 static sai_status_t mlnx_port_mirror_session_apply(_In_ mlnx_port_config_t   *port_config,
                                                    _In_ sx_span_session_id_t  sx_span_session_id,
                                                    _In_ sx_mirror_direction_t sx_mirror_direction);
-static sai_status_t mlnx_port_mirror_session_set_internal(_In_ sx_port_log_id_t      sx_port_log_id,
+static sai_status_t mlnx_port_mirror_session_set_internal(_In_ const mlnx_port_config_t *port_config,
                                                           _In_ sx_mirror_direction_t sx_mirror_direction,
                                                           _In_ sx_span_session_id_t  sx_span_session_id,
                                                           _In_ bool                  add);
@@ -842,34 +842,32 @@ static sai_status_t mlnx_port_internal_loopback_set(_In_ const sai_object_key_t 
         return status;
     }
 
-    /* loopback is currently not implemented for Spectrum */
-    /*
-     *  sx_port_phys_loopback_t loop_val;
-     *  switch (value->s32) {
-     *  case SAI_PORT_INTERNAL_LOOPBACK_NONE:
-     *   loop_val = SX_PORT_PHYS_LOOPBACK_DISABLE;
-     *   break;
-     *
-     *  case SAI_PORT_INTERNAL_LOOPBACK_PHY:
-     *   SX_LOG_ERR("Port internal phy loopback not supported\n");
-     *   return SAI_STATUS_ATTR_NOT_SUPPORTED_0;
-     *
-     *  case SAI_PORT_INTERNAL_LOOPBACK_MAC:
-     *   loop_val = SX_PORT_PHYS_LOOPBACK_ENABLE_INTERNAL;
-     *   break;
-     *
-     *  default:
-     *   SX_LOG_ERR("Invalid port internal loopback value %d\n", value->s32);
-     *   return SAI_STATUS_INVALID_ATTR_VALUE_0;
-     *  }
-     *
-     *  if (SX_STATUS_SUCCESS != (status = sx_api_port_phys_loopback_set(gh_sdk, port_id, loop_val))) {
-     *   SX_LOG_ERR("Failed to set port physical loopback - %s.\n", SX_STATUS_MSG(status));
-     *   return sdk_to_sai(status);
-     *  }*/
+    sx_port_phys_loopback_t loop_val;
+    switch (value->s32) {
+    case SAI_PORT_INTERNAL_LOOPBACK_MODE_NONE:
+        loop_val = SX_PORT_PHYS_LOOPBACK_DISABLE;
+        break;
+
+    case SAI_PORT_INTERNAL_LOOPBACK_MODE_PHY:
+        SX_LOG_ERR("Port internal phy loopback not supported\n");
+        return SAI_STATUS_ATTR_NOT_SUPPORTED_0;
+
+    case SAI_PORT_INTERNAL_LOOPBACK_MODE_MAC:
+        loop_val = SX_PORT_PHYS_LOOPBACK_ENABLE_INTERNAL;
+        break;
+
+    default:
+        SX_LOG_ERR("Invalid port internal loopback value %d\n", value->s32);
+        return SAI_STATUS_INVALID_ATTR_VALUE_0;
+    }
+
+    if (SX_STATUS_SUCCESS != (status = sx_api_port_phys_loopback_set(gh_sdk, port_id, loop_val))) {
+        SX_LOG_ERR("Failed to set port physical loopback - %s.\n", SX_STATUS_MSG(status));
+        return sdk_to_sai(status);
+    }
 
     SX_LOG_EXIT();
-    return SAI_STATUS_NOT_IMPLEMENTED;
+    return SAI_STATUS_SUCCESS;
 }
 
 /* MTU [uint32_t] */
@@ -2096,6 +2094,10 @@ sai_status_t mlnx_port_mirror_sessions_clone(_In_ mlnx_port_config_t *to, _In_ c
     assert(to);
     assert(from);
 
+    status = mlnx_port_mirror_session_clear(to, SX_SPAN_MIRROR_INGRESS);
+    if (SAI_ERR(status)) {
+        return status;
+    }
 
     sx_status = sx_api_span_mirror_get(gh_sdk, from->logical, SX_SPAN_MIRROR_INGRESS, &sx_span_session_id);
     if ((sx_status != SX_STATUS_ENTRY_NOT_FOUND) && SX_ERR(sx_status)) {
@@ -2111,6 +2113,11 @@ sai_status_t mlnx_port_mirror_sessions_clone(_In_ mlnx_port_config_t *to, _In_ c
 
         SX_LOG_DBG("Successfully cloned ingress mirror session from [%lx] to [%lx]\n",
                    from->saiport, to->saiport);
+    }
+
+    status = mlnx_port_mirror_session_clear(to, SX_SPAN_MIRROR_EGRESS);
+    if (SAI_ERR(status)) {
+        return status;
     }
 
     sx_status = sx_api_span_mirror_get(gh_sdk, from->logical, SX_SPAN_MIRROR_EGRESS, &sx_span_session_id);
@@ -2132,8 +2139,8 @@ sai_status_t mlnx_port_mirror_sessions_clone(_In_ mlnx_port_config_t *to, _In_ c
     return SAI_STATUS_SUCCESS;
 }
 
-static sai_status_t mlnx_port_mirror_session_clear(_In_ mlnx_port_config_t   *port_config,
-                                                   _In_ sx_mirror_direction_t sx_mirror_direction)
+static sai_status_t mlnx_port_mirror_session_clear(_In_ const mlnx_port_config_t *port_config,
+                                                   _In_ sx_mirror_direction_t     sx_mirror_direction)
 {
     sai_status_t         status;
     sx_status_t          sx_status;
@@ -2157,7 +2164,7 @@ static sai_status_t mlnx_port_mirror_session_clear(_In_ mlnx_port_config_t   *po
         return sdk_to_sai(sx_status);
     }
 
-    status = mlnx_port_mirror_session_set_internal(sx_port_log_id, sx_mirror_direction, sx_span_session_id, false);
+    status = mlnx_port_mirror_session_set_internal(port_config, sx_mirror_direction, sx_span_session_id, false);
     if (SAI_ERR(status)) {
         return status;
     }
@@ -2177,7 +2184,7 @@ static sai_status_t mlnx_port_mirror_session_apply(_In_ mlnx_port_config_t   *po
     assert(port_config);
 
     status =
-        mlnx_port_mirror_session_set_internal(port_config->logical, sx_mirror_direction, sx_span_session_id, true);
+        mlnx_port_mirror_session_set_internal(port_config, sx_mirror_direction, sx_span_session_id, true);
     if (SAI_ERR(status)) {
         return status;
     }
@@ -2188,44 +2195,62 @@ static sai_status_t mlnx_port_mirror_session_apply(_In_ mlnx_port_config_t   *po
     return SAI_STATUS_SUCCESS;
 }
 
-static sai_status_t mlnx_port_mirror_session_set_internal(_In_ sx_port_log_id_t      sx_port_log_id,
-                                                          _In_ sx_mirror_direction_t sx_mirror_direction,
-                                                          _In_ sx_span_session_id_t  sx_span_session_id,
-                                                          _In_ bool                  add)
+static sai_status_t mlnx_port_mirror_session_set_internal(_In_ const mlnx_port_config_t *port_config,
+                                                          _In_ sx_mirror_direction_t     sx_mirror_direction,
+                                                          _In_ sx_span_session_id_t      sx_span_session_id,
+                                                          _In_ bool                      add)
 {
+    sai_status_t    status;
     sx_status_t     sx_status;
     sx_access_cmd_t sx_cmd;
 
     sx_cmd = (add) ? SX_ACCESS_CMD_ADD : SX_ACCESS_CMD_DELETE;
 
     if (add) {
-        sx_status = sx_api_span_mirror_set(gh_sdk, sx_cmd, sx_port_log_id,
+        sx_status = sx_api_span_mirror_set(gh_sdk, sx_cmd, port_config->logical,
                                            sx_mirror_direction, sx_span_session_id);
         if (SX_ERR(sx_status)) {
-            SX_LOG_ERR("Failed to %s sdk mirror port %x for sdk mirror obj id %d\n",
-                       SX_ACCESS_CMD_STR(sx_cmd), sx_port_log_id, sx_span_session_id);
-            return sdk_to_sai(sx_status);
+            if (sx_status == SX_STATUS_ENTRY_ALREADY_EXISTS) {
+                SX_LOG_DBG("Port %x already has a mirror session - need to clear\n", port_config->logical);
+                status = mlnx_port_mirror_session_clear(port_config, sx_mirror_direction);
+                if (SAI_ERR(status)) {
+                    SX_LOG_ERR("Failed to clear mirror session on port %x\n", port_config->logical);
+                    return status;
+                }
+
+                sx_status = sx_api_span_mirror_set(gh_sdk, sx_cmd, port_config->logical,
+                                                   sx_mirror_direction, sx_span_session_id);
+                if (SX_ERR(sx_status)) {
+                    SX_LOG_ERR("Failed to %s sdk mirror port %x for sdk mirror obj id %d\n",
+                               SX_ACCESS_CMD_STR(sx_cmd), port_config->logical, sx_span_session_id);
+                    return sdk_to_sai(sx_status);
+                }
+            } else {
+                SX_LOG_ERR("Failed to %s sdk mirror port %x for sdk mirror obj id %d\n",
+                           SX_ACCESS_CMD_STR(sx_cmd), port_config->logical, sx_span_session_id);
+                return sdk_to_sai(sx_status);
+            }
         }
 
-        sx_status = sx_api_span_mirror_state_set(gh_sdk, sx_port_log_id, sx_mirror_direction, add);
+        sx_status = sx_api_span_mirror_state_set(gh_sdk, port_config->logical, sx_mirror_direction, add);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to update mirror port state to %s on sdk mirror port id %x\n",
-                       (add) ? "true" : "false", sx_port_log_id);
+                       (add) ? "true" : "false", port_config->logical);
             return sdk_to_sai(sx_status);
         }
     } else {
-        sx_status = sx_api_span_mirror_state_set(gh_sdk, sx_port_log_id, sx_mirror_direction, add);
+        sx_status = sx_api_span_mirror_state_set(gh_sdk, port_config->logical, sx_mirror_direction, add);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to update mirror port state to %s on sdk mirror port id %x\n",
-                       (add) ? "true" : "false", sx_port_log_id);
+                       (add) ? "true" : "false", port_config->logical);
             return sdk_to_sai(sx_status);
         }
 
-        sx_status = sx_api_span_mirror_set(gh_sdk, sx_cmd, sx_port_log_id,
+        sx_status = sx_api_span_mirror_set(gh_sdk, sx_cmd, port_config->logical,
                                            sx_mirror_direction, sx_span_session_id);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to %s sdk mirror port %x for sdk mirror obj id %d\n",
-                       SX_ACCESS_CMD_STR(sx_cmd), sx_port_log_id, sx_span_session_id);
+                       SX_ACCESS_CMD_STR(sx_cmd), port_config->logical, sx_span_session_id);
             return sdk_to_sai(sx_status);
         }
     }
@@ -2358,37 +2383,6 @@ cleanup:
     sai_db_unlock();
     SX_LOG_EXIT();
     return status;
-}
-
-sai_status_t mlnx_port_samplepacket_params_check(_In_ const mlnx_port_config_t *lag_config,
-                                                 _In_ const mlnx_port_config_t *port_config)
-{
-    uint32_t lag_sample_packet, port_sample_packet;
-
-    assert(lag_config);
-    assert(port_config);
-
-    lag_sample_packet  = lag_config->internal_ingress_samplepacket_obj_idx;
-    port_sample_packet = port_config->internal_ingress_samplepacket_obj_idx;
-
-    if (lag_sample_packet != port_sample_packet) {
-        SX_LOG_ERR("Lag oid %" PRIx64 " and port oid %" PRIx64 " have different "
-                   "ingress sample packet session id (%x and %x)\n",
-                   lag_config->saiport, port_config->saiport, lag_sample_packet, port_sample_packet);
-        return SAI_STATUS_INVALID_PARAMETER;
-    }
-
-    lag_sample_packet  = lag_config->internal_egress_samplepacket_obj_idx;
-    port_sample_packet = port_config->internal_egress_samplepacket_obj_idx;
-
-    if (lag_sample_packet != port_sample_packet) {
-        SX_LOG_ERR("Lag oid %" PRIx64 " and port oid %" PRIx64 " have different "
-                   "egress sample packet session id (%x and %x)\n",
-                   lag_config->saiport, port_config->saiport, lag_sample_packet, port_sample_packet);
-        return SAI_STATUS_INVALID_PARAMETER;
-    }
-
-    return SAI_STATUS_SUCCESS;
 }
 
 /*
@@ -3874,24 +3868,22 @@ static sai_status_t mlnx_get_port_attribute(_In_ sai_object_id_t     port_id,
     return sai_status;
 }
 
-/*
- * Routine Description:
- *   Get port statistics counters.
+/**
+ * @brief Get port statistics counters extended.
  *
- * Arguments:
- *    [in] port_id - port id
- *    [in] number_of_counters - number of counters in the array
- *    [in] counter_ids - specifies the array of counter ids
- *    [out] counters - array of resulting counter values.
+ * @param[in] port_id Port id
+ * @param[in] number_of_counters Number of counters in the array
+ * @param[in] counter_ids Specifies the array of counter ids
+ * @param[in] mode Statistics mode
+ * @param[out] counters Array of resulting counter values.
  *
- * Return Values:
- *    SAI_STATUS_SUCCESS on success
- *    Failure status code on error
+ * @return #SAI_STATUS_SUCCESS on success, failure status code on error
  */
-static sai_status_t mlnx_get_port_stats(_In_ sai_object_id_t        port_id,
-                                        _In_ uint32_t               number_of_counters,
-                                        _In_ const sai_port_stat_t *counter_ids,
-                                        _Out_ uint64_t             *counters)
+sai_status_t mlnx_get_port_stats_ext(_In_ sai_object_id_t        port_id,
+                                     _In_ uint32_t               number_of_counters,
+                                     _In_ const sai_port_stat_t *counter_ids,
+                                     _In_ sai_stats_mode_t       mode,
+                                     _Out_ uint64_t             *counters)
 {
     sai_status_t                  status;
     sx_port_cntr_rfc_2863_t       cnts_2863;
@@ -3913,6 +3905,7 @@ static sai_status_t mlnx_get_port_stats(_In_ sai_object_id_t        port_id,
          perf_cnts_needed                            = false;
     bool cntr_prio_needed[COS_IEEE_PRIO_MAX_NUM + 1] = { 0 };
     bool cnts_3635_needed                            = false;
+    sx_access_cmd_t               cmd;
 
     SX_LOG_ENTER();
 
@@ -3929,6 +3922,11 @@ static sai_status_t mlnx_get_port_stats(_In_ sai_object_id_t        port_id,
     if (NULL == counters) {
         SX_LOG_ERR("NULL counters array param\n");
         return SAI_STATUS_INVALID_PARAMETER;
+    }
+
+    if (SAI_STATUS_SUCCESS !=
+        (status = mlnx_translate_sai_stats_mode_to_sdk(mode, &cmd))) {
+        return status;
     }
 
     if (SAI_STATUS_SUCCESS != (status = mlnx_object_to_type(port_id, SAI_OBJECT_TYPE_PORT, &port_data, NULL))) {
@@ -4080,7 +4078,7 @@ static sai_status_t mlnx_get_port_stats(_In_ sai_object_id_t        port_id,
 
     if (cnts_2863_needed) {
         if (SX_STATUS_SUCCESS !=
-            (status = sx_api_port_counter_rfc_2863_get(gh_sdk, SX_ACCESS_CMD_READ, port_data, &cnts_2863))) {
+            (status = sx_api_port_counter_rfc_2863_get(gh_sdk, cmd, port_data, &cnts_2863))) {
             SX_LOG_ERR("Failed to get port rfc 2863 counters - %s.\n", SX_STATUS_MSG(status));
             return sdk_to_sai(status);
         }
@@ -4088,7 +4086,7 @@ static sai_status_t mlnx_get_port_stats(_In_ sai_object_id_t        port_id,
 
     if (cnts_2819_needed) {
         if (SX_STATUS_SUCCESS !=
-            (status = sx_api_port_counter_rfc_2819_get(gh_sdk, SX_ACCESS_CMD_READ, port_data, &cnts_2819))) {
+            (status = sx_api_port_counter_rfc_2819_get(gh_sdk, cmd, port_data, &cnts_2819))) {
             SX_LOG_ERR("Failed to get port rfc 2819 counters - %s.\n", SX_STATUS_MSG(status));
             return sdk_to_sai(status);
         }
@@ -4096,7 +4094,7 @@ static sai_status_t mlnx_get_port_stats(_In_ sai_object_id_t        port_id,
 
     if (cntr_802_needed) {
         if (SX_STATUS_SUCCESS !=
-            (status = sx_api_port_counter_ieee_802_dot_3_get(gh_sdk, SX_ACCESS_CMD_READ, port_data, &cntr_802))) {
+            (status = sx_api_port_counter_ieee_802_dot_3_get(gh_sdk, cmd, port_data, &cntr_802))) {
             SX_LOG_ERR("Failed to get port ieee 802 3 counters - %s.\n", SX_STATUS_MSG(status));
             return sdk_to_sai(status);
         }
@@ -4104,7 +4102,7 @@ static sai_status_t mlnx_get_port_stats(_In_ sai_object_id_t        port_id,
 
     if (discard_cnts_needed) {
         if (SX_STATUS_SUCCESS !=
-            (status = sx_api_port_counter_discard_get(gh_sdk, SX_ACCESS_CMD_READ, port_data, &discard_cnts))) {
+            (status = sx_api_port_counter_discard_get(gh_sdk, cmd, port_data, &discard_cnts))) {
             SX_LOG_ERR("Failed to get port discard counters - %s.\n", SX_STATUS_MSG(status));
             return sdk_to_sai(status);
         }
@@ -4112,7 +4110,7 @@ static sai_status_t mlnx_get_port_stats(_In_ sai_object_id_t        port_id,
 
     if (perf_cnts_needed) {
         if (SX_STATUS_SUCCESS !=
-            (status = sx_api_port_counter_perf_get(gh_sdk, SX_ACCESS_CMD_READ, port_data, 0, &perf_cnts))) {
+            (status = sx_api_port_counter_perf_get(gh_sdk, cmd, port_data, 0, &perf_cnts))) {
             SX_LOG_ERR("Failed to get port perf counters - %s.\n", SX_STATUS_MSG(status));
             return sdk_to_sai(status);
         }
@@ -4120,7 +4118,7 @@ static sai_status_t mlnx_get_port_stats(_In_ sai_object_id_t        port_id,
 
     if (cnts_3635_needed) {
         if (SX_STATUS_SUCCESS !=
-            (status = sx_api_port_counter_rfc_3635_get(gh_sdk, SX_ACCESS_CMD_READ, port_data, &cnts_3635))) {
+            (status = sx_api_port_counter_rfc_3635_get(gh_sdk, cmd, port_data, &cnts_3635))) {
             SX_LOG_ERR("Failed to get port rfc 3635 counters - %s.\n", SX_STATUS_MSG(status));
             return sdk_to_sai(status);
         }
@@ -4142,7 +4140,7 @@ static sai_status_t mlnx_get_port_stats(_In_ sai_object_id_t        port_id,
         sai_db_unlock();
 
         if (SX_STATUS_SUCCESS !=
-            (status = sx_api_cos_redecn_counters_get(gh_sdk, SX_ACCESS_CMD_READ, red_port_id, &redecn_cnts))) {
+            (status = sx_api_cos_redecn_counters_get(gh_sdk, cmd, red_port_id, &redecn_cnts))) {
             SX_LOG_ERR("Failed to get port redecn counters - %s.\n", SX_STATUS_MSG(status));
             return sdk_to_sai(status);
         }
@@ -4151,7 +4149,7 @@ static sai_status_t mlnx_get_port_stats(_In_ sai_object_id_t        port_id,
     for (ii = 0; ii <= COS_IEEE_PRIO_MAX_NUM; ii++) {
         if (cntr_prio_needed[ii]) {
             if (SX_STATUS_SUCCESS !=
-                (status = sx_api_port_counter_prio_get(gh_sdk, SX_ACCESS_CMD_READ, port_data,
+                (status = sx_api_port_counter_prio_get(gh_sdk, cmd, port_data,
                                                        SX_PORT_PRIO_ID_0 + ii, &cntr_prio[ii]))) {
                 SX_LOG_ERR("Failed to get port prio %d counters - %s.\n",
                            SX_PORT_PRIO_ID_0 + ii, SX_STATUS_MSG(status));
@@ -4550,24 +4548,26 @@ static sai_status_t mlnx_get_port_stats(_In_ sai_object_id_t        port_id,
     return SAI_STATUS_SUCCESS;
 }
 
-/**
- * @brief Get port statistics counters extended.
+/*
+ * Routine Description:
+ *   Get port statistics counters.
  *
- * @param[in] port_id Port id
- * @param[in] number_of_counters Number of counters in the array
- * @param[in] counter_ids Specifies the array of counter ids
- * @param[in] mode Statistics mode
- * @param[out] counters Array of resulting counter values.
+ * Arguments:
+ *    [in] port_id - port id
+ *    [in] number_of_counters - number of counters in the array
+ *    [in] counter_ids - specifies the array of counter ids
+ *    [out] counters - array of resulting counter values.
  *
- * @return #SAI_STATUS_SUCCESS on success, failure status code on error
+ * Return Values:
+ *    SAI_STATUS_SUCCESS on success
+ *    Failure status code on error
  */
-sai_status_t mlnx_get_port_stats_ext(_In_ sai_object_id_t        port_id,
-                                     _In_ uint32_t               number_of_counters,
-                                     _In_ const sai_port_stat_t *counter_ids,
-                                     _In_ sai_stats_mode_t       mode,
-                                     _Out_ uint64_t             *counters)
+static sai_status_t mlnx_get_port_stats(_In_ sai_object_id_t        port_id,
+                                        _In_ uint32_t               number_of_counters,
+                                        _In_ const sai_port_stat_t *counter_ids,
+                                        _Out_ uint64_t             *counters)
 {
-    return SAI_STATUS_NOT_IMPLEMENTED;
+    return mlnx_get_port_stats_ext(port_id, number_of_counters, counter_ids, SAI_STATS_MODE_READ, counters);
 }
 
 /*
@@ -4861,29 +4861,6 @@ static sai_status_t mlnx_port_egress_buffer_profile_list_set(_In_ const sai_obje
     return mlnx_buffer_port_profile_list_set(key->key.object_id, value, false);
 }
 
-sai_status_t mlnx_port_storm_control_params_check(_In_ const mlnx_port_config_t *port1,
-                                                  _In_ const mlnx_port_config_t *port2)
-{
-    mlnx_port_policer_type policer_type;
-
-    assert(port1);
-    assert(port2);
-
-    for (policer_type = MLNX_PORT_POLICER_TYPE_REGULAR_INDEX;
-         policer_type < MLNX_PORT_POLICER_TYPE_MAX;
-         policer_type++) {
-        if (port1->port_policers[policer_type] != port2->port_policers[policer_type]) {
-            SX_LOG_ERR("Port oid %" PRIx64 " and port oid %" PRIx64 " have different "
-                       "policers at index [%d] (%" PRIx64 " and %" PRIx64 ")\n",
-                       port1->saiport, port2->saiport, policer_type,
-                       port1->port_policers[policer_type], port2->port_policers[policer_type]);
-            return SAI_STATUS_INVALID_PARAMETER;
-        }
-    }
-
-    return SAI_STATUS_SUCCESS;
-}
-
 /*
  * A soft clear only updates a SAI DB
  * It is needed when port is joining to the LAG (storm control policers will be cleard by SDK internally)
@@ -4930,9 +4907,16 @@ sai_status_t mlnx_port_storm_control_policer_params_clone(_In_ mlnx_port_config_
         bind_params.port_policer_type = policer_type;
         policer_id                    = from->port_policers[policer_type];
 
+        status = mlnx_sai_unbind_policer_from_port(to->saiport, &bind_params);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to unbind policer from %x before cloning from %x to %x\n", to->logical, from->logical, to->logical);
+            return status;
+        }
+
         if (SAI_NULL_OBJECT_ID != policer_id) {
             status = mlnx_sai_bind_policer_to_port(to->saiport, policer_id, &bind_params);
             if (SAI_ERR(status)) {
+                SX_LOG_ERR("Failed to clone policers from %x to %x\n", from->logical, to->logical);
                 return status;
             }
         }
@@ -5176,8 +5160,8 @@ static sai_status_t mlnx_port_egress_block_sai_ports_to_sx(_In_ sx_port_log_id_t
     sai_status_t status;
     uint32_t     ii;
 
-    assert(egress_ports);
     assert(sx_egress_ports);
+    assert(sx_egress_ports || (egress_ports_count == 0));
 
     if (egress_ports_count > MAX_PORTS) {
         SX_LOG_ERR("Ports count is to big (%d), max allowed - %d\n", egress_ports_count, MAX_PORTS);
@@ -5358,56 +5342,6 @@ sai_status_t mlnx_sx_port_list_compare(_In_ const sx_port_log_id_t *ports1,
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_port_egress_block_compare(_In_ const mlnx_port_config_t *port1,
-                                            _In_ const mlnx_port_config_t *port2,
-                                            _Out_ bool                    *equal)
-{
-    sai_status_t      status;
-    sx_port_log_id_t *sx_port1_egress_block_ports = NULL;
-    sx_port_log_id_t *sx_port2_egress_block_ports = NULL;
-    uint32_t          sx_port1_egress_block_ports_count, sx_port2_egress_block_ports_count;
-
-    sx_port1_egress_block_ports = calloc(MAX_PORTS, sizeof(*sx_port1_egress_block_ports));
-    if (!sx_port1_egress_block_ports) {
-        SX_LOG_ERR("Failed to allocate memory\n");
-        status = SAI_STATUS_NO_MEMORY;
-        goto out;
-    }
-
-    sx_port2_egress_block_ports = calloc(MAX_PORTS, sizeof(*sx_port2_egress_block_ports));
-    if (!sx_port2_egress_block_ports) {
-        SX_LOG_ERR("Failed to allocate memory\n");
-        status = SAI_STATUS_NO_MEMORY;
-        goto out;
-    }
-
-    status = mlnx_port_egress_block_get_impl(port1->logical,
-                                             sx_port1_egress_block_ports,
-                                             &sx_port1_egress_block_ports_count);
-    if (SAI_ERR(status)) {
-        goto out;
-    }
-
-    status = mlnx_port_egress_block_get_impl(port2->logical,
-                                             sx_port2_egress_block_ports,
-                                             &sx_port2_egress_block_ports_count);
-    if (SAI_ERR(status)) {
-        goto out;
-    }
-
-    status = mlnx_sx_port_list_compare(sx_port1_egress_block_ports, sx_port1_egress_block_ports_count,
-                                       sx_port2_egress_block_ports, sx_port2_egress_block_ports_count,
-                                       equal);
-    if (SAI_ERR(status)) {
-        goto out;
-    }
-
-out:
-    free(sx_port1_egress_block_ports);
-    free(sx_port2_egress_block_ports);
-    return status;
-}
-
 sai_status_t mlnx_port_egress_block_clone(_In_ mlnx_port_config_t *to, _In_ const mlnx_port_config_t *from)
 {
     sai_status_t      status                     = SAI_STATUS_SUCCESS;
@@ -5429,11 +5363,6 @@ sai_status_t mlnx_port_egress_block_clone(_In_ mlnx_port_config_t *to, _In_ cons
                                              sx_port_egress_block_ports,
                                              &sx_port_egress_block_ports_count);
     if (SAI_ERR(status)) {
-        goto out;
-    }
-
-    if (sx_port_egress_block_ports_count == 0) {
-        status = SAI_STATUS_SUCCESS;
         goto out;
     }
 
@@ -6363,8 +6292,6 @@ sai_status_t mlnx_port_config_uninit(mlnx_port_config_t *port)
         port->internal_ingress_samplepacket_obj_idx = MLNX_INVALID_SAMPLEPACKET_SESSION;
         port->internal_egress_samplepacket_obj_idx  = MLNX_INVALID_SAMPLEPACKET_SESSION;
 
-        port->wred_id = SAI_NULL_OBJECT_ID;
-
         if (mlnx_port_is_phy(port)) {
             uint32_t port_index = mlnx_port_idx_get(port);
 
@@ -7044,19 +6971,21 @@ static sai_status_t mlnx_port_pool_attr_get(_In_ const sai_object_key_t   *key,
 }
 
 /**
- * @brief Get port pool statistics counters.
+ * @brief Get port pool statistics counters extended.
  *
  * @param[in] port_pool_id Port pool id
  * @param[in] number_of_counters Number of counters in the array
  * @param[in] counter_ids Specifies the array of counter ids
+ * @param[in] mode Statistics mode
  * @param[out] counters Array of resulting counter values.
  *
  * @return #SAI_STATUS_SUCCESS on success, failure status code on error
  */
-static sai_status_t mlnx_get_port_pool_stats(_In_ sai_object_id_t             port_pool_id,
-                                             _In_ uint32_t                    number_of_counters,
-                                             _In_ const sai_port_pool_stat_t *counter_ids,
-                                             _Out_ uint64_t                  *counters)
+sai_status_t mlnx_get_port_pool_stats_ext(_In_ sai_object_id_t             port_pool_id,
+                                          _In_ uint32_t                    number_of_counters,
+                                          _In_ const sai_port_pool_stat_t *counter_ids,
+                                          _In_ sai_stats_mode_t            mode,
+                                          _Out_ uint64_t                  *counters)
 {
     sai_status_t                        status;
     uint8_t                             ext_data[EXTENDED_DATA_SIZE] = {0};
@@ -7070,6 +6999,7 @@ static sai_status_t mlnx_get_port_pool_stats(_In_ sai_object_id_t             po
     uint32_t                            db_port_index, pool_base_ind, buff_ind;
     uint32_t                           *port_buff_profile_refs = NULL;
     mlnx_sai_db_buffer_profile_entry_t *buff_db_entry          = NULL;
+    sx_access_cmd_t                     cmd;
 
     SX_LOG_ENTER();
 
@@ -7084,6 +7014,11 @@ static sai_status_t mlnx_get_port_pool_stats(_In_ sai_object_id_t             po
     if (NULL == counters) {
         SX_LOG_ERR("NULL counters array param\n");
         return SAI_STATUS_INVALID_PARAMETER;
+    }
+
+    if (SAI_STATUS_SUCCESS !=
+        (status = mlnx_translate_sai_stats_mode_to_sdk(mode, &cmd))) {
+        return status;
     }
 
     if (SAI_STATUS_SUCCESS != mlnx_object_to_type(port_pool_id, SAI_OBJECT_TYPE_PORT_POOL, &port_num, ext_data)) {
@@ -7104,7 +7039,7 @@ static sai_status_t mlnx_get_port_pool_stats(_In_ sai_object_id_t             po
     }
 
     if (SX_STATUS_SUCCESS !=
-        (status = sx_api_cos_port_buff_type_statistic_get(gh_sdk, SX_ACCESS_CMD_READ, &stats_usage, 1,
+        (status = sx_api_cos_port_buff_type_statistic_get(gh_sdk, cmd, &stats_usage, 1,
                                                           &occupancy_stats, &usage_cnt))) {
         SX_LOG_ERR("Failed to get port buff statistics - %s.\n", SX_STATUS_MSG(status));
         return sdk_to_sai(status);
@@ -7197,23 +7132,21 @@ static sai_status_t mlnx_get_port_pool_stats(_In_ sai_object_id_t             po
 }
 
 /**
- * @brief Get port pool statistics counters extended.
+ * @brief Get port pool statistics counters.
  *
  * @param[in] port_pool_id Port pool id
  * @param[in] number_of_counters Number of counters in the array
  * @param[in] counter_ids Specifies the array of counter ids
- * @param[in] mode Statistics mode
  * @param[out] counters Array of resulting counter values.
  *
  * @return #SAI_STATUS_SUCCESS on success, failure status code on error
  */
-sai_status_t mlnx_get_port_pool_stats_ext(_In_ sai_object_id_t             port_pool_id,
-                                          _In_ uint32_t                    number_of_counters,
-                                          _In_ const sai_port_pool_stat_t *counter_ids,
-                                          _In_ sai_stats_mode_t            mode,
-                                          _Out_ uint64_t                  *counters)
+static sai_status_t mlnx_get_port_pool_stats(_In_ sai_object_id_t             port_pool_id,
+                                             _In_ uint32_t                    number_of_counters,
+                                             _In_ const sai_port_pool_stat_t *counter_ids,
+                                             _Out_ uint64_t                  *counters)
 {
-    return SAI_STATUS_NOT_IMPLEMENTED;
+    return mlnx_get_port_pool_stats_ext(port_pool_id, number_of_counters, counter_ids, SAI_STATS_MODE_READ, counters);
 }
 
 /**
