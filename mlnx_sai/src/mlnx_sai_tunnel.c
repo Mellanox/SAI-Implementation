@@ -4521,6 +4521,7 @@ static sai_status_t mlnx_remove_sdk_ipinip_tunnel(_In_ uint32_t tunnel_db_idx)
                                                        &rif_state))) {
                 SX_LOG_ERR("Failed to set overlay router interface state to down - %s.\n", SX_STATUS_MSG(sdk_status));
                 sai_status = sdk_to_sai(sdk_status);
+                goto cleanup;
             }
             if (SX_STATUS_SUCCESS !=
                 (sdk_status = sx_api_tunnel_set(gh_sdk,
@@ -4529,6 +4530,7 @@ static sai_status_t mlnx_remove_sdk_ipinip_tunnel(_In_ uint32_t tunnel_db_idx)
                                                 &g_sai_db_ptr->tunnel_db[tunnel_db_idx].sx_tunnel_id_ipv6))) {
                 sai_status = sdk_to_sai(sdk_status);
                 SX_LOG_ERR("Error destroying sx tunnel id %d, sx status: %s\n", g_sai_db_ptr->tunnel_db[tunnel_db_idx].sx_tunnel_id_ipv6, SX_STATUS_MSG(sdk_status));
+                goto cleanup;
             }
 
             sdk_status = sx_api_router_interface_set(gh_sdk, SX_ACCESS_CMD_DELETE, sx_vrid,
@@ -4536,6 +4538,7 @@ static sai_status_t mlnx_remove_sdk_ipinip_tunnel(_In_ uint32_t tunnel_db_idx)
             if (SX_STATUS_SUCCESS != sdk_status) {
                 SX_LOG_ERR("Error setting ipv6 overlay sdk rif: %s\n", SX_STATUS_MSG(sdk_status));
                 sai_status = sdk_to_sai(sdk_status);
+                goto cleanup;
             }
 
             g_sai_db_ptr->tunnel_db[tunnel_db_idx].ipv6_created = false;
@@ -4549,6 +4552,7 @@ static sai_status_t mlnx_remove_sdk_ipinip_tunnel(_In_ uint32_t tunnel_db_idx)
                                                        &rif_state))) {
                 SX_LOG_ERR("Failed to set overlay router interface state to down - %s.\n", SX_STATUS_MSG(sdk_status));
                 sai_status = sdk_to_sai(sdk_status);
+                goto cleanup;
             }
             if (SX_STATUS_SUCCESS !=
                 (sdk_status = sx_api_tunnel_set(gh_sdk,
@@ -4557,11 +4561,15 @@ static sai_status_t mlnx_remove_sdk_ipinip_tunnel(_In_ uint32_t tunnel_db_idx)
                                                 &g_sai_db_ptr->tunnel_db[tunnel_db_idx].sx_tunnel_id_ipv4))) {
                 sai_status = sdk_to_sai(sdk_status);
                 SX_LOG_ERR("Error destroying sx tunnel id %d, sx status: %s\n", g_sai_db_ptr->tunnel_db[tunnel_db_idx].sx_tunnel_id_ipv4, SX_STATUS_MSG(sdk_status));
+                goto cleanup;
             }
             g_sai_db_ptr->tunnel_db[tunnel_db_idx].ipv4_created = false;
         }
     }
 
+    sai_status = SAI_STATUS_SUCCESS;
+
+cleanup:
     SX_LOG_EXIT();
     return sai_status;
 }
@@ -5399,7 +5407,7 @@ cleanup:
 
     sai_db_unlock();
     SX_LOG_EXIT();
-    return sai_status;
+    return SAI_STATUS_FAILURE;
 }
 
 static sai_status_t mlnx_remove_tunnel_term_table_entry(_In_ const sai_object_id_t sai_tunnel_term_table_entry_obj_id)
@@ -5410,6 +5418,8 @@ static sai_status_t mlnx_remove_tunnel_term_table_entry(_In_ const sai_object_id
     sx_tunnel_decap_entry_key_t  sdk_tunnel_decap_key;
     sx_tunnel_decap_entry_data_t sdk_tunnel_decap_data;
     uint32_t                     tunnel_db_idx = 0;
+    sx_tunnel_type_e             sx_tunnel_type_ipv4;
+    sx_tunnel_type_e             sx_tunnel_type_ipv6;
 
     memset(&sdk_tunnel_decap_data, 0, sizeof(sx_tunnel_decap_entry_data_t));
 
@@ -5425,18 +5435,17 @@ static sai_status_t mlnx_remove_tunnel_term_table_entry(_In_ const sai_object_id
         return sai_status;
     }
 
-    sai_db_read_lock();
+    sai_db_write_lock();
 
     sai_status = mlnx_tunnel_term_table_entry_sdk_param_get(sai_tunnel_term_table_entry_obj_id, &sdk_tunnel_decap_key);
-
-    sai_db_unlock();
 
     if (SAI_STATUS_SUCCESS != sai_status) {
         SX_LOG_ERR("Fail to get sdk param for tunnel term table entry id %" PRIx64 "\n",
                    sai_tunnel_term_table_entry_obj_id);
-        SX_LOG_EXIT();
-        return sai_status;
+        goto cleanup;
     }
+
+    sx_tunnel_type_ipv4 = sdk_tunnel_decap_key.tunnel_type;
 
     if (SX_STATUS_SUCCESS !=
         (sdk_status = sx_api_tunnel_decap_rules_set(gh_sdk, SX_ACCESS_CMD_DESTROY,
@@ -5444,13 +5453,29 @@ static sai_status_t mlnx_remove_tunnel_term_table_entry(_In_ const sai_object_id
                                                     &sdk_tunnel_decap_data))) {
         sai_status = sdk_to_sai(sdk_status);
         SX_LOG_ERR("Error setting tunnel table entry on removal, sx status: %s\n", SX_STATUS_MSG(sdk_status));
-        SX_LOG_EXIT();
-        return sai_status;
+        goto cleanup;
     }
 
-    sai_db_write_lock();
-
     if (g_sai_db_ptr->mlnx_tunneltable[internal_tunneltable_idx].tunnel_lazy_created) {
+        if (SAI_STATUS_SUCCESS !=
+            (sai_status =
+                mlnx_convert_sx_tunnel_type_ipv4_to_ipv6(sx_tunnel_type_ipv4,
+                                                         &sx_tunnel_type_ipv6))) {
+            SX_LOG_ERR("Error converting sx tunnel type ipv4 %d to sdk tunnel type ipv6\n", sx_tunnel_type_ipv4);
+            goto cleanup;
+        }
+
+        sdk_tunnel_decap_key.tunnel_type = sx_tunnel_type_ipv6;
+        sdk_tunnel_decap_data.tunnel_id = g_sai_db_ptr->tunnel_db[tunnel_db_idx].sx_tunnel_id_ipv6;
+
+        if (SX_STATUS_SUCCESS !=
+            (sdk_status = sx_api_tunnel_decap_rules_set(gh_sdk, SX_ACCESS_CMD_DESTROY,
+                                                        &sdk_tunnel_decap_key,
+                                                        &sdk_tunnel_decap_data))) {
+            sai_status = sdk_to_sai(sdk_status);
+            SX_LOG_ERR("Error setting tunnel table entry ipv6 on removal: sx status: %s\n", SX_STATUS_MSG(sdk_status));
+            goto cleanup;
+        }
 
         tunnel_db_idx = g_sai_db_ptr->mlnx_tunneltable[internal_tunneltable_idx].tunnel_db_idx;
         g_sai_db_ptr->tunnel_db[tunnel_db_idx].term_table_cnt--;
@@ -5458,18 +5483,20 @@ static sai_status_t mlnx_remove_tunnel_term_table_entry(_In_ const sai_object_id
         sai_status = mlnx_remove_sdk_ipinip_tunnel(tunnel_db_idx);
         if (SAI_ERR(sai_status)) {
             SX_LOG_ERR("Error removing sdk ipinip tunnel %d\n", tunnel_db_idx);
+            goto cleanup;
         }
     }
 
     memset(&g_sai_db_ptr->mlnx_tunneltable[internal_tunneltable_idx], 0,
            sizeof(mlnx_tunneltable_t));
 
-    sai_db_unlock();
-
     SX_LOG_NTC("Removed SAI tunnel table entry obj id %" PRIx64 "\n", sai_tunnel_term_table_entry_obj_id);
+    sai_status = SAI_STATUS_SUCCESS;
 
+cleanup:
+    sai_db_unlock();
     SX_LOG_EXIT();
-    return SAI_STATUS_SUCCESS;
+    return sai_status;
 }
 
 static sai_status_t mlnx_set_tunnel_map_attribute(_In_ const sai_object_id_t  sai_tunnel_map_obj_id,
