@@ -1077,6 +1077,61 @@ static sai_status_t mlnx_rif_attrib_get(_In_ const sai_object_key_t   *key,
     return SAI_STATUS_SUCCESS;
 }
 
+/**
+ * @brief Get router interface statistics counters extended.
+ *
+ * @param[in] router_interface_id Router interface id
+ * @param[in] number_of_counters Number of counters in the array
+ * @param[in] counter_ids Specifies the array of counter ids
+ * @param[in] mode Statistics mode
+ * @param[out] counters Array of resulting counter values.
+ *
+ * @return #SAI_STATUS_SUCCESS on success, failure status code on error
+ */
+sai_status_t mlnx_get_router_interface_stats_ext(_In_ sai_object_id_t router_interface_id,
+                                                 _In_ uint32_t number_of_counters,
+                                                 _In_ const sai_router_interface_stat_t *counter_ids,
+                                                 _In_ sai_stats_mode_t mode,
+                                                 _Out_ uint64_t *counters)
+{
+    return SAI_STATUS_NOT_IMPLEMENTED;
+}
+
+/**
+ * @brief Get router interface statistics counters. Deprecated for backward compatibility.
+ *
+ * @param[in] router_interface_id Router interface id
+ * @param[in] number_of_counters Number of counters in the array
+ * @param[in] counter_ids Specifies the array of counter ids
+ * @param[out] counters Array of resulting counter values.
+ *
+ * @return #SAI_STATUS_SUCCESS on success, failure status code on error
+ */
+sai_status_t mlnx_get_router_interface_stats(_In_ sai_object_id_t router_interface_id,
+                                             _In_ uint32_t number_of_counters,
+                                             _In_ const sai_router_interface_stat_t *counter_ids,
+                                             _Out_ uint64_t *counters)
+{
+    return mlnx_get_router_interface_stats_ext(router_interface_id, number_of_counters, counter_ids, SAI_STATS_MODE_READ, counters);
+}
+
+/**
+ * @brief Clear router interface statistics counters.
+ *
+ * @param[in] router_interface_id Router interface id
+ * @param[in] number_of_counters Number of counters in the array
+ * @param[in] counter_ids Specifies the array of counter ids
+ *
+ * @return #SAI_STATUS_SUCCESS on success, failure status code on error
+ */
+sai_status_t mlnx_clear_router_interface_stats(
+        _In_ sai_object_id_t router_interface_id,
+        _In_ uint32_t number_of_counters,
+        _In_ const sai_router_interface_stat_t *counter_ids)
+{
+    return SAI_STATUS_NOT_IMPLEMENTED;
+}
+
 sai_status_t mlnx_rif_log_set(sx_verbosity_level_t level)
 {
     LOG_VAR_NAME(__MODULE__) = level;
@@ -1089,4 +1144,7 @@ const sai_router_interface_api_t mlnx_router_interface_api = {
     mlnx_remove_router_interface,
     mlnx_set_router_interface_attribute,
     mlnx_get_router_interface_attribute,
+    mlnx_get_router_interface_stats,
+    mlnx_get_router_interface_stats_ext,
+    mlnx_clear_router_interface_stats,
 };
