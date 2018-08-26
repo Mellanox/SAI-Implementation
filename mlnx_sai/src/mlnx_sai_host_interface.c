@@ -167,6 +167,15 @@ static const sai_vendor_attribute_entry_t host_interface_vendor_attribs[] = {
       NULL, NULL,
       NULL, NULL }
 };
+static const mlnx_attr_enum_info_t hostif_enum_info[] = {
+    [SAI_HOSTIF_ATTR_TYPE] = ATTR_ENUM_VALUES_LIST(
+        SAI_HOSTIF_TYPE_FD,
+        SAI_HOSTIF_TYPE_NETDEV
+        ),
+    [SAI_HOSTIF_ATTR_VLAN_TAG] = ATTR_ENUM_VALUES_ALL(),
+};
+const mlnx_obj_type_attrs_info_t mlnx_hostif_obj_type_info =
+    { host_interface_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(hostif_enum_info)};
 static const sai_vendor_attribute_entry_t trap_group_vendor_attribs[] = {
     { SAI_HOSTIF_TRAP_GROUP_ATTR_ADMIN_STATE,
       { true, false, true, true },
@@ -189,6 +198,8 @@ static const sai_vendor_attribute_entry_t trap_group_vendor_attribs[] = {
       NULL, NULL,
       NULL, NULL }
 };
+const mlnx_obj_type_attrs_info_t mlnx_hostif_trap_group_obj_type_info =
+    { trap_group_vendor_attribs, OBJ_ATTRS_ENUMS_INFO_EMPTY()};
 static const sai_vendor_attribute_entry_t trap_vendor_attribs[] = {
     { SAI_HOSTIF_TRAP_ATTR_TRAP_TYPE,
       { true, false, false, true },
@@ -226,6 +237,55 @@ static const sai_vendor_attribute_entry_t trap_vendor_attribs[] = {
       NULL, NULL,
       NULL, NULL }
 };
+static const mlnx_attr_enum_info_t hostif_trap_enum_info[] = {
+    [SAI_HOSTIF_TRAP_ATTR_TRAP_TYPE] = ATTR_ENUM_VALUES_LIST(
+        SAI_HOSTIF_TRAP_TYPE_STP,
+        SAI_HOSTIF_TRAP_TYPE_LACP,
+        SAI_HOSTIF_TRAP_TYPE_EAPOL,
+        SAI_HOSTIF_TRAP_TYPE_LLDP,
+        SAI_HOSTIF_TRAP_TYPE_PVRST,
+        SAI_HOSTIF_TRAP_TYPE_IGMP_TYPE_QUERY,
+        SAI_HOSTIF_TRAP_TYPE_IGMP_TYPE_LEAVE,
+        SAI_HOSTIF_TRAP_TYPE_IGMP_TYPE_V1_REPORT,
+        SAI_HOSTIF_TRAP_TYPE_IGMP_TYPE_V2_REPORT,
+        SAI_HOSTIF_TRAP_TYPE_IGMP_TYPE_V3_REPORT,
+        SAI_HOSTIF_TRAP_TYPE_SAMPLEPACKET,
+        SAI_HOSTIF_TRAP_TYPE_UDLD,
+        SAI_HOSTIF_TRAP_TYPE_PTP,
+        SAI_HOSTIF_TRAP_TYPE_PTP_TX_EVENT,
+        SAI_HOSTIF_TRAP_TYPE_ARP_REQUEST,
+        SAI_HOSTIF_TRAP_TYPE_ARP_RESPONSE,
+        SAI_HOSTIF_TRAP_TYPE_DHCP,
+        SAI_HOSTIF_TRAP_TYPE_OSPF,
+        SAI_HOSTIF_TRAP_TYPE_PIM,
+        SAI_HOSTIF_TRAP_TYPE_VRRP,
+        SAI_HOSTIF_TRAP_TYPE_BGP,
+        SAI_HOSTIF_TRAP_TYPE_DHCPV6,
+        SAI_HOSTIF_TRAP_TYPE_OSPFV6,
+        SAI_HOSTIF_TRAP_TYPE_VRRPV6,
+        SAI_HOSTIF_TRAP_TYPE_BGPV6,
+        SAI_HOSTIF_TRAP_TYPE_IPV6_NEIGHBOR_DISCOVERY,
+        SAI_HOSTIF_TRAP_TYPE_IPV6_MLD_V1_V2,
+        SAI_HOSTIF_TRAP_TYPE_IPV6_MLD_V1_REPORT,
+        SAI_HOSTIF_TRAP_TYPE_IPV6_MLD_V1_DONE,
+        SAI_HOSTIF_TRAP_TYPE_MLD_V2_REPORT,
+        SAI_HOSTIF_TRAP_TYPE_IP2ME,
+        SAI_HOSTIF_TRAP_TYPE_SSH,
+        SAI_HOSTIF_TRAP_TYPE_SNMP,
+        SAI_HOSTIF_TRAP_TYPE_L3_MTU_ERROR,
+        SAI_HOSTIF_TRAP_TYPE_TTL_ERROR,
+        SAI_HOSTIF_TRAP_TYPE_PIPELINE_DISCARD_WRED,
+        SAI_HOSTIF_TRAP_TYPE_PIPELINE_DISCARD_ROUTER
+        ),
+    [SAI_HOSTIF_TRAP_ATTR_PACKET_ACTION] = ATTR_ENUM_VALUES_LIST(
+        SAI_PACKET_ACTION_FORWARD,
+        SAI_PACKET_ACTION_TRAP,
+        SAI_PACKET_ACTION_LOG,
+        SAI_PACKET_ACTION_DROP
+        )
+};
+const mlnx_obj_type_attrs_info_t mlnx_hostif_trap_obj_type_info =
+    { trap_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(hostif_trap_enum_info)};
 static const sai_vendor_attribute_entry_t user_defined_trap_vendor_attribs[] = {
     { SAI_HOSTIF_USER_DEFINED_TRAP_ATTR_TYPE,
       { true, false, false, true },
@@ -248,6 +308,15 @@ static const sai_vendor_attribute_entry_t user_defined_trap_vendor_attribs[] = {
       NULL, NULL,
       NULL, NULL }
 };
+static const mlnx_attr_enum_info_t user_defined_trap_enum_info[] = {
+    [SAI_HOSTIF_USER_DEFINED_TRAP_ATTR_TYPE] = ATTR_ENUM_VALUES_LIST(
+        SAI_HOSTIF_USER_DEFINED_TRAP_TYPE_ACL,
+        SAI_HOSTIF_USER_DEFINED_TRAP_TYPE_ROUTER,
+        SAI_HOSTIF_USER_DEFINED_TRAP_TYPE_NEIGH,
+        SAI_HOSTIF_USER_DEFINED_TRAP_TYPE_FDB)
+};
+const mlnx_obj_type_attrs_info_t mlnx_hostif_user_defined_trap_obj_type_info =
+    { user_defined_trap_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(user_defined_trap_enum_info)};
 static const sai_vendor_attribute_entry_t host_interface_packet_vendor_attribs[] = {
     { SAI_HOSTIF_PACKET_ATTR_HOSTIF_TRAP_ID,
       { false, false, false, false },
@@ -280,6 +349,11 @@ static const sai_vendor_attribute_entry_t host_interface_packet_vendor_attribs[]
       NULL, NULL,
       NULL, NULL }
 };
+static const mlnx_attr_enum_info_t hostif_packet_enum_info[] = {
+    [SAI_HOSTIF_PACKET_ATTR_HOSTIF_TX_TYPE] = ATTR_ENUM_VALUES_ALL()
+};
+const mlnx_obj_type_attrs_info_t mlnx_hostif_packet_obj_type_info =
+    { host_interface_packet_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(hostif_packet_enum_info)};
 static const sai_vendor_attribute_entry_t host_table_entry_vendor_attribs[] = {
     { SAI_HOSTIF_TABLE_ENTRY_ATTR_TYPE,
       { true, false, false, true },
@@ -312,6 +386,12 @@ static const sai_vendor_attribute_entry_t host_table_entry_vendor_attribs[] = {
       NULL, NULL,
       NULL, NULL }
 };
+static const mlnx_attr_enum_info_t hostif_table_entry_enum_info[] = {
+    [SAI_HOSTIF_TABLE_ENTRY_ATTR_TYPE] = ATTR_ENUM_VALUES_ALL(),
+    [SAI_HOSTIF_TABLE_ENTRY_ATTR_CHANNEL_TYPE] = ATTR_ENUM_VALUES_ALL(),
+};
+const mlnx_obj_type_attrs_info_t mlnx_hostif_table_entry_obj_type_info =
+    { host_table_entry_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(hostif_table_entry_enum_info)};
 const mlnx_trap_info_t                    mlnx_traps_info[] = {
     { SAI_HOSTIF_TRAP_TYPE_STP, 1, { SX_TRAP_ID_ETH_L2_STP }, SAI_PACKET_ACTION_DROP, "STP", MLNX_TRAP_TYPE_REGULAR },
     { SAI_HOSTIF_TRAP_TYPE_LACP, 1, { SX_TRAP_ID_ETH_L2_LACP }, SAI_PACKET_ACTION_DROP, "LACP",
@@ -339,6 +419,20 @@ const mlnx_trap_info_t                    mlnx_traps_info[] = {
       "Sample packet", MLNX_TRAP_TYPE_REGULAR },
     { SAI_HOSTIF_TRAP_TYPE_UDLD, 1, { SX_TRAP_ID_ETH_L2_UDLD }, SAI_PACKET_ACTION_DROP, "UDLD",
       MLNX_TRAP_TYPE_REGULAR },
+    { SAI_HOSTIF_TRAP_TYPE_PTP, 3, { SX_TRAP_ID_PTP_EVENT, SX_TRAP_ID_PTP_GENERAL, SX_TRAP_ID_PTP_ING_EVENT}, 
+#ifdef PTP
+      SAI_PACKET_ACTION_TRAP, 
+#else
+      SAI_PACKET_ACTION_DROP,
+#endif
+      "PTP", MLNX_TRAP_TYPE_REGULAR },
+    { SAI_HOSTIF_TRAP_TYPE_PTP_TX_EVENT, 1, { SX_TRAP_ID_PTP_EGR_EVENT }, 
+#ifdef PTP
+      SAI_PACKET_ACTION_TRAP, 
+#else
+      SAI_PACKET_ACTION_DROP,
+#endif
+      "PTP TX Event", MLNX_TRAP_TYPE_REGULAR },
     { SAI_HOSTIF_TRAP_TYPE_ARP_REQUEST, 1, { SX_TRAP_ID_ROUTER_ARPBC }, SAI_PACKET_ACTION_FORWARD, "ARP request",
       MLNX_TRAP_TYPE_REGULAR },
     { SAI_HOSTIF_TRAP_TYPE_ARP_RESPONSE, 1, { SX_TRAP_ID_ROUTER_ARPUC }, SAI_PACKET_ACTION_FORWARD, "ARP response",
@@ -384,12 +478,6 @@ const mlnx_trap_info_t                    mlnx_traps_info[] = {
       MLNX_TRAP_TYPE_REGULAR },
     { SAI_HOSTIF_TRAP_TYPE_PIPELINE_DISCARD_ROUTER, 0, { 0 }, SAI_PACKET_ACTION_DROP, "Discard Router",
       MLNX_TRAP_TYPE_REGULAR },
-#ifdef PTP
-    { SAI_HOSTIF_TRAP_TYPE_CUSTOM_EXCEPTION_RANGE_BASE, 4,
-      { SX_TRAP_ID_PTP_EVENT, SX_TRAP_ID_PTP_GENERAL, SX_TRAP_ID_PTP_ING_EVENT,
-        SX_TRAP_ID_PTP_EGR_EVENT }, SAI_PACKET_ACTION_TRAP, "PTP",
-      MLNX_TRAP_TYPE_REGULAR },
-#endif
     { SAI_HOSTIF_USER_DEFINED_TRAP_TYPE_ACL, 1, { SX_TRAP_ID_ACL_MIN }, SAI_PACKET_ACTION_TRAP, "ACL",
       MLNX_TRAP_TYPE_USER_DEFINED },
     { SAI_HOSTIF_USER_DEFINED_TRAP_TYPE_ROUTER, 4,

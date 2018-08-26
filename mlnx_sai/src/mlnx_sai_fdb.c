@@ -84,6 +84,49 @@ static const sai_vendor_attribute_entry_t fdb_vendor_attribs[] = {
       NULL, NULL,
       NULL, NULL }
 };
+static const mlnx_attr_enum_info_t fdb_entry_enum_info[] = {
+    [SAI_FDB_ENTRY_ATTR_TYPE] = ATTR_ENUM_VALUES_LIST(
+        SAI_FDB_ENTRY_TYPE_STATIC,
+        SAI_FDB_ENTRY_TYPE_DYNAMIC
+        ),
+    [SAI_FDB_ENTRY_ATTR_PACKET_ACTION] = ATTR_ENUM_VALUES_LIST(
+        SAI_PACKET_ACTION_FORWARD,
+        SAI_PACKET_ACTION_TRAP,
+        SAI_PACKET_ACTION_LOG,
+        SAI_PACKET_ACTION_DROP
+        )
+};
+const mlnx_obj_type_attrs_info_t mlnx_fdb_entry_obj_type_info =
+    { fdb_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(fdb_entry_enum_info)};
+static const sai_vendor_attribute_entry_t fdb_flush_vendor_attribs[] = {
+    { SAI_FDB_FLUSH_ATTR_BRIDGE_PORT_ID,
+      { true, false, false, false },
+      { true, false, false, false },
+      NULL, NULL,
+      NULL, NULL },
+    { SAI_FDB_FLUSH_ATTR_BV_ID,
+      { true, false, false, false },
+      { true, false, false, false },
+      NULL, NULL,
+      NULL, NULL },
+    { SAI_FDB_FLUSH_ATTR_ENTRY_TYPE,
+      { true, false, false, false },
+      { true, false, false, false },
+      NULL, NULL,
+      NULL, NULL },
+    { END_FUNCTIONALITY_ATTRIBS_ID,
+      { true, false, false, false },
+      { true, false, false, false },
+      NULL, NULL,
+      NULL, NULL }
+};
+static const mlnx_attr_enum_info_t fdb_flush_enum_info[] = {
+    [SAI_FDB_FLUSH_ATTR_ENTRY_TYPE] = ATTR_ENUM_VALUES_LIST(
+        SAI_FDB_FLUSH_ENTRY_TYPE_DYNAMIC)
+};
+const mlnx_obj_type_attrs_info_t mlnx_fdb_flush_obj_type_info =
+    { fdb_flush_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(fdb_flush_enum_info)};
+
 static sai_status_t mlnx_add_or_del_mac(sx_fdb_uc_mac_addr_params_t *mac_entry, sx_access_cmd_t cmd)
 {
     uint32_t            entries_count = 1;

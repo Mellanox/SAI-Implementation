@@ -1,7 +1,7 @@
 Mellanox SAI implementation release notes
 ==========================================
 
-Release 1.12.1
+Release 1.12.3
 ---------------
 
 Current implementation is partial. 
@@ -10,7 +10,7 @@ Not all the APIs that are defined were fully implemented in this release. Missin
 
 The code was tested to work on X86, at Beta level.
 No testing was done on PPC.
-The code compiles with, and was tested with, SDK version 4.2.8103.
+The code compiles with, and was tested with, SDK version 4.2.8300.
 
 As a precondition to running SAI initialize switch, SDK must not be running (If it's running, terminate it with dvs_stop.sh). 
 The application must provide one key/value pair on profile services, "config_file=/usr/share/sai_2700.xml" / "config_file=/usr/share/sai_2410.xml" / / "config_file=/usr/share/sai_2420.xml" / "config_file=/usr/share/sai_2100.xml", depending on system type.

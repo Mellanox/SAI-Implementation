@@ -84,6 +84,8 @@ static const sai_vendor_attribute_entry_t lag_vendor_attribs[] = {
       NULL, NULL,
       NULL, NULL }
 };
+const mlnx_obj_type_attrs_info_t mlnx_lag_obj_type_info = { lag_vendor_attribs, OBJ_ATTRS_ENUMS_INFO_EMPTY()};
+
 static sai_status_t mlnx_lag_member_lag_id_get(_In_ const sai_object_key_t   *key,
                                                _Inout_ sai_attribute_value_t *value,
                                                _In_ uint32_t                  attr_index,
@@ -137,6 +139,7 @@ static const sai_vendor_attribute_entry_t lag_member_vendor_attribs[] = {
       NULL, NULL,
       NULL, NULL }
 };
+const mlnx_obj_type_attrs_info_t mlnx_lag_member_obj_type_info = { lag_member_vendor_attribs, OBJ_ATTRS_ENUMS_INFO_EMPTY()};
 static void lag_key_to_str(_In_ sai_object_id_t lag_id, _Out_ char *key_str)
 {
     uint32_t lagid;

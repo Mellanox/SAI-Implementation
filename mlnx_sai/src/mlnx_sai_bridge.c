@@ -83,37 +83,37 @@ static const sai_vendor_attribute_entry_t bridge_vendor_attribs[] = {
       mlnx_bridge_max_learned_addresses_get, NULL,
       mlnx_bridge_max_learned_addresses_set, NULL },
     { SAI_BRIDGE_ATTR_LEARN_DISABLE,
-      { true, false, true, true },
+      { false, false, false, true },
       { true, false, true, true },
       mlnx_bridge_learn_disable_get, NULL,
       mlnx_bridge_learn_disable_set, NULL },
     { SAI_BRIDGE_ATTR_UNKNOWN_UNICAST_FLOOD_CONTROL_TYPE,
-      { true, false, true, true },
+      { false, false, false, false },
       { true, false, true, true },
       mlnx_bridge_flood_ctrl_get, (void*)SAI_BRIDGE_ATTR_UNKNOWN_UNICAST_FLOOD_CONTROL_TYPE,
       mlnx_bridge_flood_ctrl_set, (void*)SAI_BRIDGE_ATTR_UNKNOWN_UNICAST_FLOOD_CONTROL_TYPE },
     { SAI_BRIDGE_ATTR_UNKNOWN_UNICAST_FLOOD_GROUP,
-      { true, false, true, true },
+      { false, false, false, false },
       { true, false, true, true },
       mlnx_bridge_flood_group_get, (void*)SAI_BRIDGE_ATTR_UNKNOWN_UNICAST_FLOOD_GROUP,
       mlnx_bridge_flood_group_set, (void*)SAI_BRIDGE_ATTR_UNKNOWN_UNICAST_FLOOD_GROUP },
     { SAI_BRIDGE_ATTR_UNKNOWN_MULTICAST_FLOOD_CONTROL_TYPE,
+      { false, false, false, false },
       { true, false, true, true },
-      { true, false, true, true },
-      mlnx_bridge_flood_ctrl_get, (void*)SAI_BRIDGE_ATTR_UNKNOWN_UNICAST_FLOOD_CONTROL_TYPE,
-      mlnx_bridge_flood_ctrl_set, (void*)SAI_BRIDGE_ATTR_UNKNOWN_UNICAST_FLOOD_CONTROL_TYPE},
+      mlnx_bridge_flood_ctrl_get, (void*)SAI_BRIDGE_ATTR_UNKNOWN_MULTICAST_FLOOD_CONTROL_TYPE,
+      mlnx_bridge_flood_ctrl_set, (void*)SAI_BRIDGE_ATTR_UNKNOWN_MULTICAST_FLOOD_CONTROL_TYPE},
     { SAI_BRIDGE_ATTR_UNKNOWN_MULTICAST_FLOOD_GROUP,
-      { true, false, true, true },
+      { false, false, false, false },
       { true, false, true, true },
       mlnx_bridge_flood_group_get, (void*)SAI_BRIDGE_ATTR_UNKNOWN_MULTICAST_FLOOD_GROUP,
       mlnx_bridge_flood_group_set, (void*)SAI_BRIDGE_ATTR_UNKNOWN_MULTICAST_FLOOD_GROUP },
     { SAI_BRIDGE_ATTR_BROADCAST_FLOOD_CONTROL_TYPE,
-      { true, false, true, true },
+      { false, false, false, false },
       { true, false, true, true },
       mlnx_bridge_flood_ctrl_get, (void*)SAI_BRIDGE_ATTR_BROADCAST_FLOOD_CONTROL_TYPE,
       mlnx_bridge_flood_ctrl_set, (void*)SAI_BRIDGE_ATTR_BROADCAST_FLOOD_CONTROL_TYPE },
     { SAI_BRIDGE_ATTR_BROADCAST_FLOOD_GROUP,
-      { true, false, true, true },
+      { false, false, false, false },
       { true, false, true, true },
       mlnx_bridge_flood_group_get, (void*)SAI_BRIDGE_ATTR_BROADCAST_FLOOD_GROUP,
       mlnx_bridge_flood_group_set, (void*)SAI_BRIDGE_ATTR_BROADCAST_FLOOD_GROUP },
@@ -123,6 +123,11 @@ static const sai_vendor_attribute_entry_t bridge_vendor_attribs[] = {
       NULL, NULL,
       NULL, NULL }
 };
+static const mlnx_attr_enum_info_t bridge_enum_info[] = {
+    [SAI_BRIDGE_ATTR_TYPE] = ATTR_ENUM_VALUES_ALL(),
+};
+const mlnx_obj_type_attrs_info_t mlnx_bridge_obj_type_info =
+    { bridge_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(bridge_enum_info)};
 static sai_status_t mlnx_bridge_port_type_get(_In_ const sai_object_key_t   *key,
                                               _Inout_ sai_attribute_value_t *value,
                                               _In_ uint32_t                  attr_index,
@@ -241,7 +246,7 @@ static const sai_vendor_attribute_entry_t bridge_port_vendor_attribs[] = {
       mlnx_bridge_port_max_learned_addresses_get, NULL,
       mlnx_bridge_port_max_learned_addresses_set, NULL },
     { SAI_BRIDGE_PORT_ATTR_FDB_LEARNING_LIMIT_VIOLATION_PACKET_ACTION,
-      { true, false, false, false },
+      { false, false, false, false },
       { true, false, true, true },
       NULL, NULL,
       NULL, NULL },
@@ -266,6 +271,16 @@ static const sai_vendor_attribute_entry_t bridge_port_vendor_attribs[] = {
       NULL, NULL,
       NULL, NULL }
 };
+static const mlnx_attr_enum_info_t bridge_port_enum_info[] = {
+    [SAI_BRIDGE_PORT_ATTR_TYPE] = ATTR_ENUM_VALUES_ALL(),
+    [SAI_BRIDGE_PORT_ATTR_TAGGING_MODE] = ATTR_ENUM_VALUES_ALL(),
+    [SAI_BRIDGE_PORT_ATTR_FDB_LEARNING_MODE] = ATTR_ENUM_VALUES_LIST(
+        SAI_BRIDGE_PORT_FDB_LEARNING_MODE_DISABLE,
+        SAI_BRIDGE_PORT_FDB_LEARNING_MODE_HW,
+        SAI_BRIDGE_PORT_FDB_LEARNING_MODE_CPU_LOG)
+};
+const mlnx_obj_type_attrs_info_t mlnx_bridge_port_obj_type_info =
+    { bridge_port_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(bridge_port_enum_info)};
 
 sx_bridge_id_t mlnx_bridge_default_1q(void)
 {

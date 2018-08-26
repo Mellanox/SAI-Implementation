@@ -115,7 +115,13 @@ static const sai_vendor_attribute_entry_t queue_vendor_attribs[] = {
       NULL, NULL,
       NULL, NULL }
 };
-
+static const mlnx_attr_enum_info_t queue_enum_info[] = {
+    [SAI_QUEUE_ATTR_TYPE] = ATTR_ENUM_VALUES_LIST(
+        SAI_QUEUE_TYPE_UNICAST,
+        SAI_QUEUE_TYPE_MULTICAST)
+};
+const mlnx_obj_type_attrs_info_t mlnx_queue_obj_type_info =
+    { queue_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(queue_enum_info)};
 sai_status_t mlnx_queue_log_set(sx_verbosity_level_t level)
 {
     LOG_VAR_NAME(__MODULE__) = level;

@@ -241,6 +241,12 @@ static const sai_vendor_attribute_entry_t mirror_vendor_attribs[] = {
       NULL, NULL,
       NULL, NULL }
 };
+static const mlnx_attr_enum_info_t mirror_session_enum_info[] = {
+    [SAI_MIRROR_SESSION_ATTR_TYPE] = ATTR_ENUM_VALUES_ALL(),
+    [SAI_MIRROR_SESSION_ATTR_ERSPAN_ENCAPSULATION_TYPE] = ATTR_ENUM_VALUES_ALL(),
+};
+const mlnx_obj_type_attrs_info_t mlnx_mirror_session_obj_type_info =
+    { mirror_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(mirror_session_enum_info)};
 static void mirror_key_to_str(_In_ const sai_object_id_t sai_mirror_obj_id, _Out_ char *key_str)
 {
     uint32_t sdk_mirror_obj_id = 0;

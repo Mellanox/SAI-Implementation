@@ -243,6 +243,8 @@ static void SAI_dump_acl_table_print(_In_ FILE *file, _In_ acl_table_db_t *acl_t
 
             SAI_dump_acl_key_type_enum_to_str(acl_table_db[ii].key_type, key_type_str);
 
+            SAI_dump_acl_table_group_type_enum_to_str(acl_table_db[ii].group_type, group_type_str);
+
             dbg_utils_print_table_data_line(file, acl_table_clmns);
 
             dbg_utils_print_secondary_header(file, "acl table %d range types", ii);
@@ -252,8 +254,6 @@ static void SAI_dump_acl_table_print(_In_ FILE *file, _In_ acl_table_db_t *acl_t
             for (jj = 0; jj < acl_table_db[ii].range_type_count; jj++) {
                 SAI_dump_acl_range_type_enum_to_str(acl_table_db[ii].range_types[jj],
                                                     range_type_str);
-
-                SAI_dump_acl_table_group_type_enum_to_str(acl_table_db[ii].group_type, group_type_str);
 
                 dbg_utils_print_table_data_line(file, range_types_clmns);
             }

@@ -122,7 +122,13 @@ static const sai_vendor_attribute_entry_t udf_vendor_attribs[] = {
       NULL, NULL,
       NULL, NULL }
 };
-
+static const mlnx_attr_enum_info_t udf_enum_info[] = {
+    [SAI_UDF_ATTR_BASE] = ATTR_ENUM_VALUES_LIST(
+        SAI_UDF_BASE_L2,
+        SAI_UDF_BASE_L3)
+};
+const mlnx_obj_type_attrs_info_t mlnx_udf_obj_type_info =
+    { udf_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(udf_enum_info)};
 /* UDF Match vendor attributes */
 static const sai_vendor_attribute_entry_t udf_match_vendor_attribs[] = {
     { SAI_UDF_MATCH_ATTR_L2_TYPE,
@@ -151,7 +157,8 @@ static const sai_vendor_attribute_entry_t udf_match_vendor_attribs[] = {
       NULL, NULL,
       NULL, NULL }
 };
-
+const mlnx_obj_type_attrs_info_t mlnx_udf_match_obj_type_info =
+    { udf_match_vendor_attribs, OBJ_ATTRS_ENUMS_INFO_EMPTY()};
 /* UDF Group vendor attributes */
 static const sai_vendor_attribute_entry_t udf_group_vendor_attribs[] = {
     { SAI_UDF_GROUP_ATTR_UDF_LIST,
@@ -175,6 +182,12 @@ static const sai_vendor_attribute_entry_t udf_group_vendor_attribs[] = {
       NULL, NULL,
       NULL, NULL }
 };
+static const mlnx_attr_enum_info_t udf_group_enum_info[] = {
+    [SAI_UDF_GROUP_ATTR_TYPE] = ATTR_ENUM_VALUES_LIST(
+        SAI_UDF_GROUP_TYPE_GENERIC)
+};
+const mlnx_obj_type_attrs_info_t mlnx_udf_group_obj_type_info =
+    { udf_group_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(udf_group_enum_info)};
 static void udf_key_to_str(_In_ sai_object_id_t   object_id,
                            _In_ sai_object_type_t object_type,
                            _Out_ char            *key_str)

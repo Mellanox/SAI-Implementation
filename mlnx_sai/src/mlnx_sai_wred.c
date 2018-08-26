@@ -148,6 +148,11 @@ static const sai_vendor_attribute_entry_t wred_vendor_attribs[] = {
       NULL, NULL,
       NULL, NULL }
 };
+static const mlnx_attr_enum_info_t wred_enum_info[] = {
+    [SAI_WRED_ATTR_ECN_MARK_MODE] = ATTR_ENUM_VALUES_ALL(),
+};
+const mlnx_obj_type_attrs_info_t mlnx_wred_obj_type_info =
+    { wred_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(wred_enum_info)};
 
 /*
  * Routine Description:

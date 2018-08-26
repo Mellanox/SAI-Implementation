@@ -109,6 +109,8 @@ static const sai_vendor_attribute_entry_t next_hop_group_member_vendor_attribs[]
       NULL, NULL,
       NULL, NULL }
 };
+const mlnx_obj_type_attrs_info_t mlnx_nh_group_member_obj_type_info =
+    { next_hop_group_member_vendor_attribs, OBJ_ATTRS_ENUMS_INFO_EMPTY()};
 static void next_hop_group_key_to_str(_In_ sai_object_id_t next_hop_group_id, _Out_ char *key_str)
 {
     uint32_t groupid;

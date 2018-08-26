@@ -279,6 +279,24 @@ static const sai_vendor_attribute_entry_t policer_vendor_attribs[] = {
         NULL, NULL
     }
 };
+static const mlnx_attr_enum_info_t policer_enum_info[] = {
+    [SAI_POLICER_ATTR_METER_TYPE] = ATTR_ENUM_VALUES_ALL(),
+    [SAI_POLICER_ATTR_MODE] = ATTR_ENUM_VALUES_ALL(),
+    [SAI_POLICER_ATTR_COLOR_SOURCE] = ATTR_ENUM_VALUES_ALL(),
+    [SAI_POLICER_ATTR_GREEN_PACKET_ACTION] = ATTR_ENUM_VALUES_LIST(
+        SAI_PACKET_ACTION_FORWARD
+        ),
+    [SAI_POLICER_ATTR_YELLOW_PACKET_ACTION] = ATTR_ENUM_VALUES_LIST(
+        SAI_PACKET_ACTION_FORWARD
+        ),
+    [SAI_POLICER_ATTR_RED_PACKET_ACTION] = ATTR_ENUM_VALUES_LIST(
+        SAI_PACKET_ACTION_FORWARD,
+        SAI_PACKET_ACTION_DROP
+        ),
+};
+const mlnx_obj_type_attrs_info_t mlnx_policer_obj_type_info =
+    { policer_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(policer_enum_info)};
+
 static void log_sx_policer_attrib_color_action(_In_ sx_policer_action_t sx_policer_action, _In_ char* action_name)
 {
     char* val = NULL;

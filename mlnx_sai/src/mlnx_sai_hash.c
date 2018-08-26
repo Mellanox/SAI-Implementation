@@ -66,6 +66,11 @@ static const sai_vendor_attribute_entry_t hash_vendor_attribs[] = {
       NULL, NULL,
       NULL, NULL }
 };
+static const mlnx_attr_enum_info_t hash_enum_info[] = {
+    [SAI_HASH_ATTR_NATIVE_HASH_FIELD_LIST] = ATTR_ENUM_VALUES_ALL(),
+};
+const mlnx_obj_type_attrs_info_t mlnx_hash_obj_type_info = {
+    hash_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(hash_enum_info)};
 static void hash_key_to_str(_In_ sai_object_id_t hash_id, _Out_ char *key_str)
 {
     uint32_t hash_data = 0;

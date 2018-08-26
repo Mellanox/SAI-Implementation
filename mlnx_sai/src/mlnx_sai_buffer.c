@@ -224,6 +224,8 @@ static const sai_vendor_attribute_entry_t pg_vendor_attribs[] = {
       NULL, NULL,
       NULL, NULL}
 };
+const mlnx_obj_type_attrs_info_t mlnx_ingress_pg_obj_type_info =
+    { pg_vendor_attribs, OBJ_ATTRS_ENUMS_INFO_EMPTY()};
 static const sai_vendor_attribute_entry_t pool_vendor_attribs[] = {
     {
         SAI_BUFFER_POOL_ATTR_SHARED_SIZE,
@@ -259,6 +261,12 @@ static const sai_vendor_attribute_entry_t pool_vendor_attribs[] = {
       NULL, NULL,
       NULL, NULL}
 };
+static const mlnx_attr_enum_info_t buffer_pool_enum_info[] = {
+    [SAI_BUFFER_POOL_ATTR_TYPE] = ATTR_ENUM_VALUES_ALL(),
+    [SAI_BUFFER_POOL_ATTR_THRESHOLD_MODE] = ATTR_ENUM_VALUES_ALL(),
+};
+const mlnx_obj_type_attrs_info_t mlnx_buffer_pool_obj_type_info =
+    { pool_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(buffer_pool_enum_info)};
 static const sai_vendor_attribute_entry_t buffer_profile_vendor_attribs[] = {
     {
         SAI_BUFFER_PROFILE_ATTR_POOL_ID,
@@ -315,8 +323,11 @@ static const sai_vendor_attribute_entry_t buffer_profile_vendor_attribs[] = {
       NULL, NULL,
       NULL, NULL}
 };
-
-
+static const mlnx_attr_enum_info_t buffer_profile_enum_info[] = {
+    [SAI_BUFFER_PROFILE_ATTR_THRESHOLD_MODE] = ATTR_ENUM_VALUES_ALL(),
+};
+const mlnx_obj_type_attrs_info_t mlnx_buffer_profile_obj_type_info =
+    { buffer_profile_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(buffer_profile_enum_info)};
 void init_buffer_resource_limits()
 {
     /* number of user allocatable pools */

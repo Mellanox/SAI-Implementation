@@ -61,6 +61,7 @@ static const sai_vendor_attribute_entry_t router_vendor_attribs[] = {
       NULL, NULL,
       NULL, NULL }
 };
+const mlnx_obj_type_attrs_info_t mlnx_router_obj_type_info = { router_vendor_attribs, OBJ_ATTRS_ENUMS_INFO_EMPTY()};
 static void router_key_to_str(_In_ sai_object_id_t vr_id, _Out_ char *key_str)
 {
     uint32_t vrid;

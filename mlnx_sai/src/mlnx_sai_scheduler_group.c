@@ -117,6 +117,8 @@ static const sai_vendor_attribute_entry_t sched_group_vendor_attribs[] = {
       NULL, NULL,
       NULL, NULL }
 };
+const mlnx_obj_type_attrs_info_t mlnx_sched_group_obj_type_info =
+    { sched_group_vendor_attribs, OBJ_ATTRS_ENUMS_INFO_EMPTY()};
 static mlnx_sched_obj_t * group_get(mlnx_port_config_t *port, uint8_t level, uint8_t index)
 {
     return &port->sched_hierarchy.groups[level][index];

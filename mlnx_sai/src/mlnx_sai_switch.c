@@ -118,6 +118,9 @@ static uint32_t sai_udf_db_size_get();
 static void sai_udf_db_init();
 static sai_status_t mlnx_switch_fdb_record_age(_In_ const sx_fdb_notify_record_t *fdb_record);
 static sai_status_t mlnx_switch_fdb_record_check_and_age(_In_ const sx_fdb_notify_record_t *fdb_record);
+static sai_status_t mlnx_switch_warmboot_enable();
+static sai_status_t mlnx_switch_warmboot_disable(_In_ sai_object_id_t switch_id);
+static sai_status_t mlnx_switch_crc_params_apply(void);
 static sai_status_t mlnx_switch_port_number_get(_In_ const sai_object_key_t   *key,
                                                 _Inout_ sai_attribute_value_t *value,
                                                 _In_ uint32_t                  attr_index,
@@ -381,6 +384,22 @@ static sai_status_t mlnx_switch_hash_object_get(_In_ const sai_object_key_t   *k
 static sai_status_t mlnx_switch_hash_object_set(_In_ const sai_object_key_t      *key,
                                                 _In_ const sai_attribute_value_t *value,
                                                 void                             *arg);
+static sai_status_t mlnx_switch_restart_warm_get(_In_ const sai_object_key_t   *key,
+                                                 _Inout_ sai_attribute_value_t *value,
+                                                 _In_ uint32_t                  attr_index,
+                                                 _Inout_ vendor_cache_t        *cache,
+                                                 void                          *arg);
+static sai_status_t mlnx_switch_restart_warm_set(_In_ const sai_object_key_t      *key,
+                                                 _In_ const sai_attribute_value_t *value,
+                                                 void                             *arg);
+static sai_status_t mlnx_switch_warm_recover_get(_In_ const sai_object_key_t   *key,
+                                                 _Inout_ sai_attribute_value_t *value,
+                                                 _In_ uint32_t                  attr_index,
+                                                 _Inout_ vendor_cache_t        *cache,
+                                                 void                          *arg);
+static sai_status_t mlnx_switch_warm_recover_set(_In_ const sai_object_key_t      *key,
+                                                 _In_ const sai_attribute_value_t *value,
+                                                 void                             *arg);
 static sai_status_t mlnx_switch_total_pool_buffer_size_get(_In_ const sai_object_key_t   *key,
                                                            _Inout_ sai_attribute_value_t *value,
                                                            _In_ uint32_t                  attr_index,
@@ -447,6 +466,22 @@ static sai_status_t mlnx_switch_supported_stats_modes_get(_In_ const sai_object_
                                                           _In_ uint32_t                  attr_index,
                                                           _Inout_ vendor_cache_t        *cache,
                                                           void                          *arg);
+static sai_status_t mlnx_switch_crc_check_get(_In_ const sai_object_key_t   *key,
+                                              _Inout_ sai_attribute_value_t *value,
+                                              _In_ uint32_t                  attr_index,
+                                              _Inout_ vendor_cache_t        *cache,
+                                              void                          *arg);
+static sai_status_t mlnx_switch_crc_check_set(_In_ const sai_object_key_t      *key,
+                                              _In_ const sai_attribute_value_t *value,
+                                              void                             *arg);
+static sai_status_t mlnx_switch_crc_recalculation_get(_In_ const sai_object_key_t   *key,
+                                                      _Inout_ sai_attribute_value_t *value,
+                                                      _In_ uint32_t                  attr_index,
+                                                      _Inout_ vendor_cache_t        *cache,
+                                                      void                          *arg);
+static sai_status_t mlnx_switch_crc_recalculation_set(_In_ const sai_object_key_t      *key,
+                                                      _In_ const sai_attribute_value_t *value,
+                                                      void                             *arg);
 static const sai_vendor_attribute_entry_t switch_vendor_attribs[] = {
     { SAI_SWITCH_ATTR_PORT_NUMBER,
       { false, false, false, true },
@@ -793,6 +828,16 @@ static const sai_vendor_attribute_entry_t switch_vendor_attribs[] = {
       { false, false, false, true },
       mlnx_switch_hash_object_get, (void*)SAI_SWITCH_ATTR_LAG_HASH,
       NULL, NULL },
+    { SAI_SWITCH_ATTR_RESTART_WARM,
+      { true, false, true, true },
+      { true, false, true, true },
+      mlnx_switch_restart_warm_get, NULL,
+      mlnx_switch_restart_warm_set, NULL },
+    { SAI_SWITCH_ATTR_WARM_RECOVER,
+      { true, false, true, true },
+      { true, false, true, true },
+      mlnx_switch_warm_recover_get, NULL,
+      mlnx_switch_warm_recover_set, NULL },
     { SAI_SWITCH_ATTR_ECMP_HASH_IPV4,
       { false, false, true, true },
       { false, false, true, true },
@@ -983,12 +1028,46 @@ static const sai_vendor_attribute_entry_t switch_vendor_attribs[] = {
       { false, false, false, true },
       mlnx_switch_supported_stats_modes_get, NULL,
       NULL, NULL },
+    { SAI_SWITCH_ATTR_CRC_CHECK_ENABLE,
+      { true, false, true, true },
+      { true, false, true, true },
+      mlnx_switch_crc_check_get, NULL,
+      mlnx_switch_crc_check_set, NULL },
+    { SAI_SWITCH_ATTR_CRC_RECALCULATION_ENABLE,
+      { true, false, true, true },
+      { true, false, true, true },
+      mlnx_switch_crc_recalculation_get, NULL,
+      mlnx_switch_crc_recalculation_set, NULL },
     { END_FUNCTIONALITY_ATTRIBS_ID,
       { false, false, false, false },
       { false, false, false, false },
       NULL, NULL,
       NULL, NULL }
 };
+static const mlnx_attr_enum_info_t switch_enum_info[] = {
+    [SAI_SWITCH_ATTR_OPER_STATUS] = ATTR_ENUM_VALUES_LIST(
+        SAI_SWITCH_OPER_STATUS_UP),
+    [SAI_SWITCH_ATTR_SWITCHING_MODE] = ATTR_ENUM_VALUES_ALL(),
+    [SAI_SWITCH_ATTR_FDB_UNICAST_MISS_PACKET_ACTION] = ATTR_ENUM_VALUES_LIST(
+        SAI_PACKET_ACTION_FORWARD,
+        SAI_PACKET_ACTION_DROP),
+    [SAI_SWITCH_ATTR_FDB_BROADCAST_MISS_PACKET_ACTION] = ATTR_ENUM_VALUES_LIST(
+        SAI_PACKET_ACTION_FORWARD,
+        SAI_PACKET_ACTION_DROP),
+    [SAI_SWITCH_ATTR_FDB_MULTICAST_MISS_PACKET_ACTION] = ATTR_ENUM_VALUES_LIST(
+        SAI_PACKET_ACTION_FORWARD,
+        SAI_PACKET_ACTION_DROP),
+    [SAI_SWITCH_ATTR_ECMP_DEFAULT_HASH_ALGORITHM] = ATTR_ENUM_VALUES_LIST(
+        SAI_HASH_ALGORITHM_XOR,
+        SAI_HASH_ALGORITHM_CRC,
+        SAI_HASH_ALGORITHM_RANDOM),
+    [SAI_SWITCH_ATTR_LAG_DEFAULT_HASH_ALGORITHM] = ATTR_ENUM_VALUES_LIST(
+        SAI_HASH_ALGORITHM_XOR,
+        SAI_HASH_ALGORITHM_CRC),
+    [SAI_SWITCH_ATTR_SUPPORTED_EXTENDED_STATS_MODE] = ATTR_ENUM_VALUES_ALL(),
+};
+const mlnx_obj_type_attrs_info_t mlnx_switch_obj_type_info =
+    { switch_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(switch_enum_info)};
 
 #define RDQ_ETH_DEFAULT_SIZE 4200
 /* the needed value is 10000 but added more for align */
@@ -1551,7 +1630,7 @@ static sai_status_t mlnx_sai_db_initialize(const char *config_file)
     return SAI_STATUS_SUCCESS;
 }
 
-static sai_status_t mlnx_resource_mng_stage()
+static sai_status_t mlnx_resource_mng_stage(bool reset_asic)
 {
     sxd_status_t              sxd_ret = SXD_STATUS_SUCCESS;
     sxd_ctrl_pack_t           ctrl_pack;
@@ -1569,10 +1648,14 @@ static sai_status_t mlnx_resource_mng_stage()
     memset(&swid_details, 0, sizeof(swid_details));
     memset(&path_modify, 0, sizeof(path_modify));
 
-    sxd_ret = sxd_dpt_init(SYS_TYPE_EN, sai_log_cb, LOG_VAR_NAME(__MODULE__));
-    if (SXD_CHECK_FAIL(sxd_ret)) {
-        MLNX_SAI_LOG_ERR("Failed to init dpt - %s.\n", SXD_STATUS_MSG(sxd_ret));
-        return SAI_STATUS_FAILURE;
+    /* sxd_dpt_init will destroy existing dpt shared memory and create new one.
+     * For warmboot we want to keep the old shared memory before reboot */
+    if (reset_asic) {
+        sxd_ret = sxd_dpt_init(SYS_TYPE_EN, sai_log_cb, LOG_VAR_NAME(__MODULE__));
+        if (SXD_CHECK_FAIL(sxd_ret)) {
+            MLNX_SAI_LOG_ERR("Failed to init dpt - %s.\n", SXD_STATUS_MSG(sxd_ret));
+            return SAI_STATUS_FAILURE;
+        }
     }
 
     sxd_ret = sxd_dpt_set_access_control(SX_DEVICE_ID, READ_WRITE);
@@ -1657,42 +1740,44 @@ static sai_status_t mlnx_resource_mng_stage()
         return SAI_STATUS_FAILURE;
     }
 
-    ctrl_pack.ctrl_cmd = CTRL_CMD_RESET;
-    ctrl_pack.cmd_body = (void*)SX_DEVICE_ID;
-    sxd_ret            = sxd_ioctl(sxd_handle, &ctrl_pack);
-    if (SXD_CHECK_FAIL(sxd_ret)) {
-        MLNX_SAI_LOG_ERR("failed to reset asic\n");
-        return SAI_STATUS_FAILURE;
-    }
-
-    pci_profile = mlnx_sai_get_pci_profile();
-    if (!pci_profile) {
-        return SAI_STATUS_FAILURE;
-    }
-
-    ctrl_pack.ctrl_cmd = CTRL_CMD_SET_PCI_PROFILE;
-    ctrl_pack.cmd_body = (void*)pci_profile;
-    sxd_ret            = sxd_ioctl(sxd_handle, &ctrl_pack);
-    if (SXD_CHECK_FAIL(sxd_ret)) {
-        MLNX_SAI_LOG_ERR("failed to set pci profile in asic\n");
-        return SAI_STATUS_FAILURE;
-    }
-
-    /* enable device's swid */
-    swid_details.dev_id = SX_DEVICE_ID;
-    ctrl_pack.cmd_body  = (void*)&(swid_details);
-    ctrl_pack.ctrl_cmd  = CTRL_CMD_ENABLE_SWID;
-    for (ii = 0; ii < SWID_NUM; ++ii) {
-        swid_details.swid        = ii;
-        swid_details.iptrap_synd = SXD_TRAP_ID_IPTRAP_MIN + ii;
-        cl_plock_acquire(&g_sai_db_ptr->p_lock);
-        swid_details.mac = SX_MAC_TO_U64(g_sai_db_ptr->base_mac_addr);
-        cl_plock_release(&g_sai_db_ptr->p_lock);
-
-        sxd_ret = sxd_ioctl(sxd_handle, &ctrl_pack);
+    if (reset_asic) {
+        ctrl_pack.ctrl_cmd = CTRL_CMD_RESET;
+        ctrl_pack.cmd_body = (void*)SX_DEVICE_ID;
+        sxd_ret            = sxd_ioctl(sxd_handle, &ctrl_pack);
         if (SXD_CHECK_FAIL(sxd_ret)) {
-            MLNX_SAI_LOG_ERR("failed to enable swid %u : %s\n", ii, strerror(errno));
+            MLNX_SAI_LOG_ERR("failed to reset asic, error: %s\n", strerror(errno));
             return SAI_STATUS_FAILURE;
+        }
+
+        pci_profile = mlnx_sai_get_pci_profile();
+        if (!pci_profile) {
+            return SAI_STATUS_FAILURE;
+        }
+
+        ctrl_pack.ctrl_cmd = CTRL_CMD_SET_PCI_PROFILE;
+        ctrl_pack.cmd_body = (void*)pci_profile;
+        sxd_ret            = sxd_ioctl(sxd_handle, &ctrl_pack);
+        if (SXD_CHECK_FAIL(sxd_ret)) {
+            MLNX_SAI_LOG_ERR("failed to set pci profile in asic, error: %s\n", strerror(errno));
+            return SAI_STATUS_FAILURE;
+        }
+
+        /* enable device's swid */
+        swid_details.dev_id = SX_DEVICE_ID;
+        ctrl_pack.cmd_body  = (void*)&(swid_details);
+        ctrl_pack.ctrl_cmd  = CTRL_CMD_ENABLE_SWID;
+        for (ii = 0; ii < SWID_NUM; ++ii) {
+            swid_details.swid        = ii;
+            swid_details.iptrap_synd = SXD_TRAP_ID_IPTRAP_MIN + ii;
+            cl_plock_acquire(&g_sai_db_ptr->p_lock);
+            swid_details.mac = SX_MAC_TO_U64(g_sai_db_ptr->base_mac_addr);
+            cl_plock_release(&g_sai_db_ptr->p_lock);
+
+            sxd_ret = sxd_ioctl(sxd_handle, &ctrl_pack);
+            if (SXD_CHECK_FAIL(sxd_ret)) {
+                MLNX_SAI_LOG_ERR("failed to enable swid %u : %s\n", ii, strerror(errno));
+                return SAI_STATUS_FAILURE;
+            }
         }
     }
 
@@ -1843,12 +1928,6 @@ static sai_status_t mlnx_sdk_start(bool fastboot_enable)
         return SAI_STATUS_FAILURE;
     }
 
-    system_err = system("sx_acl_rm &");
-    if (0 != system_err) {
-        MLNX_SAI_LOG_ERR("Failed running sx_acl_rm\n");
-        return SAI_STATUS_FAILURE;
-    }
-
     sai_status = mlnx_wait_for_sdk();
     assert(SAI_STATUS_SUCCESS == sai_status);
 
@@ -1865,15 +1944,9 @@ static sai_status_t mlnx_chassis_mng_stage(bool fastboot_enable, bool transactio
     uint8_t               port_phy_bits_num;
     uint8_t               port_pth_bits_num;
     uint8_t               port_sub_bits_num;
-    sai_status_t          sai_status           = SAI_STATUS_FAILURE;
     sx_access_cmd_t       transaction_mode_cmd = SX_ACCESS_CMD_NONE;
 
     memset(&sdk_init_params, 0, sizeof(sdk_init_params));
-
-    sai_status = mlnx_sdk_start(fastboot_enable);
-    if (SAI_ERR(sai_status)) {
-        return sai_status;
-    }
 
     /* Open an handle */
     if (SX_STATUS_SUCCESS != (status = sx_api_open(sai_log_cb, &gh_sdk))) {
@@ -2249,12 +2322,18 @@ static void sai_db_values_init()
     g_sai_db_ptr->flood_action_bc = SAI_PACKET_ACTION_FORWARD;
     g_sai_db_ptr->flood_action_mc = SAI_PACKET_ACTION_FORWARD;
 
+    g_sai_db_ptr->restart_warm = false;
+    g_sai_db_ptr->warm_recover = false;
+
     g_sai_db_ptr->packet_storing_mode = SX_PORT_PACKET_STORING_MODE_CUT_THROUGH;
 
     g_sai_db_ptr->tunnel_module_initialized = false;
     g_sai_db_ptr->port_parsing_depth_set_for_tunnel = false;
 
     g_sai_db_ptr->nve_tunnel_type = NVE_TUNNEL_UNKNOWN;
+
+    g_sai_db_ptr->crc_check_enable = true;
+    g_sai_db_ptr->crc_recalc_enable = true;
 
     memset(g_sai_db_ptr->is_switch_priority_lossless, 0, MAX_LOSSLESS_SP * sizeof(bool));
 
@@ -3637,6 +3716,7 @@ static sai_status_t mlnx_initialize_switch(sai_object_id_t switch_id, bool *tran
     sx_api_profile_t           *ku_profile;
     bool                        fastboot_enable = false;
     sx_tunnel_attribute_t       sx_tunnel_attribute;
+    const bool                  reset_asic = true;
 
 #ifndef ACS_OS
     const char *initial_fan_speed;
@@ -3691,10 +3771,15 @@ static sai_status_t mlnx_initialize_switch(sai_object_id_t switch_id, bool *tran
             return status;
         }
 
-        if (SAI_STATUS_SUCCESS != (status = mlnx_resource_mng_stage())) {
+        fastboot_enable = false;
+        status = mlnx_sdk_start(fastboot_enable);
+        if (SAI_ERR(status)) {
             return status;
         }
-        fastboot_enable = false;
+
+        if (SAI_STATUS_SUCCESS != (status = mlnx_resource_mng_stage(reset_asic))) {
+            return status;
+        }
         break;
 
     /* warm boot */
@@ -3717,10 +3802,16 @@ static sai_status_t mlnx_initialize_switch(sai_object_id_t switch_id, bool *tran
             return status;
         }
 
-        if (SAI_STATUS_SUCCESS != (status = mlnx_resource_mng_stage())) {
+        fastboot_enable = true;
+        status = mlnx_sdk_start(fastboot_enable);
+        if (SAI_ERR(status)) {
             return status;
         }
-        fastboot_enable = true;
+
+        if (SAI_STATUS_SUCCESS != (status = mlnx_resource_mng_stage(reset_asic))) {
+            return status;
+        }
+
         if (!(*transaction_mode_enable)) {
             MLNX_SAI_LOG_ERR("Transaction mode should be enabled, enabling now\n");
             *transaction_mode_enable = true;
@@ -4002,7 +4093,7 @@ static sai_status_t mlnx_create_switch(_Out_ sai_object_id_t     * switch_id,
     mlnx_object_id_t             mlnx_switch_id = {0};
     sai_status_t                 sai_status;
     uint32_t                     attr_idx;
-    bool                         transaction_mode_enable = false;
+    bool                         transaction_mode_enable = false, crc_check_enable = true, crc_recalc_enable = true;
 
     if (NULL == switch_id) {
         MLNX_SAI_LOG_ERR("NULL switch_id id param\n");
@@ -4078,6 +4169,17 @@ static sai_status_t mlnx_create_switch(_Out_ sai_object_id_t     * switch_id,
         transaction_mode_enable = false;
     }
 
+    sai_status = find_attrib_in_list(attr_count, attr_list, SAI_SWITCH_ATTR_CRC_CHECK_ENABLE, &attr_val, &attr_idx);
+    if (!SAI_ERR(sai_status)) {
+        crc_check_enable = attr_val->booldata;
+    }
+
+    sai_status = find_attrib_in_list(attr_count, attr_list, SAI_SWITCH_ATTR_CRC_RECALCULATION_ENABLE,
+                                     &attr_val, &attr_idx);
+    if (!SAI_ERR(sai_status)) {
+        crc_recalc_enable = attr_val->booldata;
+    }
+
     if (mlnx_switch_id.id.is_created) {
         sai_status = mlnx_initialize_switch(*switch_id, &transaction_mode_enable);
     } else {
@@ -4097,6 +4199,39 @@ static sai_status_t mlnx_create_switch(_Out_ sai_object_id_t     * switch_id,
     sai_db_write_lock();
 
     g_sai_db_ptr->transaction_mode_enable = transaction_mode_enable;
+    g_sai_db_ptr->crc_check_enable        = crc_check_enable;
+    g_sai_db_ptr->crc_recalc_enable       = crc_recalc_enable;
+
+    sai_status = mlnx_switch_crc_params_apply();
+    if (SAI_ERR(sai_status)) {
+        return sai_status;
+    }
+
+    sai_status = find_attrib_in_list(attr_count, attr_list, SAI_SWITCH_ATTR_RESTART_WARM, &attr_val, &attr_idx);
+    if (!SAI_ERR(sai_status)) {
+        if (attr_val->booldata) {
+            sai_status = mlnx_switch_warmboot_enable();
+            if (SAI_STATUS_SUCCESS != sai_status) {
+                MLNX_SAI_LOG_ERR("Error enabling warmboot\n");
+                sai_db_unlock();
+                return sai_status;
+            }
+        }
+        g_sai_db_ptr->restart_warm = attr_val->booldata;
+    }
+
+    sai_status = find_attrib_in_list(attr_count, attr_list, SAI_SWITCH_ATTR_WARM_RECOVER, &attr_val, &attr_idx);
+    if (!SAI_ERR(sai_status)) {
+        if (attr_val->booldata) {
+            sai_status = mlnx_switch_warmboot_disable(*switch_id);
+            if (SAI_STATUS_SUCCESS != sai_status) {
+                MLNX_SAI_LOG_ERR("Error disabling warmboot\n");
+                sai_db_unlock();
+                return sai_status;
+            }
+        }
+        g_sai_db_ptr->warm_recover = attr_val->booldata;
+    }
 
     sai_db_unlock();
 
@@ -4265,16 +4400,16 @@ static sai_status_t mlnx_shutdown_switch(void)
 
     memset(&g_notification_callbacks, 0, sizeof(g_notification_callbacks));
 #ifdef SDK_VALGRIND
-    system_err = system("killall -w memcheck-amd64- sx_acl_rm");
+    system_err = system("killall -w memcheck-amd64-");
 #else
-    system_err = system("killall -w sx_sdk sx_acl_rm");
+    system_err = system("killall -w sx_sdk");
 #endif
 
     if (0 != system_err) {
 #ifdef SDK_VALGRIND
-        MLNX_SAI_LOG_ERR("killall -w memcheck-amd64- sx_acl_rm failed.\n");
+        MLNX_SAI_LOG_ERR("killall -w memcheck-amd64- failed.\n");
 #else
-        MLNX_SAI_LOG_ERR("killall -w sx_sdk sx_acl_rm failed.\n");
+        MLNX_SAI_LOG_ERR("killall -w sx_sdk failed.\n");
 #endif
     }
 
@@ -5220,52 +5355,11 @@ static sai_status_t mlnx_switch_acl_capability_get(_In_ const sai_object_key_t  
                                                    _Inout_ vendor_cache_t        *cache,
                                                    void                          *arg)
 {
-    sai_status_t                 status = SAI_STATUS_SUCCESS;
-    sai_acl_stage_t              stage;
-    const sai_acl_action_type_t *stage_action_list;
-    uint32_t                     stage_action_count, action_count, ii;
-
-    SX_LOG_ENTER();
+    sai_acl_stage_t stage;
 
     stage = (int64_t)arg;
 
-    assert((SAI_ACL_STAGE_INGRESS == stage) ||
-           (SAI_ACL_STAGE_EGRESS == stage));
-
-    status = mlnx_acl_stage_action_list_fetch(stage, &stage_action_list, &stage_action_count);
-    if (SAI_ERR(status)) {
-        goto out;
-    }
-
-    action_count = stage_action_count + mlnx_acl_action_list_common_count;
-
-    if (value->aclcapability.action_list.count < action_count) {
-        if (0 == value->aclcapability.action_list.count) {
-            status = MLNX_SAI_STATUS_BUFFER_OVERFLOW_EMPTY_LIST;
-        } else {
-            status = SAI_STATUS_BUFFER_OVERFLOW;
-        }
-        SX_LOG((0 == value->aclcapability.action_list.count) ? SX_LOG_NOTICE : SX_LOG_ERROR,
-               "Invalid size of aclcapability's action list (%d), min - (%d)\n",
-               value->aclcapability.action_list.count, action_count);
-        value->aclcapability.action_list.count = action_count;
-        goto out;
-    }
-
-    for (ii = 0; ii < stage_action_count; ii++) {
-        value->aclcapability.action_list.list[ii] = stage_action_list[ii];
-    }
-
-    for (ii = 0; ii < mlnx_acl_action_list_common_count; ii++) {
-        value->aclcapability.action_list.list[ii + stage_action_count] = mlnx_acl_action_list_common[ii];
-    }
-
-    value->aclcapability.is_action_list_mandatory = false;
-    value->aclcapability.action_list.count        = action_count;
-
-out:
-    SX_LOG_EXIT();
-    return status;
+    return mlnx_acl_stage_action_types_get(stage, &value->aclcapability.action_list);
 }
 
 /* Count of the total number of actions supported by NPU */
@@ -5277,8 +5371,7 @@ static sai_status_t mlnx_switch_max_acl_action_count_get(_In_ const sai_object_k
 {
     SX_LOG_ENTER();
 
-    value->u32 = mlnx_acl_action_list_common_count + mlnx_acl_action_list_ingress_count +
-                 mlnx_acl_action_list_egress_count;
+    value->u32 = mlnx_acl_action_types_count_get();
 
     SX_LOG_EXIT();
     return SAI_STATUS_SUCCESS;
@@ -5967,6 +6060,260 @@ out:
     return status;
 }
 
+/* restart warm [bool] */
+static sai_status_t mlnx_switch_restart_warm_get(_In_ const sai_object_key_t   *key,
+                                                 _Inout_ sai_attribute_value_t *value,
+                                                 _In_ uint32_t                  attr_index,
+                                                 _Inout_ vendor_cache_t        *cache,
+                                                 void                          *arg)
+{
+    SX_LOG_ENTER();
+
+    sai_db_read_lock();
+    value->booldata = g_sai_db_ptr->restart_warm;
+    sai_db_unlock();
+
+    SX_LOG_EXIT();
+    return SAI_STATUS_SUCCESS;
+}
+
+/* restart warm [bool] */
+static sai_status_t mlnx_switch_warm_recover_get(_In_ const sai_object_key_t   *key,
+                                                 _Inout_ sai_attribute_value_t *value,
+                                                 _In_ uint32_t                  attr_index,
+                                                 _Inout_ vendor_cache_t        *cache,
+                                                 void                          *arg)
+{
+    SX_LOG_ENTER();
+
+    sai_db_read_lock();
+    value->booldata = g_sai_db_ptr->warm_recover;
+    sai_db_unlock();
+
+    SX_LOG_EXIT();
+    return SAI_STATUS_SUCCESS;
+}
+
+/* This function needs to be guarded by write lock */
+static sai_status_t mlnx_switch_warmboot_enable()
+{
+    sx_host_ifc_register_key_t reg;
+    sx_status_t                sx_status = SX_STATUS_ERROR;
+    sai_status_t               sai_status = SAI_STATUS_FAILURE;
+    uint32_t                   ii;
+    sx_fd_t                    sx_callback_channel_fd;
+    sx_sdk_issu_pause_t        sx_sdk_issu_pause_param;
+    sxd_status_t               sxd_status;
+
+    SX_LOG_ENTER();
+
+    memset(&reg, 0, sizeof(reg));
+    memcpy(&sx_callback_channel_fd, &g_sai_db_ptr->callback_channel.channel.fd, sizeof(sx_callback_channel_fd));
+
+    reg.key_type = SX_HOST_IFC_REGISTER_KEY_TYPE_GLOBAL;
+    for (ii = 0; END_TRAP_INFO_ID != mlnx_traps_info[ii].trap_id; ii++) {
+        if (0 == mlnx_traps_info[ii].sdk_traps_num) {
+            continue;
+        }
+        sai_status = mlnx_register_trap(SX_ACCESS_CMD_DEREGISTER, ii,
+                                        SAI_HOSTIF_TABLE_ENTRY_CHANNEL_TYPE_CB,
+                                        sx_callback_channel_fd, &reg);
+        if (SAI_ERR(sai_status)) {
+            SX_LOG_ERR("Error deregistering trap #%d\n", ii);
+            goto out;
+        }
+    }
+
+    sai_status = mlnx_acl_psort_thread_suspend();
+    if (SAI_ERR(sai_status)) {
+        SX_LOG_ERR("Error suspending acl psort thread\n");
+        goto out;
+    }
+
+    sai_db_unlock();
+    event_thread_asked_to_stop = true;
+#ifndef _WIN32
+    pthread_join(event_thread.osd.id, NULL);
+#endif
+    sai_db_write_lock();
+
+    if (SXD_STATUS_SUCCESS != (sxd_status = sxd_access_reg_deinit())) {
+        SX_LOG_ERR("Access reg deinit failed.\n");
+        sai_status = SAI_STATUS_FAILURE;
+        goto out;
+    }
+
+    memset(&sx_sdk_issu_pause_param, 0, sizeof(sx_sdk_issu_pause_param));
+    sx_status = sx_api_sdk_issu_pause_set(gh_sdk, &sx_sdk_issu_pause_param);
+    if (SX_STATUS_SUCCESS != sx_status) {
+        SX_LOG_ERR("Error pausing sdk: %s\n", SX_STATUS_MSG(sx_status));
+        sai_status = sdk_to_sai(sx_status);
+        goto out;
+    }
+
+    sx_status = sx_api_close(&gh_sdk);
+    if (SX_STATUS_SUCCESS != sx_status) {
+        SX_LOG_ERR("Error closing sdk handle: %s\n", SX_STATUS_MSG(sx_status));
+        sai_status = sdk_to_sai(sx_status);
+        goto out;
+    }
+
+#ifdef CONFIG_SYSLOG
+    closelog();
+    g_log_init = false;
+#endif
+
+    sai_status = SAI_STATUS_SUCCESS;
+
+out:
+    SX_LOG_EXIT();
+    return sai_status;
+}
+
+/* This function needs to be guarded by write lock */
+static sai_status_t mlnx_switch_warmboot_disable(_In_ sai_object_id_t switch_id)
+{
+    sx_host_ifc_register_key_t reg;
+    sx_status_t                sx_status  = SX_STATUS_ERROR;
+    sai_status_t               sai_status = SAI_STATUS_FAILURE;
+    uint32_t                   ii;
+    sx_fd_t                    sx_callback_channel_fd;
+    cl_status_t                cl_err;
+    sx_sdk_issu_resume_t       sx_sdk_issu_resume_param;
+    const bool                 reset_asic = false;
+
+    SX_LOG_ENTER();
+
+    if (SX_STATUS_SUCCESS != (sx_status = sx_api_open(sai_log_cb, &gh_sdk))) {
+        MLNX_SAI_LOG_ERR("Can't open connection to SDK - %s.\n", SX_STATUS_MSG(sx_status));
+        sai_status = sdk_to_sai(sx_status);
+        goto out;
+    }
+
+    memset(&sx_sdk_issu_resume_param, 0, sizeof(sx_sdk_issu_resume_param));
+    sx_status = sx_api_sdk_issu_resume_set(gh_sdk, &sx_sdk_issu_resume_param);
+    if (SX_STATUS_SUCCESS != sx_status) {
+        SX_LOG_ERR("Error resuming sdk: %s\n", SX_STATUS_MSG(sx_status));
+        sai_status = sdk_to_sai(sx_status);
+        goto out;
+    }
+
+    sai_db_unlock();
+    sai_status = mlnx_resource_mng_stage(reset_asic);
+    if (SAI_STATUS_SUCCESS != sai_status) {
+        SX_LOG_ERR("Error in resource mng stage\n");
+        sai_db_write_lock();
+        goto out;
+    }
+    sai_db_write_lock();
+
+    memset(&reg, 0, sizeof(reg));
+
+    sx_status = sx_api_host_ifc_open(gh_sdk, &g_sai_db_ptr->callback_channel.channel.fd);
+    if (SX_STATUS_SUCCESS != sx_status) {
+        SX_LOG_ERR("Error opening host ifc for fd: %s", SX_STATUS_MSG(sx_status));
+        goto out;
+    }
+
+    memcpy(&sx_callback_channel_fd, &g_sai_db_ptr->callback_channel.channel.fd, sizeof(sx_callback_channel_fd));
+    reg.key_type = SX_HOST_IFC_REGISTER_KEY_TYPE_GLOBAL;
+    for (ii = 0; END_TRAP_INFO_ID != mlnx_traps_info[ii].trap_id; ii++) {
+        if (0 == mlnx_traps_info[ii].sdk_traps_num) {
+            continue;
+        }
+
+        sai_status = mlnx_register_trap(SX_ACCESS_CMD_REGISTER, ii,
+                                        SAI_HOSTIF_TABLE_ENTRY_CHANNEL_TYPE_CB,
+                                        sx_callback_channel_fd, &reg);
+        if (SAI_STATUS_SUCCESS != sai_status) {
+            SX_LOG_ERR("Error registering trap #%d\n", ii);
+            goto out;
+        }
+    }
+
+    sai_db_unlock();
+    sai_status = mlnx_netdev_restore();
+    if (SAI_ERR(sai_status)) {
+        SX_LOG_ERR("Failed to restore netdev\n");
+        sai_db_write_lock();
+        sai_status = SAI_STATUS_FAILURE;
+        goto out;
+    }
+
+    event_thread_asked_to_stop = false;
+    cl_err = cl_thread_init(&event_thread, event_thread_func, (const void* const)switch_id, NULL);
+    if (cl_err) {
+        SX_LOG_ERR("Failed to create event thread\n");
+        sai_db_write_lock();
+        sai_status = SAI_STATUS_FAILURE;
+        goto out;
+    }
+    sai_db_write_lock();
+
+    sai_status = mlnx_acl_psort_thread_resume();
+    if (SAI_ERR(sai_status)) {
+        SX_LOG_ERR("Error resuming acl psort thread\n");
+        goto out;
+    }
+
+    sai_status = SAI_STATUS_SUCCESS;
+out:
+    SX_LOG_EXIT();
+    return sai_status;
+}
+
+/* restart warm [bool] */
+static sai_status_t mlnx_switch_restart_warm_set(_In_ const sai_object_key_t      *key,
+                                                 _In_ const sai_attribute_value_t *value,
+                                                 void                             *arg)
+{
+    sai_status_t status = SAI_STATUS_FAILURE;
+
+    SX_LOG_ENTER();
+
+    sai_db_write_lock();
+    if (value->booldata) {
+        status = mlnx_switch_warmboot_enable();
+        if (SAI_ERR(status)) {
+            MLNX_SAI_LOG_ERR("Error enabling warmboot\n");
+            goto out;
+        }
+    }
+    g_sai_db_ptr->restart_warm = value->booldata;
+    status = SAI_STATUS_SUCCESS;
+
+out:
+    sai_db_unlock();
+    SX_LOG_EXIT();
+    return status;
+}
+
+/* restart warm [bool] */
+static sai_status_t mlnx_switch_warm_recover_set(_In_ const sai_object_key_t      *key,
+                                                 _In_ const sai_attribute_value_t *value,
+                                                 void                             *arg)
+{
+    sai_status_t status = SAI_STATUS_FAILURE;
+
+    SX_LOG_ENTER();
+
+    sai_db_write_lock();
+    if (value->booldata) {
+        status = mlnx_switch_warmboot_disable(key->key.object_id);
+        if (SAI_ERR(status)) {
+            MLNX_SAI_LOG_ERR("Error disabling warmboot\n");
+            goto out;
+        }
+    }
+    g_sai_db_ptr->warm_recover = value->booldata;
+    status = SAI_STATUS_SUCCESS;
+
+out:
+    sai_db_unlock();
+    SX_LOG_EXIT();
+    return status;
+}
+
 /* LAG hashing seed  [uint32_t] */
 static sai_status_t mlnx_switch_lag_hash_seed_get(_In_ const sai_object_key_t   *key,
                                                   _Inout_ sai_attribute_value_t *value,
@@ -6222,6 +6569,105 @@ static sai_status_t mlnx_switch_supported_stats_modes_get(_In_ const sai_object_
 
     status = mlnx_fill_s32list(modes, sizeof(modes)/sizeof(*modes), &value->s32list);
 
+    SX_LOG_EXIT();
+    return status;
+}
+
+static sai_status_t mlnx_switch_crc_params_apply(void)
+{
+    sai_status_t        status;
+    mlnx_port_config_t *port;
+    uint32_t            ii;
+
+    mlnx_port_phy_foreach(port, ii) {
+        status = mlnx_port_crc_params_apply(port);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to update crc params for all ports\n");
+            return status;
+        }
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_switch_crc_check_get(_In_ const sai_object_key_t   *key,
+                                              _Inout_ sai_attribute_value_t *value,
+                                              _In_ uint32_t                  attr_index,
+                                              _Inout_ vendor_cache_t        *cache,
+                                              void                          *arg)
+{
+    SX_LOG_ENTER();
+    sai_db_read_lock();
+
+    value->booldata = g_sai_db_ptr->crc_check_enable;
+
+    sai_db_unlock();
+    SX_LOG_EXIT();
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_switch_crc_check_set(_In_ const sai_object_key_t      *key,
+                                              _In_ const sai_attribute_value_t *value,
+                                              void                             *arg)
+{
+    sai_status_t status;
+    bool         crc_check_enable_old;
+
+    SX_LOG_ENTER();
+
+    sai_db_write_lock();
+
+    crc_check_enable_old = g_sai_db_ptr->crc_check_enable;
+
+    g_sai_db_ptr->crc_check_enable = value->booldata;
+
+    status = mlnx_switch_crc_params_apply();
+    if (SAI_ERR(status)) {
+        g_sai_db_ptr->crc_check_enable = crc_check_enable_old;
+    }
+
+    sai_db_unlock();
+    SX_LOG_EXIT();
+    return status;
+}
+
+static sai_status_t mlnx_switch_crc_recalculation_get(_In_ const sai_object_key_t   *key,
+                                                      _Inout_ sai_attribute_value_t *value,
+                                                      _In_ uint32_t                  attr_index,
+                                                      _Inout_ vendor_cache_t        *cache,
+                                                      void                          *arg)
+{
+    SX_LOG_ENTER();
+    sai_db_read_lock();
+
+    value->booldata = g_sai_db_ptr->crc_recalc_enable;
+
+    sai_db_unlock();
+    SX_LOG_EXIT();
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_switch_crc_recalculation_set(_In_ const sai_object_key_t      *key,
+                                                      _In_ const sai_attribute_value_t *value,
+                                                      void                             *arg)
+{
+    sai_status_t status;
+    bool         crc_recalc_enable_old;
+
+    SX_LOG_ENTER();
+
+    sai_db_write_lock();
+
+    crc_recalc_enable_old = g_sai_db_ptr->crc_recalc_enable;
+
+    g_sai_db_ptr->crc_recalc_enable = value->booldata;
+
+    status = mlnx_switch_crc_params_apply();
+    if (SAI_ERR(status)) {
+        g_sai_db_ptr->crc_recalc_enable = crc_recalc_enable_old;
+    }
+
+    sai_db_unlock();
     SX_LOG_EXIT();
     return status;
 }

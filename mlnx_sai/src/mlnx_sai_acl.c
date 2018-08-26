@@ -249,30 +249,39 @@ static struct sockaddr_un rpc_sv_sockaddr;
 #endif
 static int                  rpc_cl_socket                 = -1;
 static bool                 is_init_process               = false;
+#define MLNX_ACL_ACTION_LIST_COMMON_DEF    \
+    SAI_ACL_ACTION_TYPE_PACKET_ACTION,     \
+    SAI_ACL_ACTION_TYPE_COUNTER,           \
+    SAI_ACL_ACTION_TYPE_SET_POLICER,       \
+    SAI_ACL_ACTION_TYPE_SET_TC,            \
+    SAI_ACL_ACTION_TYPE_SET_PACKET_COLOR,  \
+    SAI_ACL_ACTION_TYPE_SET_INNER_VLAN_ID, \
+    SAI_ACL_ACTION_TYPE_SET_INNER_VLAN_PRI,\
+    SAI_ACL_ACTION_TYPE_SET_OUTER_VLAN_ID, \
+    SAI_ACL_ACTION_TYPE_SET_OUTER_VLAN_PRI,\
+    SAI_ACL_ACTION_TYPE_SET_SRC_MAC,       \
+    SAI_ACL_ACTION_TYPE_SET_DST_MAC,       \
+    SAI_ACL_ACTION_TYPE_SET_DSCP,          \
+    SAI_ACL_ACTION_TYPE_SET_ECN,           \
+    SAI_ACL_ACTION_TYPE_SET_ACL_META_DATA
+
+#define MLNX_ACL_ACTION_LIST_INGRESS_DEF   \
+    SAI_ACL_ACTION_TYPE_REDIRECT,          \
+    SAI_ACL_ACTION_TYPE_REDIRECT_LIST,     \
+    SAI_ACL_ACTION_TYPE_FLOOD,             \
+    SAI_ACL_ACTION_TYPE_MIRROR_INGRESS
+
+#define MLNX_ACL_ACTION_LIST_EGRESS_DEF   \
+    SAI_ACL_ACTION_TYPE_MIRROR_EGRESS
+
 const sai_acl_action_type_t mlnx_acl_action_list_common[] = {
-    SAI_ACL_ACTION_TYPE_PACKET_ACTION,
-    SAI_ACL_ACTION_TYPE_COUNTER,
-    SAI_ACL_ACTION_TYPE_SET_POLICER,
-    SAI_ACL_ACTION_TYPE_SET_TC,
-    SAI_ACL_ACTION_TYPE_SET_PACKET_COLOR,
-    SAI_ACL_ACTION_TYPE_SET_INNER_VLAN_ID,
-    SAI_ACL_ACTION_TYPE_SET_INNER_VLAN_PRI,
-    SAI_ACL_ACTION_TYPE_SET_OUTER_VLAN_ID,
-    SAI_ACL_ACTION_TYPE_SET_OUTER_VLAN_PRI,
-    SAI_ACL_ACTION_TYPE_SET_SRC_MAC,
-    SAI_ACL_ACTION_TYPE_SET_DST_MAC,
-    SAI_ACL_ACTION_TYPE_SET_DSCP,
-    SAI_ACL_ACTION_TYPE_SET_ECN,
-    SAI_ACL_ACTION_TYPE_SET_ACL_META_DATA,
+   MLNX_ACL_ACTION_LIST_COMMON_DEF
 };
 const sai_acl_action_type_t mlnx_acl_action_list_ingress[] = {
-    SAI_ACL_ACTION_TYPE_REDIRECT,
-    SAI_ACL_ACTION_TYPE_REDIRECT_LIST,
-    SAI_ACL_ACTION_TYPE_FLOOD,
-    SAI_ACL_ACTION_TYPE_MIRROR_INGRESS,
+    MLNX_ACL_ACTION_LIST_INGRESS_DEF
 };
 const sai_acl_action_type_t mlnx_acl_action_list_egress[] = {
-    SAI_ACL_ACTION_TYPE_MIRROR_EGRESS,
+    MLNX_ACL_ACTION_LIST_EGRESS_DEF
 };
 const uint32_t              mlnx_acl_action_list_common_count  = ARRAY_SIZE(mlnx_acl_action_list_common);
 const uint32_t              mlnx_acl_action_list_ingress_count = ARRAY_SIZE(mlnx_acl_action_list_ingress);
@@ -435,7 +444,7 @@ static sai_status_t mlnx_acl_entry_action_counter_set(_In_ const sai_object_key_
 static sai_status_t mlnx_acl_entry_action_mac_set(_In_ const sai_object_key_t      *key,
                                                   _In_ const sai_attribute_value_t *value,
                                                   void                             *arg);
-static sai_status_t mlnx_acl_counter_flag_get(_In_ const sai_object_key_t   *key,
+static sai_status_t mlnx_acl_counter_attr_get(_In_ const sai_object_key_t   *key,
                                               _Inout_ sai_attribute_value_t *value,
                                               _In_ uint32_t                  attr_index,
                                               _Inout_ vendor_cache_t        *cache,
@@ -642,13 +651,15 @@ static sai_status_t extract_acl_table_index(_In_ sai_object_id_t table_object_id
 static sai_status_t mlnx_acl_counter_oid_create(_In_ sx_flow_counter_id_t sx_counter_id,
                                                 _In_ bool                 byte_counter_flag,
                                                 _In_ bool                 packet_counter_flag,
+                                                _In_ uint32_t             table_db_idx,
                                                 _Out_ sai_object_id_t    *counter_oid);
 static sai_status_t mlnx_acl_counter_oid_to_sx(_In_ sai_object_id_t        counter_oid,
                                                _Out_ sx_flow_counter_id_t *sx_counter_id);
 static sai_status_t mlnx_acl_counter_oid_data_get(_In_ sai_object_id_t        counter_oid,
                                                   _Out_ sx_flow_counter_id_t *sx_counter_id,
                                                   _Out_ bool                 *byte_counter_flag,
-                                                  _Out_ bool                 *packet_counter_flag);
+                                                  _Out_ bool                 *packet_counter_flag,
+                                                  _Out_ uint32_t             *table_db_index);
 static sai_status_t acl_create_entry_object_id(_Out_ sai_object_id_t *entry_oid,
                                                _In_ uint32_t          entry_index,
                                                _In_ uint16_t          table_index);
@@ -802,6 +813,9 @@ static bool mlnx_acl_range_type_list_is_unique(_In_ const sai_acl_range_type_t *
 static sai_status_t mlnx_acl_range_validate_and_fetch(_In_ const sai_object_list_t   *range_list,
                                                       _Out_ sx_flex_acl_port_range_t *sx_acl_range,
                                                       _In_ uint32_t                   table_index);
+static sai_status_t mlnx_acl_stage_action_list_fetch(_In_ uint32_t                       stage,
+                                                     _Out_ const sai_acl_action_type_t **actions,
+                                                     _Out_ uint32_t                     *action_count);
 static sai_status_t mlnx_acl_action_list_validate(_In_ const sai_s32_list_t *action_list,
                                                   _In_ sai_acl_stage_t       stage,
                                                   _In_ uint32_t              attr_index);
@@ -1100,9 +1114,9 @@ static const sai_vendor_attribute_entry_t acl_table_vendor_attribs[] = {
       mlnx_acl_table_attrib_get, (void*)SAI_ACL_TABLE_ATTR_SIZE,
       NULL, NULL },
     { SAI_ACL_TABLE_ATTR_ACL_ACTION_TYPE_LIST,
-      {true, false, false, false},
-      {true, false, false, false},
-      NULL, NULL,
+      {true, false, false, true},
+      {true, false, false, true},
+      mlnx_acl_table_attrib_get, (void*)SAI_ACL_TABLE_ATTR_ACL_ACTION_TYPE_LIST,
       NULL, NULL },
     { SAI_ACL_TABLE_ATTR_FIELD_SRC_IPV6,
       { true, false, false, true },
@@ -1380,6 +1394,32 @@ static const sai_vendor_attribute_entry_t acl_table_vendor_attribs[] = {
       NULL, NULL,
       NULL, NULL },
 };
+static const mlnx_attr_enum_info_t acl_table_enum_info[] = {
+#ifndef _WIN32
+    [SAI_ACL_TABLE_ATTR_ACL_ACTION_TYPE_LIST] = ATTR_ENUM_VALUES_LIST(
+        MLNX_ACL_ACTION_LIST_COMMON_DEF,
+        MLNX_ACL_ACTION_LIST_INGRESS_DEF,
+        MLNX_ACL_ACTION_LIST_EGRESS_DEF
+        ),
+#endif
+    [SAI_ACL_TABLE_ATTR_ACL_STAGE] = ATTR_ENUM_VALUES_LIST(
+        SAI_ACL_STAGE_INGRESS,
+        SAI_ACL_STAGE_EGRESS
+        ),
+    [SAI_ACL_TABLE_ATTR_ACL_BIND_POINT_TYPE_LIST] = ATTR_ENUM_VALUES_LIST(
+        SAI_ACL_BIND_POINT_TYPE_PORT,
+        SAI_ACL_BIND_POINT_TYPE_LAG,
+        SAI_ACL_BIND_POINT_TYPE_VLAN,
+        SAI_ACL_BIND_POINT_TYPE_ROUTER_INTERFACE
+        ),
+    [SAI_ACL_TABLE_ATTR_FIELD_ACL_RANGE_TYPE] = ATTR_ENUM_VALUES_LIST(
+        SAI_ACL_RANGE_TYPE_L4_SRC_PORT_RANGE,
+        SAI_ACL_RANGE_TYPE_L4_DST_PORT_RANGE,
+        SAI_ACL_RANGE_TYPE_PACKET_LENGTH
+        ),
+};
+const mlnx_obj_type_attrs_info_t mlnx_acl_table_obj_type_info =
+    { acl_table_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(acl_table_enum_info)};
 
 /* ACL ENTRY VENDOR ATTRIBUTES */
 static const sai_vendor_attribute_entry_t acl_entry_vendor_attribs[] = {
@@ -1589,7 +1629,7 @@ static const sai_vendor_attribute_entry_t acl_entry_vendor_attribs[] = {
       NULL, NULL,
       NULL, NULL },
     { SAI_ACL_ENTRY_ATTR_FIELD_PACKET_VLAN,
-      { true, false, false, true },
+      { true, false, true, true },
       { true, false, true, true },
       mlnx_acl_entry_vlan_tags_get, (void*)SAI_ACL_ENTRY_ATTR_FIELD_PACKET_VLAN,
       mlnx_acl_entry_field_set, (void*)SAI_ACL_ENTRY_ATTR_FIELD_PACKET_VLAN },
@@ -1734,8 +1774,8 @@ static const sai_vendor_attribute_entry_t acl_entry_vendor_attribs[] = {
       mlnx_acl_entry_action_mac_get, (void*)SAI_ACL_ENTRY_ATTR_ACTION_SET_SRC_MAC,
       mlnx_acl_entry_action_mac_set, (void*)SAI_ACL_ENTRY_ATTR_ACTION_SET_SRC_MAC },
     { SAI_ACL_ENTRY_ATTR_ACTION_SET_DST_MAC,
-      { true, false, false, true},
-      { true, false, false, true},
+      { true, false, true, true},
+      { true, false, true, true},
       mlnx_acl_entry_action_mac_get, (void*)SAI_ACL_ENTRY_ATTR_ACTION_SET_DST_MAC,
       mlnx_acl_entry_action_mac_set, (void*)SAI_ACL_ENTRY_ATTR_ACTION_SET_DST_MAC },
     { SAI_ACL_ENTRY_ATTR_ACTION_SET_SRC_IP,
@@ -1809,6 +1849,26 @@ static const sai_vendor_attribute_entry_t acl_entry_vendor_attribs[] = {
       NULL, NULL,
       NULL, NULL },
 };
+static const mlnx_attr_enum_info_t acl_entry_enum_info[] = {
+    [SAI_ACL_ENTRY_ATTR_FIELD_ACL_IP_TYPE] = ATTR_ENUM_VALUES_LIST(
+        SAI_ACL_IP_TYPE_ANY,
+        SAI_ACL_IP_TYPE_IP,
+        SAI_ACL_IP_TYPE_NON_IP,
+        SAI_ACL_IP_TYPE_IPV4ANY,
+        SAI_ACL_IP_TYPE_NON_IPV4,
+        SAI_ACL_IP_TYPE_IPV6ANY,
+        SAI_ACL_IP_TYPE_ARP,
+        SAI_ACL_IP_TYPE_ARP_REQUEST,
+        SAI_ACL_IP_TYPE_ARP_REPLY
+    ),
+    [SAI_ACL_ENTRY_ATTR_FIELD_ACL_IP_FRAG] = ATTR_ENUM_VALUES_ALL(),
+    [SAI_ACL_ENTRY_ATTR_FIELD_PACKET_VLAN] = ATTR_ENUM_VALUES_ALL(),
+    [SAI_ACL_ENTRY_ATTR_ACTION_SET_PACKET_COLOR] = ATTR_ENUM_VALUES_ALL(),
+    [SAI_ACL_ENTRY_ATTR_ACTION_PACKET_ACTION] = ATTR_ENUM_VALUES_ALL(),
+
+};
+const mlnx_obj_type_attrs_info_t mlnx_acl_entry_obj_type_info =
+    { acl_entry_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(acl_entry_enum_info)};
 static const sai_vendor_attribute_entry_t acl_range_vendor_attribs[] = {
     { SAI_ACL_RANGE_ATTR_TYPE,
       { true, false, false, true },
@@ -1826,21 +1886,30 @@ static const sai_vendor_attribute_entry_t acl_range_vendor_attribs[] = {
       NULL, NULL,
       NULL, NULL },
 };
+static const mlnx_attr_enum_info_t acl_range_enum_info[] = {
+    [SAI_ACL_RANGE_ATTR_TYPE] = ATTR_ENUM_VALUES_LIST(
+        SAI_ACL_RANGE_TYPE_PACKET_LENGTH,
+        SAI_ACL_RANGE_TYPE_L4_SRC_PORT_RANGE,
+        SAI_ACL_RANGE_TYPE_L4_DST_PORT_RANGE
+    ),
+};
+const mlnx_obj_type_attrs_info_t mlnx_acl_range_obj_type_info =
+    { acl_range_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(acl_range_enum_info)};
 static const sai_vendor_attribute_entry_t acl_counter_vendor_attribs[] = {
     { SAI_ACL_COUNTER_ATTR_TABLE_ID,
       {true, true, false, true },
       {true, true, false, true },
-      NULL, NULL,
+      mlnx_acl_counter_attr_get, (void*)SAI_ACL_COUNTER_ATTR_TABLE_ID,
       NULL, NULL },
     { SAI_ACL_COUNTER_ATTR_ENABLE_PACKET_COUNT,
       {true, false, false, true},
       {true, false, false, true},
-      mlnx_acl_counter_flag_get, (void*)SAI_ACL_COUNTER_ATTR_ENABLE_PACKET_COUNT,
+      mlnx_acl_counter_attr_get, (void*)SAI_ACL_COUNTER_ATTR_ENABLE_PACKET_COUNT,
       NULL, NULL },
     { SAI_ACL_COUNTER_ATTR_ENABLE_BYTE_COUNT,
       {true, false, false, true},
       {true, false, false, true},
-      mlnx_acl_counter_flag_get, (void*)SAI_ACL_COUNTER_ATTR_ENABLE_BYTE_COUNT,
+      mlnx_acl_counter_attr_get, (void*)SAI_ACL_COUNTER_ATTR_ENABLE_BYTE_COUNT,
       NULL, NULL },
     { SAI_ACL_COUNTER_ATTR_PACKETS,
       {false, false, true, true},
@@ -1858,6 +1927,8 @@ static const sai_vendor_attribute_entry_t acl_counter_vendor_attribs[] = {
       NULL, NULL,
       NULL, NULL },
 };
+const mlnx_obj_type_attrs_info_t mlnx_acl_counter_obj_type_info =
+    { acl_counter_vendor_attribs, OBJ_ATTRS_ENUMS_INFO_EMPTY()};
 static const sai_vendor_attribute_entry_t acl_group_vendor_attribs[] = {
     { SAI_ACL_TABLE_GROUP_ATTR_ACL_STAGE,
       {true, false, false, true},
@@ -1885,6 +1956,18 @@ static const sai_vendor_attribute_entry_t acl_group_vendor_attribs[] = {
       NULL, NULL,
       NULL, NULL },
 };
+static const mlnx_attr_enum_info_t acl_table_group_enum_info[] = {
+    [SAI_ACL_TABLE_GROUP_ATTR_ACL_STAGE] = ATTR_ENUM_VALUES_ALL(),
+    [SAI_ACL_TABLE_GROUP_ATTR_ACL_BIND_POINT_TYPE_LIST] = ATTR_ENUM_VALUES_LIST(
+        SAI_ACL_BIND_POINT_TYPE_PORT,
+        SAI_ACL_BIND_POINT_TYPE_LAG,
+        SAI_ACL_BIND_POINT_TYPE_VLAN,
+        SAI_ACL_BIND_POINT_TYPE_ROUTER_INTERFACE
+        ),
+    [SAI_ACL_TABLE_GROUP_ATTR_TYPE] = ATTR_ENUM_VALUES_ALL(),
+};
+const mlnx_obj_type_attrs_info_t mlnx_acl_table_group_obj_type_info =
+    { acl_group_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(acl_table_group_enum_info)};
 static const sai_vendor_attribute_entry_t acl_group_member_vendor_attribs[] = {
     { SAI_ACL_TABLE_GROUP_MEMBER_ATTR_ACL_TABLE_GROUP_ID,
       {true, false, false, true},
@@ -1907,6 +1990,8 @@ static const sai_vendor_attribute_entry_t acl_group_member_vendor_attribs[] = {
       NULL, NULL,
       NULL, NULL },
 };
+const mlnx_obj_type_attrs_info_t mlnx_acl_table_group_mem_obj_type_info =
+    { acl_group_member_vendor_attribs, OBJ_ATTRS_ENUMS_INFO_EMPTY()};
 acl_group_db_t* sai_acl_db_group_ptr(_In_ uint32_t group_index)
 {
     return (acl_group_db_t*)((uint8_t*)sai_acl_db->acl_groups_db +
@@ -2164,6 +2249,50 @@ static void mlnx_acl_table_locks_deinit(void)
     }
 }
 
+uint32_t mlnx_acl_action_types_count_get(void)
+{
+    return mlnx_acl_action_list_common_count + mlnx_acl_action_list_ingress_count +
+            mlnx_acl_action_list_egress_count;
+}
+
+sai_status_t mlnx_acl_stage_action_types_get(_In_ sai_acl_stage_t  stage,
+                                             _Out_ sai_s32_list_t *list)
+{
+    sai_status_t                 status;
+    int32_t                     *action_types = NULL;
+    const sai_acl_action_type_t *stage_action_list;
+    uint32_t                     action_types_count, stage_action_count, ii;
+
+    assert((stage == SAI_ACL_STAGE_INGRESS) || (stage == SAI_ACL_STAGE_EGRESS));
+    assert(list);
+
+    status = mlnx_acl_stage_action_list_fetch(stage, &stage_action_list, &stage_action_count);
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+    action_types_count = mlnx_acl_action_list_common_count + stage_action_count;
+
+    action_types = calloc(action_types_count, sizeof(*action_types));
+    if (!action_types) {
+        SX_LOG_ERR("Failed to allocate memory\n");
+        return SAI_STATUS_NO_MEMORY;
+    }
+
+    for (ii = 0; ii < stage_action_count; ii++) {
+        action_types[ii] = stage_action_list[ii];
+    }
+
+    for (ii = 0; ii < mlnx_acl_action_list_common_count; ii++) {
+        action_types[ii + stage_action_count] = mlnx_acl_action_list_common[ii];
+    }
+
+    status = mlnx_fill_s32list(action_types, action_types_count, list);
+
+    free(action_types);
+    return status;
+}
+
 /*
  *   Routine Description:
  *       Get Table Attributes
@@ -2186,9 +2315,9 @@ static sai_status_t mlnx_acl_table_attrib_get(_In_ const sai_object_key_t   *key
                                               _Inout_ vendor_cache_t        *cache,
                                               void                          *arg)
 {
-    sai_status_t               status;
-    uint32_t                   acl_table_index, bind_point_type_count, ii;
-    sai_acl_bind_point_type_t *bind_point_types;
+    sai_status_t   status;
+    uint32_t       acl_table_index, bind_point_type_count;
+    const int32_t *bind_point_types;
 
     SX_LOG_ENTER();
 
@@ -2196,7 +2325,8 @@ static sai_status_t mlnx_acl_table_attrib_get(_In_ const sai_object_key_t   *key
            (SAI_ACL_TABLE_ATTR_SIZE == (int64_t)arg) ||
            (SAI_ACL_TABLE_ATTR_ACL_BIND_POINT_TYPE_LIST == (int64_t)arg) ||
            (SAI_ACL_TABLE_ATTR_FIELD_IP_IDENTIFICATION == (int64_t)arg) ||
-           (SAI_ACL_TABLE_ATTR_USER_DEFINED_FIELD_GROUP_MIN == (int64_t)arg));
+           (SAI_ACL_TABLE_ATTR_USER_DEFINED_FIELD_GROUP_MIN == (int64_t)arg) ||
+           (SAI_ACL_TABLE_ATTR_ACL_ACTION_TYPE_LIST == (int64_t) arg));
 
     status = extract_acl_table_index(key->key.object_id, &acl_table_index);
     if (SAI_STATUS_SUCCESS != status) {
@@ -2217,29 +2347,22 @@ static sai_status_t mlnx_acl_table_attrib_get(_In_ const sai_object_key_t   *key
 
     case SAI_ACL_TABLE_ATTR_ACL_BIND_POINT_TYPE_LIST:
         bind_point_type_count = acl_db_table(acl_table_index).bind_point_types.count;
-        bind_point_types      = acl_db_table(acl_table_index).bind_point_types.types;
-
-        if (value->s32list.count < bind_point_type_count) {
-            if (0 == value->s32list.count) {
-                status = MLNX_SAI_STATUS_BUFFER_OVERFLOW_EMPTY_LIST;
-            } else {
-                status = SAI_STATUS_BUFFER_OVERFLOW;
-            }
-            SX_LOG((0 == value->s32list.count) ? SX_LOG_NOTICE : SX_LOG_ERROR,
-                   " Re-allocate list size as list size is not large enough \n");
-            value->s32list.count = bind_point_type_count;
+        bind_point_types      = (const int32_t*) acl_db_table(acl_table_index).bind_point_types.types;
+        status = mlnx_fill_s32list(bind_point_types, bind_point_type_count, &value->s32list);
+        if (SAI_ERR(status)) {
             goto out;
-        } else {
-            for (ii = 0; ii < bind_point_type_count; ii++) {
-                value->s32list.list[ii] = bind_point_types[ii];
-            }
-
-            value->s32list.count = bind_point_type_count;
         }
         break;
 
     case SAI_ACL_TABLE_ATTR_FIELD_IP_IDENTIFICATION:
         value->booldata = acl_db_table(acl_table_index).is_ip_ident_used;
+        break;
+
+    case SAI_ACL_TABLE_ATTR_ACL_ACTION_TYPE_LIST:
+        status = mlnx_acl_stage_action_types_get(acl_db_table(acl_table_index).stage, &value->s32list);
+        if (SAI_ERR(status)) {
+            goto out;
+        }
         break;
     }
 
@@ -2554,9 +2677,9 @@ static sai_status_t mlnx_acl_table_available_counters_get(_In_ const sai_object_
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_acl_stage_action_list_fetch(_In_ uint32_t                       stage,
-                                              _Out_ const sai_acl_action_type_t **actions,
-                                              _Out_ uint32_t                     *action_count)
+static sai_status_t mlnx_acl_stage_action_list_fetch(_In_ uint32_t                       stage,
+                                                     _Out_ const sai_acl_action_type_t **actions,
+                                                     _Out_ uint32_t                     *action_count)
 {
     assert(NULL != actions);
     assert(NULL != action_count);
@@ -5879,7 +6002,7 @@ static sai_status_t mlnx_acl_entry_action_get(_In_ const sai_object_key_t   *key
            (SAI_ACL_ENTRY_ATTR_ACTION_COUNTER == (int64_t)arg) ||
            (SAI_ACL_ENTRY_ATTR_ACTION_SET_DSCP == (int64_t)arg) ||
            (SAI_ACL_ENTRY_ATTR_ACTION_SET_ECN == (int64_t)arg) ||
-           (SAI_ACL_ACTION_TYPE_SET_PACKET_COLOR == (int64_t)arg) ||
+           (SAI_ACL_ENTRY_ATTR_ACTION_SET_PACKET_COLOR == (int64_t)arg) ||
            (SAI_ACL_ENTRY_ATTR_ACTION_SET_ACL_META_DATA == (int64_t)arg));
 
     status = extract_acl_table_index_and_entry_index(key->key.object_id, &acl_table_index, &acl_entry_index);
@@ -5912,7 +6035,7 @@ static sai_status_t mlnx_acl_entry_action_get(_In_ const sai_object_key_t   *key
         action_id = SX_FLEX_ACL_ACTION_SET_DSCP;
         break;
 
-    case SAI_ACL_ACTION_TYPE_SET_PACKET_COLOR:
+    case SAI_ACL_ENTRY_ATTR_ACTION_SET_PACKET_COLOR:
         action_id = SX_FLEX_ACL_ACTION_SET_COLOR;
         break;
 
@@ -5938,6 +6061,7 @@ static sai_status_t mlnx_acl_entry_action_get(_In_ const sai_object_key_t   *key
             status = mlnx_acl_counter_oid_create(acl_db_entry(acl_entry_index).sx_counter_id,
                                                  acl_db_entry(acl_entry_index).counter_byte_flag,
                                                  acl_db_entry(acl_entry_index).counter_packet_flag,
+                                                 acl_table_index,
                                                  &value->aclaction.parameter.oid);
             if (SAI_ERR(status)) {
                 goto out;
@@ -5985,7 +6109,7 @@ static sai_status_t mlnx_acl_entry_action_get(_In_ const sai_object_key_t   *key
         }
         break;
 
-    case SAI_ACL_ACTION_TYPE_SET_PACKET_COLOR:
+    case SAI_ACL_ENTRY_ATTR_ACTION_SET_PACKET_COLOR:
         if (is_action_type_present) {
             value->aclaction.parameter.s32 =
                 flex_acl_rule.action_list_p[action_index].fields.action_set_color.color_val;
@@ -7135,7 +7259,7 @@ static sai_status_t mlnx_acl_entry_action_set(_In_ const sai_object_key_t      *
     assert((SAI_ACL_ENTRY_ATTR_ACTION_SET_POLICER == (int64_t)arg) ||
            (SAI_ACL_ENTRY_ATTR_ACTION_SET_TC == (int64_t)arg) ||
            (SAI_ACL_ENTRY_ATTR_ACTION_SET_DSCP == (int64_t)arg) ||
-           (SAI_ACL_ACTION_TYPE_SET_PACKET_COLOR == (int64_t)arg) ||
+           (SAI_ACL_ENTRY_ATTR_ACTION_SET_PACKET_COLOR == (int64_t)arg) ||
            (SAI_ACL_ENTRY_ATTR_ACTION_SET_ECN == (int64_t)arg) ||
            (SAI_ACL_ENTRY_ATTR_ACTION_DECREMENT_TTL == (int64_t)arg) ||
            (SAI_ACL_ENTRY_ATTR_ACTION_SET_ACL_META_DATA == (int64_t)arg));
@@ -7166,7 +7290,7 @@ static sai_status_t mlnx_acl_entry_action_set(_In_ const sai_object_key_t      *
         action_type = SX_FLEX_ACL_ACTION_SET_DSCP;
         break;
 
-    case SAI_ACL_ACTION_TYPE_SET_PACKET_COLOR:
+    case SAI_ACL_ENTRY_ATTR_ACTION_SET_PACKET_COLOR:
         action_type = SX_FLEX_ACL_ACTION_SET_COLOR;
         break;
 
@@ -7243,7 +7367,7 @@ static sai_status_t mlnx_acl_entry_action_set(_In_ const sai_object_key_t      *
         }
         break;
 
-    case SAI_ACL_ACTION_TYPE_SET_PACKET_COLOR:
+    case SAI_ACL_ENTRY_ATTR_ACTION_SET_PACKET_COLOR:
         if (value->aclaction.enable == true) {
             flex_acl_rule.action_list_p[flex_action_index].fields.action_set_color.color_val =
                 value->aclaction.parameter.s32;
@@ -7904,7 +8028,7 @@ static sai_status_t mlnx_acl_entry_action_counter_set(_In_ const sai_object_key_
     sx_flex_acl_flex_rule_t flex_acl_rule = MLNX_ACL_SX_FLEX_RULE_EMPTY;
     sx_flow_counter_id_t    sx_counter_id;
     uint32_t                flex_action_index;
-    uint32_t                acl_table_index, acl_entry_index;
+    uint32_t                acl_table_index, acl_entry_index, counter_table_idx;
     bool                    is_action_type_present = false;
     bool                    counter_byte_flag, counter_packet_flag;
 
@@ -7936,8 +8060,16 @@ static sai_status_t mlnx_acl_entry_action_counter_set(_In_ const sai_object_key_
         status = mlnx_acl_counter_oid_data_get(value->aclaction.parameter.oid,
                                                &sx_counter_id,
                                                &counter_byte_flag,
-                                               &counter_packet_flag);
+                                               &counter_packet_flag,
+                                               &counter_table_idx);
         if (SAI_ERR(status)) {
+            goto out;
+        }
+
+        if (counter_table_idx != acl_table_index) {
+            SX_LOG_ERR("Failed to set counter oid %lx - counter's table %d != entry's table %d\n",
+                       value->aclaction.parameter.oid, counter_table_idx, acl_table_index);
+            status = SAI_STATUS_INVALID_ATTR_VALUE_0;
             goto out;
         }
 
@@ -8231,7 +8363,7 @@ sai_status_t mlnx_create_acl_entry(_Out_ sai_object_id_t     * acl_entry_id,
     uint32_t action_set_outer_vlan_id_index, action_set_outer_vlan_pri_index;
     uint32_t action_flood_index, action_egress_block_index;
     uint32_t in_port_data, out_port_data, action_set_policer_data;
-    uint32_t acl_table_index, acl_entry_index = ACL_INVALID_DB_INDEX;
+    uint32_t acl_table_index, acl_entry_index = ACL_INVALID_DB_INDEX, counter_table_idx;
     uint32_t key_desc_index    = 0;
     uint16_t trap_id           = SX_TRAP_ID_ACL_MIN;
     uint8_t  flex_action_index = 0;
@@ -8244,6 +8376,7 @@ sai_status_t mlnx_create_acl_entry(_Out_ sai_object_id_t     * acl_entry_id,
     bool     is_table_dynamic_sized, is_ip_idnet_used;
     uint32_t sx_rule_prio;
     bool     is_offset_allocated = false, is_sx_rule_set = false;
+    bool     counter_byte_flag = false, counter_packet_flag = false;
 
     SX_LOG_ENTER();
 
@@ -8605,8 +8738,16 @@ sai_status_t mlnx_create_acl_entry(_Out_ sai_object_id_t     * acl_entry_id,
                             &action_counter_index)) {
         if (action_counter->aclaction.enable == true) {
             counter_oid = action_counter->aclaction.parameter.oid;
-            status      = mlnx_acl_counter_oid_to_sx(counter_oid, &sx_counter_id);
+            status = mlnx_acl_counter_oid_data_get(counter_oid, &sx_counter_id, &counter_byte_flag,
+                                                   &counter_packet_flag, &counter_table_idx);
             if (SAI_ERR(status)) {
+                goto out;
+            }
+
+            if (counter_table_idx != acl_table_index) {
+                SX_LOG_ERR("Failed to set counter oid %lx - counter's table %d != entry's table %d\n",
+                           action_counter->aclaction.parameter.oid, counter_table_idx, acl_table_index);
+                status = SAI_STATUS_INVALID_ATTR_VALUE_0 + action_counter_index;
                 goto out;
             }
 
@@ -8728,7 +8869,7 @@ sai_status_t mlnx_create_acl_entry(_Out_ sai_object_id_t     * acl_entry_id,
     }
 
     if (SAI_STATUS_SUCCESS ==
-        find_attrib_in_list(attr_count, attr_list, SAI_ACL_ACTION_TYPE_SET_PACKET_COLOR, &action_set_color,
+        find_attrib_in_list(attr_count, attr_list, SAI_ACL_ENTRY_ATTR_ACTION_SET_PACKET_COLOR, &action_set_color,
                             &action_set_color_index)) {
         if (action_set_color->aclaction.enable == true) {
             flex_acl_rule.action_list_p[flex_action_index].fields.action_set_color.color_val =
@@ -8879,6 +9020,8 @@ sai_status_t mlnx_create_acl_entry(_Out_ sai_object_id_t     * acl_entry_id,
     acl_db_entry(acl_entry_index).sx_prio          = sx_rule_prio;
     acl_db_entry(acl_entry_index).offset           = sx_acl_rule_offset;
     acl_db_entry(acl_entry_index).sx_counter_id    = sx_counter_id;
+    acl_db_entry(acl_entry_index).counter_byte_flag = counter_byte_flag;
+    acl_db_entry(acl_entry_index).counter_packet_flag = counter_packet_flag;
     acl_db_entry(acl_entry_index).next_entry_index = ACL_INVALID_DB_INDEX;
     acl_db_entry(acl_entry_index).prev_entry_index = ACL_INVALID_DB_INDEX;
     acl_db_entry(acl_entry_index).pbs_index        = pbs_index;
@@ -9423,7 +9566,7 @@ static void acl_counter_key_to_str(_In_ sai_object_id_t acl_counter_id, _Out_ ch
     bool                 byte_counter_flag;
     bool                 packet_counter_flag;
 
-    status = mlnx_acl_counter_oid_data_get(acl_counter_id, &sx_counter_id, &byte_counter_flag, &packet_counter_flag);
+    status = mlnx_acl_counter_oid_data_get(acl_counter_id, &sx_counter_id, &byte_counter_flag, &packet_counter_flag, NULL);
     if (SAI_ERR(status)) {
         snprintf(key_str, MAX_KEY_STR_LEN, "Invalid acl counter id");
     } else {
@@ -9569,15 +9712,19 @@ out:
 static sai_status_t mlnx_acl_counter_oid_create(_In_ sx_flow_counter_id_t sx_counter_id,
                                                 _In_ bool                 byte_counter_flag,
                                                 _In_ bool                 packet_counter_flag,
+                                                _In_ uint32_t             table_db_idx,
                                                 _Out_ sai_object_id_t    *counter_oid)
 {
     mlnx_object_id_t mlnx_counter_obj = {0};
 
     assert(counter_oid);
 
-    mlnx_counter_obj.id.flow_counter_id                = sx_counter_id;
-    mlnx_counter_obj.ext.flow_counter_type.byte_flag   = byte_counter_flag;
-    mlnx_counter_obj.ext.flow_counter_type.packet_flag = packet_counter_flag;
+    memset(counter_oid, 0, sizeof(*counter_oid));
+
+    mlnx_counter_obj.id.flow_counter_id                 = sx_counter_id;
+    mlnx_counter_obj.ext.flow_counter_type.byte_flag    = byte_counter_flag;
+    mlnx_counter_obj.ext.flow_counter_type.packet_flag  = packet_counter_flag;
+    mlnx_counter_obj.ext.flow_counter_type.table_db_idx = table_db_idx;
 
     return mlnx_object_id_to_sai(SAI_OBJECT_TYPE_ACL_COUNTER, &mlnx_counter_obj, counter_oid);
 }
@@ -9587,13 +9734,14 @@ static sai_status_t mlnx_acl_counter_oid_to_sx(_In_ sai_object_id_t        count
 {
     assert(sx_counter_id);
 
-    return mlnx_acl_counter_oid_data_get(counter_oid, sx_counter_id, NULL, NULL);
+    return mlnx_acl_counter_oid_data_get(counter_oid, sx_counter_id, NULL, NULL, NULL);
 }
 
 static sai_status_t mlnx_acl_counter_oid_data_get(_In_ sai_object_id_t        counter_oid,
                                                   _Out_ sx_flow_counter_id_t *sx_counter_id,
                                                   _Out_ bool                 *byte_counter_flag,
-                                                  _Out_ bool                 *packet_counter_flag)
+                                                  _Out_ bool                 *packet_counter_flag,
+                                                  _Out_ uint32_t             *table_db_index)
 {
     sai_status_t     status;
     mlnx_object_id_t mlnx_counter_obj = {0};
@@ -9615,24 +9763,30 @@ static sai_status_t mlnx_acl_counter_oid_data_get(_In_ sai_object_id_t        co
         *packet_counter_flag = mlnx_counter_obj.ext.flow_counter_type.packet_flag;
     }
 
+    if (table_db_index) {
+        *table_db_index = mlnx_counter_obj.ext.flow_counter_type.table_db_idx;
+    }
+
     return SAI_STATUS_SUCCESS;
 }
 
-static sai_status_t mlnx_acl_counter_flag_get(_In_ const sai_object_key_t   *key,
+static sai_status_t mlnx_acl_counter_attr_get(_In_ const sai_object_key_t   *key,
                                               _Inout_ sai_attribute_value_t *value,
                                               _In_ uint32_t                  attr_index,
                                               _Inout_ vendor_cache_t        *cache,
                                               void                          *arg)
 {
     sai_status_t status;
+    uint32_t     table_db_idx;
     bool         byte_counter_flag, packet_counter_flag;
 
     SX_LOG_ENTER();
 
     assert((SAI_ACL_COUNTER_ATTR_ENABLE_PACKET_COUNT == (int64_t)arg) ||
-           (SAI_ACL_COUNTER_ATTR_ENABLE_BYTE_COUNT == (int64_t)arg));
+           (SAI_ACL_COUNTER_ATTR_ENABLE_BYTE_COUNT == (int64_t)arg) ||
+           (SAI_ACL_COUNTER_ATTR_TABLE_ID) == (int64_t)arg);
 
-    status = mlnx_acl_counter_oid_data_get(key->key.object_id, NULL, &byte_counter_flag, &packet_counter_flag);
+    status = mlnx_acl_counter_oid_data_get(key->key.object_id, NULL, &byte_counter_flag, &packet_counter_flag, &table_db_idx);
     if (SAI_ERR(status)) {
         goto out;
     }
@@ -9644,6 +9798,13 @@ static sai_status_t mlnx_acl_counter_flag_get(_In_ const sai_object_key_t   *key
 
     case SAI_ACL_COUNTER_ATTR_ENABLE_BYTE_COUNT:
         value->booldata = byte_counter_flag;
+        break;
+
+    case SAI_ACL_COUNTER_ATTR_TABLE_ID:
+        status = mlnx_create_object(SAI_OBJECT_TYPE_ACL_TABLE, table_db_idx, NULL, &value->oid);
+        if (SAI_ERR(status)) {
+            goto out;
+        }
         break;
     }
 
@@ -9744,7 +9905,9 @@ static sai_status_t mlnx_create_acl_counter(_Out_ sai_object_id_t      *acl_coun
         goto out;
     }
 
-    status = mlnx_acl_counter_oid_create(sx_counter_id, byte_counter_flag, packet_counter_flag, acl_counter_id);
+    acl_db_table(acl_table_id).counter_ref++;
+
+    status = mlnx_acl_counter_oid_create(sx_counter_id, byte_counter_flag, packet_counter_flag, acl_table_id, acl_counter_id);
     if (SAI_ERR(status)) {
         goto out;
     }
@@ -9925,6 +10088,14 @@ static sai_status_t mlnx_delete_acl_table(_In_ sai_object_id_t acl_table_id)
         return SAI_STATUS_OBJECT_IN_USE;
     }
 
+    if (0 != acl_db_table(table_index).counter_ref) {
+        SX_LOG_ERR("Attempt to delete table that referenced by %u counters\n", acl_db_table(table_index).counter_ref);
+        acl_table_unlock(table_index);
+        sai_db_unlock();
+        SX_LOG_EXIT();
+        return SAI_STATUS_OBJECT_IN_USE;
+    }
+
     group_references = acl_db_table(table_index).group_references;
 
     if (0 != group_references) {
@@ -10034,6 +10205,7 @@ static sai_status_t mlnx_delete_acl_counter(_In_ sai_object_id_t acl_counter_id)
     sai_status_t           status;
     bool                   is_byte_counter, is_packet_counter;
     sx_flow_counter_type_t counter_type;
+    uint32_t               table_db_idx;
 
     SX_LOG_ENTER();
 
@@ -10042,7 +10214,7 @@ static sai_status_t mlnx_delete_acl_counter(_In_ sai_object_id_t acl_counter_id)
 
     acl_global_lock();
 
-    status = mlnx_acl_counter_oid_data_get(acl_counter_id, &sx_counter_id, &is_byte_counter, &is_packet_counter);
+    status = mlnx_acl_counter_oid_data_get(acl_counter_id, &sx_counter_id, &is_byte_counter, &is_packet_counter, &table_db_idx);
     if (SAI_ERR(status)) {
         goto out;
     }
@@ -10064,6 +10236,12 @@ static sai_status_t mlnx_delete_acl_counter(_In_ sai_object_id_t acl_counter_id)
         SX_LOG_ERR("Failed delete counter - %s.\n", SX_STATUS_MSG(sx_status));
         status = sdk_to_sai(sx_status);
         goto out;
+    }
+
+    if (acl_db_table(table_db_idx).counter_ref == 0) {
+        SX_LOG_ERR("Failed to decrease counter reference for table %d\n", table_db_idx);
+    } else {
+        acl_db_table(table_db_idx).counter_ref--;
     }
 
 out:

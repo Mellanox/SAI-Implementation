@@ -64,6 +64,8 @@ static const sai_vendor_attribute_entry_t stp_vendor_attribs[] = {
       NULL, NULL,
       NULL, NULL }
 };
+const mlnx_obj_type_attrs_info_t mlnx_stp_obj_type_info =
+    { stp_vendor_attribs, OBJ_ATTRS_ENUMS_INFO_EMPTY()};
 static sai_status_t mlnx_stp_port_stp_id_get(_In_ const sai_object_key_t   *key,
                                              _Inout_ sai_attribute_value_t *value,
                                              _In_ uint32_t                  attr_index,
@@ -104,6 +106,11 @@ static const sai_vendor_attribute_entry_t stp_port_vendor_attribs[] = {
       NULL, NULL,
       NULL, NULL }
 };
+static const mlnx_attr_enum_info_t stp_port_enum_info[] = {
+    [SAI_STP_PORT_ATTR_STATE] = ATTR_ENUM_VALUES_ALL()
+};
+const mlnx_obj_type_attrs_info_t mlnx_stp_port_obj_type_info =
+    { stp_port_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(stp_port_enum_info)};
 static void stp_id_to_str(_In_ sai_object_id_t sai_stp_id, _Out_ char *key_str)
 {
     uint32_t     data;

@@ -70,6 +70,16 @@ static const sai_vendor_attribute_entry_t neighbor_vendor_attribs[] = {
       NULL, NULL,
       NULL, NULL }
 };
+static const mlnx_attr_enum_info_t neighbor_enum_info[] = {
+    [SAI_NEIGHBOR_ENTRY_ATTR_PACKET_ACTION] = ATTR_ENUM_VALUES_LIST(
+        SAI_PACKET_ACTION_FORWARD,
+        SAI_PACKET_ACTION_TRAP,
+        SAI_PACKET_ACTION_LOG,
+        SAI_PACKET_ACTION_DROP
+        )
+};
+const mlnx_obj_type_attrs_info_t mlnx_neighbor_obj_type_info =
+    { neighbor_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(neighbor_enum_info)};
 static void neighbor_key_to_str(_In_ const sai_neighbor_entry_t* neighbor_entry, _Out_ char *key_str)
 {
     int      res1, res2;

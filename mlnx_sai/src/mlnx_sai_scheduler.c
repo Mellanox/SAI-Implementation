@@ -74,6 +74,15 @@ static const sai_vendor_attribute_entry_t sched_vendor_attribs[] = {
       NULL, NULL,
       NULL, NULL }
 };
+static const mlnx_attr_enum_info_t sched_enum_info[] = {
+    [SAI_SCHEDULER_ATTR_SCHEDULING_TYPE] = ATTR_ENUM_VALUES_LIST(
+        SAI_SCHEDULING_TYPE_STRICT,
+        SAI_SCHEDULING_TYPE_DWRR),
+    [SAI_SCHEDULER_ATTR_METER_TYPE] = ATTR_ENUM_VALUES_LIST(
+        SAI_METER_TYPE_BYTES)
+};
+const mlnx_obj_type_attrs_info_t mlnx_scheduler_obj_type_info =
+    { sched_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(sched_enum_info)};
 static sai_status_t sched_db_entry_get(sai_object_id_t oid, mlnx_sched_profile_t **sched)
 {
     sai_status_t status;

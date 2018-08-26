@@ -54,7 +54,11 @@ static const sai_vendor_attribute_entry_t qos_map_vendor_attribs[] = {
       NULL, NULL,
       NULL, NULL }
 };
-
+static const mlnx_attr_enum_info_t qos_map_enum_info[] = {
+    [SAI_QOS_MAP_ATTR_TYPE] = ATTR_ENUM_VALUES_ALL(),
+};
+const mlnx_obj_type_attrs_info_t mlnx_qos_map_obj_type_info =
+    { qos_map_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(qos_map_enum_info)};
 /* db read lock is needed */
 static mlnx_qos_map_t * db_qos_map_get(uint32_t id)
 {

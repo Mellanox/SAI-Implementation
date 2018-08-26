@@ -68,6 +68,13 @@ static const sai_vendor_attribute_entry_t samplepacket_vendor_attribs[] = {
       NULL, NULL,
       NULL, NULL }
 };
+static const mlnx_attr_enum_info_t smaplepacket_enum_info[] = {
+    [SAI_SAMPLEPACKET_ATTR_TYPE] = ATTR_ENUM_VALUES_ALL(),
+    [SAI_SAMPLEPACKET_ATTR_MODE] = ATTR_ENUM_VALUES_LIST(
+        SAI_SAMPLEPACKET_MODE_EXCLUSIVE)
+};
+const mlnx_obj_type_attrs_info_t mlnx_samplepacket_obj_type_info =
+    { samplepacket_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(smaplepacket_enum_info)};
 static void samplepacket_key_to_str(_In_ const sai_object_id_t sai_samplepacket_obj_id, _Out_ char *key_str)
 {
     uint32_t internal_samplepacket_obj_idx = 0;

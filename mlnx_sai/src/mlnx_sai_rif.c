@@ -127,6 +127,19 @@ static const sai_vendor_attribute_entry_t rif_vendor_attribs[] = {
       NULL, NULL,
       NULL, NULL }
 };
+static const mlnx_attr_enum_info_t rif_enum_info[] = {
+    [SAI_ROUTER_INTERFACE_ATTR_TYPE] = ATTR_ENUM_VALUES_LIST(
+        SAI_ROUTER_INTERFACE_TYPE_PORT,
+        SAI_ROUTER_INTERFACE_TYPE_VLAN,
+        SAI_ROUTER_INTERFACE_TYPE_LOOPBACK,
+        SAI_ROUTER_INTERFACE_TYPE_BRIDGE,
+        SAI_ROUTER_INTERFACE_TYPE_SUB_PORT),
+    [SAI_ROUTER_INTERFACE_ATTR_LOOPBACK_PACKET_ACTION] = ATTR_ENUM_VALUES_LIST(
+        SAI_PACKET_ACTION_DROP,
+        SAI_PACKET_ACTION_FORWARD),
+};
+const mlnx_obj_type_attrs_info_t mlnx_rif_obj_type_info =
+    { rif_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(rif_enum_info)};
 static void rif_key_to_str(_In_ sai_object_id_t rif_id, _Out_ char *key_str)
 {
     const mlnx_object_id_t *mlnx_oid = (const mlnx_object_id_t*)&rif_id;

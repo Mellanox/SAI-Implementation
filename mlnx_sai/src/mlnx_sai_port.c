@@ -389,12 +389,12 @@ static const sai_vendor_attribute_entry_t port_vendor_attribs[] = {
       { false, false, true, true },
       { false, false, true, true },
       mlnx_port_state_get, (void*)SAI_PORT_ATTR_ADMIN_STATE,
-      mlnx_port_state_set, NULL },
+      mlnx_port_state_set, NULL },/*
     { SAI_PORT_ATTR_MEDIA_TYPE,
       { false, false, false, false },
       { false, false, true, true },
       NULL, NULL,
-      NULL, NULL },
+      NULL, NULL },*/
     { SAI_PORT_ATTR_PORT_VLAN_ID,
       { false, false, true, true },
       { false, false, true, true },
@@ -481,7 +481,7 @@ static const sai_vendor_attribute_entry_t port_vendor_attribs[] = {
       mlnx_port_samplepacket_session_get, (void*)SAMPLEPACKET_INGRESS_PORT,
       mlnx_port_samplepacket_session_set, (void*)SAMPLEPACKET_INGRESS_PORT },
     { SAI_PORT_ATTR_EGRESS_SAMPLEPACKET_ENABLE,
-      { false, false, false, false },
+      { false, false, true, true },
       { false, false, true, true },
       mlnx_port_samplepacket_session_get, (void*)SAMPLEPACKET_EGRESS_PORT,
       mlnx_port_samplepacket_session_set, (void*)SAMPLEPACKET_EGRESS_PORT },
@@ -617,6 +617,46 @@ static const sai_vendor_attribute_entry_t port_vendor_attribs[] = {
       NULL, NULL,
       NULL, NULL }
 };
+static const mlnx_attr_enum_info_t port_enum_info[] = {
+    [SAI_PORT_ATTR_TYPE] =
+        ATTR_ENUM_VALUES_ALL(),
+
+    [SAI_PORT_ATTR_OPER_STATUS] = ATTR_ENUM_VALUES_LIST(
+        SAI_PORT_OPER_STATUS_UP,
+        SAI_PORT_OPER_STATUS_DOWN,
+        SAI_PORT_OPER_STATUS_UNKNOWN),
+
+    [SAI_PORT_ATTR_SUPPORTED_BREAKOUT_MODE_TYPE] =
+        ATTR_ENUM_VALUES_ALL(),
+
+    [SAI_PORT_ATTR_CURRENT_BREAKOUT_MODE_TYPE] = ATTR_ENUM_VALUES_LIST(
+        SAI_PORT_BREAKOUT_MODE_TYPE_1_LANE),
+
+    [SAI_PORT_ATTR_INTERNAL_LOOPBACK_MODE] = ATTR_ENUM_VALUES_LIST(
+        SAI_PORT_INTERNAL_LOOPBACK_MODE_MAC,
+        SAI_PORT_INTERNAL_LOOPBACK_MODE_NONE),
+
+    [SAI_PORT_ATTR_FEC_MODE] = ATTR_ENUM_VALUES_LIST(
+        SAI_PORT_FEC_MODE_NONE,
+        SAI_PORT_FEC_MODE_FC,
+        SAI_PORT_FEC_MODE_RS),
+
+    [SAI_PORT_ATTR_GLOBAL_FLOW_CONTROL_MODE] = ATTR_ENUM_VALUES_LIST(
+        SAI_PORT_FLOW_CONTROL_MODE_DISABLE,
+        SAI_PORT_FLOW_CONTROL_MODE_TX_ONLY,
+        SAI_PORT_FLOW_CONTROL_MODE_RX_ONLY,
+        SAI_PORT_FLOW_CONTROL_MODE_BOTH_ENABLE),
+
+    [SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL_MODE] = ATTR_ENUM_VALUES_LIST(
+        SAI_PORT_PRIORITY_FLOW_CONTROL_MODE_COMBINED,
+        SAI_PORT_PRIORITY_FLOW_CONTROL_MODE_SEPARATE),
+    [SAI_PORT_ATTR_SUPPORTED_FEC_MODE] = ATTR_ENUM_VALUES_LIST(
+        SAI_PORT_FEC_MODE_NONE,
+        SAI_PORT_FEC_MODE_FC,
+        SAI_PORT_FEC_MODE_RS),
+};
+const mlnx_obj_type_attrs_info_t mlnx_port_obj_type_info =
+    { port_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(port_enum_info)};
 static const sai_vendor_attribute_entry_t port_pool_vendor_attribs[] = {
     { SAI_PORT_POOL_ATTR_PORT_ID,
       { true, false, false, true },
@@ -639,6 +679,8 @@ static const sai_vendor_attribute_entry_t port_pool_vendor_attribs[] = {
       NULL, NULL,
       NULL, NULL}
 };
+const mlnx_obj_type_attrs_info_t mlnx_port_pool_obj_type_info =
+    { port_pool_vendor_attribs, OBJ_ATTRS_ENUMS_INFO_EMPTY()};
 
 /* Admin Mode [bool] */
 static sai_status_t mlnx_port_state_set(_In_ const sai_object_key_t      *key,
@@ -6064,6 +6106,27 @@ static sai_status_t mlnx_port_autoneg_get_impl(_In_ sx_port_log_id_t sx_port, _I
     return mlnx_port_cb->autoneg_get(sx_port, value);
 }
 
+sai_status_t mlnx_port_crc_params_apply(const mlnx_port_config_t *port)
+{
+    sx_status_t          sx_status;
+    sx_port_crc_params_t crc_params;
+
+    memset(&crc_params, 0, sizeof(crc_params));
+
+    crc_params.bad_crc_ingress_mode   = g_sai_db_ptr->crc_check_enable ? SX_PORT_BAD_CRC_INGRESS_MODE_DROP :
+                                                                         SX_PORT_BAD_CRC_INGRESS_MODE_FORWARD;
+    crc_params.crc_egress_recalc_mode = g_sai_db_ptr->crc_recalc_enable ? SX_PORT_CRC_EGRESS_RECALC_MODE_ALLOW :
+                                                                          SX_PORT_CRC_EGRESS_RECALC_MODE_PREVENT;
+
+    sx_status = sx_api_port_crc_params_set(gh_sdk, port->logical, &crc_params);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to set crc params for port %x - %s\n", port->logical, SX_STATUS_MSG(sx_status));
+        return sdk_to_sai(sx_status);
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
 sai_status_t mlnx_port_config_init(mlnx_port_config_t *port)
 {
     sx_port_admin_state_t      state = SX_PORT_ADMIN_STATUS_DOWN;
@@ -6603,6 +6666,11 @@ static sai_status_t mlnx_create_port(_Out_ sai_object_id_t     * port_id,
     status = mlnx_hash_ecmp_cfg_apply_on_port(new_port->logical);
     if (SAI_ERR(status)) {
         SX_LOG_ERR("Failed to apply ECMP config on port %x\n", new_port->logical);
+        goto out_unlock;
+    }
+
+    status = mlnx_port_crc_params_apply(new_port);
+    if (SAI_ERR(status)) {
         goto out_unlock;
     }
 

@@ -193,6 +193,8 @@ static const sai_vendor_attribute_entry_t vlan_vendor_attribs[] = {
       NULL, NULL,
       NULL, NULL }
 };
+const mlnx_obj_type_attrs_info_t mlnx_vlan_obj_type_info =
+    { vlan_vendor_attribs, OBJ_ATTRS_ENUMS_INFO_EMPTY()};
 static const sai_vendor_attribute_entry_t vlan_member_vendor_attribs[] = {
     { SAI_VLAN_MEMBER_ATTR_VLAN_ID,
       { true, false, false, true },
@@ -215,6 +217,11 @@ static const sai_vendor_attribute_entry_t vlan_member_vendor_attribs[] = {
       NULL, NULL,
       NULL, NULL }
 };
+static const mlnx_attr_enum_info_t vlan_member_enum_info[] = {
+    [SAI_VLAN_MEMBER_ATTR_VLAN_TAGGING_MODE] = ATTR_ENUM_VALUES_ALL()
+};
+const mlnx_obj_type_attrs_info_t mlnx_vlan_member_obj_type_info =
+    { vlan_member_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(vlan_member_enum_info)};
 static void vlan_key_to_str(_In_ sai_vlan_id_t vlan_id, _Out_ char *key_str)
 {
     snprintf(key_str, MAX_KEY_STR_LEN, "vlan %u", vlan_id);

@@ -225,7 +225,23 @@ static const sai_vendor_attribute_entry_t tunnel_map_entry_vendor_attribs[] = {
       { true, false, false, true },
       mlnx_tunnel_map_entry_attr_key_value_get, (void*)MLNX_BRIDGE_ID_VALUE,
       NULL, NULL },
+    { END_FUNCTIONALITY_ATTRIBS_ID,
+      { false, false, false, false },
+      { false, false, false, false },
+      NULL, NULL,
+      NULL, NULL }
 };
+static const mlnx_attr_enum_info_t tunnel_map_entry_enum_info[] = {
+    [SAI_TUNNEL_MAP_ENTRY_ATTR_TUNNEL_MAP_TYPE] = ATTR_ENUM_VALUES_LIST(
+        SAI_TUNNEL_MAP_TYPE_OECN_TO_UECN,
+        SAI_TUNNEL_MAP_TYPE_UECN_OECN_TO_OECN,
+        SAI_TUNNEL_MAP_TYPE_VNI_TO_VLAN_ID,
+        SAI_TUNNEL_MAP_TYPE_VLAN_ID_TO_VNI,
+        SAI_TUNNEL_MAP_TYPE_VNI_TO_BRIDGE_IF,
+        SAI_TUNNEL_MAP_TYPE_BRIDGE_IF_TO_VNI)
+};
+const mlnx_obj_type_attrs_info_t mlnx_tunnel_map_entry_obj_type_info =
+    { tunnel_map_entry_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(tunnel_map_entry_enum_info)};
 
 /* is_implemented: create, remove, set, get
  *   is_supported: create, remove, set, get
@@ -247,6 +263,17 @@ static const sai_vendor_attribute_entry_t tunnel_map_vendor_attribs[] = {
       NULL, NULL,
       NULL, NULL }
 };
+static const mlnx_attr_enum_info_t tunnel_map_enum_info[] = {
+    [SAI_TUNNEL_MAP_ATTR_TYPE] = ATTR_ENUM_VALUES_LIST(
+        SAI_TUNNEL_MAP_TYPE_OECN_TO_UECN,
+        SAI_TUNNEL_MAP_TYPE_UECN_OECN_TO_OECN,
+        SAI_TUNNEL_MAP_TYPE_VNI_TO_VLAN_ID,
+        SAI_TUNNEL_MAP_TYPE_VLAN_ID_TO_VNI,
+        SAI_TUNNEL_MAP_TYPE_VNI_TO_BRIDGE_IF,
+        SAI_TUNNEL_MAP_TYPE_BRIDGE_IF_TO_VNI)
+};
+const mlnx_obj_type_attrs_info_t mlnx_tunnel_map_obj_type_info =
+    { tunnel_map_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(tunnel_map_enum_info)};
 
 /* is_implemented: create, remove, set, get
  *   is_supported: create, remove, set, get
@@ -303,8 +330,8 @@ static const sai_vendor_attribute_entry_t tunnel_vendor_attribs[] = {
       mlnx_tunnel_encap_gre_key_get, NULL,
       NULL, NULL },
     { SAI_TUNNEL_ATTR_ENCAP_ECN_MODE,
-      { true, false, true, true },
-      { true, false, true, true },
+      { true, false, false, true },
+      { true, false, false, true },
       mlnx_tunnel_encap_ecn_mode_get, NULL,
       NULL, NULL },
     { SAI_TUNNEL_ATTR_ENCAP_MAPPERS,
@@ -313,8 +340,8 @@ static const sai_vendor_attribute_entry_t tunnel_vendor_attribs[] = {
       mlnx_tunnel_mappers_get, (void*)TUNNEL_ENCAP,
       mlnx_tunnel_mappers_set, (void*)TUNNEL_ENCAP },
     { SAI_TUNNEL_ATTR_DECAP_ECN_MODE,
-      { true, false, true, true },
-      { true, false, true, true },
+      { true, false, false, true },
+      { true, false, false, true },
       mlnx_tunnel_decap_ecn_mode_get, NULL,
       NULL, NULL },
     { SAI_TUNNEL_ATTR_DECAP_MAPPERS,
@@ -338,7 +365,22 @@ static const sai_vendor_attribute_entry_t tunnel_vendor_attribs[] = {
       NULL, NULL,
       NULL, NULL }
 };
-
+static const mlnx_attr_enum_info_t tunnel_enum_info[] = {
+    [SAI_TUNNEL_ATTR_TYPE] = ATTR_ENUM_VALUES_LIST(
+        SAI_TUNNEL_TYPE_IPINIP,
+        SAI_TUNNEL_TYPE_IPINIP_GRE,
+        SAI_TUNNEL_TYPE_VXLAN),
+    [SAI_TUNNEL_ATTR_ENCAP_TTL_MODE] = ATTR_ENUM_VALUES_LIST(
+        SAI_TUNNEL_TTL_MODE_PIPE_MODEL),
+    [SAI_TUNNEL_ATTR_ENCAP_DSCP_MODE] = ATTR_ENUM_VALUES_ALL(),
+    [SAI_TUNNEL_ATTR_ENCAP_ECN_MODE] = ATTR_ENUM_VALUES_ALL(),
+    [SAI_TUNNEL_ATTR_DECAP_TTL_MODE] = ATTR_ENUM_VALUES_LIST(
+        SAI_TUNNEL_TTL_MODE_PIPE_MODEL),
+    [SAI_TUNNEL_ATTR_DECAP_DSCP_MODE] = ATTR_ENUM_VALUES_ALL(),
+    [SAI_TUNNEL_ATTR_DECAP_ECN_MODE] = ATTR_ENUM_VALUES_ALL(),
+};
+const mlnx_obj_type_attrs_info_t mlnx_tunnel_obj_type_info =
+    { tunnel_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(tunnel_enum_info)};
 /* is_implemented: create, remove, set, get
  *   is_supported: create, remove, set, get
  */
@@ -379,6 +421,15 @@ static const sai_vendor_attribute_entry_t tunnel_term_table_entry_vendor_attribs
       NULL, NULL,
       NULL, NULL }
 };
+static const mlnx_attr_enum_info_t tunnel_term_table_entry_enum_info[] = {
+    [SAI_TUNNEL_TERM_TABLE_ENTRY_ATTR_TYPE] = ATTR_ENUM_VALUES_ALL(),
+    [SAI_TUNNEL_TERM_TABLE_ENTRY_ATTR_TUNNEL_TYPE] = ATTR_ENUM_VALUES_LIST(
+        SAI_TUNNEL_TYPE_IPINIP,
+        SAI_TUNNEL_TYPE_IPINIP_GRE,
+        SAI_TUNNEL_TYPE_VXLAN),
+};
+const mlnx_obj_type_attrs_info_t mlnx_tunnel_term_table_entry_type_info =
+    { tunnel_term_table_entry_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(tunnel_term_table_entry_enum_info)};
 static void tunnel_map_key_to_str(_In_ const sai_object_id_t sai_tunnel_map_obj_id, _Out_ char *key_str)
 {
     uint32_t internal_tunnel_map_obj_id = 0;
