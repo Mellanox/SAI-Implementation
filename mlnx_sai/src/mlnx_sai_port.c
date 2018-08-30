@@ -3073,6 +3073,7 @@ static sai_status_t mlnx_port_qos_map_assign_pfc_to_queue(sx_port_log_id_t port_
 
 static sai_status_t mlnx_port_qos_map_assign_tc_to_pg(sx_port_log_id_t port_id, mlnx_qos_map_t *qos_map)
 {
+    sai_status_t            status;
     sx_cos_port_prio_buff_t prio_buff;
     sai_status_t            sai_status;
     sx_status_t             sx_status;
@@ -3142,8 +3143,13 @@ static sai_status_t mlnx_port_qos_map_assign_tc_to_pg(sx_port_log_id_t port_id, 
 
     if (g_sai_db_ptr->qos_maps_db[MLNX_QOS_MAP_PFC_QUEUE_INDEX].is_set) {
         SX_LOG_INF("Reapplying PFC->Queue\n");
+        status = mlnx_port_fetch_lag_if_lag_member(&mlnx_port_config);
+        if (SAI_ERR(status)) {
+            return status;
+        }
+
         sai_status =
-            mlnx_port_qos_map_assign_pfc_to_queue(port_id, &g_sai_db_ptr->qos_maps_db[MLNX_QOS_MAP_PFC_QUEUE_INDEX]);
+            mlnx_port_qos_map_assign_pfc_to_queue(mlnx_port_config->logical, &g_sai_db_ptr->qos_maps_db[MLNX_QOS_MAP_PFC_QUEUE_INDEX]);
         if (SAI_ERR(sai_status)) {
             SX_LOG_ERR("Failed to reapply PFC to QUEUE\n");
             return sai_status;
