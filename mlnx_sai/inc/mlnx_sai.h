@@ -1955,7 +1955,7 @@ sai_status_t mlnx_sched_hierarchy_foreach(mlnx_port_config_t    *port,
 #define MAX_FAN_PERCENT       100
 
 #define MLNX_MIRROR_VLAN_TPID           0x8100
-#define MLNX_GRE_PROTOCOL_TYPE          0x6558
+#define MLNX_GRE_PROTOCOL_TYPE          0x8949
 #define MIRROR_VLAN_PRI_MAX             7
 #define MIRROR_VLAN_CFI_MAX             1
 #define IPV4_HEADER_VERSION             4
