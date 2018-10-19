@@ -29,6 +29,7 @@
 #include <sx/sdk/sx_api_flow_counter.h>
 #include <sx/sdk/sx_api_host_ifc.h>
 #include <sx/sdk/sx_api_init.h>
+#include <sx/sdk/sx_api_issu.h>
 #include <sx/sdk/sx_api_lag.h>
 #include <sx/sdk/sx_api_mc_container.h>
 #include <sx/sdk/sx_api_mstp.h>
