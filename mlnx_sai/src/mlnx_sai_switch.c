@@ -71,6 +71,7 @@ static bool                      event_thread_asked_to_stop = false;
 static uint32_t                  g_route_table_size, g_neighbor_table_size;
 
 void log_cb(sx_log_severity_t severity, const char *module_name, char *msg);
+void log_pause_cb(void);
 #ifdef CONFIG_SYSLOG
 sx_log_cb_t sai_log_cb = log_cb;
 static bool g_log_init = false;
@@ -1534,6 +1535,12 @@ void log_cb(sx_log_severity_t severity, const char *module_name, char *msg)
     }
 
     mlnx_syslog(severity, module_name, "%s", msg);
+}
+
+void log_pause_cb(void)
+{
+    closelog();
+    g_log_init = false;
 }
 #else
 void log_cb(sx_log_severity_t severity, const char *module_name, char *msg)
@@ -6102,7 +6109,7 @@ static sai_status_t mlnx_switch_warmboot_enable()
     sai_status_t               sai_status = SAI_STATUS_FAILURE;
     uint32_t                   ii;
     sx_fd_t                    sx_callback_channel_fd;
-    sx_sdk_issu_pause_t        sx_sdk_issu_pause_param;
+    sx_issu_pause_t            sx_issu_pause_param;
     sxd_status_t               sxd_status;
 
     SX_LOG_ENTER();
@@ -6143,8 +6150,8 @@ static sai_status_t mlnx_switch_warmboot_enable()
         goto out;
     }
 
-    memset(&sx_sdk_issu_pause_param, 0, sizeof(sx_sdk_issu_pause_param));
-    sx_status = sx_api_sdk_issu_pause_set(gh_sdk, &sx_sdk_issu_pause_param);
+    memset(&sx_issu_pause_param, 0, sizeof(sx_issu_pause_param));
+    sx_status = sx_api_issu_pause_set(gh_sdk, &sx_issu_pause_param);
     if (SX_STATUS_SUCCESS != sx_status) {
         SX_LOG_ERR("Error pausing sdk: %s\n", SX_STATUS_MSG(sx_status));
         sai_status = sdk_to_sai(sx_status);
@@ -6179,7 +6186,7 @@ static sai_status_t mlnx_switch_warmboot_disable(_In_ sai_object_id_t switch_id)
     uint32_t                   ii;
     sx_fd_t                    sx_callback_channel_fd;
     cl_status_t                cl_err;
-    sx_sdk_issu_resume_t       sx_sdk_issu_resume_param;
+    sx_issu_resume_t           sx_issu_resume_param;
     const bool                 reset_asic = false;
 
     SX_LOG_ENTER();
@@ -6190,8 +6197,8 @@ static sai_status_t mlnx_switch_warmboot_disable(_In_ sai_object_id_t switch_id)
         goto out;
     }
 
-    memset(&sx_sdk_issu_resume_param, 0, sizeof(sx_sdk_issu_resume_param));
-    sx_status = sx_api_sdk_issu_resume_set(gh_sdk, &sx_sdk_issu_resume_param);
+    memset(&sx_issu_resume_param, 0, sizeof(sx_issu_resume_param));
+    sx_status = sx_api_issu_resume_set(gh_sdk, &sx_issu_resume_param);
     if (SX_STATUS_SUCCESS != sx_status) {
         SX_LOG_ERR("Error resuming sdk: %s\n", SX_STATUS_MSG(sx_status));
         sai_status = sdk_to_sai(sx_status);
