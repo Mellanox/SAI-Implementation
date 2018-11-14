@@ -84,6 +84,8 @@ static const sai_vendor_attribute_entry_t lag_vendor_attribs[] = {
       NULL, NULL,
       NULL, NULL }
 };
+const mlnx_obj_type_attrs_info_t mlnx_lag_obj_type_info = { lag_vendor_attribs, OBJ_ATTRS_ENUMS_INFO_EMPTY()};
+
 static sai_status_t mlnx_lag_member_lag_id_get(_In_ const sai_object_key_t   *key,
                                                _Inout_ sai_attribute_value_t *value,
                                                _In_ uint32_t                  attr_index,
@@ -137,6 +139,7 @@ static const sai_vendor_attribute_entry_t lag_member_vendor_attribs[] = {
       NULL, NULL,
       NULL, NULL }
 };
+const mlnx_obj_type_attrs_info_t mlnx_lag_member_obj_type_info = { lag_member_vendor_attribs, OBJ_ATTRS_ENUMS_INFO_EMPTY()};
 static void lag_key_to_str(_In_ sai_object_id_t lag_id, _Out_ char *key_str)
 {
     uint32_t lagid;
@@ -157,7 +160,12 @@ static void lag_member_key_to_str(_In_ sai_object_id_t lag_member_id, _Out_ char
     if (SAI_ERR(status)) {
         snprintf(key_str, MAX_KEY_STR_LEN, "Invalid LAG Member");
     } else {
-        snprintf(key_str, MAX_KEY_STR_LEN, "LAG member (%x,%x,%x)", mlnx_lag_member.id.log_port_id, mlnx_lag_member.ext.lag.lag_id, mlnx_lag_member.ext.lag.sub_id);
+        snprintf(key_str,
+                 MAX_KEY_STR_LEN,
+                 "LAG member (%x,%x,%x)",
+                 mlnx_lag_member.id.log_port_id,
+                 mlnx_lag_member.ext.lag.lag_id,
+                 mlnx_lag_member.ext.lag.sub_id);
     }
 }
 
@@ -276,34 +284,17 @@ static sai_status_t mlnx_port_params_clone(mlnx_port_config_t *to, mlnx_port_con
     /* WRED */
     if (clone & PORT_PARAMS_WRED) {
         port_queues_foreach(from, queue_cfg, ii) {
-            mlnx_qos_queue_config_t *to_queue;
-
-            status = mlnx_queue_cfg_lookup(to->logical, ii, &to_queue);
-            if (SAI_ERR(status)) {
-                goto out;
-            }
-            to_queue->wred_id = queue_cfg->wred_id;
-
             if (ii >= RM_API_COS_TRAFFIC_CLASS_NUM) {
                 continue;
             }
-            if (queue_cfg->wred_id == SAI_NULL_OBJECT_ID) {
-                continue;
-            }
 
-            status = __mlnx_wred_apply_to_queue_idx(to, ii, queue_cfg->wred_id);
+            SX_LOG_DBG("Cloning WRED from %x to %x, qi %d, wred %lx\n", from->logical, to->logical, ii, queue_cfg->wred_id);
+
+            status = mlnx_wred_apply_to_queue(to, ii, queue_cfg->wred_id);
             if (SAI_ERR(status)) {
                 goto out;
             }
         }
-
-        if (from->wred_id != SAI_NULL_OBJECT_ID) {
-            status = __mlnx_wred_apply_to_port(to, from->wred_id);
-            if (SAI_ERR(status)) {
-                goto out;
-            }
-        }
-        to->wred_id = from->wred_id;
     }
     /* Mirroring */
     if (clone & PORT_PARAMS_MIRROR) {
@@ -312,17 +303,17 @@ static sai_status_t mlnx_port_params_clone(mlnx_port_config_t *to, mlnx_port_con
             goto out;
         }
     }
-    if ((clone & PORT_PARAMS_FLOOD) && mlnx_port_is_in_bridge(from)) {
+    if ((clone & PORT_PARAMS_FLOOD) && mlnx_port_is_in_bridge_1q(from)) {
         mlnx_bridge_port_t *bridge_port;
         uint16_t            fid;
 
-        status = mlnx_bridge_port_by_log(from->logical, &bridge_port);
+        status = mlnx_bridge_1q_port_by_log(from->logical, &bridge_port);
         if (SAI_ERR(status)) {
             SX_LOG_ERR("Failed to lookup bridge port by log port id %x\n", from->logical);
             goto out;
         }
 
-        log_ports = calloc(MAX_BRIDGE_PORTS, sizeof(*log_ports));
+        log_ports = calloc(MAX_BRIDGE_1Q_PORTS, sizeof(*log_ports));
         if (!log_ports) {
             SX_LOG_ERR("Failed to allocate memory\n");
             status = SAI_STATUS_NO_MEMORY;
@@ -333,8 +324,8 @@ static sai_status_t mlnx_port_params_clone(mlnx_port_config_t *to, mlnx_port_con
             if (mlnx_vlan_port_is_set(fid, bridge_port)) {
                 sx_status_t         sx_status;
                 mlnx_bridge_port_t *port;
-                uint32_t            ii                = 0;
-                uint32_t            ports_count       = 0;
+                uint32_t            ii          = 0;
+                uint32_t            ports_count = 0;
 
                 if (is_flood_disabled) {
                     if (g_sai_db_ptr->flood_action_uc == SAI_PACKET_ACTION_DROP) {
@@ -380,7 +371,7 @@ static sai_status_t mlnx_port_params_clone(mlnx_port_config_t *to, mlnx_port_con
                     ports_count = 0;
                 }
                 sx_status = sx_api_fdb_unreg_mc_flood_ports_set(gh_sdk, DEFAULT_ETH_SWID, fid, log_ports, ports_count);
-                status = sdk_to_sai(sx_status);
+                status    = sdk_to_sai(sx_status);
                 if (SAI_ERR(status)) {
                     SX_LOG_ERR("Failed to set unregistered mc flood port\n");
                     goto out;
@@ -483,11 +474,11 @@ static sai_status_t port_reset_vlan_params_from_port(mlnx_port_config_t *port, m
         return sdk_to_sai(sx_status);
     }
 
-    if (!mlnx_port_is_in_bridge(lag)) {
+    if (!mlnx_port_is_in_bridge_1q(lag)) {
         return SAI_STATUS_SUCCESS;
     }
 
-    status = mlnx_bridge_port_by_log(lag->logical, &lag_bport);
+    status = mlnx_bridge_1q_port_by_log(lag->logical, &lag_bport);
     if (SAI_ERR(status)) {
         SX_LOG_ERR("Failed to lookup bridge port by LAG log id %x\n", lag->logical);
         return status;
@@ -627,104 +618,12 @@ out:
     return status;
 }
 
-/* TODO: print profiles info on error */
-/* SDK already validate QoS settings, so just check WRED, Policer & Mirroring profiles and Sample Packet sessions*/
-static sai_status_t ports_l1_params_check(mlnx_port_config_t *port1, mlnx_port_config_t *port2)
-{
-    sx_status_t              sx_status;
-    sx_vid_t                 pvid1, pvid2;
-    mlnx_qos_queue_config_t *queue_cfg1, *queue_cfg2;
-    sai_status_t             status;
-    uint32_t                 ii;
-    bool                     egress_block_equal;
-
-    assert(port1 != NULL);
-    assert(port2 != NULL);
-
-    /* WRED */
-    if (port1->wred_id != port2->wred_id) {
-        SX_LOG_ERR("Port oid %" PRIx64 " and port oid %" PRIx64 " have different WRED profiles\n",
-                   port1->saiport, port2->saiport);
-
-        return SAI_STATUS_INVALID_PARAMETER;
-    }
-    port_queues_foreach(port1, queue_cfg1, ii) {
-        status = mlnx_queue_cfg_lookup(port2->logical, ii, &queue_cfg2);
-        if (SAI_ERR(status)) {
-            return status;
-        }
-
-        if (queue_cfg1->wred_id != queue_cfg2->wred_id) {
-            SX_LOG_ERR(
-                "Port oid %" PRIx64 " and port oid %" PRIx64 " on queue index %u have different WRED profiles\n",
-                port1->saiport,
-                port2->saiport,
-                ii);
-
-            return SAI_STATUS_INVALID_PARAMETER;
-        }
-    }
-
-    /* PVID */
-    sx_status = sx_api_vlan_port_pvid_get(gh_sdk, port1->logical, &pvid1);
-    if (SX_ERR(sx_status)) {
-        SX_LOG_ERR("Failed to get port pvid for port oid %" PRIx64 " - %s.\n",
-                   port1->saiport, SX_STATUS_MSG(sx_status));
-        return sdk_to_sai(sx_status);
-    }
-
-    sx_status = sx_api_vlan_port_pvid_get(gh_sdk, port2->logical, &pvid2);
-    if (SX_ERR(sx_status)) {
-        SX_LOG_ERR("Failed to get port pvid for port oid %" PRIx64 " - %s.\n",
-                   port1->saiport, SX_STATUS_MSG(sx_status));
-        return sdk_to_sai(sx_status);
-    }
-
-    if (pvid1 != pvid2) {
-        SX_LOG_ERR("Port oid %" PRIx64 " and port oid %" PRIx64 " have different pvid (%d and %d)\n",
-                   port1->saiport, port2->saiport, pvid1, pvid2);
-        return SAI_STATUS_INVALID_PARAMETER;
-    }
-
-    /* Mirroring */
-    status = mlnx_port_mirror_params_check(port1, port2);
-    if (SAI_ERR(status)) {
-        return status;
-    }
-
-    /* Sample packet */
-    status = mlnx_port_samplepacket_params_check(port1, port2);
-    if (SAI_ERR(status)) {
-        return status;
-    }
-
-    /* Policers */
-    status = mlnx_port_storm_control_params_check(port1, port2);
-    if (SAI_ERR(status)) {
-        return status;
-    }
-
-    /* Egress block list */
-    status = mlnx_port_egress_block_compare(port1, port2, &egress_block_equal);
-    if (SAI_ERR(status)) {
-        return status;
-    }
-
-    if (!egress_block_equal) {
-        SX_LOG_ERR("Port oid %" PRIx64 " and port oid %" PRIx64 " have different EGRESS_BLOCK_PORT_LIST\n",
-                   port1->saiport, port2->saiport);
-        return SAI_STATUS_INVALID_PARAMETER;
-    }
-
-    return SAI_STATUS_SUCCESS;
-}
-
 static sai_status_t validate_port(mlnx_port_config_t *lag, mlnx_port_config_t *port)
 {
     sai_status_t status;
     bool         is_in_use_for_egress_block;
 
-    if (mlnx_port_is_in_bridge(port)) {
+    if (mlnx_port_is_in_bridge_1q(port)) {
         SX_LOG_ERR("Can't add port which is under bridge\n");
         return SAI_STATUS_INVALID_PARAMETER;
     }
@@ -1024,7 +923,7 @@ static sai_status_t mlnx_create_lag(_Out_ sai_object_id_t     * lag_id,
     uint32_t                     ii = 0, index;
     uint32_t                     attr_pvid_index, attr_def_vlan_prio_index, attr_drop_untagged_index,
                                  attr_drop_tagged_index;
-    mlnx_port_config_t *lag = NULL;
+    mlnx_port_config_t *lag    = NULL;
     const bool          is_add = true;
 
     SX_LOG_ENTER();
@@ -1300,12 +1199,7 @@ static sai_status_t mlnx_create_lag_member(_Out_ sai_object_id_t     * lag_membe
     sx_collector_mode_t          collect_mode    = COLLECTOR_ENABLE;
     sx_distributor_mode_t        dist_mode       = DISTRIBUTOR_ENABLE;
     mlnx_object_id_t             mlnx_lag_member = {0};
-    sai_object_id_t              wred_oid        = SAI_NULL_OBJECT_ID;
-    sai_object_id_t              tmp_oid;
-    sai_object_id_t              queue_id;
-    mlnx_qos_queue_config_t     *queue;
-    uint32_t                     ii;
-    const bool                   is_add          = false;
+    const bool                   is_add                 = false;
     bool                         is_acl_rollback_needed = false;
 
     SX_LOG_ENTER();
@@ -1370,61 +1264,22 @@ static sai_status_t mlnx_create_lag_member(_Out_ sai_object_id_t     * lag_membe
         goto out;
     }
 
-    wred_oid = port->wred_id;
-
     status = validate_port(lag, port);
     if (SAI_ERR(status)) {
         goto out;
     }
-
-    /* Reset WRED from port & queues */
-    port_queues_foreach(port, queue, ii) {
-        if (ii >= RM_API_COS_TRAFFIC_CLASS_NUM) {
-            continue;
-        }
-
-        status = mlnx_queue_cfg_lookup(port->logical, ii, &queue);
-        if (SAI_ERR(status)) {
-            goto out;
-        }
-        tmp_oid = queue->wred_id;
-        status  = mlnx_create_queue_object(port->logical, ii, &queue_id);
-        if (SAI_ERR(status)) {
-        }
-
-        status = mlnx_wred_apply(SAI_NULL_OBJECT_ID, queue_id);
-        if (SAI_ERR(status)) {
-            goto out;
-        }
-        queue->wred_id = tmp_oid;
-    }
-
-    status = mlnx_wred_apply(SAI_NULL_OBJECT_ID, port_oid);
-    if (SAI_ERR(status)) {
-        goto out;
-    }
-
-    /* We need to keep it when port is removing from the LAG, to restore the original WRED profile */
-    port->wred_id = wred_oid;
 
     sx_status = sx_api_lag_port_group_get(gh_sdk, DEFAULT_ETH_SWID, lag->logical, NULL, &port_cnt);
     if (SAI_ERR(status = sdk_to_sai(sx_status))) {
         goto out;
     }
 
-    if (port_cnt) {
-        status = ports_l1_params_check(lag, port);
-        if (SAI_ERR(status)) {
-            goto out;
-        }
-    } else {
-        status = mlnx_port_params_clone(lag,
-                                        port,
-                                        PORT_PARAMS_FOR_LAG | PORT_PARAMS_SFLOW | PORT_PARAMS_POLICER |
-                                        PORT_PARAMS_EGRESS_BLOCK);
-        if (SAI_ERR(status)) {
-            goto out;
-        }
+    status = mlnx_port_params_clone(lag,
+                                    port,
+                                    PORT_PARAMS_FOR_LAG | PORT_PARAMS_SFLOW | PORT_PARAMS_POLICER |
+                                    PORT_PARAMS_EGRESS_BLOCK);
+    if (SAI_ERR(status)) {
+        goto out;
     }
 
     status = mlnx_port_params_clone(port, lag, PORT_PARAMS_FLOOD | PORT_PARAMS_VLAN | PORT_PARAMS_LEARN_MODE);
@@ -1448,6 +1303,11 @@ static sai_status_t mlnx_create_lag_member(_Out_ sai_object_id_t     * lag_membe
     }
 
     status = mlnx_port_egress_block_clear(port->logical);
+    if (SAI_ERR(status)) {
+        goto out;
+    }
+
+    status = mlnx_wred_port_queue_db_clear(port);
     if (SAI_ERR(status)) {
         goto out;
     }
@@ -1498,39 +1358,6 @@ static sai_status_t mlnx_create_lag_member(_Out_ sai_object_id_t     * lag_membe
 
 out:
     if (SAI_ERR(status)) {
-        if  (wred_oid != SAI_NULL_OBJECT_ID) {
-            port_queues_foreach(port, queue, ii) {
-                if (ii >= RM_API_COS_TRAFFIC_CLASS_NUM) {
-                    continue;
-                }
-                status = mlnx_queue_cfg_lookup(port->logical, ii, &queue);
-                if (SAI_ERR(status)) {
-                    sai_db_unlock();
-                    return status;
-                }
-                tmp_oid        = queue->wred_id;
-                queue->wred_id = SAI_NULL_OBJECT_ID;
-                status         = mlnx_create_queue_object(port->logical, ii, &queue_id);
-                if (SAI_ERR(status)) {
-                    sai_db_unlock();
-                    return status;
-                }
-
-                status = mlnx_wred_apply(tmp_oid, queue_id);
-                if (SAI_ERR(status)) {
-                    sai_db_unlock();
-                    return status;
-                }
-            }
-
-            port->wred_id = SAI_NULL_OBJECT_ID;
-            status        = mlnx_wred_apply(wred_oid, port_oid);
-            if (SAI_ERR(status)) {
-                sai_db_unlock();
-                return status;
-            }
-        }
-
         if (is_acl_rollback_needed) {
             mlnx_acl_port_lag_event_handle_unlocked(port, ACL_EVENT_TYPE_LAG_MEMBER_DEL);
         }
@@ -1549,8 +1376,7 @@ static sai_status_t mlnx_remove_lag_member(_In_ sai_object_id_t lag_member_id)
     mlnx_port_config_t *port_config;
     mlnx_port_config_t *lag_config;
     sx_status_t         sx_status;
-    sai_object_id_t     lag_oid;
-    const bool          is_add          = true;
+    const bool          is_add = true;
     char                key_str[MAX_KEY_STR_LEN];
 
     lag_member_key_to_str(lag_member_id, key_str);
@@ -1579,7 +1405,6 @@ static sai_status_t mlnx_remove_lag_member(_In_ sai_object_id_t lag_member_id)
     if (SAI_ERR(status)) {
         goto out;
     }
-    lag_oid = lag_config->saiport;
 
     status = mlnx_acl_port_lag_event_handle_unlocked(port_config, ACL_EVENT_TYPE_LAG_MEMBER_DEL);
     if (SAI_ERR(status)) {
@@ -1603,28 +1428,15 @@ static sai_status_t mlnx_remove_lag_member(_In_ sai_object_id_t lag_member_id)
      *  that were cloned to it from the first port, and any additional settings. Instead we need to
      *  clear these settings, so it will be possible to add any new member to this LAG. */
     if (members_count == 0) {
-        sai_object_id_t          queue_id;
         mlnx_qos_queue_config_t *queue;
         uint32_t                 ii;
 
-        status = mlnx_wred_apply(SAI_NULL_OBJECT_ID, lag_oid);
-        if (SAI_ERR(status)) {
-            goto out;
-        }
         port_queues_foreach(lag_config, queue, ii) {
             if (ii >= RM_API_COS_TRAFFIC_CLASS_NUM) {
                 continue;
             }
 
-            status = mlnx_queue_cfg_lookup(lag_config->logical, ii, &queue);
-            if (SAI_ERR(status)) {
-                goto out;
-            }
-            status = mlnx_create_queue_object(lag_config->logical, ii, &queue_id);
-            if (SAI_ERR(status)) {
-            }
-
-            status = mlnx_wred_apply(SAI_NULL_OBJECT_ID, queue_id);
+            status = mlnx_wred_apply_to_queue(lag_config, ii, SAI_NULL_OBJECT_ID);
             if (SAI_ERR(status)) {
                 goto out;
             }

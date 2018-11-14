@@ -75,6 +75,15 @@ static const sai_vendor_attribute_entry_t route_vendor_attribs[] = {
       NULL, NULL,
       NULL, NULL }
 };
+static const mlnx_attr_enum_info_t route_enum_info[] = {
+    [SAI_ROUTE_ENTRY_ATTR_PACKET_ACTION] = ATTR_ENUM_VALUES_LIST(
+        SAI_PACKET_ACTION_FORWARD,
+        SAI_PACKET_ACTION_TRAP,
+        SAI_PACKET_ACTION_LOG,
+        SAI_PACKET_ACTION_DROP)
+};
+const mlnx_obj_type_attrs_info_t mlnx_route_obj_type_info =
+    { route_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(route_enum_info)};
 static void route_key_to_str(_In_ const sai_route_entry_t* route_entry, _Out_ char *key_str)
 {
     int res;
@@ -214,7 +223,7 @@ static sai_status_t mlnx_route_attr_to_sx_data(_In_ const sai_route_entry_t *rou
     char                         list_str[MAX_LIST_VALUE_STR_LEN];
     char                         key_str[MAX_KEY_STR_LEN];
     bool                         next_hop_id_found = false;
-    sx_log_severity_t            log_level = SX_LOG_NOTICE;
+    sx_log_severity_t            log_level         = SX_LOG_NOTICE;
 
     assert(sx_ip_prefix);
     assert(sx_vrid);
@@ -226,7 +235,7 @@ static sai_status_t mlnx_route_attr_to_sx_data(_In_ const sai_route_entry_t *rou
     }
 
     status = check_attribs_metadata(attr_count, attr_list, SAI_OBJECT_TYPE_ROUTE_ENTRY, route_vendor_attribs,
-                                     SAI_COMMON_API_CREATE);
+                                    SAI_COMMON_API_CREATE);
     if (SAI_ERR(status)) {
         SX_LOG_ERR("Failed attribs check\n");
         return status;
@@ -234,7 +243,7 @@ static sai_status_t mlnx_route_attr_to_sx_data(_In_ const sai_route_entry_t *rou
 
     route_key_to_str(route_entry, key_str);
     sai_attr_list_to_str(attr_count, attr_list, SAI_OBJECT_TYPE_ROUTE_ENTRY, MAX_LIST_VALUE_STR_LEN, list_str);
-    /* lower log level for route created often in Sonic */    
+    /* lower log level for route created often in Sonic */
 #ifdef ACS_OS
     log_level = SX_LOG_INFO;
 #endif
@@ -530,10 +539,9 @@ static sai_status_t mlnx_route_next_hop_id_get(_In_ const sai_object_key_t   *ke
     }
 
     if (SX_UC_ROUTE_TYPE_LOCAL == route_get_entry.route_data.type) {
-        if (SAI_STATUS_SUCCESS != (status = mlnx_create_object(SAI_OBJECT_TYPE_ROUTER_INTERFACE,
-                                                               route_get_entry.route_data.uc_route_param.
-                                                               local_egress_rif, NULL,
-                                                               &value->oid))) {
+        if (SAI_STATUS_SUCCESS != (status =
+                                   mlnx_rif_sx_to_sai_oid(route_get_entry.route_data.uc_route_param.local_egress_rif,
+                                                          &value->oid))) {
             return status;
         }
     } else if (SX_UC_ROUTE_TYPE_NEXT_HOP == route_get_entry.route_data.type) {

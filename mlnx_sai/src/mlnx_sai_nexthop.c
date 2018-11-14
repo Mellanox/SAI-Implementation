@@ -56,6 +56,14 @@ static const sai_vendor_attribute_entry_t next_hop_vendor_attribs[] = {
       NULL, NULL,
       NULL, NULL }
 };
+static const mlnx_attr_enum_info_t next_hop_enum_info[] = {
+    [SAI_NEXT_HOP_ATTR_TYPE] = ATTR_ENUM_VALUES_LIST(
+        SAI_NEXT_HOP_TYPE_IP,
+        SAI_NEXT_HOP_TYPE_TUNNEL_ENCAP
+    ),
+};
+const mlnx_obj_type_attrs_info_t mlnx_next_hop_obj_type_info =
+    { next_hop_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(next_hop_enum_info)};
 static void next_hop_key_to_str(_In_ sai_object_id_t next_hop_id, _Out_ char *key_str)
 {
     uint32_t nexthop_data;
@@ -92,10 +100,7 @@ static sai_status_t mlnx_translate_sdk_next_hop_entry_to_sai(_In_ const sx_next_
         }
 
         if (SAI_STATUS_SUCCESS !=
-            (status =
-                 mlnx_create_object(SAI_OBJECT_TYPE_ROUTER_INTERFACE,
-                                    next_hop->next_hop_key.next_hop_key_entry.ip_next_hop.rif,
-                                    NULL, rif_id))) {
+            (status = mlnx_rif_sx_to_sai_oid(next_hop->next_hop_key.next_hop_key_entry.ip_next_hop.rif, rif_id))) {
             return status;
         }
         break;
@@ -195,7 +200,7 @@ static sai_status_t mlnx_translate_sai_next_hop_to_sdk(_In_ sai_next_hop_type_t 
         }
 
         next_hop->next_hop_key.next_hop_key_entry.ip_tunnel.tunnel_id =
-            g_sai_db_ptr->tunnel_db[tunnel_idx].sx_tunnel_id;
+            g_sai_db_ptr->tunnel_db[tunnel_idx].sx_tunnel_id_ipv4;
 
         sai_db_unlock();
 

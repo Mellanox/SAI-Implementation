@@ -241,6 +241,12 @@ static const sai_vendor_attribute_entry_t mirror_vendor_attribs[] = {
       NULL, NULL,
       NULL, NULL }
 };
+static const mlnx_attr_enum_info_t mirror_session_enum_info[] = {
+    [SAI_MIRROR_SESSION_ATTR_TYPE] = ATTR_ENUM_VALUES_ALL(),
+    [SAI_MIRROR_SESSION_ATTR_ERSPAN_ENCAPSULATION_TYPE] = ATTR_ENUM_VALUES_ALL(),
+};
+const mlnx_obj_type_attrs_info_t mlnx_mirror_session_obj_type_info =
+    { mirror_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(mirror_session_enum_info)};
 static void mirror_key_to_str(_In_ const sai_object_id_t sai_mirror_obj_id, _Out_ char *key_str)
 {
     uint32_t sdk_mirror_obj_id = 0;
@@ -987,7 +993,7 @@ static sai_status_t mlnx_add_mirror_analyzer_port(_In_ sx_span_session_id_t sdk_
     sai_status_t                   status               = SAI_STATUS_FAILURE;
     uint32_t                       sdk_analyzer_port_id = 0;
     sx_span_analyzer_port_params_t sdk_analyzer_port_params;
-    mlnx_port_config_t            *port_config          = NULL;
+    mlnx_port_config_t            *port_config = NULL;
 
     memset(&sdk_analyzer_port_params, 0, sizeof(sx_span_analyzer_port_params_t));
     SX_LOG_ENTER();

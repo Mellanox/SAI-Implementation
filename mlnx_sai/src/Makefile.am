@@ -55,6 +55,7 @@ libsai_la_SOURCES = \
                        mlnx_sai_host_interface.c \
                        mlnx_sai_interfacequery.c \
                        mlnx_sai_lag.c \
+                       mlnx_sai_l2mcgroup.c \
                        mlnx_sai_mirror.c \
                        mlnx_sai_neighbor.c \
                        mlnx_sai_nexthop.c \
@@ -95,8 +96,10 @@ libsai_apiincludedir = $(includedir)/sai
 libsai_apiinclude_HEADERS = \
         $(top_srcdir)/inc/sai/sai.h \
         $(top_srcdir)/inc/sai/saiacl.h \
+        $(top_srcdir)/inc/sai/saibfd.h \
         $(top_srcdir)/inc/sai/saibridge.h \
         $(top_srcdir)/inc/sai/saibuffer.h \
+        $(top_srcdir)/inc/sai/saidtel.h \
         $(top_srcdir)/inc/sai/saifdb.h \
         $(top_srcdir)/inc/sai/saihash.h \
         $(top_srcdir)/inc/sai/saihostif.h \

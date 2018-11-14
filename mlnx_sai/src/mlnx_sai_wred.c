@@ -148,6 +148,11 @@ static const sai_vendor_attribute_entry_t wred_vendor_attribs[] = {
       NULL, NULL,
       NULL, NULL }
 };
+static const mlnx_attr_enum_info_t wred_enum_info[] = {
+    [SAI_WRED_ATTR_ECN_MARK_MODE] = ATTR_ENUM_VALUES_ALL(),
+};
+const mlnx_obj_type_attrs_info_t mlnx_wred_obj_type_info =
+    { wred_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(wred_enum_info)};
 
 /*
  * Routine Description:
@@ -359,65 +364,6 @@ static uint32_t mlnx_wred_sx_threshold_to_sai(uint16_t sx_threshold)
     return (uint32_t)sx_threshold * g_resource_limits.shared_buff_buffer_unit_size;
 }
 
-static sai_status_t __wred_get_tc_unbind_list(mlnx_port_config_t     *port,
-                                              sx_cos_traffic_class_t *tc_list,
-                                              uint32_t               *tc_count)
-{
-    /* TODO: change max to <= g_resource_limits.cos_port_ets_traffic_class_max when sdk support rm */
-    uint32_t                 max_tc_count = RM_API_COS_TRAFFIC_CLASS_NUM;
-    uint32_t                 count        = 0;
-    mlnx_qos_queue_config_t *queue_cfg;
-    uint32_t                 ii = 0;
-
-    if (*tc_count < g_resource_limits.cos_port_ets_traffic_class_max + 1) {
-        return SAI_STATUS_FAILURE;
-    }
-
-    port_queues_foreach(port, queue_cfg, ii) {
-        /* TODO: might be removed when resource manager variable will be used */
-        if (ii >= max_tc_count) {
-            break;
-        }
-
-        if (queue_cfg->wred_id == SAI_NULL_OBJECT_ID) {
-            tc_list[count++] = ii;
-        }
-    }
-    *tc_count = count;
-
-    return SAI_STATUS_SUCCESS;
-}
-
-/*
- * Get list of TC that doesn't have WRED config for specified port
- *
- * Arguments:
- *    [in]  port_id - logical port id
- *    [in/out] tc_list - list to store TC num
- *    [in/out] tc_count - on input it's a size of tc_list, on output - number of elements in tc_list
- *
- * Return Values:
- *    SAI_STATUS_SUCCESS
- *    SAI_STATUS_FAILURE
- *
- */
-static sai_status_t mlnx_wred_get_tc_unbind_list(sx_port_log_id_t        port_id,
-                                                 sx_cos_traffic_class_t *tc_list,
-                                                 uint32_t               *tc_count)
-{
-    sai_status_t        status;
-    mlnx_port_config_t *port;
-
-    status = mlnx_port_by_log_id(port_id, &port);
-    if (status != SAI_STATUS_SUCCESS) {
-        return status;
-    }
-
-    status = __wred_get_tc_unbind_list(port, tc_list, tc_count);
-
-    return status;
-}
-
 /*
  * Get list of TC that have wred_id configured for specified port
  *
@@ -455,8 +401,7 @@ static sai_status_t mlnx_wred_get_tc_configured_list(mlnx_port_config_t     *por
             break;
         }
 
-        if (((queue_cfg->wred_id == SAI_NULL_OBJECT_ID) && (port->wred_id == wred_id)) ||
-            (queue_cfg->wred_id == wred_id)) {
+        if (queue_cfg->wred_id == wred_id) {
             tc_list[count++] = ii;
         }
     }
@@ -580,25 +525,17 @@ static bool mlnx_wred_check_in_use(sai_object_id_t wred_id)
 {
     mlnx_port_config_t      *port;
     mlnx_qos_queue_config_t *queue;
-    bool                     in_use = false;
     uint32_t                 ii, jj;
 
     mlnx_port_foreach(port, ii) {
-        if (port->wred_id == wred_id) {
-            in_use = true;
-            break;
-        }
-
         port_queues_foreach(port, queue, jj) {
             if (queue->wred_id == wred_id) {
-                in_use = true;
-                goto out;
+                return true;
             }
         }
     }
 
-out:
-    return in_use;
+    return false;
 }
 
 /* Apply all sx profiles from sai profile to a specified port */
@@ -735,7 +672,7 @@ static sai_status_t mlnx_wred_ecn_enable_set(sx_port_log_id_t        port,
     ecn_param.red_enabled = red_enable;
 
     tc_list_to_str(tc_list, tc_count, buf);
-    SX_LOG_NTC("Set ecn_enabled (%d), red_enabled (%d) for port 0%x tc = %s\n",
+    SX_LOG_INF("Set ecn_enabled (%d), red_enabled (%d) for port 0%x tc = %s\n",
                ecn_enable, red_enable, port, buf);
 
     sx_status = sx_api_cos_redecn_tc_enable_set(gh_sdk, port, tc_list, tc_count, &ecn_param);
@@ -744,6 +681,84 @@ static sai_status_t mlnx_wred_ecn_enable_set(sx_port_log_id_t        port,
     }
 
     return sdk_to_sai(sx_status);
+}
+
+sai_status_t mlnx_wred_apply_to_queue(_In_ mlnx_port_config_t *port,
+                                      _In_ uint32_t            queue_idx,
+                                      _In_ sai_object_id_t     wred_id)
+{
+    sai_status_t             status;
+    mlnx_wred_profile_t      wred_profile;
+    sai_object_id_t          curr_wred_id;
+    sx_cos_traffic_class_t   tc;
+    mlnx_qos_queue_config_t *queue_cfg;
+
+    tc = queue_idx;
+
+    if (tc > g_resource_limits.cos_port_ets_traffic_class_max) {
+        SX_LOG_ERR("Invalid TC num (%u)\n", tc);
+        return SAI_STATUS_FAILURE;
+    }
+
+    status = mlnx_port_fetch_lag_if_lag_member(&port);
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+    status = mlnx_queue_cfg_lookup(port->logical, tc, &queue_cfg);
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+    curr_wred_id = queue_cfg->wred_id;
+
+    if (curr_wred_id == wred_id) {
+        /* Nothing changed, return success */
+        return SAI_STATUS_SUCCESS;
+    }
+
+    if (SAI_NULL_OBJECT_ID != curr_wred_id) {
+        status = mlnx_wred_db_get(curr_wred_id, &wred_profile);
+        if (SAI_ERR(status)) {
+            return status;
+        }
+
+        SX_LOG_DBG("Unbinding current wred %lx on port %x queue %d\n", curr_wred_id, port->logical, tc);
+
+        status = mlnx_wred_apply_saiwred_to_port(&wred_profile, port->logical, &tc, 1, SX_ACCESS_CMD_UNBIND);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to remove WRED profile from port 0%x tc %d\n", port->logical, tc);
+            return status;
+        }
+    }
+
+    if (SAI_NULL_OBJECT_ID != wred_id) {
+        status = mlnx_wred_db_get(wred_id, &wred_profile);
+        if (SAI_ERR(status)) {
+            return status;
+        }
+
+        status = mlnx_wred_ecn_enable_set(port->logical, &tc, 1, wred_profile.wred_enabled, wred_profile.ecn_enabled);
+        if (SAI_ERR(status)) {
+            return status;
+        }
+
+        SX_LOG_DBG("Binding wred %lx to port %x queue %d\n", wred_id, port->logical, tc);
+
+        status = mlnx_wred_apply_saiwred_to_port(&wred_profile, port->logical, &tc, 1, SX_ACCESS_CMD_BIND);
+        if (SAI_ERR(status)) {
+            return status;
+        }
+    } else {
+        status = mlnx_wred_ecn_enable_set(port->logical, &tc, 1, false, false);
+        if (SAI_ERR(status)) {
+            return status;
+        }
+    }
+
+    queue_cfg->wred_id = wred_id;
+
+    return SAI_STATUS_SUCCESS;
 }
 
 /*
@@ -758,179 +773,39 @@ static sai_status_t mlnx_wred_ecn_enable_set(sx_port_log_id_t        port,
  *    SAI_STATUS_FAILURE
  *
  */
-sai_status_t mlnx_wred_apply(sai_object_id_t wred_id, sai_object_id_t to_obj_id)
+sai_status_t mlnx_wred_apply_to_queue_oid(_In_ sai_object_id_t wred_id, _In_ sai_object_id_t queue_oid)
 {
-    mlnx_wred_profile_t      wred_profile;
-    sai_object_id_t          curr_wred_id = SAI_NULL_OBJECT_ID;
-    sx_cos_traffic_class_t  *tc_list      = NULL;
-    uint32_t                 tc_count     = g_resource_limits.cos_port_ets_traffic_class_max + 1;
-    sx_port_log_id_t         port_id;
-    mlnx_port_config_t      *port_conf                    = NULL;
-    uint32_t                 wred_num                     = 0;
-    sai_object_type_t        to_obj_type                  = sai_object_type_query(to_obj_id);
-    uint8_t                  ext_data[EXTENDED_DATA_SIZE] = {0};
-    char                     buf[MAX_VALUE_STR_LEN]       = {0};
-    sai_status_t             status                       = SAI_STATUS_SUCCESS;
-    mlnx_qos_queue_config_t *queue_cfg;
-
-    tc_list = calloc(tc_count, sizeof(sx_cos_traffic_class_t));
-    if (NULL == tc_list) {
-        SX_LOG_ERR("Failed to alloc memory for tc list\n");
-        return SAI_STATUS_NO_MEMORY;
-    }
-    /* get port id and TC list based on object type */
-    switch (to_obj_type) {
-    case SAI_OBJECT_TYPE_PORT:
-    case SAI_OBJECT_TYPE_LAG:
-        status = mlnx_port_by_obj_id(to_obj_id, &port_conf);
-        if (SAI_ERR(status)) {
-            free(tc_list);
-            return status;
-        }
-        if (mlnx_port_is_lag_member(port_conf)) {
-            port_id = port_conf->lag_id;
-        } else {
-            port_id = port_conf->logical;
-        }
-
-        status = mlnx_wred_get_tc_unbind_list(port_id, tc_list, &tc_count);
-        if (SAI_ERR(status)) {
-            free(tc_list);
-            return status;
-        }
-
-        curr_wred_id = port_conf->wred_id;
-        break;
-
-    case SAI_OBJECT_TYPE_QUEUE:
-        status = mlnx_object_to_type(to_obj_id, SAI_OBJECT_TYPE_QUEUE, &port_id, ext_data);
-        if (SAI_ERR(status)) {
-            free(tc_list);
-            return status;
-        }
-
-        status = mlnx_port_by_log_id(port_id, &port_conf);
-        if (SAI_ERR(status)) {
-            free(tc_list);
-            return status;
-        }
-        if (mlnx_port_is_lag_member(port_conf)) {
-            port_id = port_conf->lag_id;
-        }
-
-        tc_list[0] = ext_data[0];
-        tc_count   = 1;
-        if (tc_list[0] > g_resource_limits.cos_port_ets_traffic_class_max) {
-            SX_LOG_ERR("Invalid TC num (%u)\n", tc_list[0]);
-            free(tc_list);
-            return SAI_STATUS_FAILURE;
-        }
-
-        status = mlnx_queue_cfg_lookup(port_id, tc_list[0], &queue_cfg);
-        if (status != SAI_STATUS_SUCCESS) {
-            free(tc_list);
-            return status;
-        }
-        curr_wred_id = queue_cfg->wred_id;
-        break;
-
-    default:
-        free(tc_list);
-        SX_LOG_ERR("Invalid obect type %d\n", to_obj_type);
-        return SAI_STATUS_INVALID_OBJECT_TYPE;
-    }
-
-
-    if (curr_wred_id == wred_id) {
-        /* Nothing changed, return success */
-        free(tc_list);
-        return SAI_STATUS_SUCCESS;
-    }
-
-    if ((to_obj_type == SAI_OBJECT_TYPE_QUEUE) && (curr_wred_id == SAI_NULL_OBJECT_ID)) {
-        curr_wred_id = port_conf->wred_id;
-    }
-
-    if (SAI_NULL_OBJECT_ID != curr_wred_id) {
-        /* Remove current */
-        if (SAI_STATUS_SUCCESS != (status = mlnx_wred_db_get(curr_wred_id, &wred_profile))) {
-            free(tc_list);
-            return status;
-        }
-
-        status = mlnx_wred_apply_saiwred_to_port(&wred_profile, port_id, tc_list, tc_count, SX_ACCESS_CMD_UNBIND);
-        tc_list_to_str(tc_list, tc_count, buf);
-        if (SAI_STATUS_SUCCESS == status) {
-            SX_LOG_NTC("Removed WRED profile from port 0x%x tc list %s\n", port_id, buf);
-        } else {
-            SX_LOG_ERR("Failed to remove WRED profile from port 0%x tc list %s\n", port_id, buf);
-            free(tc_list);
-            return SAI_STATUS_FAILURE;
-        }
-    }
-
-    if (SAI_NULL_OBJECT_ID != wred_id) {
-        bool wred_enabled;
-        bool ecn_enabled;
-
-        if ((SAI_STATUS_SUCCESS != mlnx_object_to_type(wred_id, SAI_OBJECT_TYPE_WRED, &wred_num, NULL)) ||
-            (wred_num >= g_resource_limits.cos_redecn_profiles_max)) {
-            SX_LOG_ERR("Failed to apply WRED profile - Invalid object id\n");
-            free(tc_list);
-            return SAI_STATUS_INVALID_PARAMETER;
-        }
-        wred_enabled = g_sai_qos_db_ptr->wred_db[wred_num].wred_enabled;
-        ecn_enabled  = g_sai_qos_db_ptr->wred_db[wred_num].ecn_enabled;
-
-        if ((SAI_STATUS_SUCCESS !=
-             (status = mlnx_wred_ecn_enable_set(port_id, tc_list, tc_count, wred_enabled, ecn_enabled))) ||
-            (SAI_STATUS_SUCCESS !=
-             (status = mlnx_wred_db_get(wred_id, &wred_profile)))) {
-            free(tc_list);
-            return status;
-        }
-
-        status = mlnx_wred_apply_saiwred_to_port(&wred_profile, port_id, tc_list, tc_count, SX_ACCESS_CMD_BIND);
-    } else {
-        status = mlnx_wred_ecn_enable_set(port_id, tc_list, tc_count, false, false);
-    }
-
-    if (SAI_STATUS_SUCCESS == status) {
-        /* Update DB */
-        if ((to_obj_type == SAI_OBJECT_TYPE_PORT) || (to_obj_type == SAI_OBJECT_TYPE_LAG)) {
-            port_conf->wred_id = wred_id;
-        } else {
-            status = mlnx_queue_cfg_lookup(port_id, tc_list[0], &queue_cfg);
-            if (status != SAI_STATUS_SUCCESS) {
-                return status;
-            }
-            queue_cfg->wred_id = wred_id;
-        }
-    }
-
-    free(tc_list);
-    return status;
-}
-
-/*
- * Reset SAI WRED profile from port config.
- *
- * Arguments:
- *    [in] wred_id - id of WRED profile
- *
- * Return Values: none
- *
- */
-static void mlnx_wred_reset_from_port(_In_ sai_object_id_t wred_id)
-{
-    uint32_t            ii = 0;
+    sai_status_t        status;
+    uint32_t            queue_index;
+    sx_port_log_id_t    port_id;
+    uint8_t             ext_data[EXTENDED_DATA_SIZE] = {0};
     mlnx_port_config_t *port;
 
-    mlnx_port_foreach(port, ii) {
-        if (port->wred_id == wred_id) {
-            port->wred_id = SAI_NULL_OBJECT_ID;
-        }
+    status = mlnx_object_to_type(queue_oid, SAI_OBJECT_TYPE_QUEUE, &port_id, ext_data);
+    if (SAI_ERR(status)) {
+        return status;
     }
+
+    queue_index = ext_data[0];
+
+    status = mlnx_port_by_log_id(port_id, &port);
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+    return mlnx_wred_apply_to_queue(port, queue_index, wred_id);
+}
+
+sai_status_t mlnx_wred_port_queue_db_clear(_In_ mlnx_port_config_t *port)
+{
+    mlnx_qos_queue_config_t *queue_cfg;
+    uint32_t                 ii;
+
+    port_queues_foreach(port, queue_cfg, ii) {
+        queue_cfg->wred_id = SAI_NULL_OBJECT_ID;
+    }
+
+    return SAI_STATUS_SUCCESS;
 }
 
 /*
@@ -1821,7 +1696,7 @@ static sai_status_t mlnx_wred_ecn_set(_In_ const sai_object_key_t      *key,
             assert(false);
         }
 
-        status      = mlnx_wred_remove_profile(wred_id, *sx_profile, color);
+        status = mlnx_wred_remove_profile(wred_id, *sx_profile, color);
         if (SAI_ERR(status)) {
             goto out;
         }
@@ -2059,8 +1934,7 @@ static sai_status_t mlnx_create_wred_profile(_Out_ sai_object_id_t      *wred_id
     }
 
     sai_attr_list_to_str(attr_count, attr_list, SAI_OBJECT_TYPE_WRED, MAX_LIST_VALUE_STR_LEN, list_str);
-    SX_LOG_NTC("Create new wred profile\n");
-    SX_LOG_NTC("Attribs %s\n", list_str);
+    SX_LOG_NTC("Create wred profile, %s\n", list_str);
 
     /* WRED Green - enable, drop prob */
     status = find_attrib_in_list(attr_count, attr_list, SAI_WRED_ATTR_GREEN_ENABLE, &green_en_attr, &index);
@@ -2425,65 +2299,11 @@ static sai_status_t mlnx_remove_wred_profile(_In_ sai_object_id_t wred_id)
 
     SX_LOG_NTC("Removed %s\n", key_str);
 
-    mlnx_wred_reset_from_port(wred_id);
     mlnx_wred_db_remove(wred_id);
 
 out:
     sai_db_unlock();
     SX_LOG_EXIT();
-    return status;
-}
-
-sai_status_t __mlnx_wred_apply_to_queue_idx(mlnx_port_config_t *port, uint8_t qi, sai_object_id_t wred_oid)
-{
-    mlnx_wred_profile_t *profile;
-    sai_status_t         status;
-
-    status = __mlnx_wred_db_get(wred_oid, &profile);
-    if (SAI_ERR(status)) {
-        return status;
-    }
-
-    status = mlnx_wred_ecn_enable_set(port->logical, &qi, 1, profile->wred_enabled, profile->ecn_enabled);
-    if (SAI_ERR(status)) {
-        return status;
-    }
-
-    return mlnx_wred_apply_saiwred_to_port(profile, port->logical, &qi, 1, SX_ACCESS_CMD_BIND);
-}
-
-sai_status_t __mlnx_wred_apply_to_port(mlnx_port_config_t *port, sai_object_id_t wred_oid)
-{
-    uint32_t                tc_count = g_resource_limits.cos_port_ets_traffic_class_max + 1;
-    mlnx_wred_profile_t    *profile;
-    sx_cos_traffic_class_t *tc_list;
-    sai_status_t            status;
-
-    status = __mlnx_wred_db_get(wred_oid, &profile);
-    if (SAI_ERR(status)) {
-        return status;
-    }
-
-    tc_list = calloc(tc_count, sizeof(sx_cos_traffic_class_t));
-    if (tc_list == NULL) {
-        SX_LOG_ERR("Failed to alloc memory for tc list\n");
-        return SAI_STATUS_NO_MEMORY;
-    }
-
-    status = __wred_get_tc_unbind_list(port, tc_list, &tc_count);
-    if (SAI_ERR(status)) {
-        goto out;
-    }
-
-    status = mlnx_wred_ecn_enable_set(port->logical, tc_list, tc_count, profile->wred_enabled, profile->ecn_enabled);
-    if (SAI_ERR(status)) {
-        goto out;
-    }
-
-    status = mlnx_wred_apply_saiwred_to_port(profile, port->logical, tc_list, tc_count, SX_ACCESS_CMD_BIND);
-
-out:
-    free(tc_list);
     return status;
 }
 

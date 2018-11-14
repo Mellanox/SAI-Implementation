@@ -142,7 +142,6 @@ static void SAI_dump_port_print(_In_ FILE *file, _In_ mlnx_port_config_t *mlnx_p
          &curr_mlnx_port_config.internal_ingress_samplepacket_obj_idx},
         {"egress samplepacket idx",    23, PARAM_UINT32_E,
          &curr_mlnx_port_config.internal_egress_samplepacket_obj_idx},
-        {"wred id",                    16, PARAM_UINT64_E, &curr_mlnx_port_config.wred_id},
         {"scheduler id",               16, PARAM_UINT64_E, &curr_mlnx_port_config.scheduler_id},
         {"start queue index",          17, PARAM_UINT32_E, &curr_mlnx_port_config.start_queues_index},
         {"is default sched hierarchy", 17, PARAM_UINT8_E,  &curr_mlnx_port_config.sched_hierarchy.is_default},

@@ -88,7 +88,7 @@ static void SAI_dump_bridge_port_print(_In_ FILE *file, _In_ const mlnx_bridge_p
         {"admin_state", 12, PARAM_UINT16_E, &cur_bridge_port.admin_state},
         {"parent",      12, PARAM_HEX_E, &cur_bridge_port.parent},
         {"logical",     12, PARAM_HEX_E, &cur_bridge_port.logical},
-        {"tunnel_id",   12, PARAM_UINT32_E, &cur_bridge_port.tunnel_id},
+        {"tunnel_idx",  12, PARAM_UINT32_E, &cur_bridge_port.tunnel_idx},
         {"bridge_id",   12, PARAM_UINT32_E, &cur_bridge_port.bridge_id},
         {"port_type",   12, PARAM_STRING_E, bridge_port_type_str},
         {"rif_index",   12, PARAM_UINT32_E, &cur_bridge_port.rif_index},
@@ -214,8 +214,9 @@ static void SAI_dump_bridge_rif_print(_In_ FILE *file, _In_ const mlnx_bridge_ri
         {"index",       7,  PARAM_UINT32_E, &cur_bridge_rif.index},
         {"is_created",  12, PARAM_UINT8_E, &cur_bridge_rif.is_created},
         {"bridge_id",   12, PARAM_UINT16_E, &cur_bridge_rif.bridge_id},
-        {"rif_id",      12, PARAM_UINT32_E, &cur_bridge_rif.rif_id},
-        {"vrf_id",      12, PARAM_UINT32_E, &cur_bridge_rif.vrf_id},
+        {"rif_id",      12, PARAM_UINT32_E, &cur_bridge_rif.sx_data.rif_id},
+        {"vrf_id",      12, PARAM_UINT32_E, &cur_bridge_rif.sx_data.vrf_id},
+        {"counter_id",  12, PARAM_UINT32_E, &cur_bridge_rif.sx_data.counter},
         {NULL,           0,              0, NULL}
     };
 

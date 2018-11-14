@@ -1,7 +1,7 @@
 Mellanox SAI implementation release notes
 ==========================================
 
-Release 1.12.0
+Release 1.13.0
 ---------------
 
 Current implementation is partial. 
@@ -10,7 +10,7 @@ Not all the APIs that are defined were fully implemented in this release. Missin
 
 The code was tested to work on X86, at Beta level.
 No testing was done on PPC.
-The code compiles with, and was tested with, SDK version 4.2.8002.
+The code compiles with, and was tested with, SDK version 4.2.9105.
 
 As a precondition to running SAI initialize switch, SDK must not be running (If it's running, terminate it with dvs_stop.sh). 
 The application must provide one key/value pair on profile services, "config_file=/usr/share/sai_2700.xml" / "config_file=/usr/share/sai_2410.xml" / / "config_file=/usr/share/sai_2420.xml" / "config_file=/usr/share/sai_2100.xml", depending on system type.
@@ -46,12 +46,12 @@ ACL has the following limitations :
 * VLAN matching on egress RIF or egress Port is supported for Vlan interfaces (802.1Q) and for Port-vlan interfaces. It’s not supported for bridge interfaces (802.1D). Vlan matching not supported when there is no RIF attached to the port. 
 * ACL should be applied on LAG and not on member ports of a LAG
 * ACL egress block list action can be applied only on egress stage, not on ingress stage
+* ACL field out port doesn't support LAG
 
 IP over IP has the following limitations :
 * Set is not supported on any attribute in sai_tunnel_attr_t
 * SAI_TUNNEL_ATTR_DECAP_MAPPERS is not able to be created or set
 * Only SAI_TUNNEL_TTL_PIPE_MODEL is supported for SAI_TUNNEL_ATTR_DECAP_TTL_MODE on create and set
-* Only IPv4 address is supported for SAI_TUNNEL_TERM_TABLE_ENTRY_ATTR_SRC_IP and SAI_TUNNEL_TERM_TABLE_ENTRY_ATTR_DST_IP on create
 * Only SAI_TUNNEL_IPINIP and SAI_TUNNEL_IPINIP_GRE are supported for SAI_TUNNEL_ATTR_TYPE and SAI_TUNNEL_TERM_TABLE_ENTRY_ATTR_TUNNEL_TYPE on create
 * get_tunnel_attribute function will fail when trying to get the following values from a tunnel created without any encap attributes
   a.	SAI_TUNNEL_ATTR_ENCAP_DSCP_MODE

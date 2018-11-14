@@ -66,6 +66,11 @@ static const sai_vendor_attribute_entry_t hash_vendor_attribs[] = {
       NULL, NULL,
       NULL, NULL }
 };
+static const mlnx_attr_enum_info_t hash_enum_info[] = {
+    [SAI_HASH_ATTR_NATIVE_HASH_FIELD_LIST] = ATTR_ENUM_VALUES_ALL(),
+};
+const mlnx_obj_type_attrs_info_t mlnx_hash_obj_type_info = {
+    hash_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(hash_enum_info)};
 static void hash_key_to_str(_In_ sai_object_id_t hash_id, _Out_ char *key_str)
 {
     uint32_t hash_data = 0;
@@ -583,7 +588,11 @@ sai_status_t mlnx_hash_ecmp_cfg_apply_on_port(_In_ sx_port_log_id_t port_log_id)
     uint32_t                           enable_count                         = 0;
     uint32_t                           field_count                          = 0;
 
-    status = mlnx_hash_ecmp_global_config_get(&port_hash_param, hash_enable_list, &enable_count, hash_field_list, &field_count);
+    status = mlnx_hash_ecmp_global_config_get(&port_hash_param,
+                                              hash_enable_list,
+                                              &enable_count,
+                                              hash_field_list,
+                                              &field_count);
     if (SAI_ERR(status)) {
         SX_LOG_ERR("Failed to get ECMP hash conifg\n");
         return status;
@@ -637,7 +646,7 @@ sai_status_t mlnx_hash_ecmp_hash_params_apply_to_ports(const sx_router_ecmp_port
 sai_status_t mlnx_hash_ecmp_hash_params_apply(const sai_attr_id_t attr_id, const sai_attribute_value_t* value)
 {
     sx_router_ecmp_port_hash_params_t *port_hash_param;
-    sai_status_t                       status      = SAI_STATUS_SUCCESS;
+    sai_status_t                       status = SAI_STATUS_SUCCESS;
 
     port_hash_param = &g_sai_db_ptr->port_hash_params;
 
@@ -703,7 +712,7 @@ static sai_status_t mlnx_hash_object_to_sx_fields(_In_ sai_object_id_t          
     sai_native_hash_field_t     sai_fields_list[SAI_HASH_FIELDS_COUNT_MAX] = {0};
     udf_group_mask_t            udf_group_mask;
     sx_router_ecmp_hash_field_t udf_groups_hash_fields[GENERAL_FIELDS_NUM] = {0};
-    uint32_t                    udf_groups_hash_field_count = 0;
+    uint32_t                    udf_groups_hash_field_count                = 0;
 
     assert(enable_list);
     assert(enable_count);
@@ -1007,7 +1016,7 @@ sai_status_t mlnx_hash_initialize()
     }
 
     g_sai_db_ptr->hash_list[0].hash_id = hash_obj;
-    status = mlnx_hash_obj_native_fields_set(hash_obj, &attr_value);
+    status                             = mlnx_hash_obj_native_fields_set(hash_obj, &attr_value);
     if (SAI_ERR(status)) {
         return status;
     }

@@ -27,12 +27,10 @@ typedef struct _mlnx_nh_data_t {
     sx_next_hop_t nh_id;
     uint32_t      object_index;
 } mlnx_nh_bulk_data_t;
-
 typedef struct _mlnx_nh_bulk_pair_t {
     sx_ecmp_id_t        group_id;
     mlnx_nh_bulk_data_t nh;
 } mlnx_nh_bulk_pair_t;
-
 typedef struct _mlnx_nh_bulk_data_t {
     mlnx_nh_bulk_pair_t *pairs;
     uint32_t             count;
@@ -111,6 +109,8 @@ static const sai_vendor_attribute_entry_t next_hop_group_member_vendor_attribs[]
       NULL, NULL,
       NULL, NULL }
 };
+const mlnx_obj_type_attrs_info_t mlnx_nh_group_member_obj_type_info =
+    { next_hop_group_member_vendor_attribs, OBJ_ATTRS_ENUMS_INFO_EMPTY()};
 static void next_hop_group_key_to_str(_In_ sai_object_id_t next_hop_group_id, _Out_ char *key_str)
 {
     uint32_t groupid;
@@ -777,8 +777,7 @@ static sai_status_t mlnx_remove_next_hop_group_member(_In_ sai_object_id_t next_
     return SAI_STATUS_SUCCESS;
 }
 
-static sai_status_t mlnx_next_hop_bulk_init(_In_ mlnx_nh_bulk_pair_list_t *nh_bulk_data,
-                                            _In_ uint32_t                  object_count)
+static sai_status_t mlnx_next_hop_bulk_init(_In_ mlnx_nh_bulk_pair_list_t *nh_bulk_data, _In_ uint32_t object_count)
 {
     assert(nh_bulk_data);
     assert(!nh_bulk_data->pairs);
@@ -986,14 +985,17 @@ static sai_status_t mlnx_next_hop_bulk_sx_nh_del(_In_ sx_ecmp_id_t              
                 break;
             }
 
-            status = mlnx_sdk_nhop_find_in_list(sx_next_hops, next_hop_count, &nh_list[nh_removed].nh_id, &nh_index_to_remove);
+            status                                            = mlnx_sdk_nhop_find_in_list(sx_next_hops,
+                                                                                           next_hop_count,
+                                                                                           &nh_list[nh_removed].nh_id,
+                                                                                           &nh_index_to_remove);
             object_statuses[nh_list[nh_removed].object_index] = status;
             if (SAI_ERR(status)) {
                 SX_LOG_ERR("Failed to remove next hop group member at index %d\n", nh_list[nh_removed].object_index);
                 failure = true;
                 if (stop_on_error) {
                     break;
-                } else{
+                } else {
                     continue;
                 }
             }
@@ -1014,7 +1016,7 @@ static sai_status_t mlnx_next_hop_bulk_sx_nh_del(_In_ sx_ecmp_id_t              
         sx_status = sx_api_router_ecmp_set(gh_sdk, SX_ACCESS_CMD_SET, &sx_ecmp_id, sx_next_hops, &next_hop_count);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to update sx ecmp id (%x) - %s.\n", sx_ecmp_id, SX_STATUS_MSG(sx_status));
-            failure  = true;
+            failure = true;
             for (ii = 0; ii < nh_removed; ii++) {
                 object_statuses[nh_list[ii].object_index] = sdk_to_sai(sx_status);
             }
@@ -1039,8 +1041,7 @@ static sai_status_t mlnx_next_hop_bulk_sx_update(_In_ sai_common_api_t          
     }
 }
 
-static int mlnx_next_hop_bulk_data_sort_fn(_In_ const void  *nha,
-                                           _In_ const void  *nhb)
+static int mlnx_next_hop_bulk_data_sort_fn(_In_ const void *nha, _In_ const void  *nhb)
 {
     const mlnx_nh_bulk_pair_t *pair_a, *pair_b;
 
@@ -1111,9 +1112,9 @@ static sai_status_t mlnx_next_hop_bulk_remove_member_add(_In_ mlnx_nh_bulk_pair_
                                                          _In_ sai_object_id_t           group_member_oid,
                                                          _In_ uint32_t                  object_index)
 {
-    sai_status_t            status;
-    sx_ecmp_id_t            group_ecmp_id, nh_ecmp_id;
-    mlnx_nh_bulk_pair_t     nh_pair;
+    sai_status_t        status;
+    sx_ecmp_id_t        group_ecmp_id, nh_ecmp_id;
+    mlnx_nh_bulk_pair_t nh_pair;
 
     assert(nh_bulk_data);
 
@@ -1261,7 +1262,7 @@ sai_status_t mlnx_remove_next_hop_group_members(_In_ uint32_t                 ob
                                                 _In_ sai_bulk_op_error_mode_t mode,
                                                 _Out_ sai_status_t           *object_statuses)
 {
-    return mlnx_next_hop_bulk_impl(SAI_NULL_OBJECT_ID, object_count, NULL, NULL, mode, (sai_object_id_t*) object_id,
+    return mlnx_next_hop_bulk_impl(SAI_NULL_OBJECT_ID, object_count, NULL, NULL, mode, (sai_object_id_t*)object_id,
                                    object_statuses, SAI_COMMON_API_BULK_REMOVE);
 }
 

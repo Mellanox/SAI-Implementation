@@ -135,6 +135,12 @@
     <ClInclude Include="inc\sai\saiuburst.h">
       <Filter>Header Files\sai</Filter>
     </ClInclude>
+    <ClInclude Include="inc\sai\saibfd.h">
+      <Filter>Header Files\sai</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\sai\saidtel.h">
+      <Filter>Header Files\sai</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\mlnx_sai_acl.c">
@@ -282,6 +288,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\meta\saiserialize.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\mlnx_sai_l2mcgroup.c">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

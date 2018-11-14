@@ -201,6 +201,18 @@ typedef enum _sai_hostif_trap_type_t
     /** Default action is drop */
     SAI_HOSTIF_TRAP_TYPE_UDLD = 0x0000000b,
 
+    /**
+     * @brief PTP traffic (EtherType = 0x88F7 or UDP dst port == 319 or UDP dst port == 320)
+     * (default packet action is drop)
+     */
+    SAI_HOSTIF_TRAP_TYPE_PTP = 0x00000010,
+
+    /**
+     * @brief PTP packet sent from CPU with updated TX timestamp
+     * (default packet action is drop)
+     */
+    SAI_HOSTIF_TRAP_TYPE_PTP_TX_EVENT = 0x00000011,
+
     /** Switch traps custom range start */
     SAI_HOSTIF_TRAP_TYPE_SWITCH_CUSTOM_RANGE_BASE = 0x00001000,
 
@@ -1048,7 +1060,7 @@ typedef enum _sai_hostif_packet_attr_t
      *
      * For receive case, filled with the egress destination port for unicast packets.
      * Egress LAG member port id to be filled for the LAG destination case.
-     * Applicable for use-case like samplepacket traps.
+     * Applicable for use-case like samplepacket traps or PTP TX event
      *
      * @type sai_object_id_t
      * @flags MANDATORY_ON_CREATE | CREATE_ONLY
@@ -1069,6 +1081,16 @@ typedef enum _sai_hostif_packet_attr_t
     SAI_HOSTIF_PACKET_ATTR_BRIDGE_ID,
 
     /**
+     * @brief Timestamp
+     *
+     * The timestamp on which the packet was received, or sent for PTP TX event.
+     *
+     * @type sai_timespec_t
+     * @flags READ_ONLY
+     */
+    SAI_HOSTIF_PACKET_ATTR_TIMESTAMP,
+
+    /**
      * @brief End of attributes
      */
     SAI_HOSTIF_PACKET_ATTR_END,
@@ -1085,8 +1107,8 @@ typedef enum _sai_hostif_packet_attr_t
  * @brief Hostif receive function
  *
  * @param[in] hostif_id Host interface id
- * @param[out] buffer Packet buffer
  * @param[inout] buffer_size Allocated buffer size [in], Actual packet size in bytes [out]
+ * @param[out] buffer Packet buffer
  * @param[inout] attr_count Allocated list size [in], Number of attributes [out]
  * @param[out] attr_list Array of attributes
  *
@@ -1097,8 +1119,8 @@ typedef enum _sai_hostif_packet_attr_t
  */
 typedef sai_status_t (*sai_recv_hostif_packet_fn)(
         _In_ sai_object_id_t hostif_id,
-        _Out_ void *buffer,
         _Inout_ sai_size_t *buffer_size,
+        _Out_ void *buffer,
         _Inout_ uint32_t *attr_count,
         _Out_ sai_attribute_t *attr_list);
 
@@ -1108,8 +1130,8 @@ typedef sai_status_t (*sai_recv_hostif_packet_fn)(
  * @param[in] hostif_id Host interface id.
  *    When sending through FD channel, fill SAI_OBJECT_TYPE_HOST_INTERFACE object, of type #SAI_HOSTIF_TYPE_FD.
  *    When sending through CB channel, fill Switch Object ID, SAI_OBJECT_TYPE_SWITCH.
- * @param[in] buffer Packet buffer
  * @param[in] buffer_size Packet size in bytes
+ * @param[in] buffer Packet buffer
  * @param[in] attr_count Number of attributes
  * @param[in] attr_list Array of attributes
  *
@@ -1117,10 +1139,10 @@ typedef sai_status_t (*sai_recv_hostif_packet_fn)(
  */
 typedef sai_status_t (*sai_send_hostif_packet_fn)(
         _In_ sai_object_id_t hostif_id,
-        _In_ void *buffer,
         _In_ sai_size_t buffer_size,
+        _In_ const void *buffer,
         _In_ uint32_t attr_count,
-        _In_ sai_attribute_t *attr_list);
+        _In_ const sai_attribute_t *attr_list);
 
 /**
  * @brief Hostif receive callback
@@ -1130,15 +1152,15 @@ typedef sai_status_t (*sai_send_hostif_packet_fn)(
  * @objects attr_list SAI_OBJECT_TYPE_HOSTIF_PACKET
  *
  * @param[in] switch_id Switch Object ID
- * @param[in] buffer Packet buffer
  * @param[in] buffer_size Actual packet size in bytes
+ * @param[in] buffer Packet buffer
  * @param[in] attr_count Number of attributes
  * @param[in] attr_list Array of attributes
  */
 typedef void (*sai_packet_event_notification_fn)(
         _In_ sai_object_id_t switch_id,
-        _In_ const void *buffer,
         _In_ sai_size_t buffer_size,
+        _In_ const void *buffer,
         _In_ uint32_t attr_count,
         _In_ const sai_attribute_t *attr_list);
 

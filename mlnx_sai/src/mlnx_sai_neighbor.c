@@ -70,15 +70,25 @@ static const sai_vendor_attribute_entry_t neighbor_vendor_attribs[] = {
       NULL, NULL,
       NULL, NULL }
 };
+static const mlnx_attr_enum_info_t neighbor_enum_info[] = {
+    [SAI_NEIGHBOR_ENTRY_ATTR_PACKET_ACTION] = ATTR_ENUM_VALUES_LIST(
+        SAI_PACKET_ACTION_FORWARD,
+        SAI_PACKET_ACTION_TRAP,
+        SAI_PACKET_ACTION_LOG,
+        SAI_PACKET_ACTION_DROP
+        )
+};
+const mlnx_obj_type_attrs_info_t mlnx_neighbor_obj_type_info =
+    { neighbor_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(neighbor_enum_info)};
 static void neighbor_key_to_str(_In_ const sai_neighbor_entry_t* neighbor_entry, _Out_ char *key_str)
 {
-    int      res1, res2;
-    uint32_t rifid;
+    int                   res1, res2;
+    sx_router_interface_t rifid;
 
     res1 = snprintf(key_str, MAX_KEY_STR_LEN, "neighbor ip ");
     sai_ipaddr_to_str(neighbor_entry->ip_address, MAX_KEY_STR_LEN - res1, key_str + res1, &res2);
     if (SAI_STATUS_SUCCESS !=
-        mlnx_object_to_type(neighbor_entry->rif_id, SAI_OBJECT_TYPE_ROUTER_INTERFACE, &rifid, NULL)) {
+        mlnx_rif_oid_to_sdk_rif_id(neighbor_entry->rif_id, &rifid)) {
         snprintf(key_str + res1 + res2, MAX_KEY_STR_LEN - res1 - res2, " invalid rif");
     } else {
         snprintf(key_str + res1 + res2, MAX_KEY_STR_LEN - res1 - res2, " rif %u", rifid);
@@ -315,7 +325,7 @@ static sai_status_t mlnx_get_neighbor(const sai_neighbor_entry_t* neighbor_entry
     uint32_t          entries_count = 1;
     sx_ip_addr_t      ipaddr;
     sx_neigh_filter_t filter;
-    uint32_t          rif_data;
+    sx_router_interface_t sx_rif;
 
     SX_LOG_ENTER();
 
@@ -327,13 +337,13 @@ static sai_status_t mlnx_get_neighbor(const sai_neighbor_entry_t* neighbor_entry
     }
 
     if (SAI_STATUS_SUCCESS !=
-        (status = mlnx_object_to_type(neighbor_entry->rif_id, SAI_OBJECT_TYPE_ROUTER_INTERFACE, &rif_data, NULL))) {
+        (status = mlnx_rif_oid_to_sdk_rif_id(neighbor_entry->rif_id, &sx_rif))) {
         return status;
     }
 
     if (SX_STATUS_SUCCESS !=
         (status =
-             sx_api_router_neigh_get(gh_sdk, SX_ACCESS_CMD_GET, (sx_router_interface_t)rif_data, &ipaddr, &filter,
+             sx_api_router_neigh_get(gh_sdk, SX_ACCESS_CMD_GET, sx_rif, &ipaddr, &filter,
                                      neigh_entry,
                                      &entries_count))) {
         SX_LOG_ERR("Failed to get %d neighbor entries %s.\n", entries_count, SX_STATUS_MSG(status));
@@ -421,10 +431,10 @@ static sai_status_t mlnx_neighbor_no_host_get(_In_ const sai_object_key_t   *key
 static sai_status_t mlnx_modify_neighbor_entry(_In_ const sai_neighbor_entry_t* neighbor_entry,
                                                _In_ const sx_neigh_data_t      *new_neigh_data)
 {
-    sai_status_t    status;
-    sx_ip_addr_t    ipaddr;
-    sx_neigh_data_t neigh_data;
-    uint32_t        rif_data;
+    sai_status_t          status;
+    sx_ip_addr_t          ipaddr;
+    sx_neigh_data_t       neigh_data;
+    sx_router_interface_t sx_rif;
 
     SX_LOG_ENTER();
 
@@ -436,23 +446,21 @@ static sai_status_t mlnx_modify_neighbor_entry(_In_ const sai_neighbor_entry_t* 
     }
 
     if (SAI_STATUS_SUCCESS !=
-        (status = mlnx_object_to_type(neighbor_entry->rif_id, SAI_OBJECT_TYPE_ROUTER_INTERFACE, &rif_data, NULL))) {
+        (status = mlnx_rif_oid_to_sdk_rif_id(neighbor_entry->rif_id, &sx_rif))) {
         return status;
     }
 
     /* To modify a neighbor, we delete and readd it with new data */
     if (SX_STATUS_SUCCESS !=
         (status =
-             sx_api_router_neigh_set(gh_sdk, SX_ACCESS_CMD_DELETE, (sx_router_interface_t)rif_data, &ipaddr,
-                                     &neigh_data))) {
+             sx_api_router_neigh_set(gh_sdk, SX_ACCESS_CMD_DELETE, sx_rif, &ipaddr, &neigh_data))) {
         SX_LOG_ERR("Failed to remove neighbor entry - %s.\n", SX_STATUS_MSG(status));
         return sdk_to_sai(status);
     }
 
     if (SX_STATUS_SUCCESS !=
         (status =
-             sx_api_router_neigh_set(gh_sdk, SX_ACCESS_CMD_ADD, (sx_router_interface_t)rif_data, &ipaddr,
-                                     new_neigh_data))) {
+             sx_api_router_neigh_set(gh_sdk, SX_ACCESS_CMD_ADD, sx_rif, &ipaddr, new_neigh_data))) {
         SX_LOG_ERR("Failed to create neighbor entry - %s.\n", SX_STATUS_MSG(status));
         return sdk_to_sai(status);
     }

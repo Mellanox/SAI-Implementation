@@ -1006,9 +1006,11 @@ sub ProcessType
         return "${prefix}_INT32";
     }
 
-    if ($type =~ /^sai_acl_action_data_t (sai_\w+_t)$/)
+    if ($type =~ /^sai_acl_action_data_t (bool|sai_\w+_t)$/)
     {
         my $prefix = "SAI_ATTR_VALUE_TYPE_ACL_ACTION_DATA";
+
+        return "${prefix}_BOOL" if $1 eq "bool";
 
         return "${prefix}_$ACL_ACTION_TYPES_TO_VT{$1}" if defined $ACL_ACTION_TYPES_TO_VT{$1};
 
@@ -1514,6 +1516,15 @@ sub ProcessAttrName
     return "\"$attr\"";
 }
 
+sub ProcessNotificationType
+{
+    my ($attr, $type) = @_;
+
+    return "SAI_SWITCH_NOTIFICATION_TYPE_$1" if $attr =~ /^SAI_SWITCH_ATTR_(\w+)_NOTIFY$/;
+
+    return "-1";
+}
+
 sub ProcessIsAclField
 {
     my $attr = shift;
@@ -1615,6 +1626,7 @@ sub ProcessSingleObjectType
         my $isaclaction     = ProcessIsAclAction($attr);
         my $brief           = ProcessBrief($attr, $meta{brief});
         my $isprimitive     = ProcessIsPrimitive($attr, $meta{type});
+        my $ntftype         = ProcessNotificationType($attr, $meta{type});
 
         my $ismandatoryoncreate = ($flags =~ /MANDATORY/)       ? "true" : "false";
         my $iscreateonly        = ($flags =~ /CREATE_ONLY/)     ? "true" : "false";
@@ -1663,6 +1675,7 @@ sub ProcessSingleObjectType
         WriteSource "    .isreadonly                    = $isreadonly,";
         WriteSource "    .iskey                         = $iskey,";
         WriteSource "    .isprimitive                   = $isprimitive,";
+        WriteSource "    .notificationtype              = $ntftype,";
 
         WriteSource "};";
 
@@ -2376,7 +2389,7 @@ sub CreateApisQuery
         WriteSource "    {";
         WriteSource "        count++;";
         WriteSource "        const char *name = sai_metadata_get_enum_value_name(&sai_metadata_enum_sai_status_t, status);";
-        WriteSource "        SAI_META_LOG_WARN(\"failed to query api $api: %s (%d)\", name, status);";
+        WriteSource "        SAI_META_LOG_NOTICE(\"failed to query api $api: %s (%d)\", name, status);";
         WriteSource "    }";
     }
 
@@ -2404,7 +2417,7 @@ sub CreateObjectInfo
         }
 
         next if $1 eq "NULL" or $1 eq "MAX";
-        
+
         if (not defined $OBJTOAPIMAP{$ot})
         {
             LogError "$ot is not defined in OBJTOAPIMAP, missing sai_XXX_api_t declaration?";
@@ -3105,9 +3118,9 @@ sub CreateObjectTypeMap
 # MAIN
 #
 
-CheckHeadersStyle() if not defined $optionDisableStyleCheck;
-
 ExtractApiToObjectMap();
+
+CheckHeadersStyle() if not defined $optionDisableStyleCheck;
 
 GetStructLists();
 
