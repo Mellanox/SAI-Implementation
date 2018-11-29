@@ -329,7 +329,6 @@ static void SAI_dump_acl_entry_print(_In_ FILE *file, _In_ acl_entry_db_t *acl_e
         {"db idx",               11, PARAM_UINT32_E, &ii},
         {"offset",               6,  PARAM_UINT16_E, &curr_acl_entry_db.offset},
         {"sx prio",              13, PARAM_UINT16_E, &curr_acl_entry_db.sx_prio},
-        {"pbs index",            13, PARAM_UINT16_E, &curr_acl_entry_db.pbs_index},
         {NULL,                   0,  0,              NULL}
     };
 
@@ -382,14 +381,14 @@ static void SAI_dump_acl_settings_tbl_print(_In_ FILE *file, _In_ acl_setting_tb
     dbg_utils_print_table_data_line(file, acl_settings_clmns);
 }
 
-static void SAI_dump_acl_pbs_entry_type_get(_In_ acl_pbs_index_t pbs_index, _Out_ char          *type)
+static void SAI_dump_acl_pbs_entry_type_get(_In_ mlnx_acl_pbs_map_idx_t pbs_index, _Out_ char          *type)
 {
-    if (ACL_PBS_FLOOD_PBS_INDEX == pbs_index) {
+    if (ACL_PBS_MAP_FLOOD_PBS_INDEX == pbs_index) {
         strcpy(type, "flood");
         return;
     }
 
-    if (ACL_PBS_INDEX_IS_TRIVIAL(pbs_index)) {
+    if (ACL_PBS_MAP_INDEX_IS_TRIVIAL(pbs_index)) {
         strcpy(type, "single port");
         return;
     }
@@ -419,15 +418,15 @@ static void SAI_dump_acl_pbs_entry_key_str_get(_In_ const acl_pbs_map_key_t *key
 static void SAI_dump_acl_pbs_map_db_print(_In_ FILE *file, _In_ acl_pbs_map_entry_t *pbs_map_db)
 {
     acl_pbs_map_entry_t       curr_pbs_entry;
-    acl_pbs_index_t           ii;
+    mlnx_acl_pbs_map_idx_t    ii;
     char                      pbs_entry_type[LINE_LENGTH]   = {0};
     char                      pbs_key[MAX_PORTS_DB * 2 + 1] = {0};
     dbg_utils_table_columns_t acl_pbs_map_clmns[]           = {
         {"idx",               7, PARAM_UINT16_E, &ii},
         {"type",             13, PARAM_STRING_E, &pbs_entry_type},
         {"key",  MAX_PORTS_DB * 2, PARAM_STRING_E, &pbs_key},
-        {"sx id",            10, PARAM_UINT32_E, &curr_pbs_entry.pbs_id},
-        {"refs",             10, PARAM_UINT32_E, &curr_pbs_entry.ref_counter},
+        {"sx id",            10, PARAM_UINT32_E, &curr_pbs_entry.entry.pbs_id},
+        {"refs",             10, PARAM_UINT32_E, &curr_pbs_entry.entry.ref_counter},
         {NULL,               0,               0, NULL}
     };
 
@@ -438,7 +437,7 @@ static void SAI_dump_acl_pbs_map_db_print(_In_ FILE *file, _In_ acl_pbs_map_entr
     dbg_utils_print_table_headline(file, acl_pbs_map_clmns);
 
     for (ii = 0; ii < ACL_PBS_MAP_PREDEF_REG_SIZE + g_sai_acl_db_pbs_map_size; ii++) {
-        if (g_sai_acl_db_ptr->acl_pbs_map_db[ii].ref_counter > 0) {
+        if (g_sai_acl_db_ptr->acl_pbs_map_db[ii].entry.ref_counter > 0) {
             memcpy(&curr_pbs_entry, &g_sai_acl_db_ptr->acl_pbs_map_db[ii], sizeof(curr_pbs_entry));
 
             SAI_dump_acl_pbs_entry_type_get(ii, pbs_entry_type);

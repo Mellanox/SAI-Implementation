@@ -25743,17 +25743,18 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_MIRROR_SESSION_ATTR_VLAN_TPID = 
     .isprimitive                   = true,
     .notificationtype              = -1,
 };
-const sai_attr_condition_t sai_metadata_condition_SAI_MIRROR_SESSION_ATTR_VLAN_ID_0 = {
+const sai_attribute_value_t sai_metadata_SAI_MIRROR_SESSION_ATTR_VLAN_ID_default_value = { .u16 = 0 };
+const sai_attr_condition_t sai_metadata_validonly_SAI_MIRROR_SESSION_ATTR_VLAN_ID_0 = {
     .attrid = SAI_MIRROR_SESSION_ATTR_VLAN_HEADER_VALID,
     .condition = { .booldata = true }
 };
-const sai_attr_condition_t sai_metadata_condition_SAI_MIRROR_SESSION_ATTR_VLAN_ID_1 = {
+const sai_attr_condition_t sai_metadata_validonly_SAI_MIRROR_SESSION_ATTR_VLAN_ID_1 = {
     .attrid = SAI_MIRROR_SESSION_ATTR_TYPE,
     .condition = { .s32 = SAI_MIRROR_SESSION_TYPE_REMOTE }
 };
-const sai_attr_condition_t* const sai_metadata_conditions_SAI_MIRROR_SESSION_ATTR_VLAN_ID[] = {
-    &sai_metadata_condition_SAI_MIRROR_SESSION_ATTR_VLAN_ID_0,
-    &sai_metadata_condition_SAI_MIRROR_SESSION_ATTR_VLAN_ID_1,
+const sai_attr_condition_t* const sai_metadata_validonlys_SAI_MIRROR_SESSION_ATTR_VLAN_ID[] = {
+    &sai_metadata_validonly_SAI_MIRROR_SESSION_ATTR_VLAN_ID_0,
+    &sai_metadata_validonly_SAI_MIRROR_SESSION_ATTR_VLAN_ID_1,
     NULL
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_MIRROR_SESSION_ATTR_VLAN_ID = {
@@ -25762,7 +25763,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_MIRROR_SESSION_ATTR_VLAN_ID = {
     .attridname                    = "SAI_MIRROR_SESSION_ATTR_VLAN_ID",
     .brief                         = "L2 header VLAN Id.",
     .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_UINT16,
-    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_MANDATORY_ON_CREATE|SAI_ATTR_FLAGS_CREATE_AND_SET),
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
     .allowedobjecttypes            = NULL,
     .allowedobjecttypeslength      = 0,
     .allowrepetitiononlist         = false,
@@ -25770,27 +25771,27 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_MIRROR_SESSION_ATTR_VLAN_ID = {
     .allowemptylist                = false,
     .allownullobjectid             = false,
     .isoidattribute                = (0 > 0),
-    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_NONE,
-    .defaultvalue                  = NULL,
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
+    .defaultvalue                  = &sai_metadata_SAI_MIRROR_SESSION_ATTR_VLAN_ID_default_value,
     .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
     .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
-    .storedefaultvalue             = true,
+    .storedefaultvalue             = false,
     .isenum                        = false,
     .isenumlist                    = false,
     .enummetadata                  = NULL,
-    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_OR,
-    .conditions                    = sai_metadata_conditions_SAI_MIRROR_SESSION_ATTR_VLAN_ID,
-    .conditionslength              = 2,
-    .isconditional                 = (2 != 0),
-    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
-    .validonly                     = NULL,
-    .validonlylength               = 0,
-    .isvalidonly                   = (0 != 0),
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_OR,
+    .validonly                     = sai_metadata_validonlys_SAI_MIRROR_SESSION_ATTR_VLAN_ID,
+    .validonlylength               = 2,
+    .isvalidonly                   = (2 != 0),
     .getsave                       = false,
     .isvlan                        = true,
     .isaclfield                    = false,
     .isaclaction                   = false,
-    .ismandatoryoncreate           = true,
+    .ismandatoryoncreate           = false,
     .iscreateonly                  = false,
     .iscreateandset                = true,
     .isreadonly                    = false,
@@ -25925,7 +25926,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_MIRROR_SESSION_ATTR_VLAN_HEADER_
     .attridname                    = "SAI_MIRROR_SESSION_ATTR_VLAN_HEADER_VALID",
     .brief                         = "Vlan header valid.",
     .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_BOOL,
-    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_ONLY),
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
     .allowedobjecttypes            = NULL,
     .allowedobjecttypeslength      = 0,
     .allowrepetitiononlist         = false,
@@ -25954,8 +25955,8 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_MIRROR_SESSION_ATTR_VLAN_HEADER_
     .isaclfield                    = false,
     .isaclaction                   = false,
     .ismandatoryoncreate           = false,
-    .iscreateonly                  = true,
-    .iscreateandset                = false,
+    .iscreateonly                  = false,
+    .iscreateandset                = true,
     .isreadonly                    = false,
     .iskey                         = false,
     .isprimitive                   = true,
@@ -26667,8 +26668,18 @@ const sai_attr_condition_t sai_metadata_condition_SAI_NEXT_HOP_ATTR_IP_0 = {
     .attrid = SAI_NEXT_HOP_ATTR_TYPE,
     .condition = { .s32 = SAI_NEXT_HOP_TYPE_IP }
 };
+const sai_attr_condition_t sai_metadata_condition_SAI_NEXT_HOP_ATTR_IP_1 = {
+    .attrid = SAI_NEXT_HOP_ATTR_TYPE,
+    .condition = { .s32 = SAI_NEXT_HOP_TYPE_MPLS }
+};
+const sai_attr_condition_t sai_metadata_condition_SAI_NEXT_HOP_ATTR_IP_2 = {
+    .attrid = SAI_NEXT_HOP_ATTR_TYPE,
+    .condition = { .s32 = SAI_NEXT_HOP_TYPE_TUNNEL_ENCAP }
+};
 const sai_attr_condition_t* const sai_metadata_conditions_SAI_NEXT_HOP_ATTR_IP[] = {
     &sai_metadata_condition_SAI_NEXT_HOP_ATTR_IP_0,
+    &sai_metadata_condition_SAI_NEXT_HOP_ATTR_IP_1,
+    &sai_metadata_condition_SAI_NEXT_HOP_ATTR_IP_2,
     NULL
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_NEXT_HOP_ATTR_IP = {
@@ -26695,8 +26706,8 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_NEXT_HOP_ATTR_IP = {
     .enummetadata                  = NULL,
     .conditiontype                 = SAI_ATTR_CONDITION_TYPE_OR,
     .conditions                    = sai_metadata_conditions_SAI_NEXT_HOP_ATTR_IP,
-    .conditionslength              = 1,
-    .isconditional                 = (1 != 0),
+    .conditionslength              = 3,
+    .isconditional                 = (3 != 0),
     .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
     .validonly                     = NULL,
     .validonlylength               = 0,
@@ -42385,9 +42396,14 @@ const sai_attr_condition_t sai_metadata_condition_SAI_TUNNEL_ATTR_UNDERLAY_INTER
     .attrid = SAI_TUNNEL_ATTR_TYPE,
     .condition = { .s32 = SAI_TUNNEL_TYPE_IPINIP_GRE }
 };
+const sai_attr_condition_t sai_metadata_condition_SAI_TUNNEL_ATTR_UNDERLAY_INTERFACE_2 = {
+    .attrid = SAI_TUNNEL_ATTR_TYPE,
+    .condition = { .s32 = SAI_TUNNEL_TYPE_VXLAN }
+};
 const sai_attr_condition_t* const sai_metadata_conditions_SAI_TUNNEL_ATTR_UNDERLAY_INTERFACE[] = {
     &sai_metadata_condition_SAI_TUNNEL_ATTR_UNDERLAY_INTERFACE_0,
     &sai_metadata_condition_SAI_TUNNEL_ATTR_UNDERLAY_INTERFACE_1,
+    &sai_metadata_condition_SAI_TUNNEL_ATTR_UNDERLAY_INTERFACE_2,
     NULL
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_TUNNEL_ATTR_UNDERLAY_INTERFACE = {
@@ -42414,8 +42430,8 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TUNNEL_ATTR_UNDERLAY_INTERFACE =
     .enummetadata                  = NULL,
     .conditiontype                 = SAI_ATTR_CONDITION_TYPE_OR,
     .conditions                    = sai_metadata_conditions_SAI_TUNNEL_ATTR_UNDERLAY_INTERFACE,
-    .conditionslength              = 2,
-    .isconditional                 = (2 != 0),
+    .conditionslength              = 3,
+    .isconditional                 = (3 != 0),
     .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
     .validonly                     = NULL,
     .validonlylength               = 0,

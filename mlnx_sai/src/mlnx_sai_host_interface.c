@@ -21,6 +21,7 @@
 #include "assert.h"
 #ifndef _WIN32
 #include <net/if.h>
+#include <unistd.h>
 #endif
 
 #undef  __MODULE__
@@ -582,35 +583,23 @@ static void host_interface_key_to_str(_In_ sai_object_id_t hif_id, _Out_ char *k
 /* Creates netdev. Called under read/write lock */
 static sai_status_t create_netdev(uint32_t index)
 {
-    char                         command[100];
-    int                          system_err;
+    char add_link_command[100],disable_ipv6_command[100],set_addr_command[100],command[300];
+    int  system_err;
 
     if (SAI_HOSTIF_OBJECT_TYPE_VLAN == g_sai_db_ptr->hostif_db[index].sub_type) {
-        snprintf(command, sizeof(command), "ip link add link swid%u_eth name %s type vlan id %u",
+        snprintf(add_link_command, sizeof(add_link_command), "ip link add link swid%u_eth name %s type vlan id %u",
                  DEFAULT_ETH_SWID, g_sai_db_ptr->hostif_db[index].ifname, g_sai_db_ptr->hostif_db[index].vid);
     }
     else {
-        snprintf(command, sizeof(command), "ip link add %s type sx_netdev swid %u port 0x%x",
+        snprintf(add_link_command, sizeof(add_link_command), "ip link add %s type sx_netdev swid %u port 0x%x",
                  g_sai_db_ptr->hostif_db[index].ifname, DEFAULT_ETH_SWID, g_sai_db_ptr->hostif_db[index].port_id);
-    }
-
-    system_err = system(command);
-    if (0 != system_err) {
-        SX_LOG_ERR("Command \"%s\" failed\n", command);
-        return SAI_STATUS_FAILURE;
     }
 
     /* TODO : temporary WA for SwitchX. L2 and Router port are created with port MAC. But since we want to use them for
     * routing, we set them with the router MAC to avoid mismatch of the MAC value.
     */
-    snprintf(command, sizeof(command), "ip link set dev %s address %s > /dev/null 2>&1",
+    snprintf(set_addr_command, sizeof(set_addr_command), "ip link set dev %s address %s > /dev/null 2>&1",
              g_sai_db_ptr->hostif_db[index].ifname, g_sai_db_ptr->dev_mac);
-
-    system_err = system(command);
-    if (0 != system_err) {
-        SX_LOG_ERR("Failed running \"%s\".\n", command);
-        return SAI_STATUS_FAILURE;
-    }
 
     /* Enable ipv6 for router port (by default, ipv6 is off on port/lag netdev)
     * TODO : Right now we are enabling on any port/lag netdev, could improve by enabling just on router port.
@@ -618,14 +607,19 @@ static sai_status_t create_netdev(uint32_t index)
     */
     if ((SAI_HOSTIF_OBJECT_TYPE_PORT == g_sai_db_ptr->hostif_db[index].sub_type) ||
         (SAI_HOSTIF_OBJECT_TYPE_LAG == g_sai_db_ptr->hostif_db[index].sub_type)) {
-        snprintf(command, sizeof(command), "sysctl -w net.ipv6.conf.%s.disable_ipv6=0",
+        snprintf(disable_ipv6_command, sizeof(disable_ipv6_command), "sysctl -w net.ipv6.conf.%s.disable_ipv6=0",
                  g_sai_db_ptr->hostif_db[index].ifname);
+        snprintf(command, sizeof(command), "%s && %s && %s",
+                 add_link_command, disable_ipv6_command, set_addr_command);
+    } else {
+        snprintf(command, sizeof(command), "%s && %s",
+                 add_link_command, set_addr_command);
+    }
 
-        system_err = system(command);
-        if (0 != system_err) {
-            SX_LOG_ERR("Failed running \"%s\".\n", command);
-            return SAI_STATUS_FAILURE;
-        }
+    system_err = system(command);
+    if (0 != system_err) {
+        SX_LOG_ERR("Failed running \"%s\".\n", command);
+        return SAI_STATUS_FAILURE;
     }
 
     return SAI_STATUS_SUCCESS;

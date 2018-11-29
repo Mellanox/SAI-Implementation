@@ -192,6 +192,7 @@
     <ClCompile Include="src\mlnx_sai_hash.c" />
     <ClCompile Include="src\mlnx_sai_host_interface.c" />
     <ClCompile Include="src\mlnx_sai_interfacequery.c" />
+    <ClCompile Include="src\mlnx_sai_l2mcgroup.c" />
     <ClCompile Include="src\mlnx_sai_lag.c" />
     <ClCompile Include="src\mlnx_sai_mirror.c" />
     <ClCompile Include="src\mlnx_sai_neighbor.c" />

@@ -90,11 +90,21 @@ static const sai_u32_list_t        mlnx_sai_tunnel_valid_obj_types[] = {
     {.count = 1, .list = (uint32_t[1]) {SAI_OBJECT_TYPE_PORT}
     },
 };
+static const sai_u32_list_t        mlnx_sai_acl_entry_valid_obj_types[] = {
+    [SAI_ACL_ENTRY_ATTR_FIELD_IN_PORT] =
+    {.count = 1, .list = (uint32_t[1]) {SAI_OBJECT_TYPE_LAG}
+    },
+    [SAI_ACL_ENTRY_ATTR_FIELD_OUT_PORT] =
+    {.count = 1, .list = (uint32_t[1]) {SAI_OBJECT_TYPE_LAG}
+    },
+};
 static const sai_u32_list_t        mlnx_sai_valid_obj_types[SAI_OBJECT_TYPE_MAX] = {
     [SAI_OBJECT_TYPE_HOSTIF_TABLE_ENTRY] =
     {.count = ARRAY_SIZE(mlnx_sai_hostif_table_valid_obj_types), .list = (void*)mlnx_sai_hostif_table_valid_obj_types},
     [SAI_OBJECT_TYPE_TUNNEL] =
     {.count = ARRAY_SIZE(mlnx_sai_tunnel_valid_obj_types), .list = (void*)mlnx_sai_tunnel_valid_obj_types},
+    [SAI_OBJECT_TYPE_ACL_ENTRY] =
+    {.count = ARRAY_SIZE(mlnx_sai_acl_entry_valid_obj_types), .list = (void*)mlnx_sai_acl_entry_valid_obj_types},
 };
 static sai_attr_metadata_t         mlnx_udf_acl_table_attr_metadata_list[MLNX_UDF_ACL_ATTR_COUNT];
 static sai_attr_metadata_t         mlnx_udf_acl_entry_attr_metadata_list[MLNX_UDF_ACL_ATTR_COUNT];

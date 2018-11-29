@@ -1047,8 +1047,10 @@ sai_status_t mlnx_vlan_port_add(uint16_t vid, sai_vlan_tagging_mode_t mode, mlnx
 
 sai_status_t mlnx_vlan_port_del(uint16_t vid, mlnx_bridge_port_t *port)
 {
-    sx_vlan_ports_t port_list;
-    sx_status_t     sx_status;
+    sx_vlan_ports_t     port_list;
+    sx_status_t         sx_status;
+    mlnx_port_config_t *port_config;
+    sai_status_t        status;
 
     memset(&port_list, 0, sizeof(port_list));
 
@@ -1058,10 +1060,22 @@ sai_status_t mlnx_vlan_port_del(uint16_t vid, mlnx_bridge_port_t *port)
         return SAI_STATUS_SUCCESS;
     }
 
-    sx_status = sx_api_vlan_ports_set(gh_sdk, SX_ACCESS_CMD_DELETE, DEFAULT_ETH_SWID, vid, &port_list, 1);
-    if (SX_ERR(sx_status)) {
-        SX_LOG_ERR("Failed to add vlan ports %s.\n", SX_STATUS_MSG(sx_status));
-        return sdk_to_sai(sx_status);
+    /* On warmboot init, don't remove vlan 1 members from hw until issu end phase.
+       Sonic first delete all default members, then may recreate some based on actual membership.
+       Since router port belong to vlan 1 in SDK, don't remove them from vlan membership on issu end. */
+    if ((BOOT_TYPE_WARM == g_sai_db_ptr->boot_type) && (!g_sai_db_ptr->issu_end_called) && (DEFAULT_VLAN == vid)) {
+        status = mlnx_port_by_log_id(port->logical, &port_config);
+        if (SAI_ERR(status)) {
+            return status;
+        }
+        port_config->issu_remove_default_vid = true;
+    }
+    else {
+        sx_status = sx_api_vlan_ports_set(gh_sdk, SX_ACCESS_CMD_DELETE, DEFAULT_ETH_SWID, vid, &port_list, 1);
+        if (SX_ERR(sx_status)) {
+            SX_LOG_ERR("Failed to add vlan ports %s.\n", SX_STATUS_MSG(sx_status));
+            return sdk_to_sai(sx_status);
+        }
     }
 
     mlnx_vlan_port_set(vid, port, false);
@@ -1088,7 +1102,8 @@ static sai_status_t mlnx_create_vlan_member(_Out_ sai_object_id_t     * vlan_mem
     char                         key_str[MAX_KEY_STR_LEN];
     char                         list_str[MAX_LIST_VALUE_STR_LEN];
     sx_port_log_id_t             log_port;
-    mlnx_bridge_port_t          *port_cfg;
+    mlnx_bridge_port_t          *bridge_port_cfg;
+    mlnx_port_config_t          *port_config;
     uint16_t                     vlan_id;
     sai_status_t                 status;
 
@@ -1139,17 +1154,25 @@ static sai_status_t mlnx_create_vlan_member(_Out_ sai_object_id_t     * vlan_mem
 
     sai_db_write_lock();
 
-    status = mlnx_bridge_1q_port_by_log(log_port, &port_cfg);
+    status = mlnx_bridge_1q_port_by_log(log_port, &bridge_port_cfg);
     if (SAI_ERR(status)) {
         goto out;
     }
 
-    status = mlnx_vlan_port_add(vlan_id, mode, port_cfg);
+    status = mlnx_vlan_port_add(vlan_id, mode, bridge_port_cfg);
     if (SAI_ERR(status)) {
         goto out;
     }
 
-    status = mlnx_vlan_member_object_create(vlan_id, port_cfg->index, vlan_member_id);
+    if ((BOOT_TYPE_WARM == g_sai_db_ptr->boot_type) && (!g_sai_db_ptr->issu_end_called) && (DEFAULT_VLAN == vlan_id)) {
+        status = mlnx_port_by_log_id(log_port, &port_config);
+        if (SAI_ERR(status)) {
+            goto out;
+        }
+        port_config->issu_remove_default_vid = false;
+    }
+
+    status = mlnx_vlan_member_object_create(vlan_id, bridge_port_cfg->index, vlan_member_id);
     if (SAI_ERR(status)) {
         goto out;
     }

@@ -1309,7 +1309,7 @@ sai_status_t mlnx_scheduler_group_log_set(sx_verbosity_level_t level)
 }
 
 /* DB read lock is needed */
-sai_status_t mlnx_sched_group_port_init(mlnx_port_config_t *port)
+sai_status_t mlnx_sched_group_port_init(mlnx_port_config_t *port, bool is_switch_init)
 {
     sx_cos_ets_element_config_t *ets_list = NULL, *ets;
     uint32_t                     level, ii;
@@ -1348,14 +1348,16 @@ sai_status_t mlnx_sched_group_port_init(mlnx_port_config_t *port)
                 goto out;
             }
 
-            status = sx_api_cos_port_ets_element_set(gh_sdk, SX_ACCESS_CMD_EDIT,
-                                                     port->logical,
-                                                     sched_obj_to_ets(obj, ets),
-                                                     1);
+            if (!is_switch_init) {
+                status = sx_api_cos_port_ets_element_set(gh_sdk, SX_ACCESS_CMD_EDIT,
+                    port->logical,
+                    sched_obj_to_ets(obj, ets),
+                    1);
 
-            status = sdk_to_sai(status);
-            if (SAI_ERR(status)) {
-                goto out;
+                status = sdk_to_sai(status);
+                if (SAI_ERR(status)) {
+                    goto out;
+                }
             }
 
             port->sched_hierarchy.groups_count[level]++;
@@ -1384,14 +1386,16 @@ sai_status_t mlnx_sched_group_port_init(mlnx_port_config_t *port)
             goto out;
         }
 
-        status = sx_api_cos_port_ets_element_set(gh_sdk, SX_ACCESS_CMD_EDIT,
-                                                 port->logical,
-                                                 sched_obj_to_ets(&queue->sched_obj, ets),
-                                                 1);
+        if (!is_switch_init) {
+            status = sx_api_cos_port_ets_element_set(gh_sdk, SX_ACCESS_CMD_EDIT,
+                port->logical,
+                sched_obj_to_ets(&queue->sched_obj, ets),
+                1);
 
-        status = sdk_to_sai(status);
-        if (SAI_ERR(status)) {
-            goto out;
+            status = sdk_to_sai(status);
+            if (SAI_ERR(status)) {
+                goto out;
+            }
         }
     }
 

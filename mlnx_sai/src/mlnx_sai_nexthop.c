@@ -100,10 +100,7 @@ static sai_status_t mlnx_translate_sdk_next_hop_entry_to_sai(_In_ const sx_next_
         }
 
         if (SAI_STATUS_SUCCESS !=
-            (status =
-                 mlnx_create_object(SAI_OBJECT_TYPE_ROUTER_INTERFACE,
-                                    next_hop->next_hop_key.next_hop_key_entry.ip_next_hop.rif,
-                                    NULL, rif_id))) {
+            (status = mlnx_rif_sx_to_sai_oid(next_hop->next_hop_key.next_hop_key_entry.ip_next_hop.rif, rif_id))) {
             return status;
         }
         break;

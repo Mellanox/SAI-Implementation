@@ -539,10 +539,9 @@ static sai_status_t mlnx_route_next_hop_id_get(_In_ const sai_object_key_t   *ke
     }
 
     if (SX_UC_ROUTE_TYPE_LOCAL == route_get_entry.route_data.type) {
-        if (SAI_STATUS_SUCCESS != (status = mlnx_create_object(SAI_OBJECT_TYPE_ROUTER_INTERFACE,
-                                                               route_get_entry.route_data.uc_route_param.
-                                                               local_egress_rif, NULL,
-                                                               &value->oid))) {
+        if (SAI_STATUS_SUCCESS != (status =
+                                   mlnx_rif_sx_to_sai_oid(route_get_entry.route_data.uc_route_param.local_egress_rif,
+                                                          &value->oid))) {
             return status;
         }
     } else if (SX_UC_ROUTE_TYPE_NEXT_HOP == route_get_entry.route_data.type) {

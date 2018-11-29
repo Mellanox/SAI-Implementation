@@ -364,6 +364,33 @@ sai_status_t mlnx_bridge_port_by_oid(sai_object_id_t oid, mlnx_bridge_port_t **p
     return mlnx_bridge_port_by_idx(mlnx_bport_id.id.u32, port);
 }
 
+sai_status_t mlnx_bridge_port_by_tunnel_id(sx_tunnel_id_t sx_tunnel, mlnx_bridge_port_t **port)
+{
+    mlnx_bridge_port_t      *it;
+    uint32_t                 ii, checked;
+    const tunnel_db_entry_t *tunnel_entry;
+
+    mlnx_bridge_non1q_port_foreach(it, ii, checked) {
+        if (it->port_type != SAI_BRIDGE_PORT_TYPE_TUNNEL) {
+            continue;
+        }
+
+        tunnel_entry = &g_sai_db_ptr->tunnel_db[it->tunnel_idx];
+
+        if ((tunnel_entry->sx_tunnel_id_ipv4 == sx_tunnel) && tunnel_entry->ipv4_created) {
+            *port = it;
+            return SAI_STATUS_SUCCESS;
+        }
+
+        if ((tunnel_entry->sx_tunnel_id_ipv6 == sx_tunnel) && tunnel_entry->ipv6_created) {
+            *port = it;
+            return SAI_STATUS_SUCCESS;
+        }
+    }
+
+    return SAI_STATUS_ITEM_NOT_FOUND;
+}
+
 sai_status_t mlnx_bridge_port_by_log(sx_port_log_id_t log, mlnx_bridge_port_t **port)
 {
     mlnx_bridge_port_t *it;
@@ -432,9 +459,9 @@ sai_status_t mlnx_bridge_rif_add(sx_router_id_t vrf_id, mlnx_bridge_rif_t **rif)
         if (!g_sai_db_ptr->bridge_rifs_db[ii].is_used) {
             new_rif = &g_sai_db_ptr->bridge_rifs_db[ii];
 
-            new_rif->vrf_id  = vrf_id;
-            new_rif->is_used = true;
-            new_rif->index   = ii;
+            new_rif->sx_data.vrf_id = vrf_id;
+            new_rif->is_used        = true;
+            new_rif->index          = ii;
 
             *rif = new_rif;
             return SAI_STATUS_SUCCESS;
@@ -459,16 +486,6 @@ sai_status_t mlnx_bridge_rif_by_idx(uint32_t idx, mlnx_bridge_rif_t **rif)
 
     *rif = &g_sai_db_ptr->bridge_rifs_db[idx];
     return SAI_STATUS_SUCCESS;
-}
-
-sai_status_t mlnx_bridge_rif_to_oid(mlnx_bridge_rif_t *rif, sai_object_id_t *oid)
-{
-    mlnx_object_id_t mlnx_rif_obj = {0};
-
-    mlnx_rif_obj.field.sub_type = MLNX_RIF_TYPE_BRIDGE;
-    mlnx_rif_obj.id.u32         = rif->index;
-
-    return mlnx_object_id_to_sai(SAI_OBJECT_TYPE_ROUTER_INTERFACE, &mlnx_rif_obj, oid);
 }
 
 static sai_status_t check_attrs_port_type(_In_ const sai_object_key_t *key,
@@ -1345,7 +1362,7 @@ static sai_status_t mlnx_bridge_port_rif_id_get(_In_ const sai_object_key_t   *k
         goto out;
     }
 
-    status = mlnx_bridge_rif_to_oid(bridge_rif, &value->oid);
+    status = mlnx_rif_oid_create(MLNX_RIF_TYPE_BRIDGE, bridge_rif, MLNX_SHM_RM_ARRAY_IDX_UNINITIALIZED, &value->oid);
     if (SAI_ERR(status)) {
         SX_LOG_ERR("Failed to convert rif to oid\n");
         goto out;
@@ -1391,7 +1408,7 @@ static sai_status_t mlnx_bridge_port_tunnel_id_get(_In_ const sai_object_key_t  
         goto out;
     }
 
-    status = mlnx_create_object(SAI_OBJECT_TYPE_TUNNEL, port->tunnel_id, NULL, &value->oid);
+    status = mlnx_create_object(SAI_OBJECT_TYPE_TUNNEL, port->tunnel_idx, NULL, &value->oid);
     if (SAI_ERR(status)) {
         SX_LOG_EXIT();
         goto out;
@@ -1531,8 +1548,8 @@ static sai_status_t mlnx_bridge_port_bridge_id_set(_In_ const sai_object_key_t  
 
         br_rif->intf_params.ifc.bridge.bridge = sx_bridge_id;
 
-        sx_status = sx_api_router_interface_set(gh_sdk, SX_ACCESS_CMD_EDIT, br_rif->vrf_id,
-                                                &br_rif->intf_params, &br_rif->intf_attribs, &br_rif->rif_id);
+        sx_status = sx_api_router_interface_set(gh_sdk, SX_ACCESS_CMD_EDIT, br_rif->sx_data.vrf_id,
+                                                &br_rif->intf_params, &br_rif->intf_attribs, &br_rif->sx_data.rif_id);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to set router interface - %s.\n", SX_STATUS_MSG(sx_status));
             /* Reset to the old bridge id which is stored also in mlnx_bridge_port_t */
@@ -2066,7 +2083,6 @@ static sai_status_t mlnx_create_bridge_port(_Out_ sai_object_id_t     * bridge_p
     char                         list_str[MAX_LIST_VALUE_STR_LEN];
     char                         key_str[MAX_KEY_STR_LEN];
     mlnx_object_id_t             mlnx_bridge_id = {0};
-    mlnx_object_id_t             mlnx_obj_id    = {0};
     mlnx_bridge_port_t          *bridge_port    = NULL;
     mlnx_bridge_rif_t           *bridge_rif;
     sx_bridge_id_t               bridge_id;
@@ -2078,7 +2094,7 @@ static sai_status_t mlnx_create_bridge_port(_Out_ sai_object_id_t     * bridge_p
     sx_untagged_member_state_t   sx_tagging_mode;
     const sai_attribute_value_t *attr_val, *max_learned_addresses = NULL, *ingress_filter = NULL;
     sai_bridge_port_type_t       bport_type;
-    uint32_t                     attr_idx, max_learned_addresses_index;
+    uint32_t                     attr_idx, max_learned_addresses_index, bridge_rif_idx;
     bool                         admin_state;
 
     SX_LOG_ENTER();
@@ -2275,13 +2291,11 @@ static sai_status_t mlnx_create_bridge_port(_Out_ sai_object_id_t     * bridge_p
             goto out;
         }
 
-        status = sai_to_mlnx_object_id(SAI_OBJECT_TYPE_TUNNEL, attr_val->oid, &mlnx_obj_id);
+        status = mlnx_get_sai_tunnel_db_idx(attr_val->oid, &bridge_port->tunnel_idx);
         if (SAI_ERR(status)) {
             SX_LOG_ERR("Failed to convert oid to mlnx object id\n");
             goto out;
         }
-
-        bridge_port->tunnel_id = mlnx_obj_id.id.u32;
         break;
 
     case SAI_BRIDGE_PORT_TYPE_1D_ROUTER:
@@ -2298,39 +2312,35 @@ static sai_status_t mlnx_create_bridge_port(_Out_ sai_object_id_t     * bridge_p
             goto out;
         }
 
-        status = sai_to_mlnx_object_id(SAI_OBJECT_TYPE_ROUTER_INTERFACE, attr_val->oid, &mlnx_obj_id);
+        status = mlnx_rif_oid_to_bridge_rif(attr_val->oid, &bridge_rif_idx);
         if (SAI_ERR(status)) {
-            SX_LOG_ERR("Failed to convert oid to mlnx object id\n");
+            SX_LOG_ERR("Failed to fetch data from rif oid %lx\n", attr_val->oid);
             goto out;
         }
 
-        if (mlnx_obj_id.field.sub_type != MLNX_RIF_TYPE_BRIDGE) {
-            SX_LOG_ERR("Invalid rif type - only router interface type bridge is supported\n");
-            status = SAI_STATUS_INVALID_PARAMETER;
+        status = mlnx_bridge_rif_by_idx(bridge_rif_idx, &bridge_rif);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to lookup bridge rif by index %u\n", bridge_rif_idx);
             goto out;
         }
 
-        bridge_port->rif_index = mlnx_obj_id.id.u32;
-
-        status = mlnx_bridge_rif_by_idx(bridge_port->rif_index, &bridge_rif);
-        if (SAI_ERR(status)) {
-            SX_LOG_ERR("Failed to lookup bridge rif by index %u\n", bridge_port->rif_index);
+        if (bridge_rif->is_created) {
+            SX_LOG_ERR("Bridge bridge port for rif %lx is already created\n", attr_val->oid);
+            status = SAI_STATUS_ITEM_ALREADY_EXISTS;
             goto out;
         }
 
         bridge_rif->intf_params.ifc.bridge.swid   = DEFAULT_ETH_SWID;
         bridge_rif->intf_params.ifc.bridge.bridge = bridge_id;
 
-        sx_status = sx_api_router_interface_set(gh_sdk, SX_ACCESS_CMD_ADD, bridge_rif->vrf_id,
-                                                &bridge_rif->intf_params, &bridge_rif->intf_attribs,
-                                                &bridge_rif->rif_id);
-        if (SX_ERR(sx_status)) {
-            SX_LOG_ERR("Failed to set bridge router interface - %s.\n", SX_STATUS_MSG(sx_status));
-            status = sdk_to_sai(sx_status);
+        status = mlnx_rif_sx_init(bridge_rif->sx_data.vrf_id, &bridge_rif->intf_params, &bridge_rif->intf_attribs,
+                                  &bridge_rif->sx_data.rif_id, &bridge_rif->sx_data.counter);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to init bridge rif\n");
             goto out;
         }
 
-        sx_status = sx_api_router_interface_state_set(gh_sdk, bridge_rif->rif_id, &bridge_rif->intf_state);
+        sx_status = sx_api_router_interface_state_set(gh_sdk, bridge_rif->sx_data.rif_id, &bridge_rif->intf_state);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to set bridge router interface state - %s.\n", SX_STATUS_MSG(sx_status));
             status = sdk_to_sai(sx_status);
@@ -2338,6 +2348,7 @@ static sai_status_t mlnx_create_bridge_port(_Out_ sai_object_id_t     * bridge_p
         }
 
         bridge_rif->is_created = true;
+        bridge_port->rif_index = bridge_rif->index;
         break;
 
     default:
@@ -2404,6 +2415,11 @@ static bool mlnx_bridge_port_in_use_check(mlnx_bridge_port_t *port)
         SX_LOG_ERR("Failed remove bridge port - is used by STP ports (%u)\n", port->stps);
         return SAI_STATUS_OBJECT_IN_USE;
     }
+    if (port->pbs_entry.ref_counter > 0) {
+        SX_LOG_ERR("Failed remove bridge port - is used by ACL Entry redirect action (%d refs)\n",
+                   port->pbs_entry.ref_counter);
+        return SAI_STATUS_OBJECT_IN_USE;
+    }
 
     return SAI_STATUS_SUCCESS;
 }
@@ -2465,18 +2481,14 @@ static sai_status_t mlnx_remove_bridge_port(_In_ sai_object_id_t bridge_port_id)
             goto out;
         }
 
-        status = sx_api_router_interface_set(gh_sdk, SX_ACCESS_CMD_DELETE, bridge_rif->vrf_id,
-                                             &bridge_rif->intf_params, &bridge_rif->intf_attribs,
-                                             &bridge_rif->rif_id);
-        if (SX_ERR(status)) {
-            SX_LOG_ERR("Failed to remove bridge router interface - %s.\n", SX_STATUS_MSG(status));
-            status = sdk_to_sai(status);
+        status = mlnx_rif_sx_deinit(&bridge_rif->sx_data);
+        if (SAI_ERR(status)) {
             goto out;
         }
 
         bridge_rif->intf_params.ifc.bridge.bridge = SX_BRIDGE_ID_INVALID;
         bridge_rif->is_created                    = false;
-        bridge_rif->rif_id                        = 0;
+        bridge_rif->sx_data.rif_id                = 0;
         break;
 
     default:

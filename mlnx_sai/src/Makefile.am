@@ -26,7 +26,8 @@ dist_data_DATA = sai_1710.xml \
                  sai_2410.xml \
                  sai_2420.xml \
                  sai_2100.xml \
-                 sai_2010.xml
+                 sai_2010.xml \
+                 sai_3700.xml
 				 
 libsai_la_DEPENDENCIES =
 
@@ -55,6 +56,7 @@ libsai_la_SOURCES = \
                        mlnx_sai_host_interface.c \
                        mlnx_sai_interfacequery.c \
                        mlnx_sai_lag.c \
+                       mlnx_sai_l2mcgroup.c \
                        mlnx_sai_mirror.c \
                        mlnx_sai_neighbor.c \
                        mlnx_sai_nexthop.c \

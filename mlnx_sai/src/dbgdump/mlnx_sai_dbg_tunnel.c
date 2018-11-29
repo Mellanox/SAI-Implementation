@@ -147,6 +147,7 @@ static void SAI_dump_tunnel_map_print(_In_ FILE                    *file,
     sai_object_id_t           obj_id = SAI_NULL_OBJECT_ID;
     mlnx_tunnel_map_t         curr_mlnx_tunnel_map;
     mlnx_tunnel_map_entry_t   curr_mlnx_tunnel_map_entry;
+    uint32_t                  curr_vxlan_tunnel_idx = 0;
     uint32_t                  tunnel_map_entry_idx = MLNX_TUNNEL_MAP_ENTRY_INVALID;
     char                      type_str[LINE_LENGTH];
     dbg_utils_table_columns_t tunnelmap_clmns[] = {
@@ -154,6 +155,7 @@ static void SAI_dump_tunnel_map_print(_In_ FILE                    *file,
         {"db idx",                    7,  PARAM_UINT32_E, &ii},
         {"type",                      12, PARAM_STRING_E, &type_str},
         {"tunnel cnt",                10, PARAM_UINT32_E, &curr_mlnx_tunnel_map.tunnel_cnt},
+        {"vxlan tunnel cnt",          17, PARAM_UINT32_E, &curr_mlnx_tunnel_map.vxlan_tunnel_cnt},
         {"tunnel map entry cnt",      20, PARAM_UINT32_E, &curr_mlnx_tunnel_map.tunnel_map_entry_cnt},
         {"tunnel map entry head idx", 25, PARAM_UINT32_E, &curr_mlnx_tunnel_map.tunnel_map_entry_head_idx},
         {"tunnel map entry tail idx", 25, PARAM_UINT32_E, &curr_mlnx_tunnel_map.tunnel_map_entry_tail_idx},
@@ -202,6 +204,12 @@ static void SAI_dump_tunnel_map_print(_In_ FILE                    *file,
         {"val vni",              11, PARAM_UINT32_E, &curr_mlnx_tunnel_map_entry.vni_id_value},
         {NULL,                   0,  0,              NULL}
     };
+    dbg_utils_table_columns_t sai_tunnelmap_vxlan_tunnel_idx_clmns[] = {
+        {"db idx",                 7,  PARAM_UINT32_E, &ii},
+        {"vxlan tunnel array idx", 22, PARAM_UINT32_E, &jj},
+        {"vxlan tunnel idx",       11, PARAM_UINT32_E, &curr_vxlan_tunnel_idx},
+        {NULL,                     0,  0,              NULL}
+    };
 
     assert(NULL != mlnx_tunnel_map);
 
@@ -229,6 +237,13 @@ static void SAI_dump_tunnel_map_print(_In_ FILE                    *file,
 
     for (ii = 0; ii < MLNX_TUNNEL_MAP_MAX; ii++) {
         if (mlnx_tunnel_map[ii].in_use) {
+
+            dbg_utils_print_table_headline(file, sai_tunnelmap_vxlan_tunnel_idx_clmns);
+            for (jj = 0; jj < mlnx_tunnel_map[ii].vxlan_tunnel_cnt; jj++) {
+                curr_vxlan_tunnel_idx = mlnx_tunnel_map[ii].vxlan_tunnel_idx[jj];
+                dbg_utils_print_table_data_line(file, sai_tunnelmap_vxlan_tunnel_idx_clmns);
+            }
+
             switch (mlnx_tunnel_map[ii].tunnel_map_type) {
             case SAI_TUNNEL_MAP_TYPE_OECN_TO_UECN:
                 dbg_utils_print_table_headline(file, sai_tunnelmap_oecn2uecn_clmns);
