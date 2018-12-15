@@ -168,15 +168,15 @@ static const sai_vendor_attribute_entry_t host_interface_vendor_attribs[] = {
       NULL, NULL,
       NULL, NULL }
 };
-static const mlnx_attr_enum_info_t hostif_enum_info[] = {
+static const mlnx_attr_enum_info_t        hostif_enum_info[] = {
     [SAI_HOSTIF_ATTR_TYPE] = ATTR_ENUM_VALUES_LIST(
         SAI_HOSTIF_TYPE_FD,
         SAI_HOSTIF_TYPE_NETDEV
         ),
     [SAI_HOSTIF_ATTR_VLAN_TAG] = ATTR_ENUM_VALUES_ALL(),
 };
-const mlnx_obj_type_attrs_info_t mlnx_hostif_obj_type_info =
-    { host_interface_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(hostif_enum_info)};
+const mlnx_obj_type_attrs_info_t          mlnx_hostif_obj_type_info =
+{ host_interface_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(hostif_enum_info)};
 static const sai_vendor_attribute_entry_t trap_group_vendor_attribs[] = {
     { SAI_HOSTIF_TRAP_GROUP_ATTR_ADMIN_STATE,
       { true, false, true, true },
@@ -199,8 +199,8 @@ static const sai_vendor_attribute_entry_t trap_group_vendor_attribs[] = {
       NULL, NULL,
       NULL, NULL }
 };
-const mlnx_obj_type_attrs_info_t mlnx_hostif_trap_group_obj_type_info =
-    { trap_group_vendor_attribs, OBJ_ATTRS_ENUMS_INFO_EMPTY()};
+const mlnx_obj_type_attrs_info_t          mlnx_hostif_trap_group_obj_type_info =
+{ trap_group_vendor_attribs, OBJ_ATTRS_ENUMS_INFO_EMPTY()};
 static const sai_vendor_attribute_entry_t trap_vendor_attribs[] = {
     { SAI_HOSTIF_TRAP_ATTR_TRAP_TYPE,
       { true, false, false, true },
@@ -238,7 +238,7 @@ static const sai_vendor_attribute_entry_t trap_vendor_attribs[] = {
       NULL, NULL,
       NULL, NULL }
 };
-static const mlnx_attr_enum_info_t hostif_trap_enum_info[] = {
+static const mlnx_attr_enum_info_t        hostif_trap_enum_info[] = {
     [SAI_HOSTIF_TRAP_ATTR_TRAP_TYPE] = ATTR_ENUM_VALUES_LIST(
         SAI_HOSTIF_TRAP_TYPE_STP,
         SAI_HOSTIF_TRAP_TYPE_LACP,
@@ -285,8 +285,8 @@ static const mlnx_attr_enum_info_t hostif_trap_enum_info[] = {
         SAI_PACKET_ACTION_DROP
         )
 };
-const mlnx_obj_type_attrs_info_t mlnx_hostif_trap_obj_type_info =
-    { trap_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(hostif_trap_enum_info)};
+const mlnx_obj_type_attrs_info_t          mlnx_hostif_trap_obj_type_info =
+{ trap_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(hostif_trap_enum_info)};
 static const sai_vendor_attribute_entry_t user_defined_trap_vendor_attribs[] = {
     { SAI_HOSTIF_USER_DEFINED_TRAP_ATTR_TYPE,
       { true, false, false, true },
@@ -309,15 +309,15 @@ static const sai_vendor_attribute_entry_t user_defined_trap_vendor_attribs[] = {
       NULL, NULL,
       NULL, NULL }
 };
-static const mlnx_attr_enum_info_t user_defined_trap_enum_info[] = {
+static const mlnx_attr_enum_info_t        user_defined_trap_enum_info[] = {
     [SAI_HOSTIF_USER_DEFINED_TRAP_ATTR_TYPE] = ATTR_ENUM_VALUES_LIST(
         SAI_HOSTIF_USER_DEFINED_TRAP_TYPE_ACL,
         SAI_HOSTIF_USER_DEFINED_TRAP_TYPE_ROUTER,
         SAI_HOSTIF_USER_DEFINED_TRAP_TYPE_NEIGH,
         SAI_HOSTIF_USER_DEFINED_TRAP_TYPE_FDB)
 };
-const mlnx_obj_type_attrs_info_t mlnx_hostif_user_defined_trap_obj_type_info =
-    { user_defined_trap_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(user_defined_trap_enum_info)};
+const mlnx_obj_type_attrs_info_t          mlnx_hostif_user_defined_trap_obj_type_info =
+{ user_defined_trap_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(user_defined_trap_enum_info)};
 static const sai_vendor_attribute_entry_t host_interface_packet_vendor_attribs[] = {
     { SAI_HOSTIF_PACKET_ATTR_HOSTIF_TRAP_ID,
       { false, false, false, false },
@@ -350,11 +350,11 @@ static const sai_vendor_attribute_entry_t host_interface_packet_vendor_attribs[]
       NULL, NULL,
       NULL, NULL }
 };
-static const mlnx_attr_enum_info_t hostif_packet_enum_info[] = {
+static const mlnx_attr_enum_info_t        hostif_packet_enum_info[] = {
     [SAI_HOSTIF_PACKET_ATTR_HOSTIF_TX_TYPE] = ATTR_ENUM_VALUES_ALL()
 };
-const mlnx_obj_type_attrs_info_t mlnx_hostif_packet_obj_type_info =
-    { host_interface_packet_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(hostif_packet_enum_info)};
+const mlnx_obj_type_attrs_info_t          mlnx_hostif_packet_obj_type_info =
+{ host_interface_packet_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(hostif_packet_enum_info)};
 static const sai_vendor_attribute_entry_t host_table_entry_vendor_attribs[] = {
     { SAI_HOSTIF_TABLE_ENTRY_ATTR_TYPE,
       { true, false, false, true },
@@ -387,13 +387,13 @@ static const sai_vendor_attribute_entry_t host_table_entry_vendor_attribs[] = {
       NULL, NULL,
       NULL, NULL }
 };
-static const mlnx_attr_enum_info_t hostif_table_entry_enum_info[] = {
-    [SAI_HOSTIF_TABLE_ENTRY_ATTR_TYPE] = ATTR_ENUM_VALUES_ALL(),
+static const mlnx_attr_enum_info_t        hostif_table_entry_enum_info[] = {
+    [SAI_HOSTIF_TABLE_ENTRY_ATTR_TYPE]         = ATTR_ENUM_VALUES_ALL(),
     [SAI_HOSTIF_TABLE_ENTRY_ATTR_CHANNEL_TYPE] = ATTR_ENUM_VALUES_ALL(),
 };
-const mlnx_obj_type_attrs_info_t mlnx_hostif_table_entry_obj_type_info =
-    { host_table_entry_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(hostif_table_entry_enum_info)};
-const mlnx_trap_info_t                    mlnx_traps_info[] = {
+const mlnx_obj_type_attrs_info_t          mlnx_hostif_table_entry_obj_type_info =
+{ host_table_entry_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(hostif_table_entry_enum_info)};
+const mlnx_trap_info_t mlnx_traps_info[] = {
     { SAI_HOSTIF_TRAP_TYPE_STP, 1, { SX_TRAP_ID_ETH_L2_STP }, SAI_PACKET_ACTION_DROP, "STP", MLNX_TRAP_TYPE_REGULAR },
     { SAI_HOSTIF_TRAP_TYPE_LACP, 1, { SX_TRAP_ID_ETH_L2_LACP }, SAI_PACKET_ACTION_DROP, "LACP",
       MLNX_TRAP_TYPE_REGULAR },
@@ -420,16 +420,16 @@ const mlnx_trap_info_t                    mlnx_traps_info[] = {
       "Sample packet", MLNX_TRAP_TYPE_REGULAR },
     { SAI_HOSTIF_TRAP_TYPE_UDLD, 1, { SX_TRAP_ID_ETH_L2_UDLD }, SAI_PACKET_ACTION_DROP, "UDLD",
       MLNX_TRAP_TYPE_REGULAR },
-    { SAI_HOSTIF_TRAP_TYPE_PTP, 3, { SX_TRAP_ID_PTP_EVENT, SX_TRAP_ID_PTP_GENERAL, SX_TRAP_ID_PTP_ING_EVENT}, 
+    { SAI_HOSTIF_TRAP_TYPE_PTP, 3, { SX_TRAP_ID_PTP_EVENT, SX_TRAP_ID_PTP_GENERAL, SX_TRAP_ID_PTP_ING_EVENT},
 #ifdef PTP
-      SAI_PACKET_ACTION_TRAP, 
+      SAI_PACKET_ACTION_TRAP,
 #else
       SAI_PACKET_ACTION_DROP,
 #endif
       "PTP", MLNX_TRAP_TYPE_REGULAR },
-    { SAI_HOSTIF_TRAP_TYPE_PTP_TX_EVENT, 1, { SX_TRAP_ID_PTP_EGR_EVENT }, 
+    { SAI_HOSTIF_TRAP_TYPE_PTP_TX_EVENT, 1, { SX_TRAP_ID_PTP_EGR_EVENT },
 #ifdef PTP
-      SAI_PACKET_ACTION_TRAP, 
+      SAI_PACKET_ACTION_TRAP,
 #else
       SAI_PACKET_ACTION_DROP,
 #endif
@@ -583,28 +583,27 @@ static void host_interface_key_to_str(_In_ sai_object_id_t hif_id, _Out_ char *k
 /* Creates netdev. Called under read/write lock */
 static sai_status_t create_netdev(uint32_t index)
 {
-    char add_link_command[100],disable_ipv6_command[100],set_addr_command[100],command[300];
+    char add_link_command[100], disable_ipv6_command[100], set_addr_command[100], command[300];
     int  system_err;
 
     if (SAI_HOSTIF_OBJECT_TYPE_VLAN == g_sai_db_ptr->hostif_db[index].sub_type) {
         snprintf(add_link_command, sizeof(add_link_command), "ip link add link swid%u_eth name %s type vlan id %u",
                  DEFAULT_ETH_SWID, g_sai_db_ptr->hostif_db[index].ifname, g_sai_db_ptr->hostif_db[index].vid);
-    }
-    else {
+    } else {
         snprintf(add_link_command, sizeof(add_link_command), "ip link add %s type sx_netdev swid %u port 0x%x",
                  g_sai_db_ptr->hostif_db[index].ifname, DEFAULT_ETH_SWID, g_sai_db_ptr->hostif_db[index].port_id);
     }
 
     /* TODO : temporary WA for SwitchX. L2 and Router port are created with port MAC. But since we want to use them for
-    * routing, we set them with the router MAC to avoid mismatch of the MAC value.
-    */
+     * routing, we set them with the router MAC to avoid mismatch of the MAC value.
+     */
     snprintf(set_addr_command, sizeof(set_addr_command), "ip link set dev %s address %s > /dev/null 2>&1",
              g_sai_db_ptr->hostif_db[index].ifname, g_sai_db_ptr->dev_mac);
 
     /* Enable ipv6 for router port (by default, ipv6 is off on port/lag netdev)
-    * TODO : Right now we are enabling on any port/lag netdev, could improve by enabling just on router port.
-    * This will require iteration on all router ports and checking port id match, and also different order sequences.
-    */
+     * TODO : Right now we are enabling on any port/lag netdev, could improve by enabling just on router port.
+     * This will require iteration on all router ports and checking port id match, and also different order sequences.
+     */
     if ((SAI_HOSTIF_OBJECT_TYPE_PORT == g_sai_db_ptr->hostif_db[index].sub_type) ||
         (SAI_HOSTIF_OBJECT_TYPE_LAG == g_sai_db_ptr->hostif_db[index].sub_type)) {
         snprintf(disable_ipv6_command, sizeof(disable_ipv6_command), "sysctl -w net.ipv6.conf.%s.disable_ipv6=0",
@@ -719,7 +718,7 @@ static sai_status_t mlnx_create_host_interface(_Out_ sai_object_id_t     * hif_i
             }
 
             g_sai_db_ptr->hostif_db[ii].sub_type = SAI_HOSTIF_OBJECT_TYPE_PORT;
-            g_sai_db_ptr->hostif_db[ii].port_id = (sx_port_log_id_t)rif_port_data;
+            g_sai_db_ptr->hostif_db[ii].port_id  = (sx_port_log_id_t)rif_port_data;
         } else if (SAI_OBJECT_TYPE_LAG == sai_object_type_query(rif_port->oid)) {
             if (SAI_STATUS_SUCCESS !=
                 (status = mlnx_object_to_type(rif_port->oid, SAI_OBJECT_TYPE_LAG, &rif_port_data, NULL))) {
@@ -728,7 +727,7 @@ static sai_status_t mlnx_create_host_interface(_Out_ sai_object_id_t     * hif_i
             }
 
             g_sai_db_ptr->hostif_db[ii].sub_type = SAI_HOSTIF_OBJECT_TYPE_LAG;
-            g_sai_db_ptr->hostif_db[ii].port_id = (sx_port_log_id_t)rif_port_data;
+            g_sai_db_ptr->hostif_db[ii].port_id  = (sx_port_log_id_t)rif_port_data;
         } else {
             SX_LOG_ERR("Invalid rif port object type %s", SAI_TYPE_STR(sai_object_type_query(rif_port->oid)));
             cl_plock_release(&g_sai_db_ptr->p_lock);
@@ -737,7 +736,7 @@ static sai_status_t mlnx_create_host_interface(_Out_ sai_object_id_t     * hif_i
 
         strncpy(g_sai_db_ptr->hostif_db[ii].ifname, name->chardata, SAI_HOSTIF_NAME_SIZE);
         g_sai_db_ptr->hostif_db[ii].ifname[SAI_HOSTIF_NAME_SIZE] = '\0';
-        status = create_netdev(ii);
+        status                                                   = create_netdev(ii);
         if (SAI_ERR(status)) {
             cl_plock_release(&g_sai_db_ptr->p_lock);
             return status;
@@ -847,7 +846,8 @@ static sai_status_t mlnx_remove_host_interface(_In_ sai_object_id_t hif_id)
     cl_plock_excl_acquire(&g_sai_db_ptr->p_lock);
 
     if (SAI_HOSTIF_OBJECT_TYPE_FD == g_sai_db_ptr->hostif_db[mlnx_hif.id.u32].sub_type) {
-        if (SX_STATUS_SUCCESS != (status = sx_api_host_ifc_close(gh_sdk, &g_sai_db_ptr->hostif_db[mlnx_hif.id.u32].fd))) {
+        if (SX_STATUS_SUCCESS !=
+            (status = sx_api_host_ifc_close(gh_sdk, &g_sai_db_ptr->hostif_db[mlnx_hif.id.u32].fd))) {
             SX_LOG_ERR("host ifc close fd failed - %s.\n", SX_STATUS_MSG(status));
             cl_plock_release(&g_sai_db_ptr->p_lock);
             return status;
@@ -879,7 +879,7 @@ sai_status_t mlnx_netdev_restore(void)
     cl_plock_acquire(&g_sai_db_ptr->p_lock);
 
     for (ii = 0; ii < MAX_HOSTIFS; ii++) {
-        if ((false == g_sai_db_ptr->hostif_db[ii].is_used) || 
+        if ((false == g_sai_db_ptr->hostif_db[ii].is_used) ||
             (SAI_HOSTIF_OBJECT_TYPE_FD == g_sai_db_ptr->hostif_db[ii].sub_type)) {
             continue;
         }
@@ -1017,10 +1017,10 @@ static sai_status_t mlnx_host_interface_rif_port_get(_In_ const sai_object_key_t
         return SAI_STATUS_INVALID_PARAMETER;
     } else if (SAI_HOSTIF_OBJECT_TYPE_PORT == g_sai_db_ptr->hostif_db[mlnx_hif.id.u32].sub_type) {
         mlnx_port.id.log_port_id = g_sai_db_ptr->hostif_db[mlnx_hif.id.u32].port_id;
-        object_type = SAI_OBJECT_TYPE_PORT;
+        object_type              = SAI_OBJECT_TYPE_PORT;
     } else if (SAI_HOSTIF_OBJECT_TYPE_LAG == g_sai_db_ptr->hostif_db[mlnx_hif.id.u32].sub_type) {
         mlnx_port.id.log_port_id = g_sai_db_ptr->hostif_db[mlnx_hif.id.u32].port_id;
-        object_type = SAI_OBJECT_TYPE_LAG;
+        object_type              = SAI_OBJECT_TYPE_LAG;
     } else if (SAI_HOSTIF_OBJECT_TYPE_VLAN == g_sai_db_ptr->hostif_db[mlnx_hif.id.u32].sub_type) {
         mlnx_port.id.vlan_id = g_sai_db_ptr->hostif_db[mlnx_hif.id.u32].vid;
         object_type          = SAI_OBJECT_TYPE_VLAN;

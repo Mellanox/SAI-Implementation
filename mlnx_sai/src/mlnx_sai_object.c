@@ -143,5 +143,6 @@ sai_status_t sai_query_attribute_enum_values_capability(_In_ sai_object_id_t    
                                                         _In_ sai_attr_id_t      attr_id,
                                                         _Inout_ sai_s32_list_t *enum_values_capability)
 {
-    return mlnx_sai_query_attribute_enum_values_capability_impl(switch_id, object_type, attr_id, enum_values_capability);
+    return mlnx_sai_query_attribute_enum_values_capability_impl(switch_id, object_type, attr_id,
+                                                                enum_values_capability);
 }

@@ -139,11 +139,11 @@ void * mmap(void *addr, size_t length, int prot, int flags, int fd, off_t offset
 int munmap(void *addr, size_t length);
 cl_status_t cl_plock_init_pshared(IN cl_plock_t * const p_lock);
 int msync(void *addr, size_t length, int flags);
-#define PROT_READ   1
-#define PROT_WRITE  2
-#define MAP_SHARED  1
-#define MAP_FAILED  (void*)-1
-#define MS_SYNC     4
+#define PROT_READ  1
+#define PROT_WRITE 2
+#define MAP_SHARED 1
+#define MAP_FAILED (void*)-1
+#define MS_SYNC    4
 #endif
 
 extern sx_api_handle_t            gh_sdk;
@@ -271,25 +271,22 @@ typedef enum {
     MLNX_SHM_RM_ARRAY_TYPE_INVALID,
     MLNX_SHM_RM_ARRAY_TYPE_MIN,
     MLNX_SHM_RM_ARRAY_TYPE_RIF = MLNX_SHM_RM_ARRAY_TYPE_MIN,
-    MLNX_SHM_RM_ARRAY_TYPE_MAX = MLNX_SHM_RM_ARRAY_TYPE_RIF,
+    MLNX_SHM_RM_ARRAY_TYPE_BRIDGE,
+    MLNX_SHM_RM_ARRAY_TYPE_MAX = MLNX_SHM_RM_ARRAY_TYPE_BRIDGE,
     MLNX_SHM_RM_ARRAY_TYPE_SIZE
 } mlnx_shm_rm_array_type_t;
-
 typedef sai_status_t (*mlnx_shm_rm_size_get_fn)(_Out_ size_t *size);
 typedef bool (*mlnx_shm_rm_array_cmp_fn)(_In_ const void *elem, _In_ const void *data);
-
 typedef struct _mlnx_shm_rm_array_info_t {
     size_t elem_size;
     size_t elem_count; /* initialized via elem_count_fn()*/
     size_t offset_to_head;
 } mlnx_shm_rm_array_info_t;
-
 typedef struct _mlnx_shm_rm_array_init_info_t {
     size_t                  elem_size;
     mlnx_shm_rm_size_get_fn elem_count_fn;
     size_t                  elem_count; /* initialized via elem_count_fn()*/
 } mlnx_shm_rm_array_init_info_t;
-
 typedef uint16_t mlnx_shm_array_canary_t;
 typedef struct _mlnx_shm_array_t {
     bool                    is_used;
@@ -297,25 +294,29 @@ typedef struct _mlnx_shm_array_t {
 } mlnx_shm_array_hdr_t;
 
 PACKED(struct _mlnx_shm_rm_array_idx_t {
-    mlnx_shm_rm_array_type_t type : 6;
-    uint32_t                  idx : 26;
-},);
+           mlnx_shm_rm_array_type_t type: 6;
+           uint32_t idx: 26;
+       }, );
 typedef struct _mlnx_shm_rm_array_idx_t mlnx_shm_rm_array_idx_t;
-#define MLNX_SHM_RM_ARRAY_IDX_UNINITIALIZED ((mlnx_shm_rm_array_idx_t){.type = MLNX_SHM_RM_ARRAY_TYPE_INVALID, .idx = 0})
-#define MLNX_SHM_RM_ARRAY_IDX_IS_UNINITIALIZED(idx) (((idx).type == MLNX_SHM_RM_ARRAY_TYPE_INVALID) && ((idx).idx == 0))
+#define MLNX_SHM_RM_ARRAY_IDX_UNINITIALIZED \
+    ((mlnx_shm_rm_array_idx_t) {.type = MLNX_SHM_RM_ARRAY_TYPE_INVALID, .idx = \
+                                    0})
+#define MLNX_SHM_RM_ARRAY_IDX_IS_UNINITIALIZED(idx) \
+    (((idx).type == MLNX_SHM_RM_ARRAY_TYPE_INVALID) && \
+     ((idx).idx == 0))
 
 sai_status_t mlnx_shm_rm_array_alloc(_In_ mlnx_shm_rm_array_type_t  type,
                                      _Out_ mlnx_shm_rm_array_idx_t *idx,
                                      _Out_ void                   **elem);
-sai_status_t mlnx_shm_rm_array_free(_In_ mlnx_shm_rm_array_idx_t  idx);
+sai_status_t mlnx_shm_rm_array_free(_In_ mlnx_shm_rm_array_idx_t idx);
 sai_status_t mlnx_shm_rm_array_find(_In_ mlnx_shm_rm_array_type_t  type,
                                     _In_ mlnx_shm_rm_array_cmp_fn  cmp_fn,
                                     _In_ mlnx_shm_rm_array_idx_t   start_idx,
                                     _In_ const void               *data,
                                     _Out_ mlnx_shm_rm_array_idx_t *idx,
                                     _Out_ void                   **elem);
-sai_status_t mlnx_shm_rm_array_idx_to_ptr(_In_ mlnx_shm_rm_array_idx_t  idx,
-                                          _Out_ void                   **elem);
+sai_status_t mlnx_shm_rm_array_idx_to_ptr(_In_ mlnx_shm_rm_array_idx_t idx, _Out_ void                   **elem);
+uint32_t mlnx_shm_rm_array_size_get(_In_ mlnx_shm_rm_array_type_t type);
 
 PACKED(struct _mlnx_object_id_t {
            sai_uint8_t object_type;
@@ -350,13 +351,12 @@ PACKED(struct _mlnx_object_id_t {
                           uint16_t type;
                       }, bridge_port);
                PACKED(union {
-                          sx_bridge_id_t id;
-                          uint8_t type;
+                          sx_bridge_id_t sx_bridge_id;
                       }, bridge);
                PACKED(struct {
-                          uint16_t byte_flag : 1;
-                          uint16_t packet_flag : 1;
-                          uint16_t table_db_idx : 14;
+                          uint16_t byte_flag: 1;
+                          uint16_t packet_flag: 1;
+                          uint16_t table_db_idx: 14;
                       }, flow_counter_type);
                PACKED(union {
                           uint16_t bport_db_idx; /* .1Q bridge ports are located at (0, MAX_PORTS *2) indexes */
@@ -367,12 +367,12 @@ PACKED(struct _mlnx_object_id_t {
                sx_router_id_t router_id;
                sx_port_log_id_t log_port_id;
                sx_mstp_inst_id_t stp_inst_id;
-               sx_bridge_id_t bridge_id;
                uint16_t vlan_id;
                sai_uint32_t u32;
                sai_uint32_t bridge_rif_idx;
                sx_flow_counter_id_t flow_counter_id;
                mlnx_shm_rm_array_idx_t rif_db_idx;
+               mlnx_shm_rm_array_idx_t bridge_db_idx;
                PACKED(struct {
                           uint16_t group_id;
                           uint16_t nhop_id;
@@ -400,21 +400,19 @@ typedef enum mlnx_acl_pbs_type {
     MLNX_ACL_PBS_TYPE_MCGROUP,
 } mlnx_acl_pbs_type_t;
 typedef struct _mlnx_acl_pbs_entry_t {
-    sx_acl_pbs_id_t   pbs_id;
-    uint32_t          ref_counter;
+    sx_acl_pbs_id_t pbs_id;
+    uint32_t        ref_counter;
 } mlnx_acl_pbs_entry_t;
 /* Used in case RIF type bridge */
 typedef enum mlnx_rif_type_ {
     MLNX_RIF_TYPE_DEFAULT,
     MLNX_RIF_TYPE_BRIDGE,
 } mlnx_rif_type_t;
-
 typedef struct _mlnx_rif_sx_data_t {
     sx_router_interface_t  rif_id;
     sx_router_id_t         vrf_id;
     sx_router_counter_id_t counter;
 } mlnx_rif_sx_data_t;
-
 typedef struct _mlnx_rif_db_t {
     mlnx_shm_array_hdr_t mlnx_array;
     mlnx_rif_sx_data_t   sx_data;
@@ -448,6 +446,7 @@ typedef struct mlnx_bridge_port_ {
     uint32_t               fdbs;
     uint16_t               stps;
     mlnx_acl_pbs_entry_t   pbs_entry;
+    uint32_t               l2mc_group_ref;
 } mlnx_bridge_port_t;
 typedef sai_status_t (*sai_attribute_set_fn)(_In_ const sai_object_key_t *key, _In_ const sai_attribute_value_t *value,
                                              void *arg);
@@ -506,60 +505,59 @@ typedef enum {
         /* TODO: IS_PHY_OR_LAG_MEMBER */
         ATTR_PORT_IS_IN_LAG_ENABLED = 1 << 2,
 } attr_port_type_check_t;
-
 typedef struct _mlnx_attr_enum_info_t {
-    int32_t  *attrs;
-    uint32_t  count;
-    bool      all;
+    int32_t *attrs;
+    uint32_t count;
+    bool     all;
 } mlnx_attr_enum_info_t;
 typedef struct _mlnx_obj_type_attrs_enum_infos_t {
     const mlnx_attr_enum_info_t *info;
     uint32_t                     count;
 } mlnx_obj_type_attrs_enums_info_t;
 typedef struct _mlnx_obj_type_attrs_info_t {
-    const sai_vendor_attribute_entry_t     *vendor_data;
-    const mlnx_obj_type_attrs_enums_info_t  enums_info;
+    const sai_vendor_attribute_entry_t    *vendor_data;
+    const mlnx_obj_type_attrs_enums_info_t enums_info;
 } mlnx_obj_type_attrs_info_t;
 /* A set of macros that allows to define a number of values passed to the macro
  * Example PP_NARG(a, b, c) gives 3.
  */
 #ifndef _WIN32
 #define PP_NARG(...) \
-    PP_NARG_(__VA_ARGS__,PP_RSEQ_N())
+    PP_NARG_(__VA_ARGS__, PP_RSEQ_N())
 #define PP_NARG_(...) \
     PP_ARG_N(__VA_ARGS__)
 #define PP_ARG_N( \
-     _1, _2, _3, _4, _5, _6, _7, _8, _9,_10, \
-    _11,_12,_13,_14,_15,_16,_17,_18,_19,_20, \
-    _21,_22,_23,_24,_25,_26,_27,_28,_29,_30, \
-    _31,_32,_33,_34,_35,_36,_37,_38,_39,_40, \
-    _41,_42,_43,_44,_45,_46,_47,_48,_49,_50, \
-    _51,_52,_53,_54,_55,_56,_57,_58,_59,_60, \
-    _61,_62,_63,  N, ...) N
+        _1, _2, _3, _4, _5, _6, _7, _8, _9, _10, \
+        _11, _12, _13, _14, _15, _16, _17, _18, _19, _20, \
+        _21, _22, _23, _24, _25, _26, _27, _28, _29, _30, \
+        _31, _32, _33, _34, _35, _36, _37, _38, _39, _40, \
+        _41, _42, _43, _44, _45, _46, _47, _48, _49, _50, \
+        _51, _52, _53, _54, _55, _56, _57, _58, _59, _60, \
+        _61, _62, _63,  N, ...) N
 #define PP_RSEQ_N() \
-    63,62,61,60,                   \
-    59,58,57,56,55,54,53,52,51,50, \
-    49,48,47,46,45,44,43,42,41,40, \
-    39,38,37,36,35,34,33,32,31,30, \
-    29,28,27,26,25,24,23,22,21,20, \
-    19,18,17,16,15,14,13,12,11,10, \
-     9, 8, 7, 6, 5, 4, 3, 2, 1, 0
+    63, 62, 61, 60,                   \
+    59, 58, 57, 56, 55, 54, 53, 52, 51, 50, \
+    49, 48, 47, 46, 45, 44, 43, 42, 41, 40, \
+    39, 38, 37, 36, 35, 34, 33, 32, 31, 30, \
+    29, 28, 27, 26, 25, 24, 23, 22, 21, 20, \
+    19, 18, 17, 16, 15, 14, 13, 12, 11, 10, \
+    9, 8, 7, 6, 5, 4, 3, 2, 1, 0
 #else
 #define EXPAND(x) x
 #define PP_NARG(...) \
-    EXPAND(_xPP_NARGS_IMPL(__VA_ARGS__,15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0))
-#define _xPP_NARGS_IMPL(x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12,x13,x14,x15,N,...) N
+    EXPAND(_xPP_NARGS_IMPL(__VA_ARGS__, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0))
+#define _xPP_NARGS_IMPL(x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, x13, x14, x15, N, ...) N
 #endif
 #define ATTR_ARR_LEN(...) PP_NARG(__VA_ARGS__)
 
 #define ATTR_ENUM_VALUES_LIST(...) \
-        {.attrs = (int32_t[ATTR_ARR_LEN(__VA_ARGS__)]) {__VA_ARGS__},\
-         .count = ATTR_ARR_LEN(__VA_ARGS__),                         \
-         .all = false }
+    {.attrs = (int32_t[ATTR_ARR_LEN(__VA_ARGS__)]) {__VA_ARGS__}, \
+     .count = ATTR_ARR_LEN(__VA_ARGS__),                         \
+     .all   = false }
 #define ATTR_ENUM_VALUES_ALL() \
-        {.attrs = NULL,        \
-         .count = 0,           \
-         .all = true }
+    {.attrs = NULL,        \
+     .count = 0,           \
+     .all   = true }
 #define ATTR_ENUM_INFO_IS_VALID(info) (((info)->all) || ((info)->count > 0))
 #define OBJ_ATTRS_ENUMS_INFO(enum_info_arr) \
     {.info = enum_info_arr, .count = ARRAY_SIZE(enum_info_arr)}
@@ -852,8 +850,7 @@ sai_status_t mlnx_acl_bind_point_get(_In_ const sai_object_key_t   *key,
                                      _Inout_ vendor_cache_t        *cache,
                                      void                          *arg);
 uint32_t mlnx_acl_action_types_count_get(void);
-sai_status_t mlnx_acl_stage_action_types_get(_In_ sai_acl_stage_t  stage,
-                                             _Out_ sai_s32_list_t *list);
+sai_status_t mlnx_acl_stage_action_types_get(_In_ sai_acl_stage_t stage, _Out_ sai_s32_list_t *list);
 sai_status_t mlnx_acl_db_free_entries_get(_In_ sai_object_type_t resource_type, _Out_ uint32_t         *free_entries);
 #define acl_global_lock()   cl_plock_excl_acquire(&g_sai_acl_db_ptr->acl_settings_tbl->lock)
 #define acl_global_unlock() cl_plock_release(&g_sai_acl_db_ptr->acl_settings_tbl->lock)
@@ -1041,19 +1038,87 @@ typedef struct _mlnx_port_config_t {
     bool                   lossless_pg[MAX_PG];
     uint16_t               acl_refs;
 } mlnx_port_config_t;
+typedef enum {
+    MLNX_FID_FLOOD_TYPE_ALL,
+    MLNX_FID_FLOOD_TYPE_NONE,
+    MLNX_FID_FLOOD_TYPE_L2MC_GROUP,
+    MLNX_FID_FLOOD_TYPE_MAX
+} mlnx_fid_flood_ctrl_type_t;
+typedef enum {
+    MLNX_FID_FLOOD_CTRL_ATTR_UC,
+    MLNX_FID_FLOOD_CTRL_ATTR_MC,
+    MLNX_FID_FLOOD_CTRL_ATTR_BC,
+    MLNX_FID_FLOOD_CTRL_ATTR_MAX
+} mlnx_fid_flood_ctrl_attr_t;
+typedef struct mlnx_fid_flood_type_data {
+    mlnx_fid_flood_ctrl_type_t type;
+    uint32_t                   l2mc_db_idx;
+} mlnx_fid_flood_type_data_t;
+typedef struct _mlnx_fid_flood_data_t {
+    mlnx_fid_flood_type_data_t types[MLNX_FID_FLOOD_CTRL_ATTR_MAX];
+} mlnx_fid_flood_data_t;
+
+/**
+ * @brief Port Add/Delete Event
+ */
+typedef enum _sai_port_event_t {
+    /** Create a new active port */
+    MLNX_PORT_EVENT_ADD,
+
+    /** Delete/Invalidate an existing port */
+    MLNX_PORT_EVENT_DELETE,
+} mlnx_port_event_t;
+
+sai_status_t mlnx_fid_ports_get(_In_ sx_fid_t           sx_fid,
+                                _Out_ sx_port_log_id_t *sx_ports,
+                                _Inout_ uint32_t       *ports_count);
+void mlnx_fid_flood_ctrl_init(_In_ mlnx_fid_flood_data_t *data);
+void mlnx_fid_flood_ctrl_l2mc_group_refs_inc(_In_ const mlnx_fid_flood_data_t *data);
+void mlnx_fid_flood_ctrl_l2mc_group_refs_dec(_In_ const mlnx_fid_flood_data_t *data);
+sai_status_t mlnx_fid_flood_ctrl_set_forward_after_drop(_In_ sx_fid_t                          sx_fid,
+                                                        _In_ mlnx_fid_flood_ctrl_attr_t        attr,
+                                                        _In_ const mlnx_fid_flood_type_data_t *flood_data);
+sai_status_t mlnx_fid_flood_ctrl_set_drop(_In_ sx_fid_t                          sx_fid,
+                                          _In_ mlnx_fid_flood_ctrl_attr_t        attr,
+                                          _In_ const mlnx_fid_flood_type_data_t *flood_data);
+sai_status_t mlnx_fid_flood_ctrl_type_set(_In_ sx_fid_t                       sx_fid,
+                                          _In_ mlnx_fid_flood_ctrl_attr_t     attr,
+                                          _Inout_ mlnx_fid_flood_type_data_t *data,
+                                          _In_ mlnx_fid_flood_ctrl_type_t     new_type);
+sai_status_t mlnx_fid_flood_ctrl_l2mc_group_set(_In_ sx_fid_t                       sx_fid,
+                                                _In_ mlnx_fid_flood_ctrl_attr_t     attr,
+                                                _Inout_ mlnx_fid_flood_type_data_t *data,
+                                                _In_ sai_object_id_t                group_oid);
+sai_status_t mlnx_fid_flood_ctrl_port_event_handle(_In_ sx_fid_t                     sx_fid,
+                                                   _In_ const mlnx_fid_flood_data_t *data,
+                                                   _In_ const sx_port_log_id_t      *sx_ports,
+                                                   _In_ uint32_t                     sx_port_count,
+                                                   _In_ mlnx_port_event_t            event);
+sai_status_t mlnx_default_vlan_flood_ctrl_init(void);
+sai_status_t mlnx_fid_flood_ctrl_clear(_In_ sx_fid_t sx_fid);
+
+typedef struct _mlnx_bridge_t {
+    mlnx_shm_array_hdr_t  array_hdr;
+    mlnx_fid_flood_data_t flood_data;
+    sx_bridge_id_t        sx_bridge_id;
+} mlnx_bridge_t;
 typedef struct _mlnx_vlan_db_t {
     /* We keep here phy ports + LAGs */
-    uint32_t          ports_map[MLNX_U32BITARRAY_SIZE(MAX_BRIDGE_1Q_PORTS)];
-    sx_mstp_inst_id_t stp_id;
-    bool              is_created;
+    uint32_t              ports_map[MLNX_U32BITARRAY_SIZE(MAX_BRIDGE_1Q_PORTS)];
+    sx_mstp_inst_id_t     stp_id;
+    mlnx_fid_flood_data_t flood_data;
+    bool                  is_created;
 } mlnx_vlan_db_t;
 
 /* MLNX Bridge API */
 sai_status_t mlnx_bridge_init(void);
 sx_bridge_id_t mlnx_bridge_default_1q(void);
-sai_status_t mlnx_create_bridge_object(sai_bridge_type_t sai_br_type,
-                                       sx_bridge_id_t    sx_br_id,
-                                       sai_object_id_t  *bridge_oid);
+sai_object_id_t mlnx_bridge_default_1q_oid(void);
+mlnx_bridge_t* mlnx_bridge_1d_by_db_idx(_In_ uint32_t db_idx);
+sai_status_t mlnx_bridge_sx_ports_get(_In_ sx_bridge_id_t     sx_bridge,
+                                      _Out_ sx_port_log_id_t *sx_ports,
+                                      _Inout_ uint32_t       *ports_count);
+sai_status_t mlnx_create_bridge_1d_object(sx_bridge_id_t sx_br_id, sai_object_id_t  *bridge_oid);
 sai_status_t mlnx_bridge_oid_to_id(sai_object_id_t oid, sx_bridge_id_t *bridge_id);
 sai_status_t mlnx_bridge_port_sai_to_log_port(sai_object_id_t oid, sx_port_log_id_t *log_port);
 sai_status_t mlnx_bridge_port_to_vlan_port(sai_object_id_t oid, sx_port_log_id_t *log_port);
@@ -1073,8 +1138,7 @@ sai_status_t mlnx_rif_oid_create(_In_ mlnx_rif_type_t          rif_type,
                                  _In_ const mlnx_bridge_rif_t *bridge_rif,
                                  _In_ mlnx_shm_rm_array_idx_t  idx,
                                  _Out_ sai_object_id_t        *rif_oid);
-sai_status_t mlnx_rif_sx_to_sai_oid(_In_ sx_router_interface_t  sx_rif_id,
-                                    _Out_ sai_object_id_t      *oid);
+sai_status_t mlnx_rif_sx_to_sai_oid(_In_ sx_router_interface_t sx_rif_id, _Out_ sai_object_id_t      *oid);
 sai_status_t mlnx_rif_oid_to_bridge_rif(_In_ sai_object_id_t rif_oid, _Out_ uint32_t *bridge_rif_idx);
 sai_status_t mlnx_rif_oid_to_sdk_rif_id(sai_object_id_t rif_oid, sx_router_interface_t *sdk_rif_id);
 sai_status_t mlnx_rif_sx_init(_In_ sx_router_id_t                     sx_router,
@@ -1101,7 +1165,7 @@ void mlnx_vlan_stp_id_set(sai_vlan_id_t vlan_id, sx_mstp_inst_id_t sx_stp_id);
 sx_mstp_inst_id_t mlnx_vlan_stp_id_get(sai_vlan_id_t vlan_id);
 
 void mlnx_vlan_port_set(uint16_t vid, mlnx_bridge_port_t *port, bool is_set);
-bool mlnx_vlan_port_is_set(uint16_t vid, mlnx_bridge_port_t *port);
+bool mlnx_vlan_port_is_set(uint16_t vid, const mlnx_bridge_port_t *port);
 sai_status_t mlnx_vlan_sai_tagging_to_sx(_In_ sai_vlan_tagging_mode_t      mode,
                                          _Out_ sx_untagged_member_state_t *tagging,
                                          _Out_ sx_untagged_prio_state_t   *prio_tagging);
@@ -1113,27 +1177,12 @@ sai_status_t mlnx_vlan_port_del(uint16_t vid, mlnx_bridge_port_t *port);
 sai_status_t sai_object_to_vlan(sai_object_id_t oid, uint16_t *vlan_id);
 sai_status_t validate_vlan(_In_ const sai_vlan_id_t vlan_id);
 sai_status_t mlnx_vlan_oid_create(_In_ sai_vlan_id_t vlan_id, _Out_ sai_object_id_t *vlan_oid);
-void mlnx_vlan_db_create_vlan(_In_ sai_vlan_id_t vlan_id);
+mlnx_vlan_db_t* mlnx_vlan_db_get_vlan(_In_ sai_vlan_id_t vlan_id);
+mlnx_vlan_db_t * mlnx_vlan_db_create_vlan(_In_ sai_vlan_id_t vlan_id);
 bool mlnx_vlan_is_created(_In_ sai_vlan_id_t vlan_id);
 sai_status_t mlnx_max_learned_addresses_value_validate(_In_ uint32_t limit, _In_ uint32_t attr_index);
 sai_status_t mlnx_vlan_bridge_max_learned_addresses_set(_In_ sx_vid_t sx_vid, _In_ uint32_t limit);
 sai_status_t mlnx_vlan_bridge_max_learned_addresses_get(_In_ sx_vid_t sx_vid, _In_ uint32_t *limit);
-/**
- * @brief Port Add/Delete Event
- */
-typedef enum _sai_port_event_t {
-    /** Create a new active port */
-    SAI_PORT_EVENT_ADD,
-
-    /** Delete/Invalidate an existing port */
-    SAI_PORT_EVENT_DELETE,
-} sai_port_event_t;
-bool mlnx_fdb_is_flood_disabled();
-sai_status_t mlnx_fdb_port_event_handle(mlnx_bridge_port_t *port, uint16_t vid, sai_port_event_t event);
-sai_status_t mlnx_fdb_flood_control_set(_In_ sx_vid_t                vlan_id,
-                                        _In_ const sx_port_log_id_t *sx_ports,
-                                        _In_ uint32_t                ports_count,
-                                        _In_ bool                    add);
 sai_status_t mlnx_buffer_port_profile_list_get(_In_ const sai_object_id_t     port_id,
                                                _Inout_ sai_attribute_value_t *value,
                                                _In_ bool                      is_ingress);
@@ -1198,6 +1247,13 @@ sai_status_t mlnx_wred_port_queue_db_clear(_In_ mlnx_port_config_t *port);
          (port = &g_sai_db_ptr->bridge_ports_db[idx]);      \
          idx++, checked++)                                 \
         if (port->is_present)
+
+#define mlnx_bridge_1d_foreach(bridge, idx)        \
+    for (ii = 0;                                   \
+         (ii < mlnx_shm_rm_array_size_get(MLNX_SHM_RM_ARRAY_TYPE_BRIDGE)) && \
+         (bridge = mlnx_bridge_1d_by_db_idx(ii));   \
+         ii++)                                     \
+        if (bridge->array_hdr.is_used)
 
 #define mlnx_bridge_1q_port_foreach(port, idx) \
     for (idx = 0; idx < (MAX_BRIDGE_1Q_PORTS) && \
@@ -1330,15 +1386,17 @@ typedef struct _mlnx_udf_db_t {
 #define ACL_MAX_SX_EGR_GROUP_NUMBER ACL_GROUP_NUMBER
 
 #define ACL_PBS_MAP_IDX_TRIVIAL_RANGE_START ((mlnx_acl_pbs_map_idx_t)0)
-#define ACL_PBS_MAP_FLOOD_PBS_INDEX     ((mlnx_acl_pbs_map_idx_t)(MAX_PORTS * 2))
-#define ACL_PBS_MAP_HASH_INDEX_START    ((mlnx_acl_pbs_map_idx_t)(ACL_PBS_MAP_FLOOD_PBS_INDEX + 1))
+#define ACL_PBS_MAP_FLOOD_PBS_INDEX         ((mlnx_acl_pbs_map_idx_t)(MAX_PORTS * 2))
+#define ACL_PBS_MAP_HASH_INDEX_START        ((mlnx_acl_pbs_map_idx_t)(ACL_PBS_MAP_FLOOD_PBS_INDEX + 1))
 
 #define ACL_PBS_MAP_PREDEF_REG_SIZE (ACL_PBS_MAP_HASH_INDEX_START - ACL_PBS_MAP_IDX_TRIVIAL_RANGE_START) /* Ports LAGs and Flood PBS */
 #define ACL_MAX_PBS_NUMBER          (g_resource_limits.acl_pbs_entries_max)
 #define ACL_PBS_MAP_RESERVE_PERCENT 1.2
 
 #define ACL_PBS_MAP_INVALID_INDEX ((mlnx_acl_pbs_map_idx_t)-1)
-#define ACL_PBS_MAP_INDEX_IS_VALID(index)   (((index) != ACL_PBS_MAP_INVALID_INDEX) && ((index) < g_sai_acl_db_pbs_map_size))
+#define ACL_PBS_MAP_INDEX_IS_VALID(index) \
+                                            (((index) != ACL_PBS_MAP_INVALID_INDEX) && \
+                                             ((index) < g_sai_acl_db_pbs_map_size))
 #define ACL_PBS_MAP_INDEX_IS_TRIVIAL(index) ((index) < ACL_PBS_MAP_FLOOD_PBS_INDEX)
 
 #define SAI_HASH_MAX_OBJ_COUNT        32
@@ -1397,9 +1455,9 @@ typedef struct _acl_table_db_t {
 
 typedef uint16_t mlnx_acl_pbs_map_idx_t;
 PACKED(struct _mlnx_acl_pbs_info_t {
-    mlnx_acl_pbs_type_t type : 2;
-    uint32_t            idx  : 17; /* Should fit MAX_BRIDGE_PORTS (0x1F540) */
-},);
+           mlnx_acl_pbs_type_t type: 2;
+           uint32_t idx: 17;       /* Should fit MAX_BRIDGE_PORTS (0x1F540) */
+       }, );
 typedef struct _mlnx_acl_pbs_info_t mlnx_acl_pbs_info_t;
 #define MLNX_ACL_PBS_INFO_INVALID ((mlnx_acl_pbs_info_t) {.type = MLNX_ACL_PBS_TYPE_INVALID})
 #define MLNX_ACL_PBS_INFO_IS_VALID(info) (info.type != MLNX_ACL_PBS_TYPE_INVALID)
@@ -1537,8 +1595,8 @@ typedef struct _mlnx_acl_db_t {
 sai_status_t mlnx_acl_port_lag_event_handle_locked(_In_ const mlnx_port_config_t *port, _In_ acl_event_type_t event);
 sai_status_t mlnx_acl_port_lag_event_handle_unlocked(_In_ const mlnx_port_config_t *port, _In_ acl_event_type_t event);
 
-extern mlnx_acl_db_t              *g_sai_acl_db_ptr;
-extern uint32_t                    g_sai_acl_db_pbs_map_size;
+extern mlnx_acl_db_t *g_sai_acl_db_ptr;
+extern uint32_t       g_sai_acl_db_pbs_map_size;
 
 typedef struct _mlnx_policer_to_trap_group_bind_params {
     sai_attribute_value_t attr_prio_value;
@@ -1770,7 +1828,7 @@ typedef enum _sai_host_object_type_t {
 typedef struct sai_netdev {
     bool                   is_used;
     sai_host_object_type_t sub_type;
-    char                   ifname[SAI_HOSTIF_NAME_SIZE+1];
+    char                   ifname[SAI_HOSTIF_NAME_SIZE + 1];
     sx_port_log_id_t       port_id;
     uint16_t               vid;
     sx_fd_t                fd;
@@ -1782,6 +1840,7 @@ typedef struct _mlnx_l2mc_group_t {
     bool                 is_used;
     sx_mc_container_id_t mc_container;
     mlnx_acl_pbs_entry_t pbs_entry;
+    uint32_t             flood_ctrl_ref;
 } mlnx_l2mc_group_t;
 
 typedef enum {
@@ -1790,15 +1849,23 @@ typedef enum {
     BOOT_TYPE_FAST
 } mlnx_sai_boot_type_t;
 
-sai_status_t mlnx_l2mc_group_oid_create(_In_  const mlnx_l2mc_group_t *l2mc_group,
-                                        _Out_ sai_object_id_t         *oid);
-sai_status_t mlnx_l2mc_group_oid_to_sai(_In_ sai_object_id_t      oid,
-                                        _Out_ mlnx_l2mc_group_t **l2mc_group);
+#define l2mc_group_db(idx)                   (g_sai_db_ptr->l2mc_groups[(idx)])
+#define MLNX_L2MC_GROUP_DB_IDX_IS_VALID(idx) ((idx) < MLNX_L2MC_GROUP_DB_SIZE)
+#define MLNX_L2MC_GROUP_DB_IDX_INVALID ((uint32_t)(-1))
+
+sai_status_t mlnx_l2mc_group_oid_create(_In_ const mlnx_l2mc_group_t *l2mc_group, _Out_ sai_object_id_t         *oid);
+sai_status_t mlnx_l2mc_group_oid_to_sai(_In_ sai_object_id_t oid, _Out_ mlnx_l2mc_group_t **l2mc_group);
+sai_status_t mlnx_l2mc_group_oid_to_db_idx(_In_ sai_object_id_t oid, _Out_ uint32_t       *db_idx);
+sai_status_t mlnx_l2mc_group_sx_ports_get(_In_ const mlnx_l2mc_group_t *l2mc_group,
+                                          _Out_ sx_port_log_id_t       *sx_ports,
+                                          _Inout_ uint32_t             *ports_count);
 sai_status_t mlnx_l2mc_group_to_pbs_info(_In_ const mlnx_l2mc_group_t *l2mc_group,
                                          _Out_ mlnx_acl_pbs_info_t    *pbs_info);
-sai_status_t mlnx_l2mc_group_pbs_info_to_group(_In_ mlnx_acl_pbs_info_t   pbs_info,
-                                               _Out_ mlnx_l2mc_group_t  **l2mc_group);
+sai_status_t mlnx_l2mc_group_pbs_info_to_group(_In_ mlnx_acl_pbs_info_t  pbs_info,
+                                               _Out_ mlnx_l2mc_group_t **l2mc_group);
 sai_status_t mlnx_l2mc_group_pbs_use(_In_ mlnx_l2mc_group_t *l2mc_group);
+void mlnx_l2mc_group_flood_ctrl_ref_inc(_In_ uint32_t group_db_idx);
+void mlnx_l2mc_group_flood_ctrl_ref_dec(_In_ uint32_t group_db_idx);
 
 typedef struct sai_db {
     cl_plock_t         p_lock;
@@ -1833,20 +1900,20 @@ typedef struct sai_db {
     bool                              tunnel_module_initialized;
     bool                              port_parsing_depth_set_for_tunnel;
     sx_bridge_id_t                    sx_bridge_id;
+    sai_object_id_t                   default_1q_bridge_oid;
     sx_port_log_id_t                  sx_nve_log_port;
     mlnx_nve_tunnel_type_t            nve_tunnel_type;
     bool                              is_stp_initialized;
     sx_mstp_inst_id_t                 def_stp_id;
     mlnx_mstp_inst_t                  mlnx_mstp_inst_db[SX_MSTP_INST_ID_MAX - SX_MSTP_INST_ID_MIN + 1];
-    sai_packet_action_t               flood_action_uc;
-    sai_packet_action_t               flood_action_bc;
-    sai_packet_action_t               flood_action_mc;
+    sai_packet_action_t               flood_actions[MLNX_FID_FLOOD_CTRL_ATTR_MAX];
     fdb_or_route_actions_db_t         fdb_or_route_actions;
     bool                              transaction_mode_enable;
     bool                              issu_enabled;
     bool                              restart_warm;
     bool                              warm_recover;
     bool                              issu_end_called;
+    uint32_t                          acl_divider;
     mlnx_sai_boot_type_t              boot_type;
     sx_port_packet_storing_mode_t     packet_storing_mode;
     trap_mirror_db_t                  trap_mirror_discard_wred_db;
@@ -1994,7 +2061,7 @@ extern uint32_t         g_sai_buffer_db_size;
 /* DB read lock is needed */
 sai_status_t mlnx_sched_hierarchy_reset(mlnx_port_config_t *port);
 
-sai_status_t mlnx_sched_group_port_init(mlnx_port_config_t *port, bool is_switch_init);
+sai_status_t mlnx_sched_group_port_init(mlnx_port_config_t *port, bool is_warmboot_init_stage);
 
 sai_status_t mlnx_queue_cfg_lookup(sx_port_log_id_t log_port_id, uint32_t queue_idx, mlnx_qos_queue_config_t **cfg);
 
@@ -2018,7 +2085,7 @@ uint32_t mlnx_port_idx_get(const mlnx_port_config_t *port);
 /* DB read lock is needed */
 sai_status_t mlnx_port_add(mlnx_port_config_t *port);
 sai_status_t mlnx_port_del(mlnx_port_config_t *port);
-sai_status_t mlnx_port_config_init(mlnx_port_config_t *port, bool is_switch_init);
+sai_status_t mlnx_port_config_init(mlnx_port_config_t *port);
 sai_status_t mlnx_port_config_uninit(mlnx_port_config_t *port);
 sai_status_t mlnx_port_auto_split(mlnx_port_config_t *port);
 sai_status_t mlnx_port_speed_bitmap_apply(_In_ const mlnx_port_config_t *port);
@@ -2057,8 +2124,9 @@ sai_status_t mlnx_port_lag_drop_tags_get(_In_ const sai_object_key_t   *key,
                                          _Inout_ vendor_cache_t        *cache,
                                          void                          *arg);
 sai_status_t mlnx_port_mirror_wred_discard_set(_In_ sx_port_log_id_t port_log_id, _In_ bool is_add);
-sai_status_t mlnx_port_speed_get_impl(_In_ sx_port_log_id_t sx_port, _Out_ uint32_t *oper_speed,
-                                      _Out_ uint32_t *admin_speed);
+sai_status_t mlnx_port_speed_get_impl(_In_ sx_port_log_id_t sx_port,
+                                      _Out_ uint32_t       *oper_speed,
+                                      _Out_ uint32_t       *admin_speed);
 
 /* DB read lock is needed */
 sai_status_t mlnx_switch_get_mac(sx_mac_addr_t *mac);

@@ -70,7 +70,7 @@ static const sai_vendor_attribute_entry_t neighbor_vendor_attribs[] = {
       NULL, NULL,
       NULL, NULL }
 };
-static const mlnx_attr_enum_info_t neighbor_enum_info[] = {
+static const mlnx_attr_enum_info_t        neighbor_enum_info[] = {
     [SAI_NEIGHBOR_ENTRY_ATTR_PACKET_ACTION] = ATTR_ENUM_VALUES_LIST(
         SAI_PACKET_ACTION_FORWARD,
         SAI_PACKET_ACTION_TRAP,
@@ -78,8 +78,8 @@ static const mlnx_attr_enum_info_t neighbor_enum_info[] = {
         SAI_PACKET_ACTION_DROP
         )
 };
-const mlnx_obj_type_attrs_info_t mlnx_neighbor_obj_type_info =
-    { neighbor_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(neighbor_enum_info)};
+const mlnx_obj_type_attrs_info_t          mlnx_neighbor_obj_type_info =
+{ neighbor_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(neighbor_enum_info)};
 static void neighbor_key_to_str(_In_ const sai_neighbor_entry_t* neighbor_entry, _Out_ char *key_str)
 {
     int                   res1, res2;
@@ -321,10 +321,10 @@ static sai_status_t mlnx_get_neighbor_attribute(_In_ const sai_neighbor_entry_t*
 
 static sai_status_t mlnx_get_neighbor(const sai_neighbor_entry_t* neighbor_entry, sx_neigh_get_entry_t *neigh_entry)
 {
-    sx_status_t       status;
-    uint32_t          entries_count = 1;
-    sx_ip_addr_t      ipaddr;
-    sx_neigh_filter_t filter;
+    sx_status_t           status;
+    uint32_t              entries_count = 1;
+    sx_ip_addr_t          ipaddr;
+    sx_neigh_filter_t     filter;
     sx_router_interface_t sx_rif;
 
     SX_LOG_ENTER();

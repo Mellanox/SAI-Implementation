@@ -70,7 +70,7 @@ static cl_thread_t               event_thread;
 static bool                      event_thread_asked_to_stop = false;
 static uint32_t                  g_route_table_size, g_neighbor_table_size;
 static bool                      g_uninit_data_plane_on_removal = true;
-static uint32_t                  g_mlnx_shm_rm_size = 0;
+static uint32_t                  g_mlnx_shm_rm_size             = 0;
 
 void log_cb(sx_log_severity_t severity, const char *module_name, char *msg);
 void log_pause_cb(void);
@@ -84,9 +84,13 @@ sx_log_cb_t sai_log_cb = NULL;
 static sai_status_t mlnx_switch_fan_set(uint8_t power_percent);
 #endif
 
-#define MLNX_SHM_RM_ARRAY_CANARY_BASE  ((mlnx_shm_array_canary_t)(0x0EC0))
-#define MLNX_SHM_RM_ARRAY_CANARY(type) ((mlnx_shm_array_canary_t)MLNX_SHM_RM_ARRAY_CANARY_BASE + (type))
-#define MLNX_SHM_RM_ARRAY_TYPE_IS_VALID(type) ((MLNX_SHM_RM_ARRAY_TYPE_MIN <= (type)) && ((type) <= MLNX_SHM_RM_ARRAY_TYPE_MAX))
+#define MLNX_SHM_RM_ARRAY_CANARY_BASE ((mlnx_shm_array_canary_t)(0x0EC0))
+#define MLNX_SHM_RM_ARRAY_CANARY(type) \
+                                                        ((mlnx_shm_array_canary_t)MLNX_SHM_RM_ARRAY_CANARY_BASE + \
+                                                         (type))
+#define MLNX_SHM_RM_ARRAY_TYPE_IS_VALID(type) \
+                                                        ((MLNX_SHM_RM_ARRAY_TYPE_MIN <= (type)) && \
+                                                         ((type) <= MLNX_SHM_RM_ARRAY_TYPE_MAX))
 #define MLNX_SHM_RM_ARRAY_HDR_IS_VALID(type, array_hdr) ((array_hdr)->canary == MLNX_SHM_RM_ARRAY_CANARY(type))
 #define MLNX_SHM_RM_ARRAY_BASE_PTR ((uint8_t*)g_sai_db_ptr->array_info + sizeof(g_sai_db_ptr->array_info))
 
@@ -355,9 +359,6 @@ static sai_status_t mlnx_switch_aging_time_set(_In_ const sai_object_key_t      
 static sai_status_t mlnx_switch_fdb_flood_ctrl_set(_In_ const sai_object_key_t      *key,
                                                    _In_ const sai_attribute_value_t *value,
                                                    void                             *arg);
-static sai_status_t mlnx_switch_fdb_flood_mc_ctrl_set(_In_ const sai_object_key_t      *key,
-                                                      _In_ const sai_attribute_value_t *value,
-                                                      void                             *arg);
 static sai_status_t mlnx_switch_ecmp_hash_param_set(_In_ const sai_object_key_t      *key,
                                                     _In_ const sai_attribute_value_t *value,
                                                     void                             *arg);
@@ -500,6 +501,9 @@ static sai_status_t mlnx_switch_attr_get(_In_ const sai_object_key_t   *key,
 static sai_status_t mlnx_switch_attr_set(_In_ const sai_object_key_t      *key,
                                          _In_ const sai_attribute_value_t *value,
                                          void                             *arg);
+static sai_status_t mlnx_switch_pre_shutdown_set(_In_ const sai_object_key_t      *key,
+                                                 _In_ const sai_attribute_value_t *value,
+                                                 void                             *arg);
 static const sai_vendor_attribute_entry_t switch_vendor_attribs[] = {
     { SAI_SWITCH_ATTR_PORT_NUMBER,
       { false, false, false, true },
@@ -689,8 +693,8 @@ static const sai_vendor_attribute_entry_t switch_vendor_attribs[] = {
     { SAI_SWITCH_ATTR_FDB_MULTICAST_MISS_PACKET_ACTION,
       { false, false, true, true },
       { false, false, true, true },
-      mlnx_switch_fdb_flood_ctrl_get,    (void*)SAI_SWITCH_ATTR_FDB_MULTICAST_MISS_PACKET_ACTION,
-      mlnx_switch_fdb_flood_mc_ctrl_set, (void*)SAI_SWITCH_ATTR_FDB_MULTICAST_MISS_PACKET_ACTION},
+      mlnx_switch_fdb_flood_ctrl_get, (void*)SAI_SWITCH_ATTR_FDB_MULTICAST_MISS_PACKET_ACTION,
+      mlnx_switch_fdb_flood_ctrl_set, (void*)SAI_SWITCH_ATTR_FDB_MULTICAST_MISS_PACKET_ACTION},
     { SAI_SWITCH_ATTR_LAG_DEFAULT_HASH_SEED,
       { false, false, true, true },
       { false, false, true, true },
@@ -1059,18 +1063,23 @@ static const sai_vendor_attribute_entry_t switch_vendor_attribs[] = {
     { SAI_SWITCH_ATTR_UNINIT_DATA_PLANE_ON_REMOVAL,
       { true, false, true, true },
       { true, false, true, true },
-      mlnx_switch_attr_get, (void*) SAI_SWITCH_ATTR_UNINIT_DATA_PLANE_ON_REMOVAL,
-      mlnx_switch_attr_set, (void*) SAI_SWITCH_ATTR_UNINIT_DATA_PLANE_ON_REMOVAL },
+      mlnx_switch_attr_get, (void*)SAI_SWITCH_ATTR_UNINIT_DATA_PLANE_ON_REMOVAL,
+      mlnx_switch_attr_set, (void*)SAI_SWITCH_ATTR_UNINIT_DATA_PLANE_ON_REMOVAL },
+    { SAI_SWITCH_ATTR_PRE_SHUTDOWN,
+      { true, false, true, false },
+      { true, false, true, true },
+      NULL, NULL,
+      mlnx_switch_pre_shutdown_set, NULL },
     { END_FUNCTIONALITY_ATTRIBS_ID,
       { false, false, false, false },
       { false, false, false, false },
       NULL, NULL,
       NULL, NULL }
 };
-static const mlnx_attr_enum_info_t switch_enum_info[] = {
+static const mlnx_attr_enum_info_t        switch_enum_info[] = {
     [SAI_SWITCH_ATTR_OPER_STATUS] = ATTR_ENUM_VALUES_LIST(
         SAI_SWITCH_OPER_STATUS_UP),
-    [SAI_SWITCH_ATTR_SWITCHING_MODE] = ATTR_ENUM_VALUES_ALL(),
+    [SAI_SWITCH_ATTR_SWITCHING_MODE]                 = ATTR_ENUM_VALUES_ALL(),
     [SAI_SWITCH_ATTR_FDB_UNICAST_MISS_PACKET_ACTION] = ATTR_ENUM_VALUES_LIST(
         SAI_PACKET_ACTION_FORWARD,
         SAI_PACKET_ACTION_DROP),
@@ -1089,8 +1098,8 @@ static const mlnx_attr_enum_info_t switch_enum_info[] = {
         SAI_HASH_ALGORITHM_CRC),
     [SAI_SWITCH_ATTR_SUPPORTED_EXTENDED_STATS_MODE] = ATTR_ENUM_VALUES_ALL(),
 };
-const mlnx_obj_type_attrs_info_t mlnx_switch_obj_type_info =
-    { switch_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(switch_enum_info)};
+const mlnx_obj_type_attrs_info_t          mlnx_switch_obj_type_info =
+{ switch_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(switch_enum_info)};
 
 #define RDQ_ETH_DEFAULT_SIZE 4200
 /* the needed value is 10000 but added more for align */
@@ -1678,7 +1687,7 @@ static sai_status_t mlnx_resource_mng_stage(bool warm_recover, mlnx_sai_boot_typ
     sxd_handle                sxd_handle   = 0;
     uint32_t                  ii;
     const bool                initialize_dpt = !warm_recover;
-    const bool                reset_asic = !warm_recover && (BOOT_TYPE_WARM != boot_type);
+    const bool                reset_asic     = !warm_recover && (BOOT_TYPE_WARM != boot_type);
 
     memset(&ctrl_pack, 0, sizeof(sxd_ctrl_pack_t));
     memset(&swid_details, 0, sizeof(swid_details));
@@ -1970,8 +1979,7 @@ static sai_status_t mlnx_sdk_start(mlnx_sai_boot_type_t boot_type)
     return SAI_STATUS_SUCCESS;
 }
 
-static sai_status_t mlnx_chassis_mng_stage(mlnx_sai_boot_type_t boot_type,
-                                           bool                 transaction_mode_enable)
+static sai_status_t mlnx_chassis_mng_stage(mlnx_sai_boot_type_t boot_type, bool transaction_mode_enable)
 {
     sx_status_t           status;
     sx_api_sx_sdk_init_t  sdk_init_params;
@@ -2020,8 +2028,14 @@ static sai_status_t mlnx_chassis_mng_stage(mlnx_sai_boot_type_t boot_type,
     sdk_init_params.flow_counter_params.flow_counter_byte_type_max_number   = ACL_MAX_SX_COUNTER_BYTE_NUM;
     sdk_init_params.flow_counter_params.flow_counter_packet_type_max_number = ACL_MAX_SX_COUNTER_PACKET_NUM;
 
-    sdk_init_params.acl_params.max_acl_ingress_groups = ACL_MAX_SX_ING_GROUP_NUMBER;
-    sdk_init_params.acl_params.max_acl_egress_groups  = ACL_MAX_SX_EGR_GROUP_NUMBER;
+    /* ISSU: Need to cut MAX ACL groups by half, and share with ingress and egress */
+    if (g_sai_db_ptr->issu_enabled) {
+        sdk_init_params.acl_params.max_acl_ingress_groups = ACL_MAX_SX_ING_GROUP_NUMBER / 4;
+        sdk_init_params.acl_params.max_acl_egress_groups  = ACL_MAX_SX_EGR_GROUP_NUMBER / 4;
+    } else {
+        sdk_init_params.acl_params.max_acl_ingress_groups = ACL_MAX_SX_ING_GROUP_NUMBER;
+        sdk_init_params.acl_params.max_acl_egress_groups  = ACL_MAX_SX_EGR_GROUP_NUMBER;
+    }
 
     sdk_init_params.acl_params.min_acl_rules   = 0;
     sdk_init_params.acl_params.max_acl_rules   = ACL_MAX_SX_RULES_NUMBER;
@@ -2084,6 +2098,7 @@ static sai_status_t mlnx_chassis_mng_stage(mlnx_sai_boot_type_t boot_type,
             sdk_init_params.boot_mode_params.boot_mode = SX_BOOT_MODE_NORMAL_E;
         }
         break;
+
     case BOOT_TYPE_WARM:
         if (g_sai_db_ptr->issu_enabled) {
             sdk_init_params.boot_mode_params.boot_mode = SX_BOOT_MODE_ISSU_STARTED_E;
@@ -2092,6 +2107,7 @@ static sai_status_t mlnx_chassis_mng_stage(mlnx_sai_boot_type_t boot_type,
             return SAI_STATUS_FAILURE;
         }
         break;
+
     case BOOT_TYPE_FAST:
         if (g_sai_db_ptr->issu_enabled) {
             sdk_init_params.boot_mode_params.boot_mode = SX_BOOT_MODE_ISSU_FAST_E;
@@ -2099,6 +2115,7 @@ static sai_status_t mlnx_chassis_mng_stage(mlnx_sai_boot_type_t boot_type,
             sdk_init_params.boot_mode_params.boot_mode = SX_BOOT_MODE_FAST_E;
         }
         break;
+
     default:
         SX_LOG_ERR("Unsupported boot type %d\n", boot_type);
         return SAI_STATUS_FAILURE;
@@ -2313,8 +2330,9 @@ static sai_status_t parse_elements(xmlDoc *doc, xmlNode * a_node)
             key                        = xmlNodeListGetString(doc, cur_node->children, 1);
             g_sai_db_ptr->issu_enabled = (uint32_t)atoi((const char*)key);
             MLNX_SAI_LOG_NTC("issu enabled: %u\n", g_sai_db_ptr->issu_enabled);
+            /* divide ACL resources by half for FFB */
+            g_sai_db_ptr->acl_divider = g_sai_db_ptr->issu_enabled ? 2 : 1;
             xmlFree(key);
-
         } else {
             /* parse all children of current element */
             if (SAI_STATUS_SUCCESS != (status = parse_elements(doc, cur_node->children))) {
@@ -2404,25 +2422,26 @@ static void sai_db_values_init()
     memset(g_sai_db_ptr->mlnx_samplepacket_session, 0, sizeof(g_sai_db_ptr->mlnx_samplepacket_session));
     memset(g_sai_db_ptr->trap_group_valid, 0, sizeof(g_sai_db_ptr->trap_group_valid));
 
-    g_sai_db_ptr->flood_action_uc = SAI_PACKET_ACTION_FORWARD;
-    g_sai_db_ptr->flood_action_bc = SAI_PACKET_ACTION_FORWARD;
-    g_sai_db_ptr->flood_action_mc = SAI_PACKET_ACTION_FORWARD;
+    g_sai_db_ptr->flood_actions[MLNX_FID_FLOOD_CTRL_ATTR_UC] = SAI_PACKET_ACTION_FORWARD;
+    g_sai_db_ptr->flood_actions[MLNX_FID_FLOOD_CTRL_ATTR_BC] = SAI_PACKET_ACTION_FORWARD;
+    g_sai_db_ptr->flood_actions[MLNX_FID_FLOOD_CTRL_ATTR_MC] = SAI_PACKET_ACTION_FORWARD;
 
     g_sai_db_ptr->transaction_mode_enable = false;
-    g_sai_db_ptr->issu_enabled = false;
-    g_sai_db_ptr->restart_warm = false;
-    g_sai_db_ptr->warm_recover = false;
-    g_sai_db_ptr->issu_end_called = false;
-    g_sai_db_ptr->boot_type = 0;
+    g_sai_db_ptr->issu_enabled            = false;
+    g_sai_db_ptr->restart_warm            = false;
+    g_sai_db_ptr->warm_recover            = false;
+    g_sai_db_ptr->issu_end_called         = false;
+    g_sai_db_ptr->boot_type               = 0;
+    g_sai_db_ptr->acl_divider             = 1;
 
     g_sai_db_ptr->packet_storing_mode = SX_PORT_PACKET_STORING_MODE_CUT_THROUGH;
 
-    g_sai_db_ptr->tunnel_module_initialized = false;
+    g_sai_db_ptr->tunnel_module_initialized         = false;
     g_sai_db_ptr->port_parsing_depth_set_for_tunnel = false;
 
     g_sai_db_ptr->nve_tunnel_type = NVE_TUNNEL_UNKNOWN;
 
-    g_sai_db_ptr->crc_check_enable = true;
+    g_sai_db_ptr->crc_check_enable  = true;
     g_sai_db_ptr->crc_recalc_enable = true;
 
     memset(g_sai_db_ptr->is_switch_priority_lossless, 0, MAX_LOSSLESS_SP * sizeof(bool));
@@ -2482,12 +2501,21 @@ sai_status_t mlnx_shm_rm_rif_size_get(_Out_ size_t *size)
     return SAI_STATUS_SUCCESS;
 }
 
+sai_status_t mlnx_shm_rm_bridge_size_get(_Out_ size_t *size)
+{
+    *size = g_resource_limits.bridge_num_max;
+
+    return SAI_STATUS_SUCCESS;
+}
+
 static mlnx_shm_rm_array_init_info_t mlnx_shm_array_info[MLNX_SHM_RM_ARRAY_TYPE_SIZE] = {
     [MLNX_SHM_RM_ARRAY_TYPE_RIF] = {sizeof(mlnx_rif_db_t),
                                     mlnx_shm_rm_rif_size_get,
-                                    0}
+                                    0},
+    [MLNX_SHM_RM_ARRAY_TYPE_BRIDGE] = {sizeof(mlnx_bridge_t),
+                                       mlnx_shm_rm_bridge_size_get,
+                                       0}
 };
-
 static size_t mlnx_sai_rm_db_size_get(void)
 {
     sai_status_t                   status;
@@ -2504,7 +2532,7 @@ static size_t mlnx_sai_rm_db_size_get(void)
 
         if (init_info->elem_count == 0) {
             elem_count = 0;
-            status = init_info->elem_count_fn(&elem_count);
+            status     = init_info->elem_count_fn(&elem_count);
             if (SAI_ERR(status) || (elem_count == 0)) {
                 SX_LOG_ERR("Failed to get elem count for %d\n", type);
                 return 0;
@@ -2539,7 +2567,7 @@ static sai_status_t sai_db_create()
         }
     }
 
-    g_mlnx_shm_rm_size = (uint32_t) mlnx_sai_rm_db_size_get();
+    g_mlnx_shm_rm_size = (uint32_t)mlnx_sai_rm_db_size_get();
 
     if (ftruncate(shmid, sizeof(*g_sai_db_ptr) + g_mlnx_shm_rm_size) == -1) {
         MLNX_SAI_LOG_ERR("Failed to set shared memory size for the SAI DB\n");
@@ -2547,7 +2575,8 @@ static sai_status_t sai_db_create()
         return SAI_STATUS_NO_MEMORY;
     }
 
-    g_sai_db_ptr = mmap(NULL, sizeof(*g_sai_db_ptr) + g_mlnx_shm_rm_size, PROT_READ | PROT_WRITE, MAP_SHARED, shmid, 0);
+    g_sai_db_ptr =
+        mmap(NULL, sizeof(*g_sai_db_ptr) + g_mlnx_shm_rm_size, PROT_READ | PROT_WRITE, MAP_SHARED, shmid, 0);
     if (g_sai_db_ptr == MAP_FAILED) {
         MLNX_SAI_LOG_ERR("Failed to map the shared memory of the SAI DB\n");
         g_sai_db_ptr = NULL;
@@ -2575,8 +2604,7 @@ static uint8_t* mlnx_rm_offset_to_ptf(size_t rm_offset)
     return MLNX_SHM_RM_ARRAY_BASE_PTR + rm_offset;
 }
 
-static void* mlnx_rm_array_elem_by_idx(_In_ const mlnx_shm_rm_array_info_t *info,
-                                       _In_ uint32_t                        idx)
+static void* mlnx_rm_array_elem_by_idx(_In_ const mlnx_shm_rm_array_info_t *info, _In_ uint32_t idx)
 {
     if (info->elem_count <= idx) {
         SX_LOG_ERR("Idx %u is out of array bounds, array size - %lu\n", idx, info->elem_count);
@@ -2614,12 +2642,12 @@ static sai_status_t mlnx_sai_rm_db_init(void)
     shm_rm_base_ptr = shm_rm_ptr = MLNX_SHM_RM_ARRAY_BASE_PTR;
 
     for (type = MLNX_SHM_RM_ARRAY_TYPE_MIN; type <= MLNX_SHM_RM_ARRAY_TYPE_MAX; type++) {
-        init_info = &mlnx_shm_array_info[type];
-        info      = &g_sai_db_ptr->array_info[type];
-        info->elem_count = init_info->elem_count;
-        info->elem_size  = init_info->elem_size;
+        init_info            = &mlnx_shm_array_info[type];
+        info                 = &g_sai_db_ptr->array_info[type];
+        info->elem_count     = init_info->elem_count;
+        info->elem_size      = init_info->elem_size;
         info->offset_to_head = shm_rm_ptr - shm_rm_base_ptr;
-        shm_rm_ptr += info->elem_size * info->elem_count;
+        shm_rm_ptr          += info->elem_size * info->elem_count;
 
         mlnx_sai_rm_array_canary_init(type);
     }
@@ -2629,7 +2657,7 @@ static sai_status_t mlnx_sai_rm_db_init(void)
 
 sai_status_t mlnx_shm_rm_array_alloc(_In_ mlnx_shm_rm_array_type_t  type,
                                      _Out_ mlnx_shm_rm_array_idx_t *idx,
-                                     _Out_ void                    **elem)
+                                     _Out_ void                   **elem)
 {
     const mlnx_shm_rm_array_info_t *info;
     mlnx_shm_array_hdr_t           *array_hdr;
@@ -2651,9 +2679,9 @@ sai_status_t mlnx_shm_rm_array_alloc(_In_ mlnx_shm_rm_array_type_t  type,
 
         if (!array_hdr->is_used) {
             array_hdr->is_used = true;
-            idx->type = type;
-            idx->idx  = ii;
-            *elem     = (void*) array_hdr;
+            idx->type          = type;
+            idx->idx           = ii;
+            *elem              = (void*)array_hdr;
             return SAI_STATUS_SUCCESS;
         }
     }
@@ -2694,12 +2722,12 @@ sai_status_t mlnx_shm_rm_array_free(_In_ mlnx_shm_rm_array_idx_t idx)
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_shm_rm_array_find(_In_ mlnx_shm_rm_array_type_t   type,
-                                    _In_ mlnx_shm_rm_array_cmp_fn   cmp_fn,
-                                    _In_ mlnx_shm_rm_array_idx_t    start_idx,
-                                    _In_ const void                *data,
-                                    _Out_ mlnx_shm_rm_array_idx_t  *idx,
-                                    _Out_ void                    **elem)
+sai_status_t mlnx_shm_rm_array_find(_In_ mlnx_shm_rm_array_type_t  type,
+                                    _In_ mlnx_shm_rm_array_cmp_fn  cmp_fn,
+                                    _In_ mlnx_shm_rm_array_idx_t   start_idx,
+                                    _In_ const void               *data,
+                                    _Out_ mlnx_shm_rm_array_idx_t *idx,
+                                    _Out_ void                   **elem)
 {
     const mlnx_shm_rm_array_info_t *info;
     mlnx_shm_array_hdr_t           *array_hdr;
@@ -2715,7 +2743,7 @@ sai_status_t mlnx_shm_rm_array_find(_In_ mlnx_shm_rm_array_type_t   type,
         return SAI_STATUS_FAILURE;
     }
 
-    info = &g_sai_db_ptr->array_info[type];
+    info       = &g_sai_db_ptr->array_info[type];
     array_size = info->elem_count;
 
     if ((start_idx.type == MLNX_SHM_RM_ARRAY_TYPE_INVALID) && (start_idx.idx == 0)) {
@@ -2758,7 +2786,7 @@ sai_status_t mlnx_shm_rm_array_find(_In_ mlnx_shm_rm_array_type_t   type,
         if (cmp_fn(elem_tmp, data)) {
             idx->type = type;
             idx->idx  = ii;
-            *elem = elem_tmp;
+            *elem     = elem_tmp;
             return SAI_STATUS_SUCCESS;
         }
     }
@@ -2766,8 +2794,7 @@ sai_status_t mlnx_shm_rm_array_find(_In_ mlnx_shm_rm_array_type_t   type,
     return SAI_STATUS_FAILURE;
 }
 
-sai_status_t mlnx_shm_rm_array_idx_to_ptr(_In_ mlnx_shm_rm_array_idx_t   idx,
-                                          _Out_ void                   **elem)
+sai_status_t mlnx_shm_rm_array_idx_to_ptr(_In_ mlnx_shm_rm_array_idx_t idx, _Out_ void                   **elem)
 {
     mlnx_shm_array_hdr_t *array_hdr;
 
@@ -2781,13 +2808,28 @@ sai_status_t mlnx_shm_rm_array_idx_to_ptr(_In_ mlnx_shm_rm_array_idx_t   idx,
         return SAI_STATUS_FAILURE;
     }
 
+    if (!MLNX_SHM_RM_ARRAY_HDR_IS_VALID(idx.type, array_hdr)) {
+        SX_LOG_ERR("array_hdr for type %d idx %d is corrupted (canary is %x, not %x)\n",
+                   idx.type, idx.idx, array_hdr->canary, MLNX_SHM_RM_ARRAY_CANARY(idx.type));
+        return SAI_STATUS_FAILURE;
+    }
+
     *elem = array_hdr;
 
     return SAI_STATUS_SUCCESS;
 }
 
-static sai_status_t mlnx_dvs_mng_stage(mlnx_sai_boot_type_t boot_type,
-                                       sai_object_id_t      switch_id)
+uint32_t mlnx_shm_rm_array_size_get(_In_ mlnx_shm_rm_array_type_t type)
+{
+    if (!MLNX_SHM_RM_ARRAY_TYPE_IS_VALID(type)) {
+        SX_LOG_ERR("Invalid idx type %d\n", type);
+        return 0;
+    }
+
+    return (uint32_t) g_sai_db_ptr->array_info[type].elem_count;
+}
+
+static sai_status_t mlnx_dvs_mng_stage(mlnx_sai_boot_type_t boot_type, sai_object_id_t switch_id)
 {
     sx_status_t           sx_status;
     sai_status_t          status;
@@ -2800,7 +2842,7 @@ static sai_status_t mlnx_dvs_mng_stage(mlnx_sai_boot_type_t boot_type,
     sx_port_log_id_t     *log_ports    = NULL;
     mlnx_port_config_t   *port;
     uint32_t              ports_to_map, nve_port_idx;
-    sxd_status_t          sxd_ret = SXD_STATUS_SUCCESS;
+    sxd_status_t          sxd_ret     = SXD_STATUS_SUCCESS;
     const bool            is_warmboot = (BOOT_TYPE_WARM == boot_type);
 
     cl_plock_excl_acquire(&g_sai_db_ptr->p_lock);
@@ -2987,7 +3029,7 @@ static sai_status_t mlnx_dvs_mng_stage(mlnx_sai_boot_type_t boot_type,
     }
 
     mlnx_port_phy_foreach(port, ii) {
-        status = mlnx_port_config_init(port, true);
+        status = mlnx_port_config_init(port);
         if (SAI_ERR(status)) {
             SX_LOG_ERR("Failed initialize port oid %" PRIx64 " config\n", port->saiport);
             goto out;
@@ -3211,7 +3253,7 @@ static sai_status_t mlnx_switch_parse_fdb_event(uint8_t                         
                     return status;
                 }
             } else {
-                status = mlnx_create_bridge_object(SAI_BRIDGE_TYPE_1D, sx_fid, &fdb_events[ii].fdb_entry.bv_id);
+                status = mlnx_create_bridge_1d_object(sx_fid, &fdb_events[ii].fdb_entry.bv_id);
                 if (SAI_ERR(status)) {
                     SX_LOG_ERR("Failed to convert sx fid to bv_id\n");
                     return status;
@@ -3814,10 +3856,10 @@ static uint32_t sai_acl_db_size_get()
             sizeof(acl_setting_tbl_t) +
             sizeof(acl_pbs_map_entry_t) * (ACL_PBS_MAP_PREDEF_REG_SIZE + g_sai_acl_db_pbs_map_size) +
             (sizeof(acl_bind_points_db_t) + sizeof(acl_bind_point_t) * ACL_RIF_COUNT) +
-            (sizeof(acl_group_db_t) + sizeof(acl_group_member_t) * ACL_GROUP_SIZE) * ACL_GROUP_NUMBER +
+            (sizeof(acl_group_db_t) + sizeof(acl_group_member_t) * ACL_GROUP_SIZE) * (ACL_GROUP_NUMBER / g_sai_db_ptr->acl_divider) +
             sizeof(acl_vlan_group_t) * ACL_VLAN_GROUP_COUNT) +
            ((sizeof(acl_group_bound_to_t) + (sizeof(acl_bind_point_index_t) * SAI_ACL_MAX_BIND_POINT_BOUND))
-            * ACL_GROUP_NUMBER) +
+            * ACL_GROUP_NUMBER / g_sai_db_ptr->acl_divider) +
            sai_udf_db_size_get();
 }
 
@@ -3851,7 +3893,7 @@ static void sai_acl_db_init()
 
     g_sai_acl_db_ptr->acl_vlan_groups_db = (acl_vlan_group_t*)((uint8_t*)g_sai_acl_db_ptr->acl_groups_db +
                                                                (sizeof(acl_group_db_t) + sizeof(acl_group_member_t) *
-                                                                ACL_GROUP_SIZE) * ACL_GROUP_NUMBER);
+                                                                ACL_GROUP_SIZE) * ACL_GROUP_NUMBER / g_sai_db_ptr->acl_divider);
 
     g_sai_acl_db_ptr->acl_group_bound_to_db = (acl_group_bound_to_t*)((uint8_t*)g_sai_acl_db_ptr->acl_vlan_groups_db +
                                                                       sizeof(acl_vlan_group_t) * ACL_VLAN_GROUP_COUNT);
@@ -3865,7 +3907,7 @@ static void sai_udf_db_init()
                                                           ((sizeof(acl_group_bound_to_t) +
                                                             (sizeof(acl_bind_point_index_t)
                                                              *
-                                                             SAI_ACL_MAX_BIND_POINT_BOUND)) * ACL_GROUP_NUMBER));
+                                                             SAI_ACL_MAX_BIND_POINT_BOUND)) * ACL_GROUP_NUMBER / g_sai_db_ptr->acl_divider));
 
     g_sai_acl_db_ptr->udf_db.groups_udfs =
         (mlnx_udf_list_t*)((uint8_t*)g_sai_acl_db_ptr->udf_db.groups + MLNX_UDF_DB_UDF_GROUPS_SIZE);
@@ -4027,7 +4069,7 @@ static sai_status_t mlnx_initialize_switch(sai_object_id_t switch_id, bool *tran
     int                         system_err;
     const char                 *config_file, *route_table_size, *neighbor_table_size;
     const char                 *boot_type_char;
-    mlnx_sai_boot_type_t        boot_type = 0;
+    mlnx_sai_boot_type_t        boot_type     = 0;
     uint32_t                    routes_num    = 0;
     uint32_t                    neighbors_num = 0;
     sx_router_resources_param_t resources_param;
@@ -4036,6 +4078,7 @@ static sai_status_t mlnx_initialize_switch(sai_object_id_t switch_id, bool *tran
     sx_api_profile_t           *ku_profile;
     sx_tunnel_attribute_t       sx_tunnel_attribute;
     const bool                  warm_recover = false;
+    bool                        issu_enabled = false;
 
 #ifndef ACS_OS
     const char *initial_fan_speed;
@@ -4085,6 +4128,7 @@ static sai_status_t mlnx_initialize_switch(sai_object_id_t switch_id, bool *tran
         }
 #endif
         break;
+
     case BOOT_TYPE_WARM:
     case BOOT_TYPE_FAST:
 #if (!defined ACS_OS) || (defined ACS_OS_NO_DOCKERS)
@@ -4095,6 +4139,7 @@ static sai_status_t mlnx_initialize_switch(sai_object_id_t switch_id, bool *tran
         }
 #endif
         break;
+
     /* default */
     default:
         MLNX_SAI_LOG_ERR("Boot type %d not recognized, must be 0 (cold) or 1 (warm) or 2 (fast)\n", boot_type);
@@ -4122,6 +4167,7 @@ static sai_status_t mlnx_initialize_switch(sai_object_id_t switch_id, bool *tran
 
     sai_db_write_lock();
     g_sai_db_ptr->boot_type = boot_type;
+    issu_enabled = g_sai_db_ptr->issu_enabled;
     sai_db_unlock();
 
     if (SAI_STATUS_SUCCESS != (status = mlnx_chassis_mng_stage(boot_type,
@@ -4191,10 +4237,14 @@ static sai_status_t mlnx_initialize_switch(sai_object_id_t switch_id, bool *tran
         }
     }
 
-    resources_param.max_virtual_routers_num    = g_resource_limits.router_vrid_max;
+    if (issu_enabled) {
+        resources_param.max_virtual_routers_num    = g_resource_limits.router_vrid_max / 2;
+    } else {
+        resources_param.max_virtual_routers_num    = g_resource_limits.router_vrid_max;
+    }
     resources_param.max_vlan_router_interfaces = 64;
     resources_param.max_port_router_interfaces = 64;
-    resources_param.max_router_interfaces      = g_resource_limits.router_rifs_max/2;
+    resources_param.max_router_interfaces      = g_resource_limits.router_rifs_max / 2;
 
     resources_param.min_ipv4_uc_route_entries = routes_num;
     resources_param.min_ipv6_uc_route_entries = routes_num;
@@ -4275,6 +4325,13 @@ static sai_status_t mlnx_initialize_switch(sai_object_id_t switch_id, bool *tran
         SX_LOG_ERR("Failed initialize default bridge\n");
         return status;
     }
+
+    status = mlnx_default_vlan_flood_ctrl_init();
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to init flood control configuration for default VLAN\n");
+        return status;
+    }
+
     return SAI_STATUS_SUCCESS;
 }
 
@@ -4311,7 +4368,7 @@ static sai_status_t mlnx_connect_switch(sai_object_id_t switch_id)
             return sdk_to_sai(status);
         }
 
-        g_mlnx_shm_rm_size = (uint32_t) mlnx_sai_rm_db_size_get();
+        g_mlnx_shm_rm_size = (uint32_t)mlnx_sai_rm_db_size_get();
 
         err = cl_shm_open(SAI_PATH, &shmid);
         if (err) {
@@ -4319,7 +4376,12 @@ static sai_status_t mlnx_connect_switch(sai_object_id_t switch_id)
             return SAI_STATUS_NO_MEMORY;
         }
 
-        g_sai_db_ptr = mmap(NULL, sizeof(*g_sai_db_ptr) + g_mlnx_shm_rm_size, PROT_READ | PROT_WRITE, MAP_SHARED, shmid, 0);
+        g_sai_db_ptr = mmap(NULL,
+                            sizeof(*g_sai_db_ptr) + g_mlnx_shm_rm_size,
+                            PROT_READ | PROT_WRITE,
+                            MAP_SHARED,
+                            shmid,
+                            0);
         if (g_sai_db_ptr == MAP_FAILED) {
             SX_LOG_ERR("Failed to map the shared memory of the SAI DB\n");
             g_sai_db_ptr = NULL;
@@ -4871,6 +4933,86 @@ static sai_status_t mlnx_switch_aging_time_set(_In_ const sai_object_key_t      
     return SAI_STATUS_SUCCESS;
 }
 
+static mlnx_fid_flood_ctrl_attr_t mlnx_switch_flood_ctrl_attr_to_fid_attr(_In_ sai_switch_attr_t attr)
+{
+    switch (attr) {
+    case SAI_SWITCH_ATTR_FDB_UNICAST_MISS_PACKET_ACTION:
+        return MLNX_FID_FLOOD_CTRL_ATTR_UC;
+
+    case SAI_SWITCH_ATTR_FDB_MULTICAST_MISS_PACKET_ACTION:
+        return MLNX_FID_FLOOD_CTRL_ATTR_MC;
+
+    case SAI_SWITCH_ATTR_FDB_BROADCAST_MISS_PACKET_ACTION:
+        return MLNX_FID_FLOOD_CTRL_ATTR_BC;
+
+    default:
+        SX_LOG_ERR("Unexpected flood ctrl attr - %d\n", attr);
+        assert(false);
+        return MLNX_FID_FLOOD_CTRL_ATTR_MAX;
+    }
+}
+
+static sai_status_t mlnx_switch_flood_ctrl_set(_In_ sai_packet_action_t action, _In_ mlnx_fid_flood_ctrl_attr_t attr)
+{
+    sai_status_t          status;
+    sai_packet_action_t  *current_action;
+    sai_vlan_id_t         vlan_id;
+    const mlnx_vlan_db_t *vlan;
+    mlnx_bridge_t        *bridge;
+    uint32_t              ii;
+
+    assert((action == SAI_PACKET_ACTION_FORWARD) || (action == SAI_PACKET_ACTION_DROP));
+    assert(attr < MLNX_FID_FLOOD_CTRL_ATTR_MAX);
+
+    current_action = &g_sai_db_ptr->flood_actions[attr];
+
+    if (*current_action == action) {
+        return SAI_STATUS_SUCCESS;
+    }
+
+    mlnx_vlan_id_foreach(vlan_id) {
+        if (!mlnx_vlan_is_created(vlan_id)) {
+            continue;
+        }
+
+        vlan = mlnx_vlan_db_get_vlan(vlan_id);
+        assert(vlan);
+
+        if (action == SAI_PACKET_ACTION_FORWARD) {
+            status = mlnx_fid_flood_ctrl_set_forward_after_drop(vlan_id, attr, &vlan->flood_data.types[attr]);
+            if (SAI_ERR(status)) {
+                return status;
+            }
+        } else { /* SAI_PACKET_ACTION_DROP */
+            status = mlnx_fid_flood_ctrl_set_drop(vlan_id, attr, &vlan->flood_data.types[attr]);
+            if (SAI_ERR(status)) {
+                return status;
+            }
+        }
+    }
+
+    mlnx_bridge_1d_foreach(bridge, ii) {
+        if (action == SAI_PACKET_ACTION_FORWARD) {
+            status = mlnx_fid_flood_ctrl_set_forward_after_drop(bridge->sx_bridge_id, attr,
+                                                                &bridge->flood_data.types[attr]);
+            if (SAI_ERR(status)) {
+                SX_LOG_ERR("Failed to set forward action for sx bridge %d\n", bridge->sx_bridge_id);
+                return status;
+            }
+        } else { /* SAI_PACKET_ACTION_DROP */
+            status = mlnx_fid_flood_ctrl_set_drop(bridge->sx_bridge_id, attr, &bridge->flood_data.types[attr]);
+            if (SAI_ERR(status)) {
+                SX_LOG_ERR("Failed to set drop action for sx bridge %d\n", bridge->sx_bridge_id);
+                return status;
+            }
+        }
+    }
+
+    *current_action = action;
+
+    return SAI_STATUS_SUCCESS;
+}
+
 /** Flood control for packets with unknown destination address.
  *   [sai_packet_action_t] (default to SAI_PACKET_ACTION_FORWARD)
  */
@@ -4878,187 +5020,27 @@ static sai_status_t mlnx_switch_fdb_flood_ctrl_set(_In_ const sai_object_key_t  
                                                    _In_ const sai_attribute_value_t *value,
                                                    void                             *arg)
 {
-    sai_switch_attr_t       attr_id   = (sai_switch_attr_t)arg;
-    sx_port_log_id_t       *log_ports = NULL;
-    sx_flood_control_type_t flood_type;
-    sai_status_t            status;
-    sai_packet_action_t     action = (sai_packet_action_t)value->s32;
-    sx_fid_t                fid;
+    sai_status_t        status;
+    sai_switch_attr_t   attr_id = (sai_switch_attr_t)arg;
+    sai_packet_action_t action  = (sai_packet_action_t)value->s32;
 
     SX_LOG_ENTER();
 
-    sai_db_write_lock();
+    assert((attr_id == SAI_SWITCH_ATTR_FDB_UNICAST_MISS_PACKET_ACTION) ||
+           (attr_id == SAI_SWITCH_ATTR_FDB_MULTICAST_MISS_PACKET_ACTION) ||
+           (attr_id == SAI_SWITCH_ATTR_FDB_BROADCAST_MISS_PACKET_ACTION));
 
     if ((action != SAI_PACKET_ACTION_FORWARD) && (action != SAI_PACKET_ACTION_DROP)) {
         SX_LOG_ERR("Invalid packet action (%d), FORWARD or DROP is supported only\n", value->s32);
-        status = SAI_STATUS_INVALID_PARAMETER;
-        goto out;
+        SX_LOG_EXIT();
+        return SAI_STATUS_ATTR_NOT_SUPPORTED_0;
     }
-
-    if (attr_id == SAI_SWITCH_ATTR_FDB_UNICAST_MISS_PACKET_ACTION) {
-        if (g_sai_db_ptr->flood_action_uc == action) {
-            status = SAI_STATUS_SUCCESS;
-            goto out;
-        }
-
-        flood_type = SX_FLOOD_CONTROL_TYPE_UNICAST_E;
-    } else if (attr_id == SAI_SWITCH_ATTR_FDB_BROADCAST_MISS_PACKET_ACTION) {
-        if (g_sai_db_ptr->flood_action_bc == action) {
-            status = SAI_STATUS_SUCCESS;
-            goto out;
-        }
-
-        flood_type = SX_FLOOD_CONTROL_TYPE_BROADCAST_E;
-    } else {
-        assert(false);
-    }
-
-    log_ports = calloc(MAX_BRIDGE_1Q_PORTS, sizeof(*log_ports));
-    if (!log_ports) {
-        SX_LOG_ERR("Failed to allocate memory\n");
-        status = SAI_STATUS_NO_MEMORY;
-        goto out;
-    }
-
-    mlnx_vlan_id_foreach(fid) {
-        sx_status_t         sx_status = SX_STATUS_SUCCESS;
-        mlnx_bridge_port_t *port;
-        uint16_t            ports_count = 0;
-        uint32_t            ii          = 0;
-
-        if (action == SAI_PACKET_ACTION_DROP) {
-            mlnx_vlan_ports_foreach(fid, port, ii) {
-                log_ports[ports_count++] = port->logical;
-            }
-
-            if (!ports_count) {
-                continue;
-            }
-
-            sx_status = sx_api_fdb_flood_control_set(gh_sdk, SX_ACCESS_CMD_ADD_PORTS,
-                                                     DEFAULT_ETH_SWID, fid, flood_type,
-                                                     ports_count, log_ports);
-            if (SX_ERR(sx_status)) {
-                SX_LOG_ERR("Failed to add fdb flood list for fid %u - %s.\n", fid, SX_STATUS_MSG(sx_status));
-            }
-        } else {
-            sx_status = sx_api_fdb_flood_control_set(gh_sdk, SX_ACCESS_CMD_DELETE_ALL_PORTS,
-                                                     DEFAULT_ETH_SWID, fid, flood_type,
-                                                     0, NULL);
-            if (SX_ERR(sx_status)) {
-                SX_LOG_ERR("Failed to delete fdb flood list for fid %u - %s.\n", fid, SX_STATUS_MSG(sx_status));
-            }
-        }
-
-        status = sdk_to_sai(sx_status);
-        if (SAI_ERR(status)) {
-            break;
-        }
-    }
-
-    /* Update DB */
-    if (!SAI_ERR(status)) {
-        if (attr_id == SAI_SWITCH_ATTR_FDB_UNICAST_MISS_PACKET_ACTION) {
-            g_sai_db_ptr->flood_action_uc = action;
-        } else if (attr_id == SAI_SWITCH_ATTR_FDB_BROADCAST_MISS_PACKET_ACTION) {
-            g_sai_db_ptr->flood_action_bc = action;
-        }
-    }
-
-out:
-    sai_db_unlock();
-    free(log_ports);
-    SX_LOG_EXIT();
-    return status;
-}
-
-/** Flood control for packets with unknown destination address.
- *   [sai_packet_action_t] (default to SAI_PACKET_ACTION_FORWARD)
- */
-static sai_status_t mlnx_switch_fdb_flood_mc_ctrl_set(_In_ const sai_object_key_t      *key,
-                                                      _In_ const sai_attribute_value_t *value,
-                                                      void                             *arg)
-{
-    sx_port_log_id_t   *log_ports = NULL;
-    sai_status_t        status    = SAI_STATUS_FAILURE;
-    sai_packet_action_t action    = (sai_packet_action_t)value->s32;
-    sx_fid_t            fid;
-    sx_status_t         sx_status = SX_STATUS_ERROR;
-
-    SX_LOG_ENTER();
 
     sai_db_write_lock();
 
-    if ((action != SAI_PACKET_ACTION_FORWARD) && (action != SAI_PACKET_ACTION_DROP)) {
-        SX_LOG_ERR("Invalid packet action (%d), FORWARD or DROP is supported only\n", value->s32);
-        status = SAI_STATUS_INVALID_PARAMETER;
-        goto out;
-    }
+    status = mlnx_switch_flood_ctrl_set(action, mlnx_switch_flood_ctrl_attr_to_fid_attr(attr_id));
 
-    log_ports = calloc(MAX_BRIDGE_1Q_PORTS, sizeof(*log_ports));
-    if (!log_ports) {
-        SX_LOG_ERR("Failed to allocate memory\n");
-        status = SAI_STATUS_NO_MEMORY;
-        goto out;
-    }
-
-    mlnx_vlan_id_foreach(fid) {
-        mlnx_bridge_port_t *port;
-        uint16_t            ports_count = 0;
-        uint32_t            ii          = 0;
-
-        if (action == SAI_PACKET_ACTION_DROP) {
-            ports_count = 0;
-
-            sx_status = sx_api_fdb_unreg_mc_flood_mode_set(gh_sdk, DEFAULT_ETH_SWID,
-                                                           fid, SX_FDB_UNREG_MC_PRUNE);
-            status = sdk_to_sai(sx_status);
-            if (SX_ERR(sx_status)) {
-                SX_LOG_ERR("Failed to set unreg fdb flood list for fid %u - %s.\n", fid, SX_STATUS_MSG(sx_status));
-                goto out;
-            }
-
-            sx_status = sx_api_fdb_unreg_mc_flood_ports_set(gh_sdk, DEFAULT_ETH_SWID, fid, log_ports, ports_count);
-            status    = sdk_to_sai(sx_status);
-            if (SX_ERR(sx_status)) {
-                SX_LOG_ERR("Failed to set unreg fdb flood port list for fid %u - %s.\n", fid,
-                           SX_STATUS_MSG(sx_status));
-                goto out;
-            }
-        } else {
-            sx_status = sx_api_fdb_unreg_mc_flood_mode_set(gh_sdk, DEFAULT_ETH_SWID,
-                                                           fid, SX_FDB_UNREG_MC_FLOOD);
-            status = sdk_to_sai(sx_status);
-            if (SX_ERR(sx_status)) {
-                SX_LOG_ERR("Failed to set unreg fdb flood list for fid %u - %s.\n", fid, SX_STATUS_MSG(sx_status));
-                goto out;
-            }
-
-            mlnx_vlan_ports_foreach(fid, port, ii) {
-                log_ports[ports_count++] = port->logical;
-            }
-
-            if (!ports_count) {
-                continue;
-            }
-
-            sx_status = sx_api_fdb_unreg_mc_flood_ports_set(gh_sdk, DEFAULT_ETH_SWID, fid, log_ports, ports_count);
-            status    = sdk_to_sai(sx_status);
-            if (SX_ERR(sx_status)) {
-                SX_LOG_ERR("Failed to set unreg fdb flood port list for fid %u - %s.\n", fid,
-                           SX_STATUS_MSG(sx_status));
-                goto out;
-            }
-        }
-    }
-
-    assert(!SAI_ERR(status));
-    /* Update DB */
-    g_sai_db_ptr->flood_action_mc = action;
-
-out:
     sai_db_unlock();
-    free(log_ports);
     SX_LOG_EXIT();
     return status;
 }
@@ -5900,21 +5882,20 @@ static sai_status_t mlnx_switch_fdb_flood_ctrl_get(_In_ const sai_object_key_t  
                                                    _Inout_ vendor_cache_t        *cache,
                                                    void                          *arg)
 {
-    sai_switch_attr_t attr_id = (sai_switch_attr_t)arg;
+    sai_switch_attr_t          attr_id = (sai_switch_attr_t)arg;
+    mlnx_fid_flood_ctrl_attr_t flood_ctrl_attr;
 
     SX_LOG_ENTER();
 
+    assert((attr_id == SAI_SWITCH_ATTR_FDB_UNICAST_MISS_PACKET_ACTION) ||
+           (attr_id == SAI_SWITCH_ATTR_FDB_MULTICAST_MISS_PACKET_ACTION) ||
+           (attr_id == SAI_SWITCH_ATTR_FDB_BROADCAST_MISS_PACKET_ACTION));
+
     sai_db_read_lock();
 
-    if (attr_id == SAI_SWITCH_ATTR_FDB_UNICAST_MISS_PACKET_ACTION) {
-        value->s32 = g_sai_db_ptr->flood_action_uc;
-    } else if (attr_id == SAI_SWITCH_ATTR_FDB_BROADCAST_MISS_PACKET_ACTION) {
-        value->s32 = g_sai_db_ptr->flood_action_bc;
-    } else if (attr_id == SAI_SWITCH_ATTR_FDB_MULTICAST_MISS_PACKET_ACTION) {
-        value->s32 = g_sai_db_ptr->flood_action_mc;
-    } else {
-        assert(false);
-    }
+    flood_ctrl_attr = mlnx_switch_flood_ctrl_attr_to_fid_attr(attr_id);
+
+    value->s32 = g_sai_db_ptr->flood_actions[flood_ctrl_attr];
 
     sai_db_unlock();
 
@@ -6416,7 +6397,7 @@ static sai_status_t mlnx_switch_warm_recover_get(_In_ const sai_object_key_t   *
 static sai_status_t mlnx_switch_restart_warm()
 {
     sx_host_ifc_register_key_t reg;
-    sx_status_t                sx_status = SX_STATUS_ERROR;
+    sx_status_t                sx_status  = SX_STATUS_ERROR;
     sai_status_t               sai_status = SAI_STATUS_FAILURE;
     uint32_t                   ii;
     sx_fd_t                    sx_callback_channel_fd;
@@ -6498,7 +6479,7 @@ static sai_status_t mlnx_switch_warm_recover(_In_ sai_object_id_t switch_id)
     sx_fd_t                    sx_callback_channel_fd;
     cl_status_t                cl_err;
     sx_issu_resume_t           sx_issu_resume_param;
-    const bool                 warm_recover= true;
+    const bool                 warm_recover = true;
     mlnx_sai_boot_type_t       boot_type;
 
     SX_LOG_ENTER();
@@ -6562,7 +6543,7 @@ static sai_status_t mlnx_switch_warm_recover(_In_ sai_object_id_t switch_id)
     }
 
     event_thread_asked_to_stop = false;
-    cl_err = cl_thread_init(&event_thread, event_thread_func, (const void* const)switch_id, NULL);
+    cl_err                     = cl_thread_init(&event_thread, event_thread_func, (const void*const)switch_id, NULL);
     if (cl_err) {
         SX_LOG_ERR("Failed to create event thread\n");
         sai_db_write_lock();
@@ -6588,6 +6569,10 @@ static sai_status_t mlnx_switch_restart_warm_set(_In_ const sai_object_key_t    
                                                  _In_ const sai_attribute_value_t *value,
                                                  void                             *arg)
 {
+#ifdef ACS_OS
+    /* On Sonic, check point restore is disabled. This flow is used for FFB and does nothing. */
+    return SAI_STATUS_SUCCESS;
+#else
     sai_status_t status = SAI_STATUS_FAILURE;
 
     SX_LOG_ENTER();
@@ -6601,12 +6586,13 @@ static sai_status_t mlnx_switch_restart_warm_set(_In_ const sai_object_key_t    
         }
     }
     g_sai_db_ptr->restart_warm = value->booldata;
-    status = SAI_STATUS_SUCCESS;
+    status                     = SAI_STATUS_SUCCESS;
 
 out:
     sai_db_unlock();
     SX_LOG_EXIT();
     return status;
+#endif
 }
 
 /* restart warm [bool] */
@@ -6627,7 +6613,7 @@ static sai_status_t mlnx_switch_warm_recover_set(_In_ const sai_object_key_t    
         }
     }
     g_sai_db_ptr->warm_recover = value->booldata;
-    status = SAI_STATUS_SUCCESS;
+    status                     = SAI_STATUS_SUCCESS;
 
 out:
     sai_db_unlock();
@@ -6886,12 +6872,12 @@ static sai_status_t mlnx_switch_supported_stats_modes_get(_In_ const sai_object_
                                                           _Inout_ vendor_cache_t        *cache,
                                                           void                          *arg)
 {
-    int32_t             modes[] = { SAI_STATS_MODE_READ, SAI_STATS_MODE_READ_AND_CLEAR };
-    sai_status_t        status;
+    int32_t      modes[] = { SAI_STATS_MODE_READ, SAI_STATS_MODE_READ_AND_CLEAR };
+    sai_status_t status;
 
     SX_LOG_ENTER();
 
-    status = mlnx_fill_s32list(modes, sizeof(modes)/sizeof(*modes), &value->s32list);
+    status = mlnx_fill_s32list(modes, sizeof(modes) / sizeof(*modes), &value->s32list);
 
     SX_LOG_EXIT();
     return status;
@@ -7024,6 +7010,25 @@ static sai_status_t mlnx_switch_attr_set(_In_ const sai_object_key_t      *key,
 
     SX_LOG_EXIT();
     return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_switch_pre_shutdown_set(_In_ const sai_object_key_t      *key,
+                                                 _In_ const sai_attribute_value_t *value,
+                                                 void                             *arg)
+{
+    sx_status_t sx_status = SX_STATUS_SUCCESS;
+
+    SX_LOG_ENTER();
+
+    if (value->booldata) {
+        sx_status = sx_api_issu_start_set(gh_sdk);
+        if (SX_ERR(sx_status)) {
+            SX_LOG_ERR("Failed to start issu %s.\n", SX_STATUS_MSG(sx_status));
+        }
+    }
+
+    SX_LOG_EXIT();
+    return sdk_to_sai(sx_status);
 }
 
 static sai_status_t mlnx_switch_init_connect_get(_In_ const sai_object_key_t   *key,
@@ -7240,8 +7245,8 @@ static sai_status_t mlnx_switch_transaction_mode_set(_In_ const sai_object_key_t
                                                      _In_ const sai_attribute_value_t *value,
                                                      void                             *arg)
 {
-    sx_status_t     sdk_status           = SX_STATUS_ERROR;
-    sx_access_cmd_t transaction_mode_cmd = SX_ACCESS_CMD_NONE;
+    sx_status_t         sdk_status           = SX_STATUS_ERROR;
+    sx_access_cmd_t     transaction_mode_cmd = SX_ACCESS_CMD_NONE;
     mlnx_port_config_t *port;
     uint32_t            ii;
     sx_status_t         sx_status;
@@ -7268,10 +7273,17 @@ static sai_status_t mlnx_switch_transaction_mode_set(_In_ const sai_object_key_t
         g_sai_db_ptr->issu_end_called = true;
 
         mlnx_port_phy_foreach(port, ii) {
-            if ((port->issu_remove_default_vid) && (!port->rifs)) {
+            /* Since router port belongs to vlan 1 in SDK, don't remove them from vlan membership on issu end.
+             * When port is a LAG member, it is already cleaned when entering LAG. */
+            if ((port->issu_remove_default_vid) && (!port->rifs) && (!mlnx_port_is_lag_member(port))) {
                 memset(&port_list, 0, sizeof(port_list));
                 port_list.log_port = port->logical;
-                sx_status = sx_api_vlan_ports_set(gh_sdk, SX_ACCESS_CMD_DELETE, DEFAULT_ETH_SWID, DEFAULT_VLAN, &port_list, 1);
+                sx_status          = sx_api_vlan_ports_set(gh_sdk,
+                                                           SX_ACCESS_CMD_DELETE,
+                                                           DEFAULT_ETH_SWID,
+                                                           DEFAULT_VLAN,
+                                                           &port_list,
+                                                           1);
                 if (SX_ERR(sx_status)) {
                     sai_db_unlock();
                     SX_LOG_ERR("Failed to del default vlan ports %s.\n", SX_STATUS_MSG(sx_status));
@@ -7324,18 +7336,16 @@ static sai_status_t mlnx_default_bridge_id_get(_In_ const sai_object_key_t   *ke
                                                _Inout_ vendor_cache_t        *cache,
                                                void                          *arg)
 {
-    sai_status_t status;
-
     SX_LOG_ENTER();
 
     sai_db_read_lock();
 
-    status = mlnx_create_bridge_object(SAI_BRIDGE_TYPE_1Q, mlnx_bridge_default_1q(), &value->oid);
+    value->oid = mlnx_bridge_default_1q_oid();
 
     sai_db_unlock();
 
     SX_LOG_EXIT();
-    return status;
+    return SAI_STATUS_SUCCESS;
 }
 
 /**

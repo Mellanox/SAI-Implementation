@@ -133,6 +133,7 @@
     <ClInclude Include="inc\sai\saifdb.h" />
     <ClInclude Include="inc\sai\saihash.h" />
     <ClInclude Include="inc\sai\saihostif.h" />
+    <ClInclude Include="inc\sai\sail2mcgroup.h" />
     <ClInclude Include="inc\sai\sailag.h" />
     <ClInclude Include="inc\sai\saimirror.h" />
     <ClInclude Include="inc\sai\saimpls.h" />

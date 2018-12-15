@@ -259,9 +259,9 @@ static sai_status_t mlnx_port_mirror_session_apply(_In_ mlnx_port_config_t   *po
                                                    _In_ sx_span_session_id_t  sx_span_session_id,
                                                    _In_ sx_mirror_direction_t sx_mirror_direction);
 static sai_status_t mlnx_port_mirror_session_set_internal(_In_ const mlnx_port_config_t *port_config,
-                                                          _In_ sx_mirror_direction_t sx_mirror_direction,
-                                                          _In_ sx_span_session_id_t  sx_span_session_id,
-                                                          _In_ bool                  add);
+                                                          _In_ sx_mirror_direction_t     sx_mirror_direction,
+                                                          _In_ sx_span_session_id_t      sx_span_session_id,
+                                                          _In_ bool                      add);
 static sai_status_t mlnx_port_samplepacket_session_set_internal(_In_ mlnx_port_config_t *port_config,
                                                                 _In_ uint32_t            samplepacket_obj_idx);
 static sai_status_t mlnx_port_pool_attr_get(_In_ const sai_object_key_t   *key,
@@ -270,17 +270,20 @@ static sai_status_t mlnx_port_pool_attr_get(_In_ const sai_object_key_t   *key,
                                             _Inout_ vendor_cache_t        *cache,
                                             _In_ void                     *arg);
 static sai_status_t mlnx_port_speed_set_impl(_In_ sx_port_log_id_t sx_port, _In_ uint32_t speed);
-sai_status_t mlnx_port_speed_get_impl(_In_ sx_port_log_id_t sx_port, _Out_ uint32_t *oper_speed, 
-                                      _Out_ uint32_t *admin_speed);
+sai_status_t mlnx_port_speed_get_impl(_In_ sx_port_log_id_t sx_port,
+                                      _Out_ uint32_t       *oper_speed,
+                                      _Out_ uint32_t       *admin_speed);
 static sai_status_t mlnx_port_supported_speeds_get_impl(_In_ sx_port_log_id_t sx_port, _Inout_ sai_u32_list_t *list);
 static sai_status_t mlnx_port_autoneg_set_impl(_In_ sx_port_log_id_t sx_port, _In_ bool value);
 static sai_status_t mlnx_port_autoneg_get_impl(_In_ sx_port_log_id_t sx_port, _In_ bool             *value);
 static sai_status_t mlnx_port_speed_set_sp(_In_ sx_port_log_id_t sx_port, _In_ uint32_t speed);
-static sai_status_t mlnx_port_speed_get_sp(_In_ sx_port_log_id_t sx_port, _Out_ uint32_t *oper_speed, 
-                                           _Out_ uint32_t *admin_speed);
+static sai_status_t mlnx_port_speed_get_sp(_In_ sx_port_log_id_t sx_port,
+                                           _Out_ uint32_t       *oper_speed,
+                                           _Out_ uint32_t       *admin_speed);
 static sai_status_t mlnx_port_speed_set_sp2(_In_ sx_port_log_id_t sx_port, _In_ uint32_t speed);
-static sai_status_t mlnx_port_speed_get_sp2(_In_ sx_port_log_id_t sx_port, _Out_ uint32_t *oper_speed, 
-                                            _Out_ uint32_t *admin_speed);
+static sai_status_t mlnx_port_speed_get_sp2(_In_ sx_port_log_id_t sx_port,
+                                            _Out_ uint32_t       *oper_speed,
+                                            _Out_ uint32_t       *admin_speed);
 static sai_status_t mlnx_port_supported_speeds_get_sp(_In_ sx_port_log_id_t sx_port,
                                                       _Out_ uint32_t       *speeds,
                                                       _Inout_ uint32_t     *speeds_count);
@@ -393,12 +396,12 @@ static const sai_vendor_attribute_entry_t port_vendor_attribs[] = {
       { false, false, true, true },
       { false, false, true, true },
       mlnx_port_state_get, (void*)SAI_PORT_ATTR_ADMIN_STATE,
-      mlnx_port_state_set, NULL },/*
-    { SAI_PORT_ATTR_MEDIA_TYPE,
-      { false, false, false, false },
-      { false, false, true, true },
-      NULL, NULL,
-      NULL, NULL },*/
+      mlnx_port_state_set, NULL }, /*
+                                    *  { SAI_PORT_ATTR_MEDIA_TYPE,
+                                    *  { false, false, false, false },
+                                    *  { false, false, true, true },
+                                    *  NULL, NULL,
+                                    *  NULL, NULL },*/
     { SAI_PORT_ATTR_PORT_VLAN_ID,
       { false, false, true, true },
       { false, false, true, true },
@@ -621,7 +624,7 @@ static const sai_vendor_attribute_entry_t port_vendor_attribs[] = {
       NULL, NULL,
       NULL, NULL }
 };
-static const mlnx_attr_enum_info_t port_enum_info[] = {
+static const mlnx_attr_enum_info_t        port_enum_info[] = {
     [SAI_PORT_ATTR_TYPE] =
         ATTR_ENUM_VALUES_ALL(),
 
@@ -659,8 +662,8 @@ static const mlnx_attr_enum_info_t port_enum_info[] = {
         SAI_PORT_FEC_MODE_FC,
         SAI_PORT_FEC_MODE_RS),
 };
-const mlnx_obj_type_attrs_info_t mlnx_port_obj_type_info =
-    { port_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(port_enum_info)};
+const mlnx_obj_type_attrs_info_t          mlnx_port_obj_type_info =
+{ port_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(port_enum_info)};
 static const sai_vendor_attribute_entry_t port_pool_vendor_attribs[] = {
     { SAI_PORT_POOL_ATTR_PORT_ID,
       { true, false, false, true },
@@ -683,8 +686,8 @@ static const sai_vendor_attribute_entry_t port_pool_vendor_attribs[] = {
       NULL, NULL,
       NULL, NULL}
 };
-const mlnx_obj_type_attrs_info_t mlnx_port_pool_obj_type_info =
-    { port_pool_vendor_attribs, OBJ_ATTRS_ENUMS_INFO_EMPTY()};
+const mlnx_obj_type_attrs_info_t          mlnx_port_pool_obj_type_info =
+{ port_pool_vendor_attribs, OBJ_ATTRS_ENUMS_INFO_EMPTY()};
 
 /* Admin Mode [bool] */
 static sai_status_t mlnx_port_state_set(_In_ const sai_object_key_t      *key,
@@ -3154,7 +3157,8 @@ static sai_status_t mlnx_port_qos_map_assign_tc_to_pg(sx_port_log_id_t port_id, 
         }
 
         sai_status =
-            mlnx_port_qos_map_assign_pfc_to_queue(mlnx_port_config->logical, &g_sai_db_ptr->qos_maps_db[MLNX_QOS_MAP_PFC_QUEUE_INDEX]);
+            mlnx_port_qos_map_assign_pfc_to_queue(mlnx_port_config->logical,
+                                                  &g_sai_db_ptr->qos_maps_db[MLNX_QOS_MAP_PFC_QUEUE_INDEX]);
         if (SAI_ERR(sai_status)) {
             SX_LOG_ERR("Failed to reapply PFC to QUEUE\n");
             return sai_status;
@@ -3952,13 +3956,13 @@ sai_status_t mlnx_get_port_stats_ext(_In_ sai_object_id_t        port_id,
     sx_port_log_id_t              red_port_id;
     uint32_t                      iter = 0;
     char                          key_str[MAX_KEY_STR_LEN];
-    bool                          cnts_2863_needed   = false, cnts_2819_needed = false,
-                                  cntr_802_needed    = false;
-    bool redecn_cnts_needed                          = false, discard_cnts_needed = false,
-         perf_cnts_needed                            = false;
-    bool cntr_prio_needed[COS_IEEE_PRIO_MAX_NUM + 1] = { 0 };
-    bool cnts_3635_needed                            = false;
-    sx_access_cmd_t               cmd;
+    bool                          cnts_2863_needed              = false, cnts_2819_needed = false,
+                                  cntr_802_needed               = false;
+    bool redecn_cnts_needed                                     = false, discard_cnts_needed = false,
+         perf_cnts_needed                                       = false;
+    bool            cntr_prio_needed[COS_IEEE_PRIO_MAX_NUM + 1] = { 0 };
+    bool            cnts_3635_needed                            = false;
+    sx_access_cmd_t cmd;
 
     SX_LOG_ENTER();
 
@@ -4962,7 +4966,10 @@ sai_status_t mlnx_port_storm_control_policer_params_clone(_In_ mlnx_port_config_
 
         status = mlnx_sai_unbind_policer_from_port(to->saiport, &bind_params);
         if (SAI_ERR(status)) {
-            SX_LOG_ERR("Failed to unbind policer from %x before cloning from %x to %x\n", to->logical, from->logical, to->logical);
+            SX_LOG_ERR("Failed to unbind policer from %x before cloning from %x to %x\n",
+                       to->logical,
+                       from->logical,
+                       to->logical);
             return status;
         }
 
@@ -5767,8 +5774,9 @@ static sai_status_t mlnx_port_speed_set_sp(_In_ sx_port_log_id_t sx_port, _In_ u
     return SAI_STATUS_SUCCESS;
 }
 
-static sai_status_t mlnx_port_speed_get_sp(_In_ sx_port_log_id_t sx_port, _Out_ uint32_t *oper_speed,
-                                           _Out_ uint32_t *admin_speed)
+static sai_status_t mlnx_port_speed_get_sp(_In_ sx_port_log_id_t sx_port,
+                                           _Out_ uint32_t       *oper_speed,
+                                           _Out_ uint32_t       *admin_speed)
 {
     sx_status_t                sx_status;
     sx_port_speed_capability_t speed_cap;
@@ -5814,10 +5822,12 @@ static sai_status_t mlnx_port_speed_get_sp(_In_ sx_port_log_id_t sx_port, _Out_ 
     case SX_PORT_SPEED_NOT_SUPPORTED:
         *oper_speed = PORT_SPEED_0;
         break;
+
     case SX_PORT_SPEED_1GB_CX_SGMII:
     case SX_PORT_SPEED_1GB_KX:
         *oper_speed = PORT_SPEED_1;
         break;
+
     case SX_PORT_SPEED_10GB_CX4_XAUI:
     case SX_PORT_SPEED_10GB_KX4:
     case SX_PORT_SPEED_10GB_KR:
@@ -5826,36 +5836,43 @@ static sai_status_t mlnx_port_speed_get_sp(_In_ sx_port_log_id_t sx_port, _Out_ 
     case SX_PORT_SPEED_10GB_ER_LR:
         *oper_speed = PORT_SPEED_10;
         break;
+
     case SX_PORT_SPEED_20GB_KR2:
         *oper_speed = PORT_SPEED_20;
         break;
+
     case SX_PORT_SPEED_40GB_CR4:
     case SX_PORT_SPEED_40GB_KR4:
     case SX_PORT_SPEED_40GB_SR4:
     case SX_PORT_SPEED_40GB_LR4_ER4:
         *oper_speed = PORT_SPEED_40;
         break;
+
     case SX_PORT_SPEED_56GB_KR4:
     case SX_PORT_SPEED_56GB_KX4:
         *oper_speed = PORT_SPEED_56;
         break;
+
     case SX_PORT_SPEED_100GB_CR4:
     case SX_PORT_SPEED_100GB_SR4:
     case SX_PORT_SPEED_100GB_KR4:
     case SX_PORT_SPEED_100GB_LR4_ER4:
         *oper_speed = PORT_SPEED_100;
         break;
+
     case SX_PORT_SPEED_25GB_CR:
     case SX_PORT_SPEED_25GB_KR:
     case SX_PORT_SPEED_25GB_SR:
         *oper_speed = PORT_SPEED_25;
         break;
+
     case SX_PORT_SPEED_50GB_CR2:
     case SX_PORT_SPEED_50GB_KR2:
     case SX_PORT_SPEED_50GB_SR2:
         *oper_speed = PORT_SPEED_50;
         break;
-    default :
+
+    default:
         SX_LOG_ERR("Unexpected port oper speed %d\n", speed_oper);
         return SAI_STATUS_FAILURE;
     }
@@ -5885,8 +5902,9 @@ static sai_status_t mlnx_port_speed_set_sp2(_In_ sx_port_log_id_t sx_port, _In_ 
     return SAI_STATUS_SUCCESS;
 }
 
-static sai_status_t mlnx_port_speed_get_sp2(_In_ sx_port_log_id_t sx_port, _Out_ uint32_t *oper_speed,
-                                            _Out_ uint32_t *admin_speed)
+static sai_status_t mlnx_port_speed_get_sp2(_In_ sx_port_log_id_t sx_port,
+                                            _Out_ uint32_t       *oper_speed,
+                                            _Out_ uint32_t       *admin_speed)
 {
     sx_status_t                       sx_status;
     sx_port_rate_e                    oper_rate;
@@ -5916,8 +5934,7 @@ static sai_status_t mlnx_port_speed_get_sp2(_In_ sx_port_log_id_t sx_port, _Out_
     if (speeds_count == 0) {
         /* After warm boot, without explicit call to set speed, SDK returns empty bitmask, and this is valid */
         *admin_speed = PORT_SPEED_0;
-    }
-    else {
+    } else {
         *admin_speed = speeds[0];
     }
 
@@ -5931,33 +5948,43 @@ static sai_status_t mlnx_port_speed_get_sp2(_In_ sx_port_log_id_t sx_port, _Out_
     case SX_PORT_RATE_NA_E:
         *oper_speed = PORT_SPEED_0;
         break;
+
     case SX_PORT_RATE_100M_E:
         *oper_speed = PORT_SPEED_100M;
         break;
+
     case SX_PORT_RATE_1G_E:
         *oper_speed = PORT_SPEED_1;
         break;
+
     case SX_PORT_RATE_10G_E:
         *oper_speed = PORT_SPEED_10;
         break;
+
     case SX_PORT_RATE_25G_E:
         *oper_speed = PORT_SPEED_25;
         break;
+
     case SX_PORT_RATE_40G_E:
         *oper_speed = PORT_SPEED_40;
         break;
+
     case SX_PORT_RATE_50G_E:
         *oper_speed = PORT_SPEED_50;
         break;
+
     case SX_PORT_RATE_100G_E:
         *oper_speed = PORT_SPEED_100;
         break;
+
     case SX_PORT_RATE_200G_E:
         *oper_speed = PORT_SPEED_200;
         break;
+
     case SX_PORT_RATE_400G_E:
         *oper_speed = PORT_SPEED_400;
         break;
+
     default:
         SX_LOG_ERR("Unexpected port oper rate %d\n", oper_rate);
         return SAI_STATUS_FAILURE;
@@ -6225,8 +6252,9 @@ static sai_status_t mlnx_port_speed_set_impl(_In_ sx_port_log_id_t sx_port, _In_
     return mlnx_port_cb->speed_set(sx_port, speed);
 }
 
-sai_status_t mlnx_port_speed_get_impl(_In_ sx_port_log_id_t sx_port, _Out_ uint32_t *oper_speed, 
-                                      _Out_ uint32_t *admin_speed)
+sai_status_t mlnx_port_speed_get_impl(_In_ sx_port_log_id_t sx_port,
+                                      _Out_ uint32_t       *oper_speed,
+                                      _Out_ uint32_t       *admin_speed)
 {
     assert(mlnx_port_cb);
 
@@ -6270,10 +6298,10 @@ sai_status_t mlnx_port_crc_params_apply(const mlnx_port_config_t *port)
 
     memset(&crc_params, 0, sizeof(crc_params));
 
-    crc_params.bad_crc_ingress_mode   = g_sai_db_ptr->crc_check_enable ? SX_PORT_BAD_CRC_INGRESS_MODE_DROP :
-                                                                         SX_PORT_BAD_CRC_INGRESS_MODE_FORWARD;
+    crc_params.bad_crc_ingress_mode = g_sai_db_ptr->crc_check_enable ? SX_PORT_BAD_CRC_INGRESS_MODE_DROP :
+                                      SX_PORT_BAD_CRC_INGRESS_MODE_FORWARD;
     crc_params.crc_egress_recalc_mode = g_sai_db_ptr->crc_recalc_enable ? SX_PORT_CRC_EGRESS_RECALC_MODE_ALLOW :
-                                                                          SX_PORT_CRC_EGRESS_RECALC_MODE_PREVENT;
+                                        SX_PORT_CRC_EGRESS_RECALC_MODE_PREVENT;
 
     sx_status = sx_api_port_crc_params_set(gh_sdk, port->logical, &crc_params);
     if (SX_ERR(sx_status)) {
@@ -6284,14 +6312,14 @@ sai_status_t mlnx_port_crc_params_apply(const mlnx_port_config_t *port)
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_port_config_init(mlnx_port_config_t *port, bool is_switch_init)
+sai_status_t mlnx_port_config_init(mlnx_port_config_t *port)
 {
-    sx_port_admin_state_t      state = SX_PORT_ADMIN_STATUS_DOWN;
-    sx_port_forwarding_mode_t  fowrarding_mode;
-    sai_status_t               status;
-    sxd_status_t               sxd_ret = SXD_STATUS_SUCCESS;
-    const bool                 is_warmboot = (BOOT_TYPE_WARM == g_sai_db_ptr->boot_type);
-    const bool                 is_warmboot_init_stage = (is_switch_init) && (is_warmboot);
+    sx_port_admin_state_t     state = SX_PORT_ADMIN_STATUS_DOWN;
+    sx_port_forwarding_mode_t fowrarding_mode;
+    sai_status_t              status;
+    sxd_status_t              sxd_ret                = SXD_STATUS_SUCCESS;
+    const bool                is_warmboot_init_stage = (BOOT_TYPE_WARM == g_sai_db_ptr->boot_type) &&
+                                                       (!g_sai_db_ptr->issu_end_called);
 
     assert(port != NULL);
 
@@ -6334,7 +6362,7 @@ sai_status_t mlnx_port_config_init(mlnx_port_config_t *port, bool is_switch_init
             }
         }
 
-        if (!is_switch_init) {
+        if (!is_warmboot_init_stage) {
             status = sx_api_port_phys_loopback_set(gh_sdk, port->logical, SX_PORT_PHYS_LOOPBACK_DISABLE);
             if (SX_ERR(status)) {
                 SX_LOG_ERR("Port phys loopback set %x failed - %s\n", port->logical, SX_STATUS_MSG(status));
@@ -6350,13 +6378,16 @@ sai_status_t mlnx_port_config_init(mlnx_port_config_t *port, bool is_switch_init
         return status;
     }
 
-    if (!is_switch_init) {
+    /* LAG has to be enabled also in warmboot for Sonic */
+    if ((!is_warmboot_init_stage) || (mlnx_port_is_lag(port))) {
         status = sx_api_port_state_set(gh_sdk, port->logical, state);
         if (SX_ERR(status)) {
             SX_LOG_ERR("Port state set %x failed - %s\n", port->logical, SX_STATUS_MSG(status));
             return sdk_to_sai(status);
         }
+    }
 
+    if (!is_warmboot_init_stage) {
         status = sx_api_vlan_port_pvid_set(gh_sdk, SX_ACCESS_CMD_ADD, port->logical, DEFAULT_VLAN);
         if (SX_ERR(status)) {
             SX_LOG_ERR("port pvid set %x failed - %s\n", port->logical, SX_STATUS_MSG(status));
@@ -6372,8 +6403,8 @@ sai_status_t mlnx_port_config_init(mlnx_port_config_t *port, bool is_switch_init
         }
     }
 
-    /* SDK default ingress filter disabled 
-     * When ingress filter is diabled, each router port allocates 4K VID<->FID entries (svfa), which 
+    /* SDK default ingress filter disabled
+     * When ingress filter is diabled, each router port allocates 4K VID<->FID entries (svfa), which
      * consumes all resources in issu enabled mode. Therefor we always work with filter enabled.
      * In ISSU, if vlan membership is not standard, setting filter could affect traffic.
      * This API can be used AFTER VLAN membership is reconfigured (to the values pre-issu),
@@ -6393,12 +6424,14 @@ sai_status_t mlnx_port_config_init(mlnx_port_config_t *port, bool is_switch_init
         }
     }
 
-    if (!is_switch_init) {
+    if (!is_warmboot_init_stage) {
         fowrarding_mode.packet_store = g_sai_db_ptr->packet_storing_mode;
-        status = sx_api_port_forwarding_mode_set(gh_sdk, port->logical, fowrarding_mode);
+        status                       = sx_api_port_forwarding_mode_set(gh_sdk, port->logical, fowrarding_mode);
         if (SX_ERR(status)) {
-            SX_LOG_ERR("Failed to set port %x forwarding mode to %d - %s\n", port->logical, fowrarding_mode.packet_store,
-                SX_STATUS_MSG(status));
+            SX_LOG_ERR("Failed to set port %x forwarding mode to %d - %s\n",
+                       port->logical,
+                       fowrarding_mode.packet_store,
+                       SX_STATUS_MSG(status));
             return sdk_to_sai(status);
         }
     }
@@ -6409,8 +6442,6 @@ sai_status_t mlnx_port_config_init(mlnx_port_config_t *port, bool is_switch_init
     port->is_present = true;
 
     if (!mlnx_port_is_virt(port)) {
-        uint32_t ii;
-
         /* SDK default trust PCP, SAI default trust port
          * Sonic always sets DSCP */
         if (!is_warmboot_init_stage) {
@@ -6421,9 +6452,9 @@ sai_status_t mlnx_port_config_init(mlnx_port_config_t *port, bool is_switch_init
             }
         }
 
-        if (!is_switch_init) {
+        if (!is_warmboot_init_stage) {
             status = sx_api_port_global_fc_enable_set(gh_sdk, port->logical,
-                SX_PORT_FLOW_CTRL_MODE_TX_DIS_RX_DIS);
+                                                      SX_PORT_FLOW_CTRL_MODE_TX_DIS_RX_DIS);
             if (SX_ERR(status)) {
                 SX_LOG_ERR("Failed to init port global flow control - %s\n", SX_STATUS_MSG(status));
                 return sdk_to_sai(status);
@@ -6432,35 +6463,43 @@ sai_status_t mlnx_port_config_init(mlnx_port_config_t *port, bool is_switch_init
 
         /* PCP -> switch prio. SDK default i->i, SAI i->0
          * DSCP -> switch prio. SDK default i->i/8, SAI i->0
-         * Switch prio -> TC. SDK default i->i, SAI i->0 
-         * When not switch init (port split, LAG), apply all maps
-         * When switch init non warm boot, apply the 3 maps where SDK default different than SAI
-         * When init warm boot, skip all maps. Sonic always sets DSCP -> switch prio, switch prio -> TC
-         * and doesn't use PCP -> switch prio */
-        if (!is_switch_init) {
-            for (ii = 0; ii < MLNX_QOS_MAP_TYPES_MAX; ii++) {
-                status = mlnx_port_qos_map_apply(port->saiport, SAI_NULL_OBJECT_ID, ii);
-                if (SAI_ERR(status)) {
-                    return status;
-                }
-            }
-        }
-        else if (!is_warmboot_init_stage) {
-            status = mlnx_port_qos_map_apply(port->saiport, SAI_NULL_OBJECT_ID, SAI_QOS_MAP_TYPE_DOT1P_TO_TC);
-            if (SAI_ERR(status)) {
-                return status;
-            }
-            status = mlnx_port_qos_map_apply(port->saiport, SAI_NULL_OBJECT_ID, SAI_QOS_MAP_TYPE_DSCP_TO_TC);
-            if (SAI_ERR(status)) {
-                return status;
-            }
-            status = mlnx_port_qos_map_apply(port->saiport, SAI_NULL_OBJECT_ID, SAI_QOS_MAP_TYPE_TC_TO_QUEUE);
-            if (SAI_ERR(status)) {
-                return status;
+         * Switch prio -> TC. SDK default i->i, SAI i->0
+         * Apply the 3 maps where SDK default different than SAI
+         * When init warm boot, apply to SDK but not to HW. Applying to SDK is needed for
+         * later clone. Clone sets SAI default on to port in SDK in case from map is null.
+         * Therefor the from map must be set to SDK, otherwise there will be mismatch. 
+         * Sonic always sets DSCP -> switch prio, switch prio -> TC and doesn't 
+         * use PCP -> switch prio */
+        if (is_warmboot_init_stage) {
+            sxd_ret = sxd_dpt_set_access_control(SX_DEVICE_ID, READ_ONLY);
+            if (SXD_CHECK_FAIL(sxd_ret)) {
+                SX_LOG_ERR("Failed to set dpt access control - %s.\n", SXD_STATUS_MSG(sxd_ret));
+                return SAI_STATUS_FAILURE;
             }
         }
 
-        status = mlnx_sched_group_port_init(port, is_switch_init);
+        status = mlnx_port_qos_map_apply(port->saiport, SAI_NULL_OBJECT_ID, SAI_QOS_MAP_TYPE_DOT1P_TO_TC);
+        if (SAI_ERR(status)) {
+            return status;
+        }
+        status = mlnx_port_qos_map_apply(port->saiport, SAI_NULL_OBJECT_ID, SAI_QOS_MAP_TYPE_DSCP_TO_TC);
+        if (SAI_ERR(status)) {
+            return status;
+        }
+        status = mlnx_port_qos_map_apply(port->saiport, SAI_NULL_OBJECT_ID, SAI_QOS_MAP_TYPE_TC_TO_QUEUE);
+        if (SAI_ERR(status)) {
+            return status;
+        }
+
+        if (is_warmboot_init_stage) {
+            sxd_ret = sxd_dpt_set_access_control(SX_DEVICE_ID, READ_WRITE);
+            if (SXD_CHECK_FAIL(sxd_ret)) {
+                SX_LOG_ERR("Failed to set dpt access control - %s.\n", SXD_STATUS_MSG(sxd_ret));
+                return SAI_STATUS_FAILURE;
+            }
+        }
+
+        status = mlnx_sched_group_port_init(port, is_warmboot_init_stage);
         if (SAI_ERR(status)) {
             SX_LOG_ERR("Failed init SAI scheduler groups for log port 0x%x\n", port->logical);
             return status;
@@ -6474,7 +6513,7 @@ sai_status_t mlnx_port_add(mlnx_port_config_t *port)
 {
     sai_status_t status;
 
-    status = mlnx_port_config_init(port, false);
+    status = mlnx_port_config_init(port);
     if (SAI_ERR(status)) {
         return status;
     }
@@ -6728,8 +6767,7 @@ static mlnx_port_config_t * mlnx_port_by_module(uint32_t module)
  * Spectrum 1 : (1, 2)
  * Spectrum 2 : (1, 3, 5, 7)
  */
-static mlnx_port_config_t * mlnx_port_split_idx_to_local_port(const mlnx_port_config_t *father,
-                                                              uint32_t                  base_lane_idx)
+static mlnx_port_config_t * mlnx_port_split_idx_to_local_port(const mlnx_port_config_t *father, uint32_t base_lane_idx)
 {
     uint32_t step = (g_sai_db_ptr->sx_chip_type == SX_CHIP_TYPE_SPECTRUM2) ? 2 : 1;
 
@@ -6745,9 +6783,9 @@ static mlnx_port_config_t * sai_lane2child_port(mlnx_port_config_t *father, cons
 
 sai_status_t mlnx_port_auto_split(mlnx_port_config_t *port)
 {
-    uint8_t      lanes_per_port = MAX_LANES / port->split_count;
-    uint8_t      orig_lanes     = port->port_map.lane_bmap;
-    uint32_t     ii, ll;
+    uint8_t  lanes_per_port = MAX_LANES / port->split_count;
+    uint8_t  orig_lanes     = port->port_map.lane_bmap;
+    uint32_t ii, ll;
 
     SX_LOG_NTC("Splitting local port 0x%x to %u ...\n", port->port_map.local_port, port->split_count);
 

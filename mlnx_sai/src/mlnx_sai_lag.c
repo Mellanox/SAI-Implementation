@@ -84,8 +84,7 @@ static const sai_vendor_attribute_entry_t lag_vendor_attribs[] = {
       NULL, NULL,
       NULL, NULL }
 };
-const mlnx_obj_type_attrs_info_t mlnx_lag_obj_type_info = { lag_vendor_attribs, OBJ_ATTRS_ENUMS_INFO_EMPTY()};
-
+const mlnx_obj_type_attrs_info_t          mlnx_lag_obj_type_info = { lag_vendor_attribs, OBJ_ATTRS_ENUMS_INFO_EMPTY()};
 static sai_status_t mlnx_lag_member_lag_id_get(_In_ const sai_object_key_t   *key,
                                                _Inout_ sai_attribute_value_t *value,
                                                _In_ uint32_t                  attr_index,
@@ -139,7 +138,8 @@ static const sai_vendor_attribute_entry_t lag_member_vendor_attribs[] = {
       NULL, NULL,
       NULL, NULL }
 };
-const mlnx_obj_type_attrs_info_t mlnx_lag_member_obj_type_info = { lag_member_vendor_attribs, OBJ_ATTRS_ENUMS_INFO_EMPTY()};
+const mlnx_obj_type_attrs_info_t          mlnx_lag_member_obj_type_info =
+{ lag_member_vendor_attribs, OBJ_ATTRS_ENUMS_INFO_EMPTY()};
 static void lag_key_to_str(_In_ sai_object_id_t lag_id, _Out_ char *key_str)
 {
     uint32_t lagid;
@@ -182,9 +182,6 @@ static sai_status_t mlnx_port_params_clone(mlnx_port_config_t *to, mlnx_port_con
     sai_status_t                 status = SAI_STATUS_SUCCESS;
     uint8_t                      prio;
     uint32_t                     ii;
-    bool                         is_flood_disabled = false;
-
-    is_flood_disabled = mlnx_fdb_is_flood_disabled();
 
     /* QoS */
     if (clone & PORT_PARAMS_QOS) {
@@ -242,7 +239,8 @@ static sai_status_t mlnx_port_params_clone(mlnx_port_config_t *to, mlnx_port_con
                 if (SAI_ERR(status)) {
                     goto out;
                 }
-            } else {
+            }
+            else {
                 oid = SAI_NULL_OBJECT_ID;
             }
 
@@ -288,7 +286,11 @@ static sai_status_t mlnx_port_params_clone(mlnx_port_config_t *to, mlnx_port_con
                 continue;
             }
 
-            SX_LOG_DBG("Cloning WRED from %x to %x, qi %d, wred %lx\n", from->logical, to->logical, ii, queue_cfg->wred_id);
+            SX_LOG_DBG("Cloning WRED from %x to %x, qi %d, wred %lx\n",
+                       from->logical,
+                       to->logical,
+                       ii,
+                       queue_cfg->wred_id);
 
             status = mlnx_wred_apply_to_queue(to, ii, queue_cfg->wred_id);
             if (SAI_ERR(status)) {
@@ -303,82 +305,7 @@ static sai_status_t mlnx_port_params_clone(mlnx_port_config_t *to, mlnx_port_con
             goto out;
         }
     }
-    if ((clone & PORT_PARAMS_FLOOD) && mlnx_port_is_in_bridge_1q(from)) {
-        mlnx_bridge_port_t *bridge_port;
-        uint16_t            fid;
 
-        status = mlnx_bridge_1q_port_by_log(from->logical, &bridge_port);
-        if (SAI_ERR(status)) {
-            SX_LOG_ERR("Failed to lookup bridge port by log port id %x\n", from->logical);
-            goto out;
-        }
-
-        log_ports = calloc(MAX_BRIDGE_1Q_PORTS, sizeof(*log_ports));
-        if (!log_ports) {
-            SX_LOG_ERR("Failed to allocate memory\n");
-            status = SAI_STATUS_NO_MEMORY;
-            goto out;
-        }
-
-        mlnx_vlan_id_foreach(fid) {
-            if (mlnx_vlan_port_is_set(fid, bridge_port)) {
-                sx_status_t         sx_status;
-                mlnx_bridge_port_t *port;
-                uint32_t            ii          = 0;
-                uint32_t            ports_count = 0;
-
-                if (is_flood_disabled) {
-                    if (g_sai_db_ptr->flood_action_uc == SAI_PACKET_ACTION_DROP) {
-                        sx_status = sx_api_fdb_flood_control_set(gh_sdk,
-                                                                 SX_ACCESS_CMD_ADD_PORTS,
-                                                                 DEFAULT_ETH_SWID,
-                                                                 fid,
-                                                                 SX_FLOOD_CONTROL_TYPE_UNICAST_E,
-                                                                 1,
-                                                                 &to->logical);
-
-                        status = sdk_to_sai(sx_status);
-                    }
-                    if (SAI_ERR(status)) {
-                        goto out;
-                    }
-
-                    if (g_sai_db_ptr->flood_action_bc == SAI_PACKET_ACTION_DROP) {
-                        sx_status = sx_api_fdb_flood_control_set(gh_sdk,
-                                                                 SX_ACCESS_CMD_ADD_PORTS,
-                                                                 DEFAULT_ETH_SWID,
-                                                                 fid,
-                                                                 SX_FLOOD_CONTROL_TYPE_BROADCAST_E,
-                                                                 1,
-                                                                 &to->logical);
-
-                        status = sdk_to_sai(sx_status);
-                    }
-                    if (SAI_ERR(status)) {
-                        goto out;
-                    }
-                }
-
-                if (SAI_PACKET_ACTION_FORWARD == g_sai_db_ptr->flood_action_mc) {
-                    mlnx_vlan_ports_foreach(fid, port, ii) {
-                        /* do not add port to prune list before adding to lag (mc is container, enter empty) */
-                        if (to->logical == port->logical) {
-                            continue;
-                        }
-                        log_ports[ports_count++] = port->logical;
-                    }
-                } else if (SAI_PACKET_ACTION_DROP == g_sai_db_ptr->flood_action_mc) {
-                    ports_count = 0;
-                }
-                sx_status = sx_api_fdb_unreg_mc_flood_ports_set(gh_sdk, DEFAULT_ETH_SWID, fid, log_ports, ports_count);
-                status    = sdk_to_sai(sx_status);
-                if (SAI_ERR(status)) {
-                    SX_LOG_ERR("Failed to set unregistered mc flood port\n");
-                    goto out;
-                }
-            }
-        }
-    }
     if (clone & PORT_PARAMS_VLAN) {
         sx_ingr_filter_mode_t mode;
         sx_status_t           sx_status;
@@ -494,13 +421,16 @@ static sai_status_t port_reset_vlan_params_from_port(mlnx_port_config_t *port, m
         }
 
         mlnx_vlan_id_foreach(vid) {
-            mlnx_bridge_port_t port_bport = { .logical = port->logical };
-
             if (!mlnx_vlan_port_is_set(vid, lag_bport)) {
                 continue;
             }
 
-            mlnx_fdb_port_event_handle(&port_bport, vid, SAI_PORT_EVENT_DELETE);
+            status = mlnx_fid_flood_ctrl_port_event_handle(vid, &mlnx_vlan_db_get_vlan(vid)->flood_data,
+                                                           &port->logical, 1, MLNX_PORT_EVENT_DELETE);
+            if (SAI_ERR(status)) {
+                free(vlan_list);
+                return status;
+            }
 
             vlan_list[ii++].vid = vid;
         }
@@ -543,6 +473,7 @@ static sai_status_t remove_port_from_lag(sx_port_log_id_t lag_id, sx_port_log_id
         status = sdk_to_sai(sx_status);
         return status;
     }
+
     port->lag_id = 0;
 
     status = port_reset_vlan_params_from_port(port, lag);
@@ -1193,12 +1124,12 @@ static sai_status_t mlnx_create_lag_member(_Out_ sai_object_id_t     * lag_membe
     char                         key_str[MAX_KEY_STR_LEN];
     sx_port_log_id_t             lag_id;
     sx_port_log_id_t             port_id;
-    uint32_t                     port_cnt        = 0;
-    mlnx_port_config_t          *port            = NULL;
-    mlnx_port_config_t          *lag             = NULL;
-    sx_collector_mode_t          collect_mode    = COLLECTOR_ENABLE;
-    sx_distributor_mode_t        dist_mode       = DISTRIBUTOR_ENABLE;
-    mlnx_object_id_t             mlnx_lag_member = {0};
+    uint32_t                     port_cnt               = 0;
+    mlnx_port_config_t          *port                   = NULL;
+    mlnx_port_config_t          *lag                    = NULL;
+    sx_collector_mode_t          collect_mode           = COLLECTOR_ENABLE;
+    sx_distributor_mode_t        dist_mode              = DISTRIBUTOR_ENABLE;
+    mlnx_object_id_t             mlnx_lag_member        = {0};
     const bool                   is_add                 = false;
     bool                         is_acl_rollback_needed = false;
 
@@ -1282,7 +1213,7 @@ static sai_status_t mlnx_create_lag_member(_Out_ sai_object_id_t     * lag_membe
         goto out;
     }
 
-    status = mlnx_port_params_clone(port, lag, PORT_PARAMS_FLOOD | PORT_PARAMS_VLAN | PORT_PARAMS_LEARN_MODE);
+    status = mlnx_port_params_clone(port, lag, PORT_PARAMS_VLAN | PORT_PARAMS_LEARN_MODE);
     if (SAI_ERR(status)) {
         goto out;
     }

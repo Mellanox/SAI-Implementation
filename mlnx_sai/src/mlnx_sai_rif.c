@@ -128,7 +128,7 @@ static const sai_vendor_attribute_entry_t rif_vendor_attribs[] = {
       NULL, NULL,
       NULL, NULL }
 };
-static const mlnx_attr_enum_info_t rif_enum_info[] = {
+static const mlnx_attr_enum_info_t        rif_enum_info[] = {
     [SAI_ROUTER_INTERFACE_ATTR_TYPE] = ATTR_ENUM_VALUES_LIST(
         SAI_ROUTER_INTERFACE_TYPE_PORT,
         SAI_ROUTER_INTERFACE_TYPE_VLAN,
@@ -139,8 +139,8 @@ static const mlnx_attr_enum_info_t rif_enum_info[] = {
         SAI_PACKET_ACTION_DROP,
         SAI_PACKET_ACTION_FORWARD),
 };
-const mlnx_obj_type_attrs_info_t mlnx_rif_obj_type_info =
-    { rif_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(rif_enum_info)};
+const mlnx_obj_type_attrs_info_t          mlnx_rif_obj_type_info =
+{ rif_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(rif_enum_info)};
 static void rif_key_to_str(_In_ sai_object_id_t rif_id, _Out_ char *key_str)
 {
     const mlnx_object_id_t *mlnx_oid = (const mlnx_object_id_t*)&rif_id;
@@ -159,11 +159,10 @@ static void rif_key_to_str(_In_ sai_object_id_t rif_id, _Out_ char *key_str)
     }
 }
 
-static sai_status_t mlnx_rif_db_alloc(_Out_ mlnx_rif_db_t           **rif_data,
-                                      _Out_ mlnx_shm_rm_array_idx_t  *idx)
+static sai_status_t mlnx_rif_db_alloc(_Out_ mlnx_rif_db_t **rif_data, _Out_ mlnx_shm_rm_array_idx_t  *idx)
 {
-    sai_status_t  status;
-    void         *ptr;
+    sai_status_t status;
+    void        *ptr;
 
     assert(rif_data);
     assert(idx);
@@ -178,14 +177,13 @@ static sai_status_t mlnx_rif_db_alloc(_Out_ mlnx_rif_db_t           **rif_data,
     return SAI_STATUS_SUCCESS;
 }
 
-static sai_status_t mlnx_rif_db_idx_to_data(_In_ mlnx_shm_rm_array_idx_t   idx,
-                                            _Out_ mlnx_rif_db_t          **rif)
+static sai_status_t mlnx_rif_db_idx_to_data(_In_ mlnx_shm_rm_array_idx_t idx, _Out_ mlnx_rif_db_t          **rif)
 {
     sai_status_t status;
-    void         *data;
+    void        *data;
 
     status = mlnx_shm_rm_array_idx_to_ptr(idx, &data);
-    *rif = (mlnx_rif_db_t*) data;
+    *rif   = (mlnx_rif_db_t*)data;
 
     return status;
 }
@@ -214,7 +212,7 @@ sai_status_t mlnx_rif_oid_create(_In_ mlnx_rif_type_t          rif_type,
                                  _In_ mlnx_shm_rm_array_idx_t  idx,
                                  _Out_ sai_object_id_t        *rif_oid)
 {
-    mlnx_object_id_t *mlnx_oid = (mlnx_object_id_t*) rif_oid;
+    mlnx_object_id_t *mlnx_oid = (mlnx_object_id_t*)rif_oid;
 
     assert(rif_type <= MLNX_RIF_TYPE_BRIDGE);
     assert(rif_oid);
@@ -237,14 +235,13 @@ sai_status_t mlnx_rif_oid_create(_In_ mlnx_rif_type_t          rif_type,
 
 static bool mlnx_rif_counter_db_cmp(_In_ const void *elem, _In_ const void *data)
 {
-    const mlnx_rif_db_t   *rif_db = (const mlnx_rif_db_t*) elem;
-    sx_router_interface_t  rif = *(const sx_router_interface_t*) data;
+    const mlnx_rif_db_t  *rif_db = (const mlnx_rif_db_t*)elem;
+    sx_router_interface_t rif    = *(const sx_router_interface_t*)data;
 
     return rif_db->sx_data.rif_id == rif;
 }
 
-sai_status_t mlnx_rif_sx_to_sai_oid(_In_ sx_router_interface_t  sx_rif_id,
-                                    _Out_ sai_object_id_t      *oid)
+sai_status_t mlnx_rif_sx_to_sai_oid(_In_ sx_router_interface_t sx_rif_id, _Out_ sai_object_id_t      *oid)
 {
     sai_status_t             status;
     void                    *elem;
@@ -339,8 +336,7 @@ static sai_status_t mlnx_rif_oid_data_fetch(_In_ sai_object_id_t             rif
     return SAI_STATUS_SUCCESS;
 }
 
-static sai_status_t mlnx_rif_oid_counter_get(_In_ sai_object_id_t          rif_oid,
-                                             _Out_ sx_router_counter_id_t *sx_counter)
+static sai_status_t mlnx_rif_oid_counter_get(_In_ sai_object_id_t rif_oid, _Out_ sx_router_counter_id_t *sx_counter)
 {
     sai_status_t        status;
     mlnx_rif_sx_data_t *sx_data;
@@ -363,11 +359,10 @@ static sai_status_t mlnx_rif_oid_counter_get(_In_ sai_object_id_t          rif_o
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_rif_oid_to_bridge_rif(_In_ sai_object_id_t  rif_oid,
-                                        _Out_ uint32_t       *bridge_rif_idx)
+sai_status_t mlnx_rif_oid_to_bridge_rif(_In_ sai_object_id_t rif_oid, _Out_ uint32_t       *bridge_rif_idx)
 {
-    sai_status_t        status;
-    mlnx_rif_type_t     rif_type;
+    sai_status_t    status;
+    mlnx_rif_type_t rif_type;
 
     status = mlnx_rif_oid_data_fetch(rif_oid, &rif_type, bridge_rif_idx, NULL, NULL, NULL);
     if (SAI_ERR(status)) {
@@ -445,7 +440,10 @@ sai_status_t mlnx_rif_sx_deinit(_In_ mlnx_rif_sx_data_t *sx_data)
 {
     sx_status_t sx_status;
 
-    sx_status = sx_api_router_interface_counter_bind_set(gh_sdk, SX_ACCESS_CMD_UNBIND, sx_data->counter, sx_data->rif_id);
+    sx_status = sx_api_router_interface_counter_bind_set(gh_sdk,
+                                                         SX_ACCESS_CMD_UNBIND,
+                                                         sx_data->counter,
+                                                         sx_data->rif_id);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to unbind router counter %d from rif %d - %s\n", sx_data->counter, sx_data->rif_id,
                    SX_STATUS_MSG(sx_status));
@@ -458,7 +456,8 @@ sai_status_t mlnx_rif_sx_deinit(_In_ mlnx_rif_sx_data_t *sx_data)
         return sdk_to_sai(sx_status);
     }
 
-    sx_status = sx_api_router_interface_set(gh_sdk, SX_ACCESS_CMD_DELETE, sx_data->vrf_id, NULL, NULL, &sx_data->rif_id);
+    sx_status =
+        sx_api_router_interface_set(gh_sdk, SX_ACCESS_CMD_DELETE, sx_data->vrf_id, NULL, NULL, &sx_data->rif_id);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to delete router interface - %s.\n", SX_STATUS_MSG(sx_status));
         return sdk_to_sai(sx_status);
@@ -495,7 +494,7 @@ static sai_status_t mlnx_create_router_interface(_Out_ sai_object_id_t      *rif
     sx_status_t                  sx_status;
     sai_status_t                 status;
     mlnx_rif_type_t              rif_type = MLNX_RIF_TYPE_DEFAULT;
-    mlnx_bridge_rif_t           *br_rif = NULL;
+    mlnx_bridge_rif_t           *br_rif   = NULL;
     mlnx_rif_db_t               *rif_db_data;
     mlnx_shm_rm_array_idx_t      db_idx = MLNX_SHM_RM_ARRAY_IDX_UNINITIALIZED;
     const sai_attribute_value_t *type, *vrid, *port = NULL, *vlan = NULL, *mtu, *mac, *adminv4, *adminv6,
@@ -615,7 +614,7 @@ static sai_status_t mlnx_create_router_interface(_Out_ sai_object_id_t      *rif
         intf_params.type = SX_L2_INTERFACE_TYPE_LOOPBACK;
     } else if (SAI_ROUTER_INTERFACE_TYPE_BRIDGE == type->s32) {
         intf_params.type = SX_L2_INTERFACE_TYPE_BRIDGE;
-        rif_type = MLNX_RIF_TYPE_BRIDGE;
+        rif_type         = MLNX_RIF_TYPE_BRIDGE;
     } else if (SAI_ROUTER_INTERFACE_TYPE_SUB_PORT == type->s32) {
         status = sai_object_to_vlan(vlan->oid, &sx_vlan_id);
         if (SAI_ERR(status)) {
@@ -890,7 +889,9 @@ static sai_status_t mlnx_remove_router_interface(_In_ sai_object_id_t rif_id)
         }
 
         if (SX_STATUS_SUCCESS !=
-                (status = sx_api_router_interface_get(gh_sdk, sx_data->rif_id, &sx_data->vrf_id, &intf_params, &intf_attribs))) {
+            (status =
+                 sx_api_router_interface_get(gh_sdk, sx_data->rif_id, &sx_data->vrf_id, &intf_params,
+                                             &intf_attribs))) {
             SX_LOG_ERR("Failed to get router interface - %s.\n", SX_STATUS_MSG(status));
             status = sdk_to_sai(status);
             goto out;
@@ -946,7 +947,7 @@ static sai_status_t mlnx_remove_router_interface(_In_ sai_object_id_t rif_id)
     } else { /* SAI_ROUTER_INTERFACE_TYPE_BRIDGE */
         if (is_created) {
             SX_LOG_ERR("Failed to remove rif which is bound to the bridge\n");
-            status =  SAI_STATUS_INVALID_PARAMETER;
+            status = SAI_STATUS_INVALID_PARAMETER;
             goto out;
         }
 
@@ -1092,8 +1093,8 @@ static sai_status_t mlnx_rif_attr_to_sdk(sai_router_interface_attr_t  attr,
     return SAI_STATUS_SUCCESS;
 }
 
-static sai_status_t mlnx_rif_sx_attrs_get(_In_  sai_object_id_t               rif_oid,
-                                          _In_  bool                          is_admin_state,
+static sai_status_t mlnx_rif_sx_attrs_get(_In_ sai_object_id_t                rif_oid,
+                                          _In_ bool                           is_admin_state,
                                           _Out_ mlnx_rif_type_t              *rif_type,
                                           _Out_ bool                         *is_created,
                                           _Out_ mlnx_rif_sx_data_t          **sx_data,
@@ -1101,13 +1102,13 @@ static sai_status_t mlnx_rif_sx_attrs_get(_In_  sai_object_id_t               ri
                                           _Out_ sx_router_interface_param_t **intf_params,
                                           _Out_ sx_interface_attributes_t   **intf_attribs)
 {
-    sx_status_t              sx_status;
-    sai_status_t             status;
-    sx_router_id_t           vrid;
-    sx_router_interface_t    rif_id;
-    mlnx_bridge_rif_t       *br_rif;
-    uint32_t                 bridge_rif_db_idx;
-    mlnx_shm_rm_array_idx_t  rif_db_idx;
+    sx_status_t             sx_status;
+    sai_status_t            status;
+    sx_router_id_t          vrid;
+    sx_router_interface_t   rif_id;
+    mlnx_bridge_rif_t      *br_rif;
+    uint32_t                bridge_rif_db_idx;
+    mlnx_shm_rm_array_idx_t rif_db_idx;
 
     status = mlnx_rif_oid_data_fetch(rif_oid, rif_type, &bridge_rif_db_idx, &rif_db_idx, sx_data, is_created);
     if (SAI_ERR(status)) {
@@ -1164,7 +1165,7 @@ static sai_status_t mlnx_rif_attrib_set(_In_ const sai_object_key_t      *key,
     mlnx_rif_sx_data_t         *sx_data;
     mlnx_rif_type_t             rif_type;
     bool                        is_created;
-    sai_router_interface_attr_t attr        = (sai_router_interface_attr_t)arg;
+    sai_router_interface_attr_t attr = (sai_router_interface_attr_t)arg;
 
     SX_LOG_ENTER();
 
@@ -1179,7 +1180,7 @@ static sai_status_t mlnx_rif_attrib_set(_In_ const sai_object_key_t      *key,
         goto out;
     }
 
-    if (rif_type == MLNX_RIF_TYPE_BRIDGE && (!is_created)) {
+    if ((rif_type == MLNX_RIF_TYPE_BRIDGE) && (!is_created)) {
         SX_LOG_ERR("RIF %lx is not created yet. Bridge port of a type "
                    "SAI_BRIDGE_PORT_TYPE_1D_ROUTER needs to be created first\n", key->key.object_id);
         status = SAI_STATUS_INVALID_PARAMETER;
@@ -1203,7 +1204,12 @@ static sai_status_t mlnx_rif_attrib_set(_In_ const sai_object_key_t      *key,
             goto out;
         }
     } else {
-        sx_status = sx_api_router_interface_set(gh_sdk, SX_ACCESS_CMD_EDIT, vrid, intf_params_ptr, intf_attribs_ptr, &rif_id);
+        sx_status = sx_api_router_interface_set(gh_sdk,
+                                                SX_ACCESS_CMD_EDIT,
+                                                vrid,
+                                                intf_params_ptr,
+                                                intf_attribs_ptr,
+                                                &rif_id);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to set router interface - %s.\n", SX_STATUS_MSG(sx_status));
             status = sdk_to_sai(sx_status);
@@ -1240,7 +1246,7 @@ static sai_status_t mlnx_rif_attrib_get(_In_ const sai_object_key_t   *key,
     mlnx_rif_sx_data_t         *sx_data;
     mlnx_rif_type_t             rif_type;
     bool                        is_created;
-    sai_router_interface_attr_t attr        = (sai_router_interface_attr_t)arg;
+    sai_router_interface_attr_t attr = (sai_router_interface_attr_t)arg;
 
     SX_LOG_ENTER();
 
@@ -1274,7 +1280,8 @@ static sai_status_t mlnx_rif_attrib_get(_In_ const sai_object_key_t   *key,
 
     switch (attr) {
     case SAI_ROUTER_INTERFACE_ATTR_PORT_ID:
-        if ((SX_L2_INTERFACE_TYPE_PORT_VLAN != intf_params_ptr->type) && (SX_L2_INTERFACE_TYPE_VPORT != intf_params_ptr->type)) {
+        if ((SX_L2_INTERFACE_TYPE_PORT_VLAN != intf_params_ptr->type) &&
+            (SX_L2_INTERFACE_TYPE_VPORT != intf_params_ptr->type)) {
             SX_LOG_ERR("Can't get port id from interface whose type isn't port or sub-port\n");
             return SAI_STATUS_INVALID_ATTRIBUTE_0 + attr_index;
         }
@@ -1286,7 +1293,8 @@ static sai_status_t mlnx_rif_attrib_get(_In_ const sai_object_key_t   *key,
         break;
 
     case SAI_ROUTER_INTERFACE_ATTR_VLAN_ID:
-        if ((SX_L2_INTERFACE_TYPE_VLAN != intf_params_ptr->type) && (SX_L2_INTERFACE_TYPE_VPORT != intf_params_ptr->type)) {
+        if ((SX_L2_INTERFACE_TYPE_VLAN != intf_params_ptr->type) &&
+            (SX_L2_INTERFACE_TYPE_VPORT != intf_params_ptr->type)) {
             SX_LOG_ERR("Can't get vlan id from interface whose type isn't vlan or sub-port\n");
             return SAI_STATUS_INVALID_ATTRIBUTE_0 + attr_index;
         }
@@ -1376,11 +1384,11 @@ static sai_status_t mlnx_rif_attrib_get(_In_ const sai_object_key_t   *key,
  *
  * @return #SAI_STATUS_SUCCESS on success, failure status code on error
  */
-static sai_status_t mlnx_get_router_interface_stats_ext(_In_ sai_object_id_t router_interface_id,
-                                                        _In_ uint32_t number_of_counters,
+static sai_status_t mlnx_get_router_interface_stats_ext(_In_ sai_object_id_t                    router_interface_id,
+                                                        _In_ uint32_t                           number_of_counters,
                                                         _In_ const sai_router_interface_stat_t *counter_ids,
-                                                        _In_ sai_stats_mode_t mode,
-                                                        _Out_ uint64_t *counters)
+                                                        _In_ sai_stats_mode_t                   mode,
+                                                        _Out_ uint64_t                         *counters)
 {
     sx_status_t             sx_status;
     sai_status_t            status;
@@ -1409,7 +1417,7 @@ static sai_status_t mlnx_get_router_interface_stats_ext(_In_ sai_object_id_t rou
         return SAI_STATUS_INVALID_PARAMETER;
     }
 
-    if (mode > SAI_STATS_MODE_READ_AND_CLEAR) {;
+    if (mode > SAI_STATS_MODE_READ_AND_CLEAR) {
         SX_LOG_ERR("Invalid sai_stats_mode_t - %d\n", mode);
         SX_LOG_EXIT();
         return SAI_STATUS_INVALID_PARAMETER;
@@ -1428,7 +1436,8 @@ static sai_status_t mlnx_get_router_interface_stats_ext(_In_ sai_object_id_t rou
 
     sx_status = sx_api_router_counter_get(gh_sdk, sx_cmd, sx_counter, &sx_counter_set);
     if (SX_ERR(sx_status)) {
-        SX_LOG_ERR("Failed to %s sx counter %d - %s\n", SX_ACCESS_CMD_STR(sx_cmd), sx_counter, SX_STATUS_MSG(sx_status));
+        SX_LOG_ERR("Failed to %s sx counter %d - %s\n", SX_ACCESS_CMD_STR(sx_cmd), sx_counter,
+                   SX_STATUS_MSG(sx_status));
         sai_db_unlock();
         SX_LOG_EXIT();
         return sdk_to_sai(sx_status);
@@ -1511,12 +1520,16 @@ static sai_status_t mlnx_get_router_interface_stats_ext(_In_ sai_object_id_t rou
  *
  * @return #SAI_STATUS_SUCCESS on success, failure status code on error
  */
-static sai_status_t mlnx_get_router_interface_stats(_In_ sai_object_id_t router_interface_id,
-                                                    _In_ uint32_t number_of_counters,
+static sai_status_t mlnx_get_router_interface_stats(_In_ sai_object_id_t                    router_interface_id,
+                                                    _In_ uint32_t                           number_of_counters,
                                                     _In_ const sai_router_interface_stat_t *counter_ids,
-                                                    _Out_ uint64_t *counters)
+                                                    _Out_ uint64_t                         *counters)
 {
-    return mlnx_get_router_interface_stats_ext(router_interface_id, number_of_counters, counter_ids, SAI_STATS_MODE_READ, counters);
+    return mlnx_get_router_interface_stats_ext(router_interface_id,
+                                               number_of_counters,
+                                               counter_ids,
+                                               SAI_STATS_MODE_READ,
+                                               counters);
 }
 
 /**
@@ -1528,8 +1541,8 @@ static sai_status_t mlnx_get_router_interface_stats(_In_ sai_object_id_t router_
  *
  * @return #SAI_STATUS_SUCCESS on success, failure status code on error
  */
-static sai_status_t mlnx_clear_router_interface_stats(_In_ sai_object_id_t router_interface_id,
-                                                      _In_ uint32_t number_of_counters,
+static sai_status_t mlnx_clear_router_interface_stats(_In_ sai_object_id_t                    router_interface_id,
+                                                      _In_ uint32_t                           number_of_counters,
                                                       _In_ const sai_router_interface_stat_t *counter_ids)
 {
     sx_status_t             sx_status;

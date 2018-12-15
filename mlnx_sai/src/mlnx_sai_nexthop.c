@@ -56,14 +56,14 @@ static const sai_vendor_attribute_entry_t next_hop_vendor_attribs[] = {
       NULL, NULL,
       NULL, NULL }
 };
-static const mlnx_attr_enum_info_t next_hop_enum_info[] = {
+static const mlnx_attr_enum_info_t        next_hop_enum_info[] = {
     [SAI_NEXT_HOP_ATTR_TYPE] = ATTR_ENUM_VALUES_LIST(
         SAI_NEXT_HOP_TYPE_IP,
         SAI_NEXT_HOP_TYPE_TUNNEL_ENCAP
-    ),
+        ),
 };
-const mlnx_obj_type_attrs_info_t mlnx_next_hop_obj_type_info =
-    { next_hop_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(next_hop_enum_info)};
+const mlnx_obj_type_attrs_info_t          mlnx_next_hop_obj_type_info =
+{ next_hop_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(next_hop_enum_info)};
 static void next_hop_key_to_str(_In_ sai_object_id_t next_hop_id, _Out_ char *key_str)
 {
     uint32_t nexthop_data;

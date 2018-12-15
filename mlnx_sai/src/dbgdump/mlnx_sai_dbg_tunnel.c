@@ -148,7 +148,7 @@ static void SAI_dump_tunnel_map_print(_In_ FILE                    *file,
     mlnx_tunnel_map_t         curr_mlnx_tunnel_map;
     mlnx_tunnel_map_entry_t   curr_mlnx_tunnel_map_entry;
     uint32_t                  curr_vxlan_tunnel_idx = 0;
-    uint32_t                  tunnel_map_entry_idx = MLNX_TUNNEL_MAP_ENTRY_INVALID;
+    uint32_t                  tunnel_map_entry_idx  = MLNX_TUNNEL_MAP_ENTRY_INVALID;
     char                      type_str[LINE_LENGTH];
     dbg_utils_table_columns_t tunnelmap_clmns[] = {
         {"sai oid",                   16, PARAM_UINT64_E, &obj_id},
@@ -237,7 +237,6 @@ static void SAI_dump_tunnel_map_print(_In_ FILE                    *file,
 
     for (ii = 0; ii < MLNX_TUNNEL_MAP_MAX; ii++) {
         if (mlnx_tunnel_map[ii].in_use) {
-
             dbg_utils_print_table_headline(file, sai_tunnelmap_vxlan_tunnel_idx_clmns);
             for (jj = 0; jj < mlnx_tunnel_map[ii].vxlan_tunnel_cnt; jj++) {
                 curr_vxlan_tunnel_idx = mlnx_tunnel_map[ii].vxlan_tunnel_idx[jj];
@@ -364,7 +363,7 @@ static void SAI_dump_tunnel_print(_In_ FILE *file, _In_ tunnel_db_entry_t *tunne
         {"sx tunnel id ipv6",  17, PARAM_UINT32_E, &curr_tunnel_db.sx_tunnel_id_ipv6},
         {"ipv4 created",       12, PARAM_UINT8_E,  &curr_tunnel_db.ipv4_created},
         {"ipv6 created",       12, PARAM_UINT8_E,  &curr_tunnel_db.ipv6_created},
-        {"sx o rif ipv6",      16, PARAM_UINT16_E, &curr_tunnel_db.sx_overlay_rif_ipv6}, 
+        {"sx o rif ipv6",      16, PARAM_UINT16_E, &curr_tunnel_db.sx_overlay_rif_ipv6},
         {"vxlan u rif",        16, PARAM_UINT64_E, &curr_tunnel_db.sai_underlay_rif},
         {"encap map cnt",      13, PARAM_UINT32_E, &curr_tunnel_db.sai_tunnel_map_encap_cnt},
         {"decap map cnt",      13, PARAM_UINT32_E, &curr_tunnel_db.sai_tunnel_map_decap_cnt},
@@ -499,10 +498,14 @@ static void SAI_dump_tunnel_table_print(_In_ FILE *file, _In_ mlnx_tunneltable_t
         {"tunnel lazy created", 19, PARAM_UINT8_E,  &curr_mlnx_tunneltable.tunnel_lazy_created},
         {"field type",          10, PARAM_STRING_E, &field_type_str},
         {"u vrid",              10, PARAM_STRING_E, &curr_mlnx_tunneltable.sdk_tunnel_decap_key_ipv4.underlay_vrid},
-        {"u dipv4",             15, PARAM_IPV4_E,   &curr_mlnx_tunneltable.sdk_tunnel_decap_key_ipv4.underlay_dip.addr.ipv4},
-        {"u dipv6",             39, PARAM_IPV6_E,   &curr_mlnx_tunneltable.sdk_tunnel_decap_key_ipv4.underlay_dip.addr.ipv6},
-        {"u sipv4",             15, PARAM_IPV4_E,   &curr_mlnx_tunneltable.sdk_tunnel_decap_key_ipv4.underlay_sip.addr.ipv4},
-        {"u sipv6",             39, PARAM_IPV6_E,   &curr_mlnx_tunneltable.sdk_tunnel_decap_key_ipv4.underlay_sip.addr.ipv6},
+        {"u dipv4",             15, PARAM_IPV4_E,
+         &curr_mlnx_tunneltable.sdk_tunnel_decap_key_ipv4.underlay_dip.addr.ipv4},
+        {"u dipv6",             39, PARAM_IPV6_E,
+         &curr_mlnx_tunneltable.sdk_tunnel_decap_key_ipv4.underlay_dip.addr.ipv6},
+        {"u sipv4",             15, PARAM_IPV4_E,
+         &curr_mlnx_tunneltable.sdk_tunnel_decap_key_ipv4.underlay_sip.addr.ipv4},
+        {"u sipv6",             39, PARAM_IPV6_E,
+         &curr_mlnx_tunneltable.sdk_tunnel_decap_key_ipv4.underlay_sip.addr.ipv6},
         {NULL,                  0,  0,              NULL}
     };
 

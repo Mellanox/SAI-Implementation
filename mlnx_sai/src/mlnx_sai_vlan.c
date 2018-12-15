@@ -25,6 +25,10 @@
 
 static sx_verbosity_level_t LOG_VAR_NAME(__MODULE__) = SX_VERBOSITY_LEVEL_WARNING;
 
+#define MLNX_FID_FLOOD_CTRL_DATA_DEFAULT \
+    ((mlnx_fid_flood_type_data_t) {.type = MLNX_FID_FLOOD_TYPE_ALL, \
+                                   .l2mc_db_idx = MLNX_L2MC_GROUP_DB_IDX_INVALID})
+
 /* Returns true if value of mlnx_vlan_port_pair_t is not used */
 #define MLNX_VLAN_MEMBER_BULK_PAIR_IS_USED(p) (p.state & MLNX_VLAN_MEMBER_BULK_PAIR_STATE_USED)
 
@@ -62,7 +66,6 @@ PACKED(
 typedef struct _mlnx_vlan_port_pair_t mlnx_vlan_port_pair_t;
 
 PACKED(struct _mlnx_vlan_member_flood_ctrl_data_t {
-           bool is_flood_ctrl_present;
            bool vlan_port_present[MAX_BRIDGE_1Q_PORTS][MAX_VLANS];
            uint16_t vlan_ports_count[MAX_VLANS];
        }, );
@@ -116,6 +119,22 @@ static sai_status_t mlnx_vlan_learn_get(_In_ const sai_object_key_t   *key,
 static sai_status_t mlnx_vlan_learn_set(_In_ const sai_object_key_t      *key,
                                         _In_ const sai_attribute_value_t *value,
                                         void                             *arg);
+static sai_status_t mlnx_vlan_flood_ctrl_type_get(_In_ const sai_object_key_t   *key,
+                                                  _Inout_ sai_attribute_value_t *value,
+                                                  _In_ uint32_t                  attr_index,
+                                                  _Inout_ vendor_cache_t        *cache,
+                                                  void                          *arg);
+static sai_status_t mlnx_vlan_flood_ctrl_type_set(_In_ const sai_object_key_t      *key,
+                                                  _In_ const sai_attribute_value_t *value,
+                                                  void                             *arg);
+static sai_status_t mlnx_vlan_flood_ctrl_l2mc_group_get(_In_ const sai_object_key_t   *key,
+                                                        _Inout_ sai_attribute_value_t *value,
+                                                        _In_ uint32_t                  attr_index,
+                                                        _Inout_ vendor_cache_t        *cache,
+                                                        void                          *arg);
+static sai_status_t mlnx_vlan_flood_ctrl_l2mc_group_set(_In_ const sai_object_key_t      *key,
+                                                        _In_ const sai_attribute_value_t *value,
+                                                        void                             *arg);
 static sai_status_t mlnx_vlan_max_learned_addresses_get(_In_ const sai_object_key_t   *key,
                                                         _Inout_ sai_attribute_value_t *value,
                                                         _In_ uint32_t                  attr_index,
@@ -146,6 +165,7 @@ static sai_status_t mlnx_vlan_stp_get(_In_ const sai_object_key_t   *key,
 static sai_status_t mlnx_vlan_stp_set(_In_ const sai_object_key_t      *key,
                                       _In_ const sai_attribute_value_t *value,
                                       void                             *arg);
+static mlnx_fid_flood_ctrl_type_t mlnx_vlan_flood_type_to_fid_type(_In_ sai_vlan_flood_control_type_t type);
 static const sai_vendor_attribute_entry_t vlan_vendor_attribs[] = {
     { SAI_VLAN_ATTR_VLAN_ID,
       { true, false, false, true },
@@ -182,6 +202,36 @@ static const sai_vendor_attribute_entry_t vlan_vendor_attribs[] = {
       { false, false, false, false },
       mlnx_acl_bind_point_get, (void*)MLNX_ACL_BIND_POINT_TYPE_EGRESS_VLAN,
       mlnx_acl_bind_point_set, (void*)MLNX_ACL_BIND_POINT_TYPE_EGRESS_VLAN },
+    { SAI_VLAN_ATTR_UNKNOWN_UNICAST_FLOOD_CONTROL_TYPE,
+      { true, false, true, true },
+      { true, false, true, true },
+      mlnx_vlan_flood_ctrl_type_get, (void*)SAI_VLAN_ATTR_UNKNOWN_UNICAST_FLOOD_CONTROL_TYPE,
+      mlnx_vlan_flood_ctrl_type_set, (void*)SAI_VLAN_ATTR_UNKNOWN_UNICAST_FLOOD_CONTROL_TYPE },
+    { SAI_VLAN_ATTR_UNKNOWN_MULTICAST_FLOOD_CONTROL_TYPE,
+      { true, false, true, true },
+      { true, false, true, true },
+      mlnx_vlan_flood_ctrl_type_get, (void*)SAI_VLAN_ATTR_UNKNOWN_MULTICAST_FLOOD_CONTROL_TYPE,
+      mlnx_vlan_flood_ctrl_type_set, (void*)SAI_VLAN_ATTR_UNKNOWN_MULTICAST_FLOOD_CONTROL_TYPE },
+    { SAI_VLAN_ATTR_BROADCAST_FLOOD_CONTROL_TYPE,
+      { true, false, true, true },
+      { true, false, true, true },
+      mlnx_vlan_flood_ctrl_type_get, (void*)SAI_VLAN_ATTR_BROADCAST_FLOOD_CONTROL_TYPE,
+      mlnx_vlan_flood_ctrl_type_set, (void*)SAI_VLAN_ATTR_BROADCAST_FLOOD_CONTROL_TYPE },
+    { SAI_VLAN_ATTR_UNKNOWN_UNICAST_FLOOD_GROUP,
+      { true, false, true, true },
+      { true, false, true, true },
+      mlnx_vlan_flood_ctrl_l2mc_group_get, (void*)SAI_VLAN_ATTR_UNKNOWN_UNICAST_FLOOD_GROUP,
+      mlnx_vlan_flood_ctrl_l2mc_group_set, (void*)SAI_VLAN_ATTR_UNKNOWN_UNICAST_FLOOD_GROUP },
+    { SAI_VLAN_ATTR_UNKNOWN_MULTICAST_FLOOD_GROUP,
+      { true, false, true, true },
+      { true, false, true, true },
+      mlnx_vlan_flood_ctrl_l2mc_group_get, (void*)SAI_VLAN_ATTR_UNKNOWN_MULTICAST_FLOOD_GROUP,
+      mlnx_vlan_flood_ctrl_l2mc_group_set, (void*)SAI_VLAN_ATTR_UNKNOWN_MULTICAST_FLOOD_GROUP },
+    { SAI_VLAN_ATTR_BROADCAST_FLOOD_GROUP,
+      { true, false, true, true },
+      { true, false, true, true },
+      mlnx_vlan_flood_ctrl_l2mc_group_get, (void*)SAI_VLAN_ATTR_BROADCAST_FLOOD_GROUP,
+      mlnx_vlan_flood_ctrl_l2mc_group_set, (void*)SAI_VLAN_ATTR_BROADCAST_FLOOD_GROUP },
     { SAI_VLAN_ATTR_META_DATA,
       { false, false, false, false },
       { false, false, false, false },
@@ -193,8 +243,13 @@ static const sai_vendor_attribute_entry_t vlan_vendor_attribs[] = {
       NULL, NULL,
       NULL, NULL }
 };
-const mlnx_obj_type_attrs_info_t mlnx_vlan_obj_type_info =
-    { vlan_vendor_attribs, OBJ_ATTRS_ENUMS_INFO_EMPTY()};
+static const mlnx_attr_enum_info_t        vlan_enum_info[] = {
+    [SAI_VLAN_ATTR_UNKNOWN_UNICAST_FLOOD_CONTROL_TYPE]   = ATTR_ENUM_VALUES_ALL(),
+    [SAI_VLAN_ATTR_UNKNOWN_MULTICAST_FLOOD_CONTROL_TYPE] = ATTR_ENUM_VALUES_ALL(),
+    [SAI_VLAN_ATTR_BROADCAST_FLOOD_CONTROL_TYPE]         = ATTR_ENUM_VALUES_ALL(),
+};
+const mlnx_obj_type_attrs_info_t          mlnx_vlan_obj_type_info =
+{ vlan_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(vlan_enum_info)};
 static const sai_vendor_attribute_entry_t vlan_member_vendor_attribs[] = {
     { SAI_VLAN_MEMBER_ATTR_VLAN_ID,
       { true, false, false, true },
@@ -217,11 +272,11 @@ static const sai_vendor_attribute_entry_t vlan_member_vendor_attribs[] = {
       NULL, NULL,
       NULL, NULL }
 };
-static const mlnx_attr_enum_info_t vlan_member_enum_info[] = {
+static const mlnx_attr_enum_info_t        vlan_member_enum_info[] = {
     [SAI_VLAN_MEMBER_ATTR_VLAN_TAGGING_MODE] = ATTR_ENUM_VALUES_ALL()
 };
-const mlnx_obj_type_attrs_info_t mlnx_vlan_member_obj_type_info =
-    { vlan_member_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(vlan_member_enum_info)};
+const mlnx_obj_type_attrs_info_t          mlnx_vlan_member_obj_type_info =
+{ vlan_member_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(vlan_member_enum_info)};
 static void vlan_key_to_str(_In_ sai_vlan_id_t vlan_id, _Out_ char *key_str)
 {
     snprintf(key_str, MAX_KEY_STR_LEN, "vlan %u", vlan_id);
@@ -666,10 +721,12 @@ sai_status_t mlnx_create_vlan(_Out_ sai_object_id_t      *sai_vlan_id,
                               _In_ const sai_attribute_t *attr_list)
 {
     char                         list_str[MAX_LIST_VALUE_STR_LEN];
-    const sai_attribute_value_t *vid = NULL, *stp = NULL, *learn = NULL, *max_learned_addresses = NULL;
-    uint32_t                     vid_index, stp_index, learn_index, max_learned_addresses_index;
+    const sai_attribute_value_t *vid = NULL, *stp = NULL, *learn = NULL, *max_learned_addresses = NULL, *attr_value =
+        NULL;
+    uint32_t                     vid_index, stp_index, learn_index, max_learned_addresses_index, attr_index;
     sx_mstp_inst_id_t            sx_stp_id = mlnx_stp_get_default_stp();
     mlnx_object_id_t             stp_obj_id;
+    mlnx_vlan_db_t              *vlan_db_entry;
     sai_object_id_t              vlan_oid;
     sai_status_t                 status;
     const sai_attribute_value_t *attr_ing_acl  = NULL;
@@ -718,7 +775,6 @@ sai_status_t mlnx_create_vlan(_Out_ sai_object_id_t      *sai_vlan_id,
         }
     }
 
-    assert(NULL != g_sai_db_ptr);
     sai_db_write_lock();
     acl_global_lock();
 
@@ -765,7 +821,66 @@ sai_status_t mlnx_create_vlan(_Out_ sai_object_id_t      *sai_vlan_id,
         }
     }
 
-    mlnx_vlan_db_create_vlan(vid->u16);
+    vlan_db_entry = mlnx_vlan_db_create_vlan(vid->u16);
+    assert(vlan_db_entry);
+
+    find_attrib_in_list(attr_count,
+                        attr_list,
+                        SAI_VLAN_ATTR_UNKNOWN_UNICAST_FLOOD_CONTROL_TYPE,
+                        &attr_value,
+                        &attr_index);
+    if (attr_value) {
+        vlan_db_entry->flood_data.types[MLNX_FID_FLOOD_CTRL_ATTR_UC].type = mlnx_vlan_flood_type_to_fid_type(
+            attr_value->s32);
+    }
+
+    find_attrib_in_list(attr_count, attr_list, SAI_VLAN_ATTR_UNKNOWN_UNICAST_FLOOD_GROUP, &attr_value, &attr_index);
+    if (attr_value) {
+        status =
+            mlnx_l2mc_group_oid_to_db_idx(attr_value->oid,
+                                          &vlan_db_entry->flood_data.types[MLNX_FID_FLOOD_CTRL_ATTR_UC].l2mc_db_idx);
+        if (SAI_ERR(status)) {
+            goto out;
+        }
+    }
+
+    find_attrib_in_list(attr_count,
+                        attr_list,
+                        SAI_VLAN_ATTR_UNKNOWN_MULTICAST_FLOOD_CONTROL_TYPE,
+                        &attr_value,
+                        &attr_index);
+    if (attr_value) {
+        vlan_db_entry->flood_data.types[MLNX_FID_FLOOD_CTRL_ATTR_MC].type = mlnx_vlan_flood_type_to_fid_type(
+            attr_value->s32);
+    }
+
+    find_attrib_in_list(attr_count, attr_list, SAI_VLAN_ATTR_UNKNOWN_MULTICAST_FLOOD_GROUP, &attr_value, &attr_index);
+    if (attr_value) {
+        status =
+            mlnx_l2mc_group_oid_to_db_idx(attr_value->oid,
+                                          &vlan_db_entry->flood_data.types[MLNX_FID_FLOOD_CTRL_ATTR_MC].l2mc_db_idx);
+        if (SAI_ERR(status)) {
+            goto out;
+        }
+    }
+
+    find_attrib_in_list(attr_count, attr_list, SAI_VLAN_ATTR_BROADCAST_FLOOD_CONTROL_TYPE, &attr_value, &attr_index);
+    if (attr_value) {
+        vlan_db_entry->flood_data.types[MLNX_FID_FLOOD_CTRL_ATTR_BC].type = mlnx_vlan_flood_type_to_fid_type(
+            attr_value->s32);
+    }
+
+    find_attrib_in_list(attr_count, attr_list, SAI_VLAN_ATTR_BROADCAST_FLOOD_GROUP, &attr_value, &attr_index);
+    if (attr_value) {
+        status =
+            mlnx_l2mc_group_oid_to_db_idx(attr_value->oid,
+                                          &vlan_db_entry->flood_data.types[MLNX_FID_FLOOD_CTRL_ATTR_BC].l2mc_db_idx);
+        if (SAI_ERR(status)) {
+            goto out;
+        }
+    }
+
+    mlnx_fid_flood_ctrl_l2mc_group_refs_inc(&vlan_db_entry->flood_data);
 
     status       = SAI_STATUS_SUCCESS;
     *sai_vlan_id = vlan_oid;
@@ -838,7 +953,14 @@ static sai_status_t mlnx_remove_vlan(_In_ sai_object_id_t sai_vlan_id)
         goto out;
     }
 
+    mlnx_fid_flood_ctrl_l2mc_group_refs_dec(&(mlnx_vlan_db_get_vlan(vlan_id)->flood_data));
+
     mlnx_vlan_db_remove_vlan(vlan_id);
+
+    status = mlnx_fid_flood_ctrl_clear(vlan_id);
+    if (SAI_ERR(status)) {
+        goto out;
+    }
 
 out:
     sai_db_unlock();
@@ -943,7 +1065,7 @@ static void vlan_member_key_to_str(_In_ sai_object_id_t vlan_member_id, _Out_ ch
     }
 }
 
-bool mlnx_vlan_port_is_set(uint16_t vid, mlnx_bridge_port_t *port)
+bool mlnx_vlan_port_is_set(uint16_t vid, const mlnx_bridge_port_t *port)
 {
     return array_bit_test(g_sai_db_ptr->vlans_db[vid - 1].ports_map, port->index);
 }
@@ -954,11 +1076,9 @@ void mlnx_vlan_port_set(uint16_t vid, mlnx_bridge_port_t *port, bool is_set)
 
     if (is_set && !mlnx_vlan_port_is_set(vid, port)) {
         array_bit_set(g_sai_db_ptr->vlans_db[vid - 1].ports_map, port->index);
-        mlnx_fdb_port_event_handle(port, vid, SAI_PORT_EVENT_ADD);
         port->vlans++;
     } else if (!is_set && mlnx_vlan_port_is_set(vid, port)) {
         array_bit_clear(g_sai_db_ptr->vlans_db[vid - 1].ports_map, port->index);
-        mlnx_fdb_port_event_handle(port, vid, SAI_PORT_EVENT_DELETE);
         port->vlans--;
     }
 }
@@ -1061,16 +1181,14 @@ sai_status_t mlnx_vlan_port_del(uint16_t vid, mlnx_bridge_port_t *port)
     }
 
     /* On warmboot init, don't remove vlan 1 members from hw until issu end phase.
-       Sonic first delete all default members, then may recreate some based on actual membership.
-       Since router port belong to vlan 1 in SDK, don't remove them from vlan membership on issu end. */
+     * Sonic first delete all default members, then may recreate some based on actual membership. */
     if ((BOOT_TYPE_WARM == g_sai_db_ptr->boot_type) && (!g_sai_db_ptr->issu_end_called) && (DEFAULT_VLAN == vid)) {
         status = mlnx_port_by_log_id(port->logical, &port_config);
         if (SAI_ERR(status)) {
             return status;
         }
         port_config->issu_remove_default_vid = true;
-    }
-    else {
+    } else {
         sx_status = sx_api_vlan_ports_set(gh_sdk, SX_ACCESS_CMD_DELETE, DEFAULT_ETH_SWID, vid, &port_list, 1);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to add vlan ports %s.\n", SX_STATUS_MSG(sx_status));
@@ -1172,6 +1290,12 @@ static sai_status_t mlnx_create_vlan_member(_Out_ sai_object_id_t     * vlan_mem
         port_config->issu_remove_default_vid = false;
     }
 
+    status = mlnx_fid_flood_ctrl_port_event_handle(vlan_id, &mlnx_vlan_db_get_vlan(vlan_id)->flood_data,
+                                                   &bridge_port_cfg->logical, 1, MLNX_PORT_EVENT_ADD);
+    if (SAI_ERR(status)) {
+        goto out;
+    }
+
     status = mlnx_vlan_member_object_create(vlan_id, bridge_port_cfg->index, vlan_member_id);
     if (SAI_ERR(status)) {
         goto out;
@@ -1208,7 +1332,7 @@ static sai_status_t mlnx_remove_vlan_member(_In_ sai_object_id_t vlan_member_id)
 
     status = mlnx_vlan_member_oid_to_vlan_port(vlan_member_id, &vlan, &port);
     if (SAI_ERR(status)) {
-        goto out_unlock;
+        goto out;
     }
 
     if (!mlnx_vlan_port_is_set(vlan, port)) {
@@ -1216,15 +1340,21 @@ static sai_status_t mlnx_remove_vlan_member(_In_ sai_object_id_t vlan_member_id)
                    vlan, port->logical);
 
         status = SAI_STATUS_INVALID_OBJECT_ID;
-        goto out_unlock;
+        goto out;
     }
 
     status = mlnx_vlan_port_del(vlan, port);
     if (SAI_ERR(status)) {
-        goto out_unlock;
+        goto out;
     }
 
-out_unlock:
+    status = mlnx_fid_flood_ctrl_port_event_handle(vlan, &mlnx_vlan_db_get_vlan(vlan)->flood_data,
+                                                   &port->logical, 1, MLNX_PORT_EVENT_DELETE);
+    if (SAI_ERR(status)) {
+        goto out;
+    }
+
+out:
     sai_db_unlock();
     SX_LOG_EXIT();
     return status;
@@ -1373,8 +1503,6 @@ static sai_status_t mlnx_vlan_member_bulk_attrs_parse(_In_ const sai_attribute_t
 void mlnx_vlan_member_bulk_init()
 {
     memset(&mlnx_vlan_member_bulk_data, 0, sizeof(mlnx_vlan_member_bulk_data));
-
-    mlnx_vlan_member_bulk_data.flood_ctrl_data.is_flood_ctrl_present = mlnx_fdb_is_flood_disabled();
 }
 
 static sai_status_t mlnx_vlan_member_bulk_pair_add(_In_ const mlnx_vlan_member_data_t *vlan_member_data,
@@ -1457,10 +1585,6 @@ static bool mlnx_vlan_member_bulk_find_next_sequence(_Out_ mlnx_vlan_member_bulk
 
 static void mlnx_vlan_member_bulk_fdb_ctrl_set(_In_ uint16_t vlan_id, _In_ uint32_t bport_index, _In_ bool is_set)
 {
-    if (!mlnx_vlan_member_bulk_data.flood_ctrl_data.is_flood_ctrl_present) {
-        return;
-    }
-
     if (is_set) {
         mlnx_vlan_member_bulk_data.flood_ctrl_data.vlan_ports_count[vlan_id]++;
     } else {
@@ -1486,14 +1610,13 @@ static void mlnx_vlan_member_bulk_db_port_vlan_set(_In_ uint16_t vid, _In_ mlnx_
 
 static sai_status_t mlnx_vlan_memeber_bulk_fdb_ctrl_apply(_In_ bool create)
 {
-    sai_status_t     status;
-    sx_port_log_id_t sx_ports[MAX_BRIDGE_1Q_PORTS];
-    uint32_t         ports_count, vlan_ports_count;
-    uint32_t         vlan_id, bport_index;
+    sai_status_t      status;
+    sx_port_log_id_t  sx_ports[MAX_BRIDGE_1Q_PORTS] = {0};
+    uint32_t          ports_count, vlan_ports_count;
+    uint32_t          vlan_id, bport_index;
+    mlnx_port_event_t event;
 
-    if (!mlnx_vlan_member_bulk_data.flood_ctrl_data.is_flood_ctrl_present) {
-        return SAI_STATUS_SUCCESS;
-    }
+    event = create ? MLNX_PORT_EVENT_ADD : MLNX_PORT_EVENT_DELETE;
 
     mlnx_vlan_id_foreach(vlan_id) {
         vlan_ports_count = mlnx_vlan_member_bulk_data.flood_ctrl_data.vlan_ports_count[vlan_id];
@@ -1512,7 +1635,8 @@ static sai_status_t mlnx_vlan_memeber_bulk_fdb_ctrl_apply(_In_ bool create)
                 return SAI_STATUS_FAILURE;
             }
 
-            status = mlnx_fdb_flood_control_set(vlan_id, sx_ports, ports_count, create);
+            status = mlnx_fid_flood_ctrl_port_event_handle(vlan_id, &mlnx_vlan_db_get_vlan(vlan_id)->flood_data,
+                                                           sx_ports, ports_count, event);
             if (SAI_ERR(status)) {
                 return status;
             }
@@ -2339,9 +2463,20 @@ void mlnx_vlan_stp_id_set(sai_vlan_id_t vlan_id, sx_mstp_inst_id_t sx_stp_id)
     g_sai_db_ptr->vlans_db[vlan_id - SXD_VID_MIN].stp_id = sx_stp_id;
 }
 
-void mlnx_vlan_db_create_vlan(_In_ sai_vlan_id_t vlan_id)
+mlnx_vlan_db_t* mlnx_vlan_db_get_vlan(_In_ sai_vlan_id_t vlan_id)
 {
-    g_sai_db_ptr->vlans_db[vlan_id - SXD_VID_MIN].is_created = true;
+    return &g_sai_db_ptr->vlans_db[vlan_id - SXD_VID_MIN];
+}
+
+mlnx_vlan_db_t* mlnx_vlan_db_create_vlan(_In_ sai_vlan_id_t vlan_id)
+{
+    mlnx_vlan_db_t *vlan_db = mlnx_vlan_db_get_vlan(vlan_id);
+
+    vlan_db->is_created = true;
+
+    mlnx_fid_flood_ctrl_init(&vlan_db->flood_data);
+
+    return vlan_db;
 }
 
 static void mlnx_vlan_db_remove_vlan(_In_ sai_vlan_id_t vlan_id)
@@ -2352,6 +2487,903 @@ static void mlnx_vlan_db_remove_vlan(_In_ sai_vlan_id_t vlan_id)
 bool mlnx_vlan_is_created(_In_ sai_vlan_id_t vlan_id)
 {
     return g_sai_db_ptr->vlans_db[vlan_id - SXD_VID_MIN].is_created;
+}
+
+static sai_status_t mlnx_vlans_ports_get(_In_ sai_vlan_id_t      vlan_id,
+                                         _Out_ sx_port_log_id_t *sx_ports,
+                                         _Inout_ uint32_t       *ports_count)
+{
+    const mlnx_bridge_port_t *bport;
+    uint32_t                  ii, count = 0;
+
+    assert(sx_ports);
+    assert(ports_count);
+    assert(SAI_STATUS_SUCCESS == validate_vlan(vlan_id));
+
+    mlnx_vlan_ports_foreach(vlan_id, bport, ii) {
+        if (*ports_count < count) {
+            SX_LOG_ERR("Insufficient buffer size %u\n", *ports_count);
+            return SAI_STATUS_BUFFER_OVERFLOW;
+        }
+
+        sx_ports[count++] = bport->logical;
+    }
+
+    *ports_count = count;
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static mlnx_fid_flood_ctrl_type_t mlnx_vlan_flood_type_to_fid_type(_In_ sai_vlan_flood_control_type_t type)
+{
+    assert(type <= SAI_VLAN_FLOOD_CONTROL_TYPE_L2MC_GROUP);
+
+    return (mlnx_fid_flood_ctrl_type_t)(type);
+}
+
+static mlnx_fid_flood_ctrl_attr_t mlnx_vlan_flood_ctrl_attr_to_fid_attr(_In_ sai_vlan_attr_t attr)
+{
+    switch (attr) {
+    case SAI_VLAN_ATTR_UNKNOWN_UNICAST_FLOOD_CONTROL_TYPE:
+        return MLNX_FID_FLOOD_CTRL_ATTR_UC;
+
+    case SAI_VLAN_ATTR_UNKNOWN_MULTICAST_FLOOD_CONTROL_TYPE:
+        return MLNX_FID_FLOOD_CTRL_ATTR_MC;
+
+    case SAI_VLAN_ATTR_BROADCAST_FLOOD_CONTROL_TYPE:
+        return MLNX_FID_FLOOD_CTRL_ATTR_BC;
+
+    default:
+        SX_LOG_ERR("Unexpected flood ctrl attr - %d\n", attr);
+        assert(false);
+        return MLNX_FID_FLOOD_CTRL_ATTR_MAX;
+    }
+}
+
+static mlnx_fid_flood_ctrl_attr_t mlnx_vlan_flood_ctrl_group_attr_to_fid_attr(_In_ sai_vlan_attr_t attr)
+{
+    switch (attr) {
+    case SAI_VLAN_ATTR_UNKNOWN_UNICAST_FLOOD_GROUP:
+        return MLNX_FID_FLOOD_CTRL_ATTR_UC;
+
+    case SAI_VLAN_ATTR_UNKNOWN_MULTICAST_FLOOD_GROUP:
+        return MLNX_FID_FLOOD_CTRL_ATTR_MC;
+
+    case SAI_VLAN_ATTR_BROADCAST_FLOOD_GROUP:
+        return MLNX_FID_FLOOD_CTRL_ATTR_BC;
+
+    default:
+        SX_LOG_ERR("Unexpected flood ctrl group  attr - %d\n", attr);
+        assert(false);
+        return MLNX_FID_FLOOD_CTRL_ATTR_MAX;
+    }
+}
+
+static sai_vlan_flood_control_type_t mlnx_fid_flood_type_to_vlan_type(_In_ mlnx_fid_flood_ctrl_type_t type)
+{
+    assert(type <= MLNX_FID_FLOOD_TYPE_L2MC_GROUP);
+
+    return (sai_vlan_flood_control_type_t)(type);
+}
+
+void mlnx_fid_flood_ctrl_init(_In_ mlnx_fid_flood_data_t *data)
+{
+    assert(data);
+
+    data->types[MLNX_FID_FLOOD_CTRL_ATTR_UC] = MLNX_FID_FLOOD_CTRL_DATA_DEFAULT;
+    data->types[MLNX_FID_FLOOD_CTRL_ATTR_BC] = MLNX_FID_FLOOD_CTRL_DATA_DEFAULT;
+    data->types[MLNX_FID_FLOOD_CTRL_ATTR_MC] = MLNX_FID_FLOOD_CTRL_DATA_DEFAULT;
+}
+
+void mlnx_fid_flood_ctrl_l2mc_group_refs_inc(_In_ const mlnx_fid_flood_data_t *data)
+{
+    assert(data);
+
+    if (MLNX_L2MC_GROUP_DB_IDX_IS_VALID(data->types[MLNX_FID_FLOOD_CTRL_ATTR_UC].l2mc_db_idx)) {
+        mlnx_l2mc_group_flood_ctrl_ref_inc(data->types[MLNX_FID_FLOOD_CTRL_ATTR_UC].l2mc_db_idx);
+    }
+
+    if (MLNX_L2MC_GROUP_DB_IDX_IS_VALID(data->types[MLNX_FID_FLOOD_CTRL_ATTR_BC].l2mc_db_idx)) {
+        mlnx_l2mc_group_flood_ctrl_ref_inc(data->types[MLNX_FID_FLOOD_CTRL_ATTR_BC].l2mc_db_idx);
+    }
+
+    if (MLNX_L2MC_GROUP_DB_IDX_IS_VALID(data->types[MLNX_FID_FLOOD_CTRL_ATTR_MC].l2mc_db_idx)) {
+        mlnx_l2mc_group_flood_ctrl_ref_inc(data->types[MLNX_FID_FLOOD_CTRL_ATTR_MC].l2mc_db_idx);
+    }
+}
+
+void mlnx_fid_flood_ctrl_l2mc_group_refs_dec(_In_ const mlnx_fid_flood_data_t *data)
+{
+    assert(data);
+
+    if (MLNX_L2MC_GROUP_DB_IDX_IS_VALID(data->types[MLNX_FID_FLOOD_CTRL_ATTR_UC].l2mc_db_idx)) {
+        mlnx_l2mc_group_flood_ctrl_ref_dec(data->types[MLNX_FID_FLOOD_CTRL_ATTR_UC].l2mc_db_idx);
+    }
+
+    if (MLNX_L2MC_GROUP_DB_IDX_IS_VALID(data->types[MLNX_FID_FLOOD_CTRL_ATTR_BC].l2mc_db_idx)) {
+        mlnx_l2mc_group_flood_ctrl_ref_dec(data->types[MLNX_FID_FLOOD_CTRL_ATTR_BC].l2mc_db_idx);
+    }
+
+    if (MLNX_L2MC_GROUP_DB_IDX_IS_VALID(data->types[MLNX_FID_FLOOD_CTRL_ATTR_MC].l2mc_db_idx)) {
+        mlnx_l2mc_group_flood_ctrl_ref_dec(data->types[MLNX_FID_FLOOD_CTRL_ATTR_MC].l2mc_db_idx);
+    }
+}
+
+static sai_status_t mlnx_fid_uc_bc_flood_ctrl_apply(_In_ sx_fid_t                          sx_fid,
+                                                    _In_ sx_flood_control_type_t           sx_flood_type,
+                                                    _In_ const sx_port_log_id_t           *sx_fid_ports,
+                                                    _In_ uint32_t                          fid_ports_count,
+                                                    _In_ const mlnx_fid_flood_type_data_t *data)
+{
+    sai_status_t     status;
+    sx_status_t      sx_status;
+    sx_port_log_id_t sx_l2mc_ports[MAX_BRIDGE_1Q_PORTS] = {0}, ports_to_block[MAX_BRIDGE_1Q_PORTS] = {0};
+    uint32_t         l2mc_ports_count                   = MAX_BRIDGE_1Q_PORTS, ports_to_block_count, ii, jj;
+    bool             block_port;
+
+    assert(sx_fid_ports);
+    assert(data);
+    assert(data->type <= MLNX_FID_FLOOD_TYPE_L2MC_GROUP);
+
+    if (data->type == MLNX_FID_FLOOD_TYPE_ALL) {
+        sx_status = sx_api_fdb_flood_control_set(gh_sdk, SX_ACCESS_CMD_DELETE_ALL_PORTS,
+                                                 DEFAULT_ETH_SWID, sx_fid, sx_flood_type,
+                                                 0, NULL);
+        if (SX_ERR(sx_status)) {
+            SX_LOG_ERR("Failed to delete fdb flood list for fid %u - %s.\n", sx_fid, SX_STATUS_MSG(sx_status));
+            return sdk_to_sai(sx_status);
+        }
+
+        SX_LOG_DBG("Deleted all the ports for fid %u flood control (%s)\n", sx_fid, "MLNX_FID_FLOOD_TYPE_ALL");
+    }
+
+    if (data->type == MLNX_FID_FLOOD_TYPE_NONE) {
+        if (fid_ports_count > 0) {
+            sx_status = sx_api_fdb_flood_control_set(gh_sdk, SX_ACCESS_CMD_ADD_PORTS,
+                                                     DEFAULT_ETH_SWID, sx_fid, sx_flood_type,
+                                                     fid_ports_count, sx_fid_ports);
+            if (SX_ERR(sx_status)) {
+                SX_LOG_ERR("Failed to add ports to fdb flood list for fid %u - %s.\n", sx_fid,
+                           SX_STATUS_MSG(sx_status));
+                return sdk_to_sai(sx_status);
+            }
+        }
+
+        SX_LOG_DBG("added %u ports (first %x) for fid %u flood control (%s)\n", fid_ports_count, sx_fid_ports[0],
+                   sx_fid, "MLNX_FID_FLOOD_TYPE_NONE");
+    }
+
+    if (data->type == MLNX_FID_FLOOD_TYPE_L2MC_GROUP) {
+        if (MLNX_L2MC_GROUP_DB_IDX_IS_VALID(data->l2mc_db_idx)) {
+            status = mlnx_l2mc_group_sx_ports_get(&l2mc_group_db(data->l2mc_db_idx), sx_l2mc_ports, &l2mc_ports_count);
+            if (SAI_ERR(status)) {
+                return status;
+            }
+        } else {
+            SX_LOG_DBG("Flood control type is L2 MC group but group oid is not specified yet\n");
+            l2mc_ports_count = 0;
+        }
+
+        ports_to_block_count = 0;
+        /* block a port if it's not present in L2MC group */
+        for (ii = 0; ii < fid_ports_count; ii++) {
+            block_port = true;
+            for (jj = 0; jj < l2mc_ports_count; jj++) {
+                if (sx_l2mc_ports[jj] == sx_fid_ports[ii]) {
+                    block_port = false;
+                    break;
+                }
+            }
+
+            if (block_port) {
+                ports_to_block[ports_to_block_count] = sx_fid_ports[ii];
+                ports_to_block_count++;
+            }
+        }
+
+        SX_LOG_DBG("adding %u ports (first %x) to fid %u flood control (%s)\n",
+                   ports_to_block_count,
+                   ports_to_block[0],
+                   sx_fid,
+                   "MLNX_FID_FLOOD_TYPE_L2MC_GROUP");
+
+        if (ports_to_block_count > 0) {
+            sx_status = sx_api_fdb_flood_control_set(gh_sdk, SX_ACCESS_CMD_ADD_PORTS,
+                                                     DEFAULT_ETH_SWID, sx_fid, sx_flood_type,
+                                                     ports_to_block_count, ports_to_block);
+            if (SX_ERR(sx_status)) {
+                SX_LOG_ERR("Failed to add ports to fdb flood list for fid %u - %s.\n", sx_fid,
+                           SX_STATUS_MSG(sx_status));
+                return sdk_to_sai(sx_status);
+            }
+        }
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_fid_mc_flood_ctrl_apply(_In_ sx_fid_t                          sx_fid,
+                                                 _In_ const sx_port_log_id_t           *sx_fid_ports,
+                                                 _In_ uint32_t                          fid_ports_count,
+                                                 _In_ const mlnx_fid_flood_type_data_t *data)
+{
+    sai_status_t     status;
+    sx_status_t      sx_status;
+    sx_port_log_id_t sx_l2mc_ports[MAX_BRIDGE_1Q_PORTS] = {0};
+    uint32_t         l2mc_ports_count                   = MAX_BRIDGE_1Q_PORTS;
+
+    assert(sx_fid_ports);
+    assert(data);
+    assert(data->type <= MLNX_FID_FLOOD_TYPE_L2MC_GROUP);
+
+    if (data->type == MLNX_FID_FLOOD_TYPE_ALL) {
+        sx_status = sx_api_fdb_unreg_mc_flood_mode_set(gh_sdk, DEFAULT_ETH_SWID, sx_fid, SX_FDB_UNREG_MC_FLOOD);
+        if (SX_ERR(sx_status)) {
+            SX_LOG_ERR("Failed to set fdb unreg mc flood mode for fid %u - %s.\n", sx_fid, SX_STATUS_MSG(sx_status));
+            return sdk_to_sai(sx_status);
+        }
+
+        sx_status =
+            sx_api_fdb_unreg_mc_flood_ports_set(gh_sdk, DEFAULT_ETH_SWID, sx_fid, sx_fid_ports, fid_ports_count);
+        if (SX_ERR(sx_status)) {
+            SX_LOG_ERR("Failed to set fdb unreg mc flood port list for fid %u - %s.\n", sx_fid, SX_STATUS_MSG(
+                           sx_status));
+            return sdk_to_sai(sx_status);
+        }
+    }
+
+    if (data->type == MLNX_FID_FLOOD_TYPE_NONE) {
+        sx_status = sx_api_fdb_unreg_mc_flood_mode_set(gh_sdk, DEFAULT_ETH_SWID, sx_fid, SX_FDB_UNREG_MC_PRUNE);
+        if (SX_ERR(sx_status)) {
+            SX_LOG_ERR("Failed to set fdb unreg mc flood mode for fid %u - %s.\n", sx_fid, SX_STATUS_MSG(sx_status));
+            return sdk_to_sai(sx_status);
+        }
+
+        sx_status = sx_api_fdb_unreg_mc_flood_ports_set(gh_sdk, DEFAULT_ETH_SWID, sx_fid, NULL, 0);
+        if (SX_ERR(sx_status)) {
+            SX_LOG_ERR("Failed to clear fdb unreg mc flood port list for fid %u - %s.\n", sx_fid,
+                       SX_STATUS_MSG(sx_status));
+            return sdk_to_sai(sx_status);
+        }
+    }
+
+    if (data->type == MLNX_FID_FLOOD_TYPE_L2MC_GROUP) {
+        if (MLNX_L2MC_GROUP_DB_IDX_IS_VALID(data->l2mc_db_idx)) {
+            status = mlnx_l2mc_group_sx_ports_get(&l2mc_group_db(data->l2mc_db_idx), sx_l2mc_ports, &l2mc_ports_count);
+            if (SAI_ERR(status)) {
+                return status;
+            }
+        } else {
+            SX_LOG_DBG("Flood control type is L2 MC group but group oid is not specified yet\n");
+            l2mc_ports_count = 0;
+        }
+
+        sx_status = sx_api_fdb_unreg_mc_flood_mode_set(gh_sdk, DEFAULT_ETH_SWID, sx_fid, SX_FDB_UNREG_MC_PRUNE);
+        if (SX_ERR(sx_status)) {
+            SX_LOG_ERR("Failed to set fdb unreg mc flood mode for fid %u - %s.\n", sx_fid, SX_STATUS_MSG(sx_status));
+            return sdk_to_sai(sx_status);
+        }
+
+        sx_status = sx_api_fdb_unreg_mc_flood_ports_set(gh_sdk,
+                                                        DEFAULT_ETH_SWID,
+                                                        sx_fid,
+                                                        sx_l2mc_ports,
+                                                        l2mc_ports_count);
+        if (SX_ERR(sx_status)) {
+            SX_LOG_ERR("Failed to set fdb unreg mc flood port list for fid %u - %s.\n", sx_fid, SX_STATUS_MSG(
+                           sx_status));
+            return sdk_to_sai(sx_status);
+        }
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_fid_flood_ctrl_update_prepare(_In_ sx_fid_t                          sx_fid,
+                                                       _In_ mlnx_fid_flood_ctrl_attr_t        attr,
+                                                       _In_ mlnx_fid_flood_ctrl_type_t        prev_type,
+                                                       _In_ const mlnx_fid_flood_type_data_t *data)
+{
+    sx_status_t             sx_status;
+    sx_flood_control_type_t sx_flood_control_type;
+
+    assert(data);
+
+    /* no need to clean ports since sx_api_fdb_unreg_mc_flood_ports_set resets it */
+    if (attr == MLNX_FID_FLOOD_CTRL_ATTR_MC) {
+        return SAI_STATUS_SUCCESS;
+    }
+
+    if ((prev_type == MLNX_FID_FLOOD_TYPE_L2MC_GROUP) || (data->type == MLNX_FID_FLOOD_TYPE_L2MC_GROUP)) {
+        SX_LOG_NTC("Deleting all the ports from fid %u flood control\n", sx_fid);
+
+        sx_flood_control_type = (attr == MLNX_FID_FLOOD_CTRL_ATTR_UC) ? SX_FLOOD_CONTROL_TYPE_UNICAST_E :
+                                SX_FLOOD_CONTROL_TYPE_BROADCAST_E;
+        sx_status = sx_api_fdb_flood_control_set(gh_sdk, SX_ACCESS_CMD_DELETE_ALL_PORTS, DEFAULT_ETH_SWID, sx_fid,
+                                                 sx_flood_control_type, 0, NULL);
+        if (SX_ERR(sx_status)) {
+            SX_LOG_ERR("Failed to delete fdb flood list for fid %u - %s.\n", sx_fid, SX_STATUS_MSG(sx_status));
+            return sdk_to_sai(sx_status);
+        }
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static bool mlnx_fid_flood_ctrl_attr_is_fid_ports_needed(_In_ mlnx_fid_flood_ctrl_attr_t attr,
+                                                         _In_ mlnx_fid_flood_ctrl_type_t type)
+{
+    assert(attr < MLNX_FID_FLOOD_CTRL_ATTR_MAX);
+    assert(type < MLNX_FID_FLOOD_TYPE_MAX);
+
+    if (((type == MLNX_FID_FLOOD_TYPE_NONE) || (type == MLNX_FID_FLOOD_TYPE_L2MC_GROUP)) &&
+        ((attr == MLNX_FID_FLOOD_CTRL_ATTR_UC) || (attr == MLNX_FID_FLOOD_CTRL_ATTR_BC))) {
+        return true;
+    }
+
+    if ((type == MLNX_FID_FLOOD_TYPE_ALL) && (attr == MLNX_FID_FLOOD_CTRL_ATTR_MC)) {
+        return true;
+    }
+
+    return false;
+}
+
+sai_status_t mlnx_fid_ports_get(_In_ sx_fid_t           sx_fid,
+                                _Out_ sx_port_log_id_t *sx_ports,
+                                _Inout_ uint32_t       *ports_count)
+{
+    if (sx_fid < MIN_SX_BRIDGE_ID) {
+        return mlnx_vlans_ports_get(sx_fid, sx_ports, ports_count);
+    } else {
+        return mlnx_bridge_sx_ports_get(sx_fid, sx_ports, ports_count);
+    }
+}
+
+static sai_status_t mlnx_fid_flood_ctrl_type_data_apply(_In_ sx_fid_t                          sx_fid,
+                                                        _In_ mlnx_fid_flood_ctrl_attr_t        attr,
+                                                        _In_ const mlnx_fid_flood_type_data_t *flood_data)
+{
+    sai_status_t     status;
+    sx_port_log_id_t fid_ports[MAX_BRIDGE_1Q_PORTS] = {0};
+    uint32_t         ports_count                    = 0;
+
+    if (mlnx_fid_flood_ctrl_attr_is_fid_ports_needed(attr, flood_data->type)) {
+        ports_count = MAX_BRIDGE_1Q_PORTS;
+        status      = mlnx_fid_ports_get(sx_fid, fid_ports, &ports_count);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to get fid %u ports\n", sx_fid);
+            return status;
+        }
+    }
+
+    switch (attr) {
+    case MLNX_FID_FLOOD_CTRL_ATTR_UC:
+        status = mlnx_fid_uc_bc_flood_ctrl_apply(sx_fid, SX_FLOOD_CONTROL_TYPE_UNICAST_E,
+                                                 fid_ports, ports_count, flood_data);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to update unknown uc flood control for VLAN %d\n", sx_fid);
+            return status;
+        }
+        break;
+
+    case MLNX_FID_FLOOD_CTRL_ATTR_BC:
+        status = mlnx_fid_uc_bc_flood_ctrl_apply(sx_fid, SX_FLOOD_CONTROL_TYPE_BROADCAST_E,
+                                                 fid_ports, ports_count, flood_data);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to update broadcast flood control for VLAN %d\n", sx_fid);
+            return status;
+        }
+        break;
+
+    case MLNX_FID_FLOOD_CTRL_ATTR_MC:
+        status = mlnx_fid_mc_flood_ctrl_apply(sx_fid, fid_ports, ports_count, flood_data);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to update unknown mc flood control for VLAN %d\n", sx_fid);
+            return status;
+        }
+        break;
+
+    default:
+        SX_LOG_ERR("Unexpected flood attribute - %d\n", attr);
+        return SAI_STATUS_FAILURE;
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_fid_flood_ctrl_update(_In_ sx_fid_t                          sx_fid,
+                                               _In_ mlnx_fid_flood_ctrl_attr_t        attr,
+                                               _In_ mlnx_fid_flood_ctrl_type_t        prev_type,
+                                               _In_ const mlnx_fid_flood_type_data_t *flood_data)
+{
+    sai_status_t status;
+
+    status = mlnx_fid_flood_ctrl_update_prepare(sx_fid, attr, prev_type, flood_data);
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+    status = mlnx_fid_flood_ctrl_type_data_apply(sx_fid, attr, flood_data);
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
+sai_status_t mlnx_fid_flood_ctrl_set_forward_after_drop(_In_ sx_fid_t                          sx_fid,
+                                                        _In_ mlnx_fid_flood_ctrl_attr_t        attr,
+                                                        _In_ const mlnx_fid_flood_type_data_t *flood_data)
+{
+    assert(attr < MLNX_FID_FLOOD_CTRL_ATTR_MAX);
+    assert(flood_data);
+
+    return mlnx_fid_flood_ctrl_update(sx_fid, attr, MLNX_FID_FLOOD_TYPE_NONE, flood_data);
+}
+
+sai_status_t mlnx_fid_flood_ctrl_set_drop(_In_ sx_fid_t                          sx_fid,
+                                          _In_ mlnx_fid_flood_ctrl_attr_t        attr,
+                                          _In_ const mlnx_fid_flood_type_data_t *flood_data)
+{
+    mlnx_fid_flood_type_data_t drop;
+
+    assert(attr < MLNX_FID_FLOOD_CTRL_ATTR_MAX);
+    assert(flood_data);
+
+    drop.type        = MLNX_FID_FLOOD_TYPE_NONE;
+    drop.l2mc_db_idx = MLNX_L2MC_GROUP_DB_IDX_INVALID;
+
+    return mlnx_fid_flood_ctrl_update(sx_fid, attr, flood_data->type, &drop);
+}
+
+sai_status_t mlnx_fid_flood_ctrl_type_set(_In_ sx_fid_t                       sx_fid,
+                                          _In_ mlnx_fid_flood_ctrl_attr_t     attr,
+                                          _Inout_ mlnx_fid_flood_type_data_t *data,
+                                          _In_ mlnx_fid_flood_ctrl_type_t     new_type)
+{
+    sx_status_t                status;
+    mlnx_fid_flood_ctrl_type_t prev_type;
+
+    if (new_type == data->type) {
+        return SAI_STATUS_SUCCESS;
+    }
+
+    prev_type  = data->type;
+    data->type = new_type;
+
+    if (g_sai_db_ptr->flood_actions[attr] == SAI_PACKET_ACTION_DROP) {
+        return SAI_STATUS_SUCCESS;
+    }
+
+    status = mlnx_fid_flood_ctrl_update(sx_fid, attr, prev_type, data);
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_fid_flood_ctrl_uc_bc_port_event_handle(_In_ sx_fid_t                          sx_fid,
+                                                                _In_ sx_flood_control_type_t           sx_flood_type,
+                                                                _In_ const mlnx_fid_flood_type_data_t *data,
+                                                                _In_ const sx_port_log_id_t           *sx_ports,
+                                                                _In_ uint32_t                          sx_ports_count,
+                                                                _In_ mlnx_port_event_t                 event)
+{
+    sai_status_t     status;
+    sx_status_t      sx_status;
+    sx_access_cmd_t  sx_cmd;
+    sx_port_log_id_t sx_l2mc_ports[MAX_BRIDGE_1Q_PORTS] = {0}, ports_to_update[MAX_BRIDGE_1Q_PORTS] = {0};
+    uint32_t         l2mc_ports_count                   = MAX_BRIDGE_1Q_PORTS, ports_to_update_count, ii, jj;
+    bool             block_port;
+
+    assert(data);
+    assert(sx_ports);
+
+    if (data->type == MLNX_FID_FLOOD_TYPE_ALL) {
+        /* flood control list is empty, default is 'ALL' */
+        return SAI_STATUS_SUCCESS;
+    }
+
+    if (data->type == MLNX_FID_FLOOD_TYPE_NONE) {
+        sx_cmd    = (event == MLNX_PORT_EVENT_ADD) ? SX_ACCESS_CMD_ADD_PORTS : SX_ACCESS_CMD_DELETE_PORTS;
+        sx_status = sx_api_fdb_flood_control_set(gh_sdk, sx_cmd, DEFAULT_ETH_SWID, sx_fid, sx_flood_type,
+                                                 sx_ports_count, sx_ports);
+        if (SX_ERR(sx_status)) {
+            SX_LOG_ERR("Failed to add ports to fid %u flood control - %s.\n", sx_fid, SX_STATUS_MSG(sx_status));
+            return sdk_to_sai(sx_status);
+        }
+
+        SX_LOG_DBG("%s %u ports (first %x) for fid %u flood control (%s)\n", SX_ACCESS_CMD_STR(sx_cmd),
+                   sx_ports_count, sx_ports[0], sx_fid, "MLNX_FID_FLOOD_TYPE_NONE event");
+    }
+
+    if (data->type == MLNX_FID_FLOOD_TYPE_L2MC_GROUP) {
+        if (MLNX_L2MC_GROUP_DB_IDX_IS_VALID(data->l2mc_db_idx)) {
+            status = mlnx_l2mc_group_sx_ports_get(&l2mc_group_db(data->l2mc_db_idx), sx_l2mc_ports, &l2mc_ports_count);
+            if (SAI_ERR(status)) {
+                return status;
+            }
+        } else {
+            SX_LOG_DBG("Flood control type is L2 MC group but group oid is not specified yet\n");
+            l2mc_ports_count = 0;
+        }
+
+        /* update the ports that are not present in L2MC group */
+        ports_to_update_count = 0;
+        for (ii = 0; ii < sx_ports_count; ii++) {
+            block_port = true;
+            for (jj = 0; jj < l2mc_ports_count; jj++) {
+                if (sx_l2mc_ports[jj] == sx_ports[ii]) {
+                    block_port = false;
+                    break;
+                }
+            }
+
+            if (block_port) {
+                ports_to_update[ports_to_update_count] = sx_ports[ii];
+                ports_to_update_count++;
+            }
+        }
+
+        sx_cmd = (event == MLNX_PORT_EVENT_ADD) ? SX_ACCESS_CMD_ADD_PORTS : SX_ACCESS_CMD_DELETE_PORTS;
+
+        SX_LOG_DBG("%s %u ports (first %x) for fid %u flood control (%s)\n", SX_ACCESS_CMD_STR(sx_cmd),
+                   ports_to_update_count, ports_to_update[0], sx_fid, "MLNX_FID_FLOOD_TYPE_L2MC_GROUP event");
+
+        if (ports_to_update_count > 0) {
+            sx_status = sx_api_fdb_flood_control_set(gh_sdk, sx_cmd,
+                                                     DEFAULT_ETH_SWID, sx_fid, sx_flood_type,
+                                                     ports_to_update_count, ports_to_update);
+            if (SX_ERR(sx_status)) {
+                SX_LOG_ERR("Failed to add fdb flood list for fid %u - %s.\n", sx_fid, SX_STATUS_MSG(sx_status));
+                return sdk_to_sai(sx_status);
+            }
+        }
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_fid_flood_ctrl_mc_port_event_handle(_In_ sx_fid_t                          sx_fid,
+                                                             _In_ const mlnx_fid_flood_type_data_t *data,
+                                                             _In_ const sx_port_log_id_t           *sx_ports,
+                                                             _In_ uint32_t                          sx_port_count,
+                                                             _In_ mlnx_port_event_t                 event)
+{
+    assert(data);
+    assert(sx_ports);
+
+    if ((data->type == MLNX_FID_FLOOD_TYPE_L2MC_GROUP) ||
+        (data->type == MLNX_FID_FLOOD_TYPE_NONE)) {
+        return SAI_STATUS_SUCCESS;
+    }
+
+    /* For MLNX_FID_FLOOD_TYPE_ALL we reapply a config.
+     * It will fetch all the fid's ports (including/excluding a new ones from event)
+     */
+    return mlnx_fid_flood_ctrl_type_data_apply(sx_fid, MLNX_FID_FLOOD_CTRL_ATTR_MC, data);
+}
+
+sai_status_t mlnx_fid_flood_ctrl_port_event_handle(_In_ sx_fid_t                     sx_fid,
+                                                   _In_ const mlnx_fid_flood_data_t *data,
+                                                   _In_ const sx_port_log_id_t      *sx_ports,
+                                                   _In_ uint32_t                     sx_port_count,
+                                                   _In_ mlnx_port_event_t            event)
+{
+    sai_status_t                      status;
+    const mlnx_fid_flood_type_data_t *data_to_apply;
+    mlnx_fid_flood_type_data_t        drop_data;
+    sai_packet_action_t               switch_action;
+
+    assert((event == MLNX_PORT_EVENT_ADD) || (event == MLNX_PORT_EVENT_DELETE));
+    assert(data);
+    assert(sx_ports);
+
+    drop_data.type        = MLNX_FID_FLOOD_TYPE_NONE;
+    drop_data.l2mc_db_idx = MLNX_L2MC_GROUP_DB_IDX_INVALID;
+
+    switch_action = g_sai_db_ptr->flood_actions[MLNX_FID_FLOOD_CTRL_ATTR_UC];
+    if (switch_action == SAI_PACKET_ACTION_DROP) {
+        data_to_apply = &drop_data;
+    } else {
+        data_to_apply = &data->types[MLNX_FID_FLOOD_CTRL_ATTR_UC];
+    }
+
+    status = mlnx_fid_flood_ctrl_uc_bc_port_event_handle(sx_fid, SX_FLOOD_CONTROL_TYPE_UNICAST_E,
+                                                         data_to_apply, sx_ports, sx_port_count, event);
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+    switch_action = g_sai_db_ptr->flood_actions[MLNX_FID_FLOOD_CTRL_ATTR_BC];
+    if (switch_action == SAI_PACKET_ACTION_DROP) {
+        data_to_apply = &drop_data;
+    } else {
+        data_to_apply = &data->types[MLNX_FID_FLOOD_CTRL_ATTR_BC];
+    }
+
+    status = mlnx_fid_flood_ctrl_uc_bc_port_event_handle(sx_fid, SX_FLOOD_CONTROL_TYPE_BROADCAST_E,
+                                                         data_to_apply, sx_ports, sx_port_count, event);
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+    switch_action = g_sai_db_ptr->flood_actions[MLNX_FID_FLOOD_CTRL_ATTR_MC];
+    if (switch_action == SAI_PACKET_ACTION_DROP) {
+        data_to_apply = &drop_data;
+    } else {
+        data_to_apply = &data->types[MLNX_FID_FLOOD_CTRL_ATTR_MC];
+    }
+
+    status = mlnx_fid_flood_ctrl_mc_port_event_handle(sx_fid, data_to_apply, sx_ports, sx_port_count, event);
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
+sai_status_t mlnx_fid_flood_ctrl_l2mc_group_set(_In_ sx_fid_t                       sx_fid,
+                                                _In_ mlnx_fid_flood_ctrl_attr_t     attr,
+                                                _Inout_ mlnx_fid_flood_type_data_t *data,
+                                                _In_ sai_object_id_t                group_oid)
+{
+    sai_status_t status;
+    uint32_t     new_l2mc_group_idx;
+
+    assert(data);
+
+    if (group_oid == SAI_NULL_OBJECT_ID) {
+        new_l2mc_group_idx = MLNX_L2MC_GROUP_DB_IDX_INVALID;
+    } else {
+        status = mlnx_l2mc_group_oid_to_db_idx(group_oid, &new_l2mc_group_idx);
+        if (SAI_ERR(status)) {
+            return status;
+        }
+    }
+
+    if (new_l2mc_group_idx == data->l2mc_db_idx) {
+        return SAI_STATUS_SUCCESS;
+    }
+
+    if (MLNX_L2MC_GROUP_DB_IDX_IS_VALID(data->l2mc_db_idx)) {
+        mlnx_l2mc_group_flood_ctrl_ref_dec(data->l2mc_db_idx);
+    }
+
+    data->l2mc_db_idx = new_l2mc_group_idx;
+
+    if (g_sai_db_ptr->flood_actions[attr] == SAI_PACKET_ACTION_DROP) {
+        if (MLNX_L2MC_GROUP_DB_IDX_IS_VALID(new_l2mc_group_idx)) {
+            mlnx_l2mc_group_flood_ctrl_ref_inc(data->l2mc_db_idx);
+        }
+
+        return SAI_STATUS_SUCCESS;
+    }
+
+    if (data->type == MLNX_FID_FLOOD_TYPE_L2MC_GROUP) {
+        status = mlnx_fid_flood_ctrl_update(sx_fid, attr, MLNX_FID_FLOOD_TYPE_L2MC_GROUP, data);
+        if (SAI_ERR(status)) {
+            return status;
+        }
+    }
+
+    if (MLNX_L2MC_GROUP_DB_IDX_IS_VALID(new_l2mc_group_idx)) {
+        mlnx_l2mc_group_flood_ctrl_ref_inc(data->l2mc_db_idx);
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_vlan_flood_ctrl_type_get(_In_ const sai_object_key_t   *key,
+                                                  _Inout_ sai_attribute_value_t *value,
+                                                  _In_ uint32_t                  attr_index,
+                                                  _Inout_ vendor_cache_t        *cache,
+                                                  void                          *arg)
+{
+    sai_status_t                      status;
+    uint16_t                          vlan_id;
+    sai_vlan_attr_t                   attr;
+    mlnx_fid_flood_ctrl_attr_t        flood_ctrl_attr;
+    const mlnx_fid_flood_type_data_t *flood_ctrl_data;
+
+    SX_LOG_ENTER();
+
+    attr = (long)(arg);
+
+    assert((attr == SAI_VLAN_ATTR_UNKNOWN_UNICAST_FLOOD_CONTROL_TYPE) ||
+           (attr == SAI_VLAN_ATTR_UNKNOWN_MULTICAST_FLOOD_CONTROL_TYPE) ||
+           (attr == SAI_VLAN_ATTR_BROADCAST_FLOOD_CONTROL_TYPE));
+
+    status = sai_object_to_vlan(key->key.object_id, &vlan_id);
+    if (SAI_ERR(status)) {
+        SX_LOG_EXIT();
+        return status;
+    }
+
+    sai_db_read_lock();
+
+    flood_ctrl_attr = mlnx_vlan_flood_ctrl_attr_to_fid_attr(attr);
+    flood_ctrl_data = &mlnx_vlan_db_get_vlan(vlan_id)->flood_data.types[flood_ctrl_attr];
+
+    value->s32 = mlnx_fid_flood_type_to_vlan_type(flood_ctrl_data->type);
+
+    sai_db_unlock();
+    SX_LOG_EXIT();
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_vlan_flood_ctrl_type_set(_In_ const sai_object_key_t      *key,
+                                                  _In_ const sai_attribute_value_t *value,
+                                                  void                             *arg)
+{
+    sai_status_t                status;
+    uint16_t                    vlan_id;
+    sai_vlan_attr_t             attr;
+    mlnx_fid_flood_ctrl_attr_t  flood_ctrl_attr;
+    mlnx_fid_flood_type_data_t *flood_ctrl_data;
+    mlnx_fid_flood_ctrl_type_t  new_type;
+
+    SX_LOG_ENTER();
+
+    attr = (long)(arg);
+
+    assert((attr == SAI_VLAN_ATTR_UNKNOWN_UNICAST_FLOOD_CONTROL_TYPE) ||
+           (attr == SAI_VLAN_ATTR_UNKNOWN_MULTICAST_FLOOD_CONTROL_TYPE) ||
+           (attr == SAI_VLAN_ATTR_BROADCAST_FLOOD_CONTROL_TYPE));
+
+    new_type = mlnx_vlan_flood_type_to_fid_type(value->s32);
+
+    status = sai_object_to_vlan(key->key.object_id, &vlan_id);
+    if (SAI_ERR(status)) {
+        SX_LOG_EXIT();
+        return status;
+    }
+
+    sai_db_write_lock();
+
+    flood_ctrl_attr = mlnx_vlan_flood_ctrl_attr_to_fid_attr(attr);
+    flood_ctrl_data = &mlnx_vlan_db_get_vlan(vlan_id)->flood_data.types[flood_ctrl_attr];
+
+    status = mlnx_fid_flood_ctrl_type_set(vlan_id, flood_ctrl_attr, flood_ctrl_data, new_type);
+    if (SAI_ERR(status)) {
+        goto out;
+    }
+
+out:
+    sai_db_unlock();
+    SX_LOG_EXIT();
+    return status;
+}
+
+static sai_status_t mlnx_vlan_flood_ctrl_l2mc_group_get(_In_ const sai_object_key_t   *key,
+                                                        _Inout_ sai_attribute_value_t *value,
+                                                        _In_ uint32_t                  attr_index,
+                                                        _Inout_ vendor_cache_t        *cache,
+                                                        void                          *arg)
+{
+    sai_status_t                      status;
+    uint16_t                          vlan_id;
+    sai_vlan_attr_t                   attr;
+    const mlnx_fid_flood_type_data_t *flood_ctrl_data;
+    mlnx_fid_flood_ctrl_attr_t        flood_ctrl_attr;
+
+    SX_LOG_ENTER();
+
+    attr = (long)(arg);
+
+    assert((attr == SAI_VLAN_ATTR_UNKNOWN_UNICAST_FLOOD_GROUP) ||
+           (attr == SAI_VLAN_ATTR_UNKNOWN_MULTICAST_FLOOD_GROUP) ||
+           (attr == SAI_VLAN_ATTR_BROADCAST_FLOOD_GROUP));
+
+    status = sai_object_to_vlan(key->key.object_id, &vlan_id);
+    if (SAI_ERR(status)) {
+        SX_LOG_EXIT();
+        return status;
+    }
+
+    sai_db_read_lock();
+
+    flood_ctrl_attr = mlnx_vlan_flood_ctrl_group_attr_to_fid_attr(attr);
+    flood_ctrl_data = &mlnx_vlan_db_get_vlan(vlan_id)->flood_data.types[flood_ctrl_attr];
+
+    value->oid = SAI_NULL_OBJECT_ID;
+
+    if (MLNX_L2MC_GROUP_DB_IDX_IS_VALID(flood_ctrl_data->l2mc_db_idx)) {
+        status = mlnx_l2mc_group_oid_create(&l2mc_group_db(flood_ctrl_data->l2mc_db_idx), &value->oid);
+        if (SAI_ERR(status)) {
+            sai_db_unlock();
+            SX_LOG_EXIT();
+            return status;
+        }
+    }
+
+    sai_db_unlock();
+    SX_LOG_EXIT();
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_vlan_flood_ctrl_l2mc_group_set(_In_ const sai_object_key_t      *key,
+                                                        _In_ const sai_attribute_value_t *value,
+                                                        void                             *arg)
+{
+    sai_status_t                status;
+    uint16_t                    vlan_id;
+    sai_vlan_attr_t             attr;
+    mlnx_fid_flood_type_data_t *flood_ctrl_data;
+    mlnx_fid_flood_ctrl_attr_t  flood_ctrl_attr;
+
+    SX_LOG_ENTER();
+
+    attr = (long)(arg);
+
+    assert((attr == SAI_VLAN_ATTR_UNKNOWN_UNICAST_FLOOD_GROUP) ||
+           (attr == SAI_VLAN_ATTR_UNKNOWN_MULTICAST_FLOOD_GROUP) ||
+           (attr == SAI_VLAN_ATTR_BROADCAST_FLOOD_GROUP));
+
+    status = sai_object_to_vlan(key->key.object_id, &vlan_id);
+    if (SAI_ERR(status)) {
+        SX_LOG_EXIT();
+        return status;
+    }
+
+    sai_db_write_lock();
+
+    flood_ctrl_attr = mlnx_vlan_flood_ctrl_group_attr_to_fid_attr(attr);
+    flood_ctrl_data = &mlnx_vlan_db_get_vlan(vlan_id)->flood_data.types[flood_ctrl_attr];
+
+    status = mlnx_fid_flood_ctrl_l2mc_group_set(vlan_id, flood_ctrl_attr, flood_ctrl_data, value->oid);
+    if (SAI_ERR(status)) {
+        goto out;
+    }
+
+out:
+    sai_db_unlock();
+    SX_LOG_EXIT();
+    return status;
+}
+
+sai_status_t mlnx_default_vlan_flood_ctrl_init(void)
+{
+    return mlnx_fid_flood_ctrl_type_data_apply(DEFAULT_VLAN, MLNX_FID_FLOOD_CTRL_ATTR_MC,
+                                               &mlnx_vlan_db_get_vlan(DEFAULT_VLAN)->flood_data.types[
+                                                   MLNX_FID_FLOOD_CTRL_ATTR_MC]);
+}
+
+sai_status_t mlnx_fid_flood_ctrl_clear(_In_ sx_fid_t sx_fid)
+{
+    sx_status_t sx_status;
+
+    sx_status = sx_api_fdb_flood_control_set(gh_sdk, SX_ACCESS_CMD_DELETE_ALL_PORTS,
+                                             DEFAULT_ETH_SWID, sx_fid, SX_FLOOD_CONTROL_TYPE_UNICAST_E,
+                                             0, NULL);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to delete fdb unicast flood list for fid %u - %s.\n", sx_fid, SX_STATUS_MSG(sx_status));
+        return sdk_to_sai(sx_status);
+    }
+
+    sx_status = sx_api_fdb_flood_control_set(gh_sdk, SX_ACCESS_CMD_DELETE_ALL_PORTS,
+                                             DEFAULT_ETH_SWID, sx_fid, SX_FLOOD_CONTROL_TYPE_BROADCAST_E,
+                                             0, NULL);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to delete fdb broadcast flood list for fid %u - %s.\n", sx_fid, SX_STATUS_MSG(sx_status));
+        return sdk_to_sai(sx_status);
+    }
+
+    sx_status = sx_api_fdb_unreg_mc_flood_mode_set(gh_sdk, DEFAULT_ETH_SWID, sx_fid, SX_FDB_UNREG_MC_PRUNE);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to set fdb unreg mc flood mode for fid %u - %s.\n", sx_fid, SX_STATUS_MSG(sx_status));
+        return sdk_to_sai(sx_status);
+    }
+
+    sx_status = sx_api_fdb_unreg_mc_flood_ports_set(gh_sdk, DEFAULT_ETH_SWID, sx_fid, NULL, 0);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to clear fdb unreg mc flood port list for fid %u - %s.\n", sx_fid,
+                   SX_STATUS_MSG(sx_status));
+        return sdk_to_sai(sx_status);
+    }
+
+    return SAI_STATUS_SUCCESS;
 }
 
 sai_status_t mlnx_vlan_log_set(sx_verbosity_level_t level)

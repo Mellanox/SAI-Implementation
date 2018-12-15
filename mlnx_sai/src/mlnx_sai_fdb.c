@@ -84,7 +84,7 @@ static const sai_vendor_attribute_entry_t fdb_vendor_attribs[] = {
       NULL, NULL,
       NULL, NULL }
 };
-static const mlnx_attr_enum_info_t fdb_entry_enum_info[] = {
+static const mlnx_attr_enum_info_t        fdb_entry_enum_info[] = {
     [SAI_FDB_ENTRY_ATTR_TYPE] = ATTR_ENUM_VALUES_LIST(
         SAI_FDB_ENTRY_TYPE_STATIC,
         SAI_FDB_ENTRY_TYPE_DYNAMIC
@@ -96,8 +96,8 @@ static const mlnx_attr_enum_info_t fdb_entry_enum_info[] = {
         SAI_PACKET_ACTION_DROP
         )
 };
-const mlnx_obj_type_attrs_info_t mlnx_fdb_entry_obj_type_info =
-    { fdb_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(fdb_entry_enum_info)};
+const mlnx_obj_type_attrs_info_t          mlnx_fdb_entry_obj_type_info =
+{ fdb_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(fdb_entry_enum_info)};
 static const sai_vendor_attribute_entry_t fdb_flush_vendor_attribs[] = {
     { SAI_FDB_FLUSH_ATTR_BRIDGE_PORT_ID,
       { true, false, false, false },
@@ -120,13 +120,12 @@ static const sai_vendor_attribute_entry_t fdb_flush_vendor_attribs[] = {
       NULL, NULL,
       NULL, NULL }
 };
-static const mlnx_attr_enum_info_t fdb_flush_enum_info[] = {
+static const mlnx_attr_enum_info_t        fdb_flush_enum_info[] = {
     [SAI_FDB_FLUSH_ATTR_ENTRY_TYPE] = ATTR_ENUM_VALUES_LIST(
         SAI_FDB_FLUSH_ENTRY_TYPE_DYNAMIC)
 };
-const mlnx_obj_type_attrs_info_t mlnx_fdb_flush_obj_type_info =
-    { fdb_flush_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(fdb_flush_enum_info)};
-
+const mlnx_obj_type_attrs_info_t          mlnx_fdb_flush_obj_type_info =
+{ fdb_flush_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(fdb_flush_enum_info)};
 static sai_status_t mlnx_add_or_del_mac(sx_fdb_uc_mac_addr_params_t *mac_entry, sx_access_cmd_t cmd)
 {
     uint32_t            entries_count = 1;
@@ -1125,173 +1124,6 @@ static sai_status_t mlnx_flush_fdb_entries(_In_ sai_object_id_t        switch_id
 
     SX_LOG_EXIT();
     return SAI_STATUS_SUCCESS;
-}
-
-bool mlnx_fdb_is_flood_disabled()
-{
-    return ((g_sai_db_ptr->flood_action_uc == SAI_PACKET_ACTION_DROP) ||
-            (g_sai_db_ptr->flood_action_bc == SAI_PACKET_ACTION_DROP));
-}
-
-static sai_status_t mlnx_fdb_flood_uc_bc_control_set(_In_ sx_vid_t                vlan_id,
-                                                     _In_ const sx_port_log_id_t *sx_ports,
-                                                     _In_ uint32_t                ports_count,
-                                                     _In_ bool                    add)
-{
-    sx_status_t     sx_status;
-    sx_access_cmd_t flood_cmd;
-
-    assert(sx_ports);
-
-    flood_cmd = add ? SX_ACCESS_CMD_ADD_PORTS : SX_ACCESS_CMD_DELETE_PORTS;
-
-    if (g_sai_db_ptr->flood_action_uc == SAI_PACKET_ACTION_DROP) {
-        sx_status = sx_api_fdb_flood_control_set(gh_sdk, flood_cmd, DEFAULT_ETH_SWID, vlan_id,
-                                                 SX_FLOOD_CONTROL_TYPE_UNICAST_E, ports_count, sx_ports);
-        if (SX_ERR(sx_status)) {
-            SX_LOG_ERR("Failed to update FDB ucast flood list - %s.\n", SX_STATUS_MSG(sx_status));
-            return sdk_to_sai(sx_status);
-        }
-    }
-
-    if (g_sai_db_ptr->flood_action_bc == SAI_PACKET_ACTION_DROP) {
-        sx_status = sx_api_fdb_flood_control_set(gh_sdk, flood_cmd, DEFAULT_ETH_SWID, vlan_id,
-                                                 SX_FLOOD_CONTROL_TYPE_BROADCAST_E, ports_count, sx_ports);
-        if (SX_ERR(sx_status)) {
-            SX_LOG_ERR("Failed to update FDB bcast flood list - %s.\n", SX_STATUS_MSG(sx_status));
-            return sdk_to_sai(sx_status);
-        }
-    }
-
-    return SAI_STATUS_SUCCESS;
-}
-
-/* make sure this function call is guarded by lock */
-static sai_packet_action_t mlnx_flood_action_mc_get()
-{
-    sai_packet_action_t flood_action_mc;
-
-    flood_action_mc = g_sai_db_ptr->flood_action_mc;
-
-    return flood_action_mc;
-}
-
-static sai_status_t mlnx_fdb_flood_mc_control_set(_In_ sx_vid_t                vlan_id,
-                                                  _In_ const sx_port_log_id_t *sx_ports,
-                                                  _In_ uint32_t                ports_count,
-                                                  _In_ bool                    add)
-{
-    sai_status_t        status = SAI_STATUS_SUCCESS;
-    sx_status_t         sx_status;
-    sx_port_log_id_t   *log_ports      = NULL;
-    uint32_t            sx_ports_count = 0;
-    sai_packet_action_t flood_action_mc;
-    uint32_t            ii              = 0, jj = 0;
-    mlnx_bridge_port_t *mlnx_port       = NULL;
-    bool                port_is_in_list = false;
-
-    assert(sx_ports);
-
-    /* mlnx_fdb_flood_control_set is always guarded by a lock */
-    flood_action_mc = mlnx_flood_action_mc_get();
-
-    assert((SAI_PACKET_ACTION_DROP == flood_action_mc) ||
-           (SAI_PACKET_ACTION_FORWARD == flood_action_mc));
-
-    log_ports = calloc(MAX_BRIDGE_1Q_PORTS, sizeof(*log_ports));
-    if (!log_ports) {
-        SX_LOG_ERR("Failed to allocate memory\n");
-        return SAI_STATUS_NO_MEMORY;
-    }
-
-    if (SAI_PACKET_ACTION_DROP == flood_action_mc) {
-        sx_ports_count = 0;
-    } else if (SAI_PACKET_ACTION_FORWARD == flood_action_mc) {
-        mlnx_vlan_ports_foreach(vlan_id, mlnx_port, ii) {
-            port_is_in_list = false;
-            for (jj = 0; jj < ports_count; jj++) {
-                if (mlnx_port->logical == sx_ports[jj]) {
-                    port_is_in_list = true;
-                    break;
-                }
-            }
-            if (!port_is_in_list) {
-                log_ports[sx_ports_count++] = mlnx_port->logical;
-            }
-        }
-
-        if (add) {
-            for (jj = 0; jj < ports_count; jj++) {
-                log_ports[sx_ports_count++] = sx_ports[jj];
-            }
-        }
-    }
-
-    sx_status = sx_api_fdb_unreg_mc_flood_ports_set(gh_sdk, DEFAULT_ETH_SWID, vlan_id, log_ports, sx_ports_count);
-    if (SX_ERR(sx_status)) {
-        SX_LOG_ERR("Failed to update FDB unregistered mc flood list - %s.\n", SX_STATUS_MSG(sx_status));
-        status = sdk_to_sai(sx_status);
-        goto out;
-    }
-
-out:
-    free(log_ports);
-    return status;
-}
-
-sai_status_t mlnx_fdb_flood_control_set(_In_ sx_vid_t                vlan_id,
-                                        _In_ const sx_port_log_id_t *sx_ports,
-                                        _In_ uint32_t                ports_count,
-                                        _In_ bool                    add)
-{
-    sai_status_t sai_status = SAI_STATUS_FAILURE;
-
-    SX_LOG_ENTER();
-
-    sai_status = mlnx_fdb_flood_uc_bc_control_set(vlan_id, sx_ports, ports_count, add);
-    if (SAI_STATUS_SUCCESS != sai_status) {
-        SX_LOG_ERR("Error setting fdb flood control\n");
-        SX_LOG_EXIT();
-        return sai_status;
-    }
-
-    sai_status = mlnx_fdb_flood_mc_control_set(vlan_id, sx_ports, ports_count, add);
-    if (SAI_STATUS_SUCCESS != sai_status) {
-        SX_LOG_ERR("Error setting fdb flood mc control\n");
-        SX_LOG_EXIT();
-        return sai_status;
-    }
-
-    SX_LOG_EXIT();
-    return sai_status;
-
-    return SAI_STATUS_SUCCESS;
-}
-
-sai_status_t mlnx_fdb_port_event_handle(mlnx_bridge_port_t *port, uint16_t vid, sai_port_event_t event)
-{
-    const bool     add         = (event == SAI_PORT_EVENT_ADD);
-    sai_status_t   sai_status  = SAI_STATUS_FAILURE;
-    const uint32_t ports_count = 1;
-
-    SX_LOG_ENTER();
-
-    sai_status = mlnx_fdb_flood_uc_bc_control_set(vid, &port->logical, 1, add);
-    if (SAI_STATUS_SUCCESS != sai_status) {
-        SX_LOG_ERR("Error setting fdb flood control\n");
-        SX_LOG_EXIT();
-        return sai_status;
-    }
-
-    sai_status = mlnx_fdb_flood_mc_control_set(vid, &port->logical, ports_count, add);
-    if (SAI_STATUS_SUCCESS != sai_status) {
-        SX_LOG_ERR("Error setting fdb flood mc control\n");
-        SX_LOG_EXIT();
-        return sai_status;
-    }
-
-    SX_LOG_EXIT();
-    return sai_status;
 }
 
 sai_status_t mlnx_fdb_log_set(sx_verbosity_level_t level)

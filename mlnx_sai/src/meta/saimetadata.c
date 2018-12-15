@@ -6992,6 +6992,7 @@ const sai_switch_attr_t sai_metadata_sai_switch_attr_t_enum_values[] = {
     SAI_SWITCH_ATTR_MAX_SAMPLED_MIRROR_SESSION,
     SAI_SWITCH_ATTR_SUPPORTED_EXTENDED_STATS_MODE,
     SAI_SWITCH_ATTR_UNINIT_DATA_PLANE_ON_REMOVAL,
+    SAI_SWITCH_ATTR_PRE_SHUTDOWN,
     -1
 };
 const char* const sai_metadata_sai_switch_attr_t_enum_values_names[] = {
@@ -7137,6 +7138,7 @@ const char* const sai_metadata_sai_switch_attr_t_enum_values_names[] = {
     "SAI_SWITCH_ATTR_MAX_SAMPLED_MIRROR_SESSION",
     "SAI_SWITCH_ATTR_SUPPORTED_EXTENDED_STATS_MODE",
     "SAI_SWITCH_ATTR_UNINIT_DATA_PLANE_ON_REMOVAL",
+    "SAI_SWITCH_ATTR_PRE_SHUTDOWN",
     NULL
 };
 const char* const sai_metadata_sai_switch_attr_t_enum_values_short_names[] = {
@@ -7282,11 +7284,12 @@ const char* const sai_metadata_sai_switch_attr_t_enum_values_short_names[] = {
     "MAX_SAMPLED_MIRROR_SESSION",
     "SUPPORTED_EXTENDED_STATS_MODE",
     "UNINIT_DATA_PLANE_ON_REMOVAL",
+    "PRE_SHUTDOWN",
     NULL
 };
 const sai_enum_metadata_t sai_metadata_enum_sai_switch_attr_t = {
     .name              = "sai_switch_attr_t",
-    .valuescount       = 142,
+    .valuescount       = 143,
     .values            = (const int*)sai_metadata_sai_switch_attr_t_enum_values,
     .valuesnames       = sai_metadata_sai_switch_attr_t_enum_values_names,
     .valuesshortnames  = sai_metadata_sai_switch_attr_t_enum_values_short_names,
@@ -40751,6 +40754,49 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_UNINIT_DATA_PLANE_ON
     .isprimitive                   = true,
     .notificationtype              = -1,
 };
+const sai_attribute_value_t sai_metadata_SAI_SWITCH_ATTR_PRE_SHUTDOWN_default_value = { .booldata = false };
+const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_PRE_SHUTDOWN = {
+    .objecttype                    = SAI_OBJECT_TYPE_SWITCH,
+    .attrid                        = SAI_SWITCH_ATTR_PRE_SHUTDOWN,
+    .attridname                    = "SAI_SWITCH_ATTR_PRE_SHUTDOWN",
+    .brief                         = "Instruct SAI to execute switch pre-shutdown.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_BOOL,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
+    .defaultvalue                  = &sai_metadata_SAI_SWITCH_ATTR_PRE_SHUTDOWN_default_value,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = false,
+    .iscreateandset                = true,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+};
 const sai_attribute_value_t sai_metadata_SAI_TAM_ATTR_BUFFER_TRACKING_ADMIN_STATE_default_value = { .booldata = true };
 const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_ATTR_BUFFER_TRACKING_ADMIN_STATE = {
     .objecttype                    = SAI_OBJECT_TYPE_TAM,
@@ -48323,6 +48369,7 @@ const sai_attr_metadata_t* const sai_metadata_object_type_sai_switch_attr_t[] = 
     &sai_metadata_attr_SAI_SWITCH_ATTR_MAX_SAMPLED_MIRROR_SESSION,
     &sai_metadata_attr_SAI_SWITCH_ATTR_SUPPORTED_EXTENDED_STATS_MODE,
     &sai_metadata_attr_SAI_SWITCH_ATTR_UNINIT_DATA_PLANE_ON_REMOVAL,
+    &sai_metadata_attr_SAI_SWITCH_ATTR_PRE_SHUTDOWN,
     NULL
 };
 const sai_attr_metadata_t* const sai_metadata_object_type_sai_hostif_trap_attr_t[] = {
@@ -53207,7 +53254,7 @@ const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_SWITC
     .attridend            = SAI_SWITCH_ATTR_END,
     .enummetadata         = &sai_metadata_enum_sai_switch_attr_t,
     .attrmetadata         = sai_metadata_object_type_sai_switch_attr_t,
-    .attrmetadatalength   = 142,
+    .attrmetadatalength   = 143,
     .isnonobjectid        = false,
     .isobjectid           = !false,
     .structmembers        = NULL,
@@ -56602,6 +56649,7 @@ const sai_attr_metadata_t* const sai_metadata_attr_sorted_by_id_name[] = {
     &sai_metadata_attr_SAI_SWITCH_ATTR_PORT_MAX_MTU,
     &sai_metadata_attr_SAI_SWITCH_ATTR_PORT_STATE_CHANGE_NOTIFY,
     &sai_metadata_attr_SAI_SWITCH_ATTR_PORT_USER_META_DATA_RANGE,
+    &sai_metadata_attr_SAI_SWITCH_ATTR_PRE_SHUTDOWN,
     &sai_metadata_attr_SAI_SWITCH_ATTR_QOS_DEFAULT_TC,
     &sai_metadata_attr_SAI_SWITCH_ATTR_QOS_DOT1P_TO_COLOR_MAP,
     &sai_metadata_attr_SAI_SWITCH_ATTR_QOS_DOT1P_TO_TC_MAP,
@@ -56784,7 +56832,7 @@ const sai_attr_metadata_t* const sai_metadata_attr_sorted_by_id_name[] = {
     &sai_metadata_attr_SAI_WRED_ATTR_YELLOW_MIN_THRESHOLD,
     NULL
 };
-const size_t sai_metadata_attr_sorted_by_id_name_count = 859;
+const size_t sai_metadata_attr_sorted_by_id_name_count = 860;
 
 /* SAI notifications struct */
 

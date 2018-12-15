@@ -117,8 +117,8 @@ static const sai_vendor_attribute_entry_t sched_group_vendor_attribs[] = {
       NULL, NULL,
       NULL, NULL }
 };
-const mlnx_obj_type_attrs_info_t mlnx_sched_group_obj_type_info =
-    { sched_group_vendor_attribs, OBJ_ATTRS_ENUMS_INFO_EMPTY()};
+const mlnx_obj_type_attrs_info_t          mlnx_sched_group_obj_type_info =
+{ sched_group_vendor_attribs, OBJ_ATTRS_ENUMS_INFO_EMPTY()};
 static mlnx_sched_obj_t * group_get(mlnx_port_config_t *port, uint8_t level, uint8_t index)
 {
     return &port->sched_hierarchy.groups[level][index];
@@ -1309,7 +1309,7 @@ sai_status_t mlnx_scheduler_group_log_set(sx_verbosity_level_t level)
 }
 
 /* DB read lock is needed */
-sai_status_t mlnx_sched_group_port_init(mlnx_port_config_t *port, bool is_switch_init)
+sai_status_t mlnx_sched_group_port_init(mlnx_port_config_t *port, bool is_warmboot_init_stage)
 {
     sx_cos_ets_element_config_t *ets_list = NULL, *ets;
     uint32_t                     level, ii;
@@ -1348,11 +1348,11 @@ sai_status_t mlnx_sched_group_port_init(mlnx_port_config_t *port, bool is_switch
                 goto out;
             }
 
-            if (!is_switch_init) {
+            if (!is_warmboot_init_stage) {
                 status = sx_api_cos_port_ets_element_set(gh_sdk, SX_ACCESS_CMD_EDIT,
-                    port->logical,
-                    sched_obj_to_ets(obj, ets),
-                    1);
+                                                         port->logical,
+                                                         sched_obj_to_ets(obj, ets),
+                                                         1);
 
                 status = sdk_to_sai(status);
                 if (SAI_ERR(status)) {
@@ -1386,11 +1386,11 @@ sai_status_t mlnx_sched_group_port_init(mlnx_port_config_t *port, bool is_switch
             goto out;
         }
 
-        if (!is_switch_init) {
+        if (!is_warmboot_init_stage) {
             status = sx_api_cos_port_ets_element_set(gh_sdk, SX_ACCESS_CMD_EDIT,
-                port->logical,
-                sched_obj_to_ets(&queue->sched_obj, ets),
-                1);
+                                                     port->logical,
+                                                     sched_obj_to_ets(&queue->sched_obj, ets),
+                                                     1);
 
             status = sdk_to_sai(status);
             if (SAI_ERR(status)) {

@@ -21,7 +21,8 @@
 
 acl_group_db_t* sai_acl_db_group_ptr(_In_ uint32_t group_index);
 acl_group_bound_to_t* sai_acl_db_group_bount_to(_In_ uint32_t group_index);
-static void SAI_dump_acl_getdb(_Out_ acl_table_db_t       *acl_table_db,
+static void SAI_dump_acl_getdb(_In_  uint32_t              acl_group_number,
+                               _Out_ acl_table_db_t       *acl_table_db,
                                _Out_ acl_entry_db_t       *acl_entry_db,
                                _Out_ acl_setting_tbl_t    *acl_settings_tbl,
                                _Out_ acl_pbs_map_entry_t  *acl_pbs_map_db,
@@ -65,7 +66,7 @@ static void SAI_dump_acl_getdb(_Out_ acl_table_db_t       *acl_table_db,
 
     memcpy(acl_group_db,
            g_sai_acl_db_ptr->acl_groups_db,
-           (sizeof(acl_group_db_t) + sizeof(acl_group_member_t) * ACL_GROUP_SIZE) * ACL_GROUP_NUMBER);
+           (sizeof(acl_group_db_t) + sizeof(acl_group_member_t) * ACL_GROUP_SIZE) * acl_group_number);
 
     memcpy(acl_vlan_group,
            g_sai_acl_db_ptr->acl_vlan_groups_db,
@@ -74,7 +75,7 @@ static void SAI_dump_acl_getdb(_Out_ acl_table_db_t       *acl_table_db,
     memcpy(acl_group_bound_to,
            g_sai_acl_db_ptr->acl_group_bound_to_db,
            (sizeof(acl_group_bound_to_t) + (sizeof(acl_bind_point_index_t) * SAI_ACL_MAX_BIND_POINT_BOUND))
-           * ACL_GROUP_NUMBER);
+           * acl_group_number);
 
     acl_global_unlock();
 }
@@ -585,7 +586,8 @@ static void SAI_dump_acl_bind_points_print(_In_ FILE *file, _In_ acl_bind_points
 
 static void SAI_dump_acl_groups_db_print(_In_ FILE                 *file,
                                          _In_ acl_group_db_t       *acl_groups_db,
-                                         _In_ acl_group_bound_to_t *acl_group_bound_to)
+                                         _In_ acl_group_bound_to_t *acl_group_bound_to,
+                                         _In_ uint32_t              acl_group_number)
 {
     char                      acl_table_group_type_str[LINE_LENGTH] = {0};
     char                      acl_stage_type_str[LINE_LENGTH]       = {0};
@@ -625,7 +627,7 @@ static void SAI_dump_acl_groups_db_print(_In_ FILE                 *file,
 
     dbg_utils_print_general_header(file, "ACL Groups");
 
-    for (ii = 0; ii < ACL_GROUP_NUMBER; ii++) {
+    for (ii = 0; ii < acl_group_number; ii++) {
         if (sai_acl_db_group_ptr(ii)->is_used) {
             memcpy(&current_acl_group, sai_acl_db_group_ptr(ii), sizeof(acl_group_db_t));
 
@@ -728,6 +730,11 @@ void SAI_dump_acl(_In_ FILE *file)
     acl_vlan_group_t     *acl_vlan_group     = NULL;
     acl_group_bound_to_t *acl_group_bound_to = NULL;
 
+    sai_db_read_lock();
+    const uint32_t acl_divider = g_sai_db_ptr->acl_divider;
+    const uint32_t acl_group_number = ACL_GROUP_NUMBER/acl_divider;
+    sai_db_unlock();
+
     acl_table_db     = (acl_table_db_t*)calloc(ACL_TABLE_DB_SIZE, sizeof(acl_table_db_t));
     acl_entry_db     = (acl_entry_db_t*)calloc(ACL_ENTRY_DB_SIZE, sizeof(acl_entry_db_t));
     acl_settings_tbl = (acl_setting_tbl_t*)calloc(1, sizeof(acl_setting_tbl_t));
@@ -735,10 +742,10 @@ void SAI_dump_acl(_In_ FILE *file)
                                                     sizeof(acl_pbs_map_entry_t));
     acl_bind_points = (acl_bind_points_db_t*)calloc(1, sizeof(acl_bind_points_db_t) +
                                                     sizeof(acl_bind_point_t) * ACL_RIF_COUNT);
-    acl_group_db = (acl_group_db_t*)calloc(ACL_GROUP_NUMBER,
+    acl_group_db = (acl_group_db_t*)calloc(acl_group_number,
                                            sizeof(acl_group_db_t) + sizeof(acl_group_member_t) * ACL_GROUP_SIZE);
     acl_vlan_group     = (acl_vlan_group_t*)calloc(ACL_VLAN_GROUP_COUNT, sizeof(acl_vlan_group_t));
-    acl_group_bound_to = (acl_group_bound_to_t*)calloc(ACL_GROUP_NUMBER, sizeof(acl_group_bound_to_t) +
+    acl_group_bound_to = (acl_group_bound_to_t*)calloc(acl_group_number, sizeof(acl_group_bound_to_t) +
                                                        (sizeof(acl_bind_point_index_t) *
                                                         SAI_ACL_MAX_BIND_POINT_BOUND));
 
@@ -748,7 +755,8 @@ void SAI_dump_acl(_In_ FILE *file)
         goto cleanup;
     }
 
-    SAI_dump_acl_getdb(acl_table_db,
+    SAI_dump_acl_getdb(acl_group_number,
+                       acl_table_db,
                        acl_entry_db,
                        acl_settings_tbl,
                        acl_pbs_map_db,
@@ -769,7 +777,7 @@ void SAI_dump_acl(_In_ FILE *file)
     SAI_dump_acl_settings_tbl_print(file, acl_settings_tbl);
     SAI_dump_acl_pbs_map_db_print(file, acl_pbs_map_db);
     SAI_dump_acl_bind_points_print(file, acl_bind_points);
-    SAI_dump_acl_groups_db_print(file, acl_group_db, acl_group_bound_to);
+    SAI_dump_acl_groups_db_print(file, acl_group_db, acl_group_bound_to, acl_group_number);
     SAI_dump_acl_vlan_groups_db_print(file, acl_vlan_group);
 
 cleanup:
