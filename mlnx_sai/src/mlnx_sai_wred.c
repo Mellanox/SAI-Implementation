@@ -687,6 +687,7 @@ sai_status_t mlnx_wred_apply_to_queue(_In_ mlnx_port_config_t *port,
                                       _In_ uint32_t            queue_idx,
                                       _In_ sai_object_id_t     wred_id)
 {
+#ifndef SPC2_BRINGUP
     sai_status_t             status;
     mlnx_wred_profile_t      wred_profile;
     sai_object_id_t          curr_wred_id;
@@ -757,7 +758,7 @@ sai_status_t mlnx_wred_apply_to_queue(_In_ mlnx_port_config_t *port,
     }
 
     queue_cfg->wred_id = wred_id;
-
+#endif
     return SAI_STATUS_SUCCESS;
 }
 
@@ -1405,7 +1406,7 @@ sai_status_t mlnx_wred_init()
     sx_status_t            sx_status = SX_STATUS_SUCCESS;
 
     memset(&redecn_global, 0, sizeof(redecn_global));
-
+#ifndef SPC2_BRINGUP
     redecn_global.source_congestion_detection_only = false;
     redecn_global.weight                           = mlnx_wred_weight_to_sx(DEFAULT_WEIGHT_VAL);
 
@@ -1413,7 +1414,7 @@ sai_status_t mlnx_wred_init()
     if (SX_STATUS_SUCCESS != sx_status) {
         SX_LOG_ERR("Failed to set redecn global config - %s.\n", SX_STATUS_MSG(sx_status));
     }
-
+#endif
     return sdk_to_sai(sx_status);
 }
 

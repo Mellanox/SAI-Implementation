@@ -1034,6 +1034,7 @@ static sai_status_t mlnx_port_speed_set(_In_ const sai_object_key_t      *key,
 /* This function needs to be guarded by lock */
 sai_status_t mlnx_port_mirror_wred_discard_set(_In_ sx_port_log_id_t port_log_id, _In_ bool is_add)
 {
+#ifndef SPC2_BRINGUP
     sx_status_t           sx_status       = SX_STATUS_ERROR;
     sai_status_t          sai_status      = SAI_STATUS_FAILURE;
     uint32_t              mirror_cnt      = 0;
@@ -1075,7 +1076,7 @@ sai_status_t mlnx_port_mirror_wred_discard_set(_In_ sx_port_log_id_t port_log_id
     }
 
     SX_LOG_EXIT();
-
+#endif
     return SAI_STATUS_SUCCESS;
 }
 
@@ -6089,6 +6090,14 @@ static sai_status_t mlnx_port_speed_bitmap_apply_sp(_In_ const mlnx_port_config_
         return status;
     }
 
+#ifdef SPC2_BRINGUP
+    {
+        memset(&speed, 0, sizeof(speed));
+        speed.mode_1GB_CX_SGMII = TRUE;
+        speed.mode_1GB_KX       = TRUE;
+    }
+#endif
+
     sx_status = sx_api_port_speed_admin_set(gh_sdk, port->logical, &speed);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to set port speed - %s.\n", SX_STATUS_MSG(sx_status));
@@ -6242,12 +6251,20 @@ sai_status_t mlnx_port_cb_table_init(void)
         return SAI_STATUS_FAILURE;
     }
 
+#ifdef SPC2_BRINGUP
+    mlnx_port_cb = &mlnx_port_cb_sp;
+#endif
+
     return SAI_STATUS_SUCCESS;
 }
 
 static sai_status_t mlnx_port_speed_set_impl(_In_ sx_port_log_id_t sx_port, _In_ uint32_t speed)
 {
     assert(mlnx_port_cb);
+
+#ifdef SPC2_BRINGUP
+    speed = PORT_SPEED_1;
+#endif
 
     return mlnx_port_cb->speed_set(sx_port, speed);
 }
@@ -6765,13 +6782,11 @@ static mlnx_port_config_t * mlnx_port_by_module(uint32_t module)
 
 /* module -> port local idx
  * Spectrum 1 : (1, 2)
- * Spectrum 2 : (1, 3, 5, 7)
+ * Spectrum 2 : (1, 2, 3, 4)
  */
 static mlnx_port_config_t * mlnx_port_split_idx_to_local_port(const mlnx_port_config_t *father, uint32_t base_lane_idx)
 {
-    uint32_t step = (g_sai_db_ptr->sx_chip_type == SX_CHIP_TYPE_SPECTRUM2) ? 2 : 1;
-
-    return mlnx_port_by_local_id(father->port_map.local_port + base_lane_idx * step);
+    return mlnx_port_by_local_id(father->port_map.local_port + base_lane_idx);
 }
 
 static mlnx_port_config_t * sai_lane2child_port(mlnx_port_config_t *father, const sai_u32_list_t *lanes)

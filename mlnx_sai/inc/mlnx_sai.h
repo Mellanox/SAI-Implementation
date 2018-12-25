@@ -188,7 +188,8 @@ extern const sai_l2mc_group_api_t       mlnx_l2mc_group_api;
 
 #define DEFAULT_MULTICAST_TTL_THRESHOLD 1
 #define FIRST_PORT                      (0x10000 | (1 << 8))
-#define PORT_MAC_BITMASK                (~0x3F)
+#define PORT_MAC_BITMASK_SP             (~0x3F)
+#define PORT_MAC_BITMASK_SP2            (~0x7F)
 #define PORT_SPEED_400                  400000
 #define PORT_SPEED_200                  200000
 #define PORT_SPEED_100                  100000
@@ -2127,6 +2128,7 @@ sai_status_t mlnx_port_mirror_wred_discard_set(_In_ sx_port_log_id_t port_log_id
 sai_status_t mlnx_port_speed_get_impl(_In_ sx_port_log_id_t sx_port,
                                       _Out_ uint32_t       *oper_speed,
                                       _Out_ uint32_t       *admin_speed);
+uint8_t mlnx_port_mac_mask_get(void);
 
 /* DB read lock is needed */
 sai_status_t mlnx_switch_get_mac(sx_mac_addr_t *mac);

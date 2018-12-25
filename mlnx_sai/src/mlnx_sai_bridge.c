@@ -559,7 +559,7 @@ sai_status_t mlnx_create_bridge_1d_object(sx_bridge_id_t sx_br_id, sai_object_id
         return status;
     }
 
-    return mlnx_create_bridge_object(SAI_OBJECT_TYPE_BRIDGE, idx, sx_br_id, bridge_oid);
+    return mlnx_create_bridge_object(SAI_BRIDGE_TYPE_1D, idx, sx_br_id, bridge_oid);
 }
 
 sai_status_t mlnx_bridge_oid_to_id(sai_object_id_t oid, sx_bridge_id_t *bridge_id)
@@ -1217,7 +1217,7 @@ static sai_status_t mlnx_bridge_flood_group_get(_In_ const sai_object_key_t   *k
 out:
     sai_db_unlock();
     SX_LOG_EXIT();
-    return SAI_STATUS_SUCCESS;
+    return status;
 }
 
 /**

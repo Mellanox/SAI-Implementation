@@ -45,6 +45,11 @@
 
 #define SDK_START_CMD_STR_LEN 255
 
+#define SAI_KEY_IPV4_ROUTE_TABLE_SIZE     "SAI_IPV4_ROUTE_TABLE_SIZE"
+#define SAI_KEY_IPV6_ROUTE_TABLE_SIZE     "SAI_IPV6_ROUTE_TABLE_SIZE"
+#define SAI_KEY_IPV4_NEIGHBOR_TABLE_SIZE  "SAI_IPV4_NEIGHBOR_TABLE_SIZE"
+#define SAI_KEY_IPV6_NEIGHBOR_TABLE_SIZE  "SAI_IPV6_NEIGHBOR_TABLE_SIZE"
+
 typedef struct _sai_switch_notification_t {
     sai_switch_state_change_notification_fn     on_switch_state_change;
     sai_fdb_event_notification_fn               on_fdb_event;
@@ -68,7 +73,9 @@ uint32_t                         g_sai_acl_db_size         = 0;
 uint32_t                         g_sai_acl_db_pbs_map_size = 0;
 static cl_thread_t               event_thread;
 static bool                      event_thread_asked_to_stop = false;
-static uint32_t                  g_route_table_size, g_neighbor_table_size;
+static uint32_t                  g_fdb_table_size;
+static uint32_t                  g_route_table_size, g_ipv4_route_table_size, g_ipv6_route_table_size;
+static uint32_t                  g_neighbor_table_size, g_ipv4_neighbor_table_size, g_ipv6_neighbor_table_size;
 static bool                      g_uninit_data_plane_on_removal = true;
 static uint32_t                  g_mlnx_shm_rm_size             = 0;
 
@@ -165,6 +172,11 @@ static sai_status_t mlnx_switch_max_vr_get(_In_ const sai_object_key_t   *key,
                                            _In_ uint32_t                  attr_index,
                                            _Inout_ vendor_cache_t        *cache,
                                            void                          *arg);
+static sai_status_t mlnx_switch_fdb_size_get(_In_ const sai_object_key_t   *key,
+                                             _Inout_ sai_attribute_value_t *value,
+                                             _In_ uint32_t                  attr_index,
+                                             _Inout_ vendor_cache_t        *cache,
+                                             void                          *arg);
 static sai_status_t mlnx_switch_neighbor_size_get(_In_ const sai_object_key_t   *key,
                                                   _Inout_ sai_attribute_value_t *value,
                                                   _In_ uint32_t                  attr_index,
@@ -536,9 +548,9 @@ static const sai_vendor_attribute_entry_t switch_vendor_attribs[] = {
       mlnx_switch_max_vr_get, NULL,
       NULL, NULL },
     { SAI_SWITCH_ATTR_FDB_TABLE_SIZE,
-      { false, false, false, false },
       { false, false, false, true },
-      NULL, NULL,
+      { false, false, false, true },
+      mlnx_switch_fdb_size_get, NULL,
       NULL, NULL },
     { SAI_SWITCH_ATTR_L3_NEIGHBOR_TABLE_SIZE,
       { false, false, false, true },
@@ -1268,26 +1280,19 @@ static struct sx_pci_profile pci_profile_single_eth_spectrum = {
     },
     .dev_id = SX_DEVICE_ID
 };
-struct sx_pci_profile        pci_profile_single_eth_spectrum2 = {
+struct sx_pci_profile pci_profile_single_eth_spectrum2 = {
     /*profile enum*/
     .pci_profile = PCI_PROFILE_EN_SINGLE_SWID,
     /*tx_prof: <swid,etclass> -> <stclass,sdq> */
     .tx_prof = {
         {
-            {0, 2}, /*-0-best effort*/
-            {1, 2}, /*-1-low prio*/
-            {2, 2}, /*-2-medium prio*/
-            {3, 2}, /*-3-*/
-            {4, 2}, /*-4-*/
-            {5, 1}, /*-5-high prio*/
-            {6, 1}, /*-6-critical prio*/
-            {6, 1} /*-7-*/
+            {0}
         }
-    },
+    },                   /* reserved */
+
     /* emad_tx_prof */
-    .emad_tx_prof = {
-        0, 0
-    },
+    .emad_tx_prof = {0}, /* reserved */
+
     /* swid_type */
     .swid_type = {
         SX_KU_L2_TYPE_ETH,
@@ -1301,7 +1306,11 @@ struct sx_pci_profile        pci_profile_single_eth_spectrum2 = {
     },
     /* rdq_count */
     .rdq_count = {
-        35,
+#if defined(SPECTRUM2_SIM)
+        37,
+#else
+        56,
+#endif
         0,
         0,
         0,
@@ -1347,7 +1356,34 @@ struct sx_pci_profile        pci_profile_single_eth_spectrum2 = {
             30,
             31,
             32,
-            34
+#if defined(SPECTRUM2_SIM)
+            34,
+            35,
+            36
+#else
+            34,
+            35,
+            36,
+            37,
+            38,
+            39,
+            40,
+            41,
+            42,
+            43,
+            44,
+            45,
+            46,
+            47,
+            48,
+            49,
+            50,
+            51,
+            52,
+            53,
+            54,
+            55
+#endif
         },
     },
     /* emad_rdq */
@@ -1388,8 +1424,36 @@ struct sx_pci_profile        pci_profile_single_eth_spectrum2 = {
         {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-30-*/
         {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-31-*/
         {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-32-mirror agent*/
+#if defined(SPECTRUM2_SIM)
         {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-33-emad*/
         {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-34 - special */
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-35 - special */
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-36 - special */
+#else
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-33-emad*/
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-34-*/
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-35-*/
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-36-*/
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-37-*/
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-38-*/
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-39-*/
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-40-*/
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-41-*/
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-42-*/
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-43-*/
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-44-*/
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-45-*/
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-46-*/
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-47-*/
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-48-*/
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-49-*/
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-50-*/
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-51-*/
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-52-*/
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-53-*/
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-54-*/
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-55-*/
+#endif
     },
     /* cpu_egress_tclass per SDQ */
     .cpu_egress_tclass = {
@@ -1480,45 +1544,45 @@ static struct ku_profile single_part_eth_device_profile_spectrum = {
 
     .chip_type = SXD_CHIP_TYPE_SPECTRUM,
 };
-struct ku_profile        single_part_eth_device_profile_spectrum2 = {
+struct ku_profile single_part_eth_device_profile_spectrum2 = {
 /* Phoenix PLD currently supports only Condor like profile. */
 #if defined(PD_BU) && defined(SPECTRUM2_BU)
     .set_mask_0_63 = 0x70073ff,    /* bit 9 and bits 10-11 are turned off*/
 #else
     .set_mask_0_63 = 0x7308,    /* bits 0-2, 4-7, 9-11 and bits 24-26 are turned off*/
 #endif
-    .set_mask_64_127   = 0,
+    .set_mask_64_127 = 0,
     .max_vepa_channels = 0,
 #if defined(SPECTRUM2_SIM) || defined(PD_BU) && defined(SPECTRUM2_BU)
     /* Since we are trying to simulate Spectrum2 on Spectrum1 chip we have error setting increased number of LAGs to FW.
      *  To not brake the current flow - lets use decreased number, which can successfully set to FW.*/
-    .max_lag          = 64,
+    .max_lag = 64,
     .max_port_per_lag = 32,
 #else
-    .max_lag          = 128,
+    .max_lag = 128,
     .max_port_per_lag = 64,
 #endif
-    .max_mid                    = 7000,
-    .max_pgt                    = 0,
-    .max_system_port            = 128,
-    .max_active_vlans           = 127,
-    .max_regions                = 400,
-    .max_flood_tables           = 2,
-    .max_per_vid_flood_tables   = 1,
-    .flood_mode                 = 3,
-    .max_ib_mc                  = 0,
-    .max_pkey                   = 0,
-    .ar_sec                     = 0,
+    .max_mid = 0,          /* reserved */
+    .max_pgt = 0,          /* reserved */
+    .max_system_port = 0,  /* reserved */
+    .max_active_vlans = 0, /* reserved */
+    .max_regions = 0,      /* reserved */
+    .max_flood_tables = 2,
+    .max_per_vid_flood_tables = 1,
+    .flood_mode = 3,
+    .max_ib_mc = 0,
+    .max_pkey = 0,
+    .ar_sec = 0,
     .adaptive_routing_group_cap = 0,
-    .arn                        = 0,
+    .arn = 0,
 #if defined(PD_BU) && defined(SPECTRUM2_BU)
-    .kvd_linear_size      = 0x10000, /* 64K */
+    .kvd_linear_size = 0x10000, /* 64K */
     .kvd_hash_single_size = 0x20000, /* 128K */
     .kvd_hash_double_size = 0xC000, /* 24K*2 = 48K */
 #else
-    .kvd_linear_size      = 0, /* reserved for spectrum2 */
-    .kvd_hash_single_size = 0, /* reserved for spectrum2 */
-    .kvd_hash_double_size = 0, /* reserved for spectrum2 */
+    .kvd_linear_size = 0,      /* reserved */
+    .kvd_hash_single_size = 0, /* reserved */
+    .kvd_hash_double_size = 0, /* reserved */
 #endif
     .swid0_config_type = {
         .mask = 1,
@@ -1637,7 +1701,27 @@ static sx_api_profile_t* mlnx_sai_get_ku_profile(void)
     return NULL;
 }
 
-static sai_status_t mlnx_sai_db_initialize(const char *config_file)
+uint8_t mlnx_port_mac_mask_get(void)
+{
+    sx_chip_types_t chip_type = g_sai_db_ptr->sx_chip_type;
+
+    switch (chip_type) {
+    case SX_CHIP_TYPE_SPECTRUM:
+    case SX_CHIP_TYPE_SPECTRUM_A1:
+        return PORT_MAC_BITMASK_SP;
+
+    case SX_CHIP_TYPE_SPECTRUM2:
+        return PORT_MAC_BITMASK_SP2;
+
+    default:
+        MLNX_SAI_LOG_ERR("g_sai_db_ptr->sx_chip_type = %s\n", SX_CHIP_TYPE_STR(chip_type));
+        return 0;
+    }
+
+    return 0;
+}
+
+static sai_status_t mlnx_sai_db_initialize(const char *config_file, sx_chip_types_t chip_type)
 {
     sai_status_t status = SAI_STATUS_FAILURE;
 
@@ -1650,6 +1734,8 @@ static sai_status_t mlnx_sai_db_initialize(const char *config_file)
     }
 
     sai_db_values_init();
+
+    g_sai_db_ptr->sx_chip_type = chip_type;
 
     if (SAI_STATUS_SUCCESS != (status = mlnx_parse_config(config_file))) {
         return status;
@@ -1979,11 +2065,12 @@ static sai_status_t mlnx_sdk_start(mlnx_sai_boot_type_t boot_type)
     return SAI_STATUS_SUCCESS;
 }
 
-static sai_status_t mlnx_chassis_mng_stage(mlnx_sai_boot_type_t boot_type, bool transaction_mode_enable)
+static sai_status_t mlnx_chassis_mng_stage(mlnx_sai_boot_type_t boot_type,
+                                           bool                 transaction_mode_enable,
+                                           sx_api_profile_t     *ku_profile)
 {
     sx_status_t           status;
     sx_api_sx_sdk_init_t  sdk_init_params;
-    sx_api_profile_t     *ku_profile;
     sx_api_pci_profile_t *pci_profile;
     uint32_t              bridge_acls = 0;
     uint8_t               port_phy_bits_num;
@@ -1991,6 +2078,10 @@ static sai_status_t mlnx_chassis_mng_stage(mlnx_sai_boot_type_t boot_type, bool 
     uint8_t               port_sub_bits_num;
     sx_access_cmd_t       transaction_mode_cmd = SX_ACCESS_CMD_NONE;
     const char           *issu_path;
+
+    if (NULL == ku_profile) {
+        return SAI_STATUS_FAILURE;
+    }
 
     memset(&sdk_init_params, 0, sizeof(sdk_init_params));
 
@@ -2066,11 +2157,6 @@ static sai_status_t mlnx_chassis_mng_stage(mlnx_sai_boot_type_t boot_type, bool 
     }
     if (sdk_init_params.port_params.port_sub_bits_num == 0) {
         sdk_init_params.port_params.port_sub_bits_num = port_sub_bits_num;
-    }
-
-    ku_profile = mlnx_sai_get_ku_profile();
-    if (!ku_profile) {
-        return SAI_STATUS_FAILURE;
     }
 
     pci_profile = mlnx_sai_get_pci_profile();
@@ -2303,9 +2389,9 @@ static sai_status_t parse_elements(xmlDoc *doc, xmlNode * a_node)
                 MLNX_SAI_LOG_ERR("Error parsing device mac address\n");
                 return SAI_STATUS_FAILURE;
             }
-            if (base_mac_addr->ether_addr_octet[5] & (~PORT_MAC_BITMASK)) {
+            if (base_mac_addr->ether_addr_octet[5] & (~ mlnx_port_mac_mask_get())) {
                 MLNX_SAI_LOG_ERR("Device mac address must be aligned by %u %02x\n",
-                                 (~PORT_MAC_BITMASK) + 1,
+                                 (~mlnx_port_mac_mask_get()) + 1,
                                  base_mac_addr->ether_addr_octet[5]);
                 return SAI_STATUS_FAILURE;
             }
@@ -4049,12 +4135,10 @@ static sai_status_t mlnx_sai_rm_initialize(const char *config_file)
         return sdk_to_sai(status);
     }
 
-    status = mlnx_sai_db_initialize(config_file);
+    status = mlnx_sai_db_initialize(config_file, chip_type);
     if (SAI_ERR(status)) {
         return status;
     }
-
-    g_sai_db_ptr->sx_chip_type = chip_type;
 
     status = mlnx_cb_table_init();
     if (SAI_ERR(status)) {
@@ -4064,14 +4148,145 @@ static sai_status_t mlnx_sai_rm_initialize(const char *config_file)
     return SAI_STATUS_SUCCESS;
 }
 
+static sai_status_t mlnx_kvd_table_size_update(sx_api_profile_t *ku_profile)
+{
+    const char *fdb_table_size, *route_table_size, *ipv4_route_table_size, *ipv6_route_table_size;
+    const char *neighbor_table_size, *ipv4_neigh_table_size, *ipv6_neigh_table_size;
+    uint32_t kvd_table_size, hash_single_size, hash_double_size;
+    uint32_t fdb_num = 0;
+    uint32_t routes_num = 0, ipv4_routes_num = 0, ipv6_routes_num = 0;
+    uint32_t neighbors_num = 0, ipv4_neighbors_num = 0, ipv6_neighbors_num = 0;
+    bool update_profile = false;
+
+    kvd_table_size   = ku_profile->kvd_hash_single_size + ku_profile->kvd_hash_double_size +
+                       ku_profile->kvd_linear_size;
+    hash_single_size = ku_profile->kvd_hash_single_size;
+    hash_double_size = ku_profile->kvd_hash_double_size;
+
+    MLNX_SAI_LOG_NTC("Original hash_single size %u hash_double size %u \n",hash_single_size, hash_double_size);
+
+    g_fdb_table_size           = hash_single_size;
+    g_route_table_size         = hash_single_size;
+    g_neighbor_table_size      = hash_single_size;
+    g_ipv4_route_table_size    = 0;
+    g_ipv6_route_table_size    = 0;
+    g_ipv4_neighbor_table_size = 0;
+    g_ipv6_neighbor_table_size = 0;
+    fdb_table_size             = g_mlnx_services.profile_get_value(g_profile_id, SAI_KEY_FDB_TABLE_SIZE);
+    route_table_size           = g_mlnx_services.profile_get_value(g_profile_id, SAI_KEY_L3_ROUTE_TABLE_SIZE);
+    neighbor_table_size        = g_mlnx_services.profile_get_value(g_profile_id, SAI_KEY_L3_NEIGHBOR_TABLE_SIZE);
+    ipv4_route_table_size      = g_mlnx_services.profile_get_value(g_profile_id, SAI_KEY_IPV4_ROUTE_TABLE_SIZE);
+    ipv6_route_table_size      = g_mlnx_services.profile_get_value(g_profile_id, SAI_KEY_IPV6_ROUTE_TABLE_SIZE);
+    ipv4_neigh_table_size      = g_mlnx_services.profile_get_value(g_profile_id, SAI_KEY_IPV4_NEIGHBOR_TABLE_SIZE);
+    ipv6_neigh_table_size      = g_mlnx_services.profile_get_value(g_profile_id, SAI_KEY_IPV6_NEIGHBOR_TABLE_SIZE);
+
+    if (NULL != fdb_table_size) {
+        fdb_num = (uint32_t)atoi(fdb_table_size);
+        MLNX_SAI_LOG_NTC("Setting initial fdb table size %u\n",fdb_num);
+        /* 0 is full kvd */
+        if (fdb_num) {
+            g_fdb_table_size = fdb_num;
+        }
+    }
+
+    if (NULL != route_table_size) {
+        routes_num = (uint32_t)atoi(route_table_size);
+        MLNX_SAI_LOG_NTC("Setting initial route table size %u\n",routes_num);
+        /* 0 is full kvd */
+        if (routes_num) {
+            g_route_table_size = routes_num;
+            g_ipv4_route_table_size = routes_num;
+            g_ipv6_route_table_size = routes_num;
+        }
+    } else {
+        if (NULL != ipv4_route_table_size) {
+            ipv4_routes_num = (uint32_t)atoi(ipv4_route_table_size);
+            MLNX_SAI_LOG_NTC("Setting initial IPv4 route table size %u\n",ipv4_routes_num);
+            if(ipv4_routes_num) {
+                g_ipv4_route_table_size = ipv4_routes_num;
+            }
+        }
+        if (NULL != ipv6_route_table_size) {
+            ipv6_routes_num = (uint32_t)atoi(ipv6_route_table_size);
+            MLNX_SAI_LOG_NTC("Setting initial IPv6 route table size %u\n",ipv6_routes_num);
+            if(ipv6_routes_num) {
+                g_ipv6_route_table_size = ipv6_routes_num;
+            }
+        }
+        if (ipv4_route_table_size && ipv6_route_table_size) {
+            g_route_table_size = g_ipv4_route_table_size + g_ipv6_route_table_size;
+        }
+    }
+
+    if (NULL != neighbor_table_size) {
+        neighbors_num = (uint32_t)atoi(neighbor_table_size);
+        MLNX_SAI_LOG_NTC("Setting initial neighbor table size %u\n", neighbors_num);
+        if (neighbors_num) {
+            g_neighbor_table_size = neighbors_num;
+            g_ipv4_neighbor_table_size = neighbors_num;
+            g_ipv6_neighbor_table_size = neighbors_num;
+        }
+    } else {
+        if (NULL != ipv4_neigh_table_size) {
+            ipv4_neighbors_num = (uint32_t)atoi(ipv4_neigh_table_size);
+            MLNX_SAI_LOG_NTC("Setting initial IPv4 neighbor table size %u\n",ipv4_neighbors_num);
+            if(ipv4_neighbors_num) {
+                g_ipv4_neighbor_table_size = ipv4_neighbors_num;
+            }
+        }
+        if (NULL != ipv6_neigh_table_size) {
+            ipv6_neighbors_num = (uint32_t)atoi(ipv6_neigh_table_size);
+            MLNX_SAI_LOG_NTC("Setting initial IPv6 neighbor table size %u\n",ipv6_neighbors_num);
+            if(ipv6_neighbors_num) {
+                g_ipv6_neighbor_table_size = ipv6_neighbors_num;
+            }
+        }
+        if (ipv4_neigh_table_size && ipv6_neigh_table_size) {
+            g_neighbor_table_size = g_ipv4_neighbor_table_size + g_ipv6_neighbor_table_size;
+        }
+    }
+
+    /* Will update the profile only when the size of fdb/route/neighbor are all set */
+    if (fdb_num && routes_num && neighbors_num) {
+        hash_single_size = fdb_num + routes_num + neighbors_num;
+        hash_double_size = (routes_num + neighbors_num) * 2;
+        update_profile = true;
+    } else {
+        if (fdb_num && ipv4_routes_num && ipv4_neighbors_num) {
+            hash_single_size = fdb_num + ipv4_routes_num + ipv4_neighbors_num;
+            update_profile = true;
+        }
+        if (ipv6_routes_num && ipv6_neighbors_num) {
+            hash_double_size = (ipv6_routes_num + ipv6_neighbors_num) * 2;
+            update_profile = true;
+        }
+    }
+
+    if (update_profile) {
+        if (hash_single_size + hash_double_size <= kvd_table_size) {
+            ku_profile->kvd_hash_single_size = hash_single_size;
+            ku_profile->kvd_hash_double_size = hash_double_size;
+            ku_profile->kvd_linear_size = kvd_table_size - hash_single_size - hash_double_size;
+            MLNX_SAI_LOG_NTC("New hash_single size %u hash_single size %u linear size %u\n",
+                 ku_profile->kvd_hash_single_size, ku_profile->kvd_hash_double_size, 
+                 ku_profile->kvd_linear_size);
+        } else {
+            MLNX_SAI_LOG_NTC(
+                "Hash table size is more than kvd size: hash_single size %u, hash_double size %u,"
+                "kvd size %u. Don't update the profile\n",
+                hash_single_size, hash_double_size, kvd_table_size);
+        }
+    }
+    
+    return SAI_STATUS_SUCCESS;
+}
+
 static sai_status_t mlnx_initialize_switch(sai_object_id_t switch_id, bool *transaction_mode_enable)
 {
     int                         system_err;
-    const char                 *config_file, *route_table_size, *neighbor_table_size;
+    const char                 *config_file;
     const char                 *boot_type_char;
     mlnx_sai_boot_type_t        boot_type     = 0;
-    uint32_t                    routes_num    = 0;
-    uint32_t                    neighbors_num = 0;
     sx_router_resources_param_t resources_param;
     sx_router_general_param_t   general_param;
     sx_status_t                 status;
@@ -4169,9 +4384,19 @@ static sai_status_t mlnx_initialize_switch(sai_object_id_t switch_id, bool *tran
     g_sai_db_ptr->boot_type = boot_type;
     issu_enabled = g_sai_db_ptr->issu_enabled;
     sai_db_unlock();
+    
+    ku_profile = mlnx_sai_get_ku_profile();
+    if (!ku_profile) {
+        return SAI_STATUS_FAILURE;
+    }
+
+    if (SAI_STATUS_SUCCESS != (status = mlnx_kvd_table_size_update(ku_profile))) {
+        return status;
+    }
 
     if (SAI_STATUS_SUCCESS != (status = mlnx_chassis_mng_stage(boot_type,
-                                                               *transaction_mode_enable))) {
+                                                               *transaction_mode_enable,
+                                                               ku_profile))) {
         return status;
     }
 
@@ -4207,35 +4432,9 @@ static sai_status_t mlnx_initialize_switch(sai_object_id_t switch_id, bool *tran
         return SAI_STATUS_FAILURE;
     }
 
-    ku_profile = mlnx_sai_get_ku_profile();
-    if (!ku_profile) {
-        return SAI_STATUS_FAILURE;
-    }
-
     /* init router model, T1 config */
-    /* TODO : in the future, get some/all of these params dynamically from the profile */
     memset(&resources_param, 0, sizeof(resources_param));
     memset(&general_param, 0, sizeof(general_param));
-
-    g_route_table_size    = ku_profile->kvd_hash_single_size;
-    g_neighbor_table_size = ku_profile->kvd_hash_single_size;
-    route_table_size      = g_mlnx_services.profile_get_value(g_profile_id, SAI_KEY_L3_ROUTE_TABLE_SIZE);
-    neighbor_table_size   = g_mlnx_services.profile_get_value(g_profile_id, SAI_KEY_L3_NEIGHBOR_TABLE_SIZE);
-    if (NULL != route_table_size) {
-        routes_num = (uint32_t)atoi(route_table_size);
-        SX_LOG_NTC("Setting initial route table size %u\n", routes_num);
-        /* 0 is full kvd */
-        if (routes_num) {
-            g_route_table_size = routes_num;
-        }
-    }
-    if (NULL != neighbor_table_size) {
-        neighbors_num = (uint32_t)atoi(neighbor_table_size);
-        SX_LOG_NTC("Setting initial neighbor table size %u\n", neighbors_num);
-        if (neighbors_num) {
-            g_neighbor_table_size = neighbors_num;
-        }
-    }
 
     if (issu_enabled) {
         resources_param.max_virtual_routers_num    = g_resource_limits.router_vrid_max / 2;
@@ -4244,17 +4443,23 @@ static sai_status_t mlnx_initialize_switch(sai_object_id_t switch_id, bool *tran
     }
     resources_param.max_vlan_router_interfaces = 64;
     resources_param.max_port_router_interfaces = 64;
-    resources_param.max_router_interfaces      = g_resource_limits.router_rifs_max / 2;
+    /* cut by 2 because of ipv6 tunnels, cut by further 2 for issu */
+    if (issu_enabled) {
+        resources_param.max_router_interfaces = g_resource_limits.router_rifs_max / 4;
+    }
+    else {
+        resources_param.max_router_interfaces = g_resource_limits.router_rifs_max / 2;
+    }
 
-    resources_param.min_ipv4_uc_route_entries = routes_num;
-    resources_param.min_ipv6_uc_route_entries = routes_num;
-    resources_param.max_ipv4_uc_route_entries = routes_num;
-    resources_param.max_ipv6_uc_route_entries = routes_num;
+    resources_param.min_ipv4_uc_route_entries = g_ipv4_route_table_size;
+    resources_param.min_ipv6_uc_route_entries = g_ipv6_route_table_size;
+    resources_param.max_ipv4_uc_route_entries = g_ipv4_route_table_size;
+    resources_param.max_ipv6_uc_route_entries = g_ipv6_route_table_size;
 
-    resources_param.min_ipv4_neighbor_entries = neighbors_num;
-    resources_param.min_ipv6_neighbor_entries = neighbors_num;
-    resources_param.max_ipv4_neighbor_entries = neighbors_num;
-    resources_param.max_ipv6_neighbor_entries = neighbors_num;
+    resources_param.min_ipv4_neighbor_entries = g_ipv4_neighbor_table_size;
+    resources_param.min_ipv6_neighbor_entries = g_ipv6_neighbor_table_size;
+    resources_param.max_ipv4_neighbor_entries = g_ipv4_neighbor_table_size;
+    resources_param.max_ipv6_neighbor_entries = g_ipv6_neighbor_table_size;
 
     resources_param.min_ipv4_mc_route_entries = 0;
     resources_param.min_ipv6_mc_route_entries = 0;
@@ -4286,6 +4491,22 @@ static sai_status_t mlnx_initialize_switch(sai_object_id_t switch_id, bool *tran
     if (SX_STATUS_SUCCESS != (status = sx_api_router_set(gh_sdk, SX_ACCESS_CMD_ADD, &router_attr, &vrid))) {
         SX_LOG_ERR("Failed to add default router - %s.\n", SX_STATUS_MSG(status));
         return sdk_to_sai(status);
+    }
+    
+    /* Update route/neighbor table size to default value if no setting in profile.
+     * SDK counts v4 and v6 on same HW table KVD HASH, so init for available resource
+     * checking to same value. */
+    if (g_ipv4_route_table_size == 0) {
+        g_ipv4_route_table_size = ku_profile->kvd_hash_single_size;
+    }
+    if (g_ipv6_route_table_size == 0) {
+        g_ipv6_route_table_size = ku_profile->kvd_hash_single_size; 
+    }
+    if (g_ipv4_neighbor_table_size == 0) {
+        g_ipv4_neighbor_table_size = ku_profile->kvd_hash_single_size;
+    }
+    if (g_ipv6_neighbor_table_size == 0) {
+        g_ipv6_neighbor_table_size = ku_profile->kvd_hash_single_size;
     }
 
     cl_plock_excl_acquire(&g_sai_db_ptr->p_lock);
@@ -4484,14 +4705,14 @@ static sai_status_t mlnx_create_switch(_Out_ sai_object_id_t     * switch_id,
     sai_attr_list_to_str(attr_count, attr_list, SAI_OBJECT_TYPE_SWITCH, MAX_LIST_VALUE_STR_LEN, list_str);
     MLNX_SAI_LOG_NTC("Create switch, %s\n", list_str);
 
+    sai_status = find_attrib_in_list(attr_count, attr_list, SAI_SWITCH_ATTR_INIT_SWITCH, &attr_val, &attr_idx);
+    assert(!SAI_ERR(sai_status));
+    mlnx_switch_id.id.is_created = attr_val->booldata;
+
     sai_status = mlnx_object_id_to_sai(SAI_OBJECT_TYPE_SWITCH, &mlnx_switch_id, switch_id);
     if (SAI_ERR(sai_status)) {
         return sai_status;
     }
-
-    sai_status = find_attrib_in_list(attr_count, attr_list, SAI_SWITCH_ATTR_INIT_SWITCH, &attr_val, &attr_idx);
-    assert(!SAI_ERR(sai_status));
-    mlnx_switch_id.id.is_created = attr_val->booldata;
 
     sai_status = find_attrib_in_list(attr_count, attr_list, SAI_SWITCH_ATTR_SWITCH_PROFILE_ID, &attr_val, &attr_idx);
     if (!SAI_ERR(sai_status)) {
@@ -5299,6 +5520,20 @@ static sai_status_t mlnx_switch_max_vr_get(_In_ const sai_object_key_t   *key,
     return SAI_STATUS_SUCCESS;
 }
 
+/* The FDB Table size [uint32_t] */
+static sai_status_t mlnx_switch_fdb_size_get(_In_ const sai_object_key_t   *key,
+                                             _Inout_ sai_attribute_value_t *value,
+                                             _In_ uint32_t                  attr_index,
+                                             _Inout_ vendor_cache_t        *cache,
+                                             void                          *arg)
+{
+    SX_LOG_ENTER();
+
+    value->u32 = g_fdb_table_size;
+    SX_LOG_EXIT();
+    return SAI_STATUS_SUCCESS;
+}
+
 /* The L3 Host Table size [uint32_t] */
 static sai_status_t mlnx_switch_neighbor_size_get(_In_ const sai_object_key_t   *key,
                                                   _Inout_ sai_attribute_value_t *value,
@@ -5814,7 +6049,7 @@ sai_status_t mlnx_switch_get_mac(sx_mac_addr_t *mac)
         SX_LOG_ERR("Failed to get port %x address - %s.\n", first_port->logical, SX_STATUS_MSG(status));
         return sdk_to_sai(status);
     }
-    mac->ether_addr_octet[5] &= PORT_MAC_BITMASK;
+    mac->ether_addr_octet[5] &= mlnx_port_mac_mask_get();
 
     return SAI_STATUS_SUCCESS;
 }
@@ -6698,12 +6933,12 @@ static sai_status_t mlnx_switch_available_get(_In_ const sai_object_key_t   *key
     switch ((int64_t)arg) {
     case SAI_SWITCH_ATTR_AVAILABLE_IPV4_ROUTE_ENTRY:
         table_type = RM_SDK_TABLE_TYPE_FIB_IPV4_UC_E;
-        init_limit = g_route_table_size;
+        init_limit = g_ipv4_route_table_size;
         break;
 
     case SAI_SWITCH_ATTR_AVAILABLE_IPV6_ROUTE_ENTRY:
         table_type = RM_SDK_TABLE_TYPE_FIB_IPV6_UC_E;
-        init_limit = g_route_table_size;
+        init_limit = g_ipv6_route_table_size;
         break;
 
     case SAI_SWITCH_ATTR_AVAILABLE_IPV4_NEXTHOP_ENTRY:
@@ -6716,12 +6951,12 @@ static sai_status_t mlnx_switch_available_get(_In_ const sai_object_key_t   *key
 
     case SAI_SWITCH_ATTR_AVAILABLE_IPV4_NEIGHBOR_ENTRY:
         table_type = RM_SDK_TABLE_TYPE_ARP_IPV4_E;
-        init_limit = g_neighbor_table_size;
+        init_limit = g_ipv4_neighbor_table_size;
         break;
 
     case SAI_SWITCH_ATTR_AVAILABLE_IPV6_NEIGHBOR_ENTRY:
         table_type = RM_SDK_TABLE_TYPE_ARP_IPV6_E;
-        init_limit = g_neighbor_table_size;
+        init_limit = g_ipv6_neighbor_table_size;
         break;
 
     case SAI_SWITCH_ATTR_AVAILABLE_NEXT_HOP_GROUP_ENTRY:

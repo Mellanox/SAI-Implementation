@@ -518,6 +518,33 @@ static void tunnel_term_table_entry_key_to_str(_In_ const sai_object_id_t sai_tu
     SX_LOG_EXIT();
 }
 
+static void mlnx_tunnel_fill_ulay_domain_rif(_In_ sx_router_interface_t              rif,
+                                             _Out_ sx_router_interface_t            *sx_rif,
+                                             _Out_ sx_tunnel_underlay_domain_type_e *ulay_domain_type)
+{
+    sx_chip_types_t chip_type = g_sai_db_ptr->sx_chip_type;
+
+    assert(sx_rif);
+    assert(ulay_domain_type);
+
+    switch (chip_type) {
+    case SX_CHIP_TYPE_SPECTRUM:
+    case SX_CHIP_TYPE_SPECTRUM_A1:
+        *ulay_domain_type = SX_TUNNEL_UNDERLAY_DOMAIN_TYPE_VRID;
+        *sx_rif           = 0;
+        break;
+
+    case SX_CHIP_TYPE_SPECTRUM2:
+        *ulay_domain_type = SX_TUNNEL_UNDERLAY_DOMAIN_TYPE_RIF;
+        *sx_rif           = rif;
+        break;
+
+    default:
+        SX_LOG_ERR("g_sai_db_ptr->sxd_chip_type = %s\n", SX_CHIP_TYPE_STR(chip_type));
+        *ulay_domain_type = SX_TUNNEL_UNDERLAY_DOMAIN_TYPE_MAX + 1;
+    }
+}
+
 /* caller needs to guard this function with lock */
 static sai_status_t mlnx_get_sai_tunnel_map_db_idx(_In_ sai_object_id_t sai_tunnel_map_obj_id,
                                                    _Out_ uint32_t      *tunnel_mapper_db_idx)
@@ -3521,7 +3548,8 @@ static sai_status_t mlnx_sdk_fill_ipinip_p2p_attrib(_In_ uint32_t               
             SX_LOG_EXIT();
             return SAI_STATUS_INVALID_ATTR_VALUE_0 + attr_idx;
         }
-        sdk_ipinip_p2p_attrib->underlay_rif = sx_rif;
+
+        mlnx_tunnel_fill_ulay_domain_rif(sx_rif, &sdk_ipinip_p2p_attrib->underlay_rif, &sdk_ipinip_p2p_attrib->underlay_domain_type);
 
         *underlay_rif = attr->oid;
 
@@ -3548,8 +3576,6 @@ static sai_status_t mlnx_sdk_fill_ipinip_p2p_attrib(_In_ uint32_t               
         SX_LOG_EXIT();
         return SAI_STATUS_INVALID_ATTR_VALUE_0 + attr_idx;
     }
-
-    sdk_ipinip_p2p_attrib->underlay_domain_type = SX_TUNNEL_UNDERLAY_DOMAIN_TYPE_VRID;
 
     if (SAI_STATUS_SUCCESS ==
         (sai_status = find_attrib_in_list(attr_count, attr_list, SAI_TUNNEL_ATTR_ENCAP_SRC_IP, &attr, &attr_idx))) {
@@ -4230,6 +4256,9 @@ static sai_status_t mlnx_sai_fill_sx_vxlan_tunnel_data(_In_ sai_tunnel_type_t   
             return SAI_STATUS_INVALID_ATTR_VALUE_0 + attr_idx;
         }
 
+        mlnx_tunnel_fill_ulay_domain_rif(sx_rif, &sx_tunnel_attribute->attributes.vxlan.decap.underlay_rif,
+                                        &sx_tunnel_attribute->attributes.vxlan.underlay_domain_type);
+
         mlnx_tunnel_db_entry->sai_underlay_rif = attr->oid;
 
         if (SAI_STATUS_SUCCESS !=
@@ -4254,8 +4283,6 @@ static sai_status_t mlnx_sai_fill_sx_vxlan_tunnel_data(_In_ sai_tunnel_type_t   
         }
         has_encap_attr = true;
     }
-
-    sx_tunnel_attribute->attributes.vxlan.underlay_domain_type = SX_TUNNEL_UNDERLAY_DOMAIN_TYPE_VRID;
 
     if (SAI_STATUS_SUCCESS !=
         (sai_status = mlnx_sdk_fill_tunnel_ttl_data(attr_count,
