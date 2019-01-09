@@ -35,9 +35,11 @@ libsai_la_DEPENDENCIES =
 
 libsai_la_SOURCES = \
                        dbgdump/mlnx_sai_dbg_acl.c \
+                       dbgdump/mlnx_sai_dbg_bridge.c \
                        dbgdump/mlnx_sai_dbg_buffer.c \
                        dbgdump/mlnx_sai_dbg_hash.c \
                        dbgdump/mlnx_sai_dbg_hostintf.c \
+                       dbgdump/mlnx_sai_dbg_mirror.c \
                        dbgdump/mlnx_sai_dbg_policer.c \
                        dbgdump/mlnx_sai_dbg_port.c \
                        dbgdump/mlnx_sai_dbg_qosmaps.c \
@@ -46,10 +48,9 @@ libsai_la_SOURCES = \
                        dbgdump/mlnx_sai_dbg_scheduler.c \
                        dbgdump/mlnx_sai_dbg_stp.c \
                        dbgdump/mlnx_sai_dbg_tunnel.c \
+                       dbgdump/mlnx_sai_dbg_udf.c \
                        dbgdump/mlnx_sai_dbg_vlan.c \
                        dbgdump/mlnx_sai_dbg_wred.c \
-                       dbgdump/mlnx_sai_dbg_bridge.c \
-                       dbgdump/mlnx_sai_dbg_udf.c \
                        mlnx_sai_acl.c \
                        mlnx_sai_bridge.c \
                        mlnx_sai_buffer.c \
@@ -77,10 +78,10 @@ libsai_la_SOURCES = \
                        mlnx_sai_stp.c \
                        mlnx_sai_switch.c \
                        mlnx_sai_tunnel.c \
+                       mlnx_sai_udf.c \
                        mlnx_sai_utils.c \
                        mlnx_sai_vlan.c \
                        mlnx_sai_wred.c \
-                       mlnx_sai_udf.c \
                        meta/saimetadata.c \
                        meta/saimetadatautils.c \
                        meta/saiserialize.c

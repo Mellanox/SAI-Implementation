@@ -251,6 +251,9 @@
     <ClCompile Include="src\dbgdump\mlnx_sai_dbg_hostintf.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\dbgdump\mlnx_sai_dbg_mirror.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="src\dbgdump\mlnx_sai_dbg_policer.c">
       <Filter>Source Files</Filter>
     </ClCompile>

@@ -87,9 +87,6 @@ static bool g_log_init = false;
 #else
 sx_log_cb_t sai_log_cb = NULL;
 #endif
-#ifndef ACS_OS
-static sai_status_t mlnx_switch_fan_set(uint8_t power_percent);
-#endif
 
 #define MLNX_SHM_RM_ARRAY_CANARY_BASE ((mlnx_shm_array_canary_t)(0x0EC0))
 #define MLNX_SHM_RM_ARRAY_CANARY(type) \
@@ -2010,6 +2007,15 @@ static sx_status_t get_chip_type(enum sxd_chip_types* chip_type)
     return SX_STATUS_SUCCESS;
 }
 
+bool mlnx_chip_is_spc2(void)
+{
+    sx_chip_types_t chip_type = g_sai_db_ptr->sx_chip_type;
+
+    assert(chip_type != SX_CHIP_TYPE_UNKNOWN);
+
+    return chip_type == SX_CHIP_TYPE_SPECTRUM2;
+}
+
 static sai_status_t mlnx_sdk_start(mlnx_sai_boot_type_t boot_type)
 {
     sai_status_t sai_status;
@@ -2130,7 +2136,8 @@ static sai_status_t mlnx_chassis_mng_stage(mlnx_sai_boot_type_t boot_type,
 
     sdk_init_params.acl_params.min_acl_rules   = 0;
     sdk_init_params.acl_params.max_acl_rules   = ACL_MAX_SX_RULES_NUMBER;
-    sdk_init_params.acl_params.acl_search_type = SX_API_ACL_SEARCH_TYPE_PARALLEL;
+    sdk_init_params.acl_params.acl_search_type = mlnx_chip_is_spc2() ?
+                SX_API_ACL_SEARCH_TYPE_SERIAL : SX_API_ACL_SEARCH_TYPE_PARALLEL;
 
     sdk_init_params.bridge_init_params.sdk_mode                                          = SX_MODE_HYBRID;
     sdk_init_params.bridge_init_params.sdk_mode_params.mode_1D.max_bridge_num            = MAX_BRIDGES_1D;
@@ -2233,12 +2240,14 @@ static sai_status_t mlnx_chassis_mng_stage(mlnx_sai_boot_type_t boot_type,
         return sdk_to_sai(status);
     }
 
-    if (SX_STATUS_SUCCESS != (status = sx_api_issu_log_verbosity_level_set(gh_sdk,
-                                                                           SX_LOG_VERBOSITY_BOTH,
-                                                                           LOG_VAR_NAME(__MODULE__),
-                                                                           LOG_VAR_NAME(__MODULE__)))) {
-        SX_LOG_ERR("Set issu log verbosity failed - %s.\n", SX_STATUS_MSG(status));
-        return sdk_to_sai(status);
+    if (!mlnx_chip_is_spc2()) {
+        if (SX_STATUS_SUCCESS != (status = sx_api_issu_log_verbosity_level_set(gh_sdk,
+                                                                               SX_LOG_VERBOSITY_BOTH,
+                                                                               LOG_VAR_NAME(__MODULE__),
+                                                                               LOG_VAR_NAME(__MODULE__)))) {
+            SX_LOG_ERR("Set issu log verbosity failed - %s.\n", SX_STATUS_MSG(status));
+            return sdk_to_sai(status);
+        }
     }
 
     return SAI_STATUS_SUCCESS;
@@ -2391,8 +2400,7 @@ static sai_status_t parse_elements(xmlDoc *doc, xmlNode * a_node)
             }
             if (base_mac_addr->ether_addr_octet[5] & (~ mlnx_port_mac_mask_get())) {
                 MLNX_SAI_LOG_ERR("Device mac address must be aligned by %u %02x\n",
-                                 (~mlnx_port_mac_mask_get()) + 1,
-                                 base_mac_addr->ether_addr_octet[5]);
+                                 mlnx_port_mac_mask_get(), base_mac_addr->ether_addr_octet[5]);
                 return SAI_STATUS_FAILURE;
             }
         } else if ((!xmlStrcmp(cur_node->name, (const xmlChar*)"number-of-physical-ports"))) {
@@ -4294,15 +4302,10 @@ static sai_status_t mlnx_initialize_switch(sai_object_id_t switch_id, bool *tran
     sx_tunnel_attribute_t       sx_tunnel_attribute;
     const bool                  warm_recover = false;
     bool                        issu_enabled = false;
-
-#ifndef ACS_OS
-    const char *initial_fan_speed;
-    uint8_t     fan_percent;
-#endif
-    cl_status_t            cl_err;
-    sx_router_attributes_t router_attr;
-    sx_router_id_t         vrid;
-    sx_span_init_params_t  span_init_params;
+    cl_status_t                 cl_err;
+    sx_router_attributes_t      router_attr;
+    sx_router_id_t              vrid;
+    sx_span_init_params_t       span_init_params;
 
     memset(&span_init_params, 0, sizeof(sx_span_init_params_t));
 
@@ -4403,24 +4406,6 @@ static sai_status_t mlnx_initialize_switch(sai_object_id_t switch_id, bool *tran
     if (SAI_STATUS_SUCCESS != (status = mlnx_dvs_mng_stage(boot_type, switch_id))) {
         return status;
     }
-
-#ifndef ACS_OS
-    initial_fan_speed = g_mlnx_services.profile_get_value(g_profile_id, KV_INITIAL_FAN_SPEED);
-    if (NULL != initial_fan_speed) {
-        fan_percent = (uint8_t)atoi(initial_fan_speed);
-        if ((fan_percent > MAX_FAN_PERCENT) || (fan_percent < MIN_FAN_PERCENT)) {
-            SX_LOG_ERR("Initial fan speed must be in range [%u,%u] - %u\n",
-                       MIN_FAN_PERCENT,
-                       MAX_FAN_PERCENT,
-                       fan_percent);
-            return SAI_STATUS_INVALID_PARAMETER;
-        }
-        SX_LOG_NTC("Setting initial fan speed %u%%\n", fan_percent);
-        if (SAI_STATUS_SUCCESS != (status = mlnx_switch_fan_set(fan_percent))) {
-            return status;
-        }
-    }
-#endif
 
     if (SAI_STATUS_SUCCESS != (status = switch_open_traps())) {
         return status;
@@ -4889,6 +4874,13 @@ static sai_status_t switch_open_traps(void)
 
         if (0 == mlnx_traps_info[ii].sdk_traps_num) {
             continue;
+        }
+
+        if (mlnx_chip_is_spc2()) {
+            if ((mlnx_traps_info[ii].trap_id == SAI_HOSTIF_TRAP_TYPE_PTP) ||
+                (mlnx_traps_info[ii].trap_id == SAI_HOSTIF_TRAP_TYPE_PTP_TX_EVENT)){
+                continue;
+            }
         }
 
         if (SAI_STATUS_SUCCESS != (status = mlnx_trap_set(ii, mlnx_traps_info[ii].action,
@@ -5764,34 +5756,6 @@ static sai_status_t mlnx_switch_default_tc_set(_In_ const sai_object_key_t      
     SX_LOG_EXIT();
     return status;
 }
-
-#ifndef ACS_OS
-static sai_status_t mlnx_switch_fan_set(uint8_t power_percent)
-{
-    struct ku_mfsc_reg mfsc_reg;
-    sxd_reg_meta_t     reg_meta;
-    sxd_status_t       sxd_status;
-
-    SX_LOG_ENTER();
-
-    memset(&(mfsc_reg), 0, sizeof(mfsc_reg));
-    memset(&reg_meta, 0, sizeof(reg_meta));
-    mfsc_reg.pwm            = 0;
-    mfsc_reg.pwm_duty_cycle = (u_int8_t)((uint16_t)(power_percent * 0xff) / 100);
-    reg_meta.access_cmd     = SXD_ACCESS_CMD_SET;
-    reg_meta.dev_id         = SX_DEVICE_ID;
-    reg_meta.swid           = DEFAULT_ETH_SWID;
-
-    sxd_status = sxd_access_reg_mfsc(&mfsc_reg, &reg_meta, 1, NULL, NULL);
-    if (sxd_status) {
-        SX_LOG_ERR("Access_mfsc_reg failed with status (%s:%d)\n", SXD_STATUS_MSG(sxd_status), sxd_status);
-        return SAI_STATUS_FAILURE;
-    }
-
-    SX_LOG_EXIT();
-    return SAI_STATUS_SUCCESS;
-}
-#endif
 
 /* minimum priority for ACL table [sai_uint32_t] */
 static sai_status_t mlnx_switch_acl_table_min_prio_get(_In_ const sai_object_key_t   *key,

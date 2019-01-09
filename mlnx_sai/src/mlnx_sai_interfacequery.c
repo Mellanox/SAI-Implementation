@@ -453,6 +453,8 @@ sai_status_t sai_dbg_generate_dump(_In_ const char *dump_file_name)
 
     SAI_dump_hostintf(file);
 
+    SAI_dump_mirror(file);
+
     SAI_dump_policer(file);
 
     SAI_dump_port(file);

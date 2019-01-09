@@ -565,6 +565,7 @@ typedef struct _mlnx_obj_type_attrs_info_t {
 #define OBJ_ATTRS_ENUMS_INFO_EMPTY() \
     {.info = NULL, .count = 0}
 
+bool mlnx_chip_is_spc2(void);
 void mlnx_udf_acl_attrs_metadata_init();
 bool mlnx_udf_acl_attribute_id_is_not_supported(_In_ sai_attr_id_t attr_id);
 sai_status_t check_port_type_attr(const sai_object_id_t *ports,
@@ -1844,6 +1845,13 @@ typedef struct _mlnx_l2mc_group_t {
     uint32_t             flood_ctrl_ref;
 } mlnx_l2mc_group_t;
 
+typedef struct _mlnx_mirror_vlan_t {
+    bool     vlan_header_valid;
+    uint16_t vlan_id;
+    uint8_t  vlan_pri;
+    uint8_t  vlan_cfi;
+} mlnx_mirror_vlan_t;
+
 typedef enum {
     BOOT_TYPE_REGULAR,
     BOOT_TYPE_WARM,
@@ -1923,6 +1931,7 @@ typedef struct sai_db {
     sx_chip_types_t                   sx_chip_type;
     bool                              crc_check_enable;
     bool                              crc_recalc_enable;
+    mlnx_mirror_vlan_t                erspan_vlan_header[SPAN_SESSION_MAX];
     mlnx_l2mc_group_t                 l2mc_groups[MLNX_L2MC_GROUP_DB_SIZE];
     mlnx_shm_rm_array_info_t          array_info[MLNX_SHM_RM_ARRAY_TYPE_SIZE];
 } sai_db_t;
@@ -2158,7 +2167,6 @@ sai_status_t mlnx_sched_hierarchy_foreach(mlnx_port_config_t    *port,
                                           mlnx_sched_iter_ctx_t *ctx);
 
 #define KV_DEVICE_MAC_ADDRESS "DEVICE_MAC_ADDRESS"
-#define KV_INITIAL_FAN_SPEED  "INITIAL_FAN_SPEED"
 #define MIN_FAN_PERCENT       30
 #define MAX_FAN_PERCENT       100
 
@@ -2274,6 +2282,7 @@ void SAI_dump_bridge(_In_ FILE *file);
 void SAI_dump_buffer(_In_ FILE *file);
 void SAI_dump_hash(_In_ FILE *file);
 void SAI_dump_hostintf(_In_ FILE *file);
+void SAI_dump_mirror(_In_ FILE *file);
 void SAI_dump_policer(_In_ FILE *file);
 void SAI_dump_port(_In_ FILE *file);
 void SAI_dump_qosmaps(_In_ FILE *file);

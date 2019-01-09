@@ -16179,7 +16179,7 @@ static sai_status_t mlnx_create_acl_range(_Out_ sai_object_id_t     * acl_range_
 
     memset(&sx_port_range_entry, 0, sizeof(sx_port_range_entry));
     sx_port_range_entry.port_range_ip_length = false;
-    sx_port_range_entry.port_range_ip_header = SX_ACL_PORT_RANGE_IP_HEADER_BOTH;
+    sx_port_range_entry.port_range_ip_header = SX_ACL_PORT_RANGE_IP_HEADER_OUTER;
 
     switch (range_type->s32) {
     case SAI_ACL_RANGE_TYPE_L4_SRC_PORT_RANGE:

@@ -1404,6 +1404,7 @@ out:
         free(ets_list);
     }
     port->sched_hierarchy.is_default = true;
+
     return SAI_STATUS_SUCCESS;
 }
 

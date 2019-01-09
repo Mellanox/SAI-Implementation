@@ -4258,6 +4258,8 @@ static sai_status_t mlnx_sai_fill_sx_vxlan_tunnel_data(_In_ sai_tunnel_type_t   
 
         mlnx_tunnel_fill_ulay_domain_rif(sx_rif, &sx_tunnel_attribute->attributes.vxlan.decap.underlay_rif,
                                         &sx_tunnel_attribute->attributes.vxlan.underlay_domain_type);
+        mlnx_tunnel_fill_ulay_domain_rif(sx_rif, &sx_tunnel_attribute->attributes.vxlan.encap.underlay_rif,
+                                        &sx_tunnel_attribute->attributes.vxlan.underlay_domain_type);
 
         mlnx_tunnel_db_entry->sai_underlay_rif = attr->oid;
 
