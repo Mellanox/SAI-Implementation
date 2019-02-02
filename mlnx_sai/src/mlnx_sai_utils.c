@@ -61,6 +61,9 @@ static const sai_u32_list_t        mlnx_sai_not_mandatory_attrs[SAI_OBJECT_TYPE_
     [SAI_OBJECT_TYPE_NEXT_HOP] =
     {.count = 1, .list = (sai_attr_id_t[1]) {SAI_NEXT_HOP_ATTR_ROUTER_INTERFACE_ID}
     },
+    [SAI_OBJECT_TYPE_ROUTER_INTERFACE] =
+    {.count = 1, .list = (sai_attr_id_t[1]) {SAI_ROUTER_INTERFACE_ATTR_BRIDGE_ID}
+    },
 };
 static const sai_u32_list_t        mlnx_sai_attrs_valid_for_set[SAI_OBJECT_TYPE_MAX] = {
     [SAI_OBJECT_TYPE_TUNNEL] =
@@ -91,13 +94,7 @@ static const sai_u32_list_t        mlnx_sai_tunnel_valid_obj_types[] = {
     },
 };
 static const sai_u32_list_t        mlnx_sai_acl_entry_valid_obj_types[] = {
-    [SAI_ACL_ENTRY_ATTR_FIELD_IN_PORT] =
-    {.count = 1, .list = (uint32_t[1]) {SAI_OBJECT_TYPE_LAG}
-    },
     [SAI_ACL_ENTRY_ATTR_FIELD_IN_PORTS] =
-    {.count = 1, .list = (uint32_t[1]) {SAI_OBJECT_TYPE_LAG}
-    },
-    [SAI_ACL_ENTRY_ATTR_FIELD_OUT_PORT] =
     {.count = 1, .list = (uint32_t[1]) {SAI_OBJECT_TYPE_LAG}
     },
     [SAI_ACL_ENTRY_ATTR_FIELD_OUT_PORTS] =

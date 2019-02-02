@@ -1386,7 +1386,7 @@ static sai_status_t mlnx_rif_attrib_get(_In_ const sai_object_key_t   *key,
  */
 static sai_status_t mlnx_get_router_interface_stats_ext(_In_ sai_object_id_t                    router_interface_id,
                                                         _In_ uint32_t                           number_of_counters,
-                                                        _In_ const sai_router_interface_stat_t *counter_ids,
+                                                        _In_ const sai_stat_id_t               *counter_ids,
                                                         _In_ sai_stats_mode_t                   mode,
                                                         _Out_ uint64_t                         *counters)
 {
@@ -1522,7 +1522,7 @@ static sai_status_t mlnx_get_router_interface_stats_ext(_In_ sai_object_id_t    
  */
 static sai_status_t mlnx_get_router_interface_stats(_In_ sai_object_id_t                    router_interface_id,
                                                     _In_ uint32_t                           number_of_counters,
-                                                    _In_ const sai_router_interface_stat_t *counter_ids,
+                                                    _In_ const sai_stat_id_t               *counter_ids,
                                                     _Out_ uint64_t                         *counters)
 {
     return mlnx_get_router_interface_stats_ext(router_interface_id,
@@ -1543,7 +1543,7 @@ static sai_status_t mlnx_get_router_interface_stats(_In_ sai_object_id_t        
  */
 static sai_status_t mlnx_clear_router_interface_stats(_In_ sai_object_id_t                    router_interface_id,
                                                       _In_ uint32_t                           number_of_counters,
-                                                      _In_ const sai_router_interface_stat_t *counter_ids)
+                                                      _In_ const sai_stat_id_t               *counter_ids)
 {
     sx_status_t             sx_status;
     sai_status_t            status;

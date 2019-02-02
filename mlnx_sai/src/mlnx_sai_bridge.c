@@ -378,16 +378,16 @@ sai_status_t mlnx_bridge_port_by_oid(sai_object_id_t oid, mlnx_bridge_port_t **p
 
 sai_status_t mlnx_bridge_port_by_tunnel_id(sx_tunnel_id_t sx_tunnel, mlnx_bridge_port_t **port)
 {
-    mlnx_bridge_port_t      *it;
-    uint32_t                 ii, checked;
-    const tunnel_db_entry_t *tunnel_entry;
+    mlnx_bridge_port_t        *it;
+    uint32_t                   ii, checked;
+    const mlnx_tunnel_entry_t *tunnel_entry;
 
     mlnx_bridge_non1q_port_foreach(it, ii, checked) {
         if (it->port_type != SAI_BRIDGE_PORT_TYPE_TUNNEL) {
             continue;
         }
 
-        tunnel_entry = &g_sai_db_ptr->tunnel_db[it->tunnel_idx];
+        tunnel_entry = &g_sai_tunnel_db_ptr->tunnel_entry_db[it->tunnel_idx];
 
         if ((tunnel_entry->sx_tunnel_id_ipv4 == sx_tunnel) && tunnel_entry->ipv4_created) {
             *port = it;
@@ -3141,7 +3141,7 @@ out:
  */
 static sai_status_t mlnx_get_bridge_stats(_In_ sai_object_id_t          bridge_id,
                                           _In_ uint32_t                 number_of_counters,
-                                          _In_ const sai_bridge_stat_t *counter_ids,
+                                          _In_ const sai_stat_id_t     *counter_ids,
                                           _Out_ uint64_t               *counters)
 {
     return SAI_STATUS_NOT_IMPLEMENTED;
@@ -3160,7 +3160,7 @@ static sai_status_t mlnx_get_bridge_stats(_In_ sai_object_id_t          bridge_i
  */
 sai_status_t mlnx_get_bridge_stats_ext(_In_ sai_object_id_t          bridge_id,
                                        _In_ uint32_t                 number_of_counters,
-                                       _In_ const sai_bridge_stat_t *counter_ids,
+                                       _In_ const sai_stat_id_t     *counter_ids,
                                        _In_ sai_stats_mode_t         mode,
                                        _Out_ uint64_t               *counters)
 {
@@ -3178,7 +3178,7 @@ sai_status_t mlnx_get_bridge_stats_ext(_In_ sai_object_id_t          bridge_id,
  */
 static sai_status_t mlnx_clear_bridge_stats(_In_ sai_object_id_t          bridge_id,
                                             _In_ uint32_t                 number_of_counters,
-                                            _In_ const sai_bridge_stat_t *counter_ids)
+                                            _In_ const sai_stat_id_t     *counter_ids)
 {
     return SAI_STATUS_NOT_IMPLEMENTED;
 }
@@ -3196,7 +3196,7 @@ static sai_status_t mlnx_clear_bridge_stats(_In_ sai_object_id_t          bridge
  */
 sai_status_t mlnx_get_bridge_port_stats_ext(_In_ sai_object_id_t               bridge_port_id,
                                             _In_ uint32_t                      number_of_counters,
-                                            _In_ const sai_bridge_port_stat_t *counter_ids,
+                                            _In_ const sai_stat_id_t          *counter_ids,
                                             _In_ sai_stats_mode_t              mode,
                                             _Out_ uint64_t                    *counters)
 {
@@ -3292,7 +3292,7 @@ out:
  */
 static sai_status_t mlnx_get_bridge_port_stats(_In_ sai_object_id_t               bridge_port_id,
                                                _In_ uint32_t                      number_of_counters,
-                                               _In_ const sai_bridge_port_stat_t *counter_ids,
+                                               _In_ const sai_stat_id_t          *counter_ids,
                                                _Out_ uint64_t                    *counters)
 {
     return mlnx_get_bridge_port_stats_ext(bridge_port_id,
@@ -3313,7 +3313,7 @@ static sai_status_t mlnx_get_bridge_port_stats(_In_ sai_object_id_t             
  */
 static sai_status_t mlnx_clear_bridge_port_stats(_In_ sai_object_id_t               bridge_port_id,
                                                  _In_ uint32_t                      number_of_counters,
-                                                 _In_ const sai_bridge_port_stat_t *counter_ids)
+                                                 _In_ const sai_stat_id_t          *counter_ids)
 {
     return SAI_STATUS_NOT_IMPLEMENTED;
 }

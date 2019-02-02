@@ -71,6 +71,8 @@ uint32_t                         g_sai_buffer_db_size      = 0;
 mlnx_acl_db_t                   *g_sai_acl_db_ptr          = NULL;
 uint32_t                         g_sai_acl_db_size         = 0;
 uint32_t                         g_sai_acl_db_pbs_map_size = 0;
+sai_tunnel_db_t                 *g_sai_tunnel_db_ptr       = NULL;
+uint32_t                         g_sai_tunnel_db_size      = 0;
 static cl_thread_t               event_thread;
 static bool                      event_thread_asked_to_stop = false;
 static uint32_t                  g_fdb_table_size;
@@ -134,6 +136,11 @@ static sai_status_t sai_acl_db_switch_connect_init(int shmid);
 static sai_status_t sai_acl_db_unload(boolean_t erase_db);
 static uint32_t sai_udf_db_size_get();
 static void sai_udf_db_init();
+static sai_status_t sai_tunnel_db_unload(boolean_t erase_db);
+static sai_status_t sai_tunnel_db_create();
+static uint32_t sai_tunnel_db_size_get();
+static void sai_tunnel_db_init();
+static sai_status_t sai_tunnel_db_switch_connect_init(int shmid);
 static sai_status_t mlnx_switch_fdb_record_age(_In_ const sx_fdb_notify_record_t *fdb_record);
 static sai_status_t mlnx_switch_fdb_record_check_and_age(_In_ const sx_fdb_notify_record_t *fdb_record);
 static sai_status_t mlnx_switch_restart_warm();
@@ -1119,6 +1126,7 @@ const mlnx_obj_type_attrs_info_t          mlnx_switch_obj_type_info =
 #define SAI_QOS_PATH                       "/sai_qos_db"
 #define SAI_BUFFER_PATH                    "/sai_buffer_db"
 #define SAI_ACL_PATH                       "/sai_acl_db"
+#define SAI_TUNNEL_PATH                    "/sai_tunnel_db"
 #define SWID_NUM                           1
 
 static struct sx_pci_profile pci_profile_single_eth_spectrum = {
@@ -1747,6 +1755,11 @@ static sai_status_t mlnx_sai_db_initialize(const char *config_file, sx_chip_type
         return status;
     }
     sai_acl_db_init();
+
+    if (SAI_STATUS_SUCCESS != (status = sai_tunnel_db_create())) {
+        return status;
+    }
+    sai_tunnel_db_init();
 
     status = mlnx_sai_rm_db_init();
     if (SAI_ERR(status)) {
@@ -4086,6 +4099,122 @@ static sai_status_t sai_acl_db_unload(boolean_t erase_db)
     return status;
 }
 
+static uint32_t sai_tunnel_db_size_get()
+{
+    return (sizeof(mlnx_tunneltable_t) * MLNX_TUNNELTABLE_SIZE +
+            sizeof(mlnx_tunnel_entry_t) * MAX_TUNNEL_DB_SIZE +
+            sizeof(mlnx_tunnel_map_t) * MLNX_TUNNEL_MAP_MAX +
+            sizeof(mlnx_tunnel_map_entry_t) * MLNX_TUNNEL_MAP_ENTRY_MAX);
+}
+
+static void sai_tunnel_db_init()
+{
+    g_sai_tunnel_db_ptr->tunneltable_db = (mlnx_tunneltable_t*)(g_sai_tunnel_db_ptr->db_base_ptr);
+
+    g_sai_tunnel_db_ptr->tunnel_entry_db = (mlnx_tunnel_entry_t*)((uint8_t*)g_sai_tunnel_db_ptr->tunneltable_db +
+                                                           sizeof(mlnx_tunneltable_t) * MLNX_TUNNELTABLE_SIZE);
+
+    g_sai_tunnel_db_ptr->tunnel_map_db = (mlnx_tunnel_map_t*)((uint8_t*)g_sai_tunnel_db_ptr->tunnel_entry_db +
+                                                              sizeof(mlnx_tunnel_entry_t) * MAX_TUNNEL_DB_SIZE);
+
+    g_sai_tunnel_db_ptr->tunnel_map_entry_db = (mlnx_tunnel_map_entry_t*)((uint8_t*)g_sai_tunnel_db_ptr->tunnel_map_db +
+                                                                      sizeof(mlnx_tunnel_map_t) * MLNX_TUNNEL_MAP_MAX);
+}
+
+static sai_status_t sai_tunnel_db_create()
+{
+    int         shmid;
+    cl_status_t cl_err;
+
+    cl_err = cl_shm_create(SAI_TUNNEL_PATH, &shmid);
+    if (cl_err) {
+        if (errno == EEXIST) {
+            MLNX_SAI_LOG_WRN("Shared memory of the SAI TUNNEL already exists, destroying it and re-creating\n");
+            cl_shm_destroy(SAI_TUNNEL_PATH);
+            cl_err = cl_shm_create(SAI_TUNNEL_PATH, &shmid);
+        }
+
+        if (cl_err) {
+            MLNX_SAI_LOG_ERR("Failed to create shared memory for SAI TUNNEL DB %s\n", strerror(errno));
+            return SAI_STATUS_NO_MEMORY;
+        }
+    }
+
+    g_sai_tunnel_db_size = sai_tunnel_db_size_get();
+
+    if (ftruncate(shmid, g_sai_tunnel_db_size) == -1) {
+        MLNX_SAI_LOG_ERR("Failed to set shared memory size for the SAI TUNNEL DB\n");
+        cl_shm_destroy(SAI_TUNNEL_PATH);
+        return SAI_STATUS_NO_MEMORY;
+    }
+
+    g_sai_tunnel_db_ptr = malloc(sizeof(*g_sai_tunnel_db_ptr));
+    if (g_sai_tunnel_db_ptr == NULL) {
+        MLNX_SAI_LOG_ERR("Failed to allocate SAI TUNNEL DB structure\n");
+        return SAI_STATUS_NO_MEMORY;
+    }
+
+    g_sai_tunnel_db_ptr->db_base_ptr = mmap(NULL, g_sai_tunnel_db_size, PROT_READ | PROT_WRITE, MAP_SHARED, shmid, 0);
+    if (g_sai_tunnel_db_ptr->db_base_ptr == MAP_FAILED) {
+        MLNX_SAI_LOG_ERR("Failed to map the shared memory of the SAI TUNNEL DB\n");
+        g_sai_tunnel_db_ptr->db_base_ptr = NULL;
+        cl_shm_destroy(SAI_TUNNEL_PATH);
+        return SAI_STATUS_NO_MEMORY;
+    }
+
+    memset(g_sai_tunnel_db_ptr->db_base_ptr, 0, g_sai_tunnel_db_size);
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t sai_tunnel_db_unload(boolean_t erase_db)
+{
+    int          err    = 0;
+    sai_status_t status = SAI_STATUS_SUCCESS;
+
+    if (erase_db == TRUE) {
+        cl_shm_destroy(SAI_TUNNEL_PATH);
+    }
+
+    if (g_sai_tunnel_db_ptr == NULL) {
+        return status;
+    }
+
+    if (g_sai_tunnel_db_ptr->db_base_ptr != NULL) {
+        err = munmap(g_sai_tunnel_db_ptr->db_base_ptr, g_sai_tunnel_db_size);
+        if (err == -1) {
+            SX_LOG_ERR("Failed to unmap the shared memory of the SAI TUNNEL DB\n");
+            status = SAI_STATUS_FAILURE;
+        }
+    }
+
+    free(g_sai_tunnel_db_ptr);
+    g_sai_tunnel_db_ptr = NULL;
+
+    return status;
+}
+
+static sai_status_t sai_tunnel_db_switch_connect_init(int shmid)
+{
+    g_sai_tunnel_db_size = sai_tunnel_db_size_get();
+    g_sai_tunnel_db_ptr = malloc(sizeof(*g_sai_tunnel_db_ptr));
+    if (g_sai_tunnel_db_ptr == NULL) {
+        SX_LOG_ERR("Failed to allocate SAI Tunnel DB structure\n");
+        return SAI_STATUS_NO_MEMORY;
+    }
+
+    g_sai_tunnel_db_ptr->db_base_ptr = mmap(NULL, g_sai_tunnel_db_size, PROT_READ | PROT_WRITE, MAP_SHARED, shmid, 0);
+    if (g_sai_tunnel_db_ptr->db_base_ptr == MAP_FAILED) {
+        SX_LOG_ERR("Failed to map the shared memory of the SAI Tunnel DB\n");
+        g_sai_tunnel_db_ptr->db_base_ptr = NULL;
+        return SAI_STATUS_NO_MEMORY;
+    }
+
+    sai_tunnel_db_init();
+
+    return SAI_STATUS_SUCCESS;
+}
+
 static sai_status_t sai_acl_db_switch_connect_init(int shmid)
 {
     g_sai_acl_db_size = sai_acl_db_size_get();
@@ -4640,6 +4769,18 @@ static sai_status_t mlnx_connect_switch(sai_object_id_t switch_id)
             return status;
         }
 
+        err = cl_shm_open(SAI_TUNNEL_PATH, &shmid);
+        if (err) {
+            SX_LOG_ERR("Failed to open shared memory of SAI Tunnel DB %s\n", strerror(errno));
+            return SAI_STATUS_NO_MEMORY;
+        }
+
+        status = sai_tunnel_db_switch_connect_init(shmid);
+        if (SAI_STATUS_SUCCESS != status) {
+            SX_LOG_ERR("Failed to map SAI Tunnel db on switch connect\n");
+            return status;
+        }
+
         status = mlnx_cb_table_init();
         if (SAI_ERR(status)) {
             return status;
@@ -4973,6 +5114,7 @@ static sai_status_t mlnx_shutdown_switch(void)
     sai_qos_db_unload(true);
     sai_buffer_db_unload(true);
     sai_acl_db_unload(true);
+    sai_tunnel_db_unload(true);
     sai_db_unload(true);
 
     if (SX_STATUS_SUCCESS != (status = sx_api_router_deinit_set(gh_sdk))) {

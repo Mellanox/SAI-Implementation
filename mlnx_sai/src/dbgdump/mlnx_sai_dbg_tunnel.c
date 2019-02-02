@@ -19,35 +19,35 @@
 #include <sx/utils/dbg_utils.h>
 #include "assert.h"
 
-static void SAI_dump_tunnel_getdb(_Out_ mlnx_tunnel_map_entry_t *mlnx_tunnel_map_entry,
-                                  _Out_ mlnx_tunnel_map_t       *mlnx_tunnel_map,
-                                  _Out_ tunnel_db_entry_t       *tunnel_db,
-                                  _Out_ mlnx_tunneltable_t      *mlnx_tunneltable,
+static void SAI_dump_tunnel_getdb(_Out_ mlnx_tunnel_map_entry_t *tunnel_map_entry_db,
+                                  _Out_ mlnx_tunnel_map_t       *tunnel_map_db,
+                                  _Out_ mlnx_tunnel_entry_t     *tunnel_entry_db,
+                                  _Out_ mlnx_tunneltable_t      *tunneltable_db,
                                   _Out_ sx_bridge_id_t          *sx_bridge_id)
 {
-    assert(NULL != mlnx_tunnel_map_entry);
-    assert(NULL != mlnx_tunnel_map);
-    assert(NULL != tunnel_db);
-    assert(NULL != mlnx_tunneltable);
+    assert(NULL != tunnel_map_entry_db);
+    assert(NULL != tunnel_map_db);
+    assert(NULL != tunnel_entry_db);
+    assert(NULL != tunneltable_db);
     assert(NULL != sx_bridge_id);
     assert(NULL != g_sai_db_ptr);
 
     sai_db_read_lock();
 
-    memcpy(mlnx_tunnel_map_entry,
-           g_sai_db_ptr->mlnx_tunnel_map_entry,
+    memcpy(tunnel_map_entry_db,
+           g_sai_tunnel_db_ptr->tunnel_map_entry_db,
            MLNX_TUNNEL_MAP_ENTRY_MAX * sizeof(mlnx_tunnel_map_entry_t));
 
-    memcpy(mlnx_tunnel_map,
-           g_sai_db_ptr->mlnx_tunnel_map,
+    memcpy(tunnel_map_db,
+           g_sai_tunnel_db_ptr->tunnel_map_db,
            MLNX_TUNNEL_MAP_MAX * sizeof(mlnx_tunnel_map_t));
 
-    memcpy(tunnel_db,
-           g_sai_db_ptr->tunnel_db,
-           MAX_TUNNEL_DB_SIZE * sizeof(tunnel_db_entry_t));
+    memcpy(tunnel_entry_db,
+           g_sai_tunnel_db_ptr->tunnel_entry_db,
+           MAX_TUNNEL_DB_SIZE * sizeof(mlnx_tunnel_entry_t));
 
-    memcpy(mlnx_tunneltable,
-           g_sai_db_ptr->mlnx_tunneltable,
+    memcpy(tunneltable_db,
+           g_sai_tunnel_db_ptr->tunneltable_db,
            MLNX_TUNNELTABLE_SIZE * sizeof(mlnx_tunneltable_t));
 
     *sx_bridge_id = g_sai_db_ptr->sx_bridge_id;
@@ -349,11 +349,11 @@ static void SAI_dump_tunnel_sai_tunnel_type_enum_to_str(_In_ sai_tunnel_type_t t
     }
 }
 
-static void SAI_dump_tunnel_print(_In_ FILE *file, _In_ tunnel_db_entry_t *tunnel_db)
+static void SAI_dump_tunnel_print(_In_ FILE *file, _In_ mlnx_tunnel_entry_t *tunnel_db)
 {
     uint32_t                  ii     = 0, jj = 0;
     sai_object_id_t           obj_id = SAI_NULL_OBJECT_ID;
-    tunnel_db_entry_t         curr_tunnel_db;
+    mlnx_tunnel_entry_t       curr_tunnel_db;
     char                      sai_tunnel_type_str[LINE_LENGTH];
     dbg_utils_table_columns_t tunnel_clmns[] = {
         {"sai oid",            16, PARAM_UINT64_E, &obj_id},
@@ -391,7 +391,7 @@ static void SAI_dump_tunnel_print(_In_ FILE *file, _In_ tunnel_db_entry_t *tunne
 
     for (ii = 0; ii < MAX_TUNNEL_DB_SIZE; ii++) {
         if (tunnel_db[ii].is_used) {
-            memcpy(&curr_tunnel_db, &tunnel_db[ii], sizeof(tunnel_db_entry_t));
+            memcpy(&curr_tunnel_db, &tunnel_db[ii], sizeof(mlnx_tunnel_entry_t));
             if (SAI_STATUS_SUCCESS !=
                 mlnx_create_object(SAI_OBJECT_TYPE_TUNNEL, ii, NULL, &obj_id)) {
                 obj_id = SAI_NULL_OBJECT_ID;
@@ -547,47 +547,47 @@ static void SAI_dump_bridge_print(_In_ FILE *file, _In_ sx_bridge_id_t *sx_bridg
 
 void SAI_dump_tunnel(_In_ FILE *file)
 {
-    mlnx_tunnel_map_entry_t *mlnx_tunnel_map_entry = NULL;
-    mlnx_tunnel_map_t       *mlnx_tunnel_map       = NULL;
-    tunnel_db_entry_t       *tunnel_db             = NULL;
-    mlnx_tunneltable_t      *mlnx_tunneltable      = NULL;
-    sx_bridge_id_t           sx_bridge_id          = 0;
+    mlnx_tunnel_map_entry_t *tunnel_map_entry_db = NULL;
+    mlnx_tunnel_map_t       *tunnel_map_db       = NULL;
+    mlnx_tunnel_entry_t     *tunnel_entry_db     = NULL;
+    mlnx_tunneltable_t      *tunneltable_db      = NULL;
+    sx_bridge_id_t           sx_bridge_id        = 0;
 
-    mlnx_tunnel_map_entry =
+    tunnel_map_entry_db =
         (mlnx_tunnel_map_entry_t*)calloc(MLNX_TUNNEL_MAP_ENTRY_MAX, sizeof(mlnx_tunnel_map_entry_t));
-    mlnx_tunnel_map  = (mlnx_tunnel_map_t*)calloc(MLNX_TUNNEL_MAP_MAX, sizeof(mlnx_tunnel_map_t));
-    tunnel_db        = (tunnel_db_entry_t*)calloc(MAX_TUNNEL_DB_SIZE, sizeof(tunnel_db_entry_t));
-    mlnx_tunneltable = (mlnx_tunneltable_t*)calloc(MLNX_TUNNELTABLE_SIZE, sizeof(mlnx_tunneltable_t));
-    if ((!mlnx_tunnel_map_entry) || (!mlnx_tunnel_map) || (!tunnel_db) || (!mlnx_tunneltable)) {
-        if (mlnx_tunnel_map_entry) {
-            free(mlnx_tunnel_map_entry);
+    tunnel_map_db    = (mlnx_tunnel_map_t*)calloc(MLNX_TUNNEL_MAP_MAX, sizeof(mlnx_tunnel_map_t));
+    tunnel_entry_db  = (mlnx_tunnel_entry_t*)calloc(MAX_TUNNEL_DB_SIZE, sizeof(mlnx_tunnel_entry_t));
+    tunneltable_db = (mlnx_tunneltable_t*)calloc(MLNX_TUNNELTABLE_SIZE, sizeof(mlnx_tunneltable_t));
+    if ((!tunnel_map_entry_db) || (!tunnel_map_db) || (!tunnel_entry_db) || (!tunneltable_db)) {
+        if (tunnel_map_entry_db) {
+            free(tunnel_map_entry_db);
         }
-        if (mlnx_tunnel_map) {
-            free(mlnx_tunnel_map);
+        if (tunnel_map_db) {
+            free(tunnel_map_db);
         }
-        if (tunnel_db) {
-            free(tunnel_db);
+        if (tunnel_entry_db) {
+            free(tunnel_entry_db);
         }
-        if (mlnx_tunneltable) {
-            free(mlnx_tunneltable);
+        if (tunneltable_db) {
+            free(tunneltable_db);
         }
         return;
     }
 
-    SAI_dump_tunnel_getdb(mlnx_tunnel_map_entry,
-                          mlnx_tunnel_map,
-                          tunnel_db,
-                          mlnx_tunneltable,
+    SAI_dump_tunnel_getdb(tunnel_map_entry_db,
+                          tunnel_map_db,
+                          tunnel_entry_db,
+                          tunneltable_db,
                           &sx_bridge_id);
     dbg_utils_print_module_header(file, "SAI Tunnel");
-    SAI_dump_tunnel_map_entry_print(file, mlnx_tunnel_map_entry);
-    SAI_dump_tunnel_map_print(file, mlnx_tunnel_map, mlnx_tunnel_map_entry);
-    SAI_dump_tunnel_print(file, tunnel_db);
-    SAI_dump_tunnel_table_print(file, mlnx_tunneltable);
+    SAI_dump_tunnel_map_entry_print(file, tunnel_map_entry_db);
+    SAI_dump_tunnel_map_print(file, tunnel_map_db, tunnel_map_entry_db);
+    SAI_dump_tunnel_print(file, tunnel_entry_db);
+    SAI_dump_tunnel_table_print(file, tunneltable_db);
     SAI_dump_bridge_print(file, &sx_bridge_id);
 
-    free(mlnx_tunnel_map_entry);
-    free(mlnx_tunnel_map);
-    free(tunnel_db);
-    free(mlnx_tunneltable);
+    free(tunnel_map_entry_db);
+    free(tunnel_map_db);
+    free(tunnel_entry_db);
+    free(tunneltable_db);
 }

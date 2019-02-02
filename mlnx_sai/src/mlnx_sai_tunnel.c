@@ -575,7 +575,7 @@ static sai_status_t mlnx_get_sai_tunnel_map_db_idx(_In_ sai_object_id_t sai_tunn
         return SAI_STATUS_INVALID_OBJECT_ID;
     }
 
-    if (!g_sai_db_ptr->mlnx_tunnel_map[tunnel_map_idx].in_use) {
+    if (!g_sai_tunnel_db_ptr->tunnel_map_db[tunnel_map_idx].in_use) {
         SX_LOG_ERR("Non-exist tunnel map idx: %d\n", tunnel_map_idx);
         SX_LOG_EXIT();
         return SAI_STATUS_INVALID_OBJECT_ID;
@@ -605,13 +605,13 @@ static sai_status_t mlnx_tunnel_map_db_param_get(_In_ const sai_object_id_t sai_
         return sai_status;
     }
 
-    if (!g_sai_db_ptr->mlnx_tunnel_map[tunnel_map_idx].in_use) {
+    if (!g_sai_tunnel_db_ptr->tunnel_map_db[tunnel_map_idx].in_use) {
         SX_LOG_ERR("Non-exist tunnel map idx: %d\n", tunnel_map_idx);
         SX_LOG_EXIT();
         return SAI_STATUS_INVALID_OBJECT_ID;
     }
 
-    memcpy(mlnx_tunnel_map, &g_sai_db_ptr->mlnx_tunnel_map[tunnel_map_idx], sizeof(mlnx_tunnel_map_t));
+    memcpy(mlnx_tunnel_map, &g_sai_tunnel_db_ptr->tunnel_map_db[tunnel_map_idx], sizeof(mlnx_tunnel_map_t));
 
     SX_LOG_EXIT();
     return SAI_STATUS_SUCCESS;
@@ -622,7 +622,7 @@ static sai_status_t mlnx_tunnel_map_db_param_get_from_db(_In_ const sai_object_i
 {
     sai_status_t sai_status = SAI_STATUS_FAILURE;
 
-    assert(NULL != g_sai_db_ptr);
+    assert(NULL != g_sai_tunnel_db_ptr);
 
     sai_db_read_lock();
 
@@ -695,7 +695,7 @@ static sai_status_t mlnx_tunnel_map_attr_entry_list_get(_In_ const sai_object_ke
     tunnel_map_entries_count = 0;
     for (ii = mlnx_tunnel_map.tunnel_map_entry_head_idx;
          ii != MLNX_TUNNEL_MAP_ENTRY_INVALID;
-         ii = g_sai_db_ptr->mlnx_tunnel_map_entry[ii].next_tunnel_map_entry_idx) {
+         ii = g_sai_tunnel_db_ptr->tunnel_map_entry_db[ii].next_tunnel_map_entry_idx) {
         sai_status = mlnx_create_object(SAI_OBJECT_TYPE_TUNNEL_MAP_ENTRY, ii, NULL,
                                         &tunnel_map_entries[tunnel_map_entries_count]);
         if (SAI_ERR(sai_status)) {
@@ -751,7 +751,7 @@ static sai_status_t mlnx_get_sai_tunnel_map_entry_db_idx(_In_ sai_object_id_t sa
         return SAI_STATUS_INVALID_OBJECT_ID;
     }
 
-    if (!g_sai_db_ptr->mlnx_tunnel_map_entry[tunnel_map_entry_idx].in_use) {
+    if (!g_sai_tunnel_db_ptr->tunnel_map_entry_db[tunnel_map_entry_idx].in_use) {
         SX_LOG_ERR("Non-exist tunnel map entry idx: %d\n", tunnel_map_entry_idx);
         SX_LOG_EXIT();
         return SAI_STATUS_INVALID_OBJECT_ID;
@@ -781,13 +781,13 @@ static sai_status_t mlnx_tunnel_map_entry_db_param_get(_In_ const sai_object_id_
         return sai_status;
     }
 
-    if (!g_sai_db_ptr->mlnx_tunnel_map_entry[tunnel_map_entry_idx].in_use) {
+    if (!g_sai_tunnel_db_ptr->tunnel_map_entry_db[tunnel_map_entry_idx].in_use) {
         SX_LOG_ERR("Non-exist tunnel map entry idx: %d\n", tunnel_map_entry_idx);
         SX_LOG_EXIT();
         return SAI_STATUS_INVALID_OBJECT_ID;
     }
 
-    memcpy(mlnx_tunnel_map_entry, &g_sai_db_ptr->mlnx_tunnel_map_entry[tunnel_map_entry_idx],
+    memcpy(mlnx_tunnel_map_entry, &g_sai_tunnel_db_ptr->tunnel_map_entry_db[tunnel_map_entry_idx],
            sizeof(mlnx_tunnel_map_entry_t));
 
     SX_LOG_EXIT();
@@ -800,7 +800,7 @@ static sai_status_t mlnx_tunnel_map_entry_db_param_get_from_db(
 {
     sai_status_t sai_status = SAI_STATUS_FAILURE;
 
-    assert(NULL != g_sai_db_ptr);
+    assert(NULL != g_sai_tunnel_db_ptr);
 
     sai_db_read_lock();
 
@@ -999,7 +999,7 @@ sai_status_t mlnx_get_sai_tunnel_db_idx(_In_ sai_object_id_t sai_tunnel_id, _Out
         SX_LOG_EXIT();
         return SAI_STATUS_FAILURE;
     }
-    if (!g_sai_db_ptr->tunnel_db[*tunnel_db_idx].is_used) {
+    if (!g_sai_tunnel_db_ptr->tunnel_entry_db[*tunnel_db_idx].is_used) {
         SX_LOG_ERR("tunnel db index:%d item marked as not used\n", *tunnel_db_idx);
         SX_LOG_EXIT();
         return SAI_STATUS_FAILURE;
@@ -1010,8 +1010,8 @@ sai_status_t mlnx_get_sai_tunnel_db_idx(_In_ sai_object_id_t sai_tunnel_id, _Out
 }
 
 /* caller needs to guard this function with lock */
-static sai_status_t mlnx_get_tunnel_db_entry(_In_ sai_object_id_t     sai_tunnel_id,
-                                             _Out_ tunnel_db_entry_t *sai_tunnel_db_entry)
+static sai_status_t mlnx_get_tunnel_db_entry(_In_  sai_object_id_t      sai_tunnel_id,
+                                             _Out_ mlnx_tunnel_entry_t *sai_tunnel_db_entry)
 {
     sai_status_t sai_status;
     uint32_t     tunnel_db_idx;
@@ -1031,7 +1031,7 @@ static sai_status_t mlnx_get_tunnel_db_entry(_In_ sai_object_id_t     sai_tunnel
         return sai_status;
     }
 
-    memcpy(sai_tunnel_db_entry, &g_sai_db_ptr->tunnel_db[tunnel_db_idx], sizeof(tunnel_db_entry_t));
+    memcpy(sai_tunnel_db_entry, &g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx], sizeof(mlnx_tunnel_entry_t));
 
     SX_LOG_EXIT();
     return sai_status;
@@ -1044,7 +1044,7 @@ static sai_status_t mlnx_sai_get_sai_rif_id(_In_ sai_object_id_t        sai_tunn
 {
     sai_status_t          sai_status;
     sx_router_interface_t sdk_rif = 0;
-    tunnel_db_entry_t     sai_tunnel_db_entry;
+    mlnx_tunnel_entry_t     sai_tunnel_db_entry;
 
     SX_LOG_ENTER();
 
@@ -1658,16 +1658,16 @@ static sai_status_t mlnx_tunnel_vxlan_mapper_get(_In_ sai_object_id_t           
 
     if (TUNNEL_ENCAP == (long)arg) {
         if (SAI_STATUS_SUCCESS !=
-            (sai_status = mlnx_fill_objlist(g_sai_db_ptr->tunnel_db[sai_tunnel_db_idx].sai_tunnel_map_encap_id_array,
-                                            g_sai_db_ptr->tunnel_db[sai_tunnel_db_idx].sai_tunnel_map_encap_cnt,
+            (sai_status = mlnx_fill_objlist(g_sai_tunnel_db_ptr->tunnel_entry_db[sai_tunnel_db_idx].sai_tunnel_map_encap_id_array,
+                                            g_sai_tunnel_db_ptr->tunnel_entry_db[sai_tunnel_db_idx].sai_tunnel_map_encap_cnt,
                                             &value->objlist))) {
             SX_LOG_ERR("Error filling objlist for sai tunnel obj id %" PRId64 "\n", sai_tunnel_obj_id);
             goto cleanup;
         }
     } else if (TUNNEL_DECAP == (long)arg) {
         if (SAI_STATUS_SUCCESS !=
-            (sai_status = mlnx_fill_objlist(g_sai_db_ptr->tunnel_db[sai_tunnel_db_idx].sai_tunnel_map_decap_id_array,
-                                            g_sai_db_ptr->tunnel_db[sai_tunnel_db_idx].sai_tunnel_map_decap_cnt,
+            (sai_status = mlnx_fill_objlist(g_sai_tunnel_db_ptr->tunnel_entry_db[sai_tunnel_db_idx].sai_tunnel_map_decap_id_array,
+                                            g_sai_tunnel_db_ptr->tunnel_entry_db[sai_tunnel_db_idx].sai_tunnel_map_decap_cnt,
                                             &value->objlist))) {
             SX_LOG_ERR("Error filling objlist for sai tunnel obj id %" PRId64 "\n", sai_tunnel_obj_id);
             goto cleanup;
@@ -1749,9 +1749,9 @@ static sai_status_t mlnx_tunnel_vxlan_mapper_set(_In_ sai_object_id_t           
                                                  _In_ const sai_attribute_value_t *value,
                                                  void                             *arg)
 {
-    sai_status_t      sai_status        = SAI_STATUS_FAILURE;
-    uint32_t          sai_tunnel_db_idx = 0;
-    tunnel_db_entry_t old_mlnx_tunnel_db_entry;
+    sai_status_t        sai_status        = SAI_STATUS_FAILURE;
+    uint32_t            sai_tunnel_db_idx = 0;
+    mlnx_tunnel_entry_t old_mlnx_tunnel_db_entry;
 
     SX_LOG_ENTER();
 
@@ -1822,13 +1822,13 @@ static sai_status_t mlnx_tunnel_vxlan_mapper_set(_In_ sai_object_id_t           
     }
 
     if (TUNNEL_ENCAP == (long)arg) {
-        g_sai_db_ptr->tunnel_db[sai_tunnel_db_idx].sai_tunnel_map_encap_cnt = value->objlist.count;
-        memcpy(g_sai_db_ptr->tunnel_db[sai_tunnel_db_idx].sai_tunnel_map_encap_id_array,
+        g_sai_tunnel_db_ptr->tunnel_entry_db[sai_tunnel_db_idx].sai_tunnel_map_encap_cnt = value->objlist.count;
+        memcpy(g_sai_tunnel_db_ptr->tunnel_entry_db[sai_tunnel_db_idx].sai_tunnel_map_encap_id_array,
                value->objlist.list,
                value->objlist.count * sizeof(sai_object_id_t));
     } else if (TUNNEL_DECAP == (long)arg) {
-        g_sai_db_ptr->tunnel_db[sai_tunnel_db_idx].sai_tunnel_map_decap_cnt = value->objlist.count;
-        memcpy(g_sai_db_ptr->tunnel_db[sai_tunnel_db_idx].sai_tunnel_map_decap_id_array,
+        g_sai_tunnel_db_ptr->tunnel_entry_db[sai_tunnel_db_idx].sai_tunnel_map_decap_cnt = value->objlist.count;
+        memcpy(g_sai_tunnel_db_ptr->tunnel_entry_db[sai_tunnel_db_idx].sai_tunnel_map_decap_id_array,
                value->objlist.list,
                value->objlist.count * sizeof(sai_object_id_t));
     }
@@ -2119,7 +2119,7 @@ sai_status_t mlnx_translate_sdk_tunnel_id_to_sai_tunnel_id(_In_ const sx_tunnel_
     sai_db_read_lock();
 
     for (tunnel_idx = 0; tunnel_idx < MAX_TUNNEL_DB_SIZE; tunnel_idx++) {
-        if (sdk_tunnel_id == g_sai_db_ptr->tunnel_db[tunnel_idx].sx_tunnel_id_ipv4) {
+        if (sdk_tunnel_id == g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_idx].sx_tunnel_id_ipv4) {
             break;
         }
     }
@@ -2171,14 +2171,14 @@ static sai_status_t mlnx_tunnel_term_table_entry_sdk_param_get(
         return SAI_STATUS_INVALID_OBJECT_ID;
     }
 
-    if (!g_sai_db_ptr->mlnx_tunneltable[internal_tunneltable_entry_idx].in_use) {
+    if (!g_sai_tunnel_db_ptr->tunneltable_db[internal_tunneltable_entry_idx].in_use) {
         SX_LOG_ERR("Non-exist internal tunnel table entry idx: %d\n", internal_tunneltable_entry_idx);
         SX_LOG_EXIT();
         return SAI_STATUS_INVALID_OBJECT_ID;
     }
 
     memcpy(sdk_tunnel_decap_key,
-           &g_sai_db_ptr->mlnx_tunneltable[internal_tunneltable_entry_idx].sdk_tunnel_decap_key_ipv4,
+           &g_sai_tunnel_db_ptr->tunneltable_db[internal_tunneltable_entry_idx].sdk_tunnel_decap_key_ipv4,
            sizeof(sx_tunnel_decap_entry_key_t));
 
     SX_LOG_EXIT();
@@ -2422,7 +2422,7 @@ static sai_status_t mlnx_create_empty_tunnel_map(_Out_ uint32_t *tunnel_map_idx)
     SX_LOG_ENTER();
 
     for (idx = MLNX_TUNNEL_MAP_MIN; idx < MLNX_TUNNEL_MAP_MAX; idx++) {
-        if (!g_sai_db_ptr->mlnx_tunnel_map[idx].in_use) {
+        if (!g_sai_tunnel_db_ptr->tunnel_map_db[idx].in_use) {
             *tunnel_map_idx = idx;
             sai_status      = SAI_STATUS_SUCCESS;
             goto cleanup;
@@ -2518,14 +2518,14 @@ static sai_status_t mlnx_create_tunnel_map(_Out_ sai_object_id_t      *sai_tunne
         (sai_status =
              mlnx_create_object(SAI_OBJECT_TYPE_TUNNEL_MAP, tunnel_map_idx, NULL,
                                 sai_tunnel_map_obj_id))) {
-        memset(&g_sai_db_ptr->mlnx_tunnel_map[tunnel_map_idx], 0,
+        memset(&g_sai_tunnel_db_ptr->tunnel_map_db[tunnel_map_idx], 0,
                sizeof(mlnx_tunnel_map_t));
         SX_LOG_ERR("Error creating sai tunnel map obj id from tunnel map idx %d\n",
                    tunnel_map_idx);
         goto cleanup;
     }
 
-    memcpy(&g_sai_db_ptr->mlnx_tunnel_map[tunnel_map_idx], &mlnx_tunnel_map, sizeof(mlnx_tunnel_map_t));
+    memcpy(&g_sai_tunnel_db_ptr->tunnel_map_db[tunnel_map_idx], &mlnx_tunnel_map, sizeof(mlnx_tunnel_map_t));
 
     SX_LOG_NTC("Created SAI tunnel map obj id: %" PRIx64 "\n", *sai_tunnel_map_obj_id);
 
@@ -2559,20 +2559,20 @@ static sai_status_t mlnx_remove_tunnel_map(_In_ const sai_object_id_t sai_tunnel
 
     sai_db_write_lock();
 
-    if (g_sai_db_ptr->mlnx_tunnel_map[tunnel_map_idx].in_use) {
-        if (0 < g_sai_db_ptr->mlnx_tunnel_map[tunnel_map_idx].tunnel_cnt) {
+    if (g_sai_tunnel_db_ptr->tunnel_map_db[tunnel_map_idx].in_use) {
+        if (0 < g_sai_tunnel_db_ptr->tunnel_map_db[tunnel_map_idx].tunnel_cnt) {
             SX_LOG_ERR("This tunnel map is still used by %d other tunnel(s)\n",
-                       g_sai_db_ptr->mlnx_tunnel_map[tunnel_map_idx].tunnel_cnt);
+                       g_sai_tunnel_db_ptr->tunnel_map_db[tunnel_map_idx].tunnel_cnt);
             sai_status = SAI_STATUS_OBJECT_IN_USE;
             goto cleanup;
         }
-        if (0 < g_sai_db_ptr->mlnx_tunnel_map[tunnel_map_idx].tunnel_map_entry_cnt) {
+        if (0 < g_sai_tunnel_db_ptr->tunnel_map_db[tunnel_map_idx].tunnel_map_entry_cnt) {
             SX_LOG_ERR("This tunnel map is still used by %d other tunnel map entry(s)\n",
-                       g_sai_db_ptr->mlnx_tunnel_map[tunnel_map_idx].tunnel_map_entry_cnt);
+                       g_sai_tunnel_db_ptr->tunnel_map_db[tunnel_map_idx].tunnel_map_entry_cnt);
             sai_status = SAI_STATUS_OBJECT_IN_USE;
             goto cleanup;
         }
-        memset(&g_sai_db_ptr->mlnx_tunnel_map[tunnel_map_idx], 0, sizeof(mlnx_tunnel_map_t));
+        memset(&g_sai_tunnel_db_ptr->tunnel_map_db[tunnel_map_idx], 0, sizeof(mlnx_tunnel_map_t));
     } else {
         SX_LOG_ERR("Invalid sai tunnel map obj id: %" PRIx64 "\n", sai_tunnel_map_obj_id);
         sai_status = SAI_STATUS_INVALID_OBJECT_ID;
@@ -2611,7 +2611,7 @@ static sai_status_t mlnx_sai_tunnel_to_sx_tunnel_id(_In_ sai_object_id_t  sai_tu
         return sai_status;
     }
 
-    *sx_tunnel_id = g_sai_db_ptr->tunnel_db[tunnel_db_idx].sx_tunnel_id_ipv4;
+    *sx_tunnel_id = g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].sx_tunnel_id_ipv4;
     SX_LOG_DBG("sx_tunnel_id:%d\n", *sx_tunnel_id);
     SX_LOG_EXIT();
     return sai_status;
@@ -2640,7 +2640,7 @@ static sai_status_t mlnx_sai_get_tunnel_attribs(_In_ sai_object_id_t         sai
         return sai_status;
     }
 
-    memcpy(sx_tunnel_attr, &g_sai_db_ptr->tunnel_db[tunnel_db_idx].sx_tunnel_attr, sizeof(*sx_tunnel_attr));
+    memcpy(sx_tunnel_attr, &g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].sx_tunnel_attr, sizeof(*sx_tunnel_attr));
     SX_LOG_EXIT();
     return SAI_STATUS_SUCCESS;
 }
@@ -2669,12 +2669,12 @@ static sai_status_t mlnx_sai_get_tunnel_cos_data(_In_ sai_object_id_t        sai
         return sai_status;
     }
 
-    sx_tunnel_direction = g_sai_db_ptr->tunnel_db[tunnel_db_idx].sx_tunnel_attr.direction;
+    sx_tunnel_direction = g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].sx_tunnel_attr.direction;
 
     if (SX_TUNNEL_COS_PARAM_TYPE_ENCAP_E == sx_tunnel_cos_data->param_type) {
         if ((SX_TUNNEL_DIRECTION_ENCAP == sx_tunnel_direction) ||
             (SX_TUNNEL_DIRECTION_SYMMETRIC == sx_tunnel_direction)) {
-            memcpy(sx_tunnel_cos_data, &g_sai_db_ptr->tunnel_db[tunnel_db_idx].sdk_encap_cos_data,
+            memcpy(sx_tunnel_cos_data, &g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].sdk_encap_cos_data,
                    sizeof(sx_tunnel_cos_data_t));
         } else {
             SX_LOG_ERR("Error getting encap cos data from decap tunnel from sai tunnel id %" PRIx64 "\n",
@@ -2685,7 +2685,7 @@ static sai_status_t mlnx_sai_get_tunnel_cos_data(_In_ sai_object_id_t        sai
     } else if (SX_TUNNEL_COS_PARAM_TYPE_DECAP_E == sx_tunnel_cos_data->param_type) {
         if ((SX_TUNNEL_DIRECTION_DECAP == sx_tunnel_direction) ||
             (SX_TUNNEL_DIRECTION_SYMMETRIC == sx_tunnel_direction)) {
-            memcpy(sx_tunnel_cos_data, &g_sai_db_ptr->tunnel_db[tunnel_db_idx].sdk_decap_cos_data,
+            memcpy(sx_tunnel_cos_data, &g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].sdk_decap_cos_data,
                    sizeof(sx_tunnel_cos_data_t));
         } else {
             SX_LOG_ERR("Error getting decap cos data from encap tunnel from sai tunnel id %" PRIx64 "\n",
@@ -2712,8 +2712,8 @@ static sai_status_t mlnx_sai_reserve_tunnel_db_item(_Out_ uint32_t *tunnel_db_id
         return SAI_STATUS_INVALID_PARAMETER;
     }
     for (ii = 0; ii < MAX_TUNNEL_DB_SIZE; ii++) {
-        if (!g_sai_db_ptr->tunnel_db[ii].is_used) {
-            g_sai_db_ptr->tunnel_db[ii].is_used = true;
+        if (!g_sai_tunnel_db_ptr->tunnel_entry_db[ii].is_used) {
+            g_sai_tunnel_db_ptr->tunnel_entry_db[ii].is_used = true;
             *tunnel_db_idx                      = ii;
             SX_LOG_DBG("tunnel db: reserved slot:%d\n", ii);
             SX_LOG_EXIT();
@@ -3016,12 +3016,12 @@ static sai_status_t mlnx_sdk_fill_tunnel_ecn_map_from_tunnel_map_entry(_In_ bool
         return sai_status;
     }
 
-    for (ii = g_sai_db_ptr->mlnx_tunnel_map[tunnel_map_idx].tunnel_map_entry_head_idx;
+    for (ii = g_sai_tunnel_db_ptr->tunnel_map_db[tunnel_map_idx].tunnel_map_entry_head_idx;
          ii != MLNX_TUNNEL_MAP_ENTRY_INVALID;
-         ii = g_sai_db_ptr->mlnx_tunnel_map_entry[ii].next_tunnel_map_entry_idx) {
-        if (sai_mapper_obj_id == g_sai_db_ptr->mlnx_tunnel_map_entry[ii].tunnel_map_id) {
+         ii = g_sai_tunnel_db_ptr->tunnel_map_entry_db[ii].next_tunnel_map_entry_idx) {
+        if (sai_mapper_obj_id == g_sai_tunnel_db_ptr->tunnel_map_entry_db[ii].tunnel_map_id) {
             if (TUNNEL_ENCAP == sai_tunnel_map_direction) {
-                switch (g_sai_db_ptr->mlnx_tunnel_map_entry[ii].tunnel_map_type) {
+                switch (g_sai_tunnel_db_ptr->tunnel_map_entry_db[ii].tunnel_map_type) {
                 case SAI_TUNNEL_MAP_TYPE_VLAN_ID_TO_VNI:
                 case SAI_TUNNEL_MAP_TYPE_BRIDGE_IF_TO_VNI:
                     if (is_ipinip) {
@@ -3034,9 +3034,9 @@ static sai_status_t mlnx_sdk_fill_tunnel_ecn_map_from_tunnel_map_entry(_In_ bool
 
                 case SAI_TUNNEL_MAP_TYPE_OECN_TO_UECN:
                     oecn_key =
-                        g_sai_db_ptr->mlnx_tunnel_map_entry[ii].oecn_key;
+                        g_sai_tunnel_db_ptr->tunnel_map_entry_db[ii].oecn_key;
                     uecn_value =
-                        g_sai_db_ptr->mlnx_tunnel_map_entry[ii].uecn_value;
+                        g_sai_tunnel_db_ptr->tunnel_map_entry_db[ii].uecn_value;
                     sdk_encap_cos_data->cos_ecn_params.ecn_encap.ecn_encap_map[oecn_key].valid      = true;
                     sdk_encap_cos_data->cos_ecn_params.ecn_encap.ecn_encap_map[oecn_key].egress_ecn = uecn_value;
                     break;
@@ -3044,12 +3044,12 @@ static sai_status_t mlnx_sdk_fill_tunnel_ecn_map_from_tunnel_map_entry(_In_ bool
                 default:
                     SX_LOG_ERR("sai tunnel map type for encap should be %d but getting %d\n",
                                SAI_TUNNEL_MAP_TYPE_OECN_TO_UECN,
-                               g_sai_db_ptr->mlnx_tunnel_map_entry[ii].tunnel_map_type);
+                               g_sai_tunnel_db_ptr->tunnel_map_entry_db[ii].tunnel_map_type);
                     SX_LOG_EXIT();
                     return SAI_STATUS_FAILURE;
                 }
             } else if (TUNNEL_DECAP == sai_tunnel_map_direction) {
-                switch (g_sai_db_ptr->mlnx_tunnel_map_entry[ii].tunnel_map_type) {
+                switch (g_sai_tunnel_db_ptr->tunnel_map_entry_db[ii].tunnel_map_type) {
                 case SAI_TUNNEL_MAP_TYPE_VNI_TO_VLAN_ID:
                 case SAI_TUNNEL_MAP_TYPE_VNI_TO_BRIDGE_IF:
                     if (is_ipinip) {
@@ -3062,11 +3062,11 @@ static sai_status_t mlnx_sdk_fill_tunnel_ecn_map_from_tunnel_map_entry(_In_ bool
 
                 case SAI_TUNNEL_MAP_TYPE_UECN_OECN_TO_OECN:
                     uecn_key =
-                        g_sai_db_ptr->mlnx_tunnel_map_entry[ii].uecn_key;
+                        g_sai_tunnel_db_ptr->tunnel_map_entry_db[ii].uecn_key;
                     oecn_key =
-                        g_sai_db_ptr->mlnx_tunnel_map_entry[ii].oecn_key;
+                        g_sai_tunnel_db_ptr->tunnel_map_entry_db[ii].oecn_key;
                     oecn_value =
-                        g_sai_db_ptr->mlnx_tunnel_map_entry[ii].oecn_value;
+                        g_sai_tunnel_db_ptr->tunnel_map_entry_db[ii].oecn_value;
                     sdk_decap_cos_data->cos_ecn_params.ecn_decap.ecn_decap_map[oecn_key][uecn_key].valid      = true;
                     sdk_decap_cos_data->cos_ecn_params.ecn_decap.ecn_decap_map[oecn_key][uecn_key].egress_ecn =
                         oecn_value;
@@ -3076,7 +3076,7 @@ static sai_status_t mlnx_sdk_fill_tunnel_ecn_map_from_tunnel_map_entry(_In_ bool
                 default:
                     SX_LOG_ERR("sai tunnel map type for decap should be %d but getting %d\n",
                                SAI_TUNNEL_MAP_TYPE_UECN_OECN_TO_OECN,
-                               g_sai_db_ptr->mlnx_tunnel_map_entry[ii].tunnel_map_type);
+                               g_sai_tunnel_db_ptr->tunnel_map_entry_db[ii].tunnel_map_type);
                     SX_LOG_EXIT();
                     return SAI_STATUS_FAILURE;
                 }
@@ -3085,7 +3085,7 @@ static sai_status_t mlnx_sdk_fill_tunnel_ecn_map_from_tunnel_map_entry(_In_ bool
     }
 
     if (is_ipinip) {
-        g_sai_db_ptr->mlnx_tunnel_map[tunnel_map_idx].tunnel_cnt++;
+        g_sai_tunnel_db_ptr->tunnel_map_db[tunnel_map_idx].tunnel_cnt++;
     }
 
     SX_LOG_EXIT();
@@ -3093,7 +3093,7 @@ static sai_status_t mlnx_sdk_fill_tunnel_ecn_map_from_tunnel_map_entry(_In_ bool
 }
 
 static sai_status_t mlnx_sdk_fill_tunnel_user_defined_ecn(_In_ bool                   is_ipinip,
-                                                          _In_ tunnel_db_entry_t     *mlnx_tunnel_db_entry,
+                                                          _In_ mlnx_tunnel_entry_t   *mlnx_tunnel_db_entry,
                                                           _In_ tunnel_direction_type  sai_tunnel_map_direction,
                                                           _Out_ sx_tunnel_cos_data_t *sdk_encap_cos_data,
                                                           _Out_ sx_tunnel_cos_data_t *sdk_decap_cos_data)
@@ -3171,7 +3171,7 @@ static sai_status_t mlnx_sdk_fill_tunnel_user_defined_ecn(_In_ bool             
 static sai_status_t mlnx_sdk_fill_tunnel_cos_data(_In_ uint32_t               attr_count,
                                                   _In_ const sai_attribute_t *attr_list,
                                                   _In_ sai_tunnel_type_t      sai_tunnel_type,
-                                                  _In_ tunnel_db_entry_t     *mlnx_tunnel_db_entry,
+                                                  _In_ mlnx_tunnel_entry_t   *mlnx_tunnel_db_entry,
                                                   _Out_ sx_tunnel_cos_data_t *sdk_encap_cos_data,
                                                   _Out_ sx_tunnel_cos_data_t *sdk_decap_cos_data,
                                                   _Out_ bool                 *has_encap_attr,
@@ -3484,7 +3484,7 @@ static sai_status_t mlnx_sdk_fill_ipinip_p2p_attrib(_In_ uint32_t               
                                                     _Out_ bool                             *has_encap_attr,
                                                     _Out_ bool                             *has_decap_attr,
                                                     _Out_ sai_object_id_t                  *underlay_rif,
-                                                    _Out_ tunnel_db_entry_t                *mlnx_tunnel_db_entry)
+                                                    _Out_ mlnx_tunnel_entry_t              *mlnx_tunnel_db_entry)
 {
     sai_status_t                 sai_status = SAI_STATUS_FAILURE;
     sx_status_t                  sdk_status = SX_STATUS_ERROR;
@@ -3524,8 +3524,8 @@ static sai_status_t mlnx_sdk_fill_ipinip_p2p_attrib(_In_ uint32_t               
         for (ii = 0; ii < MAX_TUNNEL_DB_SIZE; ii++) {
             /* overlay_rif is initialized to 0 in SAI tunnel db.
              * Adding (ii !- tunnel_db_idx) to allow the case that overlay rif id ('sx_rif' here) happens to be 0 */
-            if (g_sai_db_ptr->tunnel_db[ii].is_used && (ii != tunnel_db_idx)) {
-                if (sx_rif == g_sai_db_ptr->tunnel_db[ii].sx_tunnel_attr.attributes.ipinip_p2p.overlay_rif) {
+            if (g_sai_tunnel_db_ptr->tunnel_entry_db[ii].is_used && (ii != tunnel_db_idx)) {
+                if (sx_rif == g_sai_tunnel_db_ptr->tunnel_entry_db[ii].sx_tunnel_attr.attributes.ipinip_p2p.overlay_rif) {
                     SX_LOG_ERR("Error: overlay rif is already used by tunnel db idx %d\n", ii);
                     SX_LOG_EXIT();
                     return SAI_STATUS_INVALID_ATTR_VALUE_0 + attr_idx;
@@ -3674,7 +3674,7 @@ static sai_status_t mlnx_sai_fill_sx_ipinip_p2p_tunnel_data(_In_ uint32_t       
                                                             _Out_ sx_tunnel_cos_data_t  *sdk_encap_cos_data,
                                                             _Out_ sx_tunnel_cos_data_t  *sdk_decap_cos_data,
                                                             _Out_ sai_object_id_t       *underlay_rif,
-                                                            _Out_ tunnel_db_entry_t     *mlnx_tunnel_db_entry)
+                                                            _Out_ mlnx_tunnel_entry_t   *mlnx_tunnel_db_entry)
 {
     sai_status_t                      sai_status;
     bool                              has_encap_attr        = false;
@@ -3771,39 +3771,39 @@ static sai_status_t mlnx_sai_fill_tunnel_map_entry(_In_ uint32_t                
         return SAI_STATUS_FAILURE;
     }
 
-    switch (g_sai_db_ptr->mlnx_tunnel_map_entry[tunnel_map_entry_idx].tunnel_map_type) {
+    switch (g_sai_tunnel_db_ptr->tunnel_map_entry_db[tunnel_map_entry_idx].tunnel_map_type) {
     case SAI_TUNNEL_MAP_TYPE_VLAN_ID_TO_VNI:
-        vlan_id = g_sai_db_ptr->mlnx_tunnel_map_entry[tunnel_map_entry_idx].vlan_id_key;
-        vni_id  = g_sai_db_ptr->mlnx_tunnel_map_entry[tunnel_map_entry_idx].vni_id_value;
+        vlan_id = g_sai_tunnel_db_ptr->tunnel_map_entry_db[tunnel_map_entry_idx].vlan_id_key;
+        vni_id  = g_sai_tunnel_db_ptr->tunnel_map_entry_db[tunnel_map_entry_idx].vni_id_value;
         break;
 
     case SAI_TUNNEL_MAP_TYPE_VNI_TO_VLAN_ID:
-        vni_id  = g_sai_db_ptr->mlnx_tunnel_map_entry[tunnel_map_entry_idx].vni_id_key;
-        vlan_id = g_sai_db_ptr->mlnx_tunnel_map_entry[tunnel_map_entry_idx].vlan_id_value;
+        vni_id  = g_sai_tunnel_db_ptr->tunnel_map_entry_db[tunnel_map_entry_idx].vni_id_key;
+        vlan_id = g_sai_tunnel_db_ptr->tunnel_map_entry_db[tunnel_map_entry_idx].vlan_id_value;
         break;
 
     case SAI_TUNNEL_MAP_TYPE_BRIDGE_IF_TO_VNI:
         if (SAI_STATUS_SUCCESS !=
             (sai_status =
-                 mlnx_bridge_oid_to_id(g_sai_db_ptr->mlnx_tunnel_map_entry[tunnel_map_entry_idx].bridge_id_key,
+                 mlnx_bridge_oid_to_id(g_sai_tunnel_db_ptr->tunnel_map_entry_db[tunnel_map_entry_idx].bridge_id_key,
                                        &sx_bridge_id))) {
             SX_LOG_ERR("missing bridge port\n");
             SX_LOG_EXIT();
             return sai_status;
         }
-        vni_id = g_sai_db_ptr->mlnx_tunnel_map_entry[tunnel_map_entry_idx].vni_id_value;
+        vni_id = g_sai_tunnel_db_ptr->tunnel_map_entry_db[tunnel_map_entry_idx].vni_id_value;
         break;
 
     case SAI_TUNNEL_MAP_TYPE_VNI_TO_BRIDGE_IF:
         if (SAI_STATUS_SUCCESS !=
             (sai_status =
-                 mlnx_bridge_oid_to_id(g_sai_db_ptr->mlnx_tunnel_map_entry[tunnel_map_entry_idx].bridge_id_value,
+                 mlnx_bridge_oid_to_id(g_sai_tunnel_db_ptr->tunnel_map_entry_db[tunnel_map_entry_idx].bridge_id_value,
                                        &sx_bridge_id))) {
             SX_LOG_ERR("missing bridge port\n");
             SX_LOG_EXIT();
             return sai_status;
         }
-        vni_id = g_sai_db_ptr->mlnx_tunnel_map_entry[tunnel_map_entry_idx].vni_id_key;
+        vni_id = g_sai_tunnel_db_ptr->tunnel_map_entry_db[tunnel_map_entry_idx].vni_id_key;
         break;
 
     case SAI_TUNNEL_MAP_TYPE_OECN_TO_UECN:
@@ -3814,16 +3814,16 @@ static sai_status_t mlnx_sai_fill_tunnel_map_entry(_In_ uint32_t                
 
     default:
         SX_LOG_ERR("Unsupported SAI tunnel map type %d\n",
-                   g_sai_db_ptr->mlnx_tunnel_map_entry[tunnel_map_entry_idx].tunnel_map_type);
+                   g_sai_tunnel_db_ptr->tunnel_map_entry_db[tunnel_map_entry_idx].tunnel_map_type);
         SX_LOG_EXIT();
         return SAI_STATUS_FAILURE;
         break;
     }
 
     if ((SAI_TUNNEL_MAP_TYPE_VLAN_ID_TO_VNI ==
-         g_sai_db_ptr->mlnx_tunnel_map_entry[tunnel_map_entry_idx].tunnel_map_type) ||
+         g_sai_tunnel_db_ptr->tunnel_map_entry_db[tunnel_map_entry_idx].tunnel_map_type) ||
         (SAI_TUNNEL_MAP_TYPE_VNI_TO_VLAN_ID ==
-         g_sai_db_ptr->mlnx_tunnel_map_entry[tunnel_map_entry_idx].tunnel_map_type)) {
+         g_sai_tunnel_db_ptr->tunnel_map_entry_db[tunnel_map_entry_idx].tunnel_map_type)) {
         sx_tunnel_map_entry->params.nve.bridge_id = vlan_id;
         sx_tunnel_map_entry->params.nve.direction = SX_TUNNEL_MAP_DIR_DECAP;
         if (NVE_8021D_TUNNEL == g_sai_db_ptr->nve_tunnel_type) {
@@ -3867,7 +3867,7 @@ static sai_status_t mlnx_sai_tunnel_map_entry_bind_tunnel_set(_In_ uint32_t tunn
 
     SX_LOG_ENTER();
 
-    sai_tunnel_map_oid = g_sai_db_ptr->mlnx_tunnel_map_entry[tunnel_map_entry_idx].tunnel_map_id;
+    sai_tunnel_map_oid = g_sai_tunnel_db_ptr->tunnel_map_entry_db[tunnel_map_entry_idx].tunnel_map_id;
     if (SAI_STATUS_SUCCESS !=
         (sai_status = mlnx_get_sai_tunnel_map_db_idx(sai_tunnel_map_oid, &tunnel_map_idx))) {
         SX_LOG_ERR("Error getting tunnel map idx from tunnel map oid %" PRIx64 "\n",
@@ -3876,7 +3876,7 @@ static sai_status_t mlnx_sai_tunnel_map_entry_bind_tunnel_set(_In_ uint32_t tunn
         return sai_status;
     }
 
-    vxlan_tunnel_cnt = g_sai_db_ptr->mlnx_tunnel_map[tunnel_map_idx].vxlan_tunnel_cnt;
+    vxlan_tunnel_cnt = g_sai_tunnel_db_ptr->tunnel_map_db[tunnel_map_idx].vxlan_tunnel_cnt;
     if (0 == vxlan_tunnel_cnt) {
         SX_LOG_EXIT();
         return SAI_STATUS_SUCCESS;
@@ -3892,8 +3892,8 @@ static sai_status_t mlnx_sai_tunnel_map_entry_bind_tunnel_set(_In_ uint32_t tunn
     }
 
     for (ii = 0; ii < vxlan_tunnel_cnt; ii++) {
-        tunnel_idx   = g_sai_db_ptr->mlnx_tunnel_map[tunnel_map_idx].vxlan_tunnel_idx[ii];
-        sx_tunnel_id = g_sai_db_ptr->tunnel_db[tunnel_idx].sx_tunnel_id_ipv4;
+        tunnel_idx   = g_sai_tunnel_db_ptr->tunnel_map_db[tunnel_map_idx].vxlan_tunnel_idx[ii];
+        sx_tunnel_id = g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_idx].sx_tunnel_id_ipv4;
 
         if (SX_STATUS_SUCCESS !=
             (sdk_status = sx_api_tunnel_map_set(gh_sdk,
@@ -3948,20 +3948,20 @@ static sai_status_t mlnx_sai_tunnel_map_entry_vlan_vni_bridge_set(_In_ sai_objec
         return sai_status;
     }
 
-    for (ii = g_sai_db_ptr->mlnx_tunnel_map[tunnel_map_idx].tunnel_map_entry_head_idx;
+    for (ii = g_sai_tunnel_db_ptr->tunnel_map_db[tunnel_map_idx].tunnel_map_entry_head_idx;
          ii != MLNX_TUNNEL_MAP_ENTRY_INVALID;
-         ii = g_sai_db_ptr->mlnx_tunnel_map_entry[ii].next_tunnel_map_entry_idx) {
-        if (sai_mapper_obj_id != g_sai_db_ptr->mlnx_tunnel_map_entry[ii].tunnel_map_id) {
+         ii = g_sai_tunnel_db_ptr->tunnel_map_entry_db[ii].next_tunnel_map_entry_idx) {
+        if (sai_mapper_obj_id != g_sai_tunnel_db_ptr->tunnel_map_entry_db[ii].tunnel_map_id) {
             SX_LOG_ERR(
                 "tunnel map oid is %" PRIx64 " but tunnel map entry is already bound to tunnel map oid %" PRIx64 "\n",
                 sai_mapper_obj_id,
-                g_sai_db_ptr->mlnx_tunnel_map_entry[ii].tunnel_map_id);
+                g_sai_tunnel_db_ptr->tunnel_map_entry_db[ii].tunnel_map_id);
             SX_LOG_EXIT();
             return SAI_STATUS_FAILURE;
         }
 
         if (TUNNEL_ENCAP == sai_tunnel_map_direction) {
-            switch (g_sai_db_ptr->mlnx_tunnel_map_entry[ii].tunnel_map_type) {
+            switch (g_sai_tunnel_db_ptr->tunnel_map_entry_db[ii].tunnel_map_type) {
             case SAI_TUNNEL_MAP_TYPE_VLAN_ID_TO_VNI:
             case SAI_TUNNEL_MAP_TYPE_BRIDGE_IF_TO_VNI:
                 break;
@@ -3974,12 +3974,12 @@ static sai_status_t mlnx_sai_tunnel_map_entry_vlan_vni_bridge_set(_In_ sai_objec
                 SX_LOG_ERR("sai tunnel map type for encap should be %d or %d but getting %d\n",
                            SAI_TUNNEL_MAP_TYPE_VLAN_ID_TO_VNI,
                            SAI_TUNNEL_MAP_TYPE_BRIDGE_IF_TO_VNI,
-                           g_sai_db_ptr->mlnx_tunnel_map_entry[ii].tunnel_map_type);
+                           g_sai_tunnel_db_ptr->tunnel_map_entry_db[ii].tunnel_map_type);
                 SX_LOG_EXIT();
                 return SAI_STATUS_FAILURE;
             }
         } else if (TUNNEL_DECAP == sai_tunnel_map_direction) {
-            switch (g_sai_db_ptr->mlnx_tunnel_map_entry[ii].tunnel_map_type) {
+            switch (g_sai_tunnel_db_ptr->tunnel_map_entry_db[ii].tunnel_map_type) {
             case SAI_TUNNEL_MAP_TYPE_VNI_TO_VLAN_ID:
             case SAI_TUNNEL_MAP_TYPE_VNI_TO_BRIDGE_IF:
                 break;
@@ -3992,7 +3992,7 @@ static sai_status_t mlnx_sai_tunnel_map_entry_vlan_vni_bridge_set(_In_ sai_objec
                 SX_LOG_ERR("sai tunnel map type for decap should be %d or %d but getting %d\n",
                            SAI_TUNNEL_MAP_TYPE_VNI_TO_VLAN_ID,
                            SAI_TUNNEL_MAP_TYPE_VNI_TO_BRIDGE_IF,
-                           g_sai_db_ptr->mlnx_tunnel_map_entry[ii].tunnel_map_type);
+                           g_sai_tunnel_db_ptr->tunnel_map_entry_db[ii].tunnel_map_type);
                 SX_LOG_EXIT();
                 return SAI_STATUS_FAILURE;
             }
@@ -4058,7 +4058,7 @@ static sai_status_t mlnx_sai_tunnel_map_vlan_vni_bridge_set(_In_ sai_object_id_t
     }
 
     if (SX_ACCESS_CMD_ADD == cmd) {
-        g_sai_db_ptr->mlnx_tunnel_map[sai_tunnel_mapper_idx].tunnel_cnt++;
+        g_sai_tunnel_db_ptr->tunnel_map_db[sai_tunnel_mapper_idx].tunnel_cnt++;
         sai_status = mlnx_vxlan_tunnel_per_map_array_add(tunnel_idx, sai_mapper_obj_id);
         if (SAI_ERR(sai_status)) {
             SX_LOG_ERR("Error adding tunnel %d to tunnel list of tunne map oid %" PRIx64 "\n",
@@ -4068,8 +4068,8 @@ static sai_status_t mlnx_sai_tunnel_map_vlan_vni_bridge_set(_In_ sai_object_id_t
             return sai_status;
         }
     } else if (SX_ACCESS_CMD_DELETE == cmd) {
-        assert(0 < g_sai_db_ptr->mlnx_tunnel_map[sai_tunnel_mapper_idx].tunnel_cnt);
-        g_sai_db_ptr->mlnx_tunnel_map[sai_tunnel_mapper_idx].tunnel_cnt--;
+        assert(0 < g_sai_tunnel_db_ptr->tunnel_map_db[sai_tunnel_mapper_idx].tunnel_cnt);
+        g_sai_tunnel_db_ptr->tunnel_map_db[sai_tunnel_mapper_idx].tunnel_cnt--;
         sai_status = mlnx_vxlan_tunnel_per_map_array_delete(tunnel_idx, sai_mapper_obj_id);
         if (SAI_ERR(sai_status)) {
             SX_LOG_ERR("Error deleting tunnel %d to tunnel list of tunne map oid %" PRIx64 "\n",
@@ -4175,7 +4175,7 @@ static sai_status_t mlnx_sai_create_vxlan_tunnel_map_list(_In_ sai_object_id_t  
         return sai_status;
     }
 
-    sx_tunnel_id = g_sai_db_ptr->tunnel_db[tunnel_db_idx].sx_tunnel_id_ipv4;
+    sx_tunnel_id = g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].sx_tunnel_id_ipv4;
 
     for (ii = 0; ii < sai_tunnel_mapper_cnt; ii++) {
         sai_mapper_obj_id = sai_tunnel_mapper_list[ii];
@@ -4213,7 +4213,7 @@ static sai_status_t mlnx_sai_fill_sx_vxlan_tunnel_data(_In_ sai_tunnel_type_t   
                                                        _Out_ sx_tunnel_ttl_data_t  *sdk_decap_ttl_data_attrib,
                                                        _Out_ sx_tunnel_cos_data_t  *sdk_encap_cos_data,
                                                        _Out_ sx_tunnel_cos_data_t  *sdk_decap_cos_data,
-                                                       _Out_ tunnel_db_entry_t     *mlnx_tunnel_db_entry)
+                                                       _Out_ mlnx_tunnel_entry_t   *mlnx_tunnel_db_entry)
 {
     sai_status_t                 sai_status;
     const sai_attribute_value_t *attr;
@@ -4236,7 +4236,7 @@ static sai_status_t mlnx_sai_fill_sx_vxlan_tunnel_data(_In_ sai_tunnel_type_t   
         return SAI_STATUS_INVALID_PARAMETER;
     }
     memset(sx_tunnel_attribute, 0, sizeof(sx_tunnel_attribute_t));
-    memset(mlnx_tunnel_db_entry, 0, sizeof(tunnel_db_entry_t));
+    memset(mlnx_tunnel_db_entry, 0, sizeof(mlnx_tunnel_entry_t));
 
     if (SAI_STATUS_SUCCESS ==
         (sai_status =
@@ -4346,8 +4346,8 @@ static sai_status_t mlnx_sai_fill_sx_vxlan_tunnel_data(_In_ sai_tunnel_type_t   
 }
 
 /* caller needs to guard this function with lock */
-static sai_status_t mlnx_fill_tunnel_db(_In_ sai_object_id_t    sai_tunnel_obj_id,
-                                        _In_ tunnel_db_entry_t *mlnx_tunnel_db_entry)
+static sai_status_t mlnx_fill_tunnel_db(_In_ sai_object_id_t      sai_tunnel_obj_id,
+                                        _In_ mlnx_tunnel_entry_t *mlnx_tunnel_db_entry)
 {
     sai_status_t sai_status    = SAI_STATUS_FAILURE;
     uint32_t     tunnel_db_idx = 0;
@@ -4361,13 +4361,13 @@ static sai_status_t mlnx_fill_tunnel_db(_In_ sai_object_id_t    sai_tunnel_obj_i
         return sai_status;
     }
 
-    g_sai_db_ptr->tunnel_db[tunnel_db_idx].sai_underlay_rif = mlnx_tunnel_db_entry->sai_underlay_rif;
-    memcpy(g_sai_db_ptr->tunnel_db[tunnel_db_idx].sai_tunnel_map_encap_id_array,
+    g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].sai_underlay_rif = mlnx_tunnel_db_entry->sai_underlay_rif;
+    memcpy(g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].sai_tunnel_map_encap_id_array,
            mlnx_tunnel_db_entry->sai_tunnel_map_encap_id_array,
            mlnx_tunnel_db_entry->sai_tunnel_map_encap_cnt * sizeof(sai_object_id_t));
-    g_sai_db_ptr->tunnel_db[tunnel_db_idx].sai_tunnel_map_encap_cnt = mlnx_tunnel_db_entry->sai_tunnel_map_encap_cnt;
-    g_sai_db_ptr->tunnel_db[tunnel_db_idx].sai_tunnel_map_decap_cnt = mlnx_tunnel_db_entry->sai_tunnel_map_decap_cnt;
-    memcpy(g_sai_db_ptr->tunnel_db[tunnel_db_idx].sai_tunnel_map_decap_id_array,
+    g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].sai_tunnel_map_encap_cnt = mlnx_tunnel_db_entry->sai_tunnel_map_encap_cnt;
+    g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].sai_tunnel_map_decap_cnt = mlnx_tunnel_db_entry->sai_tunnel_map_decap_cnt;
+    memcpy(g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].sai_tunnel_map_decap_id_array,
            mlnx_tunnel_db_entry->sai_tunnel_map_decap_id_array,
            mlnx_tunnel_db_entry->sai_tunnel_map_decap_cnt * sizeof(sai_object_id_t));
 
@@ -4416,19 +4416,19 @@ static sai_status_t mlnx_create_sdk_tunnel(_In_ sai_object_id_t      sai_tunnel_
         SX_LOG_ERR("Error getting sai tunnel db idx from sai tunnel id %" PRIx64 "\n", sai_tunnel_obj_id);
         goto cleanup;
     }
-    memcpy(&sx_tunnel_attr, &g_sai_db_ptr->tunnel_db[tunnel_db_idx].sx_tunnel_attr, sizeof(sx_tunnel_attr));
-    memcpy(&sdk_encap_ttl_data_attrib, &g_sai_db_ptr->tunnel_db[tunnel_db_idx].sdk_encap_ttl_data_attrib,
+    memcpy(&sx_tunnel_attr, &g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].sx_tunnel_attr, sizeof(sx_tunnel_attr));
+    memcpy(&sdk_encap_ttl_data_attrib, &g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].sdk_encap_ttl_data_attrib,
            sizeof(sx_tunnel_ttl_data_t));
-    memcpy(&sdk_decap_ttl_data_attrib, &g_sai_db_ptr->tunnel_db[tunnel_db_idx].sdk_decap_ttl_data_attrib,
+    memcpy(&sdk_decap_ttl_data_attrib, &g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].sdk_decap_ttl_data_attrib,
            sizeof(sx_tunnel_ttl_data_t));
     memcpy(&sdk_encap_cos_data,
-           &g_sai_db_ptr->tunnel_db[tunnel_db_idx].sdk_encap_cos_data,
+           &g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].sdk_encap_cos_data,
            sizeof(sx_tunnel_cos_data_t));
     memcpy(&sdk_decap_cos_data,
-           &g_sai_db_ptr->tunnel_db[tunnel_db_idx].sdk_decap_cos_data,
+           &g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].sdk_decap_cos_data,
            sizeof(sx_tunnel_cos_data_t));
 
-    sai_tunnel_type = g_sai_db_ptr->tunnel_db[tunnel_db_idx].sai_tunnel_type;
+    sai_tunnel_type = g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].sai_tunnel_type;
 
     sai_status = mlnx_convert_sai_tunnel_type_to_sx_ipv4(sai_tunnel_type,
                                                          outer_ip_type,
@@ -4440,13 +4440,13 @@ static sai_status_t mlnx_create_sdk_tunnel(_In_ sai_object_id_t      sai_tunnel_
     }
     sx_tunnel_attr.type = sx_tunnel_type_ipv4;
     /* prevent creating tunnel term table using the same SAI IP in IP IPv4 tunnel */
-    if (g_sai_db_ptr->tunnel_db[tunnel_db_idx].ipv4_created) {
+    if (g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].ipv4_created) {
         SX_LOG_ERR("IPv4 tunnel already created\n");
         sai_status = SAI_STATUS_FAILURE;
         goto cleanup;
     }
 
-    g_sai_db_ptr->tunnel_db[tunnel_db_idx].sx_tunnel_attr.type = sx_tunnel_type_ipv4;
+    g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].sx_tunnel_attr.type = sx_tunnel_type_ipv4;
 
     if (SX_STATUS_SUCCESS != (sdk_status = sx_api_tunnel_set(
                                   gh_sdk,
@@ -4458,9 +4458,9 @@ static sai_status_t mlnx_create_sdk_tunnel(_In_ sai_object_id_t      sai_tunnel_
         goto cleanup;
     }
 
-    sdk_tunnel_ipv4_created                                  = true;
-    g_sai_db_ptr->tunnel_db[tunnel_db_idx].ipv4_created      = true;
-    g_sai_db_ptr->tunnel_db[tunnel_db_idx].sx_tunnel_id_ipv4 = sx_tunnel_id_ipv4;
+    sdk_tunnel_ipv4_created                                               = true;
+    g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].ipv4_created      = true;
+    g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].sx_tunnel_id_ipv4 = sx_tunnel_id_ipv4;
 
     if ((SX_TUNNEL_DIRECTION_DECAP == sx_tunnel_attr.direction) &&
         ((SAI_TUNNEL_TYPE_IPINIP == sai_tunnel_type) ||
@@ -4554,8 +4554,8 @@ static sai_status_t mlnx_create_sdk_tunnel(_In_ sai_object_id_t      sai_tunnel_
     if (SAI_TUNNEL_TYPE_VXLAN == sai_tunnel_type) {
         sdk_tunnel_map_created = true;
         sai_status             = mlnx_sai_create_vxlan_tunnel_map_list(
-            g_sai_db_ptr->tunnel_db[tunnel_db_idx].sai_tunnel_map_encap_id_array,
-            g_sai_db_ptr->tunnel_db[tunnel_db_idx].sai_tunnel_map_encap_cnt,
+            g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].sai_tunnel_map_encap_id_array,
+            g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].sai_tunnel_map_encap_cnt,
             TUNNEL_ENCAP,
             sai_tunnel_obj_id,
             SX_ACCESS_CMD_ADD);
@@ -4565,8 +4565,8 @@ static sai_status_t mlnx_create_sdk_tunnel(_In_ sai_object_id_t      sai_tunnel_
         }
 
         sai_status = mlnx_sai_create_vxlan_tunnel_map_list(
-            g_sai_db_ptr->tunnel_db[tunnel_db_idx].sai_tunnel_map_decap_id_array,
-            g_sai_db_ptr->tunnel_db[tunnel_db_idx].sai_tunnel_map_decap_cnt,
+            g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].sai_tunnel_map_decap_id_array,
+            g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].sai_tunnel_map_decap_cnt,
             TUNNEL_DECAP,
             sai_tunnel_obj_id,
             SX_ACCESS_CMD_ADD);
@@ -4622,14 +4622,14 @@ static sai_status_t mlnx_create_sdk_tunnel(_In_ sai_object_id_t      sai_tunnel_
         }
     }
 
-    g_sai_db_ptr->tunnel_db[tunnel_db_idx].sx_tunnel_id_ipv4 = sx_tunnel_id_ipv4;
+    g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].sx_tunnel_id_ipv4 = sx_tunnel_id_ipv4;
 
     if ((SAI_TUNNEL_TYPE_IPINIP == sai_tunnel_type) ||
         (SAI_TUNNEL_TYPE_IPINIP_GRE == sai_tunnel_type)) {
         if (sdk_tunnel_ipv6_created) {
-            g_sai_db_ptr->tunnel_db[tunnel_db_idx].ipv6_created        = true;
-            g_sai_db_ptr->tunnel_db[tunnel_db_idx].sx_tunnel_id_ipv6   = sx_tunnel_id_ipv6;
-            g_sai_db_ptr->tunnel_db[tunnel_db_idx].sx_overlay_rif_ipv6 = sx_overlay_rif_ipv6;
+            g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].ipv6_created        = true;
+            g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].sx_tunnel_id_ipv6   = sx_tunnel_id_ipv6;
+            g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].sx_overlay_rif_ipv6 = sx_overlay_rif_ipv6;
         }
     }
 
@@ -4671,7 +4671,7 @@ cleanup:
             return sai_status;
         }
 
-        g_sai_db_ptr->tunnel_db[tunnel_db_idx].ipv6_created = false;
+        g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].ipv6_created = false;
     }
 
     if (sdk_tunnel_ipv4_created) {
@@ -4685,7 +4685,7 @@ cleanup:
                            sdk_status));
         }
 
-        g_sai_db_ptr->tunnel_db[tunnel_db_idx].ipv4_created = false;
+        g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].ipv4_created = false;
     }
     SX_LOG_EXIT();
     return sai_status;
@@ -4705,15 +4705,15 @@ static sai_status_t mlnx_remove_sdk_ipinip_tunnel(_In_ uint32_t tunnel_db_idx)
 
     SX_LOG_ENTER();
 
-    memcpy(&sx_tunnel_attr, &g_sai_db_ptr->tunnel_db[tunnel_db_idx].sx_tunnel_attr,
+    memcpy(&sx_tunnel_attr, &g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].sx_tunnel_attr,
            sizeof(sx_tunnel_attr));
 
-    sx_overlay_rif_ipv6 = g_sai_db_ptr->tunnel_db[tunnel_db_idx].sx_overlay_rif_ipv6;
-    if (0 == g_sai_db_ptr->tunnel_db[tunnel_db_idx].term_table_cnt) {
+    sx_overlay_rif_ipv6 = g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].sx_overlay_rif_ipv6;
+    if (0 == g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].term_table_cnt) {
         memset(&rif_state, 0, sizeof(sx_router_interface_state_t));
         rif_state.ipv4_enable = false;
         rif_state.ipv6_enable = false;
-        if (g_sai_db_ptr->tunnel_db[tunnel_db_idx].ipv6_created) {
+        if (g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].ipv6_created) {
             sdk_status = sx_api_router_interface_get(gh_sdk, sx_overlay_rif_ipv6,
                                                      &sx_vrid, &sx_ifc, &sx_ifc_attr);
             if (SX_STATUS_SUCCESS != sdk_status) {
@@ -4735,10 +4735,10 @@ static sai_status_t mlnx_remove_sdk_ipinip_tunnel(_In_ uint32_t tunnel_db_idx)
                 (sdk_status = sx_api_tunnel_set(gh_sdk,
                                                 SX_ACCESS_CMD_DESTROY,
                                                 &sx_tunnel_attr,
-                                                &g_sai_db_ptr->tunnel_db[tunnel_db_idx].sx_tunnel_id_ipv6))) {
+                                                &g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].sx_tunnel_id_ipv6))) {
                 sai_status = sdk_to_sai(sdk_status);
                 SX_LOG_ERR("Error destroying sx tunnel id %d, sx status: %s\n",
-                           g_sai_db_ptr->tunnel_db[tunnel_db_idx].sx_tunnel_id_ipv6,
+                           g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].sx_tunnel_id_ipv6,
                            SX_STATUS_MSG(sdk_status));
                 goto cleanup;
             }
@@ -4751,10 +4751,10 @@ static sai_status_t mlnx_remove_sdk_ipinip_tunnel(_In_ uint32_t tunnel_db_idx)
                 goto cleanup;
             }
 
-            g_sai_db_ptr->tunnel_db[tunnel_db_idx].ipv6_created = false;
+            g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].ipv6_created = false;
         }
 
-        if (g_sai_db_ptr->tunnel_db[tunnel_db_idx].ipv4_created) {
+        if (g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].ipv4_created) {
             if (SX_STATUS_SUCCESS !=
                 (sdk_status =
                      sx_api_router_interface_state_set(gh_sdk, sx_tunnel_attr.attributes.ipinip_p2p.overlay_rif,
@@ -4767,14 +4767,14 @@ static sai_status_t mlnx_remove_sdk_ipinip_tunnel(_In_ uint32_t tunnel_db_idx)
                 (sdk_status = sx_api_tunnel_set(gh_sdk,
                                                 SX_ACCESS_CMD_DESTROY,
                                                 &sx_tunnel_attr,
-                                                &g_sai_db_ptr->tunnel_db[tunnel_db_idx].sx_tunnel_id_ipv4))) {
+                                                &g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].sx_tunnel_id_ipv4))) {
                 sai_status = sdk_to_sai(sdk_status);
                 SX_LOG_ERR("Error destroying sx tunnel id %d, sx status: %s\n",
-                           g_sai_db_ptr->tunnel_db[tunnel_db_idx].sx_tunnel_id_ipv4,
+                           g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].sx_tunnel_id_ipv4,
                            SX_STATUS_MSG(sdk_status));
                 goto cleanup;
             }
-            g_sai_db_ptr->tunnel_db[tunnel_db_idx].ipv4_created = false;
+            g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].ipv4_created = false;
         }
     }
 
@@ -4819,9 +4819,9 @@ static sai_status_t mlnx_create_tunnel(_Out_ sai_object_id_t     * sai_tunnel_ob
     sx_tunnel_attribute_t        sx_tunnel_attr;
     sai_tunnel_type_t            sai_tunnel_type;
     bool                         sai_db_created = false;
-    tunnel_db_entry_t            mlnx_tunnel_db_entry;
+    mlnx_tunnel_entry_t          mlnx_tunnel_db_entry;
     uint32_t                     tunnel_db_idx = 0;
-    tunnel_db_entry_t            sai_tunnel_db_entry;
+    mlnx_tunnel_entry_t          sai_tunnel_db_entry;
     sx_tunnel_ttl_data_t         sdk_encap_ttl_data_attrib;
     sx_tunnel_ttl_data_t         sdk_decap_ttl_data_attrib;
     sx_tunnel_cos_data_t         sdk_encap_cos_data;
@@ -4962,7 +4962,7 @@ static sai_status_t mlnx_create_tunnel(_Out_ sai_object_id_t     * sai_tunnel_ob
         goto cleanup;
     }
 
-    g_sai_db_ptr->tunnel_db[tunnel_db_idx].sai_tunnel_type = sai_tunnel_type;
+    g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].sai_tunnel_type = sai_tunnel_type;
 
     if (SAI_STATUS_SUCCESS !=
         (sai_status = mlnx_fill_tunnel_db(tunnel_obj_id, &mlnx_tunnel_db_entry))) {
@@ -4971,15 +4971,15 @@ static sai_status_t mlnx_create_tunnel(_Out_ sai_object_id_t     * sai_tunnel_ob
         goto cleanup;
     }
 
-    memcpy(&g_sai_db_ptr->tunnel_db[tunnel_db_idx].sx_tunnel_attr, &sx_tunnel_attr, sizeof(sx_tunnel_attr));
-    memcpy(&g_sai_db_ptr->tunnel_db[tunnel_db_idx].sdk_encap_ttl_data_attrib, &sdk_encap_ttl_data_attrib,
+    memcpy(&g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].sx_tunnel_attr, &sx_tunnel_attr, sizeof(sx_tunnel_attr));
+    memcpy(&g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].sdk_encap_ttl_data_attrib, &sdk_encap_ttl_data_attrib,
            sizeof(sx_tunnel_ttl_data_t));
-    memcpy(&g_sai_db_ptr->tunnel_db[tunnel_db_idx].sdk_decap_ttl_data_attrib, &sdk_decap_ttl_data_attrib,
+    memcpy(&g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].sdk_decap_ttl_data_attrib, &sdk_decap_ttl_data_attrib,
            sizeof(sx_tunnel_ttl_data_t));
-    memcpy(&g_sai_db_ptr->tunnel_db[tunnel_db_idx].sdk_encap_cos_data,
+    memcpy(&g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].sdk_encap_cos_data,
            &sdk_encap_cos_data,
            sizeof(sx_tunnel_cos_data_t));
-    memcpy(&g_sai_db_ptr->tunnel_db[tunnel_db_idx].sdk_decap_cos_data,
+    memcpy(&g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].sdk_decap_cos_data,
            &sdk_decap_cos_data,
            sizeof(sx_tunnel_cos_data_t));
 
@@ -4987,7 +4987,7 @@ static sai_status_t mlnx_create_tunnel(_Out_ sai_object_id_t     * sai_tunnel_ob
                       ((SAI_TUNNEL_TYPE_IPINIP == sai_tunnel_type) ||
                        (SAI_TUNNEL_TYPE_IPINIP_GRE == sai_tunnel_type));
 
-    g_sai_db_ptr->tunnel_db[tunnel_db_idx].sai_tunnel_type = sai_tunnel_type;
+    g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].sai_tunnel_type = sai_tunnel_type;
     /* create ipinip decap tunnel after tunnel term table is created */
     if (!is_ipinip_decap) {
         /* ipinip encap, or ipinip bidirection, or vxlan, create only one ipv4 sdk tunnel */
@@ -5002,7 +5002,7 @@ static sai_status_t mlnx_create_tunnel(_Out_ sai_object_id_t     * sai_tunnel_ob
 
     if ((SAI_TUNNEL_TYPE_IPINIP == sai_tunnel_type) ||
         (SAI_TUNNEL_TYPE_IPINIP_GRE == sai_tunnel_type)) {
-        g_sai_db_ptr->tunnel_db[tunnel_db_idx].sai_underlay_rif = underlay_rif;
+        g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].sai_underlay_rif = underlay_rif;
     }
 
     sai_db_unlock();
@@ -5025,7 +5025,7 @@ cleanup:
                 SX_LOG_ERR("tunnel db index: %d out of bounds:%d\n", tunnel_db_idx, MAX_TUNNEL_DB_SIZE);
                 sai_status = SAI_STATUS_FAILURE;
             } else {
-                memset(&g_sai_db_ptr->tunnel_db[tunnel_db_idx], 0, sizeof(tunnel_db_entry_t));
+                memset(&g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx], 0, sizeof(mlnx_tunnel_entry_t));
             }
         }
     }
@@ -5073,20 +5073,20 @@ static sai_status_t mlnx_remove_tunnel(_In_ const sai_object_id_t sai_tunnel_obj
 
     sai_db_write_lock();
 
-    if (!g_sai_db_ptr->tunnel_db[tunnel_db_idx].is_used) {
+    if (!g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].is_used) {
         SX_LOG_ERR("Tunnel db ind %d cannot be removed because it is not used\n", tunnel_db_idx);
         sai_status = SAI_STATUS_FAILURE;
         goto cleanup;
     }
 
-    sx_tunnel_id        = g_sai_db_ptr->tunnel_db[tunnel_db_idx].sx_tunnel_id_ipv4;
-    sx_overlay_rif_ipv6 = g_sai_db_ptr->tunnel_db[tunnel_db_idx].sx_overlay_rif_ipv6;
-    ipv4_created        = g_sai_db_ptr->tunnel_db[tunnel_db_idx].ipv4_created;
-    ipv6_created        = g_sai_db_ptr->tunnel_db[tunnel_db_idx].ipv6_created;
+    sx_tunnel_id        = g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].sx_tunnel_id_ipv4;
+    sx_overlay_rif_ipv6 = g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].sx_overlay_rif_ipv6;
+    ipv4_created        = g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].ipv4_created;
+    ipv6_created        = g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].ipv6_created;
 
     memset(&sx_tunnel_attr, 0, sizeof(sx_tunnel_attribute_t));
 
-    memcpy(&sx_tunnel_attr, &g_sai_db_ptr->tunnel_db[tunnel_db_idx].sx_tunnel_attr,
+    memcpy(&sx_tunnel_attr, &g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].sx_tunnel_attr,
            sizeof(sx_tunnel_attr));
     memset(&rif_state, 0, sizeof(sx_router_interface_state_t));
 
@@ -5133,8 +5133,8 @@ static sai_status_t mlnx_remove_tunnel(_In_ const sai_object_id_t sai_tunnel_obj
         g_sai_db_ptr->nve_tunnel_type = NVE_TUNNEL_UNKNOWN;
     }
 
-    if ((0 != g_sai_db_ptr->tunnel_db[tunnel_db_idx].sai_tunnel_map_encap_cnt) ||
-        (0 != g_sai_db_ptr->tunnel_db[tunnel_db_idx].sai_tunnel_map_decap_cnt)) {
+    if ((0 != g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].sai_tunnel_map_encap_cnt) ||
+        (0 != g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].sai_tunnel_map_decap_cnt)) {
         if (SX_TUNNEL_TYPE_NVE_VXLAN == sx_tunnel_attr.type) {
             if (SX_STATUS_SUCCESS != (sdk_status = sx_api_tunnel_map_set(
                                           gh_sdk,
@@ -5149,8 +5149,8 @@ static sai_status_t mlnx_remove_tunnel(_In_ const sai_object_id_t sai_tunnel_obj
             }
         }
 
-        for (ii = 0; ii < g_sai_db_ptr->tunnel_db[tunnel_db_idx].sai_tunnel_map_encap_cnt; ii++) {
-            sai_tunnel_map_id = g_sai_db_ptr->tunnel_db[tunnel_db_idx].sai_tunnel_map_encap_id_array[ii];
+        for (ii = 0; ii < g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].sai_tunnel_map_encap_cnt; ii++) {
+            sai_tunnel_map_id = g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].sai_tunnel_map_encap_id_array[ii];
             if (SAI_STATUS_SUCCESS !=
                 (sai_status =
                      mlnx_get_sai_tunnel_map_db_idx(sai_tunnel_map_id, &sai_tunnel_map_idx))) {
@@ -5159,8 +5159,8 @@ static sai_status_t mlnx_remove_tunnel(_In_ const sai_object_id_t sai_tunnel_obj
                 goto cleanup;
             }
 
-            assert(0 < g_sai_db_ptr->mlnx_tunnel_map[sai_tunnel_map_idx].tunnel_cnt);
-            g_sai_db_ptr->mlnx_tunnel_map[sai_tunnel_map_idx].tunnel_cnt--;
+            assert(0 < g_sai_tunnel_db_ptr->tunnel_map_db[sai_tunnel_map_idx].tunnel_cnt);
+            g_sai_tunnel_db_ptr->tunnel_map_db[sai_tunnel_map_idx].tunnel_cnt--;
             if (SX_TUNNEL_TYPE_NVE_VXLAN == sx_tunnel_attr.type) {
                 sai_status = mlnx_vxlan_tunnel_per_map_array_delete(tunnel_db_idx, sai_tunnel_map_id);
                 if (SAI_ERR(sai_status)) {
@@ -5172,8 +5172,8 @@ static sai_status_t mlnx_remove_tunnel(_In_ const sai_object_id_t sai_tunnel_obj
             }
         }
 
-        for (ii = 0; ii < g_sai_db_ptr->tunnel_db[tunnel_db_idx].sai_tunnel_map_decap_cnt; ii++) {
-            sai_tunnel_map_id = g_sai_db_ptr->tunnel_db[tunnel_db_idx].sai_tunnel_map_decap_id_array[ii];
+        for (ii = 0; ii < g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].sai_tunnel_map_decap_cnt; ii++) {
+            sai_tunnel_map_id = g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].sai_tunnel_map_decap_id_array[ii];
             if (SAI_STATUS_SUCCESS !=
                 (sai_status =
                      mlnx_get_sai_tunnel_map_db_idx(sai_tunnel_map_id, &sai_tunnel_map_idx))) {
@@ -5182,8 +5182,8 @@ static sai_status_t mlnx_remove_tunnel(_In_ const sai_object_id_t sai_tunnel_obj
                 goto cleanup;
             }
 
-            assert(0 < g_sai_db_ptr->mlnx_tunnel_map[sai_tunnel_map_idx].tunnel_cnt);
-            g_sai_db_ptr->mlnx_tunnel_map[sai_tunnel_map_idx].tunnel_cnt--;
+            assert(0 < g_sai_tunnel_db_ptr->tunnel_map_db[sai_tunnel_map_idx].tunnel_cnt);
+            g_sai_tunnel_db_ptr->tunnel_map_db[sai_tunnel_map_idx].tunnel_cnt--;
             if (SX_TUNNEL_TYPE_NVE_VXLAN == sx_tunnel_attr.type) {
                 sai_status = mlnx_vxlan_tunnel_per_map_array_delete(tunnel_db_idx, sai_tunnel_map_id);
                 if (SAI_ERR(sai_status)) {
@@ -5195,12 +5195,12 @@ static sai_status_t mlnx_remove_tunnel(_In_ const sai_object_id_t sai_tunnel_obj
             }
         }
 
-        memset(g_sai_db_ptr->tunnel_db[tunnel_db_idx].sai_tunnel_map_encap_id_array, 0,
+        memset(g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].sai_tunnel_map_encap_id_array, 0,
                sizeof(MLNX_TUNNEL_MAP_MAX));
-        g_sai_db_ptr->tunnel_db[tunnel_db_idx].sai_tunnel_map_encap_cnt = 0;
-        memset(g_sai_db_ptr->tunnel_db[tunnel_db_idx].sai_tunnel_map_decap_id_array, 0,
+        g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].sai_tunnel_map_encap_cnt = 0;
+        memset(g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].sai_tunnel_map_decap_id_array, 0,
                sizeof(MLNX_TUNNEL_MAP_MAX));
-        g_sai_db_ptr->tunnel_db[tunnel_db_idx].sai_tunnel_map_decap_cnt = 0;
+        g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].sai_tunnel_map_decap_cnt = 0;
     }
 
     if (ipv4_created) {
@@ -5216,7 +5216,7 @@ static sai_status_t mlnx_remove_tunnel(_In_ const sai_object_id_t sai_tunnel_obj
     }
 
     if (ipv6_created) {
-        sx_tunnel_id = g_sai_db_ptr->tunnel_db[tunnel_db_idx].sx_tunnel_id_ipv6;
+        sx_tunnel_id = g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].sx_tunnel_id_ipv6;
         if (SX_STATUS_SUCCESS != (sdk_status = sx_api_tunnel_set(
                                       gh_sdk,
                                       SX_ACCESS_CMD_DESTROY,
@@ -5234,7 +5234,7 @@ static sai_status_t mlnx_remove_tunnel(_In_ const sai_object_id_t sai_tunnel_obj
             goto cleanup;
         }
     }
-    memset(&g_sai_db_ptr->tunnel_db[tunnel_db_idx], 0, sizeof(tunnel_db_entry_t));
+    memset(&g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx], 0, sizeof(mlnx_tunnel_entry_t));
 
     SX_LOG_NTC("removed tunnel:0x%" PRIx64 "\n", sai_tunnel_obj_id);
 
@@ -5287,10 +5287,10 @@ static sai_status_t mlnx_create_empty_tunneltable(_Out_ uint32_t *internal_tunne
 
     SX_LOG_ENTER();
 
-    assert(NULL != g_sai_db_ptr);
+    assert(NULL != g_sai_tunnel_db_ptr);
 
     for (idx = 0; idx < MLNX_TUNNELTABLE_SIZE; idx++) {
-        if (!g_sai_db_ptr->mlnx_tunneltable[idx].in_use) {
+        if (!g_sai_tunnel_db_ptr->tunneltable_db[idx].in_use) {
             *internal_tunneltable_idx = idx;
             SX_LOG_EXIT();
             return SAI_STATUS_SUCCESS;
@@ -5514,13 +5514,13 @@ static sai_status_t mlnx_create_tunnel_term_table_entry(_Out_ sai_object_id_t   
 
     sai_db_write_lock();
     sai_status      = mlnx_get_sai_tunnel_db_idx(tunneltable_tunnel_id->oid, &tunnel_db_idx);
-    is_ipinip_decap = (SX_TUNNEL_DIRECTION_DECAP == g_sai_db_ptr->tunnel_db[tunnel_db_idx].sx_tunnel_attr.direction) &&
+    is_ipinip_decap = (SX_TUNNEL_DIRECTION_DECAP == g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].sx_tunnel_attr.direction) &&
                       ((SAI_TUNNEL_TYPE_IPINIP == tunneltable_tunnel_type->s32) ||
                        (SAI_TUNNEL_TYPE_IPINIP_GRE == tunneltable_tunnel_type->s32));
     /* create ipinip decap tunnel after tunnel term table is created */
     if (is_ipinip_decap) {
         /* ipinip encap, or ipinip bidirection, or vxlan, create only one ipv4 sdk tunnel */
-        if (0 == g_sai_db_ptr->tunnel_db[tunnel_db_idx].term_table_cnt) {
+        if (0 == g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].term_table_cnt) {
             sai_status = mlnx_create_sdk_tunnel(tunneltable_tunnel_id->oid, tunneltable_dst_ip->ipaddr.addr_family);
             if (SAI_ERR(sai_status)) {
                 SX_LOG_ERR("Error creating sdk tunnel\n");
@@ -5530,7 +5530,7 @@ static sai_status_t mlnx_create_tunnel_term_table_entry(_Out_ sai_object_id_t   
             }
         }
         tunnel_lazy_created = true;
-        g_sai_db_ptr->tunnel_db[tunnel_db_idx].term_table_cnt++;
+        g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].term_table_cnt++;
     }
 
     if (SAI_STATUS_SUCCESS !=
@@ -5564,7 +5564,7 @@ static sai_status_t mlnx_create_tunnel_term_table_entry(_Out_ sai_object_id_t   
         }
 
         sdk_tunnel_decap_key.tunnel_type = sx_tunnel_type_ipv6;
-        sx_tunnel_id_ipv6                = g_sai_db_ptr->tunnel_db[tunnel_db_idx].sx_tunnel_id_ipv6;
+        sx_tunnel_id_ipv6                = g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].sx_tunnel_id_ipv6;
         sdk_tunnel_decap_data.tunnel_id  = sx_tunnel_id_ipv6;
         if (SX_STATUS_SUCCESS !=
             (sdk_status = sx_api_tunnel_decap_rules_set(gh_sdk, SX_ACCESS_CMD_CREATE,
@@ -5586,7 +5586,7 @@ static sai_status_t mlnx_create_tunnel_term_table_entry(_Out_ sai_object_id_t   
 
     SX_LOG_DBG("Created internal tunnel table entry idx: %d\n", internal_tunneltable_idx);
 
-    memset(&g_sai_db_ptr->mlnx_tunneltable[internal_tunneltable_idx], 0, sizeof(mlnx_tunneltable_t));
+    memset(&g_sai_tunnel_db_ptr->tunneltable_db[internal_tunneltable_idx], 0, sizeof(mlnx_tunneltable_t));
 
     if (SAI_STATUS_SUCCESS !=
         (sai_status =
@@ -5600,13 +5600,13 @@ static sai_status_t mlnx_create_tunnel_term_table_entry(_Out_ sai_object_id_t   
     }
 
     if (tunnel_lazy_created) {
-        g_sai_db_ptr->mlnx_tunneltable[internal_tunneltable_idx].tunnel_db_idx       = tunnel_db_idx;
-        g_sai_db_ptr->mlnx_tunneltable[internal_tunneltable_idx].tunnel_lazy_created = true;
+        g_sai_tunnel_db_ptr->tunneltable_db[internal_tunneltable_idx].tunnel_db_idx       = tunnel_db_idx;
+        g_sai_tunnel_db_ptr->tunneltable_db[internal_tunneltable_idx].tunnel_lazy_created = true;
     }
 
-    g_sai_db_ptr->mlnx_tunneltable[internal_tunneltable_idx].in_use = true;
+    g_sai_tunnel_db_ptr->tunneltable_db[internal_tunneltable_idx].in_use = true;
     sdk_tunnel_decap_key.tunnel_type                                = sx_tunnel_type_ipv4;
-    memcpy(&g_sai_db_ptr->mlnx_tunneltable[internal_tunneltable_idx].sdk_tunnel_decap_key_ipv4,
+    memcpy(&g_sai_tunnel_db_ptr->tunneltable_db[internal_tunneltable_idx].sdk_tunnel_decap_key_ipv4,
            &sdk_tunnel_decap_key,
            sizeof(sx_tunnel_decap_entry_key_t));
 
@@ -5620,7 +5620,7 @@ static sai_status_t mlnx_create_tunnel_term_table_entry(_Out_ sai_object_id_t   
 
 cleanup:
     if (cleanup_db) {
-        memset(&g_sai_db_ptr->mlnx_tunneltable[internal_tunneltable_idx], 0,
+        memset(&g_sai_tunnel_db_ptr->tunneltable_db[internal_tunneltable_idx], 0,
                sizeof(mlnx_tunneltable_t));
     }
 
@@ -5648,7 +5648,7 @@ cleanup:
     }
 
     if (tunnel_lazy_created) {
-        g_sai_db_ptr->tunnel_db[tunnel_db_idx].term_table_cnt--;
+        g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].term_table_cnt--;
         sai_status = mlnx_remove_sdk_ipinip_tunnel(tunnel_db_idx);
         if (SAI_ERR(sai_status)) {
             SX_LOG_ERR("Error removing sdk ipinip tunnel %d\n", tunnel_db_idx);
@@ -5706,7 +5706,7 @@ static sai_status_t mlnx_remove_tunnel_term_table_entry(_In_ const sai_object_id
         goto cleanup;
     }
 
-    if (g_sai_db_ptr->mlnx_tunneltable[internal_tunneltable_idx].tunnel_lazy_created) {
+    if (g_sai_tunnel_db_ptr->tunneltable_db[internal_tunneltable_idx].tunnel_lazy_created) {
         if (SAI_STATUS_SUCCESS !=
             (sai_status =
                  mlnx_convert_sx_tunnel_type_ipv4_to_ipv6(sx_tunnel_type_ipv4,
@@ -5716,7 +5716,7 @@ static sai_status_t mlnx_remove_tunnel_term_table_entry(_In_ const sai_object_id
         }
 
         sdk_tunnel_decap_key.tunnel_type = sx_tunnel_type_ipv6;
-        sdk_tunnel_decap_data.tunnel_id  = g_sai_db_ptr->tunnel_db[tunnel_db_idx].sx_tunnel_id_ipv6;
+        sdk_tunnel_decap_data.tunnel_id  = g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].sx_tunnel_id_ipv6;
 
         if (SX_STATUS_SUCCESS !=
             (sdk_status = sx_api_tunnel_decap_rules_set(gh_sdk, SX_ACCESS_CMD_DESTROY,
@@ -5727,8 +5727,8 @@ static sai_status_t mlnx_remove_tunnel_term_table_entry(_In_ const sai_object_id
             goto cleanup;
         }
 
-        tunnel_db_idx = g_sai_db_ptr->mlnx_tunneltable[internal_tunneltable_idx].tunnel_db_idx;
-        g_sai_db_ptr->tunnel_db[tunnel_db_idx].term_table_cnt--;
+        tunnel_db_idx = g_sai_tunnel_db_ptr->tunneltable_db[internal_tunneltable_idx].tunnel_db_idx;
+        g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].term_table_cnt--;
 
         sai_status = mlnx_remove_sdk_ipinip_tunnel(tunnel_db_idx);
         if (SAI_ERR(sai_status)) {
@@ -5737,7 +5737,7 @@ static sai_status_t mlnx_remove_tunnel_term_table_entry(_In_ const sai_object_id
         }
     }
 
-    memset(&g_sai_db_ptr->mlnx_tunneltable[internal_tunneltable_idx], 0,
+    memset(&g_sai_tunnel_db_ptr->tunneltable_db[internal_tunneltable_idx], 0,
            sizeof(mlnx_tunneltable_t));
 
     SX_LOG_NTC("Removed SAI tunnel table entry obj id %" PRIx64 "\n", sai_tunnel_term_table_entry_obj_id);
@@ -5841,7 +5841,7 @@ static sai_status_t mlnx_create_empty_tunnel_map_entry(_Out_ uint32_t *tunnel_ma
     SX_LOG_ENTER();
 
     for (idx = MLNX_TUNNEL_MAP_ENTRY_MIN; idx < MLNX_TUNNEL_MAP_ENTRY_MAX; idx++) {
-        if (!g_sai_db_ptr->mlnx_tunnel_map_entry[idx].in_use) {
+        if (!g_sai_tunnel_db_ptr->tunnel_map_entry_db[idx].in_use) {
             *tunnel_map_entry_idx = idx;
             sai_status            = SAI_STATUS_SUCCESS;
             goto cleanup;
@@ -6061,22 +6061,20 @@ static sai_status_t mlnx_init_tunnel_map_entry_param(_In_ uint32_t              
                                      &attr_idx);
     assert(SAI_STATUS_SUCCESS == sai_status);
 
-    sai_db_write_lock();
+    sai_db_read_lock();
 
     if (SAI_STATUS_SUCCESS ==
         (sai_status = mlnx_get_sai_tunnel_map_db_idx(tunnel_map->oid, &tunnel_map_idx))) {
         if ((sai_tunnel_map_type_t)(tunnel_map_type->s32) !=
-            g_sai_db_ptr->mlnx_tunnel_map[tunnel_map_idx].tunnel_map_type) {
+            g_sai_tunnel_db_ptr->tunnel_map_db[tunnel_map_idx].tunnel_map_type) {
             sai_db_unlock();
             SX_LOG_ERR("Tunnel map oid %" PRIx64 " Claimed tunnel map type is %d but actual tunnel map type is %d\n",
                        tunnel_map->oid,
                        tunnel_map_type->s32,
-                       g_sai_db_ptr->mlnx_tunnel_map[tunnel_map_idx].tunnel_map_type);
+                       g_sai_tunnel_db_ptr->tunnel_map_db[tunnel_map_idx].tunnel_map_type);
             SX_LOG_EXIT();
             return SAI_STATUS_INVALID_ATTR_VALUE_0 + attr_idx;
         }
-
-        g_sai_db_ptr->mlnx_tunnel_map[tunnel_map_idx].tunnel_map_entry_cnt++;
 
         mlnx_tunnel_map_entry->tunnel_map_id = tunnel_map->oid;
     } else {
@@ -6113,7 +6111,7 @@ static sai_status_t mlnx_vxlan_tunnel_per_map_array_add(_In_ uint32_t tunnel_idx
         return sai_status;
     }
 
-    vxlan_tunnel_cnt = g_sai_db_ptr->mlnx_tunnel_map[tunnel_map_idx].vxlan_tunnel_cnt;
+    vxlan_tunnel_cnt = g_sai_tunnel_db_ptr->tunnel_map_db[tunnel_map_idx].vxlan_tunnel_cnt;
 
     if (MAX_VXLAN_TUNNEL <= vxlan_tunnel_cnt) {
         SX_LOG_ERR("This tunnel map is already bound to %d tunnels, it can be bound to at most %d tunnels\n",
@@ -6124,7 +6122,7 @@ static sai_status_t mlnx_vxlan_tunnel_per_map_array_add(_In_ uint32_t tunnel_idx
     }
 
     for (ii = 0; ii < vxlan_tunnel_cnt; ii++) {
-        if (tunnel_idx == g_sai_db_ptr->mlnx_tunnel_map[tunnel_map_idx].vxlan_tunnel_idx[ii]) {
+        if (tunnel_idx == g_sai_tunnel_db_ptr->tunnel_map_db[tunnel_map_idx].vxlan_tunnel_idx[ii]) {
             SX_LOG_ERR("This tunnel map idx %d is already bound to tunnel %d\n",
                        tunnel_map_idx, tunnel_idx);
             SX_LOG_EXIT();
@@ -6132,8 +6130,8 @@ static sai_status_t mlnx_vxlan_tunnel_per_map_array_add(_In_ uint32_t tunnel_idx
         }
     }
 
-    g_sai_db_ptr->mlnx_tunnel_map[tunnel_map_idx].vxlan_tunnel_idx[vxlan_tunnel_cnt] = tunnel_idx;
-    g_sai_db_ptr->mlnx_tunnel_map[tunnel_map_idx].vxlan_tunnel_cnt++;
+    g_sai_tunnel_db_ptr->tunnel_map_db[tunnel_map_idx].vxlan_tunnel_idx[vxlan_tunnel_cnt] = tunnel_idx;
+    g_sai_tunnel_db_ptr->tunnel_map_db[tunnel_map_idx].vxlan_tunnel_cnt++;
 
     SX_LOG_EXIT();
 
@@ -6159,13 +6157,13 @@ static sai_status_t mlnx_vxlan_tunnel_per_map_array_delete(_In_ uint32_t        
         return sai_status;
     }
 
-    vxlan_tunnel_cnt = g_sai_db_ptr->mlnx_tunnel_map[tunnel_map_idx].vxlan_tunnel_cnt;
+    vxlan_tunnel_cnt = g_sai_tunnel_db_ptr->tunnel_map_db[tunnel_map_idx].vxlan_tunnel_cnt;
     for (ii = 0; ii < vxlan_tunnel_cnt; ii++) {
-        if (tunnel_idx == g_sai_db_ptr->mlnx_tunnel_map[tunnel_map_idx].vxlan_tunnel_idx[ii]) {
-            g_sai_db_ptr->mlnx_tunnel_map[tunnel_map_idx].vxlan_tunnel_cnt--;
+        if (tunnel_idx == g_sai_tunnel_db_ptr->tunnel_map_db[tunnel_map_idx].vxlan_tunnel_idx[ii]) {
+            g_sai_tunnel_db_ptr->tunnel_map_db[tunnel_map_idx].vxlan_tunnel_cnt--;
             vxlan_tunnel_cnt--;
-            g_sai_db_ptr->mlnx_tunnel_map[tunnel_map_idx].vxlan_tunnel_idx[ii] =
-                g_sai_db_ptr->mlnx_tunnel_map[tunnel_map_idx].vxlan_tunnel_idx[vxlan_tunnel_cnt];
+            g_sai_tunnel_db_ptr->tunnel_map_db[tunnel_map_idx].vxlan_tunnel_idx[ii] =
+                g_sai_tunnel_db_ptr->tunnel_map_db[tunnel_map_idx].vxlan_tunnel_idx[vxlan_tunnel_cnt];
             return SAI_STATUS_SUCCESS;
         }
     }
@@ -6196,22 +6194,22 @@ static sai_status_t mlnx_tunnel_map_entry_list_add(_In_ mlnx_tunnel_map_entry_t 
         return sai_status;
     }
 
-    tunnel_map_entry_tail_idx = g_sai_db_ptr->mlnx_tunnel_map[tunnel_map_idx].tunnel_map_entry_tail_idx;
+    tunnel_map_entry_tail_idx = g_sai_tunnel_db_ptr->tunnel_map_db[tunnel_map_idx].tunnel_map_entry_tail_idx;
 
-    if (MLNX_TUNNEL_MAP_ENTRY_INVALID == g_sai_db_ptr->mlnx_tunnel_map[tunnel_map_idx].tunnel_map_entry_head_idx) {
+    if (MLNX_TUNNEL_MAP_ENTRY_INVALID == g_sai_tunnel_db_ptr->tunnel_map_db[tunnel_map_idx].tunnel_map_entry_head_idx) {
         assert(MLNX_TUNNEL_MAP_ENTRY_INVALID == tunnel_map_entry_tail_idx);
-        g_sai_db_ptr->mlnx_tunnel_map[tunnel_map_idx].tunnel_map_entry_head_idx = tunnel_map_entry_idx;
+        g_sai_tunnel_db_ptr->tunnel_map_db[tunnel_map_idx].tunnel_map_entry_head_idx = tunnel_map_entry_idx;
     } else {
-        g_sai_db_ptr->mlnx_tunnel_map_entry[tunnel_map_entry_tail_idx].next_tunnel_map_entry_idx =
+        g_sai_tunnel_db_ptr->tunnel_map_entry_db[tunnel_map_entry_tail_idx].next_tunnel_map_entry_idx =
             tunnel_map_entry_idx;
     }
 
-    g_sai_db_ptr->mlnx_tunnel_map_entry[tunnel_map_entry_idx].prev_tunnel_map_entry_idx = tunnel_map_entry_tail_idx;
+    g_sai_tunnel_db_ptr->tunnel_map_entry_db[tunnel_map_entry_idx].prev_tunnel_map_entry_idx = tunnel_map_entry_tail_idx;
 
-    g_sai_db_ptr->mlnx_tunnel_map_entry[tunnel_map_entry_idx].next_tunnel_map_entry_idx =
+    g_sai_tunnel_db_ptr->tunnel_map_entry_db[tunnel_map_entry_idx].next_tunnel_map_entry_idx =
         MLNX_TUNNEL_MAP_ENTRY_INVALID;
 
-    g_sai_db_ptr->mlnx_tunnel_map[tunnel_map_idx].tunnel_map_entry_tail_idx = tunnel_map_entry_idx;
+    g_sai_tunnel_db_ptr->tunnel_map_db[tunnel_map_idx].tunnel_map_entry_tail_idx = tunnel_map_entry_idx;
 
     SX_LOG_EXIT();
 
@@ -6237,32 +6235,32 @@ static sai_status_t mlnx_tunnel_map_entry_list_delete(_In_ mlnx_tunnel_map_entry
         return sai_status;
     }
 
-    prev_tunnel_map_entry_idx = g_sai_db_ptr->mlnx_tunnel_map_entry[tunnel_map_entry_idx].prev_tunnel_map_entry_idx;
+    prev_tunnel_map_entry_idx = g_sai_tunnel_db_ptr->tunnel_map_entry_db[tunnel_map_entry_idx].prev_tunnel_map_entry_idx;
 
-    next_tunnel_map_entry_idx = g_sai_db_ptr->mlnx_tunnel_map_entry[tunnel_map_entry_idx].next_tunnel_map_entry_idx;
+    next_tunnel_map_entry_idx = g_sai_tunnel_db_ptr->tunnel_map_entry_db[tunnel_map_entry_idx].next_tunnel_map_entry_idx;
 
     if (MLNX_TUNNEL_MAP_ENTRY_INVALID ==
-        g_sai_db_ptr->mlnx_tunnel_map_entry[tunnel_map_entry_idx].prev_tunnel_map_entry_idx) {
-        assert(tunnel_map_entry_idx == g_sai_db_ptr->mlnx_tunnel_map[tunnel_map_idx].tunnel_map_entry_head_idx);
+        g_sai_tunnel_db_ptr->tunnel_map_entry_db[tunnel_map_entry_idx].prev_tunnel_map_entry_idx) {
+        assert(tunnel_map_entry_idx == g_sai_tunnel_db_ptr->tunnel_map_db[tunnel_map_idx].tunnel_map_entry_head_idx);
 
-        g_sai_db_ptr->mlnx_tunnel_map[tunnel_map_idx].tunnel_map_entry_head_idx = next_tunnel_map_entry_idx;
+        g_sai_tunnel_db_ptr->tunnel_map_db[tunnel_map_idx].tunnel_map_entry_head_idx = next_tunnel_map_entry_idx;
     } else {
-        assert(tunnel_map_entry_idx != g_sai_db_ptr->mlnx_tunnel_map[tunnel_map_idx].tunnel_map_entry_head_idx);
+        assert(tunnel_map_entry_idx != g_sai_tunnel_db_ptr->tunnel_map_db[tunnel_map_idx].tunnel_map_entry_head_idx);
     }
 
     if (MLNX_TUNNEL_MAP_ENTRY_INVALID ==
-        g_sai_db_ptr->mlnx_tunnel_map_entry[tunnel_map_entry_idx].next_tunnel_map_entry_idx) {
-        assert(tunnel_map_entry_idx == g_sai_db_ptr->mlnx_tunnel_map[tunnel_map_idx].tunnel_map_entry_tail_idx);
+        g_sai_tunnel_db_ptr->tunnel_map_entry_db[tunnel_map_entry_idx].next_tunnel_map_entry_idx) {
+        assert(tunnel_map_entry_idx == g_sai_tunnel_db_ptr->tunnel_map_db[tunnel_map_idx].tunnel_map_entry_tail_idx);
 
-        g_sai_db_ptr->mlnx_tunnel_map[tunnel_map_idx].tunnel_map_entry_tail_idx = prev_tunnel_map_entry_idx;
+        g_sai_tunnel_db_ptr->tunnel_map_db[tunnel_map_idx].tunnel_map_entry_tail_idx = prev_tunnel_map_entry_idx;
     } else {
-        assert(tunnel_map_entry_idx != g_sai_db_ptr->mlnx_tunnel_map[tunnel_map_idx].tunnel_map_entry_tail_idx);
+        assert(tunnel_map_entry_idx != g_sai_tunnel_db_ptr->tunnel_map_db[tunnel_map_idx].tunnel_map_entry_tail_idx);
     }
 
-    g_sai_db_ptr->mlnx_tunnel_map_entry[prev_tunnel_map_entry_idx].next_tunnel_map_entry_idx =
+    g_sai_tunnel_db_ptr->tunnel_map_entry_db[prev_tunnel_map_entry_idx].next_tunnel_map_entry_idx =
         next_tunnel_map_entry_idx;
 
-    g_sai_db_ptr->mlnx_tunnel_map_entry[next_tunnel_map_entry_idx].prev_tunnel_map_entry_idx =
+    g_sai_tunnel_db_ptr->tunnel_map_entry_db[next_tunnel_map_entry_idx].prev_tunnel_map_entry_idx =
         prev_tunnel_map_entry_idx;
 
     SX_LOG_EXIT();
@@ -6287,9 +6285,14 @@ static sai_status_t mlnx_create_tunnel_map_entry(_Out_ sai_object_id_t      *sai
 {
     char                    list_str[MAX_LIST_VALUE_STR_LEN];
     sai_status_t            sai_status           = SAI_STATUS_SUCCESS;
+    sai_status_t            sai_cleanup_status   = SAI_STATUS_SUCCESS;
     uint32_t                tunnel_map_entry_idx = 0;
     mlnx_tunnel_map_entry_t mlnx_tunnel_map_entry;
-    const bool              is_add = true;
+    bool                    is_add = true;
+    bool                    tunnel_map_entry_created = false;
+    bool                    tunnel_map_entry_list_added = false;
+    bool                    tunnel_map_entry_bound = false;
+    uint32_t                tunnel_map_idx = 0;
 
     memset(&mlnx_tunnel_map_entry, 0, sizeof(mlnx_tunnel_map_entry_t));
 
@@ -6315,26 +6318,33 @@ static sai_status_t mlnx_create_tunnel_map_entry(_Out_ sai_object_id_t      *sai
         return sai_status;
     }
 
+    sai_status = mlnx_get_sai_tunnel_map_db_idx(mlnx_tunnel_map_entry.tunnel_map_id, &tunnel_map_idx);
+    /* mlnx_get_sai_tunnel_map_db_idx has been called in mlnx_init_tunnel_map_entry_param */
+    assert(SAI_STATUS_SUCCESS == sai_status);
+
     sai_db_write_lock();
+
+    g_sai_tunnel_db_ptr->tunnel_map_db[tunnel_map_idx].tunnel_map_entry_cnt++;
 
     if (SAI_STATUS_SUCCESS !=
         (sai_status = mlnx_create_empty_tunnel_map_entry(&tunnel_map_entry_idx))) {
         SX_LOG_ERR("Failed to create empty tunnel map entry\n");
         goto cleanup;
     }
+    tunnel_map_entry_created = true;
 
     if (SAI_STATUS_SUCCESS !=
         (sai_status =
              mlnx_create_object(SAI_OBJECT_TYPE_TUNNEL_MAP_ENTRY, tunnel_map_entry_idx, NULL,
                                 sai_tunnel_map_entry_obj_id))) {
-        memset(&g_sai_db_ptr->mlnx_tunnel_map_entry[tunnel_map_entry_idx], 0,
+        memset(&g_sai_tunnel_db_ptr->tunnel_map_entry_db[tunnel_map_entry_idx], 0,
                sizeof(mlnx_tunnel_map_entry_t));
         SX_LOG_ERR("Error creating sai tunnel map entry obj id from tunnel map entry idx %d\n",
                    tunnel_map_entry_idx);
         goto cleanup;
     }
 
-    memcpy(&g_sai_db_ptr->mlnx_tunnel_map_entry[tunnel_map_entry_idx], &mlnx_tunnel_map_entry,
+    memcpy(&g_sai_tunnel_db_ptr->tunnel_map_entry_db[tunnel_map_entry_idx], &mlnx_tunnel_map_entry,
            sizeof(mlnx_tunnel_map_entry_t));
 
     if (SAI_STATUS_SUCCESS !=
@@ -6344,6 +6354,7 @@ static sai_status_t mlnx_create_tunnel_map_entry(_Out_ sai_object_id_t      *sai
         SX_LOG_ERR("Error adding idx %d to tunnel map entry list\n", tunnel_map_entry_idx);
         goto cleanup;
     }
+    tunnel_map_entry_list_added = true;
 
     SX_LOG_NTC("Created SAI tunnel map entry obj id: %" PRIx64 "\n", *sai_tunnel_map_entry_obj_id);
 
@@ -6352,10 +6363,35 @@ static sai_status_t mlnx_create_tunnel_map_entry(_Out_ sai_object_id_t      *sai
         SX_LOG_ERR("Error binding tunnel map entry idx %d to tunnel\n", tunnel_map_entry_idx);
         goto cleanup;
     }
+    tunnel_map_entry_bound = true;
 
     sai_status = SAI_STATUS_SUCCESS;
+    goto cleanup_exit;
 
 cleanup:
+    if (tunnel_map_entry_bound) {
+        is_add = false;
+        sai_cleanup_status = mlnx_sai_tunnel_map_entry_bind_tunnel_set(tunnel_map_entry_idx, is_add);
+        if (SAI_ERR(sai_cleanup_status)) {
+            SX_LOG_ERR("Error unbinding tunnel map entry idx %d to tunnel\n", tunnel_map_entry_idx);
+            goto cleanup_exit;
+        }
+    }
+    if (tunnel_map_entry_list_added) {
+        if (SAI_STATUS_SUCCESS !=
+            (sai_cleanup_status =
+                 mlnx_tunnel_map_entry_list_delete(mlnx_tunnel_map_entry,
+                                                   tunnel_map_entry_idx))) {
+            SX_LOG_ERR("Error deleting idx %d to tunnel map entry list\n", tunnel_map_entry_idx);
+            goto cleanup_exit;
+        }
+    }
+    if (tunnel_map_entry_created) {
+        memset(&g_sai_tunnel_db_ptr->tunnel_map_entry_db[tunnel_map_entry_idx], 0,
+               sizeof(mlnx_tunnel_map_entry_t));
+    }
+    g_sai_tunnel_db_ptr->tunnel_map_db[tunnel_map_idx].tunnel_map_entry_cnt--;
+cleanup_exit:
     sai_db_unlock();
     SX_LOG_EXIT();
     return sai_status;
@@ -6394,7 +6430,7 @@ static sai_status_t mlnx_remove_tunnel_map_entry(_In_ sai_object_id_t sai_tunnel
 
     sai_db_write_lock();
 
-    if (!(g_sai_db_ptr->mlnx_tunnel_map_entry[tunnel_map_entry_idx].in_use)) {
+    if (!(g_sai_tunnel_db_ptr->tunnel_map_entry_db[tunnel_map_entry_idx].in_use)) {
         SX_LOG_ERR("Invalid sai tunnel map entry obj id: %" PRIx64 "\n", sai_tunnel_map_entry_obj_id);
         sai_status = SAI_STATUS_INVALID_OBJECT_ID;
         goto cleanup;
@@ -6402,13 +6438,13 @@ static sai_status_t mlnx_remove_tunnel_map_entry(_In_ sai_object_id_t sai_tunnel
 
     if (SAI_STATUS_SUCCESS ==
         (sai_status =
-             mlnx_get_sai_tunnel_map_db_idx(g_sai_db_ptr->mlnx_tunnel_map_entry[tunnel_map_entry_idx].tunnel_map_id,
+             mlnx_get_sai_tunnel_map_db_idx(g_sai_tunnel_db_ptr->tunnel_map_entry_db[tunnel_map_entry_idx].tunnel_map_id,
                                             &tunnel_map_idx))) {
-        assert(0 < g_sai_db_ptr->mlnx_tunnel_map[tunnel_map_idx].tunnel_map_entry_cnt);
-        g_sai_db_ptr->mlnx_tunnel_map[tunnel_map_idx].tunnel_map_entry_cnt--;
+        assert(0 < g_sai_tunnel_db_ptr->tunnel_map_db[tunnel_map_idx].tunnel_map_entry_cnt);
+        g_sai_tunnel_db_ptr->tunnel_map_db[tunnel_map_idx].tunnel_map_entry_cnt--;
     } else {
         SX_LOG_ERR("Error getting tunnel map idx from SAI tunnel map oid %" PRIx64 "\n",
-                   g_sai_db_ptr->mlnx_tunnel_map_entry[tunnel_map_entry_idx].tunnel_map_id);
+                   g_sai_tunnel_db_ptr->tunnel_map_entry_db[tunnel_map_entry_idx].tunnel_map_id);
         sai_status = SAI_STATUS_FAILURE;
         goto cleanup;
     }
@@ -6420,13 +6456,13 @@ static sai_status_t mlnx_remove_tunnel_map_entry(_In_ sai_object_id_t sai_tunnel
     }
 
     if (SAI_STATUS_SUCCESS !=
-        (sai_status = mlnx_tunnel_map_entry_list_delete(g_sai_db_ptr->mlnx_tunnel_map_entry[tunnel_map_entry_idx],
+        (sai_status = mlnx_tunnel_map_entry_list_delete(g_sai_tunnel_db_ptr->tunnel_map_entry_db[tunnel_map_entry_idx],
                                                         tunnel_map_entry_idx))) {
         SX_LOG_ERR("Error deleting idx %d from tunnel map entry list\n", tunnel_map_entry_idx);
         goto cleanup;
     }
 
-    memset(&g_sai_db_ptr->mlnx_tunnel_map_entry[tunnel_map_entry_idx], 0, sizeof(mlnx_tunnel_map_entry_t));
+    memset(&g_sai_tunnel_db_ptr->tunnel_map_entry_db[tunnel_map_entry_idx], 0, sizeof(mlnx_tunnel_map_entry_t));
 
     SX_LOG_NTC("Removed SAI tunnel map entry obj id %" PRIx64 "\n", sai_tunnel_map_entry_obj_id);
 
@@ -6523,7 +6559,7 @@ sai_status_t mlnx_tunnel_log_set(sx_verbosity_level_t level)
  */
 static sai_status_t mlnx_get_tunnel_stats(_In_ sai_object_id_t          tunnel_id,
                                           _In_ uint32_t                 number_of_counters,
-                                          _In_ const sai_tunnel_stat_t *counter_ids,
+                                          _In_ const sai_stat_id_t     *counter_ids,
                                           _Out_ uint64_t               *counters)
 {
     return SAI_STATUS_NOT_IMPLEMENTED;
@@ -6542,7 +6578,7 @@ static sai_status_t mlnx_get_tunnel_stats(_In_ sai_object_id_t          tunnel_i
  */
 sai_status_t mlnx_get_tunnel_stats_ext(_In_ sai_object_id_t          tunnel_id,
                                        _In_ uint32_t                 number_of_counters,
-                                       _In_ const sai_tunnel_stat_t *counter_ids,
+                                       _In_ const sai_stat_id_t     *counter_ids,
                                        _In_ sai_stats_mode_t         mode,
                                        _Out_ uint64_t               *counters)
 {
@@ -6560,7 +6596,7 @@ sai_status_t mlnx_get_tunnel_stats_ext(_In_ sai_object_id_t          tunnel_id,
  */
 static sai_status_t mlnx_clear_tunnel_stats(_In_ sai_object_id_t          tunnel_id,
                                             _In_ uint32_t                 number_of_counters,
-                                            _In_ const sai_tunnel_stat_t *counter_ids)
+                                            _In_ const sai_stat_id_t     *counter_ids)
 {
     return SAI_STATUS_NOT_IMPLEMENTED;
 }

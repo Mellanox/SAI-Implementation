@@ -980,7 +980,7 @@ out:
  */
 static sai_status_t mlnx_get_vlan_stats(_In_ sai_object_id_t        sai_vlan_id,
                                         _In_ uint32_t               number_of_counters,
-                                        _In_ const sai_vlan_stat_t *counter_ids,
+                                        _In_ const sai_stat_id_t   *counter_ids,
                                         _Out_ uint64_t             *counters)
 {
     UNREFERENCED_PARAMETER(sai_vlan_id);
@@ -1017,7 +1017,7 @@ static sai_status_t mlnx_get_vlan_stats(_In_ sai_object_id_t        sai_vlan_id,
  */
 sai_status_t mlnx_get_vlan_stats_ext(_In_ sai_object_id_t        vlan_id,
                                      _In_ uint32_t               number_of_counters,
-                                     _In_ const sai_vlan_stat_t *counter_ids,
+                                     _In_ const sai_stat_id_t   *counter_ids,
                                      _In_ sai_stats_mode_t       mode,
                                      _Out_ uint64_t             *counters)
 {
@@ -1035,7 +1035,7 @@ sai_status_t mlnx_get_vlan_stats_ext(_In_ sai_object_id_t        vlan_id,
  */
 static sai_status_t mlnx_clear_vlan_stats(_In_ sai_object_id_t        sai_vlan_id,
                                           _In_ uint32_t               number_of_counters,
-                                          _In_ const sai_vlan_stat_t *counter_ids)
+                                          _In_ const sai_stat_id_t   *counter_ids)
 {
     UNREFERENCED_PARAMETER(sai_vlan_id);
     UNREFERENCED_PARAMETER(number_of_counters);

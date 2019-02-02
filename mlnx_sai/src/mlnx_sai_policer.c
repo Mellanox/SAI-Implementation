@@ -2152,7 +2152,7 @@ static sai_status_t mlnx_sai_get_policer_attribute(_In_ sai_object_id_t     poli
 
 static sai_status_t mlnx_do_policer_stats(_In_ sai_object_id_t           policer_id,
                                           _In_ uint32_t                  number_of_counters,
-                                          _In_ const sai_policer_stat_t *counter_ids,
+                                          _In_ const sai_stat_id_t      *counter_ids,
                                           _Out_ uint64_t               * counters,
                                           bool                           is_clear)
 {
@@ -2309,7 +2309,7 @@ exit:
 
 static sai_status_t mlnx_sai_get_policer_statistics(_In_ sai_object_id_t           policer_id,
                                                     _In_ uint32_t                  number_of_counters,
-                                                    _In_ const sai_policer_stat_t *counter_ids,
+                                                    _In_ const sai_stat_id_t      *counter_ids,
                                                     _Out_ uint64_t               * counters)
 {
     return mlnx_do_policer_stats(policer_id, number_of_counters, counter_ids, counters, false);
@@ -2328,7 +2328,7 @@ static sai_status_t mlnx_sai_get_policer_statistics(_In_ sai_object_id_t        
  */
 sai_status_t mlnx_sai_get_policer_statistics_ext(_In_ sai_object_id_t           policer_id,
                                                  _In_ uint32_t                  number_of_counters,
-                                                 _In_ const sai_policer_stat_t *counter_ids,
+                                                 _In_ const sai_stat_id_t      *counter_ids,
                                                  _In_ sai_stats_mode_t          mode,
                                                  _Out_ uint64_t                *counters)
 {
@@ -2347,7 +2347,7 @@ sai_status_t mlnx_sai_get_policer_statistics_ext(_In_ sai_object_id_t           
  */
 sai_status_t mlnx_sai_clear_policer_stats(_In_ sai_object_id_t           policer_id,
                                           _In_ uint32_t                  number_of_counters,
-                                          _In_ const sai_policer_stat_t *counter_ids)
+                                          _In_ const sai_stat_id_t      *counter_ids)
 {
     return mlnx_do_policer_stats(policer_id, number_of_counters, counter_ids, NULL, true);
 }

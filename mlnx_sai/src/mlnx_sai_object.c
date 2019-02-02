@@ -57,14 +57,14 @@ sai_status_t sai_get_object_count(_In_ sai_object_id_t   switch_id,
  *
  * @param[in] switch_id SAI Switch object id
  * @param[in] object_type SAI object type
- * @param[in] object_count Number of objects in SAI
- * @param[in] object_list List of SAI objects or keys
+ * @param[inout] object_count Number of objects in SAI
+ * @param[inout] object_list List of SAI objects or keys
  *
- * @return #SAI_STATUS_SUCCESS on success Failure status code on error
+ * @return #SAI_STATUS_SUCCESS on success, #SAI_STATUS_BUFFER_OVERFLOW if list size insufficient, failure status code on error
  */
 sai_status_t sai_get_object_key(_In_ sai_object_id_t      switch_id,
                                 _In_ sai_object_type_t    object_type,
-                                _In_ uint32_t             object_count,
+                                _Inout_ uint32_t         *object_count,
                                 _Inout_ sai_object_key_t *object_list)
 {
     return SAI_STATUS_NOT_IMPLEMENTED;

@@ -96,6 +96,11 @@ static sai_status_t mlnx_port_speed_get(_In_ const sai_object_key_t   *key,
                                         _In_ uint32_t                  attr_index,
                                         _Inout_ vendor_cache_t        *cache,
                                         void                          *arg);
+static sai_status_t mlnx_port_oper_speed_get(_In_ const sai_object_key_t   *key,
+                                             _Inout_ sai_attribute_value_t *value,
+                                             _In_ uint32_t                  attr_index,
+                                             _Inout_ vendor_cache_t        *cache,
+                                             void                          *arg);
 static sai_status_t mlnx_port_fec_get(_In_ const sai_object_key_t   *key,
                                       _Inout_ sai_attribute_value_t *value,
                                       _In_ uint32_t                  attr_index,
@@ -270,9 +275,9 @@ static sai_status_t mlnx_port_pool_attr_get(_In_ const sai_object_key_t   *key,
                                             _Inout_ vendor_cache_t        *cache,
                                             _In_ void                     *arg);
 static sai_status_t mlnx_port_speed_set_impl(_In_ sx_port_log_id_t sx_port, _In_ uint32_t speed);
-sai_status_t mlnx_port_speed_get_impl(_In_ sx_port_log_id_t sx_port,
-                                      _Out_ uint32_t       *oper_speed,
-                                      _Out_ uint32_t       *admin_speed);
+static sai_status_t mlnx_port_speed_get_impl(_In_ sx_port_log_id_t sx_port,
+                                             _Out_ uint32_t       *oper_speed,
+                                             _Out_ uint32_t       *admin_speed);
 static sai_status_t mlnx_port_supported_speeds_get_impl(_In_ sx_port_log_id_t sx_port, _Inout_ sai_u32_list_t *list);
 static sai_status_t mlnx_port_autoneg_set_impl(_In_ sx_port_log_id_t sx_port, _In_ bool value);
 static sai_status_t mlnx_port_autoneg_get_impl(_In_ sx_port_log_id_t sx_port, _In_ bool             *value);
@@ -376,6 +381,11 @@ static const sai_vendor_attribute_entry_t port_vendor_attribs[] = {
       { false, false, false, true },
       { false, false, false, true },
       mlnx_port_priority_group_list_get, NULL,
+      NULL, NULL },
+    { SAI_PORT_ATTR_OPER_SPEED,
+      { false, false, false, true },
+      { false, false, false, true },
+      mlnx_port_oper_speed_get, NULL,
       NULL, NULL },
     { SAI_PORT_ATTR_SPEED,
       { true, false, true, true },
@@ -1548,6 +1558,30 @@ static sai_status_t mlnx_port_speed_get(_In_ const sai_object_key_t   *key,
                                         _In_ uint32_t                  attr_index,
                                         _Inout_ vendor_cache_t        *cache,
                                         void                          *arg)
+{
+    sai_status_t     status;
+    sx_port_log_id_t port_id;
+    uint32_t         oper_speed;
+
+    SX_LOG_ENTER();
+
+    if (SAI_STATUS_SUCCESS !=
+        (status = mlnx_object_to_type(key->key.object_id, SAI_OBJECT_TYPE_PORT, &port_id, NULL))) {
+        return status;
+    }
+
+    status = mlnx_port_speed_get_impl(port_id, &oper_speed, &value->u32);
+
+    SX_LOG_EXIT();
+    return status;
+}
+
+/* Operational speed in Mbps [uint32_t] */
+static sai_status_t mlnx_port_oper_speed_get(_In_ const sai_object_key_t   *key,
+                                             _Inout_ sai_attribute_value_t *value,
+                                             _In_ uint32_t                  attr_index,
+                                             _Inout_ vendor_cache_t        *cache,
+                                             void                          *arg)
 {
     sai_status_t     status;
     sx_port_log_id_t port_id;
@@ -3942,7 +3976,7 @@ static sai_status_t mlnx_get_port_attribute(_In_ sai_object_id_t     port_id,
  */
 sai_status_t mlnx_get_port_stats_ext(_In_ sai_object_id_t        port_id,
                                      _In_ uint32_t               number_of_counters,
-                                     _In_ const sai_port_stat_t *counter_ids,
+                                     _In_ const sai_stat_id_t   *counter_ids,
                                      _In_ sai_stats_mode_t       mode,
                                      _Out_ uint64_t             *counters)
 {
@@ -4625,7 +4659,7 @@ sai_status_t mlnx_get_port_stats_ext(_In_ sai_object_id_t        port_id,
  */
 static sai_status_t mlnx_get_port_stats(_In_ sai_object_id_t        port_id,
                                         _In_ uint32_t               number_of_counters,
-                                        _In_ const sai_port_stat_t *counter_ids,
+                                        _In_ const sai_stat_id_t   *counter_ids,
                                         _Out_ uint64_t             *counters)
 {
     return mlnx_get_port_stats_ext(port_id, number_of_counters, counter_ids, SAI_STATS_MODE_READ, counters);
@@ -4646,7 +4680,7 @@ static sai_status_t mlnx_get_port_stats(_In_ sai_object_id_t        port_id,
  */
 static sai_status_t mlnx_clear_port_stats(_In_ sai_object_id_t        port_id,
                                           _In_ uint32_t               number_of_counters,
-                                          _In_ const sai_port_stat_t *counter_ids)
+                                          _In_ const sai_stat_id_t   *counter_ids)
 {
     return SAI_STATUS_NOT_IMPLEMENTED;
 }
@@ -6256,10 +6290,10 @@ static sai_status_t mlnx_port_speed_set_impl(_In_ sx_port_log_id_t sx_port, _In_
     return mlnx_port_cb->speed_set(sx_port, speed);
 }
 
-sai_status_t mlnx_port_speed_get_impl(_In_ sx_port_log_id_t sx_port,
-                                      _Out_ uint32_t       *oper_speed,
-                                      _Out_ uint32_t       *admin_speed)
-{
+static sai_status_t mlnx_port_speed_get_impl(_In_ sx_port_log_id_t sx_port,
+                                             _Out_ uint32_t       *oper_speed,
+                                             _Out_ uint32_t       *admin_speed)
+{   
     assert(mlnx_port_cb);
 
     return mlnx_port_cb->speed_get(sx_port, oper_speed, admin_speed);
@@ -7382,7 +7416,7 @@ static sai_status_t mlnx_port_pool_attr_get(_In_ const sai_object_key_t   *key,
  */
 sai_status_t mlnx_get_port_pool_stats_ext(_In_ sai_object_id_t             port_pool_id,
                                           _In_ uint32_t                    number_of_counters,
-                                          _In_ const sai_port_pool_stat_t *counter_ids,
+                                          _In_ const sai_stat_id_t        *counter_ids,
                                           _In_ sai_stats_mode_t            mode,
                                           _Out_ uint64_t                  *counters)
 {
@@ -7542,7 +7576,7 @@ sai_status_t mlnx_get_port_pool_stats_ext(_In_ sai_object_id_t             port_
  */
 static sai_status_t mlnx_get_port_pool_stats(_In_ sai_object_id_t             port_pool_id,
                                              _In_ uint32_t                    number_of_counters,
-                                             _In_ const sai_port_pool_stat_t *counter_ids,
+                                             _In_ const sai_stat_id_t        *counter_ids,
                                              _Out_ uint64_t                  *counters)
 {
     return mlnx_get_port_pool_stats_ext(port_pool_id, number_of_counters, counter_ids, SAI_STATS_MODE_READ, counters);
@@ -7559,7 +7593,7 @@ static sai_status_t mlnx_get_port_pool_stats(_In_ sai_object_id_t             po
  */
 static sai_status_t mlnx_clear_port_pool_stats(_In_ sai_object_id_t             port_pool_id,
                                                _In_ uint32_t                    number_of_counters,
-                                               _In_ const sai_port_pool_stat_t *counter_ids)
+                                               _In_ const sai_stat_id_t        *counter_ids)
 {
     sai_status_t                     status;
     uint8_t                          ext_data[EXTENDED_DATA_SIZE] = { 0 };

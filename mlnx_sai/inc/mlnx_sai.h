@@ -70,6 +70,10 @@
 #define MLNX_SYSLOG_FMT "[%s.%s] "
 #define MLNX_LOG_FMT    "%s[%d]- %s: "
 
+#ifdef ACS_OS
+    #define MLNX_ACL_SKIP_EXTRA_KEYS
+#endif
+
 inline static char * mlnx_severity_to_syslog(sx_log_severity_t severity)
 {
     switch (severity) {
@@ -1719,14 +1723,17 @@ typedef struct _mlnx_samplepacket_t {
     sai_samplepacket_mode_t sai_mode;
 } mlnx_samplepacket_t;
 
-#define MAX_TUNNEL_DB_SIZE            100
+#define MLNX_MAX_TUNNEL_IPINIP        (g_resource_limits.tunnel_ipinip_num_max)
+#define MLNX_MAX_TUNNEL_NVE           (g_resource_limits.tunnel_nve_num_max)
+#define MAX_TUNNEL_DB_SIZE            (MLNX_MAX_TUNNEL_IPINIP + MLNX_MAX_TUNNEL_NVE)
 #define MLNX_TUNNELTABLE_SIZE         256
 #define MLNX_TUNNEL_MAP_LIST_MAX      50
 #define MLNX_TUNNEL_MAP_MIN           0
 #define MLNX_TUNNEL_MAP_MAX           8
 #define MLNX_TUNNEL_MAP_ENTRY_INVALID 0
 #define MLNX_TUNNEL_MAP_ENTRY_MIN     1
-#define MLNX_TUNNEL_MAP_ENTRY_MAX     50
+/* SONiC requires 8000 tunnel map entries */
+#define MLNX_TUNNEL_MAP_ENTRY_MAX     8001
 #define MLNX_TUNNEL_TO_TUNNEL_MAP_MAX 1000
 #define MAX_VXLAN_TUNNEL              1
 
@@ -1737,7 +1744,7 @@ typedef struct _mlnx_tunneltable_t {
     bool                        tunnel_lazy_created;
 } mlnx_tunneltable_t;
 
-typedef struct _tunnel_db_entry_t {
+typedef struct _mlnx_tunnel_entry_t {
     bool                  is_used;
     sai_tunnel_type_t     sai_tunnel_type;
     sx_tunnel_id_t        sx_tunnel_id_ipv4;
@@ -1756,7 +1763,7 @@ typedef struct _tunnel_db_entry_t {
     sx_tunnel_cos_data_t  sdk_encap_cos_data;
     sx_tunnel_cos_data_t  sdk_decap_cos_data;
     uint32_t              term_table_cnt;
-} tunnel_db_entry_t;
+} mlnx_tunnel_entry_t;
 
 typedef struct _tunnel_map_t {
     bool                  in_use;
@@ -1792,6 +1799,17 @@ typedef enum _nve_tunnel_type_t {
     NVE_8021D_TUNNEL,
     NVE_TUNNEL_UNKNOWN
 } mlnx_nve_tunnel_type_t;
+
+typedef struct sai_tunnel_db {
+    void                    *db_base_ptr;
+    mlnx_tunneltable_t      *tunneltable_db;
+    mlnx_tunnel_entry_t     *tunnel_entry_db;
+    mlnx_tunnel_map_t       *tunnel_map_db;
+    mlnx_tunnel_map_entry_t *tunnel_map_entry_db;
+} sai_tunnel_db_t;
+
+extern sai_tunnel_db_t *g_sai_tunnel_db_ptr;
+extern uint32_t         g_sai_tunnel_db_size;
 
 typedef struct _fdb_action_t {
     sai_object_type_t type;
@@ -1902,10 +1920,6 @@ typedef struct sai_db {
     sai_object_id_t                   oper_hash_list[SAI_HASH_MAX_OBJ_ID];
     sx_router_ecmp_port_hash_params_t port_hash_params;
     mlnx_samplepacket_t               mlnx_samplepacket_session[MLNX_SAMPLEPACKET_SESSION_MAX];
-    mlnx_tunneltable_t                mlnx_tunneltable[MLNX_TUNNELTABLE_SIZE];
-    tunnel_db_entry_t                 tunnel_db[MAX_TUNNEL_DB_SIZE];
-    mlnx_tunnel_map_t                 mlnx_tunnel_map[MLNX_TUNNEL_MAP_MAX];
-    mlnx_tunnel_map_entry_t           mlnx_tunnel_map_entry[MLNX_TUNNEL_MAP_ENTRY_MAX];
     bool                              tunnel_module_initialized;
     bool                              port_parsing_depth_set_for_tunnel;
     sx_bridge_id_t                    sx_bridge_id;
@@ -2134,9 +2148,6 @@ sai_status_t mlnx_port_lag_drop_tags_get(_In_ const sai_object_key_t   *key,
                                          _Inout_ vendor_cache_t        *cache,
                                          void                          *arg);
 sai_status_t mlnx_port_mirror_wred_discard_set(_In_ sx_port_log_id_t port_log_id, _In_ bool is_add);
-sai_status_t mlnx_port_speed_get_impl(_In_ sx_port_log_id_t sx_port,
-                                      _Out_ uint32_t       *oper_speed,
-                                      _Out_ uint32_t       *admin_speed);
 uint8_t mlnx_port_mac_mask_get(void);
 
 /* DB read lock is needed */

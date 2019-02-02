@@ -144,6 +144,21 @@
     <ClInclude Include="inc\sai\sail2mcgroup.h">
       <Filter>Header Files\sai</Filter>
     </ClInclude>
+    <ClInclude Include="inc\sai\saiisolationgroup.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\experimental\saiexperimentalbmtor.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\experimental\saiextensions.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\experimental\saiswitchextensions.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\experimental\saitypesextensions.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\mlnx_sai_acl.c">
