@@ -73,7 +73,11 @@ typedef enum _sai_port_oper_status_t
  */
 typedef struct _sai_port_oper_status_notification_t
 {
-    /** Port id */
+    /**
+     * @brief Port id.
+     *
+     * @objects SAI_OBJECT_TYPE_PORT, SAI_OBJECT_TYPE_BRIDGE_PORT, SAI_OBJECT_TYPE_LAG
+     */
     sai_object_id_t port_id;
 
     /** Port operational status */
@@ -397,6 +401,25 @@ typedef enum _sai_port_attr_t
      */
     SAI_PORT_ATTR_INGRESS_PRIORITY_GROUP_LIST,
 
+    /**
+     * @brief List of port's lanes eye values
+     *
+     * @type sai_port_eye_values_list_t
+     * @flags READ_ONLY
+     */
+    SAI_PORT_ATTR_EYE_VALUES,
+
+    /**
+     * @brief Operational speed in Mbps
+     *
+     * If port is down, the returned value should be zero.
+     * If auto negotiation is on, the returned value should be the negotiated speed.
+     *
+     * @type sai_uint32_t
+     * @flags READ_ONLY
+     */
+    SAI_PORT_ATTR_OPER_SPEED,
+
     /* READ-WRITE */
 
     /**
@@ -409,6 +432,8 @@ typedef enum _sai_port_attr_t
 
     /**
      * @brief Speed in Mbps
+     *
+     * On get, returns the configured port speed.
      *
      * @type sai_uint32_t
      * @flags MANDATORY_ON_CREATE | CREATE_AND_SET
@@ -1000,6 +1025,8 @@ typedef enum _sai_port_attr_t
     /**
      * @brief Egress block port list
      *
+     * Needs to be deprecated. Isolation group can be used instead.
+     *
      * Traffic ingressing on this port and egressing out of the ports in the
      * given port list will be dropped.
      *
@@ -1073,6 +1100,21 @@ typedef enum _sai_port_attr_t
      * @objects SAI_OBJECT_TYPE_PORT_POOL
      */
     SAI_PORT_ATTR_PORT_POOL_LIST,
+
+    /**
+     * @brief Isolation group id
+     *
+     * Packets ingressing on the port should not be forwarded to the
+     * members present in the isolation group.The isolation group type
+     * should be SAI_ISOLATION_GROUP_TYPE_PORT.
+     *
+     * @type sai_object_id_t
+     * @flags CREATE_AND_SET
+     * @objects SAI_OBJECT_TYPE_ISOLATION_GROUP
+     * @allownull true
+     * @default SAI_NULL_OBJECT_ID
+     */
+    SAI_PORT_ATTR_ISOLATION_GROUP,
 
     /**
      * @brief Port packet transmission enable
@@ -1678,7 +1720,7 @@ typedef sai_status_t (*sai_get_port_attribute_fn)(
 typedef sai_status_t (*sai_get_port_stats_fn)(
         _In_ sai_object_id_t port_id,
         _In_ uint32_t number_of_counters,
-        _In_ const sai_port_stat_t *counter_ids,
+        _In_ const sai_stat_id_t *counter_ids,
         _Out_ uint64_t *counters);
 
 /**
@@ -1695,7 +1737,7 @@ typedef sai_status_t (*sai_get_port_stats_fn)(
 typedef sai_status_t (*sai_get_port_stats_ext_fn)(
         _In_ sai_object_id_t port_id,
         _In_ uint32_t number_of_counters,
-        _In_ const sai_port_stat_t *counter_ids,
+        _In_ const sai_stat_id_t *counter_ids,
         _In_ sai_stats_mode_t mode,
         _Out_ uint64_t *counters);
 
@@ -1711,7 +1753,7 @@ typedef sai_status_t (*sai_get_port_stats_ext_fn)(
 typedef sai_status_t (*sai_clear_port_stats_fn)(
         _In_ sai_object_id_t port_id,
         _In_ uint32_t number_of_counters,
-        _In_ const sai_port_stat_t *counter_ids);
+        _In_ const sai_stat_id_t *counter_ids);
 
 /**
  * @brief Clear port's all statistics counters.
@@ -1934,7 +1976,7 @@ typedef sai_status_t (*sai_get_port_pool_attribute_fn)(
 typedef sai_status_t (*sai_get_port_pool_stats_fn)(
         _In_ sai_object_id_t port_pool_id,
         _In_ uint32_t number_of_counters,
-        _In_ const sai_port_pool_stat_t *counter_ids,
+        _In_ const sai_stat_id_t *counter_ids,
         _Out_ uint64_t *counters);
 
 /**
@@ -1951,7 +1993,7 @@ typedef sai_status_t (*sai_get_port_pool_stats_fn)(
 typedef sai_status_t (*sai_get_port_pool_stats_ext_fn)(
         _In_ sai_object_id_t port_pool_id,
         _In_ uint32_t number_of_counters,
-        _In_ const sai_port_pool_stat_t *counter_ids,
+        _In_ const sai_stat_id_t *counter_ids,
         _In_ sai_stats_mode_t mode,
         _Out_ uint64_t *counters);
 
@@ -1967,7 +2009,7 @@ typedef sai_status_t (*sai_get_port_pool_stats_ext_fn)(
 typedef sai_status_t (*sai_clear_port_pool_stats_fn)(
         _In_ sai_object_id_t port_pool_id,
         _In_ uint32_t number_of_counters,
-        _In_ const sai_port_pool_stat_t *counter_ids);
+        _In_ const sai_stat_id_t *counter_ids);
 
 /**
  * @brief Port methods table retrieved with sai_api_query()

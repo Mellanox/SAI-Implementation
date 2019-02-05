@@ -324,7 +324,11 @@ typedef enum _sai_queue_pfc_deadlock_event_type_t
  */
 typedef struct _sai_queue_deadlock_notification_data_t
 {
-    /** Queue id */
+    /**
+     * @brief Queue id
+     *
+     * @objects SAI_OBJECT_TYPE_QUEUE
+     */
     sai_object_id_t queue_id;
 
     /** Deadlock event */
@@ -408,7 +412,7 @@ typedef sai_status_t (*sai_get_queue_attribute_fn)(
 typedef sai_status_t (*sai_get_queue_stats_fn)(
         _In_ sai_object_id_t queue_id,
         _In_ uint32_t number_of_counters,
-        _In_ const sai_queue_stat_t *counter_ids,
+        _In_ const sai_stat_id_t *counter_ids,
         _Out_ uint64_t *counters);
 
 /**
@@ -425,7 +429,7 @@ typedef sai_status_t (*sai_get_queue_stats_fn)(
 typedef sai_status_t (*sai_get_queue_stats_ext_fn)(
         _In_ sai_object_id_t queue_id,
         _In_ uint32_t number_of_counters,
-        _In_ const sai_queue_stat_t *counter_ids,
+        _In_ const sai_stat_id_t *counter_ids,
         _In_ sai_stats_mode_t mode,
         _Out_ uint64_t *counters);
 
@@ -441,7 +445,7 @@ typedef sai_status_t (*sai_get_queue_stats_ext_fn)(
 typedef sai_status_t (*sai_clear_queue_stats_fn)(
         _In_ sai_object_id_t queue_id,
         _In_ uint32_t number_of_counters,
-        _In_ const sai_queue_stat_t *counter_ids);
+        _In_ const sai_stat_id_t *counter_ids);
 
 /**
  * @brief Queue PFC deadlock event notification
