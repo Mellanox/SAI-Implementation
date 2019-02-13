@@ -26,6 +26,7 @@
 #include <sx/sdk/sx_api_dbg.h>
 #include <sx/sdk/sx_api_fdb.h>
 #include <sx/sdk/sx_api_flex_acl.h>
+#include <sx/sdk/sx_api_flex_parser.h>
 #include <sx/sdk/sx_api_flow_counter.h>
 #include <sx/sdk/sx_api_host_ifc.h>
 #include <sx/sdk/sx_api_init.h>
@@ -72,6 +73,7 @@
 
 #ifdef ACS_OS
     #define MLNX_ACL_SKIP_EXTRA_KEYS
+    #define MLNX_ACL_L3_TYPE_V6_ONLY
 #endif
 
 inline static char * mlnx_severity_to_syslog(sx_log_severity_t severity)
@@ -2113,7 +2115,7 @@ sai_status_t mlnx_port_config_init(mlnx_port_config_t *port);
 sai_status_t mlnx_port_config_uninit(mlnx_port_config_t *port);
 sai_status_t mlnx_port_auto_split(mlnx_port_config_t *port);
 sai_status_t mlnx_port_speed_bitmap_apply(_In_ const mlnx_port_config_t *port);
-sai_status_t mlnx_port_crc_params_apply(const mlnx_port_config_t *port);
+sai_status_t mlnx_port_crc_params_apply(const mlnx_port_config_t *port, bool init);
 
 sai_status_t mlnx_port_in_use_check(const mlnx_port_config_t *port);
 bool mlnx_port_is_net(const mlnx_port_config_t *port);

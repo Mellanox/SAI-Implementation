@@ -728,6 +728,23 @@ static void mlnx_acl_flex_rule_action_find(_In_ const sx_flex_acl_flex_rule_t *r
                                            _In_ sx_flex_acl_flex_action_type_t action_type,
                                            _Out_ uint32_t                     *action_index,
                                            _Out_ bool                         *is_action_present);
+static void mlnx_acl_sx_key_list_find_key(_In_ const sx_acl_key_t  *sx_keys,
+                                          _In_ uint32_t             sx_key_count,
+                                          _In_ sx_acl_key_t         sx_key,
+                                          _Out_ bool               *is_present,
+                                          _Out_ uint32_t           *key_idx);
+static void mlnx_acl_sx_key_list_add_key(_Inout_ sx_acl_key_t    *sx_keys,
+                                         _Inout_ uint32_t        *sx_key_count,
+                                         _In_ const sx_acl_key_t *sx_new_keys,
+                                         _In_ uint32_t            sx_new_keys_count);
+#ifdef MLNX_ACL_L3_TYPE_V6_ONLY
+static void mlnx_acl_sx_key_list_del_key(_Inout_ sx_acl_key_t *sx_keys,
+                                         _Inout_ uint32_t     *sx_key_count,
+                                         _In_    sx_acl_key_t  sx_key);
+static void mlnx_acl_sx_key_desk_list_del_key(_Inout_ sx_flex_acl_key_desc_t *sx_key_descs,
+                                              _Inout_ uint32_t               *sx_key_descs_count,
+                                              _In_    sx_acl_key_t            sx_key);
+#endif
 static sai_status_t mlnx_acl_entry_sx_acl_rule_get(_In_ uint32_t                    acl_table_index,
                                                    _In_ uint32_t                    acl_entry_index,
                                                    _Inout_ sx_flex_acl_flex_rule_t *flex_acl_rule_p);
@@ -3334,7 +3351,7 @@ static sai_status_t mlnx_acl_table_is_entry_field_supported(_In_ uint32_t       
     mlnx_acl_field_type_t  field_type;
     mlnx_acl_field_stage_t field_stage;
     uint32_t               table_key_count, field_key_count;
-    uint32_t               table_key_index, field_key_index;
+    uint32_t               field_key_index;
     bool                   is_key_present;
 
     assert(NULL != is_supported);
@@ -3381,16 +3398,8 @@ static sai_status_t mlnx_acl_table_is_entry_field_supported(_In_ uint32_t       
     *is_supported = true;
 
     for (field_key_index = 0; field_key_index < field_key_count; field_key_index++) {
-        is_key_present = false;
-
-        for (table_key_index = 0; table_key_index < table_key_count; table_key_index++) {
-            if (field_keys[field_key_index] == table_keys[table_key_index]) {
-                is_key_present = true;
-                break;
-            }
-        }
-
-        if (false == is_key_present) {
+        mlnx_acl_sx_key_list_find_key(table_keys, table_key_count, field_keys[field_key_index], &is_key_present, NULL);
+        if (!is_key_present) {
             *is_supported = false;
             break;
         }
@@ -3399,12 +3408,36 @@ static sai_status_t mlnx_acl_table_is_entry_field_supported(_In_ uint32_t       
     return SAI_STATUS_SUCCESS;
 }
 
-static void mlnx_acl_sx_key_list_add(_Inout_ sx_acl_key_t    *sx_keys,
-                                     _Inout_ uint32_t        *sx_key_count,
-                                     _In_ const sx_acl_key_t *sx_new_keys,
-                                     _In_ uint32_t            sx_new_keys_count)
+static void mlnx_acl_sx_key_list_find_key(_In_ const sx_acl_key_t  *sx_keys,
+                                          _In_ uint32_t             sx_key_count,
+                                          _In_ sx_acl_key_t         sx_key,
+                                          _Out_ bool               *is_present,
+                                          _Out_ uint32_t           *key_idx)
 {
-    uint32_t new_key_idx, key_idx;
+    uint32_t idx;
+
+    assert(sx_keys);
+    assert(is_present);
+
+    for (idx = 0; idx < sx_key_count; idx++) {
+        if (sx_keys[idx] == sx_key) {
+            *is_present = true;
+            if (key_idx) {
+                *key_idx  = idx;
+            }
+            return;
+        }
+    }
+
+    *is_present = false;
+}
+
+static void mlnx_acl_sx_key_list_add_key(_Inout_ sx_acl_key_t    *sx_keys,
+                                         _Inout_ uint32_t        *sx_key_count,
+                                         _In_ const sx_acl_key_t *sx_new_keys,
+                                         _In_ uint32_t            sx_new_keys_count)
+{
+    uint32_t new_key_idx;
     bool     is_key_present;
 
     assert(sx_keys);
@@ -3412,13 +3445,7 @@ static void mlnx_acl_sx_key_list_add(_Inout_ sx_acl_key_t    *sx_keys,
     assert(sx_new_keys);
 
     for (new_key_idx = 0; new_key_idx < sx_new_keys_count; new_key_idx++) {
-        is_key_present = false;
-        for (key_idx = 0; key_idx < *sx_key_count; key_idx++) {
-            if (sx_keys[key_idx] == sx_new_keys[new_key_idx]) {
-                is_key_present = true;
-                break;
-            }
-        }
+        mlnx_acl_sx_key_list_find_key(sx_keys, *sx_key_count, sx_new_keys[new_key_idx], &is_key_present, NULL);
 
         if (!is_key_present) {
             sx_keys[*sx_key_count] = sx_new_keys[new_key_idx];
@@ -3426,6 +3453,44 @@ static void mlnx_acl_sx_key_list_add(_Inout_ sx_acl_key_t    *sx_keys,
         }
     }
 }
+
+#ifdef MLNX_ACL_L3_TYPE_V6_ONLY
+static void mlnx_acl_sx_key_list_del_key(_Inout_ sx_acl_key_t *sx_keys,
+                                         _Inout_ uint32_t     *sx_key_count,
+                                         _In_    sx_acl_key_t  sx_key)
+{
+    uint32_t  key_idx;
+    bool      is_key_present;
+
+    assert(sx_keys);
+    assert(sx_key_count);
+
+    mlnx_acl_sx_key_list_find_key(sx_keys, *sx_key_count, sx_key, &is_key_present, &key_idx);
+
+    if (is_key_present) {
+        sx_keys[key_idx] = sx_keys[*sx_key_count - 1];
+        (*sx_key_count)--;
+    }
+}
+
+static void mlnx_acl_sx_key_desk_list_del_key(_Inout_ sx_flex_acl_key_desc_t *sx_key_descs,
+                                              _Inout_ uint32_t               *sx_key_descs_count,
+                                              _In_    sx_acl_key_t            sx_key)
+{
+    uint32_t key_idx;
+
+    assert(sx_key_descs);
+    assert(sx_key_descs_count);
+
+    for (key_idx = 0; key_idx < *sx_key_descs_count; key_idx++) {
+        if (sx_key_descs[key_idx].key_id == sx_key) {
+            sx_key_descs[key_idx] = sx_key_descs[*sx_key_descs_count - 1];
+            (*sx_key_descs_count)--;
+            return;
+        }
+    }
+}
+#endif
 
 static sai_status_t mlnx_acl_field_info_data_fetch(_In_ sai_attr_id_t               attr_id,
                                                    _Out_opt_ mlnx_acl_field_type_t *fields_types,
@@ -3441,7 +3506,7 @@ static sai_status_t mlnx_acl_field_info_data_fetch(_In_ sai_attr_id_t           
     single_key_field = mlnx_acl_single_key_field_info_fetch(attr_id);
     if (NULL != single_key_field) {
         if (sx_keys) {
-            mlnx_acl_sx_key_list_add(sx_keys, sx_key_count, &single_key_field->key_id, 1);
+            mlnx_acl_sx_key_list_add_key(sx_keys, sx_key_count, &single_key_field->key_id, 1);
         }
 
         if (fields_types) {
@@ -3459,7 +3524,7 @@ static sai_status_t mlnx_acl_field_info_data_fetch(_In_ sai_attr_id_t           
 
     if (NULL != multi_key_field) {
         if (sx_keys) {
-            mlnx_acl_sx_key_list_add(sx_keys, sx_key_count, multi_key_field->key_list, multi_key_field->key_count);
+            mlnx_acl_sx_key_list_add_key(sx_keys, sx_key_count, multi_key_field->key_list, multi_key_field->key_count);
         }
 
         if (fields_types) {
@@ -3541,6 +3606,13 @@ static sai_status_t mlnx_acl_table_fields_to_sx(_In_ const sai_attribute_t *attr
     }
 #endif /* MLNX_ACL_SKIP_EXTRA_KEYS */
 
+#ifdef MLNX_ACL_L3_TYPE_V6_ONLY
+    if ((table_fields_types & MLNX_ACL_FIELD_TYPE_ICMP) && (table_fields_types & MLNX_ACL_FIELD_TYPE_IPV6)) {
+        mlnx_acl_sx_key_list_del_key(sx_keys, &new_key_count, FLEX_ACL_KEY_IP_OK);
+        mlnx_acl_sx_key_list_del_key(sx_keys, &new_key_count, FLEX_ACL_KEY_IS_IP_V4);
+    }
+#endif
+
     *sx_key_count = new_key_count;
 
     if (MLNX_ACL_FIELD_MASK_EQ(table_fields_types, MLNX_ACL_FIELD_TYPE_INNER_L4)) {
@@ -3611,6 +3683,13 @@ static sai_status_t mlnx_acl_entry_fields_to_sx(_In_ const sai_attribute_t   *at
         return status;
     }
 #endif /* MLNX_ACL_SKIP_EXTRA_KEYS */
+
+#ifdef MLNX_ACL_L3_TYPE_V6_ONLY
+    if ((entry_fields_type & MLNX_ACL_FIELD_TYPE_ICMP) && (entry_fields_type & MLNX_ACL_FIELD_TYPE_IPV6)) {
+        mlnx_acl_sx_key_desk_list_del_key(sx_keys, sx_key_count, FLEX_ACL_KEY_IP_OK);
+        mlnx_acl_sx_key_desk_list_del_key(sx_keys, sx_key_count, FLEX_ACL_KEY_IS_IP_V4);
+    }
+#endif
 
     return SAI_STATUS_SUCCESS;
 }
@@ -3716,7 +3795,7 @@ static sai_status_t mlnx_acl_field_types_to_extra_sx_keys(_In_ mlnx_acl_field_ty
         extra_key = &mlnx_acl_field_extra_keys_map[ii];
 
         if (MLNX_ACL_FIELD_MASK_EQ(fields_types, extra_key->field_type)) {
-            mlnx_acl_sx_key_list_add(sx_keys, sx_key_count, &extra_key->sx_key_desc.key_id, 1);
+            mlnx_acl_sx_key_list_add_key(sx_keys, sx_key_count, &extra_key->sx_key_desc.key_id, 1);
         }
     }
 

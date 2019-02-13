@@ -1055,11 +1055,6 @@ sai_status_t mlnx_port_mirror_wred_discard_set(_In_ sx_port_log_id_t port_log_id
 
     SX_LOG_ENTER();
 
-    if (mlnx_chip_is_spc2()) {
-        SX_LOG_NTC("%s is not executed on SPC2\n", __FUNCTION__);
-        return SAI_STATUS_SUCCESS;
-    }
-
     mirror_cnt = g_sai_db_ptr->trap_mirror_discard_wred_db.count;
     assert(SPAN_SESSION_MAX > mirror_cnt);
 
@@ -5738,67 +5733,81 @@ sai_status_t mlnx_port_speed_bitmap_apply(_In_ const mlnx_port_config_t *port)
     return mlnx_port_cb->speed_bitmap_apply(port);
 }
 
-static sai_status_t mlnx_port_speed_set_sp(_In_ sx_port_log_id_t sx_port, _In_ uint32_t speed)
+static sai_status_t mlnx_port_speed_to_capab(_In_ uint32_t                     speed,
+                                             _Out_ sx_port_speed_capability_t *capab)
 {
-    sx_status_t                sx_status;
-    sx_port_speed_capability_t sx_speed;
-
-    memset(&sx_speed, 0, sizeof(sx_speed));
+    assert(capab);
 
     /* Use values for copper cables, which are the default media type. TODO : support additional media types */
     switch (speed) {
     case PORT_SPEED_1:
-        sx_speed.mode_1GB_CX_SGMII = true;
-        sx_speed.mode_1GB_KX       = true;
+        capab->mode_1GB_CX_SGMII = true;
+        capab->mode_1GB_KX       = true;
         break;
 
     case PORT_SPEED_10:
-        sx_speed.mode_10GB_CX4_XAUI = true;
-        sx_speed.mode_10GB_KR       = true;
-        sx_speed.mode_10GB_CR       = true;
-        sx_speed.mode_10GB_SR       = true;
-        sx_speed.mode_10GB_ER_LR    = true;
-        sx_speed.mode_10GB_KX4      = true;
+        capab->mode_10GB_CX4_XAUI = true;
+        capab->mode_10GB_KR       = true;
+        capab->mode_10GB_CR       = true;
+        capab->mode_10GB_SR       = true;
+        capab->mode_10GB_ER_LR    = true;
+        capab->mode_10GB_KX4      = true;
         break;
 
     case PORT_SPEED_20:
-        sx_speed.mode_20GB_KR2 = true;
+        capab->mode_20GB_KR2 = true;
         break;
 
     case PORT_SPEED_40:
-        sx_speed.mode_40GB_CR4     = true;
-        sx_speed.mode_40GB_SR4     = true;
-        sx_speed.mode_40GB_LR4_ER4 = true;
-        sx_speed.mode_40GB_KR4     = true;
+        capab->mode_40GB_CR4     = true;
+        capab->mode_40GB_SR4     = true;
+        capab->mode_40GB_LR4_ER4 = true;
+        capab->mode_40GB_KR4     = true;
         break;
 
     case PORT_SPEED_56:
-        sx_speed.mode_56GB_KR4 = true;
-        sx_speed.mode_56GB_KX4 = true;
+        capab->mode_56GB_KR4 = true;
+        capab->mode_56GB_KX4 = true;
         break;
 
     case PORT_SPEED_100:
-        sx_speed.mode_100GB_CR4     = true;
-        sx_speed.mode_100GB_SR4     = true;
-        sx_speed.mode_100GB_LR4_ER4 = true;
-        sx_speed.mode_100GB_KR4     = true;
+        capab->mode_100GB_CR4     = true;
+        capab->mode_100GB_SR4     = true;
+        capab->mode_100GB_LR4_ER4 = true;
+        capab->mode_100GB_KR4     = true;
         break;
 
     case PORT_SPEED_50:
-        sx_speed.mode_50GB_CR2 = true;
-        sx_speed.mode_50GB_KR2 = true;
-        sx_speed.mode_50GB_SR2 = true;
+        capab->mode_50GB_CR2 = true;
+        capab->mode_50GB_KR2 = true;
+        capab->mode_50GB_SR2 = true;
         break;
 
     case PORT_SPEED_25:
-        sx_speed.mode_25GB_CR = true;
-        sx_speed.mode_25GB_SR = true;
-        sx_speed.mode_25GB_KR = true;
+        capab->mode_25GB_CR = true;
+        capab->mode_25GB_SR = true;
+        capab->mode_25GB_KR = true;
         break;
 
     default:
         SX_LOG_ERR("Invalid speed %u\n", speed);
         return SAI_STATUS_INVALID_ATTR_VALUE_0;
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_port_speed_set_sp(_In_ sx_port_log_id_t sx_port, _In_ uint32_t speed)
+{
+    sai_status_t               status;
+    sx_status_t                sx_status;
+    sx_port_speed_capability_t sx_speed;
+
+    memset(&sx_speed, 0, sizeof(sx_speed));
+
+    status = mlnx_port_speed_to_capab(speed, &sx_speed);
+    if (SAI_ERR(status)) {
+        return status;
     }
 
     sx_speed.force = true;
@@ -6116,15 +6125,38 @@ static sai_status_t mlnx_port_speed_bitmap_apply_sp(_In_ const mlnx_port_config_
     sai_status_t               status;
     sx_status_t                sx_status;
     sx_port_speed_capability_t speed;
+    sx_port_rate_bitmask_t     sx_rate_bitmask;
+    uint32_t                   speeds[NUM_SPEEDS] = {0}, speeds_count = NUM_SPEEDS, ii;
 
     assert(port);
 
     memset(&speed, 0, sizeof(speed));
 
-    status = mlnx_port_speed_convert_bitmap_to_capability(port->speed_bitmap, &speed);
-    if (SAI_ERR(status)) {
-        SX_LOG_ERR("Failed to convert port %x speed bitmap %d\n", port->logical, port->speed_bitmap);
-        return status;
+    /* As a WA, we currently use old port API, but we need to use new convert function for new XML
+     */
+    if (mlnx_chip_is_spc2()) {
+        status = mlnx_port_speed_bitmap_to_rate_bitmask(port->speed_bitmap, &sx_rate_bitmask);
+        if (SAI_ERR(status)) {
+            return status;
+        }
+
+        status = mlnx_port_rate_bitmask_to_speeds(&sx_rate_bitmask, speeds, &speeds_count);
+        if (SAI_ERR(status)) {
+            return status;
+        }
+
+        for (ii = 0; ii < speeds_count; ii++) {
+            status = mlnx_port_speed_to_capab(speeds[ii], &speed);
+            if (SAI_ERR(status)) {
+                return status;
+            }
+        }
+    } else {
+        status = mlnx_port_speed_convert_bitmap_to_capability(port->speed_bitmap, &speed);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to convert port %x speed bitmap %d\n", port->logical, port->speed_bitmap);
+            return status;
+        }
     }
 
     sx_status = sx_api_port_speed_admin_set(gh_sdk, port->logical, &speed);
@@ -6262,6 +6294,7 @@ sai_status_t mlnx_port_cb_table_init(void)
     sx_chip_types_t chip_type;
 
     assert(mlnx_port_cb == NULL);
+    (void) (mlnx_port_cb_sp2);
 
     chip_type = g_sai_db_ptr->sx_chip_type;
 
@@ -6272,7 +6305,7 @@ sai_status_t mlnx_port_cb_table_init(void)
         break;
 
     case SX_CHIP_TYPE_SPECTRUM2:
-        mlnx_port_cb = &mlnx_port_cb_sp2;
+        mlnx_port_cb = &mlnx_port_cb_sp;
         break;
 
     default:
@@ -6329,7 +6362,7 @@ static sai_status_t mlnx_port_autoneg_get_impl(_In_ sx_port_log_id_t sx_port, _I
     return mlnx_port_cb->autoneg_get(sx_port, value);
 }
 
-sai_status_t mlnx_port_crc_params_apply(const mlnx_port_config_t *port)
+sai_status_t mlnx_port_crc_params_apply(const mlnx_port_config_t *port, bool init)
 {
     sx_status_t          sx_status;
     sx_port_crc_params_t crc_params;
@@ -6337,6 +6370,15 @@ sai_status_t mlnx_port_crc_params_apply(const mlnx_port_config_t *port)
     if (mlnx_chip_is_spc2()) {
         SX_LOG_NTC("%s is not executed on SPC2\n", __FUNCTION__);
         return SAI_STATUS_SUCCESS;
+    }
+
+    if (init) {
+        /* No need to apply default values on port init
+         * If a port is removed/created it gets default values in SDK
+         */
+        if (g_sai_db_ptr->crc_check_enable && g_sai_db_ptr->crc_recalc_enable) {
+            return SAI_STATUS_SUCCESS;
+        }
     }
 
     memset(&crc_params, 0, sizeof(crc_params));
@@ -7034,7 +7076,7 @@ static sai_status_t mlnx_create_port(_Out_ sai_object_id_t     * port_id,
         goto out_unlock;
     }
 
-    status = mlnx_port_crc_params_apply(new_port);
+    status = mlnx_port_crc_params_apply(new_port, true);
     if (SAI_ERR(status)) {
         goto out_unlock;
     }
