@@ -8,13 +8,13 @@ This directory contains SDK/FW binary packages.
 
 #### SDK
 ```
-SDK_VER=4.3.0134
+SDK_VER=4.3.0136
 KERNEL_VER=4.9.0-8-2
 ```
 
 #### FW
 ```
-FW_SPC1_VER=13_1910_0906
+FW_SPC1_VER=13_1910_0920
 FW_SPC2_VER=29_1961_0006
 ```
 
