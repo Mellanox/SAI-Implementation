@@ -2367,7 +2367,7 @@ static sai_status_t mlnx_switch_parse_fdb_event(uint8_t                         
                                                 uint32_t                          *event_count,
                                                 sai_attribute_t                   *attr_list)
 {
-    uint32_t                    ii     = 0;
+    uint32_t                    from_index, to_index = 0;
     sx_fdb_notify_data_t       *packet = (sx_fdb_notify_data_t*)p_packet;
     sx_fid_t                    sx_fid;
     sai_attribute_t            *attr_ptr = attr_list;
@@ -2383,54 +2383,54 @@ static sai_status_t mlnx_switch_parse_fdb_event(uint8_t                         
     mlnx_switch_id.id.is_created = true;
     mlnx_object_id_to_sai(SAI_OBJECT_TYPE_SWITCH, &mlnx_switch_id, &switch_id);
 
-    for (ii = 0; ii < packet->records_num; ii++) {
-        SX_LOG_INF("FDB event received [%u] vlan: %4u ; mac: %x:%x:%x:%x:%x:%x ; log_port: (0x%08X) ; type: %s(%d)\n",
-                   ii,
-                   packet->records_arr[ii].fid,
-                   packet->records_arr[ii].mac_addr.ether_addr_octet[0],
-                   packet->records_arr[ii].mac_addr.ether_addr_octet[1],
-                   packet->records_arr[ii].mac_addr.ether_addr_octet[2],
-                   packet->records_arr[ii].mac_addr.ether_addr_octet[3],
-                   packet->records_arr[ii].mac_addr.ether_addr_octet[4],
-                   packet->records_arr[ii].mac_addr.ether_addr_octet[5],
-                   packet->records_arr[ii].log_port,
-                   SX_FDB_NOTIFY_TYPE_STR(packet->records_arr[ii].type),
-                   packet->records_arr[ii].type);
+    for (from_index = 0; from_index < packet->records_num; from_index++) {
+        SX_LOG_INF("FDB event received [%u/%u, %u] vlan: %4u ; mac: %02x:%02x:%02x:%02x:%02x:%02x ; log_port: (0x%08X) ; type: %s(%d)\n",
+                   from_index+1, packet->records_num, to_index+1,
+                   packet->records_arr[from_index].fid,
+                   packet->records_arr[from_index].mac_addr.ether_addr_octet[0],
+                   packet->records_arr[from_index].mac_addr.ether_addr_octet[1],
+                   packet->records_arr[from_index].mac_addr.ether_addr_octet[2],
+                   packet->records_arr[from_index].mac_addr.ether_addr_octet[3],
+                   packet->records_arr[from_index].mac_addr.ether_addr_octet[4],
+                   packet->records_arr[from_index].mac_addr.ether_addr_octet[5],
+                   packet->records_arr[from_index].log_port,
+                   SX_FDB_NOTIFY_TYPE_STR(packet->records_arr[from_index].type),
+                   packet->records_arr[from_index].type);
 
         port_id = SAI_NULL_OBJECT_ID;
         sx_fid  = 0;
         memset(mac_addr, 0, sizeof(mac_addr));
-        memset(&fdb_events[ii], 0, sizeof(fdb_events[ii]));
+        memset(&fdb_events[to_index], 0, sizeof(fdb_events[to_index]));
         memset(&mac_entry, 0, sizeof(mac_entry));
         has_port = false;
 
-        mlnx_switch_fdb_record_check_and_age(&packet->records_arr[ii]);
+        mlnx_switch_fdb_record_check_and_age(&packet->records_arr[from_index]);
 
-        switch (packet->records_arr[ii].type) {
+        switch (packet->records_arr[from_index].type) {
         case SX_FDB_NOTIFY_TYPE_NEW_MAC_LAG:
         case SX_FDB_NOTIFY_TYPE_NEW_MAC_PORT:
-            fdb_events[ii].event_type = SAI_FDB_EVENT_LEARNED;
-            memcpy(&mac_addr, packet->records_arr[ii].mac_addr.ether_addr_octet, sizeof(mac_addr));
-            sx_fid   = packet->records_arr[ii].fid;
+            fdb_events[to_index].event_type = SAI_FDB_EVENT_LEARNED;
+            memcpy(&mac_addr, packet->records_arr[from_index].mac_addr.ether_addr_octet, sizeof(mac_addr));
+            sx_fid   = packet->records_arr[from_index].fid;
             has_port = true;
             break;
 
         case SX_FDB_NOTIFY_TYPE_AGED_MAC_LAG:
         case SX_FDB_NOTIFY_TYPE_AGED_MAC_PORT:
-            fdb_events[ii].event_type = SAI_FDB_EVENT_AGED;
-            memcpy(&mac_addr, packet->records_arr[ii].mac_addr.ether_addr_octet, sizeof(mac_addr));
-            sx_fid   = packet->records_arr[ii].fid;
+            fdb_events[to_index].event_type = SAI_FDB_EVENT_AGED;
+            memcpy(&mac_addr, packet->records_arr[from_index].mac_addr.ether_addr_octet, sizeof(mac_addr));
+            sx_fid   = packet->records_arr[from_index].fid;
             has_port = true;
             break;
 
         case SX_FDB_NOTIFY_TYPE_FLUSH_ALL:
-            fdb_events[ii].event_type = SAI_FDB_EVENT_FLUSHED;
+            fdb_events[to_index].event_type = SAI_FDB_EVENT_FLUSHED;
             break;
 
         case SX_FDB_NOTIFY_TYPE_FLUSH_LAG:
         case SX_FDB_NOTIFY_TYPE_FLUSH_PORT:
-            fdb_events[ii].event_type = SAI_FDB_EVENT_FLUSHED;
-            has_port                  = true;
+            fdb_events[to_index].event_type = SAI_FDB_EVENT_FLUSHED;
+            has_port                        = true;
             break;
 
         case SX_FDB_NOTIFY_TYPE_FLUSH_PORT_FID:
@@ -2438,16 +2438,20 @@ static sai_status_t mlnx_switch_parse_fdb_event(uint8_t                         
             has_port = true;
 
         case SX_FDB_NOTIFY_TYPE_FLUSH_FID:
-            fdb_events[ii].event_type = SAI_FDB_EVENT_FLUSHED;
-            sx_fid                    = packet->records_arr[ii].fid;
+            fdb_events[to_index].event_type = SAI_FDB_EVENT_FLUSHED;
+            sx_fid                          = packet->records_arr[from_index].fid;
             break;
 
         default:
-            return SAI_STATUS_FAILURE;
+            SX_LOG_ERR("Unexpected record [%u/%u, %u] type %d %s\n", 
+                       from_index + 1, packet->records_num, to_index + 1,
+                       packet->records_arr[from_index].type, 
+                       SX_FDB_NOTIFY_TYPE_STR(packet->records_arr[from_index].type));
+            continue;
         }
 
-        memcpy(&fdb_events[ii].fdb_entry.mac_address, mac_addr,
-               sizeof(fdb_events[ii].fdb_entry.mac_address));
+        memcpy(&fdb_events[to_index].fdb_entry.mac_address, mac_addr,
+               sizeof(fdb_events[to_index].fdb_entry.mac_address));
 
         if (has_port) {
             /*
@@ -2455,34 +2459,39 @@ static sai_status_t mlnx_switch_parse_fdb_event(uint8_t                         
              * e.g. when the port is added to the LAG
              * In this case we don't need to print en error message for user
              */
-            status = mlnx_log_port_to_sai_bridge_port_soft(packet->records_arr[ii].log_port, &port_id);
+            status = mlnx_log_port_to_sai_bridge_port_soft(packet->records_arr[from_index].log_port, &port_id);
             if (SAI_ERR(status)) {
-                return status;
+                SX_LOG_INF("FDB event [%u/%u, %u] without matching bridge port %x\n", 
+                           from_index + 1, packet->records_num, to_index + 1, 
+                           packet->records_arr[from_index].log_port);
+                continue;
             }
         }
 
         if (sx_fid > 0) {
-            if (packet->records_arr[ii].fid < MIN_SX_BRIDGE_ID) {
-                status = mlnx_vlan_oid_create(sx_fid, &fdb_events[ii].fdb_entry.bv_id);
+            if (packet->records_arr[from_index].fid < MIN_SX_BRIDGE_ID) {
+                status = mlnx_vlan_oid_create(sx_fid, &fdb_events[to_index].fdb_entry.bv_id);
                 if (SAI_ERR(status)) {
-                    SX_LOG_ERR("Failed to convert sx fid to bv_id\n");
-                    return status;
+                    SX_LOG_ERR("Failed to convert sx fid to bv_id [%u/%u, %u]\n", 
+                               from_index + 1, packet->records_num, to_index + 1);
+                    continue;
                 }
             } else {
-                status = mlnx_create_bridge_object(SAI_BRIDGE_TYPE_1D, sx_fid, &fdb_events[ii].fdb_entry.bv_id);
+                status = mlnx_create_bridge_object(SAI_BRIDGE_TYPE_1D, sx_fid, &fdb_events[to_index].fdb_entry.bv_id);
                 if (SAI_ERR(status)) {
-                    SX_LOG_ERR("Failed to convert sx fid to bv_id\n");
-                    return status;
+                    SX_LOG_ERR("Failed to convert sx fid to bv_id [%u/%u, %u]\n", 
+                               from_index + 1, packet->records_num, to_index + 1);
+                    continue;
                 }
             }
-        } else{
-            fdb_events[ii].fdb_entry.bv_id = SAI_NULL_OBJECT_ID;
+        } else {
+            fdb_events[to_index].fdb_entry.bv_id = SAI_NULL_OBJECT_ID;
         }
 
-        fdb_events[ii].fdb_entry.switch_id = switch_id;
+        fdb_events[to_index].fdb_entry.switch_id = switch_id;
 
-        fdb_events[ii].attr       = attr_ptr;
-        fdb_events[ii].attr_count = FDB_NOTIF_ATTRIBS_NUM;
+        fdb_events[to_index].attr       = attr_ptr;
+        fdb_events[to_index].attr_count = FDB_NOTIF_ATTRIBS_NUM;
 
         attr_ptr->id        = SAI_FDB_ENTRY_ATTR_BRIDGE_PORT_ID;
         attr_ptr->value.oid = port_id;
@@ -2495,8 +2504,10 @@ static sai_status_t mlnx_switch_parse_fdb_event(uint8_t                         
         attr_ptr->id        = SAI_FDB_ENTRY_ATTR_PACKET_ACTION;
         attr_ptr->value.s32 = SAI_PACKET_ACTION_FORWARD;
         ++attr_ptr;
+
+        ++to_index;
     }
-    *event_count = packet->records_num;
+    *event_count = to_index;
     return SAI_STATUS_SUCCESS;
 }
 
@@ -2657,6 +2668,11 @@ static void event_thread_func(void *context)
                     if (SAI_STATUS_SUCCESS != (status = mlnx_switch_parse_fdb_event(p_packet, receive_info,
                                                                                     fdb_events, &event_count,
                                                                                     attr_list))) {
+                        continue;
+                    }
+
+                    /* event arrived from sdk, but had only records with no matching bridge port */
+                    if (0 == event_count) {
                         continue;
                     }
 
