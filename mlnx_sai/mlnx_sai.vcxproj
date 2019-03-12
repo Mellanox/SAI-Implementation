@@ -127,6 +127,11 @@
     <ClInclude Include="inc\experimental\saiextensions.h" />
     <ClInclude Include="inc\experimental\saiswitchextensions.h" />
     <ClInclude Include="inc\experimental\saitypesextensions.h" />
+    <ClInclude Include="inc\flextrum_types.h" />
+    <ClInclude Include="inc\fx_base_api.h" />
+    <ClInclude Include="inc\fx_base_range_match.h" />
+    <ClInclude Include="inc\mlnx_flex_bitmap.h" />
+    <ClInclude Include="inc\mlnx_flex_types.h" />
     <ClInclude Include="inc\mlnx_sai.h" />
     <ClInclude Include="inc\sai\sai.h" />
     <ClInclude Include="inc\sai\saiacl.h" />
@@ -168,6 +173,7 @@
     <ClInclude Include="inc\sai\saivlan.h" />
     <ClInclude Include="inc\sai\saiwred.h" />
     <ClInclude Include="inc\sai_windows.h" />
+    <ClInclude Include="inc\sharedlib.h" />
     <ClInclude Include="src\meta\saimetadata.h" />
     <ClInclude Include="src\meta\saimetadatautils.h" />
   </ItemGroup>
@@ -189,10 +195,13 @@
     <ClCompile Include="src\dbgdump\mlnx_sai_dbg_udf.c" />
     <ClCompile Include="src\dbgdump\mlnx_sai_dbg_vlan.c" />
     <ClCompile Include="src\dbgdump\mlnx_sai_dbg_wred.c" />
+    <ClCompile Include="src\fx_base_api.c" />
+    <ClCompile Include="src\fx_base_range_match.c" />
     <ClCompile Include="src\meta\saimetadata.c" />
     <ClCompile Include="src\meta\saimetadatautils.c" />
     <ClCompile Include="src\meta\saiserialize.c" />
     <ClCompile Include="src\mlnx_sai_acl.c" />
+    <ClCompile Include="src\mlnx_sai_bmtor.c" />
     <ClCompile Include="src\mlnx_sai_bridge.c" />
     <ClCompile Include="src\mlnx_sai_buffer.c" />
     <ClCompile Include="src\mlnx_sai_fdb.c" />

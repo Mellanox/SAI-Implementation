@@ -487,6 +487,14 @@ static sai_status_t mlnx_switch_vxlan_default_port_get(_In_ const sai_object_key
                                                        _In_ uint32_t                  attr_index,
                                                        _Inout_ vendor_cache_t        *cache,
                                                        void                          *arg);
+static sai_status_t mlnx_switch_vxlan_default_router_mac_get(_In_ const sai_object_key_t   *key,
+                                                             _Inout_ sai_attribute_value_t *value,
+                                                             _In_ uint32_t                  attr_index,
+                                                             _Inout_ vendor_cache_t        *cache,
+                                                             void                          *arg);
+static sai_status_t mlnx_switch_vxlan_default_router_mac_set(_In_ const sai_object_key_t      *key,
+                                                             _In_ const sai_attribute_value_t *value,
+                                                             void                             *arg);
 static sai_status_t mlnx_switch_max_mirror_sessions_get(_In_ const sai_object_key_t   *key,
                                                         _Inout_ sai_attribute_value_t *value,
                                                         _In_ uint32_t                  attr_index,
@@ -1065,6 +1073,11 @@ static const sai_vendor_attribute_entry_t switch_vendor_attribs[] = {
       { true, false, true, true },
       mlnx_switch_vxlan_default_port_get, NULL,
       mlnx_switch_vxlan_default_port_set, NULL },
+    { SAI_SWITCH_ATTR_VXLAN_DEFAULT_ROUTER_MAC,
+      { false, false, true, true },
+      { false, false, true, true },
+      mlnx_switch_vxlan_default_router_mac_get, NULL,
+      mlnx_switch_vxlan_default_router_mac_set, NULL },
     { SAI_SWITCH_ATTR_MAX_MIRROR_SESSION,
       { false, false, false, true },
       { false, false, false, true },
@@ -2159,8 +2172,9 @@ static sai_status_t mlnx_chassis_mng_stage(mlnx_sai_boot_type_t boot_type,
 
     sdk_init_params.acl_params.min_acl_rules   = 0;
     sdk_init_params.acl_params.max_acl_rules   = ACL_MAX_SX_RULES_NUMBER;
+    // TODO : Change to parallel after bmtor fix
     sdk_init_params.acl_params.acl_search_type = mlnx_chip_is_spc2() ?
-                SX_API_ACL_SEARCH_TYPE_SERIAL : SX_API_ACL_SEARCH_TYPE_PARALLEL;
+                SX_API_ACL_SEARCH_TYPE_SERIAL : SX_API_ACL_SEARCH_TYPE_SERIAL;
 
     sdk_init_params.bridge_init_params.sdk_mode                                          = SX_MODE_HYBRID;
     sdk_init_params.bridge_init_params.sdk_mode_params.mode_1D.max_bridge_num            = MAX_BRIDGES_1D;
@@ -2392,6 +2406,49 @@ static sai_status_t parse_port_info(xmlDoc *doc, xmlNode * port_node)
     return SAI_STATUS_SUCCESS;
 }
 
+static sai_status_t mlnx_config_platform_parse(_In_ const char *platform)
+{
+    mlnx_platform_type_t platform_type;
+
+    assert(platform);
+
+    MLNX_SAI_LOG_NTC("platform: %s\n", platform);
+
+    platform_type = (mlnx_platform_type_t)atoi(platform);
+
+    switch (platform_type) {
+    case MLNX_PLATFORM_TYPE_1710:
+    case MLNX_PLATFORM_TYPE_2010:
+    case MLNX_PLATFORM_TYPE_2100:
+    case MLNX_PLATFORM_TYPE_2410:
+    case MLNX_PLATFORM_TYPE_2420:
+    case MLNX_PLATFORM_TYPE_2700:
+    case MLNX_PLATFORM_TYPE_2740:
+        if (mlnx_chip_is_spc2()) {
+            MLNX_SAI_LOG_ERR("Failed to parse platform xml config: platform is %d (SPC1) but chip type is SPC2\n", platform_type);
+            return SAI_STATUS_FAILURE;
+        }
+        break;
+
+
+    case MLNX_PLATFORM_TYPE_3700:
+    case MLNX_PLATFORM_TYPE_3800:
+        if (!mlnx_chip_is_spc2()) {
+            MLNX_SAI_LOG_ERR("Failed to parse platform xml config: platform is %d (SPC2) but chip type is not SPC2\n", platform_type);
+            return SAI_STATUS_FAILURE;
+        }
+        break;
+
+    default:
+        MLNX_SAI_LOG_ERR("Unexpected platform type - %u\n", platform_type);
+        return SAI_STATUS_FAILURE;
+    }
+
+    g_sai_db_ptr->platform_type = platform_type;
+
+    return SAI_STATUS_SUCCESS;
+}
+
 static sai_status_t parse_elements(xmlDoc *doc, xmlNode * a_node)
 {
     xmlNode       *cur_node, *ports_node;
@@ -2402,7 +2459,21 @@ static sai_status_t parse_elements(xmlDoc *doc, xmlNode * a_node)
 
     /* parse all siblings of current element */
     for (cur_node = a_node; cur_node != NULL; cur_node = cur_node->next) {
-        if ((!xmlStrcmp(cur_node->name, (const xmlChar*)"device-mac-address"))) {
+        if ((!xmlStrcmp(cur_node->name, (const xmlChar*)"platform_info"))) {
+            key = xmlGetProp(cur_node, (const xmlChar*)"type");
+            if (!key) {
+                MLNX_SAI_LOG_ERR("Failed to parse platform xml config: platform_info type is not specified\n");
+                return SAI_STATUS_FAILURE;
+            }
+
+            status = mlnx_config_platform_parse((const char*) key);
+            if (SAI_ERR(status)) {
+                xmlFree(key);
+                return SAI_STATUS_FAILURE;
+            }
+            xmlFree(key);
+            return parse_elements(doc, cur_node->children);
+        } else if ((!xmlStrcmp(cur_node->name, (const xmlChar*)"device-mac-address"))) {
             profile_mac_address = g_mlnx_services.profile_get_value(g_profile_id, KV_DEVICE_MAC_ADDRESS);
             if (NULL == profile_mac_address) {
                 key = xmlNodeListGetString(doc, cur_node->children, 1);
@@ -2490,6 +2561,11 @@ static sai_status_t mlnx_parse_config(const char *config_file)
         status = SAI_STATUS_FAILURE;
     }
 
+    if (g_sai_db_ptr->platform_type == MLNX_PLATFORM_TYPE_INVALID) {
+        MLNX_SAI_LOG_ERR("g_sai_db_ptr->platform_type (<platform_info> type in XML config) is not initialized\n");
+        status = SAI_STATUS_FAILURE;
+    }
+
     msync(g_sai_db_ptr, sizeof(*g_sai_db_ptr), MS_SYNC);
     sai_db_unlock();
 
@@ -2560,6 +2636,8 @@ static void sai_db_values_init()
 
     g_sai_db_ptr->crc_check_enable  = true;
     g_sai_db_ptr->crc_recalc_enable = true;
+
+    g_sai_db_ptr->platform_type = MLNX_PLATFORM_TYPE_INVALID;
 
     memset(g_sai_db_ptr->is_switch_priority_lossless, 0, MAX_LOSSLESS_SP * sizeof(bool));
 
@@ -5161,6 +5239,10 @@ static sai_status_t mlnx_shutdown_switch(void)
 #ifndef _WIN32
     pthread_join(event_thread.osd.id, NULL);
 #endif
+
+    if (SAI_STATUS_SUCCESS != (status = sai_fx_uninitialize())) {
+        SX_LOG_ERR("FX deinit failed.\n");
+    }
 
     if (SAI_STATUS_SUCCESS ==
         mlnx_object_to_type(g_sai_db_ptr->default_vrid, SAI_OBJECT_TYPE_VIRTUAL_ROUTER, &data, NULL)) {
@@ -7856,6 +7938,27 @@ static sai_status_t mlnx_switch_vxlan_default_port_get(_In_ const sai_object_key
     return SAI_STATUS_SUCCESS;
 }
 
+static sai_status_t mlnx_switch_vxlan_default_router_mac_get(_In_ const sai_object_key_t   *key,
+                                                             _Inout_ sai_attribute_value_t *value,
+                                                             _In_ uint32_t                  attr_index,
+                                                             _Inout_ vendor_cache_t        *cache,
+                                                             void                          *arg)
+{
+    SX_LOG_ENTER();
+
+    SX_LOG_EXIT();
+    return SAI_STATUS_SUCCESS;
+}
+
+ static sai_status_t mlnx_switch_vxlan_default_router_mac_set(_In_ const sai_object_key_t      *key,
+                                                             _In_ const sai_attribute_value_t *value,
+                                                             void                             *arg)
+{
+    SX_LOG_ENTER();
+
+    SX_LOG_EXIT();
+    return SAI_STATUS_SUCCESS;
+}
 
 /**
  * @brief Remove/disconnect Switch

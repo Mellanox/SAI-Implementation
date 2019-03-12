@@ -45,7 +45,7 @@
  */
 #define MLNX_UDF_ACL_ATTR_SHORT_NAME_OFFSET (19)
 
-static const sai_u32_list_t        mlnx_sai_not_mandatory_attrs[SAI_OBJECT_TYPE_MAX] = {
+static const sai_u32_list_t        mlnx_sai_not_mandatory_attrs[SAI_OBJECT_TYPE_EXTENSIONS_RANGE_END] = {
     [SAI_OBJECT_TYPE_QOS_MAP] =
     {.count = 1, .list = (sai_attr_id_t[1]) {SAI_QOS_MAP_ATTR_MAP_TO_VALUE_LIST}
     },
@@ -65,12 +65,12 @@ static const sai_u32_list_t        mlnx_sai_not_mandatory_attrs[SAI_OBJECT_TYPE_
     {.count = 1, .list = (sai_attr_id_t[1]) {SAI_ROUTER_INTERFACE_ATTR_BRIDGE_ID}
     },
 };
-static const sai_u32_list_t        mlnx_sai_attrs_valid_for_set[SAI_OBJECT_TYPE_MAX] = {
+static const sai_u32_list_t        mlnx_sai_attrs_valid_for_set[SAI_OBJECT_TYPE_EXTENSIONS_RANGE_END] = {
     [SAI_OBJECT_TYPE_TUNNEL] =
     {.count = 1, .list = (sai_attr_id_t[1]) {SAI_TUNNEL_ATTR_DECAP_MAPPERS}
     },
 };
-static const sai_u32_list_t        mlnx_sai_attrs_with_empty_list[SAI_OBJECT_TYPE_MAX] = {
+static const sai_u32_list_t        mlnx_sai_attrs_with_empty_list[SAI_OBJECT_TYPE_EXTENSIONS_RANGE_END] = {
     [SAI_OBJECT_TYPE_PORT] = {.count = 3, .list = (sai_attr_id_t[3])
                               {SAI_PORT_ATTR_INGRESS_MIRROR_SESSION, SAI_PORT_ATTR_EGRESS_MIRROR_SESSION,
                                SAI_PORT_ATTR_EGRESS_BLOCK_PORT_LIST}
@@ -101,7 +101,7 @@ static const sai_u32_list_t        mlnx_sai_acl_entry_valid_obj_types[] = {
     {.count = 1, .list = (uint32_t[1]) {SAI_OBJECT_TYPE_LAG}
     },
 };
-static const sai_u32_list_t        mlnx_sai_valid_obj_types[SAI_OBJECT_TYPE_MAX] = {
+static const sai_u32_list_t        mlnx_sai_valid_obj_types[SAI_OBJECT_TYPE_EXTENSIONS_RANGE_END] = {
     [SAI_OBJECT_TYPE_HOSTIF_TABLE_ENTRY] =
     {.count = ARRAY_SIZE(mlnx_sai_hostif_table_valid_obj_types), .list = (void*)mlnx_sai_hostif_table_valid_obj_types},
     [SAI_OBJECT_TYPE_TUNNEL] =
@@ -253,6 +253,8 @@ extern const mlnx_obj_type_attrs_info_t  mlnx_bridge_obj_type_info;
 extern const mlnx_obj_type_attrs_info_t  mlnx_bridge_port_obj_type_info;
 extern const mlnx_obj_type_attrs_info_t  mlnx_tunnel_map_entry_obj_type_info;
 extern const mlnx_obj_type_attrs_info_t  mlnx_port_pool_obj_type_info;
+extern const mlnx_obj_type_attrs_info_t  mlnx_table_bitmap_classification_entry_obj_type_info;
+extern const mlnx_obj_type_attrs_info_t  mlnx_table_bitmap_router_entry_obj_type_info;
 static const mlnx_obj_type_attrs_info_t* mlnx_obj_types_info[] = {
     [SAI_OBJECT_TYPE_PORT]                     = &mlnx_port_obj_type_info,
     [SAI_OBJECT_TYPE_LAG]                      = &mlnx_lag_obj_type_info,
@@ -304,6 +306,8 @@ static const mlnx_obj_type_attrs_info_t* mlnx_obj_types_info[] = {
     [SAI_OBJECT_TYPE_BRIDGE_PORT]              = &mlnx_bridge_port_obj_type_info,
     [SAI_OBJECT_TYPE_TUNNEL_MAP_ENTRY]         = &mlnx_tunnel_map_entry_obj_type_info,
     [SAI_OBJECT_TYPE_PORT_POOL]                = &mlnx_port_pool_obj_type_info,
+    [SAI_OBJECT_TYPE_TABLE_BITMAP_CLASSIFICATION_ENTRY] = &mlnx_table_bitmap_classification_entry_obj_type_info,
+    [SAI_OBJECT_TYPE_TABLE_BITMAP_ROUTER_ENTRY] = &mlnx_table_bitmap_router_entry_obj_type_info,
 };
 static const uint32_t                    mlnx_obj_types_info_arr_size = ARRAY_SIZE(mlnx_obj_types_info);
 static sai_status_t sai_vendor_attr_index_find(_In_ const sai_attr_id_t                 attr_id,
@@ -1065,7 +1069,7 @@ static sai_status_t sai_attribute_allowed_objects_validate(_In_ const sai_attr_m
     const sai_object_id_t *value_object_ids = NULL;
     sai_object_type_t      value_object_type;
     uint32_t               objects_count                             = 0, ii;
-    bool                   object_types_present[SAI_OBJECT_TYPE_MAX] = {false};
+    bool                   object_types_present[SAI_OBJECT_TYPE_EXTENSIONS_RANGE_END] = { false };
     bool                   object_type_allowed, unique_object_type_present;
     char                   allwed_object_types_str[MAX_VALUE_STR_LEN] = {0};
 
@@ -1176,7 +1180,7 @@ static sai_status_t sai_attribute_allowed_objects_validate(_In_ const sai_attr_m
     unique_object_type_present = false;
 
     if ((meta_data->allowedobjecttypeslength > 1) && (!meta_data->allowmixedobjecttypes)) {
-        for (ii = 0; ii < SAI_OBJECT_TYPE_MAX; ii++) {
+        for (ii = 0; ii < SAI_OBJECT_TYPE_EXTENSIONS_RANGE_END; ii++) {
             if (object_types_present[ii]) {
                 if (unique_object_type_present) {
                     SX_LOG_ERR("Mixed object types for attribute %s at index %d\n", meta_data->attridname, attr_index);

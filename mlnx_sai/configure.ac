@@ -111,7 +111,7 @@ dnl Define an ELDK5 xml2 la libdir setting work around condition
 AM_CONDITIONAL(XML2_ELDK5_LA_WA, test x`echo $with_xml2 | grep powerpc-4xx` != x)
 
 
-CFLAGS_SAI_INTERFACE_COMMON="-Wall -Wswitch -Wunused -Werror -fPIC -fno-strict-aliasing -Wextra -Wunused -Wno-unused-parameter -Wvla"
+CFLAGS_SAI_INTERFACE_COMMON="-Wall -Wswitch -Wunused -Werror -fPIC -fno-strict-aliasing -Wextra -Wunused -Wno-unused-parameter"
 AC_SUBST(CFLAGS_SAI_INTERFACE_COMMON)
 
 dnl Create the following Makefiles

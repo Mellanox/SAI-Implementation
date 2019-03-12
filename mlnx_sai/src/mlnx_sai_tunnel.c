@@ -4610,6 +4610,18 @@ static sai_status_t mlnx_create_sdk_tunnel(_In_ sai_object_id_t      sai_tunnel_
             sai_status = sdk_to_sai(sdk_status);
             goto cleanup;
         }
+        if (mlnx_chip_is_spc2()) {
+            if (SX_STATUS_SUCCESS !=
+                    (sdk_status =
+                     sx_api_router_interface_state_set(gh_sdk, sx_tunnel_attr.attributes.ipinip_p2p.underlay_rif,
+                                                       &rif_state))) {
+                SX_LOG_ERR("Failed to set underlay router interface %d state - %s.\n",
+                           sx_tunnel_attr.attributes.ipinip_p2p.underlay_rif,
+                           SX_STATUS_MSG(sdk_status));
+                sai_status = sdk_to_sai(sdk_status);
+                goto cleanup;
+            }
+        }
         if (sdk_tunnel_ipv6_created) {
             sdk_status = sx_api_router_interface_state_set(gh_sdk, sx_overlay_rif_ipv6,
                                                            &rif_state);
@@ -4762,6 +4774,16 @@ static sai_status_t mlnx_remove_sdk_ipinip_tunnel(_In_ uint32_t tunnel_db_idx)
                 SX_LOG_ERR("Failed to set overlay router interface state to down - %s.\n", SX_STATUS_MSG(sdk_status));
                 sai_status = sdk_to_sai(sdk_status);
                 goto cleanup;
+            }
+            if (mlnx_chip_is_spc2()) {
+                if (SX_STATUS_SUCCESS !=
+                        (sdk_status =
+                         sx_api_router_interface_state_set(gh_sdk, sx_tunnel_attr.attributes.ipinip_p2p.underlay_rif,
+                                                           &rif_state))) {
+                    SX_LOG_ERR("Failed to set underlay router interface state to down - %s.\n", SX_STATUS_MSG(sdk_status));
+                    sai_status = sdk_to_sai(sdk_status);
+                    goto cleanup;
+                }
             }
             if (SX_STATUS_SUCCESS !=
                 (sdk_status = sx_api_tunnel_set(gh_sdk,
@@ -5103,6 +5125,16 @@ static sai_status_t mlnx_remove_tunnel(_In_ const sai_object_id_t sai_tunnel_obj
                 SX_LOG_ERR("Failed to set overlay router interface state to down - %s.\n", SX_STATUS_MSG(sdk_status));
                 sai_status = sdk_to_sai(sdk_status);
                 goto cleanup;
+            }
+            if (mlnx_chip_is_spc2()) {
+                if (SX_STATUS_SUCCESS !=
+                        (sdk_status =
+                         sx_api_router_interface_state_set(gh_sdk, sx_tunnel_attr.attributes.ipinip_p2p.underlay_rif,
+                                                           &rif_state))) {
+                    SX_LOG_ERR("Failed to set underlay router interface state to down - %s.\n", SX_STATUS_MSG(sdk_status));
+                    sai_status = sdk_to_sai(sdk_status);
+                    goto cleanup;
+                }
             }
         }
         if (ipv6_created) {

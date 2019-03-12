@@ -204,6 +204,10 @@ sai_status_t sai_api_query(_In_ sai_api_t sai_api_id, _Out_ void** api_method_ta
         *(const sai_l2mc_group_api_t**)api_method_table = &mlnx_l2mc_group_api;
         return SAI_STATUS_SUCCESS;
 
+    case SAI_API_BMTOR:
+        *(const sai_bmtor_api_t**)api_method_table = &mlnx_bmtor_api;
+        return SAI_STATUS_SUCCESS;
+
     default:
         MLNX_SAI_LOG_ERR("Invalid API type %d\n", sai_api_id);
         return SAI_STATUS_INVALID_PARAMETER;
@@ -363,6 +367,9 @@ sai_status_t sai_log_set(_In_ sai_api_t sai_api_id, _In_ sai_log_level_t log_lev
 
     case SAI_API_L2MC_GROUP:
         return mlnx_l2mc_group_log_set(severity);
+
+    case SAI_API_BMTOR:
+        return mlnx_bmtor_log_set(severity);
 
     default:
         fprintf(stderr, "Invalid API type %d\n", sai_api_id);

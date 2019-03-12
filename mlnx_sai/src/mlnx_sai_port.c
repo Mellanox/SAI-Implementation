@@ -6848,20 +6848,40 @@ static mlnx_port_config_t * mlnx_port_by_module(uint32_t module)
     return NULL;
 }
 
-/* module -> port local idx
- * Spectrum 1 : (1, 2)
- * Spectrum 2 : (1, 2, 3, 4)
- */
-static mlnx_port_config_t * mlnx_port_split_idx_to_local_port(const mlnx_port_config_t *father, uint32_t base_lane_idx)
+/* TODO: replace with cap_num_local_ports_in_2x when available */
+static uint32_t mlnx_platform_num_local_ports_in_2x_get(void)
 {
-    return mlnx_port_by_local_id(father->port_map.local_port + base_lane_idx);
+    if (g_sai_db_ptr->platform_type == MLNX_PLATFORM_TYPE_3700) {
+        return 2;
+    } else {
+        return 1;
+    }
+}
+
+/* module -> port local idx
+ * Spectrum 1 : (1, 2) / (1, 2, 3, 4)
+ * Spectrum 2 : (1, 2) or (1, 3) / (1, 2, 3, 4)
+ */
+static mlnx_port_config_t * mlnx_port_split_idx_to_local_port(_In_ const mlnx_port_config_t *father,
+                                                              _In_ uint32_t                  base_lane_idx,
+                                                              _In_ uint32_t                  lane_count)
+{
+    uint32_t step;
+
+    if (lane_count == 2) {
+        step = mlnx_platform_num_local_ports_in_2x_get();
+    } else {
+        step = 1;
+    }
+
+    return mlnx_port_by_local_id(father->port_map.local_port + base_lane_idx * step);
 }
 
 static mlnx_port_config_t * sai_lane2child_port(mlnx_port_config_t *father, const sai_u32_list_t *lanes)
 {
     uint32_t new_port_idx = sai_lane2phy_lane(lanes->list[0]) / lanes->count;
 
-    return mlnx_port_split_idx_to_local_port(father, new_port_idx);
+    return mlnx_port_split_idx_to_local_port(father, new_port_idx, lanes->count);
 }
 
 sai_status_t mlnx_port_auto_split(mlnx_port_config_t *port)
@@ -6875,7 +6895,7 @@ sai_status_t mlnx_port_auto_split(mlnx_port_config_t *port)
     for (ii = 0; ii < port->split_count; ii++) {
         mlnx_port_config_t *new_port;
 
-        new_port = mlnx_port_split_idx_to_local_port(port, ii);
+        new_port = mlnx_port_split_idx_to_local_port(port, ii, lanes_per_port);
 
         new_port->port_map.lane_bmap = 0x0;
         new_port->port_map.width     = 0;

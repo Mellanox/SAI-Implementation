@@ -159,6 +159,24 @@
     <ClInclude Include="inc\experimental\saitypesextensions.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="inc\flextrum_types.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\fx_base_api.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\fx_base_range_match.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\mlnx_flex_bitmap.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\mlnx_flex_types.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\sharedlib.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\mlnx_sai_acl.c">
@@ -312,6 +330,15 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\mlnx_sai_l2mcgroup.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\fx_base_api.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\fx_base_range_match.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\mlnx_sai_bmtor.c">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

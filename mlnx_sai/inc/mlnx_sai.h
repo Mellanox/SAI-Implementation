@@ -55,6 +55,7 @@
 #endif
 #include <sx/utils/psort.h>
 #include <sai.h>
+#include <saiextensions.h>
 
 #ifdef _WIN32
 #define PACKED(__decl, __inst) __pragma(pack(push, 1)) __decl __inst __pragma(pack(pop))
@@ -187,6 +188,7 @@ extern const sai_tunnel_api_t           mlnx_tunnel_api;
 extern const sai_stp_api_t              mlnx_stp_api;
 extern const sai_udf_api_t              mlnx_udf_api;
 extern const sai_l2mc_group_api_t       mlnx_l2mc_group_api;
+extern const sai_bmtor_api_t            mlnx_bmtor_api;
 
 #define DEFAULT_ETH_SWID 0
 #define DEFAULT_VRID     0
@@ -395,7 +397,7 @@ typedef struct _mlnx_object_id_t mlnx_object_id_t;
 extern const char* sai_metadata_sai_acl_entry_attr_t_enum_values_names[];
 #define MLNX_SAI_ACL_ENTRY_ATTR_STR(attr) (sai_metadata_sai_acl_entry_attr_t_enum_values_names[attr])
 
-#define SAI_TYPE_CHECK_RANGE(type) (type < SAI_OBJECT_TYPE_MAX)
+#define SAI_TYPE_CHECK_RANGE(type) ((sai_object_type_extensions_t) type < SAI_OBJECT_TYPE_EXTENSIONS_RANGE_END)
 extern const char* sai_metadata_sai_object_type_t_enum_values_short_names[];
 #define SAI_TYPE_STR(type) \
     SAI_TYPE_CHECK_RANGE(type) ? sai_metadata_sai_object_type_t_enum_values_short_names[type] : \
@@ -743,6 +745,7 @@ sai_status_t mlnx_stp_log_set(sx_verbosity_level_t severity);
 sai_status_t mlnx_bridge_log_set(sx_verbosity_level_t severity);
 sai_status_t mlnx_udf_log_set(sx_verbosity_level_t severity);
 sai_status_t mlnx_l2mc_group_log_set(sx_verbosity_level_t severity);
+sai_status_t mlnx_bmtor_log_set(sx_verbosity_level_t severity);
 
 sai_status_t mlnx_fill_objlist(const sai_object_id_t *data, uint32_t count, sai_object_list_t *list);
 sai_status_t mlnx_fill_u8list(const uint8_t *data, uint32_t count, sai_u8_list_t *list);
@@ -876,6 +879,8 @@ sai_status_t mlnx_stp_initialize();
 sai_status_t mlnx_stp_port_state_set_impl(_In_ sx_port_log_id_t          port,
                                           _In_ sx_mstp_inst_port_state_t state,
                                           _In_ sx_mstp_inst_id_t         mstp_instance);
+
+sai_status_t sai_fx_uninitialize();
 
 /* Helper for mlnx_mstp_inst_db */
 mlnx_mstp_inst_t * get_stp_db_entry(sx_mstp_inst_id_t sx_stp_id);
@@ -1896,6 +1901,19 @@ sai_status_t mlnx_l2mc_group_pbs_use(_In_ mlnx_l2mc_group_t *l2mc_group);
 void mlnx_l2mc_group_flood_ctrl_ref_inc(_In_ uint32_t group_db_idx);
 void mlnx_l2mc_group_flood_ctrl_ref_dec(_In_ uint32_t group_db_idx);
 
+typedef enum mlnx_platform_type {
+    MLNX_PLATFORM_TYPE_INVALID = 0,
+    MLNX_PLATFORM_TYPE_1710    = 1710,
+    MLNX_PLATFORM_TYPE_2010    = 2010,
+    MLNX_PLATFORM_TYPE_2100    = 2100,
+    MLNX_PLATFORM_TYPE_2410    = 2410,
+    MLNX_PLATFORM_TYPE_2420    = 2420,
+    MLNX_PLATFORM_TYPE_2700    = 2700,
+    MLNX_PLATFORM_TYPE_2740    = 2740,
+    MLNX_PLATFORM_TYPE_3700    = 3700,
+    MLNX_PLATFORM_TYPE_3800    = 3800,
+} mlnx_platform_type_t;
+
 typedef struct sai_db {
     cl_plock_t         p_lock;
     sx_mac_addr_t      base_mac_addr;
@@ -1947,6 +1965,7 @@ typedef struct sai_db {
     sx_chip_types_t                   sx_chip_type;
     bool                              crc_check_enable;
     bool                              crc_recalc_enable;
+    mlnx_platform_type_t              platform_type;
     mlnx_mirror_vlan_t                erspan_vlan_header[SPAN_SESSION_MAX];
     mlnx_l2mc_group_t                 l2mc_groups[MLNX_L2MC_GROUP_DB_SIZE];
     mlnx_shm_rm_array_info_t          array_info[MLNX_SHM_RM_ARRAY_TYPE_SIZE];
