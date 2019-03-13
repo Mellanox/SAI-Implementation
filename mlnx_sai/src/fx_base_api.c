@@ -656,7 +656,7 @@ sx_status_t fx_table_rule_counters_print_all(fx_handle_t handle, fx_table_id_t t
   sx_acl_rule_offset_t offsets[table->table_size];
   uint32_t rules_cnt = 0;
   sx_api_acl_flex_rules_get(handle->sdk_handle, table->region_id, offsets, NULL, &rules_cnt);
-  SYSLOGF(LOG_ERR, "marianp Table: %s. %d valid rules. rule counters: \n",table->table_name, rules_cnt);
+  SYSLOGF(LOG_ERR, "Table: %s. %d valid rules. rule counters: \n",table->table_name, rules_cnt);
   for(int i=0;i<table->table_size;i++){
     if (get_bitmap(table->valid_offsets, i) == 1) {
       rc=sx_api_flow_counter_get(handle->sdk_handle,SX_ACCESS_CMD_READ,table->rule_counters[i],&counter);
@@ -664,7 +664,7 @@ sx_status_t fx_table_rule_counters_print_all(fx_handle_t handle, fx_table_id_t t
           SYSLOGF(LOG_ERR, "ERROR: rule %d counter is N/A \n", i);
         rc_final = rc;
       } else{
-        SYSLOGF(LOG_ERR, "marianp *rule %d; counter byte %" PRIu64 "; packets %" PRIu64 ";\n",i,counter.flow_counter_bytes,counter.flow_counter_packets);
+        SYSLOGF(LOG_ERR, "*rule %d; counter byte %" PRIu64 "; packets %" PRIu64 ";\n",i,counter.flow_counter_bytes,counter.flow_counter_packets);
       }
     }
   }
@@ -1794,7 +1794,7 @@ sx_status_t delete_pipe_control_in_rif(fx_handle_t handle){
 
 sx_status_t rebind_pipe_control_in_rif(fx_handle_t handle, void *if_list,uint32_t if_list_cnt){
 	if (if_list == 0 || if_list_cnt ==0) return 0;
-        fx_table_rule_counters_print_all(handle, CONTROL_IN_RIF_TABLE_BITMAP_CLASSIFICATION_ID);
+    //fx_table_rule_counters_print_all(handle, CONTROL_IN_RIF_TABLE_BITMAP_CLASSIFICATION_ID);
 	sx_status_t rc = rif_bind(handle, handle->control_in_rif_group_id,(boolean_t) false, control_in_rif_bind_list,control_in_rif_bind_list_cnt);
 	if (rc) {
 		syslog(LOG_ERR,"ERROR in unbinding control_in_rif group: %s\n", SX_STATUS_MSG(rc));
