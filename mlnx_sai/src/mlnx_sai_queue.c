@@ -241,9 +241,11 @@ static sai_status_t mlnx_queue_config_get(_In_ const sai_object_key_t   *key,
         goto out;
     }
 
-    status = mlnx_port_fetch_lag_if_lag_member(&port);
-    if (SAI_ERR(status)) {
-        goto out;
+    if (attr != SAI_QUEUE_ATTR_BUFFER_PROFILE_ID) {
+        status = mlnx_port_fetch_lag_if_lag_member(&port);
+        if (SAI_ERR(status)) {
+            goto out;
+        }
     }
 
     status = mlnx_queue_cfg_lookup(port->logical, queue_num, &queue_cfg);
