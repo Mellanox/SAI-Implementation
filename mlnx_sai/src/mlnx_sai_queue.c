@@ -795,7 +795,7 @@ static sai_status_t mlnx_clear_queue_stats(_In_ sai_object_id_t         queue_id
     SX_LOG_ENTER();
 
     queue_key_to_str(queue_id, key_str);
-    SX_LOG_NTC("Clear queue stats %s\n", key_str);
+    SX_LOG_DBG("Clear queue stats %s\n", key_str);
 
     if (NULL == counter_ids) {
         SX_LOG_ERR("NULL counter ids array param\n");
