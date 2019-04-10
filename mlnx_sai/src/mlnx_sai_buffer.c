@@ -4332,7 +4332,7 @@ static sai_status_t mlnx_sai_clear_ingress_priority_group_stats(
 
     SX_LOG_ENTER();
     pg_key_to_str(ingress_pg_id, key_str);
-    SX_LOG_NTC("Clear PG stats %s\n", key_str);
+    SX_LOG_DBG("Clear PG stats %s\n", key_str);
 
     if (SAI_STATUS_SUCCESS != (sai_status = get_pg_data(ingress_pg_id, &db_port_index, &pg_ind))) {
         SX_LOG_EXIT();
