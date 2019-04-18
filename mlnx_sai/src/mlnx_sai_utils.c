@@ -3673,6 +3673,7 @@ sai_status_t mlnx_translate_sai_trap_action_to_sdk(sai_int32_t       action,
         break;
 
     case SAI_PACKET_ACTION_LOG:
+    case SAI_PACKET_ACTION_COPY:
         *trap_action = SX_TRAP_ACTION_MIRROR_2_CPU;
         break;
 

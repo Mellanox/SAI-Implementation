@@ -282,6 +282,7 @@ static const mlnx_attr_enum_info_t        hostif_trap_enum_info[] = {
         SAI_PACKET_ACTION_FORWARD,
         SAI_PACKET_ACTION_TRAP,
         SAI_PACKET_ACTION_LOG,
+        SAI_PACKET_ACTION_COPY,
         SAI_PACKET_ACTION_DROP
         )
 };

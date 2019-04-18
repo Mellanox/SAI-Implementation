@@ -23440,7 +23440,7 @@ const sai_attr_condition_t sai_metadata_validonly_SAI_HOSTIF_TRAP_ATTR_TRAP_PRIO
 };
 const sai_attr_condition_t sai_metadata_validonly_SAI_HOSTIF_TRAP_ATTR_TRAP_PRIORITY_1 = {
     .attrid = SAI_HOSTIF_TRAP_ATTR_PACKET_ACTION,
-    .condition = { .s32 = SAI_PACKET_ACTION_LOG }
+    .condition = { .s32 = SAI_PACKET_ACTION_COPY }
 };
 const sai_attr_condition_t* const sai_metadata_validonlys_SAI_HOSTIF_TRAP_ATTR_TRAP_PRIORITY[] = {
     &sai_metadata_validonly_SAI_HOSTIF_TRAP_ATTR_TRAP_PRIORITY_0,
@@ -23498,7 +23498,7 @@ const sai_attr_condition_t sai_metadata_validonly_SAI_HOSTIF_TRAP_ATTR_EXCLUDE_P
 };
 const sai_attr_condition_t sai_metadata_validonly_SAI_HOSTIF_TRAP_ATTR_EXCLUDE_PORT_LIST_1 = {
     .attrid = SAI_HOSTIF_TRAP_ATTR_PACKET_ACTION,
-    .condition = { .s32 = SAI_PACKET_ACTION_LOG }
+    .condition = { .s32 = SAI_PACKET_ACTION_COPY }
 };
 const sai_attr_condition_t* const sai_metadata_validonlys_SAI_HOSTIF_TRAP_ATTR_EXCLUDE_PORT_LIST[] = {
     &sai_metadata_validonly_SAI_HOSTIF_TRAP_ATTR_EXCLUDE_PORT_LIST_0,
@@ -23556,7 +23556,7 @@ const sai_attr_condition_t sai_metadata_validonly_SAI_HOSTIF_TRAP_ATTR_TRAP_GROU
 };
 const sai_attr_condition_t sai_metadata_validonly_SAI_HOSTIF_TRAP_ATTR_TRAP_GROUP_1 = {
     .attrid = SAI_HOSTIF_TRAP_ATTR_PACKET_ACTION,
-    .condition = { .s32 = SAI_PACKET_ACTION_LOG }
+    .condition = { .s32 = SAI_PACKET_ACTION_COPY }
 };
 const sai_attr_condition_t* const sai_metadata_validonlys_SAI_HOSTIF_TRAP_ATTR_TRAP_GROUP[] = {
     &sai_metadata_validonly_SAI_HOSTIF_TRAP_ATTR_TRAP_GROUP_0,
