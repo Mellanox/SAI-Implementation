@@ -3,7 +3,7 @@ Mellanox SAI implementation
 
 This repository contains SAI implementation for Mellanox hardware
 
-SAI headers are based on latest head (as of Nov 14, 2018) of branch v1.3 (following release v1.3.5) SAI headers can be 
+SAI headers are based on latest head (as of Apr 21, 2018) of branch v1.4 (following release v1.4.1) SAI headers can be 
 downloaded from https://github.com/opencomputeproject/SAI/
 
 The implementation is written over Mellanox SDK API. The API and documentation for it, are available in

@@ -75,15 +75,15 @@ static const sai_vendor_attribute_entry_t route_vendor_attribs[] = {
       NULL, NULL,
       NULL, NULL }
 };
-static const mlnx_attr_enum_info_t route_enum_info[] = {
+static const mlnx_attr_enum_info_t        route_enum_info[] = {
     [SAI_ROUTE_ENTRY_ATTR_PACKET_ACTION] = ATTR_ENUM_VALUES_LIST(
         SAI_PACKET_ACTION_FORWARD,
         SAI_PACKET_ACTION_TRAP,
         SAI_PACKET_ACTION_LOG,
         SAI_PACKET_ACTION_DROP)
 };
-const mlnx_obj_type_attrs_info_t mlnx_route_obj_type_info =
-    { route_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(route_enum_info)};
+const mlnx_obj_type_attrs_info_t          mlnx_route_obj_type_info =
+{ route_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(route_enum_info)};
 static void route_key_to_str(_In_ const sai_route_entry_t* route_entry, _Out_ char *key_str)
 {
     int res;
@@ -540,8 +540,9 @@ static sai_status_t mlnx_route_next_hop_id_get(_In_ const sai_object_key_t   *ke
 
     if (SX_UC_ROUTE_TYPE_LOCAL == route_get_entry.route_data.type) {
         if (SAI_STATUS_SUCCESS != (status =
-                                   mlnx_rif_sx_to_sai_oid(route_get_entry.route_data.uc_route_param.local_egress_rif,
-                                                          &value->oid))) {
+                                       mlnx_rif_sx_to_sai_oid(route_get_entry.route_data.uc_route_param.
+                                                              local_egress_rif,
+                                                              &value->oid))) {
             return status;
         }
     } else if (SX_UC_ROUTE_TYPE_NEXT_HOP == route_get_entry.route_data.type) {

@@ -117,8 +117,8 @@ static const sai_vendor_attribute_entry_t sched_group_vendor_attribs[] = {
       NULL, NULL,
       NULL, NULL }
 };
-const mlnx_obj_type_attrs_info_t mlnx_sched_group_obj_type_info =
-    { sched_group_vendor_attribs, OBJ_ATTRS_ENUMS_INFO_EMPTY()};
+const mlnx_obj_type_attrs_info_t          mlnx_sched_group_obj_type_info =
+{ sched_group_vendor_attribs, OBJ_ATTRS_ENUMS_INFO_EMPTY()};
 static mlnx_sched_obj_t * group_get(mlnx_port_config_t *port, uint8_t level, uint8_t index)
 {
     return &port->sched_hierarchy.groups[level][index];
@@ -156,10 +156,7 @@ static sai_status_t ets_lookup(sx_cos_ets_element_config_t  *ets_list,
     return SAI_STATUS_ITEM_NOT_FOUND;
 }
 
-static void queue_to_sched_obj(mlnx_port_config_t      *port,
-                               mlnx_qos_queue_config_t *queue,
-                               uint32_t                 index,
-                               mlnx_sched_obj_t        *obj)
+static void queue_to_sched_obj(_In_ const mlnx_qos_queue_config_t *queue, _Out_ mlnx_sched_obj_t             *obj)
 {
     assert(obj != NULL);
     assert(queue != NULL);
@@ -1054,8 +1051,9 @@ static sai_status_t mlnx_get_scheduler_group_attribute(_In_ sai_object_id_t     
 }
 
 /* DB read lock is needed */
-static sai_status_t sai_obj_to_sched_obj(mlnx_port_config_t *port, mlnx_sched_obj_t   *sch_obj,
-                                         sai_object_id_t sai_obj)
+static sai_status_t sai_obj_to_sched_obj(_In_ mlnx_port_config_t *port,
+                                         _Out_ mlnx_sched_obj_t  *sch_obj,
+                                         _In_ sai_object_id_t     sai_obj)
 {
     mlnx_qos_queue_config_t *queue;
     sx_port_log_id_t         port_id;
@@ -1082,7 +1080,7 @@ static sai_status_t sai_obj_to_sched_obj(mlnx_port_config_t *port, mlnx_sched_ob
             return status;
         }
 
-        queue_to_sched_obj(port, queue, index, sch_obj);
+        queue_to_sched_obj(queue, sch_obj);
     } else if (sai_object_type_query(sai_obj) == SAI_OBJECT_TYPE_SCHEDULER_GROUP) {
         status = mlnx_sched_group_parse_id(sai_obj, &port_id, &level, &index);
         if (SAI_ERR(status)) {
@@ -1146,6 +1144,7 @@ static sai_status_t sched_group_add_or_del_child_list(sai_object_id_t       pare
 {
     uint8_t           parent_level = 0;
     uint8_t           parent_index = 0;
+    uint8_t           child_index;
     mlnx_sched_obj_t  sch_child;
     mlnx_sched_obj_t *parent_sch_obj;
     mlnx_sched_obj_t  parent_port =
@@ -1219,9 +1218,28 @@ static sai_status_t sched_group_add_or_del_child_list(sai_object_id_t       pare
             }
         }
     } else { /* DEL */
-        status = mlnx_sched_group_parse_id(child_id, &port_id, &parent_level, &parent_index);
-        if (SAI_ERR(status)) {
-            return status;
+        sai_object_type_t child_type = sai_object_type_query(child_id);
+
+        switch (child_type) {
+        case SAI_OBJECT_TYPE_SCHEDULER_GROUP:
+            status = mlnx_sched_group_parse_id(child_id, &port_id, &parent_level, &parent_index);
+            if (SAI_ERR(status)) {
+                SX_LOG_ERR("Failed to parse sched group from child_id oid %lx\n", child_id);
+                goto out;
+            }
+            break;
+
+        case SAI_OBJECT_TYPE_QUEUE:
+            status = mlnx_queue_parse_id(child_id, &port_id, &child_index);
+            if (SAI_ERR(status)) {
+                return status;
+            }
+            break;
+
+        default:
+            SX_LOG_ERR("Unexpected child_type - %s\n", SAI_TYPE_STR(child_type));
+            status = SAI_STATUS_INVALID_OBJECT_ID;
+            goto out;
         }
 
         status = mlnx_port_by_log_id(port_id, &port);
@@ -1240,7 +1258,7 @@ static sai_status_t sched_group_add_or_del_child_list(sai_object_id_t       pare
 
     sch_child.next_index = (cmd == LIST_CMD_ADD) ? parent_index : INVALID_INDEX;
 
-    if (sch_child.type == MLNX_SCHED_OBJ_QUEUE) {
+    if ((sch_child.type == MLNX_SCHED_OBJ_QUEUE) && (cmd == LIST_CMD_ADD)) {
         /* If created levels count < MAX_SCHED_LEVELS then we need re-apply scheduler parameters
          * for queue to the lower level (sub-group) */
 
@@ -1260,12 +1278,8 @@ static sai_status_t sched_group_add_or_del_child_list(sai_object_id_t       pare
         } else {
             sch_child.ets_type = SX_COS_ETS_HIERARCHY_TC_E;
         }
-        if (cmd == LIST_CMD_ADD) {
-            sch_child.level = parent_level + 1;
-        } else {
-            sch_child.level    = MAX_SCHED_LEVELS;
-            sch_child.ets_type = SX_COS_ETS_HIERARCHY_TC_E;
-        }
+
+        sch_child.level = parent_level + 1;
 
         /* 3. Apply scheduler parameters to new ETS hierarchy level */
         SX_LOG_DBG("Re-bind scheulder parameters for queue index %u on ETS hierarchy %u\n",
@@ -1309,7 +1323,7 @@ sai_status_t mlnx_scheduler_group_log_set(sx_verbosity_level_t level)
 }
 
 /* DB read lock is needed */
-sai_status_t mlnx_sched_group_port_init(mlnx_port_config_t *port, bool is_switch_init)
+sai_status_t mlnx_sched_group_port_init(mlnx_port_config_t *port, bool is_warmboot_init_stage)
 {
     sx_cos_ets_element_config_t *ets_list = NULL, *ets;
     uint32_t                     level, ii;
@@ -1348,11 +1362,11 @@ sai_status_t mlnx_sched_group_port_init(mlnx_port_config_t *port, bool is_switch
                 goto out;
             }
 
-            if (!is_switch_init) {
+            if (!is_warmboot_init_stage) {
                 status = sx_api_cos_port_ets_element_set(gh_sdk, SX_ACCESS_CMD_EDIT,
-                    port->logical,
-                    sched_obj_to_ets(obj, ets),
-                    1);
+                                                         port->logical,
+                                                         sched_obj_to_ets(obj, ets),
+                                                         1);
 
                 status = sdk_to_sai(status);
                 if (SAI_ERR(status)) {
@@ -1386,11 +1400,11 @@ sai_status_t mlnx_sched_group_port_init(mlnx_port_config_t *port, bool is_switch
             goto out;
         }
 
-        if (!is_switch_init) {
+        if (!is_warmboot_init_stage) {
             status = sx_api_cos_port_ets_element_set(gh_sdk, SX_ACCESS_CMD_EDIT,
-                port->logical,
-                sched_obj_to_ets(&queue->sched_obj, ets),
-                1);
+                                                     port->logical,
+                                                     sched_obj_to_ets(&queue->sched_obj, ets),
+                                                     1);
 
             status = sdk_to_sai(status);
             if (SAI_ERR(status)) {
@@ -1404,6 +1418,7 @@ out:
         free(ets_list);
     }
     port->sched_hierarchy.is_default = true;
+
     return SAI_STATUS_SUCCESS;
 }
 

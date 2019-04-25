@@ -224,8 +224,8 @@ static const sai_vendor_attribute_entry_t pg_vendor_attribs[] = {
       NULL, NULL,
       NULL, NULL}
 };
-const mlnx_obj_type_attrs_info_t mlnx_ingress_pg_obj_type_info =
-    { pg_vendor_attribs, OBJ_ATTRS_ENUMS_INFO_EMPTY()};
+const mlnx_obj_type_attrs_info_t          mlnx_ingress_pg_obj_type_info =
+{ pg_vendor_attribs, OBJ_ATTRS_ENUMS_INFO_EMPTY()};
 static const sai_vendor_attribute_entry_t pool_vendor_attribs[] = {
     {
         SAI_BUFFER_POOL_ATTR_SHARED_SIZE,
@@ -261,12 +261,12 @@ static const sai_vendor_attribute_entry_t pool_vendor_attribs[] = {
       NULL, NULL,
       NULL, NULL}
 };
-static const mlnx_attr_enum_info_t buffer_pool_enum_info[] = {
-    [SAI_BUFFER_POOL_ATTR_TYPE] = ATTR_ENUM_VALUES_ALL(),
+static const mlnx_attr_enum_info_t        buffer_pool_enum_info[] = {
+    [SAI_BUFFER_POOL_ATTR_TYPE]           = ATTR_ENUM_VALUES_ALL(),
     [SAI_BUFFER_POOL_ATTR_THRESHOLD_MODE] = ATTR_ENUM_VALUES_ALL(),
 };
-const mlnx_obj_type_attrs_info_t mlnx_buffer_pool_obj_type_info =
-    { pool_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(buffer_pool_enum_info)};
+const mlnx_obj_type_attrs_info_t          mlnx_buffer_pool_obj_type_info =
+{ pool_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(buffer_pool_enum_info)};
 static const sai_vendor_attribute_entry_t buffer_profile_vendor_attribs[] = {
     {
         SAI_BUFFER_PROFILE_ATTR_POOL_ID,
@@ -323,11 +323,11 @@ static const sai_vendor_attribute_entry_t buffer_profile_vendor_attribs[] = {
       NULL, NULL,
       NULL, NULL}
 };
-static const mlnx_attr_enum_info_t buffer_profile_enum_info[] = {
+static const mlnx_attr_enum_info_t        buffer_profile_enum_info[] = {
     [SAI_BUFFER_PROFILE_ATTR_THRESHOLD_MODE] = ATTR_ENUM_VALUES_ALL(),
 };
-const mlnx_obj_type_attrs_info_t mlnx_buffer_profile_obj_type_info =
-    { buffer_profile_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(buffer_profile_enum_info)};
+const mlnx_obj_type_attrs_info_t          mlnx_buffer_profile_obj_type_info =
+{ buffer_profile_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(buffer_profile_enum_info)};
 void init_buffer_resource_limits()
 {
     /* number of user allocatable pools */
@@ -3977,11 +3977,11 @@ out:
     return sai_status;
 }
 
-sai_status_t mlnx_sai_get_buffer_pool_stats_ext(_In_ sai_object_id_t               buffer_pool_id,
-                                                _In_ uint32_t                      number_of_counters,
-                                                _In_ const sai_buffer_pool_stat_t *counter_ids,
-                                                _In_ sai_stats_mode_t              mode,
-                                                _Out_ uint64_t                    *counters)
+sai_status_t mlnx_sai_get_buffer_pool_stats_ext(_In_ sai_object_id_t      buffer_pool_id,
+                                                _In_ uint32_t             number_of_counters,
+                                                _In_ const sai_stat_id_t *counter_ids,
+                                                _In_ sai_stats_mode_t     mode,
+                                                _Out_ uint64_t           *counters)
 {
     sai_status_t                       sai_status;
     sx_cos_pool_occupancy_statistics_t occupancy_stats;
@@ -4053,6 +4053,8 @@ sai_status_t mlnx_sai_get_buffer_pool_stats_ext(_In_ sai_object_id_t            
         case SAI_BUFFER_POOL_STAT_RED_WRED_ECN_MARKED_BYTES:
         case SAI_BUFFER_POOL_STAT_WRED_ECN_MARKED_PACKETS:
         case SAI_BUFFER_POOL_STAT_WRED_ECN_MARKED_BYTES:
+        case SAI_BUFFER_POOL_STAT_XOFF_ROOM_CURR_OCCUPANCY_BYTES:
+        case SAI_BUFFER_POOL_STAT_XOFF_ROOM_WATERMARK_BYTES:
             SX_LOG_NTC("Pool counter %d set item %u not implemented\n", counter_ids[ii], ii);
             return SAI_STATUS_NOT_IMPLEMENTED;
 
@@ -4066,17 +4068,17 @@ sai_status_t mlnx_sai_get_buffer_pool_stats_ext(_In_ sai_object_id_t            
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_sai_get_buffer_pool_stats(_In_ sai_object_id_t                pool_id,
-                                            _In_ uint32_t                       number_of_counters,
-                                            _In_ const sai_buffer_pool_stat_t * counter_ids,
-                                            _Out_ uint64_t                    * counters)
+sai_status_t mlnx_sai_get_buffer_pool_stats(_In_ sai_object_id_t       pool_id,
+                                            _In_ uint32_t              number_of_counters,
+                                            _In_ const sai_stat_id_t * counter_ids,
+                                            _Out_ uint64_t           * counters)
 {
     return mlnx_sai_get_buffer_pool_stats_ext(pool_id, number_of_counters, counter_ids, SAI_STATS_MODE_READ, counters);
 }
 
-sai_status_t mlnx_clear_buffer_pool_stats(_In_ sai_object_id_t               pool_id,
-                                          _In_ uint32_t                      number_of_counters,
-                                          _In_ const sai_buffer_pool_stat_t *counter_ids)
+sai_status_t mlnx_clear_buffer_pool_stats(_In_ sai_object_id_t      pool_id,
+                                          _In_ uint32_t             number_of_counters,
+                                          _In_ const sai_stat_id_t *counter_ids)
 {
     sai_status_t                       sai_status;
     sx_cos_pool_occupancy_statistics_t occupancy_stats;
@@ -4117,11 +4119,11 @@ sai_status_t mlnx_clear_buffer_pool_stats(_In_ sai_object_id_t               poo
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_sai_get_ingress_priority_group_stats_ext(_In_ sai_object_id_t                          ingress_priority_group_id,
-                                                           _In_ uint32_t                                 number_of_counters,
-                                                           _In_ const sai_ingress_priority_group_stat_t *counter_ids,
-                                                           _In_ sai_stats_mode_t                         mode,
-                                                           _Out_ uint64_t                               *counters)
+sai_status_t mlnx_sai_get_ingress_priority_group_stats_ext(_In_ sai_object_id_t      ingress_priority_group_id,
+                                                           _In_ uint32_t             number_of_counters,
+                                                           _In_ const sai_stat_id_t *counter_ids,
+                                                           _In_ sai_stats_mode_t     mode,
+                                                           _Out_ uint64_t           *counters)
 {
     sai_status_t                     sai_status;
     uint32_t                         db_port_index, pg_ind, buff_ind;
@@ -4135,7 +4137,7 @@ sai_status_t mlnx_sai_get_ingress_priority_group_stats_ext(_In_ sai_object_id_t 
                                      headroom_occupancy_stats_needed = false;
     uint32_t                           *port_pg_profile_refs         = NULL;
     mlnx_sai_db_buffer_profile_entry_t *buff_db_entry                = NULL;
-    sx_access_cmd_t                  cmd;
+    sx_access_cmd_t                     cmd;
 
     SX_LOG_ENTER();
     pg_key_to_str(ingress_priority_group_id, key_str);
@@ -4299,18 +4301,21 @@ sai_status_t mlnx_sai_get_ingress_priority_group_stats_ext(_In_ sai_object_id_t 
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_sai_get_ingress_priority_group_stats(_In_ sai_object_id_t                           ingress_pg_id,
-                                                       _In_ uint32_t                                  number_of_counters,
-                                                       _In_ const sai_ingress_priority_group_stat_t * counter_ids,
-                                                       _Out_ uint64_t                               * counters)
+sai_status_t mlnx_sai_get_ingress_priority_group_stats(_In_ sai_object_id_t       ingress_pg_id,
+                                                       _In_ uint32_t              number_of_counters,
+                                                       _In_ const sai_stat_id_t * counter_ids,
+                                                       _Out_ uint64_t           * counters)
 {
-    return mlnx_sai_get_ingress_priority_group_stats_ext(ingress_pg_id, number_of_counters, counter_ids, SAI_STATS_MODE_READ, counters);
+    return mlnx_sai_get_ingress_priority_group_stats_ext(ingress_pg_id,
+                                                         number_of_counters,
+                                                         counter_ids,
+                                                         SAI_STATS_MODE_READ,
+                                                         counters);
 }
 
-static sai_status_t mlnx_sai_clear_ingress_priority_group_stats(
-    _In_ sai_object_id_t                          ingress_pg_id,
-    _In_ uint32_t                                 number_of_counters,
-    _In_ const sai_ingress_priority_group_stat_t *counter_ids)
+static sai_status_t mlnx_sai_clear_ingress_priority_group_stats(_In_ sai_object_id_t      ingress_pg_id,
+                                                                _In_ uint32_t             number_of_counters,
+                                                                _In_ const sai_stat_id_t *counter_ids)
 {
     sai_status_t                     sai_status;
     sx_port_statistic_usage_params_t stats_usage;
@@ -4325,7 +4330,7 @@ static sai_status_t mlnx_sai_clear_ingress_priority_group_stats(
 
     SX_LOG_ENTER();
     pg_key_to_str(ingress_pg_id, key_str);
-    SX_LOG_NTC("Clear PG stats %s\n", key_str);
+    SX_LOG_DBG("Clear PG stats %s\n", key_str);
 
     if (SAI_STATUS_SUCCESS != (sai_status = get_pg_data(ingress_pg_id, &db_port_index, &pg_ind))) {
         SX_LOG_EXIT();
@@ -4589,10 +4594,10 @@ static sai_status_t mlnx_sai_buffer_unbind_reserved_buffers(_In_ sx_port_log_id_
     /* log_sx_port_buffers(0, out_count, out_arr); */
     if (out_count > 0) {
         sx_status = sx_api_cos_port_buff_type_set(gh_sdk,
-            SX_ACCESS_CMD_SET,
-            log_port,
-            out_arr,
-            out_count);
+                                                  SX_ACCESS_CMD_SET,
+                                                  log_port,
+                                                  out_arr,
+                                                  out_count);
         if (SX_STATUS_SUCCESS != sx_status) {
             SX_LOG_ERR(
                 "Failed to set bindings for reserved buffers. logical:%x, number of items:%d sx_status:%d, message %s\n",

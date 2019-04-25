@@ -279,10 +279,10 @@ static const sai_vendor_attribute_entry_t policer_vendor_attribs[] = {
         NULL, NULL
     }
 };
-static const mlnx_attr_enum_info_t policer_enum_info[] = {
-    [SAI_POLICER_ATTR_METER_TYPE] = ATTR_ENUM_VALUES_ALL(),
-    [SAI_POLICER_ATTR_MODE] = ATTR_ENUM_VALUES_ALL(),
-    [SAI_POLICER_ATTR_COLOR_SOURCE] = ATTR_ENUM_VALUES_ALL(),
+static const mlnx_attr_enum_info_t        policer_enum_info[] = {
+    [SAI_POLICER_ATTR_METER_TYPE]          = ATTR_ENUM_VALUES_ALL(),
+    [SAI_POLICER_ATTR_MODE]                = ATTR_ENUM_VALUES_ALL(),
+    [SAI_POLICER_ATTR_COLOR_SOURCE]        = ATTR_ENUM_VALUES_ALL(),
     [SAI_POLICER_ATTR_GREEN_PACKET_ACTION] = ATTR_ENUM_VALUES_LIST(
         SAI_PACKET_ACTION_FORWARD
         ),
@@ -294,9 +294,8 @@ static const mlnx_attr_enum_info_t policer_enum_info[] = {
         SAI_PACKET_ACTION_DROP
         ),
 };
-const mlnx_obj_type_attrs_info_t mlnx_policer_obj_type_info =
-    { policer_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(policer_enum_info)};
-
+const mlnx_obj_type_attrs_info_t          mlnx_policer_obj_type_info =
+{ policer_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(policer_enum_info)};
 static void log_sx_policer_attrib_color_action(_In_ sx_policer_action_t sx_policer_action, _In_ char* action_name)
 {
     char* val = NULL;
@@ -2151,11 +2150,11 @@ static sai_status_t mlnx_sai_get_policer_attribute(_In_ sai_object_id_t     poli
     return status;
 }
 
-static sai_status_t mlnx_do_policer_stats(_In_ sai_object_id_t           policer_id,
-                                          _In_ uint32_t                  number_of_counters,
-                                          _In_ const sai_policer_stat_t *counter_ids,
-                                          _Out_ uint64_t               * counters,
-                                          bool                           is_clear)
+static sai_status_t mlnx_do_policer_stats(_In_ sai_object_id_t      policer_id,
+                                          _In_ uint32_t             number_of_counters,
+                                          _In_ const sai_stat_id_t *counter_ids,
+                                          _Out_ uint64_t          * counters,
+                                          bool                      is_clear)
 {
     sai_status_t                sai_status;
     sx_status_t                 sx_status;
@@ -2308,10 +2307,10 @@ exit:
     return sai_status;
 }
 
-static sai_status_t mlnx_sai_get_policer_statistics(_In_ sai_object_id_t           policer_id,
-                                                    _In_ uint32_t                  number_of_counters,
-                                                    _In_ const sai_policer_stat_t *counter_ids,
-                                                    _Out_ uint64_t               * counters)
+static sai_status_t mlnx_sai_get_policer_statistics(_In_ sai_object_id_t      policer_id,
+                                                    _In_ uint32_t             number_of_counters,
+                                                    _In_ const sai_stat_id_t *counter_ids,
+                                                    _Out_ uint64_t          * counters)
 {
     return mlnx_do_policer_stats(policer_id, number_of_counters, counter_ids, counters, false);
 }
@@ -2327,11 +2326,11 @@ static sai_status_t mlnx_sai_get_policer_statistics(_In_ sai_object_id_t        
  *
  * @return #SAI_STATUS_SUCCESS on success, failure status code on error
  */
-sai_status_t mlnx_sai_get_policer_statistics_ext(_In_ sai_object_id_t           policer_id,
-                                                 _In_ uint32_t                  number_of_counters,
-                                                 _In_ const sai_policer_stat_t *counter_ids,
-                                                 _In_ sai_stats_mode_t          mode,
-                                                 _Out_ uint64_t                *counters)
+sai_status_t mlnx_sai_get_policer_statistics_ext(_In_ sai_object_id_t      policer_id,
+                                                 _In_ uint32_t             number_of_counters,
+                                                 _In_ const sai_stat_id_t *counter_ids,
+                                                 _In_ sai_stats_mode_t     mode,
+                                                 _Out_ uint64_t           *counters)
 {
     return SAI_STATUS_NOT_IMPLEMENTED;
 }
@@ -2346,9 +2345,9 @@ sai_status_t mlnx_sai_get_policer_statistics_ext(_In_ sai_object_id_t           
  * @return SAI_STATUS_SUCCESS on success
  *         Failure status code on error
  */
-sai_status_t mlnx_sai_clear_policer_stats(_In_ sai_object_id_t           policer_id,
-                                          _In_ uint32_t                  number_of_counters,
-                                          _In_ const sai_policer_stat_t *counter_ids)
+sai_status_t mlnx_sai_clear_policer_stats(_In_ sai_object_id_t      policer_id,
+                                          _In_ uint32_t             number_of_counters,
+                                          _In_ const sai_stat_id_t *counter_ids)
 {
     return mlnx_do_policer_stats(policer_id, number_of_counters, counter_ids, NULL, true);
 }

@@ -109,8 +109,8 @@ static const sai_vendor_attribute_entry_t next_hop_group_member_vendor_attribs[]
       NULL, NULL,
       NULL, NULL }
 };
-const mlnx_obj_type_attrs_info_t mlnx_nh_group_member_obj_type_info =
-    { next_hop_group_member_vendor_attribs, OBJ_ATTRS_ENUMS_INFO_EMPTY()};
+const mlnx_obj_type_attrs_info_t          mlnx_nh_group_member_obj_type_info =
+{ next_hop_group_member_vendor_attribs, OBJ_ATTRS_ENUMS_INFO_EMPTY()};
 static void next_hop_group_key_to_str(_In_ sai_object_id_t next_hop_group_id, _Out_ char *key_str)
 {
     uint32_t groupid;
@@ -985,10 +985,10 @@ static sai_status_t mlnx_next_hop_bulk_sx_nh_del(_In_ sx_ecmp_id_t              
                 break;
             }
 
-            status                                            = mlnx_sdk_nhop_find_in_list(sx_next_hops,
-                                                                                           next_hop_count,
-                                                                                           &nh_list[nh_removed].nh_id,
-                                                                                           &nh_index_to_remove);
+            status = mlnx_sdk_nhop_find_in_list(sx_next_hops,
+                                                next_hop_count,
+                                                &nh_list[nh_removed].nh_id,
+                                                &nh_index_to_remove);
             object_statuses[nh_list[nh_removed].object_index] = status;
             if (SAI_ERR(status)) {
                 SX_LOG_ERR("Failed to remove next hop group member at index %d\n", nh_list[nh_removed].object_index);

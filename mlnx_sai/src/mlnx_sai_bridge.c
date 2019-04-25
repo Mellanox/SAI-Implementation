@@ -66,6 +66,11 @@ static sai_status_t mlnx_bridge_flood_group_get(_In_ const sai_object_key_t   *k
 static sai_status_t mlnx_bridge_flood_group_set(_In_ const sai_object_key_t      *key,
                                                 _In_ const sai_attribute_value_t *value,
                                                 void                             *arg);
+static sai_status_t mlnx_bridge_sx_to_db_idx(_In_ sx_bridge_id_t sx_bridge_id, _Out_ mlnx_shm_rm_array_idx_t *idx);
+static sai_status_t mlnx_bridge_1d_oid_to_data(_In_ sai_object_id_t           bridge_oid,
+                                               _Out_ mlnx_bridge_t          **bridge,
+                                               _Out_ mlnx_shm_rm_array_idx_t *idx);
+static sai_status_t mlnx_sdk_bridge_create(_Out_ sx_bridge_id_t *sx_bridge_id);
 static const sai_vendor_attribute_entry_t bridge_vendor_attribs[] = {
     { SAI_BRIDGE_ATTR_TYPE,
       { true, false, false, true },
@@ -88,32 +93,32 @@ static const sai_vendor_attribute_entry_t bridge_vendor_attribs[] = {
       mlnx_bridge_learn_disable_get, NULL,
       mlnx_bridge_learn_disable_set, NULL },
     { SAI_BRIDGE_ATTR_UNKNOWN_UNICAST_FLOOD_CONTROL_TYPE,
-      { false, false, false, false },
+      { true, false, true, true },
       { true, false, true, true },
       mlnx_bridge_flood_ctrl_get, (void*)SAI_BRIDGE_ATTR_UNKNOWN_UNICAST_FLOOD_CONTROL_TYPE,
       mlnx_bridge_flood_ctrl_set, (void*)SAI_BRIDGE_ATTR_UNKNOWN_UNICAST_FLOOD_CONTROL_TYPE },
     { SAI_BRIDGE_ATTR_UNKNOWN_UNICAST_FLOOD_GROUP,
-      { false, false, false, false },
+      { true, false, true, true },
       { true, false, true, true },
       mlnx_bridge_flood_group_get, (void*)SAI_BRIDGE_ATTR_UNKNOWN_UNICAST_FLOOD_GROUP,
       mlnx_bridge_flood_group_set, (void*)SAI_BRIDGE_ATTR_UNKNOWN_UNICAST_FLOOD_GROUP },
     { SAI_BRIDGE_ATTR_UNKNOWN_MULTICAST_FLOOD_CONTROL_TYPE,
-      { false, false, false, false },
+      { true, false, true, true },
       { true, false, true, true },
       mlnx_bridge_flood_ctrl_get, (void*)SAI_BRIDGE_ATTR_UNKNOWN_MULTICAST_FLOOD_CONTROL_TYPE,
       mlnx_bridge_flood_ctrl_set, (void*)SAI_BRIDGE_ATTR_UNKNOWN_MULTICAST_FLOOD_CONTROL_TYPE},
     { SAI_BRIDGE_ATTR_UNKNOWN_MULTICAST_FLOOD_GROUP,
-      { false, false, false, false },
+      { true, false, true, true },
       { true, false, true, true },
       mlnx_bridge_flood_group_get, (void*)SAI_BRIDGE_ATTR_UNKNOWN_MULTICAST_FLOOD_GROUP,
       mlnx_bridge_flood_group_set, (void*)SAI_BRIDGE_ATTR_UNKNOWN_MULTICAST_FLOOD_GROUP },
     { SAI_BRIDGE_ATTR_BROADCAST_FLOOD_CONTROL_TYPE,
-      { false, false, false, false },
+      { true, false, true, true },
       { true, false, true, true },
       mlnx_bridge_flood_ctrl_get, (void*)SAI_BRIDGE_ATTR_BROADCAST_FLOOD_CONTROL_TYPE,
       mlnx_bridge_flood_ctrl_set, (void*)SAI_BRIDGE_ATTR_BROADCAST_FLOOD_CONTROL_TYPE },
     { SAI_BRIDGE_ATTR_BROADCAST_FLOOD_GROUP,
-      { false, false, false, false },
+      { true, false, true, true },
       { true, false, true, true },
       mlnx_bridge_flood_group_get, (void*)SAI_BRIDGE_ATTR_BROADCAST_FLOOD_GROUP,
       mlnx_bridge_flood_group_set, (void*)SAI_BRIDGE_ATTR_BROADCAST_FLOOD_GROUP },
@@ -123,11 +128,14 @@ static const sai_vendor_attribute_entry_t bridge_vendor_attribs[] = {
       NULL, NULL,
       NULL, NULL }
 };
-static const mlnx_attr_enum_info_t bridge_enum_info[] = {
-    [SAI_BRIDGE_ATTR_TYPE] = ATTR_ENUM_VALUES_ALL(),
+static const mlnx_attr_enum_info_t        bridge_enum_info[] = {
+    [SAI_BRIDGE_ATTR_TYPE]                                 = ATTR_ENUM_VALUES_ALL(),
+    [SAI_BRIDGE_ATTR_UNKNOWN_UNICAST_FLOOD_CONTROL_TYPE]   = ATTR_ENUM_VALUES_ALL(),
+    [SAI_BRIDGE_ATTR_UNKNOWN_MULTICAST_FLOOD_CONTROL_TYPE] = ATTR_ENUM_VALUES_ALL(),
+    [SAI_BRIDGE_ATTR_BROADCAST_FLOOD_CONTROL_TYPE]         = ATTR_ENUM_VALUES_ALL(),
 };
-const mlnx_obj_type_attrs_info_t mlnx_bridge_obj_type_info =
-    { bridge_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(bridge_enum_info)};
+const mlnx_obj_type_attrs_info_t          mlnx_bridge_obj_type_info =
+{ bridge_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(bridge_enum_info)};
 static sai_status_t mlnx_bridge_port_type_get(_In_ const sai_object_key_t   *key,
                                               _Inout_ sai_attribute_value_t *value,
                                               _In_ uint32_t                  attr_index,
@@ -271,20 +279,25 @@ static const sai_vendor_attribute_entry_t bridge_port_vendor_attribs[] = {
       NULL, NULL,
       NULL, NULL }
 };
-static const mlnx_attr_enum_info_t bridge_port_enum_info[] = {
-    [SAI_BRIDGE_PORT_ATTR_TYPE] = ATTR_ENUM_VALUES_ALL(),
-    [SAI_BRIDGE_PORT_ATTR_TAGGING_MODE] = ATTR_ENUM_VALUES_ALL(),
+static const mlnx_attr_enum_info_t        bridge_port_enum_info[] = {
+    [SAI_BRIDGE_PORT_ATTR_TYPE]              = ATTR_ENUM_VALUES_ALL(),
+    [SAI_BRIDGE_PORT_ATTR_TAGGING_MODE]      = ATTR_ENUM_VALUES_ALL(),
     [SAI_BRIDGE_PORT_ATTR_FDB_LEARNING_MODE] = ATTR_ENUM_VALUES_LIST(
         SAI_BRIDGE_PORT_FDB_LEARNING_MODE_DISABLE,
         SAI_BRIDGE_PORT_FDB_LEARNING_MODE_HW,
         SAI_BRIDGE_PORT_FDB_LEARNING_MODE_CPU_LOG)
 };
-const mlnx_obj_type_attrs_info_t mlnx_bridge_port_obj_type_info =
-    { bridge_port_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(bridge_port_enum_info)};
+const mlnx_obj_type_attrs_info_t          mlnx_bridge_port_obj_type_info =
+{ bridge_port_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(bridge_port_enum_info)};
 
 sx_bridge_id_t mlnx_bridge_default_1q(void)
 {
     return g_sai_db_ptr->sx_bridge_id;
+}
+
+sai_object_id_t mlnx_bridge_default_1q_oid(void)
+{
+    return g_sai_db_ptr->default_1q_bridge_oid;
 }
 
 static sai_status_t mlnx_bridge_port_add(sx_bridge_id_t         bridge_id,
@@ -366,16 +379,16 @@ sai_status_t mlnx_bridge_port_by_oid(sai_object_id_t oid, mlnx_bridge_port_t **p
 
 sai_status_t mlnx_bridge_port_by_tunnel_id(sx_tunnel_id_t sx_tunnel, mlnx_bridge_port_t **port)
 {
-    mlnx_bridge_port_t      *it;
-    uint32_t                 ii, checked;
-    const tunnel_db_entry_t *tunnel_entry;
+    mlnx_bridge_port_t        *it;
+    uint32_t                   ii, checked;
+    const mlnx_tunnel_entry_t *tunnel_entry;
 
     mlnx_bridge_non1q_port_foreach(it, ii, checked) {
         if (it->port_type != SAI_BRIDGE_PORT_TYPE_TUNNEL) {
             continue;
         }
 
-        tunnel_entry = &g_sai_db_ptr->tunnel_db[it->tunnel_idx];
+        tunnel_entry = &g_sai_tunnel_db_ptr->tunnel_entry_db[it->tunnel_idx];
 
         if ((tunnel_entry->sx_tunnel_id_ipv4 == sx_tunnel) && tunnel_entry->ipv4_created) {
             *port = it;
@@ -521,16 +534,33 @@ sai_status_t mlnx_port_is_in_bridge_1q(const mlnx_port_config_t *port)
     return mlnx_bridge_1q_port_by_log(port->logical, &bridge_port) == SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_create_bridge_object(sai_bridge_type_t sai_br_type,
-                                       sx_bridge_id_t    sx_br_id,
-                                       sai_object_id_t  *bridge_oid)
+static sai_status_t mlnx_create_bridge_object(_In_ sai_bridge_type_t       sai_br_type,
+                                              _In_ mlnx_shm_rm_array_idx_t bridge_db_idx,
+                                              _In_ sx_bridge_id_t          sx_bridge_id,
+                                              _Out_ sai_object_id_t       *bridge_oid)
 {
-    mlnx_object_id_t mlnx_bridge_id = {0};
+    mlnx_object_id_t mlnx_bridge_id;
 
-    mlnx_bridge_id.ext.bridge.type = sai_br_type;
-    mlnx_bridge_id.id.bridge_id    = sx_br_id;
+    memset(&mlnx_bridge_id, 0, sizeof(mlnx_bridge_id));
+
+    mlnx_bridge_id.field.sub_type          = sai_br_type;
+    mlnx_bridge_id.id.bridge_db_idx        = bridge_db_idx;
+    mlnx_bridge_id.ext.bridge.sx_bridge_id = sx_bridge_id;
 
     return mlnx_object_id_to_sai(SAI_OBJECT_TYPE_BRIDGE, &mlnx_bridge_id, bridge_oid);
+}
+
+sai_status_t mlnx_create_bridge_1d_object(sx_bridge_id_t sx_br_id, sai_object_id_t  *bridge_oid)
+{
+    sai_status_t            status;
+    mlnx_shm_rm_array_idx_t idx = MLNX_SHM_RM_ARRAY_IDX_UNINITIALIZED;
+
+    status = mlnx_bridge_sx_to_db_idx(sx_br_id, &idx);
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+    return mlnx_create_bridge_object(SAI_BRIDGE_TYPE_1D, idx, sx_br_id, bridge_oid);
 }
 
 sai_status_t mlnx_bridge_oid_to_id(sai_object_id_t oid, sx_bridge_id_t *bridge_id)
@@ -544,7 +574,8 @@ sai_status_t mlnx_bridge_oid_to_id(sai_object_id_t oid, sx_bridge_id_t *bridge_i
         return status;
     }
 
-    *bridge_id = mlnx_obj_id.id.bridge_id;
+    *bridge_id = mlnx_obj_id.ext.bridge.sx_bridge_id;
+
     return SAI_STATUS_SUCCESS;
 }
 
@@ -726,8 +757,82 @@ static sai_status_t mlnx_bridge_type_get(_In_ const sai_object_key_t   *key,
         return status;
     }
 
-    value->s32 = mlnx_bridge_id.ext.bridge.type;
+    value->s32 = mlnx_bridge_id.field.sub_type;
     return status;
+}
+
+static sai_status_t mlnx_bridge_ports_get(_In_ sx_bridge_id_t        sx_bridge,
+                                          _Out_ mlnx_bridge_port_t **bports,
+                                          _Inout_ uint32_t          *bports_count)
+{
+    mlnx_bridge_port_t *bport;
+    uint32_t            ii, checked = 0, bridge_ports_count = 0;
+
+    assert(bports);
+    assert(bports_count);
+
+    mlnx_bridge_1q_port_foreach(bport, ii) {
+        if (bport->bridge_id != sx_bridge) {
+            continue;
+        }
+
+        if (bridge_ports_count >= *bports_count) {
+            SX_LOG_ERR("Insufficient buffer size %u\n", *bports_count);
+            return SAI_STATUS_BUFFER_OVERFLOW;
+        }
+
+        bports[bridge_ports_count] = bport;
+        bridge_ports_count++;
+    }
+
+    mlnx_bridge_non1q_port_foreach(bport, ii, checked) {
+        if (bport->bridge_id != sx_bridge) {
+            continue;
+        }
+
+        if (bridge_ports_count >= *bports_count) {
+            SX_LOG_ERR("Insufficient buffer size %u\n", *bports_count);
+            return SAI_STATUS_BUFFER_OVERFLOW;
+        }
+
+        bports[bridge_ports_count] = bport;
+        bridge_ports_count++;
+    }
+
+    *bports_count = bridge_ports_count;
+
+    return SAI_STATUS_SUCCESS;
+}
+
+sai_status_t mlnx_bridge_sx_ports_get(_In_ sx_bridge_id_t     sx_bridge,
+                                      _Out_ sx_port_log_id_t *sx_ports,
+                                      _Inout_ uint32_t       *ports_count)
+{
+    sai_status_t        status;
+    mlnx_bridge_port_t *bports[MAX_BRIDGE_1Q_PORTS] = {NULL};
+    uint32_t            bports_count, ii;
+
+    assert(sx_ports);
+    assert(ports_count);
+
+    bports_count = MAX_BRIDGE_1Q_PORTS;
+    status       = mlnx_bridge_ports_get(sx_bridge, bports, &bports_count);
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+    if (*ports_count < bports_count) {
+        SX_LOG_ERR("Insufficient buffer size %u\n", *ports_count);
+        return SAI_STATUS_BUFFER_OVERFLOW;
+    }
+
+    for (ii = 0; ii < bports_count; ii++) {
+        sx_ports[ii] = bports[ii]->logical;
+    }
+
+    *ports_count = bports_count;
+
+    return SAI_STATUS_SUCCESS;
 }
 
 /**
@@ -746,9 +851,9 @@ static sai_status_t mlnx_bridge_port_list_get(_In_ const sai_object_key_t   *key
     mlnx_object_id_t    mlnx_bridge_id = {0};
     sx_bridge_id_t      bridge_id;
     sai_status_t        status;
-    sai_object_id_t    *ports = NULL;
-    uint32_t            ii, count = 0, checked;
-    mlnx_bridge_port_t *port;
+    sai_object_id_t     bport_oids[MAX_BRIDGE_1Q_PORTS] = {0};
+    mlnx_bridge_port_t *bports[MAX_BRIDGE_1Q_PORTS]     = {NULL};
+    uint32_t            bports_count, ii;
 
     SX_LOG_ENTER();
 
@@ -756,48 +861,31 @@ static sai_status_t mlnx_bridge_port_list_get(_In_ const sai_object_key_t   *key
     if (SAI_ERR(status)) {
         return status;
     }
-    bridge_id = mlnx_bridge_id.id.bridge_id;
+    bridge_id = mlnx_bridge_id.ext.bridge.sx_bridge_id;
 
     sai_db_read_lock();
 
-    ports = calloc(MAX_BRIDGE_1Q_PORTS + g_sai_db_ptr->non_1q_bports_created, sizeof(*ports));
-    if (!ports) {
-        status = SAI_STATUS_NO_MEMORY;
+    bports_count = MAX_BRIDGE_1Q_PORTS;
+    status       = mlnx_bridge_ports_get(bridge_id, bports, &bports_count);
+    if (SAI_ERR(status)) {
         goto out;
     }
 
-    mlnx_bridge_1q_port_foreach(port, ii) {
-        if (port->bridge_id != bridge_id) {
-            continue;
-        }
-
-        status = mlnx_bridge_port_to_oid(port, &ports[count++]);
+    for (ii = 0; ii < bports_count; ii++) {
+        status = mlnx_bridge_port_to_oid(bports[ii], &bport_oids[ii]);
         if (SAI_ERR(status)) {
             SX_LOG_ERR("Failed to convert bridge port to oid\n");
             goto out;
         }
     }
 
-    mlnx_bridge_non1q_port_foreach(port, ii, checked) {
-        if (port->bridge_id != bridge_id) {
-            continue;
-        }
-
-        status = mlnx_bridge_port_to_oid(port, &ports[count++]);
-        if (SAI_ERR(status)) {
-            SX_LOG_ERR("Failed to convert bridge port to oid\n");
-            goto out;
-        }
-    }
-
-    status = mlnx_fill_objlist(ports, count, &value->objlist);
+    status = mlnx_fill_objlist(bport_oids, bports_count, &value->objlist);
     if (SAI_ERR(status)) {
         SX_LOG_ERR("Failed to fill bridge port list\n");
     }
 
 out:
     sai_db_unlock();
-    free(ports);
 
     SX_LOG_EXIT();
     return status;
@@ -940,10 +1028,62 @@ static void bridge_key_to_str(_In_ sai_object_id_t bridge_id, _Out_ char *key_st
     if (SAI_ERR(status)) {
         snprintf(key_str, MAX_KEY_STR_LEN, "invalid bridge");
     } else {
-        br_type_name = (mlnx_bridge.ext.bridge.type == SAI_BRIDGE_TYPE_1D) ? "1d" : "1q";
+        br_type_name = (mlnx_bridge.field.sub_type == SAI_BRIDGE_TYPE_1D) ? "1d" : "1q";
 
-        snprintf(key_str, MAX_KEY_STR_LEN, "bridge %u (.%s)", mlnx_bridge.id.bridge_id, br_type_name);
+        snprintf(key_str, MAX_KEY_STR_LEN, "bridge %u (.%s)", mlnx_bridge.ext.bridge.sx_bridge_id, br_type_name);
     }
+}
+
+static mlnx_fid_flood_ctrl_type_t mlnx_bridge_flood_type_to_fid_type(_In_ sai_bridge_flood_control_type_t type)
+{
+    assert(type <= SAI_BRIDGE_FLOOD_CONTROL_TYPE_L2MC_GROUP);
+
+    return (mlnx_fid_flood_ctrl_type_t)(type);
+}
+
+static mlnx_fid_flood_ctrl_attr_t mlnx_bridge_flood_ctrl_attr_to_fid_attr(_In_ sai_bridge_attr_t attr)
+{
+    switch (attr) {
+    case SAI_BRIDGE_ATTR_UNKNOWN_UNICAST_FLOOD_CONTROL_TYPE:
+        return MLNX_FID_FLOOD_CTRL_ATTR_UC;
+
+    case SAI_BRIDGE_ATTR_UNKNOWN_MULTICAST_FLOOD_CONTROL_TYPE:
+        return MLNX_FID_FLOOD_CTRL_ATTR_MC;
+
+    case SAI_BRIDGE_ATTR_BROADCAST_FLOOD_CONTROL_TYPE:
+        return MLNX_FID_FLOOD_CTRL_ATTR_BC;
+
+    default:
+        SX_LOG_ERR("Unexpected flood ctrl attr - %d\n", attr);
+        assert(false);
+        return MLNX_FID_FLOOD_CTRL_ATTR_MAX;
+    }
+}
+
+static mlnx_fid_flood_ctrl_attr_t mlnx_bridge_flood_ctrl_group_attr_to_fid_attr(_In_ sai_bridge_attr_t attr)
+{
+    switch (attr) {
+    case SAI_BRIDGE_ATTR_UNKNOWN_UNICAST_FLOOD_GROUP:
+        return MLNX_FID_FLOOD_CTRL_ATTR_UC;
+
+    case SAI_BRIDGE_ATTR_UNKNOWN_MULTICAST_FLOOD_GROUP:
+        return MLNX_FID_FLOOD_CTRL_ATTR_MC;
+
+    case SAI_BRIDGE_ATTR_BROADCAST_FLOOD_GROUP:
+        return MLNX_FID_FLOOD_CTRL_ATTR_BC;
+
+    default:
+        SX_LOG_ERR("Unexpected flood ctrl group  attr - %d\n", attr);
+        assert(false);
+        return MLNX_FID_FLOOD_CTRL_ATTR_MAX;
+    }
+}
+
+static sai_bridge_flood_control_type_t mlnx_fid_flood_type_to_bridge_type(_In_ mlnx_fid_flood_ctrl_type_t type)
+{
+    assert(type <= MLNX_FID_FLOOD_TYPE_L2MC_GROUP);
+
+    return (sai_bridge_flood_control_type_t)(type);
 }
 
 /**
@@ -955,7 +1095,37 @@ static sai_status_t mlnx_bridge_flood_ctrl_get(_In_ const sai_object_key_t   *ke
                                                _Inout_ vendor_cache_t        *cache,
                                                void                          *arg)
 {
-    return SAI_STATUS_NOT_IMPLEMENTED;
+    sx_status_t                       status;
+    sai_bridge_attr_t                 attr;
+    mlnx_bridge_t                    *bridge;
+    mlnx_fid_flood_ctrl_attr_t        flood_ctrl_attr;
+    const mlnx_fid_flood_type_data_t *flood_ctrl_data;
+
+    SX_LOG_ENTER();
+
+    attr = (long)(arg);
+
+    assert((attr == SAI_BRIDGE_ATTR_UNKNOWN_UNICAST_FLOOD_CONTROL_TYPE) ||
+           (attr == SAI_BRIDGE_ATTR_UNKNOWN_MULTICAST_FLOOD_CONTROL_TYPE) ||
+           (attr == SAI_BRIDGE_ATTR_BROADCAST_FLOOD_CONTROL_TYPE));
+
+    sai_db_read_lock();
+
+    status = mlnx_bridge_1d_oid_to_data(key->key.object_id, &bridge, NULL);
+    if (SAI_ERR(status)) {
+        sai_db_unlock();
+        SX_LOG_EXIT();
+        return status;
+    }
+
+    flood_ctrl_attr = mlnx_bridge_flood_ctrl_attr_to_fid_attr(attr);
+    flood_ctrl_data = &bridge->flood_data.types[flood_ctrl_attr];
+
+    value->s32 = mlnx_fid_flood_type_to_bridge_type(flood_ctrl_data->type);
+
+    sai_db_unlock();
+    SX_LOG_EXIT();
+    return SAI_STATUS_SUCCESS;
 }
 
 /**
@@ -965,7 +1135,42 @@ static sai_status_t mlnx_bridge_flood_ctrl_set(_In_ const sai_object_key_t      
                                                _In_ const sai_attribute_value_t *value,
                                                void                             *arg)
 {
-    return SAI_STATUS_NOT_IMPLEMENTED;
+    sai_status_t                status;
+    sai_bridge_attr_t           attr;
+    mlnx_bridge_t              *bridge;
+    mlnx_fid_flood_ctrl_attr_t  flood_ctrl_attr;
+    mlnx_fid_flood_type_data_t *flood_ctrl_data;
+    mlnx_fid_flood_ctrl_type_t  new_type;
+
+    SX_LOG_ENTER();
+
+    attr = (long)(arg);
+
+    assert((attr == SAI_BRIDGE_ATTR_UNKNOWN_UNICAST_FLOOD_CONTROL_TYPE) ||
+           (attr == SAI_BRIDGE_ATTR_UNKNOWN_MULTICAST_FLOOD_CONTROL_TYPE) ||
+           (attr == SAI_BRIDGE_ATTR_BROADCAST_FLOOD_CONTROL_TYPE));
+
+    new_type = mlnx_bridge_flood_type_to_fid_type(value->s32);
+
+    sai_db_write_lock();
+
+    status = mlnx_bridge_1d_oid_to_data(key->key.object_id, &bridge, NULL);
+    if (SAI_ERR(status)) {
+        goto out;
+    }
+
+    flood_ctrl_attr = mlnx_bridge_flood_ctrl_attr_to_fid_attr(attr);
+    flood_ctrl_data = &bridge->flood_data.types[flood_ctrl_attr];
+
+    status = mlnx_fid_flood_ctrl_type_set(bridge->sx_bridge_id, flood_ctrl_attr, flood_ctrl_data, new_type);
+    if (SAI_ERR(status)) {
+        goto out;
+    }
+
+out:
+    sai_db_unlock();
+    SX_LOG_EXIT();
+    return status;
 }
 
 /**
@@ -977,7 +1182,43 @@ static sai_status_t mlnx_bridge_flood_group_get(_In_ const sai_object_key_t   *k
                                                 _Inout_ vendor_cache_t        *cache,
                                                 void                          *arg)
 {
-    return SAI_STATUS_NOT_IMPLEMENTED;
+    sai_status_t                      status;
+    sai_bridge_attr_t                 attr;
+    mlnx_bridge_t                    *bridge;
+    const mlnx_fid_flood_type_data_t *flood_ctrl_data;
+    mlnx_fid_flood_ctrl_attr_t        flood_ctrl_attr;
+
+    SX_LOG_ENTER();
+
+    attr = (long)(arg);
+
+    assert((attr == SAI_BRIDGE_ATTR_UNKNOWN_UNICAST_FLOOD_GROUP) ||
+           (attr == SAI_BRIDGE_ATTR_UNKNOWN_MULTICAST_FLOOD_GROUP) ||
+           (attr == SAI_BRIDGE_ATTR_BROADCAST_FLOOD_GROUP));
+
+    sai_db_read_lock();
+
+    status = mlnx_bridge_1d_oid_to_data(key->key.object_id, &bridge, NULL);
+    if (SAI_ERR(status)) {
+        goto out;
+    }
+
+    flood_ctrl_attr = mlnx_bridge_flood_ctrl_group_attr_to_fid_attr(attr);
+    flood_ctrl_data = &bridge->flood_data.types[flood_ctrl_attr];
+
+    value->oid = SAI_NULL_OBJECT_ID;
+
+    if (MLNX_L2MC_GROUP_DB_IDX_IS_VALID(flood_ctrl_data->l2mc_db_idx)) {
+        status = mlnx_l2mc_group_oid_create(&l2mc_group_db(flood_ctrl_data->l2mc_db_idx), &value->oid);
+        if (SAI_ERR(status)) {
+            goto out;
+        }
+    }
+
+out:
+    sai_db_unlock();
+    SX_LOG_EXIT();
+    return status;
 }
 
 /**
@@ -987,7 +1228,148 @@ static sai_status_t mlnx_bridge_flood_group_set(_In_ const sai_object_key_t     
                                                 _In_ const sai_attribute_value_t *value,
                                                 void                             *arg)
 {
-    return SAI_STATUS_NOT_IMPLEMENTED;
+    sai_status_t                status;
+    sai_bridge_attr_t           attr;
+    mlnx_bridge_t              *bridge;
+    mlnx_fid_flood_type_data_t *flood_ctrl_data;
+    mlnx_fid_flood_ctrl_attr_t  flood_ctrl_attr;
+
+    SX_LOG_ENTER();
+
+    attr = (long)(arg);
+
+    assert((attr == SAI_BRIDGE_ATTR_UNKNOWN_UNICAST_FLOOD_GROUP) ||
+           (attr == SAI_BRIDGE_ATTR_UNKNOWN_MULTICAST_FLOOD_GROUP) ||
+           (attr == SAI_BRIDGE_ATTR_BROADCAST_FLOOD_GROUP));
+
+    sai_db_write_lock();
+
+    status = mlnx_bridge_1d_oid_to_data(key->key.object_id, &bridge, NULL);
+    if (SAI_ERR(status)) {
+        goto out;
+    }
+
+    flood_ctrl_attr = mlnx_bridge_flood_ctrl_group_attr_to_fid_attr(attr);
+    flood_ctrl_data = &bridge->flood_data.types[flood_ctrl_attr];
+
+    status = mlnx_fid_flood_ctrl_l2mc_group_set(bridge->sx_bridge_id, flood_ctrl_attr, flood_ctrl_data, value->oid);
+    if (SAI_ERR(status)) {
+        goto out;
+    }
+
+out:
+    sai_db_unlock();
+    SX_LOG_EXIT();
+    return status;
+}
+
+static sai_status_t mlnx_bridge_sx_to_db_idx(_In_ sx_bridge_id_t sx_bridge_id, _Out_ mlnx_shm_rm_array_idx_t *idx)
+{
+    if (sx_bridge_id < MIN_SX_BRIDGE_ID) {
+        SX_LOG_ERR("sx_bridge_id (%d) >= MIN_SX_BRIDGE_ID (%d)\n", sx_bridge_id, MIN_SX_BRIDGE_ID);
+        return SAI_STATUS_FAILURE;
+    }
+
+    idx->type = MLNX_SHM_RM_ARRAY_TYPE_BRIDGE;
+    idx->idx  = sx_bridge_id - MIN_SX_BRIDGE_ID;
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static mlnx_bridge_t* mlnx_bridge_1d_by_rm_idx(_In_ mlnx_shm_rm_array_idx_t rm_idx)
+{
+    sai_status_t status;
+    void        *ptr;
+
+    status = mlnx_shm_rm_array_idx_to_ptr(rm_idx, &ptr);
+    if (SAI_ERR(status)) {
+        return NULL;
+    }
+
+    return (mlnx_bridge_t*)ptr;
+}
+
+mlnx_bridge_t* mlnx_bridge_1d_by_db_idx(_In_ uint32_t db_idx)
+{
+    mlnx_shm_rm_array_idx_t rm_idx;
+
+    rm_idx.type = MLNX_SHM_RM_ARRAY_TYPE_BRIDGE;
+    rm_idx.idx  = db_idx;
+
+    return mlnx_bridge_1d_by_rm_idx(rm_idx);
+}
+
+static sai_status_t mlnx_bridge_1d_oid_to_data(_In_ sai_object_id_t           bridge_oid,
+                                               _Out_ mlnx_bridge_t          **bridge,
+                                               _Out_ mlnx_shm_rm_array_idx_t *idx)
+{
+    sai_status_t            status;
+    mlnx_object_id_t        mlnx_bridge_id;
+    mlnx_shm_rm_array_idx_t db_idx;
+
+    assert(bridge);
+
+    status = sai_to_mlnx_object_id(SAI_OBJECT_TYPE_BRIDGE, bridge_oid, &mlnx_bridge_id);
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+    if (mlnx_bridge_id.field.sub_type != SAI_BRIDGE_TYPE_1D) {
+        SX_LOG_ERR("Unexpected bridge type %d is not 1D", mlnx_bridge_id.field.sub_type);
+        return SAI_STATUS_FAILURE;
+    }
+
+    db_idx = mlnx_bridge_id.id.bridge_db_idx;
+
+    *bridge = mlnx_bridge_1d_by_rm_idx(db_idx);
+
+    if (!(*bridge)->array_hdr.is_used) {
+        SX_LOG_ERR("Bridge db idx %d is removed or not created yet\n", db_idx.idx);
+        return SAI_STATUS_FAILURE;
+    }
+
+    if (idx) {
+        *idx = db_idx;
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_bridge_db_alloc(_In_ sx_bridge_id_t            sx_bridge_id,
+                                         _Out_ mlnx_bridge_t          **bridge,
+                                         _Out_ mlnx_shm_rm_array_idx_t *idx)
+{
+    sai_status_t status;
+
+    assert(bridge);
+    assert(idx);
+
+    status = mlnx_bridge_sx_to_db_idx(sx_bridge_id, idx);
+    if (SAI_ERR(status)) {
+        return SAI_STATUS_FAILURE;
+    }
+
+    *bridge = mlnx_bridge_1d_by_rm_idx(*idx);
+
+    (*bridge)->array_hdr.is_used = true;
+
+    memset(&(*bridge)->flood_data, 0, sizeof(mlnx_fid_flood_data_t));
+
+    SX_LOG_DBG("Allocated db idx %d for sx bridge %d\n", idx->idx, sx_bridge_id);
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_bridge_db_free(_In_ mlnx_shm_rm_array_idx_t idx, _In_ mlnx_bridge_t           *bridge)
+{
+    assert(bridge->array_hdr.is_used);
+
+    memset(&bridge->flood_data, 0, sizeof(mlnx_fid_flood_data_t));
+
+    bridge->sx_bridge_id      = 0;
+    bridge->array_hdr.is_used = false;
+
+    return SAI_STATUS_SUCCESS;
 }
 
 /**
@@ -1007,25 +1389,25 @@ static sai_status_t mlnx_create_bridge(_Out_ sai_object_id_t     * bridge_id,
 {
     char                         list_str[MAX_LIST_VALUE_STR_LEN];
     char                         key_str[MAX_KEY_STR_LEN];
+    mlnx_bridge_t               *bridge;
     sx_bridge_id_t               sx_bridge_id;
-    sx_status_t                  sx_status;
     const sai_attribute_value_t *attr_val, *max_learned_addresses = NULL;
     uint32_t                     attr_idx, max_learned_addresses_index;
+    mlnx_shm_rm_array_idx_t      bridge_db_idx;
     sai_status_t                 status;
 
     SX_LOG_ENTER();
 
     if (NULL == bridge_id) {
         SX_LOG_ERR("NULL bridge ID param\n");
-        status = SAI_STATUS_INVALID_PARAMETER;
-        goto out;
+        return SAI_STATUS_INVALID_PARAMETER;
     }
 
     status = check_attribs_metadata(attr_count, attr_list, SAI_OBJECT_TYPE_BRIDGE, bridge_vendor_attribs,
                                     SAI_COMMON_API_CREATE);
     if (SAI_ERR(status)) {
         SX_LOG_ERR("Failed attribs check\n");
-        goto out;
+        return status;
     }
 
     sai_attr_list_to_str(attr_count, attr_list, SAI_OBJECT_TYPE_BRIDGE, MAX_LIST_VALUE_STR_LEN, list_str);
@@ -1036,8 +1418,7 @@ static sai_status_t mlnx_create_bridge(_Out_ sai_object_id_t     * bridge_id,
 
     if (attr_val->s32 != SAI_BRIDGE_TYPE_1D) {
         SX_LOG_ERR("Not supported bridge type %d\n", attr_val->s32);
-        status = SAI_STATUS_INVALID_PARAMETER;
-        goto out;
+        return SAI_STATUS_INVALID_PARAMETER;
     }
 
     status = find_attrib_in_list(attr_count, attr_list, SAI_BRIDGE_ATTR_MAX_LEARNED_ADDRESSES,
@@ -1045,25 +1426,84 @@ static sai_status_t mlnx_create_bridge(_Out_ sai_object_id_t     * bridge_id,
     if (!SAI_ERR(status)) {
         status = mlnx_max_learned_addresses_value_validate(max_learned_addresses->u32, max_learned_addresses_index);
         if (SAI_ERR(status)) {
-            goto out;
+            return status;
         }
     }
 
-    sx_status = sx_api_bridge_set(gh_sdk, SX_ACCESS_CMD_CREATE, &sx_bridge_id);
-    if (SX_ERR(sx_status)) {
-        SX_LOG_ERR("Failed to create .1D bridge - %s\n", SX_STATUS_MSG(sx_status));
-        status = sdk_to_sai(sx_status);
+    sai_db_write_lock();
+
+    status = mlnx_sdk_bridge_create(&sx_bridge_id);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to create .1D bridge\n");
         goto out;
     }
 
+    status = mlnx_bridge_db_alloc(sx_bridge_id, &bridge, &bridge_db_idx);
+    if (SAI_ERR(status)) {
+        goto out;
+    }
+
+    mlnx_fid_flood_ctrl_init(&bridge->flood_data);
+
+    bridge->sx_bridge_id = sx_bridge_id;
+
     if (max_learned_addresses) {
-        status = mlnx_vlan_bridge_max_learned_addresses_set(sx_bridge_id, max_learned_addresses->u32);
+        status = mlnx_vlan_bridge_max_learned_addresses_set(bridge->sx_bridge_id, max_learned_addresses->u32);
         if (SAI_ERR(status)) {
             goto out;
         }
     }
 
-    status = mlnx_create_bridge_object(SAI_BRIDGE_TYPE_1D, sx_bridge_id, bridge_id);
+    find_attrib_in_list(attr_count, attr_list, SAI_BRIDGE_ATTR_UNKNOWN_UNICAST_FLOOD_CONTROL_TYPE, &attr_val,
+                        &attr_idx);
+    if (attr_val) {
+        bridge->flood_data.types[MLNX_FID_FLOOD_CTRL_ATTR_UC].type = mlnx_bridge_flood_type_to_fid_type(attr_val->s32);
+    }
+
+    find_attrib_in_list(attr_count, attr_list, SAI_BRIDGE_ATTR_UNKNOWN_UNICAST_FLOOD_GROUP, &attr_val, &attr_idx);
+    if (attr_val) {
+        status = mlnx_l2mc_group_oid_to_db_idx(attr_val->oid,
+                                               &bridge->flood_data.types[MLNX_FID_FLOOD_CTRL_ATTR_UC].l2mc_db_idx);
+        if (SAI_ERR(status)) {
+            goto out;
+        }
+    }
+
+    find_attrib_in_list(attr_count,
+                        attr_list,
+                        SAI_BRIDGE_ATTR_UNKNOWN_MULTICAST_FLOOD_CONTROL_TYPE,
+                        &attr_val,
+                        &attr_idx);
+    if (attr_val) {
+        bridge->flood_data.types[MLNX_FID_FLOOD_CTRL_ATTR_MC].type = mlnx_bridge_flood_type_to_fid_type(attr_val->s32);
+    }
+
+    find_attrib_in_list(attr_count, attr_list, SAI_BRIDGE_ATTR_UNKNOWN_MULTICAST_FLOOD_GROUP, &attr_val, &attr_idx);
+    if (attr_val) {
+        status = mlnx_l2mc_group_oid_to_db_idx(attr_val->oid,
+                                               &bridge->flood_data.types[MLNX_FID_FLOOD_CTRL_ATTR_MC].l2mc_db_idx);
+        if (SAI_ERR(status)) {
+            goto out;
+        }
+    }
+
+    find_attrib_in_list(attr_count, attr_list, SAI_BRIDGE_ATTR_BROADCAST_FLOOD_CONTROL_TYPE, &attr_val, &attr_idx);
+    if (attr_val) {
+        bridge->flood_data.types[MLNX_FID_FLOOD_CTRL_ATTR_BC].type = mlnx_bridge_flood_type_to_fid_type(attr_val->s32);
+    }
+
+    find_attrib_in_list(attr_count, attr_list, SAI_BRIDGE_ATTR_BROADCAST_FLOOD_GROUP, &attr_val, &attr_idx);
+    if (attr_val) {
+        status = mlnx_l2mc_group_oid_to_db_idx(attr_val->oid,
+                                               &bridge->flood_data.types[MLNX_FID_FLOOD_CTRL_ATTR_BC].l2mc_db_idx);
+        if (SAI_ERR(status)) {
+            goto out;
+        }
+    }
+
+    mlnx_fid_flood_ctrl_l2mc_group_refs_inc(&bridge->flood_data);
+
+    status = mlnx_create_bridge_object(SAI_BRIDGE_TYPE_1D, bridge_db_idx, bridge->sx_bridge_id, bridge_id);
     if (SAI_ERR(status)) {
         SX_LOG_ERR("Failed to create bridge oid\n");
         goto out;
@@ -1073,8 +1513,44 @@ static sai_status_t mlnx_create_bridge(_Out_ sai_object_id_t     * bridge_id,
     SX_LOG_NTC("Created %s\n", key_str);
 
 out:
+    sai_db_unlock();
     SX_LOG_EXIT();
     return status;
+}
+
+static sai_status_t mlnx_bridge_is_in_use(_In_ const mlnx_bridge_t *bridge, _Out_ bool               *is_in_use)
+{
+    mlnx_bridge_port_t *port;
+    uint32_t            ii, checked;
+    bool                has_ports = false;
+
+    assert(bridge);
+    assert(is_in_use);
+
+    *is_in_use = false;
+
+    mlnx_bridge_1q_port_foreach(port, ii) {
+        if (port->bridge_id == bridge->sx_bridge_id) {
+            has_ports = true;
+            break;
+        }
+    }
+
+    if (!has_ports) {
+        mlnx_bridge_non1q_port_foreach(port, ii, checked) {
+            if (port->bridge_id == bridge->sx_bridge_id) {
+                has_ports = true;
+                break;
+            }
+        }
+    }
+
+    if (has_ports) {
+        SX_LOG_ERR("Bridge sx %x has ports\n", bridge->sx_bridge_id);
+        *is_in_use = true;
+    }
+
+    return SAI_STATUS_SUCCESS;
 }
 
 /**
@@ -1086,57 +1562,54 @@ out:
  */
 static sai_status_t mlnx_remove_bridge(_In_ sai_object_id_t bridge_id)
 {
-    mlnx_object_id_t    mlnx_bridge_id = {0};
-    sx_bridge_id_t      sx_bridge_id;
-    bool                has_ports = false;
-    sx_status_t         sx_status;
-    sai_status_t        status;
-    mlnx_bridge_port_t *port;
-    uint32_t            ii, checked;
+    sx_status_t             sx_status;
+    sai_status_t            status;
+    mlnx_bridge_t          *bridge;
+    mlnx_shm_rm_array_idx_t idx;
+    bool                    is_in_use;
 
     SX_LOG_ENTER();
 
-    status = sai_to_mlnx_object_id(SAI_OBJECT_TYPE_BRIDGE, bridge_id, &mlnx_bridge_id);
-    if (SAI_ERR(status)) {
-        SX_LOG_EXIT();
-        return status;
-    }
-    sx_bridge_id = mlnx_bridge_id.id.bridge_id;
-
     sai_db_read_lock();
 
-    if (sx_bridge_id == mlnx_bridge_default_1q()) {
+    if (bridge_id == mlnx_bridge_default_1q_oid()) {
         SX_LOG_ERR("Could not remove default .1Q bridge\n");
         status = SAI_STATUS_INVALID_PARAMETER;
         goto out;
     }
 
-    mlnx_bridge_1q_port_foreach(port, ii) {
-        if (port->bridge_id == sx_bridge_id) {
-            has_ports = true;
-            break;
-        }
+    status = mlnx_bridge_1d_oid_to_data(bridge_id, &bridge, &idx);
+    if (SAI_ERR(status)) {
+        goto out;
     }
 
-    if (!has_ports) {
-        mlnx_bridge_non1q_port_foreach(port, ii, checked) {
-            if (port->bridge_id == sx_bridge_id) {
-                has_ports = true;
-                break;
-            }
-        }
+    status = mlnx_bridge_is_in_use(bridge, &is_in_use);
+    if (SAI_ERR(status)) {
+        goto out;
     }
 
-    if (has_ports) {
-        SX_LOG_ERR("Failed to remove bridge which has ports\n");
+    if (is_in_use) {
+        SX_LOG_ERR("Failed to remove bridge %lx - in use\n", bridge_id);
         status = SAI_STATUS_OBJECT_IN_USE;
         goto out;
     }
 
-    sx_status = sx_api_bridge_set(gh_sdk, SX_ACCESS_CMD_DESTROY, &sx_bridge_id);
+    status = mlnx_fid_flood_ctrl_clear(bridge->sx_bridge_id);
+    if (SAI_ERR(status)) {
+        goto out;
+    }
+
+    sx_status = sx_api_bridge_set(gh_sdk, SX_ACCESS_CMD_DESTROY, &bridge->sx_bridge_id);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to remove .1D bridge - %s\n", SX_STATUS_MSG(sx_status));
         status = sdk_to_sai(sx_status);
+        goto out;
+    }
+
+    mlnx_fid_flood_ctrl_l2mc_group_refs_dec(&bridge->flood_data);
+
+    status = mlnx_bridge_db_free(idx, bridge);
+    if (SAI_ERR(status)) {
         goto out;
     }
 
@@ -1435,7 +1908,6 @@ static sai_status_t mlnx_bridge_port_bridge_id_get(_In_ const sai_object_key_t  
                                                    _Inout_ vendor_cache_t        *cache,
                                                    void                          *arg)
 {
-    sai_bridge_type_t   br_type;
     sai_status_t        status;
     mlnx_bridge_port_t *port;
 
@@ -1449,12 +1921,11 @@ static sai_status_t mlnx_bridge_port_bridge_id_get(_In_ const sai_object_key_t  
 
     /* Just a trick as we do not allow to create .1Q bridge */
     if (port->bridge_id == mlnx_bridge_default_1q()) {
-        br_type = SAI_BRIDGE_TYPE_1Q;
-    } else {
-        br_type = SAI_BRIDGE_TYPE_1D;
+        value->oid = mlnx_bridge_default_1q_oid();
+        goto out;
     }
 
-    status = mlnx_create_bridge_object(br_type, port->bridge_id, &value->oid);
+    status = mlnx_create_bridge_1d_object(port->bridge_id, &value->oid);
 
 out:
     sai_db_unlock();
@@ -1486,8 +1957,8 @@ static sai_status_t mlnx_bridge_port_bridge_id_set(_In_ const sai_object_key_t  
         SX_LOG_ERR("Failed to convert bridge oid %" PRIx64 " to sx bridge id\n", value->oid);
         return status;
     }
-    sx_bridge_id = mlnx_bridge_id.id.bridge_id;
-    br_type      = mlnx_bridge_id.ext.bridge.type;
+    sx_bridge_id = mlnx_bridge_id.ext.bridge.sx_bridge_id;
+    br_type      = mlnx_bridge_id.field.sub_type;
 
     if (br_type != SAI_BRIDGE_TYPE_1D) {
         SX_LOG_ERR("Only .1D bridge is supported\n");
@@ -2086,6 +2557,7 @@ static sai_status_t mlnx_create_bridge_port(_Out_ sai_object_id_t     * bridge_p
     mlnx_bridge_port_t          *bridge_port    = NULL;
     mlnx_bridge_rif_t           *bridge_rif;
     sx_bridge_id_t               bridge_id;
+    mlnx_shm_rm_array_idx_t      bridge_rm_idx;
     sx_status_t                  sx_status;
     sx_ingr_filter_mode_t        sx_ingr_filter_mode;
     sx_port_log_id_t             log_port;
@@ -2130,7 +2602,7 @@ static sai_status_t mlnx_create_bridge_port(_Out_ sai_object_id_t     * bridge_p
             goto out;
         }
 
-        bridge_id = mlnx_bridge_id.id.bridge_id;
+        bridge_id = mlnx_bridge_id.ext.bridge.sx_bridge_id;
     } else {
         bridge_id = mlnx_bridge_default_1q();
     }
@@ -2281,6 +2753,17 @@ static sai_status_t mlnx_create_bridge_port(_Out_ sai_object_id_t     * bridge_p
         bridge_port->logical = vport_id;
         bridge_port->parent  = log_port;
         bridge_port->vlan_id = vlan_id;
+
+        status = mlnx_bridge_sx_to_db_idx(bridge_id, &bridge_rm_idx);
+        if (SAI_ERR(status)) {
+            goto out;
+        }
+
+        status = mlnx_fid_flood_ctrl_port_event_handle(bridge_id, &mlnx_bridge_1d_by_rm_idx(bridge_rm_idx)->flood_data,
+                                                       &bridge_port->logical, 1, MLNX_PORT_EVENT_ADD);
+        if (SAI_ERR(status)) {
+            goto out;
+        }
         break;
 
     case SAI_BRIDGE_PORT_TYPE_TUNNEL:
@@ -2420,6 +2903,11 @@ static bool mlnx_bridge_port_in_use_check(mlnx_bridge_port_t *port)
                    port->pbs_entry.ref_counter);
         return SAI_STATUS_OBJECT_IN_USE;
     }
+    if (port->l2mc_group_ref > 0) {
+        SX_LOG_ERR("Failed remove bridge port - is used as L2MC group member (%d refs)\n",
+                   port->l2mc_group_ref);
+        return SAI_STATUS_OBJECT_IN_USE;
+    }
 
     return SAI_STATUS_SUCCESS;
 }
@@ -2433,11 +2921,12 @@ static bool mlnx_bridge_port_in_use_check(mlnx_bridge_port_t *port)
  */
 static sai_status_t mlnx_remove_bridge_port(_In_ sai_object_id_t bridge_port_id)
 {
-    char                key_str[MAX_KEY_STR_LEN];
-    sx_status_t         sx_status;
-    sai_status_t        status;
-    mlnx_bridge_rif_t  *bridge_rif;
-    mlnx_bridge_port_t *port;
+    char                    key_str[MAX_KEY_STR_LEN];
+    sx_status_t             sx_status;
+    sai_status_t            status;
+    mlnx_shm_rm_array_idx_t bridge_rm_idx;
+    mlnx_bridge_rif_t      *bridge_rif;
+    mlnx_bridge_port_t     *port;
 
     SX_LOG_ENTER();
 
@@ -2499,6 +2988,20 @@ static sai_status_t mlnx_remove_bridge_port(_In_ sai_object_id_t bridge_port_id)
     if (SAI_ERR(status)) {
         SX_LOG_ERR("Failed to remove bridge port\n");
         goto out;
+    }
+
+    if (port->port_type == SAI_BRIDGE_PORT_TYPE_SUB_PORT) {
+        status = mlnx_bridge_sx_to_db_idx(port->bridge_id, &bridge_rm_idx);
+        if (SAI_ERR(status)) {
+            goto out;
+        }
+
+        status = mlnx_fid_flood_ctrl_port_event_handle(port->bridge_id,
+                                                       &mlnx_bridge_1d_by_rm_idx(bridge_rm_idx)->flood_data,
+                                                       &port->logical, 1, MLNX_PORT_EVENT_DELETE);
+        if (SAI_ERR(status)) {
+            goto out;
+        }
     }
 
 out:
@@ -2568,21 +3071,54 @@ sai_status_t mlnx_bridge_log_set(sx_verbosity_level_t level)
     }
 }
 
+/* Need to be guarded by lock */
+static sai_status_t mlnx_sdk_bridge_create(_Out_ sx_bridge_id_t *sx_bridge_id)
+{
+    sx_status_t      sx_status  = SX_STATUS_ERROR;
+    sai_status_t     sai_status = SAI_STATUS_FAILURE;
+    sx_vlan_attrib_t vlan_attrib_p;
+
+    SX_LOG_ENTER();
+
+    sx_status = sx_api_bridge_set(gh_sdk, SX_ACCESS_CMD_CREATE, sx_bridge_id);
+    if (SX_ERR(sx_status)) {
+        sai_status = sdk_to_sai(sx_status);
+        SX_LOG_ERR("Failed to create bridge - %s\n", SX_STATUS_MSG(sx_status));
+        SX_LOG_EXIT();
+        return sai_status;
+    }
+
+    memset(&vlan_attrib_p, 0, sizeof(vlan_attrib_p));
+    vlan_attrib_p.flood_to_router = true;
+
+    if (g_sai_db_ptr->g_fx_initialized) {
+        sx_status = sx_api_vlan_attrib_set(gh_sdk, *sx_bridge_id, &vlan_attrib_p);
+        if (SX_ERR(sx_status)) {
+            sai_status = sdk_to_sai(sx_status);
+            SX_LOG_ERR("Error setting vlan attribute for fid %d: %s\n",
+                       *sx_bridge_id, SX_STATUS_MSG(sx_status));
+            SX_LOG_EXIT();
+            return sai_status;
+        }
+    }
+
+    SX_LOG_EXIT();
+    return SAI_STATUS_SUCCESS;
+}
+
 sai_status_t mlnx_bridge_init(void)
 {
     mlnx_bridge_port_t *router_port;
     sx_bridge_id_t      bridge_id;
     mlnx_port_config_t *port;
-    sx_status_t         sx_status;
     sai_status_t        status;
     uint32_t            ii;
 
     sai_db_write_lock();
 
-    sx_status = sx_api_bridge_set(gh_sdk, SX_ACCESS_CMD_CREATE, &bridge_id);
-    if (SX_ERR(sx_status)) {
-        SX_LOG_ERR("Failed to create default .1Q bridge - %s\n", SX_STATUS_MSG(sx_status));
-        status = sdk_to_sai(sx_status);
+    status = mlnx_sdk_bridge_create(&bridge_id);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to create default .1Q bridge\n");
         goto out;
     }
 
@@ -2614,6 +3150,13 @@ sai_status_t mlnx_bridge_init(void)
 
     g_sai_db_ptr->sx_bridge_id = bridge_id;
 
+    status = mlnx_create_bridge_object(SAI_BRIDGE_TYPE_1Q, MLNX_SHM_RM_ARRAY_IDX_UNINITIALIZED,
+                                       bridge_id, &g_sai_db_ptr->default_1q_bridge_oid);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to create default .1Q bridge oid\n");
+        goto out;
+    }
+
 out:
     sai_db_unlock();
     return status;
@@ -2629,10 +3172,10 @@ out:
  *
  * @return #SAI_STATUS_SUCCESS on success, failure status code on error
  */
-static sai_status_t mlnx_get_bridge_stats(_In_ sai_object_id_t          bridge_id,
-                                          _In_ uint32_t                 number_of_counters,
-                                          _In_ const sai_bridge_stat_t *counter_ids,
-                                          _Out_ uint64_t               *counters)
+static sai_status_t mlnx_get_bridge_stats(_In_ sai_object_id_t      bridge_id,
+                                          _In_ uint32_t             number_of_counters,
+                                          _In_ const sai_stat_id_t *counter_ids,
+                                          _Out_ uint64_t           *counters)
 {
     return SAI_STATUS_NOT_IMPLEMENTED;
 }
@@ -2648,11 +3191,11 @@ static sai_status_t mlnx_get_bridge_stats(_In_ sai_object_id_t          bridge_i
  *
  * @return #SAI_STATUS_SUCCESS on success, failure status code on error
  */
-sai_status_t mlnx_get_bridge_stats_ext(_In_ sai_object_id_t          bridge_id,
-                                       _In_ uint32_t                 number_of_counters,
-                                       _In_ const sai_bridge_stat_t *counter_ids,
-                                       _In_ sai_stats_mode_t         mode,
-                                       _Out_ uint64_t               *counters)
+sai_status_t mlnx_get_bridge_stats_ext(_In_ sai_object_id_t      bridge_id,
+                                       _In_ uint32_t             number_of_counters,
+                                       _In_ const sai_stat_id_t *counter_ids,
+                                       _In_ sai_stats_mode_t     mode,
+                                       _Out_ uint64_t           *counters)
 {
     return SAI_STATUS_NOT_IMPLEMENTED;
 }
@@ -2666,9 +3209,9 @@ sai_status_t mlnx_get_bridge_stats_ext(_In_ sai_object_id_t          bridge_id,
  *
  * @return #SAI_STATUS_SUCCESS on success, failure status code on error
  */
-static sai_status_t mlnx_clear_bridge_stats(_In_ sai_object_id_t          bridge_id,
-                                            _In_ uint32_t                 number_of_counters,
-                                            _In_ const sai_bridge_stat_t *counter_ids)
+static sai_status_t mlnx_clear_bridge_stats(_In_ sai_object_id_t      bridge_id,
+                                            _In_ uint32_t             number_of_counters,
+                                            _In_ const sai_stat_id_t *counter_ids)
 {
     return SAI_STATUS_NOT_IMPLEMENTED;
 }
@@ -2684,11 +3227,11 @@ static sai_status_t mlnx_clear_bridge_stats(_In_ sai_object_id_t          bridge
  *
  * @return #SAI_STATUS_SUCCESS on success, failure status code on error
  */
-sai_status_t mlnx_get_bridge_port_stats_ext(_In_ sai_object_id_t               bridge_port_id,
-                                            _In_ uint32_t                      number_of_counters,
-                                            _In_ const sai_bridge_port_stat_t *counter_ids,
-                                            _In_ sai_stats_mode_t              mode,
-                                            _Out_ uint64_t                    *counters)
+sai_status_t mlnx_get_bridge_port_stats_ext(_In_ sai_object_id_t      bridge_port_id,
+                                            _In_ uint32_t             number_of_counters,
+                                            _In_ const sai_stat_id_t *counter_ids,
+                                            _In_ sai_stats_mode_t     mode,
+                                            _Out_ uint64_t           *counters)
 {
     sai_status_t            status;
     sx_status_t             sx_status;
@@ -2758,7 +3301,7 @@ sai_status_t mlnx_get_bridge_port_stats_ext(_In_ sai_object_id_t               b
             break;
 
         default:
-            SX_LOG_ERR("Unexptected type of counter - %d\n", counter_ids[ii]);
+            SX_LOG_ERR("Unexpected type of counter - %d\n", counter_ids[ii]);
             status = SAI_STATUS_INVALID_ATTRIBUTE_0 + ii;
             goto out;
         }
@@ -2771,21 +3314,25 @@ out:
 }
 
 /**
-* @brief Get bridge port statistics counters.
-*
-* @param[in] bridge_port_id Bridge port id
-* @param[in] number_of_counters Number of counters in the array
-* @param[in] counter_ids Specifies the array of counter ids
-* @param[out] counters Array of resulting counter values.
-*
-* @return #SAI_STATUS_SUCCESS on success, failure status code on error
-*/
-static sai_status_t mlnx_get_bridge_port_stats(_In_ sai_object_id_t               bridge_port_id,
-    _In_ uint32_t                      number_of_counters,
-    _In_ const sai_bridge_port_stat_t *counter_ids,
-    _Out_ uint64_t                    *counters)
+ * @brief Get bridge port statistics counters.
+ *
+ * @param[in] bridge_port_id Bridge port id
+ * @param[in] number_of_counters Number of counters in the array
+ * @param[in] counter_ids Specifies the array of counter ids
+ * @param[out] counters Array of resulting counter values.
+ *
+ * @return #SAI_STATUS_SUCCESS on success, failure status code on error
+ */
+static sai_status_t mlnx_get_bridge_port_stats(_In_ sai_object_id_t      bridge_port_id,
+                                               _In_ uint32_t             number_of_counters,
+                                               _In_ const sai_stat_id_t *counter_ids,
+                                               _Out_ uint64_t           *counters)
 {
-    return mlnx_get_bridge_port_stats_ext(bridge_port_id, number_of_counters, counter_ids, SAI_STATS_MODE_READ, counters);
+    return mlnx_get_bridge_port_stats_ext(bridge_port_id,
+                                          number_of_counters,
+                                          counter_ids,
+                                          SAI_STATS_MODE_READ,
+                                          counters);
 }
 
 /**
@@ -2797,9 +3344,9 @@ static sai_status_t mlnx_get_bridge_port_stats(_In_ sai_object_id_t             
  *
  * @return #SAI_STATUS_SUCCESS on success, failure status code on error
  */
-static sai_status_t mlnx_clear_bridge_port_stats(_In_ sai_object_id_t               bridge_port_id,
-                                                 _In_ uint32_t                      number_of_counters,
-                                                 _In_ const sai_bridge_port_stat_t *counter_ids)
+static sai_status_t mlnx_clear_bridge_port_stats(_In_ sai_object_id_t      bridge_port_id,
+                                                 _In_ uint32_t             number_of_counters,
+                                                 _In_ const sai_stat_id_t *counter_ids)
 {
     return SAI_STATUS_NOT_IMPLEMENTED;
 }

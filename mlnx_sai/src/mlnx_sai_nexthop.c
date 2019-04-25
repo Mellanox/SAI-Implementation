@@ -56,14 +56,14 @@ static const sai_vendor_attribute_entry_t next_hop_vendor_attribs[] = {
       NULL, NULL,
       NULL, NULL }
 };
-static const mlnx_attr_enum_info_t next_hop_enum_info[] = {
+static const mlnx_attr_enum_info_t        next_hop_enum_info[] = {
     [SAI_NEXT_HOP_ATTR_TYPE] = ATTR_ENUM_VALUES_LIST(
         SAI_NEXT_HOP_TYPE_IP,
         SAI_NEXT_HOP_TYPE_TUNNEL_ENCAP
-    ),
+        ),
 };
-const mlnx_obj_type_attrs_info_t mlnx_next_hop_obj_type_info =
-    { next_hop_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(next_hop_enum_info)};
+const mlnx_obj_type_attrs_info_t          mlnx_next_hop_obj_type_info =
+{ next_hop_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(next_hop_enum_info)};
 static void next_hop_key_to_str(_In_ sai_object_id_t next_hop_id, _Out_ char *key_str)
 {
     uint32_t nexthop_data;
@@ -192,7 +192,7 @@ static sai_status_t mlnx_translate_sai_next_hop_to_sdk(_In_ sai_next_hop_type_t 
 
         sai_db_read_lock();
 
-        if (!g_sai_db_ptr->tunnel_db[tunnel_idx].is_used) {
+        if (!g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_idx].is_used) {
             sai_db_unlock();
             SX_LOG_ERR("tunnel idx %d is not in use\n", tunnel_idx);
             SX_LOG_EXIT();
@@ -200,7 +200,7 @@ static sai_status_t mlnx_translate_sai_next_hop_to_sdk(_In_ sai_next_hop_type_t 
         }
 
         next_hop->next_hop_key.next_hop_key_entry.ip_tunnel.tunnel_id =
-            g_sai_db_ptr->tunnel_db[tunnel_idx].sx_tunnel_id_ipv4;
+            g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_idx].sx_tunnel_id_ipv4;
 
         sai_db_unlock();
 
@@ -370,7 +370,7 @@ static sai_status_t mlnx_create_next_hop(_Out_ sai_object_id_t      *next_hop_id
 
         sai_db_read_lock();
 
-        switch (g_sai_db_ptr->tunnel_db[tunnel_db_idx].sai_tunnel_type) {
+        switch (g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].sai_tunnel_type) {
         case SAI_TUNNEL_TYPE_IPINIP:
         case SAI_TUNNEL_TYPE_IPINIP_GRE:
             is_tunnel_ipinip = true;

@@ -130,6 +130,16 @@ typedef enum _sai_router_interface_attr_t
      */
     SAI_ROUTER_INTERFACE_ATTR_INNER_VLAN_ID,
 
+    /**
+     * @brief Associated 1D Bridge
+     *
+     * @type sai_object_id_t
+     * @flags MANDATORY_ON_CREATE | CREATE_ONLY
+     * @objects SAI_OBJECT_TYPE_BRIDGE
+     * @condition SAI_ROUTER_INTERFACE_ATTR_TYPE == SAI_ROUTER_INTERFACE_TYPE_BRIDGE
+     */
+    SAI_ROUTER_INTERFACE_ATTR_BRIDGE_ID,
+
     /* READ-WRITE */
 
     /**
@@ -240,6 +250,25 @@ typedef enum _sai_router_interface_attr_t
     SAI_ROUTER_INTERFACE_ATTR_LOOPBACK_PACKET_ACTION,
 
     /**
+     * @brief RIF creation is a virtual RIF.
+     *
+     * Create a Virtual RIF object, which only programs the ingress router MAC.
+     * This simplifies the management of VRRP master router's configuration in
+     * SAI adapter, as defined by RFC 5798 (or similar proprietary protocols).
+     * Using a Virtual RIF allows SAI to optimize resources, so neighbor entries
+     * cannot be learned on a Virtual RIF. On a virtual RIF following attributes
+     * are invalid: ADMIN state, MTU size, packet action and multicast enable.
+     * Alternatively VRRP can also be configured using native RIF objects without
+     * using VIRTUAL attribute, with the expectation that SAI adapter will consume
+     * resources that will not be used.
+     *
+     * @type bool
+     * @flags CREATE_ONLY
+     * @default false
+     */
+    SAI_ROUTER_INTERFACE_ATTR_IS_VIRTUAL,
+
+    /**
      * @brief End of attributes
      */
     SAI_ROUTER_INTERFACE_ATTR_END,
@@ -348,7 +377,7 @@ typedef sai_status_t (*sai_get_router_interface_attribute_fn)(
 typedef sai_status_t (*sai_get_router_interface_stats_fn)(
         _In_ sai_object_id_t router_interface_id,
         _In_ uint32_t number_of_counters,
-        _In_ const sai_router_interface_stat_t *counter_ids,
+        _In_ const sai_stat_id_t *counter_ids,
         _Out_ uint64_t *counters);
 
 /**
@@ -365,7 +394,7 @@ typedef sai_status_t (*sai_get_router_interface_stats_fn)(
 typedef sai_status_t (*sai_get_router_interface_stats_ext_fn)(
         _In_ sai_object_id_t router_interface_id,
         _In_ uint32_t number_of_counters,
-        _In_ const sai_router_interface_stat_t *counter_ids,
+        _In_ const sai_stat_id_t *counter_ids,
         _In_ sai_stats_mode_t mode,
         _Out_ uint64_t *counters);
 
@@ -381,7 +410,7 @@ typedef sai_status_t (*sai_get_router_interface_stats_ext_fn)(
 typedef sai_status_t (*sai_clear_router_interface_stats_fn)(
         _In_ sai_object_id_t router_interface_id,
         _In_ uint32_t number_of_counters,
-        _In_ const sai_router_interface_stat_t *counter_ids);
+        _In_ const sai_stat_id_t *counter_ids);
 
 /**
  * @brief Routing interface methods table retrieved with sai_api_query()
