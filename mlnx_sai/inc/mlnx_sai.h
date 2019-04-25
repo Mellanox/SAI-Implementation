@@ -427,6 +427,9 @@ typedef struct _mlnx_rif_db_t {
     mlnx_rif_sx_data_t   sx_data;
 } mlnx_rif_db_t;
 
+sai_status_t mlnx_bmtor_rif_event_add(_In_ sx_router_interface_t sx_rif);
+sai_status_t mlnx_bmtor_rif_event_del(_In_ sx_router_interface_t sx_rif);
+
 /* This DB structure is for the special type of router interface - bridge router interface,
  * if in case it will be needed to store any kind of RIF in the DB then it is better to rename
  * it to the mlnx_rif_t and use it */
@@ -894,6 +897,8 @@ sai_status_t mlnx_translate_sdk_trap_to_sai(_In_ sx_trap_id_t             sdk_tr
                                             _Out_ sai_hostif_trap_type_t *trap_id,
                                             _Out_ const char            **trap_name,
                                             _Out_ mlnx_trap_type_t       *trap_type);
+sai_status_t mlnx_translate_sai_trap_to_sdk(_In_ sai_object_id_t  trap_oid,
+                                            _Out_ sx_trap_id_t   *sx_trap_id);
 
 #define MAX_SDK_TRAPS_PER_SAI_TRAP 6
 typedef struct _mlnx_trap_info_t {
@@ -1736,13 +1741,15 @@ typedef struct _mlnx_samplepacket_t {
 #define MLNX_TUNNELTABLE_SIZE         256
 #define MLNX_TUNNEL_MAP_LIST_MAX      50
 #define MLNX_TUNNEL_MAP_MIN           0
-#define MLNX_TUNNEL_MAP_MAX           8
+#define MLNX_TUNNEL_MAP_MAX           10
 #define MLNX_TUNNEL_MAP_ENTRY_INVALID 0
 #define MLNX_TUNNEL_MAP_ENTRY_MIN     1
 /* SONiC requires 8000 tunnel map entries */
 #define MLNX_TUNNEL_MAP_ENTRY_MAX     8001
 #define MLNX_TUNNEL_TO_TUNNEL_MAP_MAX 1000
+#define MAX_IPINIP_TUNNEL             256 
 #define MAX_VXLAN_TUNNEL              1
+#define MAX_TUNNEL                    257
 
 typedef struct _mlnx_tunneltable_t {
     bool                        in_use;
@@ -1776,12 +1783,17 @@ typedef struct _tunnel_map_t {
     bool                  in_use;
     sai_tunnel_map_type_t tunnel_map_type;
     uint32_t              tunnel_cnt;
-    uint32_t              vxlan_tunnel_cnt;
-    uint32_t              vxlan_tunnel_idx[MAX_VXLAN_TUNNEL];
+    uint32_t              tunnel_idx[MAX_TUNNEL];
     uint32_t              tunnel_map_entry_cnt;
     uint32_t              tunnel_map_entry_head_idx;
     uint32_t              tunnel_map_entry_tail_idx;
 } mlnx_tunnel_map_t;
+
+typedef struct _tunnel_map_entry_pair_info_t {
+    bool     pair_exist;
+    bool     pair_already_bound_to_tunnel;
+    uint32_t pair_tunnel_map_entry_idx;
+} tunnel_map_entry_pair_info_t;
 
 typedef struct _tunnel_map_entry_t {
     bool                  in_use;
@@ -1799,6 +1811,8 @@ typedef struct _tunnel_map_entry_t {
     sai_object_id_t       bridge_id_value;
     uint32_t              prev_tunnel_map_entry_idx;
     uint32_t              next_tunnel_map_entry_idx;
+    /* only used for bridge to vni and vni to bridge type */
+    tunnel_map_entry_pair_info_t pair_per_vxlan_array[MAX_VXLAN_TUNNEL];
 } mlnx_tunnel_map_entry_t;
 
 typedef enum _nve_tunnel_type_t {
@@ -1966,6 +1980,7 @@ typedef struct sai_db {
     bool                              crc_check_enable;
     bool                              crc_recalc_enable;
     mlnx_platform_type_t              platform_type;
+    bool                              g_fx_initialized;
     mlnx_mirror_vlan_t                erspan_vlan_header[SPAN_SESSION_MAX];
     mlnx_l2mc_group_t                 l2mc_groups[MLNX_L2MC_GROUP_DB_SIZE];
     mlnx_shm_rm_array_info_t          array_info[MLNX_SHM_RM_ARRAY_TYPE_SIZE];
@@ -2307,6 +2322,8 @@ sai_status_t mlnx_acl_psort_thread_resume(void);
 sai_status_t mlnx_port_cb_table_init(void);
 sai_status_t mlnx_acl_cb_table_init(void);
 
+sai_status_t mlnx_sai_tunnel_to_sx_tunnel_id(_In_ sai_object_id_t  sai_tunnel_id,
+                                                    _Out_ sx_tunnel_id_t *sx_tunnel_id);
 #define LINE_LENGTH 120
 
 void SAI_dump_acl(_In_ FILE *file);

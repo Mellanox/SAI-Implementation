@@ -3977,11 +3977,11 @@ out:
     return sai_status;
 }
 
-sai_status_t mlnx_sai_get_buffer_pool_stats_ext(_In_ sai_object_id_t               buffer_pool_id,
-                                                _In_ uint32_t                      number_of_counters,
-                                                _In_ const sai_stat_id_t          *counter_ids,
-                                                _In_ sai_stats_mode_t              mode,
-                                                _Out_ uint64_t                    *counters)
+sai_status_t mlnx_sai_get_buffer_pool_stats_ext(_In_ sai_object_id_t      buffer_pool_id,
+                                                _In_ uint32_t             number_of_counters,
+                                                _In_ const sai_stat_id_t *counter_ids,
+                                                _In_ sai_stats_mode_t     mode,
+                                                _Out_ uint64_t           *counters)
 {
     sai_status_t                       sai_status;
     sx_cos_pool_occupancy_statistics_t occupancy_stats;
@@ -4068,17 +4068,17 @@ sai_status_t mlnx_sai_get_buffer_pool_stats_ext(_In_ sai_object_id_t            
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_sai_get_buffer_pool_stats(_In_ sai_object_id_t                pool_id,
-                                            _In_ uint32_t                       number_of_counters,
-                                            _In_ const sai_stat_id_t          * counter_ids,
-                                            _Out_ uint64_t                    * counters)
+sai_status_t mlnx_sai_get_buffer_pool_stats(_In_ sai_object_id_t       pool_id,
+                                            _In_ uint32_t              number_of_counters,
+                                            _In_ const sai_stat_id_t * counter_ids,
+                                            _Out_ uint64_t           * counters)
 {
     return mlnx_sai_get_buffer_pool_stats_ext(pool_id, number_of_counters, counter_ids, SAI_STATS_MODE_READ, counters);
 }
 
-sai_status_t mlnx_clear_buffer_pool_stats(_In_ sai_object_id_t               pool_id,
-                                          _In_ uint32_t                      number_of_counters,
-                                          _In_ const sai_stat_id_t          *counter_ids)
+sai_status_t mlnx_clear_buffer_pool_stats(_In_ sai_object_id_t      pool_id,
+                                          _In_ uint32_t             number_of_counters,
+                                          _In_ const sai_stat_id_t *counter_ids)
 {
     sai_status_t                       sai_status;
     sx_cos_pool_occupancy_statistics_t occupancy_stats;
@@ -4119,12 +4119,11 @@ sai_status_t mlnx_clear_buffer_pool_stats(_In_ sai_object_id_t               poo
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_sai_get_ingress_priority_group_stats_ext(
-    _In_ sai_object_id_t                          ingress_priority_group_id,
-    _In_ uint32_t                                 number_of_counters,
-    _In_ const sai_stat_id_t                     *counter_ids,
-    _In_ sai_stats_mode_t                         mode,
-    _Out_ uint64_t                               *counters)
+sai_status_t mlnx_sai_get_ingress_priority_group_stats_ext(_In_ sai_object_id_t      ingress_priority_group_id,
+                                                           _In_ uint32_t             number_of_counters,
+                                                           _In_ const sai_stat_id_t *counter_ids,
+                                                           _In_ sai_stats_mode_t     mode,
+                                                           _Out_ uint64_t           *counters)
 {
     sai_status_t                     sai_status;
     uint32_t                         db_port_index, pg_ind, buff_ind;
@@ -4302,10 +4301,10 @@ sai_status_t mlnx_sai_get_ingress_priority_group_stats_ext(
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_sai_get_ingress_priority_group_stats(_In_ sai_object_id_t                           ingress_pg_id,
-                                                       _In_ uint32_t                                  number_of_counters,
-                                                       _In_ const sai_stat_id_t                     * counter_ids,
-                                                       _Out_ uint64_t                               * counters)
+sai_status_t mlnx_sai_get_ingress_priority_group_stats(_In_ sai_object_id_t       ingress_pg_id,
+                                                       _In_ uint32_t              number_of_counters,
+                                                       _In_ const sai_stat_id_t * counter_ids,
+                                                       _Out_ uint64_t           * counters)
 {
     return mlnx_sai_get_ingress_priority_group_stats_ext(ingress_pg_id,
                                                          number_of_counters,
@@ -4314,10 +4313,9 @@ sai_status_t mlnx_sai_get_ingress_priority_group_stats(_In_ sai_object_id_t     
                                                          counters);
 }
 
-static sai_status_t mlnx_sai_clear_ingress_priority_group_stats(
-    _In_ sai_object_id_t                          ingress_pg_id,
-    _In_ uint32_t                                 number_of_counters,
-    _In_ const sai_stat_id_t                     *counter_ids)
+static sai_status_t mlnx_sai_clear_ingress_priority_group_stats(_In_ sai_object_id_t      ingress_pg_id,
+                                                                _In_ uint32_t             number_of_counters,
+                                                                _In_ const sai_stat_id_t *counter_ids)
 {
     sai_status_t                     sai_status;
     sx_port_statistic_usage_params_t stats_usage;

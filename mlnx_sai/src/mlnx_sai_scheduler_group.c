@@ -156,8 +156,7 @@ static sai_status_t ets_lookup(sx_cos_ets_element_config_t  *ets_list,
     return SAI_STATUS_ITEM_NOT_FOUND;
 }
 
-static void queue_to_sched_obj(_In_ const mlnx_qos_queue_config_t *queue,
-                               _Out_ mlnx_sched_obj_t             *obj)
+static void queue_to_sched_obj(_In_ const mlnx_qos_queue_config_t *queue, _Out_ mlnx_sched_obj_t             *obj)
 {
     assert(obj != NULL);
     assert(queue != NULL);

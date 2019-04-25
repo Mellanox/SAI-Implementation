@@ -45,10 +45,10 @@
 
 #define SDK_START_CMD_STR_LEN 255
 
-#define SAI_KEY_IPV4_ROUTE_TABLE_SIZE     "SAI_IPV4_ROUTE_TABLE_SIZE"
-#define SAI_KEY_IPV6_ROUTE_TABLE_SIZE     "SAI_IPV6_ROUTE_TABLE_SIZE"
-#define SAI_KEY_IPV4_NEIGHBOR_TABLE_SIZE  "SAI_IPV4_NEIGHBOR_TABLE_SIZE"
-#define SAI_KEY_IPV6_NEIGHBOR_TABLE_SIZE  "SAI_IPV6_NEIGHBOR_TABLE_SIZE"
+#define SAI_KEY_IPV4_ROUTE_TABLE_SIZE    "SAI_IPV4_ROUTE_TABLE_SIZE"
+#define SAI_KEY_IPV6_ROUTE_TABLE_SIZE    "SAI_IPV6_ROUTE_TABLE_SIZE"
+#define SAI_KEY_IPV4_NEIGHBOR_TABLE_SIZE "SAI_IPV4_NEIGHBOR_TABLE_SIZE"
+#define SAI_KEY_IPV6_NEIGHBOR_TABLE_SIZE "SAI_IPV6_NEIGHBOR_TABLE_SIZE"
 
 typedef struct _sai_switch_notification_t {
     sai_switch_state_change_notification_fn     on_switch_state_change;
@@ -92,11 +92,11 @@ sx_log_cb_t sai_log_cb = NULL;
 
 #define MLNX_SHM_RM_ARRAY_CANARY_BASE ((mlnx_shm_array_canary_t)(0x0EC0))
 #define MLNX_SHM_RM_ARRAY_CANARY(type) \
-                                                        ((mlnx_shm_array_canary_t)MLNX_SHM_RM_ARRAY_CANARY_BASE + \
-                                                         (type))
+    ((mlnx_shm_array_canary_t)MLNX_SHM_RM_ARRAY_CANARY_BASE + \
+     (type))
 #define MLNX_SHM_RM_ARRAY_TYPE_IS_VALID(type) \
-                                                        ((MLNX_SHM_RM_ARRAY_TYPE_MIN <= (type)) && \
-                                                         ((type) <= MLNX_SHM_RM_ARRAY_TYPE_MAX))
+    ((MLNX_SHM_RM_ARRAY_TYPE_MIN <= (type)) && \
+     ((type) <= MLNX_SHM_RM_ARRAY_TYPE_MAX))
 #define MLNX_SHM_RM_ARRAY_HDR_IS_VALID(type, array_hdr) ((array_hdr)->canary == MLNX_SHM_RM_ARRAY_CANARY(type))
 #define MLNX_SHM_RM_ARRAY_BASE_PTR ((uint8_t*)g_sai_db_ptr->array_info + sizeof(g_sai_db_ptr->array_info))
 
@@ -1312,7 +1312,7 @@ static struct sx_pci_profile pci_profile_single_eth_spectrum = {
     },
     .dev_id = SX_DEVICE_ID
 };
-struct sx_pci_profile pci_profile_single_eth_spectrum2 = {
+struct sx_pci_profile        pci_profile_single_eth_spectrum2 = {
     /*profile enum*/
     .pci_profile = PCI_PROFILE_EN_SINGLE_SWID,
     /*tx_prof: <swid,etclass> -> <stclass,sdq> */
@@ -1523,15 +1523,15 @@ static struct ku_profile single_part_eth_device_profile_spectrum = {
     .set_mask_0_63              = 0x70073ff, /* bit 9 and bits 10-11 are turned off*/
     .set_mask_64_127            = 0,
     .max_vepa_channels          = 0,
-    .max_lag                    = 64, /* 600,/ *TODO: PRM should define this field* / */
-    .max_port_per_lag           = 32, /*TODO: PRM should define this field*/
-    .max_mid                    = 7000,
+    .max_lag                    = 0, /* 600,/ *TODO: PRM should define this field* / */
+    .max_port_per_lag           = 0, /*TODO: PRM should define this field*/
+    .max_mid                    = 0,
     .max_pgt                    = 0,
-    .max_system_port            = 64, /*TODO: PRM IS NOT UPDATED*/
-    .max_active_vlans           = 127,
-    .max_regions                = 400,
-    .max_flood_tables           = 2,
-    .max_per_vid_flood_tables   = 1,
+    .max_system_port            = 0, /*TODO: PRM IS NOT UPDATED*/
+    .max_active_vlans           = 0,
+    .max_regions                = 0,
+    .max_flood_tables           = 0,
+    .max_per_vid_flood_tables   = 0,
     .flood_mode                 = 3,
     .max_ib_mc                  = 0,
     .max_pkey                   = 0,
@@ -1576,9 +1576,9 @@ static struct ku_profile single_part_eth_device_profile_spectrum = {
 
     .chip_type = SXD_CHIP_TYPE_SPECTRUM,
 };
-struct ku_profile single_part_eth_device_profile_spectrum2 = {
-    .dev_id        = SX_DEVICE_ID,
-    .set_mask_0_63 = 0,                 /* All bits are set during the init as follows:
+struct ku_profile        single_part_eth_device_profile_spectrum2 = {
+    .dev_id                     = SX_DEVICE_ID,
+    .set_mask_0_63              = 0,    /* All bits are set during the init as follows:
                                          * bits 0-2   - reserved;
                                          * bit 3      - disabled (max_mid);
                                          * bits 4-7   - reserved;
@@ -1591,28 +1591,28 @@ struct ku_profile single_part_eth_device_profile_spectrum2 = {
                                          * bits 23-31 - reserved;
                                          * bit 32     - enabled (set cqe_version);
                                          * bits 33-63 - reserved; */
-    .set_mask_64_127 = 0,               /* reserved */
-    .max_vepa_channels = 0,             /* reserved */
-    .max_lag = 0,                       /* reserved */
-    .max_port_per_lag = 0,              /* reserved */
-    .max_mid = 0,                       /* value is calculated during init with RM values */
-    .max_pgt = 0,                       /* reserved */
-    .max_system_port = 0,               /* reserved */
-    .max_active_vlans = 0,              /* reserved */
-    .max_regions = 0,                   /* reserved */
-    .max_flood_tables = 0,
-    .max_per_vid_flood_tables = 0,
-    .flood_mode = 4,
-    .max_ib_mc = 0,                     /* reserved */
-    .max_pkey = 0,                      /* reserved */
-    .ar_sec = 0,                        /* reserved */
+    .set_mask_64_127            = 0,    /* reserved */
+    .max_vepa_channels          = 0,    /* reserved */
+    .max_lag                    = 0,    /* reserved */
+    .max_port_per_lag           = 0,    /* reserved */
+    .max_mid                    = 0,    /* value is calculated during init with RM values */
+    .max_pgt                    = 0,    /* reserved */
+    .max_system_port            = 0,    /* reserved */
+    .max_active_vlans           = 0,    /* reserved */
+    .max_regions                = 0,    /* reserved */
+    .max_flood_tables           = 0,
+    .max_per_vid_flood_tables   = 0,
+    .flood_mode                 = 4,
+    .max_ib_mc                  = 0,    /* reserved */
+    .max_pkey                   = 0,    /* reserved */
+    .ar_sec                     = 0,    /* reserved */
     .adaptive_routing_group_cap = 0,    /* reserved */
-    .arn = 0,                           /* reserved */
-    //.ubridge_mode = 0,                  /* reserved */
-    //.kvd_linear_size = 0,               /* reserved */
+    .arn                        = 0,    /* reserved */
+    /* .ubridge_mode = 0,                  / * reserved * / */
+    /* .kvd_linear_size = 0,               / * reserved * / */
     .kvd_hash_single_size = 0,          /* reserved */
     .kvd_hash_double_size = 0,          /* reserved */
-    .swid0_config_type = {
+    .swid0_config_type    = {
         .mask = 1,
         .type = KU_SWID_TYPE_ETHERNET
     },
@@ -2109,7 +2109,7 @@ static sai_status_t mlnx_sdk_start(mlnx_sai_boot_type_t boot_type)
 
 static sai_status_t mlnx_chassis_mng_stage(mlnx_sai_boot_type_t boot_type,
                                            bool                 transaction_mode_enable,
-                                           sx_api_profile_t     *ku_profile)
+                                           sx_api_profile_t    *ku_profile)
 {
     sx_status_t           status;
     sx_api_sx_sdk_init_t  sdk_init_params;
@@ -2170,11 +2170,11 @@ static sai_status_t mlnx_chassis_mng_stage(mlnx_sai_boot_type_t boot_type,
         sdk_init_params.acl_params.max_acl_egress_groups  = ACL_MAX_SX_EGR_GROUP_NUMBER;
     }
 
-    sdk_init_params.acl_params.min_acl_rules   = 0;
-    sdk_init_params.acl_params.max_acl_rules   = ACL_MAX_SX_RULES_NUMBER;
-    // TODO : Change to parallel after bmtor fix
-    sdk_init_params.acl_params.acl_search_type = mlnx_chip_is_spc2() ?
-                SX_API_ACL_SEARCH_TYPE_SERIAL : SX_API_ACL_SEARCH_TYPE_SERIAL;
+    sdk_init_params.acl_params.min_acl_rules = 0;
+    sdk_init_params.acl_params.max_acl_rules = ACL_MAX_SX_RULES_NUMBER;
+    /* TODO : Change to parallel after bmtor fix */
+    sdk_init_params.acl_params.acl_search_type = SX_API_ACL_SEARCH_TYPE_SERIAL; /* mlnx_chip_is_spc2() ? */
+    /* SX_API_ACL_SEARCH_TYPE_SERIAL : SX_API_ACL_SEARCH_TYPE_SERIAL; */
 
     sdk_init_params.bridge_init_params.sdk_mode                                          = SX_MODE_HYBRID;
     sdk_init_params.bridge_init_params.sdk_mode_params.mode_1D.max_bridge_num            = MAX_BRIDGES_1D;
@@ -2425,7 +2425,8 @@ static sai_status_t mlnx_config_platform_parse(_In_ const char *platform)
     case MLNX_PLATFORM_TYPE_2700:
     case MLNX_PLATFORM_TYPE_2740:
         if (mlnx_chip_is_spc2()) {
-            MLNX_SAI_LOG_ERR("Failed to parse platform xml config: platform is %d (SPC1) but chip type is SPC2\n", platform_type);
+            MLNX_SAI_LOG_ERR("Failed to parse platform xml config: platform is %d (SPC1) but chip type is SPC2\n",
+                             platform_type);
             return SAI_STATUS_FAILURE;
         }
         break;
@@ -2434,7 +2435,8 @@ static sai_status_t mlnx_config_platform_parse(_In_ const char *platform)
     case MLNX_PLATFORM_TYPE_3700:
     case MLNX_PLATFORM_TYPE_3800:
         if (!mlnx_chip_is_spc2()) {
-            MLNX_SAI_LOG_ERR("Failed to parse platform xml config: platform is %d (SPC2) but chip type is not SPC2\n", platform_type);
+            MLNX_SAI_LOG_ERR("Failed to parse platform xml config: platform is %d (SPC2) but chip type is not SPC2\n",
+                             platform_type);
             return SAI_STATUS_FAILURE;
         }
         break;
@@ -2466,7 +2468,7 @@ static sai_status_t parse_elements(xmlDoc *doc, xmlNode * a_node)
                 return SAI_STATUS_FAILURE;
             }
 
-            status = mlnx_config_platform_parse((const char*) key);
+            status = mlnx_config_platform_parse((const char*)key);
             if (SAI_ERR(status)) {
                 xmlFree(key);
                 return SAI_STATUS_FAILURE;
@@ -2492,7 +2494,7 @@ static sai_status_t parse_elements(xmlDoc *doc, xmlNode * a_node)
                 MLNX_SAI_LOG_ERR("Error parsing device mac address\n");
                 return SAI_STATUS_FAILURE;
             }
-            if (base_mac_addr->ether_addr_octet[5] & (~ mlnx_port_mac_mask_get())) {
+            if (base_mac_addr->ether_addr_octet[5] & (~mlnx_port_mac_mask_get())) {
                 MLNX_SAI_LOG_ERR("Device mac address must be aligned by %u %02x\n",
                                  mlnx_port_mac_mask_get(), base_mac_addr->ether_addr_octet[5]);
                 return SAI_STATUS_FAILURE;
@@ -2624,6 +2626,7 @@ static void sai_db_values_init()
     g_sai_db_ptr->restart_warm            = false;
     g_sai_db_ptr->warm_recover            = false;
     g_sai_db_ptr->issu_end_called         = false;
+    g_sai_db_ptr->g_fx_initialized        = false;
     g_sai_db_ptr->boot_type               = 0;
     g_sai_db_ptr->acl_divider             = 1;
 
@@ -3021,7 +3024,7 @@ uint32_t mlnx_shm_rm_array_size_get(_In_ mlnx_shm_rm_array_type_t type)
         return 0;
     }
 
-    return (uint32_t) g_sai_db_ptr->array_info[type].elem_count;
+    return (uint32_t)g_sai_db_ptr->array_info[type].elem_count;
 }
 
 static sai_status_t mlnx_dvs_mng_stage(mlnx_sai_boot_type_t boot_type, sai_object_id_t switch_id)
@@ -3131,7 +3134,7 @@ static sai_status_t mlnx_dvs_mng_stage(mlnx_sai_boot_type_t boot_type, sai_objec
     for (ii = 0; ii < MAX_PORTS; ii++) {
         port          = mlnx_port_by_local_id(port_attributes_p[ii].port_mapping.local_port);
         port->logical = port_attributes_p[ii].log_port;
-        status = mlnx_create_object(SAI_OBJECT_TYPE_PORT, port->logical, NULL, &port->saiport);
+        status        = mlnx_create_object(SAI_OBJECT_TYPE_PORT, port->logical, NULL, &port->saiport);
         if (SAI_ERR(status)) {
             goto out;
         }
@@ -3191,8 +3194,8 @@ static sai_status_t mlnx_dvs_mng_stage(mlnx_sai_boot_type_t boot_type, sai_objec
         }
 
         port_mapping[ports_to_map].mapping_mode = SX_PORT_MAPPING_MODE_DISABLE;
-        port_mapping[ports_to_map].local_port = g_sai_db_ptr->ports_db[ii].port_map.local_port;
-        log_ports[ports_to_map] = g_sai_db_ptr->ports_db[ii].logical;
+        port_mapping[ports_to_map].local_port   = g_sai_db_ptr->ports_db[ii].port_map.local_port;
+        log_ports[ports_to_map]                 = g_sai_db_ptr->ports_db[ii].logical;
         ports_to_map++;
     }
 
@@ -3374,18 +3377,21 @@ static sai_status_t mlnx_switch_parse_fdb_event(uint8_t                         
     mlnx_object_id_to_sai(SAI_OBJECT_TYPE_SWITCH, &mlnx_switch_id, &switch_id);
 
     for (from_index = 0; from_index < packet->records_num; from_index++) {
-        SX_LOG_INF("FDB event received [%u/%u, %u] vlan: %4u ; mac: %02x:%02x:%02x:%02x:%02x:%02x ; log_port: (0x%08X) ; type: %s(%d)\n",
-                   from_index+1, packet->records_num, to_index+1,
-                   packet->records_arr[from_index].fid,
-                   packet->records_arr[from_index].mac_addr.ether_addr_octet[0],
-                   packet->records_arr[from_index].mac_addr.ether_addr_octet[1],
-                   packet->records_arr[from_index].mac_addr.ether_addr_octet[2],
-                   packet->records_arr[from_index].mac_addr.ether_addr_octet[3],
-                   packet->records_arr[from_index].mac_addr.ether_addr_octet[4],
-                   packet->records_arr[from_index].mac_addr.ether_addr_octet[5],
-                   packet->records_arr[from_index].log_port,
-                   SX_FDB_NOTIFY_TYPE_STR(packet->records_arr[from_index].type),
-                   packet->records_arr[from_index].type);
+        SX_LOG_INF(
+            "FDB event received [%u/%u, %u] vlan: %4u ; mac: %02x:%02x:%02x:%02x:%02x:%02x ; log_port: (0x%08X) ; type: %s(%d)\n",
+            from_index + 1,
+            packet->records_num,
+            to_index + 1,
+            packet->records_arr[from_index].fid,
+            packet->records_arr[from_index].mac_addr.ether_addr_octet[0],
+            packet->records_arr[from_index].mac_addr.ether_addr_octet[1],
+            packet->records_arr[from_index].mac_addr.ether_addr_octet[2],
+            packet->records_arr[from_index].mac_addr.ether_addr_octet[3],
+            packet->records_arr[from_index].mac_addr.ether_addr_octet[4],
+            packet->records_arr[from_index].mac_addr.ether_addr_octet[5],
+            packet->records_arr[from_index].log_port,
+            SX_FDB_NOTIFY_TYPE_STR(packet->records_arr[from_index].type),
+            packet->records_arr[from_index].type);
 
         port_id = SAI_NULL_OBJECT_ID;
         sx_fid  = 0;
@@ -3433,9 +3439,9 @@ static sai_status_t mlnx_switch_parse_fdb_event(uint8_t                         
             break;
 
         default:
-            SX_LOG_ERR("Unexpected record [%u/%u, %u] type %d %s\n", 
+            SX_LOG_ERR("Unexpected record [%u/%u, %u] type %d %s\n",
                        from_index + 1, packet->records_num, to_index + 1,
-                       packet->records_arr[from_index].type, 
+                       packet->records_arr[from_index].type,
                        SX_FDB_NOTIFY_TYPE_STR(packet->records_arr[from_index].type));
             continue;
         }
@@ -3451,8 +3457,8 @@ static sai_status_t mlnx_switch_parse_fdb_event(uint8_t                         
              */
             status = mlnx_log_port_to_sai_bridge_port_soft(packet->records_arr[from_index].log_port, &port_id);
             if (SAI_ERR(status)) {
-                SX_LOG_INF("FDB event [%u/%u, %u] without matching bridge port %x\n", 
-                           from_index + 1, packet->records_num, to_index + 1, 
+                SX_LOG_INF("FDB event [%u/%u, %u] without matching bridge port %x\n",
+                           from_index + 1, packet->records_num, to_index + 1,
                            packet->records_arr[from_index].log_port);
                 continue;
             }
@@ -3462,14 +3468,14 @@ static sai_status_t mlnx_switch_parse_fdb_event(uint8_t                         
             if (packet->records_arr[from_index].fid < MIN_SX_BRIDGE_ID) {
                 status = mlnx_vlan_oid_create(sx_fid, &fdb_events[to_index].fdb_entry.bv_id);
                 if (SAI_ERR(status)) {
-                    SX_LOG_ERR("Failed to convert sx fid to bv_id [%u/%u, %u]\n", 
+                    SX_LOG_ERR("Failed to convert sx fid to bv_id [%u/%u, %u]\n",
                                from_index + 1, packet->records_num, to_index + 1);
                     continue;
                 }
             } else {
                 status = mlnx_create_bridge_1d_object(sx_fid, &fdb_events[to_index].fdb_entry.bv_id);
                 if (SAI_ERR(status)) {
-                    SX_LOG_ERR("Failed to convert sx fid to bv_id [%u/%u, %u]\n", 
+                    SX_LOG_ERR("Failed to convert sx fid to bv_id [%u/%u, %u]\n",
                                from_index + 1, packet->records_num, to_index + 1);
                     continue;
                 }
@@ -4078,7 +4084,8 @@ static uint32_t sai_acl_db_size_get()
             sizeof(acl_setting_tbl_t) +
             sizeof(acl_pbs_map_entry_t) * (ACL_PBS_MAP_PREDEF_REG_SIZE + g_sai_acl_db_pbs_map_size) +
             (sizeof(acl_bind_points_db_t) + sizeof(acl_bind_point_t) * ACL_RIF_COUNT) +
-            (sizeof(acl_group_db_t) + sizeof(acl_group_member_t) * ACL_GROUP_SIZE) * (ACL_GROUP_NUMBER / g_sai_db_ptr->acl_divider) +
+            (sizeof(acl_group_db_t) + sizeof(acl_group_member_t) *
+             ACL_GROUP_SIZE) * (ACL_GROUP_NUMBER / g_sai_db_ptr->acl_divider) +
             sizeof(acl_vlan_group_t) * ACL_VLAN_GROUP_COUNT) +
            ((sizeof(acl_group_bound_to_t) + (sizeof(acl_bind_point_index_t) * SAI_ACL_MAX_BIND_POINT_BOUND))
             * ACL_GROUP_NUMBER / g_sai_db_ptr->acl_divider) +
@@ -4115,7 +4122,8 @@ static void sai_acl_db_init()
 
     g_sai_acl_db_ptr->acl_vlan_groups_db = (acl_vlan_group_t*)((uint8_t*)g_sai_acl_db_ptr->acl_groups_db +
                                                                (sizeof(acl_group_db_t) + sizeof(acl_group_member_t) *
-                                                                ACL_GROUP_SIZE) * ACL_GROUP_NUMBER / g_sai_db_ptr->acl_divider);
+                                                                ACL_GROUP_SIZE) * ACL_GROUP_NUMBER /
+                                                               g_sai_db_ptr->acl_divider);
 
     g_sai_acl_db_ptr->acl_group_bound_to_db = (acl_group_bound_to_t*)((uint8_t*)g_sai_acl_db_ptr->acl_vlan_groups_db +
                                                                       sizeof(acl_vlan_group_t) * ACL_VLAN_GROUP_COUNT);
@@ -4129,7 +4137,8 @@ static void sai_udf_db_init()
                                                           ((sizeof(acl_group_bound_to_t) +
                                                             (sizeof(acl_bind_point_index_t)
                                                              *
-                                                             SAI_ACL_MAX_BIND_POINT_BOUND)) * ACL_GROUP_NUMBER / g_sai_db_ptr->acl_divider));
+                                                             SAI_ACL_MAX_BIND_POINT_BOUND)) * ACL_GROUP_NUMBER /
+                                                           g_sai_db_ptr->acl_divider));
 
     g_sai_acl_db_ptr->udf_db.groups_udfs =
         (mlnx_udf_list_t*)((uint8_t*)g_sai_acl_db_ptr->udf_db.groups + MLNX_UDF_DB_UDF_GROUPS_SIZE);
@@ -4227,13 +4236,15 @@ static void sai_tunnel_db_init()
     g_sai_tunnel_db_ptr->tunneltable_db = (mlnx_tunneltable_t*)(g_sai_tunnel_db_ptr->db_base_ptr);
 
     g_sai_tunnel_db_ptr->tunnel_entry_db = (mlnx_tunnel_entry_t*)((uint8_t*)g_sai_tunnel_db_ptr->tunneltable_db +
-                                                           sizeof(mlnx_tunneltable_t) * MLNX_TUNNELTABLE_SIZE);
+                                                                  sizeof(mlnx_tunneltable_t) * MLNX_TUNNELTABLE_SIZE);
 
     g_sai_tunnel_db_ptr->tunnel_map_db = (mlnx_tunnel_map_t*)((uint8_t*)g_sai_tunnel_db_ptr->tunnel_entry_db +
                                                               sizeof(mlnx_tunnel_entry_t) * MAX_TUNNEL_DB_SIZE);
 
-    g_sai_tunnel_db_ptr->tunnel_map_entry_db = (mlnx_tunnel_map_entry_t*)((uint8_t*)g_sai_tunnel_db_ptr->tunnel_map_db +
-                                                                      sizeof(mlnx_tunnel_map_t) * MLNX_TUNNEL_MAP_MAX);
+    g_sai_tunnel_db_ptr->tunnel_map_entry_db =
+        (mlnx_tunnel_map_entry_t*)((uint8_t*)g_sai_tunnel_db_ptr->tunnel_map_db +
+                                   sizeof(mlnx_tunnel_map_t) *
+                                   MLNX_TUNNEL_MAP_MAX);
 }
 
 static sai_status_t sai_tunnel_db_create()
@@ -4312,7 +4323,7 @@ static sai_status_t sai_tunnel_db_unload(boolean_t erase_db)
 static sai_status_t sai_tunnel_db_switch_connect_init(int shmid)
 {
     g_sai_tunnel_db_size = sai_tunnel_db_size_get();
-    g_sai_tunnel_db_ptr = malloc(sizeof(*g_sai_tunnel_db_ptr));
+    g_sai_tunnel_db_ptr  = malloc(sizeof(*g_sai_tunnel_db_ptr));
     if (g_sai_tunnel_db_ptr == NULL) {
         SX_LOG_ERR("Failed to allocate SAI Tunnel DB structure\n");
         return SAI_STATUS_NO_MEMORY;
@@ -4404,18 +4415,18 @@ static sai_status_t mlnx_kvd_table_size_update(sx_api_profile_t *ku_profile)
 {
     const char *fdb_table_size, *route_table_size, *ipv4_route_table_size, *ipv6_route_table_size;
     const char *neighbor_table_size, *ipv4_neigh_table_size, *ipv6_neigh_table_size;
-    uint32_t kvd_table_size, hash_single_size, hash_double_size;
-    uint32_t fdb_num = 0;
-    uint32_t routes_num = 0, ipv4_routes_num = 0, ipv6_routes_num = 0;
-    uint32_t neighbors_num = 0, ipv4_neighbors_num = 0, ipv6_neighbors_num = 0;
-    bool update_profile = false;
+    uint32_t    kvd_table_size, hash_single_size, hash_double_size;
+    uint32_t    fdb_num        = 0;
+    uint32_t    routes_num     = 0, ipv4_routes_num = 0, ipv6_routes_num = 0;
+    uint32_t    neighbors_num  = 0, ipv4_neighbors_num = 0, ipv6_neighbors_num = 0;
+    bool        update_profile = false;
 
-    kvd_table_size   = ku_profile->kvd_hash_single_size + ku_profile->kvd_hash_double_size +
-                       ku_profile->kvd_linear_size;
+    kvd_table_size = ku_profile->kvd_hash_single_size + ku_profile->kvd_hash_double_size +
+                     ku_profile->kvd_linear_size;
     hash_single_size = ku_profile->kvd_hash_single_size;
     hash_double_size = ku_profile->kvd_hash_double_size;
 
-    MLNX_SAI_LOG_NTC("Original hash_single size %u hash_double size %u \n",hash_single_size, hash_double_size);
+    MLNX_SAI_LOG_NTC("Original hash_single size %u hash_double size %u \n", hash_single_size, hash_double_size);
 
     g_fdb_table_size           = hash_single_size;
     g_route_table_size         = hash_single_size;
@@ -4434,7 +4445,7 @@ static sai_status_t mlnx_kvd_table_size_update(sx_api_profile_t *ku_profile)
 
     if (NULL != fdb_table_size) {
         fdb_num = (uint32_t)atoi(fdb_table_size);
-        MLNX_SAI_LOG_NTC("Setting initial fdb table size %u\n",fdb_num);
+        MLNX_SAI_LOG_NTC("Setting initial fdb table size %u\n", fdb_num);
         /* 0 is full kvd */
         if (fdb_num) {
             g_fdb_table_size = fdb_num;
@@ -4443,25 +4454,25 @@ static sai_status_t mlnx_kvd_table_size_update(sx_api_profile_t *ku_profile)
 
     if (NULL != route_table_size) {
         routes_num = (uint32_t)atoi(route_table_size);
-        MLNX_SAI_LOG_NTC("Setting initial route table size %u\n",routes_num);
+        MLNX_SAI_LOG_NTC("Setting initial route table size %u\n", routes_num);
         /* 0 is full kvd */
         if (routes_num) {
-            g_route_table_size = routes_num;
+            g_route_table_size      = routes_num;
             g_ipv4_route_table_size = routes_num;
             g_ipv6_route_table_size = routes_num;
         }
     } else {
         if (NULL != ipv4_route_table_size) {
             ipv4_routes_num = (uint32_t)atoi(ipv4_route_table_size);
-            MLNX_SAI_LOG_NTC("Setting initial IPv4 route table size %u\n",ipv4_routes_num);
-            if(ipv4_routes_num) {
+            MLNX_SAI_LOG_NTC("Setting initial IPv4 route table size %u\n", ipv4_routes_num);
+            if (ipv4_routes_num) {
                 g_ipv4_route_table_size = ipv4_routes_num;
             }
         }
         if (NULL != ipv6_route_table_size) {
             ipv6_routes_num = (uint32_t)atoi(ipv6_route_table_size);
-            MLNX_SAI_LOG_NTC("Setting initial IPv6 route table size %u\n",ipv6_routes_num);
-            if(ipv6_routes_num) {
+            MLNX_SAI_LOG_NTC("Setting initial IPv6 route table size %u\n", ipv6_routes_num);
+            if (ipv6_routes_num) {
                 g_ipv6_route_table_size = ipv6_routes_num;
             }
         }
@@ -4474,22 +4485,22 @@ static sai_status_t mlnx_kvd_table_size_update(sx_api_profile_t *ku_profile)
         neighbors_num = (uint32_t)atoi(neighbor_table_size);
         MLNX_SAI_LOG_NTC("Setting initial neighbor table size %u\n", neighbors_num);
         if (neighbors_num) {
-            g_neighbor_table_size = neighbors_num;
+            g_neighbor_table_size      = neighbors_num;
             g_ipv4_neighbor_table_size = neighbors_num;
             g_ipv6_neighbor_table_size = neighbors_num;
         }
     } else {
         if (NULL != ipv4_neigh_table_size) {
             ipv4_neighbors_num = (uint32_t)atoi(ipv4_neigh_table_size);
-            MLNX_SAI_LOG_NTC("Setting initial IPv4 neighbor table size %u\n",ipv4_neighbors_num);
-            if(ipv4_neighbors_num) {
+            MLNX_SAI_LOG_NTC("Setting initial IPv4 neighbor table size %u\n", ipv4_neighbors_num);
+            if (ipv4_neighbors_num) {
                 g_ipv4_neighbor_table_size = ipv4_neighbors_num;
             }
         }
         if (NULL != ipv6_neigh_table_size) {
             ipv6_neighbors_num = (uint32_t)atoi(ipv6_neigh_table_size);
-            MLNX_SAI_LOG_NTC("Setting initial IPv6 neighbor table size %u\n",ipv6_neighbors_num);
-            if(ipv6_neighbors_num) {
+            MLNX_SAI_LOG_NTC("Setting initial IPv6 neighbor table size %u\n", ipv6_neighbors_num);
+            if (ipv6_neighbors_num) {
                 g_ipv6_neighbor_table_size = ipv6_neighbors_num;
             }
         }
@@ -4502,15 +4513,15 @@ static sai_status_t mlnx_kvd_table_size_update(sx_api_profile_t *ku_profile)
     if (fdb_num && routes_num && neighbors_num) {
         hash_single_size = fdb_num + routes_num + neighbors_num;
         hash_double_size = (routes_num + neighbors_num) * 2;
-        update_profile = true;
+        update_profile   = true;
     } else {
         if (fdb_num && ipv4_routes_num && ipv4_neighbors_num) {
             hash_single_size = fdb_num + ipv4_routes_num + ipv4_neighbors_num;
-            update_profile = true;
+            update_profile   = true;
         }
         if (ipv6_routes_num && ipv6_neighbors_num) {
             hash_double_size = (ipv6_routes_num + ipv6_neighbors_num) * 2;
-            update_profile = true;
+            update_profile   = true;
         }
     }
 
@@ -4518,10 +4529,10 @@ static sai_status_t mlnx_kvd_table_size_update(sx_api_profile_t *ku_profile)
         if (hash_single_size + hash_double_size <= kvd_table_size) {
             ku_profile->kvd_hash_single_size = hash_single_size;
             ku_profile->kvd_hash_double_size = hash_double_size;
-            ku_profile->kvd_linear_size = kvd_table_size - hash_single_size - hash_double_size;
+            ku_profile->kvd_linear_size      = kvd_table_size - hash_single_size - hash_double_size;
             MLNX_SAI_LOG_NTC("New hash_single size %u hash_single size %u linear size %u\n",
-                 ku_profile->kvd_hash_single_size, ku_profile->kvd_hash_double_size, 
-                 ku_profile->kvd_linear_size);
+                             ku_profile->kvd_hash_single_size, ku_profile->kvd_hash_double_size,
+                             ku_profile->kvd_linear_size);
         } else {
             MLNX_SAI_LOG_NTC(
                 "Hash table size is more than kvd size: hash_single size %u, hash_double size %u,"
@@ -4529,7 +4540,7 @@ static sai_status_t mlnx_kvd_table_size_update(sx_api_profile_t *ku_profile)
                 hash_single_size, hash_double_size, kvd_table_size);
         }
     }
-    
+
     return SAI_STATUS_SUCCESS;
 }
 
@@ -4538,7 +4549,7 @@ static sai_status_t mlnx_initialize_switch(sai_object_id_t switch_id, bool *tran
     int                         system_err;
     const char                 *config_file;
     const char                 *boot_type_char;
-    mlnx_sai_boot_type_t        boot_type     = 0;
+    mlnx_sai_boot_type_t        boot_type = 0;
     sx_router_resources_param_t resources_param;
     sx_router_general_param_t   general_param;
     sx_status_t                 sdk_status;
@@ -4632,9 +4643,9 @@ static sai_status_t mlnx_initialize_switch(sai_object_id_t switch_id, bool *tran
 
     sai_db_write_lock();
     g_sai_db_ptr->boot_type = boot_type;
-    issu_enabled = g_sai_db_ptr->issu_enabled;
+    issu_enabled            = g_sai_db_ptr->issu_enabled;
     sai_db_unlock();
-    
+
     ku_profile = mlnx_sai_get_ku_profile();
     if (!ku_profile) {
         return SAI_STATUS_FAILURE;
@@ -4669,17 +4680,14 @@ static sai_status_t mlnx_initialize_switch(sai_object_id_t switch_id, bool *tran
     memset(&general_param, 0, sizeof(general_param));
 
     if (issu_enabled) {
-        resources_param.max_virtual_routers_num    = g_resource_limits.router_vrid_max / 2;
+        resources_param.max_virtual_routers_num = g_resource_limits.router_vrid_max / 2;
     } else {
-        resources_param.max_virtual_routers_num    = g_resource_limits.router_vrid_max;
+        resources_param.max_virtual_routers_num = g_resource_limits.router_vrid_max;
     }
-    resources_param.max_vlan_router_interfaces = 64;
-    resources_param.max_port_router_interfaces = 64;
     /* cut by 2 because of ipv6 tunnels, cut by further 2 for issu */
     if (issu_enabled) {
         resources_param.max_router_interfaces = g_resource_limits.router_rifs_max / 4;
-    }
-    else {
+    } else {
         resources_param.max_router_interfaces = g_resource_limits.router_rifs_max / 2;
     }
 
@@ -4724,7 +4732,7 @@ static sai_status_t mlnx_initialize_switch(sai_object_id_t switch_id, bool *tran
         SX_LOG_ERR("Failed to add default router - %s.\n", SX_STATUS_MSG(sdk_status));
         return sdk_to_sai(sdk_status);
     }
-    
+
     /* Update route/neighbor table size to default value if no setting in profile.
      * SDK counts v4 and v6 on same HW table KVD HASH, so init for available resource
      * checking to same value. */
@@ -4732,7 +4740,7 @@ static sai_status_t mlnx_initialize_switch(sai_object_id_t switch_id, bool *tran
         g_ipv4_route_table_size = ku_profile->kvd_hash_single_size;
     }
     if (g_ipv6_route_table_size == 0) {
-        g_ipv6_route_table_size = ku_profile->kvd_hash_single_size; 
+        g_ipv6_route_table_size = ku_profile->kvd_hash_single_size;
     }
     if (g_ipv4_neighbor_table_size == 0) {
         g_ipv4_neighbor_table_size = ku_profile->kvd_hash_single_size;
@@ -5161,7 +5169,7 @@ static sai_status_t switch_open_traps(void)
 
         if (mlnx_chip_is_spc2()) {
             if ((mlnx_traps_info[ii].trap_id == SAI_HOSTIF_TRAP_TYPE_PTP) ||
-                (mlnx_traps_info[ii].trap_id == SAI_HOSTIF_TRAP_TYPE_PTP_TX_EVENT)){
+                (mlnx_traps_info[ii].trap_id == SAI_HOSTIF_TRAP_TYPE_PTP_TX_EVENT)) {
                 continue;
             }
         }
@@ -7853,13 +7861,13 @@ static sai_status_t mlnx_switch_vxlan_udp_port_set(uint16_t udp_port)
     memset(&from, 0, sizeof(from));
     memset(&to, 0, sizeof(to));
 
-    from.parser_hdr_type = SX_FLEX_PARSER_HEADER_FIXED_E;
+    from.parser_hdr_type           = SX_FLEX_PARSER_HEADER_FIXED_E;
     from.hdr_data.parser_hdr_fixed = SX_FLEX_PARSER_HEADER_UDP_E;
 
-    to.next_parser_hdr.parser_hdr_type = SX_FLEX_PARSER_HEADER_FIXED_E; 
-    to.next_parser_hdr.hdr_data.parser_hdr_fixed = SX_FLEX_PARSER_HEADER_VXLAN_E; 
-    to.encap_level = SX_FLEX_PARSER_ENCAP_OUTER_E;
-    to.transition_value = udp_port;
+    to.next_parser_hdr.parser_hdr_type           = SX_FLEX_PARSER_HEADER_FIXED_E;
+    to.next_parser_hdr.hdr_data.parser_hdr_fixed = SX_FLEX_PARSER_HEADER_VXLAN_E;
+    to.encap_level                               = SX_FLEX_PARSER_ENCAP_OUTER_E;
+    to.transition_value                          = udp_port;
 
     sdk_status = sx_api_flex_parser_transition_set(gh_sdk, SX_ACCESS_CMD_SET, from, to);
     if (SX_STATUS_SUCCESS != sdk_status) {
@@ -7907,7 +7915,7 @@ static sai_status_t mlnx_switch_vxlan_default_port_get(_In_ const sai_object_key
 
     SX_LOG_ENTER();
 
-    curr_ph.parser_hdr_type = SX_FLEX_PARSER_HEADER_FIXED_E;
+    curr_ph.parser_hdr_type           = SX_FLEX_PARSER_HEADER_FIXED_E;
     curr_ph.hdr_data.parser_hdr_fixed = SX_FLEX_PARSER_HEADER_UDP_E;
 
     sdk_status = sx_api_flex_parser_transition_get(gh_sdk, curr_ph, NULL, &next_trans_cnt);
@@ -7950,7 +7958,7 @@ static sai_status_t mlnx_switch_vxlan_default_router_mac_get(_In_ const sai_obje
     return SAI_STATUS_SUCCESS;
 }
 
- static sai_status_t mlnx_switch_vxlan_default_router_mac_set(_In_ const sai_object_key_t      *key,
+static sai_status_t mlnx_switch_vxlan_default_router_mac_set(_In_ const sai_object_key_t      *key,
                                                              _In_ const sai_attribute_value_t *value,
                                                              void                             *arg)
 {

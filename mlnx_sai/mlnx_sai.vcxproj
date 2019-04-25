@@ -158,7 +158,6 @@
     <ClInclude Include="inc\sai\sairoute.h" />
     <ClInclude Include="inc\sai\saisegmentroute.h" />
     <ClInclude Include="inc\sai\saitam.h" />
-    <ClInclude Include="inc\sai\saiuburst.h" />
     <ClInclude Include="inc\sai\saivirtualrouter.h" />
     <ClInclude Include="inc\sai\sairouterinterface.h" />
     <ClInclude Include="inc\sai\saisamplepacket.h" />

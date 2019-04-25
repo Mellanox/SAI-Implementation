@@ -92,10 +92,12 @@ static void SAI_dump_tunnel_map_type_enum_to_str(_In_ sai_tunnel_map_type_t type
 
 static void SAI_dump_tunnel_map_entry_print(_In_ FILE *file, _In_ mlnx_tunnel_map_entry_t *mlnx_tunnel_map_entry)
 {
-    uint32_t                  ii     = 0;
-    sai_object_id_t           obj_id = SAI_NULL_OBJECT_ID;
-    mlnx_tunnel_map_entry_t   curr_mlnx_tunnel_map_entry;
-    char                      type_str[LINE_LENGTH];
+    uint32_t                     ii     = 0;
+    uint32_t                     jj     = 0;
+    sai_object_id_t              obj_id = SAI_NULL_OBJECT_ID;
+    mlnx_tunnel_map_entry_t      curr_mlnx_tunnel_map_entry;
+    tunnel_map_entry_pair_info_t curr_pair_info;
+    char                         type_str[LINE_LENGTH];
     dbg_utils_table_columns_t tunnelmapentry_clmns[] = {
         {"sai oid",                   16, PARAM_UINT64_E, &obj_id},
         {"db idx",                    7,  PARAM_UINT32_E, &ii},
@@ -114,6 +116,13 @@ static void SAI_dump_tunnel_map_entry_print(_In_ FILE *file, _In_ mlnx_tunnel_ma
         {"prev tunnel map entry idx", 12, PARAM_UINT32_E, &curr_mlnx_tunnel_map_entry.prev_tunnel_map_entry_idx},
         {"next tunnel map entry idx", 12, PARAM_UINT32_E, &curr_mlnx_tunnel_map_entry.next_tunnel_map_entry_idx},
         {NULL,                        0,  0,              NULL}
+    };
+
+    dbg_utils_table_columns_t tunnelmapentry_pair_clmns[] = {
+        {"vxlan db idx",  16, PARAM_UINT32_E, &jj},
+        {"already bound", 16, PARAM_UINT8_E,  &curr_pair_info.pair_already_bound_to_tunnel},
+        {"pair db idx",   16, PARAM_UINT32_E, &curr_pair_info.pair_tunnel_map_entry_idx},
+        {NULL,            0,  0,              NULL}
     };
 
     assert(NULL != mlnx_tunnel_map_entry);
@@ -135,6 +144,16 @@ static void SAI_dump_tunnel_map_entry_print(_In_ FILE *file, _In_ mlnx_tunnel_ma
             SAI_dump_tunnel_map_type_enum_to_str(mlnx_tunnel_map_entry[ii].tunnel_map_type,
                                                  type_str);
             dbg_utils_print_table_data_line(file, tunnelmapentry_clmns);
+
+            dbg_utils_print_secondary_header(file, "tunnel map entry pair info");
+            dbg_utils_print_table_headline(file, tunnelmapentry_pair_clmns);
+
+            for (jj = 0; jj < MAX_VXLAN_TUNNEL; jj++) {
+                if (mlnx_tunnel_map_entry[ii].pair_per_vxlan_array[jj].pair_exist) {
+                    memcpy(&curr_pair_info, &mlnx_tunnel_map_entry[ii].pair_per_vxlan_array[jj], sizeof(curr_pair_info));
+                    dbg_utils_print_table_data_line(file, tunnelmapentry_pair_clmns);
+                }
+            }
         }
     }
 }
@@ -147,15 +166,14 @@ static void SAI_dump_tunnel_map_print(_In_ FILE                    *file,
     sai_object_id_t           obj_id = SAI_NULL_OBJECT_ID;
     mlnx_tunnel_map_t         curr_mlnx_tunnel_map;
     mlnx_tunnel_map_entry_t   curr_mlnx_tunnel_map_entry;
-    uint32_t                  curr_vxlan_tunnel_idx = 0;
-    uint32_t                  tunnel_map_entry_idx  = MLNX_TUNNEL_MAP_ENTRY_INVALID;
+    uint32_t                  curr_tunnel_idx      = 0;
+    uint32_t                  tunnel_map_entry_idx = MLNX_TUNNEL_MAP_ENTRY_INVALID;
     char                      type_str[LINE_LENGTH];
     dbg_utils_table_columns_t tunnelmap_clmns[] = {
         {"sai oid",                   16, PARAM_UINT64_E, &obj_id},
         {"db idx",                    7,  PARAM_UINT32_E, &ii},
         {"type",                      12, PARAM_STRING_E, &type_str},
         {"tunnel cnt",                10, PARAM_UINT32_E, &curr_mlnx_tunnel_map.tunnel_cnt},
-        {"vxlan tunnel cnt",          17, PARAM_UINT32_E, &curr_mlnx_tunnel_map.vxlan_tunnel_cnt},
         {"tunnel map entry cnt",      20, PARAM_UINT32_E, &curr_mlnx_tunnel_map.tunnel_map_entry_cnt},
         {"tunnel map entry head idx", 25, PARAM_UINT32_E, &curr_mlnx_tunnel_map.tunnel_map_entry_head_idx},
         {"tunnel map entry tail idx", 25, PARAM_UINT32_E, &curr_mlnx_tunnel_map.tunnel_map_entry_tail_idx},
@@ -204,11 +222,11 @@ static void SAI_dump_tunnel_map_print(_In_ FILE                    *file,
         {"val vni",              11, PARAM_UINT32_E, &curr_mlnx_tunnel_map_entry.vni_id_value},
         {NULL,                   0,  0,              NULL}
     };
-    dbg_utils_table_columns_t sai_tunnelmap_vxlan_tunnel_idx_clmns[] = {
-        {"db idx",                 7,  PARAM_UINT32_E, &ii},
-        {"vxlan tunnel array idx", 22, PARAM_UINT32_E, &jj},
-        {"vxlan tunnel idx",       11, PARAM_UINT32_E, &curr_vxlan_tunnel_idx},
-        {NULL,                     0,  0,              NULL}
+    dbg_utils_table_columns_t sai_tunnelmap_tunnel_idx_clmns[] = {
+        {"db idx",           7,  PARAM_UINT32_E, &ii},
+        {"tunnel array idx", 17, PARAM_UINT32_E, &jj},
+        {"tunnel idx",       11, PARAM_UINT32_E, &curr_tunnel_idx},
+        {NULL,               0,  0,              NULL}
     };
 
     assert(NULL != mlnx_tunnel_map);
@@ -237,10 +255,10 @@ static void SAI_dump_tunnel_map_print(_In_ FILE                    *file,
 
     for (ii = 0; ii < MLNX_TUNNEL_MAP_MAX; ii++) {
         if (mlnx_tunnel_map[ii].in_use) {
-            dbg_utils_print_table_headline(file, sai_tunnelmap_vxlan_tunnel_idx_clmns);
-            for (jj = 0; jj < mlnx_tunnel_map[ii].vxlan_tunnel_cnt; jj++) {
-                curr_vxlan_tunnel_idx = mlnx_tunnel_map[ii].vxlan_tunnel_idx[jj];
-                dbg_utils_print_table_data_line(file, sai_tunnelmap_vxlan_tunnel_idx_clmns);
+            dbg_utils_print_table_headline(file, sai_tunnelmap_tunnel_idx_clmns);
+            for (jj = 0; jj < mlnx_tunnel_map[ii].tunnel_cnt; jj++) {
+                curr_tunnel_idx = mlnx_tunnel_map[ii].tunnel_idx[jj];
+                dbg_utils_print_table_data_line(file, sai_tunnelmap_tunnel_idx_clmns);
             }
 
             switch (mlnx_tunnel_map[ii].tunnel_map_type) {
@@ -555,9 +573,9 @@ void SAI_dump_tunnel(_In_ FILE *file)
 
     tunnel_map_entry_db =
         (mlnx_tunnel_map_entry_t*)calloc(MLNX_TUNNEL_MAP_ENTRY_MAX, sizeof(mlnx_tunnel_map_entry_t));
-    tunnel_map_db    = (mlnx_tunnel_map_t*)calloc(MLNX_TUNNEL_MAP_MAX, sizeof(mlnx_tunnel_map_t));
-    tunnel_entry_db  = (mlnx_tunnel_entry_t*)calloc(MAX_TUNNEL_DB_SIZE, sizeof(mlnx_tunnel_entry_t));
-    tunneltable_db = (mlnx_tunneltable_t*)calloc(MLNX_TUNNELTABLE_SIZE, sizeof(mlnx_tunneltable_t));
+    tunnel_map_db   = (mlnx_tunnel_map_t*)calloc(MLNX_TUNNEL_MAP_MAX, sizeof(mlnx_tunnel_map_t));
+    tunnel_entry_db = (mlnx_tunnel_entry_t*)calloc(MAX_TUNNEL_DB_SIZE, sizeof(mlnx_tunnel_entry_t));
+    tunneltable_db  = (mlnx_tunneltable_t*)calloc(MLNX_TUNNELTABLE_SIZE, sizeof(mlnx_tunneltable_t));
     if ((!tunnel_map_entry_db) || (!tunnel_map_db) || (!tunnel_entry_db) || (!tunneltable_db)) {
         if (tunnel_map_entry_db) {
             free(tunnel_map_entry_db);

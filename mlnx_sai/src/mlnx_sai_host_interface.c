@@ -282,6 +282,7 @@ static const mlnx_attr_enum_info_t        hostif_trap_enum_info[] = {
         SAI_PACKET_ACTION_FORWARD,
         SAI_PACKET_ACTION_TRAP,
         SAI_PACKET_ACTION_LOG,
+        SAI_PACKET_ACTION_COPY,
         SAI_PACKET_ACTION_DROP
         )
 };
@@ -422,7 +423,7 @@ const mlnx_trap_info_t mlnx_traps_info[] = {
       MLNX_TRAP_TYPE_REGULAR },
     { SAI_HOSTIF_TRAP_TYPE_PTP,
       3,
-    { SX_TRAP_ID_PTP_EVENT, SX_TRAP_ID_PTP_GENERAL, SX_TRAP_ID_PTP_ING_EVENT},
+      { SX_TRAP_ID_PTP_EVENT, SX_TRAP_ID_PTP_GENERAL, SX_TRAP_ID_PTP_ING_EVENT},
 #ifdef PTP
       SAI_PACKET_ACTION_TRAP,
 #else
@@ -569,6 +570,35 @@ sai_status_t mlnx_translate_sdk_trap_to_sai(_In_ sx_trap_id_t             sdk_tr
 
     SX_LOG_EXIT();
     return SAI_STATUS_ITEM_NOT_FOUND;
+}
+
+sai_status_t mlnx_translate_sai_trap_to_sdk(_In_ sai_object_id_t trap_oid, _Out_ sx_trap_id_t   *sx_trap_id)
+{
+    sai_status_t status;
+    uint32_t     trap_type;
+    uint32_t     index;
+
+    assert(sx_trap_id);
+
+    status = mlnx_object_to_type(trap_oid, SAI_OBJECT_TYPE_HOSTIF_TRAP, &trap_type, NULL);
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+    status = find_sai_trap_index(trap_type, MLNX_TRAP_TYPE_REGULAR, &index);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Invalid trap %x\n", trap_type);
+        return status;
+    }
+
+    if (mlnx_traps_info[index].sdk_traps_num > 0) {
+        *sx_trap_id = mlnx_traps_info[index].sdk_trap_ids[0];
+    } else {
+        SX_LOG_ERR("SAI trap %x has no matching sdk traps\n", trap_type);
+        return SAI_STATUS_INVALID_PARAMETER;
+    }
+
+    return SAI_STATUS_SUCCESS;
 }
 
 static void host_interface_key_to_str(_In_ sai_object_id_t hif_id, _Out_ char *key_str)

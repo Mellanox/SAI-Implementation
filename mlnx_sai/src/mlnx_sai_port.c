@@ -3969,11 +3969,11 @@ static sai_status_t mlnx_get_port_attribute(_In_ sai_object_id_t     port_id,
  *
  * @return #SAI_STATUS_SUCCESS on success, failure status code on error
  */
-sai_status_t mlnx_get_port_stats_ext(_In_ sai_object_id_t        port_id,
-                                     _In_ uint32_t               number_of_counters,
-                                     _In_ const sai_stat_id_t   *counter_ids,
-                                     _In_ sai_stats_mode_t       mode,
-                                     _Out_ uint64_t             *counters)
+sai_status_t mlnx_get_port_stats_ext(_In_ sai_object_id_t      port_id,
+                                     _In_ uint32_t             number_of_counters,
+                                     _In_ const sai_stat_id_t *counter_ids,
+                                     _In_ sai_stats_mode_t     mode,
+                                     _Out_ uint64_t           *counters)
 {
     sai_status_t                  status;
     sx_port_cntr_rfc_2863_t       cnts_2863;
@@ -4652,10 +4652,10 @@ sai_status_t mlnx_get_port_stats_ext(_In_ sai_object_id_t        port_id,
  *    SAI_STATUS_SUCCESS on success
  *    Failure status code on error
  */
-static sai_status_t mlnx_get_port_stats(_In_ sai_object_id_t        port_id,
-                                        _In_ uint32_t               number_of_counters,
-                                        _In_ const sai_stat_id_t   *counter_ids,
-                                        _Out_ uint64_t             *counters)
+static sai_status_t mlnx_get_port_stats(_In_ sai_object_id_t      port_id,
+                                        _In_ uint32_t             number_of_counters,
+                                        _In_ const sai_stat_id_t *counter_ids,
+                                        _Out_ uint64_t           *counters)
 {
     return mlnx_get_port_stats_ext(port_id, number_of_counters, counter_ids, SAI_STATS_MODE_READ, counters);
 }
@@ -4673,9 +4673,9 @@ static sai_status_t mlnx_get_port_stats(_In_ sai_object_id_t        port_id,
  *    SAI_STATUS_SUCCESS on success
  *    Failure status code on error
  */
-static sai_status_t mlnx_clear_port_stats(_In_ sai_object_id_t        port_id,
-                                          _In_ uint32_t               number_of_counters,
-                                          _In_ const sai_stat_id_t   *counter_ids)
+static sai_status_t mlnx_clear_port_stats(_In_ sai_object_id_t      port_id,
+                                          _In_ uint32_t             number_of_counters,
+                                          _In_ const sai_stat_id_t *counter_ids)
 {
     return SAI_STATUS_NOT_IMPLEMENTED;
 }
@@ -5733,8 +5733,7 @@ sai_status_t mlnx_port_speed_bitmap_apply(_In_ const mlnx_port_config_t *port)
     return mlnx_port_cb->speed_bitmap_apply(port);
 }
 
-static sai_status_t mlnx_port_speed_to_capab(_In_ uint32_t                     speed,
-                                             _Out_ sx_port_speed_capability_t *capab)
+static sai_status_t mlnx_port_speed_to_capab(_In_ uint32_t speed, _Out_ sx_port_speed_capability_t *capab)
 {
     assert(capab);
 
@@ -6294,7 +6293,7 @@ sai_status_t mlnx_port_cb_table_init(void)
     sx_chip_types_t chip_type;
 
     assert(mlnx_port_cb == NULL);
-    (void) (mlnx_port_cb_sp2);
+    (void)(mlnx_port_cb_sp2);
 
     chip_type = g_sai_db_ptr->sx_chip_type;
 
@@ -6326,7 +6325,7 @@ static sai_status_t mlnx_port_speed_set_impl(_In_ sx_port_log_id_t sx_port, _In_
 static sai_status_t mlnx_port_speed_get_impl(_In_ sx_port_log_id_t sx_port,
                                              _Out_ uint32_t       *oper_speed,
                                              _Out_ uint32_t       *admin_speed)
-{   
+{
     assert(mlnx_port_cb);
 
     return mlnx_port_cb->speed_get(sx_port, oper_speed, admin_speed);
@@ -6552,8 +6551,8 @@ sai_status_t mlnx_port_config_init(mlnx_port_config_t *port)
          * Apply the 3 maps where SDK default different than SAI
          * When init warm boot, apply to SDK but not to HW. Applying to SDK is needed for
          * later clone. Clone sets SAI default on to port in SDK in case from map is null.
-         * Therefor the from map must be set to SDK, otherwise there will be mismatch. 
-         * Sonic always sets DSCP -> switch prio, switch prio -> TC and doesn't 
+         * Therefor the from map must be set to SDK, otherwise there will be mismatch.
+         * Sonic always sets DSCP -> switch prio, switch prio -> TC and doesn't
          * use PCP -> switch prio */
         if (is_warmboot_init_stage) {
             sxd_ret = sxd_dpt_set_access_control(SX_DEVICE_ID, READ_ONLY);
@@ -7476,11 +7475,11 @@ static sai_status_t mlnx_port_pool_attr_get(_In_ const sai_object_key_t   *key,
  *
  * @return #SAI_STATUS_SUCCESS on success, failure status code on error
  */
-sai_status_t mlnx_get_port_pool_stats_ext(_In_ sai_object_id_t             port_pool_id,
-                                          _In_ uint32_t                    number_of_counters,
-                                          _In_ const sai_stat_id_t        *counter_ids,
-                                          _In_ sai_stats_mode_t            mode,
-                                          _Out_ uint64_t                  *counters)
+sai_status_t mlnx_get_port_pool_stats_ext(_In_ sai_object_id_t      port_pool_id,
+                                          _In_ uint32_t             number_of_counters,
+                                          _In_ const sai_stat_id_t *counter_ids,
+                                          _In_ sai_stats_mode_t     mode,
+                                          _Out_ uint64_t           *counters)
 {
     sai_status_t                        status;
     uint8_t                             ext_data[EXTENDED_DATA_SIZE] = {0};
@@ -7636,10 +7635,10 @@ sai_status_t mlnx_get_port_pool_stats_ext(_In_ sai_object_id_t             port_
  *
  * @return #SAI_STATUS_SUCCESS on success, failure status code on error
  */
-static sai_status_t mlnx_get_port_pool_stats(_In_ sai_object_id_t             port_pool_id,
-                                             _In_ uint32_t                    number_of_counters,
-                                             _In_ const sai_stat_id_t        *counter_ids,
-                                             _Out_ uint64_t                  *counters)
+static sai_status_t mlnx_get_port_pool_stats(_In_ sai_object_id_t      port_pool_id,
+                                             _In_ uint32_t             number_of_counters,
+                                             _In_ const sai_stat_id_t *counter_ids,
+                                             _Out_ uint64_t           *counters)
 {
     return mlnx_get_port_pool_stats_ext(port_pool_id, number_of_counters, counter_ids, SAI_STATS_MODE_READ, counters);
 }
@@ -7653,9 +7652,9 @@ static sai_status_t mlnx_get_port_pool_stats(_In_ sai_object_id_t             po
  *
  * @return #SAI_STATUS_SUCCESS on success, failure status code on error
  */
-static sai_status_t mlnx_clear_port_pool_stats(_In_ sai_object_id_t             port_pool_id,
-                                               _In_ uint32_t                    number_of_counters,
-                                               _In_ const sai_stat_id_t        *counter_ids)
+static sai_status_t mlnx_clear_port_pool_stats(_In_ sai_object_id_t      port_pool_id,
+                                               _In_ uint32_t             number_of_counters,
+                                               _In_ const sai_stat_id_t *counter_ids)
 {
     sai_status_t                     status;
     uint8_t                          ext_data[EXTENDED_DATA_SIZE] = { 0 };

@@ -26,6 +26,7 @@
 #define _FX_BASE_API_H_
  
 #include <stdlib.h>
+#include <stdbool.h>
 #include <sx/sdk/sx_status.h>
 #include <sx/sdk/sx_api_port.h>
 #include <sx/sdk/sx_api_router.h>
@@ -62,7 +63,9 @@ typedef struct _fx_param_list_t {
     fx_param_t *params;
     size_t len;
 } fx_param_list_t;
- 
+
+sx_status_t fx_log_set(sx_verbosity_level_t severity);
+
 /* Device level APIs */
  
 /**
@@ -153,6 +156,12 @@ sx_status_t fx_pipe_rebind(fx_handle_t handle,
         void* if_list,
         uint32_t if_list_cnt);
 
+sx_status_t fx_pipe_binding_update(
+        fx_handle_t handle,
+        fx_pipe_type_t pipe_type,
+        void *iface,
+        bool is_add);
+
 /**
  * @brief This functions set additional port binding for externally created
  * ACL lists.
@@ -231,7 +240,8 @@ sx_status_t fx_logical_port_get(fx_handle_t handle, uint32_t label_port, sx_port
 sx_status_t fx_table_entry_add(fx_handle_t handle, const fx_table_id_t table_id, const fx_action_id_t action_id, fx_key_list_t keys, fx_param_list_t params, sx_acl_rule_offset_t* offset_ptr);
 sx_status_t fx_table_entry_remove(fx_handle_t handle, const fx_table_id_t table_id, sx_acl_rule_offset_t offset);
 sx_status_t fx_table_entry_default_set(fx_handle_t handle, const fx_table_id_t table_id, const fx_action_id_t action_id, fx_param_list_t params);
-
+sx_status_t fx_table_entry_get(fx_handle_t handle, const fx_table_id_t table_id, sx_acl_rule_offset_t offset, fx_action_id_t *action_id, fx_key_list_t *keys, fx_param_list_t *params);
+sx_status_t fx_table_entry_count_get(fx_handle_t handle, const fx_table_id_t table_id, uint32_t *entry_count);
 /**
  * @brief Find a table entry by match key
  *      Supported devices: Spectrum.

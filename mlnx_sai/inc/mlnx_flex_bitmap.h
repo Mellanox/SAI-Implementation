@@ -13,7 +13,7 @@
 typedef unsigned char* fx_bitmap_t;
 
 void alloc_bitmap(fx_bitmap_t *bitmap, uint64_t size) {
-	int num_of_bytes = (size % CHAR_BIT == 0) ? size / CHAR_BIT : size / CHAR_BIT + 1;
+	size_t num_of_bytes = (size % CHAR_BIT == 0) ? size / CHAR_BIT : size / CHAR_BIT + 1;
 	*bitmap = (fx_bitmap_t) calloc(num_of_bytes, 1);
 	return;
 }
@@ -35,7 +35,7 @@ int get_bitmap(fx_bitmap_t bitmap, uint64_t pos) {
 }
 
 void clear_all_bitmap(fx_bitmap_t bitmap, uint64_t size) {
-	int num_of_bytes = (size % CHAR_BIT == 0) ? size / CHAR_BIT : size / CHAR_BIT + 1;
+	size_t num_of_bytes = (size % CHAR_BIT == 0) ? size / CHAR_BIT : size / CHAR_BIT + 1;
 	memset(bitmap, 0, num_of_bytes);
 }
 

@@ -1265,7 +1265,7 @@ static sai_status_t mlnx_mirror_session_vlan_tpid_set(_In_ const sai_object_key_
 
         sai_db_unlock();
         break;
-        
+
     case SX_SPAN_TYPE_REMOTE_ETH_VLAN_TYPE1:
         if (MLNX_MIRROR_VLAN_TPID != value->u16) {
             SX_LOG_ERR("VLAN TPID must be %x on set\n", MLNX_MIRROR_VLAN_TPID);
@@ -1325,7 +1325,7 @@ static sai_status_t mlnx_mirror_session_vlan_id_set(_In_ const sai_object_key_t 
         }
 
         sdk_mirror_obj_params.span_type_format.remote_eth_l3_type1.vid = value->u16;
-        sdk_mirror_obj_params.span_type_format.remote_eth_l3_type1.tp = MLNX_MIRROR_TP_ENABLE;
+        sdk_mirror_obj_params.span_type_format.remote_eth_l3_type1.tp  = MLNX_MIRROR_TP_ENABLE;
         sai_db_unlock();
         break;
 
@@ -1389,7 +1389,7 @@ static sai_status_t mlnx_mirror_session_vlan_pri_set(_In_ const sai_object_key_t
             return SAI_STATUS_SUCCESS;
         }
         sdk_mirror_obj_params.span_type_format.remote_eth_l3_type1.pcp = value->u8;
-        sdk_mirror_obj_params.span_type_format.remote_eth_l3_type1.tp = MLNX_MIRROR_TP_ENABLE;
+        sdk_mirror_obj_params.span_type_format.remote_eth_l3_type1.tp  = MLNX_MIRROR_TP_ENABLE;
         sai_db_unlock();
         break;
 
@@ -1453,7 +1453,7 @@ static sai_status_t mlnx_mirror_session_vlan_cfi_set(_In_ const sai_object_key_t
             return SAI_STATUS_SUCCESS;
         }
         sdk_mirror_obj_params.span_type_format.remote_eth_l3_type1.dei = value->u8;
-        sdk_mirror_obj_params.span_type_format.remote_eth_l3_type1.tp = MLNX_MIRROR_TP_ENABLE;
+        sdk_mirror_obj_params.span_type_format.remote_eth_l3_type1.tp  = MLNX_MIRROR_TP_ENABLE;
         sai_db_unlock();
         break;
 
@@ -1499,26 +1499,29 @@ static sai_status_t mlnx_mirror_session_vlan_header_valid_set(_In_ const sai_obj
     case SX_SPAN_TYPE_REMOTE_ETH_L3_TYPE1:
         sai_db_write_lock();
         if (g_sai_db_ptr->erspan_vlan_header[sdk_mirror_obj_id].vlan_header_valid && !value->booldata) {
-            sdk_mirror_obj_params.span_type_format.remote_eth_l3_type1.vid = 0;
-            sdk_mirror_obj_params.span_type_format.remote_eth_l3_type1.tp = MLNX_MIRROR_TP_DISABLE;
-            sdk_mirror_obj_params.span_type_format.remote_eth_l3_type1.pcp = 0;
-            sdk_mirror_obj_params.span_type_format.remote_eth_l3_type1.dei = 0;
-            g_sai_db_ptr->erspan_vlan_header[sdk_mirror_obj_id].vlan_id = 0;
-            g_sai_db_ptr->erspan_vlan_header[sdk_mirror_obj_id].vlan_pri = 0;
-            g_sai_db_ptr->erspan_vlan_header[sdk_mirror_obj_id].vlan_cfi = 0;
+            sdk_mirror_obj_params.span_type_format.remote_eth_l3_type1.vid        = 0;
+            sdk_mirror_obj_params.span_type_format.remote_eth_l3_type1.tp         = MLNX_MIRROR_TP_DISABLE;
+            sdk_mirror_obj_params.span_type_format.remote_eth_l3_type1.pcp        = 0;
+            sdk_mirror_obj_params.span_type_format.remote_eth_l3_type1.dei        = 0;
+            g_sai_db_ptr->erspan_vlan_header[sdk_mirror_obj_id].vlan_id           = 0;
+            g_sai_db_ptr->erspan_vlan_header[sdk_mirror_obj_id].vlan_pri          = 0;
+            g_sai_db_ptr->erspan_vlan_header[sdk_mirror_obj_id].vlan_cfi          = 0;
             g_sai_db_ptr->erspan_vlan_header[sdk_mirror_obj_id].vlan_header_valid = false;
         } else if (!g_sai_db_ptr->erspan_vlan_header[sdk_mirror_obj_id].vlan_header_valid && value->booldata) {
             g_sai_db_ptr->erspan_vlan_header[sdk_mirror_obj_id].vlan_header_valid = true;
             if (0 == g_sai_db_ptr->erspan_vlan_header[sdk_mirror_obj_id].vlan_id) {
                 sai_db_unlock();
-                SX_LOG_WRN("vlan id is still 0 for ERSPAN session\n"); 
+                SX_LOG_WRN("vlan id is still 0 for ERSPAN session\n");
                 SX_LOG_EXIT();
                 return SAI_STATUS_SUCCESS;
             }
-            sdk_mirror_obj_params.span_type_format.remote_eth_l3_type1.vid = g_sai_db_ptr->erspan_vlan_header[sdk_mirror_obj_id].vlan_id;
-            sdk_mirror_obj_params.span_type_format.remote_eth_l3_type1.tp = MLNX_MIRROR_TP_ENABLE;
-            sdk_mirror_obj_params.span_type_format.remote_eth_l3_type1.pcp = g_sai_db_ptr->erspan_vlan_header[sdk_mirror_obj_id].vlan_pri;
-            sdk_mirror_obj_params.span_type_format.remote_eth_l3_type1.dei = g_sai_db_ptr->erspan_vlan_header[sdk_mirror_obj_id].vlan_cfi;
+            sdk_mirror_obj_params.span_type_format.remote_eth_l3_type1.vid =
+                g_sai_db_ptr->erspan_vlan_header[sdk_mirror_obj_id].vlan_id;
+            sdk_mirror_obj_params.span_type_format.remote_eth_l3_type1.tp  = MLNX_MIRROR_TP_ENABLE;
+            sdk_mirror_obj_params.span_type_format.remote_eth_l3_type1.pcp =
+                g_sai_db_ptr->erspan_vlan_header[sdk_mirror_obj_id].vlan_pri;
+            sdk_mirror_obj_params.span_type_format.remote_eth_l3_type1.dei =
+                g_sai_db_ptr->erspan_vlan_header[sdk_mirror_obj_id].vlan_cfi;
         } else {
             sai_db_unlock();
             SX_LOG_EXIT();
@@ -2490,7 +2493,7 @@ static sai_status_t mlnx_create_mirror_session(_Out_ sai_object_id_t      *sai_m
 
     SX_LOG_NTC("Created sdk mirror obj id: %d\n", sdk_mirror_obj_id);
 
-    if ((SAI_MIRROR_SESSION_TYPE_ENHANCED_REMOTE== mirror_type->s32) &&
+    if ((SAI_MIRROR_SESSION_TYPE_ENHANCED_REMOTE == mirror_type->s32) &&
         (NULL != mirror_vlan_header_valid) && (mirror_vlan_header_valid->booldata)) {
         g_sai_db_ptr->erspan_vlan_header[sdk_mirror_obj_id].vlan_header_valid = true;
         if (NULL != mirror_vlan_id) {
@@ -2510,9 +2513,9 @@ static sai_status_t mlnx_create_mirror_session(_Out_ sai_object_id_t      *sai_m
         }
     } else {
         g_sai_db_ptr->erspan_vlan_header[sdk_mirror_obj_id].vlan_header_valid = false;
-        g_sai_db_ptr->erspan_vlan_header[sdk_mirror_obj_id].vlan_id = 0;
-        g_sai_db_ptr->erspan_vlan_header[sdk_mirror_obj_id].vlan_pri = 0;
-        g_sai_db_ptr->erspan_vlan_header[sdk_mirror_obj_id].vlan_cfi = 0;
+        g_sai_db_ptr->erspan_vlan_header[sdk_mirror_obj_id].vlan_id           = 0;
+        g_sai_db_ptr->erspan_vlan_header[sdk_mirror_obj_id].vlan_pri          = 0;
+        g_sai_db_ptr->erspan_vlan_header[sdk_mirror_obj_id].vlan_cfi          = 0;
     }
 
     sai_db_unlock();

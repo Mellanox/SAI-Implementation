@@ -18,8 +18,7 @@ if CONFIG_SYSLOG
 CFLAGS += -DCONFIG_SYSLOG
 endif
 
-lib_LTLIBRARIES = libsai.la
-noinst_LIBRARIES = libfx_base.a
+lib_LTLIBRARIES = libfx_base.la libsai.la
 
 dist_data_DATA = sai_1710.xml \
                  sai_2010.xml \
@@ -28,6 +27,7 @@ dist_data_DATA = sai_1710.xml \
                  sai_2420.xml \
                  sai_2700.xml \
                  sai_2700split.xml \
+                 sai_2700_8x50g_28x100g.xml \
                  sai_2740.xml \
                  sai_3700.xml \
                  sai_37001G.xml \
@@ -90,11 +90,11 @@ libsai_la_SOURCES = \
                        meta/saimetadatautils.c \
                        meta/saiserialize.c
 
-libfx_base_a_SOURCES = fx_base_api.c \
-                       fx_base_range_match.c \
-                       sx_api_stubs.c
+libfx_base_la_SOURCES = \
+                       fx_base_api.c \
+                       fx_base_range_match.c
 
-libfx_base_a_CFLAGS = --std=gnu99 -Wno-sign-compare -Wno-vla -Wno-missing-field-initializers
+libfx_base_la_CFLAGS = --std=gnu99 -Wno-sign-compare -Wno-vla -Wno-missing-field-initializers
 
 if XML2_ELDK5_LA_WA
 SAI_LIBXML2_ADD = ${XML2_LIB_PATH}/lib/libxml2.so
@@ -104,7 +104,7 @@ endif
 
 libsai_la_LIBADD = \
                    -L$(APP_LIB_PATH)/lib -lsxapi -lsw_rm\
-                   ${SAI_LIBXML2_ADD} libfx_base.a
+                   ${SAI_LIBXML2_ADD} libfx_base.la
 
 libsai_apiincludedir = $(includedir)/sai
 libsai_apiinclude_HEADERS = \
@@ -147,7 +147,6 @@ libsai_apiinclude_HEADERS = \
         $(top_srcdir)/inc/sai/saitam.h \
         $(top_srcdir)/inc/sai/saitunnel.h \
         $(top_srcdir)/inc/sai/saitypes.h \
-        $(top_srcdir)/inc/sai/saiuburst.h \
         $(top_srcdir)/inc/sai/saiudf.h \
         $(top_srcdir)/inc/sai/saivirtualrouter.h \
         $(top_srcdir)/inc/sai/saivlan.h \

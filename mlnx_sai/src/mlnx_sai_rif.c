@@ -412,7 +412,8 @@ sai_status_t mlnx_rif_sx_init(_In_ sx_router_id_t                     vrf_id,
                               _Out_ sx_router_interface_t            *sx_rif_id,
                               _Out_ sx_router_counter_id_t           *sx_counter)
 {
-    sx_status_t sx_status;
+    sai_status_t status;
+    sx_status_t  sx_status;
 
     assert(sx_rif_id);
     assert(sx_counter);
@@ -436,6 +437,11 @@ sai_status_t mlnx_rif_sx_init(_In_ sx_router_id_t                     vrf_id,
         return sdk_to_sai(sx_status);
     }
 
+    status = mlnx_bmtor_rif_event_add(*sx_rif_id);
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
     SX_LOG_DBG("Created sx rif %d and counter %d\n", *sx_rif_id, *sx_counter);
 
     return SAI_STATUS_SUCCESS;
@@ -443,7 +449,8 @@ sai_status_t mlnx_rif_sx_init(_In_ sx_router_id_t                     vrf_id,
 
 sai_status_t mlnx_rif_sx_deinit(_In_ mlnx_rif_sx_data_t *sx_data)
 {
-    sx_status_t sx_status;
+    sai_status_t status;
+    sx_status_t  sx_status;
 
     sx_status = sx_api_router_interface_counter_bind_set(gh_sdk,
                                                          SX_ACCESS_CMD_UNBIND,
@@ -459,6 +466,11 @@ sai_status_t mlnx_rif_sx_deinit(_In_ mlnx_rif_sx_data_t *sx_data)
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to remove router counter %d - %s\n", sx_data->counter, SX_STATUS_MSG(sx_status));
         return sdk_to_sai(sx_status);
+    }
+
+    status = mlnx_bmtor_rif_event_del(sx_data->rif_id);
+    if (SAI_ERR(status)) {
+        return status;
     }
 
     sx_status =
@@ -1389,11 +1401,11 @@ static sai_status_t mlnx_rif_attrib_get(_In_ const sai_object_key_t   *key,
  *
  * @return #SAI_STATUS_SUCCESS on success, failure status code on error
  */
-static sai_status_t mlnx_get_router_interface_stats_ext(_In_ sai_object_id_t                    router_interface_id,
-                                                        _In_ uint32_t                           number_of_counters,
-                                                        _In_ const sai_stat_id_t               *counter_ids,
-                                                        _In_ sai_stats_mode_t                   mode,
-                                                        _Out_ uint64_t                         *counters)
+static sai_status_t mlnx_get_router_interface_stats_ext(_In_ sai_object_id_t      router_interface_id,
+                                                        _In_ uint32_t             number_of_counters,
+                                                        _In_ const sai_stat_id_t *counter_ids,
+                                                        _In_ sai_stats_mode_t     mode,
+                                                        _Out_ uint64_t           *counters)
 {
     sx_status_t             sx_status;
     sai_status_t            status;
@@ -1525,10 +1537,10 @@ static sai_status_t mlnx_get_router_interface_stats_ext(_In_ sai_object_id_t    
  *
  * @return #SAI_STATUS_SUCCESS on success, failure status code on error
  */
-static sai_status_t mlnx_get_router_interface_stats(_In_ sai_object_id_t                    router_interface_id,
-                                                    _In_ uint32_t                           number_of_counters,
-                                                    _In_ const sai_stat_id_t               *counter_ids,
-                                                    _Out_ uint64_t                         *counters)
+static sai_status_t mlnx_get_router_interface_stats(_In_ sai_object_id_t      router_interface_id,
+                                                    _In_ uint32_t             number_of_counters,
+                                                    _In_ const sai_stat_id_t *counter_ids,
+                                                    _Out_ uint64_t           *counters)
 {
     return mlnx_get_router_interface_stats_ext(router_interface_id,
                                                number_of_counters,
@@ -1546,9 +1558,9 @@ static sai_status_t mlnx_get_router_interface_stats(_In_ sai_object_id_t        
  *
  * @return #SAI_STATUS_SUCCESS on success, failure status code on error
  */
-static sai_status_t mlnx_clear_router_interface_stats(_In_ sai_object_id_t                    router_interface_id,
-                                                      _In_ uint32_t                           number_of_counters,
-                                                      _In_ const sai_stat_id_t               *counter_ids)
+static sai_status_t mlnx_clear_router_interface_stats(_In_ sai_object_id_t      router_interface_id,
+                                                      _In_ uint32_t             number_of_counters,
+                                                      _In_ const sai_stat_id_t *counter_ids)
 {
     sx_status_t             sx_status;
     sai_status_t            status;

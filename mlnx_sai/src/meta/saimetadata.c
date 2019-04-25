@@ -1136,7 +1136,6 @@ const sai_api_t sai_metadata_sai_api_t_enum_values[] = {
     SAI_API_TAM,
     SAI_API_SEGMENTROUTE,
     SAI_API_MPLS,
-    SAI_API_UBURST,
     SAI_API_DTEL,
     SAI_API_BFD,
     SAI_API_ISOLATION_GROUP,
@@ -1181,7 +1180,6 @@ const char* const sai_metadata_sai_api_t_enum_values_names[] = {
     "SAI_API_TAM",
     "SAI_API_SEGMENTROUTE",
     "SAI_API_MPLS",
-    "SAI_API_UBURST",
     "SAI_API_DTEL",
     "SAI_API_BFD",
     "SAI_API_ISOLATION_GROUP",
@@ -1226,7 +1224,6 @@ const char* const sai_metadata_sai_api_t_enum_values_short_names[] = {
     "TAM",
     "SEGMENTROUTE",
     "MPLS",
-    "UBURST",
     "DTEL",
     "BFD",
     "ISOLATION_GROUP",
@@ -1235,7 +1232,7 @@ const char* const sai_metadata_sai_api_t_enum_values_short_names[] = {
 };
 const sai_enum_metadata_t sai_metadata_enum_sai_api_t = {
     .name              = "sai_api_t",
-    .valuescount       = 42,
+    .valuescount       = 41,
     .values            = (const int*)sai_metadata_sai_api_t_enum_values,
     .valuesnames       = sai_metadata_sai_api_t_enum_values_names,
     .valuesshortnames  = sai_metadata_sai_api_t_enum_values_short_names,
@@ -4366,21 +4363,24 @@ const sai_enum_metadata_t sai_metadata_enum_sai_next_hop_type_t = {
 const sai_object_type_extensions_t sai_metadata_sai_object_type_extensions_t_enum_values[] = {
     SAI_OBJECT_TYPE_TABLE_BITMAP_CLASSIFICATION_ENTRY,
     SAI_OBJECT_TYPE_TABLE_BITMAP_ROUTER_ENTRY,
+    SAI_OBJECT_TYPE_TABLE_META_TUNNEL_ENTRY,
     -1
 };
 const char* const sai_metadata_sai_object_type_extensions_t_enum_values_names[] = {
     "SAI_OBJECT_TYPE_TABLE_BITMAP_CLASSIFICATION_ENTRY",
     "SAI_OBJECT_TYPE_TABLE_BITMAP_ROUTER_ENTRY",
+    "SAI_OBJECT_TYPE_TABLE_META_TUNNEL_ENTRY",
     NULL
 };
 const char* const sai_metadata_sai_object_type_extensions_t_enum_values_short_names[] = {
     "TABLE_BITMAP_CLASSIFICATION_ENTRY",
     "TABLE_BITMAP_ROUTER_ENTRY",
+    "TABLE_META_TUNNEL_ENTRY",
     NULL
 };
 const sai_enum_metadata_t sai_metadata_enum_sai_object_type_extensions_t = {
     .name              = "sai_object_type_extensions_t",
-    .valuescount       = 2,
+    .valuescount       = 3,
     .values            = (const int*)sai_metadata_sai_object_type_extensions_t_enum_values,
     .valuesnames       = sai_metadata_sai_object_type_extensions_t_enum_values_names,
     .valuesshortnames  = sai_metadata_sai_object_type_extensions_t_enum_values_short_names,
@@ -4448,15 +4448,9 @@ const sai_object_type_t sai_metadata_sai_object_type_t_enum_values[] = {
     SAI_OBJECT_TYPE_BRIDGE_PORT,
     SAI_OBJECT_TYPE_TUNNEL_MAP_ENTRY,
     SAI_OBJECT_TYPE_TAM,
-    SAI_OBJECT_TYPE_TAM_STAT,
-    SAI_OBJECT_TYPE_TAM_SNAPSHOT,
-    SAI_OBJECT_TYPE_TAM_TRANSPORTER,
-    SAI_OBJECT_TYPE_TAM_THRESHOLD,
     SAI_OBJECT_TYPE_SEGMENTROUTE_SIDLIST,
     SAI_OBJECT_TYPE_PORT_POOL,
     SAI_OBJECT_TYPE_INSEG_ENTRY,
-    SAI_OBJECT_TYPE_TAM_HISTOGRAM,
-    SAI_OBJECT_TYPE_TAM_MICROBURST,
     SAI_OBJECT_TYPE_DTEL,
     SAI_OBJECT_TYPE_DTEL_QUEUE_REPORT,
     SAI_OBJECT_TYPE_DTEL_INT_SESSION,
@@ -4465,8 +4459,18 @@ const sai_object_type_t sai_metadata_sai_object_type_t_enum_values[] = {
     SAI_OBJECT_TYPE_BFD_SESSION,
     SAI_OBJECT_TYPE_ISOLATION_GROUP,
     SAI_OBJECT_TYPE_ISOLATION_GROUP_MEMBER,
+    SAI_OBJECT_TYPE_TAM_MATH_FUNC,
+    SAI_OBJECT_TYPE_TAM_REPORT,
+    SAI_OBJECT_TYPE_TAM_EVENT_THRESHOLD,
+    SAI_OBJECT_TYPE_TAM_TEL_TYPE,
+    SAI_OBJECT_TYPE_TAM_TRANSPORT,
+    SAI_OBJECT_TYPE_TAM_TELEMETRY,
+    SAI_OBJECT_TYPE_TAM_COLLECTOR,
+    SAI_OBJECT_TYPE_TAM_EVENT_ACTION,
+    SAI_OBJECT_TYPE_TAM_EVENT,
     SAI_OBJECT_TYPE_TABLE_BITMAP_CLASSIFICATION_ENTRY,
     SAI_OBJECT_TYPE_TABLE_BITMAP_ROUTER_ENTRY,
+    SAI_OBJECT_TYPE_TABLE_META_TUNNEL_ENTRY,
     -1
 };
 const char* const sai_metadata_sai_object_type_t_enum_values_names[] = {
@@ -4531,15 +4535,9 @@ const char* const sai_metadata_sai_object_type_t_enum_values_names[] = {
     "SAI_OBJECT_TYPE_BRIDGE_PORT",
     "SAI_OBJECT_TYPE_TUNNEL_MAP_ENTRY",
     "SAI_OBJECT_TYPE_TAM",
-    "SAI_OBJECT_TYPE_TAM_STAT",
-    "SAI_OBJECT_TYPE_TAM_SNAPSHOT",
-    "SAI_OBJECT_TYPE_TAM_TRANSPORTER",
-    "SAI_OBJECT_TYPE_TAM_THRESHOLD",
     "SAI_OBJECT_TYPE_SEGMENTROUTE_SIDLIST",
     "SAI_OBJECT_TYPE_PORT_POOL",
     "SAI_OBJECT_TYPE_INSEG_ENTRY",
-    "SAI_OBJECT_TYPE_TAM_HISTOGRAM",
-    "SAI_OBJECT_TYPE_TAM_MICROBURST",
     "SAI_OBJECT_TYPE_DTEL",
     "SAI_OBJECT_TYPE_DTEL_QUEUE_REPORT",
     "SAI_OBJECT_TYPE_DTEL_INT_SESSION",
@@ -4548,8 +4546,18 @@ const char* const sai_metadata_sai_object_type_t_enum_values_names[] = {
     "SAI_OBJECT_TYPE_BFD_SESSION",
     "SAI_OBJECT_TYPE_ISOLATION_GROUP",
     "SAI_OBJECT_TYPE_ISOLATION_GROUP_MEMBER",
+    "SAI_OBJECT_TYPE_TAM_MATH_FUNC",
+    "SAI_OBJECT_TYPE_TAM_REPORT",
+    "SAI_OBJECT_TYPE_TAM_EVENT_THRESHOLD",
+    "SAI_OBJECT_TYPE_TAM_TEL_TYPE",
+    "SAI_OBJECT_TYPE_TAM_TRANSPORT",
+    "SAI_OBJECT_TYPE_TAM_TELEMETRY",
+    "SAI_OBJECT_TYPE_TAM_COLLECTOR",
+    "SAI_OBJECT_TYPE_TAM_EVENT_ACTION",
+    "SAI_OBJECT_TYPE_TAM_EVENT",
     "SAI_OBJECT_TYPE_TABLE_BITMAP_CLASSIFICATION_ENTRY",
     "SAI_OBJECT_TYPE_TABLE_BITMAP_ROUTER_ENTRY",
+    "SAI_OBJECT_TYPE_TABLE_META_TUNNEL_ENTRY",
     NULL
 };
 const char* const sai_metadata_sai_object_type_t_enum_values_short_names[] = {
@@ -4614,15 +4622,9 @@ const char* const sai_metadata_sai_object_type_t_enum_values_short_names[] = {
     "BRIDGE_PORT",
     "TUNNEL_MAP_ENTRY",
     "TAM",
-    "TAM_STAT",
-    "TAM_SNAPSHOT",
-    "TAM_TRANSPORTER",
-    "TAM_THRESHOLD",
     "SEGMENTROUTE_SIDLIST",
     "PORT_POOL",
     "INSEG_ENTRY",
-    "TAM_HISTOGRAM",
-    "TAM_MICROBURST",
     "DTEL",
     "DTEL_QUEUE_REPORT",
     "DTEL_INT_SESSION",
@@ -4631,13 +4633,23 @@ const char* const sai_metadata_sai_object_type_t_enum_values_short_names[] = {
     "BFD_SESSION",
     "ISOLATION_GROUP",
     "ISOLATION_GROUP_MEMBER",
+    "TAM_MATH_FUNC",
+    "TAM_REPORT",
+    "TAM_EVENT_THRESHOLD",
+    "TAM_TEL_TYPE",
+    "TAM_TRANSPORT",
+    "TAM_TELEMETRY",
+    "TAM_COLLECTOR",
+    "TAM_EVENT_ACTION",
+    "TAM_EVENT",
     "TABLE_BITMAP_CLASSIFICATION_ENTRY",
     "TABLE_BITMAP_ROUTER_ENTRY",
+    "TABLE_META_TUNNEL_ENTRY",
     NULL
 };
 const sai_enum_metadata_t sai_metadata_enum_sai_object_type_t = {
     .name              = "sai_object_type_t",
-    .valuescount       = 80,
+    .valuescount       = 84,
     .values            = (const int*)sai_metadata_sai_object_type_t_enum_values,
     .valuesnames       = sai_metadata_sai_object_type_t_enum_values_names,
     .valuesshortnames  = sai_metadata_sai_object_type_t_enum_values_short_names,
@@ -4964,6 +4976,10 @@ const sai_port_attr_t sai_metadata_sai_port_attr_t_enum_values[] = {
     SAI_PORT_ATTR_PORT_POOL_LIST,
     SAI_PORT_ATTR_ISOLATION_GROUP,
     SAI_PORT_ATTR_PKT_TX_ENABLE,
+    SAI_PORT_ATTR_TAM_OBJECT,
+    SAI_PORT_ATTR_SERDES_PREEMPHASIS,
+    SAI_PORT_ATTR_SERDES_IDRIVER,
+    SAI_PORT_ATTR_SERDES_IPREDRIVER,
     -1
 };
 const char* const sai_metadata_sai_port_attr_t_enum_values_names[] = {
@@ -5054,6 +5070,10 @@ const char* const sai_metadata_sai_port_attr_t_enum_values_names[] = {
     "SAI_PORT_ATTR_PORT_POOL_LIST",
     "SAI_PORT_ATTR_ISOLATION_GROUP",
     "SAI_PORT_ATTR_PKT_TX_ENABLE",
+    "SAI_PORT_ATTR_TAM_OBJECT",
+    "SAI_PORT_ATTR_SERDES_PREEMPHASIS",
+    "SAI_PORT_ATTR_SERDES_IDRIVER",
+    "SAI_PORT_ATTR_SERDES_IPREDRIVER",
     NULL
 };
 const char* const sai_metadata_sai_port_attr_t_enum_values_short_names[] = {
@@ -5144,11 +5164,15 @@ const char* const sai_metadata_sai_port_attr_t_enum_values_short_names[] = {
     "PORT_POOL_LIST",
     "ISOLATION_GROUP",
     "PKT_TX_ENABLE",
+    "TAM_OBJECT",
+    "SERDES_PREEMPHASIS",
+    "SERDES_IDRIVER",
+    "SERDES_IPREDRIVER",
     NULL
 };
 const sai_enum_metadata_t sai_metadata_enum_sai_port_attr_t = {
     .name              = "sai_port_attr_t",
-    .valuescount       = 87,
+    .valuescount       = 91,
     .values            = (const int*)sai_metadata_sai_port_attr_t_enum_values,
     .valuesnames       = sai_metadata_sai_port_attr_t_enum_values_names,
     .valuesshortnames  = sai_metadata_sai_port_attr_t_enum_values_short_names,
@@ -6058,6 +6082,7 @@ const sai_queue_attr_t sai_metadata_sai_queue_attr_t_enum_values[] = {
     SAI_QUEUE_ATTR_PAUSE_STATUS,
     SAI_QUEUE_ATTR_ENABLE_PFC_DLDR,
     SAI_QUEUE_ATTR_PFC_DLR_INIT,
+    SAI_QUEUE_ATTR_TAM_OBJECT,
     -1
 };
 const char* const sai_metadata_sai_queue_attr_t_enum_values_names[] = {
@@ -6071,6 +6096,7 @@ const char* const sai_metadata_sai_queue_attr_t_enum_values_names[] = {
     "SAI_QUEUE_ATTR_PAUSE_STATUS",
     "SAI_QUEUE_ATTR_ENABLE_PFC_DLDR",
     "SAI_QUEUE_ATTR_PFC_DLR_INIT",
+    "SAI_QUEUE_ATTR_TAM_OBJECT",
     NULL
 };
 const char* const sai_metadata_sai_queue_attr_t_enum_values_short_names[] = {
@@ -6084,11 +6110,12 @@ const char* const sai_metadata_sai_queue_attr_t_enum_values_short_names[] = {
     "PAUSE_STATUS",
     "ENABLE_PFC_DLDR",
     "PFC_DLR_INIT",
+    "TAM_OBJECT",
     NULL
 };
 const sai_enum_metadata_t sai_metadata_enum_sai_queue_attr_t = {
     .name              = "sai_queue_attr_t",
-    .valuescount       = 10,
+    .valuescount       = 11,
     .values            = (const int*)sai_metadata_sai_queue_attr_t_enum_values,
     .valuesnames       = sai_metadata_sai_queue_attr_t_enum_values_names,
     .valuesshortnames  = sai_metadata_sai_queue_attr_t_enum_values_short_names,
@@ -7215,7 +7242,6 @@ const sai_switch_attr_t sai_metadata_sai_switch_attr_t_enum_values[] = {
     SAI_SWITCH_ATTR_FDB_EVENT_NOTIFY,
     SAI_SWITCH_ATTR_PORT_STATE_CHANGE_NOTIFY,
     SAI_SWITCH_ATTR_PACKET_EVENT_NOTIFY,
-    SAI_SWITCH_ATTR_TAM_EVENT_NOTIFY,
     SAI_SWITCH_ATTR_FAST_API_ENABLE,
     SAI_SWITCH_ATTR_MIRROR_TC,
     SAI_SWITCH_ATTR_ACL_STAGE_INGRESS,
@@ -7246,6 +7272,8 @@ const sai_switch_attr_t sai_metadata_sai_switch_attr_t_enum_values[] = {
     SAI_SWITCH_ATTR_MAX_SAMPLED_MIRROR_SESSION,
     SAI_SWITCH_ATTR_SUPPORTED_EXTENDED_STATS_MODE,
     SAI_SWITCH_ATTR_UNINIT_DATA_PLANE_ON_REMOVAL,
+    SAI_SWITCH_ATTR_TAM_OBJECT_ID,
+    SAI_SWITCH_ATTR_TAM_EVENT_NOTIFY,
     SAI_SWITCH_ATTR_PRE_SHUTDOWN,
     -1
 };
@@ -7364,7 +7392,6 @@ const char* const sai_metadata_sai_switch_attr_t_enum_values_names[] = {
     "SAI_SWITCH_ATTR_FDB_EVENT_NOTIFY",
     "SAI_SWITCH_ATTR_PORT_STATE_CHANGE_NOTIFY",
     "SAI_SWITCH_ATTR_PACKET_EVENT_NOTIFY",
-    "SAI_SWITCH_ATTR_TAM_EVENT_NOTIFY",
     "SAI_SWITCH_ATTR_FAST_API_ENABLE",
     "SAI_SWITCH_ATTR_MIRROR_TC",
     "SAI_SWITCH_ATTR_ACL_STAGE_INGRESS",
@@ -7395,6 +7422,8 @@ const char* const sai_metadata_sai_switch_attr_t_enum_values_names[] = {
     "SAI_SWITCH_ATTR_MAX_SAMPLED_MIRROR_SESSION",
     "SAI_SWITCH_ATTR_SUPPORTED_EXTENDED_STATS_MODE",
     "SAI_SWITCH_ATTR_UNINIT_DATA_PLANE_ON_REMOVAL",
+    "SAI_SWITCH_ATTR_TAM_OBJECT_ID",
+    "SAI_SWITCH_ATTR_TAM_EVENT_NOTIFY",
     "SAI_SWITCH_ATTR_PRE_SHUTDOWN",
     NULL
 };
@@ -7513,7 +7542,6 @@ const char* const sai_metadata_sai_switch_attr_t_enum_values_short_names[] = {
     "FDB_EVENT_NOTIFY",
     "PORT_STATE_CHANGE_NOTIFY",
     "PACKET_EVENT_NOTIFY",
-    "TAM_EVENT_NOTIFY",
     "FAST_API_ENABLE",
     "MIRROR_TC",
     "ACL_STAGE_INGRESS",
@@ -7544,12 +7572,14 @@ const char* const sai_metadata_sai_switch_attr_t_enum_values_short_names[] = {
     "MAX_SAMPLED_MIRROR_SESSION",
     "SUPPORTED_EXTENDED_STATS_MODE",
     "UNINIT_DATA_PLANE_ON_REMOVAL",
+    "TAM_OBJECT_ID",
+    "TAM_EVENT_NOTIFY",
     "PRE_SHUTDOWN",
     NULL
 };
 const sai_enum_metadata_t sai_metadata_enum_sai_switch_attr_t = {
     .name              = "sai_switch_attr_t",
-    .valuescount       = 146,
+    .valuescount       = 147,
     .values            = (const int*)sai_metadata_sai_switch_attr_t_enum_values,
     .valuesnames       = sai_metadata_sai_switch_attr_t_enum_values_names,
     .valuesshortnames  = sai_metadata_sai_switch_attr_t_enum_values_short_names,
@@ -7775,6 +7805,7 @@ const sai_table_bitmap_router_entry_attr_t sai_metadata_sai_table_bitmap_router_
     SAI_TABLE_BITMAP_ROUTER_ENTRY_ATTR_IN_RIF_METADATA_KEY,
     SAI_TABLE_BITMAP_ROUTER_ENTRY_ATTR_IN_RIF_METADATA_MASK,
     SAI_TABLE_BITMAP_ROUTER_ENTRY_ATTR_DST_IP_KEY,
+    SAI_TABLE_BITMAP_ROUTER_ENTRY_ATTR_TUNNEL_INDEX,
     SAI_TABLE_BITMAP_ROUTER_ENTRY_ATTR_NEXT_HOP,
     SAI_TABLE_BITMAP_ROUTER_ENTRY_ATTR_ROUTER_INTERFACE,
     SAI_TABLE_BITMAP_ROUTER_ENTRY_ATTR_TRAP_ID,
@@ -7786,6 +7817,7 @@ const char* const sai_metadata_sai_table_bitmap_router_entry_attr_t_enum_values_
     "SAI_TABLE_BITMAP_ROUTER_ENTRY_ATTR_IN_RIF_METADATA_KEY",
     "SAI_TABLE_BITMAP_ROUTER_ENTRY_ATTR_IN_RIF_METADATA_MASK",
     "SAI_TABLE_BITMAP_ROUTER_ENTRY_ATTR_DST_IP_KEY",
+    "SAI_TABLE_BITMAP_ROUTER_ENTRY_ATTR_TUNNEL_INDEX",
     "SAI_TABLE_BITMAP_ROUTER_ENTRY_ATTR_NEXT_HOP",
     "SAI_TABLE_BITMAP_ROUTER_ENTRY_ATTR_ROUTER_INTERFACE",
     "SAI_TABLE_BITMAP_ROUTER_ENTRY_ATTR_TRAP_ID",
@@ -7797,6 +7829,7 @@ const char* const sai_metadata_sai_table_bitmap_router_entry_attr_t_enum_values_
     "IN_RIF_METADATA_KEY",
     "IN_RIF_METADATA_MASK",
     "DST_IP_KEY",
+    "TUNNEL_INDEX",
     "NEXT_HOP",
     "ROUTER_INTERFACE",
     "TRAP_ID",
@@ -7804,7 +7837,7 @@ const char* const sai_metadata_sai_table_bitmap_router_entry_attr_t_enum_values_
 };
 const sai_enum_metadata_t sai_metadata_enum_sai_table_bitmap_router_entry_attr_t = {
     .name              = "sai_table_bitmap_router_entry_attr_t",
-    .valuescount       = 8,
+    .valuescount       = 9,
     .values            = (const int*)sai_metadata_sai_table_bitmap_router_entry_attr_t_enum_values,
     .valuesnames       = sai_metadata_sai_table_bitmap_router_entry_attr_t_enum_values_names,
     .valuesshortnames  = sai_metadata_sai_table_bitmap_router_entry_attr_t_enum_values_short_names,
@@ -7833,338 +7866,693 @@ const sai_enum_metadata_t sai_metadata_enum_sai_table_bitmap_router_entry_stat_t
     .valuesshortnames  = sai_metadata_sai_table_bitmap_router_entry_stat_t_enum_values_short_names,
     .containsflags     = false,
 };
+const sai_table_meta_tunnel_entry_action_t sai_metadata_sai_table_meta_tunnel_entry_action_t_enum_values[] = {
+    SAI_TABLE_META_TUNNEL_ENTRY_ACTION_TUNNEL_ENCAP,
+    SAI_TABLE_META_TUNNEL_ENTRY_ACTION_NOACTION,
+    -1
+};
+const char* const sai_metadata_sai_table_meta_tunnel_entry_action_t_enum_values_names[] = {
+    "SAI_TABLE_META_TUNNEL_ENTRY_ACTION_TUNNEL_ENCAP",
+    "SAI_TABLE_META_TUNNEL_ENTRY_ACTION_NOACTION",
+    NULL
+};
+const char* const sai_metadata_sai_table_meta_tunnel_entry_action_t_enum_values_short_names[] = {
+    "TUNNEL_ENCAP",
+    "NOACTION",
+    NULL
+};
+const sai_enum_metadata_t sai_metadata_enum_sai_table_meta_tunnel_entry_action_t = {
+    .name              = "sai_table_meta_tunnel_entry_action_t",
+    .valuescount       = 2,
+    .values            = (const int*)sai_metadata_sai_table_meta_tunnel_entry_action_t_enum_values,
+    .valuesnames       = sai_metadata_sai_table_meta_tunnel_entry_action_t_enum_values_names,
+    .valuesshortnames  = sai_metadata_sai_table_meta_tunnel_entry_action_t_enum_values_short_names,
+    .containsflags     = false,
+};
+const sai_table_meta_tunnel_entry_attr_t sai_metadata_sai_table_meta_tunnel_entry_attr_t_enum_values[] = {
+    SAI_TABLE_META_TUNNEL_ENTRY_ATTR_ACTION,
+    SAI_TABLE_META_TUNNEL_ENTRY_ATTR_METADATA_KEY,
+    SAI_TABLE_META_TUNNEL_ENTRY_ATTR_IS_DEFAULT,
+    SAI_TABLE_META_TUNNEL_ENTRY_ATTR_TUNNEL_ID,
+    SAI_TABLE_META_TUNNEL_ENTRY_ATTR_UNDERLAY_DIP,
+    -1
+};
+const char* const sai_metadata_sai_table_meta_tunnel_entry_attr_t_enum_values_names[] = {
+    "SAI_TABLE_META_TUNNEL_ENTRY_ATTR_ACTION",
+    "SAI_TABLE_META_TUNNEL_ENTRY_ATTR_METADATA_KEY",
+    "SAI_TABLE_META_TUNNEL_ENTRY_ATTR_IS_DEFAULT",
+    "SAI_TABLE_META_TUNNEL_ENTRY_ATTR_TUNNEL_ID",
+    "SAI_TABLE_META_TUNNEL_ENTRY_ATTR_UNDERLAY_DIP",
+    NULL
+};
+const char* const sai_metadata_sai_table_meta_tunnel_entry_attr_t_enum_values_short_names[] = {
+    "ACTION",
+    "METADATA_KEY",
+    "IS_DEFAULT",
+    "TUNNEL_ID",
+    "UNDERLAY_DIP",
+    NULL
+};
+const sai_enum_metadata_t sai_metadata_enum_sai_table_meta_tunnel_entry_attr_t = {
+    .name              = "sai_table_meta_tunnel_entry_attr_t",
+    .valuescount       = 5,
+    .values            = (const int*)sai_metadata_sai_table_meta_tunnel_entry_attr_t_enum_values,
+    .valuesnames       = sai_metadata_sai_table_meta_tunnel_entry_attr_t_enum_values_names,
+    .valuesshortnames  = sai_metadata_sai_table_meta_tunnel_entry_attr_t_enum_values_short_names,
+    .containsflags     = false,
+};
+const sai_table_meta_tunnel_entry_stat_t sai_metadata_sai_table_meta_tunnel_entry_stat_t_enum_values[] = {
+    SAI_TABLE_META_TUNNEL_ENTRY_STAT_HIT_PACKETS,
+    SAI_TABLE_META_TUNNEL_ENTRY_STAT_HIT_OCTETS,
+    -1
+};
+const char* const sai_metadata_sai_table_meta_tunnel_entry_stat_t_enum_values_names[] = {
+    "SAI_TABLE_META_TUNNEL_ENTRY_STAT_HIT_PACKETS",
+    "SAI_TABLE_META_TUNNEL_ENTRY_STAT_HIT_OCTETS",
+    NULL
+};
+const char* const sai_metadata_sai_table_meta_tunnel_entry_stat_t_enum_values_short_names[] = {
+    "HIT_PACKETS",
+    "HIT_OCTETS",
+    NULL
+};
+const sai_enum_metadata_t sai_metadata_enum_sai_table_meta_tunnel_entry_stat_t = {
+    .name              = "sai_table_meta_tunnel_entry_stat_t",
+    .valuescount       = 2,
+    .values            = (const int*)sai_metadata_sai_table_meta_tunnel_entry_stat_t_enum_values,
+    .valuesnames       = sai_metadata_sai_table_meta_tunnel_entry_stat_t_enum_values_names,
+    .valuesshortnames  = sai_metadata_sai_table_meta_tunnel_entry_stat_t_enum_values_short_names,
+    .containsflags     = false,
+};
 const sai_tam_attr_t sai_metadata_sai_tam_attr_t_enum_values[] = {
-    SAI_TAM_ATTR_BUFFER_TRACKING_ADMIN_STATE,
-    SAI_TAM_ATTR_BUFFER_REPORTING_MODE,
-    SAI_TAM_ATTR_BUFFER_TRACKING_MODE,
-    SAI_TAM_ATTR_TRACKING_OPTIONS,
-    SAI_TAM_ATTR_TRANSPORTER,
-    SAI_TAM_ATTR_CLEAR_ALL_THRESHOLDS,
-    SAI_TAM_ATTR_TOTAL_NUM_STATISTICS,
-    SAI_TAM_ATTR_LATEST_SNAPSHOT_ID,
-    SAI_TAM_ATTR_MAX_NUM_SNAPSHOTS,
-    SAI_TAM_ATTR_THRESHOLD_LIST,
+    SAI_TAM_ATTR_TELEMETRY_OBJECTS_LIST,
+    SAI_TAM_ATTR_EVENT_OBJECTS_LIST,
+    SAI_TAM_ATTR_TAM_BIND_POINT_TYPE_LIST,
     -1
 };
 const char* const sai_metadata_sai_tam_attr_t_enum_values_names[] = {
-    "SAI_TAM_ATTR_BUFFER_TRACKING_ADMIN_STATE",
-    "SAI_TAM_ATTR_BUFFER_REPORTING_MODE",
-    "SAI_TAM_ATTR_BUFFER_TRACKING_MODE",
-    "SAI_TAM_ATTR_TRACKING_OPTIONS",
-    "SAI_TAM_ATTR_TRANSPORTER",
-    "SAI_TAM_ATTR_CLEAR_ALL_THRESHOLDS",
-    "SAI_TAM_ATTR_TOTAL_NUM_STATISTICS",
-    "SAI_TAM_ATTR_LATEST_SNAPSHOT_ID",
-    "SAI_TAM_ATTR_MAX_NUM_SNAPSHOTS",
-    "SAI_TAM_ATTR_THRESHOLD_LIST",
+    "SAI_TAM_ATTR_TELEMETRY_OBJECTS_LIST",
+    "SAI_TAM_ATTR_EVENT_OBJECTS_LIST",
+    "SAI_TAM_ATTR_TAM_BIND_POINT_TYPE_LIST",
     NULL
 };
 const char* const sai_metadata_sai_tam_attr_t_enum_values_short_names[] = {
-    "BUFFER_TRACKING_ADMIN_STATE",
-    "BUFFER_REPORTING_MODE",
-    "BUFFER_TRACKING_MODE",
-    "TRACKING_OPTIONS",
-    "TRANSPORTER",
-    "CLEAR_ALL_THRESHOLDS",
-    "TOTAL_NUM_STATISTICS",
-    "LATEST_SNAPSHOT_ID",
-    "MAX_NUM_SNAPSHOTS",
-    "THRESHOLD_LIST",
+    "TELEMETRY_OBJECTS_LIST",
+    "EVENT_OBJECTS_LIST",
+    "TAM_BIND_POINT_TYPE_LIST",
     NULL
 };
 const sai_enum_metadata_t sai_metadata_enum_sai_tam_attr_t = {
     .name              = "sai_tam_attr_t",
-    .valuescount       = 10,
+    .valuescount       = 3,
     .values            = (const int*)sai_metadata_sai_tam_attr_t_enum_values,
     .valuesnames       = sai_metadata_sai_tam_attr_t_enum_values_names,
     .valuesshortnames  = sai_metadata_sai_tam_attr_t_enum_values_short_names,
     .containsflags     = false,
 };
-const sai_tam_histogram_attr_t sai_metadata_sai_tam_histogram_attr_t_enum_values[] = {
-    SAI_TAM_HISTOGRAM_ATTR_TAM_ID,
-    SAI_TAM_HISTOGRAM_ATTR_STAT_TYPE,
-    SAI_TAM_HISTOGRAM_ATTR_BIN_BOUNDARY,
-    SAI_TAM_HISTOGRAM_ATTR_RESOLUTION,
-    SAI_TAM_HISTOGRAM_ATTR_CLEAR_MODE,
-    SAI_TAM_HISTOGRAM_ATTR_TRANSPORTER,
+const sai_tam_bind_point_type_t sai_metadata_sai_tam_bind_point_type_t_enum_values[] = {
+    SAI_TAM_BIND_POINT_TYPE_QUEUE,
+    SAI_TAM_BIND_POINT_TYPE_PORT,
+    SAI_TAM_BIND_POINT_TYPE_LAG,
+    SAI_TAM_BIND_POINT_TYPE_VLAN,
+    SAI_TAM_BIND_POINT_TYPE_SWITCH,
     -1
 };
-const char* const sai_metadata_sai_tam_histogram_attr_t_enum_values_names[] = {
-    "SAI_TAM_HISTOGRAM_ATTR_TAM_ID",
-    "SAI_TAM_HISTOGRAM_ATTR_STAT_TYPE",
-    "SAI_TAM_HISTOGRAM_ATTR_BIN_BOUNDARY",
-    "SAI_TAM_HISTOGRAM_ATTR_RESOLUTION",
-    "SAI_TAM_HISTOGRAM_ATTR_CLEAR_MODE",
-    "SAI_TAM_HISTOGRAM_ATTR_TRANSPORTER",
+const char* const sai_metadata_sai_tam_bind_point_type_t_enum_values_names[] = {
+    "SAI_TAM_BIND_POINT_TYPE_QUEUE",
+    "SAI_TAM_BIND_POINT_TYPE_PORT",
+    "SAI_TAM_BIND_POINT_TYPE_LAG",
+    "SAI_TAM_BIND_POINT_TYPE_VLAN",
+    "SAI_TAM_BIND_POINT_TYPE_SWITCH",
     NULL
 };
-const char* const sai_metadata_sai_tam_histogram_attr_t_enum_values_short_names[] = {
-    "TAM_ID",
-    "STAT_TYPE",
-    "BIN_BOUNDARY",
-    "RESOLUTION",
-    "CLEAR_MODE",
-    "TRANSPORTER",
+const char* const sai_metadata_sai_tam_bind_point_type_t_enum_values_short_names[] = {
+    "QUEUE",
+    "PORT",
+    "LAG",
+    "VLAN",
+    "SWITCH",
     NULL
 };
-const sai_enum_metadata_t sai_metadata_enum_sai_tam_histogram_attr_t = {
-    .name              = "sai_tam_histogram_attr_t",
-    .valuescount       = 6,
-    .values            = (const int*)sai_metadata_sai_tam_histogram_attr_t_enum_values,
-    .valuesnames       = sai_metadata_sai_tam_histogram_attr_t_enum_values_names,
-    .valuesshortnames  = sai_metadata_sai_tam_histogram_attr_t_enum_values_short_names,
-    .containsflags     = false,
-};
-const sai_tam_microburst_attr_t sai_metadata_sai_tam_microburst_attr_t_enum_values[] = {
-    SAI_TAM_MICROBURST_ATTR_TAM_ID,
-    SAI_TAM_MICROBURST_ATTR_STATISTIC,
-    SAI_TAM_MICROBURST_ATTR_LEVEL_A,
-    SAI_TAM_MICROBURST_ATTR_LEVEL_B,
-    SAI_TAM_MICROBURST_ATTR_TRANSPORTER,
-    SAI_TAM_MICROBURST_ATTR_STATS,
-    -1
-};
-const char* const sai_metadata_sai_tam_microburst_attr_t_enum_values_names[] = {
-    "SAI_TAM_MICROBURST_ATTR_TAM_ID",
-    "SAI_TAM_MICROBURST_ATTR_STATISTIC",
-    "SAI_TAM_MICROBURST_ATTR_LEVEL_A",
-    "SAI_TAM_MICROBURST_ATTR_LEVEL_B",
-    "SAI_TAM_MICROBURST_ATTR_TRANSPORTER",
-    "SAI_TAM_MICROBURST_ATTR_STATS",
-    NULL
-};
-const char* const sai_metadata_sai_tam_microburst_attr_t_enum_values_short_names[] = {
-    "TAM_ID",
-    "STATISTIC",
-    "LEVEL_A",
-    "LEVEL_B",
-    "TRANSPORTER",
-    "STATS",
-    NULL
-};
-const sai_enum_metadata_t sai_metadata_enum_sai_tam_microburst_attr_t = {
-    .name              = "sai_tam_microburst_attr_t",
-    .valuescount       = 6,
-    .values            = (const int*)sai_metadata_sai_tam_microburst_attr_t_enum_values,
-    .valuesnames       = sai_metadata_sai_tam_microburst_attr_t_enum_values_names,
-    .valuesshortnames  = sai_metadata_sai_tam_microburst_attr_t_enum_values_short_names,
-    .containsflags     = false,
-};
-const sai_tam_microburst_stat_t sai_metadata_sai_tam_microburst_stat_t_enum_values[] = {
-    SAI_TAM_MICROBURST_STAT_LAST_DURATION,
-    SAI_TAM_MICROBURST_STAT_LONGEST_DURATION,
-    SAI_TAM_MICROBURST_STAT_SHORTEST_DURATION,
-    SAI_TAM_MICROBURST_STAT_AVERAGE_DURATION,
-    SAI_TAM_MICROBURST_STAT_NUMBER,
-    -1
-};
-const char* const sai_metadata_sai_tam_microburst_stat_t_enum_values_names[] = {
-    "SAI_TAM_MICROBURST_STAT_LAST_DURATION",
-    "SAI_TAM_MICROBURST_STAT_LONGEST_DURATION",
-    "SAI_TAM_MICROBURST_STAT_SHORTEST_DURATION",
-    "SAI_TAM_MICROBURST_STAT_AVERAGE_DURATION",
-    "SAI_TAM_MICROBURST_STAT_NUMBER",
-    NULL
-};
-const char* const sai_metadata_sai_tam_microburst_stat_t_enum_values_short_names[] = {
-    "LAST_DURATION",
-    "LONGEST_DURATION",
-    "SHORTEST_DURATION",
-    "AVERAGE_DURATION",
-    "NUMBER",
-    NULL
-};
-const sai_enum_metadata_t sai_metadata_enum_sai_tam_microburst_stat_t = {
-    .name              = "sai_tam_microburst_stat_t",
+const sai_enum_metadata_t sai_metadata_enum_sai_tam_bind_point_type_t = {
+    .name              = "sai_tam_bind_point_type_t",
     .valuescount       = 5,
-    .values            = (const int*)sai_metadata_sai_tam_microburst_stat_t_enum_values,
-    .valuesnames       = sai_metadata_sai_tam_microburst_stat_t_enum_values_names,
-    .valuesshortnames  = sai_metadata_sai_tam_microburst_stat_t_enum_values_short_names,
+    .values            = (const int*)sai_metadata_sai_tam_bind_point_type_t_enum_values,
+    .valuesnames       = sai_metadata_sai_tam_bind_point_type_t_enum_values_names,
+    .valuesshortnames  = sai_metadata_sai_tam_bind_point_type_t_enum_values_short_names,
     .containsflags     = false,
 };
-const sai_tam_reporting_mode_t sai_metadata_sai_tam_reporting_mode_t_enum_values[] = {
-    SAI_TAM_REPORTING_MODE_BYTES,
-    SAI_TAM_REPORTING_MODE_PERCENTAGE,
+const sai_tam_collector_attr_t sai_metadata_sai_tam_collector_attr_t_enum_values[] = {
+    SAI_TAM_COLLECTOR_ATTR_SRC_IP,
+    SAI_TAM_COLLECTOR_ATTR_DST_IP,
+    SAI_TAM_COLLECTOR_ATTR_LOCALHOST,
+    SAI_TAM_COLLECTOR_ATTR_VIRTUAL_ROUTER_ID,
+    SAI_TAM_COLLECTOR_ATTR_TRUNCATE_SIZE,
+    SAI_TAM_COLLECTOR_ATTR_TRANSPORT,
+    SAI_TAM_COLLECTOR_ATTR_DSCP_VALUE,
     -1
 };
-const char* const sai_metadata_sai_tam_reporting_mode_t_enum_values_names[] = {
-    "SAI_TAM_REPORTING_MODE_BYTES",
-    "SAI_TAM_REPORTING_MODE_PERCENTAGE",
+const char* const sai_metadata_sai_tam_collector_attr_t_enum_values_names[] = {
+    "SAI_TAM_COLLECTOR_ATTR_SRC_IP",
+    "SAI_TAM_COLLECTOR_ATTR_DST_IP",
+    "SAI_TAM_COLLECTOR_ATTR_LOCALHOST",
+    "SAI_TAM_COLLECTOR_ATTR_VIRTUAL_ROUTER_ID",
+    "SAI_TAM_COLLECTOR_ATTR_TRUNCATE_SIZE",
+    "SAI_TAM_COLLECTOR_ATTR_TRANSPORT",
+    "SAI_TAM_COLLECTOR_ATTR_DSCP_VALUE",
     NULL
 };
-const char* const sai_metadata_sai_tam_reporting_mode_t_enum_values_short_names[] = {
-    "BYTES",
-    "PERCENTAGE",
+const char* const sai_metadata_sai_tam_collector_attr_t_enum_values_short_names[] = {
+    "SRC_IP",
+    "DST_IP",
+    "LOCALHOST",
+    "VIRTUAL_ROUTER_ID",
+    "TRUNCATE_SIZE",
+    "TRANSPORT",
+    "DSCP_VALUE",
     NULL
 };
-const sai_enum_metadata_t sai_metadata_enum_sai_tam_reporting_mode_t = {
-    .name              = "sai_tam_reporting_mode_t",
+const sai_enum_metadata_t sai_metadata_enum_sai_tam_collector_attr_t = {
+    .name              = "sai_tam_collector_attr_t",
+    .valuescount       = 7,
+    .values            = (const int*)sai_metadata_sai_tam_collector_attr_t_enum_values,
+    .valuesnames       = sai_metadata_sai_tam_collector_attr_t_enum_values_names,
+    .valuesshortnames  = sai_metadata_sai_tam_collector_attr_t_enum_values_short_names,
+    .containsflags     = false,
+};
+const sai_tam_event_action_attr_t sai_metadata_sai_tam_event_action_attr_t_enum_values[] = {
+    SAI_TAM_EVENT_ACTION_ATTR_REPORT_TYPE,
+    SAI_TAM_EVENT_ACTION_ATTR_QOS_ACTION_TYPE,
+    -1
+};
+const char* const sai_metadata_sai_tam_event_action_attr_t_enum_values_names[] = {
+    "SAI_TAM_EVENT_ACTION_ATTR_REPORT_TYPE",
+    "SAI_TAM_EVENT_ACTION_ATTR_QOS_ACTION_TYPE",
+    NULL
+};
+const char* const sai_metadata_sai_tam_event_action_attr_t_enum_values_short_names[] = {
+    "REPORT_TYPE",
+    "QOS_ACTION_TYPE",
+    NULL
+};
+const sai_enum_metadata_t sai_metadata_enum_sai_tam_event_action_attr_t = {
+    .name              = "sai_tam_event_action_attr_t",
     .valuescount       = 2,
-    .values            = (const int*)sai_metadata_sai_tam_reporting_mode_t_enum_values,
-    .valuesnames       = sai_metadata_sai_tam_reporting_mode_t_enum_values_names,
-    .valuesshortnames  = sai_metadata_sai_tam_reporting_mode_t_enum_values_short_names,
+    .values            = (const int*)sai_metadata_sai_tam_event_action_attr_t_enum_values,
+    .valuesnames       = sai_metadata_sai_tam_event_action_attr_t_enum_values_names,
+    .valuesshortnames  = sai_metadata_sai_tam_event_action_attr_t_enum_values_short_names,
     .containsflags     = false,
 };
-const sai_tam_snapshot_attr_t sai_metadata_sai_tam_snapshot_attr_t_enum_values[] = {
-    SAI_TAM_SNAPSHOT_ATTR_TAM_ID,
-    SAI_TAM_SNAPSHOT_ATTR_STAT_TYPE,
-    SAI_TAM_SNAPSHOT_ATTR_TRANSPORTER,
+const sai_tam_event_attr_t sai_metadata_sai_tam_event_attr_t_enum_values[] = {
+    SAI_TAM_EVENT_ATTR_TYPE,
+    SAI_TAM_EVENT_ATTR_ACTION_LIST,
+    SAI_TAM_EVENT_ATTR_COLLECTOR_LIST,
+    SAI_TAM_EVENT_ATTR_THRESHOLD,
+    SAI_TAM_EVENT_ATTR_DSCP_VALUE,
     -1
 };
-const char* const sai_metadata_sai_tam_snapshot_attr_t_enum_values_names[] = {
-    "SAI_TAM_SNAPSHOT_ATTR_TAM_ID",
-    "SAI_TAM_SNAPSHOT_ATTR_STAT_TYPE",
-    "SAI_TAM_SNAPSHOT_ATTR_TRANSPORTER",
+const char* const sai_metadata_sai_tam_event_attr_t_enum_values_names[] = {
+    "SAI_TAM_EVENT_ATTR_TYPE",
+    "SAI_TAM_EVENT_ATTR_ACTION_LIST",
+    "SAI_TAM_EVENT_ATTR_COLLECTOR_LIST",
+    "SAI_TAM_EVENT_ATTR_THRESHOLD",
+    "SAI_TAM_EVENT_ATTR_DSCP_VALUE",
     NULL
 };
-const char* const sai_metadata_sai_tam_snapshot_attr_t_enum_values_short_names[] = {
-    "TAM_ID",
-    "STAT_TYPE",
-    "TRANSPORTER",
-    NULL
-};
-const sai_enum_metadata_t sai_metadata_enum_sai_tam_snapshot_attr_t = {
-    .name              = "sai_tam_snapshot_attr_t",
-    .valuescount       = 3,
-    .values            = (const int*)sai_metadata_sai_tam_snapshot_attr_t_enum_values,
-    .valuesnames       = sai_metadata_sai_tam_snapshot_attr_t_enum_values_names,
-    .valuesshortnames  = sai_metadata_sai_tam_snapshot_attr_t_enum_values_short_names,
-    .containsflags     = false,
-};
-const sai_tam_stat_attr_t sai_metadata_sai_tam_stat_attr_t_enum_values[] = {
-    SAI_TAM_STAT_ATTR_PARENT_ID,
-    SAI_TAM_STAT_ATTR_COUNTER_ID,
-    -1
-};
-const char* const sai_metadata_sai_tam_stat_attr_t_enum_values_names[] = {
-    "SAI_TAM_STAT_ATTR_PARENT_ID",
-    "SAI_TAM_STAT_ATTR_COUNTER_ID",
-    NULL
-};
-const char* const sai_metadata_sai_tam_stat_attr_t_enum_values_short_names[] = {
-    "PARENT_ID",
-    "COUNTER_ID",
-    NULL
-};
-const sai_enum_metadata_t sai_metadata_enum_sai_tam_stat_attr_t = {
-    .name              = "sai_tam_stat_attr_t",
-    .valuescount       = 2,
-    .values            = (const int*)sai_metadata_sai_tam_stat_attr_t_enum_values,
-    .valuesnames       = sai_metadata_sai_tam_stat_attr_t_enum_values_names,
-    .valuesshortnames  = sai_metadata_sai_tam_stat_attr_t_enum_values_short_names,
-    .containsflags     = false,
-};
-const sai_tam_threshold_attr_t sai_metadata_sai_tam_threshold_attr_t_enum_values[] = {
-    SAI_TAM_THRESHOLD_ATTR_TAM_ID,
-    SAI_TAM_THRESHOLD_ATTR_STATISTIC,
-    SAI_TAM_THRESHOLD_ATTR_LEVEL,
-    SAI_TAM_THRESHOLD_ATTR_TRANSPORTER,
-    SAI_TAM_THRESHOLD_ATTR_SNAPSHOT_ON_BREACH,
-    SAI_TAM_THRESHOLD_ATTR_SNAPSHOT_STATS,
-    -1
-};
-const char* const sai_metadata_sai_tam_threshold_attr_t_enum_values_names[] = {
-    "SAI_TAM_THRESHOLD_ATTR_TAM_ID",
-    "SAI_TAM_THRESHOLD_ATTR_STATISTIC",
-    "SAI_TAM_THRESHOLD_ATTR_LEVEL",
-    "SAI_TAM_THRESHOLD_ATTR_TRANSPORTER",
-    "SAI_TAM_THRESHOLD_ATTR_SNAPSHOT_ON_BREACH",
-    "SAI_TAM_THRESHOLD_ATTR_SNAPSHOT_STATS",
-    NULL
-};
-const char* const sai_metadata_sai_tam_threshold_attr_t_enum_values_short_names[] = {
-    "TAM_ID",
-    "STATISTIC",
-    "LEVEL",
-    "TRANSPORTER",
-    "SNAPSHOT_ON_BREACH",
-    "SNAPSHOT_STATS",
-    NULL
-};
-const sai_enum_metadata_t sai_metadata_enum_sai_tam_threshold_attr_t = {
-    .name              = "sai_tam_threshold_attr_t",
-    .valuescount       = 6,
-    .values            = (const int*)sai_metadata_sai_tam_threshold_attr_t_enum_values,
-    .valuesnames       = sai_metadata_sai_tam_threshold_attr_t_enum_values_names,
-    .valuesshortnames  = sai_metadata_sai_tam_threshold_attr_t_enum_values_short_names,
-    .containsflags     = false,
-};
-const sai_tam_tracking_mode_t sai_metadata_sai_tam_tracking_mode_t_enum_values[] = {
-    SAI_TAM_TRACKING_MODE_PEAK,
-    SAI_TAM_TRACKING_MODE_CURRENT,
-    SAI_TAM_TRACKING_MODE_AVERAGE,
-    SAI_TAM_TRACKING_MODE_MINIMUM,
-    -1
-};
-const char* const sai_metadata_sai_tam_tracking_mode_t_enum_values_names[] = {
-    "SAI_TAM_TRACKING_MODE_PEAK",
-    "SAI_TAM_TRACKING_MODE_CURRENT",
-    "SAI_TAM_TRACKING_MODE_AVERAGE",
-    "SAI_TAM_TRACKING_MODE_MINIMUM",
-    NULL
-};
-const char* const sai_metadata_sai_tam_tracking_mode_t_enum_values_short_names[] = {
-    "PEAK",
-    "CURRENT",
-    "AVERAGE",
-    "MINIMUM",
-    NULL
-};
-const sai_enum_metadata_t sai_metadata_enum_sai_tam_tracking_mode_t = {
-    .name              = "sai_tam_tracking_mode_t",
-    .valuescount       = 4,
-    .values            = (const int*)sai_metadata_sai_tam_tracking_mode_t_enum_values,
-    .valuesnames       = sai_metadata_sai_tam_tracking_mode_t_enum_values_names,
-    .valuesshortnames  = sai_metadata_sai_tam_tracking_mode_t_enum_values_short_names,
-    .containsflags     = false,
-};
-const sai_tam_transporter_attr_t sai_metadata_sai_tam_transporter_attr_t_enum_values[] = {
-    SAI_TAM_TRANSPORTER_ATTR_TYPE,
-    SAI_TAM_TRANSPORTER_ATTR_MAX_SNAPSHOT_SIZE,
-    SAI_TAM_TRANSPORTER_ATTR_MONITOR_ID,
-    -1
-};
-const char* const sai_metadata_sai_tam_transporter_attr_t_enum_values_names[] = {
-    "SAI_TAM_TRANSPORTER_ATTR_TYPE",
-    "SAI_TAM_TRANSPORTER_ATTR_MAX_SNAPSHOT_SIZE",
-    "SAI_TAM_TRANSPORTER_ATTR_MONITOR_ID",
-    NULL
-};
-const char* const sai_metadata_sai_tam_transporter_attr_t_enum_values_short_names[] = {
+const char* const sai_metadata_sai_tam_event_attr_t_enum_values_short_names[] = {
     "TYPE",
-    "MAX_SNAPSHOT_SIZE",
-    "MONITOR_ID",
+    "ACTION_LIST",
+    "COLLECTOR_LIST",
+    "THRESHOLD",
+    "DSCP_VALUE",
     NULL
 };
-const sai_enum_metadata_t sai_metadata_enum_sai_tam_transporter_attr_t = {
-    .name              = "sai_tam_transporter_attr_t",
-    .valuescount       = 3,
-    .values            = (const int*)sai_metadata_sai_tam_transporter_attr_t_enum_values,
-    .valuesnames       = sai_metadata_sai_tam_transporter_attr_t_enum_values_names,
-    .valuesshortnames  = sai_metadata_sai_tam_transporter_attr_t_enum_values_short_names,
+const sai_enum_metadata_t sai_metadata_enum_sai_tam_event_attr_t = {
+    .name              = "sai_tam_event_attr_t",
+    .valuescount       = 5,
+    .values            = (const int*)sai_metadata_sai_tam_event_attr_t_enum_values,
+    .valuesnames       = sai_metadata_sai_tam_event_attr_t_enum_values_names,
+    .valuesshortnames  = sai_metadata_sai_tam_event_attr_t_enum_values_short_names,
     .containsflags     = false,
 };
-const sai_tam_transporter_type_t sai_metadata_sai_tam_transporter_type_t_enum_values[] = {
-    SAI_TAM_TRANSPORTER_TYPE_LOCAL,
-    SAI_TAM_TRANSPORTER_TYPE_REMOTE,
+const sai_tam_event_threshold_attr_t sai_metadata_sai_tam_event_threshold_attr_t_enum_values[] = {
+    SAI_TAM_EVENT_THRESHOLD_ATTR_HIGH_WATERMARK,
+    SAI_TAM_EVENT_THRESHOLD_ATTR_LOW_WATERMARK,
+    SAI_TAM_EVENT_THRESHOLD_ATTR_LATENCY,
+    SAI_TAM_EVENT_THRESHOLD_ATTR_RATE,
+    SAI_TAM_EVENT_THRESHOLD_ATTR_ABS_VALUE,
+    SAI_TAM_EVENT_THRESHOLD_ATTR_UNIT,
     -1
 };
-const char* const sai_metadata_sai_tam_transporter_type_t_enum_values_names[] = {
-    "SAI_TAM_TRANSPORTER_TYPE_LOCAL",
-    "SAI_TAM_TRANSPORTER_TYPE_REMOTE",
+const char* const sai_metadata_sai_tam_event_threshold_attr_t_enum_values_names[] = {
+    "SAI_TAM_EVENT_THRESHOLD_ATTR_HIGH_WATERMARK",
+    "SAI_TAM_EVENT_THRESHOLD_ATTR_LOW_WATERMARK",
+    "SAI_TAM_EVENT_THRESHOLD_ATTR_LATENCY",
+    "SAI_TAM_EVENT_THRESHOLD_ATTR_RATE",
+    "SAI_TAM_EVENT_THRESHOLD_ATTR_ABS_VALUE",
+    "SAI_TAM_EVENT_THRESHOLD_ATTR_UNIT",
     NULL
 };
-const char* const sai_metadata_sai_tam_transporter_type_t_enum_values_short_names[] = {
-    "LOCAL",
-    "REMOTE",
+const char* const sai_metadata_sai_tam_event_threshold_attr_t_enum_values_short_names[] = {
+    "HIGH_WATERMARK",
+    "LOW_WATERMARK",
+    "LATENCY",
+    "RATE",
+    "ABS_VALUE",
+    "UNIT",
     NULL
 };
-const sai_enum_metadata_t sai_metadata_enum_sai_tam_transporter_type_t = {
-    .name              = "sai_tam_transporter_type_t",
-    .valuescount       = 2,
-    .values            = (const int*)sai_metadata_sai_tam_transporter_type_t_enum_values,
-    .valuesnames       = sai_metadata_sai_tam_transporter_type_t_enum_values_names,
-    .valuesshortnames  = sai_metadata_sai_tam_transporter_type_t_enum_values_short_names,
+const sai_enum_metadata_t sai_metadata_enum_sai_tam_event_threshold_attr_t = {
+    .name              = "sai_tam_event_threshold_attr_t",
+    .valuescount       = 6,
+    .values            = (const int*)sai_metadata_sai_tam_event_threshold_attr_t_enum_values,
+    .valuesnames       = sai_metadata_sai_tam_event_threshold_attr_t_enum_values_names,
+    .valuesshortnames  = sai_metadata_sai_tam_event_threshold_attr_t_enum_values_short_names,
+    .containsflags     = false,
+};
+const sai_tam_event_threshold_unit_t sai_metadata_sai_tam_event_threshold_unit_t_enum_values[] = {
+    SAI_TAM_EVENT_THRESHOLD_UNIT_NANOSEC,
+    SAI_TAM_EVENT_THRESHOLD_UNIT_USEC,
+    SAI_TAM_EVENT_THRESHOLD_UNIT_MSEC,
+    SAI_TAM_EVENT_THRESHOLD_UNIT_PERCENT,
+    -1
+};
+const char* const sai_metadata_sai_tam_event_threshold_unit_t_enum_values_names[] = {
+    "SAI_TAM_EVENT_THRESHOLD_UNIT_NANOSEC",
+    "SAI_TAM_EVENT_THRESHOLD_UNIT_USEC",
+    "SAI_TAM_EVENT_THRESHOLD_UNIT_MSEC",
+    "SAI_TAM_EVENT_THRESHOLD_UNIT_PERCENT",
+    NULL
+};
+const char* const sai_metadata_sai_tam_event_threshold_unit_t_enum_values_short_names[] = {
+    "NANOSEC",
+    "USEC",
+    "MSEC",
+    "PERCENT",
+    NULL
+};
+const sai_enum_metadata_t sai_metadata_enum_sai_tam_event_threshold_unit_t = {
+    .name              = "sai_tam_event_threshold_unit_t",
+    .valuescount       = 4,
+    .values            = (const int*)sai_metadata_sai_tam_event_threshold_unit_t_enum_values,
+    .valuesnames       = sai_metadata_sai_tam_event_threshold_unit_t_enum_values_names,
+    .valuesshortnames  = sai_metadata_sai_tam_event_threshold_unit_t_enum_values_short_names,
+    .containsflags     = false,
+};
+const sai_tam_event_type_t sai_metadata_sai_tam_event_type_t_enum_values[] = {
+    SAI_TAM_EVENT_TYPE_FLOW_STATE,
+    SAI_TAM_EVENT_TYPE_FLOW_WATCHLIST,
+    SAI_TAM_EVENT_TYPE_FLOW_TCPFLAG,
+    SAI_TAM_EVENT_TYPE_QUEUE_THRESHOLD,
+    SAI_TAM_EVENT_TYPE_QUEUE_TAIL_DROP,
+    SAI_TAM_EVENT_TYPE_PACKET_DROP,
+    SAI_TAM_EVENT_TYPE_RESOURCE_UTILIZATION,
+    -1
+};
+const char* const sai_metadata_sai_tam_event_type_t_enum_values_names[] = {
+    "SAI_TAM_EVENT_TYPE_FLOW_STATE",
+    "SAI_TAM_EVENT_TYPE_FLOW_WATCHLIST",
+    "SAI_TAM_EVENT_TYPE_FLOW_TCPFLAG",
+    "SAI_TAM_EVENT_TYPE_QUEUE_THRESHOLD",
+    "SAI_TAM_EVENT_TYPE_QUEUE_TAIL_DROP",
+    "SAI_TAM_EVENT_TYPE_PACKET_DROP",
+    "SAI_TAM_EVENT_TYPE_RESOURCE_UTILIZATION",
+    NULL
+};
+const char* const sai_metadata_sai_tam_event_type_t_enum_values_short_names[] = {
+    "FLOW_STATE",
+    "FLOW_WATCHLIST",
+    "FLOW_TCPFLAG",
+    "QUEUE_THRESHOLD",
+    "QUEUE_TAIL_DROP",
+    "PACKET_DROP",
+    "RESOURCE_UTILIZATION",
+    NULL
+};
+const sai_enum_metadata_t sai_metadata_enum_sai_tam_event_type_t = {
+    .name              = "sai_tam_event_type_t",
+    .valuescount       = 7,
+    .values            = (const int*)sai_metadata_sai_tam_event_type_t_enum_values,
+    .valuesnames       = sai_metadata_sai_tam_event_type_t_enum_values_names,
+    .valuesshortnames  = sai_metadata_sai_tam_event_type_t_enum_values_short_names,
+    .containsflags     = false,
+};
+const sai_tam_math_func_attr_t sai_metadata_sai_tam_math_func_attr_t_enum_values[] = {
+    SAI_TAM_MATH_FUNC_ATTR_TAM_TEL_MATH_FUNC_TYPE,
+    -1
+};
+const char* const sai_metadata_sai_tam_math_func_attr_t_enum_values_names[] = {
+    "SAI_TAM_MATH_FUNC_ATTR_TAM_TEL_MATH_FUNC_TYPE",
+    NULL
+};
+const char* const sai_metadata_sai_tam_math_func_attr_t_enum_values_short_names[] = {
+    "TAM_TEL_MATH_FUNC_TYPE",
+    NULL
+};
+const sai_enum_metadata_t sai_metadata_enum_sai_tam_math_func_attr_t = {
+    .name              = "sai_tam_math_func_attr_t",
+    .valuescount       = 1,
+    .values            = (const int*)sai_metadata_sai_tam_math_func_attr_t_enum_values,
+    .valuesnames       = sai_metadata_sai_tam_math_func_attr_t_enum_values_names,
+    .valuesshortnames  = sai_metadata_sai_tam_math_func_attr_t_enum_values_short_names,
+    .containsflags     = false,
+};
+const sai_tam_report_attr_t sai_metadata_sai_tam_report_attr_t_enum_values[] = {
+    SAI_TAM_REPORT_ATTR_TYPE,
+    SAI_TAM_REPORT_ATTR_HISTOGRAM_NUMBER_OF_BINS,
+    SAI_TAM_REPORT_ATTR_HISTOGRAM_BIN_BOUNDARY,
+    -1
+};
+const char* const sai_metadata_sai_tam_report_attr_t_enum_values_names[] = {
+    "SAI_TAM_REPORT_ATTR_TYPE",
+    "SAI_TAM_REPORT_ATTR_HISTOGRAM_NUMBER_OF_BINS",
+    "SAI_TAM_REPORT_ATTR_HISTOGRAM_BIN_BOUNDARY",
+    NULL
+};
+const char* const sai_metadata_sai_tam_report_attr_t_enum_values_short_names[] = {
+    "TYPE",
+    "HISTOGRAM_NUMBER_OF_BINS",
+    "HISTOGRAM_BIN_BOUNDARY",
+    NULL
+};
+const sai_enum_metadata_t sai_metadata_enum_sai_tam_report_attr_t = {
+    .name              = "sai_tam_report_attr_t",
+    .valuescount       = 3,
+    .values            = (const int*)sai_metadata_sai_tam_report_attr_t_enum_values,
+    .valuesnames       = sai_metadata_sai_tam_report_attr_t_enum_values_names,
+    .valuesshortnames  = sai_metadata_sai_tam_report_attr_t_enum_values_short_names,
+    .containsflags     = false,
+};
+const sai_tam_report_type_t sai_metadata_sai_tam_report_type_t_enum_values[] = {
+    SAI_TAM_REPORT_TYPE_SFLOW,
+    SAI_TAM_REPORT_TYPE_IPFIX,
+    SAI_TAM_REPORT_TYPE_PROTO,
+    SAI_TAM_REPORT_TYPE_THRIFT,
+    SAI_TAM_REPORT_TYPE_JSON,
+    SAI_TAM_REPORT_TYPE_P4_EXTN,
+    SAI_TAM_REPORT_TYPE_HISTOGRAM,
+    SAI_TAM_REPORT_TYPE_VENDOR_EXTN,
+    -1
+};
+const char* const sai_metadata_sai_tam_report_type_t_enum_values_names[] = {
+    "SAI_TAM_REPORT_TYPE_SFLOW",
+    "SAI_TAM_REPORT_TYPE_IPFIX",
+    "SAI_TAM_REPORT_TYPE_PROTO",
+    "SAI_TAM_REPORT_TYPE_THRIFT",
+    "SAI_TAM_REPORT_TYPE_JSON",
+    "SAI_TAM_REPORT_TYPE_P4_EXTN",
+    "SAI_TAM_REPORT_TYPE_HISTOGRAM",
+    "SAI_TAM_REPORT_TYPE_VENDOR_EXTN",
+    NULL
+};
+const char* const sai_metadata_sai_tam_report_type_t_enum_values_short_names[] = {
+    "SFLOW",
+    "IPFIX",
+    "PROTO",
+    "THRIFT",
+    "JSON",
+    "P4_EXTN",
+    "HISTOGRAM",
+    "VENDOR_EXTN",
+    NULL
+};
+const sai_enum_metadata_t sai_metadata_enum_sai_tam_report_type_t = {
+    .name              = "sai_tam_report_type_t",
+    .valuescount       = 8,
+    .values            = (const int*)sai_metadata_sai_tam_report_type_t_enum_values,
+    .valuesnames       = sai_metadata_sai_tam_report_type_t_enum_values_names,
+    .valuesshortnames  = sai_metadata_sai_tam_report_type_t_enum_values_short_names,
+    .containsflags     = false,
+};
+const sai_tam_reporting_unit_t sai_metadata_sai_tam_reporting_unit_t_enum_values[] = {
+    SAI_TAM_REPORTING_UNIT_SEC,
+    SAI_TAM_REPORTING_UNIT_MINUTE,
+    SAI_TAM_REPORTING_UNIT_HOUR,
+    SAI_TAM_REPORTING_UNIT_DAY,
+    -1
+};
+const char* const sai_metadata_sai_tam_reporting_unit_t_enum_values_names[] = {
+    "SAI_TAM_REPORTING_UNIT_SEC",
+    "SAI_TAM_REPORTING_UNIT_MINUTE",
+    "SAI_TAM_REPORTING_UNIT_HOUR",
+    "SAI_TAM_REPORTING_UNIT_DAY",
+    NULL
+};
+const char* const sai_metadata_sai_tam_reporting_unit_t_enum_values_short_names[] = {
+    "SEC",
+    "MINUTE",
+    "HOUR",
+    "DAY",
+    NULL
+};
+const sai_enum_metadata_t sai_metadata_enum_sai_tam_reporting_unit_t = {
+    .name              = "sai_tam_reporting_unit_t",
+    .valuescount       = 4,
+    .values            = (const int*)sai_metadata_sai_tam_reporting_unit_t_enum_values,
+    .valuesnames       = sai_metadata_sai_tam_reporting_unit_t_enum_values_names,
+    .valuesshortnames  = sai_metadata_sai_tam_reporting_unit_t_enum_values_short_names,
+    .containsflags     = false,
+};
+const sai_tam_tel_math_func_type_t sai_metadata_sai_tam_tel_math_func_type_t_enum_values[] = {
+    SAI_TAM_TEL_MATH_FUNC_TYPE_NONE,
+    SAI_TAM_TEL_MATH_FUNC_TYPE_GEO_MEAN,
+    SAI_TAM_TEL_MATH_FUNC_TYPE_ALGEBRAIC_MEAN,
+    SAI_TAM_TEL_MATH_FUNC_TYPE_AVERAGE,
+    SAI_TAM_TEL_MATH_FUNC_TYPE_MODE,
+    SAI_TAM_TEL_MATH_FUNC_TYPE_RATE,
+    -1
+};
+const char* const sai_metadata_sai_tam_tel_math_func_type_t_enum_values_names[] = {
+    "SAI_TAM_TEL_MATH_FUNC_TYPE_NONE",
+    "SAI_TAM_TEL_MATH_FUNC_TYPE_GEO_MEAN",
+    "SAI_TAM_TEL_MATH_FUNC_TYPE_ALGEBRAIC_MEAN",
+    "SAI_TAM_TEL_MATH_FUNC_TYPE_AVERAGE",
+    "SAI_TAM_TEL_MATH_FUNC_TYPE_MODE",
+    "SAI_TAM_TEL_MATH_FUNC_TYPE_RATE",
+    NULL
+};
+const char* const sai_metadata_sai_tam_tel_math_func_type_t_enum_values_short_names[] = {
+    "NONE",
+    "GEO_MEAN",
+    "ALGEBRAIC_MEAN",
+    "AVERAGE",
+    "MODE",
+    "RATE",
+    NULL
+};
+const sai_enum_metadata_t sai_metadata_enum_sai_tam_tel_math_func_type_t = {
+    .name              = "sai_tam_tel_math_func_type_t",
+    .valuescount       = 6,
+    .values            = (const int*)sai_metadata_sai_tam_tel_math_func_type_t_enum_values,
+    .valuesnames       = sai_metadata_sai_tam_tel_math_func_type_t_enum_values_names,
+    .valuesshortnames  = sai_metadata_sai_tam_tel_math_func_type_t_enum_values_short_names,
+    .containsflags     = false,
+};
+const sai_tam_tel_type_attr_t sai_metadata_sai_tam_tel_type_attr_t_enum_values[] = {
+    SAI_TAM_TEL_TYPE_ATTR_TAM_TELEMETRY_TYPE,
+    SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_PORT_STATS,
+    SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_PORT_STATS_INGRESS,
+    SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_PORT_STATS_EGRESS,
+    SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_VIRTUAL_QUEUE_STATS,
+    SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_OUTPUT_QUEUE_STATS,
+    SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_MMU_STATS,
+    SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_FABRIC_STATS,
+    SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_FILTER_STATS,
+    SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_RESOURCE_UTILIZATION_STATS,
+    SAI_TAM_TEL_TYPE_ATTR_FABRIC_Q,
+    SAI_TAM_TEL_TYPE_ATTR_NE_ENABLE,
+    SAI_TAM_TEL_TYPE_ATTR_DSCP_VALUE,
+    SAI_TAM_TEL_TYPE_ATTR_MATH_FUNC,
+    SAI_TAM_TEL_TYPE_ATTR_REPORT_ID,
+    -1
+};
+const char* const sai_metadata_sai_tam_tel_type_attr_t_enum_values_names[] = {
+    "SAI_TAM_TEL_TYPE_ATTR_TAM_TELEMETRY_TYPE",
+    "SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_PORT_STATS",
+    "SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_PORT_STATS_INGRESS",
+    "SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_PORT_STATS_EGRESS",
+    "SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_VIRTUAL_QUEUE_STATS",
+    "SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_OUTPUT_QUEUE_STATS",
+    "SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_MMU_STATS",
+    "SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_FABRIC_STATS",
+    "SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_FILTER_STATS",
+    "SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_RESOURCE_UTILIZATION_STATS",
+    "SAI_TAM_TEL_TYPE_ATTR_FABRIC_Q",
+    "SAI_TAM_TEL_TYPE_ATTR_NE_ENABLE",
+    "SAI_TAM_TEL_TYPE_ATTR_DSCP_VALUE",
+    "SAI_TAM_TEL_TYPE_ATTR_MATH_FUNC",
+    "SAI_TAM_TEL_TYPE_ATTR_REPORT_ID",
+    NULL
+};
+const char* const sai_metadata_sai_tam_tel_type_attr_t_enum_values_short_names[] = {
+    "TAM_TELEMETRY_TYPE",
+    "SWITCH_ENABLE_PORT_STATS",
+    "SWITCH_ENABLE_PORT_STATS_INGRESS",
+    "SWITCH_ENABLE_PORT_STATS_EGRESS",
+    "SWITCH_ENABLE_VIRTUAL_QUEUE_STATS",
+    "SWITCH_ENABLE_OUTPUT_QUEUE_STATS",
+    "SWITCH_ENABLE_MMU_STATS",
+    "SWITCH_ENABLE_FABRIC_STATS",
+    "SWITCH_ENABLE_FILTER_STATS",
+    "SWITCH_ENABLE_RESOURCE_UTILIZATION_STATS",
+    "FABRIC_Q",
+    "NE_ENABLE",
+    "DSCP_VALUE",
+    "MATH_FUNC",
+    "REPORT_ID",
+    NULL
+};
+const sai_enum_metadata_t sai_metadata_enum_sai_tam_tel_type_attr_t = {
+    .name              = "sai_tam_tel_type_attr_t",
+    .valuescount       = 15,
+    .values            = (const int*)sai_metadata_sai_tam_tel_type_attr_t_enum_values,
+    .valuesnames       = sai_metadata_sai_tam_tel_type_attr_t_enum_values_names,
+    .valuesshortnames  = sai_metadata_sai_tam_tel_type_attr_t_enum_values_short_names,
+    .containsflags     = false,
+};
+const sai_tam_telemetry_attr_t sai_metadata_sai_tam_telemetry_attr_t_enum_values[] = {
+    SAI_TAM_TELEMETRY_ATTR_TAM_TYPE_LIST,
+    SAI_TAM_TELEMETRY_ATTR_COLLECTOR_LIST,
+    SAI_TAM_TELEMETRY_ATTR_TAM_REPORTING_UNIT,
+    SAI_TAM_TELEMETRY_ATTR_REPORTING_INTERVAL,
+    -1
+};
+const char* const sai_metadata_sai_tam_telemetry_attr_t_enum_values_names[] = {
+    "SAI_TAM_TELEMETRY_ATTR_TAM_TYPE_LIST",
+    "SAI_TAM_TELEMETRY_ATTR_COLLECTOR_LIST",
+    "SAI_TAM_TELEMETRY_ATTR_TAM_REPORTING_UNIT",
+    "SAI_TAM_TELEMETRY_ATTR_REPORTING_INTERVAL",
+    NULL
+};
+const char* const sai_metadata_sai_tam_telemetry_attr_t_enum_values_short_names[] = {
+    "TAM_TYPE_LIST",
+    "COLLECTOR_LIST",
+    "TAM_REPORTING_UNIT",
+    "REPORTING_INTERVAL",
+    NULL
+};
+const sai_enum_metadata_t sai_metadata_enum_sai_tam_telemetry_attr_t = {
+    .name              = "sai_tam_telemetry_attr_t",
+    .valuescount       = 4,
+    .values            = (const int*)sai_metadata_sai_tam_telemetry_attr_t_enum_values,
+    .valuesnames       = sai_metadata_sai_tam_telemetry_attr_t_enum_values_names,
+    .valuesshortnames  = sai_metadata_sai_tam_telemetry_attr_t_enum_values_short_names,
+    .containsflags     = false,
+};
+const sai_tam_telemetry_type_t sai_metadata_sai_tam_telemetry_type_t_enum_values[] = {
+    SAI_TAM_TELEMETRY_TYPE_NE,
+    SAI_TAM_TELEMETRY_TYPE_SWITCH,
+    SAI_TAM_TELEMETRY_TYPE_FABRIC,
+    SAI_TAM_TELEMETRY_TYPE_FLOW,
+    -1
+};
+const char* const sai_metadata_sai_tam_telemetry_type_t_enum_values_names[] = {
+    "SAI_TAM_TELEMETRY_TYPE_NE",
+    "SAI_TAM_TELEMETRY_TYPE_SWITCH",
+    "SAI_TAM_TELEMETRY_TYPE_FABRIC",
+    "SAI_TAM_TELEMETRY_TYPE_FLOW",
+    NULL
+};
+const char* const sai_metadata_sai_tam_telemetry_type_t_enum_values_short_names[] = {
+    "NE",
+    "SWITCH",
+    "FABRIC",
+    "FLOW",
+    NULL
+};
+const sai_enum_metadata_t sai_metadata_enum_sai_tam_telemetry_type_t = {
+    .name              = "sai_tam_telemetry_type_t",
+    .valuescount       = 4,
+    .values            = (const int*)sai_metadata_sai_tam_telemetry_type_t_enum_values,
+    .valuesnames       = sai_metadata_sai_tam_telemetry_type_t_enum_values_names,
+    .valuesshortnames  = sai_metadata_sai_tam_telemetry_type_t_enum_values_short_names,
+    .containsflags     = false,
+};
+const sai_tam_transport_attr_t sai_metadata_sai_tam_transport_attr_t_enum_values[] = {
+    SAI_TAM_TRANSPORT_ATTR_TRANSPORT_TYPE,
+    SAI_TAM_TRANSPORT_ATTR_SRC_PORT,
+    SAI_TAM_TRANSPORT_ATTR_DST_PORT,
+    SAI_TAM_TRANSPORT_ATTR_TRANSPORT_AUTH_TYPE,
+    SAI_TAM_TRANSPORT_ATTR_MTU,
+    -1
+};
+const char* const sai_metadata_sai_tam_transport_attr_t_enum_values_names[] = {
+    "SAI_TAM_TRANSPORT_ATTR_TRANSPORT_TYPE",
+    "SAI_TAM_TRANSPORT_ATTR_SRC_PORT",
+    "SAI_TAM_TRANSPORT_ATTR_DST_PORT",
+    "SAI_TAM_TRANSPORT_ATTR_TRANSPORT_AUTH_TYPE",
+    "SAI_TAM_TRANSPORT_ATTR_MTU",
+    NULL
+};
+const char* const sai_metadata_sai_tam_transport_attr_t_enum_values_short_names[] = {
+    "TRANSPORT_TYPE",
+    "SRC_PORT",
+    "DST_PORT",
+    "TRANSPORT_AUTH_TYPE",
+    "MTU",
+    NULL
+};
+const sai_enum_metadata_t sai_metadata_enum_sai_tam_transport_attr_t = {
+    .name              = "sai_tam_transport_attr_t",
+    .valuescount       = 5,
+    .values            = (const int*)sai_metadata_sai_tam_transport_attr_t_enum_values,
+    .valuesnames       = sai_metadata_sai_tam_transport_attr_t_enum_values_names,
+    .valuesshortnames  = sai_metadata_sai_tam_transport_attr_t_enum_values_short_names,
+    .containsflags     = false,
+};
+const sai_tam_transport_auth_type_t sai_metadata_sai_tam_transport_auth_type_t_enum_values[] = {
+    SAI_TAM_TRANSPORT_AUTH_TYPE_NONE,
+    SAI_TAM_TRANSPORT_AUTH_TYPE_SSL,
+    SAI_TAM_TRANSPORT_AUTH_TYPE_TLS,
+    -1
+};
+const char* const sai_metadata_sai_tam_transport_auth_type_t_enum_values_names[] = {
+    "SAI_TAM_TRANSPORT_AUTH_TYPE_NONE",
+    "SAI_TAM_TRANSPORT_AUTH_TYPE_SSL",
+    "SAI_TAM_TRANSPORT_AUTH_TYPE_TLS",
+    NULL
+};
+const char* const sai_metadata_sai_tam_transport_auth_type_t_enum_values_short_names[] = {
+    "NONE",
+    "SSL",
+    "TLS",
+    NULL
+};
+const sai_enum_metadata_t sai_metadata_enum_sai_tam_transport_auth_type_t = {
+    .name              = "sai_tam_transport_auth_type_t",
+    .valuescount       = 3,
+    .values            = (const int*)sai_metadata_sai_tam_transport_auth_type_t_enum_values,
+    .valuesnames       = sai_metadata_sai_tam_transport_auth_type_t_enum_values_names,
+    .valuesshortnames  = sai_metadata_sai_tam_transport_auth_type_t_enum_values_short_names,
+    .containsflags     = false,
+};
+const sai_tam_transport_type_t sai_metadata_sai_tam_transport_type_t_enum_values[] = {
+    SAI_TAM_TRANSPORT_TYPE_NONE,
+    SAI_TAM_TRANSPORT_TYPE_TCP,
+    SAI_TAM_TRANSPORT_TYPE_UDP,
+    SAI_TAM_TRANSPORT_TYPE_GRPC,
+    -1
+};
+const char* const sai_metadata_sai_tam_transport_type_t_enum_values_names[] = {
+    "SAI_TAM_TRANSPORT_TYPE_NONE",
+    "SAI_TAM_TRANSPORT_TYPE_TCP",
+    "SAI_TAM_TRANSPORT_TYPE_UDP",
+    "SAI_TAM_TRANSPORT_TYPE_GRPC",
+    NULL
+};
+const char* const sai_metadata_sai_tam_transport_type_t_enum_values_short_names[] = {
+    "NONE",
+    "TCP",
+    "UDP",
+    "GRPC",
+    NULL
+};
+const sai_enum_metadata_t sai_metadata_enum_sai_tam_transport_type_t = {
+    .name              = "sai_tam_transport_type_t",
+    .valuescount       = 4,
+    .values            = (const int*)sai_metadata_sai_tam_transport_type_t_enum_values,
+    .valuesnames       = sai_metadata_sai_tam_transport_type_t_enum_values_names,
+    .valuesshortnames  = sai_metadata_sai_tam_transport_type_t_enum_values_short_names,
     .containsflags     = false,
 };
 const sai_tlv_type_t sai_metadata_sai_tlv_type_t_enum_values[] = {
@@ -8791,6 +9179,7 @@ const sai_vlan_attr_t sai_metadata_sai_vlan_attr_t_enum_values[] = {
     SAI_VLAN_ATTR_BROADCAST_FLOOD_CONTROL_TYPE,
     SAI_VLAN_ATTR_BROADCAST_FLOOD_GROUP,
     SAI_VLAN_ATTR_CUSTOM_IGMP_SNOOPING_ENABLE,
+    SAI_VLAN_ATTR_TAM_OBJECT,
     -1
 };
 const char* const sai_metadata_sai_vlan_attr_t_enum_values_names[] = {
@@ -8815,6 +9204,7 @@ const char* const sai_metadata_sai_vlan_attr_t_enum_values_names[] = {
     "SAI_VLAN_ATTR_BROADCAST_FLOOD_CONTROL_TYPE",
     "SAI_VLAN_ATTR_BROADCAST_FLOOD_GROUP",
     "SAI_VLAN_ATTR_CUSTOM_IGMP_SNOOPING_ENABLE",
+    "SAI_VLAN_ATTR_TAM_OBJECT",
     NULL
 };
 const char* const sai_metadata_sai_vlan_attr_t_enum_values_short_names[] = {
@@ -8839,11 +9229,12 @@ const char* const sai_metadata_sai_vlan_attr_t_enum_values_short_names[] = {
     "BROADCAST_FLOOD_CONTROL_TYPE",
     "BROADCAST_FLOOD_GROUP",
     "CUSTOM_IGMP_SNOOPING_ENABLE",
+    "TAM_OBJECT",
     NULL
 };
 const sai_enum_metadata_t sai_metadata_enum_sai_vlan_attr_t = {
     .name              = "sai_vlan_attr_t",
-    .valuescount       = 21,
+    .valuescount       = 22,
     .values            = (const int*)sai_metadata_sai_vlan_attr_t_enum_values,
     .valuesnames       = sai_metadata_sai_vlan_attr_t_enum_values_names,
     .valuesshortnames  = sai_metadata_sai_vlan_attr_t_enum_values_short_names,
@@ -9273,17 +9664,28 @@ const sai_enum_metadata_t* const sai_metadata_all_enums[] = {
     &sai_metadata_enum_sai_table_bitmap_router_entry_action_t,
     &sai_metadata_enum_sai_table_bitmap_router_entry_attr_t,
     &sai_metadata_enum_sai_table_bitmap_router_entry_stat_t,
+    &sai_metadata_enum_sai_table_meta_tunnel_entry_action_t,
+    &sai_metadata_enum_sai_table_meta_tunnel_entry_attr_t,
+    &sai_metadata_enum_sai_table_meta_tunnel_entry_stat_t,
     &sai_metadata_enum_sai_tam_attr_t,
-    &sai_metadata_enum_sai_tam_histogram_attr_t,
-    &sai_metadata_enum_sai_tam_microburst_attr_t,
-    &sai_metadata_enum_sai_tam_microburst_stat_t,
-    &sai_metadata_enum_sai_tam_reporting_mode_t,
-    &sai_metadata_enum_sai_tam_snapshot_attr_t,
-    &sai_metadata_enum_sai_tam_stat_attr_t,
-    &sai_metadata_enum_sai_tam_threshold_attr_t,
-    &sai_metadata_enum_sai_tam_tracking_mode_t,
-    &sai_metadata_enum_sai_tam_transporter_attr_t,
-    &sai_metadata_enum_sai_tam_transporter_type_t,
+    &sai_metadata_enum_sai_tam_bind_point_type_t,
+    &sai_metadata_enum_sai_tam_collector_attr_t,
+    &sai_metadata_enum_sai_tam_event_action_attr_t,
+    &sai_metadata_enum_sai_tam_event_attr_t,
+    &sai_metadata_enum_sai_tam_event_threshold_attr_t,
+    &sai_metadata_enum_sai_tam_event_threshold_unit_t,
+    &sai_metadata_enum_sai_tam_event_type_t,
+    &sai_metadata_enum_sai_tam_math_func_attr_t,
+    &sai_metadata_enum_sai_tam_report_attr_t,
+    &sai_metadata_enum_sai_tam_report_type_t,
+    &sai_metadata_enum_sai_tam_reporting_unit_t,
+    &sai_metadata_enum_sai_tam_tel_math_func_type_t,
+    &sai_metadata_enum_sai_tam_tel_type_attr_t,
+    &sai_metadata_enum_sai_tam_telemetry_attr_t,
+    &sai_metadata_enum_sai_tam_telemetry_type_t,
+    &sai_metadata_enum_sai_tam_transport_attr_t,
+    &sai_metadata_enum_sai_tam_transport_auth_type_t,
+    &sai_metadata_enum_sai_tam_transport_type_t,
     &sai_metadata_enum_sai_tlv_type_t,
     &sai_metadata_enum_sai_tunnel_attr_t,
     &sai_metadata_enum_sai_tunnel_decap_ecn_mode_t,
@@ -9312,7 +9714,7 @@ const sai_enum_metadata_t* const sai_metadata_all_enums[] = {
     &sai_metadata_enum_sai_wred_attr_t,
     NULL
 };
-const size_t sai_metadata_all_enums_count = 199;
+const size_t sai_metadata_all_enums_count = 210;
 const sai_enum_metadata_t* const sai_metadata_attr_enums[] = {
     &sai_metadata_enum_sai_acl_counter_attr_t,
     &sai_metadata_enum_sai_acl_entry_attr_t,
@@ -9375,13 +9777,17 @@ const sai_enum_metadata_t* const sai_metadata_attr_enums[] = {
     &sai_metadata_enum_sai_switch_attr_t,
     &sai_metadata_enum_sai_table_bitmap_classification_entry_attr_t,
     &sai_metadata_enum_sai_table_bitmap_router_entry_attr_t,
+    &sai_metadata_enum_sai_table_meta_tunnel_entry_attr_t,
     &sai_metadata_enum_sai_tam_attr_t,
-    &sai_metadata_enum_sai_tam_histogram_attr_t,
-    &sai_metadata_enum_sai_tam_microburst_attr_t,
-    &sai_metadata_enum_sai_tam_snapshot_attr_t,
-    &sai_metadata_enum_sai_tam_stat_attr_t,
-    &sai_metadata_enum_sai_tam_threshold_attr_t,
-    &sai_metadata_enum_sai_tam_transporter_attr_t,
+    &sai_metadata_enum_sai_tam_collector_attr_t,
+    &sai_metadata_enum_sai_tam_event_action_attr_t,
+    &sai_metadata_enum_sai_tam_event_attr_t,
+    &sai_metadata_enum_sai_tam_event_threshold_attr_t,
+    &sai_metadata_enum_sai_tam_math_func_attr_t,
+    &sai_metadata_enum_sai_tam_report_attr_t,
+    &sai_metadata_enum_sai_tam_tel_type_attr_t,
+    &sai_metadata_enum_sai_tam_telemetry_attr_t,
+    &sai_metadata_enum_sai_tam_transport_attr_t,
     &sai_metadata_enum_sai_tunnel_attr_t,
     &sai_metadata_enum_sai_tunnel_map_attr_t,
     &sai_metadata_enum_sai_tunnel_map_entry_attr_t,
@@ -9395,7 +9801,7 @@ const sai_enum_metadata_t* const sai_metadata_attr_enums[] = {
     &sai_metadata_enum_sai_wred_attr_t,
     NULL
 };
-const size_t sai_metadata_attr_enums_count = 79;
+const size_t sai_metadata_attr_enums_count = 83;
 const sai_object_type_t sai_metadata_object_types[] = {
     SAI_OBJECT_TYPE_ACL_COUNTER,
     SAI_OBJECT_TYPE_ACL_ENTRY,
@@ -9458,13 +9864,17 @@ const sai_object_type_t sai_metadata_object_types[] = {
     SAI_OBJECT_TYPE_SWITCH,
     SAI_OBJECT_TYPE_TABLE_BITMAP_CLASSIFICATION_ENTRY,
     SAI_OBJECT_TYPE_TABLE_BITMAP_ROUTER_ENTRY,
+    SAI_OBJECT_TYPE_TABLE_META_TUNNEL_ENTRY,
     SAI_OBJECT_TYPE_TAM,
-    SAI_OBJECT_TYPE_TAM_HISTOGRAM,
-    SAI_OBJECT_TYPE_TAM_MICROBURST,
-    SAI_OBJECT_TYPE_TAM_SNAPSHOT,
-    SAI_OBJECT_TYPE_TAM_STAT,
-    SAI_OBJECT_TYPE_TAM_THRESHOLD,
-    SAI_OBJECT_TYPE_TAM_TRANSPORTER,
+    SAI_OBJECT_TYPE_TAM_COLLECTOR,
+    SAI_OBJECT_TYPE_TAM_EVENT_ACTION,
+    SAI_OBJECT_TYPE_TAM_EVENT,
+    SAI_OBJECT_TYPE_TAM_EVENT_THRESHOLD,
+    SAI_OBJECT_TYPE_TAM_MATH_FUNC,
+    SAI_OBJECT_TYPE_TAM_REPORT,
+    SAI_OBJECT_TYPE_TAM_TEL_TYPE,
+    SAI_OBJECT_TYPE_TAM_TELEMETRY,
+    SAI_OBJECT_TYPE_TAM_TRANSPORT,
     SAI_OBJECT_TYPE_TUNNEL,
     SAI_OBJECT_TYPE_TUNNEL_MAP,
     SAI_OBJECT_TYPE_TUNNEL_MAP_ENTRY,
@@ -25402,7 +25812,7 @@ const sai_attr_condition_t sai_metadata_validonly_SAI_HOSTIF_TRAP_ATTR_TRAP_PRIO
 };
 const sai_attr_condition_t sai_metadata_validonly_SAI_HOSTIF_TRAP_ATTR_TRAP_PRIORITY_1 = {
         .attrid = SAI_HOSTIF_TRAP_ATTR_PACKET_ACTION,
-        .condition = { .s32 = SAI_PACKET_ACTION_LOG }
+        .condition = { .s32 = SAI_PACKET_ACTION_COPY }
 };
 const sai_attr_condition_t* const sai_metadata_validonlys_SAI_HOSTIF_TRAP_ATTR_TRAP_PRIORITY[] = {
     &sai_metadata_validonly_SAI_HOSTIF_TRAP_ATTR_TRAP_PRIORITY_0,
@@ -25464,7 +25874,7 @@ const sai_attr_condition_t sai_metadata_validonly_SAI_HOSTIF_TRAP_ATTR_EXCLUDE_P
 };
 const sai_attr_condition_t sai_metadata_validonly_SAI_HOSTIF_TRAP_ATTR_EXCLUDE_PORT_LIST_1 = {
         .attrid = SAI_HOSTIF_TRAP_ATTR_PACKET_ACTION,
-        .condition = { .s32 = SAI_PACKET_ACTION_LOG }
+        .condition = { .s32 = SAI_PACKET_ACTION_COPY }
 };
 const sai_attr_condition_t* const sai_metadata_validonlys_SAI_HOSTIF_TRAP_ATTR_EXCLUDE_PORT_LIST[] = {
     &sai_metadata_validonly_SAI_HOSTIF_TRAP_ATTR_EXCLUDE_PORT_LIST_0,
@@ -25526,7 +25936,7 @@ const sai_attr_condition_t sai_metadata_validonly_SAI_HOSTIF_TRAP_ATTR_TRAP_GROU
 };
 const sai_attr_condition_t sai_metadata_validonly_SAI_HOSTIF_TRAP_ATTR_TRAP_GROUP_1 = {
         .attrid = SAI_HOSTIF_TRAP_ATTR_PACKET_ACTION,
-        .condition = { .s32 = SAI_PACKET_ACTION_LOG }
+        .condition = { .s32 = SAI_PACKET_ACTION_COPY }
 };
 const sai_attr_condition_t* const sai_metadata_validonlys_SAI_HOSTIF_TRAP_ATTR_TRAP_GROUP[] = {
     &sai_metadata_validonly_SAI_HOSTIF_TRAP_ATTR_TRAP_GROUP_0,
@@ -34770,6 +35180,191 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_PKT_TX_ENABLE = {
     .capabilitylength              = 0,
     .isextensionattr               = false,
 };
+const sai_object_type_t sai_metadata_SAI_PORT_ATTR_TAM_OBJECT_allowed_objects[] = {
+    SAI_OBJECT_TYPE_TAM,
+    -1
+};
+const sai_attribute_value_t sai_metadata_SAI_PORT_ATTR_TAM_OBJECT_default_value = { .oid = SAI_NULL_OBJECT_ID };
+const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_TAM_OBJECT = {
+    .objecttype                    = SAI_OBJECT_TYPE_PORT,
+    .attrid                        = SAI_PORT_ATTR_TAM_OBJECT,
+    .attridname                    = "SAI_PORT_ATTR_TAM_OBJECT",
+    .brief                         = "Port bind point for TAM object.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_OBJECT_ID,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
+    .allowedobjecttypes            = sai_metadata_SAI_PORT_ATTR_TAM_OBJECT_allowed_objects,
+    .allowedobjecttypeslength      = 1,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = true,
+    .isoidattribute                = (1 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
+    .defaultvalue                  = &sai_metadata_SAI_PORT_ATTR_TAM_OBJECT_default_value,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = false,
+    .iscreateandset                = true,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+};
+const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_SERDES_PREEMPHASIS = {
+    .objecttype                    = SAI_OBJECT_TYPE_PORT,
+    .attrid                        = SAI_PORT_ATTR_SERDES_PREEMPHASIS,
+    .attridname                    = "SAI_PORT_ATTR_SERDES_PREEMPHASIS",
+    .brief                         = "Port serdes control pre-emphasis.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_UINT32_LIST,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_SWITCH_INTERNAL,
+    .defaultvalue                  = NULL,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = false,
+    .iscreateandset                = true,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = false,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+};
+const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_SERDES_IDRIVER = {
+    .objecttype                    = SAI_OBJECT_TYPE_PORT,
+    .attrid                        = SAI_PORT_ATTR_SERDES_IDRIVER,
+    .attridname                    = "SAI_PORT_ATTR_SERDES_IDRIVER",
+    .brief                         = "Port serdes control idriver.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_UINT32_LIST,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_SWITCH_INTERNAL,
+    .defaultvalue                  = NULL,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = false,
+    .iscreateandset                = true,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = false,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+};
+const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_SERDES_IPREDRIVER = {
+    .objecttype                    = SAI_OBJECT_TYPE_PORT,
+    .attrid                        = SAI_PORT_ATTR_SERDES_IPREDRIVER,
+    .attridname                    = "SAI_PORT_ATTR_SERDES_IPREDRIVER",
+    .brief                         = "Port serdes control ipredriver.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_UINT32_LIST,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_SWITCH_INTERNAL,
+    .defaultvalue                  = NULL,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = false,
+    .iscreateandset                = true,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = false,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+};
 const sai_object_type_t sai_metadata_SAI_PORT_POOL_ATTR_PORT_ID_allowed_objects[] = {
     SAI_OBJECT_TYPE_PORT,
     -1
@@ -35455,6 +36050,56 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_QUEUE_ATTR_PFC_DLR_INIT = {
     .isoidattribute                = (0 > 0),
     .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
     .defaultvalue                  = &sai_metadata_SAI_QUEUE_ATTR_PFC_DLR_INIT_default_value,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = false,
+    .iscreateandset                = true,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+};
+const sai_object_type_t sai_metadata_SAI_QUEUE_ATTR_TAM_OBJECT_allowed_objects[] = {
+    SAI_OBJECT_TYPE_TAM,
+    -1
+};
+const sai_attribute_value_t sai_metadata_SAI_QUEUE_ATTR_TAM_OBJECT_default_value = { .oid = SAI_NULL_OBJECT_ID };
+const sai_attr_metadata_t sai_metadata_attr_SAI_QUEUE_ATTR_TAM_OBJECT = {
+    .objecttype                    = SAI_OBJECT_TYPE_QUEUE,
+    .attrid                        = SAI_QUEUE_ATTR_TAM_OBJECT,
+    .attridname                    = "SAI_QUEUE_ATTR_TAM_OBJECT",
+    .brief                         = "Queue bind point for TAM object.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_OBJECT_ID,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
+    .allowedobjecttypes            = sai_metadata_SAI_QUEUE_ATTR_TAM_OBJECT_allowed_objects,
+    .allowedobjecttypeslength      = 1,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = true,
+    .isoidattribute                = (1 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
+    .defaultvalue                  = &sai_metadata_SAI_QUEUE_ATTR_TAM_OBJECT_default_value,
     .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
     .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
     .storedefaultvalue             = false,
@@ -43258,52 +43903,6 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_PACKET_EVENT_NOTIFY 
     .capabilitylength              = 0,
     .isextensionattr               = false,
 };
-const sai_attribute_value_t sai_metadata_SAI_SWITCH_ATTR_TAM_EVENT_NOTIFY_default_value = { .ptr = NULL };
-const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_TAM_EVENT_NOTIFY = {
-    .objecttype                    = SAI_OBJECT_TYPE_SWITCH,
-    .attrid                        = SAI_SWITCH_ATTR_TAM_EVENT_NOTIFY,
-    .attridname                    = "SAI_SWITCH_ATTR_TAM_EVENT_NOTIFY",
-    .brief                         = "TAM event notification callback function passed to the adapter.",
-    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_POINTER,
-    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
-    .allowedobjecttypes            = NULL,
-    .allowedobjecttypeslength      = 0,
-    .allowrepetitiononlist         = false,
-    .allowmixedobjecttypes         = false,
-    .allowemptylist                = false,
-    .allownullobjectid             = false,
-    .isoidattribute                = (0 > 0),
-    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
-    .defaultvalue                  = &sai_metadata_SAI_SWITCH_ATTR_TAM_EVENT_NOTIFY_default_value,
-    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
-    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
-    .storedefaultvalue             = false,
-    .isenum                        = false,
-    .isenumlist                    = false,
-    .enummetadata                  = NULL,
-    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
-    .conditions                    = NULL,
-    .conditionslength              = 0,
-    .isconditional                 = (0 != 0),
-    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
-    .validonly                     = NULL,
-    .validonlylength               = 0,
-    .isvalidonly                   = (0 != 0),
-    .getsave                       = false,
-    .isvlan                        = false,
-    .isaclfield                    = false,
-    .isaclaction                   = false,
-    .ismandatoryoncreate           = false,
-    .iscreateonly                  = false,
-    .iscreateandset                = true,
-    .isreadonly                    = false,
-    .iskey                         = false,
-    .isprimitive                   = true,
-    .notificationtype              = SAI_SWITCH_NOTIFICATION_TYPE_TAM_EVENT,
-    .capability                    = NULL,
-    .capabilitylength              = 0,
-    .isextensionattr               = false,
-};
 const sai_attribute_value_t sai_metadata_SAI_SWITCH_ATTR_FAST_API_ENABLE_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_FAST_API_ENABLE = {
     .objecttype                    = SAI_OBJECT_TYPE_SWITCH,
@@ -44666,6 +45265,102 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_UNINIT_DATA_PLANE_ON
     .capabilitylength              = 0,
     .isextensionattr               = false,
 };
+const sai_object_type_t sai_metadata_SAI_SWITCH_ATTR_TAM_OBJECT_ID_allowed_objects[] = {
+    SAI_OBJECT_TYPE_TAM,
+    -1
+};
+const sai_attribute_value_t sai_metadata_SAI_SWITCH_ATTR_TAM_OBJECT_ID_default_value = { .oid = SAI_NULL_OBJECT_ID };
+const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_TAM_OBJECT_ID = {
+    .objecttype                    = SAI_OBJECT_TYPE_SWITCH,
+    .attrid                        = SAI_SWITCH_ATTR_TAM_OBJECT_ID,
+    .attridname                    = "SAI_SWITCH_ATTR_TAM_OBJECT_ID",
+    .brief                         = "TAM bind point.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_OBJECT_ID,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
+    .allowedobjecttypes            = sai_metadata_SAI_SWITCH_ATTR_TAM_OBJECT_ID_allowed_objects,
+    .allowedobjecttypeslength      = 1,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = true,
+    .isoidattribute                = (1 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
+    .defaultvalue                  = &sai_metadata_SAI_SWITCH_ATTR_TAM_OBJECT_ID_default_value,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = false,
+    .iscreateandset                = true,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+};
+const sai_attribute_value_t sai_metadata_SAI_SWITCH_ATTR_TAM_EVENT_NOTIFY_default_value = { .ptr = NULL };
+const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_TAM_EVENT_NOTIFY = {
+    .objecttype                    = SAI_OBJECT_TYPE_SWITCH,
+    .attrid                        = SAI_SWITCH_ATTR_TAM_EVENT_NOTIFY,
+    .attridname                    = "SAI_SWITCH_ATTR_TAM_EVENT_NOTIFY",
+    .brief                         = "Event notification callback function passed to the adapter.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_POINTER,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
+    .defaultvalue                  = &sai_metadata_SAI_SWITCH_ATTR_TAM_EVENT_NOTIFY_default_value,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = false,
+    .iscreateandset                = true,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = SAI_SWITCH_NOTIFICATION_TYPE_TAM_EVENT,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+};
 const sai_attribute_value_t sai_metadata_SAI_SWITCH_ATTR_PRE_SHUTDOWN_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_PRE_SHUTDOWN = {
     .objecttype                    = SAI_OBJECT_TYPE_SWITCH,
@@ -45130,6 +45825,59 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TABLE_BITMAP_ROUTER_ENTRY_ATTR_D
     .capabilitylength              = 0,
     .isextensionattr               = false,
 };
+const sai_attr_condition_t sai_metadata_condition_SAI_TABLE_BITMAP_ROUTER_ENTRY_ATTR_TUNNEL_INDEX_0 = {
+        .attrid = SAI_TABLE_BITMAP_ROUTER_ENTRY_ATTR_ACTION,
+        .condition = { .s32 = SAI_TABLE_BITMAP_ROUTER_ENTRY_ACTION_TO_NEXTHOP }
+};
+const sai_attr_condition_t* const sai_metadata_conditions_SAI_TABLE_BITMAP_ROUTER_ENTRY_ATTR_TUNNEL_INDEX[] = {
+    &sai_metadata_condition_SAI_TABLE_BITMAP_ROUTER_ENTRY_ATTR_TUNNEL_INDEX_0,
+    NULL
+};
+const sai_attr_metadata_t sai_metadata_attr_SAI_TABLE_BITMAP_ROUTER_ENTRY_ATTR_TUNNEL_INDEX = {
+    .objecttype                    = SAI_OBJECT_TYPE_TABLE_BITMAP_ROUTER_ENTRY,
+    .attrid                        = SAI_TABLE_BITMAP_ROUTER_ENTRY_ATTR_TUNNEL_INDEX,
+    .attridname                    = "SAI_TABLE_BITMAP_ROUTER_ENTRY_ATTR_TUNNEL_INDEX",
+    .brief                         = "Action to_nexthop parameter tunnel_index.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_UINT16,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_MANDATORY_ON_CREATE|SAI_ATTR_FLAGS_CREATE_ONLY),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_NONE,
+    .defaultvalue                  = NULL,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_OR,
+    .conditions                    = sai_metadata_conditions_SAI_TABLE_BITMAP_ROUTER_ENTRY_ATTR_TUNNEL_INDEX,
+    .conditionslength              = 1,
+    .isconditional                 = (1 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = true,
+    .iscreateonly                  = true,
+    .iscreateandset                = false,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+};
 const sai_object_type_t sai_metadata_SAI_TABLE_BITMAP_ROUTER_ENTRY_ATTR_NEXT_HOP_allowed_objects[] = {
     SAI_OBJECT_TYPE_NEXT_HOP,
     -1
@@ -45301,14 +46049,104 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TABLE_BITMAP_ROUTER_ENTRY_ATTR_T
     .capabilitylength              = 0,
     .isextensionattr               = false,
 };
-const sai_attribute_value_t sai_metadata_SAI_TAM_ATTR_BUFFER_TRACKING_ADMIN_STATE_default_value = { .booldata = true };
-const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_ATTR_BUFFER_TRACKING_ADMIN_STATE = {
-    .objecttype                    = SAI_OBJECT_TYPE_TAM,
-    .attrid                        = SAI_TAM_ATTR_BUFFER_TRACKING_ADMIN_STATE,
-    .attridname                    = "SAI_TAM_ATTR_BUFFER_TRACKING_ADMIN_STATE",
-    .brief                         = "Operational State for the Buffer Tracking.",
+const sai_attr_metadata_t sai_metadata_attr_SAI_TABLE_META_TUNNEL_ENTRY_ATTR_ACTION = {
+    .objecttype                    = SAI_OBJECT_TYPE_TABLE_META_TUNNEL_ENTRY,
+    .attrid                        = SAI_TABLE_META_TUNNEL_ENTRY_ATTR_ACTION,
+    .attridname                    = "SAI_TABLE_META_TUNNEL_ENTRY_ATTR_ACTION",
+    .brief                         = "Action.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_INT32,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_MANDATORY_ON_CREATE|SAI_ATTR_FLAGS_CREATE_ONLY),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_NONE,
+    .defaultvalue                  = NULL,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = true,
+    .isenumlist                    = false,
+    .enummetadata                  = &sai_metadata_enum_sai_table_meta_tunnel_entry_action_t,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = true,
+    .iscreateonly                  = true,
+    .iscreateandset                = false,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+};
+const sai_attr_metadata_t sai_metadata_attr_SAI_TABLE_META_TUNNEL_ENTRY_ATTR_METADATA_KEY = {
+    .objecttype                    = SAI_OBJECT_TYPE_TABLE_META_TUNNEL_ENTRY,
+    .attrid                        = SAI_TABLE_META_TUNNEL_ENTRY_ATTR_METADATA_KEY,
+    .attridname                    = "SAI_TABLE_META_TUNNEL_ENTRY_ATTR_METADATA_KEY",
+    .brief                         = "Exact Matched key metadata.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_UINT16,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_MANDATORY_ON_CREATE|SAI_ATTR_FLAGS_CREATE_ONLY),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_NONE,
+    .defaultvalue                  = NULL,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = true,
+    .iscreateonly                  = true,
+    .iscreateandset                = false,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+};
+const sai_attribute_value_t sai_metadata_SAI_TABLE_META_TUNNEL_ENTRY_ATTR_IS_DEFAULT_default_value = { .booldata = false };
+const sai_attr_metadata_t sai_metadata_attr_SAI_TABLE_META_TUNNEL_ENTRY_ATTR_IS_DEFAULT = {
+    .objecttype                    = SAI_OBJECT_TYPE_TABLE_META_TUNNEL_ENTRY,
+    .attrid                        = SAI_TABLE_META_TUNNEL_ENTRY_ATTR_IS_DEFAULT,
+    .attridname                    = "SAI_TABLE_META_TUNNEL_ENTRY_ATTR_IS_DEFAULT",
+    .brief                         = "Is default entry.",
     .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_BOOL,
-    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_ONLY),
     .allowedobjecttypes            = NULL,
     .allowedobjecttypeslength      = 0,
     .allowrepetitiononlist         = false,
@@ -45317,7 +46155,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_ATTR_BUFFER_TRACKING_ADMIN_S
     .allownullobjectid             = false,
     .isoidattribute                = (0 > 0),
     .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
-    .defaultvalue                  = &sai_metadata_SAI_TAM_ATTR_BUFFER_TRACKING_ADMIN_STATE_default_value,
+    .defaultvalue                  = &sai_metadata_SAI_TABLE_META_TUNNEL_ENTRY_ATTR_IS_DEFAULT_default_value,
     .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
     .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
     .storedefaultvalue             = false,
@@ -45337,8 +46175,8 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_ATTR_BUFFER_TRACKING_ADMIN_S
     .isaclfield                    = false,
     .isaclaction                   = false,
     .ismandatoryoncreate           = false,
-    .iscreateonly                  = false,
-    .iscreateandset                = true,
+    .iscreateonly                  = true,
+    .iscreateandset                = false,
     .isreadonly                    = false,
     .iskey                         = false,
     .isprimitive                   = true,
@@ -45347,110 +46185,128 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_ATTR_BUFFER_TRACKING_ADMIN_S
     .capabilitylength              = 0,
     .isextensionattr               = false,
 };
-const sai_attribute_value_t sai_metadata_SAI_TAM_ATTR_BUFFER_REPORTING_MODE_default_value = { .s32 = SAI_TAM_REPORTING_MODE_BYTES };
-const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_ATTR_BUFFER_REPORTING_MODE = {
-    .objecttype                    = SAI_OBJECT_TYPE_TAM,
-    .attrid                        = SAI_TAM_ATTR_BUFFER_REPORTING_MODE,
-    .attridname                    = "SAI_TAM_ATTR_BUFFER_REPORTING_MODE",
-    .brief                         = "Statistics reporting mode.",
-    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_INT32,
-    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
-    .allowedobjecttypes            = NULL,
-    .allowedobjecttypeslength      = 0,
-    .allowrepetitiononlist         = false,
-    .allowmixedobjecttypes         = false,
-    .allowemptylist                = false,
-    .allownullobjectid             = false,
-    .isoidattribute                = (0 > 0),
-    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
-    .defaultvalue                  = &sai_metadata_SAI_TAM_ATTR_BUFFER_REPORTING_MODE_default_value,
-    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
-    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
-    .storedefaultvalue             = false,
-    .isenum                        = true,
-    .isenumlist                    = false,
-    .enummetadata                  = &sai_metadata_enum_sai_tam_reporting_mode_t,
-    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
-    .conditions                    = NULL,
-    .conditionslength              = 0,
-    .isconditional                 = (0 != 0),
-    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
-    .validonly                     = NULL,
-    .validonlylength               = 0,
-    .isvalidonly                   = (0 != 0),
-    .getsave                       = false,
-    .isvlan                        = false,
-    .isaclfield                    = false,
-    .isaclaction                   = false,
-    .ismandatoryoncreate           = false,
-    .iscreateonly                  = false,
-    .iscreateandset                = true,
-    .isreadonly                    = false,
-    .iskey                         = false,
-    .isprimitive                   = true,
-    .notificationtype              = -1,
-    .capability                    = NULL,
-    .capabilitylength              = 0,
-    .isextensionattr               = false,
-};
-const sai_attribute_value_t sai_metadata_SAI_TAM_ATTR_BUFFER_TRACKING_MODE_default_value = { .s32 = SAI_TAM_TRACKING_MODE_CURRENT };
-const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_ATTR_BUFFER_TRACKING_MODE = {
-    .objecttype                    = SAI_OBJECT_TYPE_TAM,
-    .attrid                        = SAI_TAM_ATTR_BUFFER_TRACKING_MODE,
-    .attridname                    = "SAI_TAM_ATTR_BUFFER_TRACKING_MODE",
-    .brief                         = "Buffer Tracker Mode.",
-    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_INT32,
-    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
-    .allowedobjecttypes            = NULL,
-    .allowedobjecttypeslength      = 0,
-    .allowrepetitiononlist         = false,
-    .allowmixedobjecttypes         = false,
-    .allowemptylist                = false,
-    .allownullobjectid             = false,
-    .isoidattribute                = (0 > 0),
-    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
-    .defaultvalue                  = &sai_metadata_SAI_TAM_ATTR_BUFFER_TRACKING_MODE_default_value,
-    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
-    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
-    .storedefaultvalue             = false,
-    .isenum                        = true,
-    .isenumlist                    = false,
-    .enummetadata                  = &sai_metadata_enum_sai_tam_tracking_mode_t,
-    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
-    .conditions                    = NULL,
-    .conditionslength              = 0,
-    .isconditional                 = (0 != 0),
-    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
-    .validonly                     = NULL,
-    .validonlylength               = 0,
-    .isvalidonly                   = (0 != 0),
-    .getsave                       = false,
-    .isvlan                        = false,
-    .isaclfield                    = false,
-    .isaclaction                   = false,
-    .ismandatoryoncreate           = false,
-    .iscreateonly                  = false,
-    .iscreateandset                = true,
-    .isreadonly                    = false,
-    .iskey                         = false,
-    .isprimitive                   = true,
-    .notificationtype              = -1,
-    .capability                    = NULL,
-    .capabilitylength              = 0,
-    .isextensionattr               = false,
-};
-const sai_object_type_t sai_metadata_SAI_TAM_ATTR_TRACKING_OPTIONS_allowed_objects[] = {
-    SAI_OBJECT_TYPE_TAM_STAT,
+const sai_object_type_t sai_metadata_SAI_TABLE_META_TUNNEL_ENTRY_ATTR_TUNNEL_ID_allowed_objects[] = {
+    SAI_OBJECT_TYPE_TUNNEL,
     -1
 };
-const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_ATTR_TRACKING_OPTIONS = {
+const sai_attr_condition_t sai_metadata_condition_SAI_TABLE_META_TUNNEL_ENTRY_ATTR_TUNNEL_ID_0 = {
+        .attrid = SAI_TABLE_META_TUNNEL_ENTRY_ATTR_ACTION,
+        .condition = { .s32 = SAI_TABLE_META_TUNNEL_ENTRY_ACTION_TUNNEL_ENCAP }
+};
+const sai_attr_condition_t* const sai_metadata_conditions_SAI_TABLE_META_TUNNEL_ENTRY_ATTR_TUNNEL_ID[] = {
+    &sai_metadata_condition_SAI_TABLE_META_TUNNEL_ENTRY_ATTR_TUNNEL_ID_0,
+    NULL
+};
+const sai_attr_metadata_t sai_metadata_attr_SAI_TABLE_META_TUNNEL_ENTRY_ATTR_TUNNEL_ID = {
+    .objecttype                    = SAI_OBJECT_TYPE_TABLE_META_TUNNEL_ENTRY,
+    .attrid                        = SAI_TABLE_META_TUNNEL_ENTRY_ATTR_TUNNEL_ID,
+    .attridname                    = "SAI_TABLE_META_TUNNEL_ENTRY_ATTR_TUNNEL_ID",
+    .brief                         = "Action tunnel_encap parameter tunnel_id.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_OBJECT_ID,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_MANDATORY_ON_CREATE|SAI_ATTR_FLAGS_CREATE_ONLY),
+    .allowedobjecttypes            = sai_metadata_SAI_TABLE_META_TUNNEL_ENTRY_ATTR_TUNNEL_ID_allowed_objects,
+    .allowedobjecttypeslength      = 1,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (1 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_NONE,
+    .defaultvalue                  = NULL,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_OR,
+    .conditions                    = sai_metadata_conditions_SAI_TABLE_META_TUNNEL_ENTRY_ATTR_TUNNEL_ID,
+    .conditionslength              = 1,
+    .isconditional                 = (1 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = true,
+    .iscreateonly                  = true,
+    .iscreateandset                = false,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+};
+const sai_attr_condition_t sai_metadata_condition_SAI_TABLE_META_TUNNEL_ENTRY_ATTR_UNDERLAY_DIP_0 = {
+        .attrid = SAI_TABLE_META_TUNNEL_ENTRY_ATTR_ACTION,
+        .condition = { .s32 = SAI_TABLE_META_TUNNEL_ENTRY_ACTION_TUNNEL_ENCAP }
+};
+const sai_attr_condition_t* const sai_metadata_conditions_SAI_TABLE_META_TUNNEL_ENTRY_ATTR_UNDERLAY_DIP[] = {
+    &sai_metadata_condition_SAI_TABLE_META_TUNNEL_ENTRY_ATTR_UNDERLAY_DIP_0,
+    NULL
+};
+const sai_attr_metadata_t sai_metadata_attr_SAI_TABLE_META_TUNNEL_ENTRY_ATTR_UNDERLAY_DIP = {
+    .objecttype                    = SAI_OBJECT_TYPE_TABLE_META_TUNNEL_ENTRY,
+    .attrid                        = SAI_TABLE_META_TUNNEL_ENTRY_ATTR_UNDERLAY_DIP,
+    .attridname                    = "SAI_TABLE_META_TUNNEL_ENTRY_ATTR_UNDERLAY_DIP",
+    .brief                         = "Action tunnel_encap parameter underlay_dip.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_IP_ADDRESS,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_MANDATORY_ON_CREATE|SAI_ATTR_FLAGS_CREATE_ONLY),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_NONE,
+    .defaultvalue                  = NULL,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_OR,
+    .conditions                    = sai_metadata_conditions_SAI_TABLE_META_TUNNEL_ENTRY_ATTR_UNDERLAY_DIP,
+    .conditionslength              = 1,
+    .isconditional                 = (1 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = true,
+    .iscreateonly                  = true,
+    .iscreateandset                = false,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+};
+const sai_object_type_t sai_metadata_SAI_TAM_ATTR_TELEMETRY_OBJECTS_LIST_allowed_objects[] = {
+    SAI_OBJECT_TYPE_TAM_TELEMETRY,
+    -1
+};
+const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_ATTR_TELEMETRY_OBJECTS_LIST = {
     .objecttype                    = SAI_OBJECT_TYPE_TAM,
-    .attrid                        = SAI_TAM_ATTR_TRACKING_OPTIONS,
-    .attridname                    = "SAI_TAM_ATTR_TRACKING_OPTIONS",
-    .brief                         = "Buffers/Statistics for tracking using this object.",
+    .attrid                        = SAI_TAM_ATTR_TELEMETRY_OBJECTS_LIST,
+    .attridname                    = "SAI_TAM_ATTR_TELEMETRY_OBJECTS_LIST",
+    .brief                         = "Tam telemetry objects associated with this tam.",
     .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_OBJECT_LIST,
     .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
-    .allowedobjecttypes            = sai_metadata_SAI_TAM_ATTR_TRACKING_OPTIONS_allowed_objects,
+    .allowedobjecttypes            = sai_metadata_SAI_TAM_ATTR_TELEMETRY_OBJECTS_LIST_allowed_objects,
     .allowedobjecttypeslength      = 1,
     .allowrepetitiononlist         = false,
     .allowmixedobjecttypes         = false,
@@ -45488,27 +46344,26 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_ATTR_TRACKING_OPTIONS = {
     .capabilitylength              = 0,
     .isextensionattr               = false,
 };
-const sai_object_type_t sai_metadata_SAI_TAM_ATTR_TRANSPORTER_allowed_objects[] = {
-    SAI_OBJECT_TYPE_TAM_TRANSPORTER,
+const sai_object_type_t sai_metadata_SAI_TAM_ATTR_EVENT_OBJECTS_LIST_allowed_objects[] = {
+    SAI_OBJECT_TYPE_TAM_EVENT,
     -1
 };
-const sai_attribute_value_t sai_metadata_SAI_TAM_ATTR_TRANSPORTER_default_value = { .oid = SAI_NULL_OBJECT_ID };
-const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_ATTR_TRANSPORTER = {
+const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_ATTR_EVENT_OBJECTS_LIST = {
     .objecttype                    = SAI_OBJECT_TYPE_TAM,
-    .attrid                        = SAI_TAM_ATTR_TRANSPORTER,
-    .attridname                    = "SAI_TAM_ATTR_TRANSPORTER",
-    .brief                         = "Default Transporter.",
-    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_OBJECT_ID,
+    .attrid                        = SAI_TAM_ATTR_EVENT_OBJECTS_LIST,
+    .attridname                    = "SAI_TAM_ATTR_EVENT_OBJECTS_LIST",
+    .brief                         = "Tam event objects associated with this tam.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_OBJECT_LIST,
     .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
-    .allowedobjecttypes            = sai_metadata_SAI_TAM_ATTR_TRANSPORTER_allowed_objects,
+    .allowedobjecttypes            = sai_metadata_SAI_TAM_ATTR_EVENT_OBJECTS_LIST_allowed_objects,
     .allowedobjecttypeslength      = 1,
     .allowrepetitiononlist         = false,
     .allowmixedobjecttypes         = false,
     .allowemptylist                = false,
-    .allownullobjectid             = true,
+    .allownullobjectid             = false,
     .isoidattribute                = (1 > 0),
-    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
-    .defaultvalue                  = &sai_metadata_SAI_TAM_ATTR_TRANSPORTER_default_value,
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_EMPTY_LIST,
+    .defaultvalue                  = NULL,
     .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
     .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
     .storedefaultvalue             = false,
@@ -45532,18 +46387,153 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_ATTR_TRANSPORTER = {
     .iscreateandset                = true,
     .isreadonly                    = false,
     .iskey                         = false,
+    .isprimitive                   = false,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+};
+const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_ATTR_TAM_BIND_POINT_TYPE_LIST = {
+    .objecttype                    = SAI_OBJECT_TYPE_TAM,
+    .attrid                        = SAI_TAM_ATTR_TAM_BIND_POINT_TYPE_LIST,
+    .attridname                    = "SAI_TAM_ATTR_TAM_BIND_POINT_TYPE_LIST",
+    .brief                         = "List of TAM bind points where this object will be applied.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_INT32_LIST,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_ONLY),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_EMPTY_LIST,
+    .defaultvalue                  = NULL,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = true,
+    .enummetadata                  = &sai_metadata_enum_sai_tam_bind_point_type_t,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = true,
+    .iscreateandset                = false,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = false,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+};
+const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_COLLECTOR_ATTR_SRC_IP = {
+    .objecttype                    = SAI_OBJECT_TYPE_TAM_COLLECTOR,
+    .attrid                        = SAI_TAM_COLLECTOR_ATTR_SRC_IP,
+    .attridname                    = "SAI_TAM_COLLECTOR_ATTR_SRC_IP",
+    .brief                         = "Source IP address.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_IP_ADDRESS,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_MANDATORY_ON_CREATE|SAI_ATTR_FLAGS_CREATE_AND_SET),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_NONE,
+    .defaultvalue                  = NULL,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = true,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = true,
+    .iscreateonly                  = false,
+    .iscreateandset                = true,
+    .isreadonly                    = false,
+    .iskey                         = false,
     .isprimitive                   = true,
     .notificationtype              = -1,
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
 };
-const sai_attribute_value_t sai_metadata_SAI_TAM_ATTR_CLEAR_ALL_THRESHOLDS_default_value = { .booldata = false };
-const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_ATTR_CLEAR_ALL_THRESHOLDS = {
-    .objecttype                    = SAI_OBJECT_TYPE_TAM,
-    .attrid                        = SAI_TAM_ATTR_CLEAR_ALL_THRESHOLDS,
-    .attridname                    = "SAI_TAM_ATTR_CLEAR_ALL_THRESHOLDS",
-    .brief                         = "Clear all Thresholds.",
+const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_COLLECTOR_ATTR_DST_IP = {
+    .objecttype                    = SAI_OBJECT_TYPE_TAM_COLLECTOR,
+    .attrid                        = SAI_TAM_COLLECTOR_ATTR_DST_IP,
+    .attridname                    = "SAI_TAM_COLLECTOR_ATTR_DST_IP",
+    .brief                         = "Destination IP addresses.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_IP_ADDRESS,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_MANDATORY_ON_CREATE|SAI_ATTR_FLAGS_CREATE_AND_SET),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_NONE,
+    .defaultvalue                  = NULL,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = true,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = true,
+    .iscreateonly                  = false,
+    .iscreateandset                = true,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+};
+const sai_attribute_value_t sai_metadata_SAI_TAM_COLLECTOR_ATTR_LOCALHOST_default_value = { .booldata = true };
+const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_COLLECTOR_ATTR_LOCALHOST = {
+    .objecttype                    = SAI_OBJECT_TYPE_TAM_COLLECTOR,
+    .attrid                        = SAI_TAM_COLLECTOR_ATTR_LOCALHOST,
+    .attridname                    = "SAI_TAM_COLLECTOR_ATTR_LOCALHOST",
+    .brief                         = "Destination local CPU.",
     .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_BOOL,
     .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
     .allowedobjecttypes            = NULL,
@@ -45554,7 +46544,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_ATTR_CLEAR_ALL_THRESHOLDS = 
     .allownullobjectid             = false,
     .isoidattribute                = (0 > 0),
     .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
-    .defaultvalue                  = &sai_metadata_SAI_TAM_ATTR_CLEAR_ALL_THRESHOLDS_default_value,
+    .defaultvalue                  = &sai_metadata_SAI_TAM_COLLECTOR_ATTR_LOCALHOST_default_value,
     .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
     .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
     .storedefaultvalue             = false,
@@ -45584,71 +46574,27 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_ATTR_CLEAR_ALL_THRESHOLDS = 
     .capabilitylength              = 0,
     .isextensionattr               = false,
 };
-const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_ATTR_TOTAL_NUM_STATISTICS = {
-    .objecttype                    = SAI_OBJECT_TYPE_TAM,
-    .attrid                        = SAI_TAM_ATTR_TOTAL_NUM_STATISTICS,
-    .attridname                    = "SAI_TAM_ATTR_TOTAL_NUM_STATISTICS",
-    .brief                         = "Total Number of counters supported.",
-    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_UINT32,
-    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_READ_ONLY),
-    .allowedobjecttypes            = NULL,
-    .allowedobjecttypeslength      = 0,
-    .allowrepetitiononlist         = false,
-    .allowmixedobjecttypes         = false,
-    .allowemptylist                = false,
-    .allownullobjectid             = false,
-    .isoidattribute                = (0 > 0),
-    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_NONE,
-    .defaultvalue                  = NULL,
-    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
-    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
-    .storedefaultvalue             = false,
-    .isenum                        = false,
-    .isenumlist                    = false,
-    .enummetadata                  = NULL,
-    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
-    .conditions                    = NULL,
-    .conditionslength              = 0,
-    .isconditional                 = (0 != 0),
-    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
-    .validonly                     = NULL,
-    .validonlylength               = 0,
-    .isvalidonly                   = (0 != 0),
-    .getsave                       = false,
-    .isvlan                        = false,
-    .isaclfield                    = false,
-    .isaclaction                   = false,
-    .ismandatoryoncreate           = false,
-    .iscreateonly                  = false,
-    .iscreateandset                = false,
-    .isreadonly                    = true,
-    .iskey                         = false,
-    .isprimitive                   = true,
-    .notificationtype              = -1,
-    .capability                    = NULL,
-    .capabilitylength              = 0,
-    .isextensionattr               = false,
-};
-const sai_object_type_t sai_metadata_SAI_TAM_ATTR_LATEST_SNAPSHOT_ID_allowed_objects[] = {
-    SAI_OBJECT_TYPE_TAM_SNAPSHOT,
+const sai_object_type_t sai_metadata_SAI_TAM_COLLECTOR_ATTR_VIRTUAL_ROUTER_ID_allowed_objects[] = {
+    SAI_OBJECT_TYPE_VIRTUAL_ROUTER,
     -1
 };
-const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_ATTR_LATEST_SNAPSHOT_ID = {
-    .objecttype                    = SAI_OBJECT_TYPE_TAM,
-    .attrid                        = SAI_TAM_ATTR_LATEST_SNAPSHOT_ID,
-    .attridname                    = "SAI_TAM_ATTR_LATEST_SNAPSHOT_ID",
-    .brief                         = "The latest Snapshot ID.",
+const sai_attribute_value_t sai_metadata_SAI_TAM_COLLECTOR_ATTR_VIRTUAL_ROUTER_ID_default_value = { .oid = SAI_NULL_OBJECT_ID };
+const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_COLLECTOR_ATTR_VIRTUAL_ROUTER_ID = {
+    .objecttype                    = SAI_OBJECT_TYPE_TAM_COLLECTOR,
+    .attrid                        = SAI_TAM_COLLECTOR_ATTR_VIRTUAL_ROUTER_ID,
+    .attridname                    = "SAI_TAM_COLLECTOR_ATTR_VIRTUAL_ROUTER_ID",
+    .brief                         = "Virtual router ID.",
     .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_OBJECT_ID,
-    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_READ_ONLY),
-    .allowedobjecttypes            = sai_metadata_SAI_TAM_ATTR_LATEST_SNAPSHOT_ID_allowed_objects,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
+    .allowedobjecttypes            = sai_metadata_SAI_TAM_COLLECTOR_ATTR_VIRTUAL_ROUTER_ID_allowed_objects,
     .allowedobjecttypeslength      = 1,
     .allowrepetitiononlist         = false,
     .allowmixedobjecttypes         = false,
     .allowemptylist                = false,
-    .allownullobjectid             = false,
+    .allownullobjectid             = true,
     .isoidattribute                = (1 > 0),
-    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_NONE,
-    .defaultvalue                  = NULL,
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
+    .defaultvalue                  = &sai_metadata_SAI_TAM_COLLECTOR_ATTR_VIRTUAL_ROUTER_ID_default_value,
     .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
     .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
     .storedefaultvalue             = false,
@@ -45669,8 +46615,8 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_ATTR_LATEST_SNAPSHOT_ID = {
     .isaclaction                   = false,
     .ismandatoryoncreate           = false,
     .iscreateonly                  = false,
-    .iscreateandset                = false,
-    .isreadonly                    = true,
+    .iscreateandset                = true,
+    .isreadonly                    = false,
     .iskey                         = false,
     .isprimitive                   = true,
     .notificationtype              = -1,
@@ -45678,13 +46624,14 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_ATTR_LATEST_SNAPSHOT_ID = {
     .capabilitylength              = 0,
     .isextensionattr               = false,
 };
-const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_ATTR_MAX_NUM_SNAPSHOTS = {
-    .objecttype                    = SAI_OBJECT_TYPE_TAM,
-    .attrid                        = SAI_TAM_ATTR_MAX_NUM_SNAPSHOTS,
-    .attridname                    = "SAI_TAM_ATTR_MAX_NUM_SNAPSHOTS",
-    .brief                         = "Maximum Number of snapshots that can be created.",
-    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_UINT32,
-    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_READ_ONLY),
+const sai_attribute_value_t sai_metadata_SAI_TAM_COLLECTOR_ATTR_TRUNCATE_SIZE_default_value = { .u16 = 0 };
+const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_COLLECTOR_ATTR_TRUNCATE_SIZE = {
+    .objecttype                    = SAI_OBJECT_TYPE_TAM_COLLECTOR,
+    .attrid                        = SAI_TAM_COLLECTOR_ATTR_TRUNCATE_SIZE,
+    .attridname                    = "SAI_TAM_COLLECTOR_ATTR_TRUNCATE_SIZE",
+    .brief                         = "Telemetry report truncate size.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_UINT16,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
     .allowedobjecttypes            = NULL,
     .allowedobjecttypeslength      = 0,
     .allowrepetitiononlist         = false,
@@ -45692,8 +46639,8 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_ATTR_MAX_NUM_SNAPSHOTS = {
     .allowemptylist                = false,
     .allownullobjectid             = false,
     .isoidattribute                = (0 > 0),
-    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_NONE,
-    .defaultvalue                  = NULL,
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
+    .defaultvalue                  = &sai_metadata_SAI_TAM_COLLECTOR_ATTR_TRUNCATE_SIZE_default_value,
     .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
     .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
     .storedefaultvalue             = false,
@@ -45714,8 +46661,8 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_ATTR_MAX_NUM_SNAPSHOTS = {
     .isaclaction                   = false,
     .ismandatoryoncreate           = false,
     .iscreateonly                  = false,
-    .iscreateandset                = false,
-    .isreadonly                    = true,
+    .iscreateandset                = true,
+    .isreadonly                    = false,
     .iskey                         = false,
     .isprimitive                   = true,
     .notificationtype              = -1,
@@ -45723,67 +46670,18 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_ATTR_MAX_NUM_SNAPSHOTS = {
     .capabilitylength              = 0,
     .isextensionattr               = false,
 };
-const sai_object_type_t sai_metadata_SAI_TAM_ATTR_THRESHOLD_LIST_allowed_objects[] = {
-    SAI_OBJECT_TYPE_TAM_THRESHOLD,
+const sai_object_type_t sai_metadata_SAI_TAM_COLLECTOR_ATTR_TRANSPORT_allowed_objects[] = {
+    SAI_OBJECT_TYPE_TAM_TRANSPORT,
     -1
 };
-const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_ATTR_THRESHOLD_LIST = {
-    .objecttype                    = SAI_OBJECT_TYPE_TAM,
-    .attrid                        = SAI_TAM_ATTR_THRESHOLD_LIST,
-    .attridname                    = "SAI_TAM_ATTR_THRESHOLD_LIST",
-    .brief                         = "Tam thresholds associated with this tam.",
-    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_OBJECT_LIST,
-    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_READ_ONLY),
-    .allowedobjecttypes            = sai_metadata_SAI_TAM_ATTR_THRESHOLD_LIST_allowed_objects,
-    .allowedobjecttypeslength      = 1,
-    .allowrepetitiononlist         = false,
-    .allowmixedobjecttypes         = false,
-    .allowemptylist                = false,
-    .allownullobjectid             = false,
-    .isoidattribute                = (1 > 0),
-    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_NONE,
-    .defaultvalue                  = NULL,
-    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
-    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
-    .storedefaultvalue             = false,
-    .isenum                        = false,
-    .isenumlist                    = false,
-    .enummetadata                  = NULL,
-    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
-    .conditions                    = NULL,
-    .conditionslength              = 0,
-    .isconditional                 = (0 != 0),
-    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
-    .validonly                     = NULL,
-    .validonlylength               = 0,
-    .isvalidonly                   = (0 != 0),
-    .getsave                       = false,
-    .isvlan                        = false,
-    .isaclfield                    = false,
-    .isaclaction                   = false,
-    .ismandatoryoncreate           = false,
-    .iscreateonly                  = false,
-    .iscreateandset                = false,
-    .isreadonly                    = true,
-    .iskey                         = false,
-    .isprimitive                   = false,
-    .notificationtype              = -1,
-    .capability                    = NULL,
-    .capabilitylength              = 0,
-    .isextensionattr               = false,
-};
-const sai_object_type_t sai_metadata_SAI_TAM_HISTOGRAM_ATTR_TAM_ID_allowed_objects[] = {
-    SAI_OBJECT_TYPE_TAM,
-    -1
-};
-const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_HISTOGRAM_ATTR_TAM_ID = {
-    .objecttype                    = SAI_OBJECT_TYPE_TAM_HISTOGRAM,
-    .attrid                        = SAI_TAM_HISTOGRAM_ATTR_TAM_ID,
-    .attridname                    = "SAI_TAM_HISTOGRAM_ATTR_TAM_ID",
-    .brief                         = "TAM Object.",
+const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_COLLECTOR_ATTR_TRANSPORT = {
+    .objecttype                    = SAI_OBJECT_TYPE_TAM_COLLECTOR,
+    .attrid                        = SAI_TAM_COLLECTOR_ATTR_TRANSPORT,
+    .attridname                    = "SAI_TAM_COLLECTOR_ATTR_TRANSPORT",
+    .brief                         = "Transport attributes object.",
     .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_OBJECT_ID,
     .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_MANDATORY_ON_CREATE|SAI_ATTR_FLAGS_CREATE_AND_SET),
-    .allowedobjecttypes            = sai_metadata_SAI_TAM_HISTOGRAM_ATTR_TAM_ID_allowed_objects,
+    .allowedobjecttypes            = sai_metadata_SAI_TAM_COLLECTOR_ATTR_TRANSPORT_allowed_objects,
     .allowedobjecttypeslength      = 1,
     .allowrepetitiononlist         = false,
     .allowmixedobjecttypes         = false,
@@ -45821,26 +46719,117 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_HISTOGRAM_ATTR_TAM_ID = {
     .capabilitylength              = 0,
     .isextensionattr               = false,
 };
-const sai_object_type_t sai_metadata_SAI_TAM_HISTOGRAM_ATTR_STAT_TYPE_allowed_objects[] = {
-    SAI_OBJECT_TYPE_TAM_MICROBURST,
+const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_COLLECTOR_ATTR_DSCP_VALUE = {
+    .objecttype                    = SAI_OBJECT_TYPE_TAM_COLLECTOR,
+    .attrid                        = SAI_TAM_COLLECTOR_ATTR_DSCP_VALUE,
+    .attridname                    = "SAI_TAM_COLLECTOR_ATTR_DSCP_VALUE",
+    .brief                         = "DSCP value.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_UINT8,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_MANDATORY_ON_CREATE|SAI_ATTR_FLAGS_CREATE_AND_SET),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_NONE,
+    .defaultvalue                  = NULL,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = true,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = true,
+    .iscreateonly                  = false,
+    .iscreateandset                = true,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+};
+const sai_object_type_t sai_metadata_SAI_TAM_EVENT_ACTION_ATTR_REPORT_TYPE_allowed_objects[] = {
+    SAI_OBJECT_TYPE_TAM_REPORT,
     -1
 };
-const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_HISTOGRAM_ATTR_STAT_TYPE = {
-    .objecttype                    = SAI_OBJECT_TYPE_TAM_HISTOGRAM,
-    .attrid                        = SAI_TAM_HISTOGRAM_ATTR_STAT_TYPE,
-    .attridname                    = "SAI_TAM_HISTOGRAM_ATTR_STAT_TYPE",
-    .brief                         = "Buffers/Statistics for inclusion in histogram.",
-    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_OBJECT_LIST,
-    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
-    .allowedobjecttypes            = sai_metadata_SAI_TAM_HISTOGRAM_ATTR_STAT_TYPE_allowed_objects,
+const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_EVENT_ACTION_ATTR_REPORT_TYPE = {
+    .objecttype                    = SAI_OBJECT_TYPE_TAM_EVENT_ACTION,
+    .attrid                        = SAI_TAM_EVENT_ACTION_ATTR_REPORT_TYPE,
+    .attridname                    = "SAI_TAM_EVENT_ACTION_ATTR_REPORT_TYPE",
+    .brief                         = "Report Object.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_OBJECT_ID,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_MANDATORY_ON_CREATE|SAI_ATTR_FLAGS_CREATE_AND_SET),
+    .allowedobjecttypes            = sai_metadata_SAI_TAM_EVENT_ACTION_ATTR_REPORT_TYPE_allowed_objects,
     .allowedobjecttypeslength      = 1,
     .allowrepetitiononlist         = false,
     .allowmixedobjecttypes         = false,
     .allowemptylist                = false,
     .allownullobjectid             = false,
     .isoidattribute                = (1 > 0),
-    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_EMPTY_LIST,
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_NONE,
     .defaultvalue                  = NULL,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = true,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = true,
+    .iscreateonly                  = false,
+    .iscreateandset                = true,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+};
+const sai_attribute_value_t sai_metadata_SAI_TAM_EVENT_ACTION_ATTR_QOS_ACTION_TYPE_default_value = { .u32 = 0 };
+const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_EVENT_ACTION_ATTR_QOS_ACTION_TYPE = {
+    .objecttype                    = SAI_OBJECT_TYPE_TAM_EVENT_ACTION,
+    .attrid                        = SAI_TAM_EVENT_ACTION_ATTR_QOS_ACTION_TYPE,
+    .attridname                    = "SAI_TAM_EVENT_ACTION_ATTR_QOS_ACTION_TYPE",
+    .brief                         = "QOS action Type Object.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_UINT32,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
+    .defaultvalue                  = &sai_metadata_SAI_TAM_EVENT_ACTION_ATTR_QOS_ACTION_TYPE_default_value,
     .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
     .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
     .storedefaultvalue             = false,
@@ -45864,19 +46853,671 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_HISTOGRAM_ATTR_STAT_TYPE = {
     .iscreateandset                = true,
     .isreadonly                    = false,
     .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+};
+const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_EVENT_ATTR_TYPE = {
+    .objecttype                    = SAI_OBJECT_TYPE_TAM_EVENT,
+    .attrid                        = SAI_TAM_EVENT_ATTR_TYPE,
+    .attridname                    = "SAI_TAM_EVENT_ATTR_TYPE",
+    .brief                         = "Tam event type.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_INT32,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_MANDATORY_ON_CREATE|SAI_ATTR_FLAGS_CREATE_ONLY),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_NONE,
+    .defaultvalue                  = NULL,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = true,
+    .isenumlist                    = false,
+    .enummetadata                  = &sai_metadata_enum_sai_tam_event_type_t,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = true,
+    .iscreateonly                  = true,
+    .iscreateandset                = false,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+};
+const sai_object_type_t sai_metadata_SAI_TAM_EVENT_ATTR_ACTION_LIST_allowed_objects[] = {
+    SAI_OBJECT_TYPE_TAM_EVENT_ACTION,
+    -1
+};
+const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_EVENT_ATTR_ACTION_LIST = {
+    .objecttype                    = SAI_OBJECT_TYPE_TAM_EVENT,
+    .attrid                        = SAI_TAM_EVENT_ATTR_ACTION_LIST,
+    .attridname                    = "SAI_TAM_EVENT_ATTR_ACTION_LIST",
+    .brief                         = "Event action.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_OBJECT_LIST,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_MANDATORY_ON_CREATE|SAI_ATTR_FLAGS_CREATE_ONLY),
+    .allowedobjecttypes            = sai_metadata_SAI_TAM_EVENT_ATTR_ACTION_LIST_allowed_objects,
+    .allowedobjecttypeslength      = 1,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (1 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_NONE,
+    .defaultvalue                  = NULL,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = true,
+    .iscreateonly                  = true,
+    .iscreateandset                = false,
+    .isreadonly                    = false,
+    .iskey                         = false,
     .isprimitive                   = false,
     .notificationtype              = -1,
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
 };
-const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_HISTOGRAM_ATTR_BIN_BOUNDARY = {
-    .objecttype                    = SAI_OBJECT_TYPE_TAM_HISTOGRAM,
-    .attrid                        = SAI_TAM_HISTOGRAM_ATTR_BIN_BOUNDARY,
-    .attridname                    = "SAI_TAM_HISTOGRAM_ATTR_BIN_BOUNDARY",
+const sai_object_type_t sai_metadata_SAI_TAM_EVENT_ATTR_COLLECTOR_LIST_allowed_objects[] = {
+    SAI_OBJECT_TYPE_TAM_COLLECTOR,
+    -1
+};
+const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_EVENT_ATTR_COLLECTOR_LIST = {
+    .objecttype                    = SAI_OBJECT_TYPE_TAM_EVENT,
+    .attrid                        = SAI_TAM_EVENT_ATTR_COLLECTOR_LIST,
+    .attridname                    = "SAI_TAM_EVENT_ATTR_COLLECTOR_LIST",
+    .brief                         = "Collector object list.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_OBJECT_LIST,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_MANDATORY_ON_CREATE|SAI_ATTR_FLAGS_CREATE_ONLY),
+    .allowedobjecttypes            = sai_metadata_SAI_TAM_EVENT_ATTR_COLLECTOR_LIST_allowed_objects,
+    .allowedobjecttypeslength      = 1,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (1 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_NONE,
+    .defaultvalue                  = NULL,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = true,
+    .iscreateonly                  = true,
+    .iscreateandset                = false,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = false,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+};
+const sai_object_type_t sai_metadata_SAI_TAM_EVENT_ATTR_THRESHOLD_allowed_objects[] = {
+    SAI_OBJECT_TYPE_TAM_EVENT_THRESHOLD,
+    -1
+};
+const sai_attribute_value_t sai_metadata_SAI_TAM_EVENT_ATTR_THRESHOLD_default_value = { .oid = SAI_NULL_OBJECT_ID };
+const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_EVENT_ATTR_THRESHOLD = {
+    .objecttype                    = SAI_OBJECT_TYPE_TAM_EVENT,
+    .attrid                        = SAI_TAM_EVENT_ATTR_THRESHOLD,
+    .attridname                    = "SAI_TAM_EVENT_ATTR_THRESHOLD",
+    .brief                         = "Tam event threshold attr Object.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_OBJECT_ID,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
+    .allowedobjecttypes            = sai_metadata_SAI_TAM_EVENT_ATTR_THRESHOLD_allowed_objects,
+    .allowedobjecttypeslength      = 1,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = true,
+    .isoidattribute                = (1 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
+    .defaultvalue                  = &sai_metadata_SAI_TAM_EVENT_ATTR_THRESHOLD_default_value,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = false,
+    .iscreateandset                = true,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+};
+const sai_attribute_value_t sai_metadata_SAI_TAM_EVENT_ATTR_DSCP_VALUE_default_value = { .u8 = 0 };
+const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_EVENT_ATTR_DSCP_VALUE = {
+    .objecttype                    = SAI_OBJECT_TYPE_TAM_EVENT,
+    .attrid                        = SAI_TAM_EVENT_ATTR_DSCP_VALUE,
+    .attridname                    = "SAI_TAM_EVENT_ATTR_DSCP_VALUE",
+    .brief                         = "DSCP value.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_UINT8,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
+    .defaultvalue                  = &sai_metadata_SAI_TAM_EVENT_ATTR_DSCP_VALUE_default_value,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = false,
+    .iscreateandset                = true,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+};
+const sai_attribute_value_t sai_metadata_SAI_TAM_EVENT_THRESHOLD_ATTR_HIGH_WATERMARK_default_value = { .u32 = 90 };
+const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_EVENT_THRESHOLD_ATTR_HIGH_WATERMARK = {
+    .objecttype                    = SAI_OBJECT_TYPE_TAM_EVENT_THRESHOLD,
+    .attrid                        = SAI_TAM_EVENT_THRESHOLD_ATTR_HIGH_WATERMARK,
+    .attridname                    = "SAI_TAM_EVENT_THRESHOLD_ATTR_HIGH_WATERMARK",
+    .brief                         = "High water mark.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_UINT32,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
+    .defaultvalue                  = &sai_metadata_SAI_TAM_EVENT_THRESHOLD_ATTR_HIGH_WATERMARK_default_value,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = false,
+    .iscreateandset                = true,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+};
+const sai_attribute_value_t sai_metadata_SAI_TAM_EVENT_THRESHOLD_ATTR_LOW_WATERMARK_default_value = { .u32 = 10 };
+const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_EVENT_THRESHOLD_ATTR_LOW_WATERMARK = {
+    .objecttype                    = SAI_OBJECT_TYPE_TAM_EVENT_THRESHOLD,
+    .attrid                        = SAI_TAM_EVENT_THRESHOLD_ATTR_LOW_WATERMARK,
+    .attridname                    = "SAI_TAM_EVENT_THRESHOLD_ATTR_LOW_WATERMARK",
+    .brief                         = "Low Water Mark.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_UINT32,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
+    .defaultvalue                  = &sai_metadata_SAI_TAM_EVENT_THRESHOLD_ATTR_LOW_WATERMARK_default_value,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = false,
+    .iscreateandset                = true,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+};
+const sai_attribute_value_t sai_metadata_SAI_TAM_EVENT_THRESHOLD_ATTR_LATENCY_default_value = { .u32 = 10 };
+const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_EVENT_THRESHOLD_ATTR_LATENCY = {
+    .objecttype                    = SAI_OBJECT_TYPE_TAM_EVENT_THRESHOLD,
+    .attrid                        = SAI_TAM_EVENT_THRESHOLD_ATTR_LATENCY,
+    .attridname                    = "SAI_TAM_EVENT_THRESHOLD_ATTR_LATENCY",
+    .brief                         = "Latency in nanoseconds.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_UINT32,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
+    .defaultvalue                  = &sai_metadata_SAI_TAM_EVENT_THRESHOLD_ATTR_LATENCY_default_value,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = false,
+    .iscreateandset                = true,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+};
+const sai_attribute_value_t sai_metadata_SAI_TAM_EVENT_THRESHOLD_ATTR_RATE_default_value = { .u32 = 0 };
+const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_EVENT_THRESHOLD_ATTR_RATE = {
+    .objecttype                    = SAI_OBJECT_TYPE_TAM_EVENT_THRESHOLD,
+    .attrid                        = SAI_TAM_EVENT_THRESHOLD_ATTR_RATE,
+    .attridname                    = "SAI_TAM_EVENT_THRESHOLD_ATTR_RATE",
+    .brief                         = "Rate for specified event type.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_UINT32,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
+    .defaultvalue                  = &sai_metadata_SAI_TAM_EVENT_THRESHOLD_ATTR_RATE_default_value,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = false,
+    .iscreateandset                = true,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+};
+const sai_attribute_value_t sai_metadata_SAI_TAM_EVENT_THRESHOLD_ATTR_ABS_VALUE_default_value = { .u32 = 0 };
+const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_EVENT_THRESHOLD_ATTR_ABS_VALUE = {
+    .objecttype                    = SAI_OBJECT_TYPE_TAM_EVENT_THRESHOLD,
+    .attrid                        = SAI_TAM_EVENT_THRESHOLD_ATTR_ABS_VALUE,
+    .attridname                    = "SAI_TAM_EVENT_THRESHOLD_ATTR_ABS_VALUE",
+    .brief                         = "Abs Value for specified Event.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_UINT32,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
+    .defaultvalue                  = &sai_metadata_SAI_TAM_EVENT_THRESHOLD_ATTR_ABS_VALUE_default_value,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = false,
+    .iscreateandset                = true,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+};
+const sai_attribute_value_t sai_metadata_SAI_TAM_EVENT_THRESHOLD_ATTR_UNIT_default_value = { .s32 = SAI_TAM_EVENT_THRESHOLD_UNIT_MSEC };
+const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_EVENT_THRESHOLD_ATTR_UNIT = {
+    .objecttype                    = SAI_OBJECT_TYPE_TAM_EVENT_THRESHOLD,
+    .attrid                        = SAI_TAM_EVENT_THRESHOLD_ATTR_UNIT,
+    .attridname                    = "SAI_TAM_EVENT_THRESHOLD_ATTR_UNIT",
+    .brief                         = "Tam event threshold unit.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_INT32,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
+    .defaultvalue                  = &sai_metadata_SAI_TAM_EVENT_THRESHOLD_ATTR_UNIT_default_value,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = true,
+    .isenumlist                    = false,
+    .enummetadata                  = &sai_metadata_enum_sai_tam_event_threshold_unit_t,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = false,
+    .iscreateandset                = true,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+};
+const sai_attribute_value_t sai_metadata_SAI_TAM_MATH_FUNC_ATTR_TAM_TEL_MATH_FUNC_TYPE_default_value = { .s32 = SAI_TAM_TEL_MATH_FUNC_TYPE_NONE };
+const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_MATH_FUNC_ATTR_TAM_TEL_MATH_FUNC_TYPE = {
+    .objecttype                    = SAI_OBJECT_TYPE_TAM_MATH_FUNC,
+    .attrid                        = SAI_TAM_MATH_FUNC_ATTR_TAM_TEL_MATH_FUNC_TYPE,
+    .attridname                    = "SAI_TAM_MATH_FUNC_ATTR_TAM_TEL_MATH_FUNC_TYPE",
+    .brief                         = "Type of math function.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_INT32,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
+    .defaultvalue                  = &sai_metadata_SAI_TAM_MATH_FUNC_ATTR_TAM_TEL_MATH_FUNC_TYPE_default_value,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = true,
+    .isenumlist                    = false,
+    .enummetadata                  = &sai_metadata_enum_sai_tam_tel_math_func_type_t,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = false,
+    .iscreateandset                = true,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+};
+const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_REPORT_ATTR_TYPE = {
+    .objecttype                    = SAI_OBJECT_TYPE_TAM_REPORT,
+    .attrid                        = SAI_TAM_REPORT_ATTR_TYPE,
+    .attridname                    = "SAI_TAM_REPORT_ATTR_TYPE",
+    .brief                         = "Type of reporting method.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_INT32,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_MANDATORY_ON_CREATE|SAI_ATTR_FLAGS_CREATE_AND_SET),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_NONE,
+    .defaultvalue                  = NULL,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = true,
+    .isenum                        = true,
+    .isenumlist                    = false,
+    .enummetadata                  = &sai_metadata_enum_sai_tam_report_type_t,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = true,
+    .iscreateonly                  = false,
+    .iscreateandset                = true,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+};
+const sai_attribute_value_t sai_metadata_SAI_TAM_REPORT_ATTR_HISTOGRAM_NUMBER_OF_BINS_default_value = { .u32 = 0 };
+const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_REPORT_ATTR_HISTOGRAM_NUMBER_OF_BINS = {
+    .objecttype                    = SAI_OBJECT_TYPE_TAM_REPORT,
+    .attrid                        = SAI_TAM_REPORT_ATTR_HISTOGRAM_NUMBER_OF_BINS,
+    .attridname                    = "SAI_TAM_REPORT_ATTR_HISTOGRAM_NUMBER_OF_BINS",
+    .brief                         = "Statistic for this histogram.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_UINT32,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_ONLY),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
+    .defaultvalue                  = &sai_metadata_SAI_TAM_REPORT_ATTR_HISTOGRAM_NUMBER_OF_BINS_default_value,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = true,
+    .iscreateandset                = false,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+};
+const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_REPORT_ATTR_HISTOGRAM_BIN_BOUNDARY = {
+    .objecttype                    = SAI_OBJECT_TYPE_TAM_REPORT,
+    .attrid                        = SAI_TAM_REPORT_ATTR_HISTOGRAM_BIN_BOUNDARY,
+    .attridname                    = "SAI_TAM_REPORT_ATTR_HISTOGRAM_BIN_BOUNDARY",
     .brief                         = "Histogram Bins Lower Boundaries.",
     .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_UINT32_LIST,
-    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_MANDATORY_ON_CREATE|SAI_ATTR_FLAGS_CREATE_AND_SET),
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_ONLY),
     .allowedobjecttypes            = NULL,
     .allowedobjecttypeslength      = 0,
     .allowrepetitiononlist         = false,
@@ -45884,54 +47525,8 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_HISTOGRAM_ATTR_BIN_BOUNDARY 
     .allowemptylist                = false,
     .allownullobjectid             = false,
     .isoidattribute                = (0 > 0),
-    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_NONE,
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_EMPTY_LIST,
     .defaultvalue                  = NULL,
-    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
-    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
-    .storedefaultvalue             = true,
-    .isenum                        = false,
-    .isenumlist                    = false,
-    .enummetadata                  = NULL,
-    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
-    .conditions                    = NULL,
-    .conditionslength              = 0,
-    .isconditional                 = (0 != 0),
-    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
-    .validonly                     = NULL,
-    .validonlylength               = 0,
-    .isvalidonly                   = (0 != 0),
-    .getsave                       = false,
-    .isvlan                        = false,
-    .isaclfield                    = false,
-    .isaclaction                   = false,
-    .ismandatoryoncreate           = true,
-    .iscreateonly                  = false,
-    .iscreateandset                = true,
-    .isreadonly                    = false,
-    .iskey                         = false,
-    .isprimitive                   = false,
-    .notificationtype              = -1,
-    .capability                    = NULL,
-    .capabilitylength              = 0,
-    .isextensionattr               = false,
-};
-const sai_attribute_value_t sai_metadata_SAI_TAM_HISTOGRAM_ATTR_RESOLUTION_default_value = { .u32 = 0 };
-const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_HISTOGRAM_ATTR_RESOLUTION = {
-    .objecttype                    = SAI_OBJECT_TYPE_TAM_HISTOGRAM,
-    .attrid                        = SAI_TAM_HISTOGRAM_ATTR_RESOLUTION,
-    .attridname                    = "SAI_TAM_HISTOGRAM_ATTR_RESOLUTION",
-    .brief                         = "Histogram Resolution.",
-    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_UINT32,
-    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
-    .allowedobjecttypes            = NULL,
-    .allowedobjecttypeslength      = 0,
-    .allowrepetitiononlist         = false,
-    .allowmixedobjecttypes         = false,
-    .allowemptylist                = false,
-    .allownullobjectid             = false,
-    .isoidattribute                = (0 > 0),
-    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
-    .defaultvalue                  = &sai_metadata_SAI_TAM_HISTOGRAM_ATTR_RESOLUTION_default_value,
     .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
     .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
     .storedefaultvalue             = false,
@@ -45951,8 +47546,53 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_HISTOGRAM_ATTR_RESOLUTION = 
     .isaclfield                    = false,
     .isaclaction                   = false,
     .ismandatoryoncreate           = false,
-    .iscreateonly                  = false,
-    .iscreateandset                = true,
+    .iscreateonly                  = true,
+    .iscreateandset                = false,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = false,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+};
+const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_TEL_TYPE_ATTR_TAM_TELEMETRY_TYPE = {
+    .objecttype                    = SAI_OBJECT_TYPE_TAM_TEL_TYPE,
+    .attrid                        = SAI_TAM_TEL_TYPE_ATTR_TAM_TELEMETRY_TYPE,
+    .attridname                    = "SAI_TAM_TEL_TYPE_ATTR_TAM_TELEMETRY_TYPE",
+    .brief                         = "Telemetry type.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_INT32,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_MANDATORY_ON_CREATE|SAI_ATTR_FLAGS_CREATE_ONLY),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_NONE,
+    .defaultvalue                  = NULL,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = true,
+    .isenumlist                    = false,
+    .enummetadata                  = &sai_metadata_enum_sai_tam_telemetry_type_t,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = true,
+    .iscreateonly                  = true,
+    .iscreateandset                = false,
     .isreadonly                    = false,
     .iskey                         = false,
     .isprimitive                   = true,
@@ -45961,12 +47601,12 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_HISTOGRAM_ATTR_RESOLUTION = 
     .capabilitylength              = 0,
     .isextensionattr               = false,
 };
-const sai_attribute_value_t sai_metadata_SAI_TAM_HISTOGRAM_ATTR_CLEAR_MODE_default_value = { .booldata = true };
-const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_HISTOGRAM_ATTR_CLEAR_MODE = {
-    .objecttype                    = SAI_OBJECT_TYPE_TAM_HISTOGRAM,
-    .attrid                        = SAI_TAM_HISTOGRAM_ATTR_CLEAR_MODE,
-    .attridname                    = "SAI_TAM_HISTOGRAM_ATTR_CLEAR_MODE",
-    .brief                         = "Histogram Clear-On-Read Mode.",
+const sai_attribute_value_t sai_metadata_SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_PORT_STATS_default_value = { .booldata = false };
+const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_PORT_STATS = {
+    .objecttype                    = SAI_OBJECT_TYPE_TAM_TEL_TYPE,
+    .attrid                        = SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_PORT_STATS,
+    .attridname                    = "SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_PORT_STATS",
+    .brief                         = "Switch - Collect Port stats.",
     .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_BOOL,
     .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
     .allowedobjecttypes            = NULL,
@@ -45977,7 +47617,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_HISTOGRAM_ATTR_CLEAR_MODE = 
     .allownullobjectid             = false,
     .isoidattribute                = (0 > 0),
     .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
-    .defaultvalue                  = &sai_metadata_SAI_TAM_HISTOGRAM_ATTR_CLEAR_MODE_default_value,
+    .defaultvalue                  = &sai_metadata_SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_PORT_STATS_default_value,
     .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
     .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
     .storedefaultvalue             = false,
@@ -46007,789 +47647,12 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_HISTOGRAM_ATTR_CLEAR_MODE = 
     .capabilitylength              = 0,
     .isextensionattr               = false,
 };
-const sai_object_type_t sai_metadata_SAI_TAM_HISTOGRAM_ATTR_TRANSPORTER_allowed_objects[] = {
-    SAI_OBJECT_TYPE_TAM_TRANSPORTER,
-    -1
-};
-const sai_attribute_value_t sai_metadata_SAI_TAM_HISTOGRAM_ATTR_TRANSPORTER_default_value = { .oid = SAI_NULL_OBJECT_ID };
-const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_HISTOGRAM_ATTR_TRANSPORTER = {
-    .objecttype                    = SAI_OBJECT_TYPE_TAM_HISTOGRAM,
-    .attrid                        = SAI_TAM_HISTOGRAM_ATTR_TRANSPORTER,
-    .attridname                    = "SAI_TAM_HISTOGRAM_ATTR_TRANSPORTER",
-    .brief                         = "Transporter Object.",
-    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_OBJECT_ID,
-    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
-    .allowedobjecttypes            = sai_metadata_SAI_TAM_HISTOGRAM_ATTR_TRANSPORTER_allowed_objects,
-    .allowedobjecttypeslength      = 1,
-    .allowrepetitiononlist         = false,
-    .allowmixedobjecttypes         = false,
-    .allowemptylist                = false,
-    .allownullobjectid             = true,
-    .isoidattribute                = (1 > 0),
-    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
-    .defaultvalue                  = &sai_metadata_SAI_TAM_HISTOGRAM_ATTR_TRANSPORTER_default_value,
-    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
-    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
-    .storedefaultvalue             = false,
-    .isenum                        = false,
-    .isenumlist                    = false,
-    .enummetadata                  = NULL,
-    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
-    .conditions                    = NULL,
-    .conditionslength              = 0,
-    .isconditional                 = (0 != 0),
-    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
-    .validonly                     = NULL,
-    .validonlylength               = 0,
-    .isvalidonly                   = (0 != 0),
-    .getsave                       = false,
-    .isvlan                        = false,
-    .isaclfield                    = false,
-    .isaclaction                   = false,
-    .ismandatoryoncreate           = false,
-    .iscreateonly                  = false,
-    .iscreateandset                = true,
-    .isreadonly                    = false,
-    .iskey                         = false,
-    .isprimitive                   = true,
-    .notificationtype              = -1,
-    .capability                    = NULL,
-    .capabilitylength              = 0,
-    .isextensionattr               = false,
-};
-const sai_object_type_t sai_metadata_SAI_TAM_MICROBURST_ATTR_TAM_ID_allowed_objects[] = {
-    SAI_OBJECT_TYPE_TAM,
-    -1
-};
-const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_MICROBURST_ATTR_TAM_ID = {
-    .objecttype                    = SAI_OBJECT_TYPE_TAM_MICROBURST,
-    .attrid                        = SAI_TAM_MICROBURST_ATTR_TAM_ID,
-    .attridname                    = "SAI_TAM_MICROBURST_ATTR_TAM_ID",
-    .brief                         = "TAM Object.",
-    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_OBJECT_ID,
-    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_MANDATORY_ON_CREATE|SAI_ATTR_FLAGS_CREATE_AND_SET),
-    .allowedobjecttypes            = sai_metadata_SAI_TAM_MICROBURST_ATTR_TAM_ID_allowed_objects,
-    .allowedobjecttypeslength      = 1,
-    .allowrepetitiononlist         = false,
-    .allowmixedobjecttypes         = false,
-    .allowemptylist                = false,
-    .allownullobjectid             = false,
-    .isoidattribute                = (1 > 0),
-    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_NONE,
-    .defaultvalue                  = NULL,
-    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
-    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
-    .storedefaultvalue             = true,
-    .isenum                        = false,
-    .isenumlist                    = false,
-    .enummetadata                  = NULL,
-    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
-    .conditions                    = NULL,
-    .conditionslength              = 0,
-    .isconditional                 = (0 != 0),
-    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
-    .validonly                     = NULL,
-    .validonlylength               = 0,
-    .isvalidonly                   = (0 != 0),
-    .getsave                       = false,
-    .isvlan                        = false,
-    .isaclfield                    = false,
-    .isaclaction                   = false,
-    .ismandatoryoncreate           = true,
-    .iscreateonly                  = false,
-    .iscreateandset                = true,
-    .isreadonly                    = false,
-    .iskey                         = false,
-    .isprimitive                   = true,
-    .notificationtype              = -1,
-    .capability                    = NULL,
-    .capabilitylength              = 0,
-    .isextensionattr               = false,
-};
-const sai_object_type_t sai_metadata_SAI_TAM_MICROBURST_ATTR_STATISTIC_allowed_objects[] = {
-    SAI_OBJECT_TYPE_TAM_STAT,
-    -1
-};
-const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_MICROBURST_ATTR_STATISTIC = {
-    .objecttype                    = SAI_OBJECT_TYPE_TAM_MICROBURST,
-    .attrid                        = SAI_TAM_MICROBURST_ATTR_STATISTIC,
-    .attridname                    = "SAI_TAM_MICROBURST_ATTR_STATISTIC",
-    .brief                         = "Statistic for this microburst.",
-    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_OBJECT_ID,
-    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_MANDATORY_ON_CREATE|SAI_ATTR_FLAGS_CREATE_AND_SET),
-    .allowedobjecttypes            = sai_metadata_SAI_TAM_MICROBURST_ATTR_STATISTIC_allowed_objects,
-    .allowedobjecttypeslength      = 1,
-    .allowrepetitiononlist         = false,
-    .allowmixedobjecttypes         = false,
-    .allowemptylist                = false,
-    .allownullobjectid             = false,
-    .isoidattribute                = (1 > 0),
-    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_NONE,
-    .defaultvalue                  = NULL,
-    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
-    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
-    .storedefaultvalue             = true,
-    .isenum                        = false,
-    .isenumlist                    = false,
-    .enummetadata                  = NULL,
-    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
-    .conditions                    = NULL,
-    .conditionslength              = 0,
-    .isconditional                 = (0 != 0),
-    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
-    .validonly                     = NULL,
-    .validonlylength               = 0,
-    .isvalidonly                   = (0 != 0),
-    .getsave                       = false,
-    .isvlan                        = false,
-    .isaclfield                    = false,
-    .isaclaction                   = false,
-    .ismandatoryoncreate           = true,
-    .iscreateonly                  = false,
-    .iscreateandset                = true,
-    .isreadonly                    = false,
-    .iskey                         = false,
-    .isprimitive                   = true,
-    .notificationtype              = -1,
-    .capability                    = NULL,
-    .capabilitylength              = 0,
-    .isextensionattr               = false,
-};
-const sai_attribute_value_t sai_metadata_SAI_TAM_MICROBURST_ATTR_LEVEL_A_default_value = { .u64 = 0 };
-const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_MICROBURST_ATTR_LEVEL_A = {
-    .objecttype                    = SAI_OBJECT_TYPE_TAM_MICROBURST,
-    .attrid                        = SAI_TAM_MICROBURST_ATTR_LEVEL_A,
-    .attridname                    = "SAI_TAM_MICROBURST_ATTR_LEVEL_A",
-    .brief                         = "Watermark Levels.",
-    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_UINT64,
-    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
-    .allowedobjecttypes            = NULL,
-    .allowedobjecttypeslength      = 0,
-    .allowrepetitiononlist         = false,
-    .allowmixedobjecttypes         = false,
-    .allowemptylist                = false,
-    .allownullobjectid             = false,
-    .isoidattribute                = (0 > 0),
-    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
-    .defaultvalue                  = &sai_metadata_SAI_TAM_MICROBURST_ATTR_LEVEL_A_default_value,
-    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
-    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
-    .storedefaultvalue             = false,
-    .isenum                        = false,
-    .isenumlist                    = false,
-    .enummetadata                  = NULL,
-    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
-    .conditions                    = NULL,
-    .conditionslength              = 0,
-    .isconditional                 = (0 != 0),
-    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
-    .validonly                     = NULL,
-    .validonlylength               = 0,
-    .isvalidonly                   = (0 != 0),
-    .getsave                       = false,
-    .isvlan                        = false,
-    .isaclfield                    = false,
-    .isaclaction                   = false,
-    .ismandatoryoncreate           = false,
-    .iscreateonly                  = false,
-    .iscreateandset                = true,
-    .isreadonly                    = false,
-    .iskey                         = false,
-    .isprimitive                   = true,
-    .notificationtype              = -1,
-    .capability                    = NULL,
-    .capabilitylength              = 0,
-    .isextensionattr               = false,
-};
-const sai_attribute_value_t sai_metadata_SAI_TAM_MICROBURST_ATTR_LEVEL_B_default_value = { .u64 = 0 };
-const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_MICROBURST_ATTR_LEVEL_B = {
-    .objecttype                    = SAI_OBJECT_TYPE_TAM_MICROBURST,
-    .attrid                        = SAI_TAM_MICROBURST_ATTR_LEVEL_B,
-    .attridname                    = "SAI_TAM_MICROBURST_ATTR_LEVEL_B",
-    .brief                         = "Watermark Levels.",
-    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_UINT64,
-    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
-    .allowedobjecttypes            = NULL,
-    .allowedobjecttypeslength      = 0,
-    .allowrepetitiononlist         = false,
-    .allowmixedobjecttypes         = false,
-    .allowemptylist                = false,
-    .allownullobjectid             = false,
-    .isoidattribute                = (0 > 0),
-    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
-    .defaultvalue                  = &sai_metadata_SAI_TAM_MICROBURST_ATTR_LEVEL_B_default_value,
-    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
-    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
-    .storedefaultvalue             = false,
-    .isenum                        = false,
-    .isenumlist                    = false,
-    .enummetadata                  = NULL,
-    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
-    .conditions                    = NULL,
-    .conditionslength              = 0,
-    .isconditional                 = (0 != 0),
-    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
-    .validonly                     = NULL,
-    .validonlylength               = 0,
-    .isvalidonly                   = (0 != 0),
-    .getsave                       = false,
-    .isvlan                        = false,
-    .isaclfield                    = false,
-    .isaclaction                   = false,
-    .ismandatoryoncreate           = false,
-    .iscreateonly                  = false,
-    .iscreateandset                = true,
-    .isreadonly                    = false,
-    .iskey                         = false,
-    .isprimitive                   = true,
-    .notificationtype              = -1,
-    .capability                    = NULL,
-    .capabilitylength              = 0,
-    .isextensionattr               = false,
-};
-const sai_object_type_t sai_metadata_SAI_TAM_MICROBURST_ATTR_TRANSPORTER_allowed_objects[] = {
-    SAI_OBJECT_TYPE_TAM_TRANSPORTER,
-    -1
-};
-const sai_attribute_value_t sai_metadata_SAI_TAM_MICROBURST_ATTR_TRANSPORTER_default_value = { .oid = SAI_NULL_OBJECT_ID };
-const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_MICROBURST_ATTR_TRANSPORTER = {
-    .objecttype                    = SAI_OBJECT_TYPE_TAM_MICROBURST,
-    .attrid                        = SAI_TAM_MICROBURST_ATTR_TRANSPORTER,
-    .attridname                    = "SAI_TAM_MICROBURST_ATTR_TRANSPORTER",
-    .brief                         = "Transporter Object.",
-    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_OBJECT_ID,
-    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
-    .allowedobjecttypes            = sai_metadata_SAI_TAM_MICROBURST_ATTR_TRANSPORTER_allowed_objects,
-    .allowedobjecttypeslength      = 1,
-    .allowrepetitiononlist         = false,
-    .allowmixedobjecttypes         = false,
-    .allowemptylist                = false,
-    .allownullobjectid             = true,
-    .isoidattribute                = (1 > 0),
-    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
-    .defaultvalue                  = &sai_metadata_SAI_TAM_MICROBURST_ATTR_TRANSPORTER_default_value,
-    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
-    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
-    .storedefaultvalue             = false,
-    .isenum                        = false,
-    .isenumlist                    = false,
-    .enummetadata                  = NULL,
-    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
-    .conditions                    = NULL,
-    .conditionslength              = 0,
-    .isconditional                 = (0 != 0),
-    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
-    .validonly                     = NULL,
-    .validonlylength               = 0,
-    .isvalidonly                   = (0 != 0),
-    .getsave                       = false,
-    .isvlan                        = false,
-    .isaclfield                    = false,
-    .isaclaction                   = false,
-    .ismandatoryoncreate           = false,
-    .iscreateonly                  = false,
-    .iscreateandset                = true,
-    .isreadonly                    = false,
-    .iskey                         = false,
-    .isprimitive                   = true,
-    .notificationtype              = -1,
-    .capability                    = NULL,
-    .capabilitylength              = 0,
-    .isextensionattr               = false,
-};
-const sai_object_type_t sai_metadata_SAI_TAM_MICROBURST_ATTR_STATS_allowed_objects[] = {
-    SAI_OBJECT_TYPE_TAM_STAT,
-    -1
-};
-const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_MICROBURST_ATTR_STATS = {
-    .objecttype                    = SAI_OBJECT_TYPE_TAM_MICROBURST,
-    .attrid                        = SAI_TAM_MICROBURST_ATTR_STATS,
-    .attridname                    = "SAI_TAM_MICROBURST_ATTR_STATS",
-    .brief                         = "Statistics for inclusion in the microburst.",
-    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_OBJECT_LIST,
-    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
-    .allowedobjecttypes            = sai_metadata_SAI_TAM_MICROBURST_ATTR_STATS_allowed_objects,
-    .allowedobjecttypeslength      = 1,
-    .allowrepetitiononlist         = false,
-    .allowmixedobjecttypes         = false,
-    .allowemptylist                = false,
-    .allownullobjectid             = false,
-    .isoidattribute                = (1 > 0),
-    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_EMPTY_LIST,
-    .defaultvalue                  = NULL,
-    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
-    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
-    .storedefaultvalue             = false,
-    .isenum                        = false,
-    .isenumlist                    = false,
-    .enummetadata                  = NULL,
-    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
-    .conditions                    = NULL,
-    .conditionslength              = 0,
-    .isconditional                 = (0 != 0),
-    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
-    .validonly                     = NULL,
-    .validonlylength               = 0,
-    .isvalidonly                   = (0 != 0),
-    .getsave                       = false,
-    .isvlan                        = false,
-    .isaclfield                    = false,
-    .isaclaction                   = false,
-    .ismandatoryoncreate           = false,
-    .iscreateonly                  = false,
-    .iscreateandset                = true,
-    .isreadonly                    = false,
-    .iskey                         = false,
-    .isprimitive                   = false,
-    .notificationtype              = -1,
-    .capability                    = NULL,
-    .capabilitylength              = 0,
-    .isextensionattr               = false,
-};
-const sai_object_type_t sai_metadata_SAI_TAM_SNAPSHOT_ATTR_TAM_ID_allowed_objects[] = {
-    SAI_OBJECT_TYPE_TAM,
-    -1
-};
-const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_SNAPSHOT_ATTR_TAM_ID = {
-    .objecttype                    = SAI_OBJECT_TYPE_TAM_SNAPSHOT,
-    .attrid                        = SAI_TAM_SNAPSHOT_ATTR_TAM_ID,
-    .attridname                    = "SAI_TAM_SNAPSHOT_ATTR_TAM_ID",
-    .brief                         = "TAM Object for this snapshot.",
-    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_OBJECT_ID,
-    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_MANDATORY_ON_CREATE|SAI_ATTR_FLAGS_CREATE_AND_SET),
-    .allowedobjecttypes            = sai_metadata_SAI_TAM_SNAPSHOT_ATTR_TAM_ID_allowed_objects,
-    .allowedobjecttypeslength      = 1,
-    .allowrepetitiononlist         = false,
-    .allowmixedobjecttypes         = false,
-    .allowemptylist                = false,
-    .allownullobjectid             = false,
-    .isoidattribute                = (1 > 0),
-    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_NONE,
-    .defaultvalue                  = NULL,
-    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
-    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
-    .storedefaultvalue             = true,
-    .isenum                        = false,
-    .isenumlist                    = false,
-    .enummetadata                  = NULL,
-    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
-    .conditions                    = NULL,
-    .conditionslength              = 0,
-    .isconditional                 = (0 != 0),
-    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
-    .validonly                     = NULL,
-    .validonlylength               = 0,
-    .isvalidonly                   = (0 != 0),
-    .getsave                       = false,
-    .isvlan                        = false,
-    .isaclfield                    = false,
-    .isaclaction                   = false,
-    .ismandatoryoncreate           = true,
-    .iscreateonly                  = false,
-    .iscreateandset                = true,
-    .isreadonly                    = false,
-    .iskey                         = false,
-    .isprimitive                   = true,
-    .notificationtype              = -1,
-    .capability                    = NULL,
-    .capabilitylength              = 0,
-    .isextensionattr               = false,
-};
-const sai_object_type_t sai_metadata_SAI_TAM_SNAPSHOT_ATTR_STAT_TYPE_allowed_objects[] = {
-    SAI_OBJECT_TYPE_TAM_STAT,
-    -1
-};
-const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_SNAPSHOT_ATTR_STAT_TYPE = {
-    .objecttype                    = SAI_OBJECT_TYPE_TAM_SNAPSHOT,
-    .attrid                        = SAI_TAM_SNAPSHOT_ATTR_STAT_TYPE,
-    .attridname                    = "SAI_TAM_SNAPSHOT_ATTR_STAT_TYPE",
-    .brief                         = "Buffers/Statistics for inclusion in snapshot.",
-    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_OBJECT_LIST,
-    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
-    .allowedobjecttypes            = sai_metadata_SAI_TAM_SNAPSHOT_ATTR_STAT_TYPE_allowed_objects,
-    .allowedobjecttypeslength      = 1,
-    .allowrepetitiononlist         = false,
-    .allowmixedobjecttypes         = false,
-    .allowemptylist                = false,
-    .allownullobjectid             = false,
-    .isoidattribute                = (1 > 0),
-    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_EMPTY_LIST,
-    .defaultvalue                  = NULL,
-    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
-    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
-    .storedefaultvalue             = false,
-    .isenum                        = false,
-    .isenumlist                    = false,
-    .enummetadata                  = NULL,
-    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
-    .conditions                    = NULL,
-    .conditionslength              = 0,
-    .isconditional                 = (0 != 0),
-    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
-    .validonly                     = NULL,
-    .validonlylength               = 0,
-    .isvalidonly                   = (0 != 0),
-    .getsave                       = false,
-    .isvlan                        = false,
-    .isaclfield                    = false,
-    .isaclaction                   = false,
-    .ismandatoryoncreate           = false,
-    .iscreateonly                  = false,
-    .iscreateandset                = true,
-    .isreadonly                    = false,
-    .iskey                         = false,
-    .isprimitive                   = false,
-    .notificationtype              = -1,
-    .capability                    = NULL,
-    .capabilitylength              = 0,
-    .isextensionattr               = false,
-};
-const sai_object_type_t sai_metadata_SAI_TAM_SNAPSHOT_ATTR_TRANSPORTER_allowed_objects[] = {
-    SAI_OBJECT_TYPE_TAM_TRANSPORTER,
-    -1
-};
-const sai_attribute_value_t sai_metadata_SAI_TAM_SNAPSHOT_ATTR_TRANSPORTER_default_value = { .oid = SAI_NULL_OBJECT_ID };
-const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_SNAPSHOT_ATTR_TRANSPORTER = {
-    .objecttype                    = SAI_OBJECT_TYPE_TAM_SNAPSHOT,
-    .attrid                        = SAI_TAM_SNAPSHOT_ATTR_TRANSPORTER,
-    .attridname                    = "SAI_TAM_SNAPSHOT_ATTR_TRANSPORTER",
-    .brief                         = "Transporter Object.",
-    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_OBJECT_ID,
-    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
-    .allowedobjecttypes            = sai_metadata_SAI_TAM_SNAPSHOT_ATTR_TRANSPORTER_allowed_objects,
-    .allowedobjecttypeslength      = 1,
-    .allowrepetitiononlist         = false,
-    .allowmixedobjecttypes         = false,
-    .allowemptylist                = false,
-    .allownullobjectid             = true,
-    .isoidattribute                = (1 > 0),
-    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
-    .defaultvalue                  = &sai_metadata_SAI_TAM_SNAPSHOT_ATTR_TRANSPORTER_default_value,
-    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
-    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
-    .storedefaultvalue             = false,
-    .isenum                        = false,
-    .isenumlist                    = false,
-    .enummetadata                  = NULL,
-    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
-    .conditions                    = NULL,
-    .conditionslength              = 0,
-    .isconditional                 = (0 != 0),
-    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
-    .validonly                     = NULL,
-    .validonlylength               = 0,
-    .isvalidonly                   = (0 != 0),
-    .getsave                       = false,
-    .isvlan                        = false,
-    .isaclfield                    = false,
-    .isaclaction                   = false,
-    .ismandatoryoncreate           = false,
-    .iscreateonly                  = false,
-    .iscreateandset                = true,
-    .isreadonly                    = false,
-    .iskey                         = false,
-    .isprimitive                   = true,
-    .notificationtype              = -1,
-    .capability                    = NULL,
-    .capabilitylength              = 0,
-    .isextensionattr               = false,
-};
-const sai_object_type_t sai_metadata_SAI_TAM_STAT_ATTR_PARENT_ID_allowed_objects[] = {
-    SAI_OBJECT_TYPE_BUFFER_POOL,
-    SAI_OBJECT_TYPE_INGRESS_PRIORITY_GROUP,
-    SAI_OBJECT_TYPE_QUEUE,
-    -1
-};
-const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_STAT_ATTR_PARENT_ID = {
-    .objecttype                    = SAI_OBJECT_TYPE_TAM_STAT,
-    .attrid                        = SAI_TAM_STAT_ATTR_PARENT_ID,
-    .attridname                    = "SAI_TAM_STAT_ATTR_PARENT_ID",
-    .brief                         = "Monitored object id.",
-    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_OBJECT_ID,
-    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_MANDATORY_ON_CREATE|SAI_ATTR_FLAGS_CREATE_AND_SET),
-    .allowedobjecttypes            = sai_metadata_SAI_TAM_STAT_ATTR_PARENT_ID_allowed_objects,
-    .allowedobjecttypeslength      = 3,
-    .allowrepetitiononlist         = false,
-    .allowmixedobjecttypes         = false,
-    .allowemptylist                = false,
-    .allownullobjectid             = false,
-    .isoidattribute                = (3 > 0),
-    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_NONE,
-    .defaultvalue                  = NULL,
-    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
-    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
-    .storedefaultvalue             = true,
-    .isenum                        = false,
-    .isenumlist                    = false,
-    .enummetadata                  = NULL,
-    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
-    .conditions                    = NULL,
-    .conditionslength              = 0,
-    .isconditional                 = (0 != 0),
-    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
-    .validonly                     = NULL,
-    .validonlylength               = 0,
-    .isvalidonly                   = (0 != 0),
-    .getsave                       = false,
-    .isvlan                        = false,
-    .isaclfield                    = false,
-    .isaclaction                   = false,
-    .ismandatoryoncreate           = true,
-    .iscreateonly                  = false,
-    .iscreateandset                = true,
-    .isreadonly                    = false,
-    .iskey                         = false,
-    .isprimitive                   = true,
-    .notificationtype              = -1,
-    .capability                    = NULL,
-    .capabilitylength              = 0,
-    .isextensionattr               = false,
-};
-const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_STAT_ATTR_COUNTER_ID = {
-    .objecttype                    = SAI_OBJECT_TYPE_TAM_STAT,
-    .attrid                        = SAI_TAM_STAT_ATTR_COUNTER_ID,
-    .attridname                    = "SAI_TAM_STAT_ATTR_COUNTER_ID",
-    .brief                         = "Counter.",
-    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_UINT32,
-    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_MANDATORY_ON_CREATE|SAI_ATTR_FLAGS_CREATE_AND_SET),
-    .allowedobjecttypes            = NULL,
-    .allowedobjecttypeslength      = 0,
-    .allowrepetitiononlist         = false,
-    .allowmixedobjecttypes         = false,
-    .allowemptylist                = false,
-    .allownullobjectid             = false,
-    .isoidattribute                = (0 > 0),
-    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_NONE,
-    .defaultvalue                  = NULL,
-    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
-    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
-    .storedefaultvalue             = true,
-    .isenum                        = false,
-    .isenumlist                    = false,
-    .enummetadata                  = NULL,
-    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
-    .conditions                    = NULL,
-    .conditionslength              = 0,
-    .isconditional                 = (0 != 0),
-    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
-    .validonly                     = NULL,
-    .validonlylength               = 0,
-    .isvalidonly                   = (0 != 0),
-    .getsave                       = false,
-    .isvlan                        = false,
-    .isaclfield                    = false,
-    .isaclaction                   = false,
-    .ismandatoryoncreate           = true,
-    .iscreateonly                  = false,
-    .iscreateandset                = true,
-    .isreadonly                    = false,
-    .iskey                         = false,
-    .isprimitive                   = true,
-    .notificationtype              = -1,
-    .capability                    = NULL,
-    .capabilitylength              = 0,
-    .isextensionattr               = false,
-};
-const sai_object_type_t sai_metadata_SAI_TAM_THRESHOLD_ATTR_TAM_ID_allowed_objects[] = {
-    SAI_OBJECT_TYPE_TAM,
-    -1
-};
-const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_THRESHOLD_ATTR_TAM_ID = {
-    .objecttype                    = SAI_OBJECT_TYPE_TAM_THRESHOLD,
-    .attrid                        = SAI_TAM_THRESHOLD_ATTR_TAM_ID,
-    .attridname                    = "SAI_TAM_THRESHOLD_ATTR_TAM_ID",
-    .brief                         = "TAM Object.",
-    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_OBJECT_ID,
-    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_MANDATORY_ON_CREATE|SAI_ATTR_FLAGS_CREATE_AND_SET),
-    .allowedobjecttypes            = sai_metadata_SAI_TAM_THRESHOLD_ATTR_TAM_ID_allowed_objects,
-    .allowedobjecttypeslength      = 1,
-    .allowrepetitiononlist         = false,
-    .allowmixedobjecttypes         = false,
-    .allowemptylist                = false,
-    .allownullobjectid             = false,
-    .isoidattribute                = (1 > 0),
-    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_NONE,
-    .defaultvalue                  = NULL,
-    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
-    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
-    .storedefaultvalue             = true,
-    .isenum                        = false,
-    .isenumlist                    = false,
-    .enummetadata                  = NULL,
-    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
-    .conditions                    = NULL,
-    .conditionslength              = 0,
-    .isconditional                 = (0 != 0),
-    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
-    .validonly                     = NULL,
-    .validonlylength               = 0,
-    .isvalidonly                   = (0 != 0),
-    .getsave                       = false,
-    .isvlan                        = false,
-    .isaclfield                    = false,
-    .isaclaction                   = false,
-    .ismandatoryoncreate           = true,
-    .iscreateonly                  = false,
-    .iscreateandset                = true,
-    .isreadonly                    = false,
-    .iskey                         = false,
-    .isprimitive                   = true,
-    .notificationtype              = -1,
-    .capability                    = NULL,
-    .capabilitylength              = 0,
-    .isextensionattr               = false,
-};
-const sai_object_type_t sai_metadata_SAI_TAM_THRESHOLD_ATTR_STATISTIC_allowed_objects[] = {
-    SAI_OBJECT_TYPE_TAM_STAT,
-    -1
-};
-const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_THRESHOLD_ATTR_STATISTIC = {
-    .objecttype                    = SAI_OBJECT_TYPE_TAM_THRESHOLD,
-    .attrid                        = SAI_TAM_THRESHOLD_ATTR_STATISTIC,
-    .attridname                    = "SAI_TAM_THRESHOLD_ATTR_STATISTIC",
-    .brief                         = "Statistic for this threshold.",
-    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_OBJECT_ID,
-    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_MANDATORY_ON_CREATE|SAI_ATTR_FLAGS_CREATE_AND_SET),
-    .allowedobjecttypes            = sai_metadata_SAI_TAM_THRESHOLD_ATTR_STATISTIC_allowed_objects,
-    .allowedobjecttypeslength      = 1,
-    .allowrepetitiononlist         = false,
-    .allowmixedobjecttypes         = false,
-    .allowemptylist                = false,
-    .allownullobjectid             = false,
-    .isoidattribute                = (1 > 0),
-    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_NONE,
-    .defaultvalue                  = NULL,
-    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
-    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
-    .storedefaultvalue             = true,
-    .isenum                        = false,
-    .isenumlist                    = false,
-    .enummetadata                  = NULL,
-    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
-    .conditions                    = NULL,
-    .conditionslength              = 0,
-    .isconditional                 = (0 != 0),
-    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
-    .validonly                     = NULL,
-    .validonlylength               = 0,
-    .isvalidonly                   = (0 != 0),
-    .getsave                       = false,
-    .isvlan                        = false,
-    .isaclfield                    = false,
-    .isaclaction                   = false,
-    .ismandatoryoncreate           = true,
-    .iscreateonly                  = false,
-    .iscreateandset                = true,
-    .isreadonly                    = false,
-    .iskey                         = false,
-    .isprimitive                   = true,
-    .notificationtype              = -1,
-    .capability                    = NULL,
-    .capabilitylength              = 0,
-    .isextensionattr               = false,
-};
-const sai_attribute_value_t sai_metadata_SAI_TAM_THRESHOLD_ATTR_LEVEL_default_value = { .u64 = 0 };
-const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_THRESHOLD_ATTR_LEVEL = {
-    .objecttype                    = SAI_OBJECT_TYPE_TAM_THRESHOLD,
-    .attrid                        = SAI_TAM_THRESHOLD_ATTR_LEVEL,
-    .attridname                    = "SAI_TAM_THRESHOLD_ATTR_LEVEL",
-    .brief                         = "Threshold Level.",
-    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_UINT64,
-    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
-    .allowedobjecttypes            = NULL,
-    .allowedobjecttypeslength      = 0,
-    .allowrepetitiononlist         = false,
-    .allowmixedobjecttypes         = false,
-    .allowemptylist                = false,
-    .allownullobjectid             = false,
-    .isoidattribute                = (0 > 0),
-    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
-    .defaultvalue                  = &sai_metadata_SAI_TAM_THRESHOLD_ATTR_LEVEL_default_value,
-    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
-    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
-    .storedefaultvalue             = false,
-    .isenum                        = false,
-    .isenumlist                    = false,
-    .enummetadata                  = NULL,
-    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
-    .conditions                    = NULL,
-    .conditionslength              = 0,
-    .isconditional                 = (0 != 0),
-    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
-    .validonly                     = NULL,
-    .validonlylength               = 0,
-    .isvalidonly                   = (0 != 0),
-    .getsave                       = false,
-    .isvlan                        = false,
-    .isaclfield                    = false,
-    .isaclaction                   = false,
-    .ismandatoryoncreate           = false,
-    .iscreateonly                  = false,
-    .iscreateandset                = true,
-    .isreadonly                    = false,
-    .iskey                         = false,
-    .isprimitive                   = true,
-    .notificationtype              = -1,
-    .capability                    = NULL,
-    .capabilitylength              = 0,
-    .isextensionattr               = false,
-};
-const sai_object_type_t sai_metadata_SAI_TAM_THRESHOLD_ATTR_TRANSPORTER_allowed_objects[] = {
-    SAI_OBJECT_TYPE_TAM_TRANSPORTER,
-    -1
-};
-const sai_attribute_value_t sai_metadata_SAI_TAM_THRESHOLD_ATTR_TRANSPORTER_default_value = { .oid = SAI_NULL_OBJECT_ID };
-const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_THRESHOLD_ATTR_TRANSPORTER = {
-    .objecttype                    = SAI_OBJECT_TYPE_TAM_THRESHOLD,
-    .attrid                        = SAI_TAM_THRESHOLD_ATTR_TRANSPORTER,
-    .attridname                    = "SAI_TAM_THRESHOLD_ATTR_TRANSPORTER",
-    .brief                         = "Transporter Object.",
-    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_OBJECT_ID,
-    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
-    .allowedobjecttypes            = sai_metadata_SAI_TAM_THRESHOLD_ATTR_TRANSPORTER_allowed_objects,
-    .allowedobjecttypeslength      = 1,
-    .allowrepetitiononlist         = false,
-    .allowmixedobjecttypes         = false,
-    .allowemptylist                = false,
-    .allownullobjectid             = true,
-    .isoidattribute                = (1 > 0),
-    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
-    .defaultvalue                  = &sai_metadata_SAI_TAM_THRESHOLD_ATTR_TRANSPORTER_default_value,
-    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
-    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
-    .storedefaultvalue             = false,
-    .isenum                        = false,
-    .isenumlist                    = false,
-    .enummetadata                  = NULL,
-    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
-    .conditions                    = NULL,
-    .conditionslength              = 0,
-    .isconditional                 = (0 != 0),
-    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
-    .validonly                     = NULL,
-    .validonlylength               = 0,
-    .isvalidonly                   = (0 != 0),
-    .getsave                       = false,
-    .isvlan                        = false,
-    .isaclfield                    = false,
-    .isaclaction                   = false,
-    .ismandatoryoncreate           = false,
-    .iscreateonly                  = false,
-    .iscreateandset                = true,
-    .isreadonly                    = false,
-    .iskey                         = false,
-    .isprimitive                   = true,
-    .notificationtype              = -1,
-    .capability                    = NULL,
-    .capabilitylength              = 0,
-    .isextensionattr               = false,
-};
-const sai_attribute_value_t sai_metadata_SAI_TAM_THRESHOLD_ATTR_SNAPSHOT_ON_BREACH_default_value = { .booldata = false };
-const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_THRESHOLD_ATTR_SNAPSHOT_ON_BREACH = {
-    .objecttype                    = SAI_OBJECT_TYPE_TAM_THRESHOLD,
-    .attrid                        = SAI_TAM_THRESHOLD_ATTR_SNAPSHOT_ON_BREACH,
-    .attridname                    = "SAI_TAM_THRESHOLD_ATTR_SNAPSHOT_ON_BREACH",
-    .brief                         = "Snapshot on breach.",
+const sai_attribute_value_t sai_metadata_SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_PORT_STATS_INGRESS_default_value = { .booldata = false };
+const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_PORT_STATS_INGRESS = {
+    .objecttype                    = SAI_OBJECT_TYPE_TAM_TEL_TYPE,
+    .attrid                        = SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_PORT_STATS_INGRESS,
+    .attridname                    = "SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_PORT_STATS_INGRESS",
+    .brief                         = "Switch - Collect Port stats ingress.",
     .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_BOOL,
     .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
     .allowedobjecttypes            = NULL,
@@ -46800,7 +47663,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_THRESHOLD_ATTR_SNAPSHOT_ON_B
     .allownullobjectid             = false,
     .isoidattribute                = (0 > 0),
     .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
-    .defaultvalue                  = &sai_metadata_SAI_TAM_THRESHOLD_ATTR_SNAPSHOT_ON_BREACH_default_value,
+    .defaultvalue                  = &sai_metadata_SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_PORT_STATS_INGRESS_default_value,
     .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
     .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
     .storedefaultvalue             = false,
@@ -46830,26 +47693,23 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_THRESHOLD_ATTR_SNAPSHOT_ON_B
     .capabilitylength              = 0,
     .isextensionattr               = false,
 };
-const sai_object_type_t sai_metadata_SAI_TAM_THRESHOLD_ATTR_SNAPSHOT_STATS_allowed_objects[] = {
-    SAI_OBJECT_TYPE_TAM_STAT,
-    -1
-};
-const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_THRESHOLD_ATTR_SNAPSHOT_STATS = {
-    .objecttype                    = SAI_OBJECT_TYPE_TAM_THRESHOLD,
-    .attrid                        = SAI_TAM_THRESHOLD_ATTR_SNAPSHOT_STATS,
-    .attridname                    = "SAI_TAM_THRESHOLD_ATTR_SNAPSHOT_STATS",
-    .brief                         = "Buffers/Statistics for inclusion in the snapshot.",
-    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_OBJECT_LIST,
+const sai_attribute_value_t sai_metadata_SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_PORT_STATS_EGRESS_default_value = { .booldata = false };
+const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_PORT_STATS_EGRESS = {
+    .objecttype                    = SAI_OBJECT_TYPE_TAM_TEL_TYPE,
+    .attrid                        = SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_PORT_STATS_EGRESS,
+    .attridname                    = "SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_PORT_STATS_EGRESS",
+    .brief                         = "Switch - Collect Port stats egress.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_BOOL,
     .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
-    .allowedobjecttypes            = sai_metadata_SAI_TAM_THRESHOLD_ATTR_SNAPSHOT_STATS_allowed_objects,
-    .allowedobjecttypeslength      = 1,
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
     .allowrepetitiononlist         = false,
     .allowmixedobjecttypes         = false,
     .allowemptylist                = false,
     .allownullobjectid             = false,
-    .isoidattribute                = (1 > 0),
-    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_EMPTY_LIST,
-    .defaultvalue                  = NULL,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
+    .defaultvalue                  = &sai_metadata_SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_PORT_STATS_EGRESS_default_value,
     .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
     .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
     .storedefaultvalue             = false,
@@ -46873,18 +47733,629 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_THRESHOLD_ATTR_SNAPSHOT_STAT
     .iscreateandset                = true,
     .isreadonly                    = false,
     .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+};
+const sai_attribute_value_t sai_metadata_SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_VIRTUAL_QUEUE_STATS_default_value = { .booldata = false };
+const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_VIRTUAL_QUEUE_STATS = {
+    .objecttype                    = SAI_OBJECT_TYPE_TAM_TEL_TYPE,
+    .attrid                        = SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_VIRTUAL_QUEUE_STATS,
+    .attridname                    = "SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_VIRTUAL_QUEUE_STATS",
+    .brief                         = "Switch - Collect virtual queue stats.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_BOOL,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
+    .defaultvalue                  = &sai_metadata_SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_VIRTUAL_QUEUE_STATS_default_value,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = false,
+    .iscreateandset                = true,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+};
+const sai_attribute_value_t sai_metadata_SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_OUTPUT_QUEUE_STATS_default_value = { .booldata = false };
+const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_OUTPUT_QUEUE_STATS = {
+    .objecttype                    = SAI_OBJECT_TYPE_TAM_TEL_TYPE,
+    .attrid                        = SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_OUTPUT_QUEUE_STATS,
+    .attridname                    = "SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_OUTPUT_QUEUE_STATS",
+    .brief                         = "Switch - Collect output queue stats.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_BOOL,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
+    .defaultvalue                  = &sai_metadata_SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_OUTPUT_QUEUE_STATS_default_value,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = false,
+    .iscreateandset                = true,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+};
+const sai_attribute_value_t sai_metadata_SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_MMU_STATS_default_value = { .booldata = false };
+const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_MMU_STATS = {
+    .objecttype                    = SAI_OBJECT_TYPE_TAM_TEL_TYPE,
+    .attrid                        = SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_MMU_STATS,
+    .attridname                    = "SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_MMU_STATS",
+    .brief                         = "Switch - Collect MMU stats.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_BOOL,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
+    .defaultvalue                  = &sai_metadata_SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_MMU_STATS_default_value,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = false,
+    .iscreateandset                = true,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+};
+const sai_attribute_value_t sai_metadata_SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_FABRIC_STATS_default_value = { .booldata = false };
+const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_FABRIC_STATS = {
+    .objecttype                    = SAI_OBJECT_TYPE_TAM_TEL_TYPE,
+    .attrid                        = SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_FABRIC_STATS,
+    .attridname                    = "SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_FABRIC_STATS",
+    .brief                         = "Switch - Collect fabric stats.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_BOOL,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
+    .defaultvalue                  = &sai_metadata_SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_FABRIC_STATS_default_value,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = false,
+    .iscreateandset                = true,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+};
+const sai_attribute_value_t sai_metadata_SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_FILTER_STATS_default_value = { .booldata = false };
+const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_FILTER_STATS = {
+    .objecttype                    = SAI_OBJECT_TYPE_TAM_TEL_TYPE,
+    .attrid                        = SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_FILTER_STATS,
+    .attridname                    = "SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_FILTER_STATS",
+    .brief                         = "Switch - Collect filter stats.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_BOOL,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
+    .defaultvalue                  = &sai_metadata_SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_FILTER_STATS_default_value,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = false,
+    .iscreateandset                = true,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+};
+const sai_attribute_value_t sai_metadata_SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_RESOURCE_UTILIZATION_STATS_default_value = { .booldata = false };
+const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_RESOURCE_UTILIZATION_STATS = {
+    .objecttype                    = SAI_OBJECT_TYPE_TAM_TEL_TYPE,
+    .attrid                        = SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_RESOURCE_UTILIZATION_STATS,
+    .attridname                    = "SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_RESOURCE_UTILIZATION_STATS",
+    .brief                         = "Switch - Collect Resource utilization stats.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_BOOL,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
+    .defaultvalue                  = &sai_metadata_SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_RESOURCE_UTILIZATION_STATS_default_value,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = false,
+    .iscreateandset                = true,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+};
+const sai_attribute_value_t sai_metadata_SAI_TAM_TEL_TYPE_ATTR_FABRIC_Q_default_value = { .booldata = false };
+const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_TEL_TYPE_ATTR_FABRIC_Q = {
+    .objecttype                    = SAI_OBJECT_TYPE_TAM_TEL_TYPE,
+    .attrid                        = SAI_TAM_TEL_TYPE_ATTR_FABRIC_Q,
+    .attridname                    = "SAI_TAM_TEL_TYPE_ATTR_FABRIC_Q",
+    .brief                         = "Fabric - Collect Queue information.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_BOOL,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
+    .defaultvalue                  = &sai_metadata_SAI_TAM_TEL_TYPE_ATTR_FABRIC_Q_default_value,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = false,
+    .iscreateandset                = true,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+};
+const sai_attribute_value_t sai_metadata_SAI_TAM_TEL_TYPE_ATTR_NE_ENABLE_default_value = { .booldata = false };
+const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_TEL_TYPE_ATTR_NE_ENABLE = {
+    .objecttype                    = SAI_OBJECT_TYPE_TAM_TEL_TYPE,
+    .attrid                        = SAI_TAM_TEL_TYPE_ATTR_NE_ENABLE,
+    .attridname                    = "SAI_TAM_TEL_TYPE_ATTR_NE_ENABLE",
+    .brief                         = "NE - Collect information of networking element.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_BOOL,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
+    .defaultvalue                  = &sai_metadata_SAI_TAM_TEL_TYPE_ATTR_NE_ENABLE_default_value,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = false,
+    .iscreateandset                = true,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+};
+const sai_attribute_value_t sai_metadata_SAI_TAM_TEL_TYPE_ATTR_DSCP_VALUE_default_value = { .u8 = 0 };
+const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_TEL_TYPE_ATTR_DSCP_VALUE = {
+    .objecttype                    = SAI_OBJECT_TYPE_TAM_TEL_TYPE,
+    .attrid                        = SAI_TAM_TEL_TYPE_ATTR_DSCP_VALUE,
+    .attridname                    = "SAI_TAM_TEL_TYPE_ATTR_DSCP_VALUE",
+    .brief                         = "DSCP value.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_UINT8,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
+    .defaultvalue                  = &sai_metadata_SAI_TAM_TEL_TYPE_ATTR_DSCP_VALUE_default_value,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = false,
+    .iscreateandset                = true,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+};
+const sai_object_type_t sai_metadata_SAI_TAM_TEL_TYPE_ATTR_MATH_FUNC_allowed_objects[] = {
+    SAI_OBJECT_TYPE_TAM_MATH_FUNC,
+    -1
+};
+const sai_attribute_value_t sai_metadata_SAI_TAM_TEL_TYPE_ATTR_MATH_FUNC_default_value = { .oid = SAI_NULL_OBJECT_ID };
+const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_TEL_TYPE_ATTR_MATH_FUNC = {
+    .objecttype                    = SAI_OBJECT_TYPE_TAM_TEL_TYPE,
+    .attrid                        = SAI_TAM_TEL_TYPE_ATTR_MATH_FUNC,
+    .attridname                    = "SAI_TAM_TEL_TYPE_ATTR_MATH_FUNC",
+    .brief                         = "Math function attached.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_OBJECT_ID,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
+    .allowedobjecttypes            = sai_metadata_SAI_TAM_TEL_TYPE_ATTR_MATH_FUNC_allowed_objects,
+    .allowedobjecttypeslength      = 1,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = true,
+    .isoidattribute                = (1 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
+    .defaultvalue                  = &sai_metadata_SAI_TAM_TEL_TYPE_ATTR_MATH_FUNC_default_value,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = false,
+    .iscreateandset                = true,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+};
+const sai_object_type_t sai_metadata_SAI_TAM_TEL_TYPE_ATTR_REPORT_ID_allowed_objects[] = {
+    SAI_OBJECT_TYPE_TAM_REPORT,
+    -1
+};
+const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_TEL_TYPE_ATTR_REPORT_ID = {
+    .objecttype                    = SAI_OBJECT_TYPE_TAM_TEL_TYPE,
+    .attrid                        = SAI_TAM_TEL_TYPE_ATTR_REPORT_ID,
+    .attridname                    = "SAI_TAM_TEL_TYPE_ATTR_REPORT_ID",
+    .brief                         = "Tam report type.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_OBJECT_ID,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_MANDATORY_ON_CREATE|SAI_ATTR_FLAGS_CREATE_ONLY),
+    .allowedobjecttypes            = sai_metadata_SAI_TAM_TEL_TYPE_ATTR_REPORT_ID_allowed_objects,
+    .allowedobjecttypeslength      = 1,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (1 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_NONE,
+    .defaultvalue                  = NULL,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = true,
+    .iscreateonly                  = true,
+    .iscreateandset                = false,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+};
+const sai_object_type_t sai_metadata_SAI_TAM_TELEMETRY_ATTR_TAM_TYPE_LIST_allowed_objects[] = {
+    SAI_OBJECT_TYPE_TAM_TEL_TYPE,
+    -1
+};
+const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_TELEMETRY_ATTR_TAM_TYPE_LIST = {
+    .objecttype                    = SAI_OBJECT_TYPE_TAM_TELEMETRY,
+    .attrid                        = SAI_TAM_TELEMETRY_ATTR_TAM_TYPE_LIST,
+    .attridname                    = "SAI_TAM_TELEMETRY_ATTR_TAM_TYPE_LIST",
+    .brief                         = "TAM tel type object list.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_OBJECT_ID,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_MANDATORY_ON_CREATE|SAI_ATTR_FLAGS_CREATE_AND_SET),
+    .allowedobjecttypes            = sai_metadata_SAI_TAM_TELEMETRY_ATTR_TAM_TYPE_LIST_allowed_objects,
+    .allowedobjecttypeslength      = 1,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (1 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_NONE,
+    .defaultvalue                  = NULL,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = true,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = true,
+    .iscreateonly                  = false,
+    .iscreateandset                = true,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+};
+const sai_object_type_t sai_metadata_SAI_TAM_TELEMETRY_ATTR_COLLECTOR_LIST_allowed_objects[] = {
+    SAI_OBJECT_TYPE_TAM_COLLECTOR,
+    -1
+};
+const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_TELEMETRY_ATTR_COLLECTOR_LIST = {
+    .objecttype                    = SAI_OBJECT_TYPE_TAM_TELEMETRY,
+    .attrid                        = SAI_TAM_TELEMETRY_ATTR_COLLECTOR_LIST,
+    .attridname                    = "SAI_TAM_TELEMETRY_ATTR_COLLECTOR_LIST",
+    .brief                         = "Collector object list.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_OBJECT_LIST,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_MANDATORY_ON_CREATE|SAI_ATTR_FLAGS_CREATE_ONLY),
+    .allowedobjecttypes            = sai_metadata_SAI_TAM_TELEMETRY_ATTR_COLLECTOR_LIST_allowed_objects,
+    .allowedobjecttypeslength      = 1,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (1 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_NONE,
+    .defaultvalue                  = NULL,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = true,
+    .iscreateonly                  = true,
+    .iscreateandset                = false,
+    .isreadonly                    = false,
+    .iskey                         = false,
     .isprimitive                   = false,
     .notificationtype              = -1,
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
 };
-const sai_attribute_value_t sai_metadata_SAI_TAM_TRANSPORTER_ATTR_TYPE_default_value = { .s32 = SAI_TAM_TRANSPORTER_TYPE_LOCAL };
-const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_TRANSPORTER_ATTR_TYPE = {
-    .objecttype                    = SAI_OBJECT_TYPE_TAM_TRANSPORTER,
-    .attrid                        = SAI_TAM_TRANSPORTER_ATTR_TYPE,
-    .attridname                    = "SAI_TAM_TRANSPORTER_ATTR_TYPE",
-    .brief                         = "Transporter Type.",
+const sai_attribute_value_t sai_metadata_SAI_TAM_TELEMETRY_ATTR_TAM_REPORTING_UNIT_default_value = { .s32 = SAI_TAM_REPORTING_UNIT_SEC };
+const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_TELEMETRY_ATTR_TAM_REPORTING_UNIT = {
+    .objecttype                    = SAI_OBJECT_TYPE_TAM_TELEMETRY,
+    .attrid                        = SAI_TAM_TELEMETRY_ATTR_TAM_REPORTING_UNIT,
+    .attridname                    = "SAI_TAM_TELEMETRY_ATTR_TAM_REPORTING_UNIT",
+    .brief                         = "Tam telemetry reporting unit.",
     .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_INT32,
     .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
     .allowedobjecttypes            = NULL,
@@ -46895,13 +48366,13 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_TRANSPORTER_ATTR_TYPE = {
     .allownullobjectid             = false,
     .isoidattribute                = (0 > 0),
     .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
-    .defaultvalue                  = &sai_metadata_SAI_TAM_TRANSPORTER_ATTR_TYPE_default_value,
+    .defaultvalue                  = &sai_metadata_SAI_TAM_TELEMETRY_ATTR_TAM_REPORTING_UNIT_default_value,
     .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
     .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
     .storedefaultvalue             = false,
     .isenum                        = true,
     .isenumlist                    = false,
-    .enummetadata                  = &sai_metadata_enum_sai_tam_transporter_type_t,
+    .enummetadata                  = &sai_metadata_enum_sai_tam_reporting_unit_t,
     .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
     .conditions                    = NULL,
     .conditionslength              = 0,
@@ -46925,12 +48396,12 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_TRANSPORTER_ATTR_TYPE = {
     .capabilitylength              = 0,
     .isextensionattr               = false,
 };
-const sai_attribute_value_t sai_metadata_SAI_TAM_TRANSPORTER_ATTR_MAX_SNAPSHOT_SIZE_default_value = { .u32 = 0 };
-const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_TRANSPORTER_ATTR_MAX_SNAPSHOT_SIZE = {
-    .objecttype                    = SAI_OBJECT_TYPE_TAM_TRANSPORTER,
-    .attrid                        = SAI_TAM_TRANSPORTER_ATTR_MAX_SNAPSHOT_SIZE,
-    .attridname                    = "SAI_TAM_TRANSPORTER_ATTR_MAX_SNAPSHOT_SIZE",
-    .brief                         = "Maximum size beyond which it will be truncated.",
+const sai_attribute_value_t sai_metadata_SAI_TAM_TELEMETRY_ATTR_REPORTING_INTERVAL_default_value = { .u32 = 1 };
+const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_TELEMETRY_ATTR_REPORTING_INTERVAL = {
+    .objecttype                    = SAI_OBJECT_TYPE_TAM_TELEMETRY,
+    .attrid                        = SAI_TAM_TELEMETRY_ATTR_REPORTING_INTERVAL,
+    .attridname                    = "SAI_TAM_TELEMETRY_ATTR_REPORTING_INTERVAL",
+    .brief                         = "Tam event reporting interval.",
     .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_UINT32,
     .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
     .allowedobjecttypes            = NULL,
@@ -46941,7 +48412,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_TRANSPORTER_ATTR_MAX_SNAPSHO
     .allownullobjectid             = false,
     .isoidattribute                = (0 > 0),
     .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
-    .defaultvalue                  = &sai_metadata_SAI_TAM_TRANSPORTER_ATTR_MAX_SNAPSHOT_SIZE_default_value,
+    .defaultvalue                  = &sai_metadata_SAI_TAM_TELEMETRY_ATTR_REPORTING_INTERVAL_default_value,
     .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
     .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
     .storedefaultvalue             = false,
@@ -46971,27 +48442,206 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_TRANSPORTER_ATTR_MAX_SNAPSHO
     .capabilitylength              = 0,
     .isextensionattr               = false,
 };
-const sai_object_type_t sai_metadata_SAI_TAM_TRANSPORTER_ATTR_MONITOR_ID_allowed_objects[] = {
-    SAI_OBJECT_TYPE_MIRROR_SESSION,
-    -1
-};
-const sai_attribute_value_t sai_metadata_SAI_TAM_TRANSPORTER_ATTR_MONITOR_ID_default_value = { .oid = SAI_NULL_OBJECT_ID };
-const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_TRANSPORTER_ATTR_MONITOR_ID = {
-    .objecttype                    = SAI_OBJECT_TYPE_TAM_TRANSPORTER,
-    .attrid                        = SAI_TAM_TRANSPORTER_ATTR_MONITOR_ID,
-    .attridname                    = "SAI_TAM_TRANSPORTER_ATTR_MONITOR_ID",
-    .brief                         = "Mirroring session object defining the remote transport capabilities.",
-    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_OBJECT_ID,
-    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
-    .allowedobjecttypes            = sai_metadata_SAI_TAM_TRANSPORTER_ATTR_MONITOR_ID_allowed_objects,
-    .allowedobjecttypeslength      = 1,
+const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_TRANSPORT_ATTR_TRANSPORT_TYPE = {
+    .objecttype                    = SAI_OBJECT_TYPE_TAM_TRANSPORT,
+    .attrid                        = SAI_TAM_TRANSPORT_ATTR_TRANSPORT_TYPE,
+    .attridname                    = "SAI_TAM_TRANSPORT_ATTR_TRANSPORT_TYPE",
+    .brief                         = "Transport type.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_INT32,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_MANDATORY_ON_CREATE|SAI_ATTR_FLAGS_CREATE_ONLY),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
     .allowrepetitiononlist         = false,
     .allowmixedobjecttypes         = false,
     .allowemptylist                = false,
-    .allownullobjectid             = true,
-    .isoidattribute                = (1 > 0),
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_NONE,
+    .defaultvalue                  = NULL,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = true,
+    .isenumlist                    = false,
+    .enummetadata                  = &sai_metadata_enum_sai_tam_transport_type_t,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = true,
+    .iscreateonly                  = true,
+    .iscreateandset                = false,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+};
+const sai_attribute_value_t sai_metadata_SAI_TAM_TRANSPORT_ATTR_SRC_PORT_default_value = { .u32 = 31337 };
+const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_TRANSPORT_ATTR_SRC_PORT = {
+    .objecttype                    = SAI_OBJECT_TYPE_TAM_TRANSPORT,
+    .attrid                        = SAI_TAM_TRANSPORT_ATTR_SRC_PORT,
+    .attridname                    = "SAI_TAM_TRANSPORT_ATTR_SRC_PORT",
+    .brief                         = "Transport src port Value of -1 can be used a hint to compute ephemeral or entropy value.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_UINT32,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
     .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
-    .defaultvalue                  = &sai_metadata_SAI_TAM_TRANSPORTER_ATTR_MONITOR_ID_default_value,
+    .defaultvalue                  = &sai_metadata_SAI_TAM_TRANSPORT_ATTR_SRC_PORT_default_value,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = false,
+    .iscreateandset                = true,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+};
+const sai_attribute_value_t sai_metadata_SAI_TAM_TRANSPORT_ATTR_DST_PORT_default_value = { .u32 = 31337 };
+const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_TRANSPORT_ATTR_DST_PORT = {
+    .objecttype                    = SAI_OBJECT_TYPE_TAM_TRANSPORT,
+    .attrid                        = SAI_TAM_TRANSPORT_ATTR_DST_PORT,
+    .attridname                    = "SAI_TAM_TRANSPORT_ATTR_DST_PORT",
+    .brief                         = "Transport dst port.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_UINT32,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
+    .defaultvalue                  = &sai_metadata_SAI_TAM_TRANSPORT_ATTR_DST_PORT_default_value,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = false,
+    .iscreateandset                = true,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+};
+const sai_attribute_value_t sai_metadata_SAI_TAM_TRANSPORT_ATTR_TRANSPORT_AUTH_TYPE_default_value = { .s32 = SAI_TAM_TRANSPORT_AUTH_TYPE_NONE };
+const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_TRANSPORT_ATTR_TRANSPORT_AUTH_TYPE = {
+    .objecttype                    = SAI_OBJECT_TYPE_TAM_TRANSPORT,
+    .attrid                        = SAI_TAM_TRANSPORT_ATTR_TRANSPORT_AUTH_TYPE,
+    .attridname                    = "SAI_TAM_TRANSPORT_ATTR_TRANSPORT_AUTH_TYPE",
+    .brief                         = "Transport authentication.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_INT32,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
+    .defaultvalue                  = &sai_metadata_SAI_TAM_TRANSPORT_ATTR_TRANSPORT_AUTH_TYPE_default_value,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = true,
+    .isenumlist                    = false,
+    .enummetadata                  = &sai_metadata_enum_sai_tam_transport_auth_type_t,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = false,
+    .iscreateandset                = true,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+};
+const sai_attribute_value_t sai_metadata_SAI_TAM_TRANSPORT_ATTR_MTU_default_value = { .u32 = 1500 };
+const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_TRANSPORT_ATTR_MTU = {
+    .objecttype                    = SAI_OBJECT_TYPE_TAM_TRANSPORT,
+    .attrid                        = SAI_TAM_TRANSPORT_ATTR_MTU,
+    .attridname                    = "SAI_TAM_TRANSPORT_ATTR_MTU",
+    .brief                         = "Transport MTU size Driver must ensure the size of packet do not exceed MTU size.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_UINT32,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
+    .defaultvalue                  = &sai_metadata_SAI_TAM_TRANSPORT_ATTR_MTU_default_value,
     .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
     .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
     .storedefaultvalue             = false,
@@ -50911,6 +52561,56 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_VLAN_ATTR_CUSTOM_IGMP_SNOOPING_E
     .capabilitylength              = 0,
     .isextensionattr               = false,
 };
+const sai_object_type_t sai_metadata_SAI_VLAN_ATTR_TAM_OBJECT_allowed_objects[] = {
+    SAI_OBJECT_TYPE_TAM,
+    -1
+};
+const sai_attribute_value_t sai_metadata_SAI_VLAN_ATTR_TAM_OBJECT_default_value = { .oid = SAI_NULL_OBJECT_ID };
+const sai_attr_metadata_t sai_metadata_attr_SAI_VLAN_ATTR_TAM_OBJECT = {
+    .objecttype                    = SAI_OBJECT_TYPE_VLAN,
+    .attrid                        = SAI_VLAN_ATTR_TAM_OBJECT,
+    .attridname                    = "SAI_VLAN_ATTR_TAM_OBJECT",
+    .brief                         = "Vlan bind point for TAM object.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_OBJECT_ID,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
+    .allowedobjecttypes            = sai_metadata_SAI_VLAN_ATTR_TAM_OBJECT_allowed_objects,
+    .allowedobjecttypeslength      = 1,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = true,
+    .isoidattribute                = (1 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
+    .defaultvalue                  = &sai_metadata_SAI_VLAN_ATTR_TAM_OBJECT_default_value,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = false,
+    .iscreateandset                = true,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+};
 const sai_object_type_t sai_metadata_SAI_VLAN_MEMBER_ATTR_VLAN_ID_allowed_objects[] = {
     SAI_OBJECT_TYPE_VLAN,
     -1
@@ -52741,6 +54441,10 @@ const sai_attr_metadata_t* const sai_metadata_object_type_sai_port_attr_t[] = {
     &sai_metadata_attr_SAI_PORT_ATTR_PORT_POOL_LIST,
     &sai_metadata_attr_SAI_PORT_ATTR_ISOLATION_GROUP,
     &sai_metadata_attr_SAI_PORT_ATTR_PKT_TX_ENABLE,
+    &sai_metadata_attr_SAI_PORT_ATTR_TAM_OBJECT,
+    &sai_metadata_attr_SAI_PORT_ATTR_SERDES_PREEMPHASIS,
+    &sai_metadata_attr_SAI_PORT_ATTR_SERDES_IDRIVER,
+    &sai_metadata_attr_SAI_PORT_ATTR_SERDES_IPREDRIVER,
     NULL
 };
 const sai_attr_metadata_t* const sai_metadata_object_type_sai_lag_attr_t[] = {
@@ -53134,6 +54838,7 @@ const sai_attr_metadata_t* const sai_metadata_object_type_sai_queue_attr_t[] = {
     &sai_metadata_attr_SAI_QUEUE_ATTR_PAUSE_STATUS,
     &sai_metadata_attr_SAI_QUEUE_ATTR_ENABLE_PFC_DLDR,
     &sai_metadata_attr_SAI_QUEUE_ATTR_PFC_DLR_INIT,
+    &sai_metadata_attr_SAI_QUEUE_ATTR_TAM_OBJECT,
     NULL
 };
 const sai_attr_metadata_t* const sai_metadata_object_type_sai_scheduler_attr_t[] = {
@@ -53339,7 +55044,6 @@ const sai_attr_metadata_t* const sai_metadata_object_type_sai_switch_attr_t[] = 
     &sai_metadata_attr_SAI_SWITCH_ATTR_FDB_EVENT_NOTIFY,
     &sai_metadata_attr_SAI_SWITCH_ATTR_PORT_STATE_CHANGE_NOTIFY,
     &sai_metadata_attr_SAI_SWITCH_ATTR_PACKET_EVENT_NOTIFY,
-    &sai_metadata_attr_SAI_SWITCH_ATTR_TAM_EVENT_NOTIFY,
     &sai_metadata_attr_SAI_SWITCH_ATTR_FAST_API_ENABLE,
     &sai_metadata_attr_SAI_SWITCH_ATTR_MIRROR_TC,
     &sai_metadata_attr_SAI_SWITCH_ATTR_ACL_STAGE_INGRESS,
@@ -53370,6 +55074,8 @@ const sai_attr_metadata_t* const sai_metadata_object_type_sai_switch_attr_t[] = 
     &sai_metadata_attr_SAI_SWITCH_ATTR_MAX_SAMPLED_MIRROR_SESSION,
     &sai_metadata_attr_SAI_SWITCH_ATTR_SUPPORTED_EXTENDED_STATS_MODE,
     &sai_metadata_attr_SAI_SWITCH_ATTR_UNINIT_DATA_PLANE_ON_REMOVAL,
+    &sai_metadata_attr_SAI_SWITCH_ATTR_TAM_OBJECT_ID,
+    &sai_metadata_attr_SAI_SWITCH_ATTR_TAM_EVENT_NOTIFY,
     &sai_metadata_attr_SAI_SWITCH_ATTR_PRE_SHUTDOWN,
     NULL
 };
@@ -53427,6 +55133,7 @@ const sai_attr_metadata_t* const sai_metadata_object_type_sai_vlan_attr_t[] = {
     &sai_metadata_attr_SAI_VLAN_ATTR_BROADCAST_FLOOD_CONTROL_TYPE,
     &sai_metadata_attr_SAI_VLAN_ATTR_BROADCAST_FLOOD_GROUP,
     &sai_metadata_attr_SAI_VLAN_ATTR_CUSTOM_IGMP_SNOOPING_ENABLE,
+    &sai_metadata_attr_SAI_VLAN_ATTR_TAM_OBJECT,
     NULL
 };
 const sai_attr_metadata_t* const sai_metadata_object_type_sai_vlan_member_attr_t[] = {
@@ -53602,42 +55309,9 @@ const sai_attr_metadata_t* const sai_metadata_object_type_sai_tunnel_map_entry_a
     NULL
 };
 const sai_attr_metadata_t* const sai_metadata_object_type_sai_tam_attr_t[] = {
-    &sai_metadata_attr_SAI_TAM_ATTR_BUFFER_TRACKING_ADMIN_STATE,
-    &sai_metadata_attr_SAI_TAM_ATTR_BUFFER_REPORTING_MODE,
-    &sai_metadata_attr_SAI_TAM_ATTR_BUFFER_TRACKING_MODE,
-    &sai_metadata_attr_SAI_TAM_ATTR_TRACKING_OPTIONS,
-    &sai_metadata_attr_SAI_TAM_ATTR_TRANSPORTER,
-    &sai_metadata_attr_SAI_TAM_ATTR_CLEAR_ALL_THRESHOLDS,
-    &sai_metadata_attr_SAI_TAM_ATTR_TOTAL_NUM_STATISTICS,
-    &sai_metadata_attr_SAI_TAM_ATTR_LATEST_SNAPSHOT_ID,
-    &sai_metadata_attr_SAI_TAM_ATTR_MAX_NUM_SNAPSHOTS,
-    &sai_metadata_attr_SAI_TAM_ATTR_THRESHOLD_LIST,
-    NULL
-};
-const sai_attr_metadata_t* const sai_metadata_object_type_sai_tam_stat_attr_t[] = {
-    &sai_metadata_attr_SAI_TAM_STAT_ATTR_PARENT_ID,
-    &sai_metadata_attr_SAI_TAM_STAT_ATTR_COUNTER_ID,
-    NULL
-};
-const sai_attr_metadata_t* const sai_metadata_object_type_sai_tam_snapshot_attr_t[] = {
-    &sai_metadata_attr_SAI_TAM_SNAPSHOT_ATTR_TAM_ID,
-    &sai_metadata_attr_SAI_TAM_SNAPSHOT_ATTR_STAT_TYPE,
-    &sai_metadata_attr_SAI_TAM_SNAPSHOT_ATTR_TRANSPORTER,
-    NULL
-};
-const sai_attr_metadata_t* const sai_metadata_object_type_sai_tam_transporter_attr_t[] = {
-    &sai_metadata_attr_SAI_TAM_TRANSPORTER_ATTR_TYPE,
-    &sai_metadata_attr_SAI_TAM_TRANSPORTER_ATTR_MAX_SNAPSHOT_SIZE,
-    &sai_metadata_attr_SAI_TAM_TRANSPORTER_ATTR_MONITOR_ID,
-    NULL
-};
-const sai_attr_metadata_t* const sai_metadata_object_type_sai_tam_threshold_attr_t[] = {
-    &sai_metadata_attr_SAI_TAM_THRESHOLD_ATTR_TAM_ID,
-    &sai_metadata_attr_SAI_TAM_THRESHOLD_ATTR_STATISTIC,
-    &sai_metadata_attr_SAI_TAM_THRESHOLD_ATTR_LEVEL,
-    &sai_metadata_attr_SAI_TAM_THRESHOLD_ATTR_TRANSPORTER,
-    &sai_metadata_attr_SAI_TAM_THRESHOLD_ATTR_SNAPSHOT_ON_BREACH,
-    &sai_metadata_attr_SAI_TAM_THRESHOLD_ATTR_SNAPSHOT_STATS,
+    &sai_metadata_attr_SAI_TAM_ATTR_TELEMETRY_OBJECTS_LIST,
+    &sai_metadata_attr_SAI_TAM_ATTR_EVENT_OBJECTS_LIST,
+    &sai_metadata_attr_SAI_TAM_ATTR_TAM_BIND_POINT_TYPE_LIST,
     NULL
 };
 const sai_attr_metadata_t* const sai_metadata_object_type_sai_segmentroute_sidlist_attr_t[] = {
@@ -53657,24 +55331,6 @@ const sai_attr_metadata_t* const sai_metadata_object_type_sai_inseg_entry_attr_t
     &sai_metadata_attr_SAI_INSEG_ENTRY_ATTR_PACKET_ACTION,
     &sai_metadata_attr_SAI_INSEG_ENTRY_ATTR_TRAP_PRIORITY,
     &sai_metadata_attr_SAI_INSEG_ENTRY_ATTR_NEXT_HOP_ID,
-    NULL
-};
-const sai_attr_metadata_t* const sai_metadata_object_type_sai_tam_histogram_attr_t[] = {
-    &sai_metadata_attr_SAI_TAM_HISTOGRAM_ATTR_TAM_ID,
-    &sai_metadata_attr_SAI_TAM_HISTOGRAM_ATTR_STAT_TYPE,
-    &sai_metadata_attr_SAI_TAM_HISTOGRAM_ATTR_BIN_BOUNDARY,
-    &sai_metadata_attr_SAI_TAM_HISTOGRAM_ATTR_RESOLUTION,
-    &sai_metadata_attr_SAI_TAM_HISTOGRAM_ATTR_CLEAR_MODE,
-    &sai_metadata_attr_SAI_TAM_HISTOGRAM_ATTR_TRANSPORTER,
-    NULL
-};
-const sai_attr_metadata_t* const sai_metadata_object_type_sai_tam_microburst_attr_t[] = {
-    &sai_metadata_attr_SAI_TAM_MICROBURST_ATTR_TAM_ID,
-    &sai_metadata_attr_SAI_TAM_MICROBURST_ATTR_STATISTIC,
-    &sai_metadata_attr_SAI_TAM_MICROBURST_ATTR_LEVEL_A,
-    &sai_metadata_attr_SAI_TAM_MICROBURST_ATTR_LEVEL_B,
-    &sai_metadata_attr_SAI_TAM_MICROBURST_ATTR_TRANSPORTER,
-    &sai_metadata_attr_SAI_TAM_MICROBURST_ATTR_STATS,
     NULL
 };
 const sai_attr_metadata_t* const sai_metadata_object_type_sai_dtel_attr_t[] = {
@@ -53768,6 +55424,81 @@ const sai_attr_metadata_t* const sai_metadata_object_type_sai_isolation_group_me
     &sai_metadata_attr_SAI_ISOLATION_GROUP_MEMBER_ATTR_ISOLATION_OBJECT,
     NULL
 };
+const sai_attr_metadata_t* const sai_metadata_object_type_sai_tam_math_func_attr_t[] = {
+    &sai_metadata_attr_SAI_TAM_MATH_FUNC_ATTR_TAM_TEL_MATH_FUNC_TYPE,
+    NULL
+};
+const sai_attr_metadata_t* const sai_metadata_object_type_sai_tam_report_attr_t[] = {
+    &sai_metadata_attr_SAI_TAM_REPORT_ATTR_TYPE,
+    &sai_metadata_attr_SAI_TAM_REPORT_ATTR_HISTOGRAM_NUMBER_OF_BINS,
+    &sai_metadata_attr_SAI_TAM_REPORT_ATTR_HISTOGRAM_BIN_BOUNDARY,
+    NULL
+};
+const sai_attr_metadata_t* const sai_metadata_object_type_sai_tam_event_threshold_attr_t[] = {
+    &sai_metadata_attr_SAI_TAM_EVENT_THRESHOLD_ATTR_HIGH_WATERMARK,
+    &sai_metadata_attr_SAI_TAM_EVENT_THRESHOLD_ATTR_LOW_WATERMARK,
+    &sai_metadata_attr_SAI_TAM_EVENT_THRESHOLD_ATTR_LATENCY,
+    &sai_metadata_attr_SAI_TAM_EVENT_THRESHOLD_ATTR_RATE,
+    &sai_metadata_attr_SAI_TAM_EVENT_THRESHOLD_ATTR_ABS_VALUE,
+    &sai_metadata_attr_SAI_TAM_EVENT_THRESHOLD_ATTR_UNIT,
+    NULL
+};
+const sai_attr_metadata_t* const sai_metadata_object_type_sai_tam_tel_type_attr_t[] = {
+    &sai_metadata_attr_SAI_TAM_TEL_TYPE_ATTR_TAM_TELEMETRY_TYPE,
+    &sai_metadata_attr_SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_PORT_STATS,
+    &sai_metadata_attr_SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_PORT_STATS_INGRESS,
+    &sai_metadata_attr_SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_PORT_STATS_EGRESS,
+    &sai_metadata_attr_SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_VIRTUAL_QUEUE_STATS,
+    &sai_metadata_attr_SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_OUTPUT_QUEUE_STATS,
+    &sai_metadata_attr_SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_MMU_STATS,
+    &sai_metadata_attr_SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_FABRIC_STATS,
+    &sai_metadata_attr_SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_FILTER_STATS,
+    &sai_metadata_attr_SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_RESOURCE_UTILIZATION_STATS,
+    &sai_metadata_attr_SAI_TAM_TEL_TYPE_ATTR_FABRIC_Q,
+    &sai_metadata_attr_SAI_TAM_TEL_TYPE_ATTR_NE_ENABLE,
+    &sai_metadata_attr_SAI_TAM_TEL_TYPE_ATTR_DSCP_VALUE,
+    &sai_metadata_attr_SAI_TAM_TEL_TYPE_ATTR_MATH_FUNC,
+    &sai_metadata_attr_SAI_TAM_TEL_TYPE_ATTR_REPORT_ID,
+    NULL
+};
+const sai_attr_metadata_t* const sai_metadata_object_type_sai_tam_transport_attr_t[] = {
+    &sai_metadata_attr_SAI_TAM_TRANSPORT_ATTR_TRANSPORT_TYPE,
+    &sai_metadata_attr_SAI_TAM_TRANSPORT_ATTR_SRC_PORT,
+    &sai_metadata_attr_SAI_TAM_TRANSPORT_ATTR_DST_PORT,
+    &sai_metadata_attr_SAI_TAM_TRANSPORT_ATTR_TRANSPORT_AUTH_TYPE,
+    &sai_metadata_attr_SAI_TAM_TRANSPORT_ATTR_MTU,
+    NULL
+};
+const sai_attr_metadata_t* const sai_metadata_object_type_sai_tam_telemetry_attr_t[] = {
+    &sai_metadata_attr_SAI_TAM_TELEMETRY_ATTR_TAM_TYPE_LIST,
+    &sai_metadata_attr_SAI_TAM_TELEMETRY_ATTR_COLLECTOR_LIST,
+    &sai_metadata_attr_SAI_TAM_TELEMETRY_ATTR_TAM_REPORTING_UNIT,
+    &sai_metadata_attr_SAI_TAM_TELEMETRY_ATTR_REPORTING_INTERVAL,
+    NULL
+};
+const sai_attr_metadata_t* const sai_metadata_object_type_sai_tam_collector_attr_t[] = {
+    &sai_metadata_attr_SAI_TAM_COLLECTOR_ATTR_SRC_IP,
+    &sai_metadata_attr_SAI_TAM_COLLECTOR_ATTR_DST_IP,
+    &sai_metadata_attr_SAI_TAM_COLLECTOR_ATTR_LOCALHOST,
+    &sai_metadata_attr_SAI_TAM_COLLECTOR_ATTR_VIRTUAL_ROUTER_ID,
+    &sai_metadata_attr_SAI_TAM_COLLECTOR_ATTR_TRUNCATE_SIZE,
+    &sai_metadata_attr_SAI_TAM_COLLECTOR_ATTR_TRANSPORT,
+    &sai_metadata_attr_SAI_TAM_COLLECTOR_ATTR_DSCP_VALUE,
+    NULL
+};
+const sai_attr_metadata_t* const sai_metadata_object_type_sai_tam_event_action_attr_t[] = {
+    &sai_metadata_attr_SAI_TAM_EVENT_ACTION_ATTR_REPORT_TYPE,
+    &sai_metadata_attr_SAI_TAM_EVENT_ACTION_ATTR_QOS_ACTION_TYPE,
+    NULL
+};
+const sai_attr_metadata_t* const sai_metadata_object_type_sai_tam_event_attr_t[] = {
+    &sai_metadata_attr_SAI_TAM_EVENT_ATTR_TYPE,
+    &sai_metadata_attr_SAI_TAM_EVENT_ATTR_ACTION_LIST,
+    &sai_metadata_attr_SAI_TAM_EVENT_ATTR_COLLECTOR_LIST,
+    &sai_metadata_attr_SAI_TAM_EVENT_ATTR_THRESHOLD,
+    &sai_metadata_attr_SAI_TAM_EVENT_ATTR_DSCP_VALUE,
+    NULL
+};
 const sai_attr_metadata_t* const sai_metadata_object_type_sai_table_bitmap_classification_entry_attr_t[] = {
     &sai_metadata_attr_SAI_TABLE_BITMAP_CLASSIFICATION_ENTRY_ATTR_ACTION,
     &sai_metadata_attr_SAI_TABLE_BITMAP_CLASSIFICATION_ENTRY_ATTR_ROUTER_INTERFACE_KEY,
@@ -53781,9 +55512,18 @@ const sai_attr_metadata_t* const sai_metadata_object_type_sai_table_bitmap_route
     &sai_metadata_attr_SAI_TABLE_BITMAP_ROUTER_ENTRY_ATTR_IN_RIF_METADATA_KEY,
     &sai_metadata_attr_SAI_TABLE_BITMAP_ROUTER_ENTRY_ATTR_IN_RIF_METADATA_MASK,
     &sai_metadata_attr_SAI_TABLE_BITMAP_ROUTER_ENTRY_ATTR_DST_IP_KEY,
+    &sai_metadata_attr_SAI_TABLE_BITMAP_ROUTER_ENTRY_ATTR_TUNNEL_INDEX,
     &sai_metadata_attr_SAI_TABLE_BITMAP_ROUTER_ENTRY_ATTR_NEXT_HOP,
     &sai_metadata_attr_SAI_TABLE_BITMAP_ROUTER_ENTRY_ATTR_ROUTER_INTERFACE,
     &sai_metadata_attr_SAI_TABLE_BITMAP_ROUTER_ENTRY_ATTR_TRAP_ID,
+    NULL
+};
+const sai_attr_metadata_t* const sai_metadata_object_type_sai_table_meta_tunnel_entry_attr_t[] = {
+    &sai_metadata_attr_SAI_TABLE_META_TUNNEL_ENTRY_ATTR_ACTION,
+    &sai_metadata_attr_SAI_TABLE_META_TUNNEL_ENTRY_ATTR_METADATA_KEY,
+    &sai_metadata_attr_SAI_TABLE_META_TUNNEL_ENTRY_ATTR_IS_DEFAULT,
+    &sai_metadata_attr_SAI_TABLE_META_TUNNEL_ENTRY_ATTR_TUNNEL_ID,
+    &sai_metadata_attr_SAI_TABLE_META_TUNNEL_ENTRY_ATTR_UNDERLAY_DIP,
     NULL
 };
 const sai_attr_metadata_t* const* const sai_metadata_attr_by_object_type[] = {
@@ -53848,15 +55588,9 @@ const sai_attr_metadata_t* const* const sai_metadata_attr_by_object_type[] = {
     sai_metadata_object_type_sai_bridge_port_attr_t,
     sai_metadata_object_type_sai_tunnel_map_entry_attr_t,
     sai_metadata_object_type_sai_tam_attr_t,
-    sai_metadata_object_type_sai_tam_stat_attr_t,
-    sai_metadata_object_type_sai_tam_snapshot_attr_t,
-    sai_metadata_object_type_sai_tam_transporter_attr_t,
-    sai_metadata_object_type_sai_tam_threshold_attr_t,
     sai_metadata_object_type_sai_segmentroute_sidlist_attr_t,
     sai_metadata_object_type_sai_port_pool_attr_t,
     sai_metadata_object_type_sai_inseg_entry_attr_t,
-    sai_metadata_object_type_sai_tam_histogram_attr_t,
-    sai_metadata_object_type_sai_tam_microburst_attr_t,
     sai_metadata_object_type_sai_dtel_attr_t,
     sai_metadata_object_type_sai_dtel_queue_report_attr_t,
     sai_metadata_object_type_sai_dtel_int_session_attr_t,
@@ -53865,11 +55599,21 @@ const sai_attr_metadata_t* const* const sai_metadata_attr_by_object_type[] = {
     sai_metadata_object_type_sai_bfd_session_attr_t,
     sai_metadata_object_type_sai_isolation_group_attr_t,
     sai_metadata_object_type_sai_isolation_group_member_attr_t,
+    sai_metadata_object_type_sai_tam_math_func_attr_t,
+    sai_metadata_object_type_sai_tam_report_attr_t,
+    sai_metadata_object_type_sai_tam_event_threshold_attr_t,
+    sai_metadata_object_type_sai_tam_tel_type_attr_t,
+    sai_metadata_object_type_sai_tam_transport_attr_t,
+    sai_metadata_object_type_sai_tam_telemetry_attr_t,
+    sai_metadata_object_type_sai_tam_collector_attr_t,
+    sai_metadata_object_type_sai_tam_event_action_attr_t,
+    sai_metadata_object_type_sai_tam_event_attr_t,
     sai_metadata_object_type_sai_table_bitmap_classification_entry_attr_t,
     sai_metadata_object_type_sai_table_bitmap_router_entry_attr_t,
+    sai_metadata_object_type_sai_table_meta_tunnel_entry_attr_t,
     NULL
 };
-const size_t sai_metadata_attr_by_object_type_count = 80;
+const size_t sai_metadata_attr_by_object_type_count = 84;
 
 /* Define SAI_OBJECT_TYPE_EXTENSIONS_MAX */
 
@@ -54376,25 +56120,60 @@ const char* sai_metadata_get_table_bitmap_router_entry_stat_name(
 {
     return sai_metadata_get_enum_value_name(&sai_metadata_enum_sai_table_bitmap_router_entry_stat_t, value);
 }
-const char* sai_metadata_get_tam_microburst_stat_name(
-    _In_ sai_tam_microburst_stat_t value)
+const char* sai_metadata_get_table_meta_tunnel_entry_action_name(
+    _In_ sai_table_meta_tunnel_entry_action_t value)
 {
-    return sai_metadata_get_enum_value_name(&sai_metadata_enum_sai_tam_microburst_stat_t, value);
+    return sai_metadata_get_enum_value_name(&sai_metadata_enum_sai_table_meta_tunnel_entry_action_t, value);
 }
-const char* sai_metadata_get_tam_reporting_mode_name(
-    _In_ sai_tam_reporting_mode_t value)
+const char* sai_metadata_get_table_meta_tunnel_entry_stat_name(
+    _In_ sai_table_meta_tunnel_entry_stat_t value)
 {
-    return sai_metadata_get_enum_value_name(&sai_metadata_enum_sai_tam_reporting_mode_t, value);
+    return sai_metadata_get_enum_value_name(&sai_metadata_enum_sai_table_meta_tunnel_entry_stat_t, value);
 }
-const char* sai_metadata_get_tam_tracking_mode_name(
-    _In_ sai_tam_tracking_mode_t value)
+const char* sai_metadata_get_tam_bind_point_type_name(
+    _In_ sai_tam_bind_point_type_t value)
 {
-    return sai_metadata_get_enum_value_name(&sai_metadata_enum_sai_tam_tracking_mode_t, value);
+    return sai_metadata_get_enum_value_name(&sai_metadata_enum_sai_tam_bind_point_type_t, value);
 }
-const char* sai_metadata_get_tam_transporter_type_name(
-    _In_ sai_tam_transporter_type_t value)
+const char* sai_metadata_get_tam_event_threshold_unit_name(
+    _In_ sai_tam_event_threshold_unit_t value)
 {
-    return sai_metadata_get_enum_value_name(&sai_metadata_enum_sai_tam_transporter_type_t, value);
+    return sai_metadata_get_enum_value_name(&sai_metadata_enum_sai_tam_event_threshold_unit_t, value);
+}
+const char* sai_metadata_get_tam_event_type_name(
+    _In_ sai_tam_event_type_t value)
+{
+    return sai_metadata_get_enum_value_name(&sai_metadata_enum_sai_tam_event_type_t, value);
+}
+const char* sai_metadata_get_tam_report_type_name(
+    _In_ sai_tam_report_type_t value)
+{
+    return sai_metadata_get_enum_value_name(&sai_metadata_enum_sai_tam_report_type_t, value);
+}
+const char* sai_metadata_get_tam_reporting_unit_name(
+    _In_ sai_tam_reporting_unit_t value)
+{
+    return sai_metadata_get_enum_value_name(&sai_metadata_enum_sai_tam_reporting_unit_t, value);
+}
+const char* sai_metadata_get_tam_tel_math_func_type_name(
+    _In_ sai_tam_tel_math_func_type_t value)
+{
+    return sai_metadata_get_enum_value_name(&sai_metadata_enum_sai_tam_tel_math_func_type_t, value);
+}
+const char* sai_metadata_get_tam_telemetry_type_name(
+    _In_ sai_tam_telemetry_type_t value)
+{
+    return sai_metadata_get_enum_value_name(&sai_metadata_enum_sai_tam_telemetry_type_t, value);
+}
+const char* sai_metadata_get_tam_transport_auth_type_name(
+    _In_ sai_tam_transport_auth_type_t value)
+{
+    return sai_metadata_get_enum_value_name(&sai_metadata_enum_sai_tam_transport_auth_type_t, value);
+}
+const char* sai_metadata_get_tam_transport_type_name(
+    _In_ sai_tam_transport_type_t value)
+{
+    return sai_metadata_get_enum_value_name(&sai_metadata_enum_sai_tam_transport_type_t, value);
 }
 const char* sai_metadata_get_tlv_type_name(
     _In_ sai_tlv_type_t value)
@@ -55052,7 +56831,6 @@ sai_stp_api_t *sai_metadata_sai_stp_api = NULL;
 sai_switch_api_t *sai_metadata_sai_switch_api = NULL;
 sai_tam_api_t *sai_metadata_sai_tam_api = NULL;
 sai_tunnel_api_t *sai_metadata_sai_tunnel_api = NULL;
-sai_uburst_api_t *sai_metadata_sai_uburst_api = NULL;
 sai_udf_api_t *sai_metadata_sai_udf_api = NULL;
 sai_virtual_router_api_t *sai_metadata_sai_virtual_router_api = NULL;
 sai_vlan_api_t *sai_metadata_sai_vlan_api = NULL;
@@ -55146,8 +56924,6 @@ int sai_metadata_apis_query(
         apis->tam_api = NULL;
         sai_metadata_sai_tunnel_api = NULL;
         apis->tunnel_api = NULL;
-        sai_metadata_sai_uburst_api = NULL;
-        apis->uburst_api = NULL;
         sai_metadata_sai_udf_api = NULL;
         apis->udf_api = NULL;
         sai_metadata_sai_virtual_router_api = NULL;
@@ -55446,14 +57222,6 @@ int sai_metadata_apis_query(
         const char *name = sai_metadata_get_enum_value_name(&sai_metadata_enum_sai_status_t, status);
         SAI_META_LOG_NOTICE("failed to query api SAI_API_TUNNEL: %s (%d)", name, status);
     }
-    status = api_query(SAI_API_UBURST, (void**)&sai_metadata_sai_uburst_api);
-    apis->uburst_api = sai_metadata_sai_uburst_api;
-    if (status != SAI_STATUS_SUCCESS)
-    {
-        count++;
-        const char *name = sai_metadata_get_enum_value_name(&sai_metadata_enum_sai_status_t, status);
-        SAI_META_LOG_NOTICE("failed to query api SAI_API_UBURST: %s (%d)", name, status);
-    }
     status = api_query(SAI_API_UDF, (void**)&sai_metadata_sai_udf_api);
     apis->udf_api = sai_metadata_sai_udf_api;
     if (status != SAI_STATUS_SUCCESS)
@@ -55744,7 +57512,7 @@ const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_PORT 
     .attridend            = SAI_PORT_ATTR_END,
     .enummetadata         = &sai_metadata_enum_sai_port_attr_t,
     .attrmetadata         = sai_metadata_object_type_sai_port_attr_t,
-    .attrmetadatalength   = 87,
+    .attrmetadatalength   = 91,
     .isnonobjectid        = false,
     .isobjectid           = !false,
     .structmembers        = NULL,
@@ -55930,17 +57698,23 @@ const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_VIRTUAL_ROUTER_rev_gra
 };
 const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_VIRTUAL_ROUTER_rev_graph_member_6 = {
     .objecttype          = SAI_OBJECT_TYPE_VIRTUAL_ROUTER,
-    .depobjecttype       = SAI_OBJECT_TYPE_TUNNEL_MAP_ENTRY,
-    .attrmetadata        = &sai_metadata_attr_SAI_TUNNEL_MAP_ENTRY_ATTR_VIRTUAL_ROUTER_ID_KEY,
+    .depobjecttype       = SAI_OBJECT_TYPE_TAM_COLLECTOR,
+    .attrmetadata        = &sai_metadata_attr_SAI_TAM_COLLECTOR_ATTR_VIRTUAL_ROUTER_ID,
     .structmember        = NULL,
 };
 const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_VIRTUAL_ROUTER_rev_graph_member_7 = {
     .objecttype          = SAI_OBJECT_TYPE_VIRTUAL_ROUTER,
     .depobjecttype       = SAI_OBJECT_TYPE_TUNNEL_MAP_ENTRY,
-    .attrmetadata        = &sai_metadata_attr_SAI_TUNNEL_MAP_ENTRY_ATTR_VIRTUAL_ROUTER_ID_VALUE,
+    .attrmetadata        = &sai_metadata_attr_SAI_TUNNEL_MAP_ENTRY_ATTR_VIRTUAL_ROUTER_ID_KEY,
     .structmember        = NULL,
 };
 const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_VIRTUAL_ROUTER_rev_graph_member_8 = {
+    .objecttype          = SAI_OBJECT_TYPE_VIRTUAL_ROUTER,
+    .depobjecttype       = SAI_OBJECT_TYPE_TUNNEL_MAP_ENTRY,
+    .attrmetadata        = &sai_metadata_attr_SAI_TUNNEL_MAP_ENTRY_ATTR_VIRTUAL_ROUTER_ID_VALUE,
+    .structmember        = NULL,
+};
+const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_VIRTUAL_ROUTER_rev_graph_member_9 = {
     .objecttype          = SAI_OBJECT_TYPE_VIRTUAL_ROUTER,
     .depobjecttype       = SAI_OBJECT_TYPE_TUNNEL_TERM_TABLE_ENTRY,
     .attrmetadata        = &sai_metadata_attr_SAI_TUNNEL_TERM_TABLE_ENTRY_ATTR_VR_ID,
@@ -55956,6 +57730,7 @@ const sai_rev_graph_member_t* const sai_metadata_SAI_OBJECT_TYPE_VIRTUAL_ROUTER_
     &sai_metadata_SAI_OBJECT_TYPE_VIRTUAL_ROUTER_rev_graph_member_6,
     &sai_metadata_SAI_OBJECT_TYPE_VIRTUAL_ROUTER_rev_graph_member_7,
     &sai_metadata_SAI_OBJECT_TYPE_VIRTUAL_ROUTER_rev_graph_member_8,
+    &sai_metadata_SAI_OBJECT_TYPE_VIRTUAL_ROUTER_rev_graph_member_9,
     NULL
 };
 sai_status_t sai_metadata_generic_create_SAI_OBJECT_TYPE_VIRTUAL_ROUTER(
@@ -55997,7 +57772,7 @@ const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_VIRTU
     .structmembers        = NULL,
     .structmemberscount   = 0,
     .revgraphmembers      = sai_metadata_SAI_OBJECT_TYPE_VIRTUAL_ROUTER_rev_graph_members,
-    .revgraphmemberscount = 9,
+    .revgraphmemberscount = 10,
     .create               = sai_metadata_generic_create_SAI_OBJECT_TYPE_VIRTUAL_ROUTER,
     .remove               = sai_metadata_generic_remove_SAI_OBJECT_TYPE_VIRTUAL_ROUTER,
     .set                  = sai_metadata_generic_set_SAI_OBJECT_TYPE_VIRTUAL_ROUTER,
@@ -56906,19 +58681,12 @@ const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_MIRROR_SESSION_rev_gra
     .attrmetadata        = &sai_metadata_attr_SAI_PORT_ATTR_INGRESS_MIRROR_SESSION,
     .structmember        = NULL,
 };
-const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_MIRROR_SESSION_rev_graph_member_5 = {
-    .objecttype          = SAI_OBJECT_TYPE_MIRROR_SESSION,
-    .depobjecttype       = SAI_OBJECT_TYPE_TAM_TRANSPORTER,
-    .attrmetadata        = &sai_metadata_attr_SAI_TAM_TRANSPORTER_ATTR_MONITOR_ID,
-    .structmember        = NULL,
-};
 const sai_rev_graph_member_t* const sai_metadata_SAI_OBJECT_TYPE_MIRROR_SESSION_rev_graph_members[] = {
     &sai_metadata_SAI_OBJECT_TYPE_MIRROR_SESSION_rev_graph_member_0,
     &sai_metadata_SAI_OBJECT_TYPE_MIRROR_SESSION_rev_graph_member_1,
     &sai_metadata_SAI_OBJECT_TYPE_MIRROR_SESSION_rev_graph_member_2,
     &sai_metadata_SAI_OBJECT_TYPE_MIRROR_SESSION_rev_graph_member_3,
     &sai_metadata_SAI_OBJECT_TYPE_MIRROR_SESSION_rev_graph_member_4,
-    &sai_metadata_SAI_OBJECT_TYPE_MIRROR_SESSION_rev_graph_member_5,
     NULL
 };
 sai_status_t sai_metadata_generic_create_SAI_OBJECT_TYPE_MIRROR_SESSION(
@@ -56960,7 +58728,7 @@ const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_MIRRO
     .structmembers        = NULL,
     .structmemberscount   = 0,
     .revgraphmembers      = sai_metadata_SAI_OBJECT_TYPE_MIRROR_SESSION_rev_graph_members,
-    .revgraphmemberscount = 6,
+    .revgraphmemberscount = 5,
     .create               = sai_metadata_generic_create_SAI_OBJECT_TYPE_MIRROR_SESSION,
     .remove               = sai_metadata_generic_remove_SAI_OBJECT_TYPE_MIRROR_SESSION,
     .set                  = sai_metadata_generic_set_SAI_OBJECT_TYPE_MIRROR_SESSION,
@@ -57545,17 +59313,10 @@ const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_QUEUE_rev_graph_member
     .attrmetadata        = &sai_metadata_attr_SAI_SCHEDULER_GROUP_ATTR_CHILD_LIST,
     .structmember        = NULL,
 };
-const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_QUEUE_rev_graph_member_3 = {
-    .objecttype          = SAI_OBJECT_TYPE_QUEUE,
-    .depobjecttype       = SAI_OBJECT_TYPE_TAM_STAT,
-    .attrmetadata        = &sai_metadata_attr_SAI_TAM_STAT_ATTR_PARENT_ID,
-    .structmember        = NULL,
-};
 const sai_rev_graph_member_t* const sai_metadata_SAI_OBJECT_TYPE_QUEUE_rev_graph_members[] = {
     &sai_metadata_SAI_OBJECT_TYPE_QUEUE_rev_graph_member_0,
     &sai_metadata_SAI_OBJECT_TYPE_QUEUE_rev_graph_member_1,
     &sai_metadata_SAI_OBJECT_TYPE_QUEUE_rev_graph_member_2,
-    &sai_metadata_SAI_OBJECT_TYPE_QUEUE_rev_graph_member_3,
     NULL
 };
 sai_status_t sai_metadata_generic_create_SAI_OBJECT_TYPE_QUEUE(
@@ -57591,13 +59352,13 @@ const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_QUEUE
     .attridend            = SAI_QUEUE_ATTR_END,
     .enummetadata         = &sai_metadata_enum_sai_queue_attr_t,
     .attrmetadata         = sai_metadata_object_type_sai_queue_attr_t,
-    .attrmetadatalength   = 10,
+    .attrmetadatalength   = 11,
     .isnonobjectid        = false,
     .isobjectid           = !false,
     .structmembers        = NULL,
     .structmemberscount   = 0,
     .revgraphmembers      = sai_metadata_SAI_OBJECT_TYPE_QUEUE_rev_graph_members,
-    .revgraphmemberscount = 4,
+    .revgraphmemberscount = 3,
     .create               = sai_metadata_generic_create_SAI_OBJECT_TYPE_QUEUE,
     .remove               = sai_metadata_generic_remove_SAI_OBJECT_TYPE_QUEUE,
     .set                  = sai_metadata_generic_set_SAI_OBJECT_TYPE_QUEUE,
@@ -57766,16 +59527,9 @@ const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_BUFFER_POOL_rev_graph_
     .attrmetadata        = &sai_metadata_attr_SAI_PORT_POOL_ATTR_BUFFER_POOL_ID,
     .structmember        = NULL,
 };
-const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_BUFFER_POOL_rev_graph_member_2 = {
-    .objecttype          = SAI_OBJECT_TYPE_BUFFER_POOL,
-    .depobjecttype       = SAI_OBJECT_TYPE_TAM_STAT,
-    .attrmetadata        = &sai_metadata_attr_SAI_TAM_STAT_ATTR_PARENT_ID,
-    .structmember        = NULL,
-};
 const sai_rev_graph_member_t* const sai_metadata_SAI_OBJECT_TYPE_BUFFER_POOL_rev_graph_members[] = {
     &sai_metadata_SAI_OBJECT_TYPE_BUFFER_POOL_rev_graph_member_0,
     &sai_metadata_SAI_OBJECT_TYPE_BUFFER_POOL_rev_graph_member_1,
-    &sai_metadata_SAI_OBJECT_TYPE_BUFFER_POOL_rev_graph_member_2,
     NULL
 };
 sai_status_t sai_metadata_generic_create_SAI_OBJECT_TYPE_BUFFER_POOL(
@@ -57817,7 +59571,7 @@ const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_BUFFE
     .structmembers        = NULL,
     .structmemberscount   = 0,
     .revgraphmembers      = sai_metadata_SAI_OBJECT_TYPE_BUFFER_POOL_rev_graph_members,
-    .revgraphmemberscount = 3,
+    .revgraphmemberscount = 2,
     .create               = sai_metadata_generic_create_SAI_OBJECT_TYPE_BUFFER_POOL,
     .remove               = sai_metadata_generic_remove_SAI_OBJECT_TYPE_BUFFER_POOL,
     .set                  = sai_metadata_generic_set_SAI_OBJECT_TYPE_BUFFER_POOL,
@@ -57909,15 +59663,8 @@ const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_INGRESS_PRIORITY_GROUP
     .attrmetadata        = &sai_metadata_attr_SAI_PORT_ATTR_INGRESS_PRIORITY_GROUP_LIST,
     .structmember        = NULL,
 };
-const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_INGRESS_PRIORITY_GROUP_rev_graph_member_1 = {
-    .objecttype          = SAI_OBJECT_TYPE_INGRESS_PRIORITY_GROUP,
-    .depobjecttype       = SAI_OBJECT_TYPE_TAM_STAT,
-    .attrmetadata        = &sai_metadata_attr_SAI_TAM_STAT_ATTR_PARENT_ID,
-    .structmember        = NULL,
-};
 const sai_rev_graph_member_t* const sai_metadata_SAI_OBJECT_TYPE_INGRESS_PRIORITY_GROUP_rev_graph_members[] = {
     &sai_metadata_SAI_OBJECT_TYPE_INGRESS_PRIORITY_GROUP_rev_graph_member_0,
-    &sai_metadata_SAI_OBJECT_TYPE_INGRESS_PRIORITY_GROUP_rev_graph_member_1,
     NULL
 };
 sai_status_t sai_metadata_generic_create_SAI_OBJECT_TYPE_INGRESS_PRIORITY_GROUP(
@@ -57959,7 +59706,7 @@ const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_INGRE
     .structmembers        = NULL,
     .structmemberscount   = 0,
     .revgraphmembers      = sai_metadata_SAI_OBJECT_TYPE_INGRESS_PRIORITY_GROUP_rev_graph_members,
-    .revgraphmemberscount = 2,
+    .revgraphmemberscount = 1,
     .create               = sai_metadata_generic_create_SAI_OBJECT_TYPE_INGRESS_PRIORITY_GROUP,
     .remove               = sai_metadata_generic_remove_SAI_OBJECT_TYPE_INGRESS_PRIORITY_GROUP,
     .set                  = sai_metadata_generic_set_SAI_OBJECT_TYPE_INGRESS_PRIORITY_GROUP,
@@ -58517,7 +60264,7 @@ const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_SWITC
     .attridend            = SAI_SWITCH_ATTR_END,
     .enummetadata         = &sai_metadata_enum_sai_switch_attr_t,
     .attrmetadata         = sai_metadata_object_type_sai_switch_attr_t,
-    .attrmetadatalength   = 146,
+    .attrmetadatalength   = 147,
     .isnonobjectid        = false,
     .isobjectid           = !false,
     .structmembers        = NULL,
@@ -58835,7 +60582,7 @@ const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_VLAN 
     .attridend            = SAI_VLAN_ATTR_END,
     .enummetadata         = &sai_metadata_enum_sai_vlan_attr_t,
     .attrmetadata         = sai_metadata_object_type_sai_vlan_attr_t,
-    .attrmetadatalength   = 21,
+    .attrmetadatalength   = 22,
     .isnonobjectid        = false,
     .isobjectid           = !false,
     .structmembers        = NULL,
@@ -59057,6 +60804,12 @@ const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_TUNNEL_rev_graph_membe
 };
 const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_TUNNEL_rev_graph_member_4 = {
     .objecttype          = SAI_OBJECT_TYPE_TUNNEL,
+    .depobjecttype       = SAI_OBJECT_TYPE_TABLE_META_TUNNEL_ENTRY,
+    .attrmetadata        = &sai_metadata_attr_SAI_TABLE_META_TUNNEL_ENTRY_ATTR_TUNNEL_ID,
+    .structmember        = NULL,
+};
+const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_TUNNEL_rev_graph_member_5 = {
+    .objecttype          = SAI_OBJECT_TYPE_TUNNEL,
     .depobjecttype       = SAI_OBJECT_TYPE_TUNNEL_TERM_TABLE_ENTRY,
     .attrmetadata        = &sai_metadata_attr_SAI_TUNNEL_TERM_TABLE_ENTRY_ATTR_ACTION_TUNNEL_ID,
     .structmember        = NULL,
@@ -59067,6 +60820,7 @@ const sai_rev_graph_member_t* const sai_metadata_SAI_OBJECT_TYPE_TUNNEL_rev_grap
     &sai_metadata_SAI_OBJECT_TYPE_TUNNEL_rev_graph_member_2,
     &sai_metadata_SAI_OBJECT_TYPE_TUNNEL_rev_graph_member_3,
     &sai_metadata_SAI_OBJECT_TYPE_TUNNEL_rev_graph_member_4,
+    &sai_metadata_SAI_OBJECT_TYPE_TUNNEL_rev_graph_member_5,
     NULL
 };
 sai_status_t sai_metadata_generic_create_SAI_OBJECT_TYPE_TUNNEL(
@@ -59108,7 +60862,7 @@ const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_TUNNE
     .structmembers        = NULL,
     .structmemberscount   = 0,
     .revgraphmembers      = sai_metadata_SAI_OBJECT_TYPE_TUNNEL_rev_graph_members,
-    .revgraphmemberscount = 5,
+    .revgraphmemberscount = 6,
     .create               = sai_metadata_generic_create_SAI_OBJECT_TYPE_TUNNEL,
     .remove               = sai_metadata_generic_remove_SAI_OBJECT_TYPE_TUNNEL,
     .set                  = sai_metadata_generic_set_SAI_OBJECT_TYPE_TUNNEL,
@@ -60320,26 +62074,26 @@ const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_TUNNE
 };
 const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_TAM_rev_graph_member_0 = {
     .objecttype          = SAI_OBJECT_TYPE_TAM,
-    .depobjecttype       = SAI_OBJECT_TYPE_TAM_HISTOGRAM,
-    .attrmetadata        = &sai_metadata_attr_SAI_TAM_HISTOGRAM_ATTR_TAM_ID,
+    .depobjecttype       = SAI_OBJECT_TYPE_PORT,
+    .attrmetadata        = &sai_metadata_attr_SAI_PORT_ATTR_TAM_OBJECT,
     .structmember        = NULL,
 };
 const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_TAM_rev_graph_member_1 = {
     .objecttype          = SAI_OBJECT_TYPE_TAM,
-    .depobjecttype       = SAI_OBJECT_TYPE_TAM_MICROBURST,
-    .attrmetadata        = &sai_metadata_attr_SAI_TAM_MICROBURST_ATTR_TAM_ID,
+    .depobjecttype       = SAI_OBJECT_TYPE_QUEUE,
+    .attrmetadata        = &sai_metadata_attr_SAI_QUEUE_ATTR_TAM_OBJECT,
     .structmember        = NULL,
 };
 const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_TAM_rev_graph_member_2 = {
     .objecttype          = SAI_OBJECT_TYPE_TAM,
-    .depobjecttype       = SAI_OBJECT_TYPE_TAM_SNAPSHOT,
-    .attrmetadata        = &sai_metadata_attr_SAI_TAM_SNAPSHOT_ATTR_TAM_ID,
+    .depobjecttype       = SAI_OBJECT_TYPE_SWITCH,
+    .attrmetadata        = &sai_metadata_attr_SAI_SWITCH_ATTR_TAM_OBJECT_ID,
     .structmember        = NULL,
 };
 const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_TAM_rev_graph_member_3 = {
     .objecttype          = SAI_OBJECT_TYPE_TAM,
-    .depobjecttype       = SAI_OBJECT_TYPE_TAM_THRESHOLD,
-    .attrmetadata        = &sai_metadata_attr_SAI_TAM_THRESHOLD_ATTR_TAM_ID,
+    .depobjecttype       = SAI_OBJECT_TYPE_VLAN,
+    .attrmetadata        = &sai_metadata_attr_SAI_VLAN_ATTR_TAM_OBJECT,
     .structmember        = NULL,
 };
 const sai_rev_graph_member_t* const sai_metadata_SAI_OBJECT_TYPE_TAM_rev_graph_members[] = {
@@ -60382,7 +62136,7 @@ const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_TAM =
     .attridend            = SAI_TAM_ATTR_END,
     .enummetadata         = &sai_metadata_enum_sai_tam_attr_t,
     .attrmetadata         = sai_metadata_object_type_sai_tam_attr_t,
-    .attrmetadatalength   = 10,
+    .attrmetadatalength   = 3,
     .isnonobjectid        = false,
     .isobjectid           = !false,
     .structmembers        = NULL,
@@ -60393,297 +62147,6 @@ const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_TAM =
     .remove               = sai_metadata_generic_remove_SAI_OBJECT_TYPE_TAM,
     .set                  = sai_metadata_generic_set_SAI_OBJECT_TYPE_TAM,
     .get                  = sai_metadata_generic_get_SAI_OBJECT_TYPE_TAM,
-    .isexperimental       = false,
-    .statenum             = NULL,
-};
-const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_TAM_STAT_rev_graph_member_0 = {
-    .objecttype          = SAI_OBJECT_TYPE_TAM_STAT,
-    .depobjecttype       = SAI_OBJECT_TYPE_TAM,
-    .attrmetadata        = &sai_metadata_attr_SAI_TAM_ATTR_TRACKING_OPTIONS,
-    .structmember        = NULL,
-};
-const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_TAM_STAT_rev_graph_member_1 = {
-    .objecttype          = SAI_OBJECT_TYPE_TAM_STAT,
-    .depobjecttype       = SAI_OBJECT_TYPE_TAM_MICROBURST,
-    .attrmetadata        = &sai_metadata_attr_SAI_TAM_MICROBURST_ATTR_STATISTIC,
-    .structmember        = NULL,
-};
-const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_TAM_STAT_rev_graph_member_2 = {
-    .objecttype          = SAI_OBJECT_TYPE_TAM_STAT,
-    .depobjecttype       = SAI_OBJECT_TYPE_TAM_MICROBURST,
-    .attrmetadata        = &sai_metadata_attr_SAI_TAM_MICROBURST_ATTR_STATS,
-    .structmember        = NULL,
-};
-const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_TAM_STAT_rev_graph_member_3 = {
-    .objecttype          = SAI_OBJECT_TYPE_TAM_STAT,
-    .depobjecttype       = SAI_OBJECT_TYPE_TAM_SNAPSHOT,
-    .attrmetadata        = &sai_metadata_attr_SAI_TAM_SNAPSHOT_ATTR_STAT_TYPE,
-    .structmember        = NULL,
-};
-const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_TAM_STAT_rev_graph_member_4 = {
-    .objecttype          = SAI_OBJECT_TYPE_TAM_STAT,
-    .depobjecttype       = SAI_OBJECT_TYPE_TAM_THRESHOLD,
-    .attrmetadata        = &sai_metadata_attr_SAI_TAM_THRESHOLD_ATTR_SNAPSHOT_STATS,
-    .structmember        = NULL,
-};
-const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_TAM_STAT_rev_graph_member_5 = {
-    .objecttype          = SAI_OBJECT_TYPE_TAM_STAT,
-    .depobjecttype       = SAI_OBJECT_TYPE_TAM_THRESHOLD,
-    .attrmetadata        = &sai_metadata_attr_SAI_TAM_THRESHOLD_ATTR_STATISTIC,
-    .structmember        = NULL,
-};
-const sai_rev_graph_member_t* const sai_metadata_SAI_OBJECT_TYPE_TAM_STAT_rev_graph_members[] = {
-    &sai_metadata_SAI_OBJECT_TYPE_TAM_STAT_rev_graph_member_0,
-    &sai_metadata_SAI_OBJECT_TYPE_TAM_STAT_rev_graph_member_1,
-    &sai_metadata_SAI_OBJECT_TYPE_TAM_STAT_rev_graph_member_2,
-    &sai_metadata_SAI_OBJECT_TYPE_TAM_STAT_rev_graph_member_3,
-    &sai_metadata_SAI_OBJECT_TYPE_TAM_STAT_rev_graph_member_4,
-    &sai_metadata_SAI_OBJECT_TYPE_TAM_STAT_rev_graph_member_5,
-    NULL
-};
-sai_status_t sai_metadata_generic_create_SAI_OBJECT_TYPE_TAM_STAT(
-    _Inout_ sai_object_meta_key_t *meta_key,
-    _In_ sai_object_id_t switch_id,
-    _In_ uint32_t attr_count,
-    _In_ const sai_attribute_t *attr_list)
-{
-    return sai_metadata_sai_tam_api->create_tam_stat(&meta_key->objectkey.key.object_id, switch_id, attr_count, attr_list);
-}
-sai_status_t sai_metadata_generic_remove_SAI_OBJECT_TYPE_TAM_STAT(
-    _In_ const sai_object_meta_key_t *meta_key)
-{
-    return sai_metadata_sai_tam_api->remove_tam_stat(meta_key->objectkey.key.object_id);
-}
-sai_status_t sai_metadata_generic_set_SAI_OBJECT_TYPE_TAM_STAT(
-    _In_ const sai_object_meta_key_t *meta_key,
-    _In_ const sai_attribute_t *attr)
-{
-    return sai_metadata_sai_tam_api->set_tam_stat_attribute(meta_key->objectkey.key.object_id, attr);
-}
-sai_status_t sai_metadata_generic_get_SAI_OBJECT_TYPE_TAM_STAT(
-    _In_ const sai_object_meta_key_t *meta_key,
-    _In_ uint32_t attr_count,
-    _Inout_ sai_attribute_t *attr_list)
-{
-    return sai_metadata_sai_tam_api->get_tam_stat_attribute(meta_key->objectkey.key.object_id, attr_count, attr_list);
-}
-const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_TAM_STAT = {
-    .objecttype           = SAI_OBJECT_TYPE_TAM_STAT,
-    .objecttypename       = "SAI_OBJECT_TYPE_TAM_STAT",
-    .attridstart          = SAI_TAM_STAT_ATTR_START,
-    .attridend            = SAI_TAM_STAT_ATTR_END,
-    .enummetadata         = &sai_metadata_enum_sai_tam_stat_attr_t,
-    .attrmetadata         = sai_metadata_object_type_sai_tam_stat_attr_t,
-    .attrmetadatalength   = 2,
-    .isnonobjectid        = false,
-    .isobjectid           = !false,
-    .structmembers        = NULL,
-    .structmemberscount   = 0,
-    .revgraphmembers      = sai_metadata_SAI_OBJECT_TYPE_TAM_STAT_rev_graph_members,
-    .revgraphmemberscount = 6,
-    .create               = sai_metadata_generic_create_SAI_OBJECT_TYPE_TAM_STAT,
-    .remove               = sai_metadata_generic_remove_SAI_OBJECT_TYPE_TAM_STAT,
-    .set                  = sai_metadata_generic_set_SAI_OBJECT_TYPE_TAM_STAT,
-    .get                  = sai_metadata_generic_get_SAI_OBJECT_TYPE_TAM_STAT,
-    .isexperimental       = false,
-    .statenum             = NULL,
-};
-const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_TAM_SNAPSHOT_rev_graph_member_0 = {
-    .objecttype          = SAI_OBJECT_TYPE_TAM_SNAPSHOT,
-    .depobjecttype       = SAI_OBJECT_TYPE_TAM,
-    .attrmetadata        = &sai_metadata_attr_SAI_TAM_ATTR_LATEST_SNAPSHOT_ID,
-    .structmember        = NULL,
-};
-const sai_rev_graph_member_t* const sai_metadata_SAI_OBJECT_TYPE_TAM_SNAPSHOT_rev_graph_members[] = {
-    &sai_metadata_SAI_OBJECT_TYPE_TAM_SNAPSHOT_rev_graph_member_0,
-    NULL
-};
-sai_status_t sai_metadata_generic_create_SAI_OBJECT_TYPE_TAM_SNAPSHOT(
-    _Inout_ sai_object_meta_key_t *meta_key,
-    _In_ sai_object_id_t switch_id,
-    _In_ uint32_t attr_count,
-    _In_ const sai_attribute_t *attr_list)
-{
-    return sai_metadata_sai_tam_api->create_tam_snapshot(&meta_key->objectkey.key.object_id, switch_id, attr_count, attr_list);
-}
-sai_status_t sai_metadata_generic_remove_SAI_OBJECT_TYPE_TAM_SNAPSHOT(
-    _In_ const sai_object_meta_key_t *meta_key)
-{
-    return sai_metadata_sai_tam_api->remove_tam_snapshot(meta_key->objectkey.key.object_id);
-}
-sai_status_t sai_metadata_generic_set_SAI_OBJECT_TYPE_TAM_SNAPSHOT(
-    _In_ const sai_object_meta_key_t *meta_key,
-    _In_ const sai_attribute_t *attr)
-{
-    return sai_metadata_sai_tam_api->set_tam_snapshot_attribute(meta_key->objectkey.key.object_id, attr);
-}
-sai_status_t sai_metadata_generic_get_SAI_OBJECT_TYPE_TAM_SNAPSHOT(
-    _In_ const sai_object_meta_key_t *meta_key,
-    _In_ uint32_t attr_count,
-    _Inout_ sai_attribute_t *attr_list)
-{
-    return sai_metadata_sai_tam_api->get_tam_snapshot_attribute(meta_key->objectkey.key.object_id, attr_count, attr_list);
-}
-const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_TAM_SNAPSHOT = {
-    .objecttype           = SAI_OBJECT_TYPE_TAM_SNAPSHOT,
-    .objecttypename       = "SAI_OBJECT_TYPE_TAM_SNAPSHOT",
-    .attridstart          = SAI_TAM_SNAPSHOT_ATTR_START,
-    .attridend            = SAI_TAM_SNAPSHOT_ATTR_END,
-    .enummetadata         = &sai_metadata_enum_sai_tam_snapshot_attr_t,
-    .attrmetadata         = sai_metadata_object_type_sai_tam_snapshot_attr_t,
-    .attrmetadatalength   = 3,
-    .isnonobjectid        = false,
-    .isobjectid           = !false,
-    .structmembers        = NULL,
-    .structmemberscount   = 0,
-    .revgraphmembers      = sai_metadata_SAI_OBJECT_TYPE_TAM_SNAPSHOT_rev_graph_members,
-    .revgraphmemberscount = 1,
-    .create               = sai_metadata_generic_create_SAI_OBJECT_TYPE_TAM_SNAPSHOT,
-    .remove               = sai_metadata_generic_remove_SAI_OBJECT_TYPE_TAM_SNAPSHOT,
-    .set                  = sai_metadata_generic_set_SAI_OBJECT_TYPE_TAM_SNAPSHOT,
-    .get                  = sai_metadata_generic_get_SAI_OBJECT_TYPE_TAM_SNAPSHOT,
-    .isexperimental       = false,
-    .statenum             = NULL,
-};
-const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_TAM_TRANSPORTER_rev_graph_member_0 = {
-    .objecttype          = SAI_OBJECT_TYPE_TAM_TRANSPORTER,
-    .depobjecttype       = SAI_OBJECT_TYPE_TAM,
-    .attrmetadata        = &sai_metadata_attr_SAI_TAM_ATTR_TRANSPORTER,
-    .structmember        = NULL,
-};
-const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_TAM_TRANSPORTER_rev_graph_member_1 = {
-    .objecttype          = SAI_OBJECT_TYPE_TAM_TRANSPORTER,
-    .depobjecttype       = SAI_OBJECT_TYPE_TAM_HISTOGRAM,
-    .attrmetadata        = &sai_metadata_attr_SAI_TAM_HISTOGRAM_ATTR_TRANSPORTER,
-    .structmember        = NULL,
-};
-const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_TAM_TRANSPORTER_rev_graph_member_2 = {
-    .objecttype          = SAI_OBJECT_TYPE_TAM_TRANSPORTER,
-    .depobjecttype       = SAI_OBJECT_TYPE_TAM_MICROBURST,
-    .attrmetadata        = &sai_metadata_attr_SAI_TAM_MICROBURST_ATTR_TRANSPORTER,
-    .structmember        = NULL,
-};
-const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_TAM_TRANSPORTER_rev_graph_member_3 = {
-    .objecttype          = SAI_OBJECT_TYPE_TAM_TRANSPORTER,
-    .depobjecttype       = SAI_OBJECT_TYPE_TAM_SNAPSHOT,
-    .attrmetadata        = &sai_metadata_attr_SAI_TAM_SNAPSHOT_ATTR_TRANSPORTER,
-    .structmember        = NULL,
-};
-const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_TAM_TRANSPORTER_rev_graph_member_4 = {
-    .objecttype          = SAI_OBJECT_TYPE_TAM_TRANSPORTER,
-    .depobjecttype       = SAI_OBJECT_TYPE_TAM_THRESHOLD,
-    .attrmetadata        = &sai_metadata_attr_SAI_TAM_THRESHOLD_ATTR_TRANSPORTER,
-    .structmember        = NULL,
-};
-const sai_rev_graph_member_t* const sai_metadata_SAI_OBJECT_TYPE_TAM_TRANSPORTER_rev_graph_members[] = {
-    &sai_metadata_SAI_OBJECT_TYPE_TAM_TRANSPORTER_rev_graph_member_0,
-    &sai_metadata_SAI_OBJECT_TYPE_TAM_TRANSPORTER_rev_graph_member_1,
-    &sai_metadata_SAI_OBJECT_TYPE_TAM_TRANSPORTER_rev_graph_member_2,
-    &sai_metadata_SAI_OBJECT_TYPE_TAM_TRANSPORTER_rev_graph_member_3,
-    &sai_metadata_SAI_OBJECT_TYPE_TAM_TRANSPORTER_rev_graph_member_4,
-    NULL
-};
-sai_status_t sai_metadata_generic_create_SAI_OBJECT_TYPE_TAM_TRANSPORTER(
-    _Inout_ sai_object_meta_key_t *meta_key,
-    _In_ sai_object_id_t switch_id,
-    _In_ uint32_t attr_count,
-    _In_ const sai_attribute_t *attr_list)
-{
-    return sai_metadata_sai_tam_api->create_tam_transporter(&meta_key->objectkey.key.object_id, switch_id, attr_count, attr_list);
-}
-sai_status_t sai_metadata_generic_remove_SAI_OBJECT_TYPE_TAM_TRANSPORTER(
-    _In_ const sai_object_meta_key_t *meta_key)
-{
-    return sai_metadata_sai_tam_api->remove_tam_transporter(meta_key->objectkey.key.object_id);
-}
-sai_status_t sai_metadata_generic_set_SAI_OBJECT_TYPE_TAM_TRANSPORTER(
-    _In_ const sai_object_meta_key_t *meta_key,
-    _In_ const sai_attribute_t *attr)
-{
-    return sai_metadata_sai_tam_api->set_tam_transporter_attribute(meta_key->objectkey.key.object_id, attr);
-}
-sai_status_t sai_metadata_generic_get_SAI_OBJECT_TYPE_TAM_TRANSPORTER(
-    _In_ const sai_object_meta_key_t *meta_key,
-    _In_ uint32_t attr_count,
-    _Inout_ sai_attribute_t *attr_list)
-{
-    return sai_metadata_sai_tam_api->get_tam_transporter_attribute(meta_key->objectkey.key.object_id, attr_count, attr_list);
-}
-const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_TAM_TRANSPORTER = {
-    .objecttype           = SAI_OBJECT_TYPE_TAM_TRANSPORTER,
-    .objecttypename       = "SAI_OBJECT_TYPE_TAM_TRANSPORTER",
-    .attridstart          = SAI_TAM_TRANSPORTER_ATTR_START,
-    .attridend            = SAI_TAM_TRANSPORTER_ATTR_END,
-    .enummetadata         = &sai_metadata_enum_sai_tam_transporter_attr_t,
-    .attrmetadata         = sai_metadata_object_type_sai_tam_transporter_attr_t,
-    .attrmetadatalength   = 3,
-    .isnonobjectid        = false,
-    .isobjectid           = !false,
-    .structmembers        = NULL,
-    .structmemberscount   = 0,
-    .revgraphmembers      = sai_metadata_SAI_OBJECT_TYPE_TAM_TRANSPORTER_rev_graph_members,
-    .revgraphmemberscount = 5,
-    .create               = sai_metadata_generic_create_SAI_OBJECT_TYPE_TAM_TRANSPORTER,
-    .remove               = sai_metadata_generic_remove_SAI_OBJECT_TYPE_TAM_TRANSPORTER,
-    .set                  = sai_metadata_generic_set_SAI_OBJECT_TYPE_TAM_TRANSPORTER,
-    .get                  = sai_metadata_generic_get_SAI_OBJECT_TYPE_TAM_TRANSPORTER,
-    .isexperimental       = false,
-    .statenum             = NULL,
-};
-const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_TAM_THRESHOLD_rev_graph_member_0 = {
-    .objecttype          = SAI_OBJECT_TYPE_TAM_THRESHOLD,
-    .depobjecttype       = SAI_OBJECT_TYPE_TAM,
-    .attrmetadata        = &sai_metadata_attr_SAI_TAM_ATTR_THRESHOLD_LIST,
-    .structmember        = NULL,
-};
-const sai_rev_graph_member_t* const sai_metadata_SAI_OBJECT_TYPE_TAM_THRESHOLD_rev_graph_members[] = {
-    &sai_metadata_SAI_OBJECT_TYPE_TAM_THRESHOLD_rev_graph_member_0,
-    NULL
-};
-sai_status_t sai_metadata_generic_create_SAI_OBJECT_TYPE_TAM_THRESHOLD(
-    _Inout_ sai_object_meta_key_t *meta_key,
-    _In_ sai_object_id_t switch_id,
-    _In_ uint32_t attr_count,
-    _In_ const sai_attribute_t *attr_list)
-{
-    return sai_metadata_sai_tam_api->create_tam_threshold(&meta_key->objectkey.key.object_id, switch_id, attr_count, attr_list);
-}
-sai_status_t sai_metadata_generic_remove_SAI_OBJECT_TYPE_TAM_THRESHOLD(
-    _In_ const sai_object_meta_key_t *meta_key)
-{
-    return sai_metadata_sai_tam_api->remove_tam_threshold(meta_key->objectkey.key.object_id);
-}
-sai_status_t sai_metadata_generic_set_SAI_OBJECT_TYPE_TAM_THRESHOLD(
-    _In_ const sai_object_meta_key_t *meta_key,
-    _In_ const sai_attribute_t *attr)
-{
-    return sai_metadata_sai_tam_api->set_tam_threshold_attribute(meta_key->objectkey.key.object_id, attr);
-}
-sai_status_t sai_metadata_generic_get_SAI_OBJECT_TYPE_TAM_THRESHOLD(
-    _In_ const sai_object_meta_key_t *meta_key,
-    _In_ uint32_t attr_count,
-    _Inout_ sai_attribute_t *attr_list)
-{
-    return sai_metadata_sai_tam_api->get_tam_threshold_attribute(meta_key->objectkey.key.object_id, attr_count, attr_list);
-}
-const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_TAM_THRESHOLD = {
-    .objecttype           = SAI_OBJECT_TYPE_TAM_THRESHOLD,
-    .objecttypename       = "SAI_OBJECT_TYPE_TAM_THRESHOLD",
-    .attridstart          = SAI_TAM_THRESHOLD_ATTR_START,
-    .attridend            = SAI_TAM_THRESHOLD_ATTR_END,
-    .enummetadata         = &sai_metadata_enum_sai_tam_threshold_attr_t,
-    .attrmetadata         = sai_metadata_object_type_sai_tam_threshold_attr_t,
-    .attrmetadatalength   = 6,
-    .isnonobjectid        = false,
-    .isobjectid           = !false,
-    .structmembers        = NULL,
-    .structmemberscount   = 0,
-    .revgraphmembers      = sai_metadata_SAI_OBJECT_TYPE_TAM_THRESHOLD_rev_graph_members,
-    .revgraphmemberscount = 1,
-    .create               = sai_metadata_generic_create_SAI_OBJECT_TYPE_TAM_THRESHOLD,
-    .remove               = sai_metadata_generic_remove_SAI_OBJECT_TYPE_TAM_THRESHOLD,
-    .set                  = sai_metadata_generic_set_SAI_OBJECT_TYPE_TAM_THRESHOLD,
-    .get                  = sai_metadata_generic_get_SAI_OBJECT_TYPE_TAM_THRESHOLD,
     .isexperimental       = false,
     .statenum             = NULL,
 };
@@ -60847,110 +62310,6 @@ const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_INSEG
     .get                  = sai_metadata_generic_get_SAI_OBJECT_TYPE_INSEG_ENTRY,
     .isexperimental       = false,
     .statenum             = NULL,
-};
-sai_status_t sai_metadata_generic_create_SAI_OBJECT_TYPE_TAM_HISTOGRAM(
-    _Inout_ sai_object_meta_key_t *meta_key,
-    _In_ sai_object_id_t switch_id,
-    _In_ uint32_t attr_count,
-    _In_ const sai_attribute_t *attr_list)
-{
-    return sai_metadata_sai_uburst_api->create_tam_histogram(&meta_key->objectkey.key.object_id, switch_id, attr_count, attr_list);
-}
-sai_status_t sai_metadata_generic_remove_SAI_OBJECT_TYPE_TAM_HISTOGRAM(
-    _In_ const sai_object_meta_key_t *meta_key)
-{
-    return sai_metadata_sai_uburst_api->remove_tam_histogram(meta_key->objectkey.key.object_id);
-}
-sai_status_t sai_metadata_generic_set_SAI_OBJECT_TYPE_TAM_HISTOGRAM(
-    _In_ const sai_object_meta_key_t *meta_key,
-    _In_ const sai_attribute_t *attr)
-{
-    return sai_metadata_sai_uburst_api->set_tam_histogram_attribute(meta_key->objectkey.key.object_id, attr);
-}
-sai_status_t sai_metadata_generic_get_SAI_OBJECT_TYPE_TAM_HISTOGRAM(
-    _In_ const sai_object_meta_key_t *meta_key,
-    _In_ uint32_t attr_count,
-    _Inout_ sai_attribute_t *attr_list)
-{
-    return sai_metadata_sai_uburst_api->get_tam_histogram_attribute(meta_key->objectkey.key.object_id, attr_count, attr_list);
-}
-const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_TAM_HISTOGRAM = {
-    .objecttype           = SAI_OBJECT_TYPE_TAM_HISTOGRAM,
-    .objecttypename       = "SAI_OBJECT_TYPE_TAM_HISTOGRAM",
-    .attridstart          = SAI_TAM_HISTOGRAM_ATTR_START,
-    .attridend            = SAI_TAM_HISTOGRAM_ATTR_END,
-    .enummetadata         = &sai_metadata_enum_sai_tam_histogram_attr_t,
-    .attrmetadata         = sai_metadata_object_type_sai_tam_histogram_attr_t,
-    .attrmetadatalength   = 6,
-    .isnonobjectid        = false,
-    .isobjectid           = !false,
-    .structmembers        = NULL,
-    .structmemberscount   = 0,
-    .revgraphmembers      = NULL,
-    .revgraphmemberscount = 0,
-    .create               = sai_metadata_generic_create_SAI_OBJECT_TYPE_TAM_HISTOGRAM,
-    .remove               = sai_metadata_generic_remove_SAI_OBJECT_TYPE_TAM_HISTOGRAM,
-    .set                  = sai_metadata_generic_set_SAI_OBJECT_TYPE_TAM_HISTOGRAM,
-    .get                  = sai_metadata_generic_get_SAI_OBJECT_TYPE_TAM_HISTOGRAM,
-    .isexperimental       = false,
-    .statenum             = NULL,
-};
-const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_TAM_MICROBURST_rev_graph_member_0 = {
-    .objecttype          = SAI_OBJECT_TYPE_TAM_MICROBURST,
-    .depobjecttype       = SAI_OBJECT_TYPE_TAM_HISTOGRAM,
-    .attrmetadata        = &sai_metadata_attr_SAI_TAM_HISTOGRAM_ATTR_STAT_TYPE,
-    .structmember        = NULL,
-};
-const sai_rev_graph_member_t* const sai_metadata_SAI_OBJECT_TYPE_TAM_MICROBURST_rev_graph_members[] = {
-    &sai_metadata_SAI_OBJECT_TYPE_TAM_MICROBURST_rev_graph_member_0,
-    NULL
-};
-sai_status_t sai_metadata_generic_create_SAI_OBJECT_TYPE_TAM_MICROBURST(
-    _Inout_ sai_object_meta_key_t *meta_key,
-    _In_ sai_object_id_t switch_id,
-    _In_ uint32_t attr_count,
-    _In_ const sai_attribute_t *attr_list)
-{
-    return sai_metadata_sai_uburst_api->create_tam_microburst(&meta_key->objectkey.key.object_id, switch_id, attr_count, attr_list);
-}
-sai_status_t sai_metadata_generic_remove_SAI_OBJECT_TYPE_TAM_MICROBURST(
-    _In_ const sai_object_meta_key_t *meta_key)
-{
-    return sai_metadata_sai_uburst_api->remove_tam_microburst(meta_key->objectkey.key.object_id);
-}
-sai_status_t sai_metadata_generic_set_SAI_OBJECT_TYPE_TAM_MICROBURST(
-    _In_ const sai_object_meta_key_t *meta_key,
-    _In_ const sai_attribute_t *attr)
-{
-    return sai_metadata_sai_uburst_api->set_tam_microburst_attribute(meta_key->objectkey.key.object_id, attr);
-}
-sai_status_t sai_metadata_generic_get_SAI_OBJECT_TYPE_TAM_MICROBURST(
-    _In_ const sai_object_meta_key_t *meta_key,
-    _In_ uint32_t attr_count,
-    _Inout_ sai_attribute_t *attr_list)
-{
-    return sai_metadata_sai_uburst_api->get_tam_microburst_attribute(meta_key->objectkey.key.object_id, attr_count, attr_list);
-}
-const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_TAM_MICROBURST = {
-    .objecttype           = SAI_OBJECT_TYPE_TAM_MICROBURST,
-    .objecttypename       = "SAI_OBJECT_TYPE_TAM_MICROBURST",
-    .attridstart          = SAI_TAM_MICROBURST_ATTR_START,
-    .attridend            = SAI_TAM_MICROBURST_ATTR_END,
-    .enummetadata         = &sai_metadata_enum_sai_tam_microburst_attr_t,
-    .attrmetadata         = sai_metadata_object_type_sai_tam_microburst_attr_t,
-    .attrmetadatalength   = 6,
-    .isnonobjectid        = false,
-    .isobjectid           = !false,
-    .structmembers        = NULL,
-    .structmemberscount   = 0,
-    .revgraphmembers      = sai_metadata_SAI_OBJECT_TYPE_TAM_MICROBURST_rev_graph_members,
-    .revgraphmemberscount = 1,
-    .create               = sai_metadata_generic_create_SAI_OBJECT_TYPE_TAM_MICROBURST,
-    .remove               = sai_metadata_generic_remove_SAI_OBJECT_TYPE_TAM_MICROBURST,
-    .set                  = sai_metadata_generic_set_SAI_OBJECT_TYPE_TAM_MICROBURST,
-    .get                  = sai_metadata_generic_get_SAI_OBJECT_TYPE_TAM_MICROBURST,
-    .isexperimental       = false,
-    .statenum             = &sai_metadata_enum_sai_tam_microburst_stat_t,
 };
 sai_status_t sai_metadata_generic_create_SAI_OBJECT_TYPE_DTEL(
     _Inout_ sai_object_meta_key_t *meta_key,
@@ -61389,6 +62748,533 @@ const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_ISOLA
     .isexperimental       = false,
     .statenum             = NULL,
 };
+const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_TAM_MATH_FUNC_rev_graph_member_0 = {
+    .objecttype          = SAI_OBJECT_TYPE_TAM_MATH_FUNC,
+    .depobjecttype       = SAI_OBJECT_TYPE_TAM_TEL_TYPE,
+    .attrmetadata        = &sai_metadata_attr_SAI_TAM_TEL_TYPE_ATTR_MATH_FUNC,
+    .structmember        = NULL,
+};
+const sai_rev_graph_member_t* const sai_metadata_SAI_OBJECT_TYPE_TAM_MATH_FUNC_rev_graph_members[] = {
+    &sai_metadata_SAI_OBJECT_TYPE_TAM_MATH_FUNC_rev_graph_member_0,
+    NULL
+};
+sai_status_t sai_metadata_generic_create_SAI_OBJECT_TYPE_TAM_MATH_FUNC(
+    _Inout_ sai_object_meta_key_t *meta_key,
+    _In_ sai_object_id_t switch_id,
+    _In_ uint32_t attr_count,
+    _In_ const sai_attribute_t *attr_list)
+{
+    return sai_metadata_sai_tam_api->create_tam_math_func(&meta_key->objectkey.key.object_id, switch_id, attr_count, attr_list);
+}
+sai_status_t sai_metadata_generic_remove_SAI_OBJECT_TYPE_TAM_MATH_FUNC(
+    _In_ const sai_object_meta_key_t *meta_key)
+{
+    return sai_metadata_sai_tam_api->remove_tam_math_func(meta_key->objectkey.key.object_id);
+}
+sai_status_t sai_metadata_generic_set_SAI_OBJECT_TYPE_TAM_MATH_FUNC(
+    _In_ const sai_object_meta_key_t *meta_key,
+    _In_ const sai_attribute_t *attr)
+{
+    return sai_metadata_sai_tam_api->set_tam_math_func_attribute(meta_key->objectkey.key.object_id, attr);
+}
+sai_status_t sai_metadata_generic_get_SAI_OBJECT_TYPE_TAM_MATH_FUNC(
+    _In_ const sai_object_meta_key_t *meta_key,
+    _In_ uint32_t attr_count,
+    _Inout_ sai_attribute_t *attr_list)
+{
+    return sai_metadata_sai_tam_api->get_tam_math_func_attribute(meta_key->objectkey.key.object_id, attr_count, attr_list);
+}
+const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_TAM_MATH_FUNC = {
+    .objecttype           = SAI_OBJECT_TYPE_TAM_MATH_FUNC,
+    .objecttypename       = "SAI_OBJECT_TYPE_TAM_MATH_FUNC",
+    .attridstart          = SAI_TAM_MATH_FUNC_ATTR_START,
+    .attridend            = SAI_TAM_MATH_FUNC_ATTR_END,
+    .enummetadata         = &sai_metadata_enum_sai_tam_math_func_attr_t,
+    .attrmetadata         = sai_metadata_object_type_sai_tam_math_func_attr_t,
+    .attrmetadatalength   = 1,
+    .isnonobjectid        = false,
+    .isobjectid           = !false,
+    .structmembers        = NULL,
+    .structmemberscount   = 0,
+    .revgraphmembers      = sai_metadata_SAI_OBJECT_TYPE_TAM_MATH_FUNC_rev_graph_members,
+    .revgraphmemberscount = 1,
+    .create               = sai_metadata_generic_create_SAI_OBJECT_TYPE_TAM_MATH_FUNC,
+    .remove               = sai_metadata_generic_remove_SAI_OBJECT_TYPE_TAM_MATH_FUNC,
+    .set                  = sai_metadata_generic_set_SAI_OBJECT_TYPE_TAM_MATH_FUNC,
+    .get                  = sai_metadata_generic_get_SAI_OBJECT_TYPE_TAM_MATH_FUNC,
+    .isexperimental       = false,
+    .statenum             = NULL,
+};
+const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_TAM_REPORT_rev_graph_member_0 = {
+    .objecttype          = SAI_OBJECT_TYPE_TAM_REPORT,
+    .depobjecttype       = SAI_OBJECT_TYPE_TAM_EVENT_ACTION,
+    .attrmetadata        = &sai_metadata_attr_SAI_TAM_EVENT_ACTION_ATTR_REPORT_TYPE,
+    .structmember        = NULL,
+};
+const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_TAM_REPORT_rev_graph_member_1 = {
+    .objecttype          = SAI_OBJECT_TYPE_TAM_REPORT,
+    .depobjecttype       = SAI_OBJECT_TYPE_TAM_TEL_TYPE,
+    .attrmetadata        = &sai_metadata_attr_SAI_TAM_TEL_TYPE_ATTR_REPORT_ID,
+    .structmember        = NULL,
+};
+const sai_rev_graph_member_t* const sai_metadata_SAI_OBJECT_TYPE_TAM_REPORT_rev_graph_members[] = {
+    &sai_metadata_SAI_OBJECT_TYPE_TAM_REPORT_rev_graph_member_0,
+    &sai_metadata_SAI_OBJECT_TYPE_TAM_REPORT_rev_graph_member_1,
+    NULL
+};
+sai_status_t sai_metadata_generic_create_SAI_OBJECT_TYPE_TAM_REPORT(
+    _Inout_ sai_object_meta_key_t *meta_key,
+    _In_ sai_object_id_t switch_id,
+    _In_ uint32_t attr_count,
+    _In_ const sai_attribute_t *attr_list)
+{
+    return sai_metadata_sai_tam_api->create_tam_report(&meta_key->objectkey.key.object_id, switch_id, attr_count, attr_list);
+}
+sai_status_t sai_metadata_generic_remove_SAI_OBJECT_TYPE_TAM_REPORT(
+    _In_ const sai_object_meta_key_t *meta_key)
+{
+    return sai_metadata_sai_tam_api->remove_tam_report(meta_key->objectkey.key.object_id);
+}
+sai_status_t sai_metadata_generic_set_SAI_OBJECT_TYPE_TAM_REPORT(
+    _In_ const sai_object_meta_key_t *meta_key,
+    _In_ const sai_attribute_t *attr)
+{
+    return sai_metadata_sai_tam_api->set_tam_report_attribute(meta_key->objectkey.key.object_id, attr);
+}
+sai_status_t sai_metadata_generic_get_SAI_OBJECT_TYPE_TAM_REPORT(
+    _In_ const sai_object_meta_key_t *meta_key,
+    _In_ uint32_t attr_count,
+    _Inout_ sai_attribute_t *attr_list)
+{
+    return sai_metadata_sai_tam_api->get_tam_report_attribute(meta_key->objectkey.key.object_id, attr_count, attr_list);
+}
+const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_TAM_REPORT = {
+    .objecttype           = SAI_OBJECT_TYPE_TAM_REPORT,
+    .objecttypename       = "SAI_OBJECT_TYPE_TAM_REPORT",
+    .attridstart          = SAI_TAM_REPORT_ATTR_START,
+    .attridend            = SAI_TAM_REPORT_ATTR_END,
+    .enummetadata         = &sai_metadata_enum_sai_tam_report_attr_t,
+    .attrmetadata         = sai_metadata_object_type_sai_tam_report_attr_t,
+    .attrmetadatalength   = 3,
+    .isnonobjectid        = false,
+    .isobjectid           = !false,
+    .structmembers        = NULL,
+    .structmemberscount   = 0,
+    .revgraphmembers      = sai_metadata_SAI_OBJECT_TYPE_TAM_REPORT_rev_graph_members,
+    .revgraphmemberscount = 2,
+    .create               = sai_metadata_generic_create_SAI_OBJECT_TYPE_TAM_REPORT,
+    .remove               = sai_metadata_generic_remove_SAI_OBJECT_TYPE_TAM_REPORT,
+    .set                  = sai_metadata_generic_set_SAI_OBJECT_TYPE_TAM_REPORT,
+    .get                  = sai_metadata_generic_get_SAI_OBJECT_TYPE_TAM_REPORT,
+    .isexperimental       = false,
+    .statenum             = NULL,
+};
+const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_TAM_EVENT_THRESHOLD_rev_graph_member_0 = {
+    .objecttype          = SAI_OBJECT_TYPE_TAM_EVENT_THRESHOLD,
+    .depobjecttype       = SAI_OBJECT_TYPE_TAM_EVENT,
+    .attrmetadata        = &sai_metadata_attr_SAI_TAM_EVENT_ATTR_THRESHOLD,
+    .structmember        = NULL,
+};
+const sai_rev_graph_member_t* const sai_metadata_SAI_OBJECT_TYPE_TAM_EVENT_THRESHOLD_rev_graph_members[] = {
+    &sai_metadata_SAI_OBJECT_TYPE_TAM_EVENT_THRESHOLD_rev_graph_member_0,
+    NULL
+};
+sai_status_t sai_metadata_generic_create_SAI_OBJECT_TYPE_TAM_EVENT_THRESHOLD(
+    _Inout_ sai_object_meta_key_t *meta_key,
+    _In_ sai_object_id_t switch_id,
+    _In_ uint32_t attr_count,
+    _In_ const sai_attribute_t *attr_list)
+{
+    return sai_metadata_sai_tam_api->create_tam_event_threshold(&meta_key->objectkey.key.object_id, switch_id, attr_count, attr_list);
+}
+sai_status_t sai_metadata_generic_remove_SAI_OBJECT_TYPE_TAM_EVENT_THRESHOLD(
+    _In_ const sai_object_meta_key_t *meta_key)
+{
+    return sai_metadata_sai_tam_api->remove_tam_event_threshold(meta_key->objectkey.key.object_id);
+}
+sai_status_t sai_metadata_generic_set_SAI_OBJECT_TYPE_TAM_EVENT_THRESHOLD(
+    _In_ const sai_object_meta_key_t *meta_key,
+    _In_ const sai_attribute_t *attr)
+{
+    return sai_metadata_sai_tam_api->set_tam_event_threshold_attribute(meta_key->objectkey.key.object_id, attr);
+}
+sai_status_t sai_metadata_generic_get_SAI_OBJECT_TYPE_TAM_EVENT_THRESHOLD(
+    _In_ const sai_object_meta_key_t *meta_key,
+    _In_ uint32_t attr_count,
+    _Inout_ sai_attribute_t *attr_list)
+{
+    return sai_metadata_sai_tam_api->get_tam_event_threshold_attribute(meta_key->objectkey.key.object_id, attr_count, attr_list);
+}
+const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_TAM_EVENT_THRESHOLD = {
+    .objecttype           = SAI_OBJECT_TYPE_TAM_EVENT_THRESHOLD,
+    .objecttypename       = "SAI_OBJECT_TYPE_TAM_EVENT_THRESHOLD",
+    .attridstart          = SAI_TAM_EVENT_THRESHOLD_ATTR_START,
+    .attridend            = SAI_TAM_EVENT_THRESHOLD_ATTR_END,
+    .enummetadata         = &sai_metadata_enum_sai_tam_event_threshold_attr_t,
+    .attrmetadata         = sai_metadata_object_type_sai_tam_event_threshold_attr_t,
+    .attrmetadatalength   = 6,
+    .isnonobjectid        = false,
+    .isobjectid           = !false,
+    .structmembers        = NULL,
+    .structmemberscount   = 0,
+    .revgraphmembers      = sai_metadata_SAI_OBJECT_TYPE_TAM_EVENT_THRESHOLD_rev_graph_members,
+    .revgraphmemberscount = 1,
+    .create               = sai_metadata_generic_create_SAI_OBJECT_TYPE_TAM_EVENT_THRESHOLD,
+    .remove               = sai_metadata_generic_remove_SAI_OBJECT_TYPE_TAM_EVENT_THRESHOLD,
+    .set                  = sai_metadata_generic_set_SAI_OBJECT_TYPE_TAM_EVENT_THRESHOLD,
+    .get                  = sai_metadata_generic_get_SAI_OBJECT_TYPE_TAM_EVENT_THRESHOLD,
+    .isexperimental       = false,
+    .statenum             = NULL,
+};
+const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_TAM_TEL_TYPE_rev_graph_member_0 = {
+    .objecttype          = SAI_OBJECT_TYPE_TAM_TEL_TYPE,
+    .depobjecttype       = SAI_OBJECT_TYPE_TAM_TELEMETRY,
+    .attrmetadata        = &sai_metadata_attr_SAI_TAM_TELEMETRY_ATTR_TAM_TYPE_LIST,
+    .structmember        = NULL,
+};
+const sai_rev_graph_member_t* const sai_metadata_SAI_OBJECT_TYPE_TAM_TEL_TYPE_rev_graph_members[] = {
+    &sai_metadata_SAI_OBJECT_TYPE_TAM_TEL_TYPE_rev_graph_member_0,
+    NULL
+};
+sai_status_t sai_metadata_generic_create_SAI_OBJECT_TYPE_TAM_TEL_TYPE(
+    _Inout_ sai_object_meta_key_t *meta_key,
+    _In_ sai_object_id_t switch_id,
+    _In_ uint32_t attr_count,
+    _In_ const sai_attribute_t *attr_list)
+{
+    return sai_metadata_sai_tam_api->create_tam_tel_type(&meta_key->objectkey.key.object_id, switch_id, attr_count, attr_list);
+}
+sai_status_t sai_metadata_generic_remove_SAI_OBJECT_TYPE_TAM_TEL_TYPE(
+    _In_ const sai_object_meta_key_t *meta_key)
+{
+    return sai_metadata_sai_tam_api->remove_tam_tel_type(meta_key->objectkey.key.object_id);
+}
+sai_status_t sai_metadata_generic_set_SAI_OBJECT_TYPE_TAM_TEL_TYPE(
+    _In_ const sai_object_meta_key_t *meta_key,
+    _In_ const sai_attribute_t *attr)
+{
+    return sai_metadata_sai_tam_api->set_tam_tel_type_attribute(meta_key->objectkey.key.object_id, attr);
+}
+sai_status_t sai_metadata_generic_get_SAI_OBJECT_TYPE_TAM_TEL_TYPE(
+    _In_ const sai_object_meta_key_t *meta_key,
+    _In_ uint32_t attr_count,
+    _Inout_ sai_attribute_t *attr_list)
+{
+    return sai_metadata_sai_tam_api->get_tam_tel_type_attribute(meta_key->objectkey.key.object_id, attr_count, attr_list);
+}
+const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_TAM_TEL_TYPE = {
+    .objecttype           = SAI_OBJECT_TYPE_TAM_TEL_TYPE,
+    .objecttypename       = "SAI_OBJECT_TYPE_TAM_TEL_TYPE",
+    .attridstart          = SAI_TAM_TEL_TYPE_ATTR_START,
+    .attridend            = SAI_TAM_TEL_TYPE_ATTR_END,
+    .enummetadata         = &sai_metadata_enum_sai_tam_tel_type_attr_t,
+    .attrmetadata         = sai_metadata_object_type_sai_tam_tel_type_attr_t,
+    .attrmetadatalength   = 15,
+    .isnonobjectid        = false,
+    .isobjectid           = !false,
+    .structmembers        = NULL,
+    .structmemberscount   = 0,
+    .revgraphmembers      = sai_metadata_SAI_OBJECT_TYPE_TAM_TEL_TYPE_rev_graph_members,
+    .revgraphmemberscount = 1,
+    .create               = sai_metadata_generic_create_SAI_OBJECT_TYPE_TAM_TEL_TYPE,
+    .remove               = sai_metadata_generic_remove_SAI_OBJECT_TYPE_TAM_TEL_TYPE,
+    .set                  = sai_metadata_generic_set_SAI_OBJECT_TYPE_TAM_TEL_TYPE,
+    .get                  = sai_metadata_generic_get_SAI_OBJECT_TYPE_TAM_TEL_TYPE,
+    .isexperimental       = false,
+    .statenum             = NULL,
+};
+const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_TAM_TRANSPORT_rev_graph_member_0 = {
+    .objecttype          = SAI_OBJECT_TYPE_TAM_TRANSPORT,
+    .depobjecttype       = SAI_OBJECT_TYPE_TAM_COLLECTOR,
+    .attrmetadata        = &sai_metadata_attr_SAI_TAM_COLLECTOR_ATTR_TRANSPORT,
+    .structmember        = NULL,
+};
+const sai_rev_graph_member_t* const sai_metadata_SAI_OBJECT_TYPE_TAM_TRANSPORT_rev_graph_members[] = {
+    &sai_metadata_SAI_OBJECT_TYPE_TAM_TRANSPORT_rev_graph_member_0,
+    NULL
+};
+sai_status_t sai_metadata_generic_create_SAI_OBJECT_TYPE_TAM_TRANSPORT(
+    _Inout_ sai_object_meta_key_t *meta_key,
+    _In_ sai_object_id_t switch_id,
+    _In_ uint32_t attr_count,
+    _In_ const sai_attribute_t *attr_list)
+{
+    return sai_metadata_sai_tam_api->create_tam_transport(&meta_key->objectkey.key.object_id, switch_id, attr_count, attr_list);
+}
+sai_status_t sai_metadata_generic_remove_SAI_OBJECT_TYPE_TAM_TRANSPORT(
+    _In_ const sai_object_meta_key_t *meta_key)
+{
+    return sai_metadata_sai_tam_api->remove_tam_transport(meta_key->objectkey.key.object_id);
+}
+sai_status_t sai_metadata_generic_set_SAI_OBJECT_TYPE_TAM_TRANSPORT(
+    _In_ const sai_object_meta_key_t *meta_key,
+    _In_ const sai_attribute_t *attr)
+{
+    return sai_metadata_sai_tam_api->set_tam_transport_attribute(meta_key->objectkey.key.object_id, attr);
+}
+sai_status_t sai_metadata_generic_get_SAI_OBJECT_TYPE_TAM_TRANSPORT(
+    _In_ const sai_object_meta_key_t *meta_key,
+    _In_ uint32_t attr_count,
+    _Inout_ sai_attribute_t *attr_list)
+{
+    return sai_metadata_sai_tam_api->get_tam_transport_attribute(meta_key->objectkey.key.object_id, attr_count, attr_list);
+}
+const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_TAM_TRANSPORT = {
+    .objecttype           = SAI_OBJECT_TYPE_TAM_TRANSPORT,
+    .objecttypename       = "SAI_OBJECT_TYPE_TAM_TRANSPORT",
+    .attridstart          = SAI_TAM_TRANSPORT_ATTR_START,
+    .attridend            = SAI_TAM_TRANSPORT_ATTR_END,
+    .enummetadata         = &sai_metadata_enum_sai_tam_transport_attr_t,
+    .attrmetadata         = sai_metadata_object_type_sai_tam_transport_attr_t,
+    .attrmetadatalength   = 5,
+    .isnonobjectid        = false,
+    .isobjectid           = !false,
+    .structmembers        = NULL,
+    .structmemberscount   = 0,
+    .revgraphmembers      = sai_metadata_SAI_OBJECT_TYPE_TAM_TRANSPORT_rev_graph_members,
+    .revgraphmemberscount = 1,
+    .create               = sai_metadata_generic_create_SAI_OBJECT_TYPE_TAM_TRANSPORT,
+    .remove               = sai_metadata_generic_remove_SAI_OBJECT_TYPE_TAM_TRANSPORT,
+    .set                  = sai_metadata_generic_set_SAI_OBJECT_TYPE_TAM_TRANSPORT,
+    .get                  = sai_metadata_generic_get_SAI_OBJECT_TYPE_TAM_TRANSPORT,
+    .isexperimental       = false,
+    .statenum             = NULL,
+};
+const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_TAM_TELEMETRY_rev_graph_member_0 = {
+    .objecttype          = SAI_OBJECT_TYPE_TAM_TELEMETRY,
+    .depobjecttype       = SAI_OBJECT_TYPE_TAM,
+    .attrmetadata        = &sai_metadata_attr_SAI_TAM_ATTR_TELEMETRY_OBJECTS_LIST,
+    .structmember        = NULL,
+};
+const sai_rev_graph_member_t* const sai_metadata_SAI_OBJECT_TYPE_TAM_TELEMETRY_rev_graph_members[] = {
+    &sai_metadata_SAI_OBJECT_TYPE_TAM_TELEMETRY_rev_graph_member_0,
+    NULL
+};
+sai_status_t sai_metadata_generic_create_SAI_OBJECT_TYPE_TAM_TELEMETRY(
+    _Inout_ sai_object_meta_key_t *meta_key,
+    _In_ sai_object_id_t switch_id,
+    _In_ uint32_t attr_count,
+    _In_ const sai_attribute_t *attr_list)
+{
+    return sai_metadata_sai_tam_api->create_tam_telemetry(&meta_key->objectkey.key.object_id, switch_id, attr_count, attr_list);
+}
+sai_status_t sai_metadata_generic_remove_SAI_OBJECT_TYPE_TAM_TELEMETRY(
+    _In_ const sai_object_meta_key_t *meta_key)
+{
+    return sai_metadata_sai_tam_api->remove_tam_telemetry(meta_key->objectkey.key.object_id);
+}
+sai_status_t sai_metadata_generic_set_SAI_OBJECT_TYPE_TAM_TELEMETRY(
+    _In_ const sai_object_meta_key_t *meta_key,
+    _In_ const sai_attribute_t *attr)
+{
+    return sai_metadata_sai_tam_api->set_tam_telemetry_attribute(meta_key->objectkey.key.object_id, attr);
+}
+sai_status_t sai_metadata_generic_get_SAI_OBJECT_TYPE_TAM_TELEMETRY(
+    _In_ const sai_object_meta_key_t *meta_key,
+    _In_ uint32_t attr_count,
+    _Inout_ sai_attribute_t *attr_list)
+{
+    return sai_metadata_sai_tam_api->get_tam_telemetry_attribute(meta_key->objectkey.key.object_id, attr_count, attr_list);
+}
+const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_TAM_TELEMETRY = {
+    .objecttype           = SAI_OBJECT_TYPE_TAM_TELEMETRY,
+    .objecttypename       = "SAI_OBJECT_TYPE_TAM_TELEMETRY",
+    .attridstart          = SAI_TAM_TELEMETRY_ATTR_START,
+    .attridend            = SAI_TAM_TELEMETRY_ATTR_END,
+    .enummetadata         = &sai_metadata_enum_sai_tam_telemetry_attr_t,
+    .attrmetadata         = sai_metadata_object_type_sai_tam_telemetry_attr_t,
+    .attrmetadatalength   = 4,
+    .isnonobjectid        = false,
+    .isobjectid           = !false,
+    .structmembers        = NULL,
+    .structmemberscount   = 0,
+    .revgraphmembers      = sai_metadata_SAI_OBJECT_TYPE_TAM_TELEMETRY_rev_graph_members,
+    .revgraphmemberscount = 1,
+    .create               = sai_metadata_generic_create_SAI_OBJECT_TYPE_TAM_TELEMETRY,
+    .remove               = sai_metadata_generic_remove_SAI_OBJECT_TYPE_TAM_TELEMETRY,
+    .set                  = sai_metadata_generic_set_SAI_OBJECT_TYPE_TAM_TELEMETRY,
+    .get                  = sai_metadata_generic_get_SAI_OBJECT_TYPE_TAM_TELEMETRY,
+    .isexperimental       = false,
+    .statenum             = NULL,
+};
+const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_TAM_COLLECTOR_rev_graph_member_0 = {
+    .objecttype          = SAI_OBJECT_TYPE_TAM_COLLECTOR,
+    .depobjecttype       = SAI_OBJECT_TYPE_TAM_EVENT,
+    .attrmetadata        = &sai_metadata_attr_SAI_TAM_EVENT_ATTR_COLLECTOR_LIST,
+    .structmember        = NULL,
+};
+const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_TAM_COLLECTOR_rev_graph_member_1 = {
+    .objecttype          = SAI_OBJECT_TYPE_TAM_COLLECTOR,
+    .depobjecttype       = SAI_OBJECT_TYPE_TAM_TELEMETRY,
+    .attrmetadata        = &sai_metadata_attr_SAI_TAM_TELEMETRY_ATTR_COLLECTOR_LIST,
+    .structmember        = NULL,
+};
+const sai_rev_graph_member_t* const sai_metadata_SAI_OBJECT_TYPE_TAM_COLLECTOR_rev_graph_members[] = {
+    &sai_metadata_SAI_OBJECT_TYPE_TAM_COLLECTOR_rev_graph_member_0,
+    &sai_metadata_SAI_OBJECT_TYPE_TAM_COLLECTOR_rev_graph_member_1,
+    NULL
+};
+sai_status_t sai_metadata_generic_create_SAI_OBJECT_TYPE_TAM_COLLECTOR(
+    _Inout_ sai_object_meta_key_t *meta_key,
+    _In_ sai_object_id_t switch_id,
+    _In_ uint32_t attr_count,
+    _In_ const sai_attribute_t *attr_list)
+{
+    return sai_metadata_sai_tam_api->create_tam_collector(&meta_key->objectkey.key.object_id, switch_id, attr_count, attr_list);
+}
+sai_status_t sai_metadata_generic_remove_SAI_OBJECT_TYPE_TAM_COLLECTOR(
+    _In_ const sai_object_meta_key_t *meta_key)
+{
+    return sai_metadata_sai_tam_api->remove_tam_collector(meta_key->objectkey.key.object_id);
+}
+sai_status_t sai_metadata_generic_set_SAI_OBJECT_TYPE_TAM_COLLECTOR(
+    _In_ const sai_object_meta_key_t *meta_key,
+    _In_ const sai_attribute_t *attr)
+{
+    return sai_metadata_sai_tam_api->set_tam_collector_attribute(meta_key->objectkey.key.object_id, attr);
+}
+sai_status_t sai_metadata_generic_get_SAI_OBJECT_TYPE_TAM_COLLECTOR(
+    _In_ const sai_object_meta_key_t *meta_key,
+    _In_ uint32_t attr_count,
+    _Inout_ sai_attribute_t *attr_list)
+{
+    return sai_metadata_sai_tam_api->get_tam_collector_attribute(meta_key->objectkey.key.object_id, attr_count, attr_list);
+}
+const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_TAM_COLLECTOR = {
+    .objecttype           = SAI_OBJECT_TYPE_TAM_COLLECTOR,
+    .objecttypename       = "SAI_OBJECT_TYPE_TAM_COLLECTOR",
+    .attridstart          = SAI_TAM_COLLECTOR_ATTR_START,
+    .attridend            = SAI_TAM_COLLECTOR_ATTR_END,
+    .enummetadata         = &sai_metadata_enum_sai_tam_collector_attr_t,
+    .attrmetadata         = sai_metadata_object_type_sai_tam_collector_attr_t,
+    .attrmetadatalength   = 7,
+    .isnonobjectid        = false,
+    .isobjectid           = !false,
+    .structmembers        = NULL,
+    .structmemberscount   = 0,
+    .revgraphmembers      = sai_metadata_SAI_OBJECT_TYPE_TAM_COLLECTOR_rev_graph_members,
+    .revgraphmemberscount = 2,
+    .create               = sai_metadata_generic_create_SAI_OBJECT_TYPE_TAM_COLLECTOR,
+    .remove               = sai_metadata_generic_remove_SAI_OBJECT_TYPE_TAM_COLLECTOR,
+    .set                  = sai_metadata_generic_set_SAI_OBJECT_TYPE_TAM_COLLECTOR,
+    .get                  = sai_metadata_generic_get_SAI_OBJECT_TYPE_TAM_COLLECTOR,
+    .isexperimental       = false,
+    .statenum             = NULL,
+};
+const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_TAM_EVENT_ACTION_rev_graph_member_0 = {
+    .objecttype          = SAI_OBJECT_TYPE_TAM_EVENT_ACTION,
+    .depobjecttype       = SAI_OBJECT_TYPE_TAM_EVENT,
+    .attrmetadata        = &sai_metadata_attr_SAI_TAM_EVENT_ATTR_ACTION_LIST,
+    .structmember        = NULL,
+};
+const sai_rev_graph_member_t* const sai_metadata_SAI_OBJECT_TYPE_TAM_EVENT_ACTION_rev_graph_members[] = {
+    &sai_metadata_SAI_OBJECT_TYPE_TAM_EVENT_ACTION_rev_graph_member_0,
+    NULL
+};
+sai_status_t sai_metadata_generic_create_SAI_OBJECT_TYPE_TAM_EVENT_ACTION(
+    _Inout_ sai_object_meta_key_t *meta_key,
+    _In_ sai_object_id_t switch_id,
+    _In_ uint32_t attr_count,
+    _In_ const sai_attribute_t *attr_list)
+{
+    return sai_metadata_sai_tam_api->create_tam_event_action(&meta_key->objectkey.key.object_id, switch_id, attr_count, attr_list);
+}
+sai_status_t sai_metadata_generic_remove_SAI_OBJECT_TYPE_TAM_EVENT_ACTION(
+    _In_ const sai_object_meta_key_t *meta_key)
+{
+    return sai_metadata_sai_tam_api->remove_tam_event_action(meta_key->objectkey.key.object_id);
+}
+sai_status_t sai_metadata_generic_set_SAI_OBJECT_TYPE_TAM_EVENT_ACTION(
+    _In_ const sai_object_meta_key_t *meta_key,
+    _In_ const sai_attribute_t *attr)
+{
+    return sai_metadata_sai_tam_api->set_tam_event_action_attribute(meta_key->objectkey.key.object_id, attr);
+}
+sai_status_t sai_metadata_generic_get_SAI_OBJECT_TYPE_TAM_EVENT_ACTION(
+    _In_ const sai_object_meta_key_t *meta_key,
+    _In_ uint32_t attr_count,
+    _Inout_ sai_attribute_t *attr_list)
+{
+    return sai_metadata_sai_tam_api->get_tam_event_action_attribute(meta_key->objectkey.key.object_id, attr_count, attr_list);
+}
+const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_TAM_EVENT_ACTION = {
+    .objecttype           = SAI_OBJECT_TYPE_TAM_EVENT_ACTION,
+    .objecttypename       = "SAI_OBJECT_TYPE_TAM_EVENT_ACTION",
+    .attridstart          = SAI_TAM_EVENT_ACTION_ATTR_START,
+    .attridend            = SAI_TAM_EVENT_ACTION_ATTR_END,
+    .enummetadata         = &sai_metadata_enum_sai_tam_event_action_attr_t,
+    .attrmetadata         = sai_metadata_object_type_sai_tam_event_action_attr_t,
+    .attrmetadatalength   = 2,
+    .isnonobjectid        = false,
+    .isobjectid           = !false,
+    .structmembers        = NULL,
+    .structmemberscount   = 0,
+    .revgraphmembers      = sai_metadata_SAI_OBJECT_TYPE_TAM_EVENT_ACTION_rev_graph_members,
+    .revgraphmemberscount = 1,
+    .create               = sai_metadata_generic_create_SAI_OBJECT_TYPE_TAM_EVENT_ACTION,
+    .remove               = sai_metadata_generic_remove_SAI_OBJECT_TYPE_TAM_EVENT_ACTION,
+    .set                  = sai_metadata_generic_set_SAI_OBJECT_TYPE_TAM_EVENT_ACTION,
+    .get                  = sai_metadata_generic_get_SAI_OBJECT_TYPE_TAM_EVENT_ACTION,
+    .isexperimental       = false,
+    .statenum             = NULL,
+};
+const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_TAM_EVENT_rev_graph_member_0 = {
+    .objecttype          = SAI_OBJECT_TYPE_TAM_EVENT,
+    .depobjecttype       = SAI_OBJECT_TYPE_TAM,
+    .attrmetadata        = &sai_metadata_attr_SAI_TAM_ATTR_EVENT_OBJECTS_LIST,
+    .structmember        = NULL,
+};
+const sai_rev_graph_member_t* const sai_metadata_SAI_OBJECT_TYPE_TAM_EVENT_rev_graph_members[] = {
+    &sai_metadata_SAI_OBJECT_TYPE_TAM_EVENT_rev_graph_member_0,
+    NULL
+};
+sai_status_t sai_metadata_generic_create_SAI_OBJECT_TYPE_TAM_EVENT(
+    _Inout_ sai_object_meta_key_t *meta_key,
+    _In_ sai_object_id_t switch_id,
+    _In_ uint32_t attr_count,
+    _In_ const sai_attribute_t *attr_list)
+{
+    return sai_metadata_sai_tam_api->create_tam_event(&meta_key->objectkey.key.object_id, switch_id, attr_count, attr_list);
+}
+sai_status_t sai_metadata_generic_remove_SAI_OBJECT_TYPE_TAM_EVENT(
+    _In_ const sai_object_meta_key_t *meta_key)
+{
+    return sai_metadata_sai_tam_api->remove_tam_event(meta_key->objectkey.key.object_id);
+}
+sai_status_t sai_metadata_generic_set_SAI_OBJECT_TYPE_TAM_EVENT(
+    _In_ const sai_object_meta_key_t *meta_key,
+    _In_ const sai_attribute_t *attr)
+{
+    return sai_metadata_sai_tam_api->set_tam_event_attribute(meta_key->objectkey.key.object_id, attr);
+}
+sai_status_t sai_metadata_generic_get_SAI_OBJECT_TYPE_TAM_EVENT(
+    _In_ const sai_object_meta_key_t *meta_key,
+    _In_ uint32_t attr_count,
+    _Inout_ sai_attribute_t *attr_list)
+{
+    return sai_metadata_sai_tam_api->get_tam_event_attribute(meta_key->objectkey.key.object_id, attr_count, attr_list);
+}
+const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_TAM_EVENT = {
+    .objecttype           = SAI_OBJECT_TYPE_TAM_EVENT,
+    .objecttypename       = "SAI_OBJECT_TYPE_TAM_EVENT",
+    .attridstart          = SAI_TAM_EVENT_ATTR_START,
+    .attridend            = SAI_TAM_EVENT_ATTR_END,
+    .enummetadata         = &sai_metadata_enum_sai_tam_event_attr_t,
+    .attrmetadata         = sai_metadata_object_type_sai_tam_event_attr_t,
+    .attrmetadatalength   = 5,
+    .isnonobjectid        = false,
+    .isobjectid           = !false,
+    .structmembers        = NULL,
+    .structmemberscount   = 0,
+    .revgraphmembers      = sai_metadata_SAI_OBJECT_TYPE_TAM_EVENT_rev_graph_members,
+    .revgraphmemberscount = 1,
+    .create               = sai_metadata_generic_create_SAI_OBJECT_TYPE_TAM_EVENT,
+    .remove               = sai_metadata_generic_remove_SAI_OBJECT_TYPE_TAM_EVENT,
+    .set                  = sai_metadata_generic_set_SAI_OBJECT_TYPE_TAM_EVENT,
+    .get                  = sai_metadata_generic_get_SAI_OBJECT_TYPE_TAM_EVENT,
+    .isexperimental       = false,
+    .statenum             = NULL,
+};
 sai_status_t sai_metadata_generic_create_SAI_OBJECT_TYPE_TABLE_BITMAP_CLASSIFICATION_ENTRY(
     _Inout_ sai_object_meta_key_t *meta_key,
     _In_ sai_object_id_t switch_id,
@@ -61469,7 +63355,7 @@ const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_TABLE
     .attridend            = SAI_TABLE_BITMAP_ROUTER_ENTRY_ATTR_END,
     .enummetadata         = &sai_metadata_enum_sai_table_bitmap_router_entry_attr_t,
     .attrmetadata         = sai_metadata_object_type_sai_table_bitmap_router_entry_attr_t,
-    .attrmetadatalength   = 8,
+    .attrmetadatalength   = 9,
     .isnonobjectid        = false,
     .isobjectid           = !false,
     .structmembers        = NULL,
@@ -61482,6 +63368,53 @@ const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_TABLE
     .get                  = sai_metadata_generic_get_SAI_OBJECT_TYPE_TABLE_BITMAP_ROUTER_ENTRY,
     .isexperimental       = true,
     .statenum             = &sai_metadata_enum_sai_table_bitmap_router_entry_stat_t,
+};
+sai_status_t sai_metadata_generic_create_SAI_OBJECT_TYPE_TABLE_META_TUNNEL_ENTRY(
+    _Inout_ sai_object_meta_key_t *meta_key,
+    _In_ sai_object_id_t switch_id,
+    _In_ uint32_t attr_count,
+    _In_ const sai_attribute_t *attr_list)
+{
+    return sai_metadata_sai_bmtor_api->create_table_meta_tunnel_entry(&meta_key->objectkey.key.object_id, switch_id, attr_count, attr_list);
+}
+sai_status_t sai_metadata_generic_remove_SAI_OBJECT_TYPE_TABLE_META_TUNNEL_ENTRY(
+    _In_ const sai_object_meta_key_t *meta_key)
+{
+    return sai_metadata_sai_bmtor_api->remove_table_meta_tunnel_entry(meta_key->objectkey.key.object_id);
+}
+sai_status_t sai_metadata_generic_set_SAI_OBJECT_TYPE_TABLE_META_TUNNEL_ENTRY(
+    _In_ const sai_object_meta_key_t *meta_key,
+    _In_ const sai_attribute_t *attr)
+{
+    return sai_metadata_sai_bmtor_api->set_table_meta_tunnel_entry_attribute(meta_key->objectkey.key.object_id, attr);
+}
+sai_status_t sai_metadata_generic_get_SAI_OBJECT_TYPE_TABLE_META_TUNNEL_ENTRY(
+    _In_ const sai_object_meta_key_t *meta_key,
+    _In_ uint32_t attr_count,
+    _Inout_ sai_attribute_t *attr_list)
+{
+    return sai_metadata_sai_bmtor_api->get_table_meta_tunnel_entry_attribute(meta_key->objectkey.key.object_id, attr_count, attr_list);
+}
+const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_TABLE_META_TUNNEL_ENTRY = {
+    .objecttype           = SAI_OBJECT_TYPE_TABLE_META_TUNNEL_ENTRY,
+    .objecttypename       = "SAI_OBJECT_TYPE_TABLE_META_TUNNEL_ENTRY",
+    .attridstart          = SAI_TABLE_META_TUNNEL_ENTRY_ATTR_START,
+    .attridend            = SAI_TABLE_META_TUNNEL_ENTRY_ATTR_END,
+    .enummetadata         = &sai_metadata_enum_sai_table_meta_tunnel_entry_attr_t,
+    .attrmetadata         = sai_metadata_object_type_sai_table_meta_tunnel_entry_attr_t,
+    .attrmetadatalength   = 5,
+    .isnonobjectid        = false,
+    .isobjectid           = !false,
+    .structmembers        = NULL,
+    .structmemberscount   = 0,
+    .revgraphmembers      = NULL,
+    .revgraphmemberscount = 0,
+    .create               = sai_metadata_generic_create_SAI_OBJECT_TYPE_TABLE_META_TUNNEL_ENTRY,
+    .remove               = sai_metadata_generic_remove_SAI_OBJECT_TYPE_TABLE_META_TUNNEL_ENTRY,
+    .set                  = sai_metadata_generic_set_SAI_OBJECT_TYPE_TABLE_META_TUNNEL_ENTRY,
+    .get                  = sai_metadata_generic_get_SAI_OBJECT_TYPE_TABLE_META_TUNNEL_ENTRY,
+    .isexperimental       = true,
+    .statenum             = &sai_metadata_enum_sai_table_meta_tunnel_entry_stat_t,
 };
 
 /* Object infos table */
@@ -61548,15 +63481,9 @@ const sai_object_type_info_t* const sai_metadata_all_object_type_infos[] = {
     &sai_metadata_object_type_info_SAI_OBJECT_TYPE_BRIDGE_PORT,
     &sai_metadata_object_type_info_SAI_OBJECT_TYPE_TUNNEL_MAP_ENTRY,
     &sai_metadata_object_type_info_SAI_OBJECT_TYPE_TAM,
-    &sai_metadata_object_type_info_SAI_OBJECT_TYPE_TAM_STAT,
-    &sai_metadata_object_type_info_SAI_OBJECT_TYPE_TAM_SNAPSHOT,
-    &sai_metadata_object_type_info_SAI_OBJECT_TYPE_TAM_TRANSPORTER,
-    &sai_metadata_object_type_info_SAI_OBJECT_TYPE_TAM_THRESHOLD,
     &sai_metadata_object_type_info_SAI_OBJECT_TYPE_SEGMENTROUTE_SIDLIST,
     &sai_metadata_object_type_info_SAI_OBJECT_TYPE_PORT_POOL,
     &sai_metadata_object_type_info_SAI_OBJECT_TYPE_INSEG_ENTRY,
-    &sai_metadata_object_type_info_SAI_OBJECT_TYPE_TAM_HISTOGRAM,
-    &sai_metadata_object_type_info_SAI_OBJECT_TYPE_TAM_MICROBURST,
     &sai_metadata_object_type_info_SAI_OBJECT_TYPE_DTEL,
     &sai_metadata_object_type_info_SAI_OBJECT_TYPE_DTEL_QUEUE_REPORT,
     &sai_metadata_object_type_info_SAI_OBJECT_TYPE_DTEL_INT_SESSION,
@@ -61565,8 +63492,18 @@ const sai_object_type_info_t* const sai_metadata_all_object_type_infos[] = {
     &sai_metadata_object_type_info_SAI_OBJECT_TYPE_BFD_SESSION,
     &sai_metadata_object_type_info_SAI_OBJECT_TYPE_ISOLATION_GROUP,
     &sai_metadata_object_type_info_SAI_OBJECT_TYPE_ISOLATION_GROUP_MEMBER,
+    &sai_metadata_object_type_info_SAI_OBJECT_TYPE_TAM_MATH_FUNC,
+    &sai_metadata_object_type_info_SAI_OBJECT_TYPE_TAM_REPORT,
+    &sai_metadata_object_type_info_SAI_OBJECT_TYPE_TAM_EVENT_THRESHOLD,
+    &sai_metadata_object_type_info_SAI_OBJECT_TYPE_TAM_TEL_TYPE,
+    &sai_metadata_object_type_info_SAI_OBJECT_TYPE_TAM_TRANSPORT,
+    &sai_metadata_object_type_info_SAI_OBJECT_TYPE_TAM_TELEMETRY,
+    &sai_metadata_object_type_info_SAI_OBJECT_TYPE_TAM_COLLECTOR,
+    &sai_metadata_object_type_info_SAI_OBJECT_TYPE_TAM_EVENT_ACTION,
+    &sai_metadata_object_type_info_SAI_OBJECT_TYPE_TAM_EVENT,
     &sai_metadata_object_type_info_SAI_OBJECT_TYPE_TABLE_BITMAP_CLASSIFICATION_ENTRY,
     &sai_metadata_object_type_info_SAI_OBJECT_TYPE_TABLE_BITMAP_ROUTER_ENTRY,
+    &sai_metadata_object_type_info_SAI_OBJECT_TYPE_TABLE_META_TUNNEL_ENTRY,
     NULL
 };
 
@@ -62090,6 +64027,9 @@ const sai_attr_metadata_t* const sai_metadata_attr_sorted_by_id_name[] = {
     &sai_metadata_attr_SAI_PORT_ATTR_REMOTE_ADVERTISED_MEDIA_TYPE,
     &sai_metadata_attr_SAI_PORT_ATTR_REMOTE_ADVERTISED_OUI_CODE,
     &sai_metadata_attr_SAI_PORT_ATTR_REMOTE_ADVERTISED_SPEED,
+    &sai_metadata_attr_SAI_PORT_ATTR_SERDES_IDRIVER,
+    &sai_metadata_attr_SAI_PORT_ATTR_SERDES_IPREDRIVER,
+    &sai_metadata_attr_SAI_PORT_ATTR_SERDES_PREEMPHASIS,
     &sai_metadata_attr_SAI_PORT_ATTR_SPEED,
     &sai_metadata_attr_SAI_PORT_ATTR_SUPPORTED_ASYMMETRIC_PAUSE_MODE,
     &sai_metadata_attr_SAI_PORT_ATTR_SUPPORTED_AUTO_NEG_MODE,
@@ -62099,6 +64039,7 @@ const sai_attr_metadata_t* const sai_metadata_attr_sorted_by_id_name[] = {
     &sai_metadata_attr_SAI_PORT_ATTR_SUPPORTED_HALF_DUPLEX_SPEED,
     &sai_metadata_attr_SAI_PORT_ATTR_SUPPORTED_MEDIA_TYPE,
     &sai_metadata_attr_SAI_PORT_ATTR_SUPPORTED_SPEED,
+    &sai_metadata_attr_SAI_PORT_ATTR_TAM_OBJECT,
     &sai_metadata_attr_SAI_PORT_ATTR_TYPE,
     &sai_metadata_attr_SAI_PORT_ATTR_UPDATE_DSCP,
     &sai_metadata_attr_SAI_PORT_POOL_ATTR_BUFFER_POOL_ID,
@@ -62114,6 +64055,7 @@ const sai_attr_metadata_t* const sai_metadata_attr_sorted_by_id_name[] = {
     &sai_metadata_attr_SAI_QUEUE_ATTR_PFC_DLR_INIT,
     &sai_metadata_attr_SAI_QUEUE_ATTR_PORT,
     &sai_metadata_attr_SAI_QUEUE_ATTR_SCHEDULER_PROFILE_ID,
+    &sai_metadata_attr_SAI_QUEUE_ATTR_TAM_OBJECT,
     &sai_metadata_attr_SAI_QUEUE_ATTR_TYPE,
     &sai_metadata_attr_SAI_QUEUE_ATTR_WRED_PROFILE_ID,
     &sai_metadata_attr_SAI_ROUTER_INTERFACE_ATTR_ADMIN_V4_STATE,
@@ -62305,6 +64247,7 @@ const sai_attr_metadata_t* const sai_metadata_attr_sorted_by_id_name[] = {
     &sai_metadata_attr_SAI_SWITCH_ATTR_SWITCH_SHUTDOWN_REQUEST_NOTIFY,
     &sai_metadata_attr_SAI_SWITCH_ATTR_SWITCH_STATE_CHANGE_NOTIFY,
     &sai_metadata_attr_SAI_SWITCH_ATTR_TAM_EVENT_NOTIFY,
+    &sai_metadata_attr_SAI_SWITCH_ATTR_TAM_OBJECT_ID,
     &sai_metadata_attr_SAI_SWITCH_ATTR_TEMP_LIST,
     &sai_metadata_attr_SAI_SWITCH_ATTR_TOTAL_BUFFER_SIZE,
     &sai_metadata_attr_SAI_SWITCH_ATTR_TPID_INNER_VLAN,
@@ -62326,42 +64269,63 @@ const sai_attr_metadata_t* const sai_metadata_attr_sorted_by_id_name[] = {
     &sai_metadata_attr_SAI_TABLE_BITMAP_ROUTER_ENTRY_ATTR_PRIORITY,
     &sai_metadata_attr_SAI_TABLE_BITMAP_ROUTER_ENTRY_ATTR_ROUTER_INTERFACE,
     &sai_metadata_attr_SAI_TABLE_BITMAP_ROUTER_ENTRY_ATTR_TRAP_ID,
-    &sai_metadata_attr_SAI_TAM_ATTR_BUFFER_REPORTING_MODE,
-    &sai_metadata_attr_SAI_TAM_ATTR_BUFFER_TRACKING_ADMIN_STATE,
-    &sai_metadata_attr_SAI_TAM_ATTR_BUFFER_TRACKING_MODE,
-    &sai_metadata_attr_SAI_TAM_ATTR_CLEAR_ALL_THRESHOLDS,
-    &sai_metadata_attr_SAI_TAM_ATTR_LATEST_SNAPSHOT_ID,
-    &sai_metadata_attr_SAI_TAM_ATTR_MAX_NUM_SNAPSHOTS,
-    &sai_metadata_attr_SAI_TAM_ATTR_THRESHOLD_LIST,
-    &sai_metadata_attr_SAI_TAM_ATTR_TOTAL_NUM_STATISTICS,
-    &sai_metadata_attr_SAI_TAM_ATTR_TRACKING_OPTIONS,
-    &sai_metadata_attr_SAI_TAM_ATTR_TRANSPORTER,
-    &sai_metadata_attr_SAI_TAM_HISTOGRAM_ATTR_BIN_BOUNDARY,
-    &sai_metadata_attr_SAI_TAM_HISTOGRAM_ATTR_CLEAR_MODE,
-    &sai_metadata_attr_SAI_TAM_HISTOGRAM_ATTR_RESOLUTION,
-    &sai_metadata_attr_SAI_TAM_HISTOGRAM_ATTR_STAT_TYPE,
-    &sai_metadata_attr_SAI_TAM_HISTOGRAM_ATTR_TAM_ID,
-    &sai_metadata_attr_SAI_TAM_HISTOGRAM_ATTR_TRANSPORTER,
-    &sai_metadata_attr_SAI_TAM_MICROBURST_ATTR_LEVEL_A,
-    &sai_metadata_attr_SAI_TAM_MICROBURST_ATTR_LEVEL_B,
-    &sai_metadata_attr_SAI_TAM_MICROBURST_ATTR_STATISTIC,
-    &sai_metadata_attr_SAI_TAM_MICROBURST_ATTR_STATS,
-    &sai_metadata_attr_SAI_TAM_MICROBURST_ATTR_TAM_ID,
-    &sai_metadata_attr_SAI_TAM_MICROBURST_ATTR_TRANSPORTER,
-    &sai_metadata_attr_SAI_TAM_SNAPSHOT_ATTR_STAT_TYPE,
-    &sai_metadata_attr_SAI_TAM_SNAPSHOT_ATTR_TAM_ID,
-    &sai_metadata_attr_SAI_TAM_SNAPSHOT_ATTR_TRANSPORTER,
-    &sai_metadata_attr_SAI_TAM_STAT_ATTR_COUNTER_ID,
-    &sai_metadata_attr_SAI_TAM_STAT_ATTR_PARENT_ID,
-    &sai_metadata_attr_SAI_TAM_THRESHOLD_ATTR_LEVEL,
-    &sai_metadata_attr_SAI_TAM_THRESHOLD_ATTR_SNAPSHOT_ON_BREACH,
-    &sai_metadata_attr_SAI_TAM_THRESHOLD_ATTR_SNAPSHOT_STATS,
-    &sai_metadata_attr_SAI_TAM_THRESHOLD_ATTR_STATISTIC,
-    &sai_metadata_attr_SAI_TAM_THRESHOLD_ATTR_TAM_ID,
-    &sai_metadata_attr_SAI_TAM_THRESHOLD_ATTR_TRANSPORTER,
-    &sai_metadata_attr_SAI_TAM_TRANSPORTER_ATTR_MAX_SNAPSHOT_SIZE,
-    &sai_metadata_attr_SAI_TAM_TRANSPORTER_ATTR_MONITOR_ID,
-    &sai_metadata_attr_SAI_TAM_TRANSPORTER_ATTR_TYPE,
+    &sai_metadata_attr_SAI_TABLE_BITMAP_ROUTER_ENTRY_ATTR_TUNNEL_INDEX,
+    &sai_metadata_attr_SAI_TABLE_META_TUNNEL_ENTRY_ATTR_ACTION,
+    &sai_metadata_attr_SAI_TABLE_META_TUNNEL_ENTRY_ATTR_IS_DEFAULT,
+    &sai_metadata_attr_SAI_TABLE_META_TUNNEL_ENTRY_ATTR_METADATA_KEY,
+    &sai_metadata_attr_SAI_TABLE_META_TUNNEL_ENTRY_ATTR_TUNNEL_ID,
+    &sai_metadata_attr_SAI_TABLE_META_TUNNEL_ENTRY_ATTR_UNDERLAY_DIP,
+    &sai_metadata_attr_SAI_TAM_ATTR_EVENT_OBJECTS_LIST,
+    &sai_metadata_attr_SAI_TAM_ATTR_TAM_BIND_POINT_TYPE_LIST,
+    &sai_metadata_attr_SAI_TAM_ATTR_TELEMETRY_OBJECTS_LIST,
+    &sai_metadata_attr_SAI_TAM_COLLECTOR_ATTR_DSCP_VALUE,
+    &sai_metadata_attr_SAI_TAM_COLLECTOR_ATTR_DST_IP,
+    &sai_metadata_attr_SAI_TAM_COLLECTOR_ATTR_LOCALHOST,
+    &sai_metadata_attr_SAI_TAM_COLLECTOR_ATTR_SRC_IP,
+    &sai_metadata_attr_SAI_TAM_COLLECTOR_ATTR_TRANSPORT,
+    &sai_metadata_attr_SAI_TAM_COLLECTOR_ATTR_TRUNCATE_SIZE,
+    &sai_metadata_attr_SAI_TAM_COLLECTOR_ATTR_VIRTUAL_ROUTER_ID,
+    &sai_metadata_attr_SAI_TAM_EVENT_ACTION_ATTR_QOS_ACTION_TYPE,
+    &sai_metadata_attr_SAI_TAM_EVENT_ACTION_ATTR_REPORT_TYPE,
+    &sai_metadata_attr_SAI_TAM_EVENT_ATTR_ACTION_LIST,
+    &sai_metadata_attr_SAI_TAM_EVENT_ATTR_COLLECTOR_LIST,
+    &sai_metadata_attr_SAI_TAM_EVENT_ATTR_DSCP_VALUE,
+    &sai_metadata_attr_SAI_TAM_EVENT_ATTR_THRESHOLD,
+    &sai_metadata_attr_SAI_TAM_EVENT_ATTR_TYPE,
+    &sai_metadata_attr_SAI_TAM_EVENT_THRESHOLD_ATTR_ABS_VALUE,
+    &sai_metadata_attr_SAI_TAM_EVENT_THRESHOLD_ATTR_HIGH_WATERMARK,
+    &sai_metadata_attr_SAI_TAM_EVENT_THRESHOLD_ATTR_LATENCY,
+    &sai_metadata_attr_SAI_TAM_EVENT_THRESHOLD_ATTR_LOW_WATERMARK,
+    &sai_metadata_attr_SAI_TAM_EVENT_THRESHOLD_ATTR_RATE,
+    &sai_metadata_attr_SAI_TAM_EVENT_THRESHOLD_ATTR_UNIT,
+    &sai_metadata_attr_SAI_TAM_MATH_FUNC_ATTR_TAM_TEL_MATH_FUNC_TYPE,
+    &sai_metadata_attr_SAI_TAM_REPORT_ATTR_HISTOGRAM_BIN_BOUNDARY,
+    &sai_metadata_attr_SAI_TAM_REPORT_ATTR_HISTOGRAM_NUMBER_OF_BINS,
+    &sai_metadata_attr_SAI_TAM_REPORT_ATTR_TYPE,
+    &sai_metadata_attr_SAI_TAM_TELEMETRY_ATTR_COLLECTOR_LIST,
+    &sai_metadata_attr_SAI_TAM_TELEMETRY_ATTR_REPORTING_INTERVAL,
+    &sai_metadata_attr_SAI_TAM_TELEMETRY_ATTR_TAM_REPORTING_UNIT,
+    &sai_metadata_attr_SAI_TAM_TELEMETRY_ATTR_TAM_TYPE_LIST,
+    &sai_metadata_attr_SAI_TAM_TEL_TYPE_ATTR_DSCP_VALUE,
+    &sai_metadata_attr_SAI_TAM_TEL_TYPE_ATTR_FABRIC_Q,
+    &sai_metadata_attr_SAI_TAM_TEL_TYPE_ATTR_MATH_FUNC,
+    &sai_metadata_attr_SAI_TAM_TEL_TYPE_ATTR_NE_ENABLE,
+    &sai_metadata_attr_SAI_TAM_TEL_TYPE_ATTR_REPORT_ID,
+    &sai_metadata_attr_SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_FABRIC_STATS,
+    &sai_metadata_attr_SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_FILTER_STATS,
+    &sai_metadata_attr_SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_MMU_STATS,
+    &sai_metadata_attr_SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_OUTPUT_QUEUE_STATS,
+    &sai_metadata_attr_SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_PORT_STATS,
+    &sai_metadata_attr_SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_PORT_STATS_EGRESS,
+    &sai_metadata_attr_SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_PORT_STATS_INGRESS,
+    &sai_metadata_attr_SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_RESOURCE_UTILIZATION_STATS,
+    &sai_metadata_attr_SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_VIRTUAL_QUEUE_STATS,
+    &sai_metadata_attr_SAI_TAM_TEL_TYPE_ATTR_TAM_TELEMETRY_TYPE,
+    &sai_metadata_attr_SAI_TAM_TRANSPORT_ATTR_DST_PORT,
+    &sai_metadata_attr_SAI_TAM_TRANSPORT_ATTR_MTU,
+    &sai_metadata_attr_SAI_TAM_TRANSPORT_ATTR_SRC_PORT,
+    &sai_metadata_attr_SAI_TAM_TRANSPORT_ATTR_TRANSPORT_AUTH_TYPE,
+    &sai_metadata_attr_SAI_TAM_TRANSPORT_ATTR_TRANSPORT_TYPE,
     &sai_metadata_attr_SAI_TUNNEL_ATTR_DECAP_DSCP_MODE,
     &sai_metadata_attr_SAI_TUNNEL_ATTR_DECAP_ECN_MODE,
     &sai_metadata_attr_SAI_TUNNEL_ATTR_DECAP_MAPPERS,
@@ -62431,6 +64395,7 @@ const sai_attr_metadata_t* const sai_metadata_attr_sorted_by_id_name[] = {
     &sai_metadata_attr_SAI_VLAN_ATTR_MEMBER_LIST,
     &sai_metadata_attr_SAI_VLAN_ATTR_META_DATA,
     &sai_metadata_attr_SAI_VLAN_ATTR_STP_INSTANCE,
+    &sai_metadata_attr_SAI_VLAN_ATTR_TAM_OBJECT,
     &sai_metadata_attr_SAI_VLAN_ATTR_UNKNOWN_IPV4_MCAST_OUTPUT_GROUP_ID,
     &sai_metadata_attr_SAI_VLAN_ATTR_UNKNOWN_IPV6_MCAST_OUTPUT_GROUP_ID,
     &sai_metadata_attr_SAI_VLAN_ATTR_UNKNOWN_LINKLOCAL_MCAST_OUTPUT_GROUP_ID,
@@ -62471,7 +64436,7 @@ const sai_attr_metadata_t* const sai_metadata_attr_sorted_by_id_name[] = {
     &sai_metadata_attr_SAI_WRED_ATTR_YELLOW_MIN_THRESHOLD,
     NULL
 };
-const size_t sai_metadata_attr_sorted_by_id_name_count = 896;
+const size_t sai_metadata_attr_sorted_by_id_name_count = 924;
 
 /* SAI notifications struct */
 
@@ -63163,29 +65128,71 @@ int sai_serialize_table_bitmap_router_entry_stat(
 {
     return sai_serialize_enum(buffer, &sai_metadata_enum_sai_table_bitmap_router_entry_stat_t, table_bitmap_router_entry_stat);
 }
-int sai_serialize_tam_microburst_stat(
+int sai_serialize_table_meta_tunnel_entry_action(
     _Out_ char *buffer,
-    _In_ sai_tam_microburst_stat_t tam_microburst_stat)
+    _In_ sai_table_meta_tunnel_entry_action_t table_meta_tunnel_entry_action)
 {
-    return sai_serialize_enum(buffer, &sai_metadata_enum_sai_tam_microburst_stat_t, tam_microburst_stat);
+    return sai_serialize_enum(buffer, &sai_metadata_enum_sai_table_meta_tunnel_entry_action_t, table_meta_tunnel_entry_action);
 }
-int sai_serialize_tam_reporting_mode(
+int sai_serialize_table_meta_tunnel_entry_stat(
     _Out_ char *buffer,
-    _In_ sai_tam_reporting_mode_t tam_reporting_mode)
+    _In_ sai_table_meta_tunnel_entry_stat_t table_meta_tunnel_entry_stat)
 {
-    return sai_serialize_enum(buffer, &sai_metadata_enum_sai_tam_reporting_mode_t, tam_reporting_mode);
+    return sai_serialize_enum(buffer, &sai_metadata_enum_sai_table_meta_tunnel_entry_stat_t, table_meta_tunnel_entry_stat);
 }
-int sai_serialize_tam_tracking_mode(
+int sai_serialize_tam_bind_point_type(
     _Out_ char *buffer,
-    _In_ sai_tam_tracking_mode_t tam_tracking_mode)
+    _In_ sai_tam_bind_point_type_t tam_bind_point_type)
 {
-    return sai_serialize_enum(buffer, &sai_metadata_enum_sai_tam_tracking_mode_t, tam_tracking_mode);
+    return sai_serialize_enum(buffer, &sai_metadata_enum_sai_tam_bind_point_type_t, tam_bind_point_type);
 }
-int sai_serialize_tam_transporter_type(
+int sai_serialize_tam_event_threshold_unit(
     _Out_ char *buffer,
-    _In_ sai_tam_transporter_type_t tam_transporter_type)
+    _In_ sai_tam_event_threshold_unit_t tam_event_threshold_unit)
 {
-    return sai_serialize_enum(buffer, &sai_metadata_enum_sai_tam_transporter_type_t, tam_transporter_type);
+    return sai_serialize_enum(buffer, &sai_metadata_enum_sai_tam_event_threshold_unit_t, tam_event_threshold_unit);
+}
+int sai_serialize_tam_event_type(
+    _Out_ char *buffer,
+    _In_ sai_tam_event_type_t tam_event_type)
+{
+    return sai_serialize_enum(buffer, &sai_metadata_enum_sai_tam_event_type_t, tam_event_type);
+}
+int sai_serialize_tam_report_type(
+    _Out_ char *buffer,
+    _In_ sai_tam_report_type_t tam_report_type)
+{
+    return sai_serialize_enum(buffer, &sai_metadata_enum_sai_tam_report_type_t, tam_report_type);
+}
+int sai_serialize_tam_reporting_unit(
+    _Out_ char *buffer,
+    _In_ sai_tam_reporting_unit_t tam_reporting_unit)
+{
+    return sai_serialize_enum(buffer, &sai_metadata_enum_sai_tam_reporting_unit_t, tam_reporting_unit);
+}
+int sai_serialize_tam_tel_math_func_type(
+    _Out_ char *buffer,
+    _In_ sai_tam_tel_math_func_type_t tam_tel_math_func_type)
+{
+    return sai_serialize_enum(buffer, &sai_metadata_enum_sai_tam_tel_math_func_type_t, tam_tel_math_func_type);
+}
+int sai_serialize_tam_telemetry_type(
+    _Out_ char *buffer,
+    _In_ sai_tam_telemetry_type_t tam_telemetry_type)
+{
+    return sai_serialize_enum(buffer, &sai_metadata_enum_sai_tam_telemetry_type_t, tam_telemetry_type);
+}
+int sai_serialize_tam_transport_auth_type(
+    _Out_ char *buffer,
+    _In_ sai_tam_transport_auth_type_t tam_transport_auth_type)
+{
+    return sai_serialize_enum(buffer, &sai_metadata_enum_sai_tam_transport_auth_type_t, tam_transport_auth_type);
+}
+int sai_serialize_tam_transport_type(
+    _Out_ char *buffer,
+    _In_ sai_tam_transport_type_t tam_transport_type)
+{
+    return sai_serialize_enum(buffer, &sai_metadata_enum_sai_tam_transport_type_t, tam_transport_type);
 }
 int sai_serialize_tlv_type(
     _Out_ char *buffer,
@@ -64365,58 +66372,6 @@ int sai_serialize_segment_list(
 
     return (int)(buf - begin_buf);
 }
-int sai_serialize_tam_statistic(
-    _Out_ char *buf,
-    _In_ const sai_tam_statistic_t *tam_statistic)
-{
-    char *begin_buf = buf;
-    int ret;
-
-    EMIT("{");
-
-    EMIT_KEY("statistic_id");
-
-    EMIT_QUOTE_CHECK(sai_serialize_object_id(buf, tam_statistic->statistic_id), object_id);
-    
-    EMIT_NEXT_KEY("value");
-
-    EMIT_CHECK(sai_serialize_uint64(buf, tam_statistic->value), uint64);
-    
-    EMIT("}");
-
-    return (int)(buf - begin_buf);
-}
-int sai_serialize_tam_threshold_breach_event(
-    _Out_ char *buf,
-    _In_ const sai_tam_threshold_breach_event_t *tam_threshold_breach_event)
-{
-    char *begin_buf = buf;
-    int ret;
-
-    EMIT("{");
-
-    EMIT_KEY("threshold_id");
-
-    EMIT_QUOTE_CHECK(sai_serialize_object_id(buf, tam_threshold_breach_event->threshold_id), object_id);
-    
-    EMIT_NEXT_KEY("is_snapshot_valid");
-
-    EMIT_CHECK(sai_serialize_bool(buf, tam_threshold_breach_event->is_snapshot_valid), bool);
-    
-    if (tam_threshold_breach_event->is_snapshot_valid == true)
-    {
-        EMIT_NEXT_KEY("tam_snapshot_id");
-
-        EMIT_QUOTE_CHECK(sai_serialize_object_id(buf, tam_threshold_breach_event->tam_snapshot_id), object_id);
-    }
-    EMIT_NEXT_KEY("value");
-
-    EMIT_CHECK(sai_serialize_uint64(buf, tam_threshold_breach_event->value), uint64);
-    
-    EMIT("}");
-
-    return (int)(buf - begin_buf);
-}
 int sai_serialize_timespec(
     _Out_ char *buf,
     _In_ const sai_timespec_t *timespec)
@@ -64988,21 +66943,57 @@ int sai_serialize_switch_state_change_notification(
 }
 int sai_serialize_tam_event_notification(
     _Out_ char *buf,
-    _In_ uint32_t count,
-    _In_ const sai_tam_threshold_breach_event_t * data)
+    _In_ sai_object_id_t tam_event_id,
+    _In_ sai_size_t buffer_size,
+    _In_ const void * buffer,
+    _In_ uint32_t attr_count,
+    _In_ const sai_attribute_t * attr_list)
 {
     char *begin_buf = buf;
     int ret;
 
     EMIT("{");
 
-    EMIT_KEY("count");
+    EMIT_KEY("tam_event_id");
 
-    EMIT_CHECK(sai_serialize_uint32(buf, count), uint32);
+    EMIT_QUOTE_CHECK(sai_serialize_object_id(buf, tam_event_id), object_id);
     
-    EMIT_NEXT_KEY("data");
+    EMIT_NEXT_KEY("buffer_size");
 
-    if (data == NULL || count == 0)
+    EMIT_CHECK(sai_serialize_size(buf, buffer_size), size);
+    
+    EMIT_NEXT_KEY("buffer");
+
+    if (((const uint8_t*)buffer) == NULL || buffer_size == 0)
+    {
+        EMIT("null");
+    }
+    else
+    {
+        EMIT("[");
+
+        sai_size_t idx;
+
+        for (idx = 0; idx < buffer_size; idx++)
+        {
+            if (idx != 0)
+            {
+                EMIT(",");
+            }
+
+            EMIT_CHECK(sai_serialize_uint8(buf, ((const uint8_t*)buffer)[idx]), uint8);
+        }
+
+        EMIT("]");
+    }
+    
+    EMIT_NEXT_KEY("attr_count");
+
+    EMIT_CHECK(sai_serialize_uint32(buf, attr_count), uint32);
+    
+    EMIT_NEXT_KEY("attr_list");
+
+    if (attr_list == NULL || attr_count == 0)
     {
         EMIT("null");
     }
@@ -65012,14 +67003,17 @@ int sai_serialize_tam_event_notification(
 
         uint32_t idx;
 
-        for (idx = 0; idx < count; idx++)
+        for (idx = 0; idx < attr_count; idx++)
         {
             if (idx != 0)
             {
                 EMIT(",");
             }
 
-            EMIT_CHECK(sai_serialize_tam_threshold_breach_event(buf, &data[idx]), tam_threshold_breach_event);
+            const sai_attr_metadata_t *meta =
+                sai_metadata_get_attr_metadata(SAI_OBJECT_TYPE_TAM_EVENT_ACTION, attr_list[idx].id);
+
+            EMIT_CHECK(sai_serialize_attribute(buf, meta, &attr_list[idx]), attribute);
         }
 
         EMIT("]");
@@ -66329,29 +68323,71 @@ int sai_deserialize_table_bitmap_router_entry_stat(
 {
     return sai_deserialize_enum(buffer, &sai_metadata_enum_sai_table_bitmap_router_entry_stat_t, (int*)table_bitmap_router_entry_stat);
 }
-int sai_deserialize_tam_microburst_stat(
+int sai_deserialize_table_meta_tunnel_entry_action(
     _In_ const char *buffer,
-    _Out_ sai_tam_microburst_stat_t *tam_microburst_stat)
+    _Out_ sai_table_meta_tunnel_entry_action_t *table_meta_tunnel_entry_action)
 {
-    return sai_deserialize_enum(buffer, &sai_metadata_enum_sai_tam_microburst_stat_t, (int*)tam_microburst_stat);
+    return sai_deserialize_enum(buffer, &sai_metadata_enum_sai_table_meta_tunnel_entry_action_t, (int*)table_meta_tunnel_entry_action);
 }
-int sai_deserialize_tam_reporting_mode(
+int sai_deserialize_table_meta_tunnel_entry_stat(
     _In_ const char *buffer,
-    _Out_ sai_tam_reporting_mode_t *tam_reporting_mode)
+    _Out_ sai_table_meta_tunnel_entry_stat_t *table_meta_tunnel_entry_stat)
 {
-    return sai_deserialize_enum(buffer, &sai_metadata_enum_sai_tam_reporting_mode_t, (int*)tam_reporting_mode);
+    return sai_deserialize_enum(buffer, &sai_metadata_enum_sai_table_meta_tunnel_entry_stat_t, (int*)table_meta_tunnel_entry_stat);
 }
-int sai_deserialize_tam_tracking_mode(
+int sai_deserialize_tam_bind_point_type(
     _In_ const char *buffer,
-    _Out_ sai_tam_tracking_mode_t *tam_tracking_mode)
+    _Out_ sai_tam_bind_point_type_t *tam_bind_point_type)
 {
-    return sai_deserialize_enum(buffer, &sai_metadata_enum_sai_tam_tracking_mode_t, (int*)tam_tracking_mode);
+    return sai_deserialize_enum(buffer, &sai_metadata_enum_sai_tam_bind_point_type_t, (int*)tam_bind_point_type);
 }
-int sai_deserialize_tam_transporter_type(
+int sai_deserialize_tam_event_threshold_unit(
     _In_ const char *buffer,
-    _Out_ sai_tam_transporter_type_t *tam_transporter_type)
+    _Out_ sai_tam_event_threshold_unit_t *tam_event_threshold_unit)
 {
-    return sai_deserialize_enum(buffer, &sai_metadata_enum_sai_tam_transporter_type_t, (int*)tam_transporter_type);
+    return sai_deserialize_enum(buffer, &sai_metadata_enum_sai_tam_event_threshold_unit_t, (int*)tam_event_threshold_unit);
+}
+int sai_deserialize_tam_event_type(
+    _In_ const char *buffer,
+    _Out_ sai_tam_event_type_t *tam_event_type)
+{
+    return sai_deserialize_enum(buffer, &sai_metadata_enum_sai_tam_event_type_t, (int*)tam_event_type);
+}
+int sai_deserialize_tam_report_type(
+    _In_ const char *buffer,
+    _Out_ sai_tam_report_type_t *tam_report_type)
+{
+    return sai_deserialize_enum(buffer, &sai_metadata_enum_sai_tam_report_type_t, (int*)tam_report_type);
+}
+int sai_deserialize_tam_reporting_unit(
+    _In_ const char *buffer,
+    _Out_ sai_tam_reporting_unit_t *tam_reporting_unit)
+{
+    return sai_deserialize_enum(buffer, &sai_metadata_enum_sai_tam_reporting_unit_t, (int*)tam_reporting_unit);
+}
+int sai_deserialize_tam_tel_math_func_type(
+    _In_ const char *buffer,
+    _Out_ sai_tam_tel_math_func_type_t *tam_tel_math_func_type)
+{
+    return sai_deserialize_enum(buffer, &sai_metadata_enum_sai_tam_tel_math_func_type_t, (int*)tam_tel_math_func_type);
+}
+int sai_deserialize_tam_telemetry_type(
+    _In_ const char *buffer,
+    _Out_ sai_tam_telemetry_type_t *tam_telemetry_type)
+{
+    return sai_deserialize_enum(buffer, &sai_metadata_enum_sai_tam_telemetry_type_t, (int*)tam_telemetry_type);
+}
+int sai_deserialize_tam_transport_auth_type(
+    _In_ const char *buffer,
+    _Out_ sai_tam_transport_auth_type_t *tam_transport_auth_type)
+{
+    return sai_deserialize_enum(buffer, &sai_metadata_enum_sai_tam_transport_auth_type_t, (int*)tam_transport_auth_type);
+}
+int sai_deserialize_tam_transport_type(
+    _In_ const char *buffer,
+    _Out_ sai_tam_transport_type_t *tam_transport_type)
+{
+    return sai_deserialize_enum(buffer, &sai_metadata_enum_sai_tam_transport_type_t, (int*)tam_transport_type);
 }
 int sai_deserialize_tlv_type(
     _In_ const char *buffer,
@@ -67566,58 +69602,6 @@ int sai_deserialize_segment_list(
 
         EXPECT("]");
     }
-    
-    EXPECT("}");
-
-    return (int)(buf - begin_buf);
-}
-int sai_deserialize_tam_statistic(
-    _In_ const char *buf,
-    _Out_ sai_tam_statistic_t *tam_statistic)
-{
-    const char *begin_buf = buf;
-    int ret;
-
-    EXPECT("{");
-
-    EXPECT_KEY("statistic_id");
-
-    EXPECT_QUOTE_CHECK(sai_deserialize_object_id(buf, &tam_statistic->statistic_id), object_id);
-    
-    EXPECT_NEXT_KEY("value");
-
-    EXPECT_CHECK(sai_deserialize_uint64(buf, &tam_statistic->value), uint64);
-    
-    EXPECT("}");
-
-    return (int)(buf - begin_buf);
-}
-int sai_deserialize_tam_threshold_breach_event(
-    _In_ const char *buf,
-    _Out_ sai_tam_threshold_breach_event_t *tam_threshold_breach_event)
-{
-    const char *begin_buf = buf;
-    int ret;
-
-    EXPECT("{");
-
-    EXPECT_KEY("threshold_id");
-
-    EXPECT_QUOTE_CHECK(sai_deserialize_object_id(buf, &tam_threshold_breach_event->threshold_id), object_id);
-    
-    EXPECT_NEXT_KEY("is_snapshot_valid");
-
-    EXPECT_CHECK(sai_deserialize_bool(buf, &tam_threshold_breach_event->is_snapshot_valid), bool);
-    
-    if (tam_threshold_breach_event->is_snapshot_valid == true)
-    {
-        EXPECT_NEXT_KEY("tam_snapshot_id");
-
-        EXPECT_QUOTE_CHECK(sai_deserialize_object_id(buf, &tam_threshold_breach_event->tam_snapshot_id), object_id);
-    }
-    EXPECT_NEXT_KEY("value");
-
-    EXPECT_CHECK(sai_deserialize_uint64(buf, &tam_threshold_breach_event->value), uint64);
     
     EXPECT("}");
 

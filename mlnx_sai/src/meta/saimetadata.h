@@ -248,17 +248,28 @@ extern const sai_enum_metadata_t sai_metadata_enum_sai_table_bitmap_classificati
 extern const sai_enum_metadata_t sai_metadata_enum_sai_table_bitmap_router_entry_action_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_table_bitmap_router_entry_attr_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_table_bitmap_router_entry_stat_t;
+extern const sai_enum_metadata_t sai_metadata_enum_sai_table_meta_tunnel_entry_action_t;
+extern const sai_enum_metadata_t sai_metadata_enum_sai_table_meta_tunnel_entry_attr_t;
+extern const sai_enum_metadata_t sai_metadata_enum_sai_table_meta_tunnel_entry_stat_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_tam_attr_t;
-extern const sai_enum_metadata_t sai_metadata_enum_sai_tam_histogram_attr_t;
-extern const sai_enum_metadata_t sai_metadata_enum_sai_tam_microburst_attr_t;
-extern const sai_enum_metadata_t sai_metadata_enum_sai_tam_microburst_stat_t;
-extern const sai_enum_metadata_t sai_metadata_enum_sai_tam_reporting_mode_t;
-extern const sai_enum_metadata_t sai_metadata_enum_sai_tam_snapshot_attr_t;
-extern const sai_enum_metadata_t sai_metadata_enum_sai_tam_stat_attr_t;
-extern const sai_enum_metadata_t sai_metadata_enum_sai_tam_threshold_attr_t;
-extern const sai_enum_metadata_t sai_metadata_enum_sai_tam_tracking_mode_t;
-extern const sai_enum_metadata_t sai_metadata_enum_sai_tam_transporter_attr_t;
-extern const sai_enum_metadata_t sai_metadata_enum_sai_tam_transporter_type_t;
+extern const sai_enum_metadata_t sai_metadata_enum_sai_tam_bind_point_type_t;
+extern const sai_enum_metadata_t sai_metadata_enum_sai_tam_collector_attr_t;
+extern const sai_enum_metadata_t sai_metadata_enum_sai_tam_event_action_attr_t;
+extern const sai_enum_metadata_t sai_metadata_enum_sai_tam_event_attr_t;
+extern const sai_enum_metadata_t sai_metadata_enum_sai_tam_event_threshold_attr_t;
+extern const sai_enum_metadata_t sai_metadata_enum_sai_tam_event_threshold_unit_t;
+extern const sai_enum_metadata_t sai_metadata_enum_sai_tam_event_type_t;
+extern const sai_enum_metadata_t sai_metadata_enum_sai_tam_math_func_attr_t;
+extern const sai_enum_metadata_t sai_metadata_enum_sai_tam_report_attr_t;
+extern const sai_enum_metadata_t sai_metadata_enum_sai_tam_report_type_t;
+extern const sai_enum_metadata_t sai_metadata_enum_sai_tam_reporting_unit_t;
+extern const sai_enum_metadata_t sai_metadata_enum_sai_tam_tel_math_func_type_t;
+extern const sai_enum_metadata_t sai_metadata_enum_sai_tam_tel_type_attr_t;
+extern const sai_enum_metadata_t sai_metadata_enum_sai_tam_telemetry_attr_t;
+extern const sai_enum_metadata_t sai_metadata_enum_sai_tam_telemetry_type_t;
+extern const sai_enum_metadata_t sai_metadata_enum_sai_tam_transport_attr_t;
+extern const sai_enum_metadata_t sai_metadata_enum_sai_tam_transport_auth_type_t;
+extern const sai_enum_metadata_t sai_metadata_enum_sai_tam_transport_type_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_tlv_type_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_tunnel_attr_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_tunnel_decap_ecn_mode_t;
@@ -294,7 +305,7 @@ extern const size_t sai_metadata_attr_by_object_type_count;
 
 /* Define SAI_OBJECT_TYPE_EXTENSIONS_MAX */
 
-#define SAI_OBJECT_TYPE_EXTENSIONS_MAX ((sai_object_type_t)80)
+#define SAI_OBJECT_TYPE_EXTENSIONS_MAX ((sai_object_type_t)84)
 
 /* Get enum name helper methods */
 
@@ -598,17 +609,38 @@ extern const char* sai_metadata_get_table_bitmap_router_entry_action_name(
 extern const char* sai_metadata_get_table_bitmap_router_entry_stat_name(
     _In_ sai_table_bitmap_router_entry_stat_t value);
 
-extern const char* sai_metadata_get_tam_microburst_stat_name(
-    _In_ sai_tam_microburst_stat_t value);
+extern const char* sai_metadata_get_table_meta_tunnel_entry_action_name(
+    _In_ sai_table_meta_tunnel_entry_action_t value);
 
-extern const char* sai_metadata_get_tam_reporting_mode_name(
-    _In_ sai_tam_reporting_mode_t value);
+extern const char* sai_metadata_get_table_meta_tunnel_entry_stat_name(
+    _In_ sai_table_meta_tunnel_entry_stat_t value);
 
-extern const char* sai_metadata_get_tam_tracking_mode_name(
-    _In_ sai_tam_tracking_mode_t value);
+extern const char* sai_metadata_get_tam_bind_point_type_name(
+    _In_ sai_tam_bind_point_type_t value);
 
-extern const char* sai_metadata_get_tam_transporter_type_name(
-    _In_ sai_tam_transporter_type_t value);
+extern const char* sai_metadata_get_tam_event_threshold_unit_name(
+    _In_ sai_tam_event_threshold_unit_t value);
+
+extern const char* sai_metadata_get_tam_event_type_name(
+    _In_ sai_tam_event_type_t value);
+
+extern const char* sai_metadata_get_tam_report_type_name(
+    _In_ sai_tam_report_type_t value);
+
+extern const char* sai_metadata_get_tam_reporting_unit_name(
+    _In_ sai_tam_reporting_unit_t value);
+
+extern const char* sai_metadata_get_tam_tel_math_func_type_name(
+    _In_ sai_tam_tel_math_func_type_t value);
+
+extern const char* sai_metadata_get_tam_telemetry_type_name(
+    _In_ sai_tam_telemetry_type_t value);
+
+extern const char* sai_metadata_get_tam_transport_auth_type_name(
+    _In_ sai_tam_transport_auth_type_t value);
+
+extern const char* sai_metadata_get_tam_transport_type_name(
+    _In_ sai_tam_transport_type_t value);
 
 extern const char* sai_metadata_get_tlv_type_name(
     _In_ sai_tlv_type_t value);
@@ -694,7 +726,6 @@ extern sai_stp_api_t *sai_metadata_sai_stp_api;
 extern sai_switch_api_t *sai_metadata_sai_switch_api;
 extern sai_tam_api_t *sai_metadata_sai_tam_api;
 extern sai_tunnel_api_t *sai_metadata_sai_tunnel_api;
-extern sai_uburst_api_t *sai_metadata_sai_uburst_api;
 extern sai_udf_api_t *sai_metadata_sai_udf_api;
 extern sai_virtual_router_api_t *sai_metadata_sai_virtual_router_api;
 extern sai_vlan_api_t *sai_metadata_sai_vlan_api;
@@ -739,7 +770,6 @@ typedef struct _sai_apis_t {
     sai_tam_api_t* tam_api;
     sai_segmentroute_api_t* segmentroute_api;
     sai_mpls_api_t* mpls_api;
-    sai_uburst_api_t* uburst_api;
     sai_dtel_api_t* dtel_api;
     sai_bfd_api_t* bfd_api;
     sai_isolation_group_api_t* isolation_group_api;
@@ -748,7 +778,7 @@ typedef struct _sai_apis_t {
 
 /* Define SAI_API_EXTENSIONS_MAX */
 
-#define SAI_API_EXTENSIONS_MAX ((sai_api_t)42)
+#define SAI_API_EXTENSIONS_MAX ((sai_api_t)41)
 
 /* SAI API query */
 
@@ -821,15 +851,9 @@ extern const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYP
 extern const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_BRIDGE_PORT;
 extern const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_TUNNEL_MAP_ENTRY;
 extern const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_TAM;
-extern const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_TAM_STAT;
-extern const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_TAM_SNAPSHOT;
-extern const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_TAM_TRANSPORTER;
-extern const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_TAM_THRESHOLD;
 extern const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_SEGMENTROUTE_SIDLIST;
 extern const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_PORT_POOL;
 extern const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_INSEG_ENTRY;
-extern const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_TAM_HISTOGRAM;
-extern const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_TAM_MICROBURST;
 extern const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_DTEL;
 extern const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_DTEL_QUEUE_REPORT;
 extern const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_DTEL_INT_SESSION;
@@ -838,8 +862,18 @@ extern const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYP
 extern const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_BFD_SESSION;
 extern const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_ISOLATION_GROUP;
 extern const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_ISOLATION_GROUP_MEMBER;
+extern const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_TAM_MATH_FUNC;
+extern const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_TAM_REPORT;
+extern const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_TAM_EVENT_THRESHOLD;
+extern const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_TAM_TEL_TYPE;
+extern const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_TAM_TRANSPORT;
+extern const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_TAM_TELEMETRY;
+extern const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_TAM_COLLECTOR;
+extern const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_TAM_EVENT_ACTION;
+extern const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_TAM_EVENT;
 extern const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_TABLE_BITMAP_CLASSIFICATION_ENTRY;
 extern const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_TABLE_BITMAP_ROUTER_ENTRY;
+extern const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_TABLE_META_TUNNEL_ENTRY;
 
 /* Object infos table */
 
@@ -1305,21 +1339,49 @@ extern int sai_serialize_table_bitmap_router_entry_stat(
     _Out_ char *buffer,
     _In_ sai_table_bitmap_router_entry_stat_t table_bitmap_router_entry_stat);
 
-extern int sai_serialize_tam_microburst_stat(
+extern int sai_serialize_table_meta_tunnel_entry_action(
     _Out_ char *buffer,
-    _In_ sai_tam_microburst_stat_t tam_microburst_stat);
+    _In_ sai_table_meta_tunnel_entry_action_t table_meta_tunnel_entry_action);
 
-extern int sai_serialize_tam_reporting_mode(
+extern int sai_serialize_table_meta_tunnel_entry_stat(
     _Out_ char *buffer,
-    _In_ sai_tam_reporting_mode_t tam_reporting_mode);
+    _In_ sai_table_meta_tunnel_entry_stat_t table_meta_tunnel_entry_stat);
 
-extern int sai_serialize_tam_tracking_mode(
+extern int sai_serialize_tam_bind_point_type(
     _Out_ char *buffer,
-    _In_ sai_tam_tracking_mode_t tam_tracking_mode);
+    _In_ sai_tam_bind_point_type_t tam_bind_point_type);
 
-extern int sai_serialize_tam_transporter_type(
+extern int sai_serialize_tam_event_threshold_unit(
     _Out_ char *buffer,
-    _In_ sai_tam_transporter_type_t tam_transporter_type);
+    _In_ sai_tam_event_threshold_unit_t tam_event_threshold_unit);
+
+extern int sai_serialize_tam_event_type(
+    _Out_ char *buffer,
+    _In_ sai_tam_event_type_t tam_event_type);
+
+extern int sai_serialize_tam_report_type(
+    _Out_ char *buffer,
+    _In_ sai_tam_report_type_t tam_report_type);
+
+extern int sai_serialize_tam_reporting_unit(
+    _Out_ char *buffer,
+    _In_ sai_tam_reporting_unit_t tam_reporting_unit);
+
+extern int sai_serialize_tam_tel_math_func_type(
+    _Out_ char *buffer,
+    _In_ sai_tam_tel_math_func_type_t tam_tel_math_func_type);
+
+extern int sai_serialize_tam_telemetry_type(
+    _Out_ char *buffer,
+    _In_ sai_tam_telemetry_type_t tam_telemetry_type);
+
+extern int sai_serialize_tam_transport_auth_type(
+    _Out_ char *buffer,
+    _In_ sai_tam_transport_auth_type_t tam_transport_auth_type);
+
+extern int sai_serialize_tam_transport_type(
+    _Out_ char *buffer,
+    _In_ sai_tam_transport_type_t tam_transport_type);
 
 extern int sai_serialize_tlv_type(
     _Out_ char *buffer,
@@ -1526,14 +1588,6 @@ extern int sai_serialize_segment_list(
     _Out_ char *buf,
     _In_ const sai_segment_list_t *segment_list);
 
-extern int sai_serialize_tam_statistic(
-    _Out_ char *buf,
-    _In_ const sai_tam_statistic_t *tam_statistic);
-
-extern int sai_serialize_tam_threshold_breach_event(
-    _Out_ char *buf,
-    _In_ const sai_tam_threshold_breach_event_t *tam_threshold_breach_event);
-
 extern int sai_serialize_timespec(
     _Out_ char *buf,
     _In_ const sai_timespec_t *timespec);
@@ -1601,8 +1655,11 @@ extern int sai_serialize_switch_state_change_notification(
     _In_ sai_switch_oper_status_t switch_oper_status);
 extern int sai_serialize_tam_event_notification(
     _Out_ char *buf,
-    _In_ uint32_t count,
-    _In_ const sai_tam_threshold_breach_event_t * data);
+    _In_ sai_object_id_t tam_event_id,
+    _In_ sai_size_t buffer_size,
+    _In_ const void * buffer,
+    _In_ uint32_t attr_count,
+    _In_ const sai_attribute_t * attr_list);
 
 /* Serialize unions */
 
@@ -2052,21 +2109,49 @@ extern int sai_deserialize_table_bitmap_router_entry_stat(
     _In_ const char *buffer,
     _Out_ sai_table_bitmap_router_entry_stat_t *table_bitmap_router_entry_stat);
 
-extern int sai_deserialize_tam_microburst_stat(
+extern int sai_deserialize_table_meta_tunnel_entry_action(
     _In_ const char *buffer,
-    _Out_ sai_tam_microburst_stat_t *tam_microburst_stat);
+    _Out_ sai_table_meta_tunnel_entry_action_t *table_meta_tunnel_entry_action);
 
-extern int sai_deserialize_tam_reporting_mode(
+extern int sai_deserialize_table_meta_tunnel_entry_stat(
     _In_ const char *buffer,
-    _Out_ sai_tam_reporting_mode_t *tam_reporting_mode);
+    _Out_ sai_table_meta_tunnel_entry_stat_t *table_meta_tunnel_entry_stat);
 
-extern int sai_deserialize_tam_tracking_mode(
+extern int sai_deserialize_tam_bind_point_type(
     _In_ const char *buffer,
-    _Out_ sai_tam_tracking_mode_t *tam_tracking_mode);
+    _Out_ sai_tam_bind_point_type_t *tam_bind_point_type);
 
-extern int sai_deserialize_tam_transporter_type(
+extern int sai_deserialize_tam_event_threshold_unit(
     _In_ const char *buffer,
-    _Out_ sai_tam_transporter_type_t *tam_transporter_type);
+    _Out_ sai_tam_event_threshold_unit_t *tam_event_threshold_unit);
+
+extern int sai_deserialize_tam_event_type(
+    _In_ const char *buffer,
+    _Out_ sai_tam_event_type_t *tam_event_type);
+
+extern int sai_deserialize_tam_report_type(
+    _In_ const char *buffer,
+    _Out_ sai_tam_report_type_t *tam_report_type);
+
+extern int sai_deserialize_tam_reporting_unit(
+    _In_ const char *buffer,
+    _Out_ sai_tam_reporting_unit_t *tam_reporting_unit);
+
+extern int sai_deserialize_tam_tel_math_func_type(
+    _In_ const char *buffer,
+    _Out_ sai_tam_tel_math_func_type_t *tam_tel_math_func_type);
+
+extern int sai_deserialize_tam_telemetry_type(
+    _In_ const char *buffer,
+    _Out_ sai_tam_telemetry_type_t *tam_telemetry_type);
+
+extern int sai_deserialize_tam_transport_auth_type(
+    _In_ const char *buffer,
+    _Out_ sai_tam_transport_auth_type_t *tam_transport_auth_type);
+
+extern int sai_deserialize_tam_transport_type(
+    _In_ const char *buffer,
+    _Out_ sai_tam_transport_type_t *tam_transport_type);
 
 extern int sai_deserialize_tlv_type(
     _In_ const char *buffer,
@@ -2272,14 +2357,6 @@ extern int sai_deserialize_s8_list(
 extern int sai_deserialize_segment_list(
     _In_ const char *buf,
     _Out_ sai_segment_list_t *segment_list);
-
-extern int sai_deserialize_tam_statistic(
-    _In_ const char *buf,
-    _Out_ sai_tam_statistic_t *tam_statistic);
-
-extern int sai_deserialize_tam_threshold_breach_event(
-    _In_ const char *buf,
-    _Out_ sai_tam_threshold_breach_event_t *tam_threshold_breach_event);
 
 extern int sai_deserialize_timespec(
     _In_ const char *buf,

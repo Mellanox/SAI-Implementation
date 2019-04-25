@@ -132,9 +132,6 @@
     <ClInclude Include="inc\sai\saisegmentroute.h">
       <Filter>Header Files\sai</Filter>
     </ClInclude>
-    <ClInclude Include="inc\sai\saiuburst.h">
-      <Filter>Header Files\sai</Filter>
-    </ClInclude>
     <ClInclude Include="inc\sai\saibfd.h">
       <Filter>Header Files\sai</Filter>
     </ClInclude>

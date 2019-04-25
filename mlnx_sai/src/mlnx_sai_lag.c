@@ -239,8 +239,7 @@ static sai_status_t mlnx_port_params_clone(mlnx_port_config_t *to, mlnx_port_con
                 if (SAI_ERR(status)) {
                     goto out;
                 }
-            }
-            else {
+            } else {
                 oid = SAI_NULL_OBJECT_ID;
             }
 

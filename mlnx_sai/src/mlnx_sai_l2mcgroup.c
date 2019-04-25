@@ -333,8 +333,7 @@ sai_status_t mlnx_l2mc_group_to_pbs_info(_In_ const mlnx_l2mc_group_t *l2mc_grou
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_l2mc_group_pbs_info_to_group(_In_ mlnx_acl_pbs_info_t  pbs_info,
-                                               _Out_ mlnx_l2mc_group_t **l2mc_group)
+sai_status_t mlnx_l2mc_group_pbs_info_to_group(_In_ mlnx_acl_pbs_info_t pbs_info, _Out_ mlnx_l2mc_group_t **l2mc_group)
 {
     assert(l2mc_group);
     assert(pbs_info.type == MLNX_ACL_PBS_TYPE_MCGROUP);
