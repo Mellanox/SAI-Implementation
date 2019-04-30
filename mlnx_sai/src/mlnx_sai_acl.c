@@ -12957,6 +12957,7 @@ static sai_status_t mlnx_acl_bind_point_port_lag_data_fetch(_In_ sai_object_id_t
 
     status = mlnx_acl_port_lag_db_index_validate_and_get(oid, &index);
     if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to find port/LAG index for oid %lx\n", oid);
         return status;
     }
 
@@ -13738,6 +13739,85 @@ out:
     sai_db_unlock();
     SX_LOG_EXIT();
     return status;
+}
+
+static sai_status_t mlnx_port_acl_clone_stage(_In_ _In_ mlnx_port_config_t    *to,
+                                              _In_ const mlnx_port_config_t   *from,
+                                              _In_ mlnx_acl_bind_point_type_t  to_type,
+                                              _In_ mlnx_acl_bind_point_type_t  from_type)
+{
+    sai_status_t           status;
+    acl_bind_point_data_t *bind_point_data = NULL;
+    acl_index_t            acl_index = ACL_INDEX_INVALID;
+
+    assert(to);
+    assert(from);
+
+    status = mlnx_acl_bind_point_port_lag_data_fetch(from->saiport, from_type, &bind_point_data);
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+    if (bind_point_data->is_object_set) {
+        SX_LOG_NTC("Bind point object is set, idx %d\n", bind_point_data->acl_index.acl_db_index);
+        acl_index = bind_point_data->acl_index;
+    }
+
+    status = mlnx_acl_port_lag_rif_bind_point_set(to->saiport, to_type, acl_index);
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
+sai_status_t mlnx_port_acl_clone(_In_ mlnx_port_config_t *to, _In_ const mlnx_port_config_t *from)
+{
+
+    sai_status_t status;
+
+    assert(to);
+    assert(from);
+
+    /* Cloning port -> LAG */
+    if (mlnx_port_is_lag(to)) {
+        if (mlnx_port_is_lag_member(from) || mlnx_port_is_lag(from)) {
+            SX_LOG_ERR("Failed to clone ACL from port %lx - port is LAG or LAG member\n", from->saiport);
+            return SAI_STATUS_FAILURE;
+        }
+
+        status = mlnx_port_acl_clone_stage(to, from, MLNX_ACL_BIND_POINT_TYPE_INGRESS_LAG,
+                                           MLNX_ACL_BIND_POINT_TYPE_INGRESS_PORT);
+        if (SAI_ERR(status)) {
+            return status;
+        }
+
+        status = mlnx_port_acl_clone_stage(to, from, MLNX_ACL_BIND_POINT_TYPE_EGRESS_LAG,
+                                           MLNX_ACL_BIND_POINT_TYPE_EGRESS_PORT);
+        if (SAI_ERR(status)) {
+            return status;
+        }
+    } /* Cloning LAG -> port */
+    else {
+        if (!mlnx_port_is_lag(from)) {
+            SX_LOG_ERR("Failed to clone ACL from port %lx - port is not LAG\n", from->saiport);
+            return SAI_STATUS_FAILURE;
+        }
+
+        status = mlnx_port_acl_clone_stage(to, from, MLNX_ACL_BIND_POINT_TYPE_INGRESS_PORT,
+                                           MLNX_ACL_BIND_POINT_TYPE_INGRESS_LAG);
+        if (SAI_ERR(status)) {
+            return status;
+        }
+
+        status = mlnx_port_acl_clone_stage(to, from, MLNX_ACL_BIND_POINT_TYPE_EGRESS_PORT,
+                                           MLNX_ACL_BIND_POINT_TYPE_EGRESS_LAG);
+        if (SAI_ERR(status)) {
+            return status;
+        }
+    }
+
+    return SAI_STATUS_SUCCESS;
 }
 
 static sai_status_t mlnx_acl_wrapping_group_create(_In_ uint32_t table_index)

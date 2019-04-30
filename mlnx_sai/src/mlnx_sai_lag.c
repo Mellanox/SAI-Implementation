@@ -34,6 +34,7 @@ typedef enum port_params_ {
         PORT_PARAMS_POLICER      = 1 << 6,
         PORT_PARAMS_LEARN_MODE   = 1 << 7,
         PORT_PARAMS_EGRESS_BLOCK = 1 << 8,
+        PORT_PARAMS_ACL          = 1 << 9,
 } port_params_t;
 
 static sx_verbosity_level_t LOG_VAR_NAME(__MODULE__) = SX_VERBOSITY_LEVEL_WARNING;
@@ -444,6 +445,13 @@ static sai_status_t mlnx_port_params_clone(mlnx_port_config_t *to, mlnx_port_con
         }
     }
 
+    if (clone & PORT_PARAMS_ACL) {
+        status = mlnx_port_acl_clone(to, from);
+        if (SAI_ERR(status)) {
+            goto out;
+        }
+    }
+
 out:
     free(ets);
     return status;
@@ -564,7 +572,7 @@ static sai_status_t remove_port_from_lag(sx_port_log_id_t lag_id, sx_port_log_id
 
     /* Do re-apply for port params which were removed by us before add to the LAG */
     status = mlnx_port_params_clone(port, lag, PORT_PARAMS_WRED | PORT_PARAMS_MIRROR | PORT_PARAMS_SFLOW |
-                                    PORT_PARAMS_POLICER | PORT_PARAMS_EGRESS_BLOCK);
+                                    PORT_PARAMS_POLICER | PORT_PARAMS_EGRESS_BLOCK | PORT_PARAMS_ACL);
     if (SAI_ERR(status)) {
         return status;
     }
@@ -1411,7 +1419,7 @@ static sai_status_t mlnx_create_lag_member(_Out_ sai_object_id_t     * lag_membe
         status = mlnx_port_params_clone(lag,
                                         port,
                                         PORT_PARAMS_FOR_LAG | PORT_PARAMS_SFLOW | PORT_PARAMS_POLICER |
-                                        PORT_PARAMS_EGRESS_BLOCK);
+                                        PORT_PARAMS_EGRESS_BLOCK | PORT_PARAMS_ACL);
         if (SAI_ERR(status)) {
             goto out;
         }

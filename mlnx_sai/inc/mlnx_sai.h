@@ -1456,6 +1456,7 @@ sai_status_t mlnx_port_egress_block_clone(_In_ mlnx_port_config_t       *to,
 sai_status_t mlnx_port_egress_block_clear(_In_ sx_port_log_id_t sx_port_id);
 sai_status_t mlnx_port_egress_block_is_in_use(_In_ sx_port_log_id_t  sx_port_id,
                                               _Out_ bool            *is_in_use);
+sai_status_t mlnx_port_acl_clone(_In_ mlnx_port_config_t *to, _In_ const mlnx_port_config_t *from);
 sai_status_t mlnx_sx_port_list_compare(_In_ const sx_port_log_id_t *ports1,
                                        _In_ uint32_t                ports1_count,
                                        _In_ const sx_port_log_id_t *ports2,
