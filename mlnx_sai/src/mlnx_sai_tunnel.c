@@ -5300,6 +5300,29 @@ static sai_status_t mlnx_create_sdk_tunnel(_In_ sai_object_id_t      sai_tunnel_
                 goto cleanup;
             }
         }
+    } else if (SAI_TUNNEL_TYPE_VXLAN == sai_tunnel_type) {
+        if (mlnx_chip_is_spc2()) {
+            if (SX_STATUS_SUCCESS !=
+                (sdk_status =
+                     sx_api_router_interface_state_set(gh_sdk, sx_tunnel_attr.attributes.vxlan.encap.underlay_rif,
+                                                       &rif_state))) {
+                SX_LOG_ERR("Failed to set underlay router interface %d state - %s.\n",
+                           sx_tunnel_attr.attributes.vxlan.encap.underlay_rif,
+                           SX_STATUS_MSG(sdk_status));
+                sai_status = sdk_to_sai(sdk_status);
+                goto cleanup;
+            }
+            if (SX_STATUS_SUCCESS !=
+                (sdk_status =
+                     sx_api_router_interface_state_set(gh_sdk, sx_tunnel_attr.attributes.vxlan.decap.underlay_rif,
+                                                       &rif_state))) {
+                SX_LOG_ERR("Failed to set underlay router interface %d state - %s.\n",
+                           sx_tunnel_attr.attributes.vxlan.decap.underlay_rif,
+                           SX_STATUS_MSG(sdk_status));
+                sai_status = sdk_to_sai(sdk_status);
+                goto cleanup;
+            }
+        }
     }
 
     g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].sx_tunnel_id_ipv4 = sx_tunnel_id_ipv4;
@@ -5791,10 +5814,11 @@ static sai_status_t mlnx_remove_tunnel(_In_ const sai_object_id_t sai_tunnel_obj
            sizeof(sx_tunnel_attr));
     memset(&rif_state, 0, sizeof(sx_router_interface_state_t));
 
+    rif_state.ipv4_enable = false;
+    rif_state.ipv6_enable = false;
+
     if ((SX_TUNNEL_TYPE_IPINIP_P2P_IPV4_IN_GRE == sx_tunnel_attr.type) ||
         (SX_TUNNEL_TYPE_IPINIP_P2P_IPV4_IN_IPV4 == sx_tunnel_attr.type)) {
-        rif_state.ipv4_enable = false;
-        rif_state.ipv6_enable = false;
 
         if (ipv4_created) {
             if (SX_STATUS_SUCCESS !=
@@ -5843,6 +5867,28 @@ static sai_status_t mlnx_remove_tunnel(_In_ const sai_object_id_t sai_tunnel_obj
             }
         }
         g_sai_db_ptr->nve_tunnel_type = NVE_TUNNEL_UNKNOWN;
+
+        if (mlnx_chip_is_spc2()) {
+            if (SX_STATUS_SUCCESS !=
+                (sdk_status =
+                     sx_api_router_interface_state_set(gh_sdk, sx_tunnel_attr.attributes.vxlan.encap.underlay_rif,
+                                                       &rif_state))) {
+                SX_LOG_ERR("Failed to set underlay router interface state to down - %s.\n",
+                           SX_STATUS_MSG(sdk_status));
+                sai_status = sdk_to_sai(sdk_status);
+                goto cleanup;
+            }
+
+            if (SX_STATUS_SUCCESS !=
+                (sdk_status =
+                     sx_api_router_interface_state_set(gh_sdk, sx_tunnel_attr.attributes.vxlan.decap.underlay_rif,
+                                                       &rif_state))) {
+                SX_LOG_ERR("Failed to set underlay router interface state to down - %s.\n",
+                           SX_STATUS_MSG(sdk_status));
+                sai_status = sdk_to_sai(sdk_status);
+                goto cleanup;
+            }
+        }
     }
 
     if ((0 != g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].sai_tunnel_map_encap_cnt) ||
