@@ -28,6 +28,8 @@ static sai_status_t mlnx_sai_get_tunnel_attribs(_In_ sai_object_id_t         sai
                                                 _Out_ sx_tunnel_attribute_t *sx_tunnel_attr);
 static sai_status_t mlnx_sai_get_tunnel_cos_data(_In_ sai_object_id_t        sai_tunnel_id,
                                                  _Out_ sx_tunnel_cos_data_t *sx_tunnel_cos_data);
+static sai_status_t mlnx_sai_get_tunnel_ttl_data(_In_ sai_object_id_t        sai_tunnel_id,
+                                                 _Out_ sx_tunnel_ttl_data_t *sx_tunnel_ttl_data);
 static sai_status_t mlnx_convert_sai_tunnel_type_to_sx_ipv4(_In_ sai_tunnel_type_t    sai_type,
                                                             _In_ sai_ip_addr_family_t sai_ip_type,
                                                             _Out_ sx_tunnel_type_e   *sx_type);
@@ -93,6 +95,11 @@ static sai_status_t mlnx_tunnel_ttl_mode_get(_In_ const sai_object_key_t   *key,
                                              _In_ uint32_t                  attr_index,
                                              _Inout_ vendor_cache_t        *cache,
                                              void                          *arg);
+static sai_status_t mlnx_tunnel_ttl_val_get(_In_ const sai_object_key_t   *key,
+                                            _Inout_ sai_attribute_value_t *value,
+                                            _In_ uint32_t                  attr_index,
+                                            _Inout_ vendor_cache_t        *cache,
+                                            void                          *arg);
 static sai_status_t mlnx_tunnel_dscp_mode_get(_In_ const sai_object_key_t   *key,
                                               _Inout_ sai_attribute_value_t *value,
                                               _In_ uint32_t                  attr_index,
@@ -306,9 +313,9 @@ static const sai_vendor_attribute_entry_t tunnel_vendor_attribs[] = {
       mlnx_tunnel_ttl_mode_get, (void*)TUNNEL_ENCAP,
       NULL, NULL },
     { SAI_TUNNEL_ATTR_ENCAP_TTL_VAL,
-      { false, false, false, false },
-      { false, false, false, false },
-      NULL, NULL,
+      { true, false, false, true },
+      { true, false, false, true },
+      mlnx_tunnel_ttl_val_get, NULL,
       NULL, NULL },
     { SAI_TUNNEL_ATTR_ENCAP_DSCP_MODE,
       { true, false, false, true },
@@ -1248,11 +1255,83 @@ static sai_status_t mlnx_tunnel_ttl_mode_get(_In_ const sai_object_key_t   *key,
                                              _Inout_ vendor_cache_t        *cache,
                                              void                          *arg)
 {
+    sai_status_t         sai_status = SAI_STATUS_FAILURE;
+    sx_tunnel_ttl_data_t sx_tunnel_ttl_data;
+
     SX_LOG_ENTER();
 
     assert((TUNNEL_ENCAP == (long)arg) || (TUNNEL_DECAP == (long)arg));
 
-    value->s32 = SAI_TUNNEL_TTL_MODE_PIPE_MODEL;
+    if (TUNNEL_ENCAP == (long)arg) {
+        sx_tunnel_ttl_data.direction = SX_TUNNEL_DIRECTION_ENCAP;
+    } else if (TUNNEL_DECAP == (long)arg) {
+        sx_tunnel_ttl_data.direction = SX_TUNNEL_DIRECTION_DECAP;
+    }
+
+    sai_db_write_lock();
+    sai_status = mlnx_sai_get_tunnel_ttl_data(key->key.object_id, &sx_tunnel_ttl_data);
+    sai_db_unlock();
+
+    if (SAI_STATUS_SUCCESS != sai_status) {
+        SX_LOG_ERR("Error getting sdk tunnel ttl data from sai tunnel object %" PRIx64 "\n", key->key.object_id);
+        SX_LOG_EXIT();
+        return sai_status;
+    }
+
+    if (SX_TUNNEL_TTL_CMD_SET_E == sx_tunnel_ttl_data.ttl_cmd) {
+        value->s32 = SAI_TUNNEL_TTL_MODE_PIPE_MODEL;
+    } else if (SX_TUNNEL_TTL_CMD_COPY_E == sx_tunnel_ttl_data.ttl_cmd) {
+        value->s32 = SAI_TUNNEL_TTL_MODE_UNIFORM_MODEL;
+    } else {
+        SX_LOG_ERR("Unrecognized ttl mode %d\n", sx_tunnel_ttl_data.ttl_cmd);
+        SX_LOG_EXIT();
+        return SAI_STATUS_FAILURE;
+    }
+
+    SX_LOG_EXIT();
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_tunnel_ttl_val_get(_In_ const sai_object_key_t   *key,
+                                             _Inout_ sai_attribute_value_t *value,
+                                             _In_ uint32_t                  attr_index,
+                                             _Inout_ vendor_cache_t        *cache,
+                                             void                          *arg)
+{
+    sai_status_t         sai_status = SAI_STATUS_FAILURE;
+    sx_tunnel_ttl_data_t sx_tunnel_ttl_data;
+
+    SX_LOG_ENTER();
+
+    assert((TUNNEL_ENCAP == (long)arg) || (TUNNEL_DECAP == (long)arg));
+
+    if (TUNNEL_ENCAP == (long)arg) {
+        sx_tunnel_ttl_data.direction = SX_TUNNEL_DIRECTION_ENCAP;
+    } else if (TUNNEL_DECAP == (long)arg) {
+        sx_tunnel_ttl_data.direction = SX_TUNNEL_DIRECTION_DECAP;
+    }
+
+    sai_db_write_lock();
+    sai_status = mlnx_sai_get_tunnel_ttl_data(key->key.object_id, &sx_tunnel_ttl_data);
+    sai_db_unlock();
+
+    if (SAI_STATUS_SUCCESS != sai_status) {
+        SX_LOG_ERR("Error getting sdk tunnel ttl data from sai tunnel object %" PRIx64 "\n", key->key.object_id);
+        SX_LOG_EXIT();
+        return sai_status;
+    }
+
+    if (SX_TUNNEL_TTL_CMD_SET_E == sx_tunnel_ttl_data.ttl_cmd) {
+        value->u8 = sx_tunnel_ttl_data.ttl_value;
+    } else if (SX_TUNNEL_TTL_CMD_COPY_E == sx_tunnel_ttl_data.ttl_cmd) {
+        SX_LOG_ERR("ttl value is not valid for uniform model\n");
+        SX_LOG_EXIT();
+        return SAI_STATUS_FAILURE;
+    } else {
+        SX_LOG_ERR("Unrecognized ttl mode %d\n", sx_tunnel_ttl_data.ttl_cmd);
+        SX_LOG_EXIT();
+        return SAI_STATUS_FAILURE;
+    }
 
     SX_LOG_EXIT();
     return SAI_STATUS_SUCCESS;
@@ -2704,17 +2783,91 @@ static sai_status_t mlnx_sai_get_tunnel_cos_data(_In_ sai_object_id_t        sai
 /*
  *  Callers need to lock around this method
  */
-static sai_status_t mlnx_sai_reserve_tunnel_db_item(_Out_ uint32_t *tunnel_db_idx)
+static sai_status_t mlnx_sai_get_tunnel_ttl_data(_In_ sai_object_id_t        sai_tunnel_id,
+                                                 _Out_ sx_tunnel_ttl_data_t *sx_tunnel_ttl_data)
 {
-    uint32_t ii;
+    sai_status_t          sai_status;
+    sx_tunnel_direction_e sx_tunnel_direction;
+    uint32_t              tunnel_db_idx = 0;
 
     SX_LOG_ENTER();
+
+    if (!sx_tunnel_ttl_data) {
+        SX_LOG_ERR("NULL sx_tunnel_ttl_data\n");
+        SX_LOG_EXIT();
+        return SAI_STATUS_INVALID_PARAMETER;
+    }
+    if (SAI_STATUS_SUCCESS !=
+        (sai_status = mlnx_get_sai_tunnel_db_idx(sai_tunnel_id, &tunnel_db_idx))) {
+        SX_LOG_ERR("Error getting sai tunnel db idx from sai tunnel id %" PRIx64 "\n", sai_tunnel_id);
+        SX_LOG_EXIT();
+        return sai_status;
+    }
+
+    sx_tunnel_direction = g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].sx_tunnel_attr.direction;
+
+    if (SX_TUNNEL_DIRECTION_ENCAP == sx_tunnel_ttl_data->direction) {
+        if ((SX_TUNNEL_DIRECTION_ENCAP == sx_tunnel_direction) ||
+            (SX_TUNNEL_DIRECTION_SYMMETRIC == sx_tunnel_direction)) {
+            memcpy(sx_tunnel_ttl_data, &g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].sdk_encap_ttl_data_attrib,
+                   sizeof(sx_tunnel_ttl_data_t));
+        } else {
+            SX_LOG_ERR("Error getting encap ttl data from decap tunnel from sai tunnel id %" PRIx64 "\n",
+                       sai_tunnel_id);
+            SX_LOG_EXIT();
+            return SAI_STATUS_FAILURE;
+        }
+    } else if (SX_TUNNEL_DIRECTION_DECAP == sx_tunnel_ttl_data->direction) {
+        if ((SX_TUNNEL_DIRECTION_DECAP == sx_tunnel_direction) ||
+            (SX_TUNNEL_DIRECTION_SYMMETRIC == sx_tunnel_direction)) {
+            memcpy(sx_tunnel_ttl_data, &g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].sdk_decap_ttl_data_attrib,
+                   sizeof(sx_tunnel_ttl_data_t));
+        } else {
+            SX_LOG_ERR("Error getting decap ttl data from encap tunnel from sai tunnel id %" PRIx64 "\n",
+                       sai_tunnel_id);
+            SX_LOG_EXIT();
+            return SAI_STATUS_FAILURE;
+        }
+    }
+    SX_LOG_EXIT();
+    return SAI_STATUS_SUCCESS;
+}
+
+/*
+ *  Callers need to lock around this method
+ */
+static sai_status_t mlnx_sai_reserve_tunnel_db_item(_In_ sai_tunnel_type_t sai_tunnel_type,
+                                                    _Out_ uint32_t *tunnel_db_idx)
+{
+    uint32_t ii;
+    uint32_t idx_start = 0;
+    uint32_t idx_end = MAX_TUNNEL_DB_SIZE;
+
+    SX_LOG_ENTER();
+
     if (!tunnel_db_idx) {
         SX_LOG_ERR("NULL tunnel_db_idx\n");
         SX_LOG_EXIT();
         return SAI_STATUS_INVALID_PARAMETER;
     }
-    for (ii = 0; ii < MAX_TUNNEL_DB_SIZE; ii++) {
+
+    switch (sai_tunnel_type) {
+    case SAI_TUNNEL_TYPE_IPINIP:
+    case SAI_TUNNEL_TYPE_IPINIP_GRE:
+        idx_start = MLNX_MAX_TUNNEL_NVE;
+        idx_end = MAX_TUNNEL_DB_SIZE;
+        break;
+    case SAI_TUNNEL_TYPE_VXLAN:
+        idx_start = 0;
+        idx_end = MLNX_MAX_TUNNEL_NVE;
+        break;
+    default:
+        SX_LOG_ERR("Unsupported tunnel type: %d\n", sai_tunnel_type);
+        SX_LOG_EXIT();
+        return SAI_STATUS_FAILURE;
+    }
+
+    for (ii = idx_start; ii < idx_end; ii++) {
         if (!g_sai_tunnel_db_ptr->tunnel_entry_db[ii].is_used) {
             g_sai_tunnel_db_ptr->tunnel_entry_db[ii].is_used = true;
             *tunnel_db_idx                                   = ii;
@@ -2730,7 +2883,8 @@ static sai_status_t mlnx_sai_reserve_tunnel_db_item(_Out_ uint32_t *tunnel_db_id
 /*
  *  Callers need to lock around this method
  */
-static sai_status_t mlnx_sai_tunnel_create_tunnel_object_id(_Out_ sai_object_id_t *sai_tunnel_id)
+static sai_status_t mlnx_sai_tunnel_create_tunnel_object_id(_In_ sai_tunnel_type_t sai_tunnel_type,
+                                                            _Out_ sai_object_id_t *sai_tunnel_id)
 {
     sai_status_t sai_status;
     uint32_t     tunnel_db_idx;
@@ -2741,7 +2895,8 @@ static sai_status_t mlnx_sai_tunnel_create_tunnel_object_id(_Out_ sai_object_id_
         SX_LOG_EXIT();
         return SAI_STATUS_INVALID_PARAMETER;
     }
-    if (SAI_STATUS_SUCCESS != (sai_status = mlnx_sai_reserve_tunnel_db_item(&tunnel_db_idx))) {
+    if (SAI_STATUS_SUCCESS != (sai_status = mlnx_sai_reserve_tunnel_db_item(sai_tunnel_type,
+                                                                            &tunnel_db_idx))) {
         SX_LOG_EXIT();
         return sai_status;
     }
@@ -2787,19 +2942,22 @@ static sai_status_t mlnx_sdk_fill_tunnel_ttl_data(_In_ uint32_t               at
                                                   _Out_ bool                 *has_decap_attr)
 {
     sai_status_t                 sai_status = SAI_STATUS_FAILURE;
+    sai_status_t                 sai_encap_ttl_mode_status = SAI_STATUS_FAILURE;
     const sai_attribute_value_t *attr;
     uint32_t                     attr_idx;
     const bool                   is_ipinip = (SAI_TUNNEL_TYPE_IPINIP == sai_tunnel_type) ||
                                              (SAI_TUNNEL_TYPE_IPINIP_GRE == sai_tunnel_type);
 
-    sai_status = find_attrib_in_list(attr_count, attr_list, SAI_TUNNEL_ATTR_ENCAP_TTL_MODE, &attr, &attr_idx);
-    if (SAI_STATUS_SUCCESS == sai_status) {
+    sai_encap_ttl_mode_status = find_attrib_in_list(attr_count, attr_list, SAI_TUNNEL_ATTR_ENCAP_TTL_MODE, &attr, &attr_idx);
+    if (SAI_STATUS_SUCCESS == sai_encap_ttl_mode_status) {
         switch (attr->s32) {
         case SAI_TUNNEL_TTL_MODE_UNIFORM_MODEL:
-            /*sdk_encap_ttl_data_attrib->ttl_cmd = SX_TUNNEL_TTL_CMD_COPY_E;*/
-            SX_LOG_ERR("Unsupported SAI tunnel ttl type %d\n", attr->s32);
-            SX_LOG_EXIT();
-            return SAI_STATUS_NOT_SUPPORTED;
+            if (!is_ipinip) {
+                SX_LOG_ERR("Uniform model is not supported for non-ipinip type\n");
+                SX_LOG_EXIT();
+                return SAI_STATUS_NOT_SUPPORTED;
+            }
+            sdk_encap_ttl_data_attrib->ttl_cmd = SX_TUNNEL_TTL_CMD_COPY_E;
             break;
 
         case SAI_TUNNEL_TTL_MODE_PIPE_MODEL:
@@ -2814,44 +2972,39 @@ static sai_status_t mlnx_sdk_fill_tunnel_ttl_data(_In_ uint32_t               at
         }
         *has_encap_attr = true;
     } else {
-        SX_LOG_WRN("TTL uniform model is not supported, using default settings in switch\n");
+        if (is_ipinip) {
+            sdk_encap_ttl_data_attrib->ttl_cmd = SX_TUNNEL_TTL_CMD_COPY_E;
+        } else {
+            sdk_encap_ttl_data_attrib->ttl_cmd = SX_TUNNEL_TTL_CMD_SET_E;
+            SX_LOG_WRN("TTL uniform model is not supported, using default settings in switch\n");
+        }
     }
 
     sdk_encap_ttl_data_attrib->direction = SX_TUNNEL_DIRECTION_ENCAP;
 
     sai_status = find_attrib_in_list(attr_count, attr_list, SAI_TUNNEL_ATTR_ENCAP_TTL_VAL, &attr, &attr_idx);
     if (SAI_STATUS_SUCCESS == sai_status) {
-        /* switch (sdk_encap_ttl_data_attrib->ttl_cmd) {
-         *  case SX_TUNNEL_TTL_CMD_COPY_E:
-         *    SX_LOG_ERR("Tunnel encap ttl val can only be set for pipe model\n");
-         *    break;
-         *  case SX_TUNNEL_TTL_CMD_SET_E:
-         *    sdk_encap_ttl_data_attrib->ttl_value = attr->u8;
-         *    break;
-         *  default:
-         *    SX_LOG_ERR("Unsupported SAI tunnel ttl type %d\n", sdk_encap_ttl_data_attrib->ttl_cmd);
-         *    SX_LOG_EXIT();
-         *    return SAI_STATUS_NOT_SUPPORTED;
-         *    break;
-         *  }
-         *  } else {
-         *  switch (sdk_encap_ttl_data_attrib->ttl_cmd) {
-         *  case SX_TUNNEL_TTL_CMD_COPY_E:
-         *    break;
-         *  case SX_TUNNEL_TTL_CMD_SET_E:
-         *    SX_LOG_ERR("Missing encap TTL value for encap ttl pipe model\n");
-         *    SX_LOG_EXIT();
-         *    return SAI_STATUS_FAILURE;
-         *    break;
-         *  default:
-         *    SX_LOG_ERR("Unsupported sdk tunnel ttl cmd%d\n", sdk_encap_ttl_data_attrib->ttl_cmd);
-         *    SX_LOG_EXIT();
-         *    return SAI_STATUS_NOT_SUPPORTED;
-         *    break;
-         *  }*/
-        SX_LOG_ERR("Unsupported SAI tunnel ttl val\n");
-        SX_LOG_EXIT();
-        return SAI_STATUS_NOT_SUPPORTED;
+        switch (sdk_encap_ttl_data_attrib->ttl_cmd) {
+        case SX_TUNNEL_TTL_CMD_COPY_E:
+            SX_LOG_ERR("Tunnel encap ttl val can only be set for pipe model\n");
+            SX_LOG_EXIT();
+            return SAI_STATUS_NOT_SUPPORTED;
+            break;
+        case SX_TUNNEL_TTL_CMD_SET_E:
+            sdk_encap_ttl_data_attrib->ttl_value = attr->u8;
+            break;
+        default:
+            SX_LOG_ERR("Unsupported SAI tunnel ttl type %d\n", sdk_encap_ttl_data_attrib->ttl_cmd);
+            SX_LOG_EXIT();
+            return SAI_STATUS_NOT_SUPPORTED;
+            break;
+        }
+    } else if (sdk_encap_ttl_data_attrib->ttl_cmd == SX_TUNNEL_TTL_CMD_SET_E) {
+        /* According to SAI spec and meta data check, TTL Val is mandatory for Pipe mode.
+         * We only get here for VXLAN encap, where the default (non-spec) value is pipe, 
+         * without neceesity to supply the TTL value */
+        SX_LOG_NTC("ttl val is not specified, using default value 255\n");
+        sdk_encap_ttl_data_attrib->ttl_value = 255;
     }
 
     sai_status = find_attrib_in_list(attr_count, attr_list, SAI_TUNNEL_ATTR_DECAP_TTL_MODE, &attr, &attr_idx);
@@ -2885,6 +3038,7 @@ static sai_status_t mlnx_sdk_fill_tunnel_ttl_data(_In_ uint32_t               at
         *has_decap_attr = true;
     } else {
         SX_LOG_WRN("TTL uniform model is not supported, using default settings in switch\n");
+        sdk_decap_ttl_data_attrib->ttl_cmd = SX_TUNNEL_TTL_CMD_SET_E;
     }
 
     sdk_decap_ttl_data_attrib->direction = SX_TUNNEL_DIRECTION_DECAP;
@@ -5181,6 +5335,16 @@ static sai_status_t mlnx_create_sdk_tunnel(_In_ sai_object_id_t      sai_tunnel_
             SX_LOG_ERR("Error setting sdk tunnel encap cos, sx status: %s\n", SX_STATUS_MSG(sdk_status));
             goto cleanup;
         }
+        /* TTL setting is shared with all SDK tunnels of the same type (IP in IP or VXLAN,
+         * regardless of IPv4 or IPv6),
+         * thus only need to set on IPv4 tunnel */
+        if (SX_STATUS_SUCCESS != (sdk_status = sx_api_tunnel_ttl_set(gh_sdk,
+                                                                     sx_tunnel_id_ipv4,
+                                                                     &sdk_encap_ttl_data_attrib))) {
+            sai_status = sdk_to_sai(sdk_status);
+            SX_LOG_ERR("Error setting sdk tunnel encap ttl, sx status: %s\n", SX_STATUS_MSG(sdk_status));
+            goto cleanup;
+        }
     }
 
     if ((SX_TUNNEL_DIRECTION_DECAP == sx_tunnel_attr.direction) ||
@@ -5192,6 +5356,15 @@ static sai_status_t mlnx_create_sdk_tunnel(_In_ sai_object_id_t      sai_tunnel_
             SX_LOG_ERR("Error setting sdk tunnel decap cos, sx status: %s\n", SX_STATUS_MSG(sdk_status));
             goto cleanup;
         }
+        /* Setting decap ttl is not allowed in current SDK
+         * Current behavior is pipe model for decap in SDK */
+        /*if (SX_STATUS_SUCCESS != (sdk_status = sx_api_tunnel_ttl_set(gh_sdk,
+                                                                     sx_tunnel_id_ipv4,
+                                                                     &sdk_decap_ttl_data_attrib))) {
+            sai_status = sdk_to_sai(sdk_status);
+            SX_LOG_ERR("Error setting sdk tunnel decap ttl, sx status: %s\n", SX_STATUS_MSG(sdk_status));
+            goto cleanup;
+        }*/
     }
 
     if (SAI_TUNNEL_TYPE_VXLAN == sai_tunnel_type) {
@@ -5579,8 +5752,10 @@ static sai_status_t mlnx_create_tunnel(_Out_ sai_object_id_t     * sai_tunnel_ob
     sai_status = find_attrib_in_list(attr_count, attr_list, SAI_TUNNEL_ATTR_TYPE, &attr, &attr_idx);
     assert(SAI_STATUS_SUCCESS == sai_status);
 
+    sai_tunnel_type = attr->s32;
+
     sai_db_write_lock();
-    sai_status = mlnx_sai_tunnel_create_tunnel_object_id(&tunnel_obj_id);
+    sai_status = mlnx_sai_tunnel_create_tunnel_object_id(sai_tunnel_type, &tunnel_obj_id);
     if (SAI_STATUS_SUCCESS != sai_status) {
         SX_LOG_ERR("Error create tunnel object id\n");
         sai_db_unlock();
@@ -5596,7 +5771,6 @@ static sai_status_t mlnx_create_tunnel(_Out_ sai_object_id_t     * sai_tunnel_ob
     }
     sai_db_unlock();
 
-    sai_tunnel_type = attr->s32;
     switch (sai_tunnel_type) {
     case SAI_TUNNEL_TYPE_IPINIP:
     case SAI_TUNNEL_TYPE_IPINIP_GRE:

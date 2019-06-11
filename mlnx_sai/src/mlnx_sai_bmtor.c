@@ -35,10 +35,11 @@
 #define MLNX_FX_PARAMS_LIST_IS_EMPTY(params_list) (((params_list).params == NULL) && (((params_list).len == 0)))
 
 static sx_verbosity_level_t LOG_VAR_NAME(__MODULE__) = SX_VERBOSITY_LEVEL_WARNING;
-static bool        g_fx_pipe_created = false;
 static fx_handle_t g_fx_handle;
-static sai_status_t sai_fx_initialize();
-static sai_status_t mlnx_bmtor_check_pipe_needed(void);
+static bool        g_fx_handle_initialized = false;
+static bool        g_fx_handle_is_extern   = false;
+static sai_status_t sai_fx_initialize(void);
+static sai_status_t mlnx_bmtor_fx_handle_init(void);
 static sai_status_t get_bitmap_classification_fx_action(_In_ sai_table_bitmap_classification_entry_action_t action,
                                                         _Out_ fx_action_id_t                               *action_id,
                                                         _In_ uint32_t                                       param_index)
@@ -525,11 +526,6 @@ sai_status_t mlnx_remove_table_bitmap_classification_entry(_In_ sai_object_id_t 
         SX_LOG_ERR("Failure in removal of table_bitmap_classification entry at offset %d\n",
                    bitmap_classification_offset);
         status = SAI_STATUS_FAILURE;
-        goto out;
-    }
-
-    status = mlnx_bmtor_check_pipe_needed();
-    if (SAI_ERR(status)) {
         goto out;
     }
 
@@ -1206,11 +1202,6 @@ sai_status_t mlnx_remove_table_bitmap_router_entry(_In_ sai_object_id_t entry_id
         goto out;
     }
 
-    status = mlnx_bmtor_check_pipe_needed();
-    if (SAI_ERR(status)) {
-        goto out;
-    }
-
 out:
     sai_db_unlock();
     SX_LOG_EXIT();
@@ -1311,10 +1302,16 @@ static sx_status_t bmflood(void)
 
 static sai_status_t mlnx_bmtor_rif_event(_In_ sx_router_interface_t sx_rif, bool is_add)
 {
-    sx_status_t sx_status;
+    sai_status_t status;
+    sx_status_t  sx_status;
 
-    if ((!g_sai_db_ptr->g_fx_initialized) || (!g_fx_pipe_created)) {
+    if (!g_sai_db_ptr->fx_pipe_created) {
         return SAI_STATUS_SUCCESS;
+    }
+
+    status = mlnx_bmtor_fx_handle_init();
+    if (SAI_ERR(status)) {
+        return status;
     }
 
     SX_LOG_DBG("bmtor event: %s rif %d\n", is_add ? "adding" : "removing", sx_rif);
@@ -1344,82 +1341,120 @@ sai_status_t mlnx_bmtor_rif_event_del(_In_ sx_router_interface_t sx_rif)
     return mlnx_bmtor_rif_event(sx_rif, false);
 }
 
-static sai_status_t mlnx_bmtor_check_pipe_needed(void)
+
+static void* mlnx_bmtor_fx_handle_alloc(size_t size)
+{
+    if (size != MLNX_SHM_POOL_ELEM_FX_HANDLE_SIZE) {
+        SX_LOG_ERR("Unexpected size requested from fx lib - %lu, expected %u\n", size, MLNX_SHM_POOL_ELEM_FX_HANDLE_SIZE);
+        return NULL;
+    }
+
+    return g_sai_db_ptr->shm_pool.fx_handle_mem;
+}
+
+static void mlnx_bmtor_fx_handle_free(void* ptr)
+{
+    SX_LOG_DBG("fx handle (%p) is freed\n", ptr);
+}
+
+static fx_init_params_t g_fx_init_params =  {
+        .memory_manager = {
+            .alloc = mlnx_bmtor_fx_handle_alloc,
+            .free =  mlnx_bmtor_fx_handle_free
+            },
+        .log_cb = NULL
+        };
+
+static sai_status_t mlnx_bmtor_fx_handle_init(void)
 {
     sx_status_t sx_status;
-    uint32_t    classif_entry_count = 0, router_entry_count = 0, meta_tunnel_entry_count = 0;
 
-    sx_status = fx_table_entry_count_get(g_fx_handle,
-                                         CONTROL_IN_RIF_TABLE_BITMAP_CLASSIFICATION_ID,
-                                         &classif_entry_count);
-    if (SX_ERR(sx_status)) {
-        return sdk_to_sai(sx_status);
-    }
+    if (!g_fx_handle_initialized) {
+        if (!g_sai_db_ptr->fx_initialized) {
+            g_fx_init_params.log_cb = sai_log_cb;
 
-    sx_status = fx_table_entry_count_get(g_fx_handle, CONTROL_IN_RIF_TABLE_BITMAP_ROUTER_ID, &router_entry_count);
-    if (SX_ERR(sx_status)) {
-        return sdk_to_sai(sx_status);
-    }
+            sx_status = fx_init(&g_fx_handle, &g_fx_init_params);
+            if (SX_ERR(sx_status)) {
+                SX_LOG_ERR("Fx init error %s\n", SX_STATUS_MSG(sx_status));
+                return sdk_to_sai(sx_status);
+            }
 
-    sx_status = fx_table_entry_count_get(g_fx_handle, CONTROL_OUT_RIF_TABLE_L3_VXLAN_ID, &meta_tunnel_entry_count);
-    if (SX_ERR(sx_status)) {
-        return sdk_to_sai(sx_status);
-    }
+            g_fx_handle_is_extern = false;
 
-    SX_LOG_DBG("classif_entry_count = %u, router_entry_count = %u, meta_tunnel_entry_count = %u\n",
-               classif_entry_count, router_entry_count, meta_tunnel_entry_count);
+    #ifdef BMFLOOD
+            sx_status = bmflood();
+            if (SX_ERR(sx_status)) {
+                SX_LOG_ERR("bmflood error %s\n", SX_STATUS_MSG(sx_status));
+                return sdk_to_sai(sx_status);
+            }
+    #endif
+            g_sai_db_ptr->fx_initialized = true;
+        } else {
+            g_fx_handle = mlnx_bmtor_fx_handle_alloc(MLNX_SHM_POOL_ELEM_FX_HANDLE_SIZE);
+            if (!g_fx_handle) {
+                return SAI_STATUS_FAILURE;
+            }
 
-    if ((classif_entry_count == 0) && (router_entry_count == 0) && (meta_tunnel_entry_count == 0)) {
-        SX_LOG_DBG("destroying fx pipe\n");
-        sx_status = fx_pipe_destroy(g_fx_handle, FX_CONTROL_IN_RIF, NULL, 0);
-        if (SX_ERR(sx_status)) {
-            SX_LOG_ERR("Failed to destroy fx pipe - %s\n", SX_STATUS_MSG(sx_status));
-            return sdk_to_sai(sx_status);
+            sx_status = fx_connect(g_fx_handle, sai_log_cb);
+            if (SX_ERR(sx_status)) {
+                SX_LOG_ERR("Fx extern init error %s\n", SX_STATUS_MSG(sx_status));
+                return sdk_to_sai(sx_status);
+            }
+
+            g_fx_handle_is_extern = true;
         }
 
-        sx_status = fx_pipe_destroy(g_fx_handle, FX_CONTROL_OUT_RIF, NULL, 0);
-        if (SX_ERR(sx_status)) {
-            SX_LOG_ERR("Failed to destroy fx pipe - %s\n", SX_STATUS_MSG(sx_status));
-            return sdk_to_sai(sx_status);
+        g_fx_handle_initialized = true;
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
+sai_status_t mlnx_bmtor_fx_handle_deinit(void)
+{
+    sx_status_t sx_status;
+
+    if (g_fx_handle_initialized) {
+        if (g_fx_handle_is_extern) {
+            sx_status = fx_disconnect(g_fx_handle);
+            if (SX_ERR(sx_status)) {
+                SX_LOG_ERR("Fx extern deinit error %s\n", SX_STATUS_MSG(sx_status));
+                return sdk_to_sai(sx_status);
+            }
+        } else {
+            sx_status = fx_deinit(g_fx_handle);
+            if (SX_ERR(sx_status)) {
+                SX_LOG_ERR("Fx deinit error %s\n", SX_STATUS_MSG(sx_status));
+                return sdk_to_sai(sx_status);
+            }
         }
 
-        g_fx_pipe_created = false;
+        g_fx_handle_initialized = false;
     }
 
     return SAI_STATUS_SUCCESS;
 }
 
 /* locks are taken from outside */
-static sai_status_t sai_fx_initialize()
+static sai_status_t sai_fx_initialize(void)
 {
-    sx_router_interface_t rif_list[RIF_NUM];
-    uint32_t              num_of_rifs = 0;
-    sx_status_t           sx_status   = SX_STATUS_SUCCESS;
+    sai_status_t           status;
+    sx_router_interface_t *rif_list = NULL;
+    uint32_t               num_of_rifs = 0;
+    sx_status_t            sx_status   = SX_STATUS_SUCCESS;
 
-    SX_LOG_ENTER();
-
-    if (!g_sai_db_ptr->g_fx_initialized) {
-        sx_status = fx_init(&g_fx_handle);
-        if (SX_ERR(sx_status)) {
-            SX_LOG_ERR("Fx init error %s\n", SX_STATUS_MSG(sx_status));
-            goto out;
-        }
-        sx_status = fx_extern_init(g_fx_handle);
-        if (SX_ERR(sx_status)) {
-            SX_LOG_ERR("Fx extern init error %s\n", SX_STATUS_MSG(sx_status));
-            goto out;
-        }
-#ifdef BMFLOOD
-        sx_status = bmflood();
-        if (SX_ERR(sx_status)) {
-            SX_LOG_ERR("bmflood error %s\n", SX_STATUS_MSG(sx_status));
-            goto out;
-        }
-#endif
-        g_sai_db_ptr->g_fx_initialized = true;
+    status = mlnx_bmtor_fx_handle_init();
+    if (SAI_ERR(status)) {
+        return status;
     }
 
-    if (!g_fx_pipe_created) {
+    if (!g_sai_db_ptr->fx_pipe_created) {
+        rif_list = calloc(g_resource_limits.router_rifs_max, sizeof(*rif_list));
+        if (!rif_list) {
+            SX_LOG_ERR("Failed to allocated rif_list\n");
+            return SAI_STATUS_NO_MEMORY;
+        }
+
         sx_status = fx_get_bindable_rif_list(g_fx_handle, rif_list, &num_of_rifs);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Fx get bindable rif list error %s\n", SX_STATUS_MSG(sx_status));
@@ -1438,15 +1473,15 @@ static sai_status_t sai_fx_initialize()
             goto out;
         }
 
-        g_fx_pipe_created = true;
+        g_sai_db_ptr->fx_pipe_created = true;
     }
 
 out:
-    SX_LOG_EXIT();
+    free(rif_list);
     return sdk_to_sai(sx_status);
 }
 
-sai_status_t sai_fx_uninitialize()
+sai_status_t sai_fx_uninitialize(void)
 {
     sai_status_t status = SAI_STATUS_SUCCESS;
     sx_status_t  sx_status;
@@ -1455,7 +1490,7 @@ sai_status_t sai_fx_uninitialize()
 
     sai_db_write_lock();
 
-    if (g_fx_pipe_created) {
+    if (g_sai_db_ptr->fx_pipe_created) {
         sx_status = fx_pipe_destroy(g_fx_handle, FX_CONTROL_IN_RIF, NULL, 0);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Fx pipe destroy error %s\n", SX_STATUS_MSG(sx_status));
@@ -1470,29 +1505,15 @@ sai_status_t sai_fx_uninitialize()
             goto out;
         }
 
-        g_fx_pipe_created = false;
+        g_sai_db_ptr->fx_pipe_created = false;
     }
 
-    if (!g_sai_db_ptr->g_fx_initialized) {
-        status = SAI_STATUS_SUCCESS;
+    status = mlnx_bmtor_fx_handle_deinit();
+    if (SAI_ERR(status)) {
         goto out;
     }
 
-    sx_status = fx_extern_deinit(g_fx_handle);
-    if (SX_ERR(sx_status)) {
-        SX_LOG_ERR("Fx extern deinit error %s\n", SX_STATUS_MSG(sx_status));
-        status = sdk_to_sai(sx_status);
-        goto out;
-    }
-
-    sx_status = fx_deinit(g_fx_handle);
-    if (SX_ERR(sx_status)) {
-        SX_LOG_ERR("Fx deinit error %s\n", SX_STATUS_MSG(sx_status));
-        status = sdk_to_sai(sx_status);
-        goto out;
-    }
-
-    g_sai_db_ptr->g_fx_initialized = false;
+    g_sai_db_ptr->fx_initialized = false;
 
 out:
     sai_db_unlock();
@@ -1884,7 +1905,7 @@ static sai_status_t mlnx_create_table_meta_tunnel_entry(_Out_ sai_object_id_t   
     sai_status = sai_fx_initialize();
     if (SAI_ERR(sai_status)) {
         SX_LOG_ERR("Failure in call to sai_fx_initialize\n");
-        return sai_status;
+        goto out;
     }
 
     meta_tunnel_key_list.len   = keys_idx;

@@ -117,7 +117,10 @@
 #define acl_table_read_lock(table_id)  cl_plock_acquire(&acl_db_table(table_id).lock)
 #define acl_table_unlock(table_id)     cl_plock_release(&acl_db_table(table_id).lock)
 
-#define MLNX_ACL_SX_FLEX_RULE_EMPTY ((sx_flex_acl_flex_rule_t) {.key_desc_list_p = NULL, .action_list_p = NULL})
+#define MLNX_ACL_SX_SPAN_SESSION_INVALID ((uint8_t)-1)
+#define MLNX_ACL_SX_SPAN_SESSION_IS_VALID(s) ((s) != MLNX_ACL_SX_SPAN_SESSION_INVALID)
+
+#define MLNX_ACL_SX_FLEX_RULE_EMPTY {.key_desc_list_p = NULL, .action_list_p = NULL}
 #define MLNX_ACL_SX_FLEX_RULE_IS_EMPTY(rule) ((NULL == (rule)->key_desc_list_p) && (NULL == (rule)->action_list_p))
 
 #define MLNX_SAI_STRUCT_MEMBER_SIZE(type, member) sizeof(((type*)0)->member)
@@ -424,6 +427,9 @@ static const mlnx_acl_field_extra_keys_t mlnx_acl_field_extra_keys_map[] = {
 static const uint32_t                    mlnx_acl_field_extra_keys_map_size =
     ARRAY_SIZE(mlnx_acl_field_extra_keys_map);
 
+typedef sai_status_t (*mlnx_acl_entry_iter_fn)(_In_ uint32_t  table_idx,
+                                               _In_ uint32_t  entry_idx,
+                                               _In_ void     *opaque);
 typedef sai_status_t (*mlnx_acl_table_init_f)(_In_ uint32_t table_db_idx, _In_ bool is_table_dynamic,
                                               _In_ uint32_t size);
 typedef sai_status_t (*mlnx_acl_table_deinit_f)(_In_ uint32_t table_db_idx);
@@ -439,6 +445,13 @@ typedef sai_status_t (*mlnx_acl_lazy_init_f)(void);
 typedef sai_status_t (*mlnx_acl_deinit_f)(void);
 typedef sai_status_t (*mlnx_acl_table_size_set_f)(_In_ uint32_t table_db_idx, _In_ uint32_t size);
 typedef sai_status_t (*mlnx_acl_table_optimize_f)(_In_ uint32_t table_db_idx);
+typedef sai_status_t (*mlnx_acl_range_create_f)(_In_ sai_acl_range_type_t     type,
+                                                _In_ const sai_u32_range_t   *range,
+                                                _Out_ sx_acl_port_range_id_t *sx_range_id);
+typedef sai_status_t (*mlnx_acl_range_remove_f)(_In_ sx_acl_port_range_id_t sx_range_id);
+typedef sai_status_t (*mlnx_acl_range_attr_get_f)(_In_ sx_acl_port_range_id_t  sx_range_id,
+                                                  _In_ sai_attr_id_t           attr_id,
+                                                  _Out_ sai_attribute_value_t *value);
 typedef struct _mlnx_acl_cb_list_t {
     mlnx_acl_table_init_f       table_init;
     mlnx_acl_table_deinit_f     table_deinit;
@@ -451,6 +464,9 @@ typedef struct _mlnx_acl_cb_list_t {
     mlnx_acl_table_size_set_f   table_size_set;
     mlnx_acl_table_optimize_f   table_optimize;
     mlnx_acl_sx_rule_prio_set_f rule_prio_set;
+    mlnx_acl_range_create_f     range_create;
+    mlnx_acl_range_remove_f     range_remove;
+    mlnx_acl_range_attr_get_f   range_attr_get;
 } mlnx_acl_cb_list_t;
 typedef struct _mlnx_acl_sp2_reg_offset_t {
     uint32_t next_free_offset_idx;
@@ -798,6 +814,7 @@ static sai_status_t mlnx_acl_table_optimize(_In_ uint32_t table_db_idx);
 static sai_status_t mlnx_acl_table_size_increase(_In_ uint32_t table_index);
 static sai_status_t mlnx_acl_table_size_decrease(_In_ uint32_t table_index);
 static sai_status_t mlnx_acl_table_size_delta_get(_In_ uint32_t acl_table_index, _Out_ uint32_t *delta);
+static sx_acl_direction_t mlnx_acl_table_sx_direction_get(_In_ uint32_t table_index);
 static void acl_psort_optimize_table(_In_ uint32_t table_index);
 static sai_status_t acl_db_find_entry_free_index(_Out_ uint32_t *free_index);
 static sai_status_t acl_db_find_table_free_index(_Out_ uint32_t *free_index);
@@ -805,6 +822,7 @@ static sai_status_t acl_db_find_group_free_index(_Out_ uint32_t *free_index);
 static sai_status_t mlnx_acl_db_entry_delete(_In_ uint32_t entry_index);
 static sai_status_t mlnx_acl_db_entry_add_to_table(_In_ uint32_t table_index, _In_ uint32_t entry_index);
 static sai_status_t mlnx_acl_db_entry_remove_from_table(_In_ uint32_t table_index, _In_ uint32_t entry_index);
+static sai_status_t mlnx_acl_db_entries_foreach(_In_ mlnx_acl_entry_iter_fn fn, void *opaque);
 static sai_status_t extract_acl_table_index_and_entry_index(_In_ sai_object_id_t entry_object_id,
                                                             _Out_ uint32_t      *acl_table_index,
                                                             _Out_ uint32_t      *acl_entry_index);
@@ -1150,6 +1168,13 @@ static sai_status_t mlnx_acl_deinit_sp(void);
 static sai_status_t mlnx_acl_table_size_set_sp(_In_ uint32_t table_db_idx, _In_ uint32_t size);
 static sai_status_t mlnx_acl_table_optimize_sp(_In_ uint32_t table_db_idx);
 static sai_status_t mlnx_acl_sx_rule_prio_set_sp(_In_ sx_flex_acl_flex_rule_t *rule, _In_ uint32_t sx_prio);
+static sai_status_t mlnx_acl_range_create_spc(_In_ sai_acl_range_type_t     type,
+                                               _In_ const sai_u32_range_t   *range,
+                                               _Out_ sx_acl_port_range_id_t *sx_range_id);
+static sai_status_t mlnx_acl_range_remove_spc(_In_ sx_acl_port_range_id_t sx_range_id);
+static sai_status_t mlnx_acl_range_attr_get_spc(_In_ sx_acl_port_range_id_t  sx_range_id,
+                                                _In_ sai_attr_id_t           attr_id,
+                                                _Out_ sai_attribute_value_t *value);
 static sai_status_t mlnx_acl_table_init_sp2(_In_ uint32_t table_db_idx, _In_ bool is_table_dynamic,
                                             _In_ uint32_t size);
 static sai_status_t mlnx_acl_table_deinit_sp2(_In_ uint32_t table_db_idx);
@@ -1167,6 +1192,13 @@ static sai_status_t mlnx_acl_init_sp2(void);
 static sai_status_t mlnx_acl_deinit_sp2(void);
 static sai_status_t mlnx_acl_table_size_set_sp2(_In_ uint32_t table_db_idx, _In_ uint32_t size);
 static sai_status_t mlnx_acl_sx_rule_prio_set_sp2(_In_ sx_flex_acl_flex_rule_t *rule, _In_ uint32_t sx_prio);
+static sai_status_t mlnx_acl_range_create_spc2(_In_ sai_acl_range_type_t     type,
+                                               _In_ const sai_u32_range_t   *range,
+                                               _Out_ sx_acl_port_range_id_t *sx_range_id);
+static sai_status_t mlnx_acl_range_remove_spc2(_In_ sx_acl_port_range_id_t sx_range_id);
+static sai_status_t mlnx_acl_range_attr_get_spc2(_In_ sx_acl_port_range_id_t  sx_range_id,
+                                                 _In_ sai_attr_id_t           attr_id,
+                                                 _Out_ sai_attribute_value_t *value);
 static const mlnx_acl_cb_list_t               mlnx_acl_cb_sp = {
     mlnx_acl_table_init_sp,
     mlnx_acl_table_deinit_sp,
@@ -1178,7 +1210,10 @@ static const mlnx_acl_cb_list_t               mlnx_acl_cb_sp = {
     mlnx_acl_deinit_sp,
     mlnx_acl_table_size_set_sp,
     mlnx_acl_table_optimize_sp,
-    mlnx_acl_sx_rule_prio_set_sp
+    mlnx_acl_sx_rule_prio_set_sp,
+    mlnx_acl_range_create_spc,
+    mlnx_acl_range_remove_spc,
+    mlnx_acl_range_attr_get_spc,
 };
 static const mlnx_acl_cb_list_t               mlnx_acl_cb_sp2 = {
     mlnx_acl_table_init_sp2,
@@ -1191,7 +1226,10 @@ static const mlnx_acl_cb_list_t               mlnx_acl_cb_sp2 = {
     mlnx_acl_deinit_sp2,
     mlnx_acl_table_size_set_sp2,
     NULL, /* mlnx_acl_table_optimize_f */
-    mlnx_acl_sx_rule_prio_set_sp2
+    mlnx_acl_sx_rule_prio_set_sp2,
+    mlnx_acl_range_create_spc2,
+    mlnx_acl_range_remove_spc2,
+    mlnx_acl_range_attr_get_spc2,
 };
 static mlnx_acl_sp2_table_db_t                acl_sp2_table_db = {.tables = NULL, .is_inited = false};
 static const mlnx_acl_cb_list_t              *mlnx_acl_cb                       = NULL;
@@ -4521,7 +4559,7 @@ static sai_status_t mlnx_acl_icmp_field_to_sx(_In_ sai_acl_entry_attr_t         
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t acl_db_find_entry_free_index(_Out_ uint32_t *free_index)
+static sai_status_t acl_db_find_entry_free_index(_Out_ uint32_t *free_index)
 {
     uint32_t last_free_index, new_free_index;
 
@@ -4546,7 +4584,7 @@ sai_status_t acl_db_find_entry_free_index(_Out_ uint32_t *free_index)
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t acl_db_find_table_free_index(_Out_ uint32_t *free_index)
+static sai_status_t acl_db_find_table_free_index(_Out_ uint32_t *free_index)
 {
     sai_status_t status;
     uint32_t     ii;
@@ -4620,6 +4658,47 @@ sai_status_t mlnx_acl_db_free_entries_get(_In_ sai_object_type_t resource_type, 
     }
 
     *free_entries = count;
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_acl_db_entries_foreach(_In_ mlnx_acl_entry_iter_fn fn, void *opaque)
+{
+    sai_status_t    status;
+    uint32_t        table_idx, entry_idx;
+    uint32_t        stat_exec = 0, stat_skiped = 0;
+
+    for (table_idx = 0; table_idx < ACL_TABLE_DB_SIZE; table_idx++) {
+        if (!acl_db_table(table_idx).is_used) {
+            continue;
+        }
+
+        acl_table_write_lock(table_idx);
+
+        entry_idx = acl_db_table(table_idx).head_entry_index;
+        while (entry_idx != ACL_INVALID_DB_INDEX) {
+            status = fn(table_idx, entry_idx, opaque);
+            if (status == SAI_STATUS_NOT_EXECUTED) {
+                stat_skiped++;
+                entry_idx = acl_db_entry(entry_idx).next_entry_index;
+                continue;
+            }
+
+            if (SAI_ERR(status)) {
+                SX_LOG_ERR("Iteration failed at table %d entry %d\n", table_idx, entry_idx);
+                acl_table_unlock(table_idx);
+                return status;
+            }
+
+            stat_exec++;
+
+            entry_idx = acl_db_entry(entry_idx).next_entry_index;
+        }
+
+        acl_table_unlock(table_idx);
+    }
+
+    SX_LOG_DBG("%d executed, %d skipped\n", stat_exec, stat_skiped);
 
     return SAI_STATUS_SUCCESS;
 }
@@ -7001,6 +7080,58 @@ out:
     return status;
 }
 
+static sai_status_t mlnx_acl_mirror_config_validate(_In_ const sx_flex_acl_flex_rule_t *sx_rule,
+                                                    _In_ sx_flex_acl_flex_action_type_t sx_mirror_action_type,
+                                                    _In_ sx_span_session_id_t           db_session)
+{
+    const mlnx_mirror_policer_t *mirror_policer = NULL;
+    sx_span_session_id_t         sx_rule_session;
+    uint32_t                     action_idx;
+    bool                         is_action_present;
+
+    assert(sx_rule);
+    assert((sx_mirror_action_type == SX_FLEX_ACL_ACTION_MIRROR) ||
+           (sx_mirror_action_type == SX_FLEX_ACL_ACTION_EGRESS_MIRROR));
+
+    if (MLNX_ACL_SX_SPAN_SESSION_IS_VALID(db_session)) {
+        if (SPAN_SESSION_MAX <= db_session) {
+            SX_LOG_ERR("ACL DB sx_span_session %u is out of range [0, %u)\n",
+                       db_session, SPAN_SESSION_MAX);
+            return SAI_STATUS_FAILURE;
+        }
+
+        mirror_policer = &g_sai_db_ptr->mirror_policer[db_session];
+    }
+
+    mlnx_acl_flex_rule_action_find(sx_rule, sx_mirror_action_type, &action_idx, &is_action_present);
+
+    if (is_action_present) {
+        if (!MLNX_ACL_SX_SPAN_SESSION_IS_VALID(db_session)) {
+            SX_LOG_ERR("SX Action mirror is present, but value in SAI DB is not valid\n");
+            return SAI_STATUS_FAILURE;
+        }
+
+        if (sx_mirror_action_type == SX_FLEX_ACL_ACTION_MIRROR) {
+            sx_rule_session = sx_rule->action_list_p[action_idx].fields.action_mirror.session_id;
+        } else { /* SX_FLEX_ACL_ACTION_EGRESS_MIRROR */
+            sx_rule_session = sx_rule->action_list_p[action_idx].fields.action_egress_mirror.session_id;
+        }
+
+        if (db_session != sx_rule_session) {
+            SX_LOG_ERR("Span session in ACL db %d != span session in flex rule %d\n", db_session, sx_rule_session);
+            return SAI_STATUS_FAILURE;
+        }
+    } else {
+        if ((MLNX_ACL_SX_SPAN_SESSION_IS_VALID(db_session)) &&
+                (mirror_policer->policer_oid == SAI_NULL_OBJECT_ID)) {
+            SX_LOG_ERR("SX Action mirror is not present, but value in SAI DB is valid and policer is NULL\n");
+            return SAI_STATUS_FAILURE;
+        }
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
 static sai_status_t mlnx_acl_entry_action_mirror_get(_In_ const sai_object_key_t   *key,
                                                      _Inout_ sai_attribute_value_t *value,
                                                      _In_ uint32_t                  attr_index,
@@ -7011,27 +7142,13 @@ static sai_status_t mlnx_acl_entry_action_mirror_get(_In_ const sai_object_key_t
     sx_flex_acl_flex_rule_t        flex_acl_rule  = MLNX_ACL_SX_FLEX_RULE_EMPTY;
     sai_acl_stage_t                acl_stage      = SAI_ACL_STAGE_INGRESS;
     sx_flex_acl_flex_action_type_t sx_action_type = SX_FLEX_ACL_ACTION_MIRROR;
-    sx_span_session_id_t           sx_span_session;
-    uint32_t                       acl_entry_index, acl_table_index, flex_action_index;
-    bool                           is_action_type_present = false;
+    sx_span_session_id_t           sx_db_span_session = MLNX_ACL_SX_SPAN_SESSION_INVALID;
+    uint32_t                       acl_entry_index, acl_table_index;
 
     SX_LOG_ENTER();
 
     assert((SAI_ACL_ENTRY_ATTR_ACTION_MIRROR_INGRESS == (int64_t)arg) ||
            (SAI_ACL_ENTRY_ATTR_ACTION_MIRROR_EGRESS == (int64_t)arg));
-
-    status = extract_acl_table_index_and_entry_index(key->key.object_id, &acl_table_index, &acl_entry_index);
-    if (SAI_STATUS_SUCCESS != status) {
-        SX_LOG_EXIT();
-        return status;
-    }
-
-    acl_table_read_lock(acl_table_index);
-
-    status = mlnx_acl_entry_sx_acl_rule_get(acl_table_index, acl_entry_index, &flex_acl_rule);
-    if (SAI_STATUS_SUCCESS != status) {
-        goto out;
-    }
 
     switch ((int64_t)arg) {
     case SAI_ACL_ENTRY_ATTR_ACTION_MIRROR_INGRESS:
@@ -7050,40 +7167,48 @@ static sai_status_t mlnx_acl_entry_action_mirror_get(_In_ const sai_object_key_t
         value->aclaction.parameter.objlist.count = 1;
     }
 
-    value->aclaction.enable = false;
+    status = extract_acl_table_index_and_entry_index(key->key.object_id, &acl_table_index, &acl_entry_index);
+    if (SAI_STATUS_SUCCESS != status) {
+        SX_LOG_EXIT();
+        return status;
+    }
+
+    acl_table_read_lock(acl_table_index);
 
     if (acl_db_table(acl_table_index).stage != acl_stage) {
         SX_LOG_ERR(" Invalid Attribute to Get : Action Mirror \n");
         status = SAI_STATUS_FAILURE;
-        goto out_deinit;
+        goto out;
     }
 
-    mlnx_acl_flex_rule_action_find(&flex_acl_rule, sx_action_type,
-                                   &flex_action_index, &is_action_type_present);
+    sx_db_span_session = acl_db_entry(acl_entry_index).sx_span_session;
 
-    if (is_action_type_present) {
-        if (sx_action_type == SX_FLEX_ACL_ACTION_MIRROR) {
-            sx_span_session = flex_acl_rule.action_list_p[flex_action_index].fields.action_mirror.session_id;
-        } else { /* SX_FLEX_ACL_ACTION_EGRESS_MIRROR */
-            sx_span_session = flex_acl_rule.action_list_p[flex_action_index].fields.action_egress_mirror.session_id;
-        }
+    status = mlnx_acl_entry_sx_acl_rule_get(acl_table_index, acl_entry_index, &flex_acl_rule);
+    if (SAI_ERR(status)) {
+        goto out;
+    }
 
-        status = mlnx_create_object(SAI_OBJECT_TYPE_MIRROR_SESSION, sx_span_session, NULL,
+    status = mlnx_acl_mirror_config_validate(&flex_acl_rule, sx_action_type, sx_db_span_session);
+    if (SAI_ERR(status)) {
+        goto out;
+    }
+
+    if (MLNX_ACL_SX_SPAN_SESSION_IS_VALID(sx_db_span_session)) {
+        value->aclaction.enable = true;
+        status = mlnx_create_object(SAI_OBJECT_TYPE_MIRROR_SESSION, sx_db_span_session, NULL,
                                     &value->aclaction.parameter.objlist.list[0]);
         if (SAI_ERR(status)) {
-            goto out_deinit;
+            goto out;
         }
-        value->aclaction.enable = true;
     } else {
         SX_LOG_ERR(" Invalid Attribute to Get :  ACTION MIRROR \n");
         status = SAI_STATUS_INVALID_ATTRIBUTE_0 + attr_index;
+        goto out;
     }
-
-out_deinit:
-    mlnx_acl_flex_rule_free(&flex_acl_rule);
 
 out:
     acl_table_unlock(acl_table_index);
+    mlnx_acl_flex_rule_free(&flex_acl_rule);
 
     SX_LOG_EXIT();
     return status;
@@ -7771,6 +7896,30 @@ out:
     return status;
 }
 
+static sai_status_t mlnx_acl_entry_action_policer_check_allowed(_In_ uint32_t acl_entry_idx)
+{
+    sx_span_session_id_t   span_session;
+    mlnx_mirror_policer_t *mirror_policer;
+
+
+    assert(acl_entry_index_check_range(acl_entry_idx));
+
+    span_session = acl_db_entry(acl_entry_idx).sx_span_session;
+
+    if (!MLNX_ACL_SX_SPAN_SESSION_IS_VALID(span_session)) {
+        return SAI_STATUS_SUCCESS;
+    }
+
+    mirror_policer = &g_sai_db_ptr->mirror_policer[span_session];
+
+    if (mirror_policer->policer_oid != SAI_NULL_OBJECT_ID) {
+        SX_LOG_ERR("Cannot use ACTION_SET_POLICER in ACL Entry that has ACTION_SET_MIRROR with policer\n");
+        return SAI_STATUS_FAILURE;
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
 static sai_status_t mlnx_acl_entry_action_set(_In_ const sai_object_key_t      *key,
                                               _In_ const sai_attribute_value_t *value,
                                               void                             *arg)
@@ -7845,6 +7994,11 @@ static sai_status_t mlnx_acl_entry_action_set(_In_ const sai_object_key_t      *
 
     switch ((int64_t)arg) {
     case SAI_ACL_ENTRY_ATTR_ACTION_SET_POLICER:
+        status = mlnx_acl_entry_action_policer_check_allowed(acl_entry_index);
+        if (SAI_ERR(status)) {
+            goto out;
+        }
+
         if (value->aclaction.enable == true) {
             status = mlnx_object_to_type(value->aclaction.parameter.oid, SAI_OBJECT_TYPE_POLICER,
                                          &action_set_policer_id_data, NULL);
@@ -7852,7 +8006,6 @@ static sai_status_t mlnx_acl_entry_action_set(_In_ const sai_object_key_t      *
                 goto out;
             }
 
-            /* cl_plock_acquire(&g_sai_db_ptr->p_lock); */
             status = mlnx_sai_get_or_create_regular_sx_policer_for_bind(
                 value->aclaction.parameter.oid,
                 false,
@@ -7861,10 +8014,8 @@ static sai_status_t mlnx_acl_entry_action_set(_In_ const sai_object_key_t      *
             if (SAI_STATUS_SUCCESS != status) {
                 SX_LOG_ERR("Failed to obtain sx_policer_id. input sai policer object_id:0x%" PRIx64 "\n",
                            value->aclaction.parameter.oid);
-                /* cl_plock_release(&g_sai_db_ptr->p_lock); */
                 goto out;
             }
-            /*cl_plock_release(&g_sai_db_ptr->p_lock); */
             flex_acl_rule.action_list_p[flex_action_index].type = SX_FLEX_ACL_ACTION_POLICER;
         }
         break;
@@ -8271,6 +8422,374 @@ out:
     return status;
 }
 
+static sx_flex_acl_flex_action_type_t mlnx_acl_mirror_sx_direction_to_sx_action(_In_ sx_acl_direction_t sx_direction)
+{
+    assert(sx_direction < SX_ACL_DIRECTION_LAST);
+
+    switch (sx_direction) {
+    case SX_ACL_DIRECTION_INGRESS:
+    case SX_ACL_DIRECTION_RIF_INGRESS:
+    case SX_ACL_DIRECTION_RIF_EGRESS:
+        return SX_FLEX_ACL_ACTION_MIRROR;
+
+    case SX_ACL_DIRECTION_EGRESS:
+        return SX_FLEX_ACL_ACTION_EGRESS_MIRROR;
+
+    default:
+        return SX_FLEX_ACL_FLEX_ACTION_TYPE_MAX;
+    }
+}
+
+static sai_status_t mlnx_acl_mirror_acl_create(_In_ mlnx_mirror_policer_acl_t *acl,
+                                               _In_ sx_acl_direction_t         sx_direction,
+                                               _In_ sx_span_session_id_t       sx_span_session)
+{
+    sai_status_t                   status = SAI_STATUS_SUCCESS;
+    sx_status_t                    sx_status;
+    sx_acl_key_t                   keys[1];
+    sx_acl_key_type_t              key_handle;
+    sx_acl_region_id_t             region_id;
+    sx_acl_region_group_t          region_group;
+    sx_acl_id_t                    acl_id, acl_group;
+    sx_flex_acl_flex_rule_t        rules[2] = {MLNX_ACL_SX_FLEX_RULE_EMPTY, MLNX_ACL_SX_FLEX_RULE_EMPTY};
+    sx_flex_acl_flex_action_type_t action_type;
+    sx_acl_rule_offset_t           offsets[2] = { 0, 1 };
+
+    assert(acl);
+    assert(sx_direction < SX_ACL_DIRECTION_LAST);
+    assert(sx_span_session < SPAN_SESSION_MAX);
+
+    action_type = mlnx_acl_mirror_sx_direction_to_sx_action(sx_direction);
+    keys[0]     = FLEX_ACL_KEY_COLOR;
+
+    sx_status = sx_api_acl_flex_key_set(gh_sdk, SX_ACCESS_CMD_CREATE, keys, 1, &key_handle);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR(" Failed to create flex key - %s. \n", SX_STATUS_MSG(sx_status));
+        return sdk_to_sai(sx_status);
+    }
+
+    acl->key = key_handle;
+
+    sx_status = sx_api_acl_region_set(gh_sdk, SX_ACCESS_CMD_CREATE, key_handle,
+                                      SX_ACL_ACTION_TYPE_BASIC, 2, &region_id);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to create region - %s.\n", SX_STATUS_MSG(sx_status));
+        return sdk_to_sai(sx_status);
+    }
+
+    acl->region = region_id;
+
+    memset(&region_group, 0, sizeof(region_group));
+    region_group.acl_type                           = SX_ACL_TYPE_PACKET_TYPES_AGNOSTIC;
+    region_group.regions.acl_packet_agnostic.region = region_id;
+
+    sx_status = sx_api_acl_set(gh_sdk, SX_ACCESS_CMD_CREATE, SX_ACL_TYPE_PACKET_TYPES_AGNOSTIC, sx_direction, &region_group, &acl_id);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to create acl - %s.\n", SX_STATUS_MSG(sx_status));
+        return sdk_to_sai(sx_status);
+    }
+
+    acl->acl = acl_id;
+
+    sx_status = sx_api_acl_group_set(gh_sdk, SX_ACCESS_CMD_CREATE, sx_direction, NULL, 0, &acl_group);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to create acl group - %s.\n", SX_STATUS_MSG(sx_status));
+        return sdk_to_sai(sx_status);
+    }
+
+    sx_status = sx_api_acl_group_set(gh_sdk, SX_ACCESS_CMD_SET, sx_direction, &acl_id, 1, &acl_group);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to create acl group - %s.\n", SX_STATUS_MSG(sx_status));
+        return sdk_to_sai(sx_status);
+    }
+
+    sx_status = sx_lib_flex_acl_rule_init(key_handle, ACL_MAX_NUM_OF_ACTIONS, &rules[0]);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to init acl rule - %s\n", SX_STATUS_MSG(sx_status));
+        return sdk_to_sai(sx_status);
+    }
+
+    sx_status = sx_lib_flex_acl_rule_init(key_handle, ACL_MAX_NUM_OF_ACTIONS, &rules[1]);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to init acl rule - %s\n", SX_STATUS_MSG(sx_status));
+        status = sdk_to_sai(sx_status);
+        goto out;
+    }
+
+    rules[0].valid = true;
+    rules[0].key_desc_list_p[0].key_id     = FLEX_ACL_KEY_COLOR;
+    rules[0].key_desc_list_p[0].key.color  = 0; // green
+    rules[0].key_desc_list_p[0].mask.color = true;
+    rules[0].key_desc_count = 1;
+
+    rules[0].action_list_p[0].type = action_type;
+    rules[0].action_list_p[0].fields.action_mirror.session_id = sx_span_session;
+    rules[0].action_count = 1;
+
+    rules[1].valid = true;
+    rules[1].key_desc_list_p[0].key_id     = FLEX_ACL_KEY_COLOR;
+    rules[1].key_desc_list_p[0].key.color  = 0; // green
+    rules[1].key_desc_list_p[0].mask.color = false; // match all
+    rules[1].key_desc_count = 1;
+
+    rules[1].action_list_p[0].type = SX_FLEX_ACL_ACTION_SET_COLOR;
+    rules[1].action_list_p[0].fields.action_set_color.color_val = SX_ACL_FLEX_COLOR_GREEN;
+    rules[1].action_count = 1;
+
+    sx_status = sx_api_acl_flex_rules_set(gh_sdk, SX_ACCESS_CMD_SET, region_id, offsets, rules, 2);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to set acl rule - %s\n", SX_STATUS_MSG(sx_status));
+        return sdk_to_sai(sx_status);
+    }
+
+    acl->is_acl_created = true;
+    acl->acl_group      = acl_group;
+
+out:
+    mlnx_acl_flex_rule_free(&rules[0]);
+    mlnx_acl_flex_rule_free(&rules[1]);
+
+    return status;
+}
+
+static sai_status_t mlnx_acl_mirror_acl_remove(_In_ mlnx_mirror_policer_acl_t *acl,
+                                               _In_ sx_acl_direction_t         sx_direction)
+{
+    sx_status_t sx_status;
+
+    assert(acl);
+    assert(sx_direction < SX_ACL_DIRECTION_LAST);
+
+    if (!acl->is_acl_created) {
+        return SAI_STATUS_SUCCESS;
+    }
+
+    sx_status = sx_api_acl_group_set(gh_sdk, SX_ACCESS_CMD_DESTROY, sx_direction, NULL, 0, &acl->acl_group);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to create acl group - %s.\n", SX_STATUS_MSG(sx_status));
+        return sdk_to_sai(sx_status);
+    }
+
+    sx_status = sx_api_acl_set(gh_sdk, SX_ACCESS_CMD_DESTROY, SX_ACL_TYPE_PACKET_TYPES_AGNOSTIC, sx_direction, NULL, &acl->acl);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to destroy acl - %s.\n", SX_STATUS_MSG(sx_status));
+        return sdk_to_sai(sx_status);
+    }
+
+    sx_status = sx_api_acl_region_set(gh_sdk, SX_ACCESS_CMD_DESTROY, acl->key,
+                                      SX_ACL_ACTION_TYPE_BASIC, 1, &acl->region);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to destroy region - %s.\n", SX_STATUS_MSG(sx_status));
+        return sdk_to_sai(sx_status);
+    }
+
+    sx_status = sx_api_acl_flex_key_set(gh_sdk, SX_ACCESS_CMD_DELETE, NULL, 0, &acl->key);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to destroy flex key - %s. \n", SX_STATUS_MSG(sx_status));
+        return sdk_to_sai(sx_status);
+    }
+
+    acl->is_acl_created = false;
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_acl_mirror_action_ref_update(_In_ sx_span_session_id_t sx_span_session,
+                                                      _In_ sx_acl_direction_t   sx_direction,
+                                                      _In_ bool                 is_add)
+{
+    sai_status_t               status;
+    mlnx_mirror_policer_t     *mirror_policer;
+    mlnx_mirror_policer_acl_t *mirror_extra_acl;
+
+    if (!MLNX_ACL_SX_SPAN_SESSION_IS_VALID(sx_span_session)) {
+        return SAI_STATUS_SUCCESS;
+    }
+
+    assert(sx_span_session < SPAN_SESSION_MAX);
+    assert(sx_direction < SX_ACL_DIRECTION_LAST);
+
+    mirror_policer   = &g_sai_db_ptr->mirror_policer[sx_span_session];
+    mirror_extra_acl = &mirror_policer->extra_acl[sx_direction];
+
+    if (is_add) {
+        mirror_extra_acl->refs++;
+        SX_LOG_DBG("Added a ref: mirror_policer[%d] refs = %u\n", sx_span_session, mirror_extra_acl->refs);
+    } else {
+        if (mirror_extra_acl->refs == 0) {
+            SX_LOG_ERR("Attempt to decrease a ref for span session %d while the ref is 0\n", sx_span_session);
+            return SAI_STATUS_FAILURE;
+        }
+
+        mirror_extra_acl->refs--;
+        SX_LOG_DBG("Dec a ref: mirror_policer[%d] refs = %u\n", sx_span_session, mirror_extra_acl->refs);
+
+        if (mirror_extra_acl->refs == 0) {
+            status = mlnx_acl_mirror_acl_remove(mirror_extra_acl, sx_direction);
+            if (SAI_ERR(status)) {
+                return status;
+            }
+        }
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_acl_mirror_session_ref_inc(_In_ sx_span_session_id_t sx_span_session,
+                                                    _In_ sx_acl_direction_t   sx_direction)
+{
+    return mlnx_acl_mirror_action_ref_update(sx_span_session, sx_direction, true);
+}
+
+static sai_status_t mlnx_acl_mirror_session_ref_dec(_In_ sx_span_session_id_t sx_span_session,
+                                                    _In_ sx_acl_direction_t   sx_direction)
+{
+    return mlnx_acl_mirror_action_ref_update(sx_span_session, sx_direction, false);
+}
+
+static sai_status_t mlnx_acl_mirror_policer_extra_actions_add(_In_ sx_flex_acl_flex_rule_t *sx_rule,
+                                                              _Inout_ uint32_t             *action_count,
+                                                              _In_ sx_acl_direction_t       sx_direction,
+                                                              _In_ sx_span_session_id_t     sx_span_session)
+{
+    sai_status_t               status;
+    mlnx_mirror_policer_t     *mirror_policer;
+    mlnx_mirror_policer_acl_t *extra_acl;
+    sx_policer_id_t            sx_policer_id;
+    uint32_t                   policer_action_idx, goto_action_idx;
+    bool                       is_policer_action_present, is_goto_action_present;
+
+    assert(sx_rule);
+    assert(action_count);
+    assert(sx_direction < SX_ACL_DIRECTION_LAST);
+    assert(sx_span_session < SPAN_SESSION_MAX);
+
+    mirror_policer = &g_sai_db_ptr->mirror_policer[sx_span_session];
+
+    if (mirror_policer->policer_oid == SAI_NULL_OBJECT_ID) {
+        SX_LOG_DBG("Policer for mirror session %d is not set\n", sx_span_session);
+        return SAI_STATUS_SUCCESS;
+    }
+
+    mlnx_acl_flex_rule_action_find(sx_rule, SX_FLEX_ACL_ACTION_POLICER, &policer_action_idx, &is_policer_action_present);
+    if (is_policer_action_present) {
+        SX_LOG_ERR("Failed to add extra action for mirror session %d policer %lx - ACTION_POLICER already exists\n",
+                   sx_span_session, mirror_policer->policer_oid);
+        return SAI_STATUS_FAILURE;
+    }
+
+    mlnx_acl_flex_rule_action_find(sx_rule, SX_FLEX_ACL_ACTION_GOTO, &goto_action_idx, &is_goto_action_present);
+    if (is_goto_action_present) {
+        SX_LOG_ERR("Failed to add extra action for mirror session %d policer %lx - ACTION_GOTO already exists\n",
+                   sx_span_session, mirror_policer->policer_oid);
+        return SAI_STATUS_FAILURE;
+    }
+
+    status = mlnx_sai_get_or_create_mirror_sx_policer_for_bind(mirror_policer->policer_oid, &sx_policer_id);
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+    sx_rule->action_list_p[*action_count].type = SX_FLEX_ACL_ACTION_POLICER;
+    sx_rule->action_list_p[*action_count].fields.action_policer.policer_id = sx_policer_id;
+    (*action_count)++;
+
+    extra_acl = &mirror_policer->extra_acl[sx_direction];
+    if (!extra_acl->is_acl_created) {
+        status = mlnx_acl_mirror_acl_create(extra_acl, sx_direction, sx_span_session);
+        if (SAI_ERR(status)) {
+            return status;
+        }
+    }
+
+    sx_rule->action_list_p[*action_count].type                               = SX_FLEX_ACL_ACTION_GOTO;
+    sx_rule->action_list_p[*action_count].fields.action_goto.acl_group_id    = extra_acl->acl_group;
+    sx_rule->action_list_p[*action_count].fields.action_goto.goto_action_cmd = SX_ACL_ACTION_GOTO_CALL;
+    (*action_count)++;
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_acl_mirror_policer_extra_action_del(_In_ sx_flex_acl_flex_rule_t *sx_rule)
+{
+    uint32_t policer_action_idx, goto_action_idx;
+    bool     is_policer_action_present, is_goto_action_present;
+
+    mlnx_acl_flex_rule_action_find(sx_rule, SX_FLEX_ACL_ACTION_POLICER, &policer_action_idx, &is_policer_action_present);
+    if (is_policer_action_present) {
+        mlnx_acl_flex_rule_action_del(sx_rule, policer_action_idx);
+    }
+
+    mlnx_acl_flex_rule_action_find(sx_rule, SX_FLEX_ACL_ACTION_GOTO, &goto_action_idx, &is_goto_action_present);
+    if (is_goto_action_present) {
+        mlnx_acl_flex_rule_action_del(sx_rule, goto_action_idx);
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_acl_entry_mirror_action_bind(_In_ sx_flex_acl_flex_rule_t *sx_rule,
+                                                      _Inout_ uint32_t             *action_count,
+                                                      _In_ sx_acl_direction_t       sx_direction,
+                                                      _In_ sx_span_session_id_t     sx_span_session)
+{
+    sai_status_t                    status;
+    mlnx_mirror_policer_t          *mirror_policer;
+    sx_flex_acl_flex_action_type_t  sx_mirror_action;
+
+    assert(sx_rule);
+    assert(action_count);
+    assert(sx_span_session < SPAN_SESSION_MAX);
+
+    mirror_policer   = &g_sai_db_ptr->mirror_policer[sx_span_session];
+    sx_mirror_action = mlnx_acl_mirror_sx_direction_to_sx_action(sx_direction);
+
+    /* Regular ACTION_MIRROR */
+    if (mirror_policer->policer_oid == SAI_NULL_OBJECT_ID) {
+        sx_rule->action_list_p[*action_count].type = sx_mirror_action;
+
+        if (sx_mirror_action == SX_FLEX_ACL_ACTION_MIRROR) {
+            sx_rule->action_list_p[*action_count].fields.action_mirror.session_id = sx_span_session;
+        } else { /* SX_FLEX_ACL_ACTION_EGRESS_MIRROR */
+            sx_rule->action_list_p[*action_count].fields.action_egress_mirror.session_id = sx_span_session;
+        }
+
+        (*action_count)++;
+    } else {
+        status = mlnx_acl_mirror_policer_extra_actions_add(sx_rule, action_count, sx_direction, sx_span_session);
+        if (SAI_ERR(status)) {
+            return status;
+        }
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_acl_entry_mirror_action_unbind(_In_ sx_flex_acl_flex_rule_t *sx_rule,
+                                                        _In_ sx_acl_direction_t       sx_direction)
+{
+    sai_status_t status;
+    sx_flex_acl_flex_action_type_t sx_mirror_action;
+    uint32_t     mirror_action_idx;
+    bool         is_mirror_action_present;
+
+    assert(sx_rule);
+
+    sx_mirror_action = mlnx_acl_mirror_sx_direction_to_sx_action(sx_direction);
+
+    mlnx_acl_flex_rule_action_find(sx_rule, sx_mirror_action, &mirror_action_idx, &is_mirror_action_present);
+    if (is_mirror_action_present) {
+        mlnx_acl_flex_rule_action_del(sx_rule, mirror_action_idx);
+    }
+
+    status = mlnx_acl_mirror_policer_extra_action_del(sx_rule);
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
 static sai_status_t mlnx_acl_entry_action_mirror_set(_In_ const sai_object_key_t      *key,
                                                      _In_ const sai_attribute_value_t *value,
                                                      void                             *arg)
@@ -8278,15 +8797,33 @@ static sai_status_t mlnx_acl_entry_action_mirror_set(_In_ const sai_object_key_t
     sai_status_t                   status;
     sai_acl_stage_t                acl_stage      = SAI_ACL_STAGE_INGRESS;
     sx_flex_acl_flex_action_type_t sx_action_type = SX_FLEX_ACL_ACTION_MIRROR;
-    uint32_t                       acl_table_index, acl_entry_index, flex_action_index;
-    uint32_t                       session_id;
-    sx_flex_acl_flex_rule_t        flex_acl_rule          = MLNX_ACL_SX_FLEX_RULE_EMPTY;
-    bool                           is_action_type_present = false;
+    uint32_t                       acl_table_index, acl_entry_index, oid_session;
+    sx_acl_direction_t             sx_direction;
+    sx_span_session_id_t           current_session_id  = MLNX_ACL_SX_SPAN_SESSION_INVALID;
+    sx_span_session_id_t           new_session_id      = MLNX_ACL_SX_SPAN_SESSION_INVALID;
+    sx_flex_acl_flex_rule_t        flex_acl_rule       = MLNX_ACL_SX_FLEX_RULE_EMPTY;
 
     SX_LOG_ENTER();
 
     assert((SAI_ACL_ENTRY_ATTR_ACTION_MIRROR_INGRESS == (int64_t)arg) ||
            (SAI_ACL_ENTRY_ATTR_ACTION_MIRROR_EGRESS == (int64_t)arg));
+
+    if (value->aclaction.parameter.objlist.count != 1) {
+        SX_LOG_ERR(" Failure : Only 1 Session ID is allowed to associate in an ACL Rule at this phase\n");
+        SX_LOG_EXIT();
+        return SAI_STATUS_NOT_IMPLEMENTED;
+    }
+
+    if (value->aclaction.enable == true) {
+        status = mlnx_object_to_type(value->aclaction.parameter.objlist.list[0], SAI_OBJECT_TYPE_MIRROR_SESSION,
+                                    &oid_session, NULL);
+        if (SAI_ERR(status)) {
+            SX_LOG_EXIT();
+            return status;
+        }
+
+        new_session_id = oid_session;
+    }
 
     status = extract_acl_table_index_and_entry_index(key->key.object_id, &acl_table_index, &acl_entry_index);
     if (SAI_STATUS_SUCCESS != status) {
@@ -8308,9 +8845,20 @@ static sai_status_t mlnx_acl_entry_action_mirror_set(_In_ const sai_object_key_t
         break;
     }
 
-    if (acl_db_table(acl_table_index).stage != acl_stage) {
-        SX_LOG_ERR(" Invalid Attribute to Get : Action Mirror  \n");
+    /* For SX_ACL_DIRECTION_RIF_EGRESS sdk uses SX_FLEX_ACL_ACTION_MIRROR (not EGRESS_MIRROR) */
+    if ((acl_db_table(acl_table_index).stage != acl_stage) &&
+            (mlnx_acl_table_sx_direction_get(acl_table_index) != SX_ACL_DIRECTION_RIF_EGRESS)) {
+        SX_LOG_ERR("Table stage %s and Action stage %s doesn't match\n",
+                   sai_metadata_get_acl_stage_name(acl_db_table(acl_table_index).stage),
+                   sai_metadata_get_acl_stage_name(acl_stage));
         status = SAI_STATUS_FAILURE;
+        goto out;
+    }
+
+    sx_direction       = mlnx_acl_table_sx_direction_get(acl_table_index);
+    current_session_id = acl_db_entry(acl_entry_index).sx_span_session;
+
+    if (current_session_id == new_session_id) {
         goto out;
     }
 
@@ -8319,38 +8867,24 @@ static sai_status_t mlnx_acl_entry_action_mirror_set(_In_ const sai_object_key_t
         goto out;
     }
 
-    mlnx_acl_flex_rule_action_find(&flex_acl_rule,
-                                   sx_action_type,
-                                   &flex_action_index,
-                                   &is_action_type_present);
-
-    if (value->aclaction.parameter.objlist.count != 1) {
-        SX_LOG_ERR(" Failure : Only 1 Session ID is allowed to associate in an ACL Rule at this phase\n");
-        status = SAI_STATUS_NOT_IMPLEMENTED;
+    status = mlnx_acl_mirror_config_validate(&flex_acl_rule, sx_action_type, current_session_id);
+    if (SAI_ERR(status)) {
         goto out;
     }
 
-    if (value->aclaction.enable == true) {
-        if (!is_action_type_present) {
-            flex_acl_rule.action_count++;
-        }
-
-        status = mlnx_object_to_type(value->aclaction.parameter.objlist.list[0], SAI_OBJECT_TYPE_MIRROR_SESSION,
-                                     &session_id, NULL);
-        if (SAI_STATUS_SUCCESS != status) {
+    if (MLNX_ACL_SX_SPAN_SESSION_IS_VALID(current_session_id)) {
+        status = mlnx_acl_entry_mirror_action_unbind(&flex_acl_rule, sx_direction);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to delete current action mirror\n");
             goto out;
         }
+    }
 
-        flex_acl_rule.action_list_p[flex_action_index].type = sx_action_type;
-
-        if (sx_action_type == SX_FLEX_ACL_ACTION_MIRROR) {
-            flex_acl_rule.action_list_p[flex_action_index].fields.action_mirror.session_id = session_id;
-        } else { /* SX_FLEX_ACL_ACTION_EGRESS_MIRROR */
-            flex_acl_rule.action_list_p[flex_action_index].fields.action_egress_mirror.session_id = session_id;
-        }
-    } else {
-        if (is_action_type_present) {
-            mlnx_acl_flex_rule_action_del(&flex_acl_rule, flex_action_index);
+    if (MLNX_ACL_SX_SPAN_SESSION_IS_VALID(new_session_id)) {
+        status = mlnx_acl_entry_mirror_action_bind(&flex_acl_rule, &flex_acl_rule.action_count, sx_direction, new_session_id);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to add new action mirror\n");
+            goto out;
         }
     }
 
@@ -8359,6 +8893,18 @@ static sai_status_t mlnx_acl_entry_action_mirror_set(_In_ const sai_object_key_t
         goto out;
     }
 
+    status = mlnx_acl_mirror_session_ref_inc(new_session_id, sx_direction);
+    if (SAI_ERR(status)) {
+        goto out;
+    }
+
+    status = mlnx_acl_mirror_session_ref_dec(current_session_id, sx_direction);
+    if (SAI_ERR(status)) {
+        goto out;
+    }
+
+    acl_db_entry(acl_entry_index).sx_span_session = new_session_id;
+
 out:
     acl_table_unlock(acl_table_index);
 
@@ -8366,6 +8912,105 @@ out:
 
     SX_LOG_EXIT();
     return status;
+}
+
+static sai_status_t mlnx_acl_entry_mirror_policer_update_check_allowed(_In_ const sx_flex_acl_flex_rule_t *sx_rule)
+{
+    uint32_t policer_action_idx, goto_action_idx;
+    bool     is_policer_action_present, is_goto_action_present;
+
+    assert(sx_rule);
+
+    mlnx_acl_flex_rule_action_find(sx_rule, SX_FLEX_ACL_ACTION_POLICER, &policer_action_idx, &is_policer_action_present);
+    if (is_policer_action_present) {
+        mlnx_acl_flex_rule_action_find(sx_rule, SX_FLEX_ACL_ACTION_GOTO, &goto_action_idx, &is_goto_action_present);
+        if (!is_goto_action_present) {
+            SX_LOG_ERR("Failed to update a policer on mirror session - ACL entry contains ACTION_SET_POLICER\n");
+            return SAI_STATUS_FAILURE;
+        }
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_acl_entry_mirror_action_policer_update(_In_ uint32_t  table_idx,
+                                                                _In_ uint32_t  entry_idx,
+                                                                _In_ void     *opaque)
+{
+    sai_status_t            status;
+    sx_span_session_id_t    sx_span_session;
+    sx_acl_direction_t      sx_direction;
+    sx_flex_acl_flex_rule_t sx_rule = MLNX_ACL_SX_FLEX_RULE_EMPTY;
+
+    assert(acl_table_index_check_range(table_idx));
+    assert(acl_entry_index_check_range(entry_idx));
+
+    sx_span_session = (sx_span_session_id_t)(uintptr_t) (opaque);
+
+    assert(sx_span_session < SPAN_SESSION_MAX);
+
+    if (acl_db_entry(entry_idx).sx_span_session != sx_span_session) {
+        return SAI_STATUS_NOT_EXECUTED;
+    }
+
+    sx_direction = mlnx_acl_table_sx_direction_get(table_idx);
+
+    status = mlnx_acl_entry_sx_acl_rule_get(table_idx, entry_idx, &sx_rule);
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+    status = mlnx_acl_entry_mirror_policer_update_check_allowed(&sx_rule);
+    if (SAI_ERR(status)) {
+        goto out;
+    }
+
+    status = mlnx_acl_entry_mirror_action_unbind(&sx_rule, sx_direction);
+    if (SAI_ERR(status)) {
+        goto out;
+    }
+
+    status = mlnx_acl_entry_mirror_action_bind(&sx_rule, &sx_rule.action_count, sx_direction, sx_span_session);
+    if (SAI_ERR(status)) {
+        goto out;
+    }
+
+    status = mlnx_acl_entry_sx_acl_rule_set(table_idx, entry_idx, &sx_rule);
+    if (SAI_ERR(status)) {
+        goto out;
+    }
+
+out:
+    mlnx_acl_flex_rule_free(&sx_rule);
+    return status;
+}
+
+sai_status_t mlnx_acl_mirror_action_policer_update(_In_ sx_span_session_id_t sx_span_session_id)
+{
+    sai_status_t           status;
+    mlnx_mirror_policer_t *mirror_policer;
+    sx_acl_direction_t     sx_direction;
+
+    assert(sx_span_session_id < SPAN_SESSION_MAX);
+
+    status = mlnx_acl_db_entries_foreach(mlnx_acl_entry_mirror_action_policer_update,
+                                         (void*)(uintptr_t)sx_span_session_id);
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+    mirror_policer = &g_sai_db_ptr->mirror_policer[sx_span_session_id];
+
+    if (mirror_policer->policer_oid == SAI_NULL_OBJECT_ID) {
+        for (sx_direction = SX_ACL_DIRECTION_INGRESS; sx_direction < SX_ACL_DIRECTION_LAST; sx_direction++) {
+            status = mlnx_acl_mirror_acl_remove(&mirror_policer->extra_acl[sx_direction], sx_direction);
+            if (SAI_ERR(status)) {
+                return status;
+            }
+        }
+    }
+
+    return SAI_STATUS_SUCCESS;
 }
 
 static sai_status_t mlnx_acl_entry_action_mac_set(_In_ const sai_object_key_t      *key,
@@ -8871,6 +9516,8 @@ sai_status_t mlnx_create_acl_entry(_Out_ sai_object_id_t     * acl_entry_id,
     sx_mc_container_id_t         sx_mc_container_tx           = SX_MC_CONTAINER_ID_INVALID;
     sx_mc_container_id_t         sx_mc_container_egress_block = SX_MC_CONTAINER_ID_INVALID;
     sx_flow_counter_id_t         sx_counter_id                = SX_FLOW_COUNTER_ID_INVALID;
+    sx_span_session_id_t         sx_span_session              = MLNX_ACL_SX_SPAN_SESSION_INVALID;
+    sx_acl_direction_t           sx_direction;
     sai_acl_stage_t              stage;
     sai_ip_address_t             ip_address_data, ip_address_mask;
     sai_packet_action_t          packet_action_type;
@@ -8963,6 +9610,7 @@ sai_status_t mlnx_create_acl_entry(_Out_ sai_object_id_t     * acl_entry_id,
     created_entry_count    = acl_db_table(acl_table_index).created_entry_count;
     is_table_dynamic_sized = acl_db_table(acl_table_index).is_dynamic_sized;
     is_ip_idnet_used       = acl_db_table(acl_table_index).is_ip_ident_used;
+    sx_direction           = mlnx_acl_table_sx_direction_get(acl_table_index);
 
     if ((created_entry_count == table_size) &&
         (false == is_table_dynamic_sized)) {
@@ -9310,11 +9958,6 @@ sai_status_t mlnx_create_acl_entry(_Out_ sai_object_id_t     * acl_entry_id,
     if (SAI_STATUS_SUCCESS ==
         find_attrib_in_list(attr_count, attr_list, SAI_ACL_ENTRY_ATTR_ACTION_MIRROR_INGRESS, &action_mirror_ingress,
                             &action_mirror_ingress_index)) {
-        if (stage != SAI_ACL_STAGE_INGRESS) {
-            SX_LOG_ERR(" Failure as Stage( Not Ingress ) and Mirror Action Mismatch \n");
-            status = SAI_STATUS_FAILURE;
-            goto out;
-        }
         if (action_mirror_ingress->aclaction.enable == true) {
             if (action_mirror_ingress->aclaction.parameter.objlist.count != 1) {
                 SX_LOG_ERR(" Failure : Only 1 Session ID is associated to an ACL Rule at this phase \n");
@@ -9329,10 +9972,13 @@ sai_status_t mlnx_create_acl_entry(_Out_ sai_object_id_t     * acl_entry_id,
                 goto out;
             }
 
-            flex_acl_rule.action_list_p[flex_action_index].fields.action_mirror.session_id =
-                (sx_span_session_id_t)ingress_session_id;
-            flex_acl_rule.action_list_p[flex_action_index].type = SX_FLEX_ACL_ACTION_MIRROR;
-            flex_action_index++;
+            status = mlnx_acl_entry_mirror_action_bind(&flex_acl_rule, &flex_action_index,
+                                                       sx_direction, ingress_session_id);
+            if (SAI_ERR(status)) {
+                goto out;
+            }
+
+            sx_span_session = ingress_session_id;
         }
     }
 
@@ -9359,10 +10005,13 @@ sai_status_t mlnx_create_acl_entry(_Out_ sai_object_id_t     * acl_entry_id,
                 goto out;
             }
 
-            flex_acl_rule.action_list_p[flex_action_index].fields.action_egress_mirror.session_id =
-                (sx_span_session_id_t)egress_session_id;
-            flex_acl_rule.action_list_p[flex_action_index].type = SX_FLEX_ACL_ACTION_EGRESS_MIRROR;
-            flex_action_index++;
+            status = mlnx_acl_entry_mirror_action_bind(&flex_acl_rule, &flex_action_index,
+                                                       sx_direction, egress_session_id);
+            if (SAI_ERR(status)) {
+                goto out;
+            }
+
+            sx_span_session = egress_session_id;
         }
     }
 
@@ -9574,6 +10223,7 @@ sai_status_t mlnx_create_acl_entry(_Out_ sai_object_id_t     * acl_entry_id,
     acl_db_entry(acl_entry_index).next_entry_index    = ACL_INVALID_DB_INDEX;
     acl_db_entry(acl_entry_index).prev_entry_index    = ACL_INVALID_DB_INDEX;
     acl_db_entry(acl_entry_index).pbs_info            = pbs_info;
+    acl_db_entry(acl_entry_index).sx_span_session     = sx_span_session;
 
     status = mlnx_acl_entry_sx_acl_rule_set(acl_table_index, acl_entry_index, &flex_acl_rule);
     if (SAI_ERR(status)) {
@@ -9581,6 +10231,11 @@ sai_status_t mlnx_create_acl_entry(_Out_ sai_object_id_t     * acl_entry_id,
     }
 
     is_sx_rule_set = true;
+
+    status = mlnx_acl_mirror_session_ref_inc(sx_span_session, sx_direction);
+    if (SAI_ERR(status)) {
+        goto out;
+    }
 
     status = mlnx_acl_entry_sx_rule_port_refs_get(&flex_acl_rule, ports_refs);
     if (SAI_ERR(status)) {
@@ -10622,9 +11277,7 @@ static sai_status_t mlnx_delete_acl_table(_In_ sai_object_id_t acl_table_id)
     const sx_acl_type_t   acl_type = SX_ACL_TYPE_PACKET_TYPES_AGNOSTIC;
     sx_acl_key_type_t     key_handle;
     sai_acl_stage_t       stage;
-    uint32_t              key_count = 0;
     uint32_t              table_index, group_references;
-    sx_acl_key_t          keys[SX_FLEX_ACL_MAX_FIELDS_IN_KEY];
     bool                  is_ip_ident_used;
 
     SX_LOG_ENTER();
@@ -10698,14 +11351,7 @@ static sai_status_t mlnx_delete_acl_table(_In_ sai_object_id_t acl_table_id)
         goto out;
     }
 
-    sx_status = sx_api_acl_flex_key_get(gh_sdk, key_handle, keys, &key_count);
-    if (SX_ERR(sx_status)) {
-        SX_LOG_ERR(" Failed to get flex keys - %s. \n", SX_STATUS_MSG(sx_status));
-        status = sdk_to_sai(sx_status);
-        goto out;
-    }
-
-    sx_status = sx_api_acl_flex_key_set(gh_sdk, SX_ACCESS_CMD_DELETE, keys, key_count, &key_handle);
+    sx_status = sx_api_acl_flex_key_set(gh_sdk, SX_ACCESS_CMD_DELETE, NULL, 0, &key_handle);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR(" Failed to delete flex keys - %s. \n", SX_STATUS_MSG(sx_status));
         status = sdk_to_sai(sx_status);
@@ -11023,6 +11669,7 @@ static sai_status_t mlnx_delete_acl_entry_data(_In_ uint32_t table_index, _In_ u
     sai_status_t              status       = SAI_STATUS_SUCCESS;
     sx_flex_acl_flex_rule_t   sx_flex_rule = MLNX_ACL_SX_FLEX_RULE_EMPTY;
     sx_flex_acl_rule_offset_t rule_offset;
+    sx_acl_direction_t        sx_direction;
     mlnx_acl_port_db_refs_t   refs;
     mlnx_acl_pbs_info_t       pbs_info;
     uint32_t                  sx_prio;
@@ -11032,9 +11679,10 @@ static sai_status_t mlnx_delete_acl_entry_data(_In_ uint32_t table_index, _In_ u
     assert(acl_table_index_check_range(table_index));
     assert(acl_entry_index_check_range(entry_index));
 
-    sx_prio     = acl_db_entry(entry_index).sx_prio;
-    rule_offset = acl_db_entry(entry_index).offset;
-    pbs_info    = acl_db_entry(entry_index).pbs_info;
+    sx_prio      = acl_db_entry(entry_index).sx_prio;
+    rule_offset  = acl_db_entry(entry_index).offset;
+    pbs_info     = acl_db_entry(entry_index).pbs_info;
+    sx_direction = mlnx_acl_table_sx_direction_get(table_index);
 
     status = mlnx_acl_entry_sx_acl_rule_get(table_index, entry_index, &sx_flex_rule);
     if (SAI_ERR(status)) {
@@ -11077,6 +11725,11 @@ static sai_status_t mlnx_delete_acl_entry_data(_In_ uint32_t table_index, _In_ u
     }
 
     status = mlnx_acl_entry_offset_del(table_index, sx_prio, rule_offset);
+    if (SAI_ERR(status)) {
+        goto out;
+    }
+
+    status = mlnx_acl_mirror_session_ref_dec(acl_db_entry(entry_index).sx_span_session, sx_direction);
     if (SAI_ERR(status)) {
         goto out;
     }
@@ -11229,6 +11882,39 @@ static sai_status_t mlnx_acl_table_size_delta_get(_In_ uint32_t acl_table_index,
     *delta = res;
 
     return SAI_STATUS_SUCCESS;
+}
+
+static sx_acl_direction_t mlnx_acl_table_sx_direction_get(_In_ uint32_t table_index)
+{
+    const acl_bind_point_type_list_t *list;
+    uint32_t                          ii;
+    bool                              is_rif;
+
+    assert(acl_table_index_check_range(table_index));
+
+    list = &acl_db_table(table_index).bind_point_types;
+
+    is_rif = false;
+    for (ii = 0; ii < list->count; ii++) {
+        if (list->types[ii] == SAI_ACL_BIND_POINT_TYPE_ROUTER_INTERFACE) {
+            is_rif = true;
+            break;
+        }
+    }
+
+    if (acl_db_table(table_index).stage == SAI_ACL_STAGE_INGRESS) {
+        if (is_rif) {
+            return SX_ACL_DIRECTION_RIF_INGRESS;
+        }
+
+        return SX_ACL_DIRECTION_INGRESS;
+    } else {
+        if (is_rif) {
+            return SX_ACL_DIRECTION_RIF_EGRESS;
+        }
+
+        return SX_ACL_DIRECTION_EGRESS;
+    }
 }
 
 static sai_status_t create_rpc_server(_Inout_ int *s)
@@ -13760,33 +14446,22 @@ static sai_status_t mlnx_acl_pbs_info_sai_ports_get(_In_ mlnx_acl_pbs_info_t pbs
     return mlnx_acl_pbs_map_sai_ports_get(pbs_info.idx, ports, ports_count);
 }
 
-static sai_status_t mlnx_acl_range_attr_get_by_oid(_In_ sai_object_id_t           acl_range_oid,
-                                                   _In_ sai_attr_id_t             attr_id,
-                                                   _Inout_ sai_attribute_value_t *value)
+static sai_status_t mlnx_acl_range_attr_get_spc(_In_ sx_acl_port_range_id_t  sx_range_id,
+                                                _In_ sai_attr_id_t           attr_id,
+                                                _Out_ sai_attribute_value_t *value)
 {
-    sai_status_t              status;
     sx_status_t               sx_status;
-    sx_acl_port_range_id_t    sx_port_range_id;
     sx_acl_port_range_entry_t sx_port_range_entry;
-    uint32_t                  object_range_id;
-
-    SX_LOG_ENTER();
 
     assert((SAI_ACL_RANGE_ATTR_TYPE == attr_id) ||
            (SAI_ACL_RANGE_ATTR_LIMIT == attr_id));
 
-    status = mlnx_object_to_type(acl_range_oid, SAI_OBJECT_TYPE_ACL_RANGE, &object_range_id, NULL);
-    if (SAI_STATUS_SUCCESS != status) {
-        goto out;
-    }
+    memset(&sx_port_range_entry, 0, sizeof(sx_port_range_entry));
 
-    sx_port_range_id = object_range_id;
-
-    sx_status = sx_api_acl_l4_port_range_get(gh_sdk, sx_port_range_id, &sx_port_range_entry);
-    if (SX_STATUS_SUCCESS != sx_status) {
+    sx_status = sx_api_acl_l4_port_range_get(gh_sdk, sx_range_id, &sx_port_range_entry);
+    if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to get range attributes - %s", SX_STATUS_MSG(sx_status));
-        status = sdk_to_sai(sx_status);
-        goto out;
+        return sdk_to_sai(sx_status);
     }
 
     switch (attr_id) {
@@ -13807,7 +14482,7 @@ static sai_status_t mlnx_acl_range_attr_get_by_oid(_In_ sai_object_id_t         
 
         default:
             SX_LOG_ERR("Got invalid range direction from SDK - %d\n", sx_port_range_entry.port_range_direction);
-            status = SAI_STATUS_FAILURE;
+            return SAI_STATUS_FAILURE;
         }
         break;
 
@@ -13818,13 +14493,89 @@ static sai_status_t mlnx_acl_range_attr_get_by_oid(_In_ sai_object_id_t         
 
     default:
         SX_LOG_ERR(" Invalid attribute to get - %d\n", attr_id);
-        status = SAI_STATUS_NOT_SUPPORTED;
-        goto out;
+        return SAI_STATUS_NOT_SUPPORTED;
     }
 
-out:
-    SX_LOG_EXIT();
-    return status;
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_acl_range_attr_get_spc2(_In_ sx_acl_port_range_id_t  sx_range_id,
+                                                 _In_ sai_attr_id_t           attr_id,
+                                                 _Out_ sai_attribute_value_t *value)
+{
+    sx_status_t          sx_status;
+    sx_acl_range_entry_t sx_acl_range_entry;
+
+    assert((SAI_ACL_RANGE_ATTR_TYPE == attr_id) ||
+           (SAI_ACL_RANGE_ATTR_LIMIT == attr_id));
+
+    memset(&sx_acl_range_entry, 0, sizeof(sx_acl_range_entry));
+
+    sx_status = sx_api_acl_range_get(gh_sdk, sx_range_id, &sx_acl_range_entry);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to get range attributes - %s", SX_STATUS_MSG(sx_status));
+        return sdk_to_sai(sx_status);
+    }
+
+    switch (attr_id) {
+    case SAI_ACL_RANGE_ATTR_TYPE:
+        switch (sx_acl_range_entry.range_type) {
+        case SX_ACL_RANGE_TYPE_L4_PORT_E:
+            if (sx_acl_range_entry.direction == SX_ACL_PORT_DIRECTION_SOURCE) {
+                value->s32 = SAI_ACL_RANGE_TYPE_L4_SRC_PORT_RANGE;
+            }
+            else if (sx_acl_range_entry.direction == SX_ACL_PORT_DIRECTION_DESTINATION) {
+                value->s32 = SAI_ACL_RANGE_TYPE_L4_DST_PORT_RANGE;
+            } else {
+                SX_LOG_ERR("Unexpected sx range direction %d\n", sx_acl_range_entry.direction);
+                return SAI_STATUS_FAILURE;
+            }
+            break;
+
+        case SX_ACL_RANGE_TYPE_IP_LENGTH_E:
+            value->s32 = SAI_ACL_RANGE_TYPE_PACKET_LENGTH;
+            break;
+
+        default:
+            SX_LOG_ERR("Unexpected sx range type - %d\n", sx_acl_range_entry.range_type);
+            return SAI_STATUS_FAILURE;
+        }
+        break;
+
+    case SAI_ACL_RANGE_ATTR_LIMIT:
+        value->u32range.min = sx_acl_range_entry.range_limits.min;
+        value->u32range.max = sx_acl_range_entry.range_limits.max;
+        break;
+
+    default:
+        SX_LOG_ERR(" Invalid attribute to get - %d\n", attr_id);
+        return SAI_STATUS_NOT_SUPPORTED;
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_acl_range_attr_get_by_oid(_In_ sai_object_id_t           acl_range_oid,
+                                                   _In_ sai_attr_id_t             attr_id,
+                                                   _Inout_ sai_attribute_value_t *value)
+{
+    sai_status_t           status;
+    sx_acl_port_range_id_t sx_port_range_id;
+    uint32_t               object_range_id;
+
+    assert((SAI_ACL_RANGE_ATTR_TYPE == attr_id) ||
+           (SAI_ACL_RANGE_ATTR_LIMIT == attr_id));
+    assert(value);
+    assert(mlnx_acl_cb);
+
+    status = mlnx_object_to_type(acl_range_oid, SAI_OBJECT_TYPE_ACL_RANGE, &object_range_id, NULL);
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+    sx_port_range_id = object_range_id;
+
+    return mlnx_acl_cb->range_attr_get(sx_port_range_id, attr_id, value);
 }
 
 static sai_status_t mlnx_acl_field_port_to_sx(_In_ sai_object_id_t sai_port, _Out_ sx_port_log_id_t *sx_port)
@@ -14567,6 +15318,7 @@ static sai_status_t mlnx_acl_bind_point_group_sx_set(_In_ acl_bind_point_data_t 
     const acl_group_db_t     *acl_group;
     const acl_group_member_t *group_members;
     uint32_t                  sx_acl_count, head_table_index, ii;
+    bool                      need_to_bind = false;
 
     acl_group    = sai_acl_db_group_ptr(group_index);
     sx_direction = bind_point_data->target_data.sx_direction;
@@ -14574,65 +15326,67 @@ static sai_status_t mlnx_acl_bind_point_group_sx_set(_In_ acl_bind_point_data_t 
     if (0 == acl_group->members_count) {
         status = mlnx_acl_bind_point_sx_group_remove(bind_point_data);
         if (SAI_ERR(status)) {
-            goto out;
+            return status;
         }
 
         /* if SAI Group is empty, and sx resources are not used - nothing to do*/
-        status = SAI_STATUS_SUCCESS;
-        goto out;
-    } else {
-        if (false == bind_point_data->is_sx_group_created) {
-            sx_status = sx_api_acl_group_set(gh_sdk, SX_ACCESS_CMD_CREATE, sx_direction, NULL, 0,
-                                             &bind_point_data->sx_group);
-            if (SX_ERR(sx_status)) {
-                SX_LOG_ERR("Failed to create sx group\n");
-                status = sdk_to_sai(sx_status);
-                goto out;
-            }
+        return SAI_STATUS_SUCCESS;
+    }
 
-            bind_point_data->is_sx_group_created = true;
-
-            status = mlnx_acl_bind_point_sx_bind_set(SX_ACCESS_CMD_BIND, bind_point_data);
-            if (SAI_ERR(status)) {
-                goto out;
-            }
+    if (false == bind_point_data->is_sx_group_created) {
+        sx_status = sx_api_acl_group_set(gh_sdk, SX_ACCESS_CMD_CREATE, sx_direction, NULL, 0,
+                                         &bind_point_data->sx_group);
+        if (SX_ERR(sx_status)) {
+            SX_LOG_ERR("Failed to create sx group\n");
+            status = sdk_to_sai(sx_status);
+            goto out;
         }
 
-        if (SAI_ACL_TABLE_GROUP_TYPE_PARALLEL == acl_group->search_type) {
-            group_members = acl_group->members;
-            sx_acl_count  = acl_group->members_count;
+        bind_point_data->is_sx_group_created = true;
+        need_to_bind                         = true;
+    }
 
-            sx_acls = calloc(sx_acl_count, sizeof(sx_acl_id_t));
-            if (NULL == sx_acls) {
-                SX_LOG_ERR("ERROR: unable to allocate memory for sx_acl_id[]\n");
-                status = SAI_STATUS_NO_MEMORY;
-                goto out;
-            }
+    if (SAI_ACL_TABLE_GROUP_TYPE_PARALLEL == acl_group->search_type) {
+        group_members = acl_group->members;
+        sx_acl_count  = acl_group->members_count;
 
-            for (ii = 0; ii < sx_acl_count; ii++) {
-                sx_acls[ii] = acl_db_table(group_members[ii].table_index).table_id;
-            }
+        sx_acls = calloc(sx_acl_count, sizeof(sx_acl_id_t));
+        if (NULL == sx_acls) {
+            SX_LOG_ERR("ERROR: unable to allocate memory for sx_acl_id[]\n");
+            status = SAI_STATUS_NO_MEMORY;
+            goto out;
+        }
 
-            sx_status = sx_api_acl_group_set(gh_sdk, SX_ACCESS_CMD_SET, sx_direction,
-                                             sx_acls, sx_acl_count, &bind_point_data->sx_group);
-            if (SX_ERR(sx_status)) {
-                SX_LOG_ERR("Failed to update sx group (%x) - %s\n", bind_point_data->sx_group,
-                           SX_STATUS_MSG(sx_status));
-                status = sdk_to_sai(sx_status);
-                goto out;
-            }
-        } else {
-            head_table_index = acl_group->members[0].table_index;
-            sx_head_acl      = acl_db_table(head_table_index).table_id;
+        for (ii = 0; ii < sx_acl_count; ii++) {
+            sx_acls[ii] = acl_db_table(group_members[ii].table_index).table_id;
+        }
 
-            sx_status = sx_api_acl_group_set(gh_sdk, SX_ACCESS_CMD_SET, sx_direction,
-                                             &sx_head_acl, 1, &bind_point_data->sx_group);
-            if (SX_ERR(sx_status)) {
-                SX_LOG_ERR("Failed to update sx group (%x) - %s\n", bind_point_data->sx_group,
-                           SX_STATUS_MSG(sx_status));
-                status = sdk_to_sai(sx_status);
-                goto out;
-            }
+        sx_status = sx_api_acl_group_set(gh_sdk, SX_ACCESS_CMD_SET, sx_direction,
+                                         sx_acls, sx_acl_count, &bind_point_data->sx_group);
+        if (SX_ERR(sx_status)) {
+            SX_LOG_ERR("Failed to update sx group (%x) - %s\n", bind_point_data->sx_group,
+                       SX_STATUS_MSG(sx_status));
+            status = sdk_to_sai(sx_status);
+            goto out;
+        }
+    } else {
+        head_table_index = acl_group->members[0].table_index;
+        sx_head_acl      = acl_db_table(head_table_index).table_id;
+
+        sx_status = sx_api_acl_group_set(gh_sdk, SX_ACCESS_CMD_SET, sx_direction,
+                                         &sx_head_acl, 1, &bind_point_data->sx_group);
+        if (SX_ERR(sx_status)) {
+            SX_LOG_ERR("Failed to update sx group (%x) - %s\n", bind_point_data->sx_group,
+                       SX_STATUS_MSG(sx_status));
+            status = sdk_to_sai(sx_status);
+            goto out;
+        }
+    }
+
+    if (need_to_bind) {
+        status = mlnx_acl_bind_point_sx_bind_set(SX_ACCESS_CMD_BIND, bind_point_data);
+        if (SAI_ERR(status)) {
+            goto out;
         }
     }
 
@@ -14659,28 +15413,32 @@ static sai_status_t mlnx_acl_bind_point_table_sx_set(_In_ acl_bind_point_data_t 
                                          &bind_point_data->sx_group);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to create sx group\n");
-            status = sdk_to_sai(sx_status);
-            goto out;
+            return sdk_to_sai(sx_status);
         }
 
         bind_point_data->is_sx_group_created = true;
 
+        sx_status = sx_api_acl_group_set(gh_sdk, SX_ACCESS_CMD_SET, sx_direction,
+                                         &sx_acl_id, 1, &bind_point_data->sx_group);
+        if (SX_ERR(sx_status)) {
+            SX_LOG_ERR("Failed to update sx group (%x)\n", bind_point_data->sx_group);
+            return sdk_to_sai(sx_status);
+        }
+
         status = mlnx_acl_bind_point_sx_bind_set(SX_ACCESS_CMD_BIND, bind_point_data);
         if (SAI_ERR(status)) {
-            goto out;
+            return status;
+        }
+    } else {
+        sx_status = sx_api_acl_group_set(gh_sdk, SX_ACCESS_CMD_SET, sx_direction,
+                                         &sx_acl_id, 1, &bind_point_data->sx_group);
+        if (SX_ERR(sx_status)) {
+            SX_LOG_ERR("Failed to update sx group (%x)\n", bind_point_data->sx_group);
+            return sdk_to_sai(sx_status);
         }
     }
 
-    sx_status = sx_api_acl_group_set(gh_sdk, SX_ACCESS_CMD_SET, sx_direction,
-                                     &sx_acl_id, 1, &bind_point_data->sx_group);
-    if (SX_ERR(sx_status)) {
-        SX_LOG_ERR("Failed to update sx group (%x)\n", bind_point_data->sx_group);
-        status = sdk_to_sai(sx_status);
-        goto out;
-    }
-
-out:
-    return status;
+    return SAI_STATUS_SUCCESS;
 }
 
 static void mlnx_acl_bind_point_db_update(_In_ acl_bind_point_data_t *bind_point_data,
@@ -16446,6 +17204,145 @@ static sai_status_t mlnx_acl_range_validate_and_fetch(_In_ const sai_object_list
     return SAI_STATUS_SUCCESS;
 }
 
+static sai_status_t mlnx_acl_range_create_spc(_In_ sai_acl_range_type_t     type,
+                                               _In_ const sai_u32_range_t   *range,
+                                               _Out_ sx_acl_port_range_id_t *sx_range_id)
+{
+    sx_status_t               sx_status;
+    sx_acl_port_range_entry_t sx_port_range_entry;
+
+    assert(range);
+    assert(sx_range_id);
+
+    memset(&sx_port_range_entry, 0, sizeof(sx_port_range_entry));
+    sx_port_range_entry.port_range_ip_length = false;
+    sx_port_range_entry.port_range_ip_header = SX_ACL_PORT_RANGE_IP_HEADER_OUTER;
+
+    switch (type) {
+    case SAI_ACL_RANGE_TYPE_L4_SRC_PORT_RANGE:
+        sx_port_range_entry.port_range_direction = SX_ACL_PORT_DIRECTION_SOURCE;
+        break;
+
+    case SAI_ACL_RANGE_TYPE_L4_DST_PORT_RANGE:
+        sx_port_range_entry.port_range_direction = SX_ACL_PORT_DIRECTION_DESTINATION;
+        break;
+
+        /*
+         *  case SAI_ACL_RANGE_TYPE_OUTER_VLAN:
+         *   break;
+         *
+         *  case SAI_ACL_RANGE_TYPE_INNER_VLAN:
+         *   break;
+         */
+    case SAI_ACL_RANGE_TYPE_PACKET_LENGTH:
+        sx_port_range_entry.port_range_ip_length = true;
+        break;
+
+    default:
+        SX_LOG_ERR("Range type %d is not supported\n", type);
+        return SAI_STATUS_NOT_SUPPORTED;
+    }
+
+    sx_port_range_entry.port_range_min = range->min;
+    sx_port_range_entry.port_range_max = range->max;
+
+    sx_status = sx_api_acl_l4_port_range_set(gh_sdk, SX_ACCESS_CMD_ADD, &sx_port_range_entry, sx_range_id);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to create range %s.\n", SX_STATUS_MSG(sx_status));
+        return sdk_to_sai(sx_status);
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_acl_range_create_spc2(_In_ sai_acl_range_type_t     type,
+                                               _In_ const sai_u32_range_t   *range,
+                                               _Out_ sx_acl_port_range_id_t *sx_range_id)
+{
+    sx_status_t          sx_status;
+    sx_acl_range_entry_t sx_acl_range_entry;
+
+    assert(range);
+    assert(sx_range_id);
+
+    memset(&sx_acl_range_entry, 0, sizeof(sx_acl_range_entry));
+    sx_acl_range_entry.ip_version  = SX_IP_VERSION_IPV4_IPV6;
+    sx_acl_range_entry.outer_inner = SX_ACL_PORT_RANGE_IP_HEADER_OUTER;
+
+    switch (type) {
+    case SAI_ACL_RANGE_TYPE_L4_SRC_PORT_RANGE:
+        sx_acl_range_entry.direction   = SX_ACL_PORT_DIRECTION_SOURCE;
+        sx_acl_range_entry.range_type  = SX_ACL_RANGE_TYPE_L4_PORT_E;
+        sx_acl_range_entry.l4_protocol = SX_ACL_L4_TYPE_TCP_UDP;
+        break;
+
+    case SAI_ACL_RANGE_TYPE_L4_DST_PORT_RANGE:
+        sx_acl_range_entry.direction   = SX_ACL_PORT_DIRECTION_DESTINATION;
+        sx_acl_range_entry.range_type  = SX_ACL_RANGE_TYPE_L4_PORT_E;
+        sx_acl_range_entry.l4_protocol = SX_ACL_L4_TYPE_TCP_UDP;
+        break;
+
+    /*
+     *  case SAI_ACL_RANGE_TYPE_OUTER_VLAN:
+     *   break;
+     *
+     *  case SAI_ACL_RANGE_TYPE_INNER_VLAN:
+     *   break;
+     */
+    case SAI_ACL_RANGE_TYPE_PACKET_LENGTH:
+        sx_acl_range_entry.range_type  = SX_ACL_RANGE_TYPE_IP_LENGTH_E;
+        sx_acl_range_entry.l4_protocol = SX_ACL_L4_TYPE_INVALID;
+        break;
+
+    default:
+        SX_LOG_ERR("Range type %d is not supported\n", type);
+        return SAI_STATUS_NOT_SUPPORTED;
+    }
+
+    sx_acl_range_entry.range_limits.min = range->min;
+    sx_acl_range_entry.range_limits.max = range->max;
+
+    sx_status = sx_api_acl_range_set(gh_sdk, SX_ACCESS_CMD_ADD, &sx_acl_range_entry, sx_range_id);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to create range %s.\n", SX_STATUS_MSG(sx_status));
+        return sdk_to_sai(sx_status);
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_acl_range_remove_spc(_In_ sx_acl_port_range_id_t sx_range_id)
+{
+    sx_status_t               sx_status;
+    sx_acl_port_range_entry_t sx_port_range_entry;
+
+    memset(&sx_port_range_entry, 0, sizeof(sx_port_range_entry));
+
+    sx_status = sx_api_acl_l4_port_range_set(gh_sdk, SX_ACCESS_CMD_DELETE, &sx_port_range_entry, &sx_range_id);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to delete range %s.\n", SX_STATUS_MSG(sx_status));
+        return sdk_to_sai(sx_status);
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_acl_range_remove_spc2(_In_ sx_acl_port_range_id_t sx_range_id)
+{
+    sx_status_t          sx_status;
+    sx_acl_range_entry_t sx_acl_range_entry;
+
+    memset(&sx_acl_range_entry, 0, sizeof(sx_acl_range_entry));
+
+    sx_status = sx_api_acl_range_set(gh_sdk, SX_ACCESS_CMD_DELETE, &sx_acl_range_entry, &sx_range_id);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to delete range %s.\n", SX_STATUS_MSG(sx_status));
+        return sdk_to_sai(sx_status);
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
 /**
  *   Routine Description:
  *     @brief Create an ACL Range
@@ -16465,9 +17362,7 @@ static sai_status_t mlnx_create_acl_range(_Out_ sai_object_id_t     * acl_range_
                                           _In_ const sai_attribute_t *attr_list)
 {
     sai_status_t                 status;
-    sx_status_t                  sx_status;
     sx_acl_port_range_id_t       sx_port_range_id;
-    sx_acl_port_range_entry_t    sx_port_range_entry;
     const sai_attribute_value_t *range_type, *range_limit;
     uint32_t                     range_type_index, range_limit_index;
     uint32_t                     range_min, range_max;
@@ -16475,6 +17370,10 @@ static sai_status_t mlnx_create_acl_range(_Out_ sai_object_id_t     * acl_range_
     char                         list_str[MAX_LIST_VALUE_STR_LEN];
 
     SX_LOG_ENTER();
+
+    /* make sure that sx_port_range_id won't get truncated */
+    assert(sizeof(sx_port_range_id) <= sizeof(uint32_t));
+    assert(mlnx_acl_cb);
 
     if (NULL == acl_range_id) {
         SX_LOG_ERR("NULL object id value\n");
@@ -16498,36 +17397,6 @@ static sai_status_t mlnx_create_acl_range(_Out_ sai_object_id_t     * acl_range_
     status = find_attrib_in_list(attr_count, attr_list, SAI_ACL_RANGE_ATTR_LIMIT, &range_limit, &range_limit_index);
     assert(SAI_STATUS_SUCCESS == status);
 
-    memset(&sx_port_range_entry, 0, sizeof(sx_port_range_entry));
-    sx_port_range_entry.port_range_ip_length = false;
-    sx_port_range_entry.port_range_ip_header = SX_ACL_PORT_RANGE_IP_HEADER_OUTER;
-
-    switch (range_type->s32) {
-    case SAI_ACL_RANGE_TYPE_L4_SRC_PORT_RANGE:
-        sx_port_range_entry.port_range_direction = SX_ACL_PORT_DIRECTION_SOURCE;
-        break;
-
-    case SAI_ACL_RANGE_TYPE_L4_DST_PORT_RANGE:
-        sx_port_range_entry.port_range_direction = SX_ACL_PORT_DIRECTION_DESTINATION;
-        break;
-
-    /*
-     *  case SAI_ACL_RANGE_TYPE_OUTER_VLAN:
-     *   break;
-     *
-     *  case SAI_ACL_RANGE_TYPE_INNER_VLAN:
-     *   break;
-     */
-    case SAI_ACL_RANGE_TYPE_PACKET_LENGTH:
-        sx_port_range_entry.port_range_ip_length = true;
-        break;
-
-    default:
-        SX_LOG_ERR("Range type is not supported\n");
-        status = SAI_STATUS_NOT_SUPPORTED;
-        goto out;
-    }
-
     range_min = range_limit->u32range.min;
     range_max = range_limit->u32range.max;
 
@@ -16537,18 +17406,10 @@ static sai_status_t mlnx_create_acl_range(_Out_ sai_object_id_t     * acl_range_
         goto out;
     }
 
-    sx_port_range_entry.port_range_min = range_min;
-    sx_port_range_entry.port_range_max = range_max;
-
-    sx_status = sx_api_acl_l4_port_range_set(gh_sdk, SX_ACCESS_CMD_ADD, &sx_port_range_entry, &sx_port_range_id);
-    if (SX_STATUS_SUCCESS != sx_status) {
-        SX_LOG_ERR("Failed to create range %s.\n", SX_STATUS_MSG(sx_status));
-        status = sdk_to_sai(sx_status);
+    status = mlnx_acl_cb->range_create(range_type->s32, &range_limit->u32range, &sx_port_range_id);
+    if (SAI_ERR(status)) {
         goto out;
     }
-
-    /* make sure that sx_port_range_id won't get truncated */
-    assert(sizeof(sx_port_range_id) <= sizeof(uint32_t));
 
     status = mlnx_create_object(SAI_OBJECT_TYPE_ACL_RANGE, sx_port_range_id, NULL, acl_range_id);
     assert(SAI_STATUS_SUCCESS == status);
@@ -16574,31 +17435,28 @@ out:
  */
 static sai_status_t mlnx_remove_acl_range(_In_ sai_object_id_t acl_range_id)
 {
-    sai_status_t              status;
-    sx_status_t               sx_status;
-    uint32_t                  object_range_id;
-    sx_acl_port_range_id_t    sx_port_range_id;
-    sx_acl_port_range_entry_t sx_port_range_entry;
-    char                      key_str[MAX_KEY_STR_LEN];
+    sai_status_t           status;
+    uint32_t               object_range_id;
+    sx_acl_port_range_id_t sx_port_range_id;
+    char                   key_str[MAX_KEY_STR_LEN];
 
     SX_LOG_ENTER();
+
+    assert(mlnx_acl_cb);
 
     acl_range_key_to_str(acl_range_id, key_str);
     SX_LOG_NTC("Delete ACL Range %s\n", key_str);
 
     status = mlnx_object_to_type(acl_range_id, SAI_OBJECT_TYPE_ACL_RANGE, &object_range_id, NULL);
-    if (SAI_STATUS_SUCCESS != status) {
+    if (SAI_ERR(status)) {
         goto out;
     }
 
     sx_port_range_id = object_range_id;
 
-    memset(&sx_port_range_entry, 0, sizeof(sx_port_range_entry));
-
-    sx_status = sx_api_acl_l4_port_range_set(gh_sdk, SX_ACCESS_CMD_DELETE, &sx_port_range_entry, &sx_port_range_id);
-    if (SX_STATUS_SUCCESS != sx_status) {
-        SX_LOG_ERR("Failed to delete range %s.\n", SX_STATUS_MSG(sx_status));
-        status = sdk_to_sai(sx_status);
+    status = mlnx_acl_cb->range_remove(sx_port_range_id);
+    if (SAI_ERR(status)) {
+        goto out;
     }
 
 out:

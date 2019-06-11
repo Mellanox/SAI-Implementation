@@ -2626,7 +2626,7 @@ static void sai_db_values_init()
     g_sai_db_ptr->restart_warm            = false;
     g_sai_db_ptr->warm_recover            = false;
     g_sai_db_ptr->issu_end_called         = false;
-    g_sai_db_ptr->g_fx_initialized        = false;
+    g_sai_db_ptr->fx_initialized     = false;
     g_sai_db_ptr->boot_type               = 0;
     g_sai_db_ptr->acl_divider             = 1;
 
@@ -4684,11 +4684,10 @@ static sai_status_t mlnx_initialize_switch(sai_object_id_t switch_id, bool *tran
     } else {
         resources_param.max_virtual_routers_num = g_resource_limits.router_vrid_max;
     }
-    /* cut by 2 because of ipv6 tunnels, cut by further 2 for issu */
     if (issu_enabled) {
-        resources_param.max_router_interfaces = g_resource_limits.router_rifs_max / 4;
-    } else {
         resources_param.max_router_interfaces = g_resource_limits.router_rifs_max / 2;
+    } else {
+        resources_param.max_router_interfaces = g_resource_limits.router_rifs_max;
     }
 
     resources_param.min_ipv4_uc_route_entries = g_ipv4_route_table_size;
@@ -4706,7 +4705,12 @@ static sai_status_t mlnx_initialize_switch(sai_object_id_t switch_id, bool *tran
     resources_param.max_ipv4_mc_route_entries = 0;
     resources_param.max_ipv6_mc_route_entries = 0;
 
-    resources_param.ipinip_ipv6_loopback_rif_enable = true;
+#ifdef ACS_OS
+    resources_param.max_ipinip_ipv6_loopback_rifs = 12;
+#else
+    /* sdk limit in sdk_router_be_validate_params */
+    resources_param.max_ipinip_ipv6_loopback_rifs = resources_param.max_virtual_routers_num / 2;
+#endif
 
     general_param.ipv4_enable    = 1;
     general_param.ipv6_enable    = 1;
@@ -5323,6 +5327,8 @@ static sai_status_t mlnx_disconnect_switch(void)
     if (SX_STATUS_SUCCESS != (status = sx_api_close(&gh_sdk))) {
         SX_LOG_ERR("API close failed.\n");
     }
+
+    mlnx_bmtor_fx_handle_deinit();
 
     memset(&g_notification_callbacks, 0, sizeof(g_notification_callbacks));
 

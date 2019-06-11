@@ -3091,7 +3091,7 @@ static sai_status_t mlnx_sdk_bridge_create(_Out_ sx_bridge_id_t *sx_bridge_id)
     memset(&vlan_attrib_p, 0, sizeof(vlan_attrib_p));
     vlan_attrib_p.flood_to_router = true;
 
-    if (g_sai_db_ptr->g_fx_initialized) {
+    if (g_sai_db_ptr->fx_initialized) {
         sx_status = sx_api_vlan_attrib_set(gh_sdk, *sx_bridge_id, &vlan_attrib_p);
         if (SX_ERR(sx_status)) {
             sai_status = sdk_to_sai(sx_status);

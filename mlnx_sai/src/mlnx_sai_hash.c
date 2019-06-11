@@ -262,7 +262,8 @@ static sai_status_t mlnx_hash_obj_native_fields_validate(mlnx_switch_usage_hash_
         case SAI_NATIVE_HASH_FIELD_INNER_DST_IP:
             /* valid for IPinIP*/
             if ((hash_oper_id != SAI_HASH_ECMP_IPINIP_ID) &&
-                (hash_oper_id != SAI_HASH_LAG_IPINIP_ID)) {
+                (hash_oper_id != SAI_HASH_LAG_IPINIP_ID) &&
+                (hash_oper_id != SAI_HASH_ECMP_IP6_ID)) {
                 status = SAI_STATUS_FAILURE;
                 SX_LOG_ERR("Invalid native field %d for object %u.\n", field, hash_oper_id);
             }
@@ -468,22 +469,48 @@ static sai_status_t mlnx_hash_convert_ecmp_sai_field_to_sx(const sai_attribute_v
             break;
 
         case SAI_NATIVE_HASH_FIELD_INNER_SRC_IP:
-            fields_list[(*fields_count)++] = SX_ROUTER_ECMP_HASH_INNER_IPV4_SIP_BYTE_0;
-            fields_list[(*fields_count)++] = SX_ROUTER_ECMP_HASH_INNER_IPV4_SIP_BYTE_1;
-            fields_list[(*fields_count)++] = SX_ROUTER_ECMP_HASH_INNER_IPV4_SIP_BYTE_2;
-            fields_list[(*fields_count)++] = SX_ROUTER_ECMP_HASH_INNER_IPV4_SIP_BYTE_3;
+            if (is_ipv6) {
+                fields_list[(*fields_count)++] = SX_ROUTER_ECMP_HASH_INNER_IPV6_SIP_BYTES_0_TO_7;
+                fields_list[(*fields_count)++] = SX_ROUTER_ECMP_HASH_INNER_IPV6_SIP_BYTE_8;
+                fields_list[(*fields_count)++] = SX_ROUTER_ECMP_HASH_INNER_IPV6_SIP_BYTE_9;
+                fields_list[(*fields_count)++] = SX_ROUTER_ECMP_HASH_INNER_IPV6_SIP_BYTE_10;
+                fields_list[(*fields_count)++] = SX_ROUTER_ECMP_HASH_INNER_IPV6_SIP_BYTE_11;
+                fields_list[(*fields_count)++] = SX_ROUTER_ECMP_HASH_INNER_IPV6_SIP_BYTE_12;
+                fields_list[(*fields_count)++] = SX_ROUTER_ECMP_HASH_INNER_IPV6_SIP_BYTE_13;
+                fields_list[(*fields_count)++] = SX_ROUTER_ECMP_HASH_INNER_IPV6_SIP_BYTE_14;
+                fields_list[(*fields_count)++] = SX_ROUTER_ECMP_HASH_INNER_IPV6_SIP_BYTE_15;
+            } else {
+                fields_list[(*fields_count)++] = SX_ROUTER_ECMP_HASH_INNER_IPV4_SIP_BYTE_0;
+                fields_list[(*fields_count)++] = SX_ROUTER_ECMP_HASH_INNER_IPV4_SIP_BYTE_1;
+                fields_list[(*fields_count)++] = SX_ROUTER_ECMP_HASH_INNER_IPV4_SIP_BYTE_2;
+                fields_list[(*fields_count)++] = SX_ROUTER_ECMP_HASH_INNER_IPV4_SIP_BYTE_3;
 
-            enable_ipv4  = true;
+                enable_ipv4  = true;
+            }
+
             enable_inner = true;
             break;
 
         case SAI_NATIVE_HASH_FIELD_INNER_DST_IP:
-            fields_list[(*fields_count)++] = SX_ROUTER_ECMP_HASH_INNER_IPV4_DIP_BYTE_0;
-            fields_list[(*fields_count)++] = SX_ROUTER_ECMP_HASH_INNER_IPV4_DIP_BYTE_1;
-            fields_list[(*fields_count)++] = SX_ROUTER_ECMP_HASH_INNER_IPV4_DIP_BYTE_2;
-            fields_list[(*fields_count)++] = SX_ROUTER_ECMP_HASH_INNER_IPV4_DIP_BYTE_3;
+            if (is_ipv6) {
+                fields_list[(*fields_count)++] = SX_ROUTER_ECMP_HASH_INNER_IPV6_DIP_BYTES_0_TO_7;
+                fields_list[(*fields_count)++] = SX_ROUTER_ECMP_HASH_INNER_IPV6_DIP_BYTE_8;
+                fields_list[(*fields_count)++] = SX_ROUTER_ECMP_HASH_INNER_IPV6_DIP_BYTE_9;
+                fields_list[(*fields_count)++] = SX_ROUTER_ECMP_HASH_INNER_IPV6_DIP_BYTE_10;
+                fields_list[(*fields_count)++] = SX_ROUTER_ECMP_HASH_INNER_IPV6_DIP_BYTE_11;
+                fields_list[(*fields_count)++] = SX_ROUTER_ECMP_HASH_INNER_IPV6_DIP_BYTE_12;
+                fields_list[(*fields_count)++] = SX_ROUTER_ECMP_HASH_INNER_IPV6_DIP_BYTE_13;
+                fields_list[(*fields_count)++] = SX_ROUTER_ECMP_HASH_INNER_IPV6_DIP_BYTE_14;
+                fields_list[(*fields_count)++] = SX_ROUTER_ECMP_HASH_INNER_IPV6_DIP_BYTE_15;
+            } else {
+                fields_list[(*fields_count)++] = SX_ROUTER_ECMP_HASH_INNER_IPV4_DIP_BYTE_0;
+                fields_list[(*fields_count)++] = SX_ROUTER_ECMP_HASH_INNER_IPV4_DIP_BYTE_1;
+                fields_list[(*fields_count)++] = SX_ROUTER_ECMP_HASH_INNER_IPV4_DIP_BYTE_2;
+                fields_list[(*fields_count)++] = SX_ROUTER_ECMP_HASH_INNER_IPV4_DIP_BYTE_3;
 
-            enable_ipv4  = true;
+                enable_ipv4  = true;
+            }
+
             enable_inner = true;
             break;
 
@@ -537,6 +564,10 @@ static sai_status_t mlnx_hash_convert_ecmp_sai_field_to_sx(const sai_attribute_v
         enable_list[(*enable_count)++] = SX_ROUTER_ECMP_HASH_FIELD_ENABLE_OUTER_L2_IPV6;
         enable_list[(*enable_count)++] = SX_ROUTER_ECMP_HASH_FIELD_ENABLE_OUTER_IPV6_NON_TCP_UDP;
         enable_list[(*enable_count)++] = SX_ROUTER_ECMP_HASH_FIELD_ENABLE_OUTER_IPV6_TCP_UDP;
+        if (enable_inner) {
+            enable_list[(*enable_count)++] = SX_ROUTER_ECMP_HASH_FIELD_ENABLE_INNER_IPV6_NON_TCP_UDP;
+            enable_list[(*enable_count)++] = SX_ROUTER_ECMP_HASH_FIELD_ENABLE_INNER_IPV6_TCP_UDP;
+        }
     }
 
     if (enable_l4) {

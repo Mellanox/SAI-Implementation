@@ -327,6 +327,12 @@ sai_status_t mlnx_shm_rm_array_find(_In_ mlnx_shm_rm_array_type_t  type,
 sai_status_t mlnx_shm_rm_array_idx_to_ptr(_In_ mlnx_shm_rm_array_idx_t idx, _Out_ void                   **elem);
 uint32_t mlnx_shm_rm_array_size_get(_In_ mlnx_shm_rm_array_type_t type);
 
+#define MLNX_SHM_POOL_ELEM_FX_HANDLE_SIZE 31472
+
+typedef struct _mlnx_shm_pool_data_t {
+    uint8_t  fx_handle_mem[MLNX_SHM_POOL_ELEM_FX_HANDLE_SIZE];
+} mlnx_shm_pool_t;
+
 PACKED(struct _mlnx_object_id_t {
            sai_uint8_t object_type;
            PACKED(struct {
@@ -866,6 +872,7 @@ sai_status_t mlnx_acl_bind_point_get(_In_ const sai_object_key_t   *key,
 uint32_t mlnx_acl_action_types_count_get(void);
 sai_status_t mlnx_acl_stage_action_types_get(_In_ sai_acl_stage_t stage, _Out_ sai_s32_list_t *list);
 sai_status_t mlnx_acl_db_free_entries_get(_In_ sai_object_type_t resource_type, _Out_ uint32_t         *free_entries);
+sai_status_t mlnx_acl_mirror_action_policer_update(_In_ sx_span_session_id_t sx_span_session_id);
 #define acl_global_lock()   cl_plock_excl_acquire(&g_sai_acl_db_ptr->acl_settings_tbl->lock)
 #define acl_global_unlock() cl_plock_release(&g_sai_acl_db_ptr->acl_settings_tbl->lock)
 
@@ -883,7 +890,8 @@ sai_status_t mlnx_stp_port_state_set_impl(_In_ sx_port_log_id_t          port,
                                           _In_ sx_mstp_inst_port_state_t state,
                                           _In_ sx_mstp_inst_id_t         mstp_instance);
 
-sai_status_t sai_fx_uninitialize();
+sai_status_t sai_fx_uninitialize(void);
+sai_status_t mlnx_bmtor_fx_handle_deinit(void);
 
 /* Helper for mlnx_mstp_inst_db */
 mlnx_mstp_inst_t * get_stp_db_entry(sx_mstp_inst_id_t sx_stp_id);
@@ -992,6 +1000,7 @@ typedef struct _mlnx_sai_db_buffer_profile_entry_t {
 typedef struct _mlnx_policer_db_entry_t {
     sx_policer_id_t         sx_policer_id_trap;     /* For binding to trap group only. value == SX_POLICER_ID_INVALID, unless/untill sx_policer is associated with this sai_policer.*/
     sx_policer_id_t         sx_policer_id_acl;      /* For binding to ACL only. see SX_POLICER_ID_INVALID note above, applies to this field as well*/
+    sx_policer_id_t         sx_policer_id_mirror;
     sx_policer_attributes_t sx_policer_attr;        /* Policer attribute values. The values will be applied to trap group, ACL and port storm policers.*/
     bool                    valid;    /*does given db entry have valid policer data*/
 } mlnx_policer_db_entry_t;
@@ -1055,6 +1064,8 @@ typedef struct _mlnx_port_config_t {
     uint16_t               rifs;
     bool                   lossless_pg[MAX_PG];
     uint16_t               acl_refs;
+    bool                   single_speed_mode;
+    uint32_t               oper_speed_cached;
 } mlnx_port_config_t;
 typedef enum {
     MLNX_FID_FLOOD_TYPE_ALL,
@@ -1494,6 +1505,7 @@ PACKED(struct _acl_entry_db_t {
            uint32_t next_entry_index: 19;
            uint32_t prev_entry_index: 19;
            bool is_used;
+           sx_span_session_id_t sx_span_session;
            uint16_t sx_prio;
            mlnx_acl_pbs_info_t pbs_info;
            sx_acl_rule_offset_t offset;
@@ -1695,6 +1707,8 @@ sai_status_t mlnx_sai_unbind_policer(_In_ sai_object_id_t sai_object, _In_ mlnx_
 sai_status_t mlnx_sai_get_or_create_regular_sx_policer_for_bind(_In_ sai_object_id_t   sai_policer,
                                                                 _In_ bool              is_host_if_policer,
                                                                 _Out_ sx_policer_id_t* sx_policer_id);
+sai_status_t mlnx_sai_get_or_create_mirror_sx_policer_for_bind(_In_ sai_object_id_t   sai_policer,
+                                                               _Out_ sx_policer_id_t* sx_policer_id);
 
 /* SAI DB R/w is required */
 sai_status_t mlnx_sai_unbind_policer_from_port(_In_ sai_object_id_t           sai_port,
@@ -1758,6 +1772,8 @@ typedef struct _mlnx_tunneltable_t {
     bool                        tunnel_lazy_created;
 } mlnx_tunneltable_t;
 
+/* VXLAN: Idx from 0 to MLNX_MAX_TUNNEL_NVE-1
+ * IP in IP: Idx from MLNX_MAX_TUNNEL_NVE to MAX_TUNNEL_DB_SIZE-1 */
 typedef struct _mlnx_tunnel_entry_t {
     bool                  is_used;
     sai_tunnel_type_t     sai_tunnel_type;
@@ -1891,6 +1907,23 @@ typedef struct _mlnx_mirror_vlan_t {
     uint8_t  vlan_cfi;
 } mlnx_mirror_vlan_t;
 
+typedef struct _mlnx_mirror_policer_acl_t {
+    bool               is_acl_created;
+    uint32_t           refs;
+    sx_acl_key_type_t  key;
+    sx_acl_id_t        acl_group;
+    sx_acl_id_t        acl;
+    sx_acl_region_id_t region;
+} mlnx_mirror_policer_acl_t;
+
+typedef struct _mlnx_mirror_policer_t {
+    sai_object_id_t           policer_oid;
+    mlnx_mirror_policer_acl_t extra_acl[SX_ACL_DIRECTION_LAST];
+} mlnx_mirror_policer_t;
+
+sai_status_t mlnx_mirror_policer_is_used(_In_ sai_object_id_t policer, _Out_ bool *is_used);
+sai_status_t mlnx_mirror_policer_sx_attrs_validate(_In_ const sx_policer_attributes_t *sx_attrs);
+
 typedef enum {
     BOOT_TYPE_REGULAR,
     BOOT_TYPE_WARM,
@@ -1980,9 +2013,12 @@ typedef struct sai_db {
     bool                              crc_check_enable;
     bool                              crc_recalc_enable;
     mlnx_platform_type_t              platform_type;
-    bool                              g_fx_initialized;
+    bool                              fx_initialized;
+    bool                              fx_pipe_created;
     mlnx_mirror_vlan_t                erspan_vlan_header[SPAN_SESSION_MAX];
+    mlnx_mirror_policer_t             mirror_policer[SPAN_SESSION_MAX];
     mlnx_l2mc_group_t                 l2mc_groups[MLNX_L2MC_GROUP_DB_SIZE];
+    mlnx_shm_pool_t                   shm_pool;
     mlnx_shm_rm_array_info_t          array_info[MLNX_SHM_RM_ARRAY_TYPE_SIZE];
 } sai_db_t;
 
