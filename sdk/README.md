@@ -9,7 +9,7 @@ This directory contains SDK/FW binary packages.
 #### SDK
 ```
 SDK_VER=4.3.0136
-KERNEL_VER=4.9.0-8-2
+KERNEL_VER=4.9.0-9
 ```
 
 #### FW
