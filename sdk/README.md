@@ -8,14 +8,13 @@ This directory contains SDK/FW binary packages.
 
 #### SDK
 ```
-SDK_VER=4.3.0136
+SDK_VER=4.3.1420
 KERNEL_VER=4.9.0-9
 ```
 
 #### FW
 ```
-FW_SPC1_VER=13_1910_0928
-FW_SPC2_VER=29_1961_0006
+FW_SPC1_VER=13_2000_1420
 ```
 
 ### Packages
@@ -47,5 +46,4 @@ sx-scew-dev-static_1.mlnx.<SDK_VER>_amd64.deb
 #### FW
 ```
 fw-SPC-rel-<FW_SPC1_VER>-EVB.mfa
-fw-SPC2-rel-<FW_SPC2_VER>-EVB.mfa
 ```
