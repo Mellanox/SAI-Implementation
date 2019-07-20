@@ -33,10 +33,24 @@ static void SAI_dump_mirror_getdb(_Out_ mlnx_mirror_vlan_t *erspan_vlan_header)
     sai_db_unlock();
 }
 
+static void SAI_dump_mirror_policer_getdb(_Out_ mlnx_mirror_policer_t *mirror_policer)
+{
+    assert(NULL != mirror_policer);
+    assert(NULL != g_sai_db_ptr);
+
+    sai_db_read_lock();
+
+    memcpy(mirror_policer,
+           g_sai_db_ptr->mirror_policer,
+           SPAN_SESSION_MAX * sizeof(mlnx_mirror_policer_t));
+
+    sai_db_unlock();
+}
+
 static void SAI_dump_mirror_print(_In_ FILE *file, _In_ mlnx_mirror_vlan_t *erspan_vlan_header)
 {
-    uint32_t                  ii              = 0;
-    sai_object_id_t           obj_id          = SAI_NULL_OBJECT_ID;
+    uint32_t                  ii     = 0;
+    sai_object_id_t           obj_id = SAI_NULL_OBJECT_ID;
     mlnx_mirror_vlan_t        curr_erspan_vlan_header;
     dbg_utils_table_columns_t mirror_clmns[] = {
         {"sai obj id",        16, PARAM_UINT64_E, &obj_id},
@@ -68,15 +82,61 @@ static void SAI_dump_mirror_print(_In_ FILE *file, _In_ mlnx_mirror_vlan_t *ersp
     }
 }
 
+static void SAI_dump_mirror_policer_print(_In_ FILE *file, _In_ mlnx_mirror_policer_t *mirror_policer)
+{
+    uint32_t                  ii;
+    sx_acl_direction_t        sx_direction;
+    mlnx_mirror_policer_t     curr_mirror_policer;
+    dbg_utils_table_columns_t mirror_clmns[] = {
+        {"sx span id",        11, PARAM_UINT32_E, &ii},
+        {"policer oid",       18, PARAM_UINT64_E, &curr_mirror_policer.policer_oid},
+        {NULL,                0,  0,              NULL}
+    };
+    mlnx_mirror_policer_acl_t curr_mirror_policer_acl;
+    dbg_utils_table_columns_t acl_clmns[] = {
+        {"sx_direction",      13, PARAM_UINT32_E, &sx_direction},
+        {"is_acl_created",    15, PARAM_UINT8_E,  &curr_mirror_policer_acl.is_acl_created},
+        {"refs",              8, PARAM_UINT32_E, &curr_mirror_policer_acl.refs},
+        {"sx_key",            8, PARAM_UINT32_E, &curr_mirror_policer_acl.key},
+        {"sx_acl_group",      13, PARAM_UINT32_E, &curr_mirror_policer_acl.acl_group},
+        {"sx_acl",            10, PARAM_UINT32_E, &curr_mirror_policer_acl.acl},
+        {"sx_region",         12, PARAM_UINT32_E, &curr_mirror_policer_acl.region},
+        {NULL,                 0,              0, NULL}
+    };
+
+    assert(NULL != mirror_policer);
+
+    dbg_utils_print_general_header(file, "Mirror policer");
+
+    for (ii = 0; ii < SPAN_SESSION_MAX; ii++) {
+        memcpy(&curr_mirror_policer, &mirror_policer[ii], sizeof(mlnx_mirror_policer_t));
+
+        dbg_utils_print_table_headline(file, mirror_clmns);
+        dbg_utils_print_table_data_line(file, mirror_clmns);
+
+        dbg_utils_print_table_headline(file, acl_clmns);
+
+        for (sx_direction = SX_ACL_DIRECTION_INGRESS; sx_direction < SX_ACL_DIRECTION_LAST; sx_direction++) {
+            memcpy(&curr_mirror_policer_acl, &mirror_policer[ii].extra_acl[sx_direction],
+                   sizeof(mlnx_mirror_policer_acl_t));
+
+            dbg_utils_print_table_data_line(file, acl_clmns);
+        }
+    }
+}
+
 void SAI_dump_mirror(_In_ FILE *file)
 {
     mlnx_mirror_vlan_t erspan_vlan_header[SPAN_SESSION_MAX];
+    mlnx_mirror_policer_t mirror_policer[SPAN_SESSION_MAX];
 
     memset(erspan_vlan_header, 0, SPAN_SESSION_MAX * sizeof(mlnx_mirror_vlan_t));
 
     SAI_dump_mirror_getdb(erspan_vlan_header);
+    SAI_dump_mirror_policer_getdb(mirror_policer);
 
     dbg_utils_print_module_header(file, "SAI Mirror");
 
     SAI_dump_mirror_print(file, erspan_vlan_header);
+    SAI_dump_mirror_policer_print(file, mirror_policer);
 }

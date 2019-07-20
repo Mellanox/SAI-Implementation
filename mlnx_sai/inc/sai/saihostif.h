@@ -201,6 +201,18 @@ typedef enum _sai_hostif_trap_type_t
     /** Default action is drop */
     SAI_HOSTIF_TRAP_TYPE_UDLD = 0x0000000b,
 
+    /** Default action is drop */
+    SAI_HOSTIF_TRAP_TYPE_CDP = 0x0000000c,
+
+    /** Default action is drop */
+    SAI_HOSTIF_TRAP_TYPE_VTP = 0x0000000d,
+
+    /** Default action is drop */
+    SAI_HOSTIF_TRAP_TYPE_DTP = 0x0000000e,
+
+    /** Default action is drop */
+    SAI_HOSTIF_TRAP_TYPE_PAGP = 0x0000000f,
+
     /**
      * @brief PTP traffic (EtherType = 0x88F7 or UDP dst port == 319 or UDP dst port == 320)
      * (default packet action is drop)
@@ -224,7 +236,10 @@ typedef enum _sai_hostif_trap_type_t
     /** Default packet action is forward */
     SAI_HOSTIF_TRAP_TYPE_ARP_RESPONSE = 0x00002001,
 
-    /** Default packet action is forward */
+    /**
+     * @brief DHCP traffic (UDP ports 67, 68), either L3 broadcast or unicast
+     * to local router IP address (default packet action is forward)
+     */
     SAI_HOSTIF_TRAP_TYPE_DHCP = 0x00002002,
 
     /** Default packet action is forward */
@@ -1150,6 +1165,7 @@ typedef sai_status_t (*sai_send_hostif_packet_fn)(
  * @count attr_list[attr_count]
  * @count buffer[buffer_size]
  * @objects attr_list SAI_OBJECT_TYPE_HOSTIF_PACKET
+ * @objects switch_id SAI_OBJECT_TYPE_SWITCH
  *
  * @param[in] switch_id Switch Object ID
  * @param[in] buffer_size Actual packet size in bytes

@@ -246,6 +246,21 @@ typedef enum _sai_bridge_port_attr_t
     SAI_BRIDGE_PORT_ATTR_EGRESS_FILTERING,
 
     /**
+     * @brief Isolation group id
+     *
+     * Packets ingressing on the bridge port should not be forwarded to the
+     * members present in the isolation group.The isolation group type should
+     * SAI_ISOLATION_GROUP_TYPE_BRIDGE_PORT.
+     *
+     * @type sai_object_id_t
+     * @flags CREATE_AND_SET
+     * @objects SAI_OBJECT_TYPE_ISOLATION_GROUP
+     * @allownull true
+     * @default SAI_NULL_OBJECT_ID
+     */
+    SAI_BRIDGE_PORT_ATTR_ISOLATION_GROUP,
+
+    /**
      * @brief End of attributes
      */
     SAI_BRIDGE_PORT_ATTR_END,
@@ -342,7 +357,7 @@ typedef sai_status_t (*sai_get_bridge_port_attribute_fn)(
 typedef sai_status_t (*sai_get_bridge_port_stats_fn)(
         _In_ sai_object_id_t bridge_port_id,
         _In_ uint32_t number_of_counters,
-        _In_ const sai_bridge_port_stat_t *counter_ids,
+        _In_ const sai_stat_id_t *counter_ids,
         _Out_ uint64_t *counters);
 
 /**
@@ -359,7 +374,7 @@ typedef sai_status_t (*sai_get_bridge_port_stats_fn)(
 typedef sai_status_t (*sai_get_bridge_port_stats_ext_fn)(
         _In_ sai_object_id_t bridge_port_id,
         _In_ uint32_t number_of_counters,
-        _In_ const sai_bridge_port_stat_t *counter_ids,
+        _In_ const sai_stat_id_t *counter_ids,
         _In_ sai_stats_mode_t mode,
         _Out_ uint64_t *counters);
 
@@ -375,7 +390,7 @@ typedef sai_status_t (*sai_get_bridge_port_stats_ext_fn)(
 typedef sai_status_t (*sai_clear_bridge_port_stats_fn)(
         _In_ sai_object_id_t bridge_port_id,
         _In_ uint32_t number_of_counters,
-        _In_ const sai_bridge_port_stat_t *counter_ids);
+        _In_ const sai_stat_id_t *counter_ids);
 
 /**
  * @brief Attribute data for #SAI_BRIDGE_ATTR_TYPE
@@ -638,7 +653,7 @@ typedef sai_status_t (*sai_get_bridge_attribute_fn)(
 typedef sai_status_t (*sai_get_bridge_stats_fn)(
         _In_ sai_object_id_t bridge_id,
         _In_ uint32_t number_of_counters,
-        _In_ const sai_bridge_stat_t *counter_ids,
+        _In_ const sai_stat_id_t *counter_ids,
         _Out_ uint64_t *counters);
 
 /**
@@ -655,7 +670,7 @@ typedef sai_status_t (*sai_get_bridge_stats_fn)(
 typedef sai_status_t (*sai_get_bridge_stats_ext_fn)(
         _In_ sai_object_id_t bridge_id,
         _In_ uint32_t number_of_counters,
-        _In_ const sai_bridge_stat_t *counter_ids,
+        _In_ const sai_stat_id_t *counter_ids,
         _In_ sai_stats_mode_t mode,
         _Out_ uint64_t *counters);
 
@@ -671,7 +686,7 @@ typedef sai_status_t (*sai_get_bridge_stats_ext_fn)(
 typedef sai_status_t (*sai_clear_bridge_stats_fn)(
         _In_ sai_object_id_t bridge_id,
         _In_ uint32_t number_of_counters,
-        _In_ const sai_bridge_stat_t *counter_ids);
+        _In_ const sai_stat_id_t *counter_ids);
 
 /**
  * @brief Bridge methods table retrieved with sai_api_query()

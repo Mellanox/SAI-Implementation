@@ -104,6 +104,11 @@ static sai_status_t mlnx_mirror_session_gre_protocol_type_get(_In_ const sai_obj
                                                               _In_ uint32_t                  attr_index,
                                                               _Inout_ vendor_cache_t        *cache,
                                                               void                          *arg);
+static sai_status_t mlnx_mirror_session_policer_get(_In_ const sai_object_key_t   *key,
+                                                    _Inout_ sai_attribute_value_t *value,
+                                                    _In_ uint32_t                  attr_index,
+                                                    _Inout_ vendor_cache_t        *cache,
+                                                    void                          *arg);
 static sai_status_t mlnx_mirror_session_monitor_port_set(_In_ const sai_object_key_t      *key,
                                                          _In_ const sai_attribute_value_t *value,
                                                          void                             *arg);
@@ -143,6 +148,9 @@ static sai_status_t mlnx_mirror_session_mac_address_set(_In_ const sai_object_ke
 static sai_status_t mlnx_mirror_session_gre_protocol_type_set(_In_ const sai_object_key_t      *key,
                                                               _In_ const sai_attribute_value_t *value,
                                                               void                             *arg);
+static sai_status_t mlnx_mirror_session_policer_set(_In_ const sai_object_key_t      *key,
+                                                    _In_ const sai_attribute_value_t *value,
+                                                    void                             *arg);
 
 /* is_implemented: create, remove, set, get
  *   is_supported: create, remove, set, get
@@ -238,6 +246,11 @@ static const sai_vendor_attribute_entry_t mirror_vendor_attribs[] = {
       { true, false, true, true },
       mlnx_mirror_session_gre_protocol_type_get, NULL,
       mlnx_mirror_session_gre_protocol_type_set, NULL },
+    { SAI_MIRROR_SESSION_ATTR_POLICER,
+      { true, false, true, true },
+      { true, false, true, true },
+      mlnx_mirror_session_policer_get, NULL,
+      mlnx_mirror_session_policer_set, NULL },
     { END_FUNCTIONALITY_ATTRIBS_ID,
       { false, false, false, false },
       { false, false, false, false },
@@ -268,6 +281,50 @@ static void mirror_key_to_str(_In_ const sai_object_id_t sai_mirror_obj_id, _Out
     }
 
     SX_LOG_EXIT();
+}
+
+sai_status_t mlnx_mirror_policer_is_used(_In_ sai_object_id_t  policer,
+                                         _Out_ bool           *is_used)
+{
+    uint32_t ii;
+
+    assert(is_used);
+
+    for (ii = 0; ii < SPAN_SESSION_MAX; ii++) {
+        if (g_sai_db_ptr->mirror_policer[ii].policer_oid == policer) {
+            *is_used = true;
+            return SAI_STATUS_SUCCESS;
+        }
+    }
+
+    *is_used = false;
+    return SAI_STATUS_SUCCESS;
+}
+
+sai_status_t mlnx_mirror_policer_sx_attrs_validate(_In_ const sx_policer_attributes_t *sx_attrs)
+{
+    assert(sx_attrs);
+
+    if ((sx_attrs->rate_type != SX_POLICER_RATE_TYPE_SINGLE_RATE_E) ||
+            (sx_attrs->ebs != 0)) {
+        SX_LOG_ERR("Policer type should be SAI_POLICER_MODE_STORM_CONTROL (with PBS = 0) to be used as mirror policer\n");
+        return SAI_STATUS_FAILURE;
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_mirror_policer_validate(_In_ sai_object_id_t policer_oid)
+{
+    sai_status_t             status;
+    mlnx_policer_db_entry_t *policer;
+
+    status = db_get_sai_policer_data(policer_oid, &policer);
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+    return mlnx_mirror_policer_sx_attrs_validate(&policer->sx_policer_attr);
 }
 
 static sai_status_t mlnx_get_sdk_mirror_obj_params(_In_ sai_object_id_t            sai_mirror_obj_id,
@@ -966,6 +1023,40 @@ static sai_status_t mlnx_mirror_session_gre_protocol_type_get(_In_ const sai_obj
     return SAI_STATUS_SUCCESS;
 }
 
+static sai_status_t mlnx_mirror_session_policer_get(_In_ const sai_object_key_t   *key,
+                                                    _Inout_ sai_attribute_value_t *value,
+                                                    _In_ uint32_t                  attr_index,
+                                                    _Inout_ vendor_cache_t        *cache,
+                                                    void                          *arg)
+{
+    sai_status_t status            = SAI_STATUS_FAILURE;
+    uint32_t     sdk_mirror_obj_id = 0;
+
+    SX_LOG_ENTER();
+
+    status = mlnx_object_to_type(key->key.object_id, SAI_OBJECT_TYPE_MIRROR_SESSION, &sdk_mirror_obj_id, NULL);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Invalid mirror session id %" PRIx64 "\n", key->key.object_id);
+        SX_LOG_EXIT();
+        return status;
+    }
+
+    if (sdk_mirror_obj_id >= SPAN_SESSION_MAX) {
+        SX_LOG_ERR("Invalid sdk_mirror_obj_id %d > %d\n", sdk_mirror_obj_id, SPAN_SESSION_MAX);
+        SX_LOG_EXIT();
+        return SAI_STATUS_INVALID_OBJECT_ID;
+    }
+
+    sai_db_read_lock();
+
+    value->oid = g_sai_db_ptr->mirror_policer[sdk_mirror_obj_id].policer_oid;
+
+    sai_db_unlock();
+
+    SX_LOG_EXIT();
+    return SAI_STATUS_SUCCESS;
+}
+
 /* Calls to this function should be guarded by lock */
 static sai_status_t mlnx_delete_mirror_analyzer_port(_In_ sx_span_session_id_t sdk_mirror_obj_id)
 {
@@ -1265,7 +1356,7 @@ static sai_status_t mlnx_mirror_session_vlan_tpid_set(_In_ const sai_object_key_
 
         sai_db_unlock();
         break;
-        
+
     case SX_SPAN_TYPE_REMOTE_ETH_VLAN_TYPE1:
         if (MLNX_MIRROR_VLAN_TPID != value->u16) {
             SX_LOG_ERR("VLAN TPID must be %x on set\n", MLNX_MIRROR_VLAN_TPID);
@@ -1325,7 +1416,7 @@ static sai_status_t mlnx_mirror_session_vlan_id_set(_In_ const sai_object_key_t 
         }
 
         sdk_mirror_obj_params.span_type_format.remote_eth_l3_type1.vid = value->u16;
-        sdk_mirror_obj_params.span_type_format.remote_eth_l3_type1.tp = MLNX_MIRROR_TP_ENABLE;
+        sdk_mirror_obj_params.span_type_format.remote_eth_l3_type1.tp  = MLNX_MIRROR_TP_ENABLE;
         sai_db_unlock();
         break;
 
@@ -1389,7 +1480,7 @@ static sai_status_t mlnx_mirror_session_vlan_pri_set(_In_ const sai_object_key_t
             return SAI_STATUS_SUCCESS;
         }
         sdk_mirror_obj_params.span_type_format.remote_eth_l3_type1.pcp = value->u8;
-        sdk_mirror_obj_params.span_type_format.remote_eth_l3_type1.tp = MLNX_MIRROR_TP_ENABLE;
+        sdk_mirror_obj_params.span_type_format.remote_eth_l3_type1.tp  = MLNX_MIRROR_TP_ENABLE;
         sai_db_unlock();
         break;
 
@@ -1453,7 +1544,7 @@ static sai_status_t mlnx_mirror_session_vlan_cfi_set(_In_ const sai_object_key_t
             return SAI_STATUS_SUCCESS;
         }
         sdk_mirror_obj_params.span_type_format.remote_eth_l3_type1.dei = value->u8;
-        sdk_mirror_obj_params.span_type_format.remote_eth_l3_type1.tp = MLNX_MIRROR_TP_ENABLE;
+        sdk_mirror_obj_params.span_type_format.remote_eth_l3_type1.tp  = MLNX_MIRROR_TP_ENABLE;
         sai_db_unlock();
         break;
 
@@ -1499,26 +1590,29 @@ static sai_status_t mlnx_mirror_session_vlan_header_valid_set(_In_ const sai_obj
     case SX_SPAN_TYPE_REMOTE_ETH_L3_TYPE1:
         sai_db_write_lock();
         if (g_sai_db_ptr->erspan_vlan_header[sdk_mirror_obj_id].vlan_header_valid && !value->booldata) {
-            sdk_mirror_obj_params.span_type_format.remote_eth_l3_type1.vid = 0;
-            sdk_mirror_obj_params.span_type_format.remote_eth_l3_type1.tp = MLNX_MIRROR_TP_DISABLE;
-            sdk_mirror_obj_params.span_type_format.remote_eth_l3_type1.pcp = 0;
-            sdk_mirror_obj_params.span_type_format.remote_eth_l3_type1.dei = 0;
-            g_sai_db_ptr->erspan_vlan_header[sdk_mirror_obj_id].vlan_id = 0;
-            g_sai_db_ptr->erspan_vlan_header[sdk_mirror_obj_id].vlan_pri = 0;
-            g_sai_db_ptr->erspan_vlan_header[sdk_mirror_obj_id].vlan_cfi = 0;
+            sdk_mirror_obj_params.span_type_format.remote_eth_l3_type1.vid        = 0;
+            sdk_mirror_obj_params.span_type_format.remote_eth_l3_type1.tp         = MLNX_MIRROR_TP_DISABLE;
+            sdk_mirror_obj_params.span_type_format.remote_eth_l3_type1.pcp        = 0;
+            sdk_mirror_obj_params.span_type_format.remote_eth_l3_type1.dei        = 0;
+            g_sai_db_ptr->erspan_vlan_header[sdk_mirror_obj_id].vlan_id           = 0;
+            g_sai_db_ptr->erspan_vlan_header[sdk_mirror_obj_id].vlan_pri          = 0;
+            g_sai_db_ptr->erspan_vlan_header[sdk_mirror_obj_id].vlan_cfi          = 0;
             g_sai_db_ptr->erspan_vlan_header[sdk_mirror_obj_id].vlan_header_valid = false;
         } else if (!g_sai_db_ptr->erspan_vlan_header[sdk_mirror_obj_id].vlan_header_valid && value->booldata) {
             g_sai_db_ptr->erspan_vlan_header[sdk_mirror_obj_id].vlan_header_valid = true;
             if (0 == g_sai_db_ptr->erspan_vlan_header[sdk_mirror_obj_id].vlan_id) {
                 sai_db_unlock();
-                SX_LOG_WRN("vlan id is still 0 for ERSPAN session\n"); 
+                SX_LOG_WRN("vlan id is still 0 for ERSPAN session\n");
                 SX_LOG_EXIT();
                 return SAI_STATUS_SUCCESS;
             }
-            sdk_mirror_obj_params.span_type_format.remote_eth_l3_type1.vid = g_sai_db_ptr->erspan_vlan_header[sdk_mirror_obj_id].vlan_id;
-            sdk_mirror_obj_params.span_type_format.remote_eth_l3_type1.tp = MLNX_MIRROR_TP_ENABLE;
-            sdk_mirror_obj_params.span_type_format.remote_eth_l3_type1.pcp = g_sai_db_ptr->erspan_vlan_header[sdk_mirror_obj_id].vlan_pri;
-            sdk_mirror_obj_params.span_type_format.remote_eth_l3_type1.dei = g_sai_db_ptr->erspan_vlan_header[sdk_mirror_obj_id].vlan_cfi;
+            sdk_mirror_obj_params.span_type_format.remote_eth_l3_type1.vid =
+                g_sai_db_ptr->erspan_vlan_header[sdk_mirror_obj_id].vlan_id;
+            sdk_mirror_obj_params.span_type_format.remote_eth_l3_type1.tp  = MLNX_MIRROR_TP_ENABLE;
+            sdk_mirror_obj_params.span_type_format.remote_eth_l3_type1.pcp =
+                g_sai_db_ptr->erspan_vlan_header[sdk_mirror_obj_id].vlan_pri;
+            sdk_mirror_obj_params.span_type_format.remote_eth_l3_type1.dei =
+                g_sai_db_ptr->erspan_vlan_header[sdk_mirror_obj_id].vlan_cfi;
         } else {
             sai_db_unlock();
             SX_LOG_EXIT();
@@ -1816,6 +1910,55 @@ static sai_status_t mlnx_mirror_session_gre_protocol_type_set(_In_ const sai_obj
 
     SX_LOG_EXIT();
     return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_mirror_session_policer_set(_In_ const sai_object_key_t      *key,
+                                                    _In_ const sai_attribute_value_t *value,
+                                                    void                             *arg)
+{
+    sai_status_t status             = SAI_STATUS_FAILURE;
+    uint32_t     sdk_mirror_obj_id  = 0;
+
+    SX_LOG_ENTER();
+
+    status = mlnx_object_to_type(key->key.object_id, SAI_OBJECT_TYPE_MIRROR_SESSION, &sdk_mirror_obj_id, NULL);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Invalid mirror session id %" PRIx64 "\n", key->key.object_id);
+        SX_LOG_EXIT();
+        return status;
+    }
+
+    if (sdk_mirror_obj_id >= SPAN_SESSION_MAX) {
+        SX_LOG_ERR("Invalid sdk_mirror_obj_id %d > %d\n", sdk_mirror_obj_id, SPAN_SESSION_MAX);
+        SX_LOG_EXIT();
+        return SAI_STATUS_INVALID_OBJECT_ID;
+    }
+
+    sai_db_write_lock();
+
+    if (value->oid != SAI_NULL_OBJECT_ID) {
+        status = mlnx_mirror_policer_validate(value->oid);
+        if (SAI_ERR(status)) {
+            goto out;
+        }
+    }
+
+    if (g_sai_db_ptr->mirror_policer[sdk_mirror_obj_id].policer_oid == value->oid) {
+        status = SAI_STATUS_SUCCESS;
+        goto out;
+    }
+
+    g_sai_db_ptr->mirror_policer[sdk_mirror_obj_id].policer_oid = value->oid;
+
+    status = mlnx_acl_mirror_action_policer_update(sdk_mirror_obj_id);
+    if (SAI_ERR(status)) {
+        SX_LOG_NTC("Failed to update policer for mirror session %lx that is used in ACL\n", key->key.object_id);
+        goto out;
+    }
+
+out:
+    sai_db_unlock();
+    return status;
 }
 
 static sai_status_t mlnx_check_mirror_single_attribute_on_create(
@@ -2374,12 +2517,15 @@ static sai_status_t mlnx_create_mirror_session(_Out_ sai_object_id_t      *sai_m
     const sai_attribute_value_t *mirror_src_ip_address    = NULL, *mirror_dst_ip_address = NULL;
     const sai_attribute_value_t *mirror_src_mac_address   = NULL, *mirror_dst_mac_address = NULL;
     const sai_attribute_value_t *mirror_gre_protocol_type = NULL;
+    const sai_attribute_value_t *mirror_policer           = NULL;
     sai_status_t                 status                   = SAI_STATUS_FAILURE, status_truncate_size =
         SAI_STATUS_FAILURE;
     sai_status_t             status_tc     = SAI_STATUS_FAILURE, status_ttl = SAI_STATUS_FAILURE;
     sai_status_t             status_remove = SAI_STATUS_FAILURE;
     sx_span_session_params_t sdk_mirror_obj_params;
     sx_span_session_id_t     sdk_mirror_obj_id = 0;
+    sai_object_id_t          policer_oid = SAI_NULL_OBJECT_ID;
+    uint32_t                 policer_attr_idx;
 
     memset(&sdk_mirror_obj_params, 0, sizeof(sx_span_session_params_t));
 
@@ -2457,16 +2603,30 @@ static sai_status_t mlnx_create_mirror_session(_Out_ sai_object_id_t      *sai_m
         return SAI_STATUS_FAILURE;
     }
 
+    find_attrib_in_list(attr_count, attr_list, SAI_MIRROR_SESSION_ATTR_POLICER, &mirror_policer, &policer_attr_idx);
+    if (mirror_policer) {
+        policer_oid = mirror_policer->oid;
+    }
+
+    sai_db_write_lock();
+
+    if (policer_oid != SAI_NULL_OBJECT_ID) {
+        status = mlnx_mirror_policer_validate(policer_oid);
+        if (SAI_ERR(status)) {
+            sai_db_unlock();
+            return SAI_STATUS_INVALID_ATTR_VALUE_0 + policer_attr_idx;
+        }
+    }
+
     if (SAI_STATUS_SUCCESS !=
         (status =
              sdk_to_sai(sx_api_span_session_set(gh_sdk, SX_ACCESS_CMD_CREATE, &sdk_mirror_obj_params,
                                                 &sdk_mirror_obj_id)))) {
         SX_LOG_ERR("Error creating mirror session\n");
         SX_LOG_EXIT();
+        sai_db_unlock();
         return status;
     }
-
-    sai_db_write_lock();
 
     if (SAI_STATUS_SUCCESS !=
         (status = mlnx_add_mirror_analyzer_port(sdk_mirror_obj_id, mirror_monitor_port->oid))) {
@@ -2490,7 +2650,7 @@ static sai_status_t mlnx_create_mirror_session(_Out_ sai_object_id_t      *sai_m
 
     SX_LOG_NTC("Created sdk mirror obj id: %d\n", sdk_mirror_obj_id);
 
-    if ((SAI_MIRROR_SESSION_TYPE_ENHANCED_REMOTE== mirror_type->s32) &&
+    if ((SAI_MIRROR_SESSION_TYPE_ENHANCED_REMOTE == mirror_type->s32) &&
         (NULL != mirror_vlan_header_valid) && (mirror_vlan_header_valid->booldata)) {
         g_sai_db_ptr->erspan_vlan_header[sdk_mirror_obj_id].vlan_header_valid = true;
         if (NULL != mirror_vlan_id) {
@@ -2510,10 +2670,12 @@ static sai_status_t mlnx_create_mirror_session(_Out_ sai_object_id_t      *sai_m
         }
     } else {
         g_sai_db_ptr->erspan_vlan_header[sdk_mirror_obj_id].vlan_header_valid = false;
-        g_sai_db_ptr->erspan_vlan_header[sdk_mirror_obj_id].vlan_id = 0;
-        g_sai_db_ptr->erspan_vlan_header[sdk_mirror_obj_id].vlan_pri = 0;
-        g_sai_db_ptr->erspan_vlan_header[sdk_mirror_obj_id].vlan_cfi = 0;
+        g_sai_db_ptr->erspan_vlan_header[sdk_mirror_obj_id].vlan_id           = 0;
+        g_sai_db_ptr->erspan_vlan_header[sdk_mirror_obj_id].vlan_pri          = 0;
+        g_sai_db_ptr->erspan_vlan_header[sdk_mirror_obj_id].vlan_cfi          = 0;
     }
+
+    g_sai_db_ptr->mirror_policer[sdk_mirror_obj_id].policer_oid = policer_oid;
 
     sai_db_unlock();
 
@@ -2532,12 +2694,40 @@ static sai_status_t mlnx_create_mirror_session(_Out_ sai_object_id_t      *sai_m
     return SAI_STATUS_SUCCESS;
 }
 
+static sai_status_t mlnx_mirror_session_is_in_use(_In_ sx_span_session_id_t  session,
+                                                  _Out_ bool                *is_in_use)
+{
+    const mlnx_mirror_policer_t *mirror_policer;
+    sx_acl_direction_t           sx_direction;
+
+    assert(is_in_use);
+    assert(session < SPAN_SESSION_MAX);
+
+    mirror_policer = &g_sai_db_ptr->mirror_policer[session];
+
+    for (sx_direction = SX_ACL_DIRECTION_INGRESS; sx_direction < SX_ACL_DIRECTION_LAST; sx_direction++) {
+        if (mirror_policer->extra_acl[sx_direction].refs > 0) {
+            SX_LOG_ERR("Mirror session %d is used in %d ACL entry(s) at SX direction %d\n",
+                       sx_direction,
+                       mirror_policer->extra_acl[sx_direction].refs,
+                       sx_direction);
+            *is_in_use = true;
+            return SAI_STATUS_SUCCESS;
+        }
+
+    }
+
+    *is_in_use = false;
+    return SAI_STATUS_SUCCESS;
+}
+
 static sai_status_t mlnx_remove_mirror_session(_In_ const sai_object_id_t sai_mirror_obj_id)
 {
     sx_span_session_id_t     sdk_mirror_obj_id     = 0;
     uint32_t                 sdk_mirror_obj_id_u32 = 0;
     sai_status_t             status                = SAI_STATUS_FAILURE;
     sx_span_session_params_t sdk_mirror_obj_params;
+    bool                     is_in_use;
 
     memset(&sdk_mirror_obj_params, 0, sizeof(sx_span_session_params_t));
 
@@ -2553,7 +2743,26 @@ static sai_status_t mlnx_remove_mirror_session(_In_ const sai_object_id_t sai_mi
 
     sdk_mirror_obj_id = (sx_span_session_id_t)sdk_mirror_obj_id_u32;
 
+    if (sdk_mirror_obj_id >= SPAN_SESSION_MAX) {
+        SX_LOG_ERR("sai mirror obj id: %" PRIx64 " - session id %d\n", sai_mirror_obj_id, sdk_mirror_obj_id);
+        SX_LOG_EXIT();
+        return SAI_STATUS_INVALID_OBJECT_ID;
+    }
+
     sai_db_write_lock();
+
+    status = mlnx_mirror_session_is_in_use(sdk_mirror_obj_id, &is_in_use);
+    if (SAI_ERR(status)) {
+        sai_db_unlock();
+        SX_LOG_EXIT();
+        return status;
+    }
+
+    if (is_in_use) {
+        sai_db_unlock();
+        SX_LOG_EXIT();
+        return SAI_STATUS_OBJECT_IN_USE;
+    }
 
     if (SAI_STATUS_SUCCESS !=
         (status = mlnx_delete_mirror_analyzer_port(sdk_mirror_obj_id))) {
@@ -2562,6 +2771,9 @@ static sai_status_t mlnx_remove_mirror_session(_In_ const sai_object_id_t sai_mi
         SX_LOG_EXIT();
         return status;
     }
+
+    memset(&g_sai_db_ptr->mirror_policer[sdk_mirror_obj_id], 0,
+           sizeof(g_sai_db_ptr->mirror_policer[sdk_mirror_obj_id]));
 
     sai_db_unlock();
 

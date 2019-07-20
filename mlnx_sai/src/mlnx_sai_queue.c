@@ -145,6 +145,29 @@ static void queue_key_to_str(_In_ sai_object_id_t queue_id, _Out_ char *key_str)
     }
 }
 
+static sai_status_t mlnx_queue_oid_to_data(_In_ sai_object_id_t            queue_oid,
+                                           _Out_ uint8_t                  *queue_index,
+                                           _Out_ mlnx_qos_queue_config_t **queue_config)
+{
+    sai_status_t     status;
+    sx_port_log_id_t sx_port;
+
+    assert(queue_index);
+    assert(queue_config);
+
+    status = mlnx_queue_parse_id(queue_oid, &sx_port, queue_index);
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+    status = mlnx_queue_cfg_lookup(sx_port, *queue_index, queue_config);
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
 /* Set queue buffer and scheduler profiles */
 static sai_status_t mlnx_queue_config_set(_In_ const sai_object_key_t      *key,
                                           _In_ const sai_attribute_value_t *value,
@@ -485,11 +508,11 @@ static sai_status_t mlnx_get_queue_attribute(_In_ sai_object_id_t     queue_id,
  *
  * @return #SAI_STATUS_SUCCESS on success, failure status code on error
  */
-sai_status_t mlnx_get_queue_statistics_ext(_In_ sai_object_id_t         queue_id,
-                                           _In_ uint32_t                number_of_counters,
-                                           _In_ const sai_queue_stat_t *counter_ids,
-                                           _In_ sai_stats_mode_t        mode,
-                                           _Out_ uint64_t              *counters)
+sai_status_t mlnx_get_queue_statistics_ext(_In_ sai_object_id_t      queue_id,
+                                           _In_ uint32_t             number_of_counters,
+                                           _In_ const sai_stat_id_t *counter_ids,
+                                           _In_ sai_stats_mode_t     mode,
+                                           _Out_ uint64_t           *counters)
 {
     sai_status_t                     status;
     uint8_t                          ext_data[EXTENDED_DATA_SIZE] = {0};
@@ -757,10 +780,10 @@ sai_status_t mlnx_get_queue_statistics_ext(_In_ sai_object_id_t         queue_id
  *
  * @return #SAI_STATUS_SUCCESS on success Failure status code on error
  */
-static sai_status_t mlnx_get_queue_statistics(_In_ sai_object_id_t         queue_id,
-                                              _In_ uint32_t                number_of_counters,
-                                              _In_ const sai_queue_stat_t *counter_ids,
-                                              _Out_ uint64_t              *counters)
+static sai_status_t mlnx_get_queue_statistics(_In_ sai_object_id_t      queue_id,
+                                              _In_ uint32_t             number_of_counters,
+                                              _In_ const sai_stat_id_t *counter_ids,
+                                              _Out_ uint64_t           *counters)
 {
     return mlnx_get_queue_statistics_ext(queue_id, number_of_counters, counter_ids, SAI_STATS_MODE_READ, counters);
 }
@@ -774,9 +797,9 @@ static sai_status_t mlnx_get_queue_statistics(_In_ sai_object_id_t         queue
  *
  * @return #SAI_STATUS_SUCCESS on success Failure status code on error
  */
-static sai_status_t mlnx_clear_queue_stats(_In_ sai_object_id_t         queue_id,
-                                           _In_ uint32_t                number_of_counters,
-                                           _In_ const sai_queue_stat_t *counter_ids)
+static sai_status_t mlnx_clear_queue_stats(_In_ sai_object_id_t      queue_id,
+                                           _In_ uint32_t             number_of_counters,
+                                           _In_ const sai_stat_id_t *counter_ids)
 {
     sai_status_t                     status;
     uint8_t                          ext_data[EXTENDED_DATA_SIZE] = { 0 };
@@ -1060,10 +1083,12 @@ out:
  */
 sai_status_t mlnx_remove_queue(_In_ sai_object_id_t queue_id)
 {
-    sai_object_key_t      object_key = { .key.object_id = queue_id };
-    char                  key_str[MAX_KEY_STR_LEN];
-    sai_attribute_value_t parent_attr = { .oid = SAI_NULL_OBJECT_ID };
-    sai_status_t          status;
+    sai_object_key_t         object_key = { .key.object_id = queue_id };
+    char                     key_str[MAX_KEY_STR_LEN];
+    sai_attribute_value_t    parent_attr = { .oid = SAI_NULL_OBJECT_ID };
+    uint8_t                  queue_index;
+    mlnx_qos_queue_config_t *queue_config;
+    sai_status_t             status;
 
     SX_LOG_ENTER();
 
@@ -1074,15 +1099,23 @@ sai_status_t mlnx_remove_queue(_In_ sai_object_id_t queue_id)
     status = mlnx_queue_parent_sched_node_set(&object_key, &parent_attr, NULL);
     if (SAI_ERR(status)) {
         SX_LOG_ERR("Failed to reset parent scheduler node for queue\n");
-        goto out;
+        SX_LOG_EXIT();
+        return status;
     }
 
     sai_db_write_lock();
 
-    status = mlnx_scheduler_to_queue_apply(SAI_NULL_OBJECT_ID, queue_id);
+    status = mlnx_queue_oid_to_data(queue_id, &queue_index, &queue_config);
     if (SAI_ERR(status)) {
-        SX_LOG_ERR("Failed to reset scheduler profile for queue\n");
         goto out;
+    }
+
+    if (queue_index < MAX_USED_TC) {
+        status = mlnx_scheduler_to_queue_apply(SAI_NULL_OBJECT_ID, queue_id);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to reset scheduler profile for queue\n");
+            goto out;
+        }
     }
 
     status = mlnx_buffer_apply(SAI_NULL_OBJECT_ID, queue_id);

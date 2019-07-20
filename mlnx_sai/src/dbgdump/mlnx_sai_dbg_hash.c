@@ -22,11 +22,13 @@
 
 static void SAI_dump_hash_getdb(_Out_ mlnx_hash_obj_t                   *hash_list,
                                 _Out_ sai_object_id_t                   *oper_hash_list,
-                                _Out_ sx_router_ecmp_port_hash_params_t *ecmp_params)
+                                _Out_ sx_router_ecmp_port_hash_params_t *ecmp_params,
+                                _Out_ sx_lag_port_hash_params_t         *lag_params)
 {
     assert(NULL != hash_list);
     assert(NULL != oper_hash_list);
     assert(NULL != ecmp_params);
+    assert(NULL != lag_params);
     assert(NULL != g_sai_db_ptr);
 
     sai_db_read_lock();
@@ -40,8 +42,12 @@ static void SAI_dump_hash_getdb(_Out_ mlnx_hash_obj_t                   *hash_li
            SAI_HASH_MAX_OBJ_ID * sizeof(sai_object_id_t));
 
     memcpy(ecmp_params,
-           &g_sai_db_ptr->port_hash_params,
+           &g_sai_db_ptr->port_ecmp_hash_params,
            sizeof(*ecmp_params));
+
+    memcpy(lag_params,
+           &g_sai_db_ptr->lag_hash_params,
+           sizeof(*lag_params));
 
     sai_db_unlock();
 }
@@ -119,20 +125,49 @@ static void SAI_dump_hash_ecmp_print(_In_ FILE *file, _In_ const sx_router_ecmp_
     dbg_utils_print_table_data_line(file, ecmp_params_columns);
 }
 
+static void SAI_dump_hash_lag_print(_In_ FILE *file, _In_ const sx_lag_port_hash_params_t *lag_params)
+{
+    const char                *lag_hash_type_str[] = { "CRC", "XOR", "Random", "CRC2"};
+    sx_lag_port_hash_params_t  curr_lag_params;
+    char                       hash_type_str[LINE_LENGTH] = "Invalid";
+    dbg_utils_table_columns_t  ecmp_params_columns[] = {
+        {"hash type",  32, PARAM_STRING_E, &hash_type_str},
+        {"symmetric",  10, PARAM_BOOL_E,   &curr_lag_params.is_lag_hash_symmetric},
+        {"lag_seed",   10, PARAM_UINT32_E, &curr_lag_params.lag_seed},
+        {NULL,          0,  0,             NULL}
+    };
+
+    assert(NULL != lag_params);
+
+    memcpy(&curr_lag_params, lag_params, sizeof(curr_lag_params));
+
+    dbg_utils_print_general_header(file, "Port LAG hash params");
+
+    if (curr_lag_params.lag_hash_type < ARRAY_SIZE(lag_hash_type_str)) {
+        strncpy(hash_type_str, lag_hash_type_str[curr_lag_params.lag_hash_type], sizeof(hash_type_str) - 1);
+        hash_type_str[LINE_LENGTH - 1] = 0;
+    }
+
+    dbg_utils_print_table_headline(file, ecmp_params_columns);
+    dbg_utils_print_table_data_line(file, ecmp_params_columns);
+}
+
 void SAI_dump_hash(_In_ FILE *file)
 {
     mlnx_hash_obj_t                   hash_list[SAI_HASH_MAX_OBJ_COUNT];
     sai_object_id_t                   oper_hash_list[SAI_HASH_MAX_OBJ_ID];
     sx_router_ecmp_port_hash_params_t ecmp_params;
+    sx_lag_port_hash_params_t         lag_params;
 
     memset(hash_list, 0, SAI_HASH_MAX_OBJ_COUNT * sizeof(mlnx_hash_obj_t));
     memset(oper_hash_list, 0, SAI_HASH_MAX_OBJ_ID * sizeof(sai_object_id_t));
 
-    SAI_dump_hash_getdb(hash_list, oper_hash_list, &ecmp_params);
+    SAI_dump_hash_getdb(hash_list, oper_hash_list, &ecmp_params, &lag_params);
 
     dbg_utils_print_module_header(file, "SAI Hash");
 
     SAI_dump_hash_ecmp_print(file, &ecmp_params);
+    SAI_dump_hash_lag_print(file, &lag_params);
     SAI_dump_hash_print(file, hash_list);
     SAI_dump_oper_hash_print(file, oper_hash_list);
 }

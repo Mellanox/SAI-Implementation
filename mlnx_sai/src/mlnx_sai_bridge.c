@@ -70,6 +70,7 @@ static sai_status_t mlnx_bridge_sx_to_db_idx(_In_ sx_bridge_id_t sx_bridge_id, _
 static sai_status_t mlnx_bridge_1d_oid_to_data(_In_ sai_object_id_t           bridge_oid,
                                                _Out_ mlnx_bridge_t          **bridge,
                                                _Out_ mlnx_shm_rm_array_idx_t *idx);
+static sai_status_t mlnx_sdk_bridge_create(_Out_ sx_bridge_id_t *sx_bridge_id);
 static const sai_vendor_attribute_entry_t bridge_vendor_attribs[] = {
     { SAI_BRIDGE_ATTR_TYPE,
       { true, false, false, true },
@@ -378,16 +379,16 @@ sai_status_t mlnx_bridge_port_by_oid(sai_object_id_t oid, mlnx_bridge_port_t **p
 
 sai_status_t mlnx_bridge_port_by_tunnel_id(sx_tunnel_id_t sx_tunnel, mlnx_bridge_port_t **port)
 {
-    mlnx_bridge_port_t      *it;
-    uint32_t                 ii, checked;
-    const tunnel_db_entry_t *tunnel_entry;
+    mlnx_bridge_port_t        *it;
+    uint32_t                   ii, checked;
+    const mlnx_tunnel_entry_t *tunnel_entry;
 
     mlnx_bridge_non1q_port_foreach(it, ii, checked) {
         if (it->port_type != SAI_BRIDGE_PORT_TYPE_TUNNEL) {
             continue;
         }
 
-        tunnel_entry = &g_sai_db_ptr->tunnel_db[it->tunnel_idx];
+        tunnel_entry = &g_sai_tunnel_db_ptr->tunnel_entry_db[it->tunnel_idx];
 
         if ((tunnel_entry->sx_tunnel_id_ipv4 == sx_tunnel) && tunnel_entry->ipv4_created) {
             *port = it;
@@ -1389,7 +1390,6 @@ static sai_status_t mlnx_create_bridge(_Out_ sai_object_id_t     * bridge_id,
     char                         list_str[MAX_LIST_VALUE_STR_LEN];
     char                         key_str[MAX_KEY_STR_LEN];
     mlnx_bridge_t               *bridge;
-    sx_status_t                  sx_status;
     sx_bridge_id_t               sx_bridge_id;
     const sai_attribute_value_t *attr_val, *max_learned_addresses = NULL;
     uint32_t                     attr_idx, max_learned_addresses_index;
@@ -1430,13 +1430,13 @@ static sai_status_t mlnx_create_bridge(_Out_ sai_object_id_t     * bridge_id,
         }
     }
 
-    sx_status = sx_api_bridge_set(gh_sdk, SX_ACCESS_CMD_CREATE, &sx_bridge_id);
-    if (SX_ERR(sx_status)) {
-        SX_LOG_ERR("Failed to create .1D bridge - %s\n", SX_STATUS_MSG(sx_status));
-        return sdk_to_sai(sx_status);
-    }
-
     sai_db_write_lock();
+
+    status = mlnx_sdk_bridge_create(&sx_bridge_id);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to create .1D bridge\n");
+        goto out;
+    }
 
     status = mlnx_bridge_db_alloc(sx_bridge_id, &bridge, &bridge_db_idx);
     if (SAI_ERR(status)) {
@@ -3071,21 +3071,54 @@ sai_status_t mlnx_bridge_log_set(sx_verbosity_level_t level)
     }
 }
 
+/* Need to be guarded by lock */
+static sai_status_t mlnx_sdk_bridge_create(_Out_ sx_bridge_id_t *sx_bridge_id)
+{
+    sx_status_t      sx_status  = SX_STATUS_ERROR;
+    sai_status_t     sai_status = SAI_STATUS_FAILURE;
+    sx_vlan_attrib_t vlan_attrib_p;
+
+    SX_LOG_ENTER();
+
+    sx_status = sx_api_bridge_set(gh_sdk, SX_ACCESS_CMD_CREATE, sx_bridge_id);
+    if (SX_ERR(sx_status)) {
+        sai_status = sdk_to_sai(sx_status);
+        SX_LOG_ERR("Failed to create bridge - %s\n", SX_STATUS_MSG(sx_status));
+        SX_LOG_EXIT();
+        return sai_status;
+    }
+
+    memset(&vlan_attrib_p, 0, sizeof(vlan_attrib_p));
+    vlan_attrib_p.flood_to_router = true;
+
+    if (g_sai_db_ptr->fx_initialized) {
+        sx_status = sx_api_vlan_attrib_set(gh_sdk, *sx_bridge_id, &vlan_attrib_p);
+        if (SX_ERR(sx_status)) {
+            sai_status = sdk_to_sai(sx_status);
+            SX_LOG_ERR("Error setting vlan attribute for fid %d: %s\n",
+                       *sx_bridge_id, SX_STATUS_MSG(sx_status));
+            SX_LOG_EXIT();
+            return sai_status;
+        }
+    }
+
+    SX_LOG_EXIT();
+    return SAI_STATUS_SUCCESS;
+}
+
 sai_status_t mlnx_bridge_init(void)
 {
     mlnx_bridge_port_t *router_port;
     sx_bridge_id_t      bridge_id;
     mlnx_port_config_t *port;
-    sx_status_t         sx_status;
     sai_status_t        status;
     uint32_t            ii;
 
     sai_db_write_lock();
 
-    sx_status = sx_api_bridge_set(gh_sdk, SX_ACCESS_CMD_CREATE, &bridge_id);
-    if (SX_ERR(sx_status)) {
-        SX_LOG_ERR("Failed to create default .1Q bridge - %s\n", SX_STATUS_MSG(sx_status));
-        status = sdk_to_sai(sx_status);
+    status = mlnx_sdk_bridge_create(&bridge_id);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to create default .1Q bridge\n");
         goto out;
     }
 
@@ -3139,10 +3172,10 @@ out:
  *
  * @return #SAI_STATUS_SUCCESS on success, failure status code on error
  */
-static sai_status_t mlnx_get_bridge_stats(_In_ sai_object_id_t          bridge_id,
-                                          _In_ uint32_t                 number_of_counters,
-                                          _In_ const sai_bridge_stat_t *counter_ids,
-                                          _Out_ uint64_t               *counters)
+static sai_status_t mlnx_get_bridge_stats(_In_ sai_object_id_t      bridge_id,
+                                          _In_ uint32_t             number_of_counters,
+                                          _In_ const sai_stat_id_t *counter_ids,
+                                          _Out_ uint64_t           *counters)
 {
     return SAI_STATUS_NOT_IMPLEMENTED;
 }
@@ -3158,11 +3191,11 @@ static sai_status_t mlnx_get_bridge_stats(_In_ sai_object_id_t          bridge_i
  *
  * @return #SAI_STATUS_SUCCESS on success, failure status code on error
  */
-sai_status_t mlnx_get_bridge_stats_ext(_In_ sai_object_id_t          bridge_id,
-                                       _In_ uint32_t                 number_of_counters,
-                                       _In_ const sai_bridge_stat_t *counter_ids,
-                                       _In_ sai_stats_mode_t         mode,
-                                       _Out_ uint64_t               *counters)
+sai_status_t mlnx_get_bridge_stats_ext(_In_ sai_object_id_t      bridge_id,
+                                       _In_ uint32_t             number_of_counters,
+                                       _In_ const sai_stat_id_t *counter_ids,
+                                       _In_ sai_stats_mode_t     mode,
+                                       _Out_ uint64_t           *counters)
 {
     return SAI_STATUS_NOT_IMPLEMENTED;
 }
@@ -3176,9 +3209,9 @@ sai_status_t mlnx_get_bridge_stats_ext(_In_ sai_object_id_t          bridge_id,
  *
  * @return #SAI_STATUS_SUCCESS on success, failure status code on error
  */
-static sai_status_t mlnx_clear_bridge_stats(_In_ sai_object_id_t          bridge_id,
-                                            _In_ uint32_t                 number_of_counters,
-                                            _In_ const sai_bridge_stat_t *counter_ids)
+static sai_status_t mlnx_clear_bridge_stats(_In_ sai_object_id_t      bridge_id,
+                                            _In_ uint32_t             number_of_counters,
+                                            _In_ const sai_stat_id_t *counter_ids)
 {
     return SAI_STATUS_NOT_IMPLEMENTED;
 }
@@ -3194,11 +3227,11 @@ static sai_status_t mlnx_clear_bridge_stats(_In_ sai_object_id_t          bridge
  *
  * @return #SAI_STATUS_SUCCESS on success, failure status code on error
  */
-sai_status_t mlnx_get_bridge_port_stats_ext(_In_ sai_object_id_t               bridge_port_id,
-                                            _In_ uint32_t                      number_of_counters,
-                                            _In_ const sai_bridge_port_stat_t *counter_ids,
-                                            _In_ sai_stats_mode_t              mode,
-                                            _Out_ uint64_t                    *counters)
+sai_status_t mlnx_get_bridge_port_stats_ext(_In_ sai_object_id_t      bridge_port_id,
+                                            _In_ uint32_t             number_of_counters,
+                                            _In_ const sai_stat_id_t *counter_ids,
+                                            _In_ sai_stats_mode_t     mode,
+                                            _Out_ uint64_t           *counters)
 {
     sai_status_t            status;
     sx_status_t             sx_status;
@@ -3290,10 +3323,10 @@ out:
  *
  * @return #SAI_STATUS_SUCCESS on success, failure status code on error
  */
-static sai_status_t mlnx_get_bridge_port_stats(_In_ sai_object_id_t               bridge_port_id,
-                                               _In_ uint32_t                      number_of_counters,
-                                               _In_ const sai_bridge_port_stat_t *counter_ids,
-                                               _Out_ uint64_t                    *counters)
+static sai_status_t mlnx_get_bridge_port_stats(_In_ sai_object_id_t      bridge_port_id,
+                                               _In_ uint32_t             number_of_counters,
+                                               _In_ const sai_stat_id_t *counter_ids,
+                                               _Out_ uint64_t           *counters)
 {
     return mlnx_get_bridge_port_stats_ext(bridge_port_id,
                                           number_of_counters,
@@ -3311,9 +3344,9 @@ static sai_status_t mlnx_get_bridge_port_stats(_In_ sai_object_id_t             
  *
  * @return #SAI_STATUS_SUCCESS on success, failure status code on error
  */
-static sai_status_t mlnx_clear_bridge_port_stats(_In_ sai_object_id_t               bridge_port_id,
-                                                 _In_ uint32_t                      number_of_counters,
-                                                 _In_ const sai_bridge_port_stat_t *counter_ids)
+static sai_status_t mlnx_clear_bridge_port_stats(_In_ sai_object_id_t      bridge_port_id,
+                                                 _In_ uint32_t             number_of_counters,
+                                                 _In_ const sai_stat_id_t *counter_ids)
 {
     return SAI_STATUS_NOT_IMPLEMENTED;
 }

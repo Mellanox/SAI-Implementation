@@ -693,11 +693,6 @@ sai_status_t mlnx_wred_apply_to_queue(_In_ mlnx_port_config_t *port,
     sx_cos_traffic_class_t   tc;
     mlnx_qos_queue_config_t *queue_cfg;
 
-    if (mlnx_chip_is_spc2()) {
-        SX_LOG_NTC("%s is not executed on SPC2\n", __FUNCTION__);
-        return SAI_STATUS_SUCCESS;
-    }
-
     tc = queue_idx;
 
     if (tc > g_resource_limits.cos_port_ets_traffic_class_max) {
@@ -1408,11 +1403,6 @@ sai_status_t mlnx_wred_init()
 {
     sx_cos_redecn_global_t redecn_global;
     sx_status_t            sx_status = SX_STATUS_SUCCESS;
-
-    if (mlnx_chip_is_spc2()) {
-        SX_LOG_NTC("%s is not executed on SPC2\n", __FUNCTION__);
-        return SAI_STATUS_SUCCESS;
-    }
 
     memset(&redecn_global, 0, sizeof(redecn_global));
 

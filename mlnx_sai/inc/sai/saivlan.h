@@ -386,6 +386,17 @@ typedef enum _sai_vlan_attr_t
      */
     SAI_VLAN_ATTR_CUSTOM_IGMP_SNOOPING_ENABLE,
 
+    /**
+     * @brief Vlan bind point for TAM object
+     *
+     * @type sai_object_id_t
+     * @flags CREATE_AND_SET
+     * @objects SAI_OBJECT_TYPE_TAM
+     * @allownull true
+     * @default SAI_NULL_OBJECT_ID
+     */
+    SAI_VLAN_ATTR_TAM_OBJECT,
+
     /** End of custom range base */
     SAI_VLAN_ATTR_CUSTOM_RANGE_END
 
@@ -582,7 +593,7 @@ typedef sai_status_t (*sai_get_vlan_member_attribute_fn)(
 typedef sai_status_t (*sai_get_vlan_stats_fn)(
         _In_ sai_object_id_t vlan_id,
         _In_ uint32_t number_of_counters,
-        _In_ const sai_vlan_stat_t *counter_ids,
+        _In_ const sai_stat_id_t *counter_ids,
         _Out_ uint64_t *counters);
 
 /**
@@ -599,7 +610,7 @@ typedef sai_status_t (*sai_get_vlan_stats_fn)(
 typedef sai_status_t (*sai_get_vlan_stats_ext_fn)(
         _In_ sai_object_id_t vlan_id,
         _In_ uint32_t number_of_counters,
-        _In_ const sai_vlan_stat_t *counter_ids,
+        _In_ const sai_stat_id_t *counter_ids,
         _In_ sai_stats_mode_t mode,
         _Out_ uint64_t *counters);
 
@@ -615,7 +626,7 @@ typedef sai_status_t (*sai_get_vlan_stats_ext_fn)(
 typedef sai_status_t (*sai_clear_vlan_stats_fn)(
         _In_ sai_object_id_t vlan_id,
         _In_ uint32_t number_of_counters,
-        _In_ const sai_vlan_stat_t *counter_ids);
+        _In_ const sai_stat_id_t *counter_ids);
 
 /**
  * @brief VLAN methods table retrieved with sai_api_query()

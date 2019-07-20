@@ -192,7 +192,7 @@ static sai_status_t mlnx_translate_sai_next_hop_to_sdk(_In_ sai_next_hop_type_t 
 
         sai_db_read_lock();
 
-        if (!g_sai_db_ptr->tunnel_db[tunnel_idx].is_used) {
+        if (!g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_idx].is_used) {
             sai_db_unlock();
             SX_LOG_ERR("tunnel idx %d is not in use\n", tunnel_idx);
             SX_LOG_EXIT();
@@ -200,7 +200,7 @@ static sai_status_t mlnx_translate_sai_next_hop_to_sdk(_In_ sai_next_hop_type_t 
         }
 
         next_hop->next_hop_key.next_hop_key_entry.ip_tunnel.tunnel_id =
-            g_sai_db_ptr->tunnel_db[tunnel_idx].sx_tunnel_id_ipv4;
+            g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_idx].sx_tunnel_id_ipv4;
 
         sai_db_unlock();
 
@@ -370,7 +370,7 @@ static sai_status_t mlnx_create_next_hop(_Out_ sai_object_id_t      *next_hop_id
 
         sai_db_read_lock();
 
-        switch (g_sai_db_ptr->tunnel_db[tunnel_db_idx].sai_tunnel_type) {
+        switch (g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].sai_tunnel_type) {
         case SAI_TUNNEL_TYPE_IPINIP:
         case SAI_TUNNEL_TYPE_IPINIP_GRE:
             is_tunnel_ipinip = true;

@@ -21,7 +21,7 @@
 
 acl_group_db_t* sai_acl_db_group_ptr(_In_ uint32_t group_index);
 acl_group_bound_to_t* sai_acl_db_group_bount_to(_In_ uint32_t group_index);
-static void SAI_dump_acl_getdb(_In_  uint32_t              acl_group_number,
+static void SAI_dump_acl_getdb(_In_ uint32_t               acl_group_number,
                                _Out_ acl_table_db_t       *acl_table_db,
                                _Out_ acl_entry_db_t       *acl_entry_db,
                                _Out_ acl_setting_tbl_t    *acl_settings_tbl,
@@ -731,8 +731,8 @@ void SAI_dump_acl(_In_ FILE *file)
     acl_group_bound_to_t *acl_group_bound_to = NULL;
 
     sai_db_read_lock();
-    const uint32_t acl_divider = g_sai_db_ptr->acl_divider;
-    const uint32_t acl_group_number = ACL_GROUP_NUMBER/acl_divider;
+    const uint32_t acl_divider      = g_sai_db_ptr->acl_divider;
+    const uint32_t acl_group_number = ACL_GROUP_NUMBER / acl_divider;
     sai_db_unlock();
 
     acl_table_db     = (acl_table_db_t*)calloc(ACL_TABLE_DB_SIZE, sizeof(acl_table_db_t));

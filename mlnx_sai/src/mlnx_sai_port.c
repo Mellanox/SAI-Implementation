@@ -96,6 +96,11 @@ static sai_status_t mlnx_port_speed_get(_In_ const sai_object_key_t   *key,
                                         _In_ uint32_t                  attr_index,
                                         _Inout_ vendor_cache_t        *cache,
                                         void                          *arg);
+static sai_status_t mlnx_port_oper_speed_get(_In_ const sai_object_key_t   *key,
+                                             _Inout_ sai_attribute_value_t *value,
+                                             _In_ uint32_t                  attr_index,
+                                             _Inout_ vendor_cache_t        *cache,
+                                             void                          *arg);
 static sai_status_t mlnx_port_fec_get(_In_ const sai_object_key_t   *key,
                                       _Inout_ sai_attribute_value_t *value,
                                       _In_ uint32_t                  attr_index,
@@ -270,9 +275,9 @@ static sai_status_t mlnx_port_pool_attr_get(_In_ const sai_object_key_t   *key,
                                             _Inout_ vendor_cache_t        *cache,
                                             _In_ void                     *arg);
 static sai_status_t mlnx_port_speed_set_impl(_In_ sx_port_log_id_t sx_port, _In_ uint32_t speed);
-sai_status_t mlnx_port_speed_get_impl(_In_ sx_port_log_id_t sx_port,
-                                      _Out_ uint32_t       *oper_speed,
-                                      _Out_ uint32_t       *admin_speed);
+static sai_status_t mlnx_port_speed_get_impl(_In_ sx_port_log_id_t sx_port,
+                                             _Out_ uint32_t       *oper_speed,
+                                             _Out_ uint32_t       *admin_speed);
 static sai_status_t mlnx_port_supported_speeds_get_impl(_In_ sx_port_log_id_t sx_port, _Inout_ sai_u32_list_t *list);
 static sai_status_t mlnx_port_autoneg_set_impl(_In_ sx_port_log_id_t sx_port, _In_ bool value);
 static sai_status_t mlnx_port_autoneg_get_impl(_In_ sx_port_log_id_t sx_port, _In_ bool             *value);
@@ -376,6 +381,11 @@ static const sai_vendor_attribute_entry_t port_vendor_attribs[] = {
       { false, false, false, true },
       { false, false, false, true },
       mlnx_port_priority_group_list_get, NULL,
+      NULL, NULL },
+    { SAI_PORT_ATTR_OPER_SPEED,
+      { false, false, false, true },
+      { false, false, false, true },
+      mlnx_port_oper_speed_get, NULL,
       NULL, NULL },
     { SAI_PORT_ATTR_SPEED,
       { true, false, true, true },
@@ -1045,11 +1055,6 @@ sai_status_t mlnx_port_mirror_wred_discard_set(_In_ sx_port_log_id_t port_log_id
 
     SX_LOG_ENTER();
 
-    if (mlnx_chip_is_spc2()) {
-        SX_LOG_NTC("%s is not executed on SPC2\n", __FUNCTION__);
-        return SAI_STATUS_SUCCESS;
-    }
-
     mirror_cnt = g_sai_db_ptr->trap_mirror_discard_wred_db.count;
     assert(SPAN_SESSION_MAX > mirror_cnt);
 
@@ -1548,6 +1553,30 @@ static sai_status_t mlnx_port_speed_get(_In_ const sai_object_key_t   *key,
                                         _In_ uint32_t                  attr_index,
                                         _Inout_ vendor_cache_t        *cache,
                                         void                          *arg)
+{
+    sai_status_t     status;
+    sx_port_log_id_t port_id;
+    uint32_t         oper_speed;
+
+    SX_LOG_ENTER();
+
+    if (SAI_STATUS_SUCCESS !=
+        (status = mlnx_object_to_type(key->key.object_id, SAI_OBJECT_TYPE_PORT, &port_id, NULL))) {
+        return status;
+    }
+
+    status = mlnx_port_speed_get_impl(port_id, &oper_speed, &value->u32);
+
+    SX_LOG_EXIT();
+    return status;
+}
+
+/* Operational speed in Mbps [uint32_t] */
+static sai_status_t mlnx_port_oper_speed_get(_In_ const sai_object_key_t   *key,
+                                             _Inout_ sai_attribute_value_t *value,
+                                             _In_ uint32_t                  attr_index,
+                                             _Inout_ vendor_cache_t        *cache,
+                                             void                          *arg)
 {
     sai_status_t     status;
     sx_port_log_id_t port_id;
@@ -3929,6 +3958,96 @@ static sai_status_t mlnx_get_port_attribute(_In_ sai_object_id_t     port_id,
     return sai_status;
 }
 
+static sai_status_t mlnx_port_single_speed_mode_set(_In_ sx_port_log_id_t sx_port,
+                                                    _In_ bool             enable)
+{
+    sai_status_t        status;
+    mlnx_port_config_t *port;
+
+    status = mlnx_port_by_log_id(sx_port, &port);
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+    SX_LOG_DBG("%s single speed mode on port %x (oper speed cache is %s)\n",
+               enable ? "Enabling" : "Disabling",
+               sx_port,
+               enable ? "enabled" : "disabled");
+
+    port->single_speed_mode = enable;
+    port->oper_speed_cached = 0;
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_port_oper_speed_cached_get(_In_ sx_port_log_id_t  sx_port,
+                                                    _Out_ uint32_t        *oper_speed)
+{
+    sai_status_t        status;
+    uint32_t            admin_speed;
+    mlnx_port_config_t *port;
+
+    assert(oper_speed);
+
+    status = mlnx_port_by_log_id(sx_port, &port);
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+    if (port->single_speed_mode) {
+        if (port->oper_speed_cached == 0) {
+            status = mlnx_port_speed_get_impl(sx_port, &port->oper_speed_cached, &admin_speed);
+            if (SAI_ERR(status)) {
+                return status;
+            }
+
+            SX_LOG_DBG("Refreshed port %x oper speed cache to %u\n", sx_port, port->oper_speed_cached);
+        }
+
+        *oper_speed = port->oper_speed_cached;
+    } else {
+        status = mlnx_port_speed_get_impl(sx_port, oper_speed, &admin_speed);
+        if (SAI_ERR(status)) {
+            return status;
+        }
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+/*
+ * Converting sx duration time in microseconds to quanta units
+ *
+ * quanta size = 512
+ * SAI speed in Mbps
+ * speed in bps = SAI speed * 1000 * 1000
+ * speed in bpus = speed in bps / 1000000 = SAI speed
+ * quanta = speed in bpus * us / 512
+ *
+ */
+static sai_status_t mlnx_port_pause_duration_us_to_quanta(_In_ sx_port_log_id_t  sx_port,
+                                                          _In_ uint64_t          us,
+                                                          _Out_ uint64_t        *quanta)
+{
+    sai_status_t status;
+    uint32_t     oper_speed;
+
+    assert(quanta);
+
+    if (us == 0) {
+        *quanta = 0;
+        return SAI_STATUS_SUCCESS;
+    }
+
+    status = mlnx_port_oper_speed_cached_get(sx_port, &oper_speed);
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+    *quanta = oper_speed * us / 512;
+
+    return SAI_STATUS_SUCCESS;
+}
+
 /**
  * @brief Get port statistics counters extended.
  *
@@ -3940,11 +4059,11 @@ static sai_status_t mlnx_get_port_attribute(_In_ sai_object_id_t     port_id,
  *
  * @return #SAI_STATUS_SUCCESS on success, failure status code on error
  */
-sai_status_t mlnx_get_port_stats_ext(_In_ sai_object_id_t        port_id,
-                                     _In_ uint32_t               number_of_counters,
-                                     _In_ const sai_port_stat_t *counter_ids,
-                                     _In_ sai_stats_mode_t       mode,
-                                     _Out_ uint64_t             *counters)
+sai_status_t mlnx_get_port_stats_ext(_In_ sai_object_id_t      port_id,
+                                     _In_ uint32_t             number_of_counters,
+                                     _In_ const sai_stat_id_t *counter_ids,
+                                     _In_ sai_stats_mode_t     mode,
+                                     _Out_ uint64_t           *counters)
 {
     sai_status_t                  status;
     sx_port_cntr_rfc_2863_t       cnts_2863;
@@ -3956,6 +4075,7 @@ sai_status_t mlnx_get_port_stats_ext(_In_ sai_object_id_t        port_id,
     sx_port_cntr_discard_t        discard_cnts;
     sx_port_cntr_perf_t           perf_cnts;
     uint32_t                      ii, port_data;
+    uint64_t                      sx_pause_duration;
     mlnx_port_config_t           *port;
     sx_port_log_id_t              red_port_id;
     uint32_t                      iter = 0;
@@ -4438,7 +4558,11 @@ sai_status_t mlnx_get_port_stats_ext(_In_ sai_object_id_t        port_id,
         case SAI_PORT_STAT_PFC_5_RX_PAUSE_DURATION:
         case SAI_PORT_STAT_PFC_6_RX_PAUSE_DURATION:
         case SAI_PORT_STAT_PFC_7_RX_PAUSE_DURATION:
-            counters[ii] = cntr_prio[(counter_ids[ii] - SAI_PORT_STAT_PFC_0_RX_PAUSE_DURATION) / 2].rx_pause_duration;
+            sx_pause_duration = cntr_prio[(counter_ids[ii] - SAI_PORT_STAT_PFC_0_RX_PAUSE_DURATION) / 2].rx_pause_duration;
+            status = mlnx_port_pause_duration_us_to_quanta(port_data, sx_pause_duration, &counters[ii]);
+            if (SAI_ERR(status)) {
+                return status;
+            }
             break;
 
         case SAI_PORT_STAT_PFC_0_TX_PAUSE_DURATION:
@@ -4449,7 +4573,11 @@ sai_status_t mlnx_get_port_stats_ext(_In_ sai_object_id_t        port_id,
         case SAI_PORT_STAT_PFC_5_TX_PAUSE_DURATION:
         case SAI_PORT_STAT_PFC_6_TX_PAUSE_DURATION:
         case SAI_PORT_STAT_PFC_7_TX_PAUSE_DURATION:
-            counters[ii] = cntr_prio[(counter_ids[ii] - SAI_PORT_STAT_PFC_0_TX_PAUSE_DURATION) / 2].tx_pause_duration;
+            sx_pause_duration = cntr_prio[(counter_ids[ii] - SAI_PORT_STAT_PFC_0_TX_PAUSE_DURATION) / 2].tx_pause_duration;
+            status = mlnx_port_pause_duration_us_to_quanta(port_data, sx_pause_duration, &counters[ii]);
+            if (SAI_ERR(status)) {
+                return status;
+            }
             break;
 
         case SAI_PORT_STAT_IF_IN_VLAN_DISCARDS:
@@ -4623,10 +4751,10 @@ sai_status_t mlnx_get_port_stats_ext(_In_ sai_object_id_t        port_id,
  *    SAI_STATUS_SUCCESS on success
  *    Failure status code on error
  */
-static sai_status_t mlnx_get_port_stats(_In_ sai_object_id_t        port_id,
-                                        _In_ uint32_t               number_of_counters,
-                                        _In_ const sai_port_stat_t *counter_ids,
-                                        _Out_ uint64_t             *counters)
+static sai_status_t mlnx_get_port_stats(_In_ sai_object_id_t      port_id,
+                                        _In_ uint32_t             number_of_counters,
+                                        _In_ const sai_stat_id_t *counter_ids,
+                                        _Out_ uint64_t           *counters)
 {
     return mlnx_get_port_stats_ext(port_id, number_of_counters, counter_ids, SAI_STATS_MODE_READ, counters);
 }
@@ -4644,9 +4772,9 @@ static sai_status_t mlnx_get_port_stats(_In_ sai_object_id_t        port_id,
  *    SAI_STATUS_SUCCESS on success
  *    Failure status code on error
  */
-static sai_status_t mlnx_clear_port_stats(_In_ sai_object_id_t        port_id,
-                                          _In_ uint32_t               number_of_counters,
-                                          _In_ const sai_port_stat_t *counter_ids)
+static sai_status_t mlnx_clear_port_stats(_In_ sai_object_id_t      port_id,
+                                          _In_ uint32_t             number_of_counters,
+                                          _In_ const sai_stat_id_t *counter_ids)
 {
     return SAI_STATUS_NOT_IMPLEMENTED;
 }
@@ -5704,67 +5832,80 @@ sai_status_t mlnx_port_speed_bitmap_apply(_In_ const mlnx_port_config_t *port)
     return mlnx_port_cb->speed_bitmap_apply(port);
 }
 
-static sai_status_t mlnx_port_speed_set_sp(_In_ sx_port_log_id_t sx_port, _In_ uint32_t speed)
+static sai_status_t mlnx_port_speed_to_capab(_In_ uint32_t speed, _Out_ sx_port_speed_capability_t *capab)
 {
-    sx_status_t                sx_status;
-    sx_port_speed_capability_t sx_speed;
-
-    memset(&sx_speed, 0, sizeof(sx_speed));
+    assert(capab);
 
     /* Use values for copper cables, which are the default media type. TODO : support additional media types */
     switch (speed) {
     case PORT_SPEED_1:
-        sx_speed.mode_1GB_CX_SGMII = true;
-        sx_speed.mode_1GB_KX       = true;
+        capab->mode_1GB_CX_SGMII = true;
+        capab->mode_1GB_KX       = true;
         break;
 
     case PORT_SPEED_10:
-        sx_speed.mode_10GB_CX4_XAUI = true;
-        sx_speed.mode_10GB_KR       = true;
-        sx_speed.mode_10GB_CR       = true;
-        sx_speed.mode_10GB_SR       = true;
-        sx_speed.mode_10GB_ER_LR    = true;
-        sx_speed.mode_10GB_KX4      = true;
+        capab->mode_10GB_CX4_XAUI = true;
+        capab->mode_10GB_KR       = true;
+        capab->mode_10GB_CR       = true;
+        capab->mode_10GB_SR       = true;
+        capab->mode_10GB_ER_LR    = true;
+        capab->mode_10GB_KX4      = true;
         break;
 
     case PORT_SPEED_20:
-        sx_speed.mode_20GB_KR2 = true;
+        capab->mode_20GB_KR2 = true;
         break;
 
     case PORT_SPEED_40:
-        sx_speed.mode_40GB_CR4     = true;
-        sx_speed.mode_40GB_SR4     = true;
-        sx_speed.mode_40GB_LR4_ER4 = true;
-        sx_speed.mode_40GB_KR4     = true;
+        capab->mode_40GB_CR4     = true;
+        capab->mode_40GB_SR4     = true;
+        capab->mode_40GB_LR4_ER4 = true;
+        capab->mode_40GB_KR4     = true;
         break;
 
     case PORT_SPEED_56:
-        sx_speed.mode_56GB_KR4 = true;
-        sx_speed.mode_56GB_KX4 = true;
+        capab->mode_56GB_KR4 = true;
+        capab->mode_56GB_KX4 = true;
         break;
 
     case PORT_SPEED_100:
-        sx_speed.mode_100GB_CR4     = true;
-        sx_speed.mode_100GB_SR4     = true;
-        sx_speed.mode_100GB_LR4_ER4 = true;
-        sx_speed.mode_100GB_KR4     = true;
+        capab->mode_100GB_CR4     = true;
+        capab->mode_100GB_SR4     = true;
+        capab->mode_100GB_LR4_ER4 = true;
+        capab->mode_100GB_KR4     = true;
         break;
 
     case PORT_SPEED_50:
-        sx_speed.mode_50GB_CR2 = true;
-        sx_speed.mode_50GB_KR2 = true;
-        sx_speed.mode_50GB_SR2 = true;
+        capab->mode_50GB_CR2 = true;
+        capab->mode_50GB_KR2 = true;
+        capab->mode_50GB_SR2 = true;
         break;
 
     case PORT_SPEED_25:
-        sx_speed.mode_25GB_CR = true;
-        sx_speed.mode_25GB_SR = true;
-        sx_speed.mode_25GB_KR = true;
+        capab->mode_25GB_CR = true;
+        capab->mode_25GB_SR = true;
+        capab->mode_25GB_KR = true;
         break;
 
     default:
         SX_LOG_ERR("Invalid speed %u\n", speed);
         return SAI_STATUS_INVALID_ATTR_VALUE_0;
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_port_speed_set_sp(_In_ sx_port_log_id_t sx_port, _In_ uint32_t speed)
+{
+    sai_status_t               status;
+    sx_status_t                sx_status;
+    sx_port_speed_capability_t sx_speed;
+
+    memset(&sx_speed, 0, sizeof(sx_speed));
+
+    status = mlnx_port_speed_to_capab(speed, &sx_speed);
+    if (SAI_ERR(status)) {
+        return status;
     }
 
     sx_speed.force = true;
@@ -6082,15 +6223,38 @@ static sai_status_t mlnx_port_speed_bitmap_apply_sp(_In_ const mlnx_port_config_
     sai_status_t               status;
     sx_status_t                sx_status;
     sx_port_speed_capability_t speed;
+    sx_port_rate_bitmask_t     sx_rate_bitmask;
+    uint32_t                   speeds[NUM_SPEEDS] = {0}, speeds_count = NUM_SPEEDS, ii;
 
     assert(port);
 
     memset(&speed, 0, sizeof(speed));
 
-    status = mlnx_port_speed_convert_bitmap_to_capability(port->speed_bitmap, &speed);
-    if (SAI_ERR(status)) {
-        SX_LOG_ERR("Failed to convert port %x speed bitmap %d\n", port->logical, port->speed_bitmap);
-        return status;
+    /* As a WA, we currently use old port API, but we need to use new convert function for new XML
+     */
+    if (mlnx_chip_is_spc2()) {
+        status = mlnx_port_speed_bitmap_to_rate_bitmask(port->speed_bitmap, &sx_rate_bitmask);
+        if (SAI_ERR(status)) {
+            return status;
+        }
+
+        status = mlnx_port_rate_bitmask_to_speeds(&sx_rate_bitmask, speeds, &speeds_count);
+        if (SAI_ERR(status)) {
+            return status;
+        }
+
+        for (ii = 0; ii < speeds_count; ii++) {
+            status = mlnx_port_speed_to_capab(speeds[ii], &speed);
+            if (SAI_ERR(status)) {
+                return status;
+            }
+        }
+    } else {
+        status = mlnx_port_speed_convert_bitmap_to_capability(port->speed_bitmap, &speed);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to convert port %x speed bitmap %d\n", port->logical, port->speed_bitmap);
+            return status;
+        }
     }
 
     sx_status = sx_api_port_speed_admin_set(gh_sdk, port->logical, &speed);
@@ -6228,6 +6392,7 @@ sai_status_t mlnx_port_cb_table_init(void)
     sx_chip_types_t chip_type;
 
     assert(mlnx_port_cb == NULL);
+    (void)(mlnx_port_cb_sp2);
 
     chip_type = g_sai_db_ptr->sx_chip_type;
 
@@ -6238,7 +6403,7 @@ sai_status_t mlnx_port_cb_table_init(void)
         break;
 
     case SX_CHIP_TYPE_SPECTRUM2:
-        mlnx_port_cb = &mlnx_port_cb_sp2;
+        mlnx_port_cb = &mlnx_port_cb_sp;
         break;
 
     default:
@@ -6251,14 +6416,21 @@ sai_status_t mlnx_port_cb_table_init(void)
 
 static sai_status_t mlnx_port_speed_set_impl(_In_ sx_port_log_id_t sx_port, _In_ uint32_t speed)
 {
+    sai_status_t status;
+
     assert(mlnx_port_cb);
+
+    status = mlnx_port_single_speed_mode_set(sx_port, true);
+    if (SAI_ERR(status)) {
+        return status;
+    }
 
     return mlnx_port_cb->speed_set(sx_port, speed);
 }
 
-sai_status_t mlnx_port_speed_get_impl(_In_ sx_port_log_id_t sx_port,
-                                      _Out_ uint32_t       *oper_speed,
-                                      _Out_ uint32_t       *admin_speed)
+static sai_status_t mlnx_port_speed_get_impl(_In_ sx_port_log_id_t sx_port,
+                                             _Out_ uint32_t       *oper_speed,
+                                             _Out_ uint32_t       *admin_speed)
 {
     assert(mlnx_port_cb);
 
@@ -6283,7 +6455,14 @@ static sai_status_t mlnx_port_supported_speeds_get_impl(_In_ sx_port_log_id_t sx
 
 static sai_status_t mlnx_port_autoneg_set_impl(_In_ sx_port_log_id_t sx_port, _In_ bool value)
 {
+    sai_status_t status;
+
     assert(mlnx_port_cb);
+
+    status = mlnx_port_single_speed_mode_set(sx_port, false);
+    if (SAI_ERR(status)) {
+        return status;
+    }
 
     return mlnx_port_cb->autoneg_set(sx_port, value);
 }
@@ -6295,7 +6474,7 @@ static sai_status_t mlnx_port_autoneg_get_impl(_In_ sx_port_log_id_t sx_port, _I
     return mlnx_port_cb->autoneg_get(sx_port, value);
 }
 
-sai_status_t mlnx_port_crc_params_apply(const mlnx_port_config_t *port)
+sai_status_t mlnx_port_crc_params_apply(const mlnx_port_config_t *port, bool init)
 {
     sx_status_t          sx_status;
     sx_port_crc_params_t crc_params;
@@ -6303,6 +6482,15 @@ sai_status_t mlnx_port_crc_params_apply(const mlnx_port_config_t *port)
     if (mlnx_chip_is_spc2()) {
         SX_LOG_NTC("%s is not executed on SPC2\n", __FUNCTION__);
         return SAI_STATUS_SUCCESS;
+    }
+
+    if (init) {
+        /* No need to apply default values on port init
+         * If a port is removed/created it gets default values in SDK
+         */
+        if (g_sai_db_ptr->crc_check_enable && g_sai_db_ptr->crc_recalc_enable) {
+            return SAI_STATUS_SUCCESS;
+        }
     }
 
     memset(&crc_params, 0, sizeof(crc_params));
@@ -6448,7 +6636,9 @@ sai_status_t mlnx_port_config_init(mlnx_port_config_t *port)
     port->internal_ingress_samplepacket_obj_idx = MLNX_INVALID_SAMPLEPACKET_SESSION;
     port->internal_egress_samplepacket_obj_idx  = MLNX_INVALID_SAMPLEPACKET_SESSION;
 
-    port->is_present = true;
+    port->is_present        = true;
+    port->single_speed_mode = false;
+    port->oper_speed_cached = 0;
 
     if (!mlnx_port_is_virt(port)) {
         /* SDK default trust PCP, SAI default trust port
@@ -6476,8 +6666,8 @@ sai_status_t mlnx_port_config_init(mlnx_port_config_t *port)
          * Apply the 3 maps where SDK default different than SAI
          * When init warm boot, apply to SDK but not to HW. Applying to SDK is needed for
          * later clone. Clone sets SAI default on to port in SDK in case from map is null.
-         * Therefor the from map must be set to SDK, otherwise there will be mismatch. 
-         * Sonic always sets DSCP -> switch prio, switch prio -> TC and doesn't 
+         * Therefor the from map must be set to SDK, otherwise there will be mismatch.
+         * Sonic always sets DSCP -> switch prio, switch prio -> TC and doesn't
          * use PCP -> switch prio */
         if (is_warmboot_init_stage) {
             sxd_ret = sxd_dpt_set_access_control(SX_DEVICE_ID, READ_ONLY);
@@ -6619,7 +6809,9 @@ sai_status_t mlnx_port_config_uninit(mlnx_port_config_t *port)
         }
     }
 
-    port->is_present = false;
+    port->is_present        = false;
+    port->oper_speed_cached = 0;
+    port->single_speed_mode = false;
 
     if (!SAI_ERR(status)) {
         uint32_t                *buff_refs  = NULL;
@@ -6772,20 +6964,40 @@ static mlnx_port_config_t * mlnx_port_by_module(uint32_t module)
     return NULL;
 }
 
-/* module -> port local idx
- * Spectrum 1 : (1, 2)
- * Spectrum 2 : (1, 2, 3, 4)
- */
-static mlnx_port_config_t * mlnx_port_split_idx_to_local_port(const mlnx_port_config_t *father, uint32_t base_lane_idx)
+/* TODO: replace with cap_num_local_ports_in_2x when available */
+static uint32_t mlnx_platform_num_local_ports_in_2x_get(void)
 {
-    return mlnx_port_by_local_id(father->port_map.local_port + base_lane_idx);
+    if (g_sai_db_ptr->platform_type == MLNX_PLATFORM_TYPE_3700) {
+        return 2;
+    } else {
+        return 1;
+    }
+}
+
+/* module -> port local idx
+ * Spectrum 1 : (1, 2) / (1, 2, 3, 4)
+ * Spectrum 2 : (1, 2) or (1, 3) / (1, 2, 3, 4)
+ */
+static mlnx_port_config_t * mlnx_port_split_idx_to_local_port(_In_ const mlnx_port_config_t *father,
+                                                              _In_ uint32_t                  base_lane_idx,
+                                                              _In_ uint32_t                  lane_count)
+{
+    uint32_t step;
+
+    if (lane_count == 2) {
+        step = mlnx_platform_num_local_ports_in_2x_get();
+    } else {
+        step = 1;
+    }
+
+    return mlnx_port_by_local_id(father->port_map.local_port + base_lane_idx * step);
 }
 
 static mlnx_port_config_t * sai_lane2child_port(mlnx_port_config_t *father, const sai_u32_list_t *lanes)
 {
     uint32_t new_port_idx = sai_lane2phy_lane(lanes->list[0]) / lanes->count;
 
-    return mlnx_port_split_idx_to_local_port(father, new_port_idx);
+    return mlnx_port_split_idx_to_local_port(father, new_port_idx, lanes->count);
 }
 
 sai_status_t mlnx_port_auto_split(mlnx_port_config_t *port)
@@ -6799,7 +7011,7 @@ sai_status_t mlnx_port_auto_split(mlnx_port_config_t *port)
     for (ii = 0; ii < port->split_count; ii++) {
         mlnx_port_config_t *new_port;
 
-        new_port = mlnx_port_split_idx_to_local_port(port, ii);
+        new_port = mlnx_port_split_idx_to_local_port(port, ii, lanes_per_port);
 
         new_port->port_map.lane_bmap = 0x0;
         new_port->port_map.width     = 0;
@@ -6994,13 +7206,13 @@ static sai_status_t mlnx_create_port(_Out_ sai_object_id_t     * port_id,
         goto out_unlock;
     }
 
-    status = mlnx_hash_ecmp_cfg_apply_on_port(new_port->logical);
+    status = mlnx_hash_config_apply_to_port(new_port->logical);
     if (SAI_ERR(status)) {
-        SX_LOG_ERR("Failed to apply ECMP config on port %x\n", new_port->logical);
+        SX_LOG_ERR("Failed to apply hash config on port %x\n", new_port->logical);
         goto out_unlock;
     }
 
-    status = mlnx_port_crc_params_apply(new_port);
+    status = mlnx_port_crc_params_apply(new_port, true);
     if (SAI_ERR(status)) {
         goto out_unlock;
     }
@@ -7380,11 +7592,11 @@ static sai_status_t mlnx_port_pool_attr_get(_In_ const sai_object_key_t   *key,
  *
  * @return #SAI_STATUS_SUCCESS on success, failure status code on error
  */
-sai_status_t mlnx_get_port_pool_stats_ext(_In_ sai_object_id_t             port_pool_id,
-                                          _In_ uint32_t                    number_of_counters,
-                                          _In_ const sai_port_pool_stat_t *counter_ids,
-                                          _In_ sai_stats_mode_t            mode,
-                                          _Out_ uint64_t                  *counters)
+sai_status_t mlnx_get_port_pool_stats_ext(_In_ sai_object_id_t      port_pool_id,
+                                          _In_ uint32_t             number_of_counters,
+                                          _In_ const sai_stat_id_t *counter_ids,
+                                          _In_ sai_stats_mode_t     mode,
+                                          _Out_ uint64_t           *counters)
 {
     sai_status_t                        status;
     uint8_t                             ext_data[EXTENDED_DATA_SIZE] = {0};
@@ -7540,10 +7752,10 @@ sai_status_t mlnx_get_port_pool_stats_ext(_In_ sai_object_id_t             port_
  *
  * @return #SAI_STATUS_SUCCESS on success, failure status code on error
  */
-static sai_status_t mlnx_get_port_pool_stats(_In_ sai_object_id_t             port_pool_id,
-                                             _In_ uint32_t                    number_of_counters,
-                                             _In_ const sai_port_pool_stat_t *counter_ids,
-                                             _Out_ uint64_t                  *counters)
+static sai_status_t mlnx_get_port_pool_stats(_In_ sai_object_id_t      port_pool_id,
+                                             _In_ uint32_t             number_of_counters,
+                                             _In_ const sai_stat_id_t *counter_ids,
+                                             _Out_ uint64_t           *counters)
 {
     return mlnx_get_port_pool_stats_ext(port_pool_id, number_of_counters, counter_ids, SAI_STATS_MODE_READ, counters);
 }
@@ -7557,9 +7769,9 @@ static sai_status_t mlnx_get_port_pool_stats(_In_ sai_object_id_t             po
  *
  * @return #SAI_STATUS_SUCCESS on success, failure status code on error
  */
-static sai_status_t mlnx_clear_port_pool_stats(_In_ sai_object_id_t             port_pool_id,
-                                               _In_ uint32_t                    number_of_counters,
-                                               _In_ const sai_port_pool_stat_t *counter_ids)
+static sai_status_t mlnx_clear_port_pool_stats(_In_ sai_object_id_t      port_pool_id,
+                                               _In_ uint32_t             number_of_counters,
+                                               _In_ const sai_stat_id_t *counter_ids)
 {
     sai_status_t                     status;
     uint8_t                          ext_data[EXTENDED_DATA_SIZE] = { 0 };

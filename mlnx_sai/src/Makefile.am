@@ -1,7 +1,7 @@
 # Makefile.am -- Process this file with automake to produce Makefile.in
 
 INCLUDES = -I$(top_srcdir) -I$(top_srcdir)/include -I$(srcdir) \
-           -I$(srcdir)/../inc -I$(srcdir)/../inc/sai \
+           -I$(srcdir)/../inc -I$(srcdir)/../inc/sai -I$(srcdir)/../inc/experimental \
            -I$(APP_LIB_PATH)/include \
            -I$(XML2_LIB_PATH)/include/libxml2 \
 		   -I$(srcdir)/meta
@@ -18,7 +18,7 @@ if CONFIG_SYSLOG
 CFLAGS += -DCONFIG_SYSLOG
 endif
 
-lib_LTLIBRARIES = libsai.la
+lib_LTLIBRARIES = libfx_base.la libsai.la
 
 dist_data_DATA = sai_1710.xml \
                  sai_2010.xml \
@@ -27,10 +27,12 @@ dist_data_DATA = sai_1710.xml \
                  sai_2420.xml \
                  sai_2700.xml \
                  sai_2700split.xml \
+                 sai_2700_8x50g_28x100g.xml \
                  sai_2740.xml \
                  sai_3700.xml \
                  sai_37001G.xml \
-                 sai_3800.xml
+                 sai_3800.xml \
+                 sai_380050G.xml
 				 
 libsai_la_DEPENDENCIES =
 
@@ -53,6 +55,7 @@ libsai_la_SOURCES = \
                        dbgdump/mlnx_sai_dbg_vlan.c \
                        dbgdump/mlnx_sai_dbg_wred.c \
                        mlnx_sai_acl.c \
+                       mlnx_sai_bmtor.c \
                        mlnx_sai_bridge.c \
                        mlnx_sai_buffer.c \
                        mlnx_sai_fdb.c \
@@ -87,6 +90,12 @@ libsai_la_SOURCES = \
                        meta/saimetadatautils.c \
                        meta/saiserialize.c
 
+libfx_base_la_SOURCES = \
+                       fx_base_api.c \
+                       fx_base_range_match.c
+
+libfx_base_la_CFLAGS = --std=gnu99 -Wno-sign-compare -Wno-vla -Wno-missing-field-initializers
+
 if XML2_ELDK5_LA_WA
 SAI_LIBXML2_ADD = ${XML2_LIB_PATH}/lib/libxml2.so
 else
@@ -95,7 +104,7 @@ endif
 
 libsai_la_LIBADD = \
                    -L$(APP_LIB_PATH)/lib -lsxapi -lsw_rm\
-		   ${SAI_LIBXML2_ADD}
+                   ${SAI_LIBXML2_ADD} libfx_base.la
 
 libsai_apiincludedir = $(includedir)/sai
 libsai_apiinclude_HEADERS = \
@@ -110,6 +119,7 @@ libsai_apiinclude_HEADERS = \
         $(top_srcdir)/inc/sai/saihostif.h \
         $(top_srcdir)/inc/sai/saiipmc.h \
         $(top_srcdir)/inc/sai/saiipmcgroup.h \
+        $(top_srcdir)/inc/sai/saiisolationgroup.h \
         $(top_srcdir)/inc/sai/sail2mc.h \
         $(top_srcdir)/inc/sai/sail2mcgroup.h \
         $(top_srcdir)/inc/sai/sailag.h \
@@ -137,15 +147,25 @@ libsai_apiinclude_HEADERS = \
         $(top_srcdir)/inc/sai/saitam.h \
         $(top_srcdir)/inc/sai/saitunnel.h \
         $(top_srcdir)/inc/sai/saitypes.h \
-        $(top_srcdir)/inc/sai/saiuburst.h \
         $(top_srcdir)/inc/sai/saiudf.h \
         $(top_srcdir)/inc/sai/saivirtualrouter.h \
         $(top_srcdir)/inc/sai/saivlan.h \
         $(top_srcdir)/inc/sai/saiwred.h \
+		\
+        $(top_srcdir)/inc/experimental/saiexperimentalbmtor.h \
+        $(top_srcdir)/inc/experimental/saiextensions.h \
+        $(top_srcdir)/inc/experimental/saiswitchextensions.h \
+        $(top_srcdir)/inc/experimental/saitypesextensions.h \
         \
         $(top_srcdir)/inc/sai_windows.h \
-        $(top_srcdir)/inc/mlnx_sai.h
-
+        $(top_srcdir)/inc/mlnx_sai.h \
+        \
+        $(top_srcdir)/inc/flextrum_types.h \
+        $(top_srcdir)/inc/fx_base_api.h \
+        $(top_srcdir)/inc/fx_base_range_match.h \
+        $(top_srcdir)/inc/mlnx_flex_bitmap.h \
+        $(top_srcdir)/inc/mlnx_flex_types.h \
+        $(top_srcdir)/inc/sharedlib.h
 
 libsai_api_version=$(shell grep LIBVERSION= $(top_srcdir)/sai_interface.ver | sed 's/LIBVERSION=//')
 libsai_la_LDFLAGS = -version-info $(libsai_api_version)

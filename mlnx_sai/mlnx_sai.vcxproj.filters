@@ -132,9 +132,6 @@
     <ClInclude Include="inc\sai\saisegmentroute.h">
       <Filter>Header Files\sai</Filter>
     </ClInclude>
-    <ClInclude Include="inc\sai\saiuburst.h">
-      <Filter>Header Files\sai</Filter>
-    </ClInclude>
     <ClInclude Include="inc\sai\saibfd.h">
       <Filter>Header Files\sai</Filter>
     </ClInclude>
@@ -143,6 +140,39 @@
     </ClInclude>
     <ClInclude Include="inc\sai\sail2mcgroup.h">
       <Filter>Header Files\sai</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\sai\saiisolationgroup.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\experimental\saiexperimentalbmtor.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\experimental\saiextensions.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\experimental\saiswitchextensions.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\experimental\saitypesextensions.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\flextrum_types.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\fx_base_api.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\fx_base_range_match.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\mlnx_flex_bitmap.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\mlnx_flex_types.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\sharedlib.h">
+      <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -297,6 +327,15 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\mlnx_sai_l2mcgroup.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\fx_base_api.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\fx_base_range_match.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\mlnx_sai_bmtor.c">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
