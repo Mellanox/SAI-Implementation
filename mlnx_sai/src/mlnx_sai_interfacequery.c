@@ -19,11 +19,30 @@
 
 #include "sai.h"
 #include "mlnx_sai.h"
-
+#include <saimetadata.h>
 #include <sx/utils/dbg_utils.h>
+
+#undef  __MODULE__
+#define __MODULE__ SAI_INTERFACE_QUERY
+
+static sx_verbosity_level_t LOG_VAR_NAME(__MODULE__) = SX_VERBOSITY_LEVEL_WARNING;
 
 sai_service_method_table_t g_mlnx_services;
 static bool                g_initialized = false;
+
+typedef struct mlnx_log_lavel_preinit {
+    bool            is_set;
+    sai_log_level_t level;
+} mlnx_log_lavel_preinit_t;
+
+static mlnx_log_lavel_preinit_t mlnx_sai_log_levels[SAI_API_EXTENSIONS_RANGE_START_END] = { {0} };
+
+sai_status_t mlnx_interfacequery_log_set(sx_verbosity_level_t level)
+{
+    LOG_VAR_NAME(__MODULE__) = level;
+
+    return SAI_STATUS_SUCCESS;
+}
 
 /*
  * Routine Description:
@@ -209,8 +228,14 @@ sai_status_t sai_api_query(_In_ sai_api_t sai_api_id, _Out_ void** api_method_ta
         return SAI_STATUS_SUCCESS;
 
     default:
-        MLNX_SAI_LOG_ERR("Invalid API type %d\n", sai_api_id);
-        return SAI_STATUS_INVALID_PARAMETER;
+        if (sai_api_id >= (sai_api_t)SAI_API_EXTENSIONS_RANGE_START_END)  {
+            MLNX_SAI_LOG_ERR("SAI API %d is out of range [%d, %d]\n", sai_api_id, SAI_API_SWITCH, SAI_API_EXTENSIONS_RANGE_START_END);
+            return SAI_STATUS_INVALID_PARAMETER;
+        }
+        else {
+            MLNX_SAI_LOG_ERR("%s not implemented\n", sai_metadata_get_api_name(sai_api_id));
+            return SAI_STATUS_NOT_IMPLEMENTED;
+        }
     }
 }
 
@@ -234,6 +259,51 @@ sai_status_t sai_api_uninitialize(void)
     return SAI_STATUS_SUCCESS;
 }
 
+static sai_status_t sai_log_level_save(_In_ sai_api_t sai_api_id, _In_ sai_log_level_t log_level)
+{
+    /* no need to save when sdk is initialized */
+    if (gh_sdk) {
+        return SAI_STATUS_SUCCESS;
+    }
+
+    if (sai_api_id >= (sai_api_t) SAI_API_EXTENSIONS_RANGE_START_END)  {
+        MLNX_SAI_LOG_ERR("SAI API %d is out of range [%d, %d]\n", sai_api_id, SAI_API_SWITCH, SAI_API_EXTENSIONS_RANGE_START_END);
+        return SAI_STATUS_INVALID_PARAMETER;
+    }
+
+    if (log_level > SAI_LOG_LEVEL_CRITICAL)  {
+        MLNX_SAI_LOG_ERR("SAI log level %d is out of range [%d, %d]\n", log_level,
+                         SAI_LOG_LEVEL_DEBUG, SAI_LOG_LEVEL_CRITICAL);
+        return SAI_STATUS_INVALID_PARAMETER;
+    }
+
+    MLNX_SAI_LOG_INF("Saving log level %d for API %d\n", log_level, sai_api_id);
+
+    mlnx_sai_log_levels[sai_api_id].is_set = true;
+    mlnx_sai_log_levels[sai_api_id].level  = log_level;
+
+    return SAI_STATUS_SUCCESS;
+}
+
+sai_status_t mlnx_sai_log_levels_post_init(void)
+{
+    sai_api_t    api;
+    sai_status_t status;
+
+    for (api = SAI_API_SWITCH; api < (sai_api_t)SAI_API_EXTENSIONS_RANGE_START_END; api++) {
+        if (mlnx_sai_log_levels[api].is_set) {
+            MLNX_SAI_LOG_INF("Restoring log level %d for API %d\n",  mlnx_sai_log_levels[api].level, api);
+            status = sai_log_set(api, mlnx_sai_log_levels[api].level);
+            if (SAI_ERR(status) && (SAI_STATUS_NOT_IMPLEMENTED != status)) {
+                SX_LOG_ERR("Failed to set log level for SAI API %d\n", api);
+                return status;
+            }
+        }
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
 /*
  * Routine Description:
  *     Set log level for sai api module. The default log level is SAI_LOG_WARN.
@@ -248,6 +318,7 @@ sai_status_t sai_api_uninitialize(void)
  */
 sai_status_t sai_log_set(_In_ sai_api_t sai_api_id, _In_ sai_log_level_t log_level)
 {
+    sai_status_t      status;
     sx_log_severity_t severity;
 
     switch (log_level) {
@@ -276,8 +347,13 @@ sai_status_t sai_log_set(_In_ sai_api_t sai_api_id, _In_ sai_log_level_t log_lev
         break;
 
     default:
-        fprintf(stderr, "Invalid log level %d\n", log_level);
+        MLNX_SAI_LOG_ERR("Invalid log level %d\n", log_level);
         return SAI_STATUS_INVALID_PARAMETER;
+    }
+
+    status = sai_log_level_save(sai_api_id, log_level);
+    if (SAI_ERR(status)) {
+        return status;
     }
 
     /* TODO : map the utils module */
@@ -285,6 +361,7 @@ sai_status_t sai_log_set(_In_ sai_api_t sai_api_id, _In_ sai_log_level_t log_lev
     switch (sai_api_id) {
     case SAI_API_SWITCH:
         mlnx_switch_log_set(severity);
+        mlnx_interfacequery_log_set(severity);
         return mlnx_utils_log_set(severity);
 
     case SAI_API_BRIDGE:
@@ -372,8 +449,14 @@ sai_status_t sai_log_set(_In_ sai_api_t sai_api_id, _In_ sai_log_level_t log_lev
         return mlnx_bmtor_log_set(severity);
 
     default:
-        fprintf(stderr, "Invalid API type %d\n", sai_api_id);
-        return SAI_STATUS_INVALID_PARAMETER;
+        if (sai_api_id >= (sai_api_t)SAI_API_EXTENSIONS_RANGE_START_END)  {
+            MLNX_SAI_LOG_ERR("SAI API %d is out of range [%d, %d]\n", sai_api_id, SAI_API_SWITCH, SAI_API_EXTENSIONS_RANGE_START_END);
+            return SAI_STATUS_INVALID_PARAMETER;
+        }
+        else {
+            MLNX_SAI_LOG_ERR("%s not implemented\n", sai_metadata_get_api_name(sai_api_id));
+            return SAI_STATUS_NOT_IMPLEMENTED;
+        }
     }
 }
 
@@ -395,7 +478,7 @@ sai_object_type_t sai_object_type_query(_In_ sai_object_id_t sai_object_id)
     if (SAI_TYPE_CHECK_RANGE(type)) {
         return type;
     } else {
-        fprintf(stderr, "Unknown type %d", type);
+        MLNX_SAI_LOG_ERR("Unknown type %d", type);
         return SAI_OBJECT_TYPE_NULL;
     }
 }
@@ -434,19 +517,19 @@ sai_status_t sai_dbg_generate_dump(_In_ const char *dump_file_name)
     sx_status_t sdk_status = SX_STATUS_ERROR;
 
     if (!gh_sdk) {
-        fprintf(stderr, "Can't generate debug dump before creating switch\n");
+        MLNX_SAI_LOG_ERR("Can't generate debug dump before creating switch\n");
         return SAI_STATUS_FAILURE;
     }
 
     sdk_status = sx_api_dbg_generate_dump(gh_sdk, dump_file_name);
     if (SX_STATUS_SUCCESS != sdk_status) {
-        fprintf(stderr, "Error generating sdk dump, sx status: %s\n", SX_STATUS_MSG(sdk_status));
+        MLNX_SAI_LOG_ERR("Error generating sdk dump, sx status: %s\n", SX_STATUS_MSG(sdk_status));
     }
 
     file = fopen(dump_file_name, "a");
 
     if (NULL == file) {
-        fprintf(stderr, "Error opening file %s with write permission\n", dump_file_name);
+        MLNX_SAI_LOG_ERR("Error opening file %s with write permission\n", dump_file_name);
         return SAI_STATUS_FAILURE;
     }
 

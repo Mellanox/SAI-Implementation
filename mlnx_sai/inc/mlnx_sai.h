@@ -77,6 +77,10 @@
     #define MLNX_ACL_L3_TYPE_V6_ONLY
 #endif
 
+#ifdef ACS_OS
+    #define MLNX_HASH_INNER_IP_PROTO_ENABLE
+#endif
+
 inline static char * mlnx_severity_to_syslog(sx_log_severity_t severity)
 {
     switch (severity) {
@@ -113,13 +117,27 @@ inline static char * mlnx_severity_to_syslog(sx_log_severity_t severity)
     } while (0)
 
 #ifdef CONFIG_SYSLOG
-#define MLNX_SAI_LOG(level, fmt, ...) \
+#define MLNX_SAI_LOG_IMPL(level, fmt, ...) \
     mlnx_syslog(level, QUOTEME(__MODULE__), MLNX_LOG_FMT fmt, \
                 __FILE__, __LINE__, __FUNCTION__, \
                 ## __VA_ARGS__)
 #else
-#define MLNX_SAI_LOG(level, fmt, ...) printf(fmt, ## __VA_ARGS__)
+#define MLNX_SAI_LOG_IMPL(level, fmt, ...) printf(fmt, ## __VA_ARGS__)
 #endif
+
+#define MLNX_SAI_LOG(level, fmt, ...)                                   \
+    do {                                                                \
+        if (gh_sdk) {                                                   \
+            SX_LOG(level, fmt, ## __VA_ARGS__);                         \
+        } else {                                                        \
+            sx_verbosity_level_t __verbosity_level = 0;                 \
+            SEVERITY_LEVEL_TO_VERBOSITY_LEVEL(level, __verbosity_level);\
+            if (LOG_VAR_NAME(__MODULE__) >= __verbosity_level) {        \
+                MLNX_SAI_LOG_IMPL(level, "%s[%d]- %s: " fmt,            \
+                   __FILE__, __LINE__, __FUNCTION__, ## __VA_ARGS__);   \
+            }                                                           \
+        }                                                               \
+    } while (0)
 
 #define MLNX_SAI_LOG_DBG(fmt, ...) MLNX_SAI_LOG(SX_LOG_DEBUG, fmt, ## __VA_ARGS__)
 #define MLNX_SAI_LOG_INF(fmt, ...) MLNX_SAI_LOG(SX_LOG_INFO, fmt, ## __VA_ARGS__)
@@ -327,7 +345,7 @@ sai_status_t mlnx_shm_rm_array_find(_In_ mlnx_shm_rm_array_type_t  type,
 sai_status_t mlnx_shm_rm_array_idx_to_ptr(_In_ mlnx_shm_rm_array_idx_t idx, _Out_ void                   **elem);
 uint32_t mlnx_shm_rm_array_size_get(_In_ mlnx_shm_rm_array_type_t type);
 
-#define MLNX_SHM_POOL_ELEM_FX_HANDLE_SIZE 31472
+#define MLNX_SHM_POOL_ELEM_FX_HANDLE_SIZE 56048
 
 typedef struct _mlnx_shm_pool_data_t {
     uint8_t  fx_handle_mem[MLNX_SHM_POOL_ELEM_FX_HANDLE_SIZE];
@@ -585,6 +603,9 @@ typedef struct _mlnx_obj_type_attrs_info_t {
 bool mlnx_chip_is_spc2(void);
 void mlnx_udf_acl_attrs_metadata_init();
 bool mlnx_udf_acl_attribute_id_is_not_supported(_In_ sai_attr_id_t attr_id);
+sai_status_t sai_attribute_short_name_fetch(_In_ sai_object_type_t object_type,
+                                            _In_ sai_attr_id_t     attr_id,
+                                            _Out_ const char     **attr_short_name);
 sai_status_t check_port_type_attr(const sai_object_id_t *ports,
                                   uint32_t               count,
                                   attr_port_type_check_t check,
@@ -870,7 +891,7 @@ sai_status_t mlnx_acl_bind_point_get(_In_ const sai_object_key_t   *key,
                                      _Inout_ vendor_cache_t        *cache,
                                      void                          *arg);
 uint32_t mlnx_acl_action_types_count_get(void);
-sai_status_t mlnx_acl_stage_action_types_get(_In_ sai_acl_stage_t stage, _Out_ sai_s32_list_t *list);
+sai_status_t mlnx_acl_stage_action_types_list_get(_In_ sai_acl_stage_t stage, _Out_ sai_s32_list_t *list);
 sai_status_t mlnx_acl_db_free_entries_get(_In_ sai_object_type_t resource_type, _Out_ uint32_t         *free_entries);
 sai_status_t mlnx_acl_mirror_action_policer_update(_In_ sx_span_session_id_t sx_span_session_id);
 #define acl_global_lock()   cl_plock_excl_acquire(&g_sai_acl_db_ptr->acl_settings_tbl->lock)
@@ -881,7 +902,7 @@ typedef struct _mlnx_mstp_inst_t {
     uint32_t vlan_count;
 } mlnx_mstp_inst_t;
 
-sai_status_t mlnx_hash_initialize();
+sai_status_t mlnx_hash_initialize(void);
 
 bool mlnx_stp_is_initialized();
 sai_status_t mlnx_stp_preinitialize();
@@ -930,7 +951,7 @@ extern const mlnx_trap_info_t mlnx_traps_info[];
 #define MAX_BRIDGES_1D      1000
 #define MAX_VPORTS          (MAX_BRIDGES_1D * MAX_PORTS_DB)
 #define MAX_BRIDGE_1Q_PORTS (MAX_PORTS_DB * 2) /* Ports and LAGs */
-#define MAX_BRIDGE_RIFS     64
+#define MAX_BRIDGE_RIFS     300 /* 256 for VXLAN VNETs + some spare */
 #define MAX_BRIDGE_PORTS    (MAX_VPORTS + MAX_BRIDGE_1Q_PORTS + MAX_BRIDGE_RIFS)
 #define MAX_LANES           4
 #define MAX_HOSTIFS         200
@@ -1488,8 +1509,10 @@ PACKED(struct _mlnx_acl_pbs_info_t {
            uint32_t idx: 17;       /* Should fit MAX_BRIDGE_PORTS (0x1F540) */
        }, );
 typedef struct _mlnx_acl_pbs_info_t mlnx_acl_pbs_info_t;
-#define MLNX_ACL_PBS_INFO_INVALID ((mlnx_acl_pbs_info_t) {.type = MLNX_ACL_PBS_TYPE_INVALID})
-#define MLNX_ACL_PBS_INFO_IS_VALID(info) (info.type != MLNX_ACL_PBS_TYPE_INVALID)
+#define MLNX_ACL_PBS_INFO_INVALID {.type = MLNX_ACL_PBS_TYPE_INVALID}
+#define MLNX_ACL_PBS_INFO_IS_VALID(info) ((info).type != MLNX_ACL_PBS_TYPE_INVALID)
+#define MLNX_ACL_PBS_INFO_IS_FLOOD(info) (((info).type == MLNX_ACL_PBS_TYPE_MAP) &&  \
+                                          ((info).idx  == ACL_PBS_MAP_FLOOD_PBS_INDEX))
 typedef struct _acl_pbs_map_key_t {
     uint32_t data[MLNX_U32BITARRAY_SIZE(MAX_PORTS_DB * 2)];
 } acl_pbs_map_key_t;
@@ -1649,12 +1672,7 @@ typedef enum _mlnx_switch_hash_object_id {
     SAI_HASH_MAX_OBJ_ID
 } mlnx_switch_usage_hash_object_id_t;
 
-sai_status_t mlnx_hash_ecmp_hash_params_apply(const sai_attr_id_t attr_id, const sai_attribute_value_t* value);
-
-sai_status_t mlnx_hash_object_apply(const sai_object_id_t                    hash_id,
-                                    const mlnx_switch_usage_hash_object_id_t hash_oper_id);
-
-sai_status_t mlnx_hash_ecmp_cfg_apply_on_port(sx_port_log_id_t port_log_id);
+sai_status_t mlnx_hash_config_apply_to_port(_In_ sx_port_log_id_t sx_port);
 
 sai_status_t mlnx_udf_group_db_index_to_sx_acl_keys(_In_ uint32_t       udf_group_db_index,
                                                     _Out_ sx_acl_key_t *sx_acl_keys,
@@ -1985,7 +2003,8 @@ typedef struct sai_db {
     mlnx_policer_db_entry_t           policers_db[MAX_POLICERS];
     mlnx_hash_obj_t                   hash_list[SAI_HASH_MAX_OBJ_COUNT];
     sai_object_id_t                   oper_hash_list[SAI_HASH_MAX_OBJ_ID];
-    sx_router_ecmp_port_hash_params_t port_hash_params;
+    sx_router_ecmp_port_hash_params_t port_ecmp_hash_params;
+    sx_lag_port_hash_params_t         lag_hash_params;
     mlnx_samplepacket_t               mlnx_samplepacket_session[MLNX_SAMPLEPACKET_SESSION_MAX];
     bool                              tunnel_module_initialized;
     bool                              port_parsing_depth_set_for_tunnel;

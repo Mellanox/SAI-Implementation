@@ -58,7 +58,7 @@ const uint32_t ENDIAN_INT = 1;
 #define is_bigendian() ( (*(char*)&ENDIAN_INT ) == 0 )
 
 #define MAX_TABLE_KEYS 10
-#define MAX_TABLE_SIZE 1024
+#define MAX_TABLE_SIZE 3072
 
 #define MAX_RIFS RM_API_ROUTER_RIFS_MAX
 
@@ -614,16 +614,16 @@ int remove_table_entry(fx_handle_t handle, struct acl_table *acl_table, sx_acl_r
     if(rc2){
       SYSLOGF(SX_LOG_ERROR, "ERROR: failed to clear counter at offset %d, [%s]\n", offset, SX_STATUS_MSG(rc2));
     }
-    if (0 != acl_table->valid_offsets) {
-        reset_bitmap(acl_table->valid_offsets, offset);
-    }
+
+    reset_bitmap(acl_table->valid_offsets, offset);
+
     return rc1 ? rc1 : rc2;
 }
 
 void delete_all_rules(fx_handle_t handle, struct acl_table *acl_table) {
     SYSLOGF(SX_LOG_DEBUG, "Deleting all rules in table %s\n", acl_table->table_name);
     for (uint32_t i=0; i<acl_table->table_size; i++) {
-        if (0 != acl_table->valid_offsets && get_bitmap(acl_table->valid_offsets, i) == 1) {
+        if (get_bitmap(acl_table->valid_offsets, i) == 1) {
             remove_table_entry(handle, acl_table, i);
         }
     }
@@ -1608,14 +1608,14 @@ void fill_custom_bytes_control_in_rif_table_bitmap_classification(struct fx_cust
 }
 
 sx_status_t create_control_in_rif_table_bitmap_classification(fx_handle_t handle, sx_acl_id_t* pipe_id_list, int pipe_ind  ) {
-  const uint32_t size = 128;
+  const uint32_t size = 256;
   assert(size <= MAX_TABLE_SIZE);
   const uint32_t key_count = 1;
   assert(key_count <= MAX_TABLE_KEYS);
   const int table_index = 0; // 0 is replaced by macro
   struct acl_table *table = &handle->acl_tables[table_index];
   table->table_id = CONTROL_IN_RIF_TABLE_BITMAP_CLASSIFICATION_ID;
-  table->default_entry_offset= 127;
+  table->default_entry_offset= size-1;
   struct fx_custom_params custom = {false, 0, 0, 0, 0};
   fill_custom_bytes_control_in_rif_table_bitmap_classification(&custom);
   table->table_size = size;
@@ -1788,14 +1788,14 @@ void fill_custom_bytes_control_in_rif_table_bitmap_router(struct fx_custom_param
 }
 
 sx_status_t create_control_in_rif_table_bitmap_router(fx_handle_t handle, sx_acl_id_t* pipe_id_list, int pipe_ind  ) {
-  const uint32_t size = 512;
+  const uint32_t size = 3072;
   assert(size <= MAX_TABLE_SIZE);
   const uint32_t key_count = 2;
   assert(key_count <= MAX_TABLE_KEYS);
   const int table_index = 1; // 1 is replaced by macro
   struct acl_table *table = &handle->acl_tables[table_index];
   table->table_id = CONTROL_IN_RIF_TABLE_BITMAP_ROUTER_ID;
-  table->default_entry_offset= 511;
+  table->default_entry_offset= size-1;
   struct fx_custom_params custom = {false, 0, 0, 0, 0};
   fill_custom_bytes_control_in_rif_table_bitmap_router(&custom);
   table->table_size = size;
@@ -2011,7 +2011,7 @@ sx_status_t create_control_out_rif_table_l3_vxlan(fx_handle_t handle, sx_acl_id_
   const int table_index = 2; // 2 is replaced by macro
   struct acl_table *table = &handle->acl_tables[table_index];
   table->table_id = CONTROL_OUT_RIF_TABLE_L3_VXLAN_ID;
-  table->default_entry_offset= 511;
+  table->default_entry_offset= size-1;
   struct fx_custom_params custom = {false, 0, 0, 0, 0};
   fill_custom_bytes_control_out_rif_table_l3_vxlan(&custom);
   table->table_size = size;

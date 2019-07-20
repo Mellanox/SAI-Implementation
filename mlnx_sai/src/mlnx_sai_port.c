@@ -7206,9 +7206,9 @@ static sai_status_t mlnx_create_port(_Out_ sai_object_id_t     * port_id,
         goto out_unlock;
     }
 
-    status = mlnx_hash_ecmp_cfg_apply_on_port(new_port->logical);
+    status = mlnx_hash_config_apply_to_port(new_port->logical);
     if (SAI_ERR(status)) {
-        SX_LOG_ERR("Failed to apply ECMP config on port %x\n", new_port->logical);
+        SX_LOG_ERR("Failed to apply hash config on port %x\n", new_port->logical);
         goto out_unlock;
     }
 
