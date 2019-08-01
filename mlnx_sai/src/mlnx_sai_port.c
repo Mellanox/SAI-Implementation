@@ -5908,7 +5908,7 @@ static sai_status_t mlnx_port_speed_set_sp(_In_ sx_port_log_id_t sx_port, _In_ u
         return status;
     }
 
-    sx_speed.force = true;
+    //sx_speed.force = true;
 
     sx_status = sx_api_port_speed_admin_set(gh_sdk, sx_port, &sx_speed);
     if (SX_ERR(sx_status)) {
@@ -6036,7 +6036,7 @@ static sai_status_t mlnx_port_speed_set_sp2(_In_ sx_port_log_id_t sx_port, _In_ 
         return status;
     }
 
-    sx_rate_bitmask.force = true;
+    //sx_rate_bitmask.force = true;
 
     sx_status = sx_api_port_rate_set(gh_sdk, sx_port, &sx_rate_bitmask);
     if (SX_ERR(sx_status)) {
@@ -6305,7 +6305,7 @@ static sai_status_t mlnx_port_autoneg_set_sp(_In_ sx_port_log_id_t sx_port, _In_
     }
 
     speed.mode_auto = value;
-    speed.force     = !value;
+    //speed.force     = !value;
 
     sx_status = sx_api_port_speed_admin_set(gh_sdk, sx_port, &speed);
     if (SX_ERR(sx_status)) {
@@ -6353,7 +6353,7 @@ static sai_status_t mlnx_port_autoneg_set_sp2(_In_ sx_port_log_id_t sx_port, _In
     }
 
     sx_admin_rate.rate_auto = value;
-    sx_admin_rate.force     = !value;
+    //sx_admin_rate.force     = !value;
 
     sx_status = sx_api_port_rate_set(gh_sdk, sx_port, &sx_admin_rate);
     if (SX_ERR(sx_status)) {
