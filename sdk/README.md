@@ -8,14 +8,14 @@ This directory contains SDK/FW binary packages.
 
 #### SDK
 ```
-SDK_VER=4.3.1886
+SDK_VER=4.3.2104
 KERNEL_VER=4.9.0-9-2
 ```
 
 #### FW
 ```
-FW_SPC1_VER=13_2000_1886
-FW_SPC2_VER=29_2000_1886
+FW_SPC1_VER=13_2000_2162
+FW_SPC2_VER=29_2000_2162
 ```
 
 ### Packages
@@ -45,6 +45,9 @@ sx-scew-dev-static_1.mlnx.<SDK_VER>_amd64.deb
 wjh-libs_1.mlnx.<SDK_VER>_amd64.deb
 wjh-libs-dev_1.mlnx.<SDK_VER>_amd64.deb
 wjh-libs-dev-static_1.mlnx.<SDK_VER>_amd64.deb
+sx-acl-helper_1.mlnx.<SDK_VER>_amd64.deb
+sx-acl-helper-dev_1.mlnx.<SDK_VER>_amd64.deb
+sx-acl-helper-dev-static_1.mlnx.<SDK_VER>_amd64.deb
 ```
 
 #### FW
