@@ -35,11 +35,33 @@
 #undef  __MODULE__
 #define __MODULE__ SAI_ACL
 
+/* Priority.
+ * 0 is not allowed on sp2 since it makes region work in legacy mode
+ * 1 is reserved for default goto rule
+ * SAI range is [0, 16k/200k - 2]
+ * SDK range is [2, UINT32_MAX]
+ */
+#define ACL_SX_RULE_PRIO_MAX_SPC    (16000)
+#define ACL_SX_RULE_PRIO_MAX_SPC2   (FLEX_ACL_RULE_PRIORITY_MAX)
+#define ACL_SX_RULE_PRIO_MAX        (mlnx_chip_is_spc2() ? ACL_SX_RULE_PRIO_MAX_SPC2 : ACL_SX_RULE_PRIO_MAX_SPC)
+#define ACL_SX_RULE_PRIO_GOTO_RULE  (FLEX_ACL_RULE_PRIORITY_MIN)
+#define ACL_SX_RULE_PRIO_MIN        (FLEX_ACL_RULE_PRIORITY_MIN + 1)
+
+#define ACL_SAI_ENTRY_PRIO_TO_SX(prio) (prio + 2)
+#define ACL_SX_RULE_PRIO_TO_SAI(prio)  (prio - 2)
+
+#define ACL_SAI_ENTRY_MAX_PRIO ACL_SX_RULE_PRIO_TO_SAI(ACL_SX_RULE_PRIO_MAX)
+#define ACL_SAI_ENTRY_MIN_PRIO ACL_SX_RULE_PRIO_TO_SAI(ACL_SX_RULE_PRIO_MIN)
+#define ACL_SAI_ENTRY_DEF_PRIO ACL_SAI_ENTRY_MIN_PRIO
+#define ACL_SAI_ENTRY_PRIO_CHECK_RANGE(prio) ((prio <= (uint32_t) ACL_SAI_ENTRY_MAX_PRIO))
+
+#define ACL_PSORT_TABLE_MIN_PRIO  ACL_SX_RULE_PRIO_GOTO_RULE
+#define ACL_PSORT_TABLE_MAX_PRIO  ACL_SX_RULE_PRIO_MAX
+
 #define SX_FLEX_ACL_MAX_FIELDS_IN_KEY RM_API_ACL_MAX_FIELDS_IN_KEY
 #define ACL_MAX_NUM_OF_ACTIONS        20
 #define ACL_TABLE_SIZE_INC_PERCENT    0.2
 #define ACL_TABLE_SIZE_MIN_DELTA      16
-#define ACL_DEFAULT_ENTRY_PRIO        ACL_SAI_ENTRY_MIN_PRIO
 
 /* Region contains 'default' rule */
 #define ACL_SX_REG_SIZE_TO_TABLE_SIZE(size) ((size) - 1)
@@ -2876,15 +2898,19 @@ static sai_status_t mlnx_acl_stage_action_types_get(_In_ mlnx_acl_supported_stag
             continue;
         }
 
-        if ((action_info->supported_stage != MLNX_ACL_SUPPORTED_STAGE_BOTH) &&
-                (action_info->supported_stage != stage)) {
+        /* SDK allows ingress mirror on egress rif stage but we don't expose it to capability since it's only for rif */
+        if ((action_attr == SAI_ACL_ENTRY_ATTR_ACTION_MIRROR_INGRESS) && (stage == MLNX_ACL_SUPPORTED_STAGE_EGRESS)) {
             continue;
         }
 
-        if (action_types) {
-            action_types[action_types_count] = mlnx_acl_entry_action_attr_to_action_type(action_attr);
+        if ((stage == MLNX_ACL_SUPPORTED_STAGE_BOTH) ||
+            (action_info->supported_stage == MLNX_ACL_SUPPORTED_STAGE_BOTH) ||
+            (stage == action_info->supported_stage)) {
+            if (action_types) {
+                action_types[action_types_count] = mlnx_acl_entry_action_attr_to_action_type(action_attr);
+            }
+            action_types_count++;
         }
-        action_types_count++;
     }
 
     *count = action_types_count;
@@ -10697,7 +10723,7 @@ sai_status_t mlnx_create_acl_entry(_Out_ sai_object_id_t     * acl_entry_id,
 
         sx_rule_prio = ACL_SAI_ENTRY_PRIO_TO_SX(priority->u32);
     } else {
-        sx_rule_prio = ACL_SAI_ENTRY_PRIO_TO_SX(ACL_DEFAULT_ENTRY_PRIO);
+        sx_rule_prio = ACL_SAI_ENTRY_PRIO_TO_SX(ACL_SAI_ENTRY_DEF_PRIO);
     }
 
     if (SAI_STATUS_SUCCESS ==
@@ -11241,7 +11267,7 @@ sai_status_t mlnx_create_acl_table(_Out_ sai_object_id_t     * acl_table_id,
     is_table_inited = true;
 
     status = mlnx_acl_entry_offset_get(acl_table_index, ACL_INVALID_DB_INDEX,
-                                       ACL_SX_RULE_DEF_PRIO, &default_rule_offset);
+                                       ACL_SX_RULE_PRIO_GOTO_RULE, &default_rule_offset);
     if (SAI_STATUS_SUCCESS != status) {
         goto out;
     }
@@ -12038,7 +12064,7 @@ static sai_status_t mlnx_delete_acl_table(_In_ sai_object_id_t acl_table_id)
         goto out;
     }
 
-    status = mlnx_acl_entry_offset_del(table_index, ACL_SX_RULE_DEF_PRIO, acl_db_table(table_index).def_rules_offset);
+    status = mlnx_acl_entry_offset_del(table_index, ACL_SX_RULE_PRIO_GOTO_RULE, acl_db_table(table_index).def_rules_offset);
     if (SAI_ERR(status)) {
         SX_LOG_ERR("Failed to remove default rule offset\n");
         goto out;
@@ -12700,6 +12726,16 @@ out:
 #endif
     SX_LOG_EXIT();
     return status;
+}
+
+uint32_t mlnx_acl_entry_max_prio_get(void)
+{
+    return ACL_SAI_ENTRY_MAX_PRIO;
+}
+
+uint32_t mlnx_acl_entry_min_prio_get(void)
+{
+    return ACL_SAI_ENTRY_MIN_PRIO;
 }
 
 /* SP2 */
@@ -17238,7 +17274,7 @@ static sai_status_t mlnx_acl_table_set_def_rule(_In_ uint32_t src_table_index, _
         goto out;
     }
 
-    status = mlnx_acl_sx_rule_prio_set(&default_rule, ACL_SX_RULE_DEF_PRIO);
+    status = mlnx_acl_sx_rule_prio_set(&default_rule, ACL_SX_RULE_PRIO_GOTO_RULE);
     if (SAI_ERR(status)) {
         goto out;
     }

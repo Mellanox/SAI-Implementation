@@ -3186,11 +3186,13 @@ static sai_status_t mlnx_dvs_mng_stage(mlnx_sai_boot_type_t boot_type, sai_objec
         ports_to_map++;
     }
 
-    sx_status = sx_api_port_mapping_set(gh_sdk, log_ports, port_mapping, ports_to_map);
-    if (SX_ERR(sx_status)) {
-        SX_LOG_ERR("Failed to unmap ports - %s\n", SX_STATUS_MSG(sx_status));
-        status = sdk_to_sai(sx_status);
-        goto out;
+    if (!is_warmboot || g_sai_db_ptr->issu_end_called) {
+        sx_status = sx_api_port_mapping_set(gh_sdk, log_ports, port_mapping, ports_to_map);
+        if (SX_ERR(sx_status)) {
+            SX_LOG_ERR("Failed to unmap ports - %s\n", SX_STATUS_MSG(sx_status));
+            status = sdk_to_sai(sx_status);
+            goto out;
+        }
     }
 
     ports_to_map = 0;
@@ -3981,7 +3983,8 @@ static uint32_t sai_buffer_db_size_get()
         /*size for pool db flags + 1 bool field for flag specifying whether has user ever called create_pool function.*/
         sizeof(bool) *
         (1 + mlnx_sai_get_buffer_resource_limits()->num_ingress_pools +
-         mlnx_sai_get_buffer_resource_limits()->num_egress_pools)
+         mlnx_sai_get_buffer_resource_limits()->num_egress_pools) +
+        sizeof(mlnx_sai_buffer_pool_ids_t)
         );
 }
 
@@ -4513,11 +4516,24 @@ static sai_status_t mlnx_kvd_table_size_update(sx_api_profile_t *ku_profile)
     }
 
     if (update_profile) {
+        /*
+         * When in ISSU mode, SDK initializes kvd with cutting kvd_hash_single_size and kvd_hash_single_size by half.
+         * We multiply it by 2 to initialize with the exact values user specified.
+         */
+        if (g_sai_db_ptr->issu_enabled) {
+            hash_single_size *= 2;
+            hash_double_size *= 2;
+
+            SX_LOG_NTC("Doubling the hash_single and hash_double sizes (ISSU is enabled): "
+                       "hash_single_size %u -> %u, hash_double_size %u -> %u\n",
+                       hash_single_size / 2, hash_single_size, hash_double_size / 2, hash_double_size);
+        }
+
         if (hash_single_size + hash_double_size <= kvd_table_size) {
             ku_profile->kvd_hash_single_size = hash_single_size;
             ku_profile->kvd_hash_double_size = hash_double_size;
             ku_profile->kvd_linear_size      = kvd_table_size - hash_single_size - hash_double_size;
-            MLNX_SAI_LOG_NTC("New hash_single size %u hash_single size %u linear size %u\n",
+            MLNX_SAI_LOG_NTC("New hash_single size %u hash_double size %u linear size %u\n",
                              ku_profile->kvd_hash_single_size, ku_profile->kvd_hash_double_size,
                              ku_profile->kvd_linear_size);
         } else {
@@ -4662,7 +4678,7 @@ static sai_status_t mlnx_initialize_switch(sai_object_id_t switch_id, bool *tran
         return SAI_STATUS_FAILURE;
     }
 
-    /* init router model, T1 config */
+    /* init router model */
     memset(&resources_param, 0, sizeof(resources_param));
     memset(&general_param, 0, sizeof(general_param));
 
@@ -4753,6 +4769,10 @@ static sai_status_t mlnx_initialize_switch(sai_object_id_t switch_id, bool *tran
         (sdk_status = sx_api_fdb_age_time_set(gh_sdk, DEFAULT_ETH_SWID, SX_FDB_AGE_TIME_MAX))) {
         SX_LOG_ERR("Failed to set fdb age time - %s.\n", SX_STATUS_MSG(sdk_status));
         return sdk_to_sai(sdk_status);
+    }
+
+    if (SAI_STATUS_SUCCESS != (sai_status = mlnx_init_buffer_pool_ids())) {
+        return sai_status;
     }
 
     if (SAI_STATUS_SUCCESS != (sai_status = mlnx_hash_initialize())) {
@@ -5113,12 +5133,6 @@ static sai_status_t switch_open_traps(void)
     sai_status_t               status;
     sx_host_ifc_register_key_t reg;
 
-#ifdef ACS_OS
-    struct ku_hpkt_reg tmp_reg;
-    sxd_reg_meta_t     reg_meta;
-    sxd_status_t       sxd_status;
-#endif
-
     memset(&trap_group_attributes, 0, sizeof(trap_group_attributes));
     memset(&reg, 0, sizeof(reg));
     trap_group_attributes.truncate_mode = SX_TRUNCATE_MODE_DISABLE;
@@ -5126,10 +5140,12 @@ static sai_status_t switch_open_traps(void)
     trap_group_attributes.prio          = DEFAULT_TRAP_GROUP_PRIO;
     reg.key_type                        = SX_HOST_IFC_REGISTER_KEY_TYPE_GLOBAL;
 
-    if (SAI_STATUS_SUCCESS != (status = sx_api_host_ifc_trap_group_set(gh_sdk, DEFAULT_ETH_SWID,
-                                                                       DEFAULT_TRAP_GROUP_ID,
-                                                                       &trap_group_attributes))) {
-        SX_LOG_ERR("Failed to sx_api_host_ifc_trap_group_set %s\n", SX_STATUS_MSG(status));
+    if (SAI_STATUS_SUCCESS != (status = sx_api_host_ifc_trap_group_ext_set(gh_sdk,
+                                                                           SX_ACCESS_CMD_SET,
+                                                                           DEFAULT_ETH_SWID,
+                                                                           DEFAULT_TRAP_GROUP_ID,
+                                                                           &trap_group_attributes))) {
+        SX_LOG_ERR("Failed to sx_api_host_ifc_trap_group_ext_set %s\n", SX_STATUS_MSG(status));
         return sdk_to_sai(status);
     }
 
@@ -5179,20 +5195,25 @@ static sai_status_t switch_open_traps(void)
 
 #ifdef ACS_OS
     /* Set action NOP for SIP=DIP router ingress discard to allow such traffic */
-    memset(&tmp_reg, 0, sizeof(tmp_reg));
-    memset(&reg_meta, 0, sizeof(reg_meta));
-    /* TODO : replace with trap id define when exposed in SDK */
-    tmp_reg.trap_id     = 0x169;
-    tmp_reg.action      = 0;
-    reg_meta.access_cmd = SXD_ACCESS_CMD_SET;
-    reg_meta.dev_id     = SX_DEVICE_ID;
-    reg_meta.swid       = DEFAULT_ETH_SWID;
+    {
+        sx_status_t             sx_status;
+        sx_host_ifc_trap_key_t  trap_key;
+        sx_host_ifc_trap_attr_t trap_attr;
 
-    sxd_status = sxd_access_reg_hpkt(&tmp_reg, &reg_meta, 1, NULL, NULL);
-    if (sxd_status) {
-        SX_LOG_ERR("Access_hpkt_reg failed with status (%s:%d)\n", SXD_STATUS_MSG(sxd_status), sxd_status);
-        status = SAI_STATUS_FAILURE;
-        goto out;
+        memset(&trap_key, 0, sizeof(trap_key));
+        memset(&trap_attr, 0, sizeof(trap_attr));
+
+        trap_key.type = HOST_IFC_TRAP_KEY_TRAP_ID_E;
+        trap_key.trap_key_attr.trap_id = SX_TRAP_ID_DISCARD_ING_ROUTER_SIP_DIP;
+        trap_attr.attr.trap_id_attr.trap_group = DEFAULT_TRAP_GROUP_ID;
+        trap_attr.attr.trap_id_attr.trap_action = SX_TRAP_ACTION_IGNORE;
+
+        sx_status = sx_api_host_ifc_trap_id_ext_set(gh_sdk, SX_ACCESS_CMD_SET, &trap_key, &trap_attr);
+        if (SX_ERR(sx_status)) {
+            SX_LOG_ERR("Failed to set SIP_DIP trap action to IGNORE %s\n", SX_STATUS_MSG(sx_status));
+            status = sdk_to_sai(sx_status);
+            goto out;
+        }
     }
 #endif
 
@@ -6100,7 +6121,7 @@ static sai_status_t mlnx_switch_acl_entry_min_prio_get(_In_ const sai_object_key
 {
     SX_LOG_ENTER();
 
-    value->u32 = ACL_SAI_ENTRY_MIN_PRIO;
+    value->u32 = mlnx_acl_entry_min_prio_get();
 
     SX_LOG_EXIT();
     return SAI_STATUS_SUCCESS;
@@ -6115,7 +6136,7 @@ static sai_status_t mlnx_switch_acl_entry_max_prio_get(_In_ const sai_object_key
 {
     SX_LOG_ENTER();
 
-    value->u32 = ACL_SAI_ENTRY_MAX_PRIO;
+    value->u32 = mlnx_acl_entry_max_prio_get();
 
     SX_LOG_EXIT();
     return SAI_STATUS_SUCCESS;
@@ -6161,6 +6182,8 @@ static sai_status_t mlnx_switch_acl_capability_get(_In_ const sai_object_key_t  
     sai_acl_stage_t stage;
 
     stage = (int64_t)arg;
+
+    value->aclcapability.is_action_list_mandatory = false;
 
     return mlnx_acl_stage_action_types_list_get(stage, &value->aclcapability.action_list);
 }

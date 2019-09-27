@@ -233,7 +233,7 @@ sai_status_t sai_api_query(_In_ sai_api_t sai_api_id, _Out_ void** api_method_ta
             return SAI_STATUS_INVALID_PARAMETER;
         }
         else {
-            MLNX_SAI_LOG_ERR("%s not implemented\n", sai_metadata_get_api_name(sai_api_id));
+            MLNX_SAI_LOG_WRN("%s not implemented\n", sai_metadata_get_api_name(sai_api_id));
             return SAI_STATUS_NOT_IMPLEMENTED;
         }
     }
@@ -454,7 +454,7 @@ sai_status_t sai_log_set(_In_ sai_api_t sai_api_id, _In_ sai_log_level_t log_lev
             return SAI_STATUS_INVALID_PARAMETER;
         }
         else {
-            MLNX_SAI_LOG_ERR("%s not implemented\n", sai_metadata_get_api_name(sai_api_id));
+            MLNX_SAI_LOG_WRN("%s not implemented\n", sai_metadata_get_api_name(sai_api_id));
             return SAI_STATUS_NOT_IMPLEMENTED;
         }
     }

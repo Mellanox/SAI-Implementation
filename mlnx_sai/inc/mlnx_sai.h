@@ -688,7 +688,8 @@ sai_status_t sai_qos_map_to_str(_In_ const sai_qos_map_list_t *qos_map,
                                 _Out_ char                    *value_str);
 sai_status_t mlnx_translate_sai_trap_action_to_sdk(sai_int32_t       action,
                                                    sx_trap_action_t *trap_action,
-                                                   uint32_t          param_index);
+                                                   uint32_t          param_index,
+                                                   bool              is_l2_trap);
 sai_status_t mlnx_translate_sai_router_action_to_sdk(sai_int32_t         action,
                                                      sx_router_action_t *router_action,
                                                      uint32_t            param_index);
@@ -937,8 +938,12 @@ typedef struct _mlnx_trap_info_t {
     sai_packet_action_t    action;
     const char            *trap_name;
     mlnx_trap_type_t       trap_type;
+    bool                   is_l2_trap;
 } mlnx_trap_info_t;
 extern const mlnx_trap_info_t mlnx_traps_info[];
+
+#define MLNX_L2_TRAP true
+#define MLNX_NON_L2_TRAP false
 
 #define MAX_SCHED_LEVELS       2
 #define MAX_SCHED_CHILD_GROUPS 8
@@ -958,14 +963,6 @@ extern const mlnx_trap_info_t mlnx_traps_info[];
 #define MAX_POLICERS        100
 #define MAX_TRAP_GROUPS     32
 #define MIN_SX_BRIDGE_ID    0x1000
-
-#define DEFAULT_INGRESS_SX_POOL_ID   0
-#define DEFAULT_EGRESS_SX_POOL_ID    11
-#define MANAGEMENT_INGRESS_POOL_ID   1
-#define BASE_INGRESS_USER_SX_POOL_ID 2
-#define BASE_EGRESS_USER_SX_POOL_ID  13
-#define MANAGEMENT_EGRESS_POOL_ID    12
-#define DEFAULT_MULTICAST_POOL_ID    10
 
 #define SENTINEL_BUFFER_DB_ENTRY_INDEX 0
 
@@ -1399,23 +1396,6 @@ typedef struct _mlnx_udf_db_t {
 #define ACL_ENTRY_DB_SIZE       16000
 #define ACL_MAX_SX_RULES_NUMBER 16000
 
-/* Priority.
- * 0 is not allowed on sp2 since it makes region work in legacy mode
- * 1 is reserved for default goto rule
- * SAI range is [0, UINT16_MAX - 2]
- * SDK range is [2, UINT16_MAX]
- */
-#define ACL_SAI_ENTRY_PRIO_TO_SX(prio) (prio + 2)
-#define ACL_SX_RULE_PRIO_TO_SAI(prio)  (prio - 2)
-#define ACL_SX_RULE_DEF_PRIO   (FLEX_ACL_RULE_PRIORITY_MIN)
-#define ACL_SX_RULE_MIN_PRIO   (ACL_SX_RULE_DEF_PRIO + 1)
-#define ACL_SX_RULE_MAX_PRIO   (FLEX_ACL_RULE_PRIORITY_MAX)
-#define ACL_SAI_ENTRY_MIN_PRIO ACL_SX_RULE_PRIO_TO_SAI(ACL_SX_RULE_MIN_PRIO)
-#define ACL_SAI_ENTRY_MAX_PRIO ACL_SX_RULE_PRIO_TO_SAI(ACL_SX_RULE_MAX_PRIO)
-#define ACL_SAI_ENTRY_PRIO_CHECK_RANGE(prio) ((prio <= ACL_SAI_ENTRY_MAX_PRIO))
-
-#define ACL_PSORT_TABLE_MIN_PRIO  ACL_SX_RULE_DEF_PRIO
-#define ACL_PSORT_TABLE_MAX_PRIO  ACL_SX_RULE_MAX_PRIO
 #define ACL_GROUP_MEMBER_PRIO_MIN 0
 #define ACL_GROUP_MEMBER_PRIO_MAX UINT16_MAX
 #define ACL_SX_TABLES_NUMBER      (g_resource_limits.acl_regions_max)
@@ -1456,6 +1436,9 @@ typedef struct _mlnx_udf_db_t {
 
 #define ACL_IP_IDENT_FIELD_BYTE_COUNT 2
 #define ACL_UDF_GROUP_COUNT_MAX       (SAI_ACL_USER_DEFINED_FIELD_ATTR_ID_RANGE + 1)
+
+uint32_t mlnx_acl_entry_max_prio_get(void);
+uint32_t mlnx_acl_entry_min_prio_get(void);
 
 typedef struct _acl_bind_point_type_list_t {
     sai_acl_bind_point_type_t types[SAI_ACL_BIND_POINT_TYPE_COUNT];
@@ -1529,7 +1512,7 @@ PACKED(struct _acl_entry_db_t {
            uint32_t prev_entry_index: 19;
            bool is_used;
            sx_span_session_id_t sx_span_session;
-           uint16_t sx_prio;
+           uint32_t sx_prio;
            mlnx_acl_pbs_info_t pbs_info;
            sx_acl_rule_offset_t offset;
            sx_flow_counter_id_t sx_counter_id;
@@ -2076,7 +2059,6 @@ typedef struct sai_qos_db {
 extern sai_qos_db_t *g_sai_qos_db_ptr;
 extern uint32_t      g_sai_qos_db_size;
 
-
 typedef struct _mlnx_sai_buffer_resource_limits_t {
     uint32_t num_ingress_pools;
     uint32_t num_egress_pools;
@@ -2089,6 +2071,19 @@ typedef struct _mlnx_sai_buffer_resource_limits_t {
 const mlnx_sai_buffer_resource_limits_t* mlnx_sai_get_buffer_resource_limits();
 
 void init_buffer_resource_limits();
+
+typedef struct _mlnx_sai_buffer_pool_ids_t {
+    uint32_t default_ingress_pool_id;
+    uint32_t management_ingress_pool_id;
+    uint32_t base_ingress_user_sx_pool_id;
+    uint32_t default_egress_pool_id;
+    uint32_t management_egress_pool_id;
+    uint32_t base_egress_user_sx_pool_id;
+    uint32_t default_multicast_pool_id;
+    uint32_t user_pool_step;
+} mlnx_sai_buffer_pool_ids_t;
+
+sai_status_t mlnx_init_buffer_pool_ids();
 
 #define BUFFER_DB_PER_PORT_PROFILE_INDEX_ARRAY_SIZE                          \
     (mlnx_sai_get_buffer_resource_limits()->num_ingress_pools +    \
@@ -2142,6 +2137,8 @@ typedef struct _sai_buffer_db_t {
      *  Once set to true, it cannot be modified.
      */
     bool *pool_allocation;
+
+    mlnx_sai_buffer_pool_ids_t buffer_pool_ids;
 } sai_buffer_db_t;
 
 typedef enum _port_buffer_index_array_type_t {

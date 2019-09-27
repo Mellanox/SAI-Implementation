@@ -207,6 +207,7 @@ extern const mlnx_obj_type_attrs_info_t  mlnx_port_obj_type_info;
 extern const mlnx_obj_type_attrs_info_t  mlnx_lag_obj_type_info;
 extern const mlnx_obj_type_attrs_info_t  mlnx_router_obj_type_info;
 extern const mlnx_obj_type_attrs_info_t  mlnx_next_hop_obj_type_info;
+extern const mlnx_obj_type_attrs_info_t  mlnx_next_hop_group_obj_type_info;
 extern const mlnx_obj_type_attrs_info_t  mlnx_rif_obj_type_info;
 extern const mlnx_obj_type_attrs_info_t  mlnx_acl_table_obj_type_info;
 extern const mlnx_obj_type_attrs_info_t  mlnx_acl_entry_obj_type_info;
@@ -248,6 +249,8 @@ extern const mlnx_obj_type_attrs_info_t  mlnx_tunnel_term_table_entry_type_info;
 extern const mlnx_obj_type_attrs_info_t  mlnx_fdb_flush_obj_type_info;
 extern const mlnx_obj_type_attrs_info_t  mlnx_nh_group_member_obj_type_info;
 extern const mlnx_obj_type_attrs_info_t  mlnx_stp_port_obj_type_info;
+extern const mlnx_obj_type_attrs_info_t  mlnx_l2mcgroup_obj_type_info;
+extern const mlnx_obj_type_attrs_info_t  mlnx_l2mcgroup_member_obj_type_info;
 extern const mlnx_obj_type_attrs_info_t  mlnx_hostif_user_defined_trap_obj_type_info;
 extern const mlnx_obj_type_attrs_info_t  mlnx_bridge_obj_type_info;
 extern const mlnx_obj_type_attrs_info_t  mlnx_bridge_port_obj_type_info;
@@ -261,6 +264,7 @@ static const mlnx_obj_type_attrs_info_t* mlnx_obj_types_info[] = {
     [SAI_OBJECT_TYPE_LAG]                               = &mlnx_lag_obj_type_info,
     [SAI_OBJECT_TYPE_VIRTUAL_ROUTER]                    = &mlnx_router_obj_type_info,
     [SAI_OBJECT_TYPE_NEXT_HOP]                          = &mlnx_next_hop_obj_type_info,
+    [SAI_OBJECT_TYPE_NEXT_HOP_GROUP]                    = &mlnx_next_hop_group_obj_type_info,
     [SAI_OBJECT_TYPE_ROUTER_INTERFACE]                  = &mlnx_rif_obj_type_info,
     [SAI_OBJECT_TYPE_ACL_TABLE]                         = &mlnx_acl_table_obj_type_info,
     [SAI_OBJECT_TYPE_ACL_ENTRY]                         = &mlnx_acl_entry_obj_type_info,
@@ -302,6 +306,8 @@ static const mlnx_obj_type_attrs_info_t* mlnx_obj_types_info[] = {
     [SAI_OBJECT_TYPE_FDB_FLUSH]                         = &mlnx_fdb_flush_obj_type_info,
     [SAI_OBJECT_TYPE_NEXT_HOP_GROUP_MEMBER]             = &mlnx_nh_group_member_obj_type_info,
     [SAI_OBJECT_TYPE_STP_PORT]                          = &mlnx_stp_port_obj_type_info,
+    [SAI_OBJECT_TYPE_L2MC_GROUP]                        = &mlnx_l2mcgroup_obj_type_info,
+    [SAI_OBJECT_TYPE_L2MC_GROUP_MEMBER]                 = &mlnx_l2mcgroup_member_obj_type_info,
     [SAI_OBJECT_TYPE_HOSTIF_USER_DEFINED_TRAP]          = &mlnx_hostif_user_defined_trap_obj_type_info,
     [SAI_OBJECT_TYPE_BRIDGE]                            = &mlnx_bridge_obj_type_info,
     [SAI_OBJECT_TYPE_BRIDGE_PORT]                       = &mlnx_bridge_port_obj_type_info,
@@ -2156,7 +2162,7 @@ sai_status_t check_attribs_metadata(_In_ uint32_t                            att
 
         status = sai_vendor_attr_index_find(attr_list[ii].id, functionality_vendor_attr, &vendor_attr_index);
         if (SAI_ERR(status)) {
-            MLNX_SAI_LOG_ERR("Not implemented attribute %s (vendor data not found)\n", meta_data->attridname);
+            MLNX_SAI_LOG_WRN("Not implemented attribute %s (vendor data not found)\n", meta_data->attridname);
             status = SAI_STATUS_ATTR_NOT_IMPLEMENTED_0 + ii;
             goto out;
         }
@@ -2189,13 +2195,13 @@ sai_status_t check_attribs_metadata(_In_ uint32_t                            att
         }
 
         if (!(functionality_vendor_attr[vendor_attr_index].is_supported[oper])) {
-            MLNX_SAI_LOG_ERR("Not supported attribute %s\n", meta_data->attridname);
+            MLNX_SAI_LOG_WRN("Not supported attribute %s\n", meta_data->attridname);
             status = SAI_STATUS_ATTR_NOT_SUPPORTED_0 + ii;
             goto out;
         }
 
         if (!(functionality_vendor_attr[vendor_attr_index].is_implemented[oper])) {
-            MLNX_SAI_LOG_ERR("Not implemented attribute %s\n", meta_data->attridname);
+            MLNX_SAI_LOG_WRN("Not implemented attribute %s\n", meta_data->attridname);
             status = SAI_STATUS_ATTR_NOT_IMPLEMENTED_0 + ii;
             goto out;
         }
@@ -3152,8 +3158,8 @@ static sai_status_t sai_value_to_str(_In_ sai_attribute_value_t value,
         if (SAI_ATTR_VALUE_TYPE_ACL_CAPABILITY == type) {
             pos += snprintf(value_str,
                             max_length,
-                            "%d.",
-                            value.aclcapability.is_action_list_mandatory);
+                            "%s.",
+                            MLNX_UTILS_BOOL_TO_STR(value.aclcapability.is_action_list_mandatory));
         }
         if ((SAI_ATTR_VALUE_TYPE_ACL_FIELD_DATA_OBJECT_LIST == type) ||
             (SAI_ATTR_VALUE_TYPE_ACL_FIELD_DATA_UINT8_LIST == type)) {
@@ -3656,7 +3662,8 @@ sai_status_t sai_attr_list_to_str(_In_ uint32_t               attr_count,
 
 sai_status_t mlnx_translate_sai_trap_action_to_sdk(sai_int32_t       action,
                                                    sx_trap_action_t *trap_action,
-                                                   uint32_t          param_index)
+                                                   uint32_t          param_index,
+                                                   bool              is_l2_trap)
 {
     if (NULL == trap_action) {
         SX_LOG_ERR("NULL trap action value\n");
@@ -3669,7 +3676,7 @@ sai_status_t mlnx_translate_sai_trap_action_to_sdk(sai_int32_t       action,
         break;
 
     case SAI_PACKET_ACTION_TRAP:
-        *trap_action = SX_TRAP_ACTION_TRAP_2_CPU;
+        *trap_action = (MLNX_L2_TRAP == is_l2_trap) ? SX_TRAP_ACTION_TRAP_SOFT_DISCARD : SX_TRAP_ACTION_TRAP_2_CPU;
         break;
 
     case SAI_PACKET_ACTION_LOG:
@@ -3678,7 +3685,7 @@ sai_status_t mlnx_translate_sai_trap_action_to_sdk(sai_int32_t       action,
         break;
 
     case SAI_PACKET_ACTION_DROP:
-        *trap_action = SX_TRAP_ACTION_DISCARD;
+        *trap_action = (MLNX_L2_TRAP == is_l2_trap) ? SX_TRAP_ACTION_SOFT_DISCARD : SX_TRAP_ACTION_DISCARD;
         break;
 
     default:

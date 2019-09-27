@@ -4119,7 +4119,6 @@ sai_status_t mlnx_get_port_stats_ext(_In_ sai_object_id_t      port_id,
         case SAI_PORT_STAT_IF_IN_OCTETS:
         case SAI_PORT_STAT_IF_IN_UCAST_PKTS:
         case SAI_PORT_STAT_IF_IN_NON_UCAST_PKTS:
-        case SAI_PORT_STAT_IF_IN_DISCARDS:
         case SAI_PORT_STAT_IF_IN_ERRORS:
         case SAI_PORT_STAT_IF_IN_UNKNOWN_PROTOS:
         case SAI_PORT_STAT_IF_IN_BROADCAST_PKTS:
@@ -4223,6 +4222,7 @@ sai_status_t mlnx_get_port_stats_ext(_In_ sai_object_id_t      port_id,
             break;
 
         case SAI_PORT_STAT_IF_IN_VLAN_DISCARDS:
+        case SAI_PORT_STAT_IF_IN_DISCARDS:
             discard_cnts_needed = true;
             break;
 
@@ -4354,7 +4354,7 @@ sai_status_t mlnx_get_port_stats_ext(_In_ sai_object_id_t      port_id,
             break;
 
         case SAI_PORT_STAT_IF_IN_DISCARDS:
-            counters[ii] = cnts_2863.if_in_discards;
+            counters[ii] = discard_cnts.ingress_discard_all;
             break;
 
         case SAI_PORT_STAT_IF_IN_ERRORS:
@@ -6403,7 +6403,7 @@ sai_status_t mlnx_port_cb_table_init(void)
         break;
 
     case SX_CHIP_TYPE_SPECTRUM2:
-        mlnx_port_cb = &mlnx_port_cb_sp;
+        mlnx_port_cb = &mlnx_port_cb_sp2;
         break;
 
     default:
@@ -7714,9 +7714,9 @@ sai_status_t mlnx_get_port_pool_stats_ext(_In_ sai_object_id_t      port_pool_id
             }
 
             if (SAI_BUFFER_POOL_TYPE_INGRESS == ext_data[1]) {
-                pool_base_ind = BASE_INGRESS_USER_SX_POOL_ID;
+                pool_base_ind = g_sai_buffer_db_ptr->buffer_pool_ids.base_ingress_user_sx_pool_id;
             } else {
-                pool_base_ind = BASE_EGRESS_USER_SX_POOL_ID;
+                pool_base_ind = g_sai_buffer_db_ptr->buffer_pool_ids.base_egress_user_sx_pool_id;
             }
             buff_ind = port_buff_profile_refs[pool_num - pool_base_ind];
 

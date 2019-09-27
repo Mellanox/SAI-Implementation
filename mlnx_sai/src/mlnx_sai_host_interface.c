@@ -395,32 +395,32 @@ static const mlnx_attr_enum_info_t        hostif_table_entry_enum_info[] = {
 const mlnx_obj_type_attrs_info_t          mlnx_hostif_table_entry_obj_type_info =
 { host_table_entry_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(hostif_table_entry_enum_info)};
 const mlnx_trap_info_t mlnx_traps_info[] = {
-    { SAI_HOSTIF_TRAP_TYPE_STP, 1, { SX_TRAP_ID_ETH_L2_STP }, SAI_PACKET_ACTION_DROP, "STP", MLNX_TRAP_TYPE_REGULAR },
+    { SAI_HOSTIF_TRAP_TYPE_STP, 1, { SX_TRAP_ID_ETH_L2_STP }, SAI_PACKET_ACTION_DROP, "STP", MLNX_TRAP_TYPE_REGULAR, MLNX_L2_TRAP },
     { SAI_HOSTIF_TRAP_TYPE_LACP, 1, { SX_TRAP_ID_ETH_L2_LACP }, SAI_PACKET_ACTION_DROP, "LACP",
-      MLNX_TRAP_TYPE_REGULAR },
+      MLNX_TRAP_TYPE_REGULAR, MLNX_L2_TRAP },
     { SAI_HOSTIF_TRAP_TYPE_EAPOL, 1, { SX_TRAP_ID_ETH_L2_EAPOL }, SAI_PACKET_ACTION_DROP, "EAPOL",
-      MLNX_TRAP_TYPE_REGULAR },
+      MLNX_TRAP_TYPE_REGULAR, MLNX_L2_TRAP },
     { SAI_HOSTIF_TRAP_TYPE_LLDP, 1, { SX_TRAP_ID_ETH_L2_LLDP }, SAI_PACKET_ACTION_DROP, "LLDP",
-      MLNX_TRAP_TYPE_REGULAR },
+      MLNX_TRAP_TYPE_REGULAR, MLNX_L2_TRAP },
     { SAI_HOSTIF_TRAP_TYPE_PVRST, 1, { SX_TRAP_ID_ETH_L2_RPVST }, SAI_PACKET_ACTION_DROP, "PVRST",
-      MLNX_TRAP_TYPE_REGULAR },
+      MLNX_TRAP_TYPE_REGULAR, MLNX_L2_TRAP },
     { SAI_HOSTIF_TRAP_TYPE_IGMP_TYPE_QUERY, 1, { SX_TRAP_ID_ETH_L2_IGMP_TYPE_QUERY }, SAI_PACKET_ACTION_FORWARD,
-      "IGMP query", MLNX_TRAP_TYPE_REGULAR },
+      "IGMP query", MLNX_TRAP_TYPE_REGULAR, MLNX_L2_TRAP },
     { SAI_HOSTIF_TRAP_TYPE_IGMP_TYPE_LEAVE, 1, { SX_TRAP_ID_ETH_L2_IGMP_TYPE_V2_LEAVE }, SAI_PACKET_ACTION_FORWARD,
-      "IGMP leave", MLNX_TRAP_TYPE_REGULAR },
+      "IGMP leave", MLNX_TRAP_TYPE_REGULAR, MLNX_L2_TRAP },
     { SAI_HOSTIF_TRAP_TYPE_IGMP_TYPE_V1_REPORT, 1, { SX_TRAP_ID_ETH_L2_IGMP_TYPE_V1_REPORT },
       SAI_PACKET_ACTION_FORWARD,
-      "IGMP V1 report", MLNX_TRAP_TYPE_REGULAR },
+      "IGMP V1 report", MLNX_TRAP_TYPE_REGULAR, MLNX_L2_TRAP },
     { SAI_HOSTIF_TRAP_TYPE_IGMP_TYPE_V2_REPORT, 1, { SX_TRAP_ID_ETH_L2_IGMP_TYPE_V2_REPORT },
       SAI_PACKET_ACTION_FORWARD,
-      "IGMP V2 report", MLNX_TRAP_TYPE_REGULAR },
+      "IGMP V2 report", MLNX_TRAP_TYPE_REGULAR, MLNX_L2_TRAP },
     { SAI_HOSTIF_TRAP_TYPE_IGMP_TYPE_V3_REPORT, 1, { SX_TRAP_ID_ETH_L2_IGMP_TYPE_V3_REPORT },
       SAI_PACKET_ACTION_FORWARD,
-      "IGMP V3 report", MLNX_TRAP_TYPE_REGULAR },
+      "IGMP V3 report", MLNX_TRAP_TYPE_REGULAR, MLNX_L2_TRAP },
     { SAI_HOSTIF_TRAP_TYPE_SAMPLEPACKET, 1, { SX_TRAP_ID_ETH_L2_PACKET_SAMPLING }, SAI_PACKET_ACTION_TRAP,
-      "Sample packet", MLNX_TRAP_TYPE_REGULAR },
+      "Sample packet", MLNX_TRAP_TYPE_REGULAR, MLNX_NON_L2_TRAP },
     { SAI_HOSTIF_TRAP_TYPE_UDLD, 1, { SX_TRAP_ID_ETH_L2_UDLD }, SAI_PACKET_ACTION_DROP, "UDLD",
-      MLNX_TRAP_TYPE_REGULAR },
+      MLNX_TRAP_TYPE_REGULAR, MLNX_L2_TRAP },
     { SAI_HOSTIF_TRAP_TYPE_PTP,
       3,
       { SX_TRAP_ID_PTP_EVENT, SX_TRAP_ID_PTP_GENERAL, SX_TRAP_ID_PTP_ING_EVENT},
@@ -429,7 +429,7 @@ const mlnx_trap_info_t mlnx_traps_info[] = {
 #else
       SAI_PACKET_ACTION_DROP,
 #endif
-      "PTP", MLNX_TRAP_TYPE_REGULAR },
+      "PTP", MLNX_TRAP_TYPE_REGULAR, MLNX_L2_TRAP },
     { SAI_HOSTIF_TRAP_TYPE_PTP_TX_EVENT,
       1,
       { SX_TRAP_ID_PTP_EGR_EVENT },
@@ -438,66 +438,66 @@ const mlnx_trap_info_t mlnx_traps_info[] = {
 #else
       SAI_PACKET_ACTION_DROP,
 #endif
-      "PTP TX Event", MLNX_TRAP_TYPE_REGULAR },
+      "PTP TX Event", MLNX_TRAP_TYPE_REGULAR, MLNX_L2_TRAP },
     { SAI_HOSTIF_TRAP_TYPE_ARP_REQUEST, 1, { SX_TRAP_ID_ROUTER_ARPBC }, SAI_PACKET_ACTION_FORWARD, "ARP request",
-      MLNX_TRAP_TYPE_REGULAR },
+      MLNX_TRAP_TYPE_REGULAR, MLNX_NON_L2_TRAP },
     { SAI_HOSTIF_TRAP_TYPE_ARP_RESPONSE, 1, { SX_TRAP_ID_ROUTER_ARPUC }, SAI_PACKET_ACTION_FORWARD, "ARP response",
-      MLNX_TRAP_TYPE_REGULAR },
+      MLNX_TRAP_TYPE_REGULAR, MLNX_NON_L2_TRAP },
     { SAI_HOSTIF_TRAP_TYPE_DHCP, 1, { SX_TRAP_ID_IPV4_DHCP }, SAI_PACKET_ACTION_FORWARD, "DHCP",
-      MLNX_TRAP_TYPE_REGULAR },
-    { SAI_HOSTIF_TRAP_TYPE_OSPF, 1, { SX_TRAP_ID_OSPF }, SAI_PACKET_ACTION_FORWARD, "OSPF", MLNX_TRAP_TYPE_REGULAR },
+      MLNX_TRAP_TYPE_REGULAR, MLNX_NON_L2_TRAP },
+    { SAI_HOSTIF_TRAP_TYPE_OSPF, 1, { SX_TRAP_ID_OSPF }, SAI_PACKET_ACTION_FORWARD, "OSPF", MLNX_TRAP_TYPE_REGULAR, MLNX_NON_L2_TRAP },
     /* TODO : Allow forward on PIM */
-    { SAI_HOSTIF_TRAP_TYPE_PIM, 1, { SX_TRAP_ID_PIM }, SAI_PACKET_ACTION_DROP, "PIM", MLNX_TRAP_TYPE_REGULAR },
-    { SAI_HOSTIF_TRAP_TYPE_VRRP, 1, { SX_TRAP_ID_VRRP }, SAI_PACKET_ACTION_FORWARD, "VRRP", MLNX_TRAP_TYPE_REGULAR },
-    { SAI_HOSTIF_TRAP_TYPE_BGP, 1, { SX_TRAP_ID_IPV4_BGP }, SAI_PACKET_ACTION_FORWARD, "BGP", MLNX_TRAP_TYPE_REGULAR },
+    { SAI_HOSTIF_TRAP_TYPE_PIM, 1, { SX_TRAP_ID_PIM }, SAI_PACKET_ACTION_DROP, "PIM", MLNX_TRAP_TYPE_REGULAR, MLNX_NON_L2_TRAP },
+   { SAI_HOSTIF_TRAP_TYPE_VRRP, 1, { SX_TRAP_ID_VRRP }, SAI_PACKET_ACTION_FORWARD, "VRRP", MLNX_TRAP_TYPE_REGULAR, MLNX_NON_L2_TRAP },
+    { SAI_HOSTIF_TRAP_TYPE_BGP, 1, { SX_TRAP_ID_IPV4_BGP }, SAI_PACKET_ACTION_FORWARD, "BGP", MLNX_TRAP_TYPE_REGULAR, MLNX_NON_L2_TRAP },
     { SAI_HOSTIF_TRAP_TYPE_DHCPV6, 1, { SX_TRAP_ID_IPV6_DHCP }, SAI_PACKET_ACTION_FORWARD, "DHCPv6",
-      MLNX_TRAP_TYPE_REGULAR },
+      MLNX_TRAP_TYPE_REGULAR, MLNX_NON_L2_TRAP },
     { SAI_HOSTIF_TRAP_TYPE_OSPFV6, 1, { SX_TRAP_ID_IPV6_OSPF }, SAI_PACKET_ACTION_FORWARD, "OSPFv6",
-      MLNX_TRAP_TYPE_REGULAR },
-    { SAI_HOSTIF_TRAP_TYPE_VRRPV6, 0, { 0 }, SAI_PACKET_ACTION_FORWARD, "VRRPv6", MLNX_TRAP_TYPE_REGULAR },
+      MLNX_TRAP_TYPE_REGULAR, MLNX_NON_L2_TRAP },
+    { SAI_HOSTIF_TRAP_TYPE_VRRPV6, 0, { 0 }, SAI_PACKET_ACTION_FORWARD, "VRRPv6", MLNX_TRAP_TYPE_REGULAR, MLNX_NON_L2_TRAP },
     { SAI_HOSTIF_TRAP_TYPE_BGPV6, 1, { SX_TRAP_ID_IPV6_BGP }, SAI_PACKET_ACTION_FORWARD, "BGPv6",
-      MLNX_TRAP_TYPE_REGULAR },
+      MLNX_TRAP_TYPE_REGULAR, MLNX_NON_L2_TRAP },
     { SAI_HOSTIF_TRAP_TYPE_IPV6_NEIGHBOR_DISCOVERY, 5,
       { SX_TRAP_ID_IPV6_ROUTER_SOLICIATION, SX_TRAP_ID_IPV6_ROUTER_ADVERTISEMENT, SX_TRAP_ID_IPV6_NEIGHBOR_SOLICIATION,
         SX_TRAP_ID_IPV6_NEIGHBOR_ADVERTISEMENT, SX_TRAP_ID_IPV6_NEIGHBOR_DIRECTION },
-      SAI_PACKET_ACTION_FORWARD, "IPv6 neighbor discovery", MLNX_TRAP_TYPE_REGULAR },
+      SAI_PACKET_ACTION_FORWARD, "IPv6 neighbor discovery", MLNX_TRAP_TYPE_REGULAR, MLNX_NON_L2_TRAP },
     { SAI_HOSTIF_TRAP_TYPE_IPV6_MLD_V1_V2, 1, { SX_TRAP_ID_IPV6_MLD_V1_V2 }, SAI_PACKET_ACTION_FORWARD,
       "IPv6 MLD V1 V2",
-      MLNX_TRAP_TYPE_REGULAR },
+      MLNX_TRAP_TYPE_REGULAR, MLNX_L2_TRAP },
     { SAI_HOSTIF_TRAP_TYPE_IPV6_MLD_V1_REPORT, 1, { SX_TRAP_ID_IPV6_MLD_V1_REPORT }, SAI_PACKET_ACTION_FORWARD,
-      "IPv6 MLD V1 report", MLNX_TRAP_TYPE_REGULAR },
+      "IPv6 MLD V1 report", MLNX_TRAP_TYPE_REGULAR, MLNX_L2_TRAP },
     { SAI_HOSTIF_TRAP_TYPE_IPV6_MLD_V1_DONE, 1, { SX_TRAP_ID_IPV6_MLD_V1_DONE }, SAI_PACKET_ACTION_FORWARD,
-      "IPv6 MLD done", MLNX_TRAP_TYPE_REGULAR },
+      "IPv6 MLD done", MLNX_TRAP_TYPE_REGULAR, MLNX_L2_TRAP },
     { SAI_HOSTIF_TRAP_TYPE_MLD_V2_REPORT, 1, { SX_TRAP_ID_IPV6_MLD_V2_REPORT }, SAI_PACKET_ACTION_FORWARD,
-      "IPv6 MLD V2 report", MLNX_TRAP_TYPE_REGULAR },
+      "IPv6 MLD V2 report", MLNX_TRAP_TYPE_REGULAR, MLNX_L2_TRAP },
     { SAI_HOSTIF_TRAP_TYPE_IP2ME, 1, { SX_TRAP_ID_IP2ME }, SAI_PACKET_ACTION_TRAP, "IP2ME",
-      MLNX_TRAP_TYPE_REGULAR },
+      MLNX_TRAP_TYPE_REGULAR, MLNX_NON_L2_TRAP },
     { SAI_HOSTIF_TRAP_TYPE_SSH, 2, { SX_TRAP_ID_SSH_IPV4, SX_TRAP_ID_SSH_IPV6 }, SAI_PACKET_ACTION_TRAP, "SSH",
-      MLNX_TRAP_TYPE_REGULAR },
+      MLNX_TRAP_TYPE_REGULAR, MLNX_NON_L2_TRAP },
     { SAI_HOSTIF_TRAP_TYPE_SNMP, 2, { SX_TRAP_ID_SNMP_IPV4, SX_TRAP_ID_SNMP_IPV6 }, SAI_PACKET_ACTION_TRAP, "SNMP",
-      MLNX_TRAP_TYPE_REGULAR },
+      MLNX_TRAP_TYPE_REGULAR, MLNX_NON_L2_TRAP },
     { SAI_HOSTIF_TRAP_TYPE_L3_MTU_ERROR, 1, { SX_TRAP_ID_ETH_L3_MTUERROR }, SAI_PACKET_ACTION_TRAP, "MTU error",
-      MLNX_TRAP_TYPE_REGULAR },
+      MLNX_TRAP_TYPE_REGULAR, MLNX_NON_L2_TRAP },
     { SAI_HOSTIF_TRAP_TYPE_TTL_ERROR, 1, { SX_TRAP_ID_ETH_L3_TTLERROR }, SAI_PACKET_ACTION_TRAP, "TTL error",
-      MLNX_TRAP_TYPE_REGULAR },
+      MLNX_TRAP_TYPE_REGULAR, MLNX_NON_L2_TRAP },
     { SAI_HOSTIF_TRAP_TYPE_PIPELINE_DISCARD_WRED, 0, { 0 }, SAI_PACKET_ACTION_DROP, "Discard WRED",
-      MLNX_TRAP_TYPE_REGULAR },
+      MLNX_TRAP_TYPE_REGULAR, MLNX_NON_L2_TRAP },
     { SAI_HOSTIF_TRAP_TYPE_PIPELINE_DISCARD_ROUTER, 0, { 0 }, SAI_PACKET_ACTION_DROP, "Discard Router",
-      MLNX_TRAP_TYPE_REGULAR },
+      MLNX_TRAP_TYPE_REGULAR, MLNX_NON_L2_TRAP },
     { SAI_HOSTIF_USER_DEFINED_TRAP_TYPE_ACL, 1, { SX_TRAP_ID_ACL_MIN }, SAI_PACKET_ACTION_TRAP, "ACL",
-      MLNX_TRAP_TYPE_USER_DEFINED },
+      MLNX_TRAP_TYPE_USER_DEFINED, MLNX_NON_L2_TRAP },
     { SAI_HOSTIF_USER_DEFINED_TRAP_TYPE_ROUTER, 4,
       { SX_TRAP_ID_L3_UC_IP_BASE + SX_TRAP_PRIORITY_BEST_EFFORT, SX_TRAP_ID_L3_UC_IP_BASE + SX_TRAP_PRIORITY_LOW,
         SX_TRAP_ID_L3_UC_IP_BASE + SX_TRAP_PRIORITY_MED, SX_TRAP_ID_L3_UC_IP_BASE + SX_TRAP_PRIORITY_HIGH },
-      SAI_PACKET_ACTION_TRAP, "Router", MLNX_TRAP_TYPE_USER_DEFINED },
+      SAI_PACKET_ACTION_TRAP, "Router", MLNX_TRAP_TYPE_USER_DEFINED, MLNX_NON_L2_TRAP },
     { SAI_HOSTIF_USER_DEFINED_TRAP_TYPE_NEIGH, 6,
       { SX_TRAP_ID_L3_NEIGH_IP_BASE + SX_TRAP_PRIORITY_BEST_EFFORT, SX_TRAP_ID_L3_NEIGH_IP_BASE + SX_TRAP_PRIORITY_LOW,
         SX_TRAP_ID_L3_NEIGH_IP_BASE + SX_TRAP_PRIORITY_MED, SX_TRAP_ID_L3_NEIGH_IP_BASE + SX_TRAP_PRIORITY_HIGH,
         SX_TRAP_ID_HOST_MISS_IPV4, SX_TRAP_ID_HOST_MISS_IPV6 },
-      SAI_PACKET_ACTION_TRAP, "Neigh", MLNX_TRAP_TYPE_USER_DEFINED },
+      SAI_PACKET_ACTION_TRAP, "Neigh", MLNX_TRAP_TYPE_USER_DEFINED, MLNX_NON_L2_TRAP },
     { SAI_HOSTIF_USER_DEFINED_TRAP_TYPE_FDB, 1, {SX_TRAP_ID_FDB_EVENT}, SAI_PACKET_ACTION_TRAP, "FDB EVENT",
-      MLNX_TRAP_TYPE_USER_DEFINED },
-    { END_TRAP_INFO_ID, 1, { END_TRAP_INFO_ID }, 0, "", 0 }
+      MLNX_TRAP_TYPE_USER_DEFINED, MLNX_NON_L2_TRAP },
+    { END_TRAP_INFO_ID, 1, { END_TRAP_INFO_ID }, 0, "", 0, MLNX_NON_L2_TRAP }
 };
 static sai_status_t mlnx_trap_mirror_drop_set(_In_ uint32_t        trap_db_idx,
                                               _In_ sai_object_id_t sai_mirror_oid,
@@ -509,6 +509,7 @@ static sai_status_t mlnx_trap_mirror_array_drop_set(_In_ uint32_t         trap_d
 static sai_status_t mlnx_trap_mirror_array_drop_clear(_In_ uint32_t trap_db_idx);
 static sai_status_t mlnx_trap_mirror_db_fill(_In_ uint32_t                 trap_db_idx,
                                              _In_ const sai_object_list_t *sai_mirror_objlist);
+static sai_status_t mlnx_trap_unset(uint32_t index);
 static sai_status_t find_sai_trap_index(_In_ uint32_t         trap_id,
                                         _In_ mlnx_trap_type_t trap_type,
                                         _Out_ uint32_t       *index)
@@ -1204,9 +1205,9 @@ static sai_status_t mlnx_trap_group_queue_set(_In_ const sai_object_key_t      *
 
     trap_group_attributes.prio = (value->u32 > SX_TRAP_PRIORITY_HIGH) ? SX_TRAP_PRIORITY_HIGH : value->u32;
 
-    if (SAI_STATUS_SUCCESS != (status = sx_api_host_ifc_trap_group_set(gh_sdk, DEFAULT_ETH_SWID,
-                                                                       group_id, &trap_group_attributes))) {
-        SX_LOG_ERR("Failed to sx_api_host_ifc_trap_group_set %s\n", SX_STATUS_MSG(status));
+    if (SAI_STATUS_SUCCESS != (status = sx_api_host_ifc_trap_group_ext_set(gh_sdk, SX_ACCESS_CMD_SET, DEFAULT_ETH_SWID,
+                                                                           group_id, &trap_group_attributes))) {
+        SX_LOG_ERR("Failed to sx_api_host_ifc_trap_group_ext_set %s\n", SX_STATUS_MSG(status));
         return sdk_to_sai(status);
     }
 
@@ -1494,9 +1495,9 @@ static sai_status_t mlnx_create_hostif_trap_group(_Out_ sai_object_id_t      *ho
         goto out;
     }
 
-    if (SAI_STATUS_SUCCESS != (status = sx_api_host_ifc_trap_group_set(gh_sdk, DEFAULT_ETH_SWID,
+    if (SAI_STATUS_SUCCESS != (status = sx_api_host_ifc_trap_group_ext_set(gh_sdk, SX_ACCESS_CMD_SET, DEFAULT_ETH_SWID,
                                                                        group_id, &trap_group_attributes))) {
-        SX_LOG_ERR("Failed to sx_api_host_ifc_trap_group_set %s\n", SX_STATUS_MSG(status));
+        SX_LOG_ERR("Failed to sx_api_host_ifc_trap_group_ext_set %s\n", SX_STATUS_MSG(status));
         status = sdk_to_sai(status);
         goto out;
     }
@@ -1545,8 +1546,9 @@ out:
  */
 static sai_status_t mlnx_remove_hostif_trap_group(_In_ sai_object_id_t hostif_trap_group_id)
 {
+    sx_status_t  sx_status;
     char         key_str[MAX_KEY_STR_LEN];
-    uint32_t     group_id;
+    uint32_t     group_id, trap_idx;
     sai_status_t status;
 
     SX_LOG_ENTER();
@@ -1566,19 +1568,38 @@ static sai_status_t mlnx_remove_hostif_trap_group(_In_ sai_object_id_t hostif_tr
         return SAI_STATUS_INVALID_PARAMETER;
     }
 
-    cl_plock_excl_acquire(&g_sai_db_ptr->p_lock);
+    sai_db_write_lock();
+
     if (false == g_sai_db_ptr->trap_group_valid[group_id]) {
         SX_LOG_ERR("Invalid group id %u\n", group_id);
         status = SAI_STATUS_INVALID_PARAMETER;
-    } else {
-        if (SAI_STATUS_SUCCESS != (status = mlnx_sai_unbind_policer_from_trap_group(hostif_trap_group_id))) {
-            cl_plock_release(&g_sai_db_ptr->p_lock);
-            SX_LOG_EXIT();
-            return status;
-        }
-        g_sai_db_ptr->trap_group_valid[group_id] = false;
+        goto out;
     }
-    cl_plock_release(&g_sai_db_ptr->p_lock);
+
+    for (trap_idx = 0; END_TRAP_INFO_ID != mlnx_traps_info[trap_idx].trap_id; trap_idx++) {
+        if (g_sai_db_ptr->traps_db[trap_idx].trap_group == hostif_trap_group_id) {
+            SX_LOG_ERR("Trap group is in use for trap %u (%s)\n", trap_idx, mlnx_traps_info[trap_idx].trap_name);
+            status = SAI_STATUS_OBJECT_IN_USE;
+            goto out;
+        }
+    }
+
+    status = mlnx_sai_unbind_policer_from_trap_group(hostif_trap_group_id);
+    if (SAI_ERR(status)) {
+        goto out;
+    }
+
+    sx_status = sx_api_host_ifc_trap_group_ext_set(gh_sdk, SX_ACCESS_CMD_UNSET, DEFAULT_ETH_SWID, group_id, NULL);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to unset sx trap group %d - %s\n", group_id, SX_STATUS_MSG(sx_status));
+        status = sdk_to_sai(sx_status);
+        goto out;
+    }
+
+    g_sai_db_ptr->trap_group_valid[group_id] = false;
+
+out:
+    sai_db_unlock();
     SX_LOG_EXIT();
     return status;
 }
@@ -1729,7 +1750,7 @@ sai_status_t mlnx_create_hostif_trap(_Out_ sai_object_id_t      *hostif_trap_id,
     assert(SAI_STATUS_SUCCESS == status);
 
     if (SAI_STATUS_SUCCESS !=
-        (status = mlnx_translate_sai_trap_action_to_sdk(action->s32, &sx_action, 0))) {
+        (status = mlnx_translate_sai_trap_action_to_sdk(action->s32, &sx_action, 0, mlnx_traps_info[index].is_l2_trap))) {
         return status;
     }
 
@@ -1837,36 +1858,38 @@ sai_status_t mlnx_remove_hostif_trap(_In_ sai_object_id_t hostif_trap_id)
         return SAI_STATUS_INVALID_PARAMETER;
     }
 
-    cl_plock_excl_acquire(&g_sai_db_ptr->p_lock);
-    g_sai_db_ptr->traps_db[index].action     = mlnx_traps_info[index].action;
-    g_sai_db_ptr->traps_db[index].trap_group = g_sai_db_ptr->default_trap_group;
+    sai_db_write_lock();
 
     sai_trap_type = mlnx_traps_info[index].trap_id;
     if ((SAI_HOSTIF_TRAP_TYPE_PIPELINE_DISCARD_WRED != sai_trap_type) &&
         (SAI_HOSTIF_TRAP_TYPE_PIPELINE_DISCARD_ROUTER != sai_trap_type)) {
+        status = mlnx_trap_unset(index);
+        if (SAI_ERR(status)) {
+            goto out;
+        }
+
         if (SAI_STATUS_SUCCESS != (status = mlnx_trap_set(index, mlnx_traps_info[index].action,
                                                           g_sai_db_ptr->default_trap_group))) {
-            cl_plock_release(&g_sai_db_ptr->p_lock);
-            return status;
+            goto out;
         }
 
         exclude.count = 0;
         if (SAI_STATUS_SUCCESS != (status = mlnx_trap_filter_set(index, exclude))) {
-            cl_plock_release(&g_sai_db_ptr->p_lock);
-            return status;
+            goto out;
         }
     } else {
         status = mlnx_trap_mirror_array_drop_clear(index);
         if (SAI_STATUS_SUCCESS != status) {
-            cl_plock_release(&g_sai_db_ptr->p_lock);
             SX_LOG_ERR("Error clearing trap mirror array for trap index %d\n", index);
-            SX_LOG_EXIT();
-            return status;
+            goto out;
         }
     }
 
-    cl_plock_release(&g_sai_db_ptr->p_lock);
+    g_sai_db_ptr->traps_db[index].action     = mlnx_traps_info[index].action;
+    g_sai_db_ptr->traps_db[index].trap_group = g_sai_db_ptr->default_trap_group;
 
+out:
+    sai_db_unlock();
     SX_LOG_EXIT();
     return status;
 }
@@ -2155,15 +2178,31 @@ static sai_status_t mlnx_trap_record_get(_In_ uint32_t         trap_id,
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_trap_set(uint32_t index, sai_packet_action_t sai_action, sai_object_id_t trap_group)
+static sai_status_t mlnx_trap_update(_In_ uint32_t            index,
+                                     _In_ sai_packet_action_t sai_action,
+                                     _In_ sai_object_id_t     trap_group,
+                                     _In_ bool                is_set)
 {
-    sx_trap_action_t action;
-    sai_status_t     status;
-    uint32_t         prio, trap_index;
+    sx_status_t             sx_status;
+    sx_trap_action_t        action;
+    sx_host_ifc_trap_key_t  trap_key;
+    sx_host_ifc_trap_attr_t trap_attr;
+    sx_access_cmd_t         cmd;
+    sai_status_t            status;
+    uint32_t                prio, trap_index;
 
-    if (SAI_STATUS_SUCCESS !=
-        (status = mlnx_translate_sai_trap_action_to_sdk(sai_action, &action, 0))) {
-        return status;
+    memset(&trap_key, 0, sizeof(trap_key));
+    memset(&trap_attr, 0, sizeof(trap_attr));
+
+    cmd = is_set ? SX_ACCESS_CMD_SET : SX_ACCESS_CMD_UNSET;
+
+    if (is_set) {
+        status = mlnx_translate_sai_trap_action_to_sdk(sai_action, &action, 0, mlnx_traps_info[index].is_l2_trap);
+        if (SAI_ERR(status)) {
+            return status;
+        }
+    } else {
+        action = SX_TRAP_ACTION_SET_FW_DEFAULT;
     }
 
     if (SAI_STATUS_SUCCESS != (status = mlnx_object_to_type(trap_group,
@@ -2177,17 +2216,31 @@ sai_status_t mlnx_trap_set(uint32_t index, sai_packet_action_t sai_action, sai_o
     }
 
     for (trap_index = 0; trap_index < mlnx_traps_info[index].sdk_traps_num; trap_index++) {
-        if (SAI_STATUS_SUCCESS != (status = sx_api_host_ifc_trap_id_set(gh_sdk, DEFAULT_ETH_SWID,
-                                                                        mlnx_traps_info[index].sdk_trap_ids[trap_index],
-                                                                        prio, action))) {
-            SX_LOG_ERR("Failed to set for index %u trap %u/%u=%u, error is %s\n",
+        trap_key.type = HOST_IFC_TRAP_KEY_TRAP_ID_E;
+        trap_key.trap_key_attr.trap_id = mlnx_traps_info[index].sdk_trap_ids[trap_index];
+        trap_attr.attr.trap_id_attr.trap_group = prio;
+        trap_attr.attr.trap_id_attr.trap_action = action;
+
+        sx_status = sx_api_host_ifc_trap_id_ext_set(gh_sdk, cmd, &trap_key, &trap_attr);
+        if (SX_ERR(sx_status)) {
+            SX_LOG_ERR("Failed to %s for index %u trap %u/%u=%u, error is %s\n", SX_ACCESS_CMD_STR(cmd),
                        index, trap_index + 1, mlnx_traps_info[index].sdk_traps_num,
-                       mlnx_traps_info[index].sdk_trap_ids[trap_index], SX_STATUS_MSG(status));
-            return sdk_to_sai(status);
+                       mlnx_traps_info[index].sdk_trap_ids[trap_index], SX_STATUS_MSG(sx_status));
+            return sdk_to_sai(sx_status);
         }
     }
 
     return SAI_STATUS_SUCCESS;
+}
+
+sai_status_t mlnx_trap_set(uint32_t index, sai_packet_action_t sai_action, sai_object_id_t trap_group)
+{
+    return mlnx_trap_update(index, sai_action, trap_group, true);
+}
+
+static sai_status_t mlnx_trap_unset(uint32_t index)
+{
+    return mlnx_trap_update(index, g_sai_db_ptr->traps_db[index].action, g_sai_db_ptr->traps_db[index].trap_group, false);
 }
 
 sai_status_t mlnx_register_trap(const sx_access_cmd_t                 cmd,
@@ -2324,13 +2377,13 @@ static sai_status_t mlnx_trap_action_set(_In_ const sai_object_key_t      *key,
         return status;
     }
 
-    if (SAI_STATUS_SUCCESS !=
-        (status = mlnx_translate_sai_trap_action_to_sdk(value->s32, &action, 0))) {
+    if (SAI_STATUS_SUCCESS != (status = find_sai_trap_index(trap_data, MLNX_TRAP_TYPE_REGULAR, &index))) {
+        SX_LOG_ERR("Invalid trap %x\n", trap_data);
         return status;
     }
 
-    if (SAI_STATUS_SUCCESS != (status = find_sai_trap_index(trap_data, MLNX_TRAP_TYPE_REGULAR, &index))) {
-        SX_LOG_ERR("Invalid trap %x\n", trap_data);
+    if (SAI_STATUS_SUCCESS !=
+        (status = mlnx_translate_sai_trap_action_to_sdk(value->s32, &action, 0, mlnx_traps_info[index].is_l2_trap))) {
         return status;
     }
 
