@@ -69,6 +69,11 @@ static const sai_vendor_attribute_entry_t next_hop_group_vendor_attribs[] = {
       NULL, NULL,
       NULL, NULL }
 };
+static const mlnx_attr_enum_info_t        nh_group_enum_info[] = {
+    [SAI_NEXT_HOP_GROUP_ATTR_TYPE] = ATTR_ENUM_VALUES_LIST(SAI_NEXT_HOP_GROUP_TYPE_ECMP)
+};
+const mlnx_obj_type_attrs_info_t          mlnx_next_hop_group_obj_type_info =
+{ next_hop_group_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(nh_group_enum_info) };
 static sai_status_t mlnx_next_hop_group_member_group_id_get(_In_ const sai_object_key_t   *key,
                                                             _Inout_ sai_attribute_value_t *value,
                                                             _In_ uint32_t                  attr_index,

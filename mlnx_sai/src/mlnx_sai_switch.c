@@ -109,6 +109,14 @@ typedef struct _pool_array_info_t {
     uint32_t        pool_cnt;
 } pool_array_info_t;
 
+sai_status_t mlnx_hash_ecmp_sx_config_update(void);
+sai_status_t mlnx_hash_lag_sx_config_update(void);
+sai_status_t mlnx_hash_object_is_applicable(_In_ sai_object_id_t                     hash_oid,
+                                           _In_ mlnx_switch_usage_hash_object_id_t  hash_oper_id,
+                                           _Out_ bool                              *is_aplicable);
+sai_status_t mlnx_hash_config_db_changes_commit(_In_ mlnx_switch_usage_hash_object_id_t hash_oper_id);
+sai_status_t mlnx_sai_log_levels_post_init(void);
+
 static sai_status_t mlnx_sai_rm_db_init(void);
 static sai_status_t switch_open_traps(void);
 static sai_status_t switch_close_traps(void);
@@ -342,12 +350,7 @@ static sai_status_t mlnx_switch_queue_num_get(_In_ const sai_object_key_t   *key
                                               _In_ uint32_t                  attr_index,
                                               _Inout_ vendor_cache_t        *cache,
                                               void                          *arg);
-static sai_status_t mlnx_switch_lag_hash_seed_get(_In_ const sai_object_key_t   *key,
-                                                  _Inout_ sai_attribute_value_t *value,
-                                                  _In_ uint32_t                  attr_index,
-                                                  _Inout_ vendor_cache_t        *cache,
-                                                  void                          *arg);
-static sai_status_t mlnx_switch_lag_hash_algo_get(_In_ const sai_object_key_t   *key,
+static sai_status_t mlnx_switch_lag_hash_attr_get(_In_ const sai_object_key_t   *key,
                                                   _Inout_ sai_attribute_value_t *value,
                                                   _In_ uint32_t                  attr_index,
                                                   _Inout_ vendor_cache_t        *cache,
@@ -382,10 +385,7 @@ static sai_status_t mlnx_switch_ecmp_hash_param_set(_In_ const sai_object_key_t 
 static sai_status_t mlnx_switch_counter_refresh_set(_In_ const sai_object_key_t      *key,
                                                     _In_ const sai_attribute_value_t *value,
                                                     void                             *arg);
-static sai_status_t mlnx_switch_lag_hash_seed_set(_In_ const sai_object_key_t      *key,
-                                                  _In_ const sai_attribute_value_t *value,
-                                                  void                             *arg);
-static sai_status_t mlnx_switch_lag_hash_algo_set(_In_ const sai_object_key_t      *key,
+static sai_status_t mlnx_switch_lag_hash_attr_set(_In_ const sai_object_key_t      *key,
                                                   _In_ const sai_attribute_value_t *value,
                                                   void                             *arg);
 static sai_status_t mlnx_switch_qos_map_id_get(_In_ const sai_object_key_t   *key,
@@ -731,18 +731,18 @@ static const sai_vendor_attribute_entry_t switch_vendor_attribs[] = {
     { SAI_SWITCH_ATTR_LAG_DEFAULT_HASH_SEED,
       { false, false, true, true },
       { false, false, true, true },
-      mlnx_switch_lag_hash_seed_get, NULL,
-      mlnx_switch_lag_hash_seed_set, NULL },
+      mlnx_switch_lag_hash_attr_get, (void*)SAI_SWITCH_ATTR_LAG_DEFAULT_HASH_SEED,
+      mlnx_switch_lag_hash_attr_set, (void*)SAI_SWITCH_ATTR_LAG_DEFAULT_HASH_SEED},
     { SAI_SWITCH_ATTR_LAG_DEFAULT_HASH_ALGORITHM,
       { false, false, true, true },
       { false, false, true, true },
-      mlnx_switch_lag_hash_algo_get, NULL,
-      mlnx_switch_lag_hash_algo_set, NULL },
+      mlnx_switch_lag_hash_attr_get, (void*)SAI_SWITCH_ATTR_LAG_DEFAULT_HASH_ALGORITHM,
+      mlnx_switch_lag_hash_attr_set, (void*)SAI_SWITCH_ATTR_LAG_DEFAULT_HASH_ALGORITHM},
     { SAI_SWITCH_ATTR_LAG_DEFAULT_SYMMETRIC_HASH,
-      { false, false, false, false },
       { false, false, true, true },
-      NULL, NULL,
-      NULL, NULL },
+      { false, false, true, true },
+      mlnx_switch_lag_hash_attr_get, (void*)SAI_SWITCH_ATTR_LAG_DEFAULT_SYMMETRIC_HASH,
+      mlnx_switch_lag_hash_attr_set, (void*)SAI_SWITCH_ATTR_LAG_DEFAULT_SYMMETRIC_HASH},
     { SAI_SWITCH_ATTR_ECMP_DEFAULT_HASH_SEED,
       { false, false, true, true },
       { false, false, true, true },
@@ -2269,22 +2269,9 @@ static sai_status_t mlnx_chassis_mng_stage(mlnx_sai_boot_type_t boot_type,
         }
     }
 
-    if (SX_STATUS_SUCCESS != (status = sx_api_system_log_verbosity_level_set(gh_sdk,
-                                                                             SX_LOG_VERBOSITY_BOTH,
-                                                                             LOG_VAR_NAME(__MODULE__),
-                                                                             LOG_VAR_NAME(__MODULE__)))) {
-        SX_LOG_ERR("Set system log verbosity failed - %s.\n", SX_STATUS_MSG(status));
-        return sdk_to_sai(status);
-    }
-
-    if (!mlnx_chip_is_spc2()) {
-        if (SX_STATUS_SUCCESS != (status = sx_api_issu_log_verbosity_level_set(gh_sdk,
-                                                                               SX_LOG_VERBOSITY_BOTH,
-                                                                               LOG_VAR_NAME(__MODULE__),
-                                                                               LOG_VAR_NAME(__MODULE__)))) {
-            SX_LOG_ERR("Set issu log verbosity failed - %s.\n", SX_STATUS_MSG(status));
-            return sdk_to_sai(status);
-        }
+    status = mlnx_sai_log_levels_post_init();
+    if (SAI_ERR(status)) {
+        return status;
     }
 
     return SAI_STATUS_SUCCESS;
@@ -2626,7 +2613,7 @@ static void sai_db_values_init()
     g_sai_db_ptr->restart_warm            = false;
     g_sai_db_ptr->warm_recover            = false;
     g_sai_db_ptr->issu_end_called         = false;
-    g_sai_db_ptr->g_fx_initialized        = false;
+    g_sai_db_ptr->fx_initialized     = false;
     g_sai_db_ptr->boot_type               = 0;
     g_sai_db_ptr->acl_divider             = 1;
 
@@ -3199,11 +3186,13 @@ static sai_status_t mlnx_dvs_mng_stage(mlnx_sai_boot_type_t boot_type, sai_objec
         ports_to_map++;
     }
 
-    sx_status = sx_api_port_mapping_set(gh_sdk, log_ports, port_mapping, ports_to_map);
-    if (SX_ERR(sx_status)) {
-        SX_LOG_ERR("Failed to unmap ports - %s\n", SX_STATUS_MSG(sx_status));
-        status = sdk_to_sai(sx_status);
-        goto out;
+    if (!is_warmboot || g_sai_db_ptr->issu_end_called) {
+        sx_status = sx_api_port_mapping_set(gh_sdk, log_ports, port_mapping, ports_to_map);
+        if (SX_ERR(sx_status)) {
+            SX_LOG_ERR("Failed to unmap ports - %s\n", SX_STATUS_MSG(sx_status));
+            status = sdk_to_sai(sx_status);
+            goto out;
+        }
     }
 
     ports_to_map = 0;
@@ -3994,7 +3983,8 @@ static uint32_t sai_buffer_db_size_get()
         /*size for pool db flags + 1 bool field for flag specifying whether has user ever called create_pool function.*/
         sizeof(bool) *
         (1 + mlnx_sai_get_buffer_resource_limits()->num_ingress_pools +
-         mlnx_sai_get_buffer_resource_limits()->num_egress_pools)
+         mlnx_sai_get_buffer_resource_limits()->num_egress_pools) +
+        sizeof(mlnx_sai_buffer_pool_ids_t)
         );
 }
 
@@ -4526,11 +4516,24 @@ static sai_status_t mlnx_kvd_table_size_update(sx_api_profile_t *ku_profile)
     }
 
     if (update_profile) {
+        /*
+         * When in ISSU mode, SDK initializes kvd with cutting kvd_hash_single_size and kvd_hash_single_size by half.
+         * We multiply it by 2 to initialize with the exact values user specified.
+         */
+        if (g_sai_db_ptr->issu_enabled) {
+            hash_single_size *= 2;
+            hash_double_size *= 2;
+
+            SX_LOG_NTC("Doubling the hash_single and hash_double sizes (ISSU is enabled): "
+                       "hash_single_size %u -> %u, hash_double_size %u -> %u\n",
+                       hash_single_size / 2, hash_single_size, hash_double_size / 2, hash_double_size);
+        }
+
         if (hash_single_size + hash_double_size <= kvd_table_size) {
             ku_profile->kvd_hash_single_size = hash_single_size;
             ku_profile->kvd_hash_double_size = hash_double_size;
             ku_profile->kvd_linear_size      = kvd_table_size - hash_single_size - hash_double_size;
-            MLNX_SAI_LOG_NTC("New hash_single size %u hash_single size %u linear size %u\n",
+            MLNX_SAI_LOG_NTC("New hash_single size %u hash_double size %u linear size %u\n",
                              ku_profile->kvd_hash_single_size, ku_profile->kvd_hash_double_size,
                              ku_profile->kvd_linear_size);
         } else {
@@ -4675,7 +4678,7 @@ static sai_status_t mlnx_initialize_switch(sai_object_id_t switch_id, bool *tran
         return SAI_STATUS_FAILURE;
     }
 
-    /* init router model, T1 config */
+    /* init router model */
     memset(&resources_param, 0, sizeof(resources_param));
     memset(&general_param, 0, sizeof(general_param));
 
@@ -4684,11 +4687,10 @@ static sai_status_t mlnx_initialize_switch(sai_object_id_t switch_id, bool *tran
     } else {
         resources_param.max_virtual_routers_num = g_resource_limits.router_vrid_max;
     }
-    /* cut by 2 because of ipv6 tunnels, cut by further 2 for issu */
     if (issu_enabled) {
-        resources_param.max_router_interfaces = g_resource_limits.router_rifs_max / 4;
-    } else {
         resources_param.max_router_interfaces = g_resource_limits.router_rifs_max / 2;
+    } else {
+        resources_param.max_router_interfaces = g_resource_limits.router_rifs_max;
     }
 
     resources_param.min_ipv4_uc_route_entries = g_ipv4_route_table_size;
@@ -4706,7 +4708,12 @@ static sai_status_t mlnx_initialize_switch(sai_object_id_t switch_id, bool *tran
     resources_param.max_ipv4_mc_route_entries = 0;
     resources_param.max_ipv6_mc_route_entries = 0;
 
-    resources_param.ipinip_ipv6_loopback_rif_enable = true;
+#ifdef ACS_OS
+    resources_param.max_ipinip_ipv6_loopback_rifs = 12;
+#else
+    /* sdk limit in sdk_router_be_validate_params */
+    resources_param.max_ipinip_ipv6_loopback_rifs = resources_param.max_virtual_routers_num / 2;
+#endif
 
     general_param.ipv4_enable    = 1;
     general_param.ipv6_enable    = 1;
@@ -4762,6 +4769,10 @@ static sai_status_t mlnx_initialize_switch(sai_object_id_t switch_id, bool *tran
         (sdk_status = sx_api_fdb_age_time_set(gh_sdk, DEFAULT_ETH_SWID, SX_FDB_AGE_TIME_MAX))) {
         SX_LOG_ERR("Failed to set fdb age time - %s.\n", SX_STATUS_MSG(sdk_status));
         return sdk_to_sai(sdk_status);
+    }
+
+    if (SAI_STATUS_SUCCESS != (sai_status = mlnx_init_buffer_pool_ids())) {
+        return sai_status;
     }
 
     if (SAI_STATUS_SUCCESS != (sai_status = mlnx_hash_initialize())) {
@@ -5122,12 +5133,6 @@ static sai_status_t switch_open_traps(void)
     sai_status_t               status;
     sx_host_ifc_register_key_t reg;
 
-#ifdef ACS_OS
-    struct ku_hpkt_reg tmp_reg;
-    sxd_reg_meta_t     reg_meta;
-    sxd_status_t       sxd_status;
-#endif
-
     memset(&trap_group_attributes, 0, sizeof(trap_group_attributes));
     memset(&reg, 0, sizeof(reg));
     trap_group_attributes.truncate_mode = SX_TRUNCATE_MODE_DISABLE;
@@ -5135,10 +5140,12 @@ static sai_status_t switch_open_traps(void)
     trap_group_attributes.prio          = DEFAULT_TRAP_GROUP_PRIO;
     reg.key_type                        = SX_HOST_IFC_REGISTER_KEY_TYPE_GLOBAL;
 
-    if (SAI_STATUS_SUCCESS != (status = sx_api_host_ifc_trap_group_set(gh_sdk, DEFAULT_ETH_SWID,
-                                                                       DEFAULT_TRAP_GROUP_ID,
-                                                                       &trap_group_attributes))) {
-        SX_LOG_ERR("Failed to sx_api_host_ifc_trap_group_set %s\n", SX_STATUS_MSG(status));
+    if (SAI_STATUS_SUCCESS != (status = sx_api_host_ifc_trap_group_ext_set(gh_sdk,
+                                                                           SX_ACCESS_CMD_SET,
+                                                                           DEFAULT_ETH_SWID,
+                                                                           DEFAULT_TRAP_GROUP_ID,
+                                                                           &trap_group_attributes))) {
+        SX_LOG_ERR("Failed to sx_api_host_ifc_trap_group_ext_set %s\n", SX_STATUS_MSG(status));
         return sdk_to_sai(status);
     }
 
@@ -5188,20 +5195,25 @@ static sai_status_t switch_open_traps(void)
 
 #ifdef ACS_OS
     /* Set action NOP for SIP=DIP router ingress discard to allow such traffic */
-    memset(&tmp_reg, 0, sizeof(tmp_reg));
-    memset(&reg_meta, 0, sizeof(reg_meta));
-    /* TODO : replace with trap id define when exposed in SDK */
-    tmp_reg.trap_id     = 0x169;
-    tmp_reg.action      = 0;
-    reg_meta.access_cmd = SXD_ACCESS_CMD_SET;
-    reg_meta.dev_id     = SX_DEVICE_ID;
-    reg_meta.swid       = DEFAULT_ETH_SWID;
+    {
+        sx_status_t             sx_status;
+        sx_host_ifc_trap_key_t  trap_key;
+        sx_host_ifc_trap_attr_t trap_attr;
 
-    sxd_status = sxd_access_reg_hpkt(&tmp_reg, &reg_meta, 1, NULL, NULL);
-    if (sxd_status) {
-        SX_LOG_ERR("Access_hpkt_reg failed with status (%s:%d)\n", SXD_STATUS_MSG(sxd_status), sxd_status);
-        status = SAI_STATUS_FAILURE;
-        goto out;
+        memset(&trap_key, 0, sizeof(trap_key));
+        memset(&trap_attr, 0, sizeof(trap_attr));
+
+        trap_key.type = HOST_IFC_TRAP_KEY_TRAP_ID_E;
+        trap_key.trap_key_attr.trap_id = SX_TRAP_ID_DISCARD_ING_ROUTER_SIP_DIP;
+        trap_attr.attr.trap_id_attr.trap_group = DEFAULT_TRAP_GROUP_ID;
+        trap_attr.attr.trap_id_attr.trap_action = SX_TRAP_ACTION_IGNORE;
+
+        sx_status = sx_api_host_ifc_trap_id_ext_set(gh_sdk, SX_ACCESS_CMD_SET, &trap_key, &trap_attr);
+        if (SX_ERR(sx_status)) {
+            SX_LOG_ERR("Failed to set SIP_DIP trap action to IGNORE %s\n", SX_STATUS_MSG(sx_status));
+            status = sdk_to_sai(sx_status);
+            goto out;
+        }
     }
 #endif
 
@@ -5323,6 +5335,8 @@ static sai_status_t mlnx_disconnect_switch(void)
     if (SX_STATUS_SUCCESS != (status = sx_api_close(&gh_sdk))) {
         SX_LOG_ERR("API close failed.\n");
     }
+
+    mlnx_bmtor_fx_handle_deinit();
 
     memset(&g_notification_callbacks, 0, sizeof(g_notification_callbacks));
 
@@ -5560,16 +5574,48 @@ static sai_status_t mlnx_switch_ecmp_hash_param_set(_In_ const sai_object_key_t 
                                                     _In_ const sai_attribute_value_t *value,
                                                     void                             *arg)
 {
-    sx_status_t status = SAI_STATUS_SUCCESS;
+    sai_status_t                       status;
+    sai_switch_attr_t                  attr_id;
+    sx_router_ecmp_port_hash_params_t *port_hash_param;
 
     SX_LOG_ENTER();
 
+    attr_id = (long)arg;
+
+    assert((attr_id == SAI_SWITCH_ATTR_ECMP_DEFAULT_HASH_SEED) ||
+           (attr_id == SAI_SWITCH_ATTR_ECMP_DEFAULT_HASH_ALGORITHM) ||
+           (attr_id == SAI_SWITCH_ATTR_ECMP_DEFAULT_SYMMETRIC_HASH));
+
     sai_db_write_lock();
 
-    if (SX_STATUS_SUCCESS != (status = mlnx_hash_ecmp_hash_params_apply((long)arg, value))) {
-        SX_LOG_ERR("Failed to set ECMP hash params.\n");
+    port_hash_param = &g_sai_db_ptr->port_ecmp_hash_params;
+
+    switch (attr_id) {
+    case SAI_SWITCH_ATTR_ECMP_DEFAULT_HASH_SEED:
+        port_hash_param->seed = value->u32;
+        break;
+
+    case SAI_SWITCH_ATTR_ECMP_DEFAULT_HASH_ALGORITHM:
+        port_hash_param->ecmp_hash_type = (sx_router_ecmp_hash_type_t) value->s32;
+        break;
+
+    case SAI_SWITCH_ATTR_ECMP_DEFAULT_SYMMETRIC_HASH:
+        port_hash_param->symmetric_hash = value->booldata;
+        break;
+
+    default:
+        SX_LOG_ERR("Unexpected attr %d\n", attr_id);
+        status = SAI_STATUS_FAILURE;
+        goto out;
     }
 
+    /* Apply DB changes to ports */
+    status = mlnx_hash_ecmp_sx_config_update();
+    if (SAI_ERR(status)) {
+        goto out;
+    }
+
+out:
     sai_db_unlock();
     SX_LOG_EXIT();
     return status;
@@ -5602,71 +5648,54 @@ static sai_status_t mlnx_switch_counter_refresh_set(_In_ const sai_object_key_t 
 }
 
 /* Set LAG hashing seed  [uint32_t] */
-static sai_status_t mlnx_switch_lag_hash_seed_set(_In_ const sai_object_key_t      *key,
+static sai_status_t mlnx_switch_lag_hash_attr_set(_In_ const sai_object_key_t      *key,
                                                   _In_ const sai_attribute_value_t *value,
                                                   void                             *arg)
 {
-    sx_lag_hash_param_t hash_param;
-    sx_status_t         status;
+    sai_status_t               status;
+    sai_switch_attr_t          attr_id;
+    sx_lag_port_hash_params_t *lag_hash_params;
 
     SX_LOG_ENTER();
 
-    if (SX_STATUS_SUCCESS != (status = sx_api_lag_hash_flow_params_get(gh_sdk, &hash_param))) {
-        SX_LOG_ERR("Failed to get LAG hash params - %s.\n", SX_STATUS_MSG(status));
-        return sdk_to_sai(status);
-    }
+    attr_id = (long)arg;
 
-    hash_param.lag_seed = value->u32;
+    assert((attr_id == SAI_SWITCH_ATTR_LAG_DEFAULT_HASH_SEED) ||
+           (attr_id == SAI_SWITCH_ATTR_LAG_DEFAULT_HASH_ALGORITHM) ||
+           (attr_id == SAI_SWITCH_ATTR_LAG_DEFAULT_SYMMETRIC_HASH));
 
-    if (SX_STATUS_SUCCESS != (status = sx_api_lag_hash_flow_params_set(gh_sdk, &hash_param))) {
-        SX_LOG_ERR("Failed to set LAG hash params - %s.\n", SX_STATUS_MSG(status));
-        return sdk_to_sai(status);
-    }
+    sai_db_write_lock();
 
-    SX_LOG_EXIT();
-    return SAI_STATUS_SUCCESS;
-}
+    lag_hash_params = &g_sai_db_ptr->lag_hash_params;
 
-/* Hash algorithm for all LAGs in the switch[sai_switch_hash_algo_t] */
-static sai_status_t mlnx_switch_lag_hash_algo_set(_In_ const sai_object_key_t      *key,
-                                                  _In_ const sai_attribute_value_t *value,
-                                                  void                             *arg)
-{
-    sx_lag_hash_param_t hash_param;
-    sx_status_t         status = SAI_STATUS_SUCCESS;
-
-    memset(&hash_param, 0, sizeof(hash_param));
-
-    SX_LOG_ENTER();
-
-    if (SX_STATUS_SUCCESS != (status = sx_api_lag_hash_flow_params_get(gh_sdk, &hash_param))) {
-        SX_LOG_ERR("Failed to get LAG hash params - %s.\n", SX_STATUS_MSG(status));
-        return sdk_to_sai(status);
-    }
-
-    switch (value->s32) {
-    case SAI_HASH_ALGORITHM_XOR:
-        hash_param.lag_hash_type = SX_LAG_HASH_TYPE_XOR;
+    switch (attr_id) {
+    case SAI_SWITCH_ATTR_LAG_DEFAULT_HASH_SEED:
+        lag_hash_params->lag_seed = value->u32;
         break;
 
-    case SAI_HASH_ALGORITHM_CRC:
-        hash_param.lag_hash_type = SX_LAG_HASH_TYPE_CRC;
+    case SAI_SWITCH_ATTR_LAG_DEFAULT_HASH_ALGORITHM:
+        lag_hash_params->lag_hash_type = (sx_lag_hash_type_t) value->s32;
         break;
 
-    case SAI_HASH_ALGORITHM_RANDOM:
-        return SAI_STATUS_NOT_SUPPORTED;
+    case SAI_SWITCH_ATTR_LAG_DEFAULT_SYMMETRIC_HASH:
+        lag_hash_params->is_lag_hash_symmetric = value->booldata;
+        break;
 
     default:
-        SX_LOG_ERR("Invalid hash type value %d\n", value->s32);
-        return SAI_STATUS_INVALID_ATTR_VALUE_0;
-    }
-    if (SX_STATUS_SUCCESS != (status = sx_api_lag_hash_flow_params_set(gh_sdk, &hash_param))) {
-        SX_LOG_ERR("Failed to set LAG hash params - %s.\n", SX_STATUS_MSG(status));
-        return sdk_to_sai(status);
+        SX_LOG_ERR("Unexpected attr %d\n", attr_id);
+        status = SAI_STATUS_FAILURE;
+        goto out;
     }
 
+    status = mlnx_hash_lag_sx_config_update();
+    if (SAI_ERR(status)) {
+        goto out;
+    }
+
+out:
+    sai_db_unlock();
     SX_LOG_EXIT();
-    return SAI_STATUS_SUCCESS;
+    return status;
 }
 
 /**
@@ -6092,7 +6121,7 @@ static sai_status_t mlnx_switch_acl_entry_min_prio_get(_In_ const sai_object_key
 {
     SX_LOG_ENTER();
 
-    value->u32 = ACL_SAI_ENTRY_MIN_PRIO;
+    value->u32 = mlnx_acl_entry_min_prio_get();
 
     SX_LOG_EXIT();
     return SAI_STATUS_SUCCESS;
@@ -6107,7 +6136,7 @@ static sai_status_t mlnx_switch_acl_entry_max_prio_get(_In_ const sai_object_key
 {
     SX_LOG_ENTER();
 
-    value->u32 = ACL_SAI_ENTRY_MAX_PRIO;
+    value->u32 = mlnx_acl_entry_max_prio_get();
 
     SX_LOG_EXIT();
     return SAI_STATUS_SUCCESS;
@@ -6154,7 +6183,9 @@ static sai_status_t mlnx_switch_acl_capability_get(_In_ const sai_object_key_t  
 
     stage = (int64_t)arg;
 
-    return mlnx_acl_stage_action_types_get(stage, &value->aclcapability.action_list);
+    value->aclcapability.is_action_list_mandatory = false;
+
+    return mlnx_acl_stage_action_types_list_get(stage, &value->aclcapability.action_list);
 }
 
 /* Count of the total number of actions supported by NPU */
@@ -6398,30 +6429,6 @@ static sai_status_t mlnx_switch_fdb_flood_ctrl_get(_In_ const sai_object_key_t  
     return SAI_STATUS_SUCCESS;
 }
 
-static sai_status_t mlnx_hash_convert_ecmp_sx_param_to_sai(const sx_router_ecmp_port_hash_params_t *hash_param,
-                                                           sai_attribute_value_t                   *value)
-{
-    switch (hash_param->ecmp_hash_type) {
-    case SX_ROUTER_ECMP_HASH_TYPE_XOR:
-        value->s32 = SAI_HASH_ALGORITHM_XOR;
-        break;
-
-    case SX_ROUTER_ECMP_HASH_TYPE_CRC:
-        value->s32 = SAI_HASH_ALGORITHM_CRC;
-        break;
-
-    case SX_ROUTER_ECMP_HASH_TYPE_RANDOM:
-        value->s32 = SAI_HASH_ALGORITHM_RANDOM;
-        break;
-
-    default:
-        SX_LOG_ERR("Unexpected ECMP hash type %u\n", hash_param->ecmp_hash_type);
-        return SAI_STATUS_FAILURE;
-    }
-
-    return SAI_STATUS_SUCCESS;
-}
-
 /* ECMP hashing seed  [uint32_t] */
 /* Hash algorithm for all ECMP in the switch[sai_switch_hash_algo_t] */
 static sai_status_t mlnx_switch_ecmp_hash_param_get(_In_ const sai_object_key_t   *key,
@@ -6441,7 +6448,7 @@ static sai_status_t mlnx_switch_ecmp_hash_param_get(_In_ const sai_object_key_t 
 
     sai_db_read_lock();
 
-    port_hash_param = &g_sai_db_ptr->port_hash_params;
+    port_hash_param = &g_sai_db_ptr->port_ecmp_hash_params;
 
     switch ((long)arg) {
     case SAI_SWITCH_ATTR_ECMP_DEFAULT_HASH_SEED:
@@ -6449,10 +6456,7 @@ static sai_status_t mlnx_switch_ecmp_hash_param_get(_In_ const sai_object_key_t 
         break;
 
     case SAI_SWITCH_ATTR_ECMP_DEFAULT_HASH_ALGORITHM:
-        status = mlnx_hash_convert_ecmp_sx_param_to_sai(port_hash_param, value);
-        if (SAI_ERR(status)) {
-            goto out;
-        }
+        value->s32 = (sai_hash_algorithm_t) port_hash_param->ecmp_hash_type;
         break;
 
     case SAI_SWITCH_ATTR_ECMP_DEFAULT_SYMMETRIC_HASH:
@@ -6460,7 +6464,6 @@ static sai_status_t mlnx_switch_ecmp_hash_param_get(_In_ const sai_object_key_t 
         break;
     }
 
-out:
     sai_db_unlock();
     SX_LOG_EXIT();
     return status;
@@ -6728,63 +6731,51 @@ static sai_status_t mlnx_switch_hash_object_set(_In_ const sai_object_key_t     
     long                               attr        = (long)arg;
     sai_object_id_t                    hash_obj_id = value->oid;
     sai_object_id_t                    old_hash_obj_id;
-    mlnx_switch_usage_hash_object_id_t hash_oper_id, target_hash_oper_id;
-    uint32_t                           hash_data      = 0;
+    mlnx_switch_usage_hash_object_id_t hash_oper_id;
     sai_status_t                       status         = SAI_STATUS_SUCCESS;
-    udf_group_mask_t                   udf_group_mask = MLNX_UDF_GROUP_MASK_EMPTY;
     bool                               is_applicable;
 
     SX_LOG_ENTER();
 
-    /* validate value */
-    if (hash_obj_id != SAI_NULL_OBJECT_ID) {
-        if (SAI_STATUS_SUCCESS != mlnx_object_to_type(hash_obj_id, SAI_OBJECT_TYPE_HASH, &hash_data, NULL)) {
-            return SAI_STATUS_FAILURE;
-        }
-    }
-
     switch (attr) {
     case SAI_SWITCH_ATTR_ECMP_HASH_IPV4_IN_IPV4:
-        target_hash_oper_id = SAI_HASH_ECMP_IPINIP_ID;
+        hash_oper_id = SAI_HASH_ECMP_IPINIP_ID;
         break;
 
     case SAI_SWITCH_ATTR_ECMP_HASH_IPV4:
-        target_hash_oper_id = SAI_HASH_ECMP_IP4_ID;
+        hash_oper_id = SAI_HASH_ECMP_IP4_ID;
         break;
 
     case SAI_SWITCH_ATTR_ECMP_HASH_IPV6:
-        target_hash_oper_id = SAI_HASH_ECMP_IP6_ID;
+        hash_oper_id = SAI_HASH_ECMP_IP6_ID;
         break;
 
     case SAI_SWITCH_ATTR_LAG_HASH_IPV4:
-        target_hash_oper_id = SAI_HASH_LAG_IP4_ID;
+        hash_oper_id = SAI_HASH_LAG_IP4_ID;
         break;
 
     case SAI_SWITCH_ATTR_LAG_HASH_IPV4_IN_IPV4:
-        target_hash_oper_id = SAI_HASH_LAG_IPINIP_ID;
+        hash_oper_id = SAI_HASH_LAG_IPINIP_ID;
         break;
 
     case SAI_SWITCH_ATTR_LAG_HASH_IPV6:
-        target_hash_oper_id = SAI_HASH_LAG_IP6_ID;
+        hash_oper_id = SAI_HASH_LAG_IP6_ID;
         break;
 
     default:
-        /* Should not reach this */
-        assert(false);
-        break;
+        SX_LOG_ERR("Unexpected attr - %ld\n", attr);
+        return SAI_STATUS_FAILURE;
     }
 
     sai_db_write_lock();
 
-    if (g_sai_db_ptr->oper_hash_list[target_hash_oper_id] == hash_obj_id) {
-        /* Config didn't change. Just return here. */
+    if (g_sai_db_ptr->oper_hash_list[hash_oper_id] == hash_obj_id) {
+        status = SAI_STATUS_SUCCESS;
         goto out;
     }
 
     if (hash_obj_id != SAI_NULL_OBJECT_ID) {
-        udf_group_mask = g_sai_db_ptr->hash_list[hash_data].udf_group_mask;
-
-        status = mlnx_udf_group_mask_is_hash_applicable(udf_group_mask, target_hash_oper_id, &is_applicable);
+        status = mlnx_hash_object_is_applicable(hash_obj_id, hash_oper_id, &is_applicable);
         if (SAI_ERR(status)) {
             goto out;
         }
@@ -6795,60 +6786,16 @@ static sai_status_t mlnx_switch_hash_object_set(_In_ const sai_object_key_t     
         }
     }
 
-    hash_oper_id = target_hash_oper_id;
+    old_hash_obj_id = g_sai_db_ptr->oper_hash_list[hash_oper_id];
+    g_sai_db_ptr->oper_hash_list[hash_oper_id] = value->oid;
 
-    if (hash_obj_id == SAI_NULL_OBJECT_ID) {
-        /* On reset, need apply next object.
-         *  On attempt to reset IPv6 - try to apply IPinIP
-         *  If IPinIP object is reset - try apply IP
-         *  If IP object is reset or just not set - apply default object. */
-
-        while (hash_obj_id == SAI_NULL_OBJECT_ID) {
-            switch (hash_oper_id) {
-            case SAI_HASH_ECMP_IP6_ID:
-                hash_oper_id = SAI_HASH_ECMP_IPINIP_ID;
-                break;
-
-            case SAI_HASH_LAG_IP6_ID:
-                hash_oper_id = SAI_HASH_LAG_IPINIP_ID;
-                break;
-
-            case SAI_HASH_LAG_IPINIP_ID:
-                hash_oper_id = SAI_HASH_LAG_IP4_ID;
-                break;
-
-            case SAI_HASH_ECMP_IPINIP_ID:
-                hash_oper_id = SAI_HASH_ECMP_IP4_ID;
-                break;
-
-            case SAI_HASH_LAG_IP4_ID:
-                hash_oper_id = SAI_HASH_LAG_ID;
-                break;
-
-            case SAI_HASH_ECMP_IP4_ID:
-                hash_oper_id = SAI_HASH_ECMP_ID;
-                break;
-
-            default:
-                SX_LOG_ERR("Invalid type of oper_id - %d\n", hash_oper_id);
-                status = SAI_STATUS_FAILURE;
-                goto out;
-            }
-
-            hash_obj_id = g_sai_db_ptr->oper_hash_list[hash_oper_id];
-        }
-    }
-
-    old_hash_obj_id                                   = g_sai_db_ptr->oper_hash_list[target_hash_oper_id];
-    g_sai_db_ptr->oper_hash_list[target_hash_oper_id] = value->oid;
-
-    status = mlnx_hash_object_apply(hash_obj_id, hash_oper_id);
-    if (SAI_STATUS_SUCCESS != status) {
-        g_sai_db_ptr->oper_hash_list[target_hash_oper_id] = old_hash_obj_id;
+    status = mlnx_hash_config_db_changes_commit(hash_oper_id);
+    if (SAI_ERR(status)) {
+        g_sai_db_ptr->oper_hash_list[hash_oper_id] = old_hash_obj_id;
+        goto out;
     }
 
 out:
-    sai_db_sync();
     sai_db_unlock();
     SX_LOG_EXIT();
     return status;
@@ -7117,63 +7064,42 @@ out:
 }
 
 /* LAG hashing seed  [uint32_t] */
-static sai_status_t mlnx_switch_lag_hash_seed_get(_In_ const sai_object_key_t   *key,
+static sai_status_t mlnx_switch_lag_hash_attr_get(_In_ const sai_object_key_t   *key,
                                                   _Inout_ sai_attribute_value_t *value,
                                                   _In_ uint32_t                  attr_index,
                                                   _Inout_ vendor_cache_t        *cache,
                                                   void                          *arg)
 {
-    sai_status_t        status;
-    sx_lag_hash_param_t hash_param;
+    const sx_lag_port_hash_params_t *lag_hash_params;
+    sai_switch_attr_t                attr_id;
 
-    memset(&hash_param, 0, sizeof(hash_param));
+    attr_id = (long)arg;
 
-    SX_LOG_ENTER();
-
-    if (SX_STATUS_SUCCESS != (status = sx_api_lag_hash_flow_params_get(gh_sdk, &hash_param))) {
-        SX_LOG_ERR("Failed to get LAG hash params - %s.\n", SX_STATUS_MSG(status));
-        return sdk_to_sai(status);
-    }
-
-    value->u32 = hash_param.lag_seed;
-
-    SX_LOG_EXIT();
-    return SAI_STATUS_SUCCESS;
-}
-
-/* Hash algorithm for all LAGs in the switch[sai_switch_hash_algo_t] */
-static sai_status_t mlnx_switch_lag_hash_algo_get(_In_ const sai_object_key_t   *key,
-                                                  _Inout_ sai_attribute_value_t *value,
-                                                  _In_ uint32_t                  attr_index,
-                                                  _Inout_ vendor_cache_t        *cache,
-                                                  void                          *arg)
-{
-    sai_status_t        status;
-    sx_lag_hash_param_t hash_param;
-
-    memset(&hash_param, 0, sizeof(hash_param));
+    assert((attr_id == SAI_SWITCH_ATTR_LAG_DEFAULT_HASH_SEED) ||
+           (attr_id == SAI_SWITCH_ATTR_LAG_DEFAULT_HASH_ALGORITHM) ||
+           (attr_id == SAI_SWITCH_ATTR_LAG_DEFAULT_SYMMETRIC_HASH));
 
     SX_LOG_ENTER();
 
-    if (SX_STATUS_SUCCESS != (status = sx_api_lag_hash_flow_params_get(gh_sdk, &hash_param))) {
-        SX_LOG_ERR("Failed to get LAG hash params - %s.\n", SX_STATUS_MSG(status));
-        return sdk_to_sai(status);
-    }
+    sai_db_read_lock();
 
-    switch (hash_param.lag_hash_type) {
-    case SX_LAG_HASH_TYPE_CRC:
-        value->s32 = SAI_HASH_ALGORITHM_CRC;
+    lag_hash_params = &g_sai_db_ptr->lag_hash_params;
+
+    switch ((long)arg) {
+    case SAI_SWITCH_ATTR_LAG_DEFAULT_HASH_SEED:
+        value->u32 = lag_hash_params->lag_seed;
         break;
 
-    case SX_LAG_HASH_TYPE_XOR:
-        value->s32 = SAI_HASH_ALGORITHM_XOR;
+    case SAI_SWITCH_ATTR_LAG_DEFAULT_HASH_ALGORITHM:
+        value->s32 = (sai_hash_algorithm_t) lag_hash_params->lag_hash_type;
         break;
 
-    default:
-        SX_LOG_ERR("Unexpected ECMP hash type %u\n", hash_param.lag_hash_type);
-        return SAI_STATUS_FAILURE;
+    case SAI_SWITCH_ATTR_LAG_DEFAULT_SYMMETRIC_HASH:
+        value->booldata = lag_hash_params->is_lag_hash_symmetric;
+        break;
     }
 
+    sai_db_unlock();
     SX_LOG_EXIT();
     return SAI_STATUS_SUCCESS;
 }
@@ -7607,9 +7533,23 @@ static sai_status_t mlnx_switch_event_func_get(_In_ const sai_object_key_t   *ke
 
 sai_status_t mlnx_switch_log_set(sx_verbosity_level_t level)
 {
+    sx_status_t status;
+
     LOG_VAR_NAME(__MODULE__) = level;
 
-    return SAI_STATUS_SUCCESS;
+    if (gh_sdk) {
+        if (!mlnx_chip_is_spc2()) {
+            status = sx_api_issu_log_verbosity_level_set(gh_sdk, SX_LOG_VERBOSITY_BOTH, level, level);
+            if (SX_ERR(status)) {
+                MLNX_SAI_LOG_ERR("Set issu log verbosity failed - %s.\n", SX_STATUS_MSG(status));
+                return sdk_to_sai(status);
+            }
+        }
+
+        return sdk_to_sai(sx_api_topo_log_verbosity_level_set(gh_sdk, SX_LOG_VERBOSITY_BOTH, level, level));
+    } else {
+        return SAI_STATUS_SUCCESS;
+    }
 }
 
 static sai_status_t mlnx_switch_total_pool_buffer_size_get(_In_ const sai_object_key_t   *key,

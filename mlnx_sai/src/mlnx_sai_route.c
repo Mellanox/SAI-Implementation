@@ -132,6 +132,9 @@ static sai_status_t mlnx_fill_route_data(sx_uc_route_data_t      *route_data,
             return status;
         }
 
+        route_data->type                   = SX_UC_ROUTE_TYPE_NEXT_HOP;
+        route_data->uc_route_param.ecmp_id = sdk_ecmp_id;
+
         /* ECMP container should contains exactly 1 next hop */
         sdk_next_hop_cnt = 1;
         memset(&sdk_next_hop, 0, sizeof(sdk_next_hop));
@@ -144,28 +147,6 @@ static sai_status_t mlnx_fill_route_data(sx_uc_route_data_t      *route_data,
             SX_LOG_ERR("Invalid next hop object\n");
             return SAI_STATUS_INVALID_ATTR_VALUE_0 + next_hop_param_index;
         }
-        route_data->type = SX_UC_ROUTE_TYPE_NEXT_HOP;
-        if (SX_NEXT_HOP_TYPE_TUNNEL_ENCAP == sdk_next_hop.next_hop_key.type) {
-            route_data->next_hop_cnt           = 0;
-            route_data->uc_route_param.ecmp_id = sdk_ecmp_id;
-        } else {
-            route_data->next_hop_cnt           = sdk_next_hop_cnt;
-            route_data->uc_route_param.ecmp_id = SX_ROUTER_ECMP_ID_INVALID;
-        }
-        route_data->next_hop_list_p[0].version =
-            sdk_next_hop.next_hop_key.next_hop_key_entry.ip_next_hop.address.version;
-
-        if (SX_IP_VERSION_IPV4 == route_data->next_hop_list_p[0].version) {
-            route_data->next_hop_list_p[0].addr.ipv4 =
-                sdk_next_hop.next_hop_key.next_hop_key_entry.ip_next_hop.address.addr.ipv4;
-        } else if (SX_IP_VERSION_IPV6 == route_data->next_hop_list_p[0].version) {
-            memcpy(&route_data->next_hop_list_p[0].addr.ipv6.s6_addr32,
-                   sdk_next_hop.next_hop_key.next_hop_key_entry.ip_next_hop.address.addr.ipv6.s6_addr32,
-                   sizeof(route_data->next_hop_list_p[0].addr.ipv6.s6_addr32));
-        } else {
-            SX_LOG_ERR("Get next hop with incorrect version - %d.\n", route_data->next_hop_list_p[0].version);
-            return SAI_STATUS_INVALID_PARAMETER;
-        }
     } else if (SAI_OBJECT_TYPE_NEXT_HOP_GROUP == sai_object_type_query(oid)) {
         if (SAI_STATUS_SUCCESS !=
             (status = mlnx_object_to_type(oid, SAI_OBJECT_TYPE_NEXT_HOP_GROUP, &sdk_ecmp_id, NULL))) {
@@ -173,7 +154,6 @@ static sai_status_t mlnx_fill_route_data(sx_uc_route_data_t      *route_data,
         }
 
         route_data->type                   = SX_UC_ROUTE_TYPE_NEXT_HOP;
-        route_data->next_hop_cnt           = 0;
         route_data->uc_route_param.ecmp_id = sdk_ecmp_id;
     } else if (SAI_OBJECT_TYPE_ROUTER_INTERFACE == sai_object_type_query(oid)) {
         if (SAI_STATUS_SUCCESS !=
@@ -198,7 +178,6 @@ static sai_status_t mlnx_fill_route_data(sx_uc_route_data_t      *route_data,
         if (SX_ROUTER_ACTION_TRAP != route_data->action) {
             route_data->action = SX_ROUTER_ACTION_DROP;
         }
-        route_data->next_hop_cnt           = 0;
         route_data->uc_route_param.ecmp_id = SX_ROUTER_ECMP_ID_INVALID;
     } else {
         SX_LOG_ERR("Invalid next hop object type - %s\n", SAI_TYPE_STR(sai_object_type_query(oid)));
@@ -546,20 +525,15 @@ static sai_status_t mlnx_route_next_hop_id_get(_In_ const sai_object_key_t   *ke
             return status;
         }
     } else if (SX_UC_ROUTE_TYPE_NEXT_HOP == route_get_entry.route_data.type) {
-        if ((0 == route_get_entry.route_data.next_hop_cnt) &&
-            (SX_ROUTER_ECMP_ID_INVALID != route_get_entry.route_data.uc_route_param.ecmp_id)) {
+        if (SX_ROUTER_ECMP_ID_INVALID != route_get_entry.route_data.uc_route_param.ecmp_id) {
             if (SAI_STATUS_SUCCESS != (status = mlnx_create_object(SAI_OBJECT_TYPE_NEXT_HOP_GROUP,
                                                                    route_get_entry.route_data.uc_route_param.ecmp_id,
                                                                    NULL,
                                                                    &value->oid))) {
                 return status;
             }
-        } else if (0 == route_get_entry.route_data.next_hop_cnt) {
+        } else {
             value->oid = SAI_NULL_OBJECT_ID;
-        }
-        /* TODO : implement next hop to ECMP container lookup */
-        else {
-            return SAI_STATUS_NOT_IMPLEMENTED;
         }
     } else if (SX_UC_ROUTE_TYPE_IP2ME == route_get_entry.route_data.type) {
         if (SAI_STATUS_SUCCESS != (status = mlnx_create_object(SAI_OBJECT_TYPE_PORT, CPU_PORT, NULL, &value->oid))) {

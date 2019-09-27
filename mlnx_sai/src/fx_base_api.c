@@ -38,6 +38,7 @@
 #include <syslog.h>
 
 #include <complib/sx_log.h>
+#include <resource_manager/resource_manager.h>
 
 /////////////////////////////
 // defines
@@ -55,6 +56,11 @@ typedef u_int8_t uint8_t;
 #define MAX_LOG_PORT_INDEX 64
 const uint32_t ENDIAN_INT = 1;
 #define is_bigendian() ( (*(char*)&ENDIAN_INT ) == 0 )
+
+#define MAX_TABLE_KEYS 10
+#define MAX_TABLE_SIZE 3072
+
+#define MAX_RIFS RM_API_ROUTER_RIFS_MAX
 
 #undef  __MODULE__
 #define __MODULE__ FXAPI
@@ -76,9 +82,9 @@ typedef struct acl_table {
     sx_acl_id_t             acl_id;
     sx_acl_id_t             group_id;
     sx_acl_key_type_t       key_handle;
-    sx_acl_key_t            *key_list;
+    sx_acl_key_t            key_list[MAX_TABLE_KEYS];
     uint32_t                key_count; 
-    sx_flow_counter_id_t*   rule_counters;
+    sx_flow_counter_id_t    rule_counters[MAX_TABLE_SIZE];
     fx_bitmap_t             valid_offsets;
     sx_acl_rule_offset_t    default_entry_offset;
     char                    table_name[MAX_TABLE_NAME_LEN];
@@ -96,9 +102,10 @@ typedef struct fx_custom_params {
     sx_acl_custom_bytes_set_attributes_t  attr;
 }fx_custom_params;
 
+static sx_api_handle_t g_sdk_handle = SX_API_INVALID_HANDLE;
+
 //fx_handle_t is just a pointer to fx_handle
 typedef struct fx_handle {
-    sx_api_handle_t      sdk_handle;
     sx_port_log_id_t     log_port_list[MAX_LOG_PORTS+1];
     uint32_t             label_port_list[MAX_LOG_PORTS+1];
     uint32_t             index_port_list[MAX_LOG_PORT_INDEX+1];
@@ -121,7 +128,14 @@ typedef struct fx_handle {
     sx_acl_id_t*         post_pipe_id_list[FX_PIPE_TYPE_MAX];          /* application supplied flex acl */
     uint32_t             post_pipe_id_count[FX_PIPE_TYPE_MAX];
 
+    rif_handle_type      control_in_rif_bind_list[MAX_RIFS];
+    uint32_t             control_in_rif_bind_list_cnt;
+    rif_handle_type      control_out_rif_bind_list[MAX_RIFS];
+    uint32_t             control_out_rif_bind_list_cnt;
+
 }fx_handle;
+
+static fx_memory_manager_t fx_mm = {.alloc = malloc, .free = free};
 
 /* per table function implemntatons declerations */
 typedef sx_status_t fx_table_x_entry_add (fx_handle_t handle,
@@ -189,14 +203,30 @@ sx_status_t fx_log_set(sx_verbosity_level_t severity)
 
 /* Open spectrum SDK */
 sx_status_t
-fx_init(fx_handle_t *handle)
+fx_init(fx_handle_t *handle, fx_init_params_t *init_params)
 {
-    *handle = malloc(sizeof (fx_handle));
+    sx_log_cb_t log_cb = NULL;
+
+    if (init_params) {
+        if ((init_params->memory_manager.alloc == NULL) ^ (init_params->memory_manager.free == NULL)) {
+            SYSLOGF(SX_LOG_ERROR, "Invalid init params for memory manager - should be both NULL or both valid\n");
+            return SX_STATUS_PARAM_ERROR;
+        }
+
+        if (init_params->memory_manager.alloc) {
+            memcpy(&fx_mm, &init_params->memory_manager, sizeof(fx_mm));
+        }
+
+        log_cb = init_params->log_cb;
+    }
+
+    *handle = fx_mm.alloc(sizeof (fx_handle));
+
     if(*handle==NULL){ return SX_STATUS_NO_MEMORY;}
     memset(*handle, 0, sizeof (fx_handle));
 
     SYSLOGF(SX_LOG_NOTICE, "FLEX-BASE: init_flex_api Opening SDK\n");
-    sx_status_t rc = sx_api_open(NULL, &(*handle)->sdk_handle);
+    sx_status_t rc = sx_api_open(log_cb, &g_sdk_handle);
     if (rc) { 
       SYSLOGF(SX_LOG_ERROR, "ERROR: SDK API sx_api_open failed: [%s]\n", SX_STATUS_MSG(rc));
       return rc;
@@ -206,24 +236,47 @@ fx_init(fx_handle_t *handle)
 /* Close spectrum SDK */
 sx_status_t fx_deinit(fx_handle_t handle) {
     SYSLOGF(SX_LOG_NOTICE, "FLEX-BASE: deinit_flex_api Closing SDK\n");
-    sx_status_t rc = sx_api_close(&handle->sdk_handle);
-    memset(handle, 0, sizeof(fx_handle));
-    free(handle);
+    sx_status_t rc = sx_api_close(&g_sdk_handle);
+    //memset(handle, 0, sizeof(fx_handle));
+    fx_mm.free(handle);
     return rc;
 }
 
+sx_status_t fx_connect(fx_handle_t handle, sx_log_cb_t log_cb) {
+    SYSLOGF(SX_LOG_NOTICE, "FLEX-BASE: init_flex_api Opening SDK\n");
+    sx_status_t rc = sx_api_open(log_cb, &g_sdk_handle);
+    if (rc) {
+        SYSLOGF(SX_LOG_ERROR, "ERROR: SDK API sx_api_open failed: [%s]\n", SX_STATUS_MSG(rc));
+        return rc;
+    }
+
+    return SX_STATUS_SUCCESS;
+}
+
+sx_status_t fx_disconnect(fx_handle_t handle)
+{
+    SYSLOGF(SX_LOG_NOTICE, "FLEX-BASE: deinit_flex_api Closing SDK\n");
+    sx_status_t rc = sx_api_close(&g_sdk_handle);
+    if (rc) {
+        SYSLOGF(SX_LOG_ERROR, "ERROR: SDK API sx_api_close failed: [%s]\n", SX_STATUS_MSG(rc));
+        return rc;
+    }
+
+    return SX_STATUS_SUCCESS;
+}
+
 sx_status_t fx_extern_init(fx_handle_t handle) {
-     return SX_STATUS_SUCCESS;
+    return SX_STATUS_SUCCESS;
 }
 
 sx_status_t fx_extern_deinit(fx_handle_t handle) {
-     return SX_STATUS_SUCCESS;
+    return SX_STATUS_SUCCESS;
 }
 
 sx_status_t fx_sdk_handle_get(fx_handle_t handle, sx_api_handle_t *sdk_handle) {
     sx_status_t rc;
-    if (handle != NULL && sdk_handle != NULL && handle->sdk_handle != SX_API_INVALID_HANDLE) {
-        *sdk_handle = handle->sdk_handle;
+    if (handle != NULL && sdk_handle != NULL && g_sdk_handle != SX_API_INVALID_HANDLE) {
+        *sdk_handle = g_sdk_handle;
         rc = SX_STATUS_SUCCESS;
     }
     else {
@@ -239,7 +292,7 @@ create_acl_p4_key(fx_handle_t handle, struct acl_table * acl_table, struct fx_cu
     sx_status_t rc;
     if (custom && custom->is_cb) {
         /* P4C statically decides if the ACL key needs custom bytes */
-        rc = sx_api_acl_custom_bytes_set(handle->sdk_handle,SX_ACCESS_CMD_CREATE,
+        rc = sx_api_acl_custom_bytes_set(g_sdk_handle,SX_ACCESS_CMD_CREATE,
                                                 &custom->attr,
                                                 &acl_table->key_list[custom->cb_key_index_start],
                                                 &custom->cb_key_list_size);
@@ -256,7 +309,7 @@ create_acl_p4_key(fx_handle_t handle, struct acl_table * acl_table, struct fx_cu
     }
 
     rc = sx_api_acl_flex_key_set(
-            handle->sdk_handle,
+            g_sdk_handle,
             SX_ACCESS_CMD_CREATE,
             acl_table->key_list,
             acl_table->key_count,
@@ -285,7 +338,7 @@ create_acl_p4_key(fx_handle_t handle, struct acl_table * acl_table, struct fx_cu
 /* Create ACL region */
 sx_status_t create_acl_table(fx_handle_t handle,struct acl_table * acl_table)
 {
-    sx_status_t rc = sx_api_acl_region_set(handle->sdk_handle,
+    sx_status_t rc = sx_api_acl_region_set(g_sdk_handle,
             SX_ACCESS_CMD_CREATE,
             acl_table->key_handle,
             SX_ACL_ACTION_TYPE_BASIC,
@@ -309,7 +362,7 @@ sx_status_t create_acl_table(fx_handle_t handle,struct acl_table * acl_table)
             }
     };
 
-    rc = sx_api_acl_set(handle->sdk_handle,
+    rc = sx_api_acl_set(g_sdk_handle,
             SX_ACCESS_CMD_CREATE,
             acl_type,
             acl_table->pipe_line,//SX_ACL_DIRECTION_INGRESS,
@@ -320,7 +373,7 @@ sx_status_t create_acl_table(fx_handle_t handle,struct acl_table * acl_table)
         return rc;
     }
     // TODO remove counters after verification
-    acl_table->rule_counters = (sx_flow_counter_id_t*) malloc(sizeof(sx_flow_counter_id_t)*acl_table->table_size);
+//    acl_table->rule_counters = (sx_flow_counter_id_t*) malloc(sizeof(sx_flow_counter_id_t)*acl_table->table_size);
 
     alloc_bitmap(&acl_table->valid_offsets, acl_table->table_size);
 
@@ -330,7 +383,7 @@ sx_status_t create_acl_table(fx_handle_t handle,struct acl_table * acl_table)
 
 /* Create and set ACL Group */
 sx_status_t assign_tables_to_group(fx_handle_t handle,sx_acl_direction_t direction, sx_acl_id_t* pipe_id_list, uint32_t pipe_table_num , sx_acl_id_t* pipe_group_id){
-  sx_status_t rc = sx_api_acl_group_set(handle->sdk_handle,
+  sx_status_t rc = sx_api_acl_group_set(g_sdk_handle,
                                         SX_ACCESS_CMD_CREATE,
                                         direction,
                                         pipe_id_list, // ignored upon create
@@ -341,7 +394,7 @@ sx_status_t assign_tables_to_group(fx_handle_t handle,sx_acl_direction_t directi
       return rc;
   }
   SYSLOGF(SX_LOG_DEBUG, "SDK API: created pipe Group Id: %#x \n", *pipe_group_id);
-  rc = sx_api_acl_group_set(handle->sdk_handle,
+  rc = sx_api_acl_group_set(g_sdk_handle,
                                    SX_ACCESS_CMD_SET,
                                    direction,
                                    pipe_id_list,
@@ -361,7 +414,7 @@ fx_get_bindable_port_list(fx_handle_t handle, sx_port_log_id_t *if_list, uint32_
 {
   sx_status_t rc;
   if (*if_list_cnt == 0) {
-    rc = sx_api_port_device_get(handle->sdk_handle, DEV_ID, 0, NULL, if_list_cnt);
+    rc = sx_api_port_device_get(g_sdk_handle, DEV_ID, 0, NULL, if_list_cnt);
     if (rc)
     {
       SYSLOGF(SX_LOG_ERROR, "ERROR: SDK API sx_api_port_device_get failed: [%s]\n", SX_STATUS_MSG(rc));
@@ -372,7 +425,7 @@ fx_get_bindable_port_list(fx_handle_t handle, sx_port_log_id_t *if_list, uint32_
   *if_list_cnt = 0;
   sx_port_attributes_t port_list[PORT_NUM];
   uint32_t num_of_ports = PORT_NUM;
-  rc = sx_api_port_device_get(handle->sdk_handle, DEV_ID, 0, port_list, &num_of_ports);
+  rc = sx_api_port_device_get(g_sdk_handle, DEV_ID, 0, port_list, &num_of_ports);
   if (rc)
   {
     SYSLOGF(SX_LOG_ERROR, "ERROR: SDK API sx_api_port_device_get failed: [%s]\n", SX_STATUS_MSG(rc));
@@ -402,7 +455,7 @@ sx_status_t fx_get_bindable_rif_list(fx_handle_t handle, sx_router_interface_t *
   uint32_t              curr_rif_cnt = 0;
   uint32_t              curr_rif_idx = 0;
 
-  sx_status_t rc = sx_api_router_interface_iter_get(handle->sdk_handle, SX_ACCESS_CMD_GET, 0, 0, if_list, if_list_cnt);
+  sx_status_t rc = sx_api_router_interface_iter_get(g_sdk_handle, SX_ACCESS_CMD_GET, 0, 0, if_list, if_list_cnt);
   if (rc != SX_STATUS_SUCCESS)
   {
     SYSLOGF(SX_LOG_ERROR, "ERROR: SDK API sx_api_router_interface_iter_get failed: [%s]\n", SX_STATUS_MSG(rc));
@@ -414,7 +467,7 @@ sx_status_t fx_get_bindable_rif_list(fx_handle_t handle, sx_router_interface_t *
     return SX_STATUS_SUCCESS;
   }
   curr_rif_cnt = SX_RIF_ARRAY_SIZE;
-  rc = sx_api_router_interface_iter_get(handle->sdk_handle, SX_ACCESS_CMD_GET_FIRST, 0, 0, if_list, &curr_rif_cnt);
+  rc = sx_api_router_interface_iter_get(g_sdk_handle, SX_ACCESS_CMD_GET_FIRST, 0, 0, if_list, &curr_rif_cnt);
   if (rc != SX_STATUS_SUCCESS)
   {
     SYSLOGF(SX_LOG_ERROR, "ERROR: SDK API sx_api_router_interface_iter_get failed: [%s]\n", SX_STATUS_MSG(rc));
@@ -422,7 +475,7 @@ sx_status_t fx_get_bindable_rif_list(fx_handle_t handle, sx_router_interface_t *
   }
   while (curr_rif_cnt > 0) {
     curr_rif_idx += curr_rif_cnt;
-    rc = sx_api_router_interface_iter_get(handle->sdk_handle, SX_ACCESS_CMD_GETNEXT, &(if_list[curr_rif_idx-1]), 0,
+    rc = sx_api_router_interface_iter_get(g_sdk_handle, SX_ACCESS_CMD_GETNEXT, &(if_list[curr_rif_idx-1]), 0,
                                           &(if_list[curr_rif_idx]), &curr_rif_cnt);
     if (rc != SX_STATUS_SUCCESS) {
       SYSLOGF(SX_LOG_ERROR, "Error: Iteration #%d SDK API sx_api_router_interface_iter_get with curr rif %d failed: [%s]\n",
@@ -454,7 +507,7 @@ port_bind(fx_handle_t handle, const sx_acl_id_t group_id,boolean_t bind, sx_port
   sx_access_cmd_t bind_cmd = bind ? SX_ACCESS_CMD_BIND : SX_ACCESS_CMD_UNBIND;
   for(uint32_t i=0;i<if_list_cnt;i++) {
     SYSLOGF(SX_LOG_DEBUG, "0x%x, ",if_list[i]);
-    sx_status_t rc = sx_api_acl_port_bind_set(handle->sdk_handle,
+    sx_status_t rc = sx_api_acl_port_bind_set(g_sdk_handle,
                                             bind_cmd,
                                             if_list[i],
                                             group_id);
@@ -476,7 +529,7 @@ rif_bind(fx_handle_t handle, const sx_acl_id_t group_id,boolean_t bind, sx_route
   SYSLOGF(SX_LOG_DEBUG, "%s P4 flex pipe to rif ids: ", bind ? "Binding" : "Unbinding");
   for(uint32_t i=0;i<if_list_cnt;i++) {
     SYSLOGF(SX_LOG_DEBUG, "%x, ",if_list[i]);
-    rc = sx_api_acl_rif_bind_set (handle->sdk_handle,
+    rc = sx_api_acl_rif_bind_set (g_sdk_handle,
                                   bind_cmd,
                                   if_list[i],
                                   group_id 
@@ -494,7 +547,7 @@ rif_bind(fx_handle_t handle, const sx_acl_id_t group_id,boolean_t bind, sx_route
 
 sx_status_t
 delete_acl_group(fx_handle_t handle,sx_acl_direction_t direction, sx_acl_id_t* pipe_group_id){
-    sx_status_t rc = sx_api_acl_group_set(handle->sdk_handle,
+    sx_status_t rc = sx_api_acl_group_set(g_sdk_handle,
                                      SX_ACCESS_CMD_DESTROY,
                                      direction,
                                      NULL, // ignored
@@ -515,9 +568,9 @@ int delete_acl(fx_handle_t handle,struct acl_table *acl_table)
   sx_status_t           rc1 = SX_STATUS_SUCCESS;
   sx_status_t           rc2 = SX_STATUS_SUCCESS;
   free_bitmap(acl_table->valid_offsets);
-  acl_table->valid_offsets = 0;
-  free(acl_table->rule_counters);
-  acl_table->rule_counters = 0;
+//  acl_table->valid_offsets = 0;
+//  free(acl_table->rule_counters);
+//  acl_table->rule_counters = 0;
   sx_acl_region_group_t acl_region_group = {
               .acl_type = SX_ACL_TYPE_PACKET_TYPES_AGNOSTIC,
               .regions = {
@@ -526,7 +579,7 @@ int delete_acl(fx_handle_t handle,struct acl_table *acl_table)
                   }
               }
           };
-  rc1=sx_api_acl_set(handle->sdk_handle,
+  rc1=sx_api_acl_set(g_sdk_handle,
               SX_ACCESS_CMD_DESTROY,
                   SX_ACL_TYPE_PACKET_TYPES_AGNOSTIC,
                   SX_ACL_DIRECTION_INGRESS,
@@ -536,7 +589,7 @@ int delete_acl(fx_handle_t handle,struct acl_table *acl_table)
     SYSLOGF(SX_LOG_ERROR, "ERROR %s: failed to delete P4 Table: %s \n",SX_STATUS_MSG(rc1), acl_table->table_name);
   }
 
-  rc2=sx_api_acl_region_set(handle->sdk_handle,
+  rc2=sx_api_acl_region_set(g_sdk_handle,
        SX_ACCESS_CMD_DESTROY,
             acl_table->key_handle,
             SX_ACL_ACTION_TYPE_BASIC,
@@ -550,27 +603,27 @@ int delete_acl(fx_handle_t handle,struct acl_table *acl_table)
 
 int remove_table_entry(fx_handle_t handle, struct acl_table *acl_table, sx_acl_rule_offset_t offset) {
     sx_status_t rc1 = SX_STATUS_SUCCESS;
-    rc1 = sx_api_acl_flex_rules_set(handle->sdk_handle, SX_ACCESS_CMD_DELETE, acl_table->region_id, &offset, NULL, 1);
+    rc1 = sx_api_acl_flex_rules_set(g_sdk_handle, SX_ACCESS_CMD_DELETE, acl_table->region_id, &offset, NULL, 1);
     if (rc1) {
         SYSLOGF(SX_LOG_ERROR, "ERROR: failed to remove rule at offset %d: [%s]\n", offset, SX_STATUS_MSG(rc1));
     }
     sx_status_t rc2 = SX_STATUS_SUCCESS;
-    if (0 != acl_table->rule_counters) {
-        rc2 = sx_api_flow_counter_clear_set(handle->sdk_handle, acl_table->rule_counters[offset]);
+    if (SX_FLOW_COUNTER_ID_INVALID != acl_table->rule_counters[offset]) {
+        rc2 = sx_api_flow_counter_clear_set(g_sdk_handle, acl_table->rule_counters[offset]);
     }
     if(rc2){
       SYSLOGF(SX_LOG_ERROR, "ERROR: failed to clear counter at offset %d, [%s]\n", offset, SX_STATUS_MSG(rc2));
     }
-    if (0 != acl_table->valid_offsets) {
-        reset_bitmap(acl_table->valid_offsets, offset);
-    }
+
+    reset_bitmap(acl_table->valid_offsets, offset);
+
     return rc1 ? rc1 : rc2;
 }
 
 void delete_all_rules(fx_handle_t handle, struct acl_table *acl_table) {
     SYSLOGF(SX_LOG_DEBUG, "Deleting all rules in table %s\n", acl_table->table_name);
     for (uint32_t i=0; i<acl_table->table_size; i++) {
-        if (0 != acl_table->valid_offsets && get_bitmap(acl_table->valid_offsets, i) == 1) {
+        if (get_bitmap(acl_table->valid_offsets, i) == 1) {
             remove_table_entry(handle, acl_table, i);
         }
     }
@@ -580,7 +633,7 @@ sx_status_t
 delete_p4_key(fx_handle_t handle, struct acl_table *acl_table, struct fx_custom_params *custom)
 {
   SYSLOGF(SX_LOG_DEBUG, "delete P4 key\n");
-  sx_status_t rc1 = sx_api_acl_flex_key_set(handle->sdk_handle,
+  sx_status_t rc1 = sx_api_acl_flex_key_set(g_sdk_handle,
                SX_ACCESS_CMD_DELETE,
                acl_table->key_list,
                acl_table->key_count,
@@ -592,7 +645,7 @@ delete_p4_key(fx_handle_t handle, struct acl_table *acl_table, struct fx_custom_
   sx_status_t rc2 = SX_STATUS_SUCCESS;
   if (custom && custom->is_cb) {
       /* P4C statically decides if the ACL key needs custom bytes */
-      rc2 = sx_api_acl_custom_bytes_set(handle->sdk_handle,SX_ACCESS_CMD_DESTROY,
+      rc2 = sx_api_acl_custom_bytes_set(g_sdk_handle,SX_ACCESS_CMD_DESTROY,
                                               &custom->attr,
                                               &acl_table->key_list[custom->cb_key_index_start],
                                               &custom->cb_key_list_size);
@@ -609,7 +662,7 @@ alloc_rule_counters(fx_handle_t handle, struct acl_table *acl_table) {
   sx_status_t           rc = SX_STATUS_SUCCESS;
   SYSLOGF(SX_LOG_DEBUG, "Allocating rule counters\n");
   for(uint32_t i=0;i<acl_table->table_size;i++)  {
-    rc=sx_api_flow_counter_set(handle->sdk_handle,SX_ACCESS_CMD_CREATE,
+    rc=sx_api_flow_counter_set(g_sdk_handle,SX_ACCESS_CMD_CREATE,
       SX_FLOW_COUNTER_TYPE_PACKETS_AND_BYTES,&acl_table->rule_counters[i]);
     if(rc){
       SYSLOGF(SX_LOG_ERROR, "ERROR: failed to allocate rule flow counter %d, [%s]\n", i,SX_STATUS_MSG(rc));
@@ -623,7 +676,7 @@ void delete_rule_counters(fx_handle_t handle, struct acl_table *acl_table) {
   sx_status_t           rc = SX_STATUS_SUCCESS;
   SYSLOGF(SX_LOG_DEBUG, "Deleting rule counters\n");
   for(uint32_t i=0;i<acl_table->table_size;i++)  {
-    rc=sx_api_flow_counter_set(handle->sdk_handle,SX_ACCESS_CMD_DESTROY,
+    rc=sx_api_flow_counter_set(g_sdk_handle,SX_ACCESS_CMD_DESTROY,
         SX_FLOW_COUNTER_TYPE_PACKETS_AND_BYTES,&acl_table->rule_counters[i]);
     if(rc) {
       SYSLOGF(SX_LOG_ERROR, "ERROR: fail to  delete flow counter %d, [%s]\n", i, SX_STATUS_MSG(rc));
@@ -687,11 +740,11 @@ sx_status_t fx_table_rule_counters_print_all(fx_handle_t handle, fx_table_id_t t
   sx_flow_counter_set_t  counter;
   sx_acl_rule_offset_t offsets[table->table_size];
   uint32_t rules_cnt = 0;
-  sx_api_acl_flex_rules_get(handle->sdk_handle, table->region_id, offsets, NULL, &rules_cnt);
+  sx_api_acl_flex_rules_get(g_sdk_handle, table->region_id, offsets, NULL, &rules_cnt);
   SYSLOGF(SX_LOG_DEBUG, "Table: %s. %d valid rules. rule counters: \n",table->table_name, rules_cnt);
   for(uint32_t i=0;i<table->table_size;i++){
     if (get_bitmap(table->valid_offsets, i) == 1) {
-      rc=sx_api_flow_counter_get(handle->sdk_handle,SX_ACCESS_CMD_READ,table->rule_counters[i],&counter);
+      rc=sx_api_flow_counter_get(g_sdk_handle,SX_ACCESS_CMD_READ,table->rule_counters[i],&counter);
       if(rc){
           SYSLOGF(SX_LOG_ERROR, "ERROR: rule %d counter is N/A \n", i);
         rc_final = rc;
@@ -713,7 +766,7 @@ sx_status_t fx_table_rule_counters_clear_all(fx_handle_t handle, fx_table_id_t t
   struct acl_table *table = &handle->acl_tables[table_index];
   sx_status_t rc_final = SX_STATUS_SUCCESS;
   for(uint32_t i=0;i<table->table_size;i++){
-      rc= sx_api_flow_counter_clear_set(handle->sdk_handle,table->rule_counters[i]);
+      rc= sx_api_flow_counter_clear_set(g_sdk_handle,table->rule_counters[i]);
       if(rc){
           SYSLOGF(SX_LOG_ERROR, "ERROR: rule %d counter is N/A \n", i);
         rc_final = rc;
@@ -735,7 +788,7 @@ sx_status_t fx_table_rule_counter_read(fx_handle_t handle, fx_table_id_t table_i
     SYSLOGF(SX_LOG_ERROR, "ERROR [fx_table_rule_counters_read]: Got invalid offset %d. table_id %d \n", offset, table_id);
     return SX_STATUS_PARAM_ERROR;
   }
-  rc=sx_api_flow_counter_get(handle->sdk_handle,SX_ACCESS_CMD_READ,table->rule_counters[offset],&counter);
+  rc=sx_api_flow_counter_get(g_sdk_handle,SX_ACCESS_CMD_READ,table->rule_counters[offset],&counter);
   if(rc){
     SYSLOGF(SX_LOG_ERROR, "ERROR %d: rule counter is N/A \n", rc);
     return rc;
@@ -756,7 +809,7 @@ sx_status_t fx_table_rule_counter_clear(fx_handle_t handle, fx_table_id_t table_
     SYSLOGF(SX_LOG_ERROR, "ERROR [fx_table_rule_counter_clear]: Got invalid offset %d. table_id %d \n", offset, table_id);
     return SX_STATUS_PARAM_ERROR;
   }
-  rc= sx_api_flow_counter_clear_set(handle->sdk_handle,table->rule_counters[offset]);
+  rc= sx_api_flow_counter_clear_set(g_sdk_handle,table->rule_counters[offset]);
   if(rc){
     return rc;
   }
@@ -802,7 +855,7 @@ void get_exact_offset_internal(struct acl_table *table, sx_acl_rule_offset_t *of
 
 /* private function to set the acl, for all table types */
 int add_acl_rule_internal(fx_handle_t handle, sx_flex_acl_flex_rule_t* rule, sx_acl_rule_offset_t* rule_offset, struct acl_table *table) {
-    sx_status_t rc=sx_api_acl_flex_rules_set(handle->sdk_handle, SX_ACCESS_CMD_SET,  table->region_id, rule_offset, rule, 1);
+    sx_status_t rc=sx_api_acl_flex_rules_set(g_sdk_handle, SX_ACCESS_CMD_SET,  table->region_id, rule_offset, rule, 1);
   if(rc) {
       // DEBUG
     SYSLOGF(SX_LOG_DEBUG, "offset %d\n", *rule_offset);
@@ -843,7 +896,7 @@ int add_acl_rule_internal(fx_handle_t handle, sx_flex_acl_flex_rule_t* rule, sx_
 sx_status_t init_port_mapping(fx_handle_t handle) {
     // get all the ports
     handle->port_cnt = MAX_LOG_PORTS;
-    sx_status_t rc = sx_api_port_swid_port_list_get(handle->sdk_handle,
+    sx_status_t rc = sx_api_port_swid_port_list_get(g_sdk_handle,
             0,
             &handle->log_port_list[0],
             &handle->port_cnt);
@@ -853,7 +906,7 @@ sx_status_t init_port_mapping(fx_handle_t handle) {
     }
     sx_port_attributes_t* port_attrs = (sx_port_attributes_t*)malloc(sizeof(sx_port_attributes_t)*handle->port_cnt);
     uint32_t pattr = handle->port_cnt;
-    rc = sx_api_port_device_get(handle->sdk_handle, DEV_ID, 0, port_attrs, &pattr);
+    rc = sx_api_port_device_get(g_sdk_handle, DEV_ID, 0, port_attrs, &pattr);
     if (rc) {
         SYSLOGF(SX_LOG_ERROR, "Error retrieving port mapping: %s\n", SX_STATUS_MSG(rc));
         free (port_attrs);
@@ -1061,7 +1114,7 @@ sx_status_t fx_table_entry_get(fx_handle_t handle,
     if (rc) return rc;
 
     uint32_t rule_count = 1;
-    rc = sx_api_acl_flex_rules_get(handle->sdk_handle, table->region_id, &offset, &rule, &rule_count);
+    rc = sx_api_acl_flex_rules_get(g_sdk_handle, table->region_id, &offset, &rule, &rule_count);
     if (rc) goto out;
 
     if (keys->len < rule.key_desc_count) {
@@ -1212,23 +1265,6 @@ out:
     return rc;
 }
 
-sx_status_t fx_table_entry_count_get(fx_handle_t handle, const fx_table_id_t table_id, uint32_t *entry_count)
-{
-    if (!entry_count) return SX_STATUS_PARAM_NULL;
-
-    int table_index;
-    sx_status_t rc = get_table_index_from_id (handle, table_id, &table_index);
-    if (rc) return rc;
-    struct acl_table *table = &handle->acl_tables[table_index];
-    uint32_t    rules_cnt = 0;
-    rc = sx_api_acl_flex_rules_get(handle->sdk_handle, table->region_id, NULL, NULL, &rules_cnt);
-    if (rc) return rc;
-
-    *entry_count = rules_cnt;
-
-    return rc;
-}
-
 /* find the rule that matches the keys, if caller does not know the offset */
 sx_status_t fx_table_entry_offset_find(fx_handle_t handle, const fx_table_id_t table_id, fx_key_list_t keys,
         sx_acl_rule_offset_t* offset) {
@@ -1256,12 +1292,12 @@ sx_status_t fx_table_entry_offset_find(fx_handle_t handle, const fx_table_id_t t
         }
     }
     if (table->range_table==NULL){
-        rc = sx_api_acl_flex_rules_get(handle->sdk_handle, table->region_id, &offsets[0], rules, &rules_count);
+        rc = sx_api_acl_flex_rules_get(g_sdk_handle, table->region_id, &offsets[0], rules, &rules_count);
         if (rc) {
             SYSLOGF(SX_LOG_ERROR, "sx_api_acl_flex_rules_get() failed to find ACL rule: %i\n", rc);
         }
         else if (rules_count > 0) {
-            rc = sx_api_acl_flex_rules_get(handle->sdk_handle, table->region_id, &offsets[0], rules, &rules_count);
+            rc = sx_api_acl_flex_rules_get(g_sdk_handle, table->region_id, &offsets[0], rules, &rules_count);
             rc = SX_STATUS_ENTRY_NOT_FOUND;
             bool found = false;
             for (uint32_t i=0; i<rules_count; i++) {
@@ -1572,22 +1608,24 @@ void fill_custom_bytes_control_in_rif_table_bitmap_classification(struct fx_cust
 }
 
 sx_status_t create_control_in_rif_table_bitmap_classification(fx_handle_t handle, sx_acl_id_t* pipe_id_list, int pipe_ind  ) {
-  const uint32_t size = 128;
+  const uint32_t size = 256;
+  assert(size <= MAX_TABLE_SIZE);
   const uint32_t key_count = 1;
+  assert(key_count <= MAX_TABLE_KEYS);
   const int table_index = 0; // 0 is replaced by macro
   struct acl_table *table = &handle->acl_tables[table_index];
   table->table_id = CONTROL_IN_RIF_TABLE_BITMAP_CLASSIFICATION_ID;
-  table->default_entry_offset= 127;
+  table->default_entry_offset= size-1;
   struct fx_custom_params custom = {false, 0, 0, 0, 0};
   fill_custom_bytes_control_in_rif_table_bitmap_classification(&custom);
   table->table_size = size;
   table->key_count = key_count;
   SYSLOGF(SX_LOG_DEBUG, "create_control_in_rif_table_bitmap_classification. size=%d keys=%d\n", table->table_size, table->key_count);
-  table->key_list = (sx_acl_key_t*) malloc(sizeof(sx_acl_key_t) * table->key_count);
-  if (table->key_list == NULL){
-    SYSLOGF(SX_LOG_ERROR, "ERROR: in create_control_in_rif_table_bitmap_classification No memory to create key list\n");
-    return SX_STATUS_NO_MEMORY;
-  } 
+//  table->key_list = (sx_acl_key_t*) malloc(sizeof(sx_acl_key_t) * table->key_count);
+//  if (table->key_list == NULL){
+//    SYSLOGF(SX_LOG_ERROR, "ERROR: in create_control_in_rif_table_bitmap_classification No memory to create key list\n");
+//    return SX_STATUS_NO_MEMORY;
+//  }
   table->pipe_line = SX_ACL_DIRECTION_RIF_INGRESS; // replaced with pipeline (hook location)
   strncpy(table->table_name, "control_in_rif_table_bitmap_classification", MAX_TABLE_NAME_LEN);
 
@@ -1615,8 +1653,8 @@ sx_status_t delete_control_in_rif_table_bitmap_classification(fx_handle_t handle
   struct fx_custom_params custom = {false, 0, 0, 0, 0};
   fill_custom_bytes_control_in_rif_table_bitmap_classification(&custom);
   sx_status_t rc = delete_p4_table(handle, table, &custom);
-  free(table->key_list);
-  table->key_list = 0;
+//  free(table->key_list);
+//  table->key_list = 0;
   if (rc) {
     return rc;
   }
@@ -1750,22 +1788,24 @@ void fill_custom_bytes_control_in_rif_table_bitmap_router(struct fx_custom_param
 }
 
 sx_status_t create_control_in_rif_table_bitmap_router(fx_handle_t handle, sx_acl_id_t* pipe_id_list, int pipe_ind  ) {
-  const uint32_t size = 512;
+  const uint32_t size = 3072;
+  assert(size <= MAX_TABLE_SIZE);
   const uint32_t key_count = 2;
+  assert(key_count <= MAX_TABLE_KEYS);
   const int table_index = 1; // 1 is replaced by macro
   struct acl_table *table = &handle->acl_tables[table_index];
   table->table_id = CONTROL_IN_RIF_TABLE_BITMAP_ROUTER_ID;
-  table->default_entry_offset= 511;
+  table->default_entry_offset= size-1;
   struct fx_custom_params custom = {false, 0, 0, 0, 0};
   fill_custom_bytes_control_in_rif_table_bitmap_router(&custom);
   table->table_size = size;
   table->key_count = key_count;
   SYSLOGF(SX_LOG_DEBUG, "create_control_in_rif_table_bitmap_router. size=%d keys=%d\n", table->table_size, table->key_count);
-  table->key_list = (sx_acl_key_t*) malloc(sizeof(sx_acl_key_t) * table->key_count);
-  if (table->key_list == NULL){
-    SYSLOGF(SX_LOG_ERROR, "ERROR: in create_control_in_rif_table_bitmap_router No memory to create key list\n");
-    return SX_STATUS_NO_MEMORY;
-  } 
+//  table->key_list = (sx_acl_key_t*) malloc(sizeof(sx_acl_key_t) * table->key_count);
+//  if (table->key_list == NULL){
+//    SYSLOGF(SX_LOG_ERROR, "ERROR: in create_control_in_rif_table_bitmap_router No memory to create key list\n");
+//    return SX_STATUS_NO_MEMORY;
+//  }
   table->pipe_line = SX_ACL_DIRECTION_RIF_INGRESS; // replaced with pipeline (hook location)
   strncpy(table->table_name, "control_in_rif_table_bitmap_router", MAX_TABLE_NAME_LEN);
 
@@ -1794,8 +1834,8 @@ sx_status_t delete_control_in_rif_table_bitmap_router(fx_handle_t handle) {
   struct fx_custom_params custom = {false, 0, 0, 0, 0};
   fill_custom_bytes_control_in_rif_table_bitmap_router(&custom);
   sx_status_t rc = delete_p4_table(handle, table, &custom);
-  free(table->key_list);
-  table->key_list = 0;
+//  free(table->key_list);
+//  table->key_list = 0;
   if (rc) {
     return rc;
   }
@@ -1965,21 +2005,23 @@ void fill_custom_bytes_control_out_rif_table_l3_vxlan(struct fx_custom_params *c
 
 sx_status_t create_control_out_rif_table_l3_vxlan(fx_handle_t handle, sx_acl_id_t* pipe_id_list, int pipe_ind  ) {
   const uint32_t size = 512;
+  assert(size <= MAX_TABLE_SIZE);
   const uint32_t key_count = 1;
+  assert(key_count <= MAX_TABLE_KEYS);
   const int table_index = 2; // 2 is replaced by macro
   struct acl_table *table = &handle->acl_tables[table_index];
   table->table_id = CONTROL_OUT_RIF_TABLE_L3_VXLAN_ID;
-  table->default_entry_offset= 511;
+  table->default_entry_offset= size-1;
   struct fx_custom_params custom = {false, 0, 0, 0, 0};
   fill_custom_bytes_control_out_rif_table_l3_vxlan(&custom);
   table->table_size = size;
   table->key_count = key_count;
   SYSLOGF(SX_LOG_DEBUG, "create_control_out_rif_table_l3_vxlan. size=%d keys=%d\n", table->table_size, table->key_count);
-  table->key_list = (sx_acl_key_t*) malloc(sizeof(sx_acl_key_t) * table->key_count);
-  if (table->key_list == NULL){
-    SYSLOGF(SX_LOG_ERROR, "ERROR: in create_control_out_rif_table_l3_vxlan No memory to create key list\n");
-    return SX_STATUS_NO_MEMORY;
-  } 
+//  table->key_list = (sx_acl_key_t*) malloc(sizeof(sx_acl_key_t) * table->key_count);
+//  if (table->key_list == NULL){
+//    SYSLOGF(SX_LOG_ERROR, "ERROR: in create_control_out_rif_table_l3_vxlan No memory to create key list\n");
+//    return SX_STATUS_NO_MEMORY;
+//  }
   table->pipe_line = SX_ACL_DIRECTION_RIF_EGRESS; // replaced with pipeline (hook location)
   strncpy(table->table_name, "control_out_rif_table_l3_vxlan", MAX_TABLE_NAME_LEN);
 
@@ -2007,8 +2049,8 @@ sx_status_t delete_control_out_rif_table_l3_vxlan(fx_handle_t handle) {
   struct fx_custom_params custom = {false, 0, 0, 0, 0};
   fill_custom_bytes_control_out_rif_table_l3_vxlan(&custom);
   sx_status_t rc = delete_p4_table(handle, table, &custom);
-  free(table->key_list);
-  table->key_list = 0;
+//  free(table->key_list);
+//  table->key_list = 0;
   if (rc) {
     return rc;
   }
@@ -2225,12 +2267,13 @@ sx_status_t rebind_pipe_control_in_port(fx_handle_t handle, void *if_list,uint32
 // if_list type: pptype
 // fx pipe enum: FX_CONTROL_IN_RIF
 
-static rif_handle_type *control_in_rif_bind_list = NULL;
-static uint32_t control_in_rif_bind_list_cnt = 0;
-
 sx_status_t create_pipe_control_in_rif(fx_handle_t handle, void *if_list,uint32_t if_list_cnt){
     //if (if_list == 0 || if_list_cnt ==0) return 0;
 	//  compiler replaces below with N table creates
+    if (if_list_cnt > MAX_RIFS) {
+        SYSLOGF(SX_LOG_ERROR, "%u > MAX_RIFS\n", if_list_cnt);
+        return SX_STATUS_PARAM_EXCEEDS_RANGE;
+    }
 	if (create_control_in_rif_table_bitmap_classification(handle, handle->control_in_rif_id_list,0)){SYSLOGF(SX_LOG_ERROR,"ERROR in creating control_in_rif, pipe table: control_in_rif_table_bitmap_classification\n"); return SX_STATUS_ERROR;}
 	if (create_control_in_rif_table_bitmap_router(handle, handle->control_in_rif_id_list,1)){SYSLOGF(SX_LOG_ERROR,"ERROR in creating control_in_rif, pipe table: control_in_rif_table_bitmap_router\n"); return SX_STATUS_ERROR;}
 	uint32_t acl_id_count = handle->pre_pipe_id_count[FX_CONTROL_IN_RIF] + CONTROL_IN_RIF_TABLE_NUM + handle->post_pipe_id_count[FX_CONTROL_IN_RIF];
@@ -2249,9 +2292,8 @@ sx_status_t create_pipe_control_in_rif(fx_handle_t handle, void *if_list,uint32_
 	// Binding - port
     if (if_list_cnt > 0) {
         rc = rif_bind(handle,handle->control_in_rif_group_id,(boolean_t) true, if_list,if_list_cnt);
-        control_in_rif_bind_list = (rif_handle_type *)malloc(sizeof(rif_handle_type) * if_list_cnt);
-        memcpy(control_in_rif_bind_list, if_list, sizeof(rif_handle_type) * if_list_cnt);
-        control_in_rif_bind_list_cnt = if_list_cnt;
+        memcpy(handle->control_in_rif_bind_list, if_list, sizeof(rif_handle_type) * if_list_cnt);
+        handle->control_in_rif_bind_list_cnt = if_list_cnt;
     }
 	free(acl_id_list);
 	return rc;
@@ -2260,18 +2302,18 @@ sx_status_t create_pipe_control_in_rif(fx_handle_t handle, void *if_list,uint32_
 
 sx_status_t delete_pipe_control_in_rif(fx_handle_t handle){
     //if (control_in_rif_bind_list == 0 || control_in_rif_bind_list_cnt ==0) return 0;
-    if (control_in_rif_bind_list_cnt > 0) {
+    if (handle->control_in_rif_bind_list_cnt > 0) {
         sx_status_t rc1;
-        rc1 = rif_bind(handle, handle->control_in_rif_group_id,(boolean_t) false, control_in_rif_bind_list,control_in_rif_bind_list_cnt);
+        rc1 = rif_bind(handle, handle->control_in_rif_group_id,(boolean_t) false,
+                       handle->control_in_rif_bind_list, handle->control_in_rif_bind_list_cnt);
         if (rc1) {
             SYSLOGF(SX_LOG_ERROR, "ERROR in unbinding control_in_rif group: %s\n", SX_STATUS_MSG(rc1));
             return rc1;
         }
     }
 
-	free(control_in_rif_bind_list);
-	control_in_rif_bind_list = NULL;
-	control_in_rif_bind_list_cnt = 0;
+    memset(handle->control_in_rif_bind_list, 0, sizeof(handle->control_in_rif_bind_list));
+    handle->control_in_rif_bind_list_cnt = 0;
 
 	sx_status_t rc2 = delete_acl_group(handle, SX_ACL_DIRECTION_RIF_INGRESS , &handle->control_in_rif_group_id);
 	if (rc2) {
@@ -2291,22 +2333,24 @@ sx_status_t delete_pipe_control_in_rif(fx_handle_t handle){
 
 sx_status_t rebind_pipe_control_in_rif(fx_handle_t handle, void *if_list,uint32_t if_list_cnt){
 	if (if_list == 0 || if_list_cnt ==0) return 0;
-	sx_status_t rc = rif_bind(handle, handle->control_in_rif_group_id,(boolean_t) false, control_in_rif_bind_list,control_in_rif_bind_list_cnt);
+    sx_status_t rc = rif_bind(handle, handle->control_in_rif_group_id,(boolean_t) false,
+                              handle->control_in_rif_bind_list, handle->control_in_rif_bind_list_cnt);
 	if (rc) {
         SYSLOGF(SX_LOG_ERROR, "ERROR in unbinding control_in_rif group: %s\n", SX_STATUS_MSG(rc));
 		return rc;
-	}
-	free(control_in_rif_bind_list);
-	control_in_rif_bind_list = NULL;
-	control_in_rif_bind_list_cnt = 0;
+    }
+
+    memset(handle->control_in_rif_bind_list, 0, sizeof(handle->control_in_rif_bind_list));
+    handle->control_in_rif_bind_list_cnt = 0;
+
 	rc = rif_bind(handle,handle->control_in_rif_group_id,(boolean_t) true, if_list,if_list_cnt);
 	if (rc) {
         SYSLOGF(SX_LOG_ERROR, "ERROR in binding control_in_rif group: %s\n", SX_STATUS_MSG(rc));
 		return rc;
 	}
-	control_in_rif_bind_list = (rif_handle_type *)malloc(sizeof(rif_handle_type) * if_list_cnt);
-	memcpy(control_in_rif_bind_list, if_list, sizeof(rif_handle_type) * if_list_cnt);
-	control_in_rif_bind_list_cnt = if_list_cnt;
+
+    memcpy(handle->control_in_rif_bind_list, if_list, sizeof(rif_handle_type) * if_list_cnt);
+    handle->control_in_rif_bind_list_cnt = if_list_cnt;
 
 	return rc;
 }
@@ -2316,8 +2360,8 @@ sx_status_t binding_update_pipe_control_in_rif(fx_handle_t handle, void *iface, 
 
     int rif_idx = -1;
     rif_handle_type rif = *(rif_handle_type*)iface;
-    for (uint32_t i = 0; i < control_in_rif_bind_list_cnt; i++) {
-        if (control_in_rif_bind_list[i] == rif) {
+    for (uint32_t i = 0; i < handle->control_in_rif_bind_list_cnt; i++) {
+        if (handle->control_in_rif_bind_list[i] == rif) {
             rif_idx = i;
             break;
         }
@@ -2329,23 +2373,26 @@ sx_status_t binding_update_pipe_control_in_rif(fx_handle_t handle, void *iface, 
             return SX_STATUS_ERROR;
         }
 
-        control_in_rif_bind_list = (rif_handle_type *)realloc(control_in_rif_bind_list,
-                                                              sizeof(rif_handle_type) * (control_in_rif_bind_list_cnt + 1));
-        control_in_rif_bind_list[control_in_rif_bind_list_cnt] = rif;
-        control_in_rif_bind_list_cnt++;
+        if (handle->control_in_rif_bind_list_cnt == MAX_RIFS) {
+            SYSLOGF(SX_LOG_ERROR, "Failed to add rif %d to fx control_in_rif_bind_list - rif list is full\n", rif);
+            return SX_STATUS_ERROR;
+        }
+
+        handle->control_in_rif_bind_list[handle->control_in_rif_bind_list_cnt] = rif;
+        handle->control_in_rif_bind_list_cnt++;
     } else {
         if (rif_idx == -1) {
             SYSLOGF(SX_LOG_ERROR, "Failed to del rif %d to fx control_in_rif_bind_list - rif is not in the list\n", rif);
             return SX_STATUS_ERROR;
         }
 
-        control_in_rif_bind_list[rif_idx] = control_in_rif_bind_list[control_in_rif_bind_list_cnt - 1];
-        control_in_rif_bind_list_cnt--;
+        handle->control_in_rif_bind_list[rif_idx] = handle->control_in_rif_bind_list[handle->control_in_rif_bind_list_cnt - 1];
+        handle->control_in_rif_bind_list_cnt--;
     }
 
     sx_status_t rc = rif_bind(handle, handle->control_in_rif_group_id, is_add, iface, 1);
     if (rc) {
-        SYSLOGF(SX_LOG_ERROR, "ERROR in unbinding control_in_rif group: %s\n", SX_STATUS_MSG(rc));
+        SYSLOGF(SX_LOG_ERROR, "ERROR in bind update control_in_rif group: %s\n", SX_STATUS_MSG(rc));
         return rc;
     }
 
@@ -2362,12 +2409,13 @@ sx_status_t binding_update_pipe_control_in_rif(fx_handle_t handle, void *iface, 
 // if_list type: pptype
 // fx pipe enum: FX_CONTROL_OUT_RIF
 
-static rif_handle_type *control_out_rif_bind_list = NULL;
-static uint32_t control_out_rif_bind_list_cnt = 0;
-
 sx_status_t create_pipe_control_out_rif(fx_handle_t handle, void *if_list,uint32_t if_list_cnt){
     //if (if_list == 0 || if_list_cnt ==0) return 0;
 	//  compiler replaces below with N table creates
+    if (if_list_cnt > MAX_RIFS) {
+        SYSLOGF(SX_LOG_ERROR, "%u > MAX_RIFS\n", if_list_cnt);
+        return SX_STATUS_PARAM_EXCEEDS_RANGE;
+    }
 	if (create_control_out_rif_table_l3_vxlan(handle, handle->control_out_rif_id_list,0)){SYSLOGF(SX_LOG_ERROR,"ERROR in creating control_out_rif, pipe table: control_out_rif_table_l3_vxlan\n"); return SX_STATUS_ERROR;}
 	uint32_t acl_id_count = handle->pre_pipe_id_count[FX_CONTROL_OUT_RIF] + CONTROL_OUT_RIF_TABLE_NUM + handle->post_pipe_id_count[FX_CONTROL_OUT_RIF];
 	sx_acl_id_t* acl_id_list = (sx_acl_id_t*)malloc(sizeof(sx_acl_id_t) * acl_id_count);
@@ -2385,9 +2433,8 @@ sx_status_t create_pipe_control_out_rif(fx_handle_t handle, void *if_list,uint32
 	// Binding - port
     if (if_list_cnt > 0) {
         rc = rif_bind(handle,handle->control_out_rif_group_id,(boolean_t) true, if_list,if_list_cnt);
-        control_out_rif_bind_list = (rif_handle_type *)malloc(sizeof(rif_handle_type) * if_list_cnt);
-        memcpy(control_out_rif_bind_list, if_list, sizeof(rif_handle_type) * if_list_cnt);
-        control_out_rif_bind_list_cnt = if_list_cnt;
+        memcpy(handle->control_out_rif_bind_list, if_list, sizeof(rif_handle_type) * if_list_cnt);
+        handle->control_out_rif_bind_list_cnt = if_list_cnt;
     }
 	free(acl_id_list);
 	return rc;
@@ -2396,18 +2443,18 @@ sx_status_t create_pipe_control_out_rif(fx_handle_t handle, void *if_list,uint32
 
 sx_status_t delete_pipe_control_out_rif(fx_handle_t handle){
     //if (control_out_rif_bind_list == 0 || control_out_rif_bind_list_cnt ==0) return 0;
-    if (control_out_rif_bind_list_cnt > 0) {
+    if (handle->control_out_rif_bind_list_cnt > 0) {
         sx_status_t rc1;
-        rc1 = rif_bind(handle, handle->control_out_rif_group_id,(boolean_t) false, control_out_rif_bind_list,control_out_rif_bind_list_cnt);
+        rc1 = rif_bind(handle, handle->control_out_rif_group_id,(boolean_t) false,
+                       handle->control_out_rif_bind_list, handle->control_out_rif_bind_list_cnt);
         if (rc1) {
             SYSLOGF(SX_LOG_ERROR, "ERROR in unbinding control_out_rif group: %s\n", SX_STATUS_MSG(rc1));
             return rc1;
         }
     }
 
-	free(control_out_rif_bind_list);
-	control_out_rif_bind_list = NULL;
-	control_out_rif_bind_list_cnt = 0;
+    memset(handle->control_out_rif_bind_list, 0, sizeof(handle->control_out_rif_bind_list));
+    handle->control_out_rif_bind_list_cnt = 0;
 
 	sx_status_t rc2 = delete_acl_group(handle, SX_ACL_DIRECTION_RIF_EGRESS , &handle->control_out_rif_group_id);
 	if (rc2) {
@@ -2426,22 +2473,24 @@ sx_status_t delete_pipe_control_out_rif(fx_handle_t handle){
 
 sx_status_t rebind_pipe_control_out_rif(fx_handle_t handle, void *if_list,uint32_t if_list_cnt){
 	if (if_list == 0 || if_list_cnt ==0) return 0;
-	sx_status_t rc = rif_bind(handle, handle->control_out_rif_group_id,(boolean_t) false, control_out_rif_bind_list,control_out_rif_bind_list_cnt);
+    sx_status_t rc = rif_bind(handle, handle->control_out_rif_group_id,(boolean_t) false,
+                              handle->control_out_rif_bind_list, handle->control_out_rif_bind_list_cnt);
 	if (rc) {
         SYSLOGF(SX_LOG_ERROR, "ERROR in unbinding control_out_rif group: %s\n", SX_STATUS_MSG(rc));
 		return rc;
 	}
-	free(control_out_rif_bind_list);
-	control_out_rif_bind_list = NULL;
-	control_out_rif_bind_list_cnt = 0;
+
+    memset(handle->control_out_rif_bind_list, 0, sizeof(handle->control_in_rif_bind_list));
+    handle->control_out_rif_bind_list_cnt = 0;
+
 	rc = rif_bind(handle,handle->control_out_rif_group_id,(boolean_t) true, if_list,if_list_cnt);
 	if (rc) {
         SYSLOGF(SX_LOG_ERROR, "ERROR in binding control_out_rif group: %s\n", SX_STATUS_MSG(rc));
 		return rc;
 	}
-	control_out_rif_bind_list = (rif_handle_type *)malloc(sizeof(rif_handle_type) * if_list_cnt);
-	memcpy(control_out_rif_bind_list, if_list, sizeof(rif_handle_type) * if_list_cnt);
-	control_out_rif_bind_list_cnt = if_list_cnt;
+
+    memcpy(handle->control_out_rif_bind_list, if_list, sizeof(rif_handle_type) * if_list_cnt);
+    handle->control_out_rif_bind_list_cnt = if_list_cnt;
 
 	return rc;
 }
@@ -2451,8 +2500,8 @@ sx_status_t binding_update_pipe_control_out_rif(fx_handle_t handle, void *iface,
 
     int rif_idx = -1;
     rif_handle_type rif = *(rif_handle_type*)iface;
-    for (uint32_t i = 0; i < control_out_rif_bind_list_cnt; i++) {
-        if (control_out_rif_bind_list[i] == rif) {
+    for (uint32_t i = 0; i < handle->control_out_rif_bind_list_cnt; i++) {
+        if (handle->control_out_rif_bind_list[i] == rif) {
             rif_idx = i;
             break;
         }
@@ -2464,23 +2513,26 @@ sx_status_t binding_update_pipe_control_out_rif(fx_handle_t handle, void *iface,
             return SX_STATUS_ERROR;
         }
 
-        control_out_rif_bind_list = (rif_handle_type *)realloc(control_out_rif_bind_list,
-                                                              sizeof(rif_handle_type) * (control_out_rif_bind_list_cnt + 1));
-        control_out_rif_bind_list[control_out_rif_bind_list_cnt] = rif;
-        control_out_rif_bind_list_cnt++;
+        if (handle->control_out_rif_bind_list_cnt == MAX_RIFS) {
+            SYSLOGF(SX_LOG_ERROR, "Failed to add rif %d to fx control_out_rif_bind_list - rif list is full\n", rif);
+            return SX_STATUS_ERROR;
+        }
+
+        handle->control_out_rif_bind_list[handle->control_out_rif_bind_list_cnt] = rif;
+        handle->control_out_rif_bind_list_cnt++;
     } else {
         if (rif_idx == -1) {
             SYSLOGF(SX_LOG_ERROR, "Failed to del rif %d to fx control_in_rif_bind_list - rif is not in the list\n", rif);
             return SX_STATUS_ERROR;
         }
 
-        control_out_rif_bind_list[rif_idx] = control_out_rif_bind_list[control_out_rif_bind_list_cnt - 1];
-        control_out_rif_bind_list_cnt--;
+        handle->control_out_rif_bind_list[rif_idx] = handle->control_out_rif_bind_list[handle->control_out_rif_bind_list_cnt - 1];
+        handle->control_out_rif_bind_list_cnt--;
     }
 
     sx_status_t rc = rif_bind(handle, handle->control_out_rif_group_id, is_add, iface, 1);
     if (rc) {
-        SYSLOGF(SX_LOG_ERROR, "ERROR in unbinding control_out_rif group: %s\n", SX_STATUS_MSG(rc));
+        SYSLOGF(SX_LOG_ERROR, "ERROR in bind update for control_out_rif group: %s\n", SX_STATUS_MSG(rc));
         return rc;
     }
 

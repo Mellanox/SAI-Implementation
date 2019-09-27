@@ -31,6 +31,7 @@
 #include <sx/sdk/sx_api_port.h>
 #include <sx/sdk/sx_api_router.h>
 #include <flextrum_types.h>
+#include <complib/sx_log.h>
  
 #ifdef __cplusplus
 extern "C"{
@@ -40,6 +41,19 @@ extern "C"{
 struct fx_handle;
 /* opaque handle, which internally holds also the sx_api_handle_t */
 typedef struct fx_handle* fx_handle_t;
+
+typedef void* (*fx_alloc_fn)(size_t size);
+typedef void (*fx_free_fn)(void *ptr);
+
+typedef struct fx_memory_manager {
+    fx_alloc_fn alloc;
+    fx_free_fn  free;
+} fx_memory_manager_t;
+
+typedef struct fx_init_params {
+    fx_memory_manager_t memory_manager;
+    sx_log_cb_t         log_cb;
+} fx_init_params_t;
 
 typedef struct _fx_bytearray_t {
     uint8_t *data;
@@ -83,8 +97,10 @@ sx_status_t fx_log_set(sx_verbosity_level_t severity);
  * @return SX_STATUS_NO_MEMORY - Memory allocation failed
  * @return SX_STATUS_ERROR - open SX-API client mutex failed
  */
-sx_status_t fx_init(fx_handle_t *handle);
+sx_status_t fx_init(fx_handle_t *handle, fx_init_params_t *init_params);
 sx_status_t fx_deinit(fx_handle_t handle);
+sx_status_t fx_connect(fx_handle_t handle, sx_log_cb_t log_cb);
+sx_status_t fx_disconnect(fx_handle_t handle);
 sx_status_t fx_extern_init(fx_handle_t handle);
 sx_status_t fx_extern_deinit(fx_handle_t handle);
 
@@ -241,7 +257,6 @@ sx_status_t fx_table_entry_add(fx_handle_t handle, const fx_table_id_t table_id,
 sx_status_t fx_table_entry_remove(fx_handle_t handle, const fx_table_id_t table_id, sx_acl_rule_offset_t offset);
 sx_status_t fx_table_entry_default_set(fx_handle_t handle, const fx_table_id_t table_id, const fx_action_id_t action_id, fx_param_list_t params);
 sx_status_t fx_table_entry_get(fx_handle_t handle, const fx_table_id_t table_id, sx_acl_rule_offset_t offset, fx_action_id_t *action_id, fx_key_list_t *keys, fx_param_list_t *params);
-sx_status_t fx_table_entry_count_get(fx_handle_t handle, const fx_table_id_t table_id, uint32_t *entry_count);
 /**
  * @brief Find a table entry by match key
  *      Supported devices: Spectrum.

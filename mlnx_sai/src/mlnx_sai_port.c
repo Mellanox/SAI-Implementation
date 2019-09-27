@@ -3958,6 +3958,96 @@ static sai_status_t mlnx_get_port_attribute(_In_ sai_object_id_t     port_id,
     return sai_status;
 }
 
+static sai_status_t mlnx_port_single_speed_mode_set(_In_ sx_port_log_id_t sx_port,
+                                                    _In_ bool             enable)
+{
+    sai_status_t        status;
+    mlnx_port_config_t *port;
+
+    status = mlnx_port_by_log_id(sx_port, &port);
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+    SX_LOG_DBG("%s single speed mode on port %x (oper speed cache is %s)\n",
+               enable ? "Enabling" : "Disabling",
+               sx_port,
+               enable ? "enabled" : "disabled");
+
+    port->single_speed_mode = enable;
+    port->oper_speed_cached = 0;
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_port_oper_speed_cached_get(_In_ sx_port_log_id_t  sx_port,
+                                                    _Out_ uint32_t        *oper_speed)
+{
+    sai_status_t        status;
+    uint32_t            admin_speed;
+    mlnx_port_config_t *port;
+
+    assert(oper_speed);
+
+    status = mlnx_port_by_log_id(sx_port, &port);
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+    if (port->single_speed_mode) {
+        if (port->oper_speed_cached == 0) {
+            status = mlnx_port_speed_get_impl(sx_port, &port->oper_speed_cached, &admin_speed);
+            if (SAI_ERR(status)) {
+                return status;
+            }
+
+            SX_LOG_DBG("Refreshed port %x oper speed cache to %u\n", sx_port, port->oper_speed_cached);
+        }
+
+        *oper_speed = port->oper_speed_cached;
+    } else {
+        status = mlnx_port_speed_get_impl(sx_port, oper_speed, &admin_speed);
+        if (SAI_ERR(status)) {
+            return status;
+        }
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+/*
+ * Converting sx duration time in microseconds to quanta units
+ *
+ * quanta size = 512
+ * SAI speed in Mbps
+ * speed in bps = SAI speed * 1000 * 1000
+ * speed in bpus = speed in bps / 1000000 = SAI speed
+ * quanta = speed in bpus * us / 512
+ *
+ */
+static sai_status_t mlnx_port_pause_duration_us_to_quanta(_In_ sx_port_log_id_t  sx_port,
+                                                          _In_ uint64_t          us,
+                                                          _Out_ uint64_t        *quanta)
+{
+    sai_status_t status;
+    uint32_t     oper_speed;
+
+    assert(quanta);
+
+    if (us == 0) {
+        *quanta = 0;
+        return SAI_STATUS_SUCCESS;
+    }
+
+    status = mlnx_port_oper_speed_cached_get(sx_port, &oper_speed);
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+    *quanta = oper_speed * us / 512;
+
+    return SAI_STATUS_SUCCESS;
+}
+
 /**
  * @brief Get port statistics counters extended.
  *
@@ -3985,6 +4075,7 @@ sai_status_t mlnx_get_port_stats_ext(_In_ sai_object_id_t      port_id,
     sx_port_cntr_discard_t        discard_cnts;
     sx_port_cntr_perf_t           perf_cnts;
     uint32_t                      ii, port_data;
+    uint64_t                      sx_pause_duration;
     mlnx_port_config_t           *port;
     sx_port_log_id_t              red_port_id;
     uint32_t                      iter = 0;
@@ -4028,7 +4119,6 @@ sai_status_t mlnx_get_port_stats_ext(_In_ sai_object_id_t      port_id,
         case SAI_PORT_STAT_IF_IN_OCTETS:
         case SAI_PORT_STAT_IF_IN_UCAST_PKTS:
         case SAI_PORT_STAT_IF_IN_NON_UCAST_PKTS:
-        case SAI_PORT_STAT_IF_IN_DISCARDS:
         case SAI_PORT_STAT_IF_IN_ERRORS:
         case SAI_PORT_STAT_IF_IN_UNKNOWN_PROTOS:
         case SAI_PORT_STAT_IF_IN_BROADCAST_PKTS:
@@ -4132,6 +4222,7 @@ sai_status_t mlnx_get_port_stats_ext(_In_ sai_object_id_t      port_id,
             break;
 
         case SAI_PORT_STAT_IF_IN_VLAN_DISCARDS:
+        case SAI_PORT_STAT_IF_IN_DISCARDS:
             discard_cnts_needed = true;
             break;
 
@@ -4263,7 +4354,7 @@ sai_status_t mlnx_get_port_stats_ext(_In_ sai_object_id_t      port_id,
             break;
 
         case SAI_PORT_STAT_IF_IN_DISCARDS:
-            counters[ii] = cnts_2863.if_in_discards;
+            counters[ii] = discard_cnts.ingress_discard_all;
             break;
 
         case SAI_PORT_STAT_IF_IN_ERRORS:
@@ -4467,7 +4558,11 @@ sai_status_t mlnx_get_port_stats_ext(_In_ sai_object_id_t      port_id,
         case SAI_PORT_STAT_PFC_5_RX_PAUSE_DURATION:
         case SAI_PORT_STAT_PFC_6_RX_PAUSE_DURATION:
         case SAI_PORT_STAT_PFC_7_RX_PAUSE_DURATION:
-            counters[ii] = cntr_prio[(counter_ids[ii] - SAI_PORT_STAT_PFC_0_RX_PAUSE_DURATION) / 2].rx_pause_duration;
+            sx_pause_duration = cntr_prio[(counter_ids[ii] - SAI_PORT_STAT_PFC_0_RX_PAUSE_DURATION) / 2].rx_pause_duration;
+            status = mlnx_port_pause_duration_us_to_quanta(port_data, sx_pause_duration, &counters[ii]);
+            if (SAI_ERR(status)) {
+                return status;
+            }
             break;
 
         case SAI_PORT_STAT_PFC_0_TX_PAUSE_DURATION:
@@ -4478,7 +4573,11 @@ sai_status_t mlnx_get_port_stats_ext(_In_ sai_object_id_t      port_id,
         case SAI_PORT_STAT_PFC_5_TX_PAUSE_DURATION:
         case SAI_PORT_STAT_PFC_6_TX_PAUSE_DURATION:
         case SAI_PORT_STAT_PFC_7_TX_PAUSE_DURATION:
-            counters[ii] = cntr_prio[(counter_ids[ii] - SAI_PORT_STAT_PFC_0_TX_PAUSE_DURATION) / 2].tx_pause_duration;
+            sx_pause_duration = cntr_prio[(counter_ids[ii] - SAI_PORT_STAT_PFC_0_TX_PAUSE_DURATION) / 2].tx_pause_duration;
+            status = mlnx_port_pause_duration_us_to_quanta(port_data, sx_pause_duration, &counters[ii]);
+            if (SAI_ERR(status)) {
+                return status;
+            }
             break;
 
         case SAI_PORT_STAT_IF_IN_VLAN_DISCARDS:
@@ -5809,7 +5908,7 @@ static sai_status_t mlnx_port_speed_set_sp(_In_ sx_port_log_id_t sx_port, _In_ u
         return status;
     }
 
-    sx_speed.force = true;
+    //sx_speed.force = true;
 
     sx_status = sx_api_port_speed_admin_set(gh_sdk, sx_port, &sx_speed);
     if (SX_ERR(sx_status)) {
@@ -5937,7 +6036,7 @@ static sai_status_t mlnx_port_speed_set_sp2(_In_ sx_port_log_id_t sx_port, _In_ 
         return status;
     }
 
-    sx_rate_bitmask.force = true;
+    //sx_rate_bitmask.force = true;
 
     sx_status = sx_api_port_rate_set(gh_sdk, sx_port, &sx_rate_bitmask);
     if (SX_ERR(sx_status)) {
@@ -6206,7 +6305,7 @@ static sai_status_t mlnx_port_autoneg_set_sp(_In_ sx_port_log_id_t sx_port, _In_
     }
 
     speed.mode_auto = value;
-    speed.force     = !value;
+    //speed.force     = !value;
 
     sx_status = sx_api_port_speed_admin_set(gh_sdk, sx_port, &speed);
     if (SX_ERR(sx_status)) {
@@ -6254,7 +6353,7 @@ static sai_status_t mlnx_port_autoneg_set_sp2(_In_ sx_port_log_id_t sx_port, _In
     }
 
     sx_admin_rate.rate_auto = value;
-    sx_admin_rate.force     = !value;
+    //sx_admin_rate.force     = !value;
 
     sx_status = sx_api_port_rate_set(gh_sdk, sx_port, &sx_admin_rate);
     if (SX_ERR(sx_status)) {
@@ -6304,7 +6403,7 @@ sai_status_t mlnx_port_cb_table_init(void)
         break;
 
     case SX_CHIP_TYPE_SPECTRUM2:
-        mlnx_port_cb = &mlnx_port_cb_sp;
+        mlnx_port_cb = &mlnx_port_cb_sp2;
         break;
 
     default:
@@ -6317,7 +6416,14 @@ sai_status_t mlnx_port_cb_table_init(void)
 
 static sai_status_t mlnx_port_speed_set_impl(_In_ sx_port_log_id_t sx_port, _In_ uint32_t speed)
 {
+    sai_status_t status;
+
     assert(mlnx_port_cb);
+
+    status = mlnx_port_single_speed_mode_set(sx_port, true);
+    if (SAI_ERR(status)) {
+        return status;
+    }
 
     return mlnx_port_cb->speed_set(sx_port, speed);
 }
@@ -6349,7 +6455,14 @@ static sai_status_t mlnx_port_supported_speeds_get_impl(_In_ sx_port_log_id_t sx
 
 static sai_status_t mlnx_port_autoneg_set_impl(_In_ sx_port_log_id_t sx_port, _In_ bool value)
 {
+    sai_status_t status;
+
     assert(mlnx_port_cb);
+
+    status = mlnx_port_single_speed_mode_set(sx_port, false);
+    if (SAI_ERR(status)) {
+        return status;
+    }
 
     return mlnx_port_cb->autoneg_set(sx_port, value);
 }
@@ -6523,7 +6636,9 @@ sai_status_t mlnx_port_config_init(mlnx_port_config_t *port)
     port->internal_ingress_samplepacket_obj_idx = MLNX_INVALID_SAMPLEPACKET_SESSION;
     port->internal_egress_samplepacket_obj_idx  = MLNX_INVALID_SAMPLEPACKET_SESSION;
 
-    port->is_present = true;
+    port->is_present        = true;
+    port->single_speed_mode = false;
+    port->oper_speed_cached = 0;
 
     if (!mlnx_port_is_virt(port)) {
         /* SDK default trust PCP, SAI default trust port
@@ -6694,7 +6809,9 @@ sai_status_t mlnx_port_config_uninit(mlnx_port_config_t *port)
         }
     }
 
-    port->is_present = false;
+    port->is_present        = false;
+    port->oper_speed_cached = 0;
+    port->single_speed_mode = false;
 
     if (!SAI_ERR(status)) {
         uint32_t                *buff_refs  = NULL;
@@ -7089,9 +7206,9 @@ static sai_status_t mlnx_create_port(_Out_ sai_object_id_t     * port_id,
         goto out_unlock;
     }
 
-    status = mlnx_hash_ecmp_cfg_apply_on_port(new_port->logical);
+    status = mlnx_hash_config_apply_to_port(new_port->logical);
     if (SAI_ERR(status)) {
-        SX_LOG_ERR("Failed to apply ECMP config on port %x\n", new_port->logical);
+        SX_LOG_ERR("Failed to apply hash config on port %x\n", new_port->logical);
         goto out_unlock;
     }
 
@@ -7597,9 +7714,9 @@ sai_status_t mlnx_get_port_pool_stats_ext(_In_ sai_object_id_t      port_pool_id
             }
 
             if (SAI_BUFFER_POOL_TYPE_INGRESS == ext_data[1]) {
-                pool_base_ind = BASE_INGRESS_USER_SX_POOL_ID;
+                pool_base_ind = g_sai_buffer_db_ptr->buffer_pool_ids.base_ingress_user_sx_pool_id;
             } else {
-                pool_base_ind = BASE_EGRESS_USER_SX_POOL_ID;
+                pool_base_ind = g_sai_buffer_db_ptr->buffer_pool_ids.base_egress_user_sx_pool_id;
             }
             buff_ind = port_buff_profile_refs[pool_num - pool_base_ind];
 

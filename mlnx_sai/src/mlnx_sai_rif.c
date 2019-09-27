@@ -1489,30 +1489,22 @@ static sai_status_t mlnx_get_router_interface_stats_ext(_In_ sai_object_id_t    
             break;
 
         case SAI_ROUTER_INTERFACE_STAT_IN_ERROR_OCTETS:
-            counters[ii] = sx_counter_set.router_ingress_bad_unicast_bytes +
-                           sx_counter_set.router_ingress_bad_multicast_bytes +
-                           sx_counter_set.router_ingress_error_bytes +
+            counters[ii] = sx_counter_set.router_ingress_error_bytes +
                            sx_counter_set.router_ingress_discard_bytes;
             break;
 
         case SAI_ROUTER_INTERFACE_STAT_IN_ERROR_PACKETS:
-            counters[ii] = sx_counter_set.router_ingress_bad_unicast_packets +
-                           sx_counter_set.router_ingress_bad_multicast_packets +
-                           sx_counter_set.router_ingress_error_packets +
+            counters[ii] = sx_counter_set.router_ingress_error_packets +
                            sx_counter_set.router_ingress_discard_packets;
             break;
 
         case SAI_ROUTER_INTERFACE_STAT_OUT_ERROR_OCTETS:
-            counters[ii] = sx_counter_set.router_egress_bad_unicast_bytes +
-                           sx_counter_set.router_egress_bad_multicast_bytes +
-                           sx_counter_set.router_egress_error_bytes +
+            counters[ii] = sx_counter_set.router_egress_error_bytes +
                            sx_counter_set.router_egress_discard_bytes;
             break;
 
         case SAI_ROUTER_INTERFACE_STAT_OUT_ERROR_PACKETS:
-            counters[ii] = sx_counter_set.router_egress_bad_unicast_packets +
-                           sx_counter_set.router_egress_bad_multicast_packets +
-                           sx_counter_set.router_egress_error_packets +
+            counters[ii] = sx_counter_set.router_egress_error_packets +
                            sx_counter_set.router_egress_discard_packets;
             break;
 

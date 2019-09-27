@@ -132,6 +132,7 @@ static void SAI_dump_policer_print(_In_ FILE *file, _In_ mlnx_policer_db_entry_t
         {"db idx",             11, PARAM_UINT32_E, &ii},
         {"sx policer id trap", 18, PARAM_UINT64_E, &curr_policers_db.sx_policer_id_trap},
         {"sx policer id acl",  17, PARAM_UINT64_E, &curr_policers_db.sx_policer_id_acl},
+        {"sx policer id mirror", 17, PARAM_UINT64_E, &curr_policers_db.sx_policer_id_mirror},
         {"meter type",         10, PARAM_STRING_E, &meter_str},
         {"cbs",                11, PARAM_UINT32_E, &curr_policers_db.sx_policer_attr.cbs},
         {"ebs",                11, PARAM_UINT32_E, &curr_policers_db.sx_policer_attr.ebs},

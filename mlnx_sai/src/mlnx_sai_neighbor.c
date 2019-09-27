@@ -127,6 +127,7 @@ static sai_status_t mlnx_create_neighbor_entry(_In_ const sai_neighbor_entry_t* 
     char                         list_str[MAX_LIST_VALUE_STR_LEN];
     sx_ip_addr_t                 ipaddr;
     sx_neigh_data_t              neigh_data;
+    sx_router_interface_t        rif;
 
     SX_LOG_ENTER();
 
@@ -151,7 +152,7 @@ static sai_status_t mlnx_create_neighbor_entry(_In_ const sai_neighbor_entry_t* 
     memset(&neigh_data, 0, sizeof(neigh_data));
 
     if (SAI_STATUS_SUCCESS !=
-        (status = mlnx_rif_oid_to_sdk_rif_id(neighbor_entry->rif_id, &neigh_data.rif))) {
+        (status = mlnx_rif_oid_to_sdk_rif_id(neighbor_entry->rif_id, &rif))) {
         SX_LOG_ERR("Fail to get sdk rif id from rif oid %" PRIx64 "\n", neighbor_entry->rif_id);
         SX_LOG_EXIT();
         return status;
@@ -187,8 +188,7 @@ static sai_status_t mlnx_create_neighbor_entry(_In_ const sai_neighbor_entry_t* 
     }
 
     if (SX_STATUS_SUCCESS !=
-        (status = sx_api_router_neigh_set(gh_sdk, SX_ACCESS_CMD_ADD, neigh_data.rif,
-                                          &ipaddr, &neigh_data))) {
+        (status = sx_api_router_neigh_set(gh_sdk, SX_ACCESS_CMD_ADD, rif, &ipaddr, &neigh_data))) {
         SX_LOG_ERR("Failed to create neighbor entry - %s.\n", SX_STATUS_MSG(status));
         return sdk_to_sai(status);
     }
@@ -216,6 +216,7 @@ static sai_status_t mlnx_remove_neighbor_entry(_In_ const sai_neighbor_entry_t* 
     char            key_str[MAX_KEY_STR_LEN];
     sx_ip_addr_t    ipaddr;
     sx_neigh_data_t neigh_data;
+    sx_router_interface_t rif;
 
     SX_LOG_ENTER();
 
@@ -235,7 +236,7 @@ static sai_status_t mlnx_remove_neighbor_entry(_In_ const sai_neighbor_entry_t* 
     }
 
     if (SAI_STATUS_SUCCESS !=
-        (status = mlnx_rif_oid_to_sdk_rif_id(neighbor_entry->rif_id, &neigh_data.rif))) {
+        (status = mlnx_rif_oid_to_sdk_rif_id(neighbor_entry->rif_id, &rif))) {
         SX_LOG_ERR("Fail to get sdk rif id from rif oid %" PRIx64 "\n", neighbor_entry->rif_id);
         SX_LOG_EXIT();
         return status;
@@ -243,7 +244,7 @@ static sai_status_t mlnx_remove_neighbor_entry(_In_ const sai_neighbor_entry_t* 
 
     if (SX_STATUS_SUCCESS !=
         (status =
-             sx_api_router_neigh_set(gh_sdk, SX_ACCESS_CMD_DELETE, neigh_data.rif, &ipaddr, &neigh_data))) {
+             sx_api_router_neigh_set(gh_sdk, SX_ACCESS_CMD_DELETE, rif, &ipaddr, &neigh_data))) {
         SX_LOG_ERR("Failed to remove neighbor entry - %s.\n", SX_STATUS_MSG(status));
         return sdk_to_sai(status);
     }

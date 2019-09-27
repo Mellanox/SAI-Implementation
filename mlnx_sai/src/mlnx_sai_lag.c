@@ -480,9 +480,9 @@ static sai_status_t remove_port_from_lag(sx_port_log_id_t lag_id, sx_port_log_id
         return status;
     }
 
-    sx_status = mlnx_hash_ecmp_cfg_apply_on_port(port_id);
-    if (SX_ERR(sx_status)) {
-        return sdk_to_sai(sx_status);
+    status = mlnx_hash_config_apply_to_port(port_id);
+    if (SAI_ERR(status)) {
+        return status;
     }
 
     sx_status = sx_api_fdb_port_learn_mode_set(gh_sdk, port_id, SX_FDB_LEARN_MODE_AUTO_LEARN);
@@ -948,9 +948,9 @@ static sai_status_t mlnx_create_lag(_Out_ sai_object_id_t     * lag_id,
         goto out;
     }
 
-    status = mlnx_hash_ecmp_cfg_apply_on_port(lag->logical);
+    status = mlnx_hash_config_apply_to_port(lag->logical);
     if (SAI_ERR(status)) {
-        SX_LOG_ERR("Failed to apply ECMP config on LAG port 0x%x\n", lag->logical);
+        SX_LOG_ERR("Failed to apply hash config on LAG port 0x%x\n", lag->logical);
         goto out;
     }
 
