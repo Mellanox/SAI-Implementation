@@ -581,6 +581,14 @@ typedef enum _sai_switch_attr_t
     SAI_SWITCH_ATTR_DEFAULT_STP_INST_ID,
 
     /**
+     * @brief Max number of STP instances that NPU supports
+     *
+     * @type sai_uint32_t
+     * @flags READ_ONLY
+     */
+    SAI_SWITCH_ATTR_MAX_STP_INSTANCE,
+
+    /**
      * @brief Default SAI Virtual Router ID
      *
      * Must return #SAI_STATUS_OBJECT_IN_USE when try to delete this VR ID.
@@ -671,7 +679,7 @@ typedef enum _sai_switch_attr_t
     /**
      * @brief Switch total buffer size in KB
      *
-     * @type sai_uint32_t
+     * @type sai_uint64_t
      * @flags READ_ONLY
      */
     SAI_SWITCH_ATTR_TOTAL_BUFFER_SIZE,
@@ -779,6 +787,30 @@ typedef enum _sai_switch_attr_t
      * @flags READ_ONLY
      */
     SAI_SWITCH_ATTR_AVAILABLE_IPMC_ENTRY,
+
+    /**
+     * @brief Available SNAT entries
+     *
+     * @type sai_uint32_t
+     * @flags READ_ONLY
+     */
+    SAI_SWITCH_ATTR_AVAILABLE_SNAT_ENTRY,
+
+    /**
+     * @brief Available DNAT entries
+     *
+     * @type sai_uint32_t
+     * @flags READ_ONLY
+     */
+    SAI_SWITCH_ATTR_AVAILABLE_DNAT_ENTRY,
+
+    /**
+     * @brief Available Double NAT entries
+     *
+     * @type sai_uint32_t
+     * @flags READ_ONLY
+     */
+    SAI_SWITCH_ATTR_AVAILABLE_DOUBLE_NAT_ENTRY,
 
     /**
      * @brief Available ACL Tables
@@ -1627,6 +1659,22 @@ typedef enum _sai_switch_attr_t
     SAI_SWITCH_ATTR_MAX_BFD_SESSION,
 
     /**
+     * @brief List of BFD session offloads that are supported for IPv4
+     *
+     * @type sai_s32_list_t sai_bfd_session_offload_type_t
+     * @flags READ_ONLY
+     */
+    SAI_SWITCH_ATTR_SUPPORTED_IPV4_BFD_SESSION_OFFLOAD_TYPE,
+
+    /**
+     * @brief List of BFD session offloads that are supported for IPv6
+     *
+     * @type sai_s32_list_t sai_bfd_session_offload_type_t
+     * @flags READ_ONLY
+     */
+    SAI_SWITCH_ATTR_SUPPORTED_IPV6_BFD_SESSION_OFFLOAD_TYPE,
+
+    /**
      * @brief Minimum Receive interval NPU supports in microseconds
      *
      * @type sai_uint32_t
@@ -1718,11 +1766,10 @@ typedef enum _sai_switch_attr_t
      * Bind (or unbind) the TAM object.
      * SAI_NULL_OBJECT_ID in the attribute value.
      *
-     * @type sai_object_id_t
+     * @type sai_object_list_t
      * @flags CREATE_AND_SET
      * @objects SAI_OBJECT_TYPE_TAM
-     * @allownull true
-     * @default SAI_NULL_OBJECT_ID
+     * @default empty
      */
     SAI_SWITCH_ATTR_TAM_OBJECT_ID,
 
@@ -1758,6 +1805,29 @@ typedef enum _sai_switch_attr_t
     SAI_SWITCH_ATTR_PRE_SHUTDOWN,
 
     /**
+     * @brief NAT zone counter bind point
+     *
+     * Bind (or unbind) the NAT zone counter object.
+     * SAI_NULL_OBJECT_ID in the attribute value.
+     *
+     * @type sai_object_id_t
+     * @flags CREATE_AND_SET
+     * @objects SAI_OBJECT_TYPE_NAT_ZONE_COUNTER
+     * @allownull true
+     * @default SAI_NULL_OBJECT_ID
+     */
+    SAI_SWITCH_ATTR_NAT_ZONE_COUNTER_OBJECT_ID,
+
+    /**
+     * @brief Enable NAT function
+     *
+     * @type bool
+     * @flags CREATE_AND_SET
+     * @default false
+     */
+    SAI_SWITCH_ATTR_NAT_ENABLE,
+
+    /**
      * @brief End of attributes
      */
     SAI_SWITCH_ATTR_END,
@@ -1769,6 +1839,27 @@ typedef enum _sai_switch_attr_t
     SAI_SWITCH_ATTR_CUSTOM_RANGE_END
 
 } sai_switch_attr_t;
+
+/**
+ * @brief Switch counter IDs in sai_get_switch_stats() call
+ *
+ * @flags Contains flags
+ */
+typedef enum _sai_switch_stat_t
+{
+    /** Switch stat in drop reasons range start */
+    SAI_SWITCH_STAT_IN_DROP_REASON_RANGE_BASE = 0x00001000,
+
+    /** Switch stat in drop reasons range end */
+    SAI_SWITCH_STAT_IN_DROP_REASON_RANGE_END = 0x00001fff,
+
+    /** Switch stat out drop reasons range start */
+    SAI_SWITCH_STAT_OUT_DROP_REASON_RANGE_BASE = 0x00002000,
+
+    /** Switch stat out drop reasons range end */
+    SAI_SWITCH_STAT_OUT_DROP_REASON_RANGE_END = 0x00002fff,
+
+} sai_switch_stat_t;
 
 /**
  * @def SAI_SWITCH_ATTR_MAX_KEY_STRING_LEN
@@ -1961,6 +2052,54 @@ typedef sai_status_t (*sai_get_switch_attribute_fn)(
         _Inout_ sai_attribute_t *attr_list);
 
 /**
+ * @brief Get switch statistics counters. Deprecated for backward compatibility.
+ *
+ * @param[in] switch_id Switch id
+ * @param[in] number_of_counters Number of counters in the array
+ * @param[in] counter_ids Specifies the array of counter ids
+ * @param[out] counters Array of resulting counter values.
+ *
+ * @return #SAI_STATUS_SUCCESS on success, failure status code on error
+ */
+typedef sai_status_t (*sai_get_switch_stats_fn)(
+        _In_ sai_object_id_t switch_id,
+        _In_ uint32_t number_of_counters,
+        _In_ const sai_stat_id_t *counter_ids,
+        _Out_ uint64_t *counters);
+
+/**
+ * @brief Get switch statistics counters extended.
+ *
+ * @param[in] switch_id Switch id
+ * @param[in] number_of_counters Number of counters in the array
+ * @param[in] counter_ids Specifies the array of counter ids
+ * @param[in] mode Statistics mode
+ * @param[out] counters Array of resulting counter values.
+ *
+ * @return #SAI_STATUS_SUCCESS on success, failure status code on error
+ */
+typedef sai_status_t (*sai_get_switch_stats_ext_fn)(
+        _In_ sai_object_id_t switch_id,
+        _In_ uint32_t number_of_counters,
+        _In_ const sai_stat_id_t *counter_ids,
+        _In_ sai_stats_mode_t mode,
+        _Out_ uint64_t *counters);
+
+/**
+ * @brief Clear switch statistics counters.
+ *
+ * @param[in] switch_id Switch id
+ * @param[in] number_of_counters Number of counters in the array
+ * @param[in] counter_ids Specifies the array of counter ids
+ *
+ * @return #SAI_STATUS_SUCCESS on success, failure status code on error
+ */
+typedef sai_status_t (*sai_clear_switch_stats_fn)(
+        _In_ sai_object_id_t switch_id,
+        _In_ uint32_t number_of_counters,
+        _In_ const sai_stat_id_t *counter_ids);
+
+/**
  * @brief Switch method table retrieved with sai_api_query()
  */
 typedef struct _sai_switch_api_t
@@ -1969,6 +2108,9 @@ typedef struct _sai_switch_api_t
     sai_remove_switch_fn            remove_switch;
     sai_set_switch_attribute_fn     set_switch_attribute;
     sai_get_switch_attribute_fn     get_switch_attribute;
+    sai_get_switch_stats_fn         get_switch_stats;
+    sai_get_switch_stats_ext_fn     get_switch_stats_ext;
+    sai_clear_switch_stats_fn       clear_switch_stats;
 
 } sai_switch_api_t;
 

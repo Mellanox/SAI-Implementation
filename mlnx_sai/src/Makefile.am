@@ -113,6 +113,8 @@ libsai_apiinclude_HEADERS = \
         $(top_srcdir)/inc/sai/saibfd.h \
         $(top_srcdir)/inc/sai/saibridge.h \
         $(top_srcdir)/inc/sai/saibuffer.h \
+	$(top_srcdir)/inc/sai/saicounter.h \
+	$(top_srcdir)/inc/sai/saidebugcounter.h \
         $(top_srcdir)/inc/sai/saidtel.h \
         $(top_srcdir)/inc/sai/saifdb.h \
         $(top_srcdir)/inc/sai/saihash.h \
@@ -126,6 +128,7 @@ libsai_apiinclude_HEADERS = \
         $(top_srcdir)/inc/sai/saimcastfdb.h \
         $(top_srcdir)/inc/sai/saimirror.h \
         $(top_srcdir)/inc/sai/saimpls.h \
+	$(top_srcdir)/inc/sai/sainat.h \
         $(top_srcdir)/inc/sai/saineighbor.h \
         $(top_srcdir)/inc/sai/sainexthop.h \
         $(top_srcdir)/inc/sai/sainexthopgroup.h \

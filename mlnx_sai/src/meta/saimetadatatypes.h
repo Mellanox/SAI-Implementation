@@ -371,6 +371,11 @@ typedef enum _sai_attr_value_type_t
      */
     SAI_ATTR_VALUE_TYPE_TIMESPEC,
 
+    /**
+     * @brief Attribute value is NAT data.
+     */
+    SAI_ATTR_VALUE_TYPE_NAT_ENTRY_DATA,
+
 } sai_attr_value_type_t;
 
 /**
@@ -998,6 +1003,14 @@ typedef struct _sai_attr_metadata_t
      * @brief Indicates whether attribute is extension attribute.
      */
     bool                                        isextensionattr;
+
+    /**
+     * @brief Tells if attribute is a resource type.
+     *
+     * If true, attribute is used in getting object type availability
+     * to distinguish between pools of resources.
+     */
+    bool                                        isresourcetype;
 
 } sai_attr_metadata_t;
 

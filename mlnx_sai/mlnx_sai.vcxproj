@@ -138,6 +138,8 @@
     <ClInclude Include="inc\sai\saibfd.h" />
     <ClInclude Include="inc\sai\saibridge.h" />
     <ClInclude Include="inc\sai\saibuffer.h" />
+    <ClInclude Include="inc\sai\saicounter.h" />
+    <ClInclude Include="inc\sai\saidebugcounter.h" />
     <ClInclude Include="inc\sai\saidtel.h" />
     <ClInclude Include="inc\sai\saifdb.h" />
     <ClInclude Include="inc\sai\saihash.h" />
@@ -147,6 +149,7 @@
     <ClInclude Include="inc\sai\sailag.h" />
     <ClInclude Include="inc\sai\saimirror.h" />
     <ClInclude Include="inc\sai\saimpls.h" />
+    <ClInclude Include="inc\sai\sainat.h" />
     <ClInclude Include="inc\sai\saineighbor.h" />
     <ClInclude Include="inc\sai\sainexthop.h" />
     <ClInclude Include="inc\sai\sainexthopgroup.h" />

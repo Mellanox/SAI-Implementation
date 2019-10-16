@@ -54,6 +54,13 @@ const sai_acl_action_type_t sai_metadata_sai_acl_action_type_t_enum_values[] = {
     SAI_ACL_ACTION_TYPE_DTEL_TAIL_DROP_REPORT_ENABLE,
     SAI_ACL_ACTION_TYPE_DTEL_FLOW_SAMPLE_PERCENT,
     SAI_ACL_ACTION_TYPE_DTEL_REPORT_ALL_PACKETS,
+    SAI_ACL_ACTION_TYPE_NO_NAT,
+    SAI_ACL_ACTION_TYPE_INT_INSERT,
+    SAI_ACL_ACTION_TYPE_INT_DELETE,
+    SAI_ACL_ACTION_TYPE_INT_REPORT_FLOW,
+    SAI_ACL_ACTION_TYPE_INT_REPORT_DROPS,
+    SAI_ACL_ACTION_TYPE_INT_REPORT_TAIL_DROPS,
+    SAI_ACL_ACTION_TYPE_TAM_INT_OBJECT,
     SAI_ACL_ACTION_TYPE_SET_ISOLATION_GROUP,
     -1
 };
@@ -96,6 +103,13 @@ const char* const sai_metadata_sai_acl_action_type_t_enum_values_names[] = {
     "SAI_ACL_ACTION_TYPE_DTEL_TAIL_DROP_REPORT_ENABLE",
     "SAI_ACL_ACTION_TYPE_DTEL_FLOW_SAMPLE_PERCENT",
     "SAI_ACL_ACTION_TYPE_DTEL_REPORT_ALL_PACKETS",
+    "SAI_ACL_ACTION_TYPE_NO_NAT",
+    "SAI_ACL_ACTION_TYPE_INT_INSERT",
+    "SAI_ACL_ACTION_TYPE_INT_DELETE",
+    "SAI_ACL_ACTION_TYPE_INT_REPORT_FLOW",
+    "SAI_ACL_ACTION_TYPE_INT_REPORT_DROPS",
+    "SAI_ACL_ACTION_TYPE_INT_REPORT_TAIL_DROPS",
+    "SAI_ACL_ACTION_TYPE_TAM_INT_OBJECT",
     "SAI_ACL_ACTION_TYPE_SET_ISOLATION_GROUP",
     NULL
 };
@@ -138,12 +152,19 @@ const char* const sai_metadata_sai_acl_action_type_t_enum_values_short_names[] =
     "DTEL_TAIL_DROP_REPORT_ENABLE",
     "DTEL_FLOW_SAMPLE_PERCENT",
     "DTEL_REPORT_ALL_PACKETS",
+    "NO_NAT",
+    "INT_INSERT",
+    "INT_DELETE",
+    "INT_REPORT_FLOW",
+    "INT_REPORT_DROPS",
+    "INT_REPORT_TAIL_DROPS",
+    "TAM_INT_OBJECT",
     "SET_ISOLATION_GROUP",
     NULL
 };
 const sai_enum_metadata_t sai_metadata_enum_sai_acl_action_type_t = {
     .name              = "sai_acl_action_type_t",
-    .valuescount       = 39,
+    .valuescount       = 46,
     .values            = (const int*)sai_metadata_sai_acl_action_type_t_enum_values,
     .valuesnames       = sai_metadata_sai_acl_action_type_t_enum_values_names,
     .valuesshortnames  = sai_metadata_sai_acl_action_type_t_enum_values_short_names,
@@ -354,6 +375,13 @@ const sai_acl_entry_attr_t sai_metadata_sai_acl_entry_attr_t_enum_values[] = {
     SAI_ACL_ENTRY_ATTR_ACTION_DTEL_TAIL_DROP_REPORT_ENABLE,
     SAI_ACL_ENTRY_ATTR_ACTION_DTEL_FLOW_SAMPLE_PERCENT,
     SAI_ACL_ENTRY_ATTR_ACTION_DTEL_REPORT_ALL_PACKETS,
+    SAI_ACL_ENTRY_ATTR_ACTION_NO_NAT,
+    SAI_ACL_ENTRY_ATTR_ACTION_INT_INSERT,
+    SAI_ACL_ENTRY_ATTR_ACTION_INT_DELETE,
+    SAI_ACL_ENTRY_ATTR_ACTION_INT_REPORT_FLOW,
+    SAI_ACL_ENTRY_ATTR_ACTION_INT_REPORT_DROPS,
+    SAI_ACL_ENTRY_ATTR_ACTION_INT_REPORT_TAIL_DROPS,
+    SAI_ACL_ENTRY_ATTR_ACTION_TAM_INT_OBJECT,
     SAI_ACL_ENTRY_ATTR_ACTION_SET_ISOLATION_GROUP,
     -1
 };
@@ -469,6 +497,13 @@ const char* const sai_metadata_sai_acl_entry_attr_t_enum_values_names[] = {
     "SAI_ACL_ENTRY_ATTR_ACTION_DTEL_TAIL_DROP_REPORT_ENABLE",
     "SAI_ACL_ENTRY_ATTR_ACTION_DTEL_FLOW_SAMPLE_PERCENT",
     "SAI_ACL_ENTRY_ATTR_ACTION_DTEL_REPORT_ALL_PACKETS",
+    "SAI_ACL_ENTRY_ATTR_ACTION_NO_NAT",
+    "SAI_ACL_ENTRY_ATTR_ACTION_INT_INSERT",
+    "SAI_ACL_ENTRY_ATTR_ACTION_INT_DELETE",
+    "SAI_ACL_ENTRY_ATTR_ACTION_INT_REPORT_FLOW",
+    "SAI_ACL_ENTRY_ATTR_ACTION_INT_REPORT_DROPS",
+    "SAI_ACL_ENTRY_ATTR_ACTION_INT_REPORT_TAIL_DROPS",
+    "SAI_ACL_ENTRY_ATTR_ACTION_TAM_INT_OBJECT",
     "SAI_ACL_ENTRY_ATTR_ACTION_SET_ISOLATION_GROUP",
     NULL
 };
@@ -584,12 +619,19 @@ const char* const sai_metadata_sai_acl_entry_attr_t_enum_values_short_names[] = 
     "ACTION_DTEL_TAIL_DROP_REPORT_ENABLE",
     "ACTION_DTEL_FLOW_SAMPLE_PERCENT",
     "ACTION_DTEL_REPORT_ALL_PACKETS",
+    "ACTION_NO_NAT",
+    "ACTION_INT_INSERT",
+    "ACTION_INT_DELETE",
+    "ACTION_INT_REPORT_FLOW",
+    "ACTION_INT_REPORT_DROPS",
+    "ACTION_INT_REPORT_TAIL_DROPS",
+    "ACTION_TAM_INT_OBJECT",
     "ACTION_SET_ISOLATION_GROUP",
     NULL
 };
 const sai_enum_metadata_t sai_metadata_enum_sai_acl_entry_attr_t = {
     .name              = "sai_acl_entry_attr_t",
-    .valuescount       = 112,
+    .valuescount       = 119,
     .values            = (const int*)sai_metadata_sai_acl_entry_attr_t_enum_values,
     .valuesnames       = sai_metadata_sai_acl_entry_attr_t_enum_values_names,
     .valuesshortnames  = sai_metadata_sai_acl_entry_attr_t_enum_values_short_names,
@@ -1139,6 +1181,9 @@ const sai_api_t sai_metadata_sai_api_t_enum_values[] = {
     SAI_API_DTEL,
     SAI_API_BFD,
     SAI_API_ISOLATION_GROUP,
+    SAI_API_NAT,
+    SAI_API_COUNTER,
+    SAI_API_DEBUG_COUNTER,
     SAI_API_BMTOR,
     -1
 };
@@ -1183,6 +1228,9 @@ const char* const sai_metadata_sai_api_t_enum_values_names[] = {
     "SAI_API_DTEL",
     "SAI_API_BFD",
     "SAI_API_ISOLATION_GROUP",
+    "SAI_API_NAT",
+    "SAI_API_COUNTER",
+    "SAI_API_DEBUG_COUNTER",
     "SAI_API_BMTOR",
     NULL
 };
@@ -1227,12 +1275,15 @@ const char* const sai_metadata_sai_api_t_enum_values_short_names[] = {
     "DTEL",
     "BFD",
     "ISOLATION_GROUP",
+    "NAT",
+    "COUNTER",
+    "DEBUG_COUNTER",
     "BMTOR",
     NULL
 };
 const sai_enum_metadata_t sai_metadata_enum_sai_api_t = {
     .name              = "sai_api_t",
-    .valuescount       = 41,
+    .valuescount       = 44,
     .values            = (const int*)sai_metadata_sai_api_t_enum_values,
     .valuesnames       = sai_metadata_sai_api_t_enum_values_names,
     .valuesshortnames  = sai_metadata_sai_api_t_enum_values_short_names,
@@ -1365,6 +1416,7 @@ const sai_attr_value_type_t sai_metadata_sai_attr_value_type_t_enum_values[] = {
     SAI_ATTR_VALUE_TYPE_IP_ADDRESS_LIST,
     SAI_ATTR_VALUE_TYPE_PORT_EYE_VALUES_LIST,
     SAI_ATTR_VALUE_TYPE_TIMESPEC,
+    SAI_ATTR_VALUE_TYPE_NAT_ENTRY_DATA,
     -1
 };
 const char* const sai_metadata_sai_attr_value_type_t_enum_values_names[] = {
@@ -1430,6 +1482,7 @@ const char* const sai_metadata_sai_attr_value_type_t_enum_values_names[] = {
     "SAI_ATTR_VALUE_TYPE_IP_ADDRESS_LIST",
     "SAI_ATTR_VALUE_TYPE_PORT_EYE_VALUES_LIST",
     "SAI_ATTR_VALUE_TYPE_TIMESPEC",
+    "SAI_ATTR_VALUE_TYPE_NAT_ENTRY_DATA",
     NULL
 };
 const char* const sai_metadata_sai_attr_value_type_t_enum_values_short_names[] = {
@@ -1495,11 +1548,12 @@ const char* const sai_metadata_sai_attr_value_type_t_enum_values_short_names[] =
     "IP_ADDRESS_LIST",
     "PORT_EYE_VALUES_LIST",
     "TIMESPEC",
+    "NAT_ENTRY_DATA",
     NULL
 };
 const sai_enum_metadata_t sai_metadata_enum_sai_attr_value_type_t = {
     .name              = "sai_attr_value_type_t",
-    .valuescount       = 62,
+    .valuescount       = 63,
     .values            = (const int*)sai_metadata_sai_attr_value_type_t_enum_values,
     .valuesnames       = sai_metadata_sai_attr_value_type_t_enum_values_names,
     .valuesshortnames  = sai_metadata_sai_attr_value_type_t_enum_values_short_names,
@@ -1508,21 +1562,24 @@ const sai_enum_metadata_t sai_metadata_enum_sai_attr_value_type_t = {
 const sai_bfd_encapsulation_type_t sai_metadata_sai_bfd_encapsulation_type_t_enum_values[] = {
     SAI_BFD_ENCAPSULATION_TYPE_IP_IN_IP,
     SAI_BFD_ENCAPSULATION_TYPE_L3_GRE_TUNNEL,
+    SAI_BFD_ENCAPSULATION_TYPE_NONE,
     -1
 };
 const char* const sai_metadata_sai_bfd_encapsulation_type_t_enum_values_names[] = {
     "SAI_BFD_ENCAPSULATION_TYPE_IP_IN_IP",
     "SAI_BFD_ENCAPSULATION_TYPE_L3_GRE_TUNNEL",
+    "SAI_BFD_ENCAPSULATION_TYPE_NONE",
     NULL
 };
 const char* const sai_metadata_sai_bfd_encapsulation_type_t_enum_values_short_names[] = {
     "IP_IN_IP",
     "L3_GRE_TUNNEL",
+    "NONE",
     NULL
 };
 const sai_enum_metadata_t sai_metadata_enum_sai_bfd_encapsulation_type_t = {
     .name              = "sai_bfd_encapsulation_type_t",
-    .valuescount       = 2,
+    .valuescount       = 3,
     .values            = (const int*)sai_metadata_sai_bfd_encapsulation_type_t_enum_values,
     .valuesnames       = sai_metadata_sai_bfd_encapsulation_type_t_enum_values_names,
     .valuesshortnames  = sai_metadata_sai_bfd_encapsulation_type_t_enum_values_short_names,
@@ -1563,6 +1620,12 @@ const sai_bfd_session_attr_t sai_metadata_sai_bfd_session_attr_t_enum_values[] =
     SAI_BFD_SESSION_ATTR_REMOTE_MIN_TX,
     SAI_BFD_SESSION_ATTR_REMOTE_MIN_RX,
     SAI_BFD_SESSION_ATTR_STATE,
+    SAI_BFD_SESSION_ATTR_OFFLOAD_TYPE,
+    SAI_BFD_SESSION_ATTR_NEGOTIATED_TX,
+    SAI_BFD_SESSION_ATTR_NEGOTIATED_RX,
+    SAI_BFD_SESSION_ATTR_LOCAL_DIAG,
+    SAI_BFD_SESSION_ATTR_REMOTE_DIAG,
+    SAI_BFD_SESSION_ATTR_REMOTE_MULTIPLIER,
     -1
 };
 const char* const sai_metadata_sai_bfd_session_attr_t_enum_values_names[] = {
@@ -1600,6 +1663,12 @@ const char* const sai_metadata_sai_bfd_session_attr_t_enum_values_names[] = {
     "SAI_BFD_SESSION_ATTR_REMOTE_MIN_TX",
     "SAI_BFD_SESSION_ATTR_REMOTE_MIN_RX",
     "SAI_BFD_SESSION_ATTR_STATE",
+    "SAI_BFD_SESSION_ATTR_OFFLOAD_TYPE",
+    "SAI_BFD_SESSION_ATTR_NEGOTIATED_TX",
+    "SAI_BFD_SESSION_ATTR_NEGOTIATED_RX",
+    "SAI_BFD_SESSION_ATTR_LOCAL_DIAG",
+    "SAI_BFD_SESSION_ATTR_REMOTE_DIAG",
+    "SAI_BFD_SESSION_ATTR_REMOTE_MULTIPLIER",
     NULL
 };
 const char* const sai_metadata_sai_bfd_session_attr_t_enum_values_short_names[] = {
@@ -1637,14 +1706,46 @@ const char* const sai_metadata_sai_bfd_session_attr_t_enum_values_short_names[] 
     "REMOTE_MIN_TX",
     "REMOTE_MIN_RX",
     "STATE",
+    "OFFLOAD_TYPE",
+    "NEGOTIATED_TX",
+    "NEGOTIATED_RX",
+    "LOCAL_DIAG",
+    "REMOTE_DIAG",
+    "REMOTE_MULTIPLIER",
     NULL
 };
 const sai_enum_metadata_t sai_metadata_enum_sai_bfd_session_attr_t = {
     .name              = "sai_bfd_session_attr_t",
-    .valuescount       = 34,
+    .valuescount       = 40,
     .values            = (const int*)sai_metadata_sai_bfd_session_attr_t_enum_values,
     .valuesnames       = sai_metadata_sai_bfd_session_attr_t_enum_values_names,
     .valuesshortnames  = sai_metadata_sai_bfd_session_attr_t_enum_values_short_names,
+    .containsflags     = false,
+};
+const sai_bfd_session_offload_type_t sai_metadata_sai_bfd_session_offload_type_t_enum_values[] = {
+    SAI_BFD_SESSION_OFFLOAD_TYPE_NONE,
+    SAI_BFD_SESSION_OFFLOAD_TYPE_FULL,
+    SAI_BFD_SESSION_OFFLOAD_TYPE_SUSTENANCE,
+    -1
+};
+const char* const sai_metadata_sai_bfd_session_offload_type_t_enum_values_names[] = {
+    "SAI_BFD_SESSION_OFFLOAD_TYPE_NONE",
+    "SAI_BFD_SESSION_OFFLOAD_TYPE_FULL",
+    "SAI_BFD_SESSION_OFFLOAD_TYPE_SUSTENANCE",
+    NULL
+};
+const char* const sai_metadata_sai_bfd_session_offload_type_t_enum_values_short_names[] = {
+    "NONE",
+    "FULL",
+    "SUSTENANCE",
+    NULL
+};
+const sai_enum_metadata_t sai_metadata_enum_sai_bfd_session_offload_type_t = {
+    .name              = "sai_bfd_session_offload_type_t",
+    .valuescount       = 3,
+    .values            = (const int*)sai_metadata_sai_bfd_session_offload_type_t_enum_values,
+    .valuesnames       = sai_metadata_sai_bfd_session_offload_type_t_enum_values_names,
+    .valuesshortnames  = sai_metadata_sai_bfd_session_offload_type_t_enum_values_short_names,
     .containsflags     = false,
 };
 const sai_bfd_session_stat_t sai_metadata_sai_bfd_session_stat_t_enum_values[] = {
@@ -1782,23 +1883,26 @@ const sai_bridge_flood_control_type_t sai_metadata_sai_bridge_flood_control_type
     SAI_BRIDGE_FLOOD_CONTROL_TYPE_SUB_PORTS,
     SAI_BRIDGE_FLOOD_CONTROL_TYPE_NONE,
     SAI_BRIDGE_FLOOD_CONTROL_TYPE_L2MC_GROUP,
+    SAI_BRIDGE_FLOOD_CONTROL_TYPE_COMBINED,
     -1
 };
 const char* const sai_metadata_sai_bridge_flood_control_type_t_enum_values_names[] = {
     "SAI_BRIDGE_FLOOD_CONTROL_TYPE_SUB_PORTS",
     "SAI_BRIDGE_FLOOD_CONTROL_TYPE_NONE",
     "SAI_BRIDGE_FLOOD_CONTROL_TYPE_L2MC_GROUP",
+    "SAI_BRIDGE_FLOOD_CONTROL_TYPE_COMBINED",
     NULL
 };
 const char* const sai_metadata_sai_bridge_flood_control_type_t_enum_values_short_names[] = {
     "SUB_PORTS",
     "NONE",
     "L2MC_GROUP",
+    "COMBINED",
     NULL
 };
 const sai_enum_metadata_t sai_metadata_enum_sai_bridge_flood_control_type_t = {
     .name              = "sai_bridge_flood_control_type_t",
-    .valuescount       = 3,
+    .valuescount       = 4,
     .values            = (const int*)sai_metadata_sai_bridge_flood_control_type_t_enum_values,
     .valuesnames       = sai_metadata_sai_bridge_flood_control_type_t_enum_values_names,
     .valuesshortnames  = sai_metadata_sai_bridge_flood_control_type_t_enum_values_short_names,
@@ -2039,6 +2143,7 @@ const sai_buffer_pool_attr_t sai_metadata_sai_buffer_pool_attr_t_enum_values[] =
     SAI_BUFFER_POOL_ATTR_TYPE,
     SAI_BUFFER_POOL_ATTR_SIZE,
     SAI_BUFFER_POOL_ATTR_THRESHOLD_MODE,
+    SAI_BUFFER_POOL_ATTR_TAM,
     SAI_BUFFER_POOL_ATTR_XOFF_SIZE,
     SAI_BUFFER_POOL_ATTR_WRED_PROFILE_ID,
     -1
@@ -2048,6 +2153,7 @@ const char* const sai_metadata_sai_buffer_pool_attr_t_enum_values_names[] = {
     "SAI_BUFFER_POOL_ATTR_TYPE",
     "SAI_BUFFER_POOL_ATTR_SIZE",
     "SAI_BUFFER_POOL_ATTR_THRESHOLD_MODE",
+    "SAI_BUFFER_POOL_ATTR_TAM",
     "SAI_BUFFER_POOL_ATTR_XOFF_SIZE",
     "SAI_BUFFER_POOL_ATTR_WRED_PROFILE_ID",
     NULL
@@ -2057,13 +2163,14 @@ const char* const sai_metadata_sai_buffer_pool_attr_t_enum_values_short_names[] 
     "TYPE",
     "SIZE",
     "THRESHOLD_MODE",
+    "TAM",
     "XOFF_SIZE",
     "WRED_PROFILE_ID",
     NULL
 };
 const sai_enum_metadata_t sai_metadata_enum_sai_buffer_pool_attr_t = {
     .name              = "sai_buffer_pool_attr_t",
-    .valuescount       = 6,
+    .valuescount       = 7,
     .values            = (const int*)sai_metadata_sai_buffer_pool_attr_t_enum_values,
     .valuesnames       = sai_metadata_sai_buffer_pool_attr_t_enum_values_names,
     .valuesshortnames  = sai_metadata_sai_buffer_pool_attr_t_enum_values_short_names,
@@ -2321,6 +2428,150 @@ const sai_enum_metadata_t sai_metadata_enum_sai_common_api_t = {
     .values            = (const int*)sai_metadata_sai_common_api_t_enum_values,
     .valuesnames       = sai_metadata_sai_common_api_t_enum_values_names,
     .valuesshortnames  = sai_metadata_sai_common_api_t_enum_values_short_names,
+    .containsflags     = false,
+};
+const sai_counter_attr_t sai_metadata_sai_counter_attr_t_enum_values[] = {
+    SAI_COUNTER_ATTR_TYPE,
+    -1
+};
+const char* const sai_metadata_sai_counter_attr_t_enum_values_names[] = {
+    "SAI_COUNTER_ATTR_TYPE",
+    NULL
+};
+const char* const sai_metadata_sai_counter_attr_t_enum_values_short_names[] = {
+    "TYPE",
+    NULL
+};
+const sai_enum_metadata_t sai_metadata_enum_sai_counter_attr_t = {
+    .name              = "sai_counter_attr_t",
+    .valuescount       = 1,
+    .values            = (const int*)sai_metadata_sai_counter_attr_t_enum_values,
+    .valuesnames       = sai_metadata_sai_counter_attr_t_enum_values_names,
+    .valuesshortnames  = sai_metadata_sai_counter_attr_t_enum_values_short_names,
+    .containsflags     = false,
+};
+const sai_counter_stat_t sai_metadata_sai_counter_stat_t_enum_values[] = {
+    SAI_COUNTER_STAT_PACKETS,
+    SAI_COUNTER_STAT_BYTES,
+    -1
+};
+const char* const sai_metadata_sai_counter_stat_t_enum_values_names[] = {
+    "SAI_COUNTER_STAT_PACKETS",
+    "SAI_COUNTER_STAT_BYTES",
+    NULL
+};
+const char* const sai_metadata_sai_counter_stat_t_enum_values_short_names[] = {
+    "PACKETS",
+    "BYTES",
+    NULL
+};
+const sai_enum_metadata_t sai_metadata_enum_sai_counter_stat_t = {
+    .name              = "sai_counter_stat_t",
+    .valuescount       = 2,
+    .values            = (const int*)sai_metadata_sai_counter_stat_t_enum_values,
+    .valuesnames       = sai_metadata_sai_counter_stat_t_enum_values_names,
+    .valuesshortnames  = sai_metadata_sai_counter_stat_t_enum_values_short_names,
+    .containsflags     = false,
+};
+const sai_counter_type_t sai_metadata_sai_counter_type_t_enum_values[] = {
+    SAI_COUNTER_TYPE_REGULAR,
+    -1
+};
+const char* const sai_metadata_sai_counter_type_t_enum_values_names[] = {
+    "SAI_COUNTER_TYPE_REGULAR",
+    NULL
+};
+const char* const sai_metadata_sai_counter_type_t_enum_values_short_names[] = {
+    "REGULAR",
+    NULL
+};
+const sai_enum_metadata_t sai_metadata_enum_sai_counter_type_t = {
+    .name              = "sai_counter_type_t",
+    .valuescount       = 1,
+    .values            = (const int*)sai_metadata_sai_counter_type_t_enum_values,
+    .valuesnames       = sai_metadata_sai_counter_type_t_enum_values_names,
+    .valuesshortnames  = sai_metadata_sai_counter_type_t_enum_values_short_names,
+    .containsflags     = false,
+};
+const sai_debug_counter_attr_t sai_metadata_sai_debug_counter_attr_t_enum_values[] = {
+    SAI_DEBUG_COUNTER_ATTR_INDEX,
+    SAI_DEBUG_COUNTER_ATTR_TYPE,
+    SAI_DEBUG_COUNTER_ATTR_BIND_METHOD,
+    SAI_DEBUG_COUNTER_ATTR_IN_DROP_REASON_LIST,
+    SAI_DEBUG_COUNTER_ATTR_OUT_DROP_REASON_LIST,
+    -1
+};
+const char* const sai_metadata_sai_debug_counter_attr_t_enum_values_names[] = {
+    "SAI_DEBUG_COUNTER_ATTR_INDEX",
+    "SAI_DEBUG_COUNTER_ATTR_TYPE",
+    "SAI_DEBUG_COUNTER_ATTR_BIND_METHOD",
+    "SAI_DEBUG_COUNTER_ATTR_IN_DROP_REASON_LIST",
+    "SAI_DEBUG_COUNTER_ATTR_OUT_DROP_REASON_LIST",
+    NULL
+};
+const char* const sai_metadata_sai_debug_counter_attr_t_enum_values_short_names[] = {
+    "INDEX",
+    "TYPE",
+    "BIND_METHOD",
+    "IN_DROP_REASON_LIST",
+    "OUT_DROP_REASON_LIST",
+    NULL
+};
+const sai_enum_metadata_t sai_metadata_enum_sai_debug_counter_attr_t = {
+    .name              = "sai_debug_counter_attr_t",
+    .valuescount       = 5,
+    .values            = (const int*)sai_metadata_sai_debug_counter_attr_t_enum_values,
+    .valuesnames       = sai_metadata_sai_debug_counter_attr_t_enum_values_names,
+    .valuesshortnames  = sai_metadata_sai_debug_counter_attr_t_enum_values_short_names,
+    .containsflags     = false,
+};
+const sai_debug_counter_bind_method_t sai_metadata_sai_debug_counter_bind_method_t_enum_values[] = {
+    SAI_DEBUG_COUNTER_BIND_METHOD_AUTOMATIC,
+    -1
+};
+const char* const sai_metadata_sai_debug_counter_bind_method_t_enum_values_names[] = {
+    "SAI_DEBUG_COUNTER_BIND_METHOD_AUTOMATIC",
+    NULL
+};
+const char* const sai_metadata_sai_debug_counter_bind_method_t_enum_values_short_names[] = {
+    "AUTOMATIC",
+    NULL
+};
+const sai_enum_metadata_t sai_metadata_enum_sai_debug_counter_bind_method_t = {
+    .name              = "sai_debug_counter_bind_method_t",
+    .valuescount       = 1,
+    .values            = (const int*)sai_metadata_sai_debug_counter_bind_method_t_enum_values,
+    .valuesnames       = sai_metadata_sai_debug_counter_bind_method_t_enum_values_names,
+    .valuesshortnames  = sai_metadata_sai_debug_counter_bind_method_t_enum_values_short_names,
+    .containsflags     = false,
+};
+const sai_debug_counter_type_t sai_metadata_sai_debug_counter_type_t_enum_values[] = {
+    SAI_DEBUG_COUNTER_TYPE_PORT_IN_DROP_REASONS,
+    SAI_DEBUG_COUNTER_TYPE_PORT_OUT_DROP_REASONS,
+    SAI_DEBUG_COUNTER_TYPE_SWITCH_IN_DROP_REASONS,
+    SAI_DEBUG_COUNTER_TYPE_SWITCH_OUT_DROP_REASONS,
+    -1
+};
+const char* const sai_metadata_sai_debug_counter_type_t_enum_values_names[] = {
+    "SAI_DEBUG_COUNTER_TYPE_PORT_IN_DROP_REASONS",
+    "SAI_DEBUG_COUNTER_TYPE_PORT_OUT_DROP_REASONS",
+    "SAI_DEBUG_COUNTER_TYPE_SWITCH_IN_DROP_REASONS",
+    "SAI_DEBUG_COUNTER_TYPE_SWITCH_OUT_DROP_REASONS",
+    NULL
+};
+const char* const sai_metadata_sai_debug_counter_type_t_enum_values_short_names[] = {
+    "PORT_IN_DROP_REASONS",
+    "PORT_OUT_DROP_REASONS",
+    "SWITCH_IN_DROP_REASONS",
+    "SWITCH_OUT_DROP_REASONS",
+    NULL
+};
+const sai_enum_metadata_t sai_metadata_enum_sai_debug_counter_type_t = {
+    .name              = "sai_debug_counter_type_t",
+    .valuescount       = 4,
+    .values            = (const int*)sai_metadata_sai_debug_counter_type_t_enum_values,
+    .valuesnames       = sai_metadata_sai_debug_counter_type_t_enum_values_names,
+    .valuesshortnames  = sai_metadata_sai_debug_counter_type_t_enum_values_short_names,
     .containsflags     = false,
 };
 const sai_default_value_type_t sai_metadata_sai_default_value_type_t_enum_values[] = {
@@ -2636,6 +2887,7 @@ const sai_fdb_entry_attr_t sai_metadata_sai_fdb_entry_attr_t_enum_values[] = {
     SAI_FDB_ENTRY_ATTR_BRIDGE_PORT_ID,
     SAI_FDB_ENTRY_ATTR_META_DATA,
     SAI_FDB_ENTRY_ATTR_ENDPOINT_IP,
+    SAI_FDB_ENTRY_ATTR_COUNTER_ID,
     -1
 };
 const char* const sai_metadata_sai_fdb_entry_attr_t_enum_values_names[] = {
@@ -2645,6 +2897,7 @@ const char* const sai_metadata_sai_fdb_entry_attr_t_enum_values_names[] = {
     "SAI_FDB_ENTRY_ATTR_BRIDGE_PORT_ID",
     "SAI_FDB_ENTRY_ATTR_META_DATA",
     "SAI_FDB_ENTRY_ATTR_ENDPOINT_IP",
+    "SAI_FDB_ENTRY_ATTR_COUNTER_ID",
     NULL
 };
 const char* const sai_metadata_sai_fdb_entry_attr_t_enum_values_short_names[] = {
@@ -2654,11 +2907,12 @@ const char* const sai_metadata_sai_fdb_entry_attr_t_enum_values_short_names[] = 
     "BRIDGE_PORT_ID",
     "META_DATA",
     "ENDPOINT_IP",
+    "COUNTER_ID",
     NULL
 };
 const sai_enum_metadata_t sai_metadata_enum_sai_fdb_entry_attr_t = {
     .name              = "sai_fdb_entry_attr_t",
-    .valuescount       = 6,
+    .valuescount       = 7,
     .values            = (const int*)sai_metadata_sai_fdb_entry_attr_t_enum_values,
     .valuesnames       = sai_metadata_sai_fdb_entry_attr_t_enum_values_names,
     .valuesshortnames  = sai_metadata_sai_fdb_entry_attr_t_enum_values_short_names,
@@ -2836,6 +3090,7 @@ const sai_hostif_attr_t sai_metadata_sai_hostif_attr_t_enum_values[] = {
     SAI_HOSTIF_ATTR_OPER_STATUS,
     SAI_HOSTIF_ATTR_QUEUE,
     SAI_HOSTIF_ATTR_VLAN_TAG,
+    SAI_HOSTIF_ATTR_GENETLINK_MCGRP_NAME,
     -1
 };
 const char* const sai_metadata_sai_hostif_attr_t_enum_values_names[] = {
@@ -2845,6 +3100,7 @@ const char* const sai_metadata_sai_hostif_attr_t_enum_values_names[] = {
     "SAI_HOSTIF_ATTR_OPER_STATUS",
     "SAI_HOSTIF_ATTR_QUEUE",
     "SAI_HOSTIF_ATTR_VLAN_TAG",
+    "SAI_HOSTIF_ATTR_GENETLINK_MCGRP_NAME",
     NULL
 };
 const char* const sai_metadata_sai_hostif_attr_t_enum_values_short_names[] = {
@@ -2854,11 +3110,12 @@ const char* const sai_metadata_sai_hostif_attr_t_enum_values_short_names[] = {
     "OPER_STATUS",
     "QUEUE",
     "VLAN_TAG",
+    "GENETLINK_MCGRP_NAME",
     NULL
 };
 const sai_enum_metadata_t sai_metadata_enum_sai_hostif_attr_t = {
     .name              = "sai_hostif_attr_t",
-    .valuescount       = 6,
+    .valuescount       = 7,
     .values            = (const int*)sai_metadata_sai_hostif_attr_t_enum_values,
     .valuesnames       = sai_metadata_sai_hostif_attr_t_enum_values_names,
     .valuesshortnames  = sai_metadata_sai_hostif_attr_t_enum_values_short_names,
@@ -2940,6 +3197,7 @@ const sai_hostif_table_entry_channel_type_t sai_metadata_sai_hostif_table_entry_
     SAI_HOSTIF_TABLE_ENTRY_CHANNEL_TYPE_NETDEV_PHYSICAL_PORT,
     SAI_HOSTIF_TABLE_ENTRY_CHANNEL_TYPE_NETDEV_LOGICAL_PORT,
     SAI_HOSTIF_TABLE_ENTRY_CHANNEL_TYPE_NETDEV_L3,
+    SAI_HOSTIF_TABLE_ENTRY_CHANNEL_TYPE_GENETLINK,
     -1
 };
 const char* const sai_metadata_sai_hostif_table_entry_channel_type_t_enum_values_names[] = {
@@ -2948,6 +3206,7 @@ const char* const sai_metadata_sai_hostif_table_entry_channel_type_t_enum_values
     "SAI_HOSTIF_TABLE_ENTRY_CHANNEL_TYPE_NETDEV_PHYSICAL_PORT",
     "SAI_HOSTIF_TABLE_ENTRY_CHANNEL_TYPE_NETDEV_LOGICAL_PORT",
     "SAI_HOSTIF_TABLE_ENTRY_CHANNEL_TYPE_NETDEV_L3",
+    "SAI_HOSTIF_TABLE_ENTRY_CHANNEL_TYPE_GENETLINK",
     NULL
 };
 const char* const sai_metadata_sai_hostif_table_entry_channel_type_t_enum_values_short_names[] = {
@@ -2956,11 +3215,12 @@ const char* const sai_metadata_sai_hostif_table_entry_channel_type_t_enum_values
     "NETDEV_PHYSICAL_PORT",
     "NETDEV_LOGICAL_PORT",
     "NETDEV_L3",
+    "GENETLINK",
     NULL
 };
 const sai_enum_metadata_t sai_metadata_enum_sai_hostif_table_entry_channel_type_t = {
     .name              = "sai_hostif_table_entry_channel_type_t",
-    .valuescount       = 5,
+    .valuescount       = 6,
     .values            = (const int*)sai_metadata_sai_hostif_table_entry_channel_type_t_enum_values,
     .valuesnames       = sai_metadata_sai_hostif_table_entry_channel_type_t_enum_values_names,
     .valuesshortnames  = sai_metadata_sai_hostif_table_entry_channel_type_t_enum_values_short_names,
@@ -3005,6 +3265,7 @@ const sai_hostif_trap_attr_t sai_metadata_sai_hostif_trap_attr_t_enum_values[] =
     SAI_HOSTIF_TRAP_ATTR_EXCLUDE_PORT_LIST,
     SAI_HOSTIF_TRAP_ATTR_TRAP_GROUP,
     SAI_HOSTIF_TRAP_ATTR_MIRROR_SESSION,
+    SAI_HOSTIF_TRAP_ATTR_COUNTER_ID,
     -1
 };
 const char* const sai_metadata_sai_hostif_trap_attr_t_enum_values_names[] = {
@@ -3014,6 +3275,7 @@ const char* const sai_metadata_sai_hostif_trap_attr_t_enum_values_names[] = {
     "SAI_HOSTIF_TRAP_ATTR_EXCLUDE_PORT_LIST",
     "SAI_HOSTIF_TRAP_ATTR_TRAP_GROUP",
     "SAI_HOSTIF_TRAP_ATTR_MIRROR_SESSION",
+    "SAI_HOSTIF_TRAP_ATTR_COUNTER_ID",
     NULL
 };
 const char* const sai_metadata_sai_hostif_trap_attr_t_enum_values_short_names[] = {
@@ -3023,11 +3285,12 @@ const char* const sai_metadata_sai_hostif_trap_attr_t_enum_values_short_names[] 
     "EXCLUDE_PORT_LIST",
     "TRAP_GROUP",
     "MIRROR_SESSION",
+    "COUNTER_ID",
     NULL
 };
 const sai_enum_metadata_t sai_metadata_enum_sai_hostif_trap_attr_t = {
     .name              = "sai_hostif_trap_attr_t",
-    .valuescount       = 6,
+    .valuescount       = 7,
     .values            = (const int*)sai_metadata_sai_hostif_trap_attr_t_enum_values,
     .valuesnames       = sai_metadata_sai_hostif_trap_attr_t_enum_values_names,
     .valuesshortnames  = sai_metadata_sai_hostif_trap_attr_t_enum_values_short_names,
@@ -3093,11 +3356,16 @@ const sai_hostif_trap_type_t sai_metadata_sai_hostif_trap_type_t_enum_values[] =
     SAI_HOSTIF_TRAP_TYPE_IPV6_MLD_V1_DONE,
     SAI_HOSTIF_TRAP_TYPE_MLD_V2_REPORT,
     SAI_HOSTIF_TRAP_TYPE_UNKNOWN_L3_MULTICAST,
+    SAI_HOSTIF_TRAP_TYPE_SNAT_MISS,
+    SAI_HOSTIF_TRAP_TYPE_DNAT_MISS,
+    SAI_HOSTIF_TRAP_TYPE_NAT_HAIRPIN,
     SAI_HOSTIF_TRAP_TYPE_IP2ME,
     SAI_HOSTIF_TRAP_TYPE_SSH,
     SAI_HOSTIF_TRAP_TYPE_SNMP,
     SAI_HOSTIF_TRAP_TYPE_BGP,
     SAI_HOSTIF_TRAP_TYPE_BGPV6,
+    SAI_HOSTIF_TRAP_TYPE_BFD,
+    SAI_HOSTIF_TRAP_TYPE_BFDV6,
     SAI_HOSTIF_TRAP_TYPE_L3_MTU_ERROR,
     SAI_HOSTIF_TRAP_TYPE_TTL_ERROR,
     SAI_HOSTIF_TRAP_TYPE_STATIC_FDB_MOVE,
@@ -3141,11 +3409,16 @@ const char* const sai_metadata_sai_hostif_trap_type_t_enum_values_names[] = {
     "SAI_HOSTIF_TRAP_TYPE_IPV6_MLD_V1_DONE",
     "SAI_HOSTIF_TRAP_TYPE_MLD_V2_REPORT",
     "SAI_HOSTIF_TRAP_TYPE_UNKNOWN_L3_MULTICAST",
+    "SAI_HOSTIF_TRAP_TYPE_SNAT_MISS",
+    "SAI_HOSTIF_TRAP_TYPE_DNAT_MISS",
+    "SAI_HOSTIF_TRAP_TYPE_NAT_HAIRPIN",
     "SAI_HOSTIF_TRAP_TYPE_IP2ME",
     "SAI_HOSTIF_TRAP_TYPE_SSH",
     "SAI_HOSTIF_TRAP_TYPE_SNMP",
     "SAI_HOSTIF_TRAP_TYPE_BGP",
     "SAI_HOSTIF_TRAP_TYPE_BGPV6",
+    "SAI_HOSTIF_TRAP_TYPE_BFD",
+    "SAI_HOSTIF_TRAP_TYPE_BFDV6",
     "SAI_HOSTIF_TRAP_TYPE_L3_MTU_ERROR",
     "SAI_HOSTIF_TRAP_TYPE_TTL_ERROR",
     "SAI_HOSTIF_TRAP_TYPE_STATIC_FDB_MOVE",
@@ -3189,11 +3462,16 @@ const char* const sai_metadata_sai_hostif_trap_type_t_enum_values_short_names[] 
     "IPV6_MLD_V1_DONE",
     "MLD_V2_REPORT",
     "UNKNOWN_L3_MULTICAST",
+    "SNAT_MISS",
+    "DNAT_MISS",
+    "NAT_HAIRPIN",
     "IP2ME",
     "SSH",
     "SNMP",
     "BGP",
     "BGPV6",
+    "BFD",
+    "BFDV6",
     "L3_MTU_ERROR",
     "TTL_ERROR",
     "STATIC_FDB_MOVE",
@@ -3205,7 +3483,7 @@ const char* const sai_metadata_sai_hostif_trap_type_t_enum_values_short_names[] 
 };
 const sai_enum_metadata_t sai_metadata_enum_sai_hostif_trap_type_t = {
     .name              = "sai_hostif_trap_type_t",
-    .valuescount       = 45,
+    .valuescount       = 50,
     .values            = (const int*)sai_metadata_sai_hostif_trap_type_t_enum_values,
     .valuesnames       = sai_metadata_sai_hostif_trap_type_t_enum_values_names,
     .valuesshortnames  = sai_metadata_sai_hostif_trap_type_t_enum_values_short_names,
@@ -3237,21 +3515,24 @@ const sai_enum_metadata_t sai_metadata_enum_sai_hostif_tx_type_t = {
 const sai_hostif_type_t sai_metadata_sai_hostif_type_t_enum_values[] = {
     SAI_HOSTIF_TYPE_NETDEV,
     SAI_HOSTIF_TYPE_FD,
+    SAI_HOSTIF_TYPE_GENETLINK,
     -1
 };
 const char* const sai_metadata_sai_hostif_type_t_enum_values_names[] = {
     "SAI_HOSTIF_TYPE_NETDEV",
     "SAI_HOSTIF_TYPE_FD",
+    "SAI_HOSTIF_TYPE_GENETLINK",
     NULL
 };
 const char* const sai_metadata_sai_hostif_type_t_enum_values_short_names[] = {
     "NETDEV",
     "FD",
+    "GENETLINK",
     NULL
 };
 const sai_enum_metadata_t sai_metadata_enum_sai_hostif_type_t = {
     .name              = "sai_hostif_type_t",
-    .valuescount       = 2,
+    .valuescount       = 3,
     .values            = (const int*)sai_metadata_sai_hostif_type_t_enum_values,
     .valuesnames       = sai_metadata_sai_hostif_type_t_enum_values_names,
     .valuesshortnames  = sai_metadata_sai_hostif_type_t_enum_values_short_names,
@@ -3338,27 +3619,203 @@ const sai_enum_metadata_t sai_metadata_enum_sai_hostif_vlan_tag_t = {
     .valuesshortnames  = sai_metadata_sai_hostif_vlan_tag_t_enum_values_short_names,
     .containsflags     = false,
 };
+const sai_in_drop_reason_t sai_metadata_sai_in_drop_reason_t_enum_values[] = {
+    SAI_IN_DROP_REASON_L2_ANY,
+    SAI_IN_DROP_REASON_SMAC_MULTICAST,
+    SAI_IN_DROP_REASON_SMAC_EQUALS_DMAC,
+    SAI_IN_DROP_REASON_DMAC_RESERVED,
+    SAI_IN_DROP_REASON_VLAN_TAG_NOT_ALLOWED,
+    SAI_IN_DROP_REASON_INGRESS_VLAN_FILTER,
+    SAI_IN_DROP_REASON_INGRESS_STP_FILTER,
+    SAI_IN_DROP_REASON_FDB_UC_DISCARD,
+    SAI_IN_DROP_REASON_FDB_MC_DISCARD,
+    SAI_IN_DROP_REASON_L2_LOOPBACK_FILTER,
+    SAI_IN_DROP_REASON_EXCEEDS_L2_MTU,
+    SAI_IN_DROP_REASON_L3_ANY,
+    SAI_IN_DROP_REASON_EXCEEDS_L3_MTU,
+    SAI_IN_DROP_REASON_TTL,
+    SAI_IN_DROP_REASON_L3_LOOPBACK_FILTER,
+    SAI_IN_DROP_REASON_NON_ROUTABLE,
+    SAI_IN_DROP_REASON_NO_L3_HEADER,
+    SAI_IN_DROP_REASON_IP_HEADER_ERROR,
+    SAI_IN_DROP_REASON_UC_DIP_MC_DMAC,
+    SAI_IN_DROP_REASON_DIP_LOOPBACK,
+    SAI_IN_DROP_REASON_SIP_LOOPBACK,
+    SAI_IN_DROP_REASON_SIP_MC,
+    SAI_IN_DROP_REASON_SIP_CLASS_E,
+    SAI_IN_DROP_REASON_SIP_UNSPECIFIED,
+    SAI_IN_DROP_REASON_MC_DMAC_MISMATCH,
+    SAI_IN_DROP_REASON_SIP_EQUALS_DIP,
+    SAI_IN_DROP_REASON_SIP_BC,
+    SAI_IN_DROP_REASON_DIP_LOCAL,
+    SAI_IN_DROP_REASON_DIP_LINK_LOCAL,
+    SAI_IN_DROP_REASON_SIP_LINK_LOCAL,
+    SAI_IN_DROP_REASON_IPV6_MC_SCOPE0,
+    SAI_IN_DROP_REASON_IPV6_MC_SCOPE1,
+    SAI_IN_DROP_REASON_IRIF_DISABLED,
+    SAI_IN_DROP_REASON_ERIF_DISABLED,
+    SAI_IN_DROP_REASON_LPM4_MISS,
+    SAI_IN_DROP_REASON_LPM6_MISS,
+    SAI_IN_DROP_REASON_BLACKHOLE_ROUTE,
+    SAI_IN_DROP_REASON_BLACKHOLE_ARP,
+    SAI_IN_DROP_REASON_UNRESOLVED_NEXT_HOP,
+    SAI_IN_DROP_REASON_L3_EGRESS_LINK_DOWN,
+    SAI_IN_DROP_REASON_DECAP_ERROR,
+    SAI_IN_DROP_REASON_ACL_ANY,
+    SAI_IN_DROP_REASON_ACL_INGRESS_PORT,
+    SAI_IN_DROP_REASON_ACL_INGRESS_LAG,
+    SAI_IN_DROP_REASON_ACL_INGRESS_VLAN,
+    SAI_IN_DROP_REASON_ACL_INGRESS_RIF,
+    SAI_IN_DROP_REASON_ACL_INGRESS_SWITCH,
+    SAI_IN_DROP_REASON_ACL_EGRESS_PORT,
+    SAI_IN_DROP_REASON_ACL_EGRESS_LAG,
+    SAI_IN_DROP_REASON_ACL_EGRESS_VLAN,
+    SAI_IN_DROP_REASON_ACL_EGRESS_RIF,
+    SAI_IN_DROP_REASON_ACL_EGRESS_SWITCH,
+    -1
+};
+const char* const sai_metadata_sai_in_drop_reason_t_enum_values_names[] = {
+    "SAI_IN_DROP_REASON_L2_ANY",
+    "SAI_IN_DROP_REASON_SMAC_MULTICAST",
+    "SAI_IN_DROP_REASON_SMAC_EQUALS_DMAC",
+    "SAI_IN_DROP_REASON_DMAC_RESERVED",
+    "SAI_IN_DROP_REASON_VLAN_TAG_NOT_ALLOWED",
+    "SAI_IN_DROP_REASON_INGRESS_VLAN_FILTER",
+    "SAI_IN_DROP_REASON_INGRESS_STP_FILTER",
+    "SAI_IN_DROP_REASON_FDB_UC_DISCARD",
+    "SAI_IN_DROP_REASON_FDB_MC_DISCARD",
+    "SAI_IN_DROP_REASON_L2_LOOPBACK_FILTER",
+    "SAI_IN_DROP_REASON_EXCEEDS_L2_MTU",
+    "SAI_IN_DROP_REASON_L3_ANY",
+    "SAI_IN_DROP_REASON_EXCEEDS_L3_MTU",
+    "SAI_IN_DROP_REASON_TTL",
+    "SAI_IN_DROP_REASON_L3_LOOPBACK_FILTER",
+    "SAI_IN_DROP_REASON_NON_ROUTABLE",
+    "SAI_IN_DROP_REASON_NO_L3_HEADER",
+    "SAI_IN_DROP_REASON_IP_HEADER_ERROR",
+    "SAI_IN_DROP_REASON_UC_DIP_MC_DMAC",
+    "SAI_IN_DROP_REASON_DIP_LOOPBACK",
+    "SAI_IN_DROP_REASON_SIP_LOOPBACK",
+    "SAI_IN_DROP_REASON_SIP_MC",
+    "SAI_IN_DROP_REASON_SIP_CLASS_E",
+    "SAI_IN_DROP_REASON_SIP_UNSPECIFIED",
+    "SAI_IN_DROP_REASON_MC_DMAC_MISMATCH",
+    "SAI_IN_DROP_REASON_SIP_EQUALS_DIP",
+    "SAI_IN_DROP_REASON_SIP_BC",
+    "SAI_IN_DROP_REASON_DIP_LOCAL",
+    "SAI_IN_DROP_REASON_DIP_LINK_LOCAL",
+    "SAI_IN_DROP_REASON_SIP_LINK_LOCAL",
+    "SAI_IN_DROP_REASON_IPV6_MC_SCOPE0",
+    "SAI_IN_DROP_REASON_IPV6_MC_SCOPE1",
+    "SAI_IN_DROP_REASON_IRIF_DISABLED",
+    "SAI_IN_DROP_REASON_ERIF_DISABLED",
+    "SAI_IN_DROP_REASON_LPM4_MISS",
+    "SAI_IN_DROP_REASON_LPM6_MISS",
+    "SAI_IN_DROP_REASON_BLACKHOLE_ROUTE",
+    "SAI_IN_DROP_REASON_BLACKHOLE_ARP",
+    "SAI_IN_DROP_REASON_UNRESOLVED_NEXT_HOP",
+    "SAI_IN_DROP_REASON_L3_EGRESS_LINK_DOWN",
+    "SAI_IN_DROP_REASON_DECAP_ERROR",
+    "SAI_IN_DROP_REASON_ACL_ANY",
+    "SAI_IN_DROP_REASON_ACL_INGRESS_PORT",
+    "SAI_IN_DROP_REASON_ACL_INGRESS_LAG",
+    "SAI_IN_DROP_REASON_ACL_INGRESS_VLAN",
+    "SAI_IN_DROP_REASON_ACL_INGRESS_RIF",
+    "SAI_IN_DROP_REASON_ACL_INGRESS_SWITCH",
+    "SAI_IN_DROP_REASON_ACL_EGRESS_PORT",
+    "SAI_IN_DROP_REASON_ACL_EGRESS_LAG",
+    "SAI_IN_DROP_REASON_ACL_EGRESS_VLAN",
+    "SAI_IN_DROP_REASON_ACL_EGRESS_RIF",
+    "SAI_IN_DROP_REASON_ACL_EGRESS_SWITCH",
+    NULL
+};
+const char* const sai_metadata_sai_in_drop_reason_t_enum_values_short_names[] = {
+    "L2_ANY",
+    "SMAC_MULTICAST",
+    "SMAC_EQUALS_DMAC",
+    "DMAC_RESERVED",
+    "VLAN_TAG_NOT_ALLOWED",
+    "INGRESS_VLAN_FILTER",
+    "INGRESS_STP_FILTER",
+    "FDB_UC_DISCARD",
+    "FDB_MC_DISCARD",
+    "L2_LOOPBACK_FILTER",
+    "EXCEEDS_L2_MTU",
+    "L3_ANY",
+    "EXCEEDS_L3_MTU",
+    "TTL",
+    "L3_LOOPBACK_FILTER",
+    "NON_ROUTABLE",
+    "NO_L3_HEADER",
+    "IP_HEADER_ERROR",
+    "UC_DIP_MC_DMAC",
+    "DIP_LOOPBACK",
+    "SIP_LOOPBACK",
+    "SIP_MC",
+    "SIP_CLASS_E",
+    "SIP_UNSPECIFIED",
+    "MC_DMAC_MISMATCH",
+    "SIP_EQUALS_DIP",
+    "SIP_BC",
+    "DIP_LOCAL",
+    "DIP_LINK_LOCAL",
+    "SIP_LINK_LOCAL",
+    "IPV6_MC_SCOPE0",
+    "IPV6_MC_SCOPE1",
+    "IRIF_DISABLED",
+    "ERIF_DISABLED",
+    "LPM4_MISS",
+    "LPM6_MISS",
+    "BLACKHOLE_ROUTE",
+    "BLACKHOLE_ARP",
+    "UNRESOLVED_NEXT_HOP",
+    "L3_EGRESS_LINK_DOWN",
+    "DECAP_ERROR",
+    "ACL_ANY",
+    "ACL_INGRESS_PORT",
+    "ACL_INGRESS_LAG",
+    "ACL_INGRESS_VLAN",
+    "ACL_INGRESS_RIF",
+    "ACL_INGRESS_SWITCH",
+    "ACL_EGRESS_PORT",
+    "ACL_EGRESS_LAG",
+    "ACL_EGRESS_VLAN",
+    "ACL_EGRESS_RIF",
+    "ACL_EGRESS_SWITCH",
+    NULL
+};
+const sai_enum_metadata_t sai_metadata_enum_sai_in_drop_reason_t = {
+    .name              = "sai_in_drop_reason_t",
+    .valuescount       = 52,
+    .values            = (const int*)sai_metadata_sai_in_drop_reason_t_enum_values,
+    .valuesnames       = sai_metadata_sai_in_drop_reason_t_enum_values_names,
+    .valuesshortnames  = sai_metadata_sai_in_drop_reason_t_enum_values_short_names,
+    .containsflags     = false,
+};
 const sai_ingress_priority_group_attr_t sai_metadata_sai_ingress_priority_group_attr_t_enum_values[] = {
     SAI_INGRESS_PRIORITY_GROUP_ATTR_BUFFER_PROFILE,
     SAI_INGRESS_PRIORITY_GROUP_ATTR_PORT,
+    SAI_INGRESS_PRIORITY_GROUP_ATTR_TAM,
     SAI_INGRESS_PRIORITY_GROUP_ATTR_INDEX,
     -1
 };
 const char* const sai_metadata_sai_ingress_priority_group_attr_t_enum_values_names[] = {
     "SAI_INGRESS_PRIORITY_GROUP_ATTR_BUFFER_PROFILE",
     "SAI_INGRESS_PRIORITY_GROUP_ATTR_PORT",
+    "SAI_INGRESS_PRIORITY_GROUP_ATTR_TAM",
     "SAI_INGRESS_PRIORITY_GROUP_ATTR_INDEX",
     NULL
 };
 const char* const sai_metadata_sai_ingress_priority_group_attr_t_enum_values_short_names[] = {
     "BUFFER_PROFILE",
     "PORT",
+    "TAM",
     "INDEX",
     NULL
 };
 const sai_enum_metadata_t sai_metadata_enum_sai_ingress_priority_group_attr_t = {
     .name              = "sai_ingress_priority_group_attr_t",
-    .valuescount       = 3,
+    .valuescount       = 4,
     .values            = (const int*)sai_metadata_sai_ingress_priority_group_attr_t_enum_values,
     .valuesnames       = sai_metadata_sai_ingress_priority_group_attr_t_enum_values_names,
     .valuesshortnames  = sai_metadata_sai_ingress_priority_group_attr_t_enum_values_short_names,
@@ -3891,6 +4348,8 @@ const sai_mirror_session_attr_t sai_metadata_sai_mirror_session_attr_t_enum_valu
     SAI_MIRROR_SESSION_ATTR_SRC_MAC_ADDRESS,
     SAI_MIRROR_SESSION_ATTR_DST_MAC_ADDRESS,
     SAI_MIRROR_SESSION_ATTR_GRE_PROTOCOL_TYPE,
+    SAI_MIRROR_SESSION_ATTR_MONITOR_PORTLIST_VALID,
+    SAI_MIRROR_SESSION_ATTR_MONITOR_PORTLIST,
     SAI_MIRROR_SESSION_ATTR_POLICER,
     -1
 };
@@ -3915,6 +4374,8 @@ const char* const sai_metadata_sai_mirror_session_attr_t_enum_values_names[] = {
     "SAI_MIRROR_SESSION_ATTR_SRC_MAC_ADDRESS",
     "SAI_MIRROR_SESSION_ATTR_DST_MAC_ADDRESS",
     "SAI_MIRROR_SESSION_ATTR_GRE_PROTOCOL_TYPE",
+    "SAI_MIRROR_SESSION_ATTR_MONITOR_PORTLIST_VALID",
+    "SAI_MIRROR_SESSION_ATTR_MONITOR_PORTLIST",
     "SAI_MIRROR_SESSION_ATTR_POLICER",
     NULL
 };
@@ -3939,12 +4400,14 @@ const char* const sai_metadata_sai_mirror_session_attr_t_enum_values_short_names
     "SRC_MAC_ADDRESS",
     "DST_MAC_ADDRESS",
     "GRE_PROTOCOL_TYPE",
+    "MONITOR_PORTLIST_VALID",
+    "MONITOR_PORTLIST",
     "POLICER",
     NULL
 };
 const sai_enum_metadata_t sai_metadata_enum_sai_mirror_session_attr_t = {
     .name              = "sai_mirror_session_attr_t",
-    .valuescount       = 21,
+    .valuescount       = 23,
     .values            = (const int*)sai_metadata_sai_mirror_session_attr_t_enum_values,
     .valuesnames       = sai_metadata_sai_mirror_session_attr_t_enum_values_names,
     .valuesshortnames  = sai_metadata_sai_mirror_session_attr_t_enum_values_short_names,
@@ -3999,6 +4462,138 @@ const sai_enum_metadata_t sai_metadata_enum_sai_mirror_session_type_t = {
     .valuesshortnames  = sai_metadata_sai_mirror_session_type_t_enum_values_short_names,
     .containsflags     = false,
 };
+const sai_nat_entry_attr_t sai_metadata_sai_nat_entry_attr_t_enum_values[] = {
+    SAI_NAT_ENTRY_ATTR_NAT_TYPE,
+    SAI_NAT_ENTRY_ATTR_SRC_IP,
+    SAI_NAT_ENTRY_ATTR_SRC_IP_MASK,
+    SAI_NAT_ENTRY_ATTR_VR_ID,
+    SAI_NAT_ENTRY_ATTR_DST_IP,
+    SAI_NAT_ENTRY_ATTR_DST_IP_MASK,
+    SAI_NAT_ENTRY_ATTR_L4_SRC_PORT,
+    SAI_NAT_ENTRY_ATTR_L4_DST_PORT,
+    SAI_NAT_ENTRY_ATTR_ENABLE_PACKET_COUNT,
+    SAI_NAT_ENTRY_ATTR_PACKET_COUNT,
+    SAI_NAT_ENTRY_ATTR_ENABLE_BYTE_COUNT,
+    SAI_NAT_ENTRY_ATTR_BYTE_COUNT,
+    SAI_NAT_ENTRY_ATTR_HIT_BIT_COR,
+    SAI_NAT_ENTRY_ATTR_HIT_BIT,
+    -1
+};
+const char* const sai_metadata_sai_nat_entry_attr_t_enum_values_names[] = {
+    "SAI_NAT_ENTRY_ATTR_NAT_TYPE",
+    "SAI_NAT_ENTRY_ATTR_SRC_IP",
+    "SAI_NAT_ENTRY_ATTR_SRC_IP_MASK",
+    "SAI_NAT_ENTRY_ATTR_VR_ID",
+    "SAI_NAT_ENTRY_ATTR_DST_IP",
+    "SAI_NAT_ENTRY_ATTR_DST_IP_MASK",
+    "SAI_NAT_ENTRY_ATTR_L4_SRC_PORT",
+    "SAI_NAT_ENTRY_ATTR_L4_DST_PORT",
+    "SAI_NAT_ENTRY_ATTR_ENABLE_PACKET_COUNT",
+    "SAI_NAT_ENTRY_ATTR_PACKET_COUNT",
+    "SAI_NAT_ENTRY_ATTR_ENABLE_BYTE_COUNT",
+    "SAI_NAT_ENTRY_ATTR_BYTE_COUNT",
+    "SAI_NAT_ENTRY_ATTR_HIT_BIT_COR",
+    "SAI_NAT_ENTRY_ATTR_HIT_BIT",
+    NULL
+};
+const char* const sai_metadata_sai_nat_entry_attr_t_enum_values_short_names[] = {
+    "NAT_TYPE",
+    "SRC_IP",
+    "SRC_IP_MASK",
+    "VR_ID",
+    "DST_IP",
+    "DST_IP_MASK",
+    "L4_SRC_PORT",
+    "L4_DST_PORT",
+    "ENABLE_PACKET_COUNT",
+    "PACKET_COUNT",
+    "ENABLE_BYTE_COUNT",
+    "BYTE_COUNT",
+    "HIT_BIT_COR",
+    "HIT_BIT",
+    NULL
+};
+const sai_enum_metadata_t sai_metadata_enum_sai_nat_entry_attr_t = {
+    .name              = "sai_nat_entry_attr_t",
+    .valuescount       = 14,
+    .values            = (const int*)sai_metadata_sai_nat_entry_attr_t_enum_values,
+    .valuesnames       = sai_metadata_sai_nat_entry_attr_t_enum_values_names,
+    .valuesshortnames  = sai_metadata_sai_nat_entry_attr_t_enum_values_short_names,
+    .containsflags     = false,
+};
+const sai_nat_type_t sai_metadata_sai_nat_type_t_enum_values[] = {
+    SAI_NAT_TYPE_NONE,
+    SAI_NAT_TYPE_SOURCE_NAT,
+    SAI_NAT_TYPE_DESTINATION_NAT,
+    SAI_NAT_TYPE_DOUBLE_NAT,
+    SAI_NAT_TYPE_DESTINATION_NAT_POOL,
+    -1
+};
+const char* const sai_metadata_sai_nat_type_t_enum_values_names[] = {
+    "SAI_NAT_TYPE_NONE",
+    "SAI_NAT_TYPE_SOURCE_NAT",
+    "SAI_NAT_TYPE_DESTINATION_NAT",
+    "SAI_NAT_TYPE_DOUBLE_NAT",
+    "SAI_NAT_TYPE_DESTINATION_NAT_POOL",
+    NULL
+};
+const char* const sai_metadata_sai_nat_type_t_enum_values_short_names[] = {
+    "NONE",
+    "SOURCE_NAT",
+    "DESTINATION_NAT",
+    "DOUBLE_NAT",
+    "DESTINATION_NAT_POOL",
+    NULL
+};
+const sai_enum_metadata_t sai_metadata_enum_sai_nat_type_t = {
+    .name              = "sai_nat_type_t",
+    .valuescount       = 5,
+    .values            = (const int*)sai_metadata_sai_nat_type_t_enum_values,
+    .valuesnames       = sai_metadata_sai_nat_type_t_enum_values_names,
+    .valuesshortnames  = sai_metadata_sai_nat_type_t_enum_values_short_names,
+    .containsflags     = false,
+};
+const sai_nat_zone_counter_attr_t sai_metadata_sai_nat_zone_counter_attr_t_enum_values[] = {
+    SAI_NAT_ZONE_COUNTER_ATTR_NAT_TYPE,
+    SAI_NAT_ZONE_COUNTER_ATTR_ZONE_ID,
+    SAI_NAT_ZONE_COUNTER_ATTR_ENABLE_DISCARD,
+    SAI_NAT_ZONE_COUNTER_ATTR_DISCARD_PACKET_COUNT,
+    SAI_NAT_ZONE_COUNTER_ATTR_ENABLE_TRANSLATION_NEEDED,
+    SAI_NAT_ZONE_COUNTER_ATTR_TRANSLATION_NEEDED_PACKET_COUNT,
+    SAI_NAT_ZONE_COUNTER_ATTR_ENABLE_TRANSLATIONS,
+    SAI_NAT_ZONE_COUNTER_ATTR_TRANSLATIONS_PACKET_COUNT,
+    -1
+};
+const char* const sai_metadata_sai_nat_zone_counter_attr_t_enum_values_names[] = {
+    "SAI_NAT_ZONE_COUNTER_ATTR_NAT_TYPE",
+    "SAI_NAT_ZONE_COUNTER_ATTR_ZONE_ID",
+    "SAI_NAT_ZONE_COUNTER_ATTR_ENABLE_DISCARD",
+    "SAI_NAT_ZONE_COUNTER_ATTR_DISCARD_PACKET_COUNT",
+    "SAI_NAT_ZONE_COUNTER_ATTR_ENABLE_TRANSLATION_NEEDED",
+    "SAI_NAT_ZONE_COUNTER_ATTR_TRANSLATION_NEEDED_PACKET_COUNT",
+    "SAI_NAT_ZONE_COUNTER_ATTR_ENABLE_TRANSLATIONS",
+    "SAI_NAT_ZONE_COUNTER_ATTR_TRANSLATIONS_PACKET_COUNT",
+    NULL
+};
+const char* const sai_metadata_sai_nat_zone_counter_attr_t_enum_values_short_names[] = {
+    "NAT_TYPE",
+    "ZONE_ID",
+    "ENABLE_DISCARD",
+    "DISCARD_PACKET_COUNT",
+    "ENABLE_TRANSLATION_NEEDED",
+    "TRANSLATION_NEEDED_PACKET_COUNT",
+    "ENABLE_TRANSLATIONS",
+    "TRANSLATIONS_PACKET_COUNT",
+    NULL
+};
+const sai_enum_metadata_t sai_metadata_enum_sai_nat_zone_counter_attr_t = {
+    .name              = "sai_nat_zone_counter_attr_t",
+    .valuescount       = 8,
+    .values            = (const int*)sai_metadata_sai_nat_zone_counter_attr_t_enum_values,
+    .valuesnames       = sai_metadata_sai_nat_zone_counter_attr_t_enum_values_names,
+    .valuesshortnames  = sai_metadata_sai_nat_zone_counter_attr_t_enum_values_short_names,
+    .containsflags     = false,
+};
 const sai_native_hash_field_t sai_metadata_sai_native_hash_field_t_enum_values[] = {
     SAI_NATIVE_HASH_FIELD_SRC_IP,
     SAI_NATIVE_HASH_FIELD_DST_IP,
@@ -4012,6 +4607,12 @@ const sai_native_hash_field_t sai_metadata_sai_native_hash_field_t_enum_values[]
     SAI_NATIVE_HASH_FIELD_SRC_MAC,
     SAI_NATIVE_HASH_FIELD_DST_MAC,
     SAI_NATIVE_HASH_FIELD_IN_PORT,
+    SAI_NATIVE_HASH_FIELD_INNER_IP_PROTOCOL,
+    SAI_NATIVE_HASH_FIELD_INNER_ETHERTYPE,
+    SAI_NATIVE_HASH_FIELD_INNER_L4_SRC_PORT,
+    SAI_NATIVE_HASH_FIELD_INNER_L4_DST_PORT,
+    SAI_NATIVE_HASH_FIELD_INNER_SRC_MAC,
+    SAI_NATIVE_HASH_FIELD_INNER_DST_MAC,
     -1
 };
 const char* const sai_metadata_sai_native_hash_field_t_enum_values_names[] = {
@@ -4027,6 +4628,12 @@ const char* const sai_metadata_sai_native_hash_field_t_enum_values_names[] = {
     "SAI_NATIVE_HASH_FIELD_SRC_MAC",
     "SAI_NATIVE_HASH_FIELD_DST_MAC",
     "SAI_NATIVE_HASH_FIELD_IN_PORT",
+    "SAI_NATIVE_HASH_FIELD_INNER_IP_PROTOCOL",
+    "SAI_NATIVE_HASH_FIELD_INNER_ETHERTYPE",
+    "SAI_NATIVE_HASH_FIELD_INNER_L4_SRC_PORT",
+    "SAI_NATIVE_HASH_FIELD_INNER_L4_DST_PORT",
+    "SAI_NATIVE_HASH_FIELD_INNER_SRC_MAC",
+    "SAI_NATIVE_HASH_FIELD_INNER_DST_MAC",
     NULL
 };
 const char* const sai_metadata_sai_native_hash_field_t_enum_values_short_names[] = {
@@ -4042,11 +4649,17 @@ const char* const sai_metadata_sai_native_hash_field_t_enum_values_short_names[]
     "SRC_MAC",
     "DST_MAC",
     "IN_PORT",
+    "INNER_IP_PROTOCOL",
+    "INNER_ETHERTYPE",
+    "INNER_L4_SRC_PORT",
+    "INNER_L4_DST_PORT",
+    "INNER_SRC_MAC",
+    "INNER_DST_MAC",
     NULL
 };
 const sai_enum_metadata_t sai_metadata_enum_sai_native_hash_field_t = {
     .name              = "sai_native_hash_field_t",
-    .valuescount       = 12,
+    .valuescount       = 18,
     .values            = (const int*)sai_metadata_sai_native_hash_field_t_enum_values,
     .valuesnames       = sai_metadata_sai_native_hash_field_t_enum_values_names,
     .valuesshortnames  = sai_metadata_sai_native_hash_field_t_enum_values_short_names,
@@ -4058,6 +4671,7 @@ const sai_neighbor_entry_attr_t sai_metadata_sai_neighbor_entry_attr_t_enum_valu
     SAI_NEIGHBOR_ENTRY_ATTR_USER_TRAP_ID,
     SAI_NEIGHBOR_ENTRY_ATTR_NO_HOST_ROUTE,
     SAI_NEIGHBOR_ENTRY_ATTR_META_DATA,
+    SAI_NEIGHBOR_ENTRY_ATTR_COUNTER_ID,
     -1
 };
 const char* const sai_metadata_sai_neighbor_entry_attr_t_enum_values_names[] = {
@@ -4066,6 +4680,7 @@ const char* const sai_metadata_sai_neighbor_entry_attr_t_enum_values_names[] = {
     "SAI_NEIGHBOR_ENTRY_ATTR_USER_TRAP_ID",
     "SAI_NEIGHBOR_ENTRY_ATTR_NO_HOST_ROUTE",
     "SAI_NEIGHBOR_ENTRY_ATTR_META_DATA",
+    "SAI_NEIGHBOR_ENTRY_ATTR_COUNTER_ID",
     NULL
 };
 const char* const sai_metadata_sai_neighbor_entry_attr_t_enum_values_short_names[] = {
@@ -4074,11 +4689,12 @@ const char* const sai_metadata_sai_neighbor_entry_attr_t_enum_values_short_names
     "USER_TRAP_ID",
     "NO_HOST_ROUTE",
     "META_DATA",
+    "COUNTER_ID",
     NULL
 };
 const sai_enum_metadata_t sai_metadata_enum_sai_neighbor_entry_attr_t = {
     .name              = "sai_neighbor_entry_attr_t",
-    .valuescount       = 5,
+    .valuescount       = 6,
     .values            = (const int*)sai_metadata_sai_neighbor_entry_attr_t_enum_values,
     .valuesnames       = sai_metadata_sai_neighbor_entry_attr_t_enum_values_names,
     .valuesshortnames  = sai_metadata_sai_neighbor_entry_attr_t_enum_values_short_names,
@@ -4095,6 +4711,7 @@ const sai_next_hop_attr_t sai_metadata_sai_next_hop_attr_t_enum_values[] = {
     SAI_NEXT_HOP_ATTR_SEGMENTROUTE_ENDPOINT_TYPE,
     SAI_NEXT_HOP_ATTR_SEGMENTROUTE_ENDPOINT_POP_TYPE,
     SAI_NEXT_HOP_ATTR_LABELSTACK,
+    SAI_NEXT_HOP_ATTR_COUNTER_ID,
     -1
 };
 const char* const sai_metadata_sai_next_hop_attr_t_enum_values_names[] = {
@@ -4108,6 +4725,7 @@ const char* const sai_metadata_sai_next_hop_attr_t_enum_values_names[] = {
     "SAI_NEXT_HOP_ATTR_SEGMENTROUTE_ENDPOINT_TYPE",
     "SAI_NEXT_HOP_ATTR_SEGMENTROUTE_ENDPOINT_POP_TYPE",
     "SAI_NEXT_HOP_ATTR_LABELSTACK",
+    "SAI_NEXT_HOP_ATTR_COUNTER_ID",
     NULL
 };
 const char* const sai_metadata_sai_next_hop_attr_t_enum_values_short_names[] = {
@@ -4121,11 +4739,12 @@ const char* const sai_metadata_sai_next_hop_attr_t_enum_values_short_names[] = {
     "SEGMENTROUTE_ENDPOINT_TYPE",
     "SEGMENTROUTE_ENDPOINT_POP_TYPE",
     "LABELSTACK",
+    "COUNTER_ID",
     NULL
 };
 const sai_enum_metadata_t sai_metadata_enum_sai_next_hop_attr_t = {
     .name              = "sai_next_hop_attr_t",
-    .valuescount       = 10,
+    .valuescount       = 11,
     .values            = (const int*)sai_metadata_sai_next_hop_attr_t_enum_values,
     .valuesnames       = sai_metadata_sai_next_hop_attr_t_enum_values_names,
     .valuesshortnames  = sai_metadata_sai_next_hop_attr_t_enum_values_short_names,
@@ -4200,6 +4819,7 @@ const sai_next_hop_group_attr_t sai_metadata_sai_next_hop_group_attr_t_enum_valu
     SAI_NEXT_HOP_GROUP_ATTR_NEXT_HOP_MEMBER_LIST,
     SAI_NEXT_HOP_GROUP_ATTR_TYPE,
     SAI_NEXT_HOP_GROUP_ATTR_SET_SWITCHOVER,
+    SAI_NEXT_HOP_GROUP_ATTR_COUNTER_ID,
     -1
 };
 const char* const sai_metadata_sai_next_hop_group_attr_t_enum_values_names[] = {
@@ -4207,6 +4827,7 @@ const char* const sai_metadata_sai_next_hop_group_attr_t_enum_values_names[] = {
     "SAI_NEXT_HOP_GROUP_ATTR_NEXT_HOP_MEMBER_LIST",
     "SAI_NEXT_HOP_GROUP_ATTR_TYPE",
     "SAI_NEXT_HOP_GROUP_ATTR_SET_SWITCHOVER",
+    "SAI_NEXT_HOP_GROUP_ATTR_COUNTER_ID",
     NULL
 };
 const char* const sai_metadata_sai_next_hop_group_attr_t_enum_values_short_names[] = {
@@ -4214,11 +4835,12 @@ const char* const sai_metadata_sai_next_hop_group_attr_t_enum_values_short_names
     "NEXT_HOP_MEMBER_LIST",
     "TYPE",
     "SET_SWITCHOVER",
+    "COUNTER_ID",
     NULL
 };
 const sai_enum_metadata_t sai_metadata_enum_sai_next_hop_group_attr_t = {
     .name              = "sai_next_hop_group_attr_t",
-    .valuescount       = 4,
+    .valuescount       = 5,
     .values            = (const int*)sai_metadata_sai_next_hop_group_attr_t_enum_values,
     .valuesnames       = sai_metadata_sai_next_hop_group_attr_t_enum_values_names,
     .valuesshortnames  = sai_metadata_sai_next_hop_group_attr_t_enum_values_short_names,
@@ -4468,6 +5090,11 @@ const sai_object_type_t sai_metadata_sai_object_type_t_enum_values[] = {
     SAI_OBJECT_TYPE_TAM_COLLECTOR,
     SAI_OBJECT_TYPE_TAM_EVENT_ACTION,
     SAI_OBJECT_TYPE_TAM_EVENT,
+    SAI_OBJECT_TYPE_NAT_ZONE_COUNTER,
+    SAI_OBJECT_TYPE_NAT_ENTRY,
+    SAI_OBJECT_TYPE_TAM_INT,
+    SAI_OBJECT_TYPE_COUNTER,
+    SAI_OBJECT_TYPE_DEBUG_COUNTER,
     SAI_OBJECT_TYPE_TABLE_BITMAP_CLASSIFICATION_ENTRY,
     SAI_OBJECT_TYPE_TABLE_BITMAP_ROUTER_ENTRY,
     SAI_OBJECT_TYPE_TABLE_META_TUNNEL_ENTRY,
@@ -4555,6 +5182,11 @@ const char* const sai_metadata_sai_object_type_t_enum_values_names[] = {
     "SAI_OBJECT_TYPE_TAM_COLLECTOR",
     "SAI_OBJECT_TYPE_TAM_EVENT_ACTION",
     "SAI_OBJECT_TYPE_TAM_EVENT",
+    "SAI_OBJECT_TYPE_NAT_ZONE_COUNTER",
+    "SAI_OBJECT_TYPE_NAT_ENTRY",
+    "SAI_OBJECT_TYPE_TAM_INT",
+    "SAI_OBJECT_TYPE_COUNTER",
+    "SAI_OBJECT_TYPE_DEBUG_COUNTER",
     "SAI_OBJECT_TYPE_TABLE_BITMAP_CLASSIFICATION_ENTRY",
     "SAI_OBJECT_TYPE_TABLE_BITMAP_ROUTER_ENTRY",
     "SAI_OBJECT_TYPE_TABLE_META_TUNNEL_ENTRY",
@@ -4642,6 +5274,11 @@ const char* const sai_metadata_sai_object_type_t_enum_values_short_names[] = {
     "TAM_COLLECTOR",
     "TAM_EVENT_ACTION",
     "TAM_EVENT",
+    "NAT_ZONE_COUNTER",
+    "NAT_ENTRY",
+    "TAM_INT",
+    "COUNTER",
+    "DEBUG_COUNTER",
     "TABLE_BITMAP_CLASSIFICATION_ENTRY",
     "TABLE_BITMAP_ROUTER_ENTRY",
     "TABLE_META_TUNNEL_ENTRY",
@@ -4649,10 +5286,39 @@ const char* const sai_metadata_sai_object_type_t_enum_values_short_names[] = {
 };
 const sai_enum_metadata_t sai_metadata_enum_sai_object_type_t = {
     .name              = "sai_object_type_t",
-    .valuescount       = 84,
+    .valuescount       = 89,
     .values            = (const int*)sai_metadata_sai_object_type_t_enum_values,
     .valuesnames       = sai_metadata_sai_object_type_t_enum_values_names,
     .valuesshortnames  = sai_metadata_sai_object_type_t_enum_values_short_names,
+    .containsflags     = false,
+};
+const sai_out_drop_reason_t sai_metadata_sai_out_drop_reason_t_enum_values[] = {
+    SAI_OUT_DROP_REASON_L2_ANY,
+    SAI_OUT_DROP_REASON_EGRESS_VLAN_FILTER,
+    SAI_OUT_DROP_REASON_L3_ANY,
+    SAI_OUT_DROP_REASON_L3_EGRESS_LINK_DOWN,
+    -1
+};
+const char* const sai_metadata_sai_out_drop_reason_t_enum_values_names[] = {
+    "SAI_OUT_DROP_REASON_L2_ANY",
+    "SAI_OUT_DROP_REASON_EGRESS_VLAN_FILTER",
+    "SAI_OUT_DROP_REASON_L3_ANY",
+    "SAI_OUT_DROP_REASON_L3_EGRESS_LINK_DOWN",
+    NULL
+};
+const char* const sai_metadata_sai_out_drop_reason_t_enum_values_short_names[] = {
+    "L2_ANY",
+    "EGRESS_VLAN_FILTER",
+    "L3_ANY",
+    "L3_EGRESS_LINK_DOWN",
+    NULL
+};
+const sai_enum_metadata_t sai_metadata_enum_sai_out_drop_reason_t = {
+    .name              = "sai_out_drop_reason_t",
+    .valuescount       = 4,
+    .values            = (const int*)sai_metadata_sai_out_drop_reason_t_enum_values,
+    .valuesnames       = sai_metadata_sai_out_drop_reason_t_enum_values_names,
+    .valuesshortnames  = sai_metadata_sai_out_drop_reason_t_enum_values_short_names,
     .containsflags     = false,
 };
 const sai_packet_action_t sai_metadata_sai_packet_action_t_enum_values[] = {
@@ -4980,6 +5646,8 @@ const sai_port_attr_t sai_metadata_sai_port_attr_t_enum_values[] = {
     SAI_PORT_ATTR_SERDES_PREEMPHASIS,
     SAI_PORT_ATTR_SERDES_IDRIVER,
     SAI_PORT_ATTR_SERDES_IPREDRIVER,
+    SAI_PORT_ATTR_LINK_TRAINING_ENABLE,
+    SAI_PORT_ATTR_PTP_MODE,
     -1
 };
 const char* const sai_metadata_sai_port_attr_t_enum_values_names[] = {
@@ -5074,6 +5742,8 @@ const char* const sai_metadata_sai_port_attr_t_enum_values_names[] = {
     "SAI_PORT_ATTR_SERDES_PREEMPHASIS",
     "SAI_PORT_ATTR_SERDES_IDRIVER",
     "SAI_PORT_ATTR_SERDES_IPREDRIVER",
+    "SAI_PORT_ATTR_LINK_TRAINING_ENABLE",
+    "SAI_PORT_ATTR_PTP_MODE",
     NULL
 };
 const char* const sai_metadata_sai_port_attr_t_enum_values_short_names[] = {
@@ -5168,11 +5838,13 @@ const char* const sai_metadata_sai_port_attr_t_enum_values_short_names[] = {
     "SERDES_PREEMPHASIS",
     "SERDES_IDRIVER",
     "SERDES_IPREDRIVER",
+    "LINK_TRAINING_ENABLE",
+    "PTP_MODE",
     NULL
 };
 const sai_enum_metadata_t sai_metadata_enum_sai_port_attr_t = {
     .name              = "sai_port_attr_t",
-    .valuescount       = 91,
+    .valuescount       = 93,
     .values            = (const int*)sai_metadata_sai_port_attr_t_enum_values,
     .valuesnames       = sai_metadata_sai_port_attr_t_enum_values_names,
     .valuesshortnames  = sai_metadata_sai_port_attr_t_enum_values_short_names,
@@ -5478,6 +6150,32 @@ const sai_enum_metadata_t sai_metadata_enum_sai_port_priority_flow_control_mode_
     .valuesshortnames  = sai_metadata_sai_port_priority_flow_control_mode_t_enum_values_short_names,
     .containsflags     = false,
 };
+const sai_port_ptp_mode_t sai_metadata_sai_port_ptp_mode_t_enum_values[] = {
+    SAI_PORT_PTP_MODE_NONE,
+    SAI_PORT_PTP_MODE_SINGLE_STEP_TIMESTAMP,
+    SAI_PORT_PTP_MODE_TWO_STEP_TIMESTAMP,
+    -1
+};
+const char* const sai_metadata_sai_port_ptp_mode_t_enum_values_names[] = {
+    "SAI_PORT_PTP_MODE_NONE",
+    "SAI_PORT_PTP_MODE_SINGLE_STEP_TIMESTAMP",
+    "SAI_PORT_PTP_MODE_TWO_STEP_TIMESTAMP",
+    NULL
+};
+const char* const sai_metadata_sai_port_ptp_mode_t_enum_values_short_names[] = {
+    "NONE",
+    "SINGLE_STEP_TIMESTAMP",
+    "TWO_STEP_TIMESTAMP",
+    NULL
+};
+const sai_enum_metadata_t sai_metadata_enum_sai_port_ptp_mode_t = {
+    .name              = "sai_port_ptp_mode_t",
+    .valuescount       = 3,
+    .values            = (const int*)sai_metadata_sai_port_ptp_mode_t_enum_values,
+    .valuesnames       = sai_metadata_sai_port_ptp_mode_t_enum_values_names,
+    .valuesshortnames  = sai_metadata_sai_port_ptp_mode_t_enum_values_short_names,
+    .containsflags     = false,
+};
 const sai_port_stat_t sai_metadata_sai_port_stat_t_enum_values[] = {
     SAI_PORT_STAT_IF_IN_OCTETS,
     SAI_PORT_STAT_IF_IN_UCAST_PKTS,
@@ -5640,6 +6338,8 @@ const sai_port_stat_t sai_metadata_sai_port_stat_t_enum_values[] = {
     SAI_PORT_STAT_EEE_RX_EVENT_COUNT,
     SAI_PORT_STAT_EEE_TX_DURATION,
     SAI_PORT_STAT_EEE_RX_DURATION,
+    SAI_PORT_STAT_IN_DROP_REASON_RANGE_BASE,
+    SAI_PORT_STAT_OUT_DROP_REASON_RANGE_BASE,
     -1
 };
 const char* const sai_metadata_sai_port_stat_t_enum_values_names[] = {
@@ -5804,6 +6504,8 @@ const char* const sai_metadata_sai_port_stat_t_enum_values_names[] = {
     "SAI_PORT_STAT_EEE_RX_EVENT_COUNT",
     "SAI_PORT_STAT_EEE_TX_DURATION",
     "SAI_PORT_STAT_EEE_RX_DURATION",
+    "SAI_PORT_STAT_IN_DROP_REASON_RANGE_BASE",
+    "SAI_PORT_STAT_OUT_DROP_REASON_RANGE_BASE",
     NULL
 };
 const char* const sai_metadata_sai_port_stat_t_enum_values_short_names[] = {
@@ -5968,15 +6670,17 @@ const char* const sai_metadata_sai_port_stat_t_enum_values_short_names[] = {
     "EEE_RX_EVENT_COUNT",
     "EEE_TX_DURATION",
     "EEE_RX_DURATION",
+    "IN_DROP_REASON_RANGE_BASE",
+    "OUT_DROP_REASON_RANGE_BASE",
     NULL
 };
 const sai_enum_metadata_t sai_metadata_enum_sai_port_stat_t = {
     .name              = "sai_port_stat_t",
-    .valuescount       = 161,
+    .valuescount       = 163,
     .values            = (const int*)sai_metadata_sai_port_stat_t_enum_values,
     .valuesnames       = sai_metadata_sai_port_stat_t_enum_values_names,
     .valuesshortnames  = sai_metadata_sai_port_stat_t_enum_values_short_names,
-    .containsflags     = false,
+    .containsflags     = true,
 };
 const sai_port_type_t sai_metadata_sai_port_type_t_enum_values[] = {
     SAI_PORT_TYPE_LOGICAL,
@@ -6300,6 +7004,8 @@ const sai_route_entry_attr_t sai_metadata_sai_route_entry_attr_t_enum_values[] =
     SAI_ROUTE_ENTRY_ATTR_USER_TRAP_ID,
     SAI_ROUTE_ENTRY_ATTR_NEXT_HOP_ID,
     SAI_ROUTE_ENTRY_ATTR_META_DATA,
+    SAI_ROUTE_ENTRY_ATTR_IP_ADDR_FAMILY,
+    SAI_ROUTE_ENTRY_ATTR_COUNTER_ID,
     -1
 };
 const char* const sai_metadata_sai_route_entry_attr_t_enum_values_names[] = {
@@ -6307,6 +7013,8 @@ const char* const sai_metadata_sai_route_entry_attr_t_enum_values_names[] = {
     "SAI_ROUTE_ENTRY_ATTR_USER_TRAP_ID",
     "SAI_ROUTE_ENTRY_ATTR_NEXT_HOP_ID",
     "SAI_ROUTE_ENTRY_ATTR_META_DATA",
+    "SAI_ROUTE_ENTRY_ATTR_IP_ADDR_FAMILY",
+    "SAI_ROUTE_ENTRY_ATTR_COUNTER_ID",
     NULL
 };
 const char* const sai_metadata_sai_route_entry_attr_t_enum_values_short_names[] = {
@@ -6314,11 +7022,13 @@ const char* const sai_metadata_sai_route_entry_attr_t_enum_values_short_names[] 
     "USER_TRAP_ID",
     "NEXT_HOP_ID",
     "META_DATA",
+    "IP_ADDR_FAMILY",
+    "COUNTER_ID",
     NULL
 };
 const sai_enum_metadata_t sai_metadata_enum_sai_route_entry_attr_t = {
     .name              = "sai_route_entry_attr_t",
-    .valuescount       = 4,
+    .valuescount       = 6,
     .values            = (const int*)sai_metadata_sai_route_entry_attr_t_enum_values,
     .valuesnames       = sai_metadata_sai_route_entry_attr_t_enum_values_names,
     .valuesshortnames  = sai_metadata_sai_route_entry_attr_t_enum_values_short_names,
@@ -6343,6 +7053,7 @@ const sai_router_interface_attr_t sai_metadata_sai_router_interface_attr_t_enum_
     SAI_ROUTER_INTERFACE_ATTR_V6_MCAST_ENABLE,
     SAI_ROUTER_INTERFACE_ATTR_LOOPBACK_PACKET_ACTION,
     SAI_ROUTER_INTERFACE_ATTR_IS_VIRTUAL,
+    SAI_ROUTER_INTERFACE_ATTR_NAT_ZONE_ID,
     -1
 };
 const char* const sai_metadata_sai_router_interface_attr_t_enum_values_names[] = {
@@ -6364,6 +7075,7 @@ const char* const sai_metadata_sai_router_interface_attr_t_enum_values_names[] =
     "SAI_ROUTER_INTERFACE_ATTR_V6_MCAST_ENABLE",
     "SAI_ROUTER_INTERFACE_ATTR_LOOPBACK_PACKET_ACTION",
     "SAI_ROUTER_INTERFACE_ATTR_IS_VIRTUAL",
+    "SAI_ROUTER_INTERFACE_ATTR_NAT_ZONE_ID",
     NULL
 };
 const char* const sai_metadata_sai_router_interface_attr_t_enum_values_short_names[] = {
@@ -6385,11 +7097,12 @@ const char* const sai_metadata_sai_router_interface_attr_t_enum_values_short_nam
     "V6_MCAST_ENABLE",
     "LOOPBACK_PACKET_ACTION",
     "IS_VIRTUAL",
+    "NAT_ZONE_ID",
     NULL
 };
 const sai_enum_metadata_t sai_metadata_enum_sai_router_interface_attr_t = {
     .name              = "sai_router_interface_attr_t",
-    .valuescount       = 18,
+    .valuescount       = 19,
     .values            = (const int*)sai_metadata_sai_router_interface_attr_t_enum_values,
     .valuesnames       = sai_metadata_sai_router_interface_attr_t_enum_values_names,
     .valuesshortnames  = sai_metadata_sai_router_interface_attr_t_enum_values_short_names,
@@ -7166,6 +7879,7 @@ const sai_switch_attr_t sai_metadata_sai_switch_attr_t_enum_values[] = {
     SAI_SWITCH_ATTR_ACL_USER_TRAP_ID_RANGE,
     SAI_SWITCH_ATTR_DEFAULT_VLAN_ID,
     SAI_SWITCH_ATTR_DEFAULT_STP_INST_ID,
+    SAI_SWITCH_ATTR_MAX_STP_INSTANCE,
     SAI_SWITCH_ATTR_DEFAULT_VIRTUAL_ROUTER_ID,
     SAI_SWITCH_ATTR_DEFAULT_1Q_BRIDGE_ID,
     SAI_SWITCH_ATTR_INGRESS_ACL,
@@ -7188,6 +7902,9 @@ const sai_switch_attr_t sai_metadata_sai_switch_attr_t_enum_values[] = {
     SAI_SWITCH_ATTR_AVAILABLE_FDB_ENTRY,
     SAI_SWITCH_ATTR_AVAILABLE_L2MC_ENTRY,
     SAI_SWITCH_ATTR_AVAILABLE_IPMC_ENTRY,
+    SAI_SWITCH_ATTR_AVAILABLE_SNAT_ENTRY,
+    SAI_SWITCH_ATTR_AVAILABLE_DNAT_ENTRY,
+    SAI_SWITCH_ATTR_AVAILABLE_DOUBLE_NAT_ENTRY,
     SAI_SWITCH_ATTR_AVAILABLE_ACL_TABLE,
     SAI_SWITCH_ATTR_AVAILABLE_ACL_TABLE_GROUP,
     SAI_SWITCH_ATTR_DEFAULT_TRAP_GROUP,
@@ -7263,6 +7980,8 @@ const sai_switch_attr_t sai_metadata_sai_switch_attr_t_enum_values[] = {
     SAI_SWITCH_ATTR_BFD_SESSION_STATE_CHANGE_NOTIFY,
     SAI_SWITCH_ATTR_NUMBER_OF_BFD_SESSION,
     SAI_SWITCH_ATTR_MAX_BFD_SESSION,
+    SAI_SWITCH_ATTR_SUPPORTED_IPV4_BFD_SESSION_OFFLOAD_TYPE,
+    SAI_SWITCH_ATTR_SUPPORTED_IPV6_BFD_SESSION_OFFLOAD_TYPE,
     SAI_SWITCH_ATTR_MIN_BFD_RX,
     SAI_SWITCH_ATTR_MIN_BFD_TX,
     SAI_SWITCH_ATTR_ECN_ECT_THRESHOLD_ENABLE,
@@ -7275,6 +7994,8 @@ const sai_switch_attr_t sai_metadata_sai_switch_attr_t_enum_values[] = {
     SAI_SWITCH_ATTR_TAM_OBJECT_ID,
     SAI_SWITCH_ATTR_TAM_EVENT_NOTIFY,
     SAI_SWITCH_ATTR_PRE_SHUTDOWN,
+    SAI_SWITCH_ATTR_NAT_ZONE_COUNTER_OBJECT_ID,
+    SAI_SWITCH_ATTR_NAT_ENABLE,
     -1
 };
 const char* const sai_metadata_sai_switch_attr_t_enum_values_names[] = {
@@ -7316,6 +8037,7 @@ const char* const sai_metadata_sai_switch_attr_t_enum_values_names[] = {
     "SAI_SWITCH_ATTR_ACL_USER_TRAP_ID_RANGE",
     "SAI_SWITCH_ATTR_DEFAULT_VLAN_ID",
     "SAI_SWITCH_ATTR_DEFAULT_STP_INST_ID",
+    "SAI_SWITCH_ATTR_MAX_STP_INSTANCE",
     "SAI_SWITCH_ATTR_DEFAULT_VIRTUAL_ROUTER_ID",
     "SAI_SWITCH_ATTR_DEFAULT_1Q_BRIDGE_ID",
     "SAI_SWITCH_ATTR_INGRESS_ACL",
@@ -7338,6 +8060,9 @@ const char* const sai_metadata_sai_switch_attr_t_enum_values_names[] = {
     "SAI_SWITCH_ATTR_AVAILABLE_FDB_ENTRY",
     "SAI_SWITCH_ATTR_AVAILABLE_L2MC_ENTRY",
     "SAI_SWITCH_ATTR_AVAILABLE_IPMC_ENTRY",
+    "SAI_SWITCH_ATTR_AVAILABLE_SNAT_ENTRY",
+    "SAI_SWITCH_ATTR_AVAILABLE_DNAT_ENTRY",
+    "SAI_SWITCH_ATTR_AVAILABLE_DOUBLE_NAT_ENTRY",
     "SAI_SWITCH_ATTR_AVAILABLE_ACL_TABLE",
     "SAI_SWITCH_ATTR_AVAILABLE_ACL_TABLE_GROUP",
     "SAI_SWITCH_ATTR_DEFAULT_TRAP_GROUP",
@@ -7413,6 +8138,8 @@ const char* const sai_metadata_sai_switch_attr_t_enum_values_names[] = {
     "SAI_SWITCH_ATTR_BFD_SESSION_STATE_CHANGE_NOTIFY",
     "SAI_SWITCH_ATTR_NUMBER_OF_BFD_SESSION",
     "SAI_SWITCH_ATTR_MAX_BFD_SESSION",
+    "SAI_SWITCH_ATTR_SUPPORTED_IPV4_BFD_SESSION_OFFLOAD_TYPE",
+    "SAI_SWITCH_ATTR_SUPPORTED_IPV6_BFD_SESSION_OFFLOAD_TYPE",
     "SAI_SWITCH_ATTR_MIN_BFD_RX",
     "SAI_SWITCH_ATTR_MIN_BFD_TX",
     "SAI_SWITCH_ATTR_ECN_ECT_THRESHOLD_ENABLE",
@@ -7425,6 +8152,8 @@ const char* const sai_metadata_sai_switch_attr_t_enum_values_names[] = {
     "SAI_SWITCH_ATTR_TAM_OBJECT_ID",
     "SAI_SWITCH_ATTR_TAM_EVENT_NOTIFY",
     "SAI_SWITCH_ATTR_PRE_SHUTDOWN",
+    "SAI_SWITCH_ATTR_NAT_ZONE_COUNTER_OBJECT_ID",
+    "SAI_SWITCH_ATTR_NAT_ENABLE",
     NULL
 };
 const char* const sai_metadata_sai_switch_attr_t_enum_values_short_names[] = {
@@ -7466,6 +8195,7 @@ const char* const sai_metadata_sai_switch_attr_t_enum_values_short_names[] = {
     "ACL_USER_TRAP_ID_RANGE",
     "DEFAULT_VLAN_ID",
     "DEFAULT_STP_INST_ID",
+    "MAX_STP_INSTANCE",
     "DEFAULT_VIRTUAL_ROUTER_ID",
     "DEFAULT_1Q_BRIDGE_ID",
     "INGRESS_ACL",
@@ -7488,6 +8218,9 @@ const char* const sai_metadata_sai_switch_attr_t_enum_values_short_names[] = {
     "AVAILABLE_FDB_ENTRY",
     "AVAILABLE_L2MC_ENTRY",
     "AVAILABLE_IPMC_ENTRY",
+    "AVAILABLE_SNAT_ENTRY",
+    "AVAILABLE_DNAT_ENTRY",
+    "AVAILABLE_DOUBLE_NAT_ENTRY",
     "AVAILABLE_ACL_TABLE",
     "AVAILABLE_ACL_TABLE_GROUP",
     "DEFAULT_TRAP_GROUP",
@@ -7563,6 +8296,8 @@ const char* const sai_metadata_sai_switch_attr_t_enum_values_short_names[] = {
     "BFD_SESSION_STATE_CHANGE_NOTIFY",
     "NUMBER_OF_BFD_SESSION",
     "MAX_BFD_SESSION",
+    "SUPPORTED_IPV4_BFD_SESSION_OFFLOAD_TYPE",
+    "SUPPORTED_IPV6_BFD_SESSION_OFFLOAD_TYPE",
     "MIN_BFD_RX",
     "MIN_BFD_TX",
     "ECN_ECT_THRESHOLD_ENABLE",
@@ -7575,11 +8310,13 @@ const char* const sai_metadata_sai_switch_attr_t_enum_values_short_names[] = {
     "TAM_OBJECT_ID",
     "TAM_EVENT_NOTIFY",
     "PRE_SHUTDOWN",
+    "NAT_ZONE_COUNTER_OBJECT_ID",
+    "NAT_ENABLE",
     NULL
 };
 const sai_enum_metadata_t sai_metadata_enum_sai_switch_attr_t = {
     .name              = "sai_switch_attr_t",
-    .valuescount       = 147,
+    .valuescount       = 155,
     .values            = (const int*)sai_metadata_sai_switch_attr_t_enum_values,
     .valuesnames       = sai_metadata_sai_switch_attr_t_enum_values_names,
     .valuesshortnames  = sai_metadata_sai_switch_attr_t_enum_values_short_names,
@@ -7668,6 +8405,29 @@ const sai_enum_metadata_t sai_metadata_enum_sai_switch_restart_type_t = {
     .valuesnames       = sai_metadata_sai_switch_restart_type_t_enum_values_names,
     .valuesshortnames  = sai_metadata_sai_switch_restart_type_t_enum_values_short_names,
     .containsflags     = false,
+};
+const sai_switch_stat_t sai_metadata_sai_switch_stat_t_enum_values[] = {
+    SAI_SWITCH_STAT_IN_DROP_REASON_RANGE_BASE,
+    SAI_SWITCH_STAT_OUT_DROP_REASON_RANGE_BASE,
+    -1
+};
+const char* const sai_metadata_sai_switch_stat_t_enum_values_names[] = {
+    "SAI_SWITCH_STAT_IN_DROP_REASON_RANGE_BASE",
+    "SAI_SWITCH_STAT_OUT_DROP_REASON_RANGE_BASE",
+    NULL
+};
+const char* const sai_metadata_sai_switch_stat_t_enum_values_short_names[] = {
+    "IN_DROP_REASON_RANGE_BASE",
+    "OUT_DROP_REASON_RANGE_BASE",
+    NULL
+};
+const sai_enum_metadata_t sai_metadata_enum_sai_switch_stat_t = {
+    .name              = "sai_switch_stat_t",
+    .valuescount       = 2,
+    .values            = (const int*)sai_metadata_sai_switch_stat_t_enum_values,
+    .valuesnames       = sai_metadata_sai_switch_stat_t_enum_values_names,
+    .valuesshortnames  = sai_metadata_sai_switch_stat_t_enum_values_short_names,
+    .containsflags     = true,
 };
 const sai_switch_switching_mode_t sai_metadata_sai_switch_switching_mode_t_enum_values[] = {
     SAI_SWITCH_SWITCHING_MODE_CUT_THROUGH,
@@ -7947,24 +8707,27 @@ const sai_enum_metadata_t sai_metadata_enum_sai_table_meta_tunnel_entry_stat_t =
 const sai_tam_attr_t sai_metadata_sai_tam_attr_t_enum_values[] = {
     SAI_TAM_ATTR_TELEMETRY_OBJECTS_LIST,
     SAI_TAM_ATTR_EVENT_OBJECTS_LIST,
+    SAI_TAM_ATTR_INT_OBJECTS_LIST,
     SAI_TAM_ATTR_TAM_BIND_POINT_TYPE_LIST,
     -1
 };
 const char* const sai_metadata_sai_tam_attr_t_enum_values_names[] = {
     "SAI_TAM_ATTR_TELEMETRY_OBJECTS_LIST",
     "SAI_TAM_ATTR_EVENT_OBJECTS_LIST",
+    "SAI_TAM_ATTR_INT_OBJECTS_LIST",
     "SAI_TAM_ATTR_TAM_BIND_POINT_TYPE_LIST",
     NULL
 };
 const char* const sai_metadata_sai_tam_attr_t_enum_values_short_names[] = {
     "TELEMETRY_OBJECTS_LIST",
     "EVENT_OBJECTS_LIST",
+    "INT_OBJECTS_LIST",
     "TAM_BIND_POINT_TYPE_LIST",
     NULL
 };
 const sai_enum_metadata_t sai_metadata_enum_sai_tam_attr_t = {
     .name              = "sai_tam_attr_t",
-    .valuescount       = 3,
+    .valuescount       = 4,
     .values            = (const int*)sai_metadata_sai_tam_attr_t_enum_values,
     .valuesnames       = sai_metadata_sai_tam_attr_t_enum_values_names,
     .valuesshortnames  = sai_metadata_sai_tam_attr_t_enum_values_short_names,
@@ -7976,6 +8739,8 @@ const sai_tam_bind_point_type_t sai_metadata_sai_tam_bind_point_type_t_enum_valu
     SAI_TAM_BIND_POINT_TYPE_LAG,
     SAI_TAM_BIND_POINT_TYPE_VLAN,
     SAI_TAM_BIND_POINT_TYPE_SWITCH,
+    SAI_TAM_BIND_POINT_TYPE_IPG,
+    SAI_TAM_BIND_POINT_TYPE_BSP,
     -1
 };
 const char* const sai_metadata_sai_tam_bind_point_type_t_enum_values_names[] = {
@@ -7984,6 +8749,8 @@ const char* const sai_metadata_sai_tam_bind_point_type_t_enum_values_names[] = {
     "SAI_TAM_BIND_POINT_TYPE_LAG",
     "SAI_TAM_BIND_POINT_TYPE_VLAN",
     "SAI_TAM_BIND_POINT_TYPE_SWITCH",
+    "SAI_TAM_BIND_POINT_TYPE_IPG",
+    "SAI_TAM_BIND_POINT_TYPE_BSP",
     NULL
 };
 const char* const sai_metadata_sai_tam_bind_point_type_t_enum_values_short_names[] = {
@@ -7992,11 +8759,13 @@ const char* const sai_metadata_sai_tam_bind_point_type_t_enum_values_short_names
     "LAG",
     "VLAN",
     "SWITCH",
+    "IPG",
+    "BSP",
     NULL
 };
 const sai_enum_metadata_t sai_metadata_enum_sai_tam_bind_point_type_t = {
     .name              = "sai_tam_bind_point_type_t",
-    .valuescount       = 5,
+    .valuescount       = 7,
     .values            = (const int*)sai_metadata_sai_tam_bind_point_type_t_enum_values,
     .valuesnames       = sai_metadata_sai_tam_bind_point_type_t_enum_values_names,
     .valuesshortnames  = sai_metadata_sai_tam_bind_point_type_t_enum_values_short_names,
@@ -8135,6 +8904,9 @@ const sai_tam_event_threshold_unit_t sai_metadata_sai_tam_event_threshold_unit_t
     SAI_TAM_EVENT_THRESHOLD_UNIT_USEC,
     SAI_TAM_EVENT_THRESHOLD_UNIT_MSEC,
     SAI_TAM_EVENT_THRESHOLD_UNIT_PERCENT,
+    SAI_TAM_EVENT_THRESHOLD_UNIT_BYTES,
+    SAI_TAM_EVENT_THRESHOLD_UNIT_PACKETS,
+    SAI_TAM_EVENT_THRESHOLD_UNIT_CELLS,
     -1
 };
 const char* const sai_metadata_sai_tam_event_threshold_unit_t_enum_values_names[] = {
@@ -8142,6 +8914,9 @@ const char* const sai_metadata_sai_tam_event_threshold_unit_t_enum_values_names[
     "SAI_TAM_EVENT_THRESHOLD_UNIT_USEC",
     "SAI_TAM_EVENT_THRESHOLD_UNIT_MSEC",
     "SAI_TAM_EVENT_THRESHOLD_UNIT_PERCENT",
+    "SAI_TAM_EVENT_THRESHOLD_UNIT_BYTES",
+    "SAI_TAM_EVENT_THRESHOLD_UNIT_PACKETS",
+    "SAI_TAM_EVENT_THRESHOLD_UNIT_CELLS",
     NULL
 };
 const char* const sai_metadata_sai_tam_event_threshold_unit_t_enum_values_short_names[] = {
@@ -8149,11 +8924,14 @@ const char* const sai_metadata_sai_tam_event_threshold_unit_t_enum_values_short_
     "USEC",
     "MSEC",
     "PERCENT",
+    "BYTES",
+    "PACKETS",
+    "CELLS",
     NULL
 };
 const sai_enum_metadata_t sai_metadata_enum_sai_tam_event_threshold_unit_t = {
     .name              = "sai_tam_event_threshold_unit_t",
-    .valuescount       = 4,
+    .valuescount       = 7,
     .values            = (const int*)sai_metadata_sai_tam_event_threshold_unit_t_enum_values,
     .valuesnames       = sai_metadata_sai_tam_event_threshold_unit_t_enum_values_names,
     .valuesshortnames  = sai_metadata_sai_tam_event_threshold_unit_t_enum_values_short_names,
@@ -8167,6 +8945,9 @@ const sai_tam_event_type_t sai_metadata_sai_tam_event_type_t_enum_values[] = {
     SAI_TAM_EVENT_TYPE_QUEUE_TAIL_DROP,
     SAI_TAM_EVENT_TYPE_PACKET_DROP,
     SAI_TAM_EVENT_TYPE_RESOURCE_UTILIZATION,
+    SAI_TAM_EVENT_TYPE_IPG_SHARED,
+    SAI_TAM_EVENT_TYPE_IPG_XOFF_ROOM,
+    SAI_TAM_EVENT_TYPE_BSP,
     -1
 };
 const char* const sai_metadata_sai_tam_event_type_t_enum_values_names[] = {
@@ -8177,6 +8958,9 @@ const char* const sai_metadata_sai_tam_event_type_t_enum_values_names[] = {
     "SAI_TAM_EVENT_TYPE_QUEUE_TAIL_DROP",
     "SAI_TAM_EVENT_TYPE_PACKET_DROP",
     "SAI_TAM_EVENT_TYPE_RESOURCE_UTILIZATION",
+    "SAI_TAM_EVENT_TYPE_IPG_SHARED",
+    "SAI_TAM_EVENT_TYPE_IPG_XOFF_ROOM",
+    "SAI_TAM_EVENT_TYPE_BSP",
     NULL
 };
 const char* const sai_metadata_sai_tam_event_type_t_enum_values_short_names[] = {
@@ -8187,14 +8971,176 @@ const char* const sai_metadata_sai_tam_event_type_t_enum_values_short_names[] = 
     "QUEUE_TAIL_DROP",
     "PACKET_DROP",
     "RESOURCE_UTILIZATION",
+    "IPG_SHARED",
+    "IPG_XOFF_ROOM",
+    "BSP",
     NULL
 };
 const sai_enum_metadata_t sai_metadata_enum_sai_tam_event_type_t = {
     .name              = "sai_tam_event_type_t",
-    .valuescount       = 7,
+    .valuescount       = 10,
     .values            = (const int*)sai_metadata_sai_tam_event_type_t_enum_values,
     .valuesnames       = sai_metadata_sai_tam_event_type_t_enum_values_names,
     .valuesshortnames  = sai_metadata_sai_tam_event_type_t_enum_values_short_names,
+    .containsflags     = false,
+};
+const sai_tam_int_attr_t sai_metadata_sai_tam_int_attr_t_enum_values[] = {
+    SAI_TAM_INT_ATTR_TYPE,
+    SAI_TAM_INT_ATTR_DEVICE_ID,
+    SAI_TAM_INT_ATTR_IOAM_TRACE_TYPE,
+    SAI_TAM_INT_ATTR_INT_PRESENCE_TYPE,
+    SAI_TAM_INT_ATTR_INT_PRESENCE_PB1,
+    SAI_TAM_INT_ATTR_INT_PRESENCE_PB2,
+    SAI_TAM_INT_ATTR_INT_PRESENCE_DSCP_VALUE,
+    SAI_TAM_INT_ATTR_INLINE,
+    SAI_TAM_INT_ATTR_INT_PRESENCE_L3_PROTOCOL,
+    SAI_TAM_INT_ATTR_TRACE_VECTOR,
+    SAI_TAM_INT_ATTR_ACTION_VECTOR,
+    SAI_TAM_INT_ATTR_P4_INT_INSTRUCTION_BITMAP,
+    SAI_TAM_INT_ATTR_METADATA_FRAGMENT_ENABLE,
+    SAI_TAM_INT_ATTR_REPORT_ALL_PACKETS,
+    SAI_TAM_INT_ATTR_FLOW_LIVENESS_PERIOD,
+    SAI_TAM_INT_ATTR_LATENCY_SENSITIVITY,
+    SAI_TAM_INT_ATTR_ACL_GROUP,
+    SAI_TAM_INT_ATTR_MAX_HOP_COUNT,
+    SAI_TAM_INT_ATTR_MAX_LENGTH,
+    SAI_TAM_INT_ATTR_NAME_SPACE_ID,
+    SAI_TAM_INT_ATTR_NAME_SPACE_ID_GLOBAL,
+    SAI_TAM_INT_ATTR_INGRESS_SAMPLEPACKET_ENABLE,
+    SAI_TAM_INT_ATTR_COLLECTOR_LIST,
+    SAI_TAM_INT_ATTR_MATH_FUNC,
+    SAI_TAM_INT_ATTR_REPORT_ID,
+    -1
+};
+const char* const sai_metadata_sai_tam_int_attr_t_enum_values_names[] = {
+    "SAI_TAM_INT_ATTR_TYPE",
+    "SAI_TAM_INT_ATTR_DEVICE_ID",
+    "SAI_TAM_INT_ATTR_IOAM_TRACE_TYPE",
+    "SAI_TAM_INT_ATTR_INT_PRESENCE_TYPE",
+    "SAI_TAM_INT_ATTR_INT_PRESENCE_PB1",
+    "SAI_TAM_INT_ATTR_INT_PRESENCE_PB2",
+    "SAI_TAM_INT_ATTR_INT_PRESENCE_DSCP_VALUE",
+    "SAI_TAM_INT_ATTR_INLINE",
+    "SAI_TAM_INT_ATTR_INT_PRESENCE_L3_PROTOCOL",
+    "SAI_TAM_INT_ATTR_TRACE_VECTOR",
+    "SAI_TAM_INT_ATTR_ACTION_VECTOR",
+    "SAI_TAM_INT_ATTR_P4_INT_INSTRUCTION_BITMAP",
+    "SAI_TAM_INT_ATTR_METADATA_FRAGMENT_ENABLE",
+    "SAI_TAM_INT_ATTR_REPORT_ALL_PACKETS",
+    "SAI_TAM_INT_ATTR_FLOW_LIVENESS_PERIOD",
+    "SAI_TAM_INT_ATTR_LATENCY_SENSITIVITY",
+    "SAI_TAM_INT_ATTR_ACL_GROUP",
+    "SAI_TAM_INT_ATTR_MAX_HOP_COUNT",
+    "SAI_TAM_INT_ATTR_MAX_LENGTH",
+    "SAI_TAM_INT_ATTR_NAME_SPACE_ID",
+    "SAI_TAM_INT_ATTR_NAME_SPACE_ID_GLOBAL",
+    "SAI_TAM_INT_ATTR_INGRESS_SAMPLEPACKET_ENABLE",
+    "SAI_TAM_INT_ATTR_COLLECTOR_LIST",
+    "SAI_TAM_INT_ATTR_MATH_FUNC",
+    "SAI_TAM_INT_ATTR_REPORT_ID",
+    NULL
+};
+const char* const sai_metadata_sai_tam_int_attr_t_enum_values_short_names[] = {
+    "TYPE",
+    "DEVICE_ID",
+    "IOAM_TRACE_TYPE",
+    "INT_PRESENCE_TYPE",
+    "INT_PRESENCE_PB1",
+    "INT_PRESENCE_PB2",
+    "INT_PRESENCE_DSCP_VALUE",
+    "INLINE",
+    "INT_PRESENCE_L3_PROTOCOL",
+    "TRACE_VECTOR",
+    "ACTION_VECTOR",
+    "P4_INT_INSTRUCTION_BITMAP",
+    "METADATA_FRAGMENT_ENABLE",
+    "REPORT_ALL_PACKETS",
+    "FLOW_LIVENESS_PERIOD",
+    "LATENCY_SENSITIVITY",
+    "ACL_GROUP",
+    "MAX_HOP_COUNT",
+    "MAX_LENGTH",
+    "NAME_SPACE_ID",
+    "NAME_SPACE_ID_GLOBAL",
+    "INGRESS_SAMPLEPACKET_ENABLE",
+    "COLLECTOR_LIST",
+    "MATH_FUNC",
+    "REPORT_ID",
+    NULL
+};
+const sai_enum_metadata_t sai_metadata_enum_sai_tam_int_attr_t = {
+    .name              = "sai_tam_int_attr_t",
+    .valuescount       = 25,
+    .values            = (const int*)sai_metadata_sai_tam_int_attr_t_enum_values,
+    .valuesnames       = sai_metadata_sai_tam_int_attr_t_enum_values_names,
+    .valuesshortnames  = sai_metadata_sai_tam_int_attr_t_enum_values_short_names,
+    .containsflags     = false,
+};
+const sai_tam_int_presence_type_t sai_metadata_sai_tam_int_presence_type_t_enum_values[] = {
+    SAI_TAM_INT_PRESENCE_TYPE_UNDEFINED,
+    SAI_TAM_INT_PRESENCE_TYPE_PB,
+    SAI_TAM_INT_PRESENCE_TYPE_L3_PROTOCOL,
+    SAI_TAM_INT_PRESENCE_TYPE_DSCP,
+    -1
+};
+const char* const sai_metadata_sai_tam_int_presence_type_t_enum_values_names[] = {
+    "SAI_TAM_INT_PRESENCE_TYPE_UNDEFINED",
+    "SAI_TAM_INT_PRESENCE_TYPE_PB",
+    "SAI_TAM_INT_PRESENCE_TYPE_L3_PROTOCOL",
+    "SAI_TAM_INT_PRESENCE_TYPE_DSCP",
+    NULL
+};
+const char* const sai_metadata_sai_tam_int_presence_type_t_enum_values_short_names[] = {
+    "UNDEFINED",
+    "PB",
+    "L3_PROTOCOL",
+    "DSCP",
+    NULL
+};
+const sai_enum_metadata_t sai_metadata_enum_sai_tam_int_presence_type_t = {
+    .name              = "sai_tam_int_presence_type_t",
+    .valuescount       = 4,
+    .values            = (const int*)sai_metadata_sai_tam_int_presence_type_t_enum_values,
+    .valuesnames       = sai_metadata_sai_tam_int_presence_type_t_enum_values_names,
+    .valuesshortnames  = sai_metadata_sai_tam_int_presence_type_t_enum_values_short_names,
+    .containsflags     = false,
+};
+const sai_tam_int_type_t sai_metadata_sai_tam_int_type_t_enum_values[] = {
+    SAI_TAM_INT_TYPE_IOAM,
+    SAI_TAM_INT_TYPE_IFA1,
+    SAI_TAM_INT_TYPE_IFA2,
+    SAI_TAM_INT_TYPE_P4_INT_1,
+    SAI_TAM_INT_TYPE_P4_INT_2,
+    SAI_TAM_INT_TYPE_DIRECT_EXPORT,
+    SAI_TAM_INT_TYPE_IFA1_TAILSTAMP,
+    -1
+};
+const char* const sai_metadata_sai_tam_int_type_t_enum_values_names[] = {
+    "SAI_TAM_INT_TYPE_IOAM",
+    "SAI_TAM_INT_TYPE_IFA1",
+    "SAI_TAM_INT_TYPE_IFA2",
+    "SAI_TAM_INT_TYPE_P4_INT_1",
+    "SAI_TAM_INT_TYPE_P4_INT_2",
+    "SAI_TAM_INT_TYPE_DIRECT_EXPORT",
+    "SAI_TAM_INT_TYPE_IFA1_TAILSTAMP",
+    NULL
+};
+const char* const sai_metadata_sai_tam_int_type_t_enum_values_short_names[] = {
+    "IOAM",
+    "IFA1",
+    "IFA2",
+    "P4_INT_1",
+    "P4_INT_2",
+    "DIRECT_EXPORT",
+    "IFA1_TAILSTAMP",
+    NULL
+};
+const sai_enum_metadata_t sai_metadata_enum_sai_tam_int_type_t = {
+    .name              = "sai_tam_int_type_t",
+    .valuescount       = 7,
+    .values            = (const int*)sai_metadata_sai_tam_int_type_t_enum_values,
+    .valuesnames       = sai_metadata_sai_tam_int_type_t_enum_values_names,
+    .valuesshortnames  = sai_metadata_sai_tam_int_type_t_enum_values_short_names,
     .containsflags     = false,
 };
 const sai_tam_math_func_attr_t sai_metadata_sai_tam_math_func_attr_t_enum_values[] = {
@@ -8221,26 +9167,58 @@ const sai_tam_report_attr_t sai_metadata_sai_tam_report_attr_t_enum_values[] = {
     SAI_TAM_REPORT_ATTR_TYPE,
     SAI_TAM_REPORT_ATTR_HISTOGRAM_NUMBER_OF_BINS,
     SAI_TAM_REPORT_ATTR_HISTOGRAM_BIN_BOUNDARY,
+    SAI_TAM_REPORT_ATTR_QUOTA,
+    SAI_TAM_REPORT_ATTR_REPORT_MODE,
+    SAI_TAM_REPORT_ATTR_REPORT_INTERVAL,
     -1
 };
 const char* const sai_metadata_sai_tam_report_attr_t_enum_values_names[] = {
     "SAI_TAM_REPORT_ATTR_TYPE",
     "SAI_TAM_REPORT_ATTR_HISTOGRAM_NUMBER_OF_BINS",
     "SAI_TAM_REPORT_ATTR_HISTOGRAM_BIN_BOUNDARY",
+    "SAI_TAM_REPORT_ATTR_QUOTA",
+    "SAI_TAM_REPORT_ATTR_REPORT_MODE",
+    "SAI_TAM_REPORT_ATTR_REPORT_INTERVAL",
     NULL
 };
 const char* const sai_metadata_sai_tam_report_attr_t_enum_values_short_names[] = {
     "TYPE",
     "HISTOGRAM_NUMBER_OF_BINS",
     "HISTOGRAM_BIN_BOUNDARY",
+    "QUOTA",
+    "REPORT_MODE",
+    "REPORT_INTERVAL",
     NULL
 };
 const sai_enum_metadata_t sai_metadata_enum_sai_tam_report_attr_t = {
     .name              = "sai_tam_report_attr_t",
-    .valuescount       = 3,
+    .valuescount       = 6,
     .values            = (const int*)sai_metadata_sai_tam_report_attr_t_enum_values,
     .valuesnames       = sai_metadata_sai_tam_report_attr_t_enum_values_names,
     .valuesshortnames  = sai_metadata_sai_tam_report_attr_t_enum_values_short_names,
+    .containsflags     = false,
+};
+const sai_tam_report_mode_t sai_metadata_sai_tam_report_mode_t_enum_values[] = {
+    SAI_TAM_REPORT_MODE_ALL,
+    SAI_TAM_REPORT_MODE_BULK,
+    -1
+};
+const char* const sai_metadata_sai_tam_report_mode_t_enum_values_names[] = {
+    "SAI_TAM_REPORT_MODE_ALL",
+    "SAI_TAM_REPORT_MODE_BULK",
+    NULL
+};
+const char* const sai_metadata_sai_tam_report_mode_t_enum_values_short_names[] = {
+    "ALL",
+    "BULK",
+    NULL
+};
+const sai_enum_metadata_t sai_metadata_enum_sai_tam_report_mode_t = {
+    .name              = "sai_tam_report_mode_t",
+    .valuescount       = 2,
+    .values            = (const int*)sai_metadata_sai_tam_report_mode_t_enum_values,
+    .valuesnames       = sai_metadata_sai_tam_report_mode_t_enum_values_names,
+    .valuesshortnames  = sai_metadata_sai_tam_report_mode_t_enum_values_short_names,
     .containsflags     = false,
 };
 const sai_tam_report_type_t sai_metadata_sai_tam_report_type_t_enum_values[] = {
@@ -8350,6 +9328,7 @@ const sai_enum_metadata_t sai_metadata_enum_sai_tam_tel_math_func_type_t = {
 };
 const sai_tam_tel_type_attr_t sai_metadata_sai_tam_tel_type_attr_t_enum_values[] = {
     SAI_TAM_TEL_TYPE_ATTR_TAM_TELEMETRY_TYPE,
+    SAI_TAM_TEL_TYPE_ATTR_INT_SWITCH_IDENTIFIER,
     SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_PORT_STATS,
     SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_PORT_STATS_INGRESS,
     SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_PORT_STATS_EGRESS,
@@ -8368,6 +9347,7 @@ const sai_tam_tel_type_attr_t sai_metadata_sai_tam_tel_type_attr_t_enum_values[]
 };
 const char* const sai_metadata_sai_tam_tel_type_attr_t_enum_values_names[] = {
     "SAI_TAM_TEL_TYPE_ATTR_TAM_TELEMETRY_TYPE",
+    "SAI_TAM_TEL_TYPE_ATTR_INT_SWITCH_IDENTIFIER",
     "SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_PORT_STATS",
     "SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_PORT_STATS_INGRESS",
     "SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_PORT_STATS_EGRESS",
@@ -8386,6 +9366,7 @@ const char* const sai_metadata_sai_tam_tel_type_attr_t_enum_values_names[] = {
 };
 const char* const sai_metadata_sai_tam_tel_type_attr_t_enum_values_short_names[] = {
     "TAM_TELEMETRY_TYPE",
+    "INT_SWITCH_IDENTIFIER",
     "SWITCH_ENABLE_PORT_STATS",
     "SWITCH_ENABLE_PORT_STATS_INGRESS",
     "SWITCH_ENABLE_PORT_STATS_EGRESS",
@@ -8404,7 +9385,7 @@ const char* const sai_metadata_sai_tam_tel_type_attr_t_enum_values_short_names[]
 };
 const sai_enum_metadata_t sai_metadata_enum_sai_tam_tel_type_attr_t = {
     .name              = "sai_tam_tel_type_attr_t",
-    .valuescount       = 15,
+    .valuescount       = 16,
     .values            = (const int*)sai_metadata_sai_tam_tel_type_attr_t_enum_values,
     .valuesnames       = sai_metadata_sai_tam_tel_type_attr_t_enum_values_names,
     .valuesshortnames  = sai_metadata_sai_tam_tel_type_attr_t_enum_values_short_names,
@@ -8444,6 +9425,7 @@ const sai_tam_telemetry_type_t sai_metadata_sai_tam_telemetry_type_t_enum_values
     SAI_TAM_TELEMETRY_TYPE_SWITCH,
     SAI_TAM_TELEMETRY_TYPE_FABRIC,
     SAI_TAM_TELEMETRY_TYPE_FLOW,
+    SAI_TAM_TELEMETRY_TYPE_INT,
     -1
 };
 const char* const sai_metadata_sai_tam_telemetry_type_t_enum_values_names[] = {
@@ -8451,6 +9433,7 @@ const char* const sai_metadata_sai_tam_telemetry_type_t_enum_values_names[] = {
     "SAI_TAM_TELEMETRY_TYPE_SWITCH",
     "SAI_TAM_TELEMETRY_TYPE_FABRIC",
     "SAI_TAM_TELEMETRY_TYPE_FLOW",
+    "SAI_TAM_TELEMETRY_TYPE_INT",
     NULL
 };
 const char* const sai_metadata_sai_tam_telemetry_type_t_enum_values_short_names[] = {
@@ -8458,11 +9441,12 @@ const char* const sai_metadata_sai_tam_telemetry_type_t_enum_values_short_names[
     "SWITCH",
     "FABRIC",
     "FLOW",
+    "INT",
     NULL
 };
 const sai_enum_metadata_t sai_metadata_enum_sai_tam_telemetry_type_t = {
     .name              = "sai_tam_telemetry_type_t",
-    .valuescount       = 4,
+    .valuescount       = 5,
     .values            = (const int*)sai_metadata_sai_tam_telemetry_type_t_enum_values,
     .valuesnames       = sai_metadata_sai_tam_telemetry_type_t_enum_values_names,
     .valuesshortnames  = sai_metadata_sai_tam_telemetry_type_t_enum_values_short_names,
@@ -9244,23 +10228,26 @@ const sai_vlan_flood_control_type_t sai_metadata_sai_vlan_flood_control_type_t_e
     SAI_VLAN_FLOOD_CONTROL_TYPE_ALL,
     SAI_VLAN_FLOOD_CONTROL_TYPE_NONE,
     SAI_VLAN_FLOOD_CONTROL_TYPE_L2MC_GROUP,
+    SAI_VLAN_FLOOD_CONTROL_TYPE_COMBINED,
     -1
 };
 const char* const sai_metadata_sai_vlan_flood_control_type_t_enum_values_names[] = {
     "SAI_VLAN_FLOOD_CONTROL_TYPE_ALL",
     "SAI_VLAN_FLOOD_CONTROL_TYPE_NONE",
     "SAI_VLAN_FLOOD_CONTROL_TYPE_L2MC_GROUP",
+    "SAI_VLAN_FLOOD_CONTROL_TYPE_COMBINED",
     NULL
 };
 const char* const sai_metadata_sai_vlan_flood_control_type_t_enum_values_short_names[] = {
     "ALL",
     "NONE",
     "L2MC_GROUP",
+    "COMBINED",
     NULL
 };
 const sai_enum_metadata_t sai_metadata_enum_sai_vlan_flood_control_type_t = {
     .name              = "sai_vlan_flood_control_type_t",
-    .valuescount       = 3,
+    .valuescount       = 4,
     .values            = (const int*)sai_metadata_sai_vlan_flood_control_type_t_enum_values,
     .valuesnames       = sai_metadata_sai_vlan_flood_control_type_t_enum_values_names,
     .valuesshortnames  = sai_metadata_sai_vlan_flood_control_type_t_enum_values_short_names,
@@ -9523,6 +10510,7 @@ const sai_enum_metadata_t* const sai_metadata_all_enums[] = {
     &sai_metadata_enum_sai_attr_value_type_t,
     &sai_metadata_enum_sai_bfd_encapsulation_type_t,
     &sai_metadata_enum_sai_bfd_session_attr_t,
+    &sai_metadata_enum_sai_bfd_session_offload_type_t,
     &sai_metadata_enum_sai_bfd_session_stat_t,
     &sai_metadata_enum_sai_bfd_session_state_t,
     &sai_metadata_enum_sai_bfd_session_type_t,
@@ -9543,6 +10531,12 @@ const sai_enum_metadata_t* const sai_metadata_all_enums[] = {
     &sai_metadata_enum_sai_buffer_profile_threshold_mode_t,
     &sai_metadata_enum_sai_bulk_op_error_mode_t,
     &sai_metadata_enum_sai_common_api_t,
+    &sai_metadata_enum_sai_counter_attr_t,
+    &sai_metadata_enum_sai_counter_stat_t,
+    &sai_metadata_enum_sai_counter_type_t,
+    &sai_metadata_enum_sai_debug_counter_attr_t,
+    &sai_metadata_enum_sai_debug_counter_bind_method_t,
+    &sai_metadata_enum_sai_debug_counter_type_t,
     &sai_metadata_enum_sai_default_value_type_t,
     &sai_metadata_enum_sai_dtel_attr_t,
     &sai_metadata_enum_sai_dtel_event_attr_t,
@@ -9572,6 +10566,7 @@ const sai_enum_metadata_t* const sai_metadata_all_enums[] = {
     &sai_metadata_enum_sai_hostif_user_defined_trap_attr_t,
     &sai_metadata_enum_sai_hostif_user_defined_trap_type_t,
     &sai_metadata_enum_sai_hostif_vlan_tag_t,
+    &sai_metadata_enum_sai_in_drop_reason_t,
     &sai_metadata_enum_sai_ingress_priority_group_attr_t,
     &sai_metadata_enum_sai_ingress_priority_group_stat_t,
     &sai_metadata_enum_sai_inseg_entry_attr_t,
@@ -9595,6 +10590,9 @@ const sai_enum_metadata_t* const sai_metadata_all_enums[] = {
     &sai_metadata_enum_sai_mirror_session_attr_t,
     &sai_metadata_enum_sai_mirror_session_congestion_mode_t,
     &sai_metadata_enum_sai_mirror_session_type_t,
+    &sai_metadata_enum_sai_nat_entry_attr_t,
+    &sai_metadata_enum_sai_nat_type_t,
+    &sai_metadata_enum_sai_nat_zone_counter_attr_t,
     &sai_metadata_enum_sai_native_hash_field_t,
     &sai_metadata_enum_sai_neighbor_entry_attr_t,
     &sai_metadata_enum_sai_next_hop_attr_t,
@@ -9608,6 +10606,7 @@ const sai_enum_metadata_t* const sai_metadata_all_enums[] = {
     &sai_metadata_enum_sai_next_hop_type_t,
     &sai_metadata_enum_sai_object_type_extensions_t,
     &sai_metadata_enum_sai_object_type_t,
+    &sai_metadata_enum_sai_out_drop_reason_t,
     &sai_metadata_enum_sai_packet_action_t,
     &sai_metadata_enum_sai_packet_color_t,
     &sai_metadata_enum_sai_packet_vlan_t,
@@ -9625,6 +10624,7 @@ const sai_enum_metadata_t* const sai_metadata_all_enums[] = {
     &sai_metadata_enum_sai_port_pool_attr_t,
     &sai_metadata_enum_sai_port_pool_stat_t,
     &sai_metadata_enum_sai_port_priority_flow_control_mode_t,
+    &sai_metadata_enum_sai_port_ptp_mode_t,
     &sai_metadata_enum_sai_port_stat_t,
     &sai_metadata_enum_sai_port_type_t,
     &sai_metadata_enum_sai_qos_map_attr_t,
@@ -9657,6 +10657,7 @@ const sai_enum_metadata_t* const sai_metadata_all_enums[] = {
     &sai_metadata_enum_sai_switch_mcast_snooping_capability_t,
     &sai_metadata_enum_sai_switch_oper_status_t,
     &sai_metadata_enum_sai_switch_restart_type_t,
+    &sai_metadata_enum_sai_switch_stat_t,
     &sai_metadata_enum_sai_switch_switching_mode_t,
     &sai_metadata_enum_sai_table_bitmap_classification_entry_action_t,
     &sai_metadata_enum_sai_table_bitmap_classification_entry_attr_t,
@@ -9675,8 +10676,12 @@ const sai_enum_metadata_t* const sai_metadata_all_enums[] = {
     &sai_metadata_enum_sai_tam_event_threshold_attr_t,
     &sai_metadata_enum_sai_tam_event_threshold_unit_t,
     &sai_metadata_enum_sai_tam_event_type_t,
+    &sai_metadata_enum_sai_tam_int_attr_t,
+    &sai_metadata_enum_sai_tam_int_presence_type_t,
+    &sai_metadata_enum_sai_tam_int_type_t,
     &sai_metadata_enum_sai_tam_math_func_attr_t,
     &sai_metadata_enum_sai_tam_report_attr_t,
+    &sai_metadata_enum_sai_tam_report_mode_t,
     &sai_metadata_enum_sai_tam_report_type_t,
     &sai_metadata_enum_sai_tam_reporting_unit_t,
     &sai_metadata_enum_sai_tam_tel_math_func_type_t,
@@ -9714,7 +10719,7 @@ const sai_enum_metadata_t* const sai_metadata_all_enums[] = {
     &sai_metadata_enum_sai_wred_attr_t,
     NULL
 };
-const size_t sai_metadata_all_enums_count = 210;
+const size_t sai_metadata_all_enums_count = 228;
 const sai_enum_metadata_t* const sai_metadata_attr_enums[] = {
     &sai_metadata_enum_sai_acl_counter_attr_t,
     &sai_metadata_enum_sai_acl_entry_attr_t,
@@ -9727,6 +10732,8 @@ const sai_enum_metadata_t* const sai_metadata_attr_enums[] = {
     &sai_metadata_enum_sai_bridge_port_attr_t,
     &sai_metadata_enum_sai_buffer_pool_attr_t,
     &sai_metadata_enum_sai_buffer_profile_attr_t,
+    &sai_metadata_enum_sai_counter_attr_t,
+    &sai_metadata_enum_sai_debug_counter_attr_t,
     &sai_metadata_enum_sai_dtel_attr_t,
     &sai_metadata_enum_sai_dtel_event_attr_t,
     &sai_metadata_enum_sai_dtel_int_session_attr_t,
@@ -9755,6 +10762,8 @@ const sai_enum_metadata_t* const sai_metadata_attr_enums[] = {
     &sai_metadata_enum_sai_lag_member_attr_t,
     &sai_metadata_enum_sai_mcast_fdb_entry_attr_t,
     &sai_metadata_enum_sai_mirror_session_attr_t,
+    &sai_metadata_enum_sai_nat_entry_attr_t,
+    &sai_metadata_enum_sai_nat_zone_counter_attr_t,
     &sai_metadata_enum_sai_neighbor_entry_attr_t,
     &sai_metadata_enum_sai_next_hop_attr_t,
     &sai_metadata_enum_sai_next_hop_group_attr_t,
@@ -9783,6 +10792,7 @@ const sai_enum_metadata_t* const sai_metadata_attr_enums[] = {
     &sai_metadata_enum_sai_tam_event_action_attr_t,
     &sai_metadata_enum_sai_tam_event_attr_t,
     &sai_metadata_enum_sai_tam_event_threshold_attr_t,
+    &sai_metadata_enum_sai_tam_int_attr_t,
     &sai_metadata_enum_sai_tam_math_func_attr_t,
     &sai_metadata_enum_sai_tam_report_attr_t,
     &sai_metadata_enum_sai_tam_tel_type_attr_t,
@@ -9801,7 +10811,7 @@ const sai_enum_metadata_t* const sai_metadata_attr_enums[] = {
     &sai_metadata_enum_sai_wred_attr_t,
     NULL
 };
-const size_t sai_metadata_attr_enums_count = 83;
+const size_t sai_metadata_attr_enums_count = 88;
 const sai_object_type_t sai_metadata_object_types[] = {
     SAI_OBJECT_TYPE_ACL_COUNTER,
     SAI_OBJECT_TYPE_ACL_ENTRY,
@@ -9814,6 +10824,8 @@ const sai_object_type_t sai_metadata_object_types[] = {
     SAI_OBJECT_TYPE_BRIDGE_PORT,
     SAI_OBJECT_TYPE_BUFFER_POOL,
     SAI_OBJECT_TYPE_BUFFER_PROFILE,
+    SAI_OBJECT_TYPE_COUNTER,
+    SAI_OBJECT_TYPE_DEBUG_COUNTER,
     SAI_OBJECT_TYPE_DTEL,
     SAI_OBJECT_TYPE_DTEL_EVENT,
     SAI_OBJECT_TYPE_DTEL_INT_SESSION,
@@ -9842,6 +10854,8 @@ const sai_object_type_t sai_metadata_object_types[] = {
     SAI_OBJECT_TYPE_LAG_MEMBER,
     SAI_OBJECT_TYPE_MCAST_FDB_ENTRY,
     SAI_OBJECT_TYPE_MIRROR_SESSION,
+    SAI_OBJECT_TYPE_NAT_ENTRY,
+    SAI_OBJECT_TYPE_NAT_ZONE_COUNTER,
     SAI_OBJECT_TYPE_NEIGHBOR_ENTRY,
     SAI_OBJECT_TYPE_NEXT_HOP,
     SAI_OBJECT_TYPE_NEXT_HOP_GROUP,
@@ -9870,6 +10884,7 @@ const sai_object_type_t sai_metadata_object_types[] = {
     SAI_OBJECT_TYPE_TAM_EVENT_ACTION,
     SAI_OBJECT_TYPE_TAM_EVENT,
     SAI_OBJECT_TYPE_TAM_EVENT_THRESHOLD,
+    SAI_OBJECT_TYPE_TAM_INT,
     SAI_OBJECT_TYPE_TAM_MATH_FUNC,
     SAI_OBJECT_TYPE_TAM_REPORT,
     SAI_OBJECT_TYPE_TAM_TEL_TYPE,
@@ -9936,6 +10951,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_COUNTER_ATTR_TABLE_ID = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_COUNTER_ATTR_ENABLE_PACKET_COUNT_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_COUNTER_ATTR_ENABLE_PACKET_COUNT = {
@@ -9982,6 +10998,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_COUNTER_ATTR_ENABLE_PACKET_C
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_COUNTER_ATTR_ENABLE_BYTE_COUNT_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_COUNTER_ATTR_ENABLE_BYTE_COUNT = {
@@ -10028,6 +11045,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_COUNTER_ATTR_ENABLE_BYTE_COU
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_COUNTER_ATTR_PACKETS_default_value = { .u64 = 0 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_COUNTER_ATTR_PACKETS = {
@@ -10074,6 +11092,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_COUNTER_ATTR_PACKETS = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_COUNTER_ATTR_BYTES_default_value = { .u64 = 0 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_COUNTER_ATTR_BYTES = {
@@ -10120,6 +11139,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_COUNTER_ATTR_BYTES = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_ACL_ENTRY_ATTR_TABLE_ID_allowed_objects[] = {
     SAI_OBJECT_TYPE_ACL_TABLE,
@@ -10169,6 +11189,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_TABLE_ID = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = true,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_ENTRY_ATTR_PRIORITY_default_value = { .u32 = 0 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_PRIORITY = {
@@ -10215,6 +11236,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_PRIORITY = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_ENTRY_ATTR_ADMIN_STATE_default_value = { .booldata = true };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_ADMIN_STATE = {
@@ -10261,6 +11283,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_ADMIN_STATE = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_ENTRY_ATTR_FIELD_SRC_IPV6_default_value = { .aclfield = { .enable = false } };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_SRC_IPV6 = {
@@ -10307,6 +11330,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_SRC_IPV6 = 
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_ENTRY_ATTR_FIELD_DST_IPV6_default_value = { .aclfield = { .enable = false } };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_DST_IPV6 = {
@@ -10353,6 +11377,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_DST_IPV6 = 
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_ENTRY_ATTR_FIELD_INNER_SRC_IPV6_default_value = { .aclfield = { .enable = false } };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_INNER_SRC_IPV6 = {
@@ -10399,6 +11424,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_INNER_SRC_I
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_ENTRY_ATTR_FIELD_INNER_DST_IPV6_default_value = { .aclfield = { .enable = false } };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_INNER_DST_IPV6 = {
@@ -10445,6 +11471,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_INNER_DST_I
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_ENTRY_ATTR_FIELD_SRC_MAC_default_value = { .aclfield = { .enable = false } };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_SRC_MAC = {
@@ -10491,6 +11518,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_SRC_MAC = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_ENTRY_ATTR_FIELD_DST_MAC_default_value = { .aclfield = { .enable = false } };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_DST_MAC = {
@@ -10537,6 +11565,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_DST_MAC = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_ENTRY_ATTR_FIELD_SRC_IP_default_value = { .aclfield = { .enable = false } };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_SRC_IP = {
@@ -10583,6 +11612,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_SRC_IP = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_ENTRY_ATTR_FIELD_DST_IP_default_value = { .aclfield = { .enable = false } };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_DST_IP = {
@@ -10629,6 +11659,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_DST_IP = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_ENTRY_ATTR_FIELD_INNER_SRC_IP_default_value = { .aclfield = { .enable = false } };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_INNER_SRC_IP = {
@@ -10675,6 +11706,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_INNER_SRC_I
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_ENTRY_ATTR_FIELD_INNER_DST_IP_default_value = { .aclfield = { .enable = false } };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_INNER_DST_IP = {
@@ -10721,6 +11753,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_INNER_DST_I
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_ACL_ENTRY_ATTR_FIELD_IN_PORTS_allowed_objects[] = {
     SAI_OBJECT_TYPE_PORT,
@@ -10771,6 +11804,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_IN_PORTS = 
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_ACL_ENTRY_ATTR_FIELD_OUT_PORTS_allowed_objects[] = {
     SAI_OBJECT_TYPE_PORT,
@@ -10821,6 +11855,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_OUT_PORTS =
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_ACL_ENTRY_ATTR_FIELD_IN_PORT_allowed_objects[] = {
     SAI_OBJECT_TYPE_PORT,
@@ -10872,6 +11907,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_IN_PORT = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_ACL_ENTRY_ATTR_FIELD_OUT_PORT_allowed_objects[] = {
     SAI_OBJECT_TYPE_PORT,
@@ -10923,6 +11959,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_OUT_PORT = 
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_ACL_ENTRY_ATTR_FIELD_SRC_PORT_allowed_objects[] = {
     SAI_OBJECT_TYPE_PORT,
@@ -10973,6 +12010,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_SRC_PORT = 
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_ENTRY_ATTR_FIELD_OUTER_VLAN_ID_default_value = { .aclfield = { .enable = false } };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_OUTER_VLAN_ID = {
@@ -11019,6 +12057,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_OUTER_VLAN_
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_ENTRY_ATTR_FIELD_OUTER_VLAN_PRI_default_value = { .aclfield = { .enable = false } };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_OUTER_VLAN_PRI = {
@@ -11065,6 +12104,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_OUTER_VLAN_
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_ENTRY_ATTR_FIELD_OUTER_VLAN_CFI_default_value = { .aclfield = { .enable = false } };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_OUTER_VLAN_CFI = {
@@ -11111,6 +12151,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_OUTER_VLAN_
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_ENTRY_ATTR_FIELD_INNER_VLAN_ID_default_value = { .aclfield = { .enable = false } };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_INNER_VLAN_ID = {
@@ -11157,6 +12198,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_INNER_VLAN_
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_ENTRY_ATTR_FIELD_INNER_VLAN_PRI_default_value = { .aclfield = { .enable = false } };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_INNER_VLAN_PRI = {
@@ -11203,6 +12245,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_INNER_VLAN_
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_ENTRY_ATTR_FIELD_INNER_VLAN_CFI_default_value = { .aclfield = { .enable = false } };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_INNER_VLAN_CFI = {
@@ -11249,6 +12292,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_INNER_VLAN_
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_ENTRY_ATTR_FIELD_L4_SRC_PORT_default_value = { .aclfield = { .enable = false } };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_L4_SRC_PORT = {
@@ -11295,6 +12339,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_L4_SRC_PORT
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_ENTRY_ATTR_FIELD_L4_DST_PORT_default_value = { .aclfield = { .enable = false } };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_L4_DST_PORT = {
@@ -11341,6 +12386,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_L4_DST_PORT
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_ENTRY_ATTR_FIELD_INNER_L4_SRC_PORT_default_value = { .aclfield = { .enable = false } };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_INNER_L4_SRC_PORT = {
@@ -11387,6 +12433,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_INNER_L4_SR
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_ENTRY_ATTR_FIELD_INNER_L4_DST_PORT_default_value = { .aclfield = { .enable = false } };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_INNER_L4_DST_PORT = {
@@ -11433,6 +12480,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_INNER_L4_DS
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_ENTRY_ATTR_FIELD_ETHER_TYPE_default_value = { .aclfield = { .enable = false } };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_ETHER_TYPE = {
@@ -11479,6 +12527,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_ETHER_TYPE 
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_ENTRY_ATTR_FIELD_INNER_ETHER_TYPE_default_value = { .aclfield = { .enable = false } };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_INNER_ETHER_TYPE = {
@@ -11525,6 +12574,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_INNER_ETHER
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_ENTRY_ATTR_FIELD_IP_PROTOCOL_default_value = { .aclfield = { .enable = false } };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_IP_PROTOCOL = {
@@ -11571,6 +12621,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_IP_PROTOCOL
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_ENTRY_ATTR_FIELD_INNER_IP_PROTOCOL_default_value = { .aclfield = { .enable = false } };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_INNER_IP_PROTOCOL = {
@@ -11617,6 +12668,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_INNER_IP_PR
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_ENTRY_ATTR_FIELD_IP_IDENTIFICATION_default_value = { .aclfield = { .enable = false } };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_IP_IDENTIFICATION = {
@@ -11663,6 +12715,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_IP_IDENTIFI
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_ENTRY_ATTR_FIELD_DSCP_default_value = { .aclfield = { .enable = false } };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_DSCP = {
@@ -11709,6 +12762,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_DSCP = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_ENTRY_ATTR_FIELD_ECN_default_value = { .aclfield = { .enable = false } };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_ECN = {
@@ -11755,6 +12809,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_ECN = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_ENTRY_ATTR_FIELD_TTL_default_value = { .aclfield = { .enable = false } };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_TTL = {
@@ -11801,6 +12856,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_TTL = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_ENTRY_ATTR_FIELD_TOS_default_value = { .aclfield = { .enable = false } };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_TOS = {
@@ -11847,6 +12903,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_TOS = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_ENTRY_ATTR_FIELD_IP_FLAGS_default_value = { .aclfield = { .enable = false } };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_IP_FLAGS = {
@@ -11893,6 +12950,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_IP_FLAGS = 
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_ENTRY_ATTR_FIELD_TCP_FLAGS_default_value = { .aclfield = { .enable = false } };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_TCP_FLAGS = {
@@ -11939,6 +12997,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_TCP_FLAGS =
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_ENTRY_ATTR_FIELD_ACL_IP_TYPE_default_value = { .aclfield = { .enable = false } };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_ACL_IP_TYPE = {
@@ -11985,6 +13044,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_ACL_IP_TYPE
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_ENTRY_ATTR_FIELD_ACL_IP_FRAG_default_value = { .aclfield = { .enable = false } };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_ACL_IP_FRAG = {
@@ -12031,6 +13091,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_ACL_IP_FRAG
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_ENTRY_ATTR_FIELD_IPV6_FLOW_LABEL_default_value = { .aclfield = { .enable = false } };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_IPV6_FLOW_LABEL = {
@@ -12077,6 +13138,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_IPV6_FLOW_L
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_ENTRY_ATTR_FIELD_TC_default_value = { .aclfield = { .enable = false } };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_TC = {
@@ -12123,6 +13185,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_TC = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_ENTRY_ATTR_FIELD_ICMP_TYPE_default_value = { .aclfield = { .enable = false } };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_ICMP_TYPE = {
@@ -12169,6 +13232,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_ICMP_TYPE =
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_ENTRY_ATTR_FIELD_ICMP_CODE_default_value = { .aclfield = { .enable = false } };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_ICMP_CODE = {
@@ -12215,6 +13279,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_ICMP_CODE =
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_ENTRY_ATTR_FIELD_ICMPV6_TYPE_default_value = { .aclfield = { .enable = false } };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_ICMPV6_TYPE = {
@@ -12261,6 +13326,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_ICMPV6_TYPE
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_ENTRY_ATTR_FIELD_ICMPV6_CODE_default_value = { .aclfield = { .enable = false } };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_ICMPV6_CODE = {
@@ -12307,6 +13373,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_ICMPV6_CODE
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_ENTRY_ATTR_FIELD_PACKET_VLAN_default_value = { .aclfield = { .enable = false } };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_PACKET_VLAN = {
@@ -12353,6 +13420,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_PACKET_VLAN
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_ENTRY_ATTR_FIELD_TUNNEL_VNI_default_value = { .aclfield = { .enable = false } };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_TUNNEL_VNI = {
@@ -12399,6 +13467,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_TUNNEL_VNI 
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_ENTRY_ATTR_FIELD_FDB_DST_USER_META_default_value = { .aclfield = { .enable = false } };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_FDB_DST_USER_META = {
@@ -12445,6 +13514,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_FDB_DST_USE
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_ENTRY_ATTR_FIELD_ROUTE_DST_USER_META_default_value = { .aclfield = { .enable = false } };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_ROUTE_DST_USER_META = {
@@ -12491,6 +13561,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_ROUTE_DST_U
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_ENTRY_ATTR_FIELD_NEIGHBOR_DST_USER_META_default_value = { .aclfield = { .enable = false } };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_NEIGHBOR_DST_USER_META = {
@@ -12537,6 +13608,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_NEIGHBOR_DS
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_ENTRY_ATTR_FIELD_PORT_USER_META_default_value = { .aclfield = { .enable = false } };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_PORT_USER_META = {
@@ -12583,6 +13655,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_PORT_USER_M
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_ENTRY_ATTR_FIELD_VLAN_USER_META_default_value = { .aclfield = { .enable = false } };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_VLAN_USER_META = {
@@ -12629,6 +13702,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_VLAN_USER_M
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_ENTRY_ATTR_FIELD_ACL_USER_META_default_value = { .aclfield = { .enable = false } };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_ACL_USER_META = {
@@ -12675,6 +13749,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_ACL_USER_ME
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_ENTRY_ATTR_FIELD_FDB_NPU_META_DST_HIT_default_value = { .aclfield = { .enable = false } };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_FDB_NPU_META_DST_HIT = {
@@ -12721,6 +13796,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_FDB_NPU_MET
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_ENTRY_ATTR_FIELD_NEIGHBOR_NPU_META_DST_HIT_default_value = { .aclfield = { .enable = false } };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_NEIGHBOR_NPU_META_DST_HIT = {
@@ -12767,6 +13843,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_NEIGHBOR_NP
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_ENTRY_ATTR_FIELD_ROUTE_NPU_META_DST_HIT_default_value = { .aclfield = { .enable = false } };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_ROUTE_NPU_META_DST_HIT = {
@@ -12813,6 +13890,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_ROUTE_NPU_M
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_ENTRY_ATTR_FIELD_BTH_OPCODE_default_value = { .aclfield = { .enable = false } };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_BTH_OPCODE = {
@@ -12859,6 +13937,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_BTH_OPCODE 
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_ENTRY_ATTR_FIELD_AETH_SYNDROME_default_value = { .aclfield = { .enable = false } };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_AETH_SYNDROME = {
@@ -12905,6 +13984,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_AETH_SYNDRO
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_ACL_ENTRY_ATTR_USER_DEFINED_FIELD_GROUP_MIN_allowed_objects[] = {
     SAI_OBJECT_TYPE_UDF_GROUP,
@@ -12955,6 +14035,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_USER_DEFINED_FIEL
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_ACL_ENTRY_ATTR_USER_DEFINED_FIELD_GROUP_1_allowed_objects[] = {
     SAI_OBJECT_TYPE_UDF_GROUP,
@@ -13005,6 +14086,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_USER_DEFINED_FIEL
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_ACL_ENTRY_ATTR_USER_DEFINED_FIELD_GROUP_2_allowed_objects[] = {
     SAI_OBJECT_TYPE_UDF_GROUP,
@@ -13055,6 +14137,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_USER_DEFINED_FIEL
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_ACL_ENTRY_ATTR_USER_DEFINED_FIELD_GROUP_3_allowed_objects[] = {
     SAI_OBJECT_TYPE_UDF_GROUP,
@@ -13105,6 +14188,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_USER_DEFINED_FIEL
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_ACL_ENTRY_ATTR_USER_DEFINED_FIELD_GROUP_4_allowed_objects[] = {
     SAI_OBJECT_TYPE_UDF_GROUP,
@@ -13155,6 +14239,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_USER_DEFINED_FIEL
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_ACL_ENTRY_ATTR_USER_DEFINED_FIELD_GROUP_5_allowed_objects[] = {
     SAI_OBJECT_TYPE_UDF_GROUP,
@@ -13205,6 +14290,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_USER_DEFINED_FIEL
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_ACL_ENTRY_ATTR_USER_DEFINED_FIELD_GROUP_6_allowed_objects[] = {
     SAI_OBJECT_TYPE_UDF_GROUP,
@@ -13255,6 +14341,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_USER_DEFINED_FIEL
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_ACL_ENTRY_ATTR_USER_DEFINED_FIELD_GROUP_7_allowed_objects[] = {
     SAI_OBJECT_TYPE_UDF_GROUP,
@@ -13305,6 +14392,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_USER_DEFINED_FIEL
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_ACL_ENTRY_ATTR_USER_DEFINED_FIELD_GROUP_8_allowed_objects[] = {
     SAI_OBJECT_TYPE_UDF_GROUP,
@@ -13355,6 +14443,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_USER_DEFINED_FIEL
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_ACL_ENTRY_ATTR_USER_DEFINED_FIELD_GROUP_9_allowed_objects[] = {
     SAI_OBJECT_TYPE_UDF_GROUP,
@@ -13405,6 +14494,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_USER_DEFINED_FIEL
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_ACL_ENTRY_ATTR_USER_DEFINED_FIELD_GROUP_MAX_allowed_objects[] = {
     SAI_OBJECT_TYPE_UDF_GROUP,
@@ -13455,6 +14545,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_USER_DEFINED_FIEL
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_ACL_ENTRY_ATTR_FIELD_ACL_RANGE_TYPE_allowed_objects[] = {
     SAI_OBJECT_TYPE_ACL_RANGE,
@@ -13505,6 +14596,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_ACL_RANGE_T
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_ENTRY_ATTR_FIELD_IPV6_NEXT_HEADER_default_value = { .aclfield = { .enable = false } };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_IPV6_NEXT_HEADER = {
@@ -13551,6 +14643,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_IPV6_NEXT_H
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_ACL_ENTRY_ATTR_ACTION_REDIRECT_allowed_objects[] = {
     SAI_OBJECT_TYPE_PORT,
@@ -13607,6 +14700,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_ACTION_REDIRECT =
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_ENTRY_ATTR_ACTION_ENDPOINT_IP_default_value = { .aclaction = { .enable = false } };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_ACTION_ENDPOINT_IP = {
@@ -13653,6 +14747,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_ACTION_ENDPOINT_I
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_ACL_ENTRY_ATTR_ACTION_REDIRECT_LIST_allowed_objects[] = {
     SAI_OBJECT_TYPE_PORT,
@@ -13706,13 +14801,14 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_ACTION_REDIRECT_L
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_ENTRY_ATTR_ACTION_PACKET_ACTION_default_value = { .aclaction = { .enable = false } };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_ACTION_PACKET_ACTION = {
     .objecttype                    = SAI_OBJECT_TYPE_ACL_ENTRY,
     .attrid                        = SAI_ACL_ENTRY_ATTR_ACTION_PACKET_ACTION,
     .attridname                    = "SAI_ACL_ENTRY_ATTR_ACTION_PACKET_ACTION",
-    .brief                         = "Drop Packet.",
+    .brief                         = "Packet Action.",
     .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_ACL_ACTION_DATA_INT32,
     .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
     .allowedobjecttypes            = NULL,
@@ -13752,6 +14848,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_ACTION_PACKET_ACT
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_ENTRY_ATTR_ACTION_FLOOD_default_value = { .aclaction = { .enable = false } };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_ACTION_FLOOD = {
@@ -13798,6 +14895,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_ACTION_FLOOD = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_ACL_ENTRY_ATTR_ACTION_COUNTER_allowed_objects[] = {
     SAI_OBJECT_TYPE_ACL_COUNTER,
@@ -13848,6 +14946,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_ACTION_COUNTER = 
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_ACL_ENTRY_ATTR_ACTION_MIRROR_INGRESS_allowed_objects[] = {
     SAI_OBJECT_TYPE_MIRROR_SESSION,
@@ -13898,6 +14997,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_ACTION_MIRROR_ING
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_ACL_ENTRY_ATTR_ACTION_MIRROR_EGRESS_allowed_objects[] = {
     SAI_OBJECT_TYPE_MIRROR_SESSION,
@@ -13948,6 +15048,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_ACTION_MIRROR_EGR
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_ACL_ENTRY_ATTR_ACTION_SET_POLICER_allowed_objects[] = {
     SAI_OBJECT_TYPE_POLICER,
@@ -13998,6 +15099,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_ACTION_SET_POLICE
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_ENTRY_ATTR_ACTION_DECREMENT_TTL_default_value = { .aclaction = { .enable = false } };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_ACTION_DECREMENT_TTL = {
@@ -14044,6 +15146,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_ACTION_DECREMENT_
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_ENTRY_ATTR_ACTION_SET_TC_default_value = { .aclaction = { .enable = false } };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_ACTION_SET_TC = {
@@ -14090,6 +15193,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_ACTION_SET_TC = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_ENTRY_ATTR_ACTION_SET_PACKET_COLOR_default_value = { .aclaction = { .enable = false } };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_ACTION_SET_PACKET_COLOR = {
@@ -14136,6 +15240,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_ACTION_SET_PACKET
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_ENTRY_ATTR_ACTION_SET_INNER_VLAN_ID_default_value = { .aclaction = { .enable = false } };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_ACTION_SET_INNER_VLAN_ID = {
@@ -14182,6 +15287,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_ACTION_SET_INNER_
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_ENTRY_ATTR_ACTION_SET_INNER_VLAN_PRI_default_value = { .aclaction = { .enable = false } };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_ACTION_SET_INNER_VLAN_PRI = {
@@ -14228,6 +15334,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_ACTION_SET_INNER_
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_ENTRY_ATTR_ACTION_SET_OUTER_VLAN_ID_default_value = { .aclaction = { .enable = false } };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_ACTION_SET_OUTER_VLAN_ID = {
@@ -14274,6 +15381,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_ACTION_SET_OUTER_
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_ENTRY_ATTR_ACTION_SET_OUTER_VLAN_PRI_default_value = { .aclaction = { .enable = false } };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_ACTION_SET_OUTER_VLAN_PRI = {
@@ -14320,6 +15428,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_ACTION_SET_OUTER_
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_ENTRY_ATTR_ACTION_SET_SRC_MAC_default_value = { .aclaction = { .enable = false } };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_ACTION_SET_SRC_MAC = {
@@ -14366,6 +15475,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_ACTION_SET_SRC_MA
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_ENTRY_ATTR_ACTION_SET_DST_MAC_default_value = { .aclaction = { .enable = false } };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_ACTION_SET_DST_MAC = {
@@ -14412,6 +15522,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_ACTION_SET_DST_MA
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_ENTRY_ATTR_ACTION_SET_SRC_IP_default_value = { .aclaction = { .enable = false } };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_ACTION_SET_SRC_IP = {
@@ -14458,6 +15569,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_ACTION_SET_SRC_IP
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_ENTRY_ATTR_ACTION_SET_DST_IP_default_value = { .aclaction = { .enable = false } };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_ACTION_SET_DST_IP = {
@@ -14504,6 +15616,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_ACTION_SET_DST_IP
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_ENTRY_ATTR_ACTION_SET_SRC_IPV6_default_value = { .aclaction = { .enable = false } };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_ACTION_SET_SRC_IPV6 = {
@@ -14550,6 +15663,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_ACTION_SET_SRC_IP
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_ENTRY_ATTR_ACTION_SET_DST_IPV6_default_value = { .aclaction = { .enable = false } };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_ACTION_SET_DST_IPV6 = {
@@ -14596,6 +15710,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_ACTION_SET_DST_IP
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_ENTRY_ATTR_ACTION_SET_DSCP_default_value = { .aclaction = { .enable = false } };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_ACTION_SET_DSCP = {
@@ -14642,6 +15757,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_ACTION_SET_DSCP =
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_ENTRY_ATTR_ACTION_SET_ECN_default_value = { .aclaction = { .enable = false } };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_ACTION_SET_ECN = {
@@ -14688,6 +15804,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_ACTION_SET_ECN = 
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_ENTRY_ATTR_ACTION_SET_L4_SRC_PORT_default_value = { .aclaction = { .enable = false } };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_ACTION_SET_L4_SRC_PORT = {
@@ -14734,6 +15851,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_ACTION_SET_L4_SRC
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_ENTRY_ATTR_ACTION_SET_L4_DST_PORT_default_value = { .aclaction = { .enable = false } };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_ACTION_SET_L4_DST_PORT = {
@@ -14780,6 +15898,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_ACTION_SET_L4_DST
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_ACL_ENTRY_ATTR_ACTION_INGRESS_SAMPLEPACKET_ENABLE_allowed_objects[] = {
     SAI_OBJECT_TYPE_SAMPLEPACKET,
@@ -14830,6 +15949,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_ACTION_INGRESS_SA
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_ACL_ENTRY_ATTR_ACTION_EGRESS_SAMPLEPACKET_ENABLE_allowed_objects[] = {
     SAI_OBJECT_TYPE_SAMPLEPACKET,
@@ -14880,6 +16000,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_ACTION_EGRESS_SAM
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_ENTRY_ATTR_ACTION_SET_ACL_META_DATA_default_value = { .aclaction = { .enable = false } };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_ACTION_SET_ACL_META_DATA = {
@@ -14926,6 +16047,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_ACTION_SET_ACL_ME
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_ACL_ENTRY_ATTR_ACTION_EGRESS_BLOCK_PORT_LIST_allowed_objects[] = {
     SAI_OBJECT_TYPE_PORT,
@@ -14976,6 +16098,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_ACTION_EGRESS_BLO
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_ACL_ENTRY_ATTR_ACTION_SET_USER_TRAP_ID_allowed_objects[] = {
     SAI_OBJECT_TYPE_HOSTIF_USER_DEFINED_TRAP,
@@ -15026,6 +16149,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_ACTION_SET_USER_T
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_ENTRY_ATTR_ACTION_SET_DO_NOT_LEARN_default_value = { .aclaction = { .enable = false } };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_ACTION_SET_DO_NOT_LEARN = {
@@ -15072,6 +16196,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_ACTION_SET_DO_NOT
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_ENTRY_ATTR_ACTION_ACL_DTEL_FLOW_OP_default_value = { .aclaction = { .enable = false } };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_ACTION_ACL_DTEL_FLOW_OP = {
@@ -15118,6 +16243,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_ACTION_ACL_DTEL_F
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_ACL_ENTRY_ATTR_ACTION_DTEL_INT_SESSION_allowed_objects[] = {
     SAI_OBJECT_TYPE_DTEL_INT_SESSION,
@@ -15168,6 +16294,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_ACTION_DTEL_INT_S
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_ENTRY_ATTR_ACTION_DTEL_DROP_REPORT_ENABLE_default_value = { .aclaction = { .enable = false } };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_ACTION_DTEL_DROP_REPORT_ENABLE = {
@@ -15214,6 +16341,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_ACTION_DTEL_DROP_
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_ENTRY_ATTR_ACTION_DTEL_TAIL_DROP_REPORT_ENABLE_default_value = { .aclaction = { .enable = false } };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_ACTION_DTEL_TAIL_DROP_REPORT_ENABLE = {
@@ -15260,6 +16388,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_ACTION_DTEL_TAIL_
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_ENTRY_ATTR_ACTION_DTEL_FLOW_SAMPLE_PERCENT_default_value = { .aclaction = { .enable = false } };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_ACTION_DTEL_FLOW_SAMPLE_PERCENT = {
@@ -15306,6 +16435,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_ACTION_DTEL_FLOW_
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_ENTRY_ATTR_ACTION_DTEL_REPORT_ALL_PACKETS_default_value = { .aclaction = { .enable = false } };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_ACTION_DTEL_REPORT_ALL_PACKETS = {
@@ -15352,6 +16482,340 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_ACTION_DTEL_REPOR
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
+};
+const sai_attribute_value_t sai_metadata_SAI_ACL_ENTRY_ATTR_ACTION_NO_NAT_default_value = { .aclaction = { .enable = false } };
+const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_ACTION_NO_NAT = {
+    .objecttype                    = SAI_OBJECT_TYPE_ACL_ENTRY,
+    .attrid                        = SAI_ACL_ENTRY_ATTR_ACTION_NO_NAT,
+    .attridname                    = "SAI_ACL_ENTRY_ATTR_ACTION_NO_NAT",
+    .brief                         = "Set NAT exception rule.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_ACL_ACTION_DATA_BOOL,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
+    .defaultvalue                  = &sai_metadata_SAI_ACL_ENTRY_ATTR_ACTION_NO_NAT_default_value,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = true,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = false,
+    .iscreateandset                = true,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+    .isresourcetype                = false,
+};
+const sai_attribute_value_t sai_metadata_SAI_ACL_ENTRY_ATTR_ACTION_INT_INSERT_default_value = { .aclaction = { .enable = false } };
+const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_ACTION_INT_INSERT = {
+    .objecttype                    = SAI_OBJECT_TYPE_ACL_ENTRY,
+    .attrid                        = SAI_ACL_ENTRY_ATTR_ACTION_INT_INSERT,
+    .attridname                    = "SAI_ACL_ENTRY_ATTR_ACTION_INT_INSERT",
+    .brief                         = "Enable INT metadata insertion.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_ACL_ACTION_DATA_BOOL,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
+    .defaultvalue                  = &sai_metadata_SAI_ACL_ENTRY_ATTR_ACTION_INT_INSERT_default_value,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = true,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = false,
+    .iscreateandset                = true,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+    .isresourcetype                = false,
+};
+const sai_attribute_value_t sai_metadata_SAI_ACL_ENTRY_ATTR_ACTION_INT_DELETE_default_value = { .aclaction = { .enable = false } };
+const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_ACTION_INT_DELETE = {
+    .objecttype                    = SAI_OBJECT_TYPE_ACL_ENTRY,
+    .attrid                        = SAI_ACL_ENTRY_ATTR_ACTION_INT_DELETE,
+    .attridname                    = "SAI_ACL_ENTRY_ATTR_ACTION_INT_DELETE",
+    .brief                         = "Enable INT metadata deletion.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_ACL_ACTION_DATA_BOOL,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
+    .defaultvalue                  = &sai_metadata_SAI_ACL_ENTRY_ATTR_ACTION_INT_DELETE_default_value,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = true,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = false,
+    .iscreateandset                = true,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+    .isresourcetype                = false,
+};
+const sai_attribute_value_t sai_metadata_SAI_ACL_ENTRY_ATTR_ACTION_INT_REPORT_FLOW_default_value = { .aclaction = { .enable = false } };
+const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_ACTION_INT_REPORT_FLOW = {
+    .objecttype                    = SAI_OBJECT_TYPE_ACL_ENTRY,
+    .attrid                        = SAI_ACL_ENTRY_ATTR_ACTION_INT_REPORT_FLOW,
+    .attridname                    = "SAI_ACL_ENTRY_ATTR_ACTION_INT_REPORT_FLOW",
+    .brief                         = "Enable INT metadata reports.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_ACL_ACTION_DATA_BOOL,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
+    .defaultvalue                  = &sai_metadata_SAI_ACL_ENTRY_ATTR_ACTION_INT_REPORT_FLOW_default_value,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = true,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = false,
+    .iscreateandset                = true,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+    .isresourcetype                = false,
+};
+const sai_attribute_value_t sai_metadata_SAI_ACL_ENTRY_ATTR_ACTION_INT_REPORT_DROPS_default_value = { .aclaction = { .enable = false } };
+const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_ACTION_INT_REPORT_DROPS = {
+    .objecttype                    = SAI_OBJECT_TYPE_ACL_ENTRY,
+    .attrid                        = SAI_ACL_ENTRY_ATTR_ACTION_INT_REPORT_DROPS,
+    .attridname                    = "SAI_ACL_ENTRY_ATTR_ACTION_INT_REPORT_DROPS",
+    .brief                         = "Enable INT drop reports.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_ACL_ACTION_DATA_BOOL,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
+    .defaultvalue                  = &sai_metadata_SAI_ACL_ENTRY_ATTR_ACTION_INT_REPORT_DROPS_default_value,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = true,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = false,
+    .iscreateandset                = true,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+    .isresourcetype                = false,
+};
+const sai_attribute_value_t sai_metadata_SAI_ACL_ENTRY_ATTR_ACTION_INT_REPORT_TAIL_DROPS_default_value = { .aclaction = { .enable = false } };
+const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_ACTION_INT_REPORT_TAIL_DROPS = {
+    .objecttype                    = SAI_OBJECT_TYPE_ACL_ENTRY,
+    .attrid                        = SAI_ACL_ENTRY_ATTR_ACTION_INT_REPORT_TAIL_DROPS,
+    .attridname                    = "SAI_ACL_ENTRY_ATTR_ACTION_INT_REPORT_TAIL_DROPS",
+    .brief                         = "Enable INT tail drop reports.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_ACL_ACTION_DATA_BOOL,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
+    .defaultvalue                  = &sai_metadata_SAI_ACL_ENTRY_ATTR_ACTION_INT_REPORT_TAIL_DROPS_default_value,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = true,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = false,
+    .iscreateandset                = true,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+    .isresourcetype                = false,
+};
+const sai_object_type_t sai_metadata_SAI_ACL_ENTRY_ATTR_ACTION_TAM_INT_OBJECT_allowed_objects[] = {
+    SAI_OBJECT_TYPE_TAM_INT,
+    -1
+};
+const sai_attribute_value_t sai_metadata_SAI_ACL_ENTRY_ATTR_ACTION_TAM_INT_OBJECT_default_value = { .aclaction = { .enable = false } };
+const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_ACTION_TAM_INT_OBJECT = {
+    .objecttype                    = SAI_OBJECT_TYPE_ACL_ENTRY,
+    .attrid                        = SAI_ACL_ENTRY_ATTR_ACTION_TAM_INT_OBJECT,
+    .attridname                    = "SAI_ACL_ENTRY_ATTR_ACTION_TAM_INT_OBJECT",
+    .brief                         = "ACL bind point for TAM INT object.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_ACL_ACTION_DATA_OBJECT_ID,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
+    .allowedobjecttypes            = sai_metadata_SAI_ACL_ENTRY_ATTR_ACTION_TAM_INT_OBJECT_allowed_objects,
+    .allowedobjecttypeslength      = 1,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = true,
+    .isoidattribute                = (1 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
+    .defaultvalue                  = &sai_metadata_SAI_ACL_ENTRY_ATTR_ACTION_TAM_INT_OBJECT_default_value,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = true,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = false,
+    .iscreateandset                = true,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_ACL_ENTRY_ATTR_ACTION_SET_ISOLATION_GROUP_allowed_objects[] = {
     SAI_OBJECT_TYPE_ISOLATION_GROUP,
@@ -15402,6 +16866,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_ENTRY_ATTR_ACTION_SET_ISOLAT
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_RANGE_ATTR_TYPE = {
     .objecttype                    = SAI_OBJECT_TYPE_ACL_RANGE,
@@ -15447,6 +16912,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_RANGE_ATTR_TYPE = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_RANGE_ATTR_LIMIT = {
     .objecttype                    = SAI_OBJECT_TYPE_ACL_RANGE,
@@ -15492,6 +16958,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_RANGE_ATTR_LIMIT = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_ACL_STAGE = {
     .objecttype                    = SAI_OBJECT_TYPE_ACL_TABLE,
@@ -15537,6 +17004,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_ACL_STAGE = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_ACL_BIND_POINT_TYPE_LIST = {
     .objecttype                    = SAI_OBJECT_TYPE_ACL_TABLE,
@@ -15582,6 +17050,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_ACL_BIND_POINT_TY
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_TABLE_ATTR_SIZE_default_value = { .u32 = 0 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_SIZE = {
@@ -15628,6 +17097,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_SIZE = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = true,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_ACL_ACTION_TYPE_LIST = {
     .objecttype                    = SAI_OBJECT_TYPE_ACL_TABLE,
@@ -15673,6 +17143,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_ACL_ACTION_TYPE_L
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_TABLE_ATTR_FIELD_SRC_IPV6_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_SRC_IPV6 = {
@@ -15719,6 +17190,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_SRC_IPV6 = 
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_TABLE_ATTR_FIELD_DST_IPV6_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_DST_IPV6 = {
@@ -15765,6 +17237,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_DST_IPV6 = 
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_TABLE_ATTR_FIELD_INNER_SRC_IPV6_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_INNER_SRC_IPV6 = {
@@ -15811,6 +17284,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_INNER_SRC_I
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_TABLE_ATTR_FIELD_INNER_DST_IPV6_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_INNER_DST_IPV6 = {
@@ -15857,6 +17331,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_INNER_DST_I
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_TABLE_ATTR_FIELD_SRC_MAC_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_SRC_MAC = {
@@ -15903,6 +17378,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_SRC_MAC = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_TABLE_ATTR_FIELD_DST_MAC_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_DST_MAC = {
@@ -15949,6 +17425,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_DST_MAC = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_TABLE_ATTR_FIELD_SRC_IP_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_SRC_IP = {
@@ -15995,6 +17472,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_SRC_IP = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_TABLE_ATTR_FIELD_DST_IP_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_DST_IP = {
@@ -16041,6 +17519,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_DST_IP = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_TABLE_ATTR_FIELD_INNER_SRC_IP_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_INNER_SRC_IP = {
@@ -16087,6 +17566,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_INNER_SRC_I
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_TABLE_ATTR_FIELD_INNER_DST_IP_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_INNER_DST_IP = {
@@ -16133,6 +17613,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_INNER_DST_I
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_TABLE_ATTR_FIELD_IN_PORTS_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_IN_PORTS = {
@@ -16179,6 +17660,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_IN_PORTS = 
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_TABLE_ATTR_FIELD_OUT_PORTS_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_OUT_PORTS = {
@@ -16225,6 +17707,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_OUT_PORTS =
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_TABLE_ATTR_FIELD_IN_PORT_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_IN_PORT = {
@@ -16271,6 +17754,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_IN_PORT = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_TABLE_ATTR_FIELD_OUT_PORT_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_OUT_PORT = {
@@ -16317,6 +17801,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_OUT_PORT = 
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_TABLE_ATTR_FIELD_SRC_PORT_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_SRC_PORT = {
@@ -16363,6 +17848,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_SRC_PORT = 
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_TABLE_ATTR_FIELD_OUTER_VLAN_ID_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_OUTER_VLAN_ID = {
@@ -16409,6 +17895,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_OUTER_VLAN_
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_TABLE_ATTR_FIELD_OUTER_VLAN_PRI_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_OUTER_VLAN_PRI = {
@@ -16455,6 +17942,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_OUTER_VLAN_
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_TABLE_ATTR_FIELD_OUTER_VLAN_CFI_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_OUTER_VLAN_CFI = {
@@ -16501,6 +17989,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_OUTER_VLAN_
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_TABLE_ATTR_FIELD_INNER_VLAN_ID_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_INNER_VLAN_ID = {
@@ -16547,6 +18036,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_INNER_VLAN_
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_TABLE_ATTR_FIELD_INNER_VLAN_PRI_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_INNER_VLAN_PRI = {
@@ -16593,6 +18083,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_INNER_VLAN_
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_TABLE_ATTR_FIELD_INNER_VLAN_CFI_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_INNER_VLAN_CFI = {
@@ -16639,6 +18130,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_INNER_VLAN_
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_TABLE_ATTR_FIELD_L4_SRC_PORT_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_L4_SRC_PORT = {
@@ -16685,6 +18177,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_L4_SRC_PORT
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_TABLE_ATTR_FIELD_L4_DST_PORT_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_L4_DST_PORT = {
@@ -16731,6 +18224,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_L4_DST_PORT
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_TABLE_ATTR_FIELD_INNER_L4_SRC_PORT_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_INNER_L4_SRC_PORT = {
@@ -16777,6 +18271,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_INNER_L4_SR
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_TABLE_ATTR_FIELD_INNER_L4_DST_PORT_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_INNER_L4_DST_PORT = {
@@ -16823,6 +18318,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_INNER_L4_DS
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_TABLE_ATTR_FIELD_ETHER_TYPE_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_ETHER_TYPE = {
@@ -16869,6 +18365,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_ETHER_TYPE 
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_TABLE_ATTR_FIELD_INNER_ETHER_TYPE_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_INNER_ETHER_TYPE = {
@@ -16915,6 +18412,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_INNER_ETHER
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_TABLE_ATTR_FIELD_IP_PROTOCOL_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_IP_PROTOCOL = {
@@ -16961,6 +18459,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_IP_PROTOCOL
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_TABLE_ATTR_FIELD_INNER_IP_PROTOCOL_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_INNER_IP_PROTOCOL = {
@@ -17007,6 +18506,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_INNER_IP_PR
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_TABLE_ATTR_FIELD_IP_IDENTIFICATION_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_IP_IDENTIFICATION = {
@@ -17053,6 +18553,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_IP_IDENTIFI
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_TABLE_ATTR_FIELD_DSCP_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_DSCP = {
@@ -17099,6 +18600,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_DSCP = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_TABLE_ATTR_FIELD_ECN_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_ECN = {
@@ -17145,6 +18647,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_ECN = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_TABLE_ATTR_FIELD_TTL_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_TTL = {
@@ -17191,6 +18694,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_TTL = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_TABLE_ATTR_FIELD_TOS_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_TOS = {
@@ -17237,6 +18741,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_TOS = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_TABLE_ATTR_FIELD_IP_FLAGS_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_IP_FLAGS = {
@@ -17283,6 +18788,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_IP_FLAGS = 
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_TABLE_ATTR_FIELD_TCP_FLAGS_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_TCP_FLAGS = {
@@ -17329,6 +18835,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_TCP_FLAGS =
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_TABLE_ATTR_FIELD_ACL_IP_TYPE_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_ACL_IP_TYPE = {
@@ -17375,6 +18882,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_ACL_IP_TYPE
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_TABLE_ATTR_FIELD_ACL_IP_FRAG_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_ACL_IP_FRAG = {
@@ -17421,6 +18929,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_ACL_IP_FRAG
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_TABLE_ATTR_FIELD_IPV6_FLOW_LABEL_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_IPV6_FLOW_LABEL = {
@@ -17467,6 +18976,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_IPV6_FLOW_L
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_TABLE_ATTR_FIELD_TC_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_TC = {
@@ -17513,6 +19023,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_TC = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_TABLE_ATTR_FIELD_ICMP_TYPE_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_ICMP_TYPE = {
@@ -17559,6 +19070,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_ICMP_TYPE =
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_TABLE_ATTR_FIELD_ICMP_CODE_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_ICMP_CODE = {
@@ -17605,6 +19117,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_ICMP_CODE =
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_TABLE_ATTR_FIELD_ICMPV6_TYPE_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_ICMPV6_TYPE = {
@@ -17651,6 +19164,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_ICMPV6_TYPE
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_TABLE_ATTR_FIELD_ICMPV6_CODE_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_ICMPV6_CODE = {
@@ -17697,6 +19211,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_ICMPV6_CODE
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_TABLE_ATTR_FIELD_PACKET_VLAN_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_PACKET_VLAN = {
@@ -17743,6 +19258,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_PACKET_VLAN
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_TABLE_ATTR_FIELD_TUNNEL_VNI_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_TUNNEL_VNI = {
@@ -17789,6 +19305,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_TUNNEL_VNI 
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_TABLE_ATTR_FIELD_FDB_DST_USER_META_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_FDB_DST_USER_META = {
@@ -17835,6 +19352,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_FDB_DST_USE
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_TABLE_ATTR_FIELD_ROUTE_DST_USER_META_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_ROUTE_DST_USER_META = {
@@ -17881,6 +19399,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_ROUTE_DST_U
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_TABLE_ATTR_FIELD_NEIGHBOR_DST_USER_META_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_NEIGHBOR_DST_USER_META = {
@@ -17927,6 +19446,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_NEIGHBOR_DS
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_TABLE_ATTR_FIELD_PORT_USER_META_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_PORT_USER_META = {
@@ -17973,6 +19493,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_PORT_USER_M
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_TABLE_ATTR_FIELD_VLAN_USER_META_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_VLAN_USER_META = {
@@ -18019,6 +19540,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_VLAN_USER_M
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_TABLE_ATTR_FIELD_ACL_USER_META_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_ACL_USER_META = {
@@ -18065,6 +19587,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_ACL_USER_ME
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_TABLE_ATTR_FIELD_FDB_NPU_META_DST_HIT_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_FDB_NPU_META_DST_HIT = {
@@ -18111,6 +19634,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_FDB_NPU_MET
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_TABLE_ATTR_FIELD_NEIGHBOR_NPU_META_DST_HIT_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_NEIGHBOR_NPU_META_DST_HIT = {
@@ -18157,6 +19681,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_NEIGHBOR_NP
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_TABLE_ATTR_FIELD_ROUTE_NPU_META_DST_HIT_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_ROUTE_NPU_META_DST_HIT = {
@@ -18203,6 +19728,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_ROUTE_NPU_M
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_TABLE_ATTR_FIELD_BTH_OPCODE_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_BTH_OPCODE = {
@@ -18249,6 +19775,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_BTH_OPCODE 
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_TABLE_ATTR_FIELD_AETH_SYNDROME_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_AETH_SYNDROME = {
@@ -18295,6 +19822,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_AETH_SYNDRO
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_TABLE_ATTR_USER_DEFINED_FIELD_GROUP_MIN_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_USER_DEFINED_FIELD_GROUP_MIN = {
@@ -18341,6 +19869,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_USER_DEFINED_FIEL
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_TABLE_ATTR_USER_DEFINED_FIELD_GROUP_1_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_USER_DEFINED_FIELD_GROUP_1 = {
@@ -18387,6 +19916,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_USER_DEFINED_FIEL
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_TABLE_ATTR_USER_DEFINED_FIELD_GROUP_2_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_USER_DEFINED_FIELD_GROUP_2 = {
@@ -18433,6 +19963,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_USER_DEFINED_FIEL
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_TABLE_ATTR_USER_DEFINED_FIELD_GROUP_3_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_USER_DEFINED_FIELD_GROUP_3 = {
@@ -18479,6 +20010,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_USER_DEFINED_FIEL
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_TABLE_ATTR_USER_DEFINED_FIELD_GROUP_4_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_USER_DEFINED_FIELD_GROUP_4 = {
@@ -18525,6 +20057,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_USER_DEFINED_FIEL
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_TABLE_ATTR_USER_DEFINED_FIELD_GROUP_5_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_USER_DEFINED_FIELD_GROUP_5 = {
@@ -18571,6 +20104,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_USER_DEFINED_FIEL
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_TABLE_ATTR_USER_DEFINED_FIELD_GROUP_6_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_USER_DEFINED_FIELD_GROUP_6 = {
@@ -18617,6 +20151,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_USER_DEFINED_FIEL
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_TABLE_ATTR_USER_DEFINED_FIELD_GROUP_7_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_USER_DEFINED_FIELD_GROUP_7 = {
@@ -18663,6 +20198,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_USER_DEFINED_FIEL
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_TABLE_ATTR_USER_DEFINED_FIELD_GROUP_8_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_USER_DEFINED_FIELD_GROUP_8 = {
@@ -18709,6 +20245,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_USER_DEFINED_FIEL
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_TABLE_ATTR_USER_DEFINED_FIELD_GROUP_9_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_USER_DEFINED_FIELD_GROUP_9 = {
@@ -18755,6 +20292,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_USER_DEFINED_FIEL
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_TABLE_ATTR_USER_DEFINED_FIELD_GROUP_MAX_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_USER_DEFINED_FIELD_GROUP_MAX = {
@@ -18801,6 +20339,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_USER_DEFINED_FIEL
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_ACL_RANGE_TYPE = {
     .objecttype                    = SAI_OBJECT_TYPE_ACL_TABLE,
@@ -18846,6 +20385,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_ACL_RANGE_T
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_TABLE_ATTR_FIELD_IPV6_NEXT_HEADER_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_IPV6_NEXT_HEADER = {
@@ -18892,6 +20432,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_FIELD_IPV6_NEXT_H
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_ACL_TABLE_ATTR_ENTRY_LIST_allowed_objects[] = {
     SAI_OBJECT_TYPE_ACL_ENTRY,
@@ -18941,6 +20482,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_ENTRY_LIST = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_AVAILABLE_ACL_ENTRY = {
     .objecttype                    = SAI_OBJECT_TYPE_ACL_TABLE,
@@ -18986,6 +20528,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_AVAILABLE_ACL_ENT
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_AVAILABLE_ACL_COUNTER = {
     .objecttype                    = SAI_OBJECT_TYPE_ACL_TABLE,
@@ -19031,6 +20574,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_ATTR_AVAILABLE_ACL_COU
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_GROUP_ATTR_ACL_STAGE = {
     .objecttype                    = SAI_OBJECT_TYPE_ACL_TABLE_GROUP,
@@ -19076,6 +20620,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_GROUP_ATTR_ACL_STAGE =
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_GROUP_ATTR_ACL_BIND_POINT_TYPE_LIST = {
     .objecttype                    = SAI_OBJECT_TYPE_ACL_TABLE_GROUP,
@@ -19121,6 +20666,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_GROUP_ATTR_ACL_BIND_PO
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ACL_TABLE_GROUP_ATTR_TYPE_default_value = { .s32 = SAI_ACL_TABLE_GROUP_TYPE_SEQUENTIAL };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_GROUP_ATTR_TYPE = {
@@ -19167,6 +20713,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_GROUP_ATTR_TYPE = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_ACL_TABLE_GROUP_ATTR_MEMBER_LIST_allowed_objects[] = {
     SAI_OBJECT_TYPE_ACL_TABLE_GROUP_MEMBER,
@@ -19216,6 +20763,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_GROUP_ATTR_MEMBER_LIST
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_ACL_TABLE_GROUP_MEMBER_ATTR_ACL_TABLE_GROUP_ID_allowed_objects[] = {
     SAI_OBJECT_TYPE_ACL_TABLE_GROUP,
@@ -19265,6 +20813,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_GROUP_MEMBER_ATTR_ACL_
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_ACL_TABLE_GROUP_MEMBER_ATTR_ACL_TABLE_ID_allowed_objects[] = {
     SAI_OBJECT_TYPE_ACL_TABLE,
@@ -19314,6 +20863,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_GROUP_MEMBER_ATTR_ACL_
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_GROUP_MEMBER_ATTR_PRIORITY = {
     .objecttype                    = SAI_OBJECT_TYPE_ACL_TABLE_GROUP_MEMBER,
@@ -19359,6 +20909,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ACL_TABLE_GROUP_MEMBER_ATTR_PRIO
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_BFD_SESSION_ATTR_TYPE = {
     .objecttype                    = SAI_OBJECT_TYPE_BFD_SESSION,
@@ -19404,6 +20955,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_BFD_SESSION_ATTR_TYPE = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_BFD_SESSION_ATTR_HW_LOOKUP_VALID_default_value = { .booldata = true };
 const sai_attr_metadata_t sai_metadata_attr_SAI_BFD_SESSION_ATTR_HW_LOOKUP_VALID = {
@@ -19450,6 +21002,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_BFD_SESSION_ATTR_HW_LOOKUP_VALID
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_BFD_SESSION_ATTR_VIRTUAL_ROUTER_allowed_objects[] = {
     SAI_OBJECT_TYPE_VIRTUAL_ROUTER,
@@ -19507,6 +21060,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_BFD_SESSION_ATTR_VIRTUAL_ROUTER 
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_BFD_SESSION_ATTR_PORT_allowed_objects[] = {
     SAI_OBJECT_TYPE_PORT,
@@ -19564,6 +21118,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_BFD_SESSION_ATTR_PORT = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_BFD_SESSION_ATTR_LOCAL_DISCRIMINATOR = {
     .objecttype                    = SAI_OBJECT_TYPE_BFD_SESSION,
@@ -19609,6 +21164,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_BFD_SESSION_ATTR_LOCAL_DISCRIMIN
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_BFD_SESSION_ATTR_REMOTE_DISCRIMINATOR = {
     .objecttype                    = SAI_OBJECT_TYPE_BFD_SESSION,
@@ -19654,6 +21210,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_BFD_SESSION_ATTR_REMOTE_DISCRIMI
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_BFD_SESSION_ATTR_UDP_SRC_PORT = {
     .objecttype                    = SAI_OBJECT_TYPE_BFD_SESSION,
@@ -19699,6 +21256,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_BFD_SESSION_ATTR_UDP_SRC_PORT = 
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_BFD_SESSION_ATTR_TC_default_value = { .u8 = 0 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_BFD_SESSION_ATTR_TC = {
@@ -19745,6 +21303,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_BFD_SESSION_ATTR_TC = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_BFD_SESSION_ATTR_VLAN_TPID_default_value = { .u16 = 0x8100 };
 const sai_attr_condition_t sai_metadata_validonly_SAI_BFD_SESSION_ATTR_VLAN_TPID_0 = {
@@ -19799,6 +21358,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_BFD_SESSION_ATTR_VLAN_TPID = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_condition_t sai_metadata_condition_SAI_BFD_SESSION_ATTR_VLAN_ID_0 = {
     .attrid = SAI_BFD_SESSION_ATTR_VLAN_HEADER_VALID,
@@ -19852,6 +21412,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_BFD_SESSION_ATTR_VLAN_ID = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_BFD_SESSION_ATTR_VLAN_PRI_default_value = { .u8 = 0 };
 const sai_attr_condition_t sai_metadata_validonly_SAI_BFD_SESSION_ATTR_VLAN_PRI_0 = {
@@ -19906,6 +21467,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_BFD_SESSION_ATTR_VLAN_PRI = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_BFD_SESSION_ATTR_VLAN_CFI_default_value = { .u8 = 0 };
 const sai_attr_condition_t sai_metadata_validonly_SAI_BFD_SESSION_ATTR_VLAN_CFI_0 = {
@@ -19960,6 +21522,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_BFD_SESSION_ATTR_VLAN_CFI = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_BFD_SESSION_ATTR_VLAN_HEADER_VALID_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_BFD_SESSION_ATTR_VLAN_HEADER_VALID = {
@@ -20006,6 +21569,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_BFD_SESSION_ATTR_VLAN_HEADER_VAL
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_BFD_SESSION_ATTR_BFD_ENCAPSULATION_TYPE = {
     .objecttype                    = SAI_OBJECT_TYPE_BFD_SESSION,
@@ -20051,6 +21615,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_BFD_SESSION_ATTR_BFD_ENCAPSULATI
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_BFD_SESSION_ATTR_IPHDR_VERSION = {
     .objecttype                    = SAI_OBJECT_TYPE_BFD_SESSION,
@@ -20096,6 +21661,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_BFD_SESSION_ATTR_IPHDR_VERSION =
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_BFD_SESSION_ATTR_TOS_default_value = { .u8 = 0 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_BFD_SESSION_ATTR_TOS = {
@@ -20142,6 +21708,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_BFD_SESSION_ATTR_TOS = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_BFD_SESSION_ATTR_TTL_default_value = { .u8 = 255 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_BFD_SESSION_ATTR_TTL = {
@@ -20188,6 +21755,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_BFD_SESSION_ATTR_TTL = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_BFD_SESSION_ATTR_SRC_IP_ADDRESS = {
     .objecttype                    = SAI_OBJECT_TYPE_BFD_SESSION,
@@ -20233,6 +21801,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_BFD_SESSION_ATTR_SRC_IP_ADDRESS 
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_BFD_SESSION_ATTR_DST_IP_ADDRESS = {
     .objecttype                    = SAI_OBJECT_TYPE_BFD_SESSION,
@@ -20278,6 +21847,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_BFD_SESSION_ATTR_DST_IP_ADDRESS 
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_BFD_SESSION_ATTR_TUNNEL_TOS_default_value = { .u8 = 0 };
 const sai_attr_condition_t sai_metadata_validonly_SAI_BFD_SESSION_ATTR_TUNNEL_TOS_0 = {
@@ -20332,6 +21902,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_BFD_SESSION_ATTR_TUNNEL_TOS = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_BFD_SESSION_ATTR_TUNNEL_TTL_default_value = { .u8 = 255 };
 const sai_attr_condition_t sai_metadata_validonly_SAI_BFD_SESSION_ATTR_TUNNEL_TTL_0 = {
@@ -20386,6 +21957,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_BFD_SESSION_ATTR_TUNNEL_TTL = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_condition_t sai_metadata_condition_SAI_BFD_SESSION_ATTR_TUNNEL_SRC_IP_ADDRESS_0 = {
         .attrid = SAI_BFD_SESSION_ATTR_BFD_ENCAPSULATION_TYPE,
@@ -20439,6 +22011,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_BFD_SESSION_ATTR_TUNNEL_SRC_IP_A
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_condition_t sai_metadata_condition_SAI_BFD_SESSION_ATTR_TUNNEL_DST_IP_ADDRESS_0 = {
         .attrid = SAI_BFD_SESSION_ATTR_BFD_ENCAPSULATION_TYPE,
@@ -20492,6 +22065,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_BFD_SESSION_ATTR_TUNNEL_DST_IP_A
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_condition_t sai_metadata_condition_SAI_BFD_SESSION_ATTR_SRC_MAC_ADDRESS_0 = {
     .attrid = SAI_BFD_SESSION_ATTR_HW_LOOKUP_VALID,
@@ -20545,6 +22119,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_BFD_SESSION_ATTR_SRC_MAC_ADDRESS
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_condition_t sai_metadata_condition_SAI_BFD_SESSION_ATTR_DST_MAC_ADDRESS_0 = {
     .attrid = SAI_BFD_SESSION_ATTR_HW_LOOKUP_VALID,
@@ -20598,6 +22173,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_BFD_SESSION_ATTR_DST_MAC_ADDRESS
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_BFD_SESSION_ATTR_ECHO_ENABLE_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_BFD_SESSION_ATTR_ECHO_ENABLE = {
@@ -20644,6 +22220,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_BFD_SESSION_ATTR_ECHO_ENABLE = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_BFD_SESSION_ATTR_MULTIHOP_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_BFD_SESSION_ATTR_MULTIHOP = {
@@ -20690,6 +22267,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_BFD_SESSION_ATTR_MULTIHOP = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_BFD_SESSION_ATTR_CBIT_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_BFD_SESSION_ATTR_CBIT = {
@@ -20736,6 +22314,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_BFD_SESSION_ATTR_CBIT = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_BFD_SESSION_ATTR_MIN_TX = {
     .objecttype                    = SAI_OBJECT_TYPE_BFD_SESSION,
@@ -20781,6 +22360,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_BFD_SESSION_ATTR_MIN_TX = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_BFD_SESSION_ATTR_MIN_RX = {
     .objecttype                    = SAI_OBJECT_TYPE_BFD_SESSION,
@@ -20826,6 +22406,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_BFD_SESSION_ATTR_MIN_RX = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_BFD_SESSION_ATTR_MULTIPLIER = {
     .objecttype                    = SAI_OBJECT_TYPE_BFD_SESSION,
@@ -20871,6 +22452,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_BFD_SESSION_ATTR_MULTIPLIER = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_BFD_SESSION_ATTR_REMOTE_MIN_TX = {
     .objecttype                    = SAI_OBJECT_TYPE_BFD_SESSION,
@@ -20916,6 +22498,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_BFD_SESSION_ATTR_REMOTE_MIN_TX =
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_BFD_SESSION_ATTR_REMOTE_MIN_RX = {
     .objecttype                    = SAI_OBJECT_TYPE_BFD_SESSION,
@@ -20961,6 +22544,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_BFD_SESSION_ATTR_REMOTE_MIN_RX =
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_BFD_SESSION_ATTR_STATE = {
     .objecttype                    = SAI_OBJECT_TYPE_BFD_SESSION,
@@ -21006,6 +22590,284 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_BFD_SESSION_ATTR_STATE = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
+};
+const sai_attribute_value_t sai_metadata_SAI_BFD_SESSION_ATTR_OFFLOAD_TYPE_default_value = { .s32 = SAI_BFD_SESSION_OFFLOAD_TYPE_NONE };
+const sai_attr_metadata_t sai_metadata_attr_SAI_BFD_SESSION_ATTR_OFFLOAD_TYPE = {
+    .objecttype                    = SAI_OBJECT_TYPE_BFD_SESSION,
+    .attrid                        = SAI_BFD_SESSION_ATTR_OFFLOAD_TYPE,
+    .attridname                    = "SAI_BFD_SESSION_ATTR_OFFLOAD_TYPE",
+    .brief                         = "Offload type.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_INT32,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_ONLY),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
+    .defaultvalue                  = &sai_metadata_SAI_BFD_SESSION_ATTR_OFFLOAD_TYPE_default_value,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = true,
+    .isenumlist                    = false,
+    .enummetadata                  = &sai_metadata_enum_sai_bfd_session_offload_type_t,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = true,
+    .iscreateandset                = false,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+    .isresourcetype                = false,
+};
+const sai_attr_metadata_t sai_metadata_attr_SAI_BFD_SESSION_ATTR_NEGOTIATED_TX = {
+    .objecttype                    = SAI_OBJECT_TYPE_BFD_SESSION,
+    .attrid                        = SAI_BFD_SESSION_ATTR_NEGOTIATED_TX,
+    .attridname                    = "SAI_BFD_SESSION_ATTR_NEGOTIATED_TX",
+    .brief                         = "Negotiated Transmit interval in microseconds.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_UINT32,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_READ_ONLY),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_NONE,
+    .defaultvalue                  = NULL,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = false,
+    .iscreateandset                = false,
+    .isreadonly                    = true,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+    .isresourcetype                = false,
+};
+const sai_attr_metadata_t sai_metadata_attr_SAI_BFD_SESSION_ATTR_NEGOTIATED_RX = {
+    .objecttype                    = SAI_OBJECT_TYPE_BFD_SESSION,
+    .attrid                        = SAI_BFD_SESSION_ATTR_NEGOTIATED_RX,
+    .attridname                    = "SAI_BFD_SESSION_ATTR_NEGOTIATED_RX",
+    .brief                         = "Negotiated Receive interval in microseconds.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_UINT32,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_READ_ONLY),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_NONE,
+    .defaultvalue                  = NULL,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = false,
+    .iscreateandset                = false,
+    .isreadonly                    = true,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+    .isresourcetype                = false,
+};
+const sai_attr_metadata_t sai_metadata_attr_SAI_BFD_SESSION_ATTR_LOCAL_DIAG = {
+    .objecttype                    = SAI_OBJECT_TYPE_BFD_SESSION,
+    .attrid                        = SAI_BFD_SESSION_ATTR_LOCAL_DIAG,
+    .attridname                    = "SAI_BFD_SESSION_ATTR_LOCAL_DIAG",
+    .brief                         = "Local Diagnostic code field as specified by RFC.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_UINT8,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_READ_ONLY),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_NONE,
+    .defaultvalue                  = NULL,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = false,
+    .iscreateandset                = false,
+    .isreadonly                    = true,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+    .isresourcetype                = false,
+};
+const sai_attr_metadata_t sai_metadata_attr_SAI_BFD_SESSION_ATTR_REMOTE_DIAG = {
+    .objecttype                    = SAI_OBJECT_TYPE_BFD_SESSION,
+    .attrid                        = SAI_BFD_SESSION_ATTR_REMOTE_DIAG,
+    .attridname                    = "SAI_BFD_SESSION_ATTR_REMOTE_DIAG",
+    .brief                         = "Remote Diagnostic code field.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_UINT8,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_READ_ONLY),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_NONE,
+    .defaultvalue                  = NULL,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = false,
+    .iscreateandset                = false,
+    .isreadonly                    = true,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+    .isresourcetype                = false,
+};
+const sai_attr_metadata_t sai_metadata_attr_SAI_BFD_SESSION_ATTR_REMOTE_MULTIPLIER = {
+    .objecttype                    = SAI_OBJECT_TYPE_BFD_SESSION,
+    .attrid                        = SAI_BFD_SESSION_ATTR_REMOTE_MULTIPLIER,
+    .attridname                    = "SAI_BFD_SESSION_ATTR_REMOTE_MULTIPLIER",
+    .brief                         = "Remote time Multiplier.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_UINT8,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_READ_ONLY),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_NONE,
+    .defaultvalue                  = NULL,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = false,
+    .iscreateandset                = false,
+    .isreadonly                    = true,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_BRIDGE_ATTR_TYPE = {
     .objecttype                    = SAI_OBJECT_TYPE_BRIDGE,
@@ -21051,6 +22913,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_BRIDGE_ATTR_TYPE = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_BRIDGE_ATTR_PORT_LIST_allowed_objects[] = {
     SAI_OBJECT_TYPE_BRIDGE_PORT,
@@ -21100,6 +22963,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_BRIDGE_ATTR_PORT_LIST = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_BRIDGE_ATTR_MAX_LEARNED_ADDRESSES_default_value = { .u32 = 0 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_BRIDGE_ATTR_MAX_LEARNED_ADDRESSES = {
@@ -21146,6 +23010,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_BRIDGE_ATTR_MAX_LEARNED_ADDRESSE
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_BRIDGE_ATTR_LEARN_DISABLE_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_BRIDGE_ATTR_LEARN_DISABLE = {
@@ -21192,6 +23057,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_BRIDGE_ATTR_LEARN_DISABLE = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_BRIDGE_ATTR_UNKNOWN_UNICAST_FLOOD_CONTROL_TYPE_default_value = { .s32 = SAI_BRIDGE_FLOOD_CONTROL_TYPE_SUB_PORTS };
 const sai_attr_metadata_t sai_metadata_attr_SAI_BRIDGE_ATTR_UNKNOWN_UNICAST_FLOOD_CONTROL_TYPE = {
@@ -21238,6 +23104,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_BRIDGE_ATTR_UNKNOWN_UNICAST_FLOO
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_BRIDGE_ATTR_UNKNOWN_UNICAST_FLOOD_GROUP_allowed_objects[] = {
     SAI_OBJECT_TYPE_L2MC_GROUP,
@@ -21249,8 +23116,8 @@ const sai_attr_condition_t sai_metadata_validonly_SAI_BRIDGE_ATTR_UNKNOWN_UNICAS
         .condition = { .s32 = SAI_BRIDGE_FLOOD_CONTROL_TYPE_L2MC_GROUP }
 };
 const sai_attr_condition_t sai_metadata_validonly_SAI_BRIDGE_ATTR_UNKNOWN_UNICAST_FLOOD_GROUP_1 = {
-        .attrid = SAI_BRIDGE_ATTR_TYPE,
-        .condition = { .s32 = SAI_BRIDGE_TYPE_1D }
+        .attrid = SAI_BRIDGE_ATTR_UNKNOWN_UNICAST_FLOOD_CONTROL_TYPE,
+        .condition = { .s32 = SAI_BRIDGE_FLOOD_CONTROL_TYPE_COMBINED }
 };
 const sai_attr_condition_t* const sai_metadata_validonlys_SAI_BRIDGE_ATTR_UNKNOWN_UNICAST_FLOOD_GROUP[] = {
     &sai_metadata_validonly_SAI_BRIDGE_ATTR_UNKNOWN_UNICAST_FLOOD_GROUP_0,
@@ -21283,7 +23150,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_BRIDGE_ATTR_UNKNOWN_UNICAST_FLOO
     .conditions                    = NULL,
     .conditionslength              = 0,
     .isconditional                 = (0 != 0),
-    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_AND,
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_OR,
     .validonly                     = sai_metadata_validonlys_SAI_BRIDGE_ATTR_UNKNOWN_UNICAST_FLOOD_GROUP,
     .validonlylength               = 2,
     .isvalidonly                   = (2 != 0),
@@ -21301,6 +23168,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_BRIDGE_ATTR_UNKNOWN_UNICAST_FLOO
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_BRIDGE_ATTR_UNKNOWN_MULTICAST_FLOOD_CONTROL_TYPE_default_value = { .s32 = SAI_BRIDGE_FLOOD_CONTROL_TYPE_SUB_PORTS };
 const sai_attr_metadata_t sai_metadata_attr_SAI_BRIDGE_ATTR_UNKNOWN_MULTICAST_FLOOD_CONTROL_TYPE = {
@@ -21347,6 +23215,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_BRIDGE_ATTR_UNKNOWN_MULTICAST_FL
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_BRIDGE_ATTR_UNKNOWN_MULTICAST_FLOOD_GROUP_allowed_objects[] = {
     SAI_OBJECT_TYPE_L2MC_GROUP,
@@ -21358,8 +23227,8 @@ const sai_attr_condition_t sai_metadata_validonly_SAI_BRIDGE_ATTR_UNKNOWN_MULTIC
         .condition = { .s32 = SAI_BRIDGE_FLOOD_CONTROL_TYPE_L2MC_GROUP }
 };
 const sai_attr_condition_t sai_metadata_validonly_SAI_BRIDGE_ATTR_UNKNOWN_MULTICAST_FLOOD_GROUP_1 = {
-        .attrid = SAI_BRIDGE_ATTR_TYPE,
-        .condition = { .s32 = SAI_BRIDGE_TYPE_1D }
+        .attrid = SAI_BRIDGE_ATTR_UNKNOWN_MULTICAST_FLOOD_CONTROL_TYPE,
+        .condition = { .s32 = SAI_BRIDGE_FLOOD_CONTROL_TYPE_COMBINED }
 };
 const sai_attr_condition_t* const sai_metadata_validonlys_SAI_BRIDGE_ATTR_UNKNOWN_MULTICAST_FLOOD_GROUP[] = {
     &sai_metadata_validonly_SAI_BRIDGE_ATTR_UNKNOWN_MULTICAST_FLOOD_GROUP_0,
@@ -21392,7 +23261,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_BRIDGE_ATTR_UNKNOWN_MULTICAST_FL
     .conditions                    = NULL,
     .conditionslength              = 0,
     .isconditional                 = (0 != 0),
-    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_AND,
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_OR,
     .validonly                     = sai_metadata_validonlys_SAI_BRIDGE_ATTR_UNKNOWN_MULTICAST_FLOOD_GROUP,
     .validonlylength               = 2,
     .isvalidonly                   = (2 != 0),
@@ -21410,6 +23279,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_BRIDGE_ATTR_UNKNOWN_MULTICAST_FL
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_BRIDGE_ATTR_BROADCAST_FLOOD_CONTROL_TYPE_default_value = { .s32 = SAI_BRIDGE_FLOOD_CONTROL_TYPE_SUB_PORTS };
 const sai_attr_metadata_t sai_metadata_attr_SAI_BRIDGE_ATTR_BROADCAST_FLOOD_CONTROL_TYPE = {
@@ -21456,6 +23326,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_BRIDGE_ATTR_BROADCAST_FLOOD_CONT
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_BRIDGE_ATTR_BROADCAST_FLOOD_GROUP_allowed_objects[] = {
     SAI_OBJECT_TYPE_L2MC_GROUP,
@@ -21467,8 +23338,8 @@ const sai_attr_condition_t sai_metadata_validonly_SAI_BRIDGE_ATTR_BROADCAST_FLOO
         .condition = { .s32 = SAI_BRIDGE_FLOOD_CONTROL_TYPE_L2MC_GROUP }
 };
 const sai_attr_condition_t sai_metadata_validonly_SAI_BRIDGE_ATTR_BROADCAST_FLOOD_GROUP_1 = {
-        .attrid = SAI_BRIDGE_ATTR_TYPE,
-        .condition = { .s32 = SAI_BRIDGE_TYPE_1D }
+        .attrid = SAI_BRIDGE_ATTR_BROADCAST_FLOOD_CONTROL_TYPE,
+        .condition = { .s32 = SAI_BRIDGE_FLOOD_CONTROL_TYPE_COMBINED }
 };
 const sai_attr_condition_t* const sai_metadata_validonlys_SAI_BRIDGE_ATTR_BROADCAST_FLOOD_GROUP[] = {
     &sai_metadata_validonly_SAI_BRIDGE_ATTR_BROADCAST_FLOOD_GROUP_0,
@@ -21501,7 +23372,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_BRIDGE_ATTR_BROADCAST_FLOOD_GROU
     .conditions                    = NULL,
     .conditionslength              = 0,
     .isconditional                 = (0 != 0),
-    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_AND,
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_OR,
     .validonly                     = sai_metadata_validonlys_SAI_BRIDGE_ATTR_BROADCAST_FLOOD_GROUP,
     .validonlylength               = 2,
     .isvalidonly                   = (2 != 0),
@@ -21519,6 +23390,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_BRIDGE_ATTR_BROADCAST_FLOOD_GROU
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_BRIDGE_PORT_ATTR_TYPE = {
     .objecttype                    = SAI_OBJECT_TYPE_BRIDGE_PORT,
@@ -21564,6 +23436,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_BRIDGE_PORT_ATTR_TYPE = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_BRIDGE_PORT_ATTR_PORT_ID_allowed_objects[] = {
     SAI_OBJECT_TYPE_PORT,
@@ -21627,6 +23500,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_BRIDGE_PORT_ATTR_PORT_ID = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_BRIDGE_PORT_ATTR_TAGGING_MODE_default_value = { .s32 = SAI_BRIDGE_PORT_TAGGING_MODE_TAGGED };
 const sai_attr_condition_t sai_metadata_validonly_SAI_BRIDGE_PORT_ATTR_TAGGING_MODE_0 = {
@@ -21681,6 +23555,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_BRIDGE_PORT_ATTR_TAGGING_MODE = 
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_condition_t sai_metadata_condition_SAI_BRIDGE_PORT_ATTR_VLAN_ID_0 = {
         .attrid = SAI_BRIDGE_PORT_ATTR_TYPE,
@@ -21734,6 +23609,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_BRIDGE_PORT_ATTR_VLAN_ID = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_BRIDGE_PORT_ATTR_RIF_ID_allowed_objects[] = {
     SAI_OBJECT_TYPE_ROUTER_INTERFACE,
@@ -21791,6 +23667,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_BRIDGE_PORT_ATTR_RIF_ID = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_BRIDGE_PORT_ATTR_TUNNEL_ID_allowed_objects[] = {
     SAI_OBJECT_TYPE_TUNNEL,
@@ -21848,6 +23725,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_BRIDGE_PORT_ATTR_TUNNEL_ID = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_BRIDGE_PORT_ATTR_BRIDGE_ID_allowed_objects[] = {
     SAI_OBJECT_TYPE_BRIDGE,
@@ -21915,6 +23793,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_BRIDGE_PORT_ATTR_BRIDGE_ID = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_BRIDGE_PORT_ATTR_FDB_LEARNING_MODE_default_value = { .s32 = SAI_BRIDGE_PORT_FDB_LEARNING_MODE_HW };
 const sai_attr_metadata_t sai_metadata_attr_SAI_BRIDGE_PORT_ATTR_FDB_LEARNING_MODE = {
@@ -21961,6 +23840,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_BRIDGE_PORT_ATTR_FDB_LEARNING_MO
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_BRIDGE_PORT_ATTR_MAX_LEARNED_ADDRESSES_default_value = { .u32 = 0 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_BRIDGE_PORT_ATTR_MAX_LEARNED_ADDRESSES = {
@@ -22007,6 +23887,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_BRIDGE_PORT_ATTR_MAX_LEARNED_ADD
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_BRIDGE_PORT_ATTR_FDB_LEARNING_LIMIT_VIOLATION_PACKET_ACTION_default_value = { .s32 = SAI_PACKET_ACTION_DROP };
 const sai_attr_metadata_t sai_metadata_attr_SAI_BRIDGE_PORT_ATTR_FDB_LEARNING_LIMIT_VIOLATION_PACKET_ACTION = {
@@ -22053,6 +23934,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_BRIDGE_PORT_ATTR_FDB_LEARNING_LI
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_BRIDGE_PORT_ATTR_ADMIN_STATE_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_BRIDGE_PORT_ATTR_ADMIN_STATE = {
@@ -22099,6 +23981,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_BRIDGE_PORT_ATTR_ADMIN_STATE = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_BRIDGE_PORT_ATTR_INGRESS_FILTERING_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_BRIDGE_PORT_ATTR_INGRESS_FILTERING = {
@@ -22145,6 +24028,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_BRIDGE_PORT_ATTR_INGRESS_FILTERI
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_BRIDGE_PORT_ATTR_EGRESS_FILTERING_default_value = { .booldata = false };
 const sai_attr_condition_t sai_metadata_validonly_SAI_BRIDGE_PORT_ATTR_EGRESS_FILTERING_0 = {
@@ -22199,6 +24083,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_BRIDGE_PORT_ATTR_EGRESS_FILTERIN
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_BRIDGE_PORT_ATTR_ISOLATION_GROUP_allowed_objects[] = {
     SAI_OBJECT_TYPE_ISOLATION_GROUP,
@@ -22249,13 +24134,14 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_BRIDGE_PORT_ATTR_ISOLATION_GROUP
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_BUFFER_POOL_ATTR_SHARED_SIZE = {
     .objecttype                    = SAI_OBJECT_TYPE_BUFFER_POOL,
     .attrid                        = SAI_BUFFER_POOL_ATTR_SHARED_SIZE,
     .attridname                    = "SAI_BUFFER_POOL_ATTR_SHARED_SIZE",
     .brief                         = "Shared buffer size in bytes.",
-    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_UINT32,
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_UINT64,
     .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_READ_ONLY),
     .allowedobjecttypes            = NULL,
     .allowedobjecttypeslength      = 0,
@@ -22294,6 +24180,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_BUFFER_POOL_ATTR_SHARED_SIZE = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_BUFFER_POOL_ATTR_TYPE = {
     .objecttype                    = SAI_OBJECT_TYPE_BUFFER_POOL,
@@ -22339,13 +24226,14 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_BUFFER_POOL_ATTR_TYPE = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_BUFFER_POOL_ATTR_SIZE = {
     .objecttype                    = SAI_OBJECT_TYPE_BUFFER_POOL,
     .attrid                        = SAI_BUFFER_POOL_ATTR_SIZE,
     .attridname                    = "SAI_BUFFER_POOL_ATTR_SIZE",
     .brief                         = "Buffer pool size in bytes.",
-    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_UINT32,
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_UINT64,
     .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_MANDATORY_ON_CREATE|SAI_ATTR_FLAGS_CREATE_AND_SET),
     .allowedobjecttypes            = NULL,
     .allowedobjecttypeslength      = 0,
@@ -22384,6 +24272,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_BUFFER_POOL_ATTR_SIZE = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_BUFFER_POOL_ATTR_THRESHOLD_MODE_default_value = { .s32 = SAI_BUFFER_POOL_THRESHOLD_MODE_DYNAMIC };
 const sai_attr_metadata_t sai_metadata_attr_SAI_BUFFER_POOL_ATTR_THRESHOLD_MODE = {
@@ -22430,14 +24319,65 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_BUFFER_POOL_ATTR_THRESHOLD_MODE 
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
-const sai_attribute_value_t sai_metadata_SAI_BUFFER_POOL_ATTR_XOFF_SIZE_default_value = { .u32 = 0 };
+const sai_object_type_t sai_metadata_SAI_BUFFER_POOL_ATTR_TAM_allowed_objects[] = {
+    SAI_OBJECT_TYPE_TAM,
+    -1
+};
+const sai_attr_metadata_t sai_metadata_attr_SAI_BUFFER_POOL_ATTR_TAM = {
+    .objecttype                    = SAI_OBJECT_TYPE_BUFFER_POOL,
+    .attrid                        = SAI_BUFFER_POOL_ATTR_TAM,
+    .attridname                    = "SAI_BUFFER_POOL_ATTR_TAM",
+    .brief                         = "TAM id.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_OBJECT_LIST,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
+    .allowedobjecttypes            = sai_metadata_SAI_BUFFER_POOL_ATTR_TAM_allowed_objects,
+    .allowedobjecttypeslength      = 1,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (1 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_EMPTY_LIST,
+    .defaultvalue                  = NULL,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = false,
+    .iscreateandset                = true,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = false,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+    .isresourcetype                = false,
+};
+const sai_attribute_value_t sai_metadata_SAI_BUFFER_POOL_ATTR_XOFF_SIZE_default_value = { .u64 = 0 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_BUFFER_POOL_ATTR_XOFF_SIZE = {
     .objecttype                    = SAI_OBJECT_TYPE_BUFFER_POOL,
     .attrid                        = SAI_BUFFER_POOL_ATTR_XOFF_SIZE,
     .attridname                    = "SAI_BUFFER_POOL_ATTR_XOFF_SIZE",
     .brief                         = "Shared headroom pool size in bytes for lossless traffic.",
-    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_UINT32,
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_UINT64,
     .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
     .allowedobjecttypes            = NULL,
     .allowedobjecttypeslength      = 0,
@@ -22476,6 +24416,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_BUFFER_POOL_ATTR_XOFF_SIZE = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_BUFFER_POOL_ATTR_WRED_PROFILE_ID_allowed_objects[] = {
     SAI_OBJECT_TYPE_WRED,
@@ -22526,6 +24467,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_BUFFER_POOL_ATTR_WRED_PROFILE_ID
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_BUFFER_PROFILE_ATTR_POOL_ID_allowed_objects[] = {
     SAI_OBJECT_TYPE_BUFFER_POOL,
@@ -22575,13 +24517,14 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_BUFFER_PROFILE_ATTR_POOL_ID = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_BUFFER_PROFILE_ATTR_RESERVED_BUFFER_SIZE = {
     .objecttype                    = SAI_OBJECT_TYPE_BUFFER_PROFILE,
     .attrid                        = SAI_BUFFER_PROFILE_ATTR_RESERVED_BUFFER_SIZE,
     .attridname                    = "SAI_BUFFER_PROFILE_ATTR_RESERVED_BUFFER_SIZE",
     .brief                         = "Reserved buffer size in bytes.",
-    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_UINT32,
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_UINT64,
     .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_MANDATORY_ON_CREATE|SAI_ATTR_FLAGS_CREATE_AND_SET),
     .allowedobjecttypes            = NULL,
     .allowedobjecttypeslength      = 0,
@@ -22620,6 +24563,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_BUFFER_PROFILE_ATTR_RESERVED_BUF
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_BUFFER_PROFILE_ATTR_THRESHOLD_MODE = {
     .objecttype                    = SAI_OBJECT_TYPE_BUFFER_PROFILE,
@@ -22665,6 +24609,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_BUFFER_PROFILE_ATTR_THRESHOLD_MO
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_condition_t sai_metadata_condition_SAI_BUFFER_PROFILE_ATTR_SHARED_DYNAMIC_TH_0 = {
         .attrid = SAI_BUFFER_PROFILE_ATTR_THRESHOLD_MODE,
@@ -22718,6 +24663,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_BUFFER_PROFILE_ATTR_SHARED_DYNAM
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_condition_t sai_metadata_condition_SAI_BUFFER_PROFILE_ATTR_SHARED_STATIC_TH_0 = {
         .attrid = SAI_BUFFER_PROFILE_ATTR_THRESHOLD_MODE,
@@ -22732,7 +24678,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_BUFFER_PROFILE_ATTR_SHARED_STATI
     .attrid                        = SAI_BUFFER_PROFILE_ATTR_SHARED_STATIC_TH,
     .attridname                    = "SAI_BUFFER_PROFILE_ATTR_SHARED_STATIC_TH",
     .brief                         = "Static threshold for the shared usage in bytes.",
-    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_UINT32,
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_UINT64,
     .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_MANDATORY_ON_CREATE|SAI_ATTR_FLAGS_CREATE_AND_SET),
     .allowedobjecttypes            = NULL,
     .allowedobjecttypeslength      = 0,
@@ -22771,14 +24717,15 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_BUFFER_PROFILE_ATTR_SHARED_STATI
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
-const sai_attribute_value_t sai_metadata_SAI_BUFFER_PROFILE_ATTR_XOFF_TH_default_value = { .u32 = 0 };
+const sai_attribute_value_t sai_metadata_SAI_BUFFER_PROFILE_ATTR_XOFF_TH_default_value = { .u64 = 0 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_BUFFER_PROFILE_ATTR_XOFF_TH = {
     .objecttype                    = SAI_OBJECT_TYPE_BUFFER_PROFILE,
     .attrid                        = SAI_BUFFER_PROFILE_ATTR_XOFF_TH,
     .attridname                    = "SAI_BUFFER_PROFILE_ATTR_XOFF_TH",
     .brief                         = "Set the buffer profile XOFF threshold in bytes.",
-    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_UINT32,
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_UINT64,
     .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
     .allowedobjecttypes            = NULL,
     .allowedobjecttypeslength      = 0,
@@ -22817,14 +24764,15 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_BUFFER_PROFILE_ATTR_XOFF_TH = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
-const sai_attribute_value_t sai_metadata_SAI_BUFFER_PROFILE_ATTR_XON_TH_default_value = { .u32 = 0 };
+const sai_attribute_value_t sai_metadata_SAI_BUFFER_PROFILE_ATTR_XON_TH_default_value = { .u64 = 0 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_BUFFER_PROFILE_ATTR_XON_TH = {
     .objecttype                    = SAI_OBJECT_TYPE_BUFFER_PROFILE,
     .attrid                        = SAI_BUFFER_PROFILE_ATTR_XON_TH,
     .attridname                    = "SAI_BUFFER_PROFILE_ATTR_XON_TH",
     .brief                         = "Set the buffer profile XON non-hysteresis threshold in byte.",
-    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_UINT32,
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_UINT64,
     .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
     .allowedobjecttypes            = NULL,
     .allowedobjecttypeslength      = 0,
@@ -22863,14 +24811,15 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_BUFFER_PROFILE_ATTR_XON_TH = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
-const sai_attribute_value_t sai_metadata_SAI_BUFFER_PROFILE_ATTR_XON_OFFSET_TH_default_value = { .u32 = 0 };
+const sai_attribute_value_t sai_metadata_SAI_BUFFER_PROFILE_ATTR_XON_OFFSET_TH_default_value = { .u64 = 0 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_BUFFER_PROFILE_ATTR_XON_OFFSET_TH = {
     .objecttype                    = SAI_OBJECT_TYPE_BUFFER_PROFILE,
     .attrid                        = SAI_BUFFER_PROFILE_ATTR_XON_OFFSET_TH,
     .attridname                    = "SAI_BUFFER_PROFILE_ATTR_XON_OFFSET_TH",
     .brief                         = "Set the buffer profile XON hysteresis threshold in byte.",
-    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_UINT32,
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_UINT64,
     .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
     .allowedobjecttypes            = NULL,
     .allowedobjecttypeslength      = 0,
@@ -22909,6 +24858,311 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_BUFFER_PROFILE_ATTR_XON_OFFSET_T
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
+};
+const sai_attribute_value_t sai_metadata_SAI_COUNTER_ATTR_TYPE_default_value = { .s32 = SAI_COUNTER_TYPE_REGULAR };
+const sai_attr_metadata_t sai_metadata_attr_SAI_COUNTER_ATTR_TYPE = {
+    .objecttype                    = SAI_OBJECT_TYPE_COUNTER,
+    .attrid                        = SAI_COUNTER_ATTR_TYPE,
+    .attridname                    = "SAI_COUNTER_ATTR_TYPE",
+    .brief                         = "Counter.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_INT32,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_ONLY),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
+    .defaultvalue                  = &sai_metadata_SAI_COUNTER_ATTR_TYPE_default_value,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = true,
+    .isenumlist                    = false,
+    .enummetadata                  = &sai_metadata_enum_sai_counter_type_t,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = true,
+    .iscreateandset                = false,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+    .isresourcetype                = false,
+};
+const sai_attr_metadata_t sai_metadata_attr_SAI_DEBUG_COUNTER_ATTR_INDEX = {
+    .objecttype                    = SAI_OBJECT_TYPE_DEBUG_COUNTER,
+    .attrid                        = SAI_DEBUG_COUNTER_ATTR_INDEX,
+    .attridname                    = "SAI_DEBUG_COUNTER_ATTR_INDEX",
+    .brief                         = "Object stat index Index is added to base start.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_UINT32,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_READ_ONLY),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_NONE,
+    .defaultvalue                  = NULL,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = false,
+    .iscreateandset                = false,
+    .isreadonly                    = true,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+    .isresourcetype                = false,
+};
+const sai_attr_metadata_t sai_metadata_attr_SAI_DEBUG_COUNTER_ATTR_TYPE = {
+    .objecttype                    = SAI_OBJECT_TYPE_DEBUG_COUNTER,
+    .attrid                        = SAI_DEBUG_COUNTER_ATTR_TYPE,
+    .attridname                    = "SAI_DEBUG_COUNTER_ATTR_TYPE",
+    .brief                         = "Debug counter type.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_INT32,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_MANDATORY_ON_CREATE|SAI_ATTR_FLAGS_CREATE_ONLY),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_NONE,
+    .defaultvalue                  = NULL,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = true,
+    .isenumlist                    = false,
+    .enummetadata                  = &sai_metadata_enum_sai_debug_counter_type_t,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = true,
+    .iscreateonly                  = true,
+    .iscreateandset                = false,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+    .isresourcetype                = true,
+};
+const sai_attribute_value_t sai_metadata_SAI_DEBUG_COUNTER_ATTR_BIND_METHOD_default_value = { .s32 = SAI_DEBUG_COUNTER_BIND_METHOD_AUTOMATIC };
+const sai_attr_metadata_t sai_metadata_attr_SAI_DEBUG_COUNTER_ATTR_BIND_METHOD = {
+    .objecttype                    = SAI_OBJECT_TYPE_DEBUG_COUNTER,
+    .attrid                        = SAI_DEBUG_COUNTER_ATTR_BIND_METHOD,
+    .attridname                    = "SAI_DEBUG_COUNTER_ATTR_BIND_METHOD",
+    .brief                         = "Bind method to base object.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_INT32,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_ONLY),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
+    .defaultvalue                  = &sai_metadata_SAI_DEBUG_COUNTER_ATTR_BIND_METHOD_default_value,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = true,
+    .isenumlist                    = false,
+    .enummetadata                  = &sai_metadata_enum_sai_debug_counter_bind_method_t,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = true,
+    .iscreateandset                = false,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+    .isresourcetype                = false,
+};
+const sai_attr_condition_t sai_metadata_validonly_SAI_DEBUG_COUNTER_ATTR_IN_DROP_REASON_LIST_0 = {
+        .attrid = SAI_DEBUG_COUNTER_ATTR_TYPE,
+        .condition = { .s32 = SAI_DEBUG_COUNTER_TYPE_PORT_IN_DROP_REASONS }
+};
+const sai_attr_condition_t sai_metadata_validonly_SAI_DEBUG_COUNTER_ATTR_IN_DROP_REASON_LIST_1 = {
+        .attrid = SAI_DEBUG_COUNTER_ATTR_TYPE,
+        .condition = { .s32 = SAI_DEBUG_COUNTER_TYPE_SWITCH_IN_DROP_REASONS }
+};
+const sai_attr_condition_t* const sai_metadata_validonlys_SAI_DEBUG_COUNTER_ATTR_IN_DROP_REASON_LIST[] = {
+    &sai_metadata_validonly_SAI_DEBUG_COUNTER_ATTR_IN_DROP_REASON_LIST_0,
+    &sai_metadata_validonly_SAI_DEBUG_COUNTER_ATTR_IN_DROP_REASON_LIST_1,
+    NULL
+};
+const sai_attr_metadata_t sai_metadata_attr_SAI_DEBUG_COUNTER_ATTR_IN_DROP_REASON_LIST = {
+    .objecttype                    = SAI_OBJECT_TYPE_DEBUG_COUNTER,
+    .attrid                        = SAI_DEBUG_COUNTER_ATTR_IN_DROP_REASON_LIST,
+    .attridname                    = "SAI_DEBUG_COUNTER_ATTR_IN_DROP_REASON_LIST",
+    .brief                         = "List of in drop reasons that will be counted.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_INT32_LIST,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_EMPTY_LIST,
+    .defaultvalue                  = NULL,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = true,
+    .enummetadata                  = &sai_metadata_enum_sai_in_drop_reason_t,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_OR,
+    .validonly                     = sai_metadata_validonlys_SAI_DEBUG_COUNTER_ATTR_IN_DROP_REASON_LIST,
+    .validonlylength               = 2,
+    .isvalidonly                   = (2 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = false,
+    .iscreateandset                = true,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = false,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+    .isresourcetype                = false,
+};
+const sai_attr_condition_t sai_metadata_validonly_SAI_DEBUG_COUNTER_ATTR_OUT_DROP_REASON_LIST_0 = {
+        .attrid = SAI_DEBUG_COUNTER_ATTR_TYPE,
+        .condition = { .s32 = SAI_DEBUG_COUNTER_TYPE_PORT_OUT_DROP_REASONS }
+};
+const sai_attr_condition_t sai_metadata_validonly_SAI_DEBUG_COUNTER_ATTR_OUT_DROP_REASON_LIST_1 = {
+        .attrid = SAI_DEBUG_COUNTER_ATTR_TYPE,
+        .condition = { .s32 = SAI_DEBUG_COUNTER_TYPE_SWITCH_OUT_DROP_REASONS }
+};
+const sai_attr_condition_t* const sai_metadata_validonlys_SAI_DEBUG_COUNTER_ATTR_OUT_DROP_REASON_LIST[] = {
+    &sai_metadata_validonly_SAI_DEBUG_COUNTER_ATTR_OUT_DROP_REASON_LIST_0,
+    &sai_metadata_validonly_SAI_DEBUG_COUNTER_ATTR_OUT_DROP_REASON_LIST_1,
+    NULL
+};
+const sai_attr_metadata_t sai_metadata_attr_SAI_DEBUG_COUNTER_ATTR_OUT_DROP_REASON_LIST = {
+    .objecttype                    = SAI_OBJECT_TYPE_DEBUG_COUNTER,
+    .attrid                        = SAI_DEBUG_COUNTER_ATTR_OUT_DROP_REASON_LIST,
+    .attridname                    = "SAI_DEBUG_COUNTER_ATTR_OUT_DROP_REASON_LIST",
+    .brief                         = "List of out drop reasons that will be counted.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_INT32_LIST,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_EMPTY_LIST,
+    .defaultvalue                  = NULL,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = true,
+    .enummetadata                  = &sai_metadata_enum_sai_out_drop_reason_t,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_OR,
+    .validonly                     = sai_metadata_validonlys_SAI_DEBUG_COUNTER_ATTR_OUT_DROP_REASON_LIST,
+    .validonlylength               = 2,
+    .isvalidonly                   = (2 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = false,
+    .iscreateandset                = true,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = false,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_DTEL_ATTR_INT_ENDPOINT_ENABLE_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_DTEL_ATTR_INT_ENDPOINT_ENABLE = {
@@ -22955,6 +25209,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_DTEL_ATTR_INT_ENDPOINT_ENABLE = 
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_DTEL_ATTR_INT_TRANSIT_ENABLE_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_DTEL_ATTR_INT_TRANSIT_ENABLE = {
@@ -23001,6 +25256,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_DTEL_ATTR_INT_TRANSIT_ENABLE = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_DTEL_ATTR_POSTCARD_ENABLE_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_DTEL_ATTR_POSTCARD_ENABLE = {
@@ -23047,6 +25303,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_DTEL_ATTR_POSTCARD_ENABLE = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_DTEL_ATTR_DROP_REPORT_ENABLE_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_DTEL_ATTR_DROP_REPORT_ENABLE = {
@@ -23093,6 +25350,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_DTEL_ATTR_DROP_REPORT_ENABLE = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_DTEL_ATTR_QUEUE_REPORT_ENABLE_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_DTEL_ATTR_QUEUE_REPORT_ENABLE = {
@@ -23139,6 +25397,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_DTEL_ATTR_QUEUE_REPORT_ENABLE = 
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_DTEL_ATTR_SWITCH_ID_default_value = { .u32 = 0 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_DTEL_ATTR_SWITCH_ID = {
@@ -23185,6 +25444,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_DTEL_ATTR_SWITCH_ID = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_DTEL_ATTR_FLOW_STATE_CLEAR_CYCLE_default_value = { .u16 = 0 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_DTEL_ATTR_FLOW_STATE_CLEAR_CYCLE = {
@@ -23231,6 +25491,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_DTEL_ATTR_FLOW_STATE_CLEAR_CYCLE
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_DTEL_ATTR_LATENCY_SENSITIVITY_default_value = { .u8 = 0 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_DTEL_ATTR_LATENCY_SENSITIVITY = {
@@ -23277,6 +25538,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_DTEL_ATTR_LATENCY_SENSITIVITY = 
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_DTEL_ATTR_SINK_PORT_LIST_allowed_objects[] = {
     SAI_OBJECT_TYPE_PORT,
@@ -23326,6 +25588,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_DTEL_ATTR_SINK_PORT_LIST = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_DTEL_ATTR_INT_L4_DSCP_default_value = { .aclfield = { .enable = false } };
 const sai_attr_metadata_t sai_metadata_attr_SAI_DTEL_ATTR_INT_L4_DSCP = {
@@ -23372,6 +25635,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_DTEL_ATTR_INT_L4_DSCP = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_DTEL_EVENT_ATTR_TYPE = {
     .objecttype                    = SAI_OBJECT_TYPE_DTEL_EVENT,
@@ -23417,6 +25681,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_DTEL_EVENT_ATTR_TYPE = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_DTEL_EVENT_ATTR_REPORT_SESSION_allowed_objects[] = {
     SAI_OBJECT_TYPE_DTEL_REPORT_SESSION,
@@ -23467,6 +25732,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_DTEL_EVENT_ATTR_REPORT_SESSION =
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_DTEL_EVENT_ATTR_DSCP_VALUE_default_value = { .u8 = 0 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_DTEL_EVENT_ATTR_DSCP_VALUE = {
@@ -23513,6 +25779,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_DTEL_EVENT_ATTR_DSCP_VALUE = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_DTEL_INT_SESSION_ATTR_MAX_HOP_COUNT_default_value = { .u8 = 8 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_DTEL_INT_SESSION_ATTR_MAX_HOP_COUNT = {
@@ -23559,6 +25826,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_DTEL_INT_SESSION_ATTR_MAX_HOP_CO
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_DTEL_INT_SESSION_ATTR_COLLECT_SWITCH_ID_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_DTEL_INT_SESSION_ATTR_COLLECT_SWITCH_ID = {
@@ -23605,6 +25873,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_DTEL_INT_SESSION_ATTR_COLLECT_SW
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_DTEL_INT_SESSION_ATTR_COLLECT_SWITCH_PORTS_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_DTEL_INT_SESSION_ATTR_COLLECT_SWITCH_PORTS = {
@@ -23651,6 +25920,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_DTEL_INT_SESSION_ATTR_COLLECT_SW
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_DTEL_INT_SESSION_ATTR_COLLECT_INGRESS_TIMESTAMP_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_DTEL_INT_SESSION_ATTR_COLLECT_INGRESS_TIMESTAMP = {
@@ -23697,6 +25967,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_DTEL_INT_SESSION_ATTR_COLLECT_IN
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_DTEL_INT_SESSION_ATTR_COLLECT_EGRESS_TIMESTAMP_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_DTEL_INT_SESSION_ATTR_COLLECT_EGRESS_TIMESTAMP = {
@@ -23743,6 +26014,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_DTEL_INT_SESSION_ATTR_COLLECT_EG
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_DTEL_INT_SESSION_ATTR_COLLECT_QUEUE_INFO_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_DTEL_INT_SESSION_ATTR_COLLECT_QUEUE_INFO = {
@@ -23789,6 +26061,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_DTEL_INT_SESSION_ATTR_COLLECT_QU
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_DTEL_QUEUE_REPORT_ATTR_QUEUE_ID_allowed_objects[] = {
     SAI_OBJECT_TYPE_QUEUE,
@@ -23838,6 +26111,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_DTEL_QUEUE_REPORT_ATTR_QUEUE_ID 
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_DTEL_QUEUE_REPORT_ATTR_DEPTH_THRESHOLD_default_value = { .u32 = 0 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_DTEL_QUEUE_REPORT_ATTR_DEPTH_THRESHOLD = {
@@ -23884,6 +26158,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_DTEL_QUEUE_REPORT_ATTR_DEPTH_THR
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_DTEL_QUEUE_REPORT_ATTR_LATENCY_THRESHOLD_default_value = { .u32 = 0 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_DTEL_QUEUE_REPORT_ATTR_LATENCY_THRESHOLD = {
@@ -23930,6 +26205,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_DTEL_QUEUE_REPORT_ATTR_LATENCY_T
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_DTEL_QUEUE_REPORT_ATTR_BREACH_QUOTA_default_value = { .u32 = 0 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_DTEL_QUEUE_REPORT_ATTR_BREACH_QUOTA = {
@@ -23976,6 +26252,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_DTEL_QUEUE_REPORT_ATTR_BREACH_QU
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_DTEL_QUEUE_REPORT_ATTR_TAIL_DROP_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_DTEL_QUEUE_REPORT_ATTR_TAIL_DROP = {
@@ -24022,6 +26299,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_DTEL_QUEUE_REPORT_ATTR_TAIL_DROP
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_DTEL_REPORT_SESSION_ATTR_SRC_IP_default_value = { .ipaddr = { .addr_family = SAI_IP_ADDR_FAMILY_IPV4, .addr = { .ip4 = 0 } } };
 const sai_attr_metadata_t sai_metadata_attr_SAI_DTEL_REPORT_SESSION_ATTR_SRC_IP = {
@@ -24068,6 +26346,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_DTEL_REPORT_SESSION_ATTR_SRC_IP 
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_DTEL_REPORT_SESSION_ATTR_DST_IP_LIST = {
     .objecttype                    = SAI_OBJECT_TYPE_DTEL_REPORT_SESSION,
@@ -24113,6 +26392,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_DTEL_REPORT_SESSION_ATTR_DST_IP_
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_DTEL_REPORT_SESSION_ATTR_VIRTUAL_ROUTER_ID_allowed_objects[] = {
     SAI_OBJECT_TYPE_VIRTUAL_ROUTER,
@@ -24163,6 +26443,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_DTEL_REPORT_SESSION_ATTR_VIRTUAL
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_DTEL_REPORT_SESSION_ATTR_TRUNCATE_SIZE_default_value = { .u16 = 0 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_DTEL_REPORT_SESSION_ATTR_TRUNCATE_SIZE = {
@@ -24209,6 +26490,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_DTEL_REPORT_SESSION_ATTR_TRUNCAT
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_DTEL_REPORT_SESSION_ATTR_UDP_DST_PORT_default_value = { .u16 = 0 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_DTEL_REPORT_SESSION_ATTR_UDP_DST_PORT = {
@@ -24255,6 +26537,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_DTEL_REPORT_SESSION_ATTR_UDP_DST
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_FDB_ENTRY_ATTR_TYPE = {
     .objecttype                    = SAI_OBJECT_TYPE_FDB_ENTRY,
@@ -24300,6 +26583,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_FDB_ENTRY_ATTR_TYPE = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_FDB_ENTRY_ATTR_PACKET_ACTION_default_value = { .s32 = SAI_PACKET_ACTION_FORWARD };
 const sai_attr_metadata_t sai_metadata_attr_SAI_FDB_ENTRY_ATTR_PACKET_ACTION = {
@@ -24346,6 +26630,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_FDB_ENTRY_ATTR_PACKET_ACTION = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_FDB_ENTRY_ATTR_USER_TRAP_ID_allowed_objects[] = {
     SAI_OBJECT_TYPE_HOSTIF_USER_DEFINED_TRAP,
@@ -24396,6 +26681,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_FDB_ENTRY_ATTR_USER_TRAP_ID = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_FDB_ENTRY_ATTR_BRIDGE_PORT_ID_allowed_objects[] = {
     SAI_OBJECT_TYPE_BRIDGE_PORT,
@@ -24446,6 +26732,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_FDB_ENTRY_ATTR_BRIDGE_PORT_ID = 
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_FDB_ENTRY_ATTR_META_DATA_default_value = { .u32 = 0 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_FDB_ENTRY_ATTR_META_DATA = {
@@ -24492,6 +26779,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_FDB_ENTRY_ATTR_META_DATA = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_FDB_ENTRY_ATTR_ENDPOINT_IP_default_value = { .ipaddr = { .addr_family = SAI_IP_ADDR_FAMILY_IPV4, .addr = { .ip4 = 0 } } };
 const sai_attr_metadata_t sai_metadata_attr_SAI_FDB_ENTRY_ATTR_ENDPOINT_IP = {
@@ -24538,6 +26826,58 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_FDB_ENTRY_ATTR_ENDPOINT_IP = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
+};
+const sai_object_type_t sai_metadata_SAI_FDB_ENTRY_ATTR_COUNTER_ID_allowed_objects[] = {
+    SAI_OBJECT_TYPE_COUNTER,
+    -1
+};
+const sai_attribute_value_t sai_metadata_SAI_FDB_ENTRY_ATTR_COUNTER_ID_default_value = { .oid = SAI_NULL_OBJECT_ID };
+const sai_attr_metadata_t sai_metadata_attr_SAI_FDB_ENTRY_ATTR_COUNTER_ID = {
+    .objecttype                    = SAI_OBJECT_TYPE_FDB_ENTRY,
+    .attrid                        = SAI_FDB_ENTRY_ATTR_COUNTER_ID,
+    .attridname                    = "SAI_FDB_ENTRY_ATTR_COUNTER_ID",
+    .brief                         = "Attach a counter.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_OBJECT_ID,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
+    .allowedobjecttypes            = sai_metadata_SAI_FDB_ENTRY_ATTR_COUNTER_ID_allowed_objects,
+    .allowedobjecttypeslength      = 1,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = true,
+    .isoidattribute                = (1 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
+    .defaultvalue                  = &sai_metadata_SAI_FDB_ENTRY_ATTR_COUNTER_ID_default_value,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = false,
+    .iscreateandset                = true,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_FDB_FLUSH_ATTR_BRIDGE_PORT_ID_allowed_objects[] = {
     SAI_OBJECT_TYPE_BRIDGE_PORT,
@@ -24588,6 +26928,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_FDB_FLUSH_ATTR_BRIDGE_PORT_ID = 
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_FDB_FLUSH_ATTR_BV_ID_allowed_objects[] = {
     SAI_OBJECT_TYPE_BRIDGE,
@@ -24639,6 +26980,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_FDB_FLUSH_ATTR_BV_ID = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_FDB_FLUSH_ATTR_ENTRY_TYPE_default_value = { .s32 = SAI_FDB_FLUSH_ENTRY_TYPE_DYNAMIC };
 const sai_attr_metadata_t sai_metadata_attr_SAI_FDB_FLUSH_ATTR_ENTRY_TYPE = {
@@ -24685,6 +27027,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_FDB_FLUSH_ATTR_ENTRY_TYPE = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_HASH_ATTR_NATIVE_HASH_FIELD_LIST = {
     .objecttype                    = SAI_OBJECT_TYPE_HASH,
@@ -24730,6 +27073,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_HASH_ATTR_NATIVE_HASH_FIELD_LIST
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_HASH_ATTR_UDF_GROUP_LIST_allowed_objects[] = {
     SAI_OBJECT_TYPE_UDF_GROUP,
@@ -24779,6 +27123,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_HASH_ATTR_UDF_GROUP_LIST = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_HOSTIF_ATTR_TYPE = {
     .objecttype                    = SAI_OBJECT_TYPE_HOSTIF,
@@ -24824,6 +27169,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_HOSTIF_ATTR_TYPE = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_HOSTIF_ATTR_OBJ_ID_allowed_objects[] = {
     SAI_OBJECT_TYPE_PORT,
@@ -24883,13 +27229,19 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_HOSTIF_ATTR_OBJ_ID = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_condition_t sai_metadata_condition_SAI_HOSTIF_ATTR_NAME_0 = {
         .attrid = SAI_HOSTIF_ATTR_TYPE,
         .condition = { .s32 = SAI_HOSTIF_TYPE_NETDEV }
 };
+const sai_attr_condition_t sai_metadata_condition_SAI_HOSTIF_ATTR_NAME_1 = {
+        .attrid = SAI_HOSTIF_ATTR_TYPE,
+        .condition = { .s32 = SAI_HOSTIF_TYPE_GENETLINK }
+};
 const sai_attr_condition_t* const sai_metadata_conditions_SAI_HOSTIF_ATTR_NAME[] = {
     &sai_metadata_condition_SAI_HOSTIF_ATTR_NAME_0,
+    &sai_metadata_condition_SAI_HOSTIF_ATTR_NAME_1,
     NULL
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_HOSTIF_ATTR_NAME = {
@@ -24916,8 +27268,8 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_HOSTIF_ATTR_NAME = {
     .enummetadata                  = NULL,
     .conditiontype                 = SAI_ATTR_CONDITION_TYPE_OR,
     .conditions                    = sai_metadata_conditions_SAI_HOSTIF_ATTR_NAME,
-    .conditionslength              = 1,
-    .isconditional                 = (1 != 0),
+    .conditionslength              = 2,
+    .isconditional                 = (2 != 0),
     .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
     .validonly                     = NULL,
     .validonlylength               = 0,
@@ -24936,6 +27288,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_HOSTIF_ATTR_NAME = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_HOSTIF_ATTR_OPER_STATUS_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_HOSTIF_ATTR_OPER_STATUS = {
@@ -24982,6 +27335,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_HOSTIF_ATTR_OPER_STATUS = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_HOSTIF_ATTR_QUEUE_default_value = { .u32 = 0 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_HOSTIF_ATTR_QUEUE = {
@@ -25028,6 +27382,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_HOSTIF_ATTR_QUEUE = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_HOSTIF_ATTR_VLAN_TAG_default_value = { .s32 = SAI_HOSTIF_VLAN_TAG_STRIP };
 const sai_attr_condition_t sai_metadata_validonly_SAI_HOSTIF_ATTR_VLAN_TAG_0 = {
@@ -25082,6 +27437,61 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_HOSTIF_ATTR_VLAN_TAG = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
+};
+const sai_attr_condition_t sai_metadata_condition_SAI_HOSTIF_ATTR_GENETLINK_MCGRP_NAME_0 = {
+        .attrid = SAI_HOSTIF_ATTR_TYPE,
+        .condition = { .s32 = SAI_HOSTIF_TYPE_GENETLINK }
+};
+const sai_attr_condition_t* const sai_metadata_conditions_SAI_HOSTIF_ATTR_GENETLINK_MCGRP_NAME[] = {
+    &sai_metadata_condition_SAI_HOSTIF_ATTR_GENETLINK_MCGRP_NAME_0,
+    NULL
+};
+const sai_attr_metadata_t sai_metadata_attr_SAI_HOSTIF_ATTR_GENETLINK_MCGRP_NAME = {
+    .objecttype                    = SAI_OBJECT_TYPE_HOSTIF,
+    .attrid                        = SAI_HOSTIF_ATTR_GENETLINK_MCGRP_NAME,
+    .attridname                    = "SAI_HOSTIF_ATTR_GENETLINK_MCGRP_NAME",
+    .brief                         = "Name [char[SAI_HOSTIF_GENETLINK_MCGRP_NAME_SIZE]].",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_CHARDATA,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_MANDATORY_ON_CREATE|SAI_ATTR_FLAGS_CREATE_ONLY),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_NONE,
+    .defaultvalue                  = NULL,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_OR,
+    .conditions                    = sai_metadata_conditions_SAI_HOSTIF_ATTR_GENETLINK_MCGRP_NAME,
+    .conditionslength              = 1,
+    .isconditional                 = (1 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = true,
+    .iscreateonly                  = true,
+    .iscreateandset                = false,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_HOSTIF_PACKET_ATTR_HOSTIF_TRAP_ID_allowed_objects[] = {
     SAI_OBJECT_TYPE_HOSTIF_TRAP,
@@ -25132,6 +27542,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_HOSTIF_PACKET_ATTR_HOSTIF_TRAP_I
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_HOSTIF_PACKET_ATTR_INGRESS_PORT_allowed_objects[] = {
     SAI_OBJECT_TYPE_PORT,
@@ -25181,6 +27592,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_HOSTIF_PACKET_ATTR_INGRESS_PORT 
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_HOSTIF_PACKET_ATTR_INGRESS_LAG_allowed_objects[] = {
     SAI_OBJECT_TYPE_LAG,
@@ -25230,6 +27642,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_HOSTIF_PACKET_ATTR_INGRESS_LAG =
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_HOSTIF_PACKET_ATTR_HOSTIF_TX_TYPE = {
     .objecttype                    = SAI_OBJECT_TYPE_HOSTIF_PACKET,
@@ -25275,6 +27688,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_HOSTIF_PACKET_ATTR_HOSTIF_TX_TYP
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_HOSTIF_PACKET_ATTR_EGRESS_PORT_OR_LAG_allowed_objects[] = {
     SAI_OBJECT_TYPE_PORT,
@@ -25332,6 +27746,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_HOSTIF_PACKET_ATTR_EGRESS_PORT_O
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_HOSTIF_PACKET_ATTR_BRIDGE_ID_allowed_objects[] = {
     SAI_OBJECT_TYPE_BRIDGE,
@@ -25381,6 +27796,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_HOSTIF_PACKET_ATTR_BRIDGE_ID = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_HOSTIF_PACKET_ATTR_TIMESTAMP = {
     .objecttype                    = SAI_OBJECT_TYPE_HOSTIF_PACKET,
@@ -25426,6 +27842,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_HOSTIF_PACKET_ATTR_TIMESTAMP = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_HOSTIF_TABLE_ENTRY_ATTR_TYPE = {
     .objecttype                    = SAI_OBJECT_TYPE_HOSTIF_TABLE_ENTRY,
@@ -25471,6 +27888,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_HOSTIF_TABLE_ENTRY_ATTR_TYPE = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_HOSTIF_TABLE_ENTRY_ATTR_OBJ_ID_allowed_objects[] = {
     SAI_OBJECT_TYPE_PORT,
@@ -25540,6 +27958,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_HOSTIF_TABLE_ENTRY_ATTR_OBJ_ID =
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_HOSTIF_TABLE_ENTRY_ATTR_TRAP_ID_allowed_objects[] = {
     SAI_OBJECT_TYPE_HOSTIF_TRAP,
@@ -25613,6 +28032,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_HOSTIF_TABLE_ENTRY_ATTR_TRAP_ID 
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_HOSTIF_TABLE_ENTRY_ATTR_CHANNEL_TYPE = {
     .objecttype                    = SAI_OBJECT_TYPE_HOSTIF_TABLE_ENTRY,
@@ -25658,6 +28078,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_HOSTIF_TABLE_ENTRY_ATTR_CHANNEL_
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_HOSTIF_TABLE_ENTRY_ATTR_HOST_IF_allowed_objects[] = {
     SAI_OBJECT_TYPE_HOSTIF,
@@ -25667,8 +28088,13 @@ const sai_attr_condition_t sai_metadata_condition_SAI_HOSTIF_TABLE_ENTRY_ATTR_HO
         .attrid = SAI_HOSTIF_TABLE_ENTRY_ATTR_CHANNEL_TYPE,
         .condition = { .s32 = SAI_HOSTIF_TABLE_ENTRY_CHANNEL_TYPE_FD }
 };
+const sai_attr_condition_t sai_metadata_condition_SAI_HOSTIF_TABLE_ENTRY_ATTR_HOST_IF_1 = {
+        .attrid = SAI_HOSTIF_TABLE_ENTRY_ATTR_CHANNEL_TYPE,
+        .condition = { .s32 = SAI_HOSTIF_TABLE_ENTRY_CHANNEL_TYPE_GENETLINK }
+};
 const sai_attr_condition_t* const sai_metadata_conditions_SAI_HOSTIF_TABLE_ENTRY_ATTR_HOST_IF[] = {
     &sai_metadata_condition_SAI_HOSTIF_TABLE_ENTRY_ATTR_HOST_IF_0,
+    &sai_metadata_condition_SAI_HOSTIF_TABLE_ENTRY_ATTR_HOST_IF_1,
     NULL
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_HOSTIF_TABLE_ENTRY_ATTR_HOST_IF = {
@@ -25695,8 +28121,8 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_HOSTIF_TABLE_ENTRY_ATTR_HOST_IF 
     .enummetadata                  = NULL,
     .conditiontype                 = SAI_ATTR_CONDITION_TYPE_OR,
     .conditions                    = sai_metadata_conditions_SAI_HOSTIF_TABLE_ENTRY_ATTR_HOST_IF,
-    .conditionslength              = 1,
-    .isconditional                 = (1 != 0),
+    .conditionslength              = 2,
+    .isconditional                 = (2 != 0),
     .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
     .validonly                     = NULL,
     .validonlylength               = 0,
@@ -25715,6 +28141,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_HOSTIF_TABLE_ENTRY_ATTR_HOST_IF 
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_HOSTIF_TRAP_ATTR_TRAP_TYPE = {
     .objecttype                    = SAI_OBJECT_TYPE_HOSTIF_TRAP,
@@ -25760,6 +28187,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_HOSTIF_TRAP_ATTR_TRAP_TYPE = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_HOSTIF_TRAP_ATTR_PACKET_ACTION = {
     .objecttype                    = SAI_OBJECT_TYPE_HOSTIF_TRAP,
@@ -25805,6 +28233,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_HOSTIF_TRAP_ATTR_PACKET_ACTION =
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_condition_t sai_metadata_validonly_SAI_HOSTIF_TRAP_ATTR_TRAP_PRIORITY_0 = {
         .attrid = SAI_HOSTIF_TRAP_ATTR_PACKET_ACTION,
@@ -25863,6 +28292,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_HOSTIF_TRAP_ATTR_TRAP_PRIORITY =
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_HOSTIF_TRAP_ATTR_EXCLUDE_PORT_LIST_allowed_objects[] = {
     SAI_OBJECT_TYPE_PORT,
@@ -25925,6 +28355,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_HOSTIF_TRAP_ATTR_EXCLUDE_PORT_LI
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_HOSTIF_TRAP_ATTR_TRAP_GROUP_allowed_objects[] = {
     SAI_OBJECT_TYPE_HOSTIF_TRAP_GROUP,
@@ -25987,6 +28418,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_HOSTIF_TRAP_ATTR_TRAP_GROUP = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_HOSTIF_TRAP_ATTR_MIRROR_SESSION_allowed_objects[] = {
     SAI_OBJECT_TYPE_MIRROR_SESSION,
@@ -26036,6 +28468,58 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_HOSTIF_TRAP_ATTR_MIRROR_SESSION 
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
+};
+const sai_object_type_t sai_metadata_SAI_HOSTIF_TRAP_ATTR_COUNTER_ID_allowed_objects[] = {
+    SAI_OBJECT_TYPE_COUNTER,
+    -1
+};
+const sai_attribute_value_t sai_metadata_SAI_HOSTIF_TRAP_ATTR_COUNTER_ID_default_value = { .oid = SAI_NULL_OBJECT_ID };
+const sai_attr_metadata_t sai_metadata_attr_SAI_HOSTIF_TRAP_ATTR_COUNTER_ID = {
+    .objecttype                    = SAI_OBJECT_TYPE_HOSTIF_TRAP,
+    .attrid                        = SAI_HOSTIF_TRAP_ATTR_COUNTER_ID,
+    .attridname                    = "SAI_HOSTIF_TRAP_ATTR_COUNTER_ID",
+    .brief                         = "Attach a counter.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_OBJECT_ID,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
+    .allowedobjecttypes            = sai_metadata_SAI_HOSTIF_TRAP_ATTR_COUNTER_ID_allowed_objects,
+    .allowedobjecttypeslength      = 1,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = true,
+    .isoidattribute                = (1 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
+    .defaultvalue                  = &sai_metadata_SAI_HOSTIF_TRAP_ATTR_COUNTER_ID_default_value,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = false,
+    .iscreateandset                = true,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_HOSTIF_TRAP_GROUP_ATTR_ADMIN_STATE_default_value = { .booldata = true };
 const sai_attr_metadata_t sai_metadata_attr_SAI_HOSTIF_TRAP_GROUP_ATTR_ADMIN_STATE = {
@@ -26082,6 +28566,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_HOSTIF_TRAP_GROUP_ATTR_ADMIN_STA
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_HOSTIF_TRAP_GROUP_ATTR_QUEUE_default_value = { .u32 = 0 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_HOSTIF_TRAP_GROUP_ATTR_QUEUE = {
@@ -26128,6 +28613,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_HOSTIF_TRAP_GROUP_ATTR_QUEUE = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_HOSTIF_TRAP_GROUP_ATTR_POLICER_allowed_objects[] = {
     SAI_OBJECT_TYPE_POLICER,
@@ -26178,6 +28664,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_HOSTIF_TRAP_GROUP_ATTR_POLICER =
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_HOSTIF_USER_DEFINED_TRAP_ATTR_TYPE = {
     .objecttype                    = SAI_OBJECT_TYPE_HOSTIF_USER_DEFINED_TRAP,
@@ -26223,6 +28710,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_HOSTIF_USER_DEFINED_TRAP_ATTR_TY
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_HOSTIF_USER_DEFINED_TRAP_ATTR_TRAP_PRIORITY = {
     .objecttype                    = SAI_OBJECT_TYPE_HOSTIF_USER_DEFINED_TRAP,
@@ -26268,6 +28756,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_HOSTIF_USER_DEFINED_TRAP_ATTR_TR
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_HOSTIF_USER_DEFINED_TRAP_ATTR_TRAP_GROUP_allowed_objects[] = {
     SAI_OBJECT_TYPE_HOSTIF_TRAP_GROUP,
@@ -26317,6 +28806,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_HOSTIF_USER_DEFINED_TRAP_ATTR_TR
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_INGRESS_PRIORITY_GROUP_ATTR_BUFFER_PROFILE_allowed_objects[] = {
     SAI_OBJECT_TYPE_BUFFER_PROFILE,
@@ -26367,6 +28857,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_INGRESS_PRIORITY_GROUP_ATTR_BUFF
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_INGRESS_PRIORITY_GROUP_ATTR_PORT_allowed_objects[] = {
     SAI_OBJECT_TYPE_PORT,
@@ -26416,6 +28907,57 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_INGRESS_PRIORITY_GROUP_ATTR_PORT
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
+};
+const sai_object_type_t sai_metadata_SAI_INGRESS_PRIORITY_GROUP_ATTR_TAM_allowed_objects[] = {
+    SAI_OBJECT_TYPE_TAM,
+    -1
+};
+const sai_attr_metadata_t sai_metadata_attr_SAI_INGRESS_PRIORITY_GROUP_ATTR_TAM = {
+    .objecttype                    = SAI_OBJECT_TYPE_INGRESS_PRIORITY_GROUP,
+    .attrid                        = SAI_INGRESS_PRIORITY_GROUP_ATTR_TAM,
+    .attridname                    = "SAI_INGRESS_PRIORITY_GROUP_ATTR_TAM",
+    .brief                         = "TAM id.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_OBJECT_LIST,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
+    .allowedobjecttypes            = sai_metadata_SAI_INGRESS_PRIORITY_GROUP_ATTR_TAM_allowed_objects,
+    .allowedobjecttypeslength      = 1,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (1 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_EMPTY_LIST,
+    .defaultvalue                  = NULL,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = false,
+    .iscreateandset                = true,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = false,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_INGRESS_PRIORITY_GROUP_ATTR_INDEX = {
     .objecttype                    = SAI_OBJECT_TYPE_INGRESS_PRIORITY_GROUP,
@@ -26461,6 +29003,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_INGRESS_PRIORITY_GROUP_ATTR_INDE
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_INSEG_ENTRY_ATTR_NUM_OF_POP_default_value = { .u8 = 0 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_INSEG_ENTRY_ATTR_NUM_OF_POP = {
@@ -26507,6 +29050,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_INSEG_ENTRY_ATTR_NUM_OF_POP = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_INSEG_ENTRY_ATTR_PACKET_ACTION_default_value = { .s32 = SAI_PACKET_ACTION_FORWARD };
 const sai_attr_metadata_t sai_metadata_attr_SAI_INSEG_ENTRY_ATTR_PACKET_ACTION = {
@@ -26553,6 +29097,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_INSEG_ENTRY_ATTR_PACKET_ACTION =
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_INSEG_ENTRY_ATTR_TRAP_PRIORITY_default_value = { .u8 = 0 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_INSEG_ENTRY_ATTR_TRAP_PRIORITY = {
@@ -26599,6 +29144,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_INSEG_ENTRY_ATTR_TRAP_PRIORITY =
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_INSEG_ENTRY_ATTR_NEXT_HOP_ID_allowed_objects[] = {
     SAI_OBJECT_TYPE_NEXT_HOP,
@@ -26651,6 +29197,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_INSEG_ENTRY_ATTR_NEXT_HOP_ID = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_IPMC_ENTRY_ATTR_PACKET_ACTION = {
     .objecttype                    = SAI_OBJECT_TYPE_IPMC_ENTRY,
@@ -26696,6 +29243,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_IPMC_ENTRY_ATTR_PACKET_ACTION = 
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_IPMC_ENTRY_ATTR_OUTPUT_GROUP_ID_allowed_objects[] = {
     SAI_OBJECT_TYPE_IPMC_GROUP,
@@ -26754,6 +29302,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_IPMC_ENTRY_ATTR_OUTPUT_GROUP_ID 
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_IPMC_ENTRY_ATTR_RPF_GROUP_ID_allowed_objects[] = {
     SAI_OBJECT_TYPE_RPF_GROUP,
@@ -26803,6 +29352,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_IPMC_ENTRY_ATTR_RPF_GROUP_ID = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_IPMC_GROUP_ATTR_IPMC_OUTPUT_COUNT = {
     .objecttype                    = SAI_OBJECT_TYPE_IPMC_GROUP,
@@ -26848,6 +29398,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_IPMC_GROUP_ATTR_IPMC_OUTPUT_COUN
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_IPMC_GROUP_ATTR_IPMC_MEMBER_LIST_allowed_objects[] = {
     SAI_OBJECT_TYPE_IPMC_GROUP_MEMBER,
@@ -26897,6 +29448,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_IPMC_GROUP_ATTR_IPMC_MEMBER_LIST
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_IPMC_GROUP_MEMBER_ATTR_IPMC_GROUP_ID_allowed_objects[] = {
     SAI_OBJECT_TYPE_IPMC_GROUP,
@@ -26946,6 +29498,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_IPMC_GROUP_MEMBER_ATTR_IPMC_GROU
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_IPMC_GROUP_MEMBER_ATTR_IPMC_OUTPUT_ID_allowed_objects[] = {
     SAI_OBJECT_TYPE_ROUTER_INTERFACE,
@@ -26996,6 +29549,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_IPMC_GROUP_MEMBER_ATTR_IPMC_OUTP
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ISOLATION_GROUP_ATTR_TYPE = {
     .objecttype                    = SAI_OBJECT_TYPE_ISOLATION_GROUP,
@@ -27041,6 +29595,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ISOLATION_GROUP_ATTR_TYPE = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_ISOLATION_GROUP_ATTR_ISOLATION_MEMBER_LIST_allowed_objects[] = {
     SAI_OBJECT_TYPE_ISOLATION_GROUP_MEMBER,
@@ -27090,6 +29645,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ISOLATION_GROUP_ATTR_ISOLATION_M
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_ISOLATION_GROUP_MEMBER_ATTR_ISOLATION_GROUP_ID_allowed_objects[] = {
     SAI_OBJECT_TYPE_ISOLATION_GROUP,
@@ -27139,6 +29695,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ISOLATION_GROUP_MEMBER_ATTR_ISOL
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_ISOLATION_GROUP_MEMBER_ATTR_ISOLATION_OBJECT_allowed_objects[] = {
     SAI_OBJECT_TYPE_PORT,
@@ -27189,6 +29746,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ISOLATION_GROUP_MEMBER_ATTR_ISOL
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_L2MC_ENTRY_ATTR_PACKET_ACTION = {
     .objecttype                    = SAI_OBJECT_TYPE_L2MC_ENTRY,
@@ -27234,6 +29792,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_L2MC_ENTRY_ATTR_PACKET_ACTION = 
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_L2MC_ENTRY_ATTR_OUTPUT_GROUP_ID_allowed_objects[] = {
     SAI_OBJECT_TYPE_L2MC_GROUP,
@@ -27292,6 +29851,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_L2MC_ENTRY_ATTR_OUTPUT_GROUP_ID 
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_L2MC_GROUP_ATTR_L2MC_OUTPUT_COUNT = {
     .objecttype                    = SAI_OBJECT_TYPE_L2MC_GROUP,
@@ -27337,6 +29897,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_L2MC_GROUP_ATTR_L2MC_OUTPUT_COUN
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_L2MC_GROUP_ATTR_L2MC_MEMBER_LIST_allowed_objects[] = {
     SAI_OBJECT_TYPE_L2MC_GROUP_MEMBER,
@@ -27386,6 +29947,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_L2MC_GROUP_ATTR_L2MC_MEMBER_LIST
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_L2MC_GROUP_MEMBER_ATTR_L2MC_GROUP_ID_allowed_objects[] = {
     SAI_OBJECT_TYPE_L2MC_GROUP,
@@ -27435,6 +29997,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_L2MC_GROUP_MEMBER_ATTR_L2MC_GROU
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_L2MC_GROUP_MEMBER_ATTR_L2MC_OUTPUT_ID_allowed_objects[] = {
     SAI_OBJECT_TYPE_BRIDGE_PORT,
@@ -27484,6 +30047,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_L2MC_GROUP_MEMBER_ATTR_L2MC_OUTP
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_L2MC_GROUP_MEMBER_ATTR_L2MC_ENDPOINT_IP_default_value = { .ipaddr = { .addr_family = SAI_IP_ADDR_FAMILY_IPV4, .addr = { .ip4 = 0 } } };
 const sai_attr_metadata_t sai_metadata_attr_SAI_L2MC_GROUP_MEMBER_ATTR_L2MC_ENDPOINT_IP = {
@@ -27530,6 +30094,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_L2MC_GROUP_MEMBER_ATTR_L2MC_ENDP
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_LAG_ATTR_PORT_LIST_allowed_objects[] = {
     SAI_OBJECT_TYPE_LAG_MEMBER,
@@ -27579,6 +30144,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_LAG_ATTR_PORT_LIST = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_LAG_ATTR_INGRESS_ACL_allowed_objects[] = {
     SAI_OBJECT_TYPE_ACL_TABLE,
@@ -27630,6 +30196,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_LAG_ATTR_INGRESS_ACL = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_LAG_ATTR_EGRESS_ACL_allowed_objects[] = {
     SAI_OBJECT_TYPE_ACL_TABLE,
@@ -27681,6 +30248,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_LAG_ATTR_EGRESS_ACL = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_LAG_ATTR_PORT_VLAN_ID_default_value = { .u16 = 1 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_LAG_ATTR_PORT_VLAN_ID = {
@@ -27727,6 +30295,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_LAG_ATTR_PORT_VLAN_ID = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_LAG_ATTR_DEFAULT_VLAN_PRIORITY_default_value = { .u8 = 0 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_LAG_ATTR_DEFAULT_VLAN_PRIORITY = {
@@ -27773,6 +30342,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_LAG_ATTR_DEFAULT_VLAN_PRIORITY =
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_LAG_ATTR_DROP_UNTAGGED_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_LAG_ATTR_DROP_UNTAGGED = {
@@ -27819,6 +30389,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_LAG_ATTR_DROP_UNTAGGED = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_LAG_ATTR_DROP_TAGGED_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_LAG_ATTR_DROP_TAGGED = {
@@ -27865,6 +30436,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_LAG_ATTR_DROP_TAGGED = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_LAG_MEMBER_ATTR_LAG_ID_allowed_objects[] = {
     SAI_OBJECT_TYPE_LAG,
@@ -27914,6 +30486,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_LAG_MEMBER_ATTR_LAG_ID = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_LAG_MEMBER_ATTR_PORT_ID_allowed_objects[] = {
     SAI_OBJECT_TYPE_PORT,
@@ -27963,6 +30536,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_LAG_MEMBER_ATTR_PORT_ID = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_LAG_MEMBER_ATTR_EGRESS_DISABLE_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_LAG_MEMBER_ATTR_EGRESS_DISABLE = {
@@ -28009,6 +30583,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_LAG_MEMBER_ATTR_EGRESS_DISABLE =
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_LAG_MEMBER_ATTR_INGRESS_DISABLE_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_LAG_MEMBER_ATTR_INGRESS_DISABLE = {
@@ -28055,6 +30630,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_LAG_MEMBER_ATTR_INGRESS_DISABLE 
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_MCAST_FDB_ENTRY_ATTR_GROUP_ID_allowed_objects[] = {
     SAI_OBJECT_TYPE_L2MC_GROUP,
@@ -28104,6 +30680,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_MCAST_FDB_ENTRY_ATTR_GROUP_ID = 
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_MCAST_FDB_ENTRY_ATTR_PACKET_ACTION = {
     .objecttype                    = SAI_OBJECT_TYPE_MCAST_FDB_ENTRY,
@@ -28149,6 +30726,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_MCAST_FDB_ENTRY_ATTR_PACKET_ACTI
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_MCAST_FDB_ENTRY_ATTR_META_DATA_default_value = { .u32 = 0 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_MCAST_FDB_ENTRY_ATTR_META_DATA = {
@@ -28195,6 +30773,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_MCAST_FDB_ENTRY_ATTR_META_DATA =
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_MIRROR_SESSION_ATTR_TYPE = {
     .objecttype                    = SAI_OBJECT_TYPE_MIRROR_SESSION,
@@ -28240,11 +30819,20 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_MIRROR_SESSION_ATTR_TYPE = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_MIRROR_SESSION_ATTR_MONITOR_PORT_allowed_objects[] = {
     SAI_OBJECT_TYPE_PORT,
     SAI_OBJECT_TYPE_LAG,
     -1
+};
+const sai_attr_condition_t sai_metadata_condition_SAI_MIRROR_SESSION_ATTR_MONITOR_PORT_0 = {
+    .attrid = SAI_MIRROR_SESSION_ATTR_MONITOR_PORTLIST_VALID,
+    .condition = { .booldata = false }
+};
+const sai_attr_condition_t* const sai_metadata_conditions_SAI_MIRROR_SESSION_ATTR_MONITOR_PORT[] = {
+    &sai_metadata_condition_SAI_MIRROR_SESSION_ATTR_MONITOR_PORT_0,
+    NULL
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_MIRROR_SESSION_ATTR_MONITOR_PORT = {
     .objecttype                    = SAI_OBJECT_TYPE_MIRROR_SESSION,
@@ -28268,10 +30856,10 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_MIRROR_SESSION_ATTR_MONITOR_PORT
     .isenum                        = false,
     .isenumlist                    = false,
     .enummetadata                  = NULL,
-    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
-    .conditions                    = NULL,
-    .conditionslength              = 0,
-    .isconditional                 = (0 != 0),
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_OR,
+    .conditions                    = sai_metadata_conditions_SAI_MIRROR_SESSION_ATTR_MONITOR_PORT,
+    .conditionslength              = 1,
+    .isconditional                 = (1 != 0),
     .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
     .validonly                     = NULL,
     .validonlylength               = 0,
@@ -28290,6 +30878,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_MIRROR_SESSION_ATTR_MONITOR_PORT
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_MIRROR_SESSION_ATTR_TRUNCATE_SIZE_default_value = { .u16 = 0 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_MIRROR_SESSION_ATTR_TRUNCATE_SIZE = {
@@ -28336,6 +30925,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_MIRROR_SESSION_ATTR_TRUNCATE_SIZ
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_MIRROR_SESSION_ATTR_SAMPLE_RATE_default_value = { .u32 = 1 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_MIRROR_SESSION_ATTR_SAMPLE_RATE = {
@@ -28382,6 +30972,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_MIRROR_SESSION_ATTR_SAMPLE_RATE 
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_MIRROR_SESSION_ATTR_CONGESTION_MODE_default_value = { .s32 = SAI_MIRROR_SESSION_CONGESTION_MODE_INDEPENDENT };
 const sai_attr_metadata_t sai_metadata_attr_SAI_MIRROR_SESSION_ATTR_CONGESTION_MODE = {
@@ -28428,6 +31019,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_MIRROR_SESSION_ATTR_CONGESTION_M
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_MIRROR_SESSION_ATTR_TC_default_value = { .u8 = 0 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_MIRROR_SESSION_ATTR_TC = {
@@ -28474,6 +31066,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_MIRROR_SESSION_ATTR_TC = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_MIRROR_SESSION_ATTR_VLAN_TPID_default_value = { .u16 = 0x8100 };
 const sai_attr_condition_t sai_metadata_validonly_SAI_MIRROR_SESSION_ATTR_VLAN_TPID_0 = {
@@ -28533,6 +31126,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_MIRROR_SESSION_ATTR_VLAN_TPID = 
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_MIRROR_SESSION_ATTR_VLAN_ID_default_value = { .u16 = 0 };
 const sai_attr_condition_t sai_metadata_validonly_SAI_MIRROR_SESSION_ATTR_VLAN_ID_0 = {
@@ -28592,6 +31186,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_MIRROR_SESSION_ATTR_VLAN_ID = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_MIRROR_SESSION_ATTR_VLAN_PRI_default_value = { .u8 = 0 };
 const sai_attr_condition_t sai_metadata_validonly_SAI_MIRROR_SESSION_ATTR_VLAN_PRI_0 = {
@@ -28651,6 +31246,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_MIRROR_SESSION_ATTR_VLAN_PRI = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_MIRROR_SESSION_ATTR_VLAN_CFI_default_value = { .u8 = 0 };
 const sai_attr_condition_t sai_metadata_validonly_SAI_MIRROR_SESSION_ATTR_VLAN_CFI_0 = {
@@ -28710,6 +31306,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_MIRROR_SESSION_ATTR_VLAN_CFI = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_MIRROR_SESSION_ATTR_VLAN_HEADER_VALID_default_value = { .booldata = false };
 const sai_attr_condition_t sai_metadata_validonly_SAI_MIRROR_SESSION_ATTR_VLAN_HEADER_VALID_0 = {
@@ -28764,6 +31361,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_MIRROR_SESSION_ATTR_VLAN_HEADER_
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_condition_t sai_metadata_condition_SAI_MIRROR_SESSION_ATTR_ERSPAN_ENCAPSULATION_TYPE_0 = {
         .attrid = SAI_MIRROR_SESSION_ATTR_TYPE,
@@ -28817,6 +31415,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_MIRROR_SESSION_ATTR_ERSPAN_ENCAP
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_condition_t sai_metadata_condition_SAI_MIRROR_SESSION_ATTR_IPHDR_VERSION_0 = {
         .attrid = SAI_MIRROR_SESSION_ATTR_TYPE,
@@ -28870,6 +31469,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_MIRROR_SESSION_ATTR_IPHDR_VERSIO
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_condition_t sai_metadata_condition_SAI_MIRROR_SESSION_ATTR_TOS_0 = {
         .attrid = SAI_MIRROR_SESSION_ATTR_TYPE,
@@ -28923,6 +31523,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_MIRROR_SESSION_ATTR_TOS = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_MIRROR_SESSION_ATTR_TTL_default_value = { .u8 = 255 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_MIRROR_SESSION_ATTR_TTL = {
@@ -28969,6 +31570,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_MIRROR_SESSION_ATTR_TTL = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_condition_t sai_metadata_condition_SAI_MIRROR_SESSION_ATTR_SRC_IP_ADDRESS_0 = {
         .attrid = SAI_MIRROR_SESSION_ATTR_TYPE,
@@ -29022,6 +31624,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_MIRROR_SESSION_ATTR_SRC_IP_ADDRE
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_condition_t sai_metadata_condition_SAI_MIRROR_SESSION_ATTR_DST_IP_ADDRESS_0 = {
         .attrid = SAI_MIRROR_SESSION_ATTR_TYPE,
@@ -29075,6 +31678,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_MIRROR_SESSION_ATTR_DST_IP_ADDRE
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_condition_t sai_metadata_condition_SAI_MIRROR_SESSION_ATTR_SRC_MAC_ADDRESS_0 = {
         .attrid = SAI_MIRROR_SESSION_ATTR_TYPE,
@@ -29128,6 +31732,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_MIRROR_SESSION_ATTR_SRC_MAC_ADDR
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_condition_t sai_metadata_condition_SAI_MIRROR_SESSION_ATTR_DST_MAC_ADDRESS_0 = {
         .attrid = SAI_MIRROR_SESSION_ATTR_TYPE,
@@ -29181,6 +31786,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_MIRROR_SESSION_ATTR_DST_MAC_ADDR
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_condition_t sai_metadata_condition_SAI_MIRROR_SESSION_ATTR_GRE_PROTOCOL_TYPE_0 = {
         .attrid = SAI_MIRROR_SESSION_ATTR_TYPE,
@@ -29234,6 +31840,113 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_MIRROR_SESSION_ATTR_GRE_PROTOCOL
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
+};
+const sai_attribute_value_t sai_metadata_SAI_MIRROR_SESSION_ATTR_MONITOR_PORTLIST_VALID_default_value = { .booldata = false };
+const sai_attr_metadata_t sai_metadata_attr_SAI_MIRROR_SESSION_ATTR_MONITOR_PORTLIST_VALID = {
+    .objecttype                    = SAI_OBJECT_TYPE_MIRROR_SESSION,
+    .attrid                        = SAI_MIRROR_SESSION_ATTR_MONITOR_PORTLIST_VALID,
+    .attridname                    = "SAI_MIRROR_SESSION_ATTR_MONITOR_PORTLIST_VALID",
+    .brief                         = "Monitor port list is valid.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_BOOL,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_ONLY),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
+    .defaultvalue                  = &sai_metadata_SAI_MIRROR_SESSION_ATTR_MONITOR_PORTLIST_VALID_default_value,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = true,
+    .iscreateandset                = false,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+    .isresourcetype                = false,
+};
+const sai_object_type_t sai_metadata_SAI_MIRROR_SESSION_ATTR_MONITOR_PORTLIST_allowed_objects[] = {
+    SAI_OBJECT_TYPE_PORT,
+    SAI_OBJECT_TYPE_LAG,
+    -1
+};
+const sai_attr_condition_t sai_metadata_condition_SAI_MIRROR_SESSION_ATTR_MONITOR_PORTLIST_0 = {
+    .attrid = SAI_MIRROR_SESSION_ATTR_MONITOR_PORTLIST_VALID,
+    .condition = { .booldata = true }
+};
+const sai_attr_condition_t* const sai_metadata_conditions_SAI_MIRROR_SESSION_ATTR_MONITOR_PORTLIST[] = {
+    &sai_metadata_condition_SAI_MIRROR_SESSION_ATTR_MONITOR_PORTLIST_0,
+    NULL
+};
+const sai_attr_metadata_t sai_metadata_attr_SAI_MIRROR_SESSION_ATTR_MONITOR_PORTLIST = {
+    .objecttype                    = SAI_OBJECT_TYPE_MIRROR_SESSION,
+    .attrid                        = SAI_MIRROR_SESSION_ATTR_MONITOR_PORTLIST,
+    .attridname                    = "SAI_MIRROR_SESSION_ATTR_MONITOR_PORTLIST",
+    .brief                         = "Destination/Analyzer/Monitor Port List.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_OBJECT_LIST,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_MANDATORY_ON_CREATE|SAI_ATTR_FLAGS_CREATE_AND_SET),
+    .allowedobjecttypes            = sai_metadata_SAI_MIRROR_SESSION_ATTR_MONITOR_PORTLIST_allowed_objects,
+    .allowedobjecttypeslength      = 2,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (2 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_NONE,
+    .defaultvalue                  = NULL,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = true,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_OR,
+    .conditions                    = sai_metadata_conditions_SAI_MIRROR_SESSION_ATTR_MONITOR_PORTLIST,
+    .conditionslength              = 1,
+    .isconditional                 = (1 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = true,
+    .iscreateonly                  = false,
+    .iscreateandset                = true,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = false,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_MIRROR_SESSION_ATTR_POLICER_allowed_objects[] = {
     SAI_OBJECT_TYPE_POLICER,
@@ -29284,6 +31997,1110 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_MIRROR_SESSION_ATTR_POLICER = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
+};
+const sai_attribute_value_t sai_metadata_SAI_NAT_ENTRY_ATTR_NAT_TYPE_default_value = { .s32 = SAI_NAT_TYPE_NONE };
+const sai_attr_metadata_t sai_metadata_attr_SAI_NAT_ENTRY_ATTR_NAT_TYPE = {
+    .objecttype                    = SAI_OBJECT_TYPE_NAT_ENTRY,
+    .attrid                        = SAI_NAT_ENTRY_ATTR_NAT_TYPE,
+    .attridname                    = "SAI_NAT_ENTRY_ATTR_NAT_TYPE",
+    .brief                         = "NAT Type defined in sai_nat_type_t.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_INT32,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
+    .defaultvalue                  = &sai_metadata_SAI_NAT_ENTRY_ATTR_NAT_TYPE_default_value,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = true,
+    .isenumlist                    = false,
+    .enummetadata                  = &sai_metadata_enum_sai_nat_type_t,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = false,
+    .iscreateandset                = true,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+    .isresourcetype                = false,
+};
+const sai_attribute_value_t sai_metadata_SAI_NAT_ENTRY_ATTR_SRC_IP_default_value = { 0 };
+const sai_attr_condition_t sai_metadata_validonly_SAI_NAT_ENTRY_ATTR_SRC_IP_0 = {
+        .attrid = SAI_NAT_ENTRY_ATTR_NAT_TYPE,
+        .condition = { .s32 = SAI_NAT_TYPE_SOURCE_NAT }
+};
+const sai_attr_condition_t sai_metadata_validonly_SAI_NAT_ENTRY_ATTR_SRC_IP_1 = {
+        .attrid = SAI_NAT_ENTRY_ATTR_NAT_TYPE,
+        .condition = { .s32 = SAI_NAT_TYPE_DOUBLE_NAT }
+};
+const sai_attr_condition_t* const sai_metadata_validonlys_SAI_NAT_ENTRY_ATTR_SRC_IP[] = {
+    &sai_metadata_validonly_SAI_NAT_ENTRY_ATTR_SRC_IP_0,
+    &sai_metadata_validonly_SAI_NAT_ENTRY_ATTR_SRC_IP_1,
+    NULL
+};
+const sai_attr_metadata_t sai_metadata_attr_SAI_NAT_ENTRY_ATTR_SRC_IP = {
+    .objecttype                    = SAI_OBJECT_TYPE_NAT_ENTRY,
+    .attrid                        = SAI_NAT_ENTRY_ATTR_SRC_IP,
+    .attridname                    = "SAI_NAT_ENTRY_ATTR_SRC_IP",
+    .brief                         = "Replace source IPv4 address in packet. NAT actions will be (source/destination/both is identified by type of NAT)",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_IPV4,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
+    .defaultvalue                  = &sai_metadata_SAI_NAT_ENTRY_ATTR_SRC_IP_default_value,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_OR,
+    .validonly                     = sai_metadata_validonlys_SAI_NAT_ENTRY_ATTR_SRC_IP,
+    .validonlylength               = 2,
+    .isvalidonly                   = (2 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = false,
+    .iscreateandset                = true,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+    .isresourcetype                = false,
+};
+const sai_attribute_value_t sai_metadata_SAI_NAT_ENTRY_ATTR_SRC_IP_MASK_default_value = { 0 };
+const sai_attr_condition_t sai_metadata_validonly_SAI_NAT_ENTRY_ATTR_SRC_IP_MASK_0 = {
+        .attrid = SAI_NAT_ENTRY_ATTR_NAT_TYPE,
+        .condition = { .s32 = SAI_NAT_TYPE_SOURCE_NAT }
+};
+const sai_attr_condition_t sai_metadata_validonly_SAI_NAT_ENTRY_ATTR_SRC_IP_MASK_1 = {
+        .attrid = SAI_NAT_ENTRY_ATTR_NAT_TYPE,
+        .condition = { .s32 = SAI_NAT_TYPE_DOUBLE_NAT }
+};
+const sai_attr_condition_t* const sai_metadata_validonlys_SAI_NAT_ENTRY_ATTR_SRC_IP_MASK[] = {
+    &sai_metadata_validonly_SAI_NAT_ENTRY_ATTR_SRC_IP_MASK_0,
+    &sai_metadata_validonly_SAI_NAT_ENTRY_ATTR_SRC_IP_MASK_1,
+    NULL
+};
+const sai_attr_metadata_t sai_metadata_attr_SAI_NAT_ENTRY_ATTR_SRC_IP_MASK = {
+    .objecttype                    = SAI_OBJECT_TYPE_NAT_ENTRY,
+    .attrid                        = SAI_NAT_ENTRY_ATTR_SRC_IP_MASK,
+    .attridname                    = "SAI_NAT_ENTRY_ATTR_SRC_IP_MASK",
+    .brief                         = "Mask for source IPv4 address in packet.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_IPV4,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
+    .defaultvalue                  = &sai_metadata_SAI_NAT_ENTRY_ATTR_SRC_IP_MASK_default_value,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_OR,
+    .validonly                     = sai_metadata_validonlys_SAI_NAT_ENTRY_ATTR_SRC_IP_MASK,
+    .validonlylength               = 2,
+    .isvalidonly                   = (2 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = false,
+    .iscreateandset                = true,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+    .isresourcetype                = false,
+};
+const sai_object_type_t sai_metadata_SAI_NAT_ENTRY_ATTR_VR_ID_allowed_objects[] = {
+    SAI_OBJECT_TYPE_VIRTUAL_ROUTER,
+    -1
+};
+const sai_attribute_value_t sai_metadata_SAI_NAT_ENTRY_ATTR_VR_ID_default_value = { .oid = SAI_NULL_OBJECT_ID };
+const sai_attr_condition_t sai_metadata_validonly_SAI_NAT_ENTRY_ATTR_VR_ID_0 = {
+        .attrid = SAI_NAT_ENTRY_ATTR_NAT_TYPE,
+        .condition = { .s32 = SAI_NAT_TYPE_DESTINATION_NAT }
+};
+const sai_attr_condition_t sai_metadata_validonly_SAI_NAT_ENTRY_ATTR_VR_ID_1 = {
+        .attrid = SAI_NAT_ENTRY_ATTR_NAT_TYPE,
+        .condition = { .s32 = SAI_NAT_TYPE_DOUBLE_NAT }
+};
+const sai_attr_condition_t* const sai_metadata_validonlys_SAI_NAT_ENTRY_ATTR_VR_ID[] = {
+    &sai_metadata_validonly_SAI_NAT_ENTRY_ATTR_VR_ID_0,
+    &sai_metadata_validonly_SAI_NAT_ENTRY_ATTR_VR_ID_1,
+    NULL
+};
+const sai_attr_metadata_t sai_metadata_attr_SAI_NAT_ENTRY_ATTR_VR_ID = {
+    .objecttype                    = SAI_OBJECT_TYPE_NAT_ENTRY,
+    .attrid                        = SAI_NAT_ENTRY_ATTR_VR_ID,
+    .attridname                    = "SAI_NAT_ENTRY_ATTR_VR_ID",
+    .brief                         = "Replace virtual router id associate with DST_IP NAT actions will be (source/destination/both is identified by type of NAT)",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_OBJECT_ID,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
+    .allowedobjecttypes            = sai_metadata_SAI_NAT_ENTRY_ATTR_VR_ID_allowed_objects,
+    .allowedobjecttypeslength      = 1,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = true,
+    .isoidattribute                = (1 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
+    .defaultvalue                  = &sai_metadata_SAI_NAT_ENTRY_ATTR_VR_ID_default_value,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_OR,
+    .validonly                     = sai_metadata_validonlys_SAI_NAT_ENTRY_ATTR_VR_ID,
+    .validonlylength               = 2,
+    .isvalidonly                   = (2 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = false,
+    .iscreateandset                = true,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+    .isresourcetype                = false,
+};
+const sai_attribute_value_t sai_metadata_SAI_NAT_ENTRY_ATTR_DST_IP_default_value = { 0 };
+const sai_attr_condition_t sai_metadata_validonly_SAI_NAT_ENTRY_ATTR_DST_IP_0 = {
+        .attrid = SAI_NAT_ENTRY_ATTR_NAT_TYPE,
+        .condition = { .s32 = SAI_NAT_TYPE_DESTINATION_NAT }
+};
+const sai_attr_condition_t sai_metadata_validonly_SAI_NAT_ENTRY_ATTR_DST_IP_1 = {
+        .attrid = SAI_NAT_ENTRY_ATTR_NAT_TYPE,
+        .condition = { .s32 = SAI_NAT_TYPE_DOUBLE_NAT }
+};
+const sai_attr_condition_t* const sai_metadata_validonlys_SAI_NAT_ENTRY_ATTR_DST_IP[] = {
+    &sai_metadata_validonly_SAI_NAT_ENTRY_ATTR_DST_IP_0,
+    &sai_metadata_validonly_SAI_NAT_ENTRY_ATTR_DST_IP_1,
+    NULL
+};
+const sai_attr_metadata_t sai_metadata_attr_SAI_NAT_ENTRY_ATTR_DST_IP = {
+    .objecttype                    = SAI_OBJECT_TYPE_NAT_ENTRY,
+    .attrid                        = SAI_NAT_ENTRY_ATTR_DST_IP,
+    .attridname                    = "SAI_NAT_ENTRY_ATTR_DST_IP",
+    .brief                         = "Replace destination IPv4 address in packet. NAT actions will be (source/destination/both is identified by type of NAT)",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_IPV4,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
+    .defaultvalue                  = &sai_metadata_SAI_NAT_ENTRY_ATTR_DST_IP_default_value,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_OR,
+    .validonly                     = sai_metadata_validonlys_SAI_NAT_ENTRY_ATTR_DST_IP,
+    .validonlylength               = 2,
+    .isvalidonly                   = (2 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = false,
+    .iscreateandset                = true,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+    .isresourcetype                = false,
+};
+const sai_attribute_value_t sai_metadata_SAI_NAT_ENTRY_ATTR_DST_IP_MASK_default_value = { 0 };
+const sai_attr_condition_t sai_metadata_validonly_SAI_NAT_ENTRY_ATTR_DST_IP_MASK_0 = {
+        .attrid = SAI_NAT_ENTRY_ATTR_NAT_TYPE,
+        .condition = { .s32 = SAI_NAT_TYPE_DESTINATION_NAT }
+};
+const sai_attr_condition_t sai_metadata_validonly_SAI_NAT_ENTRY_ATTR_DST_IP_MASK_1 = {
+        .attrid = SAI_NAT_ENTRY_ATTR_NAT_TYPE,
+        .condition = { .s32 = SAI_NAT_TYPE_DOUBLE_NAT }
+};
+const sai_attr_condition_t* const sai_metadata_validonlys_SAI_NAT_ENTRY_ATTR_DST_IP_MASK[] = {
+    &sai_metadata_validonly_SAI_NAT_ENTRY_ATTR_DST_IP_MASK_0,
+    &sai_metadata_validonly_SAI_NAT_ENTRY_ATTR_DST_IP_MASK_1,
+    NULL
+};
+const sai_attr_metadata_t sai_metadata_attr_SAI_NAT_ENTRY_ATTR_DST_IP_MASK = {
+    .objecttype                    = SAI_OBJECT_TYPE_NAT_ENTRY,
+    .attrid                        = SAI_NAT_ENTRY_ATTR_DST_IP_MASK,
+    .attridname                    = "SAI_NAT_ENTRY_ATTR_DST_IP_MASK",
+    .brief                         = "Mask for destination IPv4 address in packet.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_IPV4,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
+    .defaultvalue                  = &sai_metadata_SAI_NAT_ENTRY_ATTR_DST_IP_MASK_default_value,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_OR,
+    .validonly                     = sai_metadata_validonlys_SAI_NAT_ENTRY_ATTR_DST_IP_MASK,
+    .validonlylength               = 2,
+    .isvalidonly                   = (2 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = false,
+    .iscreateandset                = true,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+    .isresourcetype                = false,
+};
+const sai_attribute_value_t sai_metadata_SAI_NAT_ENTRY_ATTR_L4_SRC_PORT_default_value = { .u16 = 0 };
+const sai_attr_metadata_t sai_metadata_attr_SAI_NAT_ENTRY_ATTR_L4_SRC_PORT = {
+    .objecttype                    = SAI_OBJECT_TYPE_NAT_ENTRY,
+    .attrid                        = SAI_NAT_ENTRY_ATTR_L4_SRC_PORT,
+    .attridname                    = "SAI_NAT_ENTRY_ATTR_L4_SRC_PORT",
+    .brief                         = "Replace L4 source port in packet.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_UINT16,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
+    .defaultvalue                  = &sai_metadata_SAI_NAT_ENTRY_ATTR_L4_SRC_PORT_default_value,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = false,
+    .iscreateandset                = true,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+    .isresourcetype                = false,
+};
+const sai_attribute_value_t sai_metadata_SAI_NAT_ENTRY_ATTR_L4_DST_PORT_default_value = { .u16 = 0 };
+const sai_attr_metadata_t sai_metadata_attr_SAI_NAT_ENTRY_ATTR_L4_DST_PORT = {
+    .objecttype                    = SAI_OBJECT_TYPE_NAT_ENTRY,
+    .attrid                        = SAI_NAT_ENTRY_ATTR_L4_DST_PORT,
+    .attridname                    = "SAI_NAT_ENTRY_ATTR_L4_DST_PORT",
+    .brief                         = "Replace L4 destination port in packet.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_UINT16,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
+    .defaultvalue                  = &sai_metadata_SAI_NAT_ENTRY_ATTR_L4_DST_PORT_default_value,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = false,
+    .iscreateandset                = true,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+    .isresourcetype                = false,
+};
+const sai_attribute_value_t sai_metadata_SAI_NAT_ENTRY_ATTR_ENABLE_PACKET_COUNT_default_value = { .booldata = false };
+const sai_attr_metadata_t sai_metadata_attr_SAI_NAT_ENTRY_ATTR_ENABLE_PACKET_COUNT = {
+    .objecttype                    = SAI_OBJECT_TYPE_NAT_ENTRY,
+    .attrid                        = SAI_NAT_ENTRY_ATTR_ENABLE_PACKET_COUNT,
+    .attridname                    = "SAI_NAT_ENTRY_ATTR_ENABLE_PACKET_COUNT",
+    .brief                         = "Enable/disable packet count.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_BOOL,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
+    .defaultvalue                  = &sai_metadata_SAI_NAT_ENTRY_ATTR_ENABLE_PACKET_COUNT_default_value,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = false,
+    .iscreateandset                = true,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+    .isresourcetype                = false,
+};
+const sai_attribute_value_t sai_metadata_SAI_NAT_ENTRY_ATTR_PACKET_COUNT_default_value = { .u64 = 0 };
+const sai_attr_metadata_t sai_metadata_attr_SAI_NAT_ENTRY_ATTR_PACKET_COUNT = {
+    .objecttype                    = SAI_OBJECT_TYPE_NAT_ENTRY,
+    .attrid                        = SAI_NAT_ENTRY_ATTR_PACKET_COUNT,
+    .attridname                    = "SAI_NAT_ENTRY_ATTR_PACKET_COUNT",
+    .brief                         = "Per NAT entry packet count.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_UINT64,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
+    .defaultvalue                  = &sai_metadata_SAI_NAT_ENTRY_ATTR_PACKET_COUNT_default_value,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = false,
+    .iscreateandset                = true,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+    .isresourcetype                = false,
+};
+const sai_attribute_value_t sai_metadata_SAI_NAT_ENTRY_ATTR_ENABLE_BYTE_COUNT_default_value = { .booldata = false };
+const sai_attr_metadata_t sai_metadata_attr_SAI_NAT_ENTRY_ATTR_ENABLE_BYTE_COUNT = {
+    .objecttype                    = SAI_OBJECT_TYPE_NAT_ENTRY,
+    .attrid                        = SAI_NAT_ENTRY_ATTR_ENABLE_BYTE_COUNT,
+    .attridname                    = "SAI_NAT_ENTRY_ATTR_ENABLE_BYTE_COUNT",
+    .brief                         = "Enable/disable byte count.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_BOOL,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
+    .defaultvalue                  = &sai_metadata_SAI_NAT_ENTRY_ATTR_ENABLE_BYTE_COUNT_default_value,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = false,
+    .iscreateandset                = true,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+    .isresourcetype                = false,
+};
+const sai_attribute_value_t sai_metadata_SAI_NAT_ENTRY_ATTR_BYTE_COUNT_default_value = { .u64 = 0 };
+const sai_attr_metadata_t sai_metadata_attr_SAI_NAT_ENTRY_ATTR_BYTE_COUNT = {
+    .objecttype                    = SAI_OBJECT_TYPE_NAT_ENTRY,
+    .attrid                        = SAI_NAT_ENTRY_ATTR_BYTE_COUNT,
+    .attridname                    = "SAI_NAT_ENTRY_ATTR_BYTE_COUNT",
+    .brief                         = "Per NAT entry byte count.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_UINT64,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
+    .defaultvalue                  = &sai_metadata_SAI_NAT_ENTRY_ATTR_BYTE_COUNT_default_value,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = false,
+    .iscreateandset                = true,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+    .isresourcetype                = false,
+};
+const sai_attribute_value_t sai_metadata_SAI_NAT_ENTRY_ATTR_HIT_BIT_COR_default_value = { .booldata = false };
+const sai_attr_metadata_t sai_metadata_attr_SAI_NAT_ENTRY_ATTR_HIT_BIT_COR = {
+    .objecttype                    = SAI_OBJECT_TYPE_NAT_ENTRY,
+    .attrid                        = SAI_NAT_ENTRY_ATTR_HIT_BIT_COR,
+    .attridname                    = "SAI_NAT_ENTRY_ATTR_HIT_BIT_COR",
+    .brief                         = "NAT entry hit bit clear on read flag.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_BOOL,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
+    .defaultvalue                  = &sai_metadata_SAI_NAT_ENTRY_ATTR_HIT_BIT_COR_default_value,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = false,
+    .iscreateandset                = true,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+    .isresourcetype                = false,
+};
+const sai_attribute_value_t sai_metadata_SAI_NAT_ENTRY_ATTR_HIT_BIT_default_value = { .booldata = false };
+const sai_attr_metadata_t sai_metadata_attr_SAI_NAT_ENTRY_ATTR_HIT_BIT = {
+    .objecttype                    = SAI_OBJECT_TYPE_NAT_ENTRY,
+    .attrid                        = SAI_NAT_ENTRY_ATTR_HIT_BIT,
+    .attridname                    = "SAI_NAT_ENTRY_ATTR_HIT_BIT",
+    .brief                         = "Per NAT entry hit bit state.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_BOOL,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
+    .defaultvalue                  = &sai_metadata_SAI_NAT_ENTRY_ATTR_HIT_BIT_default_value,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = false,
+    .iscreateandset                = true,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+    .isresourcetype                = false,
+};
+const sai_attribute_value_t sai_metadata_SAI_NAT_ZONE_COUNTER_ATTR_NAT_TYPE_default_value = { .s32 = SAI_NAT_TYPE_NONE };
+const sai_attr_metadata_t sai_metadata_attr_SAI_NAT_ZONE_COUNTER_ATTR_NAT_TYPE = {
+    .objecttype                    = SAI_OBJECT_TYPE_NAT_ZONE_COUNTER,
+    .attrid                        = SAI_NAT_ZONE_COUNTER_ATTR_NAT_TYPE,
+    .attridname                    = "SAI_NAT_ZONE_COUNTER_ATTR_NAT_TYPE",
+    .brief                         = "NAT Type defined in sai_nat_type_t.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_INT32,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
+    .defaultvalue                  = &sai_metadata_SAI_NAT_ZONE_COUNTER_ATTR_NAT_TYPE_default_value,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = true,
+    .isenumlist                    = false,
+    .enummetadata                  = &sai_metadata_enum_sai_nat_type_t,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = false,
+    .iscreateandset                = true,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+    .isresourcetype                = false,
+};
+const sai_attribute_value_t sai_metadata_SAI_NAT_ZONE_COUNTER_ATTR_ZONE_ID_default_value = { .u8 = 0 };
+const sai_attr_metadata_t sai_metadata_attr_SAI_NAT_ZONE_COUNTER_ATTR_ZONE_ID = {
+    .objecttype                    = SAI_OBJECT_TYPE_NAT_ZONE_COUNTER,
+    .attrid                        = SAI_NAT_ZONE_COUNTER_ATTR_ZONE_ID,
+    .attridname                    = "SAI_NAT_ZONE_COUNTER_ATTR_ZONE_ID",
+    .brief                         = "NAT Zone ID.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_UINT8,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
+    .defaultvalue                  = &sai_metadata_SAI_NAT_ZONE_COUNTER_ATTR_ZONE_ID_default_value,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = false,
+    .iscreateandset                = true,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+    .isresourcetype                = false,
+};
+const sai_attribute_value_t sai_metadata_SAI_NAT_ZONE_COUNTER_ATTR_ENABLE_DISCARD_default_value = { .booldata = false };
+const sai_attr_metadata_t sai_metadata_attr_SAI_NAT_ZONE_COUNTER_ATTR_ENABLE_DISCARD = {
+    .objecttype                    = SAI_OBJECT_TYPE_NAT_ZONE_COUNTER,
+    .attrid                        = SAI_NAT_ZONE_COUNTER_ATTR_ENABLE_DISCARD,
+    .attridname                    = "SAI_NAT_ZONE_COUNTER_ATTR_ENABLE_DISCARD",
+    .brief                         = "Enable/disable discard count.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_BOOL,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_ONLY),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
+    .defaultvalue                  = &sai_metadata_SAI_NAT_ZONE_COUNTER_ATTR_ENABLE_DISCARD_default_value,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = true,
+    .iscreateandset                = false,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+    .isresourcetype                = false,
+};
+const sai_attribute_value_t sai_metadata_SAI_NAT_ZONE_COUNTER_ATTR_DISCARD_PACKET_COUNT_default_value = { .u64 = 0 };
+const sai_attr_metadata_t sai_metadata_attr_SAI_NAT_ZONE_COUNTER_ATTR_DISCARD_PACKET_COUNT = {
+    .objecttype                    = SAI_OBJECT_TYPE_NAT_ZONE_COUNTER,
+    .attrid                        = SAI_NAT_ZONE_COUNTER_ATTR_DISCARD_PACKET_COUNT,
+    .attridname                    = "SAI_NAT_ZONE_COUNTER_ATTR_DISCARD_PACKET_COUNT",
+    .brief                         = "Discard packet count.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_UINT64,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
+    .defaultvalue                  = &sai_metadata_SAI_NAT_ZONE_COUNTER_ATTR_DISCARD_PACKET_COUNT_default_value,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = false,
+    .iscreateandset                = true,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+    .isresourcetype                = false,
+};
+const sai_attribute_value_t sai_metadata_SAI_NAT_ZONE_COUNTER_ATTR_ENABLE_TRANSLATION_NEEDED_default_value = { .booldata = false };
+const sai_attr_metadata_t sai_metadata_attr_SAI_NAT_ZONE_COUNTER_ATTR_ENABLE_TRANSLATION_NEEDED = {
+    .objecttype                    = SAI_OBJECT_TYPE_NAT_ZONE_COUNTER,
+    .attrid                        = SAI_NAT_ZONE_COUNTER_ATTR_ENABLE_TRANSLATION_NEEDED,
+    .attridname                    = "SAI_NAT_ZONE_COUNTER_ATTR_ENABLE_TRANSLATION_NEEDED",
+    .brief                         = "Enable/disable translation needed count.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_BOOL,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_ONLY),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
+    .defaultvalue                  = &sai_metadata_SAI_NAT_ZONE_COUNTER_ATTR_ENABLE_TRANSLATION_NEEDED_default_value,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = true,
+    .iscreateandset                = false,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+    .isresourcetype                = false,
+};
+const sai_attribute_value_t sai_metadata_SAI_NAT_ZONE_COUNTER_ATTR_TRANSLATION_NEEDED_PACKET_COUNT_default_value = { .u64 = 0 };
+const sai_attr_metadata_t sai_metadata_attr_SAI_NAT_ZONE_COUNTER_ATTR_TRANSLATION_NEEDED_PACKET_COUNT = {
+    .objecttype                    = SAI_OBJECT_TYPE_NAT_ZONE_COUNTER,
+    .attrid                        = SAI_NAT_ZONE_COUNTER_ATTR_TRANSLATION_NEEDED_PACKET_COUNT,
+    .attridname                    = "SAI_NAT_ZONE_COUNTER_ATTR_TRANSLATION_NEEDED_PACKET_COUNT",
+    .brief                         = "Translation needed packet count.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_UINT64,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
+    .defaultvalue                  = &sai_metadata_SAI_NAT_ZONE_COUNTER_ATTR_TRANSLATION_NEEDED_PACKET_COUNT_default_value,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = false,
+    .iscreateandset                = true,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+    .isresourcetype                = false,
+};
+const sai_attribute_value_t sai_metadata_SAI_NAT_ZONE_COUNTER_ATTR_ENABLE_TRANSLATIONS_default_value = { .booldata = false };
+const sai_attr_metadata_t sai_metadata_attr_SAI_NAT_ZONE_COUNTER_ATTR_ENABLE_TRANSLATIONS = {
+    .objecttype                    = SAI_OBJECT_TYPE_NAT_ZONE_COUNTER,
+    .attrid                        = SAI_NAT_ZONE_COUNTER_ATTR_ENABLE_TRANSLATIONS,
+    .attridname                    = "SAI_NAT_ZONE_COUNTER_ATTR_ENABLE_TRANSLATIONS",
+    .brief                         = "Enable/disable translations count.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_BOOL,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_ONLY),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
+    .defaultvalue                  = &sai_metadata_SAI_NAT_ZONE_COUNTER_ATTR_ENABLE_TRANSLATIONS_default_value,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = true,
+    .iscreateandset                = false,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+    .isresourcetype                = false,
+};
+const sai_attribute_value_t sai_metadata_SAI_NAT_ZONE_COUNTER_ATTR_TRANSLATIONS_PACKET_COUNT_default_value = { .u64 = 0 };
+const sai_attr_metadata_t sai_metadata_attr_SAI_NAT_ZONE_COUNTER_ATTR_TRANSLATIONS_PACKET_COUNT = {
+    .objecttype                    = SAI_OBJECT_TYPE_NAT_ZONE_COUNTER,
+    .attrid                        = SAI_NAT_ZONE_COUNTER_ATTR_TRANSLATIONS_PACKET_COUNT,
+    .attridname                    = "SAI_NAT_ZONE_COUNTER_ATTR_TRANSLATIONS_PACKET_COUNT",
+    .brief                         = "Translations performed packet count.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_UINT64,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
+    .defaultvalue                  = &sai_metadata_SAI_NAT_ZONE_COUNTER_ATTR_TRANSLATIONS_PACKET_COUNT_default_value,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = false,
+    .iscreateandset                = true,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_NEIGHBOR_ENTRY_ATTR_DST_MAC_ADDRESS = {
     .objecttype                    = SAI_OBJECT_TYPE_NEIGHBOR_ENTRY,
@@ -29329,6 +33146,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_NEIGHBOR_ENTRY_ATTR_DST_MAC_ADDR
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_NEIGHBOR_ENTRY_ATTR_PACKET_ACTION_default_value = { .s32 = SAI_PACKET_ACTION_FORWARD };
 const sai_attr_metadata_t sai_metadata_attr_SAI_NEIGHBOR_ENTRY_ATTR_PACKET_ACTION = {
@@ -29375,6 +33193,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_NEIGHBOR_ENTRY_ATTR_PACKET_ACTIO
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_NEIGHBOR_ENTRY_ATTR_USER_TRAP_ID_allowed_objects[] = {
     SAI_OBJECT_TYPE_HOSTIF_USER_DEFINED_TRAP,
@@ -29425,6 +33244,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_NEIGHBOR_ENTRY_ATTR_USER_TRAP_ID
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_NEIGHBOR_ENTRY_ATTR_NO_HOST_ROUTE_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_NEIGHBOR_ENTRY_ATTR_NO_HOST_ROUTE = {
@@ -29471,6 +33291,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_NEIGHBOR_ENTRY_ATTR_NO_HOST_ROUT
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_NEIGHBOR_ENTRY_ATTR_META_DATA_default_value = { .u32 = 0 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_NEIGHBOR_ENTRY_ATTR_META_DATA = {
@@ -29517,6 +33338,58 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_NEIGHBOR_ENTRY_ATTR_META_DATA = 
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
+};
+const sai_object_type_t sai_metadata_SAI_NEIGHBOR_ENTRY_ATTR_COUNTER_ID_allowed_objects[] = {
+    SAI_OBJECT_TYPE_COUNTER,
+    -1
+};
+const sai_attribute_value_t sai_metadata_SAI_NEIGHBOR_ENTRY_ATTR_COUNTER_ID_default_value = { .oid = SAI_NULL_OBJECT_ID };
+const sai_attr_metadata_t sai_metadata_attr_SAI_NEIGHBOR_ENTRY_ATTR_COUNTER_ID = {
+    .objecttype                    = SAI_OBJECT_TYPE_NEIGHBOR_ENTRY,
+    .attrid                        = SAI_NEIGHBOR_ENTRY_ATTR_COUNTER_ID,
+    .attridname                    = "SAI_NEIGHBOR_ENTRY_ATTR_COUNTER_ID",
+    .brief                         = "Attach a counter.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_OBJECT_ID,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
+    .allowedobjecttypes            = sai_metadata_SAI_NEIGHBOR_ENTRY_ATTR_COUNTER_ID_allowed_objects,
+    .allowedobjecttypeslength      = 1,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = true,
+    .isoidattribute                = (1 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
+    .defaultvalue                  = &sai_metadata_SAI_NEIGHBOR_ENTRY_ATTR_COUNTER_ID_default_value,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = false,
+    .iscreateandset                = true,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_NEXT_HOP_ATTR_TYPE = {
     .objecttype                    = SAI_OBJECT_TYPE_NEXT_HOP,
@@ -29562,6 +33435,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_NEXT_HOP_ATTR_TYPE = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = true,
 };
 const sai_attr_condition_t sai_metadata_condition_SAI_NEXT_HOP_ATTR_IP_0 = {
         .attrid = SAI_NEXT_HOP_ATTR_TYPE,
@@ -29625,6 +33499,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_NEXT_HOP_ATTR_IP = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_NEXT_HOP_ATTR_ROUTER_INTERFACE_ID_allowed_objects[] = {
     SAI_OBJECT_TYPE_ROUTER_INTERFACE,
@@ -29687,6 +33562,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_NEXT_HOP_ATTR_ROUTER_INTERFACE_I
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_NEXT_HOP_ATTR_TUNNEL_ID_allowed_objects[] = {
     SAI_OBJECT_TYPE_TUNNEL,
@@ -29744,6 +33620,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_NEXT_HOP_ATTR_TUNNEL_ID = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_NEXT_HOP_ATTR_TUNNEL_VNI_default_value = { .u32 = 0 };
 const sai_attr_condition_t sai_metadata_validonly_SAI_NEXT_HOP_ATTR_TUNNEL_VNI_0 = {
@@ -29798,6 +33675,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_NEXT_HOP_ATTR_TUNNEL_VNI = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_condition_t sai_metadata_validonly_SAI_NEXT_HOP_ATTR_TUNNEL_MAC_0 = {
         .attrid = SAI_NEXT_HOP_ATTR_TYPE,
@@ -29851,6 +33729,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_NEXT_HOP_ATTR_TUNNEL_MAC = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_NEXT_HOP_ATTR_SEGMENTROUTE_SIDLIST_ID_allowed_objects[] = {
     SAI_OBJECT_TYPE_SEGMENTROUTE_SIDLIST,
@@ -29908,6 +33787,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_NEXT_HOP_ATTR_SEGMENTROUTE_SIDLI
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_condition_t sai_metadata_condition_SAI_NEXT_HOP_ATTR_SEGMENTROUTE_ENDPOINT_TYPE_0 = {
         .attrid = SAI_NEXT_HOP_ATTR_TYPE,
@@ -29961,6 +33841,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_NEXT_HOP_ATTR_SEGMENTROUTE_ENDPO
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_condition_t sai_metadata_condition_SAI_NEXT_HOP_ATTR_SEGMENTROUTE_ENDPOINT_POP_TYPE_0 = {
         .attrid = SAI_NEXT_HOP_ATTR_TYPE,
@@ -30014,6 +33895,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_NEXT_HOP_ATTR_SEGMENTROUTE_ENDPO
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_condition_t sai_metadata_condition_SAI_NEXT_HOP_ATTR_LABELSTACK_0 = {
         .attrid = SAI_NEXT_HOP_ATTR_TYPE,
@@ -30067,6 +33949,58 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_NEXT_HOP_ATTR_LABELSTACK = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
+};
+const sai_object_type_t sai_metadata_SAI_NEXT_HOP_ATTR_COUNTER_ID_allowed_objects[] = {
+    SAI_OBJECT_TYPE_COUNTER,
+    -1
+};
+const sai_attribute_value_t sai_metadata_SAI_NEXT_HOP_ATTR_COUNTER_ID_default_value = { .oid = SAI_NULL_OBJECT_ID };
+const sai_attr_metadata_t sai_metadata_attr_SAI_NEXT_HOP_ATTR_COUNTER_ID = {
+    .objecttype                    = SAI_OBJECT_TYPE_NEXT_HOP,
+    .attrid                        = SAI_NEXT_HOP_ATTR_COUNTER_ID,
+    .attridname                    = "SAI_NEXT_HOP_ATTR_COUNTER_ID",
+    .brief                         = "Attach a counter.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_OBJECT_ID,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
+    .allowedobjecttypes            = sai_metadata_SAI_NEXT_HOP_ATTR_COUNTER_ID_allowed_objects,
+    .allowedobjecttypeslength      = 1,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = true,
+    .isoidattribute                = (1 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
+    .defaultvalue                  = &sai_metadata_SAI_NEXT_HOP_ATTR_COUNTER_ID_default_value,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = false,
+    .iscreateandset                = true,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_NEXT_HOP_GROUP_ATTR_NEXT_HOP_COUNT = {
     .objecttype                    = SAI_OBJECT_TYPE_NEXT_HOP_GROUP,
@@ -30112,6 +34046,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_NEXT_HOP_GROUP_ATTR_NEXT_HOP_COU
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_NEXT_HOP_GROUP_ATTR_NEXT_HOP_MEMBER_LIST_allowed_objects[] = {
     SAI_OBJECT_TYPE_NEXT_HOP_GROUP_MEMBER,
@@ -30161,6 +34096,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_NEXT_HOP_GROUP_ATTR_NEXT_HOP_MEM
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_NEXT_HOP_GROUP_ATTR_TYPE = {
     .objecttype                    = SAI_OBJECT_TYPE_NEXT_HOP_GROUP,
@@ -30206,6 +34142,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_NEXT_HOP_GROUP_ATTR_TYPE = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = true,
 };
 const sai_attribute_value_t sai_metadata_SAI_NEXT_HOP_GROUP_ATTR_SET_SWITCHOVER_default_value = { .booldata = false };
 const sai_attr_condition_t sai_metadata_validonly_SAI_NEXT_HOP_GROUP_ATTR_SET_SWITCHOVER_0 = {
@@ -30260,6 +34197,58 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_NEXT_HOP_GROUP_ATTR_SET_SWITCHOV
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
+};
+const sai_object_type_t sai_metadata_SAI_NEXT_HOP_GROUP_ATTR_COUNTER_ID_allowed_objects[] = {
+    SAI_OBJECT_TYPE_COUNTER,
+    -1
+};
+const sai_attribute_value_t sai_metadata_SAI_NEXT_HOP_GROUP_ATTR_COUNTER_ID_default_value = { .oid = SAI_NULL_OBJECT_ID };
+const sai_attr_metadata_t sai_metadata_attr_SAI_NEXT_HOP_GROUP_ATTR_COUNTER_ID = {
+    .objecttype                    = SAI_OBJECT_TYPE_NEXT_HOP_GROUP,
+    .attrid                        = SAI_NEXT_HOP_GROUP_ATTR_COUNTER_ID,
+    .attridname                    = "SAI_NEXT_HOP_GROUP_ATTR_COUNTER_ID",
+    .brief                         = "Attach a counter.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_OBJECT_ID,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
+    .allowedobjecttypes            = sai_metadata_SAI_NEXT_HOP_GROUP_ATTR_COUNTER_ID_allowed_objects,
+    .allowedobjecttypeslength      = 1,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = true,
+    .isoidattribute                = (1 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
+    .defaultvalue                  = &sai_metadata_SAI_NEXT_HOP_GROUP_ATTR_COUNTER_ID_default_value,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = false,
+    .iscreateandset                = true,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_NEXT_HOP_GROUP_MEMBER_ATTR_NEXT_HOP_GROUP_ID_allowed_objects[] = {
     SAI_OBJECT_TYPE_NEXT_HOP_GROUP,
@@ -30309,6 +34298,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_NEXT_HOP_GROUP_MEMBER_ATTR_NEXT_
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_NEXT_HOP_GROUP_MEMBER_ATTR_NEXT_HOP_ID_allowed_objects[] = {
     SAI_OBJECT_TYPE_NEXT_HOP,
@@ -30358,6 +34348,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_NEXT_HOP_GROUP_MEMBER_ATTR_NEXT_
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_NEXT_HOP_GROUP_MEMBER_ATTR_WEIGHT_default_value = { .u32 = 1 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_NEXT_HOP_GROUP_MEMBER_ATTR_WEIGHT = {
@@ -30404,6 +34395,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_NEXT_HOP_GROUP_MEMBER_ATTR_WEIGH
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_NEXT_HOP_GROUP_MEMBER_ATTR_CONFIGURED_ROLE_default_value = { .s32 = SAI_NEXT_HOP_GROUP_MEMBER_CONFIGURED_ROLE_PRIMARY };
 const sai_attr_metadata_t sai_metadata_attr_SAI_NEXT_HOP_GROUP_MEMBER_ATTR_CONFIGURED_ROLE = {
@@ -30450,6 +34442,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_NEXT_HOP_GROUP_MEMBER_ATTR_CONFI
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_NEXT_HOP_GROUP_MEMBER_ATTR_OBSERVED_ROLE = {
     .objecttype                    = SAI_OBJECT_TYPE_NEXT_HOP_GROUP_MEMBER,
@@ -30495,6 +34488,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_NEXT_HOP_GROUP_MEMBER_ATTR_OBSER
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_NEXT_HOP_GROUP_MEMBER_ATTR_MONITORED_OBJECT_allowed_objects[] = {
     SAI_OBJECT_TYPE_PORT,
@@ -30550,6 +34544,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_NEXT_HOP_GROUP_MEMBER_ATTR_MONIT
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_POLICER_ATTR_METER_TYPE = {
     .objecttype                    = SAI_OBJECT_TYPE_POLICER,
@@ -30595,6 +34590,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_POLICER_ATTR_METER_TYPE = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_POLICER_ATTR_MODE = {
     .objecttype                    = SAI_OBJECT_TYPE_POLICER,
@@ -30640,6 +34636,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_POLICER_ATTR_MODE = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_POLICER_ATTR_COLOR_SOURCE_default_value = { .s32 = SAI_POLICER_COLOR_SOURCE_AWARE };
 const sai_attr_metadata_t sai_metadata_attr_SAI_POLICER_ATTR_COLOR_SOURCE = {
@@ -30686,6 +34683,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_POLICER_ATTR_COLOR_SOURCE = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_POLICER_ATTR_CBS_default_value = { .u64 = 0 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_POLICER_ATTR_CBS = {
@@ -30732,6 +34730,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_POLICER_ATTR_CBS = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_POLICER_ATTR_CIR_default_value = { .u64 = 0 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_POLICER_ATTR_CIR = {
@@ -30778,6 +34777,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_POLICER_ATTR_CIR = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_POLICER_ATTR_PBS_default_value = { .u64 = 0 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_POLICER_ATTR_PBS = {
@@ -30824,6 +34824,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_POLICER_ATTR_PBS = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_POLICER_ATTR_PIR_default_value = { .u64 = 0 };
 const sai_attr_condition_t sai_metadata_validonly_SAI_POLICER_ATTR_PIR_0 = {
@@ -30878,6 +34879,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_POLICER_ATTR_PIR = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_POLICER_ATTR_GREEN_PACKET_ACTION_default_value = { .s32 = SAI_PACKET_ACTION_FORWARD };
 const sai_attr_metadata_t sai_metadata_attr_SAI_POLICER_ATTR_GREEN_PACKET_ACTION = {
@@ -30924,6 +34926,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_POLICER_ATTR_GREEN_PACKET_ACTION
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_POLICER_ATTR_YELLOW_PACKET_ACTION_default_value = { .s32 = SAI_PACKET_ACTION_FORWARD };
 const sai_attr_metadata_t sai_metadata_attr_SAI_POLICER_ATTR_YELLOW_PACKET_ACTION = {
@@ -30970,6 +34973,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_POLICER_ATTR_YELLOW_PACKET_ACTIO
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_POLICER_ATTR_RED_PACKET_ACTION_default_value = { .s32 = SAI_PACKET_ACTION_FORWARD };
 const sai_attr_metadata_t sai_metadata_attr_SAI_POLICER_ATTR_RED_PACKET_ACTION = {
@@ -31016,6 +35020,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_POLICER_ATTR_RED_PACKET_ACTION =
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_POLICER_ATTR_ENABLE_COUNTER_PACKET_ACTION_LIST = {
     .objecttype                    = SAI_OBJECT_TYPE_POLICER,
@@ -31061,6 +35066,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_POLICER_ATTR_ENABLE_COUNTER_PACK
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_TYPE = {
     .objecttype                    = SAI_OBJECT_TYPE_PORT,
@@ -31106,6 +35112,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_TYPE = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_OPER_STATUS = {
     .objecttype                    = SAI_OBJECT_TYPE_PORT,
@@ -31151,6 +35158,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_OPER_STATUS = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_SUPPORTED_BREAKOUT_MODE_TYPE = {
     .objecttype                    = SAI_OBJECT_TYPE_PORT,
@@ -31196,6 +35204,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_SUPPORTED_BREAKOUT_MOD
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_CURRENT_BREAKOUT_MODE_TYPE = {
     .objecttype                    = SAI_OBJECT_TYPE_PORT,
@@ -31241,6 +35250,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_CURRENT_BREAKOUT_MODE_
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_QOS_NUMBER_OF_QUEUES = {
     .objecttype                    = SAI_OBJECT_TYPE_PORT,
@@ -31286,6 +35296,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_QOS_NUMBER_OF_QUEUES =
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_PORT_ATTR_QOS_QUEUE_LIST_allowed_objects[] = {
     SAI_OBJECT_TYPE_QUEUE,
@@ -31335,6 +35346,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_QOS_QUEUE_LIST = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_QOS_NUMBER_OF_SCHEDULER_GROUPS = {
     .objecttype                    = SAI_OBJECT_TYPE_PORT,
@@ -31380,6 +35392,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_QOS_NUMBER_OF_SCHEDULE
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_PORT_ATTR_QOS_SCHEDULER_GROUP_LIST_allowed_objects[] = {
     SAI_OBJECT_TYPE_SCHEDULER_GROUP,
@@ -31429,6 +35442,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_QOS_SCHEDULER_GROUP_LI
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_SUPPORTED_SPEED = {
     .objecttype                    = SAI_OBJECT_TYPE_PORT,
@@ -31474,6 +35488,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_SUPPORTED_SPEED = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_SUPPORTED_FEC_MODE = {
     .objecttype                    = SAI_OBJECT_TYPE_PORT,
@@ -31519,6 +35534,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_SUPPORTED_FEC_MODE = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_SUPPORTED_HALF_DUPLEX_SPEED = {
     .objecttype                    = SAI_OBJECT_TYPE_PORT,
@@ -31564,6 +35580,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_SUPPORTED_HALF_DUPLEX_
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_SUPPORTED_AUTO_NEG_MODE = {
     .objecttype                    = SAI_OBJECT_TYPE_PORT,
@@ -31609,6 +35626,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_SUPPORTED_AUTO_NEG_MOD
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_SUPPORTED_FLOW_CONTROL_MODE = {
     .objecttype                    = SAI_OBJECT_TYPE_PORT,
@@ -31654,6 +35672,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_SUPPORTED_FLOW_CONTROL
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_SUPPORTED_ASYMMETRIC_PAUSE_MODE = {
     .objecttype                    = SAI_OBJECT_TYPE_PORT,
@@ -31699,6 +35718,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_SUPPORTED_ASYMMETRIC_P
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_SUPPORTED_MEDIA_TYPE = {
     .objecttype                    = SAI_OBJECT_TYPE_PORT,
@@ -31744,6 +35764,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_SUPPORTED_MEDIA_TYPE =
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_REMOTE_ADVERTISED_SPEED = {
     .objecttype                    = SAI_OBJECT_TYPE_PORT,
@@ -31789,6 +35810,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_REMOTE_ADVERTISED_SPEE
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_REMOTE_ADVERTISED_FEC_MODE = {
     .objecttype                    = SAI_OBJECT_TYPE_PORT,
@@ -31834,6 +35856,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_REMOTE_ADVERTISED_FEC_
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_REMOTE_ADVERTISED_HALF_DUPLEX_SPEED = {
     .objecttype                    = SAI_OBJECT_TYPE_PORT,
@@ -31879,6 +35902,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_REMOTE_ADVERTISED_HALF
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_REMOTE_ADVERTISED_AUTO_NEG_MODE = {
     .objecttype                    = SAI_OBJECT_TYPE_PORT,
@@ -31924,6 +35948,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_REMOTE_ADVERTISED_AUTO
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_REMOTE_ADVERTISED_FLOW_CONTROL_MODE = {
     .objecttype                    = SAI_OBJECT_TYPE_PORT,
@@ -31969,6 +35994,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_REMOTE_ADVERTISED_FLOW
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_REMOTE_ADVERTISED_ASYMMETRIC_PAUSE_MODE = {
     .objecttype                    = SAI_OBJECT_TYPE_PORT,
@@ -32014,6 +36040,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_REMOTE_ADVERTISED_ASYM
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_REMOTE_ADVERTISED_MEDIA_TYPE = {
     .objecttype                    = SAI_OBJECT_TYPE_PORT,
@@ -32059,6 +36086,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_REMOTE_ADVERTISED_MEDI
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_REMOTE_ADVERTISED_OUI_CODE = {
     .objecttype                    = SAI_OBJECT_TYPE_PORT,
@@ -32104,6 +36132,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_REMOTE_ADVERTISED_OUI_
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_NUMBER_OF_INGRESS_PRIORITY_GROUPS = {
     .objecttype                    = SAI_OBJECT_TYPE_PORT,
@@ -32149,6 +36178,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_NUMBER_OF_INGRESS_PRIO
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_PORT_ATTR_INGRESS_PRIORITY_GROUP_LIST_allowed_objects[] = {
     SAI_OBJECT_TYPE_INGRESS_PRIORITY_GROUP,
@@ -32198,6 +36228,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_INGRESS_PRIORITY_GROUP
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_EYE_VALUES = {
     .objecttype                    = SAI_OBJECT_TYPE_PORT,
@@ -32243,6 +36274,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_EYE_VALUES = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_OPER_SPEED = {
     .objecttype                    = SAI_OBJECT_TYPE_PORT,
@@ -32288,6 +36320,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_OPER_SPEED = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_HW_LANE_LIST = {
     .objecttype                    = SAI_OBJECT_TYPE_PORT,
@@ -32333,6 +36366,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_HW_LANE_LIST = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_SPEED = {
     .objecttype                    = SAI_OBJECT_TYPE_PORT,
@@ -32378,6 +36412,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_SPEED = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_PORT_ATTR_FULL_DUPLEX_MODE_default_value = { .booldata = true };
 const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_FULL_DUPLEX_MODE = {
@@ -32424,6 +36459,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_FULL_DUPLEX_MODE = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_PORT_ATTR_AUTO_NEG_MODE_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_AUTO_NEG_MODE = {
@@ -32470,6 +36506,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_AUTO_NEG_MODE = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_PORT_ATTR_ADMIN_STATE_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_ADMIN_STATE = {
@@ -32516,6 +36553,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_ADMIN_STATE = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_PORT_ATTR_MEDIA_TYPE_default_value = { .s32 = SAI_PORT_MEDIA_TYPE_NOT_PRESENT };
 const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_MEDIA_TYPE = {
@@ -32562,6 +36600,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_MEDIA_TYPE = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_ADVERTISED_SPEED = {
     .objecttype                    = SAI_OBJECT_TYPE_PORT,
@@ -32607,6 +36646,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_ADVERTISED_SPEED = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_ADVERTISED_FEC_MODE = {
     .objecttype                    = SAI_OBJECT_TYPE_PORT,
@@ -32652,6 +36692,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_ADVERTISED_FEC_MODE = 
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_ADVERTISED_HALF_DUPLEX_SPEED = {
     .objecttype                    = SAI_OBJECT_TYPE_PORT,
@@ -32697,6 +36738,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_ADVERTISED_HALF_DUPLEX
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_PORT_ATTR_ADVERTISED_AUTO_NEG_MODE_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_ADVERTISED_AUTO_NEG_MODE = {
@@ -32743,6 +36785,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_ADVERTISED_AUTO_NEG_MO
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_PORT_ATTR_ADVERTISED_FLOW_CONTROL_MODE_default_value = { .s32 = SAI_PORT_FLOW_CONTROL_MODE_DISABLE };
 const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_ADVERTISED_FLOW_CONTROL_MODE = {
@@ -32789,6 +36832,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_ADVERTISED_FLOW_CONTRO
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_PORT_ATTR_ADVERTISED_ASYMMETRIC_PAUSE_MODE_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_ADVERTISED_ASYMMETRIC_PAUSE_MODE = {
@@ -32835,6 +36879,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_ADVERTISED_ASYMMETRIC_
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_PORT_ATTR_ADVERTISED_MEDIA_TYPE_default_value = { .s32 = SAI_PORT_MEDIA_TYPE_UNKNOWN };
 const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_ADVERTISED_MEDIA_TYPE = {
@@ -32881,6 +36926,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_ADVERTISED_MEDIA_TYPE 
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_PORT_ATTR_ADVERTISED_OUI_CODE_default_value = { .u32 = 0x6A737D };
 const sai_attr_condition_t sai_metadata_validonly_SAI_PORT_ATTR_ADVERTISED_OUI_CODE_0 = {
@@ -32940,6 +36986,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_ADVERTISED_OUI_CODE = 
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_PORT_ATTR_PORT_VLAN_ID_default_value = { .u16 = 1 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_PORT_VLAN_ID = {
@@ -32986,6 +37033,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_PORT_VLAN_ID = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_PORT_ATTR_DEFAULT_VLAN_PRIORITY_default_value = { .u8 = 0 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_DEFAULT_VLAN_PRIORITY = {
@@ -33032,6 +37080,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_DEFAULT_VLAN_PRIORITY 
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_PORT_ATTR_DROP_UNTAGGED_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_DROP_UNTAGGED = {
@@ -33078,6 +37127,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_DROP_UNTAGGED = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_PORT_ATTR_DROP_TAGGED_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_DROP_TAGGED = {
@@ -33124,6 +37174,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_DROP_TAGGED = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_PORT_ATTR_INTERNAL_LOOPBACK_MODE_default_value = { .s32 = SAI_PORT_INTERNAL_LOOPBACK_MODE_NONE };
 const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_INTERNAL_LOOPBACK_MODE = {
@@ -33170,6 +37221,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_INTERNAL_LOOPBACK_MODE
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_PORT_ATTR_FEC_MODE_default_value = { .s32 = SAI_PORT_FEC_MODE_NONE };
 const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_FEC_MODE = {
@@ -33216,6 +37268,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_FEC_MODE = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_PORT_ATTR_UPDATE_DSCP_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_UPDATE_DSCP = {
@@ -33262,6 +37315,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_UPDATE_DSCP = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_PORT_ATTR_MTU_default_value = { .u32 = 1514 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_MTU = {
@@ -33308,6 +37362,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_MTU = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_PORT_ATTR_FLOOD_STORM_CONTROL_POLICER_ID_allowed_objects[] = {
     SAI_OBJECT_TYPE_POLICER,
@@ -33358,6 +37413,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_FLOOD_STORM_CONTROL_PO
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_PORT_ATTR_BROADCAST_STORM_CONTROL_POLICER_ID_allowed_objects[] = {
     SAI_OBJECT_TYPE_POLICER,
@@ -33408,6 +37464,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_BROADCAST_STORM_CONTRO
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_PORT_ATTR_MULTICAST_STORM_CONTROL_POLICER_ID_allowed_objects[] = {
     SAI_OBJECT_TYPE_POLICER,
@@ -33458,6 +37515,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_MULTICAST_STORM_CONTRO
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_PORT_ATTR_GLOBAL_FLOW_CONTROL_MODE_default_value = { .s32 = SAI_PORT_FLOW_CONTROL_MODE_DISABLE };
 const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_GLOBAL_FLOW_CONTROL_MODE = {
@@ -33504,6 +37562,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_GLOBAL_FLOW_CONTROL_MO
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_PORT_ATTR_INGRESS_ACL_allowed_objects[] = {
     SAI_OBJECT_TYPE_ACL_TABLE,
@@ -33555,6 +37614,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_INGRESS_ACL = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_PORT_ATTR_EGRESS_ACL_allowed_objects[] = {
     SAI_OBJECT_TYPE_ACL_TABLE,
@@ -33606,6 +37666,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_EGRESS_ACL = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_PORT_ATTR_INGRESS_MIRROR_SESSION_allowed_objects[] = {
     SAI_OBJECT_TYPE_MIRROR_SESSION,
@@ -33655,6 +37716,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_INGRESS_MIRROR_SESSION
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_PORT_ATTR_EGRESS_MIRROR_SESSION_allowed_objects[] = {
     SAI_OBJECT_TYPE_MIRROR_SESSION,
@@ -33704,6 +37766,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_EGRESS_MIRROR_SESSION 
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_PORT_ATTR_INGRESS_SAMPLEPACKET_ENABLE_allowed_objects[] = {
     SAI_OBJECT_TYPE_SAMPLEPACKET,
@@ -33754,6 +37817,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_INGRESS_SAMPLEPACKET_E
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_PORT_ATTR_EGRESS_SAMPLEPACKET_ENABLE_allowed_objects[] = {
     SAI_OBJECT_TYPE_SAMPLEPACKET,
@@ -33804,6 +37868,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_EGRESS_SAMPLEPACKET_EN
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_PORT_ATTR_POLICER_ID_allowed_objects[] = {
     SAI_OBJECT_TYPE_POLICER,
@@ -33854,6 +37919,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_POLICER_ID = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_PORT_ATTR_QOS_DEFAULT_TC_default_value = { .u8 = 0 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_QOS_DEFAULT_TC = {
@@ -33900,6 +37966,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_QOS_DEFAULT_TC = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_PORT_ATTR_QOS_DOT1P_TO_TC_MAP_allowed_objects[] = {
     SAI_OBJECT_TYPE_QOS_MAP,
@@ -33950,6 +38017,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_QOS_DOT1P_TO_TC_MAP = 
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_PORT_ATTR_QOS_DOT1P_TO_COLOR_MAP_allowed_objects[] = {
     SAI_OBJECT_TYPE_QOS_MAP,
@@ -34000,6 +38068,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_QOS_DOT1P_TO_COLOR_MAP
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_PORT_ATTR_QOS_DSCP_TO_TC_MAP_allowed_objects[] = {
     SAI_OBJECT_TYPE_QOS_MAP,
@@ -34050,6 +38119,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_QOS_DSCP_TO_TC_MAP = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_PORT_ATTR_QOS_DSCP_TO_COLOR_MAP_allowed_objects[] = {
     SAI_OBJECT_TYPE_QOS_MAP,
@@ -34100,6 +38170,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_QOS_DSCP_TO_COLOR_MAP 
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_PORT_ATTR_QOS_TC_TO_QUEUE_MAP_allowed_objects[] = {
     SAI_OBJECT_TYPE_QOS_MAP,
@@ -34150,6 +38221,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_QOS_TC_TO_QUEUE_MAP = 
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_PORT_ATTR_QOS_TC_AND_COLOR_TO_DOT1P_MAP_allowed_objects[] = {
     SAI_OBJECT_TYPE_QOS_MAP,
@@ -34200,6 +38272,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_QOS_TC_AND_COLOR_TO_DO
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_PORT_ATTR_QOS_TC_AND_COLOR_TO_DSCP_MAP_allowed_objects[] = {
     SAI_OBJECT_TYPE_QOS_MAP,
@@ -34250,6 +38323,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_QOS_TC_AND_COLOR_TO_DS
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_PORT_ATTR_QOS_TC_TO_PRIORITY_GROUP_MAP_allowed_objects[] = {
     SAI_OBJECT_TYPE_QOS_MAP,
@@ -34300,6 +38374,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_QOS_TC_TO_PRIORITY_GRO
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_PORT_ATTR_QOS_PFC_PRIORITY_TO_PRIORITY_GROUP_MAP_allowed_objects[] = {
     SAI_OBJECT_TYPE_QOS_MAP,
@@ -34350,6 +38425,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_QOS_PFC_PRIORITY_TO_PR
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_PORT_ATTR_QOS_PFC_PRIORITY_TO_QUEUE_MAP_allowed_objects[] = {
     SAI_OBJECT_TYPE_QOS_MAP,
@@ -34400,6 +38476,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_QOS_PFC_PRIORITY_TO_QU
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_PORT_ATTR_QOS_SCHEDULER_PROFILE_ID_allowed_objects[] = {
     SAI_OBJECT_TYPE_SCHEDULER,
@@ -34450,6 +38527,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_QOS_SCHEDULER_PROFILE_
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_PORT_ATTR_QOS_INGRESS_BUFFER_PROFILE_LIST_allowed_objects[] = {
     SAI_OBJECT_TYPE_BUFFER_PROFILE,
@@ -34499,6 +38577,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_QOS_INGRESS_BUFFER_PRO
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_PORT_ATTR_QOS_EGRESS_BUFFER_PROFILE_LIST_allowed_objects[] = {
     SAI_OBJECT_TYPE_BUFFER_PROFILE,
@@ -34548,6 +38627,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_QOS_EGRESS_BUFFER_PROF
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL_MODE_default_value = { .s32 = SAI_PORT_PRIORITY_FLOW_CONTROL_MODE_COMBINED };
 const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL_MODE = {
@@ -34594,6 +38674,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL_
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL_default_value = { .u8 = 0 };
 const sai_attr_condition_t sai_metadata_validonly_SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL_0 = {
@@ -34648,6 +38729,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL 
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL_RX_default_value = { .u8 = 0 };
 const sai_attr_condition_t sai_metadata_validonly_SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL_RX_0 = {
@@ -34702,6 +38784,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL_
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL_TX_default_value = { .u8 = 0 };
 const sai_attr_condition_t sai_metadata_validonly_SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL_TX_0 = {
@@ -34756,6 +38839,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL_
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_PORT_ATTR_META_DATA_default_value = { .u32 = 0 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_META_DATA = {
@@ -34802,6 +38886,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_META_DATA = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_PORT_ATTR_EGRESS_BLOCK_PORT_LIST_allowed_objects[] = {
     SAI_OBJECT_TYPE_PORT,
@@ -34851,6 +38936,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_EGRESS_BLOCK_PORT_LIST
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_HW_PROFILE_ID = {
     .objecttype                    = SAI_OBJECT_TYPE_PORT,
@@ -34896,6 +38982,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_HW_PROFILE_ID = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_PORT_ATTR_EEE_ENABLE_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_EEE_ENABLE = {
@@ -34942,6 +39029,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_EEE_ENABLE = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_PORT_ATTR_EEE_IDLE_TIME_default_value = { .u16 = 2500 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_EEE_IDLE_TIME = {
@@ -34988,6 +39076,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_EEE_IDLE_TIME = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_PORT_ATTR_EEE_WAKE_TIME_default_value = { .u16 = 5 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_EEE_WAKE_TIME = {
@@ -35034,6 +39123,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_EEE_WAKE_TIME = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_PORT_ATTR_PORT_POOL_LIST_allowed_objects[] = {
     SAI_OBJECT_TYPE_PORT_POOL,
@@ -35083,6 +39173,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_PORT_POOL_LIST = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_PORT_ATTR_ISOLATION_GROUP_allowed_objects[] = {
     SAI_OBJECT_TYPE_ISOLATION_GROUP,
@@ -35133,6 +39224,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_ISOLATION_GROUP = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_PORT_ATTR_PKT_TX_ENABLE_default_value = { .booldata = true };
 const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_PKT_TX_ENABLE = {
@@ -35179,28 +39271,28 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_PKT_TX_ENABLE = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_PORT_ATTR_TAM_OBJECT_allowed_objects[] = {
     SAI_OBJECT_TYPE_TAM,
     -1
 };
-const sai_attribute_value_t sai_metadata_SAI_PORT_ATTR_TAM_OBJECT_default_value = { .oid = SAI_NULL_OBJECT_ID };
 const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_TAM_OBJECT = {
     .objecttype                    = SAI_OBJECT_TYPE_PORT,
     .attrid                        = SAI_PORT_ATTR_TAM_OBJECT,
     .attridname                    = "SAI_PORT_ATTR_TAM_OBJECT",
     .brief                         = "Port bind point for TAM object.",
-    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_OBJECT_ID,
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_OBJECT_LIST,
     .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
     .allowedobjecttypes            = sai_metadata_SAI_PORT_ATTR_TAM_OBJECT_allowed_objects,
     .allowedobjecttypeslength      = 1,
     .allowrepetitiononlist         = false,
     .allowmixedobjecttypes         = false,
     .allowemptylist                = false,
-    .allownullobjectid             = true,
+    .allownullobjectid             = false,
     .isoidattribute                = (1 > 0),
-    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
-    .defaultvalue                  = &sai_metadata_SAI_PORT_ATTR_TAM_OBJECT_default_value,
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_EMPTY_LIST,
+    .defaultvalue                  = NULL,
     .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
     .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
     .storedefaultvalue             = false,
@@ -35224,11 +39316,12 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_TAM_OBJECT = {
     .iscreateandset                = true,
     .isreadonly                    = false,
     .iskey                         = false,
-    .isprimitive                   = true,
+    .isprimitive                   = false,
     .notificationtype              = -1,
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_SERDES_PREEMPHASIS = {
     .objecttype                    = SAI_OBJECT_TYPE_PORT,
@@ -35274,6 +39367,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_SERDES_PREEMPHASIS = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_SERDES_IDRIVER = {
     .objecttype                    = SAI_OBJECT_TYPE_PORT,
@@ -35319,6 +39413,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_SERDES_IDRIVER = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_SERDES_IPREDRIVER = {
     .objecttype                    = SAI_OBJECT_TYPE_PORT,
@@ -35364,6 +39459,101 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_SERDES_IPREDRIVER = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
+};
+const sai_attribute_value_t sai_metadata_SAI_PORT_ATTR_LINK_TRAINING_ENABLE_default_value = { .booldata = false };
+const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_LINK_TRAINING_ENABLE = {
+    .objecttype                    = SAI_OBJECT_TYPE_PORT,
+    .attrid                        = SAI_PORT_ATTR_LINK_TRAINING_ENABLE,
+    .attridname                    = "SAI_PORT_ATTR_LINK_TRAINING_ENABLE",
+    .brief                         = "Enable/Disable Port Link Training.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_BOOL,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
+    .defaultvalue                  = &sai_metadata_SAI_PORT_ATTR_LINK_TRAINING_ENABLE_default_value,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = false,
+    .iscreateandset                = true,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+    .isresourcetype                = false,
+};
+const sai_attribute_value_t sai_metadata_SAI_PORT_ATTR_PTP_MODE_default_value = { .s32 = SAI_PORT_PTP_MODE_NONE };
+const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_ATTR_PTP_MODE = {
+    .objecttype                    = SAI_OBJECT_TYPE_PORT,
+    .attrid                        = SAI_PORT_ATTR_PTP_MODE,
+    .attridname                    = "SAI_PORT_ATTR_PTP_MODE",
+    .brief                         = "Configure PTP mode on the port.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_INT32,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
+    .defaultvalue                  = &sai_metadata_SAI_PORT_ATTR_PTP_MODE_default_value,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = true,
+    .isenumlist                    = false,
+    .enummetadata                  = &sai_metadata_enum_sai_port_ptp_mode_t,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = false,
+    .iscreateandset                = true,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_PORT_POOL_ATTR_PORT_ID_allowed_objects[] = {
     SAI_OBJECT_TYPE_PORT,
@@ -35413,6 +39603,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_POOL_ATTR_PORT_ID = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_PORT_POOL_ATTR_BUFFER_POOL_ID_allowed_objects[] = {
     SAI_OBJECT_TYPE_BUFFER_POOL,
@@ -35462,6 +39653,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_POOL_ATTR_BUFFER_POOL_ID = 
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_PORT_POOL_ATTR_QOS_WRED_PROFILE_ID_allowed_objects[] = {
     SAI_OBJECT_TYPE_WRED,
@@ -35512,6 +39704,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_PORT_POOL_ATTR_QOS_WRED_PROFILE_
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_QOS_MAP_ATTR_TYPE = {
     .objecttype                    = SAI_OBJECT_TYPE_QOS_MAP,
@@ -35557,6 +39750,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_QOS_MAP_ATTR_TYPE = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_QOS_MAP_ATTR_MAP_TO_VALUE_LIST = {
     .objecttype                    = SAI_OBJECT_TYPE_QOS_MAP,
@@ -35602,6 +39796,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_QOS_MAP_ATTR_MAP_TO_VALUE_LIST =
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_QUEUE_ATTR_TYPE = {
     .objecttype                    = SAI_OBJECT_TYPE_QUEUE,
@@ -35647,6 +39842,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_QUEUE_ATTR_TYPE = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_QUEUE_ATTR_PORT_allowed_objects[] = {
     SAI_OBJECT_TYPE_PORT,
@@ -35696,6 +39892,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_QUEUE_ATTR_PORT = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_QUEUE_ATTR_INDEX = {
     .objecttype                    = SAI_OBJECT_TYPE_QUEUE,
@@ -35741,6 +39938,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_QUEUE_ATTR_INDEX = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_QUEUE_ATTR_PARENT_SCHEDULER_NODE_allowed_objects[] = {
     SAI_OBJECT_TYPE_SCHEDULER_GROUP,
@@ -35791,6 +39989,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_QUEUE_ATTR_PARENT_SCHEDULER_NODE
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_QUEUE_ATTR_WRED_PROFILE_ID_allowed_objects[] = {
     SAI_OBJECT_TYPE_WRED,
@@ -35841,6 +40040,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_QUEUE_ATTR_WRED_PROFILE_ID = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_QUEUE_ATTR_BUFFER_PROFILE_ID_allowed_objects[] = {
     SAI_OBJECT_TYPE_BUFFER_PROFILE,
@@ -35891,6 +40091,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_QUEUE_ATTR_BUFFER_PROFILE_ID = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_QUEUE_ATTR_SCHEDULER_PROFILE_ID_allowed_objects[] = {
     SAI_OBJECT_TYPE_SCHEDULER,
@@ -35941,6 +40142,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_QUEUE_ATTR_SCHEDULER_PROFILE_ID 
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_QUEUE_ATTR_PAUSE_STATUS = {
     .objecttype                    = SAI_OBJECT_TYPE_QUEUE,
@@ -35986,6 +40188,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_QUEUE_ATTR_PAUSE_STATUS = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_QUEUE_ATTR_ENABLE_PFC_DLDR_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_QUEUE_ATTR_ENABLE_PFC_DLDR = {
@@ -36032,6 +40235,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_QUEUE_ATTR_ENABLE_PFC_DLDR = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_QUEUE_ATTR_PFC_DLR_INIT_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_QUEUE_ATTR_PFC_DLR_INIT = {
@@ -36078,28 +40282,28 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_QUEUE_ATTR_PFC_DLR_INIT = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_QUEUE_ATTR_TAM_OBJECT_allowed_objects[] = {
     SAI_OBJECT_TYPE_TAM,
     -1
 };
-const sai_attribute_value_t sai_metadata_SAI_QUEUE_ATTR_TAM_OBJECT_default_value = { .oid = SAI_NULL_OBJECT_ID };
 const sai_attr_metadata_t sai_metadata_attr_SAI_QUEUE_ATTR_TAM_OBJECT = {
     .objecttype                    = SAI_OBJECT_TYPE_QUEUE,
     .attrid                        = SAI_QUEUE_ATTR_TAM_OBJECT,
     .attridname                    = "SAI_QUEUE_ATTR_TAM_OBJECT",
     .brief                         = "Queue bind point for TAM object.",
-    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_OBJECT_ID,
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_OBJECT_LIST,
     .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
     .allowedobjecttypes            = sai_metadata_SAI_QUEUE_ATTR_TAM_OBJECT_allowed_objects,
     .allowedobjecttypeslength      = 1,
     .allowrepetitiononlist         = false,
     .allowmixedobjecttypes         = false,
     .allowemptylist                = false,
-    .allownullobjectid             = true,
+    .allownullobjectid             = false,
     .isoidattribute                = (1 > 0),
-    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
-    .defaultvalue                  = &sai_metadata_SAI_QUEUE_ATTR_TAM_OBJECT_default_value,
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_EMPTY_LIST,
+    .defaultvalue                  = NULL,
     .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
     .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
     .storedefaultvalue             = false,
@@ -36123,11 +40327,12 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_QUEUE_ATTR_TAM_OBJECT = {
     .iscreateandset                = true,
     .isreadonly                    = false,
     .iskey                         = false,
-    .isprimitive                   = true,
+    .isprimitive                   = false,
     .notificationtype              = -1,
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ROUTE_ENTRY_ATTR_PACKET_ACTION_default_value = { .s32 = SAI_PACKET_ACTION_FORWARD };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ROUTE_ENTRY_ATTR_PACKET_ACTION = {
@@ -36174,6 +40379,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ROUTE_ENTRY_ATTR_PACKET_ACTION =
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_ROUTE_ENTRY_ATTR_USER_TRAP_ID_allowed_objects[] = {
     SAI_OBJECT_TYPE_HOSTIF_USER_DEFINED_TRAP,
@@ -36224,6 +40430,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ROUTE_ENTRY_ATTR_USER_TRAP_ID = 
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_ROUTE_ENTRY_ATTR_NEXT_HOP_ID_allowed_objects[] = {
     SAI_OBJECT_TYPE_NEXT_HOP,
@@ -36277,6 +40484,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ROUTE_ENTRY_ATTR_NEXT_HOP_ID = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ROUTE_ENTRY_ATTR_META_DATA_default_value = { .u32 = 0 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ROUTE_ENTRY_ATTR_META_DATA = {
@@ -36323,6 +40531,104 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ROUTE_ENTRY_ATTR_META_DATA = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
+};
+const sai_attr_metadata_t sai_metadata_attr_SAI_ROUTE_ENTRY_ATTR_IP_ADDR_FAMILY = {
+    .objecttype                    = SAI_OBJECT_TYPE_ROUTE_ENTRY,
+    .attrid                        = SAI_ROUTE_ENTRY_ATTR_IP_ADDR_FAMILY,
+    .attridname                    = "SAI_ROUTE_ENTRY_ATTR_IP_ADDR_FAMILY",
+    .brief                         = "Route entry IP address family.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_INT32,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_READ_ONLY),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_NONE,
+    .defaultvalue                  = NULL,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = true,
+    .isenumlist                    = false,
+    .enummetadata                  = &sai_metadata_enum_sai_ip_addr_family_t,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = false,
+    .iscreateandset                = false,
+    .isreadonly                    = true,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+    .isresourcetype                = true,
+};
+const sai_object_type_t sai_metadata_SAI_ROUTE_ENTRY_ATTR_COUNTER_ID_allowed_objects[] = {
+    SAI_OBJECT_TYPE_COUNTER,
+    -1
+};
+const sai_attribute_value_t sai_metadata_SAI_ROUTE_ENTRY_ATTR_COUNTER_ID_default_value = { .oid = SAI_NULL_OBJECT_ID };
+const sai_attr_metadata_t sai_metadata_attr_SAI_ROUTE_ENTRY_ATTR_COUNTER_ID = {
+    .objecttype                    = SAI_OBJECT_TYPE_ROUTE_ENTRY,
+    .attrid                        = SAI_ROUTE_ENTRY_ATTR_COUNTER_ID,
+    .attridname                    = "SAI_ROUTE_ENTRY_ATTR_COUNTER_ID",
+    .brief                         = "Attach a counter.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_OBJECT_ID,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
+    .allowedobjecttypes            = sai_metadata_SAI_ROUTE_ENTRY_ATTR_COUNTER_ID_allowed_objects,
+    .allowedobjecttypeslength      = 1,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = true,
+    .isoidattribute                = (1 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
+    .defaultvalue                  = &sai_metadata_SAI_ROUTE_ENTRY_ATTR_COUNTER_ID_default_value,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = false,
+    .iscreateandset                = true,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_ROUTER_INTERFACE_ATTR_VIRTUAL_ROUTER_ID_allowed_objects[] = {
     SAI_OBJECT_TYPE_VIRTUAL_ROUTER,
@@ -36372,6 +40678,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ROUTER_INTERFACE_ATTR_VIRTUAL_RO
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ROUTER_INTERFACE_ATTR_TYPE = {
     .objecttype                    = SAI_OBJECT_TYPE_ROUTER_INTERFACE,
@@ -36417,6 +40724,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ROUTER_INTERFACE_ATTR_TYPE = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_ROUTER_INTERFACE_ATTR_PORT_ID_allowed_objects[] = {
     SAI_OBJECT_TYPE_PORT,
@@ -36480,6 +40788,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ROUTER_INTERFACE_ATTR_PORT_ID = 
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_ROUTER_INTERFACE_ATTR_VLAN_ID_allowed_objects[] = {
     SAI_OBJECT_TYPE_VLAN,
@@ -36489,13 +40798,8 @@ const sai_attr_condition_t sai_metadata_condition_SAI_ROUTER_INTERFACE_ATTR_VLAN
         .attrid = SAI_ROUTER_INTERFACE_ATTR_TYPE,
         .condition = { .s32 = SAI_ROUTER_INTERFACE_TYPE_VLAN }
 };
-const sai_attr_condition_t sai_metadata_condition_SAI_ROUTER_INTERFACE_ATTR_VLAN_ID_1 = {
-        .attrid = SAI_ROUTER_INTERFACE_ATTR_TYPE,
-        .condition = { .s32 = SAI_ROUTER_INTERFACE_TYPE_SUB_PORT }
-};
 const sai_attr_condition_t* const sai_metadata_conditions_SAI_ROUTER_INTERFACE_ATTR_VLAN_ID[] = {
     &sai_metadata_condition_SAI_ROUTER_INTERFACE_ATTR_VLAN_ID_0,
-    &sai_metadata_condition_SAI_ROUTER_INTERFACE_ATTR_VLAN_ID_1,
     NULL
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ROUTER_INTERFACE_ATTR_VLAN_ID = {
@@ -36522,8 +40826,8 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ROUTER_INTERFACE_ATTR_VLAN_ID = 
     .enummetadata                  = NULL,
     .conditiontype                 = SAI_ATTR_CONDITION_TYPE_OR,
     .conditions                    = sai_metadata_conditions_SAI_ROUTER_INTERFACE_ATTR_VLAN_ID,
-    .conditionslength              = 2,
-    .isconditional                 = (2 != 0),
+    .conditionslength              = 1,
+    .isconditional                 = (1 != 0),
     .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
     .validonly                     = NULL,
     .validonlylength               = 0,
@@ -36542,13 +40846,19 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ROUTER_INTERFACE_ATTR_VLAN_ID = 
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_condition_t sai_metadata_condition_SAI_ROUTER_INTERFACE_ATTR_OUTER_VLAN_ID_0 = {
         .attrid = SAI_ROUTER_INTERFACE_ATTR_TYPE,
         .condition = { .s32 = SAI_ROUTER_INTERFACE_TYPE_QINQ_PORT }
 };
+const sai_attr_condition_t sai_metadata_condition_SAI_ROUTER_INTERFACE_ATTR_OUTER_VLAN_ID_1 = {
+        .attrid = SAI_ROUTER_INTERFACE_ATTR_TYPE,
+        .condition = { .s32 = SAI_ROUTER_INTERFACE_TYPE_SUB_PORT }
+};
 const sai_attr_condition_t* const sai_metadata_conditions_SAI_ROUTER_INTERFACE_ATTR_OUTER_VLAN_ID[] = {
     &sai_metadata_condition_SAI_ROUTER_INTERFACE_ATTR_OUTER_VLAN_ID_0,
+    &sai_metadata_condition_SAI_ROUTER_INTERFACE_ATTR_OUTER_VLAN_ID_1,
     NULL
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ROUTER_INTERFACE_ATTR_OUTER_VLAN_ID = {
@@ -36575,8 +40885,8 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ROUTER_INTERFACE_ATTR_OUTER_VLAN
     .enummetadata                  = NULL,
     .conditiontype                 = SAI_ATTR_CONDITION_TYPE_OR,
     .conditions                    = sai_metadata_conditions_SAI_ROUTER_INTERFACE_ATTR_OUTER_VLAN_ID,
-    .conditionslength              = 1,
-    .isconditional                 = (1 != 0),
+    .conditionslength              = 2,
+    .isconditional                 = (2 != 0),
     .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
     .validonly                     = NULL,
     .validonlylength               = 0,
@@ -36595,6 +40905,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ROUTER_INTERFACE_ATTR_OUTER_VLAN
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_condition_t sai_metadata_condition_SAI_ROUTER_INTERFACE_ATTR_INNER_VLAN_ID_0 = {
         .attrid = SAI_ROUTER_INTERFACE_ATTR_TYPE,
@@ -36648,6 +40959,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ROUTER_INTERFACE_ATTR_INNER_VLAN
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_ROUTER_INTERFACE_ATTR_BRIDGE_ID_allowed_objects[] = {
     SAI_OBJECT_TYPE_BRIDGE,
@@ -36705,6 +41017,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ROUTER_INTERFACE_ATTR_BRIDGE_ID 
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ROUTER_INTERFACE_ATTR_SRC_MAC_ADDRESS = {
     .objecttype                    = SAI_OBJECT_TYPE_ROUTER_INTERFACE,
@@ -36750,6 +41063,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ROUTER_INTERFACE_ATTR_SRC_MAC_AD
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ROUTER_INTERFACE_ATTR_ADMIN_V4_STATE_default_value = { .booldata = true };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ROUTER_INTERFACE_ATTR_ADMIN_V4_STATE = {
@@ -36796,6 +41110,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ROUTER_INTERFACE_ATTR_ADMIN_V4_S
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ROUTER_INTERFACE_ATTR_ADMIN_V6_STATE_default_value = { .booldata = true };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ROUTER_INTERFACE_ATTR_ADMIN_V6_STATE = {
@@ -36842,6 +41157,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ROUTER_INTERFACE_ATTR_ADMIN_V6_S
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ROUTER_INTERFACE_ATTR_MTU_default_value = { .u32 = 1514 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ROUTER_INTERFACE_ATTR_MTU = {
@@ -36888,6 +41204,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ROUTER_INTERFACE_ATTR_MTU = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_ROUTER_INTERFACE_ATTR_INGRESS_ACL_allowed_objects[] = {
     SAI_OBJECT_TYPE_ACL_TABLE,
@@ -36939,6 +41256,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ROUTER_INTERFACE_ATTR_INGRESS_AC
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_ROUTER_INTERFACE_ATTR_EGRESS_ACL_allowed_objects[] = {
     SAI_OBJECT_TYPE_ACL_TABLE,
@@ -36990,6 +41308,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ROUTER_INTERFACE_ATTR_EGRESS_ACL
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ROUTER_INTERFACE_ATTR_NEIGHBOR_MISS_PACKET_ACTION_default_value = { .s32 = SAI_PACKET_ACTION_TRAP };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ROUTER_INTERFACE_ATTR_NEIGHBOR_MISS_PACKET_ACTION = {
@@ -37036,6 +41355,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ROUTER_INTERFACE_ATTR_NEIGHBOR_M
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ROUTER_INTERFACE_ATTR_V4_MCAST_ENABLE_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ROUTER_INTERFACE_ATTR_V4_MCAST_ENABLE = {
@@ -37082,6 +41402,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ROUTER_INTERFACE_ATTR_V4_MCAST_E
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ROUTER_INTERFACE_ATTR_V6_MCAST_ENABLE_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ROUTER_INTERFACE_ATTR_V6_MCAST_ENABLE = {
@@ -37128,6 +41449,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ROUTER_INTERFACE_ATTR_V6_MCAST_E
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ROUTER_INTERFACE_ATTR_LOOPBACK_PACKET_ACTION_default_value = { .s32 = SAI_PACKET_ACTION_FORWARD };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ROUTER_INTERFACE_ATTR_LOOPBACK_PACKET_ACTION = {
@@ -37174,6 +41496,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ROUTER_INTERFACE_ATTR_LOOPBACK_P
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_ROUTER_INTERFACE_ATTR_IS_VIRTUAL_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_ROUTER_INTERFACE_ATTR_IS_VIRTUAL = {
@@ -37220,6 +41543,54 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_ROUTER_INTERFACE_ATTR_IS_VIRTUAL
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
+};
+const sai_attribute_value_t sai_metadata_SAI_ROUTER_INTERFACE_ATTR_NAT_ZONE_ID_default_value = { .u8 = 0 };
+const sai_attr_metadata_t sai_metadata_attr_SAI_ROUTER_INTERFACE_ATTR_NAT_ZONE_ID = {
+    .objecttype                    = SAI_OBJECT_TYPE_ROUTER_INTERFACE,
+    .attrid                        = SAI_ROUTER_INTERFACE_ATTR_NAT_ZONE_ID,
+    .attridname                    = "SAI_ROUTER_INTERFACE_ATTR_NAT_ZONE_ID",
+    .brief                         = "NAT Zone ID.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_UINT8,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
+    .defaultvalue                  = &sai_metadata_SAI_ROUTER_INTERFACE_ATTR_NAT_ZONE_ID_default_value,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = false,
+    .iscreateandset                = true,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_RPF_GROUP_ATTR_RPF_INTERFACE_COUNT = {
     .objecttype                    = SAI_OBJECT_TYPE_RPF_GROUP,
@@ -37265,6 +41636,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_RPF_GROUP_ATTR_RPF_INTERFACE_COU
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_RPF_GROUP_ATTR_RPF_MEMBER_LIST_allowed_objects[] = {
     SAI_OBJECT_TYPE_RPF_GROUP_MEMBER,
@@ -37314,6 +41686,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_RPF_GROUP_ATTR_RPF_MEMBER_LIST =
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_RPF_GROUP_MEMBER_ATTR_RPF_GROUP_ID_allowed_objects[] = {
     SAI_OBJECT_TYPE_RPF_GROUP,
@@ -37363,6 +41736,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_RPF_GROUP_MEMBER_ATTR_RPF_GROUP_
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_RPF_GROUP_MEMBER_ATTR_RPF_INTERFACE_ID_allowed_objects[] = {
     SAI_OBJECT_TYPE_ROUTER_INTERFACE,
@@ -37412,6 +41786,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_RPF_GROUP_MEMBER_ATTR_RPF_INTERF
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SAMPLEPACKET_ATTR_SAMPLE_RATE = {
     .objecttype                    = SAI_OBJECT_TYPE_SAMPLEPACKET,
@@ -37457,6 +41832,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SAMPLEPACKET_ATTR_SAMPLE_RATE = 
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_SAMPLEPACKET_ATTR_TYPE_default_value = { .s32 = SAI_SAMPLEPACKET_TYPE_SLOW_PATH };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SAMPLEPACKET_ATTR_TYPE = {
@@ -37503,6 +41879,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SAMPLEPACKET_ATTR_TYPE = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_SAMPLEPACKET_ATTR_MODE_default_value = { .s32 = SAI_SAMPLEPACKET_MODE_EXCLUSIVE };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SAMPLEPACKET_ATTR_MODE = {
@@ -37549,6 +41926,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SAMPLEPACKET_ATTR_MODE = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_SCHEDULER_ATTR_SCHEDULING_TYPE_default_value = { .s32 = SAI_SCHEDULING_TYPE_WRR };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SCHEDULER_ATTR_SCHEDULING_TYPE = {
@@ -37595,6 +41973,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SCHEDULER_ATTR_SCHEDULING_TYPE =
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_SCHEDULER_ATTR_SCHEDULING_WEIGHT_default_value = { .u8 = 1 };
 const sai_attr_condition_t sai_metadata_validonly_SAI_SCHEDULER_ATTR_SCHEDULING_WEIGHT_0 = {
@@ -37649,6 +42028,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SCHEDULER_ATTR_SCHEDULING_WEIGHT
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_SCHEDULER_ATTR_METER_TYPE_default_value = { .s32 = SAI_METER_TYPE_BYTES };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SCHEDULER_ATTR_METER_TYPE = {
@@ -37695,6 +42075,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SCHEDULER_ATTR_METER_TYPE = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_SCHEDULER_ATTR_MIN_BANDWIDTH_RATE_default_value = { .u64 = 0 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SCHEDULER_ATTR_MIN_BANDWIDTH_RATE = {
@@ -37741,6 +42122,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SCHEDULER_ATTR_MIN_BANDWIDTH_RAT
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_SCHEDULER_ATTR_MIN_BANDWIDTH_BURST_RATE_default_value = { .u64 = 0 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SCHEDULER_ATTR_MIN_BANDWIDTH_BURST_RATE = {
@@ -37787,6 +42169,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SCHEDULER_ATTR_MIN_BANDWIDTH_BUR
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_SCHEDULER_ATTR_MAX_BANDWIDTH_RATE_default_value = { .u64 = 0 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SCHEDULER_ATTR_MAX_BANDWIDTH_RATE = {
@@ -37833,6 +42216,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SCHEDULER_ATTR_MAX_BANDWIDTH_RAT
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_SCHEDULER_ATTR_MAX_BANDWIDTH_BURST_RATE_default_value = { .u64 = 0 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SCHEDULER_ATTR_MAX_BANDWIDTH_BURST_RATE = {
@@ -37879,6 +42263,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SCHEDULER_ATTR_MAX_BANDWIDTH_BUR
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SCHEDULER_GROUP_ATTR_CHILD_COUNT = {
     .objecttype                    = SAI_OBJECT_TYPE_SCHEDULER_GROUP,
@@ -37924,6 +42309,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SCHEDULER_GROUP_ATTR_CHILD_COUNT
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_SCHEDULER_GROUP_ATTR_CHILD_LIST_allowed_objects[] = {
     SAI_OBJECT_TYPE_SCHEDULER_GROUP,
@@ -37974,6 +42360,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SCHEDULER_GROUP_ATTR_CHILD_LIST 
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_SCHEDULER_GROUP_ATTR_PORT_ID_allowed_objects[] = {
     SAI_OBJECT_TYPE_PORT,
@@ -38023,6 +42410,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SCHEDULER_GROUP_ATTR_PORT_ID = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SCHEDULER_GROUP_ATTR_LEVEL = {
     .objecttype                    = SAI_OBJECT_TYPE_SCHEDULER_GROUP,
@@ -38068,6 +42456,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SCHEDULER_GROUP_ATTR_LEVEL = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SCHEDULER_GROUP_ATTR_MAX_CHILDS = {
     .objecttype                    = SAI_OBJECT_TYPE_SCHEDULER_GROUP,
@@ -38113,6 +42502,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SCHEDULER_GROUP_ATTR_MAX_CHILDS 
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_SCHEDULER_GROUP_ATTR_SCHEDULER_PROFILE_ID_allowed_objects[] = {
     SAI_OBJECT_TYPE_SCHEDULER,
@@ -38163,6 +42553,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SCHEDULER_GROUP_ATTR_SCHEDULER_P
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_SCHEDULER_GROUP_ATTR_PARENT_NODE_allowed_objects[] = {
     SAI_OBJECT_TYPE_SCHEDULER_GROUP,
@@ -38213,6 +42604,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SCHEDULER_GROUP_ATTR_PARENT_NODE
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SEGMENTROUTE_SIDLIST_ATTR_TYPE = {
     .objecttype                    = SAI_OBJECT_TYPE_SEGMENTROUTE_SIDLIST,
@@ -38258,6 +42650,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SEGMENTROUTE_SIDLIST_ATTR_TYPE =
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SEGMENTROUTE_SIDLIST_ATTR_TLV_LIST = {
     .objecttype                    = SAI_OBJECT_TYPE_SEGMENTROUTE_SIDLIST,
@@ -38303,6 +42696,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SEGMENTROUTE_SIDLIST_ATTR_TLV_LI
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SEGMENTROUTE_SIDLIST_ATTR_SEGMENT_LIST = {
     .objecttype                    = SAI_OBJECT_TYPE_SEGMENTROUTE_SIDLIST,
@@ -38348,6 +42742,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SEGMENTROUTE_SIDLIST_ATTR_SEGMEN
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_STP_ATTR_VLAN_LIST = {
     .objecttype                    = SAI_OBJECT_TYPE_STP,
@@ -38393,6 +42788,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_STP_ATTR_VLAN_LIST = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_STP_ATTR_BRIDGE_ID_allowed_objects[] = {
     SAI_OBJECT_TYPE_BRIDGE,
@@ -38442,6 +42838,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_STP_ATTR_BRIDGE_ID = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_STP_ATTR_PORT_LIST_allowed_objects[] = {
     SAI_OBJECT_TYPE_STP_PORT,
@@ -38491,6 +42888,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_STP_ATTR_PORT_LIST = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_STP_PORT_ATTR_STP_allowed_objects[] = {
     SAI_OBJECT_TYPE_STP,
@@ -38540,6 +42938,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_STP_PORT_ATTR_STP = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_STP_PORT_ATTR_BRIDGE_PORT_allowed_objects[] = {
     SAI_OBJECT_TYPE_BRIDGE_PORT,
@@ -38589,6 +42988,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_STP_PORT_ATTR_BRIDGE_PORT = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_STP_PORT_ATTR_STATE = {
     .objecttype                    = SAI_OBJECT_TYPE_STP_PORT,
@@ -38634,6 +43034,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_STP_PORT_ATTR_STATE = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_NUMBER_OF_ACTIVE_PORTS = {
     .objecttype                    = SAI_OBJECT_TYPE_SWITCH,
@@ -38679,6 +43080,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_NUMBER_OF_ACTIVE_POR
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_MAX_NUMBER_OF_SUPPORTED_PORTS = {
     .objecttype                    = SAI_OBJECT_TYPE_SWITCH,
@@ -38724,6 +43126,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_MAX_NUMBER_OF_SUPPOR
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_SWITCH_ATTR_PORT_LIST_allowed_objects[] = {
     SAI_OBJECT_TYPE_PORT,
@@ -38773,6 +43176,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_PORT_LIST = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_PORT_MAX_MTU = {
     .objecttype                    = SAI_OBJECT_TYPE_SWITCH,
@@ -38818,6 +43222,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_PORT_MAX_MTU = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_SWITCH_ATTR_CPU_PORT_allowed_objects[] = {
     SAI_OBJECT_TYPE_PORT,
@@ -38867,6 +43272,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_CPU_PORT = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_MAX_VIRTUAL_ROUTERS = {
     .objecttype                    = SAI_OBJECT_TYPE_SWITCH,
@@ -38912,6 +43318,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_MAX_VIRTUAL_ROUTERS 
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_FDB_TABLE_SIZE = {
     .objecttype                    = SAI_OBJECT_TYPE_SWITCH,
@@ -38957,6 +43364,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_FDB_TABLE_SIZE = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_L3_NEIGHBOR_TABLE_SIZE = {
     .objecttype                    = SAI_OBJECT_TYPE_SWITCH,
@@ -39002,6 +43410,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_L3_NEIGHBOR_TABLE_SI
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_L3_ROUTE_TABLE_SIZE = {
     .objecttype                    = SAI_OBJECT_TYPE_SWITCH,
@@ -39047,6 +43456,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_L3_ROUTE_TABLE_SIZE 
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_LAG_MEMBERS = {
     .objecttype                    = SAI_OBJECT_TYPE_SWITCH,
@@ -39092,6 +43502,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_LAG_MEMBERS = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_NUMBER_OF_LAGS = {
     .objecttype                    = SAI_OBJECT_TYPE_SWITCH,
@@ -39137,6 +43548,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_NUMBER_OF_LAGS = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_ECMP_MEMBERS = {
     .objecttype                    = SAI_OBJECT_TYPE_SWITCH,
@@ -39182,6 +43594,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_ECMP_MEMBERS = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_NUMBER_OF_ECMP_GROUPS = {
     .objecttype                    = SAI_OBJECT_TYPE_SWITCH,
@@ -39227,6 +43640,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_NUMBER_OF_ECMP_GROUP
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_NUMBER_OF_UNICAST_QUEUES = {
     .objecttype                    = SAI_OBJECT_TYPE_SWITCH,
@@ -39272,6 +43686,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_NUMBER_OF_UNICAST_QU
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_NUMBER_OF_MULTICAST_QUEUES = {
     .objecttype                    = SAI_OBJECT_TYPE_SWITCH,
@@ -39317,6 +43732,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_NUMBER_OF_MULTICAST_
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_NUMBER_OF_QUEUES = {
     .objecttype                    = SAI_OBJECT_TYPE_SWITCH,
@@ -39362,6 +43778,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_NUMBER_OF_QUEUES = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_NUMBER_OF_CPU_QUEUES = {
     .objecttype                    = SAI_OBJECT_TYPE_SWITCH,
@@ -39407,6 +43824,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_NUMBER_OF_CPU_QUEUES
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_ON_LINK_ROUTE_SUPPORTED = {
     .objecttype                    = SAI_OBJECT_TYPE_SWITCH,
@@ -39452,6 +43870,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_ON_LINK_ROUTE_SUPPOR
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_OPER_STATUS = {
     .objecttype                    = SAI_OBJECT_TYPE_SWITCH,
@@ -39497,6 +43916,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_OPER_STATUS = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_MAX_NUMBER_OF_TEMP_SENSORS = {
     .objecttype                    = SAI_OBJECT_TYPE_SWITCH,
@@ -39542,6 +43962,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_MAX_NUMBER_OF_TEMP_S
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_TEMP_LIST = {
     .objecttype                    = SAI_OBJECT_TYPE_SWITCH,
@@ -39587,6 +44008,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_TEMP_LIST = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_MAX_TEMP = {
     .objecttype                    = SAI_OBJECT_TYPE_SWITCH,
@@ -39632,6 +44054,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_MAX_TEMP = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_AVERAGE_TEMP = {
     .objecttype                    = SAI_OBJECT_TYPE_SWITCH,
@@ -39677,6 +44100,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_AVERAGE_TEMP = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_ACL_TABLE_MINIMUM_PRIORITY = {
     .objecttype                    = SAI_OBJECT_TYPE_SWITCH,
@@ -39722,6 +44146,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_ACL_TABLE_MINIMUM_PR
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_ACL_TABLE_MAXIMUM_PRIORITY = {
     .objecttype                    = SAI_OBJECT_TYPE_SWITCH,
@@ -39767,6 +44192,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_ACL_TABLE_MAXIMUM_PR
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_ACL_ENTRY_MINIMUM_PRIORITY = {
     .objecttype                    = SAI_OBJECT_TYPE_SWITCH,
@@ -39812,6 +44238,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_ACL_ENTRY_MINIMUM_PR
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_ACL_ENTRY_MAXIMUM_PRIORITY = {
     .objecttype                    = SAI_OBJECT_TYPE_SWITCH,
@@ -39857,6 +44284,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_ACL_ENTRY_MAXIMUM_PR
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_ACL_TABLE_GROUP_MINIMUM_PRIORITY = {
     .objecttype                    = SAI_OBJECT_TYPE_SWITCH,
@@ -39902,6 +44330,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_ACL_TABLE_GROUP_MINI
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_ACL_TABLE_GROUP_MAXIMUM_PRIORITY = {
     .objecttype                    = SAI_OBJECT_TYPE_SWITCH,
@@ -39947,6 +44376,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_ACL_TABLE_GROUP_MAXI
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_FDB_DST_USER_META_DATA_RANGE = {
     .objecttype                    = SAI_OBJECT_TYPE_SWITCH,
@@ -39992,6 +44422,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_FDB_DST_USER_META_DA
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_ROUTE_DST_USER_META_DATA_RANGE = {
     .objecttype                    = SAI_OBJECT_TYPE_SWITCH,
@@ -40037,6 +44468,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_ROUTE_DST_USER_META_
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_NEIGHBOR_DST_USER_META_DATA_RANGE = {
     .objecttype                    = SAI_OBJECT_TYPE_SWITCH,
@@ -40082,6 +44514,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_NEIGHBOR_DST_USER_ME
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_PORT_USER_META_DATA_RANGE = {
     .objecttype                    = SAI_OBJECT_TYPE_SWITCH,
@@ -40127,6 +44560,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_PORT_USER_META_DATA_
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_VLAN_USER_META_DATA_RANGE = {
     .objecttype                    = SAI_OBJECT_TYPE_SWITCH,
@@ -40172,6 +44606,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_VLAN_USER_META_DATA_
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_ACL_USER_META_DATA_RANGE = {
     .objecttype                    = SAI_OBJECT_TYPE_SWITCH,
@@ -40217,6 +44652,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_ACL_USER_META_DATA_R
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_ACL_USER_TRAP_ID_RANGE = {
     .objecttype                    = SAI_OBJECT_TYPE_SWITCH,
@@ -40262,6 +44698,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_ACL_USER_TRAP_ID_RAN
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_SWITCH_ATTR_DEFAULT_VLAN_ID_allowed_objects[] = {
     SAI_OBJECT_TYPE_VLAN,
@@ -40311,6 +44748,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_DEFAULT_VLAN_ID = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_SWITCH_ATTR_DEFAULT_STP_INST_ID_allowed_objects[] = {
     SAI_OBJECT_TYPE_STP,
@@ -40360,6 +44798,53 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_DEFAULT_STP_INST_ID 
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
+};
+const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_MAX_STP_INSTANCE = {
+    .objecttype                    = SAI_OBJECT_TYPE_SWITCH,
+    .attrid                        = SAI_SWITCH_ATTR_MAX_STP_INSTANCE,
+    .attridname                    = "SAI_SWITCH_ATTR_MAX_STP_INSTANCE",
+    .brief                         = "Max number of STP instances that NPU supports.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_UINT32,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_READ_ONLY),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_NONE,
+    .defaultvalue                  = NULL,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = false,
+    .iscreateandset                = false,
+    .isreadonly                    = true,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_SWITCH_ATTR_DEFAULT_VIRTUAL_ROUTER_ID_allowed_objects[] = {
     SAI_OBJECT_TYPE_VIRTUAL_ROUTER,
@@ -40409,6 +44894,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_DEFAULT_VIRTUAL_ROUT
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_SWITCH_ATTR_DEFAULT_1Q_BRIDGE_ID_allowed_objects[] = {
     SAI_OBJECT_TYPE_BRIDGE,
@@ -40458,6 +44944,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_DEFAULT_1Q_BRIDGE_ID
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_SWITCH_ATTR_INGRESS_ACL_allowed_objects[] = {
     SAI_OBJECT_TYPE_ACL_TABLE,
@@ -40509,6 +44996,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_INGRESS_ACL = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_SWITCH_ATTR_EGRESS_ACL_allowed_objects[] = {
     SAI_OBJECT_TYPE_ACL_TABLE,
@@ -40560,6 +45048,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_EGRESS_ACL = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_QOS_MAX_NUMBER_OF_TRAFFIC_CLASSES = {
     .objecttype                    = SAI_OBJECT_TYPE_SWITCH,
@@ -40605,6 +45094,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_QOS_MAX_NUMBER_OF_TR
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_QOS_MAX_NUMBER_OF_SCHEDULER_GROUP_HIERARCHY_LEVELS = {
     .objecttype                    = SAI_OBJECT_TYPE_SWITCH,
@@ -40650,6 +45140,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_QOS_MAX_NUMBER_OF_SC
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_QOS_MAX_NUMBER_OF_SCHEDULER_GROUPS_PER_HIERARCHY_LEVEL = {
     .objecttype                    = SAI_OBJECT_TYPE_SWITCH,
@@ -40695,6 +45186,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_QOS_MAX_NUMBER_OF_SC
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_QOS_MAX_NUMBER_OF_CHILDS_PER_SCHEDULER_GROUP = {
     .objecttype                    = SAI_OBJECT_TYPE_SWITCH,
@@ -40740,13 +45232,14 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_QOS_MAX_NUMBER_OF_CH
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_TOTAL_BUFFER_SIZE = {
     .objecttype                    = SAI_OBJECT_TYPE_SWITCH,
     .attrid                        = SAI_SWITCH_ATTR_TOTAL_BUFFER_SIZE,
     .attridname                    = "SAI_SWITCH_ATTR_TOTAL_BUFFER_SIZE",
     .brief                         = "Switch total buffer size in KB.",
-    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_UINT32,
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_UINT64,
     .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_READ_ONLY),
     .allowedobjecttypes            = NULL,
     .allowedobjecttypeslength      = 0,
@@ -40785,6 +45278,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_TOTAL_BUFFER_SIZE = 
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_INGRESS_BUFFER_POOL_NUM = {
     .objecttype                    = SAI_OBJECT_TYPE_SWITCH,
@@ -40830,6 +45324,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_INGRESS_BUFFER_POOL_
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_EGRESS_BUFFER_POOL_NUM = {
     .objecttype                    = SAI_OBJECT_TYPE_SWITCH,
@@ -40875,6 +45370,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_EGRESS_BUFFER_POOL_N
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_AVAILABLE_IPV4_ROUTE_ENTRY = {
     .objecttype                    = SAI_OBJECT_TYPE_SWITCH,
@@ -40920,6 +45416,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_AVAILABLE_IPV4_ROUTE
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_AVAILABLE_IPV6_ROUTE_ENTRY = {
     .objecttype                    = SAI_OBJECT_TYPE_SWITCH,
@@ -40965,6 +45462,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_AVAILABLE_IPV6_ROUTE
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_AVAILABLE_IPV4_NEXTHOP_ENTRY = {
     .objecttype                    = SAI_OBJECT_TYPE_SWITCH,
@@ -41010,6 +45508,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_AVAILABLE_IPV4_NEXTH
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_AVAILABLE_IPV6_NEXTHOP_ENTRY = {
     .objecttype                    = SAI_OBJECT_TYPE_SWITCH,
@@ -41055,6 +45554,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_AVAILABLE_IPV6_NEXTH
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_AVAILABLE_IPV4_NEIGHBOR_ENTRY = {
     .objecttype                    = SAI_OBJECT_TYPE_SWITCH,
@@ -41100,6 +45600,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_AVAILABLE_IPV4_NEIGH
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_AVAILABLE_IPV6_NEIGHBOR_ENTRY = {
     .objecttype                    = SAI_OBJECT_TYPE_SWITCH,
@@ -41145,6 +45646,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_AVAILABLE_IPV6_NEIGH
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_AVAILABLE_NEXT_HOP_GROUP_ENTRY = {
     .objecttype                    = SAI_OBJECT_TYPE_SWITCH,
@@ -41190,6 +45692,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_AVAILABLE_NEXT_HOP_G
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_AVAILABLE_NEXT_HOP_GROUP_MEMBER_ENTRY = {
     .objecttype                    = SAI_OBJECT_TYPE_SWITCH,
@@ -41235,6 +45738,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_AVAILABLE_NEXT_HOP_G
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_AVAILABLE_FDB_ENTRY = {
     .objecttype                    = SAI_OBJECT_TYPE_SWITCH,
@@ -41280,6 +45784,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_AVAILABLE_FDB_ENTRY 
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_AVAILABLE_L2MC_ENTRY = {
     .objecttype                    = SAI_OBJECT_TYPE_SWITCH,
@@ -41325,6 +45830,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_AVAILABLE_L2MC_ENTRY
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_AVAILABLE_IPMC_ENTRY = {
     .objecttype                    = SAI_OBJECT_TYPE_SWITCH,
@@ -41370,6 +45876,145 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_AVAILABLE_IPMC_ENTRY
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
+};
+const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_AVAILABLE_SNAT_ENTRY = {
+    .objecttype                    = SAI_OBJECT_TYPE_SWITCH,
+    .attrid                        = SAI_SWITCH_ATTR_AVAILABLE_SNAT_ENTRY,
+    .attridname                    = "SAI_SWITCH_ATTR_AVAILABLE_SNAT_ENTRY",
+    .brief                         = "Available SNAT entries.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_UINT32,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_READ_ONLY),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_NONE,
+    .defaultvalue                  = NULL,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = false,
+    .iscreateandset                = false,
+    .isreadonly                    = true,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+    .isresourcetype                = false,
+};
+const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_AVAILABLE_DNAT_ENTRY = {
+    .objecttype                    = SAI_OBJECT_TYPE_SWITCH,
+    .attrid                        = SAI_SWITCH_ATTR_AVAILABLE_DNAT_ENTRY,
+    .attridname                    = "SAI_SWITCH_ATTR_AVAILABLE_DNAT_ENTRY",
+    .brief                         = "Available DNAT entries.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_UINT32,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_READ_ONLY),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_NONE,
+    .defaultvalue                  = NULL,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = false,
+    .iscreateandset                = false,
+    .isreadonly                    = true,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+    .isresourcetype                = false,
+};
+const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_AVAILABLE_DOUBLE_NAT_ENTRY = {
+    .objecttype                    = SAI_OBJECT_TYPE_SWITCH,
+    .attrid                        = SAI_SWITCH_ATTR_AVAILABLE_DOUBLE_NAT_ENTRY,
+    .attridname                    = "SAI_SWITCH_ATTR_AVAILABLE_DOUBLE_NAT_ENTRY",
+    .brief                         = "Available Double NAT entries.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_UINT32,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_READ_ONLY),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_NONE,
+    .defaultvalue                  = NULL,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = false,
+    .iscreateandset                = false,
+    .isreadonly                    = true,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_AVAILABLE_ACL_TABLE = {
     .objecttype                    = SAI_OBJECT_TYPE_SWITCH,
@@ -41415,6 +46060,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_AVAILABLE_ACL_TABLE 
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_AVAILABLE_ACL_TABLE_GROUP = {
     .objecttype                    = SAI_OBJECT_TYPE_SWITCH,
@@ -41460,6 +46106,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_AVAILABLE_ACL_TABLE_
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_SWITCH_ATTR_DEFAULT_TRAP_GROUP_allowed_objects[] = {
     SAI_OBJECT_TYPE_HOSTIF_TRAP_GROUP,
@@ -41509,6 +46156,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_DEFAULT_TRAP_GROUP =
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_SWITCH_ATTR_ECMP_HASH_allowed_objects[] = {
     SAI_OBJECT_TYPE_HASH,
@@ -41558,6 +46206,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_ECMP_HASH = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_SWITCH_ATTR_LAG_HASH_allowed_objects[] = {
     SAI_OBJECT_TYPE_HASH,
@@ -41607,6 +46256,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_LAG_HASH = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_SWITCH_ATTR_RESTART_WARM_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_RESTART_WARM = {
@@ -41653,6 +46303,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_RESTART_WARM = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_SWITCH_ATTR_WARM_RECOVER_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_WARM_RECOVER = {
@@ -41699,6 +46350,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_WARM_RECOVER = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_RESTART_TYPE = {
     .objecttype                    = SAI_OBJECT_TYPE_SWITCH,
@@ -41744,6 +46396,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_RESTART_TYPE = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_MIN_PLANNED_RESTART_INTERVAL = {
     .objecttype                    = SAI_OBJECT_TYPE_SWITCH,
@@ -41789,6 +46442,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_MIN_PLANNED_RESTART_
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_NV_STORAGE_SIZE = {
     .objecttype                    = SAI_OBJECT_TYPE_SWITCH,
@@ -41834,6 +46488,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_NV_STORAGE_SIZE = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_MAX_ACL_ACTION_COUNT = {
     .objecttype                    = SAI_OBJECT_TYPE_SWITCH,
@@ -41879,6 +46534,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_MAX_ACL_ACTION_COUNT
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_MAX_ACL_RANGE_COUNT = {
     .objecttype                    = SAI_OBJECT_TYPE_SWITCH,
@@ -41924,6 +46580,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_MAX_ACL_RANGE_COUNT 
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_ACL_CAPABILITY = {
     .objecttype                    = SAI_OBJECT_TYPE_SWITCH,
@@ -41969,6 +46626,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_ACL_CAPABILITY = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_MCAST_SNOOPING_CAPABILITY = {
     .objecttype                    = SAI_OBJECT_TYPE_SWITCH,
@@ -42014,6 +46672,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_MCAST_SNOOPING_CAPAB
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_SWITCH_ATTR_SWITCHING_MODE_default_value = { .s32 = SAI_SWITCH_SWITCHING_MODE_STORE_AND_FORWARD };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_SWITCHING_MODE = {
@@ -42060,6 +46719,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_SWITCHING_MODE = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_SWITCH_ATTR_BCAST_CPU_FLOOD_ENABLE_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_BCAST_CPU_FLOOD_ENABLE = {
@@ -42106,6 +46766,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_BCAST_CPU_FLOOD_ENAB
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_SWITCH_ATTR_MCAST_CPU_FLOOD_ENABLE_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_MCAST_CPU_FLOOD_ENABLE = {
@@ -42152,6 +46813,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_MCAST_CPU_FLOOD_ENAB
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_SRC_MAC_ADDRESS = {
     .objecttype                    = SAI_OBJECT_TYPE_SWITCH,
@@ -42197,6 +46859,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_SRC_MAC_ADDRESS = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_SWITCH_ATTR_MAX_LEARNED_ADDRESSES_default_value = { .u32 = 0 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_MAX_LEARNED_ADDRESSES = {
@@ -42243,6 +46906,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_MAX_LEARNED_ADDRESSE
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_SWITCH_ATTR_FDB_AGING_TIME_default_value = { .u32 = 0 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_FDB_AGING_TIME = {
@@ -42289,6 +46953,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_FDB_AGING_TIME = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_SWITCH_ATTR_FDB_UNICAST_MISS_PACKET_ACTION_default_value = { .s32 = SAI_PACKET_ACTION_FORWARD };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_FDB_UNICAST_MISS_PACKET_ACTION = {
@@ -42335,6 +47000,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_FDB_UNICAST_MISS_PAC
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_SWITCH_ATTR_FDB_BROADCAST_MISS_PACKET_ACTION_default_value = { .s32 = SAI_PACKET_ACTION_FORWARD };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_FDB_BROADCAST_MISS_PACKET_ACTION = {
@@ -42381,6 +47047,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_FDB_BROADCAST_MISS_P
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_SWITCH_ATTR_FDB_MULTICAST_MISS_PACKET_ACTION_default_value = { .s32 = SAI_PACKET_ACTION_FORWARD };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_FDB_MULTICAST_MISS_PACKET_ACTION = {
@@ -42427,6 +47094,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_FDB_MULTICAST_MISS_P
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_SWITCH_ATTR_ECMP_DEFAULT_HASH_ALGORITHM_default_value = { .s32 = SAI_HASH_ALGORITHM_CRC };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_ECMP_DEFAULT_HASH_ALGORITHM = {
@@ -42473,6 +47141,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_ECMP_DEFAULT_HASH_AL
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_SWITCH_ATTR_ECMP_DEFAULT_HASH_SEED_default_value = { .u32 = 0 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_ECMP_DEFAULT_HASH_SEED = {
@@ -42519,6 +47188,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_ECMP_DEFAULT_HASH_SE
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_SWITCH_ATTR_ECMP_DEFAULT_SYMMETRIC_HASH_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_ECMP_DEFAULT_SYMMETRIC_HASH = {
@@ -42565,6 +47235,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_ECMP_DEFAULT_SYMMETR
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_SWITCH_ATTR_ECMP_HASH_IPV4_allowed_objects[] = {
     SAI_OBJECT_TYPE_HASH,
@@ -42615,6 +47286,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_ECMP_HASH_IPV4 = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_SWITCH_ATTR_ECMP_HASH_IPV4_IN_IPV4_allowed_objects[] = {
     SAI_OBJECT_TYPE_HASH,
@@ -42665,6 +47337,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_ECMP_HASH_IPV4_IN_IP
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_SWITCH_ATTR_ECMP_HASH_IPV6_allowed_objects[] = {
     SAI_OBJECT_TYPE_HASH,
@@ -42715,6 +47388,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_ECMP_HASH_IPV6 = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_SWITCH_ATTR_LAG_DEFAULT_HASH_ALGORITHM_default_value = { .s32 = SAI_HASH_ALGORITHM_CRC };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_LAG_DEFAULT_HASH_ALGORITHM = {
@@ -42761,6 +47435,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_LAG_DEFAULT_HASH_ALG
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_SWITCH_ATTR_LAG_DEFAULT_HASH_SEED_default_value = { .u32 = 0 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_LAG_DEFAULT_HASH_SEED = {
@@ -42807,6 +47482,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_LAG_DEFAULT_HASH_SEE
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_SWITCH_ATTR_LAG_DEFAULT_SYMMETRIC_HASH_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_LAG_DEFAULT_SYMMETRIC_HASH = {
@@ -42853,6 +47529,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_LAG_DEFAULT_SYMMETRI
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_SWITCH_ATTR_LAG_HASH_IPV4_allowed_objects[] = {
     SAI_OBJECT_TYPE_HASH,
@@ -42903,6 +47580,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_LAG_HASH_IPV4 = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_SWITCH_ATTR_LAG_HASH_IPV4_IN_IPV4_allowed_objects[] = {
     SAI_OBJECT_TYPE_HASH,
@@ -42953,6 +47631,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_LAG_HASH_IPV4_IN_IPV
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_SWITCH_ATTR_LAG_HASH_IPV6_allowed_objects[] = {
     SAI_OBJECT_TYPE_HASH,
@@ -43003,6 +47682,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_LAG_HASH_IPV6 = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_SWITCH_ATTR_COUNTER_REFRESH_INTERVAL_default_value = { .u32 = 1 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_COUNTER_REFRESH_INTERVAL = {
@@ -43049,6 +47729,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_COUNTER_REFRESH_INTE
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_SWITCH_ATTR_QOS_DEFAULT_TC_default_value = { .u8 = 0 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_QOS_DEFAULT_TC = {
@@ -43095,6 +47776,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_QOS_DEFAULT_TC = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_SWITCH_ATTR_QOS_DOT1P_TO_TC_MAP_allowed_objects[] = {
     SAI_OBJECT_TYPE_QOS_MAP,
@@ -43145,6 +47827,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_QOS_DOT1P_TO_TC_MAP 
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_SWITCH_ATTR_QOS_DOT1P_TO_COLOR_MAP_allowed_objects[] = {
     SAI_OBJECT_TYPE_QOS_MAP,
@@ -43195,6 +47878,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_QOS_DOT1P_TO_COLOR_M
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_SWITCH_ATTR_QOS_DSCP_TO_TC_MAP_allowed_objects[] = {
     SAI_OBJECT_TYPE_QOS_MAP,
@@ -43245,6 +47929,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_QOS_DSCP_TO_TC_MAP =
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_SWITCH_ATTR_QOS_DSCP_TO_COLOR_MAP_allowed_objects[] = {
     SAI_OBJECT_TYPE_QOS_MAP,
@@ -43295,6 +47980,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_QOS_DSCP_TO_COLOR_MA
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_SWITCH_ATTR_QOS_TC_TO_QUEUE_MAP_allowed_objects[] = {
     SAI_OBJECT_TYPE_QOS_MAP,
@@ -43345,6 +48031,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_QOS_TC_TO_QUEUE_MAP 
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_SWITCH_ATTR_QOS_TC_AND_COLOR_TO_DOT1P_MAP_allowed_objects[] = {
     SAI_OBJECT_TYPE_QOS_MAP,
@@ -43395,6 +48082,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_QOS_TC_AND_COLOR_TO_
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_SWITCH_ATTR_QOS_TC_AND_COLOR_TO_DSCP_MAP_allowed_objects[] = {
     SAI_OBJECT_TYPE_QOS_MAP,
@@ -43445,6 +48133,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_QOS_TC_AND_COLOR_TO_
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_SWITCH_ATTR_SWITCH_SHELL_ENABLE_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_SWITCH_SHELL_ENABLE = {
@@ -43491,6 +48180,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_SWITCH_SHELL_ENABLE 
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_SWITCH_ATTR_SWITCH_PROFILE_ID_default_value = { .u32 = 0 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_SWITCH_PROFILE_ID = {
@@ -43537,6 +48227,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_SWITCH_PROFILE_ID = 
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_SWITCH_HARDWARE_INFO = {
     .objecttype                    = SAI_OBJECT_TYPE_SWITCH,
@@ -43582,6 +48273,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_SWITCH_HARDWARE_INFO
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_FIRMWARE_PATH_NAME = {
     .objecttype                    = SAI_OBJECT_TYPE_SWITCH,
@@ -43627,6 +48319,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_FIRMWARE_PATH_NAME =
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_INIT_SWITCH = {
     .objecttype                    = SAI_OBJECT_TYPE_SWITCH,
@@ -43672,6 +48365,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_INIT_SWITCH = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_SWITCH_ATTR_SWITCH_STATE_CHANGE_NOTIFY_default_value = { .ptr = NULL };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_SWITCH_STATE_CHANGE_NOTIFY = {
@@ -43718,6 +48412,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_SWITCH_STATE_CHANGE_
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_SWITCH_ATTR_SWITCH_SHUTDOWN_REQUEST_NOTIFY_default_value = { .ptr = NULL };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_SWITCH_SHUTDOWN_REQUEST_NOTIFY = {
@@ -43764,6 +48459,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_SWITCH_SHUTDOWN_REQU
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_SWITCH_ATTR_FDB_EVENT_NOTIFY_default_value = { .ptr = NULL };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_FDB_EVENT_NOTIFY = {
@@ -43810,6 +48506,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_FDB_EVENT_NOTIFY = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_SWITCH_ATTR_PORT_STATE_CHANGE_NOTIFY_default_value = { .ptr = NULL };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_PORT_STATE_CHANGE_NOTIFY = {
@@ -43856,6 +48553,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_PORT_STATE_CHANGE_NO
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_SWITCH_ATTR_PACKET_EVENT_NOTIFY_default_value = { .ptr = NULL };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_PACKET_EVENT_NOTIFY = {
@@ -43902,6 +48600,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_PACKET_EVENT_NOTIFY 
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_SWITCH_ATTR_FAST_API_ENABLE_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_FAST_API_ENABLE = {
@@ -43948,6 +48647,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_FAST_API_ENABLE = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_SWITCH_ATTR_MIRROR_TC_default_value = { .u8 = 255 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_MIRROR_TC = {
@@ -43994,6 +48694,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_MIRROR_TC = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_ACL_STAGE_INGRESS = {
     .objecttype                    = SAI_OBJECT_TYPE_SWITCH,
@@ -44039,6 +48740,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_ACL_STAGE_INGRESS = 
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_ACL_STAGE_EGRESS = {
     .objecttype                    = SAI_OBJECT_TYPE_SWITCH,
@@ -44084,6 +48786,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_ACL_STAGE_EGRESS = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_SEGMENTROUTE_MAX_SID_DEPTH = {
     .objecttype                    = SAI_OBJECT_TYPE_SWITCH,
@@ -44129,6 +48832,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_SEGMENTROUTE_MAX_SID
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_SEGMENTROUTE_TLV_TYPE = {
     .objecttype                    = SAI_OBJECT_TYPE_SWITCH,
@@ -44174,6 +48878,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_SEGMENTROUTE_TLV_TYP
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_QOS_NUM_LOSSLESS_QUEUES = {
     .objecttype                    = SAI_OBJECT_TYPE_SWITCH,
@@ -44219,6 +48924,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_QOS_NUM_LOSSLESS_QUE
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_SWITCH_ATTR_QUEUE_PFC_DEADLOCK_NOTIFY_default_value = { .ptr = NULL };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_QUEUE_PFC_DEADLOCK_NOTIFY = {
@@ -44265,6 +48971,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_QUEUE_PFC_DEADLOCK_N
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_SWITCH_ATTR_PFC_DLR_PACKET_ACTION_default_value = { .s32 = SAI_PACKET_ACTION_DROP };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_PFC_DLR_PACKET_ACTION = {
@@ -44311,6 +49018,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_PFC_DLR_PACKET_ACTIO
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_PFC_TC_DLD_INTERVAL_RANGE = {
     .objecttype                    = SAI_OBJECT_TYPE_SWITCH,
@@ -44356,6 +49064,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_PFC_TC_DLD_INTERVAL_
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_PFC_TC_DLD_INTERVAL = {
     .objecttype                    = SAI_OBJECT_TYPE_SWITCH,
@@ -44401,6 +49110,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_PFC_TC_DLD_INTERVAL 
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_PFC_TC_DLR_INTERVAL_RANGE = {
     .objecttype                    = SAI_OBJECT_TYPE_SWITCH,
@@ -44446,6 +49156,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_PFC_TC_DLR_INTERVAL_
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_PFC_TC_DLR_INTERVAL = {
     .objecttype                    = SAI_OBJECT_TYPE_SWITCH,
@@ -44491,6 +49202,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_PFC_TC_DLR_INTERVAL 
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_SUPPORTED_PROTECTED_OBJECT_TYPE = {
     .objecttype                    = SAI_OBJECT_TYPE_SWITCH,
@@ -44536,6 +49248,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_SUPPORTED_PROTECTED_
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_SWITCH_ATTR_TPID_OUTER_VLAN_default_value = { .u16 = 0x88A8 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_TPID_OUTER_VLAN = {
@@ -44582,6 +49295,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_TPID_OUTER_VLAN = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_SWITCH_ATTR_TPID_INNER_VLAN_default_value = { .u16 = 0x8100 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_TPID_INNER_VLAN = {
@@ -44628,6 +49342,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_TPID_INNER_VLAN = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_SWITCH_ATTR_CRC_CHECK_ENABLE_default_value = { .booldata = true };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_CRC_CHECK_ENABLE = {
@@ -44674,6 +49389,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_CRC_CHECK_ENABLE = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_SWITCH_ATTR_CRC_RECALCULATION_ENABLE_default_value = { .booldata = true };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_CRC_RECALCULATION_ENABLE = {
@@ -44720,6 +49436,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_CRC_RECALCULATION_EN
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_SWITCH_ATTR_BFD_SESSION_STATE_CHANGE_NOTIFY_default_value = { .ptr = NULL };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_BFD_SESSION_STATE_CHANGE_NOTIFY = {
@@ -44766,6 +49483,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_BFD_SESSION_STATE_CH
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_NUMBER_OF_BFD_SESSION = {
     .objecttype                    = SAI_OBJECT_TYPE_SWITCH,
@@ -44811,6 +49529,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_NUMBER_OF_BFD_SESSIO
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_MAX_BFD_SESSION = {
     .objecttype                    = SAI_OBJECT_TYPE_SWITCH,
@@ -44856,6 +49575,99 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_MAX_BFD_SESSION = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
+};
+const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_SUPPORTED_IPV4_BFD_SESSION_OFFLOAD_TYPE = {
+    .objecttype                    = SAI_OBJECT_TYPE_SWITCH,
+    .attrid                        = SAI_SWITCH_ATTR_SUPPORTED_IPV4_BFD_SESSION_OFFLOAD_TYPE,
+    .attridname                    = "SAI_SWITCH_ATTR_SUPPORTED_IPV4_BFD_SESSION_OFFLOAD_TYPE",
+    .brief                         = "List of BFD session offloads that are supported for IPv4.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_INT32_LIST,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_READ_ONLY),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_NONE,
+    .defaultvalue                  = NULL,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = true,
+    .enummetadata                  = &sai_metadata_enum_sai_bfd_session_offload_type_t,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = false,
+    .iscreateandset                = false,
+    .isreadonly                    = true,
+    .iskey                         = false,
+    .isprimitive                   = false,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+    .isresourcetype                = false,
+};
+const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_SUPPORTED_IPV6_BFD_SESSION_OFFLOAD_TYPE = {
+    .objecttype                    = SAI_OBJECT_TYPE_SWITCH,
+    .attrid                        = SAI_SWITCH_ATTR_SUPPORTED_IPV6_BFD_SESSION_OFFLOAD_TYPE,
+    .attridname                    = "SAI_SWITCH_ATTR_SUPPORTED_IPV6_BFD_SESSION_OFFLOAD_TYPE",
+    .brief                         = "List of BFD session offloads that are supported for IPv6.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_INT32_LIST,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_READ_ONLY),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_NONE,
+    .defaultvalue                  = NULL,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = true,
+    .enummetadata                  = &sai_metadata_enum_sai_bfd_session_offload_type_t,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = false,
+    .iscreateandset                = false,
+    .isreadonly                    = true,
+    .iskey                         = false,
+    .isprimitive                   = false,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_MIN_BFD_RX = {
     .objecttype                    = SAI_OBJECT_TYPE_SWITCH,
@@ -44901,6 +49713,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_MIN_BFD_RX = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_MIN_BFD_TX = {
     .objecttype                    = SAI_OBJECT_TYPE_SWITCH,
@@ -44946,6 +49759,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_MIN_BFD_TX = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_SWITCH_ATTR_ECN_ECT_THRESHOLD_ENABLE_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_ECN_ECT_THRESHOLD_ENABLE = {
@@ -44992,6 +49806,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_ECN_ECT_THRESHOLD_EN
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_VXLAN_DEFAULT_ROUTER_MAC = {
     .objecttype                    = SAI_OBJECT_TYPE_SWITCH,
@@ -45037,6 +49852,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_VXLAN_DEFAULT_ROUTER
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_SWITCH_ATTR_VXLAN_DEFAULT_PORT_default_value = { .u16 = 4789 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_VXLAN_DEFAULT_PORT = {
@@ -45083,6 +49899,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_VXLAN_DEFAULT_PORT =
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_MAX_MIRROR_SESSION = {
     .objecttype                    = SAI_OBJECT_TYPE_SWITCH,
@@ -45128,6 +49945,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_MAX_MIRROR_SESSION =
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_MAX_SAMPLED_MIRROR_SESSION = {
     .objecttype                    = SAI_OBJECT_TYPE_SWITCH,
@@ -45173,6 +49991,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_MAX_SAMPLED_MIRROR_S
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_SUPPORTED_EXTENDED_STATS_MODE = {
     .objecttype                    = SAI_OBJECT_TYPE_SWITCH,
@@ -45218,6 +50037,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_SUPPORTED_EXTENDED_S
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_SWITCH_ATTR_UNINIT_DATA_PLANE_ON_REMOVAL_default_value = { .booldata = true };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_UNINIT_DATA_PLANE_ON_REMOVAL = {
@@ -45264,28 +50084,28 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_UNINIT_DATA_PLANE_ON
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_SWITCH_ATTR_TAM_OBJECT_ID_allowed_objects[] = {
     SAI_OBJECT_TYPE_TAM,
     -1
 };
-const sai_attribute_value_t sai_metadata_SAI_SWITCH_ATTR_TAM_OBJECT_ID_default_value = { .oid = SAI_NULL_OBJECT_ID };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_TAM_OBJECT_ID = {
     .objecttype                    = SAI_OBJECT_TYPE_SWITCH,
     .attrid                        = SAI_SWITCH_ATTR_TAM_OBJECT_ID,
     .attridname                    = "SAI_SWITCH_ATTR_TAM_OBJECT_ID",
     .brief                         = "TAM bind point.",
-    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_OBJECT_ID,
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_OBJECT_LIST,
     .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
     .allowedobjecttypes            = sai_metadata_SAI_SWITCH_ATTR_TAM_OBJECT_ID_allowed_objects,
     .allowedobjecttypeslength      = 1,
     .allowrepetitiononlist         = false,
     .allowmixedobjecttypes         = false,
     .allowemptylist                = false,
-    .allownullobjectid             = true,
+    .allownullobjectid             = false,
     .isoidattribute                = (1 > 0),
-    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
-    .defaultvalue                  = &sai_metadata_SAI_SWITCH_ATTR_TAM_OBJECT_ID_default_value,
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_EMPTY_LIST,
+    .defaultvalue                  = NULL,
     .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
     .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
     .storedefaultvalue             = false,
@@ -45309,11 +50129,12 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_TAM_OBJECT_ID = {
     .iscreateandset                = true,
     .isreadonly                    = false,
     .iskey                         = false,
-    .isprimitive                   = true,
+    .isprimitive                   = false,
     .notificationtype              = -1,
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_SWITCH_ATTR_TAM_EVENT_NOTIFY_default_value = { .ptr = NULL };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_TAM_EVENT_NOTIFY = {
@@ -45360,6 +50181,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_TAM_EVENT_NOTIFY = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_SWITCH_ATTR_PRE_SHUTDOWN_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_PRE_SHUTDOWN = {
@@ -45406,6 +50228,105 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_PRE_SHUTDOWN = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
+};
+const sai_object_type_t sai_metadata_SAI_SWITCH_ATTR_NAT_ZONE_COUNTER_OBJECT_ID_allowed_objects[] = {
+    SAI_OBJECT_TYPE_NAT_ZONE_COUNTER,
+    -1
+};
+const sai_attribute_value_t sai_metadata_SAI_SWITCH_ATTR_NAT_ZONE_COUNTER_OBJECT_ID_default_value = { .oid = SAI_NULL_OBJECT_ID };
+const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_NAT_ZONE_COUNTER_OBJECT_ID = {
+    .objecttype                    = SAI_OBJECT_TYPE_SWITCH,
+    .attrid                        = SAI_SWITCH_ATTR_NAT_ZONE_COUNTER_OBJECT_ID,
+    .attridname                    = "SAI_SWITCH_ATTR_NAT_ZONE_COUNTER_OBJECT_ID",
+    .brief                         = "NAT zone counter bind point.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_OBJECT_ID,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
+    .allowedobjecttypes            = sai_metadata_SAI_SWITCH_ATTR_NAT_ZONE_COUNTER_OBJECT_ID_allowed_objects,
+    .allowedobjecttypeslength      = 1,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = true,
+    .isoidattribute                = (1 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
+    .defaultvalue                  = &sai_metadata_SAI_SWITCH_ATTR_NAT_ZONE_COUNTER_OBJECT_ID_default_value,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = false,
+    .iscreateandset                = true,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+    .isresourcetype                = false,
+};
+const sai_attribute_value_t sai_metadata_SAI_SWITCH_ATTR_NAT_ENABLE_default_value = { .booldata = false };
+const sai_attr_metadata_t sai_metadata_attr_SAI_SWITCH_ATTR_NAT_ENABLE = {
+    .objecttype                    = SAI_OBJECT_TYPE_SWITCH,
+    .attrid                        = SAI_SWITCH_ATTR_NAT_ENABLE,
+    .attridname                    = "SAI_SWITCH_ATTR_NAT_ENABLE",
+    .brief                         = "Enable NAT function.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_BOOL,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
+    .defaultvalue                  = &sai_metadata_SAI_SWITCH_ATTR_NAT_ENABLE_default_value,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = false,
+    .iscreateandset                = true,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_TABLE_BITMAP_CLASSIFICATION_ENTRY_ATTR_ACTION = {
     .objecttype                    = SAI_OBJECT_TYPE_TABLE_BITMAP_CLASSIFICATION_ENTRY,
@@ -45451,6 +50372,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TABLE_BITMAP_CLASSIFICATION_ENTR
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_TABLE_BITMAP_CLASSIFICATION_ENTRY_ATTR_ROUTER_INTERFACE_KEY_allowed_objects[] = {
     SAI_OBJECT_TYPE_ROUTER_INTERFACE,
@@ -45500,6 +50422,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TABLE_BITMAP_CLASSIFICATION_ENTR
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_TABLE_BITMAP_CLASSIFICATION_ENTRY_ATTR_IS_DEFAULT_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_TABLE_BITMAP_CLASSIFICATION_ENTRY_ATTR_IS_DEFAULT = {
@@ -45546,6 +50469,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TABLE_BITMAP_CLASSIFICATION_ENTR
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_condition_t sai_metadata_condition_SAI_TABLE_BITMAP_CLASSIFICATION_ENTRY_ATTR_IN_RIF_METADATA_0 = {
         .attrid = SAI_TABLE_BITMAP_CLASSIFICATION_ENTRY_ATTR_ACTION,
@@ -45599,6 +50523,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TABLE_BITMAP_CLASSIFICATION_ENTR
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_TABLE_BITMAP_ROUTER_ENTRY_ATTR_ACTION = {
     .objecttype                    = SAI_OBJECT_TYPE_TABLE_BITMAP_ROUTER_ENTRY,
@@ -45644,6 +50569,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TABLE_BITMAP_ROUTER_ENTRY_ATTR_A
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_TABLE_BITMAP_ROUTER_ENTRY_ATTR_PRIORITY = {
     .objecttype                    = SAI_OBJECT_TYPE_TABLE_BITMAP_ROUTER_ENTRY,
@@ -45689,6 +50615,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TABLE_BITMAP_ROUTER_ENTRY_ATTR_P
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_TABLE_BITMAP_ROUTER_ENTRY_ATTR_IN_RIF_METADATA_KEY = {
     .objecttype                    = SAI_OBJECT_TYPE_TABLE_BITMAP_ROUTER_ENTRY,
@@ -45734,6 +50661,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TABLE_BITMAP_ROUTER_ENTRY_ATTR_I
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_TABLE_BITMAP_ROUTER_ENTRY_ATTR_IN_RIF_METADATA_MASK = {
     .objecttype                    = SAI_OBJECT_TYPE_TABLE_BITMAP_ROUTER_ENTRY,
@@ -45779,6 +50707,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TABLE_BITMAP_ROUTER_ENTRY_ATTR_I
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_TABLE_BITMAP_ROUTER_ENTRY_ATTR_DST_IP_KEY = {
     .objecttype                    = SAI_OBJECT_TYPE_TABLE_BITMAP_ROUTER_ENTRY,
@@ -45824,6 +50753,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TABLE_BITMAP_ROUTER_ENTRY_ATTR_D
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_condition_t sai_metadata_condition_SAI_TABLE_BITMAP_ROUTER_ENTRY_ATTR_TUNNEL_INDEX_0 = {
         .attrid = SAI_TABLE_BITMAP_ROUTER_ENTRY_ATTR_ACTION,
@@ -45877,6 +50807,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TABLE_BITMAP_ROUTER_ENTRY_ATTR_T
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_TABLE_BITMAP_ROUTER_ENTRY_ATTR_NEXT_HOP_allowed_objects[] = {
     SAI_OBJECT_TYPE_NEXT_HOP,
@@ -45934,6 +50865,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TABLE_BITMAP_ROUTER_ENTRY_ATTR_N
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_TABLE_BITMAP_ROUTER_ENTRY_ATTR_ROUTER_INTERFACE_allowed_objects[] = {
     SAI_OBJECT_TYPE_ROUTER_INTERFACE,
@@ -45991,6 +50923,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TABLE_BITMAP_ROUTER_ENTRY_ATTR_R
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_TABLE_BITMAP_ROUTER_ENTRY_ATTR_TRAP_ID_allowed_objects[] = {
     SAI_OBJECT_TYPE_HOSTIF_TRAP,
@@ -46048,6 +50981,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TABLE_BITMAP_ROUTER_ENTRY_ATTR_T
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_TABLE_META_TUNNEL_ENTRY_ATTR_ACTION = {
     .objecttype                    = SAI_OBJECT_TYPE_TABLE_META_TUNNEL_ENTRY,
@@ -46093,6 +51027,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TABLE_META_TUNNEL_ENTRY_ATTR_ACT
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_TABLE_META_TUNNEL_ENTRY_ATTR_METADATA_KEY = {
     .objecttype                    = SAI_OBJECT_TYPE_TABLE_META_TUNNEL_ENTRY,
@@ -46138,6 +51073,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TABLE_META_TUNNEL_ENTRY_ATTR_MET
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_TABLE_META_TUNNEL_ENTRY_ATTR_IS_DEFAULT_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_TABLE_META_TUNNEL_ENTRY_ATTR_IS_DEFAULT = {
@@ -46184,6 +51120,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TABLE_META_TUNNEL_ENTRY_ATTR_IS_
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_TABLE_META_TUNNEL_ENTRY_ATTR_TUNNEL_ID_allowed_objects[] = {
     SAI_OBJECT_TYPE_TUNNEL,
@@ -46241,6 +51178,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TABLE_META_TUNNEL_ENTRY_ATTR_TUN
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_condition_t sai_metadata_condition_SAI_TABLE_META_TUNNEL_ENTRY_ATTR_UNDERLAY_DIP_0 = {
         .attrid = SAI_TABLE_META_TUNNEL_ENTRY_ATTR_ACTION,
@@ -46294,6 +51232,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TABLE_META_TUNNEL_ENTRY_ATTR_UND
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_TAM_ATTR_TELEMETRY_OBJECTS_LIST_allowed_objects[] = {
     SAI_OBJECT_TYPE_TAM_TELEMETRY,
@@ -46343,6 +51282,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_ATTR_TELEMETRY_OBJECTS_LIST 
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_TAM_ATTR_EVENT_OBJECTS_LIST_allowed_objects[] = {
     SAI_OBJECT_TYPE_TAM_EVENT,
@@ -46392,6 +51332,57 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_ATTR_EVENT_OBJECTS_LIST = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
+};
+const sai_object_type_t sai_metadata_SAI_TAM_ATTR_INT_OBJECTS_LIST_allowed_objects[] = {
+    SAI_OBJECT_TYPE_TAM_INT,
+    -1
+};
+const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_ATTR_INT_OBJECTS_LIST = {
+    .objecttype                    = SAI_OBJECT_TYPE_TAM,
+    .attrid                        = SAI_TAM_ATTR_INT_OBJECTS_LIST,
+    .attridname                    = "SAI_TAM_ATTR_INT_OBJECTS_LIST",
+    .brief                         = "Tam INT objects associated with this tam.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_OBJECT_LIST,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
+    .allowedobjecttypes            = sai_metadata_SAI_TAM_ATTR_INT_OBJECTS_LIST_allowed_objects,
+    .allowedobjecttypeslength      = 1,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (1 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_EMPTY_LIST,
+    .defaultvalue                  = NULL,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = false,
+    .iscreateandset                = true,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = false,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_ATTR_TAM_BIND_POINT_TYPE_LIST = {
     .objecttype                    = SAI_OBJECT_TYPE_TAM,
@@ -46437,6 +51428,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_ATTR_TAM_BIND_POINT_TYPE_LIS
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_COLLECTOR_ATTR_SRC_IP = {
     .objecttype                    = SAI_OBJECT_TYPE_TAM_COLLECTOR,
@@ -46482,6 +51474,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_COLLECTOR_ATTR_SRC_IP = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_COLLECTOR_ATTR_DST_IP = {
     .objecttype                    = SAI_OBJECT_TYPE_TAM_COLLECTOR,
@@ -46527,6 +51520,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_COLLECTOR_ATTR_DST_IP = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_TAM_COLLECTOR_ATTR_LOCALHOST_default_value = { .booldata = true };
 const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_COLLECTOR_ATTR_LOCALHOST = {
@@ -46573,6 +51567,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_COLLECTOR_ATTR_LOCALHOST = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_TAM_COLLECTOR_ATTR_VIRTUAL_ROUTER_ID_allowed_objects[] = {
     SAI_OBJECT_TYPE_VIRTUAL_ROUTER,
@@ -46623,6 +51618,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_COLLECTOR_ATTR_VIRTUAL_ROUTE
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_TAM_COLLECTOR_ATTR_TRUNCATE_SIZE_default_value = { .u16 = 0 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_COLLECTOR_ATTR_TRUNCATE_SIZE = {
@@ -46669,6 +51665,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_COLLECTOR_ATTR_TRUNCATE_SIZE
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_TAM_COLLECTOR_ATTR_TRANSPORT_allowed_objects[] = {
     SAI_OBJECT_TYPE_TAM_TRANSPORT,
@@ -46718,6 +51715,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_COLLECTOR_ATTR_TRANSPORT = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_COLLECTOR_ATTR_DSCP_VALUE = {
     .objecttype                    = SAI_OBJECT_TYPE_TAM_COLLECTOR,
@@ -46763,6 +51761,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_COLLECTOR_ATTR_DSCP_VALUE = 
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_TAM_EVENT_ACTION_ATTR_REPORT_TYPE_allowed_objects[] = {
     SAI_OBJECT_TYPE_TAM_REPORT,
@@ -46812,6 +51811,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_EVENT_ACTION_ATTR_REPORT_TYP
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_TAM_EVENT_ACTION_ATTR_QOS_ACTION_TYPE_default_value = { .u32 = 0 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_EVENT_ACTION_ATTR_QOS_ACTION_TYPE = {
@@ -46858,6 +51858,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_EVENT_ACTION_ATTR_QOS_ACTION
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_EVENT_ATTR_TYPE = {
     .objecttype                    = SAI_OBJECT_TYPE_TAM_EVENT,
@@ -46903,6 +51904,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_EVENT_ATTR_TYPE = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_TAM_EVENT_ATTR_ACTION_LIST_allowed_objects[] = {
     SAI_OBJECT_TYPE_TAM_EVENT_ACTION,
@@ -46952,6 +51954,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_EVENT_ATTR_ACTION_LIST = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_TAM_EVENT_ATTR_COLLECTOR_LIST_allowed_objects[] = {
     SAI_OBJECT_TYPE_TAM_COLLECTOR,
@@ -47001,6 +52004,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_EVENT_ATTR_COLLECTOR_LIST = 
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_TAM_EVENT_ATTR_THRESHOLD_allowed_objects[] = {
     SAI_OBJECT_TYPE_TAM_EVENT_THRESHOLD,
@@ -47051,6 +52055,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_EVENT_ATTR_THRESHOLD = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_TAM_EVENT_ATTR_DSCP_VALUE_default_value = { .u8 = 0 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_EVENT_ATTR_DSCP_VALUE = {
@@ -47097,6 +52102,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_EVENT_ATTR_DSCP_VALUE = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_TAM_EVENT_THRESHOLD_ATTR_HIGH_WATERMARK_default_value = { .u32 = 90 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_EVENT_THRESHOLD_ATTR_HIGH_WATERMARK = {
@@ -47143,6 +52149,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_EVENT_THRESHOLD_ATTR_HIGH_WA
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_TAM_EVENT_THRESHOLD_ATTR_LOW_WATERMARK_default_value = { .u32 = 10 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_EVENT_THRESHOLD_ATTR_LOW_WATERMARK = {
@@ -47189,6 +52196,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_EVENT_THRESHOLD_ATTR_LOW_WAT
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_TAM_EVENT_THRESHOLD_ATTR_LATENCY_default_value = { .u32 = 10 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_EVENT_THRESHOLD_ATTR_LATENCY = {
@@ -47235,6 +52243,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_EVENT_THRESHOLD_ATTR_LATENCY
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_TAM_EVENT_THRESHOLD_ATTR_RATE_default_value = { .u32 = 0 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_EVENT_THRESHOLD_ATTR_RATE = {
@@ -47281,6 +52290,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_EVENT_THRESHOLD_ATTR_RATE = 
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_TAM_EVENT_THRESHOLD_ATTR_ABS_VALUE_default_value = { .u32 = 0 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_EVENT_THRESHOLD_ATTR_ABS_VALUE = {
@@ -47327,6 +52337,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_EVENT_THRESHOLD_ATTR_ABS_VAL
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_TAM_EVENT_THRESHOLD_ATTR_UNIT_default_value = { .s32 = SAI_TAM_EVENT_THRESHOLD_UNIT_MSEC };
 const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_EVENT_THRESHOLD_ATTR_UNIT = {
@@ -47373,6 +52384,1225 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_EVENT_THRESHOLD_ATTR_UNIT = 
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
+};
+const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_INT_ATTR_TYPE = {
+    .objecttype                    = SAI_OBJECT_TYPE_TAM_INT,
+    .attrid                        = SAI_TAM_INT_ATTR_TYPE,
+    .attridname                    = "SAI_TAM_INT_ATTR_TYPE",
+    .brief                         = "Type of INT method.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_INT32,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_MANDATORY_ON_CREATE|SAI_ATTR_FLAGS_CREATE_ONLY),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_NONE,
+    .defaultvalue                  = NULL,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = true,
+    .isenumlist                    = false,
+    .enummetadata                  = &sai_metadata_enum_sai_tam_int_type_t,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = true,
+    .iscreateonly                  = true,
+    .iscreateandset                = false,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+    .isresourcetype                = false,
+};
+const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_INT_ATTR_DEVICE_ID = {
+    .objecttype                    = SAI_OBJECT_TYPE_TAM_INT,
+    .attrid                        = SAI_TAM_INT_ATTR_DEVICE_ID,
+    .attridname                    = "SAI_TAM_INT_ATTR_DEVICE_ID",
+    .brief                         = "Device Identifier.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_UINT32,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_MANDATORY_ON_CREATE|SAI_ATTR_FLAGS_CREATE_ONLY),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_NONE,
+    .defaultvalue                  = NULL,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = true,
+    .iscreateonly                  = true,
+    .iscreateandset                = false,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+    .isresourcetype                = false,
+};
+const sai_attribute_value_t sai_metadata_SAI_TAM_INT_ATTR_IOAM_TRACE_TYPE_default_value = { .u32 = 0 };
+const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_INT_ATTR_IOAM_TRACE_TYPE = {
+    .objecttype                    = SAI_OBJECT_TYPE_TAM_INT,
+    .attrid                        = SAI_TAM_INT_ATTR_IOAM_TRACE_TYPE,
+    .attridname                    = "SAI_TAM_INT_ATTR_IOAM_TRACE_TYPE",
+    .brief                         = "IOAM trace type.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_UINT32,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
+    .defaultvalue                  = &sai_metadata_SAI_TAM_INT_ATTR_IOAM_TRACE_TYPE_default_value,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = false,
+    .iscreateandset                = true,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+    .isresourcetype                = false,
+};
+const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_INT_ATTR_INT_PRESENCE_TYPE = {
+    .objecttype                    = SAI_OBJECT_TYPE_TAM_INT,
+    .attrid                        = SAI_TAM_INT_ATTR_INT_PRESENCE_TYPE,
+    .attridname                    = "SAI_TAM_INT_ATTR_INT_PRESENCE_TYPE",
+    .brief                         = "Type of indication of INT presence in a packet.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_INT32,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_MANDATORY_ON_CREATE|SAI_ATTR_FLAGS_CREATE_ONLY),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_NONE,
+    .defaultvalue                  = NULL,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = true,
+    .isenumlist                    = false,
+    .enummetadata                  = &sai_metadata_enum_sai_tam_int_presence_type_t,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = true,
+    .iscreateonly                  = true,
+    .iscreateandset                = false,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+    .isresourcetype                = false,
+};
+const sai_attr_condition_t sai_metadata_condition_SAI_TAM_INT_ATTR_INT_PRESENCE_PB1_0 = {
+        .attrid = SAI_TAM_INT_ATTR_INT_PRESENCE_TYPE,
+        .condition = { .s32 = SAI_TAM_INT_PRESENCE_TYPE_PB }
+};
+const sai_attr_condition_t* const sai_metadata_conditions_SAI_TAM_INT_ATTR_INT_PRESENCE_PB1[] = {
+    &sai_metadata_condition_SAI_TAM_INT_ATTR_INT_PRESENCE_PB1_0,
+    NULL
+};
+const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_INT_ATTR_INT_PRESENCE_PB1 = {
+    .objecttype                    = SAI_OBJECT_TYPE_TAM_INT,
+    .attrid                        = SAI_TAM_INT_ATTR_INT_PRESENCE_PB1,
+    .attridname                    = "SAI_TAM_INT_ATTR_INT_PRESENCE_PB1",
+    .brief                         = "First 4 octets of Probe Marker value that indicates INT presence.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_UINT32,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_MANDATORY_ON_CREATE|SAI_ATTR_FLAGS_CREATE_ONLY),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_NONE,
+    .defaultvalue                  = NULL,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_OR,
+    .conditions                    = sai_metadata_conditions_SAI_TAM_INT_ATTR_INT_PRESENCE_PB1,
+    .conditionslength              = 1,
+    .isconditional                 = (1 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = true,
+    .iscreateonly                  = true,
+    .iscreateandset                = false,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+    .isresourcetype                = false,
+};
+const sai_attr_condition_t sai_metadata_condition_SAI_TAM_INT_ATTR_INT_PRESENCE_PB2_0 = {
+        .attrid = SAI_TAM_INT_ATTR_INT_PRESENCE_TYPE,
+        .condition = { .s32 = SAI_TAM_INT_PRESENCE_TYPE_PB }
+};
+const sai_attr_condition_t* const sai_metadata_conditions_SAI_TAM_INT_ATTR_INT_PRESENCE_PB2[] = {
+    &sai_metadata_condition_SAI_TAM_INT_ATTR_INT_PRESENCE_PB2_0,
+    NULL
+};
+const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_INT_ATTR_INT_PRESENCE_PB2 = {
+    .objecttype                    = SAI_OBJECT_TYPE_TAM_INT,
+    .attrid                        = SAI_TAM_INT_ATTR_INT_PRESENCE_PB2,
+    .attridname                    = "SAI_TAM_INT_ATTR_INT_PRESENCE_PB2",
+    .brief                         = "Second 4 octets of Probe Marker value that indicates INT presence.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_UINT32,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_MANDATORY_ON_CREATE|SAI_ATTR_FLAGS_CREATE_ONLY),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_NONE,
+    .defaultvalue                  = NULL,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_OR,
+    .conditions                    = sai_metadata_conditions_SAI_TAM_INT_ATTR_INT_PRESENCE_PB2,
+    .conditionslength              = 1,
+    .isconditional                 = (1 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = true,
+    .iscreateonly                  = true,
+    .iscreateandset                = false,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+    .isresourcetype                = false,
+};
+const sai_attr_condition_t sai_metadata_condition_SAI_TAM_INT_ATTR_INT_PRESENCE_DSCP_VALUE_0 = {
+        .attrid = SAI_TAM_INT_ATTR_INT_PRESENCE_TYPE,
+        .condition = { .s32 = SAI_TAM_INT_PRESENCE_TYPE_DSCP }
+};
+const sai_attr_condition_t* const sai_metadata_conditions_SAI_TAM_INT_ATTR_INT_PRESENCE_DSCP_VALUE[] = {
+    &sai_metadata_condition_SAI_TAM_INT_ATTR_INT_PRESENCE_DSCP_VALUE_0,
+    NULL
+};
+const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_INT_ATTR_INT_PRESENCE_DSCP_VALUE = {
+    .objecttype                    = SAI_OBJECT_TYPE_TAM_INT,
+    .attrid                        = SAI_TAM_INT_ATTR_INT_PRESENCE_DSCP_VALUE,
+    .attridname                    = "SAI_TAM_INT_ATTR_INT_PRESENCE_DSCP_VALUE",
+    .brief                         = "DSCP value that indicates presence of INT in a packet.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_UINT8,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_MANDATORY_ON_CREATE|SAI_ATTR_FLAGS_CREATE_ONLY),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_NONE,
+    .defaultvalue                  = NULL,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_OR,
+    .conditions                    = sai_metadata_conditions_SAI_TAM_INT_ATTR_INT_PRESENCE_DSCP_VALUE,
+    .conditionslength              = 1,
+    .isconditional                 = (1 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = true,
+    .iscreateonly                  = true,
+    .iscreateandset                = false,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+    .isresourcetype                = false,
+};
+const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_INT_ATTR_INLINE = {
+    .objecttype                    = SAI_OBJECT_TYPE_TAM_INT,
+    .attrid                        = SAI_TAM_INT_ATTR_INLINE,
+    .attridname                    = "SAI_TAM_INT_ATTR_INLINE",
+    .brief                         = "Inline or Clone mode Inline mode will insert header and metadata in live packet Clone mode will insert header and metadata in cloned packet.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_BOOL,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_MANDATORY_ON_CREATE|SAI_ATTR_FLAGS_CREATE_ONLY),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_NONE,
+    .defaultvalue                  = NULL,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = true,
+    .iscreateonly                  = true,
+    .iscreateandset                = false,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+    .isresourcetype                = false,
+};
+const sai_attr_condition_t sai_metadata_condition_SAI_TAM_INT_ATTR_INT_PRESENCE_L3_PROTOCOL_0 = {
+        .attrid = SAI_TAM_INT_ATTR_INT_PRESENCE_TYPE,
+        .condition = { .s32 = SAI_TAM_INT_PRESENCE_TYPE_L3_PROTOCOL }
+};
+const sai_attr_condition_t* const sai_metadata_conditions_SAI_TAM_INT_ATTR_INT_PRESENCE_L3_PROTOCOL[] = {
+    &sai_metadata_condition_SAI_TAM_INT_ATTR_INT_PRESENCE_L3_PROTOCOL_0,
+    NULL
+};
+const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_INT_ATTR_INT_PRESENCE_L3_PROTOCOL = {
+    .objecttype                    = SAI_OBJECT_TYPE_TAM_INT,
+    .attrid                        = SAI_TAM_INT_ATTR_INT_PRESENCE_L3_PROTOCOL,
+    .attridname                    = "SAI_TAM_INT_ATTR_INT_PRESENCE_L3_PROTOCOL",
+    .brief                         = "L3 protocol value that indicates presence of INT in a packet.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_UINT8,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_MANDATORY_ON_CREATE|SAI_ATTR_FLAGS_CREATE_ONLY),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_NONE,
+    .defaultvalue                  = NULL,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_OR,
+    .conditions                    = sai_metadata_conditions_SAI_TAM_INT_ATTR_INT_PRESENCE_L3_PROTOCOL,
+    .conditionslength              = 1,
+    .isconditional                 = (1 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = true,
+    .iscreateonly                  = true,
+    .iscreateandset                = false,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+    .isresourcetype                = false,
+};
+const sai_attribute_value_t sai_metadata_SAI_TAM_INT_ATTR_TRACE_VECTOR_default_value = { .u16 = 0 };
+const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_INT_ATTR_TRACE_VECTOR = {
+    .objecttype                    = SAI_OBJECT_TYPE_TAM_INT,
+    .attrid                        = SAI_TAM_INT_ATTR_TRACE_VECTOR,
+    .attridname                    = "SAI_TAM_INT_ATTR_TRACE_VECTOR",
+    .brief                         = "Trace vector value trace vector is used to specified the fields of interest in metadata header.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_UINT16,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
+    .defaultvalue                  = &sai_metadata_SAI_TAM_INT_ATTR_TRACE_VECTOR_default_value,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = false,
+    .iscreateandset                = true,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+    .isresourcetype                = false,
+};
+const sai_attribute_value_t sai_metadata_SAI_TAM_INT_ATTR_ACTION_VECTOR_default_value = { .u16 = 0 };
+const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_INT_ATTR_ACTION_VECTOR = {
+    .objecttype                    = SAI_OBJECT_TYPE_TAM_INT,
+    .attrid                        = SAI_TAM_INT_ATTR_ACTION_VECTOR,
+    .attridname                    = "SAI_TAM_INT_ATTR_ACTION_VECTOR",
+    .brief                         = "Action vector value action vector is used to specified the actions of interest on metadata header value of 0 means no actions of interest.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_UINT16,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
+    .defaultvalue                  = &sai_metadata_SAI_TAM_INT_ATTR_ACTION_VECTOR_default_value,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = false,
+    .iscreateandset                = true,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+    .isresourcetype                = false,
+};
+const sai_attribute_value_t sai_metadata_SAI_TAM_INT_ATTR_P4_INT_INSTRUCTION_BITMAP_default_value = { .u16 = 0 };
+const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_INT_ATTR_P4_INT_INSTRUCTION_BITMAP = {
+    .objecttype                    = SAI_OBJECT_TYPE_TAM_INT,
+    .attrid                        = SAI_TAM_INT_ATTR_P4_INT_INSTRUCTION_BITMAP,
+    .attridname                    = "SAI_TAM_INT_ATTR_P4_INT_INSTRUCTION_BITMAP",
+    .brief                         = "P4 INT instruction bitmap.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_UINT16,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
+    .defaultvalue                  = &sai_metadata_SAI_TAM_INT_ATTR_P4_INT_INSTRUCTION_BITMAP_default_value,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = false,
+    .iscreateandset                = true,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+    .isresourcetype                = false,
+};
+const sai_attribute_value_t sai_metadata_SAI_TAM_INT_ATTR_METADATA_FRAGMENT_ENABLE_default_value = { .booldata = false };
+const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_INT_ATTR_METADATA_FRAGMENT_ENABLE = {
+    .objecttype                    = SAI_OBJECT_TYPE_TAM_INT,
+    .attrid                        = SAI_TAM_INT_ATTR_METADATA_FRAGMENT_ENABLE,
+    .attridname                    = "SAI_TAM_INT_ATTR_METADATA_FRAGMENT_ENABLE",
+    .brief                         = "Enable metadata fragmentation.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_BOOL,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
+    .defaultvalue                  = &sai_metadata_SAI_TAM_INT_ATTR_METADATA_FRAGMENT_ENABLE_default_value,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = false,
+    .iscreateandset                = true,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+    .isresourcetype                = false,
+};
+const sai_attribute_value_t sai_metadata_SAI_TAM_INT_ATTR_REPORT_ALL_PACKETS_default_value = { .booldata = false };
+const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_INT_ATTR_REPORT_ALL_PACKETS = {
+    .objecttype                    = SAI_OBJECT_TYPE_TAM_INT,
+    .attrid                        = SAI_TAM_INT_ATTR_REPORT_ALL_PACKETS,
+    .attridname                    = "SAI_TAM_INT_ATTR_REPORT_ALL_PACKETS",
+    .brief                         = "TAM INT should report all packets without filtering.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_BOOL,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
+    .defaultvalue                  = &sai_metadata_SAI_TAM_INT_ATTR_REPORT_ALL_PACKETS_default_value,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = false,
+    .iscreateandset                = true,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+    .isresourcetype                = false,
+};
+const sai_attribute_value_t sai_metadata_SAI_TAM_INT_ATTR_FLOW_LIVENESS_PERIOD_default_value = { .u16 = 0 };
+const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_INT_ATTR_FLOW_LIVENESS_PERIOD = {
+    .objecttype                    = SAI_OBJECT_TYPE_TAM_INT,
+    .attrid                        = SAI_TAM_INT_ATTR_FLOW_LIVENESS_PERIOD,
+    .attridname                    = "SAI_TAM_INT_ATTR_FLOW_LIVENESS_PERIOD",
+    .brief                         = "TAM INT flow liveliness period in seconds.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_UINT16,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
+    .defaultvalue                  = &sai_metadata_SAI_TAM_INT_ATTR_FLOW_LIVENESS_PERIOD_default_value,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = false,
+    .iscreateandset                = true,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+    .isresourcetype                = false,
+};
+const sai_attribute_value_t sai_metadata_SAI_TAM_INT_ATTR_LATENCY_SENSITIVITY_default_value = { .u8 = 20 };
+const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_INT_ATTR_LATENCY_SENSITIVITY = {
+    .objecttype                    = SAI_OBJECT_TYPE_TAM_INT,
+    .attrid                        = SAI_TAM_INT_ATTR_LATENCY_SENSITIVITY,
+    .attridname                    = "SAI_TAM_INT_ATTR_LATENCY_SENSITIVITY",
+    .brief                         = "Latency sensitivity for flow state change detection in units of 2^n nanoseconds.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_UINT8,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
+    .defaultvalue                  = &sai_metadata_SAI_TAM_INT_ATTR_LATENCY_SENSITIVITY_default_value,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = false,
+    .iscreateandset                = true,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+    .isresourcetype                = false,
+};
+const sai_object_type_t sai_metadata_SAI_TAM_INT_ATTR_ACL_GROUP_allowed_objects[] = {
+    SAI_OBJECT_TYPE_ACL_TABLE,
+    SAI_OBJECT_TYPE_ACL_TABLE_GROUP,
+    -1
+};
+const sai_attribute_value_t sai_metadata_SAI_TAM_INT_ATTR_ACL_GROUP_default_value = { .oid = SAI_NULL_OBJECT_ID };
+const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_INT_ATTR_ACL_GROUP = {
+    .objecttype                    = SAI_OBJECT_TYPE_TAM_INT,
+    .attrid                        = SAI_TAM_INT_ATTR_ACL_GROUP,
+    .attridname                    = "SAI_TAM_INT_ATTR_ACL_GROUP",
+    .brief                         = "INT bind point for ACL object.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_OBJECT_ID,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
+    .allowedobjecttypes            = sai_metadata_SAI_TAM_INT_ATTR_ACL_GROUP_allowed_objects,
+    .allowedobjecttypeslength      = 2,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = true,
+    .isoidattribute                = (2 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
+    .defaultvalue                  = &sai_metadata_SAI_TAM_INT_ATTR_ACL_GROUP_default_value,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = false,
+    .iscreateandset                = true,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+    .isresourcetype                = false,
+};
+const sai_attribute_value_t sai_metadata_SAI_TAM_INT_ATTR_MAX_HOP_COUNT_default_value = { .u8 = 0 };
+const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_INT_ATTR_MAX_HOP_COUNT = {
+    .objecttype                    = SAI_OBJECT_TYPE_TAM_INT,
+    .attrid                        = SAI_TAM_INT_ATTR_MAX_HOP_COUNT,
+    .attridname                    = "SAI_TAM_INT_ATTR_MAX_HOP_COUNT",
+    .brief                         = "Maximum number of hops allowed in the path.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_UINT8,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
+    .defaultvalue                  = &sai_metadata_SAI_TAM_INT_ATTR_MAX_HOP_COUNT_default_value,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = false,
+    .iscreateandset                = true,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+    .isresourcetype                = false,
+};
+const sai_attribute_value_t sai_metadata_SAI_TAM_INT_ATTR_MAX_LENGTH_default_value = { .u8 = 0 };
+const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_INT_ATTR_MAX_LENGTH = {
+    .objecttype                    = SAI_OBJECT_TYPE_TAM_INT,
+    .attrid                        = SAI_TAM_INT_ATTR_MAX_LENGTH,
+    .attridname                    = "SAI_TAM_INT_ATTR_MAX_LENGTH",
+    .brief                         = "Maximum length of metadata stack, in units of 4 octet words.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_UINT8,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
+    .defaultvalue                  = &sai_metadata_SAI_TAM_INT_ATTR_MAX_LENGTH_default_value,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = false,
+    .iscreateandset                = true,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+    .isresourcetype                = false,
+};
+const sai_attribute_value_t sai_metadata_SAI_TAM_INT_ATTR_NAME_SPACE_ID_default_value = { .u8 = 0 };
+const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_INT_ATTR_NAME_SPACE_ID = {
+    .objecttype                    = SAI_OBJECT_TYPE_TAM_INT,
+    .attrid                        = SAI_TAM_INT_ATTR_NAME_SPACE_ID,
+    .attridname                    = "SAI_TAM_INT_ATTR_NAME_SPACE_ID",
+    .brief                         = "Metadata name space ID name space id defines the applicable format of metadata header.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_UINT8,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
+    .defaultvalue                  = &sai_metadata_SAI_TAM_INT_ATTR_NAME_SPACE_ID_default_value,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = false,
+    .iscreateandset                = true,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+    .isresourcetype                = false,
+};
+const sai_attribute_value_t sai_metadata_SAI_TAM_INT_ATTR_NAME_SPACE_ID_GLOBAL_default_value = { .booldata = false };
+const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_INT_ATTR_NAME_SPACE_ID_GLOBAL = {
+    .objecttype                    = SAI_OBJECT_TYPE_TAM_INT,
+    .attrid                        = SAI_TAM_INT_ATTR_NAME_SPACE_ID_GLOBAL,
+    .attridname                    = "SAI_TAM_INT_ATTR_NAME_SPACE_ID_GLOBAL",
+    .brief                         = "Metadata name space ID scope name space id scope is global or local.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_BOOL,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
+    .defaultvalue                  = &sai_metadata_SAI_TAM_INT_ATTR_NAME_SPACE_ID_GLOBAL_default_value,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = false,
+    .iscreateandset                = true,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+    .isresourcetype                = false,
+};
+const sai_object_type_t sai_metadata_SAI_TAM_INT_ATTR_INGRESS_SAMPLEPACKET_ENABLE_allowed_objects[] = {
+    SAI_OBJECT_TYPE_SAMPLEPACKET,
+    -1
+};
+const sai_attribute_value_t sai_metadata_SAI_TAM_INT_ATTR_INGRESS_SAMPLEPACKET_ENABLE_default_value = { .oid = SAI_NULL_OBJECT_ID };
+const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_INT_ATTR_INGRESS_SAMPLEPACKET_ENABLE = {
+    .objecttype                    = SAI_OBJECT_TYPE_TAM_INT,
+    .attrid                        = SAI_TAM_INT_ATTR_INGRESS_SAMPLEPACKET_ENABLE,
+    .attridname                    = "SAI_TAM_INT_ATTR_INGRESS_SAMPLEPACKET_ENABLE",
+    .brief                         = "Enable/Disable Samplepacket session.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_OBJECT_ID,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
+    .allowedobjecttypes            = sai_metadata_SAI_TAM_INT_ATTR_INGRESS_SAMPLEPACKET_ENABLE_allowed_objects,
+    .allowedobjecttypeslength      = 1,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = true,
+    .isoidattribute                = (1 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
+    .defaultvalue                  = &sai_metadata_SAI_TAM_INT_ATTR_INGRESS_SAMPLEPACKET_ENABLE_default_value,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = false,
+    .iscreateandset                = true,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+    .isresourcetype                = false,
+};
+const sai_object_type_t sai_metadata_SAI_TAM_INT_ATTR_COLLECTOR_LIST_allowed_objects[] = {
+    SAI_OBJECT_TYPE_TAM_COLLECTOR,
+    -1
+};
+const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_INT_ATTR_COLLECTOR_LIST = {
+    .objecttype                    = SAI_OBJECT_TYPE_TAM_INT,
+    .attrid                        = SAI_TAM_INT_ATTR_COLLECTOR_LIST,
+    .attridname                    = "SAI_TAM_INT_ATTR_COLLECTOR_LIST",
+    .brief                         = "Collector object list.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_OBJECT_LIST,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
+    .allowedobjecttypes            = sai_metadata_SAI_TAM_INT_ATTR_COLLECTOR_LIST_allowed_objects,
+    .allowedobjecttypeslength      = 1,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (1 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_EMPTY_LIST,
+    .defaultvalue                  = NULL,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = false,
+    .iscreateandset                = true,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = false,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+    .isresourcetype                = false,
+};
+const sai_object_type_t sai_metadata_SAI_TAM_INT_ATTR_MATH_FUNC_allowed_objects[] = {
+    SAI_OBJECT_TYPE_TAM_MATH_FUNC,
+    -1
+};
+const sai_attribute_value_t sai_metadata_SAI_TAM_INT_ATTR_MATH_FUNC_default_value = { .oid = SAI_NULL_OBJECT_ID };
+const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_INT_ATTR_MATH_FUNC = {
+    .objecttype                    = SAI_OBJECT_TYPE_TAM_INT,
+    .attrid                        = SAI_TAM_INT_ATTR_MATH_FUNC,
+    .attridname                    = "SAI_TAM_INT_ATTR_MATH_FUNC",
+    .brief                         = "Math function attached.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_OBJECT_ID,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
+    .allowedobjecttypes            = sai_metadata_SAI_TAM_INT_ATTR_MATH_FUNC_allowed_objects,
+    .allowedobjecttypeslength      = 1,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = true,
+    .isoidattribute                = (1 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
+    .defaultvalue                  = &sai_metadata_SAI_TAM_INT_ATTR_MATH_FUNC_default_value,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = false,
+    .iscreateandset                = true,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+    .isresourcetype                = false,
+};
+const sai_object_type_t sai_metadata_SAI_TAM_INT_ATTR_REPORT_ID_allowed_objects[] = {
+    SAI_OBJECT_TYPE_TAM_REPORT,
+    -1
+};
+const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_INT_ATTR_REPORT_ID = {
+    .objecttype                    = SAI_OBJECT_TYPE_TAM_INT,
+    .attrid                        = SAI_TAM_INT_ATTR_REPORT_ID,
+    .attridname                    = "SAI_TAM_INT_ATTR_REPORT_ID",
+    .brief                         = "Tam report type.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_OBJECT_ID,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_MANDATORY_ON_CREATE|SAI_ATTR_FLAGS_CREATE_ONLY),
+    .allowedobjecttypes            = sai_metadata_SAI_TAM_INT_ATTR_REPORT_ID_allowed_objects,
+    .allowedobjecttypeslength      = 1,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (1 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_NONE,
+    .defaultvalue                  = NULL,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = true,
+    .iscreateonly                  = true,
+    .iscreateandset                = false,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_TAM_MATH_FUNC_ATTR_TAM_TEL_MATH_FUNC_TYPE_default_value = { .s32 = SAI_TAM_TEL_MATH_FUNC_TYPE_NONE };
 const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_MATH_FUNC_ATTR_TAM_TEL_MATH_FUNC_TYPE = {
@@ -47419,6 +53649,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_MATH_FUNC_ATTR_TAM_TEL_MATH_
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_REPORT_ATTR_TYPE = {
     .objecttype                    = SAI_OBJECT_TYPE_TAM_REPORT,
@@ -47464,6 +53695,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_REPORT_ATTR_TYPE = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_TAM_REPORT_ATTR_HISTOGRAM_NUMBER_OF_BINS_default_value = { .u32 = 0 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_REPORT_ATTR_HISTOGRAM_NUMBER_OF_BINS = {
@@ -47510,6 +53742,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_REPORT_ATTR_HISTOGRAM_NUMBER
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_REPORT_ATTR_HISTOGRAM_BIN_BOUNDARY = {
     .objecttype                    = SAI_OBJECT_TYPE_TAM_REPORT,
@@ -47555,6 +53788,156 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_REPORT_ATTR_HISTOGRAM_BIN_BO
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
+};
+const sai_attribute_value_t sai_metadata_SAI_TAM_REPORT_ATTR_QUOTA_default_value = { .u32 = 0 };
+const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_REPORT_ATTR_QUOTA = {
+    .objecttype                    = SAI_OBJECT_TYPE_TAM_REPORT,
+    .attrid                        = SAI_TAM_REPORT_ATTR_QUOTA,
+    .attridname                    = "SAI_TAM_REPORT_ATTR_QUOTA",
+    .brief                         = "Maximum number of reports to generate after an event.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_UINT32,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
+    .defaultvalue                  = &sai_metadata_SAI_TAM_REPORT_ATTR_QUOTA_default_value,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = false,
+    .iscreateandset                = true,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+    .isresourcetype                = false,
+};
+const sai_attribute_value_t sai_metadata_SAI_TAM_REPORT_ATTR_REPORT_MODE_default_value = { .s32 = SAI_TAM_REPORT_MODE_ALL };
+const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_REPORT_ATTR_REPORT_MODE = {
+    .objecttype                    = SAI_OBJECT_TYPE_TAM_REPORT,
+    .attrid                        = SAI_TAM_REPORT_ATTR_REPORT_MODE,
+    .attridname                    = "SAI_TAM_REPORT_ATTR_REPORT_MODE",
+    .brief                         = "Report Mode.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_INT32,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_ONLY),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
+    .defaultvalue                  = &sai_metadata_SAI_TAM_REPORT_ATTR_REPORT_MODE_default_value,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = true,
+    .isenumlist                    = false,
+    .enummetadata                  = &sai_metadata_enum_sai_tam_report_mode_t,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = true,
+    .iscreateandset                = false,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+    .isresourcetype                = false,
+};
+const sai_attribute_value_t sai_metadata_SAI_TAM_REPORT_ATTR_REPORT_INTERVAL_default_value = { .u32 = 1000 };
+const sai_attr_condition_t sai_metadata_validonly_SAI_TAM_REPORT_ATTR_REPORT_INTERVAL_0 = {
+        .attrid = SAI_TAM_REPORT_ATTR_REPORT_MODE,
+        .condition = { .s32 = SAI_TAM_REPORT_MODE_BULK }
+};
+const sai_attr_condition_t* const sai_metadata_validonlys_SAI_TAM_REPORT_ATTR_REPORT_INTERVAL[] = {
+    &sai_metadata_validonly_SAI_TAM_REPORT_ATTR_REPORT_INTERVAL_0,
+    NULL
+};
+const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_REPORT_ATTR_REPORT_INTERVAL = {
+    .objecttype                    = SAI_OBJECT_TYPE_TAM_REPORT,
+    .attrid                        = SAI_TAM_REPORT_ATTR_REPORT_INTERVAL,
+    .attridname                    = "SAI_TAM_REPORT_ATTR_REPORT_INTERVAL",
+    .brief                         = "Report Interval in micro seconds.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_UINT32,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
+    .defaultvalue                  = &sai_metadata_SAI_TAM_REPORT_ATTR_REPORT_INTERVAL_default_value,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_OR,
+    .validonly                     = sai_metadata_validonlys_SAI_TAM_REPORT_ATTR_REPORT_INTERVAL,
+    .validonlylength               = 1,
+    .isvalidonly                   = (1 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = false,
+    .iscreateandset                = true,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_TEL_TYPE_ATTR_TAM_TELEMETRY_TYPE = {
     .objecttype                    = SAI_OBJECT_TYPE_TAM_TEL_TYPE,
@@ -47600,6 +53983,54 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_TEL_TYPE_ATTR_TAM_TELEMETRY_
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
+};
+const sai_attribute_value_t sai_metadata_SAI_TAM_TEL_TYPE_ATTR_INT_SWITCH_IDENTIFIER_default_value = { .u32 = 0 };
+const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_TEL_TYPE_ATTR_INT_SWITCH_IDENTIFIER = {
+    .objecttype                    = SAI_OBJECT_TYPE_TAM_TEL_TYPE,
+    .attrid                        = SAI_TAM_TEL_TYPE_ATTR_INT_SWITCH_IDENTIFIER,
+    .attridname                    = "SAI_TAM_TEL_TYPE_ATTR_INT_SWITCH_IDENTIFIER",
+    .brief                         = "INT - Switch Identifier.",
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_UINT32,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
+    .allowedobjecttypes            = NULL,
+    .allowedobjecttypeslength      = 0,
+    .allowrepetitiononlist         = false,
+    .allowmixedobjecttypes         = false,
+    .allowemptylist                = false,
+    .allownullobjectid             = false,
+    .isoidattribute                = (0 > 0),
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
+    .defaultvalue                  = &sai_metadata_SAI_TAM_TEL_TYPE_ATTR_INT_SWITCH_IDENTIFIER_default_value,
+    .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
+    .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
+    .storedefaultvalue             = false,
+    .isenum                        = false,
+    .isenumlist                    = false,
+    .enummetadata                  = NULL,
+    .conditiontype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .conditions                    = NULL,
+    .conditionslength              = 0,
+    .isconditional                 = (0 != 0),
+    .validonlytype                 = SAI_ATTR_CONDITION_TYPE_NONE,
+    .validonly                     = NULL,
+    .validonlylength               = 0,
+    .isvalidonly                   = (0 != 0),
+    .getsave                       = false,
+    .isvlan                        = false,
+    .isaclfield                    = false,
+    .isaclaction                   = false,
+    .ismandatoryoncreate           = false,
+    .iscreateonly                  = false,
+    .iscreateandset                = true,
+    .isreadonly                    = false,
+    .iskey                         = false,
+    .isprimitive                   = true,
+    .notificationtype              = -1,
+    .capability                    = NULL,
+    .capabilitylength              = 0,
+    .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_PORT_STATS_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_PORT_STATS = {
@@ -47646,6 +54077,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_PORT_STATS_INGRESS_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_PORT_STATS_INGRESS = {
@@ -47692,6 +54124,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_PORT_STATS_EGRESS_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_PORT_STATS_EGRESS = {
@@ -47738,6 +54171,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_VIRTUAL_QUEUE_STATS_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_VIRTUAL_QUEUE_STATS = {
@@ -47784,6 +54218,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_OUTPUT_QUEUE_STATS_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_OUTPUT_QUEUE_STATS = {
@@ -47830,6 +54265,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_MMU_STATS_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_MMU_STATS = {
@@ -47876,6 +54312,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_FABRIC_STATS_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_FABRIC_STATS = {
@@ -47922,6 +54359,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_FILTER_STATS_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_FILTER_STATS = {
@@ -47968,6 +54406,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_RESOURCE_UTILIZATION_STATS_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_RESOURCE_UTILIZATION_STATS = {
@@ -48014,6 +54453,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_TAM_TEL_TYPE_ATTR_FABRIC_Q_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_TEL_TYPE_ATTR_FABRIC_Q = {
@@ -48060,6 +54500,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_TEL_TYPE_ATTR_FABRIC_Q = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_TAM_TEL_TYPE_ATTR_NE_ENABLE_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_TEL_TYPE_ATTR_NE_ENABLE = {
@@ -48106,6 +54547,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_TEL_TYPE_ATTR_NE_ENABLE = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_TAM_TEL_TYPE_ATTR_DSCP_VALUE_default_value = { .u8 = 0 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_TEL_TYPE_ATTR_DSCP_VALUE = {
@@ -48152,6 +54594,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_TEL_TYPE_ATTR_DSCP_VALUE = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_TAM_TEL_TYPE_ATTR_MATH_FUNC_allowed_objects[] = {
     SAI_OBJECT_TYPE_TAM_MATH_FUNC,
@@ -48202,6 +54645,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_TEL_TYPE_ATTR_MATH_FUNC = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_TAM_TEL_TYPE_ATTR_REPORT_ID_allowed_objects[] = {
     SAI_OBJECT_TYPE_TAM_REPORT,
@@ -48251,6 +54695,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_TEL_TYPE_ATTR_REPORT_ID = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_TAM_TELEMETRY_ATTR_TAM_TYPE_LIST_allowed_objects[] = {
     SAI_OBJECT_TYPE_TAM_TEL_TYPE,
@@ -48261,8 +54706,8 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_TELEMETRY_ATTR_TAM_TYPE_LIST
     .attrid                        = SAI_TAM_TELEMETRY_ATTR_TAM_TYPE_LIST,
     .attridname                    = "SAI_TAM_TELEMETRY_ATTR_TAM_TYPE_LIST",
     .brief                         = "TAM tel type object list.",
-    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_OBJECT_ID,
-    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_MANDATORY_ON_CREATE|SAI_ATTR_FLAGS_CREATE_AND_SET),
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_OBJECT_LIST,
+    .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
     .allowedobjecttypes            = sai_metadata_SAI_TAM_TELEMETRY_ATTR_TAM_TYPE_LIST_allowed_objects,
     .allowedobjecttypeslength      = 1,
     .allowrepetitiononlist         = false,
@@ -48270,11 +54715,11 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_TELEMETRY_ATTR_TAM_TYPE_LIST
     .allowemptylist                = false,
     .allownullobjectid             = false,
     .isoidattribute                = (1 > 0),
-    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_NONE,
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_EMPTY_LIST,
     .defaultvalue                  = NULL,
     .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
     .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
-    .storedefaultvalue             = true,
+    .storedefaultvalue             = false,
     .isenum                        = false,
     .isenumlist                    = false,
     .enummetadata                  = NULL,
@@ -48290,16 +54735,17 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_TELEMETRY_ATTR_TAM_TYPE_LIST
     .isvlan                        = false,
     .isaclfield                    = false,
     .isaclaction                   = false,
-    .ismandatoryoncreate           = true,
+    .ismandatoryoncreate           = false,
     .iscreateonly                  = false,
     .iscreateandset                = true,
     .isreadonly                    = false,
     .iskey                         = false,
-    .isprimitive                   = true,
+    .isprimitive                   = false,
     .notificationtype              = -1,
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_TAM_TELEMETRY_ATTR_COLLECTOR_LIST_allowed_objects[] = {
     SAI_OBJECT_TYPE_TAM_COLLECTOR,
@@ -48349,6 +54795,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_TELEMETRY_ATTR_COLLECTOR_LIS
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_TAM_TELEMETRY_ATTR_TAM_REPORTING_UNIT_default_value = { .s32 = SAI_TAM_REPORTING_UNIT_SEC };
 const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_TELEMETRY_ATTR_TAM_REPORTING_UNIT = {
@@ -48395,6 +54842,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_TELEMETRY_ATTR_TAM_REPORTING
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_TAM_TELEMETRY_ATTR_REPORTING_INTERVAL_default_value = { .u32 = 1 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_TELEMETRY_ATTR_REPORTING_INTERVAL = {
@@ -48441,6 +54889,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_TELEMETRY_ATTR_REPORTING_INT
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_TRANSPORT_ATTR_TRANSPORT_TYPE = {
     .objecttype                    = SAI_OBJECT_TYPE_TAM_TRANSPORT,
@@ -48486,6 +54935,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_TRANSPORT_ATTR_TRANSPORT_TYP
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_TAM_TRANSPORT_ATTR_SRC_PORT_default_value = { .u32 = 31337 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_TRANSPORT_ATTR_SRC_PORT = {
@@ -48532,6 +54982,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_TRANSPORT_ATTR_SRC_PORT = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_TAM_TRANSPORT_ATTR_DST_PORT_default_value = { .u32 = 31337 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_TRANSPORT_ATTR_DST_PORT = {
@@ -48578,6 +55029,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_TRANSPORT_ATTR_DST_PORT = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_TAM_TRANSPORT_ATTR_TRANSPORT_AUTH_TYPE_default_value = { .s32 = SAI_TAM_TRANSPORT_AUTH_TYPE_NONE };
 const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_TRANSPORT_ATTR_TRANSPORT_AUTH_TYPE = {
@@ -48624,6 +55076,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_TRANSPORT_ATTR_TRANSPORT_AUT
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_TAM_TRANSPORT_ATTR_MTU_default_value = { .u32 = 1500 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_TRANSPORT_ATTR_MTU = {
@@ -48670,6 +55123,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TAM_TRANSPORT_ATTR_MTU = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_TUNNEL_ATTR_TYPE = {
     .objecttype                    = SAI_OBJECT_TYPE_TUNNEL,
@@ -48715,6 +55169,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TUNNEL_ATTR_TYPE = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = true,
 };
 const sai_object_type_t sai_metadata_SAI_TUNNEL_ATTR_UNDERLAY_INTERFACE_allowed_objects[] = {
     SAI_OBJECT_TYPE_ROUTER_INTERFACE,
@@ -48782,6 +55237,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TUNNEL_ATTR_UNDERLAY_INTERFACE =
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_TUNNEL_ATTR_OVERLAY_INTERFACE_allowed_objects[] = {
     SAI_OBJECT_TYPE_ROUTER_INTERFACE,
@@ -48844,6 +55300,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TUNNEL_ATTR_OVERLAY_INTERFACE = 
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_TUNNEL_ATTR_ENCAP_SRC_IP_default_value = { .ipaddr = { .addr_family = SAI_IP_ADDR_FAMILY_IPV4, .addr = { .ip4 = 0 } } };
 const sai_attr_metadata_t sai_metadata_attr_SAI_TUNNEL_ATTR_ENCAP_SRC_IP = {
@@ -48890,6 +55347,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TUNNEL_ATTR_ENCAP_SRC_IP = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_TUNNEL_ATTR_ENCAP_TTL_MODE_default_value = { .s32 = SAI_TUNNEL_TTL_MODE_UNIFORM_MODEL };
 const sai_attr_metadata_t sai_metadata_attr_SAI_TUNNEL_ATTR_ENCAP_TTL_MODE = {
@@ -48936,6 +55394,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TUNNEL_ATTR_ENCAP_TTL_MODE = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_condition_t sai_metadata_condition_SAI_TUNNEL_ATTR_ENCAP_TTL_VAL_0 = {
         .attrid = SAI_TUNNEL_ATTR_ENCAP_TTL_MODE,
@@ -48989,6 +55448,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TUNNEL_ATTR_ENCAP_TTL_VAL = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_TUNNEL_ATTR_ENCAP_DSCP_MODE_default_value = { .s32 = SAI_TUNNEL_DSCP_MODE_UNIFORM_MODEL };
 const sai_attr_metadata_t sai_metadata_attr_SAI_TUNNEL_ATTR_ENCAP_DSCP_MODE = {
@@ -49035,6 +55495,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TUNNEL_ATTR_ENCAP_DSCP_MODE = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_condition_t sai_metadata_condition_SAI_TUNNEL_ATTR_ENCAP_DSCP_VAL_0 = {
         .attrid = SAI_TUNNEL_ATTR_ENCAP_DSCP_MODE,
@@ -49088,6 +55549,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TUNNEL_ATTR_ENCAP_DSCP_VAL = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_TUNNEL_ATTR_ENCAP_GRE_KEY_VALID_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_TUNNEL_ATTR_ENCAP_GRE_KEY_VALID = {
@@ -49134,6 +55596,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TUNNEL_ATTR_ENCAP_GRE_KEY_VALID 
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_TUNNEL_ATTR_ENCAP_GRE_KEY_default_value = { .u32 = 0 };
 const sai_attr_condition_t sai_metadata_validonly_SAI_TUNNEL_ATTR_ENCAP_GRE_KEY_0 = {
@@ -49188,6 +55651,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TUNNEL_ATTR_ENCAP_GRE_KEY = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_TUNNEL_ATTR_ENCAP_ECN_MODE_default_value = { .s32 = SAI_TUNNEL_ENCAP_ECN_MODE_STANDARD };
 const sai_attr_metadata_t sai_metadata_attr_SAI_TUNNEL_ATTR_ENCAP_ECN_MODE = {
@@ -49234,6 +55698,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TUNNEL_ATTR_ENCAP_ECN_MODE = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_TUNNEL_ATTR_ENCAP_MAPPERS_allowed_objects[] = {
     SAI_OBJECT_TYPE_TUNNEL_MAP,
@@ -49283,6 +55748,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TUNNEL_ATTR_ENCAP_MAPPERS = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_TUNNEL_ATTR_DECAP_ECN_MODE_default_value = { .s32 = SAI_TUNNEL_DECAP_ECN_MODE_STANDARD };
 const sai_attr_metadata_t sai_metadata_attr_SAI_TUNNEL_ATTR_DECAP_ECN_MODE = {
@@ -49329,6 +55795,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TUNNEL_ATTR_DECAP_ECN_MODE = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_TUNNEL_ATTR_DECAP_MAPPERS_allowed_objects[] = {
     SAI_OBJECT_TYPE_TUNNEL_MAP,
@@ -49378,6 +55845,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TUNNEL_ATTR_DECAP_MAPPERS = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_condition_t sai_metadata_condition_SAI_TUNNEL_ATTR_DECAP_TTL_MODE_0 = {
         .attrid = SAI_TUNNEL_ATTR_TYPE,
@@ -49436,6 +55904,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TUNNEL_ATTR_DECAP_TTL_MODE = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_condition_t sai_metadata_condition_SAI_TUNNEL_ATTR_DECAP_DSCP_MODE_0 = {
         .attrid = SAI_TUNNEL_ATTR_TYPE,
@@ -49494,6 +55963,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TUNNEL_ATTR_DECAP_DSCP_MODE = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_TUNNEL_ATTR_TERM_TABLE_ENTRY_LIST_allowed_objects[] = {
     SAI_OBJECT_TYPE_TUNNEL_TERM_TABLE_ENTRY,
@@ -49543,6 +56013,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TUNNEL_ATTR_TERM_TABLE_ENTRY_LIS
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_TUNNEL_MAP_ATTR_TYPE = {
     .objecttype                    = SAI_OBJECT_TYPE_TUNNEL_MAP,
@@ -49588,6 +56059,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TUNNEL_MAP_ATTR_TYPE = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_TUNNEL_MAP_ATTR_ENTRY_LIST_allowed_objects[] = {
     SAI_OBJECT_TYPE_TUNNEL_MAP_ENTRY,
@@ -49637,6 +56109,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TUNNEL_MAP_ATTR_ENTRY_LIST = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_TUNNEL_MAP_ENTRY_ATTR_TUNNEL_MAP_TYPE = {
     .objecttype                    = SAI_OBJECT_TYPE_TUNNEL_MAP_ENTRY,
@@ -49682,6 +56155,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TUNNEL_MAP_ENTRY_ATTR_TUNNEL_MAP
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_TUNNEL_MAP_ENTRY_ATTR_TUNNEL_MAP_allowed_objects[] = {
     SAI_OBJECT_TYPE_TUNNEL_MAP,
@@ -49731,6 +56205,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TUNNEL_MAP_ENTRY_ATTR_TUNNEL_MAP
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_condition_t sai_metadata_condition_SAI_TUNNEL_MAP_ENTRY_ATTR_OECN_KEY_0 = {
         .attrid = SAI_TUNNEL_MAP_ENTRY_ATTR_TUNNEL_MAP_TYPE,
@@ -49789,6 +56264,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TUNNEL_MAP_ENTRY_ATTR_OECN_KEY =
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_condition_t sai_metadata_condition_SAI_TUNNEL_MAP_ENTRY_ATTR_OECN_VALUE_0 = {
         .attrid = SAI_TUNNEL_MAP_ENTRY_ATTR_TUNNEL_MAP_TYPE,
@@ -49842,6 +56318,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TUNNEL_MAP_ENTRY_ATTR_OECN_VALUE
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_condition_t sai_metadata_condition_SAI_TUNNEL_MAP_ENTRY_ATTR_UECN_KEY_0 = {
         .attrid = SAI_TUNNEL_MAP_ENTRY_ATTR_TUNNEL_MAP_TYPE,
@@ -49895,6 +56372,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TUNNEL_MAP_ENTRY_ATTR_UECN_KEY =
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_condition_t sai_metadata_condition_SAI_TUNNEL_MAP_ENTRY_ATTR_UECN_VALUE_0 = {
         .attrid = SAI_TUNNEL_MAP_ENTRY_ATTR_TUNNEL_MAP_TYPE,
@@ -49948,6 +56426,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TUNNEL_MAP_ENTRY_ATTR_UECN_VALUE
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_condition_t sai_metadata_condition_SAI_TUNNEL_MAP_ENTRY_ATTR_VLAN_ID_KEY_0 = {
         .attrid = SAI_TUNNEL_MAP_ENTRY_ATTR_TUNNEL_MAP_TYPE,
@@ -50001,6 +56480,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TUNNEL_MAP_ENTRY_ATTR_VLAN_ID_KE
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_condition_t sai_metadata_condition_SAI_TUNNEL_MAP_ENTRY_ATTR_VLAN_ID_VALUE_0 = {
         .attrid = SAI_TUNNEL_MAP_ENTRY_ATTR_TUNNEL_MAP_TYPE,
@@ -50054,6 +56534,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TUNNEL_MAP_ENTRY_ATTR_VLAN_ID_VA
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_condition_t sai_metadata_condition_SAI_TUNNEL_MAP_ENTRY_ATTR_VNI_ID_KEY_0 = {
         .attrid = SAI_TUNNEL_MAP_ENTRY_ATTR_TUNNEL_MAP_TYPE,
@@ -50117,6 +56598,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TUNNEL_MAP_ENTRY_ATTR_VNI_ID_KEY
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_condition_t sai_metadata_condition_SAI_TUNNEL_MAP_ENTRY_ATTR_VNI_ID_VALUE_0 = {
         .attrid = SAI_TUNNEL_MAP_ENTRY_ATTR_TUNNEL_MAP_TYPE,
@@ -50180,6 +56662,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TUNNEL_MAP_ENTRY_ATTR_VNI_ID_VAL
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_TUNNEL_MAP_ENTRY_ATTR_BRIDGE_ID_KEY_allowed_objects[] = {
     SAI_OBJECT_TYPE_BRIDGE,
@@ -50237,6 +56720,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TUNNEL_MAP_ENTRY_ATTR_BRIDGE_ID_
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_TUNNEL_MAP_ENTRY_ATTR_BRIDGE_ID_VALUE_allowed_objects[] = {
     SAI_OBJECT_TYPE_BRIDGE,
@@ -50294,6 +56778,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TUNNEL_MAP_ENTRY_ATTR_BRIDGE_ID_
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_TUNNEL_MAP_ENTRY_ATTR_VIRTUAL_ROUTER_ID_KEY_allowed_objects[] = {
     SAI_OBJECT_TYPE_VIRTUAL_ROUTER,
@@ -50351,6 +56836,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TUNNEL_MAP_ENTRY_ATTR_VIRTUAL_RO
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_TUNNEL_MAP_ENTRY_ATTR_VIRTUAL_ROUTER_ID_VALUE_allowed_objects[] = {
     SAI_OBJECT_TYPE_VIRTUAL_ROUTER,
@@ -50408,6 +56894,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TUNNEL_MAP_ENTRY_ATTR_VIRTUAL_RO
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_TUNNEL_TERM_TABLE_ENTRY_ATTR_VR_ID_allowed_objects[] = {
     SAI_OBJECT_TYPE_VIRTUAL_ROUTER,
@@ -50457,6 +56944,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TUNNEL_TERM_TABLE_ENTRY_ATTR_VR_
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_TUNNEL_TERM_TABLE_ENTRY_ATTR_TYPE = {
     .objecttype                    = SAI_OBJECT_TYPE_TUNNEL_TERM_TABLE_ENTRY,
@@ -50502,6 +56990,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TUNNEL_TERM_TABLE_ENTRY_ATTR_TYP
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_TUNNEL_TERM_TABLE_ENTRY_ATTR_DST_IP = {
     .objecttype                    = SAI_OBJECT_TYPE_TUNNEL_TERM_TABLE_ENTRY,
@@ -50547,6 +57036,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TUNNEL_TERM_TABLE_ENTRY_ATTR_DST
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_condition_t sai_metadata_condition_SAI_TUNNEL_TERM_TABLE_ENTRY_ATTR_SRC_IP_0 = {
         .attrid = SAI_TUNNEL_TERM_TABLE_ENTRY_ATTR_TYPE,
@@ -50600,6 +57090,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TUNNEL_TERM_TABLE_ENTRY_ATTR_SRC
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_TUNNEL_TERM_TABLE_ENTRY_ATTR_TUNNEL_TYPE = {
     .objecttype                    = SAI_OBJECT_TYPE_TUNNEL_TERM_TABLE_ENTRY,
@@ -50645,6 +57136,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TUNNEL_TERM_TABLE_ENTRY_ATTR_TUN
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_TUNNEL_TERM_TABLE_ENTRY_ATTR_ACTION_TUNNEL_ID_allowed_objects[] = {
     SAI_OBJECT_TYPE_TUNNEL,
@@ -50694,6 +57186,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_TUNNEL_TERM_TABLE_ENTRY_ATTR_ACT
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_UDF_ATTR_MATCH_ID_allowed_objects[] = {
     SAI_OBJECT_TYPE_UDF_MATCH,
@@ -50743,6 +57236,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_UDF_ATTR_MATCH_ID = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_UDF_ATTR_GROUP_ID_allowed_objects[] = {
     SAI_OBJECT_TYPE_UDF_GROUP,
@@ -50792,6 +57286,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_UDF_ATTR_GROUP_ID = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_UDF_ATTR_BASE_default_value = { .s32 = SAI_UDF_BASE_L2 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_UDF_ATTR_BASE = {
@@ -50838,6 +57333,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_UDF_ATTR_BASE = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_UDF_ATTR_OFFSET = {
     .objecttype                    = SAI_OBJECT_TYPE_UDF,
@@ -50883,6 +57379,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_UDF_ATTR_OFFSET = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_UDF_ATTR_HASH_MASK = {
     .objecttype                    = SAI_OBJECT_TYPE_UDF,
@@ -50928,6 +57425,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_UDF_ATTR_HASH_MASK = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_UDF_GROUP_ATTR_UDF_LIST_allowed_objects[] = {
     SAI_OBJECT_TYPE_UDF,
@@ -50977,6 +57475,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_UDF_GROUP_ATTR_UDF_LIST = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_UDF_GROUP_ATTR_TYPE_default_value = { .s32 = SAI_UDF_GROUP_TYPE_GENERIC };
 const sai_attr_metadata_t sai_metadata_attr_SAI_UDF_GROUP_ATTR_TYPE = {
@@ -51023,6 +57522,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_UDF_GROUP_ATTR_TYPE = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_UDF_GROUP_ATTR_LENGTH = {
     .objecttype                    = SAI_OBJECT_TYPE_UDF_GROUP,
@@ -51068,6 +57568,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_UDF_GROUP_ATTR_LENGTH = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_UDF_MATCH_ATTR_L2_TYPE_default_value = { 0 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_UDF_MATCH_ATTR_L2_TYPE = {
@@ -51114,6 +57615,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_UDF_MATCH_ATTR_L2_TYPE = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_UDF_MATCH_ATTR_L3_TYPE_default_value = { 0 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_UDF_MATCH_ATTR_L3_TYPE = {
@@ -51160,6 +57662,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_UDF_MATCH_ATTR_L3_TYPE = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_UDF_MATCH_ATTR_GRE_TYPE_default_value = { 0 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_UDF_MATCH_ATTR_GRE_TYPE = {
@@ -51206,6 +57709,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_UDF_MATCH_ATTR_GRE_TYPE = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_UDF_MATCH_ATTR_PRIORITY_default_value = { .u8 = 0 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_UDF_MATCH_ATTR_PRIORITY = {
@@ -51252,6 +57756,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_UDF_MATCH_ATTR_PRIORITY = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_VIRTUAL_ROUTER_ATTR_ADMIN_V4_STATE_default_value = { .booldata = true };
 const sai_attr_metadata_t sai_metadata_attr_SAI_VIRTUAL_ROUTER_ATTR_ADMIN_V4_STATE = {
@@ -51298,6 +57803,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_VIRTUAL_ROUTER_ATTR_ADMIN_V4_STA
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_VIRTUAL_ROUTER_ATTR_ADMIN_V6_STATE_default_value = { .booldata = true };
 const sai_attr_metadata_t sai_metadata_attr_SAI_VIRTUAL_ROUTER_ATTR_ADMIN_V6_STATE = {
@@ -51344,6 +57850,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_VIRTUAL_ROUTER_ATTR_ADMIN_V6_STA
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_VIRTUAL_ROUTER_ATTR_SRC_MAC_ADDRESS = {
     .objecttype                    = SAI_OBJECT_TYPE_VIRTUAL_ROUTER,
@@ -51389,6 +57896,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_VIRTUAL_ROUTER_ATTR_SRC_MAC_ADDR
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_VIRTUAL_ROUTER_ATTR_VIOLATION_TTL1_PACKET_ACTION_default_value = { .s32 = SAI_PACKET_ACTION_TRAP };
 const sai_attr_metadata_t sai_metadata_attr_SAI_VIRTUAL_ROUTER_ATTR_VIOLATION_TTL1_PACKET_ACTION = {
@@ -51435,6 +57943,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_VIRTUAL_ROUTER_ATTR_VIOLATION_TT
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_VIRTUAL_ROUTER_ATTR_VIOLATION_IP_OPTIONS_PACKET_ACTION_default_value = { .s32 = SAI_PACKET_ACTION_TRAP };
 const sai_attr_metadata_t sai_metadata_attr_SAI_VIRTUAL_ROUTER_ATTR_VIOLATION_IP_OPTIONS_PACKET_ACTION = {
@@ -51481,6 +57990,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_VIRTUAL_ROUTER_ATTR_VIOLATION_IP
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_VIRTUAL_ROUTER_ATTR_UNKNOWN_L3_MULTICAST_PACKET_ACTION_default_value = { .s32 = SAI_PACKET_ACTION_DROP };
 const sai_attr_metadata_t sai_metadata_attr_SAI_VIRTUAL_ROUTER_ATTR_UNKNOWN_L3_MULTICAST_PACKET_ACTION = {
@@ -51527,6 +58037,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_VIRTUAL_ROUTER_ATTR_UNKNOWN_L3_M
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_VLAN_ATTR_VLAN_ID = {
     .objecttype                    = SAI_OBJECT_TYPE_VLAN,
@@ -51572,6 +58083,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_VLAN_ATTR_VLAN_ID = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_VLAN_ATTR_MEMBER_LIST_allowed_objects[] = {
     SAI_OBJECT_TYPE_VLAN_MEMBER,
@@ -51621,6 +58133,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_VLAN_ATTR_MEMBER_LIST = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_VLAN_ATTR_MAX_LEARNED_ADDRESSES_default_value = { .u32 = 0 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_VLAN_ATTR_MAX_LEARNED_ADDRESSES = {
@@ -51667,6 +58180,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_VLAN_ATTR_MAX_LEARNED_ADDRESSES 
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_VLAN_ATTR_STP_INSTANCE_allowed_objects[] = {
     SAI_OBJECT_TYPE_STP,
@@ -51716,6 +58230,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_VLAN_ATTR_STP_INSTANCE = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_VLAN_ATTR_LEARN_DISABLE_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_VLAN_ATTR_LEARN_DISABLE = {
@@ -51762,6 +58277,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_VLAN_ATTR_LEARN_DISABLE = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_VLAN_ATTR_IPV4_MCAST_LOOKUP_KEY_TYPE_default_value = { .s32 = SAI_VLAN_MCAST_LOOKUP_KEY_TYPE_MAC_DA };
 const sai_attr_metadata_t sai_metadata_attr_SAI_VLAN_ATTR_IPV4_MCAST_LOOKUP_KEY_TYPE = {
@@ -51808,6 +58324,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_VLAN_ATTR_IPV4_MCAST_LOOKUP_KEY_
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_VLAN_ATTR_IPV6_MCAST_LOOKUP_KEY_TYPE_default_value = { .s32 = SAI_VLAN_MCAST_LOOKUP_KEY_TYPE_MAC_DA };
 const sai_attr_metadata_t sai_metadata_attr_SAI_VLAN_ATTR_IPV6_MCAST_LOOKUP_KEY_TYPE = {
@@ -51854,6 +58371,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_VLAN_ATTR_IPV6_MCAST_LOOKUP_KEY_
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_VLAN_ATTR_UNKNOWN_NON_IP_MCAST_OUTPUT_GROUP_ID_allowed_objects[] = {
     SAI_OBJECT_TYPE_L2MC_GROUP,
@@ -51904,6 +58422,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_VLAN_ATTR_UNKNOWN_NON_IP_MCAST_O
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_VLAN_ATTR_UNKNOWN_IPV4_MCAST_OUTPUT_GROUP_ID_allowed_objects[] = {
     SAI_OBJECT_TYPE_L2MC_GROUP,
@@ -51954,6 +58473,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_VLAN_ATTR_UNKNOWN_IPV4_MCAST_OUT
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_VLAN_ATTR_UNKNOWN_IPV6_MCAST_OUTPUT_GROUP_ID_allowed_objects[] = {
     SAI_OBJECT_TYPE_L2MC_GROUP,
@@ -52004,6 +58524,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_VLAN_ATTR_UNKNOWN_IPV6_MCAST_OUT
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_VLAN_ATTR_UNKNOWN_LINKLOCAL_MCAST_OUTPUT_GROUP_ID_allowed_objects[] = {
     SAI_OBJECT_TYPE_L2MC_GROUP,
@@ -52054,6 +58575,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_VLAN_ATTR_UNKNOWN_LINKLOCAL_MCAS
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_VLAN_ATTR_INGRESS_ACL_allowed_objects[] = {
     SAI_OBJECT_TYPE_ACL_TABLE,
@@ -52105,6 +58627,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_VLAN_ATTR_INGRESS_ACL = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_VLAN_ATTR_EGRESS_ACL_allowed_objects[] = {
     SAI_OBJECT_TYPE_ACL_TABLE,
@@ -52156,6 +58679,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_VLAN_ATTR_EGRESS_ACL = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_VLAN_ATTR_META_DATA_default_value = { .u32 = 0 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_VLAN_ATTR_META_DATA = {
@@ -52202,6 +58726,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_VLAN_ATTR_META_DATA = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_VLAN_ATTR_UNKNOWN_UNICAST_FLOOD_CONTROL_TYPE_default_value = { .s32 = SAI_VLAN_FLOOD_CONTROL_TYPE_ALL };
 const sai_attr_metadata_t sai_metadata_attr_SAI_VLAN_ATTR_UNKNOWN_UNICAST_FLOOD_CONTROL_TYPE = {
@@ -52248,6 +58773,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_VLAN_ATTR_UNKNOWN_UNICAST_FLOOD_
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_VLAN_ATTR_UNKNOWN_UNICAST_FLOOD_GROUP_allowed_objects[] = {
     SAI_OBJECT_TYPE_L2MC_GROUP,
@@ -52258,8 +58784,13 @@ const sai_attr_condition_t sai_metadata_validonly_SAI_VLAN_ATTR_UNKNOWN_UNICAST_
         .attrid = SAI_VLAN_ATTR_UNKNOWN_UNICAST_FLOOD_CONTROL_TYPE,
         .condition = { .s32 = SAI_VLAN_FLOOD_CONTROL_TYPE_L2MC_GROUP }
 };
+const sai_attr_condition_t sai_metadata_validonly_SAI_VLAN_ATTR_UNKNOWN_UNICAST_FLOOD_GROUP_1 = {
+        .attrid = SAI_VLAN_ATTR_UNKNOWN_UNICAST_FLOOD_CONTROL_TYPE,
+        .condition = { .s32 = SAI_VLAN_FLOOD_CONTROL_TYPE_COMBINED }
+};
 const sai_attr_condition_t* const sai_metadata_validonlys_SAI_VLAN_ATTR_UNKNOWN_UNICAST_FLOOD_GROUP[] = {
     &sai_metadata_validonly_SAI_VLAN_ATTR_UNKNOWN_UNICAST_FLOOD_GROUP_0,
+    &sai_metadata_validonly_SAI_VLAN_ATTR_UNKNOWN_UNICAST_FLOOD_GROUP_1,
     NULL
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_VLAN_ATTR_UNKNOWN_UNICAST_FLOOD_GROUP = {
@@ -52290,8 +58821,8 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_VLAN_ATTR_UNKNOWN_UNICAST_FLOOD_
     .isconditional                 = (0 != 0),
     .validonlytype                 = SAI_ATTR_CONDITION_TYPE_OR,
     .validonly                     = sai_metadata_validonlys_SAI_VLAN_ATTR_UNKNOWN_UNICAST_FLOOD_GROUP,
-    .validonlylength               = 1,
-    .isvalidonly                   = (1 != 0),
+    .validonlylength               = 2,
+    .isvalidonly                   = (2 != 0),
     .getsave                       = false,
     .isvlan                        = false,
     .isaclfield                    = false,
@@ -52306,6 +58837,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_VLAN_ATTR_UNKNOWN_UNICAST_FLOOD_
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_VLAN_ATTR_UNKNOWN_MULTICAST_FLOOD_CONTROL_TYPE_default_value = { .s32 = SAI_VLAN_FLOOD_CONTROL_TYPE_ALL };
 const sai_attr_metadata_t sai_metadata_attr_SAI_VLAN_ATTR_UNKNOWN_MULTICAST_FLOOD_CONTROL_TYPE = {
@@ -52352,6 +58884,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_VLAN_ATTR_UNKNOWN_MULTICAST_FLOO
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_VLAN_ATTR_UNKNOWN_MULTICAST_FLOOD_GROUP_allowed_objects[] = {
     SAI_OBJECT_TYPE_L2MC_GROUP,
@@ -52362,8 +58895,13 @@ const sai_attr_condition_t sai_metadata_validonly_SAI_VLAN_ATTR_UNKNOWN_MULTICAS
         .attrid = SAI_VLAN_ATTR_UNKNOWN_MULTICAST_FLOOD_CONTROL_TYPE,
         .condition = { .s32 = SAI_VLAN_FLOOD_CONTROL_TYPE_L2MC_GROUP }
 };
+const sai_attr_condition_t sai_metadata_validonly_SAI_VLAN_ATTR_UNKNOWN_MULTICAST_FLOOD_GROUP_1 = {
+        .attrid = SAI_VLAN_ATTR_UNKNOWN_MULTICAST_FLOOD_CONTROL_TYPE,
+        .condition = { .s32 = SAI_VLAN_FLOOD_CONTROL_TYPE_COMBINED }
+};
 const sai_attr_condition_t* const sai_metadata_validonlys_SAI_VLAN_ATTR_UNKNOWN_MULTICAST_FLOOD_GROUP[] = {
     &sai_metadata_validonly_SAI_VLAN_ATTR_UNKNOWN_MULTICAST_FLOOD_GROUP_0,
+    &sai_metadata_validonly_SAI_VLAN_ATTR_UNKNOWN_MULTICAST_FLOOD_GROUP_1,
     NULL
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_VLAN_ATTR_UNKNOWN_MULTICAST_FLOOD_GROUP = {
@@ -52394,8 +58932,8 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_VLAN_ATTR_UNKNOWN_MULTICAST_FLOO
     .isconditional                 = (0 != 0),
     .validonlytype                 = SAI_ATTR_CONDITION_TYPE_OR,
     .validonly                     = sai_metadata_validonlys_SAI_VLAN_ATTR_UNKNOWN_MULTICAST_FLOOD_GROUP,
-    .validonlylength               = 1,
-    .isvalidonly                   = (1 != 0),
+    .validonlylength               = 2,
+    .isvalidonly                   = (2 != 0),
     .getsave                       = false,
     .isvlan                        = false,
     .isaclfield                    = false,
@@ -52410,6 +58948,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_VLAN_ATTR_UNKNOWN_MULTICAST_FLOO
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_VLAN_ATTR_BROADCAST_FLOOD_CONTROL_TYPE_default_value = { .s32 = SAI_VLAN_FLOOD_CONTROL_TYPE_ALL };
 const sai_attr_metadata_t sai_metadata_attr_SAI_VLAN_ATTR_BROADCAST_FLOOD_CONTROL_TYPE = {
@@ -52456,6 +58995,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_VLAN_ATTR_BROADCAST_FLOOD_CONTRO
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_VLAN_ATTR_BROADCAST_FLOOD_GROUP_allowed_objects[] = {
     SAI_OBJECT_TYPE_L2MC_GROUP,
@@ -52466,8 +59006,13 @@ const sai_attr_condition_t sai_metadata_validonly_SAI_VLAN_ATTR_BROADCAST_FLOOD_
         .attrid = SAI_VLAN_ATTR_BROADCAST_FLOOD_CONTROL_TYPE,
         .condition = { .s32 = SAI_VLAN_FLOOD_CONTROL_TYPE_L2MC_GROUP }
 };
+const sai_attr_condition_t sai_metadata_validonly_SAI_VLAN_ATTR_BROADCAST_FLOOD_GROUP_1 = {
+        .attrid = SAI_VLAN_ATTR_BROADCAST_FLOOD_CONTROL_TYPE,
+        .condition = { .s32 = SAI_VLAN_FLOOD_CONTROL_TYPE_COMBINED }
+};
 const sai_attr_condition_t* const sai_metadata_validonlys_SAI_VLAN_ATTR_BROADCAST_FLOOD_GROUP[] = {
     &sai_metadata_validonly_SAI_VLAN_ATTR_BROADCAST_FLOOD_GROUP_0,
+    &sai_metadata_validonly_SAI_VLAN_ATTR_BROADCAST_FLOOD_GROUP_1,
     NULL
 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_VLAN_ATTR_BROADCAST_FLOOD_GROUP = {
@@ -52498,8 +59043,8 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_VLAN_ATTR_BROADCAST_FLOOD_GROUP 
     .isconditional                 = (0 != 0),
     .validonlytype                 = SAI_ATTR_CONDITION_TYPE_OR,
     .validonly                     = sai_metadata_validonlys_SAI_VLAN_ATTR_BROADCAST_FLOOD_GROUP,
-    .validonlylength               = 1,
-    .isvalidonly                   = (1 != 0),
+    .validonlylength               = 2,
+    .isvalidonly                   = (2 != 0),
     .getsave                       = false,
     .isvlan                        = false,
     .isaclfield                    = false,
@@ -52514,6 +59059,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_VLAN_ATTR_BROADCAST_FLOOD_GROUP 
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_VLAN_ATTR_CUSTOM_IGMP_SNOOPING_ENABLE_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_VLAN_ATTR_CUSTOM_IGMP_SNOOPING_ENABLE = {
@@ -52560,28 +59106,28 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_VLAN_ATTR_CUSTOM_IGMP_SNOOPING_E
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_VLAN_ATTR_TAM_OBJECT_allowed_objects[] = {
     SAI_OBJECT_TYPE_TAM,
     -1
 };
-const sai_attribute_value_t sai_metadata_SAI_VLAN_ATTR_TAM_OBJECT_default_value = { .oid = SAI_NULL_OBJECT_ID };
 const sai_attr_metadata_t sai_metadata_attr_SAI_VLAN_ATTR_TAM_OBJECT = {
     .objecttype                    = SAI_OBJECT_TYPE_VLAN,
     .attrid                        = SAI_VLAN_ATTR_TAM_OBJECT,
     .attridname                    = "SAI_VLAN_ATTR_TAM_OBJECT",
     .brief                         = "Vlan bind point for TAM object.",
-    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_OBJECT_ID,
+    .attrvaluetype                 = SAI_ATTR_VALUE_TYPE_OBJECT_LIST,
     .flags                         = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
     .allowedobjecttypes            = sai_metadata_SAI_VLAN_ATTR_TAM_OBJECT_allowed_objects,
     .allowedobjecttypeslength      = 1,
     .allowrepetitiononlist         = false,
     .allowmixedobjecttypes         = false,
     .allowemptylist                = false,
-    .allownullobjectid             = true,
+    .allownullobjectid             = false,
     .isoidattribute                = (1 > 0),
-    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_CONST,
-    .defaultvalue                  = &sai_metadata_SAI_VLAN_ATTR_TAM_OBJECT_default_value,
+    .defaultvaluetype              = SAI_DEFAULT_VALUE_TYPE_EMPTY_LIST,
+    .defaultvalue                  = NULL,
     .defaultvalueobjecttype        = SAI_OBJECT_TYPE_NULL,
     .defaultvalueattrid            = SAI_INVALID_ATTRIBUTE_ID,
     .storedefaultvalue             = false,
@@ -52605,11 +59151,12 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_VLAN_ATTR_TAM_OBJECT = {
     .iscreateandset                = true,
     .isreadonly                    = false,
     .iskey                         = false,
-    .isprimitive                   = true,
+    .isprimitive                   = false,
     .notificationtype              = -1,
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_VLAN_MEMBER_ATTR_VLAN_ID_allowed_objects[] = {
     SAI_OBJECT_TYPE_VLAN,
@@ -52659,6 +59206,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_VLAN_MEMBER_ATTR_VLAN_ID = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_object_type_t sai_metadata_SAI_VLAN_MEMBER_ATTR_BRIDGE_PORT_ID_allowed_objects[] = {
     SAI_OBJECT_TYPE_BRIDGE_PORT,
@@ -52708,6 +59256,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_VLAN_MEMBER_ATTR_BRIDGE_PORT_ID 
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_VLAN_MEMBER_ATTR_VLAN_TAGGING_MODE_default_value = { .s32 = SAI_VLAN_TAGGING_MODE_UNTAGGED };
 const sai_attr_metadata_t sai_metadata_attr_SAI_VLAN_MEMBER_ATTR_VLAN_TAGGING_MODE = {
@@ -52754,6 +59303,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_VLAN_MEMBER_ATTR_VLAN_TAGGING_MO
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_WRED_ATTR_GREEN_ENABLE_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_WRED_ATTR_GREEN_ENABLE = {
@@ -52800,6 +59350,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_WRED_ATTR_GREEN_ENABLE = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_WRED_ATTR_GREEN_MIN_THRESHOLD_default_value = { .u32 = 0 };
 const sai_attr_condition_t sai_metadata_validonly_SAI_WRED_ATTR_GREEN_MIN_THRESHOLD_0 = {
@@ -52874,6 +59425,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_WRED_ATTR_GREEN_MIN_THRESHOLD = 
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_WRED_ATTR_GREEN_MAX_THRESHOLD_default_value = { .u32 = 0 };
 const sai_attr_condition_t sai_metadata_validonly_SAI_WRED_ATTR_GREEN_MAX_THRESHOLD_0 = {
@@ -52948,6 +59500,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_WRED_ATTR_GREEN_MAX_THRESHOLD = 
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_WRED_ATTR_GREEN_DROP_PROBABILITY_default_value = { .u32 = 100 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_WRED_ATTR_GREEN_DROP_PROBABILITY = {
@@ -52994,6 +59547,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_WRED_ATTR_GREEN_DROP_PROBABILITY
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_WRED_ATTR_YELLOW_ENABLE_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_WRED_ATTR_YELLOW_ENABLE = {
@@ -53040,6 +59594,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_WRED_ATTR_YELLOW_ENABLE = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_WRED_ATTR_YELLOW_MIN_THRESHOLD_default_value = { .u32 = 0 };
 const sai_attr_condition_t sai_metadata_validonly_SAI_WRED_ATTR_YELLOW_MIN_THRESHOLD_0 = {
@@ -53114,6 +59669,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_WRED_ATTR_YELLOW_MIN_THRESHOLD =
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_WRED_ATTR_YELLOW_MAX_THRESHOLD_default_value = { .u32 = 0 };
 const sai_attr_condition_t sai_metadata_validonly_SAI_WRED_ATTR_YELLOW_MAX_THRESHOLD_0 = {
@@ -53188,6 +59744,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_WRED_ATTR_YELLOW_MAX_THRESHOLD =
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_WRED_ATTR_YELLOW_DROP_PROBABILITY_default_value = { .u32 = 100 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_WRED_ATTR_YELLOW_DROP_PROBABILITY = {
@@ -53234,6 +59791,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_WRED_ATTR_YELLOW_DROP_PROBABILIT
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_WRED_ATTR_RED_ENABLE_default_value = { .booldata = false };
 const sai_attr_metadata_t sai_metadata_attr_SAI_WRED_ATTR_RED_ENABLE = {
@@ -53280,6 +59838,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_WRED_ATTR_RED_ENABLE = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_WRED_ATTR_RED_MIN_THRESHOLD_default_value = { .u32 = 0 };
 const sai_attr_condition_t sai_metadata_validonly_SAI_WRED_ATTR_RED_MIN_THRESHOLD_0 = {
@@ -53354,6 +59913,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_WRED_ATTR_RED_MIN_THRESHOLD = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_WRED_ATTR_RED_MAX_THRESHOLD_default_value = { .u32 = 0 };
 const sai_attr_condition_t sai_metadata_validonly_SAI_WRED_ATTR_RED_MAX_THRESHOLD_0 = {
@@ -53428,6 +59988,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_WRED_ATTR_RED_MAX_THRESHOLD = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_WRED_ATTR_RED_DROP_PROBABILITY_default_value = { .u32 = 100 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_WRED_ATTR_RED_DROP_PROBABILITY = {
@@ -53474,6 +60035,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_WRED_ATTR_RED_DROP_PROBABILITY =
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_WRED_ATTR_WEIGHT_default_value = { .u8 = 0 };
 const sai_attr_metadata_t sai_metadata_attr_SAI_WRED_ATTR_WEIGHT = {
@@ -53520,6 +60082,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_WRED_ATTR_WEIGHT = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_WRED_ATTR_ECN_MARK_MODE_default_value = { .s32 = SAI_ECN_MARK_MODE_NONE };
 const sai_attr_metadata_t sai_metadata_attr_SAI_WRED_ATTR_ECN_MARK_MODE = {
@@ -53566,6 +60129,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_WRED_ATTR_ECN_MARK_MODE = {
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_WRED_ATTR_ECN_GREEN_MIN_THRESHOLD_default_value = { .u32 = 0 };
 const sai_attr_condition_t sai_metadata_validonly_SAI_WRED_ATTR_ECN_GREEN_MIN_THRESHOLD_0 = {
@@ -53635,6 +60199,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_WRED_ATTR_ECN_GREEN_MIN_THRESHOL
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_WRED_ATTR_ECN_GREEN_MAX_THRESHOLD_default_value = { .u32 = 0 };
 const sai_attr_condition_t sai_metadata_validonly_SAI_WRED_ATTR_ECN_GREEN_MAX_THRESHOLD_0 = {
@@ -53704,6 +60269,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_WRED_ATTR_ECN_GREEN_MAX_THRESHOL
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_WRED_ATTR_ECN_GREEN_MARK_PROBABILITY_default_value = { .u32 = 100 };
 const sai_attr_condition_t sai_metadata_validonly_SAI_WRED_ATTR_ECN_GREEN_MARK_PROBABILITY_0 = {
@@ -53773,6 +60339,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_WRED_ATTR_ECN_GREEN_MARK_PROBABI
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_WRED_ATTR_ECN_YELLOW_MIN_THRESHOLD_default_value = { .u32 = 0 };
 const sai_attr_condition_t sai_metadata_validonly_SAI_WRED_ATTR_ECN_YELLOW_MIN_THRESHOLD_0 = {
@@ -53842,6 +60409,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_WRED_ATTR_ECN_YELLOW_MIN_THRESHO
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_WRED_ATTR_ECN_YELLOW_MAX_THRESHOLD_default_value = { .u32 = 0 };
 const sai_attr_condition_t sai_metadata_validonly_SAI_WRED_ATTR_ECN_YELLOW_MAX_THRESHOLD_0 = {
@@ -53911,6 +60479,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_WRED_ATTR_ECN_YELLOW_MAX_THRESHO
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_WRED_ATTR_ECN_YELLOW_MARK_PROBABILITY_default_value = { .u32 = 100 };
 const sai_attr_condition_t sai_metadata_validonly_SAI_WRED_ATTR_ECN_YELLOW_MARK_PROBABILITY_0 = {
@@ -53980,6 +60549,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_WRED_ATTR_ECN_YELLOW_MARK_PROBAB
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_WRED_ATTR_ECN_RED_MIN_THRESHOLD_default_value = { .u32 = 0 };
 const sai_attr_condition_t sai_metadata_validonly_SAI_WRED_ATTR_ECN_RED_MIN_THRESHOLD_0 = {
@@ -54049,6 +60619,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_WRED_ATTR_ECN_RED_MIN_THRESHOLD 
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_WRED_ATTR_ECN_RED_MAX_THRESHOLD_default_value = { .u32 = 0 };
 const sai_attr_condition_t sai_metadata_validonly_SAI_WRED_ATTR_ECN_RED_MAX_THRESHOLD_0 = {
@@ -54118,6 +60689,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_WRED_ATTR_ECN_RED_MAX_THRESHOLD 
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_WRED_ATTR_ECN_RED_MARK_PROBABILITY_default_value = { .u32 = 100 };
 const sai_attr_condition_t sai_metadata_validonly_SAI_WRED_ATTR_ECN_RED_MARK_PROBABILITY_0 = {
@@ -54187,6 +60759,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_WRED_ATTR_ECN_RED_MARK_PROBABILI
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_WRED_ATTR_ECN_COLOR_UNAWARE_MIN_THRESHOLD_default_value = { .u32 = 0 };
 const sai_attr_condition_t sai_metadata_validonly_SAI_WRED_ATTR_ECN_COLOR_UNAWARE_MIN_THRESHOLD_0 = {
@@ -54241,6 +60814,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_WRED_ATTR_ECN_COLOR_UNAWARE_MIN_
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_WRED_ATTR_ECN_COLOR_UNAWARE_MAX_THRESHOLD_default_value = { .u32 = 0 };
 const sai_attr_condition_t sai_metadata_validonly_SAI_WRED_ATTR_ECN_COLOR_UNAWARE_MAX_THRESHOLD_0 = {
@@ -54295,6 +60869,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_WRED_ATTR_ECN_COLOR_UNAWARE_MAX_
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attribute_value_t sai_metadata_SAI_WRED_ATTR_ECN_COLOR_UNAWARE_MARK_PROBABILITY_default_value = { .u32 = 100 };
 const sai_attr_condition_t sai_metadata_validonly_SAI_WRED_ATTR_ECN_COLOR_UNAWARE_MARK_PROBABILITY_0 = {
@@ -54349,6 +60924,7 @@ const sai_attr_metadata_t sai_metadata_attr_SAI_WRED_ATTR_ECN_COLOR_UNAWARE_MARK
     .capability                    = NULL,
     .capabilitylength              = 0,
     .isextensionattr               = false,
+    .isresourcetype                = false,
 };
 const sai_attr_metadata_t* const sai_metadata_object_type_sai_null_attr_t[] = {
     NULL
@@ -54445,6 +61021,8 @@ const sai_attr_metadata_t* const sai_metadata_object_type_sai_port_attr_t[] = {
     &sai_metadata_attr_SAI_PORT_ATTR_SERDES_PREEMPHASIS,
     &sai_metadata_attr_SAI_PORT_ATTR_SERDES_IDRIVER,
     &sai_metadata_attr_SAI_PORT_ATTR_SERDES_IPREDRIVER,
+    &sai_metadata_attr_SAI_PORT_ATTR_LINK_TRAINING_ENABLE,
+    &sai_metadata_attr_SAI_PORT_ATTR_PTP_MODE,
     NULL
 };
 const sai_attr_metadata_t* const sai_metadata_object_type_sai_lag_attr_t[] = {
@@ -54477,6 +61055,7 @@ const sai_attr_metadata_t* const sai_metadata_object_type_sai_next_hop_attr_t[] 
     &sai_metadata_attr_SAI_NEXT_HOP_ATTR_SEGMENTROUTE_ENDPOINT_TYPE,
     &sai_metadata_attr_SAI_NEXT_HOP_ATTR_SEGMENTROUTE_ENDPOINT_POP_TYPE,
     &sai_metadata_attr_SAI_NEXT_HOP_ATTR_LABELSTACK,
+    &sai_metadata_attr_SAI_NEXT_HOP_ATTR_COUNTER_ID,
     NULL
 };
 const sai_attr_metadata_t* const sai_metadata_object_type_sai_next_hop_group_attr_t[] = {
@@ -54484,6 +61063,7 @@ const sai_attr_metadata_t* const sai_metadata_object_type_sai_next_hop_group_att
     &sai_metadata_attr_SAI_NEXT_HOP_GROUP_ATTR_NEXT_HOP_MEMBER_LIST,
     &sai_metadata_attr_SAI_NEXT_HOP_GROUP_ATTR_TYPE,
     &sai_metadata_attr_SAI_NEXT_HOP_GROUP_ATTR_SET_SWITCHOVER,
+    &sai_metadata_attr_SAI_NEXT_HOP_GROUP_ATTR_COUNTER_ID,
     NULL
 };
 const sai_attr_metadata_t* const sai_metadata_object_type_sai_router_interface_attr_t[] = {
@@ -54505,6 +61085,7 @@ const sai_attr_metadata_t* const sai_metadata_object_type_sai_router_interface_a
     &sai_metadata_attr_SAI_ROUTER_INTERFACE_ATTR_V6_MCAST_ENABLE,
     &sai_metadata_attr_SAI_ROUTER_INTERFACE_ATTR_LOOPBACK_PACKET_ACTION,
     &sai_metadata_attr_SAI_ROUTER_INTERFACE_ATTR_IS_VIRTUAL,
+    &sai_metadata_attr_SAI_ROUTER_INTERFACE_ATTR_NAT_ZONE_ID,
     NULL
 };
 const sai_attr_metadata_t* const sai_metadata_object_type_sai_acl_table_attr_t[] = {
@@ -54699,6 +61280,13 @@ const sai_attr_metadata_t* const sai_metadata_object_type_sai_acl_entry_attr_t[]
     &sai_metadata_attr_SAI_ACL_ENTRY_ATTR_ACTION_DTEL_TAIL_DROP_REPORT_ENABLE,
     &sai_metadata_attr_SAI_ACL_ENTRY_ATTR_ACTION_DTEL_FLOW_SAMPLE_PERCENT,
     &sai_metadata_attr_SAI_ACL_ENTRY_ATTR_ACTION_DTEL_REPORT_ALL_PACKETS,
+    &sai_metadata_attr_SAI_ACL_ENTRY_ATTR_ACTION_NO_NAT,
+    &sai_metadata_attr_SAI_ACL_ENTRY_ATTR_ACTION_INT_INSERT,
+    &sai_metadata_attr_SAI_ACL_ENTRY_ATTR_ACTION_INT_DELETE,
+    &sai_metadata_attr_SAI_ACL_ENTRY_ATTR_ACTION_INT_REPORT_FLOW,
+    &sai_metadata_attr_SAI_ACL_ENTRY_ATTR_ACTION_INT_REPORT_DROPS,
+    &sai_metadata_attr_SAI_ACL_ENTRY_ATTR_ACTION_INT_REPORT_TAIL_DROPS,
+    &sai_metadata_attr_SAI_ACL_ENTRY_ATTR_ACTION_TAM_INT_OBJECT,
     &sai_metadata_attr_SAI_ACL_ENTRY_ATTR_ACTION_SET_ISOLATION_GROUP,
     NULL
 };
@@ -54735,6 +61323,7 @@ const sai_attr_metadata_t* const sai_metadata_object_type_sai_hostif_attr_t[] = 
     &sai_metadata_attr_SAI_HOSTIF_ATTR_OPER_STATUS,
     &sai_metadata_attr_SAI_HOSTIF_ATTR_QUEUE,
     &sai_metadata_attr_SAI_HOSTIF_ATTR_VLAN_TAG,
+    &sai_metadata_attr_SAI_HOSTIF_ATTR_GENETLINK_MCGRP_NAME,
     NULL
 };
 const sai_attr_metadata_t* const sai_metadata_object_type_sai_mirror_session_attr_t[] = {
@@ -54758,6 +61347,8 @@ const sai_attr_metadata_t* const sai_metadata_object_type_sai_mirror_session_att
     &sai_metadata_attr_SAI_MIRROR_SESSION_ATTR_SRC_MAC_ADDRESS,
     &sai_metadata_attr_SAI_MIRROR_SESSION_ATTR_DST_MAC_ADDRESS,
     &sai_metadata_attr_SAI_MIRROR_SESSION_ATTR_GRE_PROTOCOL_TYPE,
+    &sai_metadata_attr_SAI_MIRROR_SESSION_ATTR_MONITOR_PORTLIST_VALID,
+    &sai_metadata_attr_SAI_MIRROR_SESSION_ATTR_MONITOR_PORTLIST,
     &sai_metadata_attr_SAI_MIRROR_SESSION_ATTR_POLICER,
     NULL
 };
@@ -54866,6 +61457,7 @@ const sai_attr_metadata_t* const sai_metadata_object_type_sai_buffer_pool_attr_t
     &sai_metadata_attr_SAI_BUFFER_POOL_ATTR_TYPE,
     &sai_metadata_attr_SAI_BUFFER_POOL_ATTR_SIZE,
     &sai_metadata_attr_SAI_BUFFER_POOL_ATTR_THRESHOLD_MODE,
+    &sai_metadata_attr_SAI_BUFFER_POOL_ATTR_TAM,
     &sai_metadata_attr_SAI_BUFFER_POOL_ATTR_XOFF_SIZE,
     &sai_metadata_attr_SAI_BUFFER_POOL_ATTR_WRED_PROFILE_ID,
     NULL
@@ -54884,6 +61476,7 @@ const sai_attr_metadata_t* const sai_metadata_object_type_sai_buffer_profile_att
 const sai_attr_metadata_t* const sai_metadata_object_type_sai_ingress_priority_group_attr_t[] = {
     &sai_metadata_attr_SAI_INGRESS_PRIORITY_GROUP_ATTR_BUFFER_PROFILE,
     &sai_metadata_attr_SAI_INGRESS_PRIORITY_GROUP_ATTR_PORT,
+    &sai_metadata_attr_SAI_INGRESS_PRIORITY_GROUP_ATTR_TAM,
     &sai_metadata_attr_SAI_INGRESS_PRIORITY_GROUP_ATTR_INDEX,
     NULL
 };
@@ -54927,6 +61520,7 @@ const sai_attr_metadata_t* const sai_metadata_object_type_sai_fdb_entry_attr_t[]
     &sai_metadata_attr_SAI_FDB_ENTRY_ATTR_BRIDGE_PORT_ID,
     &sai_metadata_attr_SAI_FDB_ENTRY_ATTR_META_DATA,
     &sai_metadata_attr_SAI_FDB_ENTRY_ATTR_ENDPOINT_IP,
+    &sai_metadata_attr_SAI_FDB_ENTRY_ATTR_COUNTER_ID,
     NULL
 };
 const sai_attr_metadata_t* const sai_metadata_object_type_sai_switch_attr_t[] = {
@@ -54968,6 +61562,7 @@ const sai_attr_metadata_t* const sai_metadata_object_type_sai_switch_attr_t[] = 
     &sai_metadata_attr_SAI_SWITCH_ATTR_ACL_USER_TRAP_ID_RANGE,
     &sai_metadata_attr_SAI_SWITCH_ATTR_DEFAULT_VLAN_ID,
     &sai_metadata_attr_SAI_SWITCH_ATTR_DEFAULT_STP_INST_ID,
+    &sai_metadata_attr_SAI_SWITCH_ATTR_MAX_STP_INSTANCE,
     &sai_metadata_attr_SAI_SWITCH_ATTR_DEFAULT_VIRTUAL_ROUTER_ID,
     &sai_metadata_attr_SAI_SWITCH_ATTR_DEFAULT_1Q_BRIDGE_ID,
     &sai_metadata_attr_SAI_SWITCH_ATTR_INGRESS_ACL,
@@ -54990,6 +61585,9 @@ const sai_attr_metadata_t* const sai_metadata_object_type_sai_switch_attr_t[] = 
     &sai_metadata_attr_SAI_SWITCH_ATTR_AVAILABLE_FDB_ENTRY,
     &sai_metadata_attr_SAI_SWITCH_ATTR_AVAILABLE_L2MC_ENTRY,
     &sai_metadata_attr_SAI_SWITCH_ATTR_AVAILABLE_IPMC_ENTRY,
+    &sai_metadata_attr_SAI_SWITCH_ATTR_AVAILABLE_SNAT_ENTRY,
+    &sai_metadata_attr_SAI_SWITCH_ATTR_AVAILABLE_DNAT_ENTRY,
+    &sai_metadata_attr_SAI_SWITCH_ATTR_AVAILABLE_DOUBLE_NAT_ENTRY,
     &sai_metadata_attr_SAI_SWITCH_ATTR_AVAILABLE_ACL_TABLE,
     &sai_metadata_attr_SAI_SWITCH_ATTR_AVAILABLE_ACL_TABLE_GROUP,
     &sai_metadata_attr_SAI_SWITCH_ATTR_DEFAULT_TRAP_GROUP,
@@ -55065,6 +61663,8 @@ const sai_attr_metadata_t* const sai_metadata_object_type_sai_switch_attr_t[] = 
     &sai_metadata_attr_SAI_SWITCH_ATTR_BFD_SESSION_STATE_CHANGE_NOTIFY,
     &sai_metadata_attr_SAI_SWITCH_ATTR_NUMBER_OF_BFD_SESSION,
     &sai_metadata_attr_SAI_SWITCH_ATTR_MAX_BFD_SESSION,
+    &sai_metadata_attr_SAI_SWITCH_ATTR_SUPPORTED_IPV4_BFD_SESSION_OFFLOAD_TYPE,
+    &sai_metadata_attr_SAI_SWITCH_ATTR_SUPPORTED_IPV6_BFD_SESSION_OFFLOAD_TYPE,
     &sai_metadata_attr_SAI_SWITCH_ATTR_MIN_BFD_RX,
     &sai_metadata_attr_SAI_SWITCH_ATTR_MIN_BFD_TX,
     &sai_metadata_attr_SAI_SWITCH_ATTR_ECN_ECT_THRESHOLD_ENABLE,
@@ -55077,6 +61677,8 @@ const sai_attr_metadata_t* const sai_metadata_object_type_sai_switch_attr_t[] = 
     &sai_metadata_attr_SAI_SWITCH_ATTR_TAM_OBJECT_ID,
     &sai_metadata_attr_SAI_SWITCH_ATTR_TAM_EVENT_NOTIFY,
     &sai_metadata_attr_SAI_SWITCH_ATTR_PRE_SHUTDOWN,
+    &sai_metadata_attr_SAI_SWITCH_ATTR_NAT_ZONE_COUNTER_OBJECT_ID,
+    &sai_metadata_attr_SAI_SWITCH_ATTR_NAT_ENABLE,
     NULL
 };
 const sai_attr_metadata_t* const sai_metadata_object_type_sai_hostif_trap_attr_t[] = {
@@ -55086,6 +61688,7 @@ const sai_attr_metadata_t* const sai_metadata_object_type_sai_hostif_trap_attr_t
     &sai_metadata_attr_SAI_HOSTIF_TRAP_ATTR_EXCLUDE_PORT_LIST,
     &sai_metadata_attr_SAI_HOSTIF_TRAP_ATTR_TRAP_GROUP,
     &sai_metadata_attr_SAI_HOSTIF_TRAP_ATTR_MIRROR_SESSION,
+    &sai_metadata_attr_SAI_HOSTIF_TRAP_ATTR_COUNTER_ID,
     NULL
 };
 const sai_attr_metadata_t* const sai_metadata_object_type_sai_hostif_table_entry_attr_t[] = {
@@ -55102,6 +61705,7 @@ const sai_attr_metadata_t* const sai_metadata_object_type_sai_neighbor_entry_att
     &sai_metadata_attr_SAI_NEIGHBOR_ENTRY_ATTR_USER_TRAP_ID,
     &sai_metadata_attr_SAI_NEIGHBOR_ENTRY_ATTR_NO_HOST_ROUTE,
     &sai_metadata_attr_SAI_NEIGHBOR_ENTRY_ATTR_META_DATA,
+    &sai_metadata_attr_SAI_NEIGHBOR_ENTRY_ATTR_COUNTER_ID,
     NULL
 };
 const sai_attr_metadata_t* const sai_metadata_object_type_sai_route_entry_attr_t[] = {
@@ -55109,6 +61713,8 @@ const sai_attr_metadata_t* const sai_metadata_object_type_sai_route_entry_attr_t
     &sai_metadata_attr_SAI_ROUTE_ENTRY_ATTR_USER_TRAP_ID,
     &sai_metadata_attr_SAI_ROUTE_ENTRY_ATTR_NEXT_HOP_ID,
     &sai_metadata_attr_SAI_ROUTE_ENTRY_ATTR_META_DATA,
+    &sai_metadata_attr_SAI_ROUTE_ENTRY_ATTR_IP_ADDR_FAMILY,
+    &sai_metadata_attr_SAI_ROUTE_ENTRY_ATTR_COUNTER_ID,
     NULL
 };
 const sai_attr_metadata_t* const sai_metadata_object_type_sai_vlan_attr_t[] = {
@@ -55311,6 +61917,7 @@ const sai_attr_metadata_t* const sai_metadata_object_type_sai_tunnel_map_entry_a
 const sai_attr_metadata_t* const sai_metadata_object_type_sai_tam_attr_t[] = {
     &sai_metadata_attr_SAI_TAM_ATTR_TELEMETRY_OBJECTS_LIST,
     &sai_metadata_attr_SAI_TAM_ATTR_EVENT_OBJECTS_LIST,
+    &sai_metadata_attr_SAI_TAM_ATTR_INT_OBJECTS_LIST,
     &sai_metadata_attr_SAI_TAM_ATTR_TAM_BIND_POINT_TYPE_LIST,
     NULL
 };
@@ -55412,6 +62019,12 @@ const sai_attr_metadata_t* const sai_metadata_object_type_sai_bfd_session_attr_t
     &sai_metadata_attr_SAI_BFD_SESSION_ATTR_REMOTE_MIN_TX,
     &sai_metadata_attr_SAI_BFD_SESSION_ATTR_REMOTE_MIN_RX,
     &sai_metadata_attr_SAI_BFD_SESSION_ATTR_STATE,
+    &sai_metadata_attr_SAI_BFD_SESSION_ATTR_OFFLOAD_TYPE,
+    &sai_metadata_attr_SAI_BFD_SESSION_ATTR_NEGOTIATED_TX,
+    &sai_metadata_attr_SAI_BFD_SESSION_ATTR_NEGOTIATED_RX,
+    &sai_metadata_attr_SAI_BFD_SESSION_ATTR_LOCAL_DIAG,
+    &sai_metadata_attr_SAI_BFD_SESSION_ATTR_REMOTE_DIAG,
+    &sai_metadata_attr_SAI_BFD_SESSION_ATTR_REMOTE_MULTIPLIER,
     NULL
 };
 const sai_attr_metadata_t* const sai_metadata_object_type_sai_isolation_group_attr_t[] = {
@@ -55432,6 +62045,9 @@ const sai_attr_metadata_t* const sai_metadata_object_type_sai_tam_report_attr_t[
     &sai_metadata_attr_SAI_TAM_REPORT_ATTR_TYPE,
     &sai_metadata_attr_SAI_TAM_REPORT_ATTR_HISTOGRAM_NUMBER_OF_BINS,
     &sai_metadata_attr_SAI_TAM_REPORT_ATTR_HISTOGRAM_BIN_BOUNDARY,
+    &sai_metadata_attr_SAI_TAM_REPORT_ATTR_QUOTA,
+    &sai_metadata_attr_SAI_TAM_REPORT_ATTR_REPORT_MODE,
+    &sai_metadata_attr_SAI_TAM_REPORT_ATTR_REPORT_INTERVAL,
     NULL
 };
 const sai_attr_metadata_t* const sai_metadata_object_type_sai_tam_event_threshold_attr_t[] = {
@@ -55445,6 +62061,7 @@ const sai_attr_metadata_t* const sai_metadata_object_type_sai_tam_event_threshol
 };
 const sai_attr_metadata_t* const sai_metadata_object_type_sai_tam_tel_type_attr_t[] = {
     &sai_metadata_attr_SAI_TAM_TEL_TYPE_ATTR_TAM_TELEMETRY_TYPE,
+    &sai_metadata_attr_SAI_TAM_TEL_TYPE_ATTR_INT_SWITCH_IDENTIFIER,
     &sai_metadata_attr_SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_PORT_STATS,
     &sai_metadata_attr_SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_PORT_STATS_INGRESS,
     &sai_metadata_attr_SAI_TAM_TEL_TYPE_ATTR_SWITCH_ENABLE_PORT_STATS_EGRESS,
@@ -55497,6 +62114,74 @@ const sai_attr_metadata_t* const sai_metadata_object_type_sai_tam_event_attr_t[]
     &sai_metadata_attr_SAI_TAM_EVENT_ATTR_COLLECTOR_LIST,
     &sai_metadata_attr_SAI_TAM_EVENT_ATTR_THRESHOLD,
     &sai_metadata_attr_SAI_TAM_EVENT_ATTR_DSCP_VALUE,
+    NULL
+};
+const sai_attr_metadata_t* const sai_metadata_object_type_sai_nat_zone_counter_attr_t[] = {
+    &sai_metadata_attr_SAI_NAT_ZONE_COUNTER_ATTR_NAT_TYPE,
+    &sai_metadata_attr_SAI_NAT_ZONE_COUNTER_ATTR_ZONE_ID,
+    &sai_metadata_attr_SAI_NAT_ZONE_COUNTER_ATTR_ENABLE_DISCARD,
+    &sai_metadata_attr_SAI_NAT_ZONE_COUNTER_ATTR_DISCARD_PACKET_COUNT,
+    &sai_metadata_attr_SAI_NAT_ZONE_COUNTER_ATTR_ENABLE_TRANSLATION_NEEDED,
+    &sai_metadata_attr_SAI_NAT_ZONE_COUNTER_ATTR_TRANSLATION_NEEDED_PACKET_COUNT,
+    &sai_metadata_attr_SAI_NAT_ZONE_COUNTER_ATTR_ENABLE_TRANSLATIONS,
+    &sai_metadata_attr_SAI_NAT_ZONE_COUNTER_ATTR_TRANSLATIONS_PACKET_COUNT,
+    NULL
+};
+const sai_attr_metadata_t* const sai_metadata_object_type_sai_nat_entry_attr_t[] = {
+    &sai_metadata_attr_SAI_NAT_ENTRY_ATTR_NAT_TYPE,
+    &sai_metadata_attr_SAI_NAT_ENTRY_ATTR_SRC_IP,
+    &sai_metadata_attr_SAI_NAT_ENTRY_ATTR_SRC_IP_MASK,
+    &sai_metadata_attr_SAI_NAT_ENTRY_ATTR_VR_ID,
+    &sai_metadata_attr_SAI_NAT_ENTRY_ATTR_DST_IP,
+    &sai_metadata_attr_SAI_NAT_ENTRY_ATTR_DST_IP_MASK,
+    &sai_metadata_attr_SAI_NAT_ENTRY_ATTR_L4_SRC_PORT,
+    &sai_metadata_attr_SAI_NAT_ENTRY_ATTR_L4_DST_PORT,
+    &sai_metadata_attr_SAI_NAT_ENTRY_ATTR_ENABLE_PACKET_COUNT,
+    &sai_metadata_attr_SAI_NAT_ENTRY_ATTR_PACKET_COUNT,
+    &sai_metadata_attr_SAI_NAT_ENTRY_ATTR_ENABLE_BYTE_COUNT,
+    &sai_metadata_attr_SAI_NAT_ENTRY_ATTR_BYTE_COUNT,
+    &sai_metadata_attr_SAI_NAT_ENTRY_ATTR_HIT_BIT_COR,
+    &sai_metadata_attr_SAI_NAT_ENTRY_ATTR_HIT_BIT,
+    NULL
+};
+const sai_attr_metadata_t* const sai_metadata_object_type_sai_tam_int_attr_t[] = {
+    &sai_metadata_attr_SAI_TAM_INT_ATTR_TYPE,
+    &sai_metadata_attr_SAI_TAM_INT_ATTR_DEVICE_ID,
+    &sai_metadata_attr_SAI_TAM_INT_ATTR_IOAM_TRACE_TYPE,
+    &sai_metadata_attr_SAI_TAM_INT_ATTR_INT_PRESENCE_TYPE,
+    &sai_metadata_attr_SAI_TAM_INT_ATTR_INT_PRESENCE_PB1,
+    &sai_metadata_attr_SAI_TAM_INT_ATTR_INT_PRESENCE_PB2,
+    &sai_metadata_attr_SAI_TAM_INT_ATTR_INT_PRESENCE_DSCP_VALUE,
+    &sai_metadata_attr_SAI_TAM_INT_ATTR_INLINE,
+    &sai_metadata_attr_SAI_TAM_INT_ATTR_INT_PRESENCE_L3_PROTOCOL,
+    &sai_metadata_attr_SAI_TAM_INT_ATTR_TRACE_VECTOR,
+    &sai_metadata_attr_SAI_TAM_INT_ATTR_ACTION_VECTOR,
+    &sai_metadata_attr_SAI_TAM_INT_ATTR_P4_INT_INSTRUCTION_BITMAP,
+    &sai_metadata_attr_SAI_TAM_INT_ATTR_METADATA_FRAGMENT_ENABLE,
+    &sai_metadata_attr_SAI_TAM_INT_ATTR_REPORT_ALL_PACKETS,
+    &sai_metadata_attr_SAI_TAM_INT_ATTR_FLOW_LIVENESS_PERIOD,
+    &sai_metadata_attr_SAI_TAM_INT_ATTR_LATENCY_SENSITIVITY,
+    &sai_metadata_attr_SAI_TAM_INT_ATTR_ACL_GROUP,
+    &sai_metadata_attr_SAI_TAM_INT_ATTR_MAX_HOP_COUNT,
+    &sai_metadata_attr_SAI_TAM_INT_ATTR_MAX_LENGTH,
+    &sai_metadata_attr_SAI_TAM_INT_ATTR_NAME_SPACE_ID,
+    &sai_metadata_attr_SAI_TAM_INT_ATTR_NAME_SPACE_ID_GLOBAL,
+    &sai_metadata_attr_SAI_TAM_INT_ATTR_INGRESS_SAMPLEPACKET_ENABLE,
+    &sai_metadata_attr_SAI_TAM_INT_ATTR_COLLECTOR_LIST,
+    &sai_metadata_attr_SAI_TAM_INT_ATTR_MATH_FUNC,
+    &sai_metadata_attr_SAI_TAM_INT_ATTR_REPORT_ID,
+    NULL
+};
+const sai_attr_metadata_t* const sai_metadata_object_type_sai_counter_attr_t[] = {
+    &sai_metadata_attr_SAI_COUNTER_ATTR_TYPE,
+    NULL
+};
+const sai_attr_metadata_t* const sai_metadata_object_type_sai_debug_counter_attr_t[] = {
+    &sai_metadata_attr_SAI_DEBUG_COUNTER_ATTR_INDEX,
+    &sai_metadata_attr_SAI_DEBUG_COUNTER_ATTR_TYPE,
+    &sai_metadata_attr_SAI_DEBUG_COUNTER_ATTR_BIND_METHOD,
+    &sai_metadata_attr_SAI_DEBUG_COUNTER_ATTR_IN_DROP_REASON_LIST,
+    &sai_metadata_attr_SAI_DEBUG_COUNTER_ATTR_OUT_DROP_REASON_LIST,
     NULL
 };
 const sai_attr_metadata_t* const sai_metadata_object_type_sai_table_bitmap_classification_entry_attr_t[] = {
@@ -55608,12 +62293,17 @@ const sai_attr_metadata_t* const* const sai_metadata_attr_by_object_type[] = {
     sai_metadata_object_type_sai_tam_collector_attr_t,
     sai_metadata_object_type_sai_tam_event_action_attr_t,
     sai_metadata_object_type_sai_tam_event_attr_t,
+    sai_metadata_object_type_sai_nat_zone_counter_attr_t,
+    sai_metadata_object_type_sai_nat_entry_attr_t,
+    sai_metadata_object_type_sai_tam_int_attr_t,
+    sai_metadata_object_type_sai_counter_attr_t,
+    sai_metadata_object_type_sai_debug_counter_attr_t,
     sai_metadata_object_type_sai_table_bitmap_classification_entry_attr_t,
     sai_metadata_object_type_sai_table_bitmap_router_entry_attr_t,
     sai_metadata_object_type_sai_table_meta_tunnel_entry_attr_t,
     NULL
 };
-const size_t sai_metadata_attr_by_object_type_count = 84;
+const size_t sai_metadata_attr_by_object_type_count = 89;
 
 /* Define SAI_OBJECT_TYPE_EXTENSIONS_MAX */
 
@@ -55689,6 +62379,11 @@ const char* sai_metadata_get_bfd_encapsulation_type_name(
     _In_ sai_bfd_encapsulation_type_t value)
 {
     return sai_metadata_get_enum_value_name(&sai_metadata_enum_sai_bfd_encapsulation_type_t, value);
+}
+const char* sai_metadata_get_bfd_session_offload_type_name(
+    _In_ sai_bfd_session_offload_type_t value)
+{
+    return sai_metadata_get_enum_value_name(&sai_metadata_enum_sai_bfd_session_offload_type_t, value);
 }
 const char* sai_metadata_get_bfd_session_stat_name(
     _In_ sai_bfd_session_stat_t value)
@@ -55770,6 +62465,26 @@ const char* sai_metadata_get_common_api_name(
 {
     return sai_metadata_get_enum_value_name(&sai_metadata_enum_sai_common_api_t, value);
 }
+const char* sai_metadata_get_counter_stat_name(
+    _In_ sai_counter_stat_t value)
+{
+    return sai_metadata_get_enum_value_name(&sai_metadata_enum_sai_counter_stat_t, value);
+}
+const char* sai_metadata_get_counter_type_name(
+    _In_ sai_counter_type_t value)
+{
+    return sai_metadata_get_enum_value_name(&sai_metadata_enum_sai_counter_type_t, value);
+}
+const char* sai_metadata_get_debug_counter_bind_method_name(
+    _In_ sai_debug_counter_bind_method_t value)
+{
+    return sai_metadata_get_enum_value_name(&sai_metadata_enum_sai_debug_counter_bind_method_t, value);
+}
+const char* sai_metadata_get_debug_counter_type_name(
+    _In_ sai_debug_counter_type_t value)
+{
+    return sai_metadata_get_enum_value_name(&sai_metadata_enum_sai_debug_counter_type_t, value);
+}
 const char* sai_metadata_get_default_value_type_name(
     _In_ sai_default_value_type_t value)
 {
@@ -55845,6 +62560,11 @@ const char* sai_metadata_get_hostif_vlan_tag_name(
 {
     return sai_metadata_get_enum_value_name(&sai_metadata_enum_sai_hostif_vlan_tag_t, value);
 }
+const char* sai_metadata_get_in_drop_reason_name(
+    _In_ sai_in_drop_reason_t value)
+{
+    return sai_metadata_get_enum_value_name(&sai_metadata_enum_sai_in_drop_reason_t, value);
+}
 const char* sai_metadata_get_ingress_priority_group_stat_name(
     _In_ sai_ingress_priority_group_stat_t value)
 {
@@ -55890,6 +62610,11 @@ const char* sai_metadata_get_mirror_session_type_name(
 {
     return sai_metadata_get_enum_value_name(&sai_metadata_enum_sai_mirror_session_type_t, value);
 }
+const char* sai_metadata_get_nat_type_name(
+    _In_ sai_nat_type_t value)
+{
+    return sai_metadata_get_enum_value_name(&sai_metadata_enum_sai_nat_type_t, value);
+}
 const char* sai_metadata_get_native_hash_field_name(
     _In_ sai_native_hash_field_t value)
 {
@@ -55934,6 +62659,11 @@ const char* sai_metadata_get_object_type_name(
     _In_ sai_object_type_t value)
 {
     return sai_metadata_get_enum_value_name(&sai_metadata_enum_sai_object_type_t, value);
+}
+const char* sai_metadata_get_out_drop_reason_name(
+    _In_ sai_out_drop_reason_t value)
+{
+    return sai_metadata_get_enum_value_name(&sai_metadata_enum_sai_out_drop_reason_t, value);
 }
 const char* sai_metadata_get_packet_action_name(
     _In_ sai_packet_action_t value)
@@ -56004,6 +62734,11 @@ const char* sai_metadata_get_port_priority_flow_control_mode_name(
     _In_ sai_port_priority_flow_control_mode_t value)
 {
     return sai_metadata_get_enum_value_name(&sai_metadata_enum_sai_port_priority_flow_control_mode_t, value);
+}
+const char* sai_metadata_get_port_ptp_mode_name(
+    _In_ sai_port_ptp_mode_t value)
+{
+    return sai_metadata_get_enum_value_name(&sai_metadata_enum_sai_port_ptp_mode_t, value);
 }
 const char* sai_metadata_get_port_stat_name(
     _In_ sai_port_stat_t value)
@@ -56095,6 +62830,11 @@ const char* sai_metadata_get_switch_restart_type_name(
 {
     return sai_metadata_get_enum_value_name(&sai_metadata_enum_sai_switch_restart_type_t, value);
 }
+const char* sai_metadata_get_switch_stat_name(
+    _In_ sai_switch_stat_t value)
+{
+    return sai_metadata_get_enum_value_name(&sai_metadata_enum_sai_switch_stat_t, value);
+}
 const char* sai_metadata_get_switch_switching_mode_name(
     _In_ sai_switch_switching_mode_t value)
 {
@@ -56144,6 +62884,21 @@ const char* sai_metadata_get_tam_event_type_name(
     _In_ sai_tam_event_type_t value)
 {
     return sai_metadata_get_enum_value_name(&sai_metadata_enum_sai_tam_event_type_t, value);
+}
+const char* sai_metadata_get_tam_int_presence_type_name(
+    _In_ sai_tam_int_presence_type_t value)
+{
+    return sai_metadata_get_enum_value_name(&sai_metadata_enum_sai_tam_int_presence_type_t, value);
+}
+const char* sai_metadata_get_tam_int_type_name(
+    _In_ sai_tam_int_type_t value)
+{
+    return sai_metadata_get_enum_value_name(&sai_metadata_enum_sai_tam_int_type_t, value);
+}
+const char* sai_metadata_get_tam_report_mode_name(
+    _In_ sai_tam_report_mode_t value)
+{
+    return sai_metadata_get_enum_value_name(&sai_metadata_enum_sai_tam_report_mode_t, value);
 }
 const char* sai_metadata_get_tam_report_type_name(
     _In_ sai_tam_report_type_t value)
@@ -56792,6 +63547,79 @@ const sai_struct_member_info_t* const sai_metadata_struct_members_sai_inseg_entr
     &sai_metadata_struct_member_sai_inseg_entry_t_label,
     NULL
 };
+const sai_object_type_t sai_metadata_struct_member_sai_nat_entry_t_switch_id_allowed_objects[] = {
+    SAI_OBJECT_TYPE_SWITCH,
+};
+sai_object_id_t sai_metadata_struct_member_get_sai_nat_entry_t_switch_id(
+    _In_ const sai_object_meta_key_t *object_meta_key)
+{
+    return object_meta_key->objectkey.key.nat_entry.switch_id;
+}
+void sai_metadata_struct_member_set_sai_nat_entry_t_switch_id(
+    _Inout_ sai_object_meta_key_t *object_meta_key,
+    _In_ sai_object_id_t oid)
+{
+    object_meta_key->objectkey.key.nat_entry.switch_id = oid;
+}
+const sai_struct_member_info_t sai_metadata_struct_member_sai_nat_entry_t_switch_id = {
+    .membervaluetype           = SAI_ATTR_VALUE_TYPE_OBJECT_ID,
+    .membername                = "switch_id",
+    .isvlan                    = false,
+    .allowedobjecttypes        = sai_metadata_struct_member_sai_nat_entry_t_switch_id_allowed_objects,
+    .allowedobjecttypeslength  = 1,
+    .isenum                    = false,
+    .enummetadata              = NULL,
+    .getoid                    = sai_metadata_struct_member_get_sai_nat_entry_t_switch_id,
+    .setoid                    = sai_metadata_struct_member_set_sai_nat_entry_t_switch_id,
+    .offset                    = offsetof(sai_nat_entry_t,switch_id),
+    .size                      = sizeof(sai_object_id_t),
+};
+const sai_object_type_t sai_metadata_struct_member_sai_nat_entry_t_vr_id_allowed_objects[] = {
+    SAI_OBJECT_TYPE_VIRTUAL_ROUTER,
+};
+sai_object_id_t sai_metadata_struct_member_get_sai_nat_entry_t_vr_id(
+    _In_ const sai_object_meta_key_t *object_meta_key)
+{
+    return object_meta_key->objectkey.key.nat_entry.vr_id;
+}
+void sai_metadata_struct_member_set_sai_nat_entry_t_vr_id(
+    _Inout_ sai_object_meta_key_t *object_meta_key,
+    _In_ sai_object_id_t oid)
+{
+    object_meta_key->objectkey.key.nat_entry.vr_id = oid;
+}
+const sai_struct_member_info_t sai_metadata_struct_member_sai_nat_entry_t_vr_id = {
+    .membervaluetype           = SAI_ATTR_VALUE_TYPE_OBJECT_ID,
+    .membername                = "vr_id",
+    .isvlan                    = false,
+    .allowedobjecttypes        = sai_metadata_struct_member_sai_nat_entry_t_vr_id_allowed_objects,
+    .allowedobjecttypeslength  = 1,
+    .isenum                    = false,
+    .enummetadata              = NULL,
+    .getoid                    = sai_metadata_struct_member_get_sai_nat_entry_t_vr_id,
+    .setoid                    = sai_metadata_struct_member_set_sai_nat_entry_t_vr_id,
+    .offset                    = offsetof(sai_nat_entry_t,vr_id),
+    .size                      = sizeof(sai_object_id_t),
+};
+const sai_struct_member_info_t sai_metadata_struct_member_sai_nat_entry_t_data = {
+    .membervaluetype           = SAI_ATTR_VALUE_TYPE_NAT_ENTRY_DATA,
+    .membername                = "data",
+    .isvlan                    = false,
+    .allowedobjecttypes        = NULL,
+    .allowedobjecttypeslength  = 0,
+    .isenum                    = false,
+    .enummetadata              = NULL,
+    .getoid                    = NULL,
+    .setoid                    = NULL,
+    .offset                    = offsetof(sai_nat_entry_t,data),
+    .size                      = sizeof(sai_nat_entry_data_t),
+};
+const sai_struct_member_info_t* const sai_metadata_struct_members_sai_nat_entry_t[] = {
+    &sai_metadata_struct_member_sai_nat_entry_t_switch_id,
+    &sai_metadata_struct_member_sai_nat_entry_t_vr_id,
+    &sai_metadata_struct_member_sai_nat_entry_t_data,
+    NULL
+};
 
 /* Global SAI API declarations */
 
@@ -56800,6 +63628,8 @@ sai_bfd_api_t *sai_metadata_sai_bfd_api = NULL;
 sai_bmtor_api_t *sai_metadata_sai_bmtor_api = NULL;
 sai_bridge_api_t *sai_metadata_sai_bridge_api = NULL;
 sai_buffer_api_t *sai_metadata_sai_buffer_api = NULL;
+sai_counter_api_t *sai_metadata_sai_counter_api = NULL;
+sai_debug_counter_api_t *sai_metadata_sai_debug_counter_api = NULL;
 sai_dtel_api_t *sai_metadata_sai_dtel_api = NULL;
 sai_fdb_api_t *sai_metadata_sai_fdb_api = NULL;
 sai_hash_api_t *sai_metadata_sai_hash_api = NULL;
@@ -56813,6 +63643,7 @@ sai_lag_api_t *sai_metadata_sai_lag_api = NULL;
 sai_mcast_fdb_api_t *sai_metadata_sai_mcast_fdb_api = NULL;
 sai_mirror_api_t *sai_metadata_sai_mirror_api = NULL;
 sai_mpls_api_t *sai_metadata_sai_mpls_api = NULL;
+sai_nat_api_t *sai_metadata_sai_nat_api = NULL;
 sai_neighbor_api_t *sai_metadata_sai_neighbor_api = NULL;
 sai_next_hop_api_t *sai_metadata_sai_next_hop_api = NULL;
 sai_next_hop_group_api_t *sai_metadata_sai_next_hop_group_api = NULL;
@@ -56862,6 +63693,10 @@ int sai_metadata_apis_query(
         apis->bridge_api = NULL;
         sai_metadata_sai_buffer_api = NULL;
         apis->buffer_api = NULL;
+        sai_metadata_sai_counter_api = NULL;
+        apis->counter_api = NULL;
+        sai_metadata_sai_debug_counter_api = NULL;
+        apis->debug_counter_api = NULL;
         sai_metadata_sai_dtel_api = NULL;
         apis->dtel_api = NULL;
         sai_metadata_sai_fdb_api = NULL;
@@ -56888,6 +63723,8 @@ int sai_metadata_apis_query(
         apis->mirror_api = NULL;
         sai_metadata_sai_mpls_api = NULL;
         apis->mpls_api = NULL;
+        sai_metadata_sai_nat_api = NULL;
+        apis->nat_api = NULL;
         sai_metadata_sai_neighbor_api = NULL;
         apis->neighbor_api = NULL;
         sai_metadata_sai_next_hop_api = NULL;
@@ -56973,6 +63810,22 @@ int sai_metadata_apis_query(
         count++;
         const char *name = sai_metadata_get_enum_value_name(&sai_metadata_enum_sai_status_t, status);
         SAI_META_LOG_NOTICE("failed to query api SAI_API_BUFFER: %s (%d)", name, status);
+    }
+    status = api_query(SAI_API_COUNTER, (void**)&sai_metadata_sai_counter_api);
+    apis->counter_api = sai_metadata_sai_counter_api;
+    if (status != SAI_STATUS_SUCCESS)
+    {
+        count++;
+        const char *name = sai_metadata_get_enum_value_name(&sai_metadata_enum_sai_status_t, status);
+        SAI_META_LOG_NOTICE("failed to query api SAI_API_COUNTER: %s (%d)", name, status);
+    }
+    status = api_query(SAI_API_DEBUG_COUNTER, (void**)&sai_metadata_sai_debug_counter_api);
+    apis->debug_counter_api = sai_metadata_sai_debug_counter_api;
+    if (status != SAI_STATUS_SUCCESS)
+    {
+        count++;
+        const char *name = sai_metadata_get_enum_value_name(&sai_metadata_enum_sai_status_t, status);
+        SAI_META_LOG_NOTICE("failed to query api SAI_API_DEBUG_COUNTER: %s (%d)", name, status);
     }
     status = api_query(SAI_API_DTEL, (void**)&sai_metadata_sai_dtel_api);
     apis->dtel_api = sai_metadata_sai_dtel_api;
@@ -57077,6 +63930,14 @@ int sai_metadata_apis_query(
         count++;
         const char *name = sai_metadata_get_enum_value_name(&sai_metadata_enum_sai_status_t, status);
         SAI_META_LOG_NOTICE("failed to query api SAI_API_MPLS: %s (%d)", name, status);
+    }
+    status = api_query(SAI_API_NAT, (void**)&sai_metadata_sai_nat_api);
+    apis->nat_api = sai_metadata_sai_nat_api;
+    if (status != SAI_STATUS_SUCCESS)
+    {
+        count++;
+        const char *name = sai_metadata_get_enum_value_name(&sai_metadata_enum_sai_status_t, status);
+        SAI_META_LOG_NOTICE("failed to query api SAI_API_NAT: %s (%d)", name, status);
     }
     status = api_query(SAI_API_NEIGHBOR, (void**)&sai_metadata_sai_neighbor_api);
     apis->neighbor_api = sai_metadata_sai_neighbor_api;
@@ -57381,65 +64242,71 @@ const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_PORT_rev_graph_member_
 };
 const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_PORT_rev_graph_member_20 = {
     .objecttype          = SAI_OBJECT_TYPE_PORT,
+    .depobjecttype       = SAI_OBJECT_TYPE_MIRROR_SESSION,
+    .attrmetadata        = &sai_metadata_attr_SAI_MIRROR_SESSION_ATTR_MONITOR_PORTLIST,
+    .structmember        = NULL,
+};
+const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_PORT_rev_graph_member_21 = {
+    .objecttype          = SAI_OBJECT_TYPE_PORT,
     .depobjecttype       = SAI_OBJECT_TYPE_NEXT_HOP_GROUP_MEMBER,
     .attrmetadata        = &sai_metadata_attr_SAI_NEXT_HOP_GROUP_MEMBER_ATTR_MONITORED_OBJECT,
     .structmember        = NULL,
 };
-const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_PORT_rev_graph_member_21 = {
+const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_PORT_rev_graph_member_22 = {
     .objecttype          = SAI_OBJECT_TYPE_PORT,
     .depobjecttype       = SAI_OBJECT_TYPE_PORT,
     .attrmetadata        = &sai_metadata_attr_SAI_PORT_ATTR_EGRESS_BLOCK_PORT_LIST,
     .structmember        = NULL,
 };
-const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_PORT_rev_graph_member_22 = {
+const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_PORT_rev_graph_member_23 = {
     .objecttype          = SAI_OBJECT_TYPE_PORT,
     .depobjecttype       = SAI_OBJECT_TYPE_PORT_POOL,
     .attrmetadata        = &sai_metadata_attr_SAI_PORT_POOL_ATTR_PORT_ID,
     .structmember        = NULL,
 };
-const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_PORT_rev_graph_member_23 = {
+const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_PORT_rev_graph_member_24 = {
     .objecttype          = SAI_OBJECT_TYPE_PORT,
     .depobjecttype       = SAI_OBJECT_TYPE_QUEUE,
     .attrmetadata        = &sai_metadata_attr_SAI_QUEUE_ATTR_PARENT_SCHEDULER_NODE,
     .structmember        = NULL,
 };
-const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_PORT_rev_graph_member_24 = {
+const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_PORT_rev_graph_member_25 = {
     .objecttype          = SAI_OBJECT_TYPE_PORT,
     .depobjecttype       = SAI_OBJECT_TYPE_QUEUE,
     .attrmetadata        = &sai_metadata_attr_SAI_QUEUE_ATTR_PORT,
     .structmember        = NULL,
 };
-const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_PORT_rev_graph_member_25 = {
+const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_PORT_rev_graph_member_26 = {
     .objecttype          = SAI_OBJECT_TYPE_PORT,
     .depobjecttype       = SAI_OBJECT_TYPE_ROUTER_INTERFACE,
     .attrmetadata        = &sai_metadata_attr_SAI_ROUTER_INTERFACE_ATTR_PORT_ID,
     .structmember        = NULL,
 };
-const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_PORT_rev_graph_member_26 = {
+const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_PORT_rev_graph_member_27 = {
     .objecttype          = SAI_OBJECT_TYPE_PORT,
     .depobjecttype       = SAI_OBJECT_TYPE_ROUTE_ENTRY,
     .attrmetadata        = &sai_metadata_attr_SAI_ROUTE_ENTRY_ATTR_NEXT_HOP_ID,
     .structmember        = NULL,
 };
-const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_PORT_rev_graph_member_27 = {
+const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_PORT_rev_graph_member_28 = {
     .objecttype          = SAI_OBJECT_TYPE_PORT,
     .depobjecttype       = SAI_OBJECT_TYPE_SCHEDULER_GROUP,
     .attrmetadata        = &sai_metadata_attr_SAI_SCHEDULER_GROUP_ATTR_PARENT_NODE,
     .structmember        = NULL,
 };
-const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_PORT_rev_graph_member_28 = {
+const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_PORT_rev_graph_member_29 = {
     .objecttype          = SAI_OBJECT_TYPE_PORT,
     .depobjecttype       = SAI_OBJECT_TYPE_SCHEDULER_GROUP,
     .attrmetadata        = &sai_metadata_attr_SAI_SCHEDULER_GROUP_ATTR_PORT_ID,
     .structmember        = NULL,
 };
-const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_PORT_rev_graph_member_29 = {
+const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_PORT_rev_graph_member_30 = {
     .objecttype          = SAI_OBJECT_TYPE_PORT,
     .depobjecttype       = SAI_OBJECT_TYPE_SWITCH,
     .attrmetadata        = &sai_metadata_attr_SAI_SWITCH_ATTR_CPU_PORT,
     .structmember        = NULL,
 };
-const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_PORT_rev_graph_member_30 = {
+const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_PORT_rev_graph_member_31 = {
     .objecttype          = SAI_OBJECT_TYPE_PORT,
     .depobjecttype       = SAI_OBJECT_TYPE_SWITCH,
     .attrmetadata        = &sai_metadata_attr_SAI_SWITCH_ATTR_PORT_LIST,
@@ -57477,6 +64344,7 @@ const sai_rev_graph_member_t* const sai_metadata_SAI_OBJECT_TYPE_PORT_rev_graph_
     &sai_metadata_SAI_OBJECT_TYPE_PORT_rev_graph_member_28,
     &sai_metadata_SAI_OBJECT_TYPE_PORT_rev_graph_member_29,
     &sai_metadata_SAI_OBJECT_TYPE_PORT_rev_graph_member_30,
+    &sai_metadata_SAI_OBJECT_TYPE_PORT_rev_graph_member_31,
     NULL
 };
 sai_status_t sai_metadata_generic_create_SAI_OBJECT_TYPE_PORT(
@@ -57512,13 +64380,13 @@ const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_PORT 
     .attridend            = SAI_PORT_ATTR_END,
     .enummetadata         = &sai_metadata_enum_sai_port_attr_t,
     .attrmetadata         = sai_metadata_object_type_sai_port_attr_t,
-    .attrmetadatalength   = 91,
+    .attrmetadatalength   = 93,
     .isnonobjectid        = false,
     .isobjectid           = !false,
     .structmembers        = NULL,
     .structmemberscount   = 0,
     .revgraphmembers      = sai_metadata_SAI_OBJECT_TYPE_PORT_rev_graph_members,
-    .revgraphmemberscount = 31,
+    .revgraphmemberscount = 32,
     .create               = sai_metadata_generic_create_SAI_OBJECT_TYPE_PORT,
     .remove               = sai_metadata_generic_remove_SAI_OBJECT_TYPE_PORT,
     .set                  = sai_metadata_generic_set_SAI_OBJECT_TYPE_PORT,
@@ -57588,11 +64456,17 @@ const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_LAG_rev_graph_member_9
 };
 const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_LAG_rev_graph_member_10 = {
     .objecttype          = SAI_OBJECT_TYPE_LAG,
+    .depobjecttype       = SAI_OBJECT_TYPE_MIRROR_SESSION,
+    .attrmetadata        = &sai_metadata_attr_SAI_MIRROR_SESSION_ATTR_MONITOR_PORTLIST,
+    .structmember        = NULL,
+};
+const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_LAG_rev_graph_member_11 = {
+    .objecttype          = SAI_OBJECT_TYPE_LAG,
     .depobjecttype       = SAI_OBJECT_TYPE_NEXT_HOP_GROUP_MEMBER,
     .attrmetadata        = &sai_metadata_attr_SAI_NEXT_HOP_GROUP_MEMBER_ATTR_MONITORED_OBJECT,
     .structmember        = NULL,
 };
-const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_LAG_rev_graph_member_11 = {
+const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_LAG_rev_graph_member_12 = {
     .objecttype          = SAI_OBJECT_TYPE_LAG,
     .depobjecttype       = SAI_OBJECT_TYPE_ROUTER_INTERFACE,
     .attrmetadata        = &sai_metadata_attr_SAI_ROUTER_INTERFACE_ATTR_PORT_ID,
@@ -57611,6 +64485,7 @@ const sai_rev_graph_member_t* const sai_metadata_SAI_OBJECT_TYPE_LAG_rev_graph_m
     &sai_metadata_SAI_OBJECT_TYPE_LAG_rev_graph_member_9,
     &sai_metadata_SAI_OBJECT_TYPE_LAG_rev_graph_member_10,
     &sai_metadata_SAI_OBJECT_TYPE_LAG_rev_graph_member_11,
+    &sai_metadata_SAI_OBJECT_TYPE_LAG_rev_graph_member_12,
     NULL
 };
 sai_status_t sai_metadata_generic_create_SAI_OBJECT_TYPE_LAG(
@@ -57652,7 +64527,7 @@ const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_LAG =
     .structmembers        = NULL,
     .structmemberscount   = 0,
     .revgraphmembers      = sai_metadata_SAI_OBJECT_TYPE_LAG_rev_graph_members,
-    .revgraphmemberscount = 12,
+    .revgraphmemberscount = 13,
     .create               = sai_metadata_generic_create_SAI_OBJECT_TYPE_LAG,
     .remove               = sai_metadata_generic_remove_SAI_OBJECT_TYPE_LAG,
     .set                  = sai_metadata_generic_set_SAI_OBJECT_TYPE_LAG,
@@ -57680,41 +64555,53 @@ const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_VIRTUAL_ROUTER_rev_gra
 };
 const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_VIRTUAL_ROUTER_rev_graph_member_3 = {
     .objecttype          = SAI_OBJECT_TYPE_VIRTUAL_ROUTER,
+    .depobjecttype       = SAI_OBJECT_TYPE_NAT_ENTRY,
+    .attrmetadata        = &sai_metadata_attr_SAI_NAT_ENTRY_ATTR_VR_ID,
+    .structmember        = NULL,
+};
+const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_VIRTUAL_ROUTER_rev_graph_member_4 = {
+    .objecttype          = SAI_OBJECT_TYPE_VIRTUAL_ROUTER,
+    .depobjecttype       = SAI_OBJECT_TYPE_NAT_ENTRY,
+    .attrmetadata        = NULL,
+    .structmember        = &sai_metadata_struct_member_sai_nat_entry_t_vr_id,
+};
+const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_VIRTUAL_ROUTER_rev_graph_member_5 = {
+    .objecttype          = SAI_OBJECT_TYPE_VIRTUAL_ROUTER,
     .depobjecttype       = SAI_OBJECT_TYPE_ROUTER_INTERFACE,
     .attrmetadata        = &sai_metadata_attr_SAI_ROUTER_INTERFACE_ATTR_VIRTUAL_ROUTER_ID,
     .structmember        = NULL,
 };
-const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_VIRTUAL_ROUTER_rev_graph_member_4 = {
+const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_VIRTUAL_ROUTER_rev_graph_member_6 = {
     .objecttype          = SAI_OBJECT_TYPE_VIRTUAL_ROUTER,
     .depobjecttype       = SAI_OBJECT_TYPE_ROUTE_ENTRY,
     .attrmetadata        = NULL,
     .structmember        = &sai_metadata_struct_member_sai_route_entry_t_vr_id,
 };
-const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_VIRTUAL_ROUTER_rev_graph_member_5 = {
+const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_VIRTUAL_ROUTER_rev_graph_member_7 = {
     .objecttype          = SAI_OBJECT_TYPE_VIRTUAL_ROUTER,
     .depobjecttype       = SAI_OBJECT_TYPE_SWITCH,
     .attrmetadata        = &sai_metadata_attr_SAI_SWITCH_ATTR_DEFAULT_VIRTUAL_ROUTER_ID,
     .structmember        = NULL,
 };
-const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_VIRTUAL_ROUTER_rev_graph_member_6 = {
+const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_VIRTUAL_ROUTER_rev_graph_member_8 = {
     .objecttype          = SAI_OBJECT_TYPE_VIRTUAL_ROUTER,
     .depobjecttype       = SAI_OBJECT_TYPE_TAM_COLLECTOR,
     .attrmetadata        = &sai_metadata_attr_SAI_TAM_COLLECTOR_ATTR_VIRTUAL_ROUTER_ID,
     .structmember        = NULL,
 };
-const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_VIRTUAL_ROUTER_rev_graph_member_7 = {
+const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_VIRTUAL_ROUTER_rev_graph_member_9 = {
     .objecttype          = SAI_OBJECT_TYPE_VIRTUAL_ROUTER,
     .depobjecttype       = SAI_OBJECT_TYPE_TUNNEL_MAP_ENTRY,
     .attrmetadata        = &sai_metadata_attr_SAI_TUNNEL_MAP_ENTRY_ATTR_VIRTUAL_ROUTER_ID_KEY,
     .structmember        = NULL,
 };
-const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_VIRTUAL_ROUTER_rev_graph_member_8 = {
+const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_VIRTUAL_ROUTER_rev_graph_member_10 = {
     .objecttype          = SAI_OBJECT_TYPE_VIRTUAL_ROUTER,
     .depobjecttype       = SAI_OBJECT_TYPE_TUNNEL_MAP_ENTRY,
     .attrmetadata        = &sai_metadata_attr_SAI_TUNNEL_MAP_ENTRY_ATTR_VIRTUAL_ROUTER_ID_VALUE,
     .structmember        = NULL,
 };
-const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_VIRTUAL_ROUTER_rev_graph_member_9 = {
+const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_VIRTUAL_ROUTER_rev_graph_member_11 = {
     .objecttype          = SAI_OBJECT_TYPE_VIRTUAL_ROUTER,
     .depobjecttype       = SAI_OBJECT_TYPE_TUNNEL_TERM_TABLE_ENTRY,
     .attrmetadata        = &sai_metadata_attr_SAI_TUNNEL_TERM_TABLE_ENTRY_ATTR_VR_ID,
@@ -57731,6 +64618,8 @@ const sai_rev_graph_member_t* const sai_metadata_SAI_OBJECT_TYPE_VIRTUAL_ROUTER_
     &sai_metadata_SAI_OBJECT_TYPE_VIRTUAL_ROUTER_rev_graph_member_7,
     &sai_metadata_SAI_OBJECT_TYPE_VIRTUAL_ROUTER_rev_graph_member_8,
     &sai_metadata_SAI_OBJECT_TYPE_VIRTUAL_ROUTER_rev_graph_member_9,
+    &sai_metadata_SAI_OBJECT_TYPE_VIRTUAL_ROUTER_rev_graph_member_10,
+    &sai_metadata_SAI_OBJECT_TYPE_VIRTUAL_ROUTER_rev_graph_member_11,
     NULL
 };
 sai_status_t sai_metadata_generic_create_SAI_OBJECT_TYPE_VIRTUAL_ROUTER(
@@ -57772,7 +64661,7 @@ const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_VIRTU
     .structmembers        = NULL,
     .structmemberscount   = 0,
     .revgraphmembers      = sai_metadata_SAI_OBJECT_TYPE_VIRTUAL_ROUTER_rev_graph_members,
-    .revgraphmemberscount = 10,
+    .revgraphmemberscount = 12,
     .create               = sai_metadata_generic_create_SAI_OBJECT_TYPE_VIRTUAL_ROUTER,
     .remove               = sai_metadata_generic_remove_SAI_OBJECT_TYPE_VIRTUAL_ROUTER,
     .set                  = sai_metadata_generic_set_SAI_OBJECT_TYPE_VIRTUAL_ROUTER,
@@ -57858,7 +64747,7 @@ const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_NEXT_
     .attridend            = SAI_NEXT_HOP_ATTR_END,
     .enummetadata         = &sai_metadata_enum_sai_next_hop_attr_t,
     .attrmetadata         = sai_metadata_object_type_sai_next_hop_attr_t,
-    .attrmetadatalength   = 10,
+    .attrmetadatalength   = 11,
     .isnonobjectid        = false,
     .isobjectid           = !false,
     .structmembers        = NULL,
@@ -57943,7 +64832,7 @@ const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_NEXT_
     .attridend            = SAI_NEXT_HOP_GROUP_ATTR_END,
     .enummetadata         = &sai_metadata_enum_sai_next_hop_group_attr_t,
     .attrmetadata         = sai_metadata_object_type_sai_next_hop_group_attr_t,
-    .attrmetadatalength   = 4,
+    .attrmetadatalength   = 5,
     .isnonobjectid        = false,
     .isobjectid           = !false,
     .structmembers        = NULL,
@@ -58084,7 +64973,7 @@ const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_ROUTE
     .attridend            = SAI_ROUTER_INTERFACE_ATTR_END,
     .enummetadata         = &sai_metadata_enum_sai_router_interface_attr_t,
     .attrmetadata         = sai_metadata_object_type_sai_router_interface_attr_t,
-    .attrmetadatalength   = 18,
+    .attrmetadatalength   = 19,
     .isnonobjectid        = false,
     .isobjectid           = !false,
     .structmembers        = NULL,
@@ -58166,11 +65055,17 @@ const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_ACL_TABLE_rev_graph_me
 };
 const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_ACL_TABLE_rev_graph_member_11 = {
     .objecttype          = SAI_OBJECT_TYPE_ACL_TABLE,
+    .depobjecttype       = SAI_OBJECT_TYPE_TAM_INT,
+    .attrmetadata        = &sai_metadata_attr_SAI_TAM_INT_ATTR_ACL_GROUP,
+    .structmember        = NULL,
+};
+const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_ACL_TABLE_rev_graph_member_12 = {
+    .objecttype          = SAI_OBJECT_TYPE_ACL_TABLE,
     .depobjecttype       = SAI_OBJECT_TYPE_VLAN,
     .attrmetadata        = &sai_metadata_attr_SAI_VLAN_ATTR_EGRESS_ACL,
     .structmember        = NULL,
 };
-const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_ACL_TABLE_rev_graph_member_12 = {
+const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_ACL_TABLE_rev_graph_member_13 = {
     .objecttype          = SAI_OBJECT_TYPE_ACL_TABLE,
     .depobjecttype       = SAI_OBJECT_TYPE_VLAN,
     .attrmetadata        = &sai_metadata_attr_SAI_VLAN_ATTR_INGRESS_ACL,
@@ -58190,6 +65085,7 @@ const sai_rev_graph_member_t* const sai_metadata_SAI_OBJECT_TYPE_ACL_TABLE_rev_g
     &sai_metadata_SAI_OBJECT_TYPE_ACL_TABLE_rev_graph_member_10,
     &sai_metadata_SAI_OBJECT_TYPE_ACL_TABLE_rev_graph_member_11,
     &sai_metadata_SAI_OBJECT_TYPE_ACL_TABLE_rev_graph_member_12,
+    &sai_metadata_SAI_OBJECT_TYPE_ACL_TABLE_rev_graph_member_13,
     NULL
 };
 sai_status_t sai_metadata_generic_create_SAI_OBJECT_TYPE_ACL_TABLE(
@@ -58231,7 +65127,7 @@ const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_ACL_T
     .structmembers        = NULL,
     .structmemberscount   = 0,
     .revgraphmembers      = sai_metadata_SAI_OBJECT_TYPE_ACL_TABLE_rev_graph_members,
-    .revgraphmemberscount = 13,
+    .revgraphmemberscount = 14,
     .create               = sai_metadata_generic_create_SAI_OBJECT_TYPE_ACL_TABLE,
     .remove               = sai_metadata_generic_remove_SAI_OBJECT_TYPE_ACL_TABLE,
     .set                  = sai_metadata_generic_set_SAI_OBJECT_TYPE_ACL_TABLE,
@@ -58282,7 +65178,7 @@ const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_ACL_E
     .attridend            = SAI_ACL_ENTRY_ATTR_END,
     .enummetadata         = &sai_metadata_enum_sai_acl_entry_attr_t,
     .attrmetadata         = sai_metadata_object_type_sai_acl_entry_attr_t,
-    .attrmetadatalength   = 112,
+    .attrmetadatalength   = 119,
     .isnonobjectid        = false,
     .isobjectid           = !false,
     .structmembers        = NULL,
@@ -58466,11 +65362,17 @@ const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_ACL_TABLE_GROUP_rev_gr
 };
 const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_ACL_TABLE_GROUP_rev_graph_member_9 = {
     .objecttype          = SAI_OBJECT_TYPE_ACL_TABLE_GROUP,
+    .depobjecttype       = SAI_OBJECT_TYPE_TAM_INT,
+    .attrmetadata        = &sai_metadata_attr_SAI_TAM_INT_ATTR_ACL_GROUP,
+    .structmember        = NULL,
+};
+const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_ACL_TABLE_GROUP_rev_graph_member_10 = {
+    .objecttype          = SAI_OBJECT_TYPE_ACL_TABLE_GROUP,
     .depobjecttype       = SAI_OBJECT_TYPE_VLAN,
     .attrmetadata        = &sai_metadata_attr_SAI_VLAN_ATTR_EGRESS_ACL,
     .structmember        = NULL,
 };
-const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_ACL_TABLE_GROUP_rev_graph_member_10 = {
+const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_ACL_TABLE_GROUP_rev_graph_member_11 = {
     .objecttype          = SAI_OBJECT_TYPE_ACL_TABLE_GROUP,
     .depobjecttype       = SAI_OBJECT_TYPE_VLAN,
     .attrmetadata        = &sai_metadata_attr_SAI_VLAN_ATTR_INGRESS_ACL,
@@ -58488,6 +65390,7 @@ const sai_rev_graph_member_t* const sai_metadata_SAI_OBJECT_TYPE_ACL_TABLE_GROUP
     &sai_metadata_SAI_OBJECT_TYPE_ACL_TABLE_GROUP_rev_graph_member_8,
     &sai_metadata_SAI_OBJECT_TYPE_ACL_TABLE_GROUP_rev_graph_member_9,
     &sai_metadata_SAI_OBJECT_TYPE_ACL_TABLE_GROUP_rev_graph_member_10,
+    &sai_metadata_SAI_OBJECT_TYPE_ACL_TABLE_GROUP_rev_graph_member_11,
     NULL
 };
 sai_status_t sai_metadata_generic_create_SAI_OBJECT_TYPE_ACL_TABLE_GROUP(
@@ -58529,7 +65432,7 @@ const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_ACL_T
     .structmembers        = NULL,
     .structmemberscount   = 0,
     .revgraphmembers      = sai_metadata_SAI_OBJECT_TYPE_ACL_TABLE_GROUP_rev_graph_members,
-    .revgraphmemberscount = 11,
+    .revgraphmemberscount = 12,
     .create               = sai_metadata_generic_create_SAI_OBJECT_TYPE_ACL_TABLE_GROUP,
     .remove               = sai_metadata_generic_remove_SAI_OBJECT_TYPE_ACL_TABLE_GROUP,
     .set                  = sai_metadata_generic_set_SAI_OBJECT_TYPE_ACL_TABLE_GROUP,
@@ -58637,7 +65540,7 @@ const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_HOSTI
     .attridend            = SAI_HOSTIF_ATTR_END,
     .enummetadata         = &sai_metadata_enum_sai_hostif_attr_t,
     .attrmetadata         = sai_metadata_object_type_sai_hostif_attr_t,
-    .attrmetadatalength   = 6,
+    .attrmetadatalength   = 7,
     .isnonobjectid        = false,
     .isobjectid           = !false,
     .structmembers        = NULL,
@@ -58722,7 +65625,7 @@ const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_MIRRO
     .attridend            = SAI_MIRROR_SESSION_ATTR_END,
     .enummetadata         = &sai_metadata_enum_sai_mirror_session_attr_t,
     .attrmetadata         = sai_metadata_object_type_sai_mirror_session_attr_t,
-    .attrmetadatalength   = 21,
+    .attrmetadatalength   = 23,
     .isnonobjectid        = false,
     .isobjectid           = !false,
     .structmembers        = NULL,
@@ -58760,11 +65663,18 @@ const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_SAMPLEPACKET_rev_graph
     .attrmetadata        = &sai_metadata_attr_SAI_PORT_ATTR_INGRESS_SAMPLEPACKET_ENABLE,
     .structmember        = NULL,
 };
+const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_SAMPLEPACKET_rev_graph_member_4 = {
+    .objecttype          = SAI_OBJECT_TYPE_SAMPLEPACKET,
+    .depobjecttype       = SAI_OBJECT_TYPE_TAM_INT,
+    .attrmetadata        = &sai_metadata_attr_SAI_TAM_INT_ATTR_INGRESS_SAMPLEPACKET_ENABLE,
+    .structmember        = NULL,
+};
 const sai_rev_graph_member_t* const sai_metadata_SAI_OBJECT_TYPE_SAMPLEPACKET_rev_graph_members[] = {
     &sai_metadata_SAI_OBJECT_TYPE_SAMPLEPACKET_rev_graph_member_0,
     &sai_metadata_SAI_OBJECT_TYPE_SAMPLEPACKET_rev_graph_member_1,
     &sai_metadata_SAI_OBJECT_TYPE_SAMPLEPACKET_rev_graph_member_2,
     &sai_metadata_SAI_OBJECT_TYPE_SAMPLEPACKET_rev_graph_member_3,
+    &sai_metadata_SAI_OBJECT_TYPE_SAMPLEPACKET_rev_graph_member_4,
     NULL
 };
 sai_status_t sai_metadata_generic_create_SAI_OBJECT_TYPE_SAMPLEPACKET(
@@ -58806,7 +65716,7 @@ const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_SAMPL
     .structmembers        = NULL,
     .structmemberscount   = 0,
     .revgraphmembers      = sai_metadata_SAI_OBJECT_TYPE_SAMPLEPACKET_rev_graph_members,
-    .revgraphmemberscount = 4,
+    .revgraphmemberscount = 5,
     .create               = sai_metadata_generic_create_SAI_OBJECT_TYPE_SAMPLEPACKET,
     .remove               = sai_metadata_generic_remove_SAI_OBJECT_TYPE_SAMPLEPACKET,
     .set                  = sai_metadata_generic_set_SAI_OBJECT_TYPE_SAMPLEPACKET,
@@ -59565,7 +66475,7 @@ const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_BUFFE
     .attridend            = SAI_BUFFER_POOL_ATTR_END,
     .enummetadata         = &sai_metadata_enum_sai_buffer_pool_attr_t,
     .attrmetadata         = sai_metadata_object_type_sai_buffer_pool_attr_t,
-    .attrmetadatalength   = 6,
+    .attrmetadatalength   = 7,
     .isnonobjectid        = false,
     .isobjectid           = !false,
     .structmembers        = NULL,
@@ -59700,7 +66610,7 @@ const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_INGRE
     .attridend            = SAI_INGRESS_PRIORITY_GROUP_ATTR_END,
     .enummetadata         = &sai_metadata_enum_sai_ingress_priority_group_attr_t,
     .attrmetadata         = sai_metadata_object_type_sai_ingress_priority_group_attr_t,
-    .attrmetadatalength   = 3,
+    .attrmetadatalength   = 4,
     .isnonobjectid        = false,
     .isobjectid           = !false,
     .structmembers        = NULL,
@@ -60165,7 +67075,7 @@ const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_FDB_E
     .attridend            = SAI_FDB_ENTRY_ATTR_END,
     .enummetadata         = &sai_metadata_enum_sai_fdb_entry_attr_t,
     .attrmetadata         = sai_metadata_object_type_sai_fdb_entry_attr_t,
-    .attrmetadatalength   = 6,
+    .attrmetadatalength   = 7,
     .isnonobjectid        = true,
     .isobjectid           = !true,
     .structmembers        = sai_metadata_struct_members_sai_fdb_entry_t,
@@ -60211,11 +67121,17 @@ const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_SWITCH_rev_graph_membe
 };
 const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_SWITCH_rev_graph_member_5 = {
     .objecttype          = SAI_OBJECT_TYPE_SWITCH,
+    .depobjecttype       = SAI_OBJECT_TYPE_NAT_ENTRY,
+    .attrmetadata        = NULL,
+    .structmember        = &sai_metadata_struct_member_sai_nat_entry_t_switch_id,
+};
+const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_SWITCH_rev_graph_member_6 = {
+    .objecttype          = SAI_OBJECT_TYPE_SWITCH,
     .depobjecttype       = SAI_OBJECT_TYPE_NEIGHBOR_ENTRY,
     .attrmetadata        = NULL,
     .structmember        = &sai_metadata_struct_member_sai_neighbor_entry_t_switch_id,
 };
-const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_SWITCH_rev_graph_member_6 = {
+const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_SWITCH_rev_graph_member_7 = {
     .objecttype          = SAI_OBJECT_TYPE_SWITCH,
     .depobjecttype       = SAI_OBJECT_TYPE_ROUTE_ENTRY,
     .attrmetadata        = NULL,
@@ -60229,6 +67145,7 @@ const sai_rev_graph_member_t* const sai_metadata_SAI_OBJECT_TYPE_SWITCH_rev_grap
     &sai_metadata_SAI_OBJECT_TYPE_SWITCH_rev_graph_member_4,
     &sai_metadata_SAI_OBJECT_TYPE_SWITCH_rev_graph_member_5,
     &sai_metadata_SAI_OBJECT_TYPE_SWITCH_rev_graph_member_6,
+    &sai_metadata_SAI_OBJECT_TYPE_SWITCH_rev_graph_member_7,
     NULL
 };
 sai_status_t sai_metadata_generic_create_SAI_OBJECT_TYPE_SWITCH(
@@ -60264,19 +67181,19 @@ const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_SWITC
     .attridend            = SAI_SWITCH_ATTR_END,
     .enummetadata         = &sai_metadata_enum_sai_switch_attr_t,
     .attrmetadata         = sai_metadata_object_type_sai_switch_attr_t,
-    .attrmetadatalength   = 147,
+    .attrmetadatalength   = 155,
     .isnonobjectid        = false,
     .isobjectid           = !false,
     .structmembers        = NULL,
     .structmemberscount   = 0,
     .revgraphmembers      = sai_metadata_SAI_OBJECT_TYPE_SWITCH_rev_graph_members,
-    .revgraphmemberscount = 7,
+    .revgraphmemberscount = 8,
     .create               = sai_metadata_generic_create_SAI_OBJECT_TYPE_SWITCH,
     .remove               = sai_metadata_generic_remove_SAI_OBJECT_TYPE_SWITCH,
     .set                  = sai_metadata_generic_set_SAI_OBJECT_TYPE_SWITCH,
     .get                  = sai_metadata_generic_get_SAI_OBJECT_TYPE_SWITCH,
     .isexperimental       = false,
-    .statenum             = NULL,
+    .statenum             = &sai_metadata_enum_sai_switch_stat_t,
 };
 const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_HOSTIF_TRAP_rev_graph_member_0 = {
     .objecttype          = SAI_OBJECT_TYPE_HOSTIF_TRAP,
@@ -60335,7 +67252,7 @@ const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_HOSTI
     .attridend            = SAI_HOSTIF_TRAP_ATTR_END,
     .enummetadata         = &sai_metadata_enum_sai_hostif_trap_attr_t,
     .attrmetadata         = sai_metadata_object_type_sai_hostif_trap_attr_t,
-    .attrmetadatalength   = 6,
+    .attrmetadatalength   = 7,
     .isnonobjectid        = false,
     .isobjectid           = !false,
     .structmembers        = NULL,
@@ -60429,7 +67346,7 @@ const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_NEIGH
     .attridend            = SAI_NEIGHBOR_ENTRY_ATTR_END,
     .enummetadata         = &sai_metadata_enum_sai_neighbor_entry_attr_t,
     .attrmetadata         = sai_metadata_object_type_sai_neighbor_entry_attr_t,
-    .attrmetadatalength   = 5,
+    .attrmetadatalength   = 6,
     .isnonobjectid        = true,
     .isobjectid           = !true,
     .structmembers        = sai_metadata_struct_members_sai_neighbor_entry_t,
@@ -60476,7 +67393,7 @@ const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_ROUTE
     .attridend            = SAI_ROUTE_ENTRY_ATTR_END,
     .enummetadata         = &sai_metadata_enum_sai_route_entry_attr_t,
     .attrmetadata         = sai_metadata_object_type_sai_route_entry_attr_t,
-    .attrmetadatalength   = 4,
+    .attrmetadatalength   = 6,
     .isnonobjectid        = true,
     .isobjectid           = !true,
     .structmembers        = sai_metadata_struct_members_sai_route_entry_t,
@@ -62074,23 +68991,35 @@ const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_TUNNE
 };
 const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_TAM_rev_graph_member_0 = {
     .objecttype          = SAI_OBJECT_TYPE_TAM,
+    .depobjecttype       = SAI_OBJECT_TYPE_BUFFER_POOL,
+    .attrmetadata        = &sai_metadata_attr_SAI_BUFFER_POOL_ATTR_TAM,
+    .structmember        = NULL,
+};
+const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_TAM_rev_graph_member_1 = {
+    .objecttype          = SAI_OBJECT_TYPE_TAM,
+    .depobjecttype       = SAI_OBJECT_TYPE_INGRESS_PRIORITY_GROUP,
+    .attrmetadata        = &sai_metadata_attr_SAI_INGRESS_PRIORITY_GROUP_ATTR_TAM,
+    .structmember        = NULL,
+};
+const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_TAM_rev_graph_member_2 = {
+    .objecttype          = SAI_OBJECT_TYPE_TAM,
     .depobjecttype       = SAI_OBJECT_TYPE_PORT,
     .attrmetadata        = &sai_metadata_attr_SAI_PORT_ATTR_TAM_OBJECT,
     .structmember        = NULL,
 };
-const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_TAM_rev_graph_member_1 = {
+const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_TAM_rev_graph_member_3 = {
     .objecttype          = SAI_OBJECT_TYPE_TAM,
     .depobjecttype       = SAI_OBJECT_TYPE_QUEUE,
     .attrmetadata        = &sai_metadata_attr_SAI_QUEUE_ATTR_TAM_OBJECT,
     .structmember        = NULL,
 };
-const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_TAM_rev_graph_member_2 = {
+const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_TAM_rev_graph_member_4 = {
     .objecttype          = SAI_OBJECT_TYPE_TAM,
     .depobjecttype       = SAI_OBJECT_TYPE_SWITCH,
     .attrmetadata        = &sai_metadata_attr_SAI_SWITCH_ATTR_TAM_OBJECT_ID,
     .structmember        = NULL,
 };
-const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_TAM_rev_graph_member_3 = {
+const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_TAM_rev_graph_member_5 = {
     .objecttype          = SAI_OBJECT_TYPE_TAM,
     .depobjecttype       = SAI_OBJECT_TYPE_VLAN,
     .attrmetadata        = &sai_metadata_attr_SAI_VLAN_ATTR_TAM_OBJECT,
@@ -62101,6 +69030,8 @@ const sai_rev_graph_member_t* const sai_metadata_SAI_OBJECT_TYPE_TAM_rev_graph_m
     &sai_metadata_SAI_OBJECT_TYPE_TAM_rev_graph_member_1,
     &sai_metadata_SAI_OBJECT_TYPE_TAM_rev_graph_member_2,
     &sai_metadata_SAI_OBJECT_TYPE_TAM_rev_graph_member_3,
+    &sai_metadata_SAI_OBJECT_TYPE_TAM_rev_graph_member_4,
+    &sai_metadata_SAI_OBJECT_TYPE_TAM_rev_graph_member_5,
     NULL
 };
 sai_status_t sai_metadata_generic_create_SAI_OBJECT_TYPE_TAM(
@@ -62136,13 +69067,13 @@ const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_TAM =
     .attridend            = SAI_TAM_ATTR_END,
     .enummetadata         = &sai_metadata_enum_sai_tam_attr_t,
     .attrmetadata         = sai_metadata_object_type_sai_tam_attr_t,
-    .attrmetadatalength   = 3,
+    .attrmetadatalength   = 4,
     .isnonobjectid        = false,
     .isobjectid           = !false,
     .structmembers        = NULL,
     .structmemberscount   = 0,
     .revgraphmembers      = sai_metadata_SAI_OBJECT_TYPE_TAM_rev_graph_members,
-    .revgraphmemberscount = 4,
+    .revgraphmemberscount = 6,
     .create               = sai_metadata_generic_create_SAI_OBJECT_TYPE_TAM,
     .remove               = sai_metadata_generic_remove_SAI_OBJECT_TYPE_TAM,
     .set                  = sai_metadata_generic_set_SAI_OBJECT_TYPE_TAM,
@@ -62599,7 +69530,7 @@ const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_BFD_S
     .attridend            = SAI_BFD_SESSION_ATTR_END,
     .enummetadata         = &sai_metadata_enum_sai_bfd_session_attr_t,
     .attrmetadata         = sai_metadata_object_type_sai_bfd_session_attr_t,
-    .attrmetadatalength   = 34,
+    .attrmetadatalength   = 40,
     .isnonobjectid        = false,
     .isobjectid           = !false,
     .structmembers        = NULL,
@@ -62750,12 +69681,19 @@ const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_ISOLA
 };
 const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_TAM_MATH_FUNC_rev_graph_member_0 = {
     .objecttype          = SAI_OBJECT_TYPE_TAM_MATH_FUNC,
+    .depobjecttype       = SAI_OBJECT_TYPE_TAM_INT,
+    .attrmetadata        = &sai_metadata_attr_SAI_TAM_INT_ATTR_MATH_FUNC,
+    .structmember        = NULL,
+};
+const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_TAM_MATH_FUNC_rev_graph_member_1 = {
+    .objecttype          = SAI_OBJECT_TYPE_TAM_MATH_FUNC,
     .depobjecttype       = SAI_OBJECT_TYPE_TAM_TEL_TYPE,
     .attrmetadata        = &sai_metadata_attr_SAI_TAM_TEL_TYPE_ATTR_MATH_FUNC,
     .structmember        = NULL,
 };
 const sai_rev_graph_member_t* const sai_metadata_SAI_OBJECT_TYPE_TAM_MATH_FUNC_rev_graph_members[] = {
     &sai_metadata_SAI_OBJECT_TYPE_TAM_MATH_FUNC_rev_graph_member_0,
+    &sai_metadata_SAI_OBJECT_TYPE_TAM_MATH_FUNC_rev_graph_member_1,
     NULL
 };
 sai_status_t sai_metadata_generic_create_SAI_OBJECT_TYPE_TAM_MATH_FUNC(
@@ -62797,7 +69735,7 @@ const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_TAM_M
     .structmembers        = NULL,
     .structmemberscount   = 0,
     .revgraphmembers      = sai_metadata_SAI_OBJECT_TYPE_TAM_MATH_FUNC_rev_graph_members,
-    .revgraphmemberscount = 1,
+    .revgraphmemberscount = 2,
     .create               = sai_metadata_generic_create_SAI_OBJECT_TYPE_TAM_MATH_FUNC,
     .remove               = sai_metadata_generic_remove_SAI_OBJECT_TYPE_TAM_MATH_FUNC,
     .set                  = sai_metadata_generic_set_SAI_OBJECT_TYPE_TAM_MATH_FUNC,
@@ -62813,6 +69751,12 @@ const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_TAM_REPORT_rev_graph_m
 };
 const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_TAM_REPORT_rev_graph_member_1 = {
     .objecttype          = SAI_OBJECT_TYPE_TAM_REPORT,
+    .depobjecttype       = SAI_OBJECT_TYPE_TAM_INT,
+    .attrmetadata        = &sai_metadata_attr_SAI_TAM_INT_ATTR_REPORT_ID,
+    .structmember        = NULL,
+};
+const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_TAM_REPORT_rev_graph_member_2 = {
+    .objecttype          = SAI_OBJECT_TYPE_TAM_REPORT,
     .depobjecttype       = SAI_OBJECT_TYPE_TAM_TEL_TYPE,
     .attrmetadata        = &sai_metadata_attr_SAI_TAM_TEL_TYPE_ATTR_REPORT_ID,
     .structmember        = NULL,
@@ -62820,6 +69764,7 @@ const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_TAM_REPORT_rev_graph_m
 const sai_rev_graph_member_t* const sai_metadata_SAI_OBJECT_TYPE_TAM_REPORT_rev_graph_members[] = {
     &sai_metadata_SAI_OBJECT_TYPE_TAM_REPORT_rev_graph_member_0,
     &sai_metadata_SAI_OBJECT_TYPE_TAM_REPORT_rev_graph_member_1,
+    &sai_metadata_SAI_OBJECT_TYPE_TAM_REPORT_rev_graph_member_2,
     NULL
 };
 sai_status_t sai_metadata_generic_create_SAI_OBJECT_TYPE_TAM_REPORT(
@@ -62855,13 +69800,13 @@ const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_TAM_R
     .attridend            = SAI_TAM_REPORT_ATTR_END,
     .enummetadata         = &sai_metadata_enum_sai_tam_report_attr_t,
     .attrmetadata         = sai_metadata_object_type_sai_tam_report_attr_t,
-    .attrmetadatalength   = 3,
+    .attrmetadatalength   = 6,
     .isnonobjectid        = false,
     .isobjectid           = !false,
     .structmembers        = NULL,
     .structmemberscount   = 0,
     .revgraphmembers      = sai_metadata_SAI_OBJECT_TYPE_TAM_REPORT_rev_graph_members,
-    .revgraphmemberscount = 2,
+    .revgraphmemberscount = 3,
     .create               = sai_metadata_generic_create_SAI_OBJECT_TYPE_TAM_REPORT,
     .remove               = sai_metadata_generic_remove_SAI_OBJECT_TYPE_TAM_REPORT,
     .set                  = sai_metadata_generic_set_SAI_OBJECT_TYPE_TAM_REPORT,
@@ -62969,7 +69914,7 @@ const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_TAM_T
     .attridend            = SAI_TAM_TEL_TYPE_ATTR_END,
     .enummetadata         = &sai_metadata_enum_sai_tam_tel_type_attr_t,
     .attrmetadata         = sai_metadata_object_type_sai_tam_tel_type_attr_t,
-    .attrmetadatalength   = 15,
+    .attrmetadatalength   = 16,
     .isnonobjectid        = false,
     .isobjectid           = !false,
     .structmembers        = NULL,
@@ -63105,6 +70050,12 @@ const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_TAM_COLLECTOR_rev_grap
 };
 const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_TAM_COLLECTOR_rev_graph_member_1 = {
     .objecttype          = SAI_OBJECT_TYPE_TAM_COLLECTOR,
+    .depobjecttype       = SAI_OBJECT_TYPE_TAM_INT,
+    .attrmetadata        = &sai_metadata_attr_SAI_TAM_INT_ATTR_COLLECTOR_LIST,
+    .structmember        = NULL,
+};
+const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_TAM_COLLECTOR_rev_graph_member_2 = {
+    .objecttype          = SAI_OBJECT_TYPE_TAM_COLLECTOR,
     .depobjecttype       = SAI_OBJECT_TYPE_TAM_TELEMETRY,
     .attrmetadata        = &sai_metadata_attr_SAI_TAM_TELEMETRY_ATTR_COLLECTOR_LIST,
     .structmember        = NULL,
@@ -63112,6 +70063,7 @@ const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_TAM_COLLECTOR_rev_grap
 const sai_rev_graph_member_t* const sai_metadata_SAI_OBJECT_TYPE_TAM_COLLECTOR_rev_graph_members[] = {
     &sai_metadata_SAI_OBJECT_TYPE_TAM_COLLECTOR_rev_graph_member_0,
     &sai_metadata_SAI_OBJECT_TYPE_TAM_COLLECTOR_rev_graph_member_1,
+    &sai_metadata_SAI_OBJECT_TYPE_TAM_COLLECTOR_rev_graph_member_2,
     NULL
 };
 sai_status_t sai_metadata_generic_create_SAI_OBJECT_TYPE_TAM_COLLECTOR(
@@ -63153,7 +70105,7 @@ const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_TAM_C
     .structmembers        = NULL,
     .structmemberscount   = 0,
     .revgraphmembers      = sai_metadata_SAI_OBJECT_TYPE_TAM_COLLECTOR_rev_graph_members,
-    .revgraphmemberscount = 2,
+    .revgraphmemberscount = 3,
     .create               = sai_metadata_generic_create_SAI_OBJECT_TYPE_TAM_COLLECTOR,
     .remove               = sai_metadata_generic_remove_SAI_OBJECT_TYPE_TAM_COLLECTOR,
     .set                  = sai_metadata_generic_set_SAI_OBJECT_TYPE_TAM_COLLECTOR,
@@ -63272,6 +70224,313 @@ const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_TAM_E
     .remove               = sai_metadata_generic_remove_SAI_OBJECT_TYPE_TAM_EVENT,
     .set                  = sai_metadata_generic_set_SAI_OBJECT_TYPE_TAM_EVENT,
     .get                  = sai_metadata_generic_get_SAI_OBJECT_TYPE_TAM_EVENT,
+    .isexperimental       = false,
+    .statenum             = NULL,
+};
+const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_NAT_ZONE_COUNTER_rev_graph_member_0 = {
+    .objecttype          = SAI_OBJECT_TYPE_NAT_ZONE_COUNTER,
+    .depobjecttype       = SAI_OBJECT_TYPE_SWITCH,
+    .attrmetadata        = &sai_metadata_attr_SAI_SWITCH_ATTR_NAT_ZONE_COUNTER_OBJECT_ID,
+    .structmember        = NULL,
+};
+const sai_rev_graph_member_t* const sai_metadata_SAI_OBJECT_TYPE_NAT_ZONE_COUNTER_rev_graph_members[] = {
+    &sai_metadata_SAI_OBJECT_TYPE_NAT_ZONE_COUNTER_rev_graph_member_0,
+    NULL
+};
+sai_status_t sai_metadata_generic_create_SAI_OBJECT_TYPE_NAT_ZONE_COUNTER(
+    _Inout_ sai_object_meta_key_t *meta_key,
+    _In_ sai_object_id_t switch_id,
+    _In_ uint32_t attr_count,
+    _In_ const sai_attribute_t *attr_list)
+{
+    return sai_metadata_sai_nat_api->create_nat_zone_counter(&meta_key->objectkey.key.object_id, switch_id, attr_count, attr_list);
+}
+sai_status_t sai_metadata_generic_remove_SAI_OBJECT_TYPE_NAT_ZONE_COUNTER(
+    _In_ const sai_object_meta_key_t *meta_key)
+{
+    return sai_metadata_sai_nat_api->remove_nat_zone_counter(meta_key->objectkey.key.object_id);
+}
+sai_status_t sai_metadata_generic_set_SAI_OBJECT_TYPE_NAT_ZONE_COUNTER(
+    _In_ const sai_object_meta_key_t *meta_key,
+    _In_ const sai_attribute_t *attr)
+{
+    return sai_metadata_sai_nat_api->set_nat_zone_counter_attribute(meta_key->objectkey.key.object_id, attr);
+}
+sai_status_t sai_metadata_generic_get_SAI_OBJECT_TYPE_NAT_ZONE_COUNTER(
+    _In_ const sai_object_meta_key_t *meta_key,
+    _In_ uint32_t attr_count,
+    _Inout_ sai_attribute_t *attr_list)
+{
+    return sai_metadata_sai_nat_api->get_nat_zone_counter_attribute(meta_key->objectkey.key.object_id, attr_count, attr_list);
+}
+const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_NAT_ZONE_COUNTER = {
+    .objecttype           = SAI_OBJECT_TYPE_NAT_ZONE_COUNTER,
+    .objecttypename       = "SAI_OBJECT_TYPE_NAT_ZONE_COUNTER",
+    .attridstart          = SAI_NAT_ZONE_COUNTER_ATTR_START,
+    .attridend            = SAI_NAT_ZONE_COUNTER_ATTR_END,
+    .enummetadata         = &sai_metadata_enum_sai_nat_zone_counter_attr_t,
+    .attrmetadata         = sai_metadata_object_type_sai_nat_zone_counter_attr_t,
+    .attrmetadatalength   = 8,
+    .isnonobjectid        = false,
+    .isobjectid           = !false,
+    .structmembers        = NULL,
+    .structmemberscount   = 0,
+    .revgraphmembers      = sai_metadata_SAI_OBJECT_TYPE_NAT_ZONE_COUNTER_rev_graph_members,
+    .revgraphmemberscount = 1,
+    .create               = sai_metadata_generic_create_SAI_OBJECT_TYPE_NAT_ZONE_COUNTER,
+    .remove               = sai_metadata_generic_remove_SAI_OBJECT_TYPE_NAT_ZONE_COUNTER,
+    .set                  = sai_metadata_generic_set_SAI_OBJECT_TYPE_NAT_ZONE_COUNTER,
+    .get                  = sai_metadata_generic_get_SAI_OBJECT_TYPE_NAT_ZONE_COUNTER,
+    .isexperimental       = false,
+    .statenum             = NULL,
+};
+sai_status_t sai_metadata_generic_create_SAI_OBJECT_TYPE_NAT_ENTRY(
+    _Inout_ sai_object_meta_key_t *meta_key,
+    _In_ sai_object_id_t switch_id,
+    _In_ uint32_t attr_count,
+    _In_ const sai_attribute_t *attr_list)
+{
+    return sai_metadata_sai_nat_api->create_nat_entry(&meta_key->objectkey.key.nat_entry, attr_count, attr_list);
+}
+sai_status_t sai_metadata_generic_remove_SAI_OBJECT_TYPE_NAT_ENTRY(
+    _In_ const sai_object_meta_key_t *meta_key)
+{
+    return sai_metadata_sai_nat_api->remove_nat_entry(&meta_key->objectkey.key.nat_entry);
+}
+sai_status_t sai_metadata_generic_set_SAI_OBJECT_TYPE_NAT_ENTRY(
+    _In_ const sai_object_meta_key_t *meta_key,
+    _In_ const sai_attribute_t *attr)
+{
+    return sai_metadata_sai_nat_api->set_nat_entry_attribute(&meta_key->objectkey.key.nat_entry, attr);
+}
+sai_status_t sai_metadata_generic_get_SAI_OBJECT_TYPE_NAT_ENTRY(
+    _In_ const sai_object_meta_key_t *meta_key,
+    _In_ uint32_t attr_count,
+    _Inout_ sai_attribute_t *attr_list)
+{
+    return sai_metadata_sai_nat_api->get_nat_entry_attribute(&meta_key->objectkey.key.nat_entry, attr_count, attr_list);
+}
+const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_NAT_ENTRY = {
+    .objecttype           = SAI_OBJECT_TYPE_NAT_ENTRY,
+    .objecttypename       = "SAI_OBJECT_TYPE_NAT_ENTRY",
+    .attridstart          = SAI_NAT_ENTRY_ATTR_START,
+    .attridend            = SAI_NAT_ENTRY_ATTR_END,
+    .enummetadata         = &sai_metadata_enum_sai_nat_entry_attr_t,
+    .attrmetadata         = sai_metadata_object_type_sai_nat_entry_attr_t,
+    .attrmetadatalength   = 14,
+    .isnonobjectid        = true,
+    .isobjectid           = !true,
+    .structmembers        = sai_metadata_struct_members_sai_nat_entry_t,
+    .structmemberscount   = 3,
+    .revgraphmembers      = NULL,
+    .revgraphmemberscount = 0,
+    .create               = sai_metadata_generic_create_SAI_OBJECT_TYPE_NAT_ENTRY,
+    .remove               = sai_metadata_generic_remove_SAI_OBJECT_TYPE_NAT_ENTRY,
+    .set                  = sai_metadata_generic_set_SAI_OBJECT_TYPE_NAT_ENTRY,
+    .get                  = sai_metadata_generic_get_SAI_OBJECT_TYPE_NAT_ENTRY,
+    .isexperimental       = false,
+    .statenum             = NULL,
+};
+const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_TAM_INT_rev_graph_member_0 = {
+    .objecttype          = SAI_OBJECT_TYPE_TAM_INT,
+    .depobjecttype       = SAI_OBJECT_TYPE_ACL_ENTRY,
+    .attrmetadata        = &sai_metadata_attr_SAI_ACL_ENTRY_ATTR_ACTION_TAM_INT_OBJECT,
+    .structmember        = NULL,
+};
+const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_TAM_INT_rev_graph_member_1 = {
+    .objecttype          = SAI_OBJECT_TYPE_TAM_INT,
+    .depobjecttype       = SAI_OBJECT_TYPE_TAM,
+    .attrmetadata        = &sai_metadata_attr_SAI_TAM_ATTR_INT_OBJECTS_LIST,
+    .structmember        = NULL,
+};
+const sai_rev_graph_member_t* const sai_metadata_SAI_OBJECT_TYPE_TAM_INT_rev_graph_members[] = {
+    &sai_metadata_SAI_OBJECT_TYPE_TAM_INT_rev_graph_member_0,
+    &sai_metadata_SAI_OBJECT_TYPE_TAM_INT_rev_graph_member_1,
+    NULL
+};
+sai_status_t sai_metadata_generic_create_SAI_OBJECT_TYPE_TAM_INT(
+    _Inout_ sai_object_meta_key_t *meta_key,
+    _In_ sai_object_id_t switch_id,
+    _In_ uint32_t attr_count,
+    _In_ const sai_attribute_t *attr_list)
+{
+    return sai_metadata_sai_tam_api->create_tam_int(&meta_key->objectkey.key.object_id, switch_id, attr_count, attr_list);
+}
+sai_status_t sai_metadata_generic_remove_SAI_OBJECT_TYPE_TAM_INT(
+    _In_ const sai_object_meta_key_t *meta_key)
+{
+    return sai_metadata_sai_tam_api->remove_tam_int(meta_key->objectkey.key.object_id);
+}
+sai_status_t sai_metadata_generic_set_SAI_OBJECT_TYPE_TAM_INT(
+    _In_ const sai_object_meta_key_t *meta_key,
+    _In_ const sai_attribute_t *attr)
+{
+    return sai_metadata_sai_tam_api->set_tam_int_attribute(meta_key->objectkey.key.object_id, attr);
+}
+sai_status_t sai_metadata_generic_get_SAI_OBJECT_TYPE_TAM_INT(
+    _In_ const sai_object_meta_key_t *meta_key,
+    _In_ uint32_t attr_count,
+    _Inout_ sai_attribute_t *attr_list)
+{
+    return sai_metadata_sai_tam_api->get_tam_int_attribute(meta_key->objectkey.key.object_id, attr_count, attr_list);
+}
+const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_TAM_INT = {
+    .objecttype           = SAI_OBJECT_TYPE_TAM_INT,
+    .objecttypename       = "SAI_OBJECT_TYPE_TAM_INT",
+    .attridstart          = SAI_TAM_INT_ATTR_START,
+    .attridend            = SAI_TAM_INT_ATTR_END,
+    .enummetadata         = &sai_metadata_enum_sai_tam_int_attr_t,
+    .attrmetadata         = sai_metadata_object_type_sai_tam_int_attr_t,
+    .attrmetadatalength   = 25,
+    .isnonobjectid        = false,
+    .isobjectid           = !false,
+    .structmembers        = NULL,
+    .structmemberscount   = 0,
+    .revgraphmembers      = sai_metadata_SAI_OBJECT_TYPE_TAM_INT_rev_graph_members,
+    .revgraphmemberscount = 2,
+    .create               = sai_metadata_generic_create_SAI_OBJECT_TYPE_TAM_INT,
+    .remove               = sai_metadata_generic_remove_SAI_OBJECT_TYPE_TAM_INT,
+    .set                  = sai_metadata_generic_set_SAI_OBJECT_TYPE_TAM_INT,
+    .get                  = sai_metadata_generic_get_SAI_OBJECT_TYPE_TAM_INT,
+    .isexperimental       = false,
+    .statenum             = NULL,
+};
+const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_COUNTER_rev_graph_member_0 = {
+    .objecttype          = SAI_OBJECT_TYPE_COUNTER,
+    .depobjecttype       = SAI_OBJECT_TYPE_FDB_ENTRY,
+    .attrmetadata        = &sai_metadata_attr_SAI_FDB_ENTRY_ATTR_COUNTER_ID,
+    .structmember        = NULL,
+};
+const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_COUNTER_rev_graph_member_1 = {
+    .objecttype          = SAI_OBJECT_TYPE_COUNTER,
+    .depobjecttype       = SAI_OBJECT_TYPE_HOSTIF_TRAP,
+    .attrmetadata        = &sai_metadata_attr_SAI_HOSTIF_TRAP_ATTR_COUNTER_ID,
+    .structmember        = NULL,
+};
+const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_COUNTER_rev_graph_member_2 = {
+    .objecttype          = SAI_OBJECT_TYPE_COUNTER,
+    .depobjecttype       = SAI_OBJECT_TYPE_NEIGHBOR_ENTRY,
+    .attrmetadata        = &sai_metadata_attr_SAI_NEIGHBOR_ENTRY_ATTR_COUNTER_ID,
+    .structmember        = NULL,
+};
+const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_COUNTER_rev_graph_member_3 = {
+    .objecttype          = SAI_OBJECT_TYPE_COUNTER,
+    .depobjecttype       = SAI_OBJECT_TYPE_NEXT_HOP,
+    .attrmetadata        = &sai_metadata_attr_SAI_NEXT_HOP_ATTR_COUNTER_ID,
+    .structmember        = NULL,
+};
+const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_COUNTER_rev_graph_member_4 = {
+    .objecttype          = SAI_OBJECT_TYPE_COUNTER,
+    .depobjecttype       = SAI_OBJECT_TYPE_NEXT_HOP_GROUP,
+    .attrmetadata        = &sai_metadata_attr_SAI_NEXT_HOP_GROUP_ATTR_COUNTER_ID,
+    .structmember        = NULL,
+};
+const sai_rev_graph_member_t sai_metadata_SAI_OBJECT_TYPE_COUNTER_rev_graph_member_5 = {
+    .objecttype          = SAI_OBJECT_TYPE_COUNTER,
+    .depobjecttype       = SAI_OBJECT_TYPE_ROUTE_ENTRY,
+    .attrmetadata        = &sai_metadata_attr_SAI_ROUTE_ENTRY_ATTR_COUNTER_ID,
+    .structmember        = NULL,
+};
+const sai_rev_graph_member_t* const sai_metadata_SAI_OBJECT_TYPE_COUNTER_rev_graph_members[] = {
+    &sai_metadata_SAI_OBJECT_TYPE_COUNTER_rev_graph_member_0,
+    &sai_metadata_SAI_OBJECT_TYPE_COUNTER_rev_graph_member_1,
+    &sai_metadata_SAI_OBJECT_TYPE_COUNTER_rev_graph_member_2,
+    &sai_metadata_SAI_OBJECT_TYPE_COUNTER_rev_graph_member_3,
+    &sai_metadata_SAI_OBJECT_TYPE_COUNTER_rev_graph_member_4,
+    &sai_metadata_SAI_OBJECT_TYPE_COUNTER_rev_graph_member_5,
+    NULL
+};
+sai_status_t sai_metadata_generic_create_SAI_OBJECT_TYPE_COUNTER(
+    _Inout_ sai_object_meta_key_t *meta_key,
+    _In_ sai_object_id_t switch_id,
+    _In_ uint32_t attr_count,
+    _In_ const sai_attribute_t *attr_list)
+{
+    return sai_metadata_sai_counter_api->create_counter(&meta_key->objectkey.key.object_id, switch_id, attr_count, attr_list);
+}
+sai_status_t sai_metadata_generic_remove_SAI_OBJECT_TYPE_COUNTER(
+    _In_ const sai_object_meta_key_t *meta_key)
+{
+    return sai_metadata_sai_counter_api->remove_counter(meta_key->objectkey.key.object_id);
+}
+sai_status_t sai_metadata_generic_set_SAI_OBJECT_TYPE_COUNTER(
+    _In_ const sai_object_meta_key_t *meta_key,
+    _In_ const sai_attribute_t *attr)
+{
+    return sai_metadata_sai_counter_api->set_counter_attribute(meta_key->objectkey.key.object_id, attr);
+}
+sai_status_t sai_metadata_generic_get_SAI_OBJECT_TYPE_COUNTER(
+    _In_ const sai_object_meta_key_t *meta_key,
+    _In_ uint32_t attr_count,
+    _Inout_ sai_attribute_t *attr_list)
+{
+    return sai_metadata_sai_counter_api->get_counter_attribute(meta_key->objectkey.key.object_id, attr_count, attr_list);
+}
+const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_COUNTER = {
+    .objecttype           = SAI_OBJECT_TYPE_COUNTER,
+    .objecttypename       = "SAI_OBJECT_TYPE_COUNTER",
+    .attridstart          = SAI_COUNTER_ATTR_START,
+    .attridend            = SAI_COUNTER_ATTR_END,
+    .enummetadata         = &sai_metadata_enum_sai_counter_attr_t,
+    .attrmetadata         = sai_metadata_object_type_sai_counter_attr_t,
+    .attrmetadatalength   = 1,
+    .isnonobjectid        = false,
+    .isobjectid           = !false,
+    .structmembers        = NULL,
+    .structmemberscount   = 0,
+    .revgraphmembers      = sai_metadata_SAI_OBJECT_TYPE_COUNTER_rev_graph_members,
+    .revgraphmemberscount = 6,
+    .create               = sai_metadata_generic_create_SAI_OBJECT_TYPE_COUNTER,
+    .remove               = sai_metadata_generic_remove_SAI_OBJECT_TYPE_COUNTER,
+    .set                  = sai_metadata_generic_set_SAI_OBJECT_TYPE_COUNTER,
+    .get                  = sai_metadata_generic_get_SAI_OBJECT_TYPE_COUNTER,
+    .isexperimental       = false,
+    .statenum             = &sai_metadata_enum_sai_counter_stat_t,
+};
+sai_status_t sai_metadata_generic_create_SAI_OBJECT_TYPE_DEBUG_COUNTER(
+    _Inout_ sai_object_meta_key_t *meta_key,
+    _In_ sai_object_id_t switch_id,
+    _In_ uint32_t attr_count,
+    _In_ const sai_attribute_t *attr_list)
+{
+    return sai_metadata_sai_debug_counter_api->create_debug_counter(&meta_key->objectkey.key.object_id, switch_id, attr_count, attr_list);
+}
+sai_status_t sai_metadata_generic_remove_SAI_OBJECT_TYPE_DEBUG_COUNTER(
+    _In_ const sai_object_meta_key_t *meta_key)
+{
+    return sai_metadata_sai_debug_counter_api->remove_debug_counter(meta_key->objectkey.key.object_id);
+}
+sai_status_t sai_metadata_generic_set_SAI_OBJECT_TYPE_DEBUG_COUNTER(
+    _In_ const sai_object_meta_key_t *meta_key,
+    _In_ const sai_attribute_t *attr)
+{
+    return sai_metadata_sai_debug_counter_api->set_debug_counter_attribute(meta_key->objectkey.key.object_id, attr);
+}
+sai_status_t sai_metadata_generic_get_SAI_OBJECT_TYPE_DEBUG_COUNTER(
+    _In_ const sai_object_meta_key_t *meta_key,
+    _In_ uint32_t attr_count,
+    _Inout_ sai_attribute_t *attr_list)
+{
+    return sai_metadata_sai_debug_counter_api->get_debug_counter_attribute(meta_key->objectkey.key.object_id, attr_count, attr_list);
+}
+const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_DEBUG_COUNTER = {
+    .objecttype           = SAI_OBJECT_TYPE_DEBUG_COUNTER,
+    .objecttypename       = "SAI_OBJECT_TYPE_DEBUG_COUNTER",
+    .attridstart          = SAI_DEBUG_COUNTER_ATTR_START,
+    .attridend            = SAI_DEBUG_COUNTER_ATTR_END,
+    .enummetadata         = &sai_metadata_enum_sai_debug_counter_attr_t,
+    .attrmetadata         = sai_metadata_object_type_sai_debug_counter_attr_t,
+    .attrmetadatalength   = 5,
+    .isnonobjectid        = false,
+    .isobjectid           = !false,
+    .structmembers        = NULL,
+    .structmemberscount   = 0,
+    .revgraphmembers      = NULL,
+    .revgraphmemberscount = 0,
+    .create               = sai_metadata_generic_create_SAI_OBJECT_TYPE_DEBUG_COUNTER,
+    .remove               = sai_metadata_generic_remove_SAI_OBJECT_TYPE_DEBUG_COUNTER,
+    .set                  = sai_metadata_generic_set_SAI_OBJECT_TYPE_DEBUG_COUNTER,
+    .get                  = sai_metadata_generic_get_SAI_OBJECT_TYPE_DEBUG_COUNTER,
     .isexperimental       = false,
     .statenum             = NULL,
 };
@@ -63501,6 +70760,11 @@ const sai_object_type_info_t* const sai_metadata_all_object_type_infos[] = {
     &sai_metadata_object_type_info_SAI_OBJECT_TYPE_TAM_COLLECTOR,
     &sai_metadata_object_type_info_SAI_OBJECT_TYPE_TAM_EVENT_ACTION,
     &sai_metadata_object_type_info_SAI_OBJECT_TYPE_TAM_EVENT,
+    &sai_metadata_object_type_info_SAI_OBJECT_TYPE_NAT_ZONE_COUNTER,
+    &sai_metadata_object_type_info_SAI_OBJECT_TYPE_NAT_ENTRY,
+    &sai_metadata_object_type_info_SAI_OBJECT_TYPE_TAM_INT,
+    &sai_metadata_object_type_info_SAI_OBJECT_TYPE_COUNTER,
+    &sai_metadata_object_type_info_SAI_OBJECT_TYPE_DEBUG_COUNTER,
     &sai_metadata_object_type_info_SAI_OBJECT_TYPE_TABLE_BITMAP_CLASSIFICATION_ENTRY,
     &sai_metadata_object_type_info_SAI_OBJECT_TYPE_TABLE_BITMAP_ROUTER_ENTRY,
     &sai_metadata_object_type_info_SAI_OBJECT_TYPE_TABLE_META_TUNNEL_ENTRY,
@@ -63528,8 +70792,14 @@ const sai_attr_metadata_t* const sai_metadata_attr_sorted_by_id_name[] = {
     &sai_metadata_attr_SAI_ACL_ENTRY_ATTR_ACTION_ENDPOINT_IP,
     &sai_metadata_attr_SAI_ACL_ENTRY_ATTR_ACTION_FLOOD,
     &sai_metadata_attr_SAI_ACL_ENTRY_ATTR_ACTION_INGRESS_SAMPLEPACKET_ENABLE,
+    &sai_metadata_attr_SAI_ACL_ENTRY_ATTR_ACTION_INT_DELETE,
+    &sai_metadata_attr_SAI_ACL_ENTRY_ATTR_ACTION_INT_INSERT,
+    &sai_metadata_attr_SAI_ACL_ENTRY_ATTR_ACTION_INT_REPORT_DROPS,
+    &sai_metadata_attr_SAI_ACL_ENTRY_ATTR_ACTION_INT_REPORT_FLOW,
+    &sai_metadata_attr_SAI_ACL_ENTRY_ATTR_ACTION_INT_REPORT_TAIL_DROPS,
     &sai_metadata_attr_SAI_ACL_ENTRY_ATTR_ACTION_MIRROR_EGRESS,
     &sai_metadata_attr_SAI_ACL_ENTRY_ATTR_ACTION_MIRROR_INGRESS,
+    &sai_metadata_attr_SAI_ACL_ENTRY_ATTR_ACTION_NO_NAT,
     &sai_metadata_attr_SAI_ACL_ENTRY_ATTR_ACTION_PACKET_ACTION,
     &sai_metadata_attr_SAI_ACL_ENTRY_ATTR_ACTION_REDIRECT,
     &sai_metadata_attr_SAI_ACL_ENTRY_ATTR_ACTION_REDIRECT_LIST,
@@ -63554,6 +70824,7 @@ const sai_attr_metadata_t* const sai_metadata_attr_sorted_by_id_name[] = {
     &sai_metadata_attr_SAI_ACL_ENTRY_ATTR_ACTION_SET_SRC_MAC,
     &sai_metadata_attr_SAI_ACL_ENTRY_ATTR_ACTION_SET_TC,
     &sai_metadata_attr_SAI_ACL_ENTRY_ATTR_ACTION_SET_USER_TRAP_ID,
+    &sai_metadata_attr_SAI_ACL_ENTRY_ATTR_ACTION_TAM_INT_OBJECT,
     &sai_metadata_attr_SAI_ACL_ENTRY_ATTR_ADMIN_STATE,
     &sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_ACL_IP_FRAG,
     &sai_metadata_attr_SAI_ACL_ENTRY_ATTR_FIELD_ACL_IP_TYPE,
@@ -63720,15 +70991,21 @@ const sai_attr_metadata_t* const sai_metadata_attr_sorted_by_id_name[] = {
     &sai_metadata_attr_SAI_BFD_SESSION_ATTR_ECHO_ENABLE,
     &sai_metadata_attr_SAI_BFD_SESSION_ATTR_HW_LOOKUP_VALID,
     &sai_metadata_attr_SAI_BFD_SESSION_ATTR_IPHDR_VERSION,
+    &sai_metadata_attr_SAI_BFD_SESSION_ATTR_LOCAL_DIAG,
     &sai_metadata_attr_SAI_BFD_SESSION_ATTR_LOCAL_DISCRIMINATOR,
     &sai_metadata_attr_SAI_BFD_SESSION_ATTR_MIN_RX,
     &sai_metadata_attr_SAI_BFD_SESSION_ATTR_MIN_TX,
     &sai_metadata_attr_SAI_BFD_SESSION_ATTR_MULTIHOP,
     &sai_metadata_attr_SAI_BFD_SESSION_ATTR_MULTIPLIER,
+    &sai_metadata_attr_SAI_BFD_SESSION_ATTR_NEGOTIATED_RX,
+    &sai_metadata_attr_SAI_BFD_SESSION_ATTR_NEGOTIATED_TX,
+    &sai_metadata_attr_SAI_BFD_SESSION_ATTR_OFFLOAD_TYPE,
     &sai_metadata_attr_SAI_BFD_SESSION_ATTR_PORT,
+    &sai_metadata_attr_SAI_BFD_SESSION_ATTR_REMOTE_DIAG,
     &sai_metadata_attr_SAI_BFD_SESSION_ATTR_REMOTE_DISCRIMINATOR,
     &sai_metadata_attr_SAI_BFD_SESSION_ATTR_REMOTE_MIN_RX,
     &sai_metadata_attr_SAI_BFD_SESSION_ATTR_REMOTE_MIN_TX,
+    &sai_metadata_attr_SAI_BFD_SESSION_ATTR_REMOTE_MULTIPLIER,
     &sai_metadata_attr_SAI_BFD_SESSION_ATTR_SRC_IP_ADDRESS,
     &sai_metadata_attr_SAI_BFD_SESSION_ATTR_SRC_MAC_ADDRESS,
     &sai_metadata_attr_SAI_BFD_SESSION_ATTR_STATE,
@@ -63773,6 +71050,7 @@ const sai_attr_metadata_t* const sai_metadata_attr_sorted_by_id_name[] = {
     &sai_metadata_attr_SAI_BRIDGE_PORT_ATTR_VLAN_ID,
     &sai_metadata_attr_SAI_BUFFER_POOL_ATTR_SHARED_SIZE,
     &sai_metadata_attr_SAI_BUFFER_POOL_ATTR_SIZE,
+    &sai_metadata_attr_SAI_BUFFER_POOL_ATTR_TAM,
     &sai_metadata_attr_SAI_BUFFER_POOL_ATTR_THRESHOLD_MODE,
     &sai_metadata_attr_SAI_BUFFER_POOL_ATTR_TYPE,
     &sai_metadata_attr_SAI_BUFFER_POOL_ATTR_WRED_PROFILE_ID,
@@ -63785,6 +71063,12 @@ const sai_attr_metadata_t* const sai_metadata_attr_sorted_by_id_name[] = {
     &sai_metadata_attr_SAI_BUFFER_PROFILE_ATTR_XOFF_TH,
     &sai_metadata_attr_SAI_BUFFER_PROFILE_ATTR_XON_OFFSET_TH,
     &sai_metadata_attr_SAI_BUFFER_PROFILE_ATTR_XON_TH,
+    &sai_metadata_attr_SAI_COUNTER_ATTR_TYPE,
+    &sai_metadata_attr_SAI_DEBUG_COUNTER_ATTR_BIND_METHOD,
+    &sai_metadata_attr_SAI_DEBUG_COUNTER_ATTR_INDEX,
+    &sai_metadata_attr_SAI_DEBUG_COUNTER_ATTR_IN_DROP_REASON_LIST,
+    &sai_metadata_attr_SAI_DEBUG_COUNTER_ATTR_OUT_DROP_REASON_LIST,
+    &sai_metadata_attr_SAI_DEBUG_COUNTER_ATTR_TYPE,
     &sai_metadata_attr_SAI_DTEL_ATTR_DROP_REPORT_ENABLE,
     &sai_metadata_attr_SAI_DTEL_ATTR_FLOW_STATE_CLEAR_CYCLE,
     &sai_metadata_attr_SAI_DTEL_ATTR_INT_ENDPOINT_ENABLE,
@@ -63815,6 +71099,7 @@ const sai_attr_metadata_t* const sai_metadata_attr_sorted_by_id_name[] = {
     &sai_metadata_attr_SAI_DTEL_REPORT_SESSION_ATTR_UDP_DST_PORT,
     &sai_metadata_attr_SAI_DTEL_REPORT_SESSION_ATTR_VIRTUAL_ROUTER_ID,
     &sai_metadata_attr_SAI_FDB_ENTRY_ATTR_BRIDGE_PORT_ID,
+    &sai_metadata_attr_SAI_FDB_ENTRY_ATTR_COUNTER_ID,
     &sai_metadata_attr_SAI_FDB_ENTRY_ATTR_ENDPOINT_IP,
     &sai_metadata_attr_SAI_FDB_ENTRY_ATTR_META_DATA,
     &sai_metadata_attr_SAI_FDB_ENTRY_ATTR_PACKET_ACTION,
@@ -63825,6 +71110,7 @@ const sai_attr_metadata_t* const sai_metadata_attr_sorted_by_id_name[] = {
     &sai_metadata_attr_SAI_FDB_FLUSH_ATTR_ENTRY_TYPE,
     &sai_metadata_attr_SAI_HASH_ATTR_NATIVE_HASH_FIELD_LIST,
     &sai_metadata_attr_SAI_HASH_ATTR_UDF_GROUP_LIST,
+    &sai_metadata_attr_SAI_HOSTIF_ATTR_GENETLINK_MCGRP_NAME,
     &sai_metadata_attr_SAI_HOSTIF_ATTR_NAME,
     &sai_metadata_attr_SAI_HOSTIF_ATTR_OBJ_ID,
     &sai_metadata_attr_SAI_HOSTIF_ATTR_OPER_STATUS,
@@ -63843,6 +71129,7 @@ const sai_attr_metadata_t* const sai_metadata_attr_sorted_by_id_name[] = {
     &sai_metadata_attr_SAI_HOSTIF_TABLE_ENTRY_ATTR_OBJ_ID,
     &sai_metadata_attr_SAI_HOSTIF_TABLE_ENTRY_ATTR_TRAP_ID,
     &sai_metadata_attr_SAI_HOSTIF_TABLE_ENTRY_ATTR_TYPE,
+    &sai_metadata_attr_SAI_HOSTIF_TRAP_ATTR_COUNTER_ID,
     &sai_metadata_attr_SAI_HOSTIF_TRAP_ATTR_EXCLUDE_PORT_LIST,
     &sai_metadata_attr_SAI_HOSTIF_TRAP_ATTR_MIRROR_SESSION,
     &sai_metadata_attr_SAI_HOSTIF_TRAP_ATTR_PACKET_ACTION,
@@ -63858,6 +71145,7 @@ const sai_attr_metadata_t* const sai_metadata_attr_sorted_by_id_name[] = {
     &sai_metadata_attr_SAI_INGRESS_PRIORITY_GROUP_ATTR_BUFFER_PROFILE,
     &sai_metadata_attr_SAI_INGRESS_PRIORITY_GROUP_ATTR_INDEX,
     &sai_metadata_attr_SAI_INGRESS_PRIORITY_GROUP_ATTR_PORT,
+    &sai_metadata_attr_SAI_INGRESS_PRIORITY_GROUP_ATTR_TAM,
     &sai_metadata_attr_SAI_INSEG_ENTRY_ATTR_NEXT_HOP_ID,
     &sai_metadata_attr_SAI_INSEG_ENTRY_ATTR_NUM_OF_POP,
     &sai_metadata_attr_SAI_INSEG_ENTRY_ATTR_PACKET_ACTION,
@@ -63901,6 +71189,8 @@ const sai_attr_metadata_t* const sai_metadata_attr_sorted_by_id_name[] = {
     &sai_metadata_attr_SAI_MIRROR_SESSION_ATTR_GRE_PROTOCOL_TYPE,
     &sai_metadata_attr_SAI_MIRROR_SESSION_ATTR_IPHDR_VERSION,
     &sai_metadata_attr_SAI_MIRROR_SESSION_ATTR_MONITOR_PORT,
+    &sai_metadata_attr_SAI_MIRROR_SESSION_ATTR_MONITOR_PORTLIST,
+    &sai_metadata_attr_SAI_MIRROR_SESSION_ATTR_MONITOR_PORTLIST_VALID,
     &sai_metadata_attr_SAI_MIRROR_SESSION_ATTR_POLICER,
     &sai_metadata_attr_SAI_MIRROR_SESSION_ATTR_SAMPLE_RATE,
     &sai_metadata_attr_SAI_MIRROR_SESSION_ATTR_SRC_IP_ADDRESS,
@@ -63915,11 +71205,35 @@ const sai_attr_metadata_t* const sai_metadata_attr_sorted_by_id_name[] = {
     &sai_metadata_attr_SAI_MIRROR_SESSION_ATTR_VLAN_ID,
     &sai_metadata_attr_SAI_MIRROR_SESSION_ATTR_VLAN_PRI,
     &sai_metadata_attr_SAI_MIRROR_SESSION_ATTR_VLAN_TPID,
+    &sai_metadata_attr_SAI_NAT_ENTRY_ATTR_BYTE_COUNT,
+    &sai_metadata_attr_SAI_NAT_ENTRY_ATTR_DST_IP,
+    &sai_metadata_attr_SAI_NAT_ENTRY_ATTR_DST_IP_MASK,
+    &sai_metadata_attr_SAI_NAT_ENTRY_ATTR_ENABLE_BYTE_COUNT,
+    &sai_metadata_attr_SAI_NAT_ENTRY_ATTR_ENABLE_PACKET_COUNT,
+    &sai_metadata_attr_SAI_NAT_ENTRY_ATTR_HIT_BIT,
+    &sai_metadata_attr_SAI_NAT_ENTRY_ATTR_HIT_BIT_COR,
+    &sai_metadata_attr_SAI_NAT_ENTRY_ATTR_L4_DST_PORT,
+    &sai_metadata_attr_SAI_NAT_ENTRY_ATTR_L4_SRC_PORT,
+    &sai_metadata_attr_SAI_NAT_ENTRY_ATTR_NAT_TYPE,
+    &sai_metadata_attr_SAI_NAT_ENTRY_ATTR_PACKET_COUNT,
+    &sai_metadata_attr_SAI_NAT_ENTRY_ATTR_SRC_IP,
+    &sai_metadata_attr_SAI_NAT_ENTRY_ATTR_SRC_IP_MASK,
+    &sai_metadata_attr_SAI_NAT_ENTRY_ATTR_VR_ID,
+    &sai_metadata_attr_SAI_NAT_ZONE_COUNTER_ATTR_DISCARD_PACKET_COUNT,
+    &sai_metadata_attr_SAI_NAT_ZONE_COUNTER_ATTR_ENABLE_DISCARD,
+    &sai_metadata_attr_SAI_NAT_ZONE_COUNTER_ATTR_ENABLE_TRANSLATIONS,
+    &sai_metadata_attr_SAI_NAT_ZONE_COUNTER_ATTR_ENABLE_TRANSLATION_NEEDED,
+    &sai_metadata_attr_SAI_NAT_ZONE_COUNTER_ATTR_NAT_TYPE,
+    &sai_metadata_attr_SAI_NAT_ZONE_COUNTER_ATTR_TRANSLATIONS_PACKET_COUNT,
+    &sai_metadata_attr_SAI_NAT_ZONE_COUNTER_ATTR_TRANSLATION_NEEDED_PACKET_COUNT,
+    &sai_metadata_attr_SAI_NAT_ZONE_COUNTER_ATTR_ZONE_ID,
+    &sai_metadata_attr_SAI_NEIGHBOR_ENTRY_ATTR_COUNTER_ID,
     &sai_metadata_attr_SAI_NEIGHBOR_ENTRY_ATTR_DST_MAC_ADDRESS,
     &sai_metadata_attr_SAI_NEIGHBOR_ENTRY_ATTR_META_DATA,
     &sai_metadata_attr_SAI_NEIGHBOR_ENTRY_ATTR_NO_HOST_ROUTE,
     &sai_metadata_attr_SAI_NEIGHBOR_ENTRY_ATTR_PACKET_ACTION,
     &sai_metadata_attr_SAI_NEIGHBOR_ENTRY_ATTR_USER_TRAP_ID,
+    &sai_metadata_attr_SAI_NEXT_HOP_ATTR_COUNTER_ID,
     &sai_metadata_attr_SAI_NEXT_HOP_ATTR_IP,
     &sai_metadata_attr_SAI_NEXT_HOP_ATTR_LABELSTACK,
     &sai_metadata_attr_SAI_NEXT_HOP_ATTR_ROUTER_INTERFACE_ID,
@@ -63930,6 +71244,7 @@ const sai_attr_metadata_t* const sai_metadata_attr_sorted_by_id_name[] = {
     &sai_metadata_attr_SAI_NEXT_HOP_ATTR_TUNNEL_MAC,
     &sai_metadata_attr_SAI_NEXT_HOP_ATTR_TUNNEL_VNI,
     &sai_metadata_attr_SAI_NEXT_HOP_ATTR_TYPE,
+    &sai_metadata_attr_SAI_NEXT_HOP_GROUP_ATTR_COUNTER_ID,
     &sai_metadata_attr_SAI_NEXT_HOP_GROUP_ATTR_NEXT_HOP_COUNT,
     &sai_metadata_attr_SAI_NEXT_HOP_GROUP_ATTR_NEXT_HOP_MEMBER_LIST,
     &sai_metadata_attr_SAI_NEXT_HOP_GROUP_ATTR_SET_SWITCHOVER,
@@ -63986,6 +71301,7 @@ const sai_attr_metadata_t* const sai_metadata_attr_sorted_by_id_name[] = {
     &sai_metadata_attr_SAI_PORT_ATTR_INGRESS_SAMPLEPACKET_ENABLE,
     &sai_metadata_attr_SAI_PORT_ATTR_INTERNAL_LOOPBACK_MODE,
     &sai_metadata_attr_SAI_PORT_ATTR_ISOLATION_GROUP,
+    &sai_metadata_attr_SAI_PORT_ATTR_LINK_TRAINING_ENABLE,
     &sai_metadata_attr_SAI_PORT_ATTR_MEDIA_TYPE,
     &sai_metadata_attr_SAI_PORT_ATTR_META_DATA,
     &sai_metadata_attr_SAI_PORT_ATTR_MTU,
@@ -64001,6 +71317,7 @@ const sai_attr_metadata_t* const sai_metadata_attr_sorted_by_id_name[] = {
     &sai_metadata_attr_SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL_MODE,
     &sai_metadata_attr_SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL_RX,
     &sai_metadata_attr_SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL_TX,
+    &sai_metadata_attr_SAI_PORT_ATTR_PTP_MODE,
     &sai_metadata_attr_SAI_PORT_ATTR_QOS_DEFAULT_TC,
     &sai_metadata_attr_SAI_PORT_ATTR_QOS_DOT1P_TO_COLOR_MAP,
     &sai_metadata_attr_SAI_PORT_ATTR_QOS_DOT1P_TO_TC_MAP,
@@ -64067,6 +71384,7 @@ const sai_attr_metadata_t* const sai_metadata_attr_sorted_by_id_name[] = {
     &sai_metadata_attr_SAI_ROUTER_INTERFACE_ATTR_IS_VIRTUAL,
     &sai_metadata_attr_SAI_ROUTER_INTERFACE_ATTR_LOOPBACK_PACKET_ACTION,
     &sai_metadata_attr_SAI_ROUTER_INTERFACE_ATTR_MTU,
+    &sai_metadata_attr_SAI_ROUTER_INTERFACE_ATTR_NAT_ZONE_ID,
     &sai_metadata_attr_SAI_ROUTER_INTERFACE_ATTR_NEIGHBOR_MISS_PACKET_ACTION,
     &sai_metadata_attr_SAI_ROUTER_INTERFACE_ATTR_OUTER_VLAN_ID,
     &sai_metadata_attr_SAI_ROUTER_INTERFACE_ATTR_PORT_ID,
@@ -64076,6 +71394,8 @@ const sai_attr_metadata_t* const sai_metadata_attr_sorted_by_id_name[] = {
     &sai_metadata_attr_SAI_ROUTER_INTERFACE_ATTR_V6_MCAST_ENABLE,
     &sai_metadata_attr_SAI_ROUTER_INTERFACE_ATTR_VIRTUAL_ROUTER_ID,
     &sai_metadata_attr_SAI_ROUTER_INTERFACE_ATTR_VLAN_ID,
+    &sai_metadata_attr_SAI_ROUTE_ENTRY_ATTR_COUNTER_ID,
+    &sai_metadata_attr_SAI_ROUTE_ENTRY_ATTR_IP_ADDR_FAMILY,
     &sai_metadata_attr_SAI_ROUTE_ENTRY_ATTR_META_DATA,
     &sai_metadata_attr_SAI_ROUTE_ENTRY_ATTR_NEXT_HOP_ID,
     &sai_metadata_attr_SAI_ROUTE_ENTRY_ATTR_PACKET_ACTION,
@@ -64123,6 +71443,8 @@ const sai_attr_metadata_t* const sai_metadata_attr_sorted_by_id_name[] = {
     &sai_metadata_attr_SAI_SWITCH_ATTR_ACL_USER_TRAP_ID_RANGE,
     &sai_metadata_attr_SAI_SWITCH_ATTR_AVAILABLE_ACL_TABLE,
     &sai_metadata_attr_SAI_SWITCH_ATTR_AVAILABLE_ACL_TABLE_GROUP,
+    &sai_metadata_attr_SAI_SWITCH_ATTR_AVAILABLE_DNAT_ENTRY,
+    &sai_metadata_attr_SAI_SWITCH_ATTR_AVAILABLE_DOUBLE_NAT_ENTRY,
     &sai_metadata_attr_SAI_SWITCH_ATTR_AVAILABLE_FDB_ENTRY,
     &sai_metadata_attr_SAI_SWITCH_ATTR_AVAILABLE_IPMC_ENTRY,
     &sai_metadata_attr_SAI_SWITCH_ATTR_AVAILABLE_IPV4_NEIGHBOR_ENTRY,
@@ -64134,6 +71456,7 @@ const sai_attr_metadata_t* const sai_metadata_attr_sorted_by_id_name[] = {
     &sai_metadata_attr_SAI_SWITCH_ATTR_AVAILABLE_L2MC_ENTRY,
     &sai_metadata_attr_SAI_SWITCH_ATTR_AVAILABLE_NEXT_HOP_GROUP_ENTRY,
     &sai_metadata_attr_SAI_SWITCH_ATTR_AVAILABLE_NEXT_HOP_GROUP_MEMBER_ENTRY,
+    &sai_metadata_attr_SAI_SWITCH_ATTR_AVAILABLE_SNAT_ENTRY,
     &sai_metadata_attr_SAI_SWITCH_ATTR_AVERAGE_TEMP,
     &sai_metadata_attr_SAI_SWITCH_ATTR_BCAST_CPU_FLOOD_ENABLE,
     &sai_metadata_attr_SAI_SWITCH_ATTR_BFD_SESSION_STATE_CHANGE_NOTIFY,
@@ -64187,6 +71510,7 @@ const sai_attr_metadata_t* const sai_metadata_attr_sorted_by_id_name[] = {
     &sai_metadata_attr_SAI_SWITCH_ATTR_MAX_NUMBER_OF_SUPPORTED_PORTS,
     &sai_metadata_attr_SAI_SWITCH_ATTR_MAX_NUMBER_OF_TEMP_SENSORS,
     &sai_metadata_attr_SAI_SWITCH_ATTR_MAX_SAMPLED_MIRROR_SESSION,
+    &sai_metadata_attr_SAI_SWITCH_ATTR_MAX_STP_INSTANCE,
     &sai_metadata_attr_SAI_SWITCH_ATTR_MAX_TEMP,
     &sai_metadata_attr_SAI_SWITCH_ATTR_MAX_VIRTUAL_ROUTERS,
     &sai_metadata_attr_SAI_SWITCH_ATTR_MCAST_CPU_FLOOD_ENABLE,
@@ -64195,6 +71519,8 @@ const sai_attr_metadata_t* const sai_metadata_attr_sorted_by_id_name[] = {
     &sai_metadata_attr_SAI_SWITCH_ATTR_MIN_BFD_TX,
     &sai_metadata_attr_SAI_SWITCH_ATTR_MIN_PLANNED_RESTART_INTERVAL,
     &sai_metadata_attr_SAI_SWITCH_ATTR_MIRROR_TC,
+    &sai_metadata_attr_SAI_SWITCH_ATTR_NAT_ENABLE,
+    &sai_metadata_attr_SAI_SWITCH_ATTR_NAT_ZONE_COUNTER_OBJECT_ID,
     &sai_metadata_attr_SAI_SWITCH_ATTR_NEIGHBOR_DST_USER_META_DATA_RANGE,
     &sai_metadata_attr_SAI_SWITCH_ATTR_NUMBER_OF_ACTIVE_PORTS,
     &sai_metadata_attr_SAI_SWITCH_ATTR_NUMBER_OF_BFD_SESSION,
@@ -64239,6 +71565,8 @@ const sai_attr_metadata_t* const sai_metadata_attr_sorted_by_id_name[] = {
     &sai_metadata_attr_SAI_SWITCH_ATTR_SEGMENTROUTE_TLV_TYPE,
     &sai_metadata_attr_SAI_SWITCH_ATTR_SRC_MAC_ADDRESS,
     &sai_metadata_attr_SAI_SWITCH_ATTR_SUPPORTED_EXTENDED_STATS_MODE,
+    &sai_metadata_attr_SAI_SWITCH_ATTR_SUPPORTED_IPV4_BFD_SESSION_OFFLOAD_TYPE,
+    &sai_metadata_attr_SAI_SWITCH_ATTR_SUPPORTED_IPV6_BFD_SESSION_OFFLOAD_TYPE,
     &sai_metadata_attr_SAI_SWITCH_ATTR_SUPPORTED_PROTECTED_OBJECT_TYPE,
     &sai_metadata_attr_SAI_SWITCH_ATTR_SWITCHING_MODE,
     &sai_metadata_attr_SAI_SWITCH_ATTR_SWITCH_HARDWARE_INFO,
@@ -64276,6 +71604,7 @@ const sai_attr_metadata_t* const sai_metadata_attr_sorted_by_id_name[] = {
     &sai_metadata_attr_SAI_TABLE_META_TUNNEL_ENTRY_ATTR_TUNNEL_ID,
     &sai_metadata_attr_SAI_TABLE_META_TUNNEL_ENTRY_ATTR_UNDERLAY_DIP,
     &sai_metadata_attr_SAI_TAM_ATTR_EVENT_OBJECTS_LIST,
+    &sai_metadata_attr_SAI_TAM_ATTR_INT_OBJECTS_LIST,
     &sai_metadata_attr_SAI_TAM_ATTR_TAM_BIND_POINT_TYPE_LIST,
     &sai_metadata_attr_SAI_TAM_ATTR_TELEMETRY_OBJECTS_LIST,
     &sai_metadata_attr_SAI_TAM_COLLECTOR_ATTR_DSCP_VALUE,
@@ -64298,9 +71627,37 @@ const sai_attr_metadata_t* const sai_metadata_attr_sorted_by_id_name[] = {
     &sai_metadata_attr_SAI_TAM_EVENT_THRESHOLD_ATTR_LOW_WATERMARK,
     &sai_metadata_attr_SAI_TAM_EVENT_THRESHOLD_ATTR_RATE,
     &sai_metadata_attr_SAI_TAM_EVENT_THRESHOLD_ATTR_UNIT,
+    &sai_metadata_attr_SAI_TAM_INT_ATTR_ACL_GROUP,
+    &sai_metadata_attr_SAI_TAM_INT_ATTR_ACTION_VECTOR,
+    &sai_metadata_attr_SAI_TAM_INT_ATTR_COLLECTOR_LIST,
+    &sai_metadata_attr_SAI_TAM_INT_ATTR_DEVICE_ID,
+    &sai_metadata_attr_SAI_TAM_INT_ATTR_FLOW_LIVENESS_PERIOD,
+    &sai_metadata_attr_SAI_TAM_INT_ATTR_INGRESS_SAMPLEPACKET_ENABLE,
+    &sai_metadata_attr_SAI_TAM_INT_ATTR_INLINE,
+    &sai_metadata_attr_SAI_TAM_INT_ATTR_INT_PRESENCE_DSCP_VALUE,
+    &sai_metadata_attr_SAI_TAM_INT_ATTR_INT_PRESENCE_L3_PROTOCOL,
+    &sai_metadata_attr_SAI_TAM_INT_ATTR_INT_PRESENCE_PB1,
+    &sai_metadata_attr_SAI_TAM_INT_ATTR_INT_PRESENCE_PB2,
+    &sai_metadata_attr_SAI_TAM_INT_ATTR_INT_PRESENCE_TYPE,
+    &sai_metadata_attr_SAI_TAM_INT_ATTR_IOAM_TRACE_TYPE,
+    &sai_metadata_attr_SAI_TAM_INT_ATTR_LATENCY_SENSITIVITY,
+    &sai_metadata_attr_SAI_TAM_INT_ATTR_MATH_FUNC,
+    &sai_metadata_attr_SAI_TAM_INT_ATTR_MAX_HOP_COUNT,
+    &sai_metadata_attr_SAI_TAM_INT_ATTR_MAX_LENGTH,
+    &sai_metadata_attr_SAI_TAM_INT_ATTR_METADATA_FRAGMENT_ENABLE,
+    &sai_metadata_attr_SAI_TAM_INT_ATTR_NAME_SPACE_ID,
+    &sai_metadata_attr_SAI_TAM_INT_ATTR_NAME_SPACE_ID_GLOBAL,
+    &sai_metadata_attr_SAI_TAM_INT_ATTR_P4_INT_INSTRUCTION_BITMAP,
+    &sai_metadata_attr_SAI_TAM_INT_ATTR_REPORT_ALL_PACKETS,
+    &sai_metadata_attr_SAI_TAM_INT_ATTR_REPORT_ID,
+    &sai_metadata_attr_SAI_TAM_INT_ATTR_TRACE_VECTOR,
+    &sai_metadata_attr_SAI_TAM_INT_ATTR_TYPE,
     &sai_metadata_attr_SAI_TAM_MATH_FUNC_ATTR_TAM_TEL_MATH_FUNC_TYPE,
     &sai_metadata_attr_SAI_TAM_REPORT_ATTR_HISTOGRAM_BIN_BOUNDARY,
     &sai_metadata_attr_SAI_TAM_REPORT_ATTR_HISTOGRAM_NUMBER_OF_BINS,
+    &sai_metadata_attr_SAI_TAM_REPORT_ATTR_QUOTA,
+    &sai_metadata_attr_SAI_TAM_REPORT_ATTR_REPORT_INTERVAL,
+    &sai_metadata_attr_SAI_TAM_REPORT_ATTR_REPORT_MODE,
     &sai_metadata_attr_SAI_TAM_REPORT_ATTR_TYPE,
     &sai_metadata_attr_SAI_TAM_TELEMETRY_ATTR_COLLECTOR_LIST,
     &sai_metadata_attr_SAI_TAM_TELEMETRY_ATTR_REPORTING_INTERVAL,
@@ -64308,6 +71665,7 @@ const sai_attr_metadata_t* const sai_metadata_attr_sorted_by_id_name[] = {
     &sai_metadata_attr_SAI_TAM_TELEMETRY_ATTR_TAM_TYPE_LIST,
     &sai_metadata_attr_SAI_TAM_TEL_TYPE_ATTR_DSCP_VALUE,
     &sai_metadata_attr_SAI_TAM_TEL_TYPE_ATTR_FABRIC_Q,
+    &sai_metadata_attr_SAI_TAM_TEL_TYPE_ATTR_INT_SWITCH_IDENTIFIER,
     &sai_metadata_attr_SAI_TAM_TEL_TYPE_ATTR_MATH_FUNC,
     &sai_metadata_attr_SAI_TAM_TEL_TYPE_ATTR_NE_ENABLE,
     &sai_metadata_attr_SAI_TAM_TEL_TYPE_ATTR_REPORT_ID,
@@ -64436,7 +71794,7 @@ const sai_attr_metadata_t* const sai_metadata_attr_sorted_by_id_name[] = {
     &sai_metadata_attr_SAI_WRED_ATTR_YELLOW_MIN_THRESHOLD,
     NULL
 };
-const size_t sai_metadata_attr_sorted_by_id_name_count = 924;
+const size_t sai_metadata_attr_sorted_by_id_name_count = 1018;
 
 /* SAI notifications struct */
 
@@ -64600,6 +71958,12 @@ int sai_serialize_bfd_encapsulation_type(
 {
     return sai_serialize_enum(buffer, &sai_metadata_enum_sai_bfd_encapsulation_type_t, bfd_encapsulation_type);
 }
+int sai_serialize_bfd_session_offload_type(
+    _Out_ char *buffer,
+    _In_ sai_bfd_session_offload_type_t bfd_session_offload_type)
+{
+    return sai_serialize_enum(buffer, &sai_metadata_enum_sai_bfd_session_offload_type_t, bfd_session_offload_type);
+}
 int sai_serialize_bfd_session_stat(
     _Out_ char *buffer,
     _In_ sai_bfd_session_stat_t bfd_session_stat)
@@ -64696,6 +72060,30 @@ int sai_serialize_common_api(
 {
     return sai_serialize_enum(buffer, &sai_metadata_enum_sai_common_api_t, common_api);
 }
+int sai_serialize_counter_stat(
+    _Out_ char *buffer,
+    _In_ sai_counter_stat_t counter_stat)
+{
+    return sai_serialize_enum(buffer, &sai_metadata_enum_sai_counter_stat_t, counter_stat);
+}
+int sai_serialize_counter_type(
+    _Out_ char *buffer,
+    _In_ sai_counter_type_t counter_type)
+{
+    return sai_serialize_enum(buffer, &sai_metadata_enum_sai_counter_type_t, counter_type);
+}
+int sai_serialize_debug_counter_bind_method(
+    _Out_ char *buffer,
+    _In_ sai_debug_counter_bind_method_t debug_counter_bind_method)
+{
+    return sai_serialize_enum(buffer, &sai_metadata_enum_sai_debug_counter_bind_method_t, debug_counter_bind_method);
+}
+int sai_serialize_debug_counter_type(
+    _Out_ char *buffer,
+    _In_ sai_debug_counter_type_t debug_counter_type)
+{
+    return sai_serialize_enum(buffer, &sai_metadata_enum_sai_debug_counter_type_t, debug_counter_type);
+}
 int sai_serialize_default_value_type(
     _Out_ char *buffer,
     _In_ sai_default_value_type_t default_value_type)
@@ -64786,6 +72174,12 @@ int sai_serialize_hostif_vlan_tag(
 {
     return sai_serialize_enum(buffer, &sai_metadata_enum_sai_hostif_vlan_tag_t, hostif_vlan_tag);
 }
+int sai_serialize_in_drop_reason(
+    _Out_ char *buffer,
+    _In_ sai_in_drop_reason_t in_drop_reason)
+{
+    return sai_serialize_enum(buffer, &sai_metadata_enum_sai_in_drop_reason_t, in_drop_reason);
+}
 int sai_serialize_ingress_priority_group_stat(
     _Out_ char *buffer,
     _In_ sai_ingress_priority_group_stat_t ingress_priority_group_stat)
@@ -64840,6 +72234,12 @@ int sai_serialize_mirror_session_type(
 {
     return sai_serialize_enum(buffer, &sai_metadata_enum_sai_mirror_session_type_t, mirror_session_type);
 }
+int sai_serialize_nat_type(
+    _Out_ char *buffer,
+    _In_ sai_nat_type_t nat_type)
+{
+    return sai_serialize_enum(buffer, &sai_metadata_enum_sai_nat_type_t, nat_type);
+}
 int sai_serialize_native_hash_field(
     _Out_ char *buffer,
     _In_ sai_native_hash_field_t native_hash_field)
@@ -64893,6 +72293,12 @@ int sai_serialize_object_type(
     _In_ sai_object_type_t object_type)
 {
     return sai_serialize_enum(buffer, &sai_metadata_enum_sai_object_type_t, object_type);
+}
+int sai_serialize_out_drop_reason(
+    _Out_ char *buffer,
+    _In_ sai_out_drop_reason_t out_drop_reason)
+{
+    return sai_serialize_enum(buffer, &sai_metadata_enum_sai_out_drop_reason_t, out_drop_reason);
 }
 int sai_serialize_packet_action(
     _Out_ char *buffer,
@@ -64977,6 +72383,12 @@ int sai_serialize_port_priority_flow_control_mode(
     _In_ sai_port_priority_flow_control_mode_t port_priority_flow_control_mode)
 {
     return sai_serialize_enum(buffer, &sai_metadata_enum_sai_port_priority_flow_control_mode_t, port_priority_flow_control_mode);
+}
+int sai_serialize_port_ptp_mode(
+    _Out_ char *buffer,
+    _In_ sai_port_ptp_mode_t port_ptp_mode)
+{
+    return sai_serialize_enum(buffer, &sai_metadata_enum_sai_port_ptp_mode_t, port_ptp_mode);
 }
 int sai_serialize_port_stat(
     _Out_ char *buffer,
@@ -65098,6 +72510,12 @@ int sai_serialize_switch_restart_type(
 {
     return sai_serialize_enum(buffer, &sai_metadata_enum_sai_switch_restart_type_t, switch_restart_type);
 }
+int sai_serialize_switch_stat(
+    _Out_ char *buffer,
+    _In_ sai_switch_stat_t switch_stat)
+{
+    return sai_serialize_enum(buffer, &sai_metadata_enum_sai_switch_stat_t, switch_stat);
+}
 int sai_serialize_switch_switching_mode(
     _Out_ char *buffer,
     _In_ sai_switch_switching_mode_t switch_switching_mode)
@@ -65157,6 +72575,24 @@ int sai_serialize_tam_event_type(
     _In_ sai_tam_event_type_t tam_event_type)
 {
     return sai_serialize_enum(buffer, &sai_metadata_enum_sai_tam_event_type_t, tam_event_type);
+}
+int sai_serialize_tam_int_presence_type(
+    _Out_ char *buffer,
+    _In_ sai_tam_int_presence_type_t tam_int_presence_type)
+{
+    return sai_serialize_enum(buffer, &sai_metadata_enum_sai_tam_int_presence_type_t, tam_int_presence_type);
+}
+int sai_serialize_tam_int_type(
+    _Out_ char *buffer,
+    _In_ sai_tam_int_type_t tam_int_type)
+{
+    return sai_serialize_enum(buffer, &sai_metadata_enum_sai_tam_int_type_t, tam_int_type);
+}
+int sai_serialize_tam_report_mode(
+    _Out_ char *buffer,
+    _In_ sai_tam_report_mode_t tam_report_mode)
+{
+    return sai_serialize_enum(buffer, &sai_metadata_enum_sai_tam_report_mode_t, tam_report_mode);
 }
 int sai_serialize_tam_report_type(
     _Out_ char *buffer,
@@ -65822,6 +73258,118 @@ int sai_serialize_mcast_fdb_entry(
     EMIT_NEXT_KEY("bv_id");
 
     EMIT_QUOTE_CHECK(sai_serialize_object_id(buf, mcast_fdb_entry->bv_id), object_id);
+    
+    EMIT("}");
+
+    return (int)(buf - begin_buf);
+}
+int sai_serialize_nat_entry_data(
+    _Out_ char *buf,
+    _In_ const sai_nat_entry_data_t *nat_entry_data)
+{
+    char *begin_buf = buf;
+    int ret;
+
+    EMIT("{");
+
+    EMIT_KEY("key");
+
+    EMIT_CHECK(sai_serialize_nat_entry_key(buf, &nat_entry_data->key), nat_entry_key);
+    
+    EMIT_NEXT_KEY("mask");
+
+    EMIT_CHECK(sai_serialize_nat_entry_mask(buf, &nat_entry_data->mask), nat_entry_mask);
+    
+    EMIT("}");
+
+    return (int)(buf - begin_buf);
+}
+int sai_serialize_nat_entry_key(
+    _Out_ char *buf,
+    _In_ const sai_nat_entry_key_t *nat_entry_key)
+{
+    char *begin_buf = buf;
+    int ret;
+
+    EMIT("{");
+
+    EMIT_KEY("src_ip");
+
+    EMIT_QUOTE_CHECK(sai_serialize_ip4(buf, nat_entry_key->src_ip), ip4);
+    
+    EMIT_NEXT_KEY("dst_ip");
+
+    EMIT_QUOTE_CHECK(sai_serialize_ip4(buf, nat_entry_key->dst_ip), ip4);
+    
+    EMIT_NEXT_KEY("proto");
+
+    EMIT_CHECK(sai_serialize_uint8(buf, nat_entry_key->proto), uint8);
+    
+    EMIT_NEXT_KEY("l4_src_port");
+
+    EMIT_CHECK(sai_serialize_uint16(buf, nat_entry_key->l4_src_port), uint16);
+    
+    EMIT_NEXT_KEY("l4_dst_port");
+
+    EMIT_CHECK(sai_serialize_uint16(buf, nat_entry_key->l4_dst_port), uint16);
+    
+    EMIT("}");
+
+    return (int)(buf - begin_buf);
+}
+int sai_serialize_nat_entry_mask(
+    _Out_ char *buf,
+    _In_ const sai_nat_entry_mask_t *nat_entry_mask)
+{
+    char *begin_buf = buf;
+    int ret;
+
+    EMIT("{");
+
+    EMIT_KEY("src_ip");
+
+    EMIT_QUOTE_CHECK(sai_serialize_ip4(buf, nat_entry_mask->src_ip), ip4);
+    
+    EMIT_NEXT_KEY("dst_ip");
+
+    EMIT_QUOTE_CHECK(sai_serialize_ip4(buf, nat_entry_mask->dst_ip), ip4);
+    
+    EMIT_NEXT_KEY("proto");
+
+    EMIT_CHECK(sai_serialize_uint8(buf, nat_entry_mask->proto), uint8);
+    
+    EMIT_NEXT_KEY("l4_src_port");
+
+    EMIT_CHECK(sai_serialize_uint16(buf, nat_entry_mask->l4_src_port), uint16);
+    
+    EMIT_NEXT_KEY("l4_dst_port");
+
+    EMIT_CHECK(sai_serialize_uint16(buf, nat_entry_mask->l4_dst_port), uint16);
+    
+    EMIT("}");
+
+    return (int)(buf - begin_buf);
+}
+int sai_serialize_nat_entry(
+    _Out_ char *buf,
+    _In_ const sai_nat_entry_t *nat_entry)
+{
+    char *begin_buf = buf;
+    int ret;
+
+    EMIT("{");
+
+    EMIT_KEY("switch_id");
+
+    EMIT_QUOTE_CHECK(sai_serialize_object_id(buf, nat_entry->switch_id), object_id);
+    
+    EMIT_NEXT_KEY("vr_id");
+
+    EMIT_QUOTE_CHECK(sai_serialize_object_id(buf, nat_entry->vr_id), object_id);
+    
+    EMIT_NEXT_KEY("data");
+
+    EMIT_CHECK(sai_serialize_nat_entry_data(buf, &nat_entry->data), nat_entry_data);
     
     EMIT("}");
 
@@ -67471,7 +75019,7 @@ int sai_serialize_attribute_value(
 
         EMIT_CHECK(sai_serialize_vlan_list(buf, &attribute_value->vlanlist), vlan_list);
     }
-    else if (meta->attrvaluetype == SAI_ATTR_VALUE_TYPE_MAP_LIST)
+    else if (meta->attrvaluetype == SAI_ATTR_VALUE_TYPE_QOS_MAP_LIST)
     {
         EMIT_KEY("qosmap");
 
@@ -67635,6 +75183,12 @@ int sai_serialize_object_key_entry(
 
         EMIT_CHECK(sai_serialize_inseg_entry(buf, &object_key_entry->inseg_entry), inseg_entry);
     }
+    else if (object_type == SAI_OBJECT_TYPE_NAT_ENTRY)
+    {
+        EMIT_KEY("nat_entry");
+
+        EMIT_CHECK(sai_serialize_nat_entry(buf, &object_key_entry->nat_entry), nat_entry);
+    }
     else
     {
         SAI_META_LOG_WARN("nothing was serialized for 'sai_object_key_entry_t', bad condition?");
@@ -67795,6 +75349,12 @@ int sai_deserialize_bfd_encapsulation_type(
 {
     return sai_deserialize_enum(buffer, &sai_metadata_enum_sai_bfd_encapsulation_type_t, (int*)bfd_encapsulation_type);
 }
+int sai_deserialize_bfd_session_offload_type(
+    _In_ const char *buffer,
+    _Out_ sai_bfd_session_offload_type_t *bfd_session_offload_type)
+{
+    return sai_deserialize_enum(buffer, &sai_metadata_enum_sai_bfd_session_offload_type_t, (int*)bfd_session_offload_type);
+}
 int sai_deserialize_bfd_session_stat(
     _In_ const char *buffer,
     _Out_ sai_bfd_session_stat_t *bfd_session_stat)
@@ -67891,6 +75451,30 @@ int sai_deserialize_common_api(
 {
     return sai_deserialize_enum(buffer, &sai_metadata_enum_sai_common_api_t, (int*)common_api);
 }
+int sai_deserialize_counter_stat(
+    _In_ const char *buffer,
+    _Out_ sai_counter_stat_t *counter_stat)
+{
+    return sai_deserialize_enum(buffer, &sai_metadata_enum_sai_counter_stat_t, (int*)counter_stat);
+}
+int sai_deserialize_counter_type(
+    _In_ const char *buffer,
+    _Out_ sai_counter_type_t *counter_type)
+{
+    return sai_deserialize_enum(buffer, &sai_metadata_enum_sai_counter_type_t, (int*)counter_type);
+}
+int sai_deserialize_debug_counter_bind_method(
+    _In_ const char *buffer,
+    _Out_ sai_debug_counter_bind_method_t *debug_counter_bind_method)
+{
+    return sai_deserialize_enum(buffer, &sai_metadata_enum_sai_debug_counter_bind_method_t, (int*)debug_counter_bind_method);
+}
+int sai_deserialize_debug_counter_type(
+    _In_ const char *buffer,
+    _Out_ sai_debug_counter_type_t *debug_counter_type)
+{
+    return sai_deserialize_enum(buffer, &sai_metadata_enum_sai_debug_counter_type_t, (int*)debug_counter_type);
+}
 int sai_deserialize_default_value_type(
     _In_ const char *buffer,
     _Out_ sai_default_value_type_t *default_value_type)
@@ -67981,6 +75565,12 @@ int sai_deserialize_hostif_vlan_tag(
 {
     return sai_deserialize_enum(buffer, &sai_metadata_enum_sai_hostif_vlan_tag_t, (int*)hostif_vlan_tag);
 }
+int sai_deserialize_in_drop_reason(
+    _In_ const char *buffer,
+    _Out_ sai_in_drop_reason_t *in_drop_reason)
+{
+    return sai_deserialize_enum(buffer, &sai_metadata_enum_sai_in_drop_reason_t, (int*)in_drop_reason);
+}
 int sai_deserialize_ingress_priority_group_stat(
     _In_ const char *buffer,
     _Out_ sai_ingress_priority_group_stat_t *ingress_priority_group_stat)
@@ -68035,6 +75625,12 @@ int sai_deserialize_mirror_session_type(
 {
     return sai_deserialize_enum(buffer, &sai_metadata_enum_sai_mirror_session_type_t, (int*)mirror_session_type);
 }
+int sai_deserialize_nat_type(
+    _In_ const char *buffer,
+    _Out_ sai_nat_type_t *nat_type)
+{
+    return sai_deserialize_enum(buffer, &sai_metadata_enum_sai_nat_type_t, (int*)nat_type);
+}
 int sai_deserialize_native_hash_field(
     _In_ const char *buffer,
     _Out_ sai_native_hash_field_t *native_hash_field)
@@ -68088,6 +75684,12 @@ int sai_deserialize_object_type(
     _Out_ sai_object_type_t *object_type)
 {
     return sai_deserialize_enum(buffer, &sai_metadata_enum_sai_object_type_t, (int*)object_type);
+}
+int sai_deserialize_out_drop_reason(
+    _In_ const char *buffer,
+    _Out_ sai_out_drop_reason_t *out_drop_reason)
+{
+    return sai_deserialize_enum(buffer, &sai_metadata_enum_sai_out_drop_reason_t, (int*)out_drop_reason);
 }
 int sai_deserialize_packet_action(
     _In_ const char *buffer,
@@ -68172,6 +75774,12 @@ int sai_deserialize_port_priority_flow_control_mode(
     _Out_ sai_port_priority_flow_control_mode_t *port_priority_flow_control_mode)
 {
     return sai_deserialize_enum(buffer, &sai_metadata_enum_sai_port_priority_flow_control_mode_t, (int*)port_priority_flow_control_mode);
+}
+int sai_deserialize_port_ptp_mode(
+    _In_ const char *buffer,
+    _Out_ sai_port_ptp_mode_t *port_ptp_mode)
+{
+    return sai_deserialize_enum(buffer, &sai_metadata_enum_sai_port_ptp_mode_t, (int*)port_ptp_mode);
 }
 int sai_deserialize_port_stat(
     _In_ const char *buffer,
@@ -68293,6 +75901,12 @@ int sai_deserialize_switch_restart_type(
 {
     return sai_deserialize_enum(buffer, &sai_metadata_enum_sai_switch_restart_type_t, (int*)switch_restart_type);
 }
+int sai_deserialize_switch_stat(
+    _In_ const char *buffer,
+    _Out_ sai_switch_stat_t *switch_stat)
+{
+    return sai_deserialize_enum(buffer, &sai_metadata_enum_sai_switch_stat_t, (int*)switch_stat);
+}
 int sai_deserialize_switch_switching_mode(
     _In_ const char *buffer,
     _Out_ sai_switch_switching_mode_t *switch_switching_mode)
@@ -68352,6 +75966,24 @@ int sai_deserialize_tam_event_type(
     _Out_ sai_tam_event_type_t *tam_event_type)
 {
     return sai_deserialize_enum(buffer, &sai_metadata_enum_sai_tam_event_type_t, (int*)tam_event_type);
+}
+int sai_deserialize_tam_int_presence_type(
+    _In_ const char *buffer,
+    _Out_ sai_tam_int_presence_type_t *tam_int_presence_type)
+{
+    return sai_deserialize_enum(buffer, &sai_metadata_enum_sai_tam_int_presence_type_t, (int*)tam_int_presence_type);
+}
+int sai_deserialize_tam_int_type(
+    _In_ const char *buffer,
+    _Out_ sai_tam_int_type_t *tam_int_type)
+{
+    return sai_deserialize_enum(buffer, &sai_metadata_enum_sai_tam_int_type_t, (int*)tam_int_type);
+}
+int sai_deserialize_tam_report_mode(
+    _In_ const char *buffer,
+    _Out_ sai_tam_report_mode_t *tam_report_mode)
+{
+    return sai_deserialize_enum(buffer, &sai_metadata_enum_sai_tam_report_mode_t, (int*)tam_report_mode);
 }
 int sai_deserialize_tam_report_type(
     _In_ const char *buffer,
@@ -69029,6 +76661,118 @@ int sai_deserialize_mcast_fdb_entry(
     EXPECT_NEXT_KEY("bv_id");
 
     EXPECT_QUOTE_CHECK(sai_deserialize_object_id(buf, &mcast_fdb_entry->bv_id), object_id);
+    
+    EXPECT("}");
+
+    return (int)(buf - begin_buf);
+}
+int sai_deserialize_nat_entry_data(
+    _In_ const char *buf,
+    _Out_ sai_nat_entry_data_t *nat_entry_data)
+{
+    const char *begin_buf = buf;
+    int ret;
+
+    EXPECT("{");
+
+    EXPECT_KEY("key");
+
+    EXPECT_CHECK(sai_deserialize_nat_entry_key(buf, &nat_entry_data->key), nat_entry_key);
+    
+    EXPECT_NEXT_KEY("mask");
+
+    EXPECT_CHECK(sai_deserialize_nat_entry_mask(buf, &nat_entry_data->mask), nat_entry_mask);
+    
+    EXPECT("}");
+
+    return (int)(buf - begin_buf);
+}
+int sai_deserialize_nat_entry_key(
+    _In_ const char *buf,
+    _Out_ sai_nat_entry_key_t *nat_entry_key)
+{
+    const char *begin_buf = buf;
+    int ret;
+
+    EXPECT("{");
+
+    EXPECT_KEY("src_ip");
+
+    EXPECT_QUOTE_CHECK(sai_deserialize_ip4(buf, &nat_entry_key->src_ip), ip4);
+    
+    EXPECT_NEXT_KEY("dst_ip");
+
+    EXPECT_QUOTE_CHECK(sai_deserialize_ip4(buf, &nat_entry_key->dst_ip), ip4);
+    
+    EXPECT_NEXT_KEY("proto");
+
+    EXPECT_CHECK(sai_deserialize_uint8(buf, &nat_entry_key->proto), uint8);
+    
+    EXPECT_NEXT_KEY("l4_src_port");
+
+    EXPECT_CHECK(sai_deserialize_uint16(buf, &nat_entry_key->l4_src_port), uint16);
+    
+    EXPECT_NEXT_KEY("l4_dst_port");
+
+    EXPECT_CHECK(sai_deserialize_uint16(buf, &nat_entry_key->l4_dst_port), uint16);
+    
+    EXPECT("}");
+
+    return (int)(buf - begin_buf);
+}
+int sai_deserialize_nat_entry_mask(
+    _In_ const char *buf,
+    _Out_ sai_nat_entry_mask_t *nat_entry_mask)
+{
+    const char *begin_buf = buf;
+    int ret;
+
+    EXPECT("{");
+
+    EXPECT_KEY("src_ip");
+
+    EXPECT_QUOTE_CHECK(sai_deserialize_ip4(buf, &nat_entry_mask->src_ip), ip4);
+    
+    EXPECT_NEXT_KEY("dst_ip");
+
+    EXPECT_QUOTE_CHECK(sai_deserialize_ip4(buf, &nat_entry_mask->dst_ip), ip4);
+    
+    EXPECT_NEXT_KEY("proto");
+
+    EXPECT_CHECK(sai_deserialize_uint8(buf, &nat_entry_mask->proto), uint8);
+    
+    EXPECT_NEXT_KEY("l4_src_port");
+
+    EXPECT_CHECK(sai_deserialize_uint16(buf, &nat_entry_mask->l4_src_port), uint16);
+    
+    EXPECT_NEXT_KEY("l4_dst_port");
+
+    EXPECT_CHECK(sai_deserialize_uint16(buf, &nat_entry_mask->l4_dst_port), uint16);
+    
+    EXPECT("}");
+
+    return (int)(buf - begin_buf);
+}
+int sai_deserialize_nat_entry(
+    _In_ const char *buf,
+    _Out_ sai_nat_entry_t *nat_entry)
+{
+    const char *begin_buf = buf;
+    int ret;
+
+    EXPECT("{");
+
+    EXPECT_KEY("switch_id");
+
+    EXPECT_QUOTE_CHECK(sai_deserialize_object_id(buf, &nat_entry->switch_id), object_id);
+    
+    EXPECT_NEXT_KEY("vr_id");
+
+    EXPECT_QUOTE_CHECK(sai_deserialize_object_id(buf, &nat_entry->vr_id), object_id);
+    
+    EXPECT_NEXT_KEY("data");
+
+    EXPECT_CHECK(sai_deserialize_nat_entry_data(buf, &nat_entry->data), nat_entry_data);
     
     EXPECT("}");
 
@@ -70348,7 +78092,7 @@ int sai_deserialize_attribute_value(
 
         EXPECT_CHECK(sai_deserialize_vlan_list(buf, &attribute_value->vlanlist), vlan_list);
     }
-    else if (meta->attrvaluetype == SAI_ATTR_VALUE_TYPE_MAP_LIST)
+    else if (meta->attrvaluetype == SAI_ATTR_VALUE_TYPE_QOS_MAP_LIST)
     {
         EXPECT_KEY("qosmap");
 
@@ -70511,6 +78255,12 @@ int sai_deserialize_object_key_entry(
         EXPECT_KEY("inseg_entry");
 
         EXPECT_CHECK(sai_deserialize_inseg_entry(buf, &object_key_entry->inseg_entry), inseg_entry);
+    }
+    else if (object_type == SAI_OBJECT_TYPE_NAT_ENTRY)
+    {
+        EXPECT_KEY("nat_entry");
+
+        EXPECT_CHECK(sai_deserialize_nat_entry(buf, &object_key_entry->nat_entry), nat_entry);
     }
     else
     {

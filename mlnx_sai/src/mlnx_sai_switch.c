@@ -7564,7 +7564,7 @@ static sai_status_t mlnx_switch_total_pool_buffer_size_get(_In_ const sai_object
         SX_LOG_EXIT();
         return SAI_STATUS_INVALID_PARAMETER;
     }
-    value->u32 = g_resource_limits.total_buffer_space / 1024;
+    value->u64 = g_resource_limits.total_buffer_space / 1024;
     SX_LOG_EXIT();
     return SAI_STATUS_SUCCESS;
 }
@@ -7935,9 +7935,66 @@ static sai_status_t mlnx_remove_switch(_In_ sai_object_id_t switch_id)
     return status;
 }
 
+/**
+ * @brief Get switch statistics counters. Deprecated for backward compatibility.
+ *
+ * @param[in] switch_id Switch id
+ * @param[in] number_of_counters Number of counters in the array
+ * @param[in] counter_ids Specifies the array of counter ids
+ * @param[out] counters Array of resulting counter values.
+ *
+ * @return #SAI_STATUS_SUCCESS on success, failure status code on error
+ */
+static sai_status_t mlnx_get_switch_stats(_In_ sai_object_id_t switch_id,
+                                          _In_ uint32_t number_of_counters,
+                                          _In_ const sai_stat_id_t *counter_ids,
+                                          _Out_ uint64_t *counters)
+{
+    return SAI_STATUS_NOT_IMPLEMENTED;
+}
+
+/**
+ * @brief Get switch statistics counters extended.
+ *
+ * @param[in] switch_id Switch id
+ * @param[in] number_of_counters Number of counters in the array
+ * @param[in] counter_ids Specifies the array of counter ids
+ * @param[in] mode Statistics mode
+ * @param[out] counters Array of resulting counter values.
+ *
+ * @return #SAI_STATUS_SUCCESS on success, failure status code on error
+ */
+static sai_status_t mlnx_get_switch_stats_ext(_In_ sai_object_id_t switch_id,
+                                              _In_ uint32_t number_of_counters,
+                                              _In_ const sai_stat_id_t *counter_ids,
+                                              _In_ sai_stats_mode_t mode,
+                                              _Out_ uint64_t *counters)
+{
+    return SAI_STATUS_NOT_IMPLEMENTED;
+}
+
+/**
+ * @brief Clear switch statistics counters.
+ *
+ * @param[in] switch_id Switch id
+ * @param[in] number_of_counters Number of counters in the array
+ * @param[in] counter_ids Specifies the array of counter ids
+ *
+ * @return #SAI_STATUS_SUCCESS on success, failure status code on error
+ */
+static sai_status_t mlnx_clear_switch_stats(_In_ sai_object_id_t switch_id,
+                                            _In_ uint32_t number_of_counters,
+                                            _In_ const sai_stat_id_t *counter_ids)
+{
+    return SAI_STATUS_NOT_IMPLEMENTED;
+}
+
 const sai_switch_api_t mlnx_switch_api = {
     mlnx_create_switch,
     mlnx_remove_switch,
     mlnx_set_switch_attribute,
     mlnx_get_switch_attribute,
+    mlnx_get_switch_stats,
+    mlnx_get_switch_stats_ext,
+    mlnx_clear_switch_stats
 };
