@@ -119,7 +119,7 @@ static void SAI_dump_debug_counter_print(_In_ FILE *file,
 
         SAI_dump_debug_counter_reasons_to_str(&cur_debug_counter, reasons_str, ARRAY_SIZE(reasons_str) - 1);
         dbg_utils_print_table_data_line(file, debug_counter_clmns);
-        dbg_utils_print(file, reasons_str);
+        dbg_utils_print(file, "%s", reasons_str);
     }
 }
 

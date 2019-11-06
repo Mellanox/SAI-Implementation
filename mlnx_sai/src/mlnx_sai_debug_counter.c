@@ -539,7 +539,7 @@ sai_status_t mlnx_debug_counter_switch_stats_get(_In_ uint32_t             numbe
                                                  _In_ bool                 clear,
                                                  _Out_ uint64_t           *counters)
 {
-    sai_status_t status;
+    sai_status_t status = SAI_STATUS_SUCCESS;
     uint64_t     counter;
     uint32_t     ii;
 
