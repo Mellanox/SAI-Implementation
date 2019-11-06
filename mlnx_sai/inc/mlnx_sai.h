@@ -207,6 +207,7 @@ extern const sai_stp_api_t              mlnx_stp_api;
 extern const sai_udf_api_t              mlnx_udf_api;
 extern const sai_l2mc_group_api_t       mlnx_l2mc_group_api;
 extern const sai_bmtor_api_t            mlnx_bmtor_api;
+extern const sai_debug_counter_api_t    mlnx_debug_counter_api;
 
 #define DEFAULT_ETH_SWID 0
 #define DEFAULT_VRID     0
@@ -299,7 +300,8 @@ typedef enum {
     MLNX_SHM_RM_ARRAY_TYPE_MIN,
     MLNX_SHM_RM_ARRAY_TYPE_RIF = MLNX_SHM_RM_ARRAY_TYPE_MIN,
     MLNX_SHM_RM_ARRAY_TYPE_BRIDGE,
-    MLNX_SHM_RM_ARRAY_TYPE_MAX = MLNX_SHM_RM_ARRAY_TYPE_BRIDGE,
+    MLNX_SHM_RM_ARRAY_TYPE_DEBUG_COUNTER,
+    MLNX_SHM_RM_ARRAY_TYPE_MAX = MLNX_SHM_RM_ARRAY_TYPE_DEBUG_COUNTER,
     MLNX_SHM_RM_ARRAY_TYPE_SIZE
 } mlnx_shm_rm_array_type_t;
 typedef sai_status_t (*mlnx_shm_rm_size_get_fn)(_Out_ size_t *size);
@@ -328,14 +330,18 @@ typedef struct _mlnx_shm_rm_array_idx_t mlnx_shm_rm_array_idx_t;
 #define MLNX_SHM_RM_ARRAY_IDX_UNINITIALIZED \
     ((mlnx_shm_rm_array_idx_t) {.type = MLNX_SHM_RM_ARRAY_TYPE_INVALID, .idx = \
                                     0})
-#define MLNX_SHM_RM_ARRAY_IDX_IS_UNINITIALIZED(idx) \
-    (((idx).type == MLNX_SHM_RM_ARRAY_TYPE_INVALID) && \
-     ((idx).idx == 0))
+#define MLNX_SHM_RM_ARRAY_IDX_IS_UNINITIALIZED(rm_idx) \
+    (((rm_idx).type == MLNX_SHM_RM_ARRAY_TYPE_INVALID) && \
+     ((rm_idx).idx == 0))
+
+#define MLNX_SHM_RM_ARRAY_IDX_EQUAL(a, b) \
+    ((a.type == b.type) && (a.idx == b.idx))
 
 sai_status_t mlnx_shm_rm_array_alloc(_In_ mlnx_shm_rm_array_type_t  type,
                                      _Out_ mlnx_shm_rm_array_idx_t *idx,
                                      _Out_ void                   **elem);
 sai_status_t mlnx_shm_rm_array_free(_In_ mlnx_shm_rm_array_idx_t idx);
+sai_status_t mlnx_shm_rm_array_free_entries_count(_In_ mlnx_shm_rm_array_type_t type);
 sai_status_t mlnx_shm_rm_array_find(_In_ mlnx_shm_rm_array_type_t  type,
                                     _In_ mlnx_shm_rm_array_cmp_fn  cmp_fn,
                                     _In_ mlnx_shm_rm_array_idx_t   start_idx,
@@ -343,9 +349,15 @@ sai_status_t mlnx_shm_rm_array_find(_In_ mlnx_shm_rm_array_type_t  type,
                                     _Out_ mlnx_shm_rm_array_idx_t *idx,
                                     _Out_ void                   **elem);
 sai_status_t mlnx_shm_rm_array_idx_to_ptr(_In_ mlnx_shm_rm_array_idx_t idx, _Out_ void                   **elem);
+sai_status_t mlnx_shm_rm_array_type_idx_to_ptr(_In_ mlnx_shm_rm_array_type_t  type,
+                                               _In_ uint32_t                  idx,
+                                               _Out_ void                   **elem);
+sai_status_t mlnx_shm_rm_array_type_ptr_to_idx(_In_ mlnx_shm_rm_array_type_t  type,
+                                               _In_ const void               *ptr,
+                                               _Out_ mlnx_shm_rm_array_idx_t *idx);
 uint32_t mlnx_shm_rm_array_size_get(_In_ mlnx_shm_rm_array_type_t type);
 
-#define MLNX_SHM_POOL_ELEM_FX_HANDLE_SIZE 56048
+#define MLNX_SHM_POOL_ELEM_FX_HANDLE_SIZE 524552
 
 typedef struct _mlnx_shm_pool_data_t {
     uint8_t  fx_handle_mem[MLNX_SHM_POOL_ELEM_FX_HANDLE_SIZE];
@@ -406,6 +418,7 @@ PACKED(struct _mlnx_object_id_t {
                sx_flow_counter_id_t flow_counter_id;
                mlnx_shm_rm_array_idx_t rif_db_idx;
                mlnx_shm_rm_array_idx_t bridge_db_idx;
+               mlnx_shm_rm_array_idx_t debug_counter_db_idx;
                PACKED(struct {
                           uint16_t group_id;
                           uint16_t nhop_id;
@@ -541,10 +554,12 @@ typedef enum {
         /* TODO: IS_PHY_OR_LAG_MEMBER */
         ATTR_PORT_IS_IN_LAG_ENABLED = 1 << 2,
 } attr_port_type_check_t;
+typedef sai_status_t (*mlnx_attr_enum_info_fn)(int32_t *attrs, uint32_t *count);
 typedef struct _mlnx_attr_enum_info_t {
     int32_t *attrs;
     uint32_t count;
     bool     all;
+    mlnx_attr_enum_info_fn fn;
 } mlnx_attr_enum_info_t;
 typedef struct _mlnx_obj_type_attrs_enum_infos_t {
     const mlnx_attr_enum_info_t *info;
@@ -589,12 +604,20 @@ typedef struct _mlnx_obj_type_attrs_info_t {
 #define ATTR_ENUM_VALUES_LIST(...) \
     {.attrs = (int32_t[ATTR_ARR_LEN(__VA_ARGS__)]) {__VA_ARGS__}, \
      .count = ATTR_ARR_LEN(__VA_ARGS__),                         \
-     .all   = false }
+     .all   = false,                                             \
+     .fn    = NULL }
 #define ATTR_ENUM_VALUES_ALL() \
     {.attrs = NULL,        \
      .count = 0,           \
+     .fn    = NULL,        \
      .all   = true }
-#define ATTR_ENUM_INFO_IS_VALID(info) (((info)->all) || ((info)->count > 0))
+#define ATTR_ENUM_VALUES_FN(f) \
+    {.attrs = NULL,        \
+     .count = 0,           \
+     .all   = false,       \
+     .fn    = f}
+
+#define ATTR_ENUM_INFO_IS_VALID(info) ((((info)->all) ^ ((info)->fn != NULL)) || ((info)->count > 0))
 #define OBJ_ATTRS_ENUMS_INFO(enum_info_arr) \
     {.info = enum_info_arr, .count = ARRAY_SIZE(enum_info_arr)}
 #define OBJ_ATTRS_ENUMS_INFO_EMPTY() \
@@ -777,6 +800,7 @@ sai_status_t mlnx_bridge_log_set(sx_verbosity_level_t severity);
 sai_status_t mlnx_udf_log_set(sx_verbosity_level_t severity);
 sai_status_t mlnx_l2mc_group_log_set(sx_verbosity_level_t severity);
 sai_status_t mlnx_bmtor_log_set(sx_verbosity_level_t severity);
+sai_status_t mlnx_debug_counter_log_set(sx_verbosity_level_t level);
 
 sai_status_t mlnx_fill_objlist(const sai_object_id_t *data, uint32_t count, sai_object_list_t *list);
 sai_status_t mlnx_fill_u8list(const uint8_t *data, uint32_t count, sai_u8_list_t *list);
@@ -956,7 +980,7 @@ extern const mlnx_trap_info_t mlnx_traps_info[];
 #define MAX_BRIDGES_1D      1000
 #define MAX_VPORTS          (MAX_BRIDGES_1D * MAX_PORTS_DB)
 #define MAX_BRIDGE_1Q_PORTS (MAX_PORTS_DB * 2) /* Ports and LAGs */
-#define MAX_BRIDGE_RIFS     300 /* 256 for VXLAN VNETs + some spare */
+#define MAX_BRIDGE_RIFS     550 /* 256 for VXLAN VNETs + some spare */
 #define MAX_BRIDGE_PORTS    (MAX_VPORTS + MAX_BRIDGE_1Q_PORTS + MAX_BRIDGE_RIFS)
 #define MAX_LANES           4
 #define MAX_HOSTIFS         200
@@ -1314,8 +1338,9 @@ sai_status_t mlnx_wred_port_queue_db_clear(_In_ mlnx_port_config_t *port);
         if (port->is_present && mlnx_vlan_port_is_set(vid, port))
 
 typedef struct _mlnx_trap_t {
-    sai_packet_action_t action;
-    sai_object_id_t     trap_group;
+    sai_packet_action_t     action;
+    sai_object_id_t         trap_group;
+    mlnx_shm_rm_array_idx_t bound_dbg_counter;
 } mlnx_trap_t;
 
 typedef struct _mlnx_wred_profile_t {
@@ -1962,6 +1987,34 @@ typedef enum mlnx_platform_type {
     MLNX_PLATFORM_TYPE_3800    = 3800,
 } mlnx_platform_type_t;
 
+#define MLNX_SWITCH_STAT_ID_RANGE_CHECK(stat) \
+    (((SAI_SWITCH_STAT_IN_DROP_REASON_RANGE_BASE <= stat) && (stat < SAI_SWITCH_STAT_IN_DROP_REASON_RANGE_END)) || \
+     ((SAI_SWITCH_STAT_OUT_DROP_REASON_RANGE_BASE <= stat) && (stat < SAI_SWITCH_STAT_OUT_DROP_REASON_RANGE_END)))
+
+#define MLNX_DEBUG_COUNTER_MAX_REASONS MAX((uint32_t)SAI_IN_DROP_REASON_ACL_EGRESS_SWITCH, \
+                                           (uint32_t)SAI_OUT_DROP_REASON_L3_EGRESS_LINK_DOWN)
+
+typedef struct _mlnx_debug_counter_t {
+    mlnx_shm_array_hdr_t     array_hdr;
+    sx_trap_group_t          sx_trap_group;
+    uint32_t                 policer_db_idx;
+    sai_debug_counter_type_t type;
+    bool                     drop_reasons[MLNX_DEBUG_COUNTER_MAX_REASONS];
+} mlnx_debug_counter_t;
+
+/* SX_TRAP_ID_HOST_MISS_IPV4, SX_TRAP_ID_HOST_MISS_IPV6, SX_TRAP_ID_ETH_L3_MTUERROR, SX_TRAP_ID_ETH_L3_TTLERROR */
+#define MLNX_DEBUG_COUNTER_TRAP_DB_SIZE 4
+
+typedef struct _mlnx_debug_counter_trap_t {
+    mlnx_shm_rm_array_idx_t bound_counter_idx;
+    sx_trap_id_t            trap_id;
+    sai_packet_action_t     action;
+} mlnx_debug_counter_trap_t;
+
+sai_status_t mlnx_debug_counter_db_init(void);
+sai_status_t mlnx_debug_counter_db_trap_action_update(_In_ sx_trap_id_t        sx_trap,
+                                                      _In_ sai_packet_action_t action);
+
 typedef struct sai_db {
     cl_plock_t         p_lock;
     sx_mac_addr_t      base_mac_addr;
@@ -2020,6 +2073,7 @@ typedef struct sai_db {
     mlnx_mirror_vlan_t                erspan_vlan_header[SPAN_SESSION_MAX];
     mlnx_mirror_policer_t             mirror_policer[SPAN_SESSION_MAX];
     mlnx_l2mc_group_t                 l2mc_groups[MLNX_L2MC_GROUP_DB_SIZE];
+    mlnx_debug_counter_trap_t         debug_counter_traps[MLNX_DEBUG_COUNTER_TRAP_DB_SIZE];
     mlnx_shm_pool_t                   shm_pool;
     mlnx_shm_rm_array_info_t          array_info[MLNX_SHM_RM_ARRAY_TYPE_SIZE];
 } sai_db_t;
@@ -2202,6 +2256,7 @@ sai_status_t mlnx_port_config_uninit(mlnx_port_config_t *port);
 sai_status_t mlnx_port_auto_split(mlnx_port_config_t *port);
 sai_status_t mlnx_port_speed_bitmap_apply(_In_ const mlnx_port_config_t *port);
 sai_status_t mlnx_port_crc_params_apply(const mlnx_port_config_t *port, bool init);
+sai_status_t mlnx_port_fec_set_impl(sx_port_log_id_t port_log_id, int32_t value);
 
 sai_status_t mlnx_port_in_use_check(const mlnx_port_config_t *port);
 bool mlnx_port_is_net(const mlnx_port_config_t *port);
@@ -2381,6 +2436,7 @@ sai_status_t mlnx_sai_tunnel_to_sx_tunnel_id(_In_ sai_object_id_t  sai_tunnel_id
 void SAI_dump_acl(_In_ FILE *file);
 void SAI_dump_bridge(_In_ FILE *file);
 void SAI_dump_buffer(_In_ FILE *file);
+void SAI_dump_debug_counter(_In_ FILE *file);
 void SAI_dump_hash(_In_ FILE *file);
 void SAI_dump_hostintf(_In_ FILE *file);
 void SAI_dump_mirror(_In_ FILE *file);

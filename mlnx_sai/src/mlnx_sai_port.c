@@ -1088,7 +1088,7 @@ sai_status_t mlnx_port_mirror_wred_discard_set(_In_ sx_port_log_id_t port_log_id
     return SAI_STATUS_SUCCESS;
 }
 
-static sai_status_t port_fec_set(sx_port_log_id_t port_log_id, int32_t value)
+sai_status_t mlnx_port_fec_set_impl(sx_port_log_id_t port_log_id, int32_t value)
 {
     sx_status_t         status;
     sx_port_phy_mode_t  mode;
@@ -1142,7 +1142,7 @@ static sai_status_t mlnx_port_fec_set(_In_ const sai_object_key_t      *key,
         return status;
     }
 
-    status = port_fec_set(port_id, value->s32);
+    status = mlnx_port_fec_set_impl(port_id, value->s32);
 
     SX_LOG_EXIT();
     return status;
@@ -3201,6 +3201,61 @@ static sai_status_t mlnx_port_qos_map_assign_tc_to_pg(sx_port_log_id_t port_id, 
     return SAI_STATUS_SUCCESS;
 }
 
+sai_status_t mlnx_port_stat_pg_dropped_pkts_get(_In_ sx_port_log_id_t port_log_id,
+                                            _In_ sx_access_cmd_t cmd,
+                                            _Out_ uint64_t *drop_counter)
+{
+    sx_status_t                              sx_status;
+    const mlnx_sai_buffer_resource_limits_t *buffer_limits;
+    sx_port_cntr_buff_t                      pg_cnts = {0};
+    uint32_t                                 pg;
+
+    assert(drop_counter);
+
+    buffer_limits = mlnx_sai_get_buffer_resource_limits();
+
+    *drop_counter = 0;
+    for (pg = 0; pg < buffer_limits->num_port_pg_buff; ++pg) {
+        sx_status = sx_api_port_counter_buff_get(gh_sdk, cmd, port_log_id, pg, &pg_cnts);
+        if (SX_ERR(sx_status)) {
+            SX_LOG_ERR("Failed to %s port %x pg %u counters - %s.\n",
+                       SX_ACCESS_CMD_STR(cmd), port_log_id, pg, SX_STATUS_MSG(sx_status));
+            *drop_counter = 0;
+            return sdk_to_sai(sx_status);
+        }
+
+        *drop_counter += pg_cnts.rx_buffer_discard + pg_cnts.rx_shared_buffer_discard;
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
+sai_status_t mlnx_port_stat_tc_dropped_pkts_get(_In_ sx_port_log_id_t port_log_id,
+                                            _In_ sx_access_cmd_t cmd,
+                                            _Out_ uint64_t *drop_counter)
+{
+    sx_status_t             sx_status;
+    sx_port_traffic_cntr_t  tc_cnts = {0};
+    uint32_t                queue_num;
+
+    assert(drop_counter);
+
+    *drop_counter = 0;
+    for (queue_num = 0; queue_num < g_resource_limits.cos_port_ets_traffic_class_max; ++queue_num) {
+        sx_status = sx_api_port_counter_tc_get(gh_sdk, cmd, port_log_id, queue_num, &tc_cnts);
+        if (SX_ERR(sx_status)) {
+            SX_LOG_ERR("Failed to %s port %x tc %u counters - %s.\n",
+                       SX_ACCESS_CMD_STR(cmd), port_log_id, queue_num, SX_STATUS_MSG(sx_status));
+            *drop_counter = 0;
+            return sdk_to_sai(sx_status);
+        }
+
+        *drop_counter += tc_cnts.tx_no_buffer_discard_uc;
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
 /*
  * Routine Description:
  *   Apply QoS params on the port (db read lock is needed).
@@ -4119,6 +4174,7 @@ sai_status_t mlnx_get_port_stats_ext(_In_ sai_object_id_t      port_id,
         case SAI_PORT_STAT_IF_IN_OCTETS:
         case SAI_PORT_STAT_IF_IN_UCAST_PKTS:
         case SAI_PORT_STAT_IF_IN_NON_UCAST_PKTS:
+        case SAI_PORT_STAT_IF_IN_DISCARDS:
         case SAI_PORT_STAT_IF_IN_ERRORS:
         case SAI_PORT_STAT_IF_IN_UNKNOWN_PROTOS:
         case SAI_PORT_STAT_IF_IN_BROADCAST_PKTS:
@@ -4222,7 +4278,6 @@ sai_status_t mlnx_get_port_stats_ext(_In_ sai_object_id_t      port_id,
             break;
 
         case SAI_PORT_STAT_IF_IN_VLAN_DISCARDS:
-        case SAI_PORT_STAT_IF_IN_DISCARDS:
             discard_cnts_needed = true;
             break;
 
@@ -4354,7 +4409,7 @@ sai_status_t mlnx_get_port_stats_ext(_In_ sai_object_id_t      port_id,
             break;
 
         case SAI_PORT_STAT_IF_IN_DISCARDS:
-            counters[ii] = discard_cnts.ingress_discard_all;
+            counters[ii] = cnts_2863.if_in_discards;
             break;
 
         case SAI_PORT_STAT_IF_IN_ERRORS:
@@ -4676,6 +4731,20 @@ sai_status_t mlnx_get_port_stats_ext(_In_ sai_object_id_t      port_id,
             counters[ii] = cnts_3635.dot3control_in_unknown_opcodes;
             break;
 
+        case SAI_PORT_STAT_IN_DROPPED_PKTS:
+            status = mlnx_port_stat_pg_dropped_pkts_get(port_data, cmd, &counters[ii]);
+            if (SAI_ERR(status)) {
+                return status;
+            }
+            break;
+
+        case SAI_PORT_STAT_OUT_DROPPED_PKTS:
+            status = mlnx_port_stat_tc_dropped_pkts_get(port_data, cmd, &counters[ii]);
+            if (SAI_ERR(status)) {
+                return status;
+            }
+            break;
+
         case SAI_PORT_STAT_IF_OUT_QLEN:
         case SAI_PORT_STAT_ETHER_STATS_PKTS_9217_TO_16383_OCTETS:
         case SAI_PORT_STAT_ETHER_RX_OVERSIZE_PKTS:
@@ -4710,8 +4779,6 @@ sai_status_t mlnx_get_port_stats_ext(_In_ sai_object_id_t      port_id,
         case SAI_PORT_STAT_OUT_WATERMARK_BYTES:
         case SAI_PORT_STAT_OUT_SHARED_CURR_OCCUPANCY_BYTES:
         case SAI_PORT_STAT_OUT_SHARED_WATERMARK_BYTES:
-        case SAI_PORT_STAT_IN_DROPPED_PKTS:
-        case SAI_PORT_STAT_OUT_DROPPED_PKTS:
         case SAI_PORT_STAT_PFC_0_ON2OFF_RX_PKTS:
         case SAI_PORT_STAT_PFC_1_ON2OFF_RX_PKTS:
         case SAI_PORT_STAT_PFC_2_ON2OFF_RX_PKTS:
@@ -5650,7 +5717,8 @@ static sai_status_t mlnx_port_rate_bitmask_to_speeds(_In_ const sx_port_rate_bit
     assert(speeds_count && (*speeds_count >= NUM_SPEEDS));
 
     if (sx_rate_bitmask->rate_auto) {
-        speeds[speeds_count_tmp++] = PORT_SPEED_MAX_SP2;
+        // TODO : WA, as 3800 doesn't currently support 200G, remove when supported
+        speeds[speeds_count_tmp++] = (g_sai_db_ptr->platform_type == MLNX_PLATFORM_TYPE_3800) ? PORT_SPEED_100 : PORT_SPEED_MAX_SP2;
     }
 
     if (sx_rate_bitmask->rate_400G) {
@@ -7079,6 +7147,8 @@ static sai_status_t mlnx_create_port(_Out_ sai_object_id_t     * port_id,
     uint32_t                     module;
     uint32_t                     ii;
     const bool                   is_add = true;
+    const bool                   is_warmboot_init_stage = (BOOT_TYPE_WARM == g_sai_db_ptr->boot_type) &&
+                                                          (!g_sai_db_ptr->issu_end_called);
 
     SX_LOG_EXIT();
 
@@ -7247,9 +7317,17 @@ static sai_status_t mlnx_create_port(_Out_ sai_object_id_t     * port_id,
 
     status = find_attrib_in_list(attr_count, attr_list, SAI_PORT_ATTR_FEC_MODE, &fec, &fec_index);
     if (status == SAI_STATUS_SUCCESS) {
-        status = port_fec_set(new_port->logical, fec->s32);
+        status = mlnx_port_fec_set_impl(new_port->logical, fec->s32);
         if (SAI_ERR(status)) {
             goto out_unlock;
+        }
+    }
+    else {
+        if ((!is_warmboot_init_stage) && (mlnx_chip_is_spc2())) {
+            status = mlnx_port_fec_set_impl(new_port->logical, SAI_PORT_FEC_MODE_NONE);
+            if (SAI_ERR(status)) {
+                goto out_unlock;
+            }
         }
     }
 

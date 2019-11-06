@@ -1886,6 +1886,40 @@ void db_reset_policer_entry(_In_ uint32_t db_policers_entry_index)
     SX_LOG_EXIT();
 }
 
+uint32_t mlnx_policer_db_free_entries_count(bool is_hostif)
+{
+    uint32_t ii, rm_limit, policers_created = 0, hostif_policers_created = 0;
+
+    for (ii = 0; ii < MAX_POLICERS; ii++) {
+        if (g_sai_db_ptr->policers_db[ii].valid) {
+            if (g_sai_db_ptr->policers_db[ii].sx_policer_id_trap != SX_POLICER_ID_INVALID) {
+                hostif_policers_created++;
+            }
+
+            if ((g_sai_db_ptr->policers_db[ii].sx_policer_id_acl != SX_POLICER_ID_INVALID) ||
+                 (g_sai_db_ptr->policers_db[ii].sx_policer_id_mirror != SX_POLICER_ID_INVALID)) {
+                policers_created++;
+            }
+        }
+    }
+
+    if (is_hostif) {
+        rm_limit = g_resource_limits.policer_host_ifc_pool_size;
+    } else {
+        rm_limit = g_resource_limits.policer_pool_size;
+    }
+
+    if (g_sai_db_ptr->issu_enabled) {
+        rm_limit /= 2;
+    }
+
+    if (is_hostif) {
+        return rm_limit - hostif_policers_created;
+    } else {
+        return rm_limit - policers_created;
+    }
+}
+
 sai_status_t db_init_sai_policer_data(_In_ sx_policer_attributes_t* policer_attr,
                                       _Out_ uint32_t              * db_policers_entry_index_p)
 {
@@ -1905,8 +1939,6 @@ sai_status_t db_init_sai_policer_data(_In_ sx_policer_attributes_t* policer_attr
         return SAI_STATUS_INVALID_PARAMETER;
     }
 
-    policer_db_cl_plock_excl_acquire(&g_sai_db_ptr->p_lock);
-
     for (ii = 0; ii < MAX_POLICERS; ii++) {
         if (false == g_sai_db_ptr->policers_db[ii].valid) {
             break;
@@ -1915,7 +1947,6 @@ sai_status_t db_init_sai_policer_data(_In_ sx_policer_attributes_t* policer_attr
 
     if (MAX_POLICERS == ii) {
         SX_LOG_ERR("Policers table full\n");
-        policer_db_cl_plock_release(&g_sai_db_ptr->p_lock);
         SX_LOG_EXIT();
         return SAI_STATUS_TABLE_FULL;
     }
@@ -1925,9 +1956,6 @@ sai_status_t db_init_sai_policer_data(_In_ sx_policer_attributes_t* policer_attr
     g_sai_db_ptr->policers_db[ii].valid                    = true;
     g_sai_db_ptr->policers_db[ii].sx_policer_attr.ir_units = SX_POLICER_IR_UNITS_10_POWER_3_E;
     g_sai_db_ptr->policers_db[ii].sx_policer_attr          = *policer_attr;
-
-    msync(g_sai_db_ptr, sizeof(*g_sai_db_ptr), MS_SYNC);
-    policer_db_cl_plock_release(&g_sai_db_ptr->p_lock);
 
     *db_policers_entry_index_p = ii;
 
@@ -2026,6 +2054,8 @@ static sai_status_t mlnx_sai_create_policer(_Out_ sai_object_id_t      *policer_
         return sai_status;
     }
 
+    sai_db_write_lock();
+
     if (SAI_STATUS_SUCCESS !=
         (sai_status = db_init_sai_policer_data(&sai_policer_attr, &sai_policer_db_index))) {
         SX_LOG_NTC("Failed processing policer initialization data\n");
@@ -2036,9 +2066,12 @@ static sai_status_t mlnx_sai_create_policer(_Out_ sai_object_id_t      *policer_
     if (SAI_STATUS_SUCCESS !=
         (sai_status = mlnx_create_object(SAI_OBJECT_TYPE_POLICER, sai_policer_db_index, NULL, &sai_policer))) {
         db_remove_sai_policer_data(sai_policer_db_index);
+        sai_db_unlock();
         SX_LOG_EXIT();
         return sai_status;
     }
+
+    sai_db_unlock();
 
     *policer_id = sai_policer;
     policer_key_to_str(*policer_id, key_str);
@@ -2227,6 +2260,49 @@ static sai_status_t mlnx_sai_get_policer_attribute(_In_ sai_object_id_t     poli
     return status;
 }
 
+sai_status_t mlnx_policer_stats_clear(_In_ sx_policer_id_t sx_policer)
+{
+    sx_status_t                 sx_status;
+    sx_policer_counters_clear_t policer_counters_clear;
+
+    assert(sx_policer != SX_POLICER_ID_INVALID);
+
+    memset(&policer_counters_clear, 0, sizeof(policer_counters_clear));
+
+    policer_counters_clear.clear_violation_counter = true;
+    sx_status = sx_api_policer_counters_clear_set(gh_sdk, sx_policer, &policer_counters_clear);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to clear set sx policer %lu counter - %s\n", sx_policer, SX_STATUS_MSG(sx_status));
+        return sdk_to_sai(sx_status);
+    }
+
+    SX_LOG_DBG("Cleared counter for policer %lu\n", sx_policer);
+
+    return SAI_STATUS_SUCCESS;
+}
+
+sai_status_t mlnx_policer_stats_get(_In_ sx_policer_id_t sx_policer,
+                                    _In_ uint64_t       *count)
+{
+    sx_status_t           sx_status;
+    sx_policer_counters_t policer_counters;
+
+    assert(sx_policer != SX_POLICER_ID_INVALID);
+    assert(count);
+
+    memset(&policer_counters, 0, sizeof(policer_counters));
+
+    sx_status = sx_api_policer_counters_get(gh_sdk, sx_policer, &policer_counters);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to get sx policer %lu counter - %s\n", sx_policer, SX_STATUS_MSG(sx_status));
+        return sdk_to_sai(sx_status);
+    }
+
+    *count = policer_counters.violation_counter;
+
+    return SAI_STATUS_SUCCESS;
+}
+
 static sai_status_t mlnx_do_policer_stats(_In_ sai_object_id_t      policer_id,
                                           _In_ uint32_t             number_of_counters,
                                           _In_ const sai_stat_id_t *counter_ids,
@@ -2240,7 +2316,7 @@ static sai_status_t mlnx_do_policer_stats(_In_ sai_object_id_t      policer_id,
     sx_policer_counters_t       policer_counters;
     sx_policer_counters_clear_t policer_counters_clear;
     uint32_t                    packet_type_ind;
-    uint64_t                    aggregated_counter = 0;
+    uint64_t                    aggregated_counter = 0, acl_counter, trap_counter, mirror_counter;
     uint32_t                    port_ind;
 
     SX_LOG_ENTER();
@@ -2276,88 +2352,49 @@ static sai_status_t mlnx_do_policer_stats(_In_ sai_object_id_t      policer_id,
 
     if (SX_POLICER_ID_INVALID != policer_entry->sx_policer_id_acl) {
         if (is_clear) {
-            if (SX_STATUS_SUCCESS != (sx_status = sx_api_policer_counters_clear_set(gh_sdk,
-                                                                                    policer_entry->sx_policer_id_acl,
-                                                                                    &policer_counters_clear))) {
-                SX_LOG_ERR(
-                    "Failed to clear policer:0x%" PRIx64 ". counters, acl sx policer:0x%" PRIx64 ", message:%s.\n",
-                    policer_id,
-                    policer_entry->sx_policer_id_acl,
-                    SX_STATUS_MSG(sx_status));
-                sai_status = sdk_to_sai(sx_status);
+            sai_status = mlnx_policer_stats_clear(policer_entry->sx_policer_id_acl);
+            if (SAI_ERR(sai_status)) {
                 goto exit;
             }
         } else {
-            if (SX_STATUS_SUCCESS != (sx_status = sx_api_policer_counters_get(gh_sdk,
-                                                                              policer_entry->sx_policer_id_acl,
-                                                                              &policer_counters))) {
-                SX_LOG_ERR(
-                    "Failed to obtain policer:0x%" PRIx64 ". counters, acl sx policer:0x%" PRIx64 ", message:%s.\n",
-                    policer_id,
-                    policer_entry->sx_policer_id_acl,
-                    SX_STATUS_MSG(sx_status));
-                sai_status = sdk_to_sai(sx_status);
+            sai_status = mlnx_policer_stats_get(policer_entry->sx_policer_id_acl, &acl_counter);
+            if (SAI_ERR(sai_status)) {
                 goto exit;
             }
-            aggregated_counter += policer_counters.violation_counter;
+
+            aggregated_counter += acl_counter;
         }
     }
 
     if (SX_POLICER_ID_INVALID != policer_entry->sx_policer_id_trap) {
         if (is_clear) {
-            if (SX_STATUS_SUCCESS != (sx_status = sx_api_policer_counters_clear_set(gh_sdk,
-                                                                                    policer_entry->sx_policer_id_trap,
-                                                                                    &policer_counters_clear))) {
-                SX_LOG_ERR(
-                    "Failed to clear policer:0x%" PRIx64 ". counters, trap sx policer:0x%" PRIx64 ", message:%s.\n",
-                    policer_id,
-                    policer_entry->sx_policer_id_trap,
-                    SX_STATUS_MSG(sx_status));
-                sai_status = sdk_to_sai(sx_status);
+            sai_status = mlnx_policer_stats_clear(policer_entry->sx_policer_id_trap);
+            if (SAI_ERR(sai_status)) {
                 goto exit;
             }
         } else {
-            if (SX_STATUS_SUCCESS != (sx_status = sx_api_policer_counters_get(gh_sdk,
-                                                                              policer_entry->sx_policer_id_trap,
-                                                                              &policer_counters))) {
-                SX_LOG_ERR(
-                    "Failed to obtain policer:0x%" PRIx64 ". counters, trap sx policer:0x%" PRIx64 ", message:%s.\n",
-                    policer_id,
-                    policer_entry->sx_policer_id_trap,
-                    SX_STATUS_MSG(sx_status));
-                sai_status = sdk_to_sai(sx_status);
+            sai_status = mlnx_policer_stats_get(policer_entry->sx_policer_id_trap, &trap_counter);
+            if (SAI_ERR(sai_status)) {
                 goto exit;
             }
-            aggregated_counter += policer_counters.violation_counter;
+
+            aggregated_counter += trap_counter;
         }
     }
 
     if (SX_POLICER_ID_INVALID != policer_entry->sx_policer_id_mirror) {
         if (is_clear) {
-            if (SX_STATUS_SUCCESS != (sx_status = sx_api_policer_counters_clear_set(gh_sdk,
-                                                                                    policer_entry->sx_policer_id_mirror,
-                                                                                    &policer_counters_clear))) {
-                SX_LOG_ERR(
-                    "Failed to clear policer:0x%" PRIx64 ". counters, mirror sx policer:0x%" PRIx64 ", message:%s.\n",
-                    policer_id,
-                    policer_entry->sx_policer_id_mirror,
-                    SX_STATUS_MSG(sx_status));
-                sai_status = sdk_to_sai(sx_status);
+            sai_status = mlnx_policer_stats_clear(policer_entry->sx_policer_id_mirror);
+            if (SAI_ERR(sai_status)) {
                 goto exit;
             }
         } else {
-            if (SX_STATUS_SUCCESS != (sx_status = sx_api_policer_counters_get(gh_sdk,
-                                                                              policer_entry->sx_policer_id_mirror,
-                                                                              &policer_counters))) {
-                SX_LOG_ERR(
-                    "Failed to obtain policer:0x%" PRIx64 ". counters, mirror sx policer:0x%" PRIx64 ", message:%s.\n",
-                    policer_id,
-                    policer_entry->sx_policer_id_mirror,
-                    SX_STATUS_MSG(sx_status));
-                sai_status = sdk_to_sai(sx_status);
+            sai_status = mlnx_policer_stats_get(policer_entry->sx_policer_id_mirror, &mirror_counter);
+            if (SAI_ERR(sai_status)) {
                 goto exit;
             }
-            aggregated_counter += policer_counters.violation_counter;
+
+            aggregated_counter += mirror_counter;
         }
     }
 

@@ -35,6 +35,7 @@
 #include <math.h>
 #include <limits.h>
 #include <sx/sdk/sx_api_rm.h>
+#include "meta/saimetadata.h"
 
 #ifdef _WIN32
 #undef CONFIG_SYSLOG
@@ -116,7 +117,11 @@ sai_status_t mlnx_hash_object_is_applicable(_In_ sai_object_id_t                
                                            _Out_ bool                              *is_aplicable);
 sai_status_t mlnx_hash_config_db_changes_commit(_In_ mlnx_switch_usage_hash_object_id_t hash_oper_id);
 sai_status_t mlnx_sai_log_levels_post_init(void);
-
+sai_status_t mlnx_debug_counter_switch_stats_get(_In_ uint32_t             number_of_counters,
+                                                 _In_ const sai_stat_id_t *counter_ids,
+                                                 _In_ bool                 read,
+                                                 _In_ bool                 clear,
+                                                 _Out_ uint64_t           *counters);
 static sai_status_t mlnx_sai_rm_db_init(void);
 static sai_status_t switch_open_traps(void);
 static sai_status_t switch_close_traps(void);
@@ -1189,7 +1194,7 @@ static struct sx_pci_profile pci_profile_single_eth_spectrum = {
     },
     /* rdq_count */
     .rdq_count = {
-        35,     /* swid 0 */
+        37,     /* swid 0 */
         0,
         0,
         0,
@@ -1312,7 +1317,8 @@ static struct sx_pci_profile pci_profile_single_eth_spectrum = {
     },
     .dev_id = SX_DEVICE_ID
 };
-struct sx_pci_profile        pci_profile_single_eth_spectrum2 = {
+
+static struct sx_pci_profile pci_profile_single_eth_spectrum2 = {
     /*profile enum*/
     .pci_profile = PCI_PROFILE_EN_SINGLE_SWID,
     /*tx_prof: <swid,etclass> -> <stclass,sdq> */
@@ -1338,11 +1344,7 @@ struct sx_pci_profile        pci_profile_single_eth_spectrum2 = {
     },
     /* rdq_count */
     .rdq_count = {
-#if defined(SPECTRUM2_SIM)
-        37,
-#else
         56,
-#endif
         0,
         0,
         0,
@@ -1388,11 +1390,6 @@ struct sx_pci_profile        pci_profile_single_eth_spectrum2 = {
             30,
             31,
             32,
-#if defined(SPECTRUM2_SIM)
-            34,
-            35,
-            36
-#else
             34,
             35,
             36,
@@ -1415,7 +1412,6 @@ struct sx_pci_profile        pci_profile_single_eth_spectrum2 = {
             53,
             54,
             55
-#endif
         },
     },
     /* emad_rdq */
@@ -1456,12 +1452,6 @@ struct sx_pci_profile        pci_profile_single_eth_spectrum2 = {
         {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-30-*/
         {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-31-*/
         {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-32-mirror agent*/
-#if defined(SPECTRUM2_SIM)
-        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-33-emad*/
-        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-34 - special */
-        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-35 - special */
-        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-36 - special */
-#else
         {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-33-emad*/
         {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-34-*/
         {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-35-*/
@@ -1485,7 +1475,6 @@ struct sx_pci_profile        pci_profile_single_eth_spectrum2 = {
         {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-53-*/
         {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-54-*/
         {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-55-*/
-#endif
     },
     /* cpu_egress_tclass per SDQ */
     .cpu_egress_tclass = {
@@ -1785,6 +1774,11 @@ static sai_status_t mlnx_sai_db_initialize(const char *config_file, sx_chip_type
     sai_tunnel_db_init();
 
     status = mlnx_sai_rm_db_init();
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+    status = mlnx_debug_counter_db_init();
     if (SAI_ERR(status)) {
         return status;
     }
@@ -2693,13 +2687,18 @@ sai_status_t mlnx_shm_rm_bridge_size_get(_Out_ size_t *size)
     return SAI_STATUS_SUCCESS;
 }
 
+sai_status_t mlnx_shm_rm_debug_counter_size_get(_Out_ size_t *size);
+
 static mlnx_shm_rm_array_init_info_t mlnx_shm_array_info[MLNX_SHM_RM_ARRAY_TYPE_SIZE] = {
     [MLNX_SHM_RM_ARRAY_TYPE_RIF] = {sizeof(mlnx_rif_db_t),
                                     mlnx_shm_rm_rif_size_get,
                                     0},
     [MLNX_SHM_RM_ARRAY_TYPE_BRIDGE] = {sizeof(mlnx_bridge_t),
                                        mlnx_shm_rm_bridge_size_get,
-                                       0}
+                                       0},
+    [MLNX_SHM_RM_ARRAY_TYPE_DEBUG_COUNTER] = {sizeof(mlnx_debug_counter_t),
+                                              mlnx_shm_rm_debug_counter_size_get,
+                                              0}
 };
 static size_t mlnx_sai_rm_db_size_get(void)
 {
@@ -2784,7 +2783,7 @@ static sai_status_t sai_db_create()
     return SAI_STATUS_SUCCESS;
 }
 
-static uint8_t* mlnx_rm_offset_to_ptf(size_t rm_offset)
+static uint8_t* mlnx_rm_offset_to_ptr(size_t rm_offset)
 {
     return MLNX_SHM_RM_ARRAY_BASE_PTR + rm_offset;
 }
@@ -2796,7 +2795,7 @@ static void* mlnx_rm_array_elem_by_idx(_In_ const mlnx_shm_rm_array_info_t *info
         return NULL;
     }
 
-    return mlnx_rm_offset_to_ptf(info->offset_to_head) + (info->elem_size * idx);
+    return mlnx_rm_offset_to_ptr(info->offset_to_head) + (info->elem_size * idx);
 }
 
 static void mlnx_sai_rm_array_canary_init(mlnx_shm_rm_array_type_t type)
@@ -2871,6 +2870,8 @@ sai_status_t mlnx_shm_rm_array_alloc(_In_ mlnx_shm_rm_array_type_t  type,
         }
     }
 
+    *elem = NULL;
+
     return SAI_STATUS_INSUFFICIENT_RESOURCES;
 }
 
@@ -2905,6 +2906,34 @@ sai_status_t mlnx_shm_rm_array_free(_In_ mlnx_shm_rm_array_idx_t idx)
     array_hdr->is_used = false;
 
     return SAI_STATUS_SUCCESS;
+}
+
+sai_status_t mlnx_shm_rm_array_free_entries_count(_In_ mlnx_shm_rm_array_type_t type)
+{
+    const mlnx_shm_rm_array_info_t *info;
+    mlnx_shm_array_hdr_t           *array_hdr;
+    uint32_t                        ii, free = 0;
+
+    assert(MLNX_SHM_RM_ARRAY_TYPE_IS_VALID(type));
+
+    info = &g_sai_db_ptr->array_info[type];
+
+    for (ii = 0; ii < info->elem_count; ii++) {
+        array_hdr = mlnx_rm_array_elem_by_idx(info, ii);
+        assert(array_hdr);
+
+        if (!MLNX_SHM_RM_ARRAY_HDR_IS_VALID(type, array_hdr)) {
+            SX_LOG_ERR("array_hdr for type %d idx %d is corrupted (canary is %x, not %x)\n",
+                       type, ii, array_hdr->canary, MLNX_SHM_RM_ARRAY_CANARY(type));
+            return SAI_STATUS_FAILURE;
+        }
+
+        if (!array_hdr->is_used) {
+            free++;
+        }
+    }
+
+    return free;
 }
 
 sai_status_t mlnx_shm_rm_array_find(_In_ mlnx_shm_rm_array_type_t  type,
@@ -3000,6 +3029,51 @@ sai_status_t mlnx_shm_rm_array_idx_to_ptr(_In_ mlnx_shm_rm_array_idx_t idx, _Out
     }
 
     *elem = array_hdr;
+
+    return SAI_STATUS_SUCCESS;
+}
+
+sai_status_t mlnx_shm_rm_array_type_idx_to_ptr(_In_ mlnx_shm_rm_array_type_t  type,
+                                               _In_ uint32_t                  idx,
+                                               _Out_ void                   **elem)
+{
+    mlnx_shm_rm_array_idx_t rm_idx;
+
+    rm_idx.type = type;
+    rm_idx.idx  = idx;
+
+    return mlnx_shm_rm_array_idx_to_ptr(rm_idx, elem);
+}
+
+sai_status_t mlnx_shm_rm_array_type_ptr_to_idx(_In_ mlnx_shm_rm_array_type_t  type,
+                                               _In_ const void               *ptr,
+                                               _Out_ mlnx_shm_rm_array_idx_t *idx)
+{
+    const mlnx_shm_rm_array_info_t *info;
+    void                           *begin, *end;
+
+    if (!MLNX_SHM_RM_ARRAY_TYPE_IS_VALID(type)) {
+        SX_LOG_ERR("Invalid type %d\n", type);
+        return SAI_STATUS_FAILURE;
+    }
+
+    info = &g_sai_db_ptr->array_info[type];
+
+    begin = mlnx_rm_offset_to_ptr(info->offset_to_head);
+    end = mlnx_rm_offset_to_ptr(info->offset_to_head) + info->elem_count * info->elem_size;
+
+    if ((ptr < begin) || (end <= ptr)) {
+        SX_LOG_ERR("ptr %p is out of range [%p, %p)\n", ptr, begin, end);
+        return SAI_STATUS_FAILURE;
+    }
+
+    if (((char *)ptr - (char *)begin) % info->elem_size != 0) {
+        SX_LOG_ERR("ptr %p doesn't point to the element head\n", ptr);
+        return SAI_STATUS_FAILURE;
+    }
+
+    idx->type = type;
+    idx->idx  = (uint32_t) (((char *)ptr - (char *)begin) / info->elem_size);
 
     return SAI_STATUS_SUCCESS;
 }
@@ -3235,6 +3309,13 @@ static sai_status_t mlnx_dvs_mng_stage(mlnx_sai_boot_type_t boot_type, sai_objec
 
         if (!is_warmboot) {
             status = mlnx_port_speed_bitmap_apply(port);
+            if (SAI_ERR(status)) {
+                goto out;
+            }
+        }
+
+        if ((!is_warmboot) && (mlnx_chip_is_spc2())) {
+            status = mlnx_port_fec_set_impl(port->logical, SAI_PORT_FEC_MODE_NONE);
             if (SAI_ERR(status)) {
                 goto out;
             }
@@ -7935,22 +8016,60 @@ static sai_status_t mlnx_remove_switch(_In_ sai_object_id_t switch_id)
     return status;
 }
 
-/**
- * @brief Get switch statistics counters. Deprecated for backward compatibility.
- *
- * @param[in] switch_id Switch id
- * @param[in] number_of_counters Number of counters in the array
- * @param[in] counter_ids Specifies the array of counter ids
- * @param[out] counters Array of resulting counter values.
- *
- * @return #SAI_STATUS_SUCCESS on success, failure status code on error
- */
-static sai_status_t mlnx_get_switch_stats(_In_ sai_object_id_t switch_id,
-                                          _In_ uint32_t number_of_counters,
-                                          _In_ const sai_stat_id_t *counter_ids,
-                                          _Out_ uint64_t *counters)
+static uint32_t switch_stats_id_to_str(_In_ uint32_t             number_of_counters,
+                                       _In_ const sai_stat_id_t *counter_ids,
+                                       _In_ uint32_t             max_len,
+                                       _Out_ char               *key_str)
 {
-    return SAI_STATUS_NOT_IMPLEMENTED;
+    const char *base;
+    uint32_t    idx, ii, pos = 0;
+
+    assert(key_str);
+
+    pos = snprintf(key_str, max_len, "[");
+    if (pos > max_len) {
+        return pos;
+    }
+
+    for (ii = 0; ii < number_of_counters; ii++) {
+        if (counter_ids[ii] < SAI_SWITCH_STAT_IN_DROP_REASON_RANGE_END) {
+            base = "IN_DROP_REASON_RANGE_BASE";
+            idx = counter_ids[ii] - SAI_SWITCH_STAT_IN_DROP_REASON_RANGE_BASE;
+        } else {
+            base = "OUT_DROP_REASON_RANGE_BASE";
+            idx = counter_ids[ii] - SAI_SWITCH_STAT_OUT_DROP_REASON_RANGE_BASE;
+        }
+
+        pos += snprintf(key_str + pos, max_len - pos, "%s_%d", base, idx);
+        if (pos > max_len) {
+            return pos;
+        }
+
+        if (ii < number_of_counters - 1) {
+            pos += snprintf(key_str + pos, max_len - pos, ", ");
+            if (pos > max_len) {
+                return pos;
+            }
+        }
+    }
+
+    return snprintf(key_str + pos, max_len - pos, "]");
+}
+
+static void switch_stats_to_str(_In_ uint32_t number_of_counters,
+                                _In_ const sai_stat_id_t *counter_ids,
+                                _In_ sai_stats_mode_t mode,
+                                _In_ uint32_t max_len,
+                                _Out_ char *key_str)
+{
+    const char *mode_str;
+    uint32_t    pos = 0;
+
+    mode_str = sai_metadata_get_stats_mode_name(mode);
+
+    pos = snprintf(key_str, max_len, "%s, ", mode_str);
+
+    switch_stats_id_to_str(number_of_counters, counter_ids, max_len - pos, key_str + pos);
 }
 
 /**
@@ -7970,7 +8089,79 @@ static sai_status_t mlnx_get_switch_stats_ext(_In_ sai_object_id_t switch_id,
                                               _In_ sai_stats_mode_t mode,
                                               _Out_ uint64_t *counters)
 {
-    return SAI_STATUS_NOT_IMPLEMENTED;
+    sai_status_t status;
+    char         key_str[MAX_KEY_STR_LEN] = {0};
+    uint32_t     ii;
+    bool         clear;
+
+    SX_LOG_ENTER();
+
+    if (number_of_counters == 0) {
+        SX_LOG_ERR("number_of_counters is 0\n");
+        SX_LOG_EXIT();
+        return SAI_STATUS_INVALID_PARAMETER;
+    }
+
+    if (counter_ids == NULL) {
+        SX_LOG_ERR("counter_ids is NULL\n");
+        SX_LOG_EXIT();
+        return SAI_STATUS_INVALID_PARAMETER;
+    }
+
+    if (mode > SAI_STATS_MODE_READ_AND_CLEAR) {
+        SX_LOG_ERR("mode %d is invalid\n", mode);
+        SX_LOG_EXIT();
+        return SAI_STATUS_INVALID_PARAMETER;
+    }
+
+    if (counters == NULL) {
+        SX_LOG_ERR("counters is NULL\n");
+        SX_LOG_EXIT();
+        return SAI_STATUS_INVALID_PARAMETER;
+    }
+
+    switch_stats_to_str(number_of_counters, counter_ids, mode, MAX_KEY_STR_LEN, key_str);
+    SX_LOG_DBG("Get switch stats %s\n", key_str);
+
+    for (ii = 0; ii < number_of_counters; ii++) {
+        if (!MLNX_SWITCH_STAT_ID_RANGE_CHECK(counter_ids[ii])) {
+            SX_LOG_ERR("Invalid switch stat id %d\n", counter_ids[ii]);
+            SX_LOG_EXIT();
+            return SAI_STATUS_INVALID_ATTRIBUTE_0 + ii;
+        }
+    }
+
+    clear = (mode == SAI_STATS_MODE_READ_AND_CLEAR);
+
+    status = mlnx_debug_counter_switch_stats_get(number_of_counters, counter_ids, true, clear ,counters);
+
+    SX_LOG_EXIT();
+    return status;
+}
+
+/**
+ * @brief Get switch statistics counters. Deprecated for backward compatibility.
+ *
+ * @param[in] switch_id Switch id
+ * @param[in] number_of_counters Number of counters in the array
+ * @param[in] counter_ids Specifies the array of counter ids
+ * @param[out] counters Array of resulting counter values.
+ *
+ * @return #SAI_STATUS_SUCCESS on success, failure status code on error
+ */
+static sai_status_t mlnx_get_switch_stats(_In_ sai_object_id_t switch_id,
+                                          _In_ uint32_t number_of_counters,
+                                          _In_ const sai_stat_id_t *counter_ids,
+                                          _Out_ uint64_t *counters)
+{
+    sai_status_t status;
+
+    SX_LOG_ENTER();
+
+    status = mlnx_get_switch_stats_ext(switch_id, number_of_counters, counter_ids, SAI_STATS_MODE_READ, counters);
+
+    SX_LOG_EXIT();
+    return status;
 }
 
 /**
@@ -7986,7 +8177,39 @@ static sai_status_t mlnx_clear_switch_stats(_In_ sai_object_id_t switch_id,
                                             _In_ uint32_t number_of_counters,
                                             _In_ const sai_stat_id_t *counter_ids)
 {
-    return SAI_STATUS_NOT_IMPLEMENTED;
+    sai_status_t status;
+    char         key_str[MAX_KEY_STR_LEN] = {0};
+    uint32_t     ii;
+
+    SX_LOG_ENTER();
+
+    if (number_of_counters == 0) {
+        SX_LOG_ERR("number_of_counters is 0\n");
+        SX_LOG_EXIT();
+        return SAI_STATUS_INVALID_PARAMETER;
+    }
+
+    if (counter_ids == NULL) {
+        SX_LOG_ERR("counter_ids is NULL\n");
+        SX_LOG_EXIT();
+        return SAI_STATUS_INVALID_PARAMETER;
+    }
+
+    for (ii = 0; ii < number_of_counters; ii++) {
+        if (!MLNX_SWITCH_STAT_ID_RANGE_CHECK(counter_ids[ii])) {
+            SX_LOG_ERR("Invalid switch stat id %d\n", counter_ids[ii]);
+            SX_LOG_EXIT();
+            return SAI_STATUS_INVALID_ATTRIBUTE_0 + ii;
+        }
+    }
+
+    switch_stats_id_to_str(number_of_counters, counter_ids, MAX_KEY_STR_LEN, key_str);
+    SX_LOG_NTC("Clear switch stats %s\n", key_str);
+
+    status = mlnx_debug_counter_switch_stats_get(number_of_counters, counter_ids, false, true, NULL);
+
+    SX_LOG_EXIT();
+    return status;
 }
 
 const sai_switch_api_t mlnx_switch_api = {

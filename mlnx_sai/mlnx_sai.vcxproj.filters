@@ -347,5 +347,11 @@
     <ClCompile Include="src\mlnx_sai_bmtor.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\mlnx_sai_debug_counter.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\dbgdump\mlnx_sai_dbg_debug_counter.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>

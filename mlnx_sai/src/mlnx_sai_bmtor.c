@@ -1435,6 +1435,58 @@ sai_status_t mlnx_bmtor_fx_handle_deinit(void)
     return SAI_STATUS_SUCCESS;
 }
 
+static sai_status_t mlnx_bmtor_route_acl_hint(void)
+{
+    sx_status_t     sx_status;
+    fx_key_t        bitmap_router_keys[2];
+    fx_param_t      bitmap_router_params[1];
+    fx_key_list_t   bitmap_router_key_list;
+    fx_param_list_t bitmap_router_param_list;
+    sai_mac_t       hint_key = {0};
+    sai_mac_t       hint_masks[4] = {
+        {0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00},
+        {0xFF, 0xFF, 0x00, 0xFF, 0x00, 0x00},
+        {0xFF, 0x00, 0xFF, 0xFF, 0x00, 0x00},
+        {0x00, 0xFF, 0xFF, 0xFF, 0x00, 0x00},
+    };
+    sx_acl_rule_offset_t hint_prios[4] = {0, 1, 2, 3};
+    uint32_t ii;
+    uint32_t ip = 0;
+    uint32_t ipmask = 0xFFFFFFFF;
+
+    assert(g_sai_db_ptr->fx_pipe_created);
+
+    if (!mlnx_chip_is_spc2()) {
+        return SAI_STATUS_SUCCESS;
+    }
+
+    for (ii = 0; ii < 4; ii++) {
+        bitmap_router_keys[0].key.data = hint_key;
+        bitmap_router_keys[0].key.len  = 4;
+        bitmap_router_keys[0].mask.data = hint_masks[ii];
+        bitmap_router_keys[0].mask.len  = 4;
+        bitmap_router_keys[1].key.data = (void*)&ip;
+        bitmap_router_keys[1].key.len  = sizeof(ip);
+        bitmap_router_keys[1].mask.data = (void*)&ipmask;
+        bitmap_router_keys[1].mask.len  = sizeof(ipmask);
+
+        bitmap_router_key_list.keys     = bitmap_router_keys;
+        bitmap_router_key_list.len      = 2;
+        bitmap_router_param_list.params = bitmap_router_params;
+        bitmap_router_param_list.len    = 0;
+
+        sx_status = fx_table_entry_add(g_fx_handle, CONTROL_IN_RIF_TABLE_BITMAP_ROUTER_ID, CONTROL_IN_RIF_DROP_ID,
+                                       bitmap_router_key_list,
+                                       bitmap_router_param_list, &hint_prios[ii]);
+        if (SX_ERR(sx_status)) {
+            SX_LOG_ERR("Failed to insert bmtor route ACL hints - %s\n", SX_STATUS_MSG(sx_status));
+            return sdk_to_sai(sx_status);
+        }
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
 /* locks are taken from outside */
 static sai_status_t sai_fx_initialize(void)
 {
@@ -1474,6 +1526,11 @@ static sai_status_t sai_fx_initialize(void)
         }
 
         g_sai_db_ptr->fx_pipe_created = true;
+
+        status = mlnx_bmtor_route_acl_hint();
+        if (SAI_ERR(status)) {
+            return status;
+        }
     }
 
 out:

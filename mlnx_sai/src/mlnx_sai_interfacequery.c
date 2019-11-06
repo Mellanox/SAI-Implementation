@@ -227,6 +227,10 @@ sai_status_t sai_api_query(_In_ sai_api_t sai_api_id, _Out_ void** api_method_ta
         *(const sai_bmtor_api_t**)api_method_table = &mlnx_bmtor_api;
         return SAI_STATUS_SUCCESS;
 
+    case SAI_API_DEBUG_COUNTER:
+        *(const sai_debug_counter_api_t**)api_method_table = &mlnx_debug_counter_api;
+        return SAI_STATUS_SUCCESS;
+
     default:
         if (sai_api_id >= (sai_api_t)SAI_API_EXTENSIONS_RANGE_START_END)  {
             MLNX_SAI_LOG_ERR("SAI API %d is out of range [%d, %d]\n", sai_api_id, SAI_API_SWITCH, SAI_API_EXTENSIONS_RANGE_START_END);
@@ -448,6 +452,9 @@ sai_status_t sai_log_set(_In_ sai_api_t sai_api_id, _In_ sai_log_level_t log_lev
     case SAI_API_BMTOR:
         return mlnx_bmtor_log_set(severity);
 
+    case SAI_API_DEBUG_COUNTER:
+        return mlnx_debug_counter_log_set(severity);
+
     default:
         if (sai_api_id >= (sai_api_t)SAI_API_EXTENSIONS_RANGE_START_END)  {
             MLNX_SAI_LOG_ERR("SAI API %d is out of range [%d, %d]\n", sai_api_id, SAI_API_SWITCH, SAI_API_EXTENSIONS_RANGE_START_END);
@@ -569,28 +576,9 @@ sai_status_t sai_dbg_generate_dump(_In_ const char *dump_file_name)
 
     SAI_dump_udf(file);
 
+    SAI_dump_debug_counter(file);
+
     fclose(file);
 
     return SAI_STATUS_SUCCESS;
-}
-
-/**
- * @brief Get SAI object type resource availability.
- *
- * @param[in] switch_id SAI Switch object id
- * @param[in] object_type SAI object type
- * @param[in] attr_count Number of attributes
- * @param[in] attr_list List of attributes that to distinguish resource
- * @param[out] count Available objects left
- *
- * @return #SAI_STATUS_NOT_SUPPORTED if the given object type does not support resource accounting.
- * Otherwise, return #SAI_STATUS_SUCCESS.
- */
-sai_status_t sai_object_type_get_availability(_In_ sai_object_id_t switch_id,
-                                              _In_ sai_object_type_t object_type,
-                                              _In_ uint32_t attr_count,
-                                              _In_ const sai_attribute_t *attr_list,
-                                              _Out_ uint64_t *count)
-{
-    return SAI_STATUS_NOT_IMPLEMENTED;
 }

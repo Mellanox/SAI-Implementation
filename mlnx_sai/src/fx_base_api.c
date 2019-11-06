@@ -33,6 +33,7 @@
 #include <sx/sdk/sx_port.h>
 #include <sx/sdk/sx_port_id.h>
 #include <sx/sdk/sx_trap_id.h>
+#include "mlnx_sai.h"
 
 #include <arpa/inet.h>
 #include <syslog.h>
@@ -58,7 +59,7 @@ const uint32_t ENDIAN_INT = 1;
 #define is_bigendian() ( (*(char*)&ENDIAN_INT ) == 0 )
 
 #define MAX_TABLE_KEYS 10
-#define MAX_TABLE_SIZE 3072
+#define MAX_TABLE_SIZE 40960
 
 #define MAX_RIFS RM_API_ROUTER_RIFS_MAX
 
@@ -609,7 +610,7 @@ int remove_table_entry(fx_handle_t handle, struct acl_table *acl_table, sx_acl_r
     }
     sx_status_t rc2 = SX_STATUS_SUCCESS;
     if (SX_FLOW_COUNTER_ID_INVALID != acl_table->rule_counters[offset]) {
-        rc2 = sx_api_flow_counter_clear_set(g_sdk_handle, acl_table->rule_counters[offset]);
+        //rc2 = sx_api_flow_counter_clear_set(g_sdk_handle, acl_table->rule_counters[offset]);
     }
     if(rc2){
       SYSLOGF(SX_LOG_ERROR, "ERROR: failed to clear counter at offset %d, [%s]\n", offset, SX_STATUS_MSG(rc2));
@@ -701,25 +702,25 @@ sx_status_t get_sdk_action_num_from_id (const fx_action_id_t action_id, int *sdk
   switch (action_id) {
     /* assign number of primitives per user defined action */
 		case CONTROL_IN_RIF_DROP_ID: /* 16778278 */
-			*sdk_actions_count = 2;
+			*sdk_actions_count = 1;
 			return SX_STATUS_SUCCESS;
 		case CONTROL_IN_RIF_SET_METADATA_ID: /* 16786535 */
-			*sdk_actions_count = 2;
+			*sdk_actions_count = 1;
 			return SX_STATUS_SUCCESS;
 		case CONTROL_IN_RIF_TO_CPU_ID: /* 16819019 */
-			*sdk_actions_count = 2;
+			*sdk_actions_count = 1;
 			return SX_STATUS_SUCCESS;
 		case CONTROL_IN_RIF_TO_NEXTHOP_ID: /* 16825799 */
-			*sdk_actions_count = 3;
+			*sdk_actions_count = 2;
 			return SX_STATUS_SUCCESS;
 		case CONTROL_OUT_RIF_TUNNEL_ENCAP_ID: /* 16812468 */
-			*sdk_actions_count = 3;
+			*sdk_actions_count = 2;
 			return SX_STATUS_SUCCESS;
 		case NOACTION_ID: /* 16800567 */
 			*sdk_actions_count = 0;
 			return SX_STATUS_SUCCESS;
 		case CONTROL_IN_RIF_TO_LOCAL_ID: /* 16841981 */
-			*sdk_actions_count = 2;
+			*sdk_actions_count = 1;
 			return SX_STATUS_SUCCESS;
       default:
         SYSLOGF(SX_LOG_ERROR, "ERROR: requested action id is not in the action list: %i\n", action_id);
@@ -824,7 +825,7 @@ sx_status_t create_p4_table(fx_handle_t handle, struct acl_table *table, struct 
   SYSLOGF(SX_LOG_DEBUG, "Success, creating table:\n");
   rc = create_acl_table(handle, table);
   if (rc) {return rc;}
-  rc = alloc_rule_counters(handle, table);
+  //rc = alloc_rule_counters(handle, table);
   if (rc) {return rc;}
   return SX_STATUS_SUCCESS;
 }
@@ -832,7 +833,7 @@ sx_status_t create_p4_table(fx_handle_t handle, struct acl_table *table, struct 
 sx_status_t delete_p4_table(fx_handle_t handle, struct acl_table *table, struct fx_custom_params *custom) {
     SYSLOGF(SX_LOG_DEBUG, "FLEX-BASE: delete_p4_table\n");
     delete_all_rules(handle, table);
-    delete_rule_counters(handle, table);
+    //delete_rule_counters(handle, table);
     sx_status_t rc = delete_acl(handle, table);
     delete_p4_key(handle, table, custom);
     if (rc) {
@@ -1484,10 +1485,10 @@ void set_action_list(fx_handle_t handle, int action_id, fx_param_list_t params, 
 				.fields.action_forward.action = (sx_flex_acl_forward_action_t) SX_ACL_TRAP_FORWARD_ACTION_TYPE_DISCARD,
 			};
 			/* hit_counter() */
-			rule->action_list_p[1] = (sx_flex_acl_flex_action_t){
+			/*rule->action_list_p[1] = (sx_flex_acl_flex_action_t){
 				.type =  SX_FLEX_ACL_ACTION_COUNTER,
 				.fields.action_counter.counter_id = (sx_flex_acl_forward_action_t) table->rule_counters[*offset_ptr],
-			};
+			};*/
 			break;
 		};
 		case CONTROL_IN_RIF_SET_METADATA_ID:
@@ -1501,10 +1502,10 @@ void set_action_list(fx_handle_t handle, int action_id, fx_param_list_t params, 
 			uint8_t* mac = (uint8_t*)(&rule->action_list_p[0].fields.action_set_dst_mac.mac);
 			memcpy(&mac[0], params.params[0].data, 4);
 			/* hit_counter() */
-			rule->action_list_p[1] = (sx_flex_acl_flex_action_t){
+			/*rule->action_list_p[1] = (sx_flex_acl_flex_action_t){
 				.type =  SX_FLEX_ACL_ACTION_COUNTER,
 				.fields.action_counter.counter_id = (sx_flex_acl_forward_action_t) table->rule_counters[*offset_ptr],
-			};
+			};*/
 			break;
 		};
 		case CONTROL_IN_RIF_TO_CPU_ID:
@@ -1517,10 +1518,10 @@ void set_action_list(fx_handle_t handle, int action_id, fx_param_list_t params, 
 			};
 			memcpy(&rule->action_list_p[0].fields.action_trap.trap_id, params.params[0].data, params.params[0].len);
 			/* hit_counter() */
-			rule->action_list_p[1] = (sx_flex_acl_flex_action_t){
+			/*rule->action_list_p[1] = (sx_flex_acl_flex_action_t){
 				.type =  SX_FLEX_ACL_ACTION_COUNTER,
 				.fields.action_counter.counter_id = (sx_flex_acl_forward_action_t) table->rule_counters[*offset_ptr],
-			};
+			};*/
 			break;
 		};
 		case CONTROL_IN_RIF_TO_NEXTHOP_ID:
@@ -1540,10 +1541,10 @@ void set_action_list(fx_handle_t handle, int action_id, fx_param_list_t params, 
 			};
 			memcpy(&rule->action_list_p[1].fields.action_uc_route.uc_route_param.ecmp_id, params.params[1].data, params.params[1].len);
 			/* hit_counter() */
-			rule->action_list_p[2] = (sx_flex_acl_flex_action_t){
+			/*rule->action_list_p[2] = (sx_flex_acl_flex_action_t){
 				.type =  SX_FLEX_ACL_ACTION_COUNTER,
 				.fields.action_counter.counter_id = (sx_flex_acl_forward_action_t) table->rule_counters[*offset_ptr],
-			};
+			};*/
 			break;
 		};
 		case CONTROL_OUT_RIF_TUNNEL_ENCAP_ID:
@@ -1564,10 +1565,10 @@ void set_action_list(fx_handle_t handle, int action_id, fx_param_list_t params, 
 				.fields.action_set_user_token.mask = (uint16_t) 4095,
 			};
 			/* hit_counter() */
-			rule->action_list_p[2] = (sx_flex_acl_flex_action_t){
+			/*rule->action_list_p[2] = (sx_flex_acl_flex_action_t){
 				.type =  SX_FLEX_ACL_ACTION_COUNTER,
 				.fields.action_counter.counter_id = (sx_flex_acl_forward_action_t) table->rule_counters[*offset_ptr],
-			};
+			};*/
 			break;
 		};
 		case NOACTION_ID:
@@ -1584,10 +1585,10 @@ void set_action_list(fx_handle_t handle, int action_id, fx_param_list_t params, 
 			};
 			memcpy(&rule->action_list_p[0].fields.action_uc_route.uc_route_param.local_egress_rif, params.params[0].data, params.params[0].len);
 			/* hit_counter() */
-			rule->action_list_p[1] = (sx_flex_acl_flex_action_t){
+			/*rule->action_list_p[1] = (sx_flex_acl_flex_action_t){
 				.type =  SX_FLEX_ACL_ACTION_COUNTER,
 				.fields.action_counter.counter_id = (sx_flex_acl_forward_action_t) table->rule_counters[*offset_ptr],
-			};
+			};*/
 			break;
 		};
 		case FX_ACTION_INVALID_ID:
@@ -1608,7 +1609,7 @@ void fill_custom_bytes_control_in_rif_table_bitmap_classification(struct fx_cust
 }
 
 sx_status_t create_control_in_rif_table_bitmap_classification(fx_handle_t handle, sx_acl_id_t* pipe_id_list, int pipe_ind  ) {
-  const uint32_t size = 256;
+  const uint32_t size = mlnx_chip_is_spc2() ? 512 : 256;
   assert(size <= MAX_TABLE_SIZE);
   const uint32_t key_count = 1;
   assert(key_count <= MAX_TABLE_KEYS);
@@ -1788,7 +1789,7 @@ void fill_custom_bytes_control_in_rif_table_bitmap_router(struct fx_custom_param
 }
 
 sx_status_t create_control_in_rif_table_bitmap_router(fx_handle_t handle, sx_acl_id_t* pipe_id_list, int pipe_ind  ) {
-  const uint32_t size = 3072;
+  const uint32_t size = mlnx_chip_is_spc2() ? 40959 : 3072;
   assert(size <= MAX_TABLE_SIZE);
   const uint32_t key_count = 2;
   assert(key_count <= MAX_TABLE_KEYS);
@@ -2004,7 +2005,7 @@ void fill_custom_bytes_control_out_rif_table_l3_vxlan(struct fx_custom_params *c
 }
 
 sx_status_t create_control_out_rif_table_l3_vxlan(fx_handle_t handle, sx_acl_id_t* pipe_id_list, int pipe_ind  ) {
-  const uint32_t size = 512;
+  const uint32_t size = mlnx_chip_is_spc2() ? 4096 : 512;
   assert(size <= MAX_TABLE_SIZE);
   const uint32_t key_count = 1;
   assert(key_count <= MAX_TABLE_KEYS);

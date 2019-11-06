@@ -535,6 +535,37 @@ static sai_status_t find_sai_trap_index(_In_ uint32_t         trap_id,
     return SAI_STATUS_ITEM_NOT_FOUND;
 }
 
+sai_status_t mlnx_hostif_sx_trap_is_configured(_In_ sx_trap_id_t          sx_trap,
+                                               _Out_ sai_packet_action_t *action,
+                                               _Out_ bool                *is_configured)
+{
+    uint32_t trap_idx, sx_trap_idx;
+
+    assert(action);
+    assert(is_configured);
+
+#ifdef ACS_OS
+    if (trap == SX_TRAP_ID_DISCARD_ING_ROUTER_SIP_DIP) {
+        *is_configured = true;
+        return SAI_STATUS_SUCCESS;
+    }
+#endif
+
+    for (trap_idx = 0; END_TRAP_INFO_ID != mlnx_traps_info[trap_idx].trap_id; trap_idx++) {
+        for (sx_trap_idx = 0; sx_trap_idx < mlnx_traps_info[trap_idx].sdk_traps_num; sx_trap_idx++) {
+            if (sx_trap == mlnx_traps_info[trap_idx].sdk_trap_ids[sx_trap_idx]) {
+                *is_configured = true;
+                *action = g_sai_db_ptr->traps_db[trap_idx].action;
+                return SAI_STATUS_SUCCESS;
+            }
+        }
+    }
+
+    *is_configured = false;
+
+    return SAI_STATUS_SUCCESS;
+}
+
 sai_status_t mlnx_translate_sdk_trap_to_sai(_In_ sx_trap_id_t             sdk_trap_id,
                                             _Out_ sai_hostif_trap_type_t *trap_id,
                                             _Out_ const char            **trap_name,
@@ -1411,6 +1442,55 @@ sai_status_t mlnx_sai_unbind_policer_from_trap_group(_In_ sai_object_id_t sai_tr
     return SAI_STATUS_SUCCESS;
 }
 
+uint32_t mlnx_hostif_trap_group_db_free_entries_count(void)
+{
+    sx_trap_group_t group_id;
+    uint32_t        free = 0;
+
+    for (group_id = 0; group_id < MAX_TRAP_GROUPS; group_id++) {
+        if (!g_sai_db_ptr->trap_group_valid[group_id]) {
+            free++;
+        }
+    }
+
+    return free;
+}
+
+sai_status_t mlnx_hostif_trap_group_allocate(_Out_ sx_trap_group_t *trap_group)
+{
+    sx_trap_group_t group_id;
+
+    assert(trap_group);
+
+    for (group_id = 0; group_id < MAX_TRAP_GROUPS; group_id++) {
+        if (!g_sai_db_ptr->trap_group_valid[group_id]) {
+            g_sai_db_ptr->trap_group_valid[group_id] = true;
+            *trap_group = group_id;
+            return SAI_STATUS_SUCCESS;
+        }
+    }
+
+    *trap_group = SX_TRAP_GROUP_INVALID;
+    SX_LOG_ERR("All trap groups are already used\n");
+
+    return SAI_STATUS_INSUFFICIENT_RESOURCES;
+}
+
+sai_status_t mlnx_hostif_trap_group_free(_In_ sx_trap_group_t trap_group)
+{
+    if (trap_group == SX_TRAP_GROUP_INVALID) {
+        return SAI_STATUS_SUCCESS;
+    }
+
+    if (trap_group >= MAX_TRAP_GROUPS) {
+        SX_LOG_ERR("Invalid trap group id - %d\n", trap_group);
+        return SAI_STATUS_FAILURE;
+    }
+
+    g_sai_db_ptr->trap_group_valid[trap_group] = false;
+    return SAI_STATUS_SUCCESS;
+}
+
 static void trap_group_key_to_str(_In_ sai_object_id_t group_id, _Out_ char *key_str)
 {
     uint32_t group_data;
@@ -1482,16 +1562,8 @@ static sai_status_t mlnx_create_hostif_trap_group(_Out_ sai_object_id_t      *ho
 
     sai_db_write_lock();
 
-    for (group_id = 0; group_id < MAX_TRAP_GROUPS; group_id++) {
-        if (!g_sai_db_ptr->trap_group_valid[group_id]) {
-            g_sai_db_ptr->trap_group_valid[group_id] = true;
-            break;
-        }
-    }
-
-    if (MAX_TRAP_GROUPS == group_id) {
-        SX_LOG_ERR("All trap groups are already used\n");
-        status = SAI_STATUS_INSUFFICIENT_RESOURCES;
+    status = mlnx_hostif_trap_group_allocate(&group_id);
+    if (SAI_ERR(status)) {
         goto out;
     }
 
@@ -2216,6 +2288,11 @@ static sai_status_t mlnx_trap_update(_In_ uint32_t            index,
     }
 
     for (trap_index = 0; trap_index < mlnx_traps_info[index].sdk_traps_num; trap_index++) {
+        status = mlnx_debug_counter_db_trap_action_update(mlnx_traps_info[index].sdk_trap_ids[trap_index], sai_action);
+        if (SAI_ERR(status)) {
+            return status;
+        }
+
         trap_key.type = HOST_IFC_TRAP_KEY_TRAP_ID_E;
         trap_key.trap_key_attr.trap_id = mlnx_traps_info[index].sdk_trap_ids[trap_index];
         trap_attr.attr.trap_id_attr.trap_group = prio;
