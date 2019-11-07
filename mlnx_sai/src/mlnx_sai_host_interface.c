@@ -545,7 +545,7 @@ sai_status_t mlnx_hostif_sx_trap_is_configured(_In_ sx_trap_id_t          sx_tra
     assert(is_configured);
 
 #ifdef ACS_OS
-    if (trap == SX_TRAP_ID_DISCARD_ING_ROUTER_SIP_DIP) {
+    if (sx_trap == SX_TRAP_ID_DISCARD_ING_ROUTER_SIP_DIP) {
         *is_configured = true;
         return SAI_STATUS_SUCCESS;
     }
