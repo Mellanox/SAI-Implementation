@@ -12741,7 +12741,7 @@ uint32_t mlnx_acl_entry_min_prio_get(void)
 /* SP2 */
 static sai_status_t mlnx_acl_sp2_table_db_init(void)
 {
-    assert((!acl_sp2_table_db.is_inited) && (acl_sp2_table_db.tables == NULL));
+    assert((!acl_sp2_table_db.is_inited));
 
     acl_sp2_table_db.tables = calloc(ACL_TABLE_DB_SIZE, sizeof(acl_sp2_table_db.tables[0]));
     if (!acl_sp2_table_db.tables) {
@@ -16438,7 +16438,7 @@ static sai_status_t mlnx_acl_port_lag_bind_point_check_and_get(_In_ sai_object_i
     }
 
     if (mlnx_port_is_lag_member(&mlnx_ports_db[port_index])) {
-        sx_lag_id = mlnx_ports_db[port_index].lag_id;
+        sx_lag_id = mlnx_port_get_lag_id(&(mlnx_ports_db[port_index]));
 
         status = mlnx_port_idx_by_log_id(sx_lag_id, &lag_index);
         if (SAI_ERR(status)) {
@@ -16596,7 +16596,7 @@ static sai_status_t mlnx_acl_lag_member_bind_set(_In_ acl_bind_point_index_t    
 
     assert(mlnx_port_is_lag_member(&mlnx_ports_db[lag_member_index]));
 
-    sx_lag_id = mlnx_ports_db[lag_member_index].lag_id;
+    sx_lag_id = mlnx_port_get_lag_id(&(mlnx_ports_db[lag_member_index]));
 
     status = mlnx_port_idx_by_log_id(sx_lag_id, &lag_index);
     if (SAI_ERR(status)) {
@@ -16640,11 +16640,13 @@ sai_status_t mlnx_acl_port_lag_rif_bind_point_set(_In_ sai_object_id_t          
 
     status = mlnx_acl_bind_point_port_lag_rif_data_get(target, bind_point_type, &bind_point_data);
     if (SAI_ERR(status)) {
+        SX_LOG_ERR("Error getting ACL bind point data from target %"PRIx64"\n", target);
         goto out;
     }
 
     status = mlnx_acl_bind_point_port_lag_rif_index_get(target, bind_point_type, &bind_point_index);
     if (SAI_ERR(status)) {
+        SX_LOG_ERR("Error getting ACL bind point index from target %"PRIx64"\n", target);
         goto out;
     }
 
@@ -16672,11 +16674,13 @@ sai_status_t mlnx_acl_port_lag_rif_bind_point_set(_In_ sai_object_id_t          
     if (mlnx_acl_is_bind_point_lag_member(bind_point_index)) {
         status = mlnx_acl_lag_member_bind_set(bind_point_index, bind_point_type, acl_index);
         if (SAI_ERR(status)) {
+            SX_LOG_ERR("Error setting ACL binding\n");
             goto out;
         }
     } else {
         status = mlnx_acl_bind_point_sx_update(bind_point_data);
         if (SAI_ERR(status)) {
+            SX_LOG_ERR("Error updating ACL binding\n");
             goto out;
         }
     }
@@ -16915,6 +16919,8 @@ sai_status_t mlnx_acl_bind_point_set(_In_ const sai_object_key_t      *key,
     sai_status_t               status;
     mlnx_acl_bind_point_type_t bind_point_type;
     acl_index_t                acl_index = ACL_INDEX_INVALID;
+    bool                       is_warmboot_init_stage = false;
+    uint32_t                   port_db_idx;
 
     SX_LOG_ENTER();
 
@@ -16928,8 +16934,35 @@ sai_status_t mlnx_acl_bind_point_set(_In_ const sai_object_key_t      *key,
         goto out;
     }
 
+    /* Store Ingress ACL and Egress ACL to SAI port DB if LAG is not yet created by SAI API
+     * during ISSU initialization stage */
+    is_warmboot_init_stage = (BOOT_TYPE_WARM == g_sai_db_ptr->boot_type) &&
+                             (!g_sai_db_ptr->issu_end_called);
+    if (is_warmboot_init_stage) { 
+        if ((MLNX_ACL_BIND_POINT_TYPE_INGRESS_LAG == bind_point_type) ||
+         (MLNX_ACL_BIND_POINT_TYPE_EGRESS_LAG == bind_point_type)) {
+            status = mlnx_port_idx_by_obj_id(key->key.object_id, &port_db_idx);
+            if (SAI_ERR(status)) {
+                SX_LOG_ERR("Error getting port idx from log id %"PRIx64"\n", key->key.object_id);
+                goto out;
+            }
+            if (0 == mlnx_ports_db[port_db_idx].logical) {
+                if (MLNX_ACL_BIND_POINT_TYPE_INGRESS_LAG == bind_point_type) {
+                    mlnx_ports_db[port_db_idx].issu_lag_attr.lag_ingress_acl_oid = value->oid;
+                    mlnx_ports_db[port_db_idx].issu_lag_attr.lag_ingress_acl_oid_changed = true;
+                } else if (MLNX_ACL_BIND_POINT_TYPE_EGRESS_LAG == bind_point_type) {
+                    mlnx_ports_db[port_db_idx].issu_lag_attr.lag_egress_acl_oid = value->oid;
+                    mlnx_ports_db[port_db_idx].issu_lag_attr.lag_egress_acl_oid_changed = true;
+                }
+                status = SAI_STATUS_SUCCESS;
+                goto out;
+            }
+        }
+    }
+
     status = mlnx_acl_bind_point_set_impl(key->key.object_id, bind_point_type, acl_index);
     if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to set ACL bind point on SAI obj %"PRIx64"\n", key->key.object_id);
         goto out;
     }
 

@@ -3929,30 +3929,52 @@ sai_status_t mlnx_create_object(sai_object_type_t type,
 
 sai_status_t mlnx_object_to_log_port(sai_object_id_t object_id, sx_port_log_id_t *port_id)
 {
+    sai_status_t      status;
+    uint32_t          ii;
     sai_object_type_t type = sai_object_type_query(object_id);
 
-    if ((type != SAI_OBJECT_TYPE_PORT) && (type != SAI_OBJECT_TYPE_LAG)) {
+    if (type == SAI_OBJECT_TYPE_PORT) {
+        return mlnx_object_to_type(object_id, type, port_id, NULL);
+    } else if (type == SAI_OBJECT_TYPE_LAG) {
+        status = mlnx_object_to_type(object_id, type, &ii, NULL);
+        if (SAI_ERR(status)) {
+            return status;
+        }
+
+        if ((ii < MAX_PORTS) || (ii >= MAX_PORTS * 2) || (!mlnx_ports_db[ii].is_present)) {
+            return SAI_STATUS_INVALID_OBJECT_ID;
+        }
+
+        *port_id = mlnx_ports_db[ii].logical;
+
+        return SAI_STATUS_SUCCESS;
+    } else {
         SX_LOG_ERR("Object type %s is not LAG nor Port\n", SAI_TYPE_STR(type));
         return SAI_STATUS_INVALID_PARAMETER;
     }
-
-    return mlnx_object_to_type(object_id, type, port_id, NULL);
 }
 
 sai_status_t mlnx_log_port_to_object(sx_port_log_id_t port_id, sai_object_id_t *object_id)
 {
-    sai_object_type_t type;
+    mlnx_port_config_t *lag;
+    uint32_t ii;
 
     if (SX_PORT_TYPE_ID_GET(port_id) == SX_PORT_TYPE_NETWORK) {
-        type = SAI_OBJECT_TYPE_PORT;
+        return mlnx_create_object(SAI_OBJECT_TYPE_PORT, port_id, NULL, object_id);
     } else if (SX_PORT_TYPE_ID_GET(port_id) == SX_PORT_TYPE_LAG) {
-        type = SAI_OBJECT_TYPE_LAG;
+        mlnx_lag_foreach(lag, ii) {
+            if (lag->logical == port_id) {
+                *object_id = lag->saiport;
+                return SAI_STATUS_SUCCESS;
+            }
+        }
+
+        SX_LOG_ERR("Failed to find log port %x in SAI DB\n", port_id);
+        return SAI_STATUS_FAILURE;
     } else {
         SX_LOG_ERR("Logical port id %x is not LAG nor Port\n", port_id);
         return SAI_STATUS_INVALID_PARAMETER;
     }
-
-    return mlnx_create_object(type, port_id, NULL, object_id);
 }
 
 sai_status_t mlnx_create_queue_object(_In_ sx_port_log_id_t port_id, _In_ uint8_t index, _Out_ sai_object_id_t *id)

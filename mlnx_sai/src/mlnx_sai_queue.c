@@ -244,6 +244,7 @@ static sai_status_t mlnx_queue_config_get(_In_ const sai_object_key_t   *key,
     mlnx_qos_queue_config_t *queue_cfg;
     mlnx_port_config_t      *port;
     uint32_t                 buffer_db_index;
+    sx_port_log_id_t         port_id;
 
     SX_LOG_ENTER();
 
@@ -264,14 +265,15 @@ static sai_status_t mlnx_queue_config_get(_In_ const sai_object_key_t   *key,
         goto out;
     }
 
+    port_id = port->logical;
+
     if (attr != SAI_QUEUE_ATTR_BUFFER_PROFILE_ID) {
-        status = mlnx_port_fetch_lag_if_lag_member(&port);
-        if (SAI_ERR(status)) {
-            goto out;
+        if (mlnx_port_is_sai_lag_member(port)) {
+            port_id = mlnx_port_get_lag_id(port);
         }
     }
 
-    status = mlnx_queue_cfg_lookup(port->logical, queue_num, &queue_cfg);
+    status = mlnx_queue_cfg_lookup(port_id, queue_num, &queue_cfg);
     if (status != SAI_STATUS_SUCCESS) {
         goto out;
     }

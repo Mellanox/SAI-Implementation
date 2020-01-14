@@ -610,22 +610,26 @@ static sai_status_t mlnx_hash_ecmp_hash_params_apply_to_ports(const sx_router_ec
     sx_status_t         sx_status;
     mlnx_port_config_t *port;
     uint32_t            ii;
+    const bool is_warmboot_init_stage = (BOOT_TYPE_WARM == g_sai_db_ptr->boot_type) &&
+                                        !g_sai_db_ptr->issu_end_called;
 
     assert(port_hash_param != NULL);
     assert(hash_enable_list != NULL);
     assert(hash_field_list != NULL);
 
     mlnx_port_not_in_lag_foreach(port, ii) {
-        sx_status = sx_api_router_ecmp_port_hash_params_set(gh_sdk, SX_ACCESS_CMD_SET, port->logical,
-                                                            port_hash_param,
-                                                            hash_enable_list, enable_count,
-                                                            hash_field_list, field_count);
-        if (SX_STATUS_SUCCESS != sx_status) {
-            SX_LOG_ERR("Failed to set ecmp hash params for %s %x - %s.\n",
-                       mlnx_port_type_str(port),
-                       port->logical,
-                       SX_STATUS_MSG(sx_status));
-            return sdk_to_sai(sx_status);
+        if (!is_warmboot_init_stage || (port->sdk_port_added && port->logical)) {
+            sx_status = sx_api_router_ecmp_port_hash_params_set(gh_sdk, SX_ACCESS_CMD_SET, port->logical,
+                                                                port_hash_param,
+                                                                hash_enable_list, enable_count,
+                                                                hash_field_list, field_count);
+            if (SX_STATUS_SUCCESS != sx_status) {
+                SX_LOG_ERR("Failed to set ecmp hash params for %s %x - %s.\n",
+                           mlnx_port_type_str(port),
+                           port->logical,
+                           SX_STATUS_MSG(sx_status));
+                return sdk_to_sai(sx_status);
+            }
         }
     }
 
@@ -641,18 +645,22 @@ static sai_status_t mlnx_hash_lag_params_apply_to_ports(_In_ const sx_lag_port_h
     sx_status_t         sx_status;
     mlnx_port_config_t *port;
     uint32_t            ii;
+    const bool          is_warmboot_init_stage = (BOOT_TYPE_WARM == g_sai_db_ptr->boot_type) &&
+                                                 !g_sai_db_ptr->issu_end_called;
 
     assert(lag_hash_params);
     assert(enable_list);
     assert(field_list);
 
     mlnx_port_not_in_lag_foreach(port, ii) {
-        sx_status = sx_api_lag_port_hash_flow_params_set(gh_sdk, SX_ACCESS_CMD_SET, port->logical,
-                                                         lag_hash_params, enable_list, enable_count,
-                                                         field_list, field_count);
-        if (SX_ERR(sx_status)) {
-            SX_LOG_ERR("Failed to apply LAG hash configuration to LAG %x\n", port->logical);
-            return sdk_to_sai(sx_status);
+        if (!is_warmboot_init_stage || (port->sdk_port_added && port->logical)) {
+            sx_status = sx_api_lag_port_hash_flow_params_set(gh_sdk, SX_ACCESS_CMD_SET, port->logical,
+                                                             lag_hash_params, enable_list, enable_count,
+                                                             field_list, field_count);
+            if (SX_ERR(sx_status)) {
+                SX_LOG_ERR("Failed to apply LAG hash configuration to LAG %x\n", port->logical);
+                return sdk_to_sai(sx_status);
+            }
         }
     }
 
@@ -1104,6 +1112,7 @@ sai_status_t mlnx_hash_initialize(void)
 
     status = mlnx_hash_ecmp_sx_config_update();
     if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to update hash ecmp configuration\n");
         return status;
     }
 
@@ -1127,6 +1136,7 @@ sai_status_t mlnx_hash_initialize(void)
 
     status = mlnx_hash_lag_sx_config_update();
     if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to update hash LAG configuration\n");
         return status;
     }
 

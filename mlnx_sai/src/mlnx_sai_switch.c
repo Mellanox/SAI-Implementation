@@ -2226,6 +2226,8 @@ static sai_status_t mlnx_chassis_mng_stage(mlnx_sai_boot_type_t boot_type,
     case BOOT_TYPE_WARM:
         if (g_sai_db_ptr->issu_enabled) {
             sdk_init_params.boot_mode_params.boot_mode = SX_BOOT_MODE_ISSU_STARTED_E;
+            sdk_init_params.boot_mode_params.pdb_lag_init = true;
+            sdk_init_params.boot_mode_params.pdb_port_map_init = true;
         } else {
             SX_LOG_ERR("issu-enabled flag in xml file should be enabled for fast fast boot\n");
             return SAI_STATUS_FAILURE;
@@ -2640,6 +2642,9 @@ static void sai_db_values_init()
         port->port_map.mapping_mode = SX_PORT_MAPPING_MODE_DISABLE;
         port->port_map.local_port   = ii + 1;
         port->index                 = ii;
+
+        /* Set default value for ISSU LAG db */
+        port->issu_lag_attr.lag_pvid = DEFAULT_VLAN;
     }
 
     mlnx_vlan_db_create_vlan(DEFAULT_VLAN);
@@ -3260,7 +3265,7 @@ static sai_status_t mlnx_dvs_mng_stage(mlnx_sai_boot_type_t boot_type, sai_objec
         ports_to_map++;
     }
 
-    if (!is_warmboot || g_sai_db_ptr->issu_end_called) {
+    if (!is_warmboot) {
         sx_status = sx_api_port_mapping_set(gh_sdk, log_ports, port_mapping, ports_to_map);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to unmap ports - %s\n", SX_STATUS_MSG(sx_status));
@@ -3279,11 +3284,13 @@ static sai_status_t mlnx_dvs_mng_stage(mlnx_sai_boot_type_t boot_type, sai_objec
         ports_to_map++;
     }
 
-    sx_status = sx_api_port_mapping_set(gh_sdk, log_ports, port_mapping, ports_to_map);
-    if (SX_ERR(sx_status)) {
-        SX_LOG_ERR("Failed to map ports - %s\n", SX_STATUS_MSG(sx_status));
-        status = sdk_to_sai(sx_status);
-        goto out;
+    if (!is_warmboot) {
+        sx_status = sx_api_port_mapping_set(gh_sdk, log_ports, port_mapping, ports_to_map);
+        if (SX_ERR(sx_status)) {
+            SX_LOG_ERR("Failed to map ports - %s\n", SX_STATUS_MSG(sx_status));
+            status = sdk_to_sai(sx_status);
+            goto out;
+        }
     }
 
     if (is_warmboot) {
@@ -3300,24 +3307,57 @@ static sai_status_t mlnx_dvs_mng_stage(mlnx_sai_boot_type_t boot_type, sai_objec
         goto out;
     }
 
-    mlnx_port_phy_foreach(port, ii) {
-        status = mlnx_port_config_init(port);
+    /* Need to read SDK port list twice:
+     * First time: SDK port list only contains all physical ports
+     * Do sx_api_port_init_set to initialize SDK ports, SDK will update LAG information
+     * Second time: SDK port list contains all physical ports and LAGs */
+    if (is_warmboot) {
+        status = mlnx_update_issu_port_db();
         if (SAI_ERR(status)) {
-            SX_LOG_ERR("Failed initialize port oid %" PRIx64 " config\n", port->saiport);
-            goto out;
+            SX_LOG_ERR("Failed to get SDK LAG\n");
         }
+    }
 
-        if (!is_warmboot) {
-            status = mlnx_port_speed_bitmap_apply(port);
+    for (ii = 0; ii < MAX_PORTS; ii++) {
+        port = &mlnx_ports_db[ii];
+        if (port->logical &&
+            ((is_warmboot && port->sdk_port_added) ||
+             (!is_warmboot && port->is_present))) {
+            status = mlnx_port_config_init_mandatory(port);
             if (SAI_ERR(status)) {
+                SX_LOG_ERR("Failed initialize port oid %" PRIx64 " config\n", port->saiport);
                 goto out;
             }
         }
+    }
 
-        if ((!is_warmboot) && (mlnx_chip_is_spc2())) {
-            status = mlnx_port_fec_set_impl(port->logical, SAI_PORT_FEC_MODE_NONE);
+    if (is_warmboot) {
+        status = mlnx_update_issu_port_db();
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to get SDK LAG\n");
+        }
+    }
+
+    mlnx_port_phy_foreach(port, ii) {
+        if (!is_warmboot || (port->is_present && port->sdk_port_added)) {
+            status = mlnx_port_config_init(port);
             if (SAI_ERR(status)) {
+                SX_LOG_ERR("Failed initialize port oid %" PRIx64 " config\n", port->saiport);
                 goto out;
+            }
+
+            if (!is_warmboot) {
+                status = mlnx_port_speed_bitmap_apply(port);
+                if (SAI_ERR(status)) {
+                    goto out;
+                }
+            }
+
+            if ((!is_warmboot) && (mlnx_chip_is_spc2())) {
+                status = mlnx_port_fec_set_impl(port->logical, SAI_PORT_FEC_MODE_NONE);
+                if (SAI_ERR(status)) {
+                    goto out;
+                }
             }
         }
     }
@@ -3599,6 +3639,7 @@ static void event_thread_func(void *context)
     sai_fdb_event_notification_data_t  *fdb_events  = NULL;
     sai_attribute_t                    *attr_list   = NULL;
     uint32_t                            event_count = 0;
+    bool                                is_warmboot_init_stage = false;
 #ifdef ACS_OS
     bool           transaction_mode_enable = false;
     const uint8_t  fastboot_wait_time      = 180;
@@ -3804,10 +3845,19 @@ static void event_thread_func(void *context)
                 }
 
                 if (receive_info->is_lag) {
-                    if (SAI_STATUS_SUCCESS !=
-                        (status = mlnx_create_object(SAI_OBJECT_TYPE_LAG, receive_info->source_lag_port, NULL,
-                                                     &callback_data[2].value.oid))) {
-                        goto out;
+                    cl_plock_acquire(&g_sai_db_ptr->p_lock);
+                    is_warmboot_init_stage = (BOOT_TYPE_WARM == g_sai_db_ptr->boot_type) &&
+                                             (!g_sai_db_ptr->issu_end_called);
+                    status = mlnx_log_port_to_object(receive_info->source_lag_port,
+                                                     &callback_data[2].value.oid);
+                    cl_plock_release(&g_sai_db_ptr->p_lock);
+                    if (SAI_ERR(status)) {
+                        if (!is_warmboot_init_stage) {
+                            goto out;
+                        } else {
+                            /* During ISSU, LAG is not created yet, or LAG member is not added yet */
+                            callback_data[2].value.oid = SAI_NULL_OBJECT_ID;
+                        }
                     }
                 } else {
                     callback_data[2].value.oid = SAI_NULL_OBJECT_ID;
@@ -6150,7 +6200,7 @@ static sai_status_t mlnx_switch_default_tc_set(_In_ const sai_object_key_t      
             continue;
         }
 
-        status = mlnx_port_tc_set(port, value->u8);
+        status = mlnx_port_tc_set(port->logical, value->u8);
         if (status != SAI_STATUS_SUCCESS) {
             SX_LOG_ERR("Failed to update port %" PRIx64 " with tc(%u)\n", port->saiport, value->u8);
             break;
@@ -7786,6 +7836,35 @@ static sai_status_t mlnx_switch_transaction_mode_set(_In_ const sai_object_key_t
     sai_db_write_lock();
 
     if ((BOOT_TYPE_WARM == g_sai_db_ptr->boot_type) && !value->booldata && !g_sai_db_ptr->issu_end_called) {
+        for (ii = 0; ii < MAX_PORTS*2; ii++) {
+            if (mlnx_ports_db[ii].is_present != mlnx_ports_db[ii].sdk_port_added) {
+                SX_LOG_ERR("Presence of port of idx %d is not consistent in SAI (%d) and SDK (%d)\n",
+                           ii,
+                           mlnx_ports_db[ii].is_present,
+                           mlnx_ports_db[ii].sdk_port_added);
+                sai_db_unlock();
+                SX_LOG_EXIT();
+                return SAI_STATUS_FAILURE;
+            }
+            if (mlnx_ports_db[ii].sdk_port_added && (0 == mlnx_ports_db[ii].logical)) {
+                sai_db_unlock();
+                SX_LOG_ERR("LAG of idx %d is created in SDK but SAI db is not updated\n", ii);
+                SX_LOG_EXIT();
+                return SAI_STATUS_FAILURE;
+            }
+        }
+        for (ii = 0; ii < MAX_PORTS; ii++) {
+            if (mlnx_ports_db[ii].before_issu_lag_id != mlnx_ports_db[ii].lag_id) {
+                SX_LOG_ERR("LAG member of idx %d does not belong to the same LAG in SAI (%"PRIx64") SDK(%"PRIx64")\n",
+                            ii,
+                            mlnx_ports_db[ii].lag_id,
+                            mlnx_ports_db[ii].before_issu_lag_id);
+                sai_db_unlock();
+                SX_LOG_EXIT();
+                return SAI_STATUS_FAILURE;
+            }
+        }
+
         sdk_status = sx_api_issu_end_set(gh_sdk);
         if (SX_STATUS_SUCCESS != sdk_status) {
             sai_db_unlock();
@@ -7814,6 +7893,11 @@ static sai_status_t mlnx_switch_transaction_mode_set(_In_ const sai_object_key_t
                     return sdk_to_sai(sdk_status);
                 }
             }
+        }
+
+        mlnx_port_foreach(port, ii) {
+            port->before_issu_lag_id = 0;
+            port->sdk_port_added = false;
         }
     }
 

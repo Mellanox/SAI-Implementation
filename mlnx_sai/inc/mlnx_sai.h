@@ -1071,6 +1071,21 @@ typedef struct _mlnx_sched_hierarchy_t {
 
 #define MAX_PG 32
 
+typedef struct _mlnx_issu_lag_t {
+    bool                   lag_ingress_acl_oid_changed;
+    sai_object_id_t        lag_ingress_acl_oid;
+    bool                   lag_egress_acl_oid_changed;
+    sai_object_id_t        lag_egress_acl_oid;
+    bool                   lag_pvid_changed;
+    uint16_t               lag_pvid;
+    bool                   lag_default_vlan_priority_changed;
+    uint8_t                lag_default_vlan_priority;
+    bool                   lag_drop_untagged_changed;
+    bool                   lag_drop_untagged;
+    bool                   lag_drop_tagged_changed;
+    bool                   lag_drop_tagged;
+} mlnx_issu_lag_t;
+
 typedef struct _mlnx_port_config_t {
     uint8_t                         index;
     uint32_t                        module;
@@ -1097,6 +1112,9 @@ typedef struct _mlnx_port_config_t {
      */
     sai_object_id_t  port_policers[MLNX_PORT_POLICER_TYPE_MAX];
     sx_port_log_id_t lag_id;
+    /* sdk_port_added is ISSU initialization only */
+    bool             sdk_port_added;
+    sx_port_log_id_t before_issu_lag_id;
     uint32_t         internal_ingress_samplepacket_obj_idx;
     uint32_t         internal_egress_samplepacket_obj_idx;
     sai_object_id_t  scheduler_id;
@@ -1108,6 +1126,10 @@ typedef struct _mlnx_port_config_t {
     uint16_t               acl_refs;
     bool                   single_speed_mode;
     uint32_t               oper_speed_cached;
+    /* For ISSU, need to keep all LAG attributes in SAI port DB
+     * Ingress ACL, Egress ACL, PVID, default VLAN priority, drop untagged/tagged
+     * will be stored in SAI port DB only when port type is LAG and logical is zero */
+    mlnx_issu_lag_t        issu_lag_attr;
 } mlnx_port_config_t;
 typedef enum {
     MLNX_FID_FLOOD_TYPE_ALL,
@@ -1262,7 +1284,7 @@ sai_status_t mlnx_buffer_port_profile_list_set(_In_ const sai_object_id_t       
                                                _In_ bool                         is_ingress);
 sai_status_t mlnx_get_sai_pool_data(_In_ sai_object_id_t sai_pool, _Out_ mlnx_sai_buffer_pool_attr_t* sai_pool_attr);
 
-sai_status_t mlnx_port_tc_set(mlnx_port_config_t *port, _In_ const uint8_t tc);
+sai_status_t mlnx_port_tc_set(sx_port_log_id_t port_id, _In_ const uint8_t tc);
 
 sai_status_t get_buffer_profile_db_index(_In_ sai_object_id_t oid, _Out_ uint32_t* db_index);
 sai_status_t mlnx_buffer_apply(_In_ sai_object_id_t sai_buffer, _In_ sai_object_id_t to_obj_id);
@@ -1294,12 +1316,12 @@ sai_status_t mlnx_wred_port_queue_db_clear(_In_ mlnx_port_config_t *port);
 #define mlnx_port_foreach(port, idx) \
     for (idx = 0; idx < (MAX_PORTS * 2) && \
          (port = &mlnx_ports_db[idx]); idx++) \
-        if (port->is_present && port->logical)
+        if ((port->is_present || port->sdk_port_added) && (port->logical || ((idx >= (MAX_PORTS)) && port->sdk_port_added)))
 
 #define mlnx_port_not_in_lag_foreach(port, idx) \
     for (idx = 0; idx < (MAX_PORTS * 2) && \
          (port = &mlnx_ports_db[idx]); idx++) \
-        if (port->is_present && !port->lag_id)
+        if ((port->is_present || port->sdk_port_added) && !port->lag_id && !port->before_issu_lag_id)
 
 #define mlnx_lag_foreach(lag, idx) \
     for (idx = MAX_PORTS; idx < (MAX_PORTS * 2) && \
@@ -1336,6 +1358,11 @@ sai_status_t mlnx_wred_port_queue_db_clear(_In_ mlnx_port_config_t *port);
          (idx < MAX_BRIDGE_1Q_PORTS) && \
          (port = &g_sai_db_ptr->bridge_ports_db[idx]); idx++) \
         if (port->is_present && mlnx_vlan_port_is_set(vid, port))
+
+#define mlnx_port_non_lag_not_in_lag_foreach(port, idx) \
+    for (idx = 0; idx < (MAX_PORTS) && \
+         (port = &mlnx_ports_db[idx]); idx++) \
+        if ((port->is_present || port->sdk_port_added) && !port->lag_id && !port->before_issu_lag_id)
 
 typedef struct _mlnx_trap_t {
     sai_packet_action_t     action;
@@ -2246,11 +2273,15 @@ sai_status_t mlnx_port_idx_by_log_id(sx_port_log_id_t log_port_id, uint32_t *ind
 /* DB read lock is needed */
 sai_status_t mlnx_port_idx_by_obj_id(sai_object_id_t obj_id, uint32_t *index);
 /* DB read lock is needed */
+sx_port_log_id_t mlnx_port_get_lag_id(const mlnx_port_config_t *port);
+/* DB read lock is needed */
 uint32_t mlnx_port_idx_get(const mlnx_port_config_t *port);
 
 /* DB read lock is needed */
 sai_status_t mlnx_port_add(mlnx_port_config_t *port);
 sai_status_t mlnx_port_del(mlnx_port_config_t *port);
+sai_status_t mlnx_update_issu_port_db();
+sai_status_t mlnx_port_config_init_mandatory(mlnx_port_config_t *port);
 sai_status_t mlnx_port_config_init(mlnx_port_config_t *port);
 sai_status_t mlnx_port_config_uninit(mlnx_port_config_t *port);
 sai_status_t mlnx_port_auto_split(mlnx_port_config_t *port);
@@ -2263,6 +2294,8 @@ bool mlnx_port_is_net(const mlnx_port_config_t *port);
 bool mlnx_port_is_virt(const mlnx_port_config_t *port);
 bool mlnx_port_is_lag(const mlnx_port_config_t *port);
 bool mlnx_port_is_lag_member(const mlnx_port_config_t *port);
+bool mlnx_port_is_sai_lag_member(const mlnx_port_config_t *port);
+bool mlnx_port_is_sdk_lag_member_not_sai(const mlnx_port_config_t *port);
 bool mlnx_log_port_is_cpu(sx_port_log_id_t log_id);
 bool mlnx_log_port_is_vport(sx_port_log_id_t log_id);
 const char * mlnx_port_type_str(const mlnx_port_config_t *port);
@@ -2290,7 +2323,10 @@ sai_status_t mlnx_port_lag_drop_tags_get(_In_ const sai_object_key_t   *key,
                                          _In_ uint32_t                  attr_index,
                                          _Inout_ vendor_cache_t        *cache,
                                          void                          *arg);
-sai_status_t mlnx_port_mirror_wred_discard_set(_In_ sx_port_log_id_t port_log_id, _In_ bool is_add);
+sai_status_t mlnx_wred_mirror_port_event(_In_ sx_port_log_id_t port_log_id, _In_ bool is_add);
+sai_status_t mlnx_port_wred_mirror_set_impl(_In_ sx_port_log_id_t     sx_port,
+                                            _In_ sx_span_session_id_t sx_session,
+                                            _In_ bool                 is_add);
 uint8_t mlnx_port_mac_mask_get(void);
 
 /* DB read lock is needed */

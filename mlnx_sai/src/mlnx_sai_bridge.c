@@ -3163,6 +3163,8 @@ sai_status_t mlnx_bridge_init(void)
     mlnx_port_config_t *port;
     sai_status_t        status;
     uint32_t            ii;
+    const bool          is_warmboot_init_stage = (BOOT_TYPE_WARM == g_sai_db_ptr->boot_type) &&
+                                                 (!g_sai_db_ptr->issu_end_called);
 
     sai_db_write_lock();
 
@@ -3184,10 +3186,13 @@ sai_status_t mlnx_bridge_init(void)
         bridge_port->logical     = port->logical;
         bridge_port->admin_state = true;
 
-        status = mlnx_vlan_port_add(DEFAULT_VLAN, SAI_VLAN_TAGGING_MODE_UNTAGGED, bridge_port);
-        if (SAI_ERR(status)) {
-            SX_LOG_ERR("Failed to add bridge port to default vlan\n");
-            goto out;
+        if (!is_warmboot_init_stage ||
+            (!(port->before_issu_lag_id) && port->sdk_port_added)) {
+            status = mlnx_vlan_port_add(DEFAULT_VLAN, SAI_VLAN_TAGGING_MODE_UNTAGGED, bridge_port);
+            if (SAI_ERR(status)) {
+                SX_LOG_ERR("Failed to add bridge port to default vlan\n");
+                goto out;
+            }
         }
     }
 

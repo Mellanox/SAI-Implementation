@@ -811,7 +811,7 @@ sai_status_t mlnx_scheduler_to_port_apply(sai_object_id_t scheduler_id, sai_obje
     }
 
     if (mlnx_port_is_lag_member(port)) {
-        port_log_id = port->lag_id;
+        port_log_id = mlnx_port_get_lag_id(port);
     }
 
     memset(&ets, 0, sizeof(ets));
@@ -871,7 +871,7 @@ sai_status_t mlnx_scheduler_to_group_apply(sai_object_id_t scheduler_id, sai_obj
         return status;
     }
     if (mlnx_port_is_lag_member(port)) {
-        port_id = port->lag_id;
+        port_id = mlnx_port_get_lag_id(port);
     }
 
     status = scheduler_to_group_apply(scheduler_id, port_id, level, index);
@@ -926,6 +926,7 @@ sai_status_t mlnx_scheduler_to_queue_apply(sai_object_id_t scheduler_id, sai_obj
     sx_port_log_id_t         port_log_id;
     mlnx_qos_queue_config_t *queue;
     sai_status_t             status;
+    mlnx_port_config_t      *port;
 
     status = mlnx_object_to_type(queue_id, SAI_OBJECT_TYPE_QUEUE, &port_log_id, ext_data);
     if (status != SAI_STATUS_SUCCESS) {
@@ -939,9 +940,24 @@ sai_status_t mlnx_scheduler_to_queue_apply(sai_object_id_t scheduler_id, sai_obj
         return SAI_STATUS_NOT_SUPPORTED;
     }
 
+    status = mlnx_port_by_log_id(port_log_id, &port);
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+    /* For ISSU, only apply the changes to SDK LAG, keep the SAI db change on port level,
+     * because SAI LAG db may not exist during ISSU when the port is added to SDK LAG */
+    if (mlnx_port_is_sai_lag_member(port)) {
+        port_log_id = mlnx_port_get_lag_id(port);
+    }
+
     status = mlnx_queue_cfg_lookup(port_log_id, queue_index, &queue);
     if (status != SAI_STATUS_SUCCESS) {
         goto out;
+    }
+
+    if (mlnx_port_is_sdk_lag_member_not_sai(port)) {
+        port_log_id = mlnx_port_get_lag_id(port);
     }
 
     status = __mlnx_scheduler_to_queue_apply(scheduler_id, port_log_id, &queue->sched_obj);

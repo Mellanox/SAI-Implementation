@@ -262,7 +262,9 @@ static const sai_vendor_attribute_entry_t pool_vendor_attribs[] = {
       NULL, NULL}
 };
 static const mlnx_attr_enum_info_t        buffer_pool_enum_info[] = {
-    [SAI_BUFFER_POOL_ATTR_TYPE]           = ATTR_ENUM_VALUES_ALL(),
+    [SAI_BUFFER_POOL_ATTR_TYPE] = ATTR_ENUM_VALUES_LIST(
+        SAI_BUFFER_POOL_TYPE_INGRESS,
+        SAI_BUFFER_POOL_TYPE_EGRESS),
     [SAI_BUFFER_POOL_ATTR_THRESHOLD_MODE] = ATTR_ENUM_VALUES_ALL(),
 };
 const mlnx_obj_type_attrs_info_t          mlnx_buffer_pool_obj_type_info =
@@ -2552,6 +2554,9 @@ static void mlnx_sai_buffer_apply_profile_to_reserved_structs(
                 break;
             }
             break;
+
+        default:
+            break;
         }
     }
     SX_LOG_EXIT();
@@ -2691,6 +2696,9 @@ static sai_status_t mlnx_sai_buffer_apply_profile_to_shared_structs(
             default:
                 break;
             }
+            break;
+
+        default:
             break;
         }
     }

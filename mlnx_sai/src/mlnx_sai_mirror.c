@@ -429,7 +429,7 @@ static sai_status_t mlnx_mirror_session_monitor_port_get(_In_ const sai_object_k
 
     if (SX_PORT_TYPE_LAG == SX_PORT_TYPE_ID_GET(sdk_analyzer_port_id)) {
         if (SAI_STATUS_SUCCESS !=
-            (status = mlnx_create_object(SAI_OBJECT_TYPE_LAG, sdk_analyzer_port_id, NULL, &value->oid))) {
+            (status = mlnx_log_port_to_object(sdk_analyzer_port_id, &value->oid))) {
             SX_LOG_ERR("Error creating sdk analyzer port LAG object from analyzer port id %x\n", sdk_analyzer_port_id);
             SX_LOG_EXIT();
             return status;
@@ -1134,7 +1134,7 @@ static sai_status_t mlnx_add_mirror_analyzer_port(_In_ sx_span_session_id_t sdk_
 
     case SAI_OBJECT_TYPE_LAG:
         if (SAI_STATUS_SUCCESS !=
-            (status = mlnx_object_to_type(sai_analyzer_port_id, SAI_OBJECT_TYPE_LAG, &sdk_analyzer_port_id, NULL))) {
+            (status = mlnx_object_to_log_port(sai_analyzer_port_id, &sdk_analyzer_port_id))) {
             SX_LOG_ERR("Invalid sai analyzer port id %" PRIx64 "\n", sai_analyzer_port_id);
             SX_LOG_EXIT();
             return status;
