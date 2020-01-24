@@ -66,6 +66,16 @@ typedef enum _sai_ingress_priority_group_attr_t
     SAI_INGRESS_PRIORITY_GROUP_ATTR_PORT,
 
     /**
+     * @brief TAM id
+     *
+     * @type sai_object_list_t
+     * @flags CREATE_AND_SET
+     * @objects SAI_OBJECT_TYPE_TAM
+     * @default empty
+     */
+    SAI_INGRESS_PRIORITY_GROUP_ATTR_TAM,
+
+    /**
      * @brief PG index
      *
      * @type sai_uint8_t
@@ -234,6 +244,9 @@ typedef enum _sai_buffer_pool_type_t
     /** Egress buffer pool */
     SAI_BUFFER_POOL_TYPE_EGRESS,
 
+    /** Buffer pool used by both ingress and egress */
+    SAI_BUFFER_POOL_TYPE_BOTH
+
 } sai_buffer_pool_type_t;
 
 /**
@@ -265,7 +278,7 @@ typedef enum _sai_buffer_pool_attr_t
      * This is derived from subtracting all reversed buffers of queue/port
      * from the total pool size.
      *
-     * @type sai_uint32_t
+     * @type sai_uint64_t
      * @flags READ_ONLY
      */
     SAI_BUFFER_POOL_ATTR_SHARED_SIZE = SAI_BUFFER_POOL_ATTR_START,
@@ -281,7 +294,7 @@ typedef enum _sai_buffer_pool_attr_t
     /**
      * @brief Buffer pool size in bytes
      *
-     * @type sai_uint32_t
+     * @type sai_uint64_t
      * @flags MANDATORY_ON_CREATE | CREATE_AND_SET
      */
     SAI_BUFFER_POOL_ATTR_SIZE,
@@ -296,11 +309,23 @@ typedef enum _sai_buffer_pool_attr_t
     SAI_BUFFER_POOL_ATTR_THRESHOLD_MODE,
 
     /**
+     * @brief TAM id
+     *
+     * @type sai_object_list_t
+     * @flags CREATE_AND_SET
+     * @objects SAI_OBJECT_TYPE_TAM
+     * @default empty
+     */
+    SAI_BUFFER_POOL_ATTR_TAM,
+
+    /**
      * @brief Shared headroom pool size in bytes for lossless traffic.
      *
      * Only valid for the ingress buffer pool.
+     * If shared headroom pool size is not zero, its size is included in
+     * the corresponding ingress buffer pool size SAI_BUFFER_POOL_ATTR_SIZE
      *
-     * @type sai_uint32_t
+     * @type sai_uint64_t
      * @flags CREATE_AND_SET
      * @default 0
      */
@@ -548,7 +573,7 @@ typedef enum _sai_buffer_profile_attr_t
     /**
      * @brief Reserved buffer size in bytes
      *
-     * @type sai_uint32_t
+     * @type sai_uint64_t
      * @flags MANDATORY_ON_CREATE | CREATE_AND_SET
      */
     SAI_BUFFER_PROFILE_ATTR_RESERVED_BUFFER_SIZE,
@@ -582,7 +607,7 @@ typedef enum _sai_buffer_profile_attr_t
      *
      * When set to zero there is no limit for the shared usage.
      *
-     * @type sai_uint32_t
+     * @type sai_uint64_t
      * @flags MANDATORY_ON_CREATE | CREATE_AND_SET
      * @condition SAI_BUFFER_PROFILE_ATTR_THRESHOLD_MODE == SAI_BUFFER_PROFILE_THRESHOLD_MODE_STATIC
      */
@@ -595,14 +620,14 @@ typedef enum _sai_buffer_profile_attr_t
      *
      * Specifies the maximum available buffer for a PG after XOFF is
      * generated (i.e. headroom buffer). Note that the available
-     * headroom buffer is dependent on XOFF_SIZE. If the user has
-     * set XOFF_SIZE = 0, the PG headroom buffer is equal to XOFF_TH
-     * and it is not shared. If the user has set XOFF_SIZE > 0, the
-     * total headroom pool buffer for all PGs is equal to XOFF_SIZE
+     * headroom buffer is dependent on SAI_BUFFER_POOL_ATTR_XOFF_SIZE. If the user has
+     * set SAI_BUFFER_POOL_ATTR_XOFF_SIZE = 0, the PG headroom buffer is equal to XOFF_TH
+     * and it is not shared. If the user has set SAI_BUFFER_POOL_ATTR_XOFF_SIZE > 0, the
+     * total headroom pool buffer for all PGs is equal to SAI_BUFFER_POOL_ATTR_XOFF_SIZE
      * and XOFF_TH specifies the maximum amount of headroom pool
      * buffer one PG can use.
      *
-     * @type sai_uint32_t
+     * @type sai_uint64_t
      * @flags CREATE_AND_SET
      * @default 0
      */
@@ -619,7 +644,7 @@ typedef enum _sai_buffer_profile_attr_t
      * The XON trigger condition is governed by:
      * total buffer usage <= max(XON_TH, total buffer limit - XON_OFFSET_TH)
      *
-     * @type sai_uint32_t
+     * @type sai_uint64_t
      * @flags CREATE_AND_SET
      * @default 0
      */
@@ -636,7 +661,7 @@ typedef enum _sai_buffer_profile_attr_t
      * The XON trigger condition is governed by:
      * total buffer usage <= max(XON_TH, total buffer limit - XON_OFFSET_TH)
      *
-     * @type sai_uint32_t
+     * @type sai_uint64_t
      * @flags CREATE_AND_SET
      * @default 0
      */

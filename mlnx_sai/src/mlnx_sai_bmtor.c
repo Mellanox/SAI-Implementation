@@ -1345,7 +1345,9 @@ sai_status_t mlnx_bmtor_rif_event_del(_In_ sx_router_interface_t sx_rif)
 static void* mlnx_bmtor_fx_handle_alloc(size_t size)
 {
     if (size != MLNX_SHM_POOL_ELEM_FX_HANDLE_SIZE) {
-        SX_LOG_ERR("Unexpected size requested from fx lib - %lu, expected %u\n", size, MLNX_SHM_POOL_ELEM_FX_HANDLE_SIZE);
+        SX_LOG_ERR("Unexpected size requested from fx lib - %lu, expected %u\n",
+                   size,
+                   MLNX_SHM_POOL_ELEM_FX_HANDLE_SIZE);
         return NULL;
     }
 
@@ -1357,14 +1359,13 @@ static void mlnx_bmtor_fx_handle_free(void* ptr)
     SX_LOG_DBG("fx handle (%p) is freed\n", ptr);
 }
 
-static fx_init_params_t g_fx_init_params =  {
-        .memory_manager = {
-            .alloc = mlnx_bmtor_fx_handle_alloc,
-            .free =  mlnx_bmtor_fx_handle_free
-            },
-        .log_cb = NULL
-        };
-
+static fx_init_params_t g_fx_init_params = {
+    .memory_manager = {
+        .alloc = mlnx_bmtor_fx_handle_alloc,
+        .free  = mlnx_bmtor_fx_handle_free
+    },
+    .log_cb = NULL
+};
 static sai_status_t mlnx_bmtor_fx_handle_init(void)
 {
     sx_status_t sx_status;
@@ -1439,7 +1440,7 @@ sai_status_t mlnx_bmtor_fx_handle_deinit(void)
 static sai_status_t sai_fx_initialize(void)
 {
     sai_status_t           status;
-    sx_router_interface_t *rif_list = NULL;
+    sx_router_interface_t *rif_list    = NULL;
     uint32_t               num_of_rifs = 0;
     sx_status_t            sx_status   = SX_STATUS_SUCCESS;
 

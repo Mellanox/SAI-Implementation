@@ -32,7 +32,12 @@ dist_data_DATA = sai_1710.xml \
                  sai_3700.xml \
                  sai_37001G.xml \
                  sai_3800.xml \
-                 sai_380050G.xml
+                 sai_380050G.xml \
+                 sai_4700.xml \
+                 sai_4800.xml \
+		 sai_4700_pld.xml \
+		 sai_4700_pld_4.xml \
+		 sai_4700_1G.xml
 				 
 libsai_la_DEPENDENCIES =
 
@@ -40,6 +45,7 @@ libsai_la_SOURCES = \
                        dbgdump/mlnx_sai_dbg_acl.c \
                        dbgdump/mlnx_sai_dbg_bridge.c \
                        dbgdump/mlnx_sai_dbg_buffer.c \
+		       dbgdump/mlnx_sai_dbg_debug_counter.c \
                        dbgdump/mlnx_sai_dbg_hash.c \
                        dbgdump/mlnx_sai_dbg_hostintf.c \
                        dbgdump/mlnx_sai_dbg_mirror.c \
@@ -58,6 +64,7 @@ libsai_la_SOURCES = \
                        mlnx_sai_bmtor.c \
                        mlnx_sai_bridge.c \
                        mlnx_sai_buffer.c \
+		       mlnx_sai_debug_counter.c \
                        mlnx_sai_fdb.c \
                        mlnx_sai_hash.c \
                        mlnx_sai_host_interface.c \
@@ -113,6 +120,8 @@ libsai_apiinclude_HEADERS = \
         $(top_srcdir)/inc/sai/saibfd.h \
         $(top_srcdir)/inc/sai/saibridge.h \
         $(top_srcdir)/inc/sai/saibuffer.h \
+	$(top_srcdir)/inc/sai/saicounter.h \
+	$(top_srcdir)/inc/sai/saidebugcounter.h \
         $(top_srcdir)/inc/sai/saidtel.h \
         $(top_srcdir)/inc/sai/saifdb.h \
         $(top_srcdir)/inc/sai/saihash.h \
@@ -126,6 +135,7 @@ libsai_apiinclude_HEADERS = \
         $(top_srcdir)/inc/sai/saimcastfdb.h \
         $(top_srcdir)/inc/sai/saimirror.h \
         $(top_srcdir)/inc/sai/saimpls.h \
+	$(top_srcdir)/inc/sai/sainat.h \
         $(top_srcdir)/inc/sai/saineighbor.h \
         $(top_srcdir)/inc/sai/sainexthop.h \
         $(top_srcdir)/inc/sai/sainexthopgroup.h \

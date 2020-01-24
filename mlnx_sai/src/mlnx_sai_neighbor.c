@@ -212,10 +212,10 @@ static sai_status_t mlnx_create_neighbor_entry(_In_ const sai_neighbor_entry_t* 
  */
 static sai_status_t mlnx_remove_neighbor_entry(_In_ const sai_neighbor_entry_t* neighbor_entry)
 {
-    sai_status_t    status;
-    char            key_str[MAX_KEY_STR_LEN];
-    sx_ip_addr_t    ipaddr;
-    sx_neigh_data_t neigh_data;
+    sai_status_t          status;
+    char                  key_str[MAX_KEY_STR_LEN];
+    sx_ip_addr_t          ipaddr;
+    sx_neigh_data_t       neigh_data;
     sx_router_interface_t rif;
 
     SX_LOG_ENTER();

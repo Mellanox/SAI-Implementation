@@ -4,6 +4,7 @@ API - Application Program Interface
 ARP - Address Resolution Protocol
 ASIC - Application Specific Integrated Circuit
 BFD - Bidirectional Forwarding Detection
+BFDV6 - Bidirectional Forwarding Detection for IPv6
 BGP - Border Gateway Protocol
 CAM - Content Addressable Memory
 CB - Callback
@@ -19,6 +20,7 @@ DLD - Dead Lock Detection
 DLDR - Dead Lock Detection and Recovery
 DLL - Dynamic Link Library
 DLR - Dead Lock Recovery
+DNAT - Destination Network Address Translation
 DSCP - Differentiated Services Code Point
 DTEL - Data Plane Telemetry
 ECMP - Equal Cost Multi-Path
@@ -43,6 +45,7 @@ IFA - Inband Flow Analyzer
 IFA1 - Inband Flow Analyzer version 1
 IFA2 - Inband Flow Analyzer version 2
 IGMP - Internet Group Management Protocol
+IHL - Internet Header Length
 IOAM - In-situ Operations And Management
 IP - Internet Protocol
 IPFIX - IP Flow Information Export
@@ -75,6 +78,7 @@ SAI - Switch Abstraction Interface
 SDK - Software Development Kit
 SFLOW - Sampled Flow
 SG - (S,G) Source-specific multicast
+SNAT - Source Network Address Translation
 SNMP - Simple Network Management Protocol
 SPAN - Switched Port Analyzer
 SQE - Signal Quality Errors
@@ -93,6 +97,7 @@ UDP - User Datagram Protocol
 VNI - Virtual Network Interface
 VNID - Virtual Network Identifier
 VR - Virtual Router
+VRF - Virtual Route Forwarding
 VRRP - Virtual Router Redundancy Protocol
 VXLAN - Virtual Extensible LAN
 WCMP - Weighted Cost Multipath

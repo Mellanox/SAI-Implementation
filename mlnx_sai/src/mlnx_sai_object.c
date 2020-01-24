@@ -19,6 +19,27 @@
 
 #include "sai.h"
 #include "mlnx_sai.h"
+#include <saimetadata.h>
+
+#undef  __MODULE__
+#define __MODULE__ SAI_OBJECT
+
+static sx_verbosity_level_t LOG_VAR_NAME(__MODULE__) = SX_VERBOSITY_LEVEL_WARNING;
+
+sai_status_t mlnx_utils_attrs_is_resource_check(_In_ sai_object_type_t      object_type,
+                                                _In_ uint32_t               attr_count,
+                                                _In_ const sai_attribute_t *attr_list);
+
+sai_status_t mlnx_debug_counter_availability_get(_In_ uint32_t               attr_count,
+                                                 _In_ const sai_attribute_t *attr_list,
+                                                 _Out_ uint64_t             *count);
+
+typedef sai_status_t (*mlnx_availability_get_fn)(_In_ uint32_t attr_count, _In_ const sai_attribute_t *attr_list,
+                                                 _Out_ uint64_t *count);
+
+static const mlnx_availability_get_fn mlnx_availability_get_fns[SAI_OBJECT_TYPE_MAX] = {
+    [SAI_OBJECT_TYPE_DEBUG_COUNTER] = mlnx_debug_counter_availability_get,
+};
 
 /**
  * @brief Get maximum number of attributes for an object type
@@ -145,4 +166,76 @@ sai_status_t sai_query_attribute_enum_values_capability(_In_ sai_object_id_t    
 {
     return mlnx_sai_query_attribute_enum_values_capability_impl(switch_id, object_type, attr_id,
                                                                 enum_values_capability);
+}
+
+/**
+ * @brief Get SAI object type resource availability.
+ *
+ * @param[in] switch_id SAI Switch object id
+ * @param[in] object_type SAI object type
+ * @param[in] attr_count Number of attributes
+ * @param[in] attr_list List of attributes that to distinguish resource
+ * @param[out] count Available objects left
+ *
+ * @return #SAI_STATUS_NOT_SUPPORTED if the given object type does not support resource accounting.
+ * Otherwise, return #SAI_STATUS_SUCCESS.
+ */
+sai_status_t sai_object_type_get_availability(_In_ sai_object_id_t        switch_id,
+                                              _In_ sai_object_type_t      object_type,
+                                              _In_ uint32_t               attr_count,
+                                              _In_ const sai_attribute_t *attr_list,
+                                              _Out_ uint64_t             *count)
+{
+    sai_status_t                  status;
+    const sai_object_type_info_t *obj_type_info;
+    char                          list_str[MAX_LIST_VALUE_STR_LEN];
+
+    SX_LOG_ENTER();
+
+    if (!gh_sdk) {
+        MLNX_SAI_LOG_ERR("Can't get object type availability before creating a switch\n");
+        return SAI_STATUS_FAILURE;
+    }
+
+    if (!attr_list) {
+        SX_LOG_ERR("attr_list is NULL\n");
+        SX_LOG_EXIT();
+        return SAI_STATUS_INVALID_PARAMETER;
+    }
+
+    obj_type_info = sai_metadata_get_object_type_info(object_type);
+    if (!obj_type_info) {
+        SX_LOG_ERR("Invalid object type - %d\n", object_type);
+        SX_LOG_EXIT();
+        return SAI_STATUS_INVALID_PARAMETER;
+    }
+
+    sai_attr_list_to_str(attr_count, attr_list, object_type, MAX_LIST_VALUE_STR_LEN, list_str);
+    SX_LOG_NTC("Querying %s availability, %s\n", obj_type_info->objecttypename, list_str);
+
+    status = mlnx_utils_attrs_is_resource_check(object_type, attr_count, attr_list);
+    if (SAI_ERR(status)) {
+        SX_LOG_EXIT();
+        return status;
+    }
+
+    if (!mlnx_availability_get_fns[object_type]) {
+        SX_LOG_ERR("Resource availability for object type %d is not implemented\n", object_type);
+        SX_LOG_EXIT();
+        return SAI_STATUS_NOT_IMPLEMENTED;
+    }
+
+    sai_db_read_lock();
+
+    status = mlnx_availability_get_fns[object_type](attr_count, attr_list, count);
+    if (SAI_ERR(status)) {
+        goto out;
+    }
+
+    SX_LOG_NTC("Got %s availability, %s: %lu\n", obj_type_info->objecttypename, list_str, *count);
+
+out:
+    sai_db_unlock();
+    SX_LOG_EXIT();
+    return status;
 }

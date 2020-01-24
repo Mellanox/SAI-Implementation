@@ -129,10 +129,22 @@ static const sai_vendor_attribute_entry_t bridge_vendor_attribs[] = {
       NULL, NULL }
 };
 static const mlnx_attr_enum_info_t        bridge_enum_info[] = {
-    [SAI_BRIDGE_ATTR_TYPE]                                 = ATTR_ENUM_VALUES_ALL(),
-    [SAI_BRIDGE_ATTR_UNKNOWN_UNICAST_FLOOD_CONTROL_TYPE]   = ATTR_ENUM_VALUES_ALL(),
-    [SAI_BRIDGE_ATTR_UNKNOWN_MULTICAST_FLOOD_CONTROL_TYPE] = ATTR_ENUM_VALUES_ALL(),
-    [SAI_BRIDGE_ATTR_BROADCAST_FLOOD_CONTROL_TYPE]         = ATTR_ENUM_VALUES_ALL(),
+    [SAI_BRIDGE_ATTR_TYPE] = ATTR_ENUM_VALUES_LIST(
+        SAI_BRIDGE_FLOOD_CONTROL_TYPE_SUB_PORTS,
+        SAI_BRIDGE_FLOOD_CONTROL_TYPE_L2MC_GROUP,
+        SAI_BRIDGE_FLOOD_CONTROL_TYPE_NONE),
+    [SAI_BRIDGE_ATTR_UNKNOWN_UNICAST_FLOOD_CONTROL_TYPE] = ATTR_ENUM_VALUES_LIST(
+        SAI_BRIDGE_FLOOD_CONTROL_TYPE_SUB_PORTS,
+        SAI_BRIDGE_FLOOD_CONTROL_TYPE_L2MC_GROUP,
+        SAI_BRIDGE_FLOOD_CONTROL_TYPE_NONE),
+    [SAI_BRIDGE_ATTR_UNKNOWN_MULTICAST_FLOOD_CONTROL_TYPE] = ATTR_ENUM_VALUES_LIST(
+        SAI_BRIDGE_FLOOD_CONTROL_TYPE_SUB_PORTS,
+        SAI_BRIDGE_FLOOD_CONTROL_TYPE_L2MC_GROUP,
+        SAI_BRIDGE_FLOOD_CONTROL_TYPE_NONE),
+    [SAI_BRIDGE_ATTR_BROADCAST_FLOOD_CONTROL_TYPE] = ATTR_ENUM_VALUES_LIST(
+        SAI_BRIDGE_FLOOD_CONTROL_TYPE_SUB_PORTS,
+        SAI_BRIDGE_FLOOD_CONTROL_TYPE_L2MC_GROUP,
+        SAI_BRIDGE_FLOOD_CONTROL_TYPE_NONE),
 };
 const mlnx_obj_type_attrs_info_t          mlnx_bridge_obj_type_info =
 { bridge_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(bridge_enum_info)};
@@ -2084,6 +2096,37 @@ static sai_status_t mlnx_bridge_port_fdb_learning_mode_get(_In_ const sai_object
     return SAI_STATUS_SUCCESS;
 }
 
+static sai_status_t mlnx_bridge_port_fdb_learn_mode_sai_to_sx(_In_ sai_bridge_port_fdb_learning_mode_t mode,
+                                                              _Out_ sx_fdb_learn_mode_t               *sx_mode)
+{
+    assert(sx_mode);
+
+    switch (mode) {
+    case SAI_BRIDGE_PORT_FDB_LEARNING_MODE_DISABLE:
+        *sx_mode = SX_FDB_LEARN_MODE_DONT_LEARN;
+        break;
+
+    case SAI_BRIDGE_PORT_FDB_LEARNING_MODE_HW:
+        *sx_mode = SX_FDB_LEARN_MODE_AUTO_LEARN;
+        break;
+
+    case SAI_BRIDGE_PORT_FDB_LEARNING_MODE_CPU_LOG:
+        *sx_mode = SX_FDB_LEARN_MODE_CONTROL_LEARN;
+        break;
+
+    case SAI_BRIDGE_PORT_FDB_LEARNING_MODE_DROP:
+    case SAI_BRIDGE_PORT_FDB_LEARNING_MODE_CPU_TRAP:
+    case SAI_BRIDGE_PORT_FDB_LEARNING_MODE_FDB_NOTIFICATION:
+        return SAI_STATUS_NOT_IMPLEMENTED;
+
+    default:
+        SX_LOG_ERR("Invalid port fdb learning mode %d\n", mode);
+        return SAI_STATUS_INVALID_ATTR_VALUE_0;
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
 /**
  * @brief FDB Learning mode
  *
@@ -2107,31 +2150,14 @@ static sai_status_t mlnx_bridge_port_fdb_learning_mode_set(_In_ const sai_object
         return status;
     }
 
-    switch (value->s32) {
-    case SAI_BRIDGE_PORT_FDB_LEARNING_MODE_DISABLE:
-        learn_mode = SX_FDB_LEARN_MODE_DONT_LEARN;
-        break;
-
-    case SAI_BRIDGE_PORT_FDB_LEARNING_MODE_HW:
-        learn_mode = SX_FDB_LEARN_MODE_AUTO_LEARN;
-        break;
-
-    case SAI_BRIDGE_PORT_FDB_LEARNING_MODE_CPU_LOG:
-        learn_mode = SX_FDB_LEARN_MODE_CONTROL_LEARN;
-        break;
-
-    case SAI_BRIDGE_PORT_FDB_LEARNING_MODE_DROP:
-    case SAI_BRIDGE_PORT_FDB_LEARNING_MODE_CPU_TRAP:
-        return SAI_STATUS_NOT_IMPLEMENTED;
-
-    default:
-        SX_LOG_ERR("Invalid port fdb learning mode %d\n", value->s32);
-        return SAI_STATUS_INVALID_ATTR_VALUE_0;
+    status = mlnx_bridge_port_fdb_learn_mode_sai_to_sx(value->s32, &learn_mode);
+    if (SAI_ERR(status)) {
+        return status;
     }
 
     sx_status = sx_api_fdb_port_learn_mode_set(gh_sdk, port_id, learn_mode);
     if (SX_ERR(sx_status)) {
-        SX_LOG_ERR("Failed to set port learning mode - %s.\n", SX_STATUS_MSG(sx_status));
+        SX_LOG_ERR("Failed to set port %x learning mode - %s.\n", port_id, SX_STATUS_MSG(sx_status));
         return sdk_to_sai(sx_status);
     }
 
@@ -2564,7 +2590,9 @@ static sai_status_t mlnx_create_bridge_port(_Out_ sai_object_id_t     * bridge_p
     sx_port_log_id_t             vport_id = 0;
     sx_vlan_id_t                 vlan_id  = 0;
     sx_untagged_member_state_t   sx_tagging_mode;
+    sx_fdb_learn_mode_t          sx_learn_mode;
     const sai_attribute_value_t *attr_val, *max_learned_addresses = NULL, *ingress_filter = NULL;
+    const sai_attribute_value_t *learn_mode = NULL;
     sai_bridge_port_type_t       bport_type;
     uint32_t                     attr_idx, max_learned_addresses_index, bridge_rif_idx;
     bool                         admin_state;
@@ -2607,14 +2635,6 @@ static sai_status_t mlnx_create_bridge_port(_Out_ sai_object_id_t     * bridge_p
         bridge_id = mlnx_bridge_default_1q();
     }
 
-    status = find_attrib_in_list(attr_count, attr_list, SAI_BRIDGE_PORT_ATTR_MAX_LEARNED_ADDRESSES,
-                                 &max_learned_addresses, &max_learned_addresses_index);
-    if (!SAI_ERR(status)) {
-        status = mlnx_max_learned_addresses_value_validate(max_learned_addresses->u32, max_learned_addresses_index);
-        if (SAI_ERR(status)) {
-            goto out;
-        }
-    }
 
     status = find_attrib_in_list(attr_count, attr_list, SAI_BRIDGE_PORT_ATTR_TYPE, &attr_val, &attr_idx);
     assert(!SAI_ERR(status));
@@ -2631,11 +2651,28 @@ static sai_status_t mlnx_create_bridge_port(_Out_ sai_object_id_t     * bridge_p
         }
     }
 
-    if (max_learned_addresses &&
-        ((bport_type != SAI_BRIDGE_PORT_TYPE_PORT) && (bport_type != SAI_BRIDGE_PORT_TYPE_SUB_PORT))) {
-        SX_LOG_ERR("The SAI_BRIDGE_ATTR_MAX_LEARNED_ADDRESSES is only supported for PORT and SUB_PORT\n");
-        status = SAI_STATUS_ATTR_NOT_SUPPORTED_0 + max_learned_addresses_index;
+    find_attrib_in_list(attr_count, attr_list, SAI_BRIDGE_PORT_ATTR_FDB_LEARNING_MODE, &learn_mode, &attr_idx);
+    if (learn_mode &&
+        ((bport_type == SAI_BRIDGE_PORT_TYPE_1D_ROUTER) || (bport_type == SAI_BRIDGE_PORT_TYPE_TUNNEL)) &&
+        (learn_mode->s32 != SAI_BRIDGE_PORT_FDB_LEARNING_MODE_DISABLE)) {
+        SX_LOG_ERR("The bridge port 1D_ROUTER and TUNNEL only supports SAI_BRIDGE_PORT_FDB_LEARNING_MODE_DISABLE\n");
+        status = SAI_STATUS_ATTR_NOT_SUPPORTED_0 + attr_idx;
         goto out;
+    }
+
+    status = find_attrib_in_list(attr_count, attr_list, SAI_BRIDGE_PORT_ATTR_MAX_LEARNED_ADDRESSES,
+                                 &max_learned_addresses, &max_learned_addresses_index);
+    if (!SAI_ERR(status)) {
+        status = mlnx_max_learned_addresses_value_validate(max_learned_addresses->u32, max_learned_addresses_index);
+        if (SAI_ERR(status)) {
+            goto out;
+        }
+
+        if ((bport_type != SAI_BRIDGE_PORT_TYPE_PORT) && (bport_type != SAI_BRIDGE_PORT_TYPE_SUB_PORT)) {
+            SX_LOG_ERR("The SAI_BRIDGE_PORT_ATTR_MAX_LEARNED_ADDRESSES is only supported for PORT and SUB_PORT\n");
+            status = SAI_STATUS_ATTR_NOT_SUPPORTED_0 + max_learned_addresses_index;
+            goto out;
+        }
     }
 
     status = mlnx_bridge_port_add(bridge_id, bport_type, &bridge_port);
@@ -2850,6 +2887,20 @@ static sai_status_t mlnx_create_bridge_port(_Out_ sai_object_id_t     * bridge_p
     if (max_learned_addresses) {
         status = mlnx_port_max_learned_addresses_set(bridge_port->logical, max_learned_addresses->u32);
         if (SAI_ERR(status)) {
+            goto out;
+        }
+    }
+
+    if (learn_mode && ((bport_type == SAI_BRIDGE_PORT_TYPE_PORT) || (bport_type == SAI_BRIDGE_PORT_TYPE_SUB_PORT))) {
+        status = mlnx_bridge_port_fdb_learn_mode_sai_to_sx(learn_mode->s32, &sx_learn_mode);
+        if (SAI_ERR(status)) {
+            goto out;
+        }
+
+        sx_status = sx_api_fdb_port_learn_mode_set(gh_sdk, bridge_port->logical, sx_learn_mode);
+        if (SX_ERR(sx_status)) {
+            SX_LOG_ERR("Failed to set port %x learning mode - %s.\n", bridge_port->logical, SX_STATUS_MSG(sx_status));
+            status = sdk_to_sai(sx_status);
             goto out;
         }
     }
@@ -3113,6 +3164,8 @@ sai_status_t mlnx_bridge_init(void)
     mlnx_port_config_t *port;
     sai_status_t        status;
     uint32_t            ii;
+    const bool          is_warmboot_init_stage = (BOOT_TYPE_WARM == g_sai_db_ptr->boot_type) &&
+                                                 (!g_sai_db_ptr->issu_end_called);
 
     sai_db_write_lock();
 
@@ -3134,10 +3187,13 @@ sai_status_t mlnx_bridge_init(void)
         bridge_port->logical     = port->logical;
         bridge_port->admin_state = true;
 
-        status = mlnx_vlan_port_add(DEFAULT_VLAN, SAI_VLAN_TAGGING_MODE_UNTAGGED, bridge_port);
-        if (SAI_ERR(status)) {
-            SX_LOG_ERR("Failed to add bridge port to default vlan\n");
-            goto out;
+        if (!is_warmboot_init_stage ||
+            (!(port->before_issu_lag_id) && port->sdk_port_added)) {
+            status = mlnx_vlan_port_add(DEFAULT_VLAN, SAI_VLAN_TAGGING_MODE_UNTAGGED, bridge_port);
+            if (SAI_ERR(status)) {
+                SX_LOG_ERR("Failed to add bridge port to default vlan\n");
+                goto out;
+            }
         }
     }
 

@@ -69,6 +69,7 @@ egressing
 encap
 enum
 extraparam
+ffff
 fprintf
 functionalities
 hmac
@@ -77,6 +78,7 @@ ingressing
 inout
 isprint
 isvlan
+isresourcetype
 json
 linklocal
 lookup
@@ -93,6 +95,7 @@ multi
 multicast
 netdev
 netdevs
+netlink
 nexthop
 nexthopgroup
 objlist
@@ -104,6 +107,7 @@ param
 passparam
 pkts
 policer
+routable
 rv
 rx
 sai
@@ -134,3 +138,6 @@ pre
 serdes
 idriver
 ipredriver
+precursor
+postcursor
+maincursor

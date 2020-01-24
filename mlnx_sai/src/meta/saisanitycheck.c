@@ -623,6 +623,7 @@ void check_attr_object_type_provided(
         case SAI_ATTR_VALUE_TYPE_ACL_ACTION_DATA_IPV4:
         case SAI_ATTR_VALUE_TYPE_ACL_ACTION_DATA_IPV6:
         case SAI_ATTR_VALUE_TYPE_ACL_ACTION_DATA_IP_ADDRESS:
+        case SAI_ATTR_VALUE_TYPE_IPV4:
 
             if (md->allowedobjecttypes != NULL)
             {
@@ -763,7 +764,7 @@ void check_attr_default_required(
                 }
             }
 
-            if (md->objecttype == SAI_OBJECT_TYPE_PORT)
+            if ((md->objecttype == SAI_OBJECT_TYPE_PORT) || (md->objecttype == SAI_OBJECT_TYPE_PORT_SERDES))
             {
                 /*
                  * Allow PORT non object list attributes to be set to internal switch values.
@@ -843,6 +844,7 @@ void check_attr_default_required(
         case SAI_ATTR_VALUE_TYPE_IP_ADDRESS:
         case SAI_ATTR_VALUE_TYPE_IP_PREFIX:
         case SAI_ATTR_VALUE_TYPE_TIMESPEC:
+        case SAI_ATTR_VALUE_TYPE_IPV4:
             break;
 
         case SAI_ATTR_VALUE_TYPE_CHARDATA:
@@ -851,6 +853,8 @@ void check_attr_default_required(
             {
                 break;
             }
+
+            META_MD_ASSERT_FAIL(md, "default value on chardata const");
 
         case SAI_ATTR_VALUE_TYPE_ACL_FIELD_DATA_OBJECT_LIST:
         case SAI_ATTR_VALUE_TYPE_ACL_ACTION_DATA_OBJECT_LIST:
@@ -875,7 +879,8 @@ void check_attr_default_required(
         case SAI_ATTR_VALUE_TYPE_IP_ADDRESS_LIST:
         case SAI_ATTR_VALUE_TYPE_PORT_EYE_VALUES_LIST:
 
-            if (md->objecttype == SAI_OBJECT_TYPE_PORT && md->defaultvaluetype == SAI_DEFAULT_VALUE_TYPE_SWITCH_INTERNAL)
+            if (((md->objecttype == SAI_OBJECT_TYPE_PORT) || (md->objecttype == SAI_OBJECT_TYPE_PORT_SERDES))
+                 && md->defaultvaluetype == SAI_DEFAULT_VALUE_TYPE_SWITCH_INTERNAL)
             {
                 /*
                  * Allow non object lists on PORT to be set to internal default value.
@@ -1090,7 +1095,7 @@ void check_attr_default_value_type(
 
         case SAI_DEFAULT_VALUE_TYPE_SWITCH_INTERNAL:
 
-            if (md->objecttype == SAI_OBJECT_TYPE_PORT)
+            if ((md->objecttype == SAI_OBJECT_TYPE_PORT) || (md->objecttype == SAI_OBJECT_TYPE_PORT_SERDES))
             {
                 /*
                  * Allow PORT attribute list's to be set to internal.
@@ -1541,16 +1546,6 @@ void check_attr_enum_list_validonly(
         if (md->attrvaluetype != SAI_ATTR_VALUE_TYPE_INT32_LIST)
         {
             META_MD_ASSERT_FAIL(md, "marked as enum list but wrong attr value type");
-        }
-
-        if (md->validonlytype != SAI_ATTR_CONDITION_TYPE_NONE)
-        {
-            /*
-             * This restriction can be removed if necessary so far i don't see
-             * any enum list that are marked as valid only.
-             */
-
-            META_MD_ASSERT_FAIL(md, "validonly enum list not supported yet");
         }
     }
 }
@@ -2432,6 +2427,7 @@ void check_attr_is_primitive(
         case SAI_ATTR_VALUE_TYPE_UINT64:
         case SAI_ATTR_VALUE_TYPE_UINT8:
         case SAI_ATTR_VALUE_TYPE_TIMESPEC:
+        case SAI_ATTR_VALUE_TYPE_IPV4:
 
             if (!md->isprimitive)
             {
@@ -2971,6 +2967,7 @@ void check_non_object_id_object_types()
                 case SAI_ATTR_VALUE_TYPE_IP_ADDRESS:
                 case SAI_ATTR_VALUE_TYPE_IP_PREFIX:
                 case SAI_ATTR_VALUE_TYPE_OBJECT_ID:
+                case SAI_ATTR_VALUE_TYPE_NAT_ENTRY_DATA:
                     break;
 
                 default:
@@ -3099,6 +3096,11 @@ void check_non_object_id_object_attrs()
             const sai_attr_metadata_t* m = meta[idx];
 
             META_ASSERT_NOT_NULL(m);
+
+            if (m->isresourcetype && (int)m->flags == SAI_ATTR_FLAGS_READ_ONLY)
+            {
+                continue;
+            }
 
             switch ((int)m->flags)
             {
@@ -4166,6 +4168,12 @@ void check_object_ro_list(
         return;
     }
 
+    if (SAI_OBJECT_TYPE_DEBUG_COUNTER == oi->objecttype)
+    {
+        META_LOG_WARN("debug counter object %s not present on any object list (eg. VLAN_MEMBER is present on SAI_VLAN_ATTR_MEMBER_LIST)", oi->objecttypename);
+        return;
+    }
+
     META_ASSERT_FAIL("%s not present on any object list (eg. VLAN_MEMBER is present on SAI_VLAN_ATTR_MEMBER_LIST)", oi->objecttypename);
 }
 
@@ -4333,9 +4341,21 @@ void check_graph_connected()
 
         if (sai_metadata_all_object_type_infos[i]->isexperimental)
         {
-            /* allow experimental obejct types to be disconnected from main graph */
+            /* allow experimental object types to be disconnected from main graph */
 
             META_LOG_WARN("experimental object %s is disconnected from graph",
+                    sai_metadata_all_object_type_infos[i]->objecttypename);
+
+            continue;
+        }
+
+        if (SAI_OBJECT_TYPE_DEBUG_COUNTER == i) {
+            /*
+             * Allow debug counters to be disconnected from main graph
+             * as use case is by querying base object stats and not by direct reference
+             */
+
+            META_LOG_WARN("debug counter object %s is disconnected from graph",
                     sai_metadata_all_object_type_infos[i]->objecttypename);
 
             continue;

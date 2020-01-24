@@ -127,7 +127,7 @@ static void SAI_dump_mirror_policer_print(_In_ FILE *file, _In_ mlnx_mirror_poli
 
 void SAI_dump_mirror(_In_ FILE *file)
 {
-    mlnx_mirror_vlan_t erspan_vlan_header[SPAN_SESSION_MAX];
+    mlnx_mirror_vlan_t    erspan_vlan_header[SPAN_SESSION_MAX];
     mlnx_mirror_policer_t mirror_policer[SPAN_SESSION_MAX];
 
     memset(erspan_vlan_header, 0, SPAN_SESSION_MAX * sizeof(mlnx_mirror_vlan_t));

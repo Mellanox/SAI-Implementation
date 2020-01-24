@@ -98,7 +98,7 @@ static void SAI_dump_tunnel_map_entry_print(_In_ FILE *file, _In_ mlnx_tunnel_ma
     mlnx_tunnel_map_entry_t      curr_mlnx_tunnel_map_entry;
     tunnel_map_entry_pair_info_t curr_pair_info;
     char                         type_str[LINE_LENGTH];
-    dbg_utils_table_columns_t tunnelmapentry_clmns[] = {
+    dbg_utils_table_columns_t    tunnelmapentry_clmns[] = {
         {"sai oid",                   16, PARAM_UINT64_E, &obj_id},
         {"db idx",                    7,  PARAM_UINT32_E, &ii},
         {"type",                      12, PARAM_STRING_E, &type_str},
@@ -117,8 +117,7 @@ static void SAI_dump_tunnel_map_entry_print(_In_ FILE *file, _In_ mlnx_tunnel_ma
         {"next tunnel map entry idx", 12, PARAM_UINT32_E, &curr_mlnx_tunnel_map_entry.next_tunnel_map_entry_idx},
         {NULL,                        0,  0,              NULL}
     };
-
-    dbg_utils_table_columns_t tunnelmapentry_pair_clmns[] = {
+    dbg_utils_table_columns_t    tunnelmapentry_pair_clmns[] = {
         {"vxlan db idx",  16, PARAM_UINT32_E, &jj},
         {"already bound", 16, PARAM_UINT8_E,  &curr_pair_info.pair_already_bound_to_tunnel},
         {"pair db idx",   16, PARAM_UINT32_E, &curr_pair_info.pair_tunnel_map_entry_idx},
@@ -150,7 +149,8 @@ static void SAI_dump_tunnel_map_entry_print(_In_ FILE *file, _In_ mlnx_tunnel_ma
 
             for (jj = 0; jj < MAX_VXLAN_TUNNEL; jj++) {
                 if (mlnx_tunnel_map_entry[ii].pair_per_vxlan_array[jj].pair_exist) {
-                    memcpy(&curr_pair_info, &mlnx_tunnel_map_entry[ii].pair_per_vxlan_array[jj], sizeof(curr_pair_info));
+                    memcpy(&curr_pair_info, &mlnx_tunnel_map_entry[ii].pair_per_vxlan_array[jj],
+                           sizeof(curr_pair_info));
                     dbg_utils_print_table_data_line(file, tunnelmapentry_pair_clmns);
                 }
             }

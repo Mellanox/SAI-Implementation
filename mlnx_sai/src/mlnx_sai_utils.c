@@ -259,6 +259,7 @@ extern const mlnx_obj_type_attrs_info_t  mlnx_port_pool_obj_type_info;
 extern const mlnx_obj_type_attrs_info_t  mlnx_table_bitmap_classification_entry_obj_type_info;
 extern const mlnx_obj_type_attrs_info_t  mlnx_table_bitmap_router_entry_obj_type_info;
 extern const mlnx_obj_type_attrs_info_t  mlnx_table_meta_tunnel_entry_obj_type_info;
+extern const mlnx_obj_type_attrs_info_t  mlnx_debug_counter_obj_type_info;
 static const mlnx_obj_type_attrs_info_t* mlnx_obj_types_info[] = {
     [SAI_OBJECT_TYPE_PORT]                              = &mlnx_port_obj_type_info,
     [SAI_OBJECT_TYPE_LAG]                               = &mlnx_lag_obj_type_info,
@@ -316,6 +317,7 @@ static const mlnx_obj_type_attrs_info_t* mlnx_obj_types_info[] = {
     [SAI_OBJECT_TYPE_TABLE_BITMAP_CLASSIFICATION_ENTRY] = &mlnx_table_bitmap_classification_entry_obj_type_info,
     [SAI_OBJECT_TYPE_TABLE_BITMAP_ROUTER_ENTRY]         = &mlnx_table_bitmap_router_entry_obj_type_info,
     [SAI_OBJECT_TYPE_TABLE_META_TUNNEL_ENTRY]           = &mlnx_table_meta_tunnel_entry_obj_type_info,
+    [SAI_OBJECT_TYPE_DEBUG_COUNTER]                     = &mlnx_debug_counter_obj_type_info,
 };
 static const uint32_t                    mlnx_obj_types_info_arr_size = ARRAY_SIZE(mlnx_obj_types_info);
 static sai_status_t sai_vendor_attr_index_find(_In_ const sai_attr_id_t                 attr_id,
@@ -687,10 +689,12 @@ static sai_status_t mlnx_attr_enum_supported_values_get(_In_ const sai_attr_meta
                                                         _In_ const mlnx_obj_type_attrs_enums_info_t *enum_infos,
                                                         _Inout_ sai_s32_list_t                      *enum_values_capability)
 {
+    sai_status_t                 status;
     sai_attr_id_t                attr_id;
     const mlnx_attr_enum_info_t *enum_info;
     const sai_enum_metadata_t   *enum_metadata;
     const int32_t               *attrs;
+    int32_t                     *dyn_attrs = NULL;
     uint32_t                     attrs_count;
 
     assert(attr_metadata);
@@ -705,6 +709,12 @@ static sai_status_t mlnx_attr_enum_supported_values_get(_In_ const sai_attr_meta
         return SAI_STATUS_FAILURE;
     }
 
+    enum_metadata = attr_metadata->enummetadata;
+    if (!enum_metadata) {
+        SX_LOG_ERR("sai_enum_metadata_t is NULL\n");
+        return SAI_STATUS_FAILURE;
+    }
+
     enum_info = &enum_infos->info[attr_id];
 
     if (!ATTR_ENUM_INFO_IS_VALID(enum_info)) {
@@ -712,13 +722,24 @@ static sai_status_t mlnx_attr_enum_supported_values_get(_In_ const sai_attr_meta
         return SAI_STATUS_FAILURE;
     }
 
-    if (enum_info->all) {
-        enum_metadata = attr_metadata->enummetadata;
-        if (!enum_metadata) {
-            SX_LOG_ERR("sai_enum_metadata_t is NULL\n");
+    if (enum_info->fn) {
+        dyn_attrs = calloc(enum_metadata->valuescount, sizeof(*dyn_attrs));
+        if (!dyn_attrs) {
+            SX_LOG_ERR("Failed to allocate memory\n");
+            return SAI_STATUS_NO_MEMORY;
+        }
+
+        attrs_count = (uint32_t)enum_metadata->valuescount;
+
+        status = enum_info->fn(dyn_attrs, &attrs_count);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to get enum %s capability\n", enum_metadata->name);
+            free(dyn_attrs);
             return SAI_STATUS_FAILURE;
         }
 
+        attrs = dyn_attrs;
+    } else if (enum_info->all) {
         attrs       = enum_metadata->values;
         attrs_count = (uint32_t)enum_metadata->valuescount;
     } else {
@@ -726,7 +747,9 @@ static sai_status_t mlnx_attr_enum_supported_values_get(_In_ const sai_attr_meta
         attrs_count = enum_info->count;
     }
 
-    return mlnx_fill_s32list(attrs, attrs_count, enum_values_capability);
+    status = mlnx_fill_s32list(attrs, attrs_count, enum_values_capability);
+    free(dyn_attrs);
+    return status;
 }
 
 sai_status_t mlnx_sai_query_attribute_enum_values_capability_impl(_In_ sai_object_id_t    switch_id,
@@ -1696,8 +1719,8 @@ static sai_status_t sai_attrlist_mandatory_attrs_check(
                     }
 
                     MLNX_SAI_LOG_ERR("Missing mandatory attribute %s on create. Attribute is mandatory when: {%s}\n",
-                                      md[ii]->attridname,
-                                      conditions_str);
+                                     md[ii]->attridname,
+                                     conditions_str);
                     return SAI_STATUS_MANDATORY_ATTRIBUTE_MISSING;
                 }
             } else {
@@ -1919,8 +1942,8 @@ static sai_status_t sai_attribute_valid_condition_check(_In_ const sai_attr_meta
             }
 
             MLNX_SAI_LOG_ERR("Attribute %s doesn't match a valid conditions: {%s}\n",
-                              attr_metadata->attridname,
-                              conditions_str);
+                             attr_metadata->attridname,
+                             conditions_str);
             return SAI_STATUS_FAILURE;
         }
     }
@@ -2208,8 +2231,8 @@ sai_status_t check_attribs_metadata(_In_ uint32_t                            att
 
         if (attr_present_meta[meta_data_index]) {
             MLNX_SAI_LOG_ERR("Attribute %s appears twice in attribute list at index %d\n",
-                              meta_data->attridname,
-                              ii);
+                             meta_data->attridname,
+                             ii);
             status = SAI_STATUS_INVALID_ATTRIBUTE_0 + ii;
             goto out;
         }
@@ -3660,6 +3683,36 @@ sai_status_t sai_attr_list_to_str(_In_ uint32_t               attr_count,
     return SAI_STATUS_SUCCESS;
 }
 
+sai_status_t mlnx_utils_attrs_is_resource_check(_In_ sai_object_type_t      object_type,
+                                                _In_ uint32_t               attr_count,
+                                                _In_ const sai_attribute_t *attr_list)
+{
+    const sai_attr_metadata_t *meta_data;
+    uint32_t                   ii;
+
+    assert(attr_list);
+
+    if (!mlnx_obj_type_attr_info_get(object_type)) {
+        SX_LOG_ERR("Invalid object type %d - meta data not found\n", object_type);
+        return SAI_STATUS_INVALID_PARAMETER;
+    }
+
+    for (ii = 0; ii < attr_count; ii++) {
+        meta_data = mlnx_sai_attr_metadata_get_impl(object_type, attr_list[ii].id);
+        if (NULL == meta_data) {
+            SX_LOG_ERR("Invalid attribute %d - meta data not found\n", attr_list[ii].id);
+            return SAI_STATUS_UNKNOWN_ATTRIBUTE_0 + ii;
+        }
+
+        if (!meta_data->isresourcetype) {
+            SX_LOG_ERR("Attribute %s is not a resource type\n", meta_data->attridname);
+            return SAI_STATUS_INVALID_ATTRIBUTE_0 + ii;
+        }
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
 sai_status_t mlnx_translate_sai_trap_action_to_sdk(sai_int32_t       action,
                                                    sx_trap_action_t *trap_action,
                                                    uint32_t          param_index,
@@ -3876,30 +3929,52 @@ sai_status_t mlnx_create_object(sai_object_type_t type,
 
 sai_status_t mlnx_object_to_log_port(sai_object_id_t object_id, sx_port_log_id_t *port_id)
 {
+    sai_status_t      status;
+    uint32_t          ii;
     sai_object_type_t type = sai_object_type_query(object_id);
 
-    if ((type != SAI_OBJECT_TYPE_PORT) && (type != SAI_OBJECT_TYPE_LAG)) {
+    if (type == SAI_OBJECT_TYPE_PORT) {
+        return mlnx_object_to_type(object_id, type, port_id, NULL);
+    } else if (type == SAI_OBJECT_TYPE_LAG) {
+        status = mlnx_object_to_type(object_id, type, &ii, NULL);
+        if (SAI_ERR(status)) {
+            return status;
+        }
+
+        if ((ii < MAX_PORTS) || (ii >= MAX_PORTS * 2) || (!mlnx_ports_db[ii].is_present)) {
+            return SAI_STATUS_INVALID_OBJECT_ID;
+        }
+
+        *port_id = mlnx_ports_db[ii].logical;
+
+        return SAI_STATUS_SUCCESS;
+    } else {
         SX_LOG_ERR("Object type %s is not LAG nor Port\n", SAI_TYPE_STR(type));
         return SAI_STATUS_INVALID_PARAMETER;
     }
-
-    return mlnx_object_to_type(object_id, type, port_id, NULL);
 }
 
 sai_status_t mlnx_log_port_to_object(sx_port_log_id_t port_id, sai_object_id_t *object_id)
 {
-    sai_object_type_t type;
+    mlnx_port_config_t *lag;
+    uint32_t            ii;
 
     if (SX_PORT_TYPE_ID_GET(port_id) == SX_PORT_TYPE_NETWORK) {
-        type = SAI_OBJECT_TYPE_PORT;
+        return mlnx_create_object(SAI_OBJECT_TYPE_PORT, port_id, NULL, object_id);
     } else if (SX_PORT_TYPE_ID_GET(port_id) == SX_PORT_TYPE_LAG) {
-        type = SAI_OBJECT_TYPE_LAG;
+        mlnx_lag_foreach(lag, ii) {
+            if (lag->logical == port_id) {
+                *object_id = lag->saiport;
+                return SAI_STATUS_SUCCESS;
+            }
+        }
+
+        SX_LOG_ERR("Failed to find log port %x in SAI DB\n", port_id);
+        return SAI_STATUS_FAILURE;
     } else {
         SX_LOG_ERR("Logical port id %x is not LAG nor Port\n", port_id);
         return SAI_STATUS_INVALID_PARAMETER;
     }
-
-    return mlnx_create_object(type, port_id, NULL, object_id);
 }
 
 sai_status_t mlnx_create_queue_object(_In_ sx_port_log_id_t port_id, _In_ uint8_t index, _Out_ sai_object_id_t *id)

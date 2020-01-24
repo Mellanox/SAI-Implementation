@@ -127,10 +127,10 @@ static void SAI_dump_hash_ecmp_print(_In_ FILE *file, _In_ const sx_router_ecmp_
 
 static void SAI_dump_hash_lag_print(_In_ FILE *file, _In_ const sx_lag_port_hash_params_t *lag_params)
 {
-    const char                *lag_hash_type_str[] = { "CRC", "XOR", "Random", "CRC2"};
-    sx_lag_port_hash_params_t  curr_lag_params;
-    char                       hash_type_str[LINE_LENGTH] = "Invalid";
-    dbg_utils_table_columns_t  ecmp_params_columns[] = {
+    const char               *lag_hash_type_str[] = { "CRC", "XOR", "Random", "CRC2"};
+    sx_lag_port_hash_params_t curr_lag_params;
+    char                      hash_type_str[LINE_LENGTH] = "Invalid";
+    dbg_utils_table_columns_t ecmp_params_columns[]      = {
         {"hash type",  32, PARAM_STRING_E, &hash_type_str},
         {"symmetric",  10, PARAM_BOOL_E,   &curr_lag_params.is_lag_hash_symmetric},
         {"lag_seed",   10, PARAM_UINT32_E, &curr_lag_params.lag_seed},

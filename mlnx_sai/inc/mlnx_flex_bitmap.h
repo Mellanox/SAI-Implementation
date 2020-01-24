@@ -9,7 +9,7 @@
 #include <string.h>
 #include <assert.h>
 
-#define FX_BITMAP_SIZE_MAX 4000
+#define FX_BITMAP_SIZE_MAX 40960
 
 typedef unsigned char fx_bitmap_t[FX_BITMAP_SIZE_MAX/CHAR_BIT + 1];
 

@@ -692,6 +692,7 @@ sai_status_t mlnx_wred_apply_to_queue(_In_ mlnx_port_config_t *port,
     sai_object_id_t          curr_wred_id;
     sx_cos_traffic_class_t   tc;
     mlnx_qos_queue_config_t *queue_cfg;
+    sx_port_log_id_t         port_id;
 
     tc = queue_idx;
 
@@ -700,14 +701,21 @@ sai_status_t mlnx_wred_apply_to_queue(_In_ mlnx_port_config_t *port,
         return SAI_STATUS_FAILURE;
     }
 
-    status = mlnx_port_fetch_lag_if_lag_member(&port);
+    port_id = port->logical;
+
+    /* For ISSU, only apply the changes to SDK LAG, keep the SAI db change on port level,
+     * because SAI LAG db may not exist during ISSU when the port is added to SDK LAG */
+    if (mlnx_port_is_sai_lag_member(port)) {
+        port_id = mlnx_port_get_lag_id(port);
+    }
+
+    status = mlnx_queue_cfg_lookup(port_id, tc, &queue_cfg);
     if (SAI_ERR(status)) {
         return status;
     }
 
-    status = mlnx_queue_cfg_lookup(port->logical, tc, &queue_cfg);
-    if (SAI_ERR(status)) {
-        return status;
+    if (mlnx_port_is_sdk_lag_member_not_sai(port)) {
+        port_id = mlnx_port_get_lag_id(port);
     }
 
     curr_wred_id = queue_cfg->wred_id;
@@ -723,11 +731,11 @@ sai_status_t mlnx_wred_apply_to_queue(_In_ mlnx_port_config_t *port,
             return status;
         }
 
-        SX_LOG_DBG("Unbinding current wred %lx on port %x queue %d\n", curr_wred_id, port->logical, tc);
+        SX_LOG_DBG("Unbinding current wred %lx on port %x queue %d\n", curr_wred_id, port_id, tc);
 
-        status = mlnx_wred_apply_saiwred_to_port(&wred_profile, port->logical, &tc, 1, SX_ACCESS_CMD_UNBIND);
+        status = mlnx_wred_apply_saiwred_to_port(&wred_profile, port_id, &tc, 1, SX_ACCESS_CMD_UNBIND);
         if (SAI_ERR(status)) {
-            SX_LOG_ERR("Failed to remove WRED profile from port 0%x tc %d\n", port->logical, tc);
+            SX_LOG_ERR("Failed to remove WRED profile from port 0%x tc %d\n", port_id, tc);
             return status;
         }
     }
@@ -738,19 +746,19 @@ sai_status_t mlnx_wred_apply_to_queue(_In_ mlnx_port_config_t *port,
             return status;
         }
 
-        status = mlnx_wred_ecn_enable_set(port->logical, &tc, 1, wred_profile.wred_enabled, wred_profile.ecn_enabled);
+        status = mlnx_wred_ecn_enable_set(port_id, &tc, 1, wred_profile.wred_enabled, wred_profile.ecn_enabled);
         if (SAI_ERR(status)) {
             return status;
         }
 
-        SX_LOG_DBG("Binding wred %lx to port %x queue %d\n", wred_id, port->logical, tc);
+        SX_LOG_DBG("Binding wred %lx to port %x queue %d\n", wred_id, port_id, tc);
 
-        status = mlnx_wred_apply_saiwred_to_port(&wred_profile, port->logical, &tc, 1, SX_ACCESS_CMD_BIND);
+        status = mlnx_wred_apply_saiwred_to_port(&wred_profile, port_id, &tc, 1, SX_ACCESS_CMD_BIND);
         if (SAI_ERR(status)) {
             return status;
         }
     } else {
-        status = mlnx_wred_ecn_enable_set(port->logical, &tc, 1, false, false);
+        status = mlnx_wred_ecn_enable_set(port_id, &tc, 1, false, false);
         if (SAI_ERR(status)) {
             return status;
         }

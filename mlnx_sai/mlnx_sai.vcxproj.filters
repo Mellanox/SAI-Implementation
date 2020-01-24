@@ -174,6 +174,15 @@
     <ClInclude Include="inc\sharedlib.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="inc\sai\saicounter.h">
+      <Filter>Header Files\sai</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\sai\saidebugcounter.h">
+      <Filter>Header Files\sai</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\sai\sainat.h">
+      <Filter>Header Files\sai</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\mlnx_sai_acl.c">
@@ -336,6 +345,12 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\mlnx_sai_bmtor.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\mlnx_sai_debug_counter.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\dbgdump\mlnx_sai_dbg_debug_counter.c">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
