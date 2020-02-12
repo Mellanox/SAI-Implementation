@@ -729,7 +729,7 @@ static sai_status_t mlnx_attr_enum_supported_values_get(_In_ const sai_attr_meta
             return SAI_STATUS_NO_MEMORY;
         }
 
-        attrs_count = (uint32_t) enum_metadata->valuescount;
+        attrs_count = (uint32_t)enum_metadata->valuescount;
 
         status = enum_info->fn(dyn_attrs, &attrs_count);
         if (SAI_ERR(status)) {
@@ -1719,8 +1719,8 @@ static sai_status_t sai_attrlist_mandatory_attrs_check(
                     }
 
                     MLNX_SAI_LOG_ERR("Missing mandatory attribute %s on create. Attribute is mandatory when: {%s}\n",
-                                      md[ii]->attridname,
-                                      conditions_str);
+                                     md[ii]->attridname,
+                                     conditions_str);
                     return SAI_STATUS_MANDATORY_ATTRIBUTE_MISSING;
                 }
             } else {
@@ -1942,8 +1942,8 @@ static sai_status_t sai_attribute_valid_condition_check(_In_ const sai_attr_meta
             }
 
             MLNX_SAI_LOG_ERR("Attribute %s doesn't match a valid conditions: {%s}\n",
-                              attr_metadata->attridname,
-                              conditions_str);
+                             attr_metadata->attridname,
+                             conditions_str);
             return SAI_STATUS_FAILURE;
         }
     }
@@ -2231,8 +2231,8 @@ sai_status_t check_attribs_metadata(_In_ uint32_t                            att
 
         if (attr_present_meta[meta_data_index]) {
             MLNX_SAI_LOG_ERR("Attribute %s appears twice in attribute list at index %d\n",
-                              meta_data->attridname,
-                              ii);
+                             meta_data->attridname,
+                             ii);
             status = SAI_STATUS_INVALID_ATTRIBUTE_0 + ii;
             goto out;
         }
@@ -3683,8 +3683,8 @@ sai_status_t sai_attr_list_to_str(_In_ uint32_t               attr_count,
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_utils_attrs_is_resource_check(_In_ sai_object_type_t object_type,
-                                                _In_ uint32_t attr_count,
+sai_status_t mlnx_utils_attrs_is_resource_check(_In_ sai_object_type_t      object_type,
+                                                _In_ uint32_t               attr_count,
                                                 _In_ const sai_attribute_t *attr_list)
 {
     const sai_attr_metadata_t *meta_data;
@@ -3957,7 +3957,7 @@ sai_status_t mlnx_object_to_log_port(sai_object_id_t object_id, sx_port_log_id_t
 sai_status_t mlnx_log_port_to_object(sx_port_log_id_t port_id, sai_object_id_t *object_id)
 {
     mlnx_port_config_t *lag;
-    uint32_t ii;
+    uint32_t            ii;
 
     if (SX_PORT_TYPE_ID_GET(port_id) == SX_PORT_TYPE_NETWORK) {
         return mlnx_create_object(SAI_OBJECT_TYPE_PORT, port_id, NULL, object_id);

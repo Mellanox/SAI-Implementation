@@ -1877,9 +1877,9 @@ void db_reset_policer_entry(_In_ uint32_t db_policers_entry_index)
 {
     SX_LOG_ENTER();
     assert(db_policers_entry_index < MAX_POLICERS);
-    g_sai_db_ptr->policers_db[db_policers_entry_index].valid              = false;
-    g_sai_db_ptr->policers_db[db_policers_entry_index].sx_policer_id_trap = SX_POLICER_ID_INVALID;
-    g_sai_db_ptr->policers_db[db_policers_entry_index].sx_policer_id_acl  = SX_POLICER_ID_INVALID;
+    g_sai_db_ptr->policers_db[db_policers_entry_index].valid                = false;
+    g_sai_db_ptr->policers_db[db_policers_entry_index].sx_policer_id_trap   = SX_POLICER_ID_INVALID;
+    g_sai_db_ptr->policers_db[db_policers_entry_index].sx_policer_id_acl    = SX_POLICER_ID_INVALID;
     g_sai_db_ptr->policers_db[db_policers_entry_index].sx_policer_id_mirror = SX_POLICER_ID_INVALID;
     memset(&(g_sai_db_ptr->policers_db[db_policers_entry_index].sx_policer_attr), 0,
            sizeof(g_sai_db_ptr->policers_db[db_policers_entry_index].sx_policer_attr));
@@ -1897,7 +1897,7 @@ uint32_t mlnx_policer_db_free_entries_count(bool is_hostif)
             }
 
             if ((g_sai_db_ptr->policers_db[ii].sx_policer_id_acl != SX_POLICER_ID_INVALID) ||
-                 (g_sai_db_ptr->policers_db[ii].sx_policer_id_mirror != SX_POLICER_ID_INVALID)) {
+                (g_sai_db_ptr->policers_db[ii].sx_policer_id_mirror != SX_POLICER_ID_INVALID)) {
                 policers_created++;
             }
         }
@@ -2087,7 +2087,7 @@ static sai_status_t mlnx_validate_port_policer_for_remove(_In_ sai_object_id_t s
     uint32_t                 port_ind, ii;
     sai_status_t             status;
     mlnx_port_config_t      *port_config;
-    mlnx_policer_db_entry_t* policer_db_data = NULL;
+    mlnx_policer_db_entry_t* policer_db_data    = NULL;
     bool                     is_used_for_mirror = false;
 
     SX_LOG_ENTER();
@@ -2270,7 +2270,9 @@ sai_status_t mlnx_policer_stats_clear(_In_ sx_policer_id_t sx_policer)
     memset(&policer_counters_clear, 0, sizeof(policer_counters_clear));
 
     policer_counters_clear.clear_violation_counter = true;
-    sx_status = sx_api_policer_counters_clear_set(gh_sdk, sx_policer, &policer_counters_clear);
+    sx_status                                      = sx_api_policer_counters_clear_set(gh_sdk,
+                                                                                       sx_policer,
+                                                                                       &policer_counters_clear);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to clear set sx policer %lu counter - %s\n", sx_policer, SX_STATUS_MSG(sx_status));
         return sdk_to_sai(sx_status);
@@ -2281,8 +2283,7 @@ sai_status_t mlnx_policer_stats_clear(_In_ sx_policer_id_t sx_policer)
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_policer_stats_get(_In_ sx_policer_id_t sx_policer,
-                                    _In_ uint64_t       *count)
+sai_status_t mlnx_policer_stats_get(_In_ sx_policer_id_t sx_policer, _In_ uint64_t       *count)
 {
     sx_status_t           sx_status;
     sx_policer_counters_t policer_counters;
@@ -2563,6 +2564,7 @@ static sai_status_t sai_policer_remove_packets_for_type_from_all_traffic(
 }
 
 static sai_status_t sai_policer_apply_packet_types_to_all_traffic_policer(_In_ mlnx_port_config_t    *port_config,
+                                                                          _In_ sx_port_log_id_t       port_id,
                                                                           _In_ sx_port_packet_types_t new_packet_types)
 {
     sai_status_t                   sai_status;
@@ -2597,7 +2599,7 @@ static sai_status_t sai_policer_apply_packet_types_to_all_traffic_policer(_In_ m
              storm_policer_functions.sx_api_port_storm_control_set_p(
                  gh_sdk,
                  SX_ACCESS_CMD_EDIT,
-                 port_config->logical,
+                 port_id,
                  MLNX_PORT_POLICER_TYPE_REGULAR_INDEX,
                  &storm_ctrl_params))) {
         SX_LOG_ERR(
@@ -2605,7 +2607,7 @@ static sai_status_t sai_policer_apply_packet_types_to_all_traffic_policer(_In_ m
             SX_STATUS_MSG(sx_status),
             port_config->port_policers[MLNX_PORT_POLICER_TYPE_REGULAR_INDEX],
             port_config->index,
-            port_config->logical);
+            port_id);
         SX_LOG_EXIT();
         sai_status = sdk_to_sai(sx_status);
         return sai_status;
@@ -2616,6 +2618,7 @@ static sai_status_t sai_policer_apply_packet_types_to_all_traffic_policer(_In_ m
 
 static sai_status_t setup_storm_item(_In_ sai_object_id_t        sai_policer,
                                      _In_ mlnx_port_config_t    *port_config,
+                                     _In_ sx_port_log_id_t       port_id,
                                      _In_ mlnx_port_policer_type port_policer_type)
 {
     sai_status_t                   sai_status;
@@ -2680,7 +2683,8 @@ static sai_status_t setup_storm_item(_In_ sai_object_id_t        sai_policer,
         }
         if (SAI_STATUS_SUCCESS !=
             (sai_status =
-                 sai_policer_apply_packet_types_to_all_traffic_policer(port_config, all_traffic_packet_types))) {
+                 sai_policer_apply_packet_types_to_all_traffic_policer(port_config, port_id,
+                                                                       all_traffic_packet_types))) {
             SX_LOG_EXIT();
             return sai_status;
         }
@@ -2693,7 +2697,7 @@ static sai_status_t setup_storm_item(_In_ sai_object_id_t        sai_policer,
         (sx_status = storm_policer_functions.sx_api_port_storm_control_set_p(
              gh_sdk,
              SX_ACCESS_CMD_ADD,
-             port_config->logical,
+             port_id,
              port_policer_type,
              &storm_ctrl_params))) {
         sai_status = sdk_to_sai(sx_status);
@@ -2712,6 +2716,7 @@ sai_status_t mlnx_sai_bind_policer_to_port(_In_ sai_object_id_t           sai_po
 {
     sai_status_t        sai_status;
     mlnx_port_config_t *port_config = NULL;
+    sx_port_log_id_t    port_id;
 
     SX_LOG_ENTER();
     if (NULL == bind_params) {
@@ -2731,10 +2736,18 @@ sai_status_t mlnx_sai_bind_policer_to_port(_In_ sai_object_id_t           sai_po
         return sai_status;
     }
 
-    sai_status = mlnx_port_fetch_lag_if_lag_member(&port_config);
-    if (SAI_ERR(sai_status)) {
-        SX_LOG_EXIT();
-        return sai_status;
+    if (mlnx_port_is_sai_lag_member(port_config)) {
+        sai_status = mlnx_port_fetch_lag_if_lag_member(&port_config);
+        if (SAI_ERR(sai_status)) {
+            SX_LOG_EXIT();
+            return sai_status;
+        }
+    }
+
+    port_id = port_config->logical;
+
+    if (mlnx_port_is_sdk_lag_member_not_sai(port_config)) {
+        port_id = mlnx_port_get_lag_id(port_config);
     }
 
     if (SAI_NULL_OBJECT_ID != port_config->port_policers[bind_params->port_policer_type]) {
@@ -2747,7 +2760,7 @@ sai_status_t mlnx_sai_bind_policer_to_port(_In_ sai_object_id_t           sai_po
             port_config->port_policers[bind_params->port_policer_type]);
         return SAI_STATUS_OBJECT_IN_USE;
     }
-    sai_status = setup_storm_item(sai_policer, port_config, bind_params->port_policer_type);
+    sai_status = setup_storm_item(sai_policer, port_config, port_id, bind_params->port_policer_type);
     if (SAI_STATUS_SUCCESS != sai_status) {
         SX_LOG_ERR(
             "Failed to bind policer to port. policer:0x%" PRIx64 ", port:0x%" PRIx64 ", policer type:%d. status:%d\n",
@@ -2778,6 +2791,7 @@ sai_status_t mlnx_sai_unbind_policer_from_port(_In_ sai_object_id_t           sa
     sx_status_t                    sx_status;
     sx_port_storm_control_params_t storm_ctrl_params;
     sx_port_packet_types_t         all_traffic_packet_types;
+    sx_port_log_id_t               port_id;
 
     SX_LOG_ENTER();
     if (NULL == bind_params) {
@@ -2799,10 +2813,18 @@ sai_status_t mlnx_sai_unbind_policer_from_port(_In_ sai_object_id_t           sa
         return sai_status;
     }
 
-    sai_status = mlnx_port_fetch_lag_if_lag_member(&port_config);
-    if (SAI_ERR(sai_status)) {
-        SX_LOG_EXIT();
-        return sai_status;
+    if (mlnx_port_is_sai_lag_member(port_config)) {
+        sai_status = mlnx_port_fetch_lag_if_lag_member(&port_config);
+        if (SAI_ERR(sai_status)) {
+            SX_LOG_EXIT();
+            return sai_status;
+        }
+    }
+
+    port_id = port_config->logical;
+
+    if (mlnx_port_is_sdk_lag_member_not_sai(port_config)) {
+        port_id = mlnx_port_get_lag_id(port_config);
     }
 
     SX_LOG_NTC("sai port at port_db[%d]==:0x%" PRIx64 ". policer type:%d\n", port_config->index,
@@ -2839,7 +2861,7 @@ sai_status_t mlnx_sai_unbind_policer_from_port(_In_ sai_object_id_t           sa
     if (SX_STATUS_SUCCESS !=
         (sx_status =
              storm_policer_functions.sx_api_port_storm_control_set_p(gh_sdk, SX_ACCESS_CMD_DELETE,
-                                                                     port_config->logical,
+                                                                     port_id,
                                                                      bind_params->port_policer_type,
                                                                      &storm_ctrl_params))) {
         sai_status = sdk_to_sai(sx_status);
@@ -2868,7 +2890,8 @@ sai_status_t mlnx_sai_unbind_policer_from_port(_In_ sai_object_id_t           sa
         }
         if (SAI_STATUS_SUCCESS !=
             (sai_status =
-                 sai_policer_apply_packet_types_to_all_traffic_policer(port_config, all_traffic_packet_types))) {
+                 sai_policer_apply_packet_types_to_all_traffic_policer(port_config, port_id,
+                                                                       all_traffic_packet_types))) {
             SX_LOG_EXIT();
             return sai_status;
         }

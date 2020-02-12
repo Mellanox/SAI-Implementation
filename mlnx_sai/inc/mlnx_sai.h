@@ -216,7 +216,7 @@ extern const sai_debug_counter_api_t    mlnx_debug_counter_api;
 #define DEFAULT_MULTICAST_TTL_THRESHOLD 1
 #define FIRST_PORT                      (0x10000 | (1 << 8))
 #define PORT_MAC_BITMASK_SP             (~0x3F)
-#define PORT_MAC_BITMASK_SP2            (~0x7F)
+#define PORT_MAC_BITMASK_SP2_3          (~0x7F)
 #define PORT_SPEED_400                  400000
 #define PORT_SPEED_200                  200000
 #define PORT_SPEED_100                  100000
@@ -231,6 +231,7 @@ extern const sai_debug_counter_api_t    mlnx_debug_counter_api;
 #define PORT_SPEED_0                    0
 #define PORT_SPEED_MAX_SP               PORT_SPEED_100
 #define PORT_SPEED_MAX_SP2              PORT_SPEED_200
+#define PORT_SPEED_MAX_SP3              PORT_SPEED_400
 #define NUM_SPEEDS                      10
 #define CPU_PORT                        0
 #define ECMP_MAX_PATHS                  64
@@ -623,7 +624,7 @@ typedef struct _mlnx_obj_type_attrs_info_t {
 #define OBJ_ATTRS_ENUMS_INFO_EMPTY() \
     {.info = NULL, .count = 0}
 
-bool mlnx_chip_is_spc2(void);
+bool mlnx_chip_is_spc2or3(void);
 void mlnx_udf_acl_attrs_metadata_init();
 bool mlnx_udf_acl_attribute_id_is_not_supported(_In_ sai_attr_id_t attr_id);
 sai_status_t sai_attribute_short_name_fetch(_In_ sai_object_type_t object_type,
@@ -982,7 +983,8 @@ extern const mlnx_trap_info_t mlnx_traps_info[];
 #define MAX_BRIDGE_1Q_PORTS (MAX_PORTS_DB * 2) /* Ports and LAGs */
 #define MAX_BRIDGE_RIFS     550 /* 256 for VXLAN VNETs + some spare */
 #define MAX_BRIDGE_PORTS    (MAX_VPORTS + MAX_BRIDGE_1Q_PORTS + MAX_BRIDGE_RIFS)
-#define MAX_LANES           4
+#define MAX_LANES_SPC1_2    4
+#define MAX_LANES_SPC3      4
 #define MAX_HOSTIFS         200
 #define MAX_POLICERS        100
 #define MAX_TRAP_GROUPS     32
@@ -1446,7 +1448,7 @@ typedef struct _mlnx_udf_db_t {
 #define ACL_MIN_TABLE_PRIO      0
 #define ACL_MAX_TABLE_PRIO      UINT32_MAX
 #define ACL_ENTRY_DB_SIZE       16000
-#define ACL_MAX_SX_RULES_NUMBER 16000
+#define ACL_MAX_SX_RULES_NUMBER 256000
 
 #define ACL_GROUP_MEMBER_PRIO_MIN 0
 #define ACL_GROUP_MEMBER_PRIO_MAX UINT16_MAX
@@ -1461,8 +1463,8 @@ typedef struct _mlnx_udf_db_t {
 #define ACL_VLAN_GROUP_COUNT (g_resource_limits.acl_vlan_groups_max)
 #define ACL_VLAN_COUNT       4096
 
-#define ACL_MAX_SX_COUNTER_BYTE_NUM   ACL_MAX_SX_RULES_NUMBER
-#define ACL_MAX_SX_COUNTER_PACKET_NUM ACL_MAX_SX_RULES_NUMBER
+#define ACL_MAX_SX_COUNTER_BYTE_NUM   16000
+#define ACL_MAX_SX_COUNTER_PACKET_NUM 16000
 
 #define ACL_MAX_SX_ING_GROUP_NUMBER ACL_GROUP_NUMBER
 #define ACL_MAX_SX_EGR_GROUP_NUMBER ACL_GROUP_NUMBER
@@ -2012,7 +2014,10 @@ typedef enum mlnx_platform_type {
     MLNX_PLATFORM_TYPE_2740    = 2740,
     MLNX_PLATFORM_TYPE_3700    = 3700,
     MLNX_PLATFORM_TYPE_3800    = 3800,
+    MLNX_PLATFORM_TYPE_4700    = 4700,
+    MLNX_PLATFORM_TYPE_4800    = 4800
 } mlnx_platform_type_t;
+mlnx_platform_type_t mlnx_platform_type_get(void);
 
 #define MLNX_SWITCH_STAT_ID_RANGE_CHECK(stat) \
     (((SAI_SWITCH_STAT_IN_DROP_REASON_RANGE_BASE <= stat) && (stat < SAI_SWITCH_STAT_IN_DROP_REASON_RANGE_END)) || \

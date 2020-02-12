@@ -139,10 +139,6 @@ static void SAI_dump_acl_key_type_enum_to_str(_In_ sx_acl_key_type_t key_type, _
         strcpy(str, "mac ipv4");
         break;
 
-    case SX_ACL_KEY_TYPE_FCOE_FULL:
-        strcpy(str, "fcoe");
-        break;
-
     case SX_ACL_KEY_TYPE_MAC_SHORT:
         strcpy(str, "mac short");
         break;

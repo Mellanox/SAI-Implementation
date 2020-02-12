@@ -395,7 +395,8 @@ static const mlnx_attr_enum_info_t        hostif_table_entry_enum_info[] = {
 const mlnx_obj_type_attrs_info_t          mlnx_hostif_table_entry_obj_type_info =
 { host_table_entry_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(hostif_table_entry_enum_info)};
 const mlnx_trap_info_t mlnx_traps_info[] = {
-    { SAI_HOSTIF_TRAP_TYPE_STP, 1, { SX_TRAP_ID_ETH_L2_STP }, SAI_PACKET_ACTION_DROP, "STP", MLNX_TRAP_TYPE_REGULAR, MLNX_L2_TRAP },
+    { SAI_HOSTIF_TRAP_TYPE_STP, 1, { SX_TRAP_ID_ETH_L2_STP }, SAI_PACKET_ACTION_DROP, "STP", MLNX_TRAP_TYPE_REGULAR,
+      MLNX_L2_TRAP },
     { SAI_HOSTIF_TRAP_TYPE_LACP, 1, { SX_TRAP_ID_ETH_L2_LACP }, SAI_PACKET_ACTION_DROP, "LACP",
       MLNX_TRAP_TYPE_REGULAR, MLNX_L2_TRAP },
     { SAI_HOSTIF_TRAP_TYPE_EAPOL, 1, { SX_TRAP_ID_ETH_L2_EAPOL }, SAI_PACKET_ACTION_DROP, "EAPOL",
@@ -445,16 +446,21 @@ const mlnx_trap_info_t mlnx_traps_info[] = {
       MLNX_TRAP_TYPE_REGULAR, MLNX_NON_L2_TRAP },
     { SAI_HOSTIF_TRAP_TYPE_DHCP, 1, { SX_TRAP_ID_IPV4_DHCP }, SAI_PACKET_ACTION_FORWARD, "DHCP",
       MLNX_TRAP_TYPE_REGULAR, MLNX_NON_L2_TRAP },
-    { SAI_HOSTIF_TRAP_TYPE_OSPF, 1, { SX_TRAP_ID_OSPF }, SAI_PACKET_ACTION_FORWARD, "OSPF", MLNX_TRAP_TYPE_REGULAR, MLNX_NON_L2_TRAP },
+    { SAI_HOSTIF_TRAP_TYPE_OSPF, 1, { SX_TRAP_ID_OSPF }, SAI_PACKET_ACTION_FORWARD, "OSPF", MLNX_TRAP_TYPE_REGULAR,
+      MLNX_NON_L2_TRAP },
     /* TODO : Allow forward on PIM */
-    { SAI_HOSTIF_TRAP_TYPE_PIM, 1, { SX_TRAP_ID_PIM }, SAI_PACKET_ACTION_DROP, "PIM", MLNX_TRAP_TYPE_REGULAR, MLNX_NON_L2_TRAP },
-   { SAI_HOSTIF_TRAP_TYPE_VRRP, 1, { SX_TRAP_ID_VRRP }, SAI_PACKET_ACTION_FORWARD, "VRRP", MLNX_TRAP_TYPE_REGULAR, MLNX_NON_L2_TRAP },
-    { SAI_HOSTIF_TRAP_TYPE_BGP, 1, { SX_TRAP_ID_IPV4_BGP }, SAI_PACKET_ACTION_FORWARD, "BGP", MLNX_TRAP_TYPE_REGULAR, MLNX_NON_L2_TRAP },
+    { SAI_HOSTIF_TRAP_TYPE_PIM, 1, { SX_TRAP_ID_PIM }, SAI_PACKET_ACTION_DROP, "PIM", MLNX_TRAP_TYPE_REGULAR,
+      MLNX_NON_L2_TRAP },
+    { SAI_HOSTIF_TRAP_TYPE_VRRP, 1, { SX_TRAP_ID_VRRP }, SAI_PACKET_ACTION_FORWARD, "VRRP", MLNX_TRAP_TYPE_REGULAR,
+      MLNX_NON_L2_TRAP },
+    { SAI_HOSTIF_TRAP_TYPE_BGP, 1, { SX_TRAP_ID_IPV4_BGP }, SAI_PACKET_ACTION_FORWARD, "BGP", MLNX_TRAP_TYPE_REGULAR,
+      MLNX_NON_L2_TRAP },
     { SAI_HOSTIF_TRAP_TYPE_DHCPV6, 1, { SX_TRAP_ID_IPV6_DHCP }, SAI_PACKET_ACTION_FORWARD, "DHCPv6",
       MLNX_TRAP_TYPE_REGULAR, MLNX_NON_L2_TRAP },
     { SAI_HOSTIF_TRAP_TYPE_OSPFV6, 1, { SX_TRAP_ID_IPV6_OSPF }, SAI_PACKET_ACTION_FORWARD, "OSPFv6",
       MLNX_TRAP_TYPE_REGULAR, MLNX_NON_L2_TRAP },
-    { SAI_HOSTIF_TRAP_TYPE_VRRPV6, 0, { 0 }, SAI_PACKET_ACTION_FORWARD, "VRRPv6", MLNX_TRAP_TYPE_REGULAR, MLNX_NON_L2_TRAP },
+    { SAI_HOSTIF_TRAP_TYPE_VRRPV6, 0, { 0 }, SAI_PACKET_ACTION_FORWARD, "VRRPv6", MLNX_TRAP_TYPE_REGULAR,
+      MLNX_NON_L2_TRAP },
     { SAI_HOSTIF_TRAP_TYPE_BGPV6, 1, { SX_TRAP_ID_IPV6_BGP }, SAI_PACKET_ACTION_FORWARD, "BGPv6",
       MLNX_TRAP_TYPE_REGULAR, MLNX_NON_L2_TRAP },
     { SAI_HOSTIF_TRAP_TYPE_IPV6_NEIGHBOR_DISCOVERY, 5,
@@ -552,7 +558,7 @@ sai_status_t mlnx_hostif_sx_trap_is_configured(_In_ sx_trap_id_t          sx_tra
         for (sx_trap_idx = 0; sx_trap_idx < mlnx_traps_info[trap_idx].sdk_traps_num; sx_trap_idx++) {
             if (sx_trap == mlnx_traps_info[trap_idx].sdk_trap_ids[sx_trap_idx]) {
                 *is_configured = true;
-                *action = g_sai_db_ptr->traps_db[trap_idx].action;
+                *action        = g_sai_db_ptr->traps_db[trap_idx].action;
                 return SAI_STATUS_SUCCESS;
             }
         }
@@ -1055,9 +1061,9 @@ static sai_status_t mlnx_host_interface_rif_port_get(_In_ const sai_object_key_t
                                                      _Inout_ vendor_cache_t        *cache,
                                                      void                          *arg)
 {
-    mlnx_object_id_t  mlnx_hif  = {0};
+    mlnx_object_id_t       mlnx_hif = {0};
     sai_host_object_type_t type;
-    sai_status_t      status;
+    sai_status_t           status;
 
     SX_LOG_ENTER();
 
@@ -1465,7 +1471,7 @@ sai_status_t mlnx_hostif_trap_group_allocate(_Out_ sx_trap_group_t *trap_group)
     for (group_id = 0; group_id < MAX_TRAP_GROUPS; group_id++) {
         if (!g_sai_db_ptr->trap_group_valid[group_id]) {
             g_sai_db_ptr->trap_group_valid[group_id] = true;
-            *trap_group = group_id;
+            *trap_group                              = group_id;
             return SAI_STATUS_SUCCESS;
         }
     }
@@ -1568,7 +1574,7 @@ static sai_status_t mlnx_create_hostif_trap_group(_Out_ sai_object_id_t      *ho
     }
 
     if (SAI_STATUS_SUCCESS != (status = sx_api_host_ifc_trap_group_ext_set(gh_sdk, SX_ACCESS_CMD_SET, DEFAULT_ETH_SWID,
-                                                                       group_id, &trap_group_attributes))) {
+                                                                           group_id, &trap_group_attributes))) {
         SX_LOG_ERR("Failed to sx_api_host_ifc_trap_group_ext_set %s\n", SX_STATUS_MSG(status));
         status = sdk_to_sai(status);
         goto out;
@@ -1822,7 +1828,8 @@ sai_status_t mlnx_create_hostif_trap(_Out_ sai_object_id_t      *hostif_trap_id,
     assert(SAI_STATUS_SUCCESS == status);
 
     if (SAI_STATUS_SUCCESS !=
-        (status = mlnx_translate_sai_trap_action_to_sdk(action->s32, &sx_action, 0, mlnx_traps_info[index].is_l2_trap))) {
+        (status =
+             mlnx_translate_sai_trap_action_to_sdk(action->s32, &sx_action, 0, mlnx_traps_info[index].is_l2_trap))) {
         return status;
     }
 
@@ -2293,9 +2300,9 @@ static sai_status_t mlnx_trap_update(_In_ uint32_t            index,
             return status;
         }
 
-        trap_key.type = HOST_IFC_TRAP_KEY_TRAP_ID_E;
-        trap_key.trap_key_attr.trap_id = mlnx_traps_info[index].sdk_trap_ids[trap_index];
-        trap_attr.attr.trap_id_attr.trap_group = prio;
+        trap_key.type                           = HOST_IFC_TRAP_KEY_TRAP_ID_E;
+        trap_key.trap_key_attr.trap_id          = mlnx_traps_info[index].sdk_trap_ids[trap_index];
+        trap_attr.attr.trap_id_attr.trap_group  = prio;
         trap_attr.attr.trap_id_attr.trap_action = action;
 
         sx_status = sx_api_host_ifc_trap_id_ext_set(gh_sdk, cmd, &trap_key, &trap_attr);
@@ -2317,7 +2324,10 @@ sai_status_t mlnx_trap_set(uint32_t index, sai_packet_action_t sai_action, sai_o
 
 static sai_status_t mlnx_trap_unset(uint32_t index)
 {
-    return mlnx_trap_update(index, g_sai_db_ptr->traps_db[index].action, g_sai_db_ptr->traps_db[index].trap_group, false);
+    return mlnx_trap_update(index,
+                            g_sai_db_ptr->traps_db[index].action,
+                            g_sai_db_ptr->traps_db[index].trap_group,
+                            false);
 }
 
 sai_status_t mlnx_register_trap(const sx_access_cmd_t                 cmd,
@@ -2713,15 +2723,14 @@ static sai_status_t mlnx_trap_mirror_drop_by_router_set(_In_ sx_span_session_id_
     return SAI_STATUS_SUCCESS;
 }
 
-static sai_status_t mlnx_trap_mirror_session_bind_update(_In_ sx_span_session_id_t sx_session,
-                                                         _In_ bool                 is_enable)
+static sai_status_t mlnx_trap_mirror_session_bind_update(_In_ sx_span_session_id_t sx_session, _In_ bool is_enable)
 {
     sx_status_t                sx_status;
     sx_span_mirror_bind_key_t  key;
     sx_span_mirror_bind_attr_t attr;
     sx_access_cmd_t            bind_cmd = is_enable ? SX_ACCESS_CMD_BIND : SX_ACCESS_CMD_UNBIND;
 
-    if (!mlnx_chip_is_spc2()) {
+    if (!mlnx_chip_is_spc2or3()) {
         return SAI_STATUS_SUCCESS;
     }
 

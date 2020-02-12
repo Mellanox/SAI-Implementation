@@ -32,7 +32,12 @@ dist_data_DATA = sai_1710.xml \
                  sai_3700.xml \
                  sai_37001G.xml \
                  sai_3800.xml \
-                 sai_380050G.xml
+                 sai_380050G.xml \
+                 sai_4700.xml \
+                 sai_4800.xml \
+		 sai_4700_pld.xml \
+		 sai_4700_pld_4.xml \
+		 sai_4700_1G.xml
 				 
 libsai_la_DEPENDENCIES =
 

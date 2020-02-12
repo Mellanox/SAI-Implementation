@@ -1609,7 +1609,7 @@ void fill_custom_bytes_control_in_rif_table_bitmap_classification(struct fx_cust
 }
 
 sx_status_t create_control_in_rif_table_bitmap_classification(fx_handle_t handle, sx_acl_id_t* pipe_id_list, int pipe_ind  ) {
-  const uint32_t size = mlnx_chip_is_spc2() ? 512 : 256;
+  const uint32_t size = mlnx_chip_is_spc2or3() ? 512 : 256;
   assert(size <= MAX_TABLE_SIZE);
   const uint32_t key_count = 1;
   assert(key_count <= MAX_TABLE_KEYS);
@@ -1789,7 +1789,7 @@ void fill_custom_bytes_control_in_rif_table_bitmap_router(struct fx_custom_param
 }
 
 sx_status_t create_control_in_rif_table_bitmap_router(fx_handle_t handle, sx_acl_id_t* pipe_id_list, int pipe_ind  ) {
-  const uint32_t size = mlnx_chip_is_spc2() ? 40959 : 3072;
+  const uint32_t size = mlnx_chip_is_spc2or3() ? 40959 : 3072;
   assert(size <= MAX_TABLE_SIZE);
   const uint32_t key_count = 2;
   assert(key_count <= MAX_TABLE_KEYS);
@@ -2005,7 +2005,7 @@ void fill_custom_bytes_control_out_rif_table_l3_vxlan(struct fx_custom_params *c
 }
 
 sx_status_t create_control_out_rif_table_l3_vxlan(fx_handle_t handle, sx_acl_id_t* pipe_id_list, int pipe_ind  ) {
-  const uint32_t size = mlnx_chip_is_spc2() ? 4096 : 512;
+  const uint32_t size = mlnx_chip_is_spc2or3() ? 4096 : 512;
   assert(size <= MAX_TABLE_SIZE);
   const uint32_t key_count = 1;
   assert(key_count <= MAX_TABLE_KEYS);

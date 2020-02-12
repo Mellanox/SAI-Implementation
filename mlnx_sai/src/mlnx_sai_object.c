@@ -26,16 +26,15 @@
 
 static sx_verbosity_level_t LOG_VAR_NAME(__MODULE__) = SX_VERBOSITY_LEVEL_WARNING;
 
-sai_status_t mlnx_utils_attrs_is_resource_check(_In_ sai_object_type_t object_type,
-                                                _In_ uint32_t attr_count,
+sai_status_t mlnx_utils_attrs_is_resource_check(_In_ sai_object_type_t      object_type,
+                                                _In_ uint32_t               attr_count,
                                                 _In_ const sai_attribute_t *attr_list);
 
 sai_status_t mlnx_debug_counter_availability_get(_In_ uint32_t               attr_count,
                                                  _In_ const sai_attribute_t *attr_list,
                                                  _Out_ uint64_t             *count);
 
-typedef sai_status_t (*mlnx_availability_get_fn)(_In_ uint32_t attr_count,
-                                                 _In_ const sai_attribute_t *attr_list,
+typedef sai_status_t (*mlnx_availability_get_fn)(_In_ uint32_t attr_count, _In_ const sai_attribute_t *attr_list,
                                                  _Out_ uint64_t *count);
 
 static const mlnx_availability_get_fn mlnx_availability_get_fns[SAI_OBJECT_TYPE_MAX] = {
@@ -181,11 +180,11 @@ sai_status_t sai_query_attribute_enum_values_capability(_In_ sai_object_id_t    
  * @return #SAI_STATUS_NOT_SUPPORTED if the given object type does not support resource accounting.
  * Otherwise, return #SAI_STATUS_SUCCESS.
  */
-sai_status_t sai_object_type_get_availability(_In_ sai_object_id_t switch_id,
-                                              _In_ sai_object_type_t object_type,
-                                              _In_ uint32_t attr_count,
+sai_status_t sai_object_type_get_availability(_In_ sai_object_id_t        switch_id,
+                                              _In_ sai_object_type_t      object_type,
+                                              _In_ uint32_t               attr_count,
                                               _In_ const sai_attribute_t *attr_list,
-                                              _Out_ uint64_t *count)
+                                              _Out_ uint64_t             *count)
 {
     sai_status_t                  status;
     const sai_object_type_info_t *obj_type_info;

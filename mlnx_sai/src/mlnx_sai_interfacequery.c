@@ -26,7 +26,6 @@
 #define __MODULE__ SAI_INTERFACE_QUERY
 
 static sx_verbosity_level_t LOG_VAR_NAME(__MODULE__) = SX_VERBOSITY_LEVEL_WARNING;
-
 sai_service_method_table_t g_mlnx_services;
 static bool                g_initialized = false;
 
@@ -35,7 +34,9 @@ typedef struct mlnx_log_lavel_preinit {
     sai_log_level_t level;
 } mlnx_log_lavel_preinit_t;
 
-static mlnx_log_lavel_preinit_t mlnx_sai_log_levels[SAI_API_EXTENSIONS_RANGE_START_END] = { {0} };
+static mlnx_log_lavel_preinit_t mlnx_sai_log_levels[SAI_API_EXTENSIONS_RANGE_START_END] = {
+    {0}
+};
 
 sai_status_t mlnx_interfacequery_log_set(sx_verbosity_level_t level)
 {
@@ -232,11 +233,13 @@ sai_status_t sai_api_query(_In_ sai_api_t sai_api_id, _Out_ void** api_method_ta
         return SAI_STATUS_SUCCESS;
 
     default:
-        if (sai_api_id >= (sai_api_t)SAI_API_EXTENSIONS_RANGE_START_END)  {
-            MLNX_SAI_LOG_ERR("SAI API %d is out of range [%d, %d]\n", sai_api_id, SAI_API_SWITCH, SAI_API_EXTENSIONS_RANGE_START_END);
+        if (sai_api_id >= (sai_api_t)SAI_API_EXTENSIONS_RANGE_START_END) {
+            MLNX_SAI_LOG_ERR("SAI API %d is out of range [%d, %d]\n",
+                             sai_api_id,
+                             SAI_API_SWITCH,
+                             SAI_API_EXTENSIONS_RANGE_START_END);
             return SAI_STATUS_INVALID_PARAMETER;
-        }
-        else {
+        } else {
             MLNX_SAI_LOG_WRN("%s not implemented\n", sai_metadata_get_api_name(sai_api_id));
             return SAI_STATUS_NOT_IMPLEMENTED;
         }
@@ -270,12 +273,15 @@ static sai_status_t sai_log_level_save(_In_ sai_api_t sai_api_id, _In_ sai_log_l
         return SAI_STATUS_SUCCESS;
     }
 
-    if (sai_api_id >= (sai_api_t) SAI_API_EXTENSIONS_RANGE_START_END)  {
-        MLNX_SAI_LOG_ERR("SAI API %d is out of range [%d, %d]\n", sai_api_id, SAI_API_SWITCH, SAI_API_EXTENSIONS_RANGE_START_END);
+    if (sai_api_id >= (sai_api_t)SAI_API_EXTENSIONS_RANGE_START_END) {
+        MLNX_SAI_LOG_ERR("SAI API %d is out of range [%d, %d]\n",
+                         sai_api_id,
+                         SAI_API_SWITCH,
+                         SAI_API_EXTENSIONS_RANGE_START_END);
         return SAI_STATUS_INVALID_PARAMETER;
     }
 
-    if (log_level > SAI_LOG_LEVEL_CRITICAL)  {
+    if (log_level > SAI_LOG_LEVEL_CRITICAL) {
         MLNX_SAI_LOG_ERR("SAI log level %d is out of range [%d, %d]\n", log_level,
                          SAI_LOG_LEVEL_DEBUG, SAI_LOG_LEVEL_CRITICAL);
         return SAI_STATUS_INVALID_PARAMETER;
@@ -456,11 +462,13 @@ sai_status_t sai_log_set(_In_ sai_api_t sai_api_id, _In_ sai_log_level_t log_lev
         return mlnx_debug_counter_log_set(severity);
 
     default:
-        if (sai_api_id >= (sai_api_t)SAI_API_EXTENSIONS_RANGE_START_END)  {
-            MLNX_SAI_LOG_ERR("SAI API %d is out of range [%d, %d]\n", sai_api_id, SAI_API_SWITCH, SAI_API_EXTENSIONS_RANGE_START_END);
+        if (sai_api_id >= (sai_api_t)SAI_API_EXTENSIONS_RANGE_START_END) {
+            MLNX_SAI_LOG_ERR("SAI API %d is out of range [%d, %d]\n",
+                             sai_api_id,
+                             SAI_API_SWITCH,
+                             SAI_API_EXTENSIONS_RANGE_START_END);
             return SAI_STATUS_INVALID_PARAMETER;
-        }
-        else {
+        } else {
             MLNX_SAI_LOG_WRN("%s not implemented\n", sai_metadata_get_api_name(sai_api_id));
             return SAI_STATUS_NOT_IMPLEMENTED;
         }

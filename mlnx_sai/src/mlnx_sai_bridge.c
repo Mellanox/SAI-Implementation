@@ -129,11 +129,11 @@ static const sai_vendor_attribute_entry_t bridge_vendor_attribs[] = {
       NULL, NULL }
 };
 static const mlnx_attr_enum_info_t        bridge_enum_info[] = {
-    [SAI_BRIDGE_ATTR_TYPE]                                 = ATTR_ENUM_VALUES_LIST(
+    [SAI_BRIDGE_ATTR_TYPE] = ATTR_ENUM_VALUES_LIST(
         SAI_BRIDGE_FLOOD_CONTROL_TYPE_SUB_PORTS,
         SAI_BRIDGE_FLOOD_CONTROL_TYPE_L2MC_GROUP,
         SAI_BRIDGE_FLOOD_CONTROL_TYPE_NONE),
-    [SAI_BRIDGE_ATTR_UNKNOWN_UNICAST_FLOOD_CONTROL_TYPE]   = ATTR_ENUM_VALUES_LIST(
+    [SAI_BRIDGE_ATTR_UNKNOWN_UNICAST_FLOOD_CONTROL_TYPE] = ATTR_ENUM_VALUES_LIST(
         SAI_BRIDGE_FLOOD_CONTROL_TYPE_SUB_PORTS,
         SAI_BRIDGE_FLOOD_CONTROL_TYPE_L2MC_GROUP,
         SAI_BRIDGE_FLOOD_CONTROL_TYPE_NONE),
@@ -141,7 +141,7 @@ static const mlnx_attr_enum_info_t        bridge_enum_info[] = {
         SAI_BRIDGE_FLOOD_CONTROL_TYPE_SUB_PORTS,
         SAI_BRIDGE_FLOOD_CONTROL_TYPE_L2MC_GROUP,
         SAI_BRIDGE_FLOOD_CONTROL_TYPE_NONE),
-    [SAI_BRIDGE_ATTR_BROADCAST_FLOOD_CONTROL_TYPE]         = ATTR_ENUM_VALUES_LIST(
+    [SAI_BRIDGE_ATTR_BROADCAST_FLOOD_CONTROL_TYPE] = ATTR_ENUM_VALUES_LIST(
         SAI_BRIDGE_FLOOD_CONTROL_TYPE_SUB_PORTS,
         SAI_BRIDGE_FLOOD_CONTROL_TYPE_L2MC_GROUP,
         SAI_BRIDGE_FLOOD_CONTROL_TYPE_NONE),
@@ -2096,8 +2096,8 @@ static sai_status_t mlnx_bridge_port_fdb_learning_mode_get(_In_ const sai_object
     return SAI_STATUS_SUCCESS;
 }
 
-static sai_status_t mlnx_bridge_port_fdb_learn_mode_sai_to_sx(_In_ sai_bridge_port_fdb_learning_mode_t  mode,
-                                                              _Out_ sx_fdb_learn_mode_t                *sx_mode)
+static sai_status_t mlnx_bridge_port_fdb_learn_mode_sai_to_sx(_In_ sai_bridge_port_fdb_learning_mode_t mode,
+                                                              _Out_ sx_fdb_learn_mode_t               *sx_mode)
 {
     assert(sx_mode);
 
@@ -2652,8 +2652,9 @@ static sai_status_t mlnx_create_bridge_port(_Out_ sai_object_id_t     * bridge_p
     }
 
     find_attrib_in_list(attr_count, attr_list, SAI_BRIDGE_PORT_ATTR_FDB_LEARNING_MODE, &learn_mode, &attr_idx);
-    if (learn_mode && ((bport_type == SAI_BRIDGE_PORT_TYPE_1D_ROUTER) || (bport_type == SAI_BRIDGE_PORT_TYPE_TUNNEL)) &&
-            (learn_mode->s32 != SAI_BRIDGE_PORT_FDB_LEARNING_MODE_DISABLE)) {
+    if (learn_mode &&
+        ((bport_type == SAI_BRIDGE_PORT_TYPE_1D_ROUTER) || (bport_type == SAI_BRIDGE_PORT_TYPE_TUNNEL)) &&
+        (learn_mode->s32 != SAI_BRIDGE_PORT_FDB_LEARNING_MODE_DISABLE)) {
         SX_LOG_ERR("The bridge port 1D_ROUTER and TUNNEL only supports SAI_BRIDGE_PORT_FDB_LEARNING_MODE_DISABLE\n");
         status = SAI_STATUS_ATTR_NOT_SUPPORTED_0 + attr_idx;
         goto out;

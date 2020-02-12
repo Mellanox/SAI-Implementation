@@ -20,8 +20,7 @@
 #include "saimetadata.h"
 #include "assert.h"
 
-static void SAI_dump_debug_counter_getdb(_Out_ mlnx_debug_counter_t *dbg_counter_db,
-                                         _Out_ uint32_t             *count)
+static void SAI_dump_debug_counter_getdb(_Out_ mlnx_debug_counter_t *dbg_counter_db, _Out_ uint32_t             *count)
 {
     sai_status_t                status;
     const mlnx_debug_counter_t *dbg_counter;
@@ -53,8 +52,7 @@ static void SAI_dump_debug_counter_getdb(_Out_ mlnx_debug_counter_t *dbg_counter
     sai_db_unlock();
 }
 
-static void SAI_dump_debug_counter_type_to_str(_In_ sai_debug_counter_type_t  type,
-                                               _Out_ char                    *str)
+static void SAI_dump_debug_counter_type_to_str(_In_ sai_debug_counter_type_t type, _Out_ char                    *str)
 {
     assert(str);
     assert(type <= SAI_DEBUG_COUNTER_TYPE_SWITCH_OUT_DROP_REASONS);
@@ -64,8 +62,8 @@ static void SAI_dump_debug_counter_type_to_str(_In_ sai_debug_counter_type_t  ty
 }
 
 static void SAI_dump_debug_counter_reasons_to_str(_In_ const mlnx_debug_counter_t *dbg_counter,
-                                                  _Out_ char *str,
-                                                  _In_ uint32_t len)
+                                                  _Out_ char                      *str,
+                                                  _In_ uint32_t                    len)
 {
     uint32_t ii, written = 0;
 
@@ -84,13 +82,13 @@ static void SAI_dump_debug_counter_reasons_to_str(_In_ const mlnx_debug_counter_
     written += snprintf(str + written, len - written, "]\n");
 }
 
-static void SAI_dump_debug_counter_print(_In_ FILE *file,
+static void SAI_dump_debug_counter_print(_In_ FILE                       *file,
                                          _In_ const mlnx_debug_counter_t *dbg_counters,
                                          _In_ uint32_t                    size)
 {
-    mlnx_debug_counter_t cur_debug_counter;
-    uint32_t             ii;
-    char                 type_str[50];
+    mlnx_debug_counter_t      cur_debug_counter;
+    uint32_t                  ii;
+    char                      type_str[50];
     dbg_utils_table_columns_t debug_counter_clmns[] = {
         {"DB idx",           7, PARAM_UINT32_E, &ii},
         {"SX trap group",   16, PARAM_HEX_E,    &cur_debug_counter.sx_trap_group},
@@ -126,7 +124,7 @@ static void SAI_dump_debug_counter_print(_In_ FILE *file,
 void SAI_dump_debug_counter(_In_ FILE *file)
 {
     mlnx_debug_counter_t *dbg_counters = NULL;
-    uint32_t              size = 0;
+    uint32_t              size         = 0;
 
     dbg_counters = calloc(mlnx_shm_rm_array_size_get(MLNX_SHM_RM_ARRAY_TYPE_DEBUG_COUNTER),
                           sizeof(mlnx_debug_counter_t));

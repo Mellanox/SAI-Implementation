@@ -283,8 +283,7 @@ static void mirror_key_to_str(_In_ const sai_object_id_t sai_mirror_obj_id, _Out
     SX_LOG_EXIT();
 }
 
-sai_status_t mlnx_mirror_policer_is_used(_In_ sai_object_id_t  policer,
-                                         _Out_ bool           *is_used)
+sai_status_t mlnx_mirror_policer_is_used(_In_ sai_object_id_t policer, _Out_ bool           *is_used)
 {
     uint32_t ii;
 
@@ -306,8 +305,9 @@ sai_status_t mlnx_mirror_policer_sx_attrs_validate(_In_ const sx_policer_attribu
     assert(sx_attrs);
 
     if ((sx_attrs->rate_type != SX_POLICER_RATE_TYPE_SINGLE_RATE_E) ||
-            (sx_attrs->ebs != 0)) {
-        SX_LOG_ERR("Policer type should be SAI_POLICER_MODE_STORM_CONTROL (with PBS = 0) to be used as mirror policer\n");
+        (sx_attrs->ebs != 0)) {
+        SX_LOG_ERR(
+            "Policer type should be SAI_POLICER_MODE_STORM_CONTROL (with PBS = 0) to be used as mirror policer\n");
         return SAI_STATUS_FAILURE;
     }
 
@@ -1916,8 +1916,8 @@ static sai_status_t mlnx_mirror_session_policer_set(_In_ const sai_object_key_t 
                                                     _In_ const sai_attribute_value_t *value,
                                                     void                             *arg)
 {
-    sai_status_t status             = SAI_STATUS_FAILURE;
-    uint32_t     sdk_mirror_obj_id  = 0;
+    sai_status_t status            = SAI_STATUS_FAILURE;
+    uint32_t     sdk_mirror_obj_id = 0;
 
     SX_LOG_ENTER();
 
@@ -2524,7 +2524,7 @@ static sai_status_t mlnx_create_mirror_session(_Out_ sai_object_id_t      *sai_m
     sai_status_t             status_remove = SAI_STATUS_FAILURE;
     sx_span_session_params_t sdk_mirror_obj_params;
     sx_span_session_id_t     sdk_mirror_obj_id = 0;
-    sai_object_id_t          policer_oid = SAI_NULL_OBJECT_ID;
+    sai_object_id_t          policer_oid       = SAI_NULL_OBJECT_ID;
     uint32_t                 policer_attr_idx;
 
     memset(&sdk_mirror_obj_params, 0, sizeof(sx_span_session_params_t));
@@ -2694,8 +2694,8 @@ static sai_status_t mlnx_create_mirror_session(_Out_ sai_object_id_t      *sai_m
     return SAI_STATUS_SUCCESS;
 }
 
-static sai_status_t mlnx_mirror_session_is_in_use(_In_ sx_span_session_id_t  session,
-                                                  _Out_ bool                *is_in_use)
+static sai_status_t mlnx_mirror_session_is_in_use(_In_ sx_span_session_id_t session,
+                                                  _Out_ bool               *is_in_use)
 {
     const mlnx_mirror_policer_t *mirror_policer;
     sx_acl_direction_t           sx_direction;
@@ -2714,7 +2714,6 @@ static sai_status_t mlnx_mirror_session_is_in_use(_In_ sx_span_session_id_t  ses
             *is_in_use = true;
             return SAI_STATUS_SUCCESS;
         }
-
     }
 
     *is_in_use = false;

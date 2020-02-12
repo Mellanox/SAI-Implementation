@@ -112,9 +112,9 @@ typedef struct _pool_array_info_t {
 
 sai_status_t mlnx_hash_ecmp_sx_config_update(void);
 sai_status_t mlnx_hash_lag_sx_config_update(void);
-sai_status_t mlnx_hash_object_is_applicable(_In_ sai_object_id_t                     hash_oid,
-                                           _In_ mlnx_switch_usage_hash_object_id_t  hash_oper_id,
-                                           _Out_ bool                              *is_aplicable);
+sai_status_t mlnx_hash_object_is_applicable(_In_ sai_object_id_t                    hash_oid,
+                                            _In_ mlnx_switch_usage_hash_object_id_t hash_oper_id,
+                                            _Out_ bool                             *is_aplicable);
 sai_status_t mlnx_hash_config_db_changes_commit(_In_ mlnx_switch_usage_hash_object_id_t hash_oper_id);
 sai_status_t mlnx_sai_log_levels_post_init(void);
 sai_status_t mlnx_debug_counter_switch_stats_get(_In_ uint32_t             number_of_counters,
@@ -1317,8 +1317,194 @@ static struct sx_pci_profile pci_profile_single_eth_spectrum = {
     },
     .dev_id = SX_DEVICE_ID
 };
-
 static struct sx_pci_profile pci_profile_single_eth_spectrum2 = {
+    /*profile enum*/
+    .pci_profile = PCI_PROFILE_EN_SINGLE_SWID,
+    /*tx_prof: <swid,etclass> -> <stclass,sdq> */
+    .tx_prof = {
+        {
+            {0}
+        }
+    },                   /* reserved */
+
+    /* emad_tx_prof */
+    .emad_tx_prof = {0}, /* reserved */
+
+    /* swid_type */
+    .swid_type = {
+        SX_KU_L2_TYPE_ETH,
+        SX_KU_L2_TYPE_DONT_CARE,
+        SX_KU_L2_TYPE_DONT_CARE,
+        SX_KU_L2_TYPE_DONT_CARE,
+        SX_KU_L2_TYPE_DONT_CARE,
+        SX_KU_L2_TYPE_DONT_CARE,
+        SX_KU_L2_TYPE_DONT_CARE,
+        SX_KU_L2_TYPE_DONT_CARE
+    },
+    /* rdq_count */
+    .rdq_count = {
+        56,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+    },
+    /* rdq */
+    .rdq = {
+        {
+            /* swid 0 - ETH */
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24,
+            25,
+            26,
+            27,
+            28,
+            29,
+            30,
+            31,
+            32,
+            34,
+            35,
+            36,
+            37,
+            38,
+            39,
+            40,
+            41,
+            42,
+            43,
+            44,
+            45,
+            46,
+            47,
+            48,
+            49,
+            50,
+            51,
+            52,
+            53,
+            54,
+            55
+        },
+    },
+    /* emad_rdq */
+    .emad_rdq = 33,
+    /* rdq_properties */
+    .rdq_properties = {
+        /* SWID 0 */
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-0-best effort priority*/
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0},   /*-1-low priority*/
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-2-medium priority*/
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0},   /*-3-high priority*/
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-4-*/
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-5-*/
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-6-*/
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-7-*/
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-8-*/
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-9-*/
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-10-*/
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-11-*/
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-12-*/
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-13-*/
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-14-*/
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-15-*/
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-16-*/
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-17-*/
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-18-*/
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-19-*/
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-20-*/
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-21-*/
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-22-*/
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-23-*/
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-24-*/
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-25-*/
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-26-*/
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-27-*/
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-28-*/
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-29-*/
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-30-*/
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-31-*/
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-32-mirror agent*/
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-33-emad*/
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-34-*/
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-35-*/
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-36-*/
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-37-*/
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-38-*/
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-39-*/
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-40-*/
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-41-*/
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-42-*/
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-43-*/
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-44-*/
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-45-*/
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-46-*/
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-47-*/
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-48-*/
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-49-*/
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-50-*/
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-51-*/
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-52-*/
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-53-*/
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-54-*/
+        {RDQ_DEFAULT_NUMBER_OF_ENTRIES, RDQ_ETH_LARGE_SIZE, RDQ_ETH_SINGLE_SWID_DEFAULT_WEIGHT, 0}, /*-55-*/
+    },
+    /* cpu_egress_tclass per SDQ */
+    .cpu_egress_tclass = {
+        2, /*-0-EMAD SDQ */
+        1, /*-1-Control SDQ */
+        0, /*-2-Data SDQ */
+        0, /*-3-*/
+        0, /*-4-*/
+        0, /*-5-*/
+        0, /*-6-*/
+        0, /*-7-*/
+        0, /*-8-*/
+        0, /*-9-*/
+        0, /*-10-*/
+        0, /*-11-*/
+        0, /*-12-*/
+        0, /*-13-*/
+        0, /*-14-*/
+        0, /*-15-*/
+        0, /*-16-*/
+        0, /*-17-*/
+        0, /*-18-*/
+        0, /*-19-*/
+        0, /*-20-*/
+        0, /*-21-*/
+        0, /*-22-*/
+        0 /*-23-55*/
+    },
+    .dev_id = SX_DEVICE_ID
+};
+struct sx_pci_profile        pci_profile_single_eth_spectrum3 = {
     /*profile enum*/
     .pci_profile = PCI_PROFILE_EN_SINGLE_SWID,
     /*tx_prof: <swid,etclass> -> <stclass,sdq> */
@@ -1636,6 +1822,76 @@ struct ku_profile        single_part_eth_device_profile_spectrum2 = {
 
     .chip_type = SXD_CHIP_TYPE_SPECTRUM2,
 };
+struct ku_profile        single_part_eth_device_profile_spectrum3 = {
+    .set_mask_0_63              = 0,    /* All bits are set during the init as follows:
+                                         * bits 0-2   - reserved;
+                                         * bit 3      - disabled (max_mid);
+                                         * bits 4-7   - reserved;
+                                         * bits 8     - enabled (set_flood_mode);
+                                         * bits 9     - disabled (set_flood_tables);
+                                         * bit 10     - disabled (set_max_fid);
+                                         * bits 11-20 - reserved;
+                                         * bit 21     - disabled (rfid);
+                                         * bit 22     - enabled (ubridge);
+                                         * bits 23-31 - reserved;
+                                         * bit 32     - enabled (set cqe_version);
+                                         * bits 33-63 - reserved; */
+    .set_mask_64_127            = 0,    /* reserved */
+    .max_vepa_channels          = 0,    /* reserved */
+    .max_lag                    = 0,    /* reserved */
+    .max_port_per_lag           = 0,    /* reserved */
+    .max_mid                    = 0,    /* value is calculated during init with RM values */
+    .max_pgt                    = 0,    /* reserved */
+    .max_system_port            = 0,    /* reserved */
+    .max_active_vlans           = 0,    /* reserved */
+    .max_regions                = 0,    /* reserved */
+    .max_flood_tables           = 0,
+    .max_per_vid_flood_tables   = 0,
+    .flood_mode                 = 4,
+    .max_ib_mc                  = 0,    /* reserved */
+    .max_pkey                   = 0,    /* reserved */
+    .ar_sec                     = 0,    /* reserved */
+    .adaptive_routing_group_cap = 0,    /* reserved */
+    .arn                        = 0,    /* reserved */
+    .ubridge_mode               = 0,    /* reserved */
+    .kvd_linear_size            = 0,    /* reserved */
+    .kvd_hash_single_size       = 0,    /* reserved */
+    .kvd_hash_double_size       = 0,    /* reserved */
+    .swid0_config_type          = {
+        .mask = 1,
+        .type = KU_SWID_TYPE_ETHERNET
+    },
+    .swid1_config_type = {
+        .mask = 1,
+        .type = KU_SWID_TYPE_DISABLED
+    },
+    .swid2_config_type = {
+        .mask = 1,
+        .type = KU_SWID_TYPE_DISABLED
+    },
+    .swid3_config_type = {
+        .mask = 1,
+        .type = KU_SWID_TYPE_DISABLED
+    },
+    .swid4_config_type = {
+        .mask = 1,
+        .type = KU_SWID_TYPE_DISABLED
+    },
+    .swid5_config_type = {
+        .mask = 1,
+        .type = KU_SWID_TYPE_DISABLED
+    },
+    .swid6_config_type = {
+        .mask = 1,
+        .type = KU_SWID_TYPE_DISABLED
+    },
+    .swid7_config_type = {
+        .mask = 1,
+        .type = KU_SWID_TYPE_DISABLED
+    },
+
+    .chip_type = SXD_CHIP_TYPE_SPECTRUM3,
+};
 
 
 #ifdef CONFIG_SYSLOG
@@ -1689,6 +1945,9 @@ static sx_api_pci_profile_t* mlnx_sai_get_pci_profile(void)
     case SX_CHIP_TYPE_SPECTRUM2:
         return &pci_profile_single_eth_spectrum2;
 
+    case SX_CHIP_TYPE_SPECTRUM3:
+        return &pci_profile_single_eth_spectrum3;
+
     default:
         MLNX_SAI_LOG_ERR("g_sai_db_ptr->sxd_chip_type = %s\n", SX_CHIP_TYPE_STR(chip_type));
         return NULL;
@@ -1710,6 +1969,9 @@ static sx_api_profile_t* mlnx_sai_get_ku_profile(void)
     case SX_CHIP_TYPE_SPECTRUM2:
         return &single_part_eth_device_profile_spectrum2;
 
+    case SX_CHIP_TYPE_SPECTRUM3:
+        return &single_part_eth_device_profile_spectrum3;
+
     default:
         MLNX_SAI_LOG_ERR("g_sai_db_ptr->sxd_chip_type = %s\n", SX_CHIP_TYPE_STR(chip_type));
         return NULL;
@@ -1728,7 +1990,8 @@ uint8_t mlnx_port_mac_mask_get(void)
         return PORT_MAC_BITMASK_SP;
 
     case SX_CHIP_TYPE_SPECTRUM2:
-        return PORT_MAC_BITMASK_SP2;
+    case SX_CHIP_TYPE_SPECTRUM3:
+        return PORT_MAC_BITMASK_SP2_3;
 
     default:
         MLNX_SAI_LOG_ERR("g_sai_db_ptr->sx_chip_type = %s\n", SX_CHIP_TYPE_STR(chip_type));
@@ -2029,12 +2292,25 @@ static sx_status_t get_chip_type(enum sxd_chip_types* chip_type)
         *chip_type = SXD_CHIP_TYPE_SPECTRUM2;
         break;
 
+    case SXD_MGIR_HW_DEV_ID_SPECTRUM3:
+        *chip_type = SXD_CHIP_TYPE_SPECTRUM3;
+        break;
+
     default:
         MLNX_SAI_LOG_ERR("Unsupported device %u %u\n", device_id, device_hw_revision);
         return SX_STATUS_ERROR;
     }
 
     return SX_STATUS_SUCCESS;
+}
+
+bool mlnx_chip_is_spc(void)
+{
+    sx_chip_types_t chip_type = g_sai_db_ptr->sx_chip_type;
+
+    assert(chip_type != SX_CHIP_TYPE_UNKNOWN);
+
+    return (chip_type == SX_CHIP_TYPE_SPECTRUM) || (chip_type == SX_CHIP_TYPE_SPECTRUM_A1);
 }
 
 bool mlnx_chip_is_spc2(void)
@@ -2044,6 +2320,29 @@ bool mlnx_chip_is_spc2(void)
     assert(chip_type != SX_CHIP_TYPE_UNKNOWN);
 
     return chip_type == SX_CHIP_TYPE_SPECTRUM2;
+}
+
+bool mlnx_chip_is_spc3(void)
+{
+    sx_chip_types_t chip_type = g_sai_db_ptr->sx_chip_type;
+
+    assert(chip_type != SX_CHIP_TYPE_UNKNOWN);
+
+    return chip_type == SX_CHIP_TYPE_SPECTRUM3;
+}
+
+bool mlnx_chip_is_spc2or3(void)
+{
+    sx_chip_types_t chip_type = g_sai_db_ptr->sx_chip_type;
+
+    assert(chip_type != SX_CHIP_TYPE_UNKNOWN);
+
+    return (chip_type == SX_CHIP_TYPE_SPECTRUM2) || (chip_type == SX_CHIP_TYPE_SPECTRUM3);
+}
+
+mlnx_platform_type_t mlnx_platform_type_get(void)
+{
+    return g_sai_db_ptr->platform_type;
 }
 
 static sai_status_t mlnx_sdk_start(mlnx_sai_boot_type_t boot_type)
@@ -2170,11 +2469,8 @@ static sai_status_t mlnx_chassis_mng_stage(mlnx_sai_boot_type_t boot_type,
     sdk_init_params.acl_params.acl_search_type = SX_API_ACL_SEARCH_TYPE_SERIAL; /* mlnx_chip_is_spc2() ? */
     /* SX_API_ACL_SEARCH_TYPE_SERIAL : SX_API_ACL_SEARCH_TYPE_SERIAL; */
 
-    sdk_init_params.bridge_init_params.sdk_mode                                          = SX_MODE_HYBRID;
-    sdk_init_params.bridge_init_params.sdk_mode_params.mode_1D.max_bridge_num            = MAX_BRIDGES_1D;
-    sdk_init_params.bridge_init_params.sdk_mode_params.mode_1D.max_virtual_ports_num     = MAX_VPORTS;
-    sdk_init_params.bridge_init_params.sdk_mode_params.mode_1D.multiple_vlan_bridge_mode =
-        SX_BRIDGE_MULTIPLE_VLAN_MODE_HOMOGENOUS;
+    sdk_init_params.bridge_init_params.sdk_mode                                   = SX_MODE_HYBRID;
+    sdk_init_params.bridge_init_params.sdk_mode_params.mode_hybrid.max_bridge_num = MAX_BRIDGES_1D;
     /* correct the min/max acls according to bridge requirments */
     /* number for homgenous mode egress rules */
     bridge_acls = sdk_init_params.bridge_init_params.sdk_mode_params.mode_1D.max_bridge_num;
@@ -2225,8 +2521,8 @@ static sai_status_t mlnx_chassis_mng_stage(mlnx_sai_boot_type_t boot_type,
 
     case BOOT_TYPE_WARM:
         if (g_sai_db_ptr->issu_enabled) {
-            sdk_init_params.boot_mode_params.boot_mode = SX_BOOT_MODE_ISSU_STARTED_E;
-            sdk_init_params.boot_mode_params.pdb_lag_init = true;
+            sdk_init_params.boot_mode_params.boot_mode         = SX_BOOT_MODE_ISSU_STARTED_E;
+            sdk_init_params.boot_mode_params.pdb_lag_init      = true;
             sdk_init_params.boot_mode_params.pdb_port_map_init = true;
         } else {
             SX_LOG_ERR("issu-enabled flag in xml file should be enabled for fast fast boot\n");
@@ -2407,8 +2703,8 @@ static sai_status_t mlnx_config_platform_parse(_In_ const char *platform)
     case MLNX_PLATFORM_TYPE_2420:
     case MLNX_PLATFORM_TYPE_2700:
     case MLNX_PLATFORM_TYPE_2740:
-        if (mlnx_chip_is_spc2()) {
-            MLNX_SAI_LOG_ERR("Failed to parse platform xml config: platform is %d (SPC1) but chip type is SPC2\n",
+        if (!mlnx_chip_is_spc()) {
+            MLNX_SAI_LOG_ERR("Failed to parse platform xml config: platform is %d (SPC1) but chip type is not SPC1\n",
                              platform_type);
             return SAI_STATUS_FAILURE;
         }
@@ -2419,6 +2715,16 @@ static sai_status_t mlnx_config_platform_parse(_In_ const char *platform)
     case MLNX_PLATFORM_TYPE_3800:
         if (!mlnx_chip_is_spc2()) {
             MLNX_SAI_LOG_ERR("Failed to parse platform xml config: platform is %d (SPC2) but chip type is not SPC2\n",
+                             platform_type);
+            return SAI_STATUS_FAILURE;
+        }
+        break;
+
+
+    case MLNX_PLATFORM_TYPE_4700:
+    case MLNX_PLATFORM_TYPE_4800:
+        if (!mlnx_chip_is_spc3()) {
+            MLNX_SAI_LOG_ERR("Failed to parse platform xml config: platform is %d (SPC3) but chip type is not SPC3\n",
                              platform_type);
             return SAI_STATUS_FAILURE;
         }
@@ -2609,7 +2915,7 @@ static void sai_db_values_init()
     g_sai_db_ptr->restart_warm            = false;
     g_sai_db_ptr->warm_recover            = false;
     g_sai_db_ptr->issu_end_called         = false;
-    g_sai_db_ptr->fx_initialized     = false;
+    g_sai_db_ptr->fx_initialized          = false;
     g_sai_db_ptr->boot_type               = 0;
     g_sai_db_ptr->acl_divider             = 1;
 
@@ -2693,7 +2999,6 @@ sai_status_t mlnx_shm_rm_bridge_size_get(_Out_ size_t *size)
 }
 
 sai_status_t mlnx_shm_rm_debug_counter_size_get(_Out_ size_t *size);
-
 static mlnx_shm_rm_array_init_info_t mlnx_shm_array_info[MLNX_SHM_RM_ARRAY_TYPE_SIZE] = {
     [MLNX_SHM_RM_ARRAY_TYPE_RIF] = {sizeof(mlnx_rif_db_t),
                                     mlnx_shm_rm_rif_size_get,
@@ -3038,9 +3343,9 @@ sai_status_t mlnx_shm_rm_array_idx_to_ptr(_In_ mlnx_shm_rm_array_idx_t idx, _Out
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_shm_rm_array_type_idx_to_ptr(_In_ mlnx_shm_rm_array_type_t  type,
-                                               _In_ uint32_t                  idx,
-                                               _Out_ void                   **elem)
+sai_status_t mlnx_shm_rm_array_type_idx_to_ptr(_In_ mlnx_shm_rm_array_type_t type,
+                                               _In_ uint32_t                 idx,
+                                               _Out_ void                  **elem)
 {
     mlnx_shm_rm_array_idx_t rm_idx;
 
@@ -3065,20 +3370,20 @@ sai_status_t mlnx_shm_rm_array_type_ptr_to_idx(_In_ mlnx_shm_rm_array_type_t  ty
     info = &g_sai_db_ptr->array_info[type];
 
     begin = mlnx_rm_offset_to_ptr(info->offset_to_head);
-    end = mlnx_rm_offset_to_ptr(info->offset_to_head) + info->elem_count * info->elem_size;
+    end   = mlnx_rm_offset_to_ptr(info->offset_to_head) + info->elem_count * info->elem_size;
 
     if ((ptr < begin) || (end <= ptr)) {
         SX_LOG_ERR("ptr %p is out of range [%p, %p)\n", ptr, begin, end);
         return SAI_STATUS_FAILURE;
     }
 
-    if (((char *)ptr - (char *)begin) % info->elem_size != 0) {
+    if (((char*)ptr - (char*)begin) % info->elem_size != 0) {
         SX_LOG_ERR("ptr %p doesn't point to the element head\n", ptr);
         return SAI_STATUS_FAILURE;
     }
 
     idx->type = type;
-    idx->idx  = (uint32_t) (((char *)ptr - (char *)begin) / info->elem_size);
+    idx->idx  = (uint32_t)(((char*)ptr - (char*)begin) / info->elem_size);
 
     return SAI_STATUS_SUCCESS;
 }
@@ -3636,9 +3941,9 @@ static void event_thread_func(void *context)
     sai_hostif_trap_type_t              trap_id;
     const char                         *trap_name;
     mlnx_trap_type_t                    trap_type;
-    sai_fdb_event_notification_data_t  *fdb_events  = NULL;
-    sai_attribute_t                    *attr_list   = NULL;
-    uint32_t                            event_count = 0;
+    sai_fdb_event_notification_data_t  *fdb_events             = NULL;
+    sai_attribute_t                    *attr_list              = NULL;
+    uint32_t                            event_count            = 0;
     bool                                is_warmboot_init_stage = false;
 #ifdef ACS_OS
     bool           transaction_mode_enable = false;
@@ -5305,7 +5610,7 @@ static sai_status_t switch_open_traps(void)
             continue;
         }
 
-        if (mlnx_chip_is_spc2()) {
+        if (mlnx_chip_is_spc2or3()) {
             if ((mlnx_traps_info[ii].trap_id == SAI_HOSTIF_TRAP_TYPE_PTP) ||
                 (mlnx_traps_info[ii].trap_id == SAI_HOSTIF_TRAP_TYPE_PTP_TX_EVENT)) {
                 continue;
@@ -5334,9 +5639,9 @@ static sai_status_t switch_open_traps(void)
         memset(&trap_key, 0, sizeof(trap_key));
         memset(&trap_attr, 0, sizeof(trap_attr));
 
-        trap_key.type = HOST_IFC_TRAP_KEY_TRAP_ID_E;
-        trap_key.trap_key_attr.trap_id = SX_TRAP_ID_DISCARD_ING_ROUTER_SIP_DIP;
-        trap_attr.attr.trap_id_attr.trap_group = DEFAULT_TRAP_GROUP_ID;
+        trap_key.type                           = HOST_IFC_TRAP_KEY_TRAP_ID_E;
+        trap_key.trap_key_attr.trap_id          = SX_TRAP_ID_DISCARD_ING_ROUTER_SIP_DIP;
+        trap_attr.attr.trap_id_attr.trap_group  = DEFAULT_TRAP_GROUP_ID;
         trap_attr.attr.trap_id_attr.trap_action = SX_TRAP_ACTION_IGNORE;
 
         sx_status = sx_api_host_ifc_trap_id_ext_set(gh_sdk, SX_ACCESS_CMD_SET, &trap_key, &trap_attr);
@@ -5727,7 +6032,7 @@ static sai_status_t mlnx_switch_ecmp_hash_param_set(_In_ const sai_object_key_t 
         break;
 
     case SAI_SWITCH_ATTR_ECMP_DEFAULT_HASH_ALGORITHM:
-        port_hash_param->ecmp_hash_type = (sx_router_ecmp_hash_type_t) value->s32;
+        port_hash_param->ecmp_hash_type = (sx_router_ecmp_hash_type_t)value->s32;
         break;
 
     case SAI_SWITCH_ATTR_ECMP_DEFAULT_SYMMETRIC_HASH:
@@ -5805,7 +6110,7 @@ static sai_status_t mlnx_switch_lag_hash_attr_set(_In_ const sai_object_key_t   
         break;
 
     case SAI_SWITCH_ATTR_LAG_DEFAULT_HASH_ALGORITHM:
-        lag_hash_params->lag_hash_type = (sx_lag_hash_type_t) value->s32;
+        lag_hash_params->lag_hash_type = (sx_lag_hash_type_t)value->s32;
         break;
 
     case SAI_SWITCH_ATTR_LAG_DEFAULT_SYMMETRIC_HASH:
@@ -6587,7 +6892,7 @@ static sai_status_t mlnx_switch_ecmp_hash_param_get(_In_ const sai_object_key_t 
         break;
 
     case SAI_SWITCH_ATTR_ECMP_DEFAULT_HASH_ALGORITHM:
-        value->s32 = (sai_hash_algorithm_t) port_hash_param->ecmp_hash_type;
+        value->s32 = (sai_hash_algorithm_t)port_hash_param->ecmp_hash_type;
         break;
 
     case SAI_SWITCH_ATTR_ECMP_DEFAULT_SYMMETRIC_HASH:
@@ -6863,7 +7168,7 @@ static sai_status_t mlnx_switch_hash_object_set(_In_ const sai_object_key_t     
     sai_object_id_t                    hash_obj_id = value->oid;
     sai_object_id_t                    old_hash_obj_id;
     mlnx_switch_usage_hash_object_id_t hash_oper_id;
-    sai_status_t                       status         = SAI_STATUS_SUCCESS;
+    sai_status_t                       status = SAI_STATUS_SUCCESS;
     bool                               is_applicable;
 
     SX_LOG_ENTER();
@@ -6917,7 +7222,7 @@ static sai_status_t mlnx_switch_hash_object_set(_In_ const sai_object_key_t     
         }
     }
 
-    old_hash_obj_id = g_sai_db_ptr->oper_hash_list[hash_oper_id];
+    old_hash_obj_id                            = g_sai_db_ptr->oper_hash_list[hash_oper_id];
     g_sai_db_ptr->oper_hash_list[hash_oper_id] = value->oid;
 
     status = mlnx_hash_config_db_changes_commit(hash_oper_id);
@@ -7222,7 +7527,7 @@ static sai_status_t mlnx_switch_lag_hash_attr_get(_In_ const sai_object_key_t   
         break;
 
     case SAI_SWITCH_ATTR_LAG_DEFAULT_HASH_ALGORITHM:
-        value->s32 = (sai_hash_algorithm_t) lag_hash_params->lag_hash_type;
+        value->s32 = (sai_hash_algorithm_t)lag_hash_params->lag_hash_type;
         break;
 
     case SAI_SWITCH_ATTR_LAG_DEFAULT_SYMMETRIC_HASH:
@@ -7669,7 +7974,7 @@ sai_status_t mlnx_switch_log_set(sx_verbosity_level_t level)
     LOG_VAR_NAME(__MODULE__) = level;
 
     if (gh_sdk) {
-        if (!mlnx_chip_is_spc2()) {
+        if (!mlnx_chip_is_spc2or3()) {
             status = sx_api_issu_log_verbosity_level_set(gh_sdk, SX_LOG_VERBOSITY_BOTH, level, level);
             if (SX_ERR(status)) {
                 MLNX_SAI_LOG_ERR("Set issu log verbosity failed - %s.\n", SX_STATUS_MSG(status));
@@ -7836,7 +8141,7 @@ static sai_status_t mlnx_switch_transaction_mode_set(_In_ const sai_object_key_t
     sai_db_write_lock();
 
     if ((BOOT_TYPE_WARM == g_sai_db_ptr->boot_type) && !value->booldata && !g_sai_db_ptr->issu_end_called) {
-        for (ii = 0; ii < MAX_PORTS*2; ii++) {
+        for (ii = 0; ii < MAX_PORTS * 2; ii++) {
             if (mlnx_ports_db[ii].is_present != mlnx_ports_db[ii].sdk_port_added) {
                 SX_LOG_ERR("Presence of port of idx %d is not consistent in SAI (%d) and SDK (%d)\n",
                            ii,
@@ -7855,10 +8160,10 @@ static sai_status_t mlnx_switch_transaction_mode_set(_In_ const sai_object_key_t
         }
         for (ii = 0; ii < MAX_PORTS; ii++) {
             if (mlnx_ports_db[ii].before_issu_lag_id != mlnx_ports_db[ii].lag_id) {
-                SX_LOG_ERR("LAG member of idx %d does not belong to the same LAG in SAI (%"PRIx64") SDK(%"PRIx64")\n",
-                            ii,
-                            mlnx_ports_db[ii].lag_id,
-                            mlnx_ports_db[ii].before_issu_lag_id);
+                SX_LOG_ERR("LAG member of idx %d does not belong to the same LAG in SAI (%x) SDK(%x)\n",
+                           ii,
+                           mlnx_ports_db[ii].lag_id,
+                           mlnx_ports_db[ii].before_issu_lag_id);
                 sai_db_unlock();
                 SX_LOG_EXIT();
                 return SAI_STATUS_FAILURE;
@@ -7897,7 +8202,7 @@ static sai_status_t mlnx_switch_transaction_mode_set(_In_ const sai_object_key_t
 
         mlnx_port_foreach(port, ii) {
             port->before_issu_lag_id = 0;
-            port->sdk_port_added = false;
+            port->sdk_port_added     = false;
         }
     }
 
@@ -8118,10 +8423,10 @@ static uint32_t switch_stats_id_to_str(_In_ uint32_t             number_of_count
     for (ii = 0; ii < number_of_counters; ii++) {
         if (counter_ids[ii] < SAI_SWITCH_STAT_IN_DROP_REASON_RANGE_END) {
             base = "IN_DROP_REASON_RANGE_BASE";
-            idx = counter_ids[ii] - SAI_SWITCH_STAT_IN_DROP_REASON_RANGE_BASE;
+            idx  = counter_ids[ii] - SAI_SWITCH_STAT_IN_DROP_REASON_RANGE_BASE;
         } else {
             base = "OUT_DROP_REASON_RANGE_BASE";
-            idx = counter_ids[ii] - SAI_SWITCH_STAT_OUT_DROP_REASON_RANGE_BASE;
+            idx  = counter_ids[ii] - SAI_SWITCH_STAT_OUT_DROP_REASON_RANGE_BASE;
         }
 
         pos += snprintf(key_str + pos, max_len - pos, "%s_%d", base, idx);
@@ -8140,11 +8445,11 @@ static uint32_t switch_stats_id_to_str(_In_ uint32_t             number_of_count
     return snprintf(key_str + pos, max_len - pos, "]");
 }
 
-static void switch_stats_to_str(_In_ uint32_t number_of_counters,
+static void switch_stats_to_str(_In_ uint32_t             number_of_counters,
                                 _In_ const sai_stat_id_t *counter_ids,
-                                _In_ sai_stats_mode_t mode,
-                                _In_ uint32_t max_len,
-                                _Out_ char *key_str)
+                                _In_ sai_stats_mode_t     mode,
+                                _In_ uint32_t             max_len,
+                                _Out_ char               *key_str)
 {
     const char *mode_str;
     uint32_t    pos = 0;
@@ -8167,11 +8472,11 @@ static void switch_stats_to_str(_In_ uint32_t number_of_counters,
  *
  * @return #SAI_STATUS_SUCCESS on success, failure status code on error
  */
-static sai_status_t mlnx_get_switch_stats_ext(_In_ sai_object_id_t switch_id,
-                                              _In_ uint32_t number_of_counters,
+static sai_status_t mlnx_get_switch_stats_ext(_In_ sai_object_id_t      switch_id,
+                                              _In_ uint32_t             number_of_counters,
                                               _In_ const sai_stat_id_t *counter_ids,
-                                              _In_ sai_stats_mode_t mode,
-                                              _Out_ uint64_t *counters)
+                                              _In_ sai_stats_mode_t     mode,
+                                              _Out_ uint64_t           *counters)
 {
     sai_status_t status;
     char         key_str[MAX_KEY_STR_LEN] = {0};
@@ -8217,7 +8522,7 @@ static sai_status_t mlnx_get_switch_stats_ext(_In_ sai_object_id_t switch_id,
 
     clear = (mode == SAI_STATS_MODE_READ_AND_CLEAR);
 
-    status = mlnx_debug_counter_switch_stats_get(number_of_counters, counter_ids, true, clear ,counters);
+    status = mlnx_debug_counter_switch_stats_get(number_of_counters, counter_ids, true, clear, counters);
 
     SX_LOG_EXIT();
     return status;
@@ -8233,10 +8538,10 @@ static sai_status_t mlnx_get_switch_stats_ext(_In_ sai_object_id_t switch_id,
  *
  * @return #SAI_STATUS_SUCCESS on success, failure status code on error
  */
-static sai_status_t mlnx_get_switch_stats(_In_ sai_object_id_t switch_id,
-                                          _In_ uint32_t number_of_counters,
+static sai_status_t mlnx_get_switch_stats(_In_ sai_object_id_t      switch_id,
+                                          _In_ uint32_t             number_of_counters,
                                           _In_ const sai_stat_id_t *counter_ids,
-                                          _Out_ uint64_t *counters)
+                                          _Out_ uint64_t           *counters)
 {
     sai_status_t status;
 
@@ -8257,8 +8562,8 @@ static sai_status_t mlnx_get_switch_stats(_In_ sai_object_id_t switch_id,
  *
  * @return #SAI_STATUS_SUCCESS on success, failure status code on error
  */
-static sai_status_t mlnx_clear_switch_stats(_In_ sai_object_id_t switch_id,
-                                            _In_ uint32_t number_of_counters,
+static sai_status_t mlnx_clear_switch_stats(_In_ sai_object_id_t      switch_id,
+                                            _In_ uint32_t             number_of_counters,
                                             _In_ const sai_stat_id_t *counter_ids)
 {
     sai_status_t status;

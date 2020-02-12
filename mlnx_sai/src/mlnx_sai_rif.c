@@ -521,8 +521,8 @@ static sai_status_t mlnx_create_router_interface(_Out_ sai_object_id_t      *rif
     mlnx_shm_rm_array_idx_t      db_idx = MLNX_SHM_RM_ARRAY_IDX_UNINITIALIZED;
     const sai_attribute_value_t *type, *vrid, *port = NULL, *vlan = NULL, *mtu, *mac, *adminv4, *adminv6;
     const sai_attribute_value_t *loopback_action = NULL, *outer_vlan = NULL;
-    uint32_t type_index, vrid_index, port_index, vlan_index, mtu_index, mac_index, adminv4_index,
-             adminv6_index, vrid_data, acl_attr_index, loopback_action_index, attr_index;
+    uint32_t                     type_index, vrid_index, port_index, vlan_index, mtu_index, mac_index, adminv4_index,
+                                 adminv6_index, vrid_data, acl_attr_index, loopback_action_index, attr_index;
     sx_router_interface_t        sdk_rif_id;
     sx_router_interface_state_t  rif_state;
     char                         list_str[MAX_LIST_VALUE_STR_LEN];
@@ -1501,23 +1501,19 @@ static sai_status_t mlnx_get_router_interface_stats_ext(_In_ sai_object_id_t    
             break;
 
         case SAI_ROUTER_INTERFACE_STAT_IN_ERROR_OCTETS:
-            counters[ii] = sx_counter_set.router_ingress_error_bytes +
-                           sx_counter_set.router_ingress_discard_bytes;
+            counters[ii] = sx_counter_set.router_ingress_discard_bytes;
             break;
 
         case SAI_ROUTER_INTERFACE_STAT_IN_ERROR_PACKETS:
-            counters[ii] = sx_counter_set.router_ingress_error_packets +
-                           sx_counter_set.router_ingress_discard_packets;
+            counters[ii] = sx_counter_set.router_ingress_discard_packets;
             break;
 
         case SAI_ROUTER_INTERFACE_STAT_OUT_ERROR_OCTETS:
-            counters[ii] = sx_counter_set.router_egress_error_bytes +
-                           sx_counter_set.router_egress_discard_bytes;
+            counters[ii] = sx_counter_set.router_egress_discard_bytes;
             break;
 
         case SAI_ROUTER_INTERFACE_STAT_OUT_ERROR_PACKETS:
-            counters[ii] = sx_counter_set.router_egress_error_packets +
-                           sx_counter_set.router_egress_discard_packets;
+            counters[ii] = sx_counter_set.router_egress_discard_packets;
             break;
 
         default:

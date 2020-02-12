@@ -1,7 +1,7 @@
 Mellanox SAI implementation release notes
 ==========================================
 
-Release 1.15.0
+Release 1.16.0
 ---------------
 
 Current implementation is partial. 
@@ -10,7 +10,7 @@ Not all the APIs that are defined were fully implemented in this release. Missin
 
 The code was tested to work on X86 both Spectrum1 and Spectrum2.
 No testing was done on PPC.
-The code compiles with, and was tested with, SDK version 4.3.2100.
+The code compiles with, and was tested with, SDK version 4.3.3260.
 
 As a precondition to running SAI initialize switch, SDK must not be running (If it's running, terminate it with dvs_stop.sh). 
 The application must provide one key/value pair on profile services, depending on system type :
@@ -96,4 +96,13 @@ For packets matching ACL entry with mirror action and mirror policer, the color 
 When working with router discards mirroring, it is not possible to use WJH tool with extended discard traps.
 
 Switch Prio (SAI TC) <-> IEEE PFC is a global property, therefor when setting different PFC->PG on different ports last value overrides.
- 
+
+Debug counters don’t work correctly with WJH, and vice-versa, as the 2 features configurations conflicts.
+A specific drop reason can only exist in a single counter.
+
+ISSU 1 second is not supported with SDK 4.3.23** and newer.
+ISSU hitless does not support empty LAG with no members.
+
+Resource monitoring has the following limitations :
+* SAI_SWITCH_ATTR_AVAILABLE_IPV6_ROUTE_ENTRY measures only IPv6 routes with prefix < 64 on Spectrum1 and free space on single KVD hash.
+* SAI_ACL_TABLE_ATTR_AVAILABLE_ACL_ENTRY is not accurate on Spectrum2.
