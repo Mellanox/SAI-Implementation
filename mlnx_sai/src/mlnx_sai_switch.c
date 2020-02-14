@@ -2088,7 +2088,7 @@ static sai_status_t mlnx_sdk_start(mlnx_sai_boot_type_t boot_type)
 
     cmd_len = snprintf(sdk_start_cmd,
                        SDK_START_CMD_STR_LEN,
-                       "%s %s %s sx_sdk %s &",
+                       "%s %s %s sx_sdk --hide_deprecation_err %s &",
                        sniffer_cmd,
                        vlagrind_cmd,
                        fastboot_cmd,
