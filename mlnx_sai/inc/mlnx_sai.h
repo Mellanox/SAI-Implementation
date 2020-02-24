@@ -20,6 +20,7 @@
 
 #include <sx/sdk/sx_api.h>
 #include <sx/sdk/sx_api_acl.h>
+#include <sx/sdk/sx_api_bfd.h>
 #include <sx/sdk/sx_api_bridge.h>
 #include <sx/sdk/sx_api_cos.h>
 #include <sx/sdk/sx_api_cos_redecn.h>
@@ -74,7 +75,7 @@
 
 #ifdef ACS_OS
     #define MLNX_ACL_SKIP_EXTRA_KEYS
-    #define MLNX_ACL_L3_TYPE_V6_ONLY
+    #define MLNX_ACL_L3_TYPE_REDUCED
 #endif
 
 #ifdef ACS_OS
@@ -208,6 +209,7 @@ extern const sai_udf_api_t              mlnx_udf_api;
 extern const sai_l2mc_group_api_t       mlnx_l2mc_group_api;
 extern const sai_bmtor_api_t            mlnx_bmtor_api;
 extern const sai_debug_counter_api_t    mlnx_debug_counter_api;
+extern const sai_bfd_api_t              mlnx_bfd_api;
 
 #define DEFAULT_ETH_SWID 0
 #define DEFAULT_VRID     0
@@ -302,7 +304,8 @@ typedef enum {
     MLNX_SHM_RM_ARRAY_TYPE_RIF = MLNX_SHM_RM_ARRAY_TYPE_MIN,
     MLNX_SHM_RM_ARRAY_TYPE_BRIDGE,
     MLNX_SHM_RM_ARRAY_TYPE_DEBUG_COUNTER,
-    MLNX_SHM_RM_ARRAY_TYPE_MAX = MLNX_SHM_RM_ARRAY_TYPE_DEBUG_COUNTER,
+    MLNX_SHM_RM_ARRAY_TYPE_BFD_SESSION,
+    MLNX_SHM_RM_ARRAY_TYPE_MAX = MLNX_SHM_RM_ARRAY_TYPE_BFD_SESSION,
     MLNX_SHM_RM_ARRAY_TYPE_SIZE
 } mlnx_shm_rm_array_type_t;
 typedef sai_status_t (*mlnx_shm_rm_size_get_fn)(_Out_ size_t *size);
@@ -338,6 +341,7 @@ typedef struct _mlnx_shm_rm_array_idx_t mlnx_shm_rm_array_idx_t;
 #define MLNX_SHM_RM_ARRAY_IDX_EQUAL(a, b) \
     ((a.type == b.type) && (a.idx == b.idx))
 
+sai_status_t mlnx_shm_rm_idx_validate(_In_ mlnx_shm_rm_array_idx_t idx);
 sai_status_t mlnx_shm_rm_array_alloc(_In_ mlnx_shm_rm_array_type_t  type,
                                      _Out_ mlnx_shm_rm_array_idx_t *idx,
                                      _Out_ void                   **elem);
@@ -420,6 +424,7 @@ PACKED(struct _mlnx_object_id_t {
                mlnx_shm_rm_array_idx_t rif_db_idx;
                mlnx_shm_rm_array_idx_t bridge_db_idx;
                mlnx_shm_rm_array_idx_t debug_counter_db_idx;
+               mlnx_shm_rm_array_idx_t bfd_db_idx;
                PACKED(struct {
                           uint16_t group_id;
                           uint16_t nhop_id;
@@ -802,6 +807,7 @@ sai_status_t mlnx_udf_log_set(sx_verbosity_level_t severity);
 sai_status_t mlnx_l2mc_group_log_set(sx_verbosity_level_t severity);
 sai_status_t mlnx_bmtor_log_set(sx_verbosity_level_t severity);
 sai_status_t mlnx_debug_counter_log_set(sx_verbosity_level_t level);
+sai_status_t mlnx_bfd_log_set(sx_verbosity_level_t level);
 
 sai_status_t mlnx_fill_objlist(const sai_object_id_t *data, uint32_t count, sai_object_list_t *list);
 sai_status_t mlnx_fill_u8list(const uint8_t *data, uint32_t count, sai_u8_list_t *list);
@@ -1298,6 +1304,9 @@ sai_status_t mlnx_wred_apply_to_queue(_In_ mlnx_port_config_t *port,
                                       _In_ sai_object_id_t     wred_id);
 sai_status_t mlnx_wred_port_queue_db_clear(_In_ mlnx_port_config_t *port);
 
+sai_status_t mlnx_bfd_session_oid_create(_In_ mlnx_shm_rm_array_idx_t  idx,
+                                        _Out_ sai_object_id_t        *oid);
+
 #define mlnx_vlan_id_foreach(vid) \
     for (vid = SXD_VID_MIN; vid <= SXD_VID_MAX; vid++)
 
@@ -1512,6 +1521,28 @@ typedef struct _acl_udf_group_t {
 
 typedef acl_udf_group_t acl_udf_group_list_t[ACL_UDF_GROUP_COUNT_MAX];
 
+typedef enum _mlnx_acl_field_type_t {
+    MLNX_ACL_FIELD_TYPE_INVALID            = 0,
+    MLNX_ACL_FIELD_TYPE_EMPTY              = (1 << 0),
+    MLNX_ACL_FIELD_TYPE_INNER_VLAN_VALID   = (1 << 1),
+    MLNX_ACL_FIELD_TYPE_INNER_VLAN_INVALID = (1 << 2),
+    MLNX_ACL_FIELD_TYPE_IP                 = (1 << 3),
+    MLNX_ACL_FIELD_TYPE_NON_IP             = (1 << 4),
+    MLNX_ACL_FIELD_TYPE_IPV4               = (1 << 5),
+    MLNX_ACL_FIELD_TYPE_NON_IPV4           = (1 << 6),
+    MLNX_ACL_FIELD_TYPE_IPV6               = (1 << 7),
+    MLNX_ACL_FIELD_TYPE_ARP                = (1 << 8),
+    MLNX_ACL_FIELD_TYPE_TCP_UDP            = (1 << 9) | MLNX_ACL_FIELD_TYPE_IP,
+    MLNX_ACL_FIELD_TYPE_TCP                = (1 << 10) | MLNX_ACL_FIELD_TYPE_TCP_UDP,
+    MLNX_ACL_FIELD_TYPE_ICMP               = (1 << 11),
+    MLNX_ACL_FIELD_TYPE_ICMPV4             = MLNX_ACL_FIELD_TYPE_ICMP | MLNX_ACL_FIELD_TYPE_IPV4,
+    MLNX_ACL_FIELD_TYPE_ICMPV6             = MLNX_ACL_FIELD_TYPE_ICMP | MLNX_ACL_FIELD_TYPE_IPV6,
+    MLNX_ACL_FIELD_TYPE_INNER_IP           = (1 << 14),
+    MLNX_ACL_FIELD_TYPE_INNER_IPV4         = (1 << 15) | MLNX_ACL_FIELD_TYPE_INNER_IP,
+    MLNX_ACL_FIELD_TYPE_INNER_IPV6         = (1 << 16) | MLNX_ACL_FIELD_TYPE_INNER_IP,
+    MLNX_ACL_FIELD_TYPE_INNER_L4           = (1 << 17) | MLNX_ACL_FIELD_TYPE_INNER_IP,
+} mlnx_acl_field_type_t;
+
 typedef struct _acl_table_db_t {
     bool     is_used;
     bool     is_lock_inited;
@@ -1531,6 +1562,7 @@ typedef struct _acl_table_db_t {
     sai_acl_range_type_t       range_types[SAI_ACL_RANGE_TYPE_COUNT];
     uint32_t                   range_type_count;
     acl_bind_point_type_list_t bind_point_types;
+    mlnx_acl_field_type_t      table_fields_types;
     acl_table_wrapping_group_t wrapping_group;
     sx_acl_rule_offset_t       def_rules_offset;
     sx_acl_key_t               def_rule_key;
@@ -1755,6 +1787,9 @@ sai_status_t db_find_sai_policer_entry_ind(_In_ sx_policer_id_t sx_policer, _Out
 /*
  *  Binds sai_policer to a given sai_object.
  */
+sai_status_t mlnx_sai_policer_bind_set_impl(_In_ sai_object_id_t        sai_object_id,
+                                            _In_ sai_object_id_t        sai_policer,
+                                            _In_ mlnx_port_policer_type policer_function);
 sai_status_t mlnx_sai_bind_policer(_In_ sai_object_id_t           sai_object,
                                    _In_ sai_object_id_t           sai_policer,
                                    _In_ mlnx_policer_bind_params* bind_params);
@@ -2047,6 +2082,34 @@ sai_status_t mlnx_debug_counter_db_init(void);
 sai_status_t mlnx_debug_counter_db_trap_action_update(_In_ sx_trap_id_t        sx_trap,
                                                       _In_ sai_packet_action_t action);
 
+#define MLNX_BFD_STAT_ID_RANGE_CHECK(stat) \
+    ((SAI_BFD_SESSION_STAT_IN_PACKETS == stat) || (stat == SAI_BFD_SESSION_STAT_OUT_PACKETS) || (stat == SAI_BFD_SESSION_STAT_DROP_PACKETS))
+
+#define BFD_MIN_SUPPORTED_INTERVAL 50000
+
+typedef struct _mlnx_bfd_session_db_data_t {
+    bool                            multihop;
+    uint8_t                         traffic_class;
+    uint8_t                         ip_header_version;
+    uint8_t                         tos;
+    uint8_t                         ttl;
+    uint8_t                         multiplier;
+    sx_bfd_session_id_t             tx_session;
+    sx_bfd_session_id_t             rx_session;
+    uint32_t                        local_discriminator;
+    uint32_t                        remote_discriminator;
+    uint32_t                        udp_src_port;
+    uint32_t                        min_tx;
+    uint32_t                        min_rx;
+    sai_ip_address_t                src_ip;
+    sai_ip_address_t                dst_ip;
+} mlnx_bfd_session_db_data_t;
+
+typedef struct _mlnx_bfd_session_db_entry_t {
+    mlnx_shm_array_hdr_t            array_hdr;
+    mlnx_bfd_session_db_data_t      data;
+} mlnx_bfd_session_db_entry_t;
+
 typedef struct sai_db {
     cl_plock_t         p_lock;
     sx_mac_addr_t      base_mac_addr;
@@ -2106,6 +2169,7 @@ typedef struct sai_db {
     mlnx_mirror_policer_t             mirror_policer[SPAN_SESSION_MAX];
     mlnx_l2mc_group_t                 l2mc_groups[MLNX_L2MC_GROUP_DB_SIZE];
     mlnx_debug_counter_trap_t         debug_counter_traps[MLNX_DEBUG_COUNTER_TRAP_DB_SIZE];
+    bool                              is_bfd_module_initialized;
     mlnx_shm_pool_t                   shm_pool;
     mlnx_shm_rm_array_info_t          array_info[MLNX_SHM_RM_ARRAY_TYPE_SIZE];
 } sai_db_t;
@@ -2475,6 +2539,7 @@ sai_status_t mlnx_sai_tunnel_to_sx_tunnel_id(_In_ sai_object_id_t  sai_tunnel_id
 #define LINE_LENGTH 120
 
 void SAI_dump_acl(_In_ FILE *file);
+void SAI_dump_bfd(_In_ FILE *file);
 void SAI_dump_bridge(_In_ FILE *file);
 void SAI_dump_buffer(_In_ FILE *file);
 void SAI_dump_debug_counter(_In_ FILE *file);

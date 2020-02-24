@@ -181,6 +181,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\dbgdump\mlnx_sai_dbg_acl.c" />
+    <ClCompile Include="src\dbgdump\mlnx_sai_dbg_bfd.c" />
     <ClCompile Include="src\dbgdump\mlnx_sai_dbg_bridge.c" />
     <ClCompile Include="src\dbgdump\mlnx_sai_dbg_buffer.c" />
     <ClCompile Include="src\dbgdump\mlnx_sai_dbg_debug_counter.c" />
@@ -204,6 +205,7 @@
     <ClCompile Include="src\meta\saimetadatautils.c" />
     <ClCompile Include="src\meta\saiserialize.c" />
     <ClCompile Include="src\mlnx_sai_acl.c" />
+    <ClCompile Include="src\mlnx_sai_bfd.c" />
     <ClCompile Include="src\mlnx_sai_bmtor.c" />
     <ClCompile Include="src\mlnx_sai_bridge.c" />
     <ClCompile Include="src\mlnx_sai_buffer.c" />

@@ -147,7 +147,8 @@ static const mlnx_attr_enum_info_t        rif_enum_info[] = {
         SAI_ROUTER_INTERFACE_TYPE_SUB_PORT),
     [SAI_ROUTER_INTERFACE_ATTR_LOOPBACK_PACKET_ACTION] = ATTR_ENUM_VALUES_LIST(
         SAI_PACKET_ACTION_DROP,
-        SAI_PACKET_ACTION_FORWARD),
+        SAI_PACKET_ACTION_FORWARD,
+        SAI_PACKET_ACTION_TRAP),
 };
 const mlnx_obj_type_attrs_info_t          mlnx_rif_obj_type_info =
 { rif_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(rif_enum_info)};

@@ -79,7 +79,7 @@ static const mlnx_attr_enum_info_t        sched_enum_info[] = {
         SAI_SCHEDULING_TYPE_STRICT,
         SAI_SCHEDULING_TYPE_DWRR),
     [SAI_SCHEDULER_ATTR_METER_TYPE] = ATTR_ENUM_VALUES_LIST(
-        SAI_METER_TYPE_BYTES)
+        SAI_METER_TYPE_BYTES, SAI_METER_TYPE_PACKETS)
 };
 const mlnx_obj_type_attrs_info_t          mlnx_scheduler_obj_type_info =
 { sched_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(sched_enum_info)};

@@ -35,17 +35,19 @@ dist_data_DATA = sai_1710.xml \
                  sai_380050G.xml \
                  sai_4700.xml \
                  sai_4800.xml \
-		 sai_4700_pld.xml \
-		 sai_4700_pld_4.xml \
-		 sai_4700_1G.xml
+                 sai_4700_pld.xml \
+                 sai_4700_pld_4.xml \
+                 sai_4700_1G.xml \
+                 sai_4700_100G.xml
 				 
 libsai_la_DEPENDENCIES =
 
 libsai_la_SOURCES = \
                        dbgdump/mlnx_sai_dbg_acl.c \
                        dbgdump/mlnx_sai_dbg_bridge.c \
+                       dbgdump/mlnx_sai_dbg_bfd.c \
                        dbgdump/mlnx_sai_dbg_buffer.c \
-		       dbgdump/mlnx_sai_dbg_debug_counter.c \
+                       dbgdump/mlnx_sai_dbg_debug_counter.c \
                        dbgdump/mlnx_sai_dbg_hash.c \
                        dbgdump/mlnx_sai_dbg_hostintf.c \
                        dbgdump/mlnx_sai_dbg_mirror.c \
@@ -61,10 +63,11 @@ libsai_la_SOURCES = \
                        dbgdump/mlnx_sai_dbg_vlan.c \
                        dbgdump/mlnx_sai_dbg_wred.c \
                        mlnx_sai_acl.c \
+                       mlnx_sai_bfd.c \
                        mlnx_sai_bmtor.c \
                        mlnx_sai_bridge.c \
                        mlnx_sai_buffer.c \
-		       mlnx_sai_debug_counter.c \
+                       mlnx_sai_debug_counter.c \
                        mlnx_sai_fdb.c \
                        mlnx_sai_hash.c \
                        mlnx_sai_host_interface.c \
