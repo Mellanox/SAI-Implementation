@@ -549,7 +549,7 @@ static void mlnx_tunnel_fill_ulay_domain_rif(_In_ sx_router_interface_t         
         *ulay_domain_type = SX_TUNNEL_UNDERLAY_DOMAIN_TYPE_RIF;
         *sx_rif           = rif;
         if (sx_uvird) {
-            *sx_uvird = 0;
+            *sx_uvird = uvird;
         }
         break;
 

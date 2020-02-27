@@ -175,8 +175,10 @@ static const mlnx_dbg_counter_drop_reason_info_t mlnx_drop_counter_in_drop_reaso
                                                    DROP_REASON_TYPE_IN_L3),
     [SAI_IN_DROP_REASON_MC_DMAC_MISMATCH] = REASON(TRAP_LIST(
                                                        SX_TRAP_ID_DISCARD_ING_ROUTER_MC_DMAC), DROP_REASON_TYPE_IN_L3),
+#ifndef ACS_OS
     [SAI_IN_DROP_REASON_SIP_EQUALS_DIP]   = REASON(TRAP_LIST(
                                                        SX_TRAP_ID_DISCARD_ING_ROUTER_SIP_DIP), DROP_REASON_TYPE_IN_L3),
+#endif
     [SAI_IN_DROP_REASON_SIP_BC]           = REASON(TRAP_LIST(
                                                        SX_TRAP_ID_DISCARD_ING_ROUTER_SIP_BC), DROP_REASON_TYPE_IN_L3),
     [SAI_IN_DROP_REASON_DIP_LOCAL]        = REASON(TRAP_LIST(
@@ -206,7 +208,8 @@ static const mlnx_dbg_counter_drop_reason_info_t mlnx_drop_counter_in_drop_reaso
                                                       DROP_REASON_TYPE_IN_L3),
     /* SAI_IN_DROP_REASON_L3_EGRESS_LINK_DOWN, */
     /* Tunnel */
-    [SAI_IN_DROP_REASON_DECAP_ERROR] = REASON(TRAP_LIST(SX_TRAP_ID_DISCARD_DEC_PKT), DROP_REASON_TYPE_IN_TUNNEL),
+    [SAI_IN_DROP_REASON_DECAP_ERROR] = REASON(TRAP_LIST(SX_TRAP_ID_DISCARD_DEC_PKT, SX_TRAP_ID_DECAP_ECN0,
+                                                        SX_TRAP_ID_IPIP_DECAP_ERROR), DROP_REASON_TYPE_IN_TUNNEL),
 
     /* ACL */
     [SAI_IN_DROP_REASON_ACL_ANY] = REASON(TRAP_LIST(SX_TRAP_ID_ACL_DROP), DROP_REASON_TYPE_IN_ACL),
