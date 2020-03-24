@@ -559,10 +559,10 @@ static const sai_vendor_attribute_entry_t port_vendor_attribs[] = {
       mlnx_port_samplepacket_session_get, (void*)SAMPLEPACKET_INGRESS_PORT,
       mlnx_port_samplepacket_session_set, (void*)SAMPLEPACKET_INGRESS_PORT },
     { SAI_PORT_ATTR_EGRESS_SAMPLEPACKET_ENABLE,
-      { false, false, true, true },
-      { false, false, true, true },
-      mlnx_port_samplepacket_session_get, (void*)SAMPLEPACKET_EGRESS_PORT,
-      mlnx_port_samplepacket_session_set, (void*)SAMPLEPACKET_EGRESS_PORT },
+      { false, false, false, false },
+      { false, false, false, false },
+      NULL, NULL,
+      NULL, NULL },
     { SAI_PORT_ATTR_QOS_DEFAULT_TC,
       { true, false, true, true },
       { true, false, true, true },
@@ -2802,14 +2802,6 @@ static sai_status_t mlnx_port_samplepacket_session_get(_In_ const sai_object_key
 
     SX_LOG_ENTER();
 
-    assert((SAMPLEPACKET_INGRESS_PORT == (long)arg) || (SAMPLEPACKET_EGRESS_PORT == (long)arg));
-
-    if (SAMPLEPACKET_EGRESS_PORT == (long)arg) {
-        SX_LOG_ERR("Egress samplepacket on port is not supported yet\n");
-        SX_LOG_EXIT();
-        return SAI_STATUS_NOT_SUPPORTED;
-    }
-
     assert(SAMPLEPACKET_INGRESS_PORT == (long)arg);
 
     assert(NULL != g_sai_db_ptr);
@@ -3000,14 +2992,6 @@ static sai_status_t mlnx_port_samplepacket_session_set(_In_ const sai_object_key
     sx_port_log_id_t    port_id;
 
     SX_LOG_ENTER();
-
-    assert((SAMPLEPACKET_INGRESS_PORT == (long)arg) || (SAMPLEPACKET_EGRESS_PORT == (long)arg));
-
-    if (SAMPLEPACKET_EGRESS_PORT == (long)arg) {
-        SX_LOG_ERR("Egress samplepacket on port is not supported yet\n");
-        SX_LOG_EXIT();
-        return SAI_STATUS_NOT_SUPPORTED;
-    }
 
     assert(SAMPLEPACKET_INGRESS_PORT == (long)arg);
 
@@ -6173,7 +6157,13 @@ static uint32_t mlnx_platform_max_speed_get(void)
     case SX_CHIP_TYPE_SPECTRUM3:
         /* TODO: remove when 4700 supports 400G */
         if (g_sai_db_ptr->platform_type == MLNX_PLATFORM_TYPE_4700) {
+            return PORT_SPEED_200;
+        }
+        if (g_sai_db_ptr->platform_type == MLNX_PLATFORM_TYPE_4600C) {
             return PORT_SPEED_100;
+        }
+        if (g_sai_db_ptr->platform_type == MLNX_PLATFORM_TYPE_4600) {
+            return PORT_SPEED_200;
         }
         return PORT_SPEED_MAX_SP3;
 

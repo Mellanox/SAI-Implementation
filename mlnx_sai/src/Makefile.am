@@ -29,10 +29,13 @@ dist_data_DATA = sai_1710.xml \
                  sai_2700split.xml \
                  sai_2700_8x50g_28x100g.xml \
                  sai_2740.xml \
+                 sai_3420.xml \
                  sai_3700.xml \
                  sai_37001G.xml \
                  sai_3800.xml \
                  sai_380050G.xml \
+                 sai_4600.xml \
+                 sai_4600C.xml \
                  sai_4700.xml \
                  sai_4800.xml \
                  sai_4700_pld.xml \

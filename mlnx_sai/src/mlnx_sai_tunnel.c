@@ -5241,6 +5241,7 @@ static sai_status_t mlnx_create_sdk_tunnel(_In_ sai_object_id_t      sai_tunnel_
     sx_tunnel_type_e            sx_tunnel_type_ipv6;
     uint32_t                    ii = 0;
     sai_object_id_t             sai_mapper_obj_id;
+    sx_tunnel_hash_data_t       sx_tunnel_hash_data = {0};
 
     SX_LOG_ENTER();
 
@@ -5517,6 +5518,17 @@ static sai_status_t mlnx_create_sdk_tunnel(_In_ sai_object_id_t      sai_tunnel_
             }
         }
     } else if (SAI_TUNNEL_TYPE_VXLAN == sai_tunnel_type) {
+        sx_tunnel_hash_data.hash_field_type = SX_TUNNEL_HASH_FIELD_TYPE_UDP_SPORT_E;
+        sx_tunnel_hash_data.hash_cmd = SX_TUNNEL_HASH_CMD_CALCULATE_E;
+        sdk_status = sx_api_tunnel_hash_set(gh_sdk,
+                                            sx_tunnel_id_ipv4,
+                                            &sx_tunnel_hash_data);
+        if (SX_STATUS_SUCCESS != sdk_status) {
+            sai_status = sdk_to_sai(sdk_status);
+            SX_LOG_ERR("Error setting src port hash for sdk vxlan tunnel %x, sx status: %s\n", sx_tunnel_id_ipv4, SX_STATUS_MSG(sdk_status));
+            goto cleanup;
+        }
+
         if (mlnx_chip_is_spc2or3()) {
             if (SX_STATUS_SUCCESS !=
                 (sdk_status =

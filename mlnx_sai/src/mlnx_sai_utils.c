@@ -2558,7 +2558,8 @@ sai_status_t sai_set_attribute(_In_ const sai_object_key_t             *key,
     if (SAI_STATUS_SUCCESS !=
         (status =
              check_attribs_metadata(1, attr, object_type, functionality_vendor_attr, SAI_COMMON_API_SET))) {
-        SX_LOG((SAI_STATUS_ATTR_NOT_IMPLEMENTED_0 == status) ? SX_LOG_WARNING : SX_LOG_ERROR, 
+        SX_LOG(((SAI_STATUS_ATTR_NOT_IMPLEMENTED_0 == status) || (SAI_STATUS_ATTR_NOT_SUPPORTED_0 == status)) ?
+                SX_LOG_WARNING : SX_LOG_ERROR, 
             "Failed attribs check, key:%s\n", key_str);
         SX_LOG_EXIT();
         return status;
@@ -2590,7 +2591,8 @@ sai_status_t sai_get_attributes(_In_ const sai_object_key_t             *key,
         (status =
              check_attribs_metadata(attr_count, attr_list, object_type, functionality_vendor_attr,
                                     SAI_COMMON_API_GET))) {
-        SX_LOG((SAI_STATUS_IS_ATTR_NOT_IMPLEMENTED(status)) ? SX_LOG_WARNING : SX_LOG_ERROR,
+        SX_LOG(((SAI_STATUS_IS_ATTR_NOT_IMPLEMENTED(status)) || (SAI_STATUS_IS_ATTR_NOT_SUPPORTED(status))) ? 
+                SX_LOG_WARNING : SX_LOG_ERROR,
             "Failed attribs check, key:%s\n", key_str);
         SX_LOG_EXIT();
         return status;

@@ -2331,11 +2331,11 @@ static sai_status_t mlnx_resource_mng_stage(bool warm_recover, mlnx_sai_boot_typ
     return SAI_STATUS_SUCCESS;
 }
 
-static sai_status_t mlnx_wait_for_sdk()
+static sai_status_t mlnx_wait_for_sdk(const char *sdk_ready_var)
 {
     const double time_unit = 0.001;
 
-    while (0 != access("/tmp/sdk_ready", F_OK)) {
+    while (0 != access(sdk_ready_var, F_OK)) {
 #ifndef _WIN32
         usleep(time_unit);
 #endif
@@ -2462,12 +2462,24 @@ static sai_status_t mlnx_sdk_start(mlnx_sai_boot_type_t boot_type)
     const char  *vlagrind_cmd                         = "";
     const char  *syslog_cmd                           = "";
     const char  *fastboot_cmd                         = "";
+    const char  *sdk_ready_var                        = NULL;
+    char         sdk_ready_cmd[SDK_START_CMD_STR_LEN] = {0};
 
-    system_err = system("rm /tmp/sdk_ready");
+    sdk_ready_var = getenv("SDK_READY_FILE");
+    if (!sdk_ready_var || (0 == strcmp(sdk_ready_var, ""))) {
+        sdk_ready_var = "/tmp/sdk_ready";
+    }
+    cmd_len = snprintf(sdk_ready_cmd,
+                       SDK_START_CMD_STR_LEN,
+                       "rm %s",
+                       sdk_ready_var);
+    assert(cmd_len < SDK_START_CMD_STR_LEN);
+
+    system_err = system(sdk_ready_cmd);
     if (0 == system_err) {
-        MLNX_SAI_LOG_DBG("sdk_ready removed\n");
+        MLNX_SAI_LOG_DBG("%s removed\n", sdk_ready_var);
     } else {
-        MLNX_SAI_LOG_DBG("unable to remove sdk_ready\n");
+        MLNX_SAI_LOG_DBG("unable to remove %s\n", sdk_ready_var);
     }
 
     sniffer_var = getenv("SX_SNIFFER_ENABLE");
@@ -2501,7 +2513,7 @@ static sai_status_t mlnx_sdk_start(mlnx_sai_boot_type_t boot_type)
         return SAI_STATUS_FAILURE;
     }
 
-    sai_status = mlnx_wait_for_sdk();
+    sai_status = mlnx_wait_for_sdk(sdk_ready_var);
     assert(SAI_STATUS_SUCCESS == sai_status);
 
     return SAI_STATUS_SUCCESS;
@@ -2818,6 +2830,7 @@ static sai_status_t mlnx_config_platform_parse(_In_ const char *platform)
         break;
 
 
+    case MLNX_PLATFORM_TYPE_3420:
     case MLNX_PLATFORM_TYPE_3700:
     case MLNX_PLATFORM_TYPE_3800:
         if (!mlnx_chip_is_spc2()) {
@@ -2830,6 +2843,8 @@ static sai_status_t mlnx_config_platform_parse(_In_ const char *platform)
 
     case MLNX_PLATFORM_TYPE_4700:
     case MLNX_PLATFORM_TYPE_4800:
+    case MLNX_PLATFORM_TYPE_4600:
+    case MLNX_PLATFORM_TYPE_4600C:
         if (!mlnx_chip_is_spc3()) {
             MLNX_SAI_LOG_ERR("Failed to parse platform xml config: platform is %d (SPC3) but chip type is not SPC3\n",
                              platform_type);
