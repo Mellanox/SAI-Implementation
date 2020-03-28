@@ -1874,6 +1874,7 @@ struct ku_profile        single_part_eth_device_profile_spectrum2 = {
     .chip_type = SXD_CHIP_TYPE_SPECTRUM2,
 };
 struct ku_profile        single_part_eth_device_profile_spectrum3 = {
+    .dev_id                     = SX_DEVICE_ID,
     .set_mask_0_63              = 0,    /* All bits are set during the init as follows:
                                          * bits 0-2   - reserved;
                                          * bit 3      - disabled (max_mid);
