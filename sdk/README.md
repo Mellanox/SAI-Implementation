@@ -14,7 +14,7 @@ KERNEL_VER=4.9.0-9
 
 #### FW
 ```
-FW_SPC1_VER=13_2000_1634
+FW_SPC1_VER=13_2000_1658
 ```
 
 ### Packages
