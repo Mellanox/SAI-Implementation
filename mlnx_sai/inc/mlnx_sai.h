@@ -629,6 +629,7 @@ typedef struct _mlnx_obj_type_attrs_info_t {
 #define OBJ_ATTRS_ENUMS_INFO_EMPTY() \
     {.info = NULL, .count = 0}
 
+bool mlnx_chip_is_spc2(void);
 bool mlnx_chip_is_spc2or3(void);
 void mlnx_udf_acl_attrs_metadata_init();
 bool mlnx_udf_acl_attribute_id_is_not_supported(_In_ sai_attr_id_t attr_id);
@@ -990,7 +991,7 @@ extern const mlnx_trap_info_t mlnx_traps_info[];
 #define MAX_BRIDGE_RIFS     550 /* 256 for VXLAN VNETs + some spare */
 #define MAX_BRIDGE_PORTS    (MAX_VPORTS + MAX_BRIDGE_1Q_PORTS + MAX_BRIDGE_RIFS)
 #define MAX_LANES_SPC1_2    4
-#define MAX_LANES_SPC3      4
+#define MAX_LANES_SPC3      8
 #define MAX_HOSTIFS         200
 #define MAX_POLICERS        100
 #define MAX_TRAP_GROUPS     32
@@ -2350,7 +2351,7 @@ sx_port_log_id_t mlnx_port_get_lag_id(const mlnx_port_config_t *port);
 uint32_t mlnx_port_idx_get(const mlnx_port_config_t *port);
 
 /* DB read lock is needed */
-sai_status_t mlnx_port_add(mlnx_port_config_t *port);
+sai_status_t mlnx_port_add(mlnx_port_config_t *port, bool is_lag);
 sai_status_t mlnx_port_del(mlnx_port_config_t *port);
 sai_status_t mlnx_update_issu_port_db();
 sai_status_t mlnx_port_config_init_mandatory(mlnx_port_config_t *port);

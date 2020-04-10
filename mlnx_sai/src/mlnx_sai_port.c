@@ -1541,7 +1541,7 @@ static sai_status_t mlnx_port_hw_lanes_get(_In_ const sai_object_key_t   *key,
 {
     sx_port_mapping_t port_map;
     sx_port_log_id_t  port_id;
-    uint32_t          lanes[4];
+    uint32_t          lanes[MAX_LANES_SPC3];
     sai_status_t      sai_status;
     sx_status_t       sdk_status;
     const bool        is_warmboot_init_stage = (BOOT_TYPE_WARM == g_sai_db_ptr->boot_type) &&
@@ -6157,7 +6157,7 @@ static uint32_t mlnx_platform_max_speed_get(void)
     case SX_CHIP_TYPE_SPECTRUM3:
         /* TODO: remove when 4700 supports 400G */
         if (g_sai_db_ptr->platform_type == MLNX_PLATFORM_TYPE_4700) {
-            return PORT_SPEED_200;
+            return PORT_SPEED_400;
         }
         if (g_sai_db_ptr->platform_type == MLNX_PLATFORM_TYPE_4600C) {
             return PORT_SPEED_100;
@@ -7477,13 +7477,19 @@ sai_status_t mlnx_port_config_init(mlnx_port_config_t *port)
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_port_add(mlnx_port_config_t *port)
+sai_status_t mlnx_port_add(mlnx_port_config_t *port, bool is_lag)
 {
     sai_status_t status;
+    const bool   is_warmboot_init_stage = (BOOT_TYPE_WARM == g_sai_db_ptr->boot_type) &&
+                                          (!g_sai_db_ptr->issu_end_called);
 
-    status = mlnx_port_config_init_mandatory(port);
-    if (SAI_ERR(status)) {
-        return status;
+    /* For ISSU, all non-LAG physical ports has called mlnx_port_config_init_mandatory
+     * during dvs_stage, thus no need to call again */
+    if (!is_warmboot_init_stage || is_lag) {
+        status = mlnx_port_config_init_mandatory(port);
+        if (SAI_ERR(status)) {
+            return status;
+        }
     }
 
     status = mlnx_port_config_init(port);
@@ -7754,11 +7760,27 @@ static mlnx_port_config_t * mlnx_port_by_module(uint32_t module)
 /* TODO: replace with cap_num_local_ports_in_2x when available */
 static uint32_t mlnx_platform_num_local_ports_in_2x_get(void)
 {
-    if (g_sai_db_ptr->platform_type == MLNX_PLATFORM_TYPE_3700) {
-        return 2;
-    } else {
-        return 1;
+    // SPC2 non gearbox is step 2, all the rest 1
+    if (mlnx_chip_is_spc2()) {
+        if (g_sai_db_ptr->platform_type != MLNX_PLATFORM_TYPE_3800) {
+            return 2;
+        }
     }
+    
+    return 1;
+}
+
+/* TODO: replace with cap_num_local_ports_in_4x when available */
+static uint32_t mlnx_platform_num_local_ports_in_4x_get(void)
+{
+    // SPC2 non gearbox is step 4 all the rest 2
+    if (mlnx_chip_is_spc2()) {
+        if (g_sai_db_ptr->platform_type != MLNX_PLATFORM_TYPE_3800) {
+            return 4;
+        }
+    }
+
+    return 2;
 }
 
 /* module -> port local idx
@@ -7773,7 +7795,11 @@ static mlnx_port_config_t * mlnx_port_split_idx_to_local_port(_In_ const mlnx_po
 
     if (lane_count == 2) {
         step = mlnx_platform_num_local_ports_in_2x_get();
-    } else {
+    }
+    else if (lane_count == 4) {
+        step = mlnx_platform_num_local_ports_in_4x_get();
+    }
+    else {
         step = 1;
     }
 
@@ -8008,15 +8034,19 @@ static sai_status_t mlnx_create_port(_Out_ sai_object_id_t     * port_id,
 
     SX_LOG_NTC("Initialize new port oid %" PRIx64 "\n", new_port->saiport);
 
-    status = mlnx_port_add(new_port);
+    status = mlnx_port_add(new_port, false);
     if (SAI_ERR(status)) {
         goto out_unlock;
     }
 
-    status = mlnx_hash_config_apply_to_port(new_port->logical);
-    if (SAI_ERR(status)) {
-        SX_LOG_ERR("Failed to apply hash config on port %x\n", new_port->logical);
-        goto out_unlock;
+    /* If split port is already a LAG member, do not apply hash config to the split port,
+     * because hash config has already been applied to LAG */
+    if (!is_warmboot_init_stage || (0 == new_port->before_issu_lag_id)) {
+        status = mlnx_hash_config_apply_to_port(new_port->logical);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to apply hash config on port %x\n", new_port->logical);
+            goto out_unlock;
+        }
     }
 
     status = mlnx_port_crc_params_apply(new_port, true);

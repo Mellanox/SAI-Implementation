@@ -1126,7 +1126,7 @@ static sai_status_t mlnx_create_lag(_Out_ sai_object_id_t     * lag_id,
     SX_LOG_NTC("Created %s\n", key_str);
 
     if (!is_warmboot_init_stage) {
-        status = mlnx_port_add(lag);
+        status = mlnx_port_add(lag, true);
         if (SAI_ERR(status)) {
             SX_LOG_ERR("Failed to add LAG port 0x%x\n", lag->logical);
             goto out;
@@ -1371,7 +1371,7 @@ static sai_status_t mlnx_create_lag_member(_Out_ sai_object_id_t     * lag_membe
             mlnx_ports_db[lag_db_idx].logical = port->before_issu_lag_id;
 
             /* continue the rest work of create_lag */
-            status = mlnx_port_add(lag);
+            status = mlnx_port_add(lag, true);
             if (SAI_ERR(status)) {
                 SX_LOG_ERR("Failed to add LAG port 0x%x\n", lag->logical);
                 goto out;

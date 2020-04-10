@@ -188,7 +188,7 @@ static uint32_t ets_fixup_rate(uint64_t rate)
 static void sai_to_sdk_rate(uint64_t min_rate, uint64_t max_rate, sx_cos_ets_element_config_t *ets)
 {
     if (0 == max_rate) {
-        ets->max_shaper_rate = 0xFFFFFFF;
+        ets->max_shaper_rate = SXD_COS_SHAPER_RATE_MAX;
     } else {
         ets->max_shaper_rate = ets_fixup_rate(max_rate);
     }

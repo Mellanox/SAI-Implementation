@@ -461,6 +461,31 @@ static sai_status_t mlnx_default_stp_id_get(_In_ const sai_object_key_t   *key,
                                             _In_ uint32_t                  attr_index,
                                             _Inout_ vendor_cache_t        *cache,
                                             void                          *arg);
+static sai_status_t mlnx_max_stp_instance_get(_In_ const sai_object_key_t   *key,
+                                              _Inout_ sai_attribute_value_t *value,
+                                              _In_ uint32_t                  attr_index,
+                                              _Inout_ vendor_cache_t        *cache,
+                                              void                          *arg);
+static sai_status_t mlnx_qos_max_tcs_get(_In_ const sai_object_key_t   *key,
+                                         _Inout_ sai_attribute_value_t *value,
+                                         _In_ uint32_t                  attr_index,
+                                         _Inout_ vendor_cache_t        *cache,
+                                         void                          *arg);
+static sai_status_t mlnx_restart_type_get(_In_ const sai_object_key_t   *key,
+                                          _Inout_ sai_attribute_value_t *value,
+                                          _In_ uint32_t                  attr_index,
+                                          _Inout_ vendor_cache_t        *cache,
+                                          void                          *arg);
+static sai_status_t mlnx_min_restart_interval_get(_In_ const sai_object_key_t   *key,
+                                                  _Inout_ sai_attribute_value_t *value,
+                                                  _In_ uint32_t                  attr_index,
+                                                  _Inout_ vendor_cache_t        *cache,
+                                                  void                          *arg);
+static sai_status_t mlnx_nv_storage_get(_In_ const sai_object_key_t   *key,
+                                        _Inout_ sai_attribute_value_t *value,
+                                        _In_ uint32_t                  attr_index,
+                                        _Inout_ vendor_cache_t        *cache,
+                                        void                          *arg);
 static sai_status_t mlnx_switch_event_func_set(_In_ const sai_object_key_t      *key,
                                                _In_ const sai_attribute_value_t *value,
                                                void                             *arg);
@@ -689,6 +714,31 @@ static const sai_vendor_attribute_entry_t switch_vendor_attribs[] = {
       { false, false, false, true },
       { false, false, false, true },
       mlnx_default_stp_id_get, NULL,
+      NULL, NULL },
+    { SAI_SWITCH_ATTR_MAX_STP_INSTANCE,
+      { false, false, false, true },
+      { false, false, false, true },
+      mlnx_max_stp_instance_get, NULL,
+      NULL, NULL },
+    { SAI_SWITCH_ATTR_QOS_MAX_NUMBER_OF_TRAFFIC_CLASSES,
+      { false, false, false, true },
+      { false, false, false, true },
+      mlnx_qos_max_tcs_get, NULL,
+      NULL, NULL },
+    { SAI_SWITCH_ATTR_RESTART_TYPE,
+      { false, false, false, true },
+      { false, false, false, true },
+      mlnx_restart_type_get, NULL,
+      NULL, NULL },
+    { SAI_SWITCH_ATTR_MIN_PLANNED_RESTART_INTERVAL,
+      { false, false, false, true },
+      { false, false, false, true },
+      mlnx_min_restart_interval_get, NULL,
+      NULL, NULL },
+    { SAI_SWITCH_ATTR_NV_STORAGE_SIZE,
+      { false, false, false, true },
+      { false, false, false, true },
+      mlnx_nv_storage_get, NULL,
       NULL, NULL },
     { SAI_SWITCH_ATTR_LAG_MEMBERS,
       { false, false, false, true },
@@ -1196,6 +1246,7 @@ static const mlnx_attr_enum_info_t        switch_enum_info[] = {
     [SAI_SWITCH_ATTR_SUPPORTED_IPV6_BFD_SESSION_OFFLOAD_TYPE] = ATTR_ENUM_VALUES_LIST(
         SAI_BFD_SESSION_OFFLOAD_TYPE_NONE),
     [SAI_SWITCH_ATTR_SUPPORTED_EXTENDED_STATS_MODE] = ATTR_ENUM_VALUES_ALL(),
+    [SAI_SWITCH_ATTR_RESTART_TYPE] = ATTR_ENUM_VALUES_ALL(),
 };
 const mlnx_obj_type_attrs_info_t          mlnx_switch_obj_type_info =
 { switch_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(switch_enum_info)};
@@ -8332,6 +8383,72 @@ out:
     sai_db_unlock();
     SX_LOG_EXIT();
     return status;
+}
+
+static sai_status_t mlnx_max_stp_instance_get(_In_ const sai_object_key_t   *key,
+                                              _Inout_ sai_attribute_value_t *value,
+                                              _In_ uint32_t                  attr_index,
+                                              _Inout_ vendor_cache_t        *cache,
+                                              void                          *arg)
+{
+    SX_LOG_ENTER();
+    value->u32 = SX_MSTP_INST_ID_MAX - SX_MSTP_INST_ID_MIN + 1;
+    SX_LOG_EXIT();
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_qos_max_tcs_get(_In_ const sai_object_key_t   *key,
+                                         _Inout_ sai_attribute_value_t *value,
+                                         _In_ uint32_t                  attr_index,
+                                         _Inout_ vendor_cache_t        *cache,
+                                         void                          *arg)
+{
+    SX_LOG_ENTER();
+    value->u8 = g_resource_limits.cos_port_ets_traffic_class_max + 1;
+    SX_LOG_EXIT();
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_restart_type_get(_In_ const sai_object_key_t   *key,
+                                          _Inout_ sai_attribute_value_t *value,
+                                          _In_ uint32_t                  attr_index,
+                                          _Inout_ vendor_cache_t        *cache,
+                                          void                          *arg)
+{
+    SX_LOG_ENTER();
+    value->s32 = SAI_SWITCH_RESTART_TYPE_ANY;
+    SX_LOG_EXIT();
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_min_restart_interval_get(_In_ const sai_object_key_t   *key,
+                                         _Inout_ sai_attribute_value_t *value,
+                                         _In_ uint32_t                  attr_index,
+                                         _Inout_ vendor_cache_t        *cache,
+                                         void                          *arg)
+{
+    SX_LOG_ENTER();
+    value->u32 = 0;
+    SX_LOG_EXIT();
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_nv_storage_get(_In_ const sai_object_key_t   *key,
+                                         _Inout_ sai_attribute_value_t *value,
+                                         _In_ uint32_t                  attr_index,
+                                         _Inout_ vendor_cache_t        *cache,
+                                         void                          *arg)
+{
+    SX_LOG_ENTER();
+    /* SDK persistent files for ISSU approximate size */
+    value->u64 = 100;
+    SX_LOG_EXIT();
+
+    return SAI_STATUS_SUCCESS;
 }
 
 static sai_status_t mlnx_switch_event_func_set(_In_ const sai_object_key_t      *key,
