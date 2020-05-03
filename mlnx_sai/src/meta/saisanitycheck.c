@@ -607,6 +607,7 @@ void check_attr_object_type_provided(
         case SAI_ATTR_VALUE_TYPE_ACL_FIELD_DATA_INT16:
         case SAI_ATTR_VALUE_TYPE_ACL_FIELD_DATA_INT32:
         case SAI_ATTR_VALUE_TYPE_ACL_FIELD_DATA_UINT32:
+        case SAI_ATTR_VALUE_TYPE_ACL_FIELD_DATA_UINT64:
         case SAI_ATTR_VALUE_TYPE_ACL_FIELD_DATA_MAC:
         case SAI_ATTR_VALUE_TYPE_ACL_FIELD_DATA_IPV4:
         case SAI_ATTR_VALUE_TYPE_ACL_FIELD_DATA_IPV6:
@@ -624,6 +625,10 @@ void check_attr_object_type_provided(
         case SAI_ATTR_VALUE_TYPE_ACL_ACTION_DATA_IPV6:
         case SAI_ATTR_VALUE_TYPE_ACL_ACTION_DATA_IP_ADDRESS:
         case SAI_ATTR_VALUE_TYPE_IPV4:
+
+        case SAI_ATTR_VALUE_TYPE_MACSEC_SAK:
+        case SAI_ATTR_VALUE_TYPE_MACSEC_AUTH_KEY:
+        case SAI_ATTR_VALUE_TYPE_MACSEC_SALT:
 
             if (md->allowedobjecttypes != NULL)
             {
@@ -808,6 +813,7 @@ void check_attr_default_required(
         case SAI_ATTR_VALUE_TYPE_ACL_FIELD_DATA_INT16:
         case SAI_ATTR_VALUE_TYPE_ACL_FIELD_DATA_INT32:
         case SAI_ATTR_VALUE_TYPE_ACL_FIELD_DATA_UINT32:
+        case SAI_ATTR_VALUE_TYPE_ACL_FIELD_DATA_UINT64:
         case SAI_ATTR_VALUE_TYPE_ACL_FIELD_DATA_MAC:
         case SAI_ATTR_VALUE_TYPE_ACL_FIELD_DATA_IPV4:
         case SAI_ATTR_VALUE_TYPE_ACL_FIELD_DATA_IPV6:
@@ -918,7 +924,13 @@ void check_attr_default_required(
             META_MD_ASSERT_FAIL(md, "default value list is needed on this attr value type but list is NULL");
 
         case SAI_ATTR_VALUE_TYPE_POINTER:
-            break;
+
+            /*
+             * Gearbox exception for mandatory pointer attribute
+             * to support CONST on list.
+             */
+
+           break;
 
         default:
 
@@ -1665,7 +1677,9 @@ void check_attr_key(
             case SAI_ATTR_VALUE_TYPE_OBJECT_ID:
 
                 if ((md->objecttype == SAI_OBJECT_TYPE_QUEUE && md->attrid == SAI_QUEUE_ATTR_PORT) ||
-                        (md->objecttype == SAI_OBJECT_TYPE_INGRESS_PRIORITY_GROUP && md->attrid == SAI_INGRESS_PRIORITY_GROUP_ATTR_PORT))
+                    (md->objecttype == SAI_OBJECT_TYPE_INGRESS_PRIORITY_GROUP && md->attrid == SAI_INGRESS_PRIORITY_GROUP_ATTR_PORT) ||
+                    (md->objecttype == SAI_OBJECT_TYPE_PORT_CONNECTOR && md->attrid == SAI_PORT_CONNECTOR_ATTR_SYSTEM_SIDE_PORT_ID) ||
+                    (md->objecttype == SAI_OBJECT_TYPE_PORT_CONNECTOR && md->attrid == SAI_PORT_CONNECTOR_ATTR_LINE_SIDE_PORT_ID))
                 {
                     /*
                      * This is also special case, OBJECT_ID at should not be a
@@ -1704,6 +1718,7 @@ void check_attr_acl_fields(
         case SAI_ATTR_VALUE_TYPE_ACL_FIELD_DATA_INT16:
         case SAI_ATTR_VALUE_TYPE_ACL_FIELD_DATA_INT32:
         case SAI_ATTR_VALUE_TYPE_ACL_FIELD_DATA_UINT32:
+        case SAI_ATTR_VALUE_TYPE_ACL_FIELD_DATA_UINT64:
         case SAI_ATTR_VALUE_TYPE_ACL_FIELD_DATA_MAC:
         case SAI_ATTR_VALUE_TYPE_ACL_FIELD_DATA_IPV4:
         case SAI_ATTR_VALUE_TYPE_ACL_FIELD_DATA_IPV6:
@@ -1736,6 +1751,7 @@ void check_attr_acl_fields(
                     case SAI_ATTR_VALUE_TYPE_ACL_FIELD_DATA_INT16:
                     case SAI_ATTR_VALUE_TYPE_ACL_FIELD_DATA_INT32:
                     case SAI_ATTR_VALUE_TYPE_ACL_FIELD_DATA_UINT32:
+                    case SAI_ATTR_VALUE_TYPE_ACL_FIELD_DATA_UINT64:
                         break;
 
                     default:
@@ -1797,6 +1813,7 @@ void check_attr_acl_fields(
                 case SAI_ATTR_VALUE_TYPE_ACL_FIELD_DATA_INT16:
                 case SAI_ATTR_VALUE_TYPE_ACL_FIELD_DATA_INT32:
                 case SAI_ATTR_VALUE_TYPE_ACL_FIELD_DATA_UINT32:
+                case SAI_ATTR_VALUE_TYPE_ACL_FIELD_DATA_UINT64:
                 case SAI_ATTR_VALUE_TYPE_ACL_FIELD_DATA_MAC:
                 case SAI_ATTR_VALUE_TYPE_ACL_FIELD_DATA_IPV4:
                 case SAI_ATTR_VALUE_TYPE_ACL_FIELD_DATA_IPV6:
@@ -2290,6 +2307,11 @@ void check_attr_existing_objects(
 
             META_MD_ASSERT_FAIL(md, "object list is not supported on this object type");
 
+        case SAI_ATTR_VALUE_TYPE_POINTER:
+            /*
+             * Allow poniter for switch register read and write API's.
+             */
+            break;
         default:
 
             META_MD_ASSERT_FAIL(md, "not supported attr value type on existing object");
@@ -2300,6 +2322,17 @@ void check_attr_sai_pointer(
         _In_ const sai_attr_metadata_t* md)
 {
     META_LOG_ENTER();
+
+    if (md->iscallback)
+    {
+        META_ASSERT_TRUE(md->attrvaluetype == SAI_ATTR_VALUE_TYPE_POINTER, "callback can be set only on pointer type");
+        META_ASSERT_TRUE(md->notificationtype == -1, "callback can't be notification");
+    }
+
+    if (md->notificationtype != -1)
+    {
+        META_ASSERT_FALSE(md->iscallback, "notification can't be callback");
+    }
 
     /*
      * Purpose of this test is to check whether sai_pointer_t
@@ -2314,16 +2347,24 @@ void check_attr_sai_pointer(
              * Make sure that all pointers are CREATE_AND_SET.
              */
 
-            if (md->flags != SAI_ATTR_FLAGS_CREATE_AND_SET)
+            if (!SAI_HAS_FLAG_CREATE_AND_SET(md->flags))
             {
                 META_MD_ASSERT_FAIL(md, "all pointers should be CREATE_AND_SET");
             }
 
-            META_ASSERT_TRUE(md->notificationtype >= 0, "notification type should be set to value on pointer");
+            if (md->iscallback)
+            {
+                META_ASSERT_TRUE(md->notificationtype == -1, "notification type should be marked as callback");
+            }
+            else
+            {
+                META_ASSERT_TRUE(md->notificationtype >= 0, "notification type should be set to value on pointer");
+            }
         }
         else
         {
             META_ASSERT_TRUE(md->notificationtype == -1, "notification type should not be set to value on non pointer");
+            META_ASSERT_TRUE(md->iscallback == false, "callback type should not be set to value on non pointer");
         }
 
         return;
@@ -2411,6 +2452,7 @@ void check_attr_is_primitive(
         case SAI_ATTR_VALUE_TYPE_ACL_FIELD_DATA_OBJECT_ID:
         case SAI_ATTR_VALUE_TYPE_ACL_FIELD_DATA_UINT16:
         case SAI_ATTR_VALUE_TYPE_ACL_FIELD_DATA_UINT32:
+        case SAI_ATTR_VALUE_TYPE_ACL_FIELD_DATA_UINT64:
         case SAI_ATTR_VALUE_TYPE_ACL_FIELD_DATA_UINT8:
         case SAI_ATTR_VALUE_TYPE_BOOL:
         case SAI_ATTR_VALUE_TYPE_CHARDATA:
@@ -2428,6 +2470,9 @@ void check_attr_is_primitive(
         case SAI_ATTR_VALUE_TYPE_UINT8:
         case SAI_ATTR_VALUE_TYPE_TIMESPEC:
         case SAI_ATTR_VALUE_TYPE_IPV4:
+        case SAI_ATTR_VALUE_TYPE_MACSEC_SAK:
+        case SAI_ATTR_VALUE_TYPE_MACSEC_AUTH_KEY:
+        case SAI_ATTR_VALUE_TYPE_MACSEC_SALT:
 
             if (!md->isprimitive)
             {
@@ -2968,6 +3013,9 @@ void check_non_object_id_object_types()
                 case SAI_ATTR_VALUE_TYPE_IP_PREFIX:
                 case SAI_ATTR_VALUE_TYPE_OBJECT_ID:
                 case SAI_ATTR_VALUE_TYPE_NAT_ENTRY_DATA:
+                case SAI_ATTR_VALUE_TYPE_MACSEC_SAK:
+                case SAI_ATTR_VALUE_TYPE_MACSEC_AUTH_KEY:
+                case SAI_ATTR_VALUE_TYPE_MACSEC_SALT:
                     break;
 
                 default:
@@ -4001,9 +4049,13 @@ void check_switch_attributes()
     {
         const sai_attr_metadata_t *md = meta[index];
 
-        if (md->isconditional || md->isvalidonly)
+        /*
+         * Gerabox attributes can be marked as mandatory on create.
+         */
+
+        if (md->isoidattribute && md->ismandatoryoncreate)
         {
-            META_MD_ASSERT_FAIL(md, "attribute can't be conditional/validonly (this check can be relaxed)");
+            META_MD_ASSERT_FAIL(md, "Mandatroy on create can't be object id on SWITCH");
         }
     }
 }
@@ -4048,6 +4100,21 @@ void check_quad_api_pointers(
     META_ASSERT_NOT_NULL(oi->remove);
     META_ASSERT_NOT_NULL(oi->set);
     META_ASSERT_NOT_NULL(oi->get);
+}
+
+void check_stats_api_pointers(
+        _In_ const sai_object_type_info_t *oi)
+{
+    META_LOG_ENTER();
+
+    /*
+     * Check if stats api pointers are not NULL, for objects that don't support
+     * stats dummy functions are generated.
+     */
+
+    META_ASSERT_NOT_NULL(oi->getstats);
+    META_ASSERT_NOT_NULL(oi->getstatsext);
+    META_ASSERT_NOT_NULL(oi->clearstats);
 }
 
 void check_object_id_non_object_id(
@@ -4222,6 +4289,7 @@ void check_single_object_info(
     META_LOG_ENTER();
 
     check_quad_api_pointers(oi);
+    check_stats_api_pointers(oi);
     check_object_id_non_object_id(oi);
     check_enum_to_attr_map(oi);
     check_object_ro_list(oi);
@@ -4349,7 +4417,8 @@ void check_graph_connected()
             continue;
         }
 
-        if (SAI_OBJECT_TYPE_DEBUG_COUNTER == i) {
+        if (SAI_OBJECT_TYPE_DEBUG_COUNTER == i)
+        {
             /*
              * Allow debug counters to be disconnected from main graph
              * as use case is by querying base object stats and not by direct reference
@@ -4444,6 +4513,32 @@ void check_defines()
     META_ASSERT_TRUE(SAI_METADATA_SWITCH_NOTIFY_ATTR_COUNT > 3, "there must be at least 3 notifications defined");
 }
 
+void check_object_type_attributes()
+{
+    SAI_META_LOG_ENTER();
+
+    size_t i = 0;
+
+    for (; i < sai_metadata_attr_by_object_type_count; ++i)
+    {
+        check_single_object_type_attributes(sai_metadata_attr_by_object_type[i]);
+    }
+}
+
+void check_all_object_infos()
+{
+    META_LOG_ENTER();
+
+    size_t i = SAI_OBJECT_TYPE_NULL + 1;
+
+    for (; i < SAI_OBJECT_TYPE_EXTENSIONS_MAX; ++i)
+    {
+        check_single_object_info(sai_metadata_all_object_type_infos[i]);
+    }
+
+    META_ASSERT_TRUE((size_t)SAI_OBJECT_TYPE_EXTENSIONS_MAX == (size_t)SAI_OBJECT_TYPE_EXTENSIONS_RANGE_END, "must be equal");
+}
+
 int main(int argc, char **argv)
 {
     debug = (argc > 1);
@@ -4455,14 +4550,7 @@ int main(int argc, char **argv)
     check_sai_status();
     check_object_type();
     check_attr_by_object_type();
-
-    size_t i = 0;
-
-    for (; i < sai_metadata_attr_by_object_type_count; ++i)
-    {
-        check_single_object_type_attributes(sai_metadata_attr_by_object_type[i]);
-    }
-
+    check_object_type_attributes();
     check_object_infos();
     check_stat_enums();
     check_attr_sorted_by_id_name();
@@ -4486,13 +4574,7 @@ int main(int argc, char **argv)
     check_label_size();
     check_switch_notify_list();
     check_defines();
-
-    i = SAI_OBJECT_TYPE_NULL + 1;
-
-    for (; i < SAI_OBJECT_TYPE_EXTENSIONS_MAX; ++i)
-    {
-        check_single_object_info(sai_metadata_all_object_type_infos[i]);
-    }
+    check_all_object_infos();
 
     SAI_META_LOG_DEBUG("log test");
 

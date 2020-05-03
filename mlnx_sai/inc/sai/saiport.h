@@ -136,6 +136,9 @@ typedef enum _sai_port_media_type_t
 
     /** Media type copper. Remote advertise medium information as copper */
     SAI_PORT_MEDIA_TYPE_COPPER,
+
+    /** Media type Back plane. */
+    SAI_PORT_MEDIA_TYPE_BACKPLANE,
 } sai_port_media_type_t;
 
 /**
@@ -200,6 +203,91 @@ typedef enum _sai_port_ptp_mode_t
     SAI_PORT_PTP_MODE_TWO_STEP_TIMESTAMP,
 
 } sai_port_ptp_mode_t;
+
+/**
+ * @brief Attribute data for #SAI_PORT_ATTR_INTERFACE_TYPE
+ * Used for selecting electrical interface with specific electrical pin and signal quality
+ */
+typedef enum _sai_port_interface_type_t
+{
+    /** Interface type none */
+    SAI_PORT_INTERFACE_TYPE_NONE,
+
+    /** Interface type CR */
+    SAI_PORT_INTERFACE_TYPE_CR,
+
+    /** Interface type CR4 */
+    SAI_PORT_INTERFACE_TYPE_CR4,
+
+    /** Interface type SR */
+    SAI_PORT_INTERFACE_TYPE_SR,
+
+    /** Interface type SR4 */
+    SAI_PORT_INTERFACE_TYPE_SR4,
+
+    /** Interface type LR */
+    SAI_PORT_INTERFACE_TYPE_LR,
+
+    /** Interface type LR4 */
+    SAI_PORT_INTERFACE_TYPE_LR4,
+
+    /** Interface type KR */
+    SAI_PORT_INTERFACE_TYPE_KR,
+
+    /** Interface type KR4 */
+    SAI_PORT_INTERFACE_TYPE_KR4,
+} sai_port_interface_type_t;
+
+/**
+ * @brief Attribute data for #SAI_PORT_ATTR_LINK_TRAINING_FAILURE_STATUS
+ * Used for Link Training failure status and error codes
+ */
+typedef enum _sai_port_link_training_failure_status_t
+{
+    /** No Error detected */
+    SAI_PORT_LINK_TRAINING_FAILURE_STATUS_NO_ERROR,
+
+    /** Failure detected */
+    SAI_PORT_LINK_TRAINING_FAILURE_STATUS_FRAME_LOCK_ERROR,
+
+    /** SNR lower than threshold */
+    SAI_PORT_LINK_TRAINING_FAILURE_STATUS_SNR_LOWER_THRESHOLD,
+
+    /** Link training timeout */
+    SAI_PORT_LINK_TRAINING_FAILURE_STATUS_TIME_OUT
+} sai_port_link_training_failure_status_t;
+
+/**
+ * @brief Attribute data for #SAI_PORT_ATTR_LINK_TRAINING_RX_STATUS
+ * Used for receiver status for link training
+ */
+typedef enum _sai_port_link_training_rx_status_t
+{
+    /** Receiver not trained */
+    SAI_PORT_LINK_TRAINING_RX_STATUS_NOT_TRAINED,
+
+    /** Receiver trained */
+    SAI_PORT_LINK_TRAINING_RX_STATUS_TRAINED,
+} sai_port_link_training_rx_status_t;
+
+/**
+ * @brief Attribute data for #SAI_PORT_ATTR_PRBS_CONFIG
+ * PRBS configuration to enable transmitter, receiver or both
+ */
+typedef enum _sai_port_prbs_config_t
+{
+    /** PRBS Disable */
+    SAI_PORT_PRBS_CONFIG_DISABLE,
+
+    /** Enable both PRBS Transmitter and Receiver */
+    SAI_PORT_PRBS_CONFIG_ENABLE_TX_RX,
+
+    /** Enable PRBS Receiver */
+    SAI_PORT_PRBS_CONFIG_ENABLE_RX,
+
+    /** Enable PRBS Transmitter */
+    SAI_PORT_PRBS_CONFIG_ENABLE_TX
+} sai_port_prbs_config_t;
 
 /**
  * @brief Attribute Id in sai_set_port_attribute() and
@@ -725,6 +813,47 @@ typedef enum _sai_port_attr_t
     SAI_PORT_ATTR_EGRESS_ACL,
 
     /**
+     * @brief Port bind point for ingress MACsec ACL object
+     *
+     * Bind (or unbind) an ingress MACsec ACL table on a port.
+     * Enable/Update ingress MACsec ACL table filtering by assigning the
+     * list of valid object id. Disable ingress filtering by assigning
+     * SAI_NULL_OBJECT_ID in the attribute value.
+     *
+     * @type sai_object_id_t
+     * @flags CREATE_AND_SET
+     * @objects SAI_OBJECT_TYPE_ACL_TABLE
+     * @allownull true
+     * @default SAI_NULL_OBJECT_ID
+     */
+    SAI_PORT_ATTR_INGRESS_MACSEC_ACL,
+
+    /**
+     * @brief Port bind point for egress MACsec ACL object
+     *
+     * Bind (or unbind) an egress MACsec ACL tables on a port.
+     * Enable/Update egress MACsec ACL table filtering by assigning the
+     * list of valid object id. Disable egress filtering by assigning
+     * SAI_NULL_OBJECT_ID in the attribute value.
+     *
+     * @type sai_object_id_t
+     * @flags CREATE_AND_SET
+     * @objects SAI_OBJECT_TYPE_ACL_TABLE
+     * @allownull true
+     * @default SAI_NULL_OBJECT_ID
+     */
+    SAI_PORT_ATTR_EGRESS_MACSEC_ACL,
+
+    /**
+     * @brief List of MACsec ports
+     *
+     * @type sai_object_list_t
+     * @flags READ_ONLY
+     * @objects SAI_OBJECT_TYPE_MACSEC_PORT
+     */
+    SAI_PORT_ATTR_MACSEC_PORT_LIST,
+
+    /**
      * @brief Enable/Disable Mirror session
      *
      * Enable ingress mirroring by assigning list of mirror session object id
@@ -1218,6 +1347,35 @@ typedef enum _sai_port_attr_t
     SAI_PORT_ATTR_PTP_MODE,
 
     /**
+     * @brief Configure Interface type
+     *
+     * Valid when SAI_SWITCH_ATTR_TYPE == SAI_SWITCH_TYPE_PHY
+     *
+     * @type sai_port_interface_type_t
+     * @flags CREATE_AND_SET
+     * @default SAI_PORT_INTERFACE_TYPE_NONE
+     */
+    SAI_PORT_ATTR_INTERFACE_TYPE,
+
+    /**
+     * @brief Configure port reference clock in hertz
+     *
+     * @type sai_uint64_t
+     * @flags CREATE_ONLY
+     * @default internal
+     */
+    SAI_PORT_ATTR_REFERENCE_CLOCK,
+
+    /**
+     * @brief Port PRBS Polynomial
+     *
+     * @type sai_uint32_t
+     * @flags CREATE_AND_SET
+     * @default internal
+     */
+    SAI_PORT_ATTR_PRBS_POLYNOMIAL,
+
+    /**
      * @brief Serdes object ID for the port
      *
      * @type sai_object_id_t
@@ -1226,6 +1384,72 @@ typedef enum _sai_port_attr_t
      * @default internal
      */
     SAI_PORT_ATTR_PORT_SERDES_ID,
+
+    /**
+     * @brief Link training failure status and error codes
+     *
+     * @type sai_port_link_training_failure_status_t
+     * @flags READ_ONLY
+     */
+    SAI_PORT_ATTR_LINK_TRAINING_FAILURE_STATUS,
+
+    /**
+     * @brief Status whether the receiver trained or not trained to receive data
+     *
+     * @type sai_port_link_training_rx_status_t
+     * @flags READ_ONLY
+     */
+    SAI_PORT_ATTR_LINK_TRAINING_RX_STATUS,
+
+    /**
+     * @brief Attribute data for #SAI_PORT_ATTR_PRBS_CONFIG
+     *
+     * PRBS configuration to enable transmitter, receiver or both
+     *
+     * @type sai_port_prbs_config_t
+     * @flags CREATE_AND_SET
+     * @default SAI_PORT_PRBS_CONFIG_DISABLE
+     */
+    SAI_PORT_ATTR_PRBS_CONFIG,
+
+    /**
+     * @brief Attribute data for #SAI_PORT_ATTR_PRBS_LOCK_STATUS
+     *
+     * PRBS lock status: 1 for locked, 0 for unlocked
+     *
+     * @type bool
+     * @flags READ_ONLY
+     */
+    SAI_PORT_ATTR_PRBS_LOCK_STATUS,
+
+    /**
+     * @brief Attribute data for #SAI_PORT_ATTR_PRBS_LOCK_LOSS_STATUS
+     *
+     * PRBS unlocked status since last read: 1 for lock loss, 0 for no lock loss
+     *
+     * @type bool
+     * @flags READ_ONLY
+     */
+    SAI_PORT_ATTR_PRBS_LOCK_LOSS_STATUS,
+
+    /**
+     * @brief Attribute data for #SAI_PORT_ATTR_AUTO_NEG_STATUS
+     *
+     * Auto negotiation (AN) done state: 0 for AN in progress, 0 for AN done
+     *
+     * @type bool
+     * @flags READ_ONLY
+     */
+    SAI_PORT_ATTR_AUTO_NEG_STATUS,
+
+    /**
+     * @brief To enable/disable Decrement TTL
+     *
+     * @type bool
+     * @flags CREATE_AND_SET
+     * @default false
+     */
+    SAI_PORT_ATTR_DECREMENT_TTL,
 
     /**
      * @brief End of attributes
@@ -1751,8 +1975,14 @@ typedef enum _sai_port_stat_t
      */
     SAI_PORT_STAT_EEE_RX_DURATION,
 
+    /** PRBS Error Count */
+    SAI_PORT_STAT_PRBS_ERROR_COUNT,
+
     /** Port stat in drop reasons range start */
     SAI_PORT_STAT_IN_DROP_REASON_RANGE_BASE = 0x00001000,
+
+    /** Get in port packet drops configured by debug counter API at index 0 */
+    SAI_PORT_STAT_IN_CONFIGURED_DROP_REASONS_0_DROPPED_PKTS = SAI_PORT_STAT_IN_DROP_REASON_RANGE_BASE,
 
     /** Get in port packet drops configured by debug counter API at index 1 */
     SAI_PORT_STAT_IN_CONFIGURED_DROP_REASONS_1_DROPPED_PKTS,
@@ -1780,6 +2010,9 @@ typedef enum _sai_port_stat_t
 
     /** Port stat out drop reasons range start */
     SAI_PORT_STAT_OUT_DROP_REASON_RANGE_BASE = 0x00002000,
+
+    /** Get out port packet drops configured by debug counter API at index 0 */
+    SAI_PORT_STAT_OUT_CONFIGURED_DROP_REASONS_0_DROPPED_PKTS = SAI_PORT_STAT_OUT_DROP_REASON_RANGE_BASE,
 
     /** Get out port packet drops configured by debug counter API at index 1 */
     SAI_PORT_STAT_OUT_CONFIGURED_DROP_REASONS_1_DROPPED_PKTS,
@@ -2391,30 +2624,127 @@ typedef sai_status_t (*sai_get_port_serdes_attribute_fn)(
         _Inout_ sai_attribute_t *attr_list);
 
 /**
+ * @brief List of Port connector attributes
+ */
+typedef enum _sai_port_connector_attr_t
+{
+    /**
+     * @brief Start of attributes
+     */
+    SAI_PORT_CONNECTOR_ATTR_START,
+
+    /**
+     * @brief Port ID
+     *
+     * @type sai_object_id_t
+     * @flags MANDATORY_ON_CREATE | CREATE_ONLY | KEY
+     * @objects SAI_OBJECT_TYPE_PORT
+     */
+    SAI_PORT_CONNECTOR_ATTR_SYSTEM_SIDE_PORT_ID = SAI_PORT_CONNECTOR_ATTR_START,
+
+    /**
+     * @brief Port ID
+     *
+     * @type sai_object_id_t
+     * @flags MANDATORY_ON_CREATE | CREATE_ONLY | KEY
+     * @objects SAI_OBJECT_TYPE_PORT
+     */
+    SAI_PORT_CONNECTOR_ATTR_LINE_SIDE_PORT_ID,
+
+    /**
+     * @brief End of attributes
+     */
+    SAI_PORT_CONNECTOR_ATTR_END,
+
+    /** Custom range base value */
+    SAI_PORT_CONNECTOR_ATTR_CUSTOM_RANGE_START = 0x10000000,
+
+    /** End of custom range base */
+    SAI_PORT_CONNECTOR_ATTR_CUSTOM_RANGE_END
+
+} sai_port_connector_attr_t;
+
+/**
+ * @brief Create port connector
+ * Port connector uses to define logical relation between system side port to line side port.
+ *
+ * @param[out] port_connector_id Port connector id
+ * @param[in] switch_id Switch id
+ * @param[in] attr_count Number of attributes
+ * @param[in] attr_list Array of attributes
+ *
+ * @return #SAI_STATUS_SUCCESS on success, failure status code on error
+ */
+typedef sai_status_t (*sai_create_port_connector_fn)(
+        _Out_ sai_object_id_t *port_connector_id,
+        _In_ sai_object_id_t switch_id,
+        _In_ uint32_t attr_count,
+        _In_ const sai_attribute_t *attr_list);
+
+/**
+ * @brief Remove port connector
+ *
+ * @param[in] port_connector_id Port connector id
+ *
+ * @return #SAI_STATUS_SUCCESS on success, failure status code on error
+ */
+typedef sai_status_t (*sai_remove_port_connector_fn)(
+        _In_ sai_object_id_t port_connector_id);
+
+/**
+ * @brief Set port connector attribute value.
+ *
+ * @param[in] port_connector_id Port connector id
+ * @param[in] attr Attribute
+ *
+ * @return #SAI_STATUS_SUCCESS on success, failure status code on error
+ */
+typedef sai_status_t (*sai_set_port_connector_attribute_fn)(
+        _In_ sai_object_id_t port_connector_id,
+        _In_ const sai_attribute_t *attr);
+
+/**
+ * @brief Get port connector attribute value.
+ *
+ * @param[in] port_connector_id Port connector id
+ * @param[in] attr_count Number of attributes
+ * @param[inout] attr_list Array of attributes
+ *
+ * @return #SAI_STATUS_SUCCESS on success, failure status code on error
+ */
+typedef sai_status_t (*sai_get_port_connector_attribute_fn)(
+        _In_ sai_object_id_t port_connector_id,
+        _In_ uint32_t attr_count,
+        _Inout_ sai_attribute_t *attr_list);
+
+/**
  * @brief Port methods table retrieved with sai_api_query()
  */
 typedef struct _sai_port_api_t
 {
-    sai_create_port_fn                create_port;
-    sai_remove_port_fn                remove_port;
-    sai_set_port_attribute_fn         set_port_attribute;
-    sai_get_port_attribute_fn         get_port_attribute;
-    sai_get_port_stats_fn             get_port_stats;
-    sai_get_port_stats_ext_fn         get_port_stats_ext;
-    sai_clear_port_stats_fn           clear_port_stats;
-    sai_clear_port_all_stats_fn       clear_port_all_stats;
-    sai_create_port_pool_fn           create_port_pool;
-    sai_remove_port_pool_fn           remove_port_pool;
-    sai_set_port_pool_attribute_fn    set_port_pool_attribute;
-    sai_get_port_pool_attribute_fn    get_port_pool_attribute;
-    sai_get_port_pool_stats_fn        get_port_pool_stats;
-    sai_get_port_pool_stats_ext_fn    get_port_pool_stats_ext;
-    sai_clear_port_pool_stats_fn      clear_port_pool_stats;
-    sai_create_port_serdes_fn         create_port_serdes;
-    sai_remove_port_serdes_fn         remove_port_serdes;
-    sai_set_port_serdes_attribute_fn  set_port_serdes_attribute;
-    sai_get_port_serdes_attribute_fn  get_port_serdes_attribute;
-
+    sai_create_port_fn                     create_port;
+    sai_remove_port_fn                     remove_port;
+    sai_set_port_attribute_fn              set_port_attribute;
+    sai_get_port_attribute_fn              get_port_attribute;
+    sai_get_port_stats_fn                  get_port_stats;
+    sai_get_port_stats_ext_fn              get_port_stats_ext;
+    sai_clear_port_stats_fn                clear_port_stats;
+    sai_clear_port_all_stats_fn            clear_port_all_stats;
+    sai_create_port_pool_fn                create_port_pool;
+    sai_remove_port_pool_fn                remove_port_pool;
+    sai_set_port_pool_attribute_fn         set_port_pool_attribute;
+    sai_get_port_pool_attribute_fn         get_port_pool_attribute;
+    sai_get_port_pool_stats_fn             get_port_pool_stats;
+    sai_get_port_pool_stats_ext_fn         get_port_pool_stats_ext;
+    sai_clear_port_pool_stats_fn           clear_port_pool_stats;
+    sai_create_port_connector_fn           create_port_connector;
+    sai_remove_port_connector_fn           remove_port_connector;
+    sai_set_port_connector_attribute_fn    set_port_connector_attribute;
+    sai_get_port_connector_attribute_fn    get_port_connector_attribute;
+    sai_create_port_serdes_fn              create_port_serdes;
+    sai_remove_port_serdes_fn              remove_port_serdes;
+    sai_set_port_serdes_attribute_fn       set_port_serdes_attribute;
+    sai_get_port_serdes_attribute_fn       get_port_serdes_attribute;
 } sai_port_api_t;
 
 /**

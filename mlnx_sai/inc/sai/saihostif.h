@@ -1001,8 +1001,6 @@ typedef enum _sai_hostif_table_entry_attr_t
     /**
      * @brief Host interface table entry action target host interface object
      *
-     * Valid only when #SAI_HOSTIF_TABLE_ENTRY_ATTR_CHANNEL_TYPE = #SAI_HOSTIF_TABLE_ENTRY_CHANNEL_TYPE_FD or #SAI_HOSTIF_TABLE_ENTRY_CHANNEL_TYPE_GENETLINK
-     *
      * @type sai_object_id_t
      * @flags MANDATORY_ON_CREATE | CREATE_ONLY
      * @objects SAI_OBJECT_TYPE_HOSTIF
@@ -1173,6 +1171,17 @@ typedef enum _sai_hostif_packet_attr_t
      * @flags READ_ONLY
      */
     SAI_HOSTIF_PACKET_ATTR_TIMESTAMP,
+
+    /**
+     * @brief Egress queue index
+     *
+     * The egress queue id for egress port or LAG.
+     *
+     * @type sai_uint8_t
+     * @flags CREATE_ONLY
+     * @default 0
+     */
+    SAI_HOSTIF_PACKET_ATTR_EGRESS_QUEUE_INDEX,
 
     /**
      * @brief End of attributes

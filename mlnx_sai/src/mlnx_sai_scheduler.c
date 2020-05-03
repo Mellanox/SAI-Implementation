@@ -79,7 +79,7 @@ static const mlnx_attr_enum_info_t        sched_enum_info[] = {
         SAI_SCHEDULING_TYPE_STRICT,
         SAI_SCHEDULING_TYPE_DWRR),
     [SAI_SCHEDULER_ATTR_METER_TYPE] = ATTR_ENUM_VALUES_LIST(
-        SAI_METER_TYPE_BYTES)
+        SAI_METER_TYPE_BYTES, SAI_METER_TYPE_PACKETS)
 };
 const mlnx_obj_type_attrs_info_t          mlnx_scheduler_obj_type_info =
 { sched_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(sched_enum_info)};
@@ -188,7 +188,7 @@ static uint32_t ets_fixup_rate(uint64_t rate)
 static void sai_to_sdk_rate(uint64_t min_rate, uint64_t max_rate, sx_cos_ets_element_config_t *ets)
 {
     if (0 == max_rate) {
-        ets->max_shaper_rate = 0xFFFFFFF;
+        ets->max_shaper_rate = SXD_COS_SHAPER_RATE_MAX;
     } else {
         ets->max_shaper_rate = ets_fixup_rate(max_rate);
     }

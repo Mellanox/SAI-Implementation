@@ -145,8 +145,7 @@ typedef enum _sai_router_interface_attr_t
     /**
      * @brief MAC Address
      *
-     * Not valid when #SAI_ROUTER_INTERFACE_ATTR_TYPE ==
-     * #SAI_ROUTER_INTERFACE_TYPE_LOOPBACK.
+     * Not valid when SAI_ROUTER_INTERFACE_ATTR_TYPE == SAI_ROUTER_INTERFACE_TYPE_LOOPBACK
      *
      * @type sai_mac_t
      * @flags CREATE_AND_SET
@@ -276,6 +275,15 @@ typedef enum _sai_router_interface_attr_t
      * @default 0
      */
     SAI_ROUTER_INTERFACE_ATTR_NAT_ZONE_ID,
+
+    /**
+     * @brief To enable/disable Decrement TTL
+     *
+     * @type bool
+     * @flags CREATE_AND_SET
+     * @default false
+     */
+    SAI_ROUTER_INTERFACE_ATTR_DECREMENT_TTL,
 
     /**
      * @brief End of attributes

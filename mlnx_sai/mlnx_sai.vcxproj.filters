@@ -183,6 +183,9 @@
     <ClInclude Include="inc\sai\sainat.h">
       <Filter>Header Files\sai</Filter>
     </ClInclude>
+    <ClInclude Include="inc\sai\saimacsec.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\mlnx_sai_acl.c">
@@ -351,6 +354,12 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\dbgdump\mlnx_sai_dbg_debug_counter.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\mlnx_sai_bfd.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\dbgdump\mlnx_sai_dbg_bfd.c">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

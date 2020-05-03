@@ -28,7 +28,6 @@ package serialize;
 use strict;
 use warnings;
 use diagnostics;
-use Getopt::Std;
 use Data::Dumper;
 use utils;
 use xmlutils;
@@ -367,9 +366,13 @@ sub GetTypeInfoForSerialize
         $TypeInfo{needQuote} = 1;
         $TypeInfo{suffix} = "chardata";
     }
+    elsif (defined $main::PRIMITIVE_TYPES{$type} and $main::PRIMITIVE_TYPES{$type}{isarray} == 1)
+    {
+        $TypeInfo{needQuote} = 1;
+    }
     else
     {
-        LogError "not handled $type $name in $structName, FIXME";
+        LogError "serialization type not handled $type $name in $structName, FIXME";
         return undef;
     }
 
@@ -727,7 +730,7 @@ sub ProcessMembersForSerialize
 
     return if defined $structInfoEx{ismetadatastruct} and $structName ne "sai_object_meta_key_t";
 
-    LogInfo "Creating serialzie for $structName";
+    LogDebug "Creating serialize for $structName";
 
     my %membersHash = %{ $structInfoEx{membersHash} };
 
@@ -1154,7 +1157,7 @@ sub ProcessMembersForDeserialize
 
     return if defined $structInfoEx{ismetadatastruct} and $structName ne "sai_object_meta_key_t";
 
-    LogInfo "Creating deserialzie for $structName";
+    LogDebug "Creating deserialize for $structName";
 
     my %membersHash = %{ $structInfoEx{membersHash} };
 

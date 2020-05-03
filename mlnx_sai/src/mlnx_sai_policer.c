@@ -3076,6 +3076,30 @@ static sai_status_t mlnx_sai_bind_policer_to_trap_group(_In_ sai_object_id_t sai
     return SAI_STATUS_SUCCESS;
 }
 
+sai_status_t mlnx_sai_policer_bind_set_impl(_In_ sai_object_id_t        sai_object_id,
+                                            _In_ sai_object_id_t        sai_policer,
+                                            _In_ mlnx_port_policer_type policer_function)
+{
+    sai_status_t             status;
+    mlnx_policer_bind_params bind_params;
+
+    bind_params.port_policer_type = policer_function;
+
+    if (policer_function >= MLNX_PORT_POLICER_TYPE_MAX) {
+        SX_LOG_ERR("Invalid policer type:%d passed for OID:%" PRIx64 "\n", policer_function, sai_object_id);
+        SX_LOG_EXIT();
+        return SAI_STATUS_INVALID_PARAMETER;
+    }
+
+    if (SAI_NULL_OBJECT_ID == sai_policer) {
+        status = mlnx_sai_unbind_policer(sai_object_id, &bind_params);
+    } else {
+        status = mlnx_sai_bind_policer(sai_object_id, sai_policer, &bind_params);
+    }
+
+    return status;
+}
+
 /* NOTE: bind/unbind mechanism for ACLs is different, due to specifics of the ACL model.
  *   Policer is attached to ACL by setting SAI_ACL_ENTRY_ATTR_ACTION_SET_POLICER property on an acl entry.
  * SAI DB should be locked

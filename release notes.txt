@@ -1,16 +1,15 @@
 Mellanox SAI implementation release notes
 ==========================================
 
-Release 1.16.0
+Release 1.16.3
 ---------------
 
 Current implementation is partial. 
 
 Not all the APIs that are defined were fully implemented in this release. Missing flows or implementation are noted in the code as "TODO : ..." comments.
 
-The code was tested to work on X86 both Spectrum1 and Spectrum2.
-No testing was done on PPC.
-The code compiles with, and was tested with, SDK version 4.3.3260.
+The code was tested to work on X86 for Spectrum1, Spectrum2 and Spectrum3
+The code compiles with, and was tested with, SDK version 4.4.0914.
 
 As a precondition to running SAI initialize switch, SDK must not be running (If it's running, terminate it with dvs_stop.sh). 
 The application must provide one key/value pair on profile services, depending on system type :
@@ -18,8 +17,12 @@ The application must provide one key/value pair on profile services, depending o
 "config_file=/usr/share/sai_2410.xml" / 
 "config_file=/usr/share/sai_2420.xml" / 
 "config_file=/usr/share/sai_2100.xml" /
+"config_file=/usr/share/sai_3420.xml" /
 "config_file=/usr/share/sai_3700.xml" /
-"config_file=/usr/share/sai_3800.xml".
+"config_file=/usr/share/sai_3800.xml" /
+"config_file=/usr/share/sai_4600.xml" /
+"config_file=/usr/share/sai_4600C.xml" /
+"config_file=/usr/share/sai_4700.xml". 
 On shutdown switch, SAI will perform all the necessary clean up and terminate the SDK.
 
 The following functions / attributes are not supported / implemented :
@@ -53,6 +56,10 @@ ACL has the following limitations :
 * ACL should be applied on LAG and not on member ports of a LAG
 * ACL egress block list action can be applied only on egress stage, not on ingress stage
 * ACL field out port doesn't support LAG
+* ACL field in port doesn't support LAG member ports
+* ACL IP_TYPE field supports the following values : SAI_ACL_IP_TYPE_ANY, SAI_ACL_IP_TYPE_ARP, SAI_ACL_IP_TYPE_IP, SAI_ACL_IP_TYPE_IPV4ANY, SAI_ACL_IP_TYPE_IPV6ANY, SAI_ACL_IP_TYPE_NON_IP
+* When using SAI_ACL_IP_TYPE_ANY, it's necessary to set at list one other field, as internally no key is used to match ANY value, and at least one key should be set for every rule
+* ACL SAI_ACL_ENTRY_ATTR_ACTION_MIRROR_INGRESS isn't supported at Egress stage. Note an exception, for SAI_ACL_BIND_POINT_TYPE_ROUTER_INTERFACE at Egress stage, only SAI_ACL_ENTRY_ATTR_ACTION_MIRROR_INGRESS can be used.
 
 IP over IP has the following limitations :
 * Set is not supported on any attribute in sai_tunnel_attr_t

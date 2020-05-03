@@ -45,6 +45,9 @@
  */
 #define MLNX_UDF_ACL_ATTR_SHORT_NAME_OFFSET (19)
 
+/* Must be equal to or greater than maximum enum values count */
+#define MLNX_ENUM_VALUE_COUNT_MAX (100)
+
 static const sai_u32_list_t        mlnx_sai_not_mandatory_attrs[SAI_OBJECT_TYPE_EXTENSIONS_RANGE_END] = {
     [SAI_OBJECT_TYPE_QOS_MAP] =
     {.count = 1, .list = (sai_attr_id_t[1]) {SAI_QOS_MAP_ATTR_MAP_TO_VALUE_LIST}
@@ -260,6 +263,7 @@ extern const mlnx_obj_type_attrs_info_t  mlnx_table_bitmap_classification_entry_
 extern const mlnx_obj_type_attrs_info_t  mlnx_table_bitmap_router_entry_obj_type_info;
 extern const mlnx_obj_type_attrs_info_t  mlnx_table_meta_tunnel_entry_obj_type_info;
 extern const mlnx_obj_type_attrs_info_t  mlnx_debug_counter_obj_type_info;
+extern const mlnx_obj_type_attrs_info_t  mlnx_bfd_session_obj_type_info;
 static const mlnx_obj_type_attrs_info_t* mlnx_obj_types_info[] = {
     [SAI_OBJECT_TYPE_PORT]                              = &mlnx_port_obj_type_info,
     [SAI_OBJECT_TYPE_LAG]                               = &mlnx_lag_obj_type_info,
@@ -318,6 +322,7 @@ static const mlnx_obj_type_attrs_info_t* mlnx_obj_types_info[] = {
     [SAI_OBJECT_TYPE_TABLE_BITMAP_ROUTER_ENTRY]         = &mlnx_table_bitmap_router_entry_obj_type_info,
     [SAI_OBJECT_TYPE_TABLE_META_TUNNEL_ENTRY]           = &mlnx_table_meta_tunnel_entry_obj_type_info,
     [SAI_OBJECT_TYPE_DEBUG_COUNTER]                     = &mlnx_debug_counter_obj_type_info,
+    [SAI_OBJECT_TYPE_BFD_SESSION]                       = &mlnx_bfd_session_obj_type_info,
 };
 static const uint32_t                    mlnx_obj_types_info_arr_size = ARRAY_SIZE(mlnx_obj_types_info);
 static sai_status_t sai_vendor_attr_index_find(_In_ const sai_attr_id_t                 attr_id,
@@ -1451,14 +1456,58 @@ static sai_status_t sai_attribute_value_list_type_validate(_In_ const sai_attr_m
     return SAI_STATUS_SUCCESS;
 }
 
+
+static sai_status_t sai_metadata_is_supported_enum_value(
+        _In_ const sai_attr_metadata_t* metadata,
+        _In_ int value,
+        _Out_ bool *is_supported)
+{
+    sai_status_t                      status;
+    sai_s32_list_t                    enum_values_capability;
+    int32_t                           list[MLNX_ENUM_VALUE_COUNT_MAX] = {0};
+    const mlnx_obj_type_attrs_info_t *obj_type_attr_info;
+    uint32_t                          ii;
+
+    assert(metadata && metadata->enummetadata);
+    assert(is_supported);
+
+    obj_type_attr_info = mlnx_obj_type_attr_info_get(metadata->objecttype);
+    if (!obj_type_attr_info) {
+        SX_LOG_NTC("Failed to find attr info - object API is not implemented\n");
+        return SAI_STATUS_FAILURE;
+    }
+
+    enum_values_capability.list = list;
+    enum_values_capability.count = MLNX_ENUM_VALUE_COUNT_MAX;
+    status = mlnx_attr_enum_supported_values_get(metadata,
+                                                 &obj_type_attr_info->enums_info,
+                                                 &enum_values_capability);
+    if (SAI_ERR(status)) {
+        return SAI_STATUS_FAILURE;
+    }
+
+    for (ii = 0; ii < enum_values_capability.count; ii++) {
+        if (enum_values_capability.list[ii] == value) {
+            *is_supported = true;
+            return SAI_STATUS_SUCCESS;
+        }
+    }
+
+    *is_supported = false;
+
+    return SAI_STATUS_SUCCESS;
+}
+
 static sai_status_t sai_atribute_value_type_enum_validate(_In_ const sai_attr_metadata_t   *meta_data,
                                                           _In_ const sai_attribute_value_t *value,
                                                           _In_ uint32_t                     attr_index)
 {
+    sai_status_t               status;
     const sai_enum_metadata_t *enum_metadata;
     const sai_int32_t         *enum_values;
     uint32_t                   enum_values_count, ii;
     bool                       is_enum_value_allowed;
+    bool                       is_enum_value_supported;
 
     assert(meta_data);
     assert(value);
@@ -1521,6 +1570,19 @@ static sai_status_t sai_atribute_value_type_enum_validate(_In_ const sai_attr_me
             SX_LOG_ERR("Failed to validate %s value - enum value %d is out of range [%s, %s]\n",
                        meta_data->attridname, enum_values[ii], enum_metadata->valuesnames[0],
                        enum_metadata->valuesnames[enum_metadata->valuescount - 1]);
+            return SAI_STATUS_INVALID_ATTR_VALUE_0 + attr_index;
+        }
+    }
+
+    for (ii = 0; ii < enum_values_count; ii++) {
+        status = sai_metadata_is_supported_enum_value(meta_data, enum_values[ii], &is_enum_value_supported);
+        if (SAI_ERR(status)) {
+            return status;
+        }
+
+        if (!is_enum_value_supported) {
+            SX_LOG_ERR("Failed to validate %s value - enum value %s is not supported\n",
+                       meta_data->attridname, meta_data->enummetadata->valuesshortnames[enum_values[ii]]);
             return SAI_STATUS_INVALID_ATTR_VALUE_0 + attr_index;
         }
     }
@@ -2496,7 +2558,9 @@ sai_status_t sai_set_attribute(_In_ const sai_object_key_t             *key,
     if (SAI_STATUS_SUCCESS !=
         (status =
              check_attribs_metadata(1, attr, object_type, functionality_vendor_attr, SAI_COMMON_API_SET))) {
-        SX_LOG_ERR("Failed attribs check, key:%s\n", key_str);
+        SX_LOG(((SAI_STATUS_ATTR_NOT_IMPLEMENTED_0 == status) || (SAI_STATUS_ATTR_NOT_SUPPORTED_0 == status)) ?
+                SX_LOG_WARNING : SX_LOG_ERROR, 
+            "Failed attribs check, key:%s\n", key_str);
         SX_LOG_EXIT();
         return status;
     }
@@ -2527,7 +2591,9 @@ sai_status_t sai_get_attributes(_In_ const sai_object_key_t             *key,
         (status =
              check_attribs_metadata(attr_count, attr_list, object_type, functionality_vendor_attr,
                                     SAI_COMMON_API_GET))) {
-        SX_LOG_ERR("Failed attribs check, key:%s\n", key_str);
+        SX_LOG(((SAI_STATUS_IS_ATTR_NOT_IMPLEMENTED(status)) || (SAI_STATUS_IS_ATTR_NOT_SUPPORTED(status))) ? 
+                SX_LOG_WARNING : SX_LOG_ERROR,
+            "Failed attribs check, key:%s\n", key_str);
         SX_LOG_EXIT();
         return status;
     }

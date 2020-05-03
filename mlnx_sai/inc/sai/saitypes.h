@@ -56,6 +56,9 @@ typedef UINT8   sai_ip6_t[16];
 typedef UINT32  sai_switch_hash_seed_t;
 typedef UINT32  sai_label_id_t;
 typedef UINT32  sai_stat_id_t;
+typedef UINT8   sai_macsec_sak_t[32];
+typedef UINT8   sai_macsec_auth_key_t[16];
+typedef UINT8   sai_macsec_salt_t[12];
 
 #include <ws2def.h>
 #include <ws2ipdef.h>
@@ -96,6 +99,9 @@ typedef uint8_t  sai_ip6_t[16];
 typedef uint32_t sai_switch_hash_seed_t;
 typedef uint32_t sai_label_id_t;
 typedef uint32_t sai_stat_id_t;
+typedef uint8_t sai_macsec_sak_t[32];
+typedef uint8_t sai_macsec_auth_key_t[16];
+typedef uint8_t sai_macsec_salt_t[12];
 
 #define _In_
 #define _Out_
@@ -262,8 +268,15 @@ typedef enum _sai_object_type_t
     SAI_OBJECT_TYPE_TAM_INT                  = 83,
     SAI_OBJECT_TYPE_COUNTER                  = 84,
     SAI_OBJECT_TYPE_DEBUG_COUNTER            = 85,
-    SAI_OBJECT_TYPE_PORT_SERDES              = 86,
-    SAI_OBJECT_TYPE_MAX                      = 87,
+    SAI_OBJECT_TYPE_PORT_CONNECTOR           = 86,
+    SAI_OBJECT_TYPE_PORT_SERDES              = 87,
+    SAI_OBJECT_TYPE_MACSEC                   = 88,
+    SAI_OBJECT_TYPE_MACSEC_PORT              = 89,
+    SAI_OBJECT_TYPE_MACSEC_FLOW              = 90,
+    SAI_OBJECT_TYPE_MACSEC_SC                = 91,
+    SAI_OBJECT_TYPE_MACSEC_SA                = 92,
+
+    SAI_OBJECT_TYPE_MAX,  /* Must remain in last position */
 } sai_object_type_t;
 
 typedef struct _sai_u8_list_t
@@ -402,6 +415,9 @@ typedef union _sai_acl_field_data_mask_t
     /** @validonly meta->attrvaluetype == SAI_ATTR_VALUE_TYPE_ACL_FIELD_DATA_INT32 */
     sai_int32_t s32;
 
+    /** @validonly meta->attrvaluetype == SAI_ATTR_VALUE_TYPE_ACL_FIELD_DATA_UINT64 */
+    sai_uint64_t u64;
+
     /** @validonly meta->attrvaluetype == SAI_ATTR_VALUE_TYPE_ACL_FIELD_DATA_MAC */
     sai_mac_t mac;
 
@@ -446,6 +462,9 @@ typedef union _sai_acl_field_data_data_t
      * @validonly meta->attrvaluetype == SAI_ATTR_VALUE_TYPE_ACL_FIELD_DATA_INT32
      */
     sai_int32_t s32;
+
+    /** @validonly meta->attrvaluetype == SAI_ATTR_VALUE_TYPE_ACL_FIELD_DATA_UINT64 */
+    sai_uint64_t u64;
 
     /** @validonly meta->attrvaluetype == SAI_ATTR_VALUE_TYPE_ACL_FIELD_DATA_MAC */
     sai_mac_t mac;
@@ -712,6 +731,12 @@ typedef enum _sai_acl_stage_t
 
     /** Egress Stage */
     SAI_ACL_STAGE_EGRESS,
+
+    /** Ingress Stage */
+    SAI_ACL_STAGE_INGRESS_MACSEC,
+
+    /** Egress Stage */
+    SAI_ACL_STAGE_EGRESS_MACSEC,
 
 } sai_acl_stage_t;
 
@@ -1054,6 +1079,15 @@ typedef union _sai_attribute_value_t
 
     /** @validonly meta->attrvaluetype == SAI_ATTR_VALUE_TYPE_TIMESPEC */
     sai_timespec_t timespec;
+
+    /** @validonly meta->attrvaluetype == SAI_ATTR_VALUE_TYPE_MACSEC_SAK */
+    sai_macsec_sak_t macsecsak;
+
+    /** @validonly meta->attrvaluetype == SAI_ATTR_VALUE_TYPE_MACSEC_AUTH_KEY */
+    sai_macsec_auth_key_t macsecauthkey;
+
+    /** @validonly meta->attrvaluetype == SAI_ATTR_VALUE_TYPE_MACSEC_SALT */
+    sai_macsec_salt_t macsecsalt;
 } sai_attribute_value_t;
 
 /**
@@ -1124,6 +1158,51 @@ typedef sai_status_t (*sai_bulk_object_create_fn)(
 typedef sai_status_t (*sai_bulk_object_remove_fn)(
         _In_ uint32_t object_count,
         _In_ const sai_object_id_t *object_id,
+        _In_ sai_bulk_op_error_mode_t mode,
+        _Out_ sai_status_t *object_statuses);
+
+/**
+ * @brief Bulk objects set attributes.
+ *
+ * @param[in] object_count Number of objects to set on attribute
+ * @param[in] object_id List of object ids
+ * @param[in] attr_list List of attributes for every object, one per object.
+ * @param[in] mode Bulk operation error handling mode.
+ * @param[out] object_statuses List of status for every object. Caller needs to allocate the buffer.
+ *
+ * @return #SAI_STATUS_SUCCESS when set attributes on all objects succeeded or
+ * #SAI_STATUS_FAILURE when any of the objects fails to set attribute. When
+ * there is failure, Caller is expected to go through the list of returned
+ * statuses to find out which fails and which succeeds.
+ */
+typedef sai_status_t (*sai_bulk_object_set_attribute_fn)(
+        _In_ uint32_t object_count,
+        _In_ const sai_object_id_t *object_id,
+        _In_ const sai_attribute_t *attr_list,
+        _In_ sai_bulk_op_error_mode_t mode,
+        _Out_ sai_status_t *object_statuses);
+
+/**
+ * @brief Bulk objects get attributes.
+ *
+ * @param[in] object_count Number of objects to get on attribute
+ * @param[in] object_id List of object ids
+ * @param[in] attr_count List of attr_count. Caller passes the number
+ *    of attribute for each object to get.
+ * @param[inout] attr_list List of attributes for every object.
+ * @param[in] mode Bulk operation error handling mode.
+ * @param[out] object_statuses List of status for every object. Caller needs to allocate the buffer.
+ *
+ * @return #SAI_STATUS_SUCCESS when get attributes on all objects succeeded or
+ * #SAI_STATUS_FAILURE when any of the objects fails to get attribute. When
+ * there is failure, Caller is expected to go through the list of returned
+ * statuses to find out which fails and which succeeds.
+ */
+typedef sai_status_t (*sai_bulk_object_get_attribute_fn)(
+        _In_ uint32_t object_count,
+        _In_ const sai_object_id_t *object_id,
+        _In_ const uint32_t *attr_count,
+        _Inout_ sai_attribute_t **attr_list,
         _In_ sai_bulk_op_error_mode_t mode,
         _Out_ sai_status_t *object_statuses);
 

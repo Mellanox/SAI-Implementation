@@ -227,6 +227,11 @@ typedef enum _sai_attr_value_type_t
     SAI_ATTR_VALUE_TYPE_ACL_FIELD_DATA_INT32,
 
     /**
+     * @brief Attribute value is ACL field 64 bit unsigned integer.
+     */
+    SAI_ATTR_VALUE_TYPE_ACL_FIELD_DATA_UINT64,
+
+    /**
      * @brief Attribute value is ACL field MAC address.
      */
     SAI_ATTR_VALUE_TYPE_ACL_FIELD_DATA_MAC,
@@ -240,6 +245,11 @@ typedef enum _sai_attr_value_type_t
      * @brief Attribute value is ACL field IPv6.
      */
     SAI_ATTR_VALUE_TYPE_ACL_FIELD_DATA_IPV6,
+
+    /**
+     * @brief Attribute value is MACsec rule match field SCI.
+     */
+    SAI_ATTR_VALUE_TYPE_ACL_FIELD_DATA_MACSEC_SCI,
 
     /**
      * @brief Attribute value is ACL field object id.
@@ -376,6 +386,30 @@ typedef enum _sai_attr_value_type_t
      */
     SAI_ATTR_VALUE_TYPE_NAT_ENTRY_DATA,
 
+    /**
+     * @brief Attribute value is MACsec SCI.
+     */
+    SAI_ATTR_VALUE_TYPE_MACSEC_SCI,
+
+    /**
+     * @brief Attribute value is MACsec SSCI.
+     */
+    SAI_ATTR_VALUE_TYPE_MACSEC_SSCI,
+
+    /**
+     * @brief Attribute value is MACsec SAK.
+     */
+    SAI_ATTR_VALUE_TYPE_MACSEC_SAK,
+
+    /**
+     * @brief Attribute value is MACsec Authentication Key.
+     */
+    SAI_ATTR_VALUE_TYPE_MACSEC_AUTH_KEY,
+
+    /**
+     * @brief Attribute value is MACsec SALT.
+     */
+    SAI_ATTR_VALUE_TYPE_MACSEC_SALT,
 } sai_attr_value_type_t;
 
 /**
@@ -981,6 +1015,13 @@ typedef struct _sai_attr_metadata_t
     int                                         notificationtype;
 
     /**
+     * @brief Is callback function.
+     *
+     * Set to true if attribute is callback function but not notification.
+     */
+    bool                                        iscallback;
+
+    /**
      * @brief Attribute capabilities.
      *
      * Represents attribute capability for each specific ASIC. Since each
@@ -1011,6 +1052,14 @@ typedef struct _sai_attr_metadata_t
      * to distinguish between pools of resources.
      */
     bool                                        isresourcetype;
+
+    /**
+     * @brief Indicates whether attribute is deprecated.
+     *
+     * If true, attribute is deprecated and should not be used. Is up to vendor
+     * to check this field and give run time warning about this attribute.
+     */
+    bool                                        isdeprecated;
 
 } sai_attr_metadata_t;
 
@@ -1192,6 +1241,24 @@ typedef sai_status_t (*sai_meta_generic_get_fn)(
         _In_ uint32_t attr_count,
         _Inout_ sai_attribute_t *attr_list);
 
+typedef sai_status_t (*sai_meta_generic_get_stats_fn)(
+        _In_ const sai_object_meta_key_t *meta_key,
+        _In_ uint32_t number_of_counters,
+        _In_ const sai_stat_id_t *counter_ids,
+        _Out_ uint64_t *counters);
+
+typedef sai_status_t (*sai_meta_generic_get_stats_ext_fn)(
+        _In_ const sai_object_meta_key_t *meta_key,
+        _In_ uint32_t number_of_counters,
+        _In_ const sai_stat_id_t *counter_ids,
+        _In_ sai_stats_mode_t mode,
+        _Out_ uint64_t *counters);
+
+typedef sai_status_t (*sai_meta_generic_clear_stats_fn)(
+        _In_ const sai_object_meta_key_t *meta_key,
+        _In_ uint32_t number_of_counters,
+        _In_ const sai_stat_id_t *counter_ids);
+
 typedef sai_status_t (*sai_generic_create_fn)(
         _Out_ sai_object_id_t *object_id,
         _In_ sai_object_id_t switch_id,
@@ -1301,6 +1368,21 @@ typedef struct _sai_object_type_info_t
      * @brief Get function pointer
      */
     const sai_meta_generic_get_fn                   get;
+
+    /**
+     * @brief Get stats function pointer.
+     */
+    const sai_meta_generic_get_stats_fn             getstats;
+
+    /**
+     * @brief Get stats extended function pointer.
+     */
+    const sai_meta_generic_get_stats_ext_fn         getstatsext;
+
+    /**
+     * @brief Clear stats function pointer
+     */
+    const sai_meta_generic_clear_stats_fn           clearstats;
 
     /**
      * @brief Indicates whether object type is experimental.
