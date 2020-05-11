@@ -5182,7 +5182,8 @@ sai_status_t mlnx_get_port_stats_ext(_In_ sai_object_id_t      port_id,
             if (SAI_ERR(status)) {
                 return status;
             }*/
-            counters[ii] = 0;
+            SX_LOG_INF("Port counter %d set item %u not implemented\n", counter_ids[ii], ii);
+            return SAI_STATUS_NOT_IMPLEMENTED;
             break;
 
         case SAI_PORT_STAT_OUT_DROPPED_PKTS:
@@ -5190,7 +5191,8 @@ sai_status_t mlnx_get_port_stats_ext(_In_ sai_object_id_t      port_id,
             if (SAI_ERR(status)) {
                 return status;
             }*/
-            counters[ii] = 0;
+            SX_LOG_INF("Port counter %d set item %u not implemented\n", counter_ids[ii], ii);
+            return SAI_STATUS_NOT_IMPLEMENTED;
             break;
 
         case SAI_PORT_STAT_IF_OUT_QLEN:
