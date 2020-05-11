@@ -84,6 +84,14 @@ static void SAI_dump_tunnel_map_type_enum_to_str(_In_ sai_tunnel_map_type_t type
         strcpy(str, "bridgeif2vni");
         break;
 
+    case SAI_TUNNEL_MAP_TYPE_VNI_TO_VIRTUAL_ROUTER_ID:
+        strcpy(str, "vni2vr");
+        break;
+
+    case SAI_TUNNEL_MAP_TYPE_VIRTUAL_ROUTER_ID_TO_VNI:
+        strcpy(str, "vr2vni");
+        break;
+
     default:
         strcpy(str, "unknown");
         break;
@@ -113,6 +121,8 @@ static void SAI_dump_tunnel_map_entry_print(_In_ FILE *file, _In_ mlnx_tunnel_ma
         {"vni value",                 12, PARAM_UINT32_E, &curr_mlnx_tunnel_map_entry.vni_id_value},
         {"bridge if key",             12, PARAM_UINT32_E, &curr_mlnx_tunnel_map_entry.bridge_id_key},
         {"bridge if value",           12, PARAM_UINT32_E, &curr_mlnx_tunnel_map_entry.bridge_id_value},
+        {"vr id key",                 12, PARAM_UINT64_E, &curr_mlnx_tunnel_map_entry.vr_id_key},
+        {"vr id value",               12, PARAM_UINT64_E, &curr_mlnx_tunnel_map_entry.vr_id_value},
         {"prev tunnel map entry idx", 12, PARAM_UINT32_E, &curr_mlnx_tunnel_map_entry.prev_tunnel_map_entry_idx},
         {"next tunnel map entry idx", 12, PARAM_UINT32_E, &curr_mlnx_tunnel_map_entry.next_tunnel_map_entry_idx},
         {NULL,                        0,  0,              NULL}
@@ -222,6 +232,20 @@ static void SAI_dump_tunnel_map_print(_In_ FILE                    *file,
         {"val vni",              11, PARAM_UINT32_E, &curr_mlnx_tunnel_map_entry.vni_id_value},
         {NULL,                   0,  0,              NULL}
     };
+    dbg_utils_table_columns_t sai_tunnelmap_vni2vr_clmns[] = {
+        {"db idx",               7,  PARAM_UINT32_E, &ii},
+        {"tunnel map entry idx", 20, PARAM_UINT32_E, &tunnel_map_entry_idx},
+        {"key vni",              11, PARAM_UINT32_E, &curr_mlnx_tunnel_map_entry.vni_id_key},
+        {"val vr id",            13, PARAM_UINT64_E, &curr_mlnx_tunnel_map_entry.vr_id_value},
+        {NULL,                   0,  0,              NULL}
+    };
+    dbg_utils_table_columns_t sai_tunnelmap_vr2vni_clmns[] = {
+        {"db idx",               7,  PARAM_UINT32_E, &ii},
+        {"tunnel map entry idx", 20, PARAM_UINT32_E, &tunnel_map_entry_idx},
+        {"key vr id",            11, PARAM_UINT64_E, &curr_mlnx_tunnel_map_entry.vr_id_key},
+        {"val vni",              13, PARAM_UINT32_E, &curr_mlnx_tunnel_map_entry.vni_id_value},
+        {NULL,                   0,  0,              NULL}
+    };
     dbg_utils_table_columns_t sai_tunnelmap_tunnel_idx_clmns[] = {
         {"db idx",           7,  PARAM_UINT32_E, &ii},
         {"tunnel array idx", 17, PARAM_UINT32_E, &jj},
@@ -286,6 +310,14 @@ static void SAI_dump_tunnel_map_print(_In_ FILE                    *file,
                 dbg_utils_print_table_headline(file, sai_tunnelmap_bridgeif2vni_clmns);
                 break;
 
+            case SAI_TUNNEL_MAP_TYPE_VNI_TO_VIRTUAL_ROUTER_ID:
+                dbg_utils_print_table_headline(file, sai_tunnelmap_vni2vr_clmns);
+                break;
+
+            case SAI_TUNNEL_MAP_TYPE_VIRTUAL_ROUTER_ID_TO_VNI:
+                dbg_utils_print_table_headline(file, sai_tunnelmap_vr2vni_clmns);
+                break;
+
             default:
                 break;
             }
@@ -331,6 +363,19 @@ static void SAI_dump_tunnel_map_print(_In_ FILE                    *file,
                     curr_mlnx_tunnel_map_entry.bridge_id_key = mlnx_tunnel_map_entry[jj].bridge_id_key;
                     curr_mlnx_tunnel_map_entry.vni_id_value  = mlnx_tunnel_map_entry[jj].vni_id_value;
                     dbg_utils_print_table_data_line(file, sai_tunnelmap_bridgeif2vni_clmns);
+                    break;
+
+                case SAI_TUNNEL_MAP_TYPE_VNI_TO_VIRTUAL_ROUTER_ID:
+                    curr_mlnx_tunnel_map_entry.vni_id_key  = mlnx_tunnel_map_entry[jj].vni_id_key;
+                    curr_mlnx_tunnel_map_entry.vr_id_value = mlnx_tunnel_map_entry[jj].vr_id_value;
+                    dbg_utils_print_table_data_line(file, sai_tunnelmap_vni2vr_clmns);
+                    break;
+
+                case SAI_TUNNEL_MAP_TYPE_VIRTUAL_ROUTER_ID_TO_VNI:
+                    curr_mlnx_tunnel_map_entry.vr_id_key    = mlnx_tunnel_map_entry[jj].vr_id_key;
+                    curr_mlnx_tunnel_map_entry.vni_id_value = mlnx_tunnel_map_entry[jj].vni_id_value;
+                    dbg_utils_print_table_data_line(file, sai_tunnelmap_vr2vni_clmns);
+                    break;
 
                 default:
                     break;

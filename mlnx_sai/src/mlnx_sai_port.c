@@ -5178,17 +5178,19 @@ sai_status_t mlnx_get_port_stats_ext(_In_ sai_object_id_t      port_id,
             break;
 
         case SAI_PORT_STAT_IN_DROPPED_PKTS:
-            status = mlnx_port_stat_pg_dropped_pkts_get(port_data, cmd, &counters[ii]);
+            /*status = mlnx_port_stat_pg_dropped_pkts_get(port_data, cmd, &counters[ii]);
             if (SAI_ERR(status)) {
                 return status;
-            }
+            }*/
+            counters[ii] = 0;
             break;
 
         case SAI_PORT_STAT_OUT_DROPPED_PKTS:
-            status = mlnx_port_stat_tc_dropped_pkts_get(port_data, cmd, &counters[ii]);
+            /*status = mlnx_port_stat_tc_dropped_pkts_get(port_data, cmd, &counters[ii]);
             if (SAI_ERR(status)) {
                 return status;
-            }
+            }*/
+            counters[ii] = 0;
             break;
 
         case SAI_PORT_STAT_IF_OUT_QLEN:
@@ -5918,50 +5920,120 @@ static sai_status_t mlnx_port_egress_block_sai_ports_to_sx(_In_ sx_port_log_id_t
     return SAI_STATUS_SUCCESS;
 }
 
+static sai_status_t mlnx_port_egress_block_set_single_port(_In_ sx_port_log_id_t        sx_ing_port_id,
+                                                           _In_ sx_port_log_id_t        block_port_id,
+                                                           _In_ const sx_port_log_id_t *sx_egress_block_port_list,
+                                                           _In_ uint32_t                egress_ports_count)
+{
+    sx_status_t               sx_status;
+    sx_access_cmd_t           sx_cmd;
+    uint32_t                  ii;
+    bool                      need_to_block;
+
+    SX_LOG_ENTER();
+
+    if (block_port_id == sx_ing_port_id) {
+        SX_LOG_EXIT();
+        return SAI_STATUS_SUCCESS;
+    }
+
+    need_to_block = false;
+    for (ii = 0; ii < egress_ports_count; ii++) {
+        if (block_port_id == sx_egress_block_port_list[ii]) {
+            need_to_block = true;
+            break;
+        }
+    }
+
+    sx_cmd = need_to_block ? SX_ACCESS_CMD_ADD : SX_ACCESS_CMD_DELETE;
+
+    SX_LOG_DBG("%s a port [%x] for port [%x] isolation group\n", SX_ACCESS_CMD_STR(
+                   sx_cmd), sx_ing_port_id, block_port_id);
+
+    sx_status = sx_api_port_isolate_set(gh_sdk, sx_cmd, block_port_id, &sx_ing_port_id, 1);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to %s a port [%x] for port [%x] isolation group - %s\n",
+                   SX_ACCESS_CMD_STR(sx_cmd), sx_ing_port_id, block_port_id, SX_STATUS_MSG(sx_status));
+        SX_LOG_EXIT();
+        return sdk_to_sai(sx_status);
+    }
+
+    SX_LOG_EXIT();
+    return SAI_STATUS_SUCCESS;
+}
+
 static sai_status_t mlnx_port_egress_block_set_impl(_In_ sx_port_log_id_t        sx_ing_port_id,
                                                     _In_ const sx_port_log_id_t *sx_egress_block_port_list,
                                                     _In_ uint32_t                egress_ports_count)
 {
     sx_status_t               sx_status;
-    sx_access_cmd_t           sx_cmd;
+    sai_status_t              sai_status;
     const mlnx_port_config_t *port;
-    uint32_t                  ii, jj;
-    bool                      need_to_block;
+    uint32_t                  ii;
     const bool                is_warmboot_init_stage = (BOOT_TYPE_WARM == g_sai_db_ptr->boot_type) &&
                                                        (!g_sai_db_ptr->issu_end_called);
+    sx_port_log_id_t          log_port_list[MAX_PORTS_DB * 2];
+    uint32_t                  port_list_cnt = MAX_PORTS_DB * 2;
+    sx_port_type_t            port_type;
 
     assert(sx_egress_block_port_list || (egress_ports_count == 0));
 
-    mlnx_port_not_in_lag_foreach(port, ii) {
-        if (port->logical == sx_ing_port_id) {
-            continue;
-        }
-        /* Skip the port which is in SAI port xml but not in SDK */
-        if (is_warmboot_init_stage && !port->sdk_port_added) {
-            continue;
-        }
+    SX_LOG_ENTER();
 
-        need_to_block = false;
-        for (jj = 0; jj < egress_ports_count; jj++) {
-            if (port->logical == sx_egress_block_port_list[jj]) {
-                need_to_block = true;
-                break;
+    if (!is_warmboot_init_stage) {
+        mlnx_port_not_in_lag_foreach(port, ii) {
+            sai_status = mlnx_port_egress_block_set_single_port(sx_ing_port_id,
+                                                                port->logical,
+                                                                sx_egress_block_port_list,
+                                                                egress_ports_count);
+            if (SAI_ERR(sai_status)) {
+                SX_LOG_ERR("Error setting egress block on single port %x for egress block port %x\n",
+                           sx_ing_port_id, port->logical);
+                SX_LOG_EXIT();
+                return sai_status;
             }
         }
+    } else {
+        /* For ISSU, we first loop through all non-LAG-member and non-LAG ports */
+        mlnx_phy_port_not_in_lag_foreach(port, ii) {
+            sai_status = mlnx_port_egress_block_set_single_port(sx_ing_port_id,
+                                                                port->logical,
+                                                                sx_egress_block_port_list,
+                                                                egress_ports_count);
+            if (SAI_ERR(sai_status)) {
+                SX_LOG_ERR("Error setting egress block on single port %x for egress block port %x\n",
+                           sx_ing_port_id, port->logical);
+                SX_LOG_EXIT();
+                return sai_status;
+            }
+        }
+        /* Then we loop through all LAGs in SDK port list, because they might not be in SAI port db yet during ISSU */
+        sx_status = sx_api_port_swid_port_list_get(gh_sdk, DEFAULT_ETH_SWID, log_port_list, &port_list_cnt);
+        if (SX_STATUS_SUCCESS != sx_status) {
+            SX_LOG_ERR("Error getting port swid port list: %s\n",
+                       SX_STATUS_MSG(sx_status));
+            sai_status = sdk_to_sai(sx_status);
+            SX_LOG_EXIT();
+            return sai_status;
+        }
 
-        sx_cmd = need_to_block ? SX_ACCESS_CMD_ADD : SX_ACCESS_CMD_DELETE;
-
-        SX_LOG_DBG("%s a port [%x] for port [%x] isolation group\n", SX_ACCESS_CMD_STR(
-                       sx_cmd), sx_ing_port_id, port->logical);
-
-        sx_status = sx_api_port_isolate_set(gh_sdk, sx_cmd, port->logical, &sx_ing_port_id, 1);
-        if (SX_ERR(sx_status)) {
-            SX_LOG_ERR("Failed to %s a port [%x] for port [%x] isolation group - %s\n",
-                       SX_ACCESS_CMD_STR(sx_cmd), sx_ing_port_id, port->logical, SX_STATUS_MSG(sx_status));
-            return sdk_to_sai(sx_status);
+        for (ii = 0; ii < port_list_cnt; ii++) {
+            port_type = SX_PORT_TYPE_ID_GET(log_port_list[ii]);
+            if (SX_PORT_TYPE_LAG & port_type) {
+                sai_status = mlnx_port_egress_block_set_single_port(sx_ing_port_id,
+                                                                    log_port_list[ii],
+                                                                    sx_egress_block_port_list,
+                                                                    egress_ports_count);
+                if (SAI_ERR(sai_status)) {
+                    SX_LOG_ERR("Error setting egress block for port %x on egress block port %x\n", sx_ing_port_id, log_port_list[ii]);
+                    SX_LOG_EXIT();
+                    return sai_status;
+                }
+            }
         }
     }
 
+    SX_LOG_EXIT();
     return SAI_STATUS_SUCCESS;
 }
 
@@ -5979,6 +6051,8 @@ static sai_status_t mlnx_port_egress_block_get_impl(_In_ sx_port_log_id_t   sx_i
     const mlnx_port_config_t *port;
     uint32_t                  sx_port_isolation_group_size, egress_block_ports_count;
     uint32_t                  ii, jj;
+    const bool                is_warmboot_init_stage = (BOOT_TYPE_WARM == g_sai_db_ptr->boot_type) &&
+                                                       (!g_sai_db_ptr->issu_end_called);
 
     assert(sx_egress_block_ports);
     assert(sx_egress_block_ports_count);
@@ -5992,6 +6066,10 @@ static sai_status_t mlnx_port_egress_block_get_impl(_In_ sx_port_log_id_t   sx_i
     egress_block_ports_count = 0;
     mlnx_port_foreach(port, ii) {
         if (port->logical == sx_ing_port_id) {
+            continue;
+        }
+        /* Skip LAG which only exists in SDK but not in SAI */
+        if (is_warmboot_init_stage && (0 == port->logical)) {
             continue;
         }
 
@@ -6695,19 +6773,21 @@ static sai_status_t mlnx_port_speed_get_sp2(_In_ sx_port_log_id_t sx_port,
         *oper_speed = PORT_SPEED_40;
         break;
 
-    case SX_PORT_RATE_50G_E:
+    case SX_PORT_RATE_50Gx1_E:
+    case SX_PORT_RATE_50Gx2_E:
         *oper_speed = PORT_SPEED_50;
         break;
 
-    case SX_PORT_RATE_100G_E:
+    case SX_PORT_RATE_100Gx2_E:
+    case SX_PORT_RATE_100Gx4_E:
         *oper_speed = PORT_SPEED_100;
         break;
 
-    case SX_PORT_RATE_200G_E:
+    case SX_PORT_RATE_200Gx4_E:
         *oper_speed = PORT_SPEED_200;
         break;
 
-    case SX_PORT_RATE_400G_E:
+    case SX_PORT_RATE_400Gx8_E:
         *oper_speed = PORT_SPEED_400;
         break;
 

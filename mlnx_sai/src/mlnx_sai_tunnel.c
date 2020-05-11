@@ -233,6 +233,16 @@ static const sai_vendor_attribute_entry_t tunnel_map_entry_vendor_attribs[] = {
       { true, false, false, true },
       mlnx_tunnel_map_entry_attr_key_value_get, (void*)MLNX_BRIDGE_ID_VALUE,
       NULL, NULL },
+    { SAI_TUNNEL_MAP_ENTRY_ATTR_VIRTUAL_ROUTER_ID_KEY,
+      { true, false, false, true },
+      { true, false, false, true },
+      mlnx_tunnel_map_entry_attr_key_value_get, (void*)MLNX_VR_ID_KEY,
+      NULL, NULL },
+    { SAI_TUNNEL_MAP_ENTRY_ATTR_VIRTUAL_ROUTER_ID_VALUE,
+      { true, false, false, true },
+      { true, false, false, true },
+      mlnx_tunnel_map_entry_attr_key_value_get, (void*)MLNX_VR_ID_VALUE,
+      NULL, NULL },
     { END_FUNCTIONALITY_ATTRIBS_ID,
       { false, false, false, false },
       { false, false, false, false },
@@ -246,7 +256,9 @@ static const mlnx_attr_enum_info_t        tunnel_map_entry_enum_info[] = {
         SAI_TUNNEL_MAP_TYPE_VNI_TO_VLAN_ID,
         SAI_TUNNEL_MAP_TYPE_VLAN_ID_TO_VNI,
         SAI_TUNNEL_MAP_TYPE_VNI_TO_BRIDGE_IF,
-        SAI_TUNNEL_MAP_TYPE_BRIDGE_IF_TO_VNI)
+        SAI_TUNNEL_MAP_TYPE_BRIDGE_IF_TO_VNI,
+        SAI_TUNNEL_MAP_TYPE_VNI_TO_VIRTUAL_ROUTER_ID,
+        SAI_TUNNEL_MAP_TYPE_VIRTUAL_ROUTER_ID_TO_VNI)
 };
 const mlnx_obj_type_attrs_info_t          mlnx_tunnel_map_entry_obj_type_info =
 { tunnel_map_entry_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(tunnel_map_entry_enum_info)};
@@ -278,7 +290,9 @@ static const mlnx_attr_enum_info_t        tunnel_map_enum_info[] = {
         SAI_TUNNEL_MAP_TYPE_VNI_TO_VLAN_ID,
         SAI_TUNNEL_MAP_TYPE_VLAN_ID_TO_VNI,
         SAI_TUNNEL_MAP_TYPE_VNI_TO_BRIDGE_IF,
-        SAI_TUNNEL_MAP_TYPE_BRIDGE_IF_TO_VNI)
+        SAI_TUNNEL_MAP_TYPE_BRIDGE_IF_TO_VNI,
+        SAI_TUNNEL_MAP_TYPE_VNI_TO_VIRTUAL_ROUTER_ID,
+        SAI_TUNNEL_MAP_TYPE_VIRTUAL_ROUTER_ID_TO_VNI)
 };
 const mlnx_obj_type_attrs_info_t          mlnx_tunnel_map_obj_type_info =
 { tunnel_map_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(tunnel_map_enum_info)};
@@ -898,7 +912,9 @@ static sai_status_t mlnx_tunnel_map_entry_attr_key_value_get(_In_ const sai_obje
            (MLNX_VNI_ID_KEY == (long)arg) ||
            (MLNX_VNI_ID_VALUE == (long)arg) ||
            (MLNX_BRIDGE_ID_KEY == (long)arg) ||
-           (MLNX_BRIDGE_ID_VALUE == (long)arg));
+           (MLNX_BRIDGE_ID_VALUE == (long)arg) ||
+           (MLNX_VR_ID_KEY == (long)arg) ||
+           (MLNX_VR_ID_VALUE == (long)arg));
 
     SX_LOG_ENTER();
 
@@ -948,6 +964,14 @@ static sai_status_t mlnx_tunnel_map_entry_attr_key_value_get(_In_ const sai_obje
 
     case MLNX_BRIDGE_ID_VALUE:
         value->oid = mlnx_tunnel_map_entry.bridge_id_value;
+        break;
+
+    case MLNX_VR_ID_KEY:
+        value->oid = mlnx_tunnel_map_entry.vr_id_key;
+        break;
+
+    case MLNX_VR_ID_VALUE:
+        value->oid = mlnx_tunnel_map_entry.vr_id_value;
         break;
 
     default:
@@ -3934,6 +3958,223 @@ static sai_status_t mlnx_sai_tunnel_1Qbridge_get(_Out_ sx_bridge_id_t *sx_bridge
     return SAI_STATUS_SUCCESS;
 }
 
+/* This function needs to be guarded by lock */
+static sai_status_t mlnx_is_tunnel_map_entry_bound_to_tunnel(_In_  sx_tunnel_id_t sx_tunnel_id,
+                                                             _In_  uint32_t       tunnel_map_entry_idx,
+                                                             _Out_ bool          *is_bound)
+{
+    sai_status_t      sai_status;
+    sai_object_id_t   tunnel_map_oid;
+    uint32_t          curr_tunnel_idx;
+    mlnx_tunnel_map_t mlnx_tunnel_map;
+    sx_tunnel_id_t    curr_sx_tunnel_id_ipv4;
+    sx_tunnel_id_t    curr_sx_tunnel_id_ipv6;
+    sai_tunnel_type_t curr_sai_tunnel_type;
+    bool              curr_ipv4_created;
+    bool              curr_ipv6_created;
+    uint32_t          ii;
+
+    SX_LOG_ENTER();
+
+    *is_bound = false;
+
+    if (MLNX_TUNNEL_MAP_ENTRY_MAX <= tunnel_map_entry_idx) {
+        SX_LOG_ERR("Tunnel map entry idx %d should be smaller than %d\n", tunnel_map_entry_idx, MLNX_TUNNEL_MAP_ENTRY_MAX);
+        SX_LOG_EXIT();
+        return SAI_STATUS_FAILURE;
+    }
+
+    tunnel_map_oid = g_sai_tunnel_db_ptr->tunnel_map_entry_db[tunnel_map_entry_idx].tunnel_map_id;
+
+    sai_status = mlnx_tunnel_map_db_param_get(tunnel_map_oid, &mlnx_tunnel_map);
+    if (SAI_ERR(sai_status)) {
+        SX_LOG_ERR("Fail to obtain tunnel map db entry from tunnel map oid %"PRIx64"\n", tunnel_map_oid);
+        SX_LOG_EXIT();
+        return SAI_STATUS_FAILURE;
+    }
+
+    for (ii = 0; ii < mlnx_tunnel_map.tunnel_cnt; ii++) {
+        curr_tunnel_idx = mlnx_tunnel_map.tunnel_idx[ii];
+        if (MAX_TUNNEL <= curr_tunnel_idx) {
+            SX_LOG_ERR("Tunnel idx %d should be smaller than %d\n", curr_tunnel_idx, MAX_TUNNEL);
+            SX_LOG_EXIT();
+            return SAI_STATUS_FAILURE;
+        }
+        curr_sai_tunnel_type = g_sai_tunnel_db_ptr->tunnel_entry_db[curr_tunnel_idx].sai_tunnel_type;
+        curr_sx_tunnel_id_ipv4 = g_sai_tunnel_db_ptr->tunnel_entry_db[curr_tunnel_idx].sx_tunnel_id_ipv4;
+        curr_sx_tunnel_id_ipv6 = g_sai_tunnel_db_ptr->tunnel_entry_db[curr_tunnel_idx].sx_tunnel_id_ipv6;
+        curr_ipv4_created = g_sai_tunnel_db_ptr->tunnel_entry_db[curr_tunnel_idx].ipv4_created;
+        curr_ipv6_created = g_sai_tunnel_db_ptr->tunnel_entry_db[curr_tunnel_idx].ipv6_created;
+        switch (curr_sai_tunnel_type) {
+        case SAI_TUNNEL_TYPE_IPINIP:
+        case SAI_TUNNEL_TYPE_IPINIP_GRE:
+            if ((curr_ipv4_created && (sx_tunnel_id == curr_sx_tunnel_id_ipv4)) || (curr_ipv6_created && (sx_tunnel_id == curr_sx_tunnel_id_ipv6))) {
+                *is_bound = true;
+            }
+            break;
+        case SAI_TUNNEL_TYPE_VXLAN:
+            if ((curr_ipv4_created && (sx_tunnel_id == curr_sx_tunnel_id_ipv4))) {
+                *is_bound = true;
+            }
+            break;
+        default:
+            SX_LOG_ERR("Unsupported tunnel type %d for tunnel idx %d\n", curr_sai_tunnel_type, curr_tunnel_idx);
+            SX_LOG_EXIT();
+            return SAI_STATUS_FAILURE;
+        }
+    }
+
+    SX_LOG_EXIT();
+
+    return sai_status;
+}
+
+/* This function needs to be guarded by lock */
+sai_status_t mlnx_vrid_to_br_rif_get(_In_  sx_router_id_t         sx_vrid,
+                                     _In_  sx_tunnel_id_t         sx_vxlan_tunnel,
+                                     _Out_ sx_router_interface_t *br_rif,
+                                     _Out_ sx_fid_t              *br_fid)
+{
+    sai_status_t             sai_status;
+    sai_object_id_t          vr_oid;
+    uint32_t                 vni_id;
+    sai_object_id_t          bridge_oid;
+    sx_bridge_id_t           sx_bridge_id;
+    mlnx_tunnel_map_entry_t *curr_tunnel_map_entry;
+    mlnx_bridge_rif_t       *curr_bridge_rif_entry;
+    uint32_t                 ii = 0;
+    bool                     is_bound = false;
+
+    SX_LOG_ENTER();
+
+    if (NULL == br_rif) {
+        SX_LOG_ERR("Empty pointer br_rif\n");
+        SX_LOG_EXIT();
+        return SAI_STATUS_FAILURE;
+    }
+
+    if (NULL == br_fid) {
+        SX_LOG_ERR("Empty pointer br_fid\n");
+        SX_LOG_EXIT();
+        return SAI_STATUS_FAILURE;
+    }
+
+    sai_status = mlnx_create_object(SAI_OBJECT_TYPE_VIRTUAL_ROUTER,
+                                    sx_vrid, NULL, &vr_oid);
+    if (SAI_ERR(sai_status)) {
+        SX_LOG_ERR("Error find vr oid for sdk vr id %x\n", sx_vrid);
+        SX_LOG_EXIT();
+        return sai_status;
+    }
+
+    /* Get VR ID to VNI map */
+    for (ii = 0; ii < MLNX_TUNNEL_MAP_ENTRY_MAX; ii++) {
+        curr_tunnel_map_entry = &(g_sai_tunnel_db_ptr->tunnel_map_entry_db[ii]);
+        if (NULL == curr_tunnel_map_entry) {
+            SX_LOG_ERR("Tunnel map entry %d is empty\n", ii);
+            SX_LOG_EXIT();
+            return SAI_STATUS_FAILURE;
+        }
+        if (curr_tunnel_map_entry->in_use &&
+            (SAI_TUNNEL_MAP_TYPE_VIRTUAL_ROUTER_ID_TO_VNI == curr_tunnel_map_entry->tunnel_map_type) &&
+            (vr_oid == curr_tunnel_map_entry->vr_id_key)) {
+            vni_id = curr_tunnel_map_entry->vni_id_value;
+            break;
+        }
+    }
+    if (MLNX_TUNNEL_MAP_ENTRY_MAX == ii) {
+        SX_LOG_ERR("Failed to find vr oid key %"PRIx64" in SAI tunnel map entry db\n", vr_oid);
+        SX_LOG_EXIT();
+        return SAI_STATUS_FAILURE;
+    }
+
+    sai_status = mlnx_is_tunnel_map_entry_bound_to_tunnel(sx_vxlan_tunnel,
+                                                          ii,
+                                                          &is_bound);
+    if (SAI_ERR(sai_status)) {
+        SX_LOG_ERR("Failed to find if tunnel map entry idx %d is bound to sx tunnel id %x\n",
+                   ii, sx_vxlan_tunnel);
+        SX_LOG_EXIT();
+        return sai_status;
+    }
+    if (!is_bound) {
+        SX_LOG_ERR("tunnel map entry idx %d is not bound to sx tunnel id %x\n",
+                   ii, sx_vxlan_tunnel);
+        SX_LOG_EXIT();
+        return SAI_STATUS_FAILURE;
+    }
+
+    /* Get VNI to bridge */
+    for (ii = 0; ii < MLNX_TUNNEL_MAP_ENTRY_MAX; ii++) {
+        curr_tunnel_map_entry = &(g_sai_tunnel_db_ptr->tunnel_map_entry_db[ii]);
+        if (NULL == curr_tunnel_map_entry) {
+            SX_LOG_ERR("Tunnel map entry %d is empty\n", ii);
+            SX_LOG_EXIT();
+            return SAI_STATUS_FAILURE;
+        }
+        if (curr_tunnel_map_entry->in_use &&
+            (SAI_TUNNEL_MAP_TYPE_VNI_TO_BRIDGE_IF == curr_tunnel_map_entry->tunnel_map_type) &&
+            (vni_id == curr_tunnel_map_entry->vni_id_key)) {
+            bridge_oid = curr_tunnel_map_entry->bridge_id_value;
+            break;
+        }
+    }
+    if (MLNX_TUNNEL_MAP_ENTRY_MAX == ii) {
+        SX_LOG_ERR("Failed to find vni key %d in SAI tunnel map entry db\n");
+        SX_LOG_EXIT();
+        return SAI_STATUS_FAILURE;
+    }
+
+    is_bound = false;
+    sai_status = mlnx_is_tunnel_map_entry_bound_to_tunnel(sx_vxlan_tunnel,
+                                                          ii,
+                                                          &is_bound);
+    if (SAI_ERR(sai_status)) {
+        SX_LOG_ERR("Failed to find if tunnel map entry idx %d is bound to sx tunnel id %x\n",
+                   ii, sx_vxlan_tunnel);
+        SX_LOG_EXIT();
+        return sai_status;
+    }
+    if (!is_bound) {
+        SX_LOG_ERR("tunnel map entry idx %d is not bound to sx tunnel id %x\n",
+                   ii, sx_vxlan_tunnel);
+        SX_LOG_EXIT();
+        return SAI_STATUS_FAILURE;
+    }
+
+    sai_status = mlnx_bridge_oid_to_id(bridge_oid, &sx_bridge_id);
+    if (SAI_ERR(sai_status)) {
+        SX_LOG_ERR("Failed to find sx bridge id using bridge oid %"PRIx64"\n", bridge_oid);
+        SX_LOG_EXIT();
+        return SAI_STATUS_FAILURE;
+    }
+
+    /* Get bridge to bridge rif */
+    for (ii = 0; ii < MAX_BRIDGE_RIFS; ii++) {
+        curr_bridge_rif_entry = &(g_sai_db_ptr->bridge_rifs_db[ii]);
+        if (NULL == curr_bridge_rif_entry) {
+            SX_LOG_ERR("Bridge rif entry %d is empty\n", ii);
+            SX_LOG_EXIT();
+            return SAI_STATUS_FAILURE;
+        }
+        if (curr_bridge_rif_entry->is_used &&
+            sx_bridge_id == curr_bridge_rif_entry->intf_params.ifc.bridge.bridge) {
+            *br_rif = curr_bridge_rif_entry->sx_data.rif_id;
+            *br_fid = sx_bridge_id;
+            break;
+        }
+    }
+
+    if (MAX_BRIDGE_RIFS == ii) {
+        SX_LOG_ERR("Failed to find bridge id %d in SAI bridge rif db\n", sx_bridge_id);
+        SX_LOG_EXIT();
+        return SAI_STATUS_FAILURE;
+    }
+
+    SX_LOG_EXIT();
+    return SAI_STATUS_SUCCESS;
+}
+
 static sai_status_t mlnx_sai_fill_tunnel_map_entry(_In_ uint32_t                tunnel_map_entry_idx,
                                                    _Out_ sx_tunnel_map_entry_t *sx_tunnel_map_entry)
 {
@@ -3989,6 +4230,12 @@ static sai_status_t mlnx_sai_fill_tunnel_map_entry(_In_ uint32_t                
 
     case SAI_TUNNEL_MAP_TYPE_OECN_TO_UECN:
     case SAI_TUNNEL_MAP_TYPE_UECN_OECN_TO_OECN:
+        SX_LOG_EXIT();
+        return SAI_STATUS_SUCCESS;
+        break;
+
+    case SAI_TUNNEL_MAP_TYPE_VNI_TO_VIRTUAL_ROUTER_ID:
+    case SAI_TUNNEL_MAP_TYPE_VIRTUAL_ROUTER_ID_TO_VNI:
         SX_LOG_EXIT();
         return SAI_STATUS_SUCCESS;
         break;
@@ -4804,13 +5051,15 @@ static sai_status_t mlnx_sai_tunnel_map_entry_vlan_vni_bridge_set(_In_ sai_objec
                 break;
 
             case SAI_TUNNEL_MAP_TYPE_OECN_TO_UECN:
+            case SAI_TUNNEL_MAP_TYPE_VIRTUAL_ROUTER_ID_TO_VNI:
                 continue;
                 break;
 
             default:
-                SX_LOG_ERR("sai tunnel map type for encap should be %d or %d but getting %d\n",
+                SX_LOG_ERR("sai tunnel map type for encap should be %d or %d or %d but getting %d\n",
                            SAI_TUNNEL_MAP_TYPE_VLAN_ID_TO_VNI,
                            SAI_TUNNEL_MAP_TYPE_BRIDGE_IF_TO_VNI,
+                           SAI_TUNNEL_MAP_TYPE_VIRTUAL_ROUTER_ID_TO_VNI,
                            g_sai_tunnel_db_ptr->tunnel_map_entry_db[ii].tunnel_map_type);
                 SX_LOG_EXIT();
                 return SAI_STATUS_FAILURE;
@@ -4822,13 +5071,15 @@ static sai_status_t mlnx_sai_tunnel_map_entry_vlan_vni_bridge_set(_In_ sai_objec
                 break;
 
             case SAI_TUNNEL_MAP_TYPE_UECN_OECN_TO_OECN:
+            case SAI_TUNNEL_MAP_TYPE_VNI_TO_VIRTUAL_ROUTER_ID:
                 continue;
                 break;
 
             default:
-                SX_LOG_ERR("sai tunnel map type for decap should be %d or %d but getting %d\n",
+                SX_LOG_ERR("sai tunnel map type for decap should be %d or %d or %d but getting %d\n",
                            SAI_TUNNEL_MAP_TYPE_VNI_TO_VLAN_ID,
                            SAI_TUNNEL_MAP_TYPE_VNI_TO_BRIDGE_IF,
+                           SAI_TUNNEL_MAP_TYPE_VNI_TO_VIRTUAL_ROUTER_ID,
                            g_sai_tunnel_db_ptr->tunnel_map_entry_db[ii].tunnel_map_type);
                 SX_LOG_EXIT();
                 return SAI_STATUS_FAILURE;
@@ -4935,10 +5186,17 @@ static sai_status_t mlnx_sai_tunnel_map_vlan_vni_bridge_set(_In_ sai_object_id_t
             return SAI_STATUS_SUCCESS;
             break;
 
+        case SAI_TUNNEL_MAP_TYPE_VIRTUAL_ROUTER_ID_TO_VNI:
+            SX_LOG_DBG("Tunnel map type is VR to VNI for encap\n");
+            SX_LOG_EXIT();
+            return SAI_STATUS_SUCCESS;
+            break;
+
         default:
-            SX_LOG_ERR("sai tunnel map type for encap should be %d or %d but getting %d\n",
+            SX_LOG_ERR("sai tunnel map type for encap should be %d or %d or %d but getting %d\n",
                        SAI_TUNNEL_MAP_TYPE_VLAN_ID_TO_VNI,
                        SAI_TUNNEL_MAP_TYPE_BRIDGE_IF_TO_VNI,
+                       SAI_TUNNEL_MAP_TYPE_VIRTUAL_ROUTER_ID_TO_VNI,
                        mlnx_tunnel_map.tunnel_map_type);
             SX_LOG_EXIT();
             return SAI_STATUS_FAILURE;
@@ -4955,10 +5213,17 @@ static sai_status_t mlnx_sai_tunnel_map_vlan_vni_bridge_set(_In_ sai_object_id_t
             return SAI_STATUS_SUCCESS;
             break;
 
+        case SAI_TUNNEL_MAP_TYPE_VNI_TO_VIRTUAL_ROUTER_ID:
+            SX_LOG_DBG("Tunnel map type is VNI to VR for decap\n");
+            SX_LOG_EXIT();
+            return SAI_STATUS_SUCCESS;
+            break;
+
         default:
-            SX_LOG_ERR("sai tunnel map type for decap should be %d or %d but getting %d\n",
+            SX_LOG_ERR("sai tunnel map type for decap should be %d or %d or %d but getting %d\n",
                        SAI_TUNNEL_MAP_TYPE_VNI_TO_VLAN_ID,
                        SAI_TUNNEL_MAP_TYPE_VNI_TO_BRIDGE_IF,
+                       SAI_TUNNEL_MAP_TYPE_VNI_TO_VIRTUAL_ROUTER_ID,
                        mlnx_tunnel_map.tunnel_map_type);
             SX_LOG_EXIT();
             return SAI_STATUS_FAILURE;
@@ -6844,26 +7109,6 @@ cleanup:
     return sai_status;
 }
 
-static sai_status_t mlnx_validate_tunnel_map_condition(_In_ sai_status_t sai_status, _In_ bool condition)
-{
-    SX_LOG_ENTER();
-
-    if (SAI_STATUS_SUCCESS == sai_status) {
-        if (!condition) {
-            SX_LOG_ERR("this attribute should not be set for the tunnel map type\n");
-            SX_LOG_EXIT();
-            return SAI_STATUS_FAILURE;
-        }
-    } else if (condition) {
-        SX_LOG_ERR("this attribute is missing for the tunnel map type\n");
-        SX_LOG_EXIT();
-        return SAI_STATUS_FAILURE;
-    }
-
-    SX_LOG_EXIT();
-    return SAI_STATUS_SUCCESS;
-}
-
 static sai_status_t mlnx_init_tunnel_map_entry_param(_In_ uint32_t                  attr_count,
                                                      _In_ const sai_attribute_t    *attr_list,
                                                      _Out_ mlnx_tunnel_map_entry_t *mlnx_tunnel_map_entry)
@@ -6874,10 +7119,10 @@ static sai_status_t mlnx_init_tunnel_map_entry_param(_In_ uint32_t              
     const sai_attribute_value_t *vlan_id_key     = NULL, *vlan_id_value = NULL;
     const sai_attribute_value_t *vni_id_key      = NULL, *vni_id_value = NULL;
     const sai_attribute_value_t *bridge_id_key   = NULL, *bridge_id_value = NULL;
+    const sai_attribute_value_t *vr_id_key       = NULL, *vr_id_value = NULL;
     uint32_t                     attr_idx        = 0;
     uint32_t                     tunnel_map_idx  = 0;
     sai_status_t                 sai_status      = SAI_STATUS_FAILURE;
-    bool                         condition       = false;
 
     SX_LOG_ENTER();
 
@@ -6899,145 +7144,74 @@ static sai_status_t mlnx_init_tunnel_map_entry_param(_In_ uint32_t              
 
     sai_status = find_attrib_in_list(attr_count, attr_list, SAI_TUNNEL_MAP_ENTRY_ATTR_OECN_KEY,
                                      &oecn_key, &attr_idx);
-
-    condition = ((SAI_TUNNEL_MAP_TYPE_OECN_TO_UECN == tunnel_map_type->s32) ||
-                 SAI_TUNNEL_MAP_TYPE_UECN_OECN_TO_OECN == tunnel_map_type->s32);
-
-    if (SAI_STATUS_SUCCESS != mlnx_validate_tunnel_map_condition(sai_status, condition)) {
-        SX_LOG_ERR("Fail to validate oecn key condition\n");
-        SX_LOG_EXIT();
-        return SAI_STATUS_INVALID_ATTR_VALUE_0 + attr_idx;
-    }
     if (SAI_STATUS_SUCCESS == sai_status) {
         mlnx_tunnel_map_entry->oecn_key = oecn_key->u8;
     }
 
     sai_status = find_attrib_in_list(attr_count, attr_list, SAI_TUNNEL_MAP_ENTRY_ATTR_OECN_VALUE,
                                      &oecn_value, &attr_idx);
-
-    condition = (SAI_TUNNEL_MAP_TYPE_UECN_OECN_TO_OECN == tunnel_map_type->s32);
-
-    if (SAI_STATUS_SUCCESS != mlnx_validate_tunnel_map_condition(sai_status, condition)) {
-        SX_LOG_ERR("Fail to validate oecn value condition\n");
-        SX_LOG_EXIT();
-        return SAI_STATUS_INVALID_ATTR_VALUE_0 + attr_idx;
-    }
     if (SAI_STATUS_SUCCESS == sai_status) {
         mlnx_tunnel_map_entry->oecn_value = oecn_value->u8;
     }
 
     sai_status = find_attrib_in_list(attr_count, attr_list, SAI_TUNNEL_MAP_ENTRY_ATTR_UECN_KEY,
                                      &uecn_key, &attr_idx);
-
-    condition = (SAI_TUNNEL_MAP_TYPE_UECN_OECN_TO_OECN == tunnel_map_type->s32);
-
-    if (SAI_STATUS_SUCCESS != mlnx_validate_tunnel_map_condition(sai_status, condition)) {
-        SX_LOG_ERR("Fail to validate uecn key condition\n");
-        SX_LOG_EXIT();
-        return SAI_STATUS_INVALID_ATTR_VALUE_0 + attr_idx;
-    }
     if (SAI_STATUS_SUCCESS == sai_status) {
         mlnx_tunnel_map_entry->uecn_key = uecn_key->u8;
     }
 
     sai_status = find_attrib_in_list(attr_count, attr_list, SAI_TUNNEL_MAP_ENTRY_ATTR_UECN_VALUE,
                                      &uecn_value, &attr_idx);
-
-    condition = (SAI_TUNNEL_MAP_TYPE_OECN_TO_UECN == tunnel_map_type->s32);
-
-    if (SAI_STATUS_SUCCESS != mlnx_validate_tunnel_map_condition(sai_status, condition)) {
-        SX_LOG_ERR("Fail to validate uecn value condition\n");
-        SX_LOG_EXIT();
-        return SAI_STATUS_INVALID_ATTR_VALUE_0 + attr_idx;
-    }
     if (SAI_STATUS_SUCCESS == sai_status) {
         mlnx_tunnel_map_entry->uecn_value = uecn_value->u8;
     }
 
     sai_status = find_attrib_in_list(attr_count, attr_list, SAI_TUNNEL_MAP_ENTRY_ATTR_VLAN_ID_KEY,
                                      &vlan_id_key, &attr_idx);
-
-    condition = (SAI_TUNNEL_MAP_TYPE_VLAN_ID_TO_VNI == tunnel_map_type->s32);
-
-    if (SAI_STATUS_SUCCESS != mlnx_validate_tunnel_map_condition(sai_status, condition)) {
-        SX_LOG_ERR("Fail to validate vlan id key condition\n");
-        SX_LOG_EXIT();
-        return SAI_STATUS_INVALID_ATTR_VALUE_0 + attr_idx;
-    }
     if (SAI_STATUS_SUCCESS == sai_status) {
         mlnx_tunnel_map_entry->vlan_id_key = vlan_id_key->u16;
     }
 
     sai_status = find_attrib_in_list(attr_count, attr_list, SAI_TUNNEL_MAP_ENTRY_ATTR_VLAN_ID_VALUE,
                                      &vlan_id_value, &attr_idx);
-
-    condition = (SAI_TUNNEL_MAP_TYPE_VNI_TO_VLAN_ID == tunnel_map_type->s32);
-
-    if (SAI_STATUS_SUCCESS != mlnx_validate_tunnel_map_condition(sai_status, condition)) {
-        SX_LOG_ERR("Fail to validate vlan id value condition\n");
-        SX_LOG_EXIT();
-        return SAI_STATUS_INVALID_ATTR_VALUE_0 + attr_idx;
-    }
     if (SAI_STATUS_SUCCESS == sai_status) {
         mlnx_tunnel_map_entry->vlan_id_value = vlan_id_value->u16;
     }
 
     sai_status = find_attrib_in_list(attr_count, attr_list, SAI_TUNNEL_MAP_ENTRY_ATTR_VNI_ID_KEY,
                                      &vni_id_key, &attr_idx);
-
-    condition = ((SAI_TUNNEL_MAP_TYPE_VNI_TO_VLAN_ID == tunnel_map_type->s32) ||
-                 (SAI_TUNNEL_MAP_TYPE_VNI_TO_BRIDGE_IF == tunnel_map_type->s32));
-
-    if (SAI_STATUS_SUCCESS != mlnx_validate_tunnel_map_condition(sai_status, condition)) {
-        SX_LOG_ERR("Fail to validate vni id key condition\n");
-        SX_LOG_EXIT();
-        return SAI_STATUS_INVALID_ATTR_VALUE_0 + attr_idx;
-    }
     if (SAI_STATUS_SUCCESS == sai_status) {
         mlnx_tunnel_map_entry->vni_id_key = vni_id_key->u32;
     }
 
     sai_status = find_attrib_in_list(attr_count, attr_list, SAI_TUNNEL_MAP_ENTRY_ATTR_VNI_ID_VALUE,
                                      &vni_id_value, &attr_idx);
-
-    condition = ((SAI_TUNNEL_MAP_TYPE_VLAN_ID_TO_VNI == tunnel_map_type->s32) ||
-                 (SAI_TUNNEL_MAP_TYPE_BRIDGE_IF_TO_VNI == tunnel_map_type->s32));
-
-    if (SAI_STATUS_SUCCESS != mlnx_validate_tunnel_map_condition(sai_status, condition)) {
-        SX_LOG_ERR("Fail to validate vni id value condition\n");
-        SX_LOG_EXIT();
-        return SAI_STATUS_INVALID_ATTR_VALUE_0 + attr_idx;
-    }
     if (SAI_STATUS_SUCCESS == sai_status) {
         mlnx_tunnel_map_entry->vni_id_value = vni_id_value->u32;
     }
 
     sai_status = find_attrib_in_list(attr_count, attr_list, SAI_TUNNEL_MAP_ENTRY_ATTR_BRIDGE_ID_KEY,
                                      &bridge_id_key, &attr_idx);
-
-    condition = (SAI_TUNNEL_MAP_TYPE_BRIDGE_IF_TO_VNI == tunnel_map_type->s32);
-
-    if (SAI_STATUS_SUCCESS != mlnx_validate_tunnel_map_condition(sai_status, condition)) {
-        SX_LOG_ERR("Fail to validate bridge id key condition\n");
-        SX_LOG_EXIT();
-        return SAI_STATUS_INVALID_ATTR_VALUE_0 + attr_idx;
-    }
     if (SAI_STATUS_SUCCESS == sai_status) {
         mlnx_tunnel_map_entry->bridge_id_key = bridge_id_key->oid;
     }
 
     sai_status = find_attrib_in_list(attr_count, attr_list, SAI_TUNNEL_MAP_ENTRY_ATTR_BRIDGE_ID_VALUE,
                                      &bridge_id_value, &attr_idx);
-
-    condition = (SAI_TUNNEL_MAP_TYPE_VNI_TO_BRIDGE_IF == tunnel_map_type->s32);
-
-    if (SAI_STATUS_SUCCESS != mlnx_validate_tunnel_map_condition(sai_status, condition)) {
-        SX_LOG_ERR("Fail to validate bridge id value condition\n");
-        SX_LOG_EXIT();
-        return SAI_STATUS_INVALID_ATTR_VALUE_0 + attr_idx;
-    }
     if (SAI_STATUS_SUCCESS == sai_status) {
         mlnx_tunnel_map_entry->bridge_id_value = bridge_id_value->oid;
+    }
+
+    sai_status = find_attrib_in_list(attr_count, attr_list, SAI_TUNNEL_MAP_ENTRY_ATTR_VIRTUAL_ROUTER_ID_KEY,
+                                     &vr_id_key, &attr_idx);
+    if (SAI_STATUS_SUCCESS == sai_status) {
+        mlnx_tunnel_map_entry->vr_id_key = vr_id_key->oid;
+    }
+
+    sai_status = find_attrib_in_list(attr_count, attr_list, SAI_TUNNEL_MAP_ENTRY_ATTR_VIRTUAL_ROUTER_ID_VALUE,
+                                     &vr_id_value, &attr_idx);
+    if (SAI_STATUS_SUCCESS == sai_status) {
+        mlnx_tunnel_map_entry->vr_id_value = vr_id_value->oid;
     }
 
     sai_status = find_attrib_in_list(attr_count,

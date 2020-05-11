@@ -17044,6 +17044,8 @@ sai_status_t mlnx_acl_bind_point_get(_In_ const sai_object_key_t   *key,
     acl_bind_point_data_t     *bind_point_data = NULL;
     bool                       is_vlan_bound;
     sx_port_log_id_t           port_id;
+    bool                       is_warmboot_init_stage = false;
+    uint32_t                   port_db_idx;
 
     SX_LOG_ENTER();
 
@@ -17074,6 +17076,32 @@ sai_status_t mlnx_acl_bind_point_get(_In_ const sai_object_key_t   *key,
 
     case MLNX_ACL_BIND_POINT_TYPE_INGRESS_LAG:
     case MLNX_ACL_BIND_POINT_TYPE_EGRESS_LAG:
+        {
+            is_warmboot_init_stage = (BOOT_TYPE_WARM == g_sai_db_ptr->boot_type) &&
+                (!g_sai_db_ptr->issu_end_called);
+            if (is_warmboot_init_stage) {
+                status = mlnx_port_idx_by_obj_id(key->key.object_id, &port_db_idx);
+                if (SAI_ERR(status)) {
+                    SX_LOG_ERR("Error getting port idx from log id %"PRIx64"\n", port_id);
+                    goto out;
+                }
+                if (0 == mlnx_ports_db[port_db_idx].logical) {
+                    if (MLNX_ACL_BIND_POINT_TYPE_INGRESS_LAG == bind_point_type) {
+                        value->oid = mlnx_ports_db[port_db_idx].issu_lag_attr.lag_ingress_acl_oid;
+                    } else if (MLNX_ACL_BIND_POINT_TYPE_EGRESS_LAG == bind_point_type) {
+                        value->oid = mlnx_ports_db[port_db_idx].issu_lag_attr.lag_egress_acl_oid;
+                    } 
+                    status = SAI_STATUS_SUCCESS;
+                    goto out;
+                }
+            }
+            status = mlnx_acl_bind_point_port_lag_rif_data_get(target, bind_point_type, &bind_point_data);
+            if (SAI_ERR(status)) {
+                SX_LOG_ERR("Error getting acl bind point for target %"PRIx64"\n", target);
+                goto out;
+            }
+            break;
+        }
     case MLNX_ACL_BIND_POINT_TYPE_INGRESS_ROUTER_INTERFACE:
     case MLNX_ACL_BIND_POINT_TYPE_EGRESS_ROUTER_INTERFACE:
         status = mlnx_acl_bind_point_port_lag_rif_data_get(target, bind_point_type, &bind_point_data);

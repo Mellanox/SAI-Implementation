@@ -1335,6 +1335,11 @@ sai_status_t mlnx_bfd_session_oid_create(_In_ mlnx_shm_rm_array_idx_t  idx,
          (port = &mlnx_ports_db[idx]); idx++) \
         if ((port->is_present || port->sdk_port_added) && !port->lag_id && !port->before_issu_lag_id)
 
+#define mlnx_phy_port_not_in_lag_foreach(port, idx) \
+    for (idx = 0; idx < MAX_PORTS && \
+         (port = &mlnx_ports_db[idx]); idx++) \
+        if ((port->is_present || port->sdk_port_added) && !port->lag_id && !port->before_issu_lag_id)
+
 #define mlnx_lag_foreach(lag, idx) \
     for (idx = MAX_PORTS; idx < (MAX_PORTS * 2) && \
          (lag = &mlnx_ports_db[idx]); idx++) \
@@ -1846,7 +1851,7 @@ typedef struct _mlnx_samplepacket_t {
 #define MLNX_TUNNELTABLE_SIZE         256
 #define MLNX_TUNNEL_MAP_LIST_MAX      50
 #define MLNX_TUNNEL_MAP_MIN           0
-#define MLNX_TUNNEL_MAP_MAX           10
+#define MLNX_TUNNEL_MAP_MAX           12
 #define MLNX_TUNNEL_MAP_ENTRY_INVALID 0
 #define MLNX_TUNNEL_MAP_ENTRY_MIN     1
 /* SONiC requires 8000 tunnel map entries */
@@ -1916,6 +1921,8 @@ typedef struct _tunnel_map_entry_t {
     uint32_t              vni_id_value;
     sai_object_id_t       bridge_id_key;
     sai_object_id_t       bridge_id_value;
+    sai_object_id_t       vr_id_key;
+    sai_object_id_t       vr_id_value;
     uint32_t              prev_tunnel_map_entry_idx;
     uint32_t              next_tunnel_map_entry_idx;
     /* only used for bridge to vni and vni to bridge type */
@@ -2523,6 +2530,8 @@ typedef enum _tunnel_map_entry_key_value_type_t {
     MLNX_VNI_ID_VALUE,
     MLNX_BRIDGE_ID_KEY,
     MLNX_BRIDGE_ID_VALUE,
+    MLNX_VR_ID_KEY,
+    MLNX_VR_ID_VALUE,
 } tunnel_map_entry_key_value_type;
 
 sai_status_t mlnx_translate_sdk_tunnel_id_to_sai_tunnel_id(_In_ const sx_tunnel_id_t sdk_tunnel_id,
@@ -2540,6 +2549,11 @@ sai_status_t mlnx_acl_cb_table_init(void);
 
 sai_status_t mlnx_sai_tunnel_to_sx_tunnel_id(_In_ sai_object_id_t  sai_tunnel_id,
                                                     _Out_ sx_tunnel_id_t *sx_tunnel_id);
+
+sai_status_t mlnx_vrid_to_br_rif_get(_In_  sx_router_id_t         sx_vrid,
+                                     _In_  sx_tunnel_id_t         sx_vxlan_tunnel,
+                                     _Out_ sx_router_interface_t *br_rif,
+                                     _Out_ sx_fid_t              *br_fid);
 #define LINE_LENGTH 120
 
 void SAI_dump_acl(_In_ FILE *file);
