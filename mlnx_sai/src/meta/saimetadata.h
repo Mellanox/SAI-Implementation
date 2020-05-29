@@ -167,6 +167,7 @@ extern const sai_enum_metadata_t sai_metadata_enum_sai_in_drop_reason_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_ingress_priority_group_attr_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_ingress_priority_group_stat_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_inseg_entry_attr_t;
+extern const sai_enum_metadata_t sai_metadata_enum_sai_inseg_entry_psc_type_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_ip_addr_family_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_ipmc_entry_attr_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_ipmc_entry_type_t;
@@ -503,6 +504,9 @@ extern const char* sai_metadata_get_in_drop_reason_name(
 
 extern const char* sai_metadata_get_ingress_priority_group_stat_name(
     _In_ sai_ingress_priority_group_stat_t value);
+
+extern const char* sai_metadata_get_inseg_entry_psc_type_name(
+    _In_ sai_inseg_entry_psc_type_t value);
 
 extern const char* sai_metadata_get_ip_addr_family_name(
     _In_ sai_ip_addr_family_t value);
@@ -1285,6 +1289,10 @@ extern int sai_serialize_in_drop_reason(
 extern int sai_serialize_ingress_priority_group_stat(
     _Out_ char *buffer,
     _In_ sai_ingress_priority_group_stat_t ingress_priority_group_stat);
+
+extern int sai_serialize_inseg_entry_psc_type(
+    _Out_ char *buffer,
+    _In_ sai_inseg_entry_psc_type_t inseg_entry_psc_type);
 
 extern int sai_serialize_ip_addr_family(
     _Out_ char *buffer,
@@ -2179,6 +2187,10 @@ extern int sai_deserialize_in_drop_reason(
 extern int sai_deserialize_ingress_priority_group_stat(
     _In_ const char *buffer,
     _Out_ sai_ingress_priority_group_stat_t *ingress_priority_group_stat);
+
+extern int sai_deserialize_inseg_entry_psc_type(
+    _In_ const char *buffer,
+    _Out_ sai_inseg_entry_psc_type_t *inseg_entry_psc_type);
 
 extern int sai_deserialize_ip_addr_family(
     _In_ const char *buffer,
