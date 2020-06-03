@@ -6228,14 +6228,12 @@ static uint32_t mlnx_platform_max_speed_get(void)
         return PORT_SPEED_MAX_SP;
 
     case SX_CHIP_TYPE_SPECTRUM2:
-        /* TODO : WA, as 3800 doesn't currently support 200G, remove when supported */
-        if (g_sai_db_ptr->platform_type == MLNX_PLATFORM_TYPE_3800) {
+        if ((g_sai_db_ptr->platform_type == MLNX_PLATFORM_TYPE_3800) || (g_sai_db_ptr->platform_type == MLNX_PLATFORM_TYPE_3420)) {
             return PORT_SPEED_100;
         }
         return PORT_SPEED_MAX_SP2;
 
     case SX_CHIP_TYPE_SPECTRUM3:
-        /* TODO: remove when 4700 supports 400G */
         if (g_sai_db_ptr->platform_type == MLNX_PLATFORM_TYPE_4700) {
             return PORT_SPEED_400;
         }
@@ -7902,7 +7900,7 @@ static mlnx_port_config_t * sai_lane2child_port(mlnx_port_config_t *father, cons
 
 sai_status_t mlnx_port_auto_split(mlnx_port_config_t *port)
 {
-    uint8_t  lanes_per_port = mlnx_port_max_lanes_get() / port->split_count;
+    uint8_t  lanes_per_port = port->port_map.width / port->split_count;
     uint8_t  orig_lanes     = port->port_map.lane_bmap;
     uint32_t ii, ll;
 
