@@ -1871,6 +1871,11 @@ sai_status_t mlnx_create_hostif_trap(_Out_ sai_object_id_t      *hostif_trap_id,
     }
 
     if (SAI_STATUS_SUCCESS != sai_status_mirror_session) {
+        status = mlnx_trap_unset(index);
+        if (SAI_ERR(status)) {
+            cl_plock_release(&g_sai_db_ptr->p_lock);
+            return status;
+        }
         if (SAI_STATUS_SUCCESS != (status = mlnx_trap_set(index, action->s32, (group) ? group->oid :
                                                           g_sai_db_ptr->default_trap_group))) {
             cl_plock_release(&g_sai_db_ptr->p_lock);
@@ -2101,6 +2106,11 @@ sai_status_t mlnx_create_hostif_user_defined_trap(_Out_ sai_object_id_t      *ho
     cl_plock_excl_acquire(&g_sai_db_ptr->p_lock);
 
     if (0 < mlnx_traps_info[index].sdk_traps_num) {
+        status = mlnx_trap_unset(index);
+        if (SAI_ERR(status)) {
+            cl_plock_release(&g_sai_db_ptr->p_lock);
+            return status;
+        }
         if (SAI_STATUS_SUCCESS !=
             (status = mlnx_trap_set(index, g_sai_db_ptr->traps_db[index].action, (group) ? group->oid :
                                     g_sai_db_ptr->default_trap_group))) {
@@ -2163,6 +2173,11 @@ sai_status_t mlnx_remove_hostif_user_defined_trap(_In_ sai_object_id_t hostif_us
     g_sai_db_ptr->traps_db[index].trap_group = g_sai_db_ptr->default_trap_group;
 
     if (0 < mlnx_traps_info[index].sdk_traps_num) {
+        status = mlnx_trap_unset(index);
+        if (SAI_ERR(status)) {
+            cl_plock_release(&g_sai_db_ptr->p_lock);
+            return status;
+        }
         if (SAI_STATUS_SUCCESS != (status = mlnx_trap_set(index, mlnx_traps_info[index].action,
                                                           g_sai_db_ptr->default_trap_group))) {
             cl_plock_release(&g_sai_db_ptr->p_lock);
@@ -2605,6 +2620,10 @@ static sai_status_t mlnx_trap_group_set(_In_ const sai_object_key_t      *key,
     }
 
     cl_plock_excl_acquire(&g_sai_db_ptr->p_lock);
+    status = mlnx_trap_unset(index);
+    if (SAI_ERR(status)) {
+        goto out;
+    }
     if (SAI_STATUS_SUCCESS != (status = mlnx_trap_set(index, g_sai_db_ptr->traps_db[index].action, value->oid))) {
         goto out;
     }
@@ -3079,6 +3098,10 @@ static sai_status_t mlnx_user_defined_trap_group_set(_In_ const sai_object_key_t
     }
 
     cl_plock_excl_acquire(&g_sai_db_ptr->p_lock);
+    status = mlnx_trap_unset(index);
+    if (SAI_ERR(status)) {
+        goto out;
+    }
     if (SAI_STATUS_SUCCESS != (status = mlnx_trap_set(index, g_sai_db_ptr->traps_db[index].action, value->oid))) {
         goto out;
     }

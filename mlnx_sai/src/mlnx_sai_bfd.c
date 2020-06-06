@@ -349,7 +349,7 @@ out:
     if (SAI_ERR(status)) {
         if (cmd == SX_ACCESS_CMD_CREATE) {
             if (is_rx_created) {
-                sx_api_bfd_offload_set(gh_sdk, SX_ACCESS_CMD_DESTROY, NULL, &bfd_db_data->rx_session);
+                sx_api_bfd_offload_set(gh_sdk, SX_ACCESS_CMD_DESTROY, &rx_params, &bfd_db_data->rx_session);
             }
         }
     }

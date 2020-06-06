@@ -5178,17 +5178,21 @@ sai_status_t mlnx_get_port_stats_ext(_In_ sai_object_id_t      port_id,
             break;
 
         case SAI_PORT_STAT_IN_DROPPED_PKTS:
-            status = mlnx_port_stat_pg_dropped_pkts_get(port_data, cmd, &counters[ii]);
+            /*status = mlnx_port_stat_pg_dropped_pkts_get(port_data, cmd, &counters[ii]);
             if (SAI_ERR(status)) {
                 return status;
-            }
+            }*/
+            SX_LOG_INF("Port counter %d set item %u not implemented\n", counter_ids[ii], ii);
+            return SAI_STATUS_NOT_IMPLEMENTED;
             break;
 
         case SAI_PORT_STAT_OUT_DROPPED_PKTS:
-            status = mlnx_port_stat_tc_dropped_pkts_get(port_data, cmd, &counters[ii]);
+            /*status = mlnx_port_stat_tc_dropped_pkts_get(port_data, cmd, &counters[ii]);
             if (SAI_ERR(status)) {
                 return status;
-            }
+            }*/
+            SX_LOG_INF("Port counter %d set item %u not implemented\n", counter_ids[ii], ii);
+            return SAI_STATUS_NOT_IMPLEMENTED;
             break;
 
         case SAI_PORT_STAT_IF_OUT_QLEN:
@@ -6224,14 +6228,12 @@ static uint32_t mlnx_platform_max_speed_get(void)
         return PORT_SPEED_MAX_SP;
 
     case SX_CHIP_TYPE_SPECTRUM2:
-        /* TODO : WA, as 3800 doesn't currently support 200G, remove when supported */
-        if (g_sai_db_ptr->platform_type == MLNX_PLATFORM_TYPE_3800) {
+        if ((g_sai_db_ptr->platform_type == MLNX_PLATFORM_TYPE_3800) || (g_sai_db_ptr->platform_type == MLNX_PLATFORM_TYPE_3420)) {
             return PORT_SPEED_100;
         }
         return PORT_SPEED_MAX_SP2;
 
     case SX_CHIP_TYPE_SPECTRUM3:
-        /* TODO: remove when 4700 supports 400G */
         if (g_sai_db_ptr->platform_type == MLNX_PLATFORM_TYPE_4700) {
             return PORT_SPEED_400;
         }
@@ -6771,19 +6773,21 @@ static sai_status_t mlnx_port_speed_get_sp2(_In_ sx_port_log_id_t sx_port,
         *oper_speed = PORT_SPEED_40;
         break;
 
-    case SX_PORT_RATE_50G_E:
+    case SX_PORT_RATE_50Gx1_E:
+    case SX_PORT_RATE_50Gx2_E:
         *oper_speed = PORT_SPEED_50;
         break;
 
-    case SX_PORT_RATE_100G_E:
+    case SX_PORT_RATE_100Gx2_E:
+    case SX_PORT_RATE_100Gx4_E:
         *oper_speed = PORT_SPEED_100;
         break;
 
-    case SX_PORT_RATE_200G_E:
+    case SX_PORT_RATE_200Gx4_E:
         *oper_speed = PORT_SPEED_200;
         break;
 
-    case SX_PORT_RATE_400G_E:
+    case SX_PORT_RATE_400Gx8_E:
         *oper_speed = PORT_SPEED_400;
         break;
 
@@ -7896,7 +7900,7 @@ static mlnx_port_config_t * sai_lane2child_port(mlnx_port_config_t *father, cons
 
 sai_status_t mlnx_port_auto_split(mlnx_port_config_t *port)
 {
-    uint8_t  lanes_per_port = mlnx_port_max_lanes_get() / port->split_count;
+    uint8_t  lanes_per_port = port->port_map.width / port->split_count;
     uint8_t  orig_lanes     = port->port_map.lane_bmap;
     uint32_t ii, ll;
 
