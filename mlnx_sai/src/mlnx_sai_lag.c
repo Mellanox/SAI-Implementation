@@ -652,7 +652,7 @@ static sai_status_t mlnx_lag_port_list_get(_In_ const sai_object_key_t   *key,
         } else {
             status = SAI_STATUS_BUFFER_OVERFLOW;
         }
-        SX_LOG((0 == value->objlist.count) ? SX_LOG_NOTICE : SX_LOG_ERROR,
+        SX_LOG(((0 == value->objlist.count) ? SX_LOG_NOTICE : SX_LOG_ERROR),
                "Insufficient list buffer size. Allocated %u needed %u\n",
                value->objlist.count, log_port_cnt);
         value->objlist.count = log_port_cnt;

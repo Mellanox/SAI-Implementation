@@ -4074,6 +4074,7 @@ static sai_status_t mlnx_switch_parse_fdb_event(uint8_t                         
         case SX_FDB_NOTIFY_TYPE_FLUSH_PORT_FID:
         case SX_FDB_NOTIFY_TYPE_FLUSH_LAG_FID:
             has_port = true;
+            /* Falls through. */
 
         case SX_FDB_NOTIFY_TYPE_FLUSH_FID:
             fdb_events[to_index].event_type = SAI_FDB_EVENT_FLUSHED;
@@ -8979,7 +8980,5 @@ const sai_switch_api_t mlnx_switch_api = {
     mlnx_get_switch_attribute,
     mlnx_get_switch_stats,
     mlnx_get_switch_stats_ext,
-    mlnx_clear_switch_stats,
-    NULL,
-    NULL
+    mlnx_clear_switch_stats
 };

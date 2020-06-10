@@ -6847,7 +6847,7 @@ static sai_status_t mlnx_acl_entry_range_list_get(_In_ const sai_object_key_t   
         } else {
             status = SAI_STATUS_BUFFER_OVERFLOW;
         }
-        SX_LOG((0 == value->aclfield.data.objlist.count) ? SX_LOG_NOTICE : SX_LOG_ERROR,
+        SX_LOG(((0 == value->aclfield.data.objlist.count) ? SX_LOG_NOTICE : SX_LOG_ERROR),
                " Re-allocate list size as list size is not large enough \n");
         value->aclfield.data.objlist.count = range_count;
         goto out;
@@ -17972,7 +17972,7 @@ static sai_status_t mlnx_acl_group_attrib_get(_In_ const sai_object_key_t   *key
             } else {
                 status = SAI_STATUS_BUFFER_OVERFLOW;
             }
-            SX_LOG((0 == value->s32list.count) ? SX_LOG_NOTICE : SX_LOG_ERROR,
+            SX_LOG(((0 == value->s32list.count) ? SX_LOG_NOTICE : SX_LOG_ERROR),
                    " Re-allocate list size as list size is not large enough \n");
             value->s32list.count = bind_point_type_count;
             goto out;
