@@ -8980,5 +8980,7 @@ const sai_switch_api_t mlnx_switch_api = {
     mlnx_get_switch_attribute,
     mlnx_get_switch_stats,
     mlnx_get_switch_stats_ext,
-    mlnx_clear_switch_stats
+    mlnx_clear_switch_stats,
+    NULL,
+    NULL
 };
