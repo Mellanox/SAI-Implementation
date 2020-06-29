@@ -4120,7 +4120,7 @@ sai_status_t mlnx_vrid_to_br_rif_get(_In_  sx_router_id_t         sx_vrid,
         }
     }
     if (MLNX_TUNNEL_MAP_ENTRY_MAX == ii) {
-        SX_LOG_ERR("Failed to find vni key %d in SAI tunnel map entry db\n");
+        SX_LOG_ERR("Failed to find vni key %u in SAI tunnel map entry db\n", vni_id);
         SX_LOG_EXIT();
         return SAI_STATUS_FAILURE;
     }

@@ -7363,6 +7363,10 @@ sai_status_t mlnx_port_config_init(mlnx_port_config_t *port)
     sxd_status_t              sxd_ret                = SXD_STATUS_SUCCESS;
     const bool                is_warmboot_init_stage = (BOOT_TYPE_WARM == g_sai_db_ptr->boot_type) &&
                                                        (!g_sai_db_ptr->issu_end_called);
+#ifdef ACS_OS
+    sx_cos_port_buffer_attr_t  sx_port_reserved_buff_attr;
+    sx_cos_port_shared_buffer_attr_t  sx_port_shared_buff_attr; 
+#endif
 
     assert(port != NULL);
 
@@ -7384,6 +7388,32 @@ sai_status_t mlnx_port_config_init(mlnx_port_config_t *port)
                 return sdk_to_sai(status);
             }
         }
+
+        /* reset MC settings on port creation, as this is set after set and the only place this settings are called,
+           it is safe also on warmboot */
+#ifdef ACS_OS
+        memset(&sx_port_reserved_buff_attr, 0, sizeof(sx_port_reserved_buff_attr));
+        memset(&sx_port_shared_buff_attr, 0, sizeof(sx_port_shared_buff_attr));
+
+        sx_port_reserved_buff_attr.type = SX_COS_MULTICAST_PORT_ATTR_E;
+        sx_port_reserved_buff_attr.attr.multicast_port_buff_attr.pool_id = g_sai_buffer_db_ptr->buffer_pool_ids.default_multicast_pool_id;
+        sx_port_reserved_buff_attr.attr.multicast_port_buff_attr.size = 0;
+        status = sx_api_cos_port_buff_type_set(gh_sdk, SX_ACCESS_CMD_SET, port->logical, &sx_port_reserved_buff_attr, 1);
+        if (SX_ERR(status)) {
+            SX_LOG_ERR("Failed to set MC reserved, logical:%x - %s\n", port->logical, SX_STATUS_MSG(status));
+            return sdk_to_sai(status);
+        }
+
+        sx_port_shared_buff_attr.type = SX_COS_MULTICAST_PORT_ATTR_E;
+        sx_port_shared_buff_attr.attr.multicast_port_shared_buff_attr.pool_id = g_sai_buffer_db_ptr->buffer_pool_ids.default_multicast_pool_id;
+        sx_port_shared_buff_attr.attr.multicast_port_shared_buff_attr.max.mode = SX_COS_BUFFER_MAX_MODE_BUFFER_UNITS_E;
+        sx_port_shared_buff_attr.attr.multicast_port_shared_buff_attr.max.max.size = 0;
+        status = sx_api_cos_port_shared_buff_type_set(gh_sdk, SX_ACCESS_CMD_SET, port->logical, &sx_port_shared_buff_attr, 1);
+        if (SX_ERR(status)) {
+            SX_LOG_ERR("Failed to set MC shared, logical:%x - %s\n", port->logical, SX_STATUS_MSG(status));
+            return sdk_to_sai(status);
+        }
+#endif
     }
 
     /* SDK default discarding, SAI default forwarding */

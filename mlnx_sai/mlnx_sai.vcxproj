@@ -161,6 +161,7 @@
     <ClInclude Include="inc\sai\saiqueue.h" />
     <ClInclude Include="inc\sai\sairoute.h" />
     <ClInclude Include="inc\sai\saisegmentroute.h" />
+    <ClInclude Include="inc\sai\saisystemport.h" />
     <ClInclude Include="inc\sai\saitam.h" />
     <ClInclude Include="inc\sai\saivirtualrouter.h" />
     <ClInclude Include="inc\sai\sairouterinterface.h" />

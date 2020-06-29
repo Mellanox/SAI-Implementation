@@ -57,10 +57,6 @@ static const sai_u32_list_t        mlnx_sai_not_mandatory_attrs[SAI_OBJECT_TYPE_
     {.count = 1, .list = (sai_attr_id_t[1]) {SAI_SCHEDULER_GROUP_ATTR_PARENT_NODE}
     },
 
-    [SAI_OBJECT_TYPE_TUNNEL] =
-    {.count = 1, .list = (sai_attr_id_t[1]) {SAI_TUNNEL_ATTR_ENCAP_TTL_VAL}
-    },
-
     [SAI_OBJECT_TYPE_NEXT_HOP] =
     {.count = 1, .list = (sai_attr_id_t[1]) {SAI_NEXT_HOP_ATTR_ROUTER_INTERFACE_ID}
     },

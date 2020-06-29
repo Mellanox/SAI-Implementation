@@ -186,6 +186,9 @@
     <ClInclude Include="inc\sai\saimacsec.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="inc\sai\saisystemport.h">
+      <Filter>Header Files\sai</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\mlnx_sai_acl.c">

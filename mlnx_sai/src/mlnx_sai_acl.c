@@ -17296,7 +17296,7 @@ sai_status_t mlnx_acl_bind_point_get(_In_ const sai_object_key_t   *key,
             if (is_warmboot_init_stage) {
                 status = mlnx_port_idx_by_obj_id(key->key.object_id, &port_db_idx);
                 if (SAI_ERR(status)) {
-                    SX_LOG_ERR("Error getting port idx from log id %"PRIx64"\n", port_id);
+                    SX_LOG_ERR("Error getting port idx from log id %"PRIx64"\n", key->key.object_id);
                     goto out;
                 }
                 if (0 == mlnx_ports_db[port_db_idx].logical) {

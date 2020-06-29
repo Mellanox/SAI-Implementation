@@ -3607,13 +3607,13 @@ static sai_status_t mlnx_switch_bfd_event_handle(_In_ sx_trap_id_t event,
 
     status = mlnx_shm_rm_idx_validate(bfd_session_db_index);
     if (SAI_ERR(status)) {
-        SX_LOG_ERR("BFD DB index is invalid (opaque_data=%d)\n", opaque_data);
+        SX_LOG_ERR("BFD DB index is invalid (opaque_data=%"PRIu64")\n", opaque_data);
         return SAI_STATUS_FAILURE;
     }
 
     status = mlnx_bfd_session_oid_create(bfd_session_db_index, &info.bfd_session_id);
     if (SAI_ERR(status)) {
-        SX_LOG_ERR("BFD OID create failed (opaque_data=%d)\n", opaque_data);
+        SX_LOG_ERR("BFD OID create failed (opaque_data=%"PRIu64")\n", opaque_data);
         return SAI_STATUS_FAILURE;
     }
 
