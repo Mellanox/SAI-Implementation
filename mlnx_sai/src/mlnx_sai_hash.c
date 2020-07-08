@@ -302,6 +302,7 @@ static bool mlnx_hash_obj_need_apply(mlnx_switch_usage_hash_object_id_t hash_ope
             res = false;
             break;
         }
+    /* Falls through. */
 
     /* do not break here, need verify same condition as for IPv4 */
     case SAI_HASH_ECMP_IP4_ID:
@@ -315,6 +316,7 @@ static bool mlnx_hash_obj_need_apply(mlnx_switch_usage_hash_object_id_t hash_ope
             res = false;
             break;
         }
+    /* Falls through. */
 
     /* do not break here, need verify same condition as for IPv4 */
     case SAI_HASH_LAG_IP4_ID:

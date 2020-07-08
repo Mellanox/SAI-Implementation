@@ -54,11 +54,11 @@
 #define MAX_BFD_SESSION_NUMBER 64
 
 typedef struct _sai_switch_notification_t {
-    sai_switch_state_change_notification_fn     on_switch_state_change;
-    sai_fdb_event_notification_fn               on_fdb_event;
-    sai_port_state_change_notification_fn       on_port_state_change;
-    sai_switch_shutdown_request_notification_fn on_switch_shutdown_request;
-    sai_packet_event_notification_fn            on_packet_event;
+    sai_switch_state_change_notification_fn      on_switch_state_change;
+    sai_fdb_event_notification_fn                on_fdb_event;
+    sai_port_state_change_notification_fn        on_port_state_change;
+    sai_switch_shutdown_request_notification_fn  on_switch_shutdown_request;
+    sai_packet_event_notification_fn             on_packet_event;
     sai_bfd_session_state_change_notification_fn on_bfd_session_state_change;
 } sai_switch_notification_t;
 
@@ -570,15 +570,12 @@ static sai_status_t mlnx_switch_attr_set(_In_ const sai_object_key_t      *key,
 static sai_status_t mlnx_switch_pre_shutdown_set(_In_ const sai_object_key_t      *key,
                                                  _In_ const sai_attribute_value_t *value,
                                                  void                             *arg);
-
 static sai_status_t mlnx_switch_bfd_attribute_get(_In_ const sai_object_key_t   *key,
                                                   _Inout_ sai_attribute_value_t *value,
                                                   _In_ uint32_t                  attr_index,
                                                   _Inout_ vendor_cache_t        *cache,
                                                   void                          *arg);
-static sai_status_t mlnx_switch_bfd_event_handle(_In_ sx_trap_id_t event,
-                                                 _In_ uint64_t     opaque_data);
-
+static sai_status_t mlnx_switch_bfd_event_handle(_In_ sx_trap_id_t event, _In_ uint64_t opaque_data);
 static const sai_vendor_attribute_entry_t switch_vendor_attribs[] = {
     { SAI_SWITCH_ATTR_PORT_NUMBER,
       { false, false, false, true },
@@ -1247,7 +1244,7 @@ static const mlnx_attr_enum_info_t        switch_enum_info[] = {
     [SAI_SWITCH_ATTR_SUPPORTED_IPV6_BFD_SESSION_OFFLOAD_TYPE] = ATTR_ENUM_VALUES_LIST(
         SAI_BFD_SESSION_OFFLOAD_TYPE_NONE),
     [SAI_SWITCH_ATTR_SUPPORTED_EXTENDED_STATS_MODE] = ATTR_ENUM_VALUES_ALL(),
-    [SAI_SWITCH_ATTR_RESTART_TYPE] = ATTR_ENUM_VALUES_ALL(),
+    [SAI_SWITCH_ATTR_RESTART_TYPE]                  = ATTR_ENUM_VALUES_ALL(),
 };
 const mlnx_obj_type_attrs_info_t          mlnx_switch_obj_type_info =
 { switch_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(switch_enum_info)};
@@ -2109,7 +2106,7 @@ static sai_status_t mlnx_switch_bfd_attribute_get(_In_ const sai_object_key_t   
         return status;
     }
 
-    switch(type) {
+    switch (type) {
     case SAI_SWITCH_ATTR_NUMBER_OF_BFD_SESSION:
         sai_db_read_lock();
         value->u32 = MAX_BFD_SESSION_NUMBER - mlnx_shm_rm_array_free_entries_count(MLNX_SHM_RM_ARRAY_TYPE_BFD_SESSION);
@@ -2129,6 +2126,7 @@ static sai_status_t mlnx_switch_bfd_attribute_get(_In_ const sai_object_key_t   
     case SAI_SWITCH_ATTR_MIN_BFD_TX:
         value->u32 = BFD_MIN_SUPPORTED_INTERVAL;
         break;
+
     default:
         SX_LOG_ERR("Unexpected arg type: %lu\n", type);
         SX_LOG_EXIT();
@@ -3397,7 +3395,7 @@ sai_status_t mlnx_shm_rm_array_free(_In_ mlnx_shm_rm_array_idx_t idx)
 
     status = mlnx_shm_rm_idx_validate(idx);
     if (SAI_ERR(status)) {
-        return status;;
+        return status;
     }
 
     info = &g_sai_db_ptr->array_info[idx.type];
@@ -3593,8 +3591,7 @@ uint32_t mlnx_shm_rm_array_size_get(_In_ mlnx_shm_rm_array_type_t type)
 }
 
 
-static sai_status_t mlnx_switch_bfd_event_handle(_In_ sx_trap_id_t event,
-                                                 _In_ uint64_t     opaque_data)
+static sai_status_t mlnx_switch_bfd_event_handle(_In_ sx_trap_id_t event, _In_ uint64_t opaque_data)
 {
     sai_bfd_session_state_notification_t info = {0};
     mlnx_shm_rm_array_idx_t              bfd_session_db_index;
@@ -3607,13 +3604,13 @@ static sai_status_t mlnx_switch_bfd_event_handle(_In_ sx_trap_id_t event,
 
     status = mlnx_shm_rm_idx_validate(bfd_session_db_index);
     if (SAI_ERR(status)) {
-        SX_LOG_ERR("BFD DB index is invalid (opaque_data=%d)\n", opaque_data);
+        SX_LOG_ERR("BFD DB index is invalid (opaque_data=%" PRIu64 ")\n", opaque_data);
         return SAI_STATUS_FAILURE;
     }
 
     status = mlnx_bfd_session_oid_create(bfd_session_db_index, &info.bfd_session_id);
     if (SAI_ERR(status)) {
-        SX_LOG_ERR("BFD OID create failed (opaque_data=%d)\n", opaque_data);
+        SX_LOG_ERR("BFD OID create failed (opaque_data=%" PRIu64 ")\n", opaque_data);
         return SAI_STATUS_FAILURE;
     }
 
@@ -4074,6 +4071,7 @@ static sai_status_t mlnx_switch_parse_fdb_event(uint8_t                         
         case SX_FDB_NOTIFY_TYPE_FLUSH_PORT_FID:
         case SX_FDB_NOTIFY_TYPE_FLUSH_LAG_FID:
             has_port = true;
+        /* Falls through. */
 
         case SX_FDB_NOTIFY_TYPE_FLUSH_FID:
             fdb_events[to_index].event_type = SAI_FDB_EVENT_FLUSHED;
@@ -5716,7 +5714,8 @@ static sai_status_t mlnx_create_switch(_Out_ sai_object_id_t     * switch_id,
                                      &attr_val,
                                      &attr_idx);
     if (!SAI_ERR(sai_status)) {
-        g_notification_callbacks.on_bfd_session_state_change = (sai_bfd_session_state_change_notification_fn)attr_val->ptr;
+        g_notification_callbacks.on_bfd_session_state_change =
+            (sai_bfd_session_state_change_notification_fn)attr_val->ptr;
     }
 
     sai_status = find_attrib_in_list(attr_count,
@@ -8426,10 +8425,10 @@ static sai_status_t mlnx_restart_type_get(_In_ const sai_object_key_t   *key,
 }
 
 static sai_status_t mlnx_min_restart_interval_get(_In_ const sai_object_key_t   *key,
-                                         _Inout_ sai_attribute_value_t *value,
-                                         _In_ uint32_t                  attr_index,
-                                         _Inout_ vendor_cache_t        *cache,
-                                         void                          *arg)
+                                                  _Inout_ sai_attribute_value_t *value,
+                                                  _In_ uint32_t                  attr_index,
+                                                  _Inout_ vendor_cache_t        *cache,
+                                                  void                          *arg)
 {
     SX_LOG_ENTER();
     value->u32 = 0;
@@ -8439,10 +8438,10 @@ static sai_status_t mlnx_min_restart_interval_get(_In_ const sai_object_key_t   
 }
 
 static sai_status_t mlnx_nv_storage_get(_In_ const sai_object_key_t   *key,
-                                         _Inout_ sai_attribute_value_t *value,
-                                         _In_ uint32_t                  attr_index,
-                                         _Inout_ vendor_cache_t        *cache,
-                                         void                          *arg)
+                                        _Inout_ sai_attribute_value_t *value,
+                                        _In_ uint32_t                  attr_index,
+                                        _Inout_ vendor_cache_t        *cache,
+                                        void                          *arg)
 {
     SX_LOG_ENTER();
     /* SDK persistent files for ISSU approximate size */
@@ -8482,7 +8481,8 @@ static sai_status_t mlnx_switch_event_func_set(_In_ const sai_object_key_t      
         break;
 
     case SAI_SWITCH_ATTR_BFD_SESSION_STATE_CHANGE_NOTIFY:
-        g_notification_callbacks.on_bfd_session_state_change = (sai_bfd_session_state_change_notification_fn)value->ptr;
+        g_notification_callbacks.on_bfd_session_state_change =
+            (sai_bfd_session_state_change_notification_fn)value->ptr;
         break;
     }
 

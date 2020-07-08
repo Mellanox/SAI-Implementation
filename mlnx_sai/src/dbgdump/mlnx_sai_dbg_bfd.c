@@ -25,9 +25,9 @@
 static void SAI_dump_bfd_getdb(_Out_ mlnx_bfd_session_db_entry_t *bfd_session_db,
                                _Out_ uint32_t                    *count)
 {
-    sai_status_t              status;
-    uint32_t                  db_size, bfd_session_idx, copied = 0;
-    void                     *ptr;
+    sai_status_t status;
+    uint32_t     db_size, bfd_session_idx, copied = 0;
+    void        *ptr;
 
     assert(bfd_session_db);
     assert(g_sai_db_ptr);
@@ -99,16 +99,16 @@ static void SAI_dump_bfd_print(_In_ FILE                              *file,
         }
 
         bfd_db_index.type = MLNX_SHM_RM_ARRAY_TYPE_BFD_SESSION;
-        bfd_db_index.idx = ii;
-        status = mlnx_bfd_session_oid_create(bfd_db_index, &bfd_session_oid);
-        if(SAI_ERR(status)) {
+        bfd_db_index.idx  = ii;
+        status            = mlnx_bfd_session_oid_create(bfd_db_index, &bfd_session_oid);
+        if (SAI_ERR(status)) {
             bfd_session_oid = SAI_NULL_OBJECT_ID;
         }
 
         memcpy(&cur_bfd_data, &bfd_sessions[ii].data, sizeof(cur_bfd_data));
 
         multihop_flag = cur_bfd_data.multihop ? 1 : 0;
-        status = sai_ipaddr_to_str(cur_bfd_data.src_ip, MAX_IP_STR_LEN - 1, src_ip_str, NULL);
+        status        = sai_ipaddr_to_str(cur_bfd_data.src_ip, MAX_IP_STR_LEN - 1, src_ip_str, NULL);
         if (SAI_ERR(status)) {
             strcpy(src_ip_str, "-");
         }
@@ -124,7 +124,7 @@ static void SAI_dump_bfd_print(_In_ FILE                              *file,
 void SAI_dump_bfd(_In_ FILE *file)
 {
     mlnx_bfd_session_db_entry_t *bfd_sessions = NULL;
-    uint32_t            size = 0;
+    uint32_t                     size         = 0;
 
     bfd_sessions = calloc(mlnx_shm_rm_array_size_get(MLNX_SHM_RM_ARRAY_TYPE_BFD_SESSION),
                           sizeof(mlnx_bfd_session_db_entry_t));

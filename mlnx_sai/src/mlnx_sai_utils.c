@@ -1457,10 +1457,9 @@ static sai_status_t sai_attribute_value_list_type_validate(_In_ const sai_attr_m
 }
 
 
-static sai_status_t sai_metadata_is_supported_enum_value(
-        _In_ const sai_attr_metadata_t* metadata,
-        _In_ int value,
-        _Out_ bool *is_supported)
+static sai_status_t sai_metadata_is_supported_enum_value(_In_ const sai_attr_metadata_t* metadata,
+                                                         _In_ int                        value,
+                                                         _Out_ bool                     *is_supported)
 {
     sai_status_t                      status;
     sai_s32_list_t                    enum_values_capability;
@@ -1477,11 +1476,11 @@ static sai_status_t sai_metadata_is_supported_enum_value(
         return SAI_STATUS_FAILURE;
     }
 
-    enum_values_capability.list = list;
+    enum_values_capability.list  = list;
     enum_values_capability.count = MLNX_ENUM_VALUE_COUNT_MAX;
-    status = mlnx_attr_enum_supported_values_get(metadata,
-                                                 &obj_type_attr_info->enums_info,
-                                                 &enum_values_capability);
+    status                       = mlnx_attr_enum_supported_values_get(metadata,
+                                                                       &obj_type_attr_info->enums_info,
+                                                                       &enum_values_capability);
     if (SAI_ERR(status)) {
         return SAI_STATUS_FAILURE;
     }
@@ -2558,9 +2557,9 @@ sai_status_t sai_set_attribute(_In_ const sai_object_key_t             *key,
     if (SAI_STATUS_SUCCESS !=
         (status =
              check_attribs_metadata(1, attr, object_type, functionality_vendor_attr, SAI_COMMON_API_SET))) {
-        SX_LOG(((SAI_STATUS_ATTR_NOT_IMPLEMENTED_0 == status) || (SAI_STATUS_ATTR_NOT_SUPPORTED_0 == status)) ?
-                SX_LOG_WARNING : SX_LOG_ERROR, 
-            "Failed attribs check, key:%s\n", key_str);
+        SX_LOG((((SAI_STATUS_ATTR_NOT_IMPLEMENTED_0 == status) || (SAI_STATUS_ATTR_NOT_SUPPORTED_0 == status)) ?
+                SX_LOG_WARNING : SX_LOG_ERROR),
+               "Failed attribs check, key:%s\n", key_str);
         SX_LOG_EXIT();
         return status;
     }
@@ -2591,9 +2590,9 @@ sai_status_t sai_get_attributes(_In_ const sai_object_key_t             *key,
         (status =
              check_attribs_metadata(attr_count, attr_list, object_type, functionality_vendor_attr,
                                     SAI_COMMON_API_GET))) {
-        SX_LOG(((SAI_STATUS_IS_ATTR_NOT_IMPLEMENTED(status)) || (SAI_STATUS_IS_ATTR_NOT_SUPPORTED(status))) ? 
-                SX_LOG_WARNING : SX_LOG_ERROR,
-            "Failed attribs check, key:%s\n", key_str);
+        SX_LOG((((SAI_STATUS_IS_ATTR_NOT_IMPLEMENTED(status)) || (SAI_STATUS_IS_ATTR_NOT_SUPPORTED(status))) ?
+                SX_LOG_WARNING : SX_LOG_ERROR),
+               "Failed attribs check, key:%s\n", key_str);
         SX_LOG_EXIT();
         return status;
     }
@@ -4146,7 +4145,7 @@ static sai_status_t mlnx_fill_genericlist(size_t element_size, const void *data,
         } else {
             status = SAI_STATUS_BUFFER_OVERFLOW;
         }
-        SX_LOG((0 == objlist->count) ? SX_LOG_INFO : SX_LOG_ERROR,
+        SX_LOG(((0 == objlist->count) ? SX_LOG_INFO : SX_LOG_ERROR),
                "Insufficient list buffer size. Allocated %u needed %u\n", objlist->count, count);
         objlist->count = count;
         return status;

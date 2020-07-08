@@ -31,7 +31,7 @@ static sai_status_t mlnx_router_admin_get(_In_ const sai_object_key_t   *key,
                                           void                          *arg);
 static sai_status_t mlnx_router_admin_set(_In_ const sai_object_key_t      *key,
                                           _In_ const sai_attribute_value_t *value,
-                                               void                        *arg);
+                                          void                             *arg);
 static const sai_vendor_attribute_entry_t router_vendor_attribs[] = {
     { SAI_VIRTUAL_ROUTER_ATTR_ADMIN_V4_STATE,
       { true, false, true, true },
@@ -170,7 +170,7 @@ static sai_status_t mlnx_router_admin_get(_In_ const sai_object_key_t   *key,
 
 static sai_status_t mlnx_router_admin_set(_In_ const sai_object_key_t      *key,
                                           _In_ const sai_attribute_value_t *value,
-                                               void                        *arg)
+                                          void                             *arg)
 {
     sai_status_t           status;
     sx_router_id_t         vrid;
@@ -187,7 +187,7 @@ static sai_status_t mlnx_router_admin_set(_In_ const sai_object_key_t      *key,
         return status;
     }
 
-    vrid = (sx_router_id_t) data;
+    vrid   = (sx_router_id_t)data;
     status = sx_api_router_get(gh_sdk, vrid, &router_attr);
 
     if (SX_STATUS_SUCCESS != status) {

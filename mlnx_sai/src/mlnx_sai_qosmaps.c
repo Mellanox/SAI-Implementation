@@ -583,7 +583,7 @@ static sai_status_t mlnx_qos_map_list_get(_In_ const sai_object_key_t   *key,
         } else {
             status = SAI_STATUS_BUFFER_OVERFLOW;
         }
-        SX_LOG((0 == qos_params->count) ? SX_LOG_NOTICE : SX_LOG_ERROR,
+        SX_LOG(((0 == qos_params->count) ? SX_LOG_NOTICE : SX_LOG_ERROR),
                "Insufficient list buffer size.Allocated %u needed %u\n", qos_map->count, qos_params->count);
         qos_params->count = qos_map->count;
         goto out;

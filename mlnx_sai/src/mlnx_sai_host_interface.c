@@ -656,7 +656,7 @@ static void host_interface_key_to_str(_In_ sai_object_id_t hif_id, _Out_ char *k
 /* Creates netdev. Called under read/write lock */
 static sai_status_t create_netdev(uint32_t index)
 {
-    char add_link_command[100], disable_ipv6_command[100], set_addr_command[100], command[300];
+    char add_link_command[100], disable_ipv6_command[100], set_addr_command[100], command[320];
     int  system_err;
 
     if (SAI_HOSTIF_OBJECT_TYPE_VLAN == g_sai_db_ptr->hostif_db[index].sub_type) {
