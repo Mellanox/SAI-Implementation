@@ -29,17 +29,20 @@ static sai_status_t mlnx_router_admin_get(_In_ const sai_object_key_t   *key,
                                           _In_ uint32_t                  attr_index,
                                           _Inout_ vendor_cache_t        *cache,
                                           void                          *arg);
+static sai_status_t mlnx_router_admin_set(_In_ const sai_object_key_t      *key,
+                                          _In_ const sai_attribute_value_t *value,
+                                          void                             *arg);
 static const sai_vendor_attribute_entry_t router_vendor_attribs[] = {
     { SAI_VIRTUAL_ROUTER_ATTR_ADMIN_V4_STATE,
-      { true, false, false, true },
+      { true, false, true, true },
       { true, false, true, true },
       mlnx_router_admin_get, (void*)SAI_VIRTUAL_ROUTER_ATTR_ADMIN_V4_STATE,
-      NULL, NULL },
+      mlnx_router_admin_set, (void*)SAI_VIRTUAL_ROUTER_ATTR_ADMIN_V4_STATE },
     { SAI_VIRTUAL_ROUTER_ATTR_ADMIN_V6_STATE,
-      { true, false, false, true },
+      { true, false, true, true },
       { true, false, true, true },
       mlnx_router_admin_get, (void*)SAI_VIRTUAL_ROUTER_ATTR_ADMIN_V6_STATE,
-      NULL, NULL },
+      mlnx_router_admin_set, (void*)SAI_VIRTUAL_ROUTER_ATTR_ADMIN_V6_STATE },
     { SAI_VIRTUAL_ROUTER_ATTR_SRC_MAC_ADDRESS,
       { false, false, false, false },
       { false, false, false, false },
@@ -159,6 +162,49 @@ static sai_status_t mlnx_router_admin_get(_In_ const sai_object_key_t   *key,
         value->booldata = router_attr.ipv4_enable;
     } else {
         value->booldata = router_attr.ipv6_enable;
+    }
+
+    SX_LOG_EXIT();
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_router_admin_set(_In_ const sai_object_key_t      *key,
+                                          _In_ const sai_attribute_value_t *value,
+                                          void                             *arg)
+{
+    sai_status_t           status;
+    sx_router_id_t         vrid;
+    uint32_t               data;
+    sx_router_attributes_t router_attr;
+
+    assert((SAI_VIRTUAL_ROUTER_ATTR_ADMIN_V4_STATE == (long)arg) ||
+           (SAI_VIRTUAL_ROUTER_ATTR_ADMIN_V6_STATE == (long)arg));
+
+    SX_LOG_ENTER();
+
+    status = mlnx_object_to_type(key->key.object_id, SAI_OBJECT_TYPE_VIRTUAL_ROUTER, &data, NULL);
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+    vrid   = (sx_router_id_t)data;
+    status = sx_api_router_get(gh_sdk, vrid, &router_attr);
+
+    if (SX_STATUS_SUCCESS != status) {
+        SX_LOG_ERR("Failed to get router - %s.\n", SX_STATUS_MSG(status));
+        return sdk_to_sai(status);
+    }
+
+    if (SAI_VIRTUAL_ROUTER_ATTR_ADMIN_V4_STATE == (long)arg) {
+        router_attr.ipv4_enable = value->booldata;
+    } else {
+        router_attr.ipv6_enable = value->booldata;
+    }
+
+    status = sx_api_router_set(gh_sdk, SX_ACCESS_CMD_EDIT, &router_attr, &vrid);
+    if (SX_STATUS_SUCCESS != status) {
+        SX_LOG_ERR("Failed to set router - %s.\n", SX_STATUS_MSG(status));
+        return sdk_to_sai(status);
     }
 
     SX_LOG_EXIT();

@@ -37,6 +37,7 @@
 #include "sail2mcgroup.h"
 #include "sail2mc.h"
 #include "sailag.h"
+#include "saimacsec.h"
 #include "saimcastfdb.h"
 #include "saimirror.h"
 #include "saimpls.h"
@@ -58,6 +59,7 @@
 #include "saistatus.h"
 #include "saistp.h"
 #include "saiswitch.h"
+#include "saisystemport.h"
 #include "saitam.h"
 #include "saitunnel.h"
 #include "saitypes.h"
@@ -129,7 +131,9 @@ typedef enum _sai_api_t
     SAI_API_NAT              = 40, /**< sai_nat_api_t */
     SAI_API_COUNTER          = 41, /**< sai_counter_api_t */
     SAI_API_DEBUG_COUNTER    = 42, /**< sai_debug_counter_api_t */
-    SAI_API_MAX              = 43, /**< total number of APIs */
+    SAI_API_MACSEC           = 43, /**< sai_macsec_api_t */
+    SAI_API_SYSTEM_PORT      = 44, /**< sai_system_port_api_t */
+    SAI_API_MAX              = 45, /**< total number of APIs */
 } sai_api_t;
 
 /**

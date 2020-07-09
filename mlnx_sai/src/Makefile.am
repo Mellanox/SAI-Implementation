@@ -4,6 +4,7 @@ INCLUDES = -I$(top_srcdir) -I$(top_srcdir)/include -I$(srcdir) \
            -I$(srcdir)/../inc -I$(srcdir)/../inc/sai -I$(srcdir)/../inc/experimental \
            -I$(APP_LIB_PATH)/include \
            -I$(XML2_LIB_PATH)/include/libxml2 \
+           -I$(XML2_LIB_PATH)/include/libnl3 \
 		   -I$(srcdir)/meta
 
 if DEBUG
@@ -29,23 +30,28 @@ dist_data_DATA = sai_1710.xml \
                  sai_2700split.xml \
                  sai_2700_8x50g_28x100g.xml \
                  sai_2740.xml \
+                 sai_3420.xml \
                  sai_3700.xml \
                  sai_37001G.xml \
                  sai_3800.xml \
                  sai_380050G.xml \
+                 sai_4600.xml \
+                 sai_4600C.xml \
                  sai_4700.xml \
                  sai_4800.xml \
-		 sai_4700_pld.xml \
-		 sai_4700_pld_4.xml \
-		 sai_4700_1G.xml
+                 sai_4700_pld.xml \
+                 sai_4700_pld_4.xml \
+                 sai_4700_1G.xml \
+                 sai_4700_100G.xml
 				 
 libsai_la_DEPENDENCIES =
 
 libsai_la_SOURCES = \
                        dbgdump/mlnx_sai_dbg_acl.c \
                        dbgdump/mlnx_sai_dbg_bridge.c \
+                       dbgdump/mlnx_sai_dbg_bfd.c \
                        dbgdump/mlnx_sai_dbg_buffer.c \
-		       dbgdump/mlnx_sai_dbg_debug_counter.c \
+                       dbgdump/mlnx_sai_dbg_debug_counter.c \
                        dbgdump/mlnx_sai_dbg_hash.c \
                        dbgdump/mlnx_sai_dbg_hostintf.c \
                        dbgdump/mlnx_sai_dbg_mirror.c \
@@ -61,10 +67,11 @@ libsai_la_SOURCES = \
                        dbgdump/mlnx_sai_dbg_vlan.c \
                        dbgdump/mlnx_sai_dbg_wred.c \
                        mlnx_sai_acl.c \
+                       mlnx_sai_bfd.c \
                        mlnx_sai_bmtor.c \
                        mlnx_sai_bridge.c \
                        mlnx_sai_buffer.c \
-		       mlnx_sai_debug_counter.c \
+                       mlnx_sai_debug_counter.c \
                        mlnx_sai_fdb.c \
                        mlnx_sai_hash.c \
                        mlnx_sai_host_interface.c \
@@ -110,7 +117,7 @@ SAI_LIBXML2_ADD = -lxml2
 endif
 
 libsai_la_LIBADD = \
-                   -L$(APP_LIB_PATH)/lib -lsxapi -lsw_rm\
+                   -L$(APP_LIB_PATH)/lib -lsxapi -lsw_rm -lnl-genl-3\
                    ${SAI_LIBXML2_ADD} libfx_base.la
 
 libsai_apiincludedir = $(includedir)/sai
@@ -120,8 +127,8 @@ libsai_apiinclude_HEADERS = \
         $(top_srcdir)/inc/sai/saibfd.h \
         $(top_srcdir)/inc/sai/saibridge.h \
         $(top_srcdir)/inc/sai/saibuffer.h \
-	$(top_srcdir)/inc/sai/saicounter.h \
-	$(top_srcdir)/inc/sai/saidebugcounter.h \
+        $(top_srcdir)/inc/sai/saicounter.h \
+        $(top_srcdir)/inc/sai/saidebugcounter.h \
         $(top_srcdir)/inc/sai/saidtel.h \
         $(top_srcdir)/inc/sai/saifdb.h \
         $(top_srcdir)/inc/sai/saihash.h \
@@ -132,10 +139,11 @@ libsai_apiinclude_HEADERS = \
         $(top_srcdir)/inc/sai/sail2mc.h \
         $(top_srcdir)/inc/sai/sail2mcgroup.h \
         $(top_srcdir)/inc/sai/sailag.h \
+        $(top_srcdir)/inc/sai/saimacsec.h \      
         $(top_srcdir)/inc/sai/saimcastfdb.h \
         $(top_srcdir)/inc/sai/saimirror.h \
         $(top_srcdir)/inc/sai/saimpls.h \
-	$(top_srcdir)/inc/sai/sainat.h \
+        $(top_srcdir)/inc/sai/sainat.h \
         $(top_srcdir)/inc/sai/saineighbor.h \
         $(top_srcdir)/inc/sai/sainexthop.h \
         $(top_srcdir)/inc/sai/sainexthopgroup.h \
@@ -154,6 +162,7 @@ libsai_apiinclude_HEADERS = \
         $(top_srcdir)/inc/sai/saistatus.h \
         $(top_srcdir)/inc/sai/saistp.h \
         $(top_srcdir)/inc/sai/saiswitch.h \
+        $(top_srcdir)/inc/sai/saisystemport.h \		
         $(top_srcdir)/inc/sai/saitam.h \
         $(top_srcdir)/inc/sai/saitunnel.h \
         $(top_srcdir)/inc/sai/saitypes.h \

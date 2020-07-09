@@ -57,7 +57,6 @@ typedef enum _sai_bfd_session_type_t
  */
 typedef enum _sai_bfd_session_offload_type_t
 {
-
     /** No Offload: No offload supported */
     SAI_BFD_SESSION_OFFLOAD_TYPE_NONE = 0,
 
@@ -115,7 +114,11 @@ typedef enum _sai_bfd_session_state_t
  */
 typedef struct _sai_bfd_session_state_notification_t
 {
-    /** BFD Session id */
+    /**
+     * @brief BFD Session id
+     *
+     * @objects SAI_OBJECT_TYPE_BFD_SESSION
+     */
     sai_object_id_t bfd_session_id;
 
     /** BFD session state */

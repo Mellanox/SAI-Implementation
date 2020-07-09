@@ -94,6 +94,7 @@ typedef enum _sai_acl_ip_frag_t
 
 /**
  * @brief DTEL flow operation
+ *
  * @warning experimental
  */
 typedef enum _sai_acl_dtel_flow_op_t
@@ -254,6 +255,9 @@ typedef enum _sai_acl_action_type_t
 
     /** Set isolation group to prevent traffic to members of isolation group */
     SAI_ACL_ACTION_TYPE_SET_ISOLATION_GROUP,
+
+    /** Bind a MACsec flow object */
+    SAI_ACL_ACTION_TYPE_MACSEC_FLOW,
 
 } sai_acl_action_type_t;
 
@@ -929,6 +933,204 @@ typedef enum _sai_acl_table_attr_t
      */
     SAI_ACL_TABLE_ATTR_FIELD_TUNNEL_VNI,
 
+    /**
+     * @brief Match on packet that has vlan tag
+     *
+     * @type bool
+     * @flags CREATE_ONLY
+     * @default false
+     */
+    SAI_ACL_TABLE_ATTR_FIELD_HAS_VLAN_TAG,
+
+    /**
+     * @brief SCI value in MACsec packet SecTAG
+     *
+     * @type bool
+     * @flags CREATE_ONLY
+     * @default false
+     */
+    SAI_ACL_TABLE_ATTR_FIELD_MACSEC_SCI,
+
+    /**
+     * @brief Label value for MPLS label on the top
+     *
+     * @type bool
+     * @flags CREATE_ONLY
+     * @default false
+     */
+    SAI_ACL_TABLE_ATTR_FIELD_MPLS_LABEL0_LABEL,
+
+    /**
+     * @brief TTL value for MPLS label on the top
+     *
+     * @type bool
+     * @flags CREATE_ONLY
+     * @default false
+     */
+    SAI_ACL_TABLE_ATTR_FIELD_MPLS_LABEL0_TTL,
+
+    /**
+     * @brief EXP value for MPLS label on the top
+     *
+     * @type bool
+     * @flags CREATE_ONLY
+     * @default false
+     */
+    SAI_ACL_TABLE_ATTR_FIELD_MPLS_LABEL0_EXP,
+
+    /**
+     * @brief BOS bit value for MPLS label on the top
+     *
+     * @type bool
+     * @flags CREATE_ONLY
+     * @default false
+     */
+    SAI_ACL_TABLE_ATTR_FIELD_MPLS_LABEL0_BOS,
+
+    /**
+     * @brief Label value for second MPLS label from the top
+     *
+     * @type bool
+     * @flags CREATE_ONLY
+     * @default false
+     */
+    SAI_ACL_TABLE_ATTR_FIELD_MPLS_LABEL1_LABEL,
+
+    /**
+     * @brief TTL value for second MPLS label from the top
+     *
+     * @type bool
+     * @flags CREATE_ONLY
+     * @default false
+     */
+    SAI_ACL_TABLE_ATTR_FIELD_MPLS_LABEL1_TTL,
+
+    /**
+     * @brief EXP value for second MPLS label from the top
+     *
+     * @type bool
+     * @flags CREATE_ONLY
+     * @default false
+     */
+    SAI_ACL_TABLE_ATTR_FIELD_MPLS_LABEL1_EXP,
+
+    /**
+     * @brief BOS bit value for second MPLS label from the top
+     *
+     * @type bool
+     * @flags CREATE_ONLY
+     * @default false
+     */
+    SAI_ACL_TABLE_ATTR_FIELD_MPLS_LABEL1_BOS,
+
+    /**
+     * @brief Label value for third MPLS label from the top
+     *
+     * @type bool
+     * @flags CREATE_ONLY
+     * @default false
+     */
+    SAI_ACL_TABLE_ATTR_FIELD_MPLS_LABEL2_LABEL,
+
+    /**
+     * @brief TTL value for third MPLS label from the top
+     *
+     * @type bool
+     * @flags CREATE_ONLY
+     * @default false
+     */
+    SAI_ACL_TABLE_ATTR_FIELD_MPLS_LABEL2_TTL,
+
+    /**
+     * @brief EXP value for third MPLS label from the top
+     *
+     * @type bool
+     * @flags CREATE_ONLY
+     * @default false
+     */
+    SAI_ACL_TABLE_ATTR_FIELD_MPLS_LABEL2_EXP,
+
+    /**
+     * @brief BOS bit value for third MPLS label from the top
+     *
+     * @type bool
+     * @flags CREATE_ONLY
+     * @default false
+     */
+    SAI_ACL_TABLE_ATTR_FIELD_MPLS_LABEL2_BOS,
+
+    /**
+     * @brief Label value for fourth MPLS label from the top
+     *
+     * @type bool
+     * @flags CREATE_ONLY
+     * @default false
+     */
+    SAI_ACL_TABLE_ATTR_FIELD_MPLS_LABEL3_LABEL,
+
+    /**
+     * @brief TTL value for fourth MPLS label from the top
+     *
+     * @type bool
+     * @flags CREATE_ONLY
+     * @default false
+     */
+    SAI_ACL_TABLE_ATTR_FIELD_MPLS_LABEL3_TTL,
+
+    /**
+     * @brief EXP value for fourth MPLS label from the top
+     *
+     * @type bool
+     * @flags CREATE_ONLY
+     * @default false
+     */
+    SAI_ACL_TABLE_ATTR_FIELD_MPLS_LABEL3_EXP,
+
+    /**
+     * @brief BOS bit value for fourth MPLS label from the top
+     *
+     * @type bool
+     * @flags CREATE_ONLY
+     * @default false
+     */
+    SAI_ACL_TABLE_ATTR_FIELD_MPLS_LABEL3_BOS,
+
+    /**
+     * @brief Label value for fifth MPLS label from the top
+     *
+     * @type bool
+     * @flags CREATE_ONLY
+     * @default false
+     */
+    SAI_ACL_TABLE_ATTR_FIELD_MPLS_LABEL4_LABEL,
+
+    /**
+     * @brief TTL value for fifth MPLS label from the top
+     *
+     * @type bool
+     * @flags CREATE_ONLY
+     * @default false
+     */
+    SAI_ACL_TABLE_ATTR_FIELD_MPLS_LABEL4_TTL,
+
+    /**
+     * @brief EXP value for fifth MPLS label from the top
+     *
+     * @type bool
+     * @flags CREATE_ONLY
+     * @default false
+     */
+    SAI_ACL_TABLE_ATTR_FIELD_MPLS_LABEL4_EXP,
+
+    /**
+     * @brief BOS bit value for fifth MPLS label from the top
+     *
+     * @type bool
+     * @flags CREATE_ONLY
+     * @default false
+     */
+    SAI_ACL_TABLE_ATTR_FIELD_MPLS_LABEL4_BOS,
+
     /* User Based metadata [bool] */
 
     /**
@@ -1070,9 +1272,30 @@ typedef enum _sai_acl_table_attr_t
     SAI_ACL_TABLE_ATTR_FIELD_IPV6_NEXT_HEADER,
 
     /**
+     * @brief GRE key
+     *
+     * The key is dedicated for GRE packets.
+     * The VNI key should not be used for matching on GRE packets or NVGRE packets.
+     *
+     * @type bool
+     * @flags CREATE_ONLY
+     * @default false
+     */
+    SAI_ACL_TABLE_ATTR_FIELD_GRE_KEY,
+
+    /**
+     * @brief TAM INT type
+     *
+     * @type bool
+     * @flags CREATE_ONLY
+     * @default false
+     */
+    SAI_ACL_TABLE_ATTR_FIELD_TAM_INT_TYPE,
+
+    /**
      * @brief End of ACL Table Match Field
      */
-    SAI_ACL_TABLE_ATTR_FIELD_END = SAI_ACL_TABLE_ATTR_FIELD_IPV6_NEXT_HEADER,
+    SAI_ACL_TABLE_ATTR_FIELD_END = SAI_ACL_TABLE_ATTR_FIELD_TAM_INT_TYPE,
 
     /**
      * @brief ACL table entries associated with this table.
@@ -1085,6 +1308,7 @@ typedef enum _sai_acl_table_attr_t
 
     /**
      * @brief Available ACL entries for this table
+     *
      * @type sai_uint32_t
      * @flags READ_ONLY
      */
@@ -1092,6 +1316,7 @@ typedef enum _sai_acl_table_attr_t
 
     /**
      * @brief Available ACL counters for this table
+     *
      * @type sai_uint32_t
      * @flags READ_ONLY
      */
@@ -1601,6 +1826,204 @@ typedef enum _sai_acl_entry_attr_t
      */
     SAI_ACL_ENTRY_ATTR_FIELD_TUNNEL_VNI,
 
+    /**
+     * @brief Match on packet that has vlan tag
+     *
+     * @type sai_acl_field_data_t bool
+     * @flags CREATE_AND_SET
+     * @default disabled
+     */
+    SAI_ACL_ENTRY_ATTR_FIELD_HAS_VLAN_TAG,
+
+    /**
+     * @brief SCI value in MACsec packet SecTAG
+     *
+     * @type sai_acl_field_data_t sai_uint64_t
+     * @flags CREATE_AND_SET
+     * @default disabled
+     */
+    SAI_ACL_ENTRY_ATTR_FIELD_MACSEC_SCI,
+
+    /**
+     * @brief Label value for MPLS label on the top
+     *
+     * @type sai_acl_field_data_t sai_uint32_t
+     * @flags CREATE_AND_SET
+     * @default disabled
+     */
+    SAI_ACL_ENTRY_ATTR_FIELD_MPLS_LABEL0_LABEL,
+
+    /**
+     * @brief TTL value for MPLS label on the top
+     *
+     * @type sai_acl_field_data_t sai_uint8_t
+     * @flags CREATE_AND_SET
+     * @default disabled
+     */
+    SAI_ACL_ENTRY_ATTR_FIELD_MPLS_LABEL0_TTL,
+
+    /**
+     * @brief EXP value for MPLS label on the top (3 bits)
+     *
+     * @type sai_acl_field_data_t sai_uint8_t
+     * @flags CREATE_AND_SET
+     * @default disabled
+     */
+    SAI_ACL_ENTRY_ATTR_FIELD_MPLS_LABEL0_EXP,
+
+    /**
+     * @brief BOS bit value for MPLS label on the top
+     *
+     * @type sai_acl_field_data_t bool
+     * @flags CREATE_AND_SET
+     * @default disabled
+     */
+    SAI_ACL_ENTRY_ATTR_FIELD_MPLS_LABEL0_BOS,
+
+    /**
+     * @brief Label value for second MPLS label from the top
+     *
+     * @type sai_acl_field_data_t sai_uint32_t
+     * @flags CREATE_AND_SET
+     * @default disabled
+     */
+    SAI_ACL_ENTRY_ATTR_FIELD_MPLS_LABEL1_LABEL,
+
+    /**
+     * @brief TTL value for second MPLS label from the top
+     *
+     * @type sai_acl_field_data_t sai_uint8_t
+     * @flags CREATE_AND_SET
+     * @default disabled
+     */
+    SAI_ACL_ENTRY_ATTR_FIELD_MPLS_LABEL1_TTL,
+
+    /**
+     * @brief EXP value for second MPLS label from the top (3 bits)
+     *
+     * @type sai_acl_field_data_t sai_uint8_t
+     * @flags CREATE_AND_SET
+     * @default disabled
+     */
+    SAI_ACL_ENTRY_ATTR_FIELD_MPLS_LABEL1_EXP,
+
+    /**
+     * @brief BOS bit value for second MPLS label from the top
+     *
+     * @type sai_acl_field_data_t bool
+     * @flags CREATE_AND_SET
+     * @default disabled
+     */
+    SAI_ACL_ENTRY_ATTR_FIELD_MPLS_LABEL1_BOS,
+
+    /**
+     * @brief Label value for third MPLS label from the top
+     *
+     * @type sai_acl_field_data_t sai_uint32_t
+     * @flags CREATE_AND_SET
+     * @default disabled
+     */
+    SAI_ACL_ENTRY_ATTR_FIELD_MPLS_LABEL2_LABEL,
+
+    /**
+     * @brief TTL value for third MPLS label from the top
+     *
+     * @type sai_acl_field_data_t sai_uint8_t
+     * @flags CREATE_AND_SET
+     * @default disabled
+     */
+    SAI_ACL_ENTRY_ATTR_FIELD_MPLS_LABEL2_TTL,
+
+    /**
+     * @brief EXP value for third MPLS label on the top (3 bits)
+     *
+     * @type sai_acl_field_data_t sai_uint8_t
+     * @flags CREATE_AND_SET
+     * @default disabled
+     */
+    SAI_ACL_ENTRY_ATTR_FIELD_MPLS_LABEL2_EXP,
+
+    /**
+     * @brief BOS bit value for third MPLS label from the top
+     *
+     * @type sai_acl_field_data_t bool
+     * @flags CREATE_AND_SET
+     * @default disabled
+     */
+    SAI_ACL_ENTRY_ATTR_FIELD_MPLS_LABEL2_BOS,
+
+    /**
+     * @brief Label value for fourth MPLS label from the top
+     *
+     * @type sai_acl_field_data_t sai_uint32_t
+     * @flags CREATE_AND_SET
+     * @default disabled
+     */
+    SAI_ACL_ENTRY_ATTR_FIELD_MPLS_LABEL3_LABEL,
+
+    /**
+     * @brief TTL value for fourth MPLS label from the top
+     *
+     * @type sai_acl_field_data_t sai_uint8_t
+     * @flags CREATE_AND_SET
+     * @default disabled
+     */
+    SAI_ACL_ENTRY_ATTR_FIELD_MPLS_LABEL3_TTL,
+
+    /**
+     * @brief EXP value for fourth MPLS label on the top (3 bits)
+     *
+     * @type sai_acl_field_data_t sai_uint8_t
+     * @flags CREATE_AND_SET
+     * @default disabled
+     */
+    SAI_ACL_ENTRY_ATTR_FIELD_MPLS_LABEL3_EXP,
+
+    /**
+     * @brief BOS bit value for fourth MPLS label from the top
+     *
+     * @type sai_acl_field_data_t bool
+     * @flags CREATE_AND_SET
+     * @default disabled
+     */
+    SAI_ACL_ENTRY_ATTR_FIELD_MPLS_LABEL3_BOS,
+
+    /**
+     * @brief Label value for fifth MPLS label from the top
+     *
+     * @type sai_acl_field_data_t sai_uint32_t
+     * @flags CREATE_AND_SET
+     * @default disabled
+     */
+    SAI_ACL_ENTRY_ATTR_FIELD_MPLS_LABEL4_LABEL,
+
+    /**
+     * @brief TTL value for fifth MPLS label from the top
+     *
+     * @type sai_acl_field_data_t sai_uint8_t
+     * @flags CREATE_AND_SET
+     * @default disabled
+     */
+    SAI_ACL_ENTRY_ATTR_FIELD_MPLS_LABEL4_TTL,
+
+    /**
+     * @brief EXP value for fifth MPLS label on the top (3 bits)
+     *
+     * @type sai_acl_field_data_t sai_uint8_t
+     * @flags CREATE_AND_SET
+     * @default disabled
+     */
+    SAI_ACL_ENTRY_ATTR_FIELD_MPLS_LABEL4_EXP,
+
+    /**
+     * @brief BOS bit value for fifth MPLS label from the top
+     *
+     * @type sai_acl_field_data_t bool
+     * @flags CREATE_AND_SET
+     * @default disabled
+     */
+    SAI_ACL_ENTRY_ATTR_FIELD_MPLS_LABEL4_BOS,
+
     /* User Based metadata */
 
     /**
@@ -1769,9 +2192,27 @@ typedef enum _sai_acl_entry_attr_t
     SAI_ACL_ENTRY_ATTR_FIELD_IPV6_NEXT_HEADER,
 
     /**
+     * @brief GRE Key (32 bits)
+     *
+     * @type sai_acl_field_data_t sai_uint32_t
+     * @flags CREATE_AND_SET
+     * @default disabled
+     */
+    SAI_ACL_ENTRY_ATTR_FIELD_GRE_KEY,
+
+    /**
+     * @brief TAM INT type
+     *
+     * @type sai_acl_field_data_t sai_tam_int_type_t
+     * @flags CREATE_AND_SET
+     * @default disabled
+     */
+    SAI_ACL_ENTRY_ATTR_FIELD_TAM_INT_TYPE,
+
+    /**
      * @brief End of Rule Match Fields
      */
-    SAI_ACL_ENTRY_ATTR_FIELD_END = SAI_ACL_ENTRY_ATTR_FIELD_IPV6_NEXT_HEADER,
+    SAI_ACL_ENTRY_ATTR_FIELD_END = SAI_ACL_ENTRY_ATTR_FIELD_TAM_INT_TYPE,
 
     /*
      * Actions [sai_acl_action_data_t]
@@ -1786,7 +2227,7 @@ typedef enum _sai_acl_entry_attr_t
     SAI_ACL_ENTRY_ATTR_ACTION_START = 0x00002000,
 
     /**
-     * @brief Redirect Packet to a destination which can be a port,
+     * @brief Redirect Packet to a destination which can be a port, system port,
      * LAG, nexthop, nexthopgroup, bridge port, L2MC group,IPMC group
      *
      * When redirecting to a bridge port, the following behavior will happen according to the bridge port type:
@@ -1799,7 +2240,7 @@ typedef enum _sai_acl_entry_attr_t
      *
      * @type sai_acl_action_data_t sai_object_id_t
      * @flags CREATE_AND_SET
-     * @objects SAI_OBJECT_TYPE_PORT, SAI_OBJECT_TYPE_LAG, SAI_OBJECT_TYPE_NEXT_HOP, SAI_OBJECT_TYPE_NEXT_HOP_GROUP, SAI_OBJECT_TYPE_BRIDGE_PORT, SAI_OBJECT_TYPE_L2MC_GROUP, SAI_OBJECT_TYPE_IPMC_GROUP
+     * @objects SAI_OBJECT_TYPE_PORT, SAI_OBJECT_TYPE_SYSTEM_PORT, SAI_OBJECT_TYPE_LAG, SAI_OBJECT_TYPE_NEXT_HOP, SAI_OBJECT_TYPE_NEXT_HOP_GROUP, SAI_OBJECT_TYPE_BRIDGE_PORT, SAI_OBJECT_TYPE_L2MC_GROUP, SAI_OBJECT_TYPE_IPMC_GROUP
      * @default disabled
      */
     SAI_ACL_ENTRY_ATTR_ACTION_REDIRECT = SAI_ACL_ENTRY_ATTR_ACTION_START,
@@ -1822,7 +2263,7 @@ typedef enum _sai_acl_entry_attr_t
      *
      * @type sai_acl_action_data_t sai_object_list_t
      * @flags CREATE_AND_SET
-     * @objects SAI_OBJECT_TYPE_PORT, SAI_OBJECT_TYPE_LAG, SAI_OBJECT_TYPE_NEXT_HOP, SAI_OBJECT_TYPE_NEXT_HOP_GROUP
+     * @objects SAI_OBJECT_TYPE_PORT, SAI_OBJECT_TYPE_SYSTEM_PORT, SAI_OBJECT_TYPE_LAG, SAI_OBJECT_TYPE_NEXT_HOP, SAI_OBJECT_TYPE_NEXT_HOP_GROUP
      * @default disabled
      */
     SAI_ACL_ENTRY_ATTR_ACTION_REDIRECT_LIST,
@@ -1886,9 +2327,9 @@ typedef enum _sai_acl_entry_attr_t
     SAI_ACL_ENTRY_ATTR_ACTION_SET_POLICER,
 
     /**
-     * @brief Decrement TTL (enable/disable) (parameter is not needed)
+     * @brief Decrement TTL (enable/disable)
      *
-     * @type sai_acl_action_data_t sai_int32_t
+     * @type sai_acl_action_data_t bool
      * @flags CREATE_AND_SET
      * @default disabled
      */
@@ -2112,6 +2553,7 @@ typedef enum _sai_acl_entry_attr_t
 
     /**
      * @brief DTEL flow operation
+     *
      * @warning experimental
      *
      * @type sai_acl_action_data_t sai_acl_dtel_flow_op_t
@@ -2122,6 +2564,7 @@ typedef enum _sai_acl_entry_attr_t
 
     /**
      * @brief DTEL INT session ID
+     *
      * @warning experimental
      *
      * @type sai_acl_action_data_t sai_object_id_t
@@ -2133,6 +2576,7 @@ typedef enum _sai_acl_entry_attr_t
 
     /**
      * @brief Enable DTEL drop report
+     *
      * @warning experimental
      *
      * @type sai_acl_action_data_t bool
@@ -2143,6 +2587,7 @@ typedef enum _sai_acl_entry_attr_t
 
     /**
      * @brief Enable DTEL tail drop reporting
+     *
      * @warning experimental
      *
      * @type sai_acl_action_data_t bool
@@ -2153,6 +2598,7 @@ typedef enum _sai_acl_entry_attr_t
 
     /**
      * @brief DTEL flow sample percentage
+     *
      * @warning experimental
      *
      * @type sai_acl_action_data_t sai_uint8_t
@@ -2163,6 +2609,7 @@ typedef enum _sai_acl_entry_attr_t
 
     /**
      * @brief Enable DTEL report for all packets without filtering
+     *
      * @warning experimental
      *
      * @type sai_acl_action_data_t bool
@@ -2254,9 +2701,19 @@ typedef enum _sai_acl_entry_attr_t
     SAI_ACL_ENTRY_ATTR_ACTION_SET_ISOLATION_GROUP,
 
     /**
+     * @brief MACsec flow
+     *
+     * @type sai_acl_action_data_t sai_object_id_t
+     * @flags CREATE_AND_SET
+     * @objects SAI_OBJECT_TYPE_MACSEC_FLOW
+     * @default disabled
+     */
+    SAI_ACL_ENTRY_ATTR_ACTION_MACSEC_FLOW,
+
+    /**
      * @brief End of Rule Actions
      */
-    SAI_ACL_ENTRY_ATTR_ACTION_END = SAI_ACL_ENTRY_ATTR_ACTION_SET_ISOLATION_GROUP,
+    SAI_ACL_ENTRY_ATTR_ACTION_END = SAI_ACL_ENTRY_ATTR_ACTION_MACSEC_FLOW,
 
     /**
      * @brief End of ACL Entry attributes
@@ -2602,6 +3059,7 @@ typedef sai_status_t (*sai_remove_acl_range_fn)(
  *
  * @param[in] acl_range_id The ACL range id
  * @param[in] attr Attribute
+ *
  * @return #SAI_STATUS_SUCCESS on success, failure status code on error
  */
 typedef sai_status_t (*sai_set_acl_range_attribute_fn)(

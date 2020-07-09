@@ -189,6 +189,10 @@ static void SAI_dump_hostif_subtype_enum_to_str(_In_ sai_host_object_type_t subt
         strcpy(str, "FD");
         break;
 
+    case SAI_HOSTIF_OBJECT_TYPE_GENETLINK:
+        strcpy(str, "GENELINK");
+        break;
+
     default:
         strcpy(str, "unknown");
         break;

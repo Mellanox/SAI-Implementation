@@ -1142,5 +1142,9 @@ const sai_fdb_api_t mlnx_fdb_api = {
     mlnx_remove_fdb_entry,
     mlnx_set_fdb_entry_attribute,
     mlnx_get_fdb_entry_attribute,
-    mlnx_flush_fdb_entries
+    mlnx_flush_fdb_entries,
+    NULL,
+    NULL,
+    NULL,
+    NULL
 };

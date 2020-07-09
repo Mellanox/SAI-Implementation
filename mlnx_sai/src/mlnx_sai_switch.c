@@ -51,12 +51,15 @@
 #define SAI_KEY_IPV4_NEIGHBOR_TABLE_SIZE "SAI_IPV4_NEIGHBOR_TABLE_SIZE"
 #define SAI_KEY_IPV6_NEIGHBOR_TABLE_SIZE "SAI_IPV6_NEIGHBOR_TABLE_SIZE"
 
+#define MAX_BFD_SESSION_NUMBER 64
+
 typedef struct _sai_switch_notification_t {
-    sai_switch_state_change_notification_fn     on_switch_state_change;
-    sai_fdb_event_notification_fn               on_fdb_event;
-    sai_port_state_change_notification_fn       on_port_state_change;
-    sai_switch_shutdown_request_notification_fn on_switch_shutdown_request;
-    sai_packet_event_notification_fn            on_packet_event;
+    sai_switch_state_change_notification_fn      on_switch_state_change;
+    sai_fdb_event_notification_fn                on_fdb_event;
+    sai_port_state_change_notification_fn        on_port_state_change;
+    sai_switch_shutdown_request_notification_fn  on_switch_shutdown_request;
+    sai_packet_event_notification_fn             on_packet_event;
+    sai_bfd_session_state_change_notification_fn on_bfd_session_state_change;
 } sai_switch_notification_t;
 
 static sx_verbosity_level_t LOG_VAR_NAME(__MODULE__) = SX_VERBOSITY_LEVEL_WARNING;
@@ -458,6 +461,31 @@ static sai_status_t mlnx_default_stp_id_get(_In_ const sai_object_key_t   *key,
                                             _In_ uint32_t                  attr_index,
                                             _Inout_ vendor_cache_t        *cache,
                                             void                          *arg);
+static sai_status_t mlnx_max_stp_instance_get(_In_ const sai_object_key_t   *key,
+                                              _Inout_ sai_attribute_value_t *value,
+                                              _In_ uint32_t                  attr_index,
+                                              _Inout_ vendor_cache_t        *cache,
+                                              void                          *arg);
+static sai_status_t mlnx_qos_max_tcs_get(_In_ const sai_object_key_t   *key,
+                                         _Inout_ sai_attribute_value_t *value,
+                                         _In_ uint32_t                  attr_index,
+                                         _Inout_ vendor_cache_t        *cache,
+                                         void                          *arg);
+static sai_status_t mlnx_restart_type_get(_In_ const sai_object_key_t   *key,
+                                          _Inout_ sai_attribute_value_t *value,
+                                          _In_ uint32_t                  attr_index,
+                                          _Inout_ vendor_cache_t        *cache,
+                                          void                          *arg);
+static sai_status_t mlnx_min_restart_interval_get(_In_ const sai_object_key_t   *key,
+                                                  _Inout_ sai_attribute_value_t *value,
+                                                  _In_ uint32_t                  attr_index,
+                                                  _Inout_ vendor_cache_t        *cache,
+                                                  void                          *arg);
+static sai_status_t mlnx_nv_storage_get(_In_ const sai_object_key_t   *key,
+                                        _Inout_ sai_attribute_value_t *value,
+                                        _In_ uint32_t                  attr_index,
+                                        _Inout_ vendor_cache_t        *cache,
+                                        void                          *arg);
 static sai_status_t mlnx_switch_event_func_set(_In_ const sai_object_key_t      *key,
                                                _In_ const sai_attribute_value_t *value,
                                                void                             *arg);
@@ -542,6 +570,12 @@ static sai_status_t mlnx_switch_attr_set(_In_ const sai_object_key_t      *key,
 static sai_status_t mlnx_switch_pre_shutdown_set(_In_ const sai_object_key_t      *key,
                                                  _In_ const sai_attribute_value_t *value,
                                                  void                             *arg);
+static sai_status_t mlnx_switch_bfd_attribute_get(_In_ const sai_object_key_t   *key,
+                                                  _Inout_ sai_attribute_value_t *value,
+                                                  _In_ uint32_t                  attr_index,
+                                                  _Inout_ vendor_cache_t        *cache,
+                                                  void                          *arg);
+static sai_status_t mlnx_switch_bfd_event_handle(_In_ sx_trap_id_t event, _In_ uint64_t opaque_data);
 static const sai_vendor_attribute_entry_t switch_vendor_attribs[] = {
     { SAI_SWITCH_ATTR_PORT_NUMBER,
       { false, false, false, true },
@@ -677,6 +711,31 @@ static const sai_vendor_attribute_entry_t switch_vendor_attribs[] = {
       { false, false, false, true },
       { false, false, false, true },
       mlnx_default_stp_id_get, NULL,
+      NULL, NULL },
+    { SAI_SWITCH_ATTR_MAX_STP_INSTANCE,
+      { false, false, false, true },
+      { false, false, false, true },
+      mlnx_max_stp_instance_get, NULL,
+      NULL, NULL },
+    { SAI_SWITCH_ATTR_QOS_MAX_NUMBER_OF_TRAFFIC_CLASSES,
+      { false, false, false, true },
+      { false, false, false, true },
+      mlnx_qos_max_tcs_get, NULL,
+      NULL, NULL },
+    { SAI_SWITCH_ATTR_RESTART_TYPE,
+      { false, false, false, true },
+      { false, false, false, true },
+      mlnx_restart_type_get, NULL,
+      NULL, NULL },
+    { SAI_SWITCH_ATTR_MIN_PLANNED_RESTART_INTERVAL,
+      { false, false, false, true },
+      { false, false, false, true },
+      mlnx_min_restart_interval_get, NULL,
+      NULL, NULL },
+    { SAI_SWITCH_ATTR_NV_STORAGE_SIZE,
+      { false, false, false, true },
+      { false, false, false, true },
+      mlnx_nv_storage_get, NULL,
       NULL, NULL },
     { SAI_SWITCH_ATTR_LAG_MEMBERS,
       { false, false, false, true },
@@ -1108,6 +1167,41 @@ static const sai_vendor_attribute_entry_t switch_vendor_attribs[] = {
       { true, false, true, true },
       mlnx_switch_crc_recalculation_get, NULL,
       mlnx_switch_crc_recalculation_set, NULL },
+    { SAI_SWITCH_ATTR_BFD_SESSION_STATE_CHANGE_NOTIFY,
+      { true, false, true, true },
+      { true, false, true, true },
+      mlnx_switch_event_func_get, (void*)SAI_SWITCH_ATTR_BFD_SESSION_STATE_CHANGE_NOTIFY,
+      mlnx_switch_event_func_set, (void*)SAI_SWITCH_ATTR_BFD_SESSION_STATE_CHANGE_NOTIFY },
+    { SAI_SWITCH_ATTR_NUMBER_OF_BFD_SESSION,
+      { false, false, false, true },
+      { false, false, false, true },
+      mlnx_switch_bfd_attribute_get, (void*)SAI_SWITCH_ATTR_NUMBER_OF_BFD_SESSION,
+      NULL, NULL },
+    { SAI_SWITCH_ATTR_MAX_BFD_SESSION,
+      { false, false, false, true },
+      { false, false, false, true },
+      mlnx_switch_bfd_attribute_get, (void*)SAI_SWITCH_ATTR_MAX_BFD_SESSION,
+      NULL, NULL },
+    { SAI_SWITCH_ATTR_SUPPORTED_IPV4_BFD_SESSION_OFFLOAD_TYPE,
+      { false, false, false, true },
+      { false, false, false, true },
+      mlnx_switch_bfd_attribute_get, (void*)SAI_SWITCH_ATTR_SUPPORTED_IPV4_BFD_SESSION_OFFLOAD_TYPE,
+      NULL, NULL },
+    { SAI_SWITCH_ATTR_SUPPORTED_IPV6_BFD_SESSION_OFFLOAD_TYPE,
+      { false, false, false, true },
+      { false, false, false, true },
+      mlnx_switch_bfd_attribute_get, (void*)SAI_SWITCH_ATTR_SUPPORTED_IPV6_BFD_SESSION_OFFLOAD_TYPE,
+      NULL, NULL },
+    { SAI_SWITCH_ATTR_MIN_BFD_RX,
+      { false, false, false, true },
+      { false, false, false, true },
+      mlnx_switch_bfd_attribute_get, (void*)SAI_SWITCH_ATTR_MIN_BFD_RX,
+      NULL, NULL },
+    { SAI_SWITCH_ATTR_MIN_BFD_TX,
+      { false, false, false, true },
+      { false, false, false, true },
+      mlnx_switch_bfd_attribute_get, (void*)SAI_SWITCH_ATTR_MIN_BFD_TX,
+      NULL, NULL },
     { SAI_SWITCH_ATTR_UNINIT_DATA_PLANE_ON_REMOVAL,
       { true, false, true, true },
       { true, false, true, true },
@@ -1143,8 +1237,14 @@ static const mlnx_attr_enum_info_t        switch_enum_info[] = {
         SAI_HASH_ALGORITHM_RANDOM),
     [SAI_SWITCH_ATTR_LAG_DEFAULT_HASH_ALGORITHM] = ATTR_ENUM_VALUES_LIST(
         SAI_HASH_ALGORITHM_XOR,
-        SAI_HASH_ALGORITHM_CRC),
+        SAI_HASH_ALGORITHM_CRC,
+        SAI_HASH_ALGORITHM_RANDOM),
+    [SAI_SWITCH_ATTR_SUPPORTED_IPV4_BFD_SESSION_OFFLOAD_TYPE] = ATTR_ENUM_VALUES_LIST(
+        SAI_BFD_SESSION_OFFLOAD_TYPE_NONE),
+    [SAI_SWITCH_ATTR_SUPPORTED_IPV6_BFD_SESSION_OFFLOAD_TYPE] = ATTR_ENUM_VALUES_LIST(
+        SAI_BFD_SESSION_OFFLOAD_TYPE_NONE),
     [SAI_SWITCH_ATTR_SUPPORTED_EXTENDED_STATS_MODE] = ATTR_ENUM_VALUES_ALL(),
+    [SAI_SWITCH_ATTR_RESTART_TYPE]                  = ATTR_ENUM_VALUES_ALL(),
 };
 const mlnx_obj_type_attrs_info_t          mlnx_switch_obj_type_info =
 { switch_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(switch_enum_info)};
@@ -1823,6 +1923,7 @@ struct ku_profile        single_part_eth_device_profile_spectrum2 = {
     .chip_type = SXD_CHIP_TYPE_SPECTRUM2,
 };
 struct ku_profile        single_part_eth_device_profile_spectrum3 = {
+    .dev_id                     = SX_DEVICE_ID,
     .set_mask_0_63              = 0,    /* All bits are set during the init as follows:
                                          * bits 0-2   - reserved;
                                          * bit 3      - disabled (max_mid);
@@ -1978,6 +2079,63 @@ static sx_api_profile_t* mlnx_sai_get_ku_profile(void)
     }
 
     return NULL;
+}
+
+static sai_status_t mlnx_switch_bfd_attribute_get(_In_ const sai_object_key_t   *key,
+                                                  _Inout_ sai_attribute_value_t *value,
+                                                  _In_ uint32_t                  attr_index,
+                                                  _Inout_ vendor_cache_t        *cache,
+                                                  void                          *arg)
+{
+    mlnx_object_id_t mlnx_switch_id = {0};
+    sai_status_t     status;
+    uint64_t         type = (uint64_t)arg;
+
+    assert(type == SAI_SWITCH_ATTR_NUMBER_OF_BFD_SESSION ||
+           type == SAI_SWITCH_ATTR_MAX_BFD_SESSION ||
+           type == SAI_SWITCH_ATTR_SUPPORTED_IPV4_BFD_SESSION_OFFLOAD_TYPE ||
+           type == SAI_SWITCH_ATTR_SUPPORTED_IPV6_BFD_SESSION_OFFLOAD_TYPE ||
+           type == SAI_SWITCH_ATTR_MIN_BFD_RX ||
+           type == SAI_SWITCH_ATTR_MIN_BFD_TX);
+
+    SX_LOG_ENTER();
+
+    status = sai_to_mlnx_object_id(SAI_OBJECT_TYPE_SWITCH, key->key.object_id, &mlnx_switch_id);
+    if (SAI_ERR(status)) {
+        SX_LOG_EXIT();
+        return status;
+    }
+
+    switch (type) {
+    case SAI_SWITCH_ATTR_NUMBER_OF_BFD_SESSION:
+        sai_db_read_lock();
+        value->u32 = MAX_BFD_SESSION_NUMBER - mlnx_shm_rm_array_free_entries_count(MLNX_SHM_RM_ARRAY_TYPE_BFD_SESSION);
+        sai_db_unlock();
+        break;
+
+    case SAI_SWITCH_ATTR_MAX_BFD_SESSION:
+        value->u32 = MAX_BFD_SESSION_NUMBER;
+        break;
+
+    case SAI_SWITCH_ATTR_SUPPORTED_IPV4_BFD_SESSION_OFFLOAD_TYPE:
+    case SAI_SWITCH_ATTR_SUPPORTED_IPV6_BFD_SESSION_OFFLOAD_TYPE:
+        value->u32 = SAI_BFD_SESSION_OFFLOAD_TYPE_NONE;
+        break;
+
+    case SAI_SWITCH_ATTR_MIN_BFD_RX:
+    case SAI_SWITCH_ATTR_MIN_BFD_TX:
+        value->u32 = BFD_MIN_SUPPORTED_INTERVAL;
+        break;
+
+    default:
+        SX_LOG_ERR("Unexpected arg type: %lu\n", type);
+        SX_LOG_EXIT();
+        return SAI_STATUS_FAILURE;
+    }
+
+    SX_LOG_EXIT();
+
+    return SAI_STATUS_SUCCESS;
 }
 
 uint8_t mlnx_port_mac_mask_get(void)
@@ -2224,11 +2382,11 @@ static sai_status_t mlnx_resource_mng_stage(bool warm_recover, mlnx_sai_boot_typ
     return SAI_STATUS_SUCCESS;
 }
 
-static sai_status_t mlnx_wait_for_sdk()
+static sai_status_t mlnx_wait_for_sdk(const char *sdk_ready_var)
 {
     const double time_unit = 0.001;
 
-    while (0 != access("/tmp/sdk_ready", F_OK)) {
+    while (0 != access(sdk_ready_var, F_OK)) {
 #ifndef _WIN32
         usleep(time_unit);
 #endif
@@ -2355,12 +2513,24 @@ static sai_status_t mlnx_sdk_start(mlnx_sai_boot_type_t boot_type)
     const char  *vlagrind_cmd                         = "";
     const char  *syslog_cmd                           = "";
     const char  *fastboot_cmd                         = "";
+    const char  *sdk_ready_var                        = NULL;
+    char         sdk_ready_cmd[SDK_START_CMD_STR_LEN] = {0};
 
-    system_err = system("rm /tmp/sdk_ready");
+    sdk_ready_var = getenv("SDK_READY_FILE");
+    if (!sdk_ready_var || (0 == strcmp(sdk_ready_var, ""))) {
+        sdk_ready_var = "/tmp/sdk_ready";
+    }
+    cmd_len = snprintf(sdk_ready_cmd,
+                       SDK_START_CMD_STR_LEN,
+                       "rm %s",
+                       sdk_ready_var);
+    assert(cmd_len < SDK_START_CMD_STR_LEN);
+
+    system_err = system(sdk_ready_cmd);
     if (0 == system_err) {
-        MLNX_SAI_LOG_DBG("sdk_ready removed\n");
+        MLNX_SAI_LOG_DBG("%s removed\n", sdk_ready_var);
     } else {
-        MLNX_SAI_LOG_DBG("unable to remove sdk_ready\n");
+        MLNX_SAI_LOG_DBG("unable to remove %s\n", sdk_ready_var);
     }
 
     sniffer_var = getenv("SX_SNIFFER_ENABLE");
@@ -2394,7 +2564,7 @@ static sai_status_t mlnx_sdk_start(mlnx_sai_boot_type_t boot_type)
         return SAI_STATUS_FAILURE;
     }
 
-    sai_status = mlnx_wait_for_sdk();
+    sai_status = mlnx_wait_for_sdk(sdk_ready_var);
     assert(SAI_STATUS_SUCCESS == sai_status);
 
     return SAI_STATUS_SUCCESS;
@@ -2711,6 +2881,7 @@ static sai_status_t mlnx_config_platform_parse(_In_ const char *platform)
         break;
 
 
+    case MLNX_PLATFORM_TYPE_3420:
     case MLNX_PLATFORM_TYPE_3700:
     case MLNX_PLATFORM_TYPE_3800:
         if (!mlnx_chip_is_spc2()) {
@@ -2723,6 +2894,8 @@ static sai_status_t mlnx_config_platform_parse(_In_ const char *platform)
 
     case MLNX_PLATFORM_TYPE_4700:
     case MLNX_PLATFORM_TYPE_4800:
+    case MLNX_PLATFORM_TYPE_4600:
+    case MLNX_PLATFORM_TYPE_4600C:
         if (!mlnx_chip_is_spc3()) {
             MLNX_SAI_LOG_ERR("Failed to parse platform xml config: platform is %d (SPC3) but chip type is not SPC3\n",
                              platform_type);
@@ -2924,6 +3097,8 @@ static void sai_db_values_init()
     g_sai_db_ptr->tunnel_module_initialized         = false;
     g_sai_db_ptr->port_parsing_depth_set_for_tunnel = false;
 
+    g_sai_db_ptr->is_bfd_module_initialized = false;
+
     g_sai_db_ptr->nve_tunnel_type = NVE_TUNNEL_UNKNOWN;
 
     g_sai_db_ptr->crc_check_enable  = true;
@@ -3008,7 +3183,10 @@ static mlnx_shm_rm_array_init_info_t mlnx_shm_array_info[MLNX_SHM_RM_ARRAY_TYPE_
                                        0},
     [MLNX_SHM_RM_ARRAY_TYPE_DEBUG_COUNTER] = {sizeof(mlnx_debug_counter_t),
                                               mlnx_shm_rm_debug_counter_size_get,
-                                              0}
+                                              0},
+    [MLNX_SHM_RM_ARRAY_TYPE_BFD_SESSION] = {sizeof(mlnx_bfd_session_db_entry_t),
+                                            NULL,
+                                            MAX_BFD_SESSION_NUMBER},
 };
 static size_t mlnx_sai_rm_db_size_get(void)
 {
@@ -3149,6 +3327,30 @@ static sai_status_t mlnx_sai_rm_db_init(void)
     return SAI_STATUS_SUCCESS;
 }
 
+
+sai_status_t mlnx_shm_rm_idx_validate(_In_ mlnx_shm_rm_array_idx_t idx)
+{
+    mlnx_shm_array_hdr_t *array_hdr;
+
+    if (!MLNX_SHM_RM_ARRAY_TYPE_IS_VALID(idx.type)) {
+        SX_LOG_ERR("Invalid idx type %d\n", idx.type);
+        return SAI_STATUS_FAILURE;
+    }
+
+    array_hdr = mlnx_rm_array_elem_by_idx(&g_sai_db_ptr->array_info[idx.type], idx.idx);
+    if (!array_hdr) {
+        return SAI_STATUS_FAILURE;
+    }
+
+    if (!MLNX_SHM_RM_ARRAY_HDR_IS_VALID(idx.type, array_hdr)) {
+        SX_LOG_ERR("array_hdr for type %d idx %d is corrupted (canary is %x, not %x)\n",
+                   idx.type, idx.idx, array_hdr->canary, MLNX_SHM_RM_ARRAY_CANARY(idx.type));
+        return SAI_STATUS_FAILURE;
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
 sai_status_t mlnx_shm_rm_array_alloc(_In_ mlnx_shm_rm_array_type_t  type,
                                      _Out_ mlnx_shm_rm_array_idx_t *idx,
                                      _Out_ void                   **elem)
@@ -3189,22 +3391,17 @@ sai_status_t mlnx_shm_rm_array_free(_In_ mlnx_shm_rm_array_idx_t idx)
 {
     const mlnx_shm_rm_array_info_t *info;
     mlnx_shm_array_hdr_t           *array_hdr;
+    sai_status_t                    status;
 
-    if (!MLNX_SHM_RM_ARRAY_TYPE_IS_VALID(idx.type)) {
-        SX_LOG_ERR("Invalid idx type %d\n", idx.type);
-        return SAI_STATUS_FAILURE;
+    status = mlnx_shm_rm_idx_validate(idx);
+    if (SAI_ERR(status)) {
+        return status;
     }
 
     info = &g_sai_db_ptr->array_info[idx.type];
 
     array_hdr = mlnx_rm_array_elem_by_idx(info, idx.idx);
     if (!array_hdr) {
-        return SAI_STATUS_FAILURE;
-    }
-
-    if (!MLNX_SHM_RM_ARRAY_HDR_IS_VALID(idx.type, array_hdr)) {
-        SX_LOG_ERR("array_hdr for type %d idx %d is corrupted (canary is %x, not %x)\n",
-                   idx.type, idx.idx, array_hdr->canary, MLNX_SHM_RM_ARRAY_CANARY(idx.type));
         return SAI_STATUS_FAILURE;
     }
 
@@ -3321,20 +3518,15 @@ sai_status_t mlnx_shm_rm_array_find(_In_ mlnx_shm_rm_array_type_t  type,
 sai_status_t mlnx_shm_rm_array_idx_to_ptr(_In_ mlnx_shm_rm_array_idx_t idx, _Out_ void                   **elem)
 {
     mlnx_shm_array_hdr_t *array_hdr;
+    sai_status_t          status;
 
-    if (!MLNX_SHM_RM_ARRAY_TYPE_IS_VALID(idx.type)) {
-        SX_LOG_ERR("Invalid idx type %d\n", idx.type);
-        return SAI_STATUS_FAILURE;
+    status = mlnx_shm_rm_idx_validate(idx);
+    if (SAI_ERR(status)) {
+        return status;
     }
 
     array_hdr = mlnx_rm_array_elem_by_idx(&g_sai_db_ptr->array_info[idx.type], idx.idx);
     if (!array_hdr) {
-        return SAI_STATUS_FAILURE;
-    }
-
-    if (!MLNX_SHM_RM_ARRAY_HDR_IS_VALID(idx.type, array_hdr)) {
-        SX_LOG_ERR("array_hdr for type %d idx %d is corrupted (canary is %x, not %x)\n",
-                   idx.type, idx.idx, array_hdr->canary, MLNX_SHM_RM_ARRAY_CANARY(idx.type));
         return SAI_STATUS_FAILURE;
     }
 
@@ -3396,6 +3588,38 @@ uint32_t mlnx_shm_rm_array_size_get(_In_ mlnx_shm_rm_array_type_t type)
     }
 
     return (uint32_t)g_sai_db_ptr->array_info[type].elem_count;
+}
+
+
+static sai_status_t mlnx_switch_bfd_event_handle(_In_ sx_trap_id_t event, _In_ uint64_t opaque_data)
+{
+    sai_bfd_session_state_notification_t info = {0};
+    mlnx_shm_rm_array_idx_t              bfd_session_db_index;
+    sai_status_t                         status;
+
+    assert(event == SX_TRAP_ID_BFD_TIMEOUT_EVENT ||
+           event == SX_TRAP_ID_BFD_PACKET_EVENT);
+
+    bfd_session_db_index = *(mlnx_shm_rm_array_idx_t*)&opaque_data;
+
+    status = mlnx_shm_rm_idx_validate(bfd_session_db_index);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("BFD DB index is invalid (opaque_data=%" PRIu64 ")\n", opaque_data);
+        return SAI_STATUS_FAILURE;
+    }
+
+    status = mlnx_bfd_session_oid_create(bfd_session_db_index, &info.bfd_session_id);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("BFD OID create failed (opaque_data=%" PRIu64 ")\n", opaque_data);
+        return SAI_STATUS_FAILURE;
+    }
+
+    info.session_state = SAI_BFD_SESSION_STATE_DOWN;
+    if (g_notification_callbacks.on_bfd_session_state_change) {
+        g_notification_callbacks.on_bfd_session_state_change(1, &info);
+    }
+
+    return SAI_STATUS_SUCCESS;
 }
 
 static sai_status_t mlnx_dvs_mng_stage(mlnx_sai_boot_type_t boot_type, sai_object_id_t switch_id)
@@ -3847,6 +4071,7 @@ static sai_status_t mlnx_switch_parse_fdb_event(uint8_t                         
         case SX_FDB_NOTIFY_TYPE_FLUSH_PORT_FID:
         case SX_FDB_NOTIFY_TYPE_FLUSH_LAG_FID:
             has_port = true;
+        /* Falls through. */
 
         case SX_FDB_NOTIFY_TYPE_FLUSH_FID:
             fdb_events[to_index].event_type = SAI_FDB_EVENT_FLUSHED;
@@ -4018,6 +4243,25 @@ static void event_thread_func(void *context)
     memcpy(&callback_channel, &g_sai_db_ptr->callback_channel, sizeof(callback_channel));
     cl_plock_release(&g_sai_db_ptr->p_lock);
 
+    {
+        if (SX_STATUS_SUCCESS != (status = sx_api_host_ifc_trap_id_register_set(api_handle, SX_ACCESS_CMD_REGISTER,
+                                                                                DEFAULT_ETH_SWID,
+                                                                                SX_TRAP_ID_BFD_TIMEOUT_EVENT,
+                                                                                &callback_channel))) {
+            SX_LOG_ERR("host ifc trap register SX_TRAP_ID_BFD_TIMEOUT_EVENT failed - %s.\n", SX_STATUS_MSG(status));
+            goto out;
+        }
+
+        if (SX_STATUS_SUCCESS != (status = sx_api_host_ifc_trap_id_register_set(api_handle, SX_ACCESS_CMD_REGISTER,
+                                                                                DEFAULT_ETH_SWID,
+                                                                                SX_TRAP_ID_BFD_PACKET_EVENT,
+                                                                                &callback_channel))) {
+            SX_LOG_ERR("host ifc trap register SX_TRAP_ID_BFD_PACKET_EVENT failed - %s.\n", SX_STATUS_MSG(status));
+            goto out;
+        }
+    }
+
+
     while (!event_thread_asked_to_stop) {
         FD_ZERO(&descr_set);
         FD_SET(port_channel.channel.fd.fd, &descr_set);
@@ -4100,6 +4344,30 @@ static void event_thread_func(void *context)
                                SX_STATUS_MSG(status), packet_size);
                     goto out;
                 }
+
+                if (SX_TRAP_ID_BFD_PACKET_EVENT == receive_info->trap_id) {
+                    const struct bfd_packet_event *event = (const struct bfd_packet_event*)p_packet;
+                    if (event->opaque_data_valid) {
+                        status = mlnx_switch_bfd_event_handle(SX_TRAP_ID_BFD_PACKET_EVENT,
+                                                              event->opaque_data);
+                        if (SAI_ERR(status)) {
+                            SX_LOG_ERR("BFD event handle failed.\n");
+                        }
+                    } else {
+                        SX_LOG_WRN("Received BFD packet not related to any existing session.\n");
+                    }
+                    continue;
+                }
+
+                if (SX_TRAP_ID_BFD_TIMEOUT_EVENT == receive_info->trap_id) {
+                    status = mlnx_switch_bfd_event_handle(SX_TRAP_ID_BFD_TIMEOUT_EVENT,
+                                                          receive_info->event_info.bfd_timeout.timeout_event.opaque_data);
+                    if (SAI_ERR(status)) {
+                        SX_LOG_ERR("BFD event handle failed.\n");
+                    }
+                    continue;
+                }
+
 
                 if (SAI_STATUS_SUCCESS !=
                     (status =
@@ -5263,6 +5531,7 @@ static sai_status_t mlnx_connect_switch(sai_object_id_t switch_id)
     int              err, shmid;
     sxd_chip_types_t chip_type;
     sx_status_t      status;
+    sxd_status_t     sxd_status;
 
     /* Open an handle if not done already on init for init agent */
     if (0 == gh_sdk) {
@@ -5373,6 +5642,12 @@ static sai_status_t mlnx_connect_switch(sai_object_id_t switch_id)
         if (SAI_ERR(status)) {
             return status;
         }
+
+        sxd_status = sxd_access_reg_init(0, sai_log_cb, LOG_VAR_NAME(__MODULE__));
+        if (SXD_CHECK_FAIL(sxd_status)) {
+            SX_LOG_ERR("Failed to init access reg - %s.\n", SXD_STATUS_MSG(sxd_status));
+            return SAI_STATUS_FAILURE;
+        }
     }
 
     SX_LOG_NTC("Connect switch\n");
@@ -5431,6 +5706,16 @@ static sai_status_t mlnx_create_switch(_Out_ sai_object_id_t     * switch_id,
     sai_status = find_attrib_in_list(attr_count, attr_list, SAI_SWITCH_ATTR_SWITCH_PROFILE_ID, &attr_val, &attr_idx);
     if (!SAI_ERR(sai_status)) {
         g_profile_id = attr_val->u32;
+    }
+
+    sai_status = find_attrib_in_list(attr_count,
+                                     attr_list,
+                                     SAI_SWITCH_ATTR_BFD_SESSION_STATE_CHANGE_NOTIFY,
+                                     &attr_val,
+                                     &attr_idx);
+    if (!SAI_ERR(sai_status)) {
+        g_notification_callbacks.on_bfd_session_state_change =
+            (sai_bfd_session_state_change_notification_fn)attr_val->ptr;
     }
 
     sai_status = find_attrib_in_list(attr_count,
@@ -5624,7 +5909,7 @@ static sai_status_t switch_open_traps(void)
 
         if (SAI_STATUS_SUCCESS != (status = mlnx_register_trap(SX_ACCESS_CMD_REGISTER, ii,
                                                                SAI_HOSTIF_TABLE_ENTRY_CHANNEL_TYPE_CB,
-                                                               g_sai_db_ptr->callback_channel.channel.fd, &reg))) {
+                                                               g_sai_db_ptr->callback_channel.channel.fd, 0, &reg))) {
             goto out;
         }
     }
@@ -5685,6 +5970,13 @@ static sai_status_t mlnx_shutdown_switch(void)
     SX_LOG_ENTER();
 
     SX_LOG_NTC("Shutdown switch\n");
+
+    if (g_sai_db_ptr->is_bfd_module_initialized) {
+        status = sx_api_bfd_deinit_set(gh_sdk);
+        if (SX_ERR(status)) {
+            SX_LOG_ERR("Deinit BFD module failed\n");
+        }
+    }
 
     if (SX_STATUS_SUCCESS != (status = switch_close_traps())) {
         SX_LOG_ERR("Close traps failed\n");
@@ -5767,6 +6059,10 @@ static sai_status_t mlnx_disconnect_switch(void)
     sx_status_t status;
 
     SX_LOG_NTC("Disconnect switch\n");
+
+    if (SXD_STATUS_SUCCESS != sxd_access_reg_deinit()) {
+        SX_LOG_ERR("Access reg deinit failed.\n");
+    }
 
     if (SX_STATUS_SUCCESS != (status = sx_api_close(&gh_sdk))) {
         SX_LOG_ERR("API close failed.\n");
@@ -7294,7 +7590,7 @@ static sai_status_t mlnx_switch_restart_warm()
         }
         sai_status = mlnx_register_trap(SX_ACCESS_CMD_DEREGISTER, ii,
                                         SAI_HOSTIF_TABLE_ENTRY_CHANNEL_TYPE_CB,
-                                        sx_callback_channel_fd, &reg);
+                                        sx_callback_channel_fd, 0, &reg);
         if (SAI_ERR(sai_status)) {
             SX_LOG_ERR("Error deregistering trap #%d\n", ii);
             goto out;
@@ -7404,7 +7700,7 @@ static sai_status_t mlnx_switch_warm_recover(_In_ sai_object_id_t switch_id)
 
         sai_status = mlnx_register_trap(SX_ACCESS_CMD_REGISTER, ii,
                                         SAI_HOSTIF_TABLE_ENTRY_CHANNEL_TYPE_CB,
-                                        sx_callback_channel_fd, &reg);
+                                        sx_callback_channel_fd, 0, &reg);
         if (SAI_STATUS_SUCCESS != sai_status) {
             SX_LOG_ERR("Error registering trap #%d\n", ii);
             goto out;
@@ -7961,6 +8257,10 @@ static sai_status_t mlnx_switch_event_func_get(_In_ const sai_object_key_t   *ke
     case SAI_SWITCH_ATTR_PACKET_EVENT_NOTIFY:
         value->ptr = g_notification_callbacks.on_packet_event;
         break;
+
+    case SAI_SWITCH_ATTR_BFD_SESSION_STATE_CHANGE_NOTIFY:
+        value->ptr = g_notification_callbacks.on_bfd_session_state_change;
+        break;
     }
 
     SX_LOG_EXIT();
@@ -8085,6 +8385,72 @@ out:
     return status;
 }
 
+static sai_status_t mlnx_max_stp_instance_get(_In_ const sai_object_key_t   *key,
+                                              _Inout_ sai_attribute_value_t *value,
+                                              _In_ uint32_t                  attr_index,
+                                              _Inout_ vendor_cache_t        *cache,
+                                              void                          *arg)
+{
+    SX_LOG_ENTER();
+    value->u32 = SX_MSTP_INST_ID_MAX - SX_MSTP_INST_ID_MIN + 1;
+    SX_LOG_EXIT();
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_qos_max_tcs_get(_In_ const sai_object_key_t   *key,
+                                         _Inout_ sai_attribute_value_t *value,
+                                         _In_ uint32_t                  attr_index,
+                                         _Inout_ vendor_cache_t        *cache,
+                                         void                          *arg)
+{
+    SX_LOG_ENTER();
+    value->u8 = g_resource_limits.cos_port_ets_traffic_class_max + 1;
+    SX_LOG_EXIT();
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_restart_type_get(_In_ const sai_object_key_t   *key,
+                                          _Inout_ sai_attribute_value_t *value,
+                                          _In_ uint32_t                  attr_index,
+                                          _Inout_ vendor_cache_t        *cache,
+                                          void                          *arg)
+{
+    SX_LOG_ENTER();
+    value->s32 = SAI_SWITCH_RESTART_TYPE_ANY;
+    SX_LOG_EXIT();
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_min_restart_interval_get(_In_ const sai_object_key_t   *key,
+                                                  _Inout_ sai_attribute_value_t *value,
+                                                  _In_ uint32_t                  attr_index,
+                                                  _Inout_ vendor_cache_t        *cache,
+                                                  void                          *arg)
+{
+    SX_LOG_ENTER();
+    value->u32 = 0;
+    SX_LOG_EXIT();
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_nv_storage_get(_In_ const sai_object_key_t   *key,
+                                        _Inout_ sai_attribute_value_t *value,
+                                        _In_ uint32_t                  attr_index,
+                                        _Inout_ vendor_cache_t        *cache,
+                                        void                          *arg)
+{
+    SX_LOG_ENTER();
+    /* SDK persistent files for ISSU approximate size */
+    value->u64 = 100;
+    SX_LOG_EXIT();
+
+    return SAI_STATUS_SUCCESS;
+}
+
 static sai_status_t mlnx_switch_event_func_set(_In_ const sai_object_key_t      *key,
                                                _In_ const sai_attribute_value_t *value,
                                                void                             *arg)
@@ -8112,6 +8478,11 @@ static sai_status_t mlnx_switch_event_func_set(_In_ const sai_object_key_t      
 
     case SAI_SWITCH_ATTR_PACKET_EVENT_NOTIFY:
         g_notification_callbacks.on_packet_event = (sai_packet_event_notification_fn)value->ptr;
+        break;
+
+    case SAI_SWITCH_ATTR_BFD_SESSION_STATE_CHANGE_NOTIFY:
+        g_notification_callbacks.on_bfd_session_state_change =
+            (sai_bfd_session_state_change_notification_fn)value->ptr;
         break;
     }
 
@@ -8608,5 +8979,7 @@ const sai_switch_api_t mlnx_switch_api = {
     mlnx_get_switch_attribute,
     mlnx_get_switch_stats,
     mlnx_get_switch_stats_ext,
-    mlnx_clear_switch_stats
+    mlnx_clear_switch_stats,
+    NULL,
+    NULL
 };

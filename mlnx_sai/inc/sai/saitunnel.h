@@ -335,7 +335,9 @@ typedef enum _sai_tunnel_ttl_mode_t
      *
      * Where the TTL field is preserved end-to-end by copying into the outer
      * header on encapsulation and copying from the outer header on
-     * decapsulation.
+     * decapsulation. This is applicable for inner IP packets. If the inner
+     * packet is a non-IP packet, then the value is undefined and implementation
+     * can chose a valid/meaningful outer TTL value, say in the case of VXLAN encap.
      */
     SAI_TUNNEL_TTL_MODE_UNIFORM_MODEL,
 
@@ -363,7 +365,9 @@ typedef enum _sai_tunnel_dscp_mode_t
      *
      * Where the DSCP field is preserved end-to-end by copying into the
      * outer header on encapsulation and copying from the outer header on
-     * decapsulation.
+     * decapsulation. This is applicable for inner IP packets. If the inner
+     * packet is a non-IP packet, then the value is undefined and implementation
+     * can chose a valid/meaningful outer DSCP value, say in the case of VXLAN encap.
      */
     SAI_TUNNEL_DSCP_MODE_UNIFORM_MODEL,
 
@@ -426,6 +430,23 @@ typedef enum _sai_tunnel_decap_ecn_mode_t
 } sai_tunnel_decap_ecn_mode_t;
 
 /**
+ * @brief Defines tunnel peer mode
+ */
+typedef enum _sai_tunnel_peer_mode_t
+{
+    /**
+     * @brief P2P Tunnel
+     */
+    SAI_TUNNEL_PEER_MODE_P2P,
+
+    /**
+     * @brief P2MP Tunnel
+     */
+    SAI_TUNNEL_PEER_MODE_P2MP,
+
+} sai_tunnel_peer_mode_t;
+
+/**
  * @brief Defines tunnel attributes
  */
 typedef enum _sai_tunnel_attr_t
@@ -471,6 +492,15 @@ typedef enum _sai_tunnel_attr_t
     /* Tunnel encap attributes */
 
     /**
+     * @brief Tunnel Peer Mode
+     *
+     * @type sai_tunnel_peer_mode_t
+     * @flags CREATE_ONLY
+     * @default SAI_TUNNEL_PEER_MODE_P2MP
+     */
+    SAI_TUNNEL_ATTR_PEER_MODE,
+
+    /**
      * @brief Tunnel src IP
      *
      * @type sai_ip_address_t
@@ -480,12 +510,20 @@ typedef enum _sai_tunnel_attr_t
     SAI_TUNNEL_ATTR_ENCAP_SRC_IP,
 
     /**
+     * @brief Tunnel Destination IP
+     *
+     * @type sai_ip_address_t
+     * @flags CREATE_ONLY
+     * @default 0.0.0.0
+     * @validonly SAI_TUNNEL_ATTR_PEER_MODE == SAI_TUNNEL_PEER_MODE_P2P
+     */
+    SAI_TUNNEL_ATTR_ENCAP_DST_IP,
+
+    /**
      * @brief Tunnel TTL mode (pipe or uniform model)
      *
-     * Default would be
-     *
      * @type sai_tunnel_ttl_mode_t
-     * @flags CREATE_ONLY
+     * @flags CREATE_AND_SET
      * @default SAI_TUNNEL_TTL_MODE_UNIFORM_MODEL
      */
     SAI_TUNNEL_ATTR_ENCAP_TTL_MODE,
@@ -494,8 +532,9 @@ typedef enum _sai_tunnel_attr_t
      * @brief Tunnel TTL value
      *
      * @type sai_uint8_t
-     * @flags MANDATORY_ON_CREATE | CREATE_ONLY
-     * @condition SAI_TUNNEL_ATTR_ENCAP_TTL_MODE == SAI_TUNNEL_TTL_MODE_PIPE_MODEL
+     * @flags CREATE_AND_SET
+     * @default 255
+     * @validonly SAI_TUNNEL_ATTR_ENCAP_TTL_MODE == SAI_TUNNEL_TTL_MODE_PIPE_MODEL
      */
     SAI_TUNNEL_ATTR_ENCAP_TTL_VAL,
 
@@ -503,7 +542,7 @@ typedef enum _sai_tunnel_attr_t
      * @brief Tunnel DSCP mode (pipe or uniform model)
      *
      * @type sai_tunnel_dscp_mode_t
-     * @flags CREATE_ONLY
+     * @flags CREATE_AND_SET
      * @default SAI_TUNNEL_DSCP_MODE_UNIFORM_MODEL
      */
     SAI_TUNNEL_ATTR_ENCAP_DSCP_MODE,
@@ -512,8 +551,9 @@ typedef enum _sai_tunnel_attr_t
      * @brief Tunnel DSCP value (6 bits)
      *
      * @type sai_uint8_t
-     * @flags MANDATORY_ON_CREATE | CREATE_ONLY
-     * @condition SAI_TUNNEL_ATTR_ENCAP_DSCP_MODE == SAI_TUNNEL_DSCP_MODE_PIPE_MODEL
+     * @flags CREATE_AND_SET
+     * @default 0
+     * @validonly SAI_TUNNEL_ATTR_ENCAP_DSCP_MODE == SAI_TUNNEL_DSCP_MODE_PIPE_MODEL
      */
     SAI_TUNNEL_ATTR_ENCAP_DSCP_VAL,
 
@@ -579,22 +619,20 @@ typedef enum _sai_tunnel_attr_t
     /**
      * @brief Tunnel TTL mode (pipe or uniform model)
      *
-     * Default SAI_TUNNEL_TTL_MODE_UNIFORM_MODEL
-     *
      * @type sai_tunnel_ttl_mode_t
-     * @flags MANDATORY_ON_CREATE | CREATE_ONLY
-     * @condition SAI_TUNNEL_ATTR_TYPE == SAI_TUNNEL_TYPE_IPINIP or SAI_TUNNEL_ATTR_TYPE == SAI_TUNNEL_TYPE_IPINIP_GRE
+     * @flags CREATE_AND_SET
+     * @default SAI_TUNNEL_TTL_MODE_UNIFORM_MODEL
+     * @validonly SAI_TUNNEL_ATTR_TYPE == SAI_TUNNEL_TYPE_IPINIP or SAI_TUNNEL_ATTR_TYPE == SAI_TUNNEL_TYPE_IPINIP_GRE
      */
     SAI_TUNNEL_ATTR_DECAP_TTL_MODE,
 
     /**
      * @brief Tunnel DSCP mode (pipe or uniform model)
      *
-     * Default SAI_TUNNEL_DSCP_MODE_UNIFORM_MODEL
-     *
      * @type sai_tunnel_dscp_mode_t
-     * @flags MANDATORY_ON_CREATE | CREATE_ONLY
-     * @condition SAI_TUNNEL_ATTR_TYPE == SAI_TUNNEL_TYPE_IPINIP or SAI_TUNNEL_ATTR_TYPE == SAI_TUNNEL_TYPE_IPINIP_GRE
+     * @flags CREATE_AND_SET
+     * @default SAI_TUNNEL_DSCP_MODE_UNIFORM_MODEL
+     * @validonly SAI_TUNNEL_ATTR_TYPE == SAI_TUNNEL_TYPE_IPINIP or SAI_TUNNEL_ATTR_TYPE == SAI_TUNNEL_TYPE_IPINIP_GRE
      */
     SAI_TUNNEL_ATTR_DECAP_DSCP_MODE,
 

@@ -112,6 +112,16 @@ static const sai_vendor_attribute_entry_t rif_vendor_attribs[] = {
       { true, false, true, true },
       mlnx_rif_attrib_get, (void*)SAI_ROUTER_INTERFACE_ATTR_LOOPBACK_PACKET_ACTION,
       mlnx_rif_attrib_set, (void*)SAI_ROUTER_INTERFACE_ATTR_LOOPBACK_PACKET_ACTION },
+    { SAI_ROUTER_INTERFACE_ATTR_V4_MCAST_ENABLE,
+      { true, false, true, true },
+      { true, false, true, true },
+      mlnx_rif_attrib_get, (void*)SAI_ROUTER_INTERFACE_ATTR_V4_MCAST_ENABLE,
+      mlnx_rif_attrib_set, (void*)SAI_ROUTER_INTERFACE_ATTR_V4_MCAST_ENABLE},
+    { SAI_ROUTER_INTERFACE_ATTR_V6_MCAST_ENABLE,
+      { true, false, true, true },
+      { true, false, true, true },
+      mlnx_rif_attrib_get, (void*)SAI_ROUTER_INTERFACE_ATTR_V6_MCAST_ENABLE,
+      mlnx_rif_attrib_set, (void*)SAI_ROUTER_INTERFACE_ATTR_V6_MCAST_ENABLE},
     { SAI_ROUTER_INTERFACE_ATTR_INGRESS_ACL,
       { true, false, true, true },
       { true, false, true, true },
@@ -147,7 +157,8 @@ static const mlnx_attr_enum_info_t        rif_enum_info[] = {
         SAI_ROUTER_INTERFACE_TYPE_SUB_PORT),
     [SAI_ROUTER_INTERFACE_ATTR_LOOPBACK_PACKET_ACTION] = ATTR_ENUM_VALUES_LIST(
         SAI_PACKET_ACTION_DROP,
-        SAI_PACKET_ACTION_FORWARD),
+        SAI_PACKET_ACTION_FORWARD,
+        SAI_PACKET_ACTION_TRAP),
 };
 const mlnx_obj_type_attrs_info_t          mlnx_rif_obj_type_info =
 { rif_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(rif_enum_info)};
@@ -519,10 +530,12 @@ static sai_status_t mlnx_create_router_interface(_Out_ sai_object_id_t      *rif
     mlnx_bridge_rif_t           *br_rif   = NULL;
     mlnx_rif_db_t               *rif_db_data;
     mlnx_shm_rm_array_idx_t      db_idx = MLNX_SHM_RM_ARRAY_IDX_UNINITIALIZED;
-    const sai_attribute_value_t *type, *vrid, *port = NULL, *vlan = NULL, *mtu, *mac, *adminv4, *adminv6;
+    const sai_attribute_value_t *type, *vrid, *port = NULL, *vlan = NULL, *mtu, *mac, *adminv4, *adminv6, *mcastv4,
+    *mcastv6;
     const sai_attribute_value_t *loopback_action = NULL, *outer_vlan = NULL;
     uint32_t                     type_index, vrid_index, port_index, vlan_index, mtu_index, mac_index, adminv4_index,
-                                 adminv6_index, vrid_data, acl_attr_index, loopback_action_index, attr_index;
+                                 adminv6_index, vrid_data, acl_attr_index, loopback_action_index, attr_index,
+                                 mcastv4_index, mcastv6_index;
     sx_router_interface_t        sdk_rif_id;
     sx_router_interface_state_t  rif_state;
     char                         list_str[MAX_LIST_VALUE_STR_LEN];
@@ -798,6 +811,21 @@ static sai_status_t mlnx_create_router_interface(_Out_ sai_object_id_t      *rif
         rif_state.ipv6_enable = true;
     }
 
+    status = find_attrib_in_list(attr_count, attr_list, SAI_ROUTER_INTERFACE_ATTR_V4_MCAST_ENABLE, &mcastv4,
+                                 &mcastv4_index);
+    if (!SAI_ERR(status)) {
+        rif_state.ipv4_mc_enable = mcastv4->booldata;
+    } else {
+        rif_state.ipv4_mc_enable = false;
+    }
+
+    status = find_attrib_in_list(attr_count, attr_list, SAI_ROUTER_INTERFACE_ATTR_V6_MCAST_ENABLE, &mcastv6,
+                                 &mcastv6_index);
+    if (!SAI_ERR(status)) {
+        rif_state.ipv6_mc_enable = mcastv6->booldata;
+    } else {
+        rif_state.ipv6_mc_enable = false;
+    }
     if ((SAI_ROUTER_INTERFACE_TYPE_LOOPBACK != type->s32) && (SAI_ROUTER_INTERFACE_TYPE_BRIDGE != type->s32)) {
         if (SX_STATUS_SUCCESS != (status = sx_api_router_interface_state_set(gh_sdk, sdk_rif_id, &rif_state))) {
             SX_LOG_ERR("Failed to set router interface state - %s.\n", SX_STATUS_MSG(status));
@@ -1100,6 +1128,14 @@ static sai_status_t mlnx_rif_attr_to_sdk(sai_router_interface_attr_t  attr,
         rif_state->ipv6_enable = value->booldata;
         break;
 
+    case SAI_ROUTER_INTERFACE_ATTR_V4_MCAST_ENABLE:
+        rif_state->ipv4_mc_enable = value->booldata;
+        break;
+
+    case SAI_ROUTER_INTERFACE_ATTR_V6_MCAST_ENABLE:
+        rif_state->ipv6_mc_enable = value->booldata;
+        break;
+
     case SAI_ROUTER_INTERFACE_ATTR_LOOPBACK_PACKET_ACTION:
         status = mlnx_rif_loopback_action_sai_to_sx(value, 0, intf_attribs);
         if (SAI_ERR(status)) {
@@ -1171,6 +1207,8 @@ static sai_status_t mlnx_rif_sx_attrs_get(_In_ sai_object_id_t                ri
 /* MAC Address [sai_mac_t] */
 /* MTU [uint32_t] */
 /* Admin State V4, V6 [bool] */
+/* Multicast V4 V6 enable [bool]*/
+/* Multicast enabling is currently not supported */
 static sai_status_t mlnx_rif_attrib_set(_In_ const sai_object_key_t      *key,
                                         _In_ const sai_attribute_value_t *value,
                                         void                             *arg)
@@ -1251,6 +1289,8 @@ out:
 /* MAC Address [sai_mac_t] */
 /* MTU [uint32_t] */
 /* Admin State V4, V6 [bool] */
+/* Multicast V4 V6 enable [bool]*/
+/* Multicast enabling is currently not supported */
 static sai_status_t mlnx_rif_attrib_get(_In_ const sai_object_key_t   *key,
                                         _Inout_ sai_attribute_value_t *value,
                                         _In_ uint32_t                  attr_index,
@@ -1394,6 +1434,14 @@ static sai_status_t mlnx_rif_attrib_get(_In_ const sai_object_key_t   *key,
         value->s32 = intf_attribs_ptr->loopback_enable ? SAI_PACKET_ACTION_FORWARD : SAI_PACKET_ACTION_DROP;
         break;
 
+    case SAI_ROUTER_INTERFACE_ATTR_V4_MCAST_ENABLE:
+        value->booldata = rif_state_ptr->ipv4_mc_enable;
+        break;
+
+    case SAI_ROUTER_INTERFACE_ATTR_V6_MCAST_ENABLE:
+        value->booldata = rif_state_ptr->ipv6_mc_enable;
+        break;
+
     default:
         assert(false);
     }
@@ -1501,19 +1549,23 @@ static sai_status_t mlnx_get_router_interface_stats_ext(_In_ sai_object_id_t    
             break;
 
         case SAI_ROUTER_INTERFACE_STAT_IN_ERROR_OCTETS:
-            counters[ii] = sx_counter_set.router_ingress_discard_bytes;
+            counters[ii] = sx_counter_set.router_ingress_error_bytes +
+                           sx_counter_set.router_ingress_discard_bytes;
             break;
 
         case SAI_ROUTER_INTERFACE_STAT_IN_ERROR_PACKETS:
-            counters[ii] = sx_counter_set.router_ingress_discard_packets;
+            counters[ii] = sx_counter_set.router_ingress_error_packets +
+                           sx_counter_set.router_ingress_discard_packets;
             break;
 
         case SAI_ROUTER_INTERFACE_STAT_OUT_ERROR_OCTETS:
-            counters[ii] = sx_counter_set.router_egress_discard_bytes;
+            counters[ii] = sx_counter_set.router_egress_error_bytes +
+                           sx_counter_set.router_egress_discard_bytes;
             break;
 
         case SAI_ROUTER_INTERFACE_STAT_OUT_ERROR_PACKETS:
-            counters[ii] = sx_counter_set.router_egress_discard_packets;
+            counters[ii] = sx_counter_set.router_egress_error_packets +
+                           sx_counter_set.router_egress_discard_packets;
             break;
 
         default:

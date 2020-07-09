@@ -38,7 +38,7 @@
  */
 typedef enum _sai_router_interface_type_t
 {
-    /** Port or LAG Router Interface Type */
+    /** Port or LAG or System Port Router Interface Type */
     SAI_ROUTER_INTERFACE_TYPE_PORT,
 
     /** VLAN Router Interface Type */
@@ -91,11 +91,11 @@ typedef enum _sai_router_interface_attr_t
     SAI_ROUTER_INTERFACE_ATTR_TYPE,
 
     /**
-     * @brief Associated Port or LAG object id
+     * @brief Associated Port, System Port or LAG object id
      *
      * @type sai_object_id_t
      * @flags MANDATORY_ON_CREATE | CREATE_ONLY
-     * @objects SAI_OBJECT_TYPE_PORT, SAI_OBJECT_TYPE_LAG
+     * @objects SAI_OBJECT_TYPE_PORT, SAI_OBJECT_TYPE_LAG, SAI_OBJECT_TYPE_SYSTEM_PORT
      * @condition SAI_ROUTER_INTERFACE_ATTR_TYPE == SAI_ROUTER_INTERFACE_TYPE_PORT or SAI_ROUTER_INTERFACE_ATTR_TYPE == SAI_ROUTER_INTERFACE_TYPE_SUB_PORT
      */
     SAI_ROUTER_INTERFACE_ATTR_PORT_ID,
@@ -145,8 +145,7 @@ typedef enum _sai_router_interface_attr_t
     /**
      * @brief MAC Address
      *
-     * Not valid when #SAI_ROUTER_INTERFACE_ATTR_TYPE ==
-     * #SAI_ROUTER_INTERFACE_TYPE_LOOPBACK.
+     * Not valid when SAI_ROUTER_INTERFACE_ATTR_TYPE == SAI_ROUTER_INTERFACE_TYPE_LOOPBACK
      *
      * @type sai_mac_t
      * @flags CREATE_AND_SET
@@ -276,6 +275,15 @@ typedef enum _sai_router_interface_attr_t
      * @default 0
      */
     SAI_ROUTER_INTERFACE_ATTR_NAT_ZONE_ID,
+
+    /**
+     * @brief To enable/disable Decrement TTL
+     *
+     * @type bool
+     * @flags CREATE_AND_SET
+     * @default false
+     */
+    SAI_ROUTER_INTERFACE_ATTR_DECREMENT_TTL,
 
     /**
      * @brief End of attributes

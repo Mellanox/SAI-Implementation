@@ -129,10 +129,7 @@ static const sai_vendor_attribute_entry_t bridge_vendor_attribs[] = {
       NULL, NULL }
 };
 static const mlnx_attr_enum_info_t        bridge_enum_info[] = {
-    [SAI_BRIDGE_ATTR_TYPE] = ATTR_ENUM_VALUES_LIST(
-        SAI_BRIDGE_FLOOD_CONTROL_TYPE_SUB_PORTS,
-        SAI_BRIDGE_FLOOD_CONTROL_TYPE_L2MC_GROUP,
-        SAI_BRIDGE_FLOOD_CONTROL_TYPE_NONE),
+    [SAI_BRIDGE_ATTR_TYPE]                               = ATTR_ENUM_VALUES_ALL(),
     [SAI_BRIDGE_ATTR_UNKNOWN_UNICAST_FLOOD_CONTROL_TYPE] = ATTR_ENUM_VALUES_LIST(
         SAI_BRIDGE_FLOOD_CONTROL_TYPE_SUB_PORTS,
         SAI_BRIDGE_FLOOD_CONTROL_TYPE_L2MC_GROUP,
@@ -2978,6 +2975,7 @@ static sai_status_t mlnx_remove_bridge_port(_In_ sai_object_id_t bridge_port_id)
     mlnx_shm_rm_array_idx_t bridge_rm_idx;
     mlnx_bridge_rif_t      *bridge_rif;
     mlnx_bridge_port_t     *port;
+    mlnx_port_config_t     *port_config;
 
     SX_LOG_ENTER();
 
@@ -2999,6 +2997,27 @@ static sai_status_t mlnx_remove_bridge_port(_In_ sai_object_id_t bridge_port_id)
     }
 
     switch (port->port_type) {
+    case SAI_BRIDGE_PORT_TYPE_PORT:
+        if (!port->admin_state) {
+            /* Try to lookup phy port by same logical id as bridge port, which means that
+             * port is bridged with SAI_BRIDGE_PORT_TYPE_PORT via .1Q bridge, if it is bridged then
+             * we set admin state according to the phy port only. If bridge port state was up nothing to do,
+             * as the admin already equals the port setting (AND). Only in bridge port state was down and
+             * port state up case, we need to apply up to the port */
+            status = mlnx_port_by_log_id_soft(port->logical, &port_config);
+            if (!SAI_ERR(status)) {
+                if (port_config->admin_state) {
+                    sx_status = sx_api_port_state_set(gh_sdk, port->logical, SX_PORT_ADMIN_STATUS_UP);
+                    if (SX_ERR(sx_status)) {
+                        SX_LOG_ERR("Failed to set port admin state - %s.\n", SX_STATUS_MSG(sx_status));
+                        status = sdk_to_sai(sx_status);
+                        goto out;
+                    }
+                }
+            }
+        }
+        break;
+
     case SAI_BRIDGE_PORT_TYPE_SUB_PORT:
         sx_status = sx_api_bridge_vport_set(gh_sdk, SX_ACCESS_CMD_DELETE, port->bridge_id, port->logical);
         if (SX_ERR(sx_status)) {
