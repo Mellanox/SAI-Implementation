@@ -4,6 +4,7 @@ INCLUDES = -I$(top_srcdir) -I$(top_srcdir)/include -I$(srcdir) \
            -I$(srcdir)/../inc -I$(srcdir)/../inc/sai -I$(srcdir)/../inc/experimental \
            -I$(APP_LIB_PATH)/include \
            -I$(XML2_LIB_PATH)/include/libxml2 \
+           -I$(XML2_LIB_PATH)/include/libnl3 \
 		   -I$(srcdir)/meta
 
 if DEBUG
@@ -116,7 +117,7 @@ SAI_LIBXML2_ADD = -lxml2
 endif
 
 libsai_la_LIBADD = \
-                   -L$(APP_LIB_PATH)/lib -lsxapi -lsw_rm\
+                   -L$(APP_LIB_PATH)/lib -lsxapi -lsw_rm -lnl-genl-3\
                    ${SAI_LIBXML2_ADD} libfx_base.la
 
 libsai_apiincludedir = $(includedir)/sai

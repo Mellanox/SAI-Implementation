@@ -126,26 +126,26 @@ static const mlnx_dbg_counter_drop_reason_info_t mlnx_drop_counter_in_drop_reaso
     [SAI_IN_DROP_REASON_SMAC_EQUALS_DMAC] = REASON(TRAP_LIST(SX_TRAP_ID_DISCARD_ING_PACKET_SMAC_DMAC,
                                                              SX_TRAP_ID_DISCARD_OVERLAY_SWITCH_SMAC_DMAC),
                                                    DROP_REASON_TYPE_IN_L2),
-    [SAI_IN_DROP_REASON_DMAC_RESERVED]        = REASON(TRAP_LIST(
-                                                           SX_TRAP_ID_DISCARD_ING_PACKET_RSV_MAC),
-                                                       DROP_REASON_TYPE_IN_L2),
+    [SAI_IN_DROP_REASON_DMAC_RESERVED] = REASON(TRAP_LIST(
+                                                    SX_TRAP_ID_DISCARD_ING_PACKET_RSV_MAC),
+                                                DROP_REASON_TYPE_IN_L2),
     [SAI_IN_DROP_REASON_VLAN_TAG_NOT_ALLOWED] = REASON(TRAP_LIST(
                                                            SX_TRAP_ID_DISCARD_ING_SWITCH_VTAG_ALLOW),
                                                        DROP_REASON_TYPE_IN_L2),
-    [SAI_IN_DROP_REASON_INGRESS_VLAN_FILTER]  = REASON(TRAP_LIST(
-                                                           SX_TRAP_ID_DISCARD_ING_SWITCH_VLAN),
-                                                       DROP_REASON_TYPE_IN_L2),
-    [SAI_IN_DROP_REASON_INGRESS_STP_FILTER]   = REASON(TRAP_LIST(
-                                                           SX_TRAP_ID_DISCARD_ING_SWITCH_STP), DROP_REASON_TYPE_IN_L2),
-    [SAI_IN_DROP_REASON_FDB_UC_DISCARD]       = REASON(TRAP_LIST(
-                                                           SX_TRAP_ID_DISCARD_LOOKUP_SWITCH_UC),
-                                                       DROP_REASON_TYPE_IN_L2),
-    [SAI_IN_DROP_REASON_FDB_MC_DISCARD]       = REASON(TRAP_LIST(
-                                                           SX_TRAP_ID_DISCARD_LOOKUP_SWITCH_MC_NULL),
-                                                       DROP_REASON_TYPE_IN_L2),
-    [SAI_IN_DROP_REASON_L2_LOOPBACK_FILTER]   = REASON(TRAP_LIST(
-                                                           SX_TRAP_ID_DISCARD_LOOKUP_SWITCH_LB),
-                                                       DROP_REASON_TYPE_IN_L2),
+    [SAI_IN_DROP_REASON_INGRESS_VLAN_FILTER] = REASON(TRAP_LIST(
+                                                          SX_TRAP_ID_DISCARD_ING_SWITCH_VLAN),
+                                                      DROP_REASON_TYPE_IN_L2),
+    [SAI_IN_DROP_REASON_INGRESS_STP_FILTER] = REASON(TRAP_LIST(
+                                                         SX_TRAP_ID_DISCARD_ING_SWITCH_STP), DROP_REASON_TYPE_IN_L2),
+    [SAI_IN_DROP_REASON_FDB_UC_DISCARD] = REASON(TRAP_LIST(
+                                                     SX_TRAP_ID_DISCARD_LOOKUP_SWITCH_UC),
+                                                 DROP_REASON_TYPE_IN_L2),
+    [SAI_IN_DROP_REASON_FDB_MC_DISCARD] = REASON(TRAP_LIST(
+                                                     SX_TRAP_ID_DISCARD_LOOKUP_SWITCH_MC_NULL),
+                                                 DROP_REASON_TYPE_IN_L2),
+    [SAI_IN_DROP_REASON_L2_LOOPBACK_FILTER] = REASON(TRAP_LIST(
+                                                         SX_TRAP_ID_DISCARD_LOOKUP_SWITCH_LB),
+                                                     DROP_REASON_TYPE_IN_L2),
     /* SAI_IN_DROP_REASON_EXCEEDS_L2_MTU, */
     /* L3 */
     [SAI_IN_DROP_REASON_L3_ANY]             = REASON_GROUP(DROP_REASON_TYPE_IN_L3),
@@ -154,51 +154,51 @@ static const mlnx_dbg_counter_drop_reason_info_t mlnx_drop_counter_in_drop_reaso
     [SAI_IN_DROP_REASON_L3_LOOPBACK_FILTER] = REASON(TRAP_LIST(SX_TRAP_ID_ETH_L3_LBERROR), DROP_REASON_TYPE_IN_L3),
     [SAI_IN_DROP_REASON_NON_ROUTABLE]       =
         REASON(TRAP_LIST(SX_TRAP_ID_DISCARD_NON_ROUTED), DROP_REASON_TYPE_IN_L3),
-    [SAI_IN_DROP_REASON_NO_L3_HEADER]     = REASON(TRAP_LIST(
-                                                       SX_TRAP_ID_DISCARD_ING_ROUTER_NO_HDR), DROP_REASON_TYPE_IN_L3),
-    [SAI_IN_DROP_REASON_IP_HEADER_ERROR]  = REASON(TRAP_LIST(
-                                                       SX_TRAP_ID_DISCARD_ING_ROUTER_IP_HDR), DROP_REASON_TYPE_IN_L3),
-    [SAI_IN_DROP_REASON_UC_DIP_MC_DMAC]   = REASON(TRAP_LIST(
-                                                       SX_TRAP_ID_DISCARD_ING_ROUTER_UC_DIP_MC_DMAC),
-                                                   DROP_REASON_TYPE_IN_L3),
-    [SAI_IN_DROP_REASON_DIP_LOOPBACK]     = REASON(TRAP_LIST(
-                                                       SX_TRAP_ID_DISCARD_ING_ROUTER_DIP_LB), DROP_REASON_TYPE_IN_L3),
-    [SAI_IN_DROP_REASON_SIP_LOOPBACK]     = REASON(TRAP_LIST(
-                                                       SX_TRAP_ID_DISCARD_ING_ROUTER_SIP_LB), DROP_REASON_TYPE_IN_L3),
-    [SAI_IN_DROP_REASON_SIP_MC]           = REASON(TRAP_LIST(
-                                                       SX_TRAP_ID_DISCARD_ING_ROUTER_SIP_MC), DROP_REASON_TYPE_IN_L3),
-    [SAI_IN_DROP_REASON_SIP_CLASS_E]      = REASON(TRAP_LIST(
-                                                       SX_TRAP_ID_DISCARD_ING_ROUTER_SIP_CLASS_E),
-                                                   DROP_REASON_TYPE_IN_L3),
-    [SAI_IN_DROP_REASON_SIP_UNSPECIFIED]  = REASON(TRAP_LIST(
-                                                       SX_TRAP_ID_DISCARD_ING_ROUTER_SIP_UNSP),
-                                                   DROP_REASON_TYPE_IN_L3),
+    [SAI_IN_DROP_REASON_NO_L3_HEADER] = REASON(TRAP_LIST(
+                                                   SX_TRAP_ID_DISCARD_ING_ROUTER_NO_HDR), DROP_REASON_TYPE_IN_L3),
+    [SAI_IN_DROP_REASON_IP_HEADER_ERROR] = REASON(TRAP_LIST(
+                                                      SX_TRAP_ID_DISCARD_ING_ROUTER_IP_HDR), DROP_REASON_TYPE_IN_L3),
+    [SAI_IN_DROP_REASON_UC_DIP_MC_DMAC] = REASON(TRAP_LIST(
+                                                     SX_TRAP_ID_DISCARD_ING_ROUTER_UC_DIP_MC_DMAC),
+                                                 DROP_REASON_TYPE_IN_L3),
+    [SAI_IN_DROP_REASON_DIP_LOOPBACK] = REASON(TRAP_LIST(
+                                                   SX_TRAP_ID_DISCARD_ING_ROUTER_DIP_LB), DROP_REASON_TYPE_IN_L3),
+    [SAI_IN_DROP_REASON_SIP_LOOPBACK] = REASON(TRAP_LIST(
+                                                   SX_TRAP_ID_DISCARD_ING_ROUTER_SIP_LB), DROP_REASON_TYPE_IN_L3),
+    [SAI_IN_DROP_REASON_SIP_MC] = REASON(TRAP_LIST(
+                                             SX_TRAP_ID_DISCARD_ING_ROUTER_SIP_MC), DROP_REASON_TYPE_IN_L3),
+    [SAI_IN_DROP_REASON_SIP_CLASS_E] = REASON(TRAP_LIST(
+                                                  SX_TRAP_ID_DISCARD_ING_ROUTER_SIP_CLASS_E),
+                                              DROP_REASON_TYPE_IN_L3),
+    [SAI_IN_DROP_REASON_SIP_UNSPECIFIED] = REASON(TRAP_LIST(
+                                                      SX_TRAP_ID_DISCARD_ING_ROUTER_SIP_UNSP),
+                                                  DROP_REASON_TYPE_IN_L3),
     [SAI_IN_DROP_REASON_MC_DMAC_MISMATCH] = REASON(TRAP_LIST(
                                                        SX_TRAP_ID_DISCARD_ING_ROUTER_MC_DMAC), DROP_REASON_TYPE_IN_L3),
 #ifndef ACS_OS
-    [SAI_IN_DROP_REASON_SIP_EQUALS_DIP]   = REASON(TRAP_LIST(
-                                                       SX_TRAP_ID_DISCARD_ING_ROUTER_SIP_DIP), DROP_REASON_TYPE_IN_L3),
+    [SAI_IN_DROP_REASON_SIP_EQUALS_DIP] = REASON(TRAP_LIST(
+                                                     SX_TRAP_ID_DISCARD_ING_ROUTER_SIP_DIP), DROP_REASON_TYPE_IN_L3),
 #endif
-    [SAI_IN_DROP_REASON_SIP_BC]           = REASON(TRAP_LIST(
-                                                       SX_TRAP_ID_DISCARD_ING_ROUTER_SIP_BC), DROP_REASON_TYPE_IN_L3),
-    [SAI_IN_DROP_REASON_DIP_LOCAL]        = REASON(TRAP_LIST(
-                                                       SX_TRAP_ID_DISCARD_ING_ROUTER_DIP_LOCAL_NET),
-                                                   DROP_REASON_TYPE_IN_L3),
-    [SAI_IN_DROP_REASON_DIP_LINK_LOCAL]   = REASON(TRAP_LIST(
-                                                       SX_TRAP_ID_DISCARD_ING_ROUTER_DIP_LINK_LOCAL),
-                                                   DROP_REASON_TYPE_IN_L3),
-    [SAI_IN_DROP_REASON_SIP_LINK_LOCAL]   = REASON(TRAP_LIST(
-                                                       SX_TRAP_ID_DISCARD_ING_ROUTER_SIP_LINK_LOCAL),
-                                                   DROP_REASON_TYPE_IN_L3),
-    [SAI_IN_DROP_REASON_IPV6_MC_SCOPE0]   = REASON(TRAP_LIST(
-                                                       SX_TRAP_ID_DISCARD_MC_SCOPE_IPV6_0), DROP_REASON_TYPE_IN_L3),
-    [SAI_IN_DROP_REASON_IPV6_MC_SCOPE1]   = REASON(TRAP_LIST(
-                                                       SX_TRAP_ID_DISCARD_MC_SCOPE_IPV6_1), DROP_REASON_TYPE_IN_L3),
-    [SAI_IN_DROP_REASON_IRIF_DISABLED]    = REASON(TRAP_LIST(
-                                                       SX_TRAP_ID_DISCARD_ROUTER_IRIF_EN), DROP_REASON_TYPE_IN_L3),
-    [SAI_IN_DROP_REASON_ERIF_DISABLED]    = REASON(TRAP_LIST(
-                                                       SX_TRAP_ID_DISCARD_ROUTER_ERIF_EN), DROP_REASON_TYPE_IN_L3),
-    [SAI_IN_DROP_REASON_LPM4_MISS]        =
+    [SAI_IN_DROP_REASON_SIP_BC] = REASON(TRAP_LIST(
+                                             SX_TRAP_ID_DISCARD_ING_ROUTER_SIP_BC), DROP_REASON_TYPE_IN_L3),
+    [SAI_IN_DROP_REASON_DIP_LOCAL] = REASON(TRAP_LIST(
+                                                SX_TRAP_ID_DISCARD_ING_ROUTER_DIP_LOCAL_NET),
+                                            DROP_REASON_TYPE_IN_L3),
+    [SAI_IN_DROP_REASON_DIP_LINK_LOCAL] = REASON(TRAP_LIST(
+                                                     SX_TRAP_ID_DISCARD_ING_ROUTER_DIP_LINK_LOCAL),
+                                                 DROP_REASON_TYPE_IN_L3),
+    [SAI_IN_DROP_REASON_SIP_LINK_LOCAL] = REASON(TRAP_LIST(
+                                                     SX_TRAP_ID_DISCARD_ING_ROUTER_SIP_LINK_LOCAL),
+                                                 DROP_REASON_TYPE_IN_L3),
+    [SAI_IN_DROP_REASON_IPV6_MC_SCOPE0] = REASON(TRAP_LIST(
+                                                     SX_TRAP_ID_DISCARD_MC_SCOPE_IPV6_0), DROP_REASON_TYPE_IN_L3),
+    [SAI_IN_DROP_REASON_IPV6_MC_SCOPE1] = REASON(TRAP_LIST(
+                                                     SX_TRAP_ID_DISCARD_MC_SCOPE_IPV6_1), DROP_REASON_TYPE_IN_L3),
+    [SAI_IN_DROP_REASON_IRIF_DISABLED] = REASON(TRAP_LIST(
+                                                    SX_TRAP_ID_DISCARD_ROUTER_IRIF_EN), DROP_REASON_TYPE_IN_L3),
+    [SAI_IN_DROP_REASON_ERIF_DISABLED] = REASON(TRAP_LIST(
+                                                    SX_TRAP_ID_DISCARD_ROUTER_ERIF_EN), DROP_REASON_TYPE_IN_L3),
+    [SAI_IN_DROP_REASON_LPM4_MISS] =
         REASON(TRAP_LIST(SX_TRAP_ID_DISCARD_ROUTER_LPM4), DROP_REASON_TYPE_IN_L3),
     [SAI_IN_DROP_REASON_LPM6_MISS] =
         REASON(TRAP_LIST(SX_TRAP_ID_DISCARD_ROUTER_LPM6), DROP_REASON_TYPE_IN_L3),

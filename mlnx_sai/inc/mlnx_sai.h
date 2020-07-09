@@ -774,6 +774,7 @@ sai_status_t mlnx_register_trap(const sx_access_cmd_t                 cmd,
                                 uint32_t                              index,
                                 sai_hostif_table_entry_channel_type_t channel,
                                 sx_fd_t                               fd,
+								uint32_t							 group_id,
                                 sx_host_ifc_register_key_t           *reg);
 sai_status_t mlnx_trap_set(uint32_t index, sai_packet_action_t sai_action, sai_object_id_t trap_group);
 sai_status_t mlnx_netdev_restore(void);
@@ -1977,7 +1978,8 @@ typedef enum _sai_host_object_type_t {
     SAI_HOSTIF_OBJECT_TYPE_VLAN,
     SAI_HOSTIF_OBJECT_TYPE_PORT,
     SAI_HOSTIF_OBJECT_TYPE_LAG,
-    SAI_HOSTIF_OBJECT_TYPE_FD
+    SAI_HOSTIF_OBJECT_TYPE_FD,
+    SAI_HOSTIF_OBJECT_TYPE_GENETLINK
 } sai_host_object_type_t;
 
 typedef struct sai_netdev {
@@ -1987,6 +1989,8 @@ typedef struct sai_netdev {
     sx_port_log_id_t       port_id;
     uint16_t               vid;
     sx_fd_t                fd;
+    char                   mcgrpname[SAI_HOSTIF_GENETLINK_MCGRP_NAME_SIZE];
+    sx_psample_params_t    psample_group;
 } sai_netdev_t;
 
 #define MLNX_L2MC_GROUP_DB_SIZE (1000)

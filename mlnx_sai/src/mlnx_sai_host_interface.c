@@ -22,10 +22,13 @@
 #ifndef _WIN32
 #include <net/if.h>
 #include <unistd.h>
+#include <libnl3/netlink/genl/ctrl.h>
 #endif
 
 #undef  __MODULE__
 #define __MODULE__ SAI_HOST_INTERFACE
+
+#define SAI_HOSTIF_GENETLINK_GROUP_NAME "psample"
 
 static sx_verbosity_level_t LOG_VAR_NAME(__MODULE__) = SX_VERBOSITY_LEVEL_WARNING;
 static sai_status_t mlnx_host_interface_type_get(_In_ const sai_object_key_t   *key,
@@ -54,6 +57,11 @@ static sai_status_t mlnx_host_interface_oper_set(_In_ const sai_object_key_t    
 static sai_status_t mlnx_host_interface_vlan_tag_set(_In_ const sai_object_key_t      *key,
                                                      _In_ const sai_attribute_value_t *value,
                                                      void                             *arg);
+static sai_status_t mlnx_host_interface_genetlink_mcrp_name_get(_In_ const sai_object_key_t   *key,
+                                                 _Inout_ sai_attribute_value_t *value,
+                                                 _In_ uint32_t                  attr_index,
+                                                 _Inout_ vendor_cache_t        *cache,
+                                                 void                          *arg);
 static sai_status_t mlnx_trap_group_admin_get(_In_ const sai_object_key_t   *key,
                                               _Inout_ sai_attribute_value_t *value,
                                               _In_ uint32_t                  attr_index,
@@ -147,6 +155,11 @@ static const sai_vendor_attribute_entry_t host_interface_vendor_attribs[] = {
       { true, false, false, true },
       mlnx_host_interface_name_get, NULL,
       NULL, NULL },
+    { SAI_HOSTIF_ATTR_GENETLINK_MCGRP_NAME,
+      { true, false, false, true },
+      { true, false, false, true },
+      mlnx_host_interface_genetlink_mcrp_name_get, NULL,
+      NULL, NULL },
     { SAI_HOSTIF_ATTR_OPER_STATUS,
       { true, false, true, true },
       { true, false, true, true },
@@ -170,6 +183,7 @@ static const sai_vendor_attribute_entry_t host_interface_vendor_attribs[] = {
 };
 static const mlnx_attr_enum_info_t        hostif_enum_info[] = {
     [SAI_HOSTIF_ATTR_TYPE] = ATTR_ENUM_VALUES_LIST(
+        SAI_HOSTIF_TYPE_GENETLINK,
         SAI_HOSTIF_TYPE_FD,
         SAI_HOSTIF_TYPE_NETDEV
         ),
@@ -697,6 +711,44 @@ static sai_status_t create_netdev(uint32_t index)
     return SAI_STATUS_SUCCESS;
 }
 
+/* Resolve generic netlink multicast group name */
+static sai_status_t resolve_group(uint32_t index, const char* mcgrp_name)
+{ 
+#ifndef _WIN32
+    struct nl_sock *sk = NULL;
+    int group;
+    int error;
+
+    /* Socket allocation */
+    sk = nl_socket_alloc();
+    if (!sk) {
+        SX_LOG_ERR("Failed to allocate socket \n");
+        return SAI_STATUS_FAILURE;
+    }
+
+    nl_socket_disable_seq_check(sk);
+
+    error = nl_connect(sk, NETLINK_GENERIC);
+    if (error) {
+        nl_socket_free(sk);
+        SX_LOG_ERR("Failed to genl_connect \n");
+        return SAI_STATUS_FAILURE;
+    }
+
+    /* Find the multicast group identifier and register ourselves to it. */
+    group = genl_ctrl_resolve_grp(sk, "psample", mcgrp_name);
+    if (group < 0) {
+        nl_socket_free(sk);
+        SX_LOG_ERR("Failed to resolve group \n");
+        return SAI_STATUS_FAILURE;
+    }
+
+    g_sai_db_ptr->hostif_db[index].psample_group.group_id = group;
+    nl_socket_free(sk);
+#endif
+    return SAI_STATUS_SUCCESS;
+}
+
 /*
  * Routine Description:
  *    Create host interface.
@@ -716,8 +768,8 @@ static sai_status_t mlnx_create_host_interface(_Out_ sai_object_id_t     * hif_i
                                                _In_ const sai_attribute_t *attr_list)
 {
     sai_status_t                 status;
-    const sai_attribute_value_t *type, *rif_port, *name;
-    uint32_t                     type_index, rif_port_index, name_index, rif_port_data;
+    const sai_attribute_value_t *type, *rif_port, *name, *mcgrp_name;
+    uint32_t                     type_index, rif_port_index, name_index, mcgrp_name_index, rif_port_data;
     char                         key_str[MAX_KEY_STR_LEN];
     char                         list_str[MAX_LIST_VALUE_STR_LEN];
     uint32_t                     ii;
@@ -839,6 +891,56 @@ static sai_status_t mlnx_create_host_interface(_Out_ sai_object_id_t     * hif_i
         }
 
         g_sai_db_ptr->hostif_db[ii].sub_type = SAI_HOSTIF_OBJECT_TYPE_FD;
+    } else if (SAI_HOSTIF_TYPE_GENETLINK == type->s32) {
+        if (SAI_STATUS_ITEM_NOT_FOUND !=
+            (status =
+                 find_attrib_in_list(attr_count, attr_list, SAI_HOSTIF_ATTR_OBJ_ID, &rif_port,
+                                     &rif_port_index))) {
+            SX_LOG_ERR("Invalid attribute rif port id for genetlink host if on create\n");
+            cl_plock_release(&g_sai_db_ptr->p_lock);
+            return SAI_STATUS_INVALID_ATTRIBUTE_0 + rif_port_index;
+        }
+
+        if (SAI_STATUS_SUCCESS !=
+            (status = find_attrib_in_list(attr_count, attr_list, SAI_HOSTIF_ATTR_NAME, &name, &name_index))) {
+            SX_LOG_ERR("Missing mandatory attribute name on create of host if genetlink type\n");
+            cl_plock_release(&g_sai_db_ptr->p_lock);
+            return SAI_STATUS_MANDATORY_ATTRIBUTE_MISSING;
+        }
+
+        if (strncmp(name->chardata, SAI_HOSTIF_GENETLINK_GROUP_NAME, SAI_HOSTIF_NAME_SIZE)) {
+            SX_LOG_ERR("Wrong generic netlink group name on create of host if genetlink type\n");
+            cl_plock_release(&g_sai_db_ptr->p_lock);
+            return SAI_STATUS_INVALID_PARAMETER;
+        }
+
+        if (SAI_STATUS_SUCCESS !=
+            (status = find_attrib_in_list(attr_count, attr_list, SAI_HOSTIF_ATTR_GENETLINK_MCGRP_NAME, &mcgrp_name, &mcgrp_name_index))) {
+            SX_LOG_ERR("Missing mandatory attribute name on create of host if genetlink type\n");
+            cl_plock_release(&g_sai_db_ptr->p_lock);
+            return SAI_STATUS_MANDATORY_ATTRIBUTE_MISSING;
+        }
+
+        // check if genetlink hostif already exists
+        for (int i = 0; i < MAX_HOSTIFS; i++) {
+            if (SAI_HOSTIF_OBJECT_TYPE_GENETLINK == g_sai_db_ptr->hostif_db[i].sub_type && true == g_sai_db_ptr->hostif_db[i].is_used) {
+                SX_LOG_ERR("Failed to create genetlink hostif, already exist\n");
+                cl_plock_release(&g_sai_db_ptr->p_lock);
+                return SAI_STATUS_ITEM_ALREADY_EXISTS;
+            }
+        }
+
+        status = resolve_group(ii, mcgrp_name->chardata);
+        if (SAI_ERR(status)) {
+            cl_plock_release(&g_sai_db_ptr->p_lock);
+            return status;
+        }
+        strncpy(g_sai_db_ptr->hostif_db[ii].ifname, name->chardata, SAI_HOSTIF_NAME_SIZE);
+        g_sai_db_ptr->hostif_db[ii].ifname[SAI_HOSTIF_NAME_SIZE] = '\0';
+
+        strncpy(g_sai_db_ptr->hostif_db[ii].mcgrpname, mcgrp_name->chardata, SAI_HOSTIF_GENETLINK_MCGRP_NAME_SIZE-1);
+        g_sai_db_ptr->hostif_db[ii].mcgrpname[SAI_HOSTIF_GENETLINK_MCGRP_NAME_SIZE-1] = '\0';
+        g_sai_db_ptr->hostif_db[ii].sub_type = SAI_HOSTIF_OBJECT_TYPE_GENETLINK;
     } else {
         SX_LOG_ERR("Invalid host interface type %d\n", type->s32);
         cl_plock_release(&g_sai_db_ptr->p_lock);
@@ -925,6 +1027,9 @@ static sai_status_t mlnx_remove_host_interface(_In_ sai_object_id_t hif_id)
             cl_plock_release(&g_sai_db_ptr->p_lock);
             return status;
         }
+    } else if (SAI_HOSTIF_OBJECT_TYPE_GENETLINK == g_sai_db_ptr->hostif_db[mlnx_hif.id.u32].sub_type) {
+            cl_plock_release(&g_sai_db_ptr->p_lock);
+            return SAI_STATUS_SUCCESS;
     } else {
         snprintf(command, sizeof(command), "ip link delete %s", g_sai_db_ptr->hostif_db[mlnx_hif.id.u32].ifname);
         system_err = system(command);
@@ -1049,6 +1154,8 @@ static sai_status_t mlnx_host_interface_type_get(_In_ const sai_object_key_t   *
     cl_plock_acquire(&g_sai_db_ptr->p_lock);
     if (SAI_HOSTIF_OBJECT_TYPE_FD == g_sai_db_ptr->hostif_db[mlnx_hif.id.u32].sub_type) {
         value->s32 = SAI_HOSTIF_TYPE_FD;
+    } else if (SAI_HOSTIF_OBJECT_TYPE_GENETLINK == g_sai_db_ptr->hostif_db[mlnx_hif.id.u32].sub_type) {
+        value->s32 = SAI_HOSTIF_TYPE_GENETLINK;
     } else {
         value->s32 = SAI_HOSTIF_TYPE_NETDEV;
     }
@@ -1145,6 +1252,45 @@ static sai_status_t mlnx_host_interface_name_get(_In_ const sai_object_key_t   *
     }
 
     strncpy(value->chardata, g_sai_db_ptr->hostif_db[mlnx_hif.id.u32].ifname, SAI_HOSTIF_NAME_SIZE);
+    cl_plock_release(&g_sai_db_ptr->p_lock);
+
+    SX_LOG_EXIT();
+    return SAI_STATUS_SUCCESS;
+}
+
+/* Name [char[SAI_HOSTIF_GENETLINK_MCGRP_NAME_SIZE]] (MANDATORY_ON_CREATE)
+ * The maximum number of charactars for the name is SAI_HOSTIF_GENETLINK_MCGRP_NAME_SIZE - 1 since
+ * it needs the terminating null byte ('\0') at the end.  */
+static sai_status_t mlnx_host_interface_genetlink_mcrp_name_get(_In_ const sai_object_key_t   *key,
+                                                 _Inout_ sai_attribute_value_t *value,
+                                                 _In_ uint32_t                  attr_index,
+                                                 _Inout_ vendor_cache_t        *cache,
+                                                 void                          *arg)
+{
+    mlnx_object_id_t mlnx_hif = {0};
+    sai_status_t     status;
+
+    SX_LOG_ENTER();
+
+    status = sai_to_mlnx_object_id(SAI_OBJECT_TYPE_HOSTIF, key->key.object_id, &mlnx_hif);
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+    status = check_host_if_is_valid(mlnx_hif);
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+    cl_plock_acquire(&g_sai_db_ptr->p_lock);
+
+    if (SAI_HOSTIF_OBJECT_TYPE_GENETLINK != g_sai_db_ptr->hostif_db[mlnx_hif.id.u32].sub_type) {
+        SX_LOG_ERR("Multicast group name can be retreived only for host interface channel type genetlink\n");
+        cl_plock_release(&g_sai_db_ptr->p_lock);
+        return SAI_STATUS_INVALID_PARAMETER;
+    }
+
+    strncpy(value->chardata, g_sai_db_ptr->hostif_db[mlnx_hif.id.u32].mcgrpname, SAI_HOSTIF_GENETLINK_MCGRP_NAME_SIZE);
     cl_plock_release(&g_sai_db_ptr->p_lock);
 
     SX_LOG_EXIT();
@@ -2353,6 +2499,7 @@ sai_status_t mlnx_register_trap(const sx_access_cmd_t                 cmd,
                                 uint32_t                              index,
                                 sai_hostif_table_entry_channel_type_t channel,
                                 sx_fd_t                               fd,
+                                uint32_t                              group_id,
                                 sx_host_ifc_register_key_t           *reg)
 {
     sai_status_t      status;
@@ -2383,6 +2530,11 @@ sai_status_t mlnx_register_trap(const sx_access_cmd_t                 cmd,
 
     case SAI_HOSTIF_TABLE_ENTRY_CHANNEL_TYPE_NETDEV_LOGICAL_PORT:
         user_channel.type = SX_USER_CHANNEL_TYPE_LOG_PORT_NETDEV;
+        break;
+
+    case SAI_HOSTIF_TABLE_ENTRY_CHANNEL_TYPE_GENETLINK:
+        user_channel.type = SX_USER_CHANNEL_TYPE_PSAMPLE;
+        user_channel.channel.psample_params.group_id = group_id;
         break;
 
     default:
@@ -3439,17 +3591,18 @@ sai_status_t mlnx_create_hostif_table_entry(_Out_ sai_object_id_t      *hif_tabl
                                             _In_ const sai_attribute_t *attr_list)
 {
     sai_status_t                 status;
-    const sai_attribute_value_t *type, *channel, *obj, *trap, *fd;
-    uint32_t                     type_index, channel_index, obj_index, trap_index, fd_index;
+    const sai_attribute_value_t *type, *channel, *obj, *trap, *fd, *gnl;
+    uint32_t                     type_index, channel_index, obj_index, trap_index, fd_index, gnl_index;
     char                         key_str[MAX_KEY_STR_LEN];
     char                         list_str[MAX_LIST_VALUE_STR_LEN];
-    mlnx_object_id_t             mlnx_hif = { 0 }, mlnx_fd = { 0 };
+    mlnx_object_id_t             mlnx_hif = { 0 }, mlnx_fd = { 0 }, mlnx_gnl = { 0 };
     uint32_t                     obj_data, trap_id, trap_db_index;
     uint16_t                     vlan_id;
     sx_host_ifc_register_key_t   reg;
     sai_object_type_t            trap_type;
     sx_fd_t                      fd_val = { 0 };
     uint32_t                     ii;
+    uint32_t                     group_id = 0;
 
     SX_LOG_ENTER();
 
@@ -3600,12 +3753,39 @@ sai_status_t mlnx_create_hostif_table_entry(_Out_ sai_object_id_t      *hif_tabl
         }
         fd_val = g_sai_db_ptr->hostif_db[mlnx_fd.id.u32].fd;
         cl_plock_release(&g_sai_db_ptr->p_lock);
+    } else if (SAI_HOSTIF_TABLE_ENTRY_CHANNEL_TYPE_GENETLINK == channel->s32) {
+        if (SAI_STATUS_SUCCESS !=
+            (status =
+                 find_attrib_in_list(attr_count, attr_list, SAI_HOSTIF_TABLE_ENTRY_ATTR_HOST_IF, &gnl,
+                                     &gnl_index))) {
+            SX_LOG_ERR("Missing mandatory attribute host if on create of host table entry channel genetlink\n");
+            return SAI_STATUS_MANDATORY_ATTRIBUTE_MISSING;
+        }
+
+        status = sai_to_mlnx_object_id(SAI_OBJECT_TYPE_HOSTIF, gnl->oid, &mlnx_gnl);
+        if (SAI_ERR(status)) {
+            return status;
+        }
+
+        status = check_host_if_is_valid(mlnx_gnl);
+        if (SAI_ERR(status)) {
+            return status;
+        }
+
+        cl_plock_acquire(&g_sai_db_ptr->p_lock);
+        if (SAI_HOSTIF_OBJECT_TYPE_GENETLINK != g_sai_db_ptr->hostif_db[mlnx_gnl.id.u32].sub_type) {
+            SX_LOG_ERR("Can't set non genetlink host interface type %u\n", g_sai_db_ptr->hostif_db[mlnx_gnl.id.u32].sub_type);
+            cl_plock_release(&g_sai_db_ptr->p_lock);
+            return SAI_STATUS_INVALID_ATTR_VALUE_0 + gnl_index;
+        }
+        group_id = g_sai_db_ptr->hostif_db[mlnx_gnl.id.u32].psample_group.group_id;
+        cl_plock_release(&g_sai_db_ptr->p_lock);
     } else {
         if (SAI_STATUS_ITEM_NOT_FOUND !=
             (status =
                  find_attrib_in_list(attr_count, attr_list, SAI_HOSTIF_TABLE_ENTRY_ATTR_HOST_IF, &fd,
                                      &fd_index))) {
-            SX_LOG_ERR("Invalid attribute host IF for host table entry channel non FD on create\n");
+            SX_LOG_ERR("Invalid attribute host IF for host table entry channel non FD or genetlink on create\n");
             return SAI_STATUS_INVALID_ATTRIBUTE_0 + fd_index;
         }
 
@@ -3621,13 +3801,13 @@ sai_status_t mlnx_create_hostif_table_entry(_Out_ sai_object_id_t      *hif_tabl
             }
 
             if (SAI_STATUS_SUCCESS != (status = mlnx_register_trap(SX_ACCESS_CMD_REGISTER, ii,
-                                                                   channel->s32, fd_val, &reg))) {
+                                                                   channel->s32, fd_val, group_id, &reg))) {
                 return status;
             }
         }
     } else {
         if (SAI_STATUS_SUCCESS != (status = mlnx_register_trap(SX_ACCESS_CMD_REGISTER, trap_db_index,
-                                                               channel->s32, fd_val, &reg))) {
+                                                               channel->s32, fd_val, group_id, &reg))) {
             return status;
         }
     }
@@ -3659,6 +3839,7 @@ sai_status_t mlnx_remove_hostif_table_entry(_In_ sai_object_id_t hif_table_entry
     mlnx_object_id_t           mlnx_hif = { 0 };
     sx_host_ifc_register_key_t reg;
     sx_fd_t                    fd_val = { 0 };
+    uint32_t                   group_id = 0;
 
     SX_LOG_ENTER();
     host_table_entry_key_to_str(hif_table_entry, key_str);
@@ -3684,7 +3865,7 @@ sai_status_t mlnx_remove_hostif_table_entry(_In_ sai_object_id_t hif_table_entry
 
     /* TODO : Store channel in DB for registration */
     if (SAI_STATUS_SUCCESS != (status = mlnx_register_trap(SX_ACCESS_CMD_DEREGISTER, mlnx_hif.ext.trap.id,
-                                                           0, fd_val, &reg))) {
+                                                           0, fd_val, group_id, &reg))) {
         return status;
     }
 

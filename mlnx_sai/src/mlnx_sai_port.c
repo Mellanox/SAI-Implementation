@@ -115,9 +115,9 @@ static sai_status_t mlnx_port_oper_speed_get(_In_ const sai_object_key_t   *key,
                                              _In_ uint32_t                  attr_index,
                                              _Inout_ vendor_cache_t        *cache,
                                              void                          *arg);
-static sai_status_t mlnx_port_lag_drop_tags_set_impl(_In_ mlnx_port_config_t   *port_config,
-                                                     _In_ sai_attr_id_t         attr_id,
-                                                     _In_ bool                  enable);
+static sai_status_t mlnx_port_lag_drop_tags_set_impl(_In_ mlnx_port_config_t *port_config,
+                                                     _In_ sai_attr_id_t       attr_id,
+                                                     _In_ bool                enable);
 static sai_status_t mlnx_port_fec_get(_In_ const sai_object_key_t   *key,
                                       _Inout_ sai_attribute_value_t *value,
                                       _In_ uint32_t                  attr_index,
@@ -153,8 +153,7 @@ static sai_status_t mlnx_port_update_dscp_get(_In_ const sai_object_key_t   *key
                                               _In_ uint32_t                  attr_index,
                                               _Inout_ vendor_cache_t        *cache,
                                               void                          *arg);
-static sai_status_t mlnx_port_update_dscp_set_impl(_In_ sx_port_log_id_t port_id,
-                                                   _In_ bool             enable);
+static sai_status_t mlnx_port_update_dscp_set_impl(_In_ sx_port_log_id_t port_id, _In_ bool enable);
 static sai_status_t mlnx_port_update_dscp_set(_In_ const sai_object_key_t      *key,
                                               _In_ const sai_attribute_value_t *value,
                                               void                             *arg);
@@ -944,9 +943,9 @@ out:
     return status;
 }
 
-static sai_status_t mlnx_port_lag_drop_tags_set_impl(_In_ mlnx_port_config_t   *port_config,
-                                                     _In_ sai_attr_id_t         attr_id,
-                                                     _In_ bool                  enable)
+static sai_status_t mlnx_port_lag_drop_tags_set_impl(_In_ mlnx_port_config_t *port_config,
+                                                     _In_ sai_attr_id_t       attr_id,
+                                                     _In_ bool                enable)
 {
     sx_status_t           sx_status;
     sx_vlan_frame_types_t frame_types = {0};
@@ -982,11 +981,11 @@ sai_status_t mlnx_port_lag_drop_tags_set(_In_ const sai_object_key_t      *key,
                                          _In_ const sai_attribute_value_t *value,
                                          void                             *arg)
 {
-    sai_status_t          status;
-    sai_attr_id_t         attr_id;
-    mlnx_port_config_t   *port_config;
-    bool                  is_warmboot_init_stage = false;
-    uint32_t              port_db_idx;
+    sai_status_t        status;
+    sai_attr_id_t       attr_id;
+    mlnx_port_config_t *port_config;
+    bool                is_warmboot_init_stage = false;
+    uint32_t            port_db_idx;
 
     SX_LOG_ENTER();
 
@@ -2304,8 +2303,7 @@ static sai_status_t mlnx_port_update_dscp_get(_In_ const sai_object_key_t   *key
     return status;
 }
 
-static sai_status_t mlnx_port_update_dscp_set_impl(_In_ sx_port_log_id_t port_id,
-                                                   _In_ bool             enable)
+static sai_status_t mlnx_port_update_dscp_set_impl(_In_ sx_port_log_id_t port_id, _In_ bool enable)
 {
     sx_status_t             sx_status;
     sx_cos_rewrite_enable_t rewrite_enable;
@@ -2317,7 +2315,7 @@ static sai_status_t mlnx_port_update_dscp_set_impl(_In_ sx_port_log_id_t port_id
     }
 
     rewrite_enable.rewrite_dscp = enable;
-    sx_status = sx_api_cos_port_rewrite_enable_set(gh_sdk, port_id, rewrite_enable);
+    sx_status                   = sx_api_cos_port_rewrite_enable_set(gh_sdk, port_id, rewrite_enable);
     if (sx_status != SAI_STATUS_SUCCESS) {
         SX_LOG_ERR("Failed to set dscp rewrite enable - %s\n", SX_STATUS_MSG(sx_status));
         return sdk_to_sai(sx_status);
@@ -2331,7 +2329,6 @@ static sai_status_t mlnx_port_update_dscp_set(_In_ const sai_object_key_t      *
                                               _In_ const sai_attribute_value_t *value,
                                               void                             *arg)
 {
-
     sx_port_log_id_t    port_id;
     sai_status_t        status;
     mlnx_port_config_t *port;
@@ -2751,10 +2748,10 @@ static sai_status_t mlnx_port_mirror_session_set(_In_ const sai_object_key_t    
                                                  _In_ const sai_attribute_value_t *value,
                                                  void                             *arg)
 {
-    sai_status_t           status = SAI_STATUS_FAILURE;
-    mlnx_port_config_t    *port_config;
-    sx_mirror_direction_t  sdk_mirror_direction = SX_SPAN_MIRROR_INGRESS;
-    sx_port_log_id_t       port_id;
+    sai_status_t          status = SAI_STATUS_FAILURE;
+    mlnx_port_config_t   *port_config;
+    sx_mirror_direction_t sdk_mirror_direction = SX_SPAN_MIRROR_INGRESS;
+    sx_port_log_id_t      port_id;
 
     SX_LOG_ENTER();
 
@@ -4099,7 +4096,7 @@ static sai_status_t mlnx_port_pfc_control_set(_In_ const sai_object_key_t      *
     sai_db_write_lock();
 
     status = mlnx_object_to_type(key->key.object_id, SAI_OBJECT_TYPE_PORT, &port_id, NULL);
-    if (SAI_ERR(status )) {
+    if (SAI_ERR(status)) {
         SX_LOG_ERR("Failed to convert port oid to logical port id\n");
         goto out;
     }
@@ -4657,6 +4654,7 @@ sai_status_t mlnx_get_port_stats_ext(_In_ sai_object_id_t      port_id,
         case SAI_PORT_STAT_ETHER_STATS_PKTS_4096_TO_9216_OCTETS:
         case SAI_PORT_STAT_ETHER_IN_PKTS_4096_TO_9216_OCTETS:
         case SAI_PORT_STAT_ETHER_STATS_OVERSIZE_PKTS:
+        case SAI_PORT_STAT_ETHER_RX_OVERSIZE_PKTS:
         case SAI_PORT_STAT_ETHER_STATS_JABBERS:
         case SAI_PORT_STAT_ETHER_STATS_OCTETS:
         case SAI_PORT_STAT_ETHER_STATS_PKTS:
@@ -4965,8 +4963,14 @@ sai_status_t mlnx_get_port_stats_ext(_In_ sai_object_id_t      port_id,
             counters[ii] = cnts_2819.ether_stats_pkts4096to8191octets;
             break;
 
+        /* by definidtion, standard 2819 oversize is RX only. for tx, we drop all oversize, so always 0 */
         case SAI_PORT_STAT_ETHER_STATS_OVERSIZE_PKTS:
+        case SAI_PORT_STAT_ETHER_RX_OVERSIZE_PKTS:
             counters[ii] = cnts_2819.ether_stats_oversize_pkts;
+            break;
+
+        case SAI_PORT_STAT_ETHER_TX_OVERSIZE_PKTS:
+            counters[ii] = 0;
             break;
 
         case SAI_PORT_STAT_ETHER_STATS_JABBERS:
@@ -5179,26 +5183,24 @@ sai_status_t mlnx_get_port_stats_ext(_In_ sai_object_id_t      port_id,
 
         case SAI_PORT_STAT_IN_DROPPED_PKTS:
             /*status = mlnx_port_stat_pg_dropped_pkts_get(port_data, cmd, &counters[ii]);
-            if (SAI_ERR(status)) {
-                return status;
-            }*/
+             *  if (SAI_ERR(status)) {
+             *   return status;
+             *  }*/
             SX_LOG_INF("Port counter %d set item %u not implemented\n", counter_ids[ii], ii);
             return SAI_STATUS_NOT_IMPLEMENTED;
             break;
 
         case SAI_PORT_STAT_OUT_DROPPED_PKTS:
             /*status = mlnx_port_stat_tc_dropped_pkts_get(port_data, cmd, &counters[ii]);
-            if (SAI_ERR(status)) {
-                return status;
-            }*/
+             *  if (SAI_ERR(status)) {
+             *   return status;
+             *  }*/
             SX_LOG_INF("Port counter %d set item %u not implemented\n", counter_ids[ii], ii);
             return SAI_STATUS_NOT_IMPLEMENTED;
             break;
 
         case SAI_PORT_STAT_IF_OUT_QLEN:
         case SAI_PORT_STAT_ETHER_STATS_PKTS_9217_TO_16383_OCTETS:
-        case SAI_PORT_STAT_ETHER_RX_OVERSIZE_PKTS:
-        case SAI_PORT_STAT_ETHER_TX_OVERSIZE_PKTS:
         case SAI_PORT_STAT_IP_IN_RECEIVES:
         case SAI_PORT_STAT_IP_IN_OCTETS:
         case SAI_PORT_STAT_IP_IN_UCAST_PKTS:
@@ -5677,8 +5679,8 @@ static sai_status_t mlnx_port_storm_control_policer_attr_set(_In_ const sai_obje
                                                              _In_ const sai_attribute_value_t *value,
                                                              _In_ void                        *arg)
 {
-    sai_status_t             status;
-    mlnx_port_policer_type   policer_function;
+    sai_status_t           status;
+    mlnx_port_policer_type policer_function;
 
     SX_LOG_ENTER();
     policer_function = (mlnx_port_policer_type)arg;
@@ -5927,10 +5929,10 @@ static sai_status_t mlnx_port_egress_block_set_single_port(_In_ sx_port_log_id_t
                                                            _In_ const sx_port_log_id_t *sx_egress_block_port_list,
                                                            _In_ uint32_t                egress_ports_count)
 {
-    sx_status_t               sx_status;
-    sx_access_cmd_t           sx_cmd;
-    uint32_t                  ii;
-    bool                      need_to_block;
+    sx_status_t     sx_status;
+    sx_access_cmd_t sx_cmd;
+    uint32_t        ii;
+    bool            need_to_block;
 
     SX_LOG_ENTER();
 
@@ -5974,9 +5976,9 @@ static sai_status_t mlnx_port_egress_block_set_impl(_In_ sx_port_log_id_t       
     uint32_t                  ii;
     const bool                is_warmboot_init_stage = (BOOT_TYPE_WARM == g_sai_db_ptr->boot_type) &&
                                                        (!g_sai_db_ptr->issu_end_called);
-    sx_port_log_id_t          log_port_list[MAX_PORTS_DB * 2];
-    uint32_t                  port_list_cnt = MAX_PORTS_DB * 2;
-    sx_port_type_t            port_type;
+    sx_port_log_id_t log_port_list[MAX_PORTS_DB * 2];
+    uint32_t         port_list_cnt = MAX_PORTS_DB * 2;
+    sx_port_type_t   port_type;
 
     assert(sx_egress_block_port_list || (egress_ports_count == 0));
 
@@ -6027,7 +6029,9 @@ static sai_status_t mlnx_port_egress_block_set_impl(_In_ sx_port_log_id_t       
                                                                     sx_egress_block_port_list,
                                                                     egress_ports_count);
                 if (SAI_ERR(sai_status)) {
-                    SX_LOG_ERR("Error setting egress block for port %x on egress block port %x\n", sx_ing_port_id, log_port_list[ii]);
+                    SX_LOG_ERR("Error setting egress block for port %x on egress block port %x\n",
+                               sx_ing_port_id,
+                               log_port_list[ii]);
                     SX_LOG_EXIT();
                     return sai_status;
                 }
@@ -6228,7 +6232,8 @@ static uint32_t mlnx_platform_max_speed_get(void)
         return PORT_SPEED_MAX_SP;
 
     case SX_CHIP_TYPE_SPECTRUM2:
-        if ((g_sai_db_ptr->platform_type == MLNX_PLATFORM_TYPE_3800) || (g_sai_db_ptr->platform_type == MLNX_PLATFORM_TYPE_3420)) {
+        if ((g_sai_db_ptr->platform_type == MLNX_PLATFORM_TYPE_3800) ||
+            (g_sai_db_ptr->platform_type == MLNX_PLATFORM_TYPE_3420)) {
             return PORT_SPEED_100;
         }
         return PORT_SPEED_MAX_SP2;
@@ -7363,9 +7368,10 @@ sai_status_t mlnx_port_config_init(mlnx_port_config_t *port)
     sxd_status_t              sxd_ret                = SXD_STATUS_SUCCESS;
     const bool                is_warmboot_init_stage = (BOOT_TYPE_WARM == g_sai_db_ptr->boot_type) &&
                                                        (!g_sai_db_ptr->issu_end_called);
+
 #ifdef ACS_OS
-    sx_cos_port_buffer_attr_t  sx_port_reserved_buff_attr;
-    sx_cos_port_shared_buffer_attr_t  sx_port_shared_buff_attr; 
+    sx_cos_port_buffer_attr_t        sx_port_reserved_buff_attr;
+    sx_cos_port_shared_buffer_attr_t sx_port_shared_buff_attr;
 #endif
 
     assert(port != NULL);
@@ -7390,25 +7396,34 @@ sai_status_t mlnx_port_config_init(mlnx_port_config_t *port)
         }
 
         /* reset MC settings on port creation, as this is set after set and the only place this settings are called,
-           it is safe also on warmboot */
+         *  it is safe also on warmboot */
 #ifdef ACS_OS
         memset(&sx_port_reserved_buff_attr, 0, sizeof(sx_port_reserved_buff_attr));
         memset(&sx_port_shared_buff_attr, 0, sizeof(sx_port_shared_buff_attr));
 
-        sx_port_reserved_buff_attr.type = SX_COS_MULTICAST_PORT_ATTR_E;
-        sx_port_reserved_buff_attr.attr.multicast_port_buff_attr.pool_id = g_sai_buffer_db_ptr->buffer_pool_ids.default_multicast_pool_id;
+        sx_port_reserved_buff_attr.type                                  = SX_COS_MULTICAST_PORT_ATTR_E;
+        sx_port_reserved_buff_attr.attr.multicast_port_buff_attr.pool_id =
+            g_sai_buffer_db_ptr->buffer_pool_ids.default_multicast_pool_id;
         sx_port_reserved_buff_attr.attr.multicast_port_buff_attr.size = 0;
-        status = sx_api_cos_port_buff_type_set(gh_sdk, SX_ACCESS_CMD_SET, port->logical, &sx_port_reserved_buff_attr, 1);
+        status                                                        = sx_api_cos_port_buff_type_set(gh_sdk,
+                                                                                                      SX_ACCESS_CMD_SET,
+                                                                                                      port->logical,
+                                                                                                      &sx_port_reserved_buff_attr,
+                                                                                                      1);
         if (SX_ERR(status)) {
             SX_LOG_ERR("Failed to set MC reserved, logical:%x - %s\n", port->logical, SX_STATUS_MSG(status));
             return sdk_to_sai(status);
         }
 
-        sx_port_shared_buff_attr.type = SX_COS_MULTICAST_PORT_ATTR_E;
-        sx_port_shared_buff_attr.attr.multicast_port_shared_buff_attr.pool_id = g_sai_buffer_db_ptr->buffer_pool_ids.default_multicast_pool_id;
-        sx_port_shared_buff_attr.attr.multicast_port_shared_buff_attr.max.mode = SX_COS_BUFFER_MAX_MODE_BUFFER_UNITS_E;
+        sx_port_shared_buff_attr.type                                         = SX_COS_MULTICAST_PORT_ATTR_E;
+        sx_port_shared_buff_attr.attr.multicast_port_shared_buff_attr.pool_id =
+            g_sai_buffer_db_ptr->buffer_pool_ids.default_multicast_pool_id;
+        sx_port_shared_buff_attr.attr.multicast_port_shared_buff_attr.max.mode =
+            SX_COS_BUFFER_MAX_MODE_BUFFER_UNITS_E;
         sx_port_shared_buff_attr.attr.multicast_port_shared_buff_attr.max.max.size = 0;
-        status = sx_api_cos_port_shared_buff_type_set(gh_sdk, SX_ACCESS_CMD_SET, port->logical, &sx_port_shared_buff_attr, 1);
+        status                                                                     =
+            sx_api_cos_port_shared_buff_type_set(gh_sdk, SX_ACCESS_CMD_SET, port->logical, &sx_port_shared_buff_attr,
+                                                 1);
         if (SX_ERR(status)) {
             SX_LOG_ERR("Failed to set MC shared, logical:%x - %s\n", port->logical, SX_STATUS_MSG(status));
             return sdk_to_sai(status);
@@ -7870,20 +7885,20 @@ static mlnx_port_config_t * mlnx_port_by_module(uint32_t module)
 /* TODO: replace with cap_num_local_ports_in_2x when available */
 static uint32_t mlnx_platform_num_local_ports_in_2x_get(void)
 {
-    // SPC2 non gearbox is step 2, all the rest 1
+    /* SPC2 non gearbox is step 2, all the rest 1 */
     if (mlnx_chip_is_spc2()) {
         if (g_sai_db_ptr->platform_type != MLNX_PLATFORM_TYPE_3800) {
             return 2;
         }
     }
-    
+
     return 1;
 }
 
 /* TODO: replace with cap_num_local_ports_in_4x when available */
 static uint32_t mlnx_platform_num_local_ports_in_4x_get(void)
 {
-    // SPC2 non gearbox is step 4 all the rest 2
+    /* SPC2 non gearbox is step 4 all the rest 2 */
     if (mlnx_chip_is_spc2()) {
         if (g_sai_db_ptr->platform_type != MLNX_PLATFORM_TYPE_3800) {
             return 4;
@@ -7905,11 +7920,9 @@ static mlnx_port_config_t * mlnx_port_split_idx_to_local_port(_In_ const mlnx_po
 
     if (lane_count == 2) {
         step = mlnx_platform_num_local_ports_in_2x_get();
-    }
-    else if (lane_count == 4) {
+    } else if (lane_count == 4) {
         step = mlnx_platform_num_local_ports_in_4x_get();
-    }
-    else {
+    } else {
         step = 1;
     }
 
@@ -7997,7 +8010,7 @@ static sai_status_t mlnx_create_port(_Out_ sai_object_id_t     * port_id,
     const sai_attribute_value_t *attr_ing_acl      = NULL;
     const sai_attribute_value_t *attr_egr_acl      = NULL;
     const sai_attribute_value_t *egress_block_list = NULL;
-    const sai_attribute_value_t *value     = NULL;
+    const sai_attribute_value_t *value             = NULL;
     const sai_attribute_value_t *fec;
     char                         list_str[MAX_LIST_VALUE_STR_LEN];
     uint32_t                     speed_index, fec_index, lane_index, acl_attr_index;
@@ -8203,7 +8216,9 @@ static sai_status_t mlnx_create_port(_Out_ sai_object_id_t     * port_id,
 
     status = find_attrib_in_list(attr_count, attr_list, SAI_PORT_ATTR_ADMIN_STATE, &value, &index);
     if (status == SAI_STATUS_SUCCESS) {
-        sx_status = sx_api_port_state_set(gh_sdk, new_port->logical, value->booldata ? SX_PORT_ADMIN_STATUS_UP : SX_PORT_ADMIN_STATUS_DOWN);
+        sx_status = sx_api_port_state_set(gh_sdk,
+                                          new_port->logical,
+                                          value->booldata ? SX_PORT_ADMIN_STATUS_UP : SX_PORT_ADMIN_STATUS_DOWN);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to set port admin state - %s.\n", SX_STATUS_MSG(sx_status));
             status = sdk_to_sai(sx_status);
@@ -8283,7 +8298,11 @@ static sai_status_t mlnx_create_port(_Out_ sai_object_id_t     * port_id,
         }
     }
 
-    status = find_attrib_in_list(attr_count, attr_list, SAI_PORT_ATTR_BROADCAST_STORM_CONTROL_POLICER_ID, &value, &index);
+    status = find_attrib_in_list(attr_count,
+                                 attr_list,
+                                 SAI_PORT_ATTR_BROADCAST_STORM_CONTROL_POLICER_ID,
+                                 &value,
+                                 &index);
     if (status == SAI_STATUS_SUCCESS) {
         status = mlnx_sai_policer_bind_set_impl(new_port->saiport, value->oid, MLNX_PORT_POLICER_TYPE_BROADCAST_INDEX);
         if (SAI_ERR(status)) {
@@ -8291,7 +8310,11 @@ static sai_status_t mlnx_create_port(_Out_ sai_object_id_t     * port_id,
         }
     }
 
-    status = find_attrib_in_list(attr_count, attr_list, SAI_PORT_ATTR_MULTICAST_STORM_CONTROL_POLICER_ID, &value, &index);
+    status = find_attrib_in_list(attr_count,
+                                 attr_list,
+                                 SAI_PORT_ATTR_MULTICAST_STORM_CONTROL_POLICER_ID,
+                                 &value,
+                                 &index);
     if (status == SAI_STATUS_SUCCESS) {
         status = mlnx_sai_policer_bind_set_impl(new_port->saiport, value->oid, MLNX_PORT_POLICER_TYPE_MULTICAST_INDEX);
         if (SAI_ERR(status)) {
@@ -8411,9 +8434,15 @@ static sai_status_t mlnx_create_port(_Out_ sai_object_id_t     * port_id,
         }
     }
 
-    status = find_attrib_in_list(attr_count, attr_list, SAI_PORT_ATTR_QOS_PFC_PRIORITY_TO_PRIORITY_GROUP_MAP, &value, &index);
+    status = find_attrib_in_list(attr_count,
+                                 attr_list,
+                                 SAI_PORT_ATTR_QOS_PFC_PRIORITY_TO_PRIORITY_GROUP_MAP,
+                                 &value,
+                                 &index);
     if (status == SAI_STATUS_SUCCESS) {
-        status = mlnx_port_qos_map_id_set_impl(new_port->saiport, value->oid, SAI_QOS_MAP_TYPE_PFC_PRIORITY_TO_PRIORITY_GROUP);
+        status = mlnx_port_qos_map_id_set_impl(new_port->saiport,
+                                               value->oid,
+                                               SAI_QOS_MAP_TYPE_PFC_PRIORITY_TO_PRIORITY_GROUP);
         if (SAI_ERR(status)) {
             goto out_unlock;
         }

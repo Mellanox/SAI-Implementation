@@ -531,7 +531,7 @@ static sai_status_t mlnx_create_router_interface(_Out_ sai_object_id_t      *rif
     mlnx_rif_db_t               *rif_db_data;
     mlnx_shm_rm_array_idx_t      db_idx = MLNX_SHM_RM_ARRAY_IDX_UNINITIALIZED;
     const sai_attribute_value_t *type, *vrid, *port = NULL, *vlan = NULL, *mtu, *mac, *adminv4, *adminv6, *mcastv4,
-                                *mcastv6;
+    *mcastv6;
     const sai_attribute_value_t *loopback_action = NULL, *outer_vlan = NULL;
     uint32_t                     type_index, vrid_index, port_index, vlan_index, mtu_index, mac_index, adminv4_index,
                                  adminv6_index, vrid_data, acl_attr_index, loopback_action_index, attr_index,

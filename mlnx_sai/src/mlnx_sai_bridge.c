@@ -129,7 +129,7 @@ static const sai_vendor_attribute_entry_t bridge_vendor_attribs[] = {
       NULL, NULL }
 };
 static const mlnx_attr_enum_info_t        bridge_enum_info[] = {
-    [SAI_BRIDGE_ATTR_TYPE] = ATTR_ENUM_VALUES_ALL(),
+    [SAI_BRIDGE_ATTR_TYPE]                               = ATTR_ENUM_VALUES_ALL(),
     [SAI_BRIDGE_ATTR_UNKNOWN_UNICAST_FLOOD_CONTROL_TYPE] = ATTR_ENUM_VALUES_LIST(
         SAI_BRIDGE_FLOOD_CONTROL_TYPE_SUB_PORTS,
         SAI_BRIDGE_FLOOD_CONTROL_TYPE_L2MC_GROUP,
@@ -3000,10 +3000,10 @@ static sai_status_t mlnx_remove_bridge_port(_In_ sai_object_id_t bridge_port_id)
     case SAI_BRIDGE_PORT_TYPE_PORT:
         if (!port->admin_state) {
             /* Try to lookup phy port by same logical id as bridge port, which means that
-            * port is bridged with SAI_BRIDGE_PORT_TYPE_PORT via .1Q bridge, if it is bridged then
-            * we set admin state according to the phy port only. If bridge port state was up nothing to do, 
-            * as the admin already equals the port setting (AND). Only in bridge port state was down and 
-            * port state up case, we need to apply up to the port */
+             * port is bridged with SAI_BRIDGE_PORT_TYPE_PORT via .1Q bridge, if it is bridged then
+             * we set admin state according to the phy port only. If bridge port state was up nothing to do,
+             * as the admin already equals the port setting (AND). Only in bridge port state was down and
+             * port state up case, we need to apply up to the port */
             status = mlnx_port_by_log_id_soft(port->logical, &port_config);
             if (!SAI_ERR(status)) {
                 if (port_config->admin_state) {

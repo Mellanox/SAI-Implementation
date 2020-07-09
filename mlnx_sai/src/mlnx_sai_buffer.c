@@ -1942,19 +1942,8 @@ static sai_status_t mlnx_sai_buffer_compute_shared_size(_In_ sai_object_id_t    
                 }
                 break;
 
-            case SX_COS_MULTICAST_PORT_ATTR_E:
-            case SX_COS_PORT_BUFF_ATTR_RESERVED1_E:
-            case SX_COS_PORT_BUFF_ATTR_RESERVED2_E:
-            case SX_COS_PORT_BUFF_ATTR_RESERVED3_E:
-            case SX_COS_PORT_BUFF_ATTR_RESERVED4_E:
-                break;
-
             default:
-                SX_LOG_ERR("Invalid buffer type specified:%d buff index %d\n",
-                           sx_port_reserved_buff_attr_arr[buff_ind].type,
-                           buff_ind);
-                SX_LOG_EXIT();
-                return SAI_STATUS_FAILURE;
+                break;
             }
         }
     }
@@ -2669,7 +2658,7 @@ static sai_status_t mlnx_sai_buffer_prepare_affected_buffers(_In_ mlnx_sai_buffe
                                                                                                           ->
                                                                                                           buffer_pool_ids
                                                                                                           .
-                base_ingress_user_sx_pool_id;
+                                                                                                          base_ingress_user_sx_pool_id;
                 sx_port_shared_buff_attr_arr[cos_buffer_ind].type =
                     SX_COS_INGRESS_PORT_ATTR_E;
                 cos_buffer_ind++;
@@ -2708,7 +2697,7 @@ static sai_status_t mlnx_sai_buffer_prepare_affected_buffers(_In_ mlnx_sai_buffe
                                                                                                          ->
                                                                                                          buffer_pool_ids
                                                                                                          .
-                base_egress_user_sx_pool_id;
+                                                                                                         base_egress_user_sx_pool_id;
                 sx_port_shared_buff_attr_arr[cos_buffer_ind].type =
                     SX_COS_EGRESS_PORT_ATTR_E;
                 cos_buffer_ind++;
@@ -3407,7 +3396,7 @@ static sai_status_t mlnx_sai_set_buffer_profile_xon_attr(_In_ const sai_object_k
         SX_LOG_EXIT();
         return sai_status;
     }
-    g_sai_buffer_db_ptr->buffer_profiles[db_buffer_profile_index].xon = (uint32_t)value->u64;  
+    g_sai_buffer_db_ptr->buffer_profiles[db_buffer_profile_index].xon = (uint32_t)value->u64;
     if (SAI_STATUS_SUCCESS !=
         (sai_status = mlnx_sai_buffer_apply_buffer_change_to_references(key->key.object_id))) {
         cl_plock_release(&g_sai_db_ptr->p_lock);

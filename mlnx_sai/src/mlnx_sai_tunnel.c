@@ -3959,9 +3959,9 @@ static sai_status_t mlnx_sai_tunnel_1Qbridge_get(_Out_ sx_bridge_id_t *sx_bridge
 }
 
 /* This function needs to be guarded by lock */
-static sai_status_t mlnx_is_tunnel_map_entry_bound_to_tunnel(_In_  sx_tunnel_id_t sx_tunnel_id,
-                                                             _In_  uint32_t       tunnel_map_entry_idx,
-                                                             _Out_ bool          *is_bound)
+static sai_status_t mlnx_is_tunnel_map_entry_bound_to_tunnel(_In_ sx_tunnel_id_t sx_tunnel_id,
+                                                             _In_ uint32_t       tunnel_map_entry_idx,
+                                                             _Out_ bool         *is_bound)
 {
     sai_status_t      sai_status;
     sai_object_id_t   tunnel_map_oid;
@@ -3979,7 +3979,9 @@ static sai_status_t mlnx_is_tunnel_map_entry_bound_to_tunnel(_In_  sx_tunnel_id_
     *is_bound = false;
 
     if (MLNX_TUNNEL_MAP_ENTRY_MAX <= tunnel_map_entry_idx) {
-        SX_LOG_ERR("Tunnel map entry idx %d should be smaller than %d\n", tunnel_map_entry_idx, MLNX_TUNNEL_MAP_ENTRY_MAX);
+        SX_LOG_ERR("Tunnel map entry idx %d should be smaller than %d\n",
+                   tunnel_map_entry_idx,
+                   MLNX_TUNNEL_MAP_ENTRY_MAX);
         SX_LOG_EXIT();
         return SAI_STATUS_FAILURE;
     }
@@ -3988,7 +3990,7 @@ static sai_status_t mlnx_is_tunnel_map_entry_bound_to_tunnel(_In_  sx_tunnel_id_
 
     sai_status = mlnx_tunnel_map_db_param_get(tunnel_map_oid, &mlnx_tunnel_map);
     if (SAI_ERR(sai_status)) {
-        SX_LOG_ERR("Fail to obtain tunnel map db entry from tunnel map oid %"PRIx64"\n", tunnel_map_oid);
+        SX_LOG_ERR("Fail to obtain tunnel map db entry from tunnel map oid %" PRIx64 "\n", tunnel_map_oid);
         SX_LOG_EXIT();
         return SAI_STATUS_FAILURE;
     }
@@ -4000,23 +4002,27 @@ static sai_status_t mlnx_is_tunnel_map_entry_bound_to_tunnel(_In_  sx_tunnel_id_
             SX_LOG_EXIT();
             return SAI_STATUS_FAILURE;
         }
-        curr_sai_tunnel_type = g_sai_tunnel_db_ptr->tunnel_entry_db[curr_tunnel_idx].sai_tunnel_type;
+        curr_sai_tunnel_type   = g_sai_tunnel_db_ptr->tunnel_entry_db[curr_tunnel_idx].sai_tunnel_type;
         curr_sx_tunnel_id_ipv4 = g_sai_tunnel_db_ptr->tunnel_entry_db[curr_tunnel_idx].sx_tunnel_id_ipv4;
         curr_sx_tunnel_id_ipv6 = g_sai_tunnel_db_ptr->tunnel_entry_db[curr_tunnel_idx].sx_tunnel_id_ipv6;
-        curr_ipv4_created = g_sai_tunnel_db_ptr->tunnel_entry_db[curr_tunnel_idx].ipv4_created;
-        curr_ipv6_created = g_sai_tunnel_db_ptr->tunnel_entry_db[curr_tunnel_idx].ipv6_created;
+        curr_ipv4_created      = g_sai_tunnel_db_ptr->tunnel_entry_db[curr_tunnel_idx].ipv4_created;
+        curr_ipv6_created      = g_sai_tunnel_db_ptr->tunnel_entry_db[curr_tunnel_idx].ipv6_created;
         switch (curr_sai_tunnel_type) {
         case SAI_TUNNEL_TYPE_IPINIP:
         case SAI_TUNNEL_TYPE_IPINIP_GRE:
-            if ((curr_ipv4_created && (sx_tunnel_id == curr_sx_tunnel_id_ipv4)) || (curr_ipv6_created && (sx_tunnel_id == curr_sx_tunnel_id_ipv6))) {
+            if ((curr_ipv4_created &&
+                 (sx_tunnel_id == curr_sx_tunnel_id_ipv4)) ||
+                (curr_ipv6_created && (sx_tunnel_id == curr_sx_tunnel_id_ipv6))) {
                 *is_bound = true;
             }
             break;
+
         case SAI_TUNNEL_TYPE_VXLAN:
             if ((curr_ipv4_created && (sx_tunnel_id == curr_sx_tunnel_id_ipv4))) {
                 *is_bound = true;
             }
             break;
+
         default:
             SX_LOG_ERR("Unsupported tunnel type %d for tunnel idx %d\n", curr_sai_tunnel_type, curr_tunnel_idx);
             SX_LOG_EXIT();
@@ -4030,8 +4036,8 @@ static sai_status_t mlnx_is_tunnel_map_entry_bound_to_tunnel(_In_  sx_tunnel_id_
 }
 
 /* This function needs to be guarded by lock */
-sai_status_t mlnx_vrid_to_br_rif_get(_In_  sx_router_id_t         sx_vrid,
-                                     _In_  sx_tunnel_id_t         sx_vxlan_tunnel,
+sai_status_t mlnx_vrid_to_br_rif_get(_In_ sx_router_id_t          sx_vrid,
+                                     _In_ sx_tunnel_id_t          sx_vxlan_tunnel,
                                      _Out_ sx_router_interface_t *br_rif,
                                      _Out_ sx_fid_t              *br_fid)
 {
@@ -4042,7 +4048,7 @@ sai_status_t mlnx_vrid_to_br_rif_get(_In_  sx_router_id_t         sx_vrid,
     sx_bridge_id_t           sx_bridge_id;
     mlnx_tunnel_map_entry_t *curr_tunnel_map_entry;
     mlnx_bridge_rif_t       *curr_bridge_rif_entry;
-    uint32_t                 ii = 0;
+    uint32_t                 ii       = 0;
     bool                     is_bound = false;
 
     SX_LOG_ENTER();
@@ -4083,7 +4089,7 @@ sai_status_t mlnx_vrid_to_br_rif_get(_In_  sx_router_id_t         sx_vrid,
         }
     }
     if (MLNX_TUNNEL_MAP_ENTRY_MAX == ii) {
-        SX_LOG_ERR("Failed to find vr oid key %"PRIx64" in SAI tunnel map entry db\n", vr_oid);
+        SX_LOG_ERR("Failed to find vr oid key %" PRIx64 " in SAI tunnel map entry db\n", vr_oid);
         SX_LOG_EXIT();
         return SAI_STATUS_FAILURE;
     }
@@ -4125,7 +4131,7 @@ sai_status_t mlnx_vrid_to_br_rif_get(_In_  sx_router_id_t         sx_vrid,
         return SAI_STATUS_FAILURE;
     }
 
-    is_bound = false;
+    is_bound   = false;
     sai_status = mlnx_is_tunnel_map_entry_bound_to_tunnel(sx_vxlan_tunnel,
                                                           ii,
                                                           &is_bound);
@@ -4144,7 +4150,7 @@ sai_status_t mlnx_vrid_to_br_rif_get(_In_  sx_router_id_t         sx_vrid,
 
     sai_status = mlnx_bridge_oid_to_id(bridge_oid, &sx_bridge_id);
     if (SAI_ERR(sai_status)) {
-        SX_LOG_ERR("Failed to find sx bridge id using bridge oid %"PRIx64"\n", bridge_oid);
+        SX_LOG_ERR("Failed to find sx bridge id using bridge oid %" PRIx64 "\n", bridge_oid);
         SX_LOG_EXIT();
         return SAI_STATUS_FAILURE;
     }
@@ -4158,7 +4164,7 @@ sai_status_t mlnx_vrid_to_br_rif_get(_In_  sx_router_id_t         sx_vrid,
             return SAI_STATUS_FAILURE;
         }
         if (curr_bridge_rif_entry->is_used &&
-            sx_bridge_id == curr_bridge_rif_entry->intf_params.ifc.bridge.bridge) {
+            (sx_bridge_id == curr_bridge_rif_entry->intf_params.ifc.bridge.bridge)) {
             *br_rif = curr_bridge_rif_entry->sx_data.rif_id;
             *br_fid = sx_bridge_id;
             break;
@@ -5784,13 +5790,15 @@ static sai_status_t mlnx_create_sdk_tunnel(_In_ sai_object_id_t      sai_tunnel_
         }
     } else if (SAI_TUNNEL_TYPE_VXLAN == sai_tunnel_type) {
         sx_tunnel_hash_data.hash_field_type = SX_TUNNEL_HASH_FIELD_TYPE_UDP_SPORT_E;
-        sx_tunnel_hash_data.hash_cmd = SX_TUNNEL_HASH_CMD_CALCULATE_E;
-        sdk_status = sx_api_tunnel_hash_set(gh_sdk,
-                                            sx_tunnel_id_ipv4,
-                                            &sx_tunnel_hash_data);
+        sx_tunnel_hash_data.hash_cmd        = SX_TUNNEL_HASH_CMD_CALCULATE_E;
+        sdk_status                          = sx_api_tunnel_hash_set(gh_sdk,
+                                                                     sx_tunnel_id_ipv4,
+                                                                     &sx_tunnel_hash_data);
         if (SX_STATUS_SUCCESS != sdk_status) {
             sai_status = sdk_to_sai(sdk_status);
-            SX_LOG_ERR("Error setting src port hash for sdk vxlan tunnel %x, sx status: %s\n", sx_tunnel_id_ipv4, SX_STATUS_MSG(sdk_status));
+            SX_LOG_ERR("Error setting src port hash for sdk vxlan tunnel %x, sx status: %s\n",
+                       sx_tunnel_id_ipv4,
+                       SX_STATUS_MSG(sdk_status));
             goto cleanup;
         }
 
