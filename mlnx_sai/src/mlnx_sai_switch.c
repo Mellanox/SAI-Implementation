@@ -2608,7 +2608,7 @@ static sai_status_t mlnx_chassis_mng_stage(mlnx_sai_boot_type_t boot_type,
     sdk_init_params.lag_params.default_lag_hash  = SX_LAG_DEFAULT_LAG_HASH;
 
     sdk_init_params.vlan_params.def_vid     = SX_VLAN_DEFAULT_VID;
-    sdk_init_params.vlan_params.max_swid_id = SX_SWID_ID_MAX;
+    sdk_init_params.vlan_params.max_swid_id = 0;
 
     sdk_init_params.fdb_params.max_mc_group = SX_FDB_MAX_MC_GROUPS;
     sdk_init_params.fdb_params.flood_mode   = FLOOD_PER_VLAN;
@@ -7223,10 +7223,22 @@ static sai_status_t mlnx_switch_ecmp_groups_get(_In_ const sai_object_key_t   *k
                                                 _Inout_ vendor_cache_t        *cache,
                                                 void                          *arg)
 {
+    sx_api_profile_t *ku_profile;
+
     SX_LOG_ENTER();
 
-    /* same as .kvd_linear_size = 0x10000 = 64K */
-    value->u32 = 0x10000;
+    /* On SPC1 adjacencies entries are in KVD linear
+     * On SPC2/3 there is no KVD division, the entire KVD can be used */
+    if (mlnx_chip_is_spc2or3()) {
+        value->u32 = g_resource_limits.kvd_size;
+    }
+    else {
+        ku_profile = mlnx_sai_get_ku_profile();
+        if (!ku_profile) {
+            return SAI_STATUS_FAILURE;
+        }
+        value->u32 = ku_profile->kvd_linear_size;
+    }
 
     SX_LOG_EXIT();
     return SAI_STATUS_SUCCESS;
@@ -8274,12 +8286,10 @@ sai_status_t mlnx_switch_log_set(sx_verbosity_level_t level)
     LOG_VAR_NAME(__MODULE__) = level;
 
     if (gh_sdk) {
-        if (!mlnx_chip_is_spc2or3()) {
-            status = sx_api_issu_log_verbosity_level_set(gh_sdk, SX_LOG_VERBOSITY_BOTH, level, level);
-            if (SX_ERR(status)) {
-                MLNX_SAI_LOG_ERR("Set issu log verbosity failed - %s.\n", SX_STATUS_MSG(status));
-                return sdk_to_sai(status);
-            }
+        status = sx_api_issu_log_verbosity_level_set(gh_sdk, SX_LOG_VERBOSITY_BOTH, level, level);
+        if (SX_ERR(status)) {
+            MLNX_SAI_LOG_ERR("Set issu log verbosity failed - %s.\n", SX_STATUS_MSG(status));
+            return sdk_to_sai(status);
         }
 
         return sdk_to_sai(sx_api_topo_log_verbosity_level_set(gh_sdk, SX_LOG_VERBOSITY_BOTH, level, level));
