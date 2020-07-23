@@ -378,6 +378,11 @@ static sai_status_t mlnx_switch_event_func_get(_In_ const sai_object_key_t   *ke
                                                _In_ uint32_t                  attr_index,
                                                _Inout_ vendor_cache_t        *cache,
                                                void                          *arg);
+static sai_status_t mlnx_switch_type_get(_In_ const sai_object_key_t   *key,
+                                         _Inout_ sai_attribute_value_t *value,
+                                         _In_ uint32_t                  attr_index,
+                                         _Inout_ vendor_cache_t        *cache,
+                                         void                          *arg);
 static sai_status_t mlnx_switch_mode_set(_In_ const sai_object_key_t      *key,
                                          _In_ const sai_attribute_value_t *value,
                                          void                             *arg);
@@ -833,7 +838,7 @@ static const sai_vendor_attribute_entry_t switch_vendor_attribs[] = {
       mlnx_switch_ecmp_groups_get, NULL,
       NULL, NULL },
     { SAI_SWITCH_ATTR_COUNTER_REFRESH_INTERVAL,
-      { false, false, true, true },
+      { false, false, false, false },
       { false, false, true, true },
       mlnx_switch_counter_refresh_get, NULL,
       mlnx_switch_counter_refresh_set, NULL },
@@ -1212,6 +1217,11 @@ static const sai_vendor_attribute_entry_t switch_vendor_attribs[] = {
       { true, false, true, true },
       NULL, NULL,
       mlnx_switch_pre_shutdown_set, NULL },
+    { SAI_SWITCH_ATTR_TYPE,
+      { true, false, false, true },
+      { true, false, false, true },
+      mlnx_switch_type_get, NULL,
+      NULL, NULL },
     { END_FUNCTIONALITY_ATTRIBS_ID,
       { false, false, false, false },
       { false, false, false, false },
@@ -1245,6 +1255,8 @@ static const mlnx_attr_enum_info_t        switch_enum_info[] = {
         SAI_BFD_SESSION_OFFLOAD_TYPE_NONE),
     [SAI_SWITCH_ATTR_SUPPORTED_EXTENDED_STATS_MODE] = ATTR_ENUM_VALUES_ALL(),
     [SAI_SWITCH_ATTR_RESTART_TYPE]                  = ATTR_ENUM_VALUES_ALL(),
+    [SAI_SWITCH_ATTR_TYPE] = ATTR_ENUM_VALUES_LIST(
+        SAI_SWITCH_TYPE_NPU),
 };
 const mlnx_obj_type_attrs_info_t          mlnx_switch_obj_type_info =
 { switch_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(switch_enum_info)};
@@ -8754,6 +8766,20 @@ static sai_status_t mlnx_switch_vxlan_default_router_mac_set(_In_ const sai_obje
                                                              void                             *arg)
 {
     SX_LOG_ENTER();
+
+    SX_LOG_EXIT();
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_switch_type_get(_In_ const sai_object_key_t   *key,
+                                         _Inout_ sai_attribute_value_t *value,
+                                         _In_ uint32_t                  attr_index,
+                                         _Inout_ vendor_cache_t        *cache,
+                                         void                          *arg)
+{
+    SX_LOG_ENTER();
+
+    value->s32 = SAI_SWITCH_TYPE_NPU;
 
     SX_LOG_EXIT();
     return SAI_STATUS_SUCCESS;
