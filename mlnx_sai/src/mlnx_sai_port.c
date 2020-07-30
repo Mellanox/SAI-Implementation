@@ -5182,21 +5182,17 @@ sai_status_t mlnx_get_port_stats_ext(_In_ sai_object_id_t      port_id,
             break;
 
         case SAI_PORT_STAT_IN_DROPPED_PKTS:
-            /*status = mlnx_port_stat_pg_dropped_pkts_get(port_data, cmd, &counters[ii]);
-             *  if (SAI_ERR(status)) {
-             *   return status;
-             *  }*/
-            SX_LOG_INF("Port counter %d set item %u not implemented\n", counter_ids[ii], ii);
-            return SAI_STATUS_NOT_IMPLEMENTED;
+            status = mlnx_port_stat_pg_dropped_pkts_get(port_data, cmd, &counters[ii]);
+            if (SAI_ERR(status)) {
+                return status;
+            }
             break;
 
         case SAI_PORT_STAT_OUT_DROPPED_PKTS:
-            /*status = mlnx_port_stat_tc_dropped_pkts_get(port_data, cmd, &counters[ii]);
-             *  if (SAI_ERR(status)) {
-             *   return status;
-             *  }*/
-            SX_LOG_INF("Port counter %d set item %u not implemented\n", counter_ids[ii], ii);
-            return SAI_STATUS_NOT_IMPLEMENTED;
+            status = mlnx_port_stat_tc_dropped_pkts_get(port_data, cmd, &counters[ii]);
+            if (SAI_ERR(status)) {
+                return status;
+            }
             break;
 
         case SAI_PORT_STAT_IF_OUT_QLEN:
