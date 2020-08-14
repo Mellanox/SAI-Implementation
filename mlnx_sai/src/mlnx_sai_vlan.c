@@ -729,9 +729,12 @@ sai_status_t mlnx_create_vlan(_Out_ sai_object_id_t      *sai_vlan_id,
     mlnx_vlan_db_t              *vlan_db_entry;
     sai_object_id_t              vlan_oid;
     sai_status_t                 status;
+    sx_status_t                  sdk_status;
     const sai_attribute_value_t *attr_ing_acl  = NULL;
     acl_index_t                  ing_acl_index = ACL_INDEX_INVALID;
     uint32_t                     ing_acl_attr_index;
+    sx_vlan_id_t                 sx_vlan_id;
+    uint32_t                     sx_vlan_cnt = 1;
 
     SX_LOG_ENTER();
 
@@ -781,6 +784,13 @@ sai_status_t mlnx_create_vlan(_Out_ sai_object_id_t      *sai_vlan_id,
     if (mlnx_vlan_is_created(vid->u16)) {
         SX_LOG_ERR("VLAN %d is already created\n", vid->u16);
         status = SAI_STATUS_INVALID_ATTR_VALUE_0 + vid_index;
+        goto out;
+    }
+    sx_vlan_id = vid->u16;
+    sdk_status = sx_api_vlan_set(gh_sdk, SX_ACCESS_CMD_ADD, DEFAULT_ETH_SWID, &sx_vlan_id, &sx_vlan_cnt);
+    if (SX_ERR(sdk_status)) {
+        SX_LOG_ERR("Error adding vlan %d: %s\n", sx_vlan_id, SX_STATUS_MSG(sdk_status));
+        status = sdk_to_sai(sdk_status);
         goto out;
     }
 
@@ -910,7 +920,10 @@ static sai_status_t mlnx_remove_vlan(_In_ sai_object_id_t sai_vlan_id)
     mlnx_bridge_port_t *port;
     uint16_t            vlan_id;
     sai_status_t        status;
+    sx_status_t         sdk_status;
     uint32_t            port_idx;
+    sx_vlan_id_t        sx_vlan_id;
+    uint32_t            sx_vlan_cnt = 1;
 
     SX_LOG_ENTER();
 
@@ -959,6 +972,14 @@ static sai_status_t mlnx_remove_vlan(_In_ sai_object_id_t sai_vlan_id)
 
     status = mlnx_fid_flood_ctrl_clear(vlan_id);
     if (SAI_ERR(status)) {
+        goto out;
+    }
+
+    sx_vlan_id = vlan_id;
+    sdk_status = sx_api_vlan_set(gh_sdk, SX_ACCESS_CMD_DELETE, DEFAULT_ETH_SWID, &sx_vlan_id, &sx_vlan_cnt);
+    if (SX_ERR(sdk_status)) {
+        SX_LOG_ERR("Error deleting vlan %d: %s\n", sx_vlan_id, SX_STATUS_MSG(sdk_status));
+        status = sdk_to_sai(sdk_status);
         goto out;
     }
 

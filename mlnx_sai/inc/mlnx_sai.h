@@ -2176,12 +2176,22 @@ typedef struct sai_db {
     mlnx_platform_type_t              platform_type;
     bool                              fx_initialized;
     bool                              fx_pipe_created;
+    bool                              flex_parser_initialized;
+    uint32_t                          fdb_table_size;
+    uint32_t                          route_table_size;
+    uint32_t                          ipv4_route_table_size;
+    uint32_t                          ipv6_route_table_size;
+    uint32_t                          neighbor_table_size;
+    uint32_t                          ipv4_neighbor_table_size;
+    uint32_t                          ipv6_neighbor_table_size;
+    bool                              aggregate_bridge_drops;
     mlnx_mirror_vlan_t                erspan_vlan_header[SPAN_SESSION_MAX];
     mlnx_mirror_policer_t             mirror_policer[SPAN_SESSION_MAX];
     mlnx_l2mc_group_t                 l2mc_groups[MLNX_L2MC_GROUP_DB_SIZE];
     mlnx_debug_counter_trap_t         debug_counter_traps[MLNX_DEBUG_COUNTER_TRAP_DB_SIZE];
     bool                              is_bfd_module_initialized;
     mlnx_shm_pool_t                   shm_pool;
+    /* must be last elemnt, followed by dynamic arrays */
     mlnx_shm_rm_array_info_t          array_info[MLNX_SHM_RM_ARRAY_TYPE_SIZE];
 } sai_db_t;
 
@@ -2436,9 +2446,12 @@ sai_status_t mlnx_sched_hierarchy_foreach(mlnx_port_config_t    *port,
                                           mlnx_sched_obj_iter_t  it,
                                           mlnx_sched_iter_ctx_t *ctx);
 
-#define KV_DEVICE_MAC_ADDRESS "DEVICE_MAC_ADDRESS"
-#define MIN_FAN_PERCENT       30
-#define MAX_FAN_PERCENT       100
+#define KV_DEVICE_MAC_ADDRESS            "DEVICE_MAC_ADDRESS"
+#define SAI_KEY_IPV4_ROUTE_TABLE_SIZE    "SAI_IPV4_ROUTE_TABLE_SIZE"
+#define SAI_KEY_IPV6_ROUTE_TABLE_SIZE    "SAI_IPV6_ROUTE_TABLE_SIZE"
+#define SAI_KEY_IPV4_NEIGHBOR_TABLE_SIZE "SAI_IPV4_NEIGHBOR_TABLE_SIZE"
+#define SAI_KEY_IPV6_NEIGHBOR_TABLE_SIZE "SAI_IPV6_NEIGHBOR_TABLE_SIZE"
+#define SAI_KEY_AGGREGATE_BRIDGE_DROPS   "SAI_AGGREGATE_BRIDGE_DROPS"
 
 #define MLNX_MIRROR_VLAN_TPID           0x8100
 #define MLNX_GRE_PROTOCOL_TYPE          0x8949
