@@ -55,7 +55,7 @@ static const sai_vendor_attribute_entry_t route_vendor_attribs[] = {
       mlnx_route_packet_action_get, NULL,
       mlnx_route_packet_action_set, NULL },
     { SAI_ROUTE_ENTRY_ATTR_USER_TRAP_ID,
-      { true, false, true, true },
+      { false, false, false, false },
       { true, false, true, true },
       mlnx_route_trap_id_get, NULL,
       mlnx_route_trap_id_set, NULL },

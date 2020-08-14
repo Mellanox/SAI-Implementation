@@ -1286,27 +1286,27 @@ static mlnx_acl_sp2_table_db_t                acl_sp2_table_db = {.tables = NULL
 static const mlnx_acl_cb_list_t              *mlnx_acl_cb                       = NULL;
 static const mlnx_acl_single_key_field_info_t mlnx_acl_single_key_fields_info[] = {
     /* L2 */
-    [SAI_ACL_ENTRY_ATTR_FIELD_SRC_MAC]          = MLNX_ACL_FIELD_L2_DEFINE(FLEX_ACL_KEY_SMAC,
-                                                                           smac,
-                                                                           MLNX_ACL_SUPPORTED_CHIP_ANY),
-    [SAI_ACL_ENTRY_ATTR_FIELD_DST_MAC]          = MLNX_ACL_FIELD_L2_DEFINE(FLEX_ACL_KEY_DMAC,
-                                                                           dmac,
-                                                                           MLNX_ACL_SUPPORTED_CHIP_ANY),
-    [SAI_ACL_ENTRY_ATTR_FIELD_ETHER_TYPE]       = MLNX_ACL_FIELD_L2_DEFINE(FLEX_ACL_KEY_ETHERTYPE,
-                                                                           ethertype,
-                                                                           MLNX_ACL_SUPPORTED_CHIP_ANY),
+    [SAI_ACL_ENTRY_ATTR_FIELD_SRC_MAC] = MLNX_ACL_FIELD_L2_DEFINE(FLEX_ACL_KEY_SMAC,
+                                                                  smac,
+                                                                  MLNX_ACL_SUPPORTED_CHIP_ANY),
+    [SAI_ACL_ENTRY_ATTR_FIELD_DST_MAC] = MLNX_ACL_FIELD_L2_DEFINE(FLEX_ACL_KEY_DMAC,
+                                                                  dmac,
+                                                                  MLNX_ACL_SUPPORTED_CHIP_ANY),
+    [SAI_ACL_ENTRY_ATTR_FIELD_ETHER_TYPE] = MLNX_ACL_FIELD_L2_DEFINE(FLEX_ACL_KEY_ETHERTYPE,
+                                                                     ethertype,
+                                                                     MLNX_ACL_SUPPORTED_CHIP_ANY),
     [SAI_ACL_ENTRY_ATTR_FIELD_INNER_ETHER_TYPE] = MLNX_ACL_FIELD_DEFINE(FLEX_ACL_KEY_INNER_ETHERTYPE,
                                                                         inner_ethertype,
                                                                         MLNX_ACL_SUPPORTED_CHIP_ANY),
-    [SAI_ACL_ENTRY_ATTR_FIELD_OUTER_VLAN_ID]    = MLNX_ACL_FIELD_L2_DEFINE_INGRESS(FLEX_ACL_KEY_VLAN_ID,
-                                                                                   vlan_id,
-                                                                                   MLNX_ACL_SUPPORTED_CHIP_ANY),
-    [SAI_ACL_ENTRY_ATTR_FIELD_OUTER_VLAN_PRI]   = MLNX_ACL_FIELD_L2_DEFINE(FLEX_ACL_KEY_PCP,
-                                                                           pcp,
-                                                                           MLNX_ACL_SUPPORTED_CHIP_ANY),
-    [SAI_ACL_ENTRY_ATTR_FIELD_OUTER_VLAN_CFI]   = MLNX_ACL_FIELD_L2_DEFINE(FLEX_ACL_KEY_DEI,
-                                                                           dei,
-                                                                           MLNX_ACL_SUPPORTED_CHIP_ANY),
+    [SAI_ACL_ENTRY_ATTR_FIELD_OUTER_VLAN_ID] = MLNX_ACL_FIELD_L2_DEFINE_INGRESS(FLEX_ACL_KEY_VLAN_ID,
+                                                                                vlan_id,
+                                                                                MLNX_ACL_SUPPORTED_CHIP_ANY),
+    [SAI_ACL_ENTRY_ATTR_FIELD_OUTER_VLAN_PRI] = MLNX_ACL_FIELD_L2_DEFINE(FLEX_ACL_KEY_PCP,
+                                                                         pcp,
+                                                                         MLNX_ACL_SUPPORTED_CHIP_ANY),
+    [SAI_ACL_ENTRY_ATTR_FIELD_OUTER_VLAN_CFI] = MLNX_ACL_FIELD_L2_DEFINE(FLEX_ACL_KEY_DEI,
+                                                                         dei,
+                                                                         MLNX_ACL_SUPPORTED_CHIP_ANY),
     /* [SAI_ACL_ENTRY_ATTR_FIELD_INNER_VLAN_ID] = MLNX_ACL_FIELD_INNER_VLAN_DEFINE(FLEX_ACL_KEY_INNER_VLAN_ID, inner_vlan_id), */
     [SAI_ACL_ENTRY_ATTR_FIELD_INNER_VLAN_PRI] = MLNX_ACL_FIELD_INNER_VLAN_DEFINE(FLEX_ACL_KEY_INNER_PCP,
                                                                                  inner_pcp,
@@ -1327,12 +1327,12 @@ static const mlnx_acl_single_key_field_info_t mlnx_acl_single_key_fields_info[] 
                                                                      dipv6,
                                                                      MLNX_ACL_SUPPORTED_CHIP_ANY),
 
-    [SAI_ACL_ENTRY_ATTR_FIELD_TTL]              = MLNX_ACL_FIELD_IP_DEFINE(FLEX_ACL_KEY_TTL,
-                                                                           ttl,
-                                                                           MLNX_ACL_SUPPORTED_CHIP_ANY),
-    [SAI_ACL_ENTRY_ATTR_FIELD_IP_PROTOCOL]      = MLNX_ACL_FIELD_IPV4_DEFINE(FLEX_ACL_KEY_IP_PROTO,
-                                                                             ip_proto,
-                                                                             MLNX_ACL_SUPPORTED_CHIP_ANY),
+    [SAI_ACL_ENTRY_ATTR_FIELD_TTL] = MLNX_ACL_FIELD_IP_DEFINE(FLEX_ACL_KEY_TTL,
+                                                              ttl,
+                                                              MLNX_ACL_SUPPORTED_CHIP_ANY),
+    [SAI_ACL_ENTRY_ATTR_FIELD_IP_PROTOCOL] = MLNX_ACL_FIELD_IPV4_DEFINE(FLEX_ACL_KEY_IP_PROTO,
+                                                                        ip_proto,
+                                                                        MLNX_ACL_SUPPORTED_CHIP_ANY),
     [SAI_ACL_ENTRY_ATTR_FIELD_IPV6_NEXT_HEADER] = MLNX_ACL_FIELD_IPV6_DEFINE(FLEX_ACL_KEY_IP_PROTO,
                                                                              ip_proto,
                                                                              MLNX_ACL_SUPPORTED_CHIP_ANY),
@@ -1345,12 +1345,12 @@ static const mlnx_acl_single_key_field_info_t mlnx_acl_single_key_fields_info[] 
     [SAI_ACL_ENTRY_ATTR_FIELD_INNER_IP_PROTOCOL] = MLNX_ACL_FIELD_INNER_IP_DEFINE(FLEX_ACL_KEY_INNER_IP_PROTO,
                                                                                   inner_ip_proto,
                                                                                   MLNX_ACL_SUPPORTED_CHIP_ANY),
-    [SAI_ACL_ENTRY_ATTR_FIELD_INNER_SRC_IP]   = MLNX_ACL_FIELD_INNER_IPV4_DEFINE(FLEX_ACL_KEY_INNER_SIP,
-                                                                                 inner_sip,
-                                                                                 MLNX_ACL_SUPPORTED_CHIP_ANY),
-    [SAI_ACL_ENTRY_ATTR_FIELD_INNER_DST_IP]   = MLNX_ACL_FIELD_INNER_IPV4_DEFINE(FLEX_ACL_KEY_INNER_DIP,
-                                                                                 inner_dip,
-                                                                                 MLNX_ACL_SUPPORTED_CHIP_ANY),
+    [SAI_ACL_ENTRY_ATTR_FIELD_INNER_SRC_IP] = MLNX_ACL_FIELD_INNER_IPV4_DEFINE(FLEX_ACL_KEY_INNER_SIP,
+                                                                               inner_sip,
+                                                                               MLNX_ACL_SUPPORTED_CHIP_ANY),
+    [SAI_ACL_ENTRY_ATTR_FIELD_INNER_DST_IP] = MLNX_ACL_FIELD_INNER_IPV4_DEFINE(FLEX_ACL_KEY_INNER_DIP,
+                                                                               inner_dip,
+                                                                               MLNX_ACL_SUPPORTED_CHIP_ANY),
     [SAI_ACL_ENTRY_ATTR_FIELD_INNER_SRC_IPV6] =
         MLNX_ACL_FIELD_INNER_IPV6_DEFINE(FLEX_ACL_KEY_INNER_SIPV6, inner_sipv6, MLNX_ACL_SUPPORTED_CHIP_ANY),
     [SAI_ACL_ENTRY_ATTR_FIELD_INNER_DST_IPV6] =
@@ -1362,15 +1362,15 @@ static const mlnx_acl_single_key_field_info_t mlnx_acl_single_key_fields_info[] 
     [SAI_ACL_ENTRY_ATTR_FIELD_L4_DST_PORT] = MLNX_ACL_FIELD_TCP_UDP_DEFINE(FLEX_ACL_KEY_L4_DESTINATION_PORT,
                                                                            l4_destination_port,
                                                                            MLNX_ACL_SUPPORTED_CHIP_ANY),
-    [SAI_ACL_ENTRY_ATTR_FIELD_TCP_FLAGS]   = MLNX_ACL_FIELD_TCP_DEFINE(FLEX_ACL_KEY_TCP_CONTROL,
-                                                                       tcp_control,
-                                                                       MLNX_ACL_SUPPORTED_CHIP_ANY),
-    [SAI_ACL_ENTRY_ATTR_FIELD_ICMP_CODE]   = MLNX_ACL_FIELD_ICMPV4_DEFINE(FLEX_ACL_KEY_L4_SOURCE_PORT,
-                                                                          l4_source_port,
-                                                                          MLNX_ACL_SUPPORTED_CHIP_ANY),
-    [SAI_ACL_ENTRY_ATTR_FIELD_ICMP_TYPE]   = MLNX_ACL_FIELD_ICMPV4_DEFINE(FLEX_ACL_KEY_L4_SOURCE_PORT,
-                                                                          l4_source_port,
-                                                                          MLNX_ACL_SUPPORTED_CHIP_ANY),
+    [SAI_ACL_ENTRY_ATTR_FIELD_TCP_FLAGS] = MLNX_ACL_FIELD_TCP_DEFINE(FLEX_ACL_KEY_TCP_CONTROL,
+                                                                     tcp_control,
+                                                                     MLNX_ACL_SUPPORTED_CHIP_ANY),
+    [SAI_ACL_ENTRY_ATTR_FIELD_ICMP_CODE] = MLNX_ACL_FIELD_ICMPV4_DEFINE(FLEX_ACL_KEY_L4_SOURCE_PORT,
+                                                                        l4_source_port,
+                                                                        MLNX_ACL_SUPPORTED_CHIP_ANY),
+    [SAI_ACL_ENTRY_ATTR_FIELD_ICMP_TYPE] = MLNX_ACL_FIELD_ICMPV4_DEFINE(FLEX_ACL_KEY_L4_SOURCE_PORT,
+                                                                        l4_source_port,
+                                                                        MLNX_ACL_SUPPORTED_CHIP_ANY),
     [SAI_ACL_ENTRY_ATTR_FIELD_ICMPV6_CODE] = MLNX_ACL_FIELD_ICMPV6_DEFINE(FLEX_ACL_KEY_L4_SOURCE_PORT,
                                                                           l4_source_port,
                                                                           MLNX_ACL_SUPPORTED_CHIP_ANY),
@@ -1394,18 +1394,21 @@ static const mlnx_acl_single_key_field_info_t mlnx_acl_single_key_fields_info[] 
                                        MLNX_ACL_SUPPORTED_CHIP_ANY),
 
     /* Other */
-    [SAI_ACL_ENTRY_ATTR_FIELD_TC]             = MLNX_ACL_FIELD_DEFINE(FLEX_ACL_KEY_SWITCH_PRIO,
-                                                                      switch_prio,
-                                                                      MLNX_ACL_SUPPORTED_CHIP_ANY),
-    [SAI_ACL_ENTRY_ATTR_FIELD_ACL_USER_META]  = MLNX_ACL_FIELD_DEFINE(FLEX_ACL_KEY_USER_TOKEN,
-                                                                      user_token,
-                                                                      MLNX_ACL_SUPPORTED_CHIP_ANY),
+    [SAI_ACL_ENTRY_ATTR_FIELD_TC] = MLNX_ACL_FIELD_DEFINE(FLEX_ACL_KEY_SWITCH_PRIO,
+                                                          switch_prio,
+                                                          MLNX_ACL_SUPPORTED_CHIP_ANY),
+    [SAI_ACL_ENTRY_ATTR_FIELD_ACL_USER_META] = MLNX_ACL_FIELD_DEFINE(FLEX_ACL_KEY_USER_TOKEN,
+                                                                     user_token,
+                                                                     MLNX_ACL_SUPPORTED_CHIP_ANY),
     [SAI_ACL_ENTRY_ATTR_FIELD_ACL_RANGE_TYPE] = MLNX_ACL_FIELD_DEFINE(FLEX_ACL_KEY_L4_PORT_RANGE,
                                                                       l4_port_range,
                                                                       MLNX_ACL_SUPPORTED_CHIP_ANY),
-    [SAI_ACL_ENTRY_ATTR_FIELD_TUNNEL_VNI]     = MLNX_ACL_FIELD_DEFINE(FLEX_ACL_KEY_VNI_KEY,
-                                                                      vni_key,
-                                                                      MLNX_ACL_SUPPORTED_CHIP_ANY),
+    [SAI_ACL_ENTRY_ATTR_FIELD_TUNNEL_VNI] = MLNX_ACL_FIELD_DEFINE(FLEX_ACL_KEY_VNI_KEY,
+                                                                  vni_key,
+                                                                  MLNX_ACL_SUPPORTED_CHIP_ANY),
+    [SAI_ACL_ENTRY_ATTR_FIELD_GRE_KEY] = MLNX_ACL_FIELD_DEFINE(FLEX_ACL_KEY_GRE_KEY,
+                                                               gre_key,
+                                                               MLNX_ACL_SUPPORTED_CHIP_ANY),
 };
 static const size_t                           mlnx_acl_single_key_field_max_id = ARRAY_SIZE(
     mlnx_acl_single_key_fields_info);
@@ -2052,6 +2055,11 @@ static const sai_vendor_attribute_entry_t acl_table_vendor_attribs[] = {
       { true, false, false, true },
       mlnx_acl_table_fields_get, (void*)SAI_ACL_ENTRY_ATTR_FIELD_TUNNEL_VNI,
       NULL, NULL },
+    { SAI_ACL_TABLE_ATTR_FIELD_GRE_KEY,
+      { true, false, false, true },
+      { true, false, false, true },
+      mlnx_acl_table_fields_get, (void*)SAI_ACL_ENTRY_ATTR_FIELD_GRE_KEY,
+      NULL, NULL },
     { SAI_ACL_TABLE_ATTR_ENTRY_LIST,
       { false, false, false, true },
       { false, false, false, true },
@@ -2406,6 +2414,11 @@ static const sai_vendor_attribute_entry_t acl_entry_vendor_attribs[] = {
       { true, false, true, true },
       mlnx_acl_entry_single_key_field_get, (void*)SAI_ACL_ENTRY_ATTR_FIELD_TUNNEL_VNI,
       mlnx_acl_entry_field_set, (void*)SAI_ACL_ENTRY_ATTR_FIELD_TUNNEL_VNI },
+    { SAI_ACL_ENTRY_ATTR_FIELD_GRE_KEY,
+      { true, false, true, true },
+      { true, false, true, true },
+      mlnx_acl_entry_single_key_field_get, (void*)SAI_ACL_ENTRY_ATTR_FIELD_GRE_KEY,
+      mlnx_acl_entry_field_set, (void*)SAI_ACL_ENTRY_ATTR_FIELD_GRE_KEY },
     { SAI_ACL_ENTRY_ATTR_ACTION_REDIRECT,
       { true, false, true, true },
       { true, false, true, true },
@@ -5487,7 +5500,8 @@ static sai_status_t mlnx_acl_entry_single_key_field_get(_In_ const sai_object_ke
            (SAI_ACL_ENTRY_ATTR_FIELD_ICMPV6_TYPE == attr_id) ||
            (SAI_ACL_ENTRY_ATTR_FIELD_TC == attr_id) ||
            (SAI_ACL_ENTRY_ATTR_FIELD_ACL_USER_META == attr_id) ||
-           (SAI_ACL_ENTRY_ATTR_FIELD_BTH_OPCODE == attr_id));
+           (SAI_ACL_ENTRY_ATTR_FIELD_BTH_OPCODE == attr_id) ||
+           (SAI_ACL_ENTRY_ATTR_FIELD_GRE_KEY == attr_id));
 
     status = extract_acl_table_index_and_entry_index(key->key.object_id, &acl_table_index, &acl_entry_index);
     if (SAI_ERR(status)) {
@@ -7249,6 +7263,7 @@ static sai_status_t mlnx_acl_entry_field_set(_In_ const sai_object_key_t      *k
            (SAI_ACL_ENTRY_ATTR_FIELD_TOS == attr_id) ||
            (SAI_ACL_ENTRY_ATTR_FIELD_IP_FLAGS == attr_id) ||
            (SAI_ACL_ENTRY_ATTR_FIELD_BTH_OPCODE == attr_id) ||
+           (SAI_ACL_ENTRY_ATTR_FIELD_GRE_KEY == attr_id) ||
            (SAI_ACL_ENTRY_ATTR_FIELD_ACL_RANGE_TYPE) == attr_id);
 
     status = extract_acl_table_index_and_entry_index(key->key.object_id, &acl_table_index, &acl_entry_index);
