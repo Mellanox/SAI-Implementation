@@ -3794,7 +3794,7 @@ sai_status_t mlnx_translate_sai_trap_action_to_sdk(sai_int32_t       action,
         break;
 
     case SAI_PACKET_ACTION_TRAP:
-        *trap_action = (MLNX_L2_TRAP == is_l2_trap) ? SX_TRAP_ACTION_TRAP_SOFT_DISCARD : SX_TRAP_ACTION_TRAP_2_CPU;
+        *trap_action = ((MLNX_L2_TRAP == is_l2_trap) && (!g_sai_db_ptr->aggregate_bridge_drops)) ? SX_TRAP_ACTION_TRAP_SOFT_DISCARD : SX_TRAP_ACTION_TRAP_2_CPU;
         break;
 
     case SAI_PACKET_ACTION_LOG:

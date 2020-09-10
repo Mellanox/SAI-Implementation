@@ -2600,7 +2600,6 @@ static sai_status_t mlnx_chassis_mng_stage(mlnx_sai_boot_type_t boot_type,
 
     sdk_init_params.vlan_params.def_vid     = SX_VLAN_DEFAULT_VID;
     sdk_init_params.vlan_params.max_swid_id = 0;
-    sdk_init_params.vlan_params.num_of_active_vlans = MAX_VLANS;
 
     sdk_init_params.fdb_params.max_mc_group = SX_FDB_MAX_MC_GROUPS;
     sdk_init_params.fdb_params.flood_mode   = FLOOD_PER_VLAN;
@@ -5261,8 +5260,6 @@ static sai_status_t mlnx_initialize_switch(sai_object_id_t switch_id, bool *tran
     sx_router_attributes_t      router_attr;
     sx_router_id_t              vrid;
     sx_span_init_params_t       span_init_params;
-    sx_vlan_id_t                sx_vlan_id;
-    uint32_t                    sx_vlan_cnt = 1;
 
     memset(&span_init_params, 0, sizeof(sx_span_init_params_t));
 
@@ -5494,14 +5491,6 @@ static sai_status_t mlnx_initialize_switch(sai_object_id_t switch_id, bool *tran
         (sdk_status = sx_api_span_init_set(gh_sdk, &span_init_params))) {
         SX_LOG_ERR("Failed to init SPAN: %s\n", SX_STATUS_MSG(sdk_status));
         return sdk_to_sai(sdk_status);
-    }
-
-    sx_vlan_id = DEFAULT_VLAN;
-    sdk_status = sx_api_vlan_set(gh_sdk, SX_ACCESS_CMD_ADD, DEFAULT_ETH_SWID, &sx_vlan_id, &sx_vlan_cnt);
-    if (SX_ERR(sdk_status)) {
-        SX_LOG_ERR("Error adding vlan %d: %s\n", sx_vlan_id, SX_STATUS_MSG(sdk_status));
-        sai_status = sdk_to_sai(sdk_status);
-        return sai_status;
     }
 
     sai_status = mlnx_bridge_init();
