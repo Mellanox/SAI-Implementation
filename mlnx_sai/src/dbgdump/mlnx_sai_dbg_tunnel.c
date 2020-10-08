@@ -23,12 +23,14 @@ static void SAI_dump_tunnel_getdb(_Out_ mlnx_tunnel_map_entry_t *tunnel_map_entr
                                   _Out_ mlnx_tunnel_map_t       *tunnel_map_db,
                                   _Out_ mlnx_tunnel_entry_t     *tunnel_entry_db,
                                   _Out_ mlnx_tunneltable_t      *tunneltable_db,
+                                  _Out_ mlnx_bmtor_bridge_t     *bmtor_bridge_db,
                                   _Out_ sx_bridge_id_t          *sx_bridge_id)
 {
     assert(NULL != tunnel_map_entry_db);
     assert(NULL != tunnel_map_db);
     assert(NULL != tunnel_entry_db);
     assert(NULL != tunneltable_db);
+    assert(NULL != bmtor_bridge_db);
     assert(NULL != sx_bridge_id);
     assert(NULL != g_sai_db_ptr);
 
@@ -49,6 +51,10 @@ static void SAI_dump_tunnel_getdb(_Out_ mlnx_tunnel_map_entry_t *tunnel_map_entr
     memcpy(tunneltable_db,
            g_sai_tunnel_db_ptr->tunneltable_db,
            MLNX_TUNNELTABLE_SIZE * sizeof(mlnx_tunneltable_t));
+
+    memcpy(bmtor_bridge_db,
+           g_sai_tunnel_db_ptr->bmtor_bridge_db,
+           MLNX_BMTOR_BRIDGE_MAX * sizeof(mlnx_bmtor_bridge_t));
 
     *sx_bridge_id = g_sai_db_ptr->sx_bridge_id;
 
@@ -128,9 +134,10 @@ static void SAI_dump_tunnel_map_entry_print(_In_ FILE *file, _In_ mlnx_tunnel_ma
         {NULL,                        0,  0,              NULL}
     };
     dbg_utils_table_columns_t    tunnelmapentry_pair_clmns[] = {
-        {"vxlan db idx",  16, PARAM_UINT32_E, &jj},
-        {"already bound", 16, PARAM_UINT8_E,  &curr_pair_info.pair_already_bound_to_tunnel},
-        {"pair db idx",   16, PARAM_UINT32_E, &curr_pair_info.pair_tunnel_map_entry_idx},
+        {"vxlan db idx",        16, PARAM_UINT32_E, &jj},
+        {"already bound",       16, PARAM_UINT8_E,  &curr_pair_info.pair_already_bound_to_tunnel},
+        {"pair db idx",         16, PARAM_UINT32_E, &curr_pair_info.pair_tunnel_map_entry_idx},
+        {"bmtor bridge db idx", 20, PARAM_UINT32_E, &curr_pair_info.bmtor_bridge_db_idx},
         {NULL,            0,  0,              NULL}
     };
 
@@ -598,6 +605,41 @@ static void SAI_dump_tunnel_table_print(_In_ FILE *file, _In_ mlnx_tunneltable_t
     }
 }
 
+static void SAI_dump_bmtor_bridge_print(_In_ FILE *file, _In_ mlnx_bmtor_bridge_t *mlnx_bmtor_bridge)
+{
+    uint32_t                  ii     = 0;
+    mlnx_bmtor_bridge_t       curr_mlnx_bmtor_bridge;
+    dbg_utils_table_columns_t bmtor_bridge_clmns[] = {
+        {"db idx",               8,  PARAM_UINT32_E, &ii},
+        {"is default",           11, PARAM_UINT8_E,  &curr_mlnx_bmtor_bridge.is_default},
+        {"vrf oid",              11, PARAM_UINT64_E, &curr_mlnx_bmtor_bridge.connected_vrf_oid},
+        {"bridge oid",           11, PARAM_UINT64_E, &curr_mlnx_bmtor_bridge.bridge_oid},
+        {"rif oid",              11, PARAM_UINT64_E, &curr_mlnx_bmtor_bridge.rif_oid},
+        {"bridge bport oid",     16, PARAM_UINT64_E, &curr_mlnx_bmtor_bridge.bridge_bport_oid},
+        {"tunnel bport oid",     16, PARAM_UINT64_E, &curr_mlnx_bmtor_bridge.tunnel_bport_oid},
+        {"sx vxlan tunnel id",   18, PARAM_UINT32_E, &curr_mlnx_bmtor_bridge.sx_vxlan_tunnel_id},
+        {"vni",                  8,  PARAM_UINT32_E, &curr_mlnx_bmtor_bridge.vni},
+        {"counter",              9,  PARAM_UINT32_E, &curr_mlnx_bmtor_bridge.counter},
+        {NULL,                   0,  0,              NULL}
+    };
+
+    assert(NULL != mlnx_bmtor_bridge);
+
+    dbg_utils_print_general_header(file, "BMTOR bridge");
+
+    dbg_utils_print_secondary_header(file, "mlnx_bmtor_bridge");
+
+    dbg_utils_print_table_headline(file, bmtor_bridge_clmns);
+
+    for (ii = 0; ii < MLNX_BMTOR_BRIDGE_MAX; ii++) {
+        if (mlnx_bmtor_bridge[ii].in_use) {
+            memcpy(&curr_mlnx_bmtor_bridge, &mlnx_bmtor_bridge[ii], sizeof(mlnx_bmtor_bridge_t));
+
+            dbg_utils_print_table_data_line(file, bmtor_bridge_clmns);
+        }
+    }
+}
+
 static void SAI_dump_bridge_print(_In_ FILE *file, _In_ sx_bridge_id_t *sx_bridge_id)
 {
     assert(NULL != sx_bridge_id);
@@ -614,6 +656,7 @@ void SAI_dump_tunnel(_In_ FILE *file)
     mlnx_tunnel_map_t       *tunnel_map_db       = NULL;
     mlnx_tunnel_entry_t     *tunnel_entry_db     = NULL;
     mlnx_tunneltable_t      *tunneltable_db      = NULL;
+    mlnx_bmtor_bridge_t     *bmtor_bridge_db     = NULL;
     sx_bridge_id_t           sx_bridge_id        = 0;
 
     tunnel_map_entry_db =
@@ -621,7 +664,8 @@ void SAI_dump_tunnel(_In_ FILE *file)
     tunnel_map_db   = (mlnx_tunnel_map_t*)calloc(MLNX_TUNNEL_MAP_MAX, sizeof(mlnx_tunnel_map_t));
     tunnel_entry_db = (mlnx_tunnel_entry_t*)calloc(MAX_TUNNEL_DB_SIZE, sizeof(mlnx_tunnel_entry_t));
     tunneltable_db  = (mlnx_tunneltable_t*)calloc(MLNX_TUNNELTABLE_SIZE, sizeof(mlnx_tunneltable_t));
-    if ((!tunnel_map_entry_db) || (!tunnel_map_db) || (!tunnel_entry_db) || (!tunneltable_db)) {
+    bmtor_bridge_db = (mlnx_bmtor_bridge_t*)calloc(MLNX_BMTOR_BRIDGE_MAX, sizeof(mlnx_bmtor_bridge_t));
+    if ((!tunnel_map_entry_db) || (!tunnel_map_db) || (!tunnel_entry_db) || (!tunneltable_db) || (!bmtor_bridge_db)) {
         if (tunnel_map_entry_db) {
             free(tunnel_map_entry_db);
         }
@@ -634,6 +678,9 @@ void SAI_dump_tunnel(_In_ FILE *file)
         if (tunneltable_db) {
             free(tunneltable_db);
         }
+        if (bmtor_bridge_db) {
+            free(bmtor_bridge_db);
+        }
         return;
     }
 
@@ -641,16 +688,19 @@ void SAI_dump_tunnel(_In_ FILE *file)
                           tunnel_map_db,
                           tunnel_entry_db,
                           tunneltable_db,
+                          bmtor_bridge_db,
                           &sx_bridge_id);
     dbg_utils_print_module_header(file, "SAI Tunnel");
     SAI_dump_tunnel_map_entry_print(file, tunnel_map_entry_db);
     SAI_dump_tunnel_map_print(file, tunnel_map_db, tunnel_map_entry_db);
     SAI_dump_tunnel_print(file, tunnel_entry_db);
     SAI_dump_tunnel_table_print(file, tunneltable_db);
+    SAI_dump_bmtor_bridge_print(file, bmtor_bridge_db);
     SAI_dump_bridge_print(file, &sx_bridge_id);
 
     free(tunnel_map_entry_db);
     free(tunnel_map_db);
     free(tunnel_entry_db);
     free(tunneltable_db);
+    free(bmtor_bridge_db);
 }

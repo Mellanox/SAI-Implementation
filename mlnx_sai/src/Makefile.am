@@ -1,7 +1,7 @@
 # Makefile.am -- Process this file with automake to produce Makefile.in
 
 INCLUDES = -I$(top_srcdir) -I$(top_srcdir)/include -I$(srcdir) \
-           -I$(srcdir)/../inc -I$(srcdir)/../inc/sai -I$(srcdir)/../inc/experimental \
+           -I$(srcdir)/../inc -I$(srcdir)/../inc/sai -I$(srcdir)/../inc/experimental -I$(srcdir)/../inc/sdk \
            -I$(APP_LIB_PATH)/include \
            -I$(XML2_LIB_PATH)/include/libxml2 \
 		   -I$(srcdir)/meta
@@ -18,7 +18,7 @@ if CONFIG_SYSLOG
 CFLAGS += -DCONFIG_SYSLOG
 endif
 
-lib_LTLIBRARIES = libfx_base.la libsai.la
+lib_LTLIBRARIES = libfx_base.la libsx_fx_sdk.la libsai.la
 
 dist_data_DATA = sai_1710.xml \
                  sai_2010.xml \
@@ -34,6 +34,7 @@ dist_data_DATA = sai_1710.xml \
                  sai_37001G.xml \
                  sai_3800.xml \
                  sai_380050G.xml \
+                 sai_4410.xml \
                  sai_4600.xml \
                  sai_4600C.xml \
                  sai_4700.xml \
@@ -67,7 +68,6 @@ libsai_la_SOURCES = \
                        dbgdump/mlnx_sai_dbg_wred.c \
                        mlnx_sai_acl.c \
                        mlnx_sai_bfd.c \
-                       mlnx_sai_bmtor.c \
                        mlnx_sai_bridge.c \
                        mlnx_sai_buffer.c \
                        mlnx_sai_debug_counter.c \
@@ -105,9 +105,18 @@ libsai_la_SOURCES = \
 
 libfx_base_la_SOURCES = \
                        fx_base_api.c \
-                       fx_base_range_match.c
+                       fx_base_acl_validation.c \
+                       fx_base_action_init.c \
+                       fx_base_bitmap.c \
+                       fx_base_range_match.c \
+                       fx_base_user_init.c \
+                       fx_parser.c
 
 libfx_base_la_CFLAGS = --std=gnu99 -Wno-sign-compare -Wno-vla -Wno-missing-field-initializers
+
+libsx_fx_sdk_la_CFLAGS = --std=gnu99 -Wno-sign-compare -Wno-vla -Wno-missing-field-initializers
+libsx_fx_sdk_la_SOURCES = sdk/sx_api_bmtor.c
+libsx_fx_sdk_la_LIBADD = -L$(APP_LIB_PATH) -ldl libfx_base.la
 
 if XML2_ELDK5_LA_WA
 SAI_LIBXML2_ADD = ${XML2_LIB_PATH}/lib/libxml2.so
@@ -117,7 +126,7 @@ endif
 
 libsai_la_LIBADD = \
                    -L$(APP_LIB_PATH)/lib -lsxapi -lsw_rm\
-                   ${SAI_LIBXML2_ADD} libfx_base.la
+                   ${SAI_LIBXML2_ADD} libfx_base.la libsx_fx_sdk.la
 
 libsai_apiincludedir = $(includedir)/sai
 libsai_apiinclude_HEADERS = \
@@ -168,7 +177,6 @@ libsai_apiinclude_HEADERS = \
         $(top_srcdir)/inc/sai/saivlan.h \
         $(top_srcdir)/inc/sai/saiwred.h \
 		\
-        $(top_srcdir)/inc/experimental/saiexperimentalbmtor.h \
         $(top_srcdir)/inc/experimental/saiextensions.h \
         $(top_srcdir)/inc/experimental/saiswitchextensions.h \
         $(top_srcdir)/inc/experimental/saitypesextensions.h \
@@ -181,7 +189,10 @@ libsai_apiinclude_HEADERS = \
         $(top_srcdir)/inc/fx_base_range_match.h \
         $(top_srcdir)/inc/mlnx_flex_bitmap.h \
         $(top_srcdir)/inc/mlnx_flex_types.h \
-        $(top_srcdir)/inc/sharedlib.h
+        $(top_srcdir)/inc/sharedlib.h \
+        \
+        $(top_srcdir)/inc/sdk/sx_api_bmtor.h \
+        $(top_srcdir)/inc/sdk/sx_bmtor.h
 
 libsai_api_version=$(shell grep LIBVERSION= $(top_srcdir)/sai_interface.ver | sed 's/LIBVERSION=//')
 libsai_la_LDFLAGS = -version-info $(libsai_api_version)

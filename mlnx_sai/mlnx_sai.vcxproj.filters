@@ -144,9 +144,6 @@
     <ClInclude Include="inc\sai\saiisolationgroup.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="inc\experimental\saiexperimentalbmtor.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="inc\experimental\saiextensions.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -182,6 +179,27 @@
     </ClInclude>
     <ClInclude Include="inc\sai\sainat.h">
       <Filter>Header Files\sai</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\fx_base_action.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\fx_base_action_init.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\fx_base_api_master.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\fx_base_bitmap.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\fx_base_parser.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\sdk\sx_api_bmtor.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\sdk\sx_bmtor.h">
+      <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -344,9 +362,6 @@
     <ClCompile Include="src\fx_base_range_match.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\mlnx_sai_bmtor.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="src\mlnx_sai_debug_counter.c">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -357,6 +372,24 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\dbgdump\mlnx_sai_dbg_bfd.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\fx_base_acl_validation.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\fx_base_action_init.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\fx_base_bitmap.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\fx_base_user_init.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\fx_parser.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\sdk\sx_api_bmtor.c">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

@@ -1651,7 +1651,7 @@ static sai_status_t mlnx_sai_create_buffer_pool(_Out_ sai_object_id_t     * pool
         SX_LOG_EXIT();
         return sai_status;
     }
-    SX_LOG_NTC("Pool attribs, %s\n", list_str);
+    SX_LOG_NTC("Create buffer pool, %s\n", list_str);
     sai_status = find_attrib_in_list(attr_count, attr_list, SAI_BUFFER_POOL_ATTR_TYPE, &attr, &attr_ind);
     assert(SAI_STATUS_SUCCESS == sai_status);
     pool_type  = attr->s32;
@@ -2141,7 +2141,7 @@ static sai_status_t mlnx_sai_create_buffer_profile(_Out_ sai_object_id_t     * b
         SX_LOG_EXIT();
         return sai_status;
     }
-    SX_LOG_NTC("Buffer profile attribs, %s\n", list_str);
+    SX_LOG_NTC("Create buffer profile, %s\n", list_str);
     sai_status = find_attrib_in_list(attr_count, attr_list, SAI_BUFFER_PROFILE_ATTR_POOL_ID, &attr, &attr_ind);
     assert(SAI_STATUS_SUCCESS == sai_status);
 

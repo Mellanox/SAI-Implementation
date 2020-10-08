@@ -724,7 +724,6 @@ static sai_status_t mlnx_remove_stp_port(_In_ sai_object_id_t stp_port_id)
     sai_status_t        status;
 
     SX_LOG_ENTER();
-    SX_LOG_EXIT();
 
     status = sai_to_mlnx_object_id(SAI_OBJECT_TYPE_STP_PORT, stp_port_id, &stp_port_obj_id);
     if (SAI_ERR(status)) {

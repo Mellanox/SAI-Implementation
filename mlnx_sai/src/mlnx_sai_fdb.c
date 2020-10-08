@@ -575,6 +575,8 @@ static sai_status_t mlnx_create_fdb_entry(_In_ const sai_fdb_entry_t* fdb_entry,
         goto out;
     }
 
+    SX_LOG_NTC("Created FDB entry %s\n", key_str);
+
 out:
     SX_LOG_EXIT();
     return status;

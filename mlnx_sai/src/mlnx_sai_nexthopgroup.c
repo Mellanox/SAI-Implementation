@@ -116,6 +116,7 @@ static const sai_vendor_attribute_entry_t next_hop_group_member_vendor_attribs[]
 };
 const mlnx_obj_type_attrs_info_t          mlnx_nh_group_member_obj_type_info =
 { next_hop_group_member_vendor_attribs, OBJ_ATTRS_ENUMS_INFO_EMPTY()};
+static void next_hop_group_member_key_to_str(_In_ sai_object_id_t group_member_id, _Out_ char *key_str);
 static void next_hop_group_key_to_str(_In_ sai_object_id_t next_hop_group_id, _Out_ char *key_str)
 {
     uint32_t groupid;
@@ -636,7 +637,6 @@ static sai_status_t mlnx_create_next_hop_group_member(_Out_ sai_object_id_t     
     uint32_t                     next_hop_count = ECMP_MAX_PATHS;
     sx_next_hop_t                ecmp_next_hops[ECMP_MAX_PATHS];
     char                         list_str[MAX_LIST_VALUE_STR_LEN];
-    char                         value_str[MAX_LIST_VALUE_STR_LEN];
     char                         key_str[MAX_KEY_STR_LEN];
     sx_ecmp_id_t                 group_ecmp_id;
     sx_ecmp_id_t                 nhop_ecmp_id;
@@ -688,10 +688,6 @@ static sai_status_t mlnx_create_next_hop_group_member(_Out_ sai_object_id_t     
         return status;
     }
 
-    next_hop_group_key_to_str(group->oid, key_str);
-    sai_nexthops_to_str(1, &next_hop->oid, MAX_LIST_VALUE_STR_LEN, value_str);
-    SX_LOG_NTC("Add next hop %s to %s\n", value_str, key_str);
-
     status = sx_api_router_ecmp_get(gh_sdk, group_ecmp_id, ecmp_next_hops, &next_hop_count);
     if (SX_ERR(status)) {
         SX_LOG_ERR("Failed to get ecmp - %s.\n", SX_STATUS_MSG(status));
@@ -724,6 +720,9 @@ static sai_status_t mlnx_create_next_hop_group_member(_Out_ sai_object_id_t     
     }
 
     status = nhop_group_member_to_oid(group_ecmp_id, nhop_ecmp_id, next_hop_group_member_id);
+
+    next_hop_group_member_key_to_str(*next_hop_group_member_id, key_str);
+    SX_LOG_NTC("Created next hop group member %s\n", key_str);
 
     SX_LOG_EXIT();
     return status;
