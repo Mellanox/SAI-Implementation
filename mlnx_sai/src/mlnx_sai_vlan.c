@@ -786,12 +786,15 @@ sai_status_t mlnx_create_vlan(_Out_ sai_object_id_t      *sai_vlan_id,
         status = SAI_STATUS_INVALID_ATTR_VALUE_0 + vid_index;
         goto out;
     }
-    sx_vlan_id = vid->u16;
-    sdk_status = sx_api_vlan_set(gh_sdk, SX_ACCESS_CMD_ADD, DEFAULT_ETH_SWID, &sx_vlan_id, &sx_vlan_cnt);
-    if (SX_ERR(sdk_status)) {
-        SX_LOG_ERR("Error adding vlan %d: %s\n", sx_vlan_id, SX_STATUS_MSG(sdk_status));
-        status = sdk_to_sai(sdk_status);
-        goto out;
+
+    if (BOOT_TYPE_WARM != g_sai_db_ptr->boot_type) {
+        sx_vlan_id = vid->u16;
+        sdk_status = sx_api_vlan_set(gh_sdk, SX_ACCESS_CMD_ADD, DEFAULT_ETH_SWID, &sx_vlan_id, &sx_vlan_cnt);
+        if (SX_ERR(sdk_status)) {
+            SX_LOG_ERR("Error adding vlan %d: %s\n", sx_vlan_id, SX_STATUS_MSG(sdk_status));
+            status = sdk_to_sai(sdk_status);
+            goto out;
+        }
     }
 
     status = find_attrib_in_list(attr_count, attr_list, SAI_VLAN_ATTR_INGRESS_ACL, &attr_ing_acl, &ing_acl_attr_index);
@@ -975,12 +978,14 @@ static sai_status_t mlnx_remove_vlan(_In_ sai_object_id_t sai_vlan_id)
         goto out;
     }
 
-    sx_vlan_id = vlan_id;
-    sdk_status = sx_api_vlan_set(gh_sdk, SX_ACCESS_CMD_DELETE, DEFAULT_ETH_SWID, &sx_vlan_id, &sx_vlan_cnt);
-    if (SX_ERR(sdk_status)) {
-        SX_LOG_ERR("Error deleting vlan %d: %s\n", sx_vlan_id, SX_STATUS_MSG(sdk_status));
-        status = sdk_to_sai(sdk_status);
-        goto out;
+    if (BOOT_TYPE_WARM != g_sai_db_ptr->boot_type) {
+        sx_vlan_id = vlan_id;
+        sdk_status = sx_api_vlan_set(gh_sdk, SX_ACCESS_CMD_DELETE, DEFAULT_ETH_SWID, &sx_vlan_id, &sx_vlan_cnt);
+        if (SX_ERR(sdk_status)) {
+            SX_LOG_ERR("Error deletin vlan %d: %s\n", sx_vlan_id, SX_STATUS_MSG(sdk_status));
+            status = sdk_to_sai(sdk_status);
+            goto out;
+        }
     }
 
 out:

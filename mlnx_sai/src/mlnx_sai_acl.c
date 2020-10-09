@@ -2950,6 +2950,7 @@ static sai_status_t mlnx_acl_rpc_client_close(void)
             SX_LOG_ERR("Failed to close ACL RPC socket - %s\n", strerror(errno));
             return SAI_STATUS_FAILURE;
         }
+        rpc_cl_socket = -1;
     }
 #endif
 

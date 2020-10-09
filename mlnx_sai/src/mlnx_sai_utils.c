@@ -255,9 +255,6 @@ extern const mlnx_obj_type_attrs_info_t  mlnx_bridge_obj_type_info;
 extern const mlnx_obj_type_attrs_info_t  mlnx_bridge_port_obj_type_info;
 extern const mlnx_obj_type_attrs_info_t  mlnx_tunnel_map_entry_obj_type_info;
 extern const mlnx_obj_type_attrs_info_t  mlnx_port_pool_obj_type_info;
-extern const mlnx_obj_type_attrs_info_t  mlnx_table_bitmap_classification_entry_obj_type_info;
-extern const mlnx_obj_type_attrs_info_t  mlnx_table_bitmap_router_entry_obj_type_info;
-extern const mlnx_obj_type_attrs_info_t  mlnx_table_meta_tunnel_entry_obj_type_info;
 extern const mlnx_obj_type_attrs_info_t  mlnx_debug_counter_obj_type_info;
 extern const mlnx_obj_type_attrs_info_t  mlnx_bfd_session_obj_type_info;
 static const mlnx_obj_type_attrs_info_t* mlnx_obj_types_info[] = {
@@ -314,9 +311,6 @@ static const mlnx_obj_type_attrs_info_t* mlnx_obj_types_info[] = {
     [SAI_OBJECT_TYPE_BRIDGE_PORT]                       = &mlnx_bridge_port_obj_type_info,
     [SAI_OBJECT_TYPE_TUNNEL_MAP_ENTRY]                  = &mlnx_tunnel_map_entry_obj_type_info,
     [SAI_OBJECT_TYPE_PORT_POOL]                         = &mlnx_port_pool_obj_type_info,
-    [SAI_OBJECT_TYPE_TABLE_BITMAP_CLASSIFICATION_ENTRY] = &mlnx_table_bitmap_classification_entry_obj_type_info,
-    [SAI_OBJECT_TYPE_TABLE_BITMAP_ROUTER_ENTRY]         = &mlnx_table_bitmap_router_entry_obj_type_info,
-    [SAI_OBJECT_TYPE_TABLE_META_TUNNEL_ENTRY]           = &mlnx_table_meta_tunnel_entry_obj_type_info,
     [SAI_OBJECT_TYPE_DEBUG_COUNTER]                     = &mlnx_debug_counter_obj_type_info,
     [SAI_OBJECT_TYPE_BFD_SESSION]                       = &mlnx_bfd_session_obj_type_info,
 };
@@ -2392,6 +2386,7 @@ static sai_status_t set_dispatch_attrib_handler(_In_ const sai_attribute_t      
 
     SX_LOG(log_level, "Set %s, key:%s, val:%s\n", short_attr_name, key_str, value_str);
     status = functionality_vendor_attr[index].setter(key, &(attr->value), functionality_vendor_attr[index].setter_arg);
+    SX_LOG(SX_LOG_INFO, "Set end %s, key:%s\n", short_attr_name, key_str);
 
     SX_LOG_EXIT();
     return status;
@@ -2462,25 +2457,6 @@ static sai_status_t get_dispatch_attribs_handler(_In_ uint32_t                  
 #ifdef ACS_OS
         log_level = SX_LOG_INFO;
 #endif
-
-        status = functionality_vendor_attr[index].getter(key, &(attr_list[ii].value), ii, &cache,
-                                                         vendor_getter_arg);
-        if (SAI_ERR(status)) {
-            if (MLNX_SAI_STATUS_BUFFER_OVERFLOW_EMPTY_LIST == status) {
-                SX_LOG(log_level, "Queried list length %s\n", meta_data->attridname);
-            } else {
-                SX_LOG_ERR("Failed getting attrib %s\n", meta_data->attridname);
-            }
-            SX_LOG_EXIT();
-            return status;
-        }
-
-        if (SAI_ATTR_VALUE_TYPE_QOS_MAP_LIST == meta_data->attrvaluetype) {
-            sai_qos_map_to_str_oid(key->key.object_id, attr_list[ii].value, MAX_VALUE_STR_LEN, value_str);
-        } else {
-            sai_attr_metadata_to_str(meta_data, &attr_list[ii].value, MAX_VALUE_STR_LEN, value_str);
-        }
-
         /* lower log level for ACL counter stats */
         if ((SAI_OBJECT_TYPE_ACL_COUNTER == object_type) &&
             ((SAI_ACL_COUNTER_ATTR_BYTES == attr_id) || (SAI_ACL_COUNTER_ATTR_PACKETS == attr_id))) {
@@ -2493,6 +2469,26 @@ static sai_status_t get_dispatch_attribs_handler(_In_ uint32_t                  
             log_level = SX_LOG_DEBUG;
         }
 #endif
+
+        SX_LOG((log_level == SX_LOG_DEBUG) ? SX_LOG_DEBUG : SX_LOG_INFO, "Get #%u, %s, key:%s\n", ii, short_attr_name, key_str);
+
+        status = functionality_vendor_attr[index].getter(key, &(attr_list[ii].value), ii, &cache,
+                                                         vendor_getter_arg);
+        if (SAI_ERR(status)) {
+            if (MLNX_SAI_STATUS_BUFFER_OVERFLOW_EMPTY_LIST == status) {
+                SX_LOG(log_level, "Got #%u, %s, key:%s, list length\n", ii, short_attr_name, key_str);
+            } else {
+                SX_LOG_ERR("Failed getting attrib %s\n", meta_data->attridname);
+            }
+            SX_LOG_EXIT();
+            return status;
+        }
+
+        if (SAI_ATTR_VALUE_TYPE_QOS_MAP_LIST == meta_data->attrvaluetype) {
+            sai_qos_map_to_str_oid(key->key.object_id, attr_list[ii].value, MAX_VALUE_STR_LEN, value_str);
+        } else {
+            sai_attr_metadata_to_str(meta_data, &attr_list[ii].value, MAX_VALUE_STR_LEN, value_str);
+        }
 
         SX_LOG(log_level, "Got #%u, %s, key:%s, val:%s\n", ii, short_attr_name, key_str, value_str);
     }
@@ -2933,37 +2929,6 @@ sai_status_t mlnx_translate_sdk_ip_prefix_to_sai(_In_ const sx_ip_prefix_t *sdk_
         SX_LOG_ERR("Invalid addr family %d\n", sdk_prefix->version);
         return SAI_STATUS_INVALID_PARAMETER;
     }
-
-    return SAI_STATUS_SUCCESS;
-}
-
-sai_status_t sai_nexthops_to_str(_In_ uint32_t               next_hop_count,
-                                 _In_ const sai_object_id_t* nexthops,
-                                 _In_ uint32_t               max_length,
-                                 _Out_ char                 *str)
-{
-    uint32_t     ii;
-    uint32_t     pos = 0;
-    uint32_t     nexthop_id;
-    sai_status_t status;
-
-    pos += snprintf(str, max_length, "%u hops : [", next_hop_count);
-    if (pos > max_length) {
-        return SAI_STATUS_SUCCESS;
-    }
-    for (ii = 0; ii < next_hop_count; ii++) {
-        if (SAI_STATUS_SUCCESS !=
-            (status = mlnx_object_to_type(nexthops[ii], SAI_OBJECT_TYPE_NEXT_HOP, &nexthop_id, NULL))) {
-            snprintf(str + pos, max_length - pos, " invalid next hop]");
-            return status;
-        }
-
-        pos += snprintf(str + pos, max_length - pos, " %u", nexthop_id);
-        if (pos > max_length) {
-            return SAI_STATUS_SUCCESS;
-        }
-    }
-    snprintf(str + pos, max_length - pos, "]");
 
     return SAI_STATUS_SUCCESS;
 }
@@ -3790,7 +3755,7 @@ sai_status_t mlnx_translate_sai_trap_action_to_sdk(sai_int32_t       action,
         break;
 
     case SAI_PACKET_ACTION_TRAP:
-        *trap_action = (MLNX_L2_TRAP == is_l2_trap) ? SX_TRAP_ACTION_TRAP_SOFT_DISCARD : SX_TRAP_ACTION_TRAP_2_CPU;
+        *trap_action = ((MLNX_L2_TRAP == is_l2_trap) && (!g_sai_db_ptr->aggregate_bridge_drops)) ? SX_TRAP_ACTION_TRAP_SOFT_DISCARD : SX_TRAP_ACTION_TRAP_2_CPU;
         break;
 
     case SAI_PACKET_ACTION_LOG:
@@ -4389,4 +4354,12 @@ void mlnx_fdb_route_action_fetch(_In_ sai_object_type_t type,
     }
 
     sai_db_unlock();
+}
+
+bool mlnx_is_mac_empty(_In_ const sai_mac_t mac)
+{
+    for (int i = 0; i < 6; i++) {
+        if (mac[i]) return false;
+    }
+    return true;
 }

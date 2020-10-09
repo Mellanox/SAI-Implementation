@@ -11,3 +11,4 @@ chmod 777 /usr/lib/pkgconfig/
 chmod 777 /usr/bin/
 chmod 777 /usr/lib/
 chmod 777 /usr/share/
+chmod 777 /usr/include/sai/

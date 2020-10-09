@@ -21,6 +21,9 @@
 #include "mlnx_sai.h"
 #include <saimetadata.h>
 #include <sx/utils/dbg_utils.h>
+#ifndef _WIN32
+#include <libgen.h>
+#endif
 
 #undef  __MODULE__
 #define __MODULE__ SAI_INTERFACE_QUERY
@@ -222,10 +225,6 @@ sai_status_t sai_api_query(_In_ sai_api_t sai_api_id, _Out_ void** api_method_ta
 
     case SAI_API_L2MC_GROUP:
         *(const sai_l2mc_group_api_t**)api_method_table = &mlnx_l2mc_group_api;
-        return SAI_STATUS_SUCCESS;
-
-    case SAI_API_BMTOR:
-        *(const sai_bmtor_api_t**)api_method_table = &mlnx_bmtor_api;
         return SAI_STATUS_SUCCESS;
 
     case SAI_API_DEBUG_COUNTER:
@@ -459,9 +458,6 @@ sai_status_t sai_log_set(_In_ sai_api_t sai_api_id, _In_ sai_log_level_t log_lev
     case SAI_API_L2MC_GROUP:
         return mlnx_l2mc_group_log_set(severity);
 
-    case SAI_API_BMTOR:
-        return mlnx_bmtor_log_set(severity);
-
     case SAI_API_DEBUG_COUNTER:
         return mlnx_debug_counter_log_set(severity);
 
@@ -537,6 +533,7 @@ sai_status_t sai_dbg_generate_dump(_In_ const char *dump_file_name)
 {
     FILE       *file       = NULL;
     sx_status_t sdk_status = SX_STATUS_ERROR;
+    sx_dbg_extra_info_t      dbg_info;
 
     if (!gh_sdk) {
         MLNX_SAI_LOG_ERR("Can't generate debug dump before creating switch\n");
@@ -596,6 +593,19 @@ sai_status_t sai_dbg_generate_dump(_In_ const char *dump_file_name)
     SAI_dump_bfd(file);
 
     fclose(file);
+
+    memset(&dbg_info, 0, sizeof(dbg_info));
+    dbg_info.dev_id = SX_DEVICE_ID;
+    dbg_info.force_db_refresh = true;
+#ifndef _WIN32
+    char *file_name = strdup(dump_file_name);
+    strncpy(dbg_info.path, dirname(file_name), sizeof(dbg_info.path));
+    free(file_name);
+#endif
+    sdk_status = sx_api_dbg_generate_dump_extra(gh_sdk, &dbg_info);
+    if (SX_STATUS_SUCCESS != sdk_status) {
+        MLNX_SAI_LOG_ERR("Error generating extended sdk dump, sx status: %s\n", SX_STATUS_MSG(sdk_status));
+    }
 
     return SAI_STATUS_SUCCESS;
 }

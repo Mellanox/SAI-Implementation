@@ -733,6 +733,7 @@ static sai_status_t mlnx_create_qos_map(_Out_ sai_object_id_t     * qos_map_id,
 {
     const sai_attribute_value_t *type, *list = NULL;
     char                         value_str[MAX_VALUE_STR_LEN];
+    char                         list_str[MAX_LIST_VALUE_STR_LEN];
     uint32_t                     type_index, list_index;
     mlnx_qos_map_t              *qos_map;
     sai_status_t                 status;
@@ -755,6 +756,9 @@ static sai_status_t mlnx_create_qos_map(_Out_ sai_object_id_t     * qos_map_id,
         SX_LOG_ERR("Failed attribs check\n");
         return status;
     }
+
+    sai_attr_list_to_str(attr_count, attr_list, SAI_OBJECT_TYPE_QOS_MAP, MAX_LIST_VALUE_STR_LEN, list_str);
+    SX_LOG_NTC("Create qos map, %s\n", list_str);
 
     status = find_attrib_in_list(attr_count, attr_list, SAI_QOS_MAP_ATTR_TYPE,
                                  &type, &type_index);

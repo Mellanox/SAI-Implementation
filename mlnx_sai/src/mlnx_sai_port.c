@@ -6245,7 +6245,7 @@ static uint32_t mlnx_platform_max_speed_get(void)
         return PORT_SPEED_MAX_SP2;
 
     case SX_CHIP_TYPE_SPECTRUM3:
-        if (g_sai_db_ptr->platform_type == MLNX_PLATFORM_TYPE_4700) {
+        if ((g_sai_db_ptr->platform_type == MLNX_PLATFORM_TYPE_4700) || (g_sai_db_ptr->platform_type == MLNX_PLATFORM_TYPE_4410)) {
             return PORT_SPEED_400;
         }
         if (g_sai_db_ptr->platform_type == MLNX_PLATFORM_TYPE_4600C) {
