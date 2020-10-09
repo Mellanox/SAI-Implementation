@@ -1229,7 +1229,9 @@ static sai_status_t mlnx_rif_attrib_set(_In_ const sai_object_key_t      *key,
     SX_LOG_ENTER();
 
     is_admin_state = attr == SAI_ROUTER_INTERFACE_ATTR_ADMIN_V4_STATE ||
-                     attr == SAI_ROUTER_INTERFACE_ATTR_ADMIN_V6_STATE;
+                     attr == SAI_ROUTER_INTERFACE_ATTR_ADMIN_V6_STATE ||
+                     attr == SAI_ROUTER_INTERFACE_ATTR_V4_MCAST_ENABLE ||
+                     attr == SAI_ROUTER_INTERFACE_ATTR_V6_MCAST_ENABLE;
 
     sai_db_read_lock();
 
@@ -1312,7 +1314,9 @@ static sai_status_t mlnx_rif_attrib_get(_In_ const sai_object_key_t   *key,
     SX_LOG_ENTER();
 
     is_admin_state = attr == SAI_ROUTER_INTERFACE_ATTR_ADMIN_V4_STATE ||
-                     attr == SAI_ROUTER_INTERFACE_ATTR_ADMIN_V6_STATE;
+                     attr == SAI_ROUTER_INTERFACE_ATTR_ADMIN_V6_STATE ||
+                     attr == SAI_ROUTER_INTERFACE_ATTR_V4_MCAST_ENABLE ||
+                     attr == SAI_ROUTER_INTERFACE_ATTR_V6_MCAST_ENABLE;
 
     sai_db_read_lock();
 

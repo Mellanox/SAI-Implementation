@@ -32,7 +32,6 @@
 #include "saiswitchextensions.h"
 
 /* new experimental object type includes */
-#include "saiexperimentalbmtor.h"
 
 /**
  * @brief Extensions to SAI APIs
@@ -43,11 +42,9 @@ typedef enum _sai_api_extensions_t
 {
     SAI_API_EXTENSIONS_RANGE_START = SAI_API_MAX,
 
-    SAI_API_BMTOR = SAI_API_EXTENSIONS_RANGE_START,
-
     /* Add new experimental APIs above this line */
 
-    SAI_API_EXTENSIONS_RANGE_START_END
+    SAI_API_EXTENSIONS_RANGE_START_END = SAI_API_EXTENSIONS_RANGE_START
 
 } sai_api_extensions_t;
 

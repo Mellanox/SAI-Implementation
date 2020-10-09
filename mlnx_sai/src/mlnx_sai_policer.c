@@ -1905,6 +1905,11 @@ uint32_t mlnx_policer_db_free_entries_count(bool is_hostif)
 
     if (is_hostif) {
         rm_limit = g_resource_limits.policer_host_ifc_pool_size;
+        if (mlnx_chip_is_spc2or3()) {
+            /* currently RM reports 64 host ifc policers for SPC2/3, but PRM has only 56. SDK will allow to create 64
+               but FW will fail binding ID over 56. Allocation is done in chunks of 4 so only 48 can be used (#2260871) */
+            rm_limit = 48;
+        }
     } else {
         rm_limit = g_resource_limits.policer_pool_size;
     }

@@ -11,10 +11,9 @@
 #ifndef _FX_BASE_RANGE_MATCH_H_
 #define _FX_BASE_RANGE_MATCH_H_
 
+#include <fx_base_api.h>
 #include <stdint.h>
 #include <stdbool.h>
-#include <stdio.h>
-#include "fx_base_api.h"
 #include <sx/sdk/sx_api.h>
 #include <sx/sdk/sx_api_acl.h>
  

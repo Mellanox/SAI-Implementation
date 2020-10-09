@@ -193,6 +193,8 @@ static sai_status_t mlnx_create_neighbor_entry(_In_ const sai_neighbor_entry_t* 
         return sdk_to_sai(status);
     }
 
+    SX_LOG_NTC("Created neighbor entry %s\n", key_str);
+
     SX_LOG_EXIT();
     return SAI_STATUS_SUCCESS;
 }

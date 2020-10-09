@@ -4615,7 +4615,6 @@ sai_status_t mlnx_get_port_stats_ext(_In_ sai_object_id_t      port_id,
         case SAI_PORT_STAT_IF_IN_OCTETS:
         case SAI_PORT_STAT_IF_IN_UCAST_PKTS:
         case SAI_PORT_STAT_IF_IN_NON_UCAST_PKTS:
-        case SAI_PORT_STAT_IF_IN_DISCARDS:
         case SAI_PORT_STAT_IF_IN_ERRORS:
         case SAI_PORT_STAT_IF_IN_UNKNOWN_PROTOS:
         case SAI_PORT_STAT_IF_IN_BROADCAST_PKTS:
@@ -4627,6 +4626,13 @@ sai_status_t mlnx_get_port_stats_ext(_In_ sai_object_id_t      port_id,
         case SAI_PORT_STAT_IF_OUT_ERRORS:
         case SAI_PORT_STAT_IF_OUT_BROADCAST_PKTS:
         case SAI_PORT_STAT_IF_OUT_MULTICAST_PKTS:
+            cnts_2863_needed = true;
+            break;
+
+        case SAI_PORT_STAT_IF_IN_DISCARDS:
+            if (g_sai_db_ptr->aggregate_bridge_drops) {
+                discard_cnts_needed = true;
+            }
             cnts_2863_needed = true;
             break;
 
@@ -4852,6 +4858,10 @@ sai_status_t mlnx_get_port_stats_ext(_In_ sai_object_id_t      port_id,
 
         case SAI_PORT_STAT_IF_IN_DISCARDS:
             counters[ii] = cnts_2863.if_in_discards;
+            if (g_sai_db_ptr->aggregate_bridge_drops) {
+                counters[ii] += discard_cnts.ingress_general + discard_cnts.ingress_policy_engine + discard_cnts.ingress_vlan_membership +
+                                discard_cnts.ingress_tag_frame_type + discard_cnts.ingress_tx_link_down;
+            }
             break;
 
         case SAI_PORT_STAT_IF_IN_ERRORS:
@@ -5182,21 +5192,17 @@ sai_status_t mlnx_get_port_stats_ext(_In_ sai_object_id_t      port_id,
             break;
 
         case SAI_PORT_STAT_IN_DROPPED_PKTS:
-            /*status = mlnx_port_stat_pg_dropped_pkts_get(port_data, cmd, &counters[ii]);
-             *  if (SAI_ERR(status)) {
-             *   return status;
-             *  }*/
-            SX_LOG_INF("Port counter %d set item %u not implemented\n", counter_ids[ii], ii);
-            return SAI_STATUS_NOT_IMPLEMENTED;
+            status = mlnx_port_stat_pg_dropped_pkts_get(port_data, cmd, &counters[ii]);
+            if (SAI_ERR(status)) {
+                return status;
+            }
             break;
 
         case SAI_PORT_STAT_OUT_DROPPED_PKTS:
-            /*status = mlnx_port_stat_tc_dropped_pkts_get(port_data, cmd, &counters[ii]);
-             *  if (SAI_ERR(status)) {
-             *   return status;
-             *  }*/
-            SX_LOG_INF("Port counter %d set item %u not implemented\n", counter_ids[ii], ii);
-            return SAI_STATUS_NOT_IMPLEMENTED;
+            status = mlnx_port_stat_tc_dropped_pkts_get(port_data, cmd, &counters[ii]);
+            if (SAI_ERR(status)) {
+                return status;
+            }
             break;
 
         case SAI_PORT_STAT_IF_OUT_QLEN:
@@ -6239,7 +6245,7 @@ static uint32_t mlnx_platform_max_speed_get(void)
         return PORT_SPEED_MAX_SP2;
 
     case SX_CHIP_TYPE_SPECTRUM3:
-        if (g_sai_db_ptr->platform_type == MLNX_PLATFORM_TYPE_4700) {
+        if ((g_sai_db_ptr->platform_type == MLNX_PLATFORM_TYPE_4700) || (g_sai_db_ptr->platform_type == MLNX_PLATFORM_TYPE_4410)) {
             return PORT_SPEED_400;
         }
         if (g_sai_db_ptr->platform_type == MLNX_PLATFORM_TYPE_4600C) {
