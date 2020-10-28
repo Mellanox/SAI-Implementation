@@ -683,8 +683,8 @@ static sai_status_t mlnx_ecmp_get_ip(_In_ sx_ecmp_id_t   sdk_ecmp_id,
     }
 
     if (1 != sdk_next_hop_cnt) {
-        SX_LOG_ERR("Invalid next hops count %u\n", sdk_next_hop_cnt);
-        return SAI_STATUS_FAILURE;
+        SX_LOG_DBG("Next hops count != 1, (value: %u)\n", sdk_next_hop_cnt);
+        return SAI_STATUS_SUCCESS;
     }
 
     *ip = sdk_next_hop.next_hop_key.next_hop_key_entry.ip_next_hop.address;
@@ -728,7 +728,7 @@ static sai_status_t mlnx_route_next_hop_id_get_ext(_In_ sx_ecmp_id_t      ecmp,
 
     status = mlnx_ecmp_get_ip(ecmp, &ip);
     if (SAI_ERR(status)) {
-        SX_LOG_ERR("ECMP get IP failed.\n");
+        SX_LOG_ERR("Get ECMP IP failed.\n");
         return status;
     }
 

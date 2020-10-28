@@ -2474,7 +2474,7 @@ static sai_status_t get_dispatch_attribs_handler(_In_ uint32_t                  
         }
 #endif
 
-        SX_LOG((log_level == SX_LOG_DEBUG) ? SX_LOG_DEBUG : SX_LOG_INFO, "Get #%u, %s, key:%s\n", ii, short_attr_name, key_str);
+        SX_LOG(((log_level == SX_LOG_DEBUG) ? SX_LOG_DEBUG : SX_LOG_INFO), "Get #%u, %s, key:%s\n", ii, short_attr_name, key_str);
 
         status = functionality_vendor_attr[index].getter(key, &(attr_list[ii].value), ii, &cache,
                                                          vendor_getter_arg);

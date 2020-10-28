@@ -177,6 +177,7 @@ libsai_apiinclude_HEADERS = \
         $(top_srcdir)/inc/sai/saivlan.h \
         $(top_srcdir)/inc/sai/saiwred.h \
 		\
+        $(top_srcdir)/inc/experimental/saiexperimentalbmtor.h \
         $(top_srcdir)/inc/experimental/saiextensions.h \
         $(top_srcdir)/inc/experimental/saiswitchextensions.h \
         $(top_srcdir)/inc/experimental/saitypesextensions.h \

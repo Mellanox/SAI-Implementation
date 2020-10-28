@@ -207,6 +207,7 @@ extern const sai_tunnel_api_t           mlnx_tunnel_api;
 extern const sai_stp_api_t              mlnx_stp_api;
 extern const sai_udf_api_t              mlnx_udf_api;
 extern const sai_l2mc_group_api_t       mlnx_l2mc_group_api;
+extern const sai_bmtor_api_t            mlnx_bmtor_api;
 extern const sai_debug_counter_api_t    mlnx_debug_counter_api;
 extern const sai_bfd_api_t              mlnx_bfd_api;
 
@@ -806,6 +807,7 @@ sai_status_t mlnx_stp_log_set(sx_verbosity_level_t severity);
 sai_status_t mlnx_bridge_log_set(sx_verbosity_level_t severity);
 sai_status_t mlnx_udf_log_set(sx_verbosity_level_t severity);
 sai_status_t mlnx_l2mc_group_log_set(sx_verbosity_level_t severity);
+sai_status_t mlnx_bmtor_log_set(sx_verbosity_level_t severity);
 sai_status_t mlnx_debug_counter_log_set(sx_verbosity_level_t level);
 sai_status_t mlnx_bfd_log_set(sx_verbosity_level_t level);
 

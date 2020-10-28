@@ -1,7 +1,7 @@
 Mellanox SAI implementation release notes
 ==========================================
 
-Release 1.17.5
+Release 1.17.7
 ---------------
 
 Current implementation is partial. 
