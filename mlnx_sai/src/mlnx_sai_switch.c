@@ -2751,6 +2751,7 @@ static sai_status_t mlnx_chassis_mng_stage(mlnx_sai_boot_type_t boot_type,
         return SAI_STATUS_FAILURE;
     }
 
+    SX_LOG_INF("SDK init set start\n");
     if (SX_STATUS_SUCCESS != (status = sx_api_sdk_init_set(gh_sdk, &sdk_init_params))) {
         SX_LOG_ERR("Failed to initialize SDK (%s)\n", SX_STATUS_MSG(status));
         return sdk_to_sai(status);
@@ -5560,7 +5561,7 @@ static sai_status_t mlnx_initialize_switch(sai_object_id_t switch_id, bool *tran
         sx_vlan_cnt = 1;
         sdk_status = sx_api_vlan_set(gh_sdk, SX_ACCESS_CMD_ADD, DEFAULT_ETH_SWID, sx_vlan_id, &sx_vlan_cnt);
         if (SX_ERR(sdk_status)) {
-            SX_LOG_ERR("Error adding vlan %d: %s\n", sx_vlan_id, SX_STATUS_MSG(sdk_status));
+            SX_LOG_ERR("Error adding vlan %hu: %s\n", sx_vlan_id, SX_STATUS_MSG(sdk_status));
             sai_status = sdk_to_sai(sdk_status);
             return sai_status;
         }
@@ -6559,7 +6560,7 @@ static sai_status_t mlnx_switch_ecmp_hash_param_set_impl(_In_ long              
         break;
 
     default:
-        SX_LOG_ERR("Unexpected attr %d\n", attr_id);
+        SX_LOG_ERR("Unexpected attr %ld\n", attr_id);
         status = SAI_STATUS_FAILURE;
         goto out;
     }
@@ -6645,7 +6646,7 @@ static sai_status_t mlnx_switch_lag_hash_attr_set_impl(_In_ long                
         break;
 
     default:
-        SX_LOG_ERR("Unexpected attr %d\n", attr_id);
+        SX_LOG_ERR("Unexpected attr %ld\n", attr_id);
         status = SAI_STATUS_FAILURE;
         goto out;
     }

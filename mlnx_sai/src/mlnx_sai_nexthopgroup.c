@@ -1136,12 +1136,12 @@ static sai_status_t mlnx_remove_next_hop_group_member(_In_ sai_object_id_t next_
         return status;
     }
 
+    SX_LOG_NTC("Remove next hop %u from next hop group %u\n", sx_nhop_id, sx_group_id);
+
     if (group_type == SAI_NEXT_HOP_GROUP_TYPE_FINE_GRAIN_ECMP) {
-        SX_LOG_DBG("Nothing to do for FG ECMP.\n",sx_group_id, sx_nhop_id);
+        SX_LOG_DBG("Nothing to do for FG ECMP %u %u\n", sx_nhop_id, sx_group_id);
         return SAI_STATUS_SUCCESS;
     }
-
-    SX_LOG_NTC("Remove next hop %u from next hop group %u\n", sx_nhop_id, sx_group_id);
 
     status = sx_api_router_ecmp_get(gh_sdk, sx_group_id, next_hops, &next_hop_count);
     if (SX_ERR(status)) {

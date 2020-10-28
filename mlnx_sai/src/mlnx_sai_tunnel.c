@@ -8181,7 +8181,7 @@ static sai_status_t mlnx_tunnel_get_bmtor_entry_idx(_In_  sai_object_id_t      t
     curr_bmtor_bridge_db_idx = curr_tunnel_map_entry->pair_per_vxlan_array[tunnel_idx].bmtor_bridge_db_idx;
     if (MLNX_BMTOR_BRIDGE_MAX <= curr_bmtor_bridge_db_idx) {
         SX_LOG_DBG("bmtor bridge db idx %d should be smaller than limit %d\n",
-                   bmtor_bridge_db_idx, MLNX_BMTOR_BRIDGE_MAX);
+                   curr_bmtor_bridge_db_idx, MLNX_BMTOR_BRIDGE_MAX);
         SX_LOG_EXIT();
         return SAI_STATUS_FAILURE;
     }

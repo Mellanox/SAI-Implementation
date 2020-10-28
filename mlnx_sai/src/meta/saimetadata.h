@@ -285,6 +285,15 @@ extern const sai_enum_metadata_t sai_metadata_enum_sai_switch_switching_mode_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_switch_type_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_system_port_attr_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_system_port_type_t;
+extern const sai_enum_metadata_t sai_metadata_enum_sai_table_bitmap_classification_entry_action_t;
+extern const sai_enum_metadata_t sai_metadata_enum_sai_table_bitmap_classification_entry_attr_t;
+extern const sai_enum_metadata_t sai_metadata_enum_sai_table_bitmap_classification_entry_stat_t;
+extern const sai_enum_metadata_t sai_metadata_enum_sai_table_bitmap_router_entry_action_t;
+extern const sai_enum_metadata_t sai_metadata_enum_sai_table_bitmap_router_entry_attr_t;
+extern const sai_enum_metadata_t sai_metadata_enum_sai_table_bitmap_router_entry_stat_t;
+extern const sai_enum_metadata_t sai_metadata_enum_sai_table_meta_tunnel_entry_action_t;
+extern const sai_enum_metadata_t sai_metadata_enum_sai_table_meta_tunnel_entry_attr_t;
+extern const sai_enum_metadata_t sai_metadata_enum_sai_table_meta_tunnel_entry_stat_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_tam_attr_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_tam_bind_point_type_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_tam_collector_attr_t;
@@ -344,7 +353,7 @@ extern const size_t sai_metadata_attr_by_object_type_count;
 
 /* Define SAI_OBJECT_TYPE_EXTENSIONS_MAX */
 
-#define SAI_OBJECT_TYPE_EXTENSIONS_MAX ((sai_object_type_t)94)
+#define SAI_OBJECT_TYPE_EXTENSIONS_MAX ((sai_object_type_t)97)
 
 /* Get enum name helper methods */
 
@@ -729,6 +738,24 @@ extern const char* sai_metadata_get_switch_type_name(
 extern const char* sai_metadata_get_system_port_type_name(
     _In_ sai_system_port_type_t value);
 
+extern const char* sai_metadata_get_table_bitmap_classification_entry_action_name(
+    _In_ sai_table_bitmap_classification_entry_action_t value);
+
+extern const char* sai_metadata_get_table_bitmap_classification_entry_stat_name(
+    _In_ sai_table_bitmap_classification_entry_stat_t value);
+
+extern const char* sai_metadata_get_table_bitmap_router_entry_action_name(
+    _In_ sai_table_bitmap_router_entry_action_t value);
+
+extern const char* sai_metadata_get_table_bitmap_router_entry_stat_name(
+    _In_ sai_table_bitmap_router_entry_stat_t value);
+
+extern const char* sai_metadata_get_table_meta_tunnel_entry_action_name(
+    _In_ sai_table_meta_tunnel_entry_action_t value);
+
+extern const char* sai_metadata_get_table_meta_tunnel_entry_stat_name(
+    _In_ sai_table_meta_tunnel_entry_stat_t value);
+
 extern const char* sai_metadata_get_tam_bind_point_type_name(
     _In_ sai_tam_bind_point_type_t value);
 
@@ -825,6 +852,7 @@ extern const sai_struct_member_info_t* const sai_metadata_struct_members_sai_que
 
 extern sai_acl_api_t *sai_metadata_sai_acl_api;
 extern sai_bfd_api_t *sai_metadata_sai_bfd_api;
+extern sai_bmtor_api_t *sai_metadata_sai_bmtor_api;
 extern sai_bridge_api_t *sai_metadata_sai_bridge_api;
 extern sai_buffer_api_t *sai_metadata_sai_buffer_api;
 extern sai_counter_api_t *sai_metadata_sai_counter_api;
@@ -915,11 +943,12 @@ typedef struct _sai_apis_t {
     sai_debug_counter_api_t* debug_counter_api;
     sai_macsec_api_t* macsec_api;
     sai_system_port_api_t* system_port_api;
+    sai_bmtor_api_t* bmtor_api;
 } sai_apis_t;
 
 /* Define SAI_API_EXTENSIONS_MAX */
 
-#define SAI_API_EXTENSIONS_MAX ((sai_api_t)45)
+#define SAI_API_EXTENSIONS_MAX ((sai_api_t)46)
 
 /* SAI API query */
 
@@ -1025,6 +1054,9 @@ extern const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYP
 extern const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_MACSEC_SC;
 extern const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_MACSEC_SA;
 extern const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_SYSTEM_PORT;
+extern const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_TABLE_BITMAP_CLASSIFICATION_ENTRY;
+extern const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_TABLE_BITMAP_ROUTER_ENTRY;
+extern const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_TABLE_META_TUNNEL_ENTRY;
 
 /* Object infos table */
 
@@ -1597,6 +1629,30 @@ extern int sai_serialize_switch_type(
 extern int sai_serialize_system_port_type(
     _Out_ char *buffer,
     _In_ sai_system_port_type_t system_port_type);
+
+extern int sai_serialize_table_bitmap_classification_entry_action(
+    _Out_ char *buffer,
+    _In_ sai_table_bitmap_classification_entry_action_t table_bitmap_classification_entry_action);
+
+extern int sai_serialize_table_bitmap_classification_entry_stat(
+    _Out_ char *buffer,
+    _In_ sai_table_bitmap_classification_entry_stat_t table_bitmap_classification_entry_stat);
+
+extern int sai_serialize_table_bitmap_router_entry_action(
+    _Out_ char *buffer,
+    _In_ sai_table_bitmap_router_entry_action_t table_bitmap_router_entry_action);
+
+extern int sai_serialize_table_bitmap_router_entry_stat(
+    _Out_ char *buffer,
+    _In_ sai_table_bitmap_router_entry_stat_t table_bitmap_router_entry_stat);
+
+extern int sai_serialize_table_meta_tunnel_entry_action(
+    _Out_ char *buffer,
+    _In_ sai_table_meta_tunnel_entry_action_t table_meta_tunnel_entry_action);
+
+extern int sai_serialize_table_meta_tunnel_entry_stat(
+    _Out_ char *buffer,
+    _In_ sai_table_meta_tunnel_entry_stat_t table_meta_tunnel_entry_stat);
 
 extern int sai_serialize_tam_bind_point_type(
     _Out_ char *buffer,
@@ -2515,6 +2571,30 @@ extern int sai_deserialize_switch_type(
 extern int sai_deserialize_system_port_type(
     _In_ const char *buffer,
     _Out_ sai_system_port_type_t *system_port_type);
+
+extern int sai_deserialize_table_bitmap_classification_entry_action(
+    _In_ const char *buffer,
+    _Out_ sai_table_bitmap_classification_entry_action_t *table_bitmap_classification_entry_action);
+
+extern int sai_deserialize_table_bitmap_classification_entry_stat(
+    _In_ const char *buffer,
+    _Out_ sai_table_bitmap_classification_entry_stat_t *table_bitmap_classification_entry_stat);
+
+extern int sai_deserialize_table_bitmap_router_entry_action(
+    _In_ const char *buffer,
+    _Out_ sai_table_bitmap_router_entry_action_t *table_bitmap_router_entry_action);
+
+extern int sai_deserialize_table_bitmap_router_entry_stat(
+    _In_ const char *buffer,
+    _Out_ sai_table_bitmap_router_entry_stat_t *table_bitmap_router_entry_stat);
+
+extern int sai_deserialize_table_meta_tunnel_entry_action(
+    _In_ const char *buffer,
+    _Out_ sai_table_meta_tunnel_entry_action_t *table_meta_tunnel_entry_action);
+
+extern int sai_deserialize_table_meta_tunnel_entry_stat(
+    _In_ const char *buffer,
+    _Out_ sai_table_meta_tunnel_entry_stat_t *table_meta_tunnel_entry_stat);
 
 extern int sai_deserialize_tam_bind_point_type(
     _In_ const char *buffer,

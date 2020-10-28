@@ -2050,7 +2050,7 @@ static sai_status_t mlnx_sai_create_policer(_Out_ sai_object_id_t      *policer_
         return sai_status;
     }
 
-    SX_LOG_NTC("Creating policer with attributes: %s\n", list_str);
+    SX_LOG_NTC("Create policer with attributes: %s\n", list_str);
 
     if (SAI_STATUS_SUCCESS !=
         (sai_status = fill_policer_data(true, attr_count, attr_list, &sai_policer_attr))) {
@@ -2154,7 +2154,7 @@ static sai_status_t mlnx_sai_remove_policer(_In_ sai_object_id_t sai_policer_id)
     }
 
     policer_key_to_str(sai_policer_id, key_str);
-    SX_LOG_NTC("Removing policer %s,:0x%" PRIx64 "\n", key_str, sai_policer_id);
+    SX_LOG_NTC("Remove policer %s,:0x%" PRIx64 "\n", key_str, sai_policer_id);
 
     policer_db_cl_plock_excl_acquire(&g_sai_db_ptr->p_lock);
 

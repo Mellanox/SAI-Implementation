@@ -1199,7 +1199,7 @@ static sai_status_t mlnx_remove_lag(_In_ sai_object_id_t lag_id)
     SX_LOG_ENTER();
 
     lag_key_to_str(lag_id, key_str);
-    SX_LOG_NTC("Removing %s\n", key_str);
+    SX_LOG_NTC("Remove %s\n", key_str);
 
     status = mlnx_object_to_log_port(lag_id, &lag_log_port_id);
     if (SAI_ERR(status)) {
@@ -1566,7 +1566,7 @@ static sai_status_t mlnx_remove_lag_member(_In_ sai_object_id_t lag_member_id)
     SX_LOG_ENTER();
 
     lag_member_key_to_str(lag_member_id, key_str);
-    SX_LOG_NTC("Removing %s\n", key_str);
+    SX_LOG_NTC("Remove %s\n", key_str);
 
     status = sai_to_mlnx_object_id(SAI_OBJECT_TYPE_LAG_MEMBER, lag_member_id, &mlnx_lag_member);
     if (SAI_ERR(status)) {

@@ -1340,7 +1340,7 @@ static sai_status_t mlnx_remove_ingress_priority_group(_In_ sai_object_id_t ingr
 
     pg_key_to_str(ingress_pg_id, key_str);
 
-    SX_LOG_NTC("Removing %s\n", key_str);
+    SX_LOG_NTC("Remove %s\n", key_str);
 
     if (SAI_STATUS_SUCCESS != (status = get_pg_data(ingress_pg_id, &db_port_index, &port_pg_ind))) {
         SX_LOG_EXIT();
@@ -3890,7 +3890,7 @@ sai_status_t mlnx_clear_buffer_pool_stats(_In_ sai_object_id_t      pool_id,
 
     SX_LOG_ENTER();
     pool_key_to_str(pool_id, key_str);
-    SX_LOG_NTC("Clear pool stats %s\n", key_str);
+    SX_LOG_DBG("Clear pool stats %s\n", key_str);
     if (0 == number_of_counters) {
         SX_LOG_ERR("0 number_of_counters array param\n");
         SX_LOG_EXIT();

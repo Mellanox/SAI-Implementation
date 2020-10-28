@@ -1096,7 +1096,7 @@ sai_status_t mlnx_remove_queue(_In_ sai_object_id_t queue_id)
 
     queue_key_to_str(queue_id, key_str);
 
-    SX_LOG_NTC("Removing %s\n", key_str);
+    SX_LOG_NTC("Remove %s\n", key_str);
 
     status = mlnx_queue_parent_sched_node_set(&object_key, &parent_attr, NULL);
     if (SAI_ERR(status)) {

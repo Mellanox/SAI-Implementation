@@ -8764,7 +8764,7 @@ static sai_status_t mlnx_remove_port_pool(_In_ sai_object_id_t port_pool_id)
     SX_LOG_ENTER();
 
     port_pool_key_to_str(port_pool_id, key_str);
-    SX_LOG_NTC("Removing %s\n", key_str);
+    SX_LOG_NTC("Remove %s\n", key_str);
 
     if (SAI_STATUS_SUCCESS !=
         (status = mlnx_object_to_type(port_pool_id, SAI_OBJECT_TYPE_PORT_POOL, &port_id, NULL))) {
