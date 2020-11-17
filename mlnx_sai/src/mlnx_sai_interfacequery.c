@@ -602,9 +602,16 @@ sai_status_t sai_dbg_generate_dump(_In_ const char *dump_file_name)
     strncpy(dbg_info.path, dirname(file_name), sizeof(dbg_info.path));
     free(file_name);
 #endif
-    sdk_status = sx_api_dbg_generate_dump_extra(gh_sdk, &dbg_info);
-    if (SX_STATUS_SUCCESS != sdk_status) {
-        MLNX_SAI_LOG_ERR("Error generating extended sdk dump, sx status: %s\n", SX_STATUS_MSG(sdk_status));
+#define FW_DUMPS 3
+    for (uint32_t ii = 0; ii < FW_DUMPS; ii++) {
+        sdk_status = sx_api_dbg_generate_dump_extra(gh_sdk, &dbg_info);
+        if (SX_STATUS_SUCCESS != sdk_status) {
+            MLNX_SAI_LOG_ERR("Error generating extended sdk dump, sx status: %s\n", SX_STATUS_MSG(sdk_status));
+        }
+        /* sleep one second to ensure new dump file is created, as dump file name is based on time in seconds */
+        if (ii < FW_DUMPS-1) {
+            sleep(1);
+        }
     }
 
     return SAI_STATUS_SUCCESS;
