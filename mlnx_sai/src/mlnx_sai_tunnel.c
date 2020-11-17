@@ -19,6 +19,7 @@
 #include "sai.h"
 #include "mlnx_sai.h"
 #include "assert.h"
+#include <sx/sdk/sx_api_tunnel.h>
 
 #undef  __MODULE__
 #define __MODULE__ SAI_TUNNEL
@@ -514,6 +515,99 @@ static void tunnel_key_to_str(_In_ const sai_object_id_t sai_tunnel_obj_id, _Out
     }
 
     SX_LOG_EXIT();
+}
+
+sai_status_t mlnx_tunnel_availability_get(_In_ sai_object_id_t        switch_id,
+                                          _In_ uint32_t               attr_count,
+                                          _In_ const sai_attribute_t *attr_list,
+                                          _Out_ uint64_t             *count)
+{
+    const int ipinip_sx_tunnel_types[] = {
+        SX_TUNNEL_TYPE_IPINIP_P2P_IPV4_IN_IPV4,
+        SX_TUNNEL_TYPE_IPINIP_P2P_IPV4_IN_IPV6,
+        SX_TUNNEL_TYPE_IPINIP_P2P_IPV6_IN_IPV4,
+        SX_TUNNEL_TYPE_IPINIP_P2P_IPV6_IN_IPV6,
+        SX_TUNNEL_TYPE_IPINIP_P2P_IPV4_IN_GRE,
+        SX_TUNNEL_TYPE_IPINIP_P2P_IPV6_IN_IPV4_WITH_GRE,
+        SX_TUNNEL_TYPE_IPINIP_P2P_IPV4_IN_IPV6_WITH_GRE,
+        SX_TUNNEL_TYPE_IPINIP_P2P_IPV6_IN_GRE,
+        -1
+    }, nve_sx_tunnel_types[] = {
+        SX_TUNNEL_TYPE_NVE_VXLAN,
+        -1
+    };
+
+    sx_status_t        sx_status;
+    sai_tunnel_type_t  tunnel_type;
+    sx_tunnel_filter_t sx_tunnel_filter;
+    uint32_t           ii, sai_db_idx_start, sai_db_idx_end, specific_tunnel_type_count;
+    uint64_t           tunnels_available_sai = 0, tunnels_available_sx = 0;
+    const int         *sx_tunnel_types = NULL;
+
+    assert(attr_list);
+    assert(count);
+
+    if (attr_count != 1) {
+        SX_LOG_ERR("Unexpected attribute list (size != 1)\n");
+        return SAI_STATUS_INVALID_PARAMETER;
+    }
+
+    if (attr_list[0].id != SAI_TUNNEL_ATTR_TYPE) {
+        SX_LOG_ERR("Unexpected attribute %d, expected SAI_TUNNEL_ATTR_TYPE\n", attr_list[0].id);
+        return SAI_STATUS_INVALID_ATTRIBUTE_0;
+    }
+
+    tunnel_type = attr_list[0].value.s32;
+    switch (tunnel_type) {
+    case SAI_TUNNEL_TYPE_IPINIP:
+    case SAI_TUNNEL_TYPE_IPINIP_GRE:
+        sai_db_idx_start = MLNX_MAX_TUNNEL_NVE;
+        sai_db_idx_end = MAX_TUNNEL_DB_SIZE;
+        tunnels_available_sx = MLNX_MAX_TUNNEL_IPINIP;
+        sx_tunnel_types = ipinip_sx_tunnel_types;
+        break;
+
+    case SAI_TUNNEL_TYPE_VXLAN:
+        sai_db_idx_start = 0;
+        sai_db_idx_end = MLNX_MAX_TUNNEL_NVE;
+        tunnels_available_sx = MLNX_MAX_TUNNEL_NVE;
+        sx_tunnel_types = nve_sx_tunnel_types;
+        break;
+
+    case SAI_TUNNEL_TYPE_MPLS:
+        SX_LOG_ERR("Tunnel MPLS type is not supported yet\n");
+        return SAI_STATUS_NOT_IMPLEMENTED;
+
+    default:
+        SX_LOG_ERR("Unsupported tunnel type - %d\n", tunnel_type);
+        return SAI_STATUS_ATTR_NOT_SUPPORTED_0;
+    }
+
+    assert(sx_tunnel_types);
+
+    for (; (*sx_tunnel_types) >= 0; ++sx_tunnel_types) {
+        memset(&sx_tunnel_filter, 0, sizeof(sx_tunnel_filter_t));
+        sx_tunnel_filter.type = *sx_tunnel_types;
+        sx_tunnel_filter.filter_by_type = SX_TUNNEL_KEY_FILTER_FIELD_VALID;
+        sx_tunnel_filter.filter_by_direction = SX_TUNNEL_KEY_FILTER_FIELD_NOT_VALID;
+
+        sx_status = sx_api_tunnel_iter_get(gh_sdk, SX_ACCESS_CMD_GET, 0, &sx_tunnel_filter, NULL, &specific_tunnel_type_count);
+        if (SX_ERR(sx_status)) {
+            SX_LOG_ERR("Failed to get count of sx tunnels type %d - %s\n", *sx_tunnel_types, SX_STATUS_MSG(sx_status));
+            return sdk_to_sai(sx_status);
+        }
+
+        tunnels_available_sx -= (uint64_t)specific_tunnel_type_count;
+    }
+
+    for (ii = sai_db_idx_start; ii < sai_db_idx_end; ++ii) {
+        if (!g_sai_tunnel_db_ptr->tunnel_entry_db[ii].is_used) {
+            ++tunnels_available_sai;
+        }
+    }
+
+   *count = (uint64_t)MIN(tunnels_available_sai, tunnels_available_sx);
+    return SAI_STATUS_SUCCESS;
 }
 
 static void tunnel_term_table_entry_key_to_str(_In_ const sai_object_id_t sai_tunnel_term_table_entry_obj_id,

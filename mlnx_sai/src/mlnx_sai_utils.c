@@ -3716,7 +3716,7 @@ sai_status_t mlnx_utils_attrs_is_resource_check(_In_ sai_object_type_t      obje
     const sai_attr_metadata_t *meta_data;
     uint32_t                   ii;
 
-    assert(attr_list);
+    assert(!attr_count || attr_list);
 
     if (!mlnx_obj_type_attr_info_get(object_type)) {
         SX_LOG_ERR("Invalid object type %d - meta data not found\n", object_type);

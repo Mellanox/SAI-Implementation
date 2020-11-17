@@ -4725,6 +4725,28 @@ sai_status_t mlnx_get_port_stats_ext(_In_ sai_object_id_t      port_id,
             cntr_prio_needed[(counter_ids[ii] - SAI_PORT_STAT_PFC_0_TX_PAUSE_DURATION) / 2] = true;
             break;
 
+        case SAI_PORT_STAT_PFC_0_RX_PAUSE_DURATION_US:
+        case SAI_PORT_STAT_PFC_1_RX_PAUSE_DURATION_US:
+        case SAI_PORT_STAT_PFC_2_RX_PAUSE_DURATION_US:
+        case SAI_PORT_STAT_PFC_3_RX_PAUSE_DURATION_US:
+        case SAI_PORT_STAT_PFC_4_RX_PAUSE_DURATION_US:
+        case SAI_PORT_STAT_PFC_5_RX_PAUSE_DURATION_US:
+        case SAI_PORT_STAT_PFC_6_RX_PAUSE_DURATION_US:
+        case SAI_PORT_STAT_PFC_7_RX_PAUSE_DURATION_US:
+            cntr_prio_needed[(counter_ids[ii] - SAI_PORT_STAT_PFC_0_RX_PAUSE_DURATION_US) / 2] = true;
+            break;
+
+        case SAI_PORT_STAT_PFC_0_TX_PAUSE_DURATION_US:
+        case SAI_PORT_STAT_PFC_1_TX_PAUSE_DURATION_US:
+        case SAI_PORT_STAT_PFC_2_TX_PAUSE_DURATION_US:
+        case SAI_PORT_STAT_PFC_3_TX_PAUSE_DURATION_US:
+        case SAI_PORT_STAT_PFC_4_TX_PAUSE_DURATION_US:
+        case SAI_PORT_STAT_PFC_5_TX_PAUSE_DURATION_US:
+        case SAI_PORT_STAT_PFC_6_TX_PAUSE_DURATION_US:
+        case SAI_PORT_STAT_PFC_7_TX_PAUSE_DURATION_US:
+            cntr_prio_needed[(counter_ids[ii] - SAI_PORT_STAT_PFC_0_TX_PAUSE_DURATION_US) / 2] = true;
+            break;
+
         case SAI_PORT_STAT_IF_IN_VLAN_DISCARDS:
             discard_cnts_needed = true;
             break;
@@ -5093,6 +5115,30 @@ sai_status_t mlnx_get_port_stats_ext(_In_ sai_object_id_t      port_id,
             if (SAI_ERR(status)) {
                 return status;
             }
+            break;
+
+        case SAI_PORT_STAT_PFC_0_RX_PAUSE_DURATION_US:
+        case SAI_PORT_STAT_PFC_1_RX_PAUSE_DURATION_US:
+        case SAI_PORT_STAT_PFC_2_RX_PAUSE_DURATION_US:
+        case SAI_PORT_STAT_PFC_3_RX_PAUSE_DURATION_US:
+        case SAI_PORT_STAT_PFC_4_RX_PAUSE_DURATION_US:
+        case SAI_PORT_STAT_PFC_5_RX_PAUSE_DURATION_US:
+        case SAI_PORT_STAT_PFC_6_RX_PAUSE_DURATION_US:
+        case SAI_PORT_STAT_PFC_7_RX_PAUSE_DURATION_US:
+            counters[ii] =
+                cntr_prio[(counter_ids[ii] - SAI_PORT_STAT_PFC_0_RX_PAUSE_DURATION_US) / 2].rx_pause_duration;
+            break;
+
+        case SAI_PORT_STAT_PFC_0_TX_PAUSE_DURATION_US:
+        case SAI_PORT_STAT_PFC_1_TX_PAUSE_DURATION_US:
+        case SAI_PORT_STAT_PFC_2_TX_PAUSE_DURATION_US:
+        case SAI_PORT_STAT_PFC_3_TX_PAUSE_DURATION_US:
+        case SAI_PORT_STAT_PFC_4_TX_PAUSE_DURATION_US:
+        case SAI_PORT_STAT_PFC_5_TX_PAUSE_DURATION_US:
+        case SAI_PORT_STAT_PFC_6_TX_PAUSE_DURATION_US:
+        case SAI_PORT_STAT_PFC_7_TX_PAUSE_DURATION_US:
+            counters[ii] =
+                cntr_prio[(counter_ids[ii] - SAI_PORT_STAT_PFC_0_TX_PAUSE_DURATION_US) / 2].tx_pause_duration;
             break;
 
         case SAI_PORT_STAT_IF_IN_VLAN_DISCARDS:
@@ -7650,9 +7696,11 @@ sai_status_t mlnx_port_config_uninit(mlnx_port_config_t *port)
     mlnx_policer_bind_params bind_params;
     sx_port_mapping_t        port_map;
     sai_status_t             status;
+    sx_status_t              sx_status;
     sx_vid_t                 pvid;
-    const bool               is_warmboot_init_stage = (BOOT_TYPE_WARM == g_sai_db_ptr->boot_type) &&
-                                                      (!g_sai_db_ptr->issu_end_called);
+    bool                     is_pbhash_acl_rollback_needed = false;
+    const bool               is_warmboot_init_stage        = (BOOT_TYPE_WARM == g_sai_db_ptr->boot_type) &&
+                                                             (!g_sai_db_ptr->issu_end_called);
 
     /* Reset Policer's */
     bind_params.port_policer_type = MLNX_PORT_POLICER_TYPE_FLOOD_INDEX;
@@ -7675,6 +7723,7 @@ sai_status_t mlnx_port_config_uninit(mlnx_port_config_t *port)
     if (SAI_ERR(status)) {
         return status;
     }
+
 
     if (!is_warmboot_init_stage) {
         status = sx_api_vlan_port_pvid_get(gh_sdk, port->logical, &pvid);
@@ -7699,18 +7748,30 @@ sai_status_t mlnx_port_config_uninit(mlnx_port_config_t *port)
         }
     }
 
+    if (g_sai_db_ptr->pbhash_gre) {
+        status = mlnx_pbhash_acl_bind(SX_ACCESS_CMD_DELETE, port->saiport, mlnx_port_is_lag(
+                                          port) ? SAI_OBJECT_TYPE_LAG : SAI_OBJECT_TYPE_PORT);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to unbind PB hash ACL from port 0x%x\n", port->logical);
+            return status;
+        }
+    }
+    is_pbhash_acl_rollback_needed = true;
+
     if (mlnx_port_is_phy(port)) {
         if (!is_warmboot_init_stage) {
-            status = sx_api_port_deinit_set(gh_sdk, port->logical);
-            if (SX_ERR(status)) {
-                SX_LOG_ERR("Port de-init set %x failed - %s\n", port->logical, SX_STATUS_MSG(status));
-                return sdk_to_sai(status);
+            sx_status = sx_api_port_deinit_set(gh_sdk, port->logical);
+            if (SX_ERR(sx_status)) {
+                SX_LOG_ERR("Port de-init set %x failed - %s\n", port->logical, SX_STATUS_MSG(sx_status));
+                status = sdk_to_sai(sx_status);
+                goto out;
             }
 
-            status = sx_api_port_swid_bind_set(gh_sdk, port->logical, SX_SWID_ID_DISABLED);
-            if (SX_ERR(status)) {
-                SX_LOG_ERR("Port swid bind %x failed - %s\n", port->logical, SX_STATUS_MSG(status));
-                return sdk_to_sai(status);
+            sx_status = sx_api_port_swid_bind_set(gh_sdk, port->logical, SX_SWID_ID_DISABLED);
+            if (SX_ERR(sx_status)) {
+                SX_LOG_ERR("Port swid bind %x failed - %s\n", port->logical, SX_STATUS_MSG(sx_status));
+                status = sdk_to_sai(sx_status);
+                goto out;
             }
         }
 
@@ -7721,10 +7782,11 @@ sai_status_t mlnx_port_config_uninit(mlnx_port_config_t *port)
         port_map.lane_bmap    = 0x0;
 
         if (!is_warmboot_init_stage) {
-            status = sx_api_port_mapping_set(gh_sdk, &port->logical, &port_map, 1);
-            if (SX_ERR(status)) {
-                SX_LOG_ERR("Set disable port mapping %x failed - %s\n", port->logical, SX_STATUS_MSG(status));
-                return sdk_to_sai(status);
+            sx_status = sx_api_port_mapping_set(gh_sdk, &port->logical, &port_map, 1);
+            if (SX_ERR(sx_status)) {
+                SX_LOG_ERR("Set disable port mapping %x failed - %s\n", port->logical, SX_STATUS_MSG(sx_status));
+                status = sdk_to_sai(sx_status);
+                goto out;
             }
         }
     }
@@ -7754,7 +7816,7 @@ sai_status_t mlnx_port_config_uninit(mlnx_port_config_t *port)
             /* PG Buff's */
             status = mlnx_sai_get_port_buffer_index_array(port_index, PORT_BUFF_TYPE_PG, &buff_refs);
             if (SAI_ERR(status)) {
-                return status;
+                goto out;
             }
             buff_count = mlnx_sai_get_buffer_resource_limits()->num_port_pg_buff;
             mlnx_port_reset_buffer_refs(buff_refs, buff_count);
@@ -7762,7 +7824,7 @@ sai_status_t mlnx_port_config_uninit(mlnx_port_config_t *port)
             /* Ingress Buff's */
             status = mlnx_sai_get_port_buffer_index_array(port_index, PORT_BUFF_TYPE_INGRESS, &buff_refs);
             if (SAI_ERR(status)) {
-                return status;
+                goto out;
             }
             buff_count = mlnx_sai_get_buffer_resource_limits()->num_ingress_pools;
             mlnx_port_reset_buffer_refs(buff_refs, buff_count);
@@ -7770,7 +7832,7 @@ sai_status_t mlnx_port_config_uninit(mlnx_port_config_t *port)
             /* Egress Buff's */
             status = mlnx_sai_get_port_buffer_index_array(port_index, PORT_BUFF_TYPE_EGRESS, &buff_refs);
             if (SAI_ERR(status)) {
-                return status;
+                goto out;
             }
             buff_count = mlnx_sai_get_buffer_resource_limits()->num_egress_pools;
             mlnx_port_reset_buffer_refs(buff_refs, buff_count);
@@ -7783,6 +7845,13 @@ sai_status_t mlnx_port_config_uninit(mlnx_port_config_t *port)
         }
     }
 
+out:
+    if (SAI_ERR(status)) {
+        if (g_sai_db_ptr->pbhash_gre && is_pbhash_acl_rollback_needed) {
+            mlnx_pbhash_acl_bind(SX_ACCESS_CMD_ADD, port->saiport, mlnx_port_is_lag(
+                                 port) ? SAI_OBJECT_TYPE_LAG : SAI_OBJECT_TYPE_PORT);
+        }
+    }
     return status;
 }
 
@@ -8166,6 +8235,13 @@ static sai_status_t mlnx_create_port(_Out_ sai_object_id_t     * port_id,
     status = mlnx_port_add(new_port, false);
     if (SAI_ERR(status)) {
         goto out_unlock;
+    }
+
+    if (g_sai_db_ptr->pbhash_gre) {
+        status = mlnx_pbhash_acl_bind(SX_ACCESS_CMD_ADD, new_port->saiport, SAI_OBJECT_TYPE_PORT);
+        if (SAI_ERR(status)) {
+            goto out_unlock;
+        }
     }
 
     /* If split port is already a LAG member, do not apply hash config to the split port,
@@ -9095,6 +9171,41 @@ static sai_status_t mlnx_clear_port_pool_stats(_In_ sai_object_id_t      port_po
         return sdk_to_sai(status);
     }
 
+    SX_LOG_EXIT();
+    return SAI_STATUS_SUCCESS;
+}
+
+/**
+ * @brief Bind/unbind policy based hash ACL to the port.
+ *
+ * @param[in] cmd         Bind/Unbind command
+ * @param[in] sx_port_id  Port id
+ * @param[in] types       Object type(port/LAG)
+ *
+ * @return #SAI_STATUS_SUCCESS on success, failure status code on error
+ */
+sai_status_t mlnx_pbhash_acl_bind(_In_ sx_access_cmd_t   cmd,
+                                  _In_ sai_object_id_t   sai_port_id,
+                                  _In_ sai_object_type_t type)
+{
+    sai_status_t     status;
+    sx_port_log_id_t sx_port_id;
+
+    SX_LOG_ENTER();
+
+    status = mlnx_object_to_log_port(sai_port_id, &sx_port_id);
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+    status = sx_api_acl_port_bind_set(gh_sdk, cmd, sx_port_id, g_sai_db_ptr->hash_acl_id);
+    if (SX_ERR(status)) {
+        SX_LOG_ERR("Failed to %s BP hash ACL to port(%x). %s\n",
+                   cmd == SX_ACCESS_CMD_DELETE ? "unbind" : "bind",
+                   sx_port_id,
+                   SX_STATUS_MSG(status));
+        return sdk_to_sai(status);
+    }
     SX_LOG_EXIT();
     return SAI_STATUS_SUCCESS;
 }

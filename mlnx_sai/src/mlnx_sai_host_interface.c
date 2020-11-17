@@ -3557,6 +3557,17 @@ static sai_status_t mlnx_send_hostif_packet(_In_ sai_object_id_t        hif_id,
     return SAI_STATUS_SUCCESS;
 }
 
+sai_status_t mlnx_hostif_trap_group_availability_get(_In_ sai_object_id_t        switch_id,
+                                                     _In_ uint32_t               attr_count,
+                                                     _In_ const sai_attribute_t *attr_list,
+                                                     _Out_ uint64_t             *count)
+{
+    assert(count);
+
+    *count = (uint64_t)mlnx_hostif_trap_group_db_free_entries_count();
+    return SAI_STATUS_SUCCESS;
+}
+
 static void host_table_entry_key_to_str(_In_ sai_object_id_t hif_id, _Out_ char *key_str)
 {
     mlnx_object_id_t mlnx_hif = { 0 };

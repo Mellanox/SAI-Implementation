@@ -505,6 +505,8 @@ static sai_status_t mlnx_default_bridge_id_get(_In_ const sai_object_key_t   *ke
                                                _In_ uint32_t                  attr_index,
                                                _Inout_ vendor_cache_t        *cache,
                                                void                          *arg);
+static sai_status_t mlnx_switch_available_get_impl(_In_ sai_switch_attr_t attr_id,
+                                                   _Out_ uint32_t        *count);
 static sai_status_t mlnx_switch_available_get(_In_ const sai_object_key_t   *key,
                                               _Inout_ sai_attribute_value_t *value,
                                               _In_ uint32_t                  attr_index,
@@ -546,6 +548,12 @@ static sai_status_t mlnx_switch_supported_stats_modes_get(_In_ const sai_object_
                                                           _In_ uint32_t                  attr_index,
                                                           _Inout_ vendor_cache_t        *cache,
                                                           void                          *arg);
+static sai_status_t mlnx_switch_availability_get_common(_In_ sai_object_id_t   switch_id,
+                                                        _In_ sai_switch_attr_t attr_id,
+                                                        _In_ const char       *resource_name,
+                                                        _Out_ uint64_t        *count);
+static sai_status_t mlnx_switch_availability_acl_get_common(_In_ sai_object_type_t object_type,
+                                                            _Out_ uint64_t        *count);
 static sai_status_t mlnx_switch_crc_check_get(_In_ const sai_object_key_t   *key,
                                               _Inout_ sai_attribute_value_t *value,
                                               _In_ uint32_t                  attr_index,
@@ -3025,7 +3033,12 @@ static sai_status_t parse_elements(xmlDoc *doc, xmlNode * a_node)
             /* divide ACL resources by half for FFB */
             g_sai_db_ptr->acl_divider = g_sai_db_ptr->issu_enabled ? 2 : 1;
             xmlFree(key);
-        } else {
+        } else if ((!xmlStrcmp(cur_node->name, (const xmlChar*)"pbhash_gre"))) {
+            key                        = xmlNodeListGetString(doc, cur_node->children, 1);
+            g_sai_db_ptr->pbhash_gre = (uint32_t)atoi((const char*)key);
+            MLNX_SAI_LOG_NTC("policy based hash enabled, GRE: %u\n", g_sai_db_ptr->pbhash_gre);
+            xmlFree(key);
+        }  else {
             /* parse all children of current element */
             if (SAI_STATUS_SUCCESS != (status = parse_elements(doc, cur_node->children))) {
                 return status;
@@ -3146,6 +3159,9 @@ static void sai_db_values_init()
     g_sai_db_ptr->crc_recalc_enable = true;
 
     g_sai_db_ptr->platform_type = MLNX_PLATFORM_TYPE_INVALID;
+    g_sai_db_ptr->pbhash_gre = 0;
+
+    g_sai_db_ptr->max_ipinip_ipv6_loopback_rifs = 0;
 
     memset(g_sai_db_ptr->is_switch_priority_lossless, 0, MAX_LOSSLESS_SP * sizeof(bool));
 
@@ -3459,7 +3475,7 @@ sai_status_t mlnx_shm_rm_array_free(_In_ mlnx_shm_rm_array_idx_t idx)
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_shm_rm_array_free_entries_count(_In_ mlnx_shm_rm_array_type_t type)
+uint32_t mlnx_shm_rm_array_free_entries_count(_In_ mlnx_shm_rm_array_type_t type)
 {
     const mlnx_shm_rm_array_info_t *info;
     mlnx_shm_array_hdr_t           *array_hdr;
@@ -5473,10 +5489,10 @@ static sai_status_t mlnx_initialize_switch(sai_object_id_t switch_id, bool *tran
     resources_param.max_ipv6_mc_route_entries = 0;
 
 #ifdef ACS_OS
-    resources_param.max_ipinip_ipv6_loopback_rifs = 12;
+    g_sai_db_ptr->max_ipinip_ipv6_loopback_rifs = resources_param.max_ipinip_ipv6_loopback_rifs = 12;
 #else
     /* sdk limit in sdk_router_be_validate_params */
-    resources_param.max_ipinip_ipv6_loopback_rifs = resources_param.max_virtual_routers_num / 2;
+    g_sai_db_ptr->max_ipinip_ipv6_loopback_rifs = resources_param.max_ipinip_ipv6_loopback_rifs = resources_param.max_virtual_routers_num / 2;
 #endif
 
     general_param.ipv4_enable    = 1;
@@ -5798,6 +5814,8 @@ static sai_status_t mlnx_create_switch(_Out_ sai_object_id_t     * switch_id,
     sai_status_t                 sai_status;
     uint32_t                     attr_idx;
     bool                         transaction_mode_enable = false, crc_check_enable = true, crc_recalc_enable = true;
+    mlnx_port_config_t           *port;
+    uint32_t                     ii;
 
     if (NULL == switch_id) {
         MLNX_SAI_LOG_ERR("NULL switch_id id param\n");
@@ -5933,6 +5951,25 @@ static sai_status_t mlnx_create_switch(_Out_ sai_object_id_t     * switch_id,
         if (SAI_ERR(sai_status)) {
             MLNX_SAI_LOG_ERR("Error setting vxlan udp port value to %d\n", attr_val->u16);
             return sai_status;
+        }
+    }
+
+    if (g_sai_db_ptr->pbhash_gre) {
+        if (SAI_STATUS_SUCCESS != (sai_status = mlnx_init_flex_parser())) {
+            SX_LOG_ERR("Failed to init_flex_parser\n");
+            return sai_status;
+        }
+
+        if (SAI_STATUS_SUCCESS != (sai_status = mlnx_pbhash_acl_add(*switch_id))) {
+            SX_LOG_ERR("Failed to ADD PB hash ACL to DB\n");
+            return sai_status;
+        }
+        mlnx_port_foreach(port, ii) {
+            if (SAI_STATUS_SUCCESS != (sai_status = mlnx_pbhash_acl_bind(SX_ACCESS_CMD_ADD, port->saiport, mlnx_port_is_lag(
+                                          port) ? SAI_OBJECT_TYPE_LAG : SAI_OBJECT_TYPE_PORT))) {
+                SX_LOG_ERR("Failed to bind PB hash ACL to port\n");
+                return sai_status;
+            }
         }
     }
 
@@ -8102,19 +8139,14 @@ static sai_status_t mlnx_switch_lag_hash_attr_get(_In_ const sai_object_key_t   
     return SAI_STATUS_SUCCESS;
 }
 
-static sai_status_t mlnx_switch_available_get(_In_ const sai_object_key_t   *key,
-                                              _Inout_ sai_attribute_value_t *value,
-                                              _In_ uint32_t                  attr_index,
-                                              _Inout_ vendor_cache_t        *cache,
-                                              void                          *arg)
+static sai_status_t mlnx_switch_available_get_impl(_In_ sai_switch_attr_t attr_id,
+                                                   _Out_ uint32_t        *count)
 {
     sx_status_t         sx_status;
     rm_sdk_table_type_e table_type;
     uint32_t            free_entries, init_limit = UINT_MAX;
 
-    SX_LOG_ENTER();
-
-    switch ((int64_t)arg) {
+    switch (attr_id) {
     case SAI_SWITCH_ATTR_AVAILABLE_IPV4_ROUTE_ENTRY:
         table_type = RM_SDK_TABLE_TYPE_FIB_IPV4_UC_E;
         init_limit = g_sai_db_ptr->ipv4_route_table_size;
@@ -8156,7 +8188,7 @@ static sai_status_t mlnx_switch_available_get(_In_ const sai_object_key_t   *key
         break;
 
     default:
-        SX_LOG_ERR("Unexpected type of arg (%ld)\n", (int64_t)arg);
+        SX_LOG_ERR("Unexpected type of arg (%d)\n", attr_id);
         assert(false);
     }
 
@@ -8164,17 +8196,30 @@ static sai_status_t mlnx_switch_available_get(_In_ const sai_object_key_t   *key
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to get a number of free resources for sx table %d - %s\n",
                    table_type, SX_STATUS_MSG(sx_status));
-        SX_LOG_EXIT();
         return sdk_to_sai(sx_status);
     }
 
-    value->u32 = free_entries;
+    *count = free_entries;
     if (init_limit > 0) {
-        value->u32 = MIN(free_entries, init_limit);
+        *count = MIN(free_entries, init_limit);
     }
 
-    SX_LOG_EXIT();
     return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_switch_available_get(_In_ const sai_object_key_t   *key,
+                                              _Inout_ sai_attribute_value_t *value,
+                                              _In_ uint32_t                  attr_index,
+                                              _Inout_ vendor_cache_t        *cache,
+                                              void                          *arg)
+{
+    sai_status_t status = SAI_STATUS_SUCCESS;
+    SX_LOG_ENTER();
+
+    status = mlnx_switch_available_get_impl((sai_switch_attr_t)arg, &value->u32);
+
+    SX_LOG_EXIT();
+    return status;
 }
 
 static sai_status_t mlnx_switch_acl_available_get(_In_ const sai_object_key_t   *key,
@@ -8300,6 +8345,179 @@ static sai_status_t mlnx_switch_supported_stats_modes_get(_In_ const sai_object_
 
     SX_LOG_EXIT();
     return status;
+}
+
+static sai_status_t mlnx_switch_availability_get_common(_In_ sai_object_id_t   switch_id,
+                                                        _In_ sai_switch_attr_t attr_id,
+                                                        _In_ const char       *resource_name,
+                                                        _Out_ uint64_t        *count)
+{
+    sai_status_t status;
+    uint32_t     ret_count;
+
+    assert(count);
+
+    status = mlnx_switch_available_get_impl(attr_id, &ret_count);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to get count of available %s\n", resource_name ? resource_name : "<unknown resource name>");
+        return status;
+    }
+
+    *count = (uint64_t)ret_count;
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_switch_availability_acl_get_common(_In_ sai_object_type_t object_type,
+                                                            _Out_ uint64_t        *count)
+{
+    sai_status_t        status;
+    sx_status_t         sx_status;
+    rm_sdk_table_type_e sx_table_type;
+    uint32_t            free_acls, free_db_entries;
+
+    assert((SAI_OBJECT_TYPE_ACL_TABLE == object_type) || (SAI_OBJECT_TYPE_ACL_TABLE_GROUP == object_type));
+    assert(count);
+
+    if (SAI_OBJECT_TYPE_ACL_TABLE == object_type) {
+        sx_table_type = RM_SDK_TABLE_TYPE_ACL_E;
+    } else { /* SAI_OBJECT_TYPE_ACL_TABLE_GROUP */
+        sx_table_type = RM_SDK_TABLE_TYPE_ACL_GROUPS_E;
+    }
+
+    sx_status = sx_api_rm_free_entries_by_type_get(gh_sdk, sx_table_type, &free_acls);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to get a number of free resources for sx table %d - %s\n", sx_table_type, SX_STATUS_MSG(sx_status));
+        return sdk_to_sai(sx_status);
+    }
+
+    acl_global_lock();
+    status = mlnx_acl_db_free_entries_get(object_type, &free_db_entries);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to get a number of free entries in ACL DB for resource type %d\n", object_type);
+        goto out;
+    }
+
+    *count = (uint64_t)MIN(free_acls, free_db_entries);
+
+out:
+    acl_global_unlock();
+    return status;
+}
+
+sai_status_t mlnx_switch_next_hop_availability_get(_In_ sai_object_id_t        switch_id,
+                                                   _In_ uint32_t               attr_count,
+                                                   _In_ const sai_attribute_t *attr_list,
+                                                   _Out_ uint64_t             *count)
+{
+    return mlnx_switch_availability_get_common(switch_id, SAI_SWITCH_ATTR_AVAILABLE_IPV4_NEXTHOP_ENTRY, "next-hop entries", count);
+}
+
+sai_status_t mlnx_switch_next_hop_group_availability_get(_In_ sai_object_id_t        switch_id,
+                                                         _In_ uint32_t               attr_count,
+                                                         _In_ const sai_attribute_t *attr_list,
+                                                         _Out_ uint64_t             *count)
+{
+    return mlnx_switch_availability_get_common(switch_id, SAI_SWITCH_ATTR_AVAILABLE_NEXT_HOP_GROUP_ENTRY, "next-hop groups", count);
+}
+
+sai_status_t mlnx_switch_fdb_entry_availability_get(_In_ sai_object_id_t        switch_id,
+                                                    _In_ uint32_t               attr_count,
+                                                    _In_ const sai_attribute_t *attr_list,
+                                                    _Out_ uint64_t             *count)
+{
+    return mlnx_switch_availability_get_common(switch_id, SAI_SWITCH_ATTR_AVAILABLE_FDB_ENTRY, "FDB entries", count);
+}
+
+sai_status_t mlnx_switch_bfd_session_availability_get(_In_ sai_object_id_t        switch_id,
+                                                      _In_ uint32_t               attr_count,
+                                                      _In_ const sai_attribute_t *attr_list,
+                                                      _Out_ uint64_t             *count)
+{
+    assert(count);
+
+    sai_db_read_lock();
+    *count = (uint64_t)mlnx_shm_rm_array_free_entries_count(MLNX_SHM_RM_ARRAY_TYPE_BFD_SESSION);
+    sai_db_unlock();
+
+    return SAI_STATUS_SUCCESS;
+}
+
+sai_status_t mlnx_switch_route_entry_availability_get(_In_ sai_object_id_t        switch_id,
+                                                      _In_ uint32_t               attr_count,
+                                                      _In_ const sai_attribute_t *attr_list,
+                                                      _Out_ uint64_t             *count)
+{
+    sai_status_t         status;
+    sai_ip_addr_family_t family;
+
+    assert(attr_list);
+    assert(count);
+
+    if (attr_count != 1) {
+        SX_LOG_ERR("Unexpected attribute list (size != 1)\n");
+        return SAI_STATUS_INVALID_PARAMETER;
+    }
+
+    if (attr_list[0].id != SAI_ROUTE_ENTRY_ATTR_IP_ADDR_FAMILY) {
+        SX_LOG_ERR("Unexpected attribute %d, expected SAI_ROUTE_ENTRY_ATTR_IP_ADDR_FAMILY\n", attr_list[0].id);
+        return SAI_STATUS_INVALID_ATTRIBUTE_0;
+    }
+
+    family = attr_list[0].value.s32;
+    switch (family) {
+    case SAI_IP_ADDR_FAMILY_IPV4:
+        status = mlnx_switch_availability_get_common(switch_id, SAI_SWITCH_ATTR_AVAILABLE_IPV4_ROUTE_ENTRY, "IPv4 route entries", count);
+        break;
+
+    case SAI_IP_ADDR_FAMILY_IPV6:
+        status = mlnx_switch_availability_get_common(switch_id, SAI_SWITCH_ATTR_AVAILABLE_IPV6_ROUTE_ENTRY, "IPv6 route entries", count);
+        break;
+
+    default:
+        SX_LOG_ERR("Unsupported IP address family - %d\n", family);
+        return SAI_STATUS_ATTR_NOT_SUPPORTED_0;
+    }
+
+    return status;
+}
+
+sai_status_t mlnx_switch_acl_table_availability_get(_In_ sai_object_id_t        switch_id,
+                                                    _In_ uint32_t               attr_count,
+                                                    _In_ const sai_attribute_t *attr_list,
+                                                    _Out_ uint64_t             *count)
+{
+    return mlnx_switch_availability_acl_get_common(SAI_OBJECT_TYPE_ACL_TABLE, count);
+}
+
+sai_status_t mlnx_switch_acl_table_group_availability_get(_In_ sai_object_id_t        switch_id,
+                                                          _In_ uint32_t               attr_count,
+                                                          _In_ const sai_attribute_t *attr_list,
+                                                          _Out_ uint64_t             *count)
+{
+    return mlnx_switch_availability_acl_get_common(SAI_OBJECT_TYPE_ACL_TABLE_GROUP, count);
+}
+
+sai_status_t mlnx_switch_stp_availability_get(_In_ sai_object_id_t        switch_id,
+                                              _In_ uint32_t               attr_count,
+                                              _In_ const sai_attribute_t *attr_list,
+                                              _Out_ uint64_t             *count)
+{
+    const sx_swid_id_t swid_id = DEFAULT_ETH_SWID;
+    sx_status_t        sx_status;
+    uint32_t           stp_max = 0, stp_exists = 0;
+
+    assert(count);
+
+    stp_max = SX_MSTP_INST_ID_MAX - SX_MSTP_INST_ID_MIN + 1;
+
+    sx_status = sx_api_mstp_inst_iter_get(gh_sdk, SX_ACCESS_CMD_GET, swid_id, 0, NULL, NULL, &stp_exists);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to get count of STP instances - %s\n", SX_STATUS_MSG(sx_status));
+        return sdk_to_sai(sx_status);
+    }
+
+    *count = (uint64_t)(stp_max - stp_exists);
+    return SAI_STATUS_SUCCESS;
 }
 
 static sai_status_t mlnx_switch_crc_params_apply(bool init)

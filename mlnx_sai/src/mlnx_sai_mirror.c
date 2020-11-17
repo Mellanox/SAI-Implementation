@@ -283,6 +283,27 @@ static void mirror_key_to_str(_In_ const sai_object_id_t sai_mirror_obj_id, _Out
     SX_LOG_EXIT();
 }
 
+sai_status_t mlnx_mirror_availability_get(_In_ sai_object_id_t        switch_id,
+                                          _In_ uint32_t               attr_count,
+                                          _In_ const sai_attribute_t *attr_list,
+                                          _Out_ uint64_t             *count)
+{
+    sx_status_t sx_status;
+    uint32_t    span_sessions_max = 0, span_sessions_exists = 0;
+
+    assert(count);
+
+    span_sessions_max = g_resource_limits.span_session_id_max_internal + 1;
+    sx_status = sx_api_span_session_iter_get(gh_sdk, SX_ACCESS_CMD_GET, NULL, NULL, NULL, &span_sessions_exists);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to get count of SPAN sessions - %s\n", SX_STATUS_MSG(sx_status));
+        return sdk_to_sai(sx_status);
+    }
+
+    *count = (uint64_t)(span_sessions_max - span_sessions_exists);
+    return SAI_STATUS_SUCCESS;
+}
+
 sai_status_t mlnx_mirror_policer_is_used(_In_ sai_object_id_t policer, _Out_ bool           *is_used)
 {
     uint32_t ii;

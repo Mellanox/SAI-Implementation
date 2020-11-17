@@ -148,6 +148,7 @@ extern const sai_enum_metadata_t sai_metadata_enum_sai_fdb_entry_type_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_fdb_event_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_fdb_flush_attr_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_fdb_flush_entry_type_t;
+extern const sai_enum_metadata_t sai_metadata_enum_sai_fine_grained_hash_field_attr_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_hash_algorithm_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_hash_attr_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_hostif_attr_t;
@@ -353,7 +354,7 @@ extern const size_t sai_metadata_attr_by_object_type_count;
 
 /* Define SAI_OBJECT_TYPE_EXTENSIONS_MAX */
 
-#define SAI_OBJECT_TYPE_EXTENSIONS_MAX ((sai_object_type_t)97)
+#define SAI_OBJECT_TYPE_EXTENSIONS_MAX ((sai_object_type_t)98)
 
 /* Get enum name helper methods */
 
@@ -1054,6 +1055,7 @@ extern const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYP
 extern const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_MACSEC_SC;
 extern const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_MACSEC_SA;
 extern const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_SYSTEM_PORT;
+extern const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_FINE_GRAINED_HASH_FIELD;
 extern const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_TABLE_BITMAP_CLASSIFICATION_ENTRY;
 extern const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_TABLE_BITMAP_ROUTER_ENTRY;
 extern const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_TABLE_META_TUNNEL_ENTRY;

@@ -44,6 +44,8 @@
 #include <sx/sdk/sx_api_vlan.h>
 #include <sx/sdk/sx_lib_flex_acl.h>
 #include <sx/sdk/sx_lib_host_ifc.h>
+#include <sx/sdk/sx_api_register.h>
+#include <sx/sdk/sx_acl.h>
 #include <resource_manager/resource_manager.h>
 #include <sx/sxd/sxd_access_register.h>
 #include <sx/sxd/sxd_command_ifc.h>
@@ -349,7 +351,7 @@ sai_status_t mlnx_shm_rm_array_alloc(_In_ mlnx_shm_rm_array_type_t  type,
                                      _Out_ mlnx_shm_rm_array_idx_t *idx,
                                      _Out_ void                   **elem);
 sai_status_t mlnx_shm_rm_array_free(_In_ mlnx_shm_rm_array_idx_t idx);
-sai_status_t mlnx_shm_rm_array_free_entries_count(_In_ mlnx_shm_rm_array_type_t type);
+uint32_t mlnx_shm_rm_array_free_entries_count(_In_ mlnx_shm_rm_array_type_t type);
 sai_status_t mlnx_shm_rm_array_find(_In_ mlnx_shm_rm_array_type_t  type,
                                     _In_ mlnx_shm_rm_array_cmp_fn  cmp_fn,
                                     _In_ mlnx_shm_rm_array_idx_t   start_idx,
@@ -813,6 +815,7 @@ sai_status_t mlnx_l2mc_group_log_set(sx_verbosity_level_t severity);
 sai_status_t mlnx_bmtor_log_set(sx_verbosity_level_t severity);
 sai_status_t mlnx_debug_counter_log_set(sx_verbosity_level_t level);
 sai_status_t mlnx_bfd_log_set(sx_verbosity_level_t level);
+sai_status_t mlnx_object_log_set(sx_verbosity_level_t level);
 
 sai_status_t mlnx_fill_objlist(const sai_object_id_t *data, uint32_t count, sai_object_list_t *list);
 sai_status_t mlnx_fill_u8list(const uint8_t *data, uint32_t count, sai_u8_list_t *list);
@@ -907,6 +910,7 @@ typedef struct _acl_index_t {
 } acl_index_t;
 
 sai_status_t mlnx_acl_init(void);
+sai_status_t mlnx_pbhash_acl_add(sai_object_id_t switch_id);
 sai_status_t mlnx_acl_deinit(void);
 sai_status_t mlnx_acl_disconnect(void);
 sai_status_t mlnx_acl_bind_point_set(_In_ const sai_object_key_t      *key,
@@ -2213,6 +2217,7 @@ typedef struct sai_db {
     char               dev_mac[18];
     uint32_t           ports_number;
     uint32_t           ports_configured;
+    uint32_t           max_ipinip_ipv6_loopback_rifs;
     mlnx_port_config_t ports_db[MAX_PORTS_DB * 2];
     mlnx_bridge_port_t bridge_ports_db[MAX_BRIDGE_PORTS];
     uint32_t           non_1q_bports_created; /* to optimize mlnx_bridge_non1q_port_foreach */
@@ -2278,6 +2283,8 @@ typedef struct sai_db {
     bool                              is_bfd_module_initialized;
     sai_mac_t                         vxlan_mac;
     mlnx_fg_ecmp_group_size_t         ecmp_groups[FG_ECMP_MAX_GROUPS_COUNT];
+    uint32_t                          pbhash_gre;
+    sx_acl_id_t                       hash_acl_id;
     mlnx_shm_pool_t                   shm_pool;
     /* must be last elemnt, followed by dynamic arrays */
     mlnx_shm_rm_array_info_t          array_info[MLNX_SHM_RM_ARRAY_TYPE_SIZE];
@@ -2505,6 +2512,9 @@ sai_status_t mlnx_wred_mirror_port_event(_In_ sx_port_log_id_t port_log_id, _In_
 sai_status_t mlnx_port_wred_mirror_set_impl(_In_ sx_port_log_id_t     sx_port,
                                             _In_ sx_span_session_id_t sx_session,
                                             _In_ bool                 is_add);
+sai_status_t mlnx_pbhash_acl_bind(_In_ sx_access_cmd_t      cmd,
+                                  _In_ sai_object_id_t sai_port_id,
+                                  _In_ sai_object_type_t type);
 uint8_t mlnx_port_mac_mask_get(void);
 
 /* DB read lock is needed */

@@ -19,6 +19,7 @@
 #include "mlnx_sai.h"
 #include "assert.h"
 #include "sai.h"
+#include <sx/sdk/sx_api_rm.h>
 
 #undef  __MODULE__
 #define __MODULE__ SAI_BRIDGE
@@ -1101,6 +1102,26 @@ static void bridge_key_to_str(_In_ sai_object_id_t bridge_id, _Out_ char *key_st
 
         snprintf(key_str, MAX_KEY_STR_LEN, "bridge %u (.%s)", mlnx_bridge.ext.bridge.sx_bridge_id, br_type_name);
     }
+}
+
+sai_status_t mlnx_bridge_availability_get(_In_ sai_object_id_t        switch_id,
+                                          _In_ uint32_t               attr_count,
+                                          _In_ const sai_attribute_t *attr_list,
+                                          _Out_ uint64_t             *count)
+{
+    sx_status_t sx_status;
+    uint32_t    bridge_existing = 0;
+
+    assert(count);
+
+    sx_status = sx_api_bridge_iter_get(gh_sdk, SX_ACCESS_CMD_GET, 0, NULL, NULL, &bridge_existing);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to get count of 802.1D bridges - %s\n", SX_STATUS_MSG(sx_status));
+        return sdk_to_sai(sx_status);
+    }
+
+    *count = (uint64_t)(MAX_BRIDGES_1D - bridge_existing);
+    return SAI_STATUS_SUCCESS;
 }
 
 static mlnx_fid_flood_ctrl_type_t mlnx_bridge_flood_type_to_fid_type(_In_ sai_bridge_flood_control_type_t type)
@@ -2624,6 +2645,33 @@ static void bridge_port_key_to_str(_In_ sai_object_id_t bridge_port_id, _Out_ ch
     } else {
         snprintf(key_str, MAX_KEY_STR_LEN, "bridge port idx %x", mlnx_bridge_port.id.u32);
     }
+}
+
+sai_status_t mlnx_bridge_port_availability_get(_In_ sai_object_id_t        switch_id,
+                                               _In_ uint32_t               attr_count,
+                                               _In_ const sai_attribute_t *attr_list,
+                                               _Out_ uint64_t             *count)
+{
+    const rm_sdk_table_type_e table_type = RM_SDK_TABLE_TYPE_VPORTS_E;
+    sx_status_t               sx_status;
+    uint32_t                  ii, bports_left_1 = 0, bports_left_2 = 0;
+
+    assert(count);
+
+    for (ii = 0; ii < MAX_BRIDGE_PORTS; ii++) {
+        if (!g_sai_db_ptr->bridge_ports_db[ii].is_present) {
+            ++bports_left_1;
+        }
+    }
+
+    sx_status = sx_api_rm_free_entries_by_type_get(gh_sdk, table_type, &bports_left_2);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to get a number of free resources for sx table %d - %s\n", table_type, SX_STATUS_MSG(sx_status));
+        return sdk_to_sai(sx_status);
+    }
+
+    *count = (uint64_t)MIN(bports_left_1, bports_left_2);
+    return SAI_STATUS_SUCCESS;
 }
 
 /**

@@ -1491,5 +1491,9 @@ const sai_hash_api_t mlnx_hash_api = {
     mlnx_create_hash,
     mlnx_remove_hash,
     mlnx_set_hash_attribute,
-    mlnx_get_hash_attribute
+    mlnx_get_hash_attribute,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
 };

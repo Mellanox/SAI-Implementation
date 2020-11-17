@@ -1033,8 +1033,11 @@ static sai_status_t mlnx_create_next_hop_group_member(_Out_ sai_object_id_t     
 
     find_attrib_in_list(attr_count, attr_list, SAI_NEXT_HOP_GROUP_MEMBER_ATTR_WEIGHT, &weight, &weight_index);
     if (mlnx_group_id.field.sub_type == SAI_NEXT_HOP_GROUP_TYPE_FINE_GRAIN_ECMP) {
-        find_attrib_in_list(attr_count, attr_list, SAI_NEXT_HOP_GROUP_MEMBER_ATTR_INDEX, &index, &index_index);
-        assert(SAI_STATUS_SUCCESS == status);
+        status = find_attrib_in_list(attr_count, attr_list, SAI_NEXT_HOP_GROUP_MEMBER_ATTR_INDEX, &index, &index_index);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Index attribute required for fine grain ecmp nexthop group member\n");
+            return status;
+        }
     }
 
     status = mlnx_object_to_type(group->oid, SAI_OBJECT_TYPE_NEXT_HOP_GROUP, &group_ecmp_id, NULL);
