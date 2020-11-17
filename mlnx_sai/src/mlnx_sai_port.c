@@ -4222,6 +4222,28 @@ sai_status_t mlnx_get_port_stats_ext(_In_ sai_object_id_t      port_id,
             cntr_prio_needed[(counter_ids[ii] - SAI_PORT_STAT_PFC_0_TX_PAUSE_DURATION) / 2] = true;
             break;
 
+        case SAI_PORT_STAT_PFC_0_RX_PAUSE_DURATION_US:
+        case SAI_PORT_STAT_PFC_1_RX_PAUSE_DURATION_US:
+        case SAI_PORT_STAT_PFC_2_RX_PAUSE_DURATION_US:
+        case SAI_PORT_STAT_PFC_3_RX_PAUSE_DURATION_US:
+        case SAI_PORT_STAT_PFC_4_RX_PAUSE_DURATION_US:
+        case SAI_PORT_STAT_PFC_5_RX_PAUSE_DURATION_US:
+        case SAI_PORT_STAT_PFC_6_RX_PAUSE_DURATION_US:
+        case SAI_PORT_STAT_PFC_7_RX_PAUSE_DURATION_US:
+            cntr_prio_needed[(counter_ids[ii] - SAI_PORT_STAT_PFC_0_RX_PAUSE_DURATION_US) / 2] = true;
+            break;
+
+        case SAI_PORT_STAT_PFC_0_TX_PAUSE_DURATION_US:
+        case SAI_PORT_STAT_PFC_1_TX_PAUSE_DURATION_US:
+        case SAI_PORT_STAT_PFC_2_TX_PAUSE_DURATION_US:
+        case SAI_PORT_STAT_PFC_3_TX_PAUSE_DURATION_US:
+        case SAI_PORT_STAT_PFC_4_TX_PAUSE_DURATION_US:
+        case SAI_PORT_STAT_PFC_5_TX_PAUSE_DURATION_US:
+        case SAI_PORT_STAT_PFC_6_TX_PAUSE_DURATION_US:
+        case SAI_PORT_STAT_PFC_7_TX_PAUSE_DURATION_US:
+            cntr_prio_needed[(counter_ids[ii] - SAI_PORT_STAT_PFC_0_TX_PAUSE_DURATION_US) / 2] = true;
+            break;
+
         case SAI_PORT_STAT_IF_IN_VLAN_DISCARDS:
             discard_cnts_needed = true;
             break;
@@ -4578,6 +4600,30 @@ sai_status_t mlnx_get_port_stats_ext(_In_ sai_object_id_t      port_id,
             if (SAI_ERR(status)) {
                 return status;
             }
+            break;
+
+        case SAI_PORT_STAT_PFC_0_RX_PAUSE_DURATION_US:
+        case SAI_PORT_STAT_PFC_1_RX_PAUSE_DURATION_US:
+        case SAI_PORT_STAT_PFC_2_RX_PAUSE_DURATION_US:
+        case SAI_PORT_STAT_PFC_3_RX_PAUSE_DURATION_US:
+        case SAI_PORT_STAT_PFC_4_RX_PAUSE_DURATION_US:
+        case SAI_PORT_STAT_PFC_5_RX_PAUSE_DURATION_US:
+        case SAI_PORT_STAT_PFC_6_RX_PAUSE_DURATION_US:
+        case SAI_PORT_STAT_PFC_7_RX_PAUSE_DURATION_US:
+            counters[ii] =
+                cntr_prio[(counter_ids[ii] - SAI_PORT_STAT_PFC_0_RX_PAUSE_DURATION_US) / 2].rx_pause_duration;
+            break;
+
+        case SAI_PORT_STAT_PFC_0_TX_PAUSE_DURATION_US:
+        case SAI_PORT_STAT_PFC_1_TX_PAUSE_DURATION_US:
+        case SAI_PORT_STAT_PFC_2_TX_PAUSE_DURATION_US:
+        case SAI_PORT_STAT_PFC_3_TX_PAUSE_DURATION_US:
+        case SAI_PORT_STAT_PFC_4_TX_PAUSE_DURATION_US:
+        case SAI_PORT_STAT_PFC_5_TX_PAUSE_DURATION_US:
+        case SAI_PORT_STAT_PFC_6_TX_PAUSE_DURATION_US:
+        case SAI_PORT_STAT_PFC_7_TX_PAUSE_DURATION_US:
+            counters[ii] =
+                cntr_prio[(counter_ids[ii] - SAI_PORT_STAT_PFC_0_TX_PAUSE_DURATION_US) / 2].tx_pause_duration;
             break;
 
         case SAI_PORT_STAT_IF_IN_VLAN_DISCARDS:
