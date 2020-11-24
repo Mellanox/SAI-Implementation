@@ -50,9 +50,9 @@ static sai_status_t mlnx_sai_create_vxlan_tunnel_map_list(_In_ sai_object_id_t  
                                                           _In_ tunnel_direction_type sai_tunnel_map_type,
                                                           _In_ sai_object_id_t       sai_tunnel_obj_id,
                                                           _In_ sx_access_cmd_t       cmd);
-static sai_status_t mlnx_tunnel_map_entry_set_bmtor_obj(_In_ uint32_t        tunnel_map_entry_idx,
-                                                        _In_ uint32_t        tunnel_idx,
-                                                        _In_ bool            is_add);
+static sai_status_t mlnx_tunnel_map_entry_set_bmtor_obj(_In_ uint32_t tunnel_map_entry_idx,
+                                                        _In_ uint32_t tunnel_idx,
+                                                        _In_ bool     is_add);
 static sai_status_t mlnx_tunnel_map_attr_type_get(_In_ const sai_object_key_t   *key,
                                                   _Inout_ sai_attribute_value_t *value,
                                                   _In_ uint32_t                  attr_index,
@@ -4051,10 +4051,10 @@ sai_status_t mlnx_vrid_to_br_rif_get(_In_ sx_router_id_t          sx_vrid,
     sx_bridge_id_t           sx_bridge_id;
     mlnx_tunnel_map_entry_t *curr_tunnel_map_entry;
     mlnx_bridge_rif_t       *curr_bridge_rif_entry;
-    uint32_t                 ii       = 0;
+    uint32_t                 ii                  = 0;
     uint32_t                 bmtor_bridge_db_idx = 0;
-    bool                     is_bound = false;
-    const uint32_t           tunnel_idx = 0;
+    bool                     is_bound            = false;
+    const uint32_t           tunnel_idx          = 0;
 
     SX_LOG_ENTER();
 
@@ -4133,7 +4133,7 @@ sai_status_t mlnx_vrid_to_br_rif_get(_In_ sx_router_id_t          sx_vrid,
 
     sai_status = mlnx_bridge_oid_to_id(bridge_oid, &sx_bridge_id);
     if (SAI_ERR(sai_status)) {
-        SX_LOG_ERR("Failed to find sx bridge id using bridge oid %"PRIx64"\n", bridge_oid);
+        SX_LOG_ERR("Failed to find sx bridge id using bridge oid %" PRIx64 "\n", bridge_oid);
         SX_LOG_EXIT();
         return SAI_STATUS_FAILURE;
     }
@@ -4628,7 +4628,7 @@ static sai_status_t mlnx_sai_tunnel_map_entry_pair_add(_In_ uint32_t tunnel_map_
     curr_pair_info.pair_exist                   = true;
     curr_pair_info.pair_already_bound_to_tunnel = pair_info.pair_already_bound_to_tunnel;
     curr_pair_info.pair_tunnel_map_entry_idx    = pair_map_idx;
-    curr_pair_info.bmtor_bridge_db_idx = pair_info.bmtor_bridge_db_idx;
+    curr_pair_info.bmtor_bridge_db_idx          = pair_info.bmtor_bridge_db_idx;
 
     memcpy(&curr_tunnel_map_entry.pair_per_vxlan_array[tunnel_idx],
            &curr_pair_info,
@@ -5024,7 +5024,6 @@ static sai_status_t mlnx_sai_tunnel_map_entry_bind_tunnel_set(_In_ uint32_t tunn
     switch (tunnel_map_type) {
     case SAI_TUNNEL_MAP_TYPE_OECN_TO_UECN:
     case SAI_TUNNEL_MAP_TYPE_UECN_OECN_TO_OECN:
-        {
         sai_status = mlnx_tunnel_map_entry_ecn_bind_set(tunnel_map_entry_idx, is_add);
         if (SAI_ERR(sai_status)) {
             SX_LOG_ERR("Error binding ecn tunnel map entry idx %d to tunnel\n",
@@ -5033,14 +5032,13 @@ static sai_status_t mlnx_sai_tunnel_map_entry_bind_tunnel_set(_In_ uint32_t tunn
             return sai_status;
         }
         break;
-        }
+
     case SAI_TUNNEL_MAP_TYPE_VNI_TO_VLAN_ID:
     case SAI_TUNNEL_MAP_TYPE_VLAN_ID_TO_VNI:
     case SAI_TUNNEL_MAP_TYPE_VNI_TO_BRIDGE_IF:
     case SAI_TUNNEL_MAP_TYPE_BRIDGE_IF_TO_VNI:
     case SAI_TUNNEL_MAP_TYPE_VNI_TO_VIRTUAL_ROUTER_ID:
     case SAI_TUNNEL_MAP_TYPE_VIRTUAL_ROUTER_ID_TO_VNI:
-        {
         for (ii = 0; ii < tunnel_cnt; ii++) {
             tunnel_idx        = g_sai_tunnel_db_ptr->tunnel_map_db[tunnel_map_idx].tunnel_idx[ii];
             sx_tunnel_id_ipv4 = g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_idx].sx_tunnel_id_ipv4;
@@ -5059,7 +5057,7 @@ static sai_status_t mlnx_sai_tunnel_map_entry_bind_tunnel_set(_In_ uint32_t tunn
             }
         }
         break;
-        }
+
     default:
         SX_LOG_ERR("Unexpected tunnel map type: %d\n", tunnel_map_type);
         SX_LOG_EXIT();
@@ -7539,10 +7537,10 @@ cleanup:
     return sai_status;
 }
 
-static sai_status_t mlnx_create_bmtor_internal_obj(_In_  sai_object_id_t      vrf_oid,
-                                                   _In_  uint32_t             vni,
-                                                   _In_  sai_object_id_t      tunnel_oid,
-                                                   _In_  bool                 is_default,
+static sai_status_t mlnx_create_bmtor_internal_obj(_In_ sai_object_id_t       vrf_oid,
+                                                   _In_ uint32_t              vni,
+                                                   _In_ sai_object_id_t       tunnel_oid,
+                                                   _In_ bool                  is_default,
                                                    _Out_ mlnx_bmtor_bridge_t *bmtor_bridge_entry)
 {
     sai_status_t          sai_status;
@@ -7551,7 +7549,7 @@ static sai_status_t mlnx_create_bmtor_internal_obj(_In_  sai_object_id_t      vr
     sai_object_id_t       switch_oid;
     sx_tunnel_id_t        sx_tunnel_id;
     sx_bridge_id_t        sx_bridge_id;
-    sx_tunnel_map_entry_t sx_tunnel_map_entry = {0};
+    sx_tunnel_map_entry_t sx_tunnel_map_entry     = {0};
     const uint32_t        sx_tunnel_map_entry_cnt = 1;
     sx_status_t           sdk_status;
     mlnx_object_id_t      mlnx_switch_id = {0};
@@ -7573,9 +7571,9 @@ static sai_status_t mlnx_create_bmtor_internal_obj(_In_  sai_object_id_t      vr
         return sai_status;
     }
 
-    attr[0].id = SAI_BRIDGE_ATTR_TYPE;
+    attr[0].id        = SAI_BRIDGE_ATTR_TYPE;
     attr[0].value.s32 = SAI_BRIDGE_TYPE_1D;
-    sai_status = mlnx_bridge_api.create_bridge(&bridge_oid, switch_oid, 1, attr);
+    sai_status        = mlnx_bridge_api.create_bridge(&bridge_oid, switch_oid, 1, attr);
     if (SAI_ERR(sai_status)) {
         SX_LOG_ERR("Failed to create SAI bridge\n");
         SX_LOG_EXIT();
@@ -7584,7 +7582,7 @@ static sai_status_t mlnx_create_bmtor_internal_obj(_In_  sai_object_id_t      vr
 
     sai_status = mlnx_bridge_oid_to_id(bridge_oid, &sx_bridge_id);
     if (SAI_ERR(sai_status)) {
-        SX_LOG_ERR("Failed to obtain sx bridge id from SAI bridge oid %"PRIx64"\n", bridge_oid);
+        SX_LOG_ERR("Failed to obtain sx bridge id from SAI bridge oid %" PRIx64 "\n", bridge_oid);
         SX_LOG_EXIT();
         return sai_status;
     }
@@ -7603,45 +7601,45 @@ static sai_status_t mlnx_create_bmtor_internal_obj(_In_  sai_object_id_t      vr
         return sai_status;
     }
 
-    attr[0].id = SAI_ROUTER_INTERFACE_ATTR_VIRTUAL_ROUTER_ID;
+    attr[0].id        = SAI_ROUTER_INTERFACE_ATTR_VIRTUAL_ROUTER_ID;
     attr[0].value.oid = vrf_oid;
-    attr[1].id = SAI_ROUTER_INTERFACE_ATTR_TYPE;
+    attr[1].id        = SAI_ROUTER_INTERFACE_ATTR_TYPE;
     attr[1].value.s32 = SAI_ROUTER_INTERFACE_TYPE_BRIDGE;
-    attr[2].id = SAI_ROUTER_INTERFACE_ATTR_BRIDGE_ID;
+    attr[2].id        = SAI_ROUTER_INTERFACE_ATTR_BRIDGE_ID;
     attr[2].value.oid = bridge_oid;
-    sai_status = mlnx_router_interface_api.create_router_interface(&rif_oid, switch_oid, 3, attr);
+    sai_status        = mlnx_router_interface_api.create_router_interface(&rif_oid, switch_oid, 3, attr);
     if (SAI_ERR(sai_status)) {
         SX_LOG_ERR("Failed to create SAI rif\n");
         SX_LOG_EXIT();
         return sai_status;
     }
 
-    attr[0].id = SAI_BRIDGE_PORT_ATTR_TYPE;
+    attr[0].id        = SAI_BRIDGE_PORT_ATTR_TYPE;
     attr[0].value.s32 = SAI_BRIDGE_PORT_TYPE_1D_ROUTER;
-    attr[1].id = SAI_BRIDGE_PORT_ATTR_RIF_ID;
+    attr[1].id        = SAI_BRIDGE_PORT_ATTR_RIF_ID;
     attr[1].value.oid = rif_oid;
-    attr[2].id = SAI_BRIDGE_PORT_ATTR_BRIDGE_ID;
+    attr[2].id        = SAI_BRIDGE_PORT_ATTR_BRIDGE_ID;
     attr[2].value.oid = bridge_oid;
-    attr[3].id = SAI_BRIDGE_PORT_ATTR_FDB_LEARNING_MODE;
+    attr[3].id        = SAI_BRIDGE_PORT_ATTR_FDB_LEARNING_MODE;
     attr[3].value.s32 = SAI_BRIDGE_PORT_FDB_LEARNING_MODE_DISABLE;
-    sai_status = mlnx_bridge_api.create_bridge_port(&bridge_bport_oid, switch_oid, 4, attr);
+    sai_status        = mlnx_bridge_api.create_bridge_port(&bridge_bport_oid, switch_oid, 4, attr);
     if (SAI_ERR(sai_status)) {
         SX_LOG_ERR("Failed to create SAI bridge port\n");
         SX_LOG_EXIT();
         return sai_status;
     }
 
-    attr[0].id = SAI_BRIDGE_PORT_ATTR_TYPE;
-    attr[0].value.s32 = SAI_BRIDGE_PORT_TYPE_TUNNEL;
-    attr[1].id = SAI_BRIDGE_PORT_ATTR_TUNNEL_ID;
-    attr[1].value.oid = tunnel_oid;
-    attr[2].id = SAI_BRIDGE_PORT_ATTR_BRIDGE_ID;
-    attr[2].value.oid = bridge_oid;
-    attr[3].id = SAI_BRIDGE_PORT_ATTR_ADMIN_STATE;
+    attr[0].id             = SAI_BRIDGE_PORT_ATTR_TYPE;
+    attr[0].value.s32      = SAI_BRIDGE_PORT_TYPE_TUNNEL;
+    attr[1].id             = SAI_BRIDGE_PORT_ATTR_TUNNEL_ID;
+    attr[1].value.oid      = tunnel_oid;
+    attr[2].id             = SAI_BRIDGE_PORT_ATTR_BRIDGE_ID;
+    attr[2].value.oid      = bridge_oid;
+    attr[3].id             = SAI_BRIDGE_PORT_ATTR_ADMIN_STATE;
     attr[3].value.booldata = true;
-    attr[4].id = SAI_BRIDGE_PORT_ATTR_FDB_LEARNING_MODE;
-    attr[4].value.s32 = SAI_BRIDGE_PORT_FDB_LEARNING_MODE_DISABLE;
-    sai_status = mlnx_bridge_api.create_bridge_port(&tunnel_bport_oid, switch_oid, 5, attr);
+    attr[4].id             = SAI_BRIDGE_PORT_ATTR_FDB_LEARNING_MODE;
+    attr[4].value.s32      = SAI_BRIDGE_PORT_FDB_LEARNING_MODE_DISABLE;
+    sai_status             = mlnx_bridge_api.create_bridge_port(&tunnel_bport_oid, switch_oid, 5, attr);
     if (SAI_ERR(sai_status)) {
         SX_LOG_ERR("Failed to create SAI tunnel bridge port\n");
         SX_LOG_EXIT();
@@ -7650,20 +7648,20 @@ static sai_status_t mlnx_create_bmtor_internal_obj(_In_  sai_object_id_t      vr
 
     sai_status = mlnx_sai_tunnel_to_sx_tunnel_id(tunnel_oid, &sx_tunnel_id);
     if (SAI_ERR(sai_status)) {
-        SX_LOG_ERR("Failed to obtain sx tunnel id from SAI tunnel oid %"PRIx64"\n", tunnel_oid);
+        SX_LOG_ERR("Failed to obtain sx tunnel id from SAI tunnel oid %" PRIx64 "\n", tunnel_oid);
         SX_LOG_EXIT();
         return sai_status;
     }
 
-    sx_tunnel_map_entry.type = SX_TUNNEL_TYPE_NVE_VXLAN;
+    sx_tunnel_map_entry.type                 = SX_TUNNEL_TYPE_NVE_VXLAN;
     sx_tunnel_map_entry.params.nve.bridge_id = sx_bridge_id;
-    sx_tunnel_map_entry.params.nve.vni = vni;
+    sx_tunnel_map_entry.params.nve.vni       = vni;
     sx_tunnel_map_entry.params.nve.direction = SX_TUNNEL_MAP_DIR_BIDIR;
-    sdk_status = sx_api_tunnel_map_set(gh_sdk,
-                                       SX_ACCESS_CMD_ADD,
-                                       sx_tunnel_id,
-                                       &sx_tunnel_map_entry,
-                                       sx_tunnel_map_entry_cnt);
+    sdk_status                               = sx_api_tunnel_map_set(gh_sdk,
+                                                                     SX_ACCESS_CMD_ADD,
+                                                                     sx_tunnel_id,
+                                                                     &sx_tunnel_map_entry,
+                                                                     sx_tunnel_map_entry_cnt);
     if (SX_STATUS_SUCCESS != sdk_status) {
         sai_status = sdk_to_sai(sdk_status);
         SX_LOG_ERR("Error adding tunnel map for tunnel %x with bridge %x, vni %d, sx status %s\n",
@@ -7675,16 +7673,16 @@ static sai_status_t mlnx_create_bmtor_internal_obj(_In_  sai_object_id_t      vr
         return sai_status;
     }
 
-    bmtor_bridge_entry->connected_vrf_oid = vrf_oid;
-    bmtor_bridge_entry->bridge_oid = bridge_oid;
-    bmtor_bridge_entry->rif_oid = rif_oid;
-    bmtor_bridge_entry->bridge_bport_oid = bridge_bport_oid;
-    bmtor_bridge_entry->tunnel_bport_oid = tunnel_bport_oid;
+    bmtor_bridge_entry->connected_vrf_oid  = vrf_oid;
+    bmtor_bridge_entry->bridge_oid         = bridge_oid;
+    bmtor_bridge_entry->rif_oid            = rif_oid;
+    bmtor_bridge_entry->bridge_bport_oid   = bridge_bport_oid;
+    bmtor_bridge_entry->tunnel_bport_oid   = tunnel_bport_oid;
     bmtor_bridge_entry->sx_vxlan_tunnel_id = sx_tunnel_id;
-    bmtor_bridge_entry->vni = vni;
-    bmtor_bridge_entry->is_default = is_default;
-    bmtor_bridge_entry->counter = 0;
-    bmtor_bridge_entry->in_use = true;
+    bmtor_bridge_entry->vni                = vni;
+    bmtor_bridge_entry->is_default         = is_default;
+    bmtor_bridge_entry->counter            = 0;
+    bmtor_bridge_entry->in_use             = true;
 
     SX_LOG_EXIT();
     return SAI_STATUS_SUCCESS;
@@ -7694,7 +7692,7 @@ static sai_status_t mlnx_remove_bmtor_internal_obj(_In_ mlnx_bmtor_bridge_t *bmt
 {
     sai_status_t          sai_status;
     sx_bridge_id_t        sx_bridge_id;
-    sx_tunnel_map_entry_t sx_tunnel_map_entry = {0};
+    sx_tunnel_map_entry_t sx_tunnel_map_entry     = {0};
     const uint32_t        sx_tunnel_map_entry_cnt = 1;
     sx_status_t           sdk_status;
 
@@ -7708,20 +7706,20 @@ static sai_status_t mlnx_remove_bmtor_internal_obj(_In_ mlnx_bmtor_bridge_t *bmt
 
     sai_status = mlnx_bridge_oid_to_id(bmtor_bridge_entry->bridge_oid, &sx_bridge_id);
     if (SAI_ERR(sai_status)) {
-        SX_LOG_ERR("Failed to obtain sx bridge id from SAI bridge oid %"PRIx64"\n", bmtor_bridge_entry->bridge_oid);
+        SX_LOG_ERR("Failed to obtain sx bridge id from SAI bridge oid %" PRIx64 "\n", bmtor_bridge_entry->bridge_oid);
         SX_LOG_EXIT();
         return sai_status;
     }
 
-    sx_tunnel_map_entry.type = SX_TUNNEL_TYPE_NVE_VXLAN;
+    sx_tunnel_map_entry.type                 = SX_TUNNEL_TYPE_NVE_VXLAN;
     sx_tunnel_map_entry.params.nve.bridge_id = sx_bridge_id;
-    sx_tunnel_map_entry.params.nve.vni = bmtor_bridge_entry->vni;
+    sx_tunnel_map_entry.params.nve.vni       = bmtor_bridge_entry->vni;
     sx_tunnel_map_entry.params.nve.direction = SX_TUNNEL_MAP_DIR_BIDIR;
-    sdk_status = sx_api_tunnel_map_set(gh_sdk,
-                                       SX_ACCESS_CMD_DELETE,
-                                       bmtor_bridge_entry->sx_vxlan_tunnel_id,
-                                       &sx_tunnel_map_entry,
-                                       sx_tunnel_map_entry_cnt);
+    sdk_status                               = sx_api_tunnel_map_set(gh_sdk,
+                                                                     SX_ACCESS_CMD_DELETE,
+                                                                     bmtor_bridge_entry->sx_vxlan_tunnel_id,
+                                                                     &sx_tunnel_map_entry,
+                                                                     sx_tunnel_map_entry_cnt);
     if (SX_STATUS_SUCCESS != sdk_status) {
         sai_status = sdk_to_sai(sdk_status);
         SX_LOG_ERR("Error deleting tunnel map for tunnel %x with bridge %x, vni %d, sx status %s\n",
@@ -7735,28 +7733,28 @@ static sai_status_t mlnx_remove_bmtor_internal_obj(_In_ mlnx_bmtor_bridge_t *bmt
 
     sai_status = mlnx_bridge_api.remove_bridge_port(bmtor_bridge_entry->tunnel_bport_oid);
     if (SAI_ERR(sai_status)) {
-        SX_LOG_ERR("Failed to remove SAI tunnel bridge port %"PRIx64"\n", bmtor_bridge_entry->tunnel_bport_oid);
+        SX_LOG_ERR("Failed to remove SAI tunnel bridge port %" PRIx64 "\n", bmtor_bridge_entry->tunnel_bport_oid);
         SX_LOG_EXIT();
         return sai_status;
     }
 
     sai_status = mlnx_bridge_api.remove_bridge_port(bmtor_bridge_entry->bridge_bport_oid);
     if (SAI_ERR(sai_status)) {
-        SX_LOG_ERR("Failed to remove SAI bridge port %"PRIx64"\n", bmtor_bridge_entry->bridge_bport_oid);
+        SX_LOG_ERR("Failed to remove SAI bridge port %" PRIx64 "\n", bmtor_bridge_entry->bridge_bport_oid);
         SX_LOG_EXIT();
         return sai_status;
     }
 
     sai_status = mlnx_router_interface_api.remove_router_interface(bmtor_bridge_entry->rif_oid);
     if (SAI_ERR(sai_status)) {
-        SX_LOG_ERR("Failed to remove SAI rif %"PRIx64"\n", bmtor_bridge_entry->rif_oid);
+        SX_LOG_ERR("Failed to remove SAI rif %" PRIx64 "\n", bmtor_bridge_entry->rif_oid);
         SX_LOG_EXIT();
         return sai_status;
     }
 
     sai_status = mlnx_bridge_api.remove_bridge(bmtor_bridge_entry->bridge_oid);
     if (SAI_ERR(sai_status)) {
-        SX_LOG_ERR("Failed to remove SAI bridge %"PRIx64"\n", bmtor_bridge_entry->bridge_oid);
+        SX_LOG_ERR("Failed to remove SAI bridge %" PRIx64 "\n", bmtor_bridge_entry->bridge_oid);
         SX_LOG_EXIT();
         return sai_status;
     }
@@ -7766,16 +7764,16 @@ static sai_status_t mlnx_remove_bmtor_internal_obj(_In_ mlnx_bmtor_bridge_t *bmt
 }
 
 /* This function needs to be guarded by lock */
-static sai_status_t mlnx_tunnel_map_entry_set_bmtor_obj(_In_ uint32_t        tunnel_map_entry_idx,
-                                                        _In_ uint32_t        tunnel_idx,
-                                                        _In_ bool            is_add)
+static sai_status_t mlnx_tunnel_map_entry_set_bmtor_obj(_In_ uint32_t tunnel_map_entry_idx,
+                                                        _In_ uint32_t tunnel_idx,
+                                                        _In_ bool     is_add)
 {
     sai_status_t        sai_status;
     sai_object_id_t     vrf_oid, tunnel_oid;
     uint32_t            vni;
     mlnx_bmtor_bridge_t bmtor_bridge_entry;
     uint32_t            bmtor_bridge_db_idx;
-    bool                is_default = true;
+    bool                is_default                = true;
     uint32_t            pair_tunnel_map_entry_idx = 0;
 
     SX_LOG_ENTER();
@@ -7783,12 +7781,12 @@ static sai_status_t mlnx_tunnel_map_entry_set_bmtor_obj(_In_ uint32_t        tun
     switch (g_sai_tunnel_db_ptr->tunnel_map_entry_db[tunnel_map_entry_idx].tunnel_map_type) {
     case SAI_TUNNEL_MAP_TYPE_VIRTUAL_ROUTER_ID_TO_VNI:
         vrf_oid = g_sai_tunnel_db_ptr->tunnel_map_entry_db[tunnel_map_entry_idx].vr_id_key;
-        vni = g_sai_tunnel_db_ptr->tunnel_map_entry_db[tunnel_map_entry_idx].vni_id_value;
+        vni     = g_sai_tunnel_db_ptr->tunnel_map_entry_db[tunnel_map_entry_idx].vni_id_value;
         break;
 
     case SAI_TUNNEL_MAP_TYPE_VNI_TO_VIRTUAL_ROUTER_ID:
         vrf_oid = g_sai_tunnel_db_ptr->tunnel_map_entry_db[tunnel_map_entry_idx].vr_id_value;
-        vni = g_sai_tunnel_db_ptr->tunnel_map_entry_db[tunnel_map_entry_idx].vni_id_key;
+        vni     = g_sai_tunnel_db_ptr->tunnel_map_entry_db[tunnel_map_entry_idx].vni_id_key;
         break;
 
     default:
@@ -7811,8 +7809,11 @@ static sai_status_t mlnx_tunnel_map_entry_set_bmtor_obj(_In_ uint32_t        tun
         sai_status = mlnx_create_bmtor_internal_obj(vrf_oid, vni, tunnel_oid, is_default, &bmtor_bridge_entry);
         if (SAI_ERR(sai_status)) {
             sai_db_write_lock();
-            SX_LOG_ERR("Failed to create bmtor internal obj using vrf oid %"PRIx64", vni %d and tunnel oid %"PRIx64"\n",
-                       vrf_oid, vni, tunnel_oid);
+            SX_LOG_ERR(
+                "Failed to create bmtor internal obj using vrf oid %" PRIx64 ", vni %d and tunnel oid %" PRIx64 "\n",
+                vrf_oid,
+                vni,
+                tunnel_oid);
             SX_LOG_EXIT();
             return sai_status;
         }
@@ -7828,16 +7829,26 @@ static sai_status_t mlnx_tunnel_map_entry_set_bmtor_obj(_In_ uint32_t        tun
         memcpy(&(g_sai_tunnel_db_ptr->bmtor_bridge_db[bmtor_bridge_db_idx]),
                &bmtor_bridge_entry,
                sizeof(bmtor_bridge_entry));
-        g_sai_tunnel_db_ptr->tunnel_map_entry_db[tunnel_map_entry_idx].pair_per_vxlan_array[tunnel_idx].bmtor_bridge_db_idx = bmtor_bridge_db_idx;
-        if (g_sai_tunnel_db_ptr->tunnel_map_entry_db[tunnel_map_entry_idx].pair_per_vxlan_array[tunnel_idx].pair_exist) {
-            pair_tunnel_map_entry_idx = g_sai_tunnel_db_ptr->tunnel_map_entry_db[tunnel_map_entry_idx].pair_per_vxlan_array[tunnel_idx].pair_tunnel_map_entry_idx;
-            g_sai_tunnel_db_ptr->tunnel_map_entry_db[pair_tunnel_map_entry_idx].pair_per_vxlan_array[tunnel_idx].bmtor_bridge_db_idx = bmtor_bridge_db_idx;
+        g_sai_tunnel_db_ptr->tunnel_map_entry_db[tunnel_map_entry_idx].pair_per_vxlan_array[tunnel_idx].
+        bmtor_bridge_db_idx = bmtor_bridge_db_idx;
+        if (g_sai_tunnel_db_ptr->tunnel_map_entry_db[tunnel_map_entry_idx].pair_per_vxlan_array[tunnel_idx].pair_exist)
+        {
+            pair_tunnel_map_entry_idx
+                = g_sai_tunnel_db_ptr->tunnel_map_entry_db[tunnel_map_entry_idx].pair_per_vxlan_array[tunnel_idx].
+                  pair_tunnel_map_entry_idx;
+            g_sai_tunnel_db_ptr->tunnel_map_entry_db[pair_tunnel_map_entry_idx].pair_per_vxlan_array[tunnel_idx].
+            bmtor_bridge_db_idx = bmtor_bridge_db_idx;
         }
     } else {
-        bmtor_bridge_db_idx = g_sai_tunnel_db_ptr->tunnel_map_entry_db[tunnel_map_entry_idx].pair_per_vxlan_array[tunnel_idx].bmtor_bridge_db_idx;
+        bmtor_bridge_db_idx =
+            g_sai_tunnel_db_ptr->tunnel_map_entry_db[tunnel_map_entry_idx].pair_per_vxlan_array[tunnel_idx].
+            bmtor_bridge_db_idx;
         if (!g_sai_tunnel_db_ptr->bmtor_bridge_db[bmtor_bridge_db_idx].in_use) {
-            SX_LOG_DBG("bmtor internal obj does not exist at bmtor bridge db idx %d for tunnel map entry idx %d and tunnel idx %d\n",
-                       bmtor_bridge_db_idx, tunnel_map_entry_idx, tunnel_idx);
+            SX_LOG_DBG(
+                "bmtor internal obj does not exist at bmtor bridge db idx %d for tunnel map entry idx %d and tunnel idx %d\n",
+                bmtor_bridge_db_idx,
+                tunnel_map_entry_idx,
+                tunnel_idx);
             SX_LOG_EXIT();
             return SAI_STATUS_SUCCESS;
         }
@@ -7851,16 +7862,21 @@ static sai_status_t mlnx_tunnel_map_entry_set_bmtor_obj(_In_ uint32_t        tun
         sai_status = mlnx_remove_bmtor_internal_obj(&bmtor_bridge_entry);
         if (SAI_ERR(sai_status)) {
             sai_db_write_lock();
-            SX_LOG_ERR("Failed to remove bmtor internal obj at bmtor bridge db idx %d for tunnel map entry idx %d and tunnel idx %d\n",
-                       bmtor_bridge_db_idx, tunnel_map_entry_idx, tunnel_idx);
+            SX_LOG_ERR(
+                "Failed to remove bmtor internal obj at bmtor bridge db idx %d for tunnel map entry idx %d and tunnel idx %d\n",
+                bmtor_bridge_db_idx,
+                tunnel_map_entry_idx,
+                tunnel_idx);
             SX_LOG_EXIT();
             return sai_status;
         }
 
         sai_db_write_lock();
 
-        g_sai_tunnel_db_ptr->tunnel_map_entry_db[tunnel_map_entry_idx].pair_per_vxlan_array[tunnel_idx].bmtor_bridge_db_idx = 0;
-        g_sai_tunnel_db_ptr->bmtor_bridge_db[bmtor_bridge_db_idx].in_use = false;
+        g_sai_tunnel_db_ptr->tunnel_map_entry_db[tunnel_map_entry_idx].pair_per_vxlan_array[tunnel_idx].
+        bmtor_bridge_db_idx = 0;
+        g_sai_tunnel_db_ptr->bmtor_bridge_db[bmtor_bridge_db_idx].in_use
+            = false;
     }
 
     SX_LOG_EXIT();
@@ -8091,22 +8107,22 @@ cleanup:
     return sai_status;
 }
 
-static sai_status_t mlnx_tunnel_get_bmtor_entry_idx(_In_  sai_object_id_t      tunnel_id,
-                                                    _In_  uint32_t             vni,
-                                                    _In_  sai_object_id_t      vrf,
-                                                    _Out_ uint32_t            *tunnel_map_entry_idx,
-                                                    _Out_ uint32_t            *bmtor_bridge_db_idx)
+static sai_status_t mlnx_tunnel_get_bmtor_entry_idx(_In_ sai_object_id_t tunnel_id,
+                                                    _In_ uint32_t        vni,
+                                                    _In_ sai_object_id_t vrf,
+                                                    _Out_ uint32_t      *tunnel_map_entry_idx,
+                                                    _Out_ uint32_t      *bmtor_bridge_db_idx)
 {
     sai_status_t             sai_status;
     sx_tunnel_id_t           sx_vxlan_tunnel;
     mlnx_tunnel_map_entry_t *curr_tunnel_map_entry;
-    uint32_t                 ii       = 0;
+    uint32_t                 ii                       = 0;
     uint32_t                 curr_bmtor_bridge_db_idx = 0;
-    uint32_t                 tunnel_idx = 0;
-    bool                     vrf_key_match = false;
-    bool                     vrf_value_match = false;
-    bool                     vni_key_match = false;
-    bool                     vni_value_match = false;
+    uint32_t                 tunnel_idx               = 0;
+    bool                     vrf_key_match            = false;
+    bool                     vrf_value_match          = false;
+    bool                     vni_key_match            = false;
+    bool                     vni_value_match          = false;
 
     SX_LOG_ENTER();
 
@@ -8124,12 +8140,12 @@ static sai_status_t mlnx_tunnel_get_bmtor_entry_idx(_In_  sai_object_id_t      t
 
     sai_status = mlnx_sai_tunnel_to_sx_tunnel_id(tunnel_id, &sx_vxlan_tunnel);
     if (SAI_ERR(sai_status)) {
-        SX_LOG_DBG("Failed to find sx tunnel id from SAI tunnel oid %"PRIx64"\n", tunnel_id);
+        SX_LOG_DBG("Failed to find sx tunnel id from SAI tunnel oid %" PRIx64 "\n", tunnel_id);
     }
 
     sai_status = mlnx_get_sai_tunnel_db_idx(tunnel_id, &tunnel_idx);
     if (SAI_ERR(sai_status)) {
-        SX_LOG_DBG("Failed to find tunnel idx from SAI tunnel oid %"PRIx64"\n", tunnel_id);
+        SX_LOG_DBG("Failed to find tunnel idx from SAI tunnel oid %" PRIx64 "\n", tunnel_id);
     }
 
     /* Get VR ID to VNI map */
@@ -8143,8 +8159,9 @@ static sai_status_t mlnx_tunnel_get_bmtor_entry_idx(_In_  sai_object_id_t      t
         if (0 == vni) {
             vrf_key_match = (SAI_TUNNEL_MAP_TYPE_VIRTUAL_ROUTER_ID_TO_VNI == curr_tunnel_map_entry->tunnel_map_type) &&
                             (vrf == curr_tunnel_map_entry->vr_id_key);
-            vrf_value_match = (SAI_TUNNEL_MAP_TYPE_VNI_TO_VIRTUAL_ROUTER_ID == curr_tunnel_map_entry->tunnel_map_type) &&
-                            (vrf == curr_tunnel_map_entry->vr_id_value);
+            vrf_value_match =
+                (SAI_TUNNEL_MAP_TYPE_VNI_TO_VIRTUAL_ROUTER_ID == curr_tunnel_map_entry->tunnel_map_type) &&
+                (vrf == curr_tunnel_map_entry->vr_id_value);
             if (curr_tunnel_map_entry->in_use &&
                 (vrf_key_match || vrf_value_match)) {
                 curr_bmtor_bridge_db_idx = curr_tunnel_map_entry->pair_per_vxlan_array[tunnel_idx].bmtor_bridge_db_idx;
@@ -8159,12 +8176,12 @@ static sai_status_t mlnx_tunnel_get_bmtor_entry_idx(_In_  sai_object_id_t      t
                     break;
                 }
             }
-
         } else {
             vni_key_match = (SAI_TUNNEL_MAP_TYPE_VNI_TO_VIRTUAL_ROUTER_ID == curr_tunnel_map_entry->tunnel_map_type) &&
                             (vni == curr_tunnel_map_entry->vni_id_key);
-            vni_value_match = (SAI_TUNNEL_MAP_TYPE_VIRTUAL_ROUTER_ID_TO_VNI == curr_tunnel_map_entry->tunnel_map_type) &&
-                            (vni == curr_tunnel_map_entry->vni_id_value);
+            vni_value_match =
+                (SAI_TUNNEL_MAP_TYPE_VIRTUAL_ROUTER_ID_TO_VNI == curr_tunnel_map_entry->tunnel_map_type) &&
+                (vni == curr_tunnel_map_entry->vni_id_value);
             if (curr_tunnel_map_entry->in_use &&
                 (vni_key_match || vni_value_match)) {
                 break;
@@ -8187,7 +8204,7 @@ static sai_status_t mlnx_tunnel_get_bmtor_entry_idx(_In_  sai_object_id_t      t
     }
 
     *tunnel_map_entry_idx = ii;
-    *bmtor_bridge_db_idx = curr_bmtor_bridge_db_idx;
+    *bmtor_bridge_db_idx  = curr_bmtor_bridge_db_idx;
 
     SX_LOG_EXIT();
     return SAI_STATUS_SUCCESS;
@@ -8199,13 +8216,13 @@ sai_status_t mlnx_tunnel_get_bridge_and_rif(_In_ sai_object_id_t         tunnel_
                                             _Out_ sx_router_interface_t *br_rif,
                                             _Out_ sx_fid_t              *br_fid)
 {
-    sai_status_t             sai_status;
-    sai_object_id_t          bridge_oid;
-    sx_bridge_id_t           sx_bridge_id;
-    mlnx_bridge_rif_t       *curr_bridge_rif_entry;
-    uint32_t                 tunnel_map_entry_idx = 0;
-    uint32_t                 ii       = 0;
-    uint32_t                 bmtor_bridge_db_idx = 0;
+    sai_status_t       sai_status;
+    sai_object_id_t    bridge_oid;
+    sx_bridge_id_t     sx_bridge_id;
+    mlnx_bridge_rif_t *curr_bridge_rif_entry;
+    uint32_t           tunnel_map_entry_idx = 0;
+    uint32_t           ii                   = 0;
+    uint32_t           bmtor_bridge_db_idx  = 0;
 
     SX_LOG_ENTER();
 
@@ -8223,7 +8240,7 @@ sai_status_t mlnx_tunnel_get_bridge_and_rif(_In_ sai_object_id_t         tunnel_
 
     sai_status = mlnx_tunnel_get_bmtor_entry_idx(tunnel_id, vni, vrf, &tunnel_map_entry_idx, &bmtor_bridge_db_idx);
     if (SAI_ERR(sai_status)) {
-        SX_LOG_ERR("Error getting bmtor entry idx using tunnel id %"PRIx64", vni: %d, vrf: %"PRIx64"\n",
+        SX_LOG_ERR("Error getting bmtor entry idx using tunnel id %" PRIx64 ", vni: %d, vrf: %" PRIx64 "\n",
                    tunnel_id, vni, vrf);
         SX_LOG_EXIT();
         return sai_status;
@@ -8233,7 +8250,7 @@ sai_status_t mlnx_tunnel_get_bridge_and_rif(_In_ sai_object_id_t         tunnel_
 
     sai_status = mlnx_bridge_oid_to_id(bridge_oid, &sx_bridge_id);
     if (SAI_ERR(sai_status)) {
-        SX_LOG_ERR("Failed to find sx bridge id using bridge oid %"PRIx64"\n", bridge_oid);
+        SX_LOG_ERR("Failed to find sx bridge id using bridge oid %" PRIx64 "\n", bridge_oid);
         SX_LOG_EXIT();
         return SAI_STATUS_FAILURE;
     }
@@ -8269,19 +8286,19 @@ sai_status_t mlnx_tunnel_bridge_counter_update(_In_ sai_object_id_t tunnel_id,
                                                _In_ sai_object_id_t vrf,
                                                _In_ int32_t         diff)
 {
-    const bool           is_default = false;
-    mlnx_bmtor_bridge_t  bmtor_bridge_entry;
-    uint32_t             bmtor_bridge_db_idx;
-    uint32_t             tunnel_map_entry_idx = 0;
-    uint32_t             pair_tunnel_map_entry_idx = 0;
-    uint32_t             tunnel_idx = 0;
-    sai_status_t         sai_status;
+    const bool          is_default = false;
+    mlnx_bmtor_bridge_t bmtor_bridge_entry;
+    uint32_t            bmtor_bridge_db_idx;
+    uint32_t            tunnel_map_entry_idx      = 0;
+    uint32_t            pair_tunnel_map_entry_idx = 0;
+    uint32_t            tunnel_idx                = 0;
+    sai_status_t        sai_status;
 
     SX_LOG_ENTER();
 
     sai_status = mlnx_get_sai_tunnel_db_idx(tunnel_id, &tunnel_idx);
     if (SAI_ERR(sai_status)) {
-        SX_LOG_DBG("Failed to find tunnel idx from SAI tunnel oid %"PRIx64"\n", tunnel_id);
+        SX_LOG_DBG("Failed to find tunnel idx from SAI tunnel oid %" PRIx64 "\n", tunnel_id);
     }
 
     sai_status = mlnx_tunnel_get_bmtor_entry_idx(tunnel_id, vni, vrf,
@@ -8290,8 +8307,11 @@ sai_status_t mlnx_tunnel_bridge_counter_update(_In_ sai_object_id_t tunnel_id,
         sai_db_unlock();
         sai_status = mlnx_create_bmtor_internal_obj(vrf, vni, tunnel_id, is_default, &bmtor_bridge_entry);
         if (SAI_ERR(sai_status)) {
-            SX_LOG_ERR("Failed to create bmtor internal obj using VRF %"PRIx64", VNI %d and tunnel oid %"PRIx64"\n",
-                       vrf, vni, tunnel_id);
+            SX_LOG_ERR(
+                "Failed to create bmtor internal obj using VRF %" PRIx64 ", VNI %d and tunnel oid %" PRIx64 "\n",
+                vrf,
+                vni,
+                tunnel_id);
             SX_LOG_EXIT();
             return sai_status;
         }
@@ -8314,21 +8334,28 @@ sai_status_t mlnx_tunnel_bridge_counter_update(_In_ sai_object_id_t tunnel_id,
             return sai_status;
         }
 
-        g_sai_tunnel_db_ptr->tunnel_map_entry_db[tunnel_map_entry_idx].pair_per_vxlan_array[tunnel_idx].bmtor_bridge_db_idx = bmtor_bridge_db_idx;
-        if (g_sai_tunnel_db_ptr->tunnel_map_entry_db[tunnel_map_entry_idx].pair_per_vxlan_array[tunnel_idx].pair_exist) {
-            pair_tunnel_map_entry_idx = g_sai_tunnel_db_ptr->tunnel_map_entry_db[tunnel_map_entry_idx].pair_per_vxlan_array[tunnel_idx].pair_tunnel_map_entry_idx;
-            g_sai_tunnel_db_ptr->tunnel_map_entry_db[pair_tunnel_map_entry_idx].pair_per_vxlan_array[tunnel_idx].bmtor_bridge_db_idx = bmtor_bridge_db_idx;
+        g_sai_tunnel_db_ptr->tunnel_map_entry_db[tunnel_map_entry_idx].pair_per_vxlan_array[tunnel_idx].
+        bmtor_bridge_db_idx = bmtor_bridge_db_idx;
+        if (g_sai_tunnel_db_ptr->tunnel_map_entry_db[tunnel_map_entry_idx].pair_per_vxlan_array[tunnel_idx].pair_exist)
+        {
+            pair_tunnel_map_entry_idx
+                = g_sai_tunnel_db_ptr->tunnel_map_entry_db[tunnel_map_entry_idx].pair_per_vxlan_array[tunnel_idx].
+                  pair_tunnel_map_entry_idx;
+            g_sai_tunnel_db_ptr->tunnel_map_entry_db[pair_tunnel_map_entry_idx].pair_per_vxlan_array[tunnel_idx].
+            bmtor_bridge_db_idx = bmtor_bridge_db_idx;
         }
-        g_sai_tunnel_db_ptr->tunnel_map_entry_db[tunnel_map_entry_idx].in_use = true;
-        g_sai_tunnel_db_ptr->tunnel_map_entry_db[tunnel_map_entry_idx].tunnel_map_type = SAI_TUNNEL_MAP_TYPE_VIRTUAL_ROUTER_ID_TO_VNI;
-        g_sai_tunnel_db_ptr->tunnel_map_entry_db[tunnel_map_entry_idx].vr_id_key = vrf;
+        g_sai_tunnel_db_ptr->tunnel_map_entry_db[tunnel_map_entry_idx].in_use          = true;
+        g_sai_tunnel_db_ptr->tunnel_map_entry_db[tunnel_map_entry_idx].tunnel_map_type =
+            SAI_TUNNEL_MAP_TYPE_VIRTUAL_ROUTER_ID_TO_VNI;
+        g_sai_tunnel_db_ptr->tunnel_map_entry_db[tunnel_map_entry_idx].vr_id_key    = vrf;
         g_sai_tunnel_db_ptr->tunnel_map_entry_db[tunnel_map_entry_idx].vni_id_value = vni;
     } else {
-        memcpy(&bmtor_bridge_entry, &(g_sai_tunnel_db_ptr->bmtor_bridge_db[bmtor_bridge_db_idx]), sizeof(bmtor_bridge_entry));
+        memcpy(&bmtor_bridge_entry, &(g_sai_tunnel_db_ptr->bmtor_bridge_db[bmtor_bridge_db_idx]),
+               sizeof(bmtor_bridge_entry));
     }
     g_sai_tunnel_db_ptr->bmtor_bridge_db[bmtor_bridge_db_idx].counter += diff;
-    bmtor_bridge_entry.counter += diff;
-    if (0 == bmtor_bridge_entry.counter && bmtor_bridge_entry.is_default == false) {
+    bmtor_bridge_entry.counter                                        += diff;
+    if ((0 == bmtor_bridge_entry.counter) && (bmtor_bridge_entry.is_default == false)) {
         if (!bmtor_bridge_entry.in_use) {
             SX_LOG_DBG("bmtor internal obj does not exist at bmtor bridge db idx %d\n",
                        bmtor_bridge_db_idx);
@@ -8347,8 +8374,10 @@ sai_status_t mlnx_tunnel_bridge_counter_update(_In_ sai_object_id_t tunnel_id,
 
         sai_db_write_lock();
 
-        g_sai_tunnel_db_ptr->tunnel_map_entry_db[tunnel_map_entry_idx].pair_per_vxlan_array[tunnel_idx].bmtor_bridge_db_idx = 0;
-        g_sai_tunnel_db_ptr->bmtor_bridge_db[bmtor_bridge_db_idx].in_use = false;
+        g_sai_tunnel_db_ptr->tunnel_map_entry_db[tunnel_map_entry_idx].pair_per_vxlan_array[tunnel_idx].
+        bmtor_bridge_db_idx = 0;
+        g_sai_tunnel_db_ptr->bmtor_bridge_db[bmtor_bridge_db_idx].in_use
+            = false;
         if (0 != vni) {
             g_sai_tunnel_db_ptr->tunnel_map_entry_db[tunnel_map_entry_idx].in_use = false;
         }

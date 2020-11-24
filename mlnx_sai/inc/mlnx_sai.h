@@ -281,6 +281,11 @@ extern const sai_bfd_api_t              mlnx_bfd_api;
 
 typedef uint64_t udf_group_mask_t;
 
+#define safe_free(var) \
+if (var) {                                                      \
+    free(var);                                                  \
+    var = NULL;                                                 \
+}                                                               \
 
 #define ARRAY_SIZE(_x) (sizeof(_x) / sizeof(_x[0]))
 
@@ -1009,6 +1014,11 @@ extern const mlnx_trap_info_t mlnx_traps_info[];
     (SX_FDB_IS_LIMIT_EXIST(sx_limit) ?             \
      (sx_limit) : MLNX_FDB_LEARNING_NO_LIMIT_VALUE)
 
+/* Port Shared (Headroom) Buffer profile defaults */
+#define SAI_BUFFER_DEFAULT_PORT_SHARED_HEADROOM_BUFFER_MIN_SIZE (2*1440U)
+#define SAI_BUFFER_DEFAULT_PORT_SHARED_HEADROOM_BUFFER_XON_INFINITE (0xffff)
+#define SAI_BUFFER_DEFAULT_PORT_SHARED_HEADROOM_BUFFER_XOFF_INFINITE (0xffff)
+
 typedef enum _mlnx_port_breakout_capability_t {
     MLNX_PORT_BREAKOUT_CAPABILITY_NONE     = 0,
     MLNX_PORT_BREAKOUT_CAPABILITY_TWO      = 1,
@@ -1034,6 +1044,8 @@ typedef struct _mlnx_sai_buffer_pool_attr {
     sai_buffer_pool_threshold_mode_t pool_mode;
     /*size in bytes*/
     uint32_t pool_size;
+    /* is current pool is associated with shared headroom pool */
+    bool     is_shp_mapped;
 } mlnx_sai_buffer_pool_attr_t;
 typedef struct _mlnx_sai_shared_max_size_t {
     sai_buffer_profile_threshold_mode_t mode;
@@ -1050,6 +1062,11 @@ typedef struct _mlnx_sai_db_buffer_profile_entry_t {
     uint32_t                   xoff;
     bool                       is_valid;
 } mlnx_sai_db_buffer_profile_entry_t;
+typedef struct _mlnx_sai_db_shp_to_ipool_map_entry_t {
+    bool                       is_shp_created; /* global flag indicating Shared Headroom is globally enabled/disabled */
+    sai_object_id_t            sai_pool_id;   /* regular ingress Pool which is associated with shared headroom pool */
+    sai_object_id_t            shp_pool_id;   /* shared headroom pool */
+} mlnx_sai_db_buffer_pool_shp_map_entry_t;
 typedef struct _mlnx_policer_db_entry_t {
     sx_policer_id_t         sx_policer_id_trap;     /* For binding to trap group only. value == SX_POLICER_ID_INVALID, unless/untill sx_policer is associated with this sai_policer.*/
     sx_policer_id_t         sx_policer_id_acl;      /* For binding to ACL only. see SX_POLICER_ID_INVALID note above, applies to this field as well*/
@@ -1915,7 +1932,7 @@ typedef struct _mlnx_samplepacket_t {
 #define MLNX_TUNNEL_MAP_ENTRY_MAX     8001
 #define MLNX_BMTOR_BRIDGE_MAX         512
 #define MLNX_TUNNEL_TO_TUNNEL_MAP_MAX 1000
-#define MAX_IPINIP_TUNNEL             256 
+#define MAX_IPINIP_TUNNEL             256
 #define MAX_VXLAN_TUNNEL              1
 #define MAX_TUNNEL                    257
 
@@ -2313,6 +2330,8 @@ typedef struct _mlnx_sai_buffer_resource_limits_t {
     uint32_t num_port_pg_buff;
     uint32_t unit_size;
     uint32_t max_buffers_per_port;
+    uint32_t num_shared_headroom_pools;
+    uint32_t num_port_shared_headroom_buff;
 } mlnx_sai_buffer_resource_limits_t;
 const mlnx_sai_buffer_resource_limits_t* mlnx_sai_get_buffer_resource_limits();
 
@@ -2378,11 +2397,14 @@ typedef struct _sai_buffer_db_t {
      *  pool_allocation[1 + user ingress pools + user egress pools]
      *  When SAI starts up it will load current buffer configuration into SAI buffer infrastructure,
      *  so user would be able to use it. However on the first user request to create a pool all
-     *  existring buffer configuration will be deleted.
+     *  existing buffer configuration will be deleted.
      *  This item will be set initially to 0, and after first create pool request will be set to true.
      *  Once set to true, it cannot be modified.
      */
     bool *pool_allocation;
+
+    /* keeps association between shared headroom pool and ingress pool */
+    mlnx_sai_db_buffer_pool_shp_map_entry_t *shp_ipool_map;
 
     mlnx_sai_buffer_pool_ids_t buffer_pool_ids;
 } sai_buffer_db_t;
