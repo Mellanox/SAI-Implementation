@@ -521,6 +521,13 @@ static sai_status_t remove_port_from_lag(sx_port_log_id_t lag_id, sx_port_log_id
         return status;
     }
 
+    if (g_sai_db_ptr->pbhash_gre) {
+        status = mlnx_pbhash_acl_bind(SX_ACCESS_CMD_ADD, port->saiport, SAI_OBJECT_TYPE_PORT);
+        if (SAI_ERR(status)) {
+            return status;
+        }
+    }
+
     return SAI_STATUS_SUCCESS;
 }
 
@@ -1169,6 +1176,13 @@ static sai_status_t mlnx_create_lag(_Out_ sai_object_id_t     * lag_id,
             goto out;
         }
     }
+
+    if (g_sai_db_ptr->pbhash_gre) {
+        status = mlnx_pbhash_acl_bind(SX_ACCESS_CMD_ADD, *lag_id, SAI_OBJECT_TYPE_LAG);
+        if (SAI_ERR(status)) {
+            goto out;
+        }
+    }
 out:
     acl_global_unlock();
     if (SAI_ERR(status)) {
@@ -1199,7 +1213,7 @@ static sai_status_t mlnx_remove_lag(_In_ sai_object_id_t lag_id)
     SX_LOG_ENTER();
 
     lag_key_to_str(lag_id, key_str);
-    SX_LOG_NTC("Removing %s\n", key_str);
+    SX_LOG_NTC("Remove %s\n", key_str);
 
     status = mlnx_object_to_log_port(lag_id, &lag_log_port_id);
     if (SAI_ERR(status)) {
@@ -1283,16 +1297,17 @@ static sai_status_t mlnx_create_lag_member(_Out_ sai_object_id_t     * lag_membe
     sx_port_log_id_t             lag_id;
     uint32_t                     lag_db_idx;
     sx_port_log_id_t             port_id;
-    uint32_t                     port_cnt               = 0;
-    mlnx_port_config_t          *port                   = NULL;
-    mlnx_port_config_t          *lag                    = NULL;
-    sx_collector_mode_t          collect_mode           = COLLECTOR_ENABLE;
-    sx_distributor_mode_t        dist_mode              = DISTRIBUTOR_ENABLE;
-    mlnx_object_id_t             mlnx_lag_member        = {0};
-    bool                         is_acl_rollback_needed = false;
-    const uint32_t               ingress_acl_index      = 0;
-    const uint32_t               egress_acl_index       = 0;
-    uint32_t                     ii                     = 0;
+    uint32_t                     port_cnt                      = 0;
+    mlnx_port_config_t          *port                          = NULL;
+    mlnx_port_config_t          *lag                           = NULL;
+    sx_collector_mode_t          collect_mode                  = COLLECTOR_ENABLE;
+    sx_distributor_mode_t        dist_mode                     = DISTRIBUTOR_ENABLE;
+    mlnx_object_id_t             mlnx_lag_member               = {0};
+    bool                         is_acl_rollback_needed        = false;
+    bool                         is_pbhash_acl_rollback_needed = false;
+    const uint32_t               ingress_acl_index             = 0;
+    const uint32_t               egress_acl_index              = 0;
+    uint32_t                     ii                            = 0;
     mlnx_qos_queue_config_t     *lag_queue_cfg;
     mlnx_qos_queue_config_t     *port_queue_cfg;
     const bool                   is_warmboot_init_stage = (BOOT_TYPE_WARM == g_sai_db_ptr->boot_type) &&
@@ -1493,6 +1508,15 @@ static sai_status_t mlnx_create_lag_member(_Out_ sai_object_id_t     * lag_membe
         }
     }
 
+    if (g_sai_db_ptr->pbhash_gre) {
+        status = mlnx_pbhash_acl_bind(SX_ACCESS_CMD_DELETE, port_oid, SAI_OBJECT_TYPE_PORT);
+        if (SAI_ERR(status)) {
+            SX_LOG_NTC("Failed to unbind PB hash ACL from port [%x]\n", port->logical);
+            goto out;
+        }
+    }
+    is_pbhash_acl_rollback_needed = true;
+
     status = mlnx_acl_port_lag_event_handle_unlocked(port, ACL_EVENT_TYPE_LAG_MEMBER_ADD);
     if (SAI_ERR(status)) {
         SX_LOG_NTC("Failed to remove Lag member port[%x] from ACLs\n", lag->logical);
@@ -1545,6 +1569,10 @@ out:
         if (is_acl_rollback_needed) {
             mlnx_acl_port_lag_event_handle_unlocked(port, ACL_EVENT_TYPE_LAG_MEMBER_DEL);
         }
+
+        if (g_sai_db_ptr->pbhash_gre && is_pbhash_acl_rollback_needed) {
+            mlnx_pbhash_acl_bind(SX_ACCESS_CMD_ADD, port_oid, SAI_OBJECT_TYPE_PORT);
+        }
     }
 
     SX_LOG_EXIT();
@@ -1566,7 +1594,7 @@ static sai_status_t mlnx_remove_lag_member(_In_ sai_object_id_t lag_member_id)
     SX_LOG_ENTER();
 
     lag_member_key_to_str(lag_member_id, key_str);
-    SX_LOG_NTC("Removing %s\n", key_str);
+    SX_LOG_NTC("Remove %s\n", key_str);
 
     status = sai_to_mlnx_object_id(SAI_OBJECT_TYPE_LAG_MEMBER, lag_member_id, &mlnx_lag_member);
     if (SAI_ERR(status)) {

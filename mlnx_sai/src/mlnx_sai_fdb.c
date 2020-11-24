@@ -1124,6 +1124,8 @@ static sai_status_t mlnx_flush_fdb_entries(_In_ sai_object_id_t        switch_id
         }
     }
 
+    SX_LOG_NTC("Flushed fdb entries by port %d by bridge %d\n", port_found, bv_id_found);
+
     SX_LOG_EXIT();
     return SAI_STATUS_SUCCESS;
 }

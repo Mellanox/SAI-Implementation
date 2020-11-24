@@ -163,7 +163,7 @@ static void remove_stp_id(_In_ sx_mstp_inst_id_t sx_stp_id)
 
     SX_LOG_ENTER();
 
-    SX_LOG_NTC("Removing instance id [%u] from STP db \n", sx_stp_id);
+    SX_LOG_NTC("Remove instance id [%u] from STP db \n", sx_stp_id);
 
     stp_db_entry          = get_stp_db_entry(sx_stp_id);
     stp_db_entry->is_used = false;
@@ -217,7 +217,7 @@ static sai_status_t mlnx_create_stp(_Out_ sai_object_id_t      *sai_stp_id,
         goto out;
     }
 
-    SX_LOG_DBG("Creating new STP instance [%u]\n", sx_stp_id);
+    SX_LOG_DBG("Create new STP instance [%u]\n", sx_stp_id);
 
     status = sx_api_mstp_inst_set(gh_sdk, SX_ACCESS_CMD_ADD,
                                   DEFAULT_ETH_SWID, sx_stp_id);
@@ -268,7 +268,7 @@ static sai_status_t mlnx_remove_stp(_In_ sai_object_id_t sai_stp_id)
 
     sx_stp_id = (sx_mstp_inst_id_t)data;
 
-    SX_LOG_NTC("Removing STP number [%u]\n", sx_stp_id);
+    SX_LOG_NTC("Remove STP number [%u]\n", sx_stp_id);
 
     assert(NULL != g_sai_db_ptr);
     sai_db_read_lock();

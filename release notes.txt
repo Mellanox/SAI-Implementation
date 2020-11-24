@@ -1,7 +1,7 @@
-Mellanox SAI implementation release notes
+﻿Mellanox SAI implementation release notes
 ==========================================
 
-Release 1.17.4
+Release 1.18.0
 ---------------
 
 Current implementation is partial. 
@@ -9,7 +9,7 @@ Current implementation is partial.
 Not all the APIs that are defined were fully implemented in this release. Missing flows or implementation are noted in the code as "TODO : ..." comments.
 
 The code was tested to work on X86 for Spectrum1, Spectrum2 and Spectrum3
-The code compiles with, and was tested with, SDK version 4.4.1908.
+The code compiles with, and was tested with, SDK version 4.4.2018.
 
 As a precondition to running SAI initialize switch, SDK must not be running (If it's running, terminate it with dvs_stop.sh). 
 The application must provide one key/value pair on profile services, depending on system type :
@@ -115,3 +115,5 @@ ISSU hitless does not support empty LAG with no members.
 Resource monitoring has the following limitations :
 * SAI_SWITCH_ATTR_AVAILABLE_IPV6_ROUTE_ENTRY measures only IPv6 routes with prefix < 64 on Spectrum1 and free space on single KVD hash.
 * SAI_ACL_TABLE_ATTR_AVAILABLE_ACL_ENTRY is not accurate on Spectrum2.
+
+Configuring shared headroom on the fly may, on occasion, cause the chip to get stuck. As a WA, Stop traffic before configuring Shared Headroom.

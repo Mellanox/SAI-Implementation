@@ -299,7 +299,8 @@ static sai_status_t mlnx_dbg_counter_in_drop_reasons_capab_get(int32_t *attrs, u
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_debug_counter_availability_get(_In_ uint32_t               attr_count,
+sai_status_t mlnx_debug_counter_availability_get(_In_ sai_object_id_t        switch_id,
+                                                 _In_ uint32_t               attr_count,
                                                  _In_ const sai_attribute_t *attr_list,
                                                  _Out_ uint64_t             *count)
 {

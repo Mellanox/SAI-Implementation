@@ -54,8 +54,7 @@ static sai_status_t mlnx_route_next_hop_id_set(_In_ const sai_object_key_t      
 static sai_status_t mlnx_get_route(const sai_route_entry_t* route_entry,
                                    sx_uc_route_get_entry_t *route_get_entry,
                                    sx_router_id_t          *vrid);
-static sai_status_t mlnx_route_next_hop_id_get_ext(_In_ sx_ecmp_id_t      ecmp,
-                                                   _Out_ sai_object_id_t *nh);
+static sai_status_t mlnx_route_next_hop_id_get_ext(_In_ sx_ecmp_id_t ecmp, _Out_ sai_object_id_t *nh);
 static const sai_vendor_attribute_entry_t route_vendor_attribs[] = {
     { SAI_ROUTE_ENTRY_ATTR_PACKET_ACTION,
       { true, false, true, true },
@@ -122,13 +121,13 @@ static sai_status_t mlnx_translate_sai_route_entry_to_sdk(_In_ const sai_route_e
     return SAI_STATUS_SUCCESS;
 }
 
-static sai_status_t mlnx_route_handle_encap_nexthop(_In_ sai_object_id_t  nh,
-                                                    _In_ sai_object_id_t  vrf,
-                                                    _Out_ sx_ecmp_id_t   *sx_ecmp_id)
+static sai_status_t mlnx_route_handle_encap_nexthop(_In_ sai_object_id_t nh,
+                                                    _In_ sai_object_id_t vrf,
+                                                    _Out_ sx_ecmp_id_t  *sx_ecmp_id)
 {
     sai_status_t                   status;
     mlnx_encap_nexthop_db_entry_t *db_entry;
-    mlnx_shm_rm_array_idx_t        idx ;
+    mlnx_shm_rm_array_idx_t        idx;
 
     assert(sx_ecmp_id);
 
@@ -182,7 +181,8 @@ static sai_status_t mlnx_fill_route_data(sx_uc_route_data_t      *route_data,
     SX_LOG_ENTER();
 
     if (SAI_OBJECT_TYPE_NEXT_HOP == sai_object_type_query(oid)) {
-        if (SAI_STATUS_SUCCESS != (status = mlnx_object_to_type(oid, SAI_OBJECT_TYPE_NEXT_HOP, &data, (uint8_t*)&ext))) {
+        if (SAI_STATUS_SUCCESS !=
+            (status = mlnx_object_to_type(oid, SAI_OBJECT_TYPE_NEXT_HOP, &data, (uint8_t*)&ext))) {
             return status;
         }
 
@@ -203,7 +203,7 @@ static sai_status_t mlnx_fill_route_data(sx_uc_route_data_t      *route_data,
         sdk_next_hop_cnt = 1;
         memset(&sdk_next_hop, 0, sizeof(sdk_next_hop));
         if (SX_STATUS_SUCCESS !=
-                (status = sx_api_router_ecmp_get(gh_sdk, sdk_ecmp_id, &sdk_next_hop, &sdk_next_hop_cnt))) {
+            (status = sx_api_router_ecmp_get(gh_sdk, sdk_ecmp_id, &sdk_next_hop, &sdk_next_hop_cnt))) {
             SX_LOG_ERR("Failed to get ecmp - %s.\n", SX_STATUS_MSG(status));
             return sdk_to_sai(status);
         }
@@ -391,8 +391,7 @@ static sai_status_t mlnx_create_route(_In_ const sai_route_entry_t* route_entry,
     return SAI_STATUS_SUCCESS;
 }
 
-static sai_status_t mlnx_route_to_encap_nexthop_remove(_In_ sai_object_id_t vrf,
-                                                       _In_ sai_object_id_t nh)
+static sai_status_t mlnx_route_to_encap_nexthop_remove(_In_ sai_object_id_t vrf, _In_ sai_object_id_t nh)
 {
     sai_status_t                   status;
     mlnx_encap_nexthop_db_entry_t *db_entry;
@@ -442,8 +441,8 @@ static sai_status_t mlnx_route_get_vrf_and_nh(_In_ const sai_route_entry_t *rout
         return status;
     }
 
-    if (SX_UC_ROUTE_TYPE_NEXT_HOP != route_get_entry.route_data.type ||
-        SX_ROUTER_ECMP_ID_INVALID == route_get_entry.route_data.uc_route_param.ecmp_id) {
+    if ((SX_UC_ROUTE_TYPE_NEXT_HOP != route_get_entry.route_data.type) ||
+        (SX_ROUTER_ECMP_ID_INVALID == route_get_entry.route_data.uc_route_param.ecmp_id)) {
         return SAI_STATUS_SUCCESS;
     }
 
@@ -467,7 +466,7 @@ static sai_status_t mlnx_route_get_vrf_and_nh(_In_ const sai_route_entry_t *rout
     }
 
     *found = use_db;
-    *vrf = route_entry->vr_id;
+    *vrf   = route_entry->vr_id;
 
     return SAI_STATUS_SUCCESS;
 }
@@ -666,25 +665,24 @@ static sai_status_t mlnx_route_trap_id_get(_In_ const sai_object_key_t   *key,
     return SAI_STATUS_NOT_IMPLEMENTED;
 }
 
-static sai_status_t mlnx_ecmp_get_ip(_In_ sx_ecmp_id_t   sdk_ecmp_id,
-                                     _Out_ sx_ip_addr_t *ip)
+static sai_status_t mlnx_ecmp_get_ip(_In_ sx_ecmp_id_t sdk_ecmp_id, _Out_ sx_ip_addr_t *ip)
 {
-    sx_status_t         sx_status;
-    sx_next_hop_t       sdk_next_hop;
-    uint32_t            sdk_next_hop_cnt;
+    sx_status_t   sx_status;
+    sx_next_hop_t sdk_next_hop;
+    uint32_t      sdk_next_hop_cnt;
 
     assert(ip);
 
     sdk_next_hop_cnt = 1;
-    sx_status = sx_api_router_ecmp_get(gh_sdk, sdk_ecmp_id, &sdk_next_hop, &sdk_next_hop_cnt);
-    if (SX_ERR(sx_status)){
+    sx_status        = sx_api_router_ecmp_get(gh_sdk, sdk_ecmp_id, &sdk_next_hop, &sdk_next_hop_cnt);
+    if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to get ecmp - %s.\n", SX_STATUS_MSG(sx_status));
         return sdk_to_sai(sx_status);
     }
 
     if (1 != sdk_next_hop_cnt) {
-        SX_LOG_ERR("Invalid next hops count %u\n", sdk_next_hop_cnt);
-        return SAI_STATUS_FAILURE;
+        SX_LOG_DBG("Next hops count != 1, (value: %u)\n", sdk_next_hop_cnt);
+        return SAI_STATUS_SUCCESS;
     }
 
     *ip = sdk_next_hop.next_hop_key.next_hop_key_entry.ip_next_hop.address;
@@ -702,13 +700,12 @@ static bool mlnx_is_encap_nexthop_fake_ip(_In_ sx_ip_addr_t *ip)
            (((ip->addr.ipv4.s_addr & 0x000000FF) < NUMBER_OF_LOCAL_VNETS));
 }
 
-static sai_status_t mlnx_route_get_encap_nexthop(_In_ sx_ip_addr_t     *ip,
-                                                 _Out_ sai_object_id_t *nh)
+static sai_status_t mlnx_route_get_encap_nexthop(_In_ sx_ip_addr_t *ip, _Out_ sai_object_id_t *nh)
 {
-    sai_status_t             status;
-    mlnx_shm_rm_array_idx_t  db_idx;
+    sai_status_t            status;
+    mlnx_shm_rm_array_idx_t db_idx;
 
-    db_idx.idx = (ip->addr.ipv4.s_addr & 0x00FFFF00) >> 8;
+    db_idx.idx  = (ip->addr.ipv4.s_addr & 0x00FFFF00) >> 8;
     db_idx.type = MLNX_SHM_RM_ARRAY_TYPE_NEXTHOP;
 
     sai_db_write_lock();
@@ -718,8 +715,7 @@ static sai_status_t mlnx_route_get_encap_nexthop(_In_ sx_ip_addr_t     *ip,
     return status;
 }
 
-static sai_status_t mlnx_route_next_hop_id_get_ext(_In_ sx_ecmp_id_t      ecmp,
-                                                   _Out_ sai_object_id_t *nh)
+static sai_status_t mlnx_route_next_hop_id_get_ext(_In_ sx_ecmp_id_t ecmp, _Out_ sai_object_id_t *nh)
 {
     sai_status_t status;
     sx_ip_addr_t ip = {0};
@@ -728,7 +724,7 @@ static sai_status_t mlnx_route_next_hop_id_get_ext(_In_ sx_ecmp_id_t      ecmp,
 
     status = mlnx_ecmp_get_ip(ecmp, &ip);
     if (SAI_ERR(status)) {
-        SX_LOG_ERR("ECMP get IP failed.\n");
+        SX_LOG_ERR("Get ECMP IP failed.\n");
         return status;
     }
 
@@ -1126,7 +1122,7 @@ static sai_status_t mlnx_bmtor_rif_event(_In_ sx_router_interface_t sx_rif, bool
 {
     sai_status_t status;
     sx_status_t  sx_status;
-    fx_handle_t  *p_fx_handle = NULL;
+    fx_handle_t *p_fx_handle = NULL;
 
     /* Check if initialized */
     if (SX_STATUS_SUCCESS != (status = sdk_to_sai(fx_default_handle_get(&p_fx_handle, &gh_sdk, 0)))) {

@@ -427,7 +427,7 @@ static sai_status_t mlnx_create_samplepacket_session(_Out_ sai_object_id_t      
     }
 
     sai_attr_list_to_str(attr_count, attr_list, SAI_OBJECT_TYPE_SAMPLEPACKET, MAX_LIST_VALUE_STR_LEN, list_str);
-    SX_LOG_NTC("SAI Samplepacket attributes: %s\n", list_str);
+    SX_LOG_NTC("Create Samplepacket attributes: %s\n", list_str);
 
     if (SAI_STATUS_SUCCESS !=
         (status =
@@ -563,7 +563,7 @@ static sai_status_t mlnx_remove_samplepacket_session(_In_ const sai_object_id_t 
         goto cleanup;
     }
 
-    SX_LOG_NTC("Removed SAI samplepacket obj id %" PRId64 "\n", sai_samplepacket_obj_id);
+    SX_LOG_NTC("Removed samplepacket obj id %" PRId64 "\n", sai_samplepacket_obj_id);
 
     status = SAI_STATUS_SUCCESS;
 

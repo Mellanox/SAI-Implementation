@@ -35,14 +35,12 @@ static sai_status_t mlnx_next_hop_attr_get(_In_ const sai_object_key_t   *key,
 static sai_status_t mlnx_next_hop_attr_set(_In_ const sai_object_key_t      *key,
                                            _In_ const sai_attribute_value_t *value,
                                            void                             *arg);
-static sai_status_t mlnx_meta_tunnel_entry_remove(_In_ sx_mac_addr_t *sx_fake_mac,
-                                                  _In_ uint32_t       priority);
-static sai_status_t mlnx_meta_tunnel_entry_create(_In_ sx_mac_addr_t   *sx_fake_mac,
-                                                  _In_ sai_object_id_t  tunnel_id,
-                                                  _In_ uint32_t         dip,
-                                                  _In_ const sai_mac_t  dmac,
-                                                  _Out_ uint32_t       *priority);
-
+static sai_status_t mlnx_meta_tunnel_entry_remove(_In_ sx_mac_addr_t *sx_fake_mac, _In_ uint32_t priority);
+static sai_status_t mlnx_meta_tunnel_entry_create(_In_ sx_mac_addr_t  *sx_fake_mac,
+                                                  _In_ sai_object_id_t tunnel_id,
+                                                  _In_ uint32_t        dip,
+                                                  _In_ const sai_mac_t dmac,
+                                                  _Out_ uint32_t      *priority);
 static const sai_vendor_attribute_entry_t next_hop_vendor_attribs[] = {
     { SAI_NEXT_HOP_ATTR_TYPE,
       { true, false, false, true },
@@ -93,7 +91,8 @@ static void next_hop_key_to_str(_In_ sai_object_id_t next_hop_id, _Out_ char *ke
     uint32_t nexthop_data;
     uint16_t ext;
 
-    if (SAI_STATUS_SUCCESS != mlnx_object_to_type(next_hop_id, SAI_OBJECT_TYPE_NEXT_HOP, &nexthop_data, (uint8_t*)&ext)) {
+    if (SAI_STATUS_SUCCESS !=
+        mlnx_object_to_type(next_hop_id, SAI_OBJECT_TYPE_NEXT_HOP, &nexthop_data, (uint8_t*)&ext)) {
         snprintf(key_str, MAX_KEY_STR_LEN, "invalid next hop id");
     } else {
         snprintf(key_str, MAX_KEY_STR_LEN, "next hop id %u, ext %u", nexthop_data, ext);
@@ -103,8 +102,8 @@ static void next_hop_key_to_str(_In_ sai_object_id_t next_hop_id, _Out_ char *ke
 static sai_status_t mlnx_encap_nexthop_db_entry_alloc(_Out_ mlnx_encap_nexthop_db_entry_t **encap_nexthop_db_entry,
                                                       _Out_ mlnx_shm_rm_array_idx_t        *idx)
 {
-    sai_status_t  status;
-    void         *ptr;
+    sai_status_t status;
+    void        *ptr;
 
     assert(encap_nexthop_db_entry);
     assert(idx);
@@ -123,8 +122,8 @@ static sai_status_t mlnx_encap_nexthop_db_entry_alloc(_Out_ mlnx_encap_nexthop_d
 sai_status_t mlnx_encap_nexthop_db_entry_idx_to_data(_In_ mlnx_shm_rm_array_idx_t          idx,
                                                      _Out_ mlnx_encap_nexthop_db_entry_t **encap_nexthop_db_entry)
 {
-    sai_status_t  status;
-    void         *data;
+    sai_status_t status;
+    void        *data;
 
     status = mlnx_shm_rm_array_idx_to_ptr(idx, &data);
     if (SAI_ERR(status)) {
@@ -191,8 +190,7 @@ static sai_status_t mlnx_encap_nexthop_db_entry_free(_In_ mlnx_shm_rm_array_idx_
     return mlnx_shm_rm_array_free(idx);
 }
 
-sai_status_t mlnx_encap_nexthop_oid_create(_In_ mlnx_shm_rm_array_idx_t  idx,
-                                           _Out_ sai_object_id_t        *oid)
+sai_status_t mlnx_encap_nexthop_oid_create(_In_ mlnx_shm_rm_array_idx_t idx, _Out_ sai_object_id_t        *oid)
 {
     sai_status_t      status;
     mlnx_object_id_t *mlnx_oid = (mlnx_object_id_t*)oid;
@@ -210,8 +208,8 @@ sai_status_t mlnx_encap_nexthop_oid_create(_In_ mlnx_shm_rm_array_idx_t  idx,
 
     memset(oid, 0, sizeof(*oid));
 
-    mlnx_oid->object_type   = SAI_OBJECT_TYPE_NEXT_HOP;
-    mlnx_oid->id.encap_nexthop_db_idx = idx;
+    mlnx_oid->object_type                = SAI_OBJECT_TYPE_NEXT_HOP;
+    mlnx_oid->id.encap_nexthop_db_idx    = idx;
     mlnx_oid->ext.nexthop_db.is_db_entry = 1;
 
     return SAI_STATUS_SUCCESS;
@@ -371,13 +369,11 @@ static sai_status_t mlnx_translate_sai_next_hop_to_sdk(_In_ sai_next_hop_type_t 
 }
 
 
-sai_status_t mlnx_encap_nexthop_get_ecmp(sai_object_id_t  nh,
-                                         sai_object_id_t  vrf,
-                                         sx_ecmp_id_t    *sx_ecmp)
+sai_status_t mlnx_encap_nexthop_get_ecmp(sai_object_id_t nh, sai_object_id_t vrf, sx_ecmp_id_t    *sx_ecmp)
 {
     sai_status_t                   status;
     mlnx_encap_nexthop_db_entry_t *db_entry;
-    mlnx_shm_rm_array_idx_t        idx ;
+    mlnx_shm_rm_array_idx_t        idx;
 
     assert(sx_ecmp);
 
@@ -409,23 +405,23 @@ out:
 }
 
 
-static sai_status_t mlnx_encap_nexthop_fake_ip_generate(_In_ mlnx_shm_rm_array_idx_t  nh_idx,
-                                                        _In_ uint32_t                 fd_idx,
-                                                        _Out_ sx_ip_addr_t           *fake_ip)
+static sai_status_t mlnx_encap_nexthop_fake_ip_generate(_In_ mlnx_shm_rm_array_idx_t nh_idx,
+                                                        _In_ uint32_t                fd_idx,
+                                                        _Out_ sx_ip_addr_t          *fake_ip)
 {
     assert(fake_ip);
 
     uint32_t ip = 0;
     ip = (nh_idx.idx & 0x0000FFFF) << 8 | (fd_idx & 0x000000FF);
 
-    fake_ip->version = SX_IP_VERSION_IPV4;
+    fake_ip->version          = SX_IP_VERSION_IPV4;
     fake_ip->addr.ipv4.s_addr = ip;
 
     return SAI_STATUS_SUCCESS;
 }
 
-static sai_status_t mlnx_encap_nexthop_fake_mac_generate(_In_ mlnx_shm_rm_array_idx_t  nh_idx,
-                                                         _Out_ sx_mac_addr_t          *fake_mac)
+static sai_status_t mlnx_encap_nexthop_fake_mac_generate(_In_ mlnx_shm_rm_array_idx_t nh_idx,
+                                                         _Out_ sx_mac_addr_t         *fake_mac)
 {
     assert(fake_mac);
 
@@ -439,24 +435,24 @@ static sai_status_t mlnx_encap_nexthop_fake_mac_generate(_In_ mlnx_shm_rm_array_
     return SAI_STATUS_SUCCESS;
 }
 
-static sai_status_t mlnx_encap_nexthop_fake_nexthop_create(_In_ sx_router_interface_t  br_rif,
-                                                           _In_ bool                   reset,
-                                                           _In_ sx_ip_addr_t          *fake_ip_addr,
-                                                           _Out_ sx_ecmp_id_t         *nh_id)
+static sai_status_t mlnx_encap_nexthop_fake_nexthop_create(_In_ sx_router_interface_t br_rif,
+                                                           _In_ bool                  reset,
+                                                           _In_ sx_ip_addr_t         *fake_ip_addr,
+                                                           _Out_ sx_ecmp_id_t        *nh_id)
 {
     sx_next_hop_t   sx_next_hop = { 0 };
     sx_status_t     sx_status;
     uint32_t        sx_next_hop_count = 1;
-    sx_access_cmd_t cmd = reset ? SX_ACCESS_CMD_SET : SX_ACCESS_CMD_CREATE;
+    sx_access_cmd_t cmd               = reset ? SX_ACCESS_CMD_SET : SX_ACCESS_CMD_CREATE;
 
     assert(fake_ip_addr);
     assert(nh_id);
 
-    sx_next_hop.next_hop_key.type = SX_NEXT_HOP_TYPE_IP;
+    sx_next_hop.next_hop_key.type                                   = SX_NEXT_HOP_TYPE_IP;
     sx_next_hop.next_hop_key.next_hop_key_entry.ip_next_hop.address = *fake_ip_addr;
-    sx_next_hop.next_hop_key.next_hop_key_entry.ip_next_hop.rif = br_rif;
-    sx_next_hop.next_hop_data.weight = 1;
-    sx_next_hop.next_hop_data.action = SX_ROUTER_ACTION_FORWARD;
+    sx_next_hop.next_hop_key.next_hop_key_entry.ip_next_hop.rif     = br_rif;
+    sx_next_hop.next_hop_data.weight                                = 1;
+    sx_next_hop.next_hop_data.action                                = SX_ROUTER_ACTION_FORWARD;
 
     sx_status = sx_api_router_ecmp_set(gh_sdk,
                                        cmd,
@@ -470,12 +466,12 @@ static sai_status_t mlnx_encap_nexthop_fake_nexthop_create(_In_ sx_router_interf
     return SAI_STATUS_SUCCESS;
 }
 
-static sai_status_t mlnx_encap_nexthop_fake_neighbor_create(_In_ sx_router_interface_t  br_rif,
-                                                            _In_ sx_ip_addr_t          *fake_ip_addr,
-                                                            _In_ sx_mac_addr_t         *fake_mac,
-                                                            _Out_ sx_neigh_data_t      *sx_neigh_data)
+static sai_status_t mlnx_encap_nexthop_fake_neighbor_create(_In_ sx_router_interface_t br_rif,
+                                                            _In_ sx_ip_addr_t         *fake_ip_addr,
+                                                            _In_ sx_mac_addr_t        *fake_mac,
+                                                            _Out_ sx_neigh_data_t     *sx_neigh_data)
 {
-    sx_status_t     sx_status;
+    sx_status_t sx_status;
 
     assert(fake_ip_addr);
     assert(fake_mac);
@@ -497,15 +493,16 @@ static sai_status_t mlnx_encap_nexthop_fake_fdb_create(_In_ sx_fid_t            
                                                        _In_ sx_mac_addr_t                *fake_mac,
                                                        _Out_ sx_fdb_uc_mac_addr_params_t *sx_mac_entry)
 {
-    sx_status_t                 sx_status;
-    uint32_t                    macs_count = 1;
+    sx_status_t sx_status;
+    uint32_t    macs_count = 1;
 
     assert(fake_mac);
 
     sx_mac_entry->fid_vid = br_fid;
-    memcpy(sx_mac_entry->mac_addr.ether_addr_octet, fake_mac->ether_addr_octet, sizeof(sx_mac_entry->mac_addr.ether_addr_octet));
+    memcpy(sx_mac_entry->mac_addr.ether_addr_octet, fake_mac->ether_addr_octet,
+           sizeof(sx_mac_entry->mac_addr.ether_addr_octet));
     sx_mac_entry->entry_type = SX_FDB_UC_STATIC;
-    sx_mac_entry->action = SX_FDB_ACTION_FORWARD_TO_ROUTER;
+    sx_mac_entry->action     = SX_FDB_ACTION_FORWARD_TO_ROUTER;
 
     sx_status = sx_api_fdb_uc_mac_addr_set(gh_sdk, SX_ACCESS_CMD_ADD, DEFAULT_ETH_SWID,
                                            sx_mac_entry, &macs_count);
@@ -519,8 +516,8 @@ static sai_status_t mlnx_encap_nexthop_fake_fdb_create(_In_ sx_fid_t            
 static sai_status_t mlnx_encap_nexthop_init(_In_ mlnx_shm_rm_array_idx_t           nh_idx,
                                             _Inout_ mlnx_encap_nexthop_db_entry_t *db_entry)
 {
-    sai_status_t  status;
-    sai_mac_t     dmac;
+    sai_status_t status;
+    sai_mac_t    dmac;
 
     db_entry->data.acl_index = 0;
 
@@ -556,9 +553,9 @@ static sai_status_t mlnx_encap_nexthop_fake_data_init(_In_ mlnx_encap_nexthop_db
                                                       _In_ bool                           reset,
                                                       _Inout_ mlnx_fake_nh_db_data_t     *fake_data)
 {
-    sai_status_t           status;
-    sx_router_interface_t  br_rif;
-    sx_fid_t               br_fid;
+    sai_status_t          status;
+    sx_router_interface_t br_rif;
+    sx_fid_t              br_fid;
 
     if (!reset) {
         status = mlnx_encap_nexthop_fake_ip_generate(nh_idx, fd_idx, &fake_data->sx_fake_ipaddr);
@@ -609,7 +606,7 @@ static sai_status_t mlnx_encap_nexthop_fake_data_init(_In_ mlnx_encap_nexthop_db
 
 static sai_status_t mlnx_encap_nexthop_deinit(_In_ mlnx_encap_nexthop_db_entry_t *db_entry)
 {
-    sai_status_t           status;
+    sai_status_t status;
 
     status = mlnx_meta_tunnel_entry_remove(&db_entry->data.sx_fake_mac,
                                            db_entry->data.acl_index);
@@ -618,7 +615,7 @@ static sai_status_t mlnx_encap_nexthop_deinit(_In_ mlnx_encap_nexthop_db_entry_t
         return status;
     }
 
-   db_entry->data.acl_index = 0;
+    db_entry->data.acl_index = 0;
 
     return status;
 }
@@ -685,15 +682,12 @@ static sai_status_t mlnx_encap_nexthop_fake_data_deinit(_In_ sai_object_id_t    
 }
 
 
-sai_status_t mlnx_encap_nexthop_counter_update(sai_object_id_t nh,
-                                               sai_object_id_t vrf,
-                                               int32_t         diff)
+sai_status_t mlnx_encap_nexthop_counter_update(sai_object_id_t nh, sai_object_id_t vrf, int32_t diff)
 {
-    sai_status_t status;
-
+    sai_status_t                   status;
     mlnx_encap_nexthop_db_entry_t *db_entry;
     mlnx_shm_rm_array_idx_t        nh_idx;
-    uint32_t                       fd_idx = 0;
+    uint32_t                       fd_idx    = 0;
     mlnx_fake_nh_db_data_t        *fake_data = NULL;
 
     SX_LOG_ENTER();
@@ -720,10 +714,10 @@ sai_status_t mlnx_encap_nexthop_counter_update(sai_object_id_t nh,
     if (!fake_data) {
         for (int32_t i = 0; i < NUMBER_OF_LOCAL_VNETS; ++i) {
             if (db_entry->data.fake_data[i].associated_vrf == SAI_NULL_OBJECT_ID) {
-                fake_data = &db_entry->data.fake_data[i];
+                fake_data                 = &db_entry->data.fake_data[i];
                 fake_data->associated_vrf = vrf;
-                fake_data->counter = 0;
-                fd_idx = i;
+                fake_data->counter        = 0;
+                fd_idx                    = i;
                 break;
             }
         }
@@ -782,7 +776,7 @@ sai_status_t mlnx_encap_nexthop_counter_update(sai_object_id_t nh,
         }
     }
 
-    fake_data->counter += diff;
+    fake_data->counter         += diff;
     db_entry->data.acl_counter += diff;
 
 out:
@@ -977,7 +971,7 @@ static sai_status_t mlnx_create_next_hop(_Out_ sai_object_id_t      *next_hop_id
 
         case SAI_TUNNEL_TYPE_VXLAN:
             is_tunnel_ipinip = false;
-            is_tunnel_vxlan = true;
+            is_tunnel_vxlan  = true;
             break;
 
         default:
@@ -1047,7 +1041,7 @@ static sai_status_t mlnx_create_next_hop(_Out_ sai_object_id_t      *next_hop_id
 
         sai_status = mlnx_encap_nexthop_oid_create(idx, next_hop_id);
         if (SAI_ERR(sai_status)) {
-            mlnx_encap_nexthop_db_entry_free(idx); // don't care about status
+            mlnx_encap_nexthop_db_entry_free(idx); /* don't care about status */
             SX_LOG_ERR("Failure creating Encap Nexthop OID.\n");
             sai_db_unlock();
             return sai_status;
@@ -1121,7 +1115,7 @@ static sai_status_t mlnx_remove_next_hop(_In_ sai_object_id_t next_hop_id)
         }
     } else {
         sdk_ecmp_id = (sx_ecmp_id_t)data;
-        sx_status = sx_api_router_ecmp_set(gh_sdk, SX_ACCESS_CMD_DESTROY, &sdk_ecmp_id, NULL, &next_hop_cnt);
+        sx_status   = sx_api_router_ecmp_set(gh_sdk, SX_ACCESS_CMD_DESTROY, &sdk_ecmp_id, NULL, &next_hop_cnt);
         if (SAI_ERR(sx_status)) {
             SX_LOG_ERR("Failed to destroy ecmp - %s.\n", SX_STATUS_MSG(sx_status));
             status = sdk_to_sai(sx_status);
@@ -1243,15 +1237,15 @@ static sai_status_t mlnx_next_hop_attr_get(_In_ const sai_object_key_t   *key,
         next_hop_ip   = db_entry->data.dst_ip;
         tunnel_id     = db_entry->data.tunnel_id;
         memcpy(tunnel_mac, db_entry->data.tunnel_mac, sizeof(tunnel_mac));
-        vni           = db_entry->data.tunnel_vni;
-        rif           = SAI_NULL_OBJECT_ID;
+        vni = db_entry->data.tunnel_vni;
+        rif = SAI_NULL_OBJECT_ID;
 
         sai_db_unlock();
     } else {
-        sdk_ecmp_id = (sx_ecmp_id_t)data;
+        sdk_ecmp_id      = (sx_ecmp_id_t)data;
         sdk_next_hop_cnt = 1;
-        sx_status = sx_api_router_ecmp_get(gh_sdk, sdk_ecmp_id, &sdk_next_hop, &sdk_next_hop_cnt);
-        if (SX_ERR(sx_status)){
+        sx_status        = sx_api_router_ecmp_get(gh_sdk, sdk_ecmp_id, &sdk_next_hop, &sdk_next_hop_cnt);
+        if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to get ecmp - %s.\n", SX_STATUS_MSG(sx_status));
             return sdk_to_sai(sx_status);
         }
@@ -1328,11 +1322,10 @@ static sai_status_t mlnx_next_hop_attr_get(_In_ const sai_object_key_t   *key,
 }
 
 
-static sai_status_t mlnx_meta_tunnel_entry_remove(_In_ sx_mac_addr_t *sx_fake_mac,
-                                                  _In_ uint32_t       priority)
+static sai_status_t mlnx_meta_tunnel_entry_remove(_In_ sx_mac_addr_t *sx_fake_mac, _In_ uint32_t priority)
 {
-    sx_status_t                               sx_status;
-    sx_table_meta_tunnel_entry_key_data_t     key;
+    sx_status_t                           sx_status;
+    sx_table_meta_tunnel_entry_key_data_t key;
 
     memcpy(&key.in_rif_metadata_field, sx_fake_mac->ether_addr_octet, sizeof(key.in_rif_metadata_field));
     key.priority = priority;
@@ -1345,18 +1338,18 @@ static sai_status_t mlnx_meta_tunnel_entry_remove(_In_ sx_mac_addr_t *sx_fake_ma
     return SAI_STATUS_SUCCESS;
 }
 
-static sai_status_t mlnx_meta_tunnel_entry_create(_In_ sx_mac_addr_t   *sx_fake_mac,
-                                                  _In_ sai_object_id_t  tunnel_id,
-                                                  _In_ uint32_t         dip,
-                                                  _In_ const sai_mac_t  dmac,
-                                                  _Out_ uint32_t       *priority)
+static sai_status_t mlnx_meta_tunnel_entry_create(_In_ sx_mac_addr_t  *sx_fake_mac,
+                                                  _In_ sai_object_id_t tunnel_id,
+                                                  _In_ uint32_t        dip,
+                                                  _In_ const sai_mac_t dmac,
+                                                  _Out_ uint32_t      *priority)
 {
-    sx_status_t                               sx_status;
-    sai_status_t                              status;
-    sx_table_meta_tunnel_entry_key_data_t     key;
-    sx_table_meta_tunnel_entry_action_data_t  action;
-    sx_tunnel_id_t                            sx_tunnel_id;
-    sx_mac_addr_t                             tunnel_mac;
+    sx_status_t                              sx_status;
+    sai_status_t                             status;
+    sx_table_meta_tunnel_entry_key_data_t    key;
+    sx_table_meta_tunnel_entry_action_data_t action;
+    sx_tunnel_id_t                           sx_tunnel_id;
+    sx_mac_addr_t                            tunnel_mac;
 
     memcpy(&key.in_rif_metadata_field, sx_fake_mac->ether_addr_octet, sizeof(key.in_rif_metadata_field));
 
@@ -1373,8 +1366,9 @@ static sai_status_t mlnx_meta_tunnel_entry_create(_In_ sx_mac_addr_t   *sx_fake_
         memcpy(tunnel_mac.ether_addr_octet, dmac, sizeof(tunnel_mac.ether_addr_octet));
     }
 
-    memcpy(&action.data.tunnel_encap_params.dst_mac.ether_addr_octet, tunnel_mac.ether_addr_octet, sizeof(tunnel_mac.ether_addr_octet));
-    action.data.tunnel_encap_params.tunnel_id = sx_tunnel_id;
+    memcpy(&action.data.tunnel_encap_params.dst_mac.ether_addr_octet, tunnel_mac.ether_addr_octet,
+           sizeof(tunnel_mac.ether_addr_octet));
+    action.data.tunnel_encap_params.tunnel_id    = sx_tunnel_id;
     action.data.tunnel_encap_params.underlay_dip = ntohl(dip);
 
     SX_LOG_DBG("Create Meta Tunnel Entry [tunnel_id=0x%X, underlay_dip=0x%X, dst_mac=[%X:%X:%X:%X:%X:%X]\n",
@@ -1397,9 +1391,7 @@ static sai_status_t mlnx_meta_tunnel_entry_create(_In_ sx_mac_addr_t   *sx_fake_
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_encap_nexthop_change_dmac(_In_ sai_object_id_t nh,
-                                            _In_ const sai_mac_t mac,
-                                            _In_ bool store)
+sai_status_t mlnx_encap_nexthop_change_dmac(_In_ sai_object_id_t nh, _In_ const sai_mac_t mac, _In_ bool store)
 {
     sai_status_t                   status;
     mlnx_encap_nexthop_db_entry_t *db_entry;
@@ -1436,8 +1428,7 @@ out:
     return status;
 }
 
-sai_status_t mlnx_encap_nexthop_change_vni(_In_ sai_object_id_t nh,
-                                           _In_ uint32_t        vni)
+sai_status_t mlnx_encap_nexthop_change_vni(_In_ sai_object_id_t nh, _In_ uint32_t vni)
 {
     sai_status_t                   status;
     mlnx_encap_nexthop_db_entry_t *db_entry;
@@ -1502,14 +1493,14 @@ static sai_status_t mlnx_next_hop_attr_set(_In_ const sai_object_key_t      *key
                                            void                             *arg)
 {
     sai_status_t status = SAI_STATUS_FAILURE;
-    int32_t      attr = (long)arg;
+    int32_t      attr   = (long)arg;
 
     assert(attr == SAI_NEXT_HOP_ATTR_TUNNEL_MAC ||
            attr == SAI_NEXT_HOP_ATTR_TUNNEL_VNI);
 
     sai_db_write_lock();
 
-    switch(attr) {
+    switch (attr) {
     case SAI_NEXT_HOP_ATTR_TUNNEL_MAC:
         status = mlnx_encap_nexthop_change_dmac(key->key.object_id, value->mac, true);
         if (SAI_ERR(status)) {

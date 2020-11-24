@@ -30,15 +30,101 @@ sai_status_t mlnx_utils_attrs_is_resource_check(_In_ sai_object_type_t      obje
                                                 _In_ uint32_t               attr_count,
                                                 _In_ const sai_attribute_t *attr_list);
 
-sai_status_t mlnx_debug_counter_availability_get(_In_ uint32_t               attr_count,
+sai_status_t mlnx_virtual_router_availability_get(_In_ sai_object_id_t        switch_id,
+                                                  _In_ uint32_t               attr_count,
+                                                  _In_ const sai_attribute_t *attr_list,
+                                                  _Out_ uint64_t             *count);
+sai_status_t mlnx_switch_next_hop_availability_get(_In_ sai_object_id_t        switch_id,
+                                                   _In_ uint32_t               attr_count,
+                                                   _In_ const sai_attribute_t *attr_list,
+                                                   _Out_ uint64_t             *count);
+sai_status_t mlnx_switch_next_hop_group_availability_get(_In_ sai_object_id_t        switch_id,
+                                                         _In_ uint32_t               attr_count,
+                                                         _In_ const sai_attribute_t *attr_list,
+                                                         _Out_ uint64_t             *count);
+sai_status_t mlnx_rif_availability_get(_In_ sai_object_id_t        switch_id,
+                                       _In_ uint32_t               attr_count,
+                                       _In_ const sai_attribute_t *attr_list,
+                                       _Out_ uint64_t             *count);
+sai_status_t mlnx_switch_acl_table_availability_get(_In_ sai_object_id_t        switch_id,
+                                                    _In_ uint32_t               attr_count,
+                                                    _In_ const sai_attribute_t *attr_list,
+                                                    _Out_ uint64_t             *count);
+sai_status_t mlnx_acl_entry_availability_get(_In_ sai_object_id_t        switch_id,
+                                             _In_ uint32_t               attr_count,
+                                             _In_ const sai_attribute_t *attr_list,
+                                             _Out_ uint64_t             *count);
+sai_status_t mlnx_acl_counter_availability_get(_In_ sai_object_id_t        switch_id,
+                                               _In_ uint32_t               attr_count,
+                                               _In_ const sai_attribute_t *attr_list,
+                                               _Out_ uint64_t             *count);
+sai_status_t mlnx_switch_acl_table_group_availability_get(_In_ sai_object_id_t        switch_id,
+                                                          _In_ uint32_t               attr_count,
+                                                          _In_ const sai_attribute_t *attr_list,
+                                                          _Out_ uint64_t             *count);
+sai_status_t mlnx_mirror_availability_get(_In_ sai_object_id_t        switch_id,
+                                          _In_ uint32_t               attr_count,
+                                          _In_ const sai_attribute_t *attr_list,
+                                          _Out_ uint64_t             *count);
+sai_status_t mlnx_switch_stp_availability_get(_In_ sai_object_id_t        switch_id,
+                                              _In_ uint32_t               attr_count,
+                                              _In_ const sai_attribute_t *attr_list,
+                                              _Out_ uint64_t             *count);
+sai_status_t mlnx_hostif_trap_group_availability_get(_In_ sai_object_id_t        switch_id,
+                                                     _In_ uint32_t               attr_count,
+                                                     _In_ const sai_attribute_t *attr_list,
+                                                     _Out_ uint64_t             *count);
+sai_status_t mlnx_switch_fdb_entry_availability_get(_In_ sai_object_id_t        switch_id,
+                                                    _In_ uint32_t               attr_count,
+                                                    _In_ const sai_attribute_t *attr_list,
+                                                    _Out_ uint64_t             *count);
+sai_status_t mlnx_switch_route_entry_availability_get(_In_ sai_object_id_t        switch_id,
+                                                      _In_ uint32_t               attr_count,
+                                                      _In_ const sai_attribute_t *attr_list,
+                                                      _Out_ uint64_t             *count);
+sai_status_t mlnx_tunnel_availability_get(_In_ sai_object_id_t        switch_id,
+                                          _In_ uint32_t               attr_count,
+                                          _In_ const sai_attribute_t *attr_list,
+                                          _Out_ uint64_t             *count);
+sai_status_t mlnx_bridge_availability_get(_In_ sai_object_id_t        switch_id,
+                                          _In_ uint32_t               attr_count,
+                                          _In_ const sai_attribute_t *attr_list,
+                                          _Out_ uint64_t             *count);
+sai_status_t mlnx_bridge_port_availability_get(_In_ sai_object_id_t        switch_id,
+                                               _In_ uint32_t               attr_count,
+                                               _In_ const sai_attribute_t *attr_list,
+                                               _Out_ uint64_t             *count);
+sai_status_t mlnx_switch_bfd_session_availability_get(_In_ sai_object_id_t        switch_id,
+                                                      _In_ uint32_t               attr_count,
+                                                      _In_ const sai_attribute_t *attr_list,
+                                                      _Out_ uint64_t             *count);
+sai_status_t mlnx_debug_counter_availability_get(_In_ sai_object_id_t        switch_id,
+                                                 _In_ uint32_t               attr_count,
                                                  _In_ const sai_attribute_t *attr_list,
                                                  _Out_ uint64_t             *count);
 
-typedef sai_status_t (*mlnx_availability_get_fn)(_In_ uint32_t attr_count, _In_ const sai_attribute_t *attr_list,
-                                                 _Out_ uint64_t *count);
+typedef sai_status_t (*mlnx_availability_get_fn)(_In_ sai_object_id_t switch_id, _In_ uint32_t attr_count,
+                                                 _In_ const sai_attribute_t *attr_list, _Out_ uint64_t *count);
 
 static const mlnx_availability_get_fn mlnx_availability_get_fns[SAI_OBJECT_TYPE_MAX] = {
-    [SAI_OBJECT_TYPE_DEBUG_COUNTER] = mlnx_debug_counter_availability_get,
+    [SAI_OBJECT_TYPE_VIRTUAL_ROUTER]    = mlnx_virtual_router_availability_get,
+    [SAI_OBJECT_TYPE_NEXT_HOP]          = mlnx_switch_next_hop_availability_get,
+    [SAI_OBJECT_TYPE_NEXT_HOP_GROUP]    = mlnx_switch_next_hop_group_availability_get,
+    [SAI_OBJECT_TYPE_ROUTER_INTERFACE]  = mlnx_rif_availability_get,
+    [SAI_OBJECT_TYPE_ACL_TABLE]         = mlnx_switch_acl_table_availability_get,
+    [SAI_OBJECT_TYPE_ACL_ENTRY]         = mlnx_acl_entry_availability_get,
+    [SAI_OBJECT_TYPE_ACL_COUNTER]       = mlnx_acl_counter_availability_get,
+    [SAI_OBJECT_TYPE_ACL_TABLE_GROUP]   = mlnx_switch_acl_table_group_availability_get,
+    [SAI_OBJECT_TYPE_MIRROR_SESSION]    = mlnx_mirror_availability_get,
+    [SAI_OBJECT_TYPE_STP]               = mlnx_switch_stp_availability_get,
+    [SAI_OBJECT_TYPE_HOSTIF_TRAP_GROUP] = mlnx_hostif_trap_group_availability_get,
+    [SAI_OBJECT_TYPE_FDB_ENTRY]         = mlnx_switch_fdb_entry_availability_get,
+    [SAI_OBJECT_TYPE_ROUTE_ENTRY]       = mlnx_switch_route_entry_availability_get,
+    [SAI_OBJECT_TYPE_TUNNEL]            = mlnx_tunnel_availability_get,
+    [SAI_OBJECT_TYPE_BRIDGE]            = mlnx_bridge_availability_get,
+    [SAI_OBJECT_TYPE_BRIDGE_PORT]       = mlnx_bridge_port_availability_get,
+    [SAI_OBJECT_TYPE_BFD_SESSION]       = mlnx_switch_bfd_session_availability_get,
+    [SAI_OBJECT_TYPE_DEBUG_COUNTER]     = mlnx_debug_counter_availability_get,
 };
 
 /**
@@ -197,8 +283,8 @@ sai_status_t sai_object_type_get_availability(_In_ sai_object_id_t        switch
         return SAI_STATUS_FAILURE;
     }
 
-    if (!attr_list) {
-        SX_LOG_ERR("attr_list is NULL\n");
+    if (attr_count && !attr_list) {
+        SX_LOG_ERR("attr_count > 0 but attr_list is NULL\n");
         SX_LOG_EXIT();
         return SAI_STATUS_INVALID_PARAMETER;
     }
@@ -227,7 +313,7 @@ sai_status_t sai_object_type_get_availability(_In_ sai_object_id_t        switch
 
     sai_db_read_lock();
 
-    status = mlnx_availability_get_fns[object_type](attr_count, attr_list, count);
+    status = mlnx_availability_get_fns[object_type](switch_id, attr_count, attr_list, count);
     if (SAI_ERR(status)) {
         goto out;
     }
@@ -238,4 +324,11 @@ out:
     sai_db_unlock();
     SX_LOG_EXIT();
     return status;
+}
+
+sai_status_t mlnx_object_log_set(sx_verbosity_level_t level)
+{
+    LOG_VAR_NAME(__MODULE__) = level;
+
+    return SAI_STATUS_SUCCESS;
 }

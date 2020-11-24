@@ -44,6 +44,8 @@
 #include <sx/sdk/sx_api_vlan.h>
 #include <sx/sdk/sx_lib_flex_acl.h>
 #include <sx/sdk/sx_lib_host_ifc.h>
+#include <sx/sdk/sx_api_register.h>
+#include <sx/sdk/sx_acl.h>
 #include <resource_manager/resource_manager.h>
 #include <sx/sxd/sxd_access_register.h>
 #include <sx/sxd/sxd_command_ifc.h>
@@ -207,6 +209,7 @@ extern const sai_tunnel_api_t           mlnx_tunnel_api;
 extern const sai_stp_api_t              mlnx_stp_api;
 extern const sai_udf_api_t              mlnx_udf_api;
 extern const sai_l2mc_group_api_t       mlnx_l2mc_group_api;
+extern const sai_bmtor_api_t            mlnx_bmtor_api;
 extern const sai_debug_counter_api_t    mlnx_debug_counter_api;
 extern const sai_bfd_api_t              mlnx_bfd_api;
 
@@ -282,6 +285,11 @@ extern const sai_bfd_api_t              mlnx_bfd_api;
 
 typedef uint64_t udf_group_mask_t;
 
+#define safe_free(var) \
+if (var) {                                                      \
+    free(var);                                                  \
+    var = NULL;                                                 \
+}                                                               \
 
 #define ARRAY_SIZE(_x) (sizeof(_x) / sizeof(_x[0]))
 
@@ -348,7 +356,7 @@ sai_status_t mlnx_shm_rm_array_alloc(_In_ mlnx_shm_rm_array_type_t  type,
                                      _Out_ mlnx_shm_rm_array_idx_t *idx,
                                      _Out_ void                   **elem);
 sai_status_t mlnx_shm_rm_array_free(_In_ mlnx_shm_rm_array_idx_t idx);
-sai_status_t mlnx_shm_rm_array_free_entries_count(_In_ mlnx_shm_rm_array_type_t type);
+uint32_t mlnx_shm_rm_array_free_entries_count(_In_ mlnx_shm_rm_array_type_t type);
 sai_status_t mlnx_shm_rm_array_find(_In_ mlnx_shm_rm_array_type_t  type,
                                     _In_ mlnx_shm_rm_array_cmp_fn  cmp_fn,
                                     _In_ mlnx_shm_rm_array_idx_t   start_idx,
@@ -809,8 +817,10 @@ sai_status_t mlnx_stp_log_set(sx_verbosity_level_t severity);
 sai_status_t mlnx_bridge_log_set(sx_verbosity_level_t severity);
 sai_status_t mlnx_udf_log_set(sx_verbosity_level_t severity);
 sai_status_t mlnx_l2mc_group_log_set(sx_verbosity_level_t severity);
+sai_status_t mlnx_bmtor_log_set(sx_verbosity_level_t severity);
 sai_status_t mlnx_debug_counter_log_set(sx_verbosity_level_t level);
 sai_status_t mlnx_bfd_log_set(sx_verbosity_level_t level);
+sai_status_t mlnx_object_log_set(sx_verbosity_level_t level);
 
 sai_status_t mlnx_fill_objlist(const sai_object_id_t *data, uint32_t count, sai_object_list_t *list);
 sai_status_t mlnx_fill_u8list(const uint8_t *data, uint32_t count, sai_u8_list_t *list);
@@ -905,6 +915,7 @@ typedef struct _acl_index_t {
 } acl_index_t;
 
 sai_status_t mlnx_acl_init(void);
+sai_status_t mlnx_pbhash_acl_add(sai_object_id_t switch_id);
 sai_status_t mlnx_acl_deinit(void);
 sai_status_t mlnx_acl_disconnect(void);
 sai_status_t mlnx_acl_bind_point_set(_In_ const sai_object_key_t      *key,
@@ -1010,6 +1021,11 @@ extern const mlnx_trap_info_t mlnx_traps_info[];
     (SX_FDB_IS_LIMIT_EXIST(sx_limit) ?             \
      (sx_limit) : MLNX_FDB_LEARNING_NO_LIMIT_VALUE)
 
+/* Port Shared (Headroom) Buffer profile defaults */
+#define SAI_BUFFER_DEFAULT_PORT_SHARED_HEADROOM_BUFFER_MIN_SIZE (2*1440U)
+#define SAI_BUFFER_DEFAULT_PORT_SHARED_HEADROOM_BUFFER_XON_INFINITE (0xffff)
+#define SAI_BUFFER_DEFAULT_PORT_SHARED_HEADROOM_BUFFER_XOFF_INFINITE (0xffff)
+
 typedef enum _mlnx_port_breakout_capability_t {
     MLNX_PORT_BREAKOUT_CAPABILITY_NONE     = 0,
     MLNX_PORT_BREAKOUT_CAPABILITY_TWO      = 1,
@@ -1035,6 +1051,8 @@ typedef struct _mlnx_sai_buffer_pool_attr {
     sai_buffer_pool_threshold_mode_t pool_mode;
     /*size in bytes*/
     uint32_t pool_size;
+    /* is current pool is associated with shared headroom pool */
+    bool     is_shp_mapped;
 } mlnx_sai_buffer_pool_attr_t;
 typedef struct _mlnx_sai_shared_max_size_t {
     sai_buffer_profile_threshold_mode_t mode;
@@ -1051,6 +1069,11 @@ typedef struct _mlnx_sai_db_buffer_profile_entry_t {
     uint32_t                   xoff;
     bool                       is_valid;
 } mlnx_sai_db_buffer_profile_entry_t;
+typedef struct _mlnx_sai_db_shp_to_ipool_map_entry_t {
+    bool                       is_shp_created; /* global flag indicating Shared Headroom is globally enabled/disabled */
+    sai_object_id_t            sai_pool_id;   /* regular ingress Pool which is associated with shared headroom pool */
+    sai_object_id_t            shp_pool_id;   /* shared headroom pool */
+} mlnx_sai_db_buffer_pool_shp_map_entry_t;
 typedef struct _mlnx_policer_db_entry_t {
     sx_policer_id_t         sx_policer_id_trap;     /* For binding to trap group only. value == SX_POLICER_ID_INVALID, unless/untill sx_policer is associated with this sai_policer.*/
     sx_policer_id_t         sx_policer_id_acl;      /* For binding to ACL only. see SX_POLICER_ID_INVALID note above, applies to this field as well*/
@@ -1916,7 +1939,7 @@ typedef struct _mlnx_samplepacket_t {
 #define MLNX_TUNNEL_MAP_ENTRY_MAX     8001
 #define MLNX_BMTOR_BRIDGE_MAX         512
 #define MLNX_TUNNEL_TO_TUNNEL_MAP_MAX 1000
-#define MAX_IPINIP_TUNNEL             256 
+#define MAX_IPINIP_TUNNEL             256
 #define MAX_VXLAN_TUNNEL              1
 #define MAX_TUNNEL                    257
 
@@ -2211,6 +2234,7 @@ typedef struct sai_db {
     char               dev_mac[18];
     uint32_t           ports_number;
     uint32_t           ports_configured;
+    uint32_t           max_ipinip_ipv6_loopback_rifs;
     mlnx_port_config_t ports_db[MAX_PORTS_DB * 2];
     mlnx_bridge_port_t bridge_ports_db[MAX_BRIDGE_PORTS];
     uint32_t           non_1q_bports_created; /* to optimize mlnx_bridge_non1q_port_foreach */
@@ -2276,6 +2300,8 @@ typedef struct sai_db {
     bool                              is_bfd_module_initialized;
     sai_mac_t                         vxlan_mac;
     mlnx_fg_ecmp_group_size_t         ecmp_groups[FG_ECMP_MAX_GROUPS_COUNT];
+    uint32_t                          pbhash_gre;
+    sx_acl_id_t                       hash_acl_id;
     mlnx_shm_pool_t                   shm_pool;
     /* must be last elemnt, followed by dynamic arrays */
     mlnx_shm_rm_array_info_t          array_info[MLNX_SHM_RM_ARRAY_TYPE_SIZE];
@@ -2324,6 +2350,8 @@ typedef struct _mlnx_sai_buffer_resource_limits_t {
     uint32_t num_port_pg_buff;
     uint32_t unit_size;
     uint32_t max_buffers_per_port;
+    uint32_t num_shared_headroom_pools;
+    uint32_t num_port_shared_headroom_buff;
 } mlnx_sai_buffer_resource_limits_t;
 const mlnx_sai_buffer_resource_limits_t* mlnx_sai_get_buffer_resource_limits();
 
@@ -2389,11 +2417,14 @@ typedef struct _sai_buffer_db_t {
      *  pool_allocation[1 + user ingress pools + user egress pools]
      *  When SAI starts up it will load current buffer configuration into SAI buffer infrastructure,
      *  so user would be able to use it. However on the first user request to create a pool all
-     *  existring buffer configuration will be deleted.
+     *  existing buffer configuration will be deleted.
      *  This item will be set initially to 0, and after first create pool request will be set to true.
      *  Once set to true, it cannot be modified.
      */
     bool *pool_allocation;
+
+    /* keeps association between shared headroom pool and ingress pool */
+    mlnx_sai_db_buffer_pool_shp_map_entry_t *shp_ipool_map;
 
     mlnx_sai_buffer_pool_ids_t buffer_pool_ids;
 } sai_buffer_db_t;
@@ -2503,6 +2534,9 @@ sai_status_t mlnx_wred_mirror_port_event(_In_ sx_port_log_id_t port_log_id, _In_
 sai_status_t mlnx_port_wred_mirror_set_impl(_In_ sx_port_log_id_t     sx_port,
                                             _In_ sx_span_session_id_t sx_session,
                                             _In_ bool                 is_add);
+sai_status_t mlnx_pbhash_acl_bind(_In_ sx_access_cmd_t      cmd,
+                                  _In_ sai_object_id_t sai_port_id,
+                                  _In_ sai_object_type_t type);
 uint8_t mlnx_port_mac_mask_get(void);
 
 /* DB read lock is needed */

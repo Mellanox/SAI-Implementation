@@ -19,6 +19,7 @@
 #include "mlnx_sai.h"
 #include "assert.h"
 #include "sai.h"
+#include <sx/sdk/sx_api_rm.h>
 
 #undef  __MODULE__
 #define __MODULE__ SAI_BRIDGE
@@ -47,6 +48,7 @@ static sai_status_t mlnx_bridge_learn_disable_get(_In_ const sai_object_key_t   
                                                   _In_ uint32_t                  attr_index,
                                                   _Inout_ vendor_cache_t        *cache,
                                                   void                          *arg);
+static sai_status_t mlnx_bridge_learn_disable_set_impl(_In_ sx_bridge_id_t sx_bridge_id, _In_ bool learn_disable);
 static sai_status_t mlnx_bridge_learn_disable_set(_In_ const sai_object_key_t      *key,
                                                   _In_ const sai_attribute_value_t *value,
                                                   void                             *arg);
@@ -88,7 +90,7 @@ static const sai_vendor_attribute_entry_t bridge_vendor_attribs[] = {
       mlnx_bridge_max_learned_addresses_get, NULL,
       mlnx_bridge_max_learned_addresses_set, NULL },
     { SAI_BRIDGE_ATTR_LEARN_DISABLE,
-      { false, false, false, true },
+      { true, false, true, true },
       { true, false, true, true },
       mlnx_bridge_learn_disable_get, NULL,
       mlnx_bridge_learn_disable_set, NULL },
@@ -1006,11 +1008,55 @@ static sai_status_t mlnx_bridge_learn_disable_get(_In_ const sai_object_key_t   
                                                   _Inout_ vendor_cache_t        *cache,
                                                   void                          *arg)
 {
-    SX_LOG_ENTER();
-    value->booldata = false;
-    SX_LOG_EXIT();
+    sx_bridge_id_t      sx_bridge_id;
+    sx_status_t         status;
+    sx_fdb_learn_mode_t mode;
 
-    return SAI_STATUS_SUCCESS;
+    SX_LOG_ENTER();
+
+    status = mlnx_bridge_oid_to_id(key->key.object_id, &sx_bridge_id);
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+    if (SX_STATUS_SUCCESS !=
+        (status = sx_api_fdb_fid_learn_mode_get(gh_sdk, DEFAULT_ETH_SWID, sx_bridge_id, &mode))) {
+        SX_LOG_ERR("Failed to get learn mode %s.\n", SX_STATUS_MSG(status));
+        status = sdk_to_sai(status);
+        goto out;
+    }
+
+    if (SX_FDB_LEARN_MODE_DONT_LEARN == mode) {
+        value->booldata = true;
+    } else {
+        value->booldata = false;
+    }
+
+out:
+    SX_LOG_EXIT();
+    return status;
+}
+
+static sai_status_t mlnx_bridge_learn_disable_set_impl(_In_ sx_bridge_id_t sx_bridge_id, _In_ bool learn_disable)
+{
+    sx_status_t         status;
+    sx_fdb_learn_mode_t mode;
+
+    if (learn_disable) {
+        mode = SX_FDB_LEARN_MODE_DONT_LEARN;
+    } else {
+        mode = SX_FDB_LEARN_MODE_AUTO_LEARN;
+    }
+
+    if (SX_STATUS_SUCCESS !=
+        (status = sx_api_fdb_fid_learn_mode_set(gh_sdk, DEFAULT_ETH_SWID, sx_bridge_id, mode))) {
+        SX_LOG_ERR("Failed to set learn mode %s.\n", SX_STATUS_MSG(status));
+        status = sdk_to_sai(status);
+        goto out;
+    }
+
+out:
+    return status;
 }
 
 /**
@@ -1024,7 +1070,20 @@ static sai_status_t mlnx_bridge_learn_disable_set(_In_ const sai_object_key_t   
                                                   _In_ const sai_attribute_value_t *value,
                                                   void                             *arg)
 {
-    return SAI_STATUS_NOT_IMPLEMENTED;
+    sx_bridge_id_t sx_bridge_id;
+    sx_status_t    status;
+
+    SX_LOG_ENTER();
+
+    status = mlnx_bridge_oid_to_id(key->key.object_id, &sx_bridge_id);
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+    status = mlnx_bridge_learn_disable_set_impl(sx_bridge_id, value->booldata);
+
+    SX_LOG_EXIT();
+    return status;
 }
 
 static void bridge_key_to_str(_In_ sai_object_id_t bridge_id, _Out_ char *key_str)
@@ -1041,6 +1100,26 @@ static void bridge_key_to_str(_In_ sai_object_id_t bridge_id, _Out_ char *key_st
 
         snprintf(key_str, MAX_KEY_STR_LEN, "bridge %u (.%s)", mlnx_bridge.ext.bridge.sx_bridge_id, br_type_name);
     }
+}
+
+sai_status_t mlnx_bridge_availability_get(_In_ sai_object_id_t        switch_id,
+                                          _In_ uint32_t               attr_count,
+                                          _In_ const sai_attribute_t *attr_list,
+                                          _Out_ uint64_t             *count)
+{
+    sx_status_t sx_status;
+    uint32_t    bridge_existing = 0;
+
+    assert(count);
+
+    sx_status = sx_api_bridge_iter_get(gh_sdk, SX_ACCESS_CMD_GET, 0, NULL, NULL, &bridge_existing);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to get count of 802.1D bridges - %s\n", SX_STATUS_MSG(sx_status));
+        return sdk_to_sai(sx_status);
+    }
+
+    *count = (uint64_t)(MAX_BRIDGES_1D - bridge_existing);
+    return SAI_STATUS_SUCCESS;
 }
 
 static mlnx_fid_flood_ctrl_type_t mlnx_bridge_flood_type_to_fid_type(_In_ sai_bridge_flood_control_type_t type)
@@ -1511,6 +1590,14 @@ static sai_status_t mlnx_create_bridge(_Out_ sai_object_id_t     * bridge_id,
     }
 
     mlnx_fid_flood_ctrl_l2mc_group_refs_inc(&bridge->flood_data);
+
+    status = find_attrib_in_list(attr_count, attr_list, SAI_BRIDGE_ATTR_LEARN_DISABLE, &attr_val, &attr_idx);
+    if (!SAI_ERR(status)) {
+        status = mlnx_bridge_learn_disable_set_impl(sx_bridge_id, attr_val->booldata);
+        if (SAI_ERR(status)) {
+            goto out;
+        }
+    }
 
     status = mlnx_create_bridge_object(SAI_BRIDGE_TYPE_1D, bridge_db_idx, bridge->sx_bridge_id, bridge_id);
     if (SAI_ERR(status)) {
@@ -2556,6 +2643,34 @@ static void bridge_port_key_to_str(_In_ sai_object_id_t bridge_port_id, _Out_ ch
     } else {
         snprintf(key_str, MAX_KEY_STR_LEN, "bridge port idx %x", mlnx_bridge_port.id.u32);
     }
+}
+
+sai_status_t mlnx_bridge_port_availability_get(_In_ sai_object_id_t        switch_id,
+                                               _In_ uint32_t               attr_count,
+                                               _In_ const sai_attribute_t *attr_list,
+                                               _Out_ uint64_t             *count)
+{
+    const rm_sdk_table_type_e table_type = RM_SDK_TABLE_TYPE_VPORTS_E;
+    sx_status_t               sx_status;
+    uint32_t                  ii, bports_left_1 = 0, bports_left_2 = 0;
+
+    assert(count);
+
+    for (ii = 0; ii < MAX_BRIDGE_PORTS; ii++) {
+        if (!g_sai_db_ptr->bridge_ports_db[ii].is_present) {
+            ++bports_left_1;
+        }
+    }
+
+    sx_status = sx_api_rm_free_entries_by_type_get(gh_sdk, table_type, &bports_left_2);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to get a number of free resources for sx table %d - %s\n", table_type,
+                   SX_STATUS_MSG(sx_status));
+        return sdk_to_sai(sx_status);
+    }
+
+    *count = (uint64_t)MIN(bports_left_1, bports_left_2);
+    return SAI_STATUS_SUCCESS;
 }
 
 /**

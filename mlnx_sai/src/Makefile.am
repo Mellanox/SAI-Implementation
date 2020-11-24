@@ -19,6 +19,11 @@ if CONFIG_SYSLOG
 CFLAGS += -DCONFIG_SYSLOG
 endif
 
+pythonlibdir=$(APP_PY_PATH)
+pythonlib_SCRIPTS= \
+                vxlandifftool.py \
+                vxlandifftool_test.py
+
 lib_LTLIBRARIES = libfx_base.la libsx_fx_sdk.la libsai.la
 
 dist_data_DATA = sai_1710.xml \
@@ -35,6 +40,7 @@ dist_data_DATA = sai_1710.xml \
                  sai_37001G.xml \
                  sai_3800.xml \
                  sai_380050G.xml \
+                 sai_3800_pb_hash.xml \				 
                  sai_4410.xml \
                  sai_4600.xml \
                  sai_4600C.xml \
@@ -180,6 +186,7 @@ libsai_apiinclude_HEADERS = \
         $(top_srcdir)/inc/sai/saivlan.h \
         $(top_srcdir)/inc/sai/saiwred.h \
 		\
+        $(top_srcdir)/inc/experimental/saiexperimentalbmtor.h \
         $(top_srcdir)/inc/experimental/saiextensions.h \
         $(top_srcdir)/inc/experimental/saiswitchextensions.h \
         $(top_srcdir)/inc/experimental/saitypesextensions.h \
