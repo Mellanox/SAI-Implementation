@@ -44,7 +44,7 @@
 #undef  __MODULE__
 #define __MODULE__ SAI_SWITCH
 
-#define SDK_START_CMD_STR_LEN 255
+#define SDK_START_CMD_STR_LEN  255
 #define MAX_BFD_SESSION_NUMBER 64
 
 typedef struct _sai_switch_notification_t {
@@ -72,9 +72,9 @@ uint32_t                         g_sai_acl_db_pbs_map_size = 0;
 sai_tunnel_db_t                 *g_sai_tunnel_db_ptr       = NULL;
 uint32_t                         g_sai_tunnel_db_size      = 0;
 static cl_thread_t               event_thread;
-static bool                      event_thread_asked_to_stop = false;
+static bool                      event_thread_asked_to_stop     = false;
 static bool                      g_uninit_data_plane_on_removal = true;
-static uint32_t                  g_mlnx_shm_rm_size        = 0;
+static uint32_t                  g_mlnx_shm_rm_size             = 0;
 
 void log_cb(sx_log_severity_t severity, const char *module_name, char *msg);
 void log_pause_cb(void);
@@ -385,16 +385,14 @@ static sai_status_t mlnx_switch_aging_time_set(_In_ const sai_object_key_t      
 static sai_status_t mlnx_switch_fdb_flood_ctrl_set(_In_ const sai_object_key_t      *key,
                                                    _In_ const sai_attribute_value_t *value,
                                                    void                             *arg);
-static sai_status_t mlnx_switch_ecmp_hash_param_set_impl(_In_ long                         attr_id,
-                                                         _In_ const sai_attribute_value_t *value);
+static sai_status_t mlnx_switch_ecmp_hash_param_set_impl(_In_ long attr_id, _In_ const sai_attribute_value_t *value);
 static sai_status_t mlnx_switch_ecmp_hash_param_set(_In_ const sai_object_key_t      *key,
                                                     _In_ const sai_attribute_value_t *value,
                                                     void                             *arg);
 static sai_status_t mlnx_switch_counter_refresh_set(_In_ const sai_object_key_t      *key,
                                                     _In_ const sai_attribute_value_t *value,
                                                     void                             *arg);
-static sai_status_t mlnx_switch_lag_hash_attr_set_impl(_In_ long                         attr_id,
-                                                       _In_ const sai_attribute_value_t *value);
+static sai_status_t mlnx_switch_lag_hash_attr_set_impl(_In_ long attr_id, _In_ const sai_attribute_value_t *value);
 static sai_status_t mlnx_switch_lag_hash_attr_set(_In_ const sai_object_key_t      *key,
                                                   _In_ const sai_attribute_value_t *value,
                                                   void                             *arg);
@@ -505,8 +503,7 @@ static sai_status_t mlnx_default_bridge_id_get(_In_ const sai_object_key_t   *ke
                                                _In_ uint32_t                  attr_index,
                                                _Inout_ vendor_cache_t        *cache,
                                                void                          *arg);
-static sai_status_t mlnx_switch_available_get_impl(_In_ sai_switch_attr_t attr_id,
-                                                   _Out_ uint32_t        *count);
+static sai_status_t mlnx_switch_available_get_impl(_In_ sai_switch_attr_t attr_id, _Out_ uint32_t        *count);
 static sai_status_t mlnx_switch_available_get(_In_ const sai_object_key_t   *key,
                                               _Inout_ sai_attribute_value_t *value,
                                               _In_ uint32_t                  attr_index,
@@ -1261,7 +1258,7 @@ static const mlnx_attr_enum_info_t        switch_enum_info[] = {
         SAI_BFD_SESSION_OFFLOAD_TYPE_NONE),
     [SAI_SWITCH_ATTR_SUPPORTED_EXTENDED_STATS_MODE] = ATTR_ENUM_VALUES_ALL(),
     [SAI_SWITCH_ATTR_RESTART_TYPE]                  = ATTR_ENUM_VALUES_ALL(),
-    [SAI_SWITCH_ATTR_TYPE] = ATTR_ENUM_VALUES_LIST(
+    [SAI_SWITCH_ATTR_TYPE]                          = ATTR_ENUM_VALUES_LIST(
         SAI_SWITCH_TYPE_NPU),
 };
 const mlnx_obj_type_attrs_info_t          mlnx_switch_obj_type_info =
@@ -2239,7 +2236,8 @@ static sai_status_t mlnx_resource_mng_stage(bool warm_recover, mlnx_sai_boot_typ
     sxd_handle                sxd_handle   = 0;
     uint32_t                  ii;
     const bool                initialize_dpt = !warm_recover;
-    const bool                reset_asic     = !warm_recover && (BOOT_TYPE_WARM != boot_type) && (BOOT_TYPE_FAST != boot_type);
+    const bool                reset_asic     = !warm_recover && (BOOT_TYPE_WARM != boot_type) &&
+                                               (BOOT_TYPE_FAST != boot_type);
 
     memset(&ctrl_pack, 0, sizeof(sxd_ctrl_pack_t));
     memset(&swid_details, 0, sizeof(swid_details));
@@ -2634,8 +2632,9 @@ static sai_status_t mlnx_chassis_mng_stage(mlnx_sai_boot_type_t boot_type,
     }
 
     log_verbosity_target_attr.verbosity_target = SX_LOG_VERBOSITY_BOTH;
-    log_verbosity_target_attr.enable = 1;
-    if (SX_STATUS_SUCCESS != (status = sx_api_system_log_enter_func_severity_set(gh_sdk, &log_verbosity_target_attr))) {
+    log_verbosity_target_attr.enable           = 1;
+    if (SX_STATUS_SUCCESS !=
+        (status = sx_api_system_log_enter_func_severity_set(gh_sdk, &log_verbosity_target_attr))) {
         SX_LOG_ERR("Set system log func severity failed - %s.\n", SX_STATUS_MSG(status));
         return sdk_to_sai(status);
     }
@@ -2652,8 +2651,8 @@ static sai_status_t mlnx_chassis_mng_stage(mlnx_sai_boot_type_t boot_type,
     sdk_init_params.lag_params.max_ports_per_lag = 0;
     sdk_init_params.lag_params.default_lag_hash  = SX_LAG_DEFAULT_LAG_HASH;
 
-    sdk_init_params.vlan_params.def_vid     = SX_VLAN_DEFAULT_VID;
-    sdk_init_params.vlan_params.max_swid_id = 0;
+    sdk_init_params.vlan_params.def_vid             = SX_VLAN_DEFAULT_VID;
+    sdk_init_params.vlan_params.max_swid_id         = 0;
     sdk_init_params.vlan_params.num_of_active_vlans = MAX_VLANS;
 
     sdk_init_params.fdb_params.max_mc_group = SX_FDB_MAX_MC_GROUPS;
@@ -3034,11 +3033,11 @@ static sai_status_t parse_elements(xmlDoc *doc, xmlNode * a_node)
             g_sai_db_ptr->acl_divider = g_sai_db_ptr->issu_enabled ? 2 : 1;
             xmlFree(key);
         } else if ((!xmlStrcmp(cur_node->name, (const xmlChar*)"pbhash_gre"))) {
-            key                        = xmlNodeListGetString(doc, cur_node->children, 1);
+            key                      = xmlNodeListGetString(doc, cur_node->children, 1);
             g_sai_db_ptr->pbhash_gre = (uint32_t)atoi((const char*)key);
             MLNX_SAI_LOG_NTC("policy based hash enabled, GRE: %u\n", g_sai_db_ptr->pbhash_gre);
             xmlFree(key);
-        }  else {
+        } else {
             /* parse all children of current element */
             if (SAI_STATUS_SUCCESS != (status = parse_elements(doc, cur_node->children))) {
                 return status;
@@ -3159,7 +3158,7 @@ static void sai_db_values_init()
     g_sai_db_ptr->crc_recalc_enable = true;
 
     g_sai_db_ptr->platform_type = MLNX_PLATFORM_TYPE_INVALID;
-    g_sai_db_ptr->pbhash_gre = 0;
+    g_sai_db_ptr->pbhash_gre    = 0;
 
     g_sai_db_ptr->max_ipinip_ipv6_loopback_rifs = 0;
 
@@ -4695,11 +4694,15 @@ static void sai_buffer_db_pointers_init()
     assert(g_sai_db_ptr->ports_number != 0);
     g_sai_buffer_db_ptr->buffer_profiles  = (mlnx_sai_db_buffer_profile_entry_t*)(g_sai_buffer_db_ptr->db_base_ptr);
     g_sai_buffer_db_ptr->port_buffer_data = (uint32_t*)(g_sai_buffer_db_ptr->buffer_profiles +
-                                                        (1 +
-                                                         (MAX_PORTS *
-                                                          mlnx_sai_get_buffer_resource_limits()->max_buffers_per_port)));
+                                                        (1 + (MAX_PORTS *
+                                                              mlnx_sai_get_buffer_resource_limits()->
+                                                              max_buffers_per_port)));
     g_sai_buffer_db_ptr->pool_allocation = (bool*)(g_sai_buffer_db_ptr->port_buffer_data +
                                                    BUFFER_DB_PER_PORT_PROFILE_INDEX_ARRAY_SIZE * MAX_PORTS);
+    g_sai_buffer_db_ptr->shp_ipool_map = (mlnx_sai_db_buffer_pool_shp_map_entry_t*)
+                                         (g_sai_buffer_db_ptr->pool_allocation +
+                                          (1 + mlnx_sai_get_buffer_resource_limits()->num_ingress_pools +
+                                           mlnx_sai_get_buffer_resource_limits()->num_egress_pools));
 }
 
 static sai_status_t sai_buffer_db_unload(boolean_t erase_db)
@@ -4749,6 +4752,9 @@ static uint32_t sai_buffer_db_size_get()
         sizeof(bool) *
         (1 + mlnx_sai_get_buffer_resource_limits()->num_ingress_pools +
          mlnx_sai_get_buffer_resource_limits()->num_egress_pools) +
+        /* currently a single instance of shared headroom pool is provided by SDK */
+        sizeof(mlnx_sai_db_buffer_pool_shp_map_entry_t) *
+        (mlnx_sai_get_buffer_resource_limits()->num_shared_headroom_pools) +
         sizeof(mlnx_sai_buffer_pool_ids_t)
         );
 }
@@ -5189,20 +5195,26 @@ static sai_status_t mlnx_kvd_table_size_update(sx_api_profile_t *ku_profile)
 
     MLNX_SAI_LOG_NTC("Original hash_single size %u hash_double size %u \n", hash_single_size, hash_double_size);
 
-    g_sai_db_ptr->fdb_table_size = hash_single_size;
-    g_sai_db_ptr->route_table_size = hash_single_size;
-    g_sai_db_ptr->neighbor_table_size = hash_single_size;
-    g_sai_db_ptr->ipv4_route_table_size = 0;
-    g_sai_db_ptr->ipv6_route_table_size = 0;
+    g_sai_db_ptr->fdb_table_size           = hash_single_size;
+    g_sai_db_ptr->route_table_size         = hash_single_size;
+    g_sai_db_ptr->neighbor_table_size      = hash_single_size;
+    g_sai_db_ptr->ipv4_route_table_size    = 0;
+    g_sai_db_ptr->ipv6_route_table_size    = 0;
     g_sai_db_ptr->ipv4_neighbor_table_size = 0;
     g_sai_db_ptr->ipv6_neighbor_table_size = 0;
-    fdb_table_size             = g_mlnx_services.profile_get_value(g_profile_id, SAI_KEY_FDB_TABLE_SIZE);
-    route_table_size           = g_mlnx_services.profile_get_value(g_profile_id, SAI_KEY_L3_ROUTE_TABLE_SIZE);
-    neighbor_table_size        = g_mlnx_services.profile_get_value(g_profile_id, SAI_KEY_L3_NEIGHBOR_TABLE_SIZE);
-    ipv4_route_table_size      = g_mlnx_services.profile_get_value(g_profile_id, SAI_KEY_IPV4_ROUTE_TABLE_SIZE);
-    ipv6_route_table_size      = g_mlnx_services.profile_get_value(g_profile_id, SAI_KEY_IPV6_ROUTE_TABLE_SIZE);
-    ipv4_neigh_table_size      = g_mlnx_services.profile_get_value(g_profile_id, SAI_KEY_IPV4_NEIGHBOR_TABLE_SIZE);
-    ipv6_neigh_table_size      = g_mlnx_services.profile_get_value(g_profile_id, SAI_KEY_IPV6_NEIGHBOR_TABLE_SIZE);
+    fdb_table_size                         = g_mlnx_services.profile_get_value(g_profile_id, SAI_KEY_FDB_TABLE_SIZE);
+    route_table_size                       = g_mlnx_services.profile_get_value(g_profile_id,
+                                                                               SAI_KEY_L3_ROUTE_TABLE_SIZE);
+    neighbor_table_size                    = g_mlnx_services.profile_get_value(g_profile_id,
+                                                                               SAI_KEY_L3_NEIGHBOR_TABLE_SIZE);
+    ipv4_route_table_size                  = g_mlnx_services.profile_get_value(g_profile_id,
+                                                                               SAI_KEY_IPV4_ROUTE_TABLE_SIZE);
+    ipv6_route_table_size                  = g_mlnx_services.profile_get_value(g_profile_id,
+                                                                               SAI_KEY_IPV6_ROUTE_TABLE_SIZE);
+    ipv4_neigh_table_size                  = g_mlnx_services.profile_get_value(g_profile_id,
+                                                                               SAI_KEY_IPV4_NEIGHBOR_TABLE_SIZE);
+    ipv6_neigh_table_size                  = g_mlnx_services.profile_get_value(g_profile_id,
+                                                                               SAI_KEY_IPV6_NEIGHBOR_TABLE_SIZE);
 
     if (NULL != fdb_table_size) {
         fdb_num = (uint32_t)atoi(fdb_table_size);
@@ -5218,7 +5230,7 @@ static sai_status_t mlnx_kvd_table_size_update(sx_api_profile_t *ku_profile)
         MLNX_SAI_LOG_NTC("Setting initial route table size %u\n", routes_num);
         /* 0 is full kvd */
         if (routes_num) {
-            g_sai_db_ptr->route_table_size = routes_num;
+            g_sai_db_ptr->route_table_size      = routes_num;
             g_sai_db_ptr->ipv4_route_table_size = routes_num;
             g_sai_db_ptr->ipv6_route_table_size = routes_num;
         }
@@ -5246,7 +5258,7 @@ static sai_status_t mlnx_kvd_table_size_update(sx_api_profile_t *ku_profile)
         neighbors_num = (uint32_t)atoi(neighbor_table_size);
         MLNX_SAI_LOG_NTC("Setting initial neighbor table size %u\n", neighbors_num);
         if (neighbors_num) {
-            g_sai_db_ptr->neighbor_table_size = neighbors_num;
+            g_sai_db_ptr->neighbor_table_size      = neighbors_num;
             g_sai_db_ptr->ipv4_neighbor_table_size = neighbors_num;
             g_sai_db_ptr->ipv6_neighbor_table_size = neighbors_num;
         }
@@ -5266,7 +5278,8 @@ static sai_status_t mlnx_kvd_table_size_update(sx_api_profile_t *ku_profile)
             }
         }
         if (ipv4_neigh_table_size && ipv6_neigh_table_size) {
-            g_sai_db_ptr->neighbor_table_size = g_sai_db_ptr->ipv4_neighbor_table_size + g_sai_db_ptr->ipv6_neighbor_table_size;
+            g_sai_db_ptr->neighbor_table_size = g_sai_db_ptr->ipv4_neighbor_table_size +
+                                                g_sai_db_ptr->ipv6_neighbor_table_size;
         }
     }
 
@@ -5337,8 +5350,8 @@ static sai_status_t mlnx_initialize_switch(sai_object_id_t switch_id, bool *tran
     sx_span_init_params_t       span_init_params;
     sx_vlan_id_t                sx_vlan_id[MAX_VLANS];
     uint32_t                    sx_vlan_cnt = 1;
-    uint32_t                    ii = 0;
-    sxd_status_t                sxd_ret = SXD_STATUS_SUCCESS;
+    uint32_t                    ii          = 0;
+    sxd_status_t                sxd_ret     = SXD_STATUS_SUCCESS;
 
     memset(&span_init_params, 0, sizeof(sx_span_init_params_t));
 
@@ -5433,8 +5446,7 @@ static sai_status_t mlnx_initialize_switch(sai_object_id_t switch_id, bool *tran
     aggregate_bridge_drops = g_mlnx_services.profile_get_value(g_profile_id, SAI_KEY_AGGREGATE_BRIDGE_DROPS);
     if (NULL != aggregate_bridge_drops) {
         g_sai_db_ptr->aggregate_bridge_drops = (bool)atoi(aggregate_bridge_drops);
-    }
-    else {
+    } else {
         g_sai_db_ptr->aggregate_bridge_drops = false;
     }
 
@@ -5492,7 +5504,8 @@ static sai_status_t mlnx_initialize_switch(sai_object_id_t switch_id, bool *tran
     g_sai_db_ptr->max_ipinip_ipv6_loopback_rifs = resources_param.max_ipinip_ipv6_loopback_rifs = 12;
 #else
     /* sdk limit in sdk_router_be_validate_params */
-    g_sai_db_ptr->max_ipinip_ipv6_loopback_rifs = resources_param.max_ipinip_ipv6_loopback_rifs = resources_param.max_virtual_routers_num / 2;
+    g_sai_db_ptr->max_ipinip_ipv6_loopback_rifs = resources_param.max_ipinip_ipv6_loopback_rifs =
+                                                      resources_param.max_virtual_routers_num / 2;
 #endif
 
     general_param.ipv4_enable    = 1;
@@ -5574,18 +5587,18 @@ static sai_status_t mlnx_initialize_switch(sai_object_id_t switch_id, bool *tran
 
     if (BOOT_TYPE_WARM != boot_type) {
         sx_vlan_id[0] = DEFAULT_VLAN;
-        sx_vlan_cnt = 1;
-        sdk_status = sx_api_vlan_set(gh_sdk, SX_ACCESS_CMD_ADD, DEFAULT_ETH_SWID, sx_vlan_id, &sx_vlan_cnt);
+        sx_vlan_cnt   = 1;
+        sdk_status    = sx_api_vlan_set(gh_sdk, SX_ACCESS_CMD_ADD, DEFAULT_ETH_SWID, sx_vlan_id, &sx_vlan_cnt);
         if (SX_ERR(sdk_status)) {
             SX_LOG_ERR("Error adding vlan %hu: %s\n", sx_vlan_id, SX_STATUS_MSG(sdk_status));
             sai_status = sdk_to_sai(sdk_status);
             return sai_status;
         }
     } else {
-        for (ii = 0; ii < MAX_VLANS-1; ii++) {
-            sx_vlan_id[ii] = ii+1;
+        for (ii = 0; ii < MAX_VLANS - 1; ii++) {
+            sx_vlan_id[ii] = ii + 1;
         }
-        sx_vlan_cnt = MAX_VLANS-1;
+        sx_vlan_cnt = MAX_VLANS - 1;
 
         sxd_ret = sxd_dpt_set_access_control(SX_DEVICE_ID, READ_ONLY);
         if (SXD_CHECK_FAIL(sxd_ret)) {
@@ -5624,8 +5637,8 @@ static sai_status_t mlnx_initialize_switch(sai_object_id_t switch_id, bool *tran
 
 static sai_status_t mlnx_init_flex_parser()
 {
-    sx_flex_parser_param_t      flex_parser_param;
-    sx_status_t                 sdk_status;
+    sx_flex_parser_param_t flex_parser_param;
+    sx_status_t            sdk_status;
 
     if (g_sai_db_ptr->flex_parser_initialized) {
         return SAI_STATUS_SUCCESS;
@@ -5676,8 +5689,9 @@ static sai_status_t mlnx_connect_switch(sai_object_id_t switch_id)
         }
 
         log_verbosity_target_attr.verbosity_target = SX_LOG_VERBOSITY_TARGET_API;
-        log_verbosity_target_attr.enable = 1;
-        if (SX_STATUS_SUCCESS != (status = sx_api_system_log_enter_func_severity_set(gh_sdk, &log_verbosity_target_attr))) {
+        log_verbosity_target_attr.enable           = 1;
+        if (SX_STATUS_SUCCESS !=
+            (status = sx_api_system_log_enter_func_severity_set(gh_sdk, &log_verbosity_target_attr))) {
             SX_LOG_ERR("Set system log func severity failed - %s.\n", SX_STATUS_MSG(status));
             return sdk_to_sai(status);
         }
@@ -5773,6 +5787,10 @@ static sai_status_t mlnx_connect_switch(sai_object_id_t switch_id)
             return status;
         }
 
+        if (SAI_STATUS_SUCCESS != (status = mlnx_init_buffer_pool_ids())) {
+            return status;
+        }
+
         status = mlnx_cb_table_init();
         if (SAI_ERR(status)) {
             return status;
@@ -5814,7 +5832,7 @@ static sai_status_t mlnx_create_switch(_Out_ sai_object_id_t     * switch_id,
     sai_status_t                 sai_status;
     uint32_t                     attr_idx;
     bool                         transaction_mode_enable = false, crc_check_enable = true, crc_recalc_enable = true;
-    mlnx_port_config_t           *port;
+    mlnx_port_config_t          *port;
     uint32_t                     ii;
 
     if (NULL == switch_id) {
@@ -5965,8 +5983,10 @@ static sai_status_t mlnx_create_switch(_Out_ sai_object_id_t     * switch_id,
             return sai_status;
         }
         mlnx_port_foreach(port, ii) {
-            if (SAI_STATUS_SUCCESS != (sai_status = mlnx_pbhash_acl_bind(SX_ACCESS_CMD_ADD, port->saiport, mlnx_port_is_lag(
-                                          port) ? SAI_OBJECT_TYPE_LAG : SAI_OBJECT_TYPE_PORT))) {
+            if (SAI_STATUS_SUCCESS !=
+                (sai_status = mlnx_pbhash_acl_bind(SX_ACCESS_CMD_ADD, port->saiport, mlnx_port_is_lag(
+                                                       port) ? SAI_OBJECT_TYPE_LAG :
+                                                   SAI_OBJECT_TYPE_PORT))) {
                 SX_LOG_ERR("Failed to bind PB hash ACL to port\n");
                 return sai_status;
             }
@@ -5999,13 +6019,13 @@ static sai_status_t mlnx_create_switch(_Out_ sai_object_id_t     * switch_id,
         g_sai_db_ptr->warm_recover = attr_val->booldata;
     }
 
-    sai_status = find_attrib_in_list(attr_count, attr_list, SAI_SWITCH_ATTR_VXLAN_DEFAULT_ROUTER_MAC, &attr_val, &attr_idx);
+    sai_status = find_attrib_in_list(attr_count,
+                                     attr_list,
+                                     SAI_SWITCH_ATTR_VXLAN_DEFAULT_ROUTER_MAC,
+                                     &attr_val,
+                                     &attr_idx);
     if (!SAI_ERR(sai_status)) {
-        if (attr_val && attr_val->mac) {
-            memcpy(g_sai_db_ptr->vxlan_mac, attr_val->mac, sizeof(attr_val->mac));
-        } else {
-            MLNX_SAI_LOG_ERR("Failed setting VXLAN_DEFAULT_ROUTER_MAC\n");
-        }
+        memcpy(g_sai_db_ptr->vxlan_mac, attr_val->mac, sizeof(attr_val->mac));
     }
 
     sai_db_unlock();
@@ -6028,7 +6048,11 @@ static sai_status_t mlnx_create_switch(_Out_ sai_object_id_t     * switch_id,
         }
     }
 
-    sai_status = find_attrib_in_list(attr_count, attr_list, SAI_SWITCH_ATTR_ECMP_DEFAULT_HASH_SEED, &attr_val, &attr_idx);
+    sai_status = find_attrib_in_list(attr_count,
+                                     attr_list,
+                                     SAI_SWITCH_ATTR_ECMP_DEFAULT_HASH_SEED,
+                                     &attr_val,
+                                     &attr_idx);
     if (!SAI_ERR(sai_status)) {
         sai_status = mlnx_switch_ecmp_hash_param_set_impl(SAI_SWITCH_ATTR_ECMP_DEFAULT_HASH_SEED, attr_val);
         if (SAI_STATUS_SUCCESS != sai_status) {
@@ -6037,7 +6061,11 @@ static sai_status_t mlnx_create_switch(_Out_ sai_object_id_t     * switch_id,
         }
     }
 
-    sai_status = find_attrib_in_list(attr_count, attr_list, SAI_SWITCH_ATTR_ECMP_DEFAULT_HASH_ALGORITHM, &attr_val, &attr_idx);
+    sai_status = find_attrib_in_list(attr_count,
+                                     attr_list,
+                                     SAI_SWITCH_ATTR_ECMP_DEFAULT_HASH_ALGORITHM,
+                                     &attr_val,
+                                     &attr_idx);
     if (!SAI_ERR(sai_status)) {
         sai_status = mlnx_switch_ecmp_hash_param_set_impl(SAI_SWITCH_ATTR_ECMP_DEFAULT_HASH_ALGORITHM, attr_val);
         if (SAI_STATUS_SUCCESS != sai_status) {
@@ -6046,7 +6074,11 @@ static sai_status_t mlnx_create_switch(_Out_ sai_object_id_t     * switch_id,
         }
     }
 
-    sai_status = find_attrib_in_list(attr_count, attr_list, SAI_SWITCH_ATTR_ECMP_DEFAULT_SYMMETRIC_HASH, &attr_val, &attr_idx);
+    sai_status = find_attrib_in_list(attr_count,
+                                     attr_list,
+                                     SAI_SWITCH_ATTR_ECMP_DEFAULT_SYMMETRIC_HASH,
+                                     &attr_val,
+                                     &attr_idx);
     if (!SAI_ERR(sai_status)) {
         sai_status = mlnx_switch_ecmp_hash_param_set_impl(SAI_SWITCH_ATTR_ECMP_DEFAULT_SYMMETRIC_HASH, attr_val);
         if (SAI_STATUS_SUCCESS != sai_status) {
@@ -6055,7 +6087,8 @@ static sai_status_t mlnx_create_switch(_Out_ sai_object_id_t     * switch_id,
         }
     }
 
-    sai_status = find_attrib_in_list(attr_count, attr_list, SAI_SWITCH_ATTR_LAG_DEFAULT_HASH_SEED, &attr_val, &attr_idx);
+    sai_status =
+        find_attrib_in_list(attr_count, attr_list, SAI_SWITCH_ATTR_LAG_DEFAULT_HASH_SEED, &attr_val, &attr_idx);
     if (!SAI_ERR(sai_status)) {
         sai_status = mlnx_switch_lag_hash_attr_set_impl(SAI_SWITCH_ATTR_LAG_DEFAULT_HASH_SEED, attr_val);
         if (SAI_STATUS_SUCCESS != sai_status) {
@@ -6064,7 +6097,11 @@ static sai_status_t mlnx_create_switch(_Out_ sai_object_id_t     * switch_id,
         }
     }
 
-    sai_status = find_attrib_in_list(attr_count, attr_list, SAI_SWITCH_ATTR_LAG_DEFAULT_HASH_ALGORITHM, &attr_val, &attr_idx);
+    sai_status = find_attrib_in_list(attr_count,
+                                     attr_list,
+                                     SAI_SWITCH_ATTR_LAG_DEFAULT_HASH_ALGORITHM,
+                                     &attr_val,
+                                     &attr_idx);
     if (!SAI_ERR(sai_status)) {
         sai_status = mlnx_switch_lag_hash_attr_set_impl(SAI_SWITCH_ATTR_LAG_DEFAULT_HASH_ALGORITHM, attr_val);
         if (SAI_STATUS_SUCCESS != sai_status) {
@@ -6073,7 +6110,11 @@ static sai_status_t mlnx_create_switch(_Out_ sai_object_id_t     * switch_id,
         }
     }
 
-    sai_status = find_attrib_in_list(attr_count, attr_list, SAI_SWITCH_ATTR_LAG_DEFAULT_SYMMETRIC_HASH, &attr_val, &attr_idx);
+    sai_status = find_attrib_in_list(attr_count,
+                                     attr_list,
+                                     SAI_SWITCH_ATTR_LAG_DEFAULT_SYMMETRIC_HASH,
+                                     &attr_val,
+                                     &attr_idx);
     if (!SAI_ERR(sai_status)) {
         sai_status = mlnx_switch_lag_hash_attr_set_impl(SAI_SWITCH_ATTR_LAG_DEFAULT_SYMMETRIC_HASH, attr_val);
         if (SAI_STATUS_SUCCESS != sai_status) {
@@ -6408,6 +6449,7 @@ static sai_status_t mlnx_switch_mode_set(_In_ const sai_object_key_t      *key,
                                          void                             *arg)
 {
     sai_status_t status;
+
     SX_LOG_ENTER();
 
     status = mlnx_switch_mode_set_impl(value->s32);
@@ -6449,6 +6491,7 @@ static sai_status_t mlnx_switch_aging_time_set(_In_ const sai_object_key_t      
                                                void                             *arg)
 {
     sai_status_t status;
+
     SX_LOG_ENTER();
 
     status = mlnx_switch_aging_time_set_impl(value->u32);
@@ -6569,8 +6612,7 @@ static sai_status_t mlnx_switch_fdb_flood_ctrl_set(_In_ const sai_object_key_t  
     return status;
 }
 
-static sai_status_t mlnx_switch_ecmp_hash_param_set_impl(_In_ long                         attr_id,
-                                                         _In_ const sai_attribute_value_t *value)
+static sai_status_t mlnx_switch_ecmp_hash_param_set_impl(_In_ long attr_id, _In_ const sai_attribute_value_t *value)
 {
     sai_status_t                       status;
     sx_router_ecmp_port_hash_params_t *port_hash_param;
@@ -6621,6 +6663,7 @@ static sai_status_t mlnx_switch_ecmp_hash_param_set(_In_ const sai_object_key_t 
 {
     sai_status_t      status;
     sai_switch_attr_t attr_id = (long)arg;
+
     SX_LOG_ENTER();
 
     status = mlnx_switch_ecmp_hash_param_set_impl(attr_id, value);
@@ -6655,8 +6698,7 @@ static sai_status_t mlnx_switch_counter_refresh_set(_In_ const sai_object_key_t 
     return SAI_STATUS_NOT_IMPLEMENTED;
 }
 
-static sai_status_t mlnx_switch_lag_hash_attr_set_impl(_In_ long                         attr_id,
-                                                       _In_ const sai_attribute_value_t *value)
+static sai_status_t mlnx_switch_lag_hash_attr_set_impl(_In_ long attr_id, _In_ const sai_attribute_value_t *value)
 {
     sai_status_t               status;
     sx_lag_port_hash_params_t *lag_hash_params;
@@ -6705,6 +6747,7 @@ static sai_status_t mlnx_switch_lag_hash_attr_set(_In_ const sai_object_key_t   
 {
     sai_status_t      status;
     sai_switch_attr_t attr_id = (long)arg;
+
     SX_LOG_ENTER();
 
     status = mlnx_switch_lag_hash_attr_set_impl(attr_id, value);
@@ -7097,6 +7140,7 @@ static sai_status_t mlnx_switch_default_tc_set(_In_ const sai_object_key_t      
                                                void                             *arg)
 {
     sai_status_t status;
+
     SX_LOG_ENTER();
 
     status = mlnx_switch_default_tc_set_impl(value->u8);
@@ -7522,8 +7566,7 @@ static sai_status_t mlnx_switch_ecmp_groups_get(_In_ const sai_object_key_t   *k
      * On SPC2/3 there is no KVD division, the entire KVD can be used */
     if (mlnx_chip_is_spc2or3()) {
         value->u32 = g_resource_limits.kvd_size;
-    }
-    else {
+    } else {
         ku_profile = mlnx_sai_get_ku_profile();
         if (!ku_profile) {
             return SAI_STATUS_FAILURE;
@@ -8139,8 +8182,7 @@ static sai_status_t mlnx_switch_lag_hash_attr_get(_In_ const sai_object_key_t   
     return SAI_STATUS_SUCCESS;
 }
 
-static sai_status_t mlnx_switch_available_get_impl(_In_ sai_switch_attr_t attr_id,
-                                                   _Out_ uint32_t        *count)
+static sai_status_t mlnx_switch_available_get_impl(_In_ sai_switch_attr_t attr_id, _Out_ uint32_t        *count)
 {
     sx_status_t         sx_status;
     rm_sdk_table_type_e table_type;
@@ -8214,6 +8256,7 @@ static sai_status_t mlnx_switch_available_get(_In_ const sai_object_key_t   *key
                                               void                          *arg)
 {
     sai_status_t status = SAI_STATUS_SUCCESS;
+
     SX_LOG_ENTER();
 
     status = mlnx_switch_available_get_impl((sai_switch_attr_t)arg, &value->u32);
@@ -8386,7 +8429,8 @@ static sai_status_t mlnx_switch_availability_acl_get_common(_In_ sai_object_type
 
     sx_status = sx_api_rm_free_entries_by_type_get(gh_sdk, sx_table_type, &free_acls);
     if (SX_ERR(sx_status)) {
-        SX_LOG_ERR("Failed to get a number of free resources for sx table %d - %s\n", sx_table_type, SX_STATUS_MSG(sx_status));
+        SX_LOG_ERR("Failed to get a number of free resources for sx table %d - %s\n", sx_table_type,
+                   SX_STATUS_MSG(sx_status));
         return sdk_to_sai(sx_status);
     }
 
@@ -8409,7 +8453,10 @@ sai_status_t mlnx_switch_next_hop_availability_get(_In_ sai_object_id_t        s
                                                    _In_ const sai_attribute_t *attr_list,
                                                    _Out_ uint64_t             *count)
 {
-    return mlnx_switch_availability_get_common(switch_id, SAI_SWITCH_ATTR_AVAILABLE_IPV4_NEXTHOP_ENTRY, "next-hop entries", count);
+    return mlnx_switch_availability_get_common(switch_id,
+                                               SAI_SWITCH_ATTR_AVAILABLE_IPV4_NEXTHOP_ENTRY,
+                                               "next-hop entries",
+                                               count);
 }
 
 sai_status_t mlnx_switch_next_hop_group_availability_get(_In_ sai_object_id_t        switch_id,
@@ -8417,7 +8464,10 @@ sai_status_t mlnx_switch_next_hop_group_availability_get(_In_ sai_object_id_t   
                                                          _In_ const sai_attribute_t *attr_list,
                                                          _Out_ uint64_t             *count)
 {
-    return mlnx_switch_availability_get_common(switch_id, SAI_SWITCH_ATTR_AVAILABLE_NEXT_HOP_GROUP_ENTRY, "next-hop groups", count);
+    return mlnx_switch_availability_get_common(switch_id,
+                                               SAI_SWITCH_ATTR_AVAILABLE_NEXT_HOP_GROUP_ENTRY,
+                                               "next-hop groups",
+                                               count);
 }
 
 sai_status_t mlnx_switch_fdb_entry_availability_get(_In_ sai_object_id_t        switch_id,
@@ -8466,11 +8516,17 @@ sai_status_t mlnx_switch_route_entry_availability_get(_In_ sai_object_id_t      
     family = attr_list[0].value.s32;
     switch (family) {
     case SAI_IP_ADDR_FAMILY_IPV4:
-        status = mlnx_switch_availability_get_common(switch_id, SAI_SWITCH_ATTR_AVAILABLE_IPV4_ROUTE_ENTRY, "IPv4 route entries", count);
+        status = mlnx_switch_availability_get_common(switch_id,
+                                                     SAI_SWITCH_ATTR_AVAILABLE_IPV4_ROUTE_ENTRY,
+                                                     "IPv4 route entries",
+                                                     count);
         break;
 
     case SAI_IP_ADDR_FAMILY_IPV6:
-        status = mlnx_switch_availability_get_common(switch_id, SAI_SWITCH_ATTR_AVAILABLE_IPV6_ROUTE_ENTRY, "IPv6 route entries", count);
+        status = mlnx_switch_availability_get_common(switch_id,
+                                                     SAI_SWITCH_ATTR_AVAILABLE_IPV6_ROUTE_ENTRY,
+                                                     "IPv6 route entries",
+                                                     count);
         break;
 
     default:
@@ -8663,7 +8719,7 @@ static sai_status_t mlnx_switch_pre_shutdown_set(_In_ const sai_object_key_t    
     sx_status_t          sx_status = SX_STATUS_SUCCESS;
     sx_vlan_id_t         vlan_list[MAX_VLANS];
     uint32_t             vlan_cnt = 0;
-    uint32_t             ii = 0;
+    uint32_t             ii       = 0;
     mlnx_sai_boot_type_t boot_type;
 
     SX_LOG_ENTER();
@@ -9305,8 +9361,8 @@ static sai_status_t mlnx_switch_vxlan_default_router_mac_set(_In_ const sai_obje
         }
 
         idx.type = MLNX_SHM_RM_ARRAY_TYPE_NEXTHOP;
-        idx.idx = ii;
-        status = mlnx_encap_nexthop_oid_create(idx, &nh);
+        idx.idx  = ii;
+        status   = mlnx_encap_nexthop_oid_create(idx, &nh);
         if (SAI_ERR(status)) {
             SX_LOG_ERR("Failed to create NH OID.\n");
             break;

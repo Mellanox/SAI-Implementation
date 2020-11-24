@@ -532,9 +532,9 @@ sai_object_id_t sai_switch_id_query(_In_ sai_object_id_t sai_object_id)
  */
 sai_status_t sai_dbg_generate_dump(_In_ const char *dump_file_name)
 {
-    FILE       *file       = NULL;
-    sx_status_t sdk_status = SX_STATUS_ERROR;
-    sx_dbg_extra_info_t      dbg_info;
+    FILE               *file       = NULL;
+    sx_status_t         sdk_status = SX_STATUS_ERROR;
+    sx_dbg_extra_info_t dbg_info;
 
     if (!gh_sdk) {
         MLNX_SAI_LOG_ERR("Can't generate debug dump before creating switch\n");
@@ -596,11 +596,12 @@ sai_status_t sai_dbg_generate_dump(_In_ const char *dump_file_name)
     fclose(file);
 
     memset(&dbg_info, 0, sizeof(dbg_info));
-    dbg_info.dev_id = SX_DEVICE_ID;
+    dbg_info.dev_id           = SX_DEVICE_ID;
     dbg_info.force_db_refresh = true;
 #ifndef _WIN32
     char *file_name = strdup(dump_file_name);
     strncpy(dbg_info.path, dirname(file_name), sizeof(dbg_info.path));
+    dbg_info.path[sizeof(dbg_info.path) - 1] = 0;
     free(file_name);
 #endif
 #define FW_DUMPS 3
@@ -610,7 +611,7 @@ sai_status_t sai_dbg_generate_dump(_In_ const char *dump_file_name)
             MLNX_SAI_LOG_ERR("Error generating extended sdk dump, sx status: %s\n", SX_STATUS_MSG(sdk_status));
         }
         /* sleep one second to ensure new dump file is created, as dump file name is based on time in seconds */
-        if (ii < FW_DUMPS-1) {
+        if (ii < FW_DUMPS - 1) {
             sleep(1);
         }
     }

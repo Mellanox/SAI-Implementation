@@ -294,7 +294,8 @@ sai_status_t mlnx_mirror_availability_get(_In_ sai_object_id_t        switch_id,
     assert(count);
 
     span_sessions_max = g_resource_limits.span_session_id_max_internal + 1;
-    sx_status = sx_api_span_session_iter_get(gh_sdk, SX_ACCESS_CMD_GET, NULL, NULL, NULL, &span_sessions_exists);
+    sx_status         =
+        sx_api_span_session_iter_get(gh_sdk, SX_ACCESS_CMD_GET, NULL, NULL, NULL, &span_sessions_exists);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to get count of SPAN sessions - %s\n", SX_STATUS_MSG(sx_status));
         return sdk_to_sai(sx_status);

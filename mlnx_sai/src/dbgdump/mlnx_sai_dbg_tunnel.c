@@ -607,7 +607,7 @@ static void SAI_dump_tunnel_table_print(_In_ FILE *file, _In_ mlnx_tunneltable_t
 
 static void SAI_dump_bmtor_bridge_print(_In_ FILE *file, _In_ mlnx_bmtor_bridge_t *mlnx_bmtor_bridge)
 {
-    uint32_t                  ii     = 0;
+    uint32_t                  ii = 0;
     mlnx_bmtor_bridge_t       curr_mlnx_bmtor_bridge;
     dbg_utils_table_columns_t bmtor_bridge_clmns[] = {
         {"db idx",               8,  PARAM_UINT32_E, &ii},

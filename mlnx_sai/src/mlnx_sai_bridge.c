@@ -48,8 +48,7 @@ static sai_status_t mlnx_bridge_learn_disable_get(_In_ const sai_object_key_t   
                                                   _In_ uint32_t                  attr_index,
                                                   _Inout_ vendor_cache_t        *cache,
                                                   void                          *arg);
-static sai_status_t mlnx_bridge_learn_disable_set_impl(_In_ sx_bridge_id_t sx_bridge_id,
-                                                       _In_ bool           learn_disable);
+static sai_status_t mlnx_bridge_learn_disable_set_impl(_In_ sx_bridge_id_t sx_bridge_id, _In_ bool learn_disable);
 static sai_status_t mlnx_bridge_learn_disable_set(_In_ const sai_object_key_t      *key,
                                                   _In_ const sai_attribute_value_t *value,
                                                   void                             *arg);
@@ -1038,8 +1037,7 @@ out:
     return status;
 }
 
-static sai_status_t mlnx_bridge_learn_disable_set_impl(_In_ sx_bridge_id_t sx_bridge_id,
-                                                       _In_ bool           learn_disable)
+static sai_status_t mlnx_bridge_learn_disable_set_impl(_In_ sx_bridge_id_t sx_bridge_id, _In_ bool learn_disable)
 {
     sx_status_t         status;
     sx_fdb_learn_mode_t mode;
@@ -2666,7 +2664,8 @@ sai_status_t mlnx_bridge_port_availability_get(_In_ sai_object_id_t        switc
 
     sx_status = sx_api_rm_free_entries_by_type_get(gh_sdk, table_type, &bports_left_2);
     if (SX_ERR(sx_status)) {
-        SX_LOG_ERR("Failed to get a number of free resources for sx table %d - %s\n", table_type, SX_STATUS_MSG(sx_status));
+        SX_LOG_ERR("Failed to get a number of free resources for sx table %d - %s\n", table_type,
+                   SX_STATUS_MSG(sx_status));
         return sdk_to_sai(sx_status);
     }
 

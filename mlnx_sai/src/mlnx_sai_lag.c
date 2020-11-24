@@ -1310,8 +1310,8 @@ static sai_status_t mlnx_create_lag_member(_Out_ sai_object_id_t     * lag_membe
     uint32_t                     ii                            = 0;
     mlnx_qos_queue_config_t     *lag_queue_cfg;
     mlnx_qos_queue_config_t     *port_queue_cfg;
-    const bool                   is_warmboot_init_stage        = (BOOT_TYPE_WARM == g_sai_db_ptr->boot_type) &&
-                                                                 (!g_sai_db_ptr->issu_end_called);
+    const bool                   is_warmboot_init_stage = (BOOT_TYPE_WARM == g_sai_db_ptr->boot_type) &&
+                                                          (!g_sai_db_ptr->issu_end_called);
 
     SX_LOG_ENTER();
 

@@ -58,10 +58,10 @@ static sai_status_t mlnx_host_interface_vlan_tag_set(_In_ const sai_object_key_t
                                                      _In_ const sai_attribute_value_t *value,
                                                      void                             *arg);
 static sai_status_t mlnx_host_interface_genetlink_mcrp_name_get(_In_ const sai_object_key_t   *key,
-                                                 _Inout_ sai_attribute_value_t *value,
-                                                 _In_ uint32_t                  attr_index,
-                                                 _Inout_ vendor_cache_t        *cache,
-                                                 void                          *arg);
+                                                                _Inout_ sai_attribute_value_t *value,
+                                                                _In_ uint32_t                  attr_index,
+                                                                _Inout_ vendor_cache_t        *cache,
+                                                                void                          *arg);
 static sai_status_t mlnx_trap_group_admin_get(_In_ const sai_object_key_t   *key,
                                               _Inout_ sai_attribute_value_t *value,
                                               _In_ uint32_t                  attr_index,
@@ -713,11 +713,11 @@ static sai_status_t create_netdev(uint32_t index)
 
 /* Resolve generic netlink multicast group name */
 static sai_status_t resolve_group(uint32_t index, const char* mcgrp_name)
-{ 
+{
 #ifndef _WIN32
     struct nl_sock *sk = NULL;
-    int group;
-    int error;
+    int             group;
+    int             error;
 
     /* Socket allocation */
     sk = nl_socket_alloc();
@@ -915,15 +915,18 @@ static sai_status_t mlnx_create_host_interface(_Out_ sai_object_id_t     * hif_i
         }
 
         if (SAI_STATUS_SUCCESS !=
-            (status = find_attrib_in_list(attr_count, attr_list, SAI_HOSTIF_ATTR_GENETLINK_MCGRP_NAME, &mcgrp_name, &mcgrp_name_index))) {
+            (status =
+                 find_attrib_in_list(attr_count, attr_list, SAI_HOSTIF_ATTR_GENETLINK_MCGRP_NAME, &mcgrp_name,
+                                     &mcgrp_name_index))) {
             SX_LOG_ERR("Missing mandatory attribute name on create of host if genetlink type\n");
             cl_plock_release(&g_sai_db_ptr->p_lock);
             return SAI_STATUS_MANDATORY_ATTRIBUTE_MISSING;
         }
 
-        // check if genetlink hostif already exists
+        /* check if genetlink hostif already exists */
         for (int i = 0; i < MAX_HOSTIFS; i++) {
-            if (SAI_HOSTIF_OBJECT_TYPE_GENETLINK == g_sai_db_ptr->hostif_db[i].sub_type && true == g_sai_db_ptr->hostif_db[i].is_used) {
+            if ((SAI_HOSTIF_OBJECT_TYPE_GENETLINK == g_sai_db_ptr->hostif_db[i].sub_type) &&
+                (true == g_sai_db_ptr->hostif_db[i].is_used)) {
                 SX_LOG_ERR("Failed to create genetlink hostif, already exist\n");
                 cl_plock_release(&g_sai_db_ptr->p_lock);
                 return SAI_STATUS_ITEM_ALREADY_EXISTS;
@@ -938,9 +941,10 @@ static sai_status_t mlnx_create_host_interface(_Out_ sai_object_id_t     * hif_i
         strncpy(g_sai_db_ptr->hostif_db[ii].ifname, name->chardata, SAI_HOSTIF_NAME_SIZE);
         g_sai_db_ptr->hostif_db[ii].ifname[SAI_HOSTIF_NAME_SIZE] = '\0';
 
-        strncpy(g_sai_db_ptr->hostif_db[ii].mcgrpname, mcgrp_name->chardata, SAI_HOSTIF_GENETLINK_MCGRP_NAME_SIZE-1);
-        g_sai_db_ptr->hostif_db[ii].mcgrpname[SAI_HOSTIF_GENETLINK_MCGRP_NAME_SIZE-1] = '\0';
-        g_sai_db_ptr->hostif_db[ii].sub_type = SAI_HOSTIF_OBJECT_TYPE_GENETLINK;
+        strncpy(g_sai_db_ptr->hostif_db[ii].mcgrpname, mcgrp_name->chardata, SAI_HOSTIF_GENETLINK_MCGRP_NAME_SIZE - 1);
+        g_sai_db_ptr->hostif_db[ii].mcgrpname[SAI_HOSTIF_GENETLINK_MCGRP_NAME_SIZE - 1] = '\0';
+        g_sai_db_ptr->hostif_db[ii].sub_type                                            =
+            SAI_HOSTIF_OBJECT_TYPE_GENETLINK;
     } else {
         SX_LOG_ERR("Invalid host interface type %d\n", type->s32);
         cl_plock_release(&g_sai_db_ptr->p_lock);
@@ -1028,8 +1032,8 @@ static sai_status_t mlnx_remove_host_interface(_In_ sai_object_id_t hif_id)
             return status;
         }
     } else if (SAI_HOSTIF_OBJECT_TYPE_GENETLINK == g_sai_db_ptr->hostif_db[mlnx_hif.id.u32].sub_type) {
-            cl_plock_release(&g_sai_db_ptr->p_lock);
-            return SAI_STATUS_SUCCESS;
+        cl_plock_release(&g_sai_db_ptr->p_lock);
+        return SAI_STATUS_SUCCESS;
     } else {
         snprintf(command, sizeof(command), "ip link delete %s", g_sai_db_ptr->hostif_db[mlnx_hif.id.u32].ifname);
         system_err = system(command);
@@ -1262,10 +1266,10 @@ static sai_status_t mlnx_host_interface_name_get(_In_ const sai_object_key_t   *
  * The maximum number of charactars for the name is SAI_HOSTIF_GENETLINK_MCGRP_NAME_SIZE - 1 since
  * it needs the terminating null byte ('\0') at the end.  */
 static sai_status_t mlnx_host_interface_genetlink_mcrp_name_get(_In_ const sai_object_key_t   *key,
-                                                 _Inout_ sai_attribute_value_t *value,
-                                                 _In_ uint32_t                  attr_index,
-                                                 _Inout_ vendor_cache_t        *cache,
-                                                 void                          *arg)
+                                                                _Inout_ sai_attribute_value_t *value,
+                                                                _In_ uint32_t                  attr_index,
+                                                                _Inout_ vendor_cache_t        *cache,
+                                                                void                          *arg)
 {
     mlnx_object_id_t mlnx_hif = {0};
     sai_status_t     status;
@@ -2533,7 +2537,7 @@ sai_status_t mlnx_register_trap(const sx_access_cmd_t                 cmd,
         break;
 
     case SAI_HOSTIF_TABLE_ENTRY_CHANNEL_TYPE_GENETLINK:
-        user_channel.type = SX_USER_CHANNEL_TYPE_PSAMPLE;
+        user_channel.type                            = SX_USER_CHANNEL_TYPE_PSAMPLE;
         user_channel.channel.psample_params.group_id = group_id;
         break;
 
@@ -3785,7 +3789,8 @@ sai_status_t mlnx_create_hostif_table_entry(_Out_ sai_object_id_t      *hif_tabl
 
         cl_plock_acquire(&g_sai_db_ptr->p_lock);
         if (SAI_HOSTIF_OBJECT_TYPE_GENETLINK != g_sai_db_ptr->hostif_db[mlnx_gnl.id.u32].sub_type) {
-            SX_LOG_ERR("Can't set non genetlink host interface type %u\n", g_sai_db_ptr->hostif_db[mlnx_gnl.id.u32].sub_type);
+            SX_LOG_ERR("Can't set non genetlink host interface type %u\n",
+                       g_sai_db_ptr->hostif_db[mlnx_gnl.id.u32].sub_type);
             cl_plock_release(&g_sai_db_ptr->p_lock);
             return SAI_STATUS_INVALID_ATTR_VALUE_0 + gnl_index;
         }
@@ -3849,7 +3854,7 @@ sai_status_t mlnx_remove_hostif_table_entry(_In_ sai_object_id_t hif_table_entry
     sai_status_t               status;
     mlnx_object_id_t           mlnx_hif = { 0 };
     sx_host_ifc_register_key_t reg;
-    sx_fd_t                    fd_val = { 0 };
+    sx_fd_t                    fd_val   = { 0 };
     uint32_t                   group_id = 0;
 
     SX_LOG_ENTER();

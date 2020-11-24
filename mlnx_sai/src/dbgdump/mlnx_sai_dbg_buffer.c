@@ -19,14 +19,16 @@
 #include <sx/utils/dbg_utils.h>
 #include "assert.h"
 
-static void SAI_dump_buffer_getdb(_Out_ mlnx_sai_db_buffer_profile_entry_t *buffer_profiles,
-                                  _Out_ uint32_t                           *port_buffer_data,
-                                  _Out_ bool                               *pool_allocation,
-                                  _Out_ uint32_t                           *sai_buffer_db_size)
+static void SAI_dump_buffer_getdb(_Out_ mlnx_sai_db_buffer_profile_entry_t      *buffer_profiles,
+                                  _Out_ uint32_t                                *port_buffer_data,
+                                  _Out_ bool                                    *pool_allocation,
+                                  _Out_ mlnx_sai_db_buffer_pool_shp_map_entry_t *shared_pool_mapping,
+                                  _Out_ uint32_t                                *sai_buffer_db_size)
 {
     assert(NULL != buffer_profiles);
     assert(NULL != port_buffer_data);
     assert(NULL != pool_allocation);
+    assert(NULL != shared_pool_mapping);
     assert(NULL != sai_buffer_db_size);
     assert(NULL != g_sai_buffer_db_ptr);
 
@@ -45,6 +47,11 @@ static void SAI_dump_buffer_getdb(_Out_ mlnx_sai_db_buffer_profile_entry_t *buff
            (mlnx_sai_get_buffer_resource_limits()->num_ingress_pools +
             mlnx_sai_get_buffer_resource_limits()->num_egress_pools + 1) * sizeof(bool));
 
+    memcpy(shared_pool_mapping,
+           g_sai_buffer_db_ptr->shp_ipool_map,
+           (mlnx_sai_get_buffer_resource_limits()->num_shared_headroom_pools) *
+           sizeof(mlnx_sai_db_buffer_pool_shp_map_entry_t));
+
     *sai_buffer_db_size = g_sai_buffer_db_size;
 
     sai_db_unlock();
@@ -61,6 +68,9 @@ static void SAI_dump_buffer_resource_limits_print(_In_ FILE *file)
     dbg_utils_print_field(file, "num egress pools",
                           &mlnx_sai_get_buffer_resource_limits()->num_egress_pools,
                           PARAM_UINT32_E);
+    dbg_utils_print_field(file, "num shared headroom pools",
+                          &mlnx_sai_get_buffer_resource_limits()->num_shared_headroom_pools,
+                          PARAM_UINT32_E);
     dbg_utils_print_field(file, "num total pools",
                           &mlnx_sai_get_buffer_resource_limits()->num_total_pools,
                           PARAM_UINT32_E);
@@ -69,6 +79,9 @@ static void SAI_dump_buffer_resource_limits_print(_In_ FILE *file)
                           PARAM_UINT32_E);
     dbg_utils_print_field(file, "num port pg buff",
                           &mlnx_sai_get_buffer_resource_limits()->num_port_pg_buff,
+                          PARAM_UINT32_E);
+    dbg_utils_print_field(file, "num port shared headroom buff",
+                          &mlnx_sai_get_buffer_resource_limits()->num_port_shared_headroom_buff,
                           PARAM_UINT32_E);
     dbg_utils_print_field(file, "unit size",
                           &mlnx_sai_get_buffer_resource_limits()->unit_size,
@@ -259,37 +272,70 @@ static void SAI_dump_pool_allocation_print(_In_ FILE *file, _In_ bool *pool_allo
     }
 }
 
+static void SAI_dump_shared_headroom_parent_pool_map_print(_In_ FILE                                    *file,
+                                                           _In_ mlnx_sai_db_buffer_pool_shp_map_entry_t *shp_ipool_map)
+{
+    bool                      is_shp_created                   = false;
+    sai_object_id_t           ipool_obj_id                     = SAI_NULL_OBJECT_ID;
+    sai_object_id_t           shared_headroom_pool_obj_id      = SAI_NULL_OBJECT_ID;
+    dbg_utils_table_columns_t shp_parent_pool_map_data_clmns[] = {
+        {"shp created",     14, PARAM_BOOL_E,   &is_shp_created},
+        {"shp oid",         14, PARAM_UINT64_E, &shared_headroom_pool_obj_id},
+        {"ipool oid",       14, PARAM_UINT64_E, &ipool_obj_id},
+        {NULL,              0,  0,              NULL}
+    };
+
+    assert(NULL != shp_ipool_map);
+
+    dbg_utils_print_general_header(file, "SHP to IPool Mapping");
+
+    dbg_utils_print_secondary_header(file, "shared headroom to ipool mapping");
+
+    dbg_utils_print_table_headline(file, shp_parent_pool_map_data_clmns);
+
+    is_shp_created              = shp_ipool_map->is_shp_created;
+    shared_headroom_pool_obj_id = shp_ipool_map->shp_pool_id;
+    ipool_obj_id                = shp_ipool_map->sai_pool_id;
+
+    dbg_utils_print_table_data_line(file, shp_parent_pool_map_data_clmns);
+}
+
 void SAI_dump_buffer(_In_ FILE *file)
 {
-    mlnx_sai_db_buffer_profile_entry_t *buffer_profile     = NULL;
-    uint32_t                           *port_buffer_data   = NULL;
-    bool                               *pool_allocation    = NULL;
-    uint32_t                            sai_buffer_db_size = 0;
+    mlnx_sai_db_buffer_profile_entry_t      *buffer_profile      = NULL;
+    uint32_t                                *port_buffer_data    = NULL;
+    bool                                    *pool_allocation     = NULL;
+    mlnx_sai_db_buffer_pool_shp_map_entry_t *shp_parent_pool_map = NULL;
+    uint32_t                                 sai_buffer_db_size  = 0;
 
     buffer_profile =
         (mlnx_sai_db_buffer_profile_entry_t*)calloc(
             mlnx_sai_get_buffer_profile_number(), sizeof(mlnx_sai_db_buffer_profile_entry_t));
+    if (!buffer_profile) {
+        goto bail;
+    }
     port_buffer_data = (uint32_t*)calloc(BUFFER_DB_PER_PORT_PROFILE_INDEX_ARRAY_SIZE * MAX_PORTS,
                                          sizeof(uint32_t));
+    if (!port_buffer_data) {
+        goto bail;
+    }
     pool_allocation = (bool*)calloc(mlnx_sai_get_buffer_resource_limits()->num_ingress_pools +
                                     mlnx_sai_get_buffer_resource_limits()->num_egress_pools + 1, sizeof(bool));
-
-    if ((!buffer_profile) || (!port_buffer_data) || (!pool_allocation)) {
-        if (buffer_profile) {
-            free(buffer_profile);
-        }
-        if (port_buffer_data) {
-            free(port_buffer_data);
-        }
-        if (pool_allocation) {
-            free(pool_allocation);
-        }
-        return;
+    if (!pool_allocation) {
+        goto bail;
+    }
+    shp_parent_pool_map =
+        (mlnx_sai_db_buffer_pool_shp_map_entry_t*)calloc(
+            mlnx_sai_get_buffer_resource_limits()->num_shared_headroom_pools,
+            sizeof(mlnx_sai_db_buffer_pool_shp_map_entry_t));
+    if (!shp_parent_pool_map) {
+        goto bail;
     }
 
     SAI_dump_buffer_getdb(buffer_profile,
                           port_buffer_data,
                           pool_allocation,
+                          shp_parent_pool_map,
                           &sai_buffer_db_size);
 
     dbg_utils_print_module_header(file, "SAI Buffer");
@@ -297,9 +343,12 @@ void SAI_dump_buffer(_In_ FILE *file)
     SAI_dump_buffer_profile_print(file, buffer_profile);
     SAI_dump_port_buffer_data_print(file, port_buffer_data);
     SAI_dump_pool_allocation_print(file, pool_allocation);
+    SAI_dump_shared_headroom_parent_pool_map_print(file, shp_parent_pool_map);
     SAI_dump_sai_buffer_db_size_print(file, &sai_buffer_db_size);
 
-    free(buffer_profile);
-    free(port_buffer_data);
-    free(pool_allocation);
+bail:
+    safe_free(buffer_profile);
+    safe_free(port_buffer_data);
+    safe_free(pool_allocation);
+    safe_free(shp_parent_pool_map);
 }

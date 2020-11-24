@@ -3418,6 +3418,7 @@ static sai_status_t mlnx_acl_table_available_entries_get(_In_ const sai_object_k
                                                          void                          *arg)
 {
     sai_status_t status = SAI_STATUS_SUCCESS;
+
     SX_LOG_ENTER();
 
     status = mlnx_acl_table_available_entries_get_impl(key->key.object_id, &value->u32);
@@ -3450,6 +3451,7 @@ static sai_status_t mlnx_acl_table_available_counters_get(_In_ const sai_object_
                                                           void                          *arg)
 {
     sai_status_t status = SAI_STATUS_SUCCESS;
+
     SX_LOG_ENTER();
 
     status = mlnx_acl_table_available_counters_get_impl(&value->u32);
@@ -11803,7 +11805,7 @@ sai_status_t mlnx_acl_entry_availability_get(_In_ sai_object_id_t        switch_
     }
 
     acl_table_id = attr_list[0].value.oid;
-    status = mlnx_acl_table_available_entries_get_impl(acl_table_id, &value);
+    status       = mlnx_acl_table_available_entries_get_impl(acl_table_id, &value);
     if (SAI_ERR(status)) {
         SX_LOG_ERR("Failed to get count of available ACL entries in ACL table %lx\n", acl_table_id);
         return status;
@@ -14116,7 +14118,7 @@ sai_status_t mlnx_pbhash_acl_add(sai_object_id_t switch_id)
     status                           =
         sx_api_register_set(gh_sdk, SX_ACCESS_CMD_CREATE, registers_key_list, &reg_count);
     if (SX_ERR(status)) {
-        SX_LOG_ERR("Failed to create registers.\n", SX_STATUS_MSG(status));
+        SX_LOG_ERR("Failed to create registers %s.\n", SX_STATUS_MSG(status));
         return sdk_to_sai(status);
     }
 
@@ -14131,7 +14133,7 @@ sai_status_t mlnx_pbhash_acl_add(sai_object_id_t switch_id)
                                                                            extraction_point_list,
                                                                            &ext_point_count);
     if (SX_ERR(status)) {
-        SX_LOG_ERR("Failed to set extraction points for register.\n", SX_STATUS_MSG(status));
+        SX_LOG_ERR("Failed to set extraction points for register %s.\n", SX_STATUS_MSG(status));
         return sdk_to_sai(status);
     }
     extraction_point_list[0].type   = SX_EXTRACTION_POINT_TYPE_INNER_IPV4_START_OF_HEADER_E;
@@ -14144,7 +14146,7 @@ sai_status_t mlnx_pbhash_acl_add(sai_object_id_t switch_id)
                                                                            extraction_point_list,
                                                                            &ext_point_count);
     if (SX_ERR(status)) {
-        SX_LOG_ERR("Failed to set extraction points for register.\n", SX_STATUS_MSG(status));
+        SX_LOG_ERR("Failed to set extraction points for register %s.\n", SX_STATUS_MSG(status));
         return sdk_to_sai(status);
     }
     extraction_point_list[0].type   = SX_EXTRACTION_POINT_TYPE_INNER_IPV4_START_OF_HEADER_E;
@@ -14157,7 +14159,7 @@ sai_status_t mlnx_pbhash_acl_add(sai_object_id_t switch_id)
                                                                            extraction_point_list,
                                                                            &ext_point_count);
     if (SX_ERR(status)) {
-        SX_LOG_ERR("Failed to set extraction points for register.\n", SX_STATUS_MSG(status));
+        SX_LOG_ERR("Failed to set extraction points for register %s.\n", SX_STATUS_MSG(status));
         return sdk_to_sai(status);
     }
     extraction_point_list[0].type   = SX_EXTRACTION_POINT_TYPE_INNER_IPV4_START_OF_HEADER_E;
@@ -14170,7 +14172,7 @@ sai_status_t mlnx_pbhash_acl_add(sai_object_id_t switch_id)
                                                                            extraction_point_list,
                                                                            &ext_point_count);
     if (SX_ERR(status)) {
-        SX_LOG_ERR("Failed to set extraction points for register.\n", SX_STATUS_MSG(status));
+        SX_LOG_ERR("Failed to set extraction points for register %s.\n", SX_STATUS_MSG(status));
         return sdk_to_sai(status);
     }
     extraction_point_list[0].type   = SX_EXTRACTION_POINT_TYPE_INNER_IPV4_START_OF_PAYLOAD_E;
@@ -14183,7 +14185,7 @@ sai_status_t mlnx_pbhash_acl_add(sai_object_id_t switch_id)
                                                                            extraction_point_list,
                                                                            &ext_point_count);
     if (SX_ERR(status)) {
-        SX_LOG_ERR("Failed to set extraction points for register.\n", SX_STATUS_MSG(status));
+        SX_LOG_ERR("Failed to set extraction points for register %s.\n", SX_STATUS_MSG(status));
         return sdk_to_sai(status);
     }
     extraction_point_list[0].type   = SX_EXTRACTION_POINT_TYPE_INNER_IPV4_START_OF_PAYLOAD_E;
@@ -14196,63 +14198,63 @@ sai_status_t mlnx_pbhash_acl_add(sai_object_id_t switch_id)
                                                                            extraction_point_list,
                                                                            &ext_point_count);
     if (SX_ERR(status)) {
-        SX_LOG_ERR("Failed to set extraction points for register.\n", SX_STATUS_MSG(status));
+        SX_LOG_ERR("Failed to set extraction points for register %s.\n", SX_STATUS_MSG(status));
         return sdk_to_sai(status);
     }
 
     /* create ACL action list */
-    action_list[0].type                               = SX_FLEX_ACL_ACTION_ALU_REG;
-    action_list[0].fields.action_alu_reg.command      = SX_ACL_ACTION_ALU_REG_COMMAND_XOR;
-    action_list[0].fields.action_alu_reg.src_register = SX_GP_REGISTER_0_E;
-    action_list[0].fields.action_alu_reg.src_offset   = 0;
-    action_list[0].fields.action_alu_reg.dst_register = SX_GP_REGISTER_2_E;
-    action_list[0].fields.action_alu_reg.dst_offset   = 0;
-    action_list[0].fields.action_alu_reg.size         = 16;
+    action_list[0].type                                            = SX_FLEX_ACL_ACTION_HASH;
+    action_list[0].fields.action_hash.command                      = SX_ACL_ACTION_HASH_COMMAND_SET;
+    action_list[0].fields.action_hash.type                         = SX_ACL_ACTION_HASH_TYPE_ECMP;
+    action_list[0].fields.action_hash.hash_value                   = 10;
 
-    action_list[1].type                               = SX_FLEX_ACL_ACTION_ALU_REG;
-    action_list[1].fields.action_alu_reg.command      = SX_ACL_ACTION_ALU_REG_COMMAND_XOR;
-    action_list[1].fields.action_alu_reg.src_register = SX_GP_REGISTER_1_E;
-    action_list[1].fields.action_alu_reg.src_offset   = 0;
-    action_list[1].fields.action_alu_reg.dst_register = SX_GP_REGISTER_3_E;
-    action_list[1].fields.action_alu_reg.dst_offset   = 0;
-    action_list[1].fields.action_alu_reg.size         = 16;
+    action_list[1].type                                            = SX_FLEX_ACL_ACTION_ALU_REG;
+    action_list[1].fields.action_alu_reg.command                   = SX_ACL_ACTION_ALU_REG_COMMAND_XOR;
+    action_list[1].fields.action_alu_reg.src_register              = SX_GP_REGISTER_4_E;
+    action_list[1].fields.action_alu_reg.src_offset                = 0;
+    action_list[1].fields.action_alu_reg.dst_register              = SX_GP_REGISTER_5_E;
+    action_list[1].fields.action_alu_reg.dst_offset                = 0;
+    action_list[1].fields.action_alu_reg.size                      = 16;
 
-    action_list[2].type                               = SX_FLEX_ACL_ACTION_ALU_REG;
-    action_list[2].fields.action_alu_reg.command      = SX_ACL_ACTION_ALU_REG_COMMAND_XOR;
-    action_list[2].fields.action_alu_reg.src_register = SX_GP_REGISTER_4_E;
-    action_list[2].fields.action_alu_reg.src_offset   = 0;
-    action_list[2].fields.action_alu_reg.dst_register = SX_GP_REGISTER_5_E;
-    action_list[2].fields.action_alu_reg.dst_offset   = 0;
-    action_list[2].fields.action_alu_reg.size         = 16;
+    action_list[2].type                                            = SX_FLEX_ACL_ACTION_HASH;
+    action_list[2].fields.action_hash.command                      = SX_ACL_ACTION_HASH_COMMAND_CRC;
+    action_list[2].fields.action_hash.type                         = SX_ACL_ACTION_HASH_TYPE_ECMP;
+    action_list[2].fields.action_hash.hash_crc.field               = SX_ACL_ACTION_HASH_FIELD_GP_REGISTER_5;
+    action_list[2].fields.action_hash.hash_crc.mask.gp_register    = 0xffff;
 
-    action_list[3].type                          = SX_FLEX_ACL_ACTION_HASH;
-    action_list[3].fields.action_hash.command    = SX_ACL_ACTION_HASH_COMMAND_SET;
-    action_list[3].fields.action_hash.type       = SX_ACL_ACTION_HASH_TYPE_ECMP;
-    action_list[3].fields.action_hash.hash_value = 10;
+    action_list[3].type                                            = SX_FLEX_ACL_ACTION_ALU_REG;
+    action_list[3].fields.action_alu_reg.command                   = SX_ACL_ACTION_ALU_REG_COMMAND_XOR;
+    action_list[3].fields.action_alu_reg.src_register              = SX_GP_REGISTER_0_E;
+    action_list[3].fields.action_alu_reg.src_offset                = 0;
+    action_list[3].fields.action_alu_reg.dst_register              = SX_GP_REGISTER_2_E;
+    action_list[3].fields.action_alu_reg.dst_offset                = 0;
+    action_list[3].fields.action_alu_reg.size                      = 16;
 
-    action_list[4].type                                            = SX_FLEX_ACL_ACTION_HASH;
-    action_list[4].fields.action_hash.command                      = SX_ACL_ACTION_HASH_COMMAND_CRC;
-    action_list[4].fields.action_hash.type                         = SX_ACL_ACTION_HASH_TYPE_ECMP;
-    action_list[4].fields.action_hash.hash_crc.field               = SX_ACL_ACTION_HASH_FIELD_INNER_IP_PROTO;
-    action_list[4].fields.action_hash.hash_crc.mask.inner_ip_proto = 0xff;
+    action_list[4].type                                            = SX_FLEX_ACL_ACTION_ALU_REG;
+    action_list[4].fields.action_alu_reg.command                   = SX_ACL_ACTION_ALU_REG_COMMAND_XOR;
+    action_list[4].fields.action_alu_reg.src_register              = SX_GP_REGISTER_1_E;
+    action_list[4].fields.action_alu_reg.src_offset                = 0;
+    action_list[4].fields.action_alu_reg.dst_register              = SX_GP_REGISTER_3_E;
+    action_list[4].fields.action_alu_reg.dst_offset                = 0;
+    action_list[4].fields.action_alu_reg.size                      = 16;
 
-    action_list[5].type                                         = SX_FLEX_ACL_ACTION_HASH;
-    action_list[5].fields.action_hash.command                   = SX_ACL_ACTION_HASH_COMMAND_CRC;
-    action_list[5].fields.action_hash.type                      = SX_ACL_ACTION_HASH_TYPE_ECMP;
-    action_list[5].fields.action_hash.hash_crc.field            = SX_ACL_ACTION_HASH_FIELD_GP_REGISTER_5;
-    action_list[5].fields.action_hash.hash_crc.mask.gp_register = 0xffff;
+    action_list[5].type                                            = SX_FLEX_ACL_ACTION_HASH;
+    action_list[5].fields.action_hash.command                      = SX_ACL_ACTION_HASH_COMMAND_CRC;
+    action_list[5].fields.action_hash.type                         = SX_ACL_ACTION_HASH_TYPE_ECMP;
+    action_list[5].fields.action_hash.hash_crc.field               = SX_ACL_ACTION_HASH_FIELD_INNER_IP_PROTO;
+    action_list[5].fields.action_hash.hash_crc.mask.inner_ip_proto = 0xff;
 
-    action_list[6].type                                         = SX_FLEX_ACL_ACTION_HASH;
-    action_list[6].fields.action_hash.command                   = SX_ACL_ACTION_HASH_COMMAND_CRC;
-    action_list[6].fields.action_hash.type                      = SX_ACL_ACTION_HASH_TYPE_ECMP;
-    action_list[6].fields.action_hash.hash_crc.field            = SX_ACL_ACTION_HASH_FIELD_GP_REGISTER_2;
-    action_list[6].fields.action_hash.hash_crc.mask.gp_register = 0xffff;
+    action_list[6].type                                            = SX_FLEX_ACL_ACTION_HASH;
+    action_list[6].fields.action_hash.command                      = SX_ACL_ACTION_HASH_COMMAND_CRC;
+    action_list[6].fields.action_hash.type                         = SX_ACL_ACTION_HASH_TYPE_ECMP;
+    action_list[6].fields.action_hash.hash_crc.field               = SX_ACL_ACTION_HASH_FIELD_GP_REGISTER_2;
+    action_list[6].fields.action_hash.hash_crc.mask.gp_register    = 0xffff;
 
-    action_list[7].type                                         = SX_FLEX_ACL_ACTION_HASH;
-    action_list[7].fields.action_hash.command                   = SX_ACL_ACTION_HASH_COMMAND_CRC;
-    action_list[7].fields.action_hash.type                      = SX_ACL_ACTION_HASH_TYPE_ECMP;
-    action_list[7].fields.action_hash.hash_crc.field            = SX_ACL_ACTION_HASH_FIELD_GP_REGISTER_3;
-    action_list[7].fields.action_hash.hash_crc.mask.gp_register = 0xffff;
+    action_list[7].type                                            = SX_FLEX_ACL_ACTION_HASH;
+    action_list[7].fields.action_hash.command                      = SX_ACL_ACTION_HASH_COMMAND_CRC;
+    action_list[7].fields.action_hash.type                         = SX_ACL_ACTION_HASH_TYPE_ECMP;
+    action_list[7].fields.action_hash.hash_crc.field               = SX_ACL_ACTION_HASH_FIELD_GP_REGISTER_3;
+    action_list[7].fields.action_hash.hash_crc.mask.gp_register    = 0xffff;
 
     /* ACL keys */
     /* ST packets */
@@ -14262,7 +14264,7 @@ sai_status_t mlnx_pbhash_acl_add(sai_object_id_t switch_id)
     st_key                   = FLEX_ACL_KEY_GRE_KEY;
     status                   = sx_api_acl_flex_key_set(gh_sdk, SX_ACCESS_CMD_CREATE, &st_key, 1, &st_key_handle);
     if (SX_ERR(status)) {
-        SX_LOG_ERR("Failed to create key.\n", SX_STATUS_MSG(status));
+        SX_LOG_ERR("Failed to create key %s.\n", SX_STATUS_MSG(status));
         return sdk_to_sai(status);
     }
 
@@ -14281,7 +14283,7 @@ sai_status_t mlnx_pbhash_acl_add(sai_object_id_t switch_id)
                                                                    2,
                                                                    &vxlan_key_handle);
     if (SX_ERR(status)) {
-        SX_LOG_ERR("Failed to create key.\n", SX_STATUS_MSG(status));
+        SX_LOG_ERR("Failed to create key %s.\n", SX_STATUS_MSG(status));
         return sdk_to_sai(status);
     }
 
@@ -14299,7 +14301,7 @@ sai_status_t mlnx_pbhash_acl_add(sai_object_id_t switch_id)
                                                                  2,
                                                                  &gre_key_handle);
     if (SX_ERR(status)) {
-        SX_LOG_ERR("Failed to create key.\n", SX_STATUS_MSG(status));
+        SX_LOG_ERR("Failed to create key %s.\n", SX_STATUS_MSG(status));
         return sdk_to_sai(status);
     }
 
@@ -14311,7 +14313,7 @@ sai_status_t mlnx_pbhash_acl_add(sai_object_id_t switch_id)
                                    10,
                                    &st_region_id);
     if (SX_ERR(status)) {
-        SX_LOG_ERR("Failed to create ACL region.\n", SX_STATUS_MSG(status));
+        SX_LOG_ERR("Failed to create ACL region %s.\n", SX_STATUS_MSG(status));
         return sdk_to_sai(status);
     }
 
@@ -14326,7 +14328,7 @@ sai_status_t mlnx_pbhash_acl_add(sai_object_id_t switch_id)
                             &st_region_group,
                             &acl_ids[0]);
     if (SX_ERR(status)) {
-        SX_LOG_ERR("Failed to create ACL.\n", SX_STATUS_MSG(status));
+        SX_LOG_ERR("Failed to create ACL %s.\n", SX_STATUS_MSG(status));
         return sdk_to_sai(status);
     }
 
@@ -14338,7 +14340,7 @@ sai_status_t mlnx_pbhash_acl_add(sai_object_id_t switch_id)
                                    10,
                                    &vxlan_region_id);
     if (SX_ERR(status)) {
-        SX_LOG_ERR("Failed to create ACL region.\n", SX_STATUS_MSG(status));
+        SX_LOG_ERR("Failed to create ACL region %s.\n", SX_STATUS_MSG(status));
         return sdk_to_sai(status);
     }
 
@@ -14353,7 +14355,7 @@ sai_status_t mlnx_pbhash_acl_add(sai_object_id_t switch_id)
                             &vxlan_region_group,
                             &acl_ids[1]);
     if (SX_ERR(status)) {
-        SX_LOG_ERR("Failed to create ACL.\n", SX_STATUS_MSG(status));
+        SX_LOG_ERR("Failed to create ACL %s.\n", SX_STATUS_MSG(status));
         return sdk_to_sai(status);
     }
 
@@ -14365,7 +14367,7 @@ sai_status_t mlnx_pbhash_acl_add(sai_object_id_t switch_id)
                                    10,
                                    &gre_region_id);
     if (SX_ERR(status)) {
-        SX_LOG_ERR("Failed to create ACL region.\n", SX_STATUS_MSG(status));
+        SX_LOG_ERR("Failed to create ACL region %s.\n", SX_STATUS_MSG(status));
         return sdk_to_sai(status);
     }
 
@@ -14380,14 +14382,14 @@ sai_status_t mlnx_pbhash_acl_add(sai_object_id_t switch_id)
                             &gre_region_group,
                             &acl_ids[2]);
     if (SX_ERR(status)) {
-        SX_LOG_ERR("Failed to create ACL.\n", SX_STATUS_MSG(status));
+        SX_LOG_ERR("Failed to create ACL %s.\n", SX_STATUS_MSG(status));
         return sdk_to_sai(status);
     }
 
     /* create ST ACL rule */
     status = sx_lib_flex_acl_rule_init(st_key_handle, 8, &st_rule);
     if (SX_ERR(status)) {
-        SX_LOG_ERR("Failed to init ACL rule.\n", SX_STATUS_MSG(status));
+        SX_LOG_ERR("Failed to init ACL rule %s.\n", SX_STATUS_MSG(status));
         return sdk_to_sai(status);
     }
 
@@ -14400,14 +14402,14 @@ sai_status_t mlnx_pbhash_acl_add(sai_object_id_t switch_id)
 
     status = sx_api_acl_flex_rules_set(gh_sdk, SX_ACCESS_CMD_SET, st_region_id, offset, &st_rule, 1);
     if (SX_ERR(status)) {
-        SX_LOG_ERR("Failed to create ACL rule.\n", SX_STATUS_MSG(status));
+        SX_LOG_ERR("Failed to create ACL rule %s.\n", SX_STATUS_MSG(status));
         return sdk_to_sai(status);
     }
 
     /* create VxLAN ACL rule */
     status = sx_lib_flex_acl_rule_init(vxlan_key_handle, 8, &vxlan_rule);
     if (SX_ERR(status)) {
-        SX_LOG_ERR("Failed to init ACL rule.\n", SX_STATUS_MSG(status));
+        SX_LOG_ERR("Failed to init ACL rule %s.\n", SX_STATUS_MSG(status));
         return sdk_to_sai(status);
     }
 
@@ -14420,14 +14422,14 @@ sai_status_t mlnx_pbhash_acl_add(sai_object_id_t switch_id)
 
     status = sx_api_acl_flex_rules_set(gh_sdk, SX_ACCESS_CMD_SET, vxlan_region_id, offset, &vxlan_rule, 1);
     if (SX_ERR(status)) {
-        SX_LOG_ERR("Failed to create ACL rule.\n", SX_STATUS_MSG(status));
+        SX_LOG_ERR("Failed to create ACL rule %s.\n", SX_STATUS_MSG(status));
         return sdk_to_sai(status);
     }
 
     /* create GRE ACL rule */
     status = sx_lib_flex_acl_rule_init(gre_key_handle, 8, &gre_rule);
     if (SX_ERR(status)) {
-        SX_LOG_ERR("Failed to init ACL rule.\n", SX_STATUS_MSG(status));
+        SX_LOG_ERR("Failed to init ACL rule %s.\n", SX_STATUS_MSG(status));
         return sdk_to_sai(status);
     }
 
@@ -14440,7 +14442,7 @@ sai_status_t mlnx_pbhash_acl_add(sai_object_id_t switch_id)
 
     status = sx_api_acl_flex_rules_set(gh_sdk, SX_ACCESS_CMD_SET, gre_region_id, offset, &gre_rule, 1);
     if (SX_ERR(status)) {
-        SX_LOG_ERR("Failed to create ACL rule.\n", SX_STATUS_MSG(status));
+        SX_LOG_ERR("Failed to create ACL rule %s.\n", SX_STATUS_MSG(status));
         return sdk_to_sai(status);
     }
 
