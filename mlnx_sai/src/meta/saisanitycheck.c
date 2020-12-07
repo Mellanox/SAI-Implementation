@@ -3375,7 +3375,9 @@ void check_objects_for_loops_recursive(
         {
             if (m->attrid == SAI_PORT_ATTR_EGRESS_MIRROR_SESSION ||
                     m->attrid == SAI_PORT_ATTR_INGRESS_MIRROR_SESSION ||
-                    m->attrid == SAI_PORT_ATTR_EGRESS_BLOCK_PORT_LIST)
+                    m->attrid == SAI_PORT_ATTR_EGRESS_BLOCK_PORT_LIST ||
+                    m->attrid == SAI_PORT_ATTR_INGRESS_SAMPLE_MIRROR_SESSION ||
+                    m->attrid == SAI_PORT_ATTR_EGRESS_SAMPLE_MIRROR_SESSION)
             {
                 continue;
             }
@@ -3960,7 +3962,9 @@ void check_acl_table_fields_and_acl_entry_fields()
          * check acl table flags and attr value type
          */
 
-        if (mtable->attrid == SAI_ACL_TABLE_ATTR_FIELD_ACL_RANGE_TYPE)
+        if ((mtable->attrid == SAI_ACL_TABLE_ATTR_FIELD_ACL_RANGE_TYPE) ||
+        ((mtable->attrid >= SAI_ACL_TABLE_ATTR_USER_DEFINED_FIELD_GROUP_MIN) &&
+        (mtable->attrid <= SAI_ACL_TABLE_ATTR_USER_DEFINED_FIELD_GROUP_MAX)))
         {
             /*
              * This field is exception, it's not bool, it's a list and it's

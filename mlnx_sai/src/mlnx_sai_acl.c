@@ -5826,15 +5826,6 @@ static sai_status_t mlnx_acl_table_udf_attrs_parse(_In_ uint32_t               a
         }
     }
 
-    for (ii = 0; ii < attr_count; ii++) {
-        if (mlnx_udf_acl_attribute_id_is_not_supported(attr_list[ii].id)) {
-            SX_LOG_ERR(
-                "The SAI_ACL_TABLE_ATTR_USER_DEFINED_FIELD_GROUP attributes are only supported in a range (0, %d)\n",
-                MLNX_UDF_ACL_ATTR_MAX_ID);
-            return SAI_STATUS_ATTR_NOT_SUPPORTED_0 + ii;
-        }
-    }
-
     return SAI_STATUS_SUCCESS;
 }
 
@@ -5881,14 +5872,6 @@ static sai_status_t mlnx_acl_entry_udf_attrs_parse(_In_ _In_ uint32_t           
                     (*key_desc_count)++;
                 }
             }
-        }
-    }
-
-    for (ii = 0; ii < attr_count; ii++) {
-        if (mlnx_udf_acl_attribute_id_is_not_supported(attr_list[ii].id)) {
-            SX_LOG_ERR("The SAI_ACL_ENTRY_ATTR_USER_DEFINED_FIELD attributes are only supported in a range (0, %d)\n",
-                       MLNX_UDF_ACL_ATTR_MAX_ID);
-            return SAI_STATUS_ATTR_NOT_SUPPORTED_0 + ii;
         }
     }
 

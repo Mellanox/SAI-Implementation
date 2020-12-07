@@ -166,6 +166,12 @@ typedef enum _sai_acl_action_type_t
     /** Set Packet Outer Vlan Priority */
     SAI_ACL_ACTION_TYPE_SET_OUTER_VLAN_PRI,
 
+    /** Add Packet Vlan Id */
+    SAI_ACL_ACTION_TYPE_ADD_VLAN_ID,
+
+    /** Add Packet Vlan Priority */
+    SAI_ACL_ACTION_TYPE_ADD_VLAN_PRI,
+
     /** Set Packet Src MAC Address */
     SAI_ACL_ACTION_TYPE_SET_SRC_MAC,
 
@@ -258,6 +264,12 @@ typedef enum _sai_acl_action_type_t
 
     /** Bind a MACsec flow object */
     SAI_ACL_ACTION_TYPE_MACSEC_FLOW,
+
+    /** Set custom LAG hash object ID */
+    SAI_ACL_ACTION_TYPE_SET_LAG_HASH_ID,
+
+    /** Set custom ECMP hash object ID */
+    SAI_ACL_ACTION_TYPE_SET_ECMP_HASH_ID,
 
 } sai_acl_action_type_t;
 
@@ -529,6 +541,42 @@ typedef enum _sai_acl_table_attr_t
     SAI_ACL_TABLE_ATTR_FIELD_SRC_IPV6 = SAI_ACL_TABLE_ATTR_FIELD_START,
 
     /**
+     * @brief Src IPv6 Address 127:96 32 bits
+     *
+     * @type bool
+     * @flags CREATE_ONLY
+     * @default false
+     */
+    SAI_ACL_TABLE_ATTR_FIELD_SRC_IPV6_WORD3,
+
+    /**
+     * @brief Src IPv6 Address 95:64 32 bits
+     *
+     * @type bool
+     * @flags CREATE_ONLY
+     * @default false
+     */
+    SAI_ACL_TABLE_ATTR_FIELD_SRC_IPV6_WORD2,
+
+    /**
+     * @brief Src IPv6 Address 63:32 32 bits
+     *
+     * @type bool
+     * @flags CREATE_ONLY
+     * @default false
+     */
+    SAI_ACL_TABLE_ATTR_FIELD_SRC_IPV6_WORD1,
+
+    /**
+     * @brief Src IPv6 Address 31:0 32 bits
+     *
+     * @type bool
+     * @flags CREATE_ONLY
+     * @default false
+     */
+    SAI_ACL_TABLE_ATTR_FIELD_SRC_IPV6_WORD0,
+
+    /**
      * @brief Dst IPv6 Address
      *
      * @type bool
@@ -536,6 +584,42 @@ typedef enum _sai_acl_table_attr_t
      * @default false
      */
     SAI_ACL_TABLE_ATTR_FIELD_DST_IPV6,
+
+    /**
+     * @brief Dst IPv6 Address 127:96 32 bits
+     *
+     * @type bool
+     * @flags CREATE_ONLY
+     * @default false
+     */
+    SAI_ACL_TABLE_ATTR_FIELD_DST_IPV6_WORD3,
+
+    /**
+     * @brief Dst IPv6 Address 95:64 32 bits
+     *
+     * @type bool
+     * @flags CREATE_ONLY
+     * @default false
+     */
+    SAI_ACL_TABLE_ATTR_FIELD_DST_IPV6_WORD2,
+
+    /**
+     * @brief Dst IPv6 Address 63:32 32 bits
+     *
+     * @type bool
+     * @flags CREATE_ONLY
+     * @default false
+     */
+    SAI_ACL_TABLE_ATTR_FIELD_DST_IPV6_WORD1,
+
+    /**
+     * @brief Dst IPv6 Address 31:0 32 bits
+     *
+     * @type bool
+     * @flags CREATE_ONLY
+     * @default false
+     */
+    SAI_ACL_TABLE_ATTR_FIELD_DST_IPV6_WORD0,
 
     /**
      * @brief Inner Src IPv6 Address
@@ -1236,20 +1320,26 @@ typedef enum _sai_acl_table_attr_t
 
     /**
      * @brief User Defined Field Groups
+     * Length is derived from the UDF group OID
      *
-     * @type bool
+     * @type sai_object_id_t
      * @flags CREATE_ONLY
-     * @default false
+     * @objects SAI_OBJECT_TYPE_UDF_GROUP
+     * @allownull true
+     * @default SAI_NULL_OBJECT_ID
      * @range SAI_ACL_USER_DEFINED_FIELD_ATTR_ID_RANGE
      */
     SAI_ACL_TABLE_ATTR_USER_DEFINED_FIELD_GROUP_MIN,
 
     /**
      * @brief User Defined Field Groups end
+     * Length is derived from the UDF group OID
      *
-     * @type bool
+     * @type sai_object_id_t
      * @flags CREATE_ONLY
-     * @default false
+     * @objects SAI_OBJECT_TYPE_UDF_GROUP
+     * @allownull true
+     * @default SAI_NULL_OBJECT_ID
      */
     SAI_ACL_TABLE_ATTR_USER_DEFINED_FIELD_GROUP_MAX = SAI_ACL_TABLE_ATTR_USER_DEFINED_FIELD_GROUP_MIN + SAI_ACL_USER_DEFINED_FIELD_ATTR_ID_RANGE,
 
@@ -1407,6 +1497,42 @@ typedef enum _sai_acl_entry_attr_t
     SAI_ACL_ENTRY_ATTR_FIELD_SRC_IPV6 = SAI_ACL_ENTRY_ATTR_FIELD_START,
 
     /**
+     * @brief Src IPv6 Address 127:96 32 bits
+     *
+     * @type sai_acl_field_data_t sai_ip6_t
+     * @flags CREATE_AND_SET
+     * @default disabled
+     */
+    SAI_ACL_ENTRY_ATTR_FIELD_SRC_IPV6_WORD3,
+
+    /**
+     * @brief Src IPv6 Address 95:64 32 bits
+     *
+     * @type sai_acl_field_data_t sai_ip6_t
+     * @flags CREATE_AND_SET
+     * @default disabled
+     */
+    SAI_ACL_ENTRY_ATTR_FIELD_SRC_IPV6_WORD2,
+
+    /**
+     * @brief Src IPv6 Address 63:32 32 bits
+     *
+     * @type sai_acl_field_data_t sai_ip6_t
+     * @flags CREATE_AND_SET
+     * @default disabled
+     */
+    SAI_ACL_ENTRY_ATTR_FIELD_SRC_IPV6_WORD1,
+
+    /**
+     * @brief Src IPv6 Address 31:0 32 bits
+     *
+     * @type sai_acl_field_data_t sai_ip6_t
+     * @flags CREATE_AND_SET
+     * @default disabled
+     */
+    SAI_ACL_ENTRY_ATTR_FIELD_SRC_IPV6_WORD0,
+
+    /**
      * @brief Dst IPv6 Address
      *
      * @type sai_acl_field_data_t sai_ip6_t
@@ -1414,6 +1540,42 @@ typedef enum _sai_acl_entry_attr_t
      * @default disabled
      */
     SAI_ACL_ENTRY_ATTR_FIELD_DST_IPV6,
+
+    /**
+     * @brief Dst IPv6 Address 127:96 32 bits
+     *
+     * @type sai_acl_field_data_t sai_ip6_t
+     * @flags CREATE_AND_SET
+     * @default disabled
+     */
+    SAI_ACL_ENTRY_ATTR_FIELD_DST_IPV6_WORD3,
+
+    /**
+     * @brief Dst IPv6 Address 95:64 32 bits
+     *
+     * @type sai_acl_field_data_t sai_ip6_t
+     * @flags CREATE_AND_SET
+     * @default disabled
+     */
+    SAI_ACL_ENTRY_ATTR_FIELD_DST_IPV6_WORD2,
+
+    /**
+     * @brief Dst IPv6 Address 63:32 32 bits
+     *
+     * @type sai_acl_field_data_t sai_ip6_t
+     * @flags CREATE_AND_SET
+     * @default disabled
+     */
+    SAI_ACL_ENTRY_ATTR_FIELD_DST_IPV6_WORD1,
+
+    /**
+     * @brief Dst IPv6 Address 31:0 32 bits
+     *
+     * @type sai_acl_field_data_t sai_ip6_t
+     * @flags CREATE_AND_SET
+     * @default disabled
+     */
+    SAI_ACL_ENTRY_ATTR_FIELD_DST_IPV6_WORD0,
 
     /**
      * @brief Inner Src IPv6 Address
@@ -2148,11 +2310,10 @@ typedef enum _sai_acl_entry_attr_t
     SAI_ACL_ENTRY_ATTR_FIELD_AETH_SYNDROME,
 
     /**
-     * @brief User Defined Field data for the UDF Groups in ACL Table
+     * @brief User Defined Field object for the UDF Groups in ACL Table
      *
-     * @type sai_acl_field_data_t sai_object_id_t
+     * @type sai_acl_field_data_t sai_u8_list_t
      * @flags CREATE_AND_SET
-     * @objects SAI_OBJECT_TYPE_UDF_GROUP
      * @default disabled
      * @range SAI_ACL_USER_DEFINED_FIELD_ATTR_ID_RANGE
      */
@@ -2161,9 +2322,8 @@ typedef enum _sai_acl_entry_attr_t
     /**
      * @brief User Defined Field data max
      *
-     * @type sai_acl_field_data_t sai_object_id_t
+     * @type sai_acl_field_data_t sai_u8_list_t
      * @flags CREATE_AND_SET
-     * @objects SAI_OBJECT_TYPE_UDF_GROUP
      * @default disabled
      */
     SAI_ACL_ENTRY_ATTR_USER_DEFINED_FIELD_GROUP_MAX = SAI_ACL_ENTRY_ATTR_USER_DEFINED_FIELD_GROUP_MIN + SAI_ACL_USER_DEFINED_FIELD_ATTR_ID_RANGE,
@@ -2389,6 +2549,25 @@ typedef enum _sai_acl_entry_attr_t
      * @default disabled
      */
     SAI_ACL_ENTRY_ATTR_ACTION_SET_OUTER_VLAN_PRI,
+
+    /**
+     * @brief Add Packet Vlan Id (12 bits)
+     *
+     * @type sai_acl_action_data_t sai_uint16_t
+     * @flags CREATE_AND_SET
+     * @isvlan true
+     * @default disabled
+     */
+    SAI_ACL_ENTRY_ATTR_ACTION_ADD_VLAN_ID,
+
+    /**
+     * @brief Add Packet Vlan Priority (3 bits)
+     *
+     * @type sai_acl_action_data_t sai_uint8_t
+     * @flags CREATE_AND_SET
+     * @default disabled
+     */
+    SAI_ACL_ENTRY_ATTR_ACTION_ADD_VLAN_PRI,
 
     /**
      * @brief Set Packet Src MAC Address
@@ -2711,9 +2890,29 @@ typedef enum _sai_acl_entry_attr_t
     SAI_ACL_ENTRY_ATTR_ACTION_MACSEC_FLOW,
 
     /**
+     * @brief LAG Hash ID
+     *
+     * @type sai_acl_action_data_t sai_object_id_t
+     * @flags CREATE_AND_SET
+     * @objects SAI_OBJECT_TYPE_HASH
+     * @default disabled
+     */
+    SAI_ACL_ENTRY_ATTR_ACTION_SET_LAG_HASH_ID,
+
+    /**
+     * @brief ECMP Hash ID
+     *
+     * @type sai_acl_action_data_t sai_object_id_t
+     * @flags CREATE_AND_SET
+     * @objects SAI_OBJECT_TYPE_HASH
+     * @default disabled
+     */
+    SAI_ACL_ENTRY_ATTR_ACTION_SET_ECMP_HASH_ID,
+
+    /**
      * @brief End of Rule Actions
      */
-    SAI_ACL_ENTRY_ATTR_ACTION_END = SAI_ACL_ENTRY_ATTR_ACTION_MACSEC_FLOW,
+    SAI_ACL_ENTRY_ATTR_ACTION_END = SAI_ACL_ENTRY_ATTR_ACTION_SET_ECMP_HASH_ID,
 
     /**
      * @brief End of ACL Entry attributes

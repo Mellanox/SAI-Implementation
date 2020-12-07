@@ -310,6 +310,22 @@ typedef enum _sai_switch_type_t
 } sai_switch_type_t;
 
 /**
+ * @brief Attribute data for #SAI_SWITCH_ATTR_FAILOVER_CONFIG_MODE
+ * Used for Failover configuration mode
+ * In case of primary port failure, hitless enables the switch over to secondary
+ * port without losing link. It allows uninterrupted data transmission.
+ */
+typedef enum _sai_switch_failover_config_mode_t
+{
+    /** Ports are configured but do not operate in hitless mode */
+    SAI_SWITCH_FAILOVER_CONFIG_MODE_NO_HITLESS,
+
+    /** Ports are configured and operate in hitless mode */
+    SAI_SWITCH_FAILOVER_CONFIG_MODE_HITLESS
+
+} sai_switch_failover_config_mode_t;
+
+/**
  * @brief Attribute Id in sai_set_switch_attribute() and
  * sai_get_switch_attribute() calls
  */
@@ -2211,6 +2227,43 @@ typedef enum _sai_switch_attr_t
      * @default internal
      */
     SAI_SWITCH_ATTR_FABRIC_PORT_LIST,
+
+    /**
+     * @brief The size of the packet DMA pool memory in bytes
+     * This can be used in conjunction with sai_allocate_hostif_packet_fn
+     * to allocate a pool of memory upfront and manage it in the
+     * application
+     *
+     * @type sai_uint32_t
+     * @flags READ_ONLY
+     */
+    SAI_SWITCH_ATTR_PACKET_DMA_MEMORY_POOL_SIZE,
+
+    /**
+     * @brief Failover configuration modes
+     *
+     * @type sai_switch_failover_config_mode_t
+     * @flags CREATE_AND_SET
+     * @default SAI_SWITCH_FAILOVER_CONFIG_MODE_NO_HITLESS
+     */
+    SAI_SWITCH_ATTR_FAILOVER_CONFIG_MODE,
+
+    /**
+     * @brief Query for Failover mode support
+     *
+     * @type bool
+     * @flags READ_ONLY
+     */
+    SAI_SWITCH_ATTR_SUPPORTED_FAILOVER_MODE,
+
+    /**
+     * @brief Packet action when a packet ingress and gets routed back to same tunnel
+     *
+     * @type sai_packet_action_t
+     * @flags CREATE_AND_SET
+     * @default SAI_PACKET_ACTION_FORWARD
+     */
+    SAI_SWITCH_ATTR_TUNNEL_LOOPBACK_PACKET_ACTION,
 
     /**
      * @brief End of attributes

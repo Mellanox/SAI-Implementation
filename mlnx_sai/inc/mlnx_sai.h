@@ -645,8 +645,6 @@ typedef struct _mlnx_obj_type_attrs_info_t {
 
 bool mlnx_chip_is_spc2(void);
 bool mlnx_chip_is_spc2or3(void);
-void mlnx_udf_acl_attrs_metadata_init();
-bool mlnx_udf_acl_attribute_id_is_not_supported(_In_ sai_attr_id_t attr_id);
 sai_status_t sai_attribute_short_name_fetch(_In_ sai_object_type_t object_type,
                                             _In_ sai_attr_id_t     attr_id,
                                             _Out_ const char     **attr_short_name);

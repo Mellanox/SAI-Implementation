@@ -11,6 +11,7 @@ BFDV6 - Bidirectional Forwarding Detection for IPv6
 BGP - Border Gateway Protocol
 BOS - Bottom Of Stack
 CAM - Content Addressable Memory
+CAUI - 100 Gigabit Attachment Unit Interface
 CB - Callback
 CBS - Committed Burst Size
 CCITT - Comite Consultatif International de Telegraphique et Telephonique
@@ -20,10 +21,12 @@ CIR - Committed Information Rate
 CPU - Central Processing Unit
 CRC - Cyclic Redundancy Code
 DHCP - Dynamic Host Configuration Protocol
+DHCPV6 - Dynamic Host Configuration Protocol for IPv6
 DLD - Dead Lock Detection
 DLDR - Dead Lock Detection and Recovery
 DLL - Dynamic Link Library
 DLR - Dead Lock Recovery
+DMA - Direct Memory Access
 DNAT - Destination Network Address Translation
 DSCP - Differentiated Services Code Point
 DTEL - Data Plane Telemetry
@@ -39,6 +42,7 @@ FDB - Forwarding Data Base
 FEC - Forward Error Correction
 FPGA - Field Programmable Gate Array
 GCM - Galois Counter Mode
+GMII - Gigabit Media-Independent Interface
 GPB - Google Protocol Buffers
 GRE - Generic Routing Encapsulation
 GRPC - GRPC Remote Procedure Call
@@ -94,6 +98,7 @@ SAI - Switch Abstraction Interface
 SCI - Secure Channel Identifier
 SC - Secure Channel
 SDK - Software Development Kit
+SFI - SerDes Framer Interface
 SFLOW - Sampled Flow
 SG - (S,G) Source-specific multicast
 SNAT - Source Network Address Translation
@@ -124,7 +129,11 @@ VXLAN - Virtual Extensible LAN
 WCMP - Weighted Cost Multipath
 WRED - Weighted Random Early Detection
 WWW - World Wide Web
-XG - (*,G) Any-source Multicast
+XAUI - 10 Gbps Attachment Unit Interface
+XFI - 10 Gbps Chip to Chip Interface
+XG - (*,G) Any-source Multicast4
+XGMII - 10 Gbps Media Independent Interface
+XLAUI - 40 Gbps Attachment Unit Interface
 XPN - Extended Packet Number
 XOFF - Transmitter Off
 XON - Transmitter On

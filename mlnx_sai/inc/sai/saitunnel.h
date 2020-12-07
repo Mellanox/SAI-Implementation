@@ -622,7 +622,6 @@ typedef enum _sai_tunnel_attr_t
      * @type sai_tunnel_ttl_mode_t
      * @flags CREATE_AND_SET
      * @default SAI_TUNNEL_TTL_MODE_UNIFORM_MODEL
-     * @validonly SAI_TUNNEL_ATTR_TYPE == SAI_TUNNEL_TYPE_IPINIP or SAI_TUNNEL_ATTR_TYPE == SAI_TUNNEL_TYPE_IPINIP_GRE
      */
     SAI_TUNNEL_ATTR_DECAP_TTL_MODE,
 
@@ -632,7 +631,6 @@ typedef enum _sai_tunnel_attr_t
      * @type sai_tunnel_dscp_mode_t
      * @flags CREATE_AND_SET
      * @default SAI_TUNNEL_DSCP_MODE_UNIFORM_MODEL
-     * @validonly SAI_TUNNEL_ATTR_TYPE == SAI_TUNNEL_TYPE_IPINIP or SAI_TUNNEL_ATTR_TYPE == SAI_TUNNEL_TYPE_IPINIP_GRE
      */
     SAI_TUNNEL_ATTR_DECAP_DSCP_MODE,
 
@@ -644,6 +642,15 @@ typedef enum _sai_tunnel_attr_t
      * @objects SAI_OBJECT_TYPE_TUNNEL_TERM_TABLE_ENTRY
      */
     SAI_TUNNEL_ATTR_TERM_TABLE_ENTRY_LIST,
+
+    /**
+     * @brief Packet action when a packet ingress and gets routed back to same tunnel
+     *
+     * @type sai_packet_action_t
+     * @flags CREATE_AND_SET
+     * @default SAI_PACKET_ACTION_FORWARD
+     */
+    SAI_TUNNEL_ATTR_LOOPBACK_PACKET_ACTION,
 
     /**
      * @brief End of attributes
@@ -785,8 +792,14 @@ typedef enum _sai_tunnel_term_table_entry_type_t
     /** Tunnel termination table point to point entry match on dst & src IP & tunnel type */
     SAI_TUNNEL_TERM_TABLE_ENTRY_TYPE_P2P,
 
-    /** Tunnel termination table point to multi point entry match on dst IP & tunnel type */
+    /** Tunnel termination table point to multi point entry match on dst IP & src IP+mask & tunnel type */
     SAI_TUNNEL_TERM_TABLE_ENTRY_TYPE_P2MP,
+
+    /** Tunnel termination table multi point to point entry match on dst IP+mask & src IP & tunnel type */
+    SAI_TUNNEL_TERM_TABLE_ENTRY_TYPE_MP2P,
+
+    /** Tunnel termination table multi point to multi point entry match on dst IP+mask & src IP+mask & tunnel type */
+    SAI_TUNNEL_TERM_TABLE_ENTRY_TYPE_MP2MP,
 
 } sai_tunnel_term_table_entry_type_t;
 
@@ -822,17 +835,38 @@ typedef enum _sai_tunnel_term_table_entry_attr_t
      *
      * @type sai_ip_address_t
      * @flags MANDATORY_ON_CREATE | CREATE_ONLY
+     * @condition SAI_TUNNEL_TERM_TABLE_ENTRY_ATTR_TYPE == SAI_TUNNEL_TERM_TABLE_ENTRY_TYPE_P2P or SAI_TUNNEL_TERM_TABLE_ENTRY_ATTR_TYPE == SAI_TUNNEL_TERM_TABLE_ENTRY_TYPE_P2MP
      */
     SAI_TUNNEL_TERM_TABLE_ENTRY_ATTR_DST_IP,
+
+    /**
+     * @brief Tunnel termination IP address mask
+     *
+     * @type sai_ip_address_t
+     * @flags CREATE_ONLY
+     * @default 0.0.0.0
+     * @validonly SAI_TUNNEL_TERM_TABLE_ENTRY_ATTR_TYPE == SAI_TUNNEL_TERM_TABLE_ENTRY_TYPE_MP2P or SAI_TUNNEL_TERM_TABLE_ENTRY_ATTR_TYPE == SAI_TUNNEL_TERM_TABLE_ENTRY_TYPE_MP2MP
+     */
+    SAI_TUNNEL_TERM_TABLE_ENTRY_ATTR_DST_IP_MASK,
 
     /**
      * @brief Tunnel source IP address
      *
      * @type sai_ip_address_t
      * @flags MANDATORY_ON_CREATE | CREATE_ONLY
-     * @condition SAI_TUNNEL_TERM_TABLE_ENTRY_ATTR_TYPE == SAI_TUNNEL_TERM_TABLE_ENTRY_TYPE_P2P
+     * @condition SAI_TUNNEL_TERM_TABLE_ENTRY_ATTR_TYPE == SAI_TUNNEL_TERM_TABLE_ENTRY_TYPE_P2P or SAI_TUNNEL_TERM_TABLE_ENTRY_ATTR_TYPE == SAI_TUNNEL_TERM_TABLE_ENTRY_TYPE_MP2P
      */
     SAI_TUNNEL_TERM_TABLE_ENTRY_ATTR_SRC_IP,
+
+    /**
+     * @brief Tunnel source IP address mask
+     *
+     * @type sai_ip_address_t
+     * @flags CREATE_ONLY
+     * @default 0.0.0.0
+     * @validonly SAI_TUNNEL_TERM_TABLE_ENTRY_ATTR_TYPE == SAI_TUNNEL_TERM_TABLE_ENTRY_TYPE_P2MP or SAI_TUNNEL_TERM_TABLE_ENTRY_ATTR_TYPE == SAI_TUNNEL_TERM_TABLE_ENTRY_TYPE_MP2MP
+     */
+    SAI_TUNNEL_TERM_TABLE_ENTRY_ATTR_SRC_IP_MASK,
 
     /**
      * @brief Tunnel type
@@ -850,6 +884,17 @@ typedef enum _sai_tunnel_term_table_entry_attr_t
      * @objects SAI_OBJECT_TYPE_TUNNEL
      */
     SAI_TUNNEL_TERM_TABLE_ENTRY_ATTR_ACTION_TUNNEL_ID,
+
+    /** READ-ONLY */
+
+    /**
+     * @brief Tunnel term table entry IP address family
+     *
+     * @type sai_ip_addr_family_t
+     * @flags READ_ONLY
+     * @isresourcetype true
+     */
+    SAI_TUNNEL_TERM_TABLE_ENTRY_ATTR_IP_ADDR_FAMILY,
 
     /**
      * @brief End of attributes

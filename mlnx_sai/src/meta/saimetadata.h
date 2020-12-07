@@ -187,6 +187,7 @@ extern const sai_enum_metadata_t sai_metadata_enum_sai_lag_attr_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_lag_member_attr_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_log_level_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_macsec_attr_t;
+extern const sai_enum_metadata_t sai_metadata_enum_sai_macsec_cipher_suite_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_macsec_direction_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_macsec_flow_attr_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_macsec_flow_stat_t;
@@ -231,6 +232,7 @@ extern const sai_enum_metadata_t sai_metadata_enum_sai_policer_stat_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_port_attr_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_port_breakout_mode_type_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_port_connector_attr_t;
+extern const sai_enum_metadata_t sai_metadata_enum_sai_port_connector_failover_mode_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_port_err_status_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_port_fec_mode_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_port_flow_control_mode_t;
@@ -243,6 +245,7 @@ extern const sai_enum_metadata_t sai_metadata_enum_sai_port_oper_status_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_port_pool_attr_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_port_pool_stat_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_port_prbs_config_t;
+extern const sai_enum_metadata_t sai_metadata_enum_sai_port_prbs_rx_status_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_port_priority_flow_control_mode_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_port_ptp_mode_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_port_serdes_attr_t;
@@ -275,6 +278,7 @@ extern const sai_enum_metadata_t sai_metadata_enum_sai_stp_port_attr_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_stp_port_state_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_switch_attr_extensions_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_switch_attr_t;
+extern const sai_enum_metadata_t sai_metadata_enum_sai_switch_failover_config_mode_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_switch_firmware_load_method_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_switch_firmware_load_type_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_switch_hardware_access_bus_t;
@@ -538,6 +542,9 @@ extern const char* sai_metadata_get_l2mc_entry_type_name(
 extern const char* sai_metadata_get_log_level_name(
     _In_ sai_log_level_t value);
 
+extern const char* sai_metadata_get_macsec_cipher_suite_name(
+    _In_ sai_macsec_cipher_suite_t value);
+
 extern const char* sai_metadata_get_macsec_direction_name(
     _In_ sai_macsec_direction_t value);
 
@@ -625,6 +632,9 @@ extern const char* sai_metadata_get_policer_stat_name(
 extern const char* sai_metadata_get_port_breakout_mode_type_name(
     _In_ sai_port_breakout_mode_type_t value);
 
+extern const char* sai_metadata_get_port_connector_failover_mode_name(
+    _In_ sai_port_connector_failover_mode_t value);
+
 extern const char* sai_metadata_get_port_err_status_name(
     _In_ sai_port_err_status_t value);
 
@@ -657,6 +667,9 @@ extern const char* sai_metadata_get_port_pool_stat_name(
 
 extern const char* sai_metadata_get_port_prbs_config_name(
     _In_ sai_port_prbs_config_t value);
+
+extern const char* sai_metadata_get_port_prbs_rx_status_name(
+    _In_ sai_port_prbs_rx_status_t value);
 
 extern const char* sai_metadata_get_port_priority_flow_control_mode_name(
     _In_ sai_port_priority_flow_control_mode_t value);
@@ -708,6 +721,9 @@ extern const char* sai_metadata_get_status_name(
 
 extern const char* sai_metadata_get_stp_port_state_name(
     _In_ sai_stp_port_state_t value);
+
+extern const char* sai_metadata_get_switch_failover_config_mode_name(
+    _In_ sai_switch_failover_config_mode_t value);
 
 extern const char* sai_metadata_get_switch_firmware_load_method_name(
     _In_ sai_switch_firmware_load_method_t value);
@@ -950,6 +966,10 @@ typedef struct _sai_apis_t {
 /* Define SAI_API_EXTENSIONS_MAX */
 
 #define SAI_API_EXTENSIONS_MAX ((sai_api_t)46)
+
+/* Global SAI API declarations */
+
+extern sai_apis_t sai_metadata_apis;
 
 /* SAI API query */
 
@@ -1356,6 +1376,10 @@ extern int sai_serialize_log_level(
     _Out_ char *buffer,
     _In_ sai_log_level_t log_level);
 
+extern int sai_serialize_macsec_cipher_suite(
+    _Out_ char *buffer,
+    _In_ sai_macsec_cipher_suite_t macsec_cipher_suite);
+
 extern int sai_serialize_macsec_direction(
     _Out_ char *buffer,
     _In_ sai_macsec_direction_t macsec_direction);
@@ -1472,6 +1496,10 @@ extern int sai_serialize_port_breakout_mode_type(
     _Out_ char *buffer,
     _In_ sai_port_breakout_mode_type_t port_breakout_mode_type);
 
+extern int sai_serialize_port_connector_failover_mode(
+    _Out_ char *buffer,
+    _In_ sai_port_connector_failover_mode_t port_connector_failover_mode);
+
 extern int sai_serialize_port_err_status(
     _Out_ char *buffer,
     _In_ sai_port_err_status_t port_err_status);
@@ -1515,6 +1543,10 @@ extern int sai_serialize_port_pool_stat(
 extern int sai_serialize_port_prbs_config(
     _Out_ char *buffer,
     _In_ sai_port_prbs_config_t port_prbs_config);
+
+extern int sai_serialize_port_prbs_rx_status(
+    _Out_ char *buffer,
+    _In_ sai_port_prbs_rx_status_t port_prbs_rx_status);
 
 extern int sai_serialize_port_priority_flow_control_mode(
     _Out_ char *buffer,
@@ -1587,6 +1619,10 @@ extern int sai_serialize_stp_port_state(
 extern int sai_serialize_switch_attr_extensions(
     _Out_ char *buffer,
     _In_ sai_switch_attr_extensions_t switch_attr_extensions);
+
+extern int sai_serialize_switch_failover_config_mode(
+    _Out_ char *buffer,
+    _In_ sai_switch_failover_config_mode_t switch_failover_config_mode);
 
 extern int sai_serialize_switch_firmware_load_method(
     _Out_ char *buffer,
@@ -1936,6 +1972,14 @@ extern int sai_serialize_s8_list(
 extern int sai_serialize_segment_list(
     _Out_ char *buf,
     _In_ const sai_segment_list_t *segment_list);
+
+extern int sai_serialize_stat_capability_list(
+    _Out_ char *buf,
+    _In_ const sai_stat_capability_list_t *stat_capability_list);
+
+extern int sai_serialize_stat_capability(
+    _Out_ char *buf,
+    _In_ const sai_stat_capability_t *stat_capability);
 
 extern int sai_serialize_system_port_config_list(
     _Out_ char *buf,
@@ -2298,6 +2342,10 @@ extern int sai_deserialize_log_level(
     _In_ const char *buffer,
     _Out_ sai_log_level_t *log_level);
 
+extern int sai_deserialize_macsec_cipher_suite(
+    _In_ const char *buffer,
+    _Out_ sai_macsec_cipher_suite_t *macsec_cipher_suite);
+
 extern int sai_deserialize_macsec_direction(
     _In_ const char *buffer,
     _Out_ sai_macsec_direction_t *macsec_direction);
@@ -2414,6 +2462,10 @@ extern int sai_deserialize_port_breakout_mode_type(
     _In_ const char *buffer,
     _Out_ sai_port_breakout_mode_type_t *port_breakout_mode_type);
 
+extern int sai_deserialize_port_connector_failover_mode(
+    _In_ const char *buffer,
+    _Out_ sai_port_connector_failover_mode_t *port_connector_failover_mode);
+
 extern int sai_deserialize_port_err_status(
     _In_ const char *buffer,
     _Out_ sai_port_err_status_t *port_err_status);
@@ -2457,6 +2509,10 @@ extern int sai_deserialize_port_pool_stat(
 extern int sai_deserialize_port_prbs_config(
     _In_ const char *buffer,
     _Out_ sai_port_prbs_config_t *port_prbs_config);
+
+extern int sai_deserialize_port_prbs_rx_status(
+    _In_ const char *buffer,
+    _Out_ sai_port_prbs_rx_status_t *port_prbs_rx_status);
 
 extern int sai_deserialize_port_priority_flow_control_mode(
     _In_ const char *buffer,
@@ -2529,6 +2585,10 @@ extern int sai_deserialize_stp_port_state(
 extern int sai_deserialize_switch_attr_extensions(
     _In_ const char *buffer,
     _Out_ sai_switch_attr_extensions_t *switch_attr_extensions);
+
+extern int sai_deserialize_switch_failover_config_mode(
+    _In_ const char *buffer,
+    _Out_ sai_switch_failover_config_mode_t *switch_failover_config_mode);
 
 extern int sai_deserialize_switch_firmware_load_method(
     _In_ const char *buffer,
@@ -2878,6 +2938,14 @@ extern int sai_deserialize_s8_list(
 extern int sai_deserialize_segment_list(
     _In_ const char *buf,
     _Out_ sai_segment_list_t *segment_list);
+
+extern int sai_deserialize_stat_capability_list(
+    _In_ const char *buf,
+    _Out_ sai_stat_capability_list_t *stat_capability_list);
+
+extern int sai_deserialize_stat_capability(
+    _In_ const char *buf,
+    _Out_ sai_stat_capability_t *stat_capability);
 
 extern int sai_deserialize_system_port_config_list(
     _In_ const char *buf,

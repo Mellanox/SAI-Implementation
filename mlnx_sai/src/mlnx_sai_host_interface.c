@@ -4030,5 +4030,7 @@ const sai_hostif_api_t mlnx_host_interface_api = {
     mlnx_set_hostif_user_defined_trap_attribute,
     mlnx_get_hostif_user_defined_trap_attribute,
     mlnx_recv_hostif_packet,
-    mlnx_send_hostif_packet
+    mlnx_send_hostif_packet,
+    NULL,
+    NULL,
 };

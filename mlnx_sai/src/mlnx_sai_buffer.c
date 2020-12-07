@@ -4345,11 +4345,10 @@ sai_status_t mlnx_sai_buffer_validate_port_buffer_list_and_sort_by_pool(_In_ con
     } else {
         pool_base_ind = g_sai_buffer_db_ptr->buffer_pool_ids.base_egress_user_sx_pool_id;
     }
+
     for (ind = 0; ind < value->objlist.count; ind++) {
         if (SAI_NULL_OBJECT_ID == value->objlist.list[ind]) {
-            SX_LOG_ERR("NULL items not allowed in the list\n");
-            SX_LOG_EXIT();
-            return SAI_STATUS_INVALID_PARAMETER;
+            continue;
         }
         if (SAI_STATUS_SUCCESS !=
             (sai_status =
@@ -4465,23 +4464,16 @@ sai_status_t mlnx_sai_buffer_apply_port_buffer_profile_list(_In_ bool           
     return SAI_STATUS_SUCCESS;
 }
 
-/*
- *  Passing in NULL items is not permitted in objlists.
- *  Usually for resetting a given port buffer item user would pass in NULL items, but since it's not allowed
- *  the workarounds are:
- *  - set corresponding buffer profile's values to 0 values.
- *  - replace (i.e. set another) buffer profile with the one with has 0 values.
- */
 sai_status_t mlnx_buffer_port_profile_list_set(_In_ const sai_object_id_t         port_id,
                                                _In_ const sai_attribute_value_t * value,
                                                _In_ bool                          is_ingress)
 {
-    sai_status_t     sai_status;
-    uint32_t         db_port_ind;
+    sai_status_t     sai_status = SAI_STATUS_SUCCESS;
+    uint32_t         db_port_ind = 0;
     uint32_t       * db_port_buffers = NULL;
-    sai_object_id_t* buffer_profiles;
-    uint32_t         buff_count;
-    sx_port_log_id_t log_port;
+    sai_object_id_t* buffer_profiles = NULL;
+    uint32_t         buff_count = 0;
+    sx_port_log_id_t log_port = 0;
 
     SX_LOG_ENTER();
 

@@ -5945,12 +5945,6 @@ static sai_status_t mlnx_create_switch(_Out_ sai_object_id_t     * switch_id,
         return sai_status;
     }
 
-    /*
-     * Temprorary.
-     * Inits the sai_attr_metadata_t structures for ACL UDF attributes
-     */
-    mlnx_udf_acl_attrs_metadata_init();
-
     sai_db_write_lock();
 
     g_sai_db_ptr->transaction_mode_enable = transaction_mode_enable;

@@ -36,15 +36,6 @@
 
 #define MLNX_SAI_UTILS_NULL_OBJECT_ALLOWED
 
-/*
- * All the attributes have a long and short names.
- * Short names for ACL UDF attributes can be fetch via adding an offset (19) to the long name beggining
- * e.g. short name for SAI_ACL_TABLE_ATTR_(USER_DEFINED_FIELD_GROUP_0) is USER_DEFINED_FIELD_GROUP_0
- *
- * It will be removed after adding a proper metadata for these attributes
- */
-#define MLNX_UDF_ACL_ATTR_SHORT_NAME_OFFSET (19)
-
 /* Must be equal to or greater than maximum enum values count */
 #define MLNX_ENUM_VALUE_COUNT_MAX (100)
 
@@ -107,98 +98,6 @@ static const sai_u32_list_t        mlnx_sai_valid_obj_types[SAI_OBJECT_TYPE_EXTE
     {.count = ARRAY_SIZE(mlnx_sai_tunnel_valid_obj_types), .list = (void*)mlnx_sai_tunnel_valid_obj_types},
     [SAI_OBJECT_TYPE_ACL_ENTRY] =
     {.count = ARRAY_SIZE(mlnx_sai_acl_entry_valid_obj_types), .list = (void*)mlnx_sai_acl_entry_valid_obj_types},
-};
-static sai_attr_metadata_t         mlnx_udf_acl_table_attr_metadata_list[MLNX_UDF_ACL_ATTR_COUNT];
-static sai_attr_metadata_t         mlnx_udf_acl_entry_attr_metadata_list[MLNX_UDF_ACL_ATTR_COUNT];
-static const sai_attr_metadata_t   mlnx_udf_acl_entry_attr_metadata = {
-    .objecttype               = SAI_OBJECT_TYPE_ACL_ENTRY,
-    .attrid                   = SAI_ACL_ENTRY_ATTR_USER_DEFINED_FIELD_GROUP_MIN,
-    .attridname               = "SAI_ACL_ENTRY_ATTR_USER_DEFINED_FIELD_GROUP_MIN",
-    .attrvaluetype            = SAI_ATTR_VALUE_TYPE_ACL_FIELD_DATA_UINT8_LIST,
-    .flags                    = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
-    .allowedobjecttypes       = NULL,
-    .allowedobjecttypeslength = 0,
-    .allowrepetitiononlist    = false,
-    .allowmixedobjecttypes    = false,
-    .allowemptylist           = false,
-    .allownullobjectid        = false,
-    .defaultvaluetype         = SAI_DEFAULT_VALUE_TYPE_EMPTY_LIST,
-    .defaultvalue             = NULL,
-    .defaultvalueobjecttype   = SAI_OBJECT_TYPE_NULL,
-    .defaultvalueattrid       = SAI_INVALID_ATTRIBUTE_ID,
-    .isenum                   = false,
-    .isenumlist               = false,
-    .enummetadata             = NULL,
-    .conditiontype            = SAI_ATTR_CONDITION_TYPE_NONE,
-    .conditions               = NULL,
-    .conditionslength         = 0,
-    .isconditional            = (0 != 0),
-    .validonlytype            = SAI_ATTR_CONDITION_TYPE_NONE,
-    .validonly                = NULL,
-    .validonlylength          = 0,
-    .getsave                  = false,
-    .isvlan                   = false,
-    .isaclfield               = false,
-    .isaclaction              = false,
-};
-static const sai_object_type_t     mlnx_udf_acl_table_attr_allowed_objects[] = {
-    SAI_OBJECT_TYPE_UDF_GROUP,
-};
-static const sai_attribute_value_t mlnx_udf_acl_table_attr_default_value = { .oid = SAI_NULL_OBJECT_ID };
-static const sai_attr_metadata_t   mlnx_udf_acl_table_attr_metadata = {
-    .objecttype               = SAI_OBJECT_TYPE_ACL_TABLE,
-    .attrid                   = SAI_ACL_TABLE_ATTR_USER_DEFINED_FIELD_GROUP_MIN,
-    .attridname               = "SAI_ACL_TABLE_ATTR_USER_DEFINED_FIELD_GROUP_MIN",
-    .attrvaluetype            = SAI_ATTR_VALUE_TYPE_OBJECT_ID,
-    .flags                    = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_ONLY),
-    .allowedobjecttypes       = mlnx_udf_acl_table_attr_allowed_objects,
-    .allowedobjecttypeslength = 1,
-    .allowrepetitiononlist    = false,
-    .allowmixedobjecttypes    = false,
-    .allowemptylist           = false,
-    .allownullobjectid        = true,
-    .defaultvaluetype         = SAI_DEFAULT_VALUE_TYPE_CONST,
-    .defaultvalue             = &mlnx_udf_acl_table_attr_default_value,
-    .defaultvalueobjecttype   = SAI_OBJECT_TYPE_NULL,
-    .defaultvalueattrid       = SAI_INVALID_ATTRIBUTE_ID,
-    .isenum                   = false,
-    .isenumlist               = false,
-    .enummetadata             = NULL,
-    .conditiontype            = SAI_ATTR_CONDITION_TYPE_NONE,
-    .conditions               = NULL,
-    .conditionslength         = 0,
-    .isconditional            = (0 != 0),
-    .validonlytype            = SAI_ATTR_CONDITION_TYPE_NONE,
-    .validonly                = NULL,
-    .validonlylength          = 0,
-    .getsave                  = false,
-    .isvlan                   = false,
-    .isaclfield               = false,
-    .isaclaction              = false,
-};
-static const char                * mlnx_udf_acl_table_attr_names[] = {
-    "SAI_ACL_TABLE_ATTR_USER_DEFINED_FIELD_GROUP_0",
-    "SAI_ACL_TABLE_ATTR_USER_DEFINED_FIELD_GROUP_1",
-    "SAI_ACL_TABLE_ATTR_USER_DEFINED_FIELD_GROUP_2",
-    "SAI_ACL_TABLE_ATTR_USER_DEFINED_FIELD_GROUP_3",
-    "SAI_ACL_TABLE_ATTR_USER_DEFINED_FIELD_GROUP_4",
-    "SAI_ACL_TABLE_ATTR_USER_DEFINED_FIELD_GROUP_5",
-    "SAI_ACL_TABLE_ATTR_USER_DEFINED_FIELD_GROUP_6",
-    "SAI_ACL_TABLE_ATTR_USER_DEFINED_FIELD_GROUP_7",
-    "SAI_ACL_TABLE_ATTR_USER_DEFINED_FIELD_GROUP_8",
-    "SAI_ACL_TABLE_ATTR_USER_DEFINED_FIELD_GROUP_9",
-};
-static const char                * mlnx_udf_acl_entry_attr_names[] = {
-    "SAI_ACL_ENTRY_ATTR_USER_DEFINED_FIELD_0",
-    "SAI_ACL_ENTRY_ATTR_USER_DEFINED_FIELD_1",
-    "SAI_ACL_ENTRY_ATTR_USER_DEFINED_FIELD_2",
-    "SAI_ACL_ENTRY_ATTR_USER_DEFINED_FIELD_3",
-    "SAI_ACL_ENTRY_ATTR_USER_DEFINED_FIELD_4",
-    "SAI_ACL_ENTRY_ATTR_USER_DEFINED_FIELD_5",
-    "SAI_ACL_ENTRY_ATTR_USER_DEFINED_FIELD_6",
-    "SAI_ACL_ENTRY_ATTR_USER_DEFINED_FIELD_7",
-    "SAI_ACL_ENTRY_ATTR_USER_DEFINED_FIELD_8",
-    "SAI_ACL_ENTRY_ATTR_USER_DEFINED_FIELD_9",
 };
 
 /* Data needed for sai_query_attribute_capability and sai_query_attribute_enum_values_capability APIs */
@@ -407,15 +306,8 @@ static sai_status_t sai_attribute_valid_condition_check(_In_ const sai_attr_meta
                                                         _In_ uint32_t                   attr_count,
                                                         _In_ const sai_attribute_t     *attr_list);
 static bool sai_attribute_is_acl_field_or_action(_In_ const sai_attr_metadata_t *meta_data);
-static bool sai_objet_type_is_acl_table_or_entry(_In_ sai_object_type_t object_type);
-static bool sai_attr_is_acl_udf(_In_ sai_object_type_t object_type, _In_ sai_attr_id_t attr_id);
-static const sai_attr_metadata_t* mlnx_sai_udf_attr_metadata_get(_In_ sai_object_type_t object_type,
-                                                                 _In_ sai_attr_id_t     attr_id);
 static const sai_attr_metadata_t* mlnx_sai_attr_metadata_get_impl(_In_ sai_object_type_t object_type,
                                                                   _In_ sai_attr_id_t     attr_id);
-static sai_status_t mlnx_sai_udf_attr_short_name_fetch(_In_ sai_object_type_t object_type,
-                                                       _In_ sai_attr_id_t     attr_id,
-                                                       _Out_ const char     **attr_short_name);
 static sai_status_t sai_qos_map_to_str_oid(_In_ sai_object_id_t       qos_map_id,
                                            _In_ sai_attribute_value_t value,
                                            _In_ uint32_t              max_length,
@@ -554,11 +446,6 @@ static const mlnx_obj_type_attrs_info_t* mlnx_obj_type_attr_info_get(_In_ sai_ob
     return mlnx_obj_types_info[object_type];
 }
 
-static bool mlnx_query_attr_api_unsupported_udf_check(_In_ sai_object_type_t object_type, _In_ sai_attr_id_t attr_id)
-{
-    return sai_attr_is_acl_udf(object_type, attr_id) && mlnx_udf_acl_attribute_id_is_not_supported(attr_id);
-}
-
 static sai_status_t mlnx_query_attr_api_get_metadata(_In_ sai_object_type_t                   object_type,
                                                      _In_ sai_attr_id_t                       attr_id,
                                                      _Out_ const sai_attr_metadata_t        **attr_metadata,
@@ -580,13 +467,6 @@ static sai_status_t mlnx_query_attr_api_get_metadata(_In_ sai_object_type_t     
     }
 
     *obj_type_str = obj_type_info->objecttypename;
-
-    if (mlnx_query_attr_api_unsupported_udf_check(object_type, attr_id)) {
-        SX_LOG_ERR("UDF attribute index %d is out of supported range [%d, %d]\n", attr_id, 0,
-                   MLNX_UDF_ACL_ATTR_MAX_ID);
-        *is_implemented = false;
-        return SAI_STATUS_FAILURE;
-    }
 
     *attr_metadata = mlnx_sai_attr_metadata_get_impl(object_type, attr_id);
     if (!(*attr_metadata)) {
@@ -847,14 +727,6 @@ static sai_status_t sai_object_type_attr_index_find(_In_ const sai_attr_id_t    
         }
     }
 
-    /* Currnetly, metadata for ACL UDF attributes is not generated */
-    if (sai_attr_is_acl_udf(object_type, attr_id)) {
-        assert((attr_id - SAI_ACL_TABLE_ATTR_USER_DEFINED_FIELD_GROUP_MIN) <= MLNX_UDF_ACL_ATTR_MAX_ID);
-        *index = ii + (attr_id - SAI_ACL_TABLE_ATTR_USER_DEFINED_FIELD_GROUP_MIN);
-        SX_LOG_EXIT();
-        return SAI_STATUS_SUCCESS;
-    }
-
     SX_LOG_EXIT();
     return SAI_STATUS_ITEM_NOT_FOUND;
 }
@@ -980,11 +852,6 @@ static sai_status_t sai_object_type_attr_count_meta_get(_In_ const sai_object_ty
 
     *attr_count = ii;
 
-    /* Currnetly, metadata for ACL UDF attributes is not generated */
-    if (sai_objet_type_is_acl_table_or_entry(object_type)) {
-        *attr_count += MLNX_UDF_ACL_ATTR_COUNT;
-    }
-
     SX_LOG_EXIT();
     return SAI_STATUS_SUCCESS;
 }
@@ -1006,10 +873,6 @@ sai_status_t sai_attribute_short_name_fetch(_In_ sai_object_type_t object_type,
         SX_LOG_ERR("Invalid object type (%d)\n", object_type);
         SX_LOG_EXIT();
         return SAI_STATUS_FAILURE;
-    }
-
-    if (sai_attr_is_acl_udf(object_type, attr_id)) {
-        return mlnx_sai_udf_attr_short_name_fetch(object_type, attr_id, attr_short_name);
     }
 
     object_type_info = sai_metadata_all_object_type_infos[object_type];
@@ -1713,14 +1576,6 @@ static sai_status_t sai_attrlist_mandatory_attrs_check(
         return SAI_STATUS_INVALID_PARAMETER;
     }
 
-    /*
-     * Currnetly, metadata for ACL UDF attributes is not generated
-     * attr_count_meta in increased by MLNX_UDF_ACL_ATTR_COUNT in sai_object_type_attr_count_meta_get
-     */
-    if (sai_objet_type_is_acl_table_or_entry(object_type)) {
-        attr_count_meta -= MLNX_UDF_ACL_ATTR_COUNT;
-    }
-
     md = sai_metadata_attr_by_object_type[object_type];
 
     for (ii = 0; ii < attr_count_meta; ii++) {
@@ -2023,136 +1878,10 @@ static bool sai_attribute_is_acl_field_or_action(_In_ const sai_attr_metadata_t 
     return false;
 }
 
-static bool sai_objet_type_is_acl_table_or_entry(_In_ sai_object_type_t object_type)
-{
-    if ((SAI_OBJECT_TYPE_ACL_TABLE == object_type) ||
-        (SAI_OBJECT_TYPE_ACL_ENTRY == object_type)) {
-        return true;
-    }
-
-    return false;
-}
-
-static bool sai_attr_is_acl_udf(_In_ sai_object_type_t object_type, _In_ sai_attr_id_t attr_id)
-{
-    if (((SAI_OBJECT_TYPE_ACL_ENTRY == object_type) || (SAI_OBJECT_TYPE_ACL_TABLE == object_type)) &&
-        ((SAI_ACL_ENTRY_ATTR_USER_DEFINED_FIELD_GROUP_MIN <= attr_id) &&
-         (attr_id <= SAI_ACL_ENTRY_ATTR_USER_DEFINED_FIELD_GROUP_MAX))) {
-        return true;
-    }
-
-    return false;
-}
-
-void mlnx_udf_acl_attrs_metadata_init()
-{
-    uint32_t ii;
-
-    assert(ARRAY_SIZE(mlnx_udf_acl_table_attr_metadata_list) == MLNX_UDF_ACL_ATTR_COUNT);
-    assert(ARRAY_SIZE(mlnx_udf_acl_table_attr_names) == MLNX_UDF_ACL_ATTR_COUNT);
-    assert(ARRAY_SIZE(mlnx_udf_acl_entry_attr_metadata_list) == MLNX_UDF_ACL_ATTR_COUNT);
-    assert(ARRAY_SIZE(mlnx_udf_acl_entry_attr_names) == MLNX_UDF_ACL_ATTR_COUNT);
-
-    for (ii = 0; ii < MLNX_UDF_ACL_ATTR_COUNT; ii++) {
-        /* Init metedata for SAI_ACL_TABLE_ATTR_USER_DEFINED_FIELD_GROUP* attributes */
-
-        memcpy(&mlnx_udf_acl_table_attr_metadata_list[ii], &mlnx_udf_acl_table_attr_metadata,
-               sizeof(mlnx_udf_acl_table_attr_metadata_list[ii]));
-
-        mlnx_udf_acl_table_attr_metadata_list[ii].attrid = SAI_ACL_TABLE_ATTR_USER_DEFINED_FIELD_GROUP_MIN + ii;
-
-        *((const char**)&mlnx_udf_acl_table_attr_metadata_list[ii].attridname) = mlnx_udf_acl_table_attr_names[ii];
-
-        /* Init metedata for SAI_ACL_TABLE_ATTR_USER_DEFINED_FIELD_GROUP* attributes */
-        memcpy(&mlnx_udf_acl_entry_attr_metadata_list[ii], &mlnx_udf_acl_entry_attr_metadata,
-               sizeof(mlnx_udf_acl_entry_attr_metadata_list[ii]));
-
-        mlnx_udf_acl_entry_attr_metadata_list[ii].attrid = SAI_ACL_ENTRY_ATTR_USER_DEFINED_FIELD_GROUP_MIN + ii;
-
-        *((const char**)&mlnx_udf_acl_entry_attr_metadata_list[ii].attridname) = mlnx_udf_acl_entry_attr_names[ii];
-    }
-}
-
-bool mlnx_udf_acl_attribute_id_is_not_supported(_In_ sai_attr_id_t attr_id)
-{
-    return (((SAI_ACL_TABLE_ATTR_USER_DEFINED_FIELD_GROUP_MIN + MLNX_UDF_ACL_ATTR_MAX_ID) < attr_id) &&
-            (attr_id <= SAI_ACL_TABLE_ATTR_USER_DEFINED_FIELD_GROUP_MAX));
-}
-
-static const sai_attr_metadata_t* mlnx_sai_udf_attr_metadata_get(_In_ sai_object_type_t object_type,
-                                                                 _In_ sai_attr_id_t     attr_id)
-{
-    bool attr_id_not_supported;
-
-    assert(sai_attr_is_acl_udf(object_type, attr_id));
-
-    attr_id_not_supported = mlnx_udf_acl_attribute_id_is_not_supported(attr_id);
-
-    if (SAI_OBJECT_TYPE_ACL_TABLE == object_type) {
-        if (attr_id_not_supported) {
-            SX_LOG_ERR(
-                "Attribute SAI_ACL_TABLE_ATTR_USER_DEFINED_FIELD_GROUP_MIN_%d is out of supported range (0, %d)\n",
-                attr_id - SAI_ACL_TABLE_ATTR_USER_DEFINED_FIELD_GROUP_MIN,
-                MLNX_UDF_ACL_ATTR_MAX_ID);
-            return NULL;
-        }
-
-        return &mlnx_udf_acl_table_attr_metadata_list[attr_id - SAI_ACL_TABLE_ATTR_USER_DEFINED_FIELD_GROUP_MIN];
-    }
-
-    if (SAI_OBJECT_TYPE_ACL_ENTRY == object_type) {
-        if (attr_id_not_supported) {
-            SX_LOG_ERR(
-                "Attribute SAI_ACL_ENTRY_ATTR_USER_DEFINED_FIELD_GROUP_MIN_%d is out of supported range (0, %d)\n",
-                attr_id - SAI_ACL_ENTRY_ATTR_USER_DEFINED_FIELD_GROUP_MIN,
-                MLNX_UDF_ACL_ATTR_MAX_ID);
-            return NULL;
-        }
-
-        return &mlnx_udf_acl_entry_attr_metadata_list[attr_id - SAI_ACL_ENTRY_ATTR_USER_DEFINED_FIELD_GROUP_MIN];
-    }
-
-    return NULL;
-}
-
 static const sai_attr_metadata_t* mlnx_sai_attr_metadata_get_impl(_In_ sai_object_type_t object_type,
                                                                   _In_ sai_attr_id_t     attr_id)
 {
-    if (sai_attr_is_acl_udf(object_type, attr_id)) {
-        return mlnx_sai_udf_attr_metadata_get(object_type, attr_id);
-    } else {
-        return sai_metadata_get_attr_metadata(object_type, attr_id);
-    }
-}
-
-static sai_status_t mlnx_sai_udf_attr_short_name_fetch(_In_ sai_object_type_t object_type,
-                                                       _In_ sai_attr_id_t     attr_id,
-                                                       _Out_ const char     **attr_short_name)
-{
-    const char **names;
-    uint32_t     attr_index;
-
-    assert(sai_attr_is_acl_udf(object_type, attr_id));
-    assert(attr_short_name);
-
-    attr_index = attr_id - SAI_ACL_ENTRY_ATTR_USER_DEFINED_FIELD_GROUP_MIN;
-
-    if (MLNX_UDF_ACL_ATTR_MAX_ID < attr_index) {
-        *attr_short_name = "UDF_ATTR_OUT_OF_RANGE";
-        return SAI_STATUS_SUCCESS;
-    }
-
-    if (SAI_OBJECT_TYPE_ACL_TABLE == object_type) {
-        names = mlnx_udf_acl_table_attr_names;
-    }
-
-    if (SAI_OBJECT_TYPE_ACL_ENTRY == object_type) {
-        names = mlnx_udf_acl_entry_attr_names;
-    }
-
-    *attr_short_name = names[attr_index] + MLNX_UDF_ACL_ATTR_SHORT_NAME_OFFSET;
-
-    return SAI_STATUS_SUCCESS;
+    return sai_metadata_get_attr_metadata(object_type, attr_id);
 }
 
 sai_status_t check_attribs_metadata(_In_ uint32_t                            attr_count,
@@ -3758,6 +3487,13 @@ sai_status_t mlnx_translate_sai_trap_action_to_sdk(sai_int32_t       action,
         *trap_action = SX_TRAP_ACTION_IGNORE;
         break;
 
+        /* trap soft discard allows the packet to travel in the pipeline till end of l2 stage. this allows
+           mirroring by ACL (Everflow for MS). The downside is such packets will be counted as drops,
+           as some of the packets are dropped by the pipeline according to spec.
+           Since we don't want to count such drops (counted when aggregate bridge drops is enabled), we use
+           regular trap when feature is enabled.
+           In addition, soft discard has another side effect, of allowing learning. If needed, can be disabled
+           by ACL */
     case SAI_PACKET_ACTION_TRAP:
         *trap_action =
             ((MLNX_L2_TRAP == is_l2_trap) &&
