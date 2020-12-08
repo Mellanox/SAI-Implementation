@@ -4786,7 +4786,7 @@ sai_status_t mlnx_clear_buffer_pool_stats(_In_ sai_object_id_t      pool_id,
 
     SX_LOG_ENTER();
     pool_key_to_str(pool_id, key_str);
-    SX_LOG_NTC("Clear pool stats %s\n", key_str);
+    SX_LOG_DBG("Clear pool stats %s\n", key_str);
     if (!number_of_counters) {
         SX_LOG_ERR("0 number_of_counters array param\n");
         sai_status = SAI_STATUS_INVALID_PARAMETER;
@@ -4812,7 +4812,7 @@ sai_status_t mlnx_clear_buffer_pool_stats(_In_ sai_object_id_t      pool_id,
         }
         pool_ids_count++;
         pool_key_to_str(g_sai_buffer_db_ptr->shp_ipool_map->shp_pool_id, key_str);
-        SX_LOG_NTC("Clear shp pool stats %s\n", key_str);
+        SX_LOG_DBG("Clear shp pool stats %s\n", key_str);
     }
     sai_db_unlock();
     is_db_locked = false;
