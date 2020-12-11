@@ -107,6 +107,17 @@ if test "x$with_xml2" != xnone; then
 fi
 AC_SUBST(XML2_LIB_PATH)
 
+dnl Define an input config option to control python scripts path
+AC_ARG_WITH(pydir,
+[  --with-pydir=<dir> define python scripts directory],
+AC_MSG_NOTICE(Using python scripts from:$with_pydir),
+with_pydir="none")
+APP_PY_PATH=/usr/bin
+if test "x$with_pydir" != xnone; then
+  APP_PY_PATH=$with_pydir
+fi
+AC_SUBST(APP_PY_PATH)
+
 dnl Define an ELDK5 xml2 la libdir setting work around condition
 AM_CONDITIONAL(XML2_ELDK5_LA_WA, test x`echo $with_xml2 | grep powerpc-4xx` != x)
 

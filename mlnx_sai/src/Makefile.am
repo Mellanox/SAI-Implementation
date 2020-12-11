@@ -18,6 +18,11 @@ if CONFIG_SYSLOG
 CFLAGS += -DCONFIG_SYSLOG
 endif
 
+pythonlibdir=$(APP_PY_PATH)
+pythonlib_DATA= \
+                vxlandifftool.py \
+                vxlandifftool_test.py
+
 lib_LTLIBRARIES = libfx_base.la libsx_fx_sdk.la libsai.la
 
 dist_data_DATA = sai_1710.xml \
