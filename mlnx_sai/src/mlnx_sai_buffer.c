@@ -2317,9 +2317,6 @@ sai_status_t mlnx_sai_set_pool_size_attr(_In_ const sai_object_key_t      * key,
             }
             /* shared headroom is disabled */
         } else {
-            sai_status = SAI_STATUS_ITEM_NOT_FOUND;
-            err_msg    = "Shared headroom pool is not created\n";
-
             if (SAI_BUFFER_POOL_TYPE_INGRESS != sai_pool_attr.pool_type) {
                 sai_status = SAI_STATUS_INVALID_PARAMETER;
                 err_msg    = "Shared headroom pool can be created only with ingress pool\n";
