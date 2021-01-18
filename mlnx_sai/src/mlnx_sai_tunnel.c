@@ -20,6 +20,7 @@
 #include "mlnx_sai.h"
 #include "assert.h"
 #include <sx/sdk/sx_api_tunnel.h>
+#include <sx/sdk/sx_api_rm.h>
 
 #undef  __MODULE__
 #define __MODULE__ SAI_TUNNEL
@@ -89,6 +90,11 @@ static sai_status_t mlnx_tunnel_rif_get(_In_ const sai_object_key_t   *key,
                                         _In_ uint32_t                  attr_index,
                                         _Inout_ vendor_cache_t        *cache,
                                         void                          *arg);
+static sai_status_t mlnx_tunnel_peer_mode_get(_In_ const sai_object_key_t   *key,
+                                              _Inout_ sai_attribute_value_t *value,
+                                              _In_ uint32_t                  attr_index,
+                                              _Inout_ vendor_cache_t        *cache,
+                                              void                          *arg);
 static sai_status_t mlnx_tunnel_encap_src_ip_get(_In_ const sai_object_key_t   *key,
                                                  _Inout_ sai_attribute_value_t *value,
                                                  _In_ uint32_t                  attr_index,
@@ -320,6 +326,11 @@ static const sai_vendor_attribute_entry_t tunnel_vendor_attribs[] = {
       { true, false, false, true },
       mlnx_tunnel_rif_get, (void*)MLNX_TUNNEL_OVERLAY,
       NULL, NULL },
+    { SAI_TUNNEL_ATTR_PEER_MODE,
+      { true, false, false, true },
+      { true, false, false, true },
+      mlnx_tunnel_peer_mode_get, NULL,
+      NULL, NULL },
     { SAI_TUNNEL_ATTR_ENCAP_SRC_IP,
       { true, false, false, true },
       { true, false, false, true },
@@ -396,6 +407,8 @@ static const mlnx_attr_enum_info_t        tunnel_enum_info[] = {
         SAI_TUNNEL_TYPE_IPINIP,
         SAI_TUNNEL_TYPE_IPINIP_GRE,
         SAI_TUNNEL_TYPE_VXLAN),
+    [SAI_TUNNEL_ATTR_PEER_MODE] = ATTR_ENUM_VALUES_LIST(
+        SAI_TUNNEL_PEER_MODE_P2MP),
     [SAI_TUNNEL_ATTR_ENCAP_TTL_MODE] = ATTR_ENUM_VALUES_LIST(
         SAI_TUNNEL_TTL_MODE_PIPE_MODEL, SAI_TUNNEL_TTL_MODE_UNIFORM_MODEL),
     [SAI_TUNNEL_ATTR_ENCAP_DSCP_MODE] = ATTR_ENUM_VALUES_ALL(),
@@ -522,7 +535,7 @@ sai_status_t mlnx_tunnel_availability_get(_In_ sai_object_id_t        switch_id,
                                           _In_ const sai_attribute_t *attr_list,
                                           _Out_ uint64_t             *count)
 {
-    const int          ipinip_sx_tunnel_types[] = {
+    const int ipinip_sx_tunnel_types[] = {
         SX_TUNNEL_TYPE_IPINIP_P2P_IPV4_IN_IPV4,
         SX_TUNNEL_TYPE_IPINIP_P2P_IPV4_IN_IPV6,
         SX_TUNNEL_TYPE_IPINIP_P2P_IPV6_IN_IPV4,
@@ -636,6 +649,54 @@ static void tunnel_term_table_entry_key_to_str(_In_ const sai_object_id_t sai_tu
     }
 
     SX_LOG_EXIT();
+}
+
+sai_status_t mlnx_tunnel_term_table_entry_availability_get(_In_ sai_object_id_t        switch_id,
+                                                           _In_ uint32_t               attr_count,
+                                                           _In_ const sai_attribute_t *attr_list,
+                                                           _Out_ uint64_t             *count)
+{
+    rm_sdk_table_type_e  table_type;
+    sx_status_t          sx_status;
+    sai_ip_addr_family_t family;
+    uint32_t             available_entries = 0;
+
+    assert(attr_list);
+    assert(count);
+
+    if (attr_count != 1) {
+        SX_LOG_ERR("Unexpected attribute list (size != 1)\n");
+        return SAI_STATUS_INVALID_PARAMETER;
+    }
+
+    if (attr_list[0].id != SAI_TUNNEL_TERM_TABLE_ENTRY_ATTR_IP_ADDR_FAMILY) {
+        SX_LOG_ERR("Unexpected attribute %d, expected SAI_TUNNEL_TERM_TABLE_ENTRY_ATTR_IP_ADDR_FAMILY\n", attr_list[0].id);
+        return SAI_STATUS_INVALID_ATTRIBUTE_0;
+    }
+
+    family = attr_list[0].value.s32;
+    switch (family) {
+    case SAI_IP_ADDR_FAMILY_IPV4:
+        table_type = RM_SDK_TABLE_TYPE_DECAP_RULES_IPV4_E;
+        break;
+
+    case SAI_IP_ADDR_FAMILY_IPV6:
+        table_type = RM_SDK_TABLE_TYPE_DECAP_RULES_IPV6_E;
+        break;
+
+    default:
+        SX_LOG_ERR("Unsupported IP address family - %d\n", family);
+        return SAI_STATUS_ATTR_NOT_SUPPORTED_0;
+    }
+
+    sx_status = sx_api_rm_free_entries_by_type_get(gh_sdk, table_type, &available_entries);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to get a number of free resources for sx table %d - %s\n", table_type, SX_STATUS_MSG(sx_status));
+        return sdk_to_sai(sx_status);
+    }
+
+    *count = (uint64_t)available_entries;
+    return SAI_STATUS_SUCCESS;
 }
 
 static void mlnx_tunnel_fill_ulay_domain_rif(_In_ sx_router_interface_t              rif,
@@ -1330,6 +1391,20 @@ static sai_status_t mlnx_tunnel_rif_get(_In_ const sai_object_key_t   *key,
     return sai_status;
 }
 
+static sai_status_t mlnx_tunnel_peer_mode_get(_In_ const sai_object_key_t   *key,
+                                              _Inout_ sai_attribute_value_t *value,
+                                              _In_ uint32_t                  attr_index,
+                                              _Inout_ vendor_cache_t        *cache,
+                                              void                          *arg)
+{
+    SX_LOG_ENTER();
+
+    value->s32 = SAI_TUNNEL_PEER_MODE_P2MP;
+
+    SX_LOG_EXIT();
+    return SAI_STATUS_SUCCESS;
+}
+
 static sai_status_t mlnx_tunnel_encap_src_ip_get(_In_ const sai_object_key_t   *key,
                                                  _Inout_ sai_attribute_value_t *value,
                                                  _In_ uint32_t                  attr_index,
@@ -1694,9 +1769,10 @@ static sai_status_t mlnx_tunnel_encap_ecn_mode_get(_In_ const sai_object_key_t  
 static sai_status_t mlnx_tunnel_decap_ecn_mode_is_standard(
     _In_ sx_tunnel_cos_ecn_decap_params_t *sx_tunnel_cos_ecn_decap_params)
 {
+    /* Based on RFC 6040 */
     const uint8_t non_ect     = 0;
-    const uint8_t ect0        = 1;
-    const uint8_t ect1        = 2;
+    const uint8_t ect1        = 1;
+    const uint8_t ect0        = 2;
     const uint8_t ce          = 3;
     bool          is_standard = true;
 
@@ -1709,20 +1785,20 @@ static sai_status_t mlnx_tunnel_decap_ecn_mode_is_standard(
     }
 
     is_standard &= ((sx_tunnel_cos_ecn_decap_params->ecn_decap_map[non_ect][non_ect].egress_ecn == non_ect) &&
-                    (sx_tunnel_cos_ecn_decap_params->ecn_decap_map[non_ect][ect0].egress_ecn == non_ect) &&
                     (sx_tunnel_cos_ecn_decap_params->ecn_decap_map[non_ect][ect1].egress_ecn == non_ect) &&
+                    (sx_tunnel_cos_ecn_decap_params->ecn_decap_map[non_ect][ect0].egress_ecn == non_ect) &&
                     (sx_tunnel_cos_ecn_decap_params->ecn_decap_map[non_ect][ce].egress_ecn == non_ect) &&
-                    (sx_tunnel_cos_ecn_decap_params->ecn_decap_map[ect0][non_ect].egress_ecn == ect0) &&
-                    (sx_tunnel_cos_ecn_decap_params->ecn_decap_map[ect0][ect0].egress_ecn == ect0) &&
-                    (sx_tunnel_cos_ecn_decap_params->ecn_decap_map[ect0][ect1].egress_ecn == ect1) &&
-                    (sx_tunnel_cos_ecn_decap_params->ecn_decap_map[ect0][ce].egress_ecn == ce) &&
                     (sx_tunnel_cos_ecn_decap_params->ecn_decap_map[ect1][non_ect].egress_ecn == ect1) &&
-                    (sx_tunnel_cos_ecn_decap_params->ecn_decap_map[ect1][ect0].egress_ecn == ect1) &&
                     (sx_tunnel_cos_ecn_decap_params->ecn_decap_map[ect1][ect1].egress_ecn == ect1) &&
+                    (sx_tunnel_cos_ecn_decap_params->ecn_decap_map[ect1][ect0].egress_ecn == ect1) &&
                     (sx_tunnel_cos_ecn_decap_params->ecn_decap_map[ect1][ce].egress_ecn == ce) &&
+                    (sx_tunnel_cos_ecn_decap_params->ecn_decap_map[ect0][non_ect].egress_ecn == ect0) &&
+                    (sx_tunnel_cos_ecn_decap_params->ecn_decap_map[ect0][ect1].egress_ecn == ect1) &&
+                    (sx_tunnel_cos_ecn_decap_params->ecn_decap_map[ect0][ect0].egress_ecn == ect0) &&
+                    (sx_tunnel_cos_ecn_decap_params->ecn_decap_map[ect0][ce].egress_ecn == ce) &&
                     (sx_tunnel_cos_ecn_decap_params->ecn_decap_map[ce][non_ect].egress_ecn == ce) &&
-                    (sx_tunnel_cos_ecn_decap_params->ecn_decap_map[ce][ect0].egress_ecn == ce) &&
                     (sx_tunnel_cos_ecn_decap_params->ecn_decap_map[ce][ect1].egress_ecn == ce) &&
+                    (sx_tunnel_cos_ecn_decap_params->ecn_decap_map[ce][ect0].egress_ecn == ce) &&
                     (sx_tunnel_cos_ecn_decap_params->ecn_decap_map[ce][ce].egress_ecn == ce));
 
     SX_LOG_EXIT();
@@ -2669,13 +2745,6 @@ static sai_status_t mlnx_init_tunnel_map_param(_In_ uint32_t               attr_
     sai_status = find_attrib_in_list(attr_count, attr_list, SAI_TUNNEL_MAP_ATTR_TYPE, &tunnel_map_type, &attr_idx);
     assert(SAI_STATUS_SUCCESS == sai_status);
 
-    /* 802.1Q vxlan encap is not supported, which means vlan to vni map is not supported */
-    if (SAI_TUNNEL_MAP_TYPE_VLAN_ID_TO_VNI == tunnel_map_type->s32) {
-        SX_LOG_ERR("vlan id to vni is not supported\n");
-        SX_LOG_EXIT();
-        return SAI_STATUS_INVALID_ATTR_VALUE_0 + attr_idx;
-    }
-
     mlnx_tunnel_map->tunnel_map_type = tunnel_map_type->s32;
 
     mlnx_tunnel_map->tunnel_cnt = 0;
@@ -3190,9 +3259,10 @@ static sai_status_t mlnx_sdk_fill_tunnel_ttl_data(_In_ uint32_t               at
 
 static sai_status_t mlnx_sdk_fill_tunnel_decap_standard_ecn(_Inout_ sx_tunnel_cos_data_t *sdk_decap_cos_data)
 {
+    /* Based on RFC 6040 */
     const uint8_t non_ect = 0;
-    const uint8_t ect0    = 1;
-    const uint8_t ect1    = 2;
+    const uint8_t ect1    = 1;
+    const uint8_t ect0    = 2;
     const uint8_t ce      = 3;
 
     SX_LOG_ENTER();
@@ -3210,66 +3280,66 @@ static sai_status_t mlnx_sdk_fill_tunnel_decap_standard_ecn(_Inout_ sx_tunnel_co
     sdk_decap_cos_data->cos_ecn_params.ecn_decap.ecn_decap_map[non_ect][non_ect].egress_ecn  = non_ect;
     sdk_decap_cos_data->cos_ecn_params.ecn_decap.ecn_decap_map[non_ect][non_ect].trap_enable = false;
 
-    sdk_decap_cos_data->cos_ecn_params.ecn_decap.ecn_decap_map[non_ect][ect0].valid          = true;
-    sdk_decap_cos_data->cos_ecn_params.ecn_decap.ecn_decap_map[non_ect][ect0].egress_ecn     = non_ect;
-    sdk_decap_cos_data->cos_ecn_params.ecn_decap.ecn_decap_map[non_ect][ect0].trap_enable    = true;
-    sdk_decap_cos_data->cos_ecn_params.ecn_decap.ecn_decap_map[non_ect][ect0].trap_attr.prio = SX_TRAP_PRIORITY_LOW;
-
     sdk_decap_cos_data->cos_ecn_params.ecn_decap.ecn_decap_map[non_ect][ect1].valid          = true;
     sdk_decap_cos_data->cos_ecn_params.ecn_decap.ecn_decap_map[non_ect][ect1].egress_ecn     = non_ect;
     sdk_decap_cos_data->cos_ecn_params.ecn_decap.ecn_decap_map[non_ect][ect1].trap_enable    = true;
     sdk_decap_cos_data->cos_ecn_params.ecn_decap.ecn_decap_map[non_ect][ect1].trap_attr.prio = SX_TRAP_PRIORITY_LOW;
+
+    sdk_decap_cos_data->cos_ecn_params.ecn_decap.ecn_decap_map[non_ect][ect0].valid          = true;
+    sdk_decap_cos_data->cos_ecn_params.ecn_decap.ecn_decap_map[non_ect][ect0].egress_ecn     = non_ect;
+    sdk_decap_cos_data->cos_ecn_params.ecn_decap.ecn_decap_map[non_ect][ect0].trap_enable    = true;
+    sdk_decap_cos_data->cos_ecn_params.ecn_decap.ecn_decap_map[non_ect][ect0].trap_attr.prio = SX_TRAP_PRIORITY_LOW;
 
     sdk_decap_cos_data->cos_ecn_params.ecn_decap.ecn_decap_map[non_ect][ce].valid          = true;
     sdk_decap_cos_data->cos_ecn_params.ecn_decap.ecn_decap_map[non_ect][ce].egress_ecn     = non_ect;
     sdk_decap_cos_data->cos_ecn_params.ecn_decap.ecn_decap_map[non_ect][ce].trap_enable    = true;
     sdk_decap_cos_data->cos_ecn_params.ecn_decap.ecn_decap_map[non_ect][ce].trap_attr.prio = SX_TRAP_PRIORITY_HIGH;
 
-    sdk_decap_cos_data->cos_ecn_params.ecn_decap.ecn_decap_map[ect0][non_ect].valid       = true;
-    sdk_decap_cos_data->cos_ecn_params.ecn_decap.ecn_decap_map[ect0][non_ect].egress_ecn  = ect0;
-    sdk_decap_cos_data->cos_ecn_params.ecn_decap.ecn_decap_map[ect0][non_ect].trap_enable = false;
-
-    sdk_decap_cos_data->cos_ecn_params.ecn_decap.ecn_decap_map[ect0][ect0].valid       = true;
-    sdk_decap_cos_data->cos_ecn_params.ecn_decap.ecn_decap_map[ect0][ect0].egress_ecn  = ect0;
-    sdk_decap_cos_data->cos_ecn_params.ecn_decap.ecn_decap_map[ect0][ect0].trap_enable = false;
-
-    sdk_decap_cos_data->cos_ecn_params.ecn_decap.ecn_decap_map[ect0][ect1].valid       = true;
-    sdk_decap_cos_data->cos_ecn_params.ecn_decap.ecn_decap_map[ect0][ect1].egress_ecn  = ect1;
-    sdk_decap_cos_data->cos_ecn_params.ecn_decap.ecn_decap_map[ect0][ect1].trap_enable = false;
-
-    sdk_decap_cos_data->cos_ecn_params.ecn_decap.ecn_decap_map[ect0][ce].valid       = true;
-    sdk_decap_cos_data->cos_ecn_params.ecn_decap.ecn_decap_map[ect0][ce].egress_ecn  = ce;
-    sdk_decap_cos_data->cos_ecn_params.ecn_decap.ecn_decap_map[ect0][ce].trap_enable = false;
-
     sdk_decap_cos_data->cos_ecn_params.ecn_decap.ecn_decap_map[ect1][non_ect].valid       = true;
     sdk_decap_cos_data->cos_ecn_params.ecn_decap.ecn_decap_map[ect1][non_ect].egress_ecn  = ect1;
     sdk_decap_cos_data->cos_ecn_params.ecn_decap.ecn_decap_map[ect1][non_ect].trap_enable = false;
-
-    sdk_decap_cos_data->cos_ecn_params.ecn_decap.ecn_decap_map[ect1][ect0].valid          = true;
-    sdk_decap_cos_data->cos_ecn_params.ecn_decap.ecn_decap_map[ect1][ect0].egress_ecn     = ect1;
-    sdk_decap_cos_data->cos_ecn_params.ecn_decap.ecn_decap_map[ect1][ect0].trap_enable    = true;
-    sdk_decap_cos_data->cos_ecn_params.ecn_decap.ecn_decap_map[ect1][ect0].trap_attr.prio = SX_TRAP_PRIORITY_LOW;
 
     sdk_decap_cos_data->cos_ecn_params.ecn_decap.ecn_decap_map[ect1][ect1].valid       = true;
     sdk_decap_cos_data->cos_ecn_params.ecn_decap.ecn_decap_map[ect1][ect1].egress_ecn  = ect1;
     sdk_decap_cos_data->cos_ecn_params.ecn_decap.ecn_decap_map[ect1][ect1].trap_enable = false;
 
+    sdk_decap_cos_data->cos_ecn_params.ecn_decap.ecn_decap_map[ect1][ect0].valid       = true;
+    sdk_decap_cos_data->cos_ecn_params.ecn_decap.ecn_decap_map[ect1][ect0].egress_ecn  = ect1;
+    sdk_decap_cos_data->cos_ecn_params.ecn_decap.ecn_decap_map[ect1][ect0].trap_enable = true;
+    sdk_decap_cos_data->cos_ecn_params.ecn_decap.ecn_decap_map[ect1][ect0].trap_attr.prio = SX_TRAP_PRIORITY_LOW;
+
     sdk_decap_cos_data->cos_ecn_params.ecn_decap.ecn_decap_map[ect1][ce].valid       = true;
     sdk_decap_cos_data->cos_ecn_params.ecn_decap.ecn_decap_map[ect1][ce].egress_ecn  = ce;
     sdk_decap_cos_data->cos_ecn_params.ecn_decap.ecn_decap_map[ect1][ce].trap_enable = false;
+
+    sdk_decap_cos_data->cos_ecn_params.ecn_decap.ecn_decap_map[ect0][non_ect].valid       = true;
+    sdk_decap_cos_data->cos_ecn_params.ecn_decap.ecn_decap_map[ect0][non_ect].egress_ecn  = ect0;
+    sdk_decap_cos_data->cos_ecn_params.ecn_decap.ecn_decap_map[ect0][non_ect].trap_enable = false;
+
+    sdk_decap_cos_data->cos_ecn_params.ecn_decap.ecn_decap_map[ect0][ect1].valid          = true;
+    sdk_decap_cos_data->cos_ecn_params.ecn_decap.ecn_decap_map[ect0][ect1].egress_ecn     = ect1;
+    sdk_decap_cos_data->cos_ecn_params.ecn_decap.ecn_decap_map[ect0][ect1].trap_enable    = false;
+
+    sdk_decap_cos_data->cos_ecn_params.ecn_decap.ecn_decap_map[ect0][ect0].valid       = true;
+    sdk_decap_cos_data->cos_ecn_params.ecn_decap.ecn_decap_map[ect0][ect0].egress_ecn  = ect0;
+    sdk_decap_cos_data->cos_ecn_params.ecn_decap.ecn_decap_map[ect0][ect0].trap_enable = false;
+
+    sdk_decap_cos_data->cos_ecn_params.ecn_decap.ecn_decap_map[ect0][ce].valid       = true;
+    sdk_decap_cos_data->cos_ecn_params.ecn_decap.ecn_decap_map[ect0][ce].egress_ecn  = ce;
+    sdk_decap_cos_data->cos_ecn_params.ecn_decap.ecn_decap_map[ect0][ce].trap_enable = false;
 
     sdk_decap_cos_data->cos_ecn_params.ecn_decap.ecn_decap_map[ce][non_ect].valid       = true;
     sdk_decap_cos_data->cos_ecn_params.ecn_decap.ecn_decap_map[ce][non_ect].egress_ecn  = ce;
     sdk_decap_cos_data->cos_ecn_params.ecn_decap.ecn_decap_map[ce][non_ect].trap_enable = false;
 
-    sdk_decap_cos_data->cos_ecn_params.ecn_decap.ecn_decap_map[ce][ect0].valid       = true;
-    sdk_decap_cos_data->cos_ecn_params.ecn_decap.ecn_decap_map[ce][ect0].egress_ecn  = ce;
-    sdk_decap_cos_data->cos_ecn_params.ecn_decap.ecn_decap_map[ce][ect0].trap_enable = false;
-
-    sdk_decap_cos_data->cos_ecn_params.ecn_decap.ecn_decap_map[ce][ect1].valid          = true;
-    sdk_decap_cos_data->cos_ecn_params.ecn_decap.ecn_decap_map[ce][ect1].egress_ecn     = ce;
-    sdk_decap_cos_data->cos_ecn_params.ecn_decap.ecn_decap_map[ce][ect1].trap_enable    = true;
+    sdk_decap_cos_data->cos_ecn_params.ecn_decap.ecn_decap_map[ce][ect1].valid       = true;
+    sdk_decap_cos_data->cos_ecn_params.ecn_decap.ecn_decap_map[ce][ect1].egress_ecn  = ce;
+    sdk_decap_cos_data->cos_ecn_params.ecn_decap.ecn_decap_map[ce][ect1].trap_enable = true;
     sdk_decap_cos_data->cos_ecn_params.ecn_decap.ecn_decap_map[ce][ect1].trap_attr.prio = SX_TRAP_PRIORITY_LOW;
+
+    sdk_decap_cos_data->cos_ecn_params.ecn_decap.ecn_decap_map[ce][ect0].valid          = true;
+    sdk_decap_cos_data->cos_ecn_params.ecn_decap.ecn_decap_map[ce][ect0].egress_ecn     = ce;
+    sdk_decap_cos_data->cos_ecn_params.ecn_decap.ecn_decap_map[ce][ect0].trap_enable    = false;
 
     sdk_decap_cos_data->cos_ecn_params.ecn_decap.ecn_decap_map[ce][ce].valid       = true;
     sdk_decap_cos_data->cos_ecn_params.ecn_decap.ecn_decap_map[ce][ce].egress_ecn  = ce;
@@ -3881,6 +3951,15 @@ static sai_status_t mlnx_sdk_fill_ipinip_p2p_attrib(_In_ uint32_t               
         SX_LOG_ERR("underlay interface should be specified on creating ip in ip type tunnel\n");
         SX_LOG_EXIT();
         return SAI_STATUS_INVALID_ATTR_VALUE_0 + attr_idx;
+    }
+
+    if (SAI_STATUS_SUCCESS ==
+        (sai_status = find_attrib_in_list(attr_count, attr_list, SAI_TUNNEL_ATTR_PEER_MODE, &attr, &attr_idx))) {
+        if (SAI_TUNNEL_PEER_MODE_P2MP != attr->s32) {
+            SX_LOG_ERR("Only P2MP mode is supported for tunnel peer mode\n");
+            SX_LOG_EXIT();
+            return SAI_STATUS_INVALID_ATTR_VALUE_0 + attr_idx;
+        }
     }
 
     if (SAI_STATUS_SUCCESS ==
@@ -4602,12 +4681,14 @@ static sai_status_t mlnx_sai_tunnel_map_entry_find_pair(_In_ uint32_t   tunnel_m
     switch (curr_tunnel_map_entry.tunnel_map_type) {
     case SAI_TUNNEL_MAP_TYPE_VNI_TO_BRIDGE_IF:
     case SAI_TUNNEL_MAP_TYPE_VNI_TO_VIRTUAL_ROUTER_ID:
+    case SAI_TUNNEL_MAP_TYPE_VNI_TO_VLAN_ID:
         opposite_dir_tunnel_map_cnt   = g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_idx].sai_tunnel_map_encap_cnt;
         opposite_dir_tunnel_map_array = g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_idx].sai_tunnel_map_encap_id_array;
         break;
 
     case SAI_TUNNEL_MAP_TYPE_BRIDGE_IF_TO_VNI:
     case SAI_TUNNEL_MAP_TYPE_VIRTUAL_ROUTER_ID_TO_VNI:
+    case SAI_TUNNEL_MAP_TYPE_VLAN_ID_TO_VNI:
         opposite_dir_tunnel_map_cnt   = g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_idx].sai_tunnel_map_decap_cnt;
         opposite_dir_tunnel_map_array = g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_idx].sai_tunnel_map_decap_id_array;
         break;
@@ -4663,6 +4744,22 @@ static sai_status_t mlnx_sai_tunnel_map_entry_find_pair(_In_ uint32_t   tunnel_m
                 }
             } else if (SAI_TUNNEL_MAP_TYPE_VIRTUAL_ROUTER_ID_TO_VNI == curr_tunnel_map_entry.tunnel_map_type) {
                 if ((curr_tunnel_map_entry.vr_id_key == pair_tunnel_map_entry.vr_id_value) &&
+                    (curr_tunnel_map_entry.vni_id_value == pair_tunnel_map_entry.vni_id_key)) {
+                    *pair_map_idx = jj;
+                    *pair_exist   = true;
+                    SX_LOG_EXIT();
+                    return SAI_STATUS_SUCCESS;
+                }
+            } else if (SAI_TUNNEL_MAP_TYPE_VNI_TO_VLAN_ID == curr_tunnel_map_entry.tunnel_map_type) {
+                if ((curr_tunnel_map_entry.vlan_id_value == pair_tunnel_map_entry.vlan_id_key) &&
+                    (curr_tunnel_map_entry.vni_id_key == pair_tunnel_map_entry.vni_id_value)) {
+                    *pair_map_idx = jj;
+                    *pair_exist   = true;
+                    SX_LOG_EXIT();
+                    return SAI_STATUS_SUCCESS;
+                }
+            } else if (SAI_TUNNEL_MAP_TYPE_VLAN_ID_TO_VNI == curr_tunnel_map_entry.tunnel_map_type) {
+                if ((curr_tunnel_map_entry.vlan_id_key == pair_tunnel_map_entry.vlan_id_value) &&
                     (curr_tunnel_map_entry.vni_id_value == pair_tunnel_map_entry.vni_id_key)) {
                     *pair_map_idx = jj;
                     *pair_exist   = true;
@@ -4826,6 +4923,8 @@ static sai_status_t mlnx_sai_tunnel_map_entry_pair_delete(_In_ uint32_t tunnel_m
     case SAI_TUNNEL_MAP_TYPE_BRIDGE_IF_TO_VNI:
     case SAI_TUNNEL_MAP_TYPE_VNI_TO_VIRTUAL_ROUTER_ID:
     case SAI_TUNNEL_MAP_TYPE_VIRTUAL_ROUTER_ID_TO_VNI:
+    case SAI_TUNNEL_MAP_TYPE_VNI_TO_VLAN_ID:
+    case SAI_TUNNEL_MAP_TYPE_VLAN_ID_TO_VNI:
         break;
 
     default:
@@ -4876,6 +4975,7 @@ static sai_status_t mlnx_sai_tunnel_map_entry_clear_vxlan_bind_info(_In_ uint32_
         }
         switch (curr_tunnel_map.tunnel_map_type) {
         case SAI_TUNNEL_MAP_TYPE_BRIDGE_IF_TO_VNI:
+        case SAI_TUNNEL_MAP_TYPE_VLAN_ID_TO_VNI:
             is_vrf_vni_entry = false;
             break;
 
@@ -4919,6 +5019,7 @@ static sai_status_t mlnx_sai_tunnel_map_entry_clear_vxlan_bind_info(_In_ uint32_
         }
         switch (curr_tunnel_map.tunnel_map_type) {
         case SAI_TUNNEL_MAP_TYPE_VNI_TO_BRIDGE_IF:
+        case SAI_TUNNEL_MAP_TYPE_VNI_TO_VLAN_ID:
             is_vrf_vni_entry = false;
             break;
 
@@ -5547,6 +5648,15 @@ static sai_status_t mlnx_sai_fill_sx_vxlan_tunnel_data(_In_ sai_tunnel_type_t   
                                          &sx_tunnel_attribute->attributes.vxlan.underlay_domain_type);
 
         mlnx_tunnel_db_entry->sai_underlay_rif = attr->oid;
+    }
+
+    if (SAI_STATUS_SUCCESS ==
+        (sai_status = find_attrib_in_list(attr_count, attr_list, SAI_TUNNEL_ATTR_PEER_MODE, &attr, &attr_idx))) {
+        if (SAI_TUNNEL_PEER_MODE_P2MP != attr->s32) {
+            SX_LOG_ERR("Only P2MP mode is supported for tunnel peer mode\n");
+            SX_LOG_EXIT();
+            return SAI_STATUS_INVALID_ATTR_VALUE_0 + attr_idx;
+        }
     }
 
     if (SAI_STATUS_SUCCESS ==
@@ -7310,13 +7420,6 @@ static sai_status_t mlnx_init_tunnel_map_entry_param(_In_ uint32_t              
                                      &tunnel_map_type,
                                      &attr_idx);
     assert(SAI_STATUS_SUCCESS == sai_status);
-
-    /* 802.1Q vxlan encap is not supported, which means vlan to vni map is not supported */
-    if (SAI_TUNNEL_MAP_TYPE_VLAN_ID_TO_VNI == tunnel_map_type->s32) {
-        SX_LOG_ERR("vlan id to vni is not supported\n");
-        SX_LOG_EXIT();
-        return SAI_STATUS_INVALID_ATTR_VALUE_0 + attr_idx;
-    }
 
     mlnx_tunnel_map_entry->tunnel_map_type = tunnel_map_type->s32;
 

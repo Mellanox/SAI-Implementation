@@ -3246,6 +3246,12 @@ static mlnx_shm_rm_array_init_info_t mlnx_shm_array_info[MLNX_SHM_RM_ARRAY_TYPE_
     [MLNX_SHM_RM_ARRAY_TYPE_NEXTHOP] = {sizeof(mlnx_encap_nexthop_db_entry_t),
                                         NULL,
                                         MAX_ENCAP_NEXTHOPS_NUMBER},
+    [MLNX_SHM_RM_ARRAY_TYPE_COUNTER] = {sizeof(mlnx_counter_t),
+                                        NULL,
+                                        MLNX_COUNTERS_DB_SIZE},
+    [MLNX_SHM_RM_ARRAY_TYPE_GROUP_COUNTER] = {sizeof(mlnx_group_counter_t),
+                                              NULL,
+                                              MLNX_GROUP_COUNTERS_DB_SIZE},
 };
 static size_t mlnx_sai_rm_db_size_get(void)
 {
@@ -3573,7 +3579,6 @@ sai_status_t mlnx_shm_rm_array_find(_In_ mlnx_shm_rm_array_type_t  type,
 
     return SAI_STATUS_FAILURE;
 }
-
 
 sai_status_t mlnx_shm_rm_array_idx_to_ptr(_In_ mlnx_shm_rm_array_idx_t idx, _Out_ void                   **elem)
 {
@@ -4070,6 +4075,7 @@ static sai_status_t mlnx_switch_parse_fdb_event(uint8_t                         
     sai_object_id_t             switch_id;
     mlnx_object_id_t            mlnx_switch_id = { 0 };
     bool                        has_port;
+    mlnx_bridge_port_t         *bridge_port;
 
     /* hard coded single switch instance */
     mlnx_switch_id.id.is_created = true;
@@ -4164,6 +4170,7 @@ static sai_status_t mlnx_switch_parse_fdb_event(uint8_t                         
             }
         }
 
+        fdb_events[to_index].fdb_entry.bv_id = SAI_NULL_OBJECT_ID;
         if (sx_fid > 0) {
             if (packet->records_arr[from_index].fid < MIN_SX_BRIDGE_ID) {
                 status = mlnx_vlan_oid_create(sx_fid, &fdb_events[to_index].fdb_entry.bv_id);
@@ -4181,7 +4188,24 @@ static sai_status_t mlnx_switch_parse_fdb_event(uint8_t                         
                 }
             }
         } else {
-            fdb_events[to_index].fdb_entry.bv_id = SAI_NULL_OBJECT_ID;
+            if (SAI_NULL_OBJECT_ID != port_id) {
+                /*
+                 * If entry has bridge port, extract the bridge out of the bridge port.
+                 */
+                if (SAI_STATUS_SUCCESS == mlnx_bridge_port_by_oid(port_id, &bridge_port)) {
+                    if (bridge_port->bridge_id == mlnx_bridge_default_1q()) {
+                        fdb_events[to_index].fdb_entry.bv_id = mlnx_bridge_default_1q_oid();
+                    } else {
+                        status = mlnx_create_bridge_1d_object(bridge_port->bridge_id,
+                                                              &fdb_events[to_index].fdb_entry.bv_id);
+                        if (SAI_ERR(status)) {
+                            SX_LOG_ERR("Failed to convert port bridge id to bv_id [%u/%u, %u]\n",
+                                       from_index + 1, packet->records_num, to_index + 1);
+                            continue;
+                        }
+                    }
+                }
+            }
         }
 
         fdb_events[to_index].fdb_entry.switch_id = switch_id;
@@ -5205,16 +5229,16 @@ static sai_status_t mlnx_kvd_table_size_update(sx_api_profile_t *ku_profile)
     fdb_table_size                         = g_mlnx_services.profile_get_value(g_profile_id, SAI_KEY_FDB_TABLE_SIZE);
     route_table_size                       = g_mlnx_services.profile_get_value(g_profile_id,
                                                                                SAI_KEY_L3_ROUTE_TABLE_SIZE);
-    neighbor_table_size                    = g_mlnx_services.profile_get_value(g_profile_id,
-                                                                               SAI_KEY_L3_NEIGHBOR_TABLE_SIZE);
-    ipv4_route_table_size                  = g_mlnx_services.profile_get_value(g_profile_id,
-                                                                               SAI_KEY_IPV4_ROUTE_TABLE_SIZE);
-    ipv6_route_table_size                  = g_mlnx_services.profile_get_value(g_profile_id,
-                                                                               SAI_KEY_IPV6_ROUTE_TABLE_SIZE);
-    ipv4_neigh_table_size                  = g_mlnx_services.profile_get_value(g_profile_id,
-                                                                               SAI_KEY_IPV4_NEIGHBOR_TABLE_SIZE);
-    ipv6_neigh_table_size                  = g_mlnx_services.profile_get_value(g_profile_id,
-                                                                               SAI_KEY_IPV6_NEIGHBOR_TABLE_SIZE);
+    neighbor_table_size = g_mlnx_services.profile_get_value(g_profile_id,
+                                                            SAI_KEY_L3_NEIGHBOR_TABLE_SIZE);
+    ipv4_route_table_size = g_mlnx_services.profile_get_value(g_profile_id,
+                                                              SAI_KEY_IPV4_ROUTE_TABLE_SIZE);
+    ipv6_route_table_size = g_mlnx_services.profile_get_value(g_profile_id,
+                                                              SAI_KEY_IPV6_ROUTE_TABLE_SIZE);
+    ipv4_neigh_table_size = g_mlnx_services.profile_get_value(g_profile_id,
+                                                              SAI_KEY_IPV4_NEIGHBOR_TABLE_SIZE);
+    ipv6_neigh_table_size = g_mlnx_services.profile_get_value(g_profile_id,
+                                                              SAI_KEY_IPV6_NEIGHBOR_TABLE_SIZE);
 
     if (NULL != fdb_table_size) {
         fdb_num = (uint32_t)atoi(fdb_table_size);
@@ -8485,6 +8509,52 @@ sai_status_t mlnx_switch_bfd_session_availability_get(_In_ sai_object_id_t      
 
     return SAI_STATUS_SUCCESS;
 }
+
+sai_status_t mlnx_switch_neighbor_entry_availability_get(_In_ sai_object_id_t        switch_id,
+                                                         _In_ uint32_t               attr_count,
+                                                         _In_ const sai_attribute_t *attr_list,
+                                                         _Out_ uint64_t             *count)
+{
+    sai_status_t         status;
+    sai_ip_addr_family_t family;
+
+    assert(attr_list);
+    assert(count);
+
+    if (attr_count != 1) {
+        SX_LOG_ERR("Unexpected attribute list (size != 1)\n");
+        return SAI_STATUS_INVALID_PARAMETER;
+    }
+
+    if (attr_list[0].id != SAI_NEIGHBOR_ENTRY_ATTR_IP_ADDR_FAMILY) {
+        SX_LOG_ERR("Unexpected attribute %d, expected SAI_NEIGHBOR_ENTRY_ATTR_IP_ADDR_FAMILY\n", attr_list[0].id);
+        return SAI_STATUS_INVALID_ATTRIBUTE_0;
+    }
+
+    family = attr_list[0].value.s32;
+    switch (family) {
+    case SAI_IP_ADDR_FAMILY_IPV4:
+        status = mlnx_switch_availability_get_common(switch_id,
+                                                     SAI_SWITCH_ATTR_AVAILABLE_IPV4_NEIGHBOR_ENTRY,
+                                                     "IPv4 neighbor entries",
+                                                     count);
+        break;
+
+    case SAI_IP_ADDR_FAMILY_IPV6:
+        status = mlnx_switch_availability_get_common(switch_id,
+                                                     SAI_SWITCH_ATTR_AVAILABLE_IPV6_NEIGHBOR_ENTRY,
+                                                     "IPv6 neighbor entries",
+                                                     count);
+        break;
+
+    default:
+        SX_LOG_ERR("Unsupported IP address family - %d\n", family);
+        return SAI_STATUS_ATTR_NOT_SUPPORTED_0;
+    }
+
+    return status;
+}
+
 
 sai_status_t mlnx_switch_route_entry_availability_get(_In_ sai_object_id_t        switch_id,
                                                       _In_ uint32_t               attr_count,

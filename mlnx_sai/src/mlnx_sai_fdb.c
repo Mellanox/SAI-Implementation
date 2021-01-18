@@ -1065,8 +1065,19 @@ static sai_status_t mlnx_flush_fdb_entries(_In_ sai_object_id_t        switch_id
     bool                         port_found = false, bv_id_found = false;
     sx_port_log_id_t             port_id;
     sx_fid_t                     sx_fid;
+    char                         list_str[MAX_LIST_VALUE_STR_LEN];
 
     SX_LOG_ENTER();
+
+    status = check_attribs_metadata(attr_count, attr_list, SAI_OBJECT_TYPE_FDB_FLUSH, fdb_flush_vendor_attribs,
+        SAI_COMMON_API_CREATE);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed attribs check\n");
+        return status;
+    }
+
+    sai_attr_list_to_str(attr_count, attr_list, SAI_OBJECT_TYPE_FDB_FLUSH, MAX_LIST_VALUE_STR_LEN, list_str);
+    SX_LOG_NTC("Flush fdb, %s\n", list_str);
 
     if (SAI_STATUS_SUCCESS ==
         (status =
@@ -1084,6 +1095,10 @@ static sai_status_t mlnx_flush_fdb_entries(_In_ sai_object_id_t        switch_id
         (status =
              find_attrib_in_list(attr_count, attr_list, SAI_FDB_FLUSH_ATTR_BV_ID,
                                  &bv_id, &bv_id_index))) {
+        if (mlnx_bridge_default_1q_oid() == bv_id->oid) {
+            SX_LOG_ERR("Flush by .1Q bridge is not implemented.\n");
+            return SAI_STATUS_ATTR_NOT_IMPLEMENTED_0 + bv_id_index;
+        }
         bv_id_found = true;
         status      = mlnx_fdb_bv_id_to_sx_fid(bv_id->oid, &sx_fid);
         if (SAI_ERR(status)) {
@@ -1123,8 +1138,6 @@ static sai_status_t mlnx_flush_fdb_entries(_In_ sai_object_id_t        switch_id
             return sdk_to_sai(status);
         }
     }
-
-    SX_LOG_NTC("Flushed fdb entries by port %d by bridge %d\n", port_found, bv_id_found);
 
     SX_LOG_EXIT();
     return SAI_STATUS_SUCCESS;

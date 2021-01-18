@@ -57,6 +57,14 @@ static sai_status_t mlnx_next_hop_group_real_size_get(_In_ const sai_object_key_
                                                       _In_ uint32_t                  attr_index,
                                                       _Inout_ vendor_cache_t        *cache,
                                                       void                          *arg);
+static sai_status_t mlnx_next_hop_group_counter_get(_In_ const sai_object_key_t   *key,
+                                                    _Inout_ sai_attribute_value_t *value,
+                                                    _In_ uint32_t                  attr_index,
+                                                    _Inout_ vendor_cache_t        *cache,
+                                                    void                          *arg);
+static sai_status_t mlnx_next_hop_group_counter_set(_In_ const sai_object_key_t      *key,
+                                                    _In_ const sai_attribute_value_t *value,
+                                                    void                             *arg);
 static const sai_vendor_attribute_entry_t next_hop_group_vendor_attribs[] = {
     { SAI_NEXT_HOP_GROUP_ATTR_NEXT_HOP_COUNT,
       { false, false, false, true },
@@ -83,6 +91,11 @@ static const sai_vendor_attribute_entry_t next_hop_group_vendor_attribs[] = {
       { false, false, false, true },
       mlnx_next_hop_group_real_size_get, NULL,
       NULL, NULL },
+    { SAI_NEXT_HOP_GROUP_ATTR_COUNTER_ID,
+      { true, false, true, true },
+      { true, false, true, true },
+      mlnx_next_hop_group_counter_get, NULL,
+      mlnx_next_hop_group_counter_set, NULL },
     { END_FUNCTIONALITY_ATTRIBS_ID,
       { false, false, false, false },
       { false, false, false, false },
@@ -123,6 +136,14 @@ static sai_status_t mlnx_next_hop_group_member_hop_weight_set(_In_ const sai_obj
 static sai_status_t mlnx_next_hop_group_member_hop_id_set(_In_ const sai_object_key_t      *key,
                                                           _In_ const sai_attribute_value_t *value,
                                                           void                             *arg);
+static sai_status_t mlnx_next_hop_group_member_counter_set(_In_ const sai_object_key_t      *key,
+                                                           _In_ const sai_attribute_value_t *value,
+                                                           void                             *arg);
+static sai_status_t mlnx_next_hop_group_member_counter_get(_In_ const sai_object_key_t   *key,
+                                                           _Inout_ sai_attribute_value_t *value,
+                                                           _In_ uint32_t                  attr_index,
+                                                           _Inout_ vendor_cache_t        *cache,
+                                                           void                          *arg);
 static const sai_vendor_attribute_entry_t next_hop_group_member_vendor_attribs[] = {
     { SAI_NEXT_HOP_GROUP_MEMBER_ATTR_NEXT_HOP_GROUP_ID,
       { true, false, false, true },
@@ -144,6 +165,11 @@ static const sai_vendor_attribute_entry_t next_hop_group_member_vendor_attribs[]
       { true, false, false, true },
       mlnx_next_hop_group_member_index_get, NULL,
       NULL, NULL },
+    { SAI_NEXT_HOP_GROUP_MEMBER_ATTR_COUNTER_ID,
+      { true, false, true, true },
+      { true, false, true, true },
+      mlnx_next_hop_group_member_counter_get, NULL,
+      mlnx_next_hop_group_member_counter_set, NULL },
     { END_FUNCTIONALITY_ATTRIBS_ID,
       { false, false, false, false },
       { false, false, false, false },
@@ -364,8 +390,8 @@ static sai_status_t mlnx_create_next_hop_group(_Out_ sai_object_id_t     * next_
     char                         list_str[MAX_LIST_VALUE_STR_LEN];
     char                         key_str[MAX_KEY_STR_LEN];
     sx_next_hop_t                next_hops[1];
-    uint32_t                     configured_size_index;
-    const sai_attribute_value_t *configured_size;
+    uint32_t                     configured_size_index, counter_index;
+    const sai_attribute_value_t *configured_size, *counter;
     uint32_t                     next_hop_cnt = 0;
     uint32_t                     real_size    = 0;
     sx_ecmp_id_t                 sdk_ecmp_id;
@@ -373,6 +399,7 @@ static sai_status_t mlnx_create_next_hop_group(_Out_ sai_object_id_t     * next_
     sai_status_t                 status;
     const sai_attribute_value_t *type;
     mlnx_object_id_t             mlnx_group_id = {0};
+    sx_flow_counter_id_t         counter_id;
 
     SX_LOG_ENTER();
 
@@ -443,6 +470,21 @@ static sai_status_t mlnx_create_next_hop_group(_Out_ sai_object_id_t     * next_
         }
     }
 
+    status = find_attrib_in_list(attr_count, attr_list, SAI_NEXT_HOP_GROUP_ATTR_COUNTER_ID, &counter, &counter_index);
+    if (!SAI_ERR(status)) {
+        status = mlnx_get_flow_counter_id(counter->oid, &counter_id);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to get flow counter id\n");
+            return status;
+        }
+
+        status = mlnx_set_group_flow_counter_id(sdk_ecmp_id, counter_id);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to set group counter id\n");
+            return status;
+        }
+    }
+
     next_hop_group_key_to_str(*next_hop_group_id, key_str);
     SX_LOG_NTC("Created next hop group %s\n", key_str);
 
@@ -492,6 +534,12 @@ static sai_status_t mlnx_remove_next_hop_group(_In_ sai_object_id_t next_hop_gro
             SX_LOG_ERR("Failed find ecmp group ID %u in SAI DB.\n", sdk_ecmp_id);
             return status;
         }
+    }
+
+    status = mlnx_set_group_flow_counter_id(sdk_ecmp_id, SX_FLOW_COUNTER_ID_INVALID);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to unset group flow counter from SAI DB\n");
+        return status;
     }
 
     SX_LOG_EXIT();
@@ -670,6 +718,83 @@ static sai_status_t mlnx_next_hop_group_configured_size_get(_In_ const sai_objec
     SX_LOG_EXIT();
     return SAI_STATUS_FAILURE;
 }
+static sai_status_t mlnx_next_hop_group_counter_get(_In_ const sai_object_key_t   *key,
+                                                    _Inout_ sai_attribute_value_t *value,
+                                                    _In_ uint32_t                  attr_index,
+                                                    _Inout_ vendor_cache_t        *cache,
+                                                    void                          *arg)
+{
+    sai_status_t         status = SAI_STATUS_SUCCESS;
+    sx_flow_counter_id_t flow_counter;
+    sx_ecmp_id_t         ecmp_id;
+
+    status = mlnx_object_to_type(key->key.object_id, SAI_OBJECT_TYPE_NEXT_HOP_GROUP, &ecmp_id, NULL);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to get group ecmp id\n");
+        return status;
+    }
+
+    status = mlnx_get_group_flow_counter_id(ecmp_id, &flow_counter);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to get flow counter id in group counter db\n");
+        return status;
+    }
+
+    status = mlnx_translate_flow_counter_to_sai_counter(flow_counter, &value->oid);
+    if (SAI_ERR(status)) {
+        SX_LOG_NTC("Failed to translate flow counter to sai counter \n");
+        return status;
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_next_hop_group_counter_set(_In_ const sai_object_key_t      *key,
+                                                    _In_ const sai_attribute_value_t *value,
+                                                    void                             *arg)
+{
+    sai_status_t         status = SAI_STATUS_SUCCESS;
+    sx_flow_counter_id_t flow_counter;
+    sx_access_cmd_t      cmd;
+    sx_ecmp_id_t         group_ecmp_id;
+    sx_next_hop_t        next_hops[FG_ECMP_MAX_PATHS];
+    uint32_t             next_hop_count = FG_ECMP_MAX_PATHS;
+    uint32_t             offset         = INVALID_NEXT_HOP_OFFSET;
+
+    status = mlnx_object_to_type(key->key.object_id, SAI_OBJECT_TYPE_NEXT_HOP_GROUP, &group_ecmp_id, NULL);
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+    status = sx_api_router_ecmp_get(gh_sdk, group_ecmp_id, next_hops, &next_hop_count);
+    if (SX_ERR(status)) {
+        SX_LOG_ERR("Failed to get ecmp - %s.\n", SX_STATUS_MSG(status));
+        return sdk_to_sai(status);
+    }
+
+    status = mlnx_get_flow_counter_id(value->oid, &flow_counter);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to get flow counter id from counters db\n");
+        return status;
+    }
+
+    status = mlnx_set_group_flow_counter_id(group_ecmp_id, flow_counter);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to set group flow counter id into group counters db\n");
+        return status;
+    }
+
+    if (next_hop_count > 0) {
+        cmd    = flow_counter == SX_FLOW_COUNTER_ID_INVALID ? SX_ACCESS_CMD_UNBIND : SX_ACCESS_CMD_BIND;
+        status = sx_api_router_ecmp_counter_bind_set(gh_sdk, cmd, group_ecmp_id, &flow_counter, &offset, 1);
+        if (SX_ERR(status)) {
+            SX_LOG_ERR("Failed to bind counter- %s.\n", SX_STATUS_MSG(status));
+            return sdk_to_sai(status);
+        }
+    }
+
+    return status;
+}
 
 sai_status_t mlnx_nexthop_group_log_set(sx_verbosity_level_t level)
 {
@@ -798,11 +923,12 @@ static sai_status_t mlnx_next_hop_group_member_hop_id_set(_In_ const sai_object_
                                                           _In_ const sai_attribute_value_t *value,
                                                           void                             *arg)
 {
-    sx_ecmp_id_t  sx_group_id;
-    sx_next_hop_t next_hops[FG_ECMP_MAX_PATHS];
-    sai_status_t  status;
-    uint8_t       group_type;
-    uint32_t      ii, next_hop_count = FG_ECMP_MAX_PATHS;
+    sx_ecmp_id_t         sx_group_id;
+    sx_next_hop_t        next_hops[FG_ECMP_MAX_PATHS];
+    sai_status_t         status;
+    uint8_t              group_type;
+    uint32_t             ii, next_hop_count = FG_ECMP_MAX_PATHS;
+    sx_flow_counter_id_t flow_counter;
 
     SX_LOG_ENTER();
 
@@ -823,11 +949,23 @@ static sai_status_t mlnx_next_hop_group_member_hop_id_set(_In_ const sai_object_
         return sdk_to_sai(status);
     }
 
+    status = mlnx_get_group_flow_counter_id(sx_group_id, &flow_counter);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to get group flow counter id\n");
+        return SAI_STATUS_FAILURE;
+    }
+
+    if (flow_counter == SX_FLOW_COUNTER_ID_INVALID) {
+        flow_counter = next_hops[ii].next_hop_data.counter_id;
+    }
+
     status = mlnx_translate_sai_next_hop_objects(1, &value->oid, &next_hops[ii]);
     if (SAI_ERR(status)) {
         SX_LOG_ERR("Failed to translate_sai_next_hop_objects %lu.\n", value->oid);
         return status;
     }
+
+    next_hops[ii].next_hop_data.counter_id = flow_counter;
 
     status = sx_api_router_ecmp_set(gh_sdk, SX_ACCESS_CMD_SET, &sx_group_id, next_hops, &next_hop_count);
     if (SAI_ERR(status)) {
@@ -975,6 +1113,121 @@ out:
     return status;
 }
 
+static sai_status_t mlnx_next_hop_group_member_counter_get(_In_ const sai_object_key_t   *key,
+                                                           _Inout_ sai_attribute_value_t *value,
+                                                           _In_ uint32_t                  attr_index,
+                                                           _Inout_ vendor_cache_t        *cache,
+                                                           void                          *arg)
+{
+    uint32_t      next_hop_count = ECMP_MAX_PATHS;
+    sx_next_hop_t ecmp_next_hops[ECMP_MAX_PATHS];
+    sx_ecmp_id_t  sx_group_id;
+    sx_ecmp_id_t  nhop_oid_data;
+    sx_next_hop_t next_hop;
+    sai_status_t  status;
+    uint8_t       group_type;
+    uint32_t      ii;
+
+    SX_LOG_ENTER();
+
+    status = nhop_group_member_parse_oid(key->key.object_id, &sx_group_id, &nhop_oid_data, &group_type);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to parse nhop group member oid\n");
+        return status;
+    }
+
+    status = sx_api_router_ecmp_get(gh_sdk, sx_group_id, ecmp_next_hops, &next_hop_count);
+    if (SX_ERR(status)) {
+        SX_LOG_ERR("Failed to get ecmp - %s.\n", SX_STATUS_MSG(status));
+        return sdk_to_sai(status);
+    }
+
+    if (group_type == SAI_NEXT_HOP_GROUP_TYPE_FINE_GRAIN_ECMP) {
+        ii = nhop_oid_data;
+    } else {
+        status = mlnx_sdk_nhop_by_ecmp_id_get(nhop_oid_data, &next_hop);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to get nhop ecmp data\n");
+            return status;
+        }
+
+        status = mlnx_sdk_nhop_find_in_list(ecmp_next_hops, next_hop_count, &next_hop, &ii);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to find sdk nhop in group sdk data\n");
+            return status;
+        }
+    }
+
+    status = mlnx_translate_flow_counter_to_sai_counter(ecmp_next_hops[ii].next_hop_data.counter_id, &value->oid);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to translate flow counter to sai counter\n");
+        return status;
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_next_hop_group_member_counter_set(_In_ const sai_object_key_t      *key,
+                                                           _In_ const sai_attribute_value_t *value,
+                                                           void                             *arg)
+{
+    uint32_t             next_hop_count = ECMP_MAX_PATHS;
+    sx_next_hop_t        ecmp_next_hops[ECMP_MAX_PATHS];
+    sx_ecmp_id_t         sx_group_id;
+    sx_ecmp_id_t         nhop_oid_data;
+    sx_next_hop_t        next_hop;
+    sai_status_t         status;
+    uint8_t              group_type;
+    uint32_t             ii;
+    sx_flow_counter_id_t flow_counter;
+
+    SX_LOG_ENTER();
+
+    status = nhop_group_member_parse_oid(key->key.object_id, &sx_group_id, &nhop_oid_data, &group_type);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to parse nhop group member oid\n");
+        return status;
+    }
+
+    status = mlnx_get_flow_counter_id(value->oid, &flow_counter);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to translate sai counter id to flow counter id\n");
+        return status;
+    }
+
+    status = sx_api_router_ecmp_get(gh_sdk, sx_group_id, ecmp_next_hops, &next_hop_count);
+    if (SX_ERR(status)) {
+        SX_LOG_ERR("Failed to get ecmp - %s.\n", SX_STATUS_MSG(status));
+        return sdk_to_sai(status);
+    }
+
+    if (group_type == SAI_NEXT_HOP_GROUP_TYPE_FINE_GRAIN_ECMP) {
+        ii = nhop_oid_data;
+    } else {
+        status = mlnx_sdk_nhop_by_ecmp_id_get(nhop_oid_data, &next_hop);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to get nhop ecmp data\n");
+            return status;
+        }
+
+        status = mlnx_sdk_nhop_find_in_list(ecmp_next_hops, next_hop_count, &next_hop, &ii);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to find sdk nhop in group sdk data\n");
+            return status;
+        }
+    }
+
+    ecmp_next_hops[ii].next_hop_data.counter_id = flow_counter;
+
+    status = sx_api_router_ecmp_set(gh_sdk, SX_ACCESS_CMD_SET, &sx_group_id, ecmp_next_hops, &next_hop_count);
+    if (SX_ERR(status)) {
+        SX_LOG_ERR("Failed to set ecmp - %s.\n", SX_STATUS_MSG(status));
+        return sdk_to_sai(status);
+    }
+
+    return sdk_to_sai(status);
+}
+
 /**
  * @brief Create next hop group member
  *
@@ -990,16 +1243,18 @@ static sai_status_t mlnx_create_next_hop_group_member(_Out_ sai_object_id_t     
                                                       _In_ const sai_attribute_t *attr_list)
 {
     mlnx_object_id_t             mlnx_group_id = {0};
-    const sai_attribute_value_t *group         = NULL, *next_hop = NULL, *weight = NULL, *index = NULL;
-    uint32_t                     group_index, next_hop_index, weight_index, index_index;
-    uint32_t                     next_hop_count = FG_ECMP_MAX_PATHS;
-    sx_next_hop_t                ecmp_next_hops[FG_ECMP_MAX_PATHS];
-    char                         list_str[MAX_LIST_VALUE_STR_LEN];
-    char                         key_str[MAX_KEY_STR_LEN];
-    sx_ecmp_id_t                 group_ecmp_id;
-    sx_ecmp_id_t                 nhop_ecmp_id;
-    sai_status_t                 status;
-    uint32_t                     ii;
+    const sai_attribute_value_t *group         = NULL, *next_hop = NULL, *weight = NULL, *index = NULL, *counter =
+        NULL;
+    uint32_t             group_index, next_hop_index, weight_index, index_index, counter_index;
+    uint32_t             next_hop_count = FG_ECMP_MAX_PATHS;
+    sx_next_hop_t        ecmp_next_hops[FG_ECMP_MAX_PATHS];
+    char                 list_str[MAX_LIST_VALUE_STR_LEN];
+    char                 key_str[MAX_KEY_STR_LEN];
+    sx_ecmp_id_t         group_ecmp_id;
+    sx_ecmp_id_t         nhop_ecmp_id;
+    sai_status_t         status;
+    uint32_t             ii;
+    sx_flow_counter_id_t flow_counter;
 
     SX_LOG_ENTER();
 
@@ -1079,6 +1334,29 @@ static sai_status_t mlnx_create_next_hop_group_member(_Out_ sai_object_id_t     
         next_hop_count++;
     }
 
+    status = mlnx_get_group_flow_counter_id(group_ecmp_id, &flow_counter);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to get group flow counter id\n");
+        return status;
+    }
+
+    status = find_attrib_in_list(attr_count,
+                                 attr_list,
+                                 SAI_NEXT_HOP_GROUP_MEMBER_ATTR_COUNTER_ID,
+                                 &counter,
+                                 &counter_index);
+    if (!SAI_ERR(status)) {
+        if (flow_counter != SX_FLOW_COUNTER_ID_INVALID) {
+            SX_LOG_NTC("Overriding group counter with member counter\n");
+        }
+
+        status = mlnx_get_flow_counter_id(counter->oid, &flow_counter);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to translate sai counter id to flow counter id\n");
+            return status;
+        }
+    }
+
     if ((mlnx_group_id.field.sub_type == SAI_NEXT_HOP_GROUP_TYPE_FINE_GRAIN_ECMP) && (next_hop_count == 0)) {
         uint32_t group_size = 0;
         status = mlnx_fg_ecmp_group_size_get(mlnx_group_id.id.u32, &group_size);
@@ -1091,6 +1369,7 @@ static sai_status_t mlnx_create_next_hop_group_member(_Out_ sai_object_id_t     
             if (SAI_ERR(status)) {
                 return status;
             }
+            ecmp_next_hops[jj].next_hop_data.counter_id = flow_counter;
         }
         next_hop_count = group_size;
     } else {
@@ -1098,6 +1377,7 @@ static sai_status_t mlnx_create_next_hop_group_member(_Out_ sai_object_id_t     
         if (SAI_ERR(status)) {
             return status;
         }
+        ecmp_next_hops[ii].next_hop_data.counter_id = flow_counter;
     }
     if (weight) {
         ecmp_next_hops[ii].next_hop_data.weight = weight->u32;

@@ -220,7 +220,7 @@ static sai_status_t mlnx_bridge_port_ingr_filter_get(_In_ const sai_object_key_t
 static sai_status_t mlnx_bridge_port_ingr_filter_set(_In_ const sai_object_key_t      *key,
                                                      _In_ const sai_attribute_value_t *value,
                                                      void                             *arg);
-static sai_status_t mlnx_bridge_port_admin_state_set_internal(_In_ mlnx_bridge_port_t *bridge_port, _In_ bool value);
+static sai_status_t mlnx_bridge_port_admin_state_set_internal(_In_ mlnx_bridge_port_t *bridge_port, _In_ bool is_up);
 static sai_status_t mlnx_bridge_port_tagging_sai_to_sx(_In_ sai_bridge_port_tagging_mode_t sai_tagging_mode,
                                                        _Out_ sx_untagged_member_state_t   *sx_tagging_mode);
 static const sai_vendor_attribute_entry_t bridge_port_vendor_attribs[] = {
@@ -309,6 +309,11 @@ sx_bridge_id_t mlnx_bridge_default_1q(void)
 sai_object_id_t mlnx_bridge_default_1q_oid(void)
 {
     return g_sai_db_ptr->default_1q_bridge_oid;
+}
+
+static sai_object_id_t mlnx_bridge_dummy_1d_oid(void)
+{
+    return g_sai_db_ptr->dummy_1d_bridge_oid;
 }
 
 static sai_status_t mlnx_bridge_port_add(sx_bridge_id_t         bridge_id,
@@ -1674,6 +1679,12 @@ static sai_status_t mlnx_remove_bridge(_In_ sai_object_id_t bridge_id)
         goto out;
     }
 
+    if (bridge_id == mlnx_bridge_dummy_1d_oid()) {
+        SX_LOG_ERR("Could not remove dummy .1D bridge\n");
+        status = SAI_STATUS_INVALID_PARAMETER;
+        goto out;
+    }
+
     status = mlnx_bridge_1d_oid_to_data(bridge_id, &bridge, &idx);
     if (SAI_ERR(status)) {
         goto out;
@@ -2380,27 +2391,27 @@ static sai_status_t mlnx_bridge_port_admin_state_set(_In_ const sai_object_key_t
                                                      _In_ const sai_attribute_value_t *value,
                                                      void                             *arg)
 {
-    sai_status_t        status;
-    mlnx_bridge_port_t *bridge_port;
+    sai_status_t        sai_status = SX_STATUS_SUCCESS;
+    mlnx_bridge_port_t *bridge_port = NULL;
 
     SX_LOG_ENTER();
 
     sai_db_read_lock();
 
-    status = mlnx_bridge_port_by_oid(key->key.object_id, &bridge_port);
-    if (SAI_ERR(status)) {
+    sai_status = mlnx_bridge_port_by_oid(key->key.object_id, &bridge_port);
+    if (SAI_ERR(sai_status)) {
         goto out;
     }
 
-    status = mlnx_bridge_port_admin_state_set_internal(bridge_port, value->booldata);
-    if (SAI_ERR(status)) {
+    sai_status = mlnx_bridge_port_admin_state_set_internal(bridge_port, value->booldata);
+    if (SAI_ERR(sai_status)) {
         goto out;
     }
 
 out:
     sai_db_unlock();
     SX_LOG_EXIT();
-    return status;
+    return sai_status;
 }
 
 static sai_status_t mlnx_bridge_port_tagging_mode_get(_In_ const sai_object_key_t   *key,
@@ -2571,43 +2582,125 @@ out:
 }
 
 /*
- * SAI DB should be loocked
+ * SAI DB should be locked
  */
-static sai_status_t mlnx_bridge_port_admin_state_set_internal(_In_ mlnx_bridge_port_t *bridge_port, _In_ bool value)
+static sai_status_t mlnx_sai_bridge_modify_1q_port_1d_mode_internal(_In_ mlnx_bridge_port_t *port, _In_ bool is_remove)
 {
-    sai_status_t        status;
-    sx_status_t         sx_status;
-    sx_port_log_id_t    sx_port_id;
-    mlnx_port_config_t *port_config;
-    bool                sdk_state;
+    sai_status_t                sai_status = SAI_STATUS_SUCCESS;
+    sx_status_t                 sx_status = SX_STATUS_SUCCESS;
+    sx_bridge_id_t              sx_bridge_id = 0;
+    sx_port_log_id_t            sx_port_id = 0;
+    sx_port_log_id_t            sx_vport_id = 0;
+
+    SX_LOG_ENTER();
+
+    if (SAI_STATUS_SUCCESS !=
+        (sai_status = mlnx_bridge_oid_to_id(mlnx_bridge_dummy_1d_oid(), &sx_bridge_id))) {
+        goto out;
+    }
+
+    /* .1Q port logical field keeps port sx log id which is parent for vport */
+    sx_port_id = port->logical;
+    /* .1Q port parent field keeps vport sx log id */
+    sx_vport_id = port->parent;
+
+    if (is_remove) {
+        /* dummy vport for .1Q port does not exist */
+        if (sx_vport_id == (sx_port_log_id_t)-1) {
+            goto out;
+        }
+
+        if (SX_STATUS_SUCCESS !=
+            (sx_status = sx_api_bridge_vport_set(gh_sdk, SX_ACCESS_CMD_DELETE, sx_bridge_id, sx_vport_id))) {
+            SX_LOG_ERR("Failed to del vport %x from bridge %x - %s\n", sx_vport_id, sx_bridge_id, SX_STATUS_MSG(sx_status));
+            sai_status = sdk_to_sai(sx_status);
+            goto out;
+        }
+
+        if (SX_STATUS_SUCCESS !=
+            (sx_status = sx_api_port_vport_set(gh_sdk, SX_ACCESS_CMD_DELETE, sx_port_id, MLNX_SAI_DUMMY_1D_VLAN_ID, &sx_vport_id))) {
+            SX_LOG_ERR("Failed to delete vport {%x : %d} - %s\n", sx_port_id, MLNX_SAI_DUMMY_1D_VLAN_ID, SX_STATUS_MSG(sx_status));
+            sai_status = sdk_to_sai(sx_status);
+            goto out;
+        }
+
+        /* mark that vport is destroyed */
+        port->parent = -1;
+    } else {
+        /* dummy vport for .1Q port is already created */
+        if (sx_vport_id != (sx_port_log_id_t)-1) {
+            goto out;
+        }
+
+        if (SX_STATUS_SUCCESS !=
+            (sx_status = sx_api_port_vport_set(gh_sdk, SX_ACCESS_CMD_ADD, sx_port_id, MLNX_SAI_DUMMY_1D_VLAN_ID, &sx_vport_id))) {
+            SX_LOG_ERR("Failed to create vport {%x : %d} - %s\n", sx_port_id, MLNX_SAI_DUMMY_1D_VLAN_ID, SX_STATUS_MSG(sx_status));
+            sai_status = sdk_to_sai(sx_status);
+            goto out;
+        }
+
+        if (SX_STATUS_SUCCESS !=
+            (sx_status = sx_api_port_state_set(gh_sdk, sx_vport_id, SX_PORT_ADMIN_STATUS_DOWN))) {
+            SX_LOG_ERR("Failed to set vport %x admin state down - %s.\n", sx_vport_id, SX_STATUS_MSG(sx_status));
+            sai_status = sdk_to_sai(sx_status);
+            goto out;
+        }
+
+        if (SX_STATUS_SUCCESS !=
+            (sx_status = sx_api_bridge_vport_set(gh_sdk, SX_ACCESS_CMD_ADD, sx_bridge_id, sx_vport_id))) {
+            SX_LOG_ERR("Failed to add vport %x to bridge %x - %s\n", sx_vport_id, sx_bridge_id, SX_STATUS_MSG(sx_status));
+            sai_status = sdk_to_sai(sx_status);
+            goto out;
+        }
+
+        /* for .1Q port parent field is used to keep dummy vport id */
+        port->parent  = sx_vport_id;
+    }
+
+out:
+    SX_LOG_EXIT();
+    return sai_status;
+}
+
+/*
+ * SAI DB should be locked
+ */
+static sai_status_t mlnx_bridge_port_admin_state_set_internal(_In_ mlnx_bridge_port_t *bridge_port, _In_ bool is_up)
+{
+    sai_status_t        sai_status = SAI_STATUS_SUCCESS;
+    sx_status_t         sx_status = SX_STATUS_SUCCESS;
+    sx_port_log_id_t    sx_port_id = 0;
+
+    SX_LOG_ENTER();
 
     assert(bridge_port);
 
-    bridge_port->admin_state = value;
-
-    if ((bridge_port->port_type == SAI_BRIDGE_PORT_TYPE_PORT) ||
-        (bridge_port->port_type == SAI_BRIDGE_PORT_TYPE_SUB_PORT)) {
-        sx_port_id = bridge_port->logical;
-        sdk_state  = value;
-
-        /* Try to lookup phy port by same logical id as bridge port, which means that
-         * port is bridged with SAI_BRIDGE_PORT_TYPE_PORT via .1Q bridge, if it is bridged then
-         * we set a "real" admin state only in case the both ports are set in 'true'. */
-        status = mlnx_port_by_log_id_soft(sx_port_id, &port_config);
-        if (!SAI_ERR(status)) {
-            sdk_state = port_config->admin_state && bridge_port->admin_state;
+    /* Trick to decrease physical port down time in case of .1Q port removal =>
+     * on bridge port admin state down/up create/remove dummy vport and
+     * move this dummy vport to/from dummy .1D bridge */
+    if (SAI_BRIDGE_PORT_TYPE_PORT == bridge_port->port_type) {
+        if (SAI_STATUS_SUCCESS != (sai_status =
+            mlnx_sai_bridge_modify_1q_port_1d_mode_internal(bridge_port, is_up))) {
+            goto bail;
         }
+    } else if (SAI_BRIDGE_PORT_TYPE_SUB_PORT == bridge_port->port_type) {
+        sx_port_id = bridge_port->logical;
 
-        sx_status = sx_api_port_state_set(gh_sdk,
-                                          sx_port_id,
-                                          sdk_state ? SX_PORT_ADMIN_STATUS_UP : SX_PORT_ADMIN_STATUS_DOWN);
-        if (SX_ERR(sx_status)) {
+        if (SX_STATUS_SUCCESS !=
+            (sx_status = sx_api_port_state_set(gh_sdk,
+                                               sx_port_id,
+                                               is_up ? SX_PORT_ADMIN_STATUS_UP : SX_PORT_ADMIN_STATUS_DOWN))) {
             SX_LOG_ERR("Failed to set port admin state - %s.\n", SX_STATUS_MSG(sx_status));
-            return sdk_to_sai(sx_status);
+            sai_status =  sdk_to_sai(sx_status);
+            goto bail;
         }
     }
 
-    return SAI_STATUS_SUCCESS;
+    bridge_port->admin_state = is_up;
+
+bail:
+    SX_LOG_EXIT();
+    return sai_status;
 }
 
 static sai_status_t mlnx_bridge_port_tagging_sai_to_sx(_In_ sai_bridge_port_tagging_mode_t sai_tagging_mode,
@@ -2832,6 +2925,9 @@ static sai_status_t mlnx_create_bridge_port(_Out_ sai_object_id_t     * bridge_p
         }
 
         bridge_port->logical = log_port;
+        /* for .1Q bridge port used internally */
+        bridge_port->parent  = -1;
+        bridge_port->vlan_id = 0;
         break;
 
     case SAI_BRIDGE_PORT_TYPE_SUB_PORT:
@@ -3090,7 +3186,6 @@ static sai_status_t mlnx_remove_bridge_port(_In_ sai_object_id_t bridge_port_id)
     mlnx_shm_rm_array_idx_t bridge_rm_idx;
     mlnx_bridge_rif_t      *bridge_rif;
     mlnx_bridge_port_t     *port;
-    mlnx_port_config_t     *port_config;
 
     SX_LOG_ENTER();
 
@@ -3113,23 +3208,11 @@ static sai_status_t mlnx_remove_bridge_port(_In_ sai_object_id_t bridge_port_id)
 
     switch (port->port_type) {
     case SAI_BRIDGE_PORT_TYPE_PORT:
-        if (!port->admin_state) {
-            /* Try to lookup phy port by same logical id as bridge port, which means that
-             * port is bridged with SAI_BRIDGE_PORT_TYPE_PORT via .1Q bridge, if it is bridged then
-             * we set admin state according to the phy port only. If bridge port state was up nothing to do,
-             * as the admin already equals the port setting (AND). Only in bridge port state was down and
-             * port state up case, we need to apply up to the port */
-            status = mlnx_port_by_log_id_soft(port->logical, &port_config);
-            if (!SAI_ERR(status)) {
-                if (port_config->admin_state) {
-                    sx_status = sx_api_port_state_set(gh_sdk, port->logical, SX_PORT_ADMIN_STATUS_UP);
-                    if (SX_ERR(sx_status)) {
-                        SX_LOG_ERR("Failed to set port admin state - %s.\n", SX_STATUS_MSG(sx_status));
-                        status = sdk_to_sai(sx_status);
-                        goto out;
-                    }
-                }
-            }
+        /* move dummy vport mapped to .1Q port out of .1D bridge and destroy this vport */
+        if (SAI_STATUS_SUCCESS !=
+            (status =
+            mlnx_sai_bridge_modify_1q_port_1d_mode_internal(port, true))) {
+            goto out;
         }
         break;
 
@@ -3321,6 +3404,10 @@ sai_status_t mlnx_bridge_init(void)
         bridge_port->logical     = port->logical;
         bridge_port->admin_state = true;
 
+        /* for .1Q bridge port used internally */
+        bridge_port->parent  = -1;
+        bridge_port->vlan_id = 0;
+
         if (!is_warmboot_init_stage ||
             (!(port->before_issu_lag_id) && port->sdk_port_added)) {
             status = mlnx_vlan_port_add(DEFAULT_VLAN, SAI_VLAN_TAGGING_MODE_UNTAGGED, bridge_port);
@@ -3347,6 +3434,18 @@ sai_status_t mlnx_bridge_init(void)
         goto out;
     }
 
+    if (SAI_STATUS_SUCCESS !=
+        (status = mlnx_sdk_bridge_create(&bridge_id))) {
+        SX_LOG_ERR("Failed to create dummy .1D bridge\n");
+        goto out;
+    }
+
+    if (SAI_STATUS_SUCCESS !=
+        (status = mlnx_create_bridge_object(SAI_BRIDGE_TYPE_1D, MLNX_SHM_RM_ARRAY_IDX_UNINITIALIZED,
+                                       bridge_id, &g_sai_db_ptr->dummy_1d_bridge_oid))) {
+        SX_LOG_ERR("Failed to create dummy .1D bridge oid\n");
+        goto out;
+    }
 out:
     sai_db_unlock();
     return status;

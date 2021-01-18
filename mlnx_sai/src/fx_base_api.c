@@ -3030,6 +3030,7 @@ sx_status_t fx_default_handle_free() {
     }
     fx_extern_deinit(fx_default_handle);
     fx_deinit(fx_default_handle);
+    fx_default_handle = NULL;
 
 out:
     return sx_status;

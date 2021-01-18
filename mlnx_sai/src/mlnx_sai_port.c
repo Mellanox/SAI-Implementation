@@ -25,6 +25,7 @@
 
 static sx_verbosity_level_t LOG_VAR_NAME(__MODULE__) = SX_VERBOSITY_LEVEL_WARNING;
 sai_status_t mlnx_sai_port_hw_lanes_get(_In_ sx_port_log_id_t *port_id, _Inout_ sai_attribute_value_t *value);
+extern uint32_t mlnx_cells_to_bytes(uint32_t cells);
 static sai_status_t mlnx_port_tc_get(_In_ const sai_object_id_t port, _Out_ uint8_t *tc);
 static sai_status_t mlnx_port_state_set(_In_ const sai_object_key_t      *key,
                                         _In_ const sai_attribute_value_t *value,
@@ -233,6 +234,11 @@ static sai_status_t mlnx_port_pool_list_get(_In_ const sai_object_key_t   *key,
                                             _In_ uint32_t                  attr_index,
                                             _Inout_ vendor_cache_t        *cache,
                                             void                          *arg);
+static sai_status_t mlnx_port_max_headroom_size_get(_In_ const sai_object_key_t   *key,
+                                                    _Inout_ sai_attribute_value_t *value,
+                                                    _In_ uint32_t                  attr_index,
+                                                    _Inout_ vendor_cache_t        *cache,
+                                                    void                          *arg);
 static sai_status_t mlnx_port_sched_groups_num_get(_In_ const sai_object_key_t   *key,
                                                    _Inout_ sai_attribute_value_t *value,
                                                    _In_ uint32_t                  attr_index,
@@ -689,6 +695,11 @@ static const sai_vendor_attribute_entry_t port_vendor_attribs[] = {
       { false, false, false, true },
       mlnx_port_pool_list_get, NULL,
       NULL, NULL },
+    { SAI_PORT_ATTR_QOS_MAXIMUM_HEADROOM_SIZE,
+      { false, false, false, true },
+      { false, false, false, true },
+      mlnx_port_max_headroom_size_get, NULL,
+      NULL, NULL },
     { END_FUNCTIONALITY_ATTRIBS_ID,
       { false, false, false, false },
       { false, false, false, false },
@@ -768,7 +779,6 @@ static sai_status_t mlnx_port_state_set(_In_ const sai_object_key_t      *key,
 {
     sx_port_log_id_t    port_id;
     sai_status_t        status;
-    mlnx_bridge_port_t *bridge_port;
     mlnx_port_config_t *port;
     bool                sdk_state = value->booldata;
 
@@ -788,14 +798,6 @@ static sai_status_t mlnx_port_state_set(_In_ const sai_object_key_t      *key,
     }
 
     port->admin_state = sdk_state;
-
-    /* Try to lookup bridge port by same logical id as phy port, which means that
-     * port is bridged with SAI_BRIDGE_PORT_TYPE_PORT via .1Q bridge, if it is bridged then
-     * we set a "real" admin state only in case the both ports are set in 'true'. */
-    status = mlnx_bridge_1q_port_by_log(port_id, &bridge_port);
-    if (!SAI_ERR(status)) {
-        sdk_state = port->admin_state && bridge_port->admin_state;
-    }
 
     status = sx_api_port_state_set(gh_sdk, port_id, sdk_state ? SX_PORT_ADMIN_STATUS_UP : SX_PORT_ADMIN_STATUS_DOWN);
     if (SX_ERR(status)) {
@@ -4235,14 +4237,55 @@ static sai_status_t mlnx_port_pool_list_get(_In_ const sai_object_key_t   *key,
 
     if (SAI_STATUS_SUCCESS !=
         (status = mlnx_object_to_type(key->key.object_id, SAI_OBJECT_TYPE_PORT, &port_id, NULL))) {
-        return status;
+        goto bail;
     }
 
     /* port pool is not implemented so return empty list */
     value->objlist.count = 0;
 
+bail:
     SX_LOG_EXIT();
     return status;
+}
+
+/* Get port pg buffer capability */
+static sai_status_t mlnx_port_max_headroom_size_get(_In_ const sai_object_key_t   *key,
+                                                    _Inout_ sai_attribute_value_t *value,
+                                                    _In_ uint32_t                  attr_index,
+                                                    _Inout_ vendor_cache_t        *cache,
+                                                    void                          *arg)
+{
+    sai_status_t                sai_status = SAI_STATUS_SUCCESS;
+    sx_status_t                 sx_status = SX_STATUS_SUCCESS;
+    sx_cos_port_buffer_attr_t   sx_port_reserved_buff_attr = {0};
+    sx_port_log_id_t            port_id = -1;
+    uint32_t                    count = 1;
+
+    SX_LOG_ENTER();
+
+    if (SAI_STATUS_SUCCESS !=
+        (sai_status = mlnx_object_to_type(key->key.object_id, SAI_OBJECT_TYPE_PORT, &port_id, NULL))) {
+        goto bail;
+    }
+
+    sx_port_reserved_buff_attr.type = SX_COS_PORT_BUFF_CAPABILITIES_E;
+    sx_port_reserved_buff_attr.attr.port_buff_cap.ingress_port_pg_buff_cap.max_headroom_size = 0;
+
+    if (SX_STATUS_SUCCESS !=
+        (sx_status = sx_api_cos_port_buff_type_get(gh_sdk, port_id,
+                                                   &sx_port_reserved_buff_attr,
+                                                   &count))) {
+        SX_LOG_ERR("Failed to get port pg buffer capabilities by log id: %x - %s \n",
+                   port_id, SX_STATUS_MSG(sx_status));
+        sai_status = sdk_to_sai(sx_status);
+        goto bail;
+    }
+
+    value->u32 = mlnx_cells_to_bytes(sx_port_reserved_buff_attr.attr.port_buff_cap.ingress_port_pg_buff_cap.max_headroom_size);
+
+bail:
+    SX_LOG_EXIT();
+    return sai_status;
 }
 
 static uint32_t sched_groups_count(mlnx_port_config_t *port)

@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -221,6 +221,7 @@
     <ClCompile Include="src\mlnx_sai_bfd.c" />
     <ClCompile Include="src\mlnx_sai_bridge.c" />
     <ClCompile Include="src\mlnx_sai_buffer.c" />
+    <ClCompile Include="src\mlnx_sai_counter.c" />
     <ClCompile Include="src\mlnx_sai_debug_counter.c" />
     <ClCompile Include="src\mlnx_sai_fdb.c" />
     <ClCompile Include="src\mlnx_sai_hash.c" />

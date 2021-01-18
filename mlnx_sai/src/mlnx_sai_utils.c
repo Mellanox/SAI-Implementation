@@ -156,6 +156,7 @@ extern const mlnx_obj_type_attrs_info_t  mlnx_tunnel_map_entry_obj_type_info;
 extern const mlnx_obj_type_attrs_info_t  mlnx_port_pool_obj_type_info;
 extern const mlnx_obj_type_attrs_info_t  mlnx_debug_counter_obj_type_info;
 extern const mlnx_obj_type_attrs_info_t  mlnx_bfd_session_obj_type_info;
+extern const mlnx_obj_type_attrs_info_t  mlnx_counter_obj_type_info;
 static const mlnx_obj_type_attrs_info_t* mlnx_obj_types_info[] = {
     [SAI_OBJECT_TYPE_PORT]                     = &mlnx_port_obj_type_info,
     [SAI_OBJECT_TYPE_LAG]                      = &mlnx_lag_obj_type_info,
@@ -212,6 +213,7 @@ static const mlnx_obj_type_attrs_info_t* mlnx_obj_types_info[] = {
     [SAI_OBJECT_TYPE_PORT_POOL]                = &mlnx_port_pool_obj_type_info,
     [SAI_OBJECT_TYPE_DEBUG_COUNTER]            = &mlnx_debug_counter_obj_type_info,
     [SAI_OBJECT_TYPE_BFD_SESSION]              = &mlnx_bfd_session_obj_type_info,
+    [SAI_OBJECT_TYPE_COUNTER]                  = &mlnx_counter_obj_type_info,
 };
 static const uint32_t                    mlnx_obj_types_info_arr_size = ARRAY_SIZE(mlnx_obj_types_info);
 static sai_status_t sai_vendor_attr_index_find(_In_ const sai_attr_id_t                 attr_id,

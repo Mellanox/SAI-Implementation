@@ -77,6 +77,7 @@ libsai_la_SOURCES = \
                        mlnx_sai_bfd.c \
                        mlnx_sai_bridge.c \
                        mlnx_sai_buffer.c \
+                       mlnx_sai_counter.c \
                        mlnx_sai_debug_counter.c \
                        mlnx_sai_fdb.c \
                        mlnx_sai_hash.c \

@@ -212,6 +212,7 @@ extern const sai_l2mc_group_api_t       mlnx_l2mc_group_api;
 extern const sai_bmtor_api_t            mlnx_bmtor_api;
 extern const sai_debug_counter_api_t    mlnx_debug_counter_api;
 extern const sai_bfd_api_t              mlnx_bfd_api;
+extern const sai_counter_api_t          mlnx_counter_api;
 
 #define DEFAULT_ETH_SWID 0
 #define DEFAULT_VRID     0
@@ -244,6 +245,8 @@ extern const sai_bfd_api_t              mlnx_bfd_api;
 #define SX_DEVICE_ID                    1
 #define DEFAULT_DEVICE_ID               255
 #define DEFAULT_VLAN                    1
+/* vlan for vports mapped to dummy .1D bridge */
+#define MLNX_SAI_DUMMY_1D_VLAN_ID       (1)
 #define DEFAULT_TRAP_GROUP_PRIO         SX_TRAP_PRIORITY_LOW
 #define DEFAULT_TRAP_GROUP_ID           0
 #define RECV_ATTRIBS_NUM                3
@@ -315,7 +318,9 @@ typedef enum {
     MLNX_SHM_RM_ARRAY_TYPE_DEBUG_COUNTER,
     MLNX_SHM_RM_ARRAY_TYPE_BFD_SESSION,
     MLNX_SHM_RM_ARRAY_TYPE_NEXTHOP,
-    MLNX_SHM_RM_ARRAY_TYPE_MAX = MLNX_SHM_RM_ARRAY_TYPE_NEXTHOP,
+    MLNX_SHM_RM_ARRAY_TYPE_COUNTER,
+    MLNX_SHM_RM_ARRAY_TYPE_GROUP_COUNTER,
+    MLNX_SHM_RM_ARRAY_TYPE_MAX = MLNX_SHM_RM_ARRAY_TYPE_GROUP_COUNTER,
     MLNX_SHM_RM_ARRAY_TYPE_SIZE
 } mlnx_shm_rm_array_type_t;
 typedef sai_status_t (*mlnx_shm_rm_size_get_fn)(_Out_ size_t *size);
@@ -439,6 +444,7 @@ PACKED(struct _mlnx_object_id_t {
                mlnx_shm_rm_array_idx_t debug_counter_db_idx;
                mlnx_shm_rm_array_idx_t bfd_db_idx;
                mlnx_shm_rm_array_idx_t encap_nexthop_db_idx;
+               mlnx_shm_rm_array_idx_t counter_db_idx;
                PACKED(struct {
                           uint16_t group_id;
                           uint16_t nhop_id;
@@ -616,8 +622,8 @@ typedef struct _mlnx_obj_type_attrs_info_t {
 #else
 #define EXPAND(x) x
 #define PP_NARG(...) \
-    EXPAND(_xPP_NARGS_IMPL(__VA_ARGS__, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0))
-#define _xPP_NARGS_IMPL(x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, x13, x14, x15, N, ...) N
+    EXPAND(_xPP_NARGS_IMPL(__VA_ARGS__, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0))
+#define _xPP_NARGS_IMPL(x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, x13, x14, x15, x16, x17, x18, x19, x20, N, ...) N
 #endif
 #define ATTR_ARR_LEN(...) PP_NARG(__VA_ARGS__)
 
@@ -818,6 +824,7 @@ sai_status_t mlnx_l2mc_group_log_set(sx_verbosity_level_t severity);
 sai_status_t mlnx_bmtor_log_set(sx_verbosity_level_t severity);
 sai_status_t mlnx_debug_counter_log_set(sx_verbosity_level_t level);
 sai_status_t mlnx_bfd_log_set(sx_verbosity_level_t level);
+sai_status_t mlnx_counter_log_set(sx_verbosity_level_t level);
 sai_status_t mlnx_object_log_set(sx_verbosity_level_t level);
 
 sai_status_t mlnx_fill_objlist(const sai_object_id_t *data, uint32_t count, sai_object_list_t *list);
@@ -971,10 +978,11 @@ sai_status_t mlnx_translate_sdk_trap_to_sai(_In_ sx_trap_id_t             sdk_tr
                                             _Out_ sai_hostif_trap_type_t *trap_id,
                                             _Out_ const char            **trap_name,
                                             _Out_ mlnx_trap_type_t       *trap_type);
-sai_status_t mlnx_translate_sai_trap_to_sdk(_In_ sai_object_id_t  trap_oid,
-                                            _Out_ sx_trap_id_t   *sx_trap_id);
-
 #define MAX_SDK_TRAPS_PER_SAI_TRAP 6
+sai_status_t mlnx_translate_sai_trap_to_sdk(_In_ sai_object_id_t  trap_oid,
+                                            _Out_ uint8_t        *sdk_traps_num,
+                                            _Out_ sx_trap_id_t (*sx_trap_id)[MAX_SDK_TRAPS_PER_SAI_TRAP]);
+
 typedef struct _mlnx_trap_info_t {
     sai_hostif_trap_type_t trap_id;
     uint8_t                sdk_traps_num;
@@ -1354,6 +1362,7 @@ typedef struct _mlnx_encap_nexthop_db_data_t {
     int64_t                     acl_counter;
     uint32_t                    acl_index;
     mlnx_fake_nh_db_data_t      fake_data[NUMBER_OF_LOCAL_VNETS];
+    sx_flow_counter_id_t   flow_counter;
 } mlnx_encap_nexthop_db_data_t;
 
 typedef struct _mlnx_encap_nexthop_db_entry_t {
@@ -2168,6 +2177,29 @@ mlnx_platform_type_t mlnx_platform_type_get(void);
     (((SAI_SWITCH_STAT_IN_DROP_REASON_RANGE_BASE <= stat) && (stat < SAI_SWITCH_STAT_IN_DROP_REASON_RANGE_END)) || \
      ((SAI_SWITCH_STAT_OUT_DROP_REASON_RANGE_BASE <= stat) && (stat < SAI_SWITCH_STAT_OUT_DROP_REASON_RANGE_END)))
 
+#define MLNX_COUNTER_MAX_HOSTIF_TRAPS 60
+#define MLNX_COUNTERS_DB_SIZE 1000
+#define MLNX_GROUP_COUNTERS_DB_SIZE 1000
+
+typedef struct _mlnx_counter_t {
+    mlnx_shm_array_hdr_t array_hdr;
+    sx_flow_counter_id_t sx_flow_counter;
+    sai_object_id_t hostif_trap_ids[MLNX_COUNTER_MAX_HOSTIF_TRAPS];
+    uint32_t hostif_trap_ids_cnt;
+} mlnx_counter_t;
+
+sai_status_t mlnx_translate_flow_counter_to_sai_counter(sx_flow_counter_id_t flow_counter, sai_object_id_t *counter_id);
+sai_status_t mlnx_translate_trap_id_to_sai_counter(sai_object_id_t trap_id, sai_object_id_t *counter_id);
+
+typedef struct _mlnx_group_counter_t {
+    mlnx_shm_array_hdr_t array_hdr;
+    sx_ecmp_id_t group_id;
+    sx_flow_counter_id_t sx_flow_counter;
+} mlnx_group_counter_t;
+
+sai_status_t mlnx_get_group_flow_counter_id(sx_ecmp_id_t group_id, sx_flow_counter_id_t *flow_counter_id);
+sai_status_t mlnx_set_group_flow_counter_id(sx_ecmp_id_t group_id, sx_flow_counter_id_t flow_counter_id);
+
 #define MLNX_DEBUG_COUNTER_MAX_REASONS MAX((uint32_t)SAI_IN_DROP_REASON_ACL_EGRESS_SWITCH, \
                                            (uint32_t)SAI_OUT_DROP_REASON_L3_EGRESS_LINK_DOWN)
 
@@ -2258,6 +2290,7 @@ typedef struct sai_db {
     bool                              port_parsing_depth_set_for_tunnel;
     sx_bridge_id_t                    sx_bridge_id;
     sai_object_id_t                   default_1q_bridge_oid;
+    sai_object_id_t                   dummy_1d_bridge_oid;
     sx_port_log_id_t                  sx_nve_log_port;
     mlnx_nve_tunnel_type_t            nve_tunnel_type;
     bool                              is_stp_initialized;
@@ -2685,6 +2718,12 @@ sai_status_t mlnx_vrid_to_br_rif_get(_In_  sx_router_id_t         sx_vrid,
                                      _In_  sx_tunnel_id_t         sx_vxlan_tunnel,
                                      _Out_ sx_router_interface_t *br_rif,
                                      _Out_ sx_fid_t              *br_fid);
+
+sai_status_t mlnx_get_flow_counter_id(_In_  sai_object_id_t       counter,
+                                      _Out_ sx_flow_counter_id_t *sx_counter_id);
+sai_status_t mlnx_update_hostif_trap_counter(_In_ sai_object_id_t trap_id,
+                                             _In_ sai_object_id_t counter_id);
+
 #define LINE_LENGTH 120
 
 void SAI_dump_acl(_In_ FILE *file);

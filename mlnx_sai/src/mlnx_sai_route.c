@@ -42,6 +42,11 @@ static sai_status_t mlnx_route_next_hop_id_get(_In_ const sai_object_key_t   *ke
                                                _In_ uint32_t                  attr_index,
                                                _Inout_ vendor_cache_t        *cache,
                                                void                          *arg);
+static sai_status_t mlnx_route_counter_id_get(_In_ const sai_object_key_t   *key,
+                                              _Inout_ sai_attribute_value_t *value,
+                                              _In_ uint32_t                  attr_index,
+                                              _Inout_ vendor_cache_t        *cache,
+                                              void                          *arg);
 static sai_status_t mlnx_route_packet_action_set(_In_ const sai_object_key_t      *key,
                                                  _In_ const sai_attribute_value_t *value,
                                                  void                             *arg);
@@ -55,6 +60,9 @@ static sai_status_t mlnx_get_route(const sai_route_entry_t* route_entry,
                                    sx_uc_route_get_entry_t *route_get_entry,
                                    sx_router_id_t          *vrid);
 static sai_status_t mlnx_route_next_hop_id_get_ext(_In_ sx_ecmp_id_t ecmp, _Out_ sai_object_id_t *nh);
+static sai_status_t mlnx_route_counter_id_set(_In_ const sai_object_key_t      *key,
+                                              _In_ const sai_attribute_value_t *value,
+                                              void                             *arg);
 static const sai_vendor_attribute_entry_t route_vendor_attribs[] = {
     { SAI_ROUTE_ENTRY_ATTR_PACKET_ACTION,
       { true, false, true, true },
@@ -71,6 +79,11 @@ static const sai_vendor_attribute_entry_t route_vendor_attribs[] = {
       { true, false, true, true },
       mlnx_route_next_hop_id_get, NULL,
       mlnx_route_next_hop_id_set, NULL },
+    { SAI_ROUTE_ENTRY_ATTR_COUNTER_ID,
+      { true, false, true, true },
+      { true, false, true, true },
+      mlnx_route_counter_id_get, NULL,
+      mlnx_route_counter_id_set, NULL },
     { SAI_ROUTE_ENTRY_ATTR_META_DATA,
       { false, false, false, false },
       { false, false, false, false },
@@ -332,6 +345,35 @@ static sai_status_t mlnx_route_attr_to_sx_data(_In_ const sai_route_entry_t *rou
     return SAI_STATUS_SUCCESS;
 }
 
+static sai_status_t mlnx_route_change_counter(sx_router_id_t  vrid,
+                                              sx_ip_prefix_t *ip_prefix,
+                                              sai_object_id_t counter_id)
+{
+    sx_flow_counter_id_t flow_counter;
+    sx_status_t          sx_status;
+    sai_status_t         status;
+
+    if (SAI_NULL_OBJECT_ID != counter_id) {
+        status = mlnx_get_flow_counter_id(counter_id, &flow_counter);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to get flow counter\n");
+            return status;
+        }
+
+        sx_status = sx_api_router_uc_route_counter_bind_set(gh_sdk, SX_ACCESS_CMD_BIND, vrid, ip_prefix, flow_counter);
+    } else {
+        sx_status = sx_api_router_uc_route_counter_bind_set(gh_sdk, SX_ACCESS_CMD_UNBIND, vrid, ip_prefix,
+                                                            SX_FLOW_COUNTER_ID_INVALID);
+    }
+
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to set counter - %s.\n", SX_STATUS_MSG(sx_status));
+    }
+
+    SX_LOG_EXIT();
+    return sdk_to_sai(sx_status);
+}
+
 /*
  * Routine Description:
  *    Create Route
@@ -352,13 +394,15 @@ static sai_status_t mlnx_create_route(_In_ const sai_route_entry_t* route_entry,
                                       _In_ uint32_t                 attr_count,
                                       _In_ const sai_attribute_t   *attr_list)
 {
-    sai_status_t       status;
-    sx_status_t        sx_status;
-    sx_ip_prefix_t     ip_prefix;
-    sx_router_id_t     vrid = DEFAULT_VRID;
-    sx_uc_route_data_t route_data;
-    char               key_str[MAX_KEY_STR_LEN];
-    sx_log_severity_t  log_level = SX_LOG_NOTICE;
+    sai_status_t                 status;
+    sx_status_t                  sx_status;
+    sx_ip_prefix_t               ip_prefix;
+    sx_router_id_t               vrid = DEFAULT_VRID;
+    sx_uc_route_data_t           route_data;
+    char                         key_str[MAX_KEY_STR_LEN];
+    sx_log_severity_t            log_level = SX_LOG_NOTICE;
+    const sai_attribute_value_t *counter   = NULL;
+    uint32_t                     counter_index;
 
     SX_LOG_ENTER();
 
@@ -378,6 +422,15 @@ static sai_status_t mlnx_create_route(_In_ const sai_route_entry_t* route_entry,
         SX_LOG_ERR("Failed to set route - %s.\n", SX_STATUS_MSG(sx_status));
         SX_LOG_EXIT();
         return sdk_to_sai(sx_status);
+    }
+
+    status = find_attrib_in_list(attr_count, attr_list, SAI_ROUTE_ENTRY_ATTR_COUNTER_ID, &counter, &counter_index);
+    if (!SAI_ERR(status)) {
+        status = mlnx_route_change_counter(vrid, &ip_prefix, counter->oid);
+        if (SAI_ERR(status)) {
+            SX_LOG_EXIT();
+            return status;
+        }
     }
 
     /* lower log level for route created often in Sonic */
@@ -927,6 +980,59 @@ static sai_status_t mlnx_route_next_hop_id_set(_In_ const sai_object_key_t      
             SX_LOG_ERR("Remove route to Encap Nexthop failed.\n");
             return status;
         }
+    }
+
+    SX_LOG_EXIT();
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_route_counter_id_set(_In_ const sai_object_key_t      *key,
+                                              _In_ const sai_attribute_value_t *value,
+                                              void                             *arg)
+{
+    sai_status_t             status;
+    const sai_route_entry_t* route_entry = &key->key.route_entry;
+    sx_uc_route_get_entry_t  route_get_entry;
+    sx_router_id_t           vrid;
+
+    SX_LOG_ENTER();
+    status = mlnx_get_route(route_entry, &route_get_entry, &vrid);
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+    return mlnx_route_change_counter(vrid, &route_get_entry.network_addr, value->oid);
+}
+
+static sai_status_t mlnx_route_counter_id_get(_In_ const sai_object_key_t   *key,
+                                              _Inout_ sai_attribute_value_t *value,
+                                              _In_ uint32_t                  attr_index,
+                                              _Inout_ vendor_cache_t        *cache,
+                                              void                          *arg)
+{
+    sai_status_t             status;
+    const sai_route_entry_t* route_entry = &key->key.route_entry;
+    sx_uc_route_get_entry_t  route_get_entry;
+    sx_router_id_t           vrid;
+    sx_status_t              sx_status;
+    sx_flow_counter_id_t     flow_counter;
+
+    SX_LOG_ENTER();
+
+    if (SAI_STATUS_SUCCESS != (status = mlnx_get_route(route_entry, &route_get_entry, &vrid))) {
+        return status;
+    }
+
+    sx_status = sx_api_router_uc_route_counter_bind_get(gh_sdk, vrid, &route_get_entry.network_addr, &flow_counter);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to get route counter - %s\n", SX_STATUS_MSG(sx_status));
+        return sdk_to_sai(sx_status);
+    }
+
+    status = mlnx_translate_flow_counter_to_sai_counter(flow_counter, &value->oid);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to translate flow counter to SAI  counter\n");
+        return status;
     }
 
     SX_LOG_EXIT();

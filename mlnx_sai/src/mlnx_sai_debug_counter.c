@@ -208,11 +208,11 @@ static const mlnx_dbg_counter_drop_reason_info_t mlnx_drop_counter_in_drop_reaso
                                                       DROP_REASON_TYPE_IN_L3),
     /* SAI_IN_DROP_REASON_L3_EGRESS_LINK_DOWN, */
     /* Tunnel */
-    [SAI_IN_DROP_REASON_DECAP_ERROR] = REASON(TRAP_LIST(SX_TRAP_ID_DISCARD_DEC_PKT, SX_TRAP_ID_DECAP_ECN0,
+    [SAI_IN_DROP_REASON_DECAP_ERROR] = REASON(TRAP_LIST(SX_TRAP_ID_DISCARD_DEC_PKT, SX_TRAP_ID_DECAP_ECN1,
                                                         SX_TRAP_ID_IPIP_DECAP_ERROR), DROP_REASON_TYPE_IN_TUNNEL),
 
     /* ACL */
-    [SAI_IN_DROP_REASON_ACL_ANY] = REASON(TRAP_LIST(SX_TRAP_ID_ACL_DROP), DROP_REASON_TYPE_IN_ACL),
+    [SAI_IN_DROP_REASON_ACL_ANY] = REASON(TRAP_LIST(SX_TRAP_ID_ACL_DROP, SX_TRAP_ID_SYS_ACL_DROP), DROP_REASON_TYPE_IN_ACL),
 };
 static const mlnx_drop_counter_stage_info_t      mlnx_drop_counter_in_drop_reasons_info =
 {mlnx_drop_counter_in_drop_reasons_map, ARRAY_SIZE(mlnx_drop_counter_in_drop_reasons_map)};

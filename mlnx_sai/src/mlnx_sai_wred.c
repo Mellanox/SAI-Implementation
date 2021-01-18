@@ -1775,7 +1775,7 @@ sai_status_t mlnx_wred_log_set(sx_verbosity_level_t level)
     LOG_VAR_NAME(__MODULE__) = level;
 
     if (gh_sdk) {
-        return sdk_to_sai(sx_api_cos_redecn_verbosity_level_set(gh_sdk, SX_LOG_VERBOSITY_BOTH, level, level));
+        return sdk_to_sai(sx_api_cos_redecn_log_verbosity_level_set(gh_sdk, SX_LOG_VERBOSITY_BOTH, level, level));
     } else {
         return SAI_STATUS_SUCCESS;
     }
