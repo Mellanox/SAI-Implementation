@@ -297,7 +297,7 @@ static sai_status_t sai_log_level_save(_In_ sai_api_t sai_api_id, _In_ sai_log_l
     MLNX_SAI_LOG_INF("Saving log level %d for API %d\n", log_level, sai_api_id);
 
     mlnx_sai_log_levels[sai_api_id].is_set = true;
-    mlnx_sai_log_levels[sai_api_id].level  = log_level;
+    mlnx_sai_log_levels[sai_api_id].level = log_level;
 
     return SAI_STATUS_SUCCESS;
 }
@@ -517,7 +517,7 @@ sai_object_type_t sai_object_type_query(_In_ sai_object_id_t sai_object_id)
  * @return Return #SAI_NULL_OBJECT_ID when sai_object_id is not valid.
  * Otherwise, return a valid SAI_OBJECT_TYPE_SWITCH object on which
  * provided object id belongs. If valid switch id object is provided
- * as input parameter it should returin itself.
+ * as input parameter it should return itself.
  */
 sai_object_id_t sai_switch_id_query(_In_ sai_object_id_t sai_object_id)
 {
@@ -539,7 +539,7 @@ sai_object_id_t sai_switch_id_query(_In_ sai_object_id_t sai_object_id)
  */
 sai_status_t sai_dbg_generate_dump(_In_ const char *dump_file_name)
 {
-    FILE               *file       = NULL;
+    FILE               *file = NULL;
     sx_status_t         sdk_status = SX_STATUS_ERROR;
     sx_dbg_extra_info_t dbg_info;
 
@@ -603,7 +603,7 @@ sai_status_t sai_dbg_generate_dump(_In_ const char *dump_file_name)
     fclose(file);
 
     memset(&dbg_info, 0, sizeof(dbg_info));
-    dbg_info.dev_id           = SX_DEVICE_ID;
+    dbg_info.dev_id = SX_DEVICE_ID;
     dbg_info.force_db_refresh = true;
 #ifndef _WIN32
     char *file_name = strdup(dump_file_name);
@@ -613,6 +613,7 @@ sai_status_t sai_dbg_generate_dump(_In_ const char *dump_file_name)
 #endif
 #define FW_DUMPS 3
     for (uint32_t ii = 0; ii < FW_DUMPS; ii++) {
+#if 0
         sdk_status = sx_api_dbg_generate_dump_extra(gh_sdk, &dbg_info);
         if (SX_STATUS_SUCCESS != sdk_status) {
             MLNX_SAI_LOG_ERR("Error generating extended sdk dump, sx status: %s\n", SX_STATUS_MSG(sdk_status));
@@ -621,6 +622,7 @@ sai_status_t sai_dbg_generate_dump(_In_ const char *dump_file_name)
         if (ii < FW_DUMPS - 1) {
             sleep(1);
         }
+#endif
     }
 
     return SAI_STATUS_SUCCESS;
