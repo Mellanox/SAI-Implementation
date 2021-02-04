@@ -606,6 +606,7 @@ sai_status_t sai_dbg_generate_dump(_In_ const char *dump_file_name)
 #endif
 #define FW_DUMPS 3
     for (uint32_t ii = 0; ii < FW_DUMPS; ii++) {
+#if 0
         sdk_status = sx_api_dbg_generate_dump_extra(gh_sdk, &dbg_info);
         if (SX_STATUS_SUCCESS != sdk_status) {
             MLNX_SAI_LOG_ERR("Error generating extended sdk dump, sx status: %s\n", SX_STATUS_MSG(sdk_status));
@@ -614,6 +615,7 @@ sai_status_t sai_dbg_generate_dump(_In_ const char *dump_file_name)
         if (ii < FW_DUMPS - 1) {
             sleep(1);
         }
+#endif
     }
 
     return SAI_STATUS_SUCCESS;
