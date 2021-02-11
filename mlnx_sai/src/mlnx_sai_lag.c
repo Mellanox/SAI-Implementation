@@ -524,6 +524,7 @@ static sai_status_t remove_port_from_lag(sx_port_log_id_t lag_id, sx_port_log_id
     if (g_sai_db_ptr->pbhash_gre) {
         status = mlnx_pbhash_acl_bind(SX_ACCESS_CMD_ADD, port->saiport, SAI_OBJECT_TYPE_PORT);
         if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to bind PB hash ACL to port 0x%x\n", port->logical);
             return status;
         }
     }
@@ -1177,9 +1178,10 @@ static sai_status_t mlnx_create_lag(_Out_ sai_object_id_t     * lag_id,
         }
     }
 
-    if (g_sai_db_ptr->pbhash_gre) {
+    if (!is_warmboot_init_stage && g_sai_db_ptr->pbhash_gre) {
         status = mlnx_pbhash_acl_bind(SX_ACCESS_CMD_ADD, *lag_id, SAI_OBJECT_TYPE_LAG);
         if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to bind PB hash ACL to port 0x%x\n", *lag_id);
             goto out;
         }
     }
@@ -1426,6 +1428,13 @@ static sai_status_t mlnx_create_lag_member(_Out_ sai_object_id_t     * lag_membe
                 SX_LOG_ERR("Error creating lag\n");
                 goto out;
             }
+            if (g_sai_db_ptr->pbhash_gre) {
+                if (SAI_STATUS_SUCCESS !=
+                    (status = mlnx_pbhash_acl_bind(SX_ACCESS_CMD_ADD, lag->saiport, SAI_OBJECT_TYPE_LAG))) {
+                    SX_LOG_ERR("Failed to bind PB hash ACL to LAG\n");
+                    goto out;
+                }
+            }
         } else if (port->before_issu_lag_id != mlnx_ports_db[lag_db_idx].logical) {
             SX_LOG_ERR("Port %x is already added to SDK lag %x and does not match current SDK LAG %x\n",
                        port_id, port->before_issu_lag_id, mlnx_ports_db[lag_db_idx].logical);
@@ -1508,14 +1517,14 @@ static sai_status_t mlnx_create_lag_member(_Out_ sai_object_id_t     * lag_membe
         }
     }
 
-    if (g_sai_db_ptr->pbhash_gre) {
+    if (g_sai_db_ptr->pbhash_gre && !is_warmboot_init_stage) {
         status = mlnx_pbhash_acl_bind(SX_ACCESS_CMD_DELETE, port_oid, SAI_OBJECT_TYPE_PORT);
         if (SAI_ERR(status)) {
             SX_LOG_NTC("Failed to unbind PB hash ACL from port [%x]\n", port->logical);
             goto out;
         }
+        is_pbhash_acl_rollback_needed = true;
     }
-    is_pbhash_acl_rollback_needed = true;
 
     status = mlnx_acl_port_lag_event_handle_unlocked(port, ACL_EVENT_TYPE_LAG_MEMBER_ADD);
     if (SAI_ERR(status)) {
