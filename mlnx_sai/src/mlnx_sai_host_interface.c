@@ -765,7 +765,12 @@ static sai_status_t resolve_group(uint32_t index, const char* mcgrp_name)
         return SAI_STATUS_FAILURE;
     }
 
+#ifdef ACS_OS
+    /* sonic uses hard coded group 1 and not "packets" resolved group id */
+    g_sai_db_ptr->hostif_db[index].psample_group.group_id = 1;
+#else
     g_sai_db_ptr->hostif_db[index].psample_group.group_id = group;
+#endif
     nl_socket_free(sk);
 #endif
     return SAI_STATUS_SUCCESS;
@@ -3965,12 +3970,9 @@ sai_status_t mlnx_create_hostif_table_entry(_Out_ sai_object_id_t      *hif_tabl
  */
 sai_status_t mlnx_remove_hostif_table_entry(_In_ sai_object_id_t hif_table_entry)
 {
-    char                       key_str[MAX_KEY_STR_LEN];
-    sai_status_t               status;
-    mlnx_object_id_t           mlnx_hif = { 0 };
-    sx_host_ifc_register_key_t reg;
-    sx_fd_t                    fd_val = { 0 };
-    uint32_t                   group_id = 0;
+    char             key_str[MAX_KEY_STR_LEN];
+    sai_status_t     status;
+    mlnx_object_id_t mlnx_hif = { 0 };
 
     SX_LOG_ENTER();
     host_table_entry_key_to_str(hif_table_entry, key_str);
@@ -3980,6 +3982,13 @@ sai_status_t mlnx_remove_hostif_table_entry(_In_ sai_object_id_t hif_table_entry
     if (SAI_ERR(status)) {
         return status;
     }
+
+    return SAI_STATUS_NOT_IMPLEMENTED;
+
+#if 0
+    sx_host_ifc_register_key_t reg;
+    sx_fd_t                    fd_val = { 0 };
+    uint32_t                   group_id = 0;
 
     if ((SAI_HOSTIF_TABLE_ENTRY_TYPE_PORT == mlnx_hif.field.sub_type) ||
         (SAI_HOSTIF_TABLE_ENTRY_TYPE_LAG == mlnx_hif.field.sub_type)) {
@@ -3992,8 +4001,6 @@ sai_status_t mlnx_remove_hostif_table_entry(_In_ sai_object_id_t hif_table_entry
         reg.key_type = SX_HOST_IFC_REGISTER_KEY_TYPE_GLOBAL;
     }
 
-    return SAI_STATUS_NOT_IMPLEMENTED;
-
     /* TODO : Store channel in DB for registration */
     if (SAI_STATUS_SUCCESS != (status = mlnx_register_trap(SX_ACCESS_CMD_DEREGISTER, mlnx_hif.ext.trap.id,
                                                            0, fd_val, group_id, &reg))) {
@@ -4002,6 +4009,7 @@ sai_status_t mlnx_remove_hostif_table_entry(_In_ sai_object_id_t hif_table_entry
 
     SX_LOG_EXIT();
     return status;
+#endif
 }
 
 /**
