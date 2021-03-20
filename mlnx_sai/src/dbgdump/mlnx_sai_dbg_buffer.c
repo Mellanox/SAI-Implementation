@@ -123,11 +123,11 @@ static void SAI_dump_buffer_profile_mode_enum_to_str(_In_ sai_buffer_profile_thr
 
 static void SAI_dump_buffer_profile_print(_In_ FILE *file, _In_ mlnx_sai_db_buffer_profile_entry_t *buffer_profile)
 {
-    uint32_t                           ii     = 0;
+    uint32_t                           ii = 0;
     sai_object_id_t                    obj_id = SAI_NULL_OBJECT_ID;
     mlnx_sai_db_buffer_profile_entry_t curr_buffer_profile;
     char                               mode_str[LINE_LENGTH];
-    int32_t                            curr_max               = 0;
+    int32_t                            curr_max = 0;
     dbg_utils_table_columns_t          buffer_profile_clmns[] = {
         {"sai oid",       16, PARAM_UINT64_E, &obj_id},
         {"db idx",        13, PARAM_UINT32_E, &ii},
@@ -182,15 +182,15 @@ static void SAI_dump_buffer_profile_print(_In_ FILE *file, _In_ mlnx_sai_db_buff
 
 static void SAI_dump_port_buffer_data_print(_In_ FILE *file, _In_ uint32_t *port_buffer_data)
 {
-    uint32_t                  ii                       = 0;
-    uint32_t                  jj                       = 0;
-    uint32_t                  curr_port_buffer_data    = 0;
-    const uint32_t            num_ingress_pools        = mlnx_sai_get_buffer_resource_limits()->num_ingress_pools;
-    const uint32_t            num_egress_pools         = mlnx_sai_get_buffer_resource_limits()->num_egress_pools;
-    const uint32_t            num_port_pg_buff         = mlnx_sai_get_buffer_resource_limits()->num_port_pg_buff;
-    const uint32_t            ingress_pools_base       = 0;
-    const uint32_t            egress_pools_base        = MAX_PORTS * num_ingress_pools;
-    const uint32_t            port_pg_buff_base        = egress_pools_base + MAX_PORTS * num_egress_pools;
+    uint32_t                  ii = 0;
+    uint32_t                  jj = 0;
+    uint32_t                  curr_port_buffer_data = 0;
+    const uint32_t            num_ingress_pools = mlnx_sai_get_buffer_resource_limits()->num_ingress_pools;
+    const uint32_t            num_egress_pools = mlnx_sai_get_buffer_resource_limits()->num_egress_pools;
+    const uint32_t            num_port_pg_buff = mlnx_sai_get_buffer_resource_limits()->num_port_pg_buff;
+    const uint32_t            ingress_pools_base = 0;
+    const uint32_t            egress_pools_base = MAX_PORTS * num_ingress_pools;
+    const uint32_t            port_pg_buff_base = egress_pools_base + MAX_PORTS * num_egress_pools;
     dbg_utils_table_columns_t port_buffer_data_clmns[] = {
         {"db idx",           11, PARAM_UINT32_E, &jj},
         {"port buffer data", 16, PARAM_UINT32_E, &curr_port_buffer_data},
@@ -248,8 +248,8 @@ static void SAI_dump_port_buffer_data_print(_In_ FILE *file, _In_ uint32_t *port
 
 static void SAI_dump_pool_allocation_print(_In_ FILE *file, _In_ bool *pool_allocation)
 {
-    uint32_t                  ii                           = 0;
-    uint32_t                  curr_pool_allocation         = false;
+    uint32_t                  ii = 0;
+    uint32_t                  curr_pool_allocation = false;
     dbg_utils_table_columns_t pool_allocation_data_clmns[] = {
         {"db idx",          11, PARAM_UINT32_E, &ii},
         {"pool allocation", 15, PARAM_BOOL_E,   &curr_pool_allocation},
@@ -275,9 +275,9 @@ static void SAI_dump_pool_allocation_print(_In_ FILE *file, _In_ bool *pool_allo
 static void SAI_dump_shared_headroom_parent_pool_map_print(_In_ FILE                                    *file,
                                                            _In_ mlnx_sai_db_buffer_pool_shp_map_entry_t *shp_ipool_map)
 {
-    bool                      is_shp_created                   = false;
-    sai_object_id_t           ipool_obj_id                     = SAI_NULL_OBJECT_ID;
-    sai_object_id_t           shared_headroom_pool_obj_id      = SAI_NULL_OBJECT_ID;
+    bool                      is_shp_created = false;
+    sai_object_id_t           ipool_obj_id = SAI_NULL_OBJECT_ID;
+    sai_object_id_t           shared_headroom_pool_obj_id = SAI_NULL_OBJECT_ID;
     dbg_utils_table_columns_t shp_parent_pool_map_data_clmns[] = {
         {"shp created",     14, PARAM_BOOL_E,   &is_shp_created},
         {"shp oid",         14, PARAM_UINT64_E, &shared_headroom_pool_obj_id},
@@ -293,20 +293,20 @@ static void SAI_dump_shared_headroom_parent_pool_map_print(_In_ FILE            
 
     dbg_utils_print_table_headline(file, shp_parent_pool_map_data_clmns);
 
-    is_shp_created              = shp_ipool_map->is_shp_created;
+    is_shp_created = shp_ipool_map->is_shp_created;
     shared_headroom_pool_obj_id = shp_ipool_map->shp_pool_id;
-    ipool_obj_id                = shp_ipool_map->sai_pool_id;
+    ipool_obj_id = shp_ipool_map->sai_pool_id;
 
     dbg_utils_print_table_data_line(file, shp_parent_pool_map_data_clmns);
 }
 
 void SAI_dump_buffer(_In_ FILE *file)
 {
-    mlnx_sai_db_buffer_profile_entry_t      *buffer_profile      = NULL;
-    uint32_t                                *port_buffer_data    = NULL;
-    bool                                    *pool_allocation     = NULL;
+    mlnx_sai_db_buffer_profile_entry_t      *buffer_profile = NULL;
+    uint32_t                                *port_buffer_data = NULL;
+    bool                                    *pool_allocation = NULL;
     mlnx_sai_db_buffer_pool_shp_map_entry_t *shp_parent_pool_map = NULL;
-    uint32_t                                 sai_buffer_db_size  = 0;
+    uint32_t                                 sai_buffer_db_size = 0;
 
     buffer_profile =
         (mlnx_sai_db_buffer_profile_entry_t*)calloc(

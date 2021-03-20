@@ -119,7 +119,7 @@ static void SAI_dump_sx_policer_ir_units_enum_to_str(_In_ sx_policer_ir_units_e 
 
 static void SAI_dump_policer_print(_In_ FILE *file, _In_ mlnx_policer_db_entry_t *policers_db)
 {
-    uint32_t                  ii     = 0;
+    uint32_t                  ii = 0;
     sai_object_id_t           obj_id = SAI_NULL_OBJECT_ID;
     mlnx_policer_db_entry_t   curr_policers_db;
     char                      meter_str[LINE_LENGTH];

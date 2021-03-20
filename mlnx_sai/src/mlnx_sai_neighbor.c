@@ -79,7 +79,7 @@ static const mlnx_attr_enum_info_t        neighbor_enum_info[] = {
         )
 };
 const mlnx_obj_type_attrs_info_t          mlnx_neighbor_obj_type_info =
-{ neighbor_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(neighbor_enum_info)};
+{ neighbor_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(neighbor_enum_info), OBJ_STAT_CAP_INFO_EMPTY()};
 static void neighbor_key_to_str(_In_ const sai_neighbor_entry_t* neighbor_entry, _Out_ char *key_str)
 {
     int                   res1, res2;
@@ -159,7 +159,7 @@ static sai_status_t mlnx_create_neighbor_entry(_In_ const sai_neighbor_entry_t* 
     }
 
     memset(&ipaddr, 0, sizeof(ipaddr));
-    neigh_data.action         = SX_ROUTER_ACTION_FORWARD;
+    neigh_data.action = SX_ROUTER_ACTION_FORWARD;
     neigh_data.trap_attr.prio = SX_TRAP_PRIORITY_MED;
 
     status = find_attrib_in_list(attr_count, attr_list, SAI_NEIGHBOR_ENTRY_ATTR_DST_MAC_ADDRESS, &mac, &mac_index);
@@ -453,7 +453,7 @@ static sai_status_t mlnx_modify_neighbor_entry(_In_ const sai_neighbor_entry_t* 
         return status;
     }
 
-    /* To modify a neighbor, we delete and readd it with new data */
+    /* To modify a neighbor, we delete and read it with new data */
     if (SX_STATUS_SUCCESS !=
         (status =
              sx_api_router_neigh_set(gh_sdk, SX_ACCESS_CMD_DELETE, sx_rif, &ipaddr, &neigh_data))) {

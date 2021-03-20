@@ -120,8 +120,17 @@ static const mlnx_attr_enum_info_t        queue_enum_info[] = {
         SAI_QUEUE_TYPE_UNICAST,
         SAI_QUEUE_TYPE_MULTICAST)
 };
+static const sai_stat_capability_t        queue_stats_capabilities[] = {
+    { SAI_QUEUE_STAT_PACKETS, SAI_STATS_MODE_READ | SAI_STATS_MODE_READ_AND_CLEAR },
+    { SAI_QUEUE_STAT_BYTES, SAI_STATS_MODE_READ | SAI_STATS_MODE_READ_AND_CLEAR },
+    { SAI_QUEUE_STAT_DROPPED_PACKETS, SAI_STATS_MODE_READ | SAI_STATS_MODE_READ_AND_CLEAR },
+    { SAI_QUEUE_STAT_WRED_DROPPED_PACKETS, SAI_STATS_MODE_READ | SAI_STATS_MODE_READ_AND_CLEAR },
+    { SAI_QUEUE_STAT_CURR_OCCUPANCY_BYTES, SAI_STATS_MODE_READ | SAI_STATS_MODE_READ_AND_CLEAR },
+    { SAI_QUEUE_STAT_WATERMARK_BYTES, SAI_STATS_MODE_READ | SAI_STATS_MODE_READ_AND_CLEAR },
+    { SAI_QUEUE_STAT_SHARED_WATERMARK_BYTES, SAI_STATS_MODE_READ | SAI_STATS_MODE_READ_AND_CLEAR },
+};
 const mlnx_obj_type_attrs_info_t          mlnx_queue_obj_type_info =
-{ queue_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(queue_enum_info)};
+{ queue_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(queue_enum_info), OBJ_STAT_CAP_INFO(queue_stats_capabilities)};
 sai_status_t mlnx_queue_log_set(sx_verbosity_level_t level)
 {
     LOG_VAR_NAME(__MODULE__) = level;
@@ -173,15 +182,15 @@ static sai_status_t mlnx_queue_config_set(_In_ const sai_object_key_t      *key,
                                           _In_ const sai_attribute_value_t *value,
                                           void                             *arg)
 {
-    sai_object_id_t        queue_id                     = key->key.object_id;
-    sai_object_id_t        profile_id                   = value->oid;
+    sai_object_id_t        queue_id = key->key.object_id;
+    sai_object_id_t        profile_id = value->oid;
     uint8_t                ext_data[EXTENDED_DATA_SIZE] = {0};
     sx_port_log_id_t       port_num;
-    uint32_t               queue_num    = 0, profile_num = 0;
-    long                   attr         = (long)arg;
+    uint32_t               queue_num = 0, profile_num = 0;
+    long                   attr = (long)arg;
     sai_object_type_t      profile_type = SAI_NULL_OBJECT_ID;
-    sai_status_t           status       = SAI_STATUS_SUCCESS;
-    queue_profile_setter_t func_setter  = NULL;
+    sai_status_t           status = SAI_STATUS_SUCCESS;
+    queue_profile_setter_t func_setter = NULL;
 
     SX_LOG_ENTER();
     assert((SAI_QUEUE_ATTR_BUFFER_PROFILE_ID == attr) ||
@@ -201,17 +210,17 @@ static sai_status_t mlnx_queue_config_set(_In_ const sai_object_key_t      *key,
     switch (attr) {
     case SAI_QUEUE_ATTR_WRED_PROFILE_ID:
         profile_type = SAI_OBJECT_TYPE_WRED;
-        func_setter  = mlnx_wred_apply_to_queue_oid;
+        func_setter = mlnx_wred_apply_to_queue_oid;
         break;
 
     case SAI_QUEUE_ATTR_BUFFER_PROFILE_ID:
         profile_type = SAI_OBJECT_TYPE_BUFFER_PROFILE;
-        func_setter  = mlnx_buffer_apply;
+        func_setter = mlnx_buffer_apply;
         break;
 
     case SAI_QUEUE_ATTR_SCHEDULER_PROFILE_ID:
         profile_type = SAI_OBJECT_TYPE_SCHEDULER;
-        func_setter  = mlnx_scheduler_to_queue_apply;
+        func_setter = mlnx_scheduler_to_queue_apply;
         break;
     }
 
@@ -235,11 +244,11 @@ static sai_status_t mlnx_queue_config_get(_In_ const sai_object_key_t   *key,
                                           _Inout_ vendor_cache_t        *cache,
                                           void                          *arg)
 {
-    sai_object_id_t          queue_id                     = key->key.object_id;
+    sai_object_id_t          queue_id = key->key.object_id;
     uint8_t                  ext_data[EXTENDED_DATA_SIZE] = {0};
     sx_port_log_id_t         port_num;
     uint32_t                 queue_num = 0;
-    long                     attr      = (long)arg;
+    long                     attr = (long)arg;
     sai_status_t             status;
     mlnx_qos_queue_config_t *queue_cfg;
     mlnx_port_config_t      *port;
@@ -312,11 +321,11 @@ static sai_status_t mlnx_queue_type_get(_In_ const sai_object_key_t   *key,
                                         _Inout_ vendor_cache_t        *cache,
                                         void                          *arg)
 {
-    sai_object_id_t  queue_id                     = key->key.object_id;
+    sai_object_id_t  queue_id = key->key.object_id;
     uint8_t          ext_data[EXTENDED_DATA_SIZE] = {0};
     sx_port_log_id_t port_num;
     uint32_t         queue_num = 0;
-    boolean_t        mc_aware  = false;
+    boolean_t        mc_aware = false;
     sx_status_t      sx_status = SX_STATUS_SUCCESS;
 
     SX_LOG_ENTER();
@@ -377,7 +386,7 @@ static sai_status_t mlnx_queue_index_get(_In_ const sai_object_key_t   *key,
 }
 
 /**
- * @brief Pord id
+ * @brief Port id
  *
  * @type sai_object_id_t
  * @objects SAI_OBJECT_TYPE_PORT
@@ -410,7 +419,7 @@ static sai_status_t mlnx_queue_port_get(_In_ const sai_object_key_t   *key,
  * @brief Parent scheduler node
  *
  * In case of Hierarchical Qos not supported, the parent node is the port.
- * Condition on whether Hierarchial Qos is supported or not, need to remove
+ * Condition on whether Hierarchical Qos is supported or not, need to remove
  * the MANDATORY_ON_CREATE FLAG when HQoS is introduced
  *
  * @type sai_object_id_t
@@ -430,7 +439,7 @@ static sai_status_t mlnx_queue_parent_sched_node_get(_In_ const sai_object_key_t
  * @brief Parent scheduler node
  *
  * In case of Hierarchical Qos not supported, the parent node is the port.
- * Condition on whether Hierarchial Qos is supported or not, need to remove
+ * Condition on whether Hierarchical Qos is supported or not, need to remove
  * the MANDATORY_ON_CREATE FLAG when HQoS is introduced
  *
  * @type sai_object_id_t
@@ -459,7 +468,7 @@ static sai_status_t mlnx_queue_parent_sched_node_set(_In_ const sai_object_key_t
 static sai_status_t mlnx_set_queue_attribute(_In_ sai_object_id_t queue_id, _In_ const sai_attribute_t *attr)
 {
     sai_status_t           sai_status;
-    const sai_object_key_t key                      = { .key.object_id = queue_id };
+    const sai_object_key_t key = { .key.object_id = queue_id };
     char                   key_str[MAX_KEY_STR_LEN] = {0};
 
     SX_LOG_ENTER();
@@ -488,7 +497,7 @@ static sai_status_t mlnx_get_queue_attribute(_In_ sai_object_id_t     queue_id,
                                              _Inout_ sai_attribute_t *attr_list)
 {
     sai_status_t           sai_status;
-    const sai_object_key_t key                      = { .key.object_id = queue_id };
+    const sai_object_key_t key = { .key.object_id = queue_id };
     char                   key_str[MAX_KEY_STR_LEN] = {0};
 
     SX_LOG_ENTER();
@@ -518,7 +527,7 @@ sai_status_t mlnx_get_queue_statistics_ext(_In_ sai_object_id_t      queue_id,
 {
     sai_status_t                     status;
     uint8_t                          ext_data[EXTENDED_DATA_SIZE] = {0};
-    uint8_t                          queue_num                    = 0;
+    uint8_t                          queue_num = 0;
     sx_port_log_id_t                 port_num;
     const uint8_t                    port_prio_id = 0;
     uint32_t                         ii;
@@ -526,10 +535,10 @@ sai_status_t mlnx_get_queue_statistics_ext(_In_ sai_object_id_t      queue_id,
     sx_port_statistic_usage_params_t stats_usage;
     sx_port_occupancy_statistics_t   occupancy_stats;
     uint32_t                         usage_cnt = 1;
-    sx_port_traffic_cntr_t           tc_cnts   = { 0 };
+    sx_port_traffic_cntr_t           tc_cnts = { 0 };
     sx_port_cntr_perf_t              perf_cnts;
     bool                             tc_cnts_needed = false, occupancy_stats_needed = false;
-    mlnx_qos_queue_config_t         *queue_cfg      = NULL;
+    mlnx_qos_queue_config_t         *queue_cfg = NULL;
     uint32_t                         db_buffer_profile_index;
     sx_access_cmd_t                  cmd;
 
@@ -658,10 +667,10 @@ sai_status_t mlnx_get_queue_statistics_ext(_In_ sai_object_id_t      queue_id,
 
     if (occupancy_stats_needed) {
         memset(&stats_usage, 0, sizeof(stats_usage));
-        stats_usage.port_cnt                                 = 1;
-        stats_usage.log_port_list_p                          = &port_num;
-        stats_usage.sx_port_params.port_params_type          = SX_COS_EGRESS_PORT_TRAFFIC_CLASS_ATTR_E;
-        stats_usage.sx_port_params.port_params_cnt           = 1;
+        stats_usage.port_cnt = 1;
+        stats_usage.log_port_list_p = &port_num;
+        stats_usage.sx_port_params.port_params_type = SX_COS_EGRESS_PORT_TRAFFIC_CLASS_ATTR_E;
+        stats_usage.sx_port_params.port_params_cnt = 1;
         stats_usage.sx_port_params.port_param.port_tc_list_p = &queue_num;
 
         if (SX_STATUS_SUCCESS !=
@@ -805,7 +814,7 @@ static sai_status_t mlnx_clear_queue_stats(_In_ sai_object_id_t      queue_id,
 {
     sai_status_t                     status;
     uint8_t                          ext_data[EXTENDED_DATA_SIZE] = { 0 };
-    uint8_t                          queue_num                    = 0;
+    uint8_t                          queue_num = 0;
     sx_port_log_id_t                 port_num;
     char                             key_str[MAX_KEY_STR_LEN];
     sx_port_statistic_usage_params_t stats_usage;
@@ -813,7 +822,7 @@ static sai_status_t mlnx_clear_queue_stats(_In_ sai_object_id_t      queue_id,
     uint32_t                         usage_cnt = 1;
     sx_port_traffic_cntr_t           tc_cnts;
     sx_port_cntr_perf_t              perf_cnts;
-    const uint8_t                    port_prio_id   = 0;
+    const uint8_t                    port_prio_id = 0;
     bool                             tc_cnts_needed = false, occupancy_stats_needed = false;
     uint32_t                         ii;
 
@@ -877,10 +886,10 @@ static sai_status_t mlnx_clear_queue_stats(_In_ sai_object_id_t      queue_id,
 
     if (occupancy_stats_needed) {
         memset(&stats_usage, 0, sizeof(stats_usage));
-        stats_usage.port_cnt                                 = 1;
-        stats_usage.log_port_list_p                          = &port_num;
-        stats_usage.sx_port_params.port_params_type          = SX_COS_EGRESS_PORT_TRAFFIC_CLASS_ATTR_E;
-        stats_usage.sx_port_params.port_params_cnt           = 1;
+        stats_usage.port_cnt = 1;
+        stats_usage.log_port_list_p = &port_num;
+        stats_usage.sx_port_params.port_params_type = SX_COS_EGRESS_PORT_TRAFFIC_CLASS_ATTR_E;
+        stats_usage.sx_port_params.port_params_cnt = 1;
         stats_usage.sx_port_params.port_param.port_tc_list_p = &queue_num;
 
         if (SX_STATUS_SUCCESS !=
@@ -938,12 +947,12 @@ sai_status_t mlnx_create_queue(_Out_ sai_object_id_t      *queue_id,
                                _In_ const sai_attribute_t *attr_list)
 {
     const sai_attribute_value_t *sched_profile_attr = NULL;
-    const sai_attribute_value_t *buff_profile_attr  = NULL;
-    const sai_attribute_value_t *wred_profile_attr  = NULL;
-    const sai_attribute_value_t *index_attr         = NULL;
-    const sai_attribute_value_t *type_attr          = NULL;
-    const sai_attribute_value_t *port_attr          = NULL;
-    const sai_attribute_value_t *parent_attr        = NULL;
+    const sai_attribute_value_t *buff_profile_attr = NULL;
+    const sai_attribute_value_t *wred_profile_attr = NULL;
+    const sai_attribute_value_t *index_attr = NULL;
+    const sai_attribute_value_t *type_attr = NULL;
+    const sai_attribute_value_t *port_attr = NULL;
+    const sai_attribute_value_t *parent_attr = NULL;
     uint32_t                     sched_profile_idx;
     uint32_t                     buff_profile_idx;
     uint32_t                     wred_profile_idx;
@@ -1065,7 +1074,7 @@ sai_status_t mlnx_create_queue(_Out_ sai_object_id_t      *queue_id,
     SX_LOG_NTC("Created %s\n", key_str);
 
     *queue_id = queue_oid;
-    status    = SAI_STATUS_SUCCESS;
+    status = SAI_STATUS_SUCCESS;
 
 out:
     SX_LOG_EXIT();

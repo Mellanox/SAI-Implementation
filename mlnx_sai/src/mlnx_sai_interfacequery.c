@@ -41,6 +41,8 @@ static mlnx_log_lavel_preinit_t mlnx_sai_log_levels[SAI_API_EXTENSIONS_RANGE_STA
     {0}
 };
 
+static sai_status_t sai_dbg_run_mlxtrace(const char *dirname);
+
 sai_status_t mlnx_interfacequery_log_set(sx_verbosity_level_t level)
 {
     LOG_VAR_NAME(__MODULE__) = level;
@@ -542,6 +544,9 @@ sai_status_t sai_dbg_generate_dump(_In_ const char *dump_file_name)
     FILE               *file = NULL;
     sx_status_t         sdk_status = SX_STATUS_ERROR;
     sx_dbg_extra_info_t dbg_info;
+    sai_status_t        sai_status = SAI_STATUS_FAILURE;
+    char               *file_name = NULL;
+    char                dump_directory[SX_API_DUMP_PATH_LEN_LIMIT + 1];
 
     if (!gh_sdk) {
         MLNX_SAI_LOG_ERR("Can't generate debug dump before creating switch\n");
@@ -606,7 +611,7 @@ sai_status_t sai_dbg_generate_dump(_In_ const char *dump_file_name)
     dbg_info.dev_id = SX_DEVICE_ID;
     dbg_info.force_db_refresh = true;
 #ifndef _WIN32
-    char *file_name = strdup(dump_file_name);
+    file_name = strdup(dump_file_name);
     strncpy(dbg_info.path, dirname(file_name), sizeof(dbg_info.path));
     dbg_info.path[sizeof(dbg_info.path) - 1] = 0;
     free(file_name);
@@ -623,6 +628,57 @@ sai_status_t sai_dbg_generate_dump(_In_ const char *dump_file_name)
             sleep(1);
         }
 #endif
+    }
+
+#ifndef _WIN32
+    file_name = strdup(dump_file_name);
+    strncpy(dump_directory, dirname(file_name), sizeof(dump_directory));
+    dump_directory[sizeof(dump_directory) - 1] = 0;
+    sai_status = sai_dbg_run_mlxtrace(dump_directory);
+    if (SAI_ERR(sai_status)) {
+        MLNX_SAI_LOG_ERR("Failed to run mlxtrace\n");
+    }
+    free(file_name);
+#endif
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t sai_dbg_run_mlxtrace(const char *dirname)
+{
+    const char mlxtrace_ext_command_line_fmt[] =
+        "mlxtrace_ext -d /dev/mst/%s %s -m MEM -a OB_GW -n -o %s/%s_mlxtrace.trc >/dev/null 2>&1";
+    const char *device_name = NULL;
+    const char *config_cmd_line_switch = NULL;
+    char        mlxtrace_ext_command_line[2 * PATH_MAX + 200];
+    int         system_err;
+
+    if (mlnx_chip_is_spc()) {
+        device_name = "mt52100_pci_cr0";
+        config_cmd_line_switch = "";
+    } else if (mlnx_chip_is_spc2()) {
+        device_name = "mt53100_pci_cr0";
+        config_cmd_line_switch = "-c /etc/mft/fwtrace_cfg/mlxtrace_spectrum2_itrace.cfg.ext";
+    } else if (mlnx_chip_is_spc3()) {
+        device_name = "mt53104_pci_cr0";
+        config_cmd_line_switch = "-c /etc/mft/fwtrace_cfg/mlxtrace_spectrum3_itrace.cfg.ext";
+    } else {
+        SX_LOG_ERR("Chip type is not one of valid: SPC1, SPC2, SPC3\n");
+        return SAI_STATUS_FAILURE;
+    }
+
+    snprintf(mlxtrace_ext_command_line,
+             sizeof(mlxtrace_ext_command_line),
+             mlxtrace_ext_command_line_fmt,
+             device_name,
+             config_cmd_line_switch,
+             dirname,
+             device_name);
+
+    system_err = system(mlxtrace_ext_command_line);
+    if (0 != system_err) {
+        SX_LOG_ERR("Failed running \"%s\".\n", mlxtrace_ext_command_line);
+        return SAI_STATUS_FAILURE;
     }
 
     return SAI_STATUS_SUCCESS;

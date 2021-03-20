@@ -35,8 +35,8 @@ static void SAI_dump_vlan_getdb(_Out_ mlnx_vlan_db_t *mlnx_vlan_db)
 
 static void SAI_dump_vlan_print(_In_ FILE *file, _In_ mlnx_vlan_db_t *mlnx_vlan_db)
 {
-    uint32_t                  ii           = 0;
-    sx_mstp_inst_id_t         stp_id       = 0;
+    uint32_t                  ii = 0;
+    sx_mstp_inst_id_t         stp_id = 0;
     dbg_utils_table_columns_t vlan_clmns[] = {
         {"db idx", 7,  PARAM_UINT32_E, &ii},
         {"stp id", 16, PARAM_UINT16_E, &stp_id},

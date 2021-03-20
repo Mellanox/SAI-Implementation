@@ -82,7 +82,7 @@ static const mlnx_attr_enum_info_t        sched_enum_info[] = {
         SAI_METER_TYPE_BYTES, SAI_METER_TYPE_PACKETS)
 };
 const mlnx_obj_type_attrs_info_t          mlnx_scheduler_obj_type_info =
-{ sched_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(sched_enum_info)};
+{ sched_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(sched_enum_info), OBJ_STAT_CAP_INFO_EMPTY()};
 static sai_status_t sched_db_entry_get(sai_object_id_t oid, mlnx_sched_profile_t **sched)
 {
     sai_status_t status;
@@ -275,7 +275,7 @@ static sai_status_t queue_update_ets(sx_port_log_id_t             port_log_id,
                                      mlnx_sched_obj_t            *obj)
 {
     ets->element_hierarchy = obj->ets_type;
-    ets->element_index     = obj->index;
+    ets->element_index = obj->index;
     ets->min_shaper_enable = TRUE;
     ets->max_shaper_enable = TRUE;
 
@@ -289,13 +289,13 @@ static sai_status_t port_update_ets(sx_port_log_id_t port_log_id, sx_cos_ets_ele
         return SAI_STATUS_INVALID_PARAMETER;
     }
 
-    ets->element_hierarchy  = SX_COS_ETS_HIERARCHY_PORT_E;
+    ets->element_hierarchy = SX_COS_ETS_HIERARCHY_PORT_E;
     ets->next_element_index = 0;
-    ets->element_index      = 0;
-    ets->min_shaper_enable  = FALSE;
-    ets->max_shaper_enable  = TRUE;
-    ets->dwrr               = FALSE;
-    ets->dwrr_enable        = FALSE;
+    ets->element_index = 0;
+    ets->min_shaper_enable = FALSE;
+    ets->max_shaper_enable = TRUE;
+    ets->dwrr = FALSE;
+    ets->dwrr_enable = FALSE;
 
     return ets_element_update(port_log_id, ets, "port");
 }
@@ -306,7 +306,7 @@ static sai_status_t group_update_ets(sx_port_log_id_t             port_log_id,
                                      uint8_t                      index)
 {
     ets->element_hierarchy = level + 1;
-    ets->element_index     = index;
+    ets->element_index = index;
 
     /* The following are SDK limitations */
     if (level == 0) {
@@ -468,7 +468,7 @@ static sai_status_t mlnx_sched_attr_setter(_In_ const sai_object_key_t      *key
         }
 
         ctx.sai_status = SAI_STATUS_SUCCESS;
-        ctx.arg        = (void*)&key->key.object_id;
+        ctx.arg = (void*)&key->key.object_id;
 
         status = mlnx_sched_hierarchy_foreach(port, sched_profile_update_groups, &ctx);
         if (status != SAI_STATUS_SUCCESS) {
@@ -541,17 +541,17 @@ static sai_status_t mlnx_create_scheduler_profile(_Out_ sai_object_id_t      *sc
     SX_LOG_NTC("Create scheduler, %s\n", list_str);
 
     /* Set default values */
-    sched.ets.max_shaper_rate   = 0;
-    sched.ets.min_shaper_rate   = 0;
+    sched.ets.max_shaper_rate = 0;
+    sched.ets.min_shaper_rate = 0;
     sched.ets.max_shaper_enable = TRUE;
     sched.ets.min_shaper_enable = TRUE;
-    sched.ets.dwrr_enable       = TRUE;
-    sched.ets.dwrr_weight       = 1;
-    sched.ets.dwrr              = TRUE;
-    sched.ets.packets_mode      = FALSE;
-    sched.is_used               = TRUE;
-    sched.min_rate              = 0;
-    sched.max_rate              = 0;
+    sched.ets.dwrr_enable = TRUE;
+    sched.ets.dwrr_weight = 1;
+    sched.ets.dwrr = TRUE;
+    sched.ets.packets_mode = FALSE;
+    sched.is_used = TRUE;
+    sched.min_rate = 0;
+    sched.max_rate = 0;
 
     /* Handle SAI_SCHEDULER_ATTR_SCHEDULING_ALGORITHM */
     status = find_attrib_in_list(attr_count, attr_list,

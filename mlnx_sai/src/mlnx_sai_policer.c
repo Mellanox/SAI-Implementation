@@ -294,8 +294,11 @@ static const mlnx_attr_enum_info_t        policer_enum_info[] = {
         SAI_PACKET_ACTION_DROP
         ),
 };
+static const sai_stat_capability_t        policer_stats_capabilities[] = {
+    { SAI_POLICER_STAT_PACKETS, SAI_STATS_MODE_READ | SAI_STATS_MODE_READ_AND_CLEAR },
+};
 const mlnx_obj_type_attrs_info_t          mlnx_policer_obj_type_info =
-{ policer_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(policer_enum_info)};
+{ policer_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(policer_enum_info), OBJ_STAT_CAP_INFO(policer_stats_capabilities)};
 static void log_sx_policer_attrib_color_action(_In_ sx_policer_action_t sx_policer_action, _In_ char* action_name)
 {
     char* val = NULL;

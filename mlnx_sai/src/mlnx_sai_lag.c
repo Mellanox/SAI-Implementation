@@ -84,7 +84,8 @@ static const sai_vendor_attribute_entry_t lag_vendor_attribs[] = {
       NULL, NULL,
       NULL, NULL }
 };
-const mlnx_obj_type_attrs_info_t          mlnx_lag_obj_type_info = { lag_vendor_attribs, OBJ_ATTRS_ENUMS_INFO_EMPTY()};
+const mlnx_obj_type_attrs_info_t          mlnx_lag_obj_type_info =
+{ lag_vendor_attribs, OBJ_ATTRS_ENUMS_INFO_EMPTY(), OBJ_STAT_CAP_INFO_EMPTY()};
 static sai_status_t mlnx_lag_member_lag_id_get(_In_ const sai_object_key_t   *key,
                                                _Inout_ sai_attribute_value_t *value,
                                                _In_ uint32_t                  attr_index,
@@ -139,7 +140,7 @@ static const sai_vendor_attribute_entry_t lag_member_vendor_attribs[] = {
       NULL, NULL }
 };
 const mlnx_obj_type_attrs_info_t          mlnx_lag_member_obj_type_info =
-{ lag_member_vendor_attribs, OBJ_ATTRS_ENUMS_INFO_EMPTY()};
+{ lag_member_vendor_attribs, OBJ_ATTRS_ENUMS_INFO_EMPTY(), OBJ_STAT_CAP_INFO_EMPTY()};
 static void lag_key_to_str(_In_ sai_object_id_t lag_id, _Out_ char *key_str)
 {
     uint32_t lagid;
@@ -1181,7 +1182,7 @@ static sai_status_t mlnx_create_lag(_Out_ sai_object_id_t     * lag_id,
     if (!is_warmboot_init_stage && g_sai_db_ptr->pbhash_gre) {
         status = mlnx_pbhash_acl_bind(SX_ACCESS_CMD_ADD, *lag_id, SAI_OBJECT_TYPE_LAG);
         if (SAI_ERR(status)) {
-            SX_LOG_ERR("Failed to bind PB hash ACL to port 0x%x\n", *lag_id);
+            SX_LOG_ERR("Failed to bind PB hash ACL to port 0x%x\n", lag_log_port_id);
             goto out;
         }
     }

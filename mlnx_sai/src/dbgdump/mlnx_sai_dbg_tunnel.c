@@ -106,8 +106,8 @@ static void SAI_dump_tunnel_map_type_enum_to_str(_In_ sai_tunnel_map_type_t type
 
 static void SAI_dump_tunnel_map_entry_print(_In_ FILE *file, _In_ mlnx_tunnel_map_entry_t *mlnx_tunnel_map_entry)
 {
-    uint32_t                     ii     = 0;
-    uint32_t                     jj     = 0;
+    uint32_t                     ii = 0;
+    uint32_t                     jj = 0;
     sai_object_id_t              obj_id = SAI_NULL_OBJECT_ID;
     mlnx_tunnel_map_entry_t      curr_mlnx_tunnel_map_entry;
     tunnel_map_entry_pair_info_t curr_pair_info;
@@ -179,11 +179,11 @@ static void SAI_dump_tunnel_map_print(_In_ FILE                    *file,
                                       _In_ mlnx_tunnel_map_t       *mlnx_tunnel_map,
                                       _In_ mlnx_tunnel_map_entry_t *mlnx_tunnel_map_entry)
 {
-    uint32_t                  ii     = 0, jj = 0;
+    uint32_t                  ii = 0, jj = 0;
     sai_object_id_t           obj_id = SAI_NULL_OBJECT_ID;
     mlnx_tunnel_map_t         curr_mlnx_tunnel_map;
     mlnx_tunnel_map_entry_t   curr_mlnx_tunnel_map_entry;
-    uint32_t                  curr_tunnel_idx      = 0;
+    uint32_t                  curr_tunnel_idx = 0;
     uint32_t                  tunnel_map_entry_idx = MLNX_TUNNEL_MAP_ENTRY_INVALID;
     char                      type_str[LINE_LENGTH];
     dbg_utils_table_columns_t tunnelmap_clmns[] = {
@@ -336,50 +336,50 @@ static void SAI_dump_tunnel_map_print(_In_ FILE                    *file,
 
                 switch (mlnx_tunnel_map[ii].tunnel_map_type) {
                 case SAI_TUNNEL_MAP_TYPE_OECN_TO_UECN:
-                    curr_mlnx_tunnel_map_entry.oecn_key   = mlnx_tunnel_map_entry[jj].oecn_key;
+                    curr_mlnx_tunnel_map_entry.oecn_key = mlnx_tunnel_map_entry[jj].oecn_key;
                     curr_mlnx_tunnel_map_entry.uecn_value = mlnx_tunnel_map_entry[jj].uecn_value;
                     dbg_utils_print_table_data_line(file, sai_tunnelmap_oecn2uecn_clmns);
                     break;
 
                 case SAI_TUNNEL_MAP_TYPE_UECN_OECN_TO_OECN:
-                    curr_mlnx_tunnel_map_entry.oecn_key   = mlnx_tunnel_map_entry[jj].oecn_key;
-                    curr_mlnx_tunnel_map_entry.uecn_key   = mlnx_tunnel_map_entry[jj].uecn_key;
+                    curr_mlnx_tunnel_map_entry.oecn_key = mlnx_tunnel_map_entry[jj].oecn_key;
+                    curr_mlnx_tunnel_map_entry.uecn_key = mlnx_tunnel_map_entry[jj].uecn_key;
                     curr_mlnx_tunnel_map_entry.oecn_value = mlnx_tunnel_map_entry[jj].oecn_value;
                     dbg_utils_print_table_data_line(file, sai_tunnelmap_uecnoecn2oecn_clmns);
                     break;
 
                 case SAI_TUNNEL_MAP_TYPE_VNI_TO_VLAN_ID:
-                    curr_mlnx_tunnel_map_entry.vni_id_key    = mlnx_tunnel_map_entry[jj].vni_id_key;
+                    curr_mlnx_tunnel_map_entry.vni_id_key = mlnx_tunnel_map_entry[jj].vni_id_key;
                     curr_mlnx_tunnel_map_entry.vlan_id_value = mlnx_tunnel_map_entry[jj].vlan_id_value;
                     dbg_utils_print_table_data_line(file, sai_tunnelmap_vni2vlan_clmns);
                     break;
 
                 case SAI_TUNNEL_MAP_TYPE_VLAN_ID_TO_VNI:
-                    curr_mlnx_tunnel_map_entry.vlan_id_key  = mlnx_tunnel_map_entry[jj].vlan_id_key;
+                    curr_mlnx_tunnel_map_entry.vlan_id_key = mlnx_tunnel_map_entry[jj].vlan_id_key;
                     curr_mlnx_tunnel_map_entry.vni_id_value = mlnx_tunnel_map_entry[jj].vni_id_value;
                     dbg_utils_print_table_data_line(file, sai_tunnelmap_vlan2vni_clmns);
                     break;
 
                 case SAI_TUNNEL_MAP_TYPE_VNI_TO_BRIDGE_IF:
-                    curr_mlnx_tunnel_map_entry.vni_id_key      = mlnx_tunnel_map_entry[jj].vni_id_key;
+                    curr_mlnx_tunnel_map_entry.vni_id_key = mlnx_tunnel_map_entry[jj].vni_id_key;
                     curr_mlnx_tunnel_map_entry.bridge_id_value = mlnx_tunnel_map_entry[jj].bridge_id_value;
                     dbg_utils_print_table_data_line(file, sai_tunnelmap_vni2bridgeif_clmns);
                     break;
 
                 case SAI_TUNNEL_MAP_TYPE_BRIDGE_IF_TO_VNI:
                     curr_mlnx_tunnel_map_entry.bridge_id_key = mlnx_tunnel_map_entry[jj].bridge_id_key;
-                    curr_mlnx_tunnel_map_entry.vni_id_value  = mlnx_tunnel_map_entry[jj].vni_id_value;
+                    curr_mlnx_tunnel_map_entry.vni_id_value = mlnx_tunnel_map_entry[jj].vni_id_value;
                     dbg_utils_print_table_data_line(file, sai_tunnelmap_bridgeif2vni_clmns);
                     break;
 
                 case SAI_TUNNEL_MAP_TYPE_VNI_TO_VIRTUAL_ROUTER_ID:
-                    curr_mlnx_tunnel_map_entry.vni_id_key  = mlnx_tunnel_map_entry[jj].vni_id_key;
+                    curr_mlnx_tunnel_map_entry.vni_id_key = mlnx_tunnel_map_entry[jj].vni_id_key;
                     curr_mlnx_tunnel_map_entry.vr_id_value = mlnx_tunnel_map_entry[jj].vr_id_value;
                     dbg_utils_print_table_data_line(file, sai_tunnelmap_vni2vr_clmns);
                     break;
 
                 case SAI_TUNNEL_MAP_TYPE_VIRTUAL_ROUTER_ID_TO_VNI:
-                    curr_mlnx_tunnel_map_entry.vr_id_key    = mlnx_tunnel_map_entry[jj].vr_id_key;
+                    curr_mlnx_tunnel_map_entry.vr_id_key = mlnx_tunnel_map_entry[jj].vr_id_key;
                     curr_mlnx_tunnel_map_entry.vni_id_value = mlnx_tunnel_map_entry[jj].vni_id_value;
                     dbg_utils_print_table_data_line(file, sai_tunnelmap_vr2vni_clmns);
                     break;
@@ -421,7 +421,7 @@ static void SAI_dump_tunnel_sai_tunnel_type_enum_to_str(_In_ sai_tunnel_type_t t
 
 static void SAI_dump_tunnel_print(_In_ FILE *file, _In_ mlnx_tunnel_entry_t *tunnel_db)
 {
-    uint32_t                  ii     = 0, jj = 0;
+    uint32_t                  ii = 0, jj = 0;
     sai_object_id_t           obj_id = SAI_NULL_OBJECT_ID;
     mlnx_tunnel_entry_t       curr_tunnel_db;
     char                      sai_tunnel_type_str[LINE_LENGTH];
@@ -555,7 +555,7 @@ static void SAI_dump_sdk_tunnel_table_type_enum_to_str(_In_ sx_tunnel_decap_key_
 
 static void SAI_dump_tunnel_table_print(_In_ FILE *file, _In_ mlnx_tunneltable_t *mlnx_tunneltable)
 {
-    uint32_t                  ii     = 0;
+    uint32_t                  ii = 0;
     sai_object_id_t           obj_id = SAI_NULL_OBJECT_ID;
     mlnx_tunneltable_t        curr_mlnx_tunneltable;
     char                      tunnel_type_str[LINE_LENGTH];
@@ -653,17 +653,17 @@ static void SAI_dump_bridge_print(_In_ FILE *file, _In_ sx_bridge_id_t *sx_bridg
 void SAI_dump_tunnel(_In_ FILE *file)
 {
     mlnx_tunnel_map_entry_t *tunnel_map_entry_db = NULL;
-    mlnx_tunnel_map_t       *tunnel_map_db       = NULL;
-    mlnx_tunnel_entry_t     *tunnel_entry_db     = NULL;
-    mlnx_tunneltable_t      *tunneltable_db      = NULL;
-    mlnx_bmtor_bridge_t     *bmtor_bridge_db     = NULL;
-    sx_bridge_id_t           sx_bridge_id        = 0;
+    mlnx_tunnel_map_t       *tunnel_map_db = NULL;
+    mlnx_tunnel_entry_t     *tunnel_entry_db = NULL;
+    mlnx_tunneltable_t      *tunneltable_db = NULL;
+    mlnx_bmtor_bridge_t     *bmtor_bridge_db = NULL;
+    sx_bridge_id_t           sx_bridge_id = 0;
 
     tunnel_map_entry_db =
         (mlnx_tunnel_map_entry_t*)calloc(MLNX_TUNNEL_MAP_ENTRY_MAX, sizeof(mlnx_tunnel_map_entry_t));
-    tunnel_map_db   = (mlnx_tunnel_map_t*)calloc(MLNX_TUNNEL_MAP_MAX, sizeof(mlnx_tunnel_map_t));
+    tunnel_map_db = (mlnx_tunnel_map_t*)calloc(MLNX_TUNNEL_MAP_MAX, sizeof(mlnx_tunnel_map_t));
     tunnel_entry_db = (mlnx_tunnel_entry_t*)calloc(MAX_TUNNEL_DB_SIZE, sizeof(mlnx_tunnel_entry_t));
-    tunneltable_db  = (mlnx_tunneltable_t*)calloc(MLNX_TUNNELTABLE_SIZE, sizeof(mlnx_tunneltable_t));
+    tunneltable_db = (mlnx_tunneltable_t*)calloc(MLNX_TUNNELTABLE_SIZE, sizeof(mlnx_tunneltable_t));
     bmtor_bridge_db = (mlnx_bmtor_bridge_t*)calloc(MLNX_BMTOR_BRIDGE_MAX, sizeof(mlnx_bmtor_bridge_t));
     if ((!tunnel_map_entry_db) || (!tunnel_map_db) || (!tunnel_entry_db) || (!tunneltable_db) || (!bmtor_bridge_db)) {
         if (tunnel_map_entry_db) {

@@ -149,6 +149,7 @@ inline static char * mlnx_severity_to_syslog(sx_log_severity_t severity)
 #define MLNX_SAI_LOG_NTC(fmt, ...) MLNX_SAI_LOG(SX_LOG_NOTICE, fmt, ## __VA_ARGS__)
 
 #define SAI_ERR(status) ((status) != SAI_STATUS_SUCCESS)
+#define SAI_OK(status)  ((status) == SAI_STATUS_SUCCESS)
 #define SX_ERR(status)  ((status) != SX_STATUS_SUCCESS)
 
 #define MLNX_SAI_STATUS_BUFFER_OVERFLOW_EMPTY_LIST SAI_STATUS_CODE(0x01000000L)
@@ -237,7 +238,8 @@ extern const sai_counter_api_t          mlnx_counter_api;
 #define PORT_SPEED_MAX_SP               PORT_SPEED_100
 #define PORT_SPEED_MAX_SP2              PORT_SPEED_200
 #define PORT_SPEED_MAX_SP3              PORT_SPEED_400
-#define NUM_SPEEDS                      10
+#define MAX_NUM_PORT_SPEEDS             12
+#define MAX_NUM_PORT_INTFS              SAI_PORT_INTERFACE_TYPE_MAX
 #define CPU_PORT                        0
 #define ECMP_MAX_PATHS                  64
 #define FG_ECMP_MAX_PATHS               4096
@@ -591,9 +593,14 @@ typedef struct _mlnx_obj_type_attrs_enum_infos_t {
     const mlnx_attr_enum_info_t *info;
     uint32_t                     count;
 } mlnx_obj_type_attrs_enums_info_t;
+typedef struct _mlnx_obj_type_stats_capability_infos_t {
+    const sai_stat_capability_t *info;
+    uint32_t                     count;
+} mlnx_obj_type_stats_capability_info_t;
 typedef struct _mlnx_obj_type_attrs_info_t {
-    const sai_vendor_attribute_entry_t    *vendor_data;
-    const mlnx_obj_type_attrs_enums_info_t enums_info;
+    const sai_vendor_attribute_entry_t         *vendor_data;
+    const mlnx_obj_type_attrs_enums_info_t      enums_info;
+    const mlnx_obj_type_stats_capability_info_t stats_capability;
 } mlnx_obj_type_attrs_info_t;
 /* A set of macros that allows to define a number of values passed to the macro
  * Example PP_NARG(a, b, c) gives 3.
@@ -669,9 +676,16 @@ typedef struct _mlnx_obj_type_attrs_info_t {
     {.info = enum_info_arr, .count = ARRAY_SIZE(enum_info_arr)}
 #define OBJ_ATTRS_ENUMS_INFO_EMPTY() \
     {.info = NULL, .count = 0}
+#define OBJ_STAT_CAP_INFO(stats_cap_arr) \
+    {.info = stats_cap_arr, .count = ARRAY_SIZE(stats_cap_arr)}
+#define OBJ_STAT_CAP_INFO_EMPTY() \
+    {.info = NULL, .count = 0}
 
+bool mlnx_chip_is_spc(void);
 bool mlnx_chip_is_spc2(void);
+bool mlnx_chip_is_spc3(void);
 bool mlnx_chip_is_spc2or3(void);
+
 sai_status_t sai_attribute_short_name_fetch(_In_ sai_object_type_t object_type,
                                             _In_ sai_attr_id_t     attr_id,
                                             _Out_ const char     **attr_short_name);
@@ -732,6 +746,9 @@ sai_status_t mlnx_sai_query_attribute_enum_values_capability_impl(_In_ sai_objec
                                                                   _In_ sai_object_type_t  object_type,
                                                                   _In_ sai_attr_id_t      attr_id,
                                                                   _Inout_ sai_s32_list_t *enum_values_capability);
+sai_status_t mlnx_sai_query_stats_capability_impl(_In_ sai_object_id_t                switch_id,
+                                                  _In_ sai_object_type_t              object_type,
+                                                  _Inout_ sai_stat_capability_list_t *stats_capability);
 
 #define MAX_KEY_STR_LEN        100
 #define MAX_VALUE_STR_LEN      100
@@ -857,6 +874,9 @@ sai_status_t mlnx_fill_u32list(const uint32_t *data, uint32_t count, sai_u32_lis
 sai_status_t mlnx_fill_s32list(const int32_t *data, uint32_t count, sai_s32_list_t *list);
 sai_status_t mlnx_fill_vlanlist(const sai_vlan_id_t *data, uint32_t count, sai_vlan_list_t *list);
 sai_status_t mlnx_fill_aclresourcelist(const sai_acl_resource_t *data, uint32_t count, sai_acl_resource_list_t *list);
+sai_status_t mlnx_fill_saistatcapabilitylist(const sai_stat_capability_t *data,
+                                             uint32_t                     count,
+                                             sai_stat_capability_list_t  *list);
 sai_status_t mlnx_attribute_value_list_size_check(_Inout_ uint32_t *out_size, _In_ uint32_t in_size);
 
 sai_status_t mlnx_wred_apply_to_queue_oid(_In_ sai_object_id_t wred_id, _In_ sai_object_id_t queue_oid);
@@ -1148,6 +1168,15 @@ typedef struct _mlnx_issu_lag_t {
     bool            lag_drop_tagged;
 } mlnx_issu_lag_t;
 
+#define MAX_PORT_ATTR_ADV_SPEEDS_NUM 10
+#define MAX_PORT_ATTR_ADV_INTFS_NUM  10
+
+typedef enum _mlnx_port_autoneg_type_t {
+    AUTO_NEG_DISABLE,
+    AUTO_NEG_ENABLE,
+    AUTO_NEG_DEFAULT
+} mlnx_port_autoneg_type_t;
+
 typedef struct _mlnx_port_config_t {
     uint8_t                         index;
     uint32_t                        module;
@@ -1167,6 +1196,13 @@ typedef struct _mlnx_port_config_t {
     bool                            issu_remove_default_vid;
     bool                            has_hostif;
     uint32_t                        hostif_db_idx;
+    uint32_t                        speed;
+    sai_port_interface_type_t       intf;
+    uint32_t                        adv_speeds[MAX_PORT_ATTR_ADV_SPEEDS_NUM];
+    uint32_t                        adv_speeds_num;
+    sai_port_interface_type_t       adv_intfs[MAX_PORT_ATTR_ADV_INTFS_NUM];
+    uint32_t                        adv_intfs_num;
+    mlnx_port_autoneg_type_t        auto_neg;
 
     /*  SAI Port can have up to MLNX_PORT_POLICER_TYPE_MAX SDK port storm
      *  policers in use internally.  For each storm item we keep type of
@@ -1188,8 +1224,6 @@ typedef struct _mlnx_port_config_t {
     uint16_t               rifs;
     bool                   lossless_pg[MAX_PG];
     uint16_t               acl_refs;
-    bool                   single_speed_mode;
-    uint32_t               oper_speed_cached;
     /* For ISSU, need to keep all LAG attributes in SAI port DB
      * Ingress ACL, Egress ACL, PVID, default VLAN priority, drop untagged/tagged
      * will be stored in SAI port DB only when port type is LAG and logical is zero */
@@ -1363,6 +1397,9 @@ sai_status_t mlnx_wred_port_queue_db_clear(_In_ mlnx_port_config_t *port);
 sai_status_t mlnx_bfd_session_oid_create(_In_ mlnx_shm_rm_array_idx_t idx,
                                          _Out_ sai_object_id_t       *oid);
 
+sai_status_t mlnx_port_bitmap_to_speeds(_In_ const sx_port_speed_t speed_bitmap,
+                                        _Out_ uint32_t            *speeds,
+                                        _Inout_ uint32_t          *speeds_count);
 
 #define MAX_ENCAP_NEXTHOPS_NUMBER 4000
 #define NUMBER_OF_LOCAL_VNETS     32
@@ -2286,6 +2323,15 @@ typedef struct _mlnx_fg_ecmp_group_size_t {
     uint32_t     configured_size;
 } mlnx_fg_ecmp_group_size_t;
 
+#ifndef PATH_MAX
+#define PATH_MAX 256
+#endif /* PATH_MAX */
+
+typedef struct _mlnx_dump_configuration_t {
+    char     path[SX_API_DUMP_PATH_LEN_LIMIT];
+    uint32_t max_events_to_store;
+} mlnx_dump_configuration_t;
+
 typedef struct sai_db {
     cl_plock_t         p_lock;
     sx_mac_addr_t      base_mac_addr;
@@ -2352,6 +2398,7 @@ typedef struct sai_db {
     uint32_t                          ipv4_neighbor_table_size;
     uint32_t                          ipv6_neighbor_table_size;
     bool                              aggregate_bridge_drops;
+    mlnx_dump_configuration_t         dump_configuration;
     mlnx_mirror_vlan_t                erspan_vlan_header[SPAN_SESSION_MAX];
     mlnx_mirror_policer_t             mirror_policer[SPAN_SESSION_MAX];
     mlnx_l2mc_group_t                 l2mc_groups[MLNX_L2MC_GROUP_DB_SIZE];
@@ -2550,7 +2597,7 @@ sai_status_t mlnx_port_config_init_mandatory(mlnx_port_config_t *port);
 sai_status_t mlnx_port_config_init(mlnx_port_config_t *port);
 sai_status_t mlnx_port_config_uninit(mlnx_port_config_t *port);
 sai_status_t mlnx_port_auto_split(mlnx_port_config_t *port);
-sai_status_t mlnx_port_speed_bitmap_apply(_In_ const mlnx_port_config_t *port);
+sai_status_t mlnx_port_speed_bitmap_apply(_In_ mlnx_port_config_t *port);
 sai_status_t mlnx_port_crc_params_apply(const mlnx_port_config_t *port, bool init);
 sai_status_t mlnx_port_fec_set_impl(sx_port_log_id_t port_log_id, int32_t value);
 
@@ -2630,6 +2677,8 @@ sai_status_t mlnx_sched_hierarchy_foreach(mlnx_port_config_t    *port,
 #define SAI_KEY_IPV4_NEIGHBOR_TABLE_SIZE "SAI_IPV4_NEIGHBOR_TABLE_SIZE"
 #define SAI_KEY_IPV6_NEIGHBOR_TABLE_SIZE "SAI_IPV6_NEIGHBOR_TABLE_SIZE"
 #define SAI_KEY_AGGREGATE_BRIDGE_DROPS   "SAI_AGGREGATE_BRIDGE_DROPS"
+#define SAI_KEY_DUMP_STORE_PATH          "SAI_DUMP_STORE_PATH"
+#define SAI_KEY_DUMP_STORE_AMOUNT        "SAI_DUMP_STORE_AMOUNT"
 
 #define MLNX_MIRROR_VLAN_TPID           0x8100
 #define MLNX_GRE_PROTOCOL_TYPE          0x8949

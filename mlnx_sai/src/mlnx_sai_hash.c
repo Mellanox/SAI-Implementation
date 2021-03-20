@@ -75,7 +75,7 @@ static const mlnx_attr_enum_info_t        hash_enum_info[] = {
     [SAI_HASH_ATTR_NATIVE_HASH_FIELD_LIST] = ATTR_ENUM_VALUES_ALL(),
 };
 const mlnx_obj_type_attrs_info_t          mlnx_hash_obj_type_info = {
-    hash_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(hash_enum_info)
+    hash_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(hash_enum_info), OBJ_STAT_CAP_INFO_EMPTY()
 };
 static void hash_key_to_str(_In_ sai_object_id_t hash_id, _Out_ char *key_str)
 {
@@ -91,7 +91,7 @@ static void hash_key_to_str(_In_ sai_object_id_t hash_id, _Out_ char *key_str)
 /* Create new hash object. */
 static sai_status_t mlnx_hash_obj_create(sai_object_id_t* new_object)
 {
-    uint32_t     ii     = 0;
+    uint32_t     ii = 0;
     sai_status_t status = SAI_STATUS_SUCCESS;
 
     sai_db_write_lock();
@@ -124,11 +124,11 @@ static sai_status_t mlnx_hash_obj_create(sai_object_id_t* new_object)
 /* Set native fields for specified hash object */
 static sai_status_t mlnx_hash_obj_native_fields_set(const sai_object_id_t hash_id, const sai_attribute_value_t* value)
 {
-    uint32_t     ii         = 0;
-    int32_t      field      = 0;
+    uint32_t     ii = 0;
+    int32_t      field = 0;
     uint64_t     field_mask = 0;
-    uint32_t     hash_data  = 0;
-    sai_status_t status     = SAI_STATUS_SUCCESS;
+    uint32_t     hash_data = 0;
+    sai_status_t status = SAI_STATUS_SUCCESS;
 
     for (ii = 0; ii < value->s32list.count; ii++) {
         field = value->s32list.list[ii];
@@ -152,12 +152,12 @@ static sai_status_t mlnx_hash_obj_native_fields_set(const sai_object_id_t hash_i
 /* Get native fields configured for a specified hash object */
 static sai_status_t mlnx_hash_obj_native_fileds_get(const sai_object_id_t hash_id, sai_attribute_value_t* value)
 {
-    uint32_t     ii                                    = 0;
-    uint64_t     field_mask                            = 0;
+    uint32_t     ii = 0;
+    uint64_t     field_mask = 0;
     int32_t      field_list[SAI_HASH_FIELDS_COUNT_MAX] = {0};
-    uint32_t     field_count                           = 0;
-    uint32_t     hash_data                             = 0;
-    sai_status_t status                                = SAI_STATUS_SUCCESS;
+    uint32_t     field_count = 0;
+    uint32_t     hash_data = 0;
+    sai_status_t status = SAI_STATUS_SUCCESS;
 
     if (SAI_STATUS_SUCCESS != mlnx_object_to_type(hash_id, SAI_OBJECT_TYPE_HASH, &hash_data, NULL)) {
         return SAI_STATUS_FAILURE;
@@ -228,8 +228,8 @@ static sai_status_t mlnx_hash_obj_udf_group_list_set(_In_ const sai_object_id_t 
 static sai_status_t mlnx_hash_obj_native_fields_validate(mlnx_switch_usage_hash_object_id_t hash_oper_id,
                                                          const sai_attribute_value_t      * value)
 {
-    uint32_t     ii     = 0;
-    int32_t      field  = 0;
+    uint32_t     ii = 0;
+    int32_t      field = 0;
     sai_status_t status = SAI_STATUS_SUCCESS;
 
     if (value->s32list.count == 0) {
@@ -347,9 +347,9 @@ static sai_status_t mlnx_hash_convert_ecmp_sai_field_to_sx(const sai_attribute_v
                                                            uint32_t                          * fields_count,
                                                            bool                                is_ipv6)
 {
-    uint32_t     ii          = 0;
+    uint32_t     ii = 0;
     bool         enable_ipv4 = false, enable_l4 = false, enable_inner = false;
-    sai_status_t status      = SAI_STATUS_SUCCESS;
+    sai_status_t status = SAI_STATUS_SUCCESS;
 
     *fields_count = 0;
     *enable_count = 0;
@@ -462,7 +462,7 @@ static sai_status_t mlnx_hash_convert_ecmp_sai_field_to_sx(const sai_attribute_v
 
         case SAI_NATIVE_HASH_FIELD_IP_PROTOCOL:
             fields_list[(*fields_count)++] = SX_ROUTER_ECMP_HASH_OUTER_IPV4_PROTOCOL;
-            enable_ipv4                    = true;
+            enable_ipv4 = true;
             break;
 
         case SAI_NATIVE_HASH_FIELD_ETHERTYPE:
@@ -533,9 +533,9 @@ static sai_status_t mlnx_hash_ecmp_cfg_apply_on_port(_In_ sx_port_log_id_t port_
     sai_status_t                       status;
     sx_router_ecmp_port_hash_params_t  port_hash_param;
     sx_router_ecmp_hash_field_enable_t hash_enable_list[FIELDS_ENABLES_NUM] = {0};
-    sx_router_ecmp_hash_field_t        hash_field_list[FIELDS_NUM]          = {0};
-    uint32_t                           enable_count                         = 0;
-    uint32_t                           field_count                          = 0;
+    sx_router_ecmp_hash_field_t        hash_field_list[FIELDS_NUM] = {0};
+    uint32_t                           enable_count = 0;
+    uint32_t                           field_count = 0;
 
     status = mlnx_hash_ecmp_global_config_get(&port_hash_param,
                                               hash_enable_list,
@@ -543,7 +543,7 @@ static sai_status_t mlnx_hash_ecmp_cfg_apply_on_port(_In_ sx_port_log_id_t port_
                                               hash_field_list,
                                               &field_count);
     if (SAI_ERR(status)) {
-        SX_LOG_ERR("Failed to get ECMP hash conifg\n");
+        SX_LOG_ERR("Failed to get ECMP hash config\n");
         return status;
     }
 
@@ -564,14 +564,14 @@ static sai_status_t mlnx_hash_lag_cfg_apply_on_port(_In_ sx_port_log_id_t port_l
     sx_status_t                sx_status;
     sx_lag_port_hash_params_t  lag_hash_params;
     sx_lag_hash_field_enable_t hash_enable_list[FIELDS_ENABLES_NUM] = {0};
-    sx_lag_hash_field_t        hash_field_list[FIELDS_NUM]          = {0};
-    uint32_t                   enable_count                         = 0;
-    uint32_t                   field_count                          = 0;
+    sx_lag_hash_field_t        hash_field_list[FIELDS_NUM] = {0};
+    uint32_t                   enable_count = 0;
+    uint32_t                   field_count = 0;
 
     status = mlnx_hash_lag_global_config_get(&lag_hash_params, hash_enable_list, &enable_count,
                                              hash_field_list, &field_count);
     if (SAI_ERR(status)) {
-        SX_LOG_ERR("Failed to get LAG hash conifg\n");
+        SX_LOG_ERR("Failed to get LAG hash config\n");
         return status;
     }
 
@@ -725,10 +725,10 @@ static void mlnx_hash_inner_ip_proto_fields_get(_Out_ sx_router_ecmp_hash_field_
     assert(field_count);
 
     field_list[*field_count] = SX_ROUTER_ECMP_HASH_INNER_IPV4_PROTOCOL;
-    *field_count            += 1;
+    *field_count += 1;
 
     field_list[*field_count] = SX_ROUTER_ECMP_HASH_INNER_IPV6_NEXT_HEADER;
-    *field_count            += 1;
+    *field_count += 1;
 #endif /* MLNX_HASH_INNER_IP_PROTO_ENABLE */
 }
 
@@ -744,7 +744,7 @@ static sai_status_t mlnx_hash_object_to_sx_fields(_In_ sai_object_id_t          
     sai_native_hash_field_t     sai_fields_list[SAI_HASH_FIELDS_COUNT_MAX] = {0};
     udf_group_mask_t            udf_group_mask;
     sx_router_ecmp_hash_field_t udf_groups_hash_fields[GENERAL_FIELDS_NUM] = {0};
-    uint32_t                    udf_groups_hash_field_count                = 0;
+    uint32_t                    udf_groups_hash_field_count = 0;
 
     assert(enable_list);
     assert(enable_count);
@@ -765,7 +765,7 @@ static sai_status_t mlnx_hash_object_to_sx_fields(_In_ sai_object_id_t          
         return status;
     }
 
-    sai_value.s32list.list  = (int32_t*)sai_fields_list;
+    sai_value.s32list.list = (int32_t*)sai_fields_list;
     sai_value.s32list.count = sizeof(sai_fields_list);
 
     status = mlnx_hash_obj_native_fileds_get(hash_oid, &sai_value);
@@ -804,9 +804,9 @@ static sai_status_t mlnx_hash_objects_to_sx_fields(_In_ sai_object_id_t         
 {
     sai_status_t                       status;
     sx_router_ecmp_hash_field_enable_t enable_list_v6[FIELDS_ENABLES_NUM] = {0};
-    sx_router_ecmp_hash_field_t        field_list_v6[FIELDS_NUM]          = {0};
-    uint32_t                           enable_count_v6                    = 0;
-    uint32_t                           field_count_v6                     = 0;
+    sx_router_ecmp_hash_field_t        field_list_v6[FIELDS_NUM] = {0};
+    uint32_t                           enable_count_v6 = 0;
+    uint32_t                           field_count_v6 = 0;
     uint32_t                           ii, jj;
     bool                               present;
 
@@ -906,13 +906,13 @@ sai_status_t mlnx_hash_ecmp_sx_config_update(void)
     sai_status_t                       status;
     sx_router_ecmp_port_hash_params_t  port_hash_param;
     sx_router_ecmp_hash_field_enable_t enable_list[FIELDS_ENABLES_NUM] = {0};
-    sx_router_ecmp_hash_field_t        field_list[FIELDS_NUM]          = {0};
-    uint32_t                           enable_count                    = 0;
-    uint32_t                           field_count                     = 0;
+    sx_router_ecmp_hash_field_t        field_list[FIELDS_NUM] = {0};
+    uint32_t                           enable_count = 0;
+    uint32_t                           field_count = 0;
 
     status = mlnx_hash_ecmp_global_config_get(&port_hash_param, enable_list, &enable_count, field_list, &field_count);
     if (SAI_ERR(status)) {
-        SX_LOG_ERR("Failed to get ECMP hash conifg\n");
+        SX_LOG_ERR("Failed to get ECMP hash config\n");
         return status;
     }
 
@@ -930,13 +930,13 @@ sai_status_t mlnx_hash_lag_sx_config_update(void)
     sai_status_t               status;
     sx_lag_port_hash_params_t  lag_hash_params;
     sx_lag_hash_field_enable_t enable_list[FIELDS_ENABLES_NUM] = {0};
-    sx_lag_hash_field_t        field_list[FIELDS_NUM]          = {0};
-    uint32_t                   enable_count                    = 0;
-    uint32_t                   field_count                     = 0;
+    sx_lag_hash_field_t        field_list[FIELDS_NUM] = {0};
+    uint32_t                   enable_count = 0;
+    uint32_t                   field_count = 0;
 
     status = mlnx_hash_lag_global_config_get(&lag_hash_params, enable_list, &enable_count, field_list, &field_count);
     if (SAI_ERR(status)) {
-        SX_LOG_ERR("Failed to get LAG hash conifg\n");
+        SX_LOG_ERR("Failed to get LAG hash config\n");
         return status;
     }
 
@@ -982,7 +982,7 @@ static mlnx_switch_usage_hash_object_id_t mlnx_hash_get_oper_id(sai_object_id_t 
 /* Remove hash object from DB if object is not in-use */
 static sai_status_t mlnx_hash_obj_remove(sai_object_id_t hash_id)
 {
-    sai_status_t status    = SAI_STATUS_SUCCESS;
+    sai_status_t status = SAI_STATUS_SUCCESS;
     uint32_t     hash_data = 0;
 
     if (SAI_STATUS_SUCCESS != mlnx_object_to_type(hash_id, SAI_OBJECT_TYPE_HASH, &hash_data, NULL)) {
@@ -996,9 +996,9 @@ static sai_status_t mlnx_hash_obj_remove(sai_object_id_t hash_id)
         goto out;
     }
 
-    g_sai_db_ptr->hash_list[hash_data].field_mask     = 0;
+    g_sai_db_ptr->hash_list[hash_data].field_mask = 0;
     g_sai_db_ptr->hash_list[hash_data].udf_group_mask = MLNX_UDF_GROUP_MASK_EMPTY;
-    g_sai_db_ptr->hash_list[hash_data].hash_id        = SAI_NULL_OBJECT_ID;
+    g_sai_db_ptr->hash_list[hash_data].hash_id = SAI_NULL_OBJECT_ID;
 
 out:
     sai_db_sync();
@@ -1029,7 +1029,7 @@ sai_status_t mlnx_hash_object_is_applicable(_In_ sai_object_id_t                
         return SAI_STATUS_SUCCESS;
     }
 
-    value.s32list.list  = field_list;
+    value.s32list.list = field_list;
     value.s32list.count = SAI_HASH_FIELDS_COUNT_MAX;
 
     status = mlnx_hash_obj_native_fileds_get(hash_oid, &value);
@@ -1068,9 +1068,9 @@ sai_status_t mlnx_hash_config_db_changes_commit(_In_ mlnx_switch_usage_hash_obje
  */
 sai_status_t mlnx_hash_initialize(void)
 {
-    sai_status_t                      status        = SAI_STATUS_SUCCESS;
+    sai_status_t                      status = SAI_STATUS_SUCCESS;
     sai_object_id_t                   ecmp_hash_obj = SAI_NULL_OBJECT_ID;
-    sai_object_id_t                   lag_hash_obj  = SAI_NULL_OBJECT_ID;
+    sai_object_id_t                   lag_hash_obj = SAI_NULL_OBJECT_ID;
     sx_lag_hash_param_t               lag_hash_param;
     sx_router_ecmp_port_hash_params_t port_hash_param;
     sai_attribute_value_t             attr_value;
@@ -1088,7 +1088,7 @@ sai_status_t mlnx_hash_initialize(void)
     memset(&port_hash_param, 0, sizeof(port_hash_param));
 
     attr_value.s32list.count = sizeof(def_hash_fields) / sizeof(def_hash_fields[0]);
-    attr_value.s32list.list  = def_hash_fields;
+    attr_value.s32list.list = def_hash_fields;
 
     memset(g_sai_db_ptr->hash_list, 0, sizeof(g_sai_db_ptr->hash_list));
 
@@ -1100,16 +1100,16 @@ sai_status_t mlnx_hash_initialize(void)
     }
 
     g_sai_db_ptr->hash_list[0].hash_id = ecmp_hash_obj;
-    status                             = mlnx_hash_obj_native_fields_set(ecmp_hash_obj, &attr_value);
+    status = mlnx_hash_obj_native_fields_set(ecmp_hash_obj, &attr_value);
     if (SAI_ERR(status)) {
         return status;
     }
 
     g_sai_db_ptr->port_ecmp_hash_params.ecmp_hash_type = SX_ROUTER_ECMP_HASH_TYPE_CRC;
-    g_sai_db_ptr->port_ecmp_hash_params.seed           = SAI_HASH_DEFAULT_SEED;
+    g_sai_db_ptr->port_ecmp_hash_params.seed = SAI_HASH_DEFAULT_SEED;
     g_sai_db_ptr->port_ecmp_hash_params.symmetric_hash = false;
 
-    g_sai_db_ptr->oper_hash_list[SAI_HASH_ECMP_ID]     = ecmp_hash_obj;
+    g_sai_db_ptr->oper_hash_list[SAI_HASH_ECMP_ID] = ecmp_hash_obj;
     g_sai_db_ptr->oper_hash_list[SAI_HASH_ECMP_IP6_ID] = ecmp_hash_obj;
 
     status = mlnx_hash_ecmp_sx_config_update();
@@ -1124,16 +1124,16 @@ sai_status_t mlnx_hash_initialize(void)
     }
 
     g_sai_db_ptr->hash_list[1].hash_id = lag_hash_obj;
-    status                             = mlnx_hash_obj_native_fields_set(lag_hash_obj, &attr_value);
+    status = mlnx_hash_obj_native_fields_set(lag_hash_obj, &attr_value);
     if (SAI_ERR(status)) {
         return status;
     }
 
-    g_sai_db_ptr->lag_hash_params.lag_hash_type         = SX_LAG_HASH_TYPE_XOR;
-    g_sai_db_ptr->lag_hash_params.lag_seed              = SAI_HASH_DEFAULT_SEED;
+    g_sai_db_ptr->lag_hash_params.lag_hash_type = SX_LAG_HASH_TYPE_XOR;
+    g_sai_db_ptr->lag_hash_params.lag_seed = SAI_HASH_DEFAULT_SEED;
     g_sai_db_ptr->lag_hash_params.is_lag_hash_symmetric = false;
 
-    g_sai_db_ptr->oper_hash_list[SAI_HASH_LAG_ID]     = lag_hash_obj;
+    g_sai_db_ptr->oper_hash_list[SAI_HASH_LAG_ID] = lag_hash_obj;
     g_sai_db_ptr->oper_hash_list[SAI_HASH_LAG_IP6_ID] = lag_hash_obj;
 
     status = mlnx_hash_lag_sx_config_update();
@@ -1157,10 +1157,10 @@ static sai_status_t mlnx_hash_native_field_list_get(_In_ const sai_object_key_t 
                                                     _Inout_ vendor_cache_t        *cache,
                                                     void                          *arg)
 {
-    uint32_t        hash_data                = 0;
-    sai_object_id_t hash_id                  = key->key.object_id;
+    uint32_t        hash_data = 0;
+    sai_object_id_t hash_id = key->key.object_id;
     char            key_str[MAX_KEY_STR_LEN] = {0};
-    sai_status_t    status                   = SAI_STATUS_SUCCESS;
+    sai_status_t    status = SAI_STATUS_SUCCESS;
 
     if (SAI_STATUS_SUCCESS != (status = mlnx_object_to_type(hash_id, SAI_OBJECT_TYPE_HASH, &hash_data, NULL))) {
         return status;
@@ -1182,10 +1182,10 @@ static sai_status_t mlnx_hash_native_field_list_set(_In_ const sai_object_key_t 
                                                     _In_ const sai_attribute_value_t *value,
                                                     void                             *arg)
 {
-    mlnx_switch_usage_hash_object_id_t hash_oper_id             = 0;
-    sai_object_id_t                    hash_id                  = key->key.object_id;
+    mlnx_switch_usage_hash_object_id_t hash_oper_id = 0;
+    sai_object_id_t                    hash_id = key->key.object_id;
     char                               key_str[MAX_KEY_STR_LEN] = {0};
-    sai_status_t                       status                   = SAI_STATUS_SUCCESS;
+    sai_status_t                       status = SAI_STATUS_SUCCESS;
 
     hash_key_to_str(hash_id, key_str);
 
@@ -1328,8 +1328,8 @@ static sai_status_t mlnx_create_hash(_Out_ sai_object_id_t     * hash_id,
     uint32_t                     index = 0;
     const sai_attribute_value_t *native_filed_list, *udf_group_list;
     char                         list_str[MAX_LIST_VALUE_STR_LEN] = {0};
-    char                         key_str[MAX_KEY_STR_LEN]         = {0};
-    sai_status_t                 status                           = SAI_STATUS_SUCCESS;
+    char                         key_str[MAX_KEY_STR_LEN] = {0};
+    sai_status_t                 status = SAI_STATUS_SUCCESS;
 
     SX_LOG_ENTER();
 
@@ -1409,9 +1409,9 @@ out:
  */
 static sai_status_t mlnx_remove_hash(_In_ sai_object_id_t hash_id)
 {
-    uint32_t     hash_data                = 0;
+    uint32_t     hash_data = 0;
     char         key_str[MAX_KEY_STR_LEN] = {0};
-    sai_status_t status                   = SAI_STATUS_SUCCESS;
+    sai_status_t status = SAI_STATUS_SUCCESS;
 
     SX_LOG_ENTER();
 

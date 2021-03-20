@@ -205,6 +205,7 @@
     <ClCompile Include="src\dbgdump\mlnx_sai_dbg_stp.c" />
     <ClCompile Include="src\dbgdump\mlnx_sai_dbg_tunnel.c" />
     <ClCompile Include="src\dbgdump\mlnx_sai_dbg_udf.c" />
+    <ClCompile Include="src\dbgdump\mlnx_sai_dbg_utils.c" />
     <ClCompile Include="src\dbgdump\mlnx_sai_dbg_vlan.c" />
     <ClCompile Include="src\dbgdump\mlnx_sai_dbg_wred.c" />
     <ClCompile Include="src\fx_base_acl_validation.c" />

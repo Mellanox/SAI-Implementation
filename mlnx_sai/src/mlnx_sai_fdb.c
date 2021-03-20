@@ -97,7 +97,7 @@ static const mlnx_attr_enum_info_t        fdb_entry_enum_info[] = {
         )
 };
 const mlnx_obj_type_attrs_info_t          mlnx_fdb_entry_obj_type_info =
-{ fdb_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(fdb_entry_enum_info)};
+{ fdb_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(fdb_entry_enum_info), OBJ_STAT_CAP_INFO_EMPTY()};
 static const sai_vendor_attribute_entry_t fdb_flush_vendor_attribs[] = {
     { SAI_FDB_FLUSH_ATTR_BRIDGE_PORT_ID,
       { true, false, false, false },
@@ -125,11 +125,11 @@ static const mlnx_attr_enum_info_t        fdb_flush_enum_info[] = {
         SAI_FDB_FLUSH_ENTRY_TYPE_DYNAMIC)
 };
 const mlnx_obj_type_attrs_info_t          mlnx_fdb_flush_obj_type_info =
-{ fdb_flush_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(fdb_flush_enum_info)};
+{ fdb_flush_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(fdb_flush_enum_info), OBJ_STAT_CAP_INFO_EMPTY()};
 static sai_status_t mlnx_add_or_del_mac(sx_fdb_uc_mac_addr_params_t *mac_entry, sx_access_cmd_t cmd)
 {
     uint32_t            entries_count = 1;
-    const char         *cmd_name      = cmd == SX_ACCESS_CMD_ADD ? "add" : "del";
+    const char         *cmd_name = cmd == SX_ACCESS_CMD_ADD ? "add" : "del";
     sx_status_t         status;
     mlnx_bridge_port_t *port;
 
@@ -445,9 +445,9 @@ static sai_status_t mlnx_fdb_attrs_to_sx(_In_ const sai_attribute_value_t  *type
             g_sai_tunnel_db_ptr->tunnel_entry_db[bport->tunnel_idx].sx_tunnel_id_ipv4;
         fdb_entry->dest_type =
             SX_FDB_UC_MAC_ADDR_DEST_TYPE_NEXT_HOP;
-        fdb_entry->dest.next_hop.next_hop_key.type                                   = SX_NEXT_HOP_TYPE_TUNNEL_ENCAP;
+        fdb_entry->dest.next_hop.next_hop_key.type = SX_NEXT_HOP_TYPE_TUNNEL_ENCAP;
         fdb_entry->dest.next_hop.next_hop_key.next_hop_key_entry.ip_tunnel.tunnel_id = sx_tunnel_id;
-        status                                                                       =
+        status =
             mlnx_translate_sai_ip_address_to_sdk(&ip_addr->ipaddr,
                                                  &fdb_entry->dest.next_hop.next_hop_key.next_hop_key_entry.ip_tunnel.underlay_dip);
         if (SAI_ERR(status)) {
@@ -733,7 +733,7 @@ static sai_status_t mlnx_fdb_port_set(_In_ const sai_object_key_t      *key,
                 return SAI_STATUS_FAILURE;
             }
 
-            new_mac_entry.action   = SX_FDB_ACTION_FORWARD_TO_ROUTER;
+            new_mac_entry.action = SX_FDB_ACTION_FORWARD_TO_ROUTER;
             new_mac_entry.log_port = SX_INVALID_PORT;
         } else {
             new_mac_entry.log_port = bport->logical;
@@ -885,9 +885,9 @@ static sai_status_t fill_fdb_cache(mlnx_fdb_cache_t *fdb_cache, const sai_fdb_en
     }
 
     fdb_cache->fdb_cache_set = true;
-    fdb_cache->action        = mac_entry.action;
-    fdb_cache->entry_type    = mac_entry.entry_type;
-    fdb_cache->log_port      = mac_entry.log_port;
+    fdb_cache->action = mac_entry.action;
+    fdb_cache->entry_type = mac_entry.entry_type;
+    fdb_cache->log_port = mac_entry.log_port;
     memcpy(&fdb_cache->endpoint_ip,
            &mac_entry.dest.next_hop.next_hop_key.next_hop_key_entry.ip_tunnel.underlay_dip,
            sizeof(fdb_cache->endpoint_ip));
@@ -1070,7 +1070,7 @@ static sai_status_t mlnx_flush_fdb_entries(_In_ sai_object_id_t        switch_id
     SX_LOG_ENTER();
 
     status = check_attribs_metadata(attr_count, attr_list, SAI_OBJECT_TYPE_FDB_FLUSH, fdb_flush_vendor_attribs,
-        SAI_COMMON_API_CREATE);
+                                    SAI_COMMON_API_CREATE);
     if (SAI_ERR(status)) {
         SX_LOG_ERR("Failed attribs check\n");
         return status;
@@ -1100,7 +1100,7 @@ static sai_status_t mlnx_flush_fdb_entries(_In_ sai_object_id_t        switch_id
             return SAI_STATUS_ATTR_NOT_IMPLEMENTED_0 + bv_id_index;
         }
         bv_id_found = true;
-        status      = mlnx_fdb_bv_id_to_sx_fid(bv_id->oid, &sx_fid);
+        status = mlnx_fdb_bv_id_to_sx_fid(bv_id->oid, &sx_fid);
         if (SAI_ERR(status)) {
             return status;
         }

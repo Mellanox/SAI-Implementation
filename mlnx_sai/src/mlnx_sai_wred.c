@@ -152,7 +152,7 @@ static const mlnx_attr_enum_info_t        wred_enum_info[] = {
     [SAI_WRED_ATTR_ECN_MARK_MODE] = ATTR_ENUM_VALUES_ALL(),
 };
 const mlnx_obj_type_attrs_info_t          mlnx_wred_obj_type_info =
-{ wred_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(wred_enum_info)};
+{ wred_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(wred_enum_info), OBJ_STAT_CAP_INFO_EMPTY()};
 
 /*
  * Routine Description:
@@ -168,7 +168,7 @@ const mlnx_obj_type_attrs_info_t          mlnx_wred_obj_type_info =
  */
 static sai_status_t mlnx_wred_db_create(sai_object_id_t *wred_id, mlnx_wred_profile_t  *new_wred)
 {
-    uint32_t     ii     = 0;
+    uint32_t     ii = 0;
     sai_status_t status = SAI_STATUS_SUCCESS;
 
     for (; ii < g_resource_limits.cos_redecn_profiles_max; ii++) {
@@ -205,7 +205,7 @@ static sai_status_t mlnx_wred_db_create(sai_object_id_t *wred_id, mlnx_wred_prof
 static sai_status_t mlnx_wred_db_remove(sai_object_id_t wred_id)
 {
     uint32_t     wred_num = 0;
-    sai_status_t status   = SAI_STATUS_SUCCESS;
+    sai_status_t status = SAI_STATUS_SUCCESS;
 
     if (SAI_STATUS_SUCCESS != mlnx_object_to_type(wred_id, SAI_OBJECT_TYPE_WRED, &wred_num, NULL)) {
         return SAI_STATUS_INVALID_OBJECT_ID;
@@ -288,7 +288,7 @@ static sai_status_t mlnx_wred_db_get(sai_object_id_t wred_id, mlnx_wred_profile_
 static sai_status_t mlnx_wred_db_set(sai_object_id_t wred_id, mlnx_wred_profile_t *wred_profile)
 {
     uint32_t     wred_num = 0;
-    sai_status_t status   = SAI_STATUS_SUCCESS;
+    sai_status_t status = SAI_STATUS_SUCCESS;
 
     if (SAI_STATUS_SUCCESS != mlnx_object_to_type(wred_id, SAI_OBJECT_TYPE_WRED, &wred_num, NULL)) {
         return SAI_STATUS_INVALID_OBJECT_ID;
@@ -334,7 +334,7 @@ static bool mlnx_wred_db_isfull()
 
 static void tc_list_to_str(sx_cos_traffic_class_t *tc_list, uint32_t tc_count, char* buf)
 {
-    uint32_t ii         = 0;
+    uint32_t ii = 0;
     char     tc_buf[10] = {0};
 
     for (; ii < tc_count; ii++) {
@@ -351,7 +351,7 @@ static uint16_t mlnx_wred_sai_threshold_to_sx(uint32_t sai_threshold)
                              g_resource_limits.shared_buff_buffer_unit_size;
 
     if (ROUNDUP(sai_threshold, g_resource_limits.shared_buff_buffer_unit_size) != sai_threshold) {
-        SX_LOG_NTC("Threshold %u not alligned, round to %u multiply\n", sai_threshold,
+        SX_LOG_NTC("Threshold %u not aligned, round to %u multiply\n", sai_threshold,
                    g_resource_limits.shared_buff_buffer_unit_size);
     }
 
@@ -384,7 +384,7 @@ static sai_status_t mlnx_wred_get_tc_configured_list(mlnx_port_config_t     *por
                                                      sx_cos_traffic_class_t *tc_list,
                                                      uint32_t               *tc_count)
 {
-    uint32_t                 ii    = 0;
+    uint32_t                 ii = 0;
     uint32_t                 count = 0;
     mlnx_qos_queue_config_t *queue_cfg;
     sai_status_t             status = SAI_STATUS_SUCCESS;
@@ -435,7 +435,7 @@ static sai_status_t mlnx_wred_bind_sxwred_to_port(sx_port_log_id_t          port
 {
     sx_cos_redecn_bind_params_t bind_param;
     char                        buf[MAX_VALUE_STR_LEN] = {0};
-    sx_status_t                 sx_status              = SX_STATUS_SUCCESS;
+    sx_status_t                 sx_status = SX_STATUS_SUCCESS;
 
     memset(&bind_param, 0, sizeof(bind_param));
     bind_param.tc_profile = profile_id;
@@ -477,7 +477,7 @@ static sai_status_t mlnx_wred_bind_sxwred_to_all_port(sai_object_id_t           
 {
     uint32_t                ii = 0;
     sx_cos_traffic_class_t *tc_list;
-    uint32_t                tc_count  = g_resource_limits.cos_port_ets_traffic_class_max + 1;
+    uint32_t                tc_count = g_resource_limits.cos_port_ets_traffic_class_max + 1;
     sx_status_t             sx_status = SX_STATUS_SUCCESS;
     mlnx_port_config_t     *port;
 
@@ -611,7 +611,7 @@ static sai_status_t mlnx_wred_bind_saiwred_to_all_port(sai_object_id_t wred_id, 
     mlnx_wred_profile_t     wred_profile;
     sx_cos_traffic_class_t *tc_list;
     uint32_t                tc_count = g_resource_limits.cos_port_ets_traffic_class_max + 1;
-    sai_status_t            status   = SAI_STATUS_SUCCESS;
+    sai_status_t            status = SAI_STATUS_SUCCESS;
     mlnx_port_config_t     *port;
 
     if (SAI_STATUS_SUCCESS != (status = mlnx_wred_db_get(wred_id, &wred_profile))) {
@@ -634,7 +634,7 @@ static sai_status_t mlnx_wred_bind_saiwred_to_all_port(sai_object_id_t wred_id, 
         if (tc_count > 0) {
             if (cmd == SX_ACCESS_CMD_BIND) {
                 bool wred_enabled = wred_profile.wred_enabled;
-                bool ecn_enabled  = wred_profile.ecn_enabled;
+                bool ecn_enabled = wred_profile.ecn_enabled;
 
                 status = mlnx_wred_ecn_enable_set(port->logical, tc_list, tc_count, wred_enabled, ecn_enabled);
                 if (SAI_ERR(status)) {
@@ -667,7 +667,7 @@ static sai_status_t mlnx_wred_ecn_enable_set(sx_port_log_id_t        port,
 
     memset(&ecn_param, 0, sizeof(ecn_param));
 
-    ecn_param.mode        = SX_COS_REDECN_MODE_ABSOLUTE;
+    ecn_param.mode = SX_COS_REDECN_MODE_ABSOLUTE;
     ecn_param.ecn_enabled = ecn_enable;
     ecn_param.red_enabled = red_enable;
 
@@ -903,11 +903,11 @@ static sai_status_t mlnx_wred_attr_getter(_In_ const sai_object_key_t   *key,
     sai_object_id_t                    wred_id = key->key.object_id;
     sx_cos_redecn_profile_attributes_t redecn_attr;
     mlnx_wred_profile_t                wred_profile;
-    sx_cos_redecn_profile_t            sx_profile               = SAI_INVALID_PROFILE_ID;
+    sx_cos_redecn_profile_t            sx_profile = SAI_INVALID_PROFILE_ID;
     char                               key_str[MAX_KEY_STR_LEN] = {0};
-    sai_status_t                       status                   = SAI_STATUS_SUCCESS;
-    sx_status_t                        sx_status                = SX_STATUS_SUCCESS;
-    long                               attr                     = (long)arg;
+    sai_status_t                       status = SAI_STATUS_SUCCESS;
+    sx_status_t                        sx_status = SX_STATUS_SUCCESS;
+    long                               attr = (long)arg;
 
     memset(&redecn_attr, 0, sizeof(redecn_attr));
     memset(&wred_profile, 0, sizeof(wred_profile));
@@ -1010,12 +1010,12 @@ static sai_status_t mlnx_wred_attr_setter(_In_ const sai_object_key_t      *key,
     sai_object_id_t                    wred_id = key->key.object_id;
     sx_cos_redecn_profile_attributes_t redecn_attr;
     mlnx_wred_profile_t                wred_profile;
-    sx_cos_redecn_profile_t           *profile                  = NULL;
+    sx_cos_redecn_profile_t           *profile = NULL;
     char                               key_str[MAX_KEY_STR_LEN] = {0};
-    sx_status_t                        sx_status                = SX_STATUS_SUCCESS;
-    sai_status_t                       status                   = SAI_STATUS_SUCCESS;
-    long                               attr                     = (long)arg;
-    sx_cos_redecn_flow_type_e          flows[2]                 = {0};
+    sx_status_t                        sx_status = SX_STATUS_SUCCESS;
+    sai_status_t                       status = SAI_STATUS_SUCCESS;
+    long                               attr = (long)arg;
+    sx_cos_redecn_flow_type_e          flows[2] = {0};
 
     memset(&redecn_attr, 0, sizeof(redecn_attr));
     memset(&wred_profile, 0, sizeof(wred_profile));
@@ -1033,7 +1033,7 @@ static sai_status_t mlnx_wred_attr_setter(_In_ const sai_object_key_t      *key,
     case SAI_WRED_ATTR_GREEN_MIN_THRESHOLD:
     case SAI_WRED_ATTR_GREEN_MAX_THRESHOLD:
     case SAI_WRED_ATTR_GREEN_DROP_PROBABILITY:
-        profile  = &wred_profile.green_profile_id;
+        profile = &wred_profile.green_profile_id;
         flows[0] = SX_COS_REDECN_FLOW_TYPE_TCP_GREEN;
         flows[1] = SX_COS_REDECN_FLOW_TYPE_NON_TCP_GREEN;
         break;
@@ -1041,7 +1041,7 @@ static sai_status_t mlnx_wred_attr_setter(_In_ const sai_object_key_t      *key,
     case SAI_WRED_ATTR_YELLOW_MIN_THRESHOLD:
     case SAI_WRED_ATTR_YELLOW_MAX_THRESHOLD:
     case SAI_WRED_ATTR_YELLOW_DROP_PROBABILITY:
-        profile  = &wred_profile.yellow_profile_id;
+        profile = &wred_profile.yellow_profile_id;
         flows[0] = SX_COS_REDECN_FLOW_TYPE_TCP_YELLOW;
         flows[1] = SX_COS_REDECN_FLOW_TYPE_NON_TCP_YELLOW;
         break;
@@ -1049,7 +1049,7 @@ static sai_status_t mlnx_wred_attr_setter(_In_ const sai_object_key_t      *key,
     case SAI_WRED_ATTR_RED_MIN_THRESHOLD:
     case SAI_WRED_ATTR_RED_MAX_THRESHOLD:
     case SAI_WRED_ATTR_RED_DROP_PROBABILITY:
-        profile  = &wred_profile.red_profile_id;
+        profile = &wred_profile.red_profile_id;
         flows[0] = SX_COS_REDECN_FLOW_TYPE_TCP_RED;
         flows[1] = SX_COS_REDECN_FLOW_TYPE_NON_TCP_RED;
         break;
@@ -1136,12 +1136,12 @@ static sai_status_t mlnx_wred_attr_enable_set(_In_ const sai_object_key_t      *
 {
     sai_object_id_t          wred_id = key->key.object_id;
     mlnx_wred_profile_t      wred_profile;
-    sx_cos_redecn_profile_t *sx_profile_p             = NULL;
-    flow_color_type_t        color                    = FLOW_COLOR_GREEN;
+    sx_cos_redecn_profile_t *sx_profile_p = NULL;
+    flow_color_type_t        color = FLOW_COLOR_GREEN;
     char                     key_str[MAX_KEY_STR_LEN] = {0};
     bool                     wred_enabled;
     sai_status_t             status = SAI_STATUS_SUCCESS;
-    long                     attr   = (long)arg;
+    long                     attr = (long)arg;
 
     memset(&wred_profile, 0, sizeof(wred_profile));
 
@@ -1187,7 +1187,7 @@ static sai_status_t mlnx_wred_attr_enable_set(_In_ const sai_object_key_t      *
             wred_enabled = value->booldata;
         } else {
             sx_profile_p = &wred_profile.green_profile_id;
-            color        = FLOW_COLOR_GREEN;
+            color = FLOW_COLOR_GREEN;
         }
         break;
 
@@ -1217,7 +1217,7 @@ static sai_status_t mlnx_wred_attr_enable_set(_In_ const sai_object_key_t      *
             wred_enabled = value->booldata;
         } else {
             sx_profile_p = &wred_profile.yellow_profile_id;
-            color        = FLOW_COLOR_YELLOW;
+            color = FLOW_COLOR_YELLOW;
         }
         break;
 
@@ -1247,7 +1247,7 @@ static sai_status_t mlnx_wred_attr_enable_set(_In_ const sai_object_key_t      *
             wred_enabled = value->booldata;
         } else {
             sx_profile_p = &wred_profile.red_profile_id;
-            color        = FLOW_COLOR_RED;
+            color = FLOW_COLOR_RED;
         }
         break;
 
@@ -1265,7 +1265,7 @@ static sai_status_t mlnx_wred_attr_enable_set(_In_ const sai_object_key_t      *
         }
 
         wred_profile.wred_enabled = wred_enabled;
-        status                    = mlnx_wred_db_set(wred_id, &wred_profile);
+        status = mlnx_wred_db_set(wred_id, &wred_profile);
         if (SAI_ERR(status)) {
             SX_LOG_ERR("Failed to set ecn for %s\n", key_str);
             return status;
@@ -1330,8 +1330,8 @@ static uint8_t mlnx_wred_weight_to_sai(uint32_t sx_weight)
 
 static sai_status_t mlnx_wred_sx_weight_validate(sai_object_id_t wred_id, uint8_t weight_val)
 {
-    sai_status_t           status    = SAI_STATUS_SUCCESS;
-    uint32_t               wred_num  = 0, count = 0, wred_last_num = 0;
+    sai_status_t           status = SAI_STATUS_SUCCESS;
+    uint32_t               wred_num = 0, count = 0, wred_last_num = 0;
     sai_object_id_t        wred_last = SAI_NULL_OBJECT_ID;
     sx_cos_redecn_global_t redecn_global;
     sx_status_t            sx_status = SX_STATUS_SUCCESS;
@@ -1415,7 +1415,7 @@ sai_status_t mlnx_wred_init()
     memset(&redecn_global, 0, sizeof(redecn_global));
 
     redecn_global.source_congestion_detection_only = false;
-    redecn_global.weight                           = mlnx_wred_weight_to_sx(DEFAULT_WEIGHT_VAL);
+    redecn_global.weight = mlnx_wred_weight_to_sx(DEFAULT_WEIGHT_VAL);
 
     sx_status = sx_api_cos_redecn_general_param_set(gh_sdk, &redecn_global);
     if (SX_STATUS_SUCCESS != sx_status) {
@@ -1439,7 +1439,7 @@ static sai_status_t mlnx_wred_weight_set(_In_ const sai_object_key_t      *key,
     sai_object_id_t     wred_id = key->key.object_id;
     mlnx_wred_profile_t wred_profile;
     char                key_str[MAX_KEY_STR_LEN] = {0};
-    sai_status_t        status                   = SAI_STATUS_SUCCESS;
+    sai_status_t        status = SAI_STATUS_SUCCESS;
 
     memset(&wred_profile, 0, sizeof(wred_profile));
 
@@ -1470,7 +1470,7 @@ static sai_status_t mlnx_wred_weight_get(_In_ const sai_object_key_t   *key,
     sai_object_id_t        wred_id = key->key.object_id;
     mlnx_wred_profile_t    wred_profile;
     char                   key_str[MAX_KEY_STR_LEN] = {0};
-    sx_status_t            status                   = SX_STATUS_SUCCESS;
+    sx_status_t            status = SX_STATUS_SUCCESS;
     sx_cos_redecn_global_t redecn_global;
 
     memset(&wred_profile, 0, sizeof(wred_profile));
@@ -1503,7 +1503,7 @@ static sai_status_t mlnx_wred_ecn_set(_In_ const sai_object_key_t      *key,
                                       void                             *arg)
 {
     char                     key_str[MAX_KEY_STR_LEN] = {0};
-    sai_object_id_t          wred_id                  = key->key.object_id;
+    sai_object_id_t          wred_id = key->key.object_id;
     sx_cos_redecn_profile_t *disable_profiles[3];
     uint32_t                 disable_count = 0;
     mlnx_wred_profile_t      wred_profile;
@@ -1564,7 +1564,7 @@ static sai_status_t mlnx_wred_ecn_set(_In_ const sai_object_key_t      *key,
 
         disable_profiles[0] = &wred_profile.yellow_profile_id;
         disable_profiles[1] = &wred_profile.red_profile_id;
-        disable_count       = 2;
+        disable_count = 2;
         break;
 
     case SAI_ECN_MARK_MODE_YELLOW:
@@ -1583,7 +1583,7 @@ static sai_status_t mlnx_wred_ecn_set(_In_ const sai_object_key_t      *key,
 
         disable_profiles[0] = &wred_profile.green_profile_id;
         disable_profiles[1] = &wred_profile.red_profile_id;
-        disable_count       = 2;
+        disable_count = 2;
         break;
 
     case SAI_ECN_MARK_MODE_RED:
@@ -1602,7 +1602,7 @@ static sai_status_t mlnx_wred_ecn_set(_In_ const sai_object_key_t      *key,
 
         disable_profiles[0] = &wred_profile.green_profile_id;
         disable_profiles[1] = &wred_profile.yellow_profile_id;
-        disable_count       = 2;
+        disable_count = 2;
         break;
 
     case SAI_ECN_MARK_MODE_GREEN_YELLOW:
@@ -1620,7 +1620,7 @@ static sai_status_t mlnx_wred_ecn_set(_In_ const sai_object_key_t      *key,
         }
 
         disable_profiles[0] = &wred_profile.red_profile_id;
-        disable_count       = 1;
+        disable_count = 1;
         break;
 
     case SAI_ECN_MARK_MODE_GREEN_RED:
@@ -1638,7 +1638,7 @@ static sai_status_t mlnx_wred_ecn_set(_In_ const sai_object_key_t      *key,
         }
 
         disable_profiles[0] = &wred_profile.yellow_profile_id;
-        disable_count       = 1;
+        disable_count = 1;
         break;
 
     case SAI_ECN_MARK_MODE_YELLOW_RED:
@@ -1656,7 +1656,7 @@ static sai_status_t mlnx_wred_ecn_set(_In_ const sai_object_key_t      *key,
         }
 
         disable_profiles[0] = &wred_profile.green_profile_id;
-        disable_count       = 1;
+        disable_count = 1;
         break;
 
     default:
@@ -1677,7 +1677,7 @@ static sai_status_t mlnx_wred_ecn_set(_In_ const sai_object_key_t      *key,
         }
 
         wred_profile.ecn_enabled = ecn_enable;
-        status                   = mlnx_wred_db_set(wred_id, &wred_profile);
+        status = mlnx_wred_db_set(wred_id, &wred_profile);
         if (SAI_ERR(status)) {
             SX_LOG_ERR("Failed to set ecn for %s\n", key_str);
             goto out;
@@ -1729,7 +1729,7 @@ static sai_status_t mlnx_wred_ecn_get(_In_ const sai_object_key_t   *key,
     sai_object_id_t     wred_id = key->key.object_id;
     mlnx_wred_profile_t wred_profile;
     char                key_str[MAX_KEY_STR_LEN] = {0};
-    sai_status_t        status                   = SAI_STATUS_SUCCESS;
+    sai_status_t        status = SAI_STATUS_SUCCESS;
 
     memset(&wred_profile, 0, sizeof(wred_profile));
 
@@ -1795,7 +1795,7 @@ sai_status_t mlnx_wred_log_set(sx_verbosity_level_t level)
  */
 static sai_status_t mlnx_set_wred_attribute(_In_ sai_object_id_t wred_id, _In_ const sai_attribute_t *attr)
 {
-    const sai_object_key_t key  = { .key.object_id = wred_id };
+    const sai_object_key_t key = { .key.object_id = wred_id };
     uint32_t               wred = 0;
     char                   key_str[MAX_KEY_STR_LEN];
     sai_status_t           status;
@@ -1896,36 +1896,36 @@ static sai_status_t mlnx_create_wred_profile(_Out_ sai_object_id_t      *wred_id
                                              _In_ const sai_attribute_t *attr_list)
 {
     sx_cos_redecn_profile_attributes_t redecn_attr_green, redecn_attr_yellow, redecn_attr_red;
-    const sai_attribute_value_t       *green_en_attr       = NULL, *yellow_en_attr = NULL, *red_en_attr = NULL;
-    const sai_attribute_value_t       *ecn_en_attr         = NULL, *weight = NULL;
-    const sai_attribute_value_t       *green_min_th        = NULL, *green_max_th = NULL, *green_prob = NULL;
-    const sai_attribute_value_t       *yellow_min_th       = NULL, *yellow_max_th = NULL, *yellow_prob = NULL;
-    const sai_attribute_value_t       *red_min_th          = NULL, *red_max_th = NULL, *red_prob = NULL;
-    uint8_t                            weight_val          = 0;
-    uint32_t                           index               = 0;
-    bool                               wred_green_enabled  = false;
+    const sai_attribute_value_t       *green_en_attr = NULL, *yellow_en_attr = NULL, *red_en_attr = NULL;
+    const sai_attribute_value_t       *ecn_en_attr = NULL, *weight = NULL;
+    const sai_attribute_value_t       *green_min_th = NULL, *green_max_th = NULL, *green_prob = NULL;
+    const sai_attribute_value_t       *yellow_min_th = NULL, *yellow_max_th = NULL, *yellow_prob = NULL;
+    const sai_attribute_value_t       *red_min_th = NULL, *red_max_th = NULL, *red_prob = NULL;
+    uint8_t                            weight_val = 0;
+    uint32_t                           index = 0;
+    bool                               wred_green_enabled = false;
     bool                               wred_yellow_enabled = false;
-    bool                               wred_red_enabled    = false;
-    bool                               ecn_green_enabled   = false;
-    bool                               ecn_yellow_enabled  = false;
-    bool                               ecn_red_enabled     = false;
-    bool                               green_enabled       = false;
-    bool                               yellow_enabled      = false;
-    bool                               red_enabled         = false;
+    bool                               wred_red_enabled = false;
+    bool                               ecn_green_enabled = false;
+    bool                               ecn_yellow_enabled = false;
+    bool                               ecn_red_enabled = false;
+    bool                               green_enabled = false;
+    bool                               yellow_enabled = false;
+    bool                               red_enabled = false;
     mlnx_wred_profile_t                wred_profile;
-    sai_status_t                       status                           = SAI_STATUS_SUCCESS;
-    sx_status_t                        sx_status                        = SX_STATUS_SUCCESS;
+    sai_status_t                       status = SAI_STATUS_SUCCESS;
+    sx_status_t                        sx_status = SX_STATUS_SUCCESS;
     char                               list_str[MAX_LIST_VALUE_STR_LEN] = {0};
-    char                               key_str[MAX_KEY_STR_LEN]         = {0};
+    char                               key_str[MAX_KEY_STR_LEN] = {0};
 
     memset(&redecn_attr_green, 0, sizeof(redecn_attr_green));
     memset(&redecn_attr_yellow, 0, sizeof(redecn_attr_yellow));
     memset(&redecn_attr_red, 0, sizeof(redecn_attr_red));
     memset(&wred_profile, 0, sizeof(wred_profile));
 
-    wred_profile.green_profile_id  = SAI_INVALID_PROFILE_ID;
+    wred_profile.green_profile_id = SAI_INVALID_PROFILE_ID;
     wred_profile.yellow_profile_id = SAI_INVALID_PROFILE_ID;
-    wred_profile.red_profile_id    = SAI_INVALID_PROFILE_ID;
+    wred_profile.red_profile_id = SAI_INVALID_PROFILE_ID;
 
     SX_LOG_ENTER();
 
@@ -2019,9 +2019,9 @@ static sai_status_t mlnx_create_wred_profile(_Out_ sai_object_id_t      *wred_id
             break;
 
         case SAI_ECN_MARK_MODE_ALL:
-            ecn_green_enabled  = true;
+            ecn_green_enabled = true;
             ecn_yellow_enabled = true;
-            ecn_red_enabled    = true;
+            ecn_red_enabled = true;
             break;
 
         case SAI_ECN_MARK_MODE_GREEN:
@@ -2057,7 +2057,7 @@ static sai_status_t mlnx_create_wred_profile(_Out_ sai_object_id_t      *wred_id
                 return SAI_STATUS_INVALID_PARAMETER;
             }
 
-            ecn_green_enabled  = true;
+            ecn_green_enabled = true;
             ecn_yellow_enabled = true;
             break;
 
@@ -2068,7 +2068,7 @@ static sai_status_t mlnx_create_wred_profile(_Out_ sai_object_id_t      *wred_id
             }
 
             ecn_green_enabled = true;
-            ecn_red_enabled   = true;
+            ecn_red_enabled = true;
             break;
 
         case SAI_ECN_MARK_MODE_YELLOW_RED:
@@ -2078,7 +2078,7 @@ static sai_status_t mlnx_create_wred_profile(_Out_ sai_object_id_t      *wred_id
             }
 
             ecn_yellow_enabled = true;
-            ecn_red_enabled    = true;
+            ecn_red_enabled = true;
             break;
 
         default:
@@ -2088,16 +2088,16 @@ static sai_status_t mlnx_create_wred_profile(_Out_ sai_object_id_t      *wred_id
     }
 
     wred_profile.wred_enabled = wred_green_enabled || wred_yellow_enabled || wred_red_enabled;
-    wred_profile.ecn_enabled  = ecn_green_enabled || ecn_yellow_enabled || ecn_red_enabled;
+    wred_profile.ecn_enabled = ecn_green_enabled || ecn_yellow_enabled || ecn_red_enabled;
 
     if (!wred_profile.wred_enabled && !wred_profile.ecn_enabled) {
         SX_LOG_ERR("Failed create WRED profile, no data specified\n");
         return SAI_STATUS_FAILURE;
     }
 
-    green_enabled  = wred_green_enabled || ecn_green_enabled;
+    green_enabled = wred_green_enabled || ecn_green_enabled;
     yellow_enabled = wred_yellow_enabled || ecn_yellow_enabled;
-    red_enabled    = wred_red_enabled || ecn_red_enabled;
+    red_enabled = wred_red_enabled || ecn_red_enabled;
 
     if (green_enabled) {
         if (SAI_STATUS_SUCCESS !=
@@ -2113,7 +2113,7 @@ static sai_status_t mlnx_create_wred_profile(_Out_ sai_object_id_t      *wred_id
             return SAI_STATUS_MANDATORY_ATTRIBUTE_MISSING;
         }
 
-        redecn_attr_green.mode                     = SX_COS_REDECN_MODE_ABSOLUTE;
+        redecn_attr_green.mode = SX_COS_REDECN_MODE_ABSOLUTE;
         redecn_attr_green.values.absolute_mode.min = mlnx_wred_sai_threshold_to_sx(green_min_th->u32);
         redecn_attr_green.values.absolute_mode.max = mlnx_wred_sai_threshold_to_sx(green_max_th->u32);
     }
@@ -2132,7 +2132,7 @@ static sai_status_t mlnx_create_wred_profile(_Out_ sai_object_id_t      *wred_id
             return SAI_STATUS_MANDATORY_ATTRIBUTE_MISSING;
         }
 
-        redecn_attr_yellow.mode                     = SX_COS_REDECN_MODE_ABSOLUTE;
+        redecn_attr_yellow.mode = SX_COS_REDECN_MODE_ABSOLUTE;
         redecn_attr_yellow.values.absolute_mode.min = mlnx_wred_sai_threshold_to_sx(yellow_min_th->u32);
         redecn_attr_yellow.values.absolute_mode.max = mlnx_wred_sai_threshold_to_sx(yellow_max_th->u32);
     }
@@ -2151,7 +2151,7 @@ static sai_status_t mlnx_create_wred_profile(_Out_ sai_object_id_t      *wred_id
             return SAI_STATUS_MANDATORY_ATTRIBUTE_MISSING;
         }
 
-        redecn_attr_red.mode                     = SX_COS_REDECN_MODE_ABSOLUTE;
+        redecn_attr_red.mode = SX_COS_REDECN_MODE_ABSOLUTE;
         redecn_attr_red.values.absolute_mode.min = mlnx_wred_sai_threshold_to_sx(red_min_th->u32);
         redecn_attr_red.values.absolute_mode.max = mlnx_wred_sai_threshold_to_sx(red_max_th->u32);
     }
@@ -2254,8 +2254,8 @@ static sai_status_t mlnx_remove_wred_profile(_In_ sai_object_id_t wred_id)
 {
     sx_cos_redecn_profile_attributes_t redecn_attr;
     mlnx_wred_profile_t                wred_profile;
-    uint32_t                           wred                     = 0;
-    sai_status_t                       status                   = SAI_STATUS_SUCCESS;
+    uint32_t                           wred = 0;
+    sai_status_t                       status = SAI_STATUS_SUCCESS;
     char                               key_str[MAX_KEY_STR_LEN] = {0};
 
     memset(&redecn_attr, 0, sizeof(redecn_attr));

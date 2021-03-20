@@ -131,7 +131,7 @@ static const sai_vendor_attribute_entry_t bridge_vendor_attribs[] = {
       NULL, NULL }
 };
 static const mlnx_attr_enum_info_t        bridge_enum_info[] = {
-    [SAI_BRIDGE_ATTR_TYPE]                               = ATTR_ENUM_VALUES_ALL(),
+    [SAI_BRIDGE_ATTR_TYPE] = ATTR_ENUM_VALUES_ALL(),
     [SAI_BRIDGE_ATTR_UNKNOWN_UNICAST_FLOOD_CONTROL_TYPE] = ATTR_ENUM_VALUES_LIST(
         SAI_BRIDGE_FLOOD_CONTROL_TYPE_SUB_PORTS,
         SAI_BRIDGE_FLOOD_CONTROL_TYPE_L2MC_GROUP,
@@ -146,7 +146,7 @@ static const mlnx_attr_enum_info_t        bridge_enum_info[] = {
         SAI_BRIDGE_FLOOD_CONTROL_TYPE_NONE),
 };
 const mlnx_obj_type_attrs_info_t          mlnx_bridge_obj_type_info =
-{ bridge_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(bridge_enum_info)};
+{ bridge_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(bridge_enum_info), OBJ_STAT_CAP_INFO_EMPTY()};
 static sai_status_t mlnx_bridge_port_type_get(_In_ const sai_object_key_t   *key,
                                               _Inout_ sai_attribute_value_t *value,
                                               _In_ uint32_t                  attr_index,
@@ -291,15 +291,22 @@ static const sai_vendor_attribute_entry_t bridge_port_vendor_attribs[] = {
       NULL, NULL }
 };
 static const mlnx_attr_enum_info_t        bridge_port_enum_info[] = {
-    [SAI_BRIDGE_PORT_ATTR_TYPE]              = ATTR_ENUM_VALUES_ALL(),
-    [SAI_BRIDGE_PORT_ATTR_TAGGING_MODE]      = ATTR_ENUM_VALUES_ALL(),
+    [SAI_BRIDGE_PORT_ATTR_TYPE] = ATTR_ENUM_VALUES_ALL(),
+    [SAI_BRIDGE_PORT_ATTR_TAGGING_MODE] = ATTR_ENUM_VALUES_ALL(),
     [SAI_BRIDGE_PORT_ATTR_FDB_LEARNING_MODE] = ATTR_ENUM_VALUES_LIST(
         SAI_BRIDGE_PORT_FDB_LEARNING_MODE_DISABLE,
         SAI_BRIDGE_PORT_FDB_LEARNING_MODE_HW,
         SAI_BRIDGE_PORT_FDB_LEARNING_MODE_CPU_LOG)
 };
+static const sai_stat_capability_t        bridge_port_stats_capabilities[] = {
+    { SAI_BRIDGE_PORT_STAT_IN_OCTETS, SAI_STATS_MODE_READ | SAI_STATS_MODE_READ_AND_CLEAR },
+    { SAI_BRIDGE_PORT_STAT_OUT_OCTETS, SAI_STATS_MODE_READ | SAI_STATS_MODE_READ_AND_CLEAR },
+    { SAI_BRIDGE_PORT_STAT_IN_PACKETS, SAI_STATS_MODE_READ | SAI_STATS_MODE_READ_AND_CLEAR },
+    { SAI_BRIDGE_PORT_STAT_OUT_PACKETS, SAI_STATS_MODE_READ | SAI_STATS_MODE_READ_AND_CLEAR },
+};
 const mlnx_obj_type_attrs_info_t          mlnx_bridge_port_obj_type_info =
-{ bridge_port_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(bridge_port_enum_info)};
+{ bridge_port_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(bridge_port_enum_info), OBJ_STAT_CAP_INFO(
+      bridge_port_stats_capabilities)};
 
 sx_bridge_id_t mlnx_bridge_default_1q(void)
 {
@@ -325,20 +332,20 @@ static sai_status_t mlnx_bridge_port_add(sx_bridge_id_t         bridge_id,
 
     if (port_type == SAI_BRIDGE_PORT_TYPE_PORT) {
         db_start = 0;
-        db_end   = MAX_BRIDGE_1Q_PORTS;
+        db_end = MAX_BRIDGE_1Q_PORTS;
     } else {
         db_start = MAX_BRIDGE_1Q_PORTS;
-        db_end   = MAX_BRIDGE_PORTS;
+        db_end = MAX_BRIDGE_PORTS;
     }
 
     for (ii = db_start; ii < db_end; ii++) {
         if (!g_sai_db_ptr->bridge_ports_db[ii].is_present) {
             new_port = &g_sai_db_ptr->bridge_ports_db[ii];
 
-            new_port->bridge_id  = bridge_id;
-            new_port->port_type  = port_type;
+            new_port->bridge_id = bridge_id;
+            new_port->port_type = port_type;
             new_port->is_present = true;
-            new_port->index      = ii;
+            new_port->index = ii;
 
             if (port_type != SAI_BRIDGE_PORT_TYPE_PORT) {
                 g_sai_db_ptr->non_1q_bports_created++;
@@ -489,8 +496,8 @@ sai_status_t mlnx_bridge_rif_add(sx_router_id_t vrf_id, mlnx_bridge_rif_t **rif)
             new_rif = &g_sai_db_ptr->bridge_rifs_db[ii];
 
             new_rif->sx_data.vrf_id = vrf_id;
-            new_rif->is_used        = true;
-            new_rif->index          = ii;
+            new_rif->is_used = true;
+            new_rif->index = ii;
 
             *rif = new_rif;
             return SAI_STATUS_SUCCESS;
@@ -525,7 +532,7 @@ static sai_status_t check_attrs_port_type(_In_ const sai_object_key_t *key,
 
     for (ii = 0; ii < count; ii++) {
         attr_port_type_check_t check = ATTR_PORT_IS_ENABLED | ATTR_PORT_IS_LAG_ENABLED;
-        const sai_attribute_t *attr  = &attrs[ii];
+        const sai_attribute_t *attr = &attrs[ii];
         sai_status_t           status;
 
         switch (attr->id) {
@@ -559,8 +566,8 @@ static sai_status_t mlnx_create_bridge_object(_In_ sai_bridge_type_t       sai_b
 
     memset(&mlnx_bridge_id, 0, sizeof(mlnx_bridge_id));
 
-    mlnx_bridge_id.field.sub_type          = sai_br_type;
-    mlnx_bridge_id.id.bridge_db_idx        = bridge_db_idx;
+    mlnx_bridge_id.field.sub_type = sai_br_type;
+    mlnx_bridge_id.id.bridge_db_idx = bridge_db_idx;
     mlnx_bridge_id.ext.bridge.sx_bridge_id = sx_bridge_id;
 
     return mlnx_object_id_to_sai(SAI_OBJECT_TYPE_BRIDGE, &mlnx_bridge_id, bridge_oid);
@@ -693,12 +700,12 @@ static sai_status_t mlnx_bridge_sx_vport_set(_In_ sx_port_log_id_t           sx_
 
     memset(&vlan_port_list, 0, sizeof(vlan_port_list));
 
-    vlan_port_list.log_port    = sx_port;
+    vlan_port_list.log_port = sx_port;
     vlan_port_list.is_untagged = sx_tagging_mode;
 
     /*
      * vport_set and vlan_ports_set are called in different order to prevent a packet getting to .1Q bridge.
-     * It can happent when port is in the vlan but vport is not created/removed
+     * It can happen when port is in the vlan but vport is not created/removed
      */
     if (is_create) {
         sx_status = sx_api_port_vport_set(gh_sdk, SX_ACCESS_CMD_ADD, sx_port, sx_vlan_id, sx_vport);
@@ -832,7 +839,7 @@ sai_status_t mlnx_bridge_sx_ports_get(_In_ sx_bridge_id_t     sx_bridge,
     assert(ports_count);
 
     bports_count = MAX_BRIDGE_1Q_PORTS;
-    status       = mlnx_bridge_ports_get(sx_bridge, bports, &bports_count);
+    status = mlnx_bridge_ports_get(sx_bridge, bports, &bports_count);
     if (SAI_ERR(status)) {
         return status;
     }
@@ -868,7 +875,7 @@ static sai_status_t mlnx_bridge_port_list_get(_In_ const sai_object_key_t   *key
     sx_bridge_id_t      bridge_id;
     sai_status_t        status;
     sai_object_id_t     bport_oids[MAX_BRIDGE_1Q_PORTS] = {0};
-    mlnx_bridge_port_t *bports[MAX_BRIDGE_1Q_PORTS]     = {NULL};
+    mlnx_bridge_port_t *bports[MAX_BRIDGE_1Q_PORTS] = {NULL};
     uint32_t            bports_count, ii;
 
     SX_LOG_ENTER();
@@ -882,7 +889,7 @@ static sai_status_t mlnx_bridge_port_list_get(_In_ const sai_object_key_t   *key
     sai_db_read_lock();
 
     bports_count = MAX_BRIDGE_1Q_PORTS;
-    status       = mlnx_bridge_ports_get(bridge_id, bports, &bports_count);
+    status = mlnx_bridge_ports_get(bridge_id, bports, &bports_count);
     if (SAI_ERR(status)) {
         goto out;
     }
@@ -1364,7 +1371,7 @@ static sai_status_t mlnx_bridge_sx_to_db_idx(_In_ sx_bridge_id_t sx_bridge_id, _
     }
 
     idx->type = MLNX_SHM_RM_ARRAY_TYPE_BRIDGE;
-    idx->idx  = sx_bridge_id - MIN_SX_BRIDGE_ID;
+    idx->idx = sx_bridge_id - MIN_SX_BRIDGE_ID;
 
     return SAI_STATUS_SUCCESS;
 }
@@ -1387,7 +1394,7 @@ mlnx_bridge_t* mlnx_bridge_1d_by_db_idx(_In_ uint32_t db_idx)
     mlnx_shm_rm_array_idx_t rm_idx;
 
     rm_idx.type = MLNX_SHM_RM_ARRAY_TYPE_BRIDGE;
-    rm_idx.idx  = db_idx;
+    rm_idx.idx = db_idx;
 
     return mlnx_bridge_1d_by_rm_idx(rm_idx);
 }
@@ -1459,7 +1466,7 @@ static sai_status_t mlnx_bridge_db_free(_In_ mlnx_shm_rm_array_idx_t idx, _In_ m
 
     memset(&bridge->flood_data, 0, sizeof(mlnx_fid_flood_data_t));
 
-    bridge->sx_bridge_id      = 0;
+    bridge->sx_bridge_id = 0;
     bridge->array_hdr.is_used = false;
 
     return SAI_STATUS_SUCCESS;
@@ -1899,7 +1906,7 @@ out:
 }
 
 /**
- * @brief Associated router inerface object id
+ * @brief Associated router interface object id
  * Please note that for SAI_BRIDGE_PORT_TYPE_1Q_ROUTER,
  * all vlan interfaces are auto bounded for the bridge port.
  *
@@ -2065,7 +2072,7 @@ static sai_status_t mlnx_bridge_port_bridge_id_set(_In_ const sai_object_key_t  
         return status;
     }
     sx_bridge_id = mlnx_bridge_id.ext.bridge.sx_bridge_id;
-    br_type      = mlnx_bridge_id.field.sub_type;
+    br_type = mlnx_bridge_id.field.sub_type;
 
     if (br_type != SAI_BRIDGE_TYPE_1D) {
         SX_LOG_ERR("Only .1D bridge is supported\n");
@@ -2132,7 +2139,7 @@ static sai_status_t mlnx_bridge_port_bridge_id_set(_In_ const sai_object_key_t  
             SX_LOG_ERR("Failed to set router interface - %s.\n", SX_STATUS_MSG(sx_status));
             /* Reset to the old bridge id which is stored also in mlnx_bridge_port_t */
             br_rif->intf_params.ifc.bridge.bridge = port->bridge_id;
-            status                                = sdk_to_sai(sx_status);
+            status = sdk_to_sai(sx_status);
             goto out;
         }
     } else {
@@ -2486,7 +2493,7 @@ static sai_status_t mlnx_bridge_port_tagging_mode_set(_In_ const sai_object_key_
     }
 
     sx_vlan_ports.is_untagged = sx_tagging_mode;
-    sx_vlan_ports.log_port    = bport->parent;
+    sx_vlan_ports.log_port = bport->parent;
 
     sx_status = sx_api_vlan_ports_set(gh_sdk, SX_ACCESS_CMD_ADD, DEFAULT_ETH_SWID, bport->vlan_id, &sx_vlan_ports, 1);
     if (SX_ERR(sx_status)) {
@@ -2586,11 +2593,11 @@ out:
  */
 static sai_status_t mlnx_sai_bridge_modify_1q_port_1d_mode_internal(_In_ mlnx_bridge_port_t *port, _In_ bool is_remove)
 {
-    sai_status_t                sai_status = SAI_STATUS_SUCCESS;
-    sx_status_t                 sx_status = SX_STATUS_SUCCESS;
-    sx_bridge_id_t              sx_bridge_id = 0;
-    sx_port_log_id_t            sx_port_id = 0;
-    sx_port_log_id_t            sx_vport_id = 0;
+    sai_status_t     sai_status = SAI_STATUS_SUCCESS;
+    sx_status_t      sx_status = SX_STATUS_SUCCESS;
+    sx_bridge_id_t   sx_bridge_id = 0;
+    sx_port_log_id_t sx_port_id = 0;
+    sx_port_log_id_t sx_vport_id = 0;
 
     SX_LOG_ENTER();
 
@@ -2612,14 +2619,18 @@ static sai_status_t mlnx_sai_bridge_modify_1q_port_1d_mode_internal(_In_ mlnx_br
 
         if (SX_STATUS_SUCCESS !=
             (sx_status = sx_api_bridge_vport_set(gh_sdk, SX_ACCESS_CMD_DELETE, sx_bridge_id, sx_vport_id))) {
-            SX_LOG_ERR("Failed to del vport %x from bridge %x - %s\n", sx_vport_id, sx_bridge_id, SX_STATUS_MSG(sx_status));
+            SX_LOG_ERR("Failed to del vport %x from bridge %x - %s\n", sx_vport_id, sx_bridge_id,
+                       SX_STATUS_MSG(sx_status));
             sai_status = sdk_to_sai(sx_status);
             goto out;
         }
 
         if (SX_STATUS_SUCCESS !=
-            (sx_status = sx_api_port_vport_set(gh_sdk, SX_ACCESS_CMD_DELETE, sx_port_id, MLNX_SAI_DUMMY_1D_VLAN_ID, &sx_vport_id))) {
-            SX_LOG_ERR("Failed to delete vport {%x : %d} - %s\n", sx_port_id, MLNX_SAI_DUMMY_1D_VLAN_ID, SX_STATUS_MSG(sx_status));
+            (sx_status =
+                 sx_api_port_vport_set(gh_sdk, SX_ACCESS_CMD_DELETE, sx_port_id, MLNX_SAI_DUMMY_1D_VLAN_ID,
+                                       &sx_vport_id))) {
+            SX_LOG_ERR("Failed to delete vport {%x : %d} - %s\n", sx_port_id, MLNX_SAI_DUMMY_1D_VLAN_ID,
+                       SX_STATUS_MSG(sx_status));
             sai_status = sdk_to_sai(sx_status);
             goto out;
         }
@@ -2633,8 +2644,11 @@ static sai_status_t mlnx_sai_bridge_modify_1q_port_1d_mode_internal(_In_ mlnx_br
         }
 
         if (SX_STATUS_SUCCESS !=
-            (sx_status = sx_api_port_vport_set(gh_sdk, SX_ACCESS_CMD_ADD, sx_port_id, MLNX_SAI_DUMMY_1D_VLAN_ID, &sx_vport_id))) {
-            SX_LOG_ERR("Failed to create vport {%x : %d} - %s\n", sx_port_id, MLNX_SAI_DUMMY_1D_VLAN_ID, SX_STATUS_MSG(sx_status));
+            (sx_status =
+                 sx_api_port_vport_set(gh_sdk, SX_ACCESS_CMD_ADD, sx_port_id, MLNX_SAI_DUMMY_1D_VLAN_ID,
+                                       &sx_vport_id))) {
+            SX_LOG_ERR("Failed to create vport {%x : %d} - %s\n", sx_port_id, MLNX_SAI_DUMMY_1D_VLAN_ID,
+                       SX_STATUS_MSG(sx_status));
             sai_status = sdk_to_sai(sx_status);
             goto out;
         }
@@ -2648,13 +2662,16 @@ static sai_status_t mlnx_sai_bridge_modify_1q_port_1d_mode_internal(_In_ mlnx_br
 
         if (SX_STATUS_SUCCESS !=
             (sx_status = sx_api_bridge_vport_set(gh_sdk, SX_ACCESS_CMD_ADD, sx_bridge_id, sx_vport_id))) {
-            SX_LOG_ERR("Failed to add vport %x to bridge %x - %s\n", sx_vport_id, sx_bridge_id, SX_STATUS_MSG(sx_status));
+            SX_LOG_ERR("Failed to add vport %x to bridge %x - %s\n",
+                       sx_vport_id,
+                       sx_bridge_id,
+                       SX_STATUS_MSG(sx_status));
             sai_status = sdk_to_sai(sx_status);
             goto out;
         }
 
         /* for .1Q port parent field is used to keep dummy vport id */
-        port->parent  = sx_vport_id;
+        port->parent = sx_vport_id;
     }
 
 out:
@@ -2667,9 +2684,9 @@ out:
  */
 static sai_status_t mlnx_bridge_port_admin_state_set_internal(_In_ mlnx_bridge_port_t *bridge_port, _In_ bool is_up)
 {
-    sai_status_t        sai_status = SAI_STATUS_SUCCESS;
-    sx_status_t         sx_status = SX_STATUS_SUCCESS;
-    sx_port_log_id_t    sx_port_id = 0;
+    sai_status_t     sai_status = SAI_STATUS_SUCCESS;
+    sx_status_t      sx_status = SX_STATUS_SUCCESS;
+    sx_port_log_id_t sx_port_id = 0;
 
     SX_LOG_ENTER();
 
@@ -2680,7 +2697,7 @@ static sai_status_t mlnx_bridge_port_admin_state_set_internal(_In_ mlnx_bridge_p
      * move this dummy vport to/from dummy .1D bridge */
     if (SAI_BRIDGE_PORT_TYPE_PORT == bridge_port->port_type) {
         if (SAI_STATUS_SUCCESS != (sai_status =
-            mlnx_sai_bridge_modify_1q_port_1d_mode_internal(bridge_port, is_up))) {
+                                       mlnx_sai_bridge_modify_1q_port_1d_mode_internal(bridge_port, is_up))) {
             goto bail;
         }
     } else if (SAI_BRIDGE_PORT_TYPE_SUB_PORT == bridge_port->port_type) {
@@ -2691,7 +2708,7 @@ static sai_status_t mlnx_bridge_port_admin_state_set_internal(_In_ mlnx_bridge_p
                                                sx_port_id,
                                                is_up ? SX_PORT_ADMIN_STATUS_UP : SX_PORT_ADMIN_STATUS_DOWN))) {
             SX_LOG_ERR("Failed to set port admin state - %s.\n", SX_STATUS_MSG(sx_status));
-            sai_status =  sdk_to_sai(sx_status);
+            sai_status = sdk_to_sai(sx_status);
             goto bail;
         }
     }
@@ -2785,7 +2802,7 @@ static sai_status_t mlnx_create_bridge_port(_Out_ sai_object_id_t     * bridge_p
     char                         list_str[MAX_LIST_VALUE_STR_LEN];
     char                         key_str[MAX_KEY_STR_LEN];
     mlnx_object_id_t             mlnx_bridge_id = {0};
-    mlnx_bridge_port_t          *bridge_port    = NULL;
+    mlnx_bridge_port_t          *bridge_port = NULL;
     mlnx_bridge_rif_t           *bridge_rif;
     sx_bridge_id_t               bridge_id;
     mlnx_shm_rm_array_idx_t      bridge_rm_idx;
@@ -2793,7 +2810,7 @@ static sai_status_t mlnx_create_bridge_port(_Out_ sai_object_id_t     * bridge_p
     sx_ingr_filter_mode_t        sx_ingr_filter_mode;
     sx_port_log_id_t             log_port;
     sx_port_log_id_t             vport_id = 0;
-    sx_vlan_id_t                 vlan_id  = 0;
+    sx_vlan_id_t                 vlan_id = 0;
     sx_untagged_member_state_t   sx_tagging_mode;
     sx_fdb_learn_mode_t          sx_learn_mode;
     const sai_attribute_value_t *attr_val, *max_learned_addresses = NULL, *ingress_filter = NULL;
@@ -2926,7 +2943,7 @@ static sai_status_t mlnx_create_bridge_port(_Out_ sai_object_id_t     * bridge_p
 
         bridge_port->logical = log_port;
         /* for .1Q bridge port used internally */
-        bridge_port->parent  = -1;
+        bridge_port->parent = -1;
         bridge_port->vlan_id = 0;
         break;
 
@@ -2971,11 +2988,11 @@ static sai_status_t mlnx_create_bridge_port(_Out_ sai_object_id_t     * bridge_p
         vlan_id = attr_val->u16;
 
         sx_tagging_mode = SX_TAGGED_MEMBER;
-        status          = find_attrib_in_list(attr_count,
-                                              attr_list,
-                                              SAI_BRIDGE_PORT_ATTR_TAGGING_MODE,
-                                              &attr_val,
-                                              &attr_idx);
+        status = find_attrib_in_list(attr_count,
+                                     attr_list,
+                                     SAI_BRIDGE_PORT_ATTR_TAGGING_MODE,
+                                     &attr_val,
+                                     &attr_idx);
         if (!SAI_ERR(status)) {
             status = mlnx_bridge_port_tagging_sai_to_sx(attr_val->s32, &sx_tagging_mode);
             if (SAI_ERR(status)) {
@@ -2996,7 +3013,7 @@ static sai_status_t mlnx_create_bridge_port(_Out_ sai_object_id_t     * bridge_p
         }
 
         bridge_port->logical = vport_id;
-        bridge_port->parent  = log_port;
+        bridge_port->parent = log_port;
         bridge_port->vlan_id = vlan_id;
 
         status = mlnx_bridge_sx_to_db_idx(bridge_id, &bridge_rm_idx);
@@ -3058,7 +3075,7 @@ static sai_status_t mlnx_create_bridge_port(_Out_ sai_object_id_t     * bridge_p
             goto out;
         }
 
-        bridge_rif->intf_params.ifc.bridge.swid   = DEFAULT_ETH_SWID;
+        bridge_rif->intf_params.ifc.bridge.swid = DEFAULT_ETH_SWID;
         bridge_rif->intf_params.ifc.bridge.bridge = bridge_id;
 
         status = mlnx_rif_sx_init(bridge_rif->sx_data.vrf_id, &bridge_rif->intf_params, &bridge_rif->intf_attribs,
@@ -3211,7 +3228,7 @@ static sai_status_t mlnx_remove_bridge_port(_In_ sai_object_id_t bridge_port_id)
         /* move dummy vport mapped to .1Q port out of .1D bridge and destroy this vport */
         if (SAI_STATUS_SUCCESS !=
             (status =
-            mlnx_sai_bridge_modify_1q_port_1d_mode_internal(port, true))) {
+                 mlnx_sai_bridge_modify_1q_port_1d_mode_internal(port, true))) {
             goto out;
         }
         break;
@@ -3244,8 +3261,8 @@ static sai_status_t mlnx_remove_bridge_port(_In_ sai_object_id_t bridge_port_id)
         }
 
         bridge_rif->intf_params.ifc.bridge.bridge = SX_BRIDGE_ID_INVALID;
-        bridge_rif->is_created                    = false;
-        bridge_rif->sx_data.rif_id                = 0;
+        bridge_rif->is_created = false;
+        bridge_rif->sx_data.rif_id = 0;
         break;
 
     default:
@@ -3342,7 +3359,7 @@ sai_status_t mlnx_bridge_log_set(sx_verbosity_level_t level)
 /* Need to be guarded by lock */
 static sai_status_t mlnx_sdk_bridge_create(_Out_ sx_bridge_id_t *sx_bridge_id)
 {
-    sx_status_t      sx_status  = SX_STATUS_ERROR;
+    sx_status_t      sx_status = SX_STATUS_ERROR;
     sai_status_t     sai_status = SAI_STATUS_FAILURE;
     sx_vlan_attrib_t vlan_attrib_p;
 
@@ -3401,11 +3418,11 @@ sai_status_t mlnx_bridge_init(void)
             goto out;
         }
 
-        bridge_port->logical     = port->logical;
+        bridge_port->logical = port->logical;
         bridge_port->admin_state = true;
 
         /* for .1Q bridge port used internally */
-        bridge_port->parent  = -1;
+        bridge_port->parent = -1;
         bridge_port->vlan_id = 0;
 
         if (!is_warmboot_init_stage ||
@@ -3442,7 +3459,7 @@ sai_status_t mlnx_bridge_init(void)
 
     if (SAI_STATUS_SUCCESS !=
         (status = mlnx_create_bridge_object(SAI_BRIDGE_TYPE_1D, MLNX_SHM_RM_ARRAY_IDX_UNINITIALIZED,
-                                       bridge_id, &g_sai_db_ptr->dummy_1d_bridge_oid))) {
+                                            bridge_id, &g_sai_db_ptr->dummy_1d_bridge_oid))) {
         SX_LOG_ERR("Failed to create dummy .1D bridge oid\n");
         goto out;
     }

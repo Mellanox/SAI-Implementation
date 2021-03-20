@@ -25,7 +25,7 @@
 
 static sx_verbosity_level_t LOG_VAR_NAME(__MODULE__) = SX_VERBOSITY_LEVEL_WARNING;
 
-#define MLNX_FID_FLOOD_CTRL_DATA_DEFAULT \
+#define MLNX_FID_FLOOD_CTRL_DATA_DEFAULT                            \
     ((mlnx_fid_flood_type_data_t) {.type = MLNX_FID_FLOOD_TYPE_ALL, \
                                    .l2mc_db_idx = MLNX_L2MC_GROUP_DB_IDX_INVALID})
 
@@ -39,7 +39,7 @@ static sx_verbosity_level_t LOG_VAR_NAME(__MODULE__) = SX_VERBOSITY_LEVEL_WARNIN
      MLNX_VLAN_MEMBER_BULK_PAIR_STATE_UNTAGGED)
 
 /* Converts a state of mlnx_vlan_port_pair_t to sx value for vlan member */
-#define MLNX_VLAN_MEMBER_BULK_PAIR_TAGGING_GET(p)          \
+#define MLNX_VLAN_MEMBER_BULK_PAIR_TAGGING_GET(p)           \
     ((p.state == MLNX_VLAN_MEMBER_BULK_PAIR_STATE_TAGGED) ? \
      SX_TAGGED_MEMBER :                                     \
      SX_UNTAGGED_MEMBER)
@@ -60,15 +60,15 @@ typedef enum _mlnx_vlan_member_bulk_pair_state_t {
 
 PACKED(
     struct _mlnx_vlan_port_pair_t {
-        mlnx_vlan_member_bulk_pair_state_t state;
-        uint32_t object_index;
-    }, );
+    mlnx_vlan_member_bulk_pair_state_t state;
+    uint32_t object_index;
+}, );
 typedef struct _mlnx_vlan_port_pair_t mlnx_vlan_port_pair_t;
 
 PACKED(struct _mlnx_vlan_member_flood_ctrl_data_t {
-           bool vlan_port_present[MAX_BRIDGE_1Q_PORTS][MAX_VLANS];
-           uint16_t vlan_ports_count[MAX_VLANS];
-       }, );
+    bool vlan_port_present[MAX_BRIDGE_1Q_PORTS][MAX_VLANS];
+    uint16_t vlan_ports_count[MAX_VLANS];
+}, );
 typedef struct _mlnx_vlan_member_flood_ctrl_data_t mlnx_vlan_member_flood_ctrl_data_t;
 typedef struct _mlnx_vlan_member_prio_tag_port_data_t {
     bool                     is_used;
@@ -244,12 +244,12 @@ static const sai_vendor_attribute_entry_t vlan_vendor_attribs[] = {
       NULL, NULL }
 };
 static const mlnx_attr_enum_info_t        vlan_enum_info[] = {
-    [SAI_VLAN_ATTR_UNKNOWN_UNICAST_FLOOD_CONTROL_TYPE]   = ATTR_ENUM_VALUES_ALL(),
+    [SAI_VLAN_ATTR_UNKNOWN_UNICAST_FLOOD_CONTROL_TYPE] = ATTR_ENUM_VALUES_ALL(),
     [SAI_VLAN_ATTR_UNKNOWN_MULTICAST_FLOOD_CONTROL_TYPE] = ATTR_ENUM_VALUES_ALL(),
-    [SAI_VLAN_ATTR_BROADCAST_FLOOD_CONTROL_TYPE]         = ATTR_ENUM_VALUES_ALL(),
+    [SAI_VLAN_ATTR_BROADCAST_FLOOD_CONTROL_TYPE] = ATTR_ENUM_VALUES_ALL(),
 };
 const mlnx_obj_type_attrs_info_t          mlnx_vlan_obj_type_info =
-{ vlan_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(vlan_enum_info)};
+{ vlan_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(vlan_enum_info), OBJ_STAT_CAP_INFO_EMPTY()};
 static const sai_vendor_attribute_entry_t vlan_member_vendor_attribs[] = {
     { SAI_VLAN_MEMBER_ATTR_VLAN_ID,
       { true, false, false, true },
@@ -276,7 +276,7 @@ static const mlnx_attr_enum_info_t        vlan_member_enum_info[] = {
     [SAI_VLAN_MEMBER_ATTR_VLAN_TAGGING_MODE] = ATTR_ENUM_VALUES_ALL()
 };
 const mlnx_obj_type_attrs_info_t          mlnx_vlan_member_obj_type_info =
-{ vlan_member_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(vlan_member_enum_info)};
+{ vlan_member_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(vlan_member_enum_info), OBJ_STAT_CAP_INFO_EMPTY()};
 static void vlan_key_to_str(_In_ sai_vlan_id_t vlan_id, _Out_ char *key_str)
 {
     snprintf(key_str, MAX_KEY_STR_LEN, "vlan %u", vlan_id);
@@ -730,7 +730,7 @@ sai_status_t mlnx_create_vlan(_Out_ sai_object_id_t      *sai_vlan_id,
     sai_object_id_t              vlan_oid;
     sai_status_t                 status;
     sx_status_t                  sdk_status;
-    const sai_attribute_value_t *attr_ing_acl  = NULL;
+    const sai_attribute_value_t *attr_ing_acl = NULL;
     acl_index_t                  ing_acl_index = ACL_INDEX_INVALID;
     uint32_t                     ing_acl_attr_index;
     sx_vlan_id_t                 sx_vlan_id;
@@ -895,7 +895,7 @@ sai_status_t mlnx_create_vlan(_Out_ sai_object_id_t      *sai_vlan_id,
 
     mlnx_fid_flood_ctrl_l2mc_group_refs_inc(&vlan_db_entry->flood_data);
 
-    status       = SAI_STATUS_SUCCESS;
+    status = SAI_STATUS_SUCCESS;
     *sai_vlan_id = vlan_oid;
     SX_LOG_NTC("Created vlan oid %" PRIx64 "\n", vlan_oid);
 
@@ -1118,17 +1118,17 @@ sai_status_t mlnx_vlan_sai_tagging_to_sx(_In_ sai_vlan_tagging_mode_t      mode,
 
     switch (mode) {
     case SAI_VLAN_TAGGING_MODE_UNTAGGED:
-        *tagging      = SX_UNTAGGED_MEMBER;
+        *tagging = SX_UNTAGGED_MEMBER;
         *prio_tagging = SX_UNTAGGED_STATE;
         break;
 
     case SAI_VLAN_TAGGING_MODE_TAGGED:
-        *tagging      = SX_TAGGED_MEMBER;
+        *tagging = SX_TAGGED_MEMBER;
         *prio_tagging = SX_UNTAGGED_STATE;
         break;
 
     case SAI_VLAN_TAGGING_MODE_PRIORITY_TAGGED:
-        *tagging      = SX_UNTAGGED_MEMBER;
+        *tagging = SX_UNTAGGED_MEMBER;
         *prio_tagging = SX_PRIO_TAGGED_STATE;
         break;
 
@@ -1503,8 +1503,8 @@ static sai_status_t mlnx_vlan_member_bulk_attrs_parse(_In_ const sai_attribute_t
         return SAI_STATUS_ITEM_ALREADY_EXISTS;
     }
 
-    vlan_member_data->bport_index  = bridge_port->index;
-    vlan_member_data->tagging      = SX_UNTAGGED_MEMBER;
+    vlan_member_data->bport_index = bridge_port->index;
+    vlan_member_data->tagging = SX_UNTAGGED_MEMBER;
     vlan_member_data->prio_tagging = SX_UNTAGGED_STATE;
 
     status = find_attrib_in_list(attr_count, attr_list, SAI_VLAN_MEMBER_ATTR_VLAN_TAGGING_MODE,
@@ -1554,7 +1554,7 @@ static sai_status_t mlnx_vlan_member_bulk_pair_add(_In_ const mlnx_vlan_member_d
     mlnx_vlan_member_bulk_data.port_vlans[port_index]++;
     mlnx_vlan_member_bulk_data.vlan_ports[vlan_index]++;
 
-    mlnx_vlan_member_bulk_data.prio_tag_data.ports[port_index].is_used      = true;
+    mlnx_vlan_member_bulk_data.prio_tag_data.ports[port_index].is_used = true;
     mlnx_vlan_member_bulk_data.prio_tag_data.ports[port_index].prio_tagging = vlan_member_data->prio_tagging;
 
     return SAI_STATUS_SUCCESS;
@@ -1562,7 +1562,7 @@ static sai_status_t mlnx_vlan_member_bulk_pair_add(_In_ const mlnx_vlan_member_d
 
 /*
  * Puts in 'data' the longest sequence of VLANs belong to the same port or the opposite
- * Returns false when there is no sequnece to get
+ * Returns false when there is no sequence to get
  */
 static bool mlnx_vlan_member_bulk_find_next_sequence(_Out_ mlnx_vlan_member_bulk_sequence_data_t *data)
 {
@@ -1581,7 +1581,7 @@ static bool mlnx_vlan_member_bulk_find_next_sequence(_Out_ mlnx_vlan_member_bulk
     max_index = 0;
     max_value = port_vlans[max_index];
 
-    is_port  = true;
+    is_port = true;
     is_empty = true;
 
     for (pid = 0; pid < MAX_BRIDGE_1Q_PORTS; pid++) {
@@ -1599,11 +1599,11 @@ static bool mlnx_vlan_member_bulk_find_next_sequence(_Out_ mlnx_vlan_member_bulk
         if (vlan_ports[vid] > max_value) {
             max_value = vlan_ports[vid];
             max_index = vid;
-            is_port   = false;
+            is_port = false;
         }
     }
 
-    data->index   = max_index;
+    data->index = max_index;
     data->is_port = is_port;
 
     return !is_empty;
@@ -1679,7 +1679,7 @@ static sai_status_t mlnx_vlan_member_bulk_prio_tagging_state_set(uint32_t bport_
     sx_untagged_prio_state_t sx_prio_tagging_state;
 
     sx_prio_tagging_state = mlnx_vlan_member_bulk_data.prio_tag_data.ports[bport_index].prio_tagging;
-    sx_port               = g_sai_db_ptr->bridge_ports_db[bport_index].logical;
+    sx_port = g_sai_db_ptr->bridge_ports_db[bport_index].logical;
 
     sx_status = sx_api_vlan_port_prio_tagged_set(gh_sdk, sx_port, sx_prio_tagging_state);
     if (SX_ERR(sx_status)) {
@@ -1747,7 +1747,7 @@ static sai_status_t mlnx_vlan_member_bulk_port_to_vlans_apply(_In_ uint32_t     
     for (vlan_id = 1; vlan_id < MAX_VLANS; vlan_id++) {
         if (MLNX_VLAN_MEMBER_BULK_PAIR_IS_USED(mlnx_vlan_member_bulk_data.pairs[port_index][vlan_id])) {
             /* Fetch the data for sx call */
-            sx_port_vlans[vlan_count].vid         = vlan_id;
+            sx_port_vlans[vlan_count].vid = vlan_id;
             sx_port_vlans[vlan_count].is_untagged = MLNX_VLAN_MEMBER_BULK_PAIR_TAGGING_GET(
                 mlnx_vlan_member_bulk_data.pairs[port_index][vlan_id]);
             vlan_count++;
@@ -1762,7 +1762,7 @@ static sai_status_t mlnx_vlan_member_bulk_port_to_vlans_apply(_In_ uint32_t     
              * We assume that sx call will success
              * But we keep a list of indexes in object_statuses so we can update the status if sx call fails
              */
-            object_statuses[object_index]                          = SAI_STATUS_SUCCESS;
+            object_statuses[object_index] = SAI_STATUS_SUCCESS;
             object_statuses_indexes[object_statuses_indexes_count] = object_index;
             object_statuses_indexes_count++;
 
@@ -1774,7 +1774,7 @@ static sai_status_t mlnx_vlan_member_bulk_port_to_vlans_apply(_In_ uint32_t     
     mlnx_vlan_member_bulk_data.port_vlans[port_index] = 0;
 
     sx_port_log_id = g_sai_db_ptr->bridge_ports_db[port_index].logical;
-    sx_cmd         = create ? SX_ACCESS_CMD_ADD : SX_ACCESS_CMD_DELETE;
+    sx_cmd = create ? SX_ACCESS_CMD_ADD : SX_ACCESS_CMD_DELETE;
 
     sx_status = sx_api_vlan_port_multi_vlan_set(gh_sdk, sx_cmd, sx_port_log_id, sx_port_vlans, vlan_count);
     if (SX_ERR(sx_status)) {
@@ -1784,7 +1784,7 @@ static sai_status_t mlnx_vlan_member_bulk_port_to_vlans_apply(_In_ uint32_t     
 
         /* Update the statuses */
         for (ii = 0; ii < object_statuses_indexes_count; ii++) {
-            object_index                  = object_statuses_indexes[ii];
+            object_index = object_statuses_indexes[ii];
             object_statuses[object_index] = status;
         }
 
@@ -1822,7 +1822,7 @@ static sai_status_t mlnx_vlan_member_bulk_vlan_to_ports_apply(_In_ uint32_t     
     for (port_index = 0; port_index < MAX_BRIDGE_1Q_PORTS; port_index++) {
         if (MLNX_VLAN_MEMBER_BULK_PAIR_IS_USED(mlnx_vlan_member_bulk_data.pairs[port_index][vlan_id])) {
             /* Fetch the data for sx call */
-            sx_vlan_ports[port_count].log_port    = g_sai_db_ptr->bridge_ports_db[port_index].logical;
+            sx_vlan_ports[port_count].log_port = g_sai_db_ptr->bridge_ports_db[port_index].logical;
             sx_vlan_ports[port_count].is_untagged =
                 MLNX_VLAN_MEMBER_BULK_PAIR_TAGGING_GET(mlnx_vlan_member_bulk_data.pairs[port_index][vlan_id]);
             port_count++;
@@ -1837,7 +1837,7 @@ static sai_status_t mlnx_vlan_member_bulk_vlan_to_ports_apply(_In_ uint32_t     
              * We assume that sx call will success
              * But we keep a list of indexes in object_statuses so we can update the status if sx call fails
              */
-            object_statuses[object_index]                          = SAI_STATUS_SUCCESS;
+            object_statuses[object_index] = SAI_STATUS_SUCCESS;
             object_statuses_indexes[object_statuses_indexes_count] = object_index;
             object_statuses_indexes_count++;
 
@@ -1858,7 +1858,7 @@ static sai_status_t mlnx_vlan_member_bulk_vlan_to_ports_apply(_In_ uint32_t     
 
         /* Update the statuses */
         for (ii = 0; ii < object_statuses_indexes_count; ii++) {
-            object_index                  = object_statuses_indexes[ii];
+            object_index = object_statuses_indexes[ii];
             object_statuses[object_index] = status;
         }
 
@@ -2011,7 +2011,7 @@ sai_status_t mlnx_create_vlan_members(_In_ sai_object_id_t          switch_id,
             status = mlnx_vlan_member_bulk_pair_add(&vlan_member_data, ii);
         }
 
-        object_id[ii]       = vlan_member_data.oid;
+        object_id[ii] = vlan_member_data.oid;
         object_statuses[ii] = SAI_ERR(status) ? status : SAI_STATUS_NOT_EXECUTED;
 
         if (SAI_ERR(status)) {
@@ -2295,7 +2295,7 @@ static sai_status_t mlnx_vlan_member_tagging_get(_In_ const sai_object_key_t   *
 
     if (sx_prio_tagging_state == SX_PRIO_TAGGED_STATE) {
         value->s32 = SAI_VLAN_TAGGING_MODE_PRIORITY_TAGGED;
-        status     = SAI_STATUS_SUCCESS;
+        status = SAI_STATUS_SUCCESS;
         goto out;
     }
 
@@ -2644,7 +2644,7 @@ static sai_status_t mlnx_fid_uc_bc_flood_ctrl_apply(_In_ sx_fid_t               
     sai_status_t     status;
     sx_status_t      sx_status;
     sx_port_log_id_t sx_l2mc_ports[MAX_BRIDGE_1Q_PORTS] = {0}, ports_to_block[MAX_BRIDGE_1Q_PORTS] = {0};
-    uint32_t         l2mc_ports_count                   = MAX_BRIDGE_1Q_PORTS, ports_to_block_count, ii, jj;
+    uint32_t         l2mc_ports_count = MAX_BRIDGE_1Q_PORTS, ports_to_block_count, ii, jj;
     bool             block_port;
 
     assert(sx_fid_ports);
@@ -2736,7 +2736,7 @@ static sai_status_t mlnx_fid_mc_flood_ctrl_apply(_In_ sx_fid_t                  
     sai_status_t     status;
     sx_status_t      sx_status;
     sx_port_log_id_t sx_l2mc_ports[MAX_BRIDGE_1Q_PORTS] = {0};
-    uint32_t         l2mc_ports_count                   = MAX_BRIDGE_1Q_PORTS;
+    uint32_t         l2mc_ports_count = MAX_BRIDGE_1Q_PORTS;
 
     assert(sx_fid_ports);
     assert(data);
@@ -2871,11 +2871,11 @@ static sai_status_t mlnx_fid_flood_ctrl_type_data_apply(_In_ sx_fid_t           
 {
     sai_status_t     status;
     sx_port_log_id_t fid_ports[MAX_BRIDGE_1Q_PORTS] = {0};
-    uint32_t         ports_count                    = 0;
+    uint32_t         ports_count = 0;
 
     if (mlnx_fid_flood_ctrl_attr_is_fid_ports_needed(attr, flood_data->type)) {
         ports_count = MAX_BRIDGE_1Q_PORTS;
-        status      = mlnx_fid_ports_get(sx_fid, fid_ports, &ports_count);
+        status = mlnx_fid_ports_get(sx_fid, fid_ports, &ports_count);
         if (SAI_ERR(status)) {
             SX_LOG_ERR("Failed to get fid %u ports\n", sx_fid);
             return status;
@@ -2956,7 +2956,7 @@ sai_status_t mlnx_fid_flood_ctrl_set_drop(_In_ sx_fid_t                         
     assert(attr < MLNX_FID_FLOOD_CTRL_ATTR_MAX);
     assert(flood_data);
 
-    drop.type        = MLNX_FID_FLOOD_TYPE_NONE;
+    drop.type = MLNX_FID_FLOOD_TYPE_NONE;
     drop.l2mc_db_idx = MLNX_L2MC_GROUP_DB_IDX_INVALID;
 
     return mlnx_fid_flood_ctrl_update(sx_fid, attr, flood_data->type, &drop);
@@ -2974,7 +2974,7 @@ sai_status_t mlnx_fid_flood_ctrl_type_set(_In_ sx_fid_t                       sx
         return SAI_STATUS_SUCCESS;
     }
 
-    prev_type  = data->type;
+    prev_type = data->type;
     data->type = new_type;
 
     if (g_sai_db_ptr->flood_actions[attr] == SAI_PACKET_ACTION_DROP) {
@@ -3000,7 +3000,7 @@ static sai_status_t mlnx_fid_flood_ctrl_uc_bc_port_event_handle(_In_ sx_fid_t   
     sx_status_t      sx_status;
     sx_access_cmd_t  sx_cmd;
     sx_port_log_id_t sx_l2mc_ports[MAX_BRIDGE_1Q_PORTS] = {0}, ports_to_update[MAX_BRIDGE_1Q_PORTS] = {0};
-    uint32_t         l2mc_ports_count                   = MAX_BRIDGE_1Q_PORTS, ports_to_update_count, ii, jj;
+    uint32_t         l2mc_ports_count = MAX_BRIDGE_1Q_PORTS, ports_to_update_count, ii, jj;
     bool             block_port;
 
     assert(data);
@@ -3012,7 +3012,7 @@ static sai_status_t mlnx_fid_flood_ctrl_uc_bc_port_event_handle(_In_ sx_fid_t   
     }
 
     if (data->type == MLNX_FID_FLOOD_TYPE_NONE) {
-        sx_cmd    = (event == MLNX_PORT_EVENT_ADD) ? SX_ACCESS_CMD_ADD_PORTS : SX_ACCESS_CMD_DELETE_PORTS;
+        sx_cmd = (event == MLNX_PORT_EVENT_ADD) ? SX_ACCESS_CMD_ADD_PORTS : SX_ACCESS_CMD_DELETE_PORTS;
         sx_status = sx_api_fdb_flood_control_set(gh_sdk, sx_cmd, DEFAULT_ETH_SWID, sx_fid, sx_flood_type,
                                                  sx_ports_count, sx_ports);
         if (SX_ERR(sx_status)) {
@@ -3106,7 +3106,7 @@ sai_status_t mlnx_fid_flood_ctrl_port_event_handle(_In_ sx_fid_t                
     assert(data);
     assert(sx_ports);
 
-    drop_data.type        = MLNX_FID_FLOOD_TYPE_NONE;
+    drop_data.type = MLNX_FID_FLOOD_TYPE_NONE;
     drop_data.l2mc_db_idx = MLNX_L2MC_GROUP_DB_IDX_INVALID;
 
     switch_action = g_sai_db_ptr->flood_actions[MLNX_FID_FLOOD_CTRL_ATTR_UC];

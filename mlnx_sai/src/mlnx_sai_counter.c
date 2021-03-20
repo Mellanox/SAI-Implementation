@@ -124,7 +124,7 @@ static sai_status_t mlnx_counter_oid_create(_In_ mlnx_shm_rm_array_idx_t idx, _O
 
     memset(oid, 0, sizeof(*oid));
 
-    mlnx_oid->object_type       = SAI_OBJECT_TYPE_COUNTER;
+    mlnx_oid->object_type = SAI_OBJECT_TYPE_COUNTER;
     mlnx_oid->id.counter_db_idx = idx;
 
     return SAI_STATUS_SUCCESS;
@@ -150,8 +150,12 @@ static const sai_vendor_attribute_entry_t counter_vendor_attribs[] = {
 static const mlnx_attr_enum_info_t        counter_enum_info[] = {
     [SAI_COUNTER_ATTR_TYPE] = ATTR_ENUM_VALUES_ALL()
 };
+static const sai_stat_capability_t        counter_stats_capabilities[] = {
+    { SAI_COUNTER_STAT_PACKETS, SAI_STATS_MODE_READ | SAI_STATS_MODE_READ_AND_CLEAR },
+    { SAI_COUNTER_STAT_BYTES, SAI_STATS_MODE_READ | SAI_STATS_MODE_READ_AND_CLEAR },
+};
 const mlnx_obj_type_attrs_info_t          mlnx_counter_obj_type_info =
-{ counter_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(counter_enum_info)};
+{ counter_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(counter_enum_info), OBJ_STAT_CAP_INFO(counter_stats_capabilities)};
 static sai_status_t mlnx_counter_type_get(_In_ const sai_object_key_t   *key,
                                           _Inout_ sai_attribute_value_t *value,
                                           _In_ uint32_t                  attr_index,
@@ -197,7 +201,7 @@ static bool trap_counter_cmp(_In_ const void *elem, _In_ const void *trap_id_ptr
 {
     const mlnx_counter_t *counter = (mlnx_counter_t*)elem;
     const sai_object_id_t trap_id = *((const sai_object_id_t*)trap_id_ptr);
-    uint32_t              ii      = 0;
+    uint32_t              ii = 0;
 
     for (; ii < counter->hostif_trap_ids_cnt; ii++) {
         if (counter->hostif_trap_ids[ii] == trap_id) {
@@ -213,7 +217,7 @@ sai_status_t mlnx_update_hostif_trap_counter(sai_object_id_t trap_id, sai_object
     mlnx_shm_rm_array_idx_t       idx;
     mlnx_counter_t               *prev_counter, *new_counter;
     sai_status_t                  status = SAI_STATUS_SUCCESS;
-    uint32_t                      ii     = 0;
+    uint32_t                      ii = 0;
     mlnx_object_id_t              mlnx_oid;
     sx_host_ifc_counters_filter_t hostif_trap_filter;
     sx_host_ifc_counters_t        host_ifc_counters;
@@ -228,7 +232,11 @@ sai_status_t mlnx_update_hostif_trap_counter(sai_object_id_t trap_id, sai_object
 
     sai_db_write_lock();
 
-    status = mlnx_shm_rm_array_find(MLNX_SHM_RM_ARRAY_TYPE_COUNTER, &trap_counter_cmp, MLNX_SHM_RM_ARRAY_IDX_UNINITIALIZED, &trap_id, &idx,
+    status = mlnx_shm_rm_array_find(MLNX_SHM_RM_ARRAY_TYPE_COUNTER,
+                                    &trap_counter_cmp,
+                                    MLNX_SHM_RM_ARRAY_IDX_UNINITIALIZED,
+                                    &trap_id,
+                                    &idx,
                                     (void**)&prev_counter);
     if (!SAI_ERR(status)) {
         for (; ii < prev_counter->hostif_trap_ids_cnt; ii++) {
@@ -267,7 +275,7 @@ sai_status_t mlnx_update_hostif_trap_counter(sai_object_id_t trap_id, sai_object
     }
 
     hostif_trap_filter.counter_type = HOST_IFC_COUNTER_TYPE_TRAP_ID_E;
-    status                          = mlnx_translate_sai_trap_to_sdk(trap_id, &trap_id_count, &trap_ids);
+    status = mlnx_translate_sai_trap_to_sdk(trap_id, &trap_id_count, &trap_ids);
     if (SAI_ERR(status)) {
         SX_LOG_ERR("Failed to translate trap");
         goto out;
@@ -278,12 +286,12 @@ sai_status_t mlnx_update_hostif_trap_counter(sai_object_id_t trap_id, sai_object
     }
     hostif_trap_filter.u_counter_type.trap_id.trap_id_filter_cnt = trap_id_count;
 
-    host_ifc_counters.trap_id_counters_cnt    = trap_id_count;
+    host_ifc_counters.trap_id_counters_cnt = trap_id_count;
     host_ifc_counters.trap_group_counters_cnt = 0;
-    sx_status                                 = sx_api_host_ifc_counters_get(gh_sdk,
-                                                                             SX_ACCESS_CMD_READ_CLEAR,
-                                                                             &hostif_trap_filter,
-                                                                             &host_ifc_counters);
+    sx_status = sx_api_host_ifc_counters_get(gh_sdk,
+                                             SX_ACCESS_CMD_READ_CLEAR,
+                                             &hostif_trap_filter,
+                                             &host_ifc_counters);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to get hostif counters\n");
         status = sdk_to_sai(sx_status);
@@ -301,7 +309,7 @@ out:
 static bool group_counter_cmp(_In_ const void *elem, _In_ const void *group_id_ptr)
 {
     const mlnx_group_counter_t *group_counter = (mlnx_group_counter_t*)elem;
-    const sx_ecmp_id_t          group_id      = *((const sx_ecmp_id_t*)group_id_ptr);
+    const sx_ecmp_id_t          group_id = *((const sx_ecmp_id_t*)group_id_ptr);
 
     return group_counter->group_id == group_id;
 }
@@ -316,8 +324,12 @@ sai_status_t mlnx_get_group_flow_counter_id(sx_ecmp_id_t group_id, sx_flow_count
 
     sai_db_read_lock();
 
-    status = mlnx_shm_rm_array_find(MLNX_SHM_RM_ARRAY_TYPE_GROUP_COUNTER, &group_counter_cmp, MLNX_SHM_RM_ARRAY_IDX_UNINITIALIZED, &group_id,
-                                    &idx, (void**)&group_counter);
+    status = mlnx_shm_rm_array_find(MLNX_SHM_RM_ARRAY_TYPE_GROUP_COUNTER,
+                                    &group_counter_cmp,
+                                    MLNX_SHM_RM_ARRAY_IDX_UNINITIALIZED,
+                                    &group_id,
+                                    &idx,
+                                    (void**)&group_counter);
     if (SAI_ERR(status)) {
         *flow_counter_id = SX_FLOW_COUNTER_ID_INVALID;
     } else {
@@ -336,7 +348,7 @@ sai_status_t mlnx_set_group_flow_counter_id(sx_ecmp_id_t group_id, sx_flow_count
 
     SX_LOG_ENTER();
 
-    start_idx.idx  = 0;
+    start_idx.idx = 0;
     start_idx.type = MLNX_SHM_RM_ARRAY_TYPE_INVALID;
 
     sai_db_write_lock();
@@ -359,7 +371,7 @@ sai_status_t mlnx_set_group_flow_counter_id(sx_ecmp_id_t group_id, sx_flow_count
         }
     }
 
-    group_counter->group_id        = group_id;
+    group_counter->group_id = group_id;
     group_counter->sx_flow_counter = flow_counter_id;
 
 out:
@@ -403,7 +415,7 @@ sai_status_t mlnx_get_flow_counter_id(sai_object_id_t counter_id, sx_flow_counte
                                                 &counter->sx_flow_counter);
         if (SX_ERR(sx_api_status)) {
             counter->sx_flow_counter = SX_FLOW_COUNTER_ID_INVALID;
-            sai_status               = sdk_to_sai(sx_api_status);
+            sai_status = sdk_to_sai(sx_api_status);
             SX_LOG_ERR("Failed to create flow counter data - %s\n", SX_STATUS_MSG(sx_api_status));
             goto out;
         }
@@ -418,7 +430,7 @@ out:
 
 static bool flow_counter_cmp(_In_ const void *elem, _In_ const void *flow_counter_ptr)
 {
-    const mlnx_counter_t      *counter      = (mlnx_counter_t*)elem;
+    const mlnx_counter_t      *counter = (mlnx_counter_t*)elem;
     const sx_flow_counter_id_t flow_counter = *((const sx_flow_counter_id_t*)flow_counter_ptr);
 
     return counter->sx_flow_counter == flow_counter;
@@ -439,7 +451,11 @@ sai_status_t mlnx_translate_flow_counter_to_sai_counter(sx_flow_counter_id_t flo
         return SAI_STATUS_SUCCESS;
     }
 
-    status = mlnx_shm_rm_array_find(MLNX_SHM_RM_ARRAY_TYPE_COUNTER, &flow_counter_cmp, MLNX_SHM_RM_ARRAY_IDX_UNINITIALIZED, &flow_counter, &idx,
+    status = mlnx_shm_rm_array_find(MLNX_SHM_RM_ARRAY_TYPE_COUNTER,
+                                    &flow_counter_cmp,
+                                    MLNX_SHM_RM_ARRAY_IDX_UNINITIALIZED,
+                                    &flow_counter,
+                                    &idx,
                                     (void**)&counter);
     if (SAI_ERR(status)) {
         SX_LOG_ERR("Failed to find counter\n");
@@ -465,7 +481,11 @@ sai_status_t mlnx_translate_trap_id_to_sai_counter(sai_object_id_t trap_id, sai_
 
     assert(counter_id);
 
-    status = mlnx_shm_rm_array_find(MLNX_SHM_RM_ARRAY_TYPE_COUNTER, &trap_counter_cmp, MLNX_SHM_RM_ARRAY_IDX_UNINITIALIZED, &trap_id, &idx,
+    status = mlnx_shm_rm_array_find(MLNX_SHM_RM_ARRAY_TYPE_COUNTER,
+                                    &trap_counter_cmp,
+                                    MLNX_SHM_RM_ARRAY_IDX_UNINITIALIZED,
+                                    &trap_id,
+                                    &idx,
                                     (void**)&counter);
     if (SAI_ERR(status)) {
         SX_LOG_NTC("Failed to find counter\n");
@@ -519,7 +539,7 @@ sai_status_t mlnx_create_counter(_Out_ sai_object_id_t      *counter_id,
     }
 
     counter->hostif_trap_ids_cnt = 0;
-    counter->sx_flow_counter     = SX_FLOW_COUNTER_ID_INVALID;
+    counter->sx_flow_counter = SX_FLOW_COUNTER_ID_INVALID;
 
     sai_status = mlnx_counter_oid_create(counter_db_idx, counter_id);
     if (SAI_ERR(sai_status)) {
@@ -608,7 +628,7 @@ static sai_status_t get_hostif_counter_stats(_In_ mlnx_counter_t    *counter,
     uint32_t                      ii, jj, kk = 0;
 
     SX_LOG_ENTER();
-    
+
     memset(&hostif_trap_filter, 0, sizeof(hostif_trap_filter));
 
     if (counter->hostif_trap_ids_cnt == 0) {
@@ -628,12 +648,12 @@ static sai_status_t get_hostif_counter_stats(_In_ mlnx_counter_t    *counter,
         }
     }
     hostif_trap_filter.u_counter_type.trap_id.trap_id_filter_cnt = kk;
-    host_ifc_counters->trap_id_counters_cnt                      = kk;
-    host_ifc_counters->trap_group_counters_cnt                   = 0;
-    sx_status                                                    = sx_api_host_ifc_counters_get(gh_sdk,
-                                                                                                cmd,
-                                                                                                &hostif_trap_filter,
-                                                                                                host_ifc_counters);
+    host_ifc_counters->trap_id_counters_cnt = kk;
+    host_ifc_counters->trap_group_counters_cnt = 0;
+    sx_status = sx_api_host_ifc_counters_get(gh_sdk,
+                                             cmd,
+                                             &hostif_trap_filter,
+                                             host_ifc_counters);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to get hostif counters\n");
         status = sdk_to_sai(sx_status);

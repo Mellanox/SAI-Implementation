@@ -257,8 +257,17 @@ static const sai_vendor_attribute_entry_t pg_vendor_attribs[] = {
       NULL, NULL,
       NULL, NULL}
 };
+static const sai_stat_capability_t        pg_stats_capabilies[] = {
+    { SAI_INGRESS_PRIORITY_GROUP_STAT_PACKETS, SAI_STATS_MODE_READ | SAI_STATS_MODE_READ_AND_CLEAR },
+    { SAI_INGRESS_PRIORITY_GROUP_STAT_BYTES, SAI_STATS_MODE_READ | SAI_STATS_MODE_READ_AND_CLEAR },
+    { SAI_INGRESS_PRIORITY_GROUP_STAT_CURR_OCCUPANCY_BYTES, SAI_STATS_MODE_READ | SAI_STATS_MODE_READ_AND_CLEAR },
+    { SAI_INGRESS_PRIORITY_GROUP_STAT_WATERMARK_BYTES, SAI_STATS_MODE_READ | SAI_STATS_MODE_READ_AND_CLEAR },
+    { SAI_INGRESS_PRIORITY_GROUP_STAT_SHARED_WATERMARK_BYTES, SAI_STATS_MODE_READ | SAI_STATS_MODE_READ_AND_CLEAR },
+    { SAI_INGRESS_PRIORITY_GROUP_STAT_XOFF_ROOM_WATERMARK_BYTES, SAI_STATS_MODE_READ | SAI_STATS_MODE_READ_AND_CLEAR },
+    { SAI_INGRESS_PRIORITY_GROUP_STAT_DROPPED_PACKETS, SAI_STATS_MODE_READ | SAI_STATS_MODE_READ_AND_CLEAR },
+};
 const mlnx_obj_type_attrs_info_t          mlnx_ingress_pg_obj_type_info =
-{ pg_vendor_attribs, OBJ_ATTRS_ENUMS_INFO_EMPTY()};
+{ pg_vendor_attribs, OBJ_ATTRS_ENUMS_INFO_EMPTY(), OBJ_STAT_CAP_INFO(pg_stats_capabilies)};
 static const sai_vendor_attribute_entry_t pool_vendor_attribs[] = {
     {
         SAI_BUFFER_POOL_ATTR_SHARED_SIZE,
@@ -307,8 +316,13 @@ static const mlnx_attr_enum_info_t        buffer_pool_enum_info[] = {
         SAI_BUFFER_POOL_TYPE_EGRESS),
     [SAI_BUFFER_POOL_ATTR_THRESHOLD_MODE] = ATTR_ENUM_VALUES_ALL(),
 };
+static const sai_stat_capability_t        buffer_pool_stats_capabilities[] = {
+    { SAI_BUFFER_POOL_STAT_CURR_OCCUPANCY_BYTES, SAI_STATS_MODE_READ | SAI_STATS_MODE_READ_AND_CLEAR },
+    { SAI_BUFFER_POOL_STAT_WATERMARK_BYTES, SAI_STATS_MODE_READ | SAI_STATS_MODE_READ_AND_CLEAR },
+    { SAI_BUFFER_POOL_STAT_XOFF_ROOM_CURR_OCCUPANCY_BYTES, SAI_STATS_MODE_READ | SAI_STATS_MODE_READ_AND_CLEAR },
+};
 const mlnx_obj_type_attrs_info_t          mlnx_buffer_pool_obj_type_info =
-{ pool_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(buffer_pool_enum_info)};
+{ pool_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(buffer_pool_enum_info), OBJ_STAT_CAP_INFO(buffer_pool_stats_capabilities)};
 static const sai_vendor_attribute_entry_t buffer_profile_vendor_attribs[] = {
     {
         SAI_BUFFER_PROFILE_ATTR_POOL_ID,
@@ -369,7 +383,7 @@ static const mlnx_attr_enum_info_t        buffer_profile_enum_info[] = {
     [SAI_BUFFER_PROFILE_ATTR_THRESHOLD_MODE] = ATTR_ENUM_VALUES_ALL(),
 };
 const mlnx_obj_type_attrs_info_t          mlnx_buffer_profile_obj_type_info =
-{ buffer_profile_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(buffer_profile_enum_info)};
+{ buffer_profile_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(buffer_profile_enum_info), OBJ_STAT_CAP_INFO_EMPTY()};
 void init_buffer_resource_limits()
 {
     /* number of user allocatable pools */

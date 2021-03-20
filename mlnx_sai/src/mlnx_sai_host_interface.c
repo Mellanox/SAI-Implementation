@@ -198,7 +198,7 @@ static const mlnx_attr_enum_info_t        hostif_enum_info[] = {
     [SAI_HOSTIF_ATTR_VLAN_TAG] = ATTR_ENUM_VALUES_ALL(),
 };
 const mlnx_obj_type_attrs_info_t          mlnx_hostif_obj_type_info =
-{ host_interface_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(hostif_enum_info)};
+{ host_interface_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(hostif_enum_info), OBJ_STAT_CAP_INFO_EMPTY()};
 static const sai_vendor_attribute_entry_t trap_group_vendor_attribs[] = {
     { SAI_HOSTIF_TRAP_GROUP_ATTR_ADMIN_STATE,
       { true, false, true, true },
@@ -222,7 +222,7 @@ static const sai_vendor_attribute_entry_t trap_group_vendor_attribs[] = {
       NULL, NULL }
 };
 const mlnx_obj_type_attrs_info_t          mlnx_hostif_trap_group_obj_type_info =
-{ trap_group_vendor_attribs, OBJ_ATTRS_ENUMS_INFO_EMPTY()};
+{ trap_group_vendor_attribs, OBJ_ATTRS_ENUMS_INFO_EMPTY(), OBJ_STAT_CAP_INFO_EMPTY()};
 static const sai_vendor_attribute_entry_t trap_vendor_attribs[] = {
     { SAI_HOSTIF_TRAP_ATTR_TRAP_TYPE,
       { true, false, false, true },
@@ -318,7 +318,7 @@ static const mlnx_attr_enum_info_t        hostif_trap_enum_info[] = {
         )
 };
 const mlnx_obj_type_attrs_info_t          mlnx_hostif_trap_obj_type_info =
-{ trap_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(hostif_trap_enum_info)};
+{ trap_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(hostif_trap_enum_info), OBJ_STAT_CAP_INFO_EMPTY()};
 static const sai_vendor_attribute_entry_t user_defined_trap_vendor_attribs[] = {
     { SAI_HOSTIF_USER_DEFINED_TRAP_ATTR_TYPE,
       { true, false, false, true },
@@ -349,7 +349,7 @@ static const mlnx_attr_enum_info_t        user_defined_trap_enum_info[] = {
         SAI_HOSTIF_USER_DEFINED_TRAP_TYPE_FDB)
 };
 const mlnx_obj_type_attrs_info_t          mlnx_hostif_user_defined_trap_obj_type_info =
-{ user_defined_trap_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(user_defined_trap_enum_info)};
+{ user_defined_trap_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(user_defined_trap_enum_info), OBJ_STAT_CAP_INFO_EMPTY()};
 static const sai_vendor_attribute_entry_t host_interface_packet_vendor_attribs[] = {
     { SAI_HOSTIF_PACKET_ATTR_HOSTIF_TRAP_ID,
       { false, false, false, true },
@@ -386,7 +386,7 @@ static const mlnx_attr_enum_info_t        hostif_packet_enum_info[] = {
     [SAI_HOSTIF_PACKET_ATTR_HOSTIF_TX_TYPE] = ATTR_ENUM_VALUES_ALL()
 };
 const mlnx_obj_type_attrs_info_t          mlnx_hostif_packet_obj_type_info =
-{ host_interface_packet_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(hostif_packet_enum_info)};
+{ host_interface_packet_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(hostif_packet_enum_info), OBJ_STAT_CAP_INFO_EMPTY()};
 static const sai_vendor_attribute_entry_t host_table_entry_vendor_attribs[] = {
     { SAI_HOSTIF_TABLE_ENTRY_ATTR_TYPE,
       { true, false, false, true },
@@ -424,7 +424,7 @@ static const mlnx_attr_enum_info_t        hostif_table_entry_enum_info[] = {
     [SAI_HOSTIF_TABLE_ENTRY_ATTR_CHANNEL_TYPE] = ATTR_ENUM_VALUES_ALL(),
 };
 const mlnx_obj_type_attrs_info_t          mlnx_hostif_table_entry_obj_type_info =
-{ host_table_entry_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(hostif_table_entry_enum_info)};
+{ host_table_entry_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(hostif_table_entry_enum_info), OBJ_STAT_CAP_INFO_EMPTY()};
 const mlnx_trap_info_t mlnx_traps_info[] = {
     { SAI_HOSTIF_TRAP_TYPE_STP, 1, { SX_TRAP_ID_ETH_L2_STP }, SAI_PACKET_ACTION_DROP, "STP", MLNX_TRAP_TYPE_REGULAR,
       MLNX_L2_TRAP },

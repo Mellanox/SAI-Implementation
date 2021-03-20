@@ -115,26 +115,26 @@ typedef sai_status_t (*mlnx_availability_get_fn)(_In_ sai_object_id_t switch_id,
                                                  _In_ const sai_attribute_t *attr_list, _Out_ uint64_t *count);
 
 static const mlnx_availability_get_fn mlnx_availability_get_fns[SAI_OBJECT_TYPE_MAX] = {
-    [SAI_OBJECT_TYPE_VIRTUAL_ROUTER]          = mlnx_virtual_router_availability_get,
-    [SAI_OBJECT_TYPE_NEXT_HOP]                = mlnx_switch_next_hop_availability_get,
-    [SAI_OBJECT_TYPE_NEXT_HOP_GROUP]          = mlnx_switch_next_hop_group_availability_get,
-    [SAI_OBJECT_TYPE_ROUTER_INTERFACE]        = mlnx_rif_availability_get,
-    [SAI_OBJECT_TYPE_ACL_TABLE]               = mlnx_switch_acl_table_availability_get,
-    [SAI_OBJECT_TYPE_ACL_ENTRY]               = mlnx_acl_entry_availability_get,
-    [SAI_OBJECT_TYPE_ACL_COUNTER]             = mlnx_acl_counter_availability_get,
-    [SAI_OBJECT_TYPE_ACL_TABLE_GROUP]         = mlnx_switch_acl_table_group_availability_get,
-    [SAI_OBJECT_TYPE_MIRROR_SESSION]          = mlnx_mirror_availability_get,
-    [SAI_OBJECT_TYPE_STP]                     = mlnx_switch_stp_availability_get,
-    [SAI_OBJECT_TYPE_HOSTIF_TRAP_GROUP]       = mlnx_hostif_trap_group_availability_get,
-    [SAI_OBJECT_TYPE_FDB_ENTRY]               = mlnx_switch_fdb_entry_availability_get,
-    [SAI_OBJECT_TYPE_NEIGHBOR_ENTRY]          = mlnx_switch_neighbor_entry_availability_get,
-    [SAI_OBJECT_TYPE_ROUTE_ENTRY]             = mlnx_switch_route_entry_availability_get,
-    [SAI_OBJECT_TYPE_TUNNEL]                  = mlnx_tunnel_availability_get,
+    [SAI_OBJECT_TYPE_VIRTUAL_ROUTER] = mlnx_virtual_router_availability_get,
+    [SAI_OBJECT_TYPE_NEXT_HOP] = mlnx_switch_next_hop_availability_get,
+    [SAI_OBJECT_TYPE_NEXT_HOP_GROUP] = mlnx_switch_next_hop_group_availability_get,
+    [SAI_OBJECT_TYPE_ROUTER_INTERFACE] = mlnx_rif_availability_get,
+    [SAI_OBJECT_TYPE_ACL_TABLE] = mlnx_switch_acl_table_availability_get,
+    [SAI_OBJECT_TYPE_ACL_ENTRY] = mlnx_acl_entry_availability_get,
+    [SAI_OBJECT_TYPE_ACL_COUNTER] = mlnx_acl_counter_availability_get,
+    [SAI_OBJECT_TYPE_ACL_TABLE_GROUP] = mlnx_switch_acl_table_group_availability_get,
+    [SAI_OBJECT_TYPE_MIRROR_SESSION] = mlnx_mirror_availability_get,
+    [SAI_OBJECT_TYPE_STP] = mlnx_switch_stp_availability_get,
+    [SAI_OBJECT_TYPE_HOSTIF_TRAP_GROUP] = mlnx_hostif_trap_group_availability_get,
+    [SAI_OBJECT_TYPE_FDB_ENTRY] = mlnx_switch_fdb_entry_availability_get,
+    [SAI_OBJECT_TYPE_NEIGHBOR_ENTRY] = mlnx_switch_neighbor_entry_availability_get,
+    [SAI_OBJECT_TYPE_ROUTE_ENTRY] = mlnx_switch_route_entry_availability_get,
+    [SAI_OBJECT_TYPE_TUNNEL] = mlnx_tunnel_availability_get,
     [SAI_OBJECT_TYPE_TUNNEL_TERM_TABLE_ENTRY] = mlnx_tunnel_term_table_entry_availability_get,
-    [SAI_OBJECT_TYPE_BRIDGE]                  = mlnx_bridge_availability_get,
-    [SAI_OBJECT_TYPE_BRIDGE_PORT]             = mlnx_bridge_port_availability_get,
-    [SAI_OBJECT_TYPE_BFD_SESSION]             = mlnx_switch_bfd_session_availability_get,
-    [SAI_OBJECT_TYPE_DEBUG_COUNTER]           = mlnx_debug_counter_availability_get,
+    [SAI_OBJECT_TYPE_BRIDGE] = mlnx_bridge_availability_get,
+    [SAI_OBJECT_TYPE_BRIDGE_PORT] = mlnx_bridge_port_availability_get,
+    [SAI_OBJECT_TYPE_BFD_SESSION] = mlnx_switch_bfd_session_availability_get,
+    [SAI_OBJECT_TYPE_DEBUG_COUNTER] = mlnx_debug_counter_availability_get,
 };
 
 /**
@@ -210,7 +210,7 @@ sai_status_t sai_get_object_key(_In_ sai_object_id_t      switch_id,
  *         can use corresponding get_attribute to get the list.
  *
  * @param[inout] object_statuses Status for each object. If the object does
- *         not exist, callee sets the correpsonding status to #SAI_STATUS_INVALID_OBJECT_ID.
+ *         not exist, callee sets the corresponding status to #SAI_STATUS_INVALID_OBJECT_ID.
  *         If the allocated attribute count is not large enough,
  *         set the status to #SAI_STATUS_BUFFER_OVERFLOW.
  *
@@ -263,6 +263,23 @@ sai_status_t sai_query_attribute_enum_values_capability(_In_ sai_object_id_t    
     return mlnx_sai_query_attribute_enum_values_capability_impl(switch_id, object_type, attr_id,
                                                                 enum_values_capability);
 }
+
+/**
+ * @brief Query statistics capability for statistics bound at object level
+ *
+ * @param[in] switch_id SAI Switch object id
+ * @param[in] object_type SAI object type
+ * @param[inout] stats_capability List of implemented enum values, and the statistics modes (bit mask) supported per value
+ *
+ * @return #SAI_STATUS_SUCCESS on success, #SAI_STATUS_BUFFER_OVERFLOW if lists size insufficient, failure status code on error
+ */
+sai_status_t sai_query_stats_capability(_In_ sai_object_id_t                switch_id,
+                                        _In_ sai_object_type_t              object_type,
+                                        _Inout_ sai_stat_capability_list_t *stats_capability)
+{
+    return mlnx_sai_query_stats_capability_impl(switch_id, object_type, stats_capability);
+}
+
 
 /**
  * @brief Get SAI object type resource availability.

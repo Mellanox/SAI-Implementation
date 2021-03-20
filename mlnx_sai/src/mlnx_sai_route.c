@@ -103,7 +103,7 @@ static const mlnx_attr_enum_info_t        route_enum_info[] = {
         SAI_PACKET_ACTION_DROP)
 };
 const mlnx_obj_type_attrs_info_t          mlnx_route_obj_type_info =
-{ route_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(route_enum_info)};
+{ route_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(route_enum_info), OBJ_STAT_CAP_INFO_EMPTY()};
 static void route_key_to_str(_In_ const sai_route_entry_t* route_entry, _Out_ char *key_str)
 {
     int res;
@@ -209,7 +209,7 @@ static sai_status_t mlnx_fill_route_data(sx_uc_route_data_t      *route_data,
             sdk_ecmp_id = (sx_ecmp_id_t)data;
         }
 
-        route_data->type                   = SX_UC_ROUTE_TYPE_NEXT_HOP;
+        route_data->type = SX_UC_ROUTE_TYPE_NEXT_HOP;
         route_data->uc_route_param.ecmp_id = sdk_ecmp_id;
 
         /* ECMP container should contains exactly 1 next hop */
@@ -230,7 +230,7 @@ static sai_status_t mlnx_fill_route_data(sx_uc_route_data_t      *route_data,
             return status;
         }
 
-        route_data->type                   = SX_UC_ROUTE_TYPE_NEXT_HOP;
+        route_data->type = SX_UC_ROUTE_TYPE_NEXT_HOP;
         route_data->uc_route_param.ecmp_id = sdk_ecmp_id;
     } else if (SAI_OBJECT_TYPE_ROUTER_INTERFACE == sai_object_type_query(oid)) {
         if (SAI_STATUS_SUCCESS !=
@@ -279,7 +279,7 @@ static sai_status_t mlnx_route_attr_to_sx_data(_In_ const sai_route_entry_t *rou
     uint32_t                     action_index, next_hop_index;
     char                         list_str[MAX_LIST_VALUE_STR_LEN];
     bool                         next_hop_id_found = false;
-    sx_log_severity_t            log_level         = SX_LOG_NOTICE;
+    sx_log_severity_t            log_level = SX_LOG_NOTICE;
 
     assert(sx_ip_prefix);
     assert(sx_vrid);
@@ -305,7 +305,7 @@ static sai_status_t mlnx_route_attr_to_sx_data(_In_ const sai_route_entry_t *rou
     SX_LOG(log_level, "Create route %s\n", key_str);
     SX_LOG(log_level, "Attribs %s\n", list_str);
 
-    sx_route_data->action         = SX_ROUTER_ACTION_FORWARD;
+    sx_route_data->action = SX_ROUTER_ACTION_FORWARD;
     sx_route_data->trap_attr.prio = SX_TRAP_PRIORITY_MED;
 
     status = find_attrib_in_list(attr_count, attr_list, SAI_ROUTE_ENTRY_ATTR_PACKET_ACTION, &action, &action_index);
@@ -318,10 +318,10 @@ static sai_status_t mlnx_route_attr_to_sx_data(_In_ const sai_route_entry_t *rou
 
     status = find_attrib_in_list(attr_count, attr_list, SAI_ROUTE_ENTRY_ATTR_NEXT_HOP_ID, &next_hop, &next_hop_index);
     if (SAI_ERR(status)) {
-        next_hop_oid   = SAI_NULL_OBJECT_ID;
+        next_hop_oid = SAI_NULL_OBJECT_ID;
         next_hop_index = 0;
     } else {
-        next_hop_oid      = next_hop->oid;
+        next_hop_oid = next_hop->oid;
         next_hop_id_found = true;
     }
 
@@ -401,7 +401,7 @@ static sai_status_t mlnx_create_route(_In_ const sai_route_entry_t* route_entry,
     sx_uc_route_data_t           route_data;
     char                         key_str[MAX_KEY_STR_LEN];
     sx_log_severity_t            log_level = SX_LOG_NOTICE;
-    const sai_attribute_value_t *counter   = NULL;
+    const sai_attribute_value_t *counter = NULL;
     uint32_t                     counter_index;
 
     SX_LOG_ENTER();
@@ -519,7 +519,7 @@ static sai_status_t mlnx_route_get_vrf_and_nh(_In_ const sai_route_entry_t *rout
     }
 
     *found = use_db;
-    *vrf   = route_entry->vr_id;
+    *vrf = route_entry->vr_id;
 
     return SAI_STATUS_SUCCESS;
 }
@@ -727,7 +727,7 @@ static sai_status_t mlnx_ecmp_get_ip(_In_ sx_ecmp_id_t sdk_ecmp_id, _Out_ sx_ip_
     assert(ip);
 
     sdk_next_hop_cnt = 1;
-    sx_status        = sx_api_router_ecmp_get(gh_sdk, sdk_ecmp_id, &sdk_next_hop, &sdk_next_hop_cnt);
+    sx_status = sx_api_router_ecmp_get(gh_sdk, sdk_ecmp_id, &sdk_next_hop, &sdk_next_hop_cnt);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to get ecmp - %s.\n", SX_STATUS_MSG(sx_status));
         return sdk_to_sai(sx_status);
@@ -758,7 +758,7 @@ static sai_status_t mlnx_route_get_encap_nexthop(_In_ sx_ip_addr_t *ip, _Out_ sa
     sai_status_t            status;
     mlnx_shm_rm_array_idx_t db_idx;
 
-    db_idx.idx  = (ip->addr.ipv4.s_addr & 0x00FFFF00) >> 8;
+    db_idx.idx = (ip->addr.ipv4.s_addr & 0x00FFFF00) >> 8;
     db_idx.type = MLNX_SHM_RM_ARRAY_TYPE_NEXTHOP;
 
     sai_db_write_lock();

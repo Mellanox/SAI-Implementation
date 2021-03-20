@@ -401,5 +401,8 @@
     <ClCompile Include="src\mlnx_sai_counter.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\dbgdump\mlnx_sai_dbg_utils.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>
