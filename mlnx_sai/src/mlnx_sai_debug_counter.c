@@ -927,6 +927,48 @@ static sai_status_t mlnx_debug_counter_drop_lists_diff(_In_ const mlnx_drop_coun
     return SAI_STATUS_SUCCESS;
 }
 
+static sai_status_t mlnx_debug_counter_update_sdk_global_acl_drop_trap_config_if_required(
+    _In_ sai_debug_counter_type_t type,
+    _In_ const int32_t           *drop_reasons_to_remove,
+    _In_ const int32_t           *drop_reasons_to_add)
+{
+    sai_status_t               sai_status = SAI_STATUS_SUCCESS;
+    sx_status_t                sx_status = SX_STATUS_SUCCESS;
+    bool                       is_update = false;
+    sx_acl_global_attributes_t acl_attrs = {0};
+    int32_t                    drop_idx = SAI_IN_DROP_REASON_ACL_ANY;
+
+    assert(drop_reasons_to_remove);
+    assert(drop_reasons_to_add);
+
+    assert(!(drop_reasons_to_remove[drop_idx] && drop_reasons_to_add[drop_idx]));
+
+    if (type != SAI_DEBUG_COUNTER_TYPE_SWITCH_IN_DROP_REASONS) {
+        goto out;
+    }
+
+    if (drop_reasons_to_remove[drop_idx]) {
+        acl_attrs.disable_acl_drop_trap = 1;
+        is_update = true;
+    } else if (drop_reasons_to_add[drop_idx]) {
+        acl_attrs.disable_acl_drop_trap = 0;
+        is_update = true;
+    }
+
+    if (is_update) {
+        sx_status = sx_api_acl_global_attributes_set(gh_sdk, SX_ACCESS_CMD_SET, acl_attrs);
+        if (SX_ERR(sx_status)) {
+            SX_LOG_ERR("Failed to %s global acl drop trap - %s \n",
+                       acl_attrs.disable_acl_drop_trap ? "disable" : "enable",
+                       SX_STATUS_MSG(sx_status));
+            sai_status = sdk_to_sai(sx_status);
+            goto out;
+        }
+    }
+out:
+    return sai_status;
+}
+
 static sai_status_t mlnx_debug_counter_trap_action_handle(_In_ const mlnx_debug_counter_t *dbg_counter,
                                                           _In_ sx_trap_id_t                sx_trap,
                                                           _In_ sai_packet_action_t         old_action,
@@ -1223,7 +1265,14 @@ static sai_status_t mlnx_debug_counter_attr_set(_In_ const sai_object_key_t     
         goto out;
     }
 
-    /* unset unneded */
+    status = mlnx_debug_counter_update_sdk_global_acl_drop_trap_config_if_required(dbg_counter->type,
+                                                                                   drop_reasons_to_remove,
+                                                                                   drop_reasons_to_add);
+    if (SAI_ERR(status)) {
+        goto out;
+    }
+
+    /* unset unneeded */
     status = mlnx_debug_counter_drop_reasons_to_sdk(drop_reasons_info, drop_reasons_to_remove,
                                                     drop_reasons_to_remove_count,
                                                     sx_traps, &sx_traps_count);
@@ -1538,7 +1587,8 @@ static sai_status_t mlnx_debug_counter_create_impl(_In_ sai_debug_counter_type_t
                                                    _In_ const sai_s32_list_t    *drop_reasons,
                                                    _Out_ sai_object_id_t        *object)
 {
-    sai_status_t    status;
+    sai_status_t    status = SAI_STATUS_SUCCESS;
+    sx_status_t     sx_status = SX_STATUS_SUCCESS;
     sx_trap_group_t sx_trap_group = SX_TRAP_GROUP_INVALID;
     sx_trap_id_t    sx_traps[MLNX_DBG_COUNTER_TRAP_COUNT_MAX];
     uint32_t        sx_trap_count = MLNX_DBG_COUNTER_TRAP_COUNT_MAX;
@@ -1550,6 +1600,7 @@ static sai_status_t mlnx_debug_counter_create_impl(_In_ sai_debug_counter_type_t
     mlnx_shm_rm_array_idx_t               dbg_counter_db_idx;
     bool                                  is_valid;
     const mlnx_drop_counter_stage_info_t *drop_reasons_info;
+    sx_acl_global_attributes_t            acl_attrs = {0};
 
     assert((type == SAI_DEBUG_COUNTER_TYPE_SWITCH_IN_DROP_REASONS) ||
            (type == SAI_DEBUG_COUNTER_TYPE_SWITCH_OUT_DROP_REASONS));
@@ -1612,6 +1663,16 @@ static sai_status_t mlnx_debug_counter_create_impl(_In_ sai_debug_counter_type_t
     status = mlnx_debug_counter_oid_create(dbg_counter_db_idx, object);
     if (SAI_ERR(status)) {
         goto out;
+    }
+
+    if ((SAI_DEBUG_COUNTER_TYPE_SWITCH_IN_DROP_REASONS == dbg_counter->type) &&
+        dbg_counter->drop_reasons[SAI_IN_DROP_REASON_ACL_ANY]) {
+        sx_status = sx_api_acl_global_attributes_set(gh_sdk, SX_ACCESS_CMD_SET, acl_attrs);
+        if (SX_ERR(sx_status)) {
+            SX_LOG_ERR("Failed to enable global acl drop trap - %s \n", SX_STATUS_MSG(sx_status));
+            status = sdk_to_sai(sx_status);
+            goto out;
+        }
     }
 
 out:
@@ -1688,10 +1749,12 @@ static sai_status_t mlnx_create_debug_counter(_Out_ sai_object_id_t      *debug_
 
 static sai_status_t mlnx_remove_debug_counter(_In_ sai_object_id_t debug_counter_id)
 {
-    sai_status_t            status;
-    mlnx_debug_counter_t   *dbg_counter;
-    mlnx_shm_rm_array_idx_t idx;
-    char                    key_str[MAX_KEY_STR_LEN];
+    sai_status_t               status = SAI_STATUS_SUCCESS;
+    sx_status_t                sx_status = SX_STATUS_SUCCESS;
+    mlnx_debug_counter_t      *dbg_counter = NULL;
+    mlnx_shm_rm_array_idx_t    idx = {0};
+    char                       key_str[MAX_KEY_STR_LEN] = {0};
+    sx_acl_global_attributes_t acl_attrs = {.disable_acl_drop_trap = 1};
 
     SX_LOG_ENTER();
 
@@ -1704,6 +1767,16 @@ static sai_status_t mlnx_remove_debug_counter(_In_ sai_object_id_t debug_counter
     if (SAI_ERR(status)) {
         status = SAI_STATUS_INVALID_OBJECT_ID;
         goto out;
+    }
+
+    if ((SAI_DEBUG_COUNTER_TYPE_SWITCH_IN_DROP_REASONS == dbg_counter->type) &&
+        dbg_counter->drop_reasons[SAI_IN_DROP_REASON_ACL_ANY]) {
+        sx_status = sx_api_acl_global_attributes_set(gh_sdk, SX_ACCESS_CMD_SET, acl_attrs);
+        if (SX_ERR(sx_status)) {
+            SX_LOG_ERR("Failed to disable global acl drop trap - %s \n", SX_STATUS_MSG(sx_status));
+            status = sdk_to_sai(sx_status);
+            goto out;
+        }
     }
 
     status = mlnx_debug_counter_sx_uninit(dbg_counter);

@@ -1,4 +1,4 @@
-﻿Mellanox SAI implementation release notes
+Mellanox SAI implementation release notes
 ==========================================
 
 Release 1.18.0
@@ -21,7 +21,6 @@ The application must provide one key/value pair on profile services, depending o
 "config_file=/usr/share/sai_3420.xml" /
 "config_file=/usr/share/sai_3700.xml" /
 "config_file=/usr/share/sai_3800.xml" /
-"config_file=/usr/share/sai_4410.xml" /
 "config_file=/usr/share/sai_4600.xml" /
 "config_file=/usr/share/sai_4600C.xml" /
 "config_file=/usr/share/sai_4700.xml". 

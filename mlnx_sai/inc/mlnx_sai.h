@@ -639,6 +639,7 @@ typedef struct _mlnx_obj_type_attrs_info_t {
 #define OBJ_ATTRS_ENUMS_INFO_EMPTY() \
     {.info = NULL, .count = 0}
 
+bool mlnx_chip_is_spc(void);
 bool mlnx_chip_is_spc2(void);
 bool mlnx_chip_is_spc2or3(void);
 void mlnx_udf_acl_attrs_metadata_init();
@@ -909,6 +910,7 @@ typedef struct _acl_index_t {
 } acl_index_t;
 
 sai_status_t mlnx_acl_init(void);
+sai_status_t mlnx_vxlan_srcport_acl_add(sai_object_id_t switch_id);
 sai_status_t mlnx_acl_deinit(void);
 sai_status_t mlnx_acl_disconnect(void);
 sai_status_t mlnx_acl_bind_point_set(_In_ const sai_object_key_t      *key,
@@ -2288,6 +2290,8 @@ typedef struct sai_db {
     mlnx_debug_counter_trap_t         debug_counter_traps[MLNX_DEBUG_COUNTER_TRAP_DB_SIZE];
     bool                              is_bfd_module_initialized;
     sai_mac_t                         vxlan_mac;
+    sx_acl_id_t                       vxlan_acl_id;
+    bool                              vxlan_srcport_range_enabled;
     mlnx_shm_pool_t                   shm_pool;
     /* must be last elemnt, followed by dynamic arrays */
     mlnx_shm_rm_array_info_t array_info[MLNX_SHM_RM_ARRAY_TYPE_SIZE];
@@ -2519,6 +2523,9 @@ sai_status_t mlnx_wred_mirror_port_event(_In_ sx_port_log_id_t port_log_id, _In_
 sai_status_t mlnx_port_wred_mirror_set_impl(_In_ sx_port_log_id_t     sx_port,
                                             _In_ sx_span_session_id_t sx_session,
                                             _In_ bool                 is_add);
+sai_status_t mlnx_internal_acls_bind(_In_ sx_access_cmd_t   cmd,
+                                     _In_ sai_object_id_t   sai_port_id,
+                                     _In_ sai_object_type_t type);
 uint8_t mlnx_port_mac_mask_get(void);
 
 /* DB read lock is needed */
@@ -2548,12 +2555,13 @@ sai_status_t mlnx_sched_hierarchy_foreach(mlnx_port_config_t    *port,
                                           mlnx_sched_obj_iter_t  it,
                                           mlnx_sched_iter_ctx_t *ctx);
 
-#define KV_DEVICE_MAC_ADDRESS            "DEVICE_MAC_ADDRESS"
-#define SAI_KEY_IPV4_ROUTE_TABLE_SIZE    "SAI_IPV4_ROUTE_TABLE_SIZE"
-#define SAI_KEY_IPV6_ROUTE_TABLE_SIZE    "SAI_IPV6_ROUTE_TABLE_SIZE"
-#define SAI_KEY_IPV4_NEIGHBOR_TABLE_SIZE "SAI_IPV4_NEIGHBOR_TABLE_SIZE"
-#define SAI_KEY_IPV6_NEIGHBOR_TABLE_SIZE "SAI_IPV6_NEIGHBOR_TABLE_SIZE"
-#define SAI_KEY_AGGREGATE_BRIDGE_DROPS   "SAI_AGGREGATE_BRIDGE_DROPS"
+#define KV_DEVICE_MAC_ADDRESS              "DEVICE_MAC_ADDRESS"
+#define SAI_KEY_IPV4_ROUTE_TABLE_SIZE      "SAI_IPV4_ROUTE_TABLE_SIZE"
+#define SAI_KEY_IPV6_ROUTE_TABLE_SIZE      "SAI_IPV6_ROUTE_TABLE_SIZE"
+#define SAI_KEY_IPV4_NEIGHBOR_TABLE_SIZE   "SAI_IPV4_NEIGHBOR_TABLE_SIZE"
+#define SAI_KEY_IPV6_NEIGHBOR_TABLE_SIZE   "SAI_IPV6_NEIGHBOR_TABLE_SIZE"
+#define SAI_KEY_AGGREGATE_BRIDGE_DROPS     "SAI_AGGREGATE_BRIDGE_DROPS"
+#define SAI_KEY_VXLAN_SRCPORT_RANGE_ENABLE "SAI_VXLAN_SRCPORT_RANGE_ENABLE"
 
 #define MLNX_MIRROR_VLAN_TPID           0x8100
 #define MLNX_GRE_PROTOCOL_TYPE          0x8949

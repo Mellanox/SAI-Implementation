@@ -521,6 +521,12 @@ static sai_status_t remove_port_from_lag(sx_port_log_id_t lag_id, sx_port_log_id
         return status;
     }
 
+    status = mlnx_internal_acls_bind(SX_ACCESS_CMD_ADD, port->saiport, SAI_OBJECT_TYPE_PORT);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to bind internal ACLs to port 0x%x\n", port->logical);
+        return status;
+    }
+
     return SAI_STATUS_SUCCESS;
 }
 
@@ -1168,6 +1174,12 @@ static sai_status_t mlnx_create_lag(_Out_ sai_object_id_t     * lag_id,
             SX_LOG_ERR("Error creating LAG with attributes\n");
             goto out;
         }
+
+        status = mlnx_internal_acls_bind(SX_ACCESS_CMD_ADD, *lag_id, SAI_OBJECT_TYPE_LAG);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to bind internal ACLs to port 0x%x\n", lag_log_port_id);
+            goto out;
+        }
     }
 out:
     acl_global_unlock();
@@ -1290,6 +1302,7 @@ static sai_status_t mlnx_create_lag_member(_Out_ sai_object_id_t     * lag_membe
     sx_distributor_mode_t        dist_mode = DISTRIBUTOR_ENABLE;
     mlnx_object_id_t             mlnx_lag_member = {0};
     bool                         is_acl_rollback_needed = false;
+    bool                         is_internal_acls_rollback_needed = false;
     const uint32_t               ingress_acl_index = 0;
     const uint32_t               egress_acl_index = 0;
     uint32_t                     ii = 0;
@@ -1411,6 +1424,12 @@ static sai_status_t mlnx_create_lag_member(_Out_ sai_object_id_t     * lag_membe
                 SX_LOG_ERR("Error creating lag\n");
                 goto out;
             }
+
+            status = mlnx_internal_acls_bind(SX_ACCESS_CMD_ADD, lag->saiport, SAI_OBJECT_TYPE_LAG);
+            if (SAI_ERR(status)) {
+                SX_LOG_ERR("Failed to bind internal ACLs to LAG\n");
+                goto out;
+            }
         } else if (port->before_issu_lag_id != mlnx_ports_db[lag_db_idx].logical) {
             SX_LOG_ERR("Port %x is already added to SDK lag %x and does not match current SDK LAG %x\n",
                        port_id, port->before_issu_lag_id, mlnx_ports_db[lag_db_idx].logical);
@@ -1493,6 +1512,15 @@ static sai_status_t mlnx_create_lag_member(_Out_ sai_object_id_t     * lag_membe
         }
     }
 
+    if (!is_warmboot_init_stage) {
+        status = mlnx_internal_acls_bind(SX_ACCESS_CMD_DELETE, port_oid, SAI_OBJECT_TYPE_PORT);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to unbind internal ACLs from port [%x]\n", port->logical);
+            goto out;
+        }
+        is_internal_acls_rollback_needed = true;
+    }
+
     status = mlnx_acl_port_lag_event_handle_unlocked(port, ACL_EVENT_TYPE_LAG_MEMBER_ADD);
     if (SAI_ERR(status)) {
         SX_LOG_NTC("Failed to remove Lag member port[%x] from ACLs\n", lag->logical);
@@ -1544,6 +1572,9 @@ out:
     if (SAI_ERR(status)) {
         if (is_acl_rollback_needed) {
             mlnx_acl_port_lag_event_handle_unlocked(port, ACL_EVENT_TYPE_LAG_MEMBER_DEL);
+        }
+        if (is_internal_acls_rollback_needed) {
+            mlnx_internal_acls_bind(SX_ACCESS_CMD_ADD, port_oid, SAI_OBJECT_TYPE_PORT);
         }
     }
 
