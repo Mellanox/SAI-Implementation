@@ -220,6 +220,14 @@ static sai_status_t mlnx_bridge_port_ingr_filter_get(_In_ const sai_object_key_t
 static sai_status_t mlnx_bridge_port_ingr_filter_set(_In_ const sai_object_key_t      *key,
                                                      _In_ const sai_attribute_value_t *value,
                                                      void                             *arg);
+static sai_status_t mlnx_bridge_port_isolation_group_get(_In_ const sai_object_key_t   *key,
+                                                         _Inout_ sai_attribute_value_t *value,
+                                                         _In_ uint32_t                  attr_index,
+                                                         _Inout_ vendor_cache_t        *cache,
+                                                         void                          *arg);
+static sai_status_t mlnx_bridge_port_isolation_group_set(_In_ const sai_object_key_t      *key,
+                                                         _In_ const sai_attribute_value_t *value,
+                                                         void                             *arg);
 static sai_status_t mlnx_bridge_port_admin_state_set_internal(_In_ mlnx_bridge_port_t *bridge_port, _In_ bool is_up);
 static sai_status_t mlnx_bridge_port_tagging_sai_to_sx(_In_ sai_bridge_port_tagging_mode_t sai_tagging_mode,
                                                        _Out_ sx_untagged_member_state_t   *sx_tagging_mode);
@@ -284,6 +292,11 @@ static const sai_vendor_attribute_entry_t bridge_port_vendor_attribs[] = {
       { true, false, true, true },
       mlnx_bridge_port_ingr_filter_get, NULL,
       mlnx_bridge_port_ingr_filter_set, NULL },
+    { SAI_BRIDGE_PORT_ATTR_ISOLATION_GROUP,
+      { true, false, true, true },
+      { true, false, true, true },
+      mlnx_bridge_port_isolation_group_get, NULL,
+      mlnx_bridge_port_isolation_group_set, NULL },
     { END_FUNCTIONALITY_ATTRIBS_ID,
       { false, false, false, false },
       { false, false, false, false },
@@ -602,28 +615,36 @@ sai_status_t mlnx_bridge_oid_to_id(sai_object_id_t oid, sx_bridge_id_t *bridge_i
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_bridge_port_sai_to_log_port(sai_object_id_t oid, sx_port_log_id_t *log_port)
+sai_status_t mlnx_bridge_port_sai_to_log_port_not_locked(sai_object_id_t oid, sx_port_log_id_t *log_port)
 {
     mlnx_bridge_port_t *port;
     sai_status_t        status;
 
-    sai_db_read_lock();
-
     status = mlnx_bridge_port_by_oid(oid, &port);
     if (SAI_ERR(status)) {
         SX_LOG_ERR("Failed to lookup bridge port by oid %" PRIx64 "\n", oid);
-        goto out;
+        return status;
     }
 
     if ((port->port_type != SAI_BRIDGE_PORT_TYPE_PORT) && (port->port_type != SAI_BRIDGE_PORT_TYPE_SUB_PORT)) {
         SX_LOG_ERR("Invalid bridge port type %u - should be port or sub-port\n", port->port_type);
         status = SAI_STATUS_INVALID_PARAMETER;
-        goto out;
+        return status;
     }
 
     *log_port = port->logical;
-out:
+
+    return status;
+}
+
+sai_status_t mlnx_bridge_port_sai_to_log_port(sai_object_id_t oid, sx_port_log_id_t *log_port)
+{
+    sai_status_t status;
+
+    sai_db_read_lock();
+    status = mlnx_bridge_port_sai_to_log_port_not_locked(oid, log_port);
     sai_db_unlock();
+
     return status;
 }
 
@@ -2588,6 +2609,76 @@ out:
     return status;
 }
 
+static sai_status_t mlnx_bridge_port_isolation_group_get(_In_ const sai_object_key_t   *key,
+                                                         _Inout_ sai_attribute_value_t *value,
+                                                         _In_ uint32_t                  attr_index,
+                                                         _Inout_ vendor_cache_t        *cache,
+                                                         void                          *arg)
+{
+    sai_status_t        status;
+    mlnx_bridge_port_t *bport;
+
+    SX_LOG_ENTER();
+
+    sai_db_read_lock();
+
+    status = mlnx_bridge_port_by_oid(key->key.object_id, &bport);
+    if (SAI_ERR(status)) {
+        goto out;
+    }
+
+    if (bport->port_type != SAI_BRIDGE_PORT_TYPE_PORT) {
+        SX_LOG_ERR("Isolation group is only supported for bridge port type port\n");
+        status = SAI_STATUS_NOT_SUPPORTED;
+        goto out;
+    }
+
+    status = mlnx_get_port_isolation_group_impl(key->key.object_id, &value->oid);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to get bridge port isolation group\n");
+        goto out;
+    }
+
+out:
+    sai_db_unlock();
+
+    return status;
+}
+
+static sai_status_t mlnx_bridge_port_isolation_group_set(_In_ const sai_object_key_t      *key,
+                                                         _In_ const sai_attribute_value_t *value,
+                                                         void                             *arg)
+{
+    sai_status_t        status;
+    mlnx_bridge_port_t *bport;
+
+    SX_LOG_ENTER();
+
+    sai_db_write_lock();
+
+    status = mlnx_bridge_port_by_oid(key->key.object_id, &bport);
+    if (SAI_ERR(status)) {
+        goto out;
+    }
+
+    if (bport->port_type != SAI_BRIDGE_PORT_TYPE_PORT) {
+        SX_LOG_ERR("Isolation group is only supported for bridge port type port\n");
+        status = SAI_STATUS_NOT_SUPPORTED;
+        goto out;
+    }
+
+    status = mlnx_set_port_isolation_group_impl(key->key.object_id, value->oid);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to set bridge port isolation group\n");
+        goto out;
+    }
+
+out:
+    sai_db_unlock();
+
+    return status;
+}
+
 /*
  * SAI DB should be locked
  */
@@ -2814,9 +2905,10 @@ static sai_status_t mlnx_create_bridge_port(_Out_ sai_object_id_t     * bridge_p
     sx_untagged_member_state_t   sx_tagging_mode;
     sx_fdb_learn_mode_t          sx_learn_mode;
     const sai_attribute_value_t *attr_val, *max_learned_addresses = NULL, *ingress_filter = NULL;
+    const sai_attribute_value_t *isolation_group = NULL;
     const sai_attribute_value_t *learn_mode = NULL;
     sai_bridge_port_type_t       bport_type;
-    uint32_t                     attr_idx, max_learned_addresses_index, bridge_rif_idx;
+    uint32_t                     attr_idx, max_learned_addresses_index, bridge_rif_idx, isolation_group_idx;
     bool                         admin_state;
 
     SX_LOG_ENTER();
@@ -2893,6 +2985,16 @@ static sai_status_t mlnx_create_bridge_port(_Out_ sai_object_id_t     * bridge_p
         if ((bport_type != SAI_BRIDGE_PORT_TYPE_PORT) && (bport_type != SAI_BRIDGE_PORT_TYPE_SUB_PORT)) {
             SX_LOG_ERR("The SAI_BRIDGE_PORT_ATTR_MAX_LEARNED_ADDRESSES is only supported for PORT and SUB_PORT\n");
             status = SAI_STATUS_ATTR_NOT_SUPPORTED_0 + max_learned_addresses_index;
+            goto out;
+        }
+    }
+
+    status = find_attrib_in_list(attr_count, attr_list, SAI_BRIDGE_PORT_ATTR_ISOLATION_GROUP, &isolation_group,
+                                 &isolation_group_idx);
+    if (!SAI_ERR(status)) {
+        if (bport_type != SAI_BRIDGE_PORT_TYPE_PORT) {
+            SX_LOG_ERR("The SAI_BRIDGE_PORT_ATTR_ISOLATION_GROUP is only supported for PORT type\n");
+            status = SAI_STATUS_ATTR_NOT_SUPPORTED_0 + isolation_group_idx;
             goto out;
         }
     }
@@ -3141,6 +3243,13 @@ static sai_status_t mlnx_create_bridge_port(_Out_ sai_object_id_t     * bridge_p
         goto out;
     }
 
+    if (isolation_group != NULL) {
+        status = mlnx_set_port_isolation_group_impl(*bridge_port_id, isolation_group->oid);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to set bridge port isolation group\n");
+            goto out;
+        }
+    }
     bridge_port_key_to_str(*bridge_port_id, key_str);
     SX_LOG_NTC("Created %s\n", key_str);
 
@@ -3160,8 +3269,11 @@ out:
     return status;
 }
 
-static bool mlnx_bridge_port_in_use_check(mlnx_bridge_port_t *port)
+static sai_status_t mlnx_bridge_port_in_use_check(mlnx_bridge_port_t *port)
 {
+    sai_status_t        status;
+    mlnx_port_config_t *underlay_port_cfg;
+
     if (port->vlans) {
         SX_LOG_ERR("Failed remove bridge port - is used by VLAN members (%u)\n", port->vlans);
         return SAI_STATUS_OBJECT_IN_USE;
@@ -3185,6 +3297,19 @@ static bool mlnx_bridge_port_in_use_check(mlnx_bridge_port_t *port)
         return SAI_STATUS_OBJECT_IN_USE;
     }
 
+    if ((port->port_type == SAI_BRIDGE_PORT_TYPE_PORT) && is_isolation_group_in_use()) {
+        status = mlnx_port_by_log_id(port->logical, &underlay_port_cfg);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to get port config by log id\n");
+            return status;
+        }
+
+        if (underlay_port_cfg->isolation_group_bridge_port_refcount > 0) {
+            SX_LOG_ERR("Failed remove bridge port - is used as isolation group member\n");
+            return SAI_STATUS_OBJECT_IN_USE;
+        }
+    }
+
     return SAI_STATUS_SUCCESS;
 }
 
@@ -3203,6 +3328,7 @@ static sai_status_t mlnx_remove_bridge_port(_In_ sai_object_id_t bridge_port_id)
     mlnx_shm_rm_array_idx_t bridge_rm_idx;
     mlnx_bridge_rif_t      *bridge_rif;
     mlnx_bridge_port_t     *port;
+    sai_object_id_t         isolation_group;
 
     SX_LOG_ENTER();
 
@@ -3225,6 +3351,20 @@ static sai_status_t mlnx_remove_bridge_port(_In_ sai_object_id_t bridge_port_id)
 
     switch (port->port_type) {
     case SAI_BRIDGE_PORT_TYPE_PORT:
+        status = mlnx_get_port_isolation_group_impl(bridge_port_id, &isolation_group);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to get sai isolation group\n");
+            goto out;
+        }
+
+        if (isolation_group != SAI_NULL_OBJECT_ID) {
+            status = mlnx_set_port_isolation_group_impl(bridge_port_id, SAI_NULL_OBJECT_ID);
+            if (SAI_ERR(status)) {
+                SX_LOG_ERR("Failed to unbind isolation group\n");
+                goto out;
+            }
+        }
+
         /* move dummy vport mapped to .1Q port out of .1D bridge and destroy this vport */
         if (SAI_STATUS_SUCCESS !=
             (status =

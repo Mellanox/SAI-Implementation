@@ -206,11 +206,11 @@
 
 #define MLNX_ACL_SX_ACTION_TYPE_INVALID (SX_FLEX_ACL_FLEX_ACTION_TYPE_MAX + 1)
 #define MLNX_ACL_ACTION_INFO_UNDEFINED(info) ((info->convert_to_sx == NULL) && (info->field_size == 0))
-#define MLNX_ACL_ACTION_CTX_EMPTY                                   \
-    {                                                               \
-        .pbs_info = MLNX_ACL_PBS_INFO_INVALID,                      \
-        .sx_mc_container_egress_block = SX_MC_CONTAINER_ID_INVALID, \
-        .sx_counter_id = SX_FLOW_COUNTER_ID_INVALID,                \
+#define MLNX_ACL_ACTION_CTX_EMPTY                                     \
+    {                                                                 \
+        .pbs_info = MLNX_ACL_PBS_INFO_INVALID,                        \
+        .sx_mc_container_port_isolation = SX_MC_CONTAINER_ID_INVALID, \
+        .sx_counter_id = SX_FLOW_COUNTER_ID_INVALID,                  \
         .sx_span_session = MLNX_ACL_SX_SPAN_SESSION_INVALID}
 
 #define MLNX_ACL_ACTION_INFO_DEFINE(type, size, stages, chip, to_sx, to_sai) \
@@ -310,7 +310,7 @@ typedef struct _mlnx_acl_sai_multiple_key_field_info_t {
     mlnx_acl_supported_chip_t supported_chip;
 } mlnx_acl_multi_key_field_info_t;
 typedef struct _mlnx_acl_action_ctx_t {
-    sx_mc_container_id_t sx_mc_container_egress_block;
+    sx_mc_container_id_t sx_mc_container_port_isolation;
     bool                 is_redirect_action_present;
     bool                 is_redirect_endpoint_needed;
     bool                 is_redirect_endpoint_set;
@@ -930,6 +930,9 @@ static sai_status_t mlnx_acl_range_attr_get_by_oid(_In_ sai_object_id_t         
                                                    _In_ sai_attr_id_t             attr_id,
                                                    _Inout_ sai_attribute_value_t *value);
 static sai_status_t mlnx_acl_field_port_to_sx(_In_ sai_object_id_t sai_port, _Out_ sx_port_log_id_t *sx_port);
+static sai_status_t mlnx_acl_field_port_list_to_sx(_In_ const sai_object_list_t *port_list,
+                                                   _Inout_ sx_port_log_id_t     *sx_port_list,
+                                                   _Inout_ uint32_t             *sx_port_count);
 static sai_status_t mlnx_sai_acl_redirect_action_create(_In_ sai_object_id_t             object_id,
                                                         _In_ uint32_t                    attr_index,
                                                         _Out_ mlnx_acl_pbs_info_t       *pbs_info,
@@ -1046,13 +1049,20 @@ static sai_status_t mlnx_acl_range_validate_and_fetch(_In_ const sai_object_list
 static sai_status_t mlnx_acl_action_list_validate(_In_ const sai_s32_list_t *action_list,
                                                   _In_ sai_acl_stage_t       stage,
                                                   _In_ uint32_t              attr_index);
-static sai_status_t mlnx_acl_sx_mc_container_set_impl(_In_ sx_access_cmd_t          sx_cmd,
-                                                      _In_ const sai_object_list_t *port_obj_list,
-                                                      _Out_ sx_mc_container_id_t   *sx_mc_container_id);
-static sai_status_t mlnx_acl_sx_mc_container_create(_In_ const sai_object_list_t *port_obj_list,
-                                                    _Out_ sx_mc_container_id_t   *sx_mc_container_id);
-static sai_status_t mlnx_acl_sx_mc_container_update(_In_ const sai_object_list_t *port_obj_list,
-                                                    _Inout_ sx_mc_container_id_t  sx_mc_container_id);
+static sai_status_t mlnx_acl_sx_mc_container_set_impl(_In_ sx_access_cmd_t         sx_cmd,
+                                                      _In_ const sx_port_log_id_t *log_port_list,
+                                                      _In_ const uint32_t          log_port_count,
+                                                      _Out_ sx_mc_container_id_t  *sx_mc_container_id);
+static sai_status_t mlnx_acl_sx_mc_container_create_by_port_oid(_In_ const sai_object_list_t *port_obj_list,
+                                                                _Out_ sx_mc_container_id_t   *sx_mc_container_id);
+static sai_status_t mlnx_acl_sx_mc_container_create_by_log_port(_In_ const sx_port_log_id_t *log_port_list,
+                                                                _In_ const uint32_t          log_port_count,
+                                                                _Out_ sx_mc_container_id_t  *sx_mc_container_id);
+static sai_status_t mlnx_acl_sx_mc_container_update_by_port_oid(_In_ const sai_object_list_t *port_obj_list,
+                                                                _In_ sx_mc_container_id_t     sx_mc_container_id);
+static sai_status_t mlnx_acl_sx_mc_container_update_by_log_port(_In_ const sx_port_log_id_t *log_port_list,
+                                                                _In_ const uint32_t          log_port_count,
+                                                                _In_ sx_mc_container_id_t    sx_mc_container_id);
 static sai_status_t mlnx_acl_sx_mc_container_sx_ports_get(_In_ sx_mc_container_id_t sx_mc_container_id,
                                                           _Out_ sx_port_log_id_t   *sx_ports,
                                                           _Inout_ uint32_t         *sx_ports_count);
@@ -1638,6 +1648,14 @@ static sai_status_t mlnx_acl_entry_action_fn_get(_In_ const sai_object_key_t   *
                                                  _In_ uint32_t                  attr_index,
                                                  _Inout_ vendor_cache_t        *cache,
                                                  void                          *arg);
+static sai_status_t mlnx_acl_entry_action_isolation_group_get(_In_ const sai_object_key_t   *key,
+                                                              _Inout_ sai_attribute_value_t *value,
+                                                              _In_ uint32_t                  attr_index,
+                                                              _Inout_ vendor_cache_t        *cache,
+                                                              void                          *arg);
+static sai_status_t mlnx_acl_entry_action_isolation_group_set(_In_ const sai_object_key_t      *key,
+                                                              _In_ const sai_attribute_value_t *value,
+                                                              void                             *arg);
 static mlnx_acl_action_info_t mlnx_acl_action_info[] = {
     [SAI_ACL_ENTRY_ATTR_ACTION_EGRESS_BLOCK_PORT_LIST] =
         MLNX_ACL_ACTION_INFO_DEFINE_WITH_FNS(mlnx_acl_action_eg_block_to_sx, mlnx_acl_action_eg_block_to_sai),
@@ -2572,6 +2590,11 @@ static const sai_vendor_attribute_entry_t acl_entry_vendor_attribs[] = {
       { true, false, true, true},
       mlnx_acl_entry_action_fn_get, (void*)SAI_ACL_ENTRY_ATTR_ACTION_EGRESS_BLOCK_PORT_LIST,
       mlnx_acl_entry_action_egress_block_port_set, NULL },
+    { SAI_ACL_ENTRY_ATTR_ACTION_SET_ISOLATION_GROUP,
+      { true, false, true, true},
+      { true, false, true, true},
+      mlnx_acl_entry_action_isolation_group_get, NULL,
+      mlnx_acl_entry_action_isolation_group_set, NULL },
     { SAI_ACL_ENTRY_ATTR_ACTION_SET_USER_TRAP_ID,
       { false, false, false, false},
       { true, false, true, true},
@@ -3496,29 +3519,25 @@ static sai_status_t mlnx_acl_action_list_validate(_In_ const sai_s32_list_t *act
     return SAI_STATUS_SUCCESS;
 }
 
-static sai_status_t mlnx_acl_sx_mc_container_set_impl(_In_ sx_access_cmd_t          sx_cmd,
-                                                      _In_ const sai_object_list_t *port_obj_list,
-                                                      _Out_ sx_mc_container_id_t   *sx_mc_container_id)
+static sai_status_t mlnx_acl_sx_mc_container_set_impl(_In_ sx_access_cmd_t         sx_cmd,
+                                                      _In_ const sx_port_log_id_t *log_port_list,
+                                                      _In_ const uint32_t          log_port_count,
+                                                      _Out_ sx_mc_container_id_t  *sx_mc_container_id)
 {
-    sai_status_t                 status;
+    sai_status_t                 status = SAI_STATUS_SUCCESS;
     sx_status_t                  sx_status;
     sx_mc_container_attributes_t sx_mc_container_attributes;
     sx_mc_next_hop_t            *sx_mc_next_hops = NULL;
     uint32_t                     ii;
 
-    assert(NULL != port_obj_list);
+    assert(NULL != log_port_list);
     assert(NULL != sx_mc_container_id);
 
     memset(&sx_mc_container_attributes, 0, sizeof(sx_mc_container_attributes));
 
-    if (0 == port_obj_list->count) {
-        SX_LOG_ERR("Failed to %s sx_mc_container - object list is empty\n", SX_ACCESS_CMD_STR(sx_cmd));
-        return SAI_STATUS_FAILURE;
-    }
-
-    if (MAX_PORTS < port_obj_list->count) {
+    if (MAX_PORTS < log_port_count) {
         SX_LOG_ERR("Failed to %s sx_mc_container - invalid port count (%d), max allowed (%d)",
-                   SX_ACCESS_CMD_STR(sx_cmd), port_obj_list->count, MAX_PORTS);
+                   SX_ACCESS_CMD_STR(sx_cmd), log_port_count, MAX_PORTS);
         return SAI_STATUS_FAILURE;
     }
 
@@ -3528,19 +3547,15 @@ static sai_status_t mlnx_acl_sx_mc_container_set_impl(_In_ sx_access_cmd_t      
         return SAI_STATUS_NO_MEMORY;
     }
 
-    for (ii = 0; ii < port_obj_list->count; ii++) {
+    for (ii = 0; ii < log_port_count; ii++) {
         sx_mc_next_hops[ii].type = SX_MC_NEXT_HOP_TYPE_LOG_PORT;
-        status = mlnx_acl_field_port_to_sx(port_obj_list->list[ii],
-                                           &sx_mc_next_hops[ii].data.log_port);
-        if (SAI_ERR(status)) {
-            goto out;
-        }
+        sx_mc_next_hops[ii].data.log_port = log_port_list[ii];
     }
 
     sx_mc_container_attributes.type = SX_MC_CONTAINER_TYPE_PORT;
 
     sx_status = sx_api_mc_container_set(gh_sdk, sx_cmd, sx_mc_container_id,
-                                        sx_mc_next_hops, port_obj_list->count, &sx_mc_container_attributes);
+                                        sx_mc_next_hops, log_port_count, &sx_mc_container_attributes);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to %s sx_mc_container - %s\n", SX_ACCESS_CMD_STR(sx_cmd), SX_STATUS_MSG(sx_status));
         status = sdk_to_sai(sx_status);
@@ -3552,16 +3567,18 @@ out:
     return status;
 }
 
-static sai_status_t mlnx_acl_sx_mc_container_create(_In_ const sai_object_list_t *port_obj_list,
-                                                    _Out_ sx_mc_container_id_t   *sx_mc_container_id)
+static sai_status_t mlnx_acl_sx_mc_container_create_by_log_port(_In_ const sx_port_log_id_t *log_port_list,
+                                                                _In_ const uint32_t          log_port_count,
+                                                                _Out_ sx_mc_container_id_t  *sx_mc_container_id)
 {
     sai_status_t         status;
     sx_mc_container_id_t sx_mc_container_id_tmp = SX_MC_CONTAINER_ID_INVALID;
 
-    assert(NULL != port_obj_list);
-    assert(NULL != sx_mc_container_id);
+    assert(log_port_list);
+    assert(sx_mc_container_id);
 
-    status = mlnx_acl_sx_mc_container_set_impl(SX_ACCESS_CMD_CREATE, port_obj_list, &sx_mc_container_id_tmp);
+    status = mlnx_acl_sx_mc_container_set_impl(SX_ACCESS_CMD_CREATE, log_port_list, log_port_count,
+                                               &sx_mc_container_id_tmp);
     if (SAI_ERR(status)) {
         SX_LOG_ERR("Failed to create sx_mc_container\n");
         return status;
@@ -3572,6 +3589,39 @@ static sai_status_t mlnx_acl_sx_mc_container_create(_In_ const sai_object_list_t
     *sx_mc_container_id = sx_mc_container_id_tmp;
 
     return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_acl_sx_mc_container_create_by_port_oid(_In_ const sai_object_list_t *port_obj_list,
+                                                                _Out_ sx_mc_container_id_t   *sx_mc_container_id)
+{
+    sai_status_t      status;
+    sx_port_log_id_t *log_port_list = NULL;
+    uint32_t          log_port_count = MAX_PORTS;
+
+    assert(NULL != port_obj_list);
+
+    log_port_list = calloc(MAX_PORTS, sizeof(*log_port_list));
+    if (!log_port_list) {
+        SX_LOG_ERR("Failed to allocate memory\n");
+        return SAI_STATUS_NO_MEMORY;
+    }
+
+    status = mlnx_acl_field_port_list_to_sx(port_obj_list, log_port_list, &log_port_count);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to convert port oid to log port\n");
+        goto out;
+    }
+
+    status = mlnx_acl_sx_mc_container_create_by_log_port(log_port_list, log_port_count, sx_mc_container_id);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to create sx_mc_container\n");
+        goto out;
+    }
+
+out:
+    free(log_port_list);
+
+    return status;
 }
 
 static sai_status_t mlnx_acl_sx_mc_container_sx_ports_get(_In_ sx_mc_container_id_t sx_mc_container_id,
@@ -3669,27 +3719,62 @@ static sai_status_t mlnx_acl_sx_mc_container_sai_ports_get(_In_ sx_mc_container_
     return SAI_STATUS_SUCCESS;
 }
 
-static sai_status_t mlnx_acl_sx_mc_container_update(_In_ const sai_object_list_t *port_obj_list,
-                                                    _In_ sx_mc_container_id_t     sx_mc_container_id)
+static sai_status_t mlnx_acl_sx_mc_container_update_by_log_port(_In_ const sx_port_log_id_t *log_port_list,
+                                                                _In_ const uint32_t          log_port_count,
+                                                                _In_ sx_mc_container_id_t    sx_mc_container_id)
 {
     sai_status_t status;
 
-    assert(NULL != port_obj_list);
+    assert(log_port_list);
 
     if (false == SX_MC_CONTAINER_ID_CHECK_RANGE(sx_mc_container_id)) {
         SX_LOG_ERR("Failed to update sx_mc_container - invalid sx_mc_container_id\n");
         return SAI_STATUS_FAILURE;
     }
 
-    status = mlnx_acl_sx_mc_container_set_impl(SX_ACCESS_CMD_SET, port_obj_list, &sx_mc_container_id);
+    status = mlnx_acl_sx_mc_container_set_impl(SX_ACCESS_CMD_SET, log_port_list, log_port_count,
+                                               &sx_mc_container_id);
     if (SAI_ERR(status)) {
-        SX_LOG_ERR("Failed to update sx_mc_container (%d)\n", sx_mc_container_id);
+        SX_LOG_ERR("Failed to set sx_mc_container (%d)\n", sx_mc_container_id);
         return status;
     }
 
     SX_LOG_DBG("Updated sx_mc_container (%d)\n", sx_mc_container_id);
 
     return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_acl_sx_mc_container_update_by_port_oid(_In_ const sai_object_list_t *port_obj_list,
+                                                                _In_ sx_mc_container_id_t     sx_mc_container_id)
+{
+    sai_status_t      status;
+    sx_port_log_id_t *log_port_list = NULL;
+    uint32_t          log_port_count = MAX_PORTS;
+
+    assert(NULL != port_obj_list);
+
+    log_port_list = calloc(MAX_PORTS, sizeof(*log_port_list));
+    if (!log_port_list) {
+        SX_LOG_ERR("Failed to allocate memory\n");
+        return SAI_STATUS_NO_MEMORY;
+    }
+
+    status = mlnx_acl_field_port_list_to_sx(port_obj_list, log_port_list, &log_port_count);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to convert port oid to log port\n");
+        goto out;
+    }
+
+    status = mlnx_acl_sx_mc_container_update_by_log_port(log_port_list, log_port_count, sx_mc_container_id);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to update sx_mc_container (%d)\n", sx_mc_container_id);
+        goto out;
+    }
+
+out:
+    free(log_port_list);
+
+    return status;
 }
 
 static sai_status_t mlnx_acl_sx_mc_container_remove(_In_ sx_mc_container_id_t sx_mc_container_id)
@@ -7112,7 +7197,6 @@ static sai_status_t mlnx_acl_entry_action_trivial_get(_In_ const sai_object_key_
     SX_LOG_ENTER();
 
     action_id = (sai_acl_entry_attr_t)arg;
-
     status = mlnx_acl_action_info_find(action_id, 0, &action_info);
     if (SAI_ERR(status)) {
         SX_LOG_EXIT();
@@ -7479,12 +7563,12 @@ static sai_status_t mlnx_acl_entry_ports_set(_In_ const sai_object_key_t      *k
 
     if (new_ports_obj_list) {
         if (is_key_type_present) {
-            status = mlnx_acl_sx_mc_container_update(new_ports_obj_list, mc_container);
+            status = mlnx_acl_sx_mc_container_update_by_port_oid(new_ports_obj_list, mc_container);
             if (SAI_ERR(status)) {
                 goto out;
             }
         } else {
-            status = mlnx_acl_sx_mc_container_create(new_ports_obj_list, &mc_container);
+            status = mlnx_acl_sx_mc_container_create_by_port_oid(new_ports_obj_list, &mc_container);
             if (SAI_ERR(status)) {
                 goto out;
             }
@@ -8036,39 +8120,80 @@ out:
     return status;
 }
 
-static sai_status_t mlnx_acl_entry_action_egress_block_port_set(_In_ const sai_object_key_t      *key,
-                                                                _In_ const sai_attribute_value_t *value,
-                                                                void                             *arg)
+static sai_status_t mlnx_acl_flex_rule_update_port_filter(sx_flex_acl_flex_rule_t *flex_acl_rule,
+                                                          const sx_port_log_id_t  *port_list,
+                                                          const uint32_t           port_count,
+                                                          bool                     allow_empty,
+                                                          bool                    *rule_changed,
+                                                          sx_mc_container_id_t    *containter_to_delete)
 {
-    sai_status_t                   status;
-    sx_flex_acl_flex_action_type_t sx_action_type;
-    sx_flex_acl_flex_rule_t        flex_acl_rule = MLNX_ACL_SX_FLEX_RULE_EMPTY;
+    sx_flex_acl_flex_action_type_t sx_action_type = SX_FLEX_ACL_ACTION_PORT_FILTER;
     sx_mc_container_id_t           mc_container = SX_MC_CONTAINER_ID_INVALID;
-    sx_mc_container_id_t           mc_container_to_delete = SX_MC_CONTAINER_ID_INVALID;
-    const sai_object_list_t       *new_ports_obj_list = NULL;
-    mlnx_acl_port_db_refs_t        cur_refs, new_refs;
-    uint32_t                       acl_table_index, acl_entry_index;
-    uint32_t                       sx_action_index, new_sx_action_index;
-    bool                           is_action_present = false, update_sx_rule = false;
+    uint32_t                       sx_action_index;
+    bool                           is_action_present;
+    sai_status_t                   status;
 
     SX_LOG_ENTER();
+    assert(rule_changed);
 
-    status = extract_acl_table_index_and_entry_index(key->key.object_id, &acl_table_index, &acl_entry_index);
-    if (SAI_STATUS_SUCCESS != status) {
-        SX_LOG_EXIT();
-        return status;
+    mlnx_acl_flex_rule_action_find(flex_acl_rule, sx_action_type, &sx_action_index, &is_action_present);
+
+    mc_container = flex_acl_rule->action_list_p[sx_action_index].fields.action_port_filter.mc_container_id;
+
+    if (is_action_present && (port_count == 0) && (!allow_empty)) {
+        *containter_to_delete = mc_container;
+        mlnx_acl_flex_rule_action_del(flex_acl_rule, sx_action_index);
+
+        *rule_changed = true;
+
+        return SAI_STATUS_SUCCESS;
     }
 
-    sx_action_type = SX_FLEX_ACL_ACTION_PORT_FILTER;
+    if ((!is_action_present) && ((port_count != 0) || allow_empty)) {
+        status = mlnx_acl_sx_mc_container_create_by_log_port(port_list, port_count, &mc_container);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to create sx_mc_container (%d)\n", mc_container);
+            return status;
+        }
 
-    sai_db_read_lock();
-    acl_table_write_lock(acl_table_index);
+        sx_action_index = flex_acl_rule->action_count;
 
-    new_ports_obj_list = NULL;
+        flex_acl_rule->action_list_p[sx_action_index].type = sx_action_type;
+        flex_acl_rule->action_list_p[sx_action_index].fields.action_port_filter.mc_container_id = mc_container;
+        flex_acl_rule->action_count++;
 
-    if ((true == value->aclaction.enable) && (value->aclaction.parameter.objlist.count > 0)) {
-        new_ports_obj_list = &value->aclaction.parameter.objlist;
+        *rule_changed = true;
+
+        return SAI_STATUS_SUCCESS;
     }
+
+    if (is_action_present && ((port_count != 0) || allow_empty)) {
+        status = mlnx_acl_sx_mc_container_update_by_log_port(port_list, port_count, mc_container);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to update sx_mc_container (%d)\n", mc_container);
+            return status;
+        }
+    }
+
+    *rule_changed = false;
+
+    return SAI_STATUS_SUCCESS;
+}
+
+/* needs sai_db read lock and acl table write lock */
+static sai_status_t mlnx_acl_port_isolation_update_impl(_In_ uint32_t                acl_table_index,
+                                                        _In_ uint32_t                acl_entry_index,
+                                                        _In_ const sx_port_log_id_t *log_port_list,
+                                                        _In_ const uint32_t          log_port_count,
+                                                        _In_ bool                    allow_empty)
+{
+    sai_status_t            status;
+    sx_flex_acl_flex_rule_t flex_acl_rule = MLNX_ACL_SX_FLEX_RULE_EMPTY;
+    mlnx_acl_port_db_refs_t cur_refs, new_refs;
+    bool                    update_sx_rule = false;
+    sx_mc_container_id_t    mc_container_to_delete = SX_MC_CONTAINER_ID_INVALID;
+
+    SX_LOG_ENTER();
 
     status = mlnx_acl_entry_sx_acl_rule_get(acl_table_index, acl_entry_index, &flex_acl_rule);
     if (SAI_ERR(status)) {
@@ -8080,58 +8205,26 @@ static sai_status_t mlnx_acl_entry_action_egress_block_port_set(_In_ const sai_o
         goto out;
     }
 
-    mlnx_acl_flex_rule_action_find(&flex_acl_rule, sx_action_type, &sx_action_index, &is_action_present);
-
-    if (is_action_present) {
-        mc_container = flex_acl_rule.action_list_p[sx_action_index].fields.action_port_filter.mc_container_id;
-    } else {
-        mc_container = SX_MC_CONTAINER_ID_INVALID;
-    }
-
-    if (new_ports_obj_list) {
-        if (is_action_present) {
-            status = mlnx_acl_sx_mc_container_update(new_ports_obj_list, mc_container);
-            if (SAI_ERR(status)) {
-                goto out;
-            }
-        } else {
-            status = mlnx_acl_sx_mc_container_create(new_ports_obj_list, &mc_container);
-            if (SAI_ERR(status)) {
-                goto out;
-            }
-
-            update_sx_rule = true;
-        }
-    } else {
-        if (is_action_present) {
-            mlnx_acl_flex_rule_action_del(&flex_acl_rule, sx_action_index);
-            update_sx_rule = true;
-
-            /* Will be deleted after sx rule update */
-            mc_container_to_delete = mc_container;
-        }
+    status = mlnx_acl_flex_rule_update_port_filter(&flex_acl_rule, log_port_list, log_port_count, allow_empty,
+                                                   &update_sx_rule, &mc_container_to_delete);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to update acl flex rule port filter\n");
+        goto out;
     }
 
     if (update_sx_rule) {
-        if (new_ports_obj_list) {
-            new_sx_action_index = flex_acl_rule.action_count;
-
-            flex_acl_rule.action_list_p[new_sx_action_index].type = sx_action_type;
-            flex_acl_rule.action_list_p[new_sx_action_index].fields.action_port_filter.mc_container_id
-                = mc_container;
-            flex_acl_rule.action_count++;
-        }
-
         status = mlnx_acl_entry_sx_acl_rule_set(acl_table_index, acl_entry_index, &flex_acl_rule);
         if (SAI_ERR(status)) {
             goto out;
         }
     }
 
-    status = mlnx_acl_sx_mc_container_remove(mc_container_to_delete);
-    if (SAI_ERR(status)) {
-        SX_LOG_ERR("Failed to remove old sx_mc_container (%d)\n", mc_container_to_delete);
-        goto out;
+    if (SX_MC_CONTAINER_ID_CHECK_RANGE(mc_container_to_delete)) {
+        status = mlnx_acl_sx_mc_container_remove(mc_container_to_delete);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to remove old sx_mc_container (%d)\n", mc_container_to_delete);
+            goto out;
+        }
     }
 
     status = mlnx_acl_entry_sx_rule_port_refs_get(&flex_acl_rule, new_refs);
@@ -8145,10 +8238,164 @@ static sai_status_t mlnx_acl_entry_action_egress_block_port_set(_In_ const sai_o
     }
 
 out:
-    acl_table_unlock(acl_table_index);
-    sai_db_unlock();
-
     mlnx_acl_flex_rule_free(&flex_acl_rule);
+
+    SX_LOG_EXIT();
+
+    return status;
+}
+
+static sai_status_t mlnx_acl_isolation_group_update_ports(_In_ uint32_t                acl_table_index,
+                                                          _In_ uint32_t                acl_entry_index,
+                                                          _In_ const sx_port_log_id_t *log_port_list,
+                                                          _In_ const uint32_t          log_port_count)
+{
+    sai_status_t      status;
+    sx_port_log_id_t *filter_log_port_list = NULL;
+    uint32_t          filter_log_port_cnt = 0;
+    bool              allow_empty = false;
+
+    if (log_port_count > 0) {
+        filter_log_port_list = (sx_port_log_id_t *)malloc(sizeof(*filter_log_port_list) * MAX_PORTS * 2);
+        if (!filter_log_port_list) {
+            status = SAI_STATUS_INSUFFICIENT_RESOURCES;
+            goto out;
+        }
+        filter_log_port_cnt = MAX_PORTS * 2;
+
+        status = mlnx_get_switch_log_ports_not_in_lag(log_port_list, log_port_count, filter_log_port_list,
+                                                      &filter_log_port_cnt);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to get ports to filter list\n");
+            goto out;
+        }
+
+        allow_empty = true;
+    }
+
+    status = mlnx_acl_port_isolation_update_impl(acl_table_index, acl_entry_index, filter_log_port_list,
+                                                 filter_log_port_cnt, allow_empty);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to update port isolation\n");
+        goto out;
+    }
+
+out:
+    free(filter_log_port_list);
+
+    return status;
+}
+
+/*needs sai_db read lock and acl table write lock*/
+sai_status_t mlnx_acl_isolation_group_update_not_locked(_In_ sai_object_id_t         acl_entry_id,
+                                                        _In_ const sx_port_log_id_t *log_port_list,
+                                                        _In_ const uint32_t          log_port_count)
+{
+    sai_status_t status;
+    uint32_t     acl_table_index, acl_entry_index;
+
+    status = extract_acl_table_index_and_entry_index(acl_entry_id, &acl_table_index, &acl_entry_index);
+    if (SAI_ERR(status)) {
+        SX_LOG_EXIT();
+        return status;
+    }
+
+    status = mlnx_acl_isolation_group_update_ports(acl_table_index, acl_entry_index, log_port_list, log_port_count);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to update port isolation\n");
+        return status;
+    }
+
+    return status;
+}
+
+/*needs sai_db read lock*/
+sai_status_t mlnx_acl_isolation_group_update(_In_ sai_object_id_t         acl_entry_id,
+                                             _In_ const sx_port_log_id_t *log_port_list,
+                                             _In_ const uint32_t          log_port_count)
+{
+    sai_status_t status;
+    uint32_t     acl_table_index, acl_entry_index;
+
+    status = extract_acl_table_index_and_entry_index(acl_entry_id, &acl_table_index, &acl_entry_index);
+    if (SAI_ERR(status)) {
+        SX_LOG_EXIT();
+        return status;
+    }
+
+    acl_table_write_lock(acl_table_index);
+
+    status = mlnx_acl_isolation_group_update_ports(acl_table_index, acl_entry_index, log_port_list, log_port_count);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to update port isolation\n");
+        goto out;
+    }
+
+out:
+    acl_table_unlock(acl_table_index);
+
+    return status;
+}
+
+static sai_status_t mlnx_acl_entry_action_egress_block_port_set(_In_ const sai_object_key_t      *key,
+                                                                _In_ const sai_attribute_value_t *value,
+                                                                void                             *arg)
+{
+    sai_status_t      status;
+    sx_port_log_id_t *log_port_list = NULL;
+    uint32_t          log_port_count;
+    uint32_t          acl_table_index, acl_entry_index;
+
+    SX_LOG_ENTER();
+
+    status = extract_acl_table_index_and_entry_index(key->key.object_id, &acl_table_index, &acl_entry_index);
+    if (SAI_ERR(status)) {
+        SX_LOG_EXIT();
+        return status;
+    }
+
+    acl_table_write_lock(acl_table_index);
+    sai_db_read_lock();
+
+    status = mlnx_validate_port_isolation_api(PORT_ISOLATION_API_EGRESS_BLOCK_PORT);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Isolation group in use\n");
+        goto out;
+    }
+
+    if (value->aclaction.enable && (value->aclaction.parameter.objlist.count > 0)) {
+        log_port_list = calloc(MAX_PORTS, sizeof(*log_port_list));
+        if (!log_port_list) {
+            SX_LOG_ERR("Failed to allocate memory\n");
+            status = SAI_STATUS_NO_MEMORY;
+            goto out;
+        }
+
+        log_port_count = MAX_PORTS;
+
+        status = mlnx_acl_field_port_list_to_sx(&value->aclaction.parameter.objlist, log_port_list, &log_port_count);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to convert port oid to log port\n");
+            goto out;
+        }
+    } else {
+        log_port_count = 0;
+    }
+
+    status = mlnx_acl_port_isolation_update_impl(acl_table_index, acl_entry_index, log_port_list, log_port_count,
+                                                 false);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to update sx port isolation\n");
+        goto out;
+    }
+
+out:
+    if (log_port_list) {
+        free(log_port_list);
+    }
+
+    sai_db_unlock();
+    acl_table_unlock(acl_table_index);
 
     SX_LOG_EXIT();
     return status;
@@ -8997,6 +9244,73 @@ static sai_status_t mlnx_acl_range_attr_get(_In_ const sai_object_key_t   *key,
     return status;
 }
 
+static sai_status_t mlnx_acl_entry_action_isolation_group_get(_In_ const sai_object_key_t   *key,
+                                                              _Inout_ sai_attribute_value_t *value,
+                                                              _In_ uint32_t                  attr_index,
+                                                              _Inout_ vendor_cache_t        *cache,
+                                                              void                          *arg)
+{
+    sai_status_t    status;
+    sai_object_id_t isolation_group_oid;
+
+    SX_LOG_ENTER();
+
+    sai_db_read_lock();
+    status = mlnx_get_acl_entry_isolation_group_impl(key->key.object_id, &isolation_group_oid);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to get acl entry isolation group id\n");
+        goto out;
+    }
+
+    if (isolation_group_oid == SAI_NULL_OBJECT_ID) {
+        value->aclaction.enable = false;
+        value->aclaction.parameter.oid = SAI_NULL_OBJECT_ID;
+    } else {
+        value->aclaction.enable = true;
+        value->aclaction.parameter.oid = isolation_group_oid;
+    }
+
+out:
+    sai_db_unlock();
+    return status;
+}
+
+static sai_status_t mlnx_acl_entry_action_isolation_group_set(_In_ const sai_object_key_t      *key,
+                                                              _In_ const sai_attribute_value_t *value,
+                                                              void                             *arg)
+{
+    sai_status_t    status;
+    sai_object_id_t isolation_group_oid;
+    uint32_t        acl_table_index, acl_entry_index;
+
+    SX_LOG_ENTER();
+
+    if (value->aclaction.enable) {
+        isolation_group_oid = value->aclaction.parameter.oid;
+    } else {
+        isolation_group_oid = SAI_NULL_OBJECT_ID;
+    }
+
+    status = extract_acl_table_index_and_entry_index(key->key.object_id, &acl_table_index, &acl_entry_index);
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+    sai_db_read_lock();
+    acl_table_write_lock(acl_table_index);
+
+    status = mlnx_set_acl_entry_isolation_group_impl(key->key.object_id, isolation_group_oid);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to set acl entry isolation group id\n");
+        goto out;
+    }
+
+out:
+    acl_table_unlock(acl_table_index);
+    sai_db_unlock();
+    return status;
+}
+
 static sai_status_t mlnx_acl_action_eg_block_to_sx(_In_ sai_acl_entry_attr_t         action,
                                                    _In_ const sai_acl_action_data_t *action_data,
                                                    _In_ uint32_t                     attr_index,
@@ -9013,10 +9327,14 @@ static sai_status_t mlnx_acl_action_eg_block_to_sx(_In_ sai_acl_entry_attr_t    
     assert(sx_action_list);
     assert(sx_action_count);
 
-    assert(ctx->sx_mc_container_egress_block == SX_MC_CONTAINER_ID_INVALID);
+    assert(ctx->sx_mc_container_port_isolation == SX_MC_CONTAINER_ID_INVALID);
 
-    status = mlnx_acl_sx_mc_container_create(&action_data->parameter.objlist,
-                                             &mc_container);
+    status = mlnx_validate_port_isolation_api(PORT_ISOLATION_API_EGRESS_BLOCK_PORT);
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+    status = mlnx_acl_sx_mc_container_create_by_port_oid(&action_data->parameter.objlist, &mc_container);
     if (SAI_ERR(status)) {
         return status;
     }
@@ -9025,7 +9343,7 @@ static sai_status_t mlnx_acl_action_eg_block_to_sx(_In_ sai_acl_entry_attr_t    
     sx_action_list[*sx_action_count].fields.action_port_filter.mc_container_id = mc_container;
     (*sx_action_count)++;
 
-    ctx->sx_mc_container_egress_block = mc_container;
+    ctx->sx_mc_container_port_isolation = mc_container;
 
     return SAI_STATUS_SUCCESS;
 }
@@ -9077,6 +9395,55 @@ static sai_status_t mlnx_acl_action_eg_block_to_sai(_In_ sai_acl_entry_attr_t   
 
 out:
     free(ports_oids);
+    return status;
+}
+
+/* needs sai_db read lock */
+sai_status_t mlnx_acl_entry_update_port_filter(sai_object_id_t  acl_entry_id,
+                                               sx_access_cmd_t  cmd,
+                                               sx_port_log_id_t log_port)
+{
+    sai_status_t                   status;
+    uint32_t                       acl_table_index, acl_entry_index;
+    uint32_t                       sx_action_index;
+    bool                           is_action_present;
+    sx_flex_acl_flex_action_type_t sx_action_type = SX_FLEX_ACL_ACTION_PORT_FILTER;
+    sx_flex_acl_flex_rule_t        flex_acl_rule = MLNX_ACL_SX_FLEX_RULE_EMPTY;
+    sx_mc_container_id_t           mc_container;
+
+    SX_LOG_ENTER();
+
+    status = extract_acl_table_index_and_entry_index(acl_entry_id, &acl_table_index, &acl_entry_index);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to extract acl table index and entry index\n");
+        return status;
+    }
+
+    acl_table_write_lock(acl_table_index);
+    status = mlnx_acl_entry_sx_acl_rule_get(acl_table_index, acl_entry_index, &flex_acl_rule);
+    if (SAI_ERR(status)) {
+        goto out;
+    }
+    mlnx_acl_flex_rule_action_find(&flex_acl_rule, sx_action_type, &sx_action_index, &is_action_present);
+
+    if (!is_action_present) {
+        SX_LOG_ERR("Failed to update port filter - action is not present\n");
+        status = SAI_STATUS_FAILURE;
+        goto out;
+    }
+    mc_container = flex_acl_rule.action_list_p[sx_action_index].fields.action_port_filter.mc_container_id;
+
+
+    status = mlnx_acl_sx_mc_container_set_impl(cmd, &log_port, 1, &mc_container);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to set sx_mc_container (%d)\n", mc_container);
+        goto out;
+    }
+
+out:
+    mlnx_acl_flex_rule_free(&flex_acl_rule);
+    acl_table_unlock(acl_table_index);
+
     return status;
 }
 
@@ -10804,6 +11171,11 @@ static sai_status_t mlnx_acl_entry_action_to_sx(_In_ const sai_attribute_t      
             continue;
         }
 
+        /*will be applied after acl entry object creation*/
+        if (attr_list[ii].id == SAI_ACL_ENTRY_ATTR_ACTION_SET_ISOLATION_GROUP) {
+            continue;
+        }
+
         status = mlnx_acl_action_info_find(attr_list[ii].id, ii, &action_info);
         if (SAI_ERR(status)) {
             return status;
@@ -10963,11 +11335,13 @@ sai_status_t mlnx_create_acl_entry(_Out_ sai_object_id_t     * acl_entry_id,
     const sai_attribute_value_t *table_id, *priority;
     const sai_attribute_value_t *in_port, *in_ports, *out_port, *out_ports, *ip_ident;
     const sai_attribute_value_t *admin_state;
+    const sai_attribute_value_t *isolation_group = NULL;
     mlnx_acl_port_db_refs_t      ports_refs;
     uint32_t                     table_id_index, priority_index;
     uint32_t                     in_port_index, admin_state_index, in_ports_index, ip_ident_index;
     uint32_t                     out_port_index, out_ports_index;
     uint32_t                     in_port_data, out_port_data;
+    uint32_t                     isolation_group_idx;
     uint32_t                     acl_table_index, acl_entry_index = ACL_INVALID_DB_INDEX;
     uint32_t                     key_desc_index = 0, sx_action_count = 0;
     char                         list_str[MAX_LIST_VALUE_STR_LEN];
@@ -11103,7 +11477,7 @@ sai_status_t mlnx_create_acl_entry(_Out_ sai_object_id_t     * acl_entry_id,
             goto out;
         }
 
-        status = mlnx_acl_sx_mc_container_create(&in_ports->aclfield.data.objlist, &sx_mc_container_rx);
+        status = mlnx_acl_sx_mc_container_create_by_port_oid(&in_ports->aclfield.data.objlist, &sx_mc_container_rx);
         if (SAI_ERR(status)) {
             goto out;
         }
@@ -11137,7 +11511,7 @@ sai_status_t mlnx_create_acl_entry(_Out_ sai_object_id_t     * acl_entry_id,
             goto out;
         }
 
-        status = mlnx_acl_sx_mc_container_create(&out_ports->aclfield.data.objlist, &sx_mc_container_tx);
+        status = mlnx_acl_sx_mc_container_create_by_port_oid(&out_ports->aclfield.data.objlist, &sx_mc_container_tx);
         if (SAI_ERR(status)) {
             goto out;
         }
@@ -11313,12 +11687,31 @@ sai_status_t mlnx_create_acl_entry(_Out_ sai_object_id_t     * acl_entry_id,
 
     acl_create_entry_object_id(acl_entry_id, acl_entry_index, acl_table_index);
 
+    status = find_attrib_in_list(attr_count,
+                                 attr_list,
+                                 SAI_ACL_ENTRY_ATTR_ACTION_SET_ISOLATION_GROUP,
+                                 &isolation_group,
+                                 &isolation_group_idx);
+    if (!SAI_ERR(status) && isolation_group->aclaction.enable &&
+        (isolation_group->aclaction.parameter.oid != SAI_NULL_OBJECT_ID)) {
+        status = mlnx_set_acl_entry_isolation_group_impl(*acl_entry_id, isolation_group->aclaction.parameter.oid);
+        if (SAI_ERR(status)) {
+            goto out;
+        }
+    }
+
+    status = SAI_STATUS_SUCCESS;
     acl_entry_key_to_str(*acl_entry_id, key_str);
     SX_LOG_NTC("Created acl entry %s\n\n", key_str);
 
 out:
     if (SAI_STATUS_SUCCESS != status) {
         SX_LOG_ERR(" Failed to create Entry \n");
+
+        if (isolation_group && isolation_group->aclaction.enable &&
+            (isolation_group->aclaction.parameter.oid != SAI_NULL_OBJECT_ID)) {
+            mlnx_set_acl_entry_isolation_group_impl(*acl_entry_id, SAI_NULL_OBJECT_ID);
+        }
 
         if (ACL_INVALID_DB_INDEX != acl_entry_index) {
             mlnx_acl_db_entry_delete(acl_entry_index);
@@ -11334,7 +11727,7 @@ out:
 
         mlnx_acl_sx_mc_container_remove(sx_mc_container_rx);
         mlnx_acl_sx_mc_container_remove(sx_mc_container_tx);
-        mlnx_acl_sx_mc_container_remove(action_ctx.sx_mc_container_egress_block);
+        mlnx_acl_sx_mc_container_remove(action_ctx.sx_mc_container_port_isolation);
 
         mlnx_acl_pbs_info_delete(action_ctx.pbs_info);
     }
@@ -12332,10 +12725,15 @@ static sai_status_t mlnx_delete_acl_entry(_In_ sai_object_id_t acl_entry_id)
 
     acl_table_write_lock(acl_table_index);
     acl_global_lock();
-
     if (false == acl_db_entry(acl_entry_index).is_used) {
         SX_LOG_ERR("Failure : ACL Entry doesn't exist\n");
         status = SAI_STATUS_FAILURE;
+        goto out;
+    }
+
+    status = mlnx_set_acl_entry_isolation_group_impl(acl_entry_id, SAI_NULL_OBJECT_ID);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to unset isolation group\n");
         goto out;
     }
 
@@ -14064,6 +14462,115 @@ static sai_status_t mlnx_acl_table_optimize(_In_ uint32_t table_db_idx)
     return SAI_STATUS_SUCCESS;
 }
 
+
+sai_status_t mlnx_vxlan_srcport_acl_add(sai_object_id_t switch_id)
+{
+    sx_status_t               status;
+    sx_flex_acl_flex_action_t action;
+    sx_flex_acl_key_desc_t    key_desc;
+    sx_acl_key_t              key;
+    sx_acl_key_type_t         key_handle;
+    sx_flex_acl_flex_rule_t   rule;
+    sx_acl_region_id_t        region_id;
+    sx_acl_region_group_t     region_group;
+    sx_acl_id_t               acl_group, acl_id;
+    sx_acl_rule_offset_t      offset[] = {0};
+
+
+    action.type = SX_FLEX_ACL_ACTION_HASH;
+    action.fields.action_hash.command = SX_ACL_ACTION_HASH_COMMAND_XOR;
+    action.fields.action_hash.hash_value = 1 << 7;
+    if (mlnx_chip_is_spc()) {
+        action.fields.action_hash.type = SX_ACL_ACTION_HASH_TYPE_LAG;
+    } else if (mlnx_chip_is_spc2or3()) {
+        action.fields.action_hash.type = SX_ACL_ACTION_HASH_TYPE_ECMP;
+    }
+
+    /* ACL key */
+    if (mlnx_chip_is_spc()) {
+        key_desc.key_id = FLEX_ACL_KEY_LAG_HASH;
+        key_desc.key.lag_hash = 0;
+        key_desc.mask.lag_hash = 1 << 7;
+        key = FLEX_ACL_KEY_LAG_HASH;
+    } else if (mlnx_chip_is_spc2or3()) {
+        key_desc.key_id = FLEX_ACL_KEY_ECMP_HASH;
+        key_desc.key.ecmp_hash = 0;
+        key_desc.mask.ecmp_hash = 1 << 7;
+        key = FLEX_ACL_KEY_ECMP_HASH;
+    }
+
+    status = sx_api_acl_flex_key_set(gh_sdk, SX_ACCESS_CMD_CREATE, &key, 1, &key_handle);
+    if (SX_ERR(status)) {
+        SX_LOG_ERR("Failed to create key %s.\n", SX_STATUS_MSG(status));
+        return sdk_to_sai(status);
+    }
+
+    /* ACL region */
+    status = sx_api_acl_region_set(gh_sdk,
+                                   SX_ACCESS_CMD_CREATE,
+                                   key_handle,
+                                   SX_ACL_ACTION_TYPE_BASIC,
+                                   1,
+                                   &region_id);
+    if (SX_ERR(status)) {
+        SX_LOG_ERR("Failed to create ACL region %s.\n", SX_STATUS_MSG(status));
+        return sdk_to_sai(status);
+    }
+
+    memset(&region_group, 0, sizeof(region_group));
+    region_group.acl_type = SX_ACL_TYPE_PACKET_TYPES_AGNOSTIC;
+    region_group.regions.acl_packet_agnostic.region = region_id;
+
+    status = sx_api_acl_set(gh_sdk,
+                            SX_ACCESS_CMD_CREATE,
+                            SX_ACL_TYPE_PACKET_TYPES_AGNOSTIC,
+                            SX_ACL_DIRECTION_EGRESS,
+                            &region_group,
+                            &acl_id);
+    if (SX_ERR(status)) {
+        SX_LOG_ERR("Failed to create ACL %s.\n", SX_STATUS_MSG(status));
+        return sdk_to_sai(status);
+    }
+
+    /* create ACL rule */
+    status = sx_lib_flex_acl_rule_init(key_handle, 8, &rule);
+    if (SX_ERR(status)) {
+        SX_LOG_ERR("Failed to init ACL rule %s.\n", SX_STATUS_MSG(status));
+        return sdk_to_sai(status);
+    }
+
+    rule.key_desc_list_p = &key_desc;
+    rule.key_desc_count = 1;
+    rule.action_list_p = &action;
+    rule.action_count = 1;
+    rule.valid = true;
+    rule.priority = 10;
+
+    status = sx_api_acl_flex_rules_set(gh_sdk, SX_ACCESS_CMD_SET, region_id, offset, &rule, 1);
+    if (SX_ERR(status)) {
+        SX_LOG_ERR("Failed to create ACL rule %s.\n", SX_STATUS_MSG(status));
+        return sdk_to_sai(status);
+    }
+
+    /* ACL group create */
+    status = sx_api_acl_group_set(gh_sdk, SX_ACCESS_CMD_CREATE, SX_ACL_DIRECTION_EGRESS, NULL, 0, &acl_group);
+    if (SX_ERR(status)) {
+        SX_LOG_ERR("Failed to create acl group - %s.\n", SX_STATUS_MSG(status));
+        return sdk_to_sai(status);
+    }
+
+
+    status = sx_api_acl_group_set(gh_sdk, SX_ACCESS_CMD_SET, SX_ACL_DIRECTION_EGRESS, &acl_id, 1, &acl_group);
+    if (SX_ERR(status)) {
+        SX_LOG_ERR("Failed to create ACL group - %s.\n", SX_STATUS_MSG(status));
+        return sdk_to_sai(status);
+    }
+
+    g_sai_db_ptr->vxlan_acl_id = acl_group;
+
+    return SAI_STATUS_SUCCESS;
+}
+
 sai_status_t mlnx_pbhash_acl_add(sai_object_id_t switch_id)
 {
     sx_status_t               status;
@@ -15163,9 +15670,11 @@ static sai_status_t mlnx_acl_entry_sx_rule_port_refs_get(_In_ const sx_flex_acl_
         return status;
     }
 
-    status = mlnx_acl_entry_sx_mc_container_refs_get(egr_block, refs);
-    if (SAI_ERR(status)) {
-        return status;
+    if (is_egress_block_in_use()) {
+        status = mlnx_acl_entry_sx_mc_container_refs_get(egr_block, refs);
+        if (SAI_ERR(status)) {
+            return status;
+        }
     }
 
     for (ii = 0; ii < rule->key_desc_count; ii++) {
@@ -15254,6 +15763,7 @@ static sai_status_t mlnx_acl_port_lag_event_handle(_In_ const mlnx_port_config_t
     sai_status_t       status = SAI_STATUS_SUCCESS;
     sx_status_t        sx_status;
     sx_access_cmd_t    sx_port_cmd;
+    sx_access_cmd_t    sx_port_isolation_cmd;
     sx_port_log_id_t   sx_port_id;
     sx_acl_pbs_entry_t sx_pbs_entry;
     sx_acl_pbs_id_t    sx_pbs_id;
@@ -15276,12 +15786,14 @@ static sai_status_t mlnx_acl_port_lag_event_handle(_In_ const mlnx_port_config_t
     case ACL_EVENT_TYPE_PORT_LAG_ADD:
     case ACL_EVENT_TYPE_LAG_MEMBER_DEL:
         sx_port_cmd = SX_ACCESS_CMD_ADD_PORTS;
+        sx_port_isolation_cmd = SX_ACCESS_CMD_ADD;
         clean_bind_point = false;
         break;
 
     case ACL_EVENT_TYPE_PORT_LAG_DEL:
     case ACL_EVENT_TYPE_LAG_MEMBER_ADD:
         sx_port_cmd = SX_ACCESS_CMD_DELETE_PORTS;
+        sx_port_isolation_cmd = SX_ACCESS_CMD_DELETE;
         clean_bind_point = true;
         break;
 
@@ -15289,6 +15801,14 @@ static sai_status_t mlnx_acl_port_lag_event_handle(_In_ const mlnx_port_config_t
         SX_LOG_ERR("ACL event [%d] is not supported\n", event);
         status = SAI_STATUS_NOT_SUPPORTED;
         goto out;
+    }
+
+    if (is_isolation_group_in_use()) {
+        status = mlnx_isolation_group_update_mc_containers(sx_port_isolation_cmd, sx_port_id);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to update isolation group acl entry mc_container\n");
+            goto out;
+        }
     }
 
     if (0 != acl_db_flood_pbs().ref_counter) {
@@ -16146,6 +16666,30 @@ static sai_status_t mlnx_acl_field_port_to_sx(_In_ sai_object_id_t sai_port, _Ou
     }
 
     *sx_port = port->logical;
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_acl_field_port_list_to_sx(_In_ const sai_object_list_t *port_list,
+                                                   _Inout_ sx_port_log_id_t     *sx_port_list,
+                                                   _Inout_ uint32_t             *sx_port_count)
+{
+    uint32_t     ii;
+    sai_status_t status;
+
+    assert(port_list);
+    assert(sx_port_list);
+    assert(sx_port_count);
+    assert(*sx_port_count >= port_list->count);
+
+    for (ii = 0; ii < port_list->count; ii++) {
+        status = mlnx_acl_field_port_to_sx(port_list->list[ii], &sx_port_list[ii]);
+        if (SAI_ERR(status)) {
+            return status;
+        }
+    }
+
+    *sx_port_count = port_list->count;
 
     return SAI_STATUS_SUCCESS;
 }

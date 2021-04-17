@@ -281,6 +281,14 @@ static sai_status_t mlnx_port_egress_block_get(_In_ const sai_object_key_t   *ke
                                                _In_ uint32_t                  attr_index,
                                                _Inout_ vendor_cache_t        *cache,
                                                _In_ void                     *arg);
+static sai_status_t mlnx_port_isolation_group_set(_In_ const sai_object_key_t      *key,
+                                                  _In_ const sai_attribute_value_t *value,
+                                                  _In_ void                        *arg);
+static sai_status_t mlnx_port_isolation_group_get(_In_ const sai_object_key_t   *key,
+                                                  _Inout_ sai_attribute_value_t *value,
+                                                  _In_ uint32_t                  attr_index,
+                                                  _Inout_ vendor_cache_t        *cache,
+                                                  _In_ void                     *arg);
 static sai_status_t mlnx_port_egress_block_sai_ports_to_sx(_In_ sx_port_log_id_t       sx_ing_port_id,
                                                            _In_ const sai_object_id_t *egress_ports,
                                                            _In_ uint32_t               egress_ports_count,
@@ -873,6 +881,11 @@ static const sai_vendor_attribute_entry_t port_vendor_attribs[] = {
       { true, false, true, true },
       mlnx_port_egress_block_get, NULL,
       mlnx_port_egress_block_set, NULL },
+    { SAI_PORT_ATTR_ISOLATION_GROUP,
+      { true, false, true, true },
+      { true, false, true, true },
+      mlnx_port_isolation_group_get, NULL,
+      mlnx_port_isolation_group_set, NULL },
     { SAI_PORT_ATTR_PORT_POOL_LIST,
       { false, false, false, true },
       { false, false, false, true },
@@ -6601,6 +6614,11 @@ static sai_status_t mlnx_port_egress_block_set(_In_ const sai_object_key_t      
     SX_LOG_ENTER();
 
     sai_db_write_lock();
+    status = mlnx_validate_port_isolation_api(PORT_ISOLATION_API_EGRESS_BLOCK_PORT);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Isolation group in use\n");
+        goto out;
+    }
 
     status = mlnx_port_by_obj_id(key->key.object_id, &port);
     if (SAI_ERR(status)) {
@@ -6718,6 +6736,54 @@ out:
     free(sx_egress_block_ports);
     free(sai_egress_block_ports);
     SX_LOG_EXIT();
+    return status;
+}
+
+static sai_status_t mlnx_port_isolation_group_set(_In_ const sai_object_key_t      *key,
+                                                  _In_ const sai_attribute_value_t *value,
+                                                  _In_ void                        *arg)
+{
+    sai_status_t status;
+
+    SX_LOG_ENTER();
+
+    sai_db_write_lock();
+    status = mlnx_set_port_isolation_group_impl(key->key.object_id, value->oid);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to set isolation group\n");
+        goto out;
+    }
+
+out:
+    sai_db_unlock();
+
+    return status;
+}
+
+static sai_status_t mlnx_port_isolation_group_get(_In_ const sai_object_key_t   *key,
+                                                  _Inout_ sai_attribute_value_t *value,
+                                                  _In_ uint32_t                  attr_index,
+                                                  _Inout_ vendor_cache_t        *cache,
+                                                  _In_ void                     *arg)
+{
+    sai_status_t status = SAI_STATUS_SUCCESS;
+
+    SX_LOG_ENTER();
+
+    sai_db_read_lock();
+
+    if (is_isolation_group_in_use()) {
+        status = mlnx_get_port_isolation_group_impl(key->key.object_id, &value->oid);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to get port isolation group id\n");
+            goto out;
+        }
+    } else {
+        value->oid = SAI_NULL_OBJECT_ID;
+    }
+out:
+    sai_db_unlock();
+
     return status;
 }
 
@@ -6960,9 +7026,14 @@ sai_status_t mlnx_port_egress_block_is_in_use(_In_ sx_port_log_id_t sx_port_id, 
 
 sai_status_t mlnx_port_egress_block_clear(_In_ sx_port_log_id_t sx_port_id)
 {
-    SX_LOG_DBG("Clear egress block on %x\n", sx_port_id);
+    sai_status_t status = SAI_STATUS_SUCCESS;
 
-    return mlnx_port_egress_block_set_impl(sx_port_id, NULL, 0);
+    if (is_egress_block_in_use()) {
+        SX_LOG_DBG("Clear egress block on %x\n", sx_port_id);
+        return mlnx_port_egress_block_set_impl(sx_port_id, NULL, 0);
+    }
+
+    return status;
 }
 
 sai_status_t mlnx_sx_port_list_compare(_In_ const sx_port_log_id_t *ports1,
@@ -8282,7 +8353,7 @@ sai_status_t mlnx_port_config_uninit(mlnx_port_config_t *port)
     sai_status_t             status;
     sx_status_t              sx_status;
     sx_vid_t                 pvid;
-    bool                     is_pbhash_acl_rollback_needed = false;
+    bool                     is_internal_acls_rollback_needed = false;
     const bool               is_warmboot_init_stage = (BOOT_TYPE_WARM == g_sai_db_ptr->boot_type) &&
                                                       (!g_sai_db_ptr->issu_end_called);
 
@@ -8332,15 +8403,13 @@ sai_status_t mlnx_port_config_uninit(mlnx_port_config_t *port)
         }
     }
     if (!is_warmboot_init_stage) {
-        if (g_sai_db_ptr->pbhash_gre) {
-            status = mlnx_pbhash_acl_bind(SX_ACCESS_CMD_DELETE, port->saiport, mlnx_port_is_lag(
-                                              port) ? SAI_OBJECT_TYPE_LAG : SAI_OBJECT_TYPE_PORT);
-            if (SAI_ERR(status)) {
-                SX_LOG_ERR("Failed to unbind PB hash ACL from port 0x%x\n", port->logical);
-                return status;
-            }
+        status = mlnx_internal_acls_bind(SX_ACCESS_CMD_DELETE, port->saiport, mlnx_port_is_lag(
+                                             port) ? SAI_OBJECT_TYPE_LAG : SAI_OBJECT_TYPE_PORT);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to unbind PB hash ACL from port 0x%x\n", port->logical);
+            return status;
         }
-        is_pbhash_acl_rollback_needed = true;
+        is_internal_acls_rollback_needed = true;
     }
 
     if (mlnx_port_is_phy(port)) {
@@ -8430,9 +8499,9 @@ sai_status_t mlnx_port_config_uninit(mlnx_port_config_t *port)
 
 out:
     if (SAI_ERR(status)) {
-        if (g_sai_db_ptr->pbhash_gre && is_pbhash_acl_rollback_needed) {
-            mlnx_pbhash_acl_bind(SX_ACCESS_CMD_ADD, port->saiport, mlnx_port_is_lag(
-                                     port) ? SAI_OBJECT_TYPE_LAG : SAI_OBJECT_TYPE_PORT);
+        if (is_internal_acls_rollback_needed) {
+            mlnx_internal_acls_bind(SX_ACCESS_CMD_ADD, port->saiport, mlnx_port_is_lag(
+                                        port) ? SAI_OBJECT_TYPE_LAG : SAI_OBJECT_TYPE_PORT);
         }
     }
     return status;
@@ -8469,10 +8538,28 @@ sai_status_t mlnx_port_del(mlnx_port_config_t *port)
 #define SPAN_MAX_COUNT \
     (g_resource_limits.span_session_id_max_internal + g_resource_limits.span_session_id_max_external)
 
+sai_status_t mlnx_port_isolation_is_in_use(const mlnx_port_config_t *port, bool *is_in_use)
+{
+    sai_status_t status;
+
+    if (is_egress_block_in_use()) {
+        status = mlnx_port_egress_block_is_in_use(port->logical, is_in_use);
+        if (SAI_ERR(status)) {
+            return status;
+        }
+    } else if (is_isolation_group_in_use()) {
+        *is_in_use = port->isolation_group_port_refcount > 0;
+    } else {
+        *is_in_use = false;
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
 sai_status_t mlnx_port_in_use_check(const mlnx_port_config_t *port)
 {
     sai_status_t status = SAI_STATUS_SUCCESS;
-    bool         is_in_use_for_egress_block = true;
+    bool         is_in_use_for_port_isolation = true;
 
     if (mlnx_port_is_in_bridge_1q(port)) {
         SX_LOG_ERR("Failed remove port oid %" PRIx64 " - is under bridge\n", port->saiport);
@@ -8502,12 +8589,13 @@ sai_status_t mlnx_port_in_use_check(const mlnx_port_config_t *port)
         return SAI_STATUS_OBJECT_IN_USE;
     }
 
-    status = mlnx_port_egress_block_is_in_use(port->logical, &is_in_use_for_egress_block);
+    status = mlnx_port_isolation_is_in_use(port, &is_in_use_for_port_isolation);
     if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to check port isolation usage\n");
         return status;
     }
 
-    if (is_in_use_for_egress_block) {
+    if (is_in_use_for_port_isolation) {
         SX_LOG_ERR("Failed remove port oid %" PRIx64 " - is a member another port's EGRESS_BLOCK_LISTS\n",
                    port->saiport);
         return SAI_STATUS_OBJECT_IN_USE;
@@ -8667,11 +8755,12 @@ static sai_status_t mlnx_create_port(_Out_ sai_object_id_t     * port_id,
     const sai_attribute_value_t *attr_ing_acl = NULL;
     const sai_attribute_value_t *attr_egr_acl = NULL;
     const sai_attribute_value_t *egress_block_list = NULL;
+    const sai_attribute_value_t *isolation_group = NULL;
     const sai_attribute_value_t *value = NULL;
     const sai_attribute_value_t *fec;
     char                         list_str[MAX_LIST_VALUE_STR_LEN];
     uint32_t                     fec_index, lane_index, acl_attr_index;
-    uint32_t                     lanes_count, egress_block_list_index;
+    uint32_t                     lanes_count, egress_block_list_index, isolation_group_index;
     uint32_t                     index;
     sx_port_log_id_t            *sx_egress_block_port_list = NULL;
     mlnx_port_config_t          *father_port;
@@ -8818,12 +8907,10 @@ static sai_status_t mlnx_create_port(_Out_ sai_object_id_t     * port_id,
     /* If split port is already a LAG member, do not apply hash config to the split port,
      * because hash config has already been applied to LAG */
     if (!is_warmboot_init_stage || (0 == new_port->before_issu_lag_id)) {
-        if (g_sai_db_ptr->pbhash_gre) {
-            status = mlnx_pbhash_acl_bind(SX_ACCESS_CMD_ADD, new_port->saiport, SAI_OBJECT_TYPE_PORT);
-            if (SAI_ERR(status)) {
-                SX_LOG_ERR("Failed to bind PB hash ACL to port 0x%x\n", new_port->logical);
-                goto out_unlock;
-            }
+        status = mlnx_internal_acls_bind(SX_ACCESS_CMD_ADD, new_port->saiport, SAI_OBJECT_TYPE_PORT);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to bind internal ACLs to port 0x%x\n", new_port->logical);
+            goto out_unlock;
         }
 
         status = mlnx_hash_config_apply_to_port(new_port->logical);
@@ -9224,6 +9311,12 @@ static sai_status_t mlnx_create_port(_Out_ sai_object_id_t     * port_id,
     status = find_attrib_in_list(attr_count, attr_list, SAI_PORT_ATTR_EGRESS_BLOCK_PORT_LIST,
                                  &egress_block_list, &egress_block_list_index);
     if (!SAI_ERR(status)) {
+        status = mlnx_validate_port_isolation_api(PORT_ISOLATION_API_EGRESS_BLOCK_PORT);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Isolation group in use\n");
+            goto out_unlock;
+        }
+
         sx_egress_block_port_list = calloc(MAX_PORTS, sizeof(*sx_egress_block_port_list));
         if (!sx_egress_block_port_list) {
             SX_LOG_ERR("Failed to allocate memory\n");
@@ -9241,6 +9334,16 @@ static sai_status_t mlnx_create_port(_Out_ sai_object_id_t     * port_id,
         status = mlnx_port_egress_block_set_impl(new_port->logical, sx_egress_block_port_list,
                                                  egress_block_list->objlist.count);
         if (SAI_ERR(status)) {
+            goto out_unlock;
+        }
+    }
+
+    status = find_attrib_in_list(attr_count, attr_list, SAI_PORT_ATTR_ISOLATION_GROUP, &isolation_group,
+                                 &isolation_group_index);
+    if (!SAI_ERR(status)) {
+        status = mlnx_set_port_isolation_group_impl(new_port->saiport, isolation_group->oid);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to set port isolation group\n");
             goto out_unlock;
         }
     }
@@ -9281,6 +9384,7 @@ sai_status_t mlnx_remove_port(_In_ sai_object_id_t port_id)
     sai_status_t        status = SAI_STATUS_SUCCESS;
     sx_port_log_id_t    port_log_id;
     mlnx_port_config_t *port;
+    sai_object_id_t     isolation_group;
 
     SX_LOG_ENTER();
 
@@ -9301,6 +9405,22 @@ sai_status_t mlnx_remove_port(_In_ sai_object_id_t port_id)
     status = mlnx_port_in_use_check(port);
     if (SAI_ERR(status)) {
         goto out_unlock;
+    }
+
+    if (is_isolation_group_in_use()) {
+        status = mlnx_get_port_isolation_group_impl(port_id, &isolation_group);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to get sai isolation group\n");
+            goto out_unlock;
+        }
+
+        if (isolation_group != SAI_NULL_OBJECT_ID) {
+            status = mlnx_set_port_isolation_group_impl(port_id, SAI_NULL_OBJECT_ID);
+            if (SAI_ERR(status)) {
+                SX_LOG_ERR("Failed to unset port isolation group\n");
+                goto out_unlock;
+            }
+        }
     }
 
     status = mlnx_wred_mirror_port_event(port->logical, false);
@@ -9788,7 +9908,8 @@ static sai_status_t mlnx_clear_port_pool_stats(_In_ sai_object_id_t      port_po
 }
 
 /**
- * @brief Bind/unbind policy based hash ACL to the port.
+ * @brief Bind/unbind internal ACLs (PB hash and VxLAN srcport)
+ *        to the port.
  *
  * @param[in] cmd         Bind/Unbind command
  * @param[in] sx_port_id  Port id
@@ -9796,9 +9917,9 @@ static sai_status_t mlnx_clear_port_pool_stats(_In_ sai_object_id_t      port_po
  *
  * @return #SAI_STATUS_SUCCESS on success, failure status code on error
  */
-sai_status_t mlnx_pbhash_acl_bind(_In_ sx_access_cmd_t   cmd,
-                                  _In_ sai_object_id_t   sai_port_id,
-                                  _In_ sai_object_type_t type)
+sai_status_t mlnx_internal_acls_bind(_In_ sx_access_cmd_t   cmd,
+                                     _In_ sai_object_id_t   sai_port_id,
+                                     _In_ sai_object_type_t type)
 {
     sai_status_t     status;
     sx_port_log_id_t sx_port_id;
@@ -9810,14 +9931,28 @@ sai_status_t mlnx_pbhash_acl_bind(_In_ sx_access_cmd_t   cmd,
         return status;
     }
 
-    status = sx_api_acl_port_bind_set(gh_sdk, cmd, sx_port_id, g_sai_db_ptr->hash_acl_id);
-    if (SX_ERR(status)) {
-        SX_LOG_ERR("Failed to %s BP hash ACL to port(%x). %s\n",
-                   cmd == SX_ACCESS_CMD_DELETE ? "unbind" : "bind",
-                   sx_port_id,
-                   SX_STATUS_MSG(status));
-        return sdk_to_sai(status);
+    if (g_sai_db_ptr->pbhash_gre) {
+        status = sx_api_acl_port_bind_set(gh_sdk, cmd, sx_port_id, g_sai_db_ptr->hash_acl_id);
+        if (SX_ERR(status)) {
+            SX_LOG_ERR("Failed to %s PB hash ACL to port(%x). %s\n",
+                       cmd == SX_ACCESS_CMD_DELETE ? "unbind" : "bind",
+                       sx_port_id,
+                       SX_STATUS_MSG(status));
+            return sdk_to_sai(status);
+        }
     }
+
+    if (g_sai_db_ptr->vxlan_srcport_range_enabled) {
+        status = sx_api_acl_port_bind_set(gh_sdk, cmd, sx_port_id, g_sai_db_ptr->vxlan_acl_id);
+        if (SX_ERR(status)) {
+            SX_LOG_ERR("Failed to %s VxLAN srcport ACL to port(%x). %s\n",
+                       cmd == SX_ACCESS_CMD_DELETE ? "unbind" : "bind",
+                       sx_port_id,
+                       SX_STATUS_MSG(status));
+            return sdk_to_sai(status);
+        }
+    }
+
     SX_LOG_EXIT();
     return SAI_STATUS_SUCCESS;
 }

@@ -145,6 +145,9 @@ static sai_status_t mlnx_tunnel_mappers_get(_In_ const sai_object_key_t   *key,
                                             _In_ uint32_t                  attr_index,
                                             _Inout_ vendor_cache_t        *cache,
                                             void                          *arg);
+static sai_status_t mlnx_tunnel_mappers_set(_In_ const sai_object_key_t      *key,
+                                            _In_ const sai_attribute_value_t *value,
+                                            void                             *arg);
 static sai_status_t mlnx_tunnel_term_table_entry_vr_id_get(_In_ const sai_object_key_t   *key,
                                                            _Inout_ sai_attribute_value_t *value,
                                                            _In_ uint32_t                  attr_index,
@@ -175,9 +178,11 @@ static sai_status_t mlnx_tunnel_term_table_entry_tunnel_id_get(_In_ const sai_ob
                                                                _In_ uint32_t                  attr_index,
                                                                _Inout_ vendor_cache_t        *cache,
                                                                void                          *arg);
-static sai_status_t mlnx_tunnel_mappers_set(_In_ const sai_object_key_t      *key,
-                                            _In_ const sai_attribute_value_t *value,
-                                            void                             *arg);
+static sai_status_t mlnx_tunnel_stats_get(_In_ sai_object_id_t      tunnel_id,
+                                          _In_ uint32_t             number_of_counters,
+                                          _In_ const sai_stat_id_t *counter_ids,
+                                          _In_ bool                 clear,
+                                          _Out_ uint64_t           *counters);
 
 /* is_implemented: create, remove, set, get
  *   is_supported: create, remove, set, get
@@ -418,8 +423,12 @@ static const mlnx_attr_enum_info_t        tunnel_enum_info[] = {
     [SAI_TUNNEL_ATTR_DECAP_DSCP_MODE] = ATTR_ENUM_VALUES_ALL(),
     [SAI_TUNNEL_ATTR_DECAP_ECN_MODE] = ATTR_ENUM_VALUES_ALL(),
 };
+static const sai_stat_capability_t        tunnel_stats_capabilities[] = {
+    { SAI_TUNNEL_STAT_IN_PACKETS, SAI_STATS_MODE_READ | SAI_STATS_MODE_READ_AND_CLEAR },
+    { SAI_TUNNEL_STAT_OUT_PACKETS, SAI_STATS_MODE_READ | SAI_STATS_MODE_READ_AND_CLEAR },
+};
 const mlnx_obj_type_attrs_info_t          mlnx_tunnel_obj_type_info =
-{ tunnel_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(tunnel_enum_info), OBJ_STAT_CAP_INFO_EMPTY()};
+{ tunnel_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(tunnel_enum_info), OBJ_STAT_CAP_INFO(tunnel_stats_capabilities)};
 /* is_implemented: create, remove, set, get
  *   is_supported: create, remove, set, get
  */
@@ -6446,6 +6455,9 @@ static sai_status_t mlnx_create_tunnel(_Out_ sai_object_id_t     * sai_tunnel_ob
 
     if (!g_sai_db_ptr->tunnel_module_initialized) {
         memset(&sx_tunnel_general_params, 0, sizeof(sx_tunnel_general_params_t));
+        if (g_sai_db_ptr->vxlan_srcport_range_enabled) {
+            sx_tunnel_general_params.nve.encap_sport = 0xFA;
+        }
         sdk_status = sx_api_tunnel_init_set(gh_sdk, &sx_tunnel_general_params);
         if (SX_STATUS_SUCCESS != sdk_status) {
             sai_db_unlock();
@@ -8664,22 +8676,75 @@ sai_status_t mlnx_tunnel_log_set(sx_verbosity_level_t level)
     }
 }
 
-/**
- * @brief Get tunnel statistics counters.
- *
- * @param[in] tunnel_id Tunnel id
- * @param[in] number_of_counters Number of counters in the array
- * @param[in] counter_ids Specifies the array of counter ids
- * @param[out] counters Array of resulting counter values.
- *
- * @return #SAI_STATUS_SUCCESS on success, failure status code on error
- */
-static sai_status_t mlnx_get_tunnel_stats(_In_ sai_object_id_t      tunnel_id,
+static sai_status_t mlnx_tunnel_stats_get(_In_ sai_object_id_t      tunnel_id,
                                           _In_ uint32_t             number_of_counters,
                                           _In_ const sai_stat_id_t *counter_ids,
+                                          _In_ bool                 clear,
                                           _Out_ uint64_t           *counters)
 {
-    return SAI_STATUS_NOT_IMPLEMENTED;
+    sx_status_t         sx_status;
+    sai_status_t        status;
+    sx_access_cmd_t     sx_cmd;
+    sx_tunnel_id_t      sx_tunnel_id;
+    sx_tunnel_counter_t sx_tunnel_counter;
+    uint32_t            ii;
+    char                key_str[MAX_KEY_STR_LEN];
+
+    assert(counter_ids);
+
+    memset(&sx_tunnel_counter, 0, sizeof(sx_tunnel_counter));
+
+    SX_LOG_ENTER();
+
+    tunnel_key_to_str(tunnel_id, key_str);
+    SX_LOG_DBG("Get tunnel stats %s\n", key_str);
+
+    sx_cmd = clear ? SX_ACCESS_CMD_READ_CLEAR : SX_ACCESS_CMD_READ;
+
+    sai_db_read_lock();
+
+    status = mlnx_sai_tunnel_to_sx_tunnel_id(tunnel_id, &sx_tunnel_id);
+    if (SAI_ERR(status)) {
+        sai_db_unlock();
+        SX_LOG_EXIT();
+        return status;
+    }
+
+    sai_db_unlock();
+
+    sx_status = sx_api_tunnel_counter_get(gh_sdk, sx_cmd, sx_tunnel_id, &sx_tunnel_counter);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to %s sx tunnel %u counter - %s\n", SX_ACCESS_CMD_STR(sx_cmd), sx_tunnel_id,
+                   SX_STATUS_MSG(sx_status));
+        SX_LOG_EXIT();
+        return sdk_to_sai(sx_status);
+    }
+
+    if (NULL != counters) {
+        for (ii = 0; ii < number_of_counters; ii++) {
+            switch (counter_ids[ii]) {
+            case SAI_TUNNEL_STAT_IN_PACKETS:
+                counters[ii] = sx_tunnel_counter.counter.nve.decapsulated_pkts;
+                break;
+
+            case SAI_TUNNEL_STAT_OUT_PACKETS:
+                counters[ii] = sx_tunnel_counter.counter.nve.encapsulated_pkts;
+                break;
+
+            case SAI_TUNNEL_STAT_IN_OCTETS:
+            case SAI_TUNNEL_STAT_OUT_OCTETS:
+                SX_LOG_INF("Tunnel counter %d (item %u) not implemented\n", counter_ids[ii], ii);
+                return SAI_STATUS_NOT_IMPLEMENTED;
+
+            default:
+                SX_LOG_ERR("Invalid tunnel counter %d\n", counter_ids[ii]);
+                return SAI_STATUS_INVALID_PARAMETER;
+            }
+        }
+    }
+
+    SX_LOG_EXIT();
+    return SAI_STATUS_SUCCESS;
 }
 
 /**
@@ -8699,7 +8764,66 @@ sai_status_t mlnx_get_tunnel_stats_ext(_In_ sai_object_id_t      tunnel_id,
                                        _In_ sai_stats_mode_t     mode,
                                        _Out_ uint64_t           *counters)
 {
-    return SAI_STATUS_NOT_IMPLEMENTED;
+    sai_status_t    status;
+    sx_access_cmd_t cmd;
+    bool            clear;
+
+    SX_LOG_ENTER();
+
+    if (number_of_counters == 0) {
+        SX_LOG_ERR("Number of counters is 0\n");
+        SX_LOG_EXIT();
+        return SAI_STATUS_INVALID_PARAMETER;
+    }
+
+    if (counter_ids == NULL) {
+        SX_LOG_ERR("Counter IDs is NULL\n");
+        SX_LOG_EXIT();
+        return SAI_STATUS_INVALID_PARAMETER;
+    }
+
+    if (counters == NULL) {
+        SX_LOG_ERR("Counters is NULL\n");
+        SX_LOG_EXIT();
+        return SAI_STATUS_INVALID_PARAMETER;
+    }
+
+    if (SAI_STATUS_SUCCESS != (status = mlnx_translate_sai_stats_mode_to_sdk(mode, &cmd))) {
+        SX_LOG_ERR("Mode %d is invalid\n", mode);
+        SX_LOG_EXIT();
+        return SAI_STATUS_INVALID_PARAMETER;
+    }
+
+    clear = (mode == SAI_STATS_MODE_READ_AND_CLEAR);
+
+    status = mlnx_tunnel_stats_get(tunnel_id, number_of_counters, counter_ids, clear, counters);
+
+    SX_LOG_EXIT();
+    return status;
+}
+
+/**
+ * @brief Get tunnel statistics counters.
+ *
+ * @param[in] tunnel_id Tunnel id
+ * @param[in] number_of_counters Number of counters in the array
+ * @param[in] counter_ids Specifies the array of counter ids
+ * @param[out] counters Array of resulting counter values.
+ *
+ * @return #SAI_STATUS_SUCCESS on success, failure status code on error
+ */
+static sai_status_t mlnx_get_tunnel_stats(_In_ sai_object_id_t      tunnel_id,
+                                          _In_ uint32_t             number_of_counters,
+                                          _In_ const sai_stat_id_t *counter_ids,
+                                          _Out_ uint64_t           *counters)
+{
+    sai_status_t status;
+
+    SX_LOG_ENTER();
+    status = mlnx_get_tunnel_stats_ext(tunnel_id, number_of_counters, counter_ids, SAI_STATS_MODE_READ, counters);
+
+    SX_LOG_EXIT();
+    return status;
 }
 
 /**
@@ -8715,7 +8839,13 @@ static sai_status_t mlnx_clear_tunnel_stats(_In_ sai_object_id_t      tunnel_id,
                                             _In_ uint32_t             number_of_counters,
                                             _In_ const sai_stat_id_t *counter_ids)
 {
-    return SAI_STATUS_NOT_IMPLEMENTED;
+    sai_status_t status;
+
+    SX_LOG_ENTER();
+    status = mlnx_tunnel_stats_get(tunnel_id, number_of_counters, counter_ids, true, NULL);
+
+    SX_LOG_EXIT();
+    return status;
 }
 
 const sai_tunnel_api_t mlnx_tunnel_api = {

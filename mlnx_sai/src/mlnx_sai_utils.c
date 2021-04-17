@@ -158,6 +158,7 @@ extern const mlnx_obj_type_attrs_info_t  mlnx_port_pool_obj_type_info;
 extern const mlnx_obj_type_attrs_info_t  mlnx_debug_counter_obj_type_info;
 extern const mlnx_obj_type_attrs_info_t  mlnx_bfd_session_obj_type_info;
 extern const mlnx_obj_type_attrs_info_t  mlnx_counter_obj_type_info;
+extern const mlnx_obj_type_attrs_info_t  mlnx_isolation_group_obj_type_info;
 static const mlnx_obj_type_attrs_info_t* mlnx_obj_types_info[] = {
     [SAI_OBJECT_TYPE_PORT] = &mlnx_port_obj_type_info,
     [SAI_OBJECT_TYPE_LAG] = &mlnx_lag_obj_type_info,
@@ -215,6 +216,7 @@ static const mlnx_obj_type_attrs_info_t* mlnx_obj_types_info[] = {
     [SAI_OBJECT_TYPE_DEBUG_COUNTER] = &mlnx_debug_counter_obj_type_info,
     [SAI_OBJECT_TYPE_BFD_SESSION] = &mlnx_bfd_session_obj_type_info,
     [SAI_OBJECT_TYPE_COUNTER] = &mlnx_counter_obj_type_info,
+    [SAI_OBJECT_TYPE_ISOLATION_GROUP] = &mlnx_isolation_group_obj_type_info,
 };
 static const uint32_t                    mlnx_obj_types_info_arr_size = ARRAY_SIZE(mlnx_obj_types_info);
 static sai_status_t sai_vendor_attr_index_find(_In_ const sai_attr_id_t                 attr_id,
@@ -4165,4 +4167,100 @@ bool mlnx_is_mac_empty(_In_ const sai_mac_t mac)
         }
     }
     return true;
+}
+
+/*needs sai_db read lock*/
+sai_status_t mlnx_validate_port_isolation_api(mlnx_port_isolation_api_t port_isolation_api)
+{
+    mlnx_port_isolation_api_t *current_api = &g_sai_db_ptr->port_isolation_api;
+
+    if (port_isolation_api > PORT_ISOLATION_API_MAX) {
+        SX_LOG_ERR("Invalid port isolation api %u\n", port_isolation_api);
+        return SAI_STATUS_INVALID_PARAMETER;
+    }
+
+    if (*current_api == PORT_ISOLATION_API_NONE) {
+        *current_api = port_isolation_api;
+    } else if ((*current_api) != port_isolation_api) {
+        SX_LOG_ERR("Invalid api %u, api %u is already in use. Port isolation APIs are mutually exclusive\n",
+                   port_isolation_api, *current_api);
+        return SAI_STATUS_FAILURE;
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
+sai_status_t mlnx_reset_port_isolation_api(void)
+{
+    SX_LOG_ENTER();
+
+    sai_db_write_lock();
+    g_sai_db_ptr->port_isolation_api = PORT_ISOLATION_API_NONE;
+    sai_db_unlock();
+
+    return SAI_STATUS_SUCCESS;
+}
+
+sai_status_t mlnx_get_switch_log_ports_not_in_lag(const sx_port_log_id_t *exclude_phy_ports,
+                                                  const uint32_t          exclude_phy_ports_count,
+                                                  sx_port_log_id_t       *ports,
+                                                  uint32_t               *ports_count)
+{
+    const mlnx_port_config_t *port;
+    uint32_t                  ii, jj, ports_count_tmp = 0;
+    sx_port_log_id_t          log_port_list[MAX_PORTS_DB * 2];
+    uint32_t                  log_port_count = MAX_PORTS_DB * 2;
+    bool                      exclude_port;
+    sx_status_t               sx_status;
+    const bool                is_warmboot_init_stage = (BOOT_TYPE_WARM == g_sai_db_ptr->boot_type) &&
+                                                       (!g_sai_db_ptr->issu_end_called);
+
+    SX_LOG_ENTER();
+
+    assert(ports);
+    if (exclude_phy_ports_count > 0) {
+        assert(exclude_phy_ports);
+    }
+
+    mlnx_phy_port_not_in_lag_foreach(port, ii) {
+        exclude_port = false;
+        for (jj = 0; jj < exclude_phy_ports_count; jj++) {
+            if (port->logical == exclude_phy_ports[jj]) {
+                exclude_port = true;
+                break;
+            }
+        }
+        if (exclude_port) {
+            continue;
+        }
+
+        ports[ports_count_tmp] = port->logical;
+        ports_count_tmp++;
+    }
+
+    if (is_warmboot_init_stage) {
+        sx_status = sx_api_port_swid_port_list_get(gh_sdk, DEFAULT_ETH_SWID, log_port_list, &log_port_count);
+        if (SX_ERR(sx_status)) {
+            SX_LOG_ERR("Error getting switch port list: %s\n",
+                       SX_STATUS_MSG(sx_status));
+            return sdk_to_sai(sx_status);
+        }
+
+        for (ii = 0; ii < log_port_count; ii++) {
+            if (SX_PORT_TYPE_LAG & SX_PORT_TYPE_ID_GET(log_port_list[ii])) {
+                ports[ports_count_tmp] = log_port_list[ii];
+                ports_count_tmp++;
+            }
+        }
+    } else {
+        mlnx_lag_foreach(port, ii) {
+            ports[ports_count_tmp] = port->logical;
+            ports_count_tmp++;
+        }
+    }
+
+
+    *ports_count = ports_count_tmp;
+
+    return SAI_STATUS_SUCCESS;
 }

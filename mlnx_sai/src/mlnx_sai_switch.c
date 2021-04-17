@@ -3185,6 +3185,7 @@ static void sai_db_values_init()
     memset(g_sai_db_ptr->policers_db, 0, sizeof(g_sai_db_ptr->policers_db));
     memset(g_sai_db_ptr->mlnx_samplepacket_session, 0, sizeof(g_sai_db_ptr->mlnx_samplepacket_session));
     memset(g_sai_db_ptr->trap_group_valid, 0, sizeof(g_sai_db_ptr->trap_group_valid));
+    memset(g_sai_db_ptr->isolation_groups, 0, sizeof(g_sai_db_ptr->isolation_groups));
 
     g_sai_db_ptr->flood_actions[MLNX_FID_FLOOD_CTRL_ATTR_UC] = SAI_PACKET_ACTION_FORWARD;
     g_sai_db_ptr->flood_actions[MLNX_FID_FLOOD_CTRL_ATTR_BC] = SAI_PACKET_ACTION_FORWARD;
@@ -3224,6 +3225,9 @@ static void sai_db_values_init()
     sai_db_policer_entries_init();
 
     msync(g_sai_db_ptr, sizeof(*g_sai_db_ptr), MS_SYNC);
+
+    g_sai_db_ptr->port_isolation_api = PORT_ISOLATION_API_NONE;
+
     sai_qos_db_init();
     memset(g_sai_qos_db_ptr->wred_db, 0, sizeof(mlnx_wred_profile_t) * g_resource_limits.cos_redecn_profiles_max);
     memset(g_sai_qos_db_ptr->queue_db, 0,
@@ -5056,7 +5060,6 @@ static sai_status_t sai_qos_db_create()
 static void sai_buffer_db_values_init()
 {
     cl_plock_excl_acquire(&g_sai_db_ptr->p_lock);
-    assert(g_sai_db_ptr->ports_number != 0);
     sai_buffer_db_pointers_init();
     sai_buffer_db_data_reset();
     cl_plock_release(&g_sai_db_ptr->p_lock);
@@ -5093,7 +5096,6 @@ static void sai_buffer_db_data_reset()
 
 static void sai_buffer_db_pointers_init()
 {
-    assert(g_sai_db_ptr->ports_number != 0);
     g_sai_buffer_db_ptr->buffer_profiles = (mlnx_sai_db_buffer_profile_entry_t*)(g_sai_buffer_db_ptr->db_base_ptr);
     g_sai_buffer_db_ptr->port_buffer_data = (uint32_t*)(g_sai_buffer_db_ptr->buffer_profiles +
                                                         (1 + (MAX_PORTS *
@@ -5134,11 +5136,6 @@ static sai_status_t sai_buffer_db_unload(boolean_t erase_db)
 
 static uint32_t sai_buffer_db_size_get()
 {
-    if (0 == g_sai_db_ptr->ports_number) {
-        MLNX_SAI_LOG_ERR("g_sai_db_ptr->ports_number NOT CONFIGURED\n");
-        return SAI_STATUS_FAILURE;
-    }
-
     return (
         /*
          *  buffer profiles
@@ -5737,6 +5734,7 @@ static sai_status_t mlnx_initialize_switch(sai_object_id_t switch_id, bool *tran
 {
     int                         system_err;
     const char                 *config_file, *boot_type_char, *aggregate_bridge_drops, *dump_path, *max_dumps;
+    const char                 *vxlan_srcport_range_enabled;
     mlnx_sai_boot_type_t        boot_type = 0;
     sx_router_resources_param_t resources_param;
     sx_router_general_param_t   general_param;
@@ -5867,6 +5865,13 @@ static sai_status_t mlnx_initialize_switch(sai_object_id_t switch_id, bool *tran
         g_sai_db_ptr->aggregate_bridge_drops = (bool)atoi(aggregate_bridge_drops);
     } else {
         g_sai_db_ptr->aggregate_bridge_drops = false;
+    }
+
+    vxlan_srcport_range_enabled = g_mlnx_services.profile_get_value(g_profile_id, SAI_KEY_VXLAN_SRCPORT_RANGE_ENABLE);
+    if (NULL != vxlan_srcport_range_enabled) {
+        g_sai_db_ptr->vxlan_srcport_range_enabled = (bool)atoi(vxlan_srcport_range_enabled);
+    } else {
+        g_sai_db_ptr->vxlan_srcport_range_enabled = false;
     }
 
     if (SAI_STATUS_SUCCESS != (sai_status = mlnx_chassis_mng_stage(boot_type,
@@ -6397,31 +6402,38 @@ static sai_status_t mlnx_create_switch(_Out_ sai_object_id_t     * switch_id,
 
     if (g_sai_db_ptr->pbhash_gre) {
         if (SAI_STATUS_SUCCESS != (sai_status = mlnx_init_flex_parser())) {
-            SX_LOG_ERR("Failed to init_flex_parser\n");
+            MLNX_SAI_LOG_ERR("Failed to init_flex_parser\n");
             return sai_status;
         }
 
         if (SAI_STATUS_SUCCESS != (sai_status = mlnx_pbhash_acl_add(*switch_id))) {
-            SX_LOG_ERR("Failed to ADD PB hash ACL to DB\n");
+            MLNX_SAI_LOG_ERR("Failed to ADD PB hash ACL to DB\n");
             return sai_status;
         }
+    }
 
-        is_warmboot_init_stage = (BOOT_TYPE_WARM == g_sai_db_ptr->boot_type) &&
-                                 (!g_sai_db_ptr->issu_end_called);
-        mlnx_port_phy_foreach(port, ii) {
-            /* Do not bind PB hash ACL on warm boot init if port is not added on SDK */
-            if (is_warmboot_init_stage && !port->sdk_port_added) {
-                continue;
-            }
-            /* Does not allow bind ACL to LAG member on warm boot init */
-            if (!is_warmboot_init_stage || (0 == port->before_issu_lag_id)) {
-                if (SAI_STATUS_SUCCESS !=
-                    (sai_status = mlnx_pbhash_acl_bind(SX_ACCESS_CMD_ADD, port->saiport, mlnx_port_is_lag(
-                                                           port) ? SAI_OBJECT_TYPE_LAG :
-                                                       SAI_OBJECT_TYPE_PORT))) {
-                    SX_LOG_ERR("Failed to bind PB hash ACL to port %x \n", port->logical);
-                    return sai_status;
-                }
+    if (g_sai_db_ptr->vxlan_srcport_range_enabled) {
+        if (SAI_STATUS_SUCCESS != (sai_status = mlnx_vxlan_srcport_acl_add(*switch_id))) {
+            MLNX_SAI_LOG_ERR("Failed to ADD VxLAN srcport ACL to DB\n");
+            return sai_status;
+        }
+    }
+
+    is_warmboot_init_stage = (BOOT_TYPE_WARM == g_sai_db_ptr->boot_type) &&
+                             (!g_sai_db_ptr->issu_end_called);
+    mlnx_port_phy_foreach(port, ii) {
+        /* Do not bind ACLs on warm boot init if port is not added on SDK */
+        if (is_warmboot_init_stage && !port->sdk_port_added) {
+            continue;
+        }
+        /* Does not allow bind ACLs to LAG member on warm boot init */
+        if (!is_warmboot_init_stage || (0 == port->before_issu_lag_id)) {
+            if (SAI_STATUS_SUCCESS !=
+                (sai_status = mlnx_internal_acls_bind(SX_ACCESS_CMD_ADD, port->saiport, mlnx_port_is_lag(
+                                                          port) ? SAI_OBJECT_TYPE_LAG :
+                                                      SAI_OBJECT_TYPE_PORT))) {
+                MLNX_SAI_LOG_ERR("Failed to bind internal ACLs to port %x \n", port->logical);
+                return sai_status;
             }
         }
     }

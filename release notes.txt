@@ -1,7 +1,7 @@
 Mellanox SAI implementation release notes
 ==========================================
 
-Release 1.18.2
+Release 1.18.3
 ---------------
 
 Current implementation is partial. 
@@ -62,6 +62,7 @@ ACL has the following limitations :
 * ACL IP_TYPE field supports the following values : SAI_ACL_IP_TYPE_ANY, SAI_ACL_IP_TYPE_ARP, SAI_ACL_IP_TYPE_IP, SAI_ACL_IP_TYPE_IPV4ANY, SAI_ACL_IP_TYPE_IPV6ANY, SAI_ACL_IP_TYPE_NON_IP
 * When using SAI_ACL_IP_TYPE_ANY, it's necessary to set at list one other field, as internally no key is used to match ANY value, and at least one key should be set for every rule
 * ACL SAI_ACL_ENTRY_ATTR_ACTION_MIRROR_INGRESS isn't supported at Egress stage. Note an exception, for SAI_ACL_BIND_POINT_TYPE_ROUTER_INTERFACE at Egress stage, only SAI_ACL_ENTRY_ATTR_ACTION_MIRROR_INGRESS can be used.
+* SAI_ACL_ENTRY_ATTR_ACTION_ADD_VLAN_PRI is supported only when paired with SAI_ACL_ENTRY_ATTR_ACTION_ADD_VLAN_ID as actions of the same ACL entry.
 
 IP over IP has the following limitations :
 * Set is not supported on any attribute in sai_tunnel_attr_t
@@ -108,9 +109,11 @@ Switch Prio (SAI TC) <-> IEEE PFC is a global property, therefor when setting di
 
 Debug counters don’t work correctly with WJH, and vice-versa, as the 2 features configurations conflicts.
 A specific drop reason can only exist in a single counter.
+When enabling ACL drops debug counter, the dropped packets will not be counted by SDK ingress/egress policy engine discard counters.
 
 ISSU 1 second is not supported with SDK 4.3.23** and newer.
 ISSU hitless does not support empty LAG with no members.
+It is not possible to create bridge port over empty LAG during ISSU. WA : Create at least one LAG member, then create bridge port over the LAG.
 
 Resource monitoring has the following limitations :
 * SAI_SWITCH_ATTR_AVAILABLE_IPV6_ROUTE_ENTRY measures only IPv6 routes with prefix < 64 on Spectrum1 and free space on single KVD hash.

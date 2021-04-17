@@ -21,7 +21,7 @@
                 <!-- 0 none, 1=2, 2=4, 3=2,4 -->
                 <breakout-modes>3</breakout-modes>
 
-                <!-- (BITMASK) 4096 - 10Gb , 939524096 - 25Gb , 98368 - 40Gb , 3221225472 - 50Gb , 11534336 - 100Gb-->
+                <!-- (BITMASK) 28700 - 10Gb , 939524096 - 25Gb , 98368 - 40Gb , 3221487616 - 50Gb , 11534336 - 100Gb-->
                 <port-speed>11534336</port-speed>
             </port-info>
             <port-info>
@@ -106,7 +106,7 @@
                 <width>4</width>
                 <module>28</module>
                 <breakout-modes>3</breakout-modes>
-                <port-speed>3221225472</port-speed>
+                <port-speed>3221487616</port-speed>
                 <split>2</split>
             </port-info>
             <port-info>
@@ -114,7 +114,7 @@
                 <width>4</width>
                 <module>29</module>
                 <breakout-modes>1</breakout-modes>
-                <port-speed>3221225472</port-speed>
+                <port-speed>3221487616</port-speed>
                 <split>2</split>
             </port-info>
             <port-info>
@@ -122,7 +122,7 @@
                 <width>4</width>
                 <module>30</module>
                 <breakout-modes>3</breakout-modes>
-                <port-speed>3221225472</port-speed>
+                <port-speed>3221487616</port-speed>
                 <split>2</split>
             </port-info>
             <port-info>
@@ -130,7 +130,7 @@
                 <width>4</width>
                 <module>31</module>
                 <breakout-modes>1</breakout-modes>
-                <port-speed>3221225472</port-speed>
+                <port-speed>3221487616</port-speed>
                 <split>2</split>
             </port-info>
             <port-info>

@@ -195,6 +195,7 @@
     <ClCompile Include="src\dbgdump\mlnx_sai_dbg_debug_counter.c" />
     <ClCompile Include="src\dbgdump\mlnx_sai_dbg_hash.c" />
     <ClCompile Include="src\dbgdump\mlnx_sai_dbg_hostintf.c" />
+    <ClCompile Include="src\dbgdump\mlnx_sai_dbg_isolation_group.c" />
     <ClCompile Include="src\dbgdump\mlnx_sai_dbg_mirror.c" />
     <ClCompile Include="src\dbgdump\mlnx_sai_dbg_policer.c" />
     <ClCompile Include="src\dbgdump\mlnx_sai_dbg_port.c" />
@@ -228,6 +229,7 @@
     <ClCompile Include="src\mlnx_sai_hash.c" />
     <ClCompile Include="src\mlnx_sai_host_interface.c" />
     <ClCompile Include="src\mlnx_sai_interfacequery.c" />
+    <ClCompile Include="src\mlnx_sai_isolation_group.c" />
     <ClCompile Include="src\mlnx_sai_l2mcgroup.c" />
     <ClCompile Include="src\mlnx_sai_lag.c" />
     <ClCompile Include="src\mlnx_sai_mirror.c" />

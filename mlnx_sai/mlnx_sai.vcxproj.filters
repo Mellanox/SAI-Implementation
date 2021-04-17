@@ -404,5 +404,11 @@
     <ClCompile Include="src\dbgdump\mlnx_sai_dbg_utils.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\mlnx_sai_isolation_group.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\dbgdump\mlnx_sai_dbg_isolation_group.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>

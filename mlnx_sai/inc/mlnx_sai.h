@@ -214,6 +214,7 @@ extern const sai_bmtor_api_t            mlnx_bmtor_api;
 extern const sai_debug_counter_api_t    mlnx_debug_counter_api;
 extern const sai_bfd_api_t              mlnx_bfd_api;
 extern const sai_counter_api_t          mlnx_counter_api;
+extern const sai_isolation_group_api_t  mlnx_isolation_group_api;
 
 #define DEFAULT_ETH_SWID 0
 #define DEFAULT_VRID     0
@@ -431,6 +432,9 @@ PACKED(struct _mlnx_object_id_t {
         PACKED(union {
             uint16_t is_db_entry;
         }, nexthop_db);
+        PACKED(struct {
+            uint16_t isolation_group_db_idx;
+        }, isolation_group_member);
     } ext;
     union {
         bool is_created;
@@ -447,6 +451,7 @@ PACKED(struct _mlnx_object_id_t {
         mlnx_shm_rm_array_idx_t bfd_db_idx;
         mlnx_shm_rm_array_idx_t encap_nexthop_db_idx;
         mlnx_shm_rm_array_idx_t counter_db_idx;
+        uint32_t isolation_group_db_idx;
         PACKED(struct {
             uint16_t group_id;
             uint16_t nhop_id;
@@ -863,6 +868,7 @@ sai_status_t mlnx_bmtor_log_set(sx_verbosity_level_t severity);
 sai_status_t mlnx_debug_counter_log_set(sx_verbosity_level_t level);
 sai_status_t mlnx_bfd_log_set(sx_verbosity_level_t level);
 sai_status_t mlnx_counter_log_set(sx_verbosity_level_t level);
+sai_status_t mlnx_isolation_group_log_set(sx_verbosity_level_t level);
 sai_status_t mlnx_object_log_set(sx_verbosity_level_t level);
 
 sai_status_t mlnx_fill_objlist(const sai_object_id_t *data, uint32_t count, sai_object_list_t *list);
@@ -962,6 +968,7 @@ typedef struct _acl_index_t {
 
 sai_status_t mlnx_acl_init(void);
 sai_status_t mlnx_pbhash_acl_add(sai_object_id_t switch_id);
+sai_status_t mlnx_vxlan_srcport_acl_add(sai_object_id_t switch_id);
 sai_status_t mlnx_acl_deinit(void);
 sai_status_t mlnx_acl_disconnect(void);
 sai_status_t mlnx_acl_bind_point_set(_In_ const sai_object_key_t      *key,
@@ -988,6 +995,12 @@ uint32_t mlnx_acl_action_types_count_get(void);
 sai_status_t mlnx_acl_stage_action_types_list_get(_In_ sai_acl_stage_t stage, _Out_ sai_s32_list_t *list);
 sai_status_t mlnx_acl_db_free_entries_get(_In_ sai_object_type_t resource_type, _Out_ uint32_t         *free_entries);
 sai_status_t mlnx_acl_mirror_action_policer_update(_In_ sx_span_session_id_t sx_span_session_id);
+sai_status_t mlnx_acl_isolation_group_update(_In_ sai_object_id_t         acl_entry_id,
+                                             _In_ const sx_port_log_id_t *log_port_list,
+                                             _In_ const uint32_t          log_port_count);
+sai_status_t mlnx_acl_isolation_group_update_not_locked(_In_ sai_object_id_t         acl_entry_id,
+                                                        _In_ const sx_port_log_id_t *log_port_list,
+                                                        _In_ const uint32_t          log_port_count);
 #define acl_global_lock()   cl_plock_excl_acquire(&g_sai_acl_db_ptr->acl_settings_tbl->lock)
 #define acl_global_unlock() cl_plock_release(&g_sai_acl_db_ptr->acl_settings_tbl->lock)
 
@@ -1228,6 +1241,9 @@ typedef struct _mlnx_port_config_t {
      * Ingress ACL, Egress ACL, PVID, default VLAN priority, drop untagged/tagged
      * will be stored in SAI port DB only when port type is LAG and logical is zero */
     mlnx_issu_lag_t issu_lag_attr;
+    uint32_t        isolation_group_port_refcount;
+    uint32_t        isolation_group_bridge_port_refcount;
+    sai_object_id_t isolation_group;
 } mlnx_port_config_t;
 typedef enum {
     MLNX_FID_FLOOD_TYPE_ALL,
@@ -1311,6 +1327,7 @@ sai_status_t mlnx_bridge_sx_ports_get(_In_ sx_bridge_id_t     sx_bridge,
                                       _Inout_ uint32_t       *ports_count);
 sai_status_t mlnx_create_bridge_1d_object(sx_bridge_id_t sx_br_id, sai_object_id_t  *bridge_oid);
 sai_status_t mlnx_bridge_oid_to_id(sai_object_id_t oid, sx_bridge_id_t *bridge_id);
+sai_status_t mlnx_bridge_port_sai_to_log_port_not_locked(sai_object_id_t oid, sx_port_log_id_t *log_port);
 sai_status_t mlnx_bridge_port_sai_to_log_port(sai_object_id_t oid, sx_port_log_id_t *log_port);
 sai_status_t mlnx_bridge_port_to_vlan_port(sai_object_id_t oid, sx_port_log_id_t *log_port);
 sai_status_t mlnx_log_port_to_sai_bridge_port(sx_port_log_id_t log_port, sai_object_id_t *oid);
@@ -2332,6 +2349,62 @@ typedef struct _mlnx_dump_configuration_t {
     uint32_t max_events_to_store;
 } mlnx_dump_configuration_t;
 
+#define MAX_SUBSCRIBED_PORTS_ISOLATION_GROUP ((MAX_PORTS_DB) / 2)
+#define MAX_SUBSCRIBED_ACL_ISOLATION_GROUP   2
+#define MAX_ISOLATION_GROUPS                 MAX_PORTS_DB
+#define MAX_ISOLATION_GROUP_MEMBERS          MAX_PORTS_DB
+typedef struct _mlnx_isolation_group {
+    bool                       is_used;
+    sai_isolation_group_type_t type;
+    sx_port_log_id_t           subscribed_ports[MAX_SUBSCRIBED_PORTS_ISOLATION_GROUP];
+    uint32_t                   subscribed_ports_count;
+    sai_object_id_t            subscribed_acl[MAX_SUBSCRIBED_ACL_ISOLATION_GROUP];
+    uint32_t                   subscribed_acl_count;
+    sx_port_log_id_t           members[MAX_ISOLATION_GROUP_MEMBERS];
+    uint32_t                   members_count;
+} mlnx_isolation_group_t;
+
+/* needs sai_db write lock */
+sai_status_t mlnx_set_port_isolation_group_impl(sai_object_id_t port_oid, sai_object_id_t isolation_group);
+/* needs sai_db read lock */
+sai_status_t mlnx_get_port_isolation_group_impl(sai_object_id_t port_oid, sai_object_id_t *isolation_group);
+/* needs sai_db and acl_table write lock */
+sai_status_t mlnx_set_acl_entry_isolation_group_impl(sai_object_id_t acl_entry, sai_object_id_t new_isolation_group);
+/* needs sai_db write lock */
+sai_status_t mlnx_get_acl_entry_isolation_group_impl(sai_object_id_t acl_entry, sai_object_id_t *isolation_group);
+
+/* needs sai_db write lock */
+sai_status_t mlnx_port_isolation_is_in_use(const mlnx_port_config_t *port, bool *is_in_use);
+/* needs sai_db write lock */
+sai_status_t mlnx_port_move_isolation_group_to_lag(mlnx_port_config_t *port, mlnx_port_config_t *lag);
+/* needs sai_db write lock */
+sai_status_t mlnx_port_move_isolation_group_from_lag(mlnx_port_config_t *lag, mlnx_port_config_t *port);
+sai_status_t mlnx_get_switch_log_ports_not_in_lag(const sx_port_log_id_t *exclude_ports,
+                                                  const uint32_t          exclude_ports_count,
+                                                  sx_port_log_id_t       *ports,
+                                                  uint32_t               *ports_count);
+sai_status_t mlnx_create_isolation_group_oid(uint32_t isolation_group_idx, sai_isolation_group_type_t type,
+                                             sai_object_id_t *object_id);
+
+sai_status_t mlnx_create_isolation_group_member_oid(sai_object_id_t *object_id,
+                                                    sai_object_id_t  isolation_group,
+                                                    sx_port_log_id_t log_port);
+/* needs sai_db read lock */
+sai_status_t mlnx_acl_entry_update_port_filter(sai_object_id_t  acl_entry_id,
+                                               sx_access_cmd_t  cmd,
+                                               sx_port_log_id_t log_port);
+sai_status_t mlnx_isolation_group_update_mc_containers(sx_access_cmd_t cmd, sx_port_log_id_t log_port);
+
+typedef enum _mlnx_port_isolation_api {
+    PORT_ISOLATION_API_NONE              = 0,
+    PORT_ISOLATION_API_EGRESS_BLOCK_PORT = 1,
+    PORT_ISOLATION_API_ISOLATION_GROUP   = 2,
+    PORT_ISOLATION_API_MAX               = PORT_ISOLATION_API_ISOLATION_GROUP,
+} mlnx_port_isolation_api_t;
+
+sai_status_t mlnx_validate_port_isolation_api(mlnx_port_isolation_api_t port_isolation_api);
+sai_status_t mlnx_reset_port_isolation_api(void);
+
 typedef struct sai_db {
     cl_plock_t         p_lock;
     sx_mac_addr_t      base_mac_addr;
@@ -2408,7 +2481,11 @@ typedef struct sai_db {
     mlnx_fg_ecmp_group_size_t         ecmp_groups[FG_ECMP_MAX_GROUPS_COUNT];
     uint32_t                          pbhash_gre;
     sx_acl_id_t                       hash_acl_id;
+    sx_acl_id_t                       vxlan_acl_id;
     mlnx_shm_pool_t                   shm_pool;
+    mlnx_isolation_group_t            isolation_groups[MAX_ISOLATION_GROUPS];
+    mlnx_port_isolation_api_t         port_isolation_api;
+    bool                              vxlan_srcport_range_enabled;
     /* must be last element, followed by dynamic arrays */
     mlnx_shm_rm_array_info_t array_info[MLNX_SHM_RM_ARRAY_TYPE_SIZE];
 } sai_db_t;
@@ -2639,9 +2716,9 @@ sai_status_t mlnx_wred_mirror_port_event(_In_ sx_port_log_id_t port_log_id, _In_
 sai_status_t mlnx_port_wred_mirror_set_impl(_In_ sx_port_log_id_t     sx_port,
                                             _In_ sx_span_session_id_t sx_session,
                                             _In_ bool                 is_add);
-sai_status_t mlnx_pbhash_acl_bind(_In_ sx_access_cmd_t   cmd,
-                                  _In_ sai_object_id_t   sai_port_id,
-                                  _In_ sai_object_type_t type);
+sai_status_t mlnx_internal_acls_bind(_In_ sx_access_cmd_t   cmd,
+                                     _In_ sai_object_id_t   sai_port_id,
+                                     _In_ sai_object_type_t type);
 uint8_t mlnx_port_mac_mask_get(void);
 
 /* DB read lock is needed */
@@ -2671,14 +2748,15 @@ sai_status_t mlnx_sched_hierarchy_foreach(mlnx_port_config_t    *port,
                                           mlnx_sched_obj_iter_t  it,
                                           mlnx_sched_iter_ctx_t *ctx);
 
-#define KV_DEVICE_MAC_ADDRESS            "DEVICE_MAC_ADDRESS"
-#define SAI_KEY_IPV4_ROUTE_TABLE_SIZE    "SAI_IPV4_ROUTE_TABLE_SIZE"
-#define SAI_KEY_IPV6_ROUTE_TABLE_SIZE    "SAI_IPV6_ROUTE_TABLE_SIZE"
-#define SAI_KEY_IPV4_NEIGHBOR_TABLE_SIZE "SAI_IPV4_NEIGHBOR_TABLE_SIZE"
-#define SAI_KEY_IPV6_NEIGHBOR_TABLE_SIZE "SAI_IPV6_NEIGHBOR_TABLE_SIZE"
-#define SAI_KEY_AGGREGATE_BRIDGE_DROPS   "SAI_AGGREGATE_BRIDGE_DROPS"
-#define SAI_KEY_DUMP_STORE_PATH          "SAI_DUMP_STORE_PATH"
-#define SAI_KEY_DUMP_STORE_AMOUNT        "SAI_DUMP_STORE_AMOUNT"
+#define KV_DEVICE_MAC_ADDRESS              "DEVICE_MAC_ADDRESS"
+#define SAI_KEY_IPV4_ROUTE_TABLE_SIZE      "SAI_IPV4_ROUTE_TABLE_SIZE"
+#define SAI_KEY_IPV6_ROUTE_TABLE_SIZE      "SAI_IPV6_ROUTE_TABLE_SIZE"
+#define SAI_KEY_IPV4_NEIGHBOR_TABLE_SIZE   "SAI_IPV4_NEIGHBOR_TABLE_SIZE"
+#define SAI_KEY_IPV6_NEIGHBOR_TABLE_SIZE   "SAI_IPV6_NEIGHBOR_TABLE_SIZE"
+#define SAI_KEY_AGGREGATE_BRIDGE_DROPS     "SAI_AGGREGATE_BRIDGE_DROPS"
+#define SAI_KEY_DUMP_STORE_PATH            "SAI_DUMP_STORE_PATH"
+#define SAI_KEY_DUMP_STORE_AMOUNT          "SAI_DUMP_STORE_AMOUNT"
+#define SAI_KEY_VXLAN_SRCPORT_RANGE_ENABLE "SAI_VXLAN_SRCPORT_RANGE_ENABLE"
 
 #define MLNX_MIRROR_VLAN_TPID           0x8100
 #define MLNX_GRE_PROTOCOL_TYPE          0x8949
@@ -2799,6 +2877,8 @@ sai_status_t mlnx_get_flow_counter_id(_In_ sai_object_id_t        counter,
                                       _Out_ sx_flow_counter_id_t *sx_counter_id);
 sai_status_t mlnx_update_hostif_trap_counter(_In_ sai_object_id_t trap_id,
                                              _In_ sai_object_id_t counter_id);
+#define is_isolation_group_in_use() (g_sai_db_ptr->port_isolation_api == PORT_ISOLATION_API_ISOLATION_GROUP)
+#define is_egress_block_in_use()    (g_sai_db_ptr->port_isolation_api == PORT_ISOLATION_API_EGRESS_BLOCK_PORT)
 
 #define LINE_LENGTH 120
 
@@ -2809,6 +2889,7 @@ void SAI_dump_buffer(_In_ FILE *file);
 void SAI_dump_debug_counter(_In_ FILE *file);
 void SAI_dump_hash(_In_ FILE *file);
 void SAI_dump_hostintf(_In_ FILE *file);
+void SAI_dump_isolation_group(_In_ FILE *file);
 void SAI_dump_mirror(_In_ FILE *file);
 void SAI_dump_policer(_In_ FILE *file);
 void SAI_dump_port(_In_ FILE *file);

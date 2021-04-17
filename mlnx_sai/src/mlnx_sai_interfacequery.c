@@ -241,6 +241,10 @@ sai_status_t sai_api_query(_In_ sai_api_t sai_api_id, _Out_ void** api_method_ta
         *(const sai_counter_api_t**)api_method_table = &mlnx_counter_api;
         return SAI_STATUS_SUCCESS;
 
+    case SAI_API_ISOLATION_GROUP:
+        *(const sai_isolation_group_api_t**)api_method_table = &mlnx_isolation_group_api;
+        return SAI_STATUS_SUCCESS;
+
     default:
         if (sai_api_id >= (sai_api_t)SAI_API_EXTENSIONS_RANGE_START_END) {
             MLNX_SAI_LOG_ERR("SAI API %d is out of range [%d, %d]\n",
@@ -474,6 +478,9 @@ sai_status_t sai_log_set(_In_ sai_api_t sai_api_id, _In_ sai_log_level_t log_lev
     case SAI_API_COUNTER:
         return mlnx_counter_log_set(severity);
 
+    case SAI_API_ISOLATION_GROUP:
+        return mlnx_isolation_group_log_set(severity);
+
     default:
         if (sai_api_id >= (sai_api_t)SAI_API_EXTENSIONS_RANGE_START_END) {
             MLNX_SAI_LOG_ERR("SAI API %d is out of range [%d, %d]\n",
@@ -604,6 +611,8 @@ sai_status_t sai_dbg_generate_dump(_In_ const char *dump_file_name)
     SAI_dump_debug_counter(file);
 
     SAI_dump_bfd(file);
+
+    SAI_dump_isolation_group(file);
 
     fclose(file);
 
