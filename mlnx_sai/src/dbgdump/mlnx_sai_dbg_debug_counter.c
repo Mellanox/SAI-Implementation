@@ -58,6 +58,7 @@ static void SAI_dump_debug_counter_type_to_str(_In_ sai_debug_counter_type_t typ
     assert(type <= SAI_DEBUG_COUNTER_TYPE_SWITCH_OUT_DROP_REASONS);
 
     const char *name = sai_metadata_enum_sai_debug_counter_type_t.valuesshortnames[type];
+
     strcpy(str, name);
 }
 
@@ -124,7 +125,7 @@ static void SAI_dump_debug_counter_print(_In_ FILE                       *file,
 void SAI_dump_debug_counter(_In_ FILE *file)
 {
     mlnx_debug_counter_t *dbg_counters = NULL;
-    uint32_t              size         = 0;
+    uint32_t              size = 0;
 
     dbg_counters = calloc(mlnx_shm_rm_array_size_get(MLNX_SHM_RM_ARRAY_TYPE_DEBUG_COUNTER),
                           sizeof(mlnx_debug_counter_t));

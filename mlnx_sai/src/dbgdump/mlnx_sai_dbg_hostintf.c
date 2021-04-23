@@ -73,8 +73,8 @@ static void SAI_dump_default_trap_group_print(_In_ FILE *file, _In_ sai_object_i
 
 static void SAI_dump_trap_group_valid_print(_In_ FILE *file, _In_ bool *trap_group_valid)
 {
-    uint32_t                  ii                       = 0;
-    uint32_t                  curr_trap_group_valid    = 0;
+    uint32_t                  ii = 0;
+    uint32_t                  curr_trap_group_valid = 0;
     dbg_utils_table_columns_t trap_group_valid_clmns[] = {
         {"db idx",           11, PARAM_UINT32_E, &ii},
         {"trap group valid", 16, PARAM_BOOL_E,   &curr_trap_group_valid},
@@ -238,7 +238,7 @@ static void SAI_dump_trap_mirror_discard_db(_In_ FILE             *file,
 {
     uint32_t                  ii = 0;
     sai_object_id_t           curr_mirror_oid;
-    uint32_t                  count                    = 0;
+    uint32_t                  count = 0;
     dbg_utils_table_columns_t traps_mirror_oid_clmns[] = {
         {"db idx",       7,  PARAM_UINT32_E, &ii},
         {"mirror oid",   16, PARAM_UINT64_E, &curr_mirror_oid},
@@ -285,19 +285,19 @@ void SAI_dump_hostintf(_In_ FILE *file)
 {
     sai_object_id_t  default_trap_group = 0;
     bool             trap_group_valid[MAX_TRAP_GROUPS];
-    sai_netdev_t     hostif_db[MAX_HOSTIFS];
-    mlnx_trap_t     *traps_db;
+    sai_netdev_t    *hostif_db = NULL;
+    mlnx_trap_t     *traps_db = NULL;
     trap_mirror_db_t trap_mirror_discard_wred_db;
     trap_mirror_db_t trap_mirror_discard_router_db;
 
     memset(trap_group_valid, 0, MAX_TRAP_GROUPS * sizeof(bool));
-    memset(hostif_db, 0, sizeof(hostif_db));
+    hostif_db = (sai_netdev_t*)calloc(MAX_HOSTIFS, sizeof(sai_netdev_t));
     traps_db = (mlnx_trap_t*)calloc(SXD_TRAP_ID_ACL_MAX, sizeof(mlnx_trap_t));
     memset(&trap_mirror_discard_wred_db, 0, sizeof(trap_mirror_db_t));
     memset(&trap_mirror_discard_router_db, 0, sizeof(trap_mirror_db_t));
 
-    if (!traps_db) {
-        return;
+    if ((!traps_db) || (!hostif_db)) {
+        goto cleanup;
     }
 
     SAI_dump_hostintf_getdb(&default_trap_group,
@@ -315,5 +315,11 @@ void SAI_dump_hostintf(_In_ FILE *file)
                                     &trap_mirror_discard_router_db);
     SAI_dump_hostif_db_print(file, hostif_db);
 
-    free(traps_db);
+cleanup:
+    if (hostif_db) {
+        free(hostif_db);
+    }
+    if (traps_db) {
+        free(traps_db);
+    }
 }

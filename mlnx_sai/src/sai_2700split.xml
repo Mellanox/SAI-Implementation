@@ -21,8 +21,8 @@
                 <!-- 0 none, 1=2, 2=4, 3=2,4 -->
                 <breakout-modes>3</breakout-modes>
 
-                <!-- (BITMASK) 4096 - 10Gb , 939524096 - 25Gb , 98368 - 40Gb , 3221225472 - 50Gb , 11534336 - 100Gb-->
-                <port-speed>3221225472</port-speed>
+                <!-- (BITMASK) 28700 - 10Gb , 939524096 - 25Gb , 98368 - 40Gb , 3221487616 - 50Gb , 11534336 - 100Gb-->
+                <port-speed>3221487616</port-speed>
                 <split>2</split>
             </port-info>
             <port-info>
@@ -30,7 +30,7 @@
                 <width>4</width>
                 <module>17</module>
                 <breakout-modes>1</breakout-modes>
-                <port-speed>3221225472</port-speed>
+                <port-speed>3221487616</port-speed>
                 <split>2</split>
             </port-info>
             <port-info>
@@ -38,7 +38,7 @@
                 <width>4</width>
                 <module>18</module>
                 <breakout-modes>3</breakout-modes>
-                <port-speed>3221225472</port-speed>
+                <port-speed>3221487616</port-speed>
                 <split>2</split>
             </port-info>
             <port-info>
@@ -46,7 +46,7 @@
                 <width>4</width>
                 <module>19</module>
                 <breakout-modes>1</breakout-modes>
-                <port-speed>3221225472</port-speed>
+                <port-speed>3221487616</port-speed>
                 <split>2</split>
             </port-info>
             <port-info>
@@ -54,7 +54,7 @@
                 <width>4</width>
                 <module>20</module>
                 <breakout-modes>3</breakout-modes>
-                <port-speed>3221225472</port-speed>
+                <port-speed>3221487616</port-speed>
                 <split>2</split>
             </port-info>
             <port-info>
@@ -62,7 +62,7 @@
                 <width>4</width>
                 <module>21</module>
                 <breakout-modes>1</breakout-modes>
-                <port-speed>3221225472</port-speed>
+                <port-speed>3221487616</port-speed>
                 <split>2</split>
             </port-info>
             <port-info>
@@ -98,7 +98,7 @@
                 <width>4</width>
                 <module>26</module>
                 <breakout-modes>3</breakout-modes>
-                <port-speed>3221225472</port-speed>
+                <port-speed>3221487616</port-speed>
                 <split>2</split>
             </port-info>
             <port-info>
@@ -106,7 +106,7 @@
                 <width>4</width>
                 <module>27</module>
                 <breakout-modes>1</breakout-modes>
-                <port-speed>3221225472</port-speed>
+                <port-speed>3221487616</port-speed>
                 <split>2</split>
             </port-info>
             <port-info>
@@ -114,7 +114,7 @@
                 <width>4</width>
                 <module>28</module>
                 <breakout-modes>3</breakout-modes>
-                <port-speed>3221225472</port-speed>
+                <port-speed>3221487616</port-speed>
                 <split>2</split>
             </port-info>
             <port-info>
@@ -122,7 +122,7 @@
                 <width>4</width>
                 <module>29</module>
                 <breakout-modes>1</breakout-modes>
-                <port-speed>3221225472</port-speed>
+                <port-speed>3221487616</port-speed>
                 <split>2</split>
             </port-info>
             <port-info>
@@ -130,7 +130,7 @@
                 <width>4</width>
                 <module>30</module>
                 <breakout-modes>3</breakout-modes>
-                <port-speed>3221225472</port-speed>
+                <port-speed>3221487616</port-speed>
                 <split>2</split>
             </port-info>
             <port-info>
@@ -138,7 +138,7 @@
                 <width>4</width>
                 <module>31</module>
                 <breakout-modes>1</breakout-modes>
-                <port-speed>3221225472</port-speed>
+                <port-speed>3221487616</port-speed>
                 <split>2</split>
             </port-info>
             <port-info>
@@ -146,7 +146,7 @@
                 <width>4</width>
                 <module>14</module>
                 <breakout-modes>3</breakout-modes>
-                <port-speed>3221225472</port-speed>
+                <port-speed>3221487616</port-speed>
                 <split>2</split>
             </port-info>
             <port-info>
@@ -154,7 +154,7 @@
                 <width>4</width>
                 <module>15</module>
                 <breakout-modes>1</breakout-modes>
-                <port-speed>3221225472</port-speed>
+                <port-speed>3221487616</port-speed>
                 <split>2</split>
             </port-info>
             <port-info>
@@ -162,7 +162,7 @@
                 <width>4</width>
                 <module>12</module>
                 <breakout-modes>3</breakout-modes>
-                <port-speed>3221225472</port-speed>
+                <port-speed>3221487616</port-speed>
                 <split>2</split>
             </port-info>
             <port-info>
@@ -170,7 +170,7 @@
                 <width>4</width>
                 <module>13</module>
                 <breakout-modes>1</breakout-modes>
-                <port-speed>3221225472</port-speed>
+                <port-speed>3221487616</port-speed>
                 <split>2</split>
             </port-info>
             <port-info>
@@ -178,7 +178,7 @@
                 <width>4</width>
                 <module>10</module>
                 <breakout-modes>3</breakout-modes>
-                <port-speed>3221225472</port-speed>
+                <port-speed>3221487616</port-speed>
                 <split>2</split>
             </port-info>
             <port-info>
@@ -186,7 +186,7 @@
                 <width>4</width>
                 <module>11</module>
                 <breakout-modes>1</breakout-modes>
-                <port-speed>3221225472</port-speed>
+                <port-speed>3221487616</port-speed>
                 <split>2</split>
             </port-info>
             <port-info>
@@ -222,7 +222,7 @@
                 <width>4</width>
                 <module>4</module>
                 <breakout-modes>3</breakout-modes>
-                <port-speed>3221225472</port-speed>
+                <port-speed>3221487616</port-speed>
                 <split>2</split>
             </port-info>
             <port-info>
@@ -230,7 +230,7 @@
                 <width>4</width>
                 <module>5</module>
                 <breakout-modes>1</breakout-modes>
-                <port-speed>3221225472</port-speed>
+                <port-speed>3221487616</port-speed>
                 <split>2</split>
             </port-info>
             <port-info>
@@ -238,7 +238,7 @@
                 <width>4</width>
                 <module>2</module>
                 <breakout-modes>3</breakout-modes>
-                <port-speed>3221225472</port-speed>
+                <port-speed>3221487616</port-speed>
                 <split>2</split>
             </port-info>
             <port-info>
@@ -246,7 +246,7 @@
                 <width>4</width>
                 <module>3</module>
                 <breakout-modes>1</breakout-modes>
-                <port-speed>3221225472</port-speed>
+                <port-speed>3221487616</port-speed>
                 <split>2</split>
             </port-info>
             <port-info>
@@ -254,7 +254,7 @@
                 <width>4</width>
                 <module>0</module>
                 <breakout-modes>3</breakout-modes>
-                <port-speed>3221225472</port-speed>
+                <port-speed>3221487616</port-speed>
                 <split>2</split>
             </port-info>
             <port-info>
@@ -262,7 +262,7 @@
                 <width>4</width>
                 <module>1</module>
                 <breakout-modes>1</breakout-modes>
-                <port-speed>3221225472</port-speed>
+                <port-speed>3221487616</port-speed>
                 <split>2</split>
             </port-info>
         </ports-list>

@@ -128,7 +128,7 @@ static const mlnx_attr_enum_info_t        udf_enum_info[] = {
         SAI_UDF_BASE_L3)
 };
 const mlnx_obj_type_attrs_info_t          mlnx_udf_obj_type_info =
-{ udf_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(udf_enum_info)};
+{ udf_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(udf_enum_info), OBJ_STAT_CAP_INFO_EMPTY()};
 /* UDF Match vendor attributes */
 static const sai_vendor_attribute_entry_t udf_match_vendor_attribs[] = {
     { SAI_UDF_MATCH_ATTR_L2_TYPE,
@@ -158,7 +158,7 @@ static const sai_vendor_attribute_entry_t udf_match_vendor_attribs[] = {
       NULL, NULL }
 };
 const mlnx_obj_type_attrs_info_t          mlnx_udf_match_obj_type_info =
-{ udf_match_vendor_attribs, OBJ_ATTRS_ENUMS_INFO_EMPTY()};
+{ udf_match_vendor_attribs, OBJ_ATTRS_ENUMS_INFO_EMPTY(), OBJ_STAT_CAP_INFO_EMPTY()};
 /* UDF Group vendor attributes */
 static const sai_vendor_attribute_entry_t udf_group_vendor_attribs[] = {
     { SAI_UDF_GROUP_ATTR_UDF_LIST,
@@ -187,7 +187,7 @@ static const mlnx_attr_enum_info_t        udf_group_enum_info[] = {
         SAI_UDF_GROUP_TYPE_GENERIC)
 };
 const mlnx_obj_type_attrs_info_t          mlnx_udf_group_obj_type_info =
-{ udf_group_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(udf_group_enum_info)};
+{ udf_group_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(udf_group_enum_info), OBJ_STAT_CAP_INFO_EMPTY()};
 static void udf_key_to_str(_In_ sai_object_id_t   object_id,
                            _In_ sai_object_type_t object_type,
                            _Out_ char            *key_str)
@@ -313,7 +313,7 @@ sai_status_t mlnx_custom_bytes_set(_In_ sx_access_cmd_t                         
 
     if (SX_ACCESS_CMD_CREATE == cmd) {
         if (bytes_count != length) {
-            SX_LOG_ERR("Failed to create enoght custom bytes. Created (%d), needed (%d)\n", bytes_count, length);
+            SX_LOG_ERR("Failed to create enough custom bytes. Created (%d), needed (%d)\n", bytes_count, length);
 
             sx_status = sx_api_acl_custom_bytes_set(gh_sdk, SX_ACCESS_CMD_DESTROY, attrs, keys, &bytes_count);
             if (SX_ERR(sx_status)) {
@@ -511,7 +511,7 @@ sai_status_t mlnx_udf_group_mask_is_hash_applicable(_In_ udf_group_mask_t       
                                                     _In_ mlnx_switch_usage_hash_object_id_t hash_oper_type,
                                                     _In_ bool                              *is_applicable)
 {
-    sai_status_t          status                = SAI_STATUS_SUCCESS;
+    sai_status_t          status = SAI_STATUS_SUCCESS;
     sai_u32_list_t        udf_groups_db_indexes = (sai_u32_list_t) {.list = NULL};
     mlnx_udf_match_type_t udf_match_type;
     uint32_t              udf_group_db_index, udf_db_index, udf_match_db_index, ii;
@@ -563,9 +563,9 @@ sai_status_t mlnx_udf_group_mask_is_hash_applicable(_In_ udf_group_mask_t       
             goto out;
         }
 
-        udf_db_index       = udf_db_group_udfs_ptr(udf_group_db_index)->udf_indexes[0];
+        udf_db_index = udf_db_group_udfs_ptr(udf_group_db_index)->udf_indexes[0];
         udf_match_db_index = udf_db_udf(udf_db_index).match_index;
-        udf_match_type     = udf_db_match(udf_match_db_index).type;
+        udf_match_type = udf_db_match(udf_match_db_index).type;
 
         switch (hash_oper_type) {
         case SAI_HASH_ECMP_IP4_ID:
@@ -681,7 +681,7 @@ sai_status_t mlnx_udf_group_mask_to_ecmp_hash_fields(_In_ udf_group_mask_t      
     assert(NULL != ecmp_hash_field_count);
 
     sx_acl_keys_count = 0;
-    status            = mlnx_udf_group_mask_to_sx_acl_keys(udf_group_mask, sx_acl_keys, &sx_acl_keys_count);
+    status = mlnx_udf_group_mask_to_sx_acl_keys(udf_group_mask, sx_acl_keys, &sx_acl_keys_count);
     if (SAI_ERR(status)) {
         return status;
     }
@@ -717,7 +717,7 @@ static sai_status_t mlnx_udf_group_db_index_references_set(_In_ uint32_t udf_gro
 
 static sai_status_t mlnx_udf_group_mask_references_set(_In_ udf_group_mask_t udf_group_mask, _In_ bool add_reference)
 {
-    sai_status_t   status                = SAI_STATUS_SUCCESS;
+    sai_status_t   status = SAI_STATUS_SUCCESS;
     sai_u32_list_t udf_groups_db_indexes = (sai_u32_list_t) {.list = NULL};
     uint32_t       ii;
 
@@ -820,14 +820,14 @@ static sai_status_t mlnx_udf_hash_mask_validate(_In_ const sai_u8_list_t *hash_m
                                                 _In_ uint32_t             attr_index,
                                                 _In_ uint32_t             group_db_index)
 {
-    uint32_t group_lenght, ii;
+    uint32_t group_length, ii;
 
     assert(NULL != hash_mask);
 
-    group_lenght = udf_db_group_ptr(group_db_index)->length;
+    group_length = udf_db_group_ptr(group_db_index)->length;
 
-    if (hash_mask->count != group_lenght) {
-        SX_LOG_ERR("Invalid hash mask size - %d, must be %d\n", hash_mask->count, group_lenght);
+    if (hash_mask->count != group_length) {
+        SX_LOG_ERR("Invalid hash mask size - %d, must be %d\n", hash_mask->count, group_length);
         return SAI_STATUS_INVALID_ATTR_VALUE_0 + attr_index;
     }
 
@@ -860,13 +860,13 @@ static sai_status_t mlnx_udf_base_validate(_In_ sai_udf_base_t base,
     udf_match_type = udf_db_match(match_db_index).type;
 
     if ((MLNX_UDF_MATCH_TYPE_EMPTY == udf_match_type) && (SAI_UDF_BASE_L2 != base)) {
-        SX_LOG_ERR("Unsuported combination of UDF Match and UDF Base - "
+        SX_LOG_ERR("Unsupported combination of UDF Match and UDF Base - "
                    "Empty UDF Match can only be used with SAI_UDF_BASE_L2\n");
         return SAI_STATUS_INVALID_ATTR_VALUE_0 + attr_index;
     }
 
     if ((MLNX_UDF_MATCH_TYPE_EMPTY != udf_match_type) && (SAI_UDF_BASE_L3 != base)) {
-        SX_LOG_ERR("Unsuported combination of UDF Match and UDF Base - "
+        SX_LOG_ERR("Unsupported combination of UDF Match and UDF Base - "
                    "L2 UDF Match can only be used with SAI_UDF_BASE_L3\n");
         return SAI_STATUS_INVALID_ATTR_VALUE_0 + attr_index;
     }
@@ -887,7 +887,7 @@ static sai_status_t mlnx_udf_group_sx_custom_bytes_remove(_In_ uint32_t group_db
 
     memset(&sx_custom_bytes_attrs, 0, sizeof(sx_custom_bytes_attrs));
 
-    sx_keys     = udf_db_group_ptr(group_db_index)->sx_custom_bytes_keys;
+    sx_keys = udf_db_group_ptr(group_db_index)->sx_custom_bytes_keys;
     bytes_count = udf_db_group_ptr(group_db_index)->length;
 
     status = mlnx_custom_bytes_set(SX_ACCESS_CMD_DESTROY, &sx_custom_bytes_attrs, sx_keys, bytes_count);
@@ -920,14 +920,14 @@ static sai_status_t mlnx_udf_group_sx_custom_bytes_create_or_update(_In_ uint32_
 
     memset(&sx_custom_bytes_attrs, 0, sizeof(sx_custom_bytes_attrs));
 
-    udf_count               = udf_db_group_udfs_ptr(group_db_index)->count;
+    udf_count = udf_db_group_udfs_ptr(group_db_index)->count;
     sx_custom_bytes_created = udf_db_group_ptr(group_db_index)->is_sx_custom_bytes_created;
 
     for (ii = 0; ii < udf_count; ii++) {
-        udf_db_index       = udf_db_group_udfs_ptr(group_db_index)->udf_indexes[ii];
-        udf_offset         = udf_db_udf(udf_db_index).offset;
+        udf_db_index = udf_db_group_udfs_ptr(group_db_index)->udf_indexes[ii];
+        udf_offset = udf_db_udf(udf_db_index).offset;
         udf_match_db_index = udf_db_udf(udf_db_index).match_index;
-        udf_match_type     = udf_db_match(udf_match_db_index).type;
+        udf_match_type = udf_db_match(udf_match_db_index).type;
 
         switch (udf_match_type) {
         case MLNX_UDF_MATCH_TYPE_EMPTY:
@@ -970,7 +970,7 @@ static sai_status_t mlnx_udf_group_sx_custom_bytes_create_or_update(_In_ uint32_
         }
     }
 
-    sx_keys     = udf_db_group_ptr(group_db_index)->sx_custom_bytes_keys;
+    sx_keys = udf_db_group_ptr(group_db_index)->sx_custom_bytes_keys;
     bytes_count = udf_db_group_ptr(group_db_index)->length;
 
     if (!sx_custom_bytes_created) {
@@ -1029,11 +1029,11 @@ static sai_status_t mlnx_udf_group_add_udf(_In_ uint32_t group_db_index, _In_ ui
         return SAI_STATUS_INSUFFICIENT_RESOURCES;
     }
 
-    udf_base           = udf_db_udf(udf_db_index).base;
+    udf_base = udf_db_udf(udf_db_index).base;
     udf_match_db_index = udf_db_udf(udf_db_index).match_index;
 
     if (0 != group_size) {
-        group_udf_db_index    = udf_db_group_udfs_ptr(group_db_index)->udf_indexes[0];
+        group_udf_db_index = udf_db_group_udfs_ptr(group_db_index)->udf_indexes[0];
         group_member_udf_base = udf_db_udf(group_udf_db_index).base;
 
         if (SAI_UDF_BASE_L2 == group_member_udf_base) {
@@ -1051,13 +1051,13 @@ static sai_status_t mlnx_udf_group_add_udf(_In_ uint32_t group_db_index, _In_ ui
             udf_match_type = udf_db_match(udf_match_db_index).type;
 
             for (ii = 0; ii < udf_db_group_udfs_ptr(group_db_index)->count; ii++) {
-                group_udf_db_index          = udf_db_group_udfs_ptr(group_db_index)->udf_indexes[ii];
-                group_udf_match_index       = udf_db_udf(group_udf_db_index).match_index;
+                group_udf_db_index = udf_db_group_udfs_ptr(group_db_index)->udf_indexes[ii];
+                group_udf_match_index = udf_db_udf(group_udf_db_index).match_index;
                 group_member_udf_match_type = udf_db_match(group_udf_match_index).type;
 
                 if (group_member_udf_match_type == udf_match_type) {
                     SX_LOG_ERR("Failed to add a udf to group[%d] - "
-                               "Group can only contain the UDFs with different UDF Mathes\n", group_udf_db_index);
+                               "Group can only contain the UDFs with different UDF Matches\n", group_udf_db_index);
                     return SAI_STATUS_NOT_SUPPORTED;
                 }
             }
@@ -1088,8 +1088,8 @@ static sai_status_t mlnx_udf_group_remove_udf(_In_ uint32_t udf_db_index)
     uint32_t          udf_group_db_index, ii;
 
     udf_group_db_index = udf_db_udf(udf_db_index).group_index;
-    udf_group          = udf_db_group_ptr(udf_group_db_index);
-    group_udfs         = udf_db_group_udfs_ptr(udf_group_db_index);
+    udf_group = udf_db_group_ptr(udf_group_db_index);
+    group_udfs = udf_db_group_udfs_ptr(udf_group_db_index);
 
     if ((udf_group->refs > 0) && (group_udfs->count == 1)) {
         SX_LOG_ERR("Failed to remove the last UDF (%lx) from a UDF Group (%lx) - UDF Group is in use\n",
@@ -1248,7 +1248,7 @@ static sai_status_t mlnx_udf_match_attrib_get(_In_ const sai_object_key_t   *key
 
     case SAI_UDF_MATCH_ATTR_L3_TYPE:
     case SAI_UDF_MATCH_ATTR_GRE_TYPE:
-        value->aclfield.enable   = false;
+        value->aclfield.enable = false;
         value->aclfield.data.u16 = 0x0;
         value->aclfield.mask.u16 = 0x0;
         break;
@@ -1376,7 +1376,7 @@ out:
  * @param[out] udf_id UDF id
  * @param[in] switch_id Switch id
  * @param[in] attr_count Number of attributes
- * @param[in] attr_list Aarray of attributes
+ * @param[in] attr_list Array of attributes
  *
  * @return #SAI_STATUS_SUCCESS on success Failure status code on error
  */
@@ -1389,7 +1389,7 @@ static sai_status_t mlnx_sai_create_udf(_Out_ sai_object_id_t      *udf_id,
     const sai_attribute_value_t *attr_match_id, *attr_group_id, *attr_base, *attr_offset, *attr_hash_mask;
     sai_udf_base_t               udf_base;
     char                         list_str[MAX_LIST_VALUE_STR_LEN] = {0};
-    char                         key_str[MAX_KEY_STR_LEN]         = {0};
+    char                         key_str[MAX_KEY_STR_LEN] = {0};
     uint32_t                     group_db_index, match_db_index, udf_offset, udf_db_index, attr_index;
 
     SX_LOG_ENTER();
@@ -1456,7 +1456,7 @@ static sai_status_t mlnx_sai_create_udf(_Out_ sai_object_id_t      *udf_id,
     udf_offset = attr_offset->u16;
 
     if (MLNX_UDF_OFFSET_MAX < udf_offset) {
-        SX_LOG_ERR("Invalid value for offset (%d), the maximim offset is (%d)\n", udf_offset, MLNX_UDF_OFFSET_MAX);
+        SX_LOG_ERR("Invalid value for offset (%d), the maximum offset is (%d)\n", udf_offset, MLNX_UDF_OFFSET_MAX);
         status = SAI_STATUS_INVALID_ATTR_VALUE_0 + attr_index;
         goto out_unlock;
     }
@@ -1475,8 +1475,8 @@ static sai_status_t mlnx_sai_create_udf(_Out_ sai_object_id_t      *udf_id,
         goto out_unlock;
     }
 
-    udf_db_udf(udf_db_index).base        = udf_base;
-    udf_db_udf(udf_db_index).offset      = udf_offset;
+    udf_db_udf(udf_db_index).base = udf_base;
+    udf_db_udf(udf_db_index).offset = udf_offset;
     udf_db_udf(udf_db_index).match_index = match_db_index;
 
     status = mlnx_udf_group_add_udf(group_db_index, udf_db_index);
@@ -1611,7 +1611,7 @@ static sai_status_t mlnx_sai_create_udf_match(_Out_ sai_object_id_t      *udf_ma
     const sai_attribute_value_t *l2_type_attr, *l3_type_attr, *gre_type_attr, *prio_attr;
     mlnx_udf_match_type_t        match_type;
     char                         list_str[MAX_LIST_VALUE_STR_LEN] = {0};
-    char                         key_str[MAX_KEY_STR_LEN]         = {0};
+    char                         key_str[MAX_KEY_STR_LEN] = {0};
     uint32_t                     attr_index, db_index;
     uint8_t                      match_prio;
 
@@ -1681,9 +1681,9 @@ static sai_status_t mlnx_sai_create_udf_match(_Out_ sai_object_id_t      *udf_ma
         goto out_unlock;
     }
 
-    udf_db_match(db_index).priority   = match_prio;
-    udf_db_match(db_index).type       = match_type;
-    udf_db_match(db_index).refs       = 0;
+    udf_db_match(db_index).priority = match_prio;
+    udf_db_match(db_index).type = match_type;
+    udf_db_match(db_index).refs = 0;
     udf_db_match(db_index).is_created = true;
 
     status = mlnx_create_object(SAI_OBJECT_TYPE_UDF_MATCH, db_index, NULL, udf_match_id);
@@ -1769,7 +1769,7 @@ static sai_status_t mlnx_sai_set_udf_match_attribute(_In_ sai_object_id_t       
  *
  * @param[in] udf_match_id UDF match id
  * @param[in] attr_count Number of attributes
- * @param[inout] attrs Aarray of attributes
+ * @param[inout] attrs Array of attributes
  *
  * @return #SAI_STATUS_SUCCESS on success Failure status code on error
  */
@@ -1803,10 +1803,10 @@ static sai_status_t mlnx_sai_create_udf_group(_Out_ sai_object_id_t      *udf_gr
                                               _In_ const sai_attribute_t *attr_list)
 {
     sai_status_t                 status;
-    const sai_attribute_value_t *attr_group_type, *attr_group_lenght;
+    const sai_attribute_value_t *attr_group_type, *attr_group_length;
     sai_udf_group_type_t         group_type;
     char                         list_str[MAX_LIST_VALUE_STR_LEN] = {0};
-    char                         key_str[MAX_KEY_STR_LEN]         = {0};
+    char                         key_str[MAX_KEY_STR_LEN] = {0};
     uint32_t                     group_lengh, db_index, attr_index;
 
     SX_LOG_ENTER();
@@ -1842,13 +1842,13 @@ static sai_status_t mlnx_sai_create_udf_group(_Out_ sai_object_id_t      *udf_gr
     }
 
     status = find_attrib_in_list(attr_count, attr_list, SAI_UDF_GROUP_ATTR_LENGTH,
-                                 &attr_group_lenght, &attr_index);
+                                 &attr_group_length, &attr_index);
     assert(SAI_STATUS_SUCCESS == status);
 
-    group_lengh = attr_group_lenght->u16;
+    group_lengh = attr_group_length->u16;
 
     if ((0 == group_lengh) || (MLNX_UDF_GROUP_LENGTH_MAX < group_lengh)) {
-        SX_LOG_ERR("Invalid value for group lenght (%d), valid value is [1, %d]\n",
+        SX_LOG_ERR("Invalid value for group length (%d), valid value is [1, %d]\n",
                    group_lengh,
                    MLNX_UDF_GROUP_LENGTH_MAX);
         status = SAI_STATUS_INVALID_ATTR_VALUE_0 + attr_index;
@@ -1862,9 +1862,9 @@ static sai_status_t mlnx_sai_create_udf_group(_Out_ sai_object_id_t      *udf_gr
         goto out_unlock;
     }
 
-    udf_db_group_ptr(db_index)->type       = group_type;
-    udf_db_group_ptr(db_index)->length     = group_lengh;
-    udf_db_group_ptr(db_index)->refs       = 0;
+    udf_db_group_ptr(db_index)->type = group_type;
+    udf_db_group_ptr(db_index)->length = group_lengh;
+    udf_db_group_ptr(db_index)->refs = 0;
     udf_db_group_ptr(db_index)->is_created = true;
     udf_db_group_udfs_ptr(db_index)->count = 0;
 
@@ -1913,7 +1913,7 @@ static sai_status_t mlnx_sai_remove_udf_group(_In_ sai_object_id_t udf_group_id)
         goto out;
     }
 
-    udf_group      = udf_db_group_ptr(group_db_index);
+    udf_group = udf_db_group_ptr(group_db_index);
     udf_group_udfs = udf_db_group_udfs_ptr(group_db_index);
 
     if (udf_group->refs > 0) {

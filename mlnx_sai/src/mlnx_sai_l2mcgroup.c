@@ -49,7 +49,7 @@ static const sai_vendor_attribute_entry_t l2mcgroup_vendor_attribs[] = {
       NULL, NULL }
 };
 const mlnx_obj_type_attrs_info_t          mlnx_l2mcgroup_obj_type_info =
-{ l2mcgroup_vendor_attribs, OBJ_ATTRS_ENUMS_INFO_EMPTY()};
+{ l2mcgroup_vendor_attribs, OBJ_ATTRS_ENUMS_INFO_EMPTY(), OBJ_STAT_CAP_INFO_EMPTY()};
 static const sai_vendor_attribute_entry_t l2mcgroup_member_vendor_attribs[] = {
     { SAI_L2MC_GROUP_MEMBER_ATTR_L2MC_GROUP_ID,
       {true, false, false, true},
@@ -68,7 +68,7 @@ static const sai_vendor_attribute_entry_t l2mcgroup_member_vendor_attribs[] = {
       NULL, NULL }
 };
 const mlnx_obj_type_attrs_info_t          mlnx_l2mcgroup_member_obj_type_info =
-{ l2mcgroup_member_vendor_attribs, OBJ_ATTRS_ENUMS_INFO_EMPTY()};
+{ l2mcgroup_member_vendor_attribs, OBJ_ATTRS_ENUMS_INFO_EMPTY(), OBJ_STAT_CAP_INFO_EMPTY()};
 static void l2mcgroup_key_to_str(_In_ sai_object_id_t object_id, _Out_ char           *key_str)
 {
     mlnx_object_id_t *moid = (mlnx_object_id_t*)&object_id;
@@ -133,7 +133,7 @@ static sai_status_t mlnx_l2mc_group_init(_In_ mlnx_l2mc_group_t *l2mc_group)
                                         0,
                                         &sx_mc_container_attributes);
     if (SX_ERR(sx_status)) {
-        SX_LOG_ERR("Faield to create sx_mc_container - %s\n", SX_STATUS_MSG(sx_status));
+        SX_LOG_ERR("Failed to create sx_mc_container - %s\n", SX_STATUS_MSG(sx_status));
         return sdk_to_sai(sx_status);
     }
 
@@ -159,7 +159,7 @@ static sai_status_t mlnx_l2mc_group_deinit(_In_ mlnx_l2mc_group_t *l2mc_group)
                                             0,
                                             &sx_mc_container_attributes);
         if (SX_ERR(sx_status)) {
-            SX_LOG_ERR("Faield to remove sx_mc_container %x - %s\n",
+            SX_LOG_ERR("Failed to remove sx_mc_container %x - %s\n",
                        l2mc_group->mc_container, SX_STATUS_MSG(sx_status));
             return sdk_to_sai(sx_status);
         }
@@ -190,7 +190,7 @@ sai_status_t mlnx_l2mc_group_oid_create(_In_ const mlnx_l2mc_group_t *l2mc_group
 
     moid = (mlnx_object_id_t*)oid;
 
-    moid->object_type          = SAI_OBJECT_TYPE_L2MC_GROUP;
+    moid->object_type = SAI_OBJECT_TYPE_L2MC_GROUP;
     moid->id.l2mc_group.db_idx = l2mc_group_ptr_to_db_idx(l2mc_group);
 
     return SAI_STATUS_SUCCESS;
@@ -202,7 +202,7 @@ static sai_status_t mlnx_l2mc_group_bports_get(_In_ const mlnx_l2mc_group_t *l2m
 {
     sai_status_t     status;
     sx_port_log_id_t sx_ports[MAX_BRIDGE_1Q_PORTS] = {0};
-    uint32_t         ports_count                   = MAX_BRIDGE_1Q_PORTS, ii;
+    uint32_t         ports_count = MAX_BRIDGE_1Q_PORTS, ii;
 
     assert(l2mc_group);
     assert(bports);
@@ -301,7 +301,7 @@ sai_status_t mlnx_l2mc_group_sx_ports_get(_In_ const mlnx_l2mc_group_t *l2mc_gro
                                         &next_hops_count,
                                         &sx_mc_container_attributes);
     if (SX_ERR(sx_status)) {
-        SX_LOG_ERR("Faield to get ports from sx_mc_container %x - %s\n", l2mc_group->mc_container,
+        SX_LOG_ERR("Failed to get ports from sx_mc_container %x - %s\n", l2mc_group->mc_container,
                    SX_STATUS_MSG(sx_status));
         return sdk_to_sai(sx_status);
     }
@@ -328,7 +328,7 @@ sai_status_t mlnx_l2mc_group_to_pbs_info(_In_ const mlnx_l2mc_group_t *l2mc_grou
     assert(pbs_info);
 
     pbs_info->type = MLNX_ACL_PBS_TYPE_MCGROUP;
-    pbs_info->idx  = l2mc_group_ptr_to_db_idx(l2mc_group);
+    pbs_info->idx = l2mc_group_ptr_to_db_idx(l2mc_group);
 
     return SAI_STATUS_SUCCESS;
 }
@@ -349,9 +349,9 @@ sai_status_t mlnx_l2mc_group_pbs_use(_In_ mlnx_l2mc_group_t *l2mc_group)
     sx_status_t           sx_status;
     sx_acl_pbs_entry_t    sx_pbs_entry;
     mlnx_acl_pbs_entry_t *pbs_entry;
-    mlnx_bridge_port_t   *bports[MAX_PORTS_DB * 2]   = {NULL};
+    mlnx_bridge_port_t   *bports[MAX_PORTS_DB * 2] = {NULL};
     sx_port_id_t          sx_ports[MAX_PORTS_DB * 2] = {0};
-    uint32_t              bports_count               = MAX_PORTS_DB * 2, ii;
+    uint32_t              bports_count = MAX_PORTS_DB * 2, ii;
 
     assert(l2mc_group);
 
@@ -370,8 +370,8 @@ sai_status_t mlnx_l2mc_group_pbs_use(_In_ mlnx_l2mc_group_t *l2mc_group)
         }
 
         sx_pbs_entry.entry_type = SX_ACL_PBS_ENTRY_TYPE_MULTICAST;
-        sx_pbs_entry.port_num   = bports_count;
-        sx_pbs_entry.log_ports  = sx_ports;
+        sx_pbs_entry.port_num = bports_count;
+        sx_pbs_entry.log_ports = sx_ports;
 
         sx_status = sx_api_acl_policy_based_switching_set(gh_sdk, SX_ACCESS_CMD_ADD, DEFAULT_ETH_SWID,
                                                           &sx_pbs_entry, &pbs_entry->pbs_id);
@@ -441,7 +441,7 @@ static sai_status_t mlnx_l2mc_group_is_in_use(_In_ mlnx_l2mc_group_t *l2mc_group
                                         &next_hops_count,
                                         &sx_mc_container_attributes);
     if (SX_ERR(sx_status)) {
-        SX_LOG_ERR("Faield to get ports count from sx_mc_container %x - %s\n", l2mc_group->mc_container,
+        SX_LOG_ERR("Failed to get ports count from sx_mc_container %x - %s\n", l2mc_group->mc_container,
                    SX_STATUS_MSG(sx_status));
         return sdk_to_sai(sx_status);
     }
@@ -474,8 +474,8 @@ static sai_status_t mlnx_l2mc_group_member_sai_to_oid(_In_ const mlnx_l2mc_group
 
     moid = (mlnx_object_id_t*)oid;
 
-    moid->object_type                        = SAI_OBJECT_TYPE_L2MC_GROUP_MEMBER;
-    moid->id.l2mc_group.db_idx               = l2mc_group_ptr_to_db_idx(l2mc_group);
+    moid->object_type = SAI_OBJECT_TYPE_L2MC_GROUP_MEMBER;
+    moid->id.l2mc_group.db_idx = l2mc_group_ptr_to_db_idx(l2mc_group);
     moid->ext.l2mc_group_member.bport_db_idx = bport->index;
 
     return SAI_STATUS_SUCCESS;
@@ -540,13 +540,13 @@ static sai_status_t mlnx_l2mc_sx_container_update(_In_ mlnx_l2mc_group_t        
     sx_cmd = add ? SX_ACCESS_CMD_ADD : SX_ACCESS_CMD_DELETE;
 
     sx_mc_container_attributes.type = SX_MC_CONTAINER_TYPE_PORT;
-    sx_mc_next_hop.type             = SX_MC_NEXT_HOP_TYPE_LOG_PORT;
-    sx_mc_next_hop.data.log_port    = bport->logical;
+    sx_mc_next_hop.type = SX_MC_NEXT_HOP_TYPE_LOG_PORT;
+    sx_mc_next_hop.data.log_port = bport->logical;
 
     sx_status = sx_api_mc_container_set(gh_sdk, sx_cmd, &l2mc_group->mc_container,
                                         &sx_mc_next_hop, 1, &sx_mc_container_attributes);
     if (SX_ERR(sx_status)) {
-        SX_LOG_ERR("Faield to %s port %x, sx_mc_container %x - %s\n", SX_ACCESS_CMD_STR(sx_cmd), bport->logical,
+        SX_LOG_ERR("Failed to %s port %x, sx_mc_container %x - %s\n", SX_ACCESS_CMD_STR(sx_cmd), bport->logical,
                    l2mc_group->mc_container, SX_STATUS_MSG(sx_status));
         return sdk_to_sai(sx_status);
     }
@@ -576,11 +576,11 @@ static sai_status_t mlnx_l2mc_sx_pbs_update(_In_ mlnx_l2mc_group_t        *l2mc_
     memset(&sx_pbs_entry, 0, sizeof(sx_pbs_entry));
 
     sx_port = bport->logical;
-    sx_cmd  = add ? SX_ACCESS_CMD_ADD_PORTS : SX_ACCESS_CMD_DELETE_PORTS;
+    sx_cmd = add ? SX_ACCESS_CMD_ADD_PORTS : SX_ACCESS_CMD_DELETE_PORTS;
 
     sx_pbs_entry.entry_type = SX_ACL_PBS_ENTRY_TYPE_MULTICAST;
-    sx_pbs_entry.port_num   = 1;
-    sx_pbs_entry.log_ports  = &sx_port;
+    sx_pbs_entry.port_num = 1;
+    sx_pbs_entry.log_ports = &sx_port;
 
     sx_status = sx_api_acl_policy_based_switching_set(gh_sdk, sx_cmd, DEFAULT_ETH_SWID, &sx_pbs_entry, &sx_pbs);
     if (SX_ERR(sx_status)) {
@@ -603,7 +603,7 @@ static sai_status_t mlnx_l2mc_group_fid_uc_bc_flood_ctrl_update(_In_ sx_fid_t   
     sx_status_t      sx_status;
     sx_access_cmd_t  sx_cmd;
     sx_port_log_id_t fid_ports[MAX_BRIDGE_1Q_PORTS] = {0};
-    uint32_t         fid_ports_count                = MAX_BRIDGE_1Q_PORTS, ii;
+    uint32_t         fid_ports_count = MAX_BRIDGE_1Q_PORTS, ii;
     bool             port_in_fid;
 
     assert(bport);
@@ -626,7 +626,7 @@ static sai_status_t mlnx_l2mc_group_fid_uc_bc_flood_ctrl_update(_In_ sx_fid_t   
         return SAI_STATUS_SUCCESS;
     }
 
-    sx_cmd    = (add) ? SX_ACCESS_CMD_DELETE_PORTS : SX_ACCESS_CMD_ADD_PORTS;
+    sx_cmd = (add) ? SX_ACCESS_CMD_DELETE_PORTS : SX_ACCESS_CMD_ADD_PORTS;
     sx_status = sx_api_fdb_flood_control_set(gh_sdk, sx_cmd, DEFAULT_ETH_SWID, sx_fid,
                                              sx_flood_type, 1, &bport->logical);
     if (SX_ERR(sx_status)) {
@@ -647,7 +647,7 @@ static sai_status_t mlnx_l2mc_group_flood_ctrl_mc_refresh(_In_ const mlnx_l2mc_g
     sai_status_t     status;
     sx_status_t      sx_status;
     sx_port_log_id_t sx_ports[MAX_BRIDGE_1Q_PORTS] = {0};
-    uint32_t         ports_count                   = MAX_BRIDGE_1Q_PORTS;
+    uint32_t         ports_count = MAX_BRIDGE_1Q_PORTS;
 
     assert(l2mc_group);
 
@@ -853,7 +853,7 @@ static sai_status_t mlnx_create_l2mc_group(_Out_ sai_object_id_t      *l2mc_grou
     sai_status_t       status;
     mlnx_l2mc_group_t *l2mc_group;
     char               list_str[MAX_LIST_VALUE_STR_LEN] = {0};
-    char               key_str[MAX_KEY_STR_LEN]         = {0};
+    char               key_str[MAX_KEY_STR_LEN] = {0};
 
     SX_LOG_ENTER();
 
@@ -917,7 +917,7 @@ static sai_status_t mlnx_remove_l2mc_group(_In_ sai_object_id_t l2mc_group_id)
     sai_status_t       status;
     mlnx_l2mc_group_t *l2mc_group;
     char               key_str[MAX_KEY_STR_LEN] = {0};
-    bool               is_in_use                = true;
+    bool               is_in_use = true;
 
     SX_LOG_ENTER();
 
@@ -1049,7 +1049,7 @@ static sai_status_t mlnx_create_l2mc_group_member(_Out_ sai_object_id_t      *l2
     mlnx_bridge_port_t          *bport;
     uint32_t                     attr_index;
     char                         list_str[MAX_LIST_VALUE_STR_LEN] = {0};
-    char                         key_str[MAX_KEY_STR_LEN]         = {0};
+    char                         key_str[MAX_KEY_STR_LEN] = {0};
 
     SX_LOG_ENTER();
 

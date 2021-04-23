@@ -58,7 +58,7 @@ static const mlnx_attr_enum_info_t        qos_map_enum_info[] = {
     [SAI_QOS_MAP_ATTR_TYPE] = ATTR_ENUM_VALUES_ALL(),
 };
 const mlnx_obj_type_attrs_info_t          mlnx_qos_map_obj_type_info =
-{ qos_map_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(qos_map_enum_info)};
+{ qos_map_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(qos_map_enum_info), OBJ_STAT_CAP_INFO_EMPTY()};
 /* db read lock is needed */
 static mlnx_qos_map_t * db_qos_map_get(uint32_t id)
 {
@@ -91,7 +91,7 @@ static sai_status_t db_qos_map_alloc(uint32_t *id)
         mlnx_qos_map_t *qos_map = db_qos_map_get(ii);
 
         if (!qos_map->is_used) {
-            *id              = ii;
+            *id = ii;
             qos_map->is_used = true;
             return SAI_STATUS_SUCCESS;
         }
@@ -209,16 +209,16 @@ static sai_status_t sai_dot1p_to_tc_color_mlnx_convert(mlnx_qos_map_t *qos_map, 
     }
 
     for (ii = 0; ii < count; ii++) {
-        qos_map->from.pcp_dei[ii].pcp       = qos_params->list[ii].key.dot1p;
-        qos_map->from.pcp_dei[ii].dei       = 0;
+        qos_map->from.pcp_dei[ii].pcp = qos_params->list[ii].key.dot1p;
+        qos_map->from.pcp_dei[ii].dei = 0;
         qos_map->to.prio_color[ii].priority = qos_params->list[ii].value.tc;
-        qos_map->to.prio_color[ii].color    = qos_params->list[ii].value.color;
+        qos_map->to.prio_color[ii].color = qos_params->list[ii].value.color;
 
         /* The trick is to use double map with dei=0 & dei=1 */
-        qos_map->from.pcp_dei[ii + count].pcp       = qos_params->list[ii].key.dot1p;
-        qos_map->from.pcp_dei[ii + count].dei       = 1;
+        qos_map->from.pcp_dei[ii + count].pcp = qos_params->list[ii].key.dot1p;
+        qos_map->from.pcp_dei[ii + count].dei = 1;
         qos_map->to.prio_color[ii + count].priority = qos_params->list[ii].value.tc;
-        qos_map->to.prio_color[ii + count].color    = qos_params->list[ii].value.color;
+        qos_map->to.prio_color[ii + count].color = qos_params->list[ii].value.color;
     }
 
     return SAI_STATUS_SUCCESS;
@@ -243,9 +243,9 @@ static sai_status_t sai_dscp_to_tc_color_mlnx_convert(mlnx_qos_map_t *qos_map, c
     }
 
     for (ii = 0; ii < qos_params->count; ii++) {
-        qos_map->from.dscp[ii]              = qos_params->list[ii].key.dscp;
+        qos_map->from.dscp[ii] = qos_params->list[ii].key.dscp;
         qos_map->to.prio_color[ii].priority = qos_params->list[ii].value.tc;
-        qos_map->to.prio_color[ii].color    = qos_params->list[ii].value.color;
+        qos_map->to.prio_color[ii].color = qos_params->list[ii].value.color;
     }
 
     return SAI_STATUS_SUCCESS;
@@ -263,7 +263,7 @@ static sai_status_t sai_tc_to_queue_mlnx_convert(mlnx_qos_map_t *qos_map, const 
     }
     for (ii = 0; ii < qos_params->count; ii++) {
         qos_map->from.prio_color[ii].priority = qos_params->list[ii].key.tc;
-        qos_map->to.queue[ii]                 = qos_params->list[ii].value.queue_index;
+        qos_map->to.queue[ii] = qos_params->list[ii].value.queue_index;
     }
 
     return SAI_STATUS_SUCCESS;
@@ -283,8 +283,8 @@ static sai_status_t sai_tc_and_color_to_dscp_mlnx_convert(mlnx_qos_map_t        
     }
     for (ii = 0; ii < qos_params->count; ii++) {
         qos_map->from.prio_color[ii].priority = qos_params->list[ii].key.tc;
-        qos_map->from.prio_color[ii].color    = qos_params->list[ii].key.color;
-        qos_map->to.dscp[ii]                  = qos_params->list[ii].value.dscp;
+        qos_map->from.prio_color[ii].color = qos_params->list[ii].key.color;
+        qos_map->to.dscp[ii] = qos_params->list[ii].value.dscp;
     }
 
     return SAI_STATUS_SUCCESS;
@@ -304,8 +304,8 @@ static sai_status_t sai_tc_and_color_to_dot1p_mlnx_convert(mlnx_qos_map_t       
     }
     for (ii = 0; ii < qos_params->count; ii++) {
         qos_map->from.prio_color[ii].priority = qos_params->list[ii].key.tc;
-        qos_map->from.prio_color[ii].color    = qos_params->list[ii].key.color;
-        qos_map->to.pcp_dei[ii].pcp           = qos_params->list[ii].value.dot1p;
+        qos_map->from.prio_color[ii].color = qos_params->list[ii].key.color;
+        qos_map->to.pcp_dei[ii].pcp = qos_params->list[ii].value.dot1p;
     }
 
     return SAI_STATUS_SUCCESS;
@@ -324,7 +324,7 @@ static sai_status_t sai_tc_to_pg_mlnx_convert(mlnx_qos_map_t *qos_map, const sai
 
     for (ii = 0; ii < qos_params->count; ii++) {
         qos_map->from.prio_color[ii].priority = qos_params->list[ii].key.tc;
-        qos_map->to.pg[ii]                    = qos_params->list[ii].value.pg;
+        qos_map->to.pg[ii] = qos_params->list[ii].value.pg;
     }
 
     return SAI_STATUS_SUCCESS;
@@ -343,7 +343,7 @@ static sai_status_t sai_pfc_to_pg_mlnx_convert(mlnx_qos_map_t *qos_map, const sa
 
     for (ii = 0; ii < qos_params->count; ii++) {
         qos_map->from.pfc[ii] = qos_params->list[ii].key.prio;
-        qos_map->to.pg[ii]    = qos_params->list[ii].value.pg;
+        qos_map->to.pg[ii] = qos_params->list[ii].value.pg;
     }
 
     return SAI_STATUS_SUCCESS;
@@ -379,11 +379,11 @@ static sai_status_t sai_pfc_to_queue_mlnx_convert(mlnx_qos_map_t *qos_map, const
 sai_status_t mlnx_qos_map_set_default(_Inout_ mlnx_qos_map_t *qos_map)
 {
     sai_qos_map_type_t qos_map_type = qos_map->type;
-    bool               is_used      = qos_map->is_used;
+    bool               is_used = qos_map->is_used;
     uint32_t           ii, jj;
 
     memset(qos_map, 0, sizeof(*qos_map));
-    qos_map->type    = qos_map_type;
+    qos_map->type = qos_map_type;
     qos_map->is_used = is_used;
 
     /* We fill all keys. Default values equal zero by memset */
@@ -392,8 +392,8 @@ sai_status_t mlnx_qos_map_set_default(_Inout_ mlnx_qos_map_t *qos_map)
         qos_map->count = COS_PCP_MAX_NUM + 1;
 
         for (ii = 0; ii < qos_map->count; ii++) {
-            qos_map->from.pcp_dei[ii].pcp                  = ii;
-            qos_map->from.pcp_dei[ii].dei                  = 0;
+            qos_map->from.pcp_dei[ii].pcp = ii;
+            qos_map->from.pcp_dei[ii].dei = 0;
             qos_map->from.pcp_dei[ii + qos_map->count].pcp = ii;
             qos_map->from.pcp_dei[ii + qos_map->count].dei = 1;
         }
@@ -431,7 +431,7 @@ sai_status_t mlnx_qos_map_set_default(_Inout_ mlnx_qos_map_t *qos_map)
         for (ii = 0; ii < MAX_PORT_PRIO + 1; ii++) {
             for (jj = 0; jj < MLNX_QOS_MAP_COLOR_MAX + 1; jj++) {
                 qos_map->from.prio_color[index].priority = ii;
-                qos_map->from.prio_color[index].color    = jj;
+                qos_map->from.prio_color[index].color = jj;
 
                 if (qos_map->type == SAI_QOS_MAP_TYPE_TC_AND_COLOR_TO_DOT1P) {
                     qos_map->to.pcp_dei[index].pcp = (ii <= MAX_PCP_PRIO) ? ii : MAX_PCP_PRIO;
@@ -594,37 +594,37 @@ static sai_status_t mlnx_qos_map_list_get(_In_ const sai_object_key_t   *key,
         switch (qos_map->type) {
         case SAI_QOS_MAP_TYPE_DOT1P_TO_TC:
         case SAI_QOS_MAP_TYPE_DOT1P_TO_COLOR:
-            qos_params->list[ii].key.dot1p   = qos_map->from.pcp_dei[ii].pcp;
-            qos_params->list[ii].value.tc    = qos_map->to.prio_color[ii].priority;
+            qos_params->list[ii].key.dot1p = qos_map->from.pcp_dei[ii].pcp;
+            qos_params->list[ii].value.tc = qos_map->to.prio_color[ii].priority;
             qos_params->list[ii].value.color = qos_map->to.prio_color[ii].color;
             break;
 
         case SAI_QOS_MAP_TYPE_DSCP_TO_TC:
         case SAI_QOS_MAP_TYPE_DSCP_TO_COLOR:
-            qos_params->list[ii].key.dscp    = qos_map->from.dscp[ii];
-            qos_params->list[ii].value.tc    = qos_map->to.prio_color[ii].priority;
+            qos_params->list[ii].key.dscp = qos_map->from.dscp[ii];
+            qos_params->list[ii].value.tc = qos_map->to.prio_color[ii].priority;
             qos_params->list[ii].value.color = qos_map->to.prio_color[ii].color;
             break;
 
         case SAI_QOS_MAP_TYPE_TC_TO_QUEUE:
-            qos_params->list[ii].key.tc            = qos_map->from.prio_color[ii].priority;
+            qos_params->list[ii].key.tc = qos_map->from.prio_color[ii].priority;
             qos_params->list[ii].value.queue_index = qos_map->to.queue[ii];
             break;
 
         case SAI_QOS_MAP_TYPE_TC_AND_COLOR_TO_DSCP:
-            qos_params->list[ii].key.tc     = qos_map->from.prio_color[ii].priority;
-            qos_params->list[ii].key.color  = qos_map->from.prio_color[ii].color;
+            qos_params->list[ii].key.tc = qos_map->from.prio_color[ii].priority;
+            qos_params->list[ii].key.color = qos_map->from.prio_color[ii].color;
             qos_params->list[ii].value.dscp = qos_map->to.dscp[ii];
             break;
 
         case SAI_QOS_MAP_TYPE_TC_AND_COLOR_TO_DOT1P:
-            qos_params->list[ii].key.tc      = qos_map->from.prio_color[ii].priority;
-            qos_params->list[ii].key.color   = qos_map->from.prio_color[ii].color;
+            qos_params->list[ii].key.tc = qos_map->from.prio_color[ii].priority;
+            qos_params->list[ii].key.color = qos_map->from.prio_color[ii].color;
             qos_params->list[ii].value.dot1p = qos_map->to.pcp_dei[ii].pcp;
             break;
 
         case SAI_QOS_MAP_TYPE_TC_TO_PRIORITY_GROUP:
-            qos_params->list[ii].key.tc   = qos_map->from.prio_color[ii].priority;
+            qos_params->list[ii].key.tc = qos_map->from.prio_color[ii].priority;
             qos_params->list[ii].value.pg = qos_map->to.pg[ii];
             break;
 
@@ -634,7 +634,7 @@ static sai_status_t mlnx_qos_map_list_get(_In_ const sai_object_key_t   *key,
             break;
 
         case SAI_QOS_MAP_TYPE_PFC_PRIORITY_TO_QUEUE:
-            qos_params->list[ii].key.prio          = qos_map->from.pfc[ii];
+            qos_params->list[ii].key.prio = qos_map->from.pfc[ii];
             qos_params->list[ii].value.queue_index = qos_map->to.queue[ii];
             break;
 
@@ -773,7 +773,7 @@ static sai_status_t mlnx_create_qos_map(_Out_ sai_object_id_t     * qos_map_id,
         goto out;
     }
 
-    qos_map       = db_qos_map_get(new_id);
+    qos_map = db_qos_map_get(new_id);
     qos_map->type = type->u32;
 
     status = find_attrib_in_list(attr_count, attr_list, SAI_QOS_MAP_ATTR_MAP_TO_VALUE_LIST,

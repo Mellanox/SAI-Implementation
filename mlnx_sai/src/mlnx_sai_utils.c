@@ -36,19 +36,10 @@
 
 #define MLNX_SAI_UTILS_NULL_OBJECT_ALLOWED
 
-/*
- * All the attributes have a long and short names.
- * Short names for ACL UDF attributes can be fetch via adding an offset (19) to the long name beggining
- * e.g. short name for SAI_ACL_TABLE_ATTR_(USER_DEFINED_FIELD_GROUP_0) is USER_DEFINED_FIELD_GROUP_0
- *
- * It will be removed after adding a proper metadata for these attributes
- */
-#define MLNX_UDF_ACL_ATTR_SHORT_NAME_OFFSET (19)
-
 /* Must be equal to or greater than maximum enum values count */
 #define MLNX_ENUM_VALUE_COUNT_MAX (100)
 
-static const sai_u32_list_t        mlnx_sai_not_mandatory_attrs[SAI_OBJECT_TYPE_EXTENSIONS_RANGE_END] = {
+static const sai_u32_list_t mlnx_sai_not_mandatory_attrs[SAI_OBJECT_TYPE_EXTENSIONS_RANGE_END] = {
     [SAI_OBJECT_TYPE_QOS_MAP] =
     {.count = 1, .list = (sai_attr_id_t[1]) {SAI_QOS_MAP_ATTR_MAP_TO_VALUE_LIST}
     },
@@ -64,15 +55,16 @@ static const sai_u32_list_t        mlnx_sai_not_mandatory_attrs[SAI_OBJECT_TYPE_
     {.count = 1, .list = (sai_attr_id_t[1]) {SAI_ROUTER_INTERFACE_ATTR_BRIDGE_ID}
     },
 };
-static const sai_u32_list_t        mlnx_sai_attrs_valid_for_set[SAI_OBJECT_TYPE_EXTENSIONS_RANGE_END] = {
+static const sai_u32_list_t mlnx_sai_attrs_valid_for_set[SAI_OBJECT_TYPE_EXTENSIONS_RANGE_END] = {
     [SAI_OBJECT_TYPE_TUNNEL] =
     {.count = 2, .list = (sai_attr_id_t[2]) {SAI_TUNNEL_ATTR_ENCAP_MAPPERS, SAI_TUNNEL_ATTR_DECAP_MAPPERS}
     },
 };
-static const sai_u32_list_t        mlnx_sai_attrs_with_empty_list[SAI_OBJECT_TYPE_EXTENSIONS_RANGE_END] = {
-    [SAI_OBJECT_TYPE_PORT] = {.count = 3, .list = (sai_attr_id_t[3])
+static const sai_u32_list_t mlnx_sai_attrs_with_empty_list[SAI_OBJECT_TYPE_EXTENSIONS_RANGE_END] = {
+    [SAI_OBJECT_TYPE_PORT] = {.count = 5, .list = (sai_attr_id_t[5])
                               {SAI_PORT_ATTR_INGRESS_MIRROR_SESSION, SAI_PORT_ATTR_EGRESS_MIRROR_SESSION,
-                               SAI_PORT_ATTR_EGRESS_BLOCK_PORT_LIST}
+                               SAI_PORT_ATTR_EGRESS_BLOCK_PORT_LIST, SAI_PORT_ATTR_ADVERTISED_SPEED,
+                               SAI_PORT_ATTR_ADVERTISED_INTERFACE_TYPE}
     },
 
     [SAI_OBJECT_TYPE_ACL_ENTRY] = {.count = 3, .list = (sai_attr_id_t[3])
@@ -82,17 +74,17 @@ static const sai_u32_list_t        mlnx_sai_attrs_with_empty_list[SAI_OBJECT_TYP
     [SAI_OBJECT_TYPE_HASH] = {.count = 1, .list = (sai_attr_id_t[1]) {SAI_HASH_ATTR_UDF_GROUP_LIST}
     },
 };
-static const sai_u32_list_t        mlnx_sai_hostif_table_valid_obj_types[] = {
+static const sai_u32_list_t mlnx_sai_hostif_table_valid_obj_types[] = {
     [SAI_HOSTIF_TABLE_ENTRY_ATTR_OBJ_ID] =
     {.count = 1, .list = (uint32_t[1]) {SAI_OBJECT_TYPE_VLAN}
     },
 };
-static const sai_u32_list_t        mlnx_sai_tunnel_valid_obj_types[] = {
+static const sai_u32_list_t mlnx_sai_tunnel_valid_obj_types[] = {
     [SAI_TUNNEL_ATTR_OVERLAY_INTERFACE] =
     {.count = 1, .list = (uint32_t[1]) {SAI_OBJECT_TYPE_PORT}
     },
 };
-static const sai_u32_list_t        mlnx_sai_acl_entry_valid_obj_types[] = {
+static const sai_u32_list_t mlnx_sai_acl_entry_valid_obj_types[] = {
     [SAI_ACL_ENTRY_ATTR_FIELD_IN_PORTS] =
     {.count = 1, .list = (uint32_t[1]) {SAI_OBJECT_TYPE_LAG}
     },
@@ -100,105 +92,13 @@ static const sai_u32_list_t        mlnx_sai_acl_entry_valid_obj_types[] = {
     {.count = 1, .list = (uint32_t[1]) {SAI_OBJECT_TYPE_LAG}
     },
 };
-static const sai_u32_list_t        mlnx_sai_valid_obj_types[SAI_OBJECT_TYPE_EXTENSIONS_RANGE_END] = {
+static const sai_u32_list_t mlnx_sai_valid_obj_types[SAI_OBJECT_TYPE_EXTENSIONS_RANGE_END] = {
     [SAI_OBJECT_TYPE_HOSTIF_TABLE_ENTRY] =
     {.count = ARRAY_SIZE(mlnx_sai_hostif_table_valid_obj_types), .list = (void*)mlnx_sai_hostif_table_valid_obj_types},
     [SAI_OBJECT_TYPE_TUNNEL] =
     {.count = ARRAY_SIZE(mlnx_sai_tunnel_valid_obj_types), .list = (void*)mlnx_sai_tunnel_valid_obj_types},
     [SAI_OBJECT_TYPE_ACL_ENTRY] =
     {.count = ARRAY_SIZE(mlnx_sai_acl_entry_valid_obj_types), .list = (void*)mlnx_sai_acl_entry_valid_obj_types},
-};
-static sai_attr_metadata_t         mlnx_udf_acl_table_attr_metadata_list[MLNX_UDF_ACL_ATTR_COUNT];
-static sai_attr_metadata_t         mlnx_udf_acl_entry_attr_metadata_list[MLNX_UDF_ACL_ATTR_COUNT];
-static const sai_attr_metadata_t   mlnx_udf_acl_entry_attr_metadata = {
-    .objecttype               = SAI_OBJECT_TYPE_ACL_ENTRY,
-    .attrid                   = SAI_ACL_ENTRY_ATTR_USER_DEFINED_FIELD_GROUP_MIN,
-    .attridname               = "SAI_ACL_ENTRY_ATTR_USER_DEFINED_FIELD_GROUP_MIN",
-    .attrvaluetype            = SAI_ATTR_VALUE_TYPE_ACL_FIELD_DATA_UINT8_LIST,
-    .flags                    = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_AND_SET),
-    .allowedobjecttypes       = NULL,
-    .allowedobjecttypeslength = 0,
-    .allowrepetitiononlist    = false,
-    .allowmixedobjecttypes    = false,
-    .allowemptylist           = false,
-    .allownullobjectid        = false,
-    .defaultvaluetype         = SAI_DEFAULT_VALUE_TYPE_EMPTY_LIST,
-    .defaultvalue             = NULL,
-    .defaultvalueobjecttype   = SAI_OBJECT_TYPE_NULL,
-    .defaultvalueattrid       = SAI_INVALID_ATTRIBUTE_ID,
-    .isenum                   = false,
-    .isenumlist               = false,
-    .enummetadata             = NULL,
-    .conditiontype            = SAI_ATTR_CONDITION_TYPE_NONE,
-    .conditions               = NULL,
-    .conditionslength         = 0,
-    .isconditional            = (0 != 0),
-    .validonlytype            = SAI_ATTR_CONDITION_TYPE_NONE,
-    .validonly                = NULL,
-    .validonlylength          = 0,
-    .getsave                  = false,
-    .isvlan                   = false,
-    .isaclfield               = false,
-    .isaclaction              = false,
-};
-static const sai_object_type_t     mlnx_udf_acl_table_attr_allowed_objects[] = {
-    SAI_OBJECT_TYPE_UDF_GROUP,
-};
-static const sai_attribute_value_t mlnx_udf_acl_table_attr_default_value = { .oid = SAI_NULL_OBJECT_ID };
-static const sai_attr_metadata_t   mlnx_udf_acl_table_attr_metadata = {
-    .objecttype               = SAI_OBJECT_TYPE_ACL_TABLE,
-    .attrid                   = SAI_ACL_TABLE_ATTR_USER_DEFINED_FIELD_GROUP_MIN,
-    .attridname               = "SAI_ACL_TABLE_ATTR_USER_DEFINED_FIELD_GROUP_MIN",
-    .attrvaluetype            = SAI_ATTR_VALUE_TYPE_OBJECT_ID,
-    .flags                    = (sai_attr_flags_t)(SAI_ATTR_FLAGS_CREATE_ONLY),
-    .allowedobjecttypes       = mlnx_udf_acl_table_attr_allowed_objects,
-    .allowedobjecttypeslength = 1,
-    .allowrepetitiononlist    = false,
-    .allowmixedobjecttypes    = false,
-    .allowemptylist           = false,
-    .allownullobjectid        = true,
-    .defaultvaluetype         = SAI_DEFAULT_VALUE_TYPE_CONST,
-    .defaultvalue             = &mlnx_udf_acl_table_attr_default_value,
-    .defaultvalueobjecttype   = SAI_OBJECT_TYPE_NULL,
-    .defaultvalueattrid       = SAI_INVALID_ATTRIBUTE_ID,
-    .isenum                   = false,
-    .isenumlist               = false,
-    .enummetadata             = NULL,
-    .conditiontype            = SAI_ATTR_CONDITION_TYPE_NONE,
-    .conditions               = NULL,
-    .conditionslength         = 0,
-    .isconditional            = (0 != 0),
-    .validonlytype            = SAI_ATTR_CONDITION_TYPE_NONE,
-    .validonly                = NULL,
-    .validonlylength          = 0,
-    .getsave                  = false,
-    .isvlan                   = false,
-    .isaclfield               = false,
-    .isaclaction              = false,
-};
-static const char                * mlnx_udf_acl_table_attr_names[] = {
-    "SAI_ACL_TABLE_ATTR_USER_DEFINED_FIELD_GROUP_0",
-    "SAI_ACL_TABLE_ATTR_USER_DEFINED_FIELD_GROUP_1",
-    "SAI_ACL_TABLE_ATTR_USER_DEFINED_FIELD_GROUP_2",
-    "SAI_ACL_TABLE_ATTR_USER_DEFINED_FIELD_GROUP_3",
-    "SAI_ACL_TABLE_ATTR_USER_DEFINED_FIELD_GROUP_4",
-    "SAI_ACL_TABLE_ATTR_USER_DEFINED_FIELD_GROUP_5",
-    "SAI_ACL_TABLE_ATTR_USER_DEFINED_FIELD_GROUP_6",
-    "SAI_ACL_TABLE_ATTR_USER_DEFINED_FIELD_GROUP_7",
-    "SAI_ACL_TABLE_ATTR_USER_DEFINED_FIELD_GROUP_8",
-    "SAI_ACL_TABLE_ATTR_USER_DEFINED_FIELD_GROUP_9",
-};
-static const char                * mlnx_udf_acl_entry_attr_names[] = {
-    "SAI_ACL_ENTRY_ATTR_USER_DEFINED_FIELD_0",
-    "SAI_ACL_ENTRY_ATTR_USER_DEFINED_FIELD_1",
-    "SAI_ACL_ENTRY_ATTR_USER_DEFINED_FIELD_2",
-    "SAI_ACL_ENTRY_ATTR_USER_DEFINED_FIELD_3",
-    "SAI_ACL_ENTRY_ATTR_USER_DEFINED_FIELD_4",
-    "SAI_ACL_ENTRY_ATTR_USER_DEFINED_FIELD_5",
-    "SAI_ACL_ENTRY_ATTR_USER_DEFINED_FIELD_6",
-    "SAI_ACL_ENTRY_ATTR_USER_DEFINED_FIELD_7",
-    "SAI_ACL_ENTRY_ATTR_USER_DEFINED_FIELD_8",
-    "SAI_ACL_ENTRY_ATTR_USER_DEFINED_FIELD_9",
 };
 
 /* Data needed for sai_query_attribute_capability and sai_query_attribute_enum_values_capability APIs */
@@ -257,62 +157,66 @@ extern const mlnx_obj_type_attrs_info_t  mlnx_tunnel_map_entry_obj_type_info;
 extern const mlnx_obj_type_attrs_info_t  mlnx_port_pool_obj_type_info;
 extern const mlnx_obj_type_attrs_info_t  mlnx_debug_counter_obj_type_info;
 extern const mlnx_obj_type_attrs_info_t  mlnx_bfd_session_obj_type_info;
+extern const mlnx_obj_type_attrs_info_t  mlnx_counter_obj_type_info;
+extern const mlnx_obj_type_attrs_info_t  mlnx_isolation_group_obj_type_info;
 static const mlnx_obj_type_attrs_info_t* mlnx_obj_types_info[] = {
-    [SAI_OBJECT_TYPE_PORT]                     = &mlnx_port_obj_type_info,
-    [SAI_OBJECT_TYPE_LAG]                      = &mlnx_lag_obj_type_info,
-    [SAI_OBJECT_TYPE_VIRTUAL_ROUTER]           = &mlnx_router_obj_type_info,
-    [SAI_OBJECT_TYPE_NEXT_HOP]                 = &mlnx_next_hop_obj_type_info,
-    [SAI_OBJECT_TYPE_NEXT_HOP_GROUP]           = &mlnx_next_hop_group_obj_type_info,
-    [SAI_OBJECT_TYPE_ROUTER_INTERFACE]         = &mlnx_rif_obj_type_info,
-    [SAI_OBJECT_TYPE_ACL_TABLE]                = &mlnx_acl_table_obj_type_info,
-    [SAI_OBJECT_TYPE_ACL_ENTRY]                = &mlnx_acl_entry_obj_type_info,
-    [SAI_OBJECT_TYPE_ACL_COUNTER]              = &mlnx_acl_counter_obj_type_info,
-    [SAI_OBJECT_TYPE_ACL_RANGE]                = &mlnx_acl_range_obj_type_info,
-    [SAI_OBJECT_TYPE_ACL_TABLE_GROUP]          = &mlnx_acl_table_group_obj_type_info,
-    [SAI_OBJECT_TYPE_ACL_TABLE_GROUP_MEMBER]   = &mlnx_acl_table_group_mem_obj_type_info,
-    [SAI_OBJECT_TYPE_HOSTIF]                   = &mlnx_hostif_obj_type_info,
-    [SAI_OBJECT_TYPE_MIRROR_SESSION]           = &mlnx_mirror_session_obj_type_info,
-    [SAI_OBJECT_TYPE_SAMPLEPACKET]             = &mlnx_samplepacket_obj_type_info,
-    [SAI_OBJECT_TYPE_STP]                      = &mlnx_stp_obj_type_info,
-    [SAI_OBJECT_TYPE_HOSTIF_TRAP_GROUP]        = &mlnx_hostif_trap_group_obj_type_info,
-    [SAI_OBJECT_TYPE_POLICER]                  = &mlnx_policer_obj_type_info,
-    [SAI_OBJECT_TYPE_WRED]                     = &mlnx_wred_obj_type_info,
-    [SAI_OBJECT_TYPE_QOS_MAP]                  = &mlnx_qos_map_obj_type_info,
-    [SAI_OBJECT_TYPE_QUEUE]                    = &mlnx_queue_obj_type_info,
-    [SAI_OBJECT_TYPE_SCHEDULER]                = &mlnx_scheduler_obj_type_info,
-    [SAI_OBJECT_TYPE_SCHEDULER_GROUP]          = &mlnx_sched_group_obj_type_info,
-    [SAI_OBJECT_TYPE_BUFFER_POOL]              = &mlnx_buffer_pool_obj_type_info,
-    [SAI_OBJECT_TYPE_BUFFER_PROFILE]           = &mlnx_buffer_profile_obj_type_info,
-    [SAI_OBJECT_TYPE_INGRESS_PRIORITY_GROUP]   = &mlnx_ingress_pg_obj_type_info,
-    [SAI_OBJECT_TYPE_LAG_MEMBER]               = &mlnx_lag_member_obj_type_info,
-    [SAI_OBJECT_TYPE_HASH]                     = &mlnx_hash_obj_type_info,
-    [SAI_OBJECT_TYPE_UDF]                      = &mlnx_udf_obj_type_info,
-    [SAI_OBJECT_TYPE_UDF_MATCH]                = &mlnx_udf_match_obj_type_info,
-    [SAI_OBJECT_TYPE_UDF_GROUP]                = &mlnx_udf_group_obj_type_info,
-    [SAI_OBJECT_TYPE_FDB_ENTRY]                = &mlnx_fdb_entry_obj_type_info,
-    [SAI_OBJECT_TYPE_SWITCH]                   = &mlnx_switch_obj_type_info,
-    [SAI_OBJECT_TYPE_HOSTIF_TRAP]              = &mlnx_hostif_trap_obj_type_info,
-    [SAI_OBJECT_TYPE_HOSTIF_TABLE_ENTRY]       = &mlnx_hostif_table_entry_obj_type_info,
-    [SAI_OBJECT_TYPE_NEIGHBOR_ENTRY]           = &mlnx_neighbor_obj_type_info,
-    [SAI_OBJECT_TYPE_ROUTE_ENTRY]              = &mlnx_route_obj_type_info,
-    [SAI_OBJECT_TYPE_VLAN]                     = &mlnx_vlan_obj_type_info,
-    [SAI_OBJECT_TYPE_VLAN_MEMBER]              = &mlnx_vlan_member_obj_type_info,
-    [SAI_OBJECT_TYPE_HOSTIF_PACKET]            = &mlnx_hostif_packet_obj_type_info,
-    [SAI_OBJECT_TYPE_TUNNEL_MAP]               = &mlnx_tunnel_map_obj_type_info,
-    [SAI_OBJECT_TYPE_TUNNEL]                   = &mlnx_tunnel_obj_type_info,
-    [SAI_OBJECT_TYPE_TUNNEL_TERM_TABLE_ENTRY]  = &mlnx_tunnel_term_table_entry_type_info,
-    [SAI_OBJECT_TYPE_FDB_FLUSH]                = &mlnx_fdb_flush_obj_type_info,
-    [SAI_OBJECT_TYPE_NEXT_HOP_GROUP_MEMBER]    = &mlnx_nh_group_member_obj_type_info,
-    [SAI_OBJECT_TYPE_STP_PORT]                 = &mlnx_stp_port_obj_type_info,
-    [SAI_OBJECT_TYPE_L2MC_GROUP]               = &mlnx_l2mcgroup_obj_type_info,
-    [SAI_OBJECT_TYPE_L2MC_GROUP_MEMBER]        = &mlnx_l2mcgroup_member_obj_type_info,
+    [SAI_OBJECT_TYPE_PORT] = &mlnx_port_obj_type_info,
+    [SAI_OBJECT_TYPE_LAG] = &mlnx_lag_obj_type_info,
+    [SAI_OBJECT_TYPE_VIRTUAL_ROUTER] = &mlnx_router_obj_type_info,
+    [SAI_OBJECT_TYPE_NEXT_HOP] = &mlnx_next_hop_obj_type_info,
+    [SAI_OBJECT_TYPE_NEXT_HOP_GROUP] = &mlnx_next_hop_group_obj_type_info,
+    [SAI_OBJECT_TYPE_ROUTER_INTERFACE] = &mlnx_rif_obj_type_info,
+    [SAI_OBJECT_TYPE_ACL_TABLE] = &mlnx_acl_table_obj_type_info,
+    [SAI_OBJECT_TYPE_ACL_ENTRY] = &mlnx_acl_entry_obj_type_info,
+    [SAI_OBJECT_TYPE_ACL_COUNTER] = &mlnx_acl_counter_obj_type_info,
+    [SAI_OBJECT_TYPE_ACL_RANGE] = &mlnx_acl_range_obj_type_info,
+    [SAI_OBJECT_TYPE_ACL_TABLE_GROUP] = &mlnx_acl_table_group_obj_type_info,
+    [SAI_OBJECT_TYPE_ACL_TABLE_GROUP_MEMBER] = &mlnx_acl_table_group_mem_obj_type_info,
+    [SAI_OBJECT_TYPE_HOSTIF] = &mlnx_hostif_obj_type_info,
+    [SAI_OBJECT_TYPE_MIRROR_SESSION] = &mlnx_mirror_session_obj_type_info,
+    [SAI_OBJECT_TYPE_SAMPLEPACKET] = &mlnx_samplepacket_obj_type_info,
+    [SAI_OBJECT_TYPE_STP] = &mlnx_stp_obj_type_info,
+    [SAI_OBJECT_TYPE_HOSTIF_TRAP_GROUP] = &mlnx_hostif_trap_group_obj_type_info,
+    [SAI_OBJECT_TYPE_POLICER] = &mlnx_policer_obj_type_info,
+    [SAI_OBJECT_TYPE_WRED] = &mlnx_wred_obj_type_info,
+    [SAI_OBJECT_TYPE_QOS_MAP] = &mlnx_qos_map_obj_type_info,
+    [SAI_OBJECT_TYPE_QUEUE] = &mlnx_queue_obj_type_info,
+    [SAI_OBJECT_TYPE_SCHEDULER] = &mlnx_scheduler_obj_type_info,
+    [SAI_OBJECT_TYPE_SCHEDULER_GROUP] = &mlnx_sched_group_obj_type_info,
+    [SAI_OBJECT_TYPE_BUFFER_POOL] = &mlnx_buffer_pool_obj_type_info,
+    [SAI_OBJECT_TYPE_BUFFER_PROFILE] = &mlnx_buffer_profile_obj_type_info,
+    [SAI_OBJECT_TYPE_INGRESS_PRIORITY_GROUP] = &mlnx_ingress_pg_obj_type_info,
+    [SAI_OBJECT_TYPE_LAG_MEMBER] = &mlnx_lag_member_obj_type_info,
+    [SAI_OBJECT_TYPE_HASH] = &mlnx_hash_obj_type_info,
+    [SAI_OBJECT_TYPE_UDF] = &mlnx_udf_obj_type_info,
+    [SAI_OBJECT_TYPE_UDF_MATCH] = &mlnx_udf_match_obj_type_info,
+    [SAI_OBJECT_TYPE_UDF_GROUP] = &mlnx_udf_group_obj_type_info,
+    [SAI_OBJECT_TYPE_FDB_ENTRY] = &mlnx_fdb_entry_obj_type_info,
+    [SAI_OBJECT_TYPE_SWITCH] = &mlnx_switch_obj_type_info,
+    [SAI_OBJECT_TYPE_HOSTIF_TRAP] = &mlnx_hostif_trap_obj_type_info,
+    [SAI_OBJECT_TYPE_HOSTIF_TABLE_ENTRY] = &mlnx_hostif_table_entry_obj_type_info,
+    [SAI_OBJECT_TYPE_NEIGHBOR_ENTRY] = &mlnx_neighbor_obj_type_info,
+    [SAI_OBJECT_TYPE_ROUTE_ENTRY] = &mlnx_route_obj_type_info,
+    [SAI_OBJECT_TYPE_VLAN] = &mlnx_vlan_obj_type_info,
+    [SAI_OBJECT_TYPE_VLAN_MEMBER] = &mlnx_vlan_member_obj_type_info,
+    [SAI_OBJECT_TYPE_HOSTIF_PACKET] = &mlnx_hostif_packet_obj_type_info,
+    [SAI_OBJECT_TYPE_TUNNEL_MAP] = &mlnx_tunnel_map_obj_type_info,
+    [SAI_OBJECT_TYPE_TUNNEL] = &mlnx_tunnel_obj_type_info,
+    [SAI_OBJECT_TYPE_TUNNEL_TERM_TABLE_ENTRY] = &mlnx_tunnel_term_table_entry_type_info,
+    [SAI_OBJECT_TYPE_FDB_FLUSH] = &mlnx_fdb_flush_obj_type_info,
+    [SAI_OBJECT_TYPE_NEXT_HOP_GROUP_MEMBER] = &mlnx_nh_group_member_obj_type_info,
+    [SAI_OBJECT_TYPE_STP_PORT] = &mlnx_stp_port_obj_type_info,
+    [SAI_OBJECT_TYPE_L2MC_GROUP] = &mlnx_l2mcgroup_obj_type_info,
+    [SAI_OBJECT_TYPE_L2MC_GROUP_MEMBER] = &mlnx_l2mcgroup_member_obj_type_info,
     [SAI_OBJECT_TYPE_HOSTIF_USER_DEFINED_TRAP] = &mlnx_hostif_user_defined_trap_obj_type_info,
-    [SAI_OBJECT_TYPE_BRIDGE]                   = &mlnx_bridge_obj_type_info,
-    [SAI_OBJECT_TYPE_BRIDGE_PORT]              = &mlnx_bridge_port_obj_type_info,
-    [SAI_OBJECT_TYPE_TUNNEL_MAP_ENTRY]         = &mlnx_tunnel_map_entry_obj_type_info,
-    [SAI_OBJECT_TYPE_PORT_POOL]                = &mlnx_port_pool_obj_type_info,
-    [SAI_OBJECT_TYPE_DEBUG_COUNTER]            = &mlnx_debug_counter_obj_type_info,
-    [SAI_OBJECT_TYPE_BFD_SESSION]              = &mlnx_bfd_session_obj_type_info,
+    [SAI_OBJECT_TYPE_BRIDGE] = &mlnx_bridge_obj_type_info,
+    [SAI_OBJECT_TYPE_BRIDGE_PORT] = &mlnx_bridge_port_obj_type_info,
+    [SAI_OBJECT_TYPE_TUNNEL_MAP_ENTRY] = &mlnx_tunnel_map_entry_obj_type_info,
+    [SAI_OBJECT_TYPE_PORT_POOL] = &mlnx_port_pool_obj_type_info,
+    [SAI_OBJECT_TYPE_DEBUG_COUNTER] = &mlnx_debug_counter_obj_type_info,
+    [SAI_OBJECT_TYPE_BFD_SESSION] = &mlnx_bfd_session_obj_type_info,
+    [SAI_OBJECT_TYPE_COUNTER] = &mlnx_counter_obj_type_info,
+    [SAI_OBJECT_TYPE_ISOLATION_GROUP] = &mlnx_isolation_group_obj_type_info,
 };
 static const uint32_t                    mlnx_obj_types_info_arr_size = ARRAY_SIZE(mlnx_obj_types_info);
 static sai_status_t sai_vendor_attr_index_find(_In_ const sai_attr_id_t                 attr_id,
@@ -407,15 +311,8 @@ static sai_status_t sai_attribute_valid_condition_check(_In_ const sai_attr_meta
                                                         _In_ uint32_t                   attr_count,
                                                         _In_ const sai_attribute_t     *attr_list);
 static bool sai_attribute_is_acl_field_or_action(_In_ const sai_attr_metadata_t *meta_data);
-static bool sai_objet_type_is_acl_table_or_entry(_In_ sai_object_type_t object_type);
-static bool sai_attr_is_acl_udf(_In_ sai_object_type_t object_type, _In_ sai_attr_id_t attr_id);
-static const sai_attr_metadata_t* mlnx_sai_udf_attr_metadata_get(_In_ sai_object_type_t object_type,
-                                                                 _In_ sai_attr_id_t     attr_id);
 static const sai_attr_metadata_t* mlnx_sai_attr_metadata_get_impl(_In_ sai_object_type_t object_type,
                                                                   _In_ sai_attr_id_t     attr_id);
-static sai_status_t mlnx_sai_udf_attr_short_name_fetch(_In_ sai_object_type_t object_type,
-                                                       _In_ sai_attr_id_t     attr_id,
-                                                       _Out_ const char     **attr_short_name);
 static sai_status_t sai_qos_map_to_str_oid(_In_ sai_object_id_t       qos_map_id,
                                            _In_ sai_attribute_value_t value,
                                            _In_ uint32_t              max_length,
@@ -554,11 +451,6 @@ static const mlnx_obj_type_attrs_info_t* mlnx_obj_type_attr_info_get(_In_ sai_ob
     return mlnx_obj_types_info[object_type];
 }
 
-static bool mlnx_query_attr_api_unsupported_udf_check(_In_ sai_object_type_t object_type, _In_ sai_attr_id_t attr_id)
-{
-    return sai_attr_is_acl_udf(object_type, attr_id) && mlnx_udf_acl_attribute_id_is_not_supported(attr_id);
-}
-
 static sai_status_t mlnx_query_attr_api_get_metadata(_In_ sai_object_type_t                   object_type,
                                                      _In_ sai_attr_id_t                       attr_id,
                                                      _Out_ const sai_attr_metadata_t        **attr_metadata,
@@ -580,13 +472,6 @@ static sai_status_t mlnx_query_attr_api_get_metadata(_In_ sai_object_type_t     
     }
 
     *obj_type_str = obj_type_info->objecttypename;
-
-    if (mlnx_query_attr_api_unsupported_udf_check(object_type, attr_id)) {
-        SX_LOG_ERR("UDF attribute index %d is out of supported range [%d, %d]\n", attr_id, 0,
-                   MLNX_UDF_ACL_ATTR_MAX_ID);
-        *is_implemented = false;
-        return SAI_STATUS_FAILURE;
-    }
 
     *attr_metadata = mlnx_sai_attr_metadata_get_impl(object_type, attr_id);
     if (!(*attr_metadata)) {
@@ -635,7 +520,7 @@ sai_status_t mlnx_sai_query_attribute_capability_impl(_In_ sai_object_id_t      
     const sai_attr_metadata_t          *attr_metadata;
     const mlnx_obj_type_attrs_info_t   *obj_type_attr_info;
     const sai_vendor_attribute_entry_t *vendor_attr_entry;
-    const char                         *obj_type_str                 = "Invalid", *attr_id_str = "Invalid";
+    const char                         *obj_type_str = "Invalid", *attr_id_str = "Invalid";
     char                                value_str[MAX_VALUE_STR_LEN] = {0};
     uint32_t                            vendor_attr_index;
     bool                                is_implemented = false;
@@ -662,15 +547,15 @@ sai_status_t mlnx_sai_query_attribute_capability_impl(_In_ sai_object_id_t      
     SX_LOG_NTC("Querying attribute capabilities for [%s:%s]\n", obj_type_str, attr_id_str);
 
     attr_capability->create_implemented = false;
-    attr_capability->get_implemented    = false;
-    attr_capability->set_implemented    = false;
+    attr_capability->get_implemented = false;
+    attr_capability->set_implemented = false;
 
     if (is_implemented) {
         vendor_attr_entry = &obj_type_attr_info->vendor_data[vendor_attr_index];
 
         attr_capability->create_implemented = vendor_attr_entry->is_implemented[SAI_COMMON_API_CREATE];
-        attr_capability->get_implemented    = vendor_attr_entry->is_implemented[SAI_COMMON_API_GET];
-        attr_capability->set_implemented    = vendor_attr_entry->is_implemented[SAI_COMMON_API_SET];
+        attr_capability->get_implemented = vendor_attr_entry->is_implemented[SAI_COMMON_API_GET];
+        attr_capability->set_implemented = vendor_attr_entry->is_implemented[SAI_COMMON_API_SET];
     }
 
     sai_attr_capability_to_str(attr_capability, MAX_VALUE_STR_LEN, value_str);
@@ -735,10 +620,10 @@ static sai_status_t mlnx_attr_enum_supported_values_get(_In_ const sai_attr_meta
 
         attrs = dyn_attrs;
     } else if (enum_info->all) {
-        attrs       = enum_metadata->values;
+        attrs = enum_metadata->values;
         attrs_count = (uint32_t)enum_metadata->valuescount;
     } else {
-        attrs       = enum_info->attrs;
+        attrs = enum_info->attrs;
         attrs_count = enum_info->count;
     }
 
@@ -757,7 +642,7 @@ sai_status_t mlnx_sai_query_attribute_enum_values_capability_impl(_In_ sai_objec
     const mlnx_obj_type_attrs_info_t *obj_type_attr_info;
     const char                       *obj_type_str = "Invalid", *attr_id_str = "Invalid";
     uint32_t                          vendor_attr_index;
-    bool                              is_implemented               = false;
+    bool                              is_implemented = false;
     char                              value_str[MAX_VALUE_STR_LEN] = {0};
 
     if (!enum_values_capability) {
@@ -811,6 +696,50 @@ sai_status_t mlnx_sai_query_attribute_enum_values_capability_impl(_In_ sai_objec
     return SAI_STATUS_SUCCESS;
 }
 
+sai_status_t mlnx_sai_query_stats_capability_impl(_In_ sai_object_id_t                switch_id,
+                                                  _In_ sai_object_type_t              object_type,
+                                                  _Inout_ sai_stat_capability_list_t *stats_capability)
+{
+    sai_status_t                      status = SAI_STATUS_SUCCESS;
+    const mlnx_obj_type_attrs_info_t* object_type_info = NULL;
+
+    SX_LOG_ENTER();
+
+    if (NULL == stats_capability) {
+        SX_LOG_ERR("NULL value stats_capability\n");
+        SX_LOG_EXIT();
+        return SAI_STATUS_INVALID_PARAMETER;
+    }
+
+    if (!sai_metadata_is_object_type_valid(object_type)) {
+        SX_LOG_ERR("Invalid object type (%d)\n", object_type);
+        SX_LOG_EXIT();
+        return SAI_STATUS_INVALID_PARAMETER;
+    }
+
+    object_type_info = mlnx_obj_type_attr_info_get(object_type);
+    if (NULL == object_type_info) {
+        SX_LOG_ERR("Failed to get object type info for object type - %d\n", object_type);
+        SX_LOG_EXIT();
+        return SAI_STATUS_FAILURE;
+    }
+
+    if (0 == object_type_info->stats_capability.count) {
+        stats_capability->count = 0;
+    } else {
+        status = mlnx_fill_saistatcapabilitylist(object_type_info->stats_capability.info,
+                                                 object_type_info->stats_capability.count,
+                                                 stats_capability);
+        if (SAI_ERR(status)) {
+            SX_LOG_EXIT();
+            return status;
+        }
+    }
+
+    SX_LOG_EXIT();
+    return status;
+}
+
 static sai_status_t sai_object_type_attr_index_find(_In_ const sai_attr_id_t     attr_id,
                                                     _In_ const sai_object_type_t object_type,
                                                     _Out_ uint32_t              *index)
@@ -834,7 +763,7 @@ static sai_status_t sai_object_type_attr_index_find(_In_ const sai_attr_id_t    
 
     md = sai_metadata_attr_by_object_type[object_type];
     if (NULL == md) {
-        SX_LOG_ERR("Faield to fetch meta data array for object type - %d\n", object_type);
+        SX_LOG_ERR("Failed to fetch meta data array for object type - %d\n", object_type);
         SX_LOG_EXIT();
         return SAI_STATUS_FAILURE;
     }
@@ -845,14 +774,6 @@ static sai_status_t sai_object_type_attr_index_find(_In_ const sai_attr_id_t    
             SX_LOG_EXIT();
             return SAI_STATUS_SUCCESS;
         }
-    }
-
-    /* Currnetly, metadata for ACL UDF attributes is not generated */
-    if (sai_attr_is_acl_udf(object_type, attr_id)) {
-        assert((attr_id - SAI_ACL_TABLE_ATTR_USER_DEFINED_FIELD_GROUP_MIN) <= MLNX_UDF_ACL_ATTR_MAX_ID);
-        *index = ii + (attr_id - SAI_ACL_TABLE_ATTR_USER_DEFINED_FIELD_GROUP_MIN);
-        SX_LOG_EXIT();
-        return SAI_STATUS_SUCCESS;
     }
 
     SX_LOG_EXIT();
@@ -970,7 +891,7 @@ static sai_status_t sai_object_type_attr_count_meta_get(_In_ const sai_object_ty
 
     md = sai_metadata_attr_by_object_type[object_type];
     if (NULL == md) {
-        SX_LOG_ERR("Faield to fetch meta data array for object type - %d\n", object_type);
+        SX_LOG_ERR("Failed to fetch meta data array for object type - %d\n", object_type);
         SX_LOG_EXIT();
         return SAI_STATUS_FAILURE;
     }
@@ -979,11 +900,6 @@ static sai_status_t sai_object_type_attr_count_meta_get(_In_ const sai_object_ty
     }
 
     *attr_count = ii;
-
-    /* Currnetly, metadata for ACL UDF attributes is not generated */
-    if (sai_objet_type_is_acl_table_or_entry(object_type)) {
-        *attr_count += MLNX_UDF_ACL_ATTR_COUNT;
-    }
 
     SX_LOG_EXIT();
     return SAI_STATUS_SUCCESS;
@@ -1006,10 +922,6 @@ sai_status_t sai_attribute_short_name_fetch(_In_ sai_object_type_t object_type,
         SX_LOG_ERR("Invalid object type (%d)\n", object_type);
         SX_LOG_EXIT();
         return SAI_STATUS_FAILURE;
-    }
-
-    if (sai_attr_is_acl_udf(object_type, attr_id)) {
-        return mlnx_sai_udf_attr_short_name_fetch(object_type, attr_id, attr_short_name);
     }
 
     object_type_info = sai_metadata_all_object_type_infos[object_type];
@@ -1041,7 +953,7 @@ sai_status_t sai_attribute_short_name_fetch(_In_ sai_object_type_t object_type,
     for (ii = 0; ii < enum_values_count; ii++) {
         if ((sai_attr_id_t)enum_meta_data->values[ii] == attr_id) {
             *attr_short_name = enum_meta_data->valuesshortnames[ii];
-            is_name_found    = true;
+            is_name_found = true;
             break;
         }
     }
@@ -1091,7 +1003,7 @@ static sai_status_t sai_attribute_allowed_objects_validate(_In_ const sai_attr_m
     sai_attr_value_type_t  value_type;
     const sai_object_id_t *value_object_ids = NULL;
     sai_object_type_t      value_object_type;
-    uint32_t               objects_count                                              = 0, ii;
+    uint32_t               objects_count = 0, ii;
     bool                   object_types_present[SAI_OBJECT_TYPE_EXTENSIONS_RANGE_END] = { false };
     bool                   object_type_allowed, unique_object_type_present;
     char                   allwed_object_types_str[MAX_VALUE_STR_LEN] = {0};
@@ -1114,10 +1026,10 @@ static sai_status_t sai_attribute_allowed_objects_validate(_In_ const sai_attr_m
 
             if (SAI_ATTR_VALUE_TYPE_ACL_FIELD_DATA_OBJECT_ID == value_type) {
                 value_object_ids = &value->aclfield.data.oid;
-                objects_count    = 1;
+                objects_count = 1;
             } else if (SAI_ATTR_VALUE_TYPE_ACL_FIELD_DATA_OBJECT_LIST == value_type) {
                 value_object_ids = value->aclfield.data.objlist.list;
-                objects_count    = value->aclfield.data.objlist.count;
+                objects_count = value->aclfield.data.objlist.count;
             } else {
                 SX_LOG_ERR("Bad meta data for attribute %s\n", meta_data->attridname);
                 return SAI_STATUS_FAILURE;
@@ -1132,10 +1044,10 @@ static sai_status_t sai_attribute_allowed_objects_validate(_In_ const sai_attr_m
 
             if (SAI_ATTR_VALUE_TYPE_ACL_ACTION_DATA_OBJECT_ID == value_type) {
                 value_object_ids = &value->aclaction.parameter.oid;
-                objects_count    = 1;
+                objects_count = 1;
             } else if (SAI_ATTR_VALUE_TYPE_ACL_ACTION_DATA_OBJECT_LIST == value_type) {
                 value_object_ids = value->aclaction.parameter.objlist.list;
-                objects_count    = value->aclaction.parameter.objlist.count;
+                objects_count = value->aclaction.parameter.objlist.count;
             } else {
                 SX_LOG_ERR("Bad meta data for attribute %s\n", meta_data->attridname);
                 return SAI_STATUS_FAILURE;
@@ -1144,10 +1056,10 @@ static sai_status_t sai_attribute_allowed_objects_validate(_In_ const sai_attr_m
     } else {
         if (SAI_ATTR_VALUE_TYPE_OBJECT_ID == value_type) {
             value_object_ids = &value->oid;
-            objects_count    = 1;
+            objects_count = 1;
         } else if (SAI_ATTR_VALUE_TYPE_OBJECT_LIST == value_type) {
             value_object_ids = value->objlist.list;
-            objects_count    = value->objlist.count;
+            objects_count = value->objlist.count;
         } else {
             SX_LOG_ERR("Bad meta data for attribute %s\n", meta_data->attridname);
             return SAI_STATUS_FAILURE;
@@ -1294,103 +1206,103 @@ static sai_status_t sai_attribute_value_list_type_validate(_In_ const sai_attr_m
     assert(meta_data);
     assert(value);
 
-    value_type         = meta_data->attrvaluetype;
+    value_type = meta_data->attrvaluetype;
     is_value_type_list = true;
 
     switch (value_type) {
     case SAI_ATTR_VALUE_TYPE_OBJECT_LIST:
-        list_type_size   = sizeof(value->objlist.list[0]);
-        list_ptr         = value->objlist.list;
+        list_type_size = sizeof(value->objlist.list[0]);
+        list_ptr = value->objlist.list;
         list_elems_count = value->objlist.count;
         break;
 
     case SAI_ATTR_VALUE_TYPE_UINT8_LIST:
-        list_type_size   = sizeof(value->u8list.list[0]);
-        list_ptr         = value->u8list.list;
+        list_type_size = sizeof(value->u8list.list[0]);
+        list_ptr = value->u8list.list;
         list_elems_count = value->u8list.count;
         break;
 
     case SAI_ATTR_VALUE_TYPE_INT8_LIST:
-        list_type_size   = sizeof(value->s8list.list[0]);
-        list_ptr         = value->s8list.list;
+        list_type_size = sizeof(value->s8list.list[0]);
+        list_ptr = value->s8list.list;
         list_elems_count = value->s8list.count;
         break;
 
     case SAI_ATTR_VALUE_TYPE_UINT16_LIST:
-        list_type_size   = sizeof(value->u16list.list[0]);
-        list_ptr         = value->u16list.list;
+        list_type_size = sizeof(value->u16list.list[0]);
+        list_ptr = value->u16list.list;
         list_elems_count = value->u16list.count;
         break;
 
     case SAI_ATTR_VALUE_TYPE_INT16_LIST:
-        list_type_size   = sizeof(value->s16list.list[0]);
-        list_ptr         = value->s16list.list;
+        list_type_size = sizeof(value->s16list.list[0]);
+        list_ptr = value->s16list.list;
         list_elems_count = value->s16list.count;
         break;
 
     case SAI_ATTR_VALUE_TYPE_UINT32_LIST:
-        list_type_size   = sizeof(value->u32list.list[0]);
-        list_ptr         = value->u32list.list;
+        list_type_size = sizeof(value->u32list.list[0]);
+        list_ptr = value->u32list.list;
         list_elems_count = value->u32list.count;
         break;
 
     case SAI_ATTR_VALUE_TYPE_VLAN_LIST:
-        list_type_size   = sizeof(value->vlanlist.list[0]);
-        list_ptr         = value->vlanlist.list;
+        list_type_size = sizeof(value->vlanlist.list[0]);
+        list_ptr = value->vlanlist.list;
         list_elems_count = value->vlanlist.count;
         break;
 
     case SAI_ATTR_VALUE_TYPE_ACL_FIELD_DATA_OBJECT_LIST:
-        list_type_size   = sizeof(value->aclfield.data.objlist.list[0]);
-        list_ptr         = value->aclfield.data.objlist.list;
+        list_type_size = sizeof(value->aclfield.data.objlist.list[0]);
+        list_ptr = value->aclfield.data.objlist.list;
         list_elems_count = value->aclfield.data.objlist.count;
         break;
 
     case SAI_ATTR_VALUE_TYPE_ACL_FIELD_DATA_UINT8_LIST:
-        list_type_size   = sizeof(value->aclfield.data.u8list.list[0]);
-        list_ptr         = value->aclfield.data.u8list.list;
+        list_type_size = sizeof(value->aclfield.data.u8list.list[0]);
+        list_ptr = value->aclfield.data.u8list.list;
         list_elems_count = value->aclfield.data.u8list.count;
         break;
 
     case SAI_ATTR_VALUE_TYPE_ACL_ACTION_DATA_OBJECT_LIST:
-        list_type_size   = sizeof(value->aclaction.parameter.objlist.list[0]);
-        list_ptr         = value->aclaction.parameter.objlist.list;
+        list_type_size = sizeof(value->aclaction.parameter.objlist.list[0]);
+        list_ptr = value->aclaction.parameter.objlist.list;
         list_elems_count = value->aclaction.parameter.objlist.count;
         break;
 
     case SAI_ATTR_VALUE_TYPE_ACL_CAPABILITY:
-        list_type_size   = sizeof(value->aclcapability.action_list.list[0]);
-        list_ptr         = value->aclcapability.action_list.list;
+        list_type_size = sizeof(value->aclcapability.action_list.list[0]);
+        list_ptr = value->aclcapability.action_list.list;
         list_elems_count = value->aclcapability.action_list.count;
         break;
 
     case SAI_ATTR_VALUE_TYPE_QOS_MAP_LIST:
-        list_type_size   = sizeof(value->qosmap.list[0]);
-        list_ptr         = value->qosmap.list;
+        list_type_size = sizeof(value->qosmap.list[0]);
+        list_ptr = value->qosmap.list;
         list_elems_count = value->qosmap.count;
         break;
 
     case SAI_ATTR_VALUE_TYPE_MAP_LIST:
-        list_type_size   = sizeof(value->maplist.list[0]);
-        list_ptr         = value->maplist.list;
+        list_type_size = sizeof(value->maplist.list[0]);
+        list_ptr = value->maplist.list;
         list_elems_count = value->maplist.count;
         break;
 
     case SAI_ATTR_VALUE_TYPE_ACL_RESOURCE_LIST:
-        list_type_size   = sizeof(value->aclresource.list[0]);
-        list_ptr         = value->aclresource.list;
+        list_type_size = sizeof(value->aclresource.list[0]);
+        list_ptr = value->aclresource.list;
         list_elems_count = value->aclresource.count;
         break;
 
     case SAI_ATTR_VALUE_TYPE_TLV_LIST:
-        list_type_size   = sizeof(value->tlvlist.list[0]);
-        list_ptr         = value->tlvlist.list;
+        list_type_size = sizeof(value->tlvlist.list[0]);
+        list_ptr = value->tlvlist.list;
         list_elems_count = value->tlvlist.count;
         break;
 
     case SAI_ATTR_VALUE_TYPE_SEGMENT_LIST:
-        list_type_size   = sizeof(value->segmentlist.list[0]);
-        list_ptr         = value->segmentlist.list;
+        list_type_size = sizeof(value->segmentlist.list[0]);
+        list_ptr = value->segmentlist.list;
         list_elems_count = value->segmentlist.count;
         break;
 
@@ -1466,11 +1378,11 @@ static sai_status_t sai_metadata_is_supported_enum_value(_In_ const sai_attr_met
         return SAI_STATUS_FAILURE;
     }
 
-    enum_values_capability.list  = list;
+    enum_values_capability.list = list;
     enum_values_capability.count = MLNX_ENUM_VALUE_COUNT_MAX;
-    status                       = mlnx_attr_enum_supported_values_get(metadata,
-                                                                       &obj_type_attr_info->enums_info,
-                                                                       &enum_values_capability);
+    status = mlnx_attr_enum_supported_values_get(metadata,
+                                                 &obj_type_attr_info->enums_info,
+                                                 &enum_values_capability);
     if (SAI_ERR(status)) {
         return SAI_STATUS_FAILURE;
     }
@@ -1497,6 +1409,7 @@ static sai_status_t sai_atribute_value_type_enum_validate(_In_ const sai_attr_me
     uint32_t                   enum_values_count, ii;
     bool                       is_enum_value_allowed;
     bool                       is_enum_value_supported;
+    const char                *enum_value_name;
 
     assert(meta_data);
     assert(value);
@@ -1522,22 +1435,22 @@ static sai_status_t sai_atribute_value_type_enum_validate(_In_ const sai_attr_me
 
     switch (meta_data->attrvaluetype) {
     case SAI_ATTR_VALUE_TYPE_INT32:
-        enum_values       = &value->s32;
+        enum_values = &value->s32;
         enum_values_count = 1;
         break;
 
     case SAI_ATTR_VALUE_TYPE_INT32_LIST:
-        enum_values       = value->s32list.list;
+        enum_values = value->s32list.list;
         enum_values_count = value->s32list.count;
         break;
 
     case SAI_ATTR_VALUE_TYPE_ACL_FIELD_DATA_INT32:
-        enum_values       = &value->aclfield.data.s32;
+        enum_values = &value->aclfield.data.s32;
         enum_values_count = 1;
         break;
 
     case SAI_ATTR_VALUE_TYPE_ACL_ACTION_DATA_INT32:
-        enum_values       = &value->aclaction.parameter.s32;
+        enum_values = &value->aclaction.parameter.s32;
         enum_values_count = 1;
         break;
 
@@ -1546,7 +1459,7 @@ static sai_status_t sai_atribute_value_type_enum_validate(_In_ const sai_attr_me
         return SAI_STATUS_FAILURE;
     }
 
-    if (NULL == enum_values) {
+    if ((NULL == enum_values) && (enum_values_count > 0)) {
         SX_LOG_ERR("Failed to validate %s value - enum list is NULL\n", meta_data->attridname);
         return SAI_STATUS_INVALID_ATTR_VALUE_0 + attr_index;
     }
@@ -1570,8 +1483,12 @@ static sai_status_t sai_atribute_value_type_enum_validate(_In_ const sai_attr_me
         }
 
         if (!is_enum_value_supported) {
+            enum_value_name = sai_metadata_get_enum_value_name(enum_metadata, enum_values[ii]);
+            if (!enum_value_name) {
+                enum_value_name = "";
+            }
             SX_LOG_ERR("Failed to validate %s value - enum value %s is not supported\n",
-                       meta_data->attridname, meta_data->enummetadata->valuesshortnames[enum_values[ii]]);
+                       meta_data->attridname, enum_value_name);
             return SAI_STATUS_INVALID_ATTR_VALUE_0 + attr_index;
         }
     }
@@ -1659,7 +1576,7 @@ static sai_status_t sai_attribute_is_obj_type_allowed(_In_ const sai_attr_metada
 }
 
 /*
- * Some of the attributes have a complex condition for mandatority
+ * Some of the attributes have a complex condition for mandatory
  * But their meta-data have a flag MANDATORY_ON_CREATE
  * This function returns 'is_not_mandatory = true' for these attributes, so they can be ignored
  */
@@ -1711,14 +1628,6 @@ static sai_status_t sai_attrlist_mandatory_attrs_check(
     if (!sai_metadata_is_object_type_valid(object_type)) {
         MLNX_SAI_LOG_ERR("Invalid object type (%d)\n", object_type);
         return SAI_STATUS_INVALID_PARAMETER;
-    }
-
-    /*
-     * Currnetly, metadata for ACL UDF attributes is not generated
-     * attr_count_meta in increased by MLNX_UDF_ACL_ATTR_COUNT in sai_object_type_attr_count_meta_get
-     */
-    if (sai_objet_type_is_acl_table_or_entry(object_type)) {
-        attr_count_meta -= MLNX_UDF_ACL_ATTR_COUNT;
     }
 
     md = sai_metadata_attr_by_object_type[object_type];
@@ -1915,7 +1824,7 @@ static sai_status_t sai_attr_metadata_conditions_print(_In_ sai_attr_condition_t
     }
 
     condition_type_str = sai_metadata_enum_sai_attr_condition_type_t.valuesshortnames[condition_type];
-    pos                = 0;
+    pos = 0;
 
     for (ii = 0; ii < conditionslength; ii++) {
         attr_metadata = sai_metadata_get_attr_metadata(object_type, conditions[ii]->attrid);
@@ -2023,136 +1932,10 @@ static bool sai_attribute_is_acl_field_or_action(_In_ const sai_attr_metadata_t 
     return false;
 }
 
-static bool sai_objet_type_is_acl_table_or_entry(_In_ sai_object_type_t object_type)
-{
-    if ((SAI_OBJECT_TYPE_ACL_TABLE == object_type) ||
-        (SAI_OBJECT_TYPE_ACL_ENTRY == object_type)) {
-        return true;
-    }
-
-    return false;
-}
-
-static bool sai_attr_is_acl_udf(_In_ sai_object_type_t object_type, _In_ sai_attr_id_t attr_id)
-{
-    if (((SAI_OBJECT_TYPE_ACL_ENTRY == object_type) || (SAI_OBJECT_TYPE_ACL_TABLE == object_type)) &&
-        ((SAI_ACL_ENTRY_ATTR_USER_DEFINED_FIELD_GROUP_MIN <= attr_id) &&
-         (attr_id <= SAI_ACL_ENTRY_ATTR_USER_DEFINED_FIELD_GROUP_MAX))) {
-        return true;
-    }
-
-    return false;
-}
-
-void mlnx_udf_acl_attrs_metadata_init()
-{
-    uint32_t ii;
-
-    assert(ARRAY_SIZE(mlnx_udf_acl_table_attr_metadata_list) == MLNX_UDF_ACL_ATTR_COUNT);
-    assert(ARRAY_SIZE(mlnx_udf_acl_table_attr_names) == MLNX_UDF_ACL_ATTR_COUNT);
-    assert(ARRAY_SIZE(mlnx_udf_acl_entry_attr_metadata_list) == MLNX_UDF_ACL_ATTR_COUNT);
-    assert(ARRAY_SIZE(mlnx_udf_acl_entry_attr_names) == MLNX_UDF_ACL_ATTR_COUNT);
-
-    for (ii = 0; ii < MLNX_UDF_ACL_ATTR_COUNT; ii++) {
-        /* Init metedata for SAI_ACL_TABLE_ATTR_USER_DEFINED_FIELD_GROUP* attributes */
-
-        memcpy(&mlnx_udf_acl_table_attr_metadata_list[ii], &mlnx_udf_acl_table_attr_metadata,
-               sizeof(mlnx_udf_acl_table_attr_metadata_list[ii]));
-
-        mlnx_udf_acl_table_attr_metadata_list[ii].attrid = SAI_ACL_TABLE_ATTR_USER_DEFINED_FIELD_GROUP_MIN + ii;
-
-        *((const char**)&mlnx_udf_acl_table_attr_metadata_list[ii].attridname) = mlnx_udf_acl_table_attr_names[ii];
-
-        /* Init metedata for SAI_ACL_TABLE_ATTR_USER_DEFINED_FIELD_GROUP* attributes */
-        memcpy(&mlnx_udf_acl_entry_attr_metadata_list[ii], &mlnx_udf_acl_entry_attr_metadata,
-               sizeof(mlnx_udf_acl_entry_attr_metadata_list[ii]));
-
-        mlnx_udf_acl_entry_attr_metadata_list[ii].attrid = SAI_ACL_ENTRY_ATTR_USER_DEFINED_FIELD_GROUP_MIN + ii;
-
-        *((const char**)&mlnx_udf_acl_entry_attr_metadata_list[ii].attridname) = mlnx_udf_acl_entry_attr_names[ii];
-    }
-}
-
-bool mlnx_udf_acl_attribute_id_is_not_supported(_In_ sai_attr_id_t attr_id)
-{
-    return (((SAI_ACL_TABLE_ATTR_USER_DEFINED_FIELD_GROUP_MIN + MLNX_UDF_ACL_ATTR_MAX_ID) < attr_id) &&
-            (attr_id <= SAI_ACL_TABLE_ATTR_USER_DEFINED_FIELD_GROUP_MAX));
-}
-
-static const sai_attr_metadata_t* mlnx_sai_udf_attr_metadata_get(_In_ sai_object_type_t object_type,
-                                                                 _In_ sai_attr_id_t     attr_id)
-{
-    bool attr_id_not_supported;
-
-    assert(sai_attr_is_acl_udf(object_type, attr_id));
-
-    attr_id_not_supported = mlnx_udf_acl_attribute_id_is_not_supported(attr_id);
-
-    if (SAI_OBJECT_TYPE_ACL_TABLE == object_type) {
-        if (attr_id_not_supported) {
-            SX_LOG_ERR(
-                "Attribute SAI_ACL_TABLE_ATTR_USER_DEFINED_FIELD_GROUP_MIN_%d is out of supported range (0, %d)\n",
-                attr_id - SAI_ACL_TABLE_ATTR_USER_DEFINED_FIELD_GROUP_MIN,
-                MLNX_UDF_ACL_ATTR_MAX_ID);
-            return NULL;
-        }
-
-        return &mlnx_udf_acl_table_attr_metadata_list[attr_id - SAI_ACL_TABLE_ATTR_USER_DEFINED_FIELD_GROUP_MIN];
-    }
-
-    if (SAI_OBJECT_TYPE_ACL_ENTRY == object_type) {
-        if (attr_id_not_supported) {
-            SX_LOG_ERR(
-                "Attribute SAI_ACL_ENTRY_ATTR_USER_DEFINED_FIELD_GROUP_MIN_%d is out of supported range (0, %d)\n",
-                attr_id - SAI_ACL_ENTRY_ATTR_USER_DEFINED_FIELD_GROUP_MIN,
-                MLNX_UDF_ACL_ATTR_MAX_ID);
-            return NULL;
-        }
-
-        return &mlnx_udf_acl_entry_attr_metadata_list[attr_id - SAI_ACL_ENTRY_ATTR_USER_DEFINED_FIELD_GROUP_MIN];
-    }
-
-    return NULL;
-}
-
 static const sai_attr_metadata_t* mlnx_sai_attr_metadata_get_impl(_In_ sai_object_type_t object_type,
                                                                   _In_ sai_attr_id_t     attr_id)
 {
-    if (sai_attr_is_acl_udf(object_type, attr_id)) {
-        return mlnx_sai_udf_attr_metadata_get(object_type, attr_id);
-    } else {
-        return sai_metadata_get_attr_metadata(object_type, attr_id);
-    }
-}
-
-static sai_status_t mlnx_sai_udf_attr_short_name_fetch(_In_ sai_object_type_t object_type,
-                                                       _In_ sai_attr_id_t     attr_id,
-                                                       _Out_ const char     **attr_short_name)
-{
-    const char **names;
-    uint32_t     attr_index;
-
-    assert(sai_attr_is_acl_udf(object_type, attr_id));
-    assert(attr_short_name);
-
-    attr_index = attr_id - SAI_ACL_ENTRY_ATTR_USER_DEFINED_FIELD_GROUP_MIN;
-
-    if (MLNX_UDF_ACL_ATTR_MAX_ID < attr_index) {
-        *attr_short_name = "UDF_ATTR_OUT_OF_RANGE";
-        return SAI_STATUS_SUCCESS;
-    }
-
-    if (SAI_OBJECT_TYPE_ACL_TABLE == object_type) {
-        names = mlnx_udf_acl_table_attr_names;
-    }
-
-    if (SAI_OBJECT_TYPE_ACL_ENTRY == object_type) {
-        names = mlnx_udf_acl_entry_attr_names;
-    }
-
-    *attr_short_name = names[attr_index] + MLNX_UDF_ACL_ATTR_SHORT_NAME_OFFSET;
-
-    return SAI_STATUS_SUCCESS;
+    return sai_metadata_get_attr_metadata(object_type, attr_id);
 }
 
 sai_status_t check_attribs_metadata(_In_ uint32_t                            attr_count,
@@ -2252,7 +2035,7 @@ sai_status_t check_attribs_metadata(_In_ uint32_t                            att
         }
 
         if (SAI_COMMON_API_SET == oper) {
-            /* Some of the attributes in not supported for set in SAI header but supported in MLNX impl
+            /* Some of the attributes in not supported for set in SAI header but supported in MLNX implementation
              * e.g SAI_PORT_ATTR_AUTO_NEG_MODE
              */
             status = sai_attribute_is_valid_for_set(meta_data, &is_valid_for_set);
@@ -2529,7 +2312,7 @@ sai_status_t find_attrib_in_list(_In_ uint32_t                       attr_count,
     for (ii = 0; ii < attr_count; ii++) {
         if (attr_list[ii].id == attrib_id) {
             *attr_value = &(attr_list[ii].value);
-            *index      = ii;
+            *index = ii;
             return SAI_STATUS_SUCCESS;
         }
     }
@@ -2830,13 +2613,13 @@ sai_status_t mlnx_translate_sai_ip_address_to_sdk(_In_ const sai_ip_address_t *s
 
     if (SAI_IP_ADDR_FAMILY_IPV4 == sai_addr->addr_family) {
         /* SDK IPv4 is in host order, while SAI is in network order */
-        sdk_addr->version          = SX_IP_VERSION_IPV4;
+        sdk_addr->version = SX_IP_VERSION_IPV4;
         sdk_addr->addr.ipv4.s_addr = ntohl(sai_addr->addr.ip4);
     } else if (SAI_IP_ADDR_FAMILY_IPV6 == sai_addr->addr_family) {
         /* SDK IPv6 is 4*uint32. Each uint32 is in host order. Between uint32s there is network byte order */
         sdk_addr->version = SX_IP_VERSION_IPV6;
-        from              = (uint32_t*)sai_addr->addr.ip6;
-        to                = (uint32_t*)sdk_addr->addr.ipv6.s6_addr32;
+        from = (uint32_t*)sai_addr->addr.ip6;
+        to = (uint32_t*)sdk_addr->addr.ipv6.s6_addr32;
 
         for (ii = 0; ii < 4; ii++) {
             to[ii] = ntohl(from[ii]);
@@ -2857,11 +2640,11 @@ sai_status_t mlnx_translate_sdk_ip_address_to_sai(_In_ const sx_ip_addr_t *sdk_a
 
     if (SX_IP_VERSION_IPV4 == sdk_addr->version) {
         sai_addr->addr_family = SAI_IP_ADDR_FAMILY_IPV4;
-        sai_addr->addr.ip4    = htonl(sdk_addr->addr.ipv4.s_addr);
+        sai_addr->addr.ip4 = htonl(sdk_addr->addr.ipv4.s_addr);
     } else if (SX_IP_VERSION_IPV6 == sdk_addr->version) {
         sai_addr->addr_family = SAI_IP_ADDR_FAMILY_IPV6;
-        from                  = (uint32_t*)sdk_addr->addr.ipv6.s6_addr32;
-        to                    = (uint32_t*)sai_addr->addr.ip6;
+        from = (uint32_t*)sdk_addr->addr.ipv6.s6_addr32;
+        to = (uint32_t*)sai_addr->addr.ip6;
 
         for (ii = 0; ii < 4; ii++) {
             to[ii] = htonl(from[ii]);
@@ -2882,17 +2665,17 @@ sai_status_t mlnx_translate_sai_ip_prefix_to_sdk(_In_ const sai_ip_prefix_t *sai
     uint32_t *from_addr, *to_addr, *from_mask, *to_mask;
 
     if (SAI_IP_ADDR_FAMILY_IPV4 == sai_prefix->addr_family) {
-        sdk_prefix->version                 = SX_IP_VERSION_IPV4;
+        sdk_prefix->version = SX_IP_VERSION_IPV4;
         sdk_prefix->prefix.ipv4.addr.s_addr = ntohl(sai_prefix->addr.ip4);
         sdk_prefix->prefix.ipv4.mask.s_addr = ntohl(sai_prefix->mask.ip4);
     } else if (SAI_IP_ADDR_FAMILY_IPV6 == sai_prefix->addr_family) {
         sdk_prefix->version = SX_IP_VERSION_IPV6;
 
         from_addr = (uint32_t*)sai_prefix->addr.ip6;
-        to_addr   = (uint32_t*)sdk_prefix->prefix.ipv6.addr.s6_addr32;
+        to_addr = (uint32_t*)sdk_prefix->prefix.ipv6.addr.s6_addr32;
 
         from_mask = (uint32_t*)sai_prefix->mask.ip6;
-        to_mask   = (uint32_t*)sdk_prefix->prefix.ipv6.mask.s6_addr32;
+        to_mask = (uint32_t*)sdk_prefix->prefix.ipv6.mask.s6_addr32;
 
         for (ii = 0; ii < 4; ii++) {
             to_addr[ii] = htonl(from_addr[ii]);
@@ -2915,15 +2698,15 @@ sai_status_t mlnx_translate_sdk_ip_prefix_to_sai(_In_ const sx_ip_prefix_t *sdk_
 
     if (SX_IP_VERSION_IPV4 == sdk_prefix->version) {
         sai_prefix->addr_family = SAI_IP_ADDR_FAMILY_IPV4;
-        sai_prefix->addr.ip4    = htonl(sdk_prefix->prefix.ipv4.addr.s_addr);
-        sai_prefix->mask.ip4    = htonl(sdk_prefix->prefix.ipv4.mask.s_addr);
+        sai_prefix->addr.ip4 = htonl(sdk_prefix->prefix.ipv4.addr.s_addr);
+        sai_prefix->mask.ip4 = htonl(sdk_prefix->prefix.ipv4.mask.s_addr);
     } else if (SX_IP_VERSION_IPV6 == sdk_prefix->version) {
         sai_prefix->addr_family = SAI_IP_ADDR_FAMILY_IPV6;
-        from_addr               = (uint32_t*)sdk_prefix->prefix.ipv6.addr.s6_addr32;
-        to_addr                 = (uint32_t*)sai_prefix->addr.ip6;
+        from_addr = (uint32_t*)sdk_prefix->prefix.ipv6.addr.s6_addr32;
+        to_addr = (uint32_t*)sai_prefix->addr.ip6;
 
         from_mask = (uint32_t*)sdk_prefix->prefix.ipv6.mask.s6_addr32;
-        to_mask   = (uint32_t*)sai_prefix->mask.ip6;
+        to_mask = (uint32_t*)sai_prefix->mask.ip6;
 
         for (ii = 0; ii < 4; ii++) {
             to_addr[ii] = htonl(from_addr[ii]);
@@ -2945,7 +2728,7 @@ sai_status_t sai_qos_map_to_str(_In_ const sai_qos_map_list_t *qosmap,
     sai_qos_map_t *list;
     uint32_t       count;
     sai_status_t   status = SAI_STATUS_SUCCESS;
-    uint32_t       pos    = 0;
+    uint32_t       pos = 0;
     uint32_t       ii;
 
     if (NULL == value_str) {
@@ -2958,7 +2741,7 @@ sai_status_t sai_qos_map_to_str(_In_ const sai_qos_map_list_t *qosmap,
         return SAI_STATUS_SUCCESS;
     }
 
-    list  = qosmap->list;
+    list = qosmap->list;
     count = qosmap->count;
 
     if (!count || !list) {
@@ -3528,21 +3311,21 @@ static sai_status_t sai_attr_meta_enum_to_str(_In_ const sai_attr_metadata_t   *
     acl_value_present = false;
 
     if (meta_data->isaclfield) {
-        enum_value        = value->aclfield.data.s32;
+        enum_value = value->aclfield.data.s32;
         acl_value_present = true;
-        acl_enable_value  = value->aclfield.enable;
+        acl_enable_value = value->aclfield.enable;
     } else if (meta_data->isaclaction) {
-        enum_value        = value->aclaction.parameter.s32;
+        enum_value = value->aclaction.parameter.s32;
         acl_value_present = true;
-        acl_enable_value  = value->aclaction.enable;
+        acl_enable_value = value->aclaction.enable;
     } else {
         enum_value = value->s32;
     }
 
     if (acl_value_present) {
-        pos         = snprintf(value_str, max_length, "%s,", MLNX_UTILS_BOOL_TO_STR(acl_enable_value));
+        pos = snprintf(value_str, max_length, "%s,", MLNX_UTILS_BOOL_TO_STR(acl_enable_value));
         max_length -= pos;
-        value_str  += pos;
+        value_str += pos;
     }
 
     return sai_attr_meta_enum_value_to_str(meta_data, enum_value, max_length, value_str);
@@ -3555,7 +3338,7 @@ static sai_status_t sai_attr_meta_enumlist_s32_to_str(_In_ const sai_attr_metada
 {
     sai_status_t status;
     char         enum_str[MAX_VALUE_STR_LEN] = {0};
-    uint32_t     pos                         = 0, ii;
+    uint32_t     pos = 0, ii;
 
     if (0 == values->count) {
         snprintf(list_str + pos, max_length - pos, "[]");
@@ -3596,16 +3379,16 @@ static sai_status_t sai_attr_meta_enumlist_to_str(_In_ const sai_attr_metadata_t
     assert(value);
     assert(list_str);
 
-    pos               = 0;
-    values            = &value->s32list;
+    pos = 0;
+    values = &value->s32list;
     acl_value_present = false;
 
     if (meta_data->isaclfield) {
         acl_value_present = true;
-        acl_enable_value  = value->aclfield.enable;
+        acl_enable_value = value->aclfield.enable;
     } else if (meta_data->isaclaction) {
         acl_value_present = true;
-        acl_enable_value  = value->aclaction.enable;
+        acl_enable_value = value->aclaction.enable;
     }
 
     if (acl_value_present) {
@@ -3758,6 +3541,13 @@ sai_status_t mlnx_translate_sai_trap_action_to_sdk(sai_int32_t       action,
         *trap_action = SX_TRAP_ACTION_IGNORE;
         break;
 
+    /* trap soft discard allows the packet to travel in the pipeline till end of l2 stage. this allows
+     *  mirroring by ACL (Everflow for MS). The downside is such packets will be counted as drops,
+     *  as some of the packets are dropped by the pipeline according to spec.
+     *  Since we don't want to count such drops (counted when aggregate bridge drops is enabled), we use
+     *  regular trap when feature is enabled.
+     *  In addition, soft discard has another side effect, of allowing learning. If needed, can be disabled
+     *  by ACL */
     case SAI_PACKET_ACTION_TRAP:
         *trap_action =
             ((MLNX_L2_TRAP == is_l2_trap) &&
@@ -3935,7 +3725,7 @@ sai_status_t mlnx_create_object(sai_object_type_t type,
 {
     mlnx_object_id_t *mlnx_object_id = (mlnx_object_id_t*)object_id;
 
-    /* guarntee same size for general object id and mellanox prvivate implementation */
+    /* guarantee same size for general object id and mellanox private implementation */
     int __attribute__((unused)) dummy[(sizeof(mlnx_object_id_t) == sizeof(sai_object_id_t) ? 1 : -1)];
 
     UNREFERENCED_PARAMETER(dummy);
@@ -3951,7 +3741,7 @@ sai_status_t mlnx_create_object(sai_object_type_t type,
     }
 
     memset(mlnx_object_id, 0, sizeof(*mlnx_object_id));
-    mlnx_object_id->id.u32      = data;
+    mlnx_object_id->id.u32 = data;
     mlnx_object_id->object_type = type;
     if (extended_data) {
         memcpy(mlnx_object_id->ext.bytes, extended_data, EXTENDED_DATA_SIZE);
@@ -4169,6 +3959,13 @@ sai_status_t mlnx_fill_aclresourcelist(const sai_acl_resource_t *data, uint32_t 
     return mlnx_fill_genericlist(sizeof(sai_acl_resource_t), (void*)data, count, (void*)list);
 }
 
+sai_status_t mlnx_fill_saistatcapabilitylist(const sai_stat_capability_t *data,
+                                             uint32_t                     count,
+                                             sai_stat_capability_list_t  *list)
+{
+    return mlnx_fill_genericlist(sizeof(sai_stat_capability_t), (void*)data, count, (void*)list);
+}
+
 bool mlnx_route_entries_are_equal(_In_ const sai_route_entry_t *u1, _In_ const sai_route_entry_t *u2)
 {
     if ((NULL == u1) && (NULL == u2)) {
@@ -4215,10 +4012,10 @@ sai_status_t mlnx_attribute_value_list_size_check(_Inout_ uint32_t *out_size, _I
     if (*out_size < in_size) {
         if (0 == *out_size) {
             log_severity = SX_LOG_NOTICE;
-            status       = MLNX_SAI_STATUS_BUFFER_OVERFLOW_EMPTY_LIST;
+            status = MLNX_SAI_STATUS_BUFFER_OVERFLOW_EMPTY_LIST;
         } else {
             log_severity = SX_LOG_ERROR;
-            status       = SAI_STATUS_BUFFER_OVERFLOW;
+            status = SAI_STATUS_BUFFER_OVERFLOW;
         }
 
         SX_LOG(log_severity, " Re-allocate list size as list size is not large enough - needed (%d), provided (%d)\n",
@@ -4246,7 +4043,7 @@ static sai_status_t mlnx_fdb_or_route_action_find(_In_ sai_object_type_t type,
         }
 
         if (SAI_OBJECT_TYPE_FDB_ENTRY == type) {
-            saved_fdb_entry  = &g_sai_db_ptr->fdb_or_route_actions.actions[ii].fdb_entry;
+            saved_fdb_entry = &g_sai_db_ptr->fdb_or_route_actions.actions[ii].fdb_entry;
             targed_fdb_entry = entry;
 
             equal = ((0 == memcmp(saved_fdb_entry->mac_address, targed_fdb_entry->mac_address, sizeof(sai_mac_t))) &&
@@ -4309,7 +4106,7 @@ sai_status_t mlnx_fdb_route_action_save(_In_ sai_object_type_t   type,
     }
 
     g_sai_db_ptr->fdb_or_route_actions.actions[ii].action = action;
-    status                                                = SAI_STATUS_SUCCESS;
+    status = SAI_STATUS_SUCCESS;
 
 out:
     sai_db_unlock();
@@ -4370,4 +4167,100 @@ bool mlnx_is_mac_empty(_In_ const sai_mac_t mac)
         }
     }
     return true;
+}
+
+/*needs sai_db read lock*/
+sai_status_t mlnx_validate_port_isolation_api(mlnx_port_isolation_api_t port_isolation_api)
+{
+    mlnx_port_isolation_api_t *current_api = &g_sai_db_ptr->port_isolation_api;
+
+    if (port_isolation_api > PORT_ISOLATION_API_MAX) {
+        SX_LOG_ERR("Invalid port isolation api %u\n", port_isolation_api);
+        return SAI_STATUS_INVALID_PARAMETER;
+    }
+
+    if (*current_api == PORT_ISOLATION_API_NONE) {
+        *current_api = port_isolation_api;
+    } else if ((*current_api) != port_isolation_api) {
+        SX_LOG_ERR("Invalid api %u, api %u is already in use. Port isolation APIs are mutually exclusive\n",
+                   port_isolation_api, *current_api);
+        return SAI_STATUS_FAILURE;
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
+sai_status_t mlnx_reset_port_isolation_api(void)
+{
+    SX_LOG_ENTER();
+
+    sai_db_write_lock();
+    g_sai_db_ptr->port_isolation_api = PORT_ISOLATION_API_NONE;
+    sai_db_unlock();
+
+    return SAI_STATUS_SUCCESS;
+}
+
+sai_status_t mlnx_get_switch_log_ports_not_in_lag(const sx_port_log_id_t *exclude_phy_ports,
+                                                  const uint32_t          exclude_phy_ports_count,
+                                                  sx_port_log_id_t       *ports,
+                                                  uint32_t               *ports_count)
+{
+    const mlnx_port_config_t *port;
+    uint32_t                  ii, jj, ports_count_tmp = 0;
+    sx_port_log_id_t          log_port_list[MAX_PORTS_DB * 2];
+    uint32_t                  log_port_count = MAX_PORTS_DB * 2;
+    bool                      exclude_port;
+    sx_status_t               sx_status;
+    const bool                is_warmboot_init_stage = (BOOT_TYPE_WARM == g_sai_db_ptr->boot_type) &&
+                                                       (!g_sai_db_ptr->issu_end_called);
+
+    SX_LOG_ENTER();
+
+    assert(ports);
+    if (exclude_phy_ports_count > 0) {
+        assert(exclude_phy_ports);
+    }
+
+    mlnx_phy_port_not_in_lag_foreach(port, ii) {
+        exclude_port = false;
+        for (jj = 0; jj < exclude_phy_ports_count; jj++) {
+            if (port->logical == exclude_phy_ports[jj]) {
+                exclude_port = true;
+                break;
+            }
+        }
+        if (exclude_port) {
+            continue;
+        }
+
+        ports[ports_count_tmp] = port->logical;
+        ports_count_tmp++;
+    }
+
+    if (is_warmboot_init_stage) {
+        sx_status = sx_api_port_swid_port_list_get(gh_sdk, DEFAULT_ETH_SWID, log_port_list, &log_port_count);
+        if (SX_ERR(sx_status)) {
+            SX_LOG_ERR("Error getting switch port list: %s\n",
+                       SX_STATUS_MSG(sx_status));
+            return sdk_to_sai(sx_status);
+        }
+
+        for (ii = 0; ii < log_port_count; ii++) {
+            if (SX_PORT_TYPE_LAG & SX_PORT_TYPE_ID_GET(log_port_list[ii])) {
+                ports[ports_count_tmp] = log_port_list[ii];
+                ports_count_tmp++;
+            }
+        }
+    } else {
+        mlnx_lag_foreach(port, ii) {
+            ports[ports_count_tmp] = port->logical;
+            ports_count_tmp++;
+        }
+    }
+
+
+    *ports_count = ports_count_tmp;
+
+    return SAI_STATUS_SUCCESS;
 }

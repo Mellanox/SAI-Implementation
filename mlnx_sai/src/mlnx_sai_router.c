@@ -65,7 +65,7 @@ static const sai_vendor_attribute_entry_t router_vendor_attribs[] = {
       NULL, NULL }
 };
 const mlnx_obj_type_attrs_info_t          mlnx_router_obj_type_info =
-{ router_vendor_attribs, OBJ_ATTRS_ENUMS_INFO_EMPTY()};
+{ router_vendor_attribs, OBJ_ATTRS_ENUMS_INFO_EMPTY(), OBJ_STAT_CAP_INFO_EMPTY()};
 static void router_key_to_str(_In_ sai_object_id_t vr_id, _Out_ char *key_str)
 {
     uint32_t vrid;
@@ -213,7 +213,7 @@ static sai_status_t mlnx_router_admin_set(_In_ const sai_object_key_t      *key,
         return status;
     }
 
-    vrid   = (sx_router_id_t)data;
+    vrid = (sx_router_id_t)data;
     status = sx_api_router_get(gh_sdk, vrid, &router_attr);
 
     if (SX_STATUS_SUCCESS != status) {
@@ -283,10 +283,10 @@ static sai_status_t mlnx_create_virtual_router(_Out_ sai_object_id_t      *vr_id
 
     memset(&router_attr, 0, sizeof(router_attr));
 
-    router_attr.ipv4_enable            = 1;
-    router_attr.ipv6_enable            = 1;
-    router_attr.ipv4_mc_enable         = 0;
-    router_attr.ipv6_mc_enable         = 0;
+    router_attr.ipv4_enable = 1;
+    router_attr.ipv6_enable = 1;
+    router_attr.ipv4_mc_enable = 0;
+    router_attr.ipv6_mc_enable = 0;
     router_attr.uc_default_rule_action = SX_ROUTER_ACTION_DROP;
     router_attr.mc_default_rule_action = SX_ROUTER_ACTION_DROP;
 

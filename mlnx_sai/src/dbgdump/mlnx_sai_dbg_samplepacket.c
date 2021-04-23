@@ -69,8 +69,8 @@ static void SAI_dump_samplepacket_mode_enum_to_str(_In_ sai_samplepacket_mode_t 
 
 static void SAI_dump_samplepacket_print(_In_ FILE *file, _In_ mlnx_samplepacket_t *mlnx_samplepacket_session)
 {
-    uint32_t                  ii              = 0;
-    sai_object_id_t           obj_id          = SAI_NULL_OBJECT_ID;
+    uint32_t                  ii = 0;
+    sai_object_id_t           obj_id = SAI_NULL_OBJECT_ID;
     uint32_t                  sai_sample_rate = 0;
     char                      sai_type_str[LINE_LENGTH];
     char                      sai_mode_str[LINE_LENGTH];
@@ -87,7 +87,7 @@ static void SAI_dump_samplepacket_print(_In_ FILE *file, _In_ mlnx_samplepacket_
 
     dbg_utils_print_general_header(file, "Sample packet");
 
-    dbg_utils_print_secondary_header(file, "mlnx_samplepaccket_session");
+    dbg_utils_print_secondary_header(file, "mlnx_samplepacket_session");
 
     dbg_utils_print_table_headline(file, samplepacket_clmns);
 

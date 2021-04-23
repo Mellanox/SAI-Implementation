@@ -16,6 +16,7 @@
  */
 
 #include "mlnx_sai.h"
+#include "mlnx_sai_dbg.h"
 #include <sx/utils/dbg_utils.h>
 #include "assert.h"
 
@@ -30,7 +31,7 @@ static void SAI_dump_port_getdb(_Out_ uint32_t           *ports_number,
 
     sai_db_read_lock();
 
-    *ports_number     = g_sai_db_ptr->ports_number;
+    *ports_number = g_sai_db_ptr->ports_number;
     *ports_configured = g_sai_db_ptr->ports_configured;
     memcpy(mlnx_port_config,
            g_sai_db_ptr->ports_db,
@@ -59,51 +60,41 @@ static void SAI_dump_ports_configured_print(_In_ FILE *file, _In_ uint32_t *port
     dbg_utils_print(file, "\n");
 }
 
-static void SAI_dump_port_breakoutmode_enum_to_str(_In_ mlnx_port_breakout_capability_t mode, _Out_ char *str)
-{
-    assert(NULL != str);
+/* mlnx_port_breakout_capability_t */
+char *port_breakout_mode_mapper_array[] = {
+    "none",     /* MLNX_PORT_BREAKOUT_CAPABILITY_NONE     */
+    "two",      /* MLNX_PORT_BREAKOUT_CAPABILITY_TWO      */
+    "four",     /* MLNX_PORT_BREAKOUT_CAPABILITY_FOUR     */
+    "two four", /* MLNX_PORT_BREAKOUT_CAPABILITY_TWO_FOUR */
+};
 
-    switch (mode) {
-    case MLNX_PORT_BREAKOUT_CAPABILITY_NONE:
-        strcpy(str, "none");
-        break;
+/* sx_port_mapping_mode_t */
+char *port_mapping_mode_mapper_array[] = {
+    "disable", /* SX_PORT_MAPPING_MODE_DISABLE */
+    "enable",  /* SX_PORT_MAPPING_MODE_ENABLE  */
+};
 
-    case MLNX_PORT_BREAKOUT_CAPABILITY_TWO:
-        strcpy(str, "two");
-        break;
+/* mlnx_port_autoneg_type_t */
+char *auto_neg_mapper_array[] = {
+    "DISABLED", /* AUTO_NEG_DISABLE */
+    "ENABLED",  /* AUTO_NEG_ENABLE  */
+    "DEFAULT",  /* AUTO_NEG_DEFAULT */
+};
 
-    case MLNX_PORT_BREAKOUT_CAPABILITY_FOUR:
-        strcpy(str, "four");
-        break;
+mlnx_dbg_dump_enum_mapper_t auto_neg_mapper = {
+    .map = auto_neg_mapper_array,
+    .size = sizeof(auto_neg_mapper_array) / sizeof(char*)
+};
 
-    case MLNX_PORT_BREAKOUT_CAPABILITY_TWO_FOUR:
-        strcpy(str, "two four");
-        break;
+mlnx_dbg_dump_enum_mapper_t port_mapping_mode_mapper = {
+    .map = port_mapping_mode_mapper_array,
+    .size = sizeof(port_mapping_mode_mapper_array) / sizeof(char*)
+};
 
-    default:
-        strcpy(str, "unknown");
-        break;
-    }
-}
-
-static void SAI_dump_port_mapping_mode_enum_to_str(_In_ sx_port_mapping_mode_t mode, _Out_ char *str)
-{
-    assert(NULL != str);
-
-    switch (mode) {
-    case SX_PORT_MAPPING_MODE_DISABLE:
-        strcpy(str, "disable");
-        break;
-
-    case SX_PORT_MAPPING_MODE_ENABLE:
-        strcpy(str, "enable");
-        break;
-
-    default:
-        strcpy(str, "unknown");
-        break;
-    }
-}
+mlnx_dbg_dump_enum_mapper_t port_breakout_mode_mapper = {
+    .map = port_breakout_mode_mapper_array,
+    .size = sizeof(port_breakout_mode_mapper_array) / sizeof(char*)
+};
 
 static void SAI_dump_port_print(_In_ FILE *file, _In_ mlnx_port_config_t *mlnx_port_config)
 {
@@ -117,6 +108,10 @@ static void SAI_dump_port_print(_In_ FILE *file, _In_ mlnx_port_config_t *mlnx_p
     sai_object_id_t           curr_groups_scheduler_id;
     char                      breakout_modes_str[LINE_LENGTH];
     char                      mapping_mode_str[LINE_LENGTH];
+    char                      auto_neg_mode_str[LINE_LENGTH];
+    char                      intf_type_str[LINE_LENGTH];
+    char                      adv_intf_types_str[LINE_LENGTH];
+    char                      adv_speeds_str[LINE_LENGTH];
     dbg_utils_table_columns_t port_clmns[] = {
         {"sai oid",                    16, PARAM_UINT64_E, &curr_mlnx_port_config.saiport},
         {"db idx",                     7,  PARAM_UINT32_E, &ii},
@@ -149,7 +144,6 @@ static void SAI_dump_port_print(_In_ FILE *file, _In_ mlnx_port_config_t *mlnx_p
         {"is default sched hierarchy", 17, PARAM_UINT8_E,  &curr_mlnx_port_config.sched_hierarchy.is_default},
         {"rif",                        5,  PARAM_UINT16_E, &curr_mlnx_port_config.rifs},
         {"acls",                       5,  PARAM_UINT16_E, &curr_mlnx_port_config.acl_refs},
-        {"oper speed cached",          18, PARAM_UINT32_E, &curr_mlnx_port_config.oper_speed_cached},
         {"lag ingr acl oid changed",   24, PARAM_UINT8_E,
          &curr_mlnx_port_config.issu_lag_attr.lag_ingress_acl_oid_changed},
         {"lag ingr acl oid",           17, PARAM_UINT64_E, &curr_mlnx_port_config.issu_lag_attr.lag_ingress_acl_oid},
@@ -168,6 +162,13 @@ static void SAI_dump_port_print(_In_ FILE *file, _In_ mlnx_port_config_t *mlnx_p
         {"lag drop tagged changed",    24, PARAM_UINT8_E,
          &curr_mlnx_port_config.issu_lag_attr.lag_drop_tagged_changed},
         {"lag drop tagged",            16, PARAM_UINT8_E,  &curr_mlnx_port_config.issu_lag_attr.lag_drop_tagged},
+        {"auto_neg",                   10, PARAM_STRING_E, &auto_neg_mode_str},
+        {"speed",                      10, PARAM_UINT32_E, &curr_mlnx_port_config.speed},
+        {"interface type",             16, PARAM_STRING_E, &intf_type_str},
+        {"adv speeds num",             16, PARAM_UINT32_E, &curr_mlnx_port_config.adv_speeds_num},
+        {"adv speeds",                 30, PARAM_STRING_E, &adv_speeds_str},
+        {"adv intfs num",              16, PARAM_UINT32_E, &curr_mlnx_port_config.adv_intfs_num},
+        {"adv intfs",                  30, PARAM_STRING_E, &adv_intf_types_str},
         /* {"vlan",                       5,  PARAM_UINT16_E, &curr_mlnx_port_config.vlans}, */
         /* {"fdb",                        5,  PARAM_UINT32_E, &curr_mlnx_port_config.fdbs}, */
         {NULL,                         0,  0,              NULL}
@@ -202,10 +203,21 @@ static void SAI_dump_port_print(_In_ FILE *file, _In_ mlnx_port_config_t *mlnx_p
         if (mlnx_port_config[ii].is_present) {
             memcpy(&curr_mlnx_port_config, &mlnx_port_config[ii], sizeof(mlnx_port_config_t));
 
-            SAI_dump_port_breakoutmode_enum_to_str(mlnx_port_config[ii].breakout_modes,
-                                                   breakout_modes_str);
-            SAI_dump_port_mapping_mode_enum_to_str(mlnx_port_config[ii].port_map.mapping_mode,
-                                                   mapping_mode_str);
+            SAI_dump_enums_to_str(&port_breakout_mode_mapper, (int32_t *)&mlnx_port_config[ii].breakout_modes, 1,
+                                  breakout_modes_str, LINE_LENGTH);
+            SAI_dump_enums_to_str(&port_mapping_mode_mapper, (int32_t *)&mlnx_port_config[ii].port_map.mapping_mode, 1,
+                                  mapping_mode_str, LINE_LENGTH);
+            SAI_dump_enums_to_str(&auto_neg_mapper, (int32_t *)&mlnx_port_config[ii].auto_neg, 1,
+                                  auto_neg_mode_str, LINE_LENGTH);
+            SAI_dump_sai_enum_to_str(&sai_metadata_enum_sai_port_interface_type_t,
+                                     (int32_t *)&mlnx_port_config[ii].intf, 1,
+                                     intf_type_str, LINE_LENGTH);
+            SAI_dump_sai_enum_to_str(&sai_metadata_enum_sai_port_interface_type_t,
+                                     (int32_t *)mlnx_port_config[ii].adv_intfs, mlnx_port_config[ii].adv_intfs_num,
+                                     adv_intf_types_str, LINE_LENGTH);
+            SAI_dump_u32list_to_str(mlnx_port_config[ii].adv_speeds,
+                                    mlnx_port_config[ii].adv_speeds_num,
+                                    adv_speeds_str, LINE_LENGTH);
             dbg_utils_print_table_data_line(file, port_clmns);
         }
     }
@@ -259,7 +271,7 @@ static void SAI_dump_port_print(_In_ FILE *file, _In_ mlnx_port_config_t *mlnx_p
 
 void SAI_dump_port(_In_ FILE *file)
 {
-    uint32_t            ports_number     = 0;
+    uint32_t            ports_number = 0;
     uint32_t            ports_configured = 0;
     mlnx_port_config_t *mlnx_port_config;
 

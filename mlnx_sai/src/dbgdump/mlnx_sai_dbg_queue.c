@@ -82,7 +82,7 @@ static void SAI_dump_ets_type_enum_to_str(_In_ sx_cos_ets_hierarchy_t ets_type, 
 
 static void SAI_dump_queue_db_print(_In_ FILE *file, _In_ mlnx_qos_queue_config_t *queue_db)
 {
-    uint32_t                  ii     = 0;
+    uint32_t                  ii = 0;
     sai_object_id_t           obj_id = SAI_NULL_OBJECT_ID;
     mlnx_qos_queue_config_t   curr_queue_db;
     char                      type_str[LINE_LENGTH];

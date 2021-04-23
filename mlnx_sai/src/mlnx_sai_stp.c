@@ -65,7 +65,7 @@ static const sai_vendor_attribute_entry_t stp_vendor_attribs[] = {
       NULL, NULL }
 };
 const mlnx_obj_type_attrs_info_t          mlnx_stp_obj_type_info =
-{ stp_vendor_attribs, OBJ_ATTRS_ENUMS_INFO_EMPTY()};
+{ stp_vendor_attribs, OBJ_ATTRS_ENUMS_INFO_EMPTY(), OBJ_STAT_CAP_INFO_EMPTY()};
 static sai_status_t mlnx_stp_port_stp_id_get(_In_ const sai_object_key_t   *key,
                                              _Inout_ sai_attribute_value_t *value,
                                              _In_ uint32_t                  attr_index,
@@ -110,7 +110,7 @@ static const mlnx_attr_enum_info_t        stp_port_enum_info[] = {
     [SAI_STP_PORT_ATTR_STATE] = ATTR_ENUM_VALUES_ALL()
 };
 const mlnx_obj_type_attrs_info_t          mlnx_stp_port_obj_type_info =
-{ stp_port_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(stp_port_enum_info)};
+{ stp_port_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(stp_port_enum_info), OBJ_STAT_CAP_INFO_EMPTY()};
 static void stp_id_to_str(_In_ sai_object_id_t sai_stp_id, _Out_ char *key_str)
 {
     uint32_t     data;
@@ -139,7 +139,7 @@ static sai_status_t create_stp_id(_Out_ sx_mstp_inst_id_t* sx_stp_id)
         stp_db_entry = get_stp_db_entry(ii);
         if (stp_db_entry->is_used == false) {
             /* return instance id */
-            *sx_stp_id            = ii;
+            *sx_stp_id = ii;
             stp_db_entry->is_used = true;
             SX_LOG_DBG("Generated STP id [%u]\n", ii);
             status = SAI_STATUS_SUCCESS;
@@ -165,7 +165,7 @@ static void remove_stp_id(_In_ sx_mstp_inst_id_t sx_stp_id)
 
     SX_LOG_NTC("Remove instance id [%u] from STP db \n", sx_stp_id);
 
-    stp_db_entry          = get_stp_db_entry(sx_stp_id);
+    stp_db_entry = get_stp_db_entry(sx_stp_id);
     stp_db_entry->is_used = false;
 
     SX_LOG_EXIT();
@@ -440,9 +440,9 @@ static sai_status_t mlnx_stp_ports_get(_In_ const sai_object_key_t   *key,
                                        _Inout_ vendor_cache_t        *cache,
                                        _In_ void                     *arg)
 {
-    const sai_object_id_t sai_stp_id  = key->key.object_id;
+    const sai_object_id_t sai_stp_id = key->key.object_id;
     uint32_t              ports_count = 0;
-    sai_object_id_t      *ports_list  = NULL;
+    sai_object_id_t      *ports_list = NULL;
     sx_mstp_inst_id_t     sx_stp_id;
     sai_status_t          status;
     mlnx_bridge_port_t   *port;
@@ -480,7 +480,7 @@ static sai_status_t mlnx_stp_ports_get(_In_ const sai_object_key_t   *key,
 
     if (!ports_count) {
         value->objlist.count = 0;
-        status               = SAI_STATUS_SUCCESS;
+        status = SAI_STATUS_SUCCESS;
         goto out;
     }
 
@@ -500,7 +500,7 @@ static sai_status_t mlnx_stp_ports_get(_In_ const sai_object_key_t   *key,
             memset(&port_stp_oid, 0, sizeof(port_stp_oid));
 
             port_stp_oid.id.log_port_id = port->logical;
-            port_stp_oid.ext.stp.id     = sx_stp_id;
+            port_stp_oid.ext.stp.id = sx_stp_id;
 
             status = mlnx_object_id_to_sai(SAI_OBJECT_TYPE_STP_PORT, &port_stp_oid, &oid);
             if (SAI_ERR(status)) {
@@ -692,7 +692,7 @@ static sai_status_t mlnx_create_stp_port(_Out_ sai_object_id_t      *stp_port_id
     memset(&stp_port_obj_id, 0, sizeof(stp_port_obj_id));
 
     stp_port_obj_id.id.log_port_id = bridge_port->logical;
-    stp_port_obj_id.ext.stp.id     = stp_obj_id.id.stp_inst_id;
+    stp_port_obj_id.ext.stp.id = stp_obj_id.id.stp_inst_id;
 
     status = mlnx_object_id_to_sai(SAI_OBJECT_TYPE_STP_PORT, &stp_port_obj_id, stp_port_id);
     if (SAI_ERR(status)) {
@@ -886,7 +886,7 @@ static sai_status_t mlnx_stp_port_state_get(_In_ const sai_object_key_t   *key,
     }
 
     sx_mstp_inst = stp_port.ext.stp.id;
-    sx_port      = stp_port.id.log_port_id;
+    sx_port = stp_port.id.log_port_id;
 
     sai_db_read_lock();
 
@@ -954,8 +954,8 @@ static sai_status_t mlnx_stp_port_state_set(_In_ const sai_object_key_t      *ke
         return status;
     }
 
-    sx_mstp_inst  = stp_port.ext.stp.id;
-    sx_port       = stp_port.id.log_port_id;
+    sx_mstp_inst = stp_port.ext.stp.id;
+    sx_port = stp_port.id.log_port_id;
     sx_port_state = sai_stp_port_state_to_sdk(value->s32);
 
     sai_db_read_lock();
@@ -1064,14 +1064,14 @@ sai_status_t mlnx_stp_preinitialize()
     return SAI_STATUS_SUCCESS;
 }
 
-/* STP initializer. */
+/* STP initialization. */
 /* Called when first STP id is created */
 sai_status_t mlnx_stp_initialize()
 {
     sai_status_t              status = SAI_STATUS_SUCCESS;
     sx_status_t               sx_status;
     sx_vlan_id_t              sx_vlan_id;
-    sx_vlan_id_t              sx_vlan_ids[MAX_VLANS]            = {0};
+    sx_vlan_id_t              sx_vlan_ids[MAX_VLANS] = {0};
     sx_mstp_inst_port_state_t ports_states[MAX_BRIDGE_1Q_PORTS] = {0};
     uint32_t                  vlans_count, ii;
     const mlnx_bridge_port_t *bport;
@@ -1085,7 +1085,7 @@ sai_status_t mlnx_stp_initialize()
 
     g_sai_db_ptr->is_stp_initialized = true;
 
-    /* Fetch rstp state for each port so we can applay it after setting mstp mode to SX_MSTP_MODE_MSTP */
+    /* Fetch rstp state for each port so we can apply it after setting mstp mode to SX_MSTP_MODE_MSTP */
     mlnx_bridge_1q_port_foreach(bport, ii) {
         if (bport->port_type == SAI_BRIDGE_PORT_TYPE_PORT) {
             sx_status = sx_api_rstp_port_state_get(gh_sdk, bport->logical, &ports_states[ii]);

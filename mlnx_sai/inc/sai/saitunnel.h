@@ -311,21 +311,6 @@ typedef sai_status_t (*sai_get_tunnel_map_attribute_fn)(
         _Inout_ sai_attribute_t *attr_list);
 
 /**
- * @brief Defines tunnel type
- */
-typedef enum _sai_tunnel_type_t
-{
-    SAI_TUNNEL_TYPE_IPINIP,
-
-    SAI_TUNNEL_TYPE_IPINIP_GRE,
-
-    SAI_TUNNEL_TYPE_VXLAN,
-
-    SAI_TUNNEL_TYPE_MPLS,
-
-} sai_tunnel_type_t;
-
-/**
  * @brief Defines tunnel TTL mode
  */
 typedef enum _sai_tunnel_ttl_mode_t
@@ -384,50 +369,6 @@ typedef enum _sai_tunnel_dscp_mode_t
     SAI_TUNNEL_DSCP_MODE_PIPE_MODEL
 
 } sai_tunnel_dscp_mode_t;
-
-/**
- * @brief Defines tunnel encap ECN mode
- */
-typedef enum _sai_tunnel_encap_ecn_mode_t
-{
-    /**
-     * @brief Normal mode behavior defined in RFC 6040
-     * section 4.1 copy from inner
-     */
-    SAI_TUNNEL_ENCAP_ECN_MODE_STANDARD,
-
-    /**
-     * @brief User defined behavior.
-     *
-     * Need to provide #SAI_TUNNEL_MAP_TYPE_OECN_TO_UECN in #SAI_TUNNEL_ATTR_ENCAP_MAPPERS.
-     */
-    SAI_TUNNEL_ENCAP_ECN_MODE_USER_DEFINED
-
-} sai_tunnel_encap_ecn_mode_t;
-
-/**
- * @brief Defines tunnel decap ECN mode
- */
-typedef enum _sai_tunnel_decap_ecn_mode_t
-{
-    /**
-     * @brief Behavior defined in RFC 6040 section 4.2
-     */
-    SAI_TUNNEL_DECAP_ECN_MODE_STANDARD,
-
-    /**
-     * @brief Copy from outer ECN
-     */
-    SAI_TUNNEL_DECAP_ECN_MODE_COPY_FROM_OUTER,
-
-    /**
-     * @brief User defined behavior
-     *
-     * Need to provide #SAI_TUNNEL_MAP_TYPE_UECN_OECN_TO_OECN in #SAI_TUNNEL_ATTR_DECAP_MAPPERS
-     */
-    SAI_TUNNEL_DECAP_ECN_MODE_USER_DEFINED
-
-} sai_tunnel_decap_ecn_mode_t;
 
 /**
  * @brief Defines tunnel peer mode
@@ -622,7 +563,6 @@ typedef enum _sai_tunnel_attr_t
      * @type sai_tunnel_ttl_mode_t
      * @flags CREATE_AND_SET
      * @default SAI_TUNNEL_TTL_MODE_UNIFORM_MODEL
-     * @validonly SAI_TUNNEL_ATTR_TYPE == SAI_TUNNEL_TYPE_IPINIP or SAI_TUNNEL_ATTR_TYPE == SAI_TUNNEL_TYPE_IPINIP_GRE
      */
     SAI_TUNNEL_ATTR_DECAP_TTL_MODE,
 
@@ -632,7 +572,6 @@ typedef enum _sai_tunnel_attr_t
      * @type sai_tunnel_dscp_mode_t
      * @flags CREATE_AND_SET
      * @default SAI_TUNNEL_DSCP_MODE_UNIFORM_MODEL
-     * @validonly SAI_TUNNEL_ATTR_TYPE == SAI_TUNNEL_TYPE_IPINIP or SAI_TUNNEL_ATTR_TYPE == SAI_TUNNEL_TYPE_IPINIP_GRE
      */
     SAI_TUNNEL_ATTR_DECAP_DSCP_MODE,
 
@@ -644,6 +583,36 @@ typedef enum _sai_tunnel_attr_t
      * @objects SAI_OBJECT_TYPE_TUNNEL_TERM_TABLE_ENTRY
      */
     SAI_TUNNEL_ATTR_TERM_TABLE_ENTRY_LIST,
+
+    /**
+     * @brief Packet action when a packet ingress and gets routed back to same tunnel
+     *
+     * @type sai_packet_action_t
+     * @flags CREATE_AND_SET
+     * @default SAI_PACKET_ACTION_FORWARD
+     * @isresourcetype true
+     */
+    SAI_TUNNEL_ATTR_LOOPBACK_PACKET_ACTION,
+
+    /**
+     * @brief Tunnel VXLAN UDP source port mode
+     *
+     * @type sai_tunnel_vxlan_udp_sport_mode_t
+     * @flags CREATE_AND_SET
+     * @default SAI_TUNNEL_VXLAN_UDP_SPORT_MODE_EPHEMERAL
+     */
+    SAI_TUNNEL_ATTR_VXLAN_UDP_SPORT_MODE,
+
+    /**
+     * @brief Tunnel UDP source port
+     *
+     * @type sai_uint16_t
+     * @flags CREATE_AND_SET
+     * @isvlan false
+     * @default 0
+     * @validonly SAI_TUNNEL_ATTR_TYPE == SAI_TUNNEL_TYPE_VXLAN and SAI_TUNNEL_ATTR_VXLAN_UDP_SPORT_MODE == SAI_TUNNEL_VXLAN_UDP_SPORT_MODE_USER_DEFINED
+     */
+    SAI_TUNNEL_ATTR_VXLAN_UDP_SPORT,
 
     /**
      * @brief End of attributes
@@ -785,8 +754,14 @@ typedef enum _sai_tunnel_term_table_entry_type_t
     /** Tunnel termination table point to point entry match on dst & src IP & tunnel type */
     SAI_TUNNEL_TERM_TABLE_ENTRY_TYPE_P2P,
 
-    /** Tunnel termination table point to multi point entry match on dst IP & tunnel type */
+    /** Tunnel termination table point to multi point entry match on dst IP & src IP+mask & tunnel type */
     SAI_TUNNEL_TERM_TABLE_ENTRY_TYPE_P2MP,
+
+    /** Tunnel termination table multi point to point entry match on dst IP+mask & src IP & tunnel type */
+    SAI_TUNNEL_TERM_TABLE_ENTRY_TYPE_MP2P,
+
+    /** Tunnel termination table multi point to multi point entry match on dst IP+mask & src IP+mask & tunnel type */
+    SAI_TUNNEL_TERM_TABLE_ENTRY_TYPE_MP2MP,
 
 } sai_tunnel_term_table_entry_type_t;
 
@@ -822,17 +797,38 @@ typedef enum _sai_tunnel_term_table_entry_attr_t
      *
      * @type sai_ip_address_t
      * @flags MANDATORY_ON_CREATE | CREATE_ONLY
+     * @condition SAI_TUNNEL_TERM_TABLE_ENTRY_ATTR_TYPE == SAI_TUNNEL_TERM_TABLE_ENTRY_TYPE_P2P or SAI_TUNNEL_TERM_TABLE_ENTRY_ATTR_TYPE == SAI_TUNNEL_TERM_TABLE_ENTRY_TYPE_P2MP
      */
     SAI_TUNNEL_TERM_TABLE_ENTRY_ATTR_DST_IP,
+
+    /**
+     * @brief Tunnel termination IP address mask
+     *
+     * @type sai_ip_address_t
+     * @flags CREATE_ONLY
+     * @default 0.0.0.0
+     * @validonly SAI_TUNNEL_TERM_TABLE_ENTRY_ATTR_TYPE == SAI_TUNNEL_TERM_TABLE_ENTRY_TYPE_MP2P or SAI_TUNNEL_TERM_TABLE_ENTRY_ATTR_TYPE == SAI_TUNNEL_TERM_TABLE_ENTRY_TYPE_MP2MP
+     */
+    SAI_TUNNEL_TERM_TABLE_ENTRY_ATTR_DST_IP_MASK,
 
     /**
      * @brief Tunnel source IP address
      *
      * @type sai_ip_address_t
      * @flags MANDATORY_ON_CREATE | CREATE_ONLY
-     * @condition SAI_TUNNEL_TERM_TABLE_ENTRY_ATTR_TYPE == SAI_TUNNEL_TERM_TABLE_ENTRY_TYPE_P2P
+     * @condition SAI_TUNNEL_TERM_TABLE_ENTRY_ATTR_TYPE == SAI_TUNNEL_TERM_TABLE_ENTRY_TYPE_P2P or SAI_TUNNEL_TERM_TABLE_ENTRY_ATTR_TYPE == SAI_TUNNEL_TERM_TABLE_ENTRY_TYPE_MP2P
      */
     SAI_TUNNEL_TERM_TABLE_ENTRY_ATTR_SRC_IP,
+
+    /**
+     * @brief Tunnel source IP address mask
+     *
+     * @type sai_ip_address_t
+     * @flags CREATE_ONLY
+     * @default 0.0.0.0
+     * @validonly SAI_TUNNEL_TERM_TABLE_ENTRY_ATTR_TYPE == SAI_TUNNEL_TERM_TABLE_ENTRY_TYPE_P2MP or SAI_TUNNEL_TERM_TABLE_ENTRY_ATTR_TYPE == SAI_TUNNEL_TERM_TABLE_ENTRY_TYPE_MP2MP
+     */
+    SAI_TUNNEL_TERM_TABLE_ENTRY_ATTR_SRC_IP_MASK,
 
     /**
      * @brief Tunnel type
@@ -850,6 +846,17 @@ typedef enum _sai_tunnel_term_table_entry_attr_t
      * @objects SAI_OBJECT_TYPE_TUNNEL
      */
     SAI_TUNNEL_TERM_TABLE_ENTRY_ATTR_ACTION_TUNNEL_ID,
+
+    /** READ-ONLY */
+
+    /**
+     * @brief Tunnel term table entry IP address family
+     *
+     * @type sai_ip_addr_family_t
+     * @flags READ_ONLY
+     * @isresourcetype true
+     */
+    SAI_TUNNEL_TERM_TABLE_ENTRY_ATTR_IP_ADDR_FAMILY,
 
     /**
      * @brief End of attributes

@@ -118,7 +118,7 @@ static const sai_vendor_attribute_entry_t sched_group_vendor_attribs[] = {
       NULL, NULL }
 };
 const mlnx_obj_type_attrs_info_t          mlnx_sched_group_obj_type_info =
-{ sched_group_vendor_attribs, OBJ_ATTRS_ENUMS_INFO_EMPTY()};
+{ sched_group_vendor_attribs, OBJ_ATTRS_ENUMS_INFO_EMPTY(), OBJ_STAT_CAP_INFO_EMPTY()};
 static mlnx_sched_obj_t * group_get(mlnx_port_config_t *port, uint8_t level, uint8_t index)
 {
     return &port->sched_hierarchy.groups[level][index];
@@ -129,8 +129,8 @@ static sx_cos_ets_element_config_t * sched_obj_to_ets(mlnx_sched_obj_t *obj, sx_
     assert(obj != NULL);
     assert(ets != NULL);
 
-    ets->element_index      = obj->index;
-    ets->element_hierarchy  = obj->ets_type;
+    ets->element_index = obj->index;
+    ets->element_hierarchy = obj->ets_type;
     ets->next_element_index = (obj->next_index == INVALID_INDEX) ? 0 : obj->next_index;
 
     return ets;
@@ -221,14 +221,14 @@ static sai_status_t groups_child_foreach(mlnx_port_config_t    *port,
                                          mlnx_sched_obj_iter_t  iter,
                                          mlnx_sched_iter_ctx_t *ctx)
 {
-    mlnx_sched_obj_t      parent    = {.level = lvl, .index = idx };
+    mlnx_sched_obj_t      parent = {.level = lvl, .index = idx };
     mlnx_sched_iter_ctx_t child_ctx = { .arg = &parent, .iter = iter, .iter_ctx = ctx };
 
     parent.level = lvl;
     parent.index = idx;
 
-    child_ctx.arg      = &parent;
-    child_ctx.iter     = iter;
+    child_ctx.arg = &parent;
+    child_ctx.iter = iter;
     child_ctx.iter_ctx = ctx;
 
     mlnx_sched_hierarchy_foreach(port, groups_child_iter, &child_ctx);
@@ -304,7 +304,7 @@ static mlnx_iter_ret_t groups_child_to_objlist(mlnx_port_config_t *port, mlnx_sc
     }
 
     obj_list = (sai_object_list_t*)ctx->arg;
-    ii       = obj_list->count++;
+    ii = obj_list->count++;
 
     if (obj->type == MLNX_SCHED_OBJ_QUEUE) {
         ctx->sai_status = mlnx_create_queue_object(port->logical, obj->index, &obj_list->list[ii]);
@@ -352,7 +352,7 @@ static sai_status_t mlnx_sched_group_child_count_get(_In_ const sai_object_key_t
     }
 
     ctx.sai_status = SAI_STATUS_SUCCESS;
-    ctx.arg        = &count;
+    ctx.arg = &count;
 
     status = groups_child_foreach(port, lvl, idx, groups_child_counter, &ctx);
     if (SAI_ERR(status)) {
@@ -396,7 +396,7 @@ static sai_status_t mlnx_sched_group_child_list_get(_In_ const sai_object_key_t 
     }
 
     ctx.sai_status = SAI_STATUS_SUCCESS;
-    ctx.arg        = &count;
+    ctx.arg = &count;
 
     status = groups_child_foreach(port, lvl, idx, groups_child_counter, &ctx);
     if (SAI_ERR(status)) {
@@ -412,7 +412,7 @@ static sai_status_t mlnx_sched_group_child_list_get(_In_ const sai_object_key_t 
     child_list.count = 0; /* will be filled by child iterator */
 
     ctx.sai_status = SAI_STATUS_SUCCESS;
-    ctx.arg        = &child_list;
+    ctx.arg = &child_list;
 
     status = groups_child_foreach(port, lvl, idx, groups_child_to_objlist, &ctx);
     if (SAI_ERR(status)) {
@@ -713,7 +713,7 @@ static mlnx_iter_ret_t sched_obj_reset(mlnx_port_config_t *port, mlnx_sched_obj_
         return ITER_STOP;
     }
 
-    obj->is_used   = false;
+    obj->is_used = false;
     obj->parent_id = SAI_NULL_OBJECT_ID;
     port->sched_hierarchy.groups_count[obj->level]--;
 
@@ -753,7 +753,7 @@ sai_status_t mlnx_sched_hierarchy_reset(mlnx_port_config_t *port)
 /**
  * @brief  Create Scheduler group
  *
- * @param[out] scheduler_group_id Scheudler group id
+ * @param[out] scheduler_group_id Scheduler group id
  * @param[in] attr_count number of attributes
  * @param[in] attr_list array of attributes
  *
@@ -774,8 +774,8 @@ static sai_status_t mlnx_create_scheduler_group(_Out_ sai_object_id_t      *sche
     uint8_t                      level;
     uint8_t                      max_child_count;
     sai_object_id_t              parent_group_id = SAI_NULL_OBJECT_ID;
-    sai_object_id_t              scheduler_id    = SAI_NULL_OBJECT_ID;
-    mlnx_sched_obj_t            *sched_obj       = NULL;
+    sai_object_id_t              scheduler_id = SAI_NULL_OBJECT_ID;
+    mlnx_sched_obj_t            *sched_obj = NULL;
     char                         list_str[MAX_LIST_VALUE_STR_LEN];
 
     SX_LOG_ENTER();
@@ -899,9 +899,9 @@ static sai_status_t mlnx_create_scheduler_group(_Out_ sai_object_id_t      *sche
         goto out;
     }
 
-    sched_obj->is_used         = true;
+    sched_obj->is_used = true;
     sched_obj->max_child_count = max_child_count;
-    sched_obj->scheduler_id    = scheduler_id;
+    sched_obj->scheduler_id = scheduler_id;
 
     port->sched_hierarchy.groups_count[level]++;
 
@@ -927,7 +927,7 @@ static mlnx_iter_ret_t groups_child_exist(mlnx_port_config_t *port, mlnx_sched_o
 /**
  * @brief  Remove Scheduler group
  *
- * @param[in] scheduler_group_id Scheudler group id
+ * @param[in] scheduler_group_id Scheduler group id
  *
  * @return  SAI_STATUS_SUCCESS on success
  *          Failure status code on error
@@ -980,11 +980,11 @@ static sai_status_t mlnx_remove_scheduler_group(_In_ sai_object_id_t scheduler_g
     }
 
     /* Invalidate scheduler group object */
-    group               = group_get(port, level, index);
-    group->is_used      = false;
-    group->next_index   = INVALID_INDEX;
+    group = group_get(port, level, index);
+    group->is_used = false;
+    group->next_index = INVALID_INDEX;
     group->scheduler_id = SAI_NULL_OBJECT_ID;
-    group->parent_id    = SAI_NULL_OBJECT_ID;
+    group->parent_id = SAI_NULL_OBJECT_ID;
 
     port->sched_hierarchy.groups_count[level]--;
 
@@ -1000,7 +1000,7 @@ out:
 /**
  * @brief  Set Scheduler group Attribute
  *
- * @param[in] scheduler_group_id Scheudler group id
+ * @param[in] scheduler_group_id Scheduler group id
  * @param[in] attr attribute to set
  *
  * @return  SAI_STATUS_SUCCESS on success
@@ -1125,10 +1125,10 @@ static sai_status_t mlnx_sched_objlist_to_hierarchy_update(mlnx_port_config_t *p
                 return status;
             }
 
-            queue->sched_obj.parent_id  = obj->parent_id;
+            queue->sched_obj.parent_id = obj->parent_id;
             queue->sched_obj.next_index = obj->next_index;
-            queue->sched_obj.level      = obj->level;
-            queue->sched_obj.ets_type   = obj->ets_type;
+            queue->sched_obj.level = obj->level;
+            queue->sched_obj.ets_type = obj->ets_type;
         } else {
             /* We should not reach here */
             assert(false);
@@ -1173,7 +1173,7 @@ static sai_status_t sched_group_add_or_del_child_list(sai_object_id_t       pare
             parent_sch_obj = group_get(port, parent_level, parent_index);
 
             ctx.sai_status = SAI_STATUS_SUCCESS;
-            ctx.arg        = &count;
+            ctx.arg = &count;
 
             status = groups_child_foreach(port, parent_level, parent_index, groups_child_counter, &ctx);
             if (SAI_ERR(status)) {
@@ -1263,7 +1263,7 @@ static sai_status_t sched_group_add_or_del_child_list(sai_object_id_t       pare
          * for queue to the lower level (sub-group) */
 
         /* 1. Un-bind scheduler parameters from current ETS hierarchy level */
-        SX_LOG_DBG("Un-bind scheulder parameters for queue index %u on ETS hierarchy %u\n",
+        SX_LOG_DBG("Un-bind scheduler parameters for queue index %u on ETS hierarchy %u\n",
                    sch_child.index, sch_child.ets_type);
 
         status = __mlnx_scheduler_to_queue_apply(SAI_NULL_OBJECT_ID, port_id, &sch_child);
@@ -1282,7 +1282,7 @@ static sai_status_t sched_group_add_or_del_child_list(sai_object_id_t       pare
         sch_child.level = parent_level + 1;
 
         /* 3. Apply scheduler parameters to new ETS hierarchy level */
-        SX_LOG_DBG("Re-bind scheulder parameters for queue index %u on ETS hierarchy %u\n",
+        SX_LOG_DBG("Re-bind scheduler parameters for queue index %u on ETS hierarchy %u\n",
                    sch_child.index, sch_child.ets_type);
 
         status = __mlnx_scheduler_to_queue_apply(sch_child.scheduler_id, port_id, &sch_child);
@@ -1339,13 +1339,13 @@ sai_status_t mlnx_sched_group_port_init(mlnx_port_config_t *port, bool is_warmbo
         for (ii = 0; ii < level_max_groups(level); ii++) {
             mlnx_sched_obj_t *obj = group_get(port, level, ii);
 
-            obj->index           = ii;
-            obj->level           = level;
-            obj->is_used         = true;
-            obj->next_index      = 0;
-            obj->type            = MLNX_SCHED_OBJ_GROUP;
+            obj->index = ii;
+            obj->level = level;
+            obj->is_used = true;
+            obj->next_index = 0;
+            obj->type = MLNX_SCHED_OBJ_GROUP;
             obj->max_child_count = level_max_childs(level);
-            obj->ets_type        = level + 1;
+            obj->ets_type = level + 1;
 
             if (level > 0) {
                 status = mlnx_create_sched_group(port->logical, level - 1, obj->next_index, &obj->parent_id);
@@ -1380,11 +1380,11 @@ sai_status_t mlnx_sched_group_port_init(mlnx_port_config_t *port, bool is_warmbo
 
     port_queues_foreach(port, queue, ii) {
         queue->sched_obj.next_index = ii % MAX_SCHED_CHILD_GROUPS;
-        queue->sched_obj.type       = MLNX_SCHED_OBJ_QUEUE;
-        queue->sched_obj.index      = ii;
-        queue->sched_obj.ets_type   = SX_COS_ETS_HIERARCHY_TC_E;
-        queue->sched_obj.is_used    = true;
-        queue->sched_obj.level      = MAX_SCHED_LEVELS;
+        queue->sched_obj.type = MLNX_SCHED_OBJ_QUEUE;
+        queue->sched_obj.index = ii;
+        queue->sched_obj.ets_type = SX_COS_ETS_HIERARCHY_TC_E;
+        queue->sched_obj.is_used = true;
+        queue->sched_obj.level = MAX_SCHED_LEVELS;
 
         status = mlnx_create_sched_group(port->logical,
                                          queue->sched_obj.level - 1,

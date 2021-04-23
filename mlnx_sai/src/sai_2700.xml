@@ -21,7 +21,7 @@
                 <!-- 0 none, 1=2, 2=4, 3=2,4 -->
                 <breakout-modes>3</breakout-modes>
 
-                <!-- (BITMASK) 4096 - 10Gb , 939524096 - 25Gb , 98368 - 40Gb , 3221225472 - 50Gb , 11534336 - 100Gb-->
+                <!-- (BITMASK) 28700 - 10Gb , 939524096 - 25Gb , 98368 - 40Gb , 3221487616 - 50Gb , 11534336 - 100Gb-->
                 <port-speed>98368</port-speed>
             </port-info>
             <port-info>

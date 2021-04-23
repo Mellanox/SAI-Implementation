@@ -44,6 +44,17 @@ typedef enum _sai_macsec_direction_t
 } sai_macsec_direction_t;
 
 /**
+ * @brief MACsec Cipher Suites.
+ */
+typedef enum _sai_macsec_cipher_suite_t
+{
+    SAI_MACSEC_CIPHER_SUITE_GCM_AES_128,
+    SAI_MACSEC_CIPHER_SUITE_GCM_AES_256,
+    SAI_MACSEC_CIPHER_SUITE_GCM_AES_XPN_128,
+    SAI_MACSEC_CIPHER_SUITE_GCM_AES_XPN_256
+} sai_macsec_cipher_suite_t;
+
+/**
  * @brief Attribute Id for sai_macsec
  */
 typedef enum _sai_macsec_attr_t
@@ -107,34 +118,50 @@ typedef enum _sai_macsec_attr_t
     SAI_MACSEC_ATTR_SCI_IN_INGRESS_MACSEC_ACL,
 
     /**
-     * @brief Indicates if 32-bit Packer Number (PN) is supported.
+     * @brief List of supported cipher-suites
+     *
+     * @type sai_s32_list_t sai_macsec_cipher_suite_t
+     * @flags READ_ONLY
+     */
+    SAI_MACSEC_ATTR_SUPPORTED_CIPHER_SUITE_LIST,
+
+    /**
+     * @brief Indicates if 32-bit Packer Number (PN) is supported.  This is deprecated,
+     * subsumed under SAI_MACSEC_ATTR_SUPPORTED_CIPHER_SUITE_LIST.
      *
      * @type bool
      * @flags READ_ONLY
+     * @deprecated true
      */
     SAI_MACSEC_ATTR_PN_32BIT_SUPPORTED,
 
     /**
-     * @brief Indicates if 64-bit Extended Packer Number (PN) is supported.
+     * @brief Indicates if 64-bit Extended Packer Number (PN) is supported.  This is deprecated,
+     * subsumed under SAI_MACSEC_ATTR_SUPPORTED_CIPHER_SUITE_LIST.
      *
      * @type bool
      * @flags READ_ONLY
+     * @deprecated true
      */
     SAI_MACSEC_ATTR_XPN_64BIT_SUPPORTED,
 
     /**
-     * @brief Indicates if GCM-AES128 cipher-suite is supported.
+     * @brief Indicates if GCM-AES128 cipher-suite is supported.  This is deprecated,
+     * subsumed under SAI_MACSEC_ATTR_SUPPORTED_CIPHER_SUITE_LIST.
      *
      * @type bool
      * @flags READ_ONLY
+     * @deprecated true
      */
     SAI_MACSEC_ATTR_GCM_AES128_SUPPORTED,
 
     /**
-     * @brief Indicates if GCM-AES256 cipher-suite is supported.
+     * @brief Indicates if GCM-AES256 cipher-suite is supported.   This is deprecated,
+     * subsumed under SAI_MACSEC_ATTR_SUPPORTED_CIPHER_SUITE_LIST.
      *
      * @type bool
      * @flags READ_ONLY
+     * @deprecated true
      */
     SAI_MACSEC_ATTR_GCM_AES256_SUPPORTED,
 
@@ -571,23 +598,6 @@ typedef enum _sai_macsec_sc_attr_t
     SAI_MACSEC_SC_ATTR_MACSEC_SCI,
 
     /**
-     * @brief SSCI value for this Secure Channel
-     *
-     * @type sai_uint32_t
-     * @flags MANDATORY_ON_CREATE | CREATE_ONLY
-     * @condition SAI_MACSEC_SC_ATTR_MACSEC_XPN64_ENABLE == true
-     */
-    SAI_MACSEC_SC_ATTR_MACSEC_SSCI,
-
-    /**
-     * @brief Enable 64-bit XPN (vs 32-bit PN) for this Secure Channel
-     *
-     * @type bool
-     * @flags MANDATORY_ON_CREATE | CREATE_ONLY
-     */
-    SAI_MACSEC_SC_ATTR_MACSEC_XPN64_ENABLE,
-
-    /**
      * @brief Explicit SCI enable for this Secure Channel.
      *
      * @type bool
@@ -644,6 +654,23 @@ typedef enum _sai_macsec_sc_attr_t
      * @objects SAI_OBJECT_TYPE_MACSEC_SA
      */
     SAI_MACSEC_SC_ATTR_SA_LIST,
+
+    /**
+     * @brief Cipher suite for this Secure Channel.
+     *
+     * @type sai_macsec_cipher_suite_t
+     * @flags MANDATORY_ON_CREATE | CREATE_AND_SET
+     */
+    SAI_MACSEC_SC_ATTR_MACSEC_CIPHER_SUITE,
+
+    /**
+     * @brief True means encryption is enabled.  False means encryption is disabled.
+     *
+     * @type bool
+     * @flags CREATE_AND_SET
+     * @default true
+     */
+    SAI_MACSEC_SC_ATTR_ENCRYPTION_ENABLE,
 
     /**
      * @brief End of MACsec Secure Channel attributes
@@ -711,26 +738,8 @@ typedef enum _sai_macsec_sa_attr_t
     SAI_MACSEC_SA_ATTR_AN,
 
     /**
-     * @brief True means encryption is enabled.  False means encryption is disabled.
-     *
-     * @type bool
-     * @flags CREATE_ONLY
-     * @default true
-     */
-    SAI_MACSEC_SA_ATTR_ENCRYPTION_ENABLE,
-
-    /**
-     * @brief True means 256-bit SAK (encryption key).  False means 128-bit key.
-     *
-     * @type bool
-     * @flags CREATE_ONLY
-     * @default true
-     */
-    SAI_MACSEC_SA_ATTR_SAK_256_BITS,
-
-    /**
      * @brief MACsec SAK (Secure Association Key) used for encryption/decryption.
-     * Network Byte order. 128-bit SAK uses only Bytes 8..15.
+     * Network Byte order. 128-bit SAK uses only Bytes 16..31.
      *
      * @type sai_macsec_sak_t
      * @flags MANDATORY_ON_CREATE | CREATE_ONLY
@@ -741,7 +750,7 @@ typedef enum _sai_macsec_sa_attr_t
      * @brief MACsec Salt used for encryption/decryption.
      * Network Byte order.
      *
-     * Valid when SAI_MACSEC_SC_ATTR_MACSEC_XPN64_ENABLE == true.
+     * Valid when SAI_MACSEC_SC_ATTR_MACSEC_CIPHER_SUITE == SAI_MACSEC_CIPHER_SUITE_GCM_AES_XPN_128 or SAI_MACSEC_SC_ATTR_MACSEC_CIPHER_SUITE == SAI_MACSEC_CIPHER_SUITE_GCM_AES_XPN_256.
      *
      * @type sai_macsec_salt_t
      * @flags MANDATORY_ON_CREATE | CREATE_ONLY
@@ -758,17 +767,29 @@ typedef enum _sai_macsec_sa_attr_t
     SAI_MACSEC_SA_ATTR_AUTH_KEY,
 
     /**
-     * @brief MACsec egress packet number (PN/XPN).  At most 1 less than the next PN/XPN.
+     * @brief Configured value of next MACsec egress packet number (PN/XPN).
      *
      * @type sai_uint64_t
      * @flags CREATE_AND_SET
      * @default 0
      * @validonly SAI_MACSEC_SA_ATTR_MACSEC_DIRECTION == SAI_MACSEC_DIRECTION_EGRESS
      */
-    SAI_MACSEC_SA_ATTR_XPN,
+    SAI_MACSEC_SA_ATTR_CONFIGURED_EGRESS_XPN,
 
     /**
-     * @brief Minimum value of ingress MACsec packet number (PN/XPN).
+     * @brief MACsec current packet number (PN/XPN). For ingress, largest
+     * received packet number. For egress, 1 less than the next packet number.
+     *
+     * @type sai_uint64_t
+     * @flags READ_ONLY
+     */
+    SAI_MACSEC_SA_ATTR_CURRENT_XPN,
+
+    /** @ignore - for backward compatibility */
+    SAI_MACSEC_SA_ATTR_XPN = SAI_MACSEC_SA_ATTR_CURRENT_XPN,
+
+    /**
+     * @brief Configured minimum acceptable ingress MACsec packet number (PN/XPN).
      * Updated by value from MACsec peer by Key Agreement protocol.
      *
      * @type sai_uint64_t
@@ -776,7 +797,20 @@ typedef enum _sai_macsec_sa_attr_t
      * @default 1
      * @validonly SAI_MACSEC_SA_ATTR_MACSEC_DIRECTION == SAI_MACSEC_DIRECTION_INGRESS
      */
-    SAI_MACSEC_SA_ATTR_MINIMUM_XPN,
+    SAI_MACSEC_SA_ATTR_MINIMUM_INGRESS_XPN,
+
+    /** @ignore - for backward compatibility */
+    SAI_MACSEC_SA_ATTR_MINIMUM_XPN = SAI_MACSEC_SA_ATTR_MINIMUM_INGRESS_XPN,
+
+    /**
+     * @brief SSCI value for this Secure Association
+     *
+     * Valid when SAI_MACSEC_SC_ATTR_MACSEC_CIPHER_SUITE == SAI_MACSEC_CIPHER_SUITE_GCM_AES_XPN_128 or SAI_MACSEC_SC_ATTR_MACSEC_CIPHER_SUITE == SAI_MACSEC_CIPHER_SUITE_GCM_AES_XPN_256.
+     *
+     * @type sai_uint32_t
+     * @flags MANDATORY_ON_CREATE | CREATE_ONLY
+     */
+    SAI_MACSEC_SA_ATTR_MACSEC_SSCI,
 
     /**
      * @brief End of MACsec Secure Association attributes

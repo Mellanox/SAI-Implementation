@@ -277,6 +277,7 @@ typedef enum _sai_object_type_t
     SAI_OBJECT_TYPE_MACSEC_SA                = 92,
     SAI_OBJECT_TYPE_SYSTEM_PORT              = 93,
     SAI_OBJECT_TYPE_FINE_GRAINED_HASH_FIELD  = 94,
+    SAI_OBJECT_TYPE_SWITCH_TUNNEL            = 95,
     SAI_OBJECT_TYPE_MAX,  /* Must remain in last position */
 } sai_object_type_t;
 
@@ -390,6 +391,32 @@ typedef struct _sai_ip_prefix_t
     /** @passparam addr_family */
     sai_ip_addr_t mask;
 } sai_ip_prefix_t;
+
+/**
+ * @brief Attribute data for #SAI_PORT_ATTR_PRBS_RX_STATUS
+ */
+typedef enum _sai_port_prbs_rx_status_t
+{
+    /** PRBS is locked and error_count is 0 */
+    SAI_PORT_PRBS_RX_STATUS_OK,
+
+    /** PRBS is locked, but there are errors */
+    SAI_PORT_PRBS_RX_STATUS_LOCK_WITH_ERRORS,
+
+    /** PRBS not locked */
+    SAI_PORT_PRBS_RX_STATUS_NOT_LOCKED,
+
+    /** PRBS locked but there is loss of lock since last call */
+    SAI_PORT_PRBS_RX_STATUS_LOST_LOCK,
+
+} sai_port_prbs_rx_status_t;
+
+typedef struct _sai_prbs_rx_state_t
+{
+    sai_port_prbs_rx_status_t rx_status;
+
+    uint32_t error_count;
+} sai_prbs_rx_state_t;
 
 /**
  * @brief Field match mask
@@ -741,6 +768,9 @@ typedef enum _sai_acl_stage_t
 
     /** Egress Stage */
     SAI_ACL_STAGE_EGRESS_MACSEC,
+
+    /** Pre-ingress Stage */
+    SAI_ACL_STAGE_PRE_INGRESS,
 
 } sai_acl_stage_t;
 
@@ -1139,6 +1169,9 @@ typedef union _sai_attribute_value_t
     /** @validonly meta->attrvaluetype == SAI_ATTR_VALUE_TYPE_IP_PREFIX */
     sai_ip_prefix_t ipprefix;
 
+    /** @validonly meta->attrvaluetype == SAI_ATTR_VALUE_TYPE_PRBS_RX_STATE */
+    sai_prbs_rx_state_t rx_state;
+
     /** @validonly meta->attrvaluetype == SAI_ATTR_VALUE_TYPE_OBJECT_ID */
     sai_object_id_t oid;
 
@@ -1355,18 +1388,48 @@ typedef sai_status_t (*sai_bulk_object_get_attribute_fn)(
         _In_ sai_bulk_op_error_mode_t mode,
         _Out_ sai_status_t *object_statuses);
 
+/**
+ * @brief SAI statistics modes
+ *
+ * Used in get statistics extended or query statistics capabilities
+ * Note enum values must be powers of 2 to be used as bit mask for query statistics capabilities
+ *
+ * @flags Contains flags
+ */
 typedef enum _sai_stats_mode_t
 {
     /**
      * @brief Read statistics
      */
-    SAI_STATS_MODE_READ,
+    SAI_STATS_MODE_READ = 1 << 0,
 
     /**
      * @brief Read and clear after reading
      */
-    SAI_STATS_MODE_READ_AND_CLEAR,
+    SAI_STATS_MODE_READ_AND_CLEAR = 1 << 1,
 } sai_stats_mode_t;
+
+typedef struct _sai_stat_capability_t
+{
+    /** Stat enum value */
+    sai_stat_id_t stat_enum;
+
+    /**
+     * @brief Bit mask of supported statistics modes (sai_stats_mode_t)
+     *
+     * For example, if read and read_and_clear are supported, value is
+     * SAI_STATS_MODE_READ | SAI_STATS_MODE_READ_AND_CLEAR
+     */
+    uint32_t stat_modes;
+
+} sai_stat_capability_t;
+
+typedef struct _sai_stat_capability_list_t
+{
+    uint32_t count;
+    sai_stat_capability_t *list;
+
+} sai_stat_capability_list_t;
 
 /**
  * @}

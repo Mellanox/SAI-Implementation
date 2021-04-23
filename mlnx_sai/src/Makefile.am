@@ -61,6 +61,7 @@ libsai_la_SOURCES = \
                        dbgdump/mlnx_sai_dbg_debug_counter.c \
                        dbgdump/mlnx_sai_dbg_hash.c \
                        dbgdump/mlnx_sai_dbg_hostintf.c \
+                       dbgdump/mlnx_sai_dbg_isolation_group.c \
                        dbgdump/mlnx_sai_dbg_mirror.c \
                        dbgdump/mlnx_sai_dbg_policer.c \
                        dbgdump/mlnx_sai_dbg_port.c \
@@ -71,17 +72,20 @@ libsai_la_SOURCES = \
                        dbgdump/mlnx_sai_dbg_stp.c \
                        dbgdump/mlnx_sai_dbg_tunnel.c \
                        dbgdump/mlnx_sai_dbg_udf.c \
+                       dbgdump/mlnx_sai_dbg_utils.c \
                        dbgdump/mlnx_sai_dbg_vlan.c \
                        dbgdump/mlnx_sai_dbg_wred.c \
                        mlnx_sai_acl.c \
                        mlnx_sai_bfd.c \
                        mlnx_sai_bridge.c \
                        mlnx_sai_buffer.c \
+                       mlnx_sai_counter.c \
                        mlnx_sai_debug_counter.c \
                        mlnx_sai_fdb.c \
                        mlnx_sai_hash.c \
                        mlnx_sai_host_interface.c \
                        mlnx_sai_interfacequery.c \
+                       mlnx_sai_isolation_group.c \
                        mlnx_sai_lag.c \
                        mlnx_sai_l2mcgroup.c \
                        mlnx_sai_mirror.c \

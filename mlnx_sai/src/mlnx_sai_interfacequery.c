@@ -37,9 +37,11 @@ typedef struct mlnx_log_lavel_preinit {
     sai_log_level_t level;
 } mlnx_log_lavel_preinit_t;
 
-static mlnx_log_lavel_preinit_t mlnx_sai_log_levels[SAI_API_EXTENSIONS_RANGE_START_END] = {
+static mlnx_log_lavel_preinit_t mlnx_sai_log_levels[SAI_API_EXTENSIONS_RANGE_END] = {
     {0}
 };
+
+static sai_status_t sai_dbg_run_mlxtrace(const char *dirname);
 
 sai_status_t mlnx_interfacequery_log_set(sx_verbosity_level_t level)
 {
@@ -235,12 +237,20 @@ sai_status_t sai_api_query(_In_ sai_api_t sai_api_id, _Out_ void** api_method_ta
         *(const sai_bfd_api_t**)api_method_table = &mlnx_bfd_api;
         return SAI_STATUS_SUCCESS;
 
+    case SAI_API_COUNTER:
+        *(const sai_counter_api_t**)api_method_table = &mlnx_counter_api;
+        return SAI_STATUS_SUCCESS;
+
+    case SAI_API_ISOLATION_GROUP:
+        *(const sai_isolation_group_api_t**)api_method_table = &mlnx_isolation_group_api;
+        return SAI_STATUS_SUCCESS;
+
     default:
-        if (sai_api_id >= (sai_api_t)SAI_API_EXTENSIONS_RANGE_START_END) {
+        if (sai_api_id >= (sai_api_t)SAI_API_EXTENSIONS_RANGE_END) {
             MLNX_SAI_LOG_ERR("SAI API %d is out of range [%d, %d]\n",
                              sai_api_id,
                              SAI_API_SWITCH,
-                             SAI_API_EXTENSIONS_RANGE_START_END);
+                             SAI_API_EXTENSIONS_RANGE_END);
             return SAI_STATUS_INVALID_PARAMETER;
         } else {
             MLNX_SAI_LOG_WRN("%s not implemented\n", sai_metadata_get_api_name(sai_api_id));
@@ -276,11 +286,11 @@ static sai_status_t sai_log_level_save(_In_ sai_api_t sai_api_id, _In_ sai_log_l
         return SAI_STATUS_SUCCESS;
     }
 
-    if (sai_api_id >= (sai_api_t)SAI_API_EXTENSIONS_RANGE_START_END) {
+    if (sai_api_id >= (sai_api_t)SAI_API_EXTENSIONS_RANGE_END) {
         MLNX_SAI_LOG_ERR("SAI API %d is out of range [%d, %d]\n",
                          sai_api_id,
                          SAI_API_SWITCH,
-                         SAI_API_EXTENSIONS_RANGE_START_END);
+                         SAI_API_EXTENSIONS_RANGE_END);
         return SAI_STATUS_INVALID_PARAMETER;
     }
 
@@ -293,7 +303,7 @@ static sai_status_t sai_log_level_save(_In_ sai_api_t sai_api_id, _In_ sai_log_l
     MLNX_SAI_LOG_INF("Saving log level %d for API %d\n", log_level, sai_api_id);
 
     mlnx_sai_log_levels[sai_api_id].is_set = true;
-    mlnx_sai_log_levels[sai_api_id].level  = log_level;
+    mlnx_sai_log_levels[sai_api_id].level = log_level;
 
     return SAI_STATUS_SUCCESS;
 }
@@ -303,7 +313,7 @@ sai_status_t mlnx_sai_log_levels_post_init(void)
     sai_api_t    api;
     sai_status_t status;
 
-    for (api = SAI_API_SWITCH; api < (sai_api_t)SAI_API_EXTENSIONS_RANGE_START_END; api++) {
+    for (api = SAI_API_SWITCH; api < (sai_api_t)SAI_API_EXTENSIONS_RANGE_END; api++) {
         if (mlnx_sai_log_levels[api].is_set) {
             MLNX_SAI_LOG_INF("Restoring log level %d for API %d\n",  mlnx_sai_log_levels[api].level, api);
             status = sai_log_set(api, mlnx_sai_log_levels[api].level);
@@ -465,12 +475,18 @@ sai_status_t sai_log_set(_In_ sai_api_t sai_api_id, _In_ sai_log_level_t log_lev
     case SAI_API_BFD:
         return mlnx_bfd_log_set(severity);
 
+    case SAI_API_COUNTER:
+        return mlnx_counter_log_set(severity);
+
+    case SAI_API_ISOLATION_GROUP:
+        return mlnx_isolation_group_log_set(severity);
+
     default:
-        if (sai_api_id >= (sai_api_t)SAI_API_EXTENSIONS_RANGE_START_END) {
+        if (sai_api_id >= (sai_api_t)SAI_API_EXTENSIONS_RANGE_END) {
             MLNX_SAI_LOG_ERR("SAI API %d is out of range [%d, %d]\n",
                              sai_api_id,
                              SAI_API_SWITCH,
-                             SAI_API_EXTENSIONS_RANGE_START_END);
+                             SAI_API_EXTENSIONS_RANGE_END);
             return SAI_STATUS_INVALID_PARAMETER;
         } else {
             MLNX_SAI_LOG_WRN("%s not implemented\n", sai_metadata_get_api_name(sai_api_id));
@@ -510,7 +526,7 @@ sai_object_type_t sai_object_type_query(_In_ sai_object_id_t sai_object_id)
  * @return Return #SAI_NULL_OBJECT_ID when sai_object_id is not valid.
  * Otherwise, return a valid SAI_OBJECT_TYPE_SWITCH object on which
  * provided object id belongs. If valid switch id object is provided
- * as input parameter it should returin itself.
+ * as input parameter it should return itself.
  */
 sai_object_id_t sai_switch_id_query(_In_ sai_object_id_t sai_object_id)
 {
@@ -532,9 +548,12 @@ sai_object_id_t sai_switch_id_query(_In_ sai_object_id_t sai_object_id)
  */
 sai_status_t sai_dbg_generate_dump(_In_ const char *dump_file_name)
 {
-    FILE               *file       = NULL;
+    FILE               *file = NULL;
     sx_status_t         sdk_status = SX_STATUS_ERROR;
     sx_dbg_extra_info_t dbg_info;
+    sai_status_t        sai_status = SAI_STATUS_FAILURE;
+    char               *file_name = NULL;
+    char                dump_directory[SX_API_DUMP_PATH_LEN_LIMIT + 1];
 
     if (!gh_sdk) {
         MLNX_SAI_LOG_ERR("Can't generate debug dump before creating switch\n");
@@ -593,19 +612,22 @@ sai_status_t sai_dbg_generate_dump(_In_ const char *dump_file_name)
 
     SAI_dump_bfd(file);
 
+    SAI_dump_isolation_group(file);
+
     fclose(file);
 
     memset(&dbg_info, 0, sizeof(dbg_info));
-    dbg_info.dev_id           = SX_DEVICE_ID;
+    dbg_info.dev_id = SX_DEVICE_ID;
     dbg_info.force_db_refresh = true;
 #ifndef _WIN32
-    char *file_name = strdup(dump_file_name);
+    file_name = strdup(dump_file_name);
     strncpy(dbg_info.path, dirname(file_name), sizeof(dbg_info.path));
     dbg_info.path[sizeof(dbg_info.path) - 1] = 0;
     free(file_name);
 #endif
 #define FW_DUMPS 3
     for (uint32_t ii = 0; ii < FW_DUMPS; ii++) {
+#if 0
         sdk_status = sx_api_dbg_generate_dump_extra(gh_sdk, &dbg_info);
         if (SX_STATUS_SUCCESS != sdk_status) {
             MLNX_SAI_LOG_ERR("Error generating extended sdk dump, sx status: %s\n", SX_STATUS_MSG(sdk_status));
@@ -614,6 +636,58 @@ sai_status_t sai_dbg_generate_dump(_In_ const char *dump_file_name)
         if (ii < FW_DUMPS - 1) {
             sleep(1);
         }
+#endif
+    }
+
+#ifndef _WIN32
+    file_name = strdup(dump_file_name);
+    strncpy(dump_directory, dirname(file_name), sizeof(dump_directory));
+    dump_directory[sizeof(dump_directory) - 1] = 0;
+    sai_status = sai_dbg_run_mlxtrace(dump_directory);
+    if (SAI_ERR(sai_status)) {
+        MLNX_SAI_LOG_ERR("Failed to run mlxtrace\n");
+    }
+    free(file_name);
+#endif
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t sai_dbg_run_mlxtrace(const char *dirname)
+{
+    const char mlxtrace_ext_command_line_fmt[] =
+        "mlxtrace_ext -d /dev/mst/%s %s -m MEM -a OB_GW -n -o %s/%s_mlxtrace.trc >/dev/null 2>&1";
+    const char *device_name = NULL;
+    const char *config_cmd_line_switch = NULL;
+    char        mlxtrace_ext_command_line[2 * PATH_MAX + 200];
+    int         system_err;
+
+    if (mlnx_chip_is_spc()) {
+        device_name = "mt52100_pci_cr0";
+        config_cmd_line_switch = "";
+    } else if (mlnx_chip_is_spc2()) {
+        device_name = "mt53100_pci_cr0";
+        config_cmd_line_switch = "-c /etc/mft/fwtrace_cfg/mlxtrace_spectrum2_itrace.cfg.ext";
+    } else if (mlnx_chip_is_spc3()) {
+        device_name = "mt53104_pci_cr0";
+        config_cmd_line_switch = "-c /etc/mft/fwtrace_cfg/mlxtrace_spectrum3_itrace.cfg.ext";
+    } else {
+        SX_LOG_ERR("Chip type is not one of valid: SPC1, SPC2, SPC3\n");
+        return SAI_STATUS_FAILURE;
+    }
+
+    snprintf(mlxtrace_ext_command_line,
+             sizeof(mlxtrace_ext_command_line),
+             mlxtrace_ext_command_line_fmt,
+             device_name,
+             config_cmd_line_switch,
+             dirname,
+             device_name);
+
+    system_err = system(mlxtrace_ext_command_line);
+    if (0 != system_err) {
+        SX_LOG_ERR("Failed running \"%s\".\n", mlxtrace_ext_command_line);
+        return SAI_STATUS_FAILURE;
     }
 
     return SAI_STATUS_SUCCESS;
