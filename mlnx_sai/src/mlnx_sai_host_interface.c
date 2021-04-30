@@ -656,8 +656,12 @@ static void host_interface_key_to_str(_In_ sai_object_id_t hif_id, _Out_ char *k
 /* Creates netdev. Called under read/write lock */
 static sai_status_t create_netdev(uint32_t index)
 {
-    char add_link_command[100], disable_ipv6_command[100], set_addr_command[100], command[320];
-    int  system_err;
+    char add_link_command[100], disable_ipv6_command[100], set_addr_command[100], command[420];
+
+#ifdef ACS_OS
+    char up_command[100];
+#endif
+    int system_err;
 
     if (SAI_HOSTIF_OBJECT_TYPE_VLAN == g_sai_db_ptr->hostif_db[index].sub_type) {
         snprintf(add_link_command, sizeof(add_link_command), "ip link add link swid%u_eth name %s type vlan id %u",
@@ -684,8 +688,19 @@ static sai_status_t create_netdev(uint32_t index)
         snprintf(command, sizeof(command), "%s && %s && %s",
                  add_link_command, disable_ipv6_command, set_addr_command);
     } else {
+        /* TODO : temporary WA to bring vlan interface up for ping tool in Sonic. Usually vlan interfaces in Sonic are
+         * bridge over the port netdevs. Sonic creates vlan netdev directly only for ping, and these should be brought
+         * up as currently there is no manager in Sonic for these interfaces.
+         */
+#ifdef ACS_OS
+        snprintf(up_command, sizeof(up_command), "ip link set dev %s up > /dev/null 2>&1",
+                 g_sai_db_ptr->hostif_db[index].ifname);
+        snprintf(command, sizeof(command), "%s && %s && %s",
+                 add_link_command, set_addr_command, up_command);
+#else
         snprintf(command, sizeof(command), "%s && %s",
                  add_link_command, set_addr_command);
+#endif
     }
 
     system_err = system(command);
