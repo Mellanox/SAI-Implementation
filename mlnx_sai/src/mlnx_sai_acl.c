@@ -321,6 +321,7 @@ typedef struct _mlnx_acl_action_ctx_t {
     sx_flow_counter_id_t sx_counter_id;
     sx_span_session_id_t sx_span_session;
     bool                 is_policer_action_present;
+    uint32_t             set_router_usage;
 } mlnx_acl_action_ctx_t;
 typedef sai_status_t (*mlnx_acl_action_to_sx_fn)(_In_ sai_acl_entry_attr_t action,
                                                  _In_ const sai_acl_action_data_t *action_data,
@@ -749,6 +750,15 @@ static sai_status_t mlnx_acl_entry_port_set(_In_ const sai_object_key_t      *ke
 static sai_status_t mlnx_acl_entry_action_set(_In_ const sai_object_key_t      *key,
                                               _In_ const sai_attribute_value_t *value,
                                               void                             *arg);
+static sai_status_t mlnx_acl_entry_action_add_vlan(_In_ const sai_object_key_t      *key,
+                                                   _In_ const sai_attribute_value_t *value,
+                                                   void                             *arg);
+static sai_status_t mlnx_acl_entry_action_set_do_not_learn(_In_ const sai_object_key_t      *key,
+                                                           _In_ const sai_attribute_value_t *value,
+                                                           void                             *arg);
+static sai_status_t mlnx_acl_entry_action_set_router(_In_ const sai_object_key_t      *key,
+                                                     _In_ const sai_attribute_value_t *value,
+                                                     void                             *arg);
 static sai_status_t mlnx_acl_entry_action_egress_block_port_set(_In_ const sai_object_key_t      *key,
                                                                 _In_ const sai_attribute_value_t *value,
                                                                 void                             *arg);
@@ -808,6 +818,11 @@ static void mlnx_acl_flex_rule_action_find(_In_ const sx_flex_acl_flex_rule_t *r
                                            _In_ sx_flex_acl_flex_action_type_t action_type,
                                            _Out_ uint32_t                     *action_index,
                                            _Out_ bool                         *is_action_present);
+static void mlnx_acl_action_list_action_find(_In_ const sx_flex_acl_flex_action_t     *sx_action_list,
+                                             _In_ const uint32_t                       sx_action_count,
+                                             _In_ const sx_flex_acl_flex_action_type_t action_type,
+                                             _Out_ uint32_t                           *action_index,
+                                             _Out_ bool                               *is_action_present);
 static void mlnx_acl_sx_key_list_find_key(_In_ const sx_acl_key_t *sx_keys,
                                           _In_ uint32_t            sx_key_count,
                                           _In_ sx_acl_key_t        sx_key,
@@ -935,6 +950,7 @@ static sai_status_t mlnx_acl_field_port_list_to_sx(_In_ const sai_object_list_t 
                                                    _Inout_ uint32_t             *sx_port_count);
 static sai_status_t mlnx_sai_acl_redirect_action_create(_In_ sai_object_id_t             object_id,
                                                         _In_ uint32_t                    attr_index,
+                                                        _Inout_ uint32_t                *set_router_usage,
                                                         _Out_ mlnx_acl_pbs_info_t       *pbs_info,
                                                         _Out_ sx_flex_acl_flex_action_t *sx_action);
 static bool mlnx_acl_index_is_group(_In_ acl_index_t index);
@@ -1422,6 +1438,9 @@ static const mlnx_acl_single_key_field_info_t mlnx_acl_single_key_fields_info[] 
     [SAI_ACL_ENTRY_ATTR_FIELD_GRE_KEY] = MLNX_ACL_FIELD_DEFINE(FLEX_ACL_KEY_GRE_KEY,
                                                                gre_key,
                                                                MLNX_ACL_SUPPORTED_CHIP_ANY),
+    [SAI_ACL_ENTRY_ATTR_FIELD_HAS_VLAN_TAG] = MLNX_ACL_FIELD_DEFINE(FLEX_ACL_KEY_VLAN_TAGGED,
+                                                                    vlan_tagged,
+                                                                    MLNX_ACL_SUPPORTED_CHIP_ANY),
 };
 static const size_t                           mlnx_acl_single_key_field_max_id = ARRAY_SIZE(
     mlnx_acl_single_key_fields_info);
@@ -1624,6 +1643,58 @@ static sai_status_t mlnx_acl_action_meta_to_sai(_In_ sai_acl_entry_attr_t       
                                                 _In_ const acl_table_db_t          *table,
                                                 _In_ uint32_t                       attr_index,
                                                 _Out_ sai_acl_action_data_t        *action_data);
+static sai_status_t mlnx_acl_action_add_vlan_id_to_sx(_In_ sai_acl_entry_attr_t         action,
+                                                      _In_ const sai_acl_action_data_t *action_data,
+                                                      _In_ uint32_t                     attr_index,
+                                                      _In_ const acl_table_db_t        *table,
+                                                      _Inout_ mlnx_acl_action_ctx_t    *ctx,
+                                                      _Out_ sx_flex_acl_flex_action_t  *sx_action_list,
+                                                      _Inout_ uint32_t                 *sx_action_count);
+static sai_status_t mlnx_acl_action_add_vlan_id_to_sai(_In_ sai_acl_entry_attr_t           action,
+                                                       _In_ const sx_flex_acl_flex_rule_t *sx_rule,
+                                                       _In_ const acl_entry_db_t          *entry,
+                                                       _In_ const acl_table_db_t          *table,
+                                                       _In_ uint32_t                       attr_index,
+                                                       _Out_ sai_acl_action_data_t        *action_data);
+static sai_status_t mlnx_acl_action_add_vlan_pri_to_sx(_In_ sai_acl_entry_attr_t         action,
+                                                       _In_ const sai_acl_action_data_t *action_data,
+                                                       _In_ uint32_t                     attr_index,
+                                                       _In_ const acl_table_db_t        *table,
+                                                       _Inout_ mlnx_acl_action_ctx_t    *ctx,
+                                                       _Out_ sx_flex_acl_flex_action_t  *sx_action_list,
+                                                       _Inout_ uint32_t                 *sx_action_count);
+static sai_status_t mlnx_acl_action_add_vlan_pri_to_sai(_In_ sai_acl_entry_attr_t           action,
+                                                        _In_ const sx_flex_acl_flex_rule_t *sx_rule,
+                                                        _In_ const acl_entry_db_t          *entry,
+                                                        _In_ const acl_table_db_t          *table,
+                                                        _In_ uint32_t                       attr_index,
+                                                        _Out_ sai_acl_action_data_t        *action_data);
+static sai_status_t mlnx_acl_action_set_do_not_learn_to_sx(_In_ sai_acl_entry_attr_t         action,
+                                                           _In_ const sai_acl_action_data_t *action_data,
+                                                           _In_ uint32_t                     attr_index,
+                                                           _In_ const acl_table_db_t        *table,
+                                                           _Inout_ mlnx_acl_action_ctx_t    *ctx,
+                                                           _Out_ sx_flex_acl_flex_action_t  *sx_action_list,
+                                                           _Inout_ uint32_t                 *sx_action_count);
+static sai_status_t mlnx_acl_action_set_do_not_learn_to_sai(_In_ sai_acl_entry_attr_t           action,
+                                                            _In_ const sx_flex_acl_flex_rule_t *sx_rule,
+                                                            _In_ const acl_entry_db_t          *entry,
+                                                            _In_ const acl_table_db_t          *table,
+                                                            _In_ uint32_t                       attr_index,
+                                                            _Out_ sai_acl_action_data_t        *action_data);
+static sai_status_t mlnx_acl_action_set_vrf_to_sx(_In_ sai_acl_entry_attr_t         action,
+                                                  _In_ const sai_acl_action_data_t *action_data,
+                                                  _In_ uint32_t                     attr_index,
+                                                  _In_ const acl_table_db_t        *table,
+                                                  _Inout_ mlnx_acl_action_ctx_t    *ctx,
+                                                  _Out_ sx_flex_acl_flex_action_t  *sx_action_list,
+                                                  _Inout_ uint32_t                 *sx_action_count);
+static sai_status_t mlnx_acl_action_set_vrf_to_sai(_In_ sai_acl_entry_attr_t           action,
+                                                   _In_ const sx_flex_acl_flex_rule_t *sx_rule,
+                                                   _In_ const acl_entry_db_t          *entry,
+                                                   _In_ const acl_table_db_t          *table,
+                                                   _In_ uint32_t                       attr_index,
+                                                   _Out_ sai_acl_action_data_t        *action_data);
 static sai_status_t mlnx_acl_action_ip_to_sx(_In_ sai_acl_entry_attr_t         action,
                                              _In_ const sai_acl_action_data_t *action_data,
                                              _In_ uint32_t                     attr_index,
@@ -1702,7 +1773,16 @@ static mlnx_acl_action_info_t mlnx_acl_action_info[] = {
         MLNX_ACL_ACTION_INFO_DEFINE_WITH_FIELD(SX_FLEX_ACL_ACTION_SET_ECN, action_set_ecn),
     [SAI_ACL_ENTRY_ATTR_ACTION_SET_ACL_META_DATA] =
         MLNX_ACL_ACTION_INFO_DEFINE_WITH_FNS(mlnx_acl_action_meta_to_sx, mlnx_acl_action_meta_to_sai),
-
+    [SAI_ACL_ENTRY_ATTR_ACTION_ADD_VLAN_ID] =
+        MLNX_ACL_ACTION_INFO_DEFINE_WITH_FNS(mlnx_acl_action_add_vlan_id_to_sx, mlnx_acl_action_add_vlan_id_to_sai),
+    [SAI_ACL_ENTRY_ATTR_ACTION_ADD_VLAN_PRI] =
+        MLNX_ACL_ACTION_INFO_DEFINE_WITH_FNS(mlnx_acl_action_add_vlan_pri_to_sx, mlnx_acl_action_add_vlan_pri_to_sai),
+    [SAI_ACL_ENTRY_ATTR_ACTION_SET_DO_NOT_LEARN] =
+        MLNX_ACL_ACTION_INFO_DEFINE_WITH_FNS(mlnx_acl_action_set_do_not_learn_to_sx,
+                                             mlnx_acl_action_set_do_not_learn_to_sai),
+    [SAI_ACL_ENTRY_ATTR_ACTION_SET_VRF] =
+        MLNX_ACL_ACTION_INFO_DEFINE_WITH_FNS(mlnx_acl_action_set_vrf_to_sx,
+                                             mlnx_acl_action_set_vrf_to_sai),
     [SAI_ACL_ENTRY_ATTR_ACTION_SET_SRC_IP] =
         MLNX_ACL_ACTION_INFO_DEFINE_WITH_FNS_SPC2_3(mlnx_acl_action_ip_to_sx, mlnx_acl_action_ip_to_sai),
     [SAI_ACL_ENTRY_ATTR_ACTION_SET_SRC_IPV6] =
@@ -2076,6 +2156,11 @@ static const sai_vendor_attribute_entry_t acl_table_vendor_attribs[] = {
       { true, false, false, true },
       mlnx_acl_table_fields_get, (void*)SAI_ACL_ENTRY_ATTR_FIELD_TUNNEL_VNI,
       NULL, NULL },
+    { SAI_ACL_TABLE_ATTR_FIELD_HAS_VLAN_TAG,
+      { true, false, false, true },
+      { true, false, false, true },
+      mlnx_acl_table_fields_get, (void*)SAI_ACL_TABLE_ATTR_FIELD_HAS_VLAN_TAG,
+      NULL, NULL },
     { SAI_ACL_TABLE_ATTR_FIELD_GRE_KEY,
       { true, false, false, true },
       { true, false, false, true },
@@ -2435,6 +2520,11 @@ static const sai_vendor_attribute_entry_t acl_entry_vendor_attribs[] = {
       { true, false, true, true },
       mlnx_acl_entry_single_key_field_get, (void*)SAI_ACL_ENTRY_ATTR_FIELD_TUNNEL_VNI,
       mlnx_acl_entry_field_set, (void*)SAI_ACL_ENTRY_ATTR_FIELD_TUNNEL_VNI },
+    { SAI_ACL_ENTRY_ATTR_FIELD_HAS_VLAN_TAG,
+      { true, false, true, true },
+      { true, false, true, true },
+      mlnx_acl_entry_single_key_field_get, (void*)SAI_ACL_ENTRY_ATTR_FIELD_HAS_VLAN_TAG,
+      mlnx_acl_entry_field_set, (void*)SAI_ACL_ENTRY_ATTR_FIELD_HAS_VLAN_TAG },
     { SAI_ACL_ENTRY_ATTR_FIELD_GRE_KEY,
       { true, false, true, true },
       { true, false, true, true },
@@ -2585,6 +2675,21 @@ static const sai_vendor_attribute_entry_t acl_entry_vendor_attribs[] = {
       { true, false, true, true},
       mlnx_acl_entry_action_fn_get, (void*)SAI_ACL_ENTRY_ATTR_ACTION_SET_ACL_META_DATA,
       mlnx_acl_entry_action_set, (void*)SAI_ACL_ENTRY_ATTR_ACTION_SET_ACL_META_DATA },
+    { SAI_ACL_ENTRY_ATTR_ACTION_ADD_VLAN_ID,
+      { true, false, true, true},
+      { true, false, true, true},
+      mlnx_acl_entry_action_fn_get, (void*)SAI_ACL_ENTRY_ATTR_ACTION_ADD_VLAN_ID,
+      mlnx_acl_entry_action_add_vlan, (void*)SAI_ACL_ENTRY_ATTR_ACTION_ADD_VLAN_ID },
+    { SAI_ACL_ENTRY_ATTR_ACTION_ADD_VLAN_PRI,
+      { true, false, true, true},
+      { true, false, true, true},
+      mlnx_acl_entry_action_fn_get, (void*)SAI_ACL_ENTRY_ATTR_ACTION_ADD_VLAN_PRI,
+      mlnx_acl_entry_action_add_vlan, (void*)SAI_ACL_ENTRY_ATTR_ACTION_ADD_VLAN_PRI },
+    { SAI_ACL_ENTRY_ATTR_ACTION_SET_DO_NOT_LEARN,
+      { true, false, true, true},
+      { true, false, true, true},
+      mlnx_acl_entry_action_fn_get, (void*)SAI_ACL_ENTRY_ATTR_ACTION_SET_DO_NOT_LEARN,
+      mlnx_acl_entry_action_set_do_not_learn, NULL },
     { SAI_ACL_ENTRY_ATTR_ACTION_EGRESS_BLOCK_PORT_LIST,
       { true, false, true, true},
       { true, false, true, true},
@@ -2600,6 +2705,11 @@ static const sai_vendor_attribute_entry_t acl_entry_vendor_attribs[] = {
       { true, false, true, true},
       NULL, NULL,
       NULL, NULL },
+    { SAI_ACL_ENTRY_ATTR_ACTION_SET_VRF,
+      { true, false, true, true},
+      { true, false, true, true},
+      mlnx_acl_entry_action_fn_get, (void*)SAI_ACL_ENTRY_ATTR_ACTION_SET_VRF,
+      mlnx_acl_entry_action_set_router, NULL },
     { END_FUNCTIONALITY_ATTRIBS_ID,
       { false, false, false, false },
       { false, false, false, false },
@@ -5588,6 +5698,7 @@ static sai_status_t mlnx_acl_entry_single_key_field_get(_In_ const sai_object_ke
            (SAI_ACL_ENTRY_ATTR_FIELD_TTL == attr_id) ||
            (SAI_ACL_ENTRY_ATTR_FIELD_IPV6_NEXT_HEADER == attr_id) ||
            (SAI_ACL_ENTRY_ATTR_FIELD_TUNNEL_VNI == attr_id) ||
+           (SAI_ACL_ENTRY_ATTR_FIELD_HAS_VLAN_TAG == attr_id) ||
            (SAI_ACL_ENTRY_ATTR_FIELD_INNER_VLAN_ID == attr_id) ||
            (SAI_ACL_ENTRY_ATTR_FIELD_INNER_VLAN_PRI == attr_id) ||
            (SAI_ACL_ENTRY_ATTR_FIELD_INNER_VLAN_CFI == attr_id) ||
@@ -7328,6 +7439,7 @@ static sai_status_t mlnx_acl_entry_field_set(_In_ const sai_object_key_t      *k
            (SAI_ACL_ENTRY_ATTR_FIELD_TTL == attr_id) ||
            (SAI_ACL_ENTRY_ATTR_FIELD_IPV6_NEXT_HEADER == attr_id) ||
            (SAI_ACL_ENTRY_ATTR_FIELD_TUNNEL_VNI == attr_id) ||
+           (SAI_ACL_ENTRY_ATTR_FIELD_HAS_VLAN_TAG == attr_id) ||
            (SAI_ACL_ENTRY_ATTR_FIELD_INNER_VLAN_PRI == attr_id) ||
            (SAI_ACL_ENTRY_ATTR_FIELD_INNER_VLAN_CFI == attr_id) ||
            (SAI_ACL_ENTRY_ATTR_FIELD_L4_SRC_PORT == attr_id) ||
@@ -7914,6 +8026,235 @@ out:
     return status;
 }
 
+static sai_status_t mlnx_acl_entry_action_add_vlan(_In_ const sai_object_key_t      *key,
+                                                   _In_ const sai_attribute_value_t *value,
+                                                   void                             *arg)
+{
+    sai_status_t                        status;
+    sx_flex_acl_flex_rule_t             flex_acl_rule = MLNX_ACL_SX_FLEX_RULE_EMPTY;
+    sx_flex_acl_flex_action_set_vlan_t *set_vlan_fields;
+    uint32_t                            action_index;
+    uint32_t                            acl_table_index, acl_entry_index;
+    bool                                is_action_present;
+    sx_flex_acl_flex_action_type_t      sx_action_type = SX_FLEX_ACL_ACTION_SET_VLAN;
+    sx_flex_acl_flex_action_t          *acl_action;
+    long                                action = (long)arg;
+    bool                                update_sx_rule = false;
+
+    SX_LOG_ENTER();
+
+    assert(action == SAI_ACL_ENTRY_ATTR_ACTION_ADD_VLAN_PRI ||
+           action == SAI_ACL_ENTRY_ATTR_ACTION_ADD_VLAN_ID);
+
+    status = extract_acl_table_index_and_entry_index(key->key.object_id, &acl_table_index, &acl_entry_index);
+    if (SAI_STATUS_SUCCESS != status) {
+        SX_LOG_EXIT();
+        return status;
+    }
+
+    acl_table_write_lock(acl_table_index);
+    status = mlnx_acl_entry_sx_acl_rule_get(acl_table_index, acl_entry_index, &flex_acl_rule);
+    if (SAI_ERR(status)) {
+        goto out;
+    }
+
+    mlnx_acl_flex_rule_action_find(&flex_acl_rule, sx_action_type, &action_index, &is_action_present);
+    if (!is_action_present && !value->aclaction.enable) {
+        goto out;
+    }
+
+    if (!is_action_present && value->aclaction.enable) {
+        if (action == SAI_ACL_ENTRY_ATTR_ACTION_ADD_VLAN_PRI) {
+            SX_LOG_ERR("ADD_VLAN_PRI could be only used when vlan id is set with ADD_VLAN_ID\n");
+            status = SAI_STATUS_FAILURE;
+            goto out;
+        }
+
+        action_index = flex_acl_rule.action_count;
+        flex_acl_rule.action_list_p[action_index].type = sx_action_type;
+        flex_acl_rule.action_count++;
+    }
+
+    set_vlan_fields = &flex_acl_rule.action_list_p[action_index].fields.action_set_vlan;
+
+    if (is_action_present && !value->aclaction.enable) {
+        if (action == SAI_ACL_ENTRY_ATTR_ACTION_ADD_VLAN_PRI) {
+            set_vlan_fields->qinq_tunnel_qos = SX_ACL_FLEX_QINQ_TUNNEL_QOS_UNIFORM;
+            update_sx_rule = true;
+        } else if (action == SAI_ACL_ENTRY_ATTR_ACTION_ADD_VLAN_ID) {
+            if (set_vlan_fields->qinq_tunnel_qos == SX_ACL_FLEX_QINQ_TUNNEL_QOS_PIPE) {
+                SX_LOG_ERR("SAI_ACL_ENTRY_ATTR_ACTION_ADD_VLAN_PRI must be disabled before ADD_VLAN_ID\n");
+                status = SAI_STATUS_FAILURE;
+            } else if (set_vlan_fields->qinq_tunnel_qos == SX_ACL_FLEX_QINQ_TUNNEL_QOS_UNIFORM) {
+                mlnx_acl_flex_rule_action_del(&flex_acl_rule, action_index);
+                update_sx_rule = true;
+            }
+        }
+        goto out;
+    }
+
+    acl_action = &flex_acl_rule.action_list_p[action_index];
+
+    set_vlan_fields->cmd = SX_ACL_FLEX_SET_VLAN_CMD_TYPE_PUSH;
+
+    if (action == SAI_ACL_ENTRY_ATTR_ACTION_ADD_VLAN_ID) {
+        acl_action->fields.action_set_vlan.qinq_tunnel_qos = SX_ACL_FLEX_QINQ_TUNNEL_QOS_UNIFORM;
+        acl_action->fields.action_set_vlan.vlan_id = value->aclaction.parameter.u16;
+    } else if (action == SAI_ACL_ENTRY_ATTR_ACTION_ADD_VLAN_PRI) {
+        acl_action->fields.action_set_vlan.qinq_tunnel_qos = SX_ACL_FLEX_QINQ_TUNNEL_QOS_PIPE;
+        acl_action->fields.action_set_vlan.qinq_tunnel_qos_fields.pipe.pcp = value->aclaction.parameter.u8;
+    }
+
+    update_sx_rule = true;
+
+out:
+    if (update_sx_rule) {
+        status = mlnx_acl_entry_sx_acl_rule_set(acl_table_index, acl_entry_index, &flex_acl_rule);
+    }
+
+    acl_table_unlock(acl_table_index);
+
+    mlnx_acl_flex_rule_free(&flex_acl_rule);
+
+    SX_LOG_EXIT();
+    return status;
+}
+
+static sai_status_t mlnx_acl_entry_action_set_do_not_learn(_In_ const sai_object_key_t      *key,
+                                                           _In_ const sai_attribute_value_t *value,
+                                                           void                             *arg)
+{
+    sai_status_t                   status;
+    sx_flex_acl_flex_rule_t        flex_acl_rule = MLNX_ACL_SX_FLEX_RULE_EMPTY;
+    uint32_t                       action_index;
+    uint32_t                       acl_table_index, acl_entry_index;
+    bool                           is_action_present;
+    sx_flex_acl_flex_action_type_t sx_action_type = SX_FLEX_ACL_ACTION_DONT_LEARN;
+    bool                           update_sx_rule = false;
+
+    SX_LOG_ENTER();
+
+    status = extract_acl_table_index_and_entry_index(key->key.object_id, &acl_table_index, &acl_entry_index);
+    if (SAI_STATUS_SUCCESS != status) {
+        SX_LOG_EXIT();
+        return status;
+    }
+
+    acl_table_write_lock(acl_table_index);
+    status = mlnx_acl_entry_sx_acl_rule_get(acl_table_index, acl_entry_index, &flex_acl_rule);
+    if (SAI_ERR(status)) {
+        goto out;
+    }
+
+    mlnx_acl_flex_rule_action_find(&flex_acl_rule, sx_action_type, &action_index, &is_action_present);
+
+    if (!is_action_present && value->aclaction.enable) {
+        action_index = flex_acl_rule.action_count;
+        flex_acl_rule.action_list_p[action_index].type = sx_action_type;
+        flex_acl_rule.action_count++;
+
+        update_sx_rule = true;
+    } else if (is_action_present && !value->aclaction.enable) {
+        mlnx_acl_flex_rule_action_del(&flex_acl_rule, action_index);
+
+        update_sx_rule = true;
+    }
+
+    if (update_sx_rule) {
+        status = mlnx_acl_entry_sx_acl_rule_set(acl_table_index, acl_entry_index, &flex_acl_rule);
+        if (SAI_ERR(status)) {
+            goto out;
+        }
+    }
+
+out:
+    acl_table_unlock(acl_table_index);
+
+    mlnx_acl_flex_rule_free(&flex_acl_rule);
+
+    SX_LOG_EXIT();
+    return status;
+}
+
+static sai_status_t mlnx_acl_entry_action_set_router(_In_ const sai_object_key_t      *key,
+                                                     _In_ const sai_attribute_value_t *value,
+                                                     void                             *arg)
+{
+    sai_status_t                   status;
+    sx_flex_acl_flex_rule_t        flex_acl_rule = MLNX_ACL_SX_FLEX_RULE_EMPTY;
+    uint32_t                       action_index;
+    uint32_t                       acl_table_index, acl_entry_index;
+    bool                           is_action_present;
+    sx_flex_acl_flex_action_type_t sx_action_type = SX_FLEX_ACL_ACTION_SET_ROUTER;
+    uint32_t                       data;
+    bool                           new_vrid;
+    uint32_t                       set_router_usage;
+
+    SX_LOG_ENTER();
+
+    status = extract_acl_table_index_and_entry_index(key->key.object_id, &acl_table_index, &acl_entry_index);
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+    acl_table_write_lock(acl_table_index);
+    status = mlnx_acl_entry_sx_acl_rule_get(acl_table_index, acl_entry_index, &flex_acl_rule);
+    if (SAI_ERR(status)) {
+        goto out;
+    }
+
+    set_router_usage = acl_db_entry(acl_entry_index).sx_set_router_usage;
+    if (set_router_usage == SET_ROUTER_USED_BY_REDIRECT) {
+        SX_LOG_ERR("Conflicting actions: simultaneous use of SET_VRF and router type bridge port redirection "
+                   "is not allowed\n");
+        status = SAI_STATUS_FAILURE;
+        goto out;
+    }
+
+    new_vrid = value->aclaction.enable && (value->aclaction.parameter.oid != SAI_NULL_OBJECT_ID);
+
+    mlnx_acl_flex_rule_action_find(&flex_acl_rule, sx_action_type, &action_index, &is_action_present);
+
+    if (!is_action_present && new_vrid) {
+        action_index = flex_acl_rule.action_count;
+        flex_acl_rule.action_list_p[action_index].type = sx_action_type;
+        flex_acl_rule.action_count++;
+        set_router_usage = SET_ROUTER_USED_BY_SET_VRF;
+    } else if (is_action_present && !new_vrid) {
+        mlnx_acl_flex_rule_action_del(&flex_acl_rule, action_index);
+        set_router_usage = SET_ROUTER_NOT_USED;
+    } else if (!is_action_present && !new_vrid) {
+        goto out;
+    }
+
+    if (new_vrid) {
+        status = mlnx_object_to_type(value->aclaction.parameter.oid, SAI_OBJECT_TYPE_VIRTUAL_ROUTER, &data, NULL);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to convert virtual router to sx_router\n");
+            goto out;
+        }
+
+        flex_acl_rule.action_list_p[action_index].fields.action_set_router.vrid = (sx_router_id_t)data;
+        set_router_usage = SET_ROUTER_USED_BY_SET_VRF;
+    }
+
+    status = mlnx_acl_entry_sx_acl_rule_set(acl_table_index, acl_entry_index, &flex_acl_rule);
+    if (SAI_ERR(status)) {
+        goto out;
+    }
+
+    acl_db_entry(acl_entry_index).sx_set_router_usage = set_router_usage;
+
+out:
+
+    acl_table_unlock(acl_table_index);
+
+    mlnx_acl_flex_rule_free(&flex_acl_rule);
+
+    SX_LOG_EXIT();
+    return status;
+}
+
 static sai_status_t mlnx_acl_entry_action_policer_check_allowed(_In_ sx_span_session_id_t entry_span_session)
 {
     const mlnx_mirror_policer_t *mirror_policer;
@@ -8414,6 +8755,7 @@ static sai_status_t mlnx_acl_entry_action_redirect_set(_In_ const sai_object_key
     uint32_t                acl_table_index, acl_entry_index;
     uint32_t                ii, action_index;
     bool                    is_action_present;
+    uint32_t                set_router_usage;
 
     attr_id = (long)arg;
 
@@ -8445,10 +8787,14 @@ static sai_status_t mlnx_acl_entry_action_redirect_set(_In_ const sai_object_key
 
     is_action_present = false;
     action_index = flex_acl_rule.action_count;
+
+    set_router_usage = acl_db_entry(acl_entry_index).sx_set_router_usage;
     for (ii = 0; ii < flex_acl_rule.action_count; ii++) {
         if ((flex_acl_rule.action_list_p[ii].type == SX_FLEX_ACL_ACTION_PBS) ||
             (flex_acl_rule.action_list_p[ii].type == SX_FLEX_ACL_ACTION_UC_ROUTE) ||
-            (flex_acl_rule.action_list_p[ii].type == SX_FLEX_ACL_ACTION_NVE_TUNNEL_ENCAP)) {
+            (flex_acl_rule.action_list_p[ii].type == SX_FLEX_ACL_ACTION_NVE_TUNNEL_ENCAP) ||
+            ((flex_acl_rule.action_list_p[ii].type == SX_FLEX_ACL_ACTION_SET_ROUTER) &&
+             (set_router_usage == SET_ROUTER_USED_BY_REDIRECT))) {
             if (is_action_present) {
                 SX_LOG_ERR("Flex action type related to SAI Redirect actions appears twice in flex rule\n");
                 status = SAI_STATUS_FAILURE;
@@ -8493,6 +8839,7 @@ static sai_status_t mlnx_acl_entry_action_redirect_set(_In_ const sai_object_key
 
         case SAI_ACL_ENTRY_ATTR_ACTION_REDIRECT:
             status = mlnx_sai_acl_redirect_action_create(value->aclaction.parameter.oid, 0,
+                                                         &set_router_usage,
                                                          &new_pbs_info,
                                                          &flex_acl_rule.action_list_p[action_index]);
             if (SAI_ERR(status)) {
@@ -8511,6 +8858,10 @@ static sai_status_t mlnx_acl_entry_action_redirect_set(_In_ const sai_object_key
     } else {
         if (is_action_present) {
             mlnx_acl_flex_rule_action_del(&flex_acl_rule, action_index);
+
+            if (acl_db_entry(acl_entry_index).sx_set_router_usage == SET_ROUTER_USED_BY_REDIRECT) {
+                set_router_usage = SET_ROUTER_NOT_USED;
+            }
         }
     }
 
@@ -8544,6 +8895,8 @@ static sai_status_t mlnx_acl_entry_action_redirect_set(_In_ const sai_object_key
 out:
     if (SAI_ERR(status)) {
         mlnx_acl_pbs_info_delete(new_pbs_info);
+    } else {
+        acl_db_entry(acl_entry_index).sx_set_router_usage = set_router_usage;
     }
 
     acl_table_unlock(acl_table_index);
@@ -9457,19 +9810,21 @@ static sai_status_t mlnx_acl_action_redirect_to_sx(_In_ sai_acl_entry_attr_t    
 {
     sai_status_t        status;
     mlnx_acl_pbs_info_t pbs_info = MLNX_ACL_PBS_INFO_INVALID;
+    uint32_t            set_router_usage;
 
     assert(action_data);
     assert(ctx);
     assert(sx_action_list);
     assert(sx_action_count);
 
+    set_router_usage = ctx->set_router_usage;
     if (ctx->is_redirect_action_present) {
         SX_LOG_ERR("Only one of redirect actions (redirect/redirect_list/flood) is allowed in single entry\n");
         return SAI_STATUS_INVALID_ATTR_VALUE_0 + attr_index;
     }
 
     status = mlnx_sai_acl_redirect_action_create(action_data->parameter.oid,
-                                                 attr_index, &pbs_info,
+                                                 attr_index, &set_router_usage, &pbs_info,
                                                  &sx_action_list[*sx_action_count]);
     if (SAI_ERR(status)) {
         return status;
@@ -9484,6 +9839,7 @@ static sai_status_t mlnx_acl_action_redirect_to_sx(_In_ sai_acl_entry_attr_t    
 
     ctx->is_redirect_action_present = true;
     ctx->pbs_info = pbs_info;
+    ctx->set_router_usage = set_router_usage;
 
     return SAI_STATUS_SUCCESS;
 }
@@ -10940,6 +11296,227 @@ static sai_status_t mlnx_acl_action_meta_to_sai(_In_ sai_acl_entry_attr_t       
     return SAI_STATUS_SUCCESS;
 }
 
+static sai_status_t mlnx_acl_action_add_vlan_id_to_sx(_In_ sai_acl_entry_attr_t         action,
+                                                      _In_ const sai_acl_action_data_t *action_data,
+                                                      _In_ uint32_t                     attr_index,
+                                                      _In_ const acl_table_db_t        *table,
+                                                      _Inout_ mlnx_acl_action_ctx_t    *ctx,
+                                                      _Out_ sx_flex_acl_flex_action_t  *sx_action_list,
+                                                      _Inout_ uint32_t                 *sx_action_count)
+{
+    assert(action_data);
+    assert(sx_action_list);
+    assert(sx_action_count);
+
+    sx_action_list[*sx_action_count].type = SX_FLEX_ACL_ACTION_SET_VLAN;
+    sx_action_list[*sx_action_count].fields.action_set_vlan.cmd = SX_ACL_FLEX_SET_VLAN_CMD_TYPE_PUSH;
+    sx_action_list[*sx_action_count].fields.action_set_vlan.qinq_tunnel_qos = SX_ACL_FLEX_QINQ_TUNNEL_QOS_UNIFORM;
+    sx_action_list[*sx_action_count].fields.action_set_vlan.vlan_id = action_data->parameter.u16;
+
+    (*sx_action_count)++;
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_acl_action_add_vlan_id_to_sai(_In_ sai_acl_entry_attr_t           action,
+                                                       _In_ const sx_flex_acl_flex_rule_t *sx_rule,
+                                                       _In_ const acl_entry_db_t          *entry,
+                                                       _In_ const acl_table_db_t          *table,
+                                                       _In_ uint32_t                       attr_index,
+                                                       _Out_ sai_acl_action_data_t        *action_data)
+{
+    uint32_t action_index;
+    bool     is_action_present;
+
+    assert(sx_rule);
+    assert(entry);
+    assert(table);
+    assert(action_data);
+
+    mlnx_acl_flex_rule_action_find(sx_rule, SX_FLEX_ACL_ACTION_SET_VLAN, &action_index, &is_action_present);
+
+    if (!is_action_present) {
+        action_data->enable = false;
+        return SAI_STATUS_SUCCESS;
+    }
+
+    action_data->enable = true;
+    action_data->parameter.u16 = sx_rule->action_list_p[action_index].fields.action_set_vlan.vlan_id;
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_acl_action_add_vlan_pri_to_sx(_In_ sai_acl_entry_attr_t         action,
+                                                       _In_ const sai_acl_action_data_t *action_data,
+                                                       _In_ uint32_t                     attr_index,
+                                                       _In_ const acl_table_db_t        *table,
+                                                       _Inout_ mlnx_acl_action_ctx_t    *ctx,
+                                                       _Out_ sx_flex_acl_flex_action_t  *sx_action_list,
+                                                       _Inout_ uint32_t                 *sx_action_count)
+{
+    uint32_t action_idx;
+    bool     is_action_present;
+
+    SX_LOG_ENTER();
+
+    assert(action_data);
+    assert(sx_action_list);
+    assert(sx_action_count);
+
+    mlnx_acl_action_list_action_find(sx_action_list, *sx_action_count, SX_FLEX_ACL_ACTION_SET_VLAN, &action_idx,
+                                     &is_action_present);
+    if (!is_action_present) {
+        SX_LOG_ERR("ADD_VLAN_PRI could be only used when vlan id is set with ADD_VLAN_ID\n");
+        return SAI_STATUS_FAILURE;
+    }
+
+    sx_action_list[action_idx].fields.action_set_vlan.cmd = SX_ACL_FLEX_SET_VLAN_CMD_TYPE_PUSH;
+    sx_action_list[action_idx].fields.action_set_vlan.qinq_tunnel_qos = SX_ACL_FLEX_QINQ_TUNNEL_QOS_PIPE;
+    sx_action_list[action_idx].fields.action_set_vlan.qinq_tunnel_qos_fields.pipe.pcp = action_data->parameter.u8;
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_acl_action_add_vlan_pri_to_sai(_In_ sai_acl_entry_attr_t           action,
+                                                        _In_ const sx_flex_acl_flex_rule_t *sx_rule,
+                                                        _In_ const acl_entry_db_t          *entry,
+                                                        _In_ const acl_table_db_t          *table,
+                                                        _In_ uint32_t                       attr_index,
+                                                        _Out_ sai_acl_action_data_t        *action_data)
+{
+    uint32_t action_index;
+    bool     is_action_present;
+
+    assert(sx_rule);
+    assert(entry);
+    assert(table);
+    assert(action_data);
+
+    mlnx_acl_flex_rule_action_find(sx_rule, SX_FLEX_ACL_ACTION_SET_VLAN, &action_index, &is_action_present);
+
+    if (!is_action_present) {
+        action_data->enable = false;
+        return SAI_STATUS_SUCCESS;
+    }
+
+    action_data->enable = true;
+    action_data->parameter.u8 =
+        sx_rule->action_list_p[action_index].fields.action_set_vlan.qinq_tunnel_qos_fields.pipe.pcp;
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_acl_action_set_do_not_learn_to_sx(_In_ sai_acl_entry_attr_t         action,
+                                                           _In_ const sai_acl_action_data_t *action_data,
+                                                           _In_ uint32_t                     attr_index,
+                                                           _In_ const acl_table_db_t        *table,
+                                                           _Inout_ mlnx_acl_action_ctx_t    *ctx,
+                                                           _Out_ sx_flex_acl_flex_action_t  *sx_action_list,
+                                                           _Inout_ uint32_t                 *sx_action_count)
+{
+    assert(sx_action_list);
+    assert(sx_action_count);
+
+    sx_action_list[*sx_action_count].type = SX_FLEX_ACL_ACTION_DONT_LEARN;
+
+    (*sx_action_count)++;
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_acl_action_set_do_not_learn_to_sai(_In_ sai_acl_entry_attr_t           action,
+                                                            _In_ const sx_flex_acl_flex_rule_t *sx_rule,
+                                                            _In_ const acl_entry_db_t          *entry,
+                                                            _In_ const acl_table_db_t          *table,
+                                                            _In_ uint32_t                       attr_index,
+                                                            _Out_ sai_acl_action_data_t        *action_data)
+{
+    uint32_t action_index;
+
+    assert(sx_rule);
+    assert(action_data);
+
+    mlnx_acl_flex_rule_action_find(sx_rule, SX_FLEX_ACL_ACTION_DONT_LEARN, &action_index, &action_data->enable);
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_acl_action_set_vrf_to_sx(_In_ sai_acl_entry_attr_t         action,
+                                                  _In_ const sai_acl_action_data_t *action_data,
+                                                  _In_ uint32_t                     attr_index,
+                                                  _In_ const acl_table_db_t        *table,
+                                                  _Inout_ mlnx_acl_action_ctx_t    *ctx,
+                                                  _Out_ sx_flex_acl_flex_action_t  *sx_action_list,
+                                                  _Inout_ uint32_t                 *sx_action_count)
+{
+    sai_status_t status;
+    uint32_t     data;
+
+    assert(sx_action_list);
+    assert(sx_action_count);
+    assert(action_data);
+    assert(ctx);
+
+    if (action_data->parameter.oid == SAI_NULL_OBJECT_ID) {
+        return SAI_STATUS_SUCCESS;
+    }
+
+    if (ctx->set_router_usage == SET_ROUTER_USED_BY_REDIRECT) {
+        SX_LOG_ERR("Conflicting actions: simultaneous use of SET_VRF and router type bridge port redirection "
+                   "is not allowed\n");
+        return SAI_STATUS_FAILURE;
+    }
+
+    status = mlnx_object_to_type(action_data->parameter.oid, SAI_OBJECT_TYPE_VIRTUAL_ROUTER, &data, NULL);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to convert virtual router to sx_router\n");
+        return status;
+    }
+
+    sx_action_list[*sx_action_count].type = SX_FLEX_ACL_ACTION_SET_ROUTER;
+    sx_action_list[*sx_action_count].fields.action_set_router.vrid = (sx_router_id_t)data;
+    (*sx_action_count)++;
+    ctx->set_router_usage = SET_ROUTER_USED_BY_SET_VRF;
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_acl_action_set_vrf_to_sai(_In_ sai_acl_entry_attr_t           action,
+                                                   _In_ const sx_flex_acl_flex_rule_t *sx_rule,
+                                                   _In_ const acl_entry_db_t          *entry,
+                                                   _In_ const acl_table_db_t          *table,
+                                                   _In_ uint32_t                       attr_index,
+                                                   _Out_ sai_acl_action_data_t        *action_data)
+{
+    uint32_t        action_index;
+    bool            is_action_present;
+    sai_object_id_t vrid;
+    sai_status_t    status;
+
+    assert(sx_rule);
+    assert(action_data);
+
+    mlnx_acl_flex_rule_action_find(sx_rule, SX_FLEX_ACL_ACTION_SET_ROUTER, &action_index, &is_action_present);
+
+    is_action_present = is_action_present && (entry->sx_set_router_usage == SET_ROUTER_USED_BY_SET_VRF);
+    if (is_action_present) {
+        status = mlnx_create_object(SAI_OBJECT_TYPE_VIRTUAL_ROUTER,
+                                    sx_rule->action_list_p[action_index].fields.action_set_router.vrid,
+                                    NULL,
+                                    &vrid);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to convert sx_router to virtual router\n");
+            return status;
+        }
+
+        action_data->parameter.oid = vrid;
+    }
+
+    action_data->enable = is_action_present;
+
+    return SAI_STATUS_SUCCESS;
+}
+
 static sai_status_t mlnx_acl_action_ip_to_sx(_In_ sai_acl_entry_attr_t         action,
                                              _In_ const sai_acl_action_data_t *action_data,
                                              _In_ uint32_t                     attr_index,
@@ -11255,6 +11832,10 @@ static sai_status_t mlnx_acl_entry_action_fn_get(_In_ const sai_object_key_t   *
            (SAI_ACL_ENTRY_ATTR_ACTION_SET_OUTER_VLAN_PRI == attr_id) ||
            (SAI_ACL_ENTRY_ATTR_ACTION_SET_INNER_VLAN_PRI == attr_id) ||
            (SAI_ACL_ENTRY_ATTR_ACTION_SET_ACL_META_DATA == attr_id) ||
+           (SAI_ACL_ENTRY_ATTR_ACTION_ADD_VLAN_ID == attr_id) ||
+           (SAI_ACL_ENTRY_ATTR_ACTION_ADD_VLAN_PRI == attr_id) ||
+           (SAI_ACL_ENTRY_ATTR_ACTION_SET_DO_NOT_LEARN == attr_id) ||
+           (SAI_ACL_ENTRY_ATTR_ACTION_SET_VRF == attr_id) ||
            (SAI_ACL_ENTRY_ATTR_ACTION_FLOOD == attr_id) ||
            (SAI_ACL_ENTRY_ATTR_ACTION_DECREMENT_TTL == attr_id) ||
            (SAI_ACL_ENTRY_ATTR_ACTION_SET_SRC_IP == attr_id) ||
@@ -11647,6 +12228,7 @@ sai_status_t mlnx_create_acl_entry(_Out_ sai_object_id_t     * acl_entry_id,
     acl_db_entry(acl_entry_index).prev_entry_index = ACL_INVALID_DB_INDEX;
     acl_db_entry(acl_entry_index).pbs_info = action_ctx.pbs_info;
     acl_db_entry(acl_entry_index).sx_span_session = action_ctx.sx_span_session;
+    acl_db_entry(acl_entry_index).sx_set_router_usage = action_ctx.set_router_usage;
 
     status = mlnx_acl_entry_sx_acl_rule_set(acl_table_index, acl_entry_index, &flex_acl_rule);
     if (SAI_ERR(status)) {
@@ -13058,6 +13640,31 @@ static void mlnx_acl_flex_rule_key_find(_In_ const sx_flex_acl_flex_rule_t *rule
 
     *key_index = index;
 }
+
+static void mlnx_acl_action_list_action_find(_In_ const sx_flex_acl_flex_action_t     *sx_action_list,
+                                             _In_ const uint32_t                       sx_action_count,
+                                             _In_ const sx_flex_acl_flex_action_type_t action_type,
+                                             _Out_ uint32_t                           *action_index,
+                                             _Out_ bool                               *is_action_present)
+{
+    uint32_t index;
+
+    SX_LOG_ENTER();
+
+    assert(action_index);
+    assert(is_action_present);
+
+    *is_action_present = false;
+    for (index = 0; index < sx_action_count; index++) {
+        if (action_type == sx_action_list[index].type) {
+            *is_action_present = true;
+            break;
+        }
+    }
+
+    *action_index = index;
+}
+
 
 static void mlnx_acl_flex_rule_action_find(_In_ const sx_flex_acl_flex_rule_t *rule,
                                            _In_ sx_flex_acl_flex_action_type_t action_type,
@@ -16696,6 +17303,7 @@ static sai_status_t mlnx_acl_field_port_list_to_sx(_In_ const sai_object_list_t 
 
 static sai_status_t mlnx_acl_action_redirect_bport_create(_In_ sai_object_id_t             object_id,
                                                           _In_ uint32_t                    attr_index,
+                                                          _Inout_ uint32_t                *set_router_usage,
                                                           _Out_ mlnx_acl_pbs_info_t       *pbs_info,
                                                           _Out_ sx_flex_acl_flex_action_t *sx_action)
 {
@@ -16729,6 +17337,14 @@ static sai_status_t mlnx_acl_action_redirect_bport_create(_In_ sai_object_id_t  
             SX_LOG_ERR("Failed to lookup bridge rif by index %u\n", bport->rif_index);
             return SAI_STATUS_INVALID_ATTR_VALUE_0 + attr_index;
         }
+
+        if ((*set_router_usage) == SET_ROUTER_USED_BY_SET_VRF) {
+            SX_LOG_ERR("Conflicting actions: simultaneous use of SET_VRF and router type bridge port redirection "
+                       "is not allowed\n");
+            return SAI_STATUS_INVALID_ATTR_VALUE_0 + attr_index;
+        }
+
+        *set_router_usage = SET_ROUTER_USED_BY_REDIRECT;
 
         sx_action->type = SX_FLEX_ACL_ACTION_SET_ROUTER;
         sx_action->fields.action_set_router.vrid = brif->sx_data.vrf_id;
@@ -16778,6 +17394,7 @@ static sai_status_t mlnx_acl_redirect_action_l2mc_create(_In_ sai_object_id_t   
 
 static sai_status_t mlnx_sai_acl_redirect_action_create(_In_ sai_object_id_t             object_id,
                                                         _In_ uint32_t                    attr_index,
+                                                        _Inout_ uint32_t                *set_router_usage,
                                                         _Out_ mlnx_acl_pbs_info_t       *pbs_info,
                                                         _Out_ sx_flex_acl_flex_action_t *sx_action)
 {
@@ -16817,7 +17434,7 @@ static sai_status_t mlnx_sai_acl_redirect_action_create(_In_ sai_object_id_t    
         break;
 
     case SAI_OBJECT_TYPE_BRIDGE_PORT:
-        return mlnx_acl_action_redirect_bport_create(object_id, attr_index, pbs_info, sx_action);
+        return mlnx_acl_action_redirect_bport_create(object_id, attr_index, set_router_usage, pbs_info, sx_action);
 
     case SAI_OBJECT_TYPE_L2MC_GROUP:
         return mlnx_acl_redirect_action_l2mc_create(object_id, attr_index, pbs_info, sx_action);

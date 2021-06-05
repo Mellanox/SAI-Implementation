@@ -28,6 +28,7 @@
 #include <libxml/tree.h>
 #include <sys/mman.h>
 #include <pthread.h>
+#include <semaphore.h>
 #endif
 #include <complib/cl_mem.h>
 #include <complib/cl_passivelock.h>
@@ -80,6 +81,10 @@ static bool                      dfw_thread_asked_to_stop = false;
 static bool                      g_uninit_data_plane_on_removal = true;
 static uint32_t                  g_mlnx_shm_rm_size = 0;
 
+#ifndef _WIN32
+sem_t dfw_sem;
+#endif
+
 void log_cb(sx_log_severity_t severity, const char *module_name, char *msg);
 void log_pause_cb(void);
 #ifdef CONFIG_SYSLOG
@@ -107,6 +112,12 @@ typedef struct _pool_array_info_t {
     sx_pool_info_t* pool_arr;
     uint32_t        pool_cnt;
 } pool_array_info_t;
+
+sx_trap_id_t mlnx_trap_ids[] = {
+    SX_TRAP_ID_BFD_TIMEOUT_EVENT,
+    SX_TRAP_ID_BFD_PACKET_EVENT,
+    SX_TRAP_ID_BULK_COUNTER_DONE_EVENT,
+};
 
 sai_status_t mlnx_hash_ecmp_sx_config_update(void);
 sai_status_t mlnx_hash_lag_sx_config_update(void);
@@ -590,12 +601,14 @@ static sai_status_t mlnx_switch_bfd_attribute_get(_In_ const sai_object_key_t   
 static sai_status_t mlnx_switch_bfd_event_handle(_In_ sx_trap_id_t event, _In_ uint64_t opaque_data);
 
 /* DFW feature functions */
-static sai_status_t mlnx_switch_dump_health_event_prepare_stage_dir(const char *stage_dir);
-static void mlnx_switch_dump_health_event_fill_metadata(FILE *stream, sx_event_health_notification_t *event);
-static sai_status_t mlnx_switch_dump_health_event_remove_extra_dumps(const char *path, int limit);
-static sai_status_t mlnx_switch_dump_health_event_move_dumps_from_stage_dir(const char *stage_dir);
+sai_status_t sai_dbg_do_dump(_In_ const char *dump_file_name);
+static sai_status_t mlnx_switch_dump_health_event_prepare_stage_dir(_In_ const char *stage_dir);
+static void mlnx_switch_dump_health_event_fill_metadata(_In_ FILE *stream, _In_ sx_event_health_notification_t *event);
+static sai_status_t mlnx_switch_dump_health_event_remove_extra_dumps(_In_ const char *path, _In_ int limit);
+static sai_status_t mlnx_switch_dump_health_event_move_dumps_from_stage_dir(_In_ const char *stage_dir);
 static sai_status_t mlnx_switch_health_event_handle(_In_ sx_event_health_notification_t *event);
-static void mlnx_switch_dfw_thread_func(void *context);
+static sai_status_t mlnx_switch_rearm_dfw(_In_ sx_api_handle_t api_handle);
+static void mlnx_switch_dfw_thread_func(_In_ void *context);
 
 static const sai_vendor_attribute_entry_t switch_vendor_attribs[] = {
     { SAI_SWITCH_ATTR_PORT_NUMBER,
@@ -2755,7 +2768,7 @@ static sai_status_t mlnx_chassis_mng_stage(mlnx_sai_boot_type_t boot_type,
     memcpy(&(sdk_init_params.profile), ku_profile, sizeof(struct ku_profile));
     memcpy(&(sdk_init_params.pci_profile), pci_profile, sizeof(struct sx_pci_profile));
     sdk_init_params.applibs_mask = SX_API_FLOW_COUNTER | SX_API_POLICER | SX_API_HOST_IFC | SX_API_SPAN |
-                                   SX_API_ETH_L2 | SX_API_ACL;
+                                   SX_API_ETH_L2 | SX_API_ACL | SX_API_MGMT_LIB;
     sdk_init_params.profile.chip_type = g_sai_db_ptr->sx_chip_type;
 
     issu_path = g_mlnx_services.profile_get_value(g_profile_id, SAI_KEY_WARM_BOOT_WRITE_FILE);
@@ -3195,6 +3208,7 @@ static void sai_db_values_init()
     g_sai_db_ptr->issu_enabled = false;
     g_sai_db_ptr->restart_warm = false;
     g_sai_db_ptr->warm_recover = false;
+    g_sai_db_ptr->issu_start_called = false;
     g_sai_db_ptr->issu_end_called = false;
     g_sai_db_ptr->fx_initialized = false;
     g_sai_db_ptr->flex_parser_initialized = false;
@@ -3748,7 +3762,7 @@ static sai_status_t mlnx_switch_bfd_event_handle(_In_ sx_trap_id_t event, _In_ u
     return SAI_STATUS_SUCCESS;
 }
 
-static sai_status_t mlnx_switch_dump_health_event_prepare_stage_dir(const char *stage_dir)
+static sai_status_t mlnx_switch_dump_health_event_prepare_stage_dir(_In_ const char *stage_dir)
 {
     const char create_or_clear_dir_command_fmt[] = "mkdir -p %s && rm -rf %s/*";
     char       create_or_clear_dir_command[2 * (SX_API_DUMP_PATH_LEN_LIMIT + PATH_MAX) + 100];
@@ -3769,7 +3783,7 @@ static sai_status_t mlnx_switch_dump_health_event_prepare_stage_dir(const char *
     return SAI_STATUS_SUCCESS;
 }
 
-static void mlnx_switch_dump_health_event_fill_metadata(FILE *stream, sx_event_health_notification_t *event)
+static void mlnx_switch_dump_health_event_fill_metadata(_In_ FILE *stream, _In_ sx_event_health_notification_t *event)
 {
     dbg_utils_print_module_header(stream, "SDK health event metadata");
 
@@ -3780,7 +3794,7 @@ static void mlnx_switch_dump_health_event_fill_metadata(FILE *stream, sx_event_h
     dbg_utils_print_field(stream, "IRISC ID:", &event->irisc_id, PARAM_UINT8_E);
 }
 
-static sai_status_t mlnx_switch_dump_health_event_remove_extra_dumps(const char *path, int limit)
+static sai_status_t mlnx_switch_dump_health_event_remove_extra_dumps(_In_ const char *path, _In_ int limit)
 {
     const char dfw_archive_name_pattern[] = "sai-dfw-*.tar";
     const char get_all_dump_archives_command_fmt[] = "ls -1ht %s/%s 2>/dev/null";
@@ -3813,12 +3827,13 @@ static sai_status_t mlnx_switch_dump_health_event_remove_extra_dumps(const char 
     return SAI_STATUS_SUCCESS;
 }
 
-static sai_status_t mlnx_switch_dump_health_event_move_dumps_from_stage_dir(const char *stage_dir)
+static sai_status_t mlnx_switch_dump_health_event_move_dumps_from_stage_dir(_In_ const char *stage_dir)
 {
 #ifndef _WIN32
+    /* Comments in next lines described parameters to pass into printf as %s */
     const char                       tar_command_fmt[] = "tar -C %s -cf %s ."; /* 1 - directory, 2 - archive name */
     const char                       dfw_archive_name_fmt[] = "%s/sai-dfw-%lu.tar"; /* 1 - directory, 2 - expected timestamp */
-    const char                       clear_stage_dir_cmd_fmt[] = "rm -r %s/*"; /* Directory */
+    const char                       clear_stage_dir_cmd_fmt[] = "rm -rf %s/*"; /* 1 - directory */
     const mlnx_dump_configuration_t *dump_conf = &g_sai_db_ptr->dump_configuration;
     struct timespec                  tm;
     int                              system_err;
@@ -3865,6 +3880,9 @@ static sai_status_t mlnx_switch_health_event_handle(_In_ sx_event_health_notific
     DIR                             *d = NULL;
     char                             dump_file_name[SX_API_DUMP_PATH_LEN_LIMIT + PATH_MAX + 20];
     char                             dump_stage_dir[SX_API_DUMP_PATH_LEN_LIMIT + PATH_MAX + 1];
+    const char                      *event_severity_str = sx_health_severity_str(event->severity);
+    const char                      *event_cause_str = sx_health_cause_str(event->cause);
+    int                              event_log_level;
     FILE                            *dump_file = NULL;
     sai_status_t                     sai_status = SAI_STATUS_SUCCESS;
     sx_status_t                      sdk_status = SX_STATUS_SUCCESS;
@@ -3877,40 +3895,16 @@ static sai_status_t mlnx_switch_health_event_handle(_In_ sx_event_health_notific
         closedir(d);
     }
 
-    /* Just in case but this validation is done before launch thread */
-    if (0 == dump_conf->max_events_to_store) {
-        SX_LOG_ERR("Maximal dumps count to store is not set to correct value, skip\n");
-        return SAI_STATUS_FAILURE;
-    }
-
     snprintf(dump_stage_dir, sizeof(dump_stage_dir), "%s/%s", dump_conf->path, dump_stage_dir_name);
     snprintf(dump_file_name, sizeof(dump_file_name), "%s/%s", dump_stage_dir, sai_sdk_dump_file_name);
 
     mlnx_switch_dump_health_event_prepare_stage_dir(dump_stage_dir);
 
-    sai_status = sai_dbg_generate_dump(dump_file_name);
+    sai_status = sai_dbg_do_dump(dump_file_name);
     if (SAI_ERR(sai_status)) {
         SX_LOG_ERR("Failed to generate SAI dump into %s\n", dump_file_name);
         return sai_status;
     }
-
-    memset(&dbg_info, 0, sizeof(dbg_info));
-    dbg_info.dev_id = SX_DEVICE_ID;
-    dbg_info.force_db_refresh = true;
-    strncpy(dbg_info.path, dump_stage_dir, sizeof(dbg_info.path));
-    dbg_info.path[sizeof(dbg_info.path) - 1] = 0;
-#define FW_DUMPS 3
-    for (uint32_t ii = 0; ii < FW_DUMPS; ii++) {
-        sdk_status = sx_api_dbg_generate_dump_extra(gh_sdk, &dbg_info);
-        if (SX_STATUS_SUCCESS != sdk_status) {
-            MLNX_SAI_LOG_ERR("Error generating extended sdk dump, sx status: %s\n", SX_STATUS_MSG(sdk_status));
-        }
-        /* sleep one second to ensure new dump file is created, as dump file name is based on time in seconds */
-        if (ii < FW_DUMPS - 1) {
-            sleep(1);
-        }
-    }
-#undef FW_DUMPS
 
     dump_file = fopen(dump_file_name, "a");
     if (NULL == dump_file) {
@@ -3921,34 +3915,81 @@ static sai_status_t mlnx_switch_health_event_handle(_In_ sx_event_health_notific
     mlnx_switch_dump_health_event_fill_metadata(dump_file, event);
     fclose(dump_file);
 
+    /* Start sync sx_api_dbg_generate_dump_extra */
+    memset(&dbg_info, 0, sizeof(dbg_info));
+    dbg_info.dev_id = SX_DEVICE_ID;
+    dbg_info.force_db_refresh = true;
+    strncpy(dbg_info.path, dump_stage_dir, sizeof(dbg_info.path));
+    dbg_info.path[sizeof(dbg_info.path) - 1] = 0;
+    if ((SX_HEALTH_SEVERITY_CRIT_E == event->severity) || (SX_HEALTH_SEVERITY_ERR_E == event->severity)) {
+        dbg_info.ir_dump_enable = true;
+    }
+#define FW_DUMPS 3
+    for (uint32_t ii = 0; ii < FW_DUMPS; ii++) {
+        if (SX_STATUS_SUCCESS != (sdk_status = sx_api_dbg_generate_dump_extra(gh_sdk, &dbg_info))) {
+            MLNX_SAI_LOG_ERR("Error generating extended sdk dump, sx status: %s\n", SX_STATUS_MSG(sdk_status));
+        }
+    }
+#undef FW_DUMPS
+
     sai_status = mlnx_switch_dump_health_event_move_dumps_from_stage_dir(dump_stage_dir);
     if (SAI_ERR(sai_status)) {
         /* Error printed inside function */
         return sai_status;
     }
 
+    switch (event->severity) {
+    case SX_HEALTH_SEVERITY_CRIT_E:
+    case SX_HEALTH_SEVERITY_ERR_E:
+        event_log_level = SX_LOG_ERROR;
+        break;
+
+    case SX_HEALTH_SEVERITY_NOTICE_E:
+        event_log_level = SX_LOG_NOTICE;
+        break;
+
+    /* WARNING, also in case of unknown severity - used WARNING level */
+    default:
+        event_log_level = SX_LOG_WARNING;
+    }
+
     /* This should be syslog message */
-    SX_LOG_WRN("Health event happened, severity %s, cause %s\n",
-               sx_health_severity_str(event->severity),
-               sx_health_cause_str(event->cause));
+    SX_LOG(event_log_level, "Health event happened, severity %s, cause %s\n", event_severity_str, event_cause_str);
 #endif /* ifndef _WIN32 */
 
     return SAI_STATUS_SUCCESS;
 }
 
-static void mlnx_switch_dfw_thread_func(void *context)
+static sai_status_t mlnx_switch_rearm_dfw(_In_ sx_api_handle_t api_handle)
 {
-    sx_api_handle_t         api_handle = SX_API_INVALID_HANDLE;
-    sx_user_channel_t       callback_channel;
-    uint8_t                *p_packet = NULL;
-    uint32_t                packet_size;
-    sx_receive_info_t      *receive_info = NULL;
     sx_dbg_control_params_t dbg_params;
-    fd_set                  descr_set;
-    struct timeval          timeout;
-    int                     ret_val;
-    sx_status_t             status = SX_STATUS_SUCCESS;
-    sai_status_t            sai_status = SAI_STATUS_SUCCESS;
+    sx_status_t             status;
+
+    memset(&dbg_params, 0, sizeof(dbg_params));
+    dbg_params.fw_fatal_event_config.fw_fatal_event_enable = TRUE;
+    dbg_params.fw_fatal_event_config.auto_extraction_policy = SX_DBG_POLICY_NO_AUTO_DEBUG_EXTRACTION_E;
+    dbg_params.dev_id = SX_DEVICE_ID;
+    if (SX_STATUS_SUCCESS != (status = sx_api_fw_dbg_control_set(api_handle, SX_ACCESS_CMD_SET, &dbg_params))) {
+        SX_LOG_ERR("sx_api_dfw_dbg_control_set failed for dev id %d", dbg_params.dev_id);
+        return SAI_STATUS_FAILURE;
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static void mlnx_switch_dfw_thread_func(_In_ void *context)
+{
+    sx_api_handle_t                 api_handle = SX_API_INVALID_HANDLE;
+    sx_event_health_notification_t *event = NULL;
+    sx_user_channel_t               callback_channel;
+    uint8_t                        *p_packet = NULL;
+    uint32_t                        packet_size;
+    sx_receive_info_t              *receive_info = NULL;
+    fd_set                          descr_set;
+    struct timeval                  timeout;
+    int                             ret_val;
+    sx_status_t                     status = SX_STATUS_SUCCESS;
+    sai_status_t                    sai_status = SAI_STATUS_SUCCESS;
 
     memset(&callback_channel, 0, sizeof(callback_channel));
 
@@ -3986,12 +4027,7 @@ static void mlnx_switch_dfw_thread_func(void *context)
     }
     SX_LOG_NTC("DFW packet buffer size %u\n", SX_HOST_EVENT_BUFFER_SIZE_MAX);
 
-    memset(&dbg_params, 0, sizeof(dbg_params));
-    dbg_params.fw_fatal_event_config.fw_fatal_event_enable = TRUE;
-    dbg_params.fw_fatal_event_config.auto_extraction_policy = SX_DBG_POLICY_NO_AUTO_DEBUG_EXTRACTION_E;
-    dbg_params.dev_id = SX_DEVICE_ID;
-    if (SX_STATUS_SUCCESS != (status = sx_api_fw_dbg_control_set(api_handle, SX_ACCESS_CMD_SET, &dbg_params))) {
-        SX_LOG_ERR("sx_api_dfw_dbg_control_set failed for dev id %d", dbg_params.dev_id);
+    if (SAI_STATUS_SUCCESS != (sai_status = mlnx_switch_rearm_dfw(api_handle))) {
         goto out;
     }
 
@@ -4021,25 +4057,37 @@ static void mlnx_switch_dfw_thread_func(void *context)
                     goto out;
                 }
 
-                if (SX_TRAP_ID_SDK_HEALTH_EVENT == receive_info->trap_id) {
-                    sai_status = mlnx_switch_health_event_handle(&receive_info->event_info.sdk_health);
+                if (SX_TRAP_ID_SDK_HEALTH_EVENT != receive_info->trap_id) {
+                    continue;
+                }
+
+                event = &receive_info->event_info.sdk_health;
+                if ((SX_HEALTH_CAUSE_DUMP_COMPLETED_E == event->cause) ||
+                    (SX_HEALTH_CAUSE_DUMP_FAILED_E == event->cause)) {
+                    SX_LOG_NTC("DFW thread got %s async dump.\n",
+                               (SX_HEALTH_CAUSE_DUMP_COMPLETED_E == event->cause) ? "completed" : "failed");
+#ifndef _WIN32
+                    sem_post(&dfw_sem);
+#endif /* ifndef _WIN32 */
+                } else {
+                    /* Not start handling event if max dumps is not configured */
+                    if (0 == g_sai_db_ptr->dump_configuration.max_events_to_store) {
+                        sai_status = SAI_STATUS_SUCCESS;
+                        continue;
+                    }
+
+                    sai_status = mlnx_switch_health_event_handle(event);
                     if (SAI_ERR(sai_status)) {
                         SX_LOG_ERR("SDK health event handle failed.\n");
                         sai_status = SAI_STATUS_SUCCESS;
+                        continue;
                     }
 
                     /* rearm event only for notice/warning, don't rearm on error and above to avoid event loop as system is
-                     *  considered unstable */
-                    if ((receive_info->event_info.sdk_health.severity == SX_HEALTH_SEVERITY_WARN_E) ||
-                        (receive_info->event_info.sdk_health.severity == SX_HEALTH_SEVERITY_NOTICE_E)) {
-                        memset(&dbg_params, 0, sizeof(dbg_params));
-                        dbg_params.fw_fatal_event_config.fw_fatal_event_enable = TRUE;
-                        dbg_params.fw_fatal_event_config.auto_extraction_policy =
-                            SX_DBG_POLICY_NO_AUTO_DEBUG_EXTRACTION_E;
-                        dbg_params.dev_id = SX_DEVICE_ID;
-                        if (SX_STATUS_SUCCESS !=
-                            (status = sx_api_fw_dbg_control_set(api_handle, SX_ACCESS_CMD_SET, &dbg_params))) {
-                            SX_LOG_ERR("sx_api_dfw_dbg_control_set failed for dev id %d", dbg_params.dev_id);
+                     * considered unstable */
+                    if ((event->severity == SX_HEALTH_SEVERITY_WARN_E) ||
+                        (event->severity == SX_HEALTH_SEVERITY_NOTICE_E)) {
+                        if (SAI_STATUS_SUCCESS != (sai_status = mlnx_switch_rearm_dfw(api_handle))) {
                             goto out;
                         }
                     }
@@ -4710,20 +4758,13 @@ static void event_thread_func(void *context)
     memcpy(&callback_channel, &g_sai_db_ptr->callback_channel, sizeof(callback_channel));
     cl_plock_release(&g_sai_db_ptr->p_lock);
 
-    {
-        if (SX_STATUS_SUCCESS != (status = sx_api_host_ifc_trap_id_register_set(api_handle, SX_ACCESS_CMD_REGISTER,
-                                                                                DEFAULT_ETH_SWID,
-                                                                                SX_TRAP_ID_BFD_TIMEOUT_EVENT,
-                                                                                &callback_channel))) {
-            SX_LOG_ERR("host ifc trap register SX_TRAP_ID_BFD_TIMEOUT_EVENT failed - %s.\n", SX_STATUS_MSG(status));
-            goto out;
-        }
-
-        if (SX_STATUS_SUCCESS != (status = sx_api_host_ifc_trap_id_register_set(api_handle, SX_ACCESS_CMD_REGISTER,
-                                                                                DEFAULT_ETH_SWID,
-                                                                                SX_TRAP_ID_BFD_PACKET_EVENT,
-                                                                                &callback_channel))) {
-            SX_LOG_ERR("host ifc trap register SX_TRAP_ID_BFD_PACKET_EVENT failed - %s.\n", SX_STATUS_MSG(status));
+    for (uint32_t ii = 0; ii < (sizeof(mlnx_trap_ids) / sizeof(*mlnx_trap_ids)); ii++) {
+        status = sx_api_host_ifc_trap_id_register_set(api_handle, SX_ACCESS_CMD_REGISTER,
+                                                      DEFAULT_ETH_SWID,
+                                                      mlnx_trap_ids[ii],
+                                                      &callback_channel);
+        if (SX_ERR(status)) {
+            SX_LOG_ERR("host ifc trap register %d failed - %s.\n", mlnx_trap_ids[ii], SX_STATUS_MSG(status));
             goto out;
         }
     }
@@ -4834,6 +4875,26 @@ static void event_thread_func(void *context)
                     continue;
                 }
 
+#ifndef _WIN32
+                if (SX_TRAP_ID_BULK_COUNTER_DONE_EVENT == receive_info->trap_id) {
+                    SX_LOG_DBG("Got BULK_COUNTER_DONE_EVENT!\n");
+                    bulk_counter_cond_mutex_lock();
+                    if (receive_info->event_info.bulk_cntr_done_info.cookie != MLNX_SAI_BULK_COUNTER_COOKIE) {
+                        SX_LOG_DBG("Got an event with unexpected cookie [0x%x]. Skipping.\n",
+                                   receive_info->event_info.bulk_cntr_done_info.cookie);
+                        bulk_counter_cond_mutex_unlock();
+                        continue;
+                    }
+                    g_sai_db_ptr->bulk_read_done_status = receive_info->event_info.bulk_cntr_done_info.status;
+                    if (0 != pthread_cond_signal(&g_sai_db_ptr->bulk_counter_cond)) {
+                        SX_LOG_ERR("Failed to signal condition variable to wake up bulk counter thread\n");
+                        bulk_counter_cond_mutex_unlock();
+                        continue;
+                    }
+                    bulk_counter_cond_mutex_unlock();
+                    continue;
+                }
+#endif
 
                 if (SAI_STATUS_SUCCESS !=
                     (status =
@@ -5894,13 +5955,17 @@ static sai_status_t mlnx_initialize_switch(sai_object_id_t switch_id, bool *tran
         return SAI_STATUS_FAILURE;
     }
 
-    /* Launch DFW thread only if K/V related to it is set properly. Check max_dumps to be positive */
-    if (g_sai_db_ptr->dump_configuration.max_events_to_store > 0) {
-        cl_err = cl_thread_init(&dfw_thread, mlnx_switch_dfw_thread_func, NULL, NULL);
-        if (cl_err) {
-            SX_LOG_ERR("Failed to create DFW thread\n");
-            return SAI_STATUS_FAILURE;
-        }
+#ifndef _WIN32
+    if (0 != sem_init(&dfw_sem, 0, 1)) {
+        SX_LOG_ERR("Error creating DFW thread semaphore\n");
+        return SAI_STATUS_FAILURE;
+    }
+#endif /* ifndef _WIN32 */
+
+    cl_err = cl_thread_init(&dfw_thread, mlnx_switch_dfw_thread_func, NULL, NULL);
+    if (cl_err) {
+        SX_LOG_ERR("Failed to create DFW thread\n");
+        return SAI_STATUS_FAILURE;
     }
 
     /* init router model */
@@ -6007,6 +6072,12 @@ static sai_status_t mlnx_initialize_switch(sai_object_id_t switch_id, bool *tran
 
     if (SAI_STATUS_SUCCESS != (sai_status = mlnx_acl_init())) {
         SX_LOG_ERR("Failed to init acl DB\n");
+        return sai_status;
+    }
+
+    sai_status = mlnx_bulk_counter_init();
+    if (SAI_ERR(sai_status)) {
+        SX_LOG_ERR("Failed to init bulk counter sync mechanism.\n");
         return sai_status;
     }
 
@@ -6722,10 +6793,12 @@ static sai_status_t mlnx_shutdown_switch(void)
     dfw_thread_asked_to_stop = true;
 
 #ifndef _WIN32
-    if (g_sai_db_ptr->dump_configuration.max_events_to_store > 0) {
-        cl_thread_destroy(&dfw_thread);
-    }
+    pthread_join(dfw_thread.osd.id, NULL);
     pthread_join(event_thread.osd.id, NULL);
+
+    if (0 != sem_destroy(&dfw_sem)) {
+        SX_LOG_ERR("Error destroying DFW thread semaphore\n");
+    }
 #endif
 
     /* reset value for next run if process isn't closed */
@@ -6747,6 +6820,11 @@ static sai_status_t mlnx_shutdown_switch(void)
 
     if (SAI_STATUS_SUCCESS != (status = mlnx_acl_deinit())) {
         SX_LOG_ERR("ACL DB deinit failed.\n");
+    }
+
+    status = mlnx_bulk_counter_deinit();
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Bulk counter deinit failed.\n");
     }
 
     sai_qos_db_unload(true);
@@ -7846,18 +7924,19 @@ sai_status_t mlnx_switch_get_mac(sx_mac_addr_t *mac)
         break;
     }
 
+    /* If no ports in the system, return value from DB. Otherwise, return value from SDK to verify alignment
+     * (64/128 and not full byte). */
     if (!first_port) {
-        SX_LOG_ERR("Failed to get switch mac - first port not found\n");
-        return SAI_STATUS_FAILURE;
+        memcpy(mac, &g_sai_db_ptr->base_mac_addr, sizeof(*mac));
+    } else {
+        /* Use switch first port, and zero down lower 6/7 bits port part (64/128 ports) */
+        status = sx_api_port_phys_addr_get(gh_sdk, first_port->logical, mac);
+        if (SX_ERR(status)) {
+            SX_LOG_ERR("Failed to get port %x address - %s.\n", first_port->logical, SX_STATUS_MSG(status));
+            return sdk_to_sai(status);
+        }
+        mac->ether_addr_octet[5] &= mlnx_port_mac_mask_get();
     }
-
-    /* Use switch first port, and zero down lower 6 bits port part (64 ports) */
-    status = sx_api_port_phys_addr_get(gh_sdk, first_port->logical, mac);
-    if (SX_ERR(status)) {
-        SX_LOG_ERR("Failed to get port %x address - %s.\n", first_port->logical, SX_STATUS_MSG(status));
-        return sdk_to_sai(status);
-    }
-    mac->ether_addr_octet[5] &= mlnx_port_mac_mask_get();
 
     return SAI_STATUS_SUCCESS;
 }
@@ -8400,13 +8479,17 @@ static sai_status_t mlnx_switch_restart_warm()
     }
 
     sai_db_unlock();
+
     event_thread_asked_to_stop = true;
     dfw_thread_asked_to_stop = true;
+
 #ifndef _WIN32
-    if (g_sai_db_ptr->dump_configuration.max_events_to_store > 0) {
-        cl_thread_destroy(&dfw_thread);
-    }
+    pthread_join(dfw_thread.osd.id, NULL);
     pthread_join(event_thread.osd.id, NULL);
+
+    if (0 != sem_destroy(&dfw_sem)) {
+        SX_LOG_ERR("Error destroying DFW thread semaphore\n");
+    }
 #endif
     sai_db_write_lock();
 
@@ -8525,15 +8608,20 @@ static sai_status_t mlnx_switch_warm_recover(_In_ sai_object_id_t switch_id)
         goto out;
     }
 
-    if (g_sai_db_ptr->dump_configuration.max_events_to_store > 0) {
-        dfw_thread_asked_to_stop = false;
-        cl_err = cl_thread_init(&dfw_thread, mlnx_switch_dfw_thread_func, NULL, NULL);
-        if (cl_err) {
-            SX_LOG_ERR("Failed to create DFW thread\n");
-            sai_db_write_lock();
-            sai_status = SAI_STATUS_FAILURE;
-            goto out;
-        }
+#ifndef _WIN32
+    if (0 != sem_init(&dfw_sem, 0, 1)) {
+        SX_LOG_ERR("Error creating DFW thread semaphore\n");
+        goto out;
+    }
+#endif /* ifndef _WIN32 */
+
+    dfw_thread_asked_to_stop = false;
+    cl_err = cl_thread_init(&dfw_thread, mlnx_switch_dfw_thread_func, NULL, NULL);
+    if (cl_err) {
+        SX_LOG_ERR("Failed to create DFW thread\n");
+        sai_db_write_lock();
+        sai_status = SAI_STATUS_FAILURE;
+        goto out;
     }
 
     sai_db_write_lock();
@@ -9255,10 +9343,16 @@ static sai_status_t mlnx_switch_pre_shutdown_set(_In_ const sai_object_key_t    
             }
         }
 
+        sai_db_write_lock();
+        port_counter_lock();
         sx_status = sx_api_issu_start_set(gh_sdk);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to start issu %s.\n", SX_STATUS_MSG(sx_status));
+        } else {
+            g_sai_db_ptr->issu_start_called = true;
         }
+        port_counter_unlock();
+        sai_db_unlock();
     }
 
     SX_LOG_EXIT();
@@ -9770,8 +9864,7 @@ static sai_status_t mlnx_switch_vxlan_default_port_get(_In_ const sai_object_key
     sai_status_t                status;
     sx_flex_parser_header_t     curr_ph;
     sx_flex_parser_transition_t next_trans_p;
-    uint32_t                    next_trans_cnt;
-    const uint32_t              udp_next_trans_cnt = 1;
+    uint32_t                    next_trans_cnt = 1;
 
     SX_LOG_ENTER();
 
@@ -9783,23 +9876,10 @@ static sai_status_t mlnx_switch_vxlan_default_port_get(_In_ const sai_object_key
     curr_ph.parser_hdr_type = SX_FLEX_PARSER_HEADER_FIXED_E;
     curr_ph.hdr_data.parser_hdr_fixed = SX_FLEX_PARSER_HEADER_UDP_E;
 
-    sdk_status = sx_api_flex_parser_transition_get(gh_sdk, curr_ph, NULL, &next_trans_cnt);
-    if (SX_STATUS_SUCCESS != sdk_status) {
-        SX_LOG_ERR("Failed to get vxlan default port: %s\n", SX_STATUS_MSG(sdk_status));
-        SX_LOG_EXIT();
-        return sdk_to_sai(sdk_status);
-    }
-
-    if (udp_next_trans_cnt != next_trans_cnt) {
-        SX_LOG_ERR("udp next trans cnt is %d but should be %d\n",
-                   next_trans_cnt, udp_next_trans_cnt);
-        SX_LOG_EXIT();
-        return sdk_to_sai(sdk_status);
-    }
-
+    /* UDP to VXLAN is always first transition */
     sdk_status = sx_api_flex_parser_transition_get(gh_sdk, curr_ph, &next_trans_p, &next_trans_cnt);
-    if (SX_STATUS_SUCCESS != sdk_status) {
-        SX_LOG_ERR("Failed to get vxlan default port: %s\n", SX_STATUS_MSG(sdk_status));
+    if ((SX_STATUS_SUCCESS != sdk_status) || (1 != next_trans_cnt)) {
+        SX_LOG_ERR("Failed to get vxlan default port: %s %u\n", SX_STATUS_MSG(sdk_status), next_trans_cnt);
         SX_LOG_EXIT();
         return sdk_to_sai(sdk_status);
     }

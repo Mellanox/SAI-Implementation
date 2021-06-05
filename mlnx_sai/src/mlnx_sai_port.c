@@ -19,6 +19,7 @@
 #include "sai.h"
 #include "mlnx_sai.h"
 #include "assert.h"
+#include <errno.h>
 
 #undef  __MODULE__
 #define __MODULE__ SAI_PORT
@@ -352,6 +353,19 @@ static sai_status_t mlnx_port_update_speed_sp2(_In_ sx_port_log_id_t sx_port,
                                                _In_ bool             auto_neg,
                                                _In_ uint64_t         bitmap);
 
+
+enum counter_type {
+    CNT_2863    = 1 << 0,
+    CNT_2819    = 1 << 1,
+    CNT_802     = 1 << 2,
+    CNT_PRIO    = 1 << 3,
+    CNT_DISCARD = 1 << 4,
+    CNT_PERF    = 1 << 5,
+    CNT_3635    = 1 << 6,
+    CNT_REDECN  = 1 << 7,
+    CNT_BUFF    = 1 << 8,
+    CNT_TC      = 1 << 9,
+};
 
 enum mlnx_speed_bitmap_sp {
     SP_1GB_CX_SGMII  = 1 << 0,
@@ -836,8 +850,8 @@ static const sai_vendor_attribute_entry_t port_vendor_attribs[] = {
       mlnx_port_pfc_control_get, (void*)SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL_TX,
       mlnx_port_pfc_control_set, (void*)SAI_PORT_ATTR_PRIORITY_FLOW_CONTROL_TX },
     { SAI_PORT_ATTR_QOS_SCHEDULER_PROFILE_ID,
-      { false, false, true, true },
-      { false, false, true, true },
+      { true, false, true, true },
+      { true, false, true, true },
       mlnx_port_sched_get, NULL,
       mlnx_port_sched_set, NULL },
     { SAI_PORT_ATTR_QOS_NUMBER_OF_QUEUES,
@@ -861,19 +875,19 @@ static const sai_vendor_attribute_entry_t port_vendor_attribs[] = {
       mlnx_port_sched_groups_list_get, NULL,
       NULL, NULL },
     { SAI_PORT_ATTR_QOS_INGRESS_BUFFER_PROFILE_LIST,
-      { false, false, true, true },
-      { false, false, true, true },
+      { true, false, true, true },
+      { true, false, true, true },
       mlnx_port_ingress_buffer_profile_list_get, NULL,
       mlnx_port_ingress_buffer_profile_list_set, NULL },
 
     { SAI_PORT_ATTR_QOS_EGRESS_BUFFER_PROFILE_LIST,
-      { false, false, true, true },
-      { false, false, true, true },
+      { true, false, true, true },
+      { true, false, true, true },
       mlnx_port_egress_buffer_profile_list_get, NULL,
       mlnx_port_egress_buffer_profile_list_set, NULL },
     { SAI_PORT_ATTR_POLICER_ID,
-      { false, false, true, true },
-      { false, false, true, true },
+      { true, false, true, true },
+      { true, false, true, true },
       mlnx_port_storm_control_policer_attr_get, (void*)MLNX_PORT_POLICER_TYPE_REGULAR_INDEX,
       mlnx_port_storm_control_policer_attr_set, (void*)MLNX_PORT_POLICER_TYPE_REGULAR_INDEX },
     { SAI_PORT_ATTR_EGRESS_BLOCK_PORT_LIST,
@@ -2659,7 +2673,7 @@ static sai_status_t mlnx_port_update_speed_sp(_In_ sx_port_log_id_t sx_port, _In
 
     status = mlnx_port_speed_intf_bitmap_to_sx_sp(bitmap, &sx_speed);
     if (SAI_ERR(status)) {
-        SX_LOG_ERR("Failed to convert speed bitmap [%xl] to SDK.\n", bitmap);
+        SX_LOG_ERR("Failed to convert speed bitmap [%" PRIx64 "] to SDK.\n", bitmap);
         return status;
     }
 
@@ -2775,6 +2789,85 @@ static sai_status_t mlnx_port_update_speed(_In_ mlnx_port_config_t *port)
     }
 
     return status;
+}
+
+
+sai_status_t mlnx_bulk_counter_init(void)
+{
+    SX_LOG_ENTER();
+
+#ifndef _WIN32
+    pthread_condattr_t  cond_attr;
+    pthread_mutexattr_t mutex_attr;
+
+    g_sai_db_ptr->bulk_read_done_status = -1;
+
+    if (0 != cl_plock_init_pshared(&g_sai_db_ptr->port_counter_lock)) {
+        SX_LOG_ERR("Failed to init port_counter_lock for bulk counter\n");
+        return SAI_STATUS_NO_MEMORY;
+    }
+
+    if (0 != pthread_condattr_init(&cond_attr)) {
+        SX_LOG_ERR("Failed to init condition variable attribute for bulk counter\n");
+        return SAI_STATUS_NO_MEMORY;
+    }
+
+    if (0 != pthread_mutexattr_init(&mutex_attr)) {
+        SX_LOG_ERR("Failed to init condition variable attribute for bulk counter\n");
+        return SAI_STATUS_NO_MEMORY;
+    }
+
+    if (0 != pthread_mutexattr_setpshared(&mutex_attr, PTHREAD_PROCESS_SHARED)) {
+        SX_LOG_ERR("Failed to set condition variable attribute for bulk counter - %s\n", strerror(errno));
+        return SAI_STATUS_NO_MEMORY;
+    }
+
+    if (0 != pthread_condattr_setpshared(&cond_attr, PTHREAD_PROCESS_SHARED)) {
+        SX_LOG_ERR("Failed to set condition variable attribute for bulk counter - %s\n", strerror(errno));
+        return SAI_STATUS_FAILURE;
+    }
+
+    if (0 != pthread_mutex_init(&g_sai_db_ptr->bulk_counter_mutex, &mutex_attr)) {
+        SX_LOG_ERR("Failed to init mutex for bulk counter - %s\n", strerror(errno));
+        return SAI_STATUS_FAILURE;
+    }
+
+    if (0 != pthread_cond_init(&g_sai_db_ptr->bulk_counter_cond, &cond_attr)) {
+        SX_LOG_ERR("Failed to init condition variable for bulk counter - %s\n", strerror(errno));
+        return SAI_STATUS_FAILURE;
+    }
+
+    if (0 != pthread_mutexattr_destroy(&mutex_attr)) {
+        SX_LOG_ERR("Failed to destroy mutex attribute for bulk counter\n");
+        return SAI_STATUS_FAILURE;
+    }
+
+    if (0 != pthread_condattr_destroy(&cond_attr)) {
+        SX_LOG_ERR("Failed to destroy condition variable attribute for bulk counter\n");
+        return SAI_STATUS_FAILURE;
+    }
+
+#endif /* ifndef _WIN32 */
+
+    return SAI_STATUS_SUCCESS;
+}
+
+sai_status_t mlnx_bulk_counter_deinit(void)
+{
+#ifndef _WIN32
+    if (0 != pthread_mutex_destroy(&g_sai_db_ptr->bulk_counter_mutex)) {
+        SX_LOG_ERR("Failed to destroy bulk counter mutex\n");
+        return SAI_STATUS_FAILURE;
+    }
+
+    if (0 != pthread_cond_destroy(&g_sai_db_ptr->bulk_counter_cond)) {
+        SX_LOG_ERR("Failed to destroy bulk counter cond\n");
+        return SAI_STATUS_FAILURE;
+    }
+
+    cl_plock_destroy(&g_sai_db_ptr->port_counter_lock);
+#endif /* _WIN32 */
+    return SAI_STATUS_SUCCESS;
 }
 
 /* Port/LAG VLAN ID [sai_vlan_id_t]
@@ -4479,61 +4572,6 @@ static sai_status_t mlnx_port_qos_map_assign_tc_to_pg(sx_port_log_id_t port_id, 
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_port_stat_pg_dropped_pkts_get(_In_ sx_port_log_id_t port_log_id,
-                                                _In_ sx_access_cmd_t  cmd,
-                                                _Out_ uint64_t       *drop_counter)
-{
-    sx_status_t                              sx_status;
-    const mlnx_sai_buffer_resource_limits_t *buffer_limits;
-    sx_port_cntr_buff_t                      pg_cnts = {0};
-    uint32_t                                 pg;
-
-    assert(drop_counter);
-
-    buffer_limits = mlnx_sai_get_buffer_resource_limits();
-
-    *drop_counter = 0;
-    for (pg = 0; pg < buffer_limits->num_port_pg_buff; ++pg) {
-        sx_status = sx_api_port_counter_buff_get(gh_sdk, cmd, port_log_id, pg, &pg_cnts);
-        if (SX_ERR(sx_status)) {
-            SX_LOG_ERR("Failed to %s port %x pg %u counters - %s.\n",
-                       SX_ACCESS_CMD_STR(cmd), port_log_id, pg, SX_STATUS_MSG(sx_status));
-            *drop_counter = 0;
-            return sdk_to_sai(sx_status);
-        }
-
-        *drop_counter += pg_cnts.rx_buffer_discard + pg_cnts.rx_shared_buffer_discard;
-    }
-
-    return SAI_STATUS_SUCCESS;
-}
-
-sai_status_t mlnx_port_stat_tc_dropped_pkts_get(_In_ sx_port_log_id_t port_log_id,
-                                                _In_ sx_access_cmd_t  cmd,
-                                                _Out_ uint64_t       *drop_counter)
-{
-    sx_status_t            sx_status;
-    sx_port_traffic_cntr_t tc_cnts = {0};
-    uint32_t               queue_num;
-
-    assert(drop_counter);
-
-    *drop_counter = 0;
-    for (queue_num = 0; queue_num < g_resource_limits.cos_port_ets_traffic_class_max; ++queue_num) {
-        sx_status = sx_api_port_counter_tc_get(gh_sdk, cmd, port_log_id, queue_num, &tc_cnts);
-        if (SX_ERR(sx_status)) {
-            SX_LOG_ERR("Failed to %s port %x tc %u counters - %s.\n",
-                       SX_ACCESS_CMD_STR(cmd), port_log_id, queue_num, SX_STATUS_MSG(sx_status));
-            *drop_counter = 0;
-            return sdk_to_sai(sx_status);
-        }
-
-        *drop_counter += tc_cnts.tx_no_buffer_discard_uc;
-    }
-
-    return SAI_STATUS_SUCCESS;
-}
-
 static sai_status_t mlnx_port_qos_map_id_set_impl(_In_ sai_object_id_t    port,
                                                   _In_ sai_object_id_t    qos_map_id,
                                                   _In_ sai_qos_map_type_t qos_map_type)
@@ -5317,329 +5355,326 @@ static void port_key_to_str(_In_ sai_object_id_t port_id, _Out_ char *key_str)
     snprintf(key_str, MAX_KEY_STR_LEN, "%s %x", type_str, port);
 }
 
-/*
- * Routine Description:
- *   Set port attribute value.
- *
- * Arguments:
- *    [in] port_id - port id
- *    [in] attr - attribute
- *
- * Return Values:
- *    SAI_STATUS_SUCCESS on success
- *    Failure status code on error
- */
-static sai_status_t mlnx_set_port_attribute(_In_ sai_object_id_t port_id, _In_ const sai_attribute_t *attr)
+sai_status_t mlnx_convert_counter_types_bitmap_to_sx_bulk_read(_In_ sai_object_id_t             port_id,
+                                                               _In_ uint64_t                    counter_types,
+                                                               _Out_ sx_bulk_cntr_buffer_key_t *bulk_read_key)
 {
-    const sai_object_key_t key = { .key.object_id = port_id };
-    char                   key_str[MAX_KEY_STR_LEN];
-    sai_status_t           sai_status;
+    sai_status_t     status;
+    sx_port_log_id_t sx_log_port;
 
-    SX_LOG_ENTER();
+    assert(bulk_read_key);
 
-    port_key_to_str(port_id, key_str);
-    sai_status = sai_set_attribute(&key, key_str,  SAI_OBJECT_TYPE_PORT, port_vendor_attribs, attr);
-    SX_LOG_EXIT();
-    return sai_status;
-}
+    memset(bulk_read_key, 0, sizeof(*bulk_read_key));
 
-
-/*
- * Routine Description:
- *   Get port attribute value.
- *
- * Arguments:
- *    [in] port_id - port id
- *    [in] attr_count - number of attributes
- *    [inout] attr_list - array of attributes
- *
- * Return Values:
- *    SAI_STATUS_SUCCESS on success
- *    Failure status code on error
- */
-static sai_status_t mlnx_get_port_attribute(_In_ sai_object_id_t     port_id,
-                                            _In_ uint32_t            attr_count,
-                                            _Inout_ sai_attribute_t *attr_list)
-{
-    const sai_object_key_t key = { .key.object_id = port_id };
-    char                   key_str[MAX_KEY_STR_LEN];
-    sai_status_t           sai_status;
-
-    SX_LOG_ENTER();
-
-    port_key_to_str(port_id, key_str);
-    sai_status = sai_get_attributes(&key, key_str,  SAI_OBJECT_TYPE_PORT, port_vendor_attribs, attr_count, attr_list);
-    SX_LOG_EXIT();
-    return sai_status;
-}
-
-/**
- * @brief Get port statistics counters extended.
- *
- * @param[in] port_id Port id
- * @param[in] number_of_counters Number of counters in the array
- * @param[in] counter_ids Specifies the array of counter ids
- * @param[in] mode Statistics mode
- * @param[out] counters Array of resulting counter values.
- *
- * @return #SAI_STATUS_SUCCESS on success, failure status code on error
- */
-sai_status_t mlnx_get_port_stats_ext(_In_ sai_object_id_t      port_id,
-                                     _In_ uint32_t             number_of_counters,
-                                     _In_ const sai_stat_id_t *counter_ids,
-                                     _In_ sai_stats_mode_t     mode,
-                                     _Out_ uint64_t           *counters)
-{
-    sai_status_t                  status;
-    sx_port_cntr_rfc_2863_t       cnts_2863;
-    sx_port_cntr_rfc_2819_t       cnts_2819;
-    sx_port_cntr_rfc_3635_t       cnts_3635;
-    sx_port_cntr_prio_t           cntr_prio[COS_IEEE_PRIO_MAX_NUM + 1];
-    sx_port_cntr_ieee_802_dot_3_t cntr_802;
-    sx_cos_redecn_port_counters_t redecn_cnts;
-    sx_port_cntr_discard_t        discard_cnts;
-    sx_port_cntr_perf_t           perf_cnts;
-    uint32_t                      ii, port_data;
-    mlnx_port_config_t           *port;
-    sx_port_log_id_t              red_port_id;
-    uint32_t                      iter = 0;
-    char                          key_str[MAX_KEY_STR_LEN];
-    bool                          cnts_2863_needed = false, cnts_2819_needed = false,
-                                  cntr_802_needed = false;
-    bool redecn_cnts_needed = false, discard_cnts_needed = false,
-         perf_cnts_needed = false;
-    bool            cntr_prio_needed[COS_IEEE_PRIO_MAX_NUM + 1] = { 0 };
-    bool            cnts_3635_needed = false;
-    sx_access_cmd_t cmd;
-
-    SX_LOG_ENTER();
-
-    memset(&redecn_cnts, 0, sizeof(redecn_cnts));
-
-    port_key_to_str(port_id, key_str);
-    SX_LOG_DBG("Get port stats %s\n", key_str);
-
-    if (NULL == counter_ids) {
-        SX_LOG_ERR("NULL counter ids array param\n");
-        return SAI_STATUS_INVALID_PARAMETER;
-    }
-
-    if (NULL == counters) {
-        SX_LOG_ERR("NULL counters array param\n");
-        return SAI_STATUS_INVALID_PARAMETER;
-    }
-
-    if (SAI_STATUS_SUCCESS !=
-        (status = mlnx_translate_sai_stats_mode_to_sdk(mode, &cmd))) {
+    status = mlnx_object_to_type(port_id, SAI_OBJECT_TYPE_PORT, &sx_log_port, NULL);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to get log port ID.\n");
         return status;
     }
 
-    if (SAI_STATUS_SUCCESS != (status = mlnx_object_to_type(port_id, SAI_OBJECT_TYPE_PORT, &port_data, NULL))) {
+    bulk_read_key->type = SX_BULK_CNTR_KEY_TYPE_PORT_E;
+    bulk_read_key->key.port_key.port_list_cnt = 1;
+    bulk_read_key->key.port_key.port_list[0] = sx_log_port;
+
+    if (counter_types & CNT_2863) {
+        bulk_read_key->key.port_key.grp_bitmap |= SX_BULK_CNTR_PORT_GRP_RFC_2863_E;
+    }
+    if (counter_types & CNT_2819) {
+        bulk_read_key->key.port_key.grp_bitmap |= SX_BULK_CNTR_PORT_GRP_RFC_2819_E;
+    }
+    if (counter_types & CNT_3635) {
+        bulk_read_key->key.port_key.grp_bitmap |= SX_BULK_CNTR_PORT_GRP_RFC_3635_E;
+    }
+    if (counter_types & CNT_PRIO) {
+        sx_cos_ieee_prio_t prio_list[] = {
+            SX_PORT_PRIO_ID_0,
+            SX_PORT_PRIO_ID_1,
+            SX_PORT_PRIO_ID_2,
+            SX_PORT_PRIO_ID_3,
+            SX_PORT_PRIO_ID_4,
+            SX_PORT_PRIO_ID_5,
+            SX_PORT_PRIO_ID_6,
+            SX_PORT_PRIO_ID_7,
+        };
+        bulk_read_key->key.port_key.prio_id_list_cnt = sizeof(prio_list) / sizeof(*prio_list);
+        memcpy(bulk_read_key->key.port_key.prio_id_list, prio_list, sizeof(prio_list));
+        bulk_read_key->key.port_key.grp_bitmap |= SX_BULK_CNTR_PORT_GRP_PRIO_E;
+    }
+    if (counter_types & CNT_TC) {
+        sx_port_tc_id_t tc_list[] = {
+            0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15
+        };
+        bulk_read_key->key.port_key.tc_id_list_cnt = sizeof(tc_list) / sizeof(*tc_list);
+        memcpy(bulk_read_key->key.port_key.tc_id_list, tc_list, sizeof(tc_list));
+        bulk_read_key->key.port_key.grp_bitmap |= SX_BULK_CNTR_PORT_GRP_TC_E;
+    }
+    if (counter_types & CNT_BUFF) {
+        sx_cos_priority_group_t pg_list[] = {
+            0, 1, 2, 3, 4, 5, 6, 7
+        };
+        bulk_read_key->key.port_key.prio_group_list_cnt = sizeof(pg_list) / sizeof(*pg_list);
+        memcpy(bulk_read_key->key.port_key.prio_group_list, pg_list, sizeof(pg_list));
+        bulk_read_key->key.port_key.grp_bitmap |= SX_BULK_CNTR_PORT_GRP_BUFF_E;
+    }
+    if (counter_types & CNT_PERF) {
+        bulk_read_key->key.port_key.grp_bitmap |= SX_BULK_CNTR_PORT_GRP_PERF_E;
+    }
+    if (counter_types & CNT_DISCARD) {
+        bulk_read_key->key.port_key.grp_bitmap |= SX_BULK_CNTR_PORT_GRP_DISCARD_E;
+    }
+    if (counter_types & CNT_802) {
+        bulk_read_key->key.port_key.grp_bitmap |= SX_BULK_CNTR_PORT_GRP_IEEE_802_DOT_3_E;
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
+sai_status_t mlnx_port_stats_allocate_sx_bulk_buffer(_In_ sx_bulk_cntr_buffer_key_t *bulk_read_key,
+                                                     _Out_ sx_bulk_cntr_buffer_t    *bulk_read_buff)
+{
+    assert(bulk_read_key);
+    assert(bulk_read_buff);
+
+    sx_status_t sx_status;
+
+    bulk_read_buff->cookie = MLNX_SAI_BULK_COUNTER_COOKIE;
+
+    sx_status = sx_api_bulk_counter_buffer_set(gh_sdk,
+                                               SX_ACCESS_CMD_CREATE,
+                                               bulk_read_key,
+                                               bulk_read_buff);
+
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to create buffer: %s.\n", SX_STATUS_MSG(sx_status));
+        return sdk_to_sai(sx_status);
+    }
+
+    return sdk_to_sai(sx_status);
+}
+
+sai_status_t mlnx_port_stats_deallocate_sx_bulk_buffer(_In_ sx_bulk_cntr_buffer_t *bulk_read_buff)
+{
+    assert(bulk_read_buff);
+    sx_status_t sx_status;
+
+    sx_status = sx_api_bulk_counter_buffer_set(gh_sdk,
+                                               SX_ACCESS_CMD_DESTROY,
+                                               NULL,
+                                               bulk_read_buff);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to destroy buffer: %s.\n", SX_STATUS_MSG(sx_status));
+        return sdk_to_sai(sx_status);
+    }
+
+    return sdk_to_sai(sx_status);
+}
+
+sai_status_t mlnx_port_stats_init_async_bulk_read(_In_ sx_access_cmd_t cmd, _In_ sx_bulk_cntr_buffer_t *bulk_read_buff)
+{
+    assert(bulk_read_buff);
+    sx_status_t sx_status;
+
+    sx_status = sx_api_bulk_counter_transaction_set(gh_sdk,
+                                                    cmd,
+                                                    bulk_read_buff);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to start bulk read operation: %s.\n", SX_STATUS_MSG(sx_status));
+        return sdk_to_sai(sx_status);
+    }
+
+    return sdk_to_sai(sx_status);
+}
+
+sai_status_t mlnx_port_stats_wait_for_bulk_read_event()
+{
+#ifndef _WIN32
+    sai_status_t    status = SAI_STATUS_SUCCESS;
+    int             retval = 0;
+    struct timespec time = {0};
+
+    bulk_counter_cond_mutex_lock();
+    clock_gettime(CLOCK_REALTIME, &time);
+    time.tv_sec += 1;
+    while (-1 == g_sai_db_ptr->bulk_read_done_status) {
+        retval = pthread_cond_timedwait(&g_sai_db_ptr->bulk_counter_cond, &g_sai_db_ptr->bulk_counter_mutex, &time);
+        if (retval != 0) {
+            SX_LOG_ERR("Failed to wait for an event: %s.\n", strerror(retval));
+            status = SAI_STATUS_FAILURE;
+            goto out;
+        }
+    }
+    if (g_sai_db_ptr->bulk_read_done_status != SX_BULK_CNTR_DONE_STATUS_OK) {
+        SX_LOG_ERR("Bulk read event status is not OK [%d].\n", g_sai_db_ptr->bulk_read_done_status);
+        status = SAI_STATUS_FAILURE;
+        goto out;
+    }
+
+out:
+    g_sai_db_ptr->bulk_read_done_status = -1;
+    bulk_counter_cond_mutex_unlock();
+    return status;
+#else
+    return 0;
+#endif
+}
+
+sai_status_t mlnx_port_stats_bulk_read(_In_ sai_object_id_t          port_id,
+                                       _In_ sx_access_cmd_t          cmd,
+                                       _In_ uint64_t                 counter_types,
+                                       _In_ uint32_t                 number_of_counters,
+                                       _In_ const sai_stat_id_t     *counter_ids,
+                                       _In_ sx_bulk_cntr_read_key_t *key_get,
+                                       _In_ sx_bulk_cntr_buffer_t   *bulk_buff,
+                                       _Out_ uint64_t               *counters)
+{
+    sx_status_t                              sx_status = -1;
+    sx_bulk_cntr_data_t                      counter_bulk = {0};
+    sx_bulk_cntr_read_key_t                  bulk_read_key = {0};
+    sai_status_t                             status = SAI_STATUS_FAILURE;
+    sx_port_log_id_t                         sx_log_port = 0;
+    sx_port_cntr_rfc_2863_t                  cnts_2863 = {0};
+    sx_port_cntr_rfc_2819_t                  cnts_2819 = {0};
+    sx_port_cntr_rfc_3635_t                  cnts_3635 = {0};
+    sx_port_cntr_prio_t                      cnts_prio[COS_IEEE_PRIO_MAX_NUM + 1] = {0};
+    sx_port_traffic_cntr_t                   cnts_tc[17] = {0};
+    sx_port_cntr_buff_t                      cnts_buff[8] = {0};
+    sx_port_cntr_ieee_802_dot_3_t            cnts_802 = {0};
+    sx_cos_redecn_port_counters_t            cnts_redecn = {0};
+    sx_port_cntr_discard_t                   cnts_discard = {0};
+    sx_port_cntr_perf_t                      cnts_perf = {0};
+    const mlnx_sai_buffer_resource_limits_t *buffer_limits = mlnx_sai_get_buffer_resource_limits();
+
+    assert(counter_ids);
+    assert(key_get);
+    assert(bulk_buff);
+    assert(counters);
+
+    memset(&bulk_read_key, 0, sizeof(bulk_read_key));
+
+    status = mlnx_object_to_type(port_id, SAI_OBJECT_TYPE_PORT, &sx_log_port, NULL);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to get log port ID.\n");
         return status;
     }
 
-    for (ii = 0; ii < number_of_counters; ii++) {
-        switch ((int)counter_ids[ii]) {
-        case SAI_PORT_STAT_IF_IN_OCTETS:
-        case SAI_PORT_STAT_IF_IN_UCAST_PKTS:
-        case SAI_PORT_STAT_IF_IN_NON_UCAST_PKTS:
-        case SAI_PORT_STAT_IF_IN_ERRORS:
-        case SAI_PORT_STAT_IF_IN_UNKNOWN_PROTOS:
-        case SAI_PORT_STAT_IF_IN_BROADCAST_PKTS:
-        case SAI_PORT_STAT_IF_IN_MULTICAST_PKTS:
-        case SAI_PORT_STAT_IF_OUT_OCTETS:
-        case SAI_PORT_STAT_IF_OUT_UCAST_PKTS:
-        case SAI_PORT_STAT_IF_OUT_NON_UCAST_PKTS:
-        case SAI_PORT_STAT_IF_OUT_DISCARDS:
-        case SAI_PORT_STAT_IF_OUT_ERRORS:
-        case SAI_PORT_STAT_IF_OUT_BROADCAST_PKTS:
-        case SAI_PORT_STAT_IF_OUT_MULTICAST_PKTS:
-            cnts_2863_needed = true;
-            break;
+    bulk_read_key.type = SX_BULK_CNTR_KEY_TYPE_PORT_E;
+    bulk_read_key.key.port_key.log_port = sx_log_port;
 
-        case SAI_PORT_STAT_IF_IN_DISCARDS:
-            if (g_sai_db_ptr->aggregate_bridge_drops) {
-                discard_cnts_needed = true;
+    if (counter_types & CNT_2863) {
+        bulk_read_key.key.port_key.grp = SX_BULK_CNTR_PORT_GRP_RFC_2863_E;
+        sx_status = sx_api_bulk_counter_transaction_get(gh_sdk,
+                                                        &bulk_read_key,
+                                                        bulk_buff,
+                                                        &counter_bulk);
+        if (SX_ERR(sx_status)) {
+            SX_LOG_ERR("Failed to read RFC2863 counters: %s.\n", SX_STATUS_MSG(sx_status));
+            return sdk_to_sai(sx_status);
+        }
+        memcpy(&cnts_2863, counter_bulk.data.port_counters.port_cntr_rfc_2863_p, sizeof(cnts_2863));
+    }
+    if (counter_types & CNT_2819) {
+        bulk_read_key.key.port_key.grp = SX_BULK_CNTR_PORT_GRP_RFC_2819_E;
+        sx_status = sx_api_bulk_counter_transaction_get(gh_sdk,
+                                                        &bulk_read_key,
+                                                        bulk_buff,
+                                                        &counter_bulk);
+        if (SX_ERR(sx_status)) {
+            SX_LOG_ERR("Failed to read RFC2819 counters: %s.\n", SX_STATUS_MSG(sx_status));
+            return sdk_to_sai(sx_status);
+        }
+        memcpy(&cnts_2819, counter_bulk.data.port_counters.port_cntr_rfc_2819_p, sizeof(cnts_2819));
+    }
+    if (counter_types & CNT_3635) {
+        bulk_read_key.key.port_key.grp = SX_BULK_CNTR_PORT_GRP_RFC_3635_E;
+        sx_status = sx_api_bulk_counter_transaction_get(gh_sdk,
+                                                        &bulk_read_key,
+                                                        bulk_buff,
+                                                        &counter_bulk);
+        if (SX_ERR(sx_status)) {
+            SX_LOG_ERR("Failed to read RFC3635 counters: %s.\n", SX_STATUS_MSG(sx_status));
+            return sdk_to_sai(sx_status);
+        }
+        memcpy(&cnts_3635, counter_bulk.data.port_counters.port_cntr_rfc_3635_p, sizeof(cnts_3635));
+    }
+    if (counter_types & CNT_PRIO) {
+        for (int ii = 0; ii < 8; ii++) {
+            bulk_read_key.key.port_key.grp = SX_BULK_CNTR_PORT_GRP_PRIO_E;
+            bulk_read_key.key.port_key.grp_ex_param.prio_id = SX_PORT_PRIO_ID_0 + ii;
+            sx_status = sx_api_bulk_counter_transaction_get(gh_sdk, &bulk_read_key, bulk_buff, &counter_bulk);
+            if (SX_ERR(sx_status)) {
+                SX_LOG_ERR("Failed to read PRIO[%d] counters: %s.\n", ii, SX_STATUS_MSG(sx_status));
+                return sdk_to_sai(sx_status);
             }
-            cnts_2863_needed = true;
-            break;
-
-        case SAI_PORT_STAT_ETHER_STATS_DROP_EVENTS:
-        case SAI_PORT_STAT_ETHER_STATS_MULTICAST_PKTS:
-        case SAI_PORT_STAT_ETHER_STATS_BROADCAST_PKTS:
-        case SAI_PORT_STAT_ETHER_STATS_UNDERSIZE_PKTS:
-        case SAI_PORT_STAT_ETHER_STATS_FRAGMENTS:
-        case SAI_PORT_STAT_ETHER_STATS_PKTS_64_OCTETS:
-        case SAI_PORT_STAT_ETHER_IN_PKTS_64_OCTETS:
-        case SAI_PORT_STAT_ETHER_STATS_PKTS_65_TO_127_OCTETS:
-        case SAI_PORT_STAT_ETHER_IN_PKTS_65_TO_127_OCTETS:
-        case SAI_PORT_STAT_ETHER_STATS_PKTS_128_TO_255_OCTETS:
-        case SAI_PORT_STAT_ETHER_IN_PKTS_128_TO_255_OCTETS:
-        case SAI_PORT_STAT_ETHER_STATS_PKTS_256_TO_511_OCTETS:
-        case SAI_PORT_STAT_ETHER_IN_PKTS_256_TO_511_OCTETS:
-        case SAI_PORT_STAT_ETHER_STATS_PKTS_512_TO_1023_OCTETS:
-        case SAI_PORT_STAT_ETHER_IN_PKTS_512_TO_1023_OCTETS:
-        case SAI_PORT_STAT_ETHER_STATS_PKTS_1024_TO_1518_OCTETS:
-        case SAI_PORT_STAT_ETHER_IN_PKTS_1024_TO_1518_OCTETS:
-        case SAI_PORT_STAT_ETHER_STATS_PKTS_1519_TO_2047_OCTETS:
-        case SAI_PORT_STAT_ETHER_IN_PKTS_1519_TO_2047_OCTETS:
-        case SAI_PORT_STAT_ETHER_STATS_PKTS_2048_TO_4095_OCTETS:
-        case SAI_PORT_STAT_ETHER_IN_PKTS_2048_TO_4095_OCTETS:
-        case SAI_PORT_STAT_ETHER_STATS_PKTS_4096_TO_9216_OCTETS:
-        case SAI_PORT_STAT_ETHER_IN_PKTS_4096_TO_9216_OCTETS:
-        case SAI_PORT_STAT_ETHER_STATS_OVERSIZE_PKTS:
-        case SAI_PORT_STAT_ETHER_RX_OVERSIZE_PKTS:
-        case SAI_PORT_STAT_ETHER_STATS_JABBERS:
-        case SAI_PORT_STAT_ETHER_STATS_OCTETS:
-        case SAI_PORT_STAT_ETHER_STATS_PKTS:
-        case SAI_PORT_STAT_ETHER_STATS_COLLISIONS:
-        case SAI_PORT_STAT_ETHER_STATS_CRC_ALIGN_ERRORS:
-            cnts_2819_needed = true;
-            break;
-
-        case SAI_PORT_STAT_ETHER_STATS_TX_NO_ERRORS:
-        case SAI_PORT_STAT_ETHER_STATS_RX_NO_ERRORS:
-        case SAI_PORT_STAT_PAUSE_RX_PKTS:
-        case SAI_PORT_STAT_PAUSE_TX_PKTS:
-            cntr_802_needed = true;
-            break;
-
-        case SAI_PORT_STAT_WRED_DROPPED_PACKETS:
-        case SAI_PORT_STAT_ECN_MARKED_PACKETS:
-            redecn_cnts_needed = true;
-            break;
-
-        case SAI_PORT_STAT_PFC_0_RX_PKTS:
-        case SAI_PORT_STAT_PFC_1_RX_PKTS:
-        case SAI_PORT_STAT_PFC_2_RX_PKTS:
-        case SAI_PORT_STAT_PFC_3_RX_PKTS:
-        case SAI_PORT_STAT_PFC_4_RX_PKTS:
-        case SAI_PORT_STAT_PFC_5_RX_PKTS:
-        case SAI_PORT_STAT_PFC_6_RX_PKTS:
-        case SAI_PORT_STAT_PFC_7_RX_PKTS:
-            cntr_prio_needed[(counter_ids[ii] - SAI_PORT_STAT_PFC_0_RX_PKTS) / 2] = true;
-            break;
-
-        case SAI_PORT_STAT_PFC_0_TX_PKTS:
-        case SAI_PORT_STAT_PFC_1_TX_PKTS:
-        case SAI_PORT_STAT_PFC_2_TX_PKTS:
-        case SAI_PORT_STAT_PFC_3_TX_PKTS:
-        case SAI_PORT_STAT_PFC_4_TX_PKTS:
-        case SAI_PORT_STAT_PFC_5_TX_PKTS:
-        case SAI_PORT_STAT_PFC_6_TX_PKTS:
-        case SAI_PORT_STAT_PFC_7_TX_PKTS:
-            cntr_prio_needed[(counter_ids[ii] - SAI_PORT_STAT_PFC_0_TX_PKTS) / 2] = true;
-            break;
-
-        case SAI_PORT_STAT_PFC_0_RX_PAUSE_DURATION_US:
-        case SAI_PORT_STAT_PFC_1_RX_PAUSE_DURATION_US:
-        case SAI_PORT_STAT_PFC_2_RX_PAUSE_DURATION_US:
-        case SAI_PORT_STAT_PFC_3_RX_PAUSE_DURATION_US:
-        case SAI_PORT_STAT_PFC_4_RX_PAUSE_DURATION_US:
-        case SAI_PORT_STAT_PFC_5_RX_PAUSE_DURATION_US:
-        case SAI_PORT_STAT_PFC_6_RX_PAUSE_DURATION_US:
-        case SAI_PORT_STAT_PFC_7_RX_PAUSE_DURATION_US:
-            cntr_prio_needed[(counter_ids[ii] - SAI_PORT_STAT_PFC_0_RX_PAUSE_DURATION_US) / 2] = true;
-            break;
-
-        case SAI_PORT_STAT_PFC_0_TX_PAUSE_DURATION_US:
-        case SAI_PORT_STAT_PFC_1_TX_PAUSE_DURATION_US:
-        case SAI_PORT_STAT_PFC_2_TX_PAUSE_DURATION_US:
-        case SAI_PORT_STAT_PFC_3_TX_PAUSE_DURATION_US:
-        case SAI_PORT_STAT_PFC_4_TX_PAUSE_DURATION_US:
-        case SAI_PORT_STAT_PFC_5_TX_PAUSE_DURATION_US:
-        case SAI_PORT_STAT_PFC_6_TX_PAUSE_DURATION_US:
-        case SAI_PORT_STAT_PFC_7_TX_PAUSE_DURATION_US:
-            cntr_prio_needed[(counter_ids[ii] - SAI_PORT_STAT_PFC_0_TX_PAUSE_DURATION_US) / 2] = true;
-            break;
-
-        case SAI_PORT_STAT_IF_IN_VLAN_DISCARDS:
-            discard_cnts_needed = true;
-            break;
-
-        case SAI_PORT_STAT_ETHER_OUT_PKTS_64_OCTETS:
-        case SAI_PORT_STAT_ETHER_OUT_PKTS_65_TO_127_OCTETS:
-        case SAI_PORT_STAT_ETHER_OUT_PKTS_128_TO_255_OCTETS:
-        case SAI_PORT_STAT_ETHER_OUT_PKTS_256_TO_511_OCTETS:
-        case SAI_PORT_STAT_ETHER_OUT_PKTS_512_TO_1023_OCTETS:
-        case SAI_PORT_STAT_ETHER_OUT_PKTS_1024_TO_1518_OCTETS:
-        case SAI_PORT_STAT_ETHER_OUT_PKTS_1519_TO_2047_OCTETS:
-        case SAI_PORT_STAT_ETHER_OUT_PKTS_2048_TO_4095_OCTETS:
-        case SAI_PORT_STAT_ETHER_OUT_PKTS_4096_TO_9216_OCTETS:
-            perf_cnts_needed = true;
-            break;
-
-        case SAI_PORT_STAT_DOT3_STATS_ALIGNMENT_ERRORS:
-        case SAI_PORT_STAT_DOT3_STATS_FCS_ERRORS:
-        case SAI_PORT_STAT_DOT3_STATS_SINGLE_COLLISION_FRAMES:
-        case SAI_PORT_STAT_DOT3_STATS_MULTIPLE_COLLISION_FRAMES:
-        case SAI_PORT_STAT_DOT3_STATS_SQE_TEST_ERRORS:
-        case SAI_PORT_STAT_DOT3_STATS_DEFERRED_TRANSMISSIONS:
-        case SAI_PORT_STAT_DOT3_STATS_LATE_COLLISIONS:
-        case SAI_PORT_STAT_DOT3_STATS_EXCESSIVE_COLLISIONS:
-        case SAI_PORT_STAT_DOT3_STATS_INTERNAL_MAC_TRANSMIT_ERRORS:
-        case SAI_PORT_STAT_DOT3_STATS_CARRIER_SENSE_ERRORS:
-        case SAI_PORT_STAT_DOT3_STATS_FRAME_TOO_LONGS:
-        case SAI_PORT_STAT_DOT3_STATS_INTERNAL_MAC_RECEIVE_ERRORS:
-        case SAI_PORT_STAT_DOT3_STATS_SYMBOL_ERRORS:
-        case SAI_PORT_STAT_DOT3_CONTROL_IN_UNKNOWN_OPCODES:
-            cnts_3635_needed = true;
-            break;
+            memcpy(&cnts_prio[ii], counter_bulk.data.port_counters.port_cntr_prio_p, sizeof(cnts_prio[ii]));
         }
     }
-
-    if (cnts_2863_needed) {
-        if (SX_STATUS_SUCCESS !=
-            (status = sx_api_port_counter_rfc_2863_get(gh_sdk, cmd, port_data, &cnts_2863))) {
-            SX_LOG_ERR("Failed to get port rfc 2863 counters - %s.\n", SX_STATUS_MSG(status));
-            return sdk_to_sai(status);
+    if (counter_types & CNT_TC) {
+        for (uint32_t ii = 0; ii < g_resource_limits.cos_port_ets_traffic_class_max; ++ii) {
+            bulk_read_key.key.port_key.grp = SX_BULK_CNTR_PORT_GRP_TC_E;
+            bulk_read_key.key.port_key.grp_ex_param.tc_id = ii;
+            sx_status = sx_api_bulk_counter_transaction_get(gh_sdk, &bulk_read_key, bulk_buff, &counter_bulk);
+            if (SX_ERR(sx_status)) {
+                SX_LOG_ERR("Failed to read TC[%u] counters: %s.\n", ii, SX_STATUS_MSG(sx_status));
+                return sdk_to_sai(sx_status);
+            }
+            memcpy(&cnts_tc[ii], counter_bulk.data.port_counters.port_cntr_tc_p, sizeof(cnts_tc[ii]));
         }
     }
-
-    if (cnts_2819_needed) {
-        if (SX_STATUS_SUCCESS !=
-            (status = sx_api_port_counter_rfc_2819_get(gh_sdk, cmd, port_data, &cnts_2819))) {
-            SX_LOG_ERR("Failed to get port rfc 2819 counters - %s.\n", SX_STATUS_MSG(status));
-            return sdk_to_sai(status);
+    if (counter_types & CNT_BUFF) {
+        for (uint32_t ii = 0; ii < buffer_limits->num_port_pg_buff; ++ii) {
+            bulk_read_key.key.port_key.grp = SX_BULK_CNTR_PORT_GRP_BUFF_E;
+            bulk_read_key.key.port_key.grp_ex_param.prio_group = ii;
+            sx_status = sx_api_bulk_counter_transaction_get(gh_sdk, &bulk_read_key, bulk_buff, &counter_bulk);
+            if (SX_ERR(sx_status)) {
+                SX_LOG_ERR("Failed to read BUFF[%u] counters: %s.\n", ii, SX_STATUS_MSG(sx_status));
+                return sdk_to_sai(sx_status);
+            }
+            memcpy(&cnts_buff[ii], counter_bulk.data.port_counters.port_cntr_buff_p, sizeof(cnts_buff[ii]));
         }
     }
-
-    if (cntr_802_needed) {
-        if (SX_STATUS_SUCCESS !=
-            (status = sx_api_port_counter_ieee_802_dot_3_get(gh_sdk, cmd, port_data, &cntr_802))) {
-            SX_LOG_ERR("Failed to get port ieee 802 3 counters - %s.\n", SX_STATUS_MSG(status));
-            return sdk_to_sai(status);
+    if (counter_types & CNT_PERF) {
+        bulk_read_key.key.port_key.grp = SX_BULK_CNTR_PORT_GRP_PERF_E;
+        sx_status = sx_api_bulk_counter_transaction_get(gh_sdk,
+                                                        &bulk_read_key,
+                                                        bulk_buff,
+                                                        &counter_bulk);
+        if (SX_ERR(sx_status)) {
+            SX_LOG_ERR("Failed to read PERF counters: %s.\n", SX_STATUS_MSG(sx_status));
+            return sdk_to_sai(sx_status);
         }
+        memcpy(&cnts_perf, counter_bulk.data.port_counters.port_cntr_perf_p, sizeof(cnts_perf));
     }
-
-    if (discard_cnts_needed) {
-        if (SX_STATUS_SUCCESS !=
-            (status = sx_api_port_counter_discard_get(gh_sdk, cmd, port_data, &discard_cnts))) {
-            SX_LOG_ERR("Failed to get port discard counters - %s.\n", SX_STATUS_MSG(status));
-            return sdk_to_sai(status);
+    if (counter_types & CNT_DISCARD) {
+        bulk_read_key.key.port_key.grp = SX_BULK_CNTR_PORT_GRP_DISCARD_E;
+        sx_status = sx_api_bulk_counter_transaction_get(gh_sdk,
+                                                        &bulk_read_key,
+                                                        bulk_buff,
+                                                        &counter_bulk);
+        if (SX_ERR(sx_status)) {
+            SX_LOG_ERR("Failed to read DISCARD counters: %s.\n", SX_STATUS_MSG(sx_status));
+            return sdk_to_sai(sx_status);
         }
+        memcpy(&cnts_discard, counter_bulk.data.port_counters.port_cntr_discard_p, sizeof(cnts_discard));
     }
-
-    if (perf_cnts_needed) {
-        if (SX_STATUS_SUCCESS !=
-            (status = sx_api_port_counter_perf_get(gh_sdk, cmd, port_data, 0, &perf_cnts))) {
-            SX_LOG_ERR("Failed to get port perf counters - %s.\n", SX_STATUS_MSG(status));
-            return sdk_to_sai(status);
+    if (counter_types & CNT_802) {
+        bulk_read_key.key.port_key.grp = SX_BULK_CNTR_PORT_GRP_IEEE_802_DOT_3_E;
+        sx_status = sx_api_bulk_counter_transaction_get(gh_sdk,
+                                                        &bulk_read_key,
+                                                        bulk_buff,
+                                                        &counter_bulk);
+        if (SX_ERR(sx_status)) {
+            SX_LOG_ERR("Failed to read IEEE802 counters: %s.\n", SX_STATUS_MSG(sx_status));
+            return sdk_to_sai(sx_status);
         }
+        memcpy(&cnts_802, counter_bulk.data.port_counters.port_cntr_ieee_802_p, sizeof(cnts_802));
     }
+    if (counter_types & CNT_REDECN) {
+        sx_port_log_id_t    red_port_id;
+        mlnx_port_config_t *port;
 
-    if (cnts_3635_needed) {
-        if (SX_STATUS_SUCCESS !=
-            (status = sx_api_port_counter_rfc_3635_get(gh_sdk, cmd, port_data, &cnts_3635))) {
-            SX_LOG_ERR("Failed to get port rfc 3635 counters - %s.\n", SX_STATUS_MSG(status));
-            return sdk_to_sai(status);
-        }
-    }
-
-    if (redecn_cnts_needed) {
         /* In case if port is LAG member then use LAG logical id for redecn counters */
         sai_db_read_lock();
-        status = mlnx_port_by_log_id(port_data, &port);
+        status = mlnx_port_by_log_id(sx_log_port, &port);
         if (SAI_ERR(status)) {
             sai_db_unlock();
             return status;
@@ -5647,30 +5682,18 @@ sai_status_t mlnx_get_port_stats_ext(_In_ sai_object_id_t      port_id,
         if (mlnx_port_is_lag_member(port)) {
             red_port_id = mlnx_port_get_lag_id(port);
         } else {
-            red_port_id = port_data;
+            red_port_id = sx_log_port;
         }
         sai_db_unlock();
 
         if (SX_STATUS_SUCCESS !=
-            (status = sx_api_cos_redecn_counters_get(gh_sdk, cmd, red_port_id, &redecn_cnts))) {
+            (status = sx_api_cos_redecn_counters_get(gh_sdk, cmd, red_port_id, &cnts_redecn))) {
             SX_LOG_ERR("Failed to get port redecn counters - %s.\n", SX_STATUS_MSG(status));
             return sdk_to_sai(status);
         }
     }
 
-    for (ii = 0; ii <= COS_IEEE_PRIO_MAX_NUM; ii++) {
-        if (cntr_prio_needed[ii]) {
-            if (SX_STATUS_SUCCESS !=
-                (status = sx_api_port_counter_prio_get(gh_sdk, cmd, port_data,
-                                                       SX_PORT_PRIO_ID_0 + ii, &cntr_prio[ii]))) {
-                SX_LOG_ERR("Failed to get port prio %d counters - %s.\n",
-                           SX_PORT_PRIO_ID_0 + ii, SX_STATUS_MSG(status));
-                return sdk_to_sai(status);
-            }
-        }
-    }
-
-    for (ii = 0; ii < number_of_counters; ii++) {
+    for (uint32_t ii = 0; ii < number_of_counters; ii++) {
         switch ((int)counter_ids[ii]) {
         case SAI_PORT_STAT_IF_IN_OCTETS:
             counters[ii] = cnts_2863.if_in_octets;
@@ -5687,9 +5710,9 @@ sai_status_t mlnx_get_port_stats_ext(_In_ sai_object_id_t      port_id,
         case SAI_PORT_STAT_IF_IN_DISCARDS:
             counters[ii] = cnts_2863.if_in_discards;
             if (g_sai_db_ptr->aggregate_bridge_drops) {
-                counters[ii] += discard_cnts.ingress_general + discard_cnts.ingress_policy_engine +
-                                discard_cnts.ingress_vlan_membership +
-                                discard_cnts.ingress_tag_frame_type + discard_cnts.ingress_tx_link_down;
+                counters[ii] += cnts_discard.ingress_general + cnts_discard.ingress_policy_engine +
+                                cnts_discard.ingress_vlan_membership +
+                                cnts_discard.ingress_tag_frame_type + cnts_discard.ingress_tx_link_down;
             }
             break;
 
@@ -5833,19 +5856,19 @@ sai_status_t mlnx_get_port_stats_ext(_In_ sai_object_id_t      port_id,
             break;
 
         case SAI_PORT_STAT_ETHER_STATS_TX_NO_ERRORS:
-            counters[ii] = cntr_802.a_frames_transmitted_ok;
+            counters[ii] = cnts_802.a_frames_transmitted_ok;
             break;
 
         case SAI_PORT_STAT_ETHER_STATS_RX_NO_ERRORS:
-            counters[ii] = cntr_802.a_frames_received_ok;
+            counters[ii] = cnts_802.a_frames_received_ok;
             break;
 
         case SAI_PORT_STAT_PAUSE_RX_PKTS:
-            counters[ii] = cntr_802.a_pause_mac_ctrl_frames_received;
+            counters[ii] = cnts_802.a_pause_mac_ctrl_frames_received;
             break;
 
         case SAI_PORT_STAT_PAUSE_TX_PKTS:
-            counters[ii] = cntr_802.a_pause_mac_ctrl_frames_transmitted;
+            counters[ii] = cnts_802.a_pause_mac_ctrl_frames_transmitted;
             break;
 
         case SAI_PORT_STAT_GREEN_WRED_DROPPED_PACKETS:
@@ -5860,14 +5883,13 @@ sai_status_t mlnx_get_port_stats_ext(_In_ sai_object_id_t      port_id,
 
         case SAI_PORT_STAT_WRED_DROPPED_PACKETS:
             counters[ii] = 0;
-            /* TODO : change to  g_resource_limits.cos_port_ets_traffic_class_max + 1 when sdk is updated to use rm */
-            for (iter = 0; iter < RM_API_COS_TRAFFIC_CLASS_NUM; iter++) {
-                counters[ii] += redecn_cnts.tc_red_dropped_packets[iter];
+            for (uint64_t jj = 0; jj < g_resource_limits.cos_port_ets_traffic_class_max + 1; jj++) {
+                counters[ii] += cnts_redecn.tc_red_dropped_packets[jj];
             }
             break;
 
         case SAI_PORT_STAT_ECN_MARKED_PACKETS:
-            counters[ii] = redecn_cnts.ecn_marked_packets;
+            counters[ii] = cnts_redecn.ecn_marked_packets;
             break;
 
         case SAI_PORT_STAT_PFC_0_RX_PKTS:
@@ -5878,7 +5900,7 @@ sai_status_t mlnx_get_port_stats_ext(_In_ sai_object_id_t      port_id,
         case SAI_PORT_STAT_PFC_5_RX_PKTS:
         case SAI_PORT_STAT_PFC_6_RX_PKTS:
         case SAI_PORT_STAT_PFC_7_RX_PKTS:
-            counters[ii] = cntr_prio[(counter_ids[ii] - SAI_PORT_STAT_PFC_0_RX_PKTS) / 2].rx_pause;
+            counters[ii] = cnts_prio[(counter_ids[ii] - SAI_PORT_STAT_PFC_0_RX_PKTS) / 2].rx_pause;
             break;
 
         case SAI_PORT_STAT_PFC_0_TX_PKTS:
@@ -5889,7 +5911,7 @@ sai_status_t mlnx_get_port_stats_ext(_In_ sai_object_id_t      port_id,
         case SAI_PORT_STAT_PFC_5_TX_PKTS:
         case SAI_PORT_STAT_PFC_6_TX_PKTS:
         case SAI_PORT_STAT_PFC_7_TX_PKTS:
-            counters[ii] = cntr_prio[(counter_ids[ii] - SAI_PORT_STAT_PFC_0_TX_PKTS) / 2].tx_pause;
+            counters[ii] = cnts_prio[(counter_ids[ii] - SAI_PORT_STAT_PFC_0_TX_PKTS) / 2].tx_pause;
             break;
 
         case SAI_PORT_STAT_PFC_0_RX_PAUSE_DURATION_US:
@@ -5901,7 +5923,7 @@ sai_status_t mlnx_get_port_stats_ext(_In_ sai_object_id_t      port_id,
         case SAI_PORT_STAT_PFC_6_RX_PAUSE_DURATION_US:
         case SAI_PORT_STAT_PFC_7_RX_PAUSE_DURATION_US:
             counters[ii] =
-                cntr_prio[(counter_ids[ii] - SAI_PORT_STAT_PFC_0_RX_PAUSE_DURATION_US) / 2].rx_pause_duration;
+                cnts_prio[(counter_ids[ii] - SAI_PORT_STAT_PFC_0_RX_PAUSE_DURATION_US) / 2].rx_pause_duration;
             break;
 
         case SAI_PORT_STAT_PFC_0_TX_PAUSE_DURATION_US:
@@ -5913,47 +5935,47 @@ sai_status_t mlnx_get_port_stats_ext(_In_ sai_object_id_t      port_id,
         case SAI_PORT_STAT_PFC_6_TX_PAUSE_DURATION_US:
         case SAI_PORT_STAT_PFC_7_TX_PAUSE_DURATION_US:
             counters[ii] =
-                cntr_prio[(counter_ids[ii] - SAI_PORT_STAT_PFC_0_TX_PAUSE_DURATION_US) / 2].tx_pause_duration;
+                cnts_prio[(counter_ids[ii] - SAI_PORT_STAT_PFC_0_TX_PAUSE_DURATION_US) / 2].tx_pause_duration;
             break;
 
         case SAI_PORT_STAT_IF_IN_VLAN_DISCARDS:
-            counters[ii] = discard_cnts.ingress_vlan_membership;
+            counters[ii] = cnts_discard.ingress_vlan_membership;
             break;
 
         case SAI_PORT_STAT_ETHER_OUT_PKTS_64_OCTETS:
-            counters[ii] = perf_cnts.tx_stats_pkts64octets;
+            counters[ii] = cnts_perf.tx_stats_pkts64octets;
             break;
 
         case SAI_PORT_STAT_ETHER_OUT_PKTS_65_TO_127_OCTETS:
-            counters[ii] = perf_cnts.tx_stats_pkts65to127octets;
+            counters[ii] = cnts_perf.tx_stats_pkts65to127octets;
             break;
 
         case SAI_PORT_STAT_ETHER_OUT_PKTS_128_TO_255_OCTETS:
-            counters[ii] = perf_cnts.tx_stats_pkts128to255octets;
+            counters[ii] = cnts_perf.tx_stats_pkts128to255octets;
             break;
 
         case SAI_PORT_STAT_ETHER_OUT_PKTS_256_TO_511_OCTETS:
-            counters[ii] = perf_cnts.tx_stats_pkts256to511octets;
+            counters[ii] = cnts_perf.tx_stats_pkts256to511octets;
             break;
 
         case SAI_PORT_STAT_ETHER_OUT_PKTS_512_TO_1023_OCTETS:
-            counters[ii] = perf_cnts.tx_stats_pkts512to1023octets;
+            counters[ii] = cnts_perf.tx_stats_pkts512to1023octets;
             break;
 
         case SAI_PORT_STAT_ETHER_OUT_PKTS_1024_TO_1518_OCTETS:
-            counters[ii] = perf_cnts.tx_stats_pkts1024to1518octets;
+            counters[ii] = cnts_perf.tx_stats_pkts1024to1518octets;
             break;
 
         case SAI_PORT_STAT_ETHER_OUT_PKTS_1519_TO_2047_OCTETS:
-            counters[ii] = perf_cnts.tx_stats_pkts1519to2047octets;
+            counters[ii] = cnts_perf.tx_stats_pkts1519to2047octets;
             break;
 
         case SAI_PORT_STAT_ETHER_OUT_PKTS_2048_TO_4095_OCTETS:
-            counters[ii] = perf_cnts.tx_stats_pkts2048to4095octets;
+            counters[ii] = cnts_perf.tx_stats_pkts2048to4095octets;
             break;
 
         case SAI_PORT_STAT_ETHER_OUT_PKTS_4096_TO_9216_OCTETS:
-            counters[ii] = perf_cnts.tx_stats_pkts4096to8191octets;
+            counters[ii] = cnts_perf.tx_stats_pkts4096to8191octets;
             break;
 
         case SAI_PORT_STAT_DOT3_STATS_ALIGNMENT_ERRORS:
@@ -6013,16 +6035,14 @@ sai_status_t mlnx_get_port_stats_ext(_In_ sai_object_id_t      port_id,
             break;
 
         case SAI_PORT_STAT_IN_DROPPED_PKTS:
-            status = mlnx_port_stat_pg_dropped_pkts_get(port_data, cmd, &counters[ii]);
-            if (SAI_ERR(status)) {
-                return status;
+            for (uint32_t jj = 0; jj < buffer_limits->num_port_pg_buff; jj++) {
+                counters[ii] += cnts_buff[jj].rx_buffer_discard + cnts_buff[jj].rx_shared_buffer_discard;
             }
             break;
 
         case SAI_PORT_STAT_OUT_DROPPED_PKTS:
-            status = mlnx_port_stat_tc_dropped_pkts_get(port_data, cmd, &counters[ii]);
-            if (SAI_ERR(status)) {
-                return status;
+            for (uint32_t jj = 0; jj < g_resource_limits.cos_port_ets_traffic_class_max; jj++) {
+                counters[ii] += cnts_tc[jj].tx_no_buffer_discard_uc;
             }
             break;
 
@@ -6095,8 +6115,361 @@ sai_status_t mlnx_get_port_stats_ext(_In_ sai_object_id_t      port_id,
         }
     }
 
-    SX_LOG_EXIT();
     return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_convert_sai_stats_to_bitmap(_In_ uint32_t             number_of_counters,
+                                                     _In_ const sai_stat_id_t *counter_ids,
+                                                     _Out_ uint64_t           *counter_types)
+{
+    sai_status_t status = SAI_STATUS_SUCCESS;
+
+    *counter_types = 0;
+
+    assert(counter_types);
+
+    if ((number_of_counters > 0) && !counter_ids) {
+        return SAI_STATUS_INVALID_PARAMETER;
+    }
+
+    for (uint32_t ii = 0; ii < number_of_counters; ii++) {
+        switch ((int)counter_ids[ii]) {
+        case SAI_PORT_STAT_IF_IN_OCTETS:
+        case SAI_PORT_STAT_IF_IN_UCAST_PKTS:
+        case SAI_PORT_STAT_IF_IN_NON_UCAST_PKTS:
+        case SAI_PORT_STAT_IF_IN_ERRORS:
+        case SAI_PORT_STAT_IF_IN_UNKNOWN_PROTOS:
+        case SAI_PORT_STAT_IF_IN_BROADCAST_PKTS:
+        case SAI_PORT_STAT_IF_IN_MULTICAST_PKTS:
+        case SAI_PORT_STAT_IF_OUT_OCTETS:
+        case SAI_PORT_STAT_IF_OUT_UCAST_PKTS:
+        case SAI_PORT_STAT_IF_OUT_NON_UCAST_PKTS:
+        case SAI_PORT_STAT_IF_OUT_DISCARDS:
+        case SAI_PORT_STAT_IF_OUT_ERRORS:
+        case SAI_PORT_STAT_IF_OUT_BROADCAST_PKTS:
+        case SAI_PORT_STAT_IF_OUT_MULTICAST_PKTS:
+            *counter_types |= CNT_2863;
+            break;
+
+        case SAI_PORT_STAT_IF_IN_DISCARDS:
+            if (g_sai_db_ptr->aggregate_bridge_drops) {
+                *counter_types |= CNT_DISCARD;
+            }
+            *counter_types |= CNT_2863;
+            break;
+
+        case SAI_PORT_STAT_ETHER_STATS_DROP_EVENTS:
+        case SAI_PORT_STAT_ETHER_STATS_MULTICAST_PKTS:
+        case SAI_PORT_STAT_ETHER_STATS_BROADCAST_PKTS:
+        case SAI_PORT_STAT_ETHER_STATS_UNDERSIZE_PKTS:
+        case SAI_PORT_STAT_ETHER_STATS_FRAGMENTS:
+        case SAI_PORT_STAT_ETHER_STATS_PKTS_64_OCTETS:
+        case SAI_PORT_STAT_ETHER_IN_PKTS_64_OCTETS:
+        case SAI_PORT_STAT_ETHER_STATS_PKTS_65_TO_127_OCTETS:
+        case SAI_PORT_STAT_ETHER_IN_PKTS_65_TO_127_OCTETS:
+        case SAI_PORT_STAT_ETHER_STATS_PKTS_128_TO_255_OCTETS:
+        case SAI_PORT_STAT_ETHER_IN_PKTS_128_TO_255_OCTETS:
+        case SAI_PORT_STAT_ETHER_STATS_PKTS_256_TO_511_OCTETS:
+        case SAI_PORT_STAT_ETHER_IN_PKTS_256_TO_511_OCTETS:
+        case SAI_PORT_STAT_ETHER_STATS_PKTS_512_TO_1023_OCTETS:
+        case SAI_PORT_STAT_ETHER_IN_PKTS_512_TO_1023_OCTETS:
+        case SAI_PORT_STAT_ETHER_STATS_PKTS_1024_TO_1518_OCTETS:
+        case SAI_PORT_STAT_ETHER_IN_PKTS_1024_TO_1518_OCTETS:
+        case SAI_PORT_STAT_ETHER_STATS_PKTS_1519_TO_2047_OCTETS:
+        case SAI_PORT_STAT_ETHER_IN_PKTS_1519_TO_2047_OCTETS:
+        case SAI_PORT_STAT_ETHER_STATS_PKTS_2048_TO_4095_OCTETS:
+        case SAI_PORT_STAT_ETHER_IN_PKTS_2048_TO_4095_OCTETS:
+        case SAI_PORT_STAT_ETHER_STATS_PKTS_4096_TO_9216_OCTETS:
+        case SAI_PORT_STAT_ETHER_IN_PKTS_4096_TO_9216_OCTETS:
+        case SAI_PORT_STAT_ETHER_STATS_OVERSIZE_PKTS:
+        case SAI_PORT_STAT_ETHER_RX_OVERSIZE_PKTS:
+        case SAI_PORT_STAT_ETHER_STATS_JABBERS:
+        case SAI_PORT_STAT_ETHER_STATS_OCTETS:
+        case SAI_PORT_STAT_ETHER_STATS_PKTS:
+        case SAI_PORT_STAT_ETHER_STATS_COLLISIONS:
+        case SAI_PORT_STAT_ETHER_STATS_CRC_ALIGN_ERRORS:
+            *counter_types |= CNT_2819;
+            break;
+
+        case SAI_PORT_STAT_ETHER_STATS_TX_NO_ERRORS:
+        case SAI_PORT_STAT_ETHER_STATS_RX_NO_ERRORS:
+        case SAI_PORT_STAT_PAUSE_RX_PKTS:
+        case SAI_PORT_STAT_PAUSE_TX_PKTS:
+            *counter_types |= CNT_802;
+            break;
+
+        case SAI_PORT_STAT_WRED_DROPPED_PACKETS:
+        case SAI_PORT_STAT_ECN_MARKED_PACKETS:
+            *counter_types |= CNT_REDECN;
+            break;
+
+        case SAI_PORT_STAT_PFC_0_RX_PKTS:
+        case SAI_PORT_STAT_PFC_1_RX_PKTS:
+        case SAI_PORT_STAT_PFC_2_RX_PKTS:
+        case SAI_PORT_STAT_PFC_3_RX_PKTS:
+        case SAI_PORT_STAT_PFC_4_RX_PKTS:
+        case SAI_PORT_STAT_PFC_5_RX_PKTS:
+        case SAI_PORT_STAT_PFC_6_RX_PKTS:
+        case SAI_PORT_STAT_PFC_7_RX_PKTS:
+            *counter_types |= CNT_PRIO;
+            break;
+
+        case SAI_PORT_STAT_PFC_0_TX_PKTS:
+        case SAI_PORT_STAT_PFC_1_TX_PKTS:
+        case SAI_PORT_STAT_PFC_2_TX_PKTS:
+        case SAI_PORT_STAT_PFC_3_TX_PKTS:
+        case SAI_PORT_STAT_PFC_4_TX_PKTS:
+        case SAI_PORT_STAT_PFC_5_TX_PKTS:
+        case SAI_PORT_STAT_PFC_6_TX_PKTS:
+        case SAI_PORT_STAT_PFC_7_TX_PKTS:
+            *counter_types |= CNT_PRIO;
+            break;
+
+        case SAI_PORT_STAT_PFC_0_RX_PAUSE_DURATION_US:
+        case SAI_PORT_STAT_PFC_1_RX_PAUSE_DURATION_US:
+        case SAI_PORT_STAT_PFC_2_RX_PAUSE_DURATION_US:
+        case SAI_PORT_STAT_PFC_3_RX_PAUSE_DURATION_US:
+        case SAI_PORT_STAT_PFC_4_RX_PAUSE_DURATION_US:
+        case SAI_PORT_STAT_PFC_5_RX_PAUSE_DURATION_US:
+        case SAI_PORT_STAT_PFC_6_RX_PAUSE_DURATION_US:
+        case SAI_PORT_STAT_PFC_7_RX_PAUSE_DURATION_US:
+            *counter_types |= CNT_PRIO;
+            break;
+
+        case SAI_PORT_STAT_PFC_0_TX_PAUSE_DURATION_US:
+        case SAI_PORT_STAT_PFC_1_TX_PAUSE_DURATION_US:
+        case SAI_PORT_STAT_PFC_2_TX_PAUSE_DURATION_US:
+        case SAI_PORT_STAT_PFC_3_TX_PAUSE_DURATION_US:
+        case SAI_PORT_STAT_PFC_4_TX_PAUSE_DURATION_US:
+        case SAI_PORT_STAT_PFC_5_TX_PAUSE_DURATION_US:
+        case SAI_PORT_STAT_PFC_6_TX_PAUSE_DURATION_US:
+        case SAI_PORT_STAT_PFC_7_TX_PAUSE_DURATION_US:
+            *counter_types |= CNT_PRIO;
+            break;
+
+        case SAI_PORT_STAT_IF_IN_VLAN_DISCARDS:
+            *counter_types |= CNT_DISCARD;
+            break;
+
+        case SAI_PORT_STAT_ETHER_OUT_PKTS_64_OCTETS:
+        case SAI_PORT_STAT_ETHER_OUT_PKTS_65_TO_127_OCTETS:
+        case SAI_PORT_STAT_ETHER_OUT_PKTS_128_TO_255_OCTETS:
+        case SAI_PORT_STAT_ETHER_OUT_PKTS_256_TO_511_OCTETS:
+        case SAI_PORT_STAT_ETHER_OUT_PKTS_512_TO_1023_OCTETS:
+        case SAI_PORT_STAT_ETHER_OUT_PKTS_1024_TO_1518_OCTETS:
+        case SAI_PORT_STAT_ETHER_OUT_PKTS_1519_TO_2047_OCTETS:
+        case SAI_PORT_STAT_ETHER_OUT_PKTS_2048_TO_4095_OCTETS:
+        case SAI_PORT_STAT_ETHER_OUT_PKTS_4096_TO_9216_OCTETS:
+            *counter_types |= CNT_PERF;
+            break;
+
+        case SAI_PORT_STAT_DOT3_STATS_ALIGNMENT_ERRORS:
+        case SAI_PORT_STAT_DOT3_STATS_FCS_ERRORS:
+        case SAI_PORT_STAT_DOT3_STATS_SINGLE_COLLISION_FRAMES:
+        case SAI_PORT_STAT_DOT3_STATS_MULTIPLE_COLLISION_FRAMES:
+        case SAI_PORT_STAT_DOT3_STATS_SQE_TEST_ERRORS:
+        case SAI_PORT_STAT_DOT3_STATS_DEFERRED_TRANSMISSIONS:
+        case SAI_PORT_STAT_DOT3_STATS_LATE_COLLISIONS:
+        case SAI_PORT_STAT_DOT3_STATS_EXCESSIVE_COLLISIONS:
+        case SAI_PORT_STAT_DOT3_STATS_INTERNAL_MAC_TRANSMIT_ERRORS:
+        case SAI_PORT_STAT_DOT3_STATS_CARRIER_SENSE_ERRORS:
+        case SAI_PORT_STAT_DOT3_STATS_FRAME_TOO_LONGS:
+        case SAI_PORT_STAT_DOT3_STATS_INTERNAL_MAC_RECEIVE_ERRORS:
+        case SAI_PORT_STAT_DOT3_STATS_SYMBOL_ERRORS:
+        case SAI_PORT_STAT_DOT3_CONTROL_IN_UNKNOWN_OPCODES:
+            *counter_types |= CNT_3635;
+            break;
+
+        case SAI_PORT_STAT_IN_DROPPED_PKTS:
+            *counter_types |= CNT_BUFF;
+            break;
+
+        case SAI_PORT_STAT_OUT_DROPPED_PKTS:
+            *counter_types |= CNT_TC;
+            break;
+
+        case SAI_PORT_STAT_ETHER_TX_OVERSIZE_PKTS:
+            break;
+
+        default:
+            status = SAI_STATUS_INVALID_PARAMETER;
+            SX_LOG_INF("Port counter %d set item %u not implemented\n", counter_ids[ii], ii);
+            break;
+        }
+    }
+
+    return status;
+}
+
+/*
+ * Routine Description:
+ *   Set port attribute value.
+ *
+ * Arguments:
+ *    [in] port_id - port id
+ *    [in] attr - attribute
+ *
+ * Return Values:
+ *    SAI_STATUS_SUCCESS on success
+ *    Failure status code on error
+ */
+static sai_status_t mlnx_set_port_attribute(_In_ sai_object_id_t port_id, _In_ const sai_attribute_t *attr)
+{
+    const sai_object_key_t key = { .key.object_id = port_id };
+    char                   key_str[MAX_KEY_STR_LEN];
+    sai_status_t           sai_status;
+
+    SX_LOG_ENTER();
+
+    port_key_to_str(port_id, key_str);
+    sai_status = sai_set_attribute(&key, key_str,  SAI_OBJECT_TYPE_PORT, port_vendor_attribs, attr);
+    SX_LOG_EXIT();
+    return sai_status;
+}
+
+
+/*
+ * Routine Description:
+ *   Get port attribute value.
+ *
+ * Arguments:
+ *    [in] port_id - port id
+ *    [in] attr_count - number of attributes
+ *    [inout] attr_list - array of attributes
+ *
+ * Return Values:
+ *    SAI_STATUS_SUCCESS on success
+ *    Failure status code on error
+ */
+static sai_status_t mlnx_get_port_attribute(_In_ sai_object_id_t     port_id,
+                                            _In_ uint32_t            attr_count,
+                                            _Inout_ sai_attribute_t *attr_list)
+{
+    const sai_object_key_t key = { .key.object_id = port_id };
+    char                   key_str[MAX_KEY_STR_LEN];
+    sai_status_t           sai_status;
+
+    SX_LOG_ENTER();
+
+    port_key_to_str(port_id, key_str);
+    sai_status = sai_get_attributes(&key, key_str,  SAI_OBJECT_TYPE_PORT, port_vendor_attribs, attr_count, attr_list);
+    SX_LOG_EXIT();
+    return sai_status;
+}
+
+/**
+ * @brief Get port statistics counters extended.
+ *
+ * @param[in] port_id Port id
+ * @param[in] number_of_counters Number of counters in the array
+ * @param[in] counter_ids Specifies the array of counter ids
+ * @param[in] mode Statistics mode
+ * @param[out] counters Array of resulting counter values.
+ *
+ * @return #SAI_STATUS_SUCCESS on success, failure status code on error
+ */
+sai_status_t mlnx_get_port_stats_ext(_In_ sai_object_id_t      port_id,
+                                     _In_ uint32_t             number_of_counters,
+                                     _In_ const sai_stat_id_t *counter_ids,
+                                     _In_ sai_stats_mode_t     mode,
+                                     _Out_ uint64_t           *counters)
+{
+    sai_status_t              status = SAI_STATUS_FAILURE;
+    sx_bulk_cntr_buffer_key_t bulk_read_key = {0};
+    sx_bulk_cntr_buffer_t     bulk_read_buff = {0};
+    sx_bulk_cntr_read_key_t   key_get = {0};
+    uint64_t                  counter_types = 0;
+    sx_access_cmd_t           cmd;
+    char                      key_str[MAX_KEY_STR_LEN];
+
+    SX_LOG_ENTER();
+
+    port_key_to_str(port_id, key_str);
+    SX_LOG_DBG("Get port stats %s\n", key_str);
+
+    if (NULL == counter_ids) {
+        SX_LOG_ERR("NULL counter ids array param.\n");
+        return SAI_STATUS_INVALID_PARAMETER;
+    }
+
+    if (NULL == counters) {
+        SX_LOG_ERR("NULL counters array param.\n");
+        return SAI_STATUS_INVALID_PARAMETER;
+    }
+
+    status = mlnx_translate_sai_stats_mode_to_sdk(mode, &cmd);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to convert mode.\n");
+        return status;
+    }
+
+    status = mlnx_convert_sai_stats_to_bitmap(number_of_counters,
+                                              counter_ids,
+                                              &counter_types);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to convert counter IDs to counter types bitmap.\n");
+        return status;
+    }
+
+    status = mlnx_convert_counter_types_bitmap_to_sx_bulk_read(port_id,
+                                                               counter_types,
+                                                               &bulk_read_key);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to convert counter IDs to SDK.\n");
+        return status;
+    }
+
+    sai_db_read_lock();
+    port_counter_lock();
+    if (g_sai_db_ptr->issu_start_called) {
+        sai_db_unlock();
+        status = SAI_STATUS_OBJECT_IN_USE;
+        goto out;
+    }
+    sai_db_unlock();
+
+    status = mlnx_port_stats_allocate_sx_bulk_buffer(&bulk_read_key,
+                                                     &bulk_read_buff);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to allocate SDK buffer.\n");
+        goto out;
+    }
+
+    status = mlnx_port_stats_init_async_bulk_read(cmd,
+                                                  &bulk_read_buff);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to initialize async bulk counters read.\n");
+        goto out;
+    }
+
+    status = mlnx_port_stats_wait_for_bulk_read_event();
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to wait for bulk counter read event.\n");
+        goto out;
+    }
+
+    status = mlnx_port_stats_bulk_read(port_id,
+                                       cmd,
+                                       counter_types,
+                                       number_of_counters,
+                                       counter_ids,
+                                       &key_get,
+                                       &bulk_read_buff,
+                                       counters);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to read bulk counters.\n");
+        goto out;
+    }
+
+    status = mlnx_port_stats_deallocate_sx_bulk_buffer(&bulk_read_buff);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to deallocate SDK buffer.\n");
+        goto out;
+    }
+
+out:
+    port_counter_unlock();
+    return status;
 }
 
 /*
@@ -9240,7 +9613,7 @@ static sai_status_t mlnx_create_port(_Out_ sai_object_id_t     * port_id,
 
     status = find_attrib_in_list(attr_count, attr_list, SAI_PORT_ATTR_QOS_SCHEDULER_PROFILE_ID, &value, &index);
     if (status == SAI_STATUS_SUCCESS) {
-        status = mlnx_scheduler_to_port_apply(value->oid, new_port->saiport);
+        status = mlnx_scheduler_to_port_apply_unlocked(value->oid, new_port->saiport);
         if (SAI_ERR(status)) {
             goto out_unlock;
         }
@@ -9248,7 +9621,7 @@ static sai_status_t mlnx_create_port(_Out_ sai_object_id_t     * port_id,
 
     status = find_attrib_in_list(attr_count, attr_list, SAI_PORT_ATTR_QOS_INGRESS_BUFFER_PROFILE_LIST, &value, &index);
     if (status == SAI_STATUS_SUCCESS) {
-        status = mlnx_buffer_port_profile_list_set(new_port->saiport, value, true);
+        status = mlnx_buffer_port_profile_list_set_unlocked(new_port->saiport, value, true);
         if (SAI_ERR(status)) {
             goto out_unlock;
         }
@@ -9256,7 +9629,7 @@ static sai_status_t mlnx_create_port(_Out_ sai_object_id_t     * port_id,
 
     status = find_attrib_in_list(attr_count, attr_list, SAI_PORT_ATTR_QOS_EGRESS_BUFFER_PROFILE_LIST, &value, &index);
     if (status == SAI_STATUS_SUCCESS) {
-        status = mlnx_buffer_port_profile_list_set(new_port->saiport, value, false);
+        status = mlnx_buffer_port_profile_list_set_unlocked(new_port->saiport, value, false);
         if (SAI_ERR(status)) {
             goto out_unlock;
         }

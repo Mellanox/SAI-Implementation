@@ -61,17 +61,9 @@ static const sai_u32_list_t mlnx_sai_attrs_valid_for_set[SAI_OBJECT_TYPE_EXTENSI
     },
 };
 static const sai_u32_list_t mlnx_sai_attrs_with_empty_list[SAI_OBJECT_TYPE_EXTENSIONS_RANGE_END] = {
-    [SAI_OBJECT_TYPE_PORT] = {.count = 5, .list = (sai_attr_id_t[5])
-                              {SAI_PORT_ATTR_INGRESS_MIRROR_SESSION, SAI_PORT_ATTR_EGRESS_MIRROR_SESSION,
-                               SAI_PORT_ATTR_EGRESS_BLOCK_PORT_LIST, SAI_PORT_ATTR_ADVERTISED_SPEED,
-                               SAI_PORT_ATTR_ADVERTISED_INTERFACE_TYPE}
-    },
-
     [SAI_OBJECT_TYPE_ACL_ENTRY] = {.count = 3, .list = (sai_attr_id_t[3])
                                    { SAI_ACL_ENTRY_ATTR_FIELD_IN_PORTS, SAI_ACL_ENTRY_ATTR_FIELD_OUT_PORTS,
                                      SAI_ACL_ENTRY_ATTR_FIELD_ACL_RANGE_TYPE}
-    },
-    [SAI_OBJECT_TYPE_HASH] = {.count = 1, .list = (sai_attr_id_t[1]) {SAI_HASH_ATTR_UDF_GROUP_LIST}
     },
 };
 static const sai_u32_list_t mlnx_sai_hostif_table_valid_obj_types[] = {
@@ -159,6 +151,7 @@ extern const mlnx_obj_type_attrs_info_t  mlnx_debug_counter_obj_type_info;
 extern const mlnx_obj_type_attrs_info_t  mlnx_bfd_session_obj_type_info;
 extern const mlnx_obj_type_attrs_info_t  mlnx_counter_obj_type_info;
 extern const mlnx_obj_type_attrs_info_t  mlnx_isolation_group_obj_type_info;
+extern const mlnx_obj_type_attrs_info_t  mlnx_isolation_group_member_obj_type_info;
 static const mlnx_obj_type_attrs_info_t* mlnx_obj_types_info[] = {
     [SAI_OBJECT_TYPE_PORT] = &mlnx_port_obj_type_info,
     [SAI_OBJECT_TYPE_LAG] = &mlnx_lag_obj_type_info,
@@ -217,6 +210,7 @@ static const mlnx_obj_type_attrs_info_t* mlnx_obj_types_info[] = {
     [SAI_OBJECT_TYPE_BFD_SESSION] = &mlnx_bfd_session_obj_type_info,
     [SAI_OBJECT_TYPE_COUNTER] = &mlnx_counter_obj_type_info,
     [SAI_OBJECT_TYPE_ISOLATION_GROUP] = &mlnx_isolation_group_obj_type_info,
+    [SAI_OBJECT_TYPE_ISOLATION_GROUP_MEMBER] = &mlnx_isolation_group_member_obj_type_info,
 };
 static const uint32_t                    mlnx_obj_types_info_arr_size = ARRAY_SIZE(mlnx_obj_types_info);
 static sai_status_t sai_vendor_attr_index_find(_In_ const sai_attr_id_t                 attr_id,

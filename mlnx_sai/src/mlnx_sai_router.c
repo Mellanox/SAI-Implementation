@@ -214,6 +214,7 @@ static sai_status_t mlnx_router_admin_set(_In_ const sai_object_key_t      *key,
     }
 
     vrid = (sx_router_id_t)data;
+    memset(&router_attr, 0, sizeof(router_attr));
     status = sx_api_router_get(gh_sdk, vrid, &router_attr);
 
     if (SX_STATUS_SUCCESS != status) {

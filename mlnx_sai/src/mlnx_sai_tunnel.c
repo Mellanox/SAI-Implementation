@@ -3164,6 +3164,12 @@ static sai_status_t mlnx_sdk_fill_tunnel_ttl_data(_In_ uint32_t               at
     uint32_t                     attr_idx;
     const bool                   is_ipinip = (SAI_TUNNEL_TYPE_IPINIP == sai_tunnel_type) ||
                                              (SAI_TUNNEL_TYPE_IPINIP_GRE == sai_tunnel_type);
+    bool is_spc1;
+
+    sai_db_read_lock();
+    is_spc1 = mlnx_chip_is_spc();
+    sai_db_unlock();
+
 
     sai_encap_ttl_mode_status = find_attrib_in_list(attr_count,
                                                     attr_list,
@@ -3173,8 +3179,8 @@ static sai_status_t mlnx_sdk_fill_tunnel_ttl_data(_In_ uint32_t               at
     if (SAI_STATUS_SUCCESS == sai_encap_ttl_mode_status) {
         switch (attr->s32) {
         case SAI_TUNNEL_TTL_MODE_UNIFORM_MODEL:
-            if (!is_ipinip) {
-                SX_LOG_ERR("Uniform model is not supported for non-ipinip type\n");
+            if (!is_ipinip && is_spc1) {
+                SX_LOG_ERR("Uniform model is not supported for non-ipinip type on Spectrum 1\n");
                 SX_LOG_EXIT();
                 return SAI_STATUS_NOT_SUPPORTED;
             }
@@ -3193,11 +3199,12 @@ static sai_status_t mlnx_sdk_fill_tunnel_ttl_data(_In_ uint32_t               at
         }
         *has_encap_attr = true;
     } else {
-        if (is_ipinip) {
-            sdk_encap_ttl_data_attrib->ttl_cmd = SX_TUNNEL_TTL_CMD_COPY_E;
-        } else {
+        if (!is_ipinip && is_spc1) {
             sdk_encap_ttl_data_attrib->ttl_cmd = SX_TUNNEL_TTL_CMD_SET_E;
-            SX_LOG_WRN("TTL uniform model is not supported, using default settings in switch\n");
+            SX_LOG_WRN(
+                "TTL uniform model is not supported for non-ipinip type on Spectrum 1, using default settings in switch\n");
+        } else {
+            sdk_encap_ttl_data_attrib->ttl_cmd = SX_TUNNEL_TTL_CMD_COPY_E;
         }
     }
 

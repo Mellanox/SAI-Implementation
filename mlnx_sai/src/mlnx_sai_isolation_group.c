@@ -484,6 +484,8 @@ static const sai_vendor_attribute_entry_t isolation_group_member_vendor_attribs[
       NULL, NULL,
       NULL, NULL },
 };
+const mlnx_obj_type_attrs_info_t          mlnx_isolation_group_member_obj_type_info =
+{ isolation_group_member_vendor_attribs, OBJ_ATTRS_ENUMS_INFO_EMPTY(), OBJ_STAT_CAP_INFO_EMPTY() };
 
 static sai_status_t mlnx_isolation_group_update_subscribed_acl(mlnx_isolation_group_t *isolation_group);
 

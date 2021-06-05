@@ -22,6 +22,7 @@
 #include <sx/sdk/sx_api_acl.h>
 #include <sx/sdk/sx_api_bfd.h>
 #include <sx/sdk/sx_api_bridge.h>
+#include <sx/sdk/sx_api_bulk_counter.h>
 #include <sx/sdk/sx_api_cos.h>
 #include <sx/sdk/sx_api_cos_redecn.h>
 #include <sx/sdk/sx_api_dbg.h>
@@ -278,6 +279,8 @@ extern const sai_isolation_group_api_t  mlnx_isolation_group_api;
 
 #define MLNX_UDF_ACL_ATTR_COUNT  (10)
 #define MLNX_UDF_ACL_ATTR_MAX_ID (MLNX_UDF_ACL_ATTR_COUNT - 1)
+
+#define MLNX_SAI_BULK_COUNTER_COOKIE 0x0055AA11
 
 #define mlnx_udf_db (g_sai_acl_db_ptr->udf_db)
 #define udf_db_group_ptr(index)                         \
@@ -890,6 +893,7 @@ sai_status_t mlnx_wred_init();
 
 sai_status_t mlnx_scheduler_to_queue_apply(sai_object_id_t scheduler_id, sai_object_id_t queue_id);
 
+sai_status_t mlnx_scheduler_to_port_apply_unlocked(sai_object_id_t scheduler_id, sai_object_id_t port_id);
 sai_status_t mlnx_scheduler_to_port_apply(sai_object_id_t scheduler_id, sai_object_id_t port_id);
 /* DB write lock is needed */
 sai_status_t mlnx_scheduler_to_group_apply(sai_object_id_t scheduler_id, sai_object_id_t group_id);
@@ -1003,6 +1007,9 @@ sai_status_t mlnx_acl_isolation_group_update_not_locked(_In_ sai_object_id_t    
                                                         _In_ const uint32_t          log_port_count);
 #define acl_global_lock()   cl_plock_excl_acquire(&g_sai_acl_db_ptr->acl_settings_tbl->lock)
 #define acl_global_unlock() cl_plock_release(&g_sai_acl_db_ptr->acl_settings_tbl->lock)
+sai_status_t mlnx_bulk_counter_init(void);
+sai_status_t mlnx_bulk_counter_deinit(void);
+
 
 typedef struct _mlnx_mstp_inst_t {
     bool     is_used;
@@ -1394,6 +1401,9 @@ sai_status_t mlnx_vlan_bridge_max_learned_addresses_get(_In_ sx_vid_t sx_vid, _I
 sai_status_t mlnx_buffer_port_profile_list_get(_In_ const sai_object_id_t     port_id,
                                                _Inout_ sai_attribute_value_t *value,
                                                _In_ bool                      is_ingress);
+sai_status_t mlnx_buffer_port_profile_list_set_unlocked(_In_ const sai_object_id_t        port_id,
+                                                        _In_ const sai_attribute_value_t *value,
+                                                        _In_ bool                         is_ingress);
 sai_status_t mlnx_buffer_port_profile_list_set(_In_ const sai_object_id_t        port_id,
                                                _In_ const sai_attribute_value_t *value,
                                                _In_ bool                         is_ingress);
@@ -1764,9 +1774,16 @@ typedef struct _acl_pbs_map_db_t {
     mlnx_acl_pbs_entry_t entry;
 } acl_pbs_map_entry_t;
 
+typedef enum {
+    SET_ROUTER_NOT_USED         = 0,
+    SET_ROUTER_USED_BY_REDIRECT = 1,
+    SET_ROUTER_USED_BY_SET_VRF  = 2,
+} set_router_usage_t;
+
 PACKED(struct _acl_entry_db_t {
     bool counter_byte_flag: 1;
     bool counter_packet_flag: 1;
+    uint32_t sx_set_router_usage: 2;
     uint32_t next_entry_index: 19;
     uint32_t prev_entry_index: 19;
     bool is_used;
@@ -2449,6 +2466,7 @@ typedef struct sai_db {
     bool                              issu_enabled;
     bool                              restart_warm;
     bool                              warm_recover;
+    bool                              issu_start_called;
     bool                              issu_end_called;
     uint32_t                          acl_divider;
     mlnx_sai_boot_type_t              boot_type;
@@ -2486,6 +2504,12 @@ typedef struct sai_db {
     mlnx_isolation_group_t            isolation_groups[MAX_ISOLATION_GROUPS];
     mlnx_port_isolation_api_t         port_isolation_api;
     bool                              vxlan_srcport_range_enabled;
+    cl_plock_t                        port_counter_lock;
+#ifndef _WIN32
+    pthread_cond_t  bulk_counter_cond;
+    pthread_mutex_t bulk_counter_mutex;
+#endif
+    int32_t bulk_read_done_status;
     /* must be last element, followed by dynamic arrays */
     mlnx_shm_rm_array_info_t array_info[MLNX_SHM_RM_ARRAY_TYPE_SIZE];
 } sai_db_t;
@@ -2632,6 +2656,9 @@ extern uint32_t         g_sai_buffer_db_size;
 #define sai_db_write_lock() cl_plock_excl_acquire(&g_sai_db_ptr->p_lock)
 #define sai_db_unlock()     cl_plock_release(&g_sai_db_ptr->p_lock)
 #define sai_db_sync()       msync(g_sai_db_ptr, sizeof(*g_sai_db_ptr), MS_SYNC)
+
+#define port_counter_lock()   cl_plock_excl_acquire(&g_sai_db_ptr->port_counter_lock)
+#define port_counter_unlock() cl_plock_release(&g_sai_db_ptr->port_counter_lock)
 
 #define sai_qos_db_read_lock()  sai_db_read_lock()
 #define sai_qos_db_write_lock() sai_db_write_lock()
@@ -2879,6 +2906,16 @@ sai_status_t mlnx_update_hostif_trap_counter(_In_ sai_object_id_t trap_id,
                                              _In_ sai_object_id_t counter_id);
 #define is_isolation_group_in_use() (g_sai_db_ptr->port_isolation_api == PORT_ISOLATION_API_ISOLATION_GROUP)
 #define is_egress_block_in_use()    (g_sai_db_ptr->port_isolation_api == PORT_ISOLATION_API_EGRESS_BLOCK_PORT)
+
+#define bulk_counter_cond_mutex_lock()                                     \
+    do { if (pthread_mutex_lock(&g_sai_db_ptr->bulk_counter_mutex) != 0) { \
+             /*SX_LOG_ERR("Failed to lock bulk counter mutex\n");*/ }      \
+    } while (0)
+
+#define bulk_counter_cond_mutex_unlock()                                     \
+    do { if (pthread_mutex_unlock(&g_sai_db_ptr->bulk_counter_mutex) != 0) { \
+             /*SX_LOG_ERR("Failed to unlock bulk counter mutex\n");*/ }      \
+    } while (0)
 
 #define LINE_LENGTH 120
 

@@ -4477,9 +4477,9 @@ sai_status_t mlnx_sai_buffer_apply_port_buffer_profile_list(_In_ bool           
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_buffer_port_profile_list_set(_In_ const sai_object_id_t         port_id,
-                                               _In_ const sai_attribute_value_t * value,
-                                               _In_ bool                          is_ingress)
+sai_status_t mlnx_buffer_port_profile_list_set_unlocked(_In_ const sai_object_id_t        port_id,
+                                                        _In_ const sai_attribute_value_t *value,
+                                                        _In_ bool                         is_ingress)
 {
     sai_status_t     sai_status = SAI_STATUS_SUCCESS;
     uint32_t         db_port_ind = 0;
@@ -4515,9 +4515,8 @@ sai_status_t mlnx_buffer_port_profile_list_set(_In_ const sai_object_id_t       
         }
     }
 
-    cl_plock_excl_acquire(&g_sai_db_ptr->p_lock);
-    if (SAI_STATUS_SUCCESS != (sai_status = mlnx_port_idx_by_log_id(log_port, &db_port_ind))) {
-        cl_plock_release(&g_sai_db_ptr->p_lock);
+    sai_status = mlnx_port_idx_by_log_id(log_port, &db_port_ind);
+    if (SAI_ERR(sai_status)) {
         SX_LOG_EXIT();
         return sai_status;
     }
@@ -4525,7 +4524,6 @@ sai_status_t mlnx_buffer_port_profile_list_set(_In_ const sai_object_id_t       
         if (SAI_STATUS_SUCCESS !=
             (sai_status =
                  mlnx_sai_get_port_buffer_index_array(db_port_ind, PORT_BUFF_TYPE_INGRESS, &db_port_buffers))) {
-            cl_plock_release(&g_sai_db_ptr->p_lock);
             return sai_status;
         }
         buff_count = buffer_limits.num_ingress_pools;
@@ -4533,36 +4531,57 @@ sai_status_t mlnx_buffer_port_profile_list_set(_In_ const sai_object_id_t       
         if (SAI_STATUS_SUCCESS !=
             (sai_status =
                  mlnx_sai_get_port_buffer_index_array(db_port_ind, PORT_BUFF_TYPE_EGRESS, &db_port_buffers))) {
-            cl_plock_release(&g_sai_db_ptr->p_lock);
             return sai_status;
         }
         buff_count = buffer_limits.num_egress_pools;
     }
+
     buffer_profiles = calloc(buff_count, sizeof(sai_object_id_t));
     if (NULL == buffer_profiles) {
-        cl_plock_release(&g_sai_db_ptr->p_lock);
         SX_LOG_EXIT();
         return SAI_STATUS_NO_MEMORY;
     }
+
     if (SAI_STATUS_SUCCESS !=
         (sai_status = mlnx_sai_buffer_validate_port_buffer_list_and_sort_by_pool(value, is_ingress,
                                                                                  buff_count,
                                                                                  buffer_profiles))) {
-        cl_plock_release(&g_sai_db_ptr->p_lock);
-        free(buffer_profiles);
-        SX_LOG_EXIT();
-        return sai_status;
+        goto out;
     }
 
     if (SAI_STATUS_SUCCESS == (sai_status = mlnx_sai_buffer_apply_port_buffer_profile_list(is_ingress, db_port_ind,
                                                                                            db_port_buffers, buff_count,
                                                                                            buffer_profiles))) {
-        msync(g_sai_db_ptr, sizeof(*g_sai_db_ptr), MS_SYNC);
+        sai_qos_db_sync();
     }
+
+out:
     free(buffer_profiles);
-    cl_plock_release(&g_sai_db_ptr->p_lock);
+
     SX_LOG_EXIT();
     return sai_status;
+}
+
+sai_status_t mlnx_buffer_port_profile_list_set(_In_ const sai_object_id_t         port_id,
+                                               _In_ const sai_attribute_value_t * value,
+                                               _In_ bool                          is_ingress)
+{
+    sai_status_t status;
+
+    SX_LOG_ENTER();
+    sai_qos_db_write_lock();
+
+    status = mlnx_buffer_port_profile_list_set_unlocked(port_id, value, is_ingress);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to set port buffer profile list\n");
+        goto out;
+    }
+
+out:
+    sai_qos_db_unlock();
+
+    SX_LOG_EXIT();
+    return status;
 }
 
 

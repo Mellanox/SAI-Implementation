@@ -789,7 +789,7 @@ static sai_status_t mlnx_get_scheduler_attribute(_In_ sai_object_id_t     schedu
                               sched_vendor_attribs, attr_count, attr_list);
 }
 
-sai_status_t mlnx_scheduler_to_port_apply(sai_object_id_t scheduler_id, sai_object_id_t port_id)
+sai_status_t mlnx_scheduler_to_port_apply_unlocked(sai_object_id_t scheduler_id, sai_object_id_t port_id)
 {
     sx_port_log_id_t            port_log_id;
     sai_status_t                status;
@@ -802,12 +802,10 @@ sai_status_t mlnx_scheduler_to_port_apply(sai_object_id_t scheduler_id, sai_obje
         return status;
     }
 
-    sai_qos_db_write_lock();
-
     status = mlnx_port_by_log_id(port_log_id, &port);
     if (SAI_ERR(status)) {
         SX_LOG_ERR("Failed to lookup port by log id %x\n", port_log_id);
-        goto out;
+        return status;
     }
 
     if (mlnx_port_is_lag_member(port)) {
@@ -819,19 +817,19 @@ sai_status_t mlnx_scheduler_to_port_apply(sai_object_id_t scheduler_id, sai_obje
     if (scheduler_id != SAI_NULL_OBJECT_ID) {
         status = sched_db_entry_get(scheduler_id, &sched);
         if (status != SAI_STATUS_SUCCESS) {
-            goto out;
+            return status;
         }
 
         if (sched->ets.dwrr) {
             status = SAI_STATUS_INVALID_PARAMETER;
             SX_LOG_ERR("DWRR can't be used on the port\n");
-            goto out;
+            return status;
         }
 
         if (sched->min_rate > 0) {
             status = SAI_STATUS_INVALID_PARAMETER;
             SX_LOG_ERR("Min bandwidth rate can't be used on the port\n");
-            goto out;
+            return status;
         }
 
         memcpy(&ets, &sched->ets, sizeof(ets));
@@ -842,10 +840,26 @@ sai_status_t mlnx_scheduler_to_port_apply(sai_object_id_t scheduler_id, sai_obje
 
     status = port_update_ets(port_log_id, &ets);
     if (status != SAI_STATUS_SUCCESS) {
-        goto out;
+        return status;
     }
 
     port->scheduler_id = scheduler_id;
+
+    return SAI_STATUS_SUCCESS;
+}
+
+sai_status_t mlnx_scheduler_to_port_apply(sai_object_id_t scheduler_id, sai_object_id_t port_id)
+{
+    sai_status_t status;
+
+    SX_LOG_ENTER();
+
+    sai_qos_db_write_lock();
+
+    status = mlnx_scheduler_to_port_apply_unlocked(scheduler_id, port_id);
+    if (status != SAI_STATUS_SUCCESS) {
+        goto out;
+    }
 
 out:
     sai_qos_db_unlock();

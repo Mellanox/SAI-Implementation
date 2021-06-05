@@ -18,11 +18,13 @@
 #include "sai_windows.h"
 
 #include "sai.h"
+#include <errno.h>
 #include "mlnx_sai.h"
 #include <saimetadata.h>
 #include <sx/utils/dbg_utils.h>
 #ifndef _WIN32
 #include <libgen.h>
+#include <semaphore.h>
 #endif
 
 #undef  __MODULE__
@@ -31,6 +33,10 @@
 static sx_verbosity_level_t LOG_VAR_NAME(__MODULE__) = SX_VERBOSITY_LEVEL_WARNING;
 sai_service_method_table_t g_mlnx_services;
 static bool                g_initialized = false;
+
+#ifndef _WIN32
+extern sem_t dfw_sem;
+#endif
 
 typedef struct mlnx_log_lavel_preinit {
     bool            is_set;
@@ -41,7 +47,8 @@ static mlnx_log_lavel_preinit_t mlnx_sai_log_levels[SAI_API_EXTENSIONS_RANGE_END
     {0}
 };
 
-static sai_status_t sai_dbg_run_mlxtrace(const char *dirname);
+sai_status_t sai_dbg_do_dump(_In_ const char *dump_file_name);
+static sai_status_t sai_dbg_run_mlxtrace(_In_ const char *dirname);
 
 sai_status_t mlnx_interfacequery_log_set(sx_verbosity_level_t level)
 {
@@ -548,20 +555,67 @@ sai_object_id_t sai_switch_id_query(_In_ sai_object_id_t sai_object_id)
  */
 sai_status_t sai_dbg_generate_dump(_In_ const char *dump_file_name)
 {
-    FILE               *file = NULL;
-    sx_status_t         sdk_status = SX_STATUS_ERROR;
     sx_dbg_extra_info_t dbg_info;
-    sai_status_t        sai_status = SAI_STATUS_FAILURE;
-    char               *file_name = NULL;
-    char                dump_directory[SX_API_DUMP_PATH_LEN_LIMIT + 1];
+    sai_status_t        sai_status = SAI_STATUS_SUCCESS;
+    sx_status_t         sdk_status = SX_STATUS_ERROR;
+
+#ifndef _WIN32
+    char           *file_name = NULL;
+    struct timespec timeout;
+#endif
+
+    sai_status = sai_dbg_do_dump(dump_file_name);
+    if (SAI_ERR(sai_status)) {
+        return sai_status;
+    }
+
+    /* Start async sx_api_dbg_generate_dump_extra */
+    memset(&dbg_info, 0, sizeof(dbg_info));
+    dbg_info.dev_id = SX_DEVICE_ID;
+    dbg_info.force_db_refresh = true;
+    dbg_info.is_async = true;
+#ifndef _WIN32
+    file_name = strdup(dump_file_name);
+    strncpy(dbg_info.path, dirname(file_name), sizeof(dbg_info.path));
+    dbg_info.path[sizeof(dbg_info.path) - 1] = 0;
+    free(file_name);
+#endif
+#define FW_DUMPS 3
+    for (uint32_t ii = 0; ii < FW_DUMPS; ii++) {
+#ifndef _WIN32
+        timeout.tv_sec = 10;
+        timeout.tv_nsec = 0;
+        if ((-1 ==
+             sem_timedwait(&dfw_sem, &timeout)) && ((EINVAL == errno) || (EINTR == errno) || (ETIMEDOUT == errno))) {
+            /* Stop generating dump if it stuck and exit */
+            break;
+        }
+#endif
+        if (SX_STATUS_SUCCESS != (sdk_status = sx_api_dbg_generate_dump_extra(gh_sdk, &dbg_info))) {
+            MLNX_SAI_LOG_ERR("Error generating extended sdk dump, sx status: %s\n", SX_STATUS_MSG(sdk_status));
+        }
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
+sai_status_t sai_dbg_do_dump(_In_ const char *dump_file_name)
+{
+    FILE       *file = NULL;
+    sx_status_t sdk_status = SX_STATUS_ERROR;
+    char        dump_directory[SX_API_DUMP_PATH_LEN_LIMIT + 1];
+
+#ifndef _WIN32
+    sai_status_t sai_status = SAI_STATUS_FAILURE;
+    char        *file_name = NULL;
+#endif
 
     if (!gh_sdk) {
         MLNX_SAI_LOG_ERR("Can't generate debug dump before creating switch\n");
         return SAI_STATUS_FAILURE;
     }
 
-    sdk_status = sx_api_dbg_generate_dump(gh_sdk, dump_file_name);
-    if (SX_STATUS_SUCCESS != sdk_status) {
+    if (SX_STATUS_SUCCESS != (sdk_status = sx_api_dbg_generate_dump(gh_sdk, dump_file_name))) {
         MLNX_SAI_LOG_ERR("Error generating sdk dump, sx status: %s\n", SX_STATUS_MSG(sdk_status));
     }
 
@@ -616,29 +670,6 @@ sai_status_t sai_dbg_generate_dump(_In_ const char *dump_file_name)
 
     fclose(file);
 
-    memset(&dbg_info, 0, sizeof(dbg_info));
-    dbg_info.dev_id = SX_DEVICE_ID;
-    dbg_info.force_db_refresh = true;
-#ifndef _WIN32
-    file_name = strdup(dump_file_name);
-    strncpy(dbg_info.path, dirname(file_name), sizeof(dbg_info.path));
-    dbg_info.path[sizeof(dbg_info.path) - 1] = 0;
-    free(file_name);
-#endif
-#define FW_DUMPS 3
-    for (uint32_t ii = 0; ii < FW_DUMPS; ii++) {
-#if 0
-        sdk_status = sx_api_dbg_generate_dump_extra(gh_sdk, &dbg_info);
-        if (SX_STATUS_SUCCESS != sdk_status) {
-            MLNX_SAI_LOG_ERR("Error generating extended sdk dump, sx status: %s\n", SX_STATUS_MSG(sdk_status));
-        }
-        /* sleep one second to ensure new dump file is created, as dump file name is based on time in seconds */
-        if (ii < FW_DUMPS - 1) {
-            sleep(1);
-        }
-#endif
-    }
-
 #ifndef _WIN32
     file_name = strdup(dump_file_name);
     strncpy(dump_directory, dirname(file_name), sizeof(dump_directory));
@@ -653,7 +684,7 @@ sai_status_t sai_dbg_generate_dump(_In_ const char *dump_file_name)
     return SAI_STATUS_SUCCESS;
 }
 
-static sai_status_t sai_dbg_run_mlxtrace(const char *dirname)
+static sai_status_t sai_dbg_run_mlxtrace(_In_ const char *dirname)
 {
     const char mlxtrace_ext_command_line_fmt[] =
         "mlxtrace_ext -d /dev/mst/%s %s -m MEM -a OB_GW -n -o %s/%s_mlxtrace.trc >/dev/null 2>&1";
