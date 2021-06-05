@@ -182,8 +182,8 @@ static void SAI_dump_acl_range_type_enum_to_str(_In_ sai_acl_range_type_t range_
 
 static void SAI_dump_acl_table_print(_In_ FILE *file, _In_ acl_table_db_t *acl_table_db)
 {
-    uint32_t                  ii     = 0;
-    uint32_t                  jj     = 0;
+    uint32_t                  ii = 0;
+    uint32_t                  jj = 0;
     sai_object_id_t           obj_id = SAI_NULL_OBJECT_ID;
     acl_table_db_t            curr_acl_table_db;
     char                      stage_str[LINE_LENGTH];
@@ -193,7 +193,7 @@ static void SAI_dump_acl_table_print(_In_ FILE *file, _In_ acl_table_db_t *acl_t
     dbg_utils_table_columns_t acl_table_clmns[] = {
         {"sai oid",           16, PARAM_UINT64_E, &obj_id},
         {"db idx",            13, PARAM_UINT32_E, &ii},
-        {"is lock inited",    14, PARAM_UINT8_E,  &curr_acl_table_db.is_lock_inited},
+        {"is lock initialized", 14, PARAM_UINT8_E,  &curr_acl_table_db.is_lock_inited},
         {"queued",            13, PARAM_UINT32_E, &curr_acl_table_db.queued},
         {"group type",        13, PARAM_STRING_E, &group_type_str},
         {"group refs",        13, PARAM_UINT32_E, &curr_acl_table_db.group_references},
@@ -318,7 +318,7 @@ static void SAI_dump_acl_bind_point_type_enum_to_str(_In_ sai_acl_bind_point_typ
 
 static void SAI_dump_acl_entry_print(_In_ FILE *file, _In_ acl_entry_db_t *acl_entry_db)
 {
-    uint32_t                  ii     = 0;
+    uint32_t                  ii = 0;
     sai_object_id_t           obj_id = SAI_NULL_OBJECT_ID;
     acl_entry_db_t            curr_acl_entry_db;
     dbg_utils_table_columns_t acl_entry_clmns[] = {
@@ -416,9 +416,9 @@ static void SAI_dump_acl_pbs_map_db_print(_In_ FILE *file, _In_ acl_pbs_map_entr
 {
     acl_pbs_map_entry_t       curr_pbs_entry;
     mlnx_acl_pbs_map_idx_t    ii;
-    char                      pbs_entry_type[LINE_LENGTH]   = {0};
+    char                      pbs_entry_type[LINE_LENGTH] = {0};
     char                      pbs_key[MAX_PORTS_DB * 2 + 1] = {0};
-    dbg_utils_table_columns_t acl_pbs_map_clmns[]           = {
+    dbg_utils_table_columns_t acl_pbs_map_clmns[] = {
         {"idx",               7, PARAM_UINT16_E, &ii},
         {"type",             13, PARAM_STRING_E, &pbs_entry_type},
         {"key",  MAX_PORTS_DB * 2, PARAM_STRING_E, &pbs_key},
@@ -463,9 +463,9 @@ static bool SAI_dump_acl_bind_point_is_set(_In_ const acl_bind_point_t *curr_acl
 
 static void SAI_dump_acl_bind_points_data_print(_In_ FILE *file, _In_ acl_bind_point_data_t *curr_acl_bind_point_data)
 {
-    char                      acl_object_type_str[LINE_LENGTH]   = {0};
+    char                      acl_object_type_str[LINE_LENGTH] = {0};
     char                      sx_direction_type_str[LINE_LENGTH] = {0};
-    char                      acl_bind_point_type[LINE_LENGTH]   = {0};
+    char                      acl_bind_point_type[LINE_LENGTH] = {0};
     uint32_t                  target_sx_id;
     dbg_utils_table_columns_t acl_bind_points_data_clmns[] = {
         {"is object set",       16, PARAM_UINT8_E,   &curr_acl_bind_point_data->is_object_set},
@@ -586,8 +586,8 @@ static void SAI_dump_acl_groups_db_print(_In_ FILE                 *file,
                                          _In_ uint32_t              acl_group_number)
 {
     char                      acl_table_group_type_str[LINE_LENGTH] = {0};
-    char                      acl_stage_type_str[LINE_LENGTH]       = {0};
-    char                      acl_bind_point_type_str[LINE_LENGTH]  = {0};
+    char                      acl_stage_type_str[LINE_LENGTH] = {0};
+    char                      acl_bind_point_type_str[LINE_LENGTH] = {0};
     acl_group_db_t            current_acl_group;
     sai_object_id_t           obj_id;
     uint32_t                  table_index, table_prio, group_bound_to_count, bind_point_index;
@@ -660,7 +660,7 @@ static void SAI_dump_acl_groups_db_print(_In_ FILE                 *file,
 
                 for (jj = 0; jj < current_acl_group.members_count; jj++) {
                     table_index = sai_acl_db_group_ptr(ii)->members[jj].table_index;
-                    table_prio  = sai_acl_db_group_ptr(ii)->members[jj].table_prio;
+                    table_prio = sai_acl_db_group_ptr(ii)->members[jj].table_prio;
 
                     dbg_utils_print_table_data_line(file, acl_group_members_clmns);
                 }
@@ -717,30 +717,31 @@ static void SAI_dump_acl_vlan_groups_db_print(_In_ FILE *file, _In_ acl_vlan_gro
 
 void SAI_dump_acl(_In_ FILE *file)
 {
-    acl_table_db_t       *acl_table_db       = NULL;
-    acl_entry_db_t       *acl_entry_db       = NULL;
-    acl_setting_tbl_t    *acl_settings_tbl   = NULL;
-    acl_pbs_map_entry_t  *acl_pbs_map_db     = NULL;
-    acl_bind_points_db_t *acl_bind_points    = NULL;
-    acl_group_db_t       *acl_group_db       = NULL;
-    acl_vlan_group_t     *acl_vlan_group     = NULL;
+    acl_table_db_t       *acl_table_db = NULL;
+    acl_entry_db_t       *acl_entry_db = NULL;
+    acl_setting_tbl_t    *acl_settings_tbl = NULL;
+    acl_pbs_map_entry_t  *acl_pbs_map_db = NULL;
+    acl_bind_points_db_t *acl_bind_points = NULL;
+    acl_group_db_t       *acl_group_db = NULL;
+    acl_vlan_group_t     *acl_vlan_group = NULL;
     acl_group_bound_to_t *acl_group_bound_to = NULL;
 
     sai_db_read_lock();
-    const uint32_t acl_divider      = g_sai_db_ptr->acl_divider;
+    const uint32_t acl_divider = g_sai_db_ptr->acl_divider;
     const uint32_t acl_group_number = ACL_GROUP_NUMBER / acl_divider;
+
     sai_db_unlock();
 
-    acl_table_db     = (acl_table_db_t*)calloc(ACL_TABLE_DB_SIZE, sizeof(acl_table_db_t));
-    acl_entry_db     = (acl_entry_db_t*)calloc(ACL_ENTRY_DB_SIZE, sizeof(acl_entry_db_t));
+    acl_table_db = (acl_table_db_t*)calloc(ACL_TABLE_DB_SIZE, sizeof(acl_table_db_t));
+    acl_entry_db = (acl_entry_db_t*)calloc(ACL_ENTRY_DB_SIZE, sizeof(acl_entry_db_t));
     acl_settings_tbl = (acl_setting_tbl_t*)calloc(1, sizeof(acl_setting_tbl_t));
-    acl_pbs_map_db   = (acl_pbs_map_entry_t*)calloc(ACL_PBS_MAP_PREDEF_REG_SIZE + g_sai_acl_db_pbs_map_size,
-                                                    sizeof(acl_pbs_map_entry_t));
+    acl_pbs_map_db = (acl_pbs_map_entry_t*)calloc(ACL_PBS_MAP_PREDEF_REG_SIZE + g_sai_acl_db_pbs_map_size,
+                                                  sizeof(acl_pbs_map_entry_t));
     acl_bind_points = (acl_bind_points_db_t*)calloc(1, sizeof(acl_bind_points_db_t) +
                                                     sizeof(acl_bind_point_t) * ACL_RIF_COUNT);
     acl_group_db = (acl_group_db_t*)calloc(acl_group_number,
                                            sizeof(acl_group_db_t) + sizeof(acl_group_member_t) * ACL_GROUP_SIZE);
-    acl_vlan_group     = (acl_vlan_group_t*)calloc(ACL_VLAN_GROUP_COUNT, sizeof(acl_vlan_group_t));
+    acl_vlan_group = (acl_vlan_group_t*)calloc(ACL_VLAN_GROUP_COUNT, sizeof(acl_vlan_group_t));
     acl_group_bound_to = (acl_group_bound_to_t*)calloc(acl_group_number, sizeof(acl_group_bound_to_t) +
                                                        (sizeof(acl_bind_point_index_t) *
                                                         SAI_ACL_MAX_BIND_POINT_BOUND));

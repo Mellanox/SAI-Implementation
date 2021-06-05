@@ -74,7 +74,7 @@ static const mlnx_attr_enum_info_t        smaplepacket_enum_info[] = {
         SAI_SAMPLEPACKET_MODE_EXCLUSIVE)
 };
 const mlnx_obj_type_attrs_info_t          mlnx_samplepacket_obj_type_info =
-{ samplepacket_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(smaplepacket_enum_info)};
+{ samplepacket_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(smaplepacket_enum_info), OBJ_STAT_CAP_INFO_EMPTY()};
 static void samplepacket_key_to_str(_In_ const sai_object_id_t sai_samplepacket_obj_id, _Out_ char *key_str)
 {
     uint32_t internal_samplepacket_obj_idx = 0;
@@ -98,7 +98,7 @@ static void samplepacket_key_to_str(_In_ const sai_object_id_t sai_samplepacket_
 static sai_status_t mlnx_samplepacket_sample_rate_validate(_In_ const uint32_t internal_samplepacket_obj_idx)
 {
     mlnx_port_config_t    *port_config;
-    uint32_t               index             = 0;
+    uint32_t               index = 0;
     uint32_t               value_sample_rate = 0;
     sx_port_sflow_params_t sdk_sflow_params;
     sai_status_t           status = SAI_STATUS_FAILURE;
@@ -182,7 +182,7 @@ static sai_status_t mlnx_samplepacket_sample_rate_get(_In_ const sai_object_key_
                                                       _Inout_ vendor_cache_t        *cache,
                                                       void                          *arg)
 {
-    sai_status_t status                        = SAI_STATUS_FAILURE;
+    sai_status_t status = SAI_STATUS_FAILURE;
     uint32_t     internal_samplepacket_obj_idx = 0;
 
     SX_LOG_ENTER();
@@ -230,7 +230,7 @@ static sai_status_t mlnx_samplepacket_type_get(_In_ const sai_object_key_t   *ke
                                                _Inout_ vendor_cache_t        *cache,
                                                void                          *arg)
 {
-    sai_status_t status                        = SAI_STATUS_FAILURE;
+    sai_status_t status = SAI_STATUS_FAILURE;
     uint32_t     internal_samplepacket_obj_idx = 0;
 
     SX_LOG_ENTER();
@@ -270,7 +270,7 @@ static sai_status_t mlnx_samplepacket_mode_get(_In_ const sai_object_key_t   *ke
                                                _Inout_ vendor_cache_t        *cache,
                                                void                          *arg)
 {
-    sai_status_t status                        = SAI_STATUS_FAILURE;
+    sai_status_t status = SAI_STATUS_FAILURE;
     uint32_t     internal_samplepacket_obj_idx = 0;
 
     SX_LOG_ENTER();
@@ -311,7 +311,7 @@ static sai_status_t mlnx_samplepacket_sample_rate_set(_In_ const sai_object_key_
     sai_status_t           status = SAI_STATUS_FAILURE;
     mlnx_port_config_t    *port_config;
     uint32_t               internal_samplepacket_obj_idx = 0;
-    uint32_t               index                         = 0;
+    uint32_t               index = 0;
     sx_port_sflow_params_t sdk_sflow_params;
 
     memset(&sdk_sflow_params, 0, sizeof(sx_port_sflow_params_t));
@@ -340,11 +340,11 @@ static sai_status_t mlnx_samplepacket_sample_rate_set(_In_ const sai_object_key_
 
     mlnx_port_foreach(port_config, index) {
         if (internal_samplepacket_obj_idx == port_config->internal_ingress_samplepacket_obj_idx) {
-            sdk_sflow_params.ratio            = value->u32;
-            sdk_sflow_params.deviation        = 0;
-            sdk_sflow_params.packet_types.uc  = true;
-            sdk_sflow_params.packet_types.mc  = true;
-            sdk_sflow_params.packet_types.bc  = true;
+            sdk_sflow_params.ratio = value->u32;
+            sdk_sflow_params.deviation = 0;
+            sdk_sflow_params.packet_types.uc = true;
+            sdk_sflow_params.packet_types.mc = true;
+            sdk_sflow_params.packet_types.bc = true;
             sdk_sflow_params.packet_types.uuc = true;
             sdk_sflow_params.packet_types.umc = true;
 
@@ -375,7 +375,7 @@ cleanup:
 
 static sai_status_t mlnx_create_empty_samplepacket_session(_Out_ uint32_t *internal_samplepacket_obj_idx)
 {
-    uint32_t     index  = 0;
+    uint32_t     index = 0;
     sai_status_t status = SAI_STATUS_FAILURE;
 
     SX_LOG_ENTER();
@@ -387,7 +387,7 @@ static sai_status_t mlnx_create_empty_samplepacket_session(_Out_ uint32_t *inter
     for (index = MLNX_SAMPLEPACKET_SESSION_MIN; index < MLNX_SAMPLEPACKET_SESSION_MAX; index++) {
         if (!g_sai_db_ptr->mlnx_samplepacket_session[index].in_use) {
             *internal_samplepacket_obj_idx = index;
-            status                         = SAI_STATUS_SUCCESS;
+            status = SAI_STATUS_SUCCESS;
             goto cleanup;
         }
     }
@@ -410,9 +410,9 @@ static sai_status_t mlnx_create_samplepacket_session(_Out_ sai_object_id_t      
     char                         list_str[MAX_LIST_VALUE_STR_LEN];
     const sai_attribute_value_t *samplepacket_sample_rate = NULL, *samplepacket_type = NULL, *samplepacket_mode =
         NULL;
-    sai_status_t status                        = SAI_STATUS_FAILURE, status_type = SAI_STATUS_FAILURE;
-    sai_status_t status_mode                   = SAI_STATUS_FAILURE;
-    uint32_t     index                         = 0;
+    sai_status_t status = SAI_STATUS_FAILURE, status_type = SAI_STATUS_FAILURE;
+    sai_status_t status_mode = SAI_STATUS_FAILURE;
+    uint32_t     index = 0;
     uint32_t     internal_samplepacket_obj_idx = 0;
 
     SX_LOG_ENTER();
@@ -519,8 +519,8 @@ static sai_status_t mlnx_remove_samplepacket_session(_In_ const sai_object_id_t 
     sai_status_t        status = SAI_STATUS_FAILURE;
     mlnx_port_config_t *port_config;
     uint32_t            internal_samplepacket_obj_idx = 0;
-    uint32_t            index                         = 0;
-    bool                port_associated               = false;
+    uint32_t            index = 0;
+    bool                port_associated = false;
 
     SX_LOG_ENTER();
 

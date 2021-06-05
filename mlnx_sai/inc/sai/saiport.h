@@ -219,11 +219,17 @@ typedef enum _sai_port_interface_type_t
     /** Interface type CR */
     SAI_PORT_INTERFACE_TYPE_CR,
 
+    /** Interface type CR2 */
+    SAI_PORT_INTERFACE_TYPE_CR2,
+
     /** Interface type CR4 */
     SAI_PORT_INTERFACE_TYPE_CR4,
 
     /** Interface type SR */
     SAI_PORT_INTERFACE_TYPE_SR,
+
+    /** Interface type SR2 */
+    SAI_PORT_INTERFACE_TYPE_SR2,
 
     /** Interface type SR4 */
     SAI_PORT_INTERFACE_TYPE_SR4,
@@ -239,6 +245,37 @@ typedef enum _sai_port_interface_type_t
 
     /** Interface type KR4 */
     SAI_PORT_INTERFACE_TYPE_KR4,
+
+    /** Interface type CAUI */
+    SAI_PORT_INTERFACE_TYPE_CAUI,
+
+    /** Interface type GMII */
+    SAI_PORT_INTERFACE_TYPE_GMII,
+
+    /** Interface type SFI */
+    SAI_PORT_INTERFACE_TYPE_SFI,
+
+    /** Interface type XLAUI */
+    SAI_PORT_INTERFACE_TYPE_XLAUI,
+
+    /** Interface type KR2 */
+    SAI_PORT_INTERFACE_TYPE_KR2,
+
+    /** Interface type CAUI */
+    SAI_PORT_INTERFACE_TYPE_CAUI4,
+
+    /** Interface type XAUI */
+    SAI_PORT_INTERFACE_TYPE_XAUI,
+
+    /** Interface type XFI */
+    SAI_PORT_INTERFACE_TYPE_XFI,
+
+    /** Interface type XGMII */
+    SAI_PORT_INTERFACE_TYPE_XGMII,
+
+    /** Interface type MAX */
+    SAI_PORT_INTERFACE_TYPE_MAX,
+
 } sai_port_interface_type_t;
 
 /**
@@ -291,6 +328,22 @@ typedef enum _sai_port_prbs_config_t
     /** Enable PRBS Transmitter */
     SAI_PORT_PRBS_CONFIG_ENABLE_TX
 } sai_port_prbs_config_t;
+
+/**
+ * @brief Attribute data for #SAI_PORT_CONNECTOR_ATTR_FAILOVER_MODE
+ * Used for Failover mode configuration on port
+ */
+typedef enum _sai_port_connector_failover_mode_t
+{
+    /** Failover mode disable */
+    SAI_PORT_CONNECTOR_FAILOVER_MODE_DISABLE,
+
+    /** Configure Failover mode on primary port */
+    SAI_PORT_CONNECTOR_FAILOVER_MODE_PRIMARY,
+
+    /** Configure Failover mode on secondary port */
+    SAI_PORT_CONNECTOR_FAILOVER_MODE_SECONDARY
+} sai_port_connector_failover_mode_t;
 
 /**
  * @brief Attribute Id in sai_set_port_attribute() and
@@ -370,6 +423,20 @@ typedef enum _sai_port_attr_t
      * @objects SAI_OBJECT_TYPE_SCHEDULER_GROUP
      */
     SAI_PORT_ATTR_QOS_SCHEDULER_GROUP_LIST,
+
+    /**
+     * @brief The sum of the headroom size of the ingress priority groups belonging to this port
+     *        should not exceed the SAI_PORT_ATTR_QOS_MAXIMUM_HEADROOM_SIZE value.
+     *
+     * This attribute is applicable only for per-port, per-PG headroom model
+     * (which means SAI_BUFFER_POOL_ATTR_XOFF_SIZE is zero)
+     *
+     * For the platforms which don't have this limitation, 0 should be returned.
+     *
+     * @type sai_uint32_t
+     * @flags READ_ONLY
+     */
+    SAI_PORT_ATTR_QOS_MAXIMUM_HEADROOM_SIZE,
 
     /**
      * @brief Query list of supported port speed(full-duplex) in Mbps
@@ -585,6 +652,8 @@ typedef enum _sai_port_attr_t
 
     /**
      * @brief Query/Configure list of Advertised port speed (Full-Duplex) in Mbps
+     *
+     * Used when auto negotiation is on. Empty list means all supported values are enabled.
      *
      * @type sai_u32_list_t
      * @flags CREATE_AND_SET
@@ -911,6 +980,32 @@ typedef enum _sai_port_attr_t
      * @default SAI_NULL_OBJECT_ID
      */
     SAI_PORT_ATTR_EGRESS_SAMPLEPACKET_ENABLE,
+
+    /**
+     * @brief Enable/Disable Samplepacket session
+     *
+     * Enable sample ingress mirroring by assigning list of mirror object ids Disable
+     * sample ingress mirroring by assigning object_count as 0 in objlist
+     *
+     * @type sai_object_list_t
+     * @flags CREATE_AND_SET
+     * @objects SAI_OBJECT_TYPE_MIRROR_SESSION
+     * @default empty
+     */
+    SAI_PORT_ATTR_INGRESS_SAMPLE_MIRROR_SESSION,
+
+    /**
+     * @brief Enable/Disable Samplepacket session
+     *
+     * Enable sample egress mirroring by assigning list of mirror object ids Disable
+     * sample egress mirroring by assigning object_count as 0 in objlist
+     *
+     * @type sai_object_list_t
+     * @flags CREATE_AND_SET
+     * @objects SAI_OBJECT_TYPE_MIRROR_SESSION
+     * @default empty
+     */
+    SAI_PORT_ATTR_EGRESS_SAMPLE_MIRROR_SESSION,
 
     /**
      * @brief Attach/Detach policer to port
@@ -1352,13 +1447,22 @@ typedef enum _sai_port_attr_t
     /**
      * @brief Configure Interface type
      *
-     * Valid when SAI_SWITCH_ATTR_TYPE == SAI_SWITCH_TYPE_PHY
-     *
      * @type sai_port_interface_type_t
      * @flags CREATE_AND_SET
      * @default SAI_PORT_INTERFACE_TYPE_NONE
      */
     SAI_PORT_ATTR_INTERFACE_TYPE,
+
+    /**
+     * @brief Configure advertised interface type list
+     *
+     * Used when auto negotiation is on. Empty list means all supported values are enabled.
+     *
+     * @type sai_s32_list_t sai_port_interface_type_t
+     * @flags CREATE_AND_SET
+     * @default empty
+     */
+    SAI_PORT_ATTR_ADVERTISED_INTERFACE_TYPE,
 
     /**
      * @brief Configure port reference clock in hertz
@@ -1436,6 +1540,24 @@ typedef enum _sai_port_attr_t
     SAI_PORT_ATTR_PRBS_LOCK_LOSS_STATUS,
 
     /**
+     * @brief Attribute data for #SAI_PORT_ATTR_PRBS_RX_STATUS
+     *
+     * @type sai_port_prbs_rx_status_t
+     * @flags READ_ONLY
+     */
+    SAI_PORT_ATTR_PRBS_RX_STATUS,
+
+    /**
+     * @brief Attribute data for #SAI_PORT_ATTR_PRBS_RX_STATE
+     * Used for clear on read status/count register.
+     * Adapter should return SAI_STATUS_NOT_SUPPORTED if not supported.
+     *
+     * @type sai_prbs_rx_state_t
+     * @flags READ_ONLY
+     */
+    SAI_PORT_ATTR_PRBS_RX_STATE,
+
+    /**
      * @brief Attribute data for #SAI_PORT_ATTR_AUTO_NEG_STATUS
      *
      * Auto negotiation (AN) done state: 0 for AN in progress, 0 for AN done
@@ -1452,7 +1574,7 @@ typedef enum _sai_port_attr_t
      * @flags CREATE_AND_SET
      * @default false
      */
-    SAI_PORT_ATTR_DECREMENT_TTL,
+    SAI_PORT_ATTR_DISABLE_DECREMENT_TTL,
 
     /**
      * @brief Enable EXP -> TC MAP on port
@@ -2008,6 +2130,62 @@ typedef enum _sai_port_stat_t
     /** SAI port stat PFC 7 tx duration */
     SAI_PORT_STAT_PFC_7_TX_PAUSE_DURATION,
 
+    /**
+     * @brief PFC pause duration for RX and TX per PFC priority in micro seconds [uint64_t]
+     *
+     * RX pause duration for certain priority is a the duration in micro seconds converted
+     * from quanta in ingress pause frame for that priority (a pause frame received by the
+     * switch).
+     * While TX pause duration for certain priority is the duration in micro seconds converted
+     * from quanta in egress pause frame for that priority (a pause frame sent by the switch).
+     */
+    SAI_PORT_STAT_PFC_0_RX_PAUSE_DURATION_US,
+
+    /** SAI port stat PFC 0 tx duration in micro seconds */
+    SAI_PORT_STAT_PFC_0_TX_PAUSE_DURATION_US,
+
+    /** SAI port stat PFC 1 rx duration in micro seconds */
+    SAI_PORT_STAT_PFC_1_RX_PAUSE_DURATION_US,
+
+    /** SAI port stat PFC 1 tx duration in micro seconds */
+    SAI_PORT_STAT_PFC_1_TX_PAUSE_DURATION_US,
+
+    /** SAI port stat PFC 2 rx duration in micro seconds */
+    SAI_PORT_STAT_PFC_2_RX_PAUSE_DURATION_US,
+
+    /** SAI port stat PFC 2 tx duration in micro seconds */
+    SAI_PORT_STAT_PFC_2_TX_PAUSE_DURATION_US,
+
+    /** SAI port stat PFC 3 rx duration in micro seconds */
+    SAI_PORT_STAT_PFC_3_RX_PAUSE_DURATION_US,
+
+    /** SAI port stat PFC 3 tx duration in micro seconds */
+    SAI_PORT_STAT_PFC_3_TX_PAUSE_DURATION_US,
+
+    /** SAI port stat PFC 4 rx duration in micro seconds */
+    SAI_PORT_STAT_PFC_4_RX_PAUSE_DURATION_US,
+
+    /** SAI port stat PFC 4 tx duration in micro seconds */
+    SAI_PORT_STAT_PFC_4_TX_PAUSE_DURATION_US,
+
+    /** SAI port stat PFC 5 rx duration in micro seconds */
+    SAI_PORT_STAT_PFC_5_RX_PAUSE_DURATION_US,
+
+    /** SAI port stat PFC 5 tx duration in micro seconds */
+    SAI_PORT_STAT_PFC_5_TX_PAUSE_DURATION_US,
+
+    /** SAI port stat PFC 6 rx duration in micro seconds */
+    SAI_PORT_STAT_PFC_6_RX_PAUSE_DURATION_US,
+
+    /** SAI port stat PFC 6 tx duration in micro seconds */
+    SAI_PORT_STAT_PFC_6_TX_PAUSE_DURATION_US,
+
+    /** SAI port stat PFC 7 rx duration in micro seconds */
+    SAI_PORT_STAT_PFC_7_RX_PAUSE_DURATION_US,
+
+    /** SAI port stat PFC 7 tx duration in micro seconds */
+    SAI_PORT_STAT_PFC_7_TX_PAUSE_DURATION_US,
+
     /** PFC based ON to OFF pause transitions counter per PFC priority [uint64_t] */
     SAI_PORT_STAT_PFC_0_ON2OFF_RX_PKTS,
 
@@ -2117,62 +2295,6 @@ typedef enum _sai_port_stat_t
 
     /** Fabric port stat out data units */
     SAI_PORT_STAT_IF_OUT_FABRIC_DATA_UNITS,
-
-    /**
-     * @brief PFC pause duration for RX and TX per PFC priority in micro seconds [uint64_t]
-     *
-     * RX pause duration for certain priority is a the duration in micro seconds converted
-     * from quanta in ingress pause frame for that priority (a pause frame received by the
-     * switch).
-     * While TX pause duration for certain priority is the duration in micro seconds converted
-     * from quanta in egress pause frame for that priority (a pause frame sent by the switch).
-     */
-    SAI_PORT_STAT_PFC_0_RX_PAUSE_DURATION_US,
-
-    /** SAI port stat PFC 0 tx duration in micro seconds */
-    SAI_PORT_STAT_PFC_0_TX_PAUSE_DURATION_US,
-
-    /** SAI port stat PFC 1 rx duration in micro seconds */
-    SAI_PORT_STAT_PFC_1_RX_PAUSE_DURATION_US,
-
-    /** SAI port stat PFC 1 tx duration in micro seconds */
-    SAI_PORT_STAT_PFC_1_TX_PAUSE_DURATION_US,
-
-    /** SAI port stat PFC 2 rx duration in micro seconds */
-    SAI_PORT_STAT_PFC_2_RX_PAUSE_DURATION_US,
-
-    /** SAI port stat PFC 2 tx duration in micro seconds */
-    SAI_PORT_STAT_PFC_2_TX_PAUSE_DURATION_US,
-
-    /** SAI port stat PFC 3 rx duration in micro seconds */
-    SAI_PORT_STAT_PFC_3_RX_PAUSE_DURATION_US,
-
-    /** SAI port stat PFC 3 tx duration in micro seconds */
-    SAI_PORT_STAT_PFC_3_TX_PAUSE_DURATION_US,
-
-    /** SAI port stat PFC 4 rx duration in micro seconds */
-    SAI_PORT_STAT_PFC_4_RX_PAUSE_DURATION_US,
-
-    /** SAI port stat PFC 4 tx duration in micro seconds */
-    SAI_PORT_STAT_PFC_4_TX_PAUSE_DURATION_US,
-
-    /** SAI port stat PFC 5 rx duration in micro seconds */
-    SAI_PORT_STAT_PFC_5_RX_PAUSE_DURATION_US,
-
-    /** SAI port stat PFC 5 tx duration in micro seconds */
-    SAI_PORT_STAT_PFC_5_TX_PAUSE_DURATION_US,
-
-    /** SAI port stat PFC 6 rx duration in micro seconds */
-    SAI_PORT_STAT_PFC_6_RX_PAUSE_DURATION_US,
-
-    /** SAI port stat PFC 6 tx duration in micro seconds */
-    SAI_PORT_STAT_PFC_6_TX_PAUSE_DURATION_US,
-
-    /** SAI port stat PFC 7 rx duration in micro seconds */
-    SAI_PORT_STAT_PFC_7_RX_PAUSE_DURATION_US,
-
-    /** SAI port stat PFC 7 tx duration in micro seconds */
-    SAI_PORT_STAT_PFC_7_TX_PAUSE_DURATION_US,
 
     /** Port stat in drop reasons range start */
     SAI_PORT_STAT_IN_DROP_REASON_RANGE_BASE = 0x00001000,
@@ -2846,6 +2968,37 @@ typedef enum _sai_port_connector_attr_t
      * @objects SAI_OBJECT_TYPE_PORT
      */
     SAI_PORT_CONNECTOR_ATTR_LINE_SIDE_PORT_ID,
+
+    /**
+     * @brief System Side Port ID
+     *
+     * @type sai_object_id_t
+     * @flags CREATE_ONLY
+     * @objects SAI_OBJECT_TYPE_PORT
+     * @allownull true
+     * @default SAI_NULL_OBJECT_ID
+     */
+    SAI_PORT_CONNECTOR_ATTR_SYSTEM_SIDE_FAILOVER_PORT_ID,
+
+    /**
+     * @brief Line Side Port ID
+     *
+     * @type sai_object_id_t
+     * @flags CREATE_ONLY
+     * @objects SAI_OBJECT_TYPE_PORT
+     * @allownull true
+     * @default SAI_NULL_OBJECT_ID
+     */
+    SAI_PORT_CONNECTOR_ATTR_LINE_SIDE_FAILOVER_PORT_ID,
+
+    /**
+     * @brief Configure the failover mode on port
+     *
+     * @type sai_port_connector_failover_mode_t
+     * @flags CREATE_AND_SET
+     * @default SAI_PORT_CONNECTOR_FAILOVER_MODE_DISABLE
+     */
+    SAI_PORT_CONNECTOR_ATTR_FAILOVER_MODE,
 
     /**
      * @brief End of attributes

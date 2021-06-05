@@ -72,6 +72,8 @@ def get_all_routes_of_vrid(vrf_oid, version):
         if route.network_addr.version == version:
             routes.append(ip_prefix_to_str(route.network_addr) + "/" + str(mask_len(route.network_addr)))
 
+    sx_api_close(handle)
+
     return routes
 
 # Helper function

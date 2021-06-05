@@ -372,7 +372,9 @@ void check_attr_by_object_type()
             sai_object_type_t current = ot[index]->objecttype;
 
             META_ASSERT_TRUE(current == i, "object type must be equal on object type list");
-            META_ASSERT_TRUE(index < 200, "object defines > 200 attributes, metadata bug?");
+            /* For Switch Attribute we have crossed > 200 with Vendor extension for SAIv1.8.0
+               so increasing threshold  */
+            META_ASSERT_TRUE(index < 300, "object defines > 300 attributes, metadata bug?");
             META_ASSERT_TRUE(current > SAI_OBJECT_TYPE_NULL, "object type must be > NULL");
             META_ASSERT_TRUE(current < SAI_OBJECT_TYPE_EXTENSIONS_MAX, "object type must be < MAX");
 
@@ -432,6 +434,11 @@ bool sai_metadata_is_acl_field_or_action(
 
         if (metadata->attrid >= SAI_ACL_ENTRY_ATTR_ACTION_START &&
                 metadata->attrid <= SAI_ACL_ENTRY_ATTR_ACTION_END)
+        {
+            return true;
+        }
+
+        if (metadata->isextensionattr)
         {
             return true;
         }
@@ -640,6 +647,7 @@ void check_attr_object_type_provided(
         case SAI_ATTR_VALUE_TYPE_POINTER:
         case SAI_ATTR_VALUE_TYPE_IP_ADDRESS:
         case SAI_ATTR_VALUE_TYPE_IP_PREFIX:
+        case SAI_ATTR_VALUE_TYPE_PRBS_RX_STATE:
         case SAI_ATTR_VALUE_TYPE_CHARDATA:
         case SAI_ATTR_VALUE_TYPE_UINT32_RANGE:
         case SAI_ATTR_VALUE_TYPE_UINT32_LIST:
@@ -774,7 +782,7 @@ void check_attr_allowed_object_types(
                 ot == SAI_OBJECT_TYPE_FDB_FLUSH ||
                 ot == SAI_OBJECT_TYPE_HOSTIF_PACKET)
         {
-            /* switch object type is ment to be used only in non object id struct types */
+            /* switch object type is meant to be used only in non object id struct types */
 
             META_MD_ASSERT_FAIL(md, "switch object type can't be used as object type in any attribute");
         }
@@ -908,6 +916,7 @@ void check_attr_default_required(
         case SAI_ATTR_VALUE_TYPE_MAC:
         case SAI_ATTR_VALUE_TYPE_IP_ADDRESS:
         case SAI_ATTR_VALUE_TYPE_IP_PREFIX:
+        case SAI_ATTR_VALUE_TYPE_PRBS_RX_STATE:
         case SAI_ATTR_VALUE_TYPE_TIMESPEC:
         case SAI_ATTR_VALUE_TYPE_IPV4:
         case SAI_ATTR_VALUE_TYPE_SYSTEM_PORT_CONFIG:
@@ -1170,10 +1179,12 @@ void check_attr_default_value_type(
 
         case SAI_DEFAULT_VALUE_TYPE_SWITCH_INTERNAL:
 
-            if ((md->objecttype == SAI_OBJECT_TYPE_PORT) || (md->objecttype == SAI_OBJECT_TYPE_PORT_SERDES))
+            if ((md->objecttype == SAI_OBJECT_TYPE_PORT) ||
+                (md->objecttype == SAI_OBJECT_TYPE_PORT_SERDES) ||
+                (md->objecttype == SAI_OBJECT_TYPE_NEIGHBOR_ENTRY))
             {
                 /*
-                 * Allow PORT attribute list's to be set to internal.
+                 * Allow PORT, NEIGHBOR attribute list's to be set to internal.
                  */
                 break;
             }
@@ -1684,7 +1695,41 @@ void check_attr_allow_flags(
         META_MD_ASSERT_FAIL(md, "not allowed object type %d on list", ot);
     }
 
-    if (md->allowrepetitiononlist || md->allowmixedobjecttypes || md->allowemptylist)
+    /* allow empty list can point to any list, not only object id list */
+
+    if (md->allowemptylist)
+    {
+        switch (md->attrvaluetype)
+        {
+            case SAI_ATTR_VALUE_TYPE_ACL_FIELD_DATA_OBJECT_LIST:
+            case SAI_ATTR_VALUE_TYPE_ACL_ACTION_DATA_OBJECT_LIST:
+            case SAI_ATTR_VALUE_TYPE_OBJECT_LIST:
+                break;
+
+            case SAI_ATTR_VALUE_TYPE_INT8_LIST:
+            case SAI_ATTR_VALUE_TYPE_UINT8_LIST:
+            case SAI_ATTR_VALUE_TYPE_INT32_LIST:
+            case SAI_ATTR_VALUE_TYPE_VLAN_LIST:
+            case SAI_ATTR_VALUE_TYPE_UINT32_LIST:
+            case SAI_ATTR_VALUE_TYPE_QOS_MAP_LIST:
+            case SAI_ATTR_VALUE_TYPE_MAP_LIST:
+            case SAI_ATTR_VALUE_TYPE_ACL_RESOURCE_LIST:
+            case SAI_ATTR_VALUE_TYPE_TLV_LIST:
+            case SAI_ATTR_VALUE_TYPE_SEGMENT_LIST:
+            case SAI_ATTR_VALUE_TYPE_IP_ADDRESS_LIST:
+            case SAI_ATTR_VALUE_TYPE_PORT_EYE_VALUES_LIST:
+            case SAI_ATTR_VALUE_TYPE_ACL_FIELD_DATA_UINT8_LIST:
+            case SAI_ATTR_VALUE_TYPE_SYSTEM_PORT_CONFIG_LIST:
+            case SAI_ATTR_VALUE_TYPE_PORT_ERR_STATUS_LIST:
+                break;
+
+            default:
+
+                META_MD_ASSERT_FAIL(md, "allow empty list is set but attr value type is not list");
+        }
+    }
+
+    if (md->allowrepetitiononlist || md->allowmixedobjecttypes)
     {
         switch (md->attrvaluetype)
         {
@@ -1856,8 +1901,13 @@ void check_attr_acl_fields(
         case SAI_ATTR_VALUE_TYPE_ACL_ACTION_DATA_OBJECT_ID:
         case SAI_ATTR_VALUE_TYPE_ACL_ACTION_DATA_OBJECT_LIST:
 
-            if (md->objecttype != SAI_OBJECT_TYPE_ACL_ENTRY ||
-                    md->attrid < SAI_ACL_ENTRY_ATTR_ACTION_START ||
+            if (md->objecttype == SAI_OBJECT_TYPE_ACL_ENTRY && md->isextensionattr)
+            {
+                break;
+            }
+
+            if (md->objecttype != SAI_OBJECT_TYPE_ACL_ENTRY  ||
+                    md->attrid < SAI_ACL_ENTRY_ATTR_ACTION_START  ||
                     md->attrid > SAI_ACL_ENTRY_ATTR_ACTION_END)
             {
                 META_MD_ASSERT_FAIL(md, "acl action may only be set on acl action");
@@ -2379,7 +2429,7 @@ void check_attr_existing_objects(
 
         case SAI_ATTR_VALUE_TYPE_POINTER:
             /*
-             * Allow poniter for switch register read and write API's.
+             * Allow pointer for switch register read and write API's.
              */
             break;
         default:
@@ -2402,6 +2452,11 @@ void check_attr_sai_pointer(
     if (md->notificationtype != -1)
     {
         META_ASSERT_FALSE(md->iscallback, "notification can't be callback");
+    }
+
+    if (md->pointertype != -1)
+    {
+        META_ASSERT_TRUE(md->attrvaluetype == SAI_ATTR_VALUE_TYPE_POINTER, "pointer can be set only on pointer type");
     }
 
     /*
@@ -2430,9 +2485,15 @@ void check_attr_sai_pointer(
             {
                 META_ASSERT_TRUE(md->notificationtype >= 0, "notification type should be set to value on pointer");
             }
+
+            if (md->pointertype < 0)
+            {
+                META_MD_ASSERT_FAIL(md, "pointer type should be set to value on pointer");
+            }
         }
         else
         {
+            META_ASSERT_TRUE(md->pointertype == -1, "pointer type should not be set to value on non pointer");
             META_ASSERT_TRUE(md->notificationtype == -1, "notification type should not be set to value on non pointer");
             META_ASSERT_TRUE(md->iscallback == false, "callback type should not be set to value on non pointer");
         }
@@ -2452,7 +2513,7 @@ void check_attr_brief_description(
     META_LOG_ENTER();
 
     /*
-     * Purpose of this check is to see if brief description extracte from
+     * Purpose of this check is to see if brief description extract from
      * header is present and not too long.
      */
 
@@ -2532,6 +2593,7 @@ void check_attr_is_primitive(
         case SAI_ATTR_VALUE_TYPE_INT8:
         case SAI_ATTR_VALUE_TYPE_IP_ADDRESS:
         case SAI_ATTR_VALUE_TYPE_IP_PREFIX:
+        case SAI_ATTR_VALUE_TYPE_PRBS_RX_STATE:
         case SAI_ATTR_VALUE_TYPE_MAC:
         case SAI_ATTR_VALUE_TYPE_OBJECT_ID:
         case SAI_ATTR_VALUE_TYPE_POINTER:
@@ -2583,12 +2645,12 @@ void check_attr_condition_met(
 
     /*
      * If there are multiple conditions, we need to provide fake values for all
-     * others to force return false to test each one separetly.
+     * others to force return false to test each one separately.
      */
 
     uint32_t count = (uint32_t)md->conditionslength;
 
-    sai_attribute_t *attrs = (sai_attribute_t*)malloc(sizeof(sai_attribute_t) * count);
+    sai_attribute_t *attrs = (sai_attribute_t*)calloc(count, sizeof(sai_attribute_t));
 
     size_t idx = 0;
 
@@ -2822,11 +2884,11 @@ void check_attr_extension_flag(
 
     if (md->attrid >= oi->attridend && md->attrid < CUSTOM_ATTR_RANGE_START)
     {
-        META_ASSERT_TRUE(md->isextensionattr, "atribute %s expected to be extension", md->attridname);
+        META_ASSERT_TRUE(md->isextensionattr, "attribute %s expected to be extension", md->attridname);
     }
     else
     {
-        META_ASSERT_FALSE(md->isextensionattr, "atribute %s not expected to be extension", md->attridname);
+        META_ASSERT_FALSE(md->isextensionattr, "attribute %s not expected to be extension", md->attridname);
     }
 }
 
@@ -2992,7 +3054,7 @@ void check_object_infos()
             {
                 /*
                  * Attribute ID is in custom range, so it will not be in
-                 * regural start .. end range.
+                 * regular start .. end range.
                  */
 
                 continue;
@@ -3375,7 +3437,9 @@ void check_objects_for_loops_recursive(
         {
             if (m->attrid == SAI_PORT_ATTR_EGRESS_MIRROR_SESSION ||
                     m->attrid == SAI_PORT_ATTR_INGRESS_MIRROR_SESSION ||
-                    m->attrid == SAI_PORT_ATTR_EGRESS_BLOCK_PORT_LIST)
+                    m->attrid == SAI_PORT_ATTR_EGRESS_BLOCK_PORT_LIST ||
+                    m->attrid == SAI_PORT_ATTR_INGRESS_SAMPLE_MIRROR_SESSION ||
+                    m->attrid == SAI_PORT_ATTR_EGRESS_SAMPLE_MIRROR_SESSION)
             {
                 continue;
             }
@@ -3960,7 +4024,9 @@ void check_acl_table_fields_and_acl_entry_fields()
          * check acl table flags and attr value type
          */
 
-        if (mtable->attrid == SAI_ACL_TABLE_ATTR_FIELD_ACL_RANGE_TYPE)
+        if ((mtable->attrid == SAI_ACL_TABLE_ATTR_FIELD_ACL_RANGE_TYPE) ||
+        ((mtable->attrid >= SAI_ACL_TABLE_ATTR_USER_DEFINED_FIELD_GROUP_MIN) &&
+        (mtable->attrid <= SAI_ACL_TABLE_ATTR_USER_DEFINED_FIELD_GROUP_MAX)))
         {
             /*
              * This field is exception, it's not bool, it's a list and it's
@@ -4063,7 +4129,7 @@ void check_acl_entry_actions()
             break;
         }
 
-        if (meta->attrid > SAI_ACL_ENTRY_ATTR_ACTION_END)
+        if ((meta->isextensionattr == false) && (meta->attrid > SAI_ACL_ENTRY_ATTR_ACTION_END))
         {
             break;
         }
@@ -4125,12 +4191,17 @@ void check_switch_attributes()
         const sai_attr_metadata_t *md = meta[index];
 
         /*
-         * Gerabox attributes can be marked as mandatory on create.
+         * Gearbox attributes can be marked as mandatory on create.
          */
 
         if (md->isoidattribute && md->ismandatoryoncreate)
         {
-            META_MD_ASSERT_FAIL(md, "Mandatroy on create can't be object id on SWITCH");
+            META_MD_ASSERT_FAIL(md, "Mandatory on create can't be object id on SWITCH");
+        }
+
+        if (md->isoidattribute && md->iscreateonly)
+        {
+            META_MD_ASSERT_FAIL(md, "Create only can't be object id on SWITCH");
         }
     }
 }
@@ -4212,7 +4283,7 @@ void check_enum_to_attr_map(
 
     /*
      * Check whether attribute enum declared has equal number of items as the
-     * number of declared attributes. Item siwth @ignore flag shluld be
+     * number of declared attributes. Item with @ignore flag should be
      * removed from enum and attribute should not be created.
      */
 
@@ -4267,7 +4338,7 @@ void check_object_ro_list(
         /*
          * We skip hostif table entry since there is no 1 object which can
          * identify all table entries. We would need to add one attribute for
-         * each used obect type port, lag, vlan etc.
+         * each used object type port, lag, vlan etc.
          */
 
         return;
@@ -4576,6 +4647,22 @@ void check_switch_notify_list()
     META_ASSERT_NULL(sai_metadata_switch_notify_attr[i]);
 }
 
+void check_switch_pointers_list()
+{
+    SAI_META_LOG_ENTER();
+
+    size_t i;
+
+    for (i = 0; i < sai_metadata_switch_pointers_attr_count; ++i)
+    {
+        META_ASSERT_NOT_NULL(sai_metadata_switch_pointers_attr[i]);
+    }
+
+    /* check for NULL guard */
+
+    META_ASSERT_NULL(sai_metadata_switch_pointers_attr[i]);
+}
+
 void check_defines()
 {
     SAI_META_LOG_ENTER();
@@ -4649,6 +4736,7 @@ int main(int argc, char **argv)
     check_acl_user_defined_field();
     check_label_size();
     check_switch_notify_list();
+    check_switch_pointers_list();
     check_defines();
     check_all_object_infos();
 

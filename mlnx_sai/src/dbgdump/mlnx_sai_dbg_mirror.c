@@ -49,7 +49,7 @@ static void SAI_dump_mirror_policer_getdb(_Out_ mlnx_mirror_policer_t *mirror_po
 
 static void SAI_dump_mirror_print(_In_ FILE *file, _In_ mlnx_mirror_vlan_t *erspan_vlan_header)
 {
-    uint32_t                  ii     = 0;
+    uint32_t                  ii = 0;
     sai_object_id_t           obj_id = SAI_NULL_OBJECT_ID;
     mlnx_mirror_vlan_t        curr_erspan_vlan_header;
     dbg_utils_table_columns_t mirror_clmns[] = {

@@ -35,7 +35,7 @@ static void SAI_dump_wred_getdb(_Out_ mlnx_wred_profile_t *wred_db)
 
 static void SAI_dump_wred_db_print(_In_ FILE *file, _In_ mlnx_wred_profile_t *wred_db)
 {
-    uint32_t                  ii     = 0;
+    uint32_t                  ii = 0;
     sai_object_id_t           obj_id = SAI_NULL_OBJECT_ID;
     mlnx_wred_profile_t       curr_wred_db;
     dbg_utils_table_columns_t wred_db_clmns[] = {

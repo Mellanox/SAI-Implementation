@@ -26,16 +26,16 @@
 #define DEFAULT_BFD_NETNS "/proc/1/net"
 
 PACKED(struct _mlnx_bfd_packet_t {
-           uint8_t vers_diag; /* Version and diagnostic. */
-           uint8_t flags; /* 2bit State field followed by flags. */
-           uint8_t mult;  /* Fault detection multiplier. */
-           uint8_t length; /* Length of this BFD message. */
-           uint32_t my_disc; /* My discriminator. */
-           uint32_t your_disc; /* Your discriminator. */
-           uint32_t min_tx; /* Desired minimum tx interval. */
-           uint32_t min_rx; /* Required minimum rx interval. */
-           uint32_t min_rx_echo; /* Required minimum echo rx interval. */
-       }, );
+    uint8_t vers_diag;        /* Version and diagnostic. */
+    uint8_t flags;        /* 2bit State field followed by flags. */
+    uint8_t mult;         /* Fault detection multiplier. */
+    uint8_t length;        /* Length of this BFD message. */
+    uint32_t my_disc;        /* My discriminator. */
+    uint32_t your_disc;        /* Your discriminator. */
+    uint32_t min_tx;        /* Desired minimum tx interval. */
+    uint32_t min_rx;        /* Required minimum rx interval. */
+    uint32_t min_rx_echo;        /* Required minimum echo rx interval. */
+}, );
 typedef struct _mlnx_bfd_packet_t mlnx_bfd_packet_t;
 
 static sx_verbosity_level_t LOG_VAR_NAME(__MODULE__) = SX_VERBOSITY_LEVEL_WARNING;
@@ -157,7 +157,7 @@ sai_status_t mlnx_bfd_session_oid_create(_In_ mlnx_shm_rm_array_idx_t idx, _Out_
 
     memset(oid, 0, sizeof(*oid));
 
-    mlnx_oid->object_type   = SAI_OBJECT_TYPE_BFD_SESSION;
+    mlnx_oid->object_type = SAI_OBJECT_TYPE_BFD_SESSION;
     mlnx_oid->id.bfd_db_idx = idx;
 
     return SAI_STATUS_SUCCESS;
@@ -200,12 +200,12 @@ static sai_status_t mlnx_fill_sdk_bfd_params(_In_ const mlnx_bfd_session_db_data
                            (0 << 2) |        /* A flag */
                            (0 << 1) |        /* D flag */
                            (0 << 0);         /* M flag */
-    tx_bfd_packet->mult        = bfd_db_data->multiplier;
-    tx_bfd_packet->length      = sizeof(*tx_bfd_packet);
-    tx_bfd_packet->my_disc     = htonl(bfd_db_data->local_discriminator);
-    tx_bfd_packet->your_disc   = htonl(bfd_db_data->remote_discriminator);
-    tx_bfd_packet->min_tx      = htonl(bfd_db_data->min_tx);
-    tx_bfd_packet->min_rx      = htonl(bfd_db_data->min_rx);
+    tx_bfd_packet->mult = bfd_db_data->multiplier;
+    tx_bfd_packet->length = sizeof(*tx_bfd_packet);
+    tx_bfd_packet->my_disc = htonl(bfd_db_data->local_discriminator);
+    tx_bfd_packet->your_disc = htonl(bfd_db_data->remote_discriminator);
+    tx_bfd_packet->min_tx = htonl(bfd_db_data->min_tx);
+    tx_bfd_packet->min_rx = htonl(bfd_db_data->min_rx);
     tx_bfd_packet->min_rx_echo = htonl(0); /* 0 - Not supported */
 
     rx_bfd_packet->vers_diag = (1 << 5) |    /* BFD version */
@@ -217,42 +217,42 @@ static sai_status_t mlnx_fill_sdk_bfd_params(_In_ const mlnx_bfd_session_db_data
                            (0 << 2) |        /* A flag */
                            (0 << 1) |        /* D flag */
                            (0 << 0);         /* M flag */
-    rx_bfd_packet->mult        = bfd_db_data->multiplier;
-    rx_bfd_packet->length      = sizeof(*rx_bfd_packet);
-    rx_bfd_packet->my_disc     = htonl(bfd_db_data->remote_discriminator);
-    rx_bfd_packet->your_disc   = htonl(bfd_db_data->local_discriminator);
-    rx_bfd_packet->min_tx      = htonl(bfd_db_data->min_tx);
-    rx_bfd_packet->min_rx      = htonl(bfd_db_data->min_rx);
+    rx_bfd_packet->mult = bfd_db_data->multiplier;
+    rx_bfd_packet->length = sizeof(*rx_bfd_packet);
+    rx_bfd_packet->my_disc = htonl(bfd_db_data->remote_discriminator);
+    rx_bfd_packet->your_disc = htonl(bfd_db_data->local_discriminator);
+    rx_bfd_packet->min_tx = htonl(bfd_db_data->min_tx);
+    rx_bfd_packet->min_rx = htonl(bfd_db_data->min_rx);
     rx_bfd_packet->min_rx_echo = htonl(0); /* 0 - Not supported */
 
-    tx_params->session_data.type                              = SX_BFD_ASYNC_ACTIVE_TX;
-    tx_data.packet_encap.encap_type                           = SX_BFD_UDP_OVER_IP;
-    tx_data.packet_encap.encap_data.udp_over_ip.src_udp_port  = bfd_db_data->udp_src_port;
+    tx_params->session_data.type = SX_BFD_ASYNC_ACTIVE_TX;
+    tx_data.packet_encap.encap_type = SX_BFD_UDP_OVER_IP;
+    tx_data.packet_encap.encap_data.udp_over_ip.src_udp_port = bfd_db_data->udp_src_port;
     tx_data.packet_encap.encap_data.udp_over_ip.dest_udp_port = (bfd_db_data->multihop ? 4784 : 3784);
-    tx_data.packet_encap.encap_data.udp_over_ip.src_ip_addr   = sdk_src_addr;
-    tx_data.packet_encap.encap_data.udp_over_ip.dest_ip_addr  = sdk_dst_addr;
-    tx_data.packet_encap.encap_data.udp_over_ip.ttl           = bfd_db_data->ttl;
-    tx_data.packet_encap.encap_data.udp_over_ip.dscp          = bfd_db_data->tos;
-    tx_data.interval                                          = bfd_db_data->min_tx;
-    tx_data.traffic_class                                     = bfd_db_data->traffic_class;
-    tx_params->session_data.data.tx_data                      = tx_data;
-    tx_params->packet.packet_buffer                           = (uint8_t*)tx_bfd_packet;
-    tx_params->packet.buffer_length                           = sizeof(*tx_bfd_packet);
-    tx_params->peer.peer_type                                 = SX_BFD_PEER_IP_AND_VRF;
-    tx_params->peer.peer_data.ip_and_vrf.ip_addr              = sdk_dst_addr;
-    tx_params->peer.peer_data.ip_and_vrf.vrf_id               = 0;
+    tx_data.packet_encap.encap_data.udp_over_ip.src_ip_addr = sdk_src_addr;
+    tx_data.packet_encap.encap_data.udp_over_ip.dest_ip_addr = sdk_dst_addr;
+    tx_data.packet_encap.encap_data.udp_over_ip.ttl = bfd_db_data->ttl;
+    tx_data.packet_encap.encap_data.udp_over_ip.dscp = bfd_db_data->tos;
+    tx_data.interval = bfd_db_data->min_tx;
+    tx_data.traffic_class = bfd_db_data->traffic_class;
+    tx_params->session_data.data.tx_data = tx_data;
+    tx_params->packet.packet_buffer = (uint8_t*)tx_bfd_packet;
+    tx_params->packet.buffer_length = sizeof(*tx_bfd_packet);
+    tx_params->peer.peer_type = SX_BFD_PEER_IP_AND_VRF;
+    tx_params->peer.peer_data.ip_and_vrf.ip_addr = sdk_dst_addr;
+    tx_params->peer.peer_data.ip_and_vrf.vrf_id = 0;
     memcpy(tx_params->peer.peer_data.ip_and_vrf.netns, DEFAULT_BFD_NETNS, sizeof(DEFAULT_BFD_NETNS));
     memcpy(tx_params->peer.peer_data.ip_and_vrf.default_netns, DEFAULT_BFD_NETNS, sizeof(DEFAULT_BFD_NETNS));
     tx_params->bfd_pid = 0;
 
-    rx_params->session_data.type                     = SX_BFD_ASYNC_ACTIVE_RX;
-    rx_params->session_data.data.rx_data.interval    = bfd_db_data->min_rx * bfd_db_data->multiplier;
+    rx_params->session_data.type = SX_BFD_ASYNC_ACTIVE_RX;
+    rx_params->session_data.data.rx_data.interval = bfd_db_data->min_rx * bfd_db_data->multiplier;
     rx_params->session_data.data.rx_data.opaque_data = opaque_data;
-    rx_params->packet.packet_buffer                  = (uint8_t*)rx_bfd_packet;
-    rx_params->packet.buffer_length                  = sizeof(*rx_bfd_packet);
-    rx_params->peer.peer_type                        = SX_BFD_PEER_IP_AND_VRF;
-    rx_params->peer.peer_data.ip_and_vrf.ip_addr     = sdk_dst_addr;
-    rx_params->peer.peer_data.ip_and_vrf.vrf_id      = 0;
+    rx_params->packet.packet_buffer = (uint8_t*)rx_bfd_packet;
+    rx_params->packet.buffer_length = sizeof(*rx_bfd_packet);
+    rx_params->peer.peer_type = SX_BFD_PEER_IP_AND_VRF;
+    rx_params->peer.peer_data.ip_and_vrf.ip_addr = sdk_dst_addr;
+    rx_params->peer.peer_data.ip_and_vrf.vrf_id = 0;
     memcpy(rx_params->peer.peer_data.ip_and_vrf.netns, DEFAULT_BFD_NETNS, sizeof(DEFAULT_BFD_NETNS));
     memcpy(rx_params->peer.peer_data.ip_and_vrf.default_netns, DEFAULT_BFD_NETNS, sizeof(DEFAULT_BFD_NETNS));
     rx_params->bfd_pid = 0;
@@ -266,10 +266,10 @@ static sai_status_t mlnx_bfd_session_destroy(_In_ mlnx_bfd_session_db_entry_t *b
     sx_bfd_session_params_t params = {0};
 
     params.session_data.type = SX_BFD_ASYNC_ACTIVE_RX;
-    sx_status                = sx_api_bfd_offload_set(gh_sdk,
-                                                      SX_ACCESS_CMD_DESTROY,
-                                                      &params,
-                                                      &bfd_session_db_entry->data.rx_session);
+    sx_status = sx_api_bfd_offload_set(gh_sdk,
+                                       SX_ACCESS_CMD_DESTROY,
+                                       &params,
+                                       &bfd_session_db_entry->data.rx_session);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Cannot remove RX BFD session id=%d, status=%s\n",
                    bfd_session_db_entry->data.rx_session,
@@ -278,10 +278,10 @@ static sai_status_t mlnx_bfd_session_destroy(_In_ mlnx_bfd_session_db_entry_t *b
     }
 
     params.session_data.type = SX_BFD_ASYNC_ACTIVE_TX;
-    sx_status                = sx_api_bfd_offload_set(gh_sdk,
-                                                      SX_ACCESS_CMD_DESTROY,
-                                                      &params,
-                                                      &bfd_session_db_entry->data.tx_session);
+    sx_status = sx_api_bfd_offload_set(gh_sdk,
+                                       SX_ACCESS_CMD_DESTROY,
+                                       &params,
+                                       &bfd_session_db_entry->data.tx_session);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Cannot remove TX BFD session id=%d, status=%s\n",
                    bfd_session_db_entry->data.tx_session,
@@ -301,16 +301,16 @@ static sai_status_t mlnx_set_offload_bfd_session(_Inout_ mlnx_bfd_session_db_dat
     bool                    is_rx_created = false;
     sx_bfd_init_params_t    bfd_init_params;
     mlnx_bfd_packet_t       tx_bfd_packet = {0};
-    sx_bfd_session_params_t tx_params     = {0};
+    sx_bfd_session_params_t tx_params = {0};
     mlnx_bfd_packet_t       rx_bfd_packet = {0};
-    sx_bfd_session_params_t rx_params     = {0};
+    sx_bfd_session_params_t rx_params = {0};
 
     assert(bfd_db_data);
     assert(cmd == SX_ACCESS_CMD_CREATE ||
            cmd == SX_ACCESS_CMD_EDIT);
 
     status = mlnx_fill_sdk_bfd_params(bfd_db_data,
-                                      *(uint64_t*)&bfd_session_db_index,
+                                      *(uint32_t*)&bfd_session_db_index,
                                       &tx_bfd_packet,
                                       &tx_params,
                                       &rx_bfd_packet,
@@ -364,7 +364,7 @@ static sai_status_t mlnx_bfd_session_counter_stats_get(_In_ mlnx_bfd_session_db_
                                                        _Out_ uint64_t                  *value)
 {
     sx_status_t            sx_status;
-    sx_access_cmd_t        cmd      = clear ? SX_ACCESS_CMD_READ_CLEAR : SX_ACCESS_CMD_READ;
+    sx_access_cmd_t        cmd = clear ? SX_ACCESS_CMD_READ_CLEAR : SX_ACCESS_CMD_READ;
     sx_bfd_offload_stats_t sx_stats = {0};
 
     assert(MLNX_BFD_STAT_ID_RANGE_CHECK(stat));
@@ -698,8 +698,13 @@ static const mlnx_attr_enum_info_t        bfd_session_enum_info[] = {
     [SAI_BFD_SESSION_ATTR_OFFLOAD_TYPE] = ATTR_ENUM_VALUES_LIST(
         SAI_BFD_SESSION_OFFLOAD_TYPE_NONE),
 };
+static const sai_stat_capability_t        bfd_session_stats_capabilities[] = {
+    { SAI_BFD_SESSION_STAT_IN_PACKETS, SAI_STATS_MODE_READ | SAI_STATS_MODE_READ_AND_CLEAR },
+    { SAI_BFD_SESSION_STAT_OUT_PACKETS, SAI_STATS_MODE_READ | SAI_STATS_MODE_READ_AND_CLEAR },
+    { SAI_BFD_SESSION_STAT_DROP_PACKETS, SAI_STATS_MODE_READ | SAI_STATS_MODE_READ_AND_CLEAR },
+};
 const mlnx_obj_type_attrs_info_t          mlnx_bfd_session_obj_type_info =
-{ bfd_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(bfd_session_enum_info)};
+{ bfd_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(bfd_session_enum_info), OBJ_STAT_CAP_INFO(bfd_session_stats_capabilities)};
 static sai_status_t mlnx_bfd_session_attr_get(_In_ const sai_object_key_t   *key,
                                               _Inout_ sai_attribute_value_t *value,
                                               _In_ uint32_t                  attr_index,
@@ -731,7 +736,7 @@ static sai_status_t mlnx_bfd_session_attr_get(_In_ const sai_object_key_t   *key
     }
 
     default_vr_id = g_sai_db_ptr->default_vrid;
-    bfd_db_data   = bfd_session_db_entry->data;
+    bfd_db_data = bfd_session_db_entry->data;
 
     sai_db_unlock();
 
@@ -1122,7 +1127,7 @@ static sai_status_t mlnx_create_bfd_session(_Out_ sai_object_id_t      *bfd_sess
     }
 
     bfd_session_db_entry->data = bfd_db_data;
-    is_db_filled               = true;
+    is_db_filled = true;
 
     status = mlnx_bfd_session_oid_create(bfd_session_db_index, bfd_session_id);
     if (SAI_ERR(status)) {

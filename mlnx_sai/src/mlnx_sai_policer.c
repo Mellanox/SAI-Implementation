@@ -19,7 +19,7 @@
  *  NOTES:
  *   SAI policer is capable of binding to ACL, trap group, port.
  *   For each type of these objects SDK defines different policer types.
- *   SAI policer internally uses different SDK policers for bidning to menitoned object types.
+ *   SAI policer internally uses different SDK policers for binding to mentioned object types.
  *
  *   The mlnx_policer_db_entry_t structure contains ACL and trap group related SDK resource handles.
  *   mlnx_port_policer_info_t structure contains information about SDK storm control policers used internally by a SAI policer.
@@ -51,7 +51,7 @@
 #undef  __MODULE__
 #define __MODULE__ SAI_POLICER
 
-#define policer_db_cl_plock_excl_acquire(lock) \
+#define policer_db_cl_plock_excl_acquire(lock)         \
     {SX_LOG_DBG("policer_db_cl_plock_excl_acquire\n"); \
      cl_plock_excl_acquire(lock); }
 #define policer_db_cl_plock_release(lock) {SX_LOG_DBG("policer_db_cl_plock_release\n"); cl_plock_release(lock); }
@@ -280,9 +280,9 @@ static const sai_vendor_attribute_entry_t policer_vendor_attribs[] = {
     }
 };
 static const mlnx_attr_enum_info_t        policer_enum_info[] = {
-    [SAI_POLICER_ATTR_METER_TYPE]          = ATTR_ENUM_VALUES_ALL(),
-    [SAI_POLICER_ATTR_MODE]                = ATTR_ENUM_VALUES_ALL(),
-    [SAI_POLICER_ATTR_COLOR_SOURCE]        = ATTR_ENUM_VALUES_ALL(),
+    [SAI_POLICER_ATTR_METER_TYPE] = ATTR_ENUM_VALUES_ALL(),
+    [SAI_POLICER_ATTR_MODE] = ATTR_ENUM_VALUES_ALL(),
+    [SAI_POLICER_ATTR_COLOR_SOURCE] = ATTR_ENUM_VALUES_ALL(),
     [SAI_POLICER_ATTR_GREEN_PACKET_ACTION] = ATTR_ENUM_VALUES_LIST(
         SAI_PACKET_ACTION_FORWARD
         ),
@@ -294,8 +294,11 @@ static const mlnx_attr_enum_info_t        policer_enum_info[] = {
         SAI_PACKET_ACTION_DROP
         ),
 };
+static const sai_stat_capability_t        policer_stats_capabilities[] = {
+    { SAI_POLICER_STAT_PACKETS, SAI_STATS_MODE_READ | SAI_STATS_MODE_READ_AND_CLEAR },
+};
 const mlnx_obj_type_attrs_info_t          mlnx_policer_obj_type_info =
-{ policer_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(policer_enum_info)};
+{ policer_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(policer_enum_info), OBJ_STAT_CAP_INFO(policer_stats_capabilities)};
 static void log_sx_policer_attrib_color_action(_In_ sx_policer_action_t sx_policer_action, _In_ char* action_name)
 {
     char* val = NULL;
@@ -735,6 +738,7 @@ static sai_status_t sai_policer_green_packet_action_get(_In_ const sai_object_ke
     UNREFERENCED_PARAMETER(arg);
 
     sai_status_t status;
+
     SX_LOG_ENTER();
     status = sai_policer_packet_action_get_internal(key, MLNX_POLICER_COLOR_GREEN, value);
     SX_LOG_EXIT();
@@ -789,15 +793,15 @@ static sai_status_t sai_policer_get_packet_flags_for_policer_type(_In_ mlnx_port
 
     switch (port_policer_type) {
     case MLNX_PORT_POLICER_TYPE_REGULAR_INDEX:
-        packet_types.uc                  =
-            packet_types.mc              =
-                packet_types.bc          =
-                    packet_types.uuc     =
+        packet_types.uc =
+            packet_types.mc =
+                packet_types.bc =
+                    packet_types.uuc =
                         packet_types.umc = true;
 
         if (SAI_NULL_OBJECT_ID != port_config->port_policers[MLNX_PORT_POLICER_TYPE_FLOOD_INDEX]) {
             SX_LOG_DBG("removing flood traffic flags from regular storm policer\n");
-            packet_types.uc      =
+            packet_types.uc =
                 packet_types.umc = false;
         }
         if (SAI_NULL_OBJECT_ID != port_config->port_policers[MLNX_PORT_POLICER_TYPE_BROADCAST_INDEX]) {
@@ -811,7 +815,7 @@ static sai_status_t sai_policer_get_packet_flags_for_policer_type(_In_ mlnx_port
         break;
 
     case MLNX_PORT_POLICER_TYPE_FLOOD_INDEX:
-        packet_types.uc      =
+        packet_types.uc =
             packet_types.umc = true;
         break;
 
@@ -842,7 +846,7 @@ static sai_status_t sai_policer_commit_changes_to_port_bindings(sai_object_id_t 
     sai_status_t                   sai_status;
     sx_status_t                    sx_status;
     mlnx_port_config_t            *port_config;
-    mlnx_policer_db_entry_t      * policer_entry     = NULL;
+    mlnx_policer_db_entry_t      * policer_entry = NULL;
     uint32_t                       storm_control_ind = 0;
     sx_port_storm_control_params_t storm_ctrl_params;
     uint32_t                       port_ind;
@@ -866,7 +870,7 @@ static sai_status_t sai_policer_commit_changes_to_port_bindings(sai_object_id_t 
                     return sai_status;
                 }
                 storm_ctrl_params.policer_params = policer_entry->sx_policer_attr;
-                /* We are using the oritinal policer settings saved in the DB.
+                /* We are using the original policer settings saved in the DB.
                  *  But need to set this flag to false for storm policer API to work.*/
                 storm_ctrl_params.policer_params.is_host_ifc_policer = false;
                 if (SX_STATUS_SUCCESS !=
@@ -1048,7 +1052,7 @@ static sai_status_t sai_policer_attr_set(_In_ const sai_object_key_t* key,
     }
 
     if (SAI_STATUS_SUCCESS != (sai_status = sai_policer_commit_changes(key->key.object_id))) {
-        SX_LOG_ERR("Failed to commiting policer changes for sai_policer:0x%" PRIx64 ", attribute: %s.\n",
+        SX_LOG_ERR("Failed to commit policer changes for sai_policer:0x%" PRIx64 ", attribute: %s.\n",
                    key->key.object_id,
                    attr_name);
         policer_db_cl_plock_release(&g_sai_db_ptr->p_lock);
@@ -1075,9 +1079,9 @@ static sai_status_t sai_policer_attr_set_wrapper(_In_ const sai_object_key_t    
     UNREFERENCED_PARAMETER(arg);
 
     SX_LOG_ENTER();
-    sai_attr.id    = attr_id;
+    sai_attr.id = attr_id;
     sai_attr.value = *value;
-    sai_status     = sai_policer_attr_set(key, sai_attr, attr_name);
+    sai_status = sai_policer_attr_set(key, sai_attr, attr_name);
     SX_LOG_DBG("Result of setting %s:%d\n", attr_name, sai_status);
     SX_LOG_EXIT();
 
@@ -1334,7 +1338,7 @@ static sai_status_t fill_meter_type_attrib(_In_ uint32_t               attr_coun
 {
     SX_LOG_ENTER();
     const sai_attribute_value_t* attr_value = NULL;
-    uint32_t                     index      = 0;
+    uint32_t                     index = 0;
     sai_status_t                 status;
     int32_t                      value;
 
@@ -1482,7 +1486,7 @@ static sai_status_t fill_policer_pbs_attrib(_In_ uint32_t                    att
                                             _Inout_ sx_policer_attributes_t* sx_policer_attribs)
 {
     const sai_attribute_value_t* attr_value = NULL;
-    uint32_t                     index      = 0;
+    uint32_t                     index = 0;
     sai_status_t                 status;
 
     if (SAI_STATUS_SUCCESS !=
@@ -1867,7 +1871,7 @@ static sai_status_t db_write_sai_policer_attribs(_In_ sai_object_id_t          s
         return SAI_STATUS_INVALID_OBJECT_ID;
     }
 
-    g_sai_db_ptr->policers_db[db_policers_entry_index].sx_policer_attr          = *sx_policer_attr;
+    g_sai_db_ptr->policers_db[db_policers_entry_index].sx_policer_attr = *sx_policer_attr;
     g_sai_db_ptr->policers_db[db_policers_entry_index].sx_policer_attr.ir_units = SX_POLICER_IR_UNITS_10_POWER_3_E;
     SX_LOG_EXIT();
     return SAI_STATUS_SUCCESS;
@@ -1877,9 +1881,9 @@ void db_reset_policer_entry(_In_ uint32_t db_policers_entry_index)
 {
     SX_LOG_ENTER();
     assert(db_policers_entry_index < MAX_POLICERS);
-    g_sai_db_ptr->policers_db[db_policers_entry_index].valid                = false;
-    g_sai_db_ptr->policers_db[db_policers_entry_index].sx_policer_id_trap   = SX_POLICER_ID_INVALID;
-    g_sai_db_ptr->policers_db[db_policers_entry_index].sx_policer_id_acl    = SX_POLICER_ID_INVALID;
+    g_sai_db_ptr->policers_db[db_policers_entry_index].valid = false;
+    g_sai_db_ptr->policers_db[db_policers_entry_index].sx_policer_id_trap = SX_POLICER_ID_INVALID;
+    g_sai_db_ptr->policers_db[db_policers_entry_index].sx_policer_id_acl = SX_POLICER_ID_INVALID;
     g_sai_db_ptr->policers_db[db_policers_entry_index].sx_policer_id_mirror = SX_POLICER_ID_INVALID;
     memset(&(g_sai_db_ptr->policers_db[db_policers_entry_index].sx_policer_attr), 0,
            sizeof(g_sai_db_ptr->policers_db[db_policers_entry_index].sx_policer_attr));
@@ -1905,11 +1909,6 @@ uint32_t mlnx_policer_db_free_entries_count(bool is_hostif)
 
     if (is_hostif) {
         rm_limit = g_resource_limits.policer_host_ifc_pool_size;
-        if (mlnx_chip_is_spc2or3()) {
-            /* currently RM reports 64 host ifc policers for SPC2/3, but PRM has only 56. SDK will allow to create 64
-             *  but FW will fail binding ID over 56. Allocation is done in chunks of 4 so only 48 can be used (#2260871) */
-            rm_limit = 48;
-        }
     } else {
         rm_limit = g_resource_limits.policer_pool_size;
     }
@@ -1919,7 +1918,8 @@ uint32_t mlnx_policer_db_free_entries_count(bool is_hostif)
     }
 
     if (is_hostif) {
-        return rm_limit - hostif_policers_created;
+        /* Allocation of policers is done in chunks of 4 in FW, and sometimes may fail with ID over max (as #2260871) */
+        return rm_limit - hostif_policers_created - 4;
     } else {
         return rm_limit - policers_created;
     }
@@ -1958,9 +1958,9 @@ sai_status_t db_init_sai_policer_data(_In_ sx_policer_attributes_t* policer_attr
 
     db_reset_policer_entry(ii);
 
-    g_sai_db_ptr->policers_db[ii].valid                    = true;
+    g_sai_db_ptr->policers_db[ii].valid = true;
     g_sai_db_ptr->policers_db[ii].sx_policer_attr.ir_units = SX_POLICER_IR_UNITS_10_POWER_3_E;
-    g_sai_db_ptr->policers_db[ii].sx_policer_attr          = *policer_attr;
+    g_sai_db_ptr->policers_db[ii].sx_policer_attr = *policer_attr;
 
     *db_policers_entry_index_p = ii;
 
@@ -1998,7 +1998,7 @@ sai_status_t db_find_sai_policer_entry_ind(_In_ sx_policer_id_t sx_policer, _Out
         status = SAI_STATUS_ITEM_NOT_FOUND;
     } else {
         *entry_index = policer_entry_ind;
-        status       = SAI_STATUS_SUCCESS;
+        status = SAI_STATUS_SUCCESS;
     }
 
     return status;
@@ -2013,9 +2013,9 @@ static sai_status_t mlnx_sai_create_policer(_Out_ sai_object_id_t      *policer_
     sai_status_t            sai_status;
     sai_object_id_t         sai_policer = SAI_NULL_OBJECT_ID;
     sx_policer_attributes_t sai_policer_attr;
-    uint32_t                sai_policer_db_index             = 0;
+    uint32_t                sai_policer_db_index = 0;
     char                    list_str[MAX_LIST_VALUE_STR_LEN] = { 0 };
-    char                    key_str[MAX_KEY_STR_LEN]         = { 0 };
+    char                    key_str[MAX_KEY_STR_LEN] = { 0 };
 
     SX_LOG_ENTER();
 
@@ -2092,7 +2092,7 @@ static sai_status_t mlnx_validate_port_policer_for_remove(_In_ sai_object_id_t s
     uint32_t                 port_ind, ii;
     sai_status_t             status;
     mlnx_port_config_t      *port_config;
-    mlnx_policer_db_entry_t* policer_db_data    = NULL;
+    mlnx_policer_db_entry_t* policer_db_data = NULL;
     bool                     is_used_for_mirror = false;
 
     SX_LOG_ENTER();
@@ -2138,7 +2138,7 @@ static sai_status_t mlnx_sai_remove_policer(_In_ sai_object_id_t sai_policer_id)
     sx_status_t              sx_status;
     sx_policer_attributes_t  policer_attr;
     char                     key_str[MAX_KEY_STR_LEN] = { 0 };
-    mlnx_policer_db_entry_t* policer_db_data          = NULL;
+    mlnx_policer_db_entry_t* policer_db_data = NULL;
     uint32_t                 db_policers_entry_index;
     sai_object_type_t        obj_type;
 
@@ -2235,7 +2235,7 @@ exit:
 static sai_status_t mlnx_sai_set_policer_attribute(_In_ sai_object_id_t policer_id, _In_ const sai_attribute_t *attr)
 {
     sai_status_t           status;
-    const sai_object_key_t key                      = { .key.object_id = policer_id };
+    const sai_object_key_t key = { .key.object_id = policer_id };
     char                   key_str[MAX_KEY_STR_LEN] = { 0 };
 
     SX_LOG_ENTER();
@@ -2252,7 +2252,7 @@ static sai_status_t mlnx_sai_get_policer_attribute(_In_ sai_object_id_t     poli
                                                    _In_ uint32_t            attr_count,
                                                    _Inout_ sai_attribute_t *attr_list)
 {
-    const sai_object_key_t key                      = { .key.object_id = policer_id };
+    const sai_object_key_t key = { .key.object_id = policer_id };
     char                   key_str[MAX_KEY_STR_LEN] = { 0 };
     sai_status_t           status;
 
@@ -2275,9 +2275,9 @@ sai_status_t mlnx_policer_stats_clear(_In_ sx_policer_id_t sx_policer)
     memset(&policer_counters_clear, 0, sizeof(policer_counters_clear));
 
     policer_counters_clear.clear_violation_counter = true;
-    sx_status                                      = sx_api_policer_counters_clear_set(gh_sdk,
-                                                                                       sx_policer,
-                                                                                       &policer_counters_clear);
+    sx_status = sx_api_policer_counters_clear_set(gh_sdk,
+                                                  sx_policer,
+                                                  &policer_counters_clear);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to clear set sx policer %lu counter - %s\n", sx_policer, SX_STATUS_MSG(sx_status));
         return sdk_to_sai(sx_status);
@@ -2544,7 +2544,7 @@ static sai_status_t sai_policer_remove_packets_for_type_from_all_traffic(
     }
     switch (port_policer_type_to_remove) {
     case MLNX_PORT_POLICER_TYPE_FLOOD_INDEX:
-        packet_types_out->uc      =
+        packet_types_out->uc =
             packet_types_out->umc = false;
         break;
 
@@ -2588,15 +2588,15 @@ static sai_status_t sai_policer_apply_packet_types_to_all_traffic_policer(_In_ m
         (sai_status =
              db_get_sai_policer_data(port_config->port_policers[MLNX_PORT_POLICER_TYPE_REGULAR_INDEX],
                                      &policer_db_entry))) {
-        SX_LOG_ERR("Failed to retrieve all traffic policer db entry. sai policer:0x%" PRIx64 ", pord_db:%d\n",
+        SX_LOG_ERR("Failed to retrieve all traffic policer db entry. sai policer:0x%" PRIx64 ", port_db:%d\n",
                    port_config->port_policers[MLNX_PORT_POLICER_TYPE_REGULAR_INDEX], port_config->index);
         SX_LOG_EXIT();
         return sai_status;
     }
-    storm_ctrl_params.packet_types   = new_packet_types;
+    storm_ctrl_params.packet_types = new_packet_types;
     storm_ctrl_params.policer_params = policer_db_entry->sx_policer_attr;
 
-    /* We are using the oritinal policer settings saved in the DB.
+    /* We are using the original policer settings saved in the DB.
      *  But need to set this flag to false for storm policer API to work. */
     storm_ctrl_params.policer_params.is_host_ifc_policer = false;
     if (SX_STATUS_SUCCESS !=
@@ -2695,7 +2695,7 @@ static sai_status_t setup_storm_item(_In_ sai_object_id_t        sai_policer,
         }
     }
     storm_ctrl_params.policer_params = policer_entry->sx_policer_attr;
-    /* We are using the oritinal policer settings saved in the DB.
+    /* We are using the original policer settings saved in the DB.
      *  But need to set this flag to false for storm policer API to work.*/
     storm_ctrl_params.policer_params.is_host_ifc_policer = false;
     if (SX_STATUS_SUCCESS !=
@@ -2792,7 +2792,7 @@ sai_status_t mlnx_sai_unbind_policer_from_port(_In_ sai_object_id_t           sa
     sai_status_t                   sai_status;
     mlnx_port_config_t            *port_config;
     mlnx_policer_db_entry_t       *policer_entry = NULL;
-    sai_object_id_t                sai_policer   = SAI_NULL_OBJECT_ID;
+    sai_object_id_t                sai_policer = SAI_NULL_OBJECT_ID;
     sx_status_t                    sx_status;
     sx_port_storm_control_params_t storm_ctrl_params;
     sx_port_packet_types_t         all_traffic_packet_types;
@@ -2837,7 +2837,7 @@ sai_status_t mlnx_sai_unbind_policer_from_port(_In_ sai_object_id_t           sa
 
     if (SAI_NULL_OBJECT_ID == port_config->port_policers[bind_params->port_policer_type]) {
         /* no sai policer to unbind */
-        SX_LOG_WRN("sai port at port_db[%d]==:0x%" PRIx64 " has no policer binding for policer type:%d\n",
+        SX_LOG_NTC("sai port at port_db[%d]==:0x%" PRIx64 " has no policer binding for policer type:%d\n",
                    port_config->index,
                    port_config->saiport,
                    bind_params->port_policer_type);
@@ -2911,7 +2911,7 @@ static sai_status_t mlnx_sai_get_or_create_sx_policer_for_bind(_In_ sai_object_i
 {
     sai_status_t             sai_status;
     sx_status_t              sx_status;
-    mlnx_policer_db_entry_t *policer_data   = NULL;
+    mlnx_policer_db_entry_t *policer_data = NULL;
     sx_policer_id_t         *new_sx_policer = NULL;
 
     SX_LOG_ENTER();
@@ -2923,10 +2923,10 @@ static sai_status_t mlnx_sai_get_or_create_sx_policer_for_bind(_In_ sai_object_i
     SX_LOG_DBG("is_host_if_policer:%d\n", is_host_if_policer);
     log_sx_policer_attributes(policer_data->sx_policer_id_trap, &(policer_data->sx_policer_attr));
     if (is_host_if_policer) {
-        new_sx_policer                                    = &policer_data->sx_policer_id_trap;
+        new_sx_policer = &policer_data->sx_policer_id_trap;
         policer_data->sx_policer_attr.is_host_ifc_policer = true;
     } else {
-        new_sx_policer                                    = &policer_data->sx_policer_id_acl;
+        new_sx_policer = &policer_data->sx_policer_id_acl;
         policer_data->sx_policer_attr.is_host_ifc_policer = false;
     }
 

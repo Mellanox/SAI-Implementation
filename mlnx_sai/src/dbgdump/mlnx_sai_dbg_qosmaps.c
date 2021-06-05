@@ -118,10 +118,10 @@ static void SAI_dump_qos_maps_db_print(_In_ FILE *file, _In_ mlnx_qos_map_t *qos
     mlnx_qos_map_t            curr_qos_maps_db;
     sx_cos_priority_color_t   prio_color;
     sx_cos_pcp_dei_t          pcp_dei;
-    sx_cos_dscp_t             dscp                = 0;
-    sx_cos_traffic_class_t    queue               = 0;
-    uint8_t                   pg                  = 0;
-    uint8_t                   pfc                 = 0;
+    sx_cos_dscp_t             dscp = 0;
+    sx_cos_traffic_class_t    queue = 0;
+    uint8_t                   pg = 0;
+    uint8_t                   pfc = 0;
     dbg_utils_table_columns_t qos_maps_db_clmns[] = {
         {"db idx", 11, PARAM_UINT32_E, &ii},
         {"type",   22, PARAM_STRING_E, &type_str},
@@ -275,30 +275,30 @@ static void SAI_dump_qos_maps_db_print(_In_ FILE *file, _In_ mlnx_qos_map_t *qos
                 switch (qos_maps_db[ii].type) {
                 /*case SAI_QOS_MAP_TYPE_DOT1P_TO_TC:*/
                 case SAI_QOS_MAP_TYPE_DOT1P_TO_TC:
-                    pcp_dei.pcp         = qos_maps_db[ii].from.pcp_dei[jj].pcp;
-                    pcp_dei.dei         = qos_maps_db[ii].from.pcp_dei[jj].dei;
+                    pcp_dei.pcp = qos_maps_db[ii].from.pcp_dei[jj].pcp;
+                    pcp_dei.dei = qos_maps_db[ii].from.pcp_dei[jj].dei;
                     prio_color.priority = qos_maps_db[ii].to.prio_color[jj].priority;
                     dbg_utils_print_table_data_line(file, qos_maps_param_dot1p_2_tc_clmns);
                     break;
 
                 /*case SAI_QOS_MAP_TYPE_DOT1P_TO_COLOR:*/
                 case SAI_QOS_MAP_TYPE_DOT1P_TO_COLOR:
-                    pcp_dei.pcp      = qos_maps_db[ii].from.pcp_dei[jj].pcp;
-                    pcp_dei.dei      = qos_maps_db[ii].from.pcp_dei[jj].dei;
+                    pcp_dei.pcp = qos_maps_db[ii].from.pcp_dei[jj].pcp;
+                    pcp_dei.dei = qos_maps_db[ii].from.pcp_dei[jj].dei;
                     prio_color.color = qos_maps_db[ii].to.prio_color[jj].color;
                     dbg_utils_print_table_data_line(file, qos_maps_param_dot1p_2_color_clmns);
                     break;
 
                 /*case SAI_QOS_MAP_TYPE_DSCP_TO_TC:*/
                 case SAI_QOS_MAP_TYPE_DSCP_TO_TC:
-                    dscp                = qos_maps_db[ii].from.dscp[jj];
+                    dscp = qos_maps_db[ii].from.dscp[jj];
                     prio_color.priority = qos_maps_db[ii].to.prio_color[jj].priority;
                     dbg_utils_print_table_data_line(file, qos_maps_param_dscp_2_tc_clmns);
                     break;
 
                 /*case SAI_QOS_MAP_TYPE_DSCP_TO_COLOR:*/
                 case SAI_QOS_MAP_TYPE_DSCP_TO_COLOR:
-                    dscp             = qos_maps_db[ii].from.dscp[jj];
+                    dscp = qos_maps_db[ii].from.dscp[jj];
                     prio_color.color = qos_maps_db[ii].to.prio_color[jj].color;
                     dbg_utils_print_table_data_line(file, qos_maps_param_dscp_2_color_clmns);
                     break;
@@ -306,44 +306,44 @@ static void SAI_dump_qos_maps_db_print(_In_ FILE *file, _In_ mlnx_qos_map_t *qos
                 /*case SAI_QOS_MAP_TYPE_TC_TO_QUEUE:*/
                 case SAI_QOS_MAP_TYPE_TC_TO_QUEUE:
                     prio_color.priority = qos_maps_db[ii].from.prio_color[jj].priority;
-                    queue               = qos_maps_db[ii].to.queue[jj];
+                    queue = qos_maps_db[ii].to.queue[jj];
                     dbg_utils_print_table_data_line(file, qos_maps_param_tc_2_queue_clmns);
                     break;
 
                 /*case SAI_QOS_MAP_TYPE_TC_AND_COLOR_TO_DSCP:*/
                 case SAI_QOS_MAP_TYPE_TC_AND_COLOR_TO_DSCP:
                     prio_color.priority = qos_maps_db[ii].from.prio_color[jj].priority;
-                    prio_color.color    = qos_maps_db[ii].from.prio_color[jj].color;
-                    queue               = qos_maps_db[ii].to.queue[jj];
+                    prio_color.color = qos_maps_db[ii].from.prio_color[jj].color;
+                    queue = qos_maps_db[ii].to.queue[jj];
                     dbg_utils_print_table_data_line(file, qos_maps_param_tc_color_2_dscp_clmns);
                     break;
 
                 /*case SAI_QOS_MAP_TYPE_TC_AND_COLOR_TO_DOT1P:*/
                 case SAI_QOS_MAP_TYPE_TC_AND_COLOR_TO_DOT1P:
                     prio_color.priority = qos_maps_db[ii].from.prio_color[jj].priority;
-                    prio_color.color    = qos_maps_db[ii].from.prio_color[jj].color;
-                    pcp_dei.pcp         = qos_maps_db[ii].to.pcp_dei[jj].pcp;
-                    pcp_dei.dei         = qos_maps_db[ii].to.pcp_dei[jj].dei;
+                    prio_color.color = qos_maps_db[ii].from.prio_color[jj].color;
+                    pcp_dei.pcp = qos_maps_db[ii].to.pcp_dei[jj].pcp;
+                    pcp_dei.dei = qos_maps_db[ii].to.pcp_dei[jj].dei;
                     dbg_utils_print_table_data_line(file, qos_maps_param_tc_color_2_dot1p_clmns);
                     break;
 
                 /*case SAI_QOS_MAP_TYPE_TC_TO_PRIORITY_GROUP:*/
                 case SAI_QOS_MAP_TYPE_TC_TO_PRIORITY_GROUP:
                     prio_color.priority = qos_maps_db[ii].from.prio_color[jj].priority;
-                    pg                  = qos_maps_db[ii].to.pg[jj];
+                    pg = qos_maps_db[ii].to.pg[jj];
                     dbg_utils_print_table_data_line(file, qos_maps_param_tc_2_pg_clmns);
                     break;
 
                 /*case SAI_QOS_MAP_TYPE_PFC_PRIORITY_TO_PRIORITY_GROUP:*/
                 case SAI_QOS_MAP_TYPE_PFC_PRIORITY_TO_PRIORITY_GROUP:
                     pfc = qos_maps_db[ii].from.pfc[jj];
-                    pg  = qos_maps_db[ii].to.pg[jj];
+                    pg = qos_maps_db[ii].to.pg[jj];
                     dbg_utils_print_table_data_line(file, qos_maps_param_pfc_2_pg_clmns);
                     break;
 
                 /*case SAI_QOS_MAP_TYPE_PFC_PRIORITY_TO_QUEUE:*/
                 case SAI_QOS_MAP_TYPE_PFC_PRIORITY_TO_QUEUE:
-                    pfc   = qos_maps_db[ii].from.pfc[jj];
+                    pfc = qos_maps_db[ii].from.pfc[jj];
                     queue = qos_maps_db[ii].to.queue[jj];
                     dbg_utils_print_table_data_line(file, qos_maps_param_pfc_2_queue_clmns);
                     break;
@@ -358,8 +358,8 @@ static void SAI_dump_qos_maps_db_print(_In_ FILE *file, _In_ mlnx_qos_map_t *qos
 
 static void SAI_dump_switch_qos_maps_print(_In_ FILE *file, _In_ uint32_t *switch_qos_maps)
 {
-    uint32_t                  ii                      = 0;
-    uint32_t                  curr_switch_qos_maps    = 0;
+    uint32_t                  ii = 0;
+    uint32_t                  curr_switch_qos_maps = 0;
     dbg_utils_table_columns_t switch_qos_maps_clmns[] = {
         {"db idx",          7,  PARAM_UINT32_E, &ii},
         {"switch qos maps", 15, PARAM_UINT32_E, &curr_switch_qos_maps},
@@ -392,8 +392,8 @@ static void SAI_dump_switch_default_tc_print(_In_ FILE *file, _In_ uint8_t *swit
 
 static void SAI_dump_is_switch_priority_lossless_print(_In_ FILE *file, _In_ bool *is_switch_priority_lossless)
 {
-    uint32_t                  ii                     = 0;
-    uint32_t                  curr_is_sp_lossless    = 0;
+    uint32_t                  ii = 0;
+    uint32_t                  curr_is_sp_lossless = 0;
     dbg_utils_table_columns_t is_sp_lossless_clmns[] = {
         {"sp idx",          7,  PARAM_UINT32_E, &ii},
         {"is lossless",     12, PARAM_UINT32_E, &curr_is_sp_lossless},
@@ -416,13 +416,13 @@ static void SAI_dump_is_switch_priority_lossless_print(_In_ FILE *file, _In_ boo
 
 void SAI_dump_qosmaps(_In_ FILE *file)
 {
-    mlnx_qos_map_t *qos_maps_db                 = NULL;
-    uint32_t       *switch_qos_maps             = NULL;
-    uint8_t         switch_default_tc           = 0;
+    mlnx_qos_map_t *qos_maps_db = NULL;
+    uint32_t       *switch_qos_maps = NULL;
+    uint8_t         switch_default_tc = 0;
     bool           *is_switch_priority_lossless = NULL;
 
-    qos_maps_db                 = (mlnx_qos_map_t*)calloc(MAX_QOS_MAPS, sizeof(mlnx_qos_map_t));
-    switch_qos_maps             = (uint32_t*)calloc(MLNX_QOS_MAP_TYPES_MAX, sizeof(uint32_t));
+    qos_maps_db = (mlnx_qos_map_t*)calloc(MAX_QOS_MAPS, sizeof(mlnx_qos_map_t));
+    switch_qos_maps = (uint32_t*)calloc(MLNX_QOS_MAP_TYPES_MAX, sizeof(uint32_t));
     is_switch_priority_lossless = (bool*)calloc(MAX_LOSSLESS_SP, sizeof(bool));
 
     if ((!qos_maps_db) || (!switch_qos_maps) || (!is_switch_priority_lossless)) {

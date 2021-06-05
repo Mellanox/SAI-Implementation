@@ -1,12 +1,12 @@
-Mellanox SAI implementation
+Nvidia SAI implementation
 ============================
 
-This repository contains SAI implementation for Mellanox hardware
+This repository contains SAI implementation for Nvidia hardware
 
-SAI headers are based on latest head (as of Oct 30, 2020) of branch v1.6 (release v1.6.6) SAI headers can be 
+SAI headers are based on latest head (as of Apr 5, 2021) of branch v1.8 (release v1.8.1) SAI headers can be 
 downloaded from https://github.com/opencomputeproject/SAI/
 
-The implementation is written over Mellanox SDK API. The API and documentation for it, are available in
+The implementation is written over Nvidia SDK API. The API and documentation for it, are available in
 https://github.com/Mellanox/SwitchRouterSDK-interfaces
 
 Compilation is done with the flag USE_SAI_INTERFACE=1

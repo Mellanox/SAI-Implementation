@@ -35,7 +35,7 @@ static void SAI_dump_scheduler_getdb(_Out_ mlnx_sched_profile_t *sched_db)
 
 static void SAI_dump_sched_db_print(_In_ FILE *file, _In_ mlnx_sched_profile_t *sched_db)
 {
-    uint32_t                  ii     = 0;
+    uint32_t                  ii = 0;
     sai_object_id_t           obj_id = SAI_NULL_OBJECT_ID;
     mlnx_sched_profile_t      curr_sched_db;
     dbg_utils_table_columns_t sched_db_clmns[] = {

@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -195,6 +195,7 @@
     <ClCompile Include="src\dbgdump\mlnx_sai_dbg_debug_counter.c" />
     <ClCompile Include="src\dbgdump\mlnx_sai_dbg_hash.c" />
     <ClCompile Include="src\dbgdump\mlnx_sai_dbg_hostintf.c" />
+    <ClCompile Include="src\dbgdump\mlnx_sai_dbg_isolation_group.c" />
     <ClCompile Include="src\dbgdump\mlnx_sai_dbg_mirror.c" />
     <ClCompile Include="src\dbgdump\mlnx_sai_dbg_policer.c" />
     <ClCompile Include="src\dbgdump\mlnx_sai_dbg_port.c" />
@@ -205,6 +206,7 @@
     <ClCompile Include="src\dbgdump\mlnx_sai_dbg_stp.c" />
     <ClCompile Include="src\dbgdump\mlnx_sai_dbg_tunnel.c" />
     <ClCompile Include="src\dbgdump\mlnx_sai_dbg_udf.c" />
+    <ClCompile Include="src\dbgdump\mlnx_sai_dbg_utils.c" />
     <ClCompile Include="src\dbgdump\mlnx_sai_dbg_vlan.c" />
     <ClCompile Include="src\dbgdump\mlnx_sai_dbg_wred.c" />
     <ClCompile Include="src\fx_base_acl_validation.c" />
@@ -221,11 +223,13 @@
     <ClCompile Include="src\mlnx_sai_bfd.c" />
     <ClCompile Include="src\mlnx_sai_bridge.c" />
     <ClCompile Include="src\mlnx_sai_buffer.c" />
+    <ClCompile Include="src\mlnx_sai_counter.c" />
     <ClCompile Include="src\mlnx_sai_debug_counter.c" />
     <ClCompile Include="src\mlnx_sai_fdb.c" />
     <ClCompile Include="src\mlnx_sai_hash.c" />
     <ClCompile Include="src\mlnx_sai_host_interface.c" />
     <ClCompile Include="src\mlnx_sai_interfacequery.c" />
+    <ClCompile Include="src\mlnx_sai_isolation_group.c" />
     <ClCompile Include="src\mlnx_sai_l2mcgroup.c" />
     <ClCompile Include="src\mlnx_sai_lag.c" />
     <ClCompile Include="src\mlnx_sai_mirror.c" />

@@ -1,5 +1,5 @@
 /*
-Copyright 2018 Mellanox.
+Copyright 2021 Mellanox.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -3030,6 +3030,7 @@ sx_status_t fx_default_handle_free() {
     }
     fx_extern_deinit(fx_default_handle);
     fx_deinit(fx_default_handle);
+    fx_default_handle = NULL;
 
 out:
     return sx_status;

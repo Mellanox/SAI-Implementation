@@ -142,6 +142,11 @@ typedef enum _sai_attr_value_type_t
     SAI_ATTR_VALUE_TYPE_IP_PREFIX,
 
     /**
+     * @brief Attribute value is PRBS RX state
+     */
+    SAI_ATTR_VALUE_TYPE_PRBS_RX_STATE,
+
+    /**
      * @brief Attribute value is object id.
      */
     SAI_ATTR_VALUE_TYPE_OBJECT_ID,
@@ -1050,6 +1055,16 @@ typedef struct _sai_attr_metadata_t
      * Set to true if attribute is callback function but not notification.
      */
     bool                                        iscallback;
+
+    /**
+     * @brief Pointer type
+     *
+     * If attribute value type is POINTER then attribute
+     * value is pointer to switch.
+     * Enum sai_switch_pointer_type_t is auto generated
+     * so it can't be used here, int will be used instead.
+     */
+    int                                         pointertype;
 
     /**
      * @brief Attribute capabilities.
