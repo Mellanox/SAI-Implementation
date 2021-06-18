@@ -8727,6 +8727,8 @@ sai_status_t mlnx_port_auto_split(mlnx_port_config_t *port)
         new_port->port_map.module_port = port->module;
         new_port->is_present = true;
         new_port->is_split = true;
+        new_port->auto_neg = AUTO_NEG_DEFAULT;
+        new_port->intf = SAI_PORT_INTERFACE_TYPE_NONE;
     }
 
     return SAI_STATUS_SUCCESS;
