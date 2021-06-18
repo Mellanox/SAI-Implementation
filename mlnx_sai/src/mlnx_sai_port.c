@@ -6118,6 +6118,19 @@ sai_status_t mlnx_port_stats_bulk_read(_In_ sai_object_id_t          port_id,
     return SAI_STATUS_SUCCESS;
 }
 
+static bool mlnx_is_bulk_required(_In_ uint64_t counter_types)
+{
+    return (counter_types & CNT_802) ||
+           (counter_types & CNT_2819) ||
+           (counter_types & CNT_2863) ||
+           (counter_types & CNT_3635) ||
+           (counter_types & CNT_BUFF) ||
+           (counter_types & CNT_DISCARD) ||
+           (counter_types & CNT_PERF) ||
+           (counter_types & CNT_PRIO) ||
+           (counter_types & CNT_TC);
+}
+
 static sai_status_t mlnx_convert_sai_stats_to_bitmap(_In_ uint32_t             number_of_counters,
                                                      _In_ const sai_stat_id_t *counter_ids,
                                                      _Out_ uint64_t           *counter_types)
@@ -6381,6 +6394,7 @@ sai_status_t mlnx_get_port_stats_ext(_In_ sai_object_id_t      port_id,
     uint64_t                  counter_types = 0;
     sx_access_cmd_t           cmd;
     char                      key_str[MAX_KEY_STR_LEN];
+    bool                      bulk_required = false;
 
     SX_LOG_ENTER();
 
@@ -6407,45 +6421,49 @@ sai_status_t mlnx_get_port_stats_ext(_In_ sai_object_id_t      port_id,
                                               counter_ids,
                                               &counter_types);
     if (SAI_ERR(status)) {
-        SX_LOG_ERR("Failed to convert counter IDs to counter types bitmap.\n");
+        SX_LOG_INF("Failed to convert counter IDs to counter types bitmap.\n");
         return status;
     }
 
-    status = mlnx_convert_counter_types_bitmap_to_sx_bulk_read(port_id,
-                                                               counter_types,
-                                                               &bulk_read_key);
-    if (SAI_ERR(status)) {
-        SX_LOG_ERR("Failed to convert counter IDs to SDK.\n");
-        return status;
-    }
+    bulk_required = mlnx_is_bulk_required(counter_types);
 
-    sai_db_read_lock();
-    port_counter_lock();
-    if (g_sai_db_ptr->issu_start_called) {
+    if (bulk_required) {
+        status = mlnx_convert_counter_types_bitmap_to_sx_bulk_read(port_id,
+                                                                   counter_types,
+                                                                   &bulk_read_key);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to convert counter IDs to SDK.\n");
+            return status;
+        }
+
+        sai_db_read_lock();
+        port_counter_lock();
+        if (g_sai_db_ptr->issu_start_called) {
+            sai_db_unlock();
+            status = SAI_STATUS_OBJECT_IN_USE;
+            goto out;
+        }
         sai_db_unlock();
-        status = SAI_STATUS_OBJECT_IN_USE;
-        goto out;
-    }
-    sai_db_unlock();
 
-    status = mlnx_port_stats_allocate_sx_bulk_buffer(&bulk_read_key,
-                                                     &bulk_read_buff);
-    if (SAI_ERR(status)) {
-        SX_LOG_ERR("Failed to allocate SDK buffer.\n");
-        goto out;
-    }
+        status = mlnx_port_stats_allocate_sx_bulk_buffer(&bulk_read_key,
+                                                         &bulk_read_buff);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to allocate SDK buffer.\n");
+            goto out;
+        }
 
-    status = mlnx_port_stats_init_async_bulk_read(cmd,
-                                                  &bulk_read_buff);
-    if (SAI_ERR(status)) {
-        SX_LOG_ERR("Failed to initialize async bulk counters read.\n");
-        goto out;
-    }
+        status = mlnx_port_stats_init_async_bulk_read(cmd,
+                                                      &bulk_read_buff);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to initialize async bulk counters read.\n");
+            goto out;
+        }
 
-    status = mlnx_port_stats_wait_for_bulk_read_event();
-    if (SAI_ERR(status)) {
-        SX_LOG_ERR("Failed to wait for bulk counter read event.\n");
-        goto out;
+        status = mlnx_port_stats_wait_for_bulk_read_event();
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to wait for bulk counter read event.\n");
+            goto out;
+        }
     }
 
     status = mlnx_port_stats_bulk_read(port_id,
@@ -6461,14 +6479,18 @@ sai_status_t mlnx_get_port_stats_ext(_In_ sai_object_id_t      port_id,
         goto out;
     }
 
-    status = mlnx_port_stats_deallocate_sx_bulk_buffer(&bulk_read_buff);
-    if (SAI_ERR(status)) {
-        SX_LOG_ERR("Failed to deallocate SDK buffer.\n");
-        goto out;
+    if (bulk_required) {
+        status = mlnx_port_stats_deallocate_sx_bulk_buffer(&bulk_read_buff);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to deallocate SDK buffer.\n");
+            goto out;
+        }
     }
 
 out:
-    port_counter_unlock();
+    if (bulk_required) {
+        port_counter_unlock();
+    }
     return status;
 }
 
@@ -9101,6 +9123,8 @@ sai_status_t mlnx_port_auto_split(mlnx_port_config_t *port)
         new_port->port_map.module_port = port->module;
         new_port->is_present = true;
         new_port->is_split = true;
+        new_port->auto_neg = AUTO_NEG_DEFAULT;
+        new_port->intf = SAI_PORT_INTERFACE_TYPE_NONE;
     }
 
     return SAI_STATUS_SUCCESS;
