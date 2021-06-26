@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2017. Mellanox Technologies, Ltd. ALL RIGHTS RESERVED.
+ *  Copyright (C) 2017-2021, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License"); you may
  *    not use this file except in compliance with the License. You may obtain
@@ -56,6 +56,7 @@
 #include <complib/cl_passivelock.h>
 #ifndef _WIN32
 #include <pthread.h>
+#include <semaphore.h>
 #endif
 #include <sx/utils/psort.h>
 #include <sai.h>
@@ -2508,6 +2509,7 @@ typedef struct sai_db {
 #ifndef _WIN32
     pthread_cond_t  bulk_counter_cond;
     pthread_mutex_t bulk_counter_mutex;
+    sem_t           dfw_sem;
 #endif
     int32_t bulk_read_done_status;
     /* must be last element, followed by dynamic arrays */

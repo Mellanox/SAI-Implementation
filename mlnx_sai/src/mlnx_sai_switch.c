@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2017. Mellanox Technologies, Ltd. ALL RIGHTS RESERVED.
+ *  Copyright (C) 2017-2021, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License"); you may
  *    not use this file except in compliance with the License. You may obtain
@@ -28,7 +28,6 @@
 #include <libxml/tree.h>
 #include <sys/mman.h>
 #include <pthread.h>
-#include <semaphore.h>
 #endif
 #include <complib/cl_mem.h>
 #include <complib/cl_passivelock.h>
@@ -80,10 +79,6 @@ static bool                      event_thread_asked_to_stop = false;
 static bool                      dfw_thread_asked_to_stop = false;
 static bool                      g_uninit_data_plane_on_removal = true;
 static uint32_t                  g_mlnx_shm_rm_size = 0;
-
-#ifndef _WIN32
-sem_t dfw_sem;
-#endif
 
 void log_cb(sx_log_severity_t severity, const char *module_name, char *msg);
 void log_pause_cb(void);
@@ -4067,7 +4062,7 @@ static void mlnx_switch_dfw_thread_func(_In_ void *context)
                     SX_LOG_NTC("DFW thread got %s async dump.\n",
                                (SX_HEALTH_CAUSE_DUMP_COMPLETED_E == event->cause) ? "completed" : "failed");
 #ifndef _WIN32
-                    sem_post(&dfw_sem);
+                    sem_post(&g_sai_db_ptr->dfw_sem);
 #endif /* ifndef _WIN32 */
                 } else {
                     /* Not start handling event if max dumps is not configured */
@@ -5956,7 +5951,7 @@ static sai_status_t mlnx_initialize_switch(sai_object_id_t switch_id, bool *tran
     }
 
 #ifndef _WIN32
-    if (0 != sem_init(&dfw_sem, 0, 1)) {
+    if (0 != sem_init(&g_sai_db_ptr->dfw_sem, 1, 1)) {
         SX_LOG_ERR("Error creating DFW thread semaphore\n");
         return SAI_STATUS_FAILURE;
     }
@@ -6796,7 +6791,7 @@ static sai_status_t mlnx_shutdown_switch(void)
     pthread_join(dfw_thread.osd.id, NULL);
     pthread_join(event_thread.osd.id, NULL);
 
-    if (0 != sem_destroy(&dfw_sem)) {
+    if (0 != sem_destroy(&g_sai_db_ptr->dfw_sem)) {
         SX_LOG_ERR("Error destroying DFW thread semaphore\n");
     }
 #endif
@@ -8487,7 +8482,7 @@ static sai_status_t mlnx_switch_restart_warm()
     pthread_join(dfw_thread.osd.id, NULL);
     pthread_join(event_thread.osd.id, NULL);
 
-    if (0 != sem_destroy(&dfw_sem)) {
+    if (0 != sem_destroy(&g_sai_db_ptr->dfw_sem)) {
         SX_LOG_ERR("Error destroying DFW thread semaphore\n");
     }
 #endif
@@ -8609,7 +8604,7 @@ static sai_status_t mlnx_switch_warm_recover(_In_ sai_object_id_t switch_id)
     }
 
 #ifndef _WIN32
-    if (0 != sem_init(&dfw_sem, 0, 1)) {
+    if (0 != sem_init(&g_sai_db_ptr->dfw_sem, 1, 1)) {
         SX_LOG_ERR("Error creating DFW thread semaphore\n");
         goto out;
     }
