@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2017. Mellanox Technologies, Ltd. ALL RIGHTS RESERVED.
+ *  Copyright (C) 2017-2021, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License"); you may
  *    not use this file except in compliance with the License. You may obtain
@@ -3494,14 +3494,21 @@ sai_status_t mlnx_utils_attrs_is_resource_check(_In_ sai_object_type_t      obje
                                                 _In_ uint32_t               attr_count,
                                                 _In_ const sai_attribute_t *attr_list)
 {
-    const sai_attr_metadata_t *meta_data;
-    uint32_t                   ii;
+    const sai_attr_metadata_t    *meta_data;
+    uint32_t                      ii;
+    const sai_object_type_info_t *obj_type_info;
 
     assert(!attr_count || attr_list);
 
-    if (!mlnx_obj_type_attr_info_get(object_type)) {
-        SX_LOG_ERR("Invalid object type %d - meta data not found\n", object_type);
+    obj_type_info = sai_metadata_get_object_type_info(object_type);
+    if (!obj_type_info) {
+        SX_LOG_ERR("Invalid object type - %d\n", object_type);
         return SAI_STATUS_INVALID_PARAMETER;
+    }
+
+    if (!mlnx_obj_type_attr_info_get(object_type)) {
+        SX_LOG_WRN("Not implemented object type %s - vendor meta data not found\n", obj_type_info->objecttypename);
+        return SAI_STATUS_NOT_IMPLEMENTED;
     }
 
     for (ii = 0; ii < attr_count; ii++) {
