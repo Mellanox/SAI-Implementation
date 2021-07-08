@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2017. Mellanox Technologies, Ltd. ALL RIGHTS RESERVED.
+ *  Copyright (C) 2017-2021, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License"); you may
  *    not use this file except in compliance with the License. You may obtain
@@ -6035,12 +6035,14 @@ sai_status_t mlnx_port_stats_bulk_read(_In_ sai_object_id_t          port_id,
             break;
 
         case SAI_PORT_STAT_IN_DROPPED_PKTS:
+            counters[ii] = 0;
             for (uint32_t jj = 0; jj < buffer_limits->num_port_pg_buff; jj++) {
                 counters[ii] += cnts_buff[jj].rx_buffer_discard + cnts_buff[jj].rx_shared_buffer_discard;
             }
             break;
 
         case SAI_PORT_STAT_OUT_DROPPED_PKTS:
+            counters[ii] = 0;
             for (uint32_t jj = 0; jj < g_resource_limits.cos_port_ets_traffic_class_max; jj++) {
                 counters[ii] += cnts_tc[jj].tx_no_buffer_discard_uc;
             }

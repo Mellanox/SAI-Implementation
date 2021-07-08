@@ -164,6 +164,7 @@ static sai_status_t mlnx_switch_restart_warm();
 static sai_status_t mlnx_switch_warm_recover(_In_ sai_object_id_t switch_id);
 static sai_status_t mlnx_switch_vxlan_udp_port_set(uint16_t udp_port);
 static sai_status_t mlnx_switch_crc_params_apply(bool init);
+static sai_status_t mlnx_init_flex_parser();
 static sai_status_t mlnx_switch_port_number_get(_In_ const sai_object_key_t   *key,
                                                 _Inout_ sai_attribute_value_t *value,
                                                 _In_ uint32_t                  attr_index,
@@ -5809,6 +5810,8 @@ static sai_status_t mlnx_initialize_switch(sai_object_id_t switch_id, bool *tran
     uint32_t                    ii = 0;
     int                         val;
     sxd_status_t                sxd_ret = SXD_STATUS_SUCCESS;
+    mlnx_port_config_t         *port;
+    bool                        is_warmboot_init_stage;
 
     memset(&span_init_params, 0, sizeof(sx_span_init_params_t));
 
@@ -6131,6 +6134,44 @@ static sai_status_t mlnx_initialize_switch(sai_object_id_t switch_id, bool *tran
         return sai_status;
     }
 
+    if (g_sai_db_ptr->pbhash_gre) {
+        if (SAI_STATUS_SUCCESS != (sai_status = mlnx_init_flex_parser())) {
+            MLNX_SAI_LOG_ERR("Failed to init_flex_parser\n");
+            return sai_status;
+        }
+
+        if (SAI_STATUS_SUCCESS != (sai_status = mlnx_pbhash_acl_add(switch_id))) {
+            MLNX_SAI_LOG_ERR("Failed to ADD PB hash ACL to DB\n");
+            return sai_status;
+        }
+    }
+
+    if (g_sai_db_ptr->vxlan_srcport_range_enabled) {
+        if (SAI_STATUS_SUCCESS != (sai_status = mlnx_vxlan_srcport_acl_add(switch_id))) {
+            MLNX_SAI_LOG_ERR("Failed to ADD VxLAN srcport ACL to DB\n");
+            return sai_status;
+        }
+    }
+
+    is_warmboot_init_stage = (BOOT_TYPE_WARM == g_sai_db_ptr->boot_type) &&
+                             (!g_sai_db_ptr->issu_end_called);
+    mlnx_port_phy_foreach(port, ii) {
+        /* Do not bind ACLs on warm boot init if port is not added on SDK */
+        if (is_warmboot_init_stage && !port->sdk_port_added) {
+            continue;
+        }
+        /* Does not allow bind ACLs to LAG member on warm boot init */
+        if (!is_warmboot_init_stage || (0 == port->before_issu_lag_id)) {
+            if (SAI_STATUS_SUCCESS !=
+                (sai_status = mlnx_internal_acls_bind(SX_ACCESS_CMD_ADD, port->saiport, mlnx_port_is_lag(
+                                                          port) ? SAI_OBJECT_TYPE_LAG :
+                                                      SAI_OBJECT_TYPE_PORT))) {
+                MLNX_SAI_LOG_ERR("Failed to bind internal ACLs to port %x \n", port->logical);
+                return sai_status;
+            }
+        }
+    }
+
     return SAI_STATUS_SUCCESS;
 }
 
@@ -6331,9 +6372,6 @@ static sai_status_t mlnx_create_switch(_Out_ sai_object_id_t     * switch_id,
     sai_status_t                 sai_status;
     uint32_t                     attr_idx;
     bool                         transaction_mode_enable = false, crc_check_enable = true, crc_recalc_enable = true;
-    mlnx_port_config_t          *port;
-    uint32_t                     ii;
-    bool                         is_warmboot_init_stage;
 
     if (NULL == switch_id) {
         MLNX_SAI_LOG_ERR("NULL switch_id id param\n");
@@ -6453,6 +6491,7 @@ static sai_status_t mlnx_create_switch(_Out_ sai_object_id_t     * switch_id,
 
     sai_status = mlnx_switch_crc_params_apply(true);
     if (SAI_ERR(sai_status)) {
+        sai_db_unlock();
         return sai_status;
     }
 
@@ -6462,45 +6501,8 @@ static sai_status_t mlnx_create_switch(_Out_ sai_object_id_t     * switch_id,
         sai_status = mlnx_switch_vxlan_udp_port_set(attr_val->u16);
         if (SAI_ERR(sai_status)) {
             MLNX_SAI_LOG_ERR("Error setting vxlan udp port value to %d\n", attr_val->u16);
+            sai_db_unlock();
             return sai_status;
-        }
-    }
-
-    if (g_sai_db_ptr->pbhash_gre) {
-        if (SAI_STATUS_SUCCESS != (sai_status = mlnx_init_flex_parser())) {
-            MLNX_SAI_LOG_ERR("Failed to init_flex_parser\n");
-            return sai_status;
-        }
-
-        if (SAI_STATUS_SUCCESS != (sai_status = mlnx_pbhash_acl_add(*switch_id))) {
-            MLNX_SAI_LOG_ERR("Failed to ADD PB hash ACL to DB\n");
-            return sai_status;
-        }
-    }
-
-    if (g_sai_db_ptr->vxlan_srcport_range_enabled) {
-        if (SAI_STATUS_SUCCESS != (sai_status = mlnx_vxlan_srcport_acl_add(*switch_id))) {
-            MLNX_SAI_LOG_ERR("Failed to ADD VxLAN srcport ACL to DB\n");
-            return sai_status;
-        }
-    }
-
-    is_warmboot_init_stage = (BOOT_TYPE_WARM == g_sai_db_ptr->boot_type) &&
-                             (!g_sai_db_ptr->issu_end_called);
-    mlnx_port_phy_foreach(port, ii) {
-        /* Do not bind ACLs on warm boot init if port is not added on SDK */
-        if (is_warmboot_init_stage && !port->sdk_port_added) {
-            continue;
-        }
-        /* Does not allow bind ACLs to LAG member on warm boot init */
-        if (!is_warmboot_init_stage || (0 == port->before_issu_lag_id)) {
-            if (SAI_STATUS_SUCCESS !=
-                (sai_status = mlnx_internal_acls_bind(SX_ACCESS_CMD_ADD, port->saiport, mlnx_port_is_lag(
-                                                          port) ? SAI_OBJECT_TYPE_LAG :
-                                                      SAI_OBJECT_TYPE_PORT))) {
-                MLNX_SAI_LOG_ERR("Failed to bind internal ACLs to port %x \n", port->logical);
-                return sai_status;
-            }
         }
     }
 
