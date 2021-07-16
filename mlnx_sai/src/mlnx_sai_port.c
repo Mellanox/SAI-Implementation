@@ -1645,6 +1645,24 @@ sai_status_t mlnx_wred_mirror_port_event(_In_ sx_port_log_id_t port_log_id, _In_
     return SAI_STATUS_SUCCESS;
 }
 
+uint64_t mlnx_fec_mode_speeds_sp[3][20] = {
+    { SX_PORT_PHY_SPEED_1GB, SX_PORT_PHY_SPEED_10GB, SX_PORT_PHY_SPEED_25GB, SX_PORT_PHY_SPEED_40GB,
+      SX_PORT_PHY_SPEED_50GB, SX_PORT_PHY_SPEED_100GB, SX_PORT_PHY_SPEED_MAX + 1 },
+    { SX_PORT_PHY_SPEED_25GB, SX_PORT_PHY_SPEED_50GB, SX_PORT_PHY_SPEED_100GB,
+      SX_PORT_PHY_SPEED_MAX + 1 },
+    { SX_PORT_PHY_SPEED_10GB, SX_PORT_PHY_SPEED_25GB, SX_PORT_PHY_SPEED_40GB, SX_PORT_PHY_SPEED_50GB,
+      SX_PORT_PHY_SPEED_56GB, SX_PORT_PHY_SPEED_MAX + 1 },
+};
+
+uint64_t mlnx_fec_mode_speeds_sp2[3][20] = {
+    { SX_PORT_PHY_SPEED_1GB, SX_PORT_PHY_SPEED_10GB, SX_PORT_PHY_SPEED_25GB, SX_PORT_PHY_SPEED_40GB,
+      SX_PORT_PHY_SPEED_50GB, SX_PORT_PHY_SPEED_100GB, SX_PORT_PHY_SPEED_MAX + 1 },
+    { SX_PORT_PHY_SPEED_25GB, SX_PORT_PHY_SPEED_50GB, SX_PORT_PHY_SPEED_50GB_1X, SX_PORT_PHY_SPEED_100GB,
+      SX_PORT_PHY_SPEED_100GB_2X, SX_PORT_PHY_SPEED_200GB, SX_PORT_PHY_SPEED_400GB_8X, SX_PORT_PHY_SPEED_MAX + 1 },
+    { SX_PORT_PHY_SPEED_10GB, SX_PORT_PHY_SPEED_25GB, SX_PORT_PHY_SPEED_40GB, SX_PORT_PHY_SPEED_50GB,
+      SX_PORT_PHY_SPEED_56GB, SX_PORT_PHY_SPEED_MAX + 1 },
+};
+
 sai_status_t mlnx_port_fec_set_impl(sx_port_log_id_t port_log_id, int32_t value)
 {
     sx_status_t         status;
@@ -1671,8 +1689,11 @@ sai_status_t mlnx_port_fec_set_impl(sx_port_log_id_t port_log_id, int32_t value)
         return SAI_STATUS_INVALID_ATTR_VALUE_0;
     }
 
-    /* FEC settings are valid for 25G, 50G, 100G, not for 10G and 40G */
-    for (speed = SX_PORT_PHY_SPEED_25GB; speed <= SX_PORT_PHY_SPEED_100GB; speed++) {
+    uint64_t(*fec_mode_speeds)[20] =
+        mlnx_chip_is_spc() ? mlnx_fec_mode_speeds_sp : mlnx_fec_mode_speeds_sp2;
+
+    for (int32_t ii = 0; fec_mode_speeds[value][ii] != (SX_PORT_PHY_SPEED_MAX + 1); ii++) {
+        speed = fec_mode_speeds[value][ii];
         status = sx_api_port_phy_mode_set(gh_sdk, port_log_id, speed, mode);
         if (SX_ERR(status)) {
             SX_LOG_ERR("Failed to set fec mode speed %d - %s.\n", speed, SX_STATUS_MSG(status));
@@ -3205,7 +3226,7 @@ static sai_status_t mlnx_port_fec_get(_In_ const sai_object_key_t   *key,
         return status;
     }
 
-    status = sx_api_port_phy_mode_get(gh_sdk, port_id, SX_PORT_PHY_SPEED_100GB, &admin, &oper);
+    status = sx_api_port_phy_mode_get(gh_sdk, port_id, SX_PORT_PHY_SPEED_50GB, &admin, &oper);
     if (status != SAI_STATUS_SUCCESS) {
         SX_LOG_ERR("Failed to get phy mode - %s\n", SX_STATUS_MSG(status));
         return sdk_to_sai(status);
@@ -3600,6 +3621,7 @@ static sai_status_t mlnx_port_mirror_session_apply(_In_ sx_port_log_id_t      po
     status =
         mlnx_port_mirror_session_set_internal(port_id, sx_mirror_direction, sx_span_session_id, true);
     if (SAI_ERR(status)) {
+        SX_LOG_ERR("Error setting mirror session %d on port %x\n", sx_span_session_id, port_id);
         return status;
     }
 
@@ -3614,13 +3636,40 @@ static sai_status_t mlnx_port_mirror_session_set_internal(_In_ sx_port_log_id_t 
                                                           _In_ sx_span_session_id_t  sx_span_session_id,
                                                           _In_ bool                  add)
 {
-    sai_status_t    status;
-    sx_status_t     sx_status;
-    sx_access_cmd_t sx_cmd;
+    sai_status_t         status;
+    sx_status_t          sx_status;
+    sx_access_cmd_t      sx_cmd;
+    sx_span_session_id_t sx_existing_span_session_id;
 
     sx_cmd = (add) ? SX_ACCESS_CMD_ADD : SX_ACCESS_CMD_DELETE;
 
     if (add) {
+        /* In SONiC, user will try to set mirror session for all LAG members of a LAG.
+         * Internally in SAI, we always promote LAG member to LAG when trying to set mirror session.
+         * This will cause delay since we repeatedly clear the mirror session and reapply the same mirror session for the same LAG.
+         * This will also print out error message in SDK when trying to set mirror session before clear, which SONiC does not like.
+         * Thus, for LAG, we check if the same mirror session has already been applied, and skip it. */
+        if (SX_PORT_TYPE_ID_GET(port_id) == SX_PORT_TYPE_LAG) {
+            sx_status = sx_api_span_mirror_get(gh_sdk, port_id, sx_mirror_direction, &sx_existing_span_session_id);
+            if (SX_ERR(sx_status)) {
+                if (sx_status != SX_STATUS_ENTRY_NOT_FOUND) {
+                    SX_LOG_ERR("Error getting existing span session on port %x\n", port_id);
+                    return sdk_to_sai(sx_status);
+                }
+            } else if (sx_existing_span_session_id == sx_span_session_id) {
+                SX_LOG_DBG("Trying to apply the same span session id %d on port %x, ignoring this command\n",
+                           sx_span_session_id,
+                           port_id);
+                return SAI_STATUS_SUCCESS;
+            } else {
+                SX_LOG_DBG("LAG %x already has a mirror session - need to clear\n", port_id);
+                status = mlnx_port_mirror_session_clear(port_id, sx_mirror_direction);
+                if (SAI_ERR(status)) {
+                    SX_LOG_ERR("Failed to clear mirror session on port %x\n", port_id);
+                    return status;
+                }
+            }
+        }
         sx_status = sx_api_span_mirror_set(gh_sdk, sx_cmd, port_id,
                                            sx_mirror_direction, sx_span_session_id);
         if (SX_ERR(sx_status)) {
@@ -3745,6 +3794,7 @@ static sai_status_t mlnx_port_mirror_session_set(_In_ const sai_object_key_t    
 
     status = mlnx_port_mirror_session_set_impl(port_id, sdk_mirror_direction, value);
     if (SAI_ERR(status)) {
+        SX_LOG_ERR("Error setting mirror session on port %x\n", port_id);
         goto out;
     }
 

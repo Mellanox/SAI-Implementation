@@ -207,6 +207,9 @@
     <ClInclude Include="inc\sdk\sx_bmtor.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="src\dbgdump\mlnx_sai_dbg.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\mlnx_sai_acl.c">

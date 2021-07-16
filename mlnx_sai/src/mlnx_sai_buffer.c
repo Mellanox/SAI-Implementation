@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2017. Mellanox Technologies, Ltd. ALL RIGHTS RESERVED.
+ *  Copyright (C) 2017-2021, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License") you may
  *    not use this file except in compliance with the License. You may obtain
@@ -4882,8 +4882,8 @@ sai_status_t mlnx_sai_get_ingress_priority_group_stats_ext(_In_ sai_object_id_t 
 {
     sai_status_t                     sai_status;
     uint32_t                         db_port_index, pg_ind, buff_ind;
-    sx_port_statistic_usage_params_t stats_usage;
-    sx_port_occupancy_statistics_t   occupancy_stats, headroom_occupancy_stats;
+    sx_port_statistic_usage_params_t stats_usages[2] = {0};
+    sx_port_occupancy_statistics_t   stats[2] = {0};
     uint32_t                         usage_cnt = 1;
     uint32_t                         ii;
     char                             key_str[MAX_KEY_STR_LEN];
@@ -4955,35 +4955,42 @@ sai_status_t mlnx_sai_get_ingress_priority_group_stats_ext(_In_ sai_object_id_t 
         }
     }
 
-    if (occupancy_stats_needed) {
-        memset(&stats_usage, 0, sizeof(stats_usage));
-        stats_usage.port_cnt = 1;
-        stats_usage.log_port_list_p = &g_sai_db_ptr->ports_db[db_port_index].logical;
-        stats_usage.sx_port_params.port_params_type = SX_COS_INGRESS_PORT_PRIORITY_GROUP_ATTR_E;
-        stats_usage.sx_port_params.port_params_cnt = 1;
-        stats_usage.sx_port_params.port_param.port_pg_list_p = &pg_ind;
+    memset(&stats_usages, 0, sizeof(stats_usages));
+    stats_usages[0].port_cnt = 1;
+    stats_usages[0].log_port_list_p = &g_sai_db_ptr->ports_db[db_port_index].logical;
+    stats_usages[0].sx_port_params.port_params_type = SX_COS_INGRESS_PORT_PRIORITY_GROUP_ATTR_E;
+    stats_usages[0].sx_port_params.port_params_cnt = 1;
+    stats_usages[0].sx_port_params.port_param.port_pg_list_p = &pg_ind;
 
-        if (SX_STATUS_SUCCESS !=
-            (sai_status = sx_api_cos_port_buff_type_statistic_get(gh_sdk, cmd, &stats_usage, 1,
-                                                                  &occupancy_stats, &usage_cnt))) {
+    stats_usages[1].port_cnt = 1;
+    stats_usages[1].log_port_list_p = &g_sai_db_ptr->ports_db[db_port_index].logical;
+    stats_usages[1].sx_port_params.port_params_type = SX_COS_INGRESS_PORT_PRIORITY_GROUP_HEADROOM_ATTR_E;
+    stats_usages[1].sx_port_params.port_params_cnt = 1;
+    stats_usages[1].sx_port_params.port_param.port_pg_list_p = &pg_ind;
+
+    if (occupancy_stats_needed && headroom_occupancy_stats_needed) {
+        sai_status = sx_api_cos_port_buff_type_statistic_get(gh_sdk, cmd, stats_usages, 2,
+                                                             stats, &usage_cnt);
+        if (SAI_ERR(sai_status)) {
             SX_LOG_ERR("Failed to get PG stat counters - %s.\n", SX_STATUS_MSG(sai_status));
             return sdk_to_sai(sai_status);
         }
-    }
-
-    if (headroom_occupancy_stats_needed) {
-        memset(&stats_usage, 0, sizeof(stats_usage));
-        stats_usage.port_cnt = 1;
-        stats_usage.log_port_list_p = &g_sai_db_ptr->ports_db[db_port_index].logical;
-        stats_usage.sx_port_params.port_params_type = SX_COS_INGRESS_PORT_PRIORITY_GROUP_HEADROOM_ATTR_E;
-        stats_usage.sx_port_params.port_params_cnt = 1;
-        stats_usage.sx_port_params.port_param.port_pg_list_p = &pg_ind;
-
-        if (SX_STATUS_SUCCESS !=
-            (sai_status = sx_api_cos_port_buff_type_statistic_get(gh_sdk, cmd, &stats_usage, 1,
-                                                                  &headroom_occupancy_stats, &usage_cnt))) {
-            SX_LOG_ERR("Failed to get PG headroom stat counters - %s.\n", SX_STATUS_MSG(sai_status));
-            return sdk_to_sai(sai_status);
+    } else {
+        if (occupancy_stats_needed) {
+            sai_status = sx_api_cos_port_buff_type_statistic_get(gh_sdk, cmd, &stats_usages[0], 1,
+                                                                 &stats[0], &usage_cnt);
+            if (SAI_ERR(sai_status)) {
+                SX_LOG_ERR("Failed to get PG stat counters - %s.\n", SX_STATUS_MSG(sai_status));
+                return sdk_to_sai(sai_status);
+            }
+        }
+        if (headroom_occupancy_stats_needed) {
+            sai_status = sx_api_cos_port_buff_type_statistic_get(gh_sdk, cmd, &stats_usages[1], 1,
+                                                                 &stats[1], &usage_cnt);
+            if (SAI_ERR(sai_status)) {
+                SX_LOG_ERR("Failed to get PG headroom stat counters - %s.\n", SX_STATUS_MSG(sai_status));
+                return sdk_to_sai(sai_status);
+            }
         }
     }
 
@@ -5009,12 +5016,12 @@ sai_status_t mlnx_sai_get_ingress_priority_group_stats_ext(_In_ sai_object_id_t 
             break;
 
         case SAI_INGRESS_PRIORITY_GROUP_STAT_CURR_OCCUPANCY_BYTES:
-            counters[ii] = mlnx_cells_to_bytes(occupancy_stats.statistics.curr_occupancy);
+            counters[ii] = mlnx_cells_to_bytes(stats[0].statistics.curr_occupancy);
             break;
 
         case SAI_INGRESS_PRIORITY_GROUP_STAT_SHARED_WATERMARK_BYTES:
         case SAI_INGRESS_PRIORITY_GROUP_STAT_WATERMARK_BYTES:
-            counters[ii] = mlnx_cells_to_bytes(occupancy_stats.statistics.watermark);
+            counters[ii] = mlnx_cells_to_bytes(stats[0].statistics.watermark);
             break;
 
         case SAI_INGRESS_PRIORITY_GROUP_STAT_XOFF_ROOM_WATERMARK_BYTES:
@@ -5038,18 +5045,18 @@ sai_status_t mlnx_sai_get_ingress_priority_group_stats_ext(_In_ sai_object_id_t 
                         (g_sai_buffer_db_ptr->shp_ipool_map->sai_pool_id == buff_db_entry->sai_pool)) {
                         /* maximum consumption is returned only the xoff part */
                         /* when shared headroom is enabled and pg buffer is lossless then pg.xoff == pg.xon */
-                        if (mlnx_cells_to_bytes(headroom_occupancy_stats.statistics.watermark) >
+                        if (mlnx_cells_to_bytes(stats[1].statistics.watermark) >
                             buff_db_entry->xon) {
                             counters[ii] =
-                                mlnx_cells_to_bytes(headroom_occupancy_stats.statistics.watermark) -
+                                mlnx_cells_to_bytes(stats[1].statistics.watermark) -
                                 buff_db_entry->xon;
                         }
 
                         /* watermark is from xoff threshold. xoff threshold is available bytes in reserved buffer */
-                    } else if (mlnx_cells_to_bytes(headroom_occupancy_stats.statistics.watermark) >
+                    } else if (mlnx_cells_to_bytes(stats[1].statistics.watermark) >
                                (buff_db_entry->reserved_size - buff_db_entry->xoff)) {
                         counters[ii] =
-                            mlnx_cells_to_bytes(headroom_occupancy_stats.statistics.watermark) + buff_db_entry->xoff -
+                            mlnx_cells_to_bytes(stats[1].statistics.watermark) + buff_db_entry->xoff -
                             buff_db_entry->reserved_size;
                     }
                 }

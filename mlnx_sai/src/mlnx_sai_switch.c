@@ -9568,7 +9568,8 @@ static sai_status_t mlnx_qos_max_tcs_get(_In_ const sai_object_key_t   *key,
                                          void                          *arg)
 {
     SX_LOG_ENTER();
-    value->u8 = g_resource_limits.cos_port_ets_traffic_class_max + 1;
+    /* PRM has 16 values, 15 is unused, so [0,14] are used and 15 in total */
+    value->u8 = g_resource_limits.cos_port_ets_traffic_class_max;
     SX_LOG_EXIT();
 
     return SAI_STATUS_SUCCESS;

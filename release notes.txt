@@ -1,7 +1,7 @@
 Nvidia SAI implementation release notes
 ==========================================
 
-Release 1.19.0
+Release 1.19.1
 ---------------
 
 Current implementation is partial. 
@@ -96,7 +96,7 @@ UDF has the following limitations :
 * UDF Base:
   a. If L2 – Support only one UDF in the UDF group
   b. If L3 – Support up to 3 UDFs in the UDF group. UDF matches should be unique within the UDF group
-* UDF Group - Empty UDF group cannot be used as hash or ACL attribute. In additiion, is is not allowed to remove the last UDF from the UDF group if it is in use
+* UDF Group - Empty UDF group cannot be used as hash or ACL attribute. In addition, it is not allowed to remove the last UDF from the UDF group if it is in use
 * ECMP hash distribution is inferior when using UDF with hash type CRC. WA : When using UDF for ECMP hash, use hash type XOR.
 
 When using 3 mirror sessions, it is not possible to edit a session. As a WA, remove and re-create it. It is possible to edit a session when using 1 or 2 sessions.

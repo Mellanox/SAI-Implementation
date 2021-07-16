@@ -184,6 +184,7 @@
     <ClInclude Include="inc\sdk\sx_api_bmtor.h" />
     <ClInclude Include="inc\sdk\sx_bmtor.h" />
     <ClInclude Include="inc\sharedlib.h" />
+    <ClInclude Include="src\dbgdump\mlnx_sai_dbg.h" />
     <ClInclude Include="src\meta\saimetadata.h" />
     <ClInclude Include="src\meta\saimetadatautils.h" />
   </ItemGroup>
