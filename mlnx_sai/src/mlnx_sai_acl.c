@@ -14084,8 +14084,8 @@ sai_status_t mlnx_pbhash_acl_add(sai_object_id_t switch_id)
     sx_gp_register_key_t      gp_reg_list[6];
     sx_register_key_t         registers_key_list[6];
     sx_extraction_point_t     extraction_point_list[2];
-    sx_flex_acl_flex_action_t action_list[9];
-    uint32_t                  reg_count = 6;
+    sx_flex_acl_flex_action_t action_list[8];
+    uint32_t                  reg_count       = 6;
     uint32_t                  ext_point_count = 2;
     sx_acl_region_id_t        st_region_id, vxlan_region_id, gre_region_id;
     sx_acl_region_group_t     st_region_group, vxlan_region_group, gre_region_group;
@@ -14095,26 +14095,6 @@ sai_status_t mlnx_pbhash_acl_add(sai_object_id_t switch_id)
     sx_acl_key_type_t         st_key_handle, vxlan_key_handle, gre_key_handle;
     sx_acl_key_t              st_key, vxlan_key[2], gre_key[2];
     sx_acl_rule_offset_t      offset[] = {0};
-#define PBH_COUNTERS_ENABLED 1
-#ifdef PBH_COUNTERS_ENABLED
-    sx_flow_counter_id_t      st_counter, vxlan_counter, gre_counter;
-
-    status = sx_api_flow_counter_set(gh_sdk, SX_ACCESS_CMD_CREATE, SX_FLOW_COUNTER_TYPE_PACKETS_AND_BYTES, &st_counter);
-    if (SX_ERR(status)) {
-        SX_LOG_ERR("Failure to create Counter - %s.\n", SX_STATUS_MSG(status));
-        return sdk_to_sai(status);
-    }
-    status = sx_api_flow_counter_set(gh_sdk, SX_ACCESS_CMD_CREATE, SX_FLOW_COUNTER_TYPE_PACKETS_AND_BYTES, &vxlan_counter);
-    if (SX_ERR(status)) {
-        SX_LOG_ERR("Failure to create Counter - %s.\n", SX_STATUS_MSG(status));
-        return sdk_to_sai(status);
-    }
-    status = sx_api_flow_counter_set(gh_sdk, SX_ACCESS_CMD_CREATE, SX_FLOW_COUNTER_TYPE_PACKETS_AND_BYTES, &gre_counter);
-    if (SX_ERR(status)) {
-        SX_LOG_ERR("Failure to create Counter - %s.\n", SX_STATUS_MSG(status));
-        return sdk_to_sai(status);
-    }
-#endif
 
     /* create registers */
     gp_reg_list[0].reg_id            = SX_GP_REGISTER_0_E;
@@ -14276,10 +14256,6 @@ sai_status_t mlnx_pbhash_acl_add(sai_object_id_t switch_id)
     action_list[7].fields.action_hash.hash_crc.field               = SX_ACL_ACTION_HASH_FIELD_GP_REGISTER_3;
     action_list[7].fields.action_hash.hash_crc.mask.gp_register    = 0xffff;
 
-#ifdef PBH_COUNTERS_ENABLED
-    action_list[8].type = SX_FLEX_ACL_ACTION_COUNTER;
-#endif
-
     /* ACL keys */
     /* ST packets */
     st_key_desc.key_id       = FLEX_ACL_KEY_GRE_KEY;
@@ -14418,16 +14394,11 @@ sai_status_t mlnx_pbhash_acl_add(sai_object_id_t switch_id)
     }
 
     st_rule.key_desc_list_p = &st_key_desc;
-    st_rule.key_desc_count = 1;
-    st_rule.action_list_p = action_list;
-#ifdef PBH_COUNTERS_ENABLED
-    st_rule.action_count = 9;
-    action_list[8].fields.action_counter.counter_id = st_counter;
-#else
-    st_rule.action_count = 8;
-#endif
-    st_rule.valid = true;
-    st_rule.priority = 10;
+    st_rule.key_desc_count  = 1;
+    st_rule.action_list_p   = action_list;
+    st_rule.action_count    = 8;
+    st_rule.valid           = true;
+    st_rule.priority        = 10;
 
     status = sx_api_acl_flex_rules_set(gh_sdk, SX_ACCESS_CMD_SET, st_region_id, offset, &st_rule, 1);
     if (SX_ERR(status)) {
@@ -14443,16 +14414,11 @@ sai_status_t mlnx_pbhash_acl_add(sai_object_id_t switch_id)
     }
 
     vxlan_rule.key_desc_list_p = vxlan_key_desc;
-    vxlan_rule.key_desc_count = 2;
-    vxlan_rule.action_list_p = action_list;
-#ifdef PBH_COUNTERS_ENABLED
-    vxlan_rule.action_count = 9;
-    action_list[8].fields.action_counter.counter_id = vxlan_counter;
-#else
-    vxlan_rule.action_count = 8;
-#endif
-    vxlan_rule.valid = true;
-    vxlan_rule.priority = 10;
+    vxlan_rule.key_desc_count  = 2;
+    vxlan_rule.action_list_p   = action_list;
+    vxlan_rule.action_count    = 8;
+    vxlan_rule.valid           = true;
+    vxlan_rule.priority        = 10;
 
     status = sx_api_acl_flex_rules_set(gh_sdk, SX_ACCESS_CMD_SET, vxlan_region_id, offset, &vxlan_rule, 1);
     if (SX_ERR(status)) {
@@ -14468,16 +14434,11 @@ sai_status_t mlnx_pbhash_acl_add(sai_object_id_t switch_id)
     }
 
     gre_rule.key_desc_list_p = gre_key_desc;
-    gre_rule.key_desc_count = 2;
-    gre_rule.action_list_p = action_list;
-#ifdef PBH_COUNTERS_ENABLED
-    gre_rule.action_count = 9;
-    action_list[8].fields.action_counter.counter_id = gre_counter;
-#else
-    gre_rule.action_count = 8;
-#endif
-    gre_rule.valid = true;
-    gre_rule.priority = 10;
+    gre_rule.key_desc_count  = 2;
+    gre_rule.action_list_p   = action_list;
+    gre_rule.action_count    = 8;
+    gre_rule.valid           = true;
+    gre_rule.priority        = 10;
 
     status = sx_api_acl_flex_rules_set(gh_sdk, SX_ACCESS_CMD_SET, gre_region_id, offset, &gre_rule, 1);
     if (SX_ERR(status)) {

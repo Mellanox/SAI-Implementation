@@ -293,7 +293,7 @@ static sai_status_t sai_log_level_save(_In_ sai_api_t sai_api_id, _In_ sai_log_l
     MLNX_SAI_LOG_INF("Saving log level %d for API %d\n", log_level, sai_api_id);
 
     mlnx_sai_log_levels[sai_api_id].is_set = true;
-    mlnx_sai_log_levels[sai_api_id].level  = log_level;
+    mlnx_sai_log_levels[sai_api_id].level = log_level;
 
     return SAI_STATUS_SUCCESS;
 }
@@ -532,7 +532,7 @@ sai_object_id_t sai_switch_id_query(_In_ sai_object_id_t sai_object_id)
  */
 sai_status_t sai_dbg_generate_dump(_In_ const char *dump_file_name)
 {
-    FILE               *file       = NULL;
+    FILE               *file = NULL;
     sx_status_t         sdk_status = SX_STATUS_ERROR;
     sx_dbg_extra_info_t dbg_info;
 
@@ -596,7 +596,7 @@ sai_status_t sai_dbg_generate_dump(_In_ const char *dump_file_name)
     fclose(file);
 
     memset(&dbg_info, 0, sizeof(dbg_info));
-    dbg_info.dev_id           = SX_DEVICE_ID;
+    dbg_info.dev_id = SX_DEVICE_ID;
     dbg_info.force_db_refresh = true;
 #ifndef _WIN32
     char *file_name = strdup(dump_file_name);
