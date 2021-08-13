@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2017. Mellanox Technologies, Ltd. ALL RIGHTS RESERVED.
+ *  Copyright (C) 2017-2021, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License"); you may
  *    not use this file except in compliance with the License. You may obtain
@@ -2182,7 +2182,7 @@ sai_status_t mlnx_remove_hostif_trap(_In_ sai_object_id_t hostif_trap_id)
 
     status = mlnx_update_hostif_trap_counter(hostif_trap_id, SAI_NULL_OBJECT_ID);
     if (SAI_ERR(status)) {
-        SX_LOG_ERR("Failed to unbond counter from trap\n");
+        SX_LOG_ERR("Failed to unbound counter from trap\n");
         goto out;
     }
 

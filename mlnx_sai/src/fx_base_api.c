@@ -110,7 +110,7 @@ typedef struct acl_table {
     sx_acl_id_t             group_id;
     sx_acl_key_type_t       key_handle;
     sx_acl_key_t            *key_list;
-    uint32_t                key_count; 
+    uint32_t                key_count;
     sx_flow_counter_id_t*   rule_counters;
     fx_bitmap_t             valid_offsets;
     sx_acl_rule_offset_t    default_entry_offset;
@@ -229,7 +229,7 @@ sx_status_t fx_parser_init(fx_handle_t handle);
 sx_status_t fx_parser_deinit(fx_handle_t handle);
 
 ///////////////////////////
-// Logging 
+// Logging
 // ////////////////////////
 sx_status_t
 fx_log_verbosity_level_set(fx_handle_t handle, const sx_verbosity_level_t verbosity_level)
@@ -364,7 +364,7 @@ sx_status_t fx_sdk_handle_get(fx_handle_t handle, sx_api_handle_t *sdk_handle) {
 }
 
 /* Create key handle */
-sx_status_t 
+sx_status_t
 create_acl_p4_key(fx_handle_t handle, struct acl_table * acl_table, struct fx_custom_params *custom)
 {
     sx_status_t rc;
@@ -553,7 +553,7 @@ sx_status_t fx_get_bindable_rif_list(fx_handle_t handle, sx_router_interface_t *
   return SX_STATUS_SUCCESS;
 }
 
-//binding: 
+//binding:
 // port:  const sx_port_log_id_t log_port - uint32_t
 // rif : sx_rif_id_t rif_id uint32_t
 
@@ -594,7 +594,7 @@ port_bind(fx_handle_t handle, const sx_acl_id_t group_id,boolean_t bind, sx_port
   return worst_rc;
 }
 
-sx_status_t 
+sx_status_t
 rif_bind(fx_handle_t handle, const sx_acl_id_t group_id,boolean_t bind, sx_router_interface_t *if_list, uint32_t if_list_cnt){
   if ((if_list == NULL && if_list_cnt != 0) || handle == NULL) return SX_STATUS_PARAM_ERROR;
   sx_status_t worst_rc = SX_STATUS_SUCCESS;
@@ -610,7 +610,7 @@ rif_bind(fx_handle_t handle, const sx_acl_id_t group_id,boolean_t bind, sx_route
     rc = sx_api_acl_rif_bind_set (handle->sdk_handle,
                                   bind_cmd,
                                   if_list[i],
-                                  group_id 
+                                  group_id
     );
     if (rc != SX_STATUS_SUCCESS) {
         FX_LOG(SX_LOG_ERROR, "SDK API sx_api_acl_rif_bind_set failed: [%s]\n", SX_STATUS_MSG(rc));
@@ -807,9 +807,9 @@ sx_status_t get_sdk_action_num_from_id (const fx_action_id_t action_id, int *sdk
   }
 }
 
-/* These functions read/clear rule counters*/ 
+/* These functions read/clear rule counters*/
 // TODO : need to check if counter was asgined to rule if action has hit_counters()
-// TODO : 
+// TODO :
 sx_status_t fx_table_rule_counters_print_all(fx_handle_t handle, fx_table_id_t table_id){
   int table_index;
   sx_status_t rc = get_table_index_from_id (handle, table_id, &table_index);
@@ -883,7 +883,7 @@ sx_status_t fx_table_rule_counter_clear(fx_handle_t handle, fx_table_id_t table_
   sx_status_t rc = get_table_index_from_id (handle, table_id, &table_index);
   if (rc) return rc;
   struct acl_table *table = &handle->acl_tables[table_index];
-  
+
   if (get_bitmap(table->valid_offsets, offset) == 0) {
     FX_LOG(SX_LOG_ERROR, "Got invalid offset %d. table_id %d \n", offset, table_id);
     return SX_STATUS_PARAM_ERROR;
@@ -1139,7 +1139,7 @@ sx_status_t fx_table_entry_add(fx_handle_t handle, const fx_table_id_t table_id,
   int table_index;
   sx_status_t rc = get_table_index_from_id (handle, table_id, &table_index);
   if (rc) return rc;
-  // TODO action enum to id 
+  // TODO action enum to id
   return((*fx_table_x_entry_add_fn[table_index])(handle, action_id, keys, params, offset_ptr) );
 }
 
@@ -1337,8 +1337,8 @@ void fx_table_deinit_keys(fx_handle_t handle, fx_table_id_t table_id, fx_key_lis
       FX_LOG(SX_LOG_ERROR, "Getting table index from id %d [fx_table_init_keys]\n", table_id);
       return;
   }
- 
-  // TODO action enum to id 
+
+  // TODO action enum to id
   return((*fx_table_x_deinit_keys_fn[table_index])(keys, rule_cnt) );
 }
 
@@ -1349,7 +1349,7 @@ void fx_table_init_keys(fx_handle_t handle, fx_table_id_t table_id, fx_key_list_
       FX_LOG(SX_LOG_ERROR, "Getting table index from id %d [fx_table_init_keys]\n", table_id);
       return;
   }
-  // TODO action enum to id 
+  // TODO action enum to id
   return((*fx_table_x_init_keys_fn[table_index])(keys, rule_cnt) );
 }
 
@@ -1686,12 +1686,12 @@ bool set_action_list(fx_handle_t handle, int action_id, fx_param_list_t params, 
 	switch(action_id) { // 6 unique actions out of 8 action invocations
 		case 16778278: /* CONTROL_IN_RIF_DROP_ID */
 		{
-			// mlnx_drop() 
+			// mlnx_drop()
 			rule->action_list_p[0] = (sx_flex_acl_flex_action_t){
 				.type =  SX_FLEX_ACL_ACTION_FORWARD,
 				.fields.action_forward.action = (sx_flex_acl_forward_action_t) SX_ACL_TRAP_FORWARD_ACTION_TYPE_DISCARD,
 			};
-			// hit_counter() 
+			// hit_counter()
 			rule->action_list_p[1] = (sx_flex_acl_flex_action_t){
 				.type =  SX_FLEX_ACL_ACTION_COUNTER,
 				.fields.action_counter.counter_id = (sx_flex_acl_forward_action_t) table->rule_counters[*offset_ptr],
@@ -1700,7 +1700,7 @@ bool set_action_list(fx_handle_t handle, int action_id, fx_param_list_t params, 
 		};
 		case 16786535: /* CONTROL_IN_RIF_SET_METADATA_ID */
 		{
-			// set_inrif1_reg32(in_rif_metadata, 0xffffffff) 
+			// set_inrif1_reg32(in_rif_metadata, 0xffffffff)
 			rule->action_list_p[0] = (sx_flex_acl_flex_action_t){
 				.type =  SX_FLEX_ACL_ACTION_SET_DST_MAC,
 			/*	.fields.action_set_dst_mac.mac = *(uint8_t*)(params.params[0].data), */
@@ -1710,7 +1710,7 @@ bool set_action_list(fx_handle_t handle, int action_id, fx_param_list_t params, 
 			uint8_t* mac = (uint8_t*)(&rule->action_list_p[0].fields.action_set_dst_mac.mac);
 			memcpy(&mac[0], params.params[0].data, 4);
 			}
-			// hit_counter() 
+			// hit_counter()
 			rule->action_list_p[1] = (sx_flex_acl_flex_action_t){
 				.type =  SX_FLEX_ACL_ACTION_COUNTER,
 				.fields.action_counter.counter_id = (sx_flex_acl_forward_action_t) table->rule_counters[*offset_ptr],
@@ -1719,7 +1719,7 @@ bool set_action_list(fx_handle_t handle, int action_id, fx_param_list_t params, 
 		};
 		case 16825799: /* CONTROL_IN_RIF_TO_NEXTHOP_ID */
 		{
-			// set_remote_uc_route(next_hop) 
+			// set_remote_uc_route(next_hop)
 			rule->action_list_p[0] = (sx_flex_acl_flex_action_t){
 				.type =  SX_FLEX_ACL_ACTION_UC_ROUTE,
 			/*	.fields.action_uc_route.uc_route_param.ecmp_id = *(sx_ecmp_id_t*)(params.params[0].data), */
@@ -1728,7 +1728,7 @@ bool set_action_list(fx_handle_t handle, int action_id, fx_param_list_t params, 
 			{
 			memcpy(&rule->action_list_p[0].fields.action_uc_route.uc_route_param.ecmp_id, params.params[0].data, params.params[0].len);
 			}
-			// hit_counter() 
+			// hit_counter()
 			rule->action_list_p[1] = (sx_flex_acl_flex_action_t){
 				.type =  SX_FLEX_ACL_ACTION_COUNTER,
 				.fields.action_counter.counter_id = (sx_flex_acl_forward_action_t) table->rule_counters[*offset_ptr],
@@ -1737,7 +1737,7 @@ bool set_action_list(fx_handle_t handle, int action_id, fx_param_list_t params, 
 		};
 		case 16812468: /* CONTROL_OUT_RIF_TUNNEL_ENCAP_ID */
 		{
-			// set_dst_mac(dst_mac) 
+			// set_dst_mac(dst_mac)
             rule->action_list_p[0] = (sx_flex_acl_flex_action_t){
                 .type =  SX_FLEX_ACL_ACTION_SET_DST_MAC,
                 /*.fields.action_set_dst_mac.mac = *(uint8_t*)(params.params[2].data)*/
@@ -1745,7 +1745,7 @@ bool set_action_list(fx_handle_t handle, int action_id, fx_param_list_t params, 
 			{
             memcpy(&rule->action_list_p[0].fields.action_set_dst_mac.mac, params.params[0].data, params.params[0].len);
 			}
-			// vxlan_tunnel_encap(tunnel_id, underlay_dip) 
+			// vxlan_tunnel_encap(tunnel_id, underlay_dip)
             rule->action_list_p[1] = (sx_flex_acl_flex_action_t){
 				.type =  SX_FLEX_ACL_ACTION_NVE_TUNNEL_ENCAP,
                 .fields.action_nve_tunnel_encap.tunnel_id = *(sx_tunnel_id_t*)(params.params[1].data),
@@ -1758,7 +1758,7 @@ bool set_action_list(fx_handle_t handle, int action_id, fx_param_list_t params, 
 			{
             memcpy(&rule->action_list_p[1].fields.action_nve_tunnel_encap.underlay_dip.addr.ipv4.s_addr, params.params[2].data, params.params[2].len);
 			}
-			// hit_counter() 
+			// hit_counter()
 			rule->action_list_p[2] = (sx_flex_acl_flex_action_t){
 				.type =  SX_FLEX_ACL_ACTION_COUNTER,
 				.fields.action_counter.counter_id = (sx_flex_acl_forward_action_t) table->rule_counters[*offset_ptr],
@@ -1771,7 +1771,7 @@ bool set_action_list(fx_handle_t handle, int action_id, fx_param_list_t params, 
 		};
 		case 16841981: /* CONTROL_IN_RIF_TO_LOCAL_ID */
 		{
-			// set_local_uc_route(router_interface) 
+			// set_local_uc_route(router_interface)
 			rule->action_list_p[0] = (sx_flex_acl_flex_action_t){
 				.type =  SX_FLEX_ACL_ACTION_UC_ROUTE,
 			/*	.fields.action_uc_route.uc_route_param.local_egress_rif = *(sx_router_interface_t*)(params.params[0].data), */
@@ -1780,7 +1780,7 @@ bool set_action_list(fx_handle_t handle, int action_id, fx_param_list_t params, 
 			{
 			memcpy(&rule->action_list_p[0].fields.action_uc_route.uc_route_param.local_egress_rif, params.params[0].data, params.params[0].len);
 			}
-			// hit_counter() 
+			// hit_counter()
 			rule->action_list_p[1] = (sx_flex_acl_flex_action_t){
 				.type =  SX_FLEX_ACL_ACTION_COUNTER,
 				.fields.action_counter.counter_id = (sx_flex_acl_forward_action_t) table->rule_counters[*offset_ptr],
@@ -1828,7 +1828,7 @@ sx_status_t create_control_in_rif_table_bitmap_classification(fx_handle_t handle
   if (table->key_list == NULL){
     FX_LOG(SX_LOG_ERROR, "In create_control_in_rif_table_bitmap_classification: %s\n","No memory to create key list");
     return SX_STATUS_NO_MEMORY;
-  } 
+  }
   table->pipe_line = SX_ACL_DIRECTION_RIF_INGRESS; // replaced with pipeline (hook location)
   strncpy(table->table_name, "control_in_rif_table_bitmap_classification", MAX_TABLE_NAME_LEN);
 
@@ -1844,7 +1844,7 @@ sx_status_t create_control_in_rif_table_bitmap_classification(fx_handle_t handle
   } else {
       FX_LOG(SX_LOG_INFO, "create_control_in_rif_table_bitmap_classification, table #%d with acl ID %d\n", table_index, table->acl_id);
   }
-	table->range_table = NULL;  
+	table->range_table = NULL;
   pipe_id_list[pipe_ind] = table->acl_id;
 
   fx_table_entry_const_set(handle,table);
@@ -2021,7 +2021,7 @@ sx_status_t create_control_in_rif_table_bitmap_router(fx_handle_t handle, sx_acl
   if (table->key_list == NULL){
     FX_LOG(SX_LOG_ERROR, "In create_control_in_rif_table_bitmap_router: %s\n","No memory to create key list");
     return SX_STATUS_NO_MEMORY;
-  } 
+  }
   table->pipe_line = SX_ACL_DIRECTION_RIF_INGRESS; // replaced with pipeline (hook location)
   strncpy(table->table_name, "control_in_rif_table_bitmap_router", MAX_TABLE_NAME_LEN);
 
@@ -2038,7 +2038,7 @@ sx_status_t create_control_in_rif_table_bitmap_router(fx_handle_t handle, sx_acl
   } else {
       FX_LOG(SX_LOG_INFO, "create_control_in_rif_table_bitmap_router, table #%d with acl ID %d\n", table_index, table->acl_id);
   }
-	table->range_table = NULL;  
+	table->range_table = NULL;
   pipe_id_list[pipe_ind] = table->acl_id;
 
   fx_table_entry_const_set(handle,table);
@@ -2169,8 +2169,8 @@ sx_status_t add_table_entry_control_in_rif_table_bitmap_router_internal(fx_handl
   if (keys.keys[1].key.data != NULL) { /* Key #1: dip.addr.ipv4.s_addr */
      rule->key_desc_list_p[curr_key]=(sx_flex_acl_key_desc_t){
          .key_id =table->key_list[1],
-        .key.dip.version =SX_IP_VERSION_IPV4, 
-        .mask.dip.version =SX_IP_VERSION_IPV4, 
+        .key.dip.version =SX_IP_VERSION_IPV4,
+        .mask.dip.version =SX_IP_VERSION_IPV4,
       };
       rule->key_desc_list_p[curr_key].key_id=table->key_list[1];
       memcpy(&rule->key_desc_list_p[curr_key].key.dip.addr.ipv4.s_addr, keys.keys[1].key.data, keys.keys[1].key.len);
@@ -2245,7 +2245,7 @@ sx_status_t create_control_out_rif_table_meta_tunnel(fx_handle_t handle, sx_acl_
   if (table->key_list == NULL){
     FX_LOG(SX_LOG_ERROR, "In create_control_out_rif_table_meta_tunnel: %s\n","No memory to create key list");
     return SX_STATUS_NO_MEMORY;
-  } 
+  }
   table->pipe_line = SX_ACL_DIRECTION_RIF_EGRESS; // replaced with pipeline (hook location)
   strncpy(table->table_name, "control_out_rif_table_meta_tunnel", MAX_TABLE_NAME_LEN);
 
@@ -2261,7 +2261,7 @@ sx_status_t create_control_out_rif_table_meta_tunnel(fx_handle_t handle, sx_acl_
   } else {
       FX_LOG(SX_LOG_INFO, "create_control_out_rif_table_meta_tunnel, table #%d with acl ID %d\n", table_index, table->acl_id);
   }
-	table->range_table = NULL;  
+	table->range_table = NULL;
   pipe_id_list[pipe_ind] = table->acl_id;
 
   fx_table_entry_const_set(handle,table);
@@ -2795,7 +2795,7 @@ sx_status_t fx_table_entry_const_set(fx_handle_t handle, struct acl_table *table
 /* ---------- */
 sx_status_t add_const_table_entries_control_in_rif_table_bitmap_classification(fx_handle_t handle, struct acl_table *table)
 {
-    sx_status_t              status;
+    sx_status_t              status = SX_STATUS_SUCCESS;
     if (NULL == table) {
         FX_LOG(SX_LOG_ERROR, "NULL ACL table ptr\n");
         status = SX_STATUS_PARAM_ERROR;
@@ -2826,19 +2826,19 @@ sx_status_t remove_const_table_entries_control_in_rif_table_bitmap_classificatio
         FX_LOG(SX_LOG_ERROR, "NULL ACL table ptr\n");
         return SX_STATUS_PARAM_ERROR;
     }
-        
+
     sx_acl_rule_offset_t off;
     for (off = 0; off < table->const_entry_offset; off++) {
         status = remove_table_entry_control_in_rif_table_bitmap_classification(handle, off);
     }
     table->const_entry_offset = 0;
-    
+
     return status;
 }
 /* ---------- */
 sx_status_t add_const_table_entries_control_in_rif_table_bitmap_router(fx_handle_t handle, struct acl_table *table)
 {
-    sx_status_t              status;
+    sx_status_t              status = SX_STATUS_SUCCESS;;
     if (NULL == table) {
         FX_LOG(SX_LOG_ERROR, "NULL ACL table ptr\n");
         status = SX_STATUS_PARAM_ERROR;
@@ -2869,13 +2869,13 @@ sx_status_t remove_const_table_entries_control_in_rif_table_bitmap_router_entry(
         FX_LOG(SX_LOG_ERROR, "NULL ACL table ptr\n");
         return SX_STATUS_PARAM_ERROR;
     }
-        
+
     sx_acl_rule_offset_t off;
     for (off = 0; off < table->const_entry_offset; off++) {
         status = remove_table_entry_control_in_rif_table_bitmap_router(handle, off);
     }
     table->const_entry_offset = 0;
-    
+
     return status;
 }
 /* ---------- */
@@ -2912,13 +2912,13 @@ sx_status_t remove_const_table_entries_control_out_rif_table_meta_tunnel_entry(f
         FX_LOG(SX_LOG_ERROR, "NULL ACL table ptr\n");
         return SX_STATUS_PARAM_ERROR;
     }
-        
+
     sx_acl_rule_offset_t off;
     for (off = 0; off < table->const_entry_offset; off++) {
         status = remove_table_entry_control_out_rif_table_meta_tunnel(handle, off);
     }
     table->const_entry_offset = 0;
-    
+
     return status;
 }
 

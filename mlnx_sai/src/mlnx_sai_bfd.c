@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2019. Mellanox Technologies, Ltd. ALL RIGHTS RESERVED.
+ *  Copyright (C) 2019-2021, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License"); you may
  *    not use this file except in compliance with the License. You may obtain
@@ -350,7 +350,12 @@ out:
     if (SAI_ERR(status)) {
         if (cmd == SX_ACCESS_CMD_CREATE) {
             if (is_rx_created) {
-                sx_api_bfd_offload_set(gh_sdk, SX_ACCESS_CMD_DESTROY, &rx_params, &bfd_db_data->rx_session);
+                sx_status =
+                    sx_api_bfd_offload_set(gh_sdk, SX_ACCESS_CMD_DESTROY, &rx_params, &bfd_db_data->rx_session);
+                if (SX_ERR(sx_status)) {
+                    SX_LOG_ERR("Error destroy RX BFD session: %s.\n", SX_STATUS_MSG(sx_status));
+                    status = sdk_to_sai(sx_status);
+                }
             }
         }
     }

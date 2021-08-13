@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2017. Mellanox Technologies, Ltd. ALL RIGHTS RESERVED.
+ *  Copyright (C) 2017-2021, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License"); you may
  *    not use this file except in compliance with the License. You may obtain
@@ -28,7 +28,6 @@
 #include <libxml/tree.h>
 #include <sys/mman.h>
 #include <pthread.h>
-#include <semaphore.h>
 #endif
 #include <complib/cl_mem.h>
 #include <complib/cl_passivelock.h>
@@ -80,10 +79,6 @@ static bool                      event_thread_asked_to_stop = false;
 static bool                      dfw_thread_asked_to_stop = false;
 static bool                      g_uninit_data_plane_on_removal = true;
 static uint32_t                  g_mlnx_shm_rm_size = 0;
-
-#ifndef _WIN32
-sem_t dfw_sem;
-#endif
 
 void log_cb(sx_log_severity_t severity, const char *module_name, char *msg);
 void log_pause_cb(void);
@@ -169,6 +164,7 @@ static sai_status_t mlnx_switch_restart_warm();
 static sai_status_t mlnx_switch_warm_recover(_In_ sai_object_id_t switch_id);
 static sai_status_t mlnx_switch_vxlan_udp_port_set(uint16_t udp_port);
 static sai_status_t mlnx_switch_crc_params_apply(bool init);
+sai_status_t mlnx_init_flex_parser();
 static sai_status_t mlnx_switch_port_number_get(_In_ const sai_object_key_t   *key,
                                                 _Inout_ sai_attribute_value_t *value,
                                                 _In_ uint32_t                  attr_index,
@@ -3100,11 +3096,6 @@ static sai_status_t parse_elements(xmlDoc *doc, xmlNode * a_node)
             /* divide ACL resources by half for FFB */
             g_sai_db_ptr->acl_divider = g_sai_db_ptr->issu_enabled ? 2 : 1;
             xmlFree(key);
-        } else if ((!xmlStrcmp(cur_node->name, (const xmlChar*)"pbhash_gre"))) {
-            key = xmlNodeListGetString(doc, cur_node->children, 1);
-            g_sai_db_ptr->pbhash_gre = (uint32_t)atoi((const char*)key);
-            MLNX_SAI_LOG_NTC("policy based hash enabled, GRE: %u\n", g_sai_db_ptr->pbhash_gre);
-            xmlFree(key);
         } else {
             /* parse all children of current element */
             if (SAI_STATUS_SUCCESS != (status = parse_elements(doc, cur_node->children))) {
@@ -3228,9 +3219,11 @@ static void sai_db_values_init()
     g_sai_db_ptr->crc_recalc_enable = true;
 
     g_sai_db_ptr->platform_type = MLNX_PLATFORM_TYPE_INVALID;
-    g_sai_db_ptr->pbhash_gre = 0;
+    g_sai_db_ptr->pbhash_transition = false;
 
     g_sai_db_ptr->max_ipinip_ipv6_loopback_rifs = 0;
+
+    g_sai_db_ptr->is_issu_gp_reg_restore = false;
 
     memset(&g_sai_db_ptr->dump_configuration, 0, sizeof(mlnx_dump_configuration_t));
 
@@ -3304,6 +3297,13 @@ sai_status_t mlnx_shm_rm_bridge_size_get(_Out_ size_t *size)
     return SAI_STATUS_SUCCESS;
 }
 
+sai_status_t mlnx_shm_rm_gp_reg_size_get(_Out_ size_t *size)
+{
+    *size = g_resource_limits.gp_register_num_max;
+
+    return SAI_STATUS_SUCCESS;
+}
+
 sai_status_t mlnx_shm_rm_debug_counter_size_get(_Out_ size_t *size);
 static mlnx_shm_rm_array_init_info_t mlnx_shm_array_info[MLNX_SHM_RM_ARRAY_TYPE_SIZE] = {
     [MLNX_SHM_RM_ARRAY_TYPE_RIF] = {sizeof(mlnx_rif_db_t),
@@ -3318,6 +3318,11 @@ static mlnx_shm_rm_array_init_info_t mlnx_shm_array_info[MLNX_SHM_RM_ARRAY_TYPE_
     [MLNX_SHM_RM_ARRAY_TYPE_BFD_SESSION] = {sizeof(mlnx_bfd_session_db_entry_t),
                                             NULL,
                                             MAX_BFD_SESSION_NUMBER},
+
+    [MLNX_SHM_RM_ARRAY_TYPE_GP_REG] = {sizeof(mlnx_gp_reg_db_t),
+                                       mlnx_shm_rm_gp_reg_size_get,
+                                       0},
+
     [MLNX_SHM_RM_ARRAY_TYPE_NEXTHOP] = {sizeof(mlnx_encap_nexthop_db_entry_t),
                                         NULL,
                                         MAX_ENCAP_NEXTHOPS_NUMBER},
@@ -3345,7 +3350,7 @@ static size_t mlnx_sai_rm_db_size_get(void)
         if (init_info->elem_count == 0) {
             elem_count = 0;
             status = init_info->elem_count_fn(&elem_count);
-            if (SAI_ERR(status) || (elem_count == 0)) {
+            if (SAI_ERR(status)) {
                 SX_LOG_ERR("Failed to get elem count for %d\n", type);
                 return 0;
             }
@@ -3435,6 +3440,10 @@ static void mlnx_sai_rm_array_canary_init(mlnx_shm_rm_array_type_t type)
     assert(MLNX_SHM_RM_ARRAY_TYPE_IS_VALID(type));
 
     info = &g_sai_db_ptr->array_info[type];
+
+    if (info->elem_count == 0) {
+        return;
+    }
 
     for (ii = 0; ii < info->elem_count; ii++) {
         array_hdr = mlnx_rm_array_elem_by_idx(info, ii);
@@ -4067,7 +4076,7 @@ static void mlnx_switch_dfw_thread_func(_In_ void *context)
                     SX_LOG_NTC("DFW thread got %s async dump.\n",
                                (SX_HEALTH_CAUSE_DUMP_COMPLETED_E == event->cause) ? "completed" : "failed");
 #ifndef _WIN32
-                    sem_post(&dfw_sem);
+                    sem_post(&g_sai_db_ptr->dfw_sem);
 #endif /* ifndef _WIN32 */
                 } else {
                     /* Not start handling event if max dumps is not configured */
@@ -5591,7 +5600,7 @@ static sai_status_t sai_acl_db_switch_connect_init(int shmid)
 
 static sai_status_t mlnx_cb_table_init(void)
 {
-    sai_status_t status;
+    sai_status_t status = SAI_STATUS_SUCCESS;
 
     status = mlnx_port_cb_table_init();
     if (SAI_ERR(status)) {
@@ -5599,6 +5608,16 @@ static sai_status_t mlnx_cb_table_init(void)
     }
 
     status = mlnx_acl_cb_table_init();
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+    status = mlnx_udf_cb_table_init();
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+    status = mlnx_sai_issu_storage_cb_table_init();
     if (SAI_ERR(status)) {
         return status;
     }
@@ -5814,6 +5833,8 @@ static sai_status_t mlnx_initialize_switch(sai_object_id_t switch_id, bool *tran
     uint32_t                    ii = 0;
     int                         val;
     sxd_status_t                sxd_ret = SXD_STATUS_SUCCESS;
+    mlnx_port_config_t         *port;
+    bool                        is_warmboot_init_stage;
 
     memset(&span_init_params, 0, sizeof(sx_span_init_params_t));
 
@@ -5941,6 +5962,10 @@ static sai_status_t mlnx_initialize_switch(sai_object_id_t switch_id, bool *tran
         return sai_status;
     }
 
+    if (SAI_STATUS_SUCCESS != (sai_status = mlnx_sai_issu_init_impl(g_profile_id, boot_type))) {
+        return sai_status;
+    }
+
     if (SAI_STATUS_SUCCESS != (sai_status = mlnx_dvs_mng_stage(boot_type, switch_id))) {
         return sai_status;
     }
@@ -5956,7 +5981,7 @@ static sai_status_t mlnx_initialize_switch(sai_object_id_t switch_id, bool *tran
     }
 
 #ifndef _WIN32
-    if (0 != sem_init(&dfw_sem, 0, 1)) {
+    if (0 != sem_init(&g_sai_db_ptr->dfw_sem, 1, 1)) {
         SX_LOG_ERR("Error creating DFW thread semaphore\n");
         return SAI_STATUS_FAILURE;
     }
@@ -6094,7 +6119,7 @@ static sai_status_t mlnx_initialize_switch(sai_object_id_t switch_id, bool *tran
         sx_vlan_cnt = 1;
         sdk_status = sx_api_vlan_set(gh_sdk, SX_ACCESS_CMD_ADD, DEFAULT_ETH_SWID, sx_vlan_id, &sx_vlan_cnt);
         if (SX_ERR(sdk_status)) {
-            SX_LOG_ERR("Error adding vlan %hu: %s\n", sx_vlan_id, SX_STATUS_MSG(sdk_status));
+            SX_LOG_ERR("Error adding vlan %hu: %s\n", sx_vlan_id[0], SX_STATUS_MSG(sdk_status));
             sai_status = sdk_to_sai(sdk_status);
             return sai_status;
         }
@@ -6136,10 +6161,36 @@ static sai_status_t mlnx_initialize_switch(sai_object_id_t switch_id, bool *tran
         return sai_status;
     }
 
+    if (g_sai_db_ptr->vxlan_srcport_range_enabled) {
+        if (SAI_STATUS_SUCCESS != (sai_status = mlnx_vxlan_srcport_acl_add(switch_id))) {
+            MLNX_SAI_LOG_ERR("Failed to ADD VxLAN srcport ACL to DB\n");
+            return sai_status;
+        }
+    }
+
+    is_warmboot_init_stage = (BOOT_TYPE_WARM == g_sai_db_ptr->boot_type) &&
+                             (!g_sai_db_ptr->issu_end_called);
+    mlnx_port_phy_foreach(port, ii) {
+        /* Do not bind ACLs on warm boot init if port is not added on SDK */
+        if (is_warmboot_init_stage && !port->sdk_port_added) {
+            continue;
+        }
+        /* Does not allow bind ACLs to LAG member on warm boot init */
+        if (!is_warmboot_init_stage || (0 == port->before_issu_lag_id)) {
+            if (SAI_STATUS_SUCCESS !=
+                (sai_status = mlnx_internal_acls_bind(SX_ACCESS_CMD_ADD, port->saiport, mlnx_port_is_lag(
+                                                          port) ? SAI_OBJECT_TYPE_LAG :
+                                                      SAI_OBJECT_TYPE_PORT))) {
+                MLNX_SAI_LOG_ERR("Failed to bind internal ACLs to port %x \n", port->logical);
+                return sai_status;
+            }
+        }
+    }
+
     return SAI_STATUS_SUCCESS;
 }
 
-static sai_status_t mlnx_init_flex_parser()
+sai_status_t mlnx_init_flex_parser()
 {
     sx_flex_parser_param_t flex_parser_param;
     sx_status_t            sdk_status;
@@ -6336,9 +6387,6 @@ static sai_status_t mlnx_create_switch(_Out_ sai_object_id_t     * switch_id,
     sai_status_t                 sai_status;
     uint32_t                     attr_idx;
     bool                         transaction_mode_enable = false, crc_check_enable = true, crc_recalc_enable = true;
-    mlnx_port_config_t          *port;
-    uint32_t                     ii;
-    bool                         is_warmboot_init_stage;
 
     if (NULL == switch_id) {
         MLNX_SAI_LOG_ERR("NULL switch_id id param\n");
@@ -6458,6 +6506,7 @@ static sai_status_t mlnx_create_switch(_Out_ sai_object_id_t     * switch_id,
 
     sai_status = mlnx_switch_crc_params_apply(true);
     if (SAI_ERR(sai_status)) {
+        sai_db_unlock();
         return sai_status;
     }
 
@@ -6467,45 +6516,8 @@ static sai_status_t mlnx_create_switch(_Out_ sai_object_id_t     * switch_id,
         sai_status = mlnx_switch_vxlan_udp_port_set(attr_val->u16);
         if (SAI_ERR(sai_status)) {
             MLNX_SAI_LOG_ERR("Error setting vxlan udp port value to %d\n", attr_val->u16);
+            sai_db_unlock();
             return sai_status;
-        }
-    }
-
-    if (g_sai_db_ptr->pbhash_gre) {
-        if (SAI_STATUS_SUCCESS != (sai_status = mlnx_init_flex_parser())) {
-            MLNX_SAI_LOG_ERR("Failed to init_flex_parser\n");
-            return sai_status;
-        }
-
-        if (SAI_STATUS_SUCCESS != (sai_status = mlnx_pbhash_acl_add(*switch_id))) {
-            MLNX_SAI_LOG_ERR("Failed to ADD PB hash ACL to DB\n");
-            return sai_status;
-        }
-    }
-
-    if (g_sai_db_ptr->vxlan_srcport_range_enabled) {
-        if (SAI_STATUS_SUCCESS != (sai_status = mlnx_vxlan_srcport_acl_add(*switch_id))) {
-            MLNX_SAI_LOG_ERR("Failed to ADD VxLAN srcport ACL to DB\n");
-            return sai_status;
-        }
-    }
-
-    is_warmboot_init_stage = (BOOT_TYPE_WARM == g_sai_db_ptr->boot_type) &&
-                             (!g_sai_db_ptr->issu_end_called);
-    mlnx_port_phy_foreach(port, ii) {
-        /* Do not bind ACLs on warm boot init if port is not added on SDK */
-        if (is_warmboot_init_stage && !port->sdk_port_added) {
-            continue;
-        }
-        /* Does not allow bind ACLs to LAG member on warm boot init */
-        if (!is_warmboot_init_stage || (0 == port->before_issu_lag_id)) {
-            if (SAI_STATUS_SUCCESS !=
-                (sai_status = mlnx_internal_acls_bind(SX_ACCESS_CMD_ADD, port->saiport, mlnx_port_is_lag(
-                                                          port) ? SAI_OBJECT_TYPE_LAG :
-                                                      SAI_OBJECT_TYPE_PORT))) {
-                MLNX_SAI_LOG_ERR("Failed to bind internal ACLs to port %x \n", port->logical);
-                return sai_status;
-            }
         }
     }
 
@@ -6793,10 +6805,12 @@ static sai_status_t mlnx_shutdown_switch(void)
     dfw_thread_asked_to_stop = true;
 
 #ifndef _WIN32
-    pthread_join(dfw_thread.osd.id, NULL);
+
     pthread_join(event_thread.osd.id, NULL);
 
-    if (0 != sem_destroy(&dfw_sem)) {
+    pthread_join(dfw_thread.osd.id, NULL);
+
+    if (0 != sem_destroy(&g_sai_db_ptr->dfw_sem)) {
         SX_LOG_ERR("Error destroying DFW thread semaphore\n");
     }
 #endif
@@ -8487,7 +8501,7 @@ static sai_status_t mlnx_switch_restart_warm()
     pthread_join(dfw_thread.osd.id, NULL);
     pthread_join(event_thread.osd.id, NULL);
 
-    if (0 != sem_destroy(&dfw_sem)) {
+    if (0 != sem_destroy(&g_sai_db_ptr->dfw_sem)) {
         SX_LOG_ERR("Error destroying DFW thread semaphore\n");
     }
 #endif
@@ -8609,7 +8623,7 @@ static sai_status_t mlnx_switch_warm_recover(_In_ sai_object_id_t switch_id)
     }
 
 #ifndef _WIN32
-    if (0 != sem_init(&dfw_sem, 0, 1)) {
+    if (0 != sem_init(&g_sai_db_ptr->dfw_sem, 1, 1)) {
         SX_LOG_ERR("Error creating DFW thread semaphore\n");
         goto out;
     }
@@ -9317,6 +9331,7 @@ static sai_status_t mlnx_switch_pre_shutdown_set(_In_ const sai_object_key_t    
                                                  void                             *arg)
 {
     sx_status_t          sx_status = SX_STATUS_SUCCESS;
+    sai_status_t         sai_status = SAI_STATUS_SUCCESS;
     sx_vlan_id_t         vlan_list[MAX_VLANS];
     uint32_t             vlan_cnt = 0;
     uint32_t             ii = 0;
@@ -9327,7 +9342,15 @@ static sai_status_t mlnx_switch_pre_shutdown_set(_In_ const sai_object_key_t    
     if (value->booldata) {
         sai_db_read_lock();
         boot_type = g_sai_db_ptr->boot_type;
+        sai_status = mlnx_sai_issu_storage_pre_shutdown_prepare_impl();
+        if (SAI_ERR(sai_status)) {
+            sai_db_unlock();
+            SX_LOG_ERR("Error preparing persistent storage\n");
+            SX_LOG_EXIT();
+            return sai_status;
+        }
         sai_db_unlock();
+
         if (BOOT_TYPE_WARM != boot_type) {
             for (ii = 1; ii < MAX_VLANS; ii++) {
                 if (!mlnx_vlan_db_get_vlan(ii)->is_created) {
@@ -9571,7 +9594,8 @@ static sai_status_t mlnx_qos_max_tcs_get(_In_ const sai_object_key_t   *key,
                                          void                          *arg)
 {
     SX_LOG_ENTER();
-    value->u8 = g_resource_limits.cos_port_ets_traffic_class_max + 1;
+    /* PRM has 16 values, 15 is unused, so [0,14] are used and 15 in total */
+    value->u8 = g_resource_limits.cos_port_ets_traffic_class_max;
     SX_LOG_EXIT();
 
     return SAI_STATUS_SUCCESS;
@@ -9661,11 +9685,13 @@ static sai_status_t mlnx_switch_transaction_mode_set(_In_ const sai_object_key_t
                                                      void                             *arg)
 {
     sx_status_t         sdk_status = SX_STATUS_ERROR;
+    sai_status_t        sai_status = SAI_STATUS_SUCCESS;
     sx_access_cmd_t     transaction_mode_cmd = SX_ACCESS_CMD_NONE;
     mlnx_port_config_t *port;
     uint32_t            ii;
     sx_status_t         sx_status;
     sx_vlan_ports_t     port_list;
+    bool                is_locked = false;
 
     SX_LOG_ENTER();
 
@@ -9676,6 +9702,7 @@ static sai_status_t mlnx_switch_transaction_mode_set(_In_ const sai_object_key_t
     }
 
     sai_db_write_lock();
+    is_locked = true;
 
     if ((BOOT_TYPE_WARM == g_sai_db_ptr->boot_type) && !value->booldata && !g_sai_db_ptr->issu_end_called) {
         for (ii = 0; ii < MAX_PORTS * 2; ii++) {
@@ -9684,15 +9711,13 @@ static sai_status_t mlnx_switch_transaction_mode_set(_In_ const sai_object_key_t
                            ii,
                            mlnx_ports_db[ii].is_present,
                            mlnx_ports_db[ii].sdk_port_added);
-                sai_db_unlock();
-                SX_LOG_EXIT();
-                return SAI_STATUS_FAILURE;
+                sai_status = SAI_STATUS_FAILURE;
+                goto out;
             }
             if (mlnx_ports_db[ii].sdk_port_added && (0 == mlnx_ports_db[ii].logical)) {
-                sai_db_unlock();
                 SX_LOG_ERR("LAG of idx %d is created in SDK but SAI db is not updated\n", ii);
-                SX_LOG_EXIT();
-                return SAI_STATUS_FAILURE;
+                sai_status = SAI_STATUS_FAILURE;
+                goto out;
             }
         }
         for (ii = 0; ii < MAX_PORTS; ii++) {
@@ -9701,18 +9726,40 @@ static sai_status_t mlnx_switch_transaction_mode_set(_In_ const sai_object_key_t
                            ii,
                            mlnx_ports_db[ii].lag_id,
                            mlnx_ports_db[ii].before_issu_lag_id);
-                sai_db_unlock();
-                SX_LOG_EXIT();
-                return SAI_STATUS_FAILURE;
+                sai_status = SAI_STATUS_FAILURE;
+                goto out;
             }
+        }
+
+        if (g_sai_db_ptr->is_issu_gp_reg_restore) {
+            sai_status = mlnx_sai_issu_storage_check_gp_reg_is_set_to_hw();
+            if (SAI_ERR(sai_status)) {
+                SX_LOG_ERR("issu flow failed. Detected deviation between previous and current gp reg configuration\n");
+                goto out;
+            }
+
+            sai_status = mlnx_sai_udf_check_udf_db_is_set_to_hw();
+            if (SAI_ERR(sai_status)) {
+                SX_LOG_ERR("issu flow failed. Detected deviation between current and previous UDF configuration\n");
+                goto out;
+            }
+
+            g_sai_db_ptr->is_issu_gp_reg_restore = false;
+        } else if (g_sai_db_ptr->pbhash_transition) {
+            sai_status = mlnx_sai_issu_storage_check_gp_reg_is_set_to_hw();
+            if (SAI_ERR(sai_status)) {
+                sai_status = SAI_STATUS_SUCCESS;
+                SX_LOG_WRN("transition between static to dynamic PBH flag detected but no configuration is provided\n");
+            }
+
+            g_sai_db_ptr->pbhash_transition = false;
         }
 
         sdk_status = sx_api_issu_end_set(gh_sdk);
         if (SX_STATUS_SUCCESS != sdk_status) {
-            sai_db_unlock();
             SX_LOG_ERR("Failed to end issu\n");
-            SX_LOG_EXIT();
-            return sdk_to_sai(sdk_status);
+            sai_status = sdk_to_sai(sdk_status);
+            goto out;
         }
         g_sai_db_ptr->issu_end_called = true;
 
@@ -9729,10 +9776,9 @@ static sai_status_t mlnx_switch_transaction_mode_set(_In_ const sai_object_key_t
                                                   &port_list,
                                                   1);
                 if (SX_ERR(sx_status)) {
-                    sai_db_unlock();
                     SX_LOG_ERR("Failed to del default vlan ports %s.\n", SX_STATUS_MSG(sx_status));
-                    SX_LOG_EXIT();
-                    return sdk_to_sai(sdk_status);
+                    sai_status = sdk_to_sai(sdk_status);
+                    goto out;
                 }
             }
         }
@@ -9745,19 +9791,21 @@ static sai_status_t mlnx_switch_transaction_mode_set(_In_ const sai_object_key_t
 
     if (SX_STATUS_SUCCESS !=
         (sdk_status = sx_api_transaction_mode_set(gh_sdk, transaction_mode_cmd))) {
-        sai_db_unlock();
         SX_LOG_ERR("Failed to set transaction mode to %d: %s\n", transaction_mode_cmd, SX_STATUS_MSG(sdk_status));
-        SX_LOG_EXIT();
-        return sdk_to_sai(sdk_status);
+        sai_status = sdk_to_sai(sdk_status);
+        goto out;
     }
 
     g_sai_db_ptr->transaction_mode_enable = value->booldata;
 
-    sai_db_unlock();
+out:
+    if (is_locked) {
+        sai_db_unlock();
+    }
 
     SX_LOG_EXIT();
 
-    return SAI_STATUS_SUCCESS;
+    return sai_status;
 }
 
 static sai_status_t mlnx_switch_transaction_mode_get(_In_ const sai_object_key_t   *key,

@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2017. Mellanox Technologies, Ltd. ALL RIGHTS RESERVED.
+ *  Copyright (C) 2017-2021, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License"); you may
  *    not use this file except in compliance with the License. You may obtain
@@ -24,7 +24,6 @@
 #include <sx/utils/dbg_utils.h>
 #ifndef _WIN32
 #include <libgen.h>
-#include <semaphore.h>
 #endif
 
 #undef  __MODULE__
@@ -33,10 +32,6 @@
 static sx_verbosity_level_t LOG_VAR_NAME(__MODULE__) = SX_VERBOSITY_LEVEL_WARNING;
 sai_service_method_table_t g_mlnx_services;
 static bool                g_initialized = false;
-
-#ifndef _WIN32
-extern sem_t dfw_sem;
-#endif
 
 typedef struct mlnx_log_lavel_preinit {
     bool            is_set;
@@ -393,6 +388,7 @@ sai_status_t sai_log_set(_In_ sai_api_t sai_api_id, _In_ sai_log_level_t log_lev
         mlnx_switch_log_set(severity);
         mlnx_interfacequery_log_set(severity);
         mlnx_utils_log_set(severity);
+        mlnx_issu_storage_log_set(severity);
         return mlnx_object_log_set(severity);
 
     case SAI_API_BRIDGE:
@@ -583,12 +579,14 @@ sai_status_t sai_dbg_generate_dump(_In_ const char *dump_file_name)
 #define FW_DUMPS 3
     for (uint32_t ii = 0; ii < FW_DUMPS; ii++) {
 #ifndef _WIN32
-        timeout.tv_sec = 10;
-        timeout.tv_nsec = 0;
-        if ((-1 ==
-             sem_timedwait(&dfw_sem, &timeout)) && ((EINVAL == errno) || (EINTR == errno) || (ETIMEDOUT == errno))) {
-            /* Stop generating dump if it stuck and exit */
-            break;
+        if (clock_gettime(CLOCK_REALTIME, &timeout) == -1) {
+            SX_LOG_ERR("Failed to get current time - %s\n", strerror(errno));
+            goto out;
+        }
+        timeout.tv_sec += 10;
+        if (-1 == sem_timedwait(&g_sai_db_ptr->dfw_sem, &timeout)) {
+            SX_LOG_ERR("Failed to lock DFW semaphore - %s\n", strerror(errno));
+            goto out;
         }
 #endif
         if (SX_STATUS_SUCCESS != (sdk_status = sx_api_dbg_generate_dump_extra(gh_sdk, &dbg_info))) {
@@ -596,6 +594,7 @@ sai_status_t sai_dbg_generate_dump(_In_ const char *dump_file_name)
         }
     }
 
+out:
     return SAI_STATUS_SUCCESS;
 }
 
@@ -629,6 +628,8 @@ sai_status_t sai_dbg_do_dump(_In_ const char *dump_file_name)
     dbg_utils_print_module_header(file, "SAI DEBUG DUMP");
 
     SAI_dump_acl(file);
+
+    SAI_dump_gp_reg(file);
 
     SAI_dump_buffer(file);
 

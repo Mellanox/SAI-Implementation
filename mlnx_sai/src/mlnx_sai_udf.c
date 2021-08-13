@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2014. Mellanox Technologies, Ltd. ALL RIGHTS RESERVED.
+ *  Copyright (C) 2014-2021, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License"); you may
  *    not use this file except in compliance with the License. You may obtain
@@ -45,11 +45,6 @@ static sai_status_t mlnx_udf_match_type_to_l2(_In_ mlnx_udf_match_type_t  match_
                                               _Out_ sai_acl_field_data_t *l2_match);
 static sai_status_t mlnx_udf_group_mask_to_indexes(_In_ udf_group_mask_t udf_group_mask,
                                                    _Out_ sai_u32_list_t *udf_groups_db_indexes);
-static sai_status_t mlnx_udf_group_mask_to_sx_acl_keys(_In_ udf_group_mask_t udf_group_mask,
-                                                       _Out_ sx_acl_key_t   *sx_acl_keys,
-                                                       _Out_ uint32_t       *sx_acl_key_count);
-static sai_status_t mlnx_udf_custom_byte_to_ecmp_hash_filed(_In_ sx_acl_key_t                  custom_byte,
-                                                            _Out_ sx_router_ecmp_hash_field_t *ecmp_hash_field);
 static sai_status_t mlnx_udf_group_db_index_references_set(_In_ uint32_t udf_group_db_index, _In_ bool add_reference);
 static sai_status_t mlnx_udf_group_mask_references_set(_In_ udf_group_mask_t udf_group_mask, _In_ bool add_reference);
 static sai_status_t mlnx_acl_udf_group_list_references_set(_In_ const acl_udf_group_list_t udf_group_list,
@@ -88,6 +83,84 @@ static sai_status_t mlnx_udf_group_attrib_get(_In_ const sai_object_key_t   *key
 static sai_status_t mlnx_udf_attrib_set(_In_ const sai_object_key_t      *key,
                                         _In_ const sai_attribute_value_t *value,
                                         void                             *arg);
+static sai_status_t mlnx_udf_group_sx_acl_key_ids_copy_spc(_In_ uint32_t       udf_group_db_index,
+                                                           _Out_ sx_acl_key_t *flex_acl_key_ids,
+                                                           _Inout_ uint32_t   *flex_acl_key_ids_num,
+                                                           _Inout_ uint32_t   *custom_bytes_num);
+static sai_status_t mlnx_udf_flex_acl_key_to_ecmp_hash_field_spc(_In_ sx_acl_key_t                  flex_acl_key_id,
+                                                                 _Out_ sx_router_ecmp_hash_field_t *ecmp_hash_field);
+static sai_status_t mlnx_udf_custom_bytes_to_ecmp_hash_fields_spc(
+    _In_ uint32_t                        flex_acl_keys_num,
+    _In_ uint32_t                        custom_bytes_num,
+    _In_ const sx_acl_key_t             *flex_acl_key_ids,
+    _Inout_ sx_router_ecmp_hash_field_t *ecmp_hash_fields,
+    _In_ uint32_t                        ecmp_hash_fields_idx);
+static void* mlnx_udf_alloc_group_list_spc(void);
+static sai_status_t mlnx_udf_group_sx_reg_ext_points_get_spc2(_In_ sx_gp_register_e        reg_id,
+                                                              _Out_ sx_extraction_point_t *ext_point_list,
+                                                              _Out_ uint32_t              *ext_point_cnt);
+static sai_status_t mlnx_udf_group_match_type_to_extr_point_spc2(_In_ mlnx_udf_match_type_t        udf_match_type,
+                                                                 _Out_ sx_extraction_point_type_e *sx_ext_point_type);
+static sai_status_t mlnx_udf_group_validate_match_type(_In_ mlnx_udf_match_type_t udf_match_type,
+                                                       _In_ uint32_t              udf_count);
+static sai_status_t mlnx_udf_group_flex_acl_key_ids_add_spc2(_In_ uint32_t group_db_index);
+static sai_status_t mlnx_udf_group_flex_acl_key_ids_del_spc2(_In_ uint32_t group_db_index);
+static sai_status_t mlnx_udf_group_flex_acl_key_ids_copy_spc2(_In_ uint32_t       udf_group_db_index,
+                                                              _Out_ sx_acl_key_t *flex_acl_key_ids,
+                                                              _Inout_ uint32_t   *flex_acl_key_ids_num,
+                                                              _Inout_ uint32_t   *custom_bytes_num);
+static sai_status_t mlnx_udf_custom_bytes_to_ecmp_hash_fields_spc2(
+    _In_ uint32_t                        flex_acl_keys_num,
+    _In_ uint32_t                        custom_bytes_num,
+    _In_ const sx_acl_key_t             *flex_acl_key_ids,
+    _Inout_ sx_router_ecmp_hash_field_t *ecmp_hash_fields,
+    _In_ uint32_t                        ecmp_hash_fields_idx);
+static void* mlnx_udf_alloc_group_list_spc2(void);
+
+typedef sai_status_t (*mlnx_udf_group_flex_acl_keys_update_fn)(_In_ uint32_t group_db_index);
+typedef sai_status_t (*mlnx_udf_group_flex_acl_keys_copy_fn)(_In_ uint32_t       udf_group_db_index,
+                                                             _Out_ sx_acl_key_t *flex_acl_key_ids,
+                                                             _Inout_ uint32_t   *flex_acl_key_ids_num,
+                                                             _Inout_ uint32_t   *custom_bytes_num);
+typedef sai_status_t (*mlnx_udf_mask_flex_acl_keys_to_ecmp_hash_field_fn)(_In_ uint32_t
+                                                                          flex_acl_keys_num,
+                                                                          _In_ uint32_t
+                                                                          custom_bytes_num,
+                                                                          _In_ const sx_acl_key_t             *
+                                                                          flex_acl_key_ids,
+                                                                          _Inout_ sx_router_ecmp_hash_field_t *
+                                                                          ecmp_hash_fields,
+                                                                          _In_ uint32_t
+                                                                          ecmp_hash_fields_idx);
+typedef void* (*mlnx_udf_alloc_group_list_fn)(void);
+
+typedef struct _mlnx_udf_cb_table_t {
+    mlnx_udf_group_flex_acl_keys_update_fn            flex_acl_key_ids_add;
+    mlnx_udf_group_flex_acl_keys_update_fn            flex_acl_key_ids_del;
+    mlnx_udf_group_flex_acl_keys_copy_fn              flex_acl_key_ids_copy;
+    mlnx_udf_mask_flex_acl_keys_to_ecmp_hash_field_fn custom_bytes_to_ecmp_hash_fields;
+    mlnx_udf_alloc_group_list_fn                      alloc_group_list;
+} mlnx_udf_cb_table_t;
+
+static mlnx_udf_cb_table_t mlnx_udf_cb_sp = {
+    mlnx_udf_group_sx_custom_bytes_create_or_update,
+    mlnx_udf_group_sx_custom_bytes_remove,
+    mlnx_udf_group_sx_acl_key_ids_copy_spc,
+    mlnx_udf_custom_bytes_to_ecmp_hash_fields_spc,
+    mlnx_udf_alloc_group_list_spc
+};
+
+static mlnx_udf_cb_table_t mlnx_udf_cb_sp2 = {
+    mlnx_udf_group_flex_acl_key_ids_add_spc2,
+    mlnx_udf_group_flex_acl_key_ids_del_spc2,
+    mlnx_udf_group_flex_acl_key_ids_copy_spc2,
+    mlnx_udf_custom_bytes_to_ecmp_hash_fields_spc2,
+    mlnx_udf_alloc_group_list_spc2
+};
+
+mlnx_udf_cb_table_t *mlnx_udf_cb = NULL;
+
+extern sai_status_t mlnx_init_flex_parser();
 
 /* UDF vendor attributes */
 static const sai_vendor_attribute_entry_t udf_vendor_attribs[] = {
@@ -115,7 +188,7 @@ static const sai_vendor_attribute_entry_t udf_vendor_attribs[] = {
       {true, false, true, true},
       {true, false, true, true},
       mlnx_udf_attrib_get, (void*)SAI_UDF_ATTR_HASH_MASK,
-      mlnx_udf_attrib_set, NULL },
+      mlnx_udf_attrib_set, (void*)SAI_UDF_ATTR_HASH_MASK },
     { END_FUNCTIONALITY_ATTRIBS_ID,
       { false, false, false, false },
       { false, false, false, false },
@@ -203,10 +276,7 @@ static void udf_key_to_str(_In_ sai_object_id_t   object_id,
 
 static sai_status_t mlnx_udf_db_size_get(_In_ sai_object_type_t udf_type, _Out_ uint32_t         *size)
 {
-    assert(NULL != size);
-    assert((SAI_OBJECT_TYPE_UDF == udf_type) ||
-           (SAI_OBJECT_TYPE_UDF_GROUP == udf_type) ||
-           (SAI_OBJECT_TYPE_UDF_MATCH == udf_type));
+    assert(size);
 
     switch (udf_type) {
     case SAI_OBJECT_TYPE_UDF:
@@ -399,14 +469,26 @@ static sai_status_t mlnx_udf_match_type_to_l2(_In_ mlnx_udf_match_type_t  match_
     return SAI_STATUS_SUCCESS;
 }
 
+static void* mlnx_udf_alloc_group_list_spc(void)
+{
+    return calloc(MLNX_UDF_GROUP_COUNT_MAX, sizeof(uint32_t));
+}
+
+static void* mlnx_udf_alloc_group_list_spc2(void)
+{
+    return calloc(MLNX_UDF_GP_REG_COUNT, sizeof(uint32_t));
+}
+
 static sai_status_t mlnx_udf_group_mask_to_indexes(_In_ udf_group_mask_t udf_group_mask,
                                                    _Out_ sai_u32_list_t *udf_groups_db_indexes)
 {
     uint32_t group_count, ii;
 
     assert(NULL != udf_groups_db_indexes);
+    assert(mlnx_udf_cb);
 
-    udf_groups_db_indexes->list = calloc(MLNX_UDF_GROUP_COUNT_MAX, sizeof(uint32_t));
+    udf_groups_db_indexes->list = mlnx_udf_cb->alloc_group_list();
+
     if (NULL == udf_groups_db_indexes->list) {
         SX_LOG_ERR("Failed to allocate memory for udf_groups_db_indexes\n");
         return SAI_STATUS_NO_MEMORY;
@@ -495,6 +577,11 @@ sai_status_t mlnx_udf_group_objlist_validate_and_fetch_mask(_In_ const sai_objec
     mask = 0;
     for (ii = 0; ii < udf_groups->count; ii++) {
         status = mlnx_udf_group_oid_validate_and_fetch(udf_groups->list[ii], attr_index, &udf_group_db_index);
+        if (SAI_ERR(status)) {
+            return status;
+        }
+
+        status = mlnx_sai_udf_issu_flow_validate_udf_group_hw_configured(udf_group_db_index);
         if (SAI_ERR(status)) {
             return status;
         }
@@ -598,19 +685,51 @@ out:
     return status;
 }
 
-sai_status_t mlnx_udf_group_db_index_to_sx_acl_keys(_In_ uint32_t       udf_group_db_index,
-                                                    _Out_ sx_acl_key_t *sx_acl_keys,
-                                                    _Out_ uint32_t     *sx_acl_key_count)
+sai_status_t mlnx_udf_group_sx_acl_key_ids_copy_spc(_In_ uint32_t       udf_group_db_index,
+                                                    _Out_ sx_acl_key_t *flex_acl_key_ids,
+                                                    _Inout_ uint32_t   *flex_acl_key_ids_num,
+                                                    _Inout_ uint32_t   *custom_bytes_num)
 {
-    assert(NULL != sx_acl_keys);
-    assert(NULL != sx_acl_key_count);
+    assert(flex_acl_key_ids);
+    assert(flex_acl_key_ids_num);
+    assert(custom_bytes_num);
+    memcpy(&flex_acl_key_ids[*flex_acl_key_ids_num], udf_db_group_ptr(udf_group_db_index)->sx_custom_bytes_keys,
+           sizeof(sx_acl_key_t) * udf_db_group_ptr(udf_group_db_index)->length);
+
+    *flex_acl_key_ids_num += udf_db_group_ptr(udf_group_db_index)->length;
+    *custom_bytes_num += udf_db_group_ptr(udf_group_db_index)->length;
+    return SAI_STATUS_SUCCESS;
+}
+
+sai_status_t mlnx_udf_group_flex_acl_key_ids_copy_spc2(_In_ uint32_t       udf_group_db_index,
+                                                       _Out_ sx_acl_key_t *flex_acl_key_ids,
+                                                       _Inout_ uint32_t   *flex_acl_key_ids_num,
+                                                       _Inout_ uint32_t   *custom_bytes_num)
+{
+    assert(flex_acl_key_ids);
+    assert(flex_acl_key_ids_num);
+    assert(custom_bytes_num);
+
+    flex_acl_key_ids[*flex_acl_key_ids_num] = udf_db_group_ptr(udf_group_db_index)->sx_custom_bytes_keys[0];
+    ++(*flex_acl_key_ids_num);
+    *custom_bytes_num += udf_db_group_ptr(udf_group_db_index)->length;
+
+    return SAI_STATUS_SUCCESS;
+}
+
+sai_status_t mlnx_udf_group_db_index_to_sx_acl_keys(_In_ uint32_t       udf_group_db_index,
+                                                    _Out_ sx_acl_key_t *flex_acl_key_ids,
+                                                    _Inout_ uint32_t   *flex_acl_key_ids_num,
+                                                    _Inout_ uint32_t   *custom_bytes_num)
+{
+    assert(flex_acl_key_ids);
+    assert(flex_acl_key_ids_num);
+    assert(custom_bytes_num);
+    assert(mlnx_udf_cb);
     assert(udf_db_group_ptr(udf_group_db_index)->is_created);
     assert(udf_db_group_ptr(udf_group_db_index)->is_sx_custom_bytes_created);
 
-    memcpy(&sx_acl_keys[*sx_acl_key_count], udf_db_group_ptr(udf_group_db_index)->sx_custom_bytes_keys,
-           sizeof(sx_acl_key_t) * udf_db_group_ptr(udf_group_db_index)->length);
-
-    *sx_acl_key_count += udf_db_group_ptr(udf_group_db_index)->length;
+    mlnx_udf_cb->flex_acl_key_ids_copy(udf_group_db_index, flex_acl_key_ids, flex_acl_key_ids_num, custom_bytes_num);
 
     return SAI_STATUS_SUCCESS;
 }
@@ -625,16 +744,107 @@ sai_status_t mlnx_udf_group_length_get(_In_ uint32_t udf_group_db_index, _Out_ u
     return SAI_STATUS_SUCCESS;
 }
 
-static sai_status_t mlnx_udf_group_mask_to_sx_acl_keys(_In_ udf_group_mask_t udf_group_mask,
-                                                       _Out_ sx_acl_key_t   *sx_acl_keys,
-                                                       _Out_ uint32_t       *sx_acl_key_count)
+static sai_status_t mlnx_udf_flex_acl_key_to_ecmp_hash_field_spc(_In_ sx_acl_key_t                  flex_acl_key_id,
+                                                                 _Out_ sx_router_ecmp_hash_field_t *ecmp_hash_field)
 {
-    sai_status_t   status;
-    sai_u32_list_t udf_groups_db_indexes = (sai_u32_list_t) {.list = NULL};
-    uint32_t       ii;
+    int32_t      general_fields_range = 0;
+    sx_acl_key_t last_hash_allowed_acl_key = FLEX_ACL_KEY_CUSTOM_BYTES_START;
 
-    assert(NULL != sx_acl_keys);
-    assert(NULL != sx_acl_key_count);
+    assert(NULL != ecmp_hash_field);
+
+    general_fields_range =
+        (SX_ROUTER_ECMP_HASH_GENERAL_FIELDS_CUSTOM_BYTE_LAST - SX_ROUTER_ECMP_HASH_GENERAL_FIELDS_CUSTOM_BYTE_0);
+    assert(general_fields_range >= 0);
+    last_hash_allowed_acl_key = FLEX_ACL_KEY_CUSTOM_BYTES_START + general_fields_range;
+
+    if ((flex_acl_key_id < FLEX_ACL_KEY_CUSTOM_BYTES_START) || (last_hash_allowed_acl_key < flex_acl_key_id)) {
+        SX_LOG_ERR("Invalid sx_acl_key_t for custom byte - %d\n", flex_acl_key_id);
+        return SAI_STATUS_FAILURE;
+    }
+
+    *ecmp_hash_field = flex_acl_key_id - FLEX_ACL_KEY_CUSTOM_BYTES_START +
+                       SX_ROUTER_ECMP_HASH_GENERAL_FIELDS_CUSTOM_BYTE_0;
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_udf_custom_bytes_to_ecmp_hash_fields_spc(
+    _In_ uint32_t                        flex_acl_keys_num,
+    _In_ uint32_t                        custom_bytes_num,
+    _In_ const sx_acl_key_t             *flex_acl_key_ids,
+    _Inout_ sx_router_ecmp_hash_field_t *ecmp_hash_fields,
+    _In_ uint32_t                        ecmp_hash_fields_idx)
+{
+    sai_status_t status = SAI_STATUS_SUCCESS;
+    uint32_t     ii = 0;
+    uint32_t     jj = ecmp_hash_fields_idx;
+
+    assert(flex_acl_key_ids);
+    assert(ecmp_hash_fields);
+
+    for (ii = 0; ii < flex_acl_keys_num; ++ii, ++jj) {
+        status = mlnx_udf_flex_acl_key_to_ecmp_hash_field_spc(flex_acl_key_ids[ii], &ecmp_hash_fields[jj]);
+        if (SAI_ERR(status)) {
+            goto out;
+        }
+    }
+
+out:
+    return status;
+}
+
+static sai_status_t mlnx_udf_custom_bytes_to_ecmp_hash_fields_spc2(
+    _In_ uint32_t                        flex_acl_keys_num,
+    _In_ uint32_t                        custom_bytes_num,
+    _In_ const sx_acl_key_t             *flex_acl_key_ids,
+    _Inout_ sx_router_ecmp_hash_field_t *ecmp_hash_fields,
+    _In_ uint32_t                        ecmp_hash_fields_idx)
+{
+    sai_status_t                status = SAI_STATUS_SUCCESS;
+    int32_t                     general_fields_range = 0;
+    sx_acl_key_t                last_hash_allowed_acl_key = FLEX_ACL_KEY_GP_REGISTER_0;
+    sx_router_ecmp_hash_field_t ecmp_hash_field = SX_ROUTER_ECMP_HASH_GENERAL_FIELDS_GP_REGISTER_LAST;
+
+    assert(flex_acl_key_ids);
+    assert(ecmp_hash_fields);
+
+    general_fields_range = SX_ROUTER_ECMP_HASH_GENERAL_FIELDS_GP_REGISTER_LAST -
+                           SX_ROUTER_ECMP_HASH_GENERAL_FIELDS_GP_REGISTER_0_BYTE_0;
+    assert(general_fields_range >= 0);
+    last_hash_allowed_acl_key = FLEX_ACL_KEY_GP_REGISTER_0 + (general_fields_range / 2);
+
+    if ((flex_acl_key_ids[0] < FLEX_ACL_KEY_GP_REGISTER_0) || (last_hash_allowed_acl_key < flex_acl_key_ids[0])) {
+        SX_LOG_ERR("Invalid sx_acl_key_t \n");
+        status = SAI_STATUS_FAILURE;
+        goto out;
+    }
+
+    ecmp_hash_field = (flex_acl_key_ids[0] - FLEX_ACL_KEY_GP_REGISTER_START) * 2 +
+                      SX_ROUTER_ECMP_HASH_GENERAL_FIELDS_GP_REGISTER_0_BYTE_0;
+
+    ecmp_hash_fields[ecmp_hash_fields_idx++] = ecmp_hash_field;
+    if (custom_bytes_num > 1) {
+        ecmp_hash_fields[ecmp_hash_fields_idx] = ++ecmp_hash_field;
+    }
+
+out:
+    return status;
+}
+
+sai_status_t mlnx_udf_group_mask_to_ecmp_hash_fields(_In_ udf_group_mask_t              udf_group_mask,
+                                                     _Out_ sx_router_ecmp_hash_field_t *ecmp_hash_fields,
+                                                     _Out_ uint32_t                    *ecmp_hash_field_count)
+{
+    sai_status_t   status = SAI_STATUS_SUCCESS;
+    uint32_t       sx_custom_bytes_count = 0;
+    sai_u32_list_t udf_groups_db_indexes = (sai_u32_list_t) {.list = NULL};
+    uint32_t       custom_bytes_num = 0;
+    uint32_t       flex_acl_key_ids_num = 0;
+    sx_acl_key_t   flex_acl_key_ids[10] = {0};
+    uint32_t       ii = 0;
+
+    assert(NULL != ecmp_hash_fields);
+    assert(NULL != ecmp_hash_field_count);
 
     status = mlnx_udf_group_mask_to_indexes(udf_group_mask, &udf_groups_db_indexes);
     if (SAI_ERR(status)) {
@@ -642,60 +852,31 @@ static sai_status_t mlnx_udf_group_mask_to_sx_acl_keys(_In_ udf_group_mask_t udf
     }
 
     for (ii = 0; ii < udf_groups_db_indexes.count; ii++) {
-        status = mlnx_udf_group_db_index_to_sx_acl_keys(udf_groups_db_indexes.list[ii], sx_acl_keys, sx_acl_key_count);
+        custom_bytes_num = 0;
+        flex_acl_key_ids_num = 0;
+
+        status = mlnx_udf_group_db_index_to_sx_acl_keys
+                     (udf_groups_db_indexes.list[ii], flex_acl_key_ids, &flex_acl_key_ids_num, &custom_bytes_num);
         if (SAI_ERR(status)) {
-            return status;
+            goto out;
         }
+
+        assert(mlnx_udf_cb);
+        status = mlnx_udf_cb->custom_bytes_to_ecmp_hash_fields
+                     (flex_acl_key_ids_num, custom_bytes_num, flex_acl_key_ids, ecmp_hash_fields,
+                     sx_custom_bytes_count);
+        if (SAI_ERR(status)) {
+            goto out;
+        }
+
+        sx_custom_bytes_count += custom_bytes_num;
     }
+
+    *ecmp_hash_field_count = sx_custom_bytes_count;
 
 out:
-    free(udf_groups_db_indexes.list);
+    safe_free(udf_groups_db_indexes.list);
     return status;
-}
-
-static sai_status_t mlnx_udf_custom_byte_to_ecmp_hash_filed(_In_ sx_acl_key_t                  custom_byte,
-                                                            _Out_ sx_router_ecmp_hash_field_t *ecmp_hash_field)
-{
-    assert(NULL != ecmp_hash_field);
-
-    if ((custom_byte < FLEX_ACL_KEY_CUSTOM_BYTES_START) || (FLEX_ACL_KEY_CUSTOM_BYTES_LAST < custom_byte)) {
-        SX_LOG_ERR("Invalid sx_acl_key_t for custom byte - %d\n", custom_byte);
-        return SAI_STATUS_FAILURE;
-    }
-
-    *ecmp_hash_field = custom_byte - FLEX_ACL_KEY_CUSTOM_BYTES_START +
-                       SX_ROUTER_ECMP_HASH_GENERAL_FIELDS_CUSTOM_BYTE_0;
-
-    return SAI_STATUS_SUCCESS;
-}
-
-sai_status_t mlnx_udf_group_mask_to_ecmp_hash_fields(_In_ udf_group_mask_t              udf_group_mask,
-                                                     _Out_ sx_router_ecmp_hash_field_t *ecmp_hash_fields,
-                                                     _Out_ uint32_t                    *ecmp_hash_field_count)
-{
-    sai_status_t status;
-    sx_acl_key_t sx_acl_keys[FLEX_ACL_KEY_LAST] = {0};
-    uint32_t     sx_acl_keys_count, ii;
-
-    assert(NULL != ecmp_hash_fields);
-    assert(NULL != ecmp_hash_field_count);
-
-    sx_acl_keys_count = 0;
-    status = mlnx_udf_group_mask_to_sx_acl_keys(udf_group_mask, sx_acl_keys, &sx_acl_keys_count);
-    if (SAI_ERR(status)) {
-        return status;
-    }
-
-    for (ii = 0; ii < sx_acl_keys_count; ii++) {
-        status = mlnx_udf_custom_byte_to_ecmp_hash_filed(sx_acl_keys[ii], &ecmp_hash_fields[ii]);
-        if (SAI_ERR(status)) {
-            return status;
-        }
-    }
-
-    *ecmp_hash_field_count = sx_acl_keys_count;
-
-    return SAI_STATUS_SUCCESS;
 }
 
 static sai_status_t mlnx_udf_group_db_index_references_set(_In_ uint32_t udf_group_db_index, _In_ bool add_reference)
@@ -995,17 +1176,18 @@ static sai_status_t mlnx_udf_group_update(_In_ uint32_t group_db_index)
     sai_status_t status;
     uint32_t     udf_count;
 
+    assert(mlnx_udf_cb);
     assert(udf_db_group_ptr(group_db_index)->is_created);
 
     udf_count = udf_db_group_udfs_ptr(group_db_index)->count;
 
     if (0 == udf_count) {
-        status = mlnx_udf_group_sx_custom_bytes_remove(group_db_index);
+        status = mlnx_udf_cb->flex_acl_key_ids_del(group_db_index);
         if (SAI_ERR(status)) {
             return status;
         }
     } else {
-        status = mlnx_udf_group_sx_custom_bytes_create_or_update(group_db_index);
+        status = mlnx_udf_cb->flex_acl_key_ids_add(group_db_index);
         if (SAI_ERR(status)) {
             return status;
         }
@@ -1021,6 +1203,11 @@ static sai_status_t mlnx_udf_group_add_udf(_In_ uint32_t group_db_index, _In_ ui
     mlnx_udf_match_type_t group_member_udf_match_type, udf_match_type;
     uint32_t              udf_match_db_index;
     uint32_t              group_size, group_udf_db_index, group_udf_match_index, ii;
+
+    if (udf_db_group_ptr(group_db_index)->refs > 0) {
+        SX_LOG_ERR("Failed to add UDF to UDF Group - UDF Group is in use\n");
+        return SAI_STATUS_OBJECT_IN_USE;
+    }
 
     group_size = udf_db_group_udfs_ptr(group_db_index)->count;
 
@@ -1091,6 +1278,11 @@ static sai_status_t mlnx_udf_group_remove_udf(_In_ uint32_t udf_db_index)
     udf_group = udf_db_group_ptr(udf_group_db_index);
     group_udfs = udf_db_group_udfs_ptr(udf_group_db_index);
 
+    if (udf_group->refs > 0) {
+        SX_LOG_ERR("Failed to remove UDF from UDF Group - UDF Group is in use\n");
+        return SAI_STATUS_OBJECT_IN_USE;
+    }
+
     if ((udf_group->refs > 0) && (group_udfs->count == 1)) {
         SX_LOG_ERR("Failed to remove the last UDF (%lx) from a UDF Group (%lx) - UDF Group is in use\n",
                    udf_db_udf(udf_db_index).sai_object, udf_db_group_ptr(udf_group_db_index)->sai_object);
@@ -1150,12 +1342,6 @@ static sai_status_t mlnx_udf_attrib_get(_In_ const sai_object_key_t   *key,
     SX_LOG_ENTER();
 
     attr = (int64_t)(arg);
-
-    assert((SAI_UDF_ATTR_GROUP_ID == attr) ||
-           (SAI_UDF_ATTR_MATCH_ID == attr) ||
-           (SAI_UDF_ATTR_BASE == attr) ||
-           (SAI_UDF_ATTR_OFFSET == attr) ||
-           (SAI_UDF_ATTR_HASH_MASK == attr));
 
     sai_db_read_lock();
 
@@ -1225,11 +1411,6 @@ static sai_status_t mlnx_udf_match_attrib_get(_In_ const sai_object_key_t   *key
 
     attr = (int64_t)(arg);
 
-    assert((SAI_UDF_MATCH_ATTR_L2_TYPE == attr) ||
-           (SAI_UDF_MATCH_ATTR_L3_TYPE == attr) ||
-           (SAI_UDF_MATCH_ATTR_GRE_TYPE == attr) ||
-           (SAI_UDF_MATCH_ATTR_PRIORITY == attr));
-
     sai_db_read_lock();
 
     status = mlnx_udf_oid_validate_and_fetch(key->key.object_id, SAI_OBJECT_TYPE_UDF_MATCH, 0, &match_db_index);
@@ -1284,10 +1465,6 @@ static sai_status_t mlnx_udf_group_attrib_get(_In_ const sai_object_key_t   *key
 
     attr = (int64_t)(arg);
 
-    assert((SAI_UDF_GROUP_ATTR_UDF_LIST == attr) ||
-           (SAI_UDF_GROUP_ATTR_TYPE == attr) ||
-           (SAI_UDF_GROUP_ATTR_LENGTH == attr));
-
     sai_db_read_lock();
 
     status = mlnx_udf_oid_validate_and_fetch(key->key.object_id, SAI_OBJECT_TYPE_UDF_GROUP, 0, &group_db_index);
@@ -1339,8 +1516,6 @@ static sai_status_t mlnx_udf_attrib_set(_In_ const sai_object_key_t      *key,
     sai_udf_attr_t attr;
 
     attr = (int64_t)(arg);
-
-    assert(SAI_UDF_ATTR_HASH_MASK == attr);
 
     sai_db_read_lock();
 
@@ -1524,6 +1699,12 @@ static sai_status_t mlnx_sai_remove_udf(_In_ sai_object_id_t udf_id)
     SX_LOG_NTC("Remove %s.\n", key_str);
 
     sai_db_write_lock();
+
+    if (g_sai_db_ptr->is_issu_gp_reg_restore) {
+        SX_LOG_ERR("Failed to remove UDF object on issu flow");
+        status = SAI_STATUS_FAILURE;
+        goto out;
+    }
 
     status = mlnx_udf_oid_validate_and_fetch(udf_id, SAI_OBJECT_TYPE_UDF, 0, &udf_db_index);
     if (SAI_ERR(status)) {
@@ -1992,6 +2173,511 @@ sai_status_t mlnx_udf_log_set(sx_verbosity_level_t level)
     } else {
         return SAI_STATUS_SUCCESS;
     }
+}
+
+sai_status_t mlnx_udf_cb_table_init(void)
+{
+    sx_chip_types_t chip_type = SX_CHIP_TYPE_UNKNOWN;
+
+    chip_type = g_sai_db_ptr->sx_chip_type;
+
+    switch (chip_type) {
+    case SX_CHIP_TYPE_SPECTRUM:
+    case SX_CHIP_TYPE_SPECTRUM_A1:
+        mlnx_udf_cb = &mlnx_udf_cb_sp;
+        break;
+
+    case SX_CHIP_TYPE_SPECTRUM2:
+        mlnx_udf_cb = &mlnx_udf_cb_sp2;
+        break;
+
+    case SX_CHIP_TYPE_SPECTRUM3:
+        mlnx_udf_cb = &mlnx_udf_cb_sp2;
+        break;
+
+    default:
+        MLNX_SAI_LOG_ERR("g_sai_db_ptr->sxd_chip_type = %s\n", SX_CHIP_TYPE_STR(chip_type));
+        return SAI_STATUS_FAILURE;
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
+sai_status_t mlnx_udf_group_sx_reg_ext_point_set_spc2(_In_ sx_access_cmd_t              cmd,
+                                                      _In_ sx_gp_register_e             reg_id,
+                                                      _In_ const sx_extraction_point_t *ext_point_list,
+                                                      _In_ uint32_t                     ext_point_cnt)
+{
+    sai_status_t      sai_status = SAI_STATUS_SUCCESS;
+    sx_status_t       sx_status = SX_STATUS_SUCCESS;
+    sx_register_key_t register_key = {0};
+    uint32_t          point_cnt = ext_point_cnt;
+
+    assert(ext_point_list);
+    assert(point_cnt > 0);
+    assert((SX_ACCESS_CMD_SET == cmd) ||
+           (SX_ACCESS_CMD_UNSET == cmd));
+
+    if (SAI_STATUS_SUCCESS != (sai_status = mlnx_init_flex_parser())) {
+        SX_LOG_ERR("Failed to init_flex_parser\n");
+        goto out;
+    }
+
+    register_key.type = SX_REGISTER_KEY_TYPE_GENERAL_PURPOSE_E;
+    register_key.key.gp_reg.reg_id = reg_id;
+
+    if (SX_STATUS_SUCCESS !=
+        (sx_status = sx_api_flex_parser_reg_ext_point_set
+                         (gh_sdk, cmd, register_key, ext_point_list, &point_cnt))) {
+        SX_LOG_ERR("Failed to %s extraction points for register %s.\n",
+                   (SX_ACCESS_CMD_SET == cmd) ? "SET" : "UNSET",
+                   SX_STATUS_MSG(sx_status));
+        sai_status = sdk_to_sai(sx_status);
+        goto out;
+    }
+
+out:
+    return sai_status;
+}
+
+static sai_status_t mlnx_udf_group_sx_reg_ext_points_get_spc2(_In_ sx_gp_register_e        reg_id,
+                                                              _Out_ sx_extraction_point_t *ext_point_list,
+                                                              _Out_ uint32_t              *ext_point_cnt)
+{
+    sai_status_t      sai_status = SAI_STATUS_SUCCESS;
+    sx_status_t       sx_status = SX_STATUS_SUCCESS;
+    sx_register_key_t register_key = {0};
+
+    assert(ext_point_list);
+    assert(ext_point_cnt);
+
+    register_key.type = SX_REGISTER_KEY_TYPE_GENERAL_PURPOSE_E;
+    register_key.key.gp_reg.reg_id = reg_id;
+
+    if (SAI_STATUS_SUCCESS != (sai_status = mlnx_init_flex_parser())) {
+        SX_LOG_ERR("Failed to init_flex_parser\n");
+        goto out;
+    }
+
+    if (SX_STATUS_SUCCESS !=
+        (sx_status = sx_api_flex_parser_reg_ext_point_get
+                         (gh_sdk, register_key, ext_point_list, ext_point_cnt))) {
+        SX_LOG_ERR("Failed to get extraction points for register %s.\n",
+                   SX_STATUS_MSG(sx_status));
+        sai_status = sdk_to_sai(sx_status);
+        goto out;
+    }
+
+out:
+    return sai_status;
+}
+
+sai_status_t mlnx_udf_group_sx_gp_registers_create_destroy_spc2(_In_ sx_access_cmd_t         cmd,
+                                                                _In_ const sx_gp_register_e *reg_ids,
+                                                                _In_ uint32_t                reg_ids_count)
+{
+    sai_status_t      sai_status = SAI_STATUS_SUCCESS;
+    sx_status_t       sx_status = SX_STATUS_SUCCESS;
+    sx_register_key_t register_keys_list[10] = {0};
+    uint32_t          ii = 0;
+
+    assert(reg_ids);
+    assert(reg_ids_count != 0);
+    assert(reg_ids_count <= MLNX_UDF_GP_REG_COUNT);
+    assert((SX_ACCESS_CMD_CREATE == cmd) ||
+           (SX_ACCESS_CMD_DESTROY == cmd));
+
+    if (SAI_STATUS_SUCCESS != (sai_status = mlnx_init_flex_parser())) {
+        SX_LOG_ERR("Failed to init_flex_parser\n");
+        goto out;
+    }
+
+    for (ii = 0; ii < reg_ids_count; ++ii) {
+        register_keys_list[ii].type = SX_REGISTER_KEY_TYPE_GENERAL_PURPOSE_E;
+        register_keys_list[ii].key.gp_reg.reg_id = reg_ids[ii];
+    }
+
+    if (SX_STATUS_SUCCESS !=
+        (sx_status = sx_api_register_set
+                         (gh_sdk, cmd, register_keys_list, &reg_ids_count))) {
+        SX_LOG_ERR("Failed to %s gp register %s.\n",
+                   (SX_ACCESS_CMD_CREATE == cmd) ? "CREATE" : "DESTROY",
+                   SX_STATUS_MSG(sx_status));
+        sai_status = sdk_to_sai(sx_status);
+        goto out;
+    }
+
+out:
+    return sai_status;
+}
+
+static sai_status_t mlnx_udf_group_match_type_to_extr_point_spc2(_In_ mlnx_udf_match_type_t        udf_match_type,
+                                                                 _Out_ sx_extraction_point_type_e *sx_ext_point_type)
+{
+    sai_status_t               sai_status = SAI_STATUS_SUCCESS;
+    sx_extraction_point_type_e sx_point_type = SX_EXTRACTION_POINT_TYPE_LAST_E;
+
+    assert(sx_ext_point_type);
+
+    switch (udf_match_type) {
+    case MLNX_UDF_MATCH_TYPE_EMPTY:
+        sx_point_type = SX_EXTRACTION_POINT_TYPE_L2_START_OF_HEADER_E;
+        break;
+
+    case MLNX_UDF_MATCH_TYPE_ARP:
+        sx_point_type = SX_EXTRACTION_POINT_TYPE_ARP_START_OF_HEADER_E;
+        break;
+
+    case MLNX_UDF_MATCH_TYPE_IPv4:
+        sx_point_type = SX_EXTRACTION_POINT_TYPE_IPV4_START_OF_HEADER_E;
+        break;
+
+    case MLNX_UDF_MATCH_TYPE_IPv6:
+        sx_point_type = SX_EXTRACTION_POINT_TYPE_IPV6_START_OF_HEADER_E;
+        break;
+
+    default:
+        SX_LOG_ERR("Unexpected type of udf match (%d)\n", udf_match_type);
+        sai_status = SAI_STATUS_FAILURE;
+        goto out;
+    }
+
+    *sx_ext_point_type = sx_point_type;
+out:
+    return sai_status;
+}
+
+static sai_status_t mlnx_udf_group_validate_match_type(_In_ mlnx_udf_match_type_t udf_match_type,
+                                                       _In_ uint32_t              udf_count)
+{
+    sai_status_t sai_status = SAI_STATUS_SUCCESS;
+
+    if ((MLNX_UDF_MATCH_TYPE_EMPTY == udf_match_type) && (udf_count != 1)) {
+        sai_status = SAI_STATUS_FAILURE;
+    }
+
+    return sai_status;
+}
+
+static sai_status_t mlnx_udf_group_construct_extr_point_list_from_db(_In_ uint32_t                group_db_index,
+                                                                     _In_ uint32_t                udf_count,
+                                                                     _Out_ sx_extraction_point_t *ext_point_list)
+{
+    sai_status_t               sai_status = SAI_STATUS_SUCCESS;
+    uint32_t                   udf_db_index = 0;
+    uint32_t                   ii = 0;
+    uint32_t                   udf_offset = 0;
+    uint32_t                   udf_match_db_index = 0;
+    mlnx_udf_match_type_t      udf_match_type = MLNX_UDF_MATCH_TYPE_EMPTY;
+    sx_extraction_point_type_e sx_ext_point_type = SX_EXTRACTION_POINT_TYPE_LAST_E;
+
+    assert(ext_point_list);
+    assert(MLNX_UDF_GROUP_SIZE_MAX >= udf_count);
+
+    /* construct list of extraction points from internal db */
+    for (ii = 0; ii < udf_count; ++ii) {
+        udf_db_index = udf_db_group_udfs_ptr(group_db_index)->udf_indexes[ii];
+        udf_offset = udf_db_udf(udf_db_index).offset;
+        udf_match_db_index = udf_db_udf(udf_db_index).match_index;
+        udf_match_type = udf_db_match(udf_match_db_index).type;
+
+        if (SAI_STATUS_SUCCESS !=
+            (sai_status = mlnx_udf_group_validate_match_type
+                              (udf_match_type, udf_count))) {
+            goto out;
+        }
+
+        if (SAI_STATUS_SUCCESS !=
+            (sai_status = mlnx_udf_group_match_type_to_extr_point_spc2
+                              (udf_match_type, &sx_ext_point_type))) {
+            goto out;
+        }
+
+        ext_point_list[ii].type = sx_ext_point_type;
+        ext_point_list[ii].offset = udf_offset;
+    }
+
+out:
+    return sai_status;
+}
+
+static sai_status_t mlnx_udf_group_flex_acl_key_ids_add_spc2(_In_ uint32_t group_db_index)
+{
+    sai_status_t            sai_status = SAI_STATUS_SUCCESS;
+    sx_acl_key_t           *sx_keys = NULL;
+    mlnx_gp_reg_db_t       *reg_entry = NULL;
+    mlnx_shm_rm_array_idx_t gp_reg_db_idx = {0};
+    sx_gp_register_e        reg_id = SX_GP_REGISTER_LAST_E;
+    uint32_t                ext_point_cnt = MLNX_EXT_POINT_MAX_NUM;
+    sx_extraction_point_t   ext_point_list[MLNX_EXT_POINT_MAX_NUM] = {0};
+    uint32_t                udf_count = 0;
+
+    assert(udf_db_group_ptr(group_db_index)->is_created);
+    assert(udf_db_group_udfs_ptr(group_db_index)->count > 0);
+
+    sx_keys = udf_db_group_ptr(group_db_index)->sx_custom_bytes_keys;
+
+    /* update flow */
+    if (udf_db_group_ptr(group_db_index)->is_sx_custom_bytes_created) {
+        assert(!(g_sai_db_ptr->is_issu_gp_reg_restore));
+
+        reg_id = MLNX_FLEX_ACL_KEY_TO_SX_GP_REG(sx_keys[0]);
+        assert(reg_id != SX_GP_REGISTER_LAST_E);
+
+        /* get list of extraction points mapped to register key from SDK */
+        if (SAI_STATUS_SUCCESS !=
+            (sai_status = mlnx_udf_group_sx_reg_ext_points_get_spc2
+                              (reg_id, ext_point_list, &ext_point_cnt))) {
+            goto out;
+        }
+
+        assert(ext_point_cnt > 0);
+
+        /* unset list of extraction points from register key in SDK*/
+        if (SAI_STATUS_SUCCESS !=
+            (sai_status = mlnx_udf_group_sx_reg_ext_point_set_spc2
+                              (SX_ACCESS_CMD_UNSET, reg_id, ext_point_list, ext_point_cnt))) {
+            goto out;
+        }
+    } else {
+        /* creation flow */
+        if (g_sai_db_ptr->is_issu_gp_reg_restore) {
+            sai_status = mlnx_sai_issu_storage_udf_gp_reg_idx_lookup(&reg_id, group_db_index);
+            if (SAI_STATUS_ITEM_NOT_FOUND == sai_status) {
+                sai_status = SAI_STATUS_SUCCESS;
+                goto out;
+            }
+            if (SAI_ERR(sai_status)) {
+                goto out;
+            }
+
+            sai_status = mlnx_gp_reg_db_alloc_by_gp_reg_id(&reg_entry, reg_id);
+            if (SAI_ERR(sai_status)) {
+                goto out;
+            }
+        } else {
+            /* get register id from the pool */
+            sai_status = mlnx_gp_reg_db_alloc_first_free(&reg_entry, &gp_reg_db_idx, GP_REG_USED_UDF);
+            if (SAI_ERR(sai_status)) {
+                goto out;
+            }
+
+            reg_id = gp_reg_db_idx.idx;
+        }
+
+        assert(reg_id < SX_GP_REGISTER_LAST_E);
+
+        /* create register key */
+        if (SAI_STATUS_SUCCESS !=
+            (sai_status = mlnx_udf_group_sx_gp_registers_create_destroy_spc2
+                              (SX_ACCESS_CMD_CREATE, &reg_id, 1))) {
+            goto out;
+        }
+        reg_entry->gp_usage = GP_REG_USED_UDF;
+    }
+
+    udf_count = udf_db_group_udfs_ptr(group_db_index)->count;
+    if (SAI_STATUS_SUCCESS !=
+        (sai_status = mlnx_udf_group_construct_extr_point_list_from_db
+                          (group_db_index, udf_count, ext_point_list))) {
+        goto out;
+    }
+
+    /* set list of extraction points to register key in SDK */
+    if (SAI_STATUS_SUCCESS !=
+        (sai_status = mlnx_udf_group_sx_reg_ext_point_set_spc2
+                          (SX_ACCESS_CMD_SET, reg_id, ext_point_list, udf_count))) {
+        goto out;
+    }
+
+    /* allocate FLEX ACL key id*/
+    sx_keys[0] = MLNX_SX_GP_REG_TO_FLEX_ACL_KEY(reg_id);
+
+    udf_db_group_ptr(group_db_index)->is_sx_custom_bytes_created = true;
+
+out:
+    if (SAI_STATUS_SUCCESS != sai_status) {
+        if (reg_entry) {
+            mlnx_gp_reg_db_free(gp_reg_db_idx);
+        }
+    }
+    return sai_status;
+}
+
+static sai_status_t mlnx_udf_group_flex_acl_key_ids_del_spc2(_In_ uint32_t group_db_index)
+{
+    sai_status_t            sai_status = SAI_STATUS_SUCCESS;
+    sx_acl_key_t           *sx_keys = NULL;
+    sx_gp_register_e        reg_id = SX_GP_REGISTER_LAST_E;
+    mlnx_shm_rm_array_idx_t gp_reg_db_idx = {0};
+    sx_extraction_point_t   ext_point[MLNX_EXT_POINT_MAX_NUM] = {0};
+    uint32_t                ext_point_cnt = MLNX_EXT_POINT_MAX_NUM;
+
+    assert(udf_db_group_ptr(group_db_index)->is_created);
+    assert(udf_db_group_ptr(group_db_index)->is_sx_custom_bytes_created);
+    assert(0 == udf_db_group_udfs_ptr(group_db_index)->count);
+
+    sx_keys = udf_db_group_ptr(group_db_index)->sx_custom_bytes_keys;
+
+    reg_id = MLNX_FLEX_ACL_KEY_TO_SX_GP_REG(sx_keys[0]);
+    assert(reg_id != SX_GP_REGISTER_LAST_E);
+
+    /* get list of extraction points mapped to register key from SDK */
+    if (SAI_STATUS_SUCCESS !=
+        (sai_status = mlnx_udf_group_sx_reg_ext_points_get_spc2
+                          (reg_id, ext_point, &ext_point_cnt))) {
+        goto out;
+    }
+
+    /* unset extraction points from register key */
+    if (SAI_STATUS_SUCCESS !=
+        (sai_status = mlnx_udf_group_sx_reg_ext_point_set_spc2
+                          (SX_ACCESS_CMD_UNSET, reg_id, ext_point, ext_point_cnt))) {
+        goto out;
+    }
+
+    /* destroy register key */
+    if (SAI_STATUS_SUCCESS !=
+        (sai_status = mlnx_udf_group_sx_gp_registers_create_destroy_spc2
+                          (SX_ACCESS_CMD_DESTROY, &reg_id, 1))) {
+        goto out;
+    }
+
+    gp_reg_db_idx.type = MLNX_SHM_RM_ARRAY_TYPE_GP_REG;
+    gp_reg_db_idx.idx = reg_id;
+
+    /* return register id to the pool */
+    if (SAI_STATUS_SUCCESS !=
+        (sai_status = mlnx_gp_reg_db_free(gp_reg_db_idx))) {
+        goto out;
+    }
+
+    memset(sx_keys, 0, sizeof(sx_keys[0]) * MLNX_UDF_GROUP_LENGTH_MAX);
+
+    udf_db_group_ptr(group_db_index)->is_sx_custom_bytes_created = false;
+
+    SX_LOG_NTC("Removed the GP Registers for UDF Group %lx\n",
+               udf_db_group_ptr(group_db_index)->sai_object);
+
+out:
+    return sai_status;
+}
+
+sai_status_t mlnx_udf_db_udf_group_size_get(uint32_t *db_size)
+{
+    sai_status_t sai_status = SAI_STATUS_SUCCESS;
+
+    sai_status = mlnx_udf_db_size_get(SAI_OBJECT_TYPE_UDF_GROUP, db_size);
+
+    return sai_status;
+}
+
+sai_status_t mlnx_sai_udf_get_issu_udf_info(_In_ uint32_t group_db_index, _Out_ mlnx_issu_gp_reg_udf_info *udf_info)
+{
+    sai_status_t          sai_status = SAI_STATUS_SUCCESS;
+    uint32_t              ii = 0;
+    uint32_t              udf_db_index = 0;
+    uint32_t              udf_match_db_index = 0;
+    sai_uint16_t          offset = 0;
+    mlnx_udf_match_type_t match_type = 0;
+
+    SX_LOG_ENTER();
+
+    assert(udf_info);
+
+    udf_info->udf_group_type = udf_db_group_ptr(group_db_index)->type;
+    udf_info->udf_group_length = udf_db_group_ptr(group_db_index)->length;
+
+    for (ii = 0; ii < udf_db_group_udfs_ptr(group_db_index)->count; ++ii) {
+        udf_db_index = udf_db_group_udfs_ptr(group_db_index)->udf_indexes[ii];
+        udf_match_db_index = udf_db_udf(udf_db_index).match_index;
+
+        offset = udf_db_udf(udf_db_index).offset;
+        match_type = udf_db_match(udf_match_db_index).type;
+
+        udf_info->udf_offsets_arr[match_type] = offset;
+        udf_info->udf_match_type_bitmask |= (1 << match_type);
+    }
+
+    SX_LOG_EXIT();
+    return sai_status;
+}
+
+sai_status_t mlnx_sai_udf_get_gp_reg_issu_info_from_udf_db(_In_ uint32_t                         group_db_index,
+                                                           _Out_ mlnx_sai_issu_gp_reg_info_elem *elem,
+                                                           _Inout_ uint32_t                     *count)
+{
+    sai_status_t     sai_status = SAI_STATUS_SUCCESS;
+    sx_gp_register_e gp_reg_idx = SX_GP_REGISTER_LAST_E;
+
+    SX_LOG_ENTER();
+
+    assert(elem);
+    assert(count);
+
+    if (mlnx_udf_db_is_created(group_db_index, SAI_OBJECT_TYPE_UDF_GROUP) &&
+        udf_db_group_ptr(group_db_index)->is_sx_custom_bytes_created) {
+        gp_reg_idx = MLNX_FLEX_ACL_KEY_TO_SX_GP_REG(udf_db_group_ptr(group_db_index)->sx_custom_bytes_keys[0]);
+        elem->gp_reg_bitmask |= (1 << gp_reg_idx);
+
+        elem->type = GP_REG_USED_UDF;
+
+        sai_status = mlnx_sai_udf_get_issu_udf_info(group_db_index, &elem->udf);
+        if (SAI_ERR(sai_status)) {
+            goto out;
+        }
+
+        (*count)++;
+    }
+
+out:
+    SX_LOG_EXIT();
+    return sai_status;
+}
+
+sai_status_t mlnx_sai_udf_issu_flow_validate_udf_group_hw_configured(uint32_t udf_group_db_index)
+{
+    sai_status_t sai_status = SAI_STATUS_SUCCESS;
+
+    SX_LOG_ENTER();
+
+    if (g_sai_db_ptr->is_issu_gp_reg_restore &&
+        !udf_db_group_ptr(udf_group_db_index)->is_sx_custom_bytes_created) {
+        SX_LOG_ERR("ISSU flow failed. UDF is not applied in HW\n");
+        sai_status = SAI_STATUS_FAILURE;
+        goto out;
+    }
+
+out:
+    SX_LOG_EXIT();
+    return sai_status;
+}
+
+sai_status_t mlnx_sai_udf_check_udf_db_is_set_to_hw(void)
+{
+    sai_status_t sai_status = SAI_STATUS_SUCCESS;
+    uint32_t     db_size = 0;
+    uint32_t     group_db_index = 0;
+
+    SX_LOG_ENTER();
+
+    sai_status = mlnx_udf_db_udf_group_size_get(&db_size);
+    if (SAI_ERR(sai_status)) {
+        goto out;
+    }
+
+    for (group_db_index = 0; group_db_index < db_size; ++group_db_index) {
+        if (mlnx_udf_db_is_created(group_db_index, SAI_OBJECT_TYPE_UDF_GROUP) &&
+            udf_db_group_udfs_ptr(group_db_index)->count &&
+            !udf_db_group_ptr(group_db_index)->is_sx_custom_bytes_created) {
+            sai_status = SAI_STATUS_FAILURE;
+            goto out;
+        }
+    }
+
+out:
+    SX_LOG_EXIT();
+    return sai_status;
 }
 
 const sai_udf_api_t mlnx_udf_api = {

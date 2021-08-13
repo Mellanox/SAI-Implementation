@@ -184,6 +184,7 @@
     <ClInclude Include="inc\sdk\sx_api_bmtor.h" />
     <ClInclude Include="inc\sdk\sx_bmtor.h" />
     <ClInclude Include="inc\sharedlib.h" />
+    <ClInclude Include="src\dbgdump\mlnx_sai_dbg.h" />
     <ClInclude Include="src\meta\saimetadata.h" />
     <ClInclude Include="src\meta\saimetadatautils.h" />
   </ItemGroup>
@@ -193,6 +194,7 @@
     <ClCompile Include="src\dbgdump\mlnx_sai_dbg_bridge.c" />
     <ClCompile Include="src\dbgdump\mlnx_sai_dbg_buffer.c" />
     <ClCompile Include="src\dbgdump\mlnx_sai_dbg_debug_counter.c" />
+    <ClCompile Include="src\dbgdump\mlnx_sai_dbg_gp_reg.c" />
     <ClCompile Include="src\dbgdump\mlnx_sai_dbg_hash.c" />
     <ClCompile Include="src\dbgdump\mlnx_sai_dbg_hostintf.c" />
     <ClCompile Include="src\dbgdump\mlnx_sai_dbg_isolation_group.c" />
@@ -230,6 +232,7 @@
     <ClCompile Include="src\mlnx_sai_host_interface.c" />
     <ClCompile Include="src\mlnx_sai_interfacequery.c" />
     <ClCompile Include="src\mlnx_sai_isolation_group.c" />
+    <ClCompile Include="src\mlnx_sai_issu_storage.c" />
     <ClCompile Include="src\mlnx_sai_l2mcgroup.c" />
     <ClCompile Include="src\mlnx_sai_lag.c" />
     <ClCompile Include="src\mlnx_sai_mirror.c" />

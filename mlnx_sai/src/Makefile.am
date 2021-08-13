@@ -75,6 +75,7 @@ libsai_la_SOURCES = \
                        dbgdump/mlnx_sai_dbg_utils.c \
                        dbgdump/mlnx_sai_dbg_vlan.c \
                        dbgdump/mlnx_sai_dbg_wred.c \
+                       dbgdump/mlnx_sai_dbg_gp_reg.c \
                        mlnx_sai_acl.c \
                        mlnx_sai_bfd.c \
                        mlnx_sai_bridge.c \
@@ -110,6 +111,7 @@ libsai_la_SOURCES = \
                        mlnx_sai_utils.c \
                        mlnx_sai_vlan.c \
                        mlnx_sai_wred.c \
+                       mlnx_sai_issu_storage.c \
                        meta/saimetadata.c \
                        meta/saimetadatautils.c \
                        meta/saiserialize.c

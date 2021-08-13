@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2019. Mellanox Technologies, Ltd. ALL RIGHTS RESERVED.
+ *  Copyright (C) 2019-2021, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License"); you may
  *    not use this file except in compliance with the License. You may obtain
@@ -8,7 +8,7 @@
  *    THIS CODE IS PROVIDED ON AN  *AS IS* BASIS, WITHOUT WARRANTIES OR
  *    CONDITIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING WITHOUT
  *    LIMITATION ANY IMPLIED WARRANTIES OR CONDITIONS OF TITLE, FITNESS
- *    FOR A PARTICULAR PURPOSE, MERCHANTABLITY OR NON-INFRINGEMENT.
+ *    FOR A PARTICULAR PURPOSE, MERCHANTABILITY OR NON-INFRINGEMENT.
  *
  *    See the Apache Version 2.0 License for specific language governing
  *    permissions and limitations under the License.
@@ -704,7 +704,7 @@ static sai_status_t sum_hostif_counter_stats(_In_ mlnx_counter_t      *counter,
                                    host_ifc_counters.trap_id_counters[ii].u_trap_type.packet.tocpu_byte,
                                    counters);
         if (SAI_ERR(status)) {
-            SX_LOG_ERR("Failed to sum couner stats\n");
+            SX_LOG_ERR("Failed to sum counter stats\n");
             return status;
         }
     }

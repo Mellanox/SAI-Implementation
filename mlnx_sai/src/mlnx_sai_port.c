@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2017. Mellanox Technologies, Ltd. ALL RIGHTS RESERVED.
+ *  Copyright (C) 2017-2021, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License"); you may
  *    not use this file except in compliance with the License. You may obtain
@@ -1645,6 +1645,24 @@ sai_status_t mlnx_wred_mirror_port_event(_In_ sx_port_log_id_t port_log_id, _In_
     return SAI_STATUS_SUCCESS;
 }
 
+uint64_t mlnx_fec_mode_speeds_sp[3][20] = {
+    { SX_PORT_PHY_SPEED_1GB, SX_PORT_PHY_SPEED_10GB, SX_PORT_PHY_SPEED_25GB, SX_PORT_PHY_SPEED_40GB,
+      SX_PORT_PHY_SPEED_50GB, SX_PORT_PHY_SPEED_100GB, SX_PORT_PHY_SPEED_MAX + 1 },
+    { SX_PORT_PHY_SPEED_25GB, SX_PORT_PHY_SPEED_50GB, SX_PORT_PHY_SPEED_100GB,
+      SX_PORT_PHY_SPEED_MAX + 1 },
+    { SX_PORT_PHY_SPEED_10GB, SX_PORT_PHY_SPEED_25GB, SX_PORT_PHY_SPEED_40GB, SX_PORT_PHY_SPEED_50GB,
+      SX_PORT_PHY_SPEED_56GB, SX_PORT_PHY_SPEED_MAX + 1 },
+};
+
+uint64_t mlnx_fec_mode_speeds_sp2[3][20] = {
+    { SX_PORT_PHY_SPEED_1GB, SX_PORT_PHY_SPEED_10GB, SX_PORT_PHY_SPEED_25GB, SX_PORT_PHY_SPEED_40GB,
+      SX_PORT_PHY_SPEED_50GB, SX_PORT_PHY_SPEED_100GB, SX_PORT_PHY_SPEED_MAX + 1 },
+    { SX_PORT_PHY_SPEED_25GB, SX_PORT_PHY_SPEED_50GB, SX_PORT_PHY_SPEED_50GB_1X, SX_PORT_PHY_SPEED_100GB,
+      SX_PORT_PHY_SPEED_100GB_2X, SX_PORT_PHY_SPEED_200GB, SX_PORT_PHY_SPEED_400GB_8X, SX_PORT_PHY_SPEED_MAX + 1 },
+    { SX_PORT_PHY_SPEED_10GB, SX_PORT_PHY_SPEED_25GB, SX_PORT_PHY_SPEED_40GB, SX_PORT_PHY_SPEED_50GB,
+      SX_PORT_PHY_SPEED_56GB, SX_PORT_PHY_SPEED_MAX + 1 },
+};
+
 sai_status_t mlnx_port_fec_set_impl(sx_port_log_id_t port_log_id, int32_t value)
 {
     sx_status_t         status;
@@ -1671,8 +1689,11 @@ sai_status_t mlnx_port_fec_set_impl(sx_port_log_id_t port_log_id, int32_t value)
         return SAI_STATUS_INVALID_ATTR_VALUE_0;
     }
 
-    /* FEC settings are valid for 25G, 50G, 100G, not for 10G and 40G */
-    for (speed = SX_PORT_PHY_SPEED_25GB; speed <= SX_PORT_PHY_SPEED_100GB; speed++) {
+    uint64_t(*fec_mode_speeds)[20] =
+        mlnx_chip_is_spc() ? mlnx_fec_mode_speeds_sp : mlnx_fec_mode_speeds_sp2;
+
+    for (int32_t ii = 0; fec_mode_speeds[value][ii] != (SX_PORT_PHY_SPEED_MAX + 1); ii++) {
+        speed = fec_mode_speeds[value][ii];
         status = sx_api_port_phy_mode_set(gh_sdk, port_log_id, speed, mode);
         if (SX_ERR(status)) {
             SX_LOG_ERR("Failed to set fec mode speed %d - %s.\n", speed, SX_STATUS_MSG(status));
@@ -3205,7 +3226,7 @@ static sai_status_t mlnx_port_fec_get(_In_ const sai_object_key_t   *key,
         return status;
     }
 
-    status = sx_api_port_phy_mode_get(gh_sdk, port_id, SX_PORT_PHY_SPEED_100GB, &admin, &oper);
+    status = sx_api_port_phy_mode_get(gh_sdk, port_id, SX_PORT_PHY_SPEED_50GB, &admin, &oper);
     if (status != SAI_STATUS_SUCCESS) {
         SX_LOG_ERR("Failed to get phy mode - %s\n", SX_STATUS_MSG(status));
         return sdk_to_sai(status);
@@ -3600,6 +3621,7 @@ static sai_status_t mlnx_port_mirror_session_apply(_In_ sx_port_log_id_t      po
     status =
         mlnx_port_mirror_session_set_internal(port_id, sx_mirror_direction, sx_span_session_id, true);
     if (SAI_ERR(status)) {
+        SX_LOG_ERR("Error setting mirror session %d on port %x\n", sx_span_session_id, port_id);
         return status;
     }
 
@@ -3614,13 +3636,40 @@ static sai_status_t mlnx_port_mirror_session_set_internal(_In_ sx_port_log_id_t 
                                                           _In_ sx_span_session_id_t  sx_span_session_id,
                                                           _In_ bool                  add)
 {
-    sai_status_t    status;
-    sx_status_t     sx_status;
-    sx_access_cmd_t sx_cmd;
+    sai_status_t         status;
+    sx_status_t          sx_status;
+    sx_access_cmd_t      sx_cmd;
+    sx_span_session_id_t sx_existing_span_session_id;
 
     sx_cmd = (add) ? SX_ACCESS_CMD_ADD : SX_ACCESS_CMD_DELETE;
 
     if (add) {
+        /* In SONiC, user will try to set mirror session for all LAG members of a LAG.
+         * Internally in SAI, we always promote LAG member to LAG when trying to set mirror session.
+         * This will cause delay since we repeatedly clear the mirror session and reapply the same mirror session for the same LAG.
+         * This will also print out error message in SDK when trying to set mirror session before clear, which SONiC does not like.
+         * Thus, for LAG, we check if the same mirror session has already been applied, and skip it. */
+        if (SX_PORT_TYPE_ID_GET(port_id) == SX_PORT_TYPE_LAG) {
+            sx_status = sx_api_span_mirror_get(gh_sdk, port_id, sx_mirror_direction, &sx_existing_span_session_id);
+            if (SX_ERR(sx_status)) {
+                if (sx_status != SX_STATUS_ENTRY_NOT_FOUND) {
+                    SX_LOG_ERR("Error getting existing span session on port %x\n", port_id);
+                    return sdk_to_sai(sx_status);
+                }
+            } else if (sx_existing_span_session_id == sx_span_session_id) {
+                SX_LOG_DBG("Trying to apply the same span session id %d on port %x, ignoring this command\n",
+                           sx_span_session_id,
+                           port_id);
+                return SAI_STATUS_SUCCESS;
+            } else {
+                SX_LOG_DBG("LAG %x already has a mirror session - need to clear\n", port_id);
+                status = mlnx_port_mirror_session_clear(port_id, sx_mirror_direction);
+                if (SAI_ERR(status)) {
+                    SX_LOG_ERR("Failed to clear mirror session on port %x\n", port_id);
+                    return status;
+                }
+            }
+        }
         sx_status = sx_api_span_mirror_set(gh_sdk, sx_cmd, port_id,
                                            sx_mirror_direction, sx_span_session_id);
         if (SX_ERR(sx_status)) {
@@ -3745,6 +3794,7 @@ static sai_status_t mlnx_port_mirror_session_set(_In_ const sai_object_key_t    
 
     status = mlnx_port_mirror_session_set_impl(port_id, sdk_mirror_direction, value);
     if (SAI_ERR(status)) {
+        SX_LOG_ERR("Error setting mirror session on port %x\n", port_id);
         goto out;
     }
 
@@ -6035,12 +6085,14 @@ sai_status_t mlnx_port_stats_bulk_read(_In_ sai_object_id_t          port_id,
             break;
 
         case SAI_PORT_STAT_IN_DROPPED_PKTS:
+            counters[ii] = 0;
             for (uint32_t jj = 0; jj < buffer_limits->num_port_pg_buff; jj++) {
                 counters[ii] += cnts_buff[jj].rx_buffer_discard + cnts_buff[jj].rx_shared_buffer_discard;
             }
             break;
 
         case SAI_PORT_STAT_OUT_DROPPED_PKTS:
+            counters[ii] = 0;
             for (uint32_t jj = 0; jj < g_resource_limits.cos_port_ets_traffic_class_max; jj++) {
                 counters[ii] += cnts_tc[jj].tx_no_buffer_discard_uc;
             }
@@ -6116,6 +6168,19 @@ sai_status_t mlnx_port_stats_bulk_read(_In_ sai_object_id_t          port_id,
     }
 
     return SAI_STATUS_SUCCESS;
+}
+
+static bool mlnx_is_bulk_required(_In_ uint64_t counter_types)
+{
+    return (counter_types & CNT_802) ||
+           (counter_types & CNT_2819) ||
+           (counter_types & CNT_2863) ||
+           (counter_types & CNT_3635) ||
+           (counter_types & CNT_BUFF) ||
+           (counter_types & CNT_DISCARD) ||
+           (counter_types & CNT_PERF) ||
+           (counter_types & CNT_PRIO) ||
+           (counter_types & CNT_TC);
 }
 
 static sai_status_t mlnx_convert_sai_stats_to_bitmap(_In_ uint32_t             number_of_counters,
@@ -6381,6 +6446,7 @@ sai_status_t mlnx_get_port_stats_ext(_In_ sai_object_id_t      port_id,
     uint64_t                  counter_types = 0;
     sx_access_cmd_t           cmd;
     char                      key_str[MAX_KEY_STR_LEN];
+    bool                      bulk_required = false;
 
     SX_LOG_ENTER();
 
@@ -6407,45 +6473,49 @@ sai_status_t mlnx_get_port_stats_ext(_In_ sai_object_id_t      port_id,
                                               counter_ids,
                                               &counter_types);
     if (SAI_ERR(status)) {
-        SX_LOG_ERR("Failed to convert counter IDs to counter types bitmap.\n");
+        SX_LOG_INF("Failed to convert counter IDs to counter types bitmap.\n");
         return status;
     }
 
-    status = mlnx_convert_counter_types_bitmap_to_sx_bulk_read(port_id,
-                                                               counter_types,
-                                                               &bulk_read_key);
-    if (SAI_ERR(status)) {
-        SX_LOG_ERR("Failed to convert counter IDs to SDK.\n");
-        return status;
-    }
+    bulk_required = mlnx_is_bulk_required(counter_types);
 
-    sai_db_read_lock();
-    port_counter_lock();
-    if (g_sai_db_ptr->issu_start_called) {
+    if (bulk_required) {
+        status = mlnx_convert_counter_types_bitmap_to_sx_bulk_read(port_id,
+                                                                   counter_types,
+                                                                   &bulk_read_key);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to convert counter IDs to SDK.\n");
+            return status;
+        }
+
+        sai_db_read_lock();
+        port_counter_lock();
+        if (g_sai_db_ptr->issu_start_called) {
+            sai_db_unlock();
+            status = SAI_STATUS_OBJECT_IN_USE;
+            goto out;
+        }
         sai_db_unlock();
-        status = SAI_STATUS_OBJECT_IN_USE;
-        goto out;
-    }
-    sai_db_unlock();
 
-    status = mlnx_port_stats_allocate_sx_bulk_buffer(&bulk_read_key,
-                                                     &bulk_read_buff);
-    if (SAI_ERR(status)) {
-        SX_LOG_ERR("Failed to allocate SDK buffer.\n");
-        goto out;
-    }
+        status = mlnx_port_stats_allocate_sx_bulk_buffer(&bulk_read_key,
+                                                         &bulk_read_buff);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to allocate SDK buffer.\n");
+            goto out;
+        }
 
-    status = mlnx_port_stats_init_async_bulk_read(cmd,
-                                                  &bulk_read_buff);
-    if (SAI_ERR(status)) {
-        SX_LOG_ERR("Failed to initialize async bulk counters read.\n");
-        goto out;
-    }
+        status = mlnx_port_stats_init_async_bulk_read(cmd,
+                                                      &bulk_read_buff);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to initialize async bulk counters read.\n");
+            goto out;
+        }
 
-    status = mlnx_port_stats_wait_for_bulk_read_event();
-    if (SAI_ERR(status)) {
-        SX_LOG_ERR("Failed to wait for bulk counter read event.\n");
-        goto out;
+        status = mlnx_port_stats_wait_for_bulk_read_event();
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to wait for bulk counter read event.\n");
+            goto out;
+        }
     }
 
     status = mlnx_port_stats_bulk_read(port_id,
@@ -6461,14 +6531,18 @@ sai_status_t mlnx_get_port_stats_ext(_In_ sai_object_id_t      port_id,
         goto out;
     }
 
-    status = mlnx_port_stats_deallocate_sx_bulk_buffer(&bulk_read_buff);
-    if (SAI_ERR(status)) {
-        SX_LOG_ERR("Failed to deallocate SDK buffer.\n");
-        goto out;
+    if (bulk_required) {
+        status = mlnx_port_stats_deallocate_sx_bulk_buffer(&bulk_read_buff);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to deallocate SDK buffer.\n");
+            goto out;
+        }
     }
 
 out:
-    port_counter_unlock();
+    if (bulk_required) {
+        port_counter_unlock();
+    }
     return status;
 }
 
@@ -9101,6 +9175,8 @@ sai_status_t mlnx_port_auto_split(mlnx_port_config_t *port)
         new_port->port_map.module_port = port->module;
         new_port->is_present = true;
         new_port->is_split = true;
+        new_port->auto_neg = AUTO_NEG_DEFAULT;
+        new_port->intf = SAI_PORT_INTERFACE_TYPE_NONE;
     }
 
     return SAI_STATUS_SUCCESS;
@@ -10282,7 +10358,7 @@ static sai_status_t mlnx_clear_port_pool_stats(_In_ sai_object_id_t      port_po
 }
 
 /**
- * @brief Bind/unbind internal ACLs (PB hash and VxLAN srcport)
+ * @brief Bind/unbind internal ACLs VxLAN srcport
  *        to the port.
  *
  * @param[in] cmd         Bind/Unbind command
@@ -10303,17 +10379,6 @@ sai_status_t mlnx_internal_acls_bind(_In_ sx_access_cmd_t   cmd,
     status = mlnx_object_to_log_port(sai_port_id, &sx_port_id);
     if (SAI_ERR(status)) {
         return status;
-    }
-
-    if (g_sai_db_ptr->pbhash_gre) {
-        status = sx_api_acl_port_bind_set(gh_sdk, cmd, sx_port_id, g_sai_db_ptr->hash_acl_id);
-        if (SX_ERR(status)) {
-            SX_LOG_ERR("Failed to %s PB hash ACL to port(%x). %s\n",
-                       cmd == SX_ACCESS_CMD_DELETE ? "unbind" : "bind",
-                       sx_port_id,
-                       SX_STATUS_MSG(status));
-            return sdk_to_sai(status);
-        }
     }
 
     if (g_sai_db_ptr->vxlan_srcport_range_enabled) {
