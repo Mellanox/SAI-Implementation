@@ -798,6 +798,9 @@ sai_status_t mlnx_sai_query_attribute_enum_values_capability_impl(_In_ sai_objec
                                                      &obj_type_attr_info->enums_info,
                                                      enum_values_capability);
         if (SAI_ERR(status)) {
+            if (MLNX_SAI_STATUS_BUFFER_OVERFLOW_EMPTY_LIST == status) {
+                status = SAI_STATUS_BUFFER_OVERFLOW;
+            }
             SX_LOG_EXIT();
             return status;
         }

@@ -2484,7 +2484,7 @@ out:
 }
 
 /*
- * SAI DB should be loocked
+ * SAI DB should be locked
  */
 static sai_status_t mlnx_bridge_port_admin_state_set_internal(_In_ mlnx_bridge_port_t *bridge_port, _In_ bool value)
 {
@@ -2510,6 +2510,7 @@ static sai_status_t mlnx_bridge_port_admin_state_set_internal(_In_ mlnx_bridge_p
         if (!SAI_ERR(status)) {
             sdk_state = port_config->admin_state && bridge_port->admin_state;
         }
+
 
         sx_status = sx_api_port_state_set(gh_sdk,
                                           sx_port_id,

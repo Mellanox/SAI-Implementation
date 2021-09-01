@@ -766,11 +766,12 @@ static sai_status_t mlnx_port_state_set(_In_ const sai_object_key_t      *key,
                                         _In_ const sai_attribute_value_t *value,
                                         void                             *arg)
 {
-    sx_port_log_id_t    port_id;
-    sai_status_t        status;
-    mlnx_bridge_port_t *bridge_port;
-    mlnx_port_config_t *port;
+    sx_port_log_id_t    port_id = 0;
+    sai_status_t        status = SAI_STATUS_SUCCESS;
+    mlnx_bridge_port_t *bridge_port = NULL;
+    mlnx_port_config_t *port = NULL;
     bool                sdk_state = value->booldata;
+    bool                is_warmboot_init_stage = false;
 
     SX_LOG_ENTER();
 
@@ -779,7 +780,10 @@ static sai_status_t mlnx_port_state_set(_In_ const sai_object_key_t      *key,
         return status;
     }
 
-    sai_db_read_lock();
+    sai_db_write_lock();
+
+    is_warmboot_init_stage = (BOOT_TYPE_WARM == g_sai_db_ptr->boot_type) &&
+                             (!g_sai_db_ptr->issu_end_called);
 
     status = mlnx_port_by_log_id(port_id, &port);
     if (SAI_ERR(status)) {
@@ -788,6 +792,15 @@ static sai_status_t mlnx_port_state_set(_In_ const sai_object_key_t      *key,
     }
 
     port->admin_state = sdk_state;
+
+    /* on warmboot control priority group buffer is handled just before issu end */
+    if (!is_warmboot_init_stage) {
+        status = mlnx_sai_buffer_update_pg9_buffer_sdk(port);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to update control PG headroom size on port state change.\n");
+            goto out;
+        }
+    }
 
     /* Try to lookup bridge port by same logical id as phy port, which means that
      * port is bridged with SAI_BRIDGE_PORT_TYPE_PORT via .1Q bridge, if it is bridged then
@@ -7889,6 +7902,7 @@ sai_status_t mlnx_port_del(mlnx_port_config_t *port)
                                           (!g_sai_db_ptr->issu_end_called);
 
     if (!is_warmboot_init_stage) {
+        /* TODO check if need to do anything here */
         status = sx_api_port_state_set(gh_sdk, port->logical, SX_PORT_ADMIN_STATUS_DOWN);
         if (SX_ERR(status)) {
             SX_LOG_ERR("Set port %x down failed - %s\n", port->logical, SX_STATUS_MSG(status));
@@ -8127,8 +8141,7 @@ static sai_status_t mlnx_create_port(_Out_ sai_object_id_t     * port_id,
     acl_index_t                  ing_acl_index = ACL_INDEX_INVALID, egr_acl_index = ACL_INDEX_INVALID;
     uint32_t                     module;
     uint32_t                     ii;
-    const bool                   is_warmboot_init_stage = (BOOT_TYPE_WARM == g_sai_db_ptr->boot_type) &&
-                                                          (!g_sai_db_ptr->issu_end_called);
+    bool                         is_warmboot_init_stage = false;
 
     SX_LOG_EXIT();
 
@@ -8183,6 +8196,10 @@ static sai_status_t mlnx_create_port(_Out_ sai_object_id_t     * port_id,
 
     sai_db_write_lock();
     acl_global_lock();
+
+    is_warmboot_init_stage = (BOOT_TYPE_WARM == g_sai_db_ptr->boot_type) &&
+                             (!g_sai_db_ptr->issu_end_called);
+
 
     status = find_attrib_in_list(attr_count, attr_list, SAI_PORT_ATTR_INGRESS_ACL,
                                  &attr_ing_acl, &acl_attr_index);
@@ -8333,6 +8350,15 @@ static sai_status_t mlnx_create_port(_Out_ sai_object_id_t     * port_id,
             goto out_unlock;
         }
         new_port->admin_state = value->booldata;
+    }
+
+    /* on warmboot control PG buffer and lossy PG buffers are handled just before issu end */
+    if (!is_warmboot_init_stage) {
+        status = mlnx_sai_buffer_update_port_buffers_internal(new_port);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to update lossy PG0 and control PG9 buffers on port creation.\n");
+            goto out_unlock;
+        }
     }
 
     status = find_attrib_in_list(attr_count, attr_list, SAI_PORT_ATTR_PORT_VLAN_ID, &value, &index);

@@ -3099,6 +3099,7 @@ static void sai_db_values_init()
     g_sai_db_ptr->qos_maps_db[MLNX_QOS_MAP_PFC_QUEUE_INDEX].is_used = 1;
     g_sai_db_ptr->switch_default_tc = 0;
     memset(g_sai_db_ptr->policers_db, 0, sizeof(g_sai_db_ptr->policers_db));
+    memset(g_sai_db_ptr->port_pg9_defaults, 0, sizeof(g_sai_db_ptr->port_pg9_defaults));
     memset(g_sai_db_ptr->mlnx_samplepacket_session, 0, sizeof(g_sai_db_ptr->mlnx_samplepacket_session));
     memset(g_sai_db_ptr->trap_group_valid, 0, sizeof(g_sai_db_ptr->trap_group_valid));
 
@@ -3906,6 +3907,20 @@ static sai_status_t mlnx_dvs_mng_stage(mlnx_sai_boot_type_t boot_type, sai_objec
             if (!is_warmboot) {
                 status = mlnx_port_speed_bitmap_apply(port);
                 if (SAI_ERR(status)) {
+                    goto out;
+                }
+            }
+
+            /* on warmboot control priority group buffer is handled just before issu end */
+            if (!is_warmboot) {
+                status = mlnx_sai_buffer_update_db_control_pg9_buff_profile_if_required(port);
+                if (SAI_ERR(status)) {
+                    SX_LOG_ERR("Failed to update SAI DB control PG profile on init.\n");
+                    goto out;
+                }
+                status = mlnx_sai_buffer_update_pg9_buffer_sdk(port);
+                if (SAI_ERR(status)) {
+                    SX_LOG_ERR("Failed to update control PG headroom size on init.\n");
                     goto out;
                 }
             }
@@ -4732,6 +4747,8 @@ static sai_status_t sai_buffer_db_create()
     int         shmid;
     cl_status_t cl_err;
 
+    /* TODO move this after db reset */
+    /* TODO extend shared memory to keep resource limits */
     init_buffer_resource_limits();
 
     cl_err = cl_shm_create(SAI_BUFFER_PATH, &shmid);
@@ -8697,6 +8714,7 @@ static sai_status_t mlnx_switch_transaction_mode_set(_In_ const sai_object_key_t
                                                      void                             *arg)
 {
     sx_status_t         sdk_status = SX_STATUS_ERROR;
+    sai_status_t        sai_status = SAI_STATUS_SUCCESS;
     sx_access_cmd_t     transaction_mode_cmd = SX_ACCESS_CMD_NONE;
     mlnx_port_config_t *port;
     uint32_t            ii;
@@ -8720,15 +8738,13 @@ static sai_status_t mlnx_switch_transaction_mode_set(_In_ const sai_object_key_t
                            ii,
                            mlnx_ports_db[ii].is_present,
                            mlnx_ports_db[ii].sdk_port_added);
-                sai_db_unlock();
-                SX_LOG_EXIT();
-                return SAI_STATUS_FAILURE;
+                sai_status = SAI_STATUS_FAILURE;
+                goto out;
             }
             if (mlnx_ports_db[ii].sdk_port_added && (0 == mlnx_ports_db[ii].logical)) {
-                sai_db_unlock();
                 SX_LOG_ERR("LAG of idx %d is created in SDK but SAI db is not updated\n", ii);
-                SX_LOG_EXIT();
-                return SAI_STATUS_FAILURE;
+                sai_status = SAI_STATUS_FAILURE;
+                goto out;
             }
         }
         for (ii = 0; ii < MAX_PORTS; ii++) {
@@ -8737,18 +8753,16 @@ static sai_status_t mlnx_switch_transaction_mode_set(_In_ const sai_object_key_t
                            ii,
                            mlnx_ports_db[ii].lag_id,
                            mlnx_ports_db[ii].before_issu_lag_id);
-                sai_db_unlock();
-                SX_LOG_EXIT();
-                return SAI_STATUS_FAILURE;
+                sai_status =  SAI_STATUS_FAILURE;
+                goto out;
             }
         }
 
         sdk_status = sx_api_issu_end_set(gh_sdk);
         if (SX_STATUS_SUCCESS != sdk_status) {
-            sai_db_unlock();
             SX_LOG_ERR("Failed to end issu\n");
-            SX_LOG_EXIT();
-            return sdk_to_sai(sdk_status);
+            sai_status = sdk_to_sai(sdk_status);
+            goto out;
         }
         g_sai_db_ptr->issu_end_called = true;
 
@@ -8765,11 +8779,16 @@ static sai_status_t mlnx_switch_transaction_mode_set(_In_ const sai_object_key_t
                                                   &port_list,
                                                   1);
                 if (SX_ERR(sx_status)) {
-                    sai_db_unlock();
                     SX_LOG_ERR("Failed to del default vlan ports %s.\n", SX_STATUS_MSG(sx_status));
-                    SX_LOG_EXIT();
-                    return sdk_to_sai(sdk_status);
+                    sai_status = sdk_to_sai(sdk_status);
+                    goto out;
                 }
+            }
+
+            sai_status = mlnx_sai_buffer_update_port_buffers_internal(port);
+            if (SAI_ERR(sai_status)) {
+                SX_LOG_ERR("Failed to update port buffers on issu end.\n");
+                goto out;
             }
         }
 
@@ -8781,19 +8800,19 @@ static sai_status_t mlnx_switch_transaction_mode_set(_In_ const sai_object_key_t
 
     if (SX_STATUS_SUCCESS !=
         (sdk_status = sx_api_transaction_mode_set(gh_sdk, transaction_mode_cmd))) {
-        sai_db_unlock();
         SX_LOG_ERR("Failed to set transaction mode to %d: %s\n", transaction_mode_cmd, SX_STATUS_MSG(sdk_status));
-        SX_LOG_EXIT();
-        return sdk_to_sai(sdk_status);
+        sai_status = sdk_to_sai(sdk_status);
+        goto out;
     }
 
     g_sai_db_ptr->transaction_mode_enable = value->booldata;
 
+out:
     sai_db_unlock();
 
     SX_LOG_EXIT();
 
-    return SAI_STATUS_SUCCESS;
+    return sai_status;
 }
 
 static sai_status_t mlnx_switch_transaction_mode_get(_In_ const sai_object_key_t   *key,
