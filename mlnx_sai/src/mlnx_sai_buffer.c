@@ -5598,7 +5598,7 @@ static sai_status_t mlnx_sai_buffer_construct_pg9_buffers_attrs(_In_ const mlnx_
         goto out;
     }
 
-    pg9_profile_idx = (MAX_LANES_SPC3 == port->width) ? PG9_VAL_IDX_8_LANES : PG9_VAL_IDX_LESS_8_LANES;
+    pg9_profile_idx = (MAX_LANES_SPC3 == port->port_map.width) ? PG9_VAL_IDX_8_LANES : PG9_VAL_IDX_LESS_8_LANES;
 
     if (!g_sai_db_ptr->port_pg9_defaults[pg9_profile_idx].is_valid) {
         SX_LOG_ERR("Control buffer PG9 profile is not valid \n");
@@ -5738,7 +5738,7 @@ sai_status_t mlnx_sai_buffer_update_db_control_pg9_buff_profile_if_required(_In_
         goto out;
     }
 
-    pg9_profile_idx = (MAX_LANES_SPC3 == port->width) ? PG9_VAL_IDX_8_LANES : PG9_VAL_IDX_LESS_8_LANES;
+    pg9_profile_idx = (MAX_LANES_SPC3 == port->port_map.width) ? PG9_VAL_IDX_8_LANES : PG9_VAL_IDX_LESS_8_LANES;
     if (!g_sai_db_ptr->port_pg9_defaults[pg9_profile_idx].is_valid) {
 
         g_sai_db_ptr->port_pg9_defaults[pg9_profile_idx].sx_pg_buff_reserved_attr.type = SX_COS_INGRESS_PORT_PRIORITY_GROUP_ATTR_E;
