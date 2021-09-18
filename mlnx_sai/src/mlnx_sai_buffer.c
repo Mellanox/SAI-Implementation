@@ -4969,6 +4969,7 @@ sai_status_t mlnx_sai_get_ingress_priority_group_stats_ext(_In_ sai_object_id_t 
     stats_usages[1].sx_port_params.port_param.port_pg_list_p = &pg_ind;
 
     if (occupancy_stats_needed && headroom_occupancy_stats_needed) {
+        usage_cnt = 2;
         sai_status = sx_api_cos_port_buff_type_statistic_get(gh_sdk, cmd, stats_usages, 2,
                                                              stats, &usage_cnt);
         if (SAI_ERR(sai_status)) {
