@@ -255,7 +255,7 @@ extern const sai_isolation_group_api_t  mlnx_isolation_group_api;
 #define MLNX_SAI_DUMMY_1D_VLAN_ID      (1)
 #define DEFAULT_TRAP_GROUP_PRIO        SX_TRAP_PRIORITY_LOW
 #define DEFAULT_TRAP_GROUP_ID          0
-#define RECV_ATTRIBS_NUM               3
+#define RECV_ATTRIBS_NUM               4
 #define FDB_NOTIF_ATTRIBS_NUM          3
 #define FDB_OR_ROUTE_SAVED_ACTIONS_NUM 100
 
@@ -415,12 +415,7 @@ PACKED(struct _mlnx_object_id_t {
     union {
         sai_uint8_t bytes[EXTENDED_DATA_SIZE];
         PACKED(struct {
-            uint8_t dev_id;
-            uint8_t phy_id;
-        }, port);
-        PACKED(struct {
-            uint8_t lag_id;
-            uint8_t sub_id;
+            uint16_t lag_id;
         }, lag);
         PACKED(struct {
             uint16_t id;
@@ -853,6 +848,8 @@ sai_status_t mlnx_register_trap(const sx_access_cmd_t                 cmd,
                                 sx_fd_t                               fd,
                                 uint32_t                              group_id,
                                 sx_host_ifc_register_key_t           *reg);
+sai_status_t mlnx_get_hostif_packet_data(sx_receive_info_t *receive_info, uint32_t *attr_num, sai_attribute_t *attr);
+
 sai_status_t mlnx_trap_set(uint32_t index, sai_packet_action_t sai_action, sai_object_id_t trap_group);
 sai_status_t mlnx_netdev_restore(void);
 

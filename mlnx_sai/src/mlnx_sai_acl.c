@@ -3749,7 +3749,7 @@ static sai_status_t mlnx_acl_action_list_validate(_In_ const sai_s32_list_t *act
     assert((SAI_ACL_STAGE_INGRESS == stage) || (SAI_ACL_STAGE_EGRESS == stage));
 
     action_types_count = ARRAY_SIZE(action_types);
-    status = mlnx_acl_stage_action_types_get(stage, action_types, &action_types_count);
+    status = mlnx_acl_stage_action_types_get((mlnx_acl_supported_stage_t)stage, action_types, &action_types_count);
     if (SAI_ERR(status)) {
         return status;
     }
@@ -9968,7 +9968,7 @@ static sai_status_t mlnx_acl_entry_action_hash_set(_In_ const sai_object_key_t  
 
     if (value->aclaction.enable) {
         if (is_action_type_present) {
-            SX_LOG_ERR("Fine grained hash action can not be changed!");
+            SX_LOG_ERR("Fine grained hash action can not be changed!\n");
             status = SAI_STATUS_FAILURE;
             goto out;
         }
@@ -13446,7 +13446,7 @@ out:
         }
 
         if (region_created) {
-            sx_status = sx_api_acl_region_set(gh_sdk, SX_ACCESS_CMD_DESTROY, SX_ACL_KEY_TYPE_MAC_IPV4_FULL,
+            sx_status = sx_api_acl_region_set(gh_sdk, SX_ACCESS_CMD_DESTROY, key_handle,
                                               SX_ACL_ACTION_TYPE_BASIC, acl_table_size, &region_id);
             if (SX_STATUS_SUCCESS != sx_status) {
                 SX_LOG_ERR(" Failed to delete region ACL - %s.\n", SX_STATUS_MSG(sx_status));
@@ -14239,7 +14239,7 @@ static sai_status_t mlnx_delete_acl_table(_In_ sai_object_id_t acl_table_id)
         goto out;
     }
 
-    sx_status = sx_api_acl_region_set(gh_sdk, SX_ACCESS_CMD_DESTROY, SX_ACL_KEY_TYPE_MAC_IPV4_FULL,
+    sx_status = sx_api_acl_region_set(gh_sdk, SX_ACCESS_CMD_DESTROY, key_handle,
                                       SX_ACL_ACTION_TYPE_BASIC, region_size, &region_id);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR(" Failed to delete region ACL - %s.\n", SX_STATUS_MSG(sx_status));
@@ -16464,13 +16464,14 @@ wait_restart:
 static void mlnx_acl_rpc_thread(void *arg)
 {
 #ifndef _WIN32
-    sai_status_t       status;
-    acl_rpc_info_t     rpc_info;
-    int                rpc_socket;
-    struct sockaddr_un cl_sockaddr;
-    socklen_t          sockaddr_len;
-    ssize_t            bytes;
-    bool               exit_request = false;
+    sai_status_t         status;
+    acl_rpc_info_t       rpc_info;
+    int                  rpc_socket;
+    struct sockaddr_un   cl_sockaddr;
+    socklen_t            sockaddr_len;
+    ssize_t              bytes;
+    bool                 exit_request = false;
+    sx_acl_rule_offset_t rule_offset;
 
     SX_LOG_ENTER();
 
@@ -16520,7 +16521,8 @@ static void mlnx_acl_rpc_thread(void *arg)
                 rpc_info.args.table_id,
                 rpc_info.args.entry_id,
                 rpc_info.args.entry_prio,
-                &rpc_info.args.entry_offset);
+                &rule_offset);
+            rpc_info.args.entry_offset = rule_offset;
             break;
 
         case ACL_RPC_ENTRY_OFFSET_DEL:

@@ -2477,7 +2477,7 @@ static sai_status_t mlnx_wait_for_sdk(const char *sdk_ready_var)
     return SAI_STATUS_SUCCESS;
 }
 
-static sx_status_t get_chip_type(enum sxd_chip_types* chip_type)
+static sx_status_t get_chip_type(enum sx_chip_types* chip_type)
 {
     uint16_t device_hw_revision;
     uint16_t device_id;
@@ -2519,9 +2519,9 @@ static sx_status_t get_chip_type(enum sxd_chip_types* chip_type)
     switch (device_id) {
     case SXD_MGIR_HW_DEV_ID_SPECTRUM:
         if (device_hw_revision == 0xA0) {
-            *chip_type = SXD_CHIP_TYPE_SPECTRUM;
+            *chip_type = SX_CHIP_TYPE_SPECTRUM;
         } else if (device_hw_revision == 0xA1) {
-            *chip_type = SXD_CHIP_TYPE_SPECTRUM_A1;
+            *chip_type = SX_CHIP_TYPE_SPECTRUM_A1;
         } else {
             SX_LOG_ERR("Unsupported spectrum revision %u\n", device_hw_revision);
             return SX_STATUS_ERROR;
@@ -2529,11 +2529,11 @@ static sx_status_t get_chip_type(enum sxd_chip_types* chip_type)
         break;
 
     case SXD_MGIR_HW_DEV_ID_SPECTRUM2:
-        *chip_type = SXD_CHIP_TYPE_SPECTRUM2;
+        *chip_type = SX_CHIP_TYPE_SPECTRUM2;
         break;
 
     case SXD_MGIR_HW_DEV_ID_SPECTRUM3:
-        *chip_type = SXD_CHIP_TYPE_SPECTRUM3;
+        *chip_type = SX_CHIP_TYPE_SPECTRUM3;
         break;
 
     default:
@@ -2765,7 +2765,7 @@ static sai_status_t mlnx_chassis_mng_stage(mlnx_sai_boot_type_t boot_type,
     memcpy(&(sdk_init_params.pci_profile), pci_profile, sizeof(struct sx_pci_profile));
     sdk_init_params.applibs_mask = SX_API_FLOW_COUNTER | SX_API_POLICER | SX_API_HOST_IFC | SX_API_SPAN |
                                    SX_API_ETH_L2 | SX_API_ACL | SX_API_MGMT_LIB;
-    sdk_init_params.profile.chip_type = g_sai_db_ptr->sx_chip_type;
+    sdk_init_params.profile.chip_type = (sxd_chip_types_t)g_sai_db_ptr->sx_chip_type;
 
     issu_path = g_mlnx_services.profile_get_value(g_profile_id, SAI_KEY_WARM_BOOT_WRITE_FILE);
     if (NULL != issu_path) {
@@ -2942,7 +2942,6 @@ static sai_status_t parse_port_info(xmlDoc *doc, xmlNode * port_node)
     port->port_map.mapping_mode = SX_PORT_MAPPING_MODE_ENABLE;
     port->port_map.module_port = module;
     port->port_map.width = width;
-    port->port_map.config_hw = FALSE;
     port->port_map.lane_bmap = 0x0;
     port->port_map.local_port = local;
 
@@ -3928,8 +3927,15 @@ static sai_status_t mlnx_switch_health_event_handle(_In_ sx_event_health_notific
     memset(&dbg_info, 0, sizeof(dbg_info));
     dbg_info.dev_id = SX_DEVICE_ID;
     dbg_info.force_db_refresh = true;
+#if __GNUC__ >= 8
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wstringop-truncation"
+#endif
     strncpy(dbg_info.path, dump_stage_dir, sizeof(dbg_info.path));
     dbg_info.path[sizeof(dbg_info.path) - 1] = 0;
+#if __GNUC__ >= 8
+#pragma GCC diagnostic pop
+#endif
     if ((SX_HEALTH_SEVERITY_CRIT_E == event->severity) || (SX_HEALTH_SEVERITY_ERR_E == event->severity)) {
         dbg_info.ir_dump_enable = true;
     }
@@ -4687,13 +4693,14 @@ static void event_thread_func(void *context)
     sai_port_oper_status_notification_t port_data;
     struct timeval                      timeout;
     sai_attribute_t                     callback_data[RECV_ATTRIBS_NUM];
+    uint32_t                            attrs_num = RECV_ATTRIBS_NUM;
     sai_hostif_trap_type_t              trap_id;
     const char                         *trap_name;
     mlnx_trap_type_t                    trap_type;
     sai_fdb_event_notification_data_t  *fdb_events = NULL;
     sai_attribute_t                    *attr_list = NULL;
     uint32_t                            event_count = 0;
-    bool                                is_warmboot_init_stage = false;
+
 #ifdef ACS_OS
     bool           transaction_mode_enable = false;
     const uint8_t  fastboot_wait_time = 180;
@@ -4708,10 +4715,6 @@ static void event_thread_func(void *context)
 #ifdef ACS_OS
     gettimeofday(&time_init, NULL);
 #endif
-
-    callback_data[0].id = SAI_HOSTIF_PACKET_ATTR_HOSTIF_TRAP_ID;
-    callback_data[1].id = SAI_HOSTIF_PACKET_ATTR_INGRESS_PORT;
-    callback_data[2].id = SAI_HOSTIF_PACKET_ATTR_INGRESS_LAG;
 
     if (SX_STATUS_SUCCESS != (status = sx_api_open(sai_log_cb, &api_handle))) {
         MLNX_SAI_LOG_ERR("Can't open connection to SDK - %s.\n", SX_STATUS_MSG(status));
@@ -4934,42 +4937,14 @@ static void event_thread_func(void *context)
                 }
 
                 if (SX_INVALID_PORT == receive_info->source_log_port) {
-                    SX_LOG_WRN("sx_api_host_ifc_recv on callback fd returned unknown port, waiting for next packet\n");
+                    SX_LOG_INF("sx_api_host_ifc_recv on callback fd returned unknown port, waiting for next packet\n");
                     continue;
                 }
 
-                if (SAI_STATUS_SUCCESS !=
-                    (status =
-                         mlnx_create_object((trap_type ==
-                                             MLNX_TRAP_TYPE_REGULAR) ? SAI_OBJECT_TYPE_HOSTIF_TRAP :
-                                            SAI_OBJECT_TYPE_HOSTIF_USER_DEFINED_TRAP,
-                                            trap_id, NULL, &callback_data[0].value.oid))) {
-                    goto out;
-                }
-
-                if (SAI_STATUS_SUCCESS !=
-                    (status = mlnx_create_object(SAI_OBJECT_TYPE_PORT, receive_info->source_log_port, NULL,
-                                                 &callback_data[1].value.oid))) {
-                    goto out;
-                }
-
-                if (receive_info->is_lag) {
-                    cl_plock_acquire(&g_sai_db_ptr->p_lock);
-                    is_warmboot_init_stage = (BOOT_TYPE_WARM == g_sai_db_ptr->boot_type) &&
-                                             (!g_sai_db_ptr->issu_end_called);
-                    status = mlnx_log_port_to_object(receive_info->source_lag_port,
-                                                     &callback_data[2].value.oid);
-                    cl_plock_release(&g_sai_db_ptr->p_lock);
-                    if (SAI_ERR(status)) {
-                        if (!is_warmboot_init_stage) {
-                            goto out;
-                        } else {
-                            /* During ISSU, LAG is not created yet, or LAG member is not added yet */
-                            callback_data[2].value.oid = SAI_NULL_OBJECT_ID;
-                        }
-                    }
-                } else {
-                    callback_data[2].value.oid = SAI_NULL_OBJECT_ID;
+                status = mlnx_get_hostif_packet_data(receive_info, &attrs_num, callback_data);
+                if (SAI_ERR(status)) {
+                    SX_LOG_WRN("Failed to parse packet data\n");
+                    continue;
                 }
 
                 SX_LOG_INF("Received trap %s sdk %u port %x is lag %u %x\n", trap_name, receive_info->trap_id,
@@ -4979,7 +4954,7 @@ static void event_thread_func(void *context)
                     g_notification_callbacks.on_packet_event(switch_id,
                                                              packet_size,
                                                              p_packet,
-                                                             RECV_ATTRIBS_NUM,
+                                                             attrs_num,
                                                              callback_data);
                 }
             }
@@ -5627,8 +5602,8 @@ static sai_status_t mlnx_cb_table_init(void)
 
 static sai_status_t mlnx_sai_rm_initialize(const char *config_file)
 {
-    sai_status_t     status;
-    sxd_chip_types_t chip_type;
+    sai_status_t    status;
+    sx_chip_types_t chip_type;
 
     status = get_chip_type(&chip_type);
     if (SX_ERR(status)) {
@@ -6223,7 +6198,7 @@ sai_status_t mlnx_init_flex_parser()
 static sai_status_t mlnx_connect_switch(sai_object_id_t switch_id)
 {
     int                            err, shmid;
-    sxd_chip_types_t               chip_type;
+    sx_chip_types_t                chip_type;
     sx_status_t                    status;
     sxd_status_t                   sxd_status;
     sx_log_verbosity_target_attr_t log_verbosity_target_attr = { 0 };

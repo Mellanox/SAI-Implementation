@@ -1091,7 +1091,7 @@ sai_status_t mlnx_stp_initialize()
             sx_status = sx_api_rstp_port_state_get(gh_sdk, bport->logical, &ports_states[ii]);
             if (SX_ERR(sx_status)) {
                 SX_LOG_ERR("Failed to get rstp status for port %x - %s\n", bport->logical,
-                           SX_ACCESS_CMD_STR(sx_status));
+                           SX_STATUS_MSG(sx_status));
                 status = sdk_to_sai(sx_status);
                 goto out;
             }

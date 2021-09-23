@@ -6626,10 +6626,22 @@ static sai_status_t mlnx_clear_port_all_stats(_In_ sai_object_id_t port_id)
 
 sai_status_t mlnx_port_log_set(sx_verbosity_level_t level)
 {
+    sai_status_t status;
+
     LOG_VAR_NAME(__MODULE__) = level;
 
     if (gh_sdk) {
-        return sdk_to_sai(sx_api_port_log_verbosity_level_set(gh_sdk, SX_LOG_VERBOSITY_BOTH, level, level));
+        status = sdk_to_sai(sx_api_port_log_verbosity_level_set(gh_sdk,
+                                                                SX_LOG_VERBOSITY_BOTH,
+                                                                level,
+                                                                level));
+        if (SAI_ERR(status)) {
+            return status;
+        }
+        return sdk_to_sai(sx_api_bulk_counter_log_verbosity_level_set(gh_sdk,
+                                                                      SX_LOG_VERBOSITY_BOTH,
+                                                                      level,
+                                                                      level));
     } else {
         return SAI_STATUS_SUCCESS;
     }
@@ -8877,10 +8889,10 @@ sai_status_t mlnx_port_config_uninit(mlnx_port_config_t *port)
             }
         }
 
+        memset(&port_map, 0, sizeof(port_map));
         port_map.mapping_mode = SX_PORT_MAPPING_MODE_DISABLE;
         port_map.local_port = port->port_map.local_port;
         port_map.module_port = port->module;
-        port_map.config_hw = FALSE;
         port_map.lane_bmap = 0x0;
 
         if (!is_warmboot_init_stage) {
@@ -9323,7 +9335,6 @@ static sai_status_t mlnx_create_port(_Out_ sai_object_id_t     * port_id,
     port_map->mapping_mode = SX_PORT_MAPPING_MODE_ENABLE;
     port_map->module_port = father_port->module;
     port_map->width = lanes_count;
-    port_map->config_hw = FALSE;
     port_map->lane_bmap = 0x0;
 
     /* Map local lanes to the new port */
@@ -9563,7 +9574,8 @@ static sai_status_t mlnx_create_port(_Out_ sai_object_id_t     * port_id,
 
     status = find_attrib_in_list(attr_count, attr_list, SAI_PORT_ATTR_INGRESS_MIRROR_SESSION, &value, &index);
     if (status == SAI_STATUS_SUCCESS) {
-        status = mlnx_port_mirror_session_set_impl(new_port->logical, MIRROR_INGRESS_PORT, value);
+        status =
+            mlnx_port_mirror_session_set_impl(new_port->logical, (sx_mirror_direction_t)MIRROR_INGRESS_PORT, value);
         if (SAI_ERR(status)) {
             goto out_unlock;
         }
@@ -9571,7 +9583,8 @@ static sai_status_t mlnx_create_port(_Out_ sai_object_id_t     * port_id,
 
     status = find_attrib_in_list(attr_count, attr_list, SAI_PORT_ATTR_EGRESS_MIRROR_SESSION, &value, &index);
     if (status == SAI_STATUS_SUCCESS) {
-        status = mlnx_port_mirror_session_set_impl(new_port->logical, MIRROR_EGRESS_PORT, value);
+        status =
+            mlnx_port_mirror_session_set_impl(new_port->logical, (sx_mirror_direction_t)MIRROR_EGRESS_PORT, value);
         if (SAI_ERR(status)) {
             goto out_unlock;
         }

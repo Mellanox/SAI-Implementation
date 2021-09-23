@@ -376,6 +376,16 @@ static const sai_vendor_attribute_entry_t host_interface_packet_vendor_attribs[]
       { true, false, false, false },
       NULL, NULL,
       NULL, NULL },
+    { SAI_HOSTIF_PACKET_ATTR_TIMESTAMP,
+      { true, false, false, false },
+      { true, false, false, false },
+      NULL, NULL,
+      NULL, NULL },
+    { SAI_HOSTIF_PACKET_ATTR_EGRESS_QUEUE_INDEX,
+      { true, false, false, false },
+      { true, false, false, false },
+      NULL, NULL,
+      NULL, NULL },
     { END_FUNCTIONALITY_ATTRIBS_ID,
       { false, false, false, false },
       { false, false, false, false },
@@ -525,18 +535,20 @@ const mlnx_trap_info_t mlnx_traps_info[] = {
       MLNX_TRAP_TYPE_REGULAR, MLNX_NON_L2_TRAP },
     { SAI_HOSTIF_TRAP_TYPE_PIPELINE_DISCARD_ROUTER, 0, { 0 }, SAI_PACKET_ACTION_DROP, "Discard Router",
       MLNX_TRAP_TYPE_REGULAR, MLNX_NON_L2_TRAP },
-    { SAI_HOSTIF_USER_DEFINED_TRAP_TYPE_ACL, 1, { SX_TRAP_ID_ACL_MIN }, SAI_PACKET_ACTION_TRAP, "ACL",
+    { (sai_hostif_trap_type_t)SAI_HOSTIF_USER_DEFINED_TRAP_TYPE_ACL, 1, { SX_TRAP_ID_ACL_MIN }, SAI_PACKET_ACTION_TRAP,
+      "ACL",
       MLNX_TRAP_TYPE_USER_DEFINED, MLNX_NON_L2_TRAP },
-    { SAI_HOSTIF_USER_DEFINED_TRAP_TYPE_ROUTER, 4,
+    { (sai_hostif_trap_type_t)SAI_HOSTIF_USER_DEFINED_TRAP_TYPE_ROUTER, 4,
       { SX_TRAP_ID_L3_UC_IP_BASE + SX_TRAP_PRIORITY_BEST_EFFORT, SX_TRAP_ID_L3_UC_IP_BASE + SX_TRAP_PRIORITY_LOW,
         SX_TRAP_ID_L3_UC_IP_BASE + SX_TRAP_PRIORITY_MED, SX_TRAP_ID_L3_UC_IP_BASE + SX_TRAP_PRIORITY_HIGH },
       SAI_PACKET_ACTION_TRAP, "Router", MLNX_TRAP_TYPE_USER_DEFINED, MLNX_NON_L2_TRAP },
-    { SAI_HOSTIF_USER_DEFINED_TRAP_TYPE_NEIGH, 6,
+    { (sai_hostif_trap_type_t)SAI_HOSTIF_USER_DEFINED_TRAP_TYPE_NEIGH, 6,
       { SX_TRAP_ID_L3_NEIGH_IP_BASE + SX_TRAP_PRIORITY_BEST_EFFORT, SX_TRAP_ID_L3_NEIGH_IP_BASE + SX_TRAP_PRIORITY_LOW,
         SX_TRAP_ID_L3_NEIGH_IP_BASE + SX_TRAP_PRIORITY_MED, SX_TRAP_ID_L3_NEIGH_IP_BASE + SX_TRAP_PRIORITY_HIGH,
         SX_TRAP_ID_HOST_MISS_IPV4, SX_TRAP_ID_HOST_MISS_IPV6 },
       SAI_PACKET_ACTION_TRAP, "Neigh", MLNX_TRAP_TYPE_USER_DEFINED, MLNX_NON_L2_TRAP },
-    { SAI_HOSTIF_USER_DEFINED_TRAP_TYPE_FDB, 1, {SX_TRAP_ID_FDB_EVENT}, SAI_PACKET_ACTION_TRAP, "FDB EVENT",
+    { (sai_hostif_trap_type_t)SAI_HOSTIF_USER_DEFINED_TRAP_TYPE_FDB, 1, {SX_TRAP_ID_FDB_EVENT}, SAI_PACKET_ACTION_TRAP,
+      "FDB EVENT",
       MLNX_TRAP_TYPE_USER_DEFINED, MLNX_NON_L2_TRAP },
     { SAI_HOSTIF_TRAP_TYPE_BFD, 2, { SX_TRAP_ID_BFD_IPV4, SX_TRAP_ID_BFD_IPV6 },
       SAI_PACKET_ACTION_DROP, "BFD", MLNX_TRAP_TYPE_REGULAR, MLNX_NON_L2_TRAP},
@@ -920,8 +932,15 @@ static sai_status_t mlnx_create_host_interface(_Out_ sai_object_id_t     * hif_i
             return SAI_STATUS_INVALID_ATTR_VALUE_0 + rif_port_index;
         }
 
+#if __GNUC__ >= 8
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wstringop-truncation"
+#endif
         strncpy(g_sai_db_ptr->hostif_db[ii].ifname, name->chardata, SAI_HOSTIF_NAME_SIZE);
         g_sai_db_ptr->hostif_db[ii].ifname[SAI_HOSTIF_NAME_SIZE] = '\0';
+#if __GNUC__ >= 8
+#pragma GCC diagnostic pop
+#endif
         status = create_netdev(ii);
         if (SAI_ERR(status)) {
             cl_plock_release(&g_sai_db_ptr->p_lock);
@@ -999,11 +1018,18 @@ static sai_status_t mlnx_create_host_interface(_Out_ sai_object_id_t     * hif_i
             cl_plock_release(&g_sai_db_ptr->p_lock);
             return status;
         }
+#if __GNUC__ >= 8
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wstringop-truncation"
+#endif
         strncpy(g_sai_db_ptr->hostif_db[ii].ifname, name->chardata, SAI_HOSTIF_NAME_SIZE);
         g_sai_db_ptr->hostif_db[ii].ifname[SAI_HOSTIF_NAME_SIZE] = '\0';
 
         strncpy(g_sai_db_ptr->hostif_db[ii].mcgrpname, mcgrp_name->chardata, SAI_HOSTIF_GENETLINK_MCGRP_NAME_SIZE - 1);
         g_sai_db_ptr->hostif_db[ii].mcgrpname[SAI_HOSTIF_GENETLINK_MCGRP_NAME_SIZE - 1] = '\0';
+#if __GNUC__ >= 8
+#pragma GCC diagnostic pop
+#endif
         g_sai_db_ptr->hostif_db[ii].sub_type =
             SAI_HOSTIF_OBJECT_TYPE_GENETLINK;
     } else {
@@ -3434,6 +3460,80 @@ static sai_status_t mlnx_user_defined_trap_group_get(_In_ const sai_object_key_t
     return SAI_STATUS_SUCCESS;
 }
 
+/*need sai_db read lock*/
+sai_status_t mlnx_get_hostif_packet_data(sx_receive_info_t *receive_info, uint32_t *attr_count, sai_attribute_t *attr)
+{
+    assert(receive_info);
+    assert(attr_count);
+    assert(attr);
+
+    sai_status_t           status;
+    sai_hostif_trap_type_t trap_id;
+    mlnx_trap_type_t       trap_type;
+    const char            *trap_name;
+    bool                   is_warmboot_init_stage = (BOOT_TYPE_WARM == g_sai_db_ptr->boot_type) &&
+                                                    (!g_sai_db_ptr->issu_end_called);
+
+    if (*attr_count < RECV_ATTRIBS_NUM) {
+        SX_LOG_ERR("Insufficient attribute count %u %u\n", RECV_ATTRIBS_NUM, *attr_count);
+        *attr_count = RECV_ATTRIBS_NUM;
+        return SAI_STATUS_BUFFER_OVERFLOW;
+    }
+
+    *attr_count = RECV_ATTRIBS_NUM;
+    attr[0].id = SAI_HOSTIF_PACKET_ATTR_HOSTIF_TRAP_ID;
+    attr[1].id = SAI_HOSTIF_PACKET_ATTR_INGRESS_PORT;
+    attr[2].id = SAI_HOSTIF_PACKET_ATTR_INGRESS_LAG;
+    attr[3].id = SAI_HOSTIF_PACKET_ATTR_TIMESTAMP;
+
+    if (SX_INVALID_PORT == receive_info->source_log_port) {
+        SX_LOG_ERR("sx_api_host_ifc_recv returned unknown port\n");
+        return SAI_STATUS_FAILURE;
+    }
+
+    status = mlnx_translate_sdk_trap_to_sai(receive_info->trap_id, &trap_id, &trap_name, &trap_type);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("unknown sdk trap %u\n", receive_info->trap_id);
+        return status;
+    }
+
+    status = mlnx_create_object((trap_type == MLNX_TRAP_TYPE_REGULAR) ?
+                                SAI_OBJECT_TYPE_HOSTIF_TRAP : SAI_OBJECT_TYPE_HOSTIF_USER_DEFINED_TRAP,
+                                trap_id, NULL, &attr[0].value.oid);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to create trap oid\n");
+        return status;
+    }
+
+    status = mlnx_create_object(SAI_OBJECT_TYPE_PORT, receive_info->source_log_port, NULL, &attr[1].value.oid);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to create port oid\n");
+        return status;
+    }
+
+    if (receive_info->is_lag && (!is_warmboot_init_stage)) {
+        status = mlnx_log_port_to_object(receive_info->source_lag_port, &attr[2].value.oid);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to create lag oid\n");
+            return status;
+        }
+    } else {
+        attr[2].value.oid = SAI_NULL_OBJECT_ID;
+    }
+
+    if (receive_info->has_timestamp) {
+        attr[3].value.timespec.tv_sec = receive_info->timestamp.tv_sec;
+        attr[3].value.timespec.tv_nsec = receive_info->timestamp.tv_nsec;
+    } else {
+        SX_LOG_DBG("Hostif packet has no timestamp\n");
+        memset(&attr[3].value.timespec, 0, sizeof(sai_timespec_t));
+    }
+
+    SX_LOG_INF("Received trap %s port %x\n", trap_name, receive_info->source_log_port);
+
+    return SAI_STATUS_SUCCESS;
+}
+
 /*
  * Routine Description:
  *   hostif receive function
@@ -3459,24 +3559,15 @@ static sai_status_t mlnx_recv_hostif_packet(_In_ sai_object_id_t   hif_id,
                                             _Inout_ uint32_t      *attr_count,
                                             _Out_ sai_attribute_t *attr_list)
 {
-    sx_receive_info_t     *receive_info = NULL;
-    mlnx_object_id_t       mlnx_hif = {0};
-    uint32_t               packet_size;
-    const char            *trap_name;
-    sai_hostif_trap_type_t trap_id;
-    sai_status_t           status = SAI_STATUS_SUCCESS;
-    sx_fd_t                fd;
-    mlnx_trap_type_t       trap_type;
+    sx_receive_info_t *receive_info = NULL;
+    mlnx_object_id_t   mlnx_hif = {0};
+    uint32_t           packet_size;
+    sai_status_t       status = SAI_STATUS_SUCCESS;
+    sx_fd_t            fd;
 
     SX_LOG_ENTER();
 
     memset(&fd, 0, sizeof(fd));
-
-    if (*attr_count < RECV_ATTRIBS_NUM) {
-        SX_LOG_ERR("Insufficient attribute count %u %u\n", RECV_ATTRIBS_NUM, *attr_count);
-        *attr_count = RECV_ATTRIBS_NUM;
-        return SAI_STATUS_BUFFER_OVERFLOW;
-    }
 
     receive_info = (sx_receive_info_t*)calloc(1, sizeof(*receive_info));
     if (NULL == receive_info) {
@@ -3521,47 +3612,11 @@ static sai_status_t mlnx_recv_hostif_packet(_In_ sai_object_id_t   hif_id,
     }
     *buffer_size = packet_size;
 
-    *attr_count = RECV_ATTRIBS_NUM;
-    attr_list[0].id = SAI_HOSTIF_PACKET_ATTR_HOSTIF_TRAP_ID;
-    attr_list[1].id = SAI_HOSTIF_PACKET_ATTR_INGRESS_PORT;
-    attr_list[2].id = SAI_HOSTIF_PACKET_ATTR_INGRESS_LAG;
-
-    if (SX_INVALID_PORT == receive_info->source_log_port) {
-        SX_LOG_ERR("sx_api_host_ifc_recv returned unknown port\n");
-        status = SAI_STATUS_FAILURE;
+    status = mlnx_get_hostif_packet_data(receive_info, attr_count, attr_list);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to parse host interface packet data\n");
         goto out;
     }
-
-    if (SAI_STATUS_SUCCESS !=
-        (status = mlnx_translate_sdk_trap_to_sai(receive_info->trap_id, &trap_id, &trap_name, &trap_type))) {
-        SX_LOG_ERR("unknown sdk trap %u\n", receive_info->trap_id);
-        goto out;
-    }
-    if (SAI_STATUS_SUCCESS !=
-        (status =
-             mlnx_create_object((trap_type ==
-                                 MLNX_TRAP_TYPE_REGULAR) ? SAI_OBJECT_TYPE_HOSTIF_TRAP :
-                                SAI_OBJECT_TYPE_HOSTIF_USER_DEFINED_TRAP,
-                                trap_id, NULL, &attr_list[0].value.oid))) {
-        goto out;
-    }
-
-    if (SAI_STATUS_SUCCESS != (status = mlnx_create_object(SAI_OBJECT_TYPE_PORT, receive_info->source_log_port, NULL,
-                                                           &attr_list[1].value.oid))) {
-        goto out;
-    }
-
-    if (receive_info->is_lag) {
-        if (SAI_STATUS_SUCCESS !=
-            (status = mlnx_log_port_to_object(receive_info->source_lag_port,
-                                              &attr_list[2].value.oid))) {
-            goto out;
-        }
-    } else {
-        attr_list[2].value.oid = SAI_NULL_OBJECT_ID;
-    }
-
-    SX_LOG_INF("Received trap %s port %x\n", trap_name, receive_info->source_log_port);
 
 out:
     free(receive_info);
@@ -3591,11 +3646,12 @@ static sai_status_t mlnx_send_hostif_packet(_In_ sai_object_id_t        hif_id,
                                             _In_ const sai_attribute_t *attr_list)
 {
     char                         list_str[MAX_LIST_VALUE_STR_LEN];
-    uint32_t                     type_index, port_index;
-    const sai_attribute_value_t *type, *port;
+    uint32_t                     type_index, port_index, prio_index;
+    const sai_attribute_value_t *type, *port, *prio_attr;
     uint32_t                     port_data;
     sai_status_t                 status;
     sx_fd_t                      fd;
+    uint8_t                      prio = 0;
 
     memset(&fd, 0, sizeof(fd));
 
@@ -3646,6 +3702,12 @@ static sai_status_t mlnx_send_hostif_packet(_In_ sai_object_id_t        hif_id,
         return SAI_STATUS_INVALID_ATTR_VALUE_0 + type_index;
     }
 
+    status = find_attrib_in_list(attr_count, attr_list, SAI_HOSTIF_PACKET_ATTR_EGRESS_QUEUE_INDEX, &prio_attr,
+                                 &prio_index);
+    if (SAI_OK(status)) {
+        prio = prio_attr->u8;
+    }
+
     if (SAI_NULL_OBJECT_ID == hif_id) {
         cl_plock_acquire(&g_sai_db_ptr->p_lock);
         memcpy(&fd, &g_sai_db_ptr->callback_channel.channel.fd, sizeof(fd));
@@ -3680,13 +3742,13 @@ static sai_status_t mlnx_send_hostif_packet(_In_ sai_object_id_t        hif_id,
         if (SX_STATUS_SUCCESS !=
             (status =
                  sx_lib_host_ifc_unicast_ctrl_send(&fd, buffer, (uint32_t)buffer_size, DEFAULT_ETH_SWID, port_data,
-                                                   0))) {
+                                                   prio))) {
             SX_LOG_ERR("sx_lib_host_ifc_unicast_ctrl_send failed with error %s\n", SX_STATUS_MSG(status));
             return sdk_to_sai(status);
         }
     } else {
         if (SX_STATUS_SUCCESS !=
-            (status = sx_lib_host_ifc_data_send(&fd, buffer, (uint32_t)buffer_size, DEFAULT_ETH_SWID, 0))) {
+            (status = sx_lib_host_ifc_data_send(&fd, buffer, (uint32_t)buffer_size, DEFAULT_ETH_SWID, prio))) {
             SX_LOG_ERR("sx_lib_host_ifc_data_send failed with error %s\n", SX_STATUS_MSG(status));
             return sdk_to_sai(status);
         }
