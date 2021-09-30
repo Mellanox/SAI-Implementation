@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -148,12 +148,14 @@
     <ClInclude Include="inc\sai\saifdb.h" />
     <ClInclude Include="inc\sai\saihash.h" />
     <ClInclude Include="inc\sai\saihostif.h" />
+    <ClInclude Include="inc\sai\saiipsec.h" />
     <ClInclude Include="inc\sai\saiisolationgroup.h" />
     <ClInclude Include="inc\sai\sail2mcgroup.h" />
     <ClInclude Include="inc\sai\sailag.h" />
     <ClInclude Include="inc\sai\saimacsec.h" />
     <ClInclude Include="inc\sai\saimirror.h" />
     <ClInclude Include="inc\sai\saimpls.h" />
+    <ClInclude Include="inc\sai\saimymac.h" />
     <ClInclude Include="inc\sai\sainat.h" />
     <ClInclude Include="inc\sai\saineighbor.h" />
     <ClInclude Include="inc\sai\sainexthop.h" />
@@ -164,9 +166,10 @@
     <ClInclude Include="inc\sai\saiqosmap.h" />
     <ClInclude Include="inc\sai\saiqueue.h" />
     <ClInclude Include="inc\sai\sairoute.h" />
-    <ClInclude Include="inc\sai\saisegmentroute.h" />
+    <ClInclude Include="inc\sai\saisrv6.h" />
     <ClInclude Include="inc\sai\saisystemport.h" />
     <ClInclude Include="inc\sai\saitam.h" />
+    <ClInclude Include="inc\sai\saiversion.h" />
     <ClInclude Include="inc\sai\saivirtualrouter.h" />
     <ClInclude Include="inc\sai\sairouterinterface.h" />
     <ClInclude Include="inc\sai\saisamplepacket.h" />

@@ -261,8 +261,12 @@ static const sai_stat_capability_t        pg_stats_capabilies[] = {
     { SAI_INGRESS_PRIORITY_GROUP_STAT_PACKETS, SAI_STATS_MODE_READ | SAI_STATS_MODE_READ_AND_CLEAR },
     { SAI_INGRESS_PRIORITY_GROUP_STAT_BYTES, SAI_STATS_MODE_READ | SAI_STATS_MODE_READ_AND_CLEAR },
     { SAI_INGRESS_PRIORITY_GROUP_STAT_CURR_OCCUPANCY_BYTES, SAI_STATS_MODE_READ | SAI_STATS_MODE_READ_AND_CLEAR },
+    { SAI_INGRESS_PRIORITY_GROUP_STAT_SHARED_CURR_OCCUPANCY_BYTES,
+      SAI_STATS_MODE_READ | SAI_STATS_MODE_READ_AND_CLEAR },
     { SAI_INGRESS_PRIORITY_GROUP_STAT_WATERMARK_BYTES, SAI_STATS_MODE_READ | SAI_STATS_MODE_READ_AND_CLEAR },
     { SAI_INGRESS_PRIORITY_GROUP_STAT_SHARED_WATERMARK_BYTES, SAI_STATS_MODE_READ | SAI_STATS_MODE_READ_AND_CLEAR },
+    { SAI_INGRESS_PRIORITY_GROUP_STAT_XOFF_ROOM_CURR_OCCUPANCY_BYTES,
+      SAI_STATS_MODE_READ | SAI_STATS_MODE_READ_AND_CLEAR },
     { SAI_INGRESS_PRIORITY_GROUP_STAT_XOFF_ROOM_WATERMARK_BYTES, SAI_STATS_MODE_READ | SAI_STATS_MODE_READ_AND_CLEAR },
     { SAI_INGRESS_PRIORITY_GROUP_STAT_DROPPED_PACKETS, SAI_STATS_MODE_READ | SAI_STATS_MODE_READ_AND_CLEAR },
 };
@@ -4886,6 +4890,7 @@ sai_status_t mlnx_sai_get_ingress_priority_group_stats_ext(_In_ sai_object_id_t 
     sx_port_occupancy_statistics_t   stats[2] = {0};
     uint32_t                         usage_cnt = 1;
     uint32_t                         ii;
+    uint32_t                         stat_tmp;
     char                             key_str[MAX_KEY_STR_LEN];
     sx_port_cntr_buff_t              pg_cnts = { 0 };
     bool                             pg_cnts_needed = false, occupancy_stats_needed = false,
@@ -4930,11 +4935,13 @@ sai_status_t mlnx_sai_get_ingress_priority_group_stats_ext(_In_ sai_object_id_t 
             break;
 
         case SAI_INGRESS_PRIORITY_GROUP_STAT_CURR_OCCUPANCY_BYTES:
+        case SAI_INGRESS_PRIORITY_GROUP_STAT_SHARED_CURR_OCCUPANCY_BYTES:
         case SAI_INGRESS_PRIORITY_GROUP_STAT_WATERMARK_BYTES:
         case SAI_INGRESS_PRIORITY_GROUP_STAT_SHARED_WATERMARK_BYTES:
             occupancy_stats_needed = true;
             break;
 
+        case SAI_INGRESS_PRIORITY_GROUP_STAT_XOFF_ROOM_CURR_OCCUPANCY_BYTES:
         case SAI_INGRESS_PRIORITY_GROUP_STAT_XOFF_ROOM_WATERMARK_BYTES:
             headroom_occupancy_stats_needed = true;
             break;
@@ -4997,12 +5004,6 @@ sai_status_t mlnx_sai_get_ingress_priority_group_stats_ext(_In_ sai_object_id_t 
 
     for (ii = 0; ii < number_of_counters; ii++) {
         switch (counter_ids[ii]) {
-        case SAI_INGRESS_PRIORITY_GROUP_STAT_SHARED_CURR_OCCUPANCY_BYTES:
-        case SAI_INGRESS_PRIORITY_GROUP_STAT_XOFF_ROOM_CURR_OCCUPANCY_BYTES:
-            SX_LOG_NTC("PG counter %d set item %u not supported\n", counter_ids[ii], ii);
-            SX_LOG_EXIT();
-            return SAI_STATUS_NOT_SUPPORTED;
-
         case SAI_INGRESS_PRIORITY_GROUP_STAT_PACKETS:
             counters[ii] = pg_cnts.rx_frames;
             break;
@@ -5017,6 +5018,7 @@ sai_status_t mlnx_sai_get_ingress_priority_group_stats_ext(_In_ sai_object_id_t 
             break;
 
         case SAI_INGRESS_PRIORITY_GROUP_STAT_CURR_OCCUPANCY_BYTES:
+        case SAI_INGRESS_PRIORITY_GROUP_STAT_SHARED_CURR_OCCUPANCY_BYTES:
             counters[ii] = mlnx_cells_to_bytes(stats[0].statistics.curr_occupancy);
             break;
 
@@ -5025,6 +5027,8 @@ sai_status_t mlnx_sai_get_ingress_priority_group_stats_ext(_In_ sai_object_id_t 
             counters[ii] = mlnx_cells_to_bytes(stats[0].statistics.watermark);
             break;
 
+        case SAI_INGRESS_PRIORITY_GROUP_STAT_XOFF_ROOM_CURR_OCCUPANCY_BYTES:
+        /** fall through */
         case SAI_INGRESS_PRIORITY_GROUP_STAT_XOFF_ROOM_WATERMARK_BYTES:
             counters[ii] = 0;
 
@@ -5037,6 +5041,11 @@ sai_status_t mlnx_sai_get_ingress_priority_group_stats_ext(_In_ sai_object_id_t 
                 return sai_status;
             }
             buff_ind = port_pg_profile_refs[pg_ind];
+            stat_tmp =
+                (counter_ids[ii] == SAI_INGRESS_PRIORITY_GROUP_STAT_XOFF_ROOM_CURR_OCCUPANCY_BYTES) ?
+                mlnx_cells_to_bytes(stats[1].statistics.curr_occupancy) :
+                mlnx_cells_to_bytes(stats[1].statistics.watermark);
+
             if (SENTINEL_BUFFER_DB_ENTRY_INDEX != buff_ind) {
                 buff_db_entry = &g_sai_buffer_db_ptr->buffer_profiles[buff_ind];
                 /* only relevant to loseless when either xon/xoff isn't 0. lossy is 0 */
@@ -5046,24 +5055,16 @@ sai_status_t mlnx_sai_get_ingress_priority_group_stats_ext(_In_ sai_object_id_t 
                         (g_sai_buffer_db_ptr->shp_ipool_map->sai_pool_id == buff_db_entry->sai_pool)) {
                         /* maximum consumption is returned only the xoff part */
                         /* when shared headroom is enabled and pg buffer is lossless then pg.xoff == pg.xon */
-                        if (mlnx_cells_to_bytes(stats[1].statistics.watermark) >
-                            buff_db_entry->xon) {
-                            counters[ii] =
-                                mlnx_cells_to_bytes(stats[1].statistics.watermark) -
-                                buff_db_entry->xon;
+                        if (stat_tmp > buff_db_entry->xon) {
+                            counters[ii] = stat_tmp - buff_db_entry->xon;
                         }
-
                         /* watermark is from xoff threshold. xoff threshold is available bytes in reserved buffer */
-                    } else if (mlnx_cells_to_bytes(stats[1].statistics.watermark) >
-                               (buff_db_entry->reserved_size - buff_db_entry->xoff)) {
-                        counters[ii] =
-                            mlnx_cells_to_bytes(stats[1].statistics.watermark) + buff_db_entry->xoff -
-                            buff_db_entry->reserved_size;
+                    } else if (stat_tmp > buff_db_entry->reserved_size - buff_db_entry->xoff) {
+                        counters[ii] = stat_tmp + buff_db_entry->xoff - buff_db_entry->reserved_size;
                     }
                 }
             }
             cl_plock_release(&g_sai_db_ptr->p_lock);
-
             break;
 
         default:
@@ -5121,12 +5122,14 @@ static sai_status_t mlnx_sai_clear_ingress_priority_group_stats(_In_ sai_object_
             break;
 
         case SAI_INGRESS_PRIORITY_GROUP_STAT_CURR_OCCUPANCY_BYTES:
+        case SAI_INGRESS_PRIORITY_GROUP_STAT_SHARED_CURR_OCCUPANCY_BYTES:
         case SAI_INGRESS_PRIORITY_GROUP_STAT_WATERMARK_BYTES:
         case SAI_INGRESS_PRIORITY_GROUP_STAT_SHARED_WATERMARK_BYTES:
             occupancy_stats_needed = true;
             break;
 
         case SAI_INGRESS_PRIORITY_GROUP_STAT_XOFF_ROOM_WATERMARK_BYTES:
+        case SAI_INGRESS_PRIORITY_GROUP_STAT_XOFF_ROOM_CURR_OCCUPANCY_BYTES:
             headroom_occupancy_stats_needed = true;
             break;
 

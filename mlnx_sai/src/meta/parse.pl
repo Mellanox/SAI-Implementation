@@ -28,6 +28,7 @@ BEGIN { push @INC,'.'; }
 use strict;
 use warnings;
 use diagnostics;
+use sort 'stable'; # for enum initializers sort
 
 #use XML::Simple qw(:strict);
 use Getopt::Std;
@@ -42,6 +43,8 @@ use cap;
 our $XMLDIR = "xml";
 our $INCLUDE_DIR = "../inc/";
 our $EXPERIMENTAL_DIR = "../experimental/";
+
+our $MAX_CONDITIONS_LEN = 1;
 
 our %SAI_ENUMS = ();
 our %SAI_UNIONS = ();
@@ -61,9 +64,12 @@ our %EXPERIMENTAL_OBJECTS = ();
 our %OBJECT_TYPE_TO_STATS_MAP = ();
 our %ATTR_TO_CALLBACK = ();
 our %PRIMITIVE_TYPES = ();
+our %FUNCTION_DEF = ();
 our @ALL_ENUMS = ();
+our %GLOBAL_APIS = ();
 
 my $FLAGS = "MANDATORY_ON_CREATE|CREATE_ONLY|CREATE_AND_SET|READ_ONLY|KEY";
+my $ENUM_FLAGS_TYPES = "(none|strict|mixed|ranges|free)";
 
 # TAGS HANDLERS
 
@@ -198,6 +204,114 @@ sub ProcessTagAllowEmpty
     return undef;
 }
 
+sub ProcessMixedConditionTag
+{
+    my ($type, $value, $val) = @_;
+
+    LogDebug "Processing mix condition: '$val'";
+
+    $val = "($val)" if not $val =~ /^\(/;
+
+    my $COND_OP = '(?:==|!=|<=|>=|<|>)';
+
+    my @parts = split/(SAI_\w+\s*$COND_OP\s*(?:true|false|SAI_\w+|$NUMBER_REGEX))/,$val;
+
+    my $short = "";
+
+    my @conds = ();
+
+    for my $part (@parts)
+    {
+        LogDebug "'$part'";
+
+        if ($part =~ /(SAI_\w+\s*$COND_OP\s*(?:true|false|SAI_\w+|$NUMBER_REGEX))/)
+        {
+            $short .= "C";
+
+            push@conds,$part;
+            next;
+        }
+
+        $part =~ s/\band\b/a/g;
+        $part =~ s/\bor\b/o/g;
+
+        $short .= $part;
+    }
+
+    $short =~ s/\s+//g;
+
+    LogDebug "$short";
+
+    my $RPN = "";
+    my @stack = ();
+
+    my @conditions = ();
+
+    if ($short =~ /CC|[ao][ao]/)
+    {
+        LogError "wrong condition, missing and/or: ($short): $val";
+        return undef;
+    }
+
+    while ($short =~ /(.)/g)
+    {
+        LogDebug "short = $1";
+
+        my $c = $1;
+
+        next if ($c eq "(");
+
+        if ($c eq "C")
+        {
+            $RPN .= "C";
+
+            my $cond = shift @conds;
+
+            push@conditions,$cond;
+        }
+        elsif ($c eq ')')
+        {
+            my $o = pop@stack;
+
+            if (not defined $o)
+            {
+                LogError "not pairded ')' in $short: $val";
+                return undef;
+            }
+
+            $RPN .= $o;
+
+            push@conditions,"SAI_ATTR_CONDITION_TYPE_AND" if $o eq "a";
+            push@conditions,"SAI_ATTR_CONDITION_TYPE_OR"  if $o eq "o";
+        }
+        elsif ($c eq "a" or $c eq "o")
+        {
+            push@stack,$c;
+        }
+        else
+        {
+            LogError "unsupported char $c in $short: $val";
+            return undef;
+        }
+    }
+
+    my $len = @stack;
+
+    if ($len != 0)
+    {
+        LogError "wrong stack length: $len (@stack) (short: '$short') unpaired/missing brackets () on condition: $val";
+        return undef;
+    }
+
+    # $RPN = reverse $RPN;
+
+    LogDebug "RPN = $RPN | @conditions";
+
+    unshift @conditions, "SAI_ATTR_CONDITION_TYPE_MIXED";
+
+    return \@conditions;
+}
+
 sub ProcessTagCondition
 {
     my ($type, $value, $val) = @_;
@@ -206,8 +320,7 @@ sub ProcessTagCondition
 
     if ($val =~ /or.+and|and.+or/)
     {
-        LogError "mixed conditions and/or is not supported: $val";
-        return undef;
+        return ProcessMixedConditionTag($type, $value, $val);
     }
 
     for my $cond (@conditions)
@@ -448,9 +561,16 @@ sub ProcessEnumSection
 
         my $ed = ExtractDescription($enumtypename, $enumtypename, $memberdef->{detaileddescription}[0]);
 
+        if ($ed =~ /\@\@flags/s and not $ed =~ /\@\@flags\s+(\w+)/s)
+        {
+            LogWarning "expected flags type $ENUM_FLAGS_TYPES not specified on $enumtypename";
+        }
+
         $SAI_ENUMS{$enumtypename}{flagsenum} = ($ed =~ /\@\@flags/s) ? "true" : "false";
+        $SAI_ENUMS{$enumtypename}{flagstype} = ($ed =~ /\@\@flags\s+(\w+)/s) ? $1 : "none";
 
         my @arr = ();
+        my @initializers = ();
 
         $SAI_ENUMS{$enumtypename}{values} = \@arr;
 
@@ -460,9 +580,22 @@ sub ProcessEnumSection
 
             my $eitemd = ExtractDescription($enumtypename, $enumvaluename, $ev->{detaileddescription}[0]);
 
+            my $initializer = $ev->{initializer}[0];
+
+            $initializer = "" if not defined $initializer;
+
             if ($eitemd =~ /\@ignore/)
             {
                 LogInfo "Ignoring $enumvaluename";
+
+                if ($initializer =~ /^= (SAI_\w+)$/)
+                {
+                    LogError "initializer $1 not defined in $enumtypename before $enumvaluename" if not grep (/^$1$/, @arr);
+                }
+                else
+                {
+                    LogWarning "Enum $enumvaluename is ignored, but initializer is '$initializer' not in form '= SAI_\\w+'";
+                }
 
                 # process ignore attributes
 
@@ -481,6 +614,7 @@ sub ProcessEnumSection
             LogDebug "$enumtypename $enumvaluename";
 
             push@arr,$enumvaluename;
+            push@initializers,$initializer;
 
             LogWarning "Value $enumvaluename of $enumtypename is not prefixed as $enumprefix" if not $enumvaluename =~ /^$enumprefix/;
 
@@ -490,10 +624,19 @@ sub ProcessEnumSection
             }
         }
 
+        ProcessEnumInitializers(\@arr,\@initializers, $enumtypename, \%SAI_DEFINES);
+
+        # TODO stable sort values based on calculated values from initializer (https://perldoc.perl.org/sort)
+        # TODO add param to disable this
+
         # remove unnecessary attributes
         my @values = @{ $SAI_ENUMS{$enumtypename}{values} };
 
         push @ALL_ENUMS, @values;
+
+        my @ranges = grep(/^SAI_\w+(RANGE_BASE)$/, @values);
+
+        $SAI_ENUMS{$enumtypename}{ranges} = \@ranges;
 
         @values = grep(!/^SAI_\w+_(START|END)$/, @values);
         @values = grep(!/^SAI_\w+(RANGE_BASE)$/, @values);
@@ -521,6 +664,10 @@ sub ProcessEnumSection
                     LogInfo "Removing last element $last";
                 }
             }
+        }
+        else
+        {
+            LogError "NON sai Enum $enumtypename";
         }
 
         $SAI_ENUMS{$enumtypename}{values} = \@values;
@@ -685,6 +832,11 @@ sub ProcessTypedefSection
             # this will also include structs from metadata
             $ALL_STRUCTS{$typedefname} = 1;
             next;
+        }
+
+        if ($typedefname =~ /^sai_\w+_fn$/)
+        {
+            $FUNCTION_DEF{$typedefname} = $memberdef->{definition}[0];
         }
 
         if ($typedefname =~ /^sai_\w+_notification_fn$/)
@@ -921,6 +1073,37 @@ sub ProcessNotifications
     $NOTIFICATIONS{$typedefname} = \%N;
 }
 
+sub ProcessFunctionSection
+{
+    my $section = shift;
+
+    for my $memberdef (@{ $section->{memberdef} })
+    {
+        next if not $memberdef->{kind} eq "function";
+
+        #print Dumper($memberdef);
+
+        my $name = $memberdef->{name}[0];
+        my $file = $memberdef->{location}[0]->{file};
+
+        next if not $file =~ m!inc/sai\w*.h!;
+
+        LogError "api $name not starting with sai_! " if not $name =~ /^sai_\w+$/;
+
+        #print Dumper($memberdef);
+
+        my $def = $memberdef->{definition}[0];
+
+        my $type = $memberdef->{type}[0];
+
+        $type = $1 if $def =~ /^(\w+) sai_\w+$/;
+
+        $GLOBAL_APIS{$name}{name} = $name;
+        $GLOBAL_APIS{$name}{args} = $memberdef->{argsstring}[0];
+        $GLOBAL_APIS{$name}{type} = $type;
+    }
+}
+
 sub ProcessXmlFile
 {
     my $file = shift;
@@ -936,7 +1119,25 @@ sub ProcessXmlFile
         ProcessEnumSection($section) if ($section->{kind} eq "enum");
 
         ProcessTypedefSection($section) if $section->{kind} eq "typedef";
+
+        ProcessFunctionSection($section) if $section->{kind} eq "func";
     }
+}
+
+sub ProcessFlagsType
+{
+    my ($typedef, $flagstype) = @_;
+
+    return "SAI_ENUM_FLAGS_TYPE_NONE"    if not defined $flagstype;
+    return "SAI_ENUM_FLAGS_TYPE_NONE"    if $flagstype eq "none";
+    return "SAI_ENUM_FLAGS_TYPE_STRICT"  if $flagstype eq "strict";
+    return "SAI_ENUM_FLAGS_TYPE_MIXED"   if $flagstype eq "mixed";
+    return "SAI_ENUM_FLAGS_TYPE_RANGES"  if $flagstype eq "ranges";
+    return "SAI_ENUM_FLAGS_TYPE_FREE"    if $flagstype eq "free";
+
+    LogError "wrong flags type '$flagstype' on $typedef, expected $ENUM_FLAGS_TYPES";
+
+    return "WRONG";
 }
 
 sub ProcessSingleEnum
@@ -950,6 +1151,8 @@ sub ProcessSingleEnum
     my @values = @{$enum->{values}};
 
     my $flags = (defined $enum->{flagsenum}) ? $enum->{flagsenum} : "false";
+
+    my $flagstype = ProcessFlagsType($typedef, $enum->{flagstype});
 
     WriteSource "const $typedef sai_metadata_${typedef}_enum_values[] = {";
 
@@ -1023,6 +1226,7 @@ sub ProcessSingleEnum
     WriteSource ".valuesnames       = sai_metadata_${typedef}_enum_values_names,";
     WriteSource ".valuesshortnames  = sai_metadata_${typedef}_enum_values_short_names,";
     WriteSource ".containsflags     = $flags,";
+    WriteSource ".flagstype         = $flagstype,";
 
     if (defined $enum->{ignoreval})
     {
@@ -1035,6 +1239,10 @@ sub ProcessSingleEnum
         WriteSource ".ignorevaluesnames = NULL,";
     }
 
+    my $ot = ($typedef =~ /^sai_(\w+)_attr_t/) ? uc("SAI_OBJECT_TYPE_$1") : "SAI_OBJECT_TYPE_NULL";
+    #my $ot = ($typedef =~ /^sai_(\w+)_attr_(extensions_)?t/) ? uc("SAI_OBJECT_TYPE_$1") : "SAI_OBJECT_TYPE_NULL";
+
+    WriteSource ".objecttype        = (sai_object_type_t)$ot,";
     WriteSource "};";
 
     return $count;
@@ -1042,7 +1250,7 @@ sub ProcessSingleEnum
 
 sub ProcessExtraRangeDefines
 {
-    WriteSectionComment "Enums metadata";
+    WriteSectionComment "Extra range defines";
 
     for my $key (sort keys %EXTRA_RANGE_DEFINES)
     {
@@ -1050,14 +1258,34 @@ sub ProcessExtraRangeDefines
     }
 }
 
-sub CreateMetadataHeaderAndSource
+sub CreateSourceIncludes
 {
+    WriteSourceSectionComment "Includes";
+
     WriteSource "#include <stdio.h>";
     WriteSource "#include <string.h>";
     WriteSource "#include <stdlib.h>";
     WriteSource "#include <stddef.h>";
     WriteSource "#include \"saimetadata.h\"";
+}
 
+sub CreateSourcePragmaPush
+{
+    WriteSourceSectionComment "Pragma diagnostic push";
+
+    #
+    # because we are merging extension attributes into existing
+    # enums, new versions of gcc can warn when 2 different enums
+    # are mixed, so lets ignore this warning using pragmas
+    #
+
+    WriteSource "#pragma GCC diagnostic push";
+    WriteSource "#pragma GCC diagnostic ignored \"-Wpragmas\"";
+    WriteSource "#pragma GCC diagnostic ignored \"-Wenum-conversion\"";
+}
+
+sub CreateMetadataHeaderAndSource
+{
     WriteSectionComment "Enums metadata";
 
     for my $key (sort keys %SAI_ENUMS)
@@ -1535,7 +1763,13 @@ sub ProcessConditionsGeneric
 
     my @conditions = @{ $conditions };
 
-    shift @conditions;
+    my $ctype = shift @conditions;
+
+    if (not $ctype =~ /^SAI_ATTR_CONDITION_TYPE_(AND|OR|MIXED)$/)
+    {
+        LogError "unsupported condition type $ctype on $attr";
+        return "";
+    }
 
     my $count = 0;
 
@@ -1543,6 +1777,22 @@ sub ProcessConditionsGeneric
 
     for my $cond (@conditions)
     {
+        if ($ctype eq "SAI_ATTR_CONDITION_TYPE_MIXED")
+        {
+            if ($cond =~ /^SAI_ATTR_CONDITION_TYPE_(AND|OR)$/)
+            {
+                WriteSource "const sai_attr_condition_t sai_metadata_${name}_${attr}_$count = {";
+                WriteSource ".attrid = SAI_INVALID_ATTRIBUTE_ID,";
+                WriteSource ".condition = { 0 },";
+                WriteSource ".op = SAI_CONDITION_OPERATOR_EQ,";
+                WriteSource ".type = $cond";
+                WriteSource "};";
+
+                $count++;
+                next;
+            }
+        }
+
         if (not $cond =~ /^(SAI_\w+) == (true|false|SAI_\w+|$NUMBER_REGEX)$/)
         {
             LogError "invalid condition '$cond' on $attr";
@@ -1563,15 +1813,28 @@ sub ProcessConditionsGeneric
 
         WriteSource "const sai_attr_condition_t sai_metadata_${name}_${attr}_$count = {";
 
+        my $attrType = lc("$1t") if $attrid =~ /^(SAI_\w+_ATTR_)/;
+        my $enumTypeName = $METADATA{$attrType}{$attrid}{type};
+
+        if (not defined $enumTypeName)
+        {
+            LogError("failed to find attribute ${attrType}::${attrid} when processing $attrid");
+            next;
+        }
+
         if ($val eq "true" or $val eq "false")
         {
             WriteSource ".attrid = $attrid,";
-            WriteSource ".condition = { .booldata = $val }";
+            WriteSource ".condition = { .booldata = $val },";
+            WriteSource ".op = SAI_CONDITION_OPERATOR_EQ,";
+            WriteSource ".type = SAI_ATTR_CONDITION_TYPE_NONE";
         }
         elsif ($val =~ /^SAI_/)
         {
-            WriteSource "    .attrid = $attrid,";
-            WriteSource "    .condition = { .s32 = $val }";
+            WriteSource ".attrid = $attrid,";
+            WriteSource ".condition = { .s32 = $val },";
+            WriteSource ".op = SAI_CONDITION_OPERATOR_EQ,";
+            WriteSource ".type = SAI_ATTR_CONDITION_TYPE_NONE";
 
             my $attrType = lc("$1t") if $attrid =~ /^(SAI_\w+_ATTR_)/;
 
@@ -1596,13 +1859,15 @@ sub ProcessConditionsGeneric
                 }
             }
         }
-        elsif ($val =~ /^$NUMBER_REGEX$/ and $enumtype =~ /^sai_u?int(\d+)_t$/)
+        elsif ($val =~ /^$NUMBER_REGEX$/ and $enumTypeName =~ /^sai_u?int(\d+)_t$/)
         {
             my $n = $1;
-            my $item = ($enumtype =~ /uint/) ? "u$n" : "s$n";
+            my $item = ($enumTypeName =~ /uint/) ? "u$n" : "s$n";
 
             WriteSource ".attrid = $attrid,";
-            WriteSource ".condition = { .$item = $val }";
+            WriteSource ".condition = { .$item = $val },";
+            WriteSource ".op = SAI_CONDITION_OPERATOR_EQ,";
+            WriteSource ".type = SAI_ATTR_CONDITION_TYPE_NONE";
         }
         else
         {
@@ -1989,7 +2254,7 @@ sub ProcessSingleObjectType
 
         WriteSource "const sai_attr_metadata_t sai_metadata_attr_$attr = {";
 
-        WriteSource ".objecttype                    = $objecttype,";
+        WriteSource ".objecttype                    = (sai_object_type_t)$objecttype,";
         WriteSource ".attrid                        = $attr,";
         WriteSource ".attridname                    = $attrname,";
         WriteSource ".brief                         = $brief,";
@@ -2042,6 +2307,9 @@ sub ProcessSingleObjectType
         # check enum attributes if their names are ending on enum name
 
         CheckEnumNaming($attr, $meta{type}) if $isenum eq "true" or $isenumlist eq "true";
+
+        $MAX_CONDITIONS_LEN = $conditionslen if $MAX_CONDITIONS_LEN < $conditionslen;
+        $MAX_CONDITIONS_LEN = $validonlylen if $MAX_CONDITIONS_LEN < $validonlylen;
     }
 }
 
@@ -2121,6 +2389,7 @@ sub ProcessSaiStatus
 
     $SAI_ENUMS{"sai_status_t"}{values} = \@values;
     $SAI_ENUMS{"sai_status_t"}{flagsenum} = "true";
+    $SAI_ENUMS{"sai_status_t"}{flagstype} = "free";
 }
 
 sub CreateMetadataForAttributes
@@ -2240,10 +2509,14 @@ sub ProcessStructValueType
     return "SAI_ATTR_VALUE_TYPE_UINT32"         if $type eq "uint32_t";
     return "SAI_ATTR_VALUE_TYPE_INT32"          if $type =~ /^sai_\w+_type_t$/; # enum
     return "SAI_ATTR_VALUE_TYPE_NAT_ENTRY_DATA" if $type eq "sai_nat_entry_data_t";
+    return "SAI_ATTR_VALUE_TYPE_ENCRYPT_KEY"    if $type eq "sai_encrypt_key_t";
+    return "SAI_ATTR_VALUE_TYPE_AUTH_KEY"       if $type eq "sai_auth_key_t";
     return "SAI_ATTR_VALUE_TYPE_MACSEC_SAK"     if $type eq "sai_macsec_sak_t";
     return "SAI_ATTR_VALUE_TYPE_MACSEC_AUTH_KEY" if $type eq "sai_macsec_auth_key_t";
     return "SAI_ATTR_VALUE_TYPE_MACSEC_SALT"    if $type eq "sai_macsec_salt_t";
     return "SAI_ATTR_VALUE_TYPE_BOOL"           if $type eq "bool";
+    return "SAI_ATTR_VALUE_TYPE_IPV6"           if $type eq "sai_ip6_t";
+    return "SAI_ATTR_VALUE_TYPE_UINT8"          if $type eq "sai_uint8_t";
     return "SAI_ATTR_VALUE_TYPE_INT32"          if defined $SAI_ENUMS{$type}; # enum
 
     return "-1"                                 if $type eq "sai_fdb_entry_t";
@@ -2492,8 +2765,9 @@ sub ProcessRevGraph
 
         WriteSource "const sai_rev_graph_member_t $membername = {";
 
-        WriteSource ".objecttype          = $objectType,";
-        WriteSource ".depobjecttype       = $depObjectType,";
+
+        WriteSource ".objecttype          = (sai_object_type_t)$objectType,";
+        WriteSource ".depobjecttype       = (sai_object_type_t)$depObjectType,";
 
         if ($attrId =~ /^SAI_\w+_ATTR_\w+/)
         {
@@ -2867,13 +3141,49 @@ sub CreateGlobalApis
     WriteHeader "extern sai_apis_t sai_metadata_apis;";
 }
 
+sub CreateGlobalFunctions
+{
+    WriteSectionComment "Global functions";
+
+    for my $name (sort keys %GLOBAL_APIS)
+    {
+        my $type = $GLOBAL_APIS{$name}{type};
+        my $args = $GLOBAL_APIS{$name}{args};
+
+        $args =~ s/(_(In|Out|Inout)_)/\n    $1/g;
+
+        WriteHeader "typedef $type (*${name}_fn) $args;";
+        WriteHeader "";
+    }
+
+    WriteHeader "typedef struct _sai_global_apis_t {";
+
+    for my $name (sort keys %GLOBAL_APIS)
+    {
+        my $short = $1 if $name =~ /^sai_(\w+)/;
+
+        WriteHeader "${name}_fn $short;";
+    }
+
+    WriteHeader "} sai_global_apis_t;";
+
+    WriteHeader "";
+
+    WriteHeader "typedef enum _sai_global_api_type_t {";
+
+    for my $name (sort keys %GLOBAL_APIS)
+    {
+        my $short = uc($1) if $name =~ /^sai_(\w+)/;
+
+        WriteHeader "SAI_GLOBAL_API_TYPE_$short,";
+    }
+
+    WriteHeader "} sai_global_api_type_t;";
+}
+
 sub CreateApisQuery
 {
     WriteSectionComment "SAI API query";
-
-    WriteHeader "typedef sai_status_t (*sai_api_query_fn)(";
-    WriteHeader "_In_ sai_api_t sai_api_id,";
-    WriteHeader "_Out_ void** api_method_table);";
 
     # for switch we need to generate wrapper, for others we can use pointers
     # so we don't need to use meta key then
@@ -3005,7 +3315,7 @@ sub CreateObjectInfo
 
         WriteSource "const sai_object_type_info_t sai_metadata_object_type_info_$ot = {";
 
-        WriteSource ".objecttype           = $ot,";
+        WriteSource ".objecttype           = (sai_object_type_t)$ot,";
         WriteSource ".objecttypename       = \"$ot\",";
         WriteSource ".attridstart          = $start,";
         WriteSource ".attridend            = $end,";
@@ -3109,7 +3419,7 @@ sub ProcessSingleNonObjectId
 
         # allowed entries on object structs
 
-        if (not $type =~ /^sai_(nat_entry_data|mac|object_id|vlan_id|ip_address|ip_prefix|label_id|\w+_type)_t$/)
+        if (not $type =~ /^sai_(nat_entry_data|mac|object_id|vlan_id|ip_address|ip_prefix|label_id|ip6|uint8|\w+_type)_t$/)
         {
             LogError "struct member $member type '$type' is not allowed on struct $structname";
             next;
@@ -3677,6 +3987,14 @@ sub ProcessStructItem
 
         $ProcessedItems{$item} = 1;
     }
+
+    my $count = scalar(keys %S);
+    my @k = sort keys %S;
+
+    if ($type =~ /^sai_(\w+)_list_t$/ and $count != 2)
+    {
+        LogError "lists must contain 2 elements (count, list), but $type has $count (@k), it's not a list then, fix this";
+    }
 }
 
 sub CheckAttributeValueUnion
@@ -3794,6 +4112,28 @@ sub CreateNotificationEnum
     WriteSectionComment "Get sai_switch_notification_type_t helper method";
 
     CreateEnumHelperMethod("sai_switch_notification_type_t");
+}
+
+sub CreateNotificationNames
+{
+    #
+    # create notification names to have string representation
+    #
+
+    WriteSectionComment "SAI notifications names";
+
+    for my $name (sort keys %NOTIFICATIONS)
+    {
+        if (not $name =~ /^sai_(\w+)_notification_fn/)
+        {
+            LogWarning "notification function '$name' is not ending on _notification_fn";
+            next;
+        }
+
+        $name = uc $1;
+
+        WriteHeader "#define SAI_SWITCH_NOTIFICATION_NAME_$name \"$1\"";
+    }
 }
 
 sub CreateSwitchNotificationAttributesList
@@ -3990,6 +4330,13 @@ sub WriteHeaderHeader
 sub WriteHeaderFotter
 {
     WriteHeader "#endif /* __SAI_METADATA_H__ */";
+}
+
+sub CreateSourcePragmaPop
+{
+    WriteSourceSectionComment "Pragma diagnostic pop";
+
+    WriteSource "#pragma GCC diagnostic pop";
 }
 
 sub ProcessXmlFiles
@@ -4202,6 +4549,135 @@ sub CreateOtherStructs
     }
 }
 
+sub CreateSaiSwigGetApiHelperFunctions
+{
+    #
+    # write swig get api helper functions, those functions could be moved to
+    # saimetadata.c directly, but inside sai_api_query is used, and currently
+    # sai metadata can be compiled and linked without any SAI library
+    #
+
+    my @apis = @{ $SAI_ENUMS{sai_api_t}{values} };
+
+    WriteSwig "%{";
+
+    for my $Api (@apis)
+    {
+        $Api =~ /^SAI_API_(\w+)/;
+
+        my $api = lc($1);
+
+        next if $api =~ /unspecified/;
+
+        WriteSwig "sai_status_t sai_get_${api}_api(sai_${api}_api_t* out)";
+        WriteSwig "{";
+        WriteSwig "sai_${api}_api_t* api;";
+        WriteSwig "sai_status_t status = sai_api_query((sai_api_t)$Api, (void**)&api);";
+        WriteSwig "if (status == SAI_STATUS_SUCCESS)";
+        WriteSwig "{";
+        WriteSwig "*out = *api;";
+        WriteSwig "}";
+        WriteSwig "return status;";
+        WriteSwig "}";
+    }
+
+    WriteSwig "%}";
+
+    for my $Api (@apis)
+    {
+        $Api =~ /^SAI_API_(\w+)/;
+
+        my $api = lc($1);
+
+        next if $api =~ /unspecified/;
+
+        WriteSwig "sai_status_t sai_get_${api}_api(sai_${api}_api_t* out);";
+    }
+}
+
+sub CreateSaiSwigApiStructs
+{
+    #
+    # for swig api to be callable, it needs to be created as a function in
+    # structure, not as member
+    #
+
+    WriteSwig "%include \"saitypes.h\"";
+
+    my @apis = @{ $SAI_ENUMS{sai_api_t}{values} };
+
+    for my $Api (@apis)
+    {
+        $Api =~ /^SAI_API_(\w+)/;
+
+        my $api = lc($1);
+
+        next if $api =~ /unspecified/;
+
+        my $structname = "sai_${api}_api_t";
+
+        my %struct = ExtractStructInfo($structname, "struct_");
+
+        WriteSwig "typedef struct _$structname {";
+
+        for my $member (GetStructKeysInOrder(\%struct))
+        {
+            my $type = $struct{$member}{type};
+            my $name = $struct{$member}{name};
+
+            if (not defined $FUNCTION_DEF{$type})
+            {
+                LogError "function type $type is not defined for $api.$name";
+                next;
+            }
+
+            my $prototype = $FUNCTION_DEF{$type};
+
+            if (not $prototype =~ /^typedef (\S+)\(\* $type\) \((.+)\)$/)
+            {
+                LogError "failed to match function proto type $type is not defined for $api.$name";
+                next;
+            }
+
+            my $returntype = $1;
+            my $params = $2;
+
+            WriteSwig "$returntype $name($params);";
+        }
+
+        WriteSwig "} $structname;";
+        WriteSwig "";
+    }
+
+    for my $Api (@apis)
+    {
+        $Api =~ /^SAI_API_(\w+)/;
+
+        my $api = lc($1);
+
+        next if $api =~ /unspecified/;
+
+        WriteSwig "%ignore sai_${api}_api_t;";
+    }
+
+    my @headers = GetHeaderFiles();
+    my @exheaders = GetExperimentalHeaderFiles();
+
+    my @merged = (@headers, @exheaders);
+
+    for my $header (sort @merged)
+    {
+        WriteSwig "%include \"$header\"";
+    }
+}
+
+sub CreateDefineMaxConditionsLen
+{
+    WriteSectionComment "Define SAI_METADATA_MAX_CONDITIONS_LEN";
+
+    WriteHeader "#define SAI_METADATA_MAX_CONDITIONS_LEN $MAX_CONDITIONS_LEN";
+}
+
 #
 # MAIN
 #
@@ -4232,11 +4708,17 @@ ProcessSaiStatus();
 
 ProcessExtraRangeDefines();
 
+CreateSourceIncludes();
+
+CreateSourcePragmaPush();
+
 CreateMetadataHeaderAndSource();
 
 CreateMetadata();
 
 CreateMetadataForAttributes();
+
+CreateDefineMaxConditionsLen();
 
 CreateEnumHelperMethods();
 
@@ -4251,6 +4733,8 @@ CreateApis();
 CreateApisStruct();
 
 CreateGlobalApis();
+
+CreateGlobalFunctions();
 
 CreateApisQuery();
 
@@ -4276,6 +4760,8 @@ CreateNotificationStruct();
 
 CreateNotificationEnum();
 
+CreateNotificationNames();
+
 CreateSwitchNotificationAttributesList();
 
 CreateSwitchPointersStruct();
@@ -4286,7 +4772,13 @@ CreateSwitchPointersAttributesList();
 
 CreateSerializeMethods();
 
+CreateSaiSwigGetApiHelperFunctions();
+
+CreateSaiSwigApiStructs();
+
 WriteHeaderFotter();
+
+CreateSourcePragmaPop();
 
 # Test Section
 

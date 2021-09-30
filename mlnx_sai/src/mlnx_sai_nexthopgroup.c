@@ -2114,4 +2114,8 @@ const sai_next_hop_group_api_t mlnx_next_hop_group_api = {
     mlnx_get_next_hop_group_member_attribute,
     mlnx_create_next_hop_group_members,
     mlnx_remove_next_hop_group_members,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
 };

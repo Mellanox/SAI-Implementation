@@ -34,6 +34,7 @@
 #include "saihostif.h"
 #include "saiipmcgroup.h"
 #include "saiipmc.h"
+#include "saiipsec.h"
 #include "sail2mcgroup.h"
 #include "sail2mc.h"
 #include "sailag.h"
@@ -55,7 +56,7 @@
 #include "saisamplepacket.h"
 #include "saischedulergroup.h"
 #include "saischeduler.h"
-#include "saisegmentroute.h"
+#include "saisrv6.h"
 #include "saistatus.h"
 #include "saistp.h"
 #include "saiswitch.h"
@@ -72,6 +73,7 @@
 #include "sainat.h"
 #include "saiisolationgroup.h"
 #include "saidebugcounter.h"
+#include "saimymac.h"
 
 /**
  * @defgroup SAI SAI - Entry point specific API definitions.
@@ -123,7 +125,7 @@ typedef enum _sai_api_t
     SAI_API_MCAST_FDB        = 32, /**< sai_mcast_fdb_api_t */
     SAI_API_BRIDGE           = 33, /**< sai_bridge_api_t */
     SAI_API_TAM              = 34, /**< sai_tam_api_t */
-    SAI_API_SEGMENTROUTE     = 35, /**< sai_segmentroute_api_t */
+    SAI_API_SRV6             = 35, /**< sai_srv6_api_t */
     SAI_API_MPLS             = 36, /**< sai_mpls_api_t */
     SAI_API_DTEL             = 37, /**< sai_dtel_api_t (experimental) */
     SAI_API_BFD              = 38, /**< sai_bfd_api_t */
@@ -133,7 +135,9 @@ typedef enum _sai_api_t
     SAI_API_DEBUG_COUNTER    = 42, /**< sai_debug_counter_api_t */
     SAI_API_MACSEC           = 43, /**< sai_macsec_api_t */
     SAI_API_SYSTEM_PORT      = 44, /**< sai_system_port_api_t */
-    SAI_API_MAX              = 45, /**< total number of APIs */
+    SAI_API_MY_MAC           = 45, /**< sai_my_mac_api_t */
+    SAI_API_IPSEC            = 46, /**< sai_ipsec_api_t */
+    SAI_API_MAX,                   /**< total number of APIs */
 } sai_api_t;
 
 /**

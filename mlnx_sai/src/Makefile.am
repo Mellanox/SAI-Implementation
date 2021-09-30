@@ -156,6 +156,7 @@ libsai_apiinclude_HEADERS = \
         $(top_srcdir)/inc/sai/saihostif.h \
         $(top_srcdir)/inc/sai/saiipmc.h \
         $(top_srcdir)/inc/sai/saiipmcgroup.h \
+        $(top_srcdir)/inc/sai/saiipsec.h \
         $(top_srcdir)/inc/sai/saiisolationgroup.h \
         $(top_srcdir)/inc/sai/sail2mc.h \
         $(top_srcdir)/inc/sai/sail2mcgroup.h \
@@ -164,6 +165,7 @@ libsai_apiinclude_HEADERS = \
         $(top_srcdir)/inc/sai/saimcastfdb.h \
         $(top_srcdir)/inc/sai/saimirror.h \
         $(top_srcdir)/inc/sai/saimpls.h \
+        $(top_srcdir)/inc/sai/saimymac.h \
         $(top_srcdir)/inc/sai/sainat.h \
         $(top_srcdir)/inc/sai/saineighbor.h \
         $(top_srcdir)/inc/sai/sainexthop.h \
@@ -179,7 +181,7 @@ libsai_apiinclude_HEADERS = \
         $(top_srcdir)/inc/sai/saisamplepacket.h \
         $(top_srcdir)/inc/sai/saischeduler.h \
         $(top_srcdir)/inc/sai/saischedulergroup.h \
-        $(top_srcdir)/inc/sai/saisegmentroute.h \
+        $(top_srcdir)/inc/sai/saisrv6.h \
         $(top_srcdir)/inc/sai/saistatus.h \
         $(top_srcdir)/inc/sai/saistp.h \
         $(top_srcdir)/inc/sai/saiswitch.h \
@@ -188,6 +190,7 @@ libsai_apiinclude_HEADERS = \
         $(top_srcdir)/inc/sai/saitunnel.h \
         $(top_srcdir)/inc/sai/saitypes.h \
         $(top_srcdir)/inc/sai/saiudf.h \
+        $(top_srcdir)/inc/sai/saiversion.h \
         $(top_srcdir)/inc/sai/saivirtualrouter.h \
         $(top_srcdir)/inc/sai/saivlan.h \
         $(top_srcdir)/inc/sai/saiwred.h \
