@@ -163,10 +163,9 @@ static void lag_member_key_to_str(_In_ sai_object_id_t lag_member_id, _Out_ char
     } else {
         snprintf(key_str,
                  MAX_KEY_STR_LEN,
-                 "LAG member (%x,%x,%x)",
+                 "LAG member (%x,%x)",
                  mlnx_lag_member.id.log_port_id,
-                 mlnx_lag_member.ext.lag.lag_id,
-                 mlnx_lag_member.ext.lag.sub_id);
+                 mlnx_lag_member.ext.lag.lag_id);
     }
 }
 
@@ -729,7 +728,6 @@ static sai_status_t mlnx_lag_member_lag_id_get(_In_ const sai_object_key_t   *ke
 
     SX_PORT_TYPE_ID_SET(lag_log_port_id, SX_PORT_TYPE_LAG);
     SX_PORT_LAG_ID_SET(lag_log_port_id, mlnx_lag_member.ext.lag.lag_id);
-    SX_PORT_SUB_ID_SET(lag_log_port_id, mlnx_lag_member.ext.lag.sub_id);
 
     status = mlnx_log_port_to_object(lag_log_port_id, &value->oid);
     if (SAI_ERR(status)) {
@@ -782,7 +780,6 @@ static sai_status_t mlnx_lag_member_egress_disable_get(_In_ const sai_object_key
 
     SX_PORT_TYPE_ID_SET(lag_log_port_id, SX_PORT_TYPE_LAG);
     SX_PORT_LAG_ID_SET(lag_log_port_id, mlnx_lag_member.ext.lag.lag_id);
-    SX_PORT_SUB_ID_SET(lag_log_port_id, mlnx_lag_member.ext.lag.sub_id);
 
     if (SX_STATUS_SUCCESS !=
         (sx_status =
@@ -817,7 +814,6 @@ static sai_status_t mlnx_lag_member_egress_disable_set(_In_ const sai_object_key
 
     SX_PORT_TYPE_ID_SET(lag_log_port_id, SX_PORT_TYPE_LAG);
     SX_PORT_LAG_ID_SET(lag_log_port_id, mlnx_lag_member.ext.lag.lag_id);
-    SX_PORT_SUB_ID_SET(lag_log_port_id, mlnx_lag_member.ext.lag.sub_id);
 
     if (SX_STATUS_SUCCESS !=
         (sx_status = sx_api_lag_port_distributor_set
@@ -849,7 +845,6 @@ static sai_status_t mlnx_lag_member_ingress_disable_get(_In_ const sai_object_ke
 
     SX_PORT_TYPE_ID_SET(lag_log_port_id, SX_PORT_TYPE_LAG);
     SX_PORT_LAG_ID_SET(lag_log_port_id, mlnx_lag_member.ext.lag.lag_id);
-    SX_PORT_SUB_ID_SET(lag_log_port_id, mlnx_lag_member.ext.lag.sub_id);
 
     if (SX_STATUS_SUCCESS !=
         (sx_status =
@@ -884,7 +879,6 @@ static sai_status_t mlnx_lag_member_ingress_disable_set(_In_ const sai_object_ke
 
     SX_PORT_TYPE_ID_SET(lag_log_port_id, SX_PORT_TYPE_LAG);
     SX_PORT_LAG_ID_SET(lag_log_port_id, mlnx_lag_member.ext.lag.lag_id);
-    SX_PORT_SUB_ID_SET(lag_log_port_id, mlnx_lag_member.ext.lag.sub_id);
 
     if (SX_STATUS_SUCCESS !=
         (sx_status = sx_api_lag_port_collector_set
@@ -1570,7 +1564,6 @@ static sai_status_t mlnx_create_lag_member(_Out_ sai_object_id_t     * lag_membe
     /* create lag member id */
     mlnx_lag_member.id.log_port_id = port_id;
     mlnx_lag_member.ext.lag.lag_id = SX_PORT_LAG_ID_GET(lag_id);
-    mlnx_lag_member.ext.lag.sub_id = SX_PORT_SUB_ID_GET(lag_id);
 
     status = mlnx_object_id_to_sai(SAI_OBJECT_TYPE_LAG_MEMBER, &mlnx_lag_member, lag_member_id);
     if (SAI_ERR(status)) {
@@ -1646,7 +1639,6 @@ static sai_status_t mlnx_remove_lag_member(_In_ sai_object_id_t lag_member_id)
 
     SX_PORT_TYPE_ID_SET(lag_log_port_id, SX_PORT_TYPE_LAG);
     SX_PORT_LAG_ID_SET(lag_log_port_id, mlnx_lag_member.ext.lag.lag_id);
-    SX_PORT_SUB_ID_SET(lag_log_port_id, mlnx_lag_member.ext.lag.sub_id);
 
     sai_db_write_lock();
     status = remove_port_from_lag(lag_log_port_id, mlnx_lag_member.id.log_port_id);

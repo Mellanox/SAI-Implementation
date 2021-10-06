@@ -2942,7 +2942,6 @@ static sai_status_t parse_port_info(xmlDoc *doc, xmlNode * port_node)
     port->port_map.mapping_mode = SX_PORT_MAPPING_MODE_ENABLE;
     port->port_map.module_port = module;
     port->port_map.width = width;
-    port->port_map.config_hw = FALSE;
     port->port_map.lane_bmap = 0x0;
     port->port_map.local_port = local;
 
@@ -3192,6 +3191,7 @@ static void sai_db_values_init()
     g_sai_db_ptr->qos_maps_db[MLNX_QOS_MAP_PFC_QUEUE_INDEX].is_used = 1;
     g_sai_db_ptr->switch_default_tc = 0;
     memset(g_sai_db_ptr->policers_db, 0, sizeof(g_sai_db_ptr->policers_db));
+    memset(g_sai_db_ptr->port_pg9_defaults, 0, sizeof(g_sai_db_ptr->port_pg9_defaults));
     memset(g_sai_db_ptr->mlnx_samplepacket_session, 0, sizeof(g_sai_db_ptr->mlnx_samplepacket_session));
     memset(g_sai_db_ptr->trap_group_valid, 0, sizeof(g_sai_db_ptr->trap_group_valid));
     memset(g_sai_db_ptr->isolation_groups, 0, sizeof(g_sai_db_ptr->isolation_groups));
@@ -4370,6 +4370,20 @@ static sai_status_t mlnx_dvs_mng_stage(mlnx_sai_boot_type_t boot_type, sai_objec
             if (!is_warmboot) {
                 status = mlnx_port_speed_bitmap_apply(port);
                 if (SAI_ERR(status)) {
+                    goto out;
+                }
+            }
+
+            /* on warmboot control priority group buffer is handled just before issu end */
+            if (!is_warmboot) {
+                status = mlnx_sai_buffer_update_db_control_pg9_buff_profile_if_required(port);
+                if (SAI_ERR(status)) {
+                    SX_LOG_ERR("Failed to update SAI DB control PG profile on init.\n");
+                    goto out;
+                }
+                status = mlnx_sai_buffer_update_pg9_buffer_sdk(port);
+                if (SAI_ERR(status)) {
+                    SX_LOG_ERR("Failed to update control PG headroom size on init.\n");
                     goto out;
                 }
             }
@@ -9664,6 +9678,7 @@ static sai_status_t mlnx_switch_transaction_mode_set(_In_ const sai_object_key_t
     uint32_t            ii;
     sx_status_t         sx_status;
     sx_vlan_ports_t     port_list;
+    sai_status_t        sai_status;
 
     SX_LOG_ENTER();
 
@@ -9732,6 +9747,13 @@ static sai_status_t mlnx_switch_transaction_mode_set(_In_ const sai_object_key_t
                     SX_LOG_EXIT();
                     return sdk_to_sai(sdk_status);
                 }
+            }
+
+            sai_status = mlnx_sai_buffer_update_port_buffers_internal(port);
+            if (SAI_ERR(sai_status)) {
+                SX_LOG_ERR("Failed to update port buffers on issu end.\n");
+                sai_db_unlock();
+                return sai_status;
             }
         }
 

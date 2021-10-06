@@ -12658,7 +12658,7 @@ out:
         }
 
         if (region_created) {
-            sx_status = sx_api_acl_region_set(gh_sdk, SX_ACCESS_CMD_DESTROY, SX_ACL_KEY_TYPE_MAC_IPV4_FULL,
+            sx_status = sx_api_acl_region_set(gh_sdk, SX_ACCESS_CMD_DESTROY, key_handle,
                                               SX_ACL_ACTION_TYPE_BASIC, acl_table_size, &region_id);
             if (SX_STATUS_SUCCESS != sx_status) {
                 SX_LOG_ERR(" Failed to delete region ACL - %s.\n", SX_STATUS_MSG(sx_status));
@@ -13428,7 +13428,7 @@ static sai_status_t mlnx_delete_acl_table(_In_ sai_object_id_t acl_table_id)
         goto out;
     }
 
-    sx_status = sx_api_acl_region_set(gh_sdk, SX_ACCESS_CMD_DESTROY, SX_ACL_KEY_TYPE_MAC_IPV4_FULL,
+    sx_status = sx_api_acl_region_set(gh_sdk, SX_ACCESS_CMD_DESTROY, key_handle,
                                       SX_ACL_ACTION_TYPE_BASIC, region_size, &region_id);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR(" Failed to delete region ACL - %s.\n", SX_STATUS_MSG(sx_status));

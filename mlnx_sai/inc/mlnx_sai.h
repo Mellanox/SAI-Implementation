@@ -399,12 +399,7 @@ PACKED(struct _mlnx_object_id_t {
     union {
         sai_uint8_t bytes[EXTENDED_DATA_SIZE];
         PACKED(struct {
-            uint8_t dev_id;
-            uint8_t phy_id;
-        }, port);
-        PACKED(struct {
-            uint8_t lag_id;
-            uint8_t sub_id;
+            uint16_t lag_id;
         }, lag);
         PACKED(struct {
             uint16_t id;
@@ -1064,6 +1059,15 @@ extern const mlnx_trap_info_t mlnx_traps_info[];
 #define MAX_ETS_ELEMENTS       (g_resource_limits.cos_port_ets_elements_num)
 
 #define MAX_VLANS (SXD_VID_MAX + 1)
+
+#define PG0_PORT_IDX          (0)
+#define PG9_PORT_IDX          (9)
+#define MAX_PGS_INTERNAL_CONF (2)
+
+/* PG9 default value differs for port with 8 lanes and port with less than 8 lanes */
+#define PG9_VAL_IDX_LESS_8_LANES (0)
+#define PG9_VAL_IDX_8_LANES      (1)
+#define MAX_PG9_VAL_NUMBER       (2)
 
 #define MAX_PORTS           (g_resource_limits.port_ext_num_max)
 #define MAX_PORTS_DB        128
@@ -2352,6 +2356,11 @@ typedef struct _mlnx_bfd_session_db_entry_t {
     mlnx_bfd_session_db_data_t data;
 } mlnx_bfd_session_db_entry_t;
 
+typedef struct _mlnx_control_pg_buff_profile_entry {
+    sx_cos_port_buffer_attr_t sx_pg_buff_reserved_attr;
+    bool                      is_valid;
+} mlnx_control_pg_buff;
+
 typedef struct _mlnx_fg_ecmp_group_size_t {
     sx_ecmp_id_t id;
     uint32_t     real_size;
@@ -2441,11 +2450,13 @@ typedef struct sai_db {
     sx_user_channel_t  callback_channel;
     bool               trap_group_valid[MAX_TRAP_GROUPS];
     /* index is according to index in mlnx_traps_info */
-    mlnx_trap_t                       traps_db[SXD_TRAP_ID_ACL_MAX];
-    mlnx_qos_map_t                    qos_maps_db[MAX_QOS_MAPS_DB];
-    uint32_t                          switch_qos_maps[MLNX_QOS_MAP_TYPES_MAX];
-    uint8_t                           switch_default_tc;
-    mlnx_policer_db_entry_t           policers_db[MAX_POLICERS];
+    mlnx_trap_t             traps_db[SXD_TRAP_ID_ACL_MAX];
+    mlnx_qos_map_t          qos_maps_db[MAX_QOS_MAPS_DB];
+    uint32_t                switch_qos_maps[MLNX_QOS_MAP_TYPES_MAX];
+    uint8_t                 switch_default_tc;
+    mlnx_policer_db_entry_t policers_db[MAX_POLICERS];
+    /* control priority group default values configured by sdk */
+    mlnx_control_pg_buff              port_pg9_defaults[MAX_PG9_VAL_NUMBER];
     mlnx_hash_obj_t                   hash_list[SAI_HASH_MAX_OBJ_COUNT];
     sai_object_id_t                   oper_hash_list[SAI_HASH_MAX_OBJ_ID];
     sx_router_ecmp_port_hash_params_t port_ecmp_hash_params;
@@ -2649,6 +2660,10 @@ sai_status_t mlnx_sai_get_port_buffer_index_array(uint32_t                      
                                                   uint32_t                    ** index_arr);
 
 uint32_t mlnx_sai_get_buffer_profile_number();
+sai_status_t mlnx_sai_buffer_update_port_buffers_internal(_In_ const mlnx_port_config_t *port);
+sai_status_t mlnx_sai_buffer_update_pg0_buffer_sdk_if_required(_In_ const mlnx_port_config_t *port);
+sai_status_t mlnx_sai_buffer_update_db_control_pg9_buff_profile_if_required(_In_ const mlnx_port_config_t *port);
+sai_status_t mlnx_sai_buffer_update_pg9_buffer_sdk(_In_ const mlnx_port_config_t *port);
 
 extern sai_buffer_db_t *g_sai_buffer_db_ptr;
 extern uint32_t         g_sai_buffer_db_size;
