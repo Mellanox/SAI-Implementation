@@ -1149,7 +1149,7 @@ static sai_status_t mlnx_port_state_set(_In_ const sai_object_key_t      *key,
         return status;
     }
 
-    sai_db_read_lock();
+    sai_db_write_lock();
 
     is_warmboot_init_stage = (BOOT_TYPE_WARM == g_sai_db_ptr->boot_type) &&
                              (!g_sai_db_ptr->issu_end_called);
@@ -1162,7 +1162,14 @@ static sai_status_t mlnx_port_state_set(_In_ const sai_object_key_t      *key,
 
     port->admin_state = sdk_state;
 
-    if (is_warmboot_init_stage) {
+    /* on warmboot control priority group buffer is handled just before issu end */
+    if (!is_warmboot_init_stage) {
+        status = mlnx_sai_buffer_update_pg9_buffer_sdk(port);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to update control PG headroom size on port state change.\n");
+            goto out;
+        }
+    } else {
         status = mlnx_port_update_speed(port);
         if (SAI_ERR(status)) {
             SX_LOG_ERR("Failed to update speed.\n");
@@ -9008,6 +9015,15 @@ static sai_status_t mlnx_create_port(_Out_ sai_object_id_t     * port_id,
             goto out_unlock;
         }
         new_port->admin_state = value->booldata;
+    }
+
+    /* on warmboot control PG buffer and lossy PG buffers are handled just before issu end */
+    if (!is_warmboot_init_stage) {
+        status = mlnx_sai_buffer_update_port_buffers_internal(new_port);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to update lossy PG0 and control PG9 buffers on port creation.\n");
+            goto out_unlock;
+        }
     }
 
     status = find_attrib_in_list(attr_count, attr_list, SAI_PORT_ATTR_PORT_VLAN_ID, &value, &index);

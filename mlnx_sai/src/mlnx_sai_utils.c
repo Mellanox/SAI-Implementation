@@ -679,6 +679,9 @@ sai_status_t mlnx_sai_query_attribute_enum_values_capability_impl(_In_ sai_objec
                                                      &obj_type_attr_info->enums_info,
                                                      enum_values_capability);
         if (SAI_ERR(status)) {
+            if (MLNX_SAI_STATUS_BUFFER_OVERFLOW_EMPTY_LIST == status) {
+                status = SAI_STATUS_BUFFER_OVERFLOW;
+            }
             SX_LOG_EXIT();
             return status;
         }
@@ -731,6 +734,9 @@ sai_status_t mlnx_sai_query_stats_capability_impl(_In_ sai_object_id_t          
                                                  object_type_info->stats_capability.count,
                                                  stats_capability);
         if (SAI_ERR(status)) {
+            if (MLNX_SAI_STATUS_BUFFER_OVERFLOW_EMPTY_LIST == status) {
+                status = SAI_STATUS_BUFFER_OVERFLOW;
+            }
             SX_LOG_EXIT();
             return status;
         }
