@@ -61,6 +61,7 @@
 #include <sx/utils/psort.h>
 #include <sai.h>
 #include <saiextensions.h>
+#include "config.h"
 
 #ifdef _WIN32
 #define PACKED(__decl, __inst) __pragma(pack(push, 1)) __decl __inst __pragma(pack(pop))
@@ -226,6 +227,8 @@ extern const sai_isolation_group_api_t  mlnx_isolation_group_api;
 #define FIRST_PORT                      (0x10000 | (1 << 8))
 #define PORT_MAC_BITMASK_SP             (~0x3F)
 #define PORT_MAC_BITMASK_SP2_3          (~0x7F)
+#define PORT_MAC_BITMASK_SP4            (~0xFF)
+#define PORT_SPEED_800                  800000
 #define PORT_SPEED_400                  400000
 #define PORT_SPEED_200                  200000
 #define PORT_SPEED_100                  100000
@@ -237,11 +240,13 @@ extern const sai_isolation_group_api_t  mlnx_isolation_group_api;
 #define PORT_SPEED_10                   10000
 #define PORT_SPEED_1                    1000
 #define PORT_SPEED_100M                 100
+#define PORT_SPEED_10M                  10
 #define PORT_SPEED_0                    0
 #define PORT_SPEED_MAX_SP               PORT_SPEED_100
 #define PORT_SPEED_MAX_SP2              PORT_SPEED_200
 #define PORT_SPEED_MAX_SP3              PORT_SPEED_400
-#define MAX_NUM_PORT_SPEEDS             12
+#define PORT_SPEED_MAX_SP4              PORT_SPEED_800
+#define MAX_NUM_PORT_SPEEDS             14
 #define MAX_NUM_PORT_INTFS              SAI_PORT_INTERFACE_TYPE_MAX
 #define CPU_PORT                        0
 #define ECMP_MAX_PATHS                  64
@@ -602,6 +607,7 @@ typedef enum {
     ATTR_PORT_IS_IN_LAG_ENABLED = 1 << 2,
 } attr_port_type_check_t;
 typedef sai_status_t (*mlnx_attr_enum_info_fn)(int32_t *attrs, uint32_t *count);
+typedef sai_status_t (*mlnx_attr_stats_capability_info_fn)(sai_stat_capability_list_t* capa_list);
 typedef struct _mlnx_attr_enum_info_t {
     int32_t               *attrs;
     uint32_t               count;
@@ -613,8 +619,9 @@ typedef struct _mlnx_obj_type_attrs_enum_infos_t {
     uint32_t                     count;
 } mlnx_obj_type_attrs_enums_info_t;
 typedef struct _mlnx_obj_type_stats_capability_infos_t {
-    const sai_stat_capability_t *info;
-    uint32_t                     count;
+    const sai_stat_capability_t       *info;
+    uint32_t                           count;
+    mlnx_attr_stats_capability_info_fn capability_fn;
 } mlnx_obj_type_stats_capability_info_t;
 typedef struct _mlnx_obj_type_attrs_info_t {
     const sai_vendor_attribute_entry_t         *vendor_data;
@@ -696,14 +703,18 @@ typedef struct _mlnx_obj_type_attrs_info_t {
 #define OBJ_ATTRS_ENUMS_INFO_EMPTY() \
     {.info = NULL, .count = 0}
 #define OBJ_STAT_CAP_INFO(stats_cap_arr) \
-    {.info = stats_cap_arr, .count = ARRAY_SIZE(stats_cap_arr)}
+    {.info = stats_cap_arr, .count = ARRAY_SIZE(stats_cap_arr), .capability_fn = NULL}
+#define OBJ_STAT_CAP_FN(f) \
+    {.capability_fn = f}
 #define OBJ_STAT_CAP_INFO_EMPTY() \
-    {.info = NULL, .count = 0}
+    {.info = NULL, .count = 0, .capability_fn = NULL}
 
 bool mlnx_chip_is_spc(void);
 bool mlnx_chip_is_spc2(void);
 bool mlnx_chip_is_spc3(void);
+bool mlnx_chip_is_spc4(void);
 bool mlnx_chip_is_spc2or3(void);
+bool mlnx_chip_is_spc2or3or4(void);
 
 sai_status_t sai_attribute_short_name_fetch(_In_ sai_object_type_t object_type,
                                             _In_ sai_attr_id_t     attr_id,
@@ -841,12 +852,10 @@ sai_status_t mlnx_port_qos_map_apply(_In_ const sai_object_id_t    port,
                                      _In_ const sai_object_id_t    qos_map_id,
                                      _In_ const sai_qos_map_type_t qos_map_type);
 
-sai_status_t mlnx_register_trap(const sx_access_cmd_t                 cmd,
-                                uint32_t                              index,
-                                sai_hostif_table_entry_channel_type_t channel,
-                                sx_fd_t                               fd,
-                                uint32_t                              group_id,
-                                sx_host_ifc_register_key_t           *reg);
+sai_status_t mlnx_register_trap(const sx_access_cmd_t             cmd,
+                                const uint32_t                    trap_db_idx,
+                                const sx_host_ifc_register_key_t *register_key,
+                                const sx_user_channel_t          *user_channel);
 sai_status_t mlnx_get_hostif_packet_data(sx_receive_info_t *receive_info, uint32_t *attr_num, sai_attribute_t *attr);
 
 sai_status_t mlnx_trap_set(uint32_t index, sai_packet_action_t sai_action, sai_object_id_t trap_group);
@@ -1088,14 +1097,14 @@ extern const mlnx_trap_info_t mlnx_traps_info[];
 #define MAX_PG9_VAL_NUMBER       (2)
 
 #define MAX_PORTS           (g_resource_limits.port_ext_num_max)
-#define MAX_PORTS_DB        128
+#define MAX_PORTS_DB        256
 #define MAX_BRIDGES_1D      1000
 #define MAX_VPORTS          (MAX_BRIDGES_1D * MAX_PORTS_DB)
 #define MAX_BRIDGE_1Q_PORTS (MAX_PORTS_DB * 2) /* Ports and LAGs */
 #define MAX_BRIDGE_RIFS     550 /* 256 for VXLAN VNETs + some spare */
 #define MAX_BRIDGE_PORTS    (MAX_VPORTS + MAX_BRIDGE_1Q_PORTS + MAX_BRIDGE_RIFS)
 #define MAX_LANES_SPC1_2    4
-#define MAX_LANES_SPC3      8
+#define MAX_LANES_SPC3_4    8
 #define MAX_HOSTIFS         200
 #define MAX_POLICERS        100
 #define MAX_TRAP_GROUPS     32
@@ -1580,10 +1589,16 @@ sai_status_t mlnx_encap_nexthop_change_dmac(_In_ sai_object_id_t nh,
          (port = &mlnx_ports_db[idx]); idx++)           \
     if ((port->is_present || port->sdk_port_added) && !port->lag_id && !port->before_issu_lag_id)
 
+typedef struct _mlnx_hostif_channel_t {
+    sx_user_channel_t trap_channel;
+    bool              is_in_use;
+} mlnx_hostif_channel_t;
+
 typedef struct _mlnx_trap_t {
     sai_packet_action_t     action;
     sai_object_id_t         trap_group;
     mlnx_shm_rm_array_idx_t bound_dbg_counter;
+    mlnx_hostif_channel_t   trap_channel;
 } mlnx_trap_t;
 
 typedef struct _mlnx_wred_profile_t {
@@ -2399,6 +2414,7 @@ typedef enum mlnx_platform_type {
     MLNX_PLATFORM_TYPE_1710    = 1710,
     MLNX_PLATFORM_TYPE_2010    = 2010,
     MLNX_PLATFORM_TYPE_2100    = 2100,
+    MLNX_PLATFORM_TYPE_2201    = 2201,
     MLNX_PLATFORM_TYPE_2410    = 2410,
     MLNX_PLATFORM_TYPE_2420    = 2420,
     MLNX_PLATFORM_TYPE_2700    = 2700,
@@ -2410,7 +2426,8 @@ typedef enum mlnx_platform_type {
     MLNX_PLATFORM_TYPE_4600    = 4600,
     MLNX_PLATFORM_TYPE_4600C   = 4601,
     MLNX_PLATFORM_TYPE_4700    = 4700,
-    MLNX_PLATFORM_TYPE_4800    = 4800
+    MLNX_PLATFORM_TYPE_4800    = 4800,
+    MLNX_PLATFORM_TYPE_5600    = 5600
 } mlnx_platform_type_t;
 mlnx_platform_type_t mlnx_platform_type_get(void);
 
@@ -2591,6 +2608,7 @@ typedef struct sai_db {
     bool               trap_group_valid[MAX_TRAP_GROUPS];
     /* index is according to index in mlnx_traps_info */
     mlnx_trap_t             traps_db[SXD_TRAP_ID_ACL_MAX];
+    mlnx_hostif_channel_t   wildcard_channel;
     mlnx_qos_map_t          qos_maps_db[MAX_QOS_MAPS_DB];
     uint32_t                switch_qos_maps[MLNX_QOS_MAP_TYPES_MAX];
     uint8_t                 switch_default_tc;
@@ -2672,8 +2690,8 @@ extern sai_db_t *g_sai_db_ptr;
 
 #define mlnx_ports_db (g_sai_db_ptr->ports_db)
 
-mlnx_port_config_t * mlnx_port_by_idx(uint8_t id);
-mlnx_port_config_t * mlnx_port_by_local_id(uint8_t local_port);
+mlnx_port_config_t * mlnx_port_by_idx(uint16_t id);
+mlnx_port_config_t * mlnx_port_by_local_id(uint16_t local_port);
 
 typedef struct mlnx_qos_queue_config {
     sai_object_id_t  wred_id;

@@ -29,6 +29,7 @@ lib_LTLIBRARIES = libfx_base.la libsx_fx_sdk.la libsai.la
 dist_data_DATA = sai_1710.xml \
                  sai_2010.xml \
                  sai_2100.xml \
+                 sai_2201.xml \
                  sai_2410.xml \
                  sai_2420.xml \
                  sai_2700.xml \
@@ -40,7 +41,7 @@ dist_data_DATA = sai_1710.xml \
                  sai_37001G.xml \
                  sai_3800.xml \
                  sai_380050G.xml \
-                 sai_3800_pb_hash.xml \				 
+                 sai_3800_pb_hash.xml \
                  sai_4410.xml \
                  sai_4600.xml \
                  sai_4600C.xml \
@@ -49,8 +50,9 @@ dist_data_DATA = sai_1710.xml \
                  sai_4700_pld.xml \
                  sai_4700_pld_4.xml \
                  sai_4700_1G.xml \
-                 sai_4700_100G.xml
-				 
+                 sai_4700_100G.xml \
+                 sai_5600.xml
+
 libsai_la_DEPENDENCIES =
 
 libsai_la_SOURCES = \
@@ -202,6 +204,7 @@ libsai_apiinclude_HEADERS = \
         \
         $(top_srcdir)/inc/sai_windows.h \
         $(top_srcdir)/inc/mlnx_sai.h \
+        $(top_builddir)/config.h \
         \
         $(top_srcdir)/inc/flextrum_types.h \
         $(top_srcdir)/inc/fx_base_api.h \

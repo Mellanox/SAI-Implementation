@@ -2195,6 +2195,10 @@ sai_status_t mlnx_udf_cb_table_init(void)
         mlnx_udf_cb = &mlnx_udf_cb_sp2;
         break;
 
+    case SX_CHIP_TYPE_SPECTRUM4:
+        mlnx_udf_cb = &mlnx_udf_cb_sp2;
+        break;
+
     default:
         MLNX_SAI_LOG_ERR("g_sai_db_ptr->sxd_chip_type = %s\n", SX_CHIP_TYPE_STR(chip_type));
         return SAI_STATUS_FAILURE;

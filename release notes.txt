@@ -1,7 +1,7 @@
 Nvidia SAI implementation release notes
 ==========================================
 
-Release 1.19.4
+Release 1.20.0
 ---------------
 
 Current implementation is partial. 
@@ -9,7 +9,7 @@ Current implementation is partial.
 Not all the APIs that are defined were fully implemented in this release. Missing flows or implementation are noted in the code as "TODO : ..." comments.
 
 The code was tested to work on X86 for Spectrum1, Spectrum2 and Spectrum3
-The code compiles with, and was tested with, SDK version 4.5.0106.
+The code compiles with, and was tested with, SDK version 4.5.1006.
 
 As a precondition to running SAI initialize switch, SDK must not be running (If it's running, terminate it with dvs_stop.sh). 
 The application must provide one key/value pair on profile services, depending on system type :
@@ -18,6 +18,7 @@ The application must provide one key/value pair on profile services, depending o
 "config_file=/usr/share/sai_2420.xml" / 
 "config_file=/usr/share/sai_2100.xml" /
 "config_file=/usr/share/sai_2010.xml" /
+"config_file=/usr/share/sai_2201.xml" /
 "config_file=/usr/share/sai_3420.xml" /
 "config_file=/usr/share/sai_3700.xml" /
 "config_file=/usr/share/sai_3800.xml" /
@@ -84,7 +85,8 @@ VXLAN has the following limitations :
 * Only SAI_TUNNEL_TTL_PIPE_MODEL is supported for SAI_TUNNEL_ATTR_ENCAP_TTL_MODE on Spectrum1. Spectrum2 and onwards support also SAI_TUNNEL_TTL_MODE_UNIFORM_MODEL
 		
 In case WRED profile has WRED enabled for at least one color and ECN mark mode enabled for at least one color, the enabled colors for WRED and ECN must be the same (For example, can't have SAI_WRED_ATTR_GREEN_ENABLE=true and SAI_WRED_ATTR_ECN_MARK_MODE=SAI_ECN_MARK_MODE_YELLOW)
-Clear queue stats for specific counters always clears all available counters
+Clearing queue stats for specific counters always clears all available counters
+Clearing SAI_QUEUE_STAT_WRED_ECN_MARKED_PACKETS for a single queue ECN marked packets clears all the port queues ECN marked packets
 Host interface user defined traps support a single instance of each user defined trap.
 Host interface wildcard table entry overwrites the configured channel value for all traps at the time of the creation, there is no priority implemented. WA - first create wildcard entry and then specific entries.
 

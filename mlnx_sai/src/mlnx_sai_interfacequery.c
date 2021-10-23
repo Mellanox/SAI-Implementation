@@ -671,6 +671,10 @@ sai_status_t sai_dbg_do_dump(_In_ const char *dump_file_name)
 
     fclose(file);
 
+    /*TODO: remove when enabled on SPC4 */
+    if (mlnx_chip_is_spc4()) {
+        return SAI_STATUS_SUCCESS;
+    }
 #ifndef _WIN32
     file_name = strdup(dump_file_name);
     strncpy(dump_directory, dirname(file_name), sizeof(dump_directory));

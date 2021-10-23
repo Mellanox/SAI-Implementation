@@ -352,6 +352,9 @@ static sai_status_t mlnx_port_update_speed_sp(_In_ sx_port_log_id_t sx_port,
 static sai_status_t mlnx_port_update_speed_sp2(_In_ sx_port_log_id_t sx_port,
                                                _In_ bool             auto_neg,
                                                _In_ uint64_t         bitmap);
+static sai_status_t mlnx_port_update_speed_sp4(_In_ sx_port_log_id_t sx_port,
+                                               _In_ bool             auto_neg,
+                                               _In_ uint64_t         bitmap);
 
 
 enum counter_type {
@@ -393,13 +396,15 @@ enum mlnx_speed_bitmap_sp {
     SP_50GB_CR2      = 1 << 22,
     SP_50GB_KR2      = 1 << 23,
     SP_50GB_SR2      = 1 << 24,
-    SP_auto          = 1 << 25,
-    SP_MAX           = 1 << 26,
+    SP_10MB          = 1 << 25,
+    SP_100MB         = 1 << 26,
+    SP_auto          = 1 << 27,
+    SP_MAX           = 1 << 28,
 };
 
 uint64_t mlnx_port_speed_bitmap_sp[MAX_NUM_PORT_SPEEDS] = {
     (0),
-    (0),
+    (SP_100MB),
     (SP_1GB_CX_SGMII | SP_1GB_KX),
     (SP_10GB_CX4_XAUI | SP_10GB_KR | SP_10GB_CR | SP_10GB_SR | SP_10GB_ER_LR | SP_10GB_KX4),
     (SP_20GB_KR2),
@@ -410,17 +415,19 @@ uint64_t mlnx_port_speed_bitmap_sp[MAX_NUM_PORT_SPEEDS] = {
     (SP_100GB_CR4 | SP_100GB_SR4 | SP_100GB_LR4_ER4 | SP_100GB_KR4),
     (0),
     (0),
+    (0),
+    (SP_10MB)
 };
 
 uint64_t mlnx_port_intf_bitmap_sp[MAX_NUM_PORT_INTFS] = {
     (SP_MAX - 1),
-    (SP_10GB_CR | SP_25GB_CR),
+    (SP_10GB_CR | SP_25GB_CR | SP_10MB | SP_100MB),
     (SP_50GB_CR2),
     (SP_40GB_CR4 | SP_100GB_CR4),
-    (SP_10GB_SR | SP_25GB_SR),
+    (SP_10GB_SR | SP_25GB_SR | SP_10MB | SP_100MB),
     (SP_50GB_SR2),
     (SP_40GB_SR4 | SP_100GB_SR4),
-    (SP_10GB_ER_LR),
+    (SP_10GB_ER_LR | SP_10MB | SP_100MB),
     (SP_40GB_LR4_ER4 | SP_100GB_LR4_ER4),
     (SP_10GB_KR | SP_25GB_KR),
     (SP_40GB_KR4 | SP_56GB_KR4 | SP_100GB_KR4),
@@ -435,22 +442,22 @@ uint64_t mlnx_port_intf_bitmap_sp[MAX_NUM_PORT_INTFS] = {
     (0),
 };
 
-uint64_t mlnx_port_lanes_speed_bitmask_sp[MAX_LANES_SPC3 + 1] = {
+uint64_t mlnx_port_lanes_speed_bitmask_sp[MAX_LANES_SPC3_4 + 1] = {
     (0),
     /* 1 lane */
     (SP_25GB_CR | SP_25GB_KR | SP_25GB_SR | SP_10GB_CR | SP_10GB_KR | SP_10GB_ER_LR | SP_10GB_SR | SP_1GB_CX_SGMII |
-     SP_1GB_KX),
+     SP_1GB_KX | SP_10MB | SP_100MB),
     /* 2 lanes */
     (SP_50GB_CR2 | SP_50GB_KR2 | SP_50GB_SR2 | SP_20GB_KR2 |
      SP_25GB_CR | SP_25GB_KR | SP_25GB_SR | SP_10GB_CR | SP_10GB_KR | SP_10GB_ER_LR | SP_10GB_SR | SP_1GB_CX_SGMII |
-     SP_1GB_KX),
+     SP_1GB_KX | SP_10MB | SP_100MB),
     (0),
     /* 4 lanes */
     (SP_100GB_CR4 | SP_100GB_KR4 | SP_100GB_LR4_ER4 | SP_100GB_SR4 | SP_56GB_KR4 | SP_56GB_KX4 | SP_40GB_CR4 |
      SP_40GB_KR4 | SP_40GB_LR4_ER4 | SP_40GB_SR4 | SP_10GB_CX4_XAUI | SP_10GB_KX4 |
      SP_50GB_CR2 | SP_50GB_KR2 | SP_50GB_SR2 | SP_20GB_KR2 |
      SP_25GB_CR | SP_25GB_KR | SP_25GB_SR | SP_10GB_CR | SP_10GB_KR | SP_10GB_ER_LR | SP_10GB_SR | SP_1GB_CX_SGMII |
-     SP_1GB_KX),
+     SP_1GB_KX | SP_10MB | SP_100MB),
     (0),
     (0),
     (0),
@@ -490,6 +497,8 @@ uint64_t mlnx_port_speed_bitmap_sp2[MAX_NUM_PORT_SPEEDS] = {
     (SP2_100G | SP2_100Gx2 | SP2_100Gx4),
     (SP2_200G | SP2_200Gx4),
     (SP2_400G | SP2_400Gx8),
+    (0),
+    (0)
 };
 
 uint64_t mlnx_port_intf_bitmap_sp2[MAX_NUM_PORT_INTFS] = {
@@ -515,7 +524,7 @@ uint64_t mlnx_port_intf_bitmap_sp2[MAX_NUM_PORT_INTFS] = {
     (0),
 };
 
-uint64_t mlnx_port_lanes_speed_bitmask_sp2[MAX_LANES_SPC3 + 1] = {
+uint64_t mlnx_port_lanes_speed_bitmask_sp2[MAX_LANES_SPC3_4 + 1] = {
     (0),
     /* 1 lane */
     (SP2_50Gx1 | SP2_25G | SP2_10G | SP2_1G | SP2_100M),
@@ -535,6 +544,97 @@ uint64_t mlnx_port_lanes_speed_bitmask_sp2[MAX_LANES_SPC3 + 1] = {
      SP2_200G | SP2_200Gx4 | SP2_100Gx4 | SP2_100G | SP2_40G |
      SP2_100Gx2 | SP2_50Gx2 | SP2_50G |
      SP2_50Gx1 | SP2_25G | SP2_10G | SP2_1G | SP2_100M),
+};
+
+enum mlnx_speed_bitmap_sp4 {
+    SP4_100M   = 1 << 0,
+    SP4_1G     = 1 << 1,
+    SP4_10G    = 1 << 2,
+    SP4_25G    = 1 << 3,
+    SP4_40G    = 1 << 4,
+    SP4_50G    = 1 << 5,
+    SP4_50Gx1  = 1 << 6,
+    SP4_50Gx2  = 1 << 7,
+    SP4_100G   = 1 << 8,
+    SP4_100Gx2 = 1 << 9,
+    SP4_100Gx4 = 1 << 10,
+    SP4_200G   = 1 << 11,
+    SP4_200Gx4 = 1 << 12,
+    SP4_400G   = 1 << 13,
+    SP4_400Gx8 = 1 << 14,
+    SP4_100Gx1 = 1 << 15,
+    SP4_200Gx2 = 1 << 16,
+    SP4_400Gx4 = 1 << 17,
+    SP4_800G   = 1 << 18,
+    SP4_800Gx8 = 1 << 19,
+    SP4_auto   = 1 << 20,
+    SP4_MAX    = 1 << 21
+};
+
+uint64_t mlnx_port_speed_bitmap_sp4[MAX_NUM_PORT_SPEEDS] = {
+    (0),
+    (SP4_100M),
+    (SP4_1G),
+    (SP4_10G),
+    (0),
+    (SP4_25G),
+    (SP4_40G),
+    (SP4_50G | SP4_50Gx1 | SP4_50Gx2),
+    (0),
+    (SP4_100G | SP4_100Gx2 | SP4_100Gx4 | SP4_100Gx1),
+    (SP4_200G | SP4_200Gx4 | SP4_200Gx2),
+    (SP4_400G | SP4_400Gx8 | SP4_400Gx4),
+    (SP4_800G | SP4_800Gx8),
+    (0)
+};
+
+uint64_t mlnx_port_intf_bitmap_sp4[MAX_NUM_PORT_INTFS] = {
+    (SP4_MAX - 1),
+    (SP4_100M | SP4_1G | SP4_10G | SP4_25G | SP4_50Gx1 | SP4_100Gx1),
+    (SP4_50Gx2 | SP4_100Gx2 | SP4_200Gx2),
+    (SP4_40G | SP4_100Gx4 | SP4_200Gx4 | SP4_400Gx4 | SP4_800Gx8),
+    (SP4_100M | SP4_1G | SP4_10G | SP4_25G | SP4_50Gx1 | SP4_100Gx1),
+    (SP4_50Gx2 | SP4_100Gx2 | SP4_200Gx2),
+    (SP4_40G | SP4_100Gx4 | SP4_200Gx4 | SP4_400Gx4 | SP4_800Gx8),
+    (SP4_100M | SP4_1G | SP4_10G | SP4_25G | SP4_50Gx1 | SP4_100Gx1),
+    (SP4_40G | SP4_100Gx4 | SP4_200Gx4 | SP4_400Gx4 | SP4_800Gx8),
+    (SP4_100M | SP4_1G | SP4_10G | SP4_25G | SP4_50Gx1),
+    (SP4_40G | SP4_100Gx4 | SP4_200Gx4 | SP4_400G),
+    (SP4_100G),
+    (SP4_1G),
+    (SP4_10G),
+    (SP4_40G),
+    (SP4_50Gx2 | SP4_100Gx2),
+    (SP4_100Gx4),
+    (0),
+    (SP4_10G),
+    (0),
+};
+
+uint64_t mlnx_port_lanes_speed_bitmask_sp4[MAX_LANES_SPC3_4 + 1] = {
+    (0),
+    /* 1 lane */
+    (SP4_100Gx1 |
+     SP4_50Gx1 | SP4_25G | SP4_10G | SP4_1G | SP4_100M),
+    /* 2 lanes */
+    (SP4_200Gx2 |
+     SP4_100Gx2 | SP4_100Gx1 | SP4_50Gx2 | SP4_50G |
+     SP4_50Gx1 | SP4_25G | SP4_10G | SP4_1G | SP4_100M),
+    (0),
+    /* 4 lanes */
+    (SP4_400Gx4 |
+     SP4_200G | SP4_200Gx4 | SP4_200Gx2 | SP4_100Gx4 | SP4_100G | SP4_40G |
+     SP4_100Gx2 | SP4_100Gx1 | SP4_50Gx2 | SP4_50G |
+     SP4_50Gx1 | SP4_25G | SP4_10G | SP4_1G | SP4_100M),
+    (0),
+    (0),
+    (0),
+    /* 8 lanes */
+    (SP4_800G | SP4_800Gx8 |
+     SP4_400G | SP4_400Gx8 | SP4_400Gx4 |
+     SP4_200G | SP4_200Gx2 | SP4_200Gx4 | SP4_100Gx4 | SP4_100G | SP4_40G |
+     SP4_100Gx2 | SP4_100Gx1 | SP4_50Gx2 | SP4_50G |
+     SP4_50Gx1 | SP4_25G | SP4_10G | SP4_1G | SP4_100M),
 };
 
 typedef sai_status_t (*mlnx_port_speed_set_fn)(_In_ sx_port_log_id_t sx_port, _In_ uint32_t speed);
@@ -581,6 +681,16 @@ static mlnx_port_cb_table_t               mlnx_port_cb_sp2 = {
     mlnx_port_speed_bitmap_sp2,
     mlnx_port_intf_bitmap_sp2,
     mlnx_port_lanes_speed_bitmask_sp2,
+};
+static mlnx_port_cb_table_t               mlnx_port_cb_sp4 = {
+    mlnx_port_speed_get_sp2,
+    mlnx_port_supported_speeds_get_sp2,
+    mlnx_port_speed_bitmap_apply_sp2,
+    mlnx_port_wred_mirror_set_sp2,
+    mlnx_port_update_speed_sp4,
+    mlnx_port_speed_bitmap_sp4,
+    mlnx_port_intf_bitmap_sp4,
+    mlnx_port_lanes_speed_bitmask_sp4,
 };
 static mlnx_port_cb_table_t             * mlnx_port_cb = NULL;
 static const sai_vendor_attribute_entry_t port_vendor_attribs[] = {
@@ -1654,7 +1764,8 @@ sai_status_t mlnx_wred_mirror_port_event(_In_ sx_port_log_id_t port_log_id, _In_
 
 uint64_t mlnx_fec_mode_speeds_sp[3][20] = {
     { SX_PORT_PHY_SPEED_1GB, SX_PORT_PHY_SPEED_10GB, SX_PORT_PHY_SPEED_25GB, SX_PORT_PHY_SPEED_40GB,
-      SX_PORT_PHY_SPEED_50GB, SX_PORT_PHY_SPEED_100GB, SX_PORT_PHY_SPEED_MAX + 1 },
+      SX_PORT_PHY_SPEED_50GB, SX_PORT_PHY_SPEED_100GB, SX_PORT_PHY_SPEED_10MB, SX_PORT_PHY_SPEED_100MB,
+      SX_PORT_PHY_SPEED_MAX + 1 },
     { SX_PORT_PHY_SPEED_25GB, SX_PORT_PHY_SPEED_50GB, SX_PORT_PHY_SPEED_100GB,
       SX_PORT_PHY_SPEED_MAX + 1 },
     { SX_PORT_PHY_SPEED_10GB, SX_PORT_PHY_SPEED_25GB, SX_PORT_PHY_SPEED_40GB, SX_PORT_PHY_SPEED_50GB,
@@ -1666,6 +1777,17 @@ uint64_t mlnx_fec_mode_speeds_sp2[3][20] = {
       SX_PORT_PHY_SPEED_50GB, SX_PORT_PHY_SPEED_100GB, SX_PORT_PHY_SPEED_MAX + 1 },
     { SX_PORT_PHY_SPEED_25GB, SX_PORT_PHY_SPEED_50GB, SX_PORT_PHY_SPEED_50GB_1X, SX_PORT_PHY_SPEED_100GB,
       SX_PORT_PHY_SPEED_100GB_2X, SX_PORT_PHY_SPEED_200GB, SX_PORT_PHY_SPEED_400GB_8X, SX_PORT_PHY_SPEED_MAX + 1 },
+    { SX_PORT_PHY_SPEED_10GB, SX_PORT_PHY_SPEED_25GB, SX_PORT_PHY_SPEED_40GB, SX_PORT_PHY_SPEED_50GB,
+      SX_PORT_PHY_SPEED_56GB, SX_PORT_PHY_SPEED_MAX + 1 },
+};
+
+uint64_t mlnx_fec_mode_speeds_sp4[3][20] = {
+    { SX_PORT_PHY_SPEED_1GB, SX_PORT_PHY_SPEED_10GB, SX_PORT_PHY_SPEED_25GB, SX_PORT_PHY_SPEED_40GB,
+      SX_PORT_PHY_SPEED_50GB, SX_PORT_PHY_SPEED_100GB, SX_PORT_PHY_SPEED_MAX + 1 },
+    { SX_PORT_PHY_SPEED_25GB, SX_PORT_PHY_SPEED_50GB, SX_PORT_PHY_SPEED_50GB_1X, SX_PORT_PHY_SPEED_100GB,
+      SX_PORT_PHY_SPEED_100GB_2X, SX_PORT_PHY_SPEED_200GB, SX_PORT_PHY_SPEED_400GB_8X,
+      SX_PORT_PHY_SPEED_100GB_1X, SX_PORT_PHY_SPEED_200GB_2X, SX_PORT_PHY_SPEED_400GB_4X,
+      SX_PORT_PHY_SPEED_800GB_8X, SX_PORT_PHY_SPEED_MAX + 1 },
     { SX_PORT_PHY_SPEED_10GB, SX_PORT_PHY_SPEED_25GB, SX_PORT_PHY_SPEED_40GB, SX_PORT_PHY_SPEED_50GB,
       SX_PORT_PHY_SPEED_56GB, SX_PORT_PHY_SPEED_MAX + 1 },
 };
@@ -1697,7 +1819,8 @@ sai_status_t mlnx_port_fec_set_impl(sx_port_log_id_t port_log_id, int32_t value)
     }
 
     uint64_t(*fec_mode_speeds)[20] =
-        mlnx_chip_is_spc() ? mlnx_fec_mode_speeds_sp : mlnx_fec_mode_speeds_sp2;
+        mlnx_chip_is_spc() ? mlnx_fec_mode_speeds_sp : mlnx_chip_is_spc4() ? mlnx_fec_mode_speeds_sp4 :
+        mlnx_fec_mode_speeds_sp2;
 
     for (int32_t ii = 0; fec_mode_speeds[value][ii] != (SX_PORT_PHY_SPEED_MAX + 1); ii++) {
         speed = fec_mode_speeds[value][ii];
@@ -1718,6 +1841,13 @@ static sai_status_t mlnx_port_fec_set(_In_ const sai_object_key_t      *key,
 {
     sai_status_t     status;
     sx_port_log_id_t port_id;
+
+/*TODO: remove when fixed */
+#ifdef IS_SIMX
+    /* FEC is not supported on Simx */
+    SX_LOG_ERR("FEC is not supported on Simx.\n");
+    return SAI_STATUS_NOT_SUPPORTED;
+#endif
 
     SX_LOG_ENTER();
 
@@ -1874,7 +2004,8 @@ static uint32_t mlnx_port_max_lanes_get(void)
         return MAX_LANES_SPC1_2;
 
     case SX_CHIP_TYPE_SPECTRUM3:
-        return MAX_LANES_SPC3;
+    case SX_CHIP_TYPE_SPECTRUM4:
+        return MAX_LANES_SPC3_4;
 
     default:
         MLNX_SAI_LOG_ERR("g_sai_db_ptr->sxd_chip_type = %s\n", SX_CHIP_TYPE_STR(chip_type));
@@ -1917,7 +2048,7 @@ sai_status_t mlnx_sai_port_hw_lanes_get(_In_ sx_port_log_id_t *port_id, _Inout_ 
 {
     sai_status_t      sai_status = SAI_STATUS_SUCCESS;
     uint32_t          port_db_idx = 0;
-    uint32_t          lanes[MAX_LANES_SPC3] = {0};
+    uint32_t          lanes[MAX_LANES_SPC3_4] = {0};
     sx_status_t       sx_status = SX_STATUS_SUCCESS;
     sx_port_mapping_t port_map = {0};
     const bool        is_warmboot_init_stage = (BOOT_TYPE_WARM == g_sai_db_ptr->boot_type) &&
@@ -2464,6 +2595,10 @@ static sai_status_t mlnx_port_sai_offset_get(_In_ uint32_t speed, _Out_ uint64_t
 {
     assert(offset);
     switch (speed) {
+    case PORT_SPEED_800:
+        *offset = 12;
+        break;
+
     case PORT_SPEED_400:
         *offset = 11;
         break;
@@ -2506,6 +2641,10 @@ static sai_status_t mlnx_port_sai_offset_get(_In_ uint32_t speed, _Out_ uint64_t
 
     case PORT_SPEED_100M:
         *offset = 1;
+        break;
+
+    case PORT_SPEED_10M:
+        *offset = 13;
         break;
 
     case PORT_SPEED_0:
@@ -2586,7 +2725,7 @@ static sai_status_t mlnx_port_speed_intf_intersection_with_mask(_In_ uint32_t la
 {
     assert(bitmap);
 
-    if (lanes_num > MAX_LANES_SPC3) {
+    if (lanes_num > MAX_LANES_SPC3_4) {
         SX_LOG_ERR("Unsupported lanes number [%u].\n", lanes_num);
         return SAI_STATUS_FAILURE;
     }
@@ -2664,6 +2803,8 @@ static sai_status_t mlnx_port_speed_intf_bitmap_to_sx_sp(_In_ uint64_t          
     sx_speed->mode_50GB_CR2 = !!(bitmap & SP_50GB_CR2);
     sx_speed->mode_50GB_KR2 = !!(bitmap & SP_50GB_KR2);
     sx_speed->mode_50GB_SR2 = !!(bitmap & SP_50GB_SR2);
+    sx_speed->mode_10MB = !!(bitmap & SP_10MB);
+    sx_speed->mode_100MB = !!(bitmap & SP_100MB);
     sx_speed->mode_auto = !!(bitmap & SP_auto);
 
     return SAI_STATUS_SUCCESS;
@@ -2689,6 +2830,35 @@ static sai_status_t mlnx_port_speed_intf_bitmap_to_sx_sp2(_In_ uint64_t bitmap, 
     sx_speed->rate_400G = !!(bitmap & SP2_400G);
     sx_speed->rate_400Gx8 = !!(bitmap & SP2_400Gx8);
     sx_speed->rate_auto = !!(bitmap & SP2_auto);
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_port_speed_intf_bitmap_to_sx_sp4(_In_ uint64_t bitmap, _Out_ sx_port_rate_bitmask_t *sx_speed)
+{
+    assert(sx_speed);
+
+    sx_speed->rate_100M = !!(bitmap & SP4_100M);
+    sx_speed->rate_1G = !!(bitmap & SP4_1G);
+    sx_speed->rate_10G = !!(bitmap & SP4_10G);
+    sx_speed->rate_25G = !!(bitmap & SP4_25G);
+    sx_speed->rate_40G = !!(bitmap & SP4_40G);
+    sx_speed->rate_50G = !!(bitmap & SP4_50G);
+    sx_speed->rate_50Gx1 = !!(bitmap & SP4_50Gx1);
+    sx_speed->rate_50Gx2 = !!(bitmap & SP4_50Gx2);
+    sx_speed->rate_100G = !!(bitmap & SP4_100G);
+    sx_speed->rate_100Gx1 = !!(bitmap & SP4_100Gx1);
+    sx_speed->rate_100Gx2 = !!(bitmap & SP4_100Gx2);
+    sx_speed->rate_100Gx4 = !!(bitmap & SP4_100Gx4);
+    sx_speed->rate_200G = !!(bitmap & SP4_200G);
+    sx_speed->rate_200Gx2 = !!(bitmap & SP4_200Gx2);
+    sx_speed->rate_200Gx4 = !!(bitmap & SP4_200Gx4);
+    sx_speed->rate_400G = !!(bitmap & SP4_400G);
+    sx_speed->rate_400Gx4 = !!(bitmap & SP4_400Gx4);
+    sx_speed->rate_400Gx8 = !!(bitmap & SP4_400Gx8);
+    sx_speed->rate_800G = !!(bitmap & SP4_800G);
+    sx_speed->rate_800Gx8 = !!(bitmap & SP4_800Gx8);
+    sx_speed->rate_auto = !!(bitmap & SP4_auto);
 
     return SAI_STATUS_SUCCESS;
 }
@@ -2747,6 +2917,55 @@ static sai_status_t mlnx_port_update_speed_sp2(_In_ sx_port_log_id_t sx_port, _I
     if (sx_speed.rate_400G && sx_speed.rate_400Gx8) {
         sx_speed.rate_400G = true;
         sx_speed.rate_400Gx8 = false;
+    }
+
+    sx_status = sx_api_port_rate_set(gh_sdk, sx_port, &sx_speed);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to set port %x rate - %s.\n", sx_port, SX_STATUS_MSG(sx_status));
+        return sdk_to_sai(sx_status);
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_port_update_speed_sp4(_In_ sx_port_log_id_t sx_port, _In_ bool auto_neg, _In_ uint64_t bitmap)
+{
+    sai_status_t           status;
+    sx_status_t            sx_status;
+    sx_port_rate_bitmask_t sx_speed;
+
+    status = mlnx_port_speed_intf_bitmap_to_sx_sp4(bitmap, &sx_speed);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to convert speed bitmap [%" PRIx64 "] to SDK.\n", bitmap);
+        return status;
+    }
+
+    sx_speed.force = !auto_neg;
+
+    if (sx_speed.rate_50Gx1 && sx_speed.rate_50Gx2) {
+        sx_speed.rate_50G = true;
+        sx_speed.rate_50Gx1 = false;
+        sx_speed.rate_50Gx2 = false;
+    }
+    if (sx_speed.rate_100Gx2 && sx_speed.rate_100Gx1 && sx_speed.rate_100Gx4) {
+        sx_speed.rate_100G = true;
+        sx_speed.rate_100Gx1 = false;
+        sx_speed.rate_100Gx2 = false;
+        sx_speed.rate_100Gx4 = false;
+    }
+    if (sx_speed.rate_200G && sx_speed.rate_200Gx2 && sx_speed.rate_200Gx4) {
+        sx_speed.rate_200G = true;
+        sx_speed.rate_200Gx2 = false;
+        sx_speed.rate_200Gx4 = false;
+    }
+    if (sx_speed.rate_400G && sx_speed.rate_400Gx4 && sx_speed.rate_400Gx8) {
+        sx_speed.rate_400G = true;
+        sx_speed.rate_400Gx4 = false;
+        sx_speed.rate_400Gx8 = false;
+    }
+    if (sx_speed.rate_800G && sx_speed.rate_800Gx8) {
+        sx_speed.rate_800G = true;
+        sx_speed.rate_800Gx8 = false;
     }
 
     sx_status = sx_api_port_rate_set(gh_sdk, sx_port, &sx_speed);
@@ -3225,6 +3444,13 @@ static sai_status_t mlnx_port_fec_get(_In_ const sai_object_key_t   *key,
     sx_port_log_id_t   port_id;
     sai_status_t       status;
     sx_port_phy_mode_t admin, oper;
+
+/*TODO: remove when fixed */
+#ifdef IS_SIMX
+    /* FEC is not supported on Simx */
+    SX_LOG_ERR("FEC is not supported on Simx.\n");
+    return SAI_STATUS_NOT_SUPPORTED;
+#endif
 
     SX_LOG_ENTER();
 
@@ -6486,6 +6712,12 @@ sai_status_t mlnx_get_port_stats_ext(_In_ sai_object_id_t      port_id,
 
     bulk_required = mlnx_is_bulk_required(counter_types);
 
+/* TODO: remove when enabled on Simx */
+#ifdef IS_SIMX
+    SX_LOG_ERR("Bulk counters are not supported on Simx.\n");
+    return SAI_STATUS_NOT_SUPPORTED;
+#endif
+
     if (bulk_required) {
         status = mlnx_convert_counter_types_bitmap_to_sx_bulk_read(port_id,
                                                                    counter_types,
@@ -7569,12 +7801,12 @@ out:
     return status;
 }
 
-mlnx_port_config_t * mlnx_port_by_idx(uint8_t id)
+mlnx_port_config_t * mlnx_port_by_idx(uint16_t id)
 {
     return &mlnx_ports_db[id];
 }
 
-mlnx_port_config_t * mlnx_port_by_local_id(uint8_t local_port)
+mlnx_port_config_t * mlnx_port_by_local_id(uint16_t local_port)
 {
     mlnx_port_config_t *port;
     uint32_t            ii;
@@ -7618,6 +7850,9 @@ static uint32_t mlnx_platform_max_speed_get(void)
         }
         return PORT_SPEED_MAX_SP3;
 
+    case SX_CHIP_TYPE_SPECTRUM4:
+        return PORT_SPEED_800;
+
     default:
         SX_LOG_ERR("g_sai_db_ptr->sx_chip_type = %s\n", SX_CHIP_TYPE_STR(g_sai_db_ptr->sx_chip_type));
         return 0;
@@ -7636,6 +7871,10 @@ static sai_status_t mlnx_port_rate_bitmask_to_speeds(_In_ const sx_port_rate_bit
 
     if (sx_rate_bitmask->rate_auto) {
         speeds[speeds_count_tmp++] = mlnx_platform_max_speed_get();
+    }
+
+    if (sx_rate_bitmask->rate_800G) {
+        speeds[speeds_count_tmp++] = PORT_SPEED_800;
     }
 
     if (sx_rate_bitmask->rate_400G) {
@@ -7716,6 +7955,11 @@ static sai_status_t mlnx_port_speed_bitmap_to_rate_bitmask(_In_ uint32_t        
         sx_rate_bitmask->rate_400G = true;
     }
 
+    if (speed_bitmap & 1 << 18) {
+        sx_rate_bitmask->rate_800G = true;
+    }
+
+
     return SAI_STATUS_SUCCESS;
 }
 
@@ -7757,6 +8001,12 @@ static sai_status_t mlnx_port_speed_convert_bitmap_to_capability(const sx_port_s
     }
     if (speed_bitmap & 1 << 9) {
         speed_capability->mode_56GB_KX4 = TRUE;
+    }
+    if (speed_bitmap & 1 << 10) {
+        speed_capability->mode_10MB = TRUE;
+    }
+    if (speed_bitmap & 1 << 11) {
+        speed_capability->mode_100MB = TRUE;
     }
     if (speed_bitmap & 1 << 12) {
         speed_capability->mode_10GB_CR = TRUE;
@@ -7882,6 +8132,14 @@ static sai_status_t mlnx_port_bitmap_to_speeds_sp(_In_ const sx_port_speed_t spe
         speeds[speeds_count_tmp++] = PORT_SPEED_1;
     }
 
+    if (sx_speed.mode_100MB) {
+        speeds[speeds_count_tmp++] = PORT_SPEED_100M;
+    }
+
+    if (sx_speed.mode_10MB) {
+        speeds[speeds_count_tmp++] = PORT_SPEED_10M;
+    }
+
     *speeds_count = speeds_count_tmp;
 
     return SAI_STATUS_SUCCESS;
@@ -7923,6 +8181,7 @@ sai_status_t mlnx_port_bitmap_to_speeds(_In_ const sx_port_speed_t speed_bitmap,
 
     case SX_CHIP_TYPE_SPECTRUM2:
     case SX_CHIP_TYPE_SPECTRUM3:
+    case SX_CHIP_TYPE_SPECTRUM4:
         return mlnx_port_bitmap_to_speeds_sp2(speed_bitmap, speeds, speeds_count);
 
     default:
@@ -7974,6 +8233,10 @@ static sai_status_t mlnx_port_speed_get_sp(_In_ sx_port_log_id_t sx_port,
         *admin_speed = PORT_SPEED_10;
     } else if (speed_cap.mode_1GB_CX_SGMII || speed_cap.mode_1GB_KX) {
         *admin_speed = PORT_SPEED_1;
+    } else if (speed_cap.mode_100MB) {
+        *admin_speed = PORT_SPEED_100M;
+    } else if (speed_cap.mode_10MB) {
+        *admin_speed = PORT_SPEED_10M;
     } else if (speed_cap.mode_auto) {
         *admin_speed = PORT_SPEED_MAX_SP;
     } else {
@@ -7985,6 +8248,14 @@ static sai_status_t mlnx_port_speed_get_sp(_In_ sx_port_log_id_t sx_port,
     case SX_PORT_SPEED_NA:
     case SX_PORT_SPEED_NOT_SUPPORTED:
         *oper_speed = PORT_SPEED_0;
+        break;
+
+    case SX_PORT_SPEED_10MB:
+        *oper_speed = PORT_SPEED_10M;
+        break;
+
+    case SX_PORT_SPEED_100MB:
+        *oper_speed = PORT_SPEED_100M;
         break;
 
     case SX_PORT_SPEED_1GB_CX_SGMII:
@@ -8116,17 +8387,24 @@ static sai_status_t mlnx_port_speed_get_sp2(_In_ sx_port_log_id_t sx_port,
         *oper_speed = PORT_SPEED_50;
         break;
 
+    case SX_PORT_RATE_100Gx1_E:
     case SX_PORT_RATE_100Gx2_E:
     case SX_PORT_RATE_100Gx4_E:
         *oper_speed = PORT_SPEED_100;
         break;
 
+    case SX_PORT_RATE_200Gx2_E:
     case SX_PORT_RATE_200Gx4_E:
         *oper_speed = PORT_SPEED_200;
         break;
 
+    case SX_PORT_RATE_400Gx4_E:
     case SX_PORT_RATE_400Gx8_E:
         *oper_speed = PORT_SPEED_400;
+        break;
+
+    case SX_PORT_RATE_800Gx8_E:
+        *oper_speed = PORT_SPEED_800;
         break;
 
     default:
@@ -8186,6 +8464,12 @@ static sai_status_t mlnx_port_supported_speeds_get_sp(_In_ sx_port_log_id_t sx_p
     }
     if (speed_cap.speed_capability.mode_1GB_CX_SGMII || speed_cap.speed_capability.mode_1GB_KX) {
         speeds[speeds_count_tmp++] = PORT_SPEED_1;
+    }
+    if (speed_cap.speed_capability.mode_100MB) {
+        speeds[speeds_count_tmp++] = PORT_SPEED_100M;
+    }
+    if (speed_cap.speed_capability.mode_10MB) {
+        speeds[speeds_count_tmp++] = PORT_SPEED_10M;
     }
 
     *speeds_count = speeds_count_tmp;
@@ -8316,6 +8600,7 @@ sai_status_t mlnx_port_cb_table_init(void)
     sx_chip_types_t chip_type;
 
     (void)(mlnx_port_cb_sp2);
+    (void)(mlnx_port_cb_sp4);
 
     chip_type = g_sai_db_ptr->sx_chip_type;
 
@@ -8331,6 +8616,10 @@ sai_status_t mlnx_port_cb_table_init(void)
 
     case SX_CHIP_TYPE_SPECTRUM3:
         mlnx_port_cb = &mlnx_port_cb_sp2;
+        break;
+
+    case SX_CHIP_TYPE_SPECTRUM4:
+        mlnx_port_cb = &mlnx_port_cb_sp4;
         break;
 
     default:
@@ -8380,7 +8669,7 @@ sai_status_t mlnx_port_crc_params_apply(const mlnx_port_config_t *port, bool ini
     sx_status_t          sx_status;
     sx_port_crc_params_t crc_params;
 
-    if (mlnx_chip_is_spc2or3()) {
+    if (mlnx_chip_is_spc2or3or4()) {
         SX_LOG_NTC("%s is not executed on SPC2\n", __FUNCTION__);
         return SAI_STATUS_SUCCESS;
     }
@@ -9121,6 +9410,14 @@ static uint32_t mlnx_platform_num_local_ports_in_4x_get(void)
     return 2;
 }
 
+static uint32_t mlnx_platform_num_local_ports_in_8x_get(void)
+{
+    if (mlnx_chip_is_spc4()) {
+        return 8;
+    }
+
+    return 4;
+}
 /* module -> port local idx
  * Spectrum 1 : (1, 2) / (1, 2, 3, 4)
  * Spectrum 2 : (1, 2) or (1, 3) / (1, 2, 3, 4)
@@ -9135,6 +9432,8 @@ static mlnx_port_config_t * mlnx_port_split_idx_to_local_port(_In_ const mlnx_po
         step = mlnx_platform_num_local_ports_in_2x_get();
     } else if (lane_count == 4) {
         step = mlnx_platform_num_local_ports_in_4x_get();
+    } else if (lane_count == 8) {
+        step = mlnx_platform_num_local_ports_in_8x_get();
     } else {
         step = 1;
     }
@@ -9226,22 +9525,27 @@ static sai_status_t mlnx_create_port(_Out_ sai_object_id_t     * port_id,
     const sai_attribute_value_t *egress_block_list = NULL;
     const sai_attribute_value_t *isolation_group = NULL;
     const sai_attribute_value_t *value = NULL;
+
+/* TODO : FEC is not supported on Simx, add when ready */
+#ifndef IS_SIMX
+    uint32_t                     fec_index;
     const sai_attribute_value_t *fec;
-    char                         list_str[MAX_LIST_VALUE_STR_LEN];
-    uint32_t                     fec_index, lane_index, acl_attr_index;
-    uint32_t                     lanes_count, egress_block_list_index, isolation_group_index;
-    uint32_t                     index;
-    sx_port_log_id_t            *sx_egress_block_port_list = NULL;
-    mlnx_port_config_t          *father_port;
-    mlnx_port_config_t          *new_port = NULL;
-    sx_port_mapping_t           *port_map;
-    sai_status_t                 status;
-    sx_status_t                  sx_status;
-    acl_index_t                  ing_acl_index = ACL_INDEX_INVALID, egr_acl_index = ACL_INDEX_INVALID;
-    uint32_t                     module;
-    uint32_t                     ii;
-    const bool                   is_warmboot_init_stage = (BOOT_TYPE_WARM == g_sai_db_ptr->boot_type) &&
-                                                          (!g_sai_db_ptr->issu_end_called);
+#endif
+    char                list_str[MAX_LIST_VALUE_STR_LEN];
+    uint32_t            lane_index, acl_attr_index;
+    uint32_t            lanes_count, egress_block_list_index, isolation_group_index;
+    uint32_t            index;
+    sx_port_log_id_t   *sx_egress_block_port_list = NULL;
+    mlnx_port_config_t *father_port;
+    mlnx_port_config_t *new_port = NULL;
+    sx_port_mapping_t  *port_map;
+    sai_status_t        status;
+    sx_status_t         sx_status;
+    acl_index_t         ing_acl_index = ACL_INDEX_INVALID, egr_acl_index = ACL_INDEX_INVALID;
+    uint32_t            module;
+    uint32_t            ii;
+    const bool          is_warmboot_init_stage = (BOOT_TYPE_WARM == g_sai_db_ptr->boot_type) &&
+                                                 (!g_sai_db_ptr->issu_end_called);
 
     SX_LOG_EXIT();
 
@@ -9771,7 +10075,8 @@ static sai_status_t mlnx_create_port(_Out_ sai_object_id_t     * port_id,
             goto out_unlock;
         }
     }
-
+/* TODO : FEC is not supported on Simx, add when ready */
+#ifndef IS_SIMX
     status = find_attrib_in_list(attr_count, attr_list, SAI_PORT_ATTR_FEC_MODE, &fec, &fec_index);
     if (status == SAI_STATUS_SUCCESS) {
         status = mlnx_port_fec_set_impl(new_port->logical, fec->s32);
@@ -9779,13 +10084,14 @@ static sai_status_t mlnx_create_port(_Out_ sai_object_id_t     * port_id,
             goto out_unlock;
         }
     } else {
-        if ((!is_warmboot_init_stage) && (mlnx_chip_is_spc2or3())) {
+        if ((!is_warmboot_init_stage) && (mlnx_chip_is_spc2or3or4())) {
             status = mlnx_port_fec_set_impl(new_port->logical, SAI_PORT_FEC_MODE_NONE);
             if (SAI_ERR(status)) {
                 goto out_unlock;
             }
         }
     }
+#endif
 
     status = find_attrib_in_list(attr_count, attr_list, SAI_PORT_ATTR_EGRESS_BLOCK_PORT_LIST,
                                  &egress_block_list, &egress_block_list_index);

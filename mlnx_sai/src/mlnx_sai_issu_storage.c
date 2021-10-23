@@ -180,6 +180,10 @@ sai_status_t mlnx_sai_issu_storage_cb_table_init(void)
         mlnx_issu_storage_cb = &mlnx_issu_storage_cb_spc2;
         break;
 
+    case SX_CHIP_TYPE_SPECTRUM4:
+        mlnx_issu_storage_cb = &mlnx_issu_storage_cb_spc2;
+        break;
+
     default:
         MLNX_SAI_LOG_ERR("g_sai_db_ptr->sxd_chip_type = %s\n", SX_CHIP_TYPE_STR(chip_type));
         return SAI_STATUS_FAILURE;

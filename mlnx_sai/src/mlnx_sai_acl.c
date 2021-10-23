@@ -43,7 +43,7 @@
  */
 #define ACL_SX_RULE_PRIO_MAX_SPC   (16000)
 #define ACL_SX_RULE_PRIO_MAX_SPC2  (FLEX_ACL_RULE_PRIORITY_MAX)
-#define ACL_SX_RULE_PRIO_MAX       (mlnx_chip_is_spc2or3() ? ACL_SX_RULE_PRIO_MAX_SPC2 : ACL_SX_RULE_PRIO_MAX_SPC)
+#define ACL_SX_RULE_PRIO_MAX       (mlnx_chip_is_spc2or3or4() ? ACL_SX_RULE_PRIO_MAX_SPC2 : ACL_SX_RULE_PRIO_MAX_SPC)
 #define ACL_SX_RULE_PRIO_GOTO_RULE (FLEX_ACL_RULE_PRIORITY_MIN)
 #define ACL_SX_RULE_PRIO_MIN       (FLEX_ACL_RULE_PRIORITY_MIN + 1)
 
@@ -225,12 +225,12 @@
 #define MLNX_ACL_ACTION_INFO_DEFINE_DEFAULT(type, size, to_sx, to_sai) \
     MLNX_ACL_ACTION_INFO_DEFINE(type, size, MLNX_ACL_SUPPORTED_STAGE_BOTH, MLNX_ACL_SUPPORTED_CHIP_ANY, to_sx, to_sai)
 
-#define MLNX_ACL_ACTION_INFO_DEFINE_SPC2_3(type, size, to_sx, to_sai)                        \
-    MLNX_ACL_ACTION_INFO_DEFINE(type,                                                        \
-                                size,                                                        \
-                                MLNX_ACL_SUPPORTED_STAGE_BOTH,                               \
-                                MLNX_ACL_SUPPORTED_CHIP_SPC2 | MLNX_ACL_SUPPORTED_CHIP_SPC3, \
-                                to_sx,                                                       \
+#define MLNX_ACL_ACTION_INFO_DEFINE_SPC2_3_4(type, size, to_sx, to_sai)                                                     \
+    MLNX_ACL_ACTION_INFO_DEFINE(type,                                                                                       \
+                                size,                                                                                       \
+                                MLNX_ACL_SUPPORTED_STAGE_BOTH,                                                              \
+                                MLNX_ACL_SUPPORTED_CHIP_SPC2 | MLNX_ACL_SUPPORTED_CHIP_SPC3 | MLNX_ACL_SUPPORTED_CHIP_SPC4, \
+                                to_sx,                                                                                      \
                                 to_sai)
 
 #define MLNX_ACL_ACTION_INFO_DEFINE_INGRESS(type, size, to_sx, to_sai) \
@@ -248,8 +248,8 @@
 #define MLNX_ACL_ACTION_INFO_DEFINE_WITH_FNS(to_sx, to_sai) \
     MLNX_ACL_ACTION_INFO_DEFINE_DEFAULT(MLNX_ACL_SX_ACTION_TYPE_INVALID, 0, to_sx, to_sai)
 
-#define MLNX_ACL_ACTION_INFO_DEFINE_WITH_FNS_SPC2_3(to_sx, to_sai) \
-    MLNX_ACL_ACTION_INFO_DEFINE_SPC2_3(MLNX_ACL_SX_ACTION_TYPE_INVALID, 0, to_sx, to_sai)
+#define MLNX_ACL_ACTION_INFO_DEFINE_WITH_FNS_SPC2_3_4(to_sx, to_sai) \
+    MLNX_ACL_ACTION_INFO_DEFINE_SPC2_3_4(MLNX_ACL_SX_ACTION_TYPE_INVALID, 0, to_sx, to_sai)
 
 #define MLNX_ACL_ACTION_INFO_DEFINE_INGRESS_WITH_FNS(to_sx, to_sai) \
     MLNX_ACL_ACTION_INFO_DEFINE_INGRESS(MLNX_ACL_SX_ACTION_TYPE_INVALID, 0, to_sx, to_sai)
@@ -262,10 +262,10 @@
                                         MLNX_SAI_STRUCT_MEMBER_SIZE(sx_flex_acl_flex_action_fields_t, \
                                                                     field), NULL, NULL)
 
-#define MLNX_ACL_ACTION_INFO_DEFINE_WITH_FIELD_SPC2(type, field)                                     \
-    MLNX_ACL_ACTION_INFO_DEFINE_SPC2_3(type,                                                         \
-                                       MLNX_SAI_STRUCT_MEMBER_SIZE(sx_flex_acl_flex_action_fields_t, \
-                                                                   field), NULL, NULL)
+#define MLNX_ACL_ACTION_INFO_DEFINE_WITH_FIELD_SPC2_3_4(type, field)                                   \
+    MLNX_ACL_ACTION_INFO_DEFINE_SPC2_3_4(type,                                                         \
+                                         MLNX_SAI_STRUCT_MEMBER_SIZE(sx_flex_acl_flex_action_fields_t, \
+                                                                     field), NULL, NULL)
 
 #define MLNX_ACL_TABLE_UDF_ATTR_VENDOR_DATA(index)             \
     { SAI_ACL_TABLE_ATTR_USER_DEFINED_FIELD_GROUP_MIN + index, \
@@ -293,8 +293,9 @@ typedef enum _mlnx_acl_supported_chip_t {
                                    MLNX_ACL_SX_CHIP_TO_SUPPORTED_CHIP(SX_CHIP_TYPE_SPECTRUM_A1),
     MLNX_ACL_SUPPORTED_CHIP_SPC2 = MLNX_ACL_SX_CHIP_TO_SUPPORTED_CHIP(SX_CHIP_TYPE_SPECTRUM2),
     MLNX_ACL_SUPPORTED_CHIP_SPC3 = MLNX_ACL_SX_CHIP_TO_SUPPORTED_CHIP(SX_CHIP_TYPE_SPECTRUM3),
+    MLNX_ACL_SUPPORTED_CHIP_SPC4 = MLNX_ACL_SX_CHIP_TO_SUPPORTED_CHIP(SX_CHIP_TYPE_SPECTRUM4),
     MLNX_ACL_SUPPORTED_CHIP_ANY  = MLNX_ACL_SUPPORTED_CHIP_SPC1 | MLNX_ACL_SUPPORTED_CHIP_SPC2 |
-                                   MLNX_ACL_SUPPORTED_CHIP_SPC3,
+                                   MLNX_ACL_SUPPORTED_CHIP_SPC3 | MLNX_ACL_SUPPORTED_CHIP_SPC4,
 } mlnx_acl_supported_chip_t;
 typedef struct _mlnx_acl_sai_single_key_field_info_t {
     sx_acl_key_t               key_id;
@@ -1591,7 +1592,7 @@ static const mlnx_acl_multi_key_field_info_t mlnx_acl_multi_key_fields_info[] = 
         2,
         MLNX_ACL_ENTRY_KEY_LIST(FLEX_ACL_KEY_IP_DONT_FRAGMENT, FLEX_ACL_KEY_IP_MORE_FRAGMENTS),
         MLNX_ACL_FIELD_TYPE_IPV4,
-        MLNX_ACL_SUPPORTED_CHIP_SPC2 | MLNX_ACL_SUPPORTED_CHIP_SPC3),
+        MLNX_ACL_SUPPORTED_CHIP_SPC2 | MLNX_ACL_SUPPORTED_CHIP_SPC3 | MLNX_ACL_SUPPORTED_CHIP_SPC4),
 };
 static const size_t                          mlnx_acl_multi_key_field_max_id = ARRAY_SIZE(
     mlnx_acl_multi_key_fields_info);
@@ -1914,21 +1915,21 @@ static mlnx_acl_action_info_t mlnx_acl_action_info[] = {
         MLNX_ACL_ACTION_INFO_DEFINE_WITH_FNS(mlnx_acl_action_set_vrf_to_sx,
                                              mlnx_acl_action_set_vrf_to_sai),
     [SAI_ACL_ENTRY_ATTR_ACTION_SET_SRC_IP] =
-        MLNX_ACL_ACTION_INFO_DEFINE_WITH_FNS_SPC2_3(mlnx_acl_action_ip_to_sx, mlnx_acl_action_ip_to_sai),
+        MLNX_ACL_ACTION_INFO_DEFINE_WITH_FNS_SPC2_3_4(mlnx_acl_action_ip_to_sx, mlnx_acl_action_ip_to_sai),
     [SAI_ACL_ENTRY_ATTR_ACTION_SET_SRC_IPV6] =
-        MLNX_ACL_ACTION_INFO_DEFINE_WITH_FNS_SPC2_3(mlnx_acl_action_ip_to_sx, mlnx_acl_action_ip_to_sai),
+        MLNX_ACL_ACTION_INFO_DEFINE_WITH_FNS_SPC2_3_4(mlnx_acl_action_ip_to_sx, mlnx_acl_action_ip_to_sai),
     [SAI_ACL_ENTRY_ATTR_ACTION_SET_DST_IP] =
-        MLNX_ACL_ACTION_INFO_DEFINE_WITH_FNS_SPC2_3(mlnx_acl_action_ip_to_sx, mlnx_acl_action_ip_to_sai),
+        MLNX_ACL_ACTION_INFO_DEFINE_WITH_FNS_SPC2_3_4(mlnx_acl_action_ip_to_sx, mlnx_acl_action_ip_to_sai),
     [SAI_ACL_ENTRY_ATTR_ACTION_SET_DST_IPV6] =
-        MLNX_ACL_ACTION_INFO_DEFINE_WITH_FNS_SPC2_3(mlnx_acl_action_ip_to_sx, mlnx_acl_action_ip_to_sai),
+        MLNX_ACL_ACTION_INFO_DEFINE_WITH_FNS_SPC2_3_4(mlnx_acl_action_ip_to_sx, mlnx_acl_action_ip_to_sai),
     [SAI_ACL_ENTRY_ATTR_ACTION_SET_L4_SRC_PORT] =
-        MLNX_ACL_ACTION_INFO_DEFINE_WITH_FIELD_SPC2(SX_FLEX_ACL_ACTION_SET_L4_SRC_PORT, action_set_l4_src_port),
+        MLNX_ACL_ACTION_INFO_DEFINE_WITH_FIELD_SPC2_3_4(SX_FLEX_ACL_ACTION_SET_L4_SRC_PORT, action_set_l4_src_port),
     [SAI_ACL_ENTRY_ATTR_ACTION_SET_L4_DST_PORT] =
-        MLNX_ACL_ACTION_INFO_DEFINE_WITH_FIELD_SPC2(SX_FLEX_ACL_ACTION_SET_L4_DST_PORT, action_set_l4_dst_port),
+        MLNX_ACL_ACTION_INFO_DEFINE_WITH_FIELD_SPC2_3_4(SX_FLEX_ACL_ACTION_SET_L4_DST_PORT, action_set_l4_dst_port),
     [SAI_ACL_ENTRY_ATTR_ACTION_SET_LAG_HASH_ID] =
-        MLNX_ACL_ACTION_INFO_DEFINE_WITH_FNS_SPC2_3(mlnx_acl_action_hash_to_sx, mlnx_acl_action_hash_to_sai),
+        MLNX_ACL_ACTION_INFO_DEFINE_WITH_FNS_SPC2_3_4(mlnx_acl_action_hash_to_sx, mlnx_acl_action_hash_to_sai),
     [SAI_ACL_ENTRY_ATTR_ACTION_SET_ECMP_HASH_ID] =
-        MLNX_ACL_ACTION_INFO_DEFINE_WITH_FNS_SPC2_3(mlnx_acl_action_hash_to_sx, mlnx_acl_action_hash_to_sai),
+        MLNX_ACL_ACTION_INFO_DEFINE_WITH_FNS_SPC2_3_4(mlnx_acl_action_hash_to_sx, mlnx_acl_action_hash_to_sai),
 };
 static const size_t           mlnx_acl_action_info_count = ARRAY_SIZE(mlnx_acl_action_info);
 const mlnx_acl_action_info_t* mlnx_acl_action_info_get(_In_ sai_acl_entry_attr_t action_id)
@@ -4320,6 +4321,15 @@ static sai_status_t mlnx_acl_field_info_data_fetch(_In_ sai_attr_id_t           
 {
     const mlnx_acl_single_key_field_info_t *single_key_field;
     const mlnx_acl_multi_key_field_info_t  *multi_key_field;
+
+#ifdef IS_SIMX
+    if ((SAI_ACL_ENTRY_ATTR_FIELD_INNER_DST_IPV6 == attr_id)
+        || (SAI_ACL_ENTRY_ATTR_FIELD_INNER_ETHER_TYPE == attr_id)) {
+        SX_LOG_ERR("This field is not supported on Simx.\n");
+        return SAI_STATUS_NOT_SUPPORTED;
+    }
+#endif
+
 
     assert((sx_keys && sx_key_count) || (fields_types));
 
@@ -13224,6 +13234,13 @@ sai_status_t mlnx_create_acl_table(_Out_ sai_object_id_t     * acl_table_id,
     if (SAI_STATUS_SUCCESS ==
         find_attrib_in_list(attr_count, attr_list, SAI_ACL_TABLE_ATTR_FIELD_OUT_PORTS, &out_ports, &out_ports_index)) {
         if (true == out_ports->booldata) {
+/* TODO: remove when enabled on Simx */
+#ifdef IS_SIMX
+            if ((key_index > 0) && (keys[key_index - 1] == FLEX_ACL_KEY_RX_PORT_LIST)) {
+                SX_LOG_ERR("(FLEX_ACL_KEY_RX_PORT_LIST && FLEX_ACL_KEY_TX_PORT_LIST) keys are not supported on Simx.\n");
+                return SAI_STATUS_NOT_SUPPORTED;
+            }
+#endif
             keys[key_index] = FLEX_ACL_KEY_TX_PORT_LIST;
             key_index++;
         }
@@ -15763,6 +15780,10 @@ sai_status_t mlnx_acl_cb_table_init(void)
         mlnx_acl_cb = &mlnx_acl_cb_sp2;
         break;
 
+    case SX_CHIP_TYPE_SPECTRUM4:
+        mlnx_acl_cb = &mlnx_acl_cb_sp2;
+        break;
+
     default:
         SX_LOG_ERR("g_sai_db_ptr->sxd_chip_type = %s\n", SX_CHIP_TYPE_STR(chip_type));
         return SAI_STATUS_FAILURE;
@@ -15901,7 +15922,7 @@ sai_status_t mlnx_vxlan_srcport_acl_add(sai_object_id_t switch_id)
     action.fields.action_hash.hash_value = 1 << 7;
     if (mlnx_chip_is_spc()) {
         action.fields.action_hash.type = SX_ACL_ACTION_HASH_TYPE_LAG;
-    } else if (mlnx_chip_is_spc2or3()) {
+    } else if (mlnx_chip_is_spc2or3or4()) {
         action.fields.action_hash.type = SX_ACL_ACTION_HASH_TYPE_ECMP;
     }
 
@@ -15911,7 +15932,7 @@ sai_status_t mlnx_vxlan_srcport_acl_add(sai_object_id_t switch_id)
         key_desc.key.lag_hash = 0;
         key_desc.mask.lag_hash = 1 << 7;
         key = FLEX_ACL_KEY_LAG_HASH;
-    } else if (mlnx_chip_is_spc2or3()) {
+    } else if (mlnx_chip_is_spc2or3or4()) {
         key_desc.key_id = FLEX_ACL_KEY_ECMP_HASH;
         key_desc.key.ecmp_hash = 0;
         key_desc.mask.ecmp_hash = 1 << 7;

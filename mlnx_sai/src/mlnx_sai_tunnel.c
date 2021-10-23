@@ -734,6 +734,7 @@ static void mlnx_tunnel_fill_ulay_domain_rif(_In_ sx_router_interface_t         
 
     case SX_CHIP_TYPE_SPECTRUM2:
     case SX_CHIP_TYPE_SPECTRUM3:
+    case SX_CHIP_TYPE_SPECTRUM4:
         *ulay_domain_type = SX_TUNNEL_UNDERLAY_DOMAIN_TYPE_RIF;
         *sx_rif = rif;
         if (sx_uvird) {
@@ -6065,7 +6066,7 @@ static sai_status_t mlnx_create_sdk_tunnel(_In_ sai_object_id_t      sai_tunnel_
             sai_status = sdk_to_sai(sdk_status);
             goto cleanup;
         }
-        if (mlnx_chip_is_spc2or3()) {
+        if (mlnx_chip_is_spc2or3or4()) {
             if (SX_STATUS_SUCCESS !=
                 (sdk_status =
                      sx_api_router_interface_state_set(gh_sdk, sx_tunnel_attr.attributes.ipinip_p2p.underlay_rif,
@@ -6101,7 +6102,7 @@ static sai_status_t mlnx_create_sdk_tunnel(_In_ sai_object_id_t      sai_tunnel_
             goto cleanup;
         }
 
-        if (mlnx_chip_is_spc2or3()) {
+        if (mlnx_chip_is_spc2or3or4()) {
             if (SX_STATUS_SUCCESS !=
                 (sdk_status =
                      sx_api_router_interface_state_set(gh_sdk, sx_tunnel_attr.attributes.vxlan.encap.underlay_rif,
@@ -6274,7 +6275,7 @@ static sai_status_t mlnx_remove_sdk_ipinip_tunnel(_In_ uint32_t tunnel_db_idx)
                 sai_status = sdk_to_sai(sdk_status);
                 goto cleanup;
             }
-            if (mlnx_chip_is_spc2or3()) {
+            if (mlnx_chip_is_spc2or3or4()) {
                 if (SX_STATUS_SUCCESS !=
                     (sdk_status =
                          sx_api_router_interface_state_set(gh_sdk, sx_tunnel_attr.attributes.ipinip_p2p.underlay_rif,
@@ -6632,7 +6633,7 @@ static sai_status_t mlnx_remove_tunnel(_In_ const sai_object_id_t sai_tunnel_obj
                 sai_status = sdk_to_sai(sdk_status);
                 goto cleanup;
             }
-            if (mlnx_chip_is_spc2or3()) {
+            if (mlnx_chip_is_spc2or3or4()) {
                 if (SX_STATUS_SUCCESS !=
                     (sdk_status =
                          sx_api_router_interface_state_set(gh_sdk, sx_tunnel_attr.attributes.ipinip_p2p.underlay_rif,
@@ -6671,7 +6672,7 @@ static sai_status_t mlnx_remove_tunnel(_In_ const sai_object_id_t sai_tunnel_obj
         }
         g_sai_db_ptr->nve_tunnel_type = NVE_TUNNEL_UNKNOWN;
 
-        if (mlnx_chip_is_spc2or3()) {
+        if (mlnx_chip_is_spc2or3or4()) {
             if (SX_STATUS_SUCCESS !=
                 (sdk_status =
                      sx_api_router_interface_state_set(gh_sdk, sx_tunnel_attr.attributes.vxlan.encap.underlay_rif,
