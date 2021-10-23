@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2017. Mellanox Technologies, Ltd. ALL RIGHTS RESERVED.
+ *  Copyright (C) 2017-2021, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License"); you may
  *    not use this file except in compliance with the License. You may obtain
@@ -1307,17 +1307,14 @@ static sai_status_t mlnx_mirror_session_tc_set(_In_ const sai_object_key_t      
 
     switch (sdk_mirror_obj_params.span_type) {
     case SX_SPAN_TYPE_LOCAL_ETH_TYPE1:
-        sdk_mirror_obj_params.span_type_format.local_eth_type1.qos_mode = SX_SPAN_QOS_CONFIGURED;
         sdk_mirror_obj_params.span_type_format.local_eth_type1.switch_prio = value->u8;
         break;
 
     case SX_SPAN_TYPE_REMOTE_ETH_VLAN_TYPE1:
-        sdk_mirror_obj_params.span_type_format.remote_eth_vlan_type1.qos_mode = SX_SPAN_QOS_CONFIGURED;
         sdk_mirror_obj_params.span_type_format.remote_eth_vlan_type1.switch_prio = value->u8;
         break;
 
     case SX_SPAN_TYPE_REMOTE_ETH_L3_TYPE1:
-        sdk_mirror_obj_params.span_type_format.remote_eth_l3_type1.qos_mode = SX_SPAN_QOS_CONFIGURED;
         sdk_mirror_obj_params.span_type_format.remote_eth_l3_type1.switch_prio = value->u8;
         break;
 
@@ -2242,11 +2239,10 @@ static sai_status_t mlnx_set_SPAN_session_param(_Out_ sx_span_session_params_t  
     SX_LOG_ENTER();
 
     sdk_mirror_obj_params->span_type = SX_SPAN_TYPE_LOCAL_ETH_TYPE1;
+    sdk_mirror_obj_params->span_type_format.local_eth_type1.qos_mode = SX_SPAN_QOS_CONFIGURED;
     if (SAI_STATUS_SUCCESS == status_tc) {
-        sdk_mirror_obj_params->span_type_format.local_eth_type1.qos_mode = SX_SPAN_QOS_CONFIGURED;
         sdk_mirror_obj_params->span_type_format.local_eth_type1.switch_prio = mirror_tc->u8;
     } else {
-        sdk_mirror_obj_params->span_type_format.local_eth_type1.qos_mode = SX_SPAN_QOS_MAINTAIN;
         sdk_mirror_obj_params->span_type_format.local_eth_type1.switch_prio = MLNX_MIRROR_DEFAULT_SWITCH_PRIO;
     }
 
@@ -2269,11 +2265,10 @@ static sai_status_t mlnx_set_RSPAN_session_param(_Out_ sx_span_session_params_t 
     SX_LOG_ENTER();
 
     sdk_mirror_obj_params->span_type = SX_SPAN_TYPE_REMOTE_ETH_VLAN_TYPE1;
+    sdk_mirror_obj_params->span_type_format.remote_eth_vlan_type1.qos_mode = SX_SPAN_QOS_CONFIGURED;
     if (SAI_STATUS_SUCCESS == status_tc) {
-        sdk_mirror_obj_params->span_type_format.remote_eth_vlan_type1.qos_mode = SX_SPAN_QOS_CONFIGURED;
         sdk_mirror_obj_params->span_type_format.remote_eth_vlan_type1.switch_prio = mirror_tc->u8;
     } else {
-        sdk_mirror_obj_params->span_type_format.remote_eth_vlan_type1.qos_mode = SX_SPAN_QOS_MAINTAIN;
         sdk_mirror_obj_params->span_type_format.remote_eth_vlan_type1.switch_prio = MLNX_MIRROR_DEFAULT_SWITCH_PRIO;
     }
 
@@ -2353,11 +2348,10 @@ static sai_status_t mlnx_set_ERSPAN_session_param(_Out_ sx_span_session_params_t
 
     if (SAI_ERSPAN_ENCAPSULATION_TYPE_MIRROR_L3_GRE_TUNNEL == mirror_encap_type->s32) {
         sdk_mirror_obj_params->span_type = SX_SPAN_TYPE_REMOTE_ETH_L3_TYPE1;
+        sdk_mirror_obj_params->span_type_format.remote_eth_l3_type1.qos_mode = SX_SPAN_QOS_CONFIGURED;
         if (SAI_STATUS_SUCCESS == status_tc) {
-            sdk_mirror_obj_params->span_type_format.remote_eth_l3_type1.qos_mode = SX_SPAN_QOS_CONFIGURED;
             sdk_mirror_obj_params->span_type_format.remote_eth_l3_type1.switch_prio = mirror_tc->u8;
         } else {
-            sdk_mirror_obj_params->span_type_format.remote_eth_l3_type1.qos_mode = SX_SPAN_QOS_MAINTAIN;
             sdk_mirror_obj_params->span_type_format.remote_eth_l3_type1.switch_prio = MLNX_MIRROR_DEFAULT_SWITCH_PRIO;
         }
         if ((NULL == mirror_vlan_header_valid) || !mirror_vlan_header_valid->booldata) {

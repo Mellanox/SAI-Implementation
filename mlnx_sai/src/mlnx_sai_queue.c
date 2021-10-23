@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2017. Mellanox Technologies, Ltd. ALL RIGHTS RESERVED.
+ *  Copyright (C) 2017-2021, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License"); you may
  *    not use this file except in compliance with the License. You may obtain
@@ -58,6 +58,8 @@ static sai_status_t mlnx_queue_parent_sched_node_get(_In_ const sai_object_key_t
 static sai_status_t mlnx_queue_parent_sched_node_set(_In_ const sai_object_key_t      *key,
                                                      _In_ const sai_attribute_value_t *value,
                                                      void                             *arg);
+static sai_status_t mlnx_queue_stats_capa_list_get(sai_stat_capability_list_t* capa_list);
+
 static const sai_vendor_attribute_entry_t queue_vendor_attribs[] = {
     { SAI_QUEUE_ATTR_TYPE,
       { true, false, false, true },
@@ -120,17 +122,60 @@ static const mlnx_attr_enum_info_t        queue_enum_info[] = {
         SAI_QUEUE_TYPE_UNICAST,
         SAI_QUEUE_TYPE_MULTICAST)
 };
-static const sai_stat_capability_t        queue_stats_capabilities[] = {
+
+/**supported by spc3 and above*/
+static const sai_stat_capability_t queue_stats_capabilities_spc3[] = {
+    { SAI_QUEUE_STAT_WRED_ECN_MARKED_PACKETS, SAI_STATS_MODE_READ | SAI_STATS_MODE_READ_AND_CLEAR },
+};
+
+/** supported by all*/
+static const sai_stat_capability_t queue_stats_capabilities_spc12[] = {
     { SAI_QUEUE_STAT_PACKETS, SAI_STATS_MODE_READ | SAI_STATS_MODE_READ_AND_CLEAR },
     { SAI_QUEUE_STAT_BYTES, SAI_STATS_MODE_READ | SAI_STATS_MODE_READ_AND_CLEAR },
     { SAI_QUEUE_STAT_DROPPED_PACKETS, SAI_STATS_MODE_READ | SAI_STATS_MODE_READ_AND_CLEAR },
     { SAI_QUEUE_STAT_WRED_DROPPED_PACKETS, SAI_STATS_MODE_READ | SAI_STATS_MODE_READ_AND_CLEAR },
     { SAI_QUEUE_STAT_CURR_OCCUPANCY_BYTES, SAI_STATS_MODE_READ | SAI_STATS_MODE_READ_AND_CLEAR },
     { SAI_QUEUE_STAT_WATERMARK_BYTES, SAI_STATS_MODE_READ | SAI_STATS_MODE_READ_AND_CLEAR },
+    { SAI_QUEUE_STAT_SHARED_CURR_OCCUPANCY_BYTES, SAI_STATS_MODE_READ | SAI_STATS_MODE_READ_AND_CLEAR },
     { SAI_QUEUE_STAT_SHARED_WATERMARK_BYTES, SAI_STATS_MODE_READ | SAI_STATS_MODE_READ_AND_CLEAR },
 };
-const mlnx_obj_type_attrs_info_t          mlnx_queue_obj_type_info =
-{ queue_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(queue_enum_info), OBJ_STAT_CAP_INFO(queue_stats_capabilities)};
+
+const mlnx_obj_type_attrs_info_t mlnx_queue_obj_type_info = {queue_vendor_attribs,
+                                                             OBJ_ATTRS_ENUMS_INFO(queue_enum_info),
+                                                             OBJ_STAT_CAP_FN(mlnx_queue_stats_capa_list_get)};
+
+static sai_status_t mlnx_queue_stats_capa_list_get(sai_stat_capability_list_t* capa_list)
+{
+    sai_status_t                 status = SAI_STATUS_SUCCESS;
+    static sai_stat_capability_t queue_stats_capabilities[ARRAY_SIZE(queue_stats_capabilities_spc12)
+                                                          + ARRAY_SIZE(queue_stats_capabilities_spc3)];
+
+    if (capa_list == NULL) {
+        return SAI_STATUS_FAILURE;
+    }
+
+    memcpy((void *)queue_stats_capabilities,
+           (void *)queue_stats_capabilities_spc12,
+           sizeof(sai_stat_capability_t) * ARRAY_SIZE(queue_stats_capabilities_spc12));
+
+    memcpy((void *)(queue_stats_capabilities + ARRAY_SIZE(queue_stats_capabilities_spc12)),
+           (void *)queue_stats_capabilities_spc3,
+           sizeof(sai_stat_capability_t) * ARRAY_SIZE(queue_stats_capabilities_spc3));
+
+    if (mlnx_chip_is_spc() || mlnx_chip_is_spc2()) {
+        /**only spc/spc2 */
+        status = mlnx_fill_saistatcapabilitylist(queue_stats_capabilities_spc12,
+                                                 ARRAY_SIZE(queue_stats_capabilities_spc12),
+                                                 capa_list);
+    } else {
+        /**apply for all */
+        status = mlnx_fill_saistatcapabilitylist((const sai_stat_capability_t *)queue_stats_capabilities,
+                                                 ARRAY_SIZE(queue_stats_capabilities),
+                                                 capa_list);
+    }
+    return status;
+}
+
 sai_status_t mlnx_queue_log_set(sx_verbosity_level_t level)
 {
     LOG_VAR_NAME(__MODULE__) = level;
@@ -538,6 +583,8 @@ sai_status_t mlnx_get_queue_statistics_ext(_In_ sai_object_id_t      queue_id,
     sx_port_traffic_cntr_t           tc_cnts = { 0 };
     sx_port_cntr_perf_t              perf_cnts;
     bool                             tc_cnts_needed = false, occupancy_stats_needed = false;
+    sai_object_id_t                  curr_wred_id;
+    sx_cos_redecn_port_counters_t    sx_cnt;
     mlnx_qos_queue_config_t         *queue_cfg = NULL;
     uint32_t                         db_buffer_profile_index;
     sx_access_cmd_t                  cmd;
@@ -648,6 +695,7 @@ sai_status_t mlnx_get_queue_statistics_ext(_In_ sai_object_id_t      queue_id,
 
         case SAI_QUEUE_STAT_CURR_OCCUPANCY_BYTES:
         case SAI_QUEUE_STAT_WATERMARK_BYTES:
+        case SAI_QUEUE_STAT_SHARED_CURR_OCCUPANCY_BYTES:
         case SAI_QUEUE_STAT_SHARED_WATERMARK_BYTES:
             occupancy_stats_needed = true;
             break;
@@ -703,14 +751,12 @@ sai_status_t mlnx_get_queue_statistics_ext(_In_ sai_object_id_t      queue_id,
         case SAI_QUEUE_STAT_RED_WRED_DROPPED_PACKETS:
         case SAI_QUEUE_STAT_RED_WRED_DROPPED_BYTES:
         case SAI_QUEUE_STAT_WRED_DROPPED_BYTES:
-        case SAI_QUEUE_STAT_SHARED_CURR_OCCUPANCY_BYTES:
         case SAI_QUEUE_STAT_GREEN_WRED_ECN_MARKED_PACKETS:
         case SAI_QUEUE_STAT_GREEN_WRED_ECN_MARKED_BYTES:
         case SAI_QUEUE_STAT_YELLOW_WRED_ECN_MARKED_PACKETS:
         case SAI_QUEUE_STAT_YELLOW_WRED_ECN_MARKED_BYTES:
         case SAI_QUEUE_STAT_RED_WRED_ECN_MARKED_PACKETS:
         case SAI_QUEUE_STAT_RED_WRED_ECN_MARKED_BYTES:
-        case SAI_QUEUE_STAT_WRED_ECN_MARKED_PACKETS:
         case SAI_QUEUE_STAT_WRED_ECN_MARKED_BYTES:
             SX_LOG_INF("Queue counter %d set item %u not supported\n", counter_ids[ii], ii);
             return SAI_STATUS_ATTR_NOT_SUPPORTED_0;
@@ -731,6 +777,32 @@ sai_status_t mlnx_get_queue_statistics_ext(_In_ sai_object_id_t      queue_id,
             counters[ii] = tc_cnts.tx_wred_discard;
             break;
 
+        case SAI_QUEUE_STAT_WRED_ECN_MARKED_PACKETS:
+            counters[ii] = 0;
+
+            sai_db_read_lock();
+            if (SAI_STATUS_SUCCESS !=
+                (status = mlnx_queue_cfg_lookup(port_num, queue_num, &queue_cfg))) {
+                sai_db_unlock();
+                SX_LOG_EXIT();
+                return status;
+            }
+
+            curr_wred_id = queue_cfg->wred_id;
+            if (SAI_NULL_OBJECT_ID != curr_wred_id) {
+                if (SX_STATUS_SUCCESS !=
+                    (status = sx_api_cos_redecn_counters_get(gh_sdk, cmd, port_num, &sx_cnt))) {
+                    SX_LOG_ERR("Failed to get redecn counters - %s.\n", SX_STATUS_MSG(status));
+                    sai_db_unlock();
+                    SX_LOG_EXIT();
+                    return sdk_to_sai(status);
+                }
+                counters[ii] = sx_cnt.tc_ecn_marked_packets[queue_num];
+            }
+
+            sai_db_unlock();
+            break;
+
         case SAI_QUEUE_STAT_CURR_OCCUPANCY_BYTES:
             counters[ii] = (uint64_t)occupancy_stats.statistics.curr_occupancy *
                            g_resource_limits.shared_buff_buffer_unit_size;
@@ -741,12 +813,18 @@ sai_status_t mlnx_get_queue_statistics_ext(_In_ sai_object_id_t      queue_id,
                            g_resource_limits.shared_buff_buffer_unit_size;
             break;
 
-        case SAI_QUEUE_STAT_SHARED_WATERMARK_BYTES:
-            counters[ii] = (uint64_t)occupancy_stats.statistics.watermark *
+        case SAI_QUEUE_STAT_SHARED_CURR_OCCUPANCY_BYTES:
+            counters[ii] = (uint64_t)occupancy_stats.statistics.curr_occupancy *
                            g_resource_limits.shared_buff_buffer_unit_size;
 
-            sai_db_read_lock();
+        /**Falls through. */
+        case SAI_QUEUE_STAT_SHARED_WATERMARK_BYTES:
+            if (counter_ids[ii] != SAI_QUEUE_STAT_SHARED_CURR_OCCUPANCY_BYTES) {
+                counters[ii] = (uint64_t)occupancy_stats.statistics.watermark *
+                               g_resource_limits.shared_buff_buffer_unit_size;
+            }
 
+            sai_db_read_lock();
             if (SAI_STATUS_SUCCESS !=
                 (status = mlnx_queue_cfg_lookup(port_num, queue_num, &queue_cfg))) {
                 SX_LOG_EXIT();
@@ -822,6 +900,7 @@ static sai_status_t mlnx_clear_queue_stats(_In_ sai_object_id_t      queue_id,
     uint32_t                         usage_cnt = 1;
     sx_port_traffic_cntr_t           tc_cnts;
     sx_port_cntr_perf_t              perf_cnts;
+    sx_cos_redecn_port_counters_t    sx_cnt;
     const uint8_t                    port_prio_id = 0;
     bool                             tc_cnts_needed = false, occupancy_stats_needed = false;
     uint32_t                         ii;
@@ -867,8 +946,17 @@ static sai_status_t mlnx_clear_queue_stats(_In_ sai_object_id_t      queue_id,
 
         case SAI_QUEUE_STAT_CURR_OCCUPANCY_BYTES:
         case SAI_QUEUE_STAT_WATERMARK_BYTES:
+        case SAI_QUEUE_STAT_SHARED_CURR_OCCUPANCY_BYTES:
         case SAI_QUEUE_STAT_SHARED_WATERMARK_BYTES:
             occupancy_stats_needed = true;
+            break;
+
+        case SAI_QUEUE_STAT_WRED_ECN_MARKED_PACKETS:
+            if (SX_STATUS_SUCCESS !=
+                (status = sx_api_cos_redecn_counters_get(gh_sdk, SX_ACCESS_CMD_READ_CLEAR, port_num, &sx_cnt))) {
+                SX_LOG_ERR("Failed to clear redecn counters - %s.\n", SX_STATUS_MSG(status));
+                return sdk_to_sai(status);
+            }
             break;
 
         default:

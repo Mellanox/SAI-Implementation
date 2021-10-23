@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2018. Mellanox Technologies, Ltd. ALL RIGHTS RESERVED.
+ *  Copyright (C) 2018-2021, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License"); you may
  *    not use this file except in compliance with the License. You may obtain
@@ -284,15 +284,22 @@ sai_status_t mlnx_l2mc_group_sx_ports_get(_In_ const mlnx_l2mc_group_t *l2mc_gro
 {
     sx_status_t                  sx_status;
     sx_mc_container_attributes_t sx_mc_container_attributes;
-    sx_mc_next_hop_t             sx_next_hops[MAX_BRIDGE_1Q_PORTS];
+    sx_mc_next_hop_t            *sx_next_hops = NULL;
     uint32_t                     next_hops_count = MAX_BRIDGE_1Q_PORTS, ii;
+    sx_status_t                  status = SAI_STATUS_SUCCESS;
 
     assert(l2mc_group);
     assert(sx_ports);
     assert(*ports_count >= MAX_BRIDGE_1Q_PORTS);
 
     memset(&sx_mc_container_attributes, 0, sizeof(sx_mc_container_attributes));
-    memset(sx_next_hops, 0, sizeof(sx_next_hops));
+    sx_next_hops = (sx_mc_next_hop_t*)malloc(sizeof(sx_mc_next_hop_t) * MAX_BRIDGE_1Q_PORTS);
+
+    if (!sx_next_hops) {
+        SX_LOG_ERR("Can't allocate memory\n");
+        status = SAI_STATUS_NO_MEMORY;
+        goto out;
+    }
 
     sx_status = sx_api_mc_container_get(gh_sdk,
                                         SX_ACCESS_CMD_GET,
@@ -303,13 +310,15 @@ sai_status_t mlnx_l2mc_group_sx_ports_get(_In_ const mlnx_l2mc_group_t *l2mc_gro
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to get ports from sx_mc_container %x - %s\n", l2mc_group->mc_container,
                    SX_STATUS_MSG(sx_status));
-        return sdk_to_sai(sx_status);
+        status = sdk_to_sai(sx_status);
+        goto out;
     }
 
     if (*ports_count < next_hops_count) {
         SX_LOG_ERR("sx_ports array size %u < %u\n", *ports_count, next_hops_count);
         *ports_count = next_hops_count;
-        return SAI_STATUS_BUFFER_OVERFLOW;
+        status = SAI_STATUS_BUFFER_OVERFLOW;
+        goto out;
     }
 
     for (ii = 0; ii < next_hops_count; ii++) {
@@ -318,7 +327,9 @@ sai_status_t mlnx_l2mc_group_sx_ports_get(_In_ const mlnx_l2mc_group_t *l2mc_gro
 
     *ports_count = next_hops_count;
 
-    return SAI_STATUS_SUCCESS;
+out:
+    free(sx_next_hops);
+    return status;
 }
 
 sai_status_t mlnx_l2mc_group_to_pbs_info(_In_ const mlnx_l2mc_group_t *l2mc_group,

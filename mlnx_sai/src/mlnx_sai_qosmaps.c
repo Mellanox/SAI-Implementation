@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2017. Mellanox Technologies, Ltd. ALL RIGHTS RESERVED.
+ *  Copyright (C) 2017-2021, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License"); you may
  *    not use this file except in compliance with the License. You may obtain
@@ -55,7 +55,17 @@ static const sai_vendor_attribute_entry_t qos_map_vendor_attribs[] = {
       NULL, NULL }
 };
 static const mlnx_attr_enum_info_t        qos_map_enum_info[] = {
-    [SAI_QOS_MAP_ATTR_TYPE] = ATTR_ENUM_VALUES_ALL(),
+    [SAI_QOS_MAP_ATTR_TYPE] = ATTR_ENUM_VALUES_LIST(
+        SAI_QOS_MAP_TYPE_DOT1P_TO_TC,
+        SAI_QOS_MAP_TYPE_DOT1P_TO_COLOR,
+        SAI_QOS_MAP_TYPE_DSCP_TO_TC,
+        SAI_QOS_MAP_TYPE_DSCP_TO_COLOR,
+        SAI_QOS_MAP_TYPE_TC_TO_QUEUE,
+        SAI_QOS_MAP_TYPE_TC_AND_COLOR_TO_DSCP,
+        SAI_QOS_MAP_TYPE_TC_AND_COLOR_TO_DOT1P,
+        SAI_QOS_MAP_TYPE_TC_TO_PRIORITY_GROUP,
+        SAI_QOS_MAP_TYPE_PFC_PRIORITY_TO_PRIORITY_GROUP,
+        SAI_QOS_MAP_TYPE_PFC_PRIORITY_TO_QUEUE),
 };
 const mlnx_obj_type_attrs_info_t          mlnx_qos_map_obj_type_info =
 { qos_map_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(qos_map_enum_info), OBJ_STAT_CAP_INFO_EMPTY()};

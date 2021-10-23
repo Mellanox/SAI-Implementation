@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -148,12 +148,14 @@
     <ClInclude Include="inc\sai\saifdb.h" />
     <ClInclude Include="inc\sai\saihash.h" />
     <ClInclude Include="inc\sai\saihostif.h" />
+    <ClInclude Include="inc\sai\saiipsec.h" />
     <ClInclude Include="inc\sai\saiisolationgroup.h" />
     <ClInclude Include="inc\sai\sail2mcgroup.h" />
     <ClInclude Include="inc\sai\sailag.h" />
     <ClInclude Include="inc\sai\saimacsec.h" />
     <ClInclude Include="inc\sai\saimirror.h" />
     <ClInclude Include="inc\sai\saimpls.h" />
+    <ClInclude Include="inc\sai\saimymac.h" />
     <ClInclude Include="inc\sai\sainat.h" />
     <ClInclude Include="inc\sai\saineighbor.h" />
     <ClInclude Include="inc\sai\sainexthop.h" />
@@ -164,9 +166,10 @@
     <ClInclude Include="inc\sai\saiqosmap.h" />
     <ClInclude Include="inc\sai\saiqueue.h" />
     <ClInclude Include="inc\sai\sairoute.h" />
-    <ClInclude Include="inc\sai\saisegmentroute.h" />
+    <ClInclude Include="inc\sai\saisrv6.h" />
     <ClInclude Include="inc\sai\saisystemport.h" />
     <ClInclude Include="inc\sai\saitam.h" />
+    <ClInclude Include="inc\sai\saiversion.h" />
     <ClInclude Include="inc\sai\saivirtualrouter.h" />
     <ClInclude Include="inc\sai\sairouterinterface.h" />
     <ClInclude Include="inc\sai\saisamplepacket.h" />
@@ -184,6 +187,7 @@
     <ClInclude Include="inc\sdk\sx_api_bmtor.h" />
     <ClInclude Include="inc\sdk\sx_bmtor.h" />
     <ClInclude Include="inc\sharedlib.h" />
+    <ClInclude Include="src\dbgdump\mlnx_sai_dbg.h" />
     <ClInclude Include="src\meta\saimetadata.h" />
     <ClInclude Include="src\meta\saimetadatautils.h" />
   </ItemGroup>
@@ -193,6 +197,7 @@
     <ClCompile Include="src\dbgdump\mlnx_sai_dbg_bridge.c" />
     <ClCompile Include="src\dbgdump\mlnx_sai_dbg_buffer.c" />
     <ClCompile Include="src\dbgdump\mlnx_sai_dbg_debug_counter.c" />
+    <ClCompile Include="src\dbgdump\mlnx_sai_dbg_gp_reg.c" />
     <ClCompile Include="src\dbgdump\mlnx_sai_dbg_hash.c" />
     <ClCompile Include="src\dbgdump\mlnx_sai_dbg_hostintf.c" />
     <ClCompile Include="src\dbgdump\mlnx_sai_dbg_isolation_group.c" />
@@ -230,6 +235,7 @@
     <ClCompile Include="src\mlnx_sai_host_interface.c" />
     <ClCompile Include="src\mlnx_sai_interfacequery.c" />
     <ClCompile Include="src\mlnx_sai_isolation_group.c" />
+    <ClCompile Include="src\mlnx_sai_issu_storage.c" />
     <ClCompile Include="src\mlnx_sai_l2mcgroup.c" />
     <ClCompile Include="src\mlnx_sai_lag.c" />
     <ClCompile Include="src\mlnx_sai_mirror.c" />

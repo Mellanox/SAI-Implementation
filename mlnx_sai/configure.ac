@@ -63,6 +63,16 @@ AC_ARG_ENABLE(debug,
 esac],[debug=false])
 AM_CONDITIONAL(DEBUG, test x$debug = xtrue)
 
+AC_ARG_ENABLE([simx],
+  [AS_HELP_STRING([--enable-simx],
+  [Notify that device is simix])],
+  [simx=$enableval],
+  [simx=no])
+
+if test "x$simx" = xyes; then
+  AC_DEFINE(IS_SIMX, 1, [Notify that device is simix])
+fi
+
 dnl Define an input config option to control complib path
 AC_ARG_WITH(sxcomplib,
 [  --with-sxcomplib=<dir> define SwitchX compatibility library directory],

@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2017. Mellanox Technologies, Ltd. ALL RIGHTS RESERVED.
+ *  Copyright (C) 2017-2021, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License"); you may
  *    not use this file except in compliance with the License. You may obtain
@@ -118,37 +118,6 @@ static void SAI_dump_acl_table_group_type_enum_to_str(_In_ sai_acl_table_group_t
     }
 }
 
-static void SAI_dump_acl_key_type_enum_to_str(_In_ sx_acl_key_type_t key_type, _Out_ char *str)
-{
-    assert(NULL != str);
-
-    switch (key_type) {
-    case SX_ACL_KEY_TYPE_IPV4_FULL:
-        strcpy(str, "ipv4");
-        break;
-
-    case SX_ACL_KEY_TYPE_IPV6_FULL:
-        strcpy(str, "ipv6");
-        break;
-
-    case SX_ACL_KEY_TYPE_MAC_FULL:
-        strcpy(str, "mac");
-        break;
-
-    case SX_ACL_KEY_TYPE_MAC_IPV4_FULL:
-        strcpy(str, "mac ipv4");
-        break;
-
-    case SX_ACL_KEY_TYPE_MAC_SHORT:
-        strcpy(str, "mac short");
-        break;
-
-    default:
-        strcpy(str, "unknown");
-        break;
-    }
-}
-
 static void SAI_dump_acl_range_type_enum_to_str(_In_ sai_acl_range_type_t range_type, _Out_ char *str)
 {
     assert(NULL != str);
@@ -187,7 +156,6 @@ static void SAI_dump_acl_table_print(_In_ FILE *file, _In_ acl_table_db_t *acl_t
     sai_object_id_t           obj_id = SAI_NULL_OBJECT_ID;
     acl_table_db_t            curr_acl_table_db;
     char                      stage_str[LINE_LENGTH];
-    char                      key_type_str[LINE_LENGTH];
     char                      range_type_str[LINE_LENGTH];
     char                      group_type_str[LINE_LENGTH];
     dbg_utils_table_columns_t acl_table_clmns[] = {
@@ -201,7 +169,6 @@ static void SAI_dump_acl_table_print(_In_ FILE *file, _In_ acl_table_db_t *acl_t
         {"stage",             14, PARAM_STRING_E, &stage_str},
         {"region id",         13, PARAM_UINT32_E, &curr_acl_table_db.region_id},
         {"region size",       13, PARAM_UINT32_E, &curr_acl_table_db.region_size},
-        {"key type",          9,  PARAM_STRING_E, &key_type_str},
         {"is dynamic sized",  16, PARAM_UINT8_E,   &curr_acl_table_db.is_dynamic_sized},
         {"created entry cnt", 16, PARAM_UINT32_E, &curr_acl_table_db.created_entry_count},
         {"psort handle",      16, PARAM_UINT32_E, &curr_acl_table_db.psort_handle},
@@ -237,8 +204,6 @@ static void SAI_dump_acl_table_print(_In_ FILE *file, _In_ acl_table_db_t *acl_t
             }
 
             SAI_dump_acl_stage_enum_to_str(acl_table_db[ii].stage, stage_str);
-
-            SAI_dump_acl_key_type_enum_to_str(acl_table_db[ii].key_type, key_type_str);
 
             SAI_dump_acl_table_group_type_enum_to_str(acl_table_db[ii].group_type, group_type_str);
 

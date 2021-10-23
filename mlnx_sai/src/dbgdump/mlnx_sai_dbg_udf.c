@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2017. Mellanox Technologies, Ltd. ALL RIGHTS RESERVED.
+ *  Copyright (C) 2017-2021, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License"); you may
  *    not use this file except in compliance with the License. You may obtain
@@ -124,6 +124,7 @@ static void SAI_dump_udf_list_print(_In_ FILE *file, _In_ const uint32_t *udf_in
         {"db idx",      11, PARAM_UINT32_E, &udf_db_index},
         {"sai obj id",  16, PARAM_UINT64_E, &curr_udf.sai_object},
         {"base",        16, PARAM_STRING_E, &base_str},
+        {"offset",      16, PARAM_UINT16_E, &curr_udf.offset},
         {"group index", 16, PARAM_UINT32_E, &curr_udf.group_index},
         {"match index", 16, PARAM_UINT32_E, &curr_udf.match_index},
         {NULL,          0,  0,              NULL}
@@ -175,6 +176,7 @@ static void SAI_dump_udf_groups_print(_In_ FILE *file)
 {
     mlnx_udf_group_t          curr_udf_group;
     uint32_t                  ii;
+    uint32_t                  acl_keys_number = 0;
     char                      type_str[LINE_LENGTH];
     char                      sx_custom_bytes_str[LINE_LENGTH];
     dbg_utils_table_columns_t udf_group_clmns[] = {
@@ -193,12 +195,18 @@ static void SAI_dump_udf_groups_print(_In_ FILE *file)
 
     for (ii = 0; ii < MLNX_UDF_GROUP_COUNT_MAX; ii++) {
         if (udf_db_group_ptr(ii)->is_created) {
+            if (mlnx_chip_is_spc()) {
+                acl_keys_number = udf_db_group_ptr(ii)->length;
+            } else {
+                acl_keys_number = 1;
+            }
+
             memcpy(&curr_udf_group, udf_db_group_ptr(ii), sizeof(curr_udf_group));
 
             SAI_dump_udf_group_type_to_str(udf_db_group_ptr(ii)->type, type_str);
 
             SAI_dump_udf_sx_keys_to_str(udf_db_group_ptr(ii)->sx_custom_bytes_keys,
-                                        udf_db_group_ptr(ii)->length,
+                                        acl_keys_number,
                                         LINE_LENGTH, sx_custom_bytes_str);
 
             dbg_utils_print_secondary_header(file, "Group[%d]", ii);
@@ -252,9 +260,13 @@ void SAI_dump_udf(_In_ FILE *file)
 {
     dbg_utils_print_module_header(file, "SAI UDF");
 
+    sai_db_read_lock();
+
     SAI_dump_udf_groups_print(file);
 
     SAI_dump_udfs_print(file);
 
     SAI_dump_udf_matches_print(file);
+
+    sai_db_unlock();
 }

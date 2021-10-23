@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2017. Mellanox Technologies, Ltd. ALL RIGHTS RESERVED.
+ *  Copyright (C) 2017-2021, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License"); you may
  *    not use this file except in compliance with the License. You may obtain
@@ -152,6 +152,7 @@ extern const mlnx_obj_type_attrs_info_t  mlnx_bfd_session_obj_type_info;
 extern const mlnx_obj_type_attrs_info_t  mlnx_counter_obj_type_info;
 extern const mlnx_obj_type_attrs_info_t  mlnx_isolation_group_obj_type_info;
 extern const mlnx_obj_type_attrs_info_t  mlnx_isolation_group_member_obj_type_info;
+extern const mlnx_obj_type_attrs_info_t  mlnx_fg_hash_field_obj_type_info;
 static const mlnx_obj_type_attrs_info_t* mlnx_obj_types_info[] = {
     [SAI_OBJECT_TYPE_PORT] = &mlnx_port_obj_type_info,
     [SAI_OBJECT_TYPE_LAG] = &mlnx_lag_obj_type_info,
@@ -211,6 +212,7 @@ static const mlnx_obj_type_attrs_info_t* mlnx_obj_types_info[] = {
     [SAI_OBJECT_TYPE_COUNTER] = &mlnx_counter_obj_type_info,
     [SAI_OBJECT_TYPE_ISOLATION_GROUP] = &mlnx_isolation_group_obj_type_info,
     [SAI_OBJECT_TYPE_ISOLATION_GROUP_MEMBER] = &mlnx_isolation_group_member_obj_type_info,
+    [SAI_OBJECT_TYPE_FINE_GRAINED_HASH_FIELD] = &mlnx_fg_hash_field_obj_type_info,
 };
 static const uint32_t                    mlnx_obj_types_info_arr_size = ARRAY_SIZE(mlnx_obj_types_info);
 static sai_status_t sai_vendor_attr_index_find(_In_ const sai_attr_id_t                 attr_id,
@@ -673,6 +675,9 @@ sai_status_t mlnx_sai_query_attribute_enum_values_capability_impl(_In_ sai_objec
                                                      &obj_type_attr_info->enums_info,
                                                      enum_values_capability);
         if (SAI_ERR(status)) {
+            if (MLNX_SAI_STATUS_BUFFER_OVERFLOW_EMPTY_LIST == status) {
+                status = SAI_STATUS_BUFFER_OVERFLOW;
+            }
             SX_LOG_EXIT();
             return status;
         }
@@ -718,15 +723,19 @@ sai_status_t mlnx_sai_query_stats_capability_impl(_In_ sai_object_id_t          
         return SAI_STATUS_FAILURE;
     }
 
-    if (0 == object_type_info->stats_capability.count) {
+    if (object_type_info->stats_capability.capability_fn) {
+        status = object_type_info->stats_capability.capability_fn(stats_capability);
+    } else if (0 == object_type_info->stats_capability.count) {
         stats_capability->count = 0;
     } else {
         status = mlnx_fill_saistatcapabilitylist(object_type_info->stats_capability.info,
                                                  object_type_info->stats_capability.count,
                                                  stats_capability);
-        if (SAI_ERR(status)) {
-            SX_LOG_EXIT();
-            return status;
+    }
+
+    if (SAI_ERR(status)) {
+        if (MLNX_SAI_STATUS_BUFFER_OVERFLOW_EMPTY_LIST == status) {
+            status = SAI_STATUS_BUFFER_OVERFLOW;
         }
     }
 
@@ -3494,14 +3503,21 @@ sai_status_t mlnx_utils_attrs_is_resource_check(_In_ sai_object_type_t      obje
                                                 _In_ uint32_t               attr_count,
                                                 _In_ const sai_attribute_t *attr_list)
 {
-    const sai_attr_metadata_t *meta_data;
-    uint32_t                   ii;
+    const sai_attr_metadata_t    *meta_data;
+    uint32_t                      ii;
+    const sai_object_type_info_t *obj_type_info;
 
     assert(!attr_count || attr_list);
 
-    if (!mlnx_obj_type_attr_info_get(object_type)) {
-        SX_LOG_ERR("Invalid object type %d - meta data not found\n", object_type);
+    obj_type_info = sai_metadata_get_object_type_info(object_type);
+    if (!obj_type_info) {
+        SX_LOG_ERR("Invalid object type - %d\n", object_type);
         return SAI_STATUS_INVALID_PARAMETER;
+    }
+
+    if (!mlnx_obj_type_attr_info_get(object_type)) {
+        SX_LOG_WRN("Not implemented object type %s - vendor meta data not found\n", obj_type_info->objecttypename);
+        return SAI_STATUS_NOT_IMPLEMENTED;
     }
 
     for (ii = 0; ii < attr_count; ii++) {

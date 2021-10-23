@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2017. Mellanox Technologies, Ltd. ALL RIGHTS RESERVED.
+ *  Copyright (C) 2017-2021, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License"); you may
  *    not use this file except in compliance with the License. You may obtain
@@ -348,7 +348,7 @@ static sai_status_t mlnx_fg_ecmp_group_remove(_In_ sx_ecmp_id_t sdk_ecmp_id)
             found = true;
         }
         if (g_sai_db_ptr->ecmp_groups[jj].id == 0) {
-            last_group_index = jj - 1;
+            last_group_index = jj ? jj - 1 : 0;
             break;
         }
     }
@@ -2114,4 +2114,8 @@ const sai_next_hop_group_api_t mlnx_next_hop_group_api = {
     mlnx_get_next_hop_group_member_attribute,
     mlnx_create_next_hop_group_members,
     mlnx_remove_next_hop_group_members,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
 };

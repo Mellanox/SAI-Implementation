@@ -29,6 +29,7 @@ lib_LTLIBRARIES = libfx_base.la libsx_fx_sdk.la libsai.la
 dist_data_DATA = sai_1710.xml \
                  sai_2010.xml \
                  sai_2100.xml \
+                 sai_2201.xml \
                  sai_2410.xml \
                  sai_2420.xml \
                  sai_2700.xml \
@@ -40,7 +41,7 @@ dist_data_DATA = sai_1710.xml \
                  sai_37001G.xml \
                  sai_3800.xml \
                  sai_380050G.xml \
-                 sai_3800_pb_hash.xml \				 
+                 sai_3800_pb_hash.xml \
                  sai_4410.xml \
                  sai_4600.xml \
                  sai_4600C.xml \
@@ -49,8 +50,9 @@ dist_data_DATA = sai_1710.xml \
                  sai_4700_pld.xml \
                  sai_4700_pld_4.xml \
                  sai_4700_1G.xml \
-                 sai_4700_100G.xml
-				 
+                 sai_4700_100G.xml \
+                 sai_5600.xml
+
 libsai_la_DEPENDENCIES =
 
 libsai_la_SOURCES = \
@@ -75,6 +77,7 @@ libsai_la_SOURCES = \
                        dbgdump/mlnx_sai_dbg_utils.c \
                        dbgdump/mlnx_sai_dbg_vlan.c \
                        dbgdump/mlnx_sai_dbg_wred.c \
+                       dbgdump/mlnx_sai_dbg_gp_reg.c \
                        mlnx_sai_acl.c \
                        mlnx_sai_bfd.c \
                        mlnx_sai_bridge.c \
@@ -110,6 +113,7 @@ libsai_la_SOURCES = \
                        mlnx_sai_utils.c \
                        mlnx_sai_vlan.c \
                        mlnx_sai_wred.c \
+                       mlnx_sai_issu_storage.c \
                        meta/saimetadata.c \
                        meta/saimetadatautils.c \
                        meta/saiserialize.c
@@ -154,6 +158,7 @@ libsai_apiinclude_HEADERS = \
         $(top_srcdir)/inc/sai/saihostif.h \
         $(top_srcdir)/inc/sai/saiipmc.h \
         $(top_srcdir)/inc/sai/saiipmcgroup.h \
+        $(top_srcdir)/inc/sai/saiipsec.h \
         $(top_srcdir)/inc/sai/saiisolationgroup.h \
         $(top_srcdir)/inc/sai/sail2mc.h \
         $(top_srcdir)/inc/sai/sail2mcgroup.h \
@@ -162,6 +167,7 @@ libsai_apiinclude_HEADERS = \
         $(top_srcdir)/inc/sai/saimcastfdb.h \
         $(top_srcdir)/inc/sai/saimirror.h \
         $(top_srcdir)/inc/sai/saimpls.h \
+        $(top_srcdir)/inc/sai/saimymac.h \
         $(top_srcdir)/inc/sai/sainat.h \
         $(top_srcdir)/inc/sai/saineighbor.h \
         $(top_srcdir)/inc/sai/sainexthop.h \
@@ -177,7 +183,7 @@ libsai_apiinclude_HEADERS = \
         $(top_srcdir)/inc/sai/saisamplepacket.h \
         $(top_srcdir)/inc/sai/saischeduler.h \
         $(top_srcdir)/inc/sai/saischedulergroup.h \
-        $(top_srcdir)/inc/sai/saisegmentroute.h \
+        $(top_srcdir)/inc/sai/saisrv6.h \
         $(top_srcdir)/inc/sai/saistatus.h \
         $(top_srcdir)/inc/sai/saistp.h \
         $(top_srcdir)/inc/sai/saiswitch.h \
@@ -186,6 +192,7 @@ libsai_apiinclude_HEADERS = \
         $(top_srcdir)/inc/sai/saitunnel.h \
         $(top_srcdir)/inc/sai/saitypes.h \
         $(top_srcdir)/inc/sai/saiudf.h \
+        $(top_srcdir)/inc/sai/saiversion.h \
         $(top_srcdir)/inc/sai/saivirtualrouter.h \
         $(top_srcdir)/inc/sai/saivlan.h \
         $(top_srcdir)/inc/sai/saiwred.h \
@@ -197,6 +204,7 @@ libsai_apiinclude_HEADERS = \
         \
         $(top_srcdir)/inc/sai_windows.h \
         $(top_srcdir)/inc/mlnx_sai.h \
+        $(top_builddir)/config.h \
         \
         $(top_srcdir)/inc/flextrum_types.h \
         $(top_srcdir)/inc/fx_base_api.h \

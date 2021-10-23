@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2017. Mellanox Technologies, Ltd. ALL RIGHTS RESERVED.
+ *  Copyright (C) 2017-2021, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License"); you may
  *    not use this file except in compliance with the License. You may obtain
@@ -35,6 +35,14 @@ static sai_status_t mlnx_hash_native_field_list_get(_In_ const sai_object_key_t 
 static sai_status_t mlnx_hash_native_field_list_set(_In_ const sai_object_key_t      *key,
                                                     _In_ const sai_attribute_value_t *value,
                                                     void                             *arg);
+static sai_status_t mlnx_hash_fg_field_list_get(_In_ const sai_object_key_t   *key,
+                                                _Inout_ sai_attribute_value_t *value,
+                                                _In_ uint32_t                  attr_index,
+                                                _Inout_ vendor_cache_t        *cache,
+                                                void                          *arg);
+static sai_status_t mlnx_hash_fg_field_list_set(_In_ const sai_object_key_t      *key,
+                                                _In_ const sai_attribute_value_t *value,
+                                                void                             *arg);
 static sai_status_t mlnx_hash_udf_group_list_get(_In_ const sai_object_key_t   *key,
                                                  _Inout_ sai_attribute_value_t *value,
                                                  _In_ uint32_t                  attr_index,
@@ -54,6 +62,56 @@ static sai_status_t mlnx_hash_lag_global_config_get(_Out_ sx_lag_port_hash_param
                                                     _Out_ uint32_t                   *enable_count,
                                                     _Out_ sx_lag_hash_field_t        *field_list,
                                                     _Out_ uint32_t                   *field_count);
+static sai_status_t mlnx_fine_grained_hash_field_attribute_get(_In_ const sai_object_key_t   *key,
+                                                               _Inout_ sai_attribute_value_t *value,
+                                                               _In_ uint32_t                  attr_index,
+                                                               _Inout_ vendor_cache_t        *cache,
+                                                               void                          *arg);
+static sai_status_t gp_registers_availability_check(_In_ uint32_t                        fields_count,
+                                                    _In_ const mlnx_sai_fg_hash_field_t *fields_list,
+                                                    _In_ bool                            optimized);
+static sai_status_t ipv4_reg_lookup(_Inout_ mlnx_gp_reg_db_t           **gp_reg_db_data,
+                                    _Inout_ mlnx_shm_rm_array_idx_t     *db_idx,
+                                    _In_ const mlnx_sai_fg_hash_field_t *field,
+                                    _In_ bool                            is_gp_reg_restore,
+                                    _In_ mlnx_gp_reg_usage_t             gp_reg_usage,
+                                    _In_ mlnx_gp_reg_usage_t             gp_reg_usage_prev);
+static sai_status_t ipv4_reg_allocate(_Inout_ mlnx_sai_fg_hash_field_t *field,
+                                      _In_ bool                         optimized,
+                                      _In_ bool                         is_gp_reg_restore,
+                                      _In_ mlnx_gp_reg_usage_t          gp_reg_usage,
+                                      _In_ mlnx_gp_reg_usage_t          gp_reg_usage_prev);
+static sai_status_t ipv6_reg_allocate(_Inout_ mlnx_sai_fg_hash_field_t *field,
+                                      _In_ bool                         optimized,
+                                      _In_ bool                         is_gp_reg_restore,
+                                      _In_ mlnx_gp_reg_usage_t          gp_reg_usage,
+                                      _In_ mlnx_gp_reg_usage_t          gp_reg_usage_prev);
+static sai_status_t l4_reg_allocate(_Inout_ mlnx_sai_fg_hash_field_t *field,
+                                    _In_ bool                         is_gp_reg_restore,
+                                    _In_ mlnx_gp_reg_usage_t          gp_reg_usage,
+                                    _In_ mlnx_gp_reg_usage_t          gp_reg_usage_prev);
+static sai_status_t gp_registers_allocation(_In_ uint32_t                     fields_count,
+                                            _Inout_ mlnx_sai_fg_hash_field_t *fields_list,
+                                            _In_ bool                         optimized);
+sai_status_t gp_registers_delete(_Inout_ mlnx_sai_fg_hash_field_t *fields_list);
+
+static void mlnx_fg_hash_action_list_create(_In_ sx_flex_acl_action_hash_type_t action_type,
+                                            _In_ uint32_t                       fields_count,
+                                            _In_ mlnx_sai_fg_hash_field_t      *fields_list,
+                                            _Inout_ sx_flex_acl_flex_action_t * action_list,
+                                            _Inout_ uint32_t                   *action_num);
+static void mlnx_fg_optimized_hash_action_list_create(_In_ sx_flex_acl_action_hash_type_t action_type,
+                                                      _In_ uint32_t                       fields_count,
+                                                      _In_ mlnx_sai_fg_hash_field_t      *fields_list,
+                                                      _Inout_ sx_flex_acl_flex_action_t * action_list,
+                                                      _Inout_ uint32_t                   *action_num);
+sai_status_t mlnx_fine_grained_hash_create(_In_ sai_object_id_t                hash_id,
+                                           _In_ sx_flex_acl_action_hash_type_t action_type,
+                                           _Inout_ sx_flex_acl_flex_action_t  *action_list,
+                                           _Inout_ uint32_t                   *action_num);
+
+extern sai_status_t mlnx_init_flex_parser();
+
 static const sai_vendor_attribute_entry_t hash_vendor_attribs[] = {
     { SAI_HASH_ATTR_NATIVE_HASH_FIELD_LIST,
       { true, false, true, true },
@@ -65,16 +123,72 @@ static const sai_vendor_attribute_entry_t hash_vendor_attribs[] = {
       { true, false, true, true },
       mlnx_hash_udf_group_list_get, NULL,
       mlnx_hash_udf_group_list_set, NULL },
+    { SAI_HASH_ATTR_FINE_GRAINED_HASH_FIELD_LIST,
+      { true, false, true, true },
+      { true, false, true, true },
+      mlnx_hash_fg_field_list_get, NULL,
+      mlnx_hash_fg_field_list_set, NULL },
     { END_FUNCTIONALITY_ATTRIBS_ID,
       { false, false, false, false },
       { false, false, false, false },
       NULL, NULL,
       NULL, NULL }
 };
-static const mlnx_attr_enum_info_t        hash_enum_info[] = {
+
+static const sai_vendor_attribute_entry_t fg_hash_field_vendor_attribs[] = {
+    { SAI_FINE_GRAINED_HASH_FIELD_ATTR_NATIVE_HASH_FIELD,
+      {true, false, false, true},
+      {true, false, false, true},
+      mlnx_fine_grained_hash_field_attribute_get, (void*)SAI_FINE_GRAINED_HASH_FIELD_ATTR_NATIVE_HASH_FIELD,
+      NULL, NULL },
+    { SAI_FINE_GRAINED_HASH_FIELD_ATTR_IPV4_MASK,
+      { true, false, false, true },
+      { true, false, false, true },
+      mlnx_fine_grained_hash_field_attribute_get, (void*)SAI_FINE_GRAINED_HASH_FIELD_ATTR_IPV4_MASK,
+      NULL, NULL },
+    { SAI_FINE_GRAINED_HASH_FIELD_ATTR_IPV6_MASK,
+      { true, false, false, true },
+      { true, false, false, true },
+      mlnx_fine_grained_hash_field_attribute_get, (void*)SAI_FINE_GRAINED_HASH_FIELD_ATTR_IPV6_MASK,
+      NULL, NULL },
+    { SAI_FINE_GRAINED_HASH_FIELD_ATTR_SEQUENCE_ID,
+      {true, false, false, true},
+      {true, false, false, true},
+      mlnx_fine_grained_hash_field_attribute_get, (void*)SAI_FINE_GRAINED_HASH_FIELD_ATTR_SEQUENCE_ID,
+      NULL, NULL },
+    { END_FUNCTIONALITY_ATTRIBS_ID,
+      { false, false, false, false },
+      { false, false, false, false },
+      NULL, NULL,
+      NULL, NULL }
+};
+
+static const mlnx_attr_enum_info_t fg_hash_field_enum_info[] = {
+    [SAI_FINE_GRAINED_HASH_FIELD_ATTR_NATIVE_HASH_FIELD] = ATTR_ENUM_VALUES_LIST(
+        SAI_NATIVE_HASH_FIELD_SRC_IPV4,
+        SAI_NATIVE_HASH_FIELD_DST_IPV4,
+        SAI_NATIVE_HASH_FIELD_SRC_IPV6,
+        SAI_NATIVE_HASH_FIELD_DST_IPV6,
+        SAI_NATIVE_HASH_FIELD_INNER_SRC_IPV4,
+        SAI_NATIVE_HASH_FIELD_INNER_DST_IPV4,
+        SAI_NATIVE_HASH_FIELD_INNER_SRC_IPV6,
+        SAI_NATIVE_HASH_FIELD_INNER_DST_IPV6,
+        SAI_NATIVE_HASH_FIELD_IP_PROTOCOL,
+        SAI_NATIVE_HASH_FIELD_L4_SRC_PORT,
+        SAI_NATIVE_HASH_FIELD_L4_DST_PORT,
+        SAI_NATIVE_HASH_FIELD_INNER_IP_PROTOCOL,
+        SAI_NATIVE_HASH_FIELD_INNER_L4_SRC_PORT,
+        SAI_NATIVE_HASH_FIELD_INNER_L4_DST_PORT
+        )
+};
+const mlnx_obj_type_attrs_info_t   mlnx_fg_hash_field_obj_type_info = {
+    fg_hash_field_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(fg_hash_field_enum_info), OBJ_STAT_CAP_INFO_EMPTY()
+};
+
+static const mlnx_attr_enum_info_t hash_enum_info[] = {
     [SAI_HASH_ATTR_NATIVE_HASH_FIELD_LIST] = ATTR_ENUM_VALUES_ALL(),
 };
-const mlnx_obj_type_attrs_info_t          mlnx_hash_obj_type_info = {
+const mlnx_obj_type_attrs_info_t   mlnx_hash_obj_type_info = {
     hash_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(hash_enum_info), OBJ_STAT_CAP_INFO_EMPTY()
 };
 static void hash_key_to_str(_In_ sai_object_id_t hash_id, _Out_ char *key_str)
@@ -118,6 +232,42 @@ static sai_status_t mlnx_hash_obj_create(sai_object_id_t* new_object)
 
     sai_db_sync();
     sai_db_unlock();
+
+    return status;
+}
+
+/* Create new FG hash field object. */
+static sai_status_t mlnx_fg_hash_field_obj_create(sai_object_id_t* new_object, uint32_t* obj_index)
+{
+    uint32_t     ii = 0;
+    sai_status_t status = SAI_STATUS_SUCCESS;
+
+    sai_db_write_lock();
+
+    /* Find next free index in fg_hash_fields array */
+    while (ii < MLNX_SAI_FG_HASH_FIELDS_MAX_COUNT &&
+           g_sai_db_ptr->fg_hash_fields[ii].fg_field_id != SAI_NULL_OBJECT_ID) {
+        ++ii;
+    }
+
+    if (ii == MLNX_SAI_FG_HASH_FIELDS_MAX_COUNT) {
+        sai_db_unlock();
+        SX_LOG_ERR("Failed to create new fine grained hash field object - hash DB is full.\n");
+        return SAI_STATUS_TABLE_FULL;
+    }
+
+    if (SAI_STATUS_SUCCESS !=
+        (status = mlnx_create_object(SAI_OBJECT_TYPE_FINE_GRAINED_HASH_FIELD, ii, NULL, new_object))) {
+        sai_db_unlock();
+        return status;
+    }
+
+    g_sai_db_ptr->fg_hash_fields[ii].fg_field_id = *new_object;
+    *obj_index = ii;
+
+    sai_db_sync();
+    sai_db_unlock();
+
     return status;
 }
 
@@ -149,6 +299,230 @@ static sai_status_t mlnx_hash_obj_native_fields_set(const sai_object_id_t hash_i
     return status;
 }
 
+/* Check if fields can be symmetric */
+static sai_status_t mlnx_hash_obj_symmetric_fg_fields_check(mlnx_sai_fg_hash_field_t* fg_fields, uint32_t fields_count)
+{
+    sai_status_t status = SAI_STATUS_SUCCESS;
+    uint32_t     ii = 0;
+
+    SX_LOG_ENTER();
+
+    for (; ii < fields_count; ii++) {
+        if (fg_fields[ii].sequence_id == fg_fields[ii + 1].sequence_id) {
+            switch (fg_fields[ii].field) {
+            case SAI_NATIVE_HASH_FIELD_SRC_IPV4:
+                if (fg_fields[ii + 1].field != SAI_NATIVE_HASH_FIELD_DST_IPV4) {
+                    status = SAI_STATUS_INVALID_PARAMETER;
+                    goto out;
+                }
+                if (fg_fields[ii].ip_mask.ip4 != fg_fields[ii + 1].ip_mask.ip4) {
+                    status = SAI_STATUS_NOT_SUPPORTED;
+                    goto out;
+                }
+                break;
+
+            case SAI_NATIVE_HASH_FIELD_DST_IPV4:
+                if (fg_fields[ii + 1].field != SAI_NATIVE_HASH_FIELD_SRC_IPV4) {
+                    status = SAI_STATUS_INVALID_PARAMETER;
+                    goto out;
+                }
+                if (fg_fields[ii].ip_mask.ip4 != fg_fields[ii + 1].ip_mask.ip4) {
+                    status = SAI_STATUS_NOT_SUPPORTED;
+                    goto out;
+                }
+                break;
+
+            case SAI_NATIVE_HASH_FIELD_SRC_IPV6:
+                if (fg_fields[ii + 1].field != SAI_NATIVE_HASH_FIELD_DST_IPV6) {
+                    status = SAI_STATUS_INVALID_PARAMETER;
+                    goto out;
+                }
+                if (memcmp(&(fg_fields[ii].ip_mask.ip6[0]), &(fg_fields[ii + 1].ip_mask.ip6[0]), sizeof(sai_ip6_t))) {
+                    status = SAI_STATUS_NOT_SUPPORTED;
+                    goto out;
+                }
+                break;
+
+            case SAI_NATIVE_HASH_FIELD_DST_IPV6:
+                if (fg_fields[ii + 1].field != SAI_NATIVE_HASH_FIELD_SRC_IPV6) {
+                    status = SAI_STATUS_INVALID_PARAMETER;
+                    goto out;
+                }
+                if (memcmp(&(fg_fields[ii].ip_mask.ip6[0]), &(fg_fields[ii + 1].ip_mask.ip6[0]), sizeof(sai_ip6_t))) {
+                    status = SAI_STATUS_NOT_SUPPORTED;
+                    goto out;
+                }
+                break;
+
+            case SAI_NATIVE_HASH_FIELD_INNER_SRC_IPV4:
+                if (fg_fields[ii + 1].field != SAI_NATIVE_HASH_FIELD_INNER_DST_IPV4) {
+                    status = SAI_STATUS_INVALID_PARAMETER;
+                    goto out;
+                }
+                if (fg_fields[ii].ip_mask.ip4 != fg_fields[ii + 1].ip_mask.ip4) {
+                    status = SAI_STATUS_NOT_SUPPORTED;
+                    goto out;
+                }
+                break;
+
+            case SAI_NATIVE_HASH_FIELD_INNER_DST_IPV4:
+                if (fg_fields[ii + 1].field != SAI_NATIVE_HASH_FIELD_INNER_SRC_IPV4) {
+                    status = SAI_STATUS_INVALID_PARAMETER;
+                    goto out;
+                }
+                if (fg_fields[ii].ip_mask.ip4 != fg_fields[ii + 1].ip_mask.ip4) {
+                    status = SAI_STATUS_NOT_SUPPORTED;
+                    goto out;
+                }
+                break;
+
+            case SAI_NATIVE_HASH_FIELD_INNER_SRC_IPV6:
+                if (fg_fields[ii + 1].field != SAI_NATIVE_HASH_FIELD_INNER_DST_IPV6) {
+                    status = SAI_STATUS_INVALID_PARAMETER;
+                    goto out;
+                }
+                if (memcmp(&(fg_fields[ii].ip_mask.ip6[0]), &(fg_fields[ii + 1].ip_mask.ip6[0]), sizeof(sai_ip6_t))) {
+                    status = SAI_STATUS_NOT_SUPPORTED;
+                    goto out;
+                }
+                break;
+
+            case SAI_NATIVE_HASH_FIELD_INNER_DST_IPV6:
+                if (fg_fields[ii + 1].field != SAI_NATIVE_HASH_FIELD_INNER_SRC_IPV6) {
+                    status = SAI_STATUS_INVALID_PARAMETER;
+                    goto out;
+                }
+                if (memcmp(&(fg_fields[ii].ip_mask.ip6[0]), &(fg_fields[ii + 1].ip_mask.ip6[0]), sizeof(sai_ip6_t))) {
+                    status = SAI_STATUS_NOT_SUPPORTED;
+                    goto out;
+                }
+                break;
+
+            case SAI_NATIVE_HASH_FIELD_L4_SRC_PORT:
+                if (fg_fields[ii + 1].field != SAI_NATIVE_HASH_FIELD_L4_DST_PORT) {
+                    status = SAI_STATUS_INVALID_PARAMETER;
+                    goto out;
+                }
+                break;
+
+            case SAI_NATIVE_HASH_FIELD_L4_DST_PORT:
+                if (fg_fields[ii + 1].field != SAI_NATIVE_HASH_FIELD_L4_SRC_PORT) {
+                    status = SAI_STATUS_INVALID_PARAMETER;
+                    goto out;
+                }
+                break;
+
+            case SAI_NATIVE_HASH_FIELD_INNER_L4_SRC_PORT:
+                if (fg_fields[ii + 1].field != SAI_NATIVE_HASH_FIELD_INNER_L4_DST_PORT) {
+                    status = SAI_STATUS_INVALID_PARAMETER;
+                    goto out;
+                }
+                break;
+
+            case SAI_NATIVE_HASH_FIELD_INNER_L4_DST_PORT:
+                if (fg_fields[ii + 1].field != SAI_NATIVE_HASH_FIELD_INNER_L4_SRC_PORT) {
+                    status = SAI_STATUS_INVALID_PARAMETER;
+                    goto out;
+                }
+                break;
+
+            default:
+                SX_LOG_ERR("Only source and destination IPs or ports can have equal sequence ids!\n");
+                return SAI_STATUS_FAILURE;
+            }
+        }
+    }
+
+out:
+    if (status == SAI_STATUS_INVALID_PARAMETER) {
+        SX_LOG_ERR("These fields [%s] and [%s] can not have equal sequence ids \n",
+                   MLNX_SAI_NATIVE_HASH_FIELD_STR(fg_fields[ii].field),
+                   MLNX_SAI_NATIVE_HASH_FIELD_STR(fg_fields[ii + 1].field));
+    } else if (status == SAI_STATUS_NOT_SUPPORTED) {
+        SX_LOG_ERR("Masks of the symmetric fields [%s] and [%s] should be equal! \n",
+                   MLNX_SAI_NATIVE_HASH_FIELD_STR(fg_fields[ii].field),
+                   MLNX_SAI_NATIVE_HASH_FIELD_STR(fg_fields[ii + 1].field));
+    }
+    SX_LOG_EXIT();
+    return status;
+}
+
+/* Set native fields for specified hash object */
+static sai_status_t mlnx_hash_obj_fg_fields_list_set(const sai_object_id_t     hash_id,
+                                                     mlnx_sai_fg_hash_field_t* fg_fields,
+                                                     uint32_t                  fields_count)
+{
+    uint32_t                 hash_data = 0;
+    mlnx_sai_fg_hash_field_t fg_fields_list[MLNX_SAI_FG_HASH_FIELDS_MAX_COUNT] = {SAI_NULL_OBJECT_ID};
+    sai_status_t             status = SAI_STATUS_SUCCESS;
+
+    if (SAI_STATUS_SUCCESS != mlnx_object_to_type(hash_id, SAI_OBJECT_TYPE_HASH, &hash_data, NULL)) {
+        return SAI_STATUS_FAILURE;
+    }
+
+    /*set sequence id for fields where it was not set by user */
+    uint8_t  not_set_count = 0;
+    uint8_t  set_count = 0;
+    uint32_t max_seq_id = 0;
+
+    for (uint32_t ind = 0; ind < fields_count; ind++) {
+        if (fg_fields[ind].sequence_id == 0) {
+            ++not_set_count;
+        } else {
+            if (max_seq_id < fg_fields[ind].sequence_id) {
+                max_seq_id = fg_fields[ind].sequence_id;
+            }
+            fg_fields_list[set_count] = fg_fields[ind];
+            ++set_count;
+        }
+    }
+
+    for (uint32_t ind = 0; ind < fields_count; ind++) {
+        if (fg_fields[ind].sequence_id == 0) {
+            fg_fields_list[set_count] = fg_fields[ind];
+            ++set_count;
+        }
+    }
+
+    if (not_set_count > 0) {
+        for (uint8_t ii = 0; ii < not_set_count; ++ii) {
+            for (uint32_t ind = 0; ind < fields_count; ind++) {
+                if (fg_fields_list[ind].sequence_id == 0) {
+                    if (max_seq_id == 0xffffffff) {
+                        return SAI_STATUS_BUFFER_OVERFLOW;
+                    }
+                    ++max_seq_id;
+                    fg_fields_list[ind].sequence_id = max_seq_id;
+                }
+            }
+        }
+    }
+    /*sort fields array (increasing of the sequence id) */
+    for (uint32_t ind = 0; ind < fields_count - 1; ind++) {
+        bool swapped = false;
+        for (uint32_t jj = 0; jj < fields_count - ind - 1; ++jj) {
+            if (fg_fields_list[jj].sequence_id > fg_fields_list[jj + 1].sequence_id) {
+                mlnx_sai_fg_hash_field_t tmp = fg_fields_list[jj];
+                fg_fields_list[jj] = fg_fields_list[jj + 1];
+                fg_fields_list[jj + 1] = tmp;
+                swapped = true;
+            }
+        }
+        if (!swapped) {
+            break;
+        }
+    }
+
+    status = mlnx_hash_obj_symmetric_fg_fields_check(fg_fields_list, set_count);
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+    memcpy(g_sai_db_ptr->hash_list[hash_data].fg_fields, fg_fields_list,
+           MLNX_SAI_FG_HASH_FIELDS_MAX_COUNT * sizeof(mlnx_sai_fg_hash_field_t));
+
+    return SAI_STATUS_SUCCESS;
+}
 /* Get native fields configured for a specified hash object */
 static sai_status_t mlnx_hash_obj_native_fileds_get(const sai_object_id_t hash_id, sai_attribute_value_t* value)
 {
@@ -329,6 +703,8 @@ static bool mlnx_hash_obj_need_apply(mlnx_switch_usage_hash_object_id_t hash_ope
     case SAI_HASH_LAG_IPINIP_ID:
     case SAI_HASH_ECMP_IP6_ID:
     case SAI_HASH_LAG_IP6_ID:
+    case SAI_HASH_FG_1_ID:
+    case SAI_HASH_FG_2_ID:
         break;
 
     case SAI_HASH_MAX_OBJ_ID:
@@ -996,9 +1372,17 @@ static sai_status_t mlnx_hash_obj_remove(sai_object_id_t hash_id)
         goto out;
     }
 
+    status = mlnx_udf_group_mask_references_del(g_sai_db_ptr->hash_list[hash_data].udf_group_mask);
+    if (SAI_ERR(status)) {
+        goto out;
+    }
+
     g_sai_db_ptr->hash_list[hash_data].field_mask = 0;
     g_sai_db_ptr->hash_list[hash_data].udf_group_mask = MLNX_UDF_GROUP_MASK_EMPTY;
     g_sai_db_ptr->hash_list[hash_data].hash_id = SAI_NULL_OBJECT_ID;
+    memset(g_sai_db_ptr->hash_list[hash_data].fg_fields,
+           0,
+           sizeof(mlnx_sai_fg_hash_field_t) * MLNX_SAI_FG_HASH_FIELDS_MAX_COUNT);
 
 out:
     sai_db_sync();
@@ -1213,6 +1597,123 @@ out:
     return status;
 }
 
+/* Get Hash fine grained fields [sai_u32_list_t(sai_native_hash_field)] */
+static sai_status_t mlnx_hash_fg_field_list_get(_In_ const sai_object_key_t   *key,
+                                                _Inout_ sai_attribute_value_t *value,
+                                                _In_ uint32_t                  attr_index,
+                                                _Inout_ vendor_cache_t        *cache,
+                                                void                          *arg)
+{
+    uint32_t         hash_data = 0;
+    sai_object_id_t  hash_id = key->key.object_id;
+    sai_status_t     status = SAI_STATUS_SUCCESS;
+    sai_object_id_t  fg_field = SAI_NULL_OBJECT_ID;
+    sai_object_id_t *fg_fields = NULL;
+    uint32_t         fg_fields_count = 0;
+    uint32_t         ii = 0;
+
+    if (SAI_STATUS_SUCCESS != (status = mlnx_object_to_type(hash_id, SAI_OBJECT_TYPE_HASH, &hash_data, NULL))) {
+        return status;
+    }
+
+    fg_fields = calloc(MLNX_SAI_FG_HASH_FIELDS_MAX_COUNT, sizeof(*fg_fields));
+    if (!fg_fields) {
+        SX_LOG_ERR("Failed to allocate memory\n");
+        return SAI_STATUS_NO_MEMORY;
+    }
+
+    sai_db_read_lock();
+
+    for (ii = 0; ii < MLNX_SAI_FG_HASH_FIELDS_MAX_COUNT; ++ii) {
+        fg_field = g_sai_db_ptr->hash_list[hash_data].fg_fields[ii].fg_field_id;
+        if (SAI_NULL_OBJECT_ID == fg_field) {
+            break;
+        }
+        fg_fields[ii] = fg_field;
+        ++fg_fields_count;
+    }
+
+    sai_db_unlock();
+
+    status = mlnx_fill_objlist(fg_fields, fg_fields_count, &value->objlist);
+
+    safe_free(fg_fields);
+    return status;
+}
+
+/* Set Hash fine grained fields [sai_u32_list_t(sai_native_hash_field)] */
+static sai_status_t mlnx_hash_fg_field_list_set(_In_ const sai_object_key_t      *key,
+                                                _In_ const sai_attribute_value_t *value,
+                                                void                             *arg)
+{
+    mlnx_switch_usage_hash_object_id_t hash_oper_id = 0;
+    sai_object_id_t                    hash_id = key->key.object_id;
+    uint32_t                           hash_index = 0;
+    uint32_t                           field_index = 0;
+    sai_status_t                       status = SAI_STATUS_SUCCESS;
+    mlnx_sai_fg_hash_field_t           fg_fields[MLNX_SAI_FG_HASH_FIELDS_MAX_COUNT] = {SAI_NULL_OBJECT_ID};
+
+    SX_LOG_ENTER();
+
+
+    sai_db_write_lock();
+
+    hash_oper_id = mlnx_hash_get_oper_id(hash_id);
+
+    if (hash_oper_id != SAI_HASH_MAX_OBJ_ID) {
+        SX_LOG_ERR("Hash object is in use!\n");
+        status = SAI_STATUS_OBJECT_IN_USE;
+        goto out;
+    }
+
+    if (SAI_STATUS_SUCCESS != mlnx_object_to_type(hash_id, SAI_OBJECT_TYPE_HASH, &hash_index, NULL)) {
+        status = SAI_STATUS_FAILURE;
+        goto out;
+    }
+
+    if (g_sai_db_ptr->hash_list[hash_index].udf_group_mask || g_sai_db_ptr->hash_list[hash_index].field_mask) {
+        MLNX_SAI_LOG_ERR(
+            "Can not add fine grain hash field list - already configured native hash field list or UDF group list\n");
+        status = SAI_STATUS_FAILURE;
+        goto out;
+    }
+
+    if (value->objlist.count > MLNX_SAI_FG_HASH_FIELDS_MAX_COUNT) {
+        SX_LOG_ERR("Provided hash fields list member count is =  %u. ", value->objlist.count);
+        SX_LOG_ERR("Maximum supported hash fields list members count is = %u\n", MLNX_SAI_FG_HASH_FIELDS_MAX_COUNT);
+        status = SAI_STATUS_INVALID_ATTR_VALUE_0;
+        goto out;
+    }
+
+    for (uint32_t ind = 0; ind < value->objlist.count; ind++) {
+        if (SAI_NULL_OBJECT_ID == value->objlist.list[ind]) {
+            SX_LOG_ERR("NULL object in the fg fields list! ind = %u\n", ind);
+            status = SAI_STATUS_INVALID_ATTR_VALUE_0;
+            goto out;
+        }
+
+        status = mlnx_object_to_type(value->objlist.list[ind],
+                                     SAI_OBJECT_TYPE_FINE_GRAINED_HASH_FIELD,
+                                     &field_index,
+                                     NULL);
+        if (SAI_ERR(status)) {
+            goto out;
+        }
+        fg_fields[ind] = g_sai_db_ptr->fg_hash_fields[field_index];
+    }
+
+    status = mlnx_hash_obj_fg_fields_list_set(hash_id, fg_fields, value->objlist.count);
+    if (SAI_ERR(status)) {
+        goto out;
+    }
+
+out:
+    sai_db_sync();
+    sai_db_unlock();
+    SX_LOG_EXIT();
+    return status;
+}
+
 static sai_status_t mlnx_hash_udf_group_list_get(_In_ const sai_object_key_t   *key,
                                                  _Inout_ sai_attribute_value_t *value,
                                                  _In_ uint32_t                  attr_index,
@@ -1326,10 +1827,11 @@ static sai_status_t mlnx_create_hash(_Out_ sai_object_id_t     * hash_id,
                                      _In_ const sai_attribute_t *attr_list)
 {
     uint32_t                     index = 0;
-    const sai_attribute_value_t *native_filed_list, *udf_group_list;
+    const sai_attribute_value_t *native_filed_list, *udf_group_list, *fg_fields_list;
     char                         list_str[MAX_LIST_VALUE_STR_LEN] = {0};
     char                         key_str[MAX_KEY_STR_LEN] = {0};
     sai_status_t                 status = SAI_STATUS_SUCCESS;
+    mlnx_sai_fg_hash_field_t     fg_fields[MLNX_SAI_FG_HASH_FIELDS_MAX_COUNT] = {SAI_NULL_OBJECT_ID};
 
     SX_LOG_ENTER();
 
@@ -1376,6 +1878,51 @@ static sai_status_t mlnx_create_hash(_Out_ sai_object_id_t     * hash_id,
     if (SAI_STATUS_SUCCESS == status) {
         status = mlnx_hash_obj_udf_group_list_set(*hash_id, index, udf_group_list);
         if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to create %s.\n", key_str);
+            goto out;
+        }
+    }
+
+    status = find_attrib_in_list(attr_count, attr_list, SAI_HASH_ATTR_FINE_GRAINED_HASH_FIELD_LIST,
+                                 &fg_fields_list, &index);
+
+    if (SAI_STATUS_SUCCESS == status) {
+        uint32_t field_index = 0;
+        uint32_t hash_index = 0;
+
+        if (SAI_STATUS_SUCCESS != mlnx_object_to_type(*hash_id, SAI_OBJECT_TYPE_HASH, &hash_index, NULL)) {
+            return SAI_STATUS_FAILURE;
+        }
+
+        if (g_sai_db_ptr->hash_list[hash_index].udf_group_mask || g_sai_db_ptr->hash_list[hash_index].field_mask) {
+            MLNX_SAI_LOG_ERR(
+                "Can not add fine grain hash field list - already configured native hash field list or UDF group list\n");
+            return SAI_STATUS_FAILURE;
+        }
+
+        if (fg_fields_list->objlist.count > MLNX_SAI_FG_HASH_FIELDS_MAX_COUNT) {
+            MLNX_SAI_LOG_ERR("Maximum supported hash fields list members count is = %u\n",
+                             MLNX_SAI_FG_HASH_FIELDS_MAX_COUNT);
+            return SAI_STATUS_FAILURE;
+        }
+        for (uint32_t ind = 0; ind < fg_fields_list->objlist.count; ind++) {
+            if (SAI_NULL_OBJECT_ID == fg_fields_list->objlist.list[ind]) {
+                MLNX_SAI_LOG_ERR("NULL object in the fg fields list! ind = %u\n", ind);
+                return SAI_STATUS_INVALID_OBJECT_ID;
+            }
+
+            status = mlnx_object_to_type(fg_fields_list->objlist.list[ind],
+                                         SAI_OBJECT_TYPE_FINE_GRAINED_HASH_FIELD,
+                                         &field_index,
+                                         NULL);
+            if (SAI_ERR(status)) {
+                return SAI_STATUS_INVALID_OBJECT_ID;
+            }
+            fg_fields[ind] = g_sai_db_ptr->fg_hash_fields[field_index];
+        }
+
+        status = mlnx_hash_obj_fg_fields_list_set(*hash_id, fg_fields, fg_fields_list->objlist.count);
+        if (SAI_STATUS_SUCCESS != status) {
             SX_LOG_ERR("Failed to create %s.\n", key_str);
             goto out;
         }
@@ -1479,6 +2026,1560 @@ static sai_status_t mlnx_get_hash_attribute(_In_ sai_object_id_t     hash_id,
     hash_key_to_str(hash_id, key_str);
     return sai_get_attributes(&key, key_str, SAI_OBJECT_TYPE_HASH, hash_vendor_attribs, attr_count, attr_list);
 }
+/*do not need this func, only print index */
+static void fg_hash_field_key_to_str(_In_ sai_object_id_t hash_field_id, _Out_ char *key_str)
+{
+    sai_status_t     status;
+    uint32_t         field_index;
+    char             ip_str[40];
+    sai_ip_address_t ip;
+
+    status = mlnx_object_to_type(hash_field_id, SAI_OBJECT_TYPE_FINE_GRAINED_HASH_FIELD, &field_index, NULL);
+    if (SAI_ERR(status)) {
+        snprintf(key_str, MAX_KEY_STR_LEN, "Invalid FG hash field id");
+        return;
+    }
+
+    switch (g_sai_db_ptr->fg_hash_fields[field_index].field) {
+    case SAI_NATIVE_HASH_FIELD_DST_IPV4:
+    case SAI_NATIVE_HASH_FIELD_SRC_IPV4:
+    case SAI_NATIVE_HASH_FIELD_INNER_DST_IPV4:
+    case SAI_NATIVE_HASH_FIELD_INNER_SRC_IPV4:
+        ip.addr_family = SAI_IP_ADDR_FAMILY_IPV4;
+        ip.addr = g_sai_db_ptr->fg_hash_fields[field_index].ip_mask;
+        status = sai_ipaddr_to_str(ip, 40 - 1, ip_str, NULL);
+        if (SAI_ERR(status)) {
+            strcpy(ip_str, "-");
+        }
+        break;
+
+    case SAI_NATIVE_HASH_FIELD_DST_IPV6:
+    case SAI_NATIVE_HASH_FIELD_SRC_IPV6:
+    case SAI_NATIVE_HASH_FIELD_INNER_DST_IPV6:
+    case SAI_NATIVE_HASH_FIELD_INNER_SRC_IPV6:
+        ip.addr_family = SAI_IP_ADDR_FAMILY_IPV6;
+        ip.addr = g_sai_db_ptr->fg_hash_fields[field_index].ip_mask;
+        status = sai_ipaddr_to_str(ip, 40 - 1, ip_str, NULL);
+        if (SAI_ERR(status)) {
+            strcpy(ip_str, "-");
+        }
+        break;
+
+    default:
+        strcpy(ip_str, "-");
+        break;
+    }
+
+    snprintf(key_str,
+             MAX_KEY_STR_LEN,
+             "FG hash field [%u] type (field:%s, mask:%s, sequence_id: %u)",
+             field_index,
+             MLNX_SAI_NATIVE_HASH_FIELD_STR(g_sai_db_ptr->fg_hash_fields[field_index].field),
+             ip_str,
+             g_sai_db_ptr->fg_hash_fields[field_index].sequence_id);
+}
+
+void pbhash_offset_and_size_calculate(uint16_t mask, uint8_t *offset, uint8_t *size)
+{
+    uint8_t ii = 0;
+    bool    first_found = false;
+
+    for (ii = 0; ii < 16; ++ii) {
+        if (!first_found) {
+            if (!((mask >> ii) & 0x1)) {
+                continue;
+            } else {
+                *offset = ii;
+                first_found = true;
+            }
+        } else {
+            if ((mask >> ii) & 0x1) {
+                continue;
+            } else {
+                break;
+            }
+        }
+    }
+    *size = ii - *offset;
+}
+
+/*
+ * Check the IP mask. Supported a simple IP mask which have only one sequence of bits
+ * for every 16 bits
+ */
+static sai_status_t fg_hash_field_ip_mask_check(sai_ip_address_t addr)
+{
+    uint16_t mask = 0;
+    uint16_t ii = 0;
+    uint8_t  size = 0;
+    uint8_t  offset = 0;
+
+    if (addr.addr_family == SAI_IP_ADDR_FAMILY_IPV4) {
+        if (0 != (mask = addr.addr.ip4 >> 16)) {
+            pbhash_offset_and_size_calculate(mask, &offset, &size);
+            for (ii = offset + size; ii < 16; ++ii) {
+                if ((mask >> ii) & 0x1) {
+                    return SAI_STATUS_FAILURE;
+                }
+            }
+        }
+        if (0 != (mask = addr.addr.ip4 & 0xFFFF)) {
+            pbhash_offset_and_size_calculate(mask, &offset, &size);
+            for (ii = offset + size; ii < 16; ++ii) {
+                if ((mask >> ii) & 0x1) {
+                    return SAI_STATUS_FAILURE;
+                }
+            }
+        }
+    } else {
+        for (int ii = 0; ii < 16; ii += 2) {
+            mask = (addr.addr.ip6[ii] << 8) | addr.addr.ip6[ii + 1];
+            SX_LOG_DBG("mask = %x, addr.addr.ip6[%i] = %x, addr.addr.ip6[%i] = %x\n",
+                       mask,
+                       ii,
+                       addr.addr.ip6[ii],
+                       ii + 1,
+                       addr.addr.ip6[ii + 1]);
+            if (mask) {
+                pbhash_offset_and_size_calculate(mask, &offset, &size);
+                for (int jj = offset + size; jj < 16; ++jj) {
+                    if ((mask >> jj) & 0x1) {
+                        return SAI_STATUS_FAILURE;
+                    }
+                }
+            }
+        }
+    }
+    return SAI_STATUS_SUCCESS;
+}
+
+/*
+ * Routine Description:
+ *   Create fine grained hash field
+ *
+ * Arguments:
+ *   [out] hash_field_id - fg hash field id
+ *   [in] attr_count - number of attributes
+ *   [in] attr_list - array of attributes
+ *
+ * Return Values:
+ *    SAI_STATUS_SUCCESS on success
+ *    Failure status code on error
+ */
+static sai_status_t mlnx_create_fine_grained_hash_field(_Out_ sai_object_id_t      *hash_field_id,
+                                                        _In_ sai_object_id_t        switch_id,
+                                                        _In_ uint32_t               attr_count,
+                                                        _In_ const sai_attribute_t *attr_list)
+{
+    char                         key_str[MAX_KEY_STR_LEN];
+    char                         list_str[MAX_LIST_VALUE_STR_LEN];
+    const sai_attribute_value_t *hash_field = NULL, *sequence = NULL, *mask = NULL;
+    sai_ip_address_t             addr;
+    uint32_t                     field_index;
+    uint32_t                     sequence_id;
+    uint32_t                     obj_index = 0;
+    sai_status_t                 status = SAI_STATUS_SUCCESS;
+
+    SX_LOG_ENTER();
+
+    if (NULL == hash_field_id) {
+        SX_LOG_ERR("NULL FG hash field ID\n");
+        return SAI_STATUS_INVALID_PARAMETER;
+    }
+
+    if (SAI_STATUS_SUCCESS !=
+        (status =
+             check_attribs_metadata(attr_count, attr_list, SAI_OBJECT_TYPE_FINE_GRAINED_HASH_FIELD,
+                                    fg_hash_field_vendor_attribs,
+                                    SAI_COMMON_API_CREATE))) {
+        SX_LOG_ERR("Failed attributes check\n");
+        return status;
+    }
+
+    sai_attr_list_to_str(attr_count, attr_list, SAI_OBJECT_TYPE_FINE_GRAINED_HASH_FIELD, MAX_LIST_VALUE_STR_LEN,
+                         list_str);
+    SX_LOG_NTC("Create fine grain hash field object. Attributes %s.\n", list_str);
+
+    status = find_attrib_in_list(attr_count,
+                                 attr_list,
+                                 SAI_FINE_GRAINED_HASH_FIELD_ATTR_NATIVE_HASH_FIELD,
+                                 &hash_field,
+                                 &field_index);
+    assert(SAI_STATUS_SUCCESS == status);
+
+    status = find_attrib_in_list(attr_count,
+                                 attr_list,
+                                 SAI_FINE_GRAINED_HASH_FIELD_ATTR_SEQUENCE_ID,
+                                 &sequence,
+                                 &field_index);
+    if (status != SAI_STATUS_SUCCESS) {
+        if (SAI_STATUS_ITEM_NOT_FOUND == status) {
+            sequence_id = 0;
+        } else {
+            return status;
+        }
+    } else {
+        if (sequence->u32 == 0xffffffff) {
+            SX_LOG_ERR("Reserved sequence ID value\n");
+            return SAI_STATUS_INVALID_ATTR_VALUE_0 + field_index;
+        }
+        sequence_id = sequence->u32 + 1;
+    }
+
+    if (SAI_ERR(status = mlnx_fg_hash_field_obj_create(hash_field_id, &obj_index))) {
+        SX_LOG_ERR("Filed to create hash field obj\n");
+        return status;
+    }
+
+    sai_db_write_lock();
+
+    switch (hash_field->s32) {
+    case SAI_NATIVE_HASH_FIELD_DST_IPV4:
+    case SAI_NATIVE_HASH_FIELD_SRC_IPV4:
+    case SAI_NATIVE_HASH_FIELD_INNER_DST_IPV4:
+    case SAI_NATIVE_HASH_FIELD_INNER_SRC_IPV4:
+        status = find_attrib_in_list(attr_count,
+                                     attr_list,
+                                     SAI_FINE_GRAINED_HASH_FIELD_ATTR_IPV4_MASK,
+                                     &mask,
+                                     &field_index);
+        assert(SAI_STATUS_SUCCESS == status);
+
+        addr.addr_family = SAI_IP_ADDR_FAMILY_IPV4;
+        addr.addr.ip4 = mask->ip4;
+        if (SAI_ERR(status = fg_hash_field_ip_mask_check(addr))) {
+            SX_LOG_ERR(
+                "Such IPv4 mask is not supported! Supported a simple IP mask which have only one sequence of bits. \n");
+            goto out;
+        }
+        g_sai_db_ptr->fg_hash_fields[obj_index].ip_mask.ip4 = mask->ip4;
+        break;
+
+    case SAI_NATIVE_HASH_FIELD_DST_IPV6:
+    case SAI_NATIVE_HASH_FIELD_SRC_IPV6:
+    case SAI_NATIVE_HASH_FIELD_INNER_DST_IPV6:
+    case SAI_NATIVE_HASH_FIELD_INNER_SRC_IPV6:
+        status = find_attrib_in_list(attr_count,
+                                     attr_list,
+                                     SAI_FINE_GRAINED_HASH_FIELD_ATTR_IPV6_MASK,
+                                     &mask,
+                                     &field_index);
+        assert(SAI_STATUS_SUCCESS == status);
+
+        addr.addr_family = SAI_IP_ADDR_FAMILY_IPV6;
+        memcpy(addr.addr.ip6, mask->ip6, sizeof(sai_ip6_t));
+        if (SAI_ERR(status = fg_hash_field_ip_mask_check(addr))) {
+            SX_LOG_ERR(
+                "Such IPv6 mask is not supported! Supported a simple IP mask which have only one sequence of bits. \n");
+            goto out;
+        }
+        memcpy(g_sai_db_ptr->fg_hash_fields[obj_index].ip_mask.ip6, mask->ip6, sizeof(sai_ip6_t));
+        break;
+
+    default:
+        memset(&g_sai_db_ptr->fg_hash_fields[obj_index].ip_mask, 0, sizeof(sai_ip_addr_t));
+        break;
+    }
+
+    g_sai_db_ptr->fg_hash_fields[obj_index].fg_field_id = *hash_field_id;
+    g_sai_db_ptr->fg_hash_fields[obj_index].field = hash_field->s32;
+    g_sai_db_ptr->fg_hash_fields[obj_index].sequence_id = sequence_id;
+    fg_hash_field_key_to_str(*hash_field_id, key_str);
+
+    SX_LOG_NTC("Created %s.\n", key_str);
+
+out:
+    SX_LOG_EXIT();
+    if (SAI_ERR(status)) {
+        g_sai_db_ptr->fg_hash_fields[obj_index].fg_field_id = SAI_NULL_OBJECT_ID;
+    }
+    sai_db_sync();
+    sai_db_unlock();
+    return status;
+}
+
+/* Remove FG hash field object from DB if object is not in-use */
+static sai_status_t mlnx_fg_hash_field_obj_remove(sai_object_id_t field_id)
+{
+    sai_status_t status = SAI_STATUS_SUCCESS;
+    uint32_t     field_index = 0;
+
+    if (SAI_STATUS_SUCCESS != mlnx_object_to_type(field_id, SAI_OBJECT_TYPE_FINE_GRAINED_HASH_FIELD, &field_index,
+                                                  NULL)) {
+        return SAI_STATUS_FAILURE;
+    }
+
+    sai_db_write_lock();
+
+    for (uint32_t ii = 0; ii < SAI_HASH_MAX_OBJ_COUNT; ++ii) {
+        for (uint32_t jj = 0; jj < MLNX_SAI_FG_HASH_FIELDS_MAX_COUNT; ++jj) {
+            if (g_sai_db_ptr->hash_list[ii].fg_fields[jj].fg_field_id == field_id) {
+                status = SAI_STATUS_OBJECT_IN_USE;
+                goto out;
+            }
+        }
+    }
+    memset(&g_sai_db_ptr->fg_hash_fields[field_index], 0, sizeof(mlnx_sai_fg_hash_field_t));
+
+out:
+    sai_db_sync();
+    sai_db_unlock();
+    return status;
+}
+
+/*
+ * Routine Description:
+ *   Remove fine grained hash field
+ *
+ * Arguments:
+ *   [in] field_id - fg hash field id
+ *
+ * Return Values:
+ *    SAI_STATUS_SUCCESS on success
+ *    Failure status code on error
+ */
+sai_status_t mlnx_remove_fine_grained_hash_field(_In_ sai_object_id_t field_id)
+{
+    sai_status_t status;
+    char         key_str[MAX_KEY_STR_LEN];
+
+    SX_LOG_ENTER();
+
+    sai_db_read_lock();
+    fg_hash_field_key_to_str(field_id, key_str);
+    sai_db_unlock();
+
+    if (SAI_ERR(status = mlnx_fg_hash_field_obj_remove(field_id))) {
+        SX_LOG_ERR("Failed to remove %s - err %d\n", key_str, status);
+    }
+
+    SX_LOG_EXIT();
+    return status;
+}
+
+/**
+ * Routine Description:
+ *    @brief Set hash attribute
+ *
+ * Arguments:
+ *    @param[in] hash_id - hash id
+ *    @param[in] attr - attribute
+ *
+ * Return Values:
+ *    @return SAI_STATUS_SUCCESS on success
+ *            Failure status code on error
+ */
+static sai_status_t mlnx_set_fine_grained_hash_field_attribute(_In_ sai_object_id_t        hash_fields_id,
+                                                               _In_ const sai_attribute_t *attr)
+{
+    MLNX_SAI_LOG_ERR("Set is not supported for fine grained hash field attribute.");
+
+    /*TODO add code */
+
+    return SAI_STATUS_NOT_SUPPORTED;
+}
+
+static sai_status_t mlnx_get_fine_grained_hash_field_attribute(_In_ sai_object_id_t     fine_grained_hash_field_id,
+                                                               _In_ uint32_t            attr_count,
+                                                               _Inout_ sai_attribute_t *attr_list)
+{
+    const sai_object_key_t key = { .key.object_id = fine_grained_hash_field_id };
+    char                   key_str[MAX_KEY_STR_LEN];
+
+    sai_db_read_lock();
+    fg_hash_field_key_to_str(fine_grained_hash_field_id, key_str);
+    sai_db_unlock();
+
+    return sai_get_attributes(&key,
+                              key_str,
+                              SAI_OBJECT_TYPE_FINE_GRAINED_HASH_FIELD,
+                              hash_vendor_attribs,
+                              attr_count,
+                              attr_list);
+}
+
+static sai_status_t mlnx_fine_grained_hash_field_attribute_get(_In_ const sai_object_key_t   *key,
+                                                               _Inout_ sai_attribute_value_t *value,
+                                                               _In_ uint32_t                  attr_index,
+                                                               _Inout_ vendor_cache_t        *cache,
+                                                               void                          *arg)
+{
+    sai_status_t            status;
+    uint32_t                field_index;
+    sai_native_hash_field_t hash_field;
+
+    SX_LOG_ENTER();
+
+    status = mlnx_object_to_type(key->key.object_id, SAI_OBJECT_TYPE_FINE_GRAINED_HASH_FIELD, &field_index, NULL);
+    if (SAI_ERR(status)) {
+        goto out;
+    }
+
+    sai_db_read_lock();
+    hash_field = g_sai_db_ptr->fg_hash_fields[field_index].field;
+
+    switch ((int64_t)arg) {
+    case SAI_FINE_GRAINED_HASH_FIELD_ATTR_NATIVE_HASH_FIELD:
+        value->s32 = g_sai_db_ptr->fg_hash_fields[field_index].field;
+        break;
+
+    case SAI_FINE_GRAINED_HASH_FIELD_ATTR_IPV4_MASK:
+        if ((hash_field != SAI_NATIVE_HASH_FIELD_SRC_IPV4)
+            && (hash_field != SAI_NATIVE_HASH_FIELD_DST_IPV4)
+            && (hash_field != SAI_NATIVE_HASH_FIELD_INNER_SRC_IPV4)
+            && (hash_field != SAI_NATIVE_HASH_FIELD_INNER_DST_IPV4)) {
+            SX_LOG_ERR("IPv4 mask is not supported for this field\n");
+            status = SAI_STATUS_FAILURE;
+            goto out;
+        }
+        value->ip4 = g_sai_db_ptr->fg_hash_fields[field_index].ip_mask.ip4;
+        break;
+
+    case SAI_FINE_GRAINED_HASH_FIELD_ATTR_IPV6_MASK:
+        if ((hash_field != SAI_NATIVE_HASH_FIELD_SRC_IPV6)
+            && (hash_field != SAI_NATIVE_HASH_FIELD_DST_IPV6)
+            && (hash_field != SAI_NATIVE_HASH_FIELD_INNER_SRC_IPV6)
+            && (hash_field != SAI_NATIVE_HASH_FIELD_INNER_DST_IPV6)) {
+            SX_LOG_ERR("IPv6 mask is not supported for this field\n");
+            status = SAI_STATUS_FAILURE;
+            goto out;
+        }
+        memcpy(value->ip6, g_sai_db_ptr->fg_hash_fields[field_index].ip_mask.ip6,
+               sizeof(g_sai_db_ptr->fg_hash_fields[field_index].ip_mask.ip6));
+        break;
+
+    case SAI_FINE_GRAINED_HASH_FIELD_ATTR_SEQUENCE_ID:
+        value->s32 = g_sai_db_ptr->fg_hash_fields[field_index].sequence_id;
+        break;
+
+    default:
+        SX_LOG_ERR("Unexpected type of arg (%ld)\n", (int64_t)arg);
+        assert(false);
+    }
+
+out:
+    SX_LOG_EXIT();
+    sai_db_unlock();
+    return status;
+}
+
+bool mlnx_sai_hash_check_optimized_hash_use_case(_In_ uint32_t hash_index, _In_ uint32_t fields_num)
+{
+    uint8_t  optimized_fields_num = 7;
+    uint8_t  tmp_count = 0;
+    uint32_t ii = 0;
+    uint32_t inner_src_ipv4_seq_id = 0xffffffff;
+    uint32_t inner_dst_ipv4_seq_id = 0xffffffff;
+    uint32_t inner_src_ipv6_seq_id = 0xffffffff;
+    uint32_t inner_dst_ipv6_seq_id = 0xffffffff;
+    uint32_t inner_l4_src_seq_id = 0xffffffff;
+    uint32_t inner_l4_dst_seq_id = 0xffffffff;
+    bool     seq_ids_equal = false;
+
+    /* check optimized hash use case */
+    for (ii = 0; ii < fields_num; ++ii) {
+        sai_ip6_t mask = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff, 0xff, 0xff };
+        switch (g_sai_db_ptr->hash_list[hash_index].fg_fields[ii].field) {
+        case SAI_NATIVE_HASH_FIELD_INNER_SRC_IPV4:
+        case SAI_NATIVE_HASH_FIELD_INNER_DST_IPV4:
+            if (g_sai_db_ptr->hash_list[hash_index].fg_fields[ii].ip_mask.ip4 == 0xffffffff) {
+                if (SAI_NATIVE_HASH_FIELD_INNER_SRC_IPV4 == g_sai_db_ptr->hash_list[hash_index].fg_fields[ii].field) {
+                    inner_src_ipv4_seq_id = g_sai_db_ptr->hash_list[hash_index].fg_fields[ii].sequence_id;
+                } else {
+                    inner_dst_ipv4_seq_id = g_sai_db_ptr->hash_list[hash_index].fg_fields[ii].sequence_id;
+                }
+                ++tmp_count;
+            }
+            break;
+
+        case SAI_NATIVE_HASH_FIELD_INNER_SRC_IPV6:
+        case SAI_NATIVE_HASH_FIELD_INNER_DST_IPV6:
+            if (!memcmp(&(g_sai_db_ptr->hash_list[hash_index].fg_fields[ii].ip_mask.ip6[0]), &mask[0],
+                        sizeof(sai_ip6_t))) {
+                if (SAI_NATIVE_HASH_FIELD_INNER_SRC_IPV6 == g_sai_db_ptr->hash_list[hash_index].fg_fields[ii].field) {
+                    inner_src_ipv6_seq_id = g_sai_db_ptr->hash_list[hash_index].fg_fields[ii].sequence_id;
+                } else {
+                    inner_dst_ipv6_seq_id = g_sai_db_ptr->hash_list[hash_index].fg_fields[ii].sequence_id;
+                }
+                ++tmp_count;
+            }
+            break;
+
+        case SAI_NATIVE_HASH_FIELD_INNER_L4_SRC_PORT:
+        case SAI_NATIVE_HASH_FIELD_INNER_L4_DST_PORT:
+            if (SAI_NATIVE_HASH_FIELD_INNER_L4_SRC_PORT == g_sai_db_ptr->hash_list[hash_index].fg_fields[ii].field) {
+                inner_l4_src_seq_id = g_sai_db_ptr->hash_list[hash_index].fg_fields[ii].sequence_id;
+            } else {
+                inner_l4_dst_seq_id = g_sai_db_ptr->hash_list[hash_index].fg_fields[ii].sequence_id;
+            }
+            ++tmp_count;
+            break;
+
+        case SAI_NATIVE_HASH_FIELD_INNER_IP_PROTOCOL:
+            ++tmp_count;
+            break;
+
+        default:
+            tmp_count = 0;
+            break;
+        }
+    }
+
+    seq_ids_equal = (inner_src_ipv4_seq_id == inner_dst_ipv4_seq_id) &&
+                    (inner_src_ipv6_seq_id == inner_dst_ipv6_seq_id) &&
+                    (inner_l4_src_seq_id == inner_l4_dst_seq_id);
+
+    return ((tmp_count == optimized_fields_num) && seq_ids_equal);
+}
+
+sai_status_t mlnx_fine_grained_hash_create(_In_ sai_object_id_t                hash_id,
+                                           _In_ sx_flex_acl_action_hash_type_t action_type,
+                                           _Inout_ sx_flex_acl_flex_action_t  *action_list,
+                                           _Inout_ uint32_t                   *action_num)
+{
+    sai_status_t status = SAI_STATUS_SUCCESS;
+    uint32_t     hash_index;
+    uint32_t     fields_num = 0;
+    bool         revert_regs = false;
+    bool         optimized_hash = false;
+
+    if (SAI_STATUS_SUCCESS != mlnx_object_to_type(hash_id, SAI_OBJECT_TYPE_HASH, &hash_index, NULL)) {
+        return SAI_STATUS_FAILURE;
+    }
+
+    if (SAI_STATUS_SUCCESS != (status = mlnx_init_flex_parser())) {
+        SX_LOG_ERR("Failed to init_flex_parser\n");
+        return status;
+    }
+
+    if ((g_sai_db_ptr->oper_hash_list[SAI_HASH_FG_1_ID] != SAI_NULL_OBJECT_ID) &&
+        (g_sai_db_ptr->oper_hash_list[SAI_HASH_FG_2_ID] != SAI_NULL_OBJECT_ID) &&
+        (g_sai_db_ptr->hash_list[hash_index].fg_hash_ref_count == 0)) {
+        SX_LOG_ERR("Maximum possible number of fine-grained hash are already configured! \n");
+        return SAI_STATUS_TABLE_FULL;
+    }
+
+    for (uint32_t ii = 0; ii < MLNX_SAI_FG_HASH_FIELDS_MAX_COUNT; ++ii) {
+        if (g_sai_db_ptr->hash_list[hash_index].fg_fields[ii].fg_field_id != SAI_NULL_OBJECT_ID) {
+            ++fields_num;
+        }
+    }
+
+    optimized_hash = mlnx_sai_hash_check_optimized_hash_use_case(hash_index, fields_num);
+
+    if (g_sai_db_ptr->hash_list[hash_index].fg_hash_ref_count == 0) {
+        if (SAI_ERR(status =
+                        gp_registers_availability_check(fields_num, g_sai_db_ptr->hash_list[hash_index].fg_fields,
+                                                        optimized_hash))) {
+            MLNX_SAI_LOG_ERR("Not enough available general purpose registers for FG hash function!\n");
+            goto out;
+        }
+
+        if (SAI_ERR(status =
+                        gp_registers_allocation(fields_num, g_sai_db_ptr->hash_list[hash_index].fg_fields,
+                                                optimized_hash))) {
+            MLNX_SAI_LOG_ERR("Failed to allocate general purpose registers for FG hash function!\n");
+            revert_regs = true;
+            goto out;
+        }
+    }
+
+    if (!optimized_hash) {
+        mlnx_fg_hash_action_list_create(action_type,
+                                        fields_num,
+                                        g_sai_db_ptr->hash_list[hash_index].fg_fields,
+                                        action_list,
+                                        action_num);
+    } else {
+        mlnx_fg_optimized_hash_action_list_create(action_type,
+                                                  fields_num,
+                                                  g_sai_db_ptr->hash_list[hash_index].fg_fields,
+                                                  action_list,
+                                                  action_num);
+    }
+
+    g_sai_db_ptr->hash_list[hash_index].fg_hash_ref_count++;
+
+out:
+    if (revert_regs) {
+        gp_registers_delete(g_sai_db_ptr->hash_list[hash_index].fg_fields);
+    }
+    return status;
+}
+
+static sai_status_t gp_registers_availability_check(_In_ uint32_t                        fields_count,
+                                                    _In_ const mlnx_sai_fg_hash_field_t *fields_list,
+                                                    _In_ bool                            optimized)
+{
+    uint8_t                 needed_reg_num = 0;
+    uint8_t                 available_reg_num = 0;
+    mlnx_shm_rm_array_idx_t reg_db_idx = MLNX_SHM_RM_ARRAY_IDX_UNINITIALIZED;
+    mlnx_gp_reg_db_t       *gp_reg_db = NULL;
+    uint32_t                gp_ger_max_num = 0;
+
+    if (((fields_count) && (NULL == fields_list)) || (0 == fields_count)) {
+        SX_LOG_ERR("NULL value fields list\n");
+        return SAI_STATUS_INVALID_PARAMETER;
+    }
+
+    for (uint32_t ii = 0; ii < fields_count; ++ii) {
+        if (fields_list[ii].sequence_id == fields_list[ii + 1].sequence_id) {
+            uint16_t mask = 0;
+            switch (fields_list[ii].field) {
+            case SAI_NATIVE_HASH_FIELD_DST_IPV4:
+            case SAI_NATIVE_HASH_FIELD_SRC_IPV4:
+            case SAI_NATIVE_HASH_FIELD_INNER_DST_IPV4:
+            case SAI_NATIVE_HASH_FIELD_INNER_SRC_IPV4:
+                if (0 != (mask = fields_list[ii].ip_mask.ip4 >> 16)) {
+                    needed_reg_num += 2;
+                }
+                if (0 != (mask = fields_list[ii].ip_mask.ip4 & 0xFFFF)) {
+                    needed_reg_num += 2;
+                }
+                break;
+
+            case SAI_NATIVE_HASH_FIELD_DST_IPV6:
+            case SAI_NATIVE_HASH_FIELD_SRC_IPV6:
+            case SAI_NATIVE_HASH_FIELD_INNER_DST_IPV6:
+            case SAI_NATIVE_HASH_FIELD_INNER_SRC_IPV6:
+                if (!optimized) {
+                    for (int jj = 0; jj < 16; jj += 2) {
+                        if ((0 != (fields_list[ii].ip_mask.ip6[jj] & 0xFF)) ||
+                            (0 != (fields_list[ii].ip_mask.ip6[jj + 1] & 0xFF))) {
+                            needed_reg_num += 2;
+                        }
+                    }
+                }
+                break;
+
+            case SAI_NATIVE_HASH_FIELD_L4_DST_PORT:
+            case SAI_NATIVE_HASH_FIELD_L4_SRC_PORT:
+            case SAI_NATIVE_HASH_FIELD_INNER_L4_DST_PORT:
+            case SAI_NATIVE_HASH_FIELD_INNER_L4_SRC_PORT:
+                needed_reg_num += 2;
+                break;
+
+            default:
+                break;
+            }
+            ++ii;
+        }
+    }
+
+    gp_ger_max_num = g_resource_limits.gp_register_num_max;
+    for (uint32_t ii = 0; ii < gp_ger_max_num; ++ii) {
+        reg_db_idx.type = MLNX_SHM_RM_ARRAY_TYPE_GP_REG;
+        reg_db_idx.idx = ii;
+        if (SAI_ERR(mlnx_gp_reg_db_idx_to_data(reg_db_idx, &gp_reg_db))) {
+            SX_LOG_ERR("mlnx_gp_reg_db_idx_to_data() FAILED\n");
+            return SAI_STATUS_ITEM_NOT_FOUND;
+        }
+
+        if (gp_reg_db->gp_usage == GP_REG_USED_NONE) {
+            ++available_reg_num;
+        }
+    }
+
+    if (available_reg_num < needed_reg_num) {
+        SX_LOG_ERR("Available number of registers [%u]. Requested number of registers [%u]\n",
+                   available_reg_num,
+                   needed_reg_num);
+        return SAI_STATUS_INSUFFICIENT_RESOURCES;
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t ipv4_reg_lookup(_Inout_ mlnx_gp_reg_db_t           **gp_reg_db_data,
+                                    _Inout_ mlnx_shm_rm_array_idx_t     *db_idx,
+                                    _In_ const mlnx_sai_fg_hash_field_t *field,
+                                    _In_ bool                            is_gp_reg_restore,
+                                    _In_ mlnx_gp_reg_usage_t             gp_reg_usage,
+                                    _In_ mlnx_gp_reg_usage_t             gp_reg_usage_prev)
+{
+    sai_status_t     status = SAI_STATUS_SUCCESS;
+    sx_gp_register_e reg_id = SX_GP_REGISTER_LAST_E;
+
+    assert(gp_reg_db_data);
+    assert(db_idx);
+    assert(field);
+
+    if (is_gp_reg_restore) {
+        status = mlnx_sai_issu_storage_pbh_gp_reg_idx_lookup(field->field,
+                                                             gp_reg_usage_prev,
+                                                             &reg_id);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to get register in persistent DB\n");
+            return status;
+        }
+
+        status = mlnx_gp_reg_db_alloc_by_gp_reg_id(gp_reg_db_data, reg_id);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to allocate register for PBH field %d\n", field->field);
+            return SAI_STATUS_INSUFFICIENT_RESOURCES;
+        }
+        db_idx->type = MLNX_SHM_RM_ARRAY_TYPE_GP_REG;
+        db_idx->idx = reg_id;
+    } else {
+        if (SAI_ERR(status = mlnx_gp_reg_db_alloc_first_free(gp_reg_db_data, db_idx, gp_reg_usage))) {
+            SX_LOG_ERR("GP registers DB is full\n");
+            return SAI_STATUS_INSUFFICIENT_RESOURCES;
+        }
+    }
+
+    return status;
+}
+
+static sai_status_t ipv4_reg_allocate(_Inout_ mlnx_sai_fg_hash_field_t *field,
+                                      _In_ bool                         optimized,
+                                      _In_ bool                         is_gp_reg_restore,
+                                      _In_ mlnx_gp_reg_usage_t          gp_reg_usage,
+                                      _In_ mlnx_gp_reg_usage_t          gp_reg_usage_prev)
+{
+    sx_status_t           sx_status;
+    sx_register_key_t     reg_key;
+    sx_extraction_point_t extraction_point_list[2];
+    uint32_t              reg_key_cnt = 1;
+    uint32_t              ext_point_cnt = 1;
+    uint16_t              mask = 0;
+    sai_status_t          status = SAI_STATUS_SUCCESS;
+
+    if (0 != (mask = field->ip_mask.ip4 >> 16)) {
+        mlnx_gp_reg_db_t       *gp_reg_db_data = NULL;
+        mlnx_shm_rm_array_idx_t db_idx = MLNX_SHM_RM_ARRAY_IDX_UNINITIALIZED;
+
+        status = ipv4_reg_lookup(&gp_reg_db_data,
+                                 &db_idx,
+                                 field,
+                                 is_gp_reg_restore,
+                                 gp_reg_usage,
+                                 gp_reg_usage_prev);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("GP register lookup failed\n");
+            return status;
+        }
+
+        if ((db_idx.idx + SX_ACL_ACTION_HASH_FIELD_GP_REGISTER_0 > SX_ACL_ACTION_HASH_FIELD_GP_REGISTER_7)
+            && ((field->field == SAI_NATIVE_HASH_FIELD_DST_IPV4)
+                || (field->field == SAI_NATIVE_HASH_FIELD_INNER_DST_IPV4))) {
+            SX_LOG_ERR("Not enough GP register to perform hash CRC command\n");
+            mlnx_gp_reg_db_free(db_idx);
+            return SAI_STATUS_INSUFFICIENT_RESOURCES;
+        }
+        reg_key.type = SX_REGISTER_KEY_TYPE_GENERAL_PURPOSE_E;
+        reg_key.key.gp_reg.reg_id = db_idx.idx;
+
+        if (SX_ERR(sx_status = sx_api_register_set(gh_sdk, SX_ACCESS_CMD_CREATE, &reg_key, &reg_key_cnt))) {
+            SX_LOG_ERR("Failed to create register %s.\n", SX_STATUS_MSG(status));
+            return sdk_to_sai(sx_status);
+        }
+        if (!optimized) {
+            ext_point_cnt = 1;
+            if ((field->field == SAI_NATIVE_HASH_FIELD_INNER_SRC_IPV4)
+                || (field->field == SAI_NATIVE_HASH_FIELD_INNER_DST_IPV4)) {
+                extraction_point_list[0].type = SX_EXTRACTION_POINT_TYPE_INNER_IPV4_START_OF_HEADER_E;
+            } else {
+                extraction_point_list[0].type = SX_EXTRACTION_POINT_TYPE_IPV4_START_OF_HEADER_E;
+            }
+
+            if ((field->field == SAI_NATIVE_HASH_FIELD_SRC_IPV4)
+                || (field->field == SAI_NATIVE_HASH_FIELD_INNER_SRC_IPV4)) {
+                extraction_point_list[0].offset = 12;
+            } else {
+                extraction_point_list[0].offset = 16;
+            }
+        } else {
+            ext_point_cnt = 2;
+            if (field->field == SAI_NATIVE_HASH_FIELD_INNER_SRC_IPV4) {
+                extraction_point_list[0].type = SX_EXTRACTION_POINT_TYPE_INNER_IPV4_START_OF_HEADER_E;
+                extraction_point_list[0].offset = 12;
+                extraction_point_list[1].type = SX_EXTRACTION_POINT_TYPE_INNER_IPV6_START_OF_HEADER_E;
+                extraction_point_list[1].offset = 20;
+            } else if (field->field == SAI_NATIVE_HASH_FIELD_INNER_DST_IPV4) {
+                extraction_point_list[0].type = SX_EXTRACTION_POINT_TYPE_INNER_IPV4_START_OF_HEADER_E;
+                extraction_point_list[0].offset = 16;
+                extraction_point_list[1].type = SX_EXTRACTION_POINT_TYPE_INNER_IPV6_START_OF_HEADER_E;
+                extraction_point_list[1].offset = 36;
+            }
+        }
+        sx_status = sx_api_flex_parser_reg_ext_point_set(gh_sdk,
+                                                         SX_ACCESS_CMD_SET,
+                                                         reg_key,
+                                                         extraction_point_list,
+                                                         &ext_point_cnt);
+        if (SX_ERR(sx_status)) {
+            SX_LOG_ERR("Failed to set extraction point for GP register %s.\n", SX_STATUS_MSG(sx_status));
+            return sdk_to_sai(sx_status);
+        }
+        field->reg_id[0] = reg_key;
+        field->shm_rm_array_idx[0] = db_idx;
+        gp_reg_db_data->gp_usage = gp_reg_usage;
+    }
+    if (0 != (mask = field->ip_mask.ip4 & 0xFFFF)) {
+        mlnx_gp_reg_db_t       *gp_reg_db_data = NULL;
+        mlnx_shm_rm_array_idx_t db_idx = MLNX_SHM_RM_ARRAY_IDX_UNINITIALIZED;
+
+        status = ipv4_reg_lookup(&gp_reg_db_data,
+                                 &db_idx,
+                                 field,
+                                 is_gp_reg_restore,
+                                 gp_reg_usage,
+                                 gp_reg_usage_prev);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("GP register lookup failed\n");
+            return status;
+        }
+
+        if ((db_idx.idx + SX_ACL_ACTION_HASH_FIELD_GP_REGISTER_0 > SX_ACL_ACTION_HASH_FIELD_GP_REGISTER_7)
+            && ((field->field == SAI_NATIVE_HASH_FIELD_DST_IPV4)
+                || (field->field == SAI_NATIVE_HASH_FIELD_INNER_DST_IPV4))) {
+            SX_LOG_ERR("Not enough GP register to perform hash CRC command\n");
+            mlnx_gp_reg_db_free(db_idx);
+            return SAI_STATUS_INSUFFICIENT_RESOURCES;
+        }
+
+        reg_key.type = SX_REGISTER_KEY_TYPE_GENERAL_PURPOSE_E;
+        reg_key.key.gp_reg.reg_id = db_idx.idx;
+
+        if (SX_ERR(sx_status = sx_api_register_set(gh_sdk, SX_ACCESS_CMD_CREATE, &reg_key, &reg_key_cnt))) {
+            SX_LOG_ERR("Failed to create register %s.\n", SX_STATUS_MSG(sx_status));
+            return sdk_to_sai(sx_status);
+        }
+        if (!optimized) {
+            ext_point_cnt = 1;
+            if ((field->field == SAI_NATIVE_HASH_FIELD_INNER_SRC_IPV4)
+                || (field->field == SAI_NATIVE_HASH_FIELD_INNER_DST_IPV4)) {
+                extraction_point_list[0].type = SX_EXTRACTION_POINT_TYPE_INNER_IPV4_START_OF_HEADER_E;
+            } else {
+                extraction_point_list[0].type = SX_EXTRACTION_POINT_TYPE_IPV4_START_OF_HEADER_E;
+            }
+
+            if ((field->field == SAI_NATIVE_HASH_FIELD_SRC_IPV4)
+                || (field->field == SAI_NATIVE_HASH_FIELD_INNER_SRC_IPV4)) {
+                extraction_point_list[0].offset = 14;
+            } else {
+                extraction_point_list[0].offset = 18;
+            }
+        } else {
+            ext_point_cnt = 2;
+            if (field->field == SAI_NATIVE_HASH_FIELD_INNER_SRC_IPV4) {
+                extraction_point_list[0].type = SX_EXTRACTION_POINT_TYPE_INNER_IPV4_START_OF_HEADER_E;
+                extraction_point_list[0].offset = 14;
+                extraction_point_list[1].type = SX_EXTRACTION_POINT_TYPE_INNER_IPV6_START_OF_HEADER_E;
+                extraction_point_list[1].offset = 22;
+            } else if (field->field == SAI_NATIVE_HASH_FIELD_INNER_DST_IPV4) {
+                extraction_point_list[0].type = SX_EXTRACTION_POINT_TYPE_INNER_IPV4_START_OF_HEADER_E;
+                extraction_point_list[0].offset = 18;
+                extraction_point_list[1].type = SX_EXTRACTION_POINT_TYPE_INNER_IPV6_START_OF_HEADER_E;
+                extraction_point_list[1].offset = 38;
+            }
+        }
+        sx_status = sx_api_flex_parser_reg_ext_point_set(gh_sdk,
+                                                         SX_ACCESS_CMD_SET,
+                                                         reg_key,
+                                                         extraction_point_list,
+                                                         &ext_point_cnt);
+        if (SX_ERR(sx_status)) {
+            SX_LOG_ERR("Failed to set extraction point for GP register %s.\n", SX_STATUS_MSG(sx_status));
+            return sdk_to_sai(sx_status);
+        }
+        field->reg_id[1] = reg_key;
+        field->shm_rm_array_idx[1] = db_idx;
+
+        gp_reg_db_data->gp_usage = gp_reg_usage;
+    }
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t ipv6_reg_allocate(_Inout_ mlnx_sai_fg_hash_field_t *field,
+                                      _In_ bool                         optimized,
+                                      _In_ bool                         is_gp_reg_restore,
+                                      _In_ mlnx_gp_reg_usage_t          gp_reg_usage,
+                                      _In_ mlnx_gp_reg_usage_t          gp_reg_usage_prev)
+{
+    sx_status_t           sx_status;
+    sx_register_key_t     reg_key;
+    sx_extraction_point_t extraction_point_list[2];
+    uint32_t              reg_key_cnt = 1;
+    uint32_t              ext_point_cnt = 1;
+    sai_status_t          status = SAI_STATUS_SUCCESS;
+    sx_gp_register_e      reg_id = SX_GP_REGISTER_LAST_E;
+
+    if (!optimized) {
+        for (int jj = 0; jj < 16; jj += 2) {
+            if ((0 != (field->ip_mask.ip6[jj] & 0xFF)) || (0 != (field->ip_mask.ip6[jj + 1] & 0xFF))) {
+                mlnx_gp_reg_db_t       *gp_reg_db_data;
+                mlnx_shm_rm_array_idx_t db_idx = MLNX_SHM_RM_ARRAY_IDX_UNINITIALIZED;
+                if (is_gp_reg_restore) {
+                    status = mlnx_sai_issu_storage_pbh_gp_reg_idx_lookup(field->field,
+                                                                         gp_reg_usage_prev,
+                                                                         &reg_id);
+                    if (SAI_ERR(status)) {
+                        SX_LOG_ERR("Failed to get register in persistent DB\n");
+                        return status;
+                    }
+
+                    status = mlnx_gp_reg_db_alloc_by_gp_reg_id(&gp_reg_db_data, reg_id);
+                    if (SAI_ERR(status)) {
+                        SX_LOG_ERR("Failed to allocate register for PBH field %d\n", field->field);
+                        return SAI_STATUS_INSUFFICIENT_RESOURCES;
+                    }
+                    db_idx.type = MLNX_SHM_RM_ARRAY_TYPE_GP_REG;
+                    db_idx.idx = reg_id;
+                } else {
+                    if (SAI_ERR(status = mlnx_gp_reg_db_alloc_first_free(&gp_reg_db_data, &db_idx, gp_reg_usage))) {
+                        SX_LOG_ERR("GP registers DB is full\n");
+                        return SAI_STATUS_INSUFFICIENT_RESOURCES;
+                    }
+                }
+
+                if ((db_idx.idx + SX_ACL_ACTION_HASH_FIELD_GP_REGISTER_0 > SX_ACL_ACTION_HASH_FIELD_GP_REGISTER_7)
+                    && ((field->field == SAI_NATIVE_HASH_FIELD_DST_IPV6)
+                        || (field->field == SAI_NATIVE_HASH_FIELD_INNER_DST_IPV6))) {
+                    SX_LOG_ERR("Not enough GP register to perform hash CRC command\n");
+                    mlnx_gp_reg_db_free(db_idx);
+                    return SAI_STATUS_INSUFFICIENT_RESOURCES;
+                }
+
+                reg_key.type = SX_REGISTER_KEY_TYPE_GENERAL_PURPOSE_E;
+                reg_key.key.gp_reg.reg_id = db_idx.idx;
+
+                if (SAI_ERR(sx_status = sx_api_register_set(gh_sdk, SX_ACCESS_CMD_CREATE, &reg_key, &reg_key_cnt))) {
+                    SX_LOG_ERR("Failed to create register %s.\n", SX_STATUS_MSG(sx_status));
+                    return sdk_to_sai(sx_status);
+                }
+                ext_point_cnt = 1;
+                if (field->field == SAI_NATIVE_HASH_FIELD_SRC_IPV6) {
+                    extraction_point_list[0].type = SX_EXTRACTION_POINT_TYPE_IPV6_START_OF_HEADER_E;
+                    extraction_point_list[0].offset = 8 + jj;
+                } else if (field->field == SAI_NATIVE_HASH_FIELD_DST_IPV6) {
+                    extraction_point_list[0].type = SX_EXTRACTION_POINT_TYPE_IPV6_START_OF_HEADER_E;
+                    extraction_point_list[0].offset = 24 + jj;
+                } else if (field->field == SAI_NATIVE_HASH_FIELD_INNER_SRC_IPV6) {
+                    extraction_point_list[0].type = SX_EXTRACTION_POINT_TYPE_INNER_IPV6_START_OF_HEADER_E;
+                    extraction_point_list[0].offset = 8 + jj;
+                } else if (field->field == SAI_NATIVE_HASH_FIELD_INNER_DST_IPV6) {
+                    extraction_point_list[0].type = SX_EXTRACTION_POINT_TYPE_INNER_IPV6_START_OF_HEADER_E;
+                    extraction_point_list[0].offset = 24 + jj;
+                }
+                sx_status = sx_api_flex_parser_reg_ext_point_set(gh_sdk,
+                                                                 SX_ACCESS_CMD_SET,
+                                                                 reg_key,
+                                                                 extraction_point_list,
+                                                                 &ext_point_cnt);
+                if (SX_ERR(sx_status)) {
+                    SX_LOG_ERR("Failed to set extraction point for GP register %s.\n", SX_STATUS_MSG(sx_status));
+                    return sdk_to_sai(sx_status);
+                }
+                field->reg_id[jj / 2] = reg_key;
+                field->shm_rm_array_idx[jj / 2] = db_idx;
+
+                gp_reg_db_data->gp_usage = gp_reg_usage;
+            }
+        }
+    }
+    return status;
+}
+
+static sai_status_t l4_reg_allocate(_Inout_ mlnx_sai_fg_hash_field_t *field,
+                                    _In_ bool                         is_gp_reg_restore,
+                                    _In_ mlnx_gp_reg_usage_t          gp_reg_usage,
+                                    _In_ mlnx_gp_reg_usage_t          gp_reg_usage_prev)
+{
+    sai_status_t            status = SAI_STATUS_SUCCESS;
+    sx_register_key_t       reg_key = {0};
+    sx_status_t             sx_status = SX_STATUS_SUCCESS;
+    sx_extraction_point_t   extraction_point_list[2] = {0};
+    uint32_t                reg_key_cnt = 1;
+    uint32_t                ext_point_cnt = 1;
+    mlnx_gp_reg_db_t       *gp_reg_db_data = NULL;
+    mlnx_shm_rm_array_idx_t db_idx = MLNX_SHM_RM_ARRAY_IDX_UNINITIALIZED;
+    sx_gp_register_e        reg_id = SX_GP_REGISTER_LAST_E;
+
+    if (is_gp_reg_restore) {
+        status = mlnx_sai_issu_storage_pbh_gp_reg_idx_lookup(field->field,
+                                                             gp_reg_usage_prev,
+                                                             &reg_id);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to get register in persistent DB\n");
+            goto out;
+        }
+
+        status = mlnx_gp_reg_db_alloc_by_gp_reg_id(&gp_reg_db_data, reg_id);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to allocate register for PBH field %d\n", field->field);
+            goto out;
+        }
+        db_idx.type = MLNX_SHM_RM_ARRAY_TYPE_GP_REG;
+        db_idx.idx = reg_id;
+    } else {
+        if (SAI_ERR(status = mlnx_gp_reg_db_alloc_first_free(&gp_reg_db_data, &db_idx, gp_reg_usage))) {
+            SX_LOG_ERR("GP registers DB is full\n");
+            status = SAI_STATUS_INSUFFICIENT_RESOURCES;
+            goto out;
+        }
+    }
+    if ((db_idx.idx + SX_ACL_ACTION_HASH_FIELD_GP_REGISTER_0 > SX_ACL_ACTION_HASH_FIELD_GP_REGISTER_7)
+        && ((field->field == SAI_NATIVE_HASH_FIELD_L4_DST_PORT)
+            || (field->field == SAI_NATIVE_HASH_FIELD_INNER_L4_DST_PORT))) {
+        SX_LOG_ERR("Not enough GP register to perform hash CRC command\n");
+        mlnx_gp_reg_db_free(db_idx);
+        status = SAI_STATUS_INSUFFICIENT_RESOURCES;
+        goto out;
+    }
+
+    reg_key.type = SX_REGISTER_KEY_TYPE_GENERAL_PURPOSE_E;
+    reg_key.key.gp_reg.reg_id = db_idx.idx;
+
+    if (SX_ERR(sx_status =
+                   sx_api_register_set(gh_sdk, SX_ACCESS_CMD_CREATE, &reg_key, &reg_key_cnt))) {
+        SX_LOG_ERR("Failed to create register %s.\n", SX_STATUS_MSG(sx_status));
+        status = sdk_to_sai(sx_status);
+        goto out;
+    }
+
+    ext_point_cnt = 2;
+    if (field->field == SAI_NATIVE_HASH_FIELD_L4_SRC_PORT) {
+        extraction_point_list[0].type = SX_EXTRACTION_POINT_TYPE_TCP_HEADER_E;
+        extraction_point_list[0].offset = 0;
+        extraction_point_list[1].type = SX_EXTRACTION_POINT_TYPE_UDP_HEADER_E;
+        extraction_point_list[1].offset = 0;
+    } else if (field->field == SAI_NATIVE_HASH_FIELD_L4_DST_PORT) {
+        extraction_point_list[0].type = SX_EXTRACTION_POINT_TYPE_TCP_HEADER_E;
+        extraction_point_list[0].offset = 2;
+        extraction_point_list[1].type = SX_EXTRACTION_POINT_TYPE_UDP_HEADER_E;
+        extraction_point_list[1].offset = 2;
+    } else if (field->field == SAI_NATIVE_HASH_FIELD_INNER_L4_SRC_PORT) {
+        extraction_point_list[0].type = SX_EXTRACTION_POINT_TYPE_INNER_TCP_HEADER_E;
+        extraction_point_list[0].offset = 0;
+        extraction_point_list[1].type = SX_EXTRACTION_POINT_TYPE_INNER_UDP_HEADER_E;
+        extraction_point_list[1].offset = 0;
+    } else if (field->field == SAI_NATIVE_HASH_FIELD_INNER_L4_DST_PORT) {
+        extraction_point_list[0].type = SX_EXTRACTION_POINT_TYPE_INNER_TCP_HEADER_E;
+        extraction_point_list[0].offset = 2;
+        extraction_point_list[1].type = SX_EXTRACTION_POINT_TYPE_INNER_UDP_HEADER_E;
+        extraction_point_list[1].offset = 2;
+    }
+    sx_status = sx_api_flex_parser_reg_ext_point_set(gh_sdk,
+                                                     SX_ACCESS_CMD_SET,
+                                                     reg_key,
+                                                     extraction_point_list,
+                                                     &ext_point_cnt);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to set extraction point for GP register %s.\n", SX_STATUS_MSG(sx_status));
+        status = sdk_to_sai(sx_status);
+        goto out;
+    }
+    field->reg_id[0] = reg_key;
+    field->shm_rm_array_idx[0] = db_idx;
+
+    gp_reg_db_data->gp_usage = gp_reg_usage;
+
+out:
+    return status;
+}
+
+static sai_status_t gp_registers_allocation(_In_ uint32_t                     fields_count,
+                                            _Inout_ mlnx_sai_fg_hash_field_t *fields_list,
+                                            _In_ bool                         optimized)
+{
+    sai_status_t        status = SAI_STATUS_SUCCESS;
+    mlnx_gp_reg_usage_t gp_reg_usage = GP_REG_USED_NONE;
+    mlnx_gp_reg_usage_t gp_reg_usage_prev = GP_REG_USED_NONE;
+    const bool          is_warmboot_init_stage = (BOOT_TYPE_WARM == g_sai_db_ptr->boot_type) &&
+                                                 (!g_sai_db_ptr->issu_end_called);
+    bool is_gp_reg_restore = false;
+
+    if (((fields_count) && (NULL == fields_list)) || (0 == fields_count)) {
+        SX_LOG_ERR("NULL value fields list\n");
+        status = SAI_STATUS_INVALID_PARAMETER;
+        goto out;
+    }
+
+    if (g_sai_db_ptr->oper_hash_list[SAI_HASH_FG_1_ID] == SAI_NULL_OBJECT_ID) {
+        gp_reg_usage = GP_REG_USED_HASH_1;
+    } else {
+        gp_reg_usage = GP_REG_USED_HASH_2;
+    }
+
+    /* regular transition between dynamic PBH to dynamic PBH on warmboot */
+    if (g_sai_db_ptr->is_issu_gp_reg_restore) {
+        /* check if allocation of register is required for current field list */
+        for (uint32_t ind = 0; ind < fields_count; ++ind) {
+            if (fields_list[ind].sequence_id == fields_list[ind + 1].sequence_id) {
+                is_gp_reg_restore = true;
+                break;
+            }
+        }
+        /* Special case: transition between static PBH to dynamic PBH on warmboot */
+    } else if (is_warmboot_init_stage && g_sai_db_ptr->pbhash_transition) {
+        is_gp_reg_restore = true;
+    }
+
+    if (is_gp_reg_restore) {
+        status = mlnx_sai_issu_storage_get_pbh_stored_gp_reg_usage(fields_count,
+                                                                   fields_list,
+                                                                   optimized,
+                                                                   &gp_reg_usage_prev);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to restore register info for fine grained hash\n");
+            goto out;
+        }
+    }
+
+    for (uint32_t ind = 0; ind < fields_count; ++ind) {
+        if (fields_list[ind].sequence_id == fields_list[ind + 1].sequence_id) {
+            for (uint32_t ii = ind; ii < ind + 2; ++ii) {
+                switch (fields_list[ii].field) {
+                case SAI_NATIVE_HASH_FIELD_DST_IPV4:
+                case SAI_NATIVE_HASH_FIELD_SRC_IPV4:
+                case SAI_NATIVE_HASH_FIELD_INNER_DST_IPV4:
+                case SAI_NATIVE_HASH_FIELD_INNER_SRC_IPV4:
+                    if (SAI_ERR(status = ipv4_reg_allocate(&fields_list[ii],
+                                                           optimized,
+                                                           is_gp_reg_restore,
+                                                           gp_reg_usage,
+                                                           gp_reg_usage_prev))) {
+                        goto out;
+                    }
+                    break;
+
+                case SAI_NATIVE_HASH_FIELD_DST_IPV6:
+                case SAI_NATIVE_HASH_FIELD_SRC_IPV6:
+                case SAI_NATIVE_HASH_FIELD_INNER_DST_IPV6:
+                case SAI_NATIVE_HASH_FIELD_INNER_SRC_IPV6:
+                    if (SAI_ERR(status = ipv6_reg_allocate(&fields_list[ii],
+                                                           optimized,
+                                                           is_gp_reg_restore,
+                                                           gp_reg_usage,
+                                                           gp_reg_usage_prev))) {
+                        goto out;
+                    }
+                    break;
+
+                case SAI_NATIVE_HASH_FIELD_L4_SRC_PORT:
+                case SAI_NATIVE_HASH_FIELD_L4_DST_PORT:
+                case SAI_NATIVE_HASH_FIELD_INNER_L4_SRC_PORT:
+                case SAI_NATIVE_HASH_FIELD_INNER_L4_DST_PORT:
+                    if (SAI_ERR(status = l4_reg_allocate(&fields_list[ii],
+                                                         is_gp_reg_restore,
+                                                         gp_reg_usage,
+                                                         gp_reg_usage_prev))) {
+                        goto out;
+                    }
+
+                    break;
+
+                default:
+                    break;
+                }
+            }
+            ++ind;
+        }
+    }
+
+out:
+    return status;
+}
+
+sai_status_t gp_registers_delete(_Inout_ mlnx_sai_fg_hash_field_t *fields_list)
+{
+    uint32_t     reg_key_cnt = 1;
+    sx_status_t  sx_status;
+    sai_status_t status = SAI_STATUS_SUCCESS;
+
+    if (NULL == fields_list) {
+        SX_LOG_ERR("NULL value fields list\n");
+        return SAI_STATUS_INVALID_PARAMETER;
+    }
+
+    if (SAI_STATUS_SUCCESS != (status = mlnx_init_flex_parser())) {
+        SX_LOG_ERR("Failed to init_flex_parser\n");
+        return status;
+    }
+
+    for (uint32_t ii = 0; ii < MLNX_SAI_FG_HASH_FIELDS_MAX_COUNT; ++ii) {
+        if (fields_list[ii].fg_field_id == SAI_NULL_OBJECT_ID) {
+            break;
+        }
+
+        if (fields_list[ii].sequence_id == fields_list[ii + 1].sequence_id) {
+            uint32_t start = ii;
+            uint32_t end = ii + 1;
+            for (; start <= end; ++start) {
+                for (uint32_t jj = 0; jj < MLNX_SAI_FG_HASH_FIELD_SHM_RM_ARRAY_MAX_COUNT; ++jj) {
+                    if (!MLNX_SHM_RM_ARRAY_IDX_IS_UNINITIALIZED(fields_list[start].shm_rm_array_idx[jj])) {
+                        sx_status = sx_api_flex_parser_reg_ext_point_set(gh_sdk,
+                                                                         SX_ACCESS_CMD_UNSET,
+                                                                         fields_list[start].reg_id[jj],
+                                                                         NULL,
+                                                                         NULL);
+                        if (SX_ERR(sx_status)) {
+                            SX_LOG_ERR("Failed to unset extraction point for GP register %s.\n",
+                                       SX_STATUS_MSG(sx_status));
+                            status = sdk_to_sai(sx_status);
+                            goto out;
+                        }
+                        if (SAI_ERR(sx_status =
+                                        sx_api_register_set(gh_sdk, SX_ACCESS_CMD_DESTROY,
+                                                            &fields_list[start].reg_id[jj],
+                                                            &reg_key_cnt))) {
+                            SX_LOG_ERR("Failed to delete register %s.\n", SX_STATUS_MSG(status));
+                            status = sdk_to_sai(sx_status);
+                            goto out;
+                        }
+                    }
+                    mlnx_gp_reg_db_free(fields_list[start].shm_rm_array_idx[jj]);
+                    fields_list[start].shm_rm_array_idx[jj] = MLNX_SHM_RM_ARRAY_IDX_UNINITIALIZED;
+                }
+            }
+            ++ii;
+        }
+    }
+out:
+    return status;
+}
+
+void mlnx_create_alu_reg_action(_Inout_ sx_flex_acl_flex_action_t *action,
+                                _In_ sx_gp_register_e              src_reg,
+                                _In_ sx_gp_register_e              dst_reg,
+                                _In_ uint8_t                       offset,
+                                uint8_t                            size)
+{
+    action->type = SX_FLEX_ACL_ACTION_ALU_REG;
+    action->fields.action_alu_reg.command = SX_ACL_ACTION_ALU_REG_COMMAND_XOR;
+    action->fields.action_alu_reg.src_register = src_reg;
+    action->fields.action_alu_reg.src_offset = offset;
+    action->fields.action_alu_reg.dst_register = dst_reg;
+    action->fields.action_alu_reg.dst_offset = offset;
+    action->fields.action_alu_reg.size = size;
+}
+
+void mlnx_create_hash_action(_Inout_ sx_flex_acl_flex_action_t       *action,
+                             _In_ sx_flex_acl_action_hash_type_t      hash_type,
+                             _In_ sx_flex_acl_action_hash_crc_field_t field,
+                             _In_ sx_flex_acl_action_hash_crc_mask_t  mask)
+{
+    action->type = SX_FLEX_ACL_ACTION_HASH;
+    action->fields.action_hash.command = SX_ACL_ACTION_HASH_COMMAND_CRC;
+    action->fields.action_hash.type = hash_type;
+    action->fields.action_hash.hash_crc.field = field;
+    action->fields.action_hash.hash_crc.mask = mask;
+}
+
+static void mlnx_fg_hash_action_list_create(_In_ sx_flex_acl_action_hash_type_t action_type,
+                                            _In_ uint32_t                       fields_count,
+                                            _In_ mlnx_sai_fg_hash_field_t      *fields_list,
+                                            _Inout_ sx_flex_acl_flex_action_t * action_list,
+                                            _Inout_ uint32_t                   *action_num)
+{
+    uint8_t act_num = 0;
+
+    action_list[act_num].type = SX_FLEX_ACL_ACTION_HASH;
+    action_list[act_num].fields.action_hash.command = SX_ACL_ACTION_HASH_COMMAND_SET;
+    action_list[act_num].fields.action_hash.type = action_type;
+    if (action_type == SX_ACL_ACTION_HASH_TYPE_ECMP) {
+        action_list[act_num].fields.action_hash.hash_value = g_sai_db_ptr->port_ecmp_hash_params.seed;
+    } else {
+        action_list[act_num].fields.action_hash.hash_value = g_sai_db_ptr->lag_hash_params.lag_seed;
+    }
+
+    ++act_num;
+
+    for (uint32_t ii = 0; ii < fields_count; ++ii) {
+        if (fields_list[ii].sequence_id == fields_list[ii + 1].sequence_id) {
+            uint16_t                           mask = 0;
+            uint8_t                            offset = 0;
+            uint8_t                            size = 0;
+            sx_flex_acl_action_hash_crc_mask_t crc_mask = {0};
+            uint32_t                           src_idx = 0;
+            uint32_t                           dst_idx = 0;
+
+            crc_mask.gp_register = 0xffff;
+            switch (fields_list[ii].field) {
+            case SAI_NATIVE_HASH_FIELD_SRC_IPV4:
+            case SAI_NATIVE_HASH_FIELD_INNER_SRC_IPV4:
+            case SAI_NATIVE_HASH_FIELD_DST_IPV4:
+            case SAI_NATIVE_HASH_FIELD_INNER_DST_IPV4:
+
+                switch (fields_list[ii].field) {
+                case SAI_NATIVE_HASH_FIELD_SRC_IPV4:
+                case SAI_NATIVE_HASH_FIELD_INNER_SRC_IPV4:
+                    src_idx = ii;
+                    dst_idx = ii + 1;
+                    break;
+
+                case SAI_NATIVE_HASH_FIELD_DST_IPV4:
+                case SAI_NATIVE_HASH_FIELD_INNER_DST_IPV4:
+                    src_idx = ii + 1;
+                    dst_idx = ii;
+                    break;
+
+                default:
+                    break;
+                }
+                if (0 != (mask = fields_list[ii].ip_mask.ip4 & 0xFFFF)) {
+                    pbhash_offset_and_size_calculate(mask, &offset, &size);
+                    mlnx_create_alu_reg_action(&action_list[act_num],
+                                               fields_list[src_idx].reg_id[1].key.gp_reg.reg_id,
+                                               fields_list[dst_idx].reg_id[1].key.gp_reg.reg_id,
+                                               offset,
+                                               size);
+                    ++act_num;
+                }
+                if (0 != (mask = fields_list[ii].ip_mask.ip4 >> 16)) {
+                    pbhash_offset_and_size_calculate(mask, &offset, &size);
+                    mlnx_create_alu_reg_action(&action_list[act_num],
+                                               fields_list[src_idx].reg_id[0].key.gp_reg.reg_id,
+                                               fields_list[dst_idx].reg_id[0].key.gp_reg.reg_id,
+                                               offset,
+                                               size);
+                    ++act_num;
+                }
+                mlnx_create_hash_action(&action_list[act_num],
+                                        action_type,
+                                        fields_list[dst_idx].reg_id[1].key.gp_reg.reg_id + SX_ACL_ACTION_HASH_FIELD_GP_REGISTER_0,
+                                        crc_mask);
+                ++act_num;
+                mlnx_create_hash_action(&action_list[act_num],
+                                        action_type,
+                                        fields_list[dst_idx].reg_id[0].key.gp_reg.reg_id + SX_ACL_ACTION_HASH_FIELD_GP_REGISTER_0,
+                                        crc_mask);
+                ++act_num;
+                break;
+
+            case SAI_NATIVE_HASH_FIELD_SRC_IPV6:
+            case SAI_NATIVE_HASH_FIELD_INNER_SRC_IPV6:
+            case SAI_NATIVE_HASH_FIELD_DST_IPV6:
+            case SAI_NATIVE_HASH_FIELD_INNER_DST_IPV6:
+
+                switch (fields_list[ii].field) {
+                case SAI_NATIVE_HASH_FIELD_SRC_IPV6:
+                case SAI_NATIVE_HASH_FIELD_INNER_SRC_IPV6:
+                    src_idx = ii;
+                    dst_idx = ii + 1;
+                    break;
+
+                case SAI_NATIVE_HASH_FIELD_DST_IPV6:
+                case SAI_NATIVE_HASH_FIELD_INNER_DST_IPV6:
+                    src_idx = ii + 1;
+                    dst_idx = ii;
+                    break;
+
+                default:
+                    break;
+                }
+                for (int jj = 0; jj < 16; jj += 2) {
+                    mask = (fields_list[ii].ip_mask.ip6[jj] << 8) | fields_list[ii].ip_mask.ip6[jj + 1];
+                    if (mask) {
+                        pbhash_offset_and_size_calculate(mask, &offset, &size);
+                        mlnx_create_alu_reg_action(&action_list[act_num],
+                                                   fields_list[src_idx].reg_id[jj / 2].key.gp_reg.reg_id,
+                                                   fields_list[dst_idx].reg_id[jj / 2].key.gp_reg.reg_id,
+                                                   offset,
+                                                   size);
+                        ++act_num;
+                    }
+                }
+                for (int jj = 15; jj > 0; jj -= 2) {
+                    if ((0 != (fields_list[ii].ip_mask.ip6[jj] & 0xFF)) ||
+                        (0 != (fields_list[ii].ip_mask.ip6[jj - 1] & 0xFF))) {
+                        mlnx_create_hash_action(&action_list[act_num],
+                                                action_type,
+                                                fields_list[dst_idx].reg_id[jj / 2].key.gp_reg.reg_id + SX_ACL_ACTION_HASH_FIELD_GP_REGISTER_0,
+                                                crc_mask);
+                        ++act_num;
+                    }
+                }
+                break;
+
+            case SAI_NATIVE_HASH_FIELD_L4_SRC_PORT:
+            case SAI_NATIVE_HASH_FIELD_L4_DST_PORT:
+            case SAI_NATIVE_HASH_FIELD_INNER_L4_SRC_PORT:
+            case SAI_NATIVE_HASH_FIELD_INNER_L4_DST_PORT:
+                mlnx_create_alu_reg_action(&action_list[act_num],
+                                           fields_list[ii].reg_id[0].key.gp_reg.reg_id,
+                                           fields_list[ii + 1].reg_id[0].key.gp_reg.reg_id,
+                                           0,
+                                           16);
+                ++act_num;
+                mlnx_create_hash_action(&action_list[act_num],
+                                        action_type,
+                                        fields_list[ii + 1].reg_id[0].key.gp_reg.reg_id + SX_ACL_ACTION_HASH_FIELD_GP_REGISTER_0,
+                                        crc_mask);
+                ++act_num;
+                break;
+
+            default:
+                break;
+            }
+            ++ii;
+        } else {
+            sx_flex_acl_action_hash_crc_mask_t  mask;
+            sx_flex_acl_action_hash_crc_field_t field = SAI_NATIVE_HASH_FIELD_NONE;
+            switch (fields_list[ii].field) {
+            case SAI_NATIVE_HASH_FIELD_DST_IPV4:
+                field = SX_ACL_ACTION_HASH_FIELD_DIP;
+                mask.dip.s_addr = fields_list[ii].ip_mask.ip4;
+                break;
+
+            case SAI_NATIVE_HASH_FIELD_SRC_IPV4:
+                field = SX_ACL_ACTION_HASH_FIELD_SIP;
+                mask.sip.s_addr = fields_list[ii].ip_mask.ip4;
+                break;
+
+            case SAI_NATIVE_HASH_FIELD_INNER_DST_IPV4:
+                field = SX_ACL_ACTION_HASH_FIELD_INNER_DIP;
+                mask.inner_dip.s_addr = fields_list[ii].ip_mask.ip4;
+                break;
+
+            case SAI_NATIVE_HASH_FIELD_INNER_SRC_IPV4:
+                field = SX_ACL_ACTION_HASH_FIELD_INNER_SIP;
+                mask.inner_sip.s_addr = fields_list[ii].ip_mask.ip4;
+                break;
+
+            case SAI_NATIVE_HASH_FIELD_DST_IPV6:
+                field = SX_ACL_ACTION_HASH_FIELD_DIPV6;
+                memcpy(&mask.dipv6, fields_list[ii].ip_mask.ip6, sizeof(mask.dipv6));
+                break;
+
+            case SAI_NATIVE_HASH_FIELD_SRC_IPV6:
+                field = SX_ACL_ACTION_HASH_FIELD_SIPV6;
+                memcpy(&mask.sipv6, fields_list[ii].ip_mask.ip6, sizeof(mask.sipv6));
+                break;
+
+            case SAI_NATIVE_HASH_FIELD_INNER_DST_IPV6:
+                field = SX_ACL_ACTION_HASH_FIELD_INNER_DIPV6;
+                memcpy(&mask.inner_dipv6, fields_list[ii].ip_mask.ip6, sizeof(mask.dipv6));
+                break;
+
+            case SAI_NATIVE_HASH_FIELD_INNER_SRC_IPV6:
+                field = SX_ACL_ACTION_HASH_FIELD_INNER_SIPV6;
+                memcpy(&mask.inner_sipv6, fields_list[ii].ip_mask.ip6, sizeof(mask.sipv6));
+                break;
+
+            case SAI_NATIVE_HASH_FIELD_L4_DST_PORT:
+            case SAI_NATIVE_HASH_FIELD_INNER_L4_DST_PORT:
+                field = SX_ACL_ACTION_HASH_FIELD_L4_DESTINATION_PORT;
+                mask.l4_destination_port = 0xffff;
+                break;
+
+            case SAI_NATIVE_HASH_FIELD_L4_SRC_PORT:
+            case SAI_NATIVE_HASH_FIELD_INNER_L4_SRC_PORT:
+                field = SX_ACL_ACTION_HASH_FIELD_L4_SOURCE_PORT;
+                mask.l4_source_port = 0xffff;
+                break;
+
+            case SAI_NATIVE_HASH_FIELD_IP_PROTOCOL:
+                field = SX_ACL_ACTION_HASH_FIELD_IP_PROTO;
+                mask.ip_proto = 0xff;
+                break;
+
+            case SAI_NATIVE_HASH_FIELD_INNER_IP_PROTOCOL:
+                field = SX_ACL_ACTION_HASH_FIELD_INNER_IP_PROTO;
+                mask.inner_ip_proto = 0xff;
+                break;
+
+            default:
+                break;
+            }
+
+            mlnx_create_hash_action(&action_list[act_num], action_type, field, mask);
+            ++act_num;
+        }
+    }
+    *action_num = act_num;
+}
+
+
+static void mlnx_fg_optimized_hash_action_list_create(_In_ sx_flex_acl_action_hash_type_t action_type,
+                                                      _In_ uint32_t                       fields_count,
+                                                      _In_ mlnx_sai_fg_hash_field_t      *fields_list,
+                                                      _Inout_ sx_flex_acl_flex_action_t * action_list,
+                                                      _Inout_ uint32_t                   *action_num)
+{
+    action_list[0].type = SX_FLEX_ACL_ACTION_HASH;
+    action_list[0].fields.action_hash.command = SX_ACL_ACTION_HASH_COMMAND_SET;
+    action_list[0].fields.action_hash.type = action_type;
+    if (action_type == SX_ACL_ACTION_HASH_TYPE_ECMP) {
+        action_list[0].fields.action_hash.hash_value = g_sai_db_ptr->port_ecmp_hash_params.seed;
+    } else {
+        action_list[0].fields.action_hash.hash_value = g_sai_db_ptr->lag_hash_params.lag_seed;
+    }
+
+    sx_gp_register_e port_dst_reg_id = 0;
+    sx_gp_register_e ip_hi_dst_reg_id = 0;
+    sx_gp_register_e ip_lo_dst_reg_id = 0;
+
+    for (uint32_t ii = 0; ii < fields_count; ++ii) {
+        switch (fields_list[ii].field) {
+        case SAI_NATIVE_HASH_FIELD_INNER_L4_SRC_PORT:
+            action_list[1].type = SX_FLEX_ACL_ACTION_ALU_REG;
+            action_list[1].fields.action_alu_reg.command = SX_ACL_ACTION_ALU_REG_COMMAND_XOR;
+            action_list[1].fields.action_alu_reg.src_register = fields_list[ii].reg_id[0].key.gp_reg.reg_id;
+            action_list[1].fields.action_alu_reg.src_offset = 0;
+            break;
+
+        case SAI_NATIVE_HASH_FIELD_INNER_L4_DST_PORT:
+            action_list[1].fields.action_alu_reg.dst_register = fields_list[ii].reg_id[0].key.gp_reg.reg_id;
+            action_list[1].fields.action_alu_reg.dst_offset = 0;
+            action_list[1].fields.action_alu_reg.size = 16;
+            port_dst_reg_id = fields_list[ii].reg_id[0].key.gp_reg.reg_id;
+            break;
+
+        case SAI_NATIVE_HASH_FIELD_INNER_SRC_IPV4:
+            action_list[3].type = SX_FLEX_ACL_ACTION_ALU_REG;
+            action_list[3].fields.action_alu_reg.command = SX_ACL_ACTION_ALU_REG_COMMAND_XOR;
+            action_list[3].fields.action_alu_reg.src_register = fields_list[ii].reg_id[0].key.gp_reg.reg_id;
+            action_list[3].fields.action_alu_reg.src_offset = 0;
+            action_list[4].type = SX_FLEX_ACL_ACTION_ALU_REG;
+            action_list[4].fields.action_alu_reg.command = SX_ACL_ACTION_ALU_REG_COMMAND_XOR;
+            action_list[4].fields.action_alu_reg.src_register = fields_list[ii].reg_id[1].key.gp_reg.reg_id;
+            action_list[4].fields.action_alu_reg.src_offset = 0;
+            break;
+
+        case SAI_NATIVE_HASH_FIELD_INNER_DST_IPV4:
+            action_list[3].fields.action_alu_reg.dst_register = fields_list[ii].reg_id[0].key.gp_reg.reg_id;
+            action_list[3].fields.action_alu_reg.dst_offset = 0;
+            action_list[3].fields.action_alu_reg.size = 16;
+            ip_hi_dst_reg_id = fields_list[ii].reg_id[0].key.gp_reg.reg_id;
+            action_list[4].fields.action_alu_reg.dst_register = fields_list[ii].reg_id[1].key.gp_reg.reg_id;
+            action_list[4].fields.action_alu_reg.dst_offset = 0;
+            action_list[4].fields.action_alu_reg.size = 16;
+            ip_lo_dst_reg_id = fields_list[ii].reg_id[1].key.gp_reg.reg_id;
+            break;
+
+        default:
+            break;
+        }
+    }
+
+    action_list[2].type = SX_FLEX_ACL_ACTION_HASH;
+    action_list[2].fields.action_hash.command = SX_ACL_ACTION_HASH_COMMAND_CRC;
+    action_list[2].fields.action_hash.type = action_type;
+    action_list[2].fields.action_hash.hash_crc.field = SX_ACL_ACTION_HASH_FIELD_GP_REGISTER_0 + port_dst_reg_id;
+    action_list[2].fields.action_hash.hash_crc.mask.gp_register = 0xffff;
+
+    action_list[5].type = SX_FLEX_ACL_ACTION_HASH;
+    action_list[5].fields.action_hash.command = SX_ACL_ACTION_HASH_COMMAND_CRC;
+    action_list[5].fields.action_hash.type = action_type;
+    action_list[5].fields.action_hash.hash_crc.field = SX_ACL_ACTION_HASH_FIELD_INNER_IP_PROTO;
+    action_list[5].fields.action_hash.hash_crc.mask.inner_ip_proto = 0xff;
+
+    action_list[6].type = SX_FLEX_ACL_ACTION_HASH;
+    action_list[6].fields.action_hash.command = SX_ACL_ACTION_HASH_COMMAND_CRC;
+    action_list[6].fields.action_hash.type = action_type;
+    action_list[6].fields.action_hash.hash_crc.field = SX_ACL_ACTION_HASH_FIELD_GP_REGISTER_0 + ip_hi_dst_reg_id;
+    action_list[6].fields.action_hash.hash_crc.mask.gp_register = 0xffff;
+
+    action_list[7].type = SX_FLEX_ACL_ACTION_HASH;
+    action_list[7].fields.action_hash.command = SX_ACL_ACTION_HASH_COMMAND_CRC;
+    action_list[7].fields.action_hash.type = action_type;
+    action_list[7].fields.action_hash.hash_crc.field = SX_ACL_ACTION_HASH_FIELD_GP_REGISTER_0 + ip_lo_dst_reg_id;
+    action_list[7].fields.action_hash.hash_crc.mask.gp_register = 0xffff;
+
+    *action_num = 8;
+}
 
 sai_status_t mlnx_hash_log_set(sx_verbosity_level_t level)
 {
@@ -1492,8 +3593,8 @@ const sai_hash_api_t mlnx_hash_api = {
     mlnx_remove_hash,
     mlnx_set_hash_attribute,
     mlnx_get_hash_attribute,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
+    mlnx_create_fine_grained_hash_field,
+    mlnx_remove_fine_grained_hash_field,
+    mlnx_set_fine_grained_hash_field_attribute,
+    mlnx_get_fine_grained_hash_field_attribute,
 };

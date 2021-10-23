@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2017. Mellanox Technologies, Ltd. ALL RIGHTS RESERVED.
+ *  Copyright (C) 2017-2021, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License"); you may
  *    not use this file except in compliance with the License. You may obtain
@@ -154,12 +154,12 @@ static void SAI_dump_hash_lag_print(_In_ FILE *file, _In_ const sx_lag_port_hash
 
 void SAI_dump_hash(_In_ FILE *file)
 {
-    mlnx_hash_obj_t                   hash_list[SAI_HASH_MAX_OBJ_COUNT];
+    mlnx_hash_obj_t                  *hash_list = NULL;
     sai_object_id_t                   oper_hash_list[SAI_HASH_MAX_OBJ_ID];
     sx_router_ecmp_port_hash_params_t ecmp_params;
     sx_lag_port_hash_params_t         lag_params;
 
-    memset(hash_list, 0, SAI_HASH_MAX_OBJ_COUNT * sizeof(mlnx_hash_obj_t));
+    hash_list = (mlnx_hash_obj_t*)calloc(SAI_HASH_MAX_OBJ_COUNT, sizeof(*hash_list));
     memset(oper_hash_list, 0, SAI_HASH_MAX_OBJ_ID * sizeof(sai_object_id_t));
 
     SAI_dump_hash_getdb(hash_list, oper_hash_list, &ecmp_params, &lag_params);
@@ -170,4 +170,6 @@ void SAI_dump_hash(_In_ FILE *file)
     SAI_dump_hash_lag_print(file, &lag_params);
     SAI_dump_hash_print(file, hash_list);
     SAI_dump_oper_hash_print(file, oper_hash_list);
+
+    free(hash_list);
 }
