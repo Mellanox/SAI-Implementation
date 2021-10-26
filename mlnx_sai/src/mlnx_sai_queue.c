@@ -817,7 +817,7 @@ sai_status_t mlnx_get_queue_statistics_ext(_In_ sai_object_id_t      queue_id,
             counters[ii] = (uint64_t)occupancy_stats.statistics.curr_occupancy *
                            g_resource_limits.shared_buff_buffer_unit_size;
 
-        /**Falls through. */
+        /* Falls through. */
         case SAI_QUEUE_STAT_SHARED_WATERMARK_BYTES:
             if (counter_ids[ii] != SAI_QUEUE_STAT_SHARED_CURR_OCCUPANCY_BYTES) {
                 counters[ii] = (uint64_t)occupancy_stats.statistics.watermark *
