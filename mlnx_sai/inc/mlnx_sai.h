@@ -237,11 +237,12 @@ extern const sai_isolation_group_api_t  mlnx_isolation_group_api;
 #define PORT_SPEED_10                   10000
 #define PORT_SPEED_1                    1000
 #define PORT_SPEED_100M                 100
+#define PORT_SPEED_10M                  10
 #define PORT_SPEED_0                    0
 #define PORT_SPEED_MAX_SP               PORT_SPEED_100
 #define PORT_SPEED_MAX_SP2              PORT_SPEED_200
 #define PORT_SPEED_MAX_SP3              PORT_SPEED_400
-#define MAX_NUM_PORT_SPEEDS             12
+#define MAX_NUM_PORT_SPEEDS             13
 #define MAX_NUM_PORT_INTFS              SAI_PORT_INTERFACE_TYPE_MAX
 #define CPU_PORT                        0
 #define ECMP_MAX_PATHS                  64
@@ -2259,6 +2260,7 @@ typedef enum mlnx_platform_type {
     MLNX_PLATFORM_TYPE_1710    = 1710,
     MLNX_PLATFORM_TYPE_2010    = 2010,
     MLNX_PLATFORM_TYPE_2100    = 2100,
+    MLNX_PLATFORM_TYPE_2201    = 2201,
     MLNX_PLATFORM_TYPE_2410    = 2410,
     MLNX_PLATFORM_TYPE_2420    = 2420,
     MLNX_PLATFORM_TYPE_2700    = 2700,
@@ -2516,6 +2518,7 @@ typedef struct sai_db {
     mlnx_isolation_group_t            isolation_groups[MAX_ISOLATION_GROUPS];
     mlnx_port_isolation_api_t         port_isolation_api;
     bool                              vxlan_srcport_range_enabled;
+    uint16_t                          accumed_flow_cnt_in_k;
     cl_plock_t                        port_counter_lock;
 #ifndef _WIN32
     pthread_cond_t  bulk_counter_cond;
@@ -2792,15 +2795,16 @@ sai_status_t mlnx_sched_hierarchy_foreach(mlnx_port_config_t    *port,
                                           mlnx_sched_obj_iter_t  it,
                                           mlnx_sched_iter_ctx_t *ctx);
 
-#define KV_DEVICE_MAC_ADDRESS              "DEVICE_MAC_ADDRESS"
-#define SAI_KEY_IPV4_ROUTE_TABLE_SIZE      "SAI_IPV4_ROUTE_TABLE_SIZE"
-#define SAI_KEY_IPV6_ROUTE_TABLE_SIZE      "SAI_IPV6_ROUTE_TABLE_SIZE"
-#define SAI_KEY_IPV4_NEIGHBOR_TABLE_SIZE   "SAI_IPV4_NEIGHBOR_TABLE_SIZE"
-#define SAI_KEY_IPV6_NEIGHBOR_TABLE_SIZE   "SAI_IPV6_NEIGHBOR_TABLE_SIZE"
-#define SAI_KEY_AGGREGATE_BRIDGE_DROPS     "SAI_AGGREGATE_BRIDGE_DROPS"
-#define SAI_KEY_DUMP_STORE_PATH            "SAI_DUMP_STORE_PATH"
-#define SAI_KEY_DUMP_STORE_AMOUNT          "SAI_DUMP_STORE_AMOUNT"
-#define SAI_KEY_VXLAN_SRCPORT_RANGE_ENABLE "SAI_VXLAN_SRCPORT_RANGE_ENABLE"
+#define KV_DEVICE_MAC_ADDRESS                        "DEVICE_MAC_ADDRESS"
+#define SAI_KEY_IPV4_ROUTE_TABLE_SIZE                "SAI_IPV4_ROUTE_TABLE_SIZE"
+#define SAI_KEY_IPV6_ROUTE_TABLE_SIZE                "SAI_IPV6_ROUTE_TABLE_SIZE"
+#define SAI_KEY_IPV4_NEIGHBOR_TABLE_SIZE             "SAI_IPV4_NEIGHBOR_TABLE_SIZE"
+#define SAI_KEY_IPV6_NEIGHBOR_TABLE_SIZE             "SAI_IPV6_NEIGHBOR_TABLE_SIZE"
+#define SAI_KEY_AGGREGATE_BRIDGE_DROPS               "SAI_AGGREGATE_BRIDGE_DROPS"
+#define SAI_KEY_DUMP_STORE_PATH                      "SAI_DUMP_STORE_PATH"
+#define SAI_KEY_DUMP_STORE_AMOUNT                    "SAI_DUMP_STORE_AMOUNT"
+#define SAI_KEY_VXLAN_SRCPORT_RANGE_ENABLE           "SAI_VXLAN_SRCPORT_RANGE_ENABLE"
+#define SAI_KEY_ACCUMULATED_FLOW_COUNTER_UNITS_IN_KB "SAI_ACCUMULATED_FLOW_COUNTER_MAX"
 
 #define MLNX_MIRROR_VLAN_TPID           0x8100
 #define MLNX_GRE_PROTOCOL_TYPE          0x8949

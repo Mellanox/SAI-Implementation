@@ -2716,6 +2716,7 @@ static sai_status_t mlnx_chassis_mng_stage(mlnx_sai_boot_type_t boot_type,
     sdk_init_params.flow_counter_params.flow_counter_packet_type_min_number = 0;
     sdk_init_params.flow_counter_params.flow_counter_byte_type_max_number = ACL_MAX_SX_COUNTER_BYTE_NUM;
     sdk_init_params.flow_counter_params.flow_counter_packet_type_max_number = ACL_MAX_SX_COUNTER_PACKET_NUM;
+    sdk_init_params.flow_counter_params.flow_counter_accumulated_type_max_number = g_sai_db_ptr->accumed_flow_cnt_in_k;
 
     /* ISSU: Need to cut MAX ACL groups by half, and share with ingress and egress */
     if (g_sai_db_ptr->issu_enabled) {
@@ -2978,6 +2979,7 @@ static sai_status_t mlnx_config_platform_parse(_In_ const char *platform)
     case MLNX_PLATFORM_TYPE_1710:
     case MLNX_PLATFORM_TYPE_2010:
     case MLNX_PLATFORM_TYPE_2100:
+    case MLNX_PLATFORM_TYPE_2201:
     case MLNX_PLATFORM_TYPE_2410:
     case MLNX_PLATFORM_TYPE_2420:
     case MLNX_PLATFORM_TYPE_2700:
@@ -5091,7 +5093,7 @@ static sai_status_t sai_qos_db_create()
     cl_err = cl_shm_create(SAI_QOS_PATH, &shmid);
     if (cl_err) {
         if (errno == EEXIST) { /* one retry is allowed */
-            MLNX_SAI_LOG_WRN("Shared memory of the SAI QOS already exists, destroying it and re-creating\n");
+            MLNX_SAI_LOG_NTC("Shared memory of the SAI QOS already exists, destroying it and re-creating\n");
             cl_shm_destroy(SAI_QOS_PATH);
             cl_err = cl_shm_create(SAI_QOS_PATH, &shmid);
         }
@@ -5239,7 +5241,7 @@ static sai_status_t sai_buffer_db_create()
     cl_err = cl_shm_create(SAI_BUFFER_PATH, &shmid);
     if (cl_err) {
         if (errno == EEXIST) { /* one retry is allowed */
-            MLNX_SAI_LOG_WRN("Shared memory of the SAI buffer already exists, destroying it and re-creating\n");
+            MLNX_SAI_LOG_NTC("Shared memory of the SAI buffer already exists, destroying it and re-creating\n");
             cl_shm_destroy(SAI_BUFFER_PATH);
             cl_err = cl_shm_create(SAI_BUFFER_PATH, &shmid);
         }
@@ -5389,7 +5391,7 @@ static sai_status_t sai_acl_db_create()
     cl_err = cl_shm_create(SAI_ACL_PATH, &shmid);
     if (cl_err) {
         if (errno == EEXIST) {
-            MLNX_SAI_LOG_WRN("Shared memory of the SAI ACL already exists, destroying it and re-creating\n");
+            MLNX_SAI_LOG_NTC("Shared memory of the SAI ACL already exists, destroying it and re-creating\n");
             cl_shm_destroy(SAI_ACL_PATH);
             cl_err = cl_shm_create(SAI_ACL_PATH, &shmid);
         }
@@ -5492,7 +5494,7 @@ static sai_status_t sai_tunnel_db_create()
     cl_err = cl_shm_create(SAI_TUNNEL_PATH, &shmid);
     if (cl_err) {
         if (errno == EEXIST) {
-            MLNX_SAI_LOG_WRN("Shared memory of the SAI TUNNEL already exists, destroying it and re-creating\n");
+            MLNX_SAI_LOG_NTC("Shared memory of the SAI TUNNEL already exists, destroying it and re-creating\n");
             cl_shm_destroy(SAI_TUNNEL_PATH);
             cl_err = cl_shm_create(SAI_TUNNEL_PATH, &shmid);
         }
@@ -5806,6 +5808,7 @@ static sai_status_t mlnx_initialize_switch(sai_object_id_t switch_id, bool *tran
     int                         system_err;
     const char                 *config_file, *boot_type_char, *aggregate_bridge_drops, *dump_path, *max_dumps;
     const char                 *vxlan_srcport_range_enabled;
+    const char                 *accumed_flow_cnt;
     mlnx_sai_boot_type_t        boot_type = 0;
     sx_router_resources_param_t resources_param;
     sx_router_general_param_t   general_param;
@@ -5945,6 +5948,13 @@ static sai_status_t mlnx_initialize_switch(sai_object_id_t switch_id, bool *tran
         g_sai_db_ptr->vxlan_srcport_range_enabled = (bool)atoi(vxlan_srcport_range_enabled);
     } else {
         g_sai_db_ptr->vxlan_srcport_range_enabled = false;
+    }
+
+    accumed_flow_cnt = g_mlnx_services.profile_get_value(g_profile_id, SAI_KEY_ACCUMULATED_FLOW_COUNTER_UNITS_IN_KB);
+    if ((NULL != accumed_flow_cnt) && (atoi(accumed_flow_cnt) > 0) && (atoi(accumed_flow_cnt) <= 200)) {
+        g_sai_db_ptr->accumed_flow_cnt_in_k = atoi(accumed_flow_cnt);
+    } else {
+        g_sai_db_ptr->accumed_flow_cnt_in_k = 0;
     }
 
     if (SAI_STATUS_SUCCESS != (sai_status = mlnx_chassis_mng_stage(boot_type,

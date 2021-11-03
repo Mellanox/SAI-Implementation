@@ -393,13 +393,15 @@ enum mlnx_speed_bitmap_sp {
     SP_50GB_CR2      = 1 << 22,
     SP_50GB_KR2      = 1 << 23,
     SP_50GB_SR2      = 1 << 24,
-    SP_auto          = 1 << 25,
-    SP_MAX           = 1 << 26,
+    SP_10MB          = 1 << 25,
+    SP_100MB         = 1 << 26,
+    SP_auto          = 1 << 27,
+    SP_MAX           = 1 << 28,
 };
 
 uint64_t mlnx_port_speed_bitmap_sp[MAX_NUM_PORT_SPEEDS] = {
     (0),
-    (0),
+    (SP_100MB),
     (SP_1GB_CX_SGMII | SP_1GB_KX),
     (SP_10GB_CX4_XAUI | SP_10GB_KR | SP_10GB_CR | SP_10GB_SR | SP_10GB_ER_LR | SP_10GB_KX4),
     (SP_20GB_KR2),
@@ -410,17 +412,18 @@ uint64_t mlnx_port_speed_bitmap_sp[MAX_NUM_PORT_SPEEDS] = {
     (SP_100GB_CR4 | SP_100GB_SR4 | SP_100GB_LR4_ER4 | SP_100GB_KR4),
     (0),
     (0),
+    (SP_10MB)
 };
 
 uint64_t mlnx_port_intf_bitmap_sp[MAX_NUM_PORT_INTFS] = {
     (SP_MAX - 1),
-    (SP_10GB_CR | SP_25GB_CR),
+    (SP_10GB_CR | SP_25GB_CR | SP_10MB | SP_100MB),
     (SP_50GB_CR2),
     (SP_40GB_CR4 | SP_100GB_CR4),
-    (SP_10GB_SR | SP_25GB_SR),
+    (SP_10GB_SR | SP_25GB_SR | SP_10MB | SP_100MB),
     (SP_50GB_SR2),
     (SP_40GB_SR4 | SP_100GB_SR4),
-    (SP_10GB_ER_LR),
+    (SP_10GB_ER_LR | SP_10MB | SP_100MB),
     (SP_40GB_LR4_ER4 | SP_100GB_LR4_ER4),
     (SP_10GB_KR | SP_25GB_KR),
     (SP_40GB_KR4 | SP_56GB_KR4 | SP_100GB_KR4),
@@ -439,18 +442,18 @@ uint64_t mlnx_port_lanes_speed_bitmask_sp[MAX_LANES_SPC3 + 1] = {
     (0),
     /* 1 lane */
     (SP_25GB_CR | SP_25GB_KR | SP_25GB_SR | SP_10GB_CR | SP_10GB_KR | SP_10GB_ER_LR | SP_10GB_SR | SP_1GB_CX_SGMII |
-     SP_1GB_KX),
+     SP_1GB_KX | SP_10MB | SP_100MB),
     /* 2 lanes */
     (SP_50GB_CR2 | SP_50GB_KR2 | SP_50GB_SR2 | SP_20GB_KR2 |
      SP_25GB_CR | SP_25GB_KR | SP_25GB_SR | SP_10GB_CR | SP_10GB_KR | SP_10GB_ER_LR | SP_10GB_SR | SP_1GB_CX_SGMII |
-     SP_1GB_KX),
+     SP_1GB_KX | SP_10MB | SP_100MB),
     (0),
     /* 4 lanes */
     (SP_100GB_CR4 | SP_100GB_KR4 | SP_100GB_LR4_ER4 | SP_100GB_SR4 | SP_56GB_KR4 | SP_56GB_KX4 | SP_40GB_CR4 |
      SP_40GB_KR4 | SP_40GB_LR4_ER4 | SP_40GB_SR4 | SP_10GB_CX4_XAUI | SP_10GB_KX4 |
      SP_50GB_CR2 | SP_50GB_KR2 | SP_50GB_SR2 | SP_20GB_KR2 |
      SP_25GB_CR | SP_25GB_KR | SP_25GB_SR | SP_10GB_CR | SP_10GB_KR | SP_10GB_ER_LR | SP_10GB_SR | SP_1GB_CX_SGMII |
-     SP_1GB_KX),
+     SP_1GB_KX | SP_10MB | SP_100MB),
     (0),
     (0),
     (0),
@@ -490,6 +493,7 @@ uint64_t mlnx_port_speed_bitmap_sp2[MAX_NUM_PORT_SPEEDS] = {
     (SP2_100G | SP2_100Gx2 | SP2_100Gx4),
     (SP2_200G | SP2_200Gx4),
     (SP2_400G | SP2_400Gx8),
+    (0)
 };
 
 uint64_t mlnx_port_intf_bitmap_sp2[MAX_NUM_PORT_INTFS] = {
@@ -1654,7 +1658,8 @@ sai_status_t mlnx_wred_mirror_port_event(_In_ sx_port_log_id_t port_log_id, _In_
 
 uint64_t mlnx_fec_mode_speeds_sp[3][20] = {
     { SX_PORT_PHY_SPEED_1GB, SX_PORT_PHY_SPEED_10GB, SX_PORT_PHY_SPEED_25GB, SX_PORT_PHY_SPEED_40GB,
-      SX_PORT_PHY_SPEED_50GB, SX_PORT_PHY_SPEED_100GB, SX_PORT_PHY_SPEED_MAX + 1 },
+      SX_PORT_PHY_SPEED_50GB, SX_PORT_PHY_SPEED_100GB, SX_PORT_PHY_SPEED_10MB, SX_PORT_PHY_SPEED_100MB,
+      SX_PORT_PHY_SPEED_MAX + 1 },
     { SX_PORT_PHY_SPEED_25GB, SX_PORT_PHY_SPEED_50GB, SX_PORT_PHY_SPEED_100GB,
       SX_PORT_PHY_SPEED_MAX + 1 },
     { SX_PORT_PHY_SPEED_10GB, SX_PORT_PHY_SPEED_25GB, SX_PORT_PHY_SPEED_40GB, SX_PORT_PHY_SPEED_50GB,
@@ -2508,6 +2513,10 @@ static sai_status_t mlnx_port_sai_offset_get(_In_ uint32_t speed, _Out_ uint64_t
         *offset = 1;
         break;
 
+    case PORT_SPEED_10M:
+        *offset = 12;
+        break;
+
     case PORT_SPEED_0:
         *offset = 0;
         break;
@@ -2664,6 +2673,8 @@ static sai_status_t mlnx_port_speed_intf_bitmap_to_sx_sp(_In_ uint64_t          
     sx_speed->mode_50GB_CR2 = !!(bitmap & SP_50GB_CR2);
     sx_speed->mode_50GB_KR2 = !!(bitmap & SP_50GB_KR2);
     sx_speed->mode_50GB_SR2 = !!(bitmap & SP_50GB_SR2);
+    sx_speed->mode_10MB = !!(bitmap & SP_10MB);
+    sx_speed->mode_100MB = !!(bitmap & SP_100MB);
     sx_speed->mode_auto = !!(bitmap & SP_auto);
 
     return SAI_STATUS_SUCCESS;
@@ -7746,6 +7757,12 @@ static sai_status_t mlnx_port_speed_convert_bitmap_to_capability(const sx_port_s
     if (speed_bitmap & 1 << 9) {
         speed_capability->mode_56GB_KX4 = TRUE;
     }
+    if (speed_bitmap & 1 << 10) {
+        speed_capability->mode_10MB = TRUE;
+    }
+    if (speed_bitmap & 1 << 11) {
+        speed_capability->mode_100MB = TRUE;
+    }
     if (speed_bitmap & 1 << 12) {
         speed_capability->mode_10GB_CR = TRUE;
     }
@@ -7870,6 +7887,14 @@ static sai_status_t mlnx_port_bitmap_to_speeds_sp(_In_ const sx_port_speed_t spe
         speeds[speeds_count_tmp++] = PORT_SPEED_1;
     }
 
+    if (sx_speed.mode_100MB) {
+        speeds[speeds_count_tmp++] = PORT_SPEED_100M;
+    }
+
+    if (sx_speed.mode_10MB) {
+        speeds[speeds_count_tmp++] = PORT_SPEED_10M;
+    }
+
     *speeds_count = speeds_count_tmp;
 
     return SAI_STATUS_SUCCESS;
@@ -7962,6 +7987,10 @@ static sai_status_t mlnx_port_speed_get_sp(_In_ sx_port_log_id_t sx_port,
         *admin_speed = PORT_SPEED_10;
     } else if (speed_cap.mode_1GB_CX_SGMII || speed_cap.mode_1GB_KX) {
         *admin_speed = PORT_SPEED_1;
+    } else if (speed_cap.mode_100MB) {
+        *admin_speed = PORT_SPEED_100M;
+    } else if (speed_cap.mode_10MB) {
+        *admin_speed = PORT_SPEED_10M;
     } else if (speed_cap.mode_auto) {
         *admin_speed = PORT_SPEED_MAX_SP;
     } else {
@@ -7973,6 +8002,14 @@ static sai_status_t mlnx_port_speed_get_sp(_In_ sx_port_log_id_t sx_port,
     case SX_PORT_SPEED_NA:
     case SX_PORT_SPEED_NOT_SUPPORTED:
         *oper_speed = PORT_SPEED_0;
+        break;
+
+    case SX_PORT_SPEED_10MB:
+        *oper_speed = PORT_SPEED_10M;
+        break;
+
+    case SX_PORT_SPEED_100MB:
+        *oper_speed = PORT_SPEED_100M;
         break;
 
     case SX_PORT_SPEED_1GB_CX_SGMII:
@@ -8174,6 +8211,12 @@ static sai_status_t mlnx_port_supported_speeds_get_sp(_In_ sx_port_log_id_t sx_p
     }
     if (speed_cap.speed_capability.mode_1GB_CX_SGMII || speed_cap.speed_capability.mode_1GB_KX) {
         speeds[speeds_count_tmp++] = PORT_SPEED_1;
+    }
+    if (speed_cap.speed_capability.mode_100MB) {
+        speeds[speeds_count_tmp++] = PORT_SPEED_100M;
+    }
+    if (speed_cap.speed_capability.mode_10MB) {
+        speeds[speeds_count_tmp++] = PORT_SPEED_10M;
     }
 
     *speeds_count = speeds_count_tmp;

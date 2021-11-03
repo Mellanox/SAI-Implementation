@@ -29,6 +29,7 @@ lib_LTLIBRARIES = libfx_base.la libsx_fx_sdk.la libsai.la
 dist_data_DATA = sai_1710.xml \
                  sai_2010.xml \
                  sai_2100.xml \
+                 sai_2201.xml \
                  sai_2410.xml \
                  sai_2420.xml \
                  sai_2700.xml \
