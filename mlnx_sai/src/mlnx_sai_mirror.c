@@ -109,6 +109,14 @@ static sai_status_t mlnx_mirror_session_policer_get(_In_ const sai_object_key_t 
                                                     _In_ uint32_t                  attr_index,
                                                     _Inout_ vendor_cache_t        *cache,
                                                     void                          *arg);
+static sai_status_t mlnx_mirror_session_congestion_mode_set(_In_ const sai_object_key_t      *key,
+                                                            _In_ const sai_attribute_value_t *value,
+                                                            void                             *arg);
+static sai_status_t mlnx_mirror_session_congestion_mode_get(_In_ const sai_object_key_t   *key,
+                                                            _Inout_ sai_attribute_value_t *value,
+                                                            _In_ uint32_t                  attr_index,
+                                                            _Inout_ vendor_cache_t        *cache,
+                                                            void                          *arg);
 static sai_status_t mlnx_mirror_session_monitor_port_set(_In_ const sai_object_key_t      *key,
                                                          _In_ const sai_attribute_value_t *value,
                                                          void                             *arg);
@@ -251,6 +259,11 @@ static const sai_vendor_attribute_entry_t mirror_vendor_attribs[] = {
       { true, false, true, true },
       mlnx_mirror_session_policer_get, NULL,
       mlnx_mirror_session_policer_set, NULL },
+    { SAI_MIRROR_SESSION_ATTR_CONGESTION_MODE,
+      { true, false, true, true },
+      { true, false, true, true },
+      mlnx_mirror_session_congestion_mode_get, NULL,
+      mlnx_mirror_session_congestion_mode_set, NULL },
     { END_FUNCTIONALITY_ATTRIBS_ID,
       { false, false, false, false },
       { false, false, false, false },
@@ -260,6 +273,7 @@ static const sai_vendor_attribute_entry_t mirror_vendor_attribs[] = {
 static const mlnx_attr_enum_info_t        mirror_session_enum_info[] = {
     [SAI_MIRROR_SESSION_ATTR_TYPE] = ATTR_ENUM_VALUES_ALL(),
     [SAI_MIRROR_SESSION_ATTR_ERSPAN_ENCAPSULATION_TYPE] = ATTR_ENUM_VALUES_ALL(),
+    [SAI_MIRROR_SESSION_ATTR_CONGESTION_MODE] = ATTR_ENUM_VALUES_ALL(),
 };
 const mlnx_obj_type_attrs_info_t          mlnx_mirror_session_obj_type_info =
 { mirror_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(mirror_session_enum_info), OBJ_STAT_CAP_INFO_EMPTY()};
@@ -1079,6 +1093,28 @@ static sai_status_t mlnx_mirror_session_policer_get(_In_ const sai_object_key_t 
     return SAI_STATUS_SUCCESS;
 }
 
+static sai_status_t mlnx_translate_congestion_mode_to_sdk(sai_mirror_session_congestion_mode_t congestion_mode,
+                                                          sx_span_cng_mng_t                   *sx_congestion_mode)
+{
+    assert(sx_congestion_mode);
+
+    switch (congestion_mode) {
+    case SAI_MIRROR_SESSION_CONGESTION_MODE_INDEPENDENT:
+        *sx_congestion_mode = SX_SPAN_CNG_MNG_DISCARD;
+        break;
+
+    case SAI_MIRROR_SESSION_CONGESTION_MODE_CORRELATED:
+        *sx_congestion_mode = SX_SPAN_CNG_MNG_DONT_DISCARD;
+        break;
+
+    default:
+        SX_LOG_ERR("Invalid congestion mode %d\n", congestion_mode);
+        return SAI_STATUS_FAILURE;
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
 /* Calls to this function should be guarded by lock */
 static sai_status_t mlnx_delete_mirror_analyzer_port(_In_ sx_span_session_id_t sdk_mirror_obj_id)
 {
@@ -1133,72 +1169,75 @@ static sai_status_t mlnx_delete_mirror_analyzer_port(_In_ sx_span_session_id_t s
 }
 
 /* Calls to this function should be guarded by lock */
-static sai_status_t mlnx_add_mirror_analyzer_port(_In_ sx_span_session_id_t sdk_mirror_obj_id,
-                                                  _In_ sai_object_id_t      sai_analyzer_port_id)
+static sai_status_t mlnx_add_mirror_analyzer_port_impl(_In_ sx_span_session_id_t sx_mirror_session_id,
+                                                       _In_ sx_port_log_id_t     analyzer_log_port,
+                                                       _In_ sx_span_cng_mng_t    congestion_mode)
 {
-    sai_status_t                   status = SAI_STATUS_FAILURE;
-    uint32_t                       sdk_analyzer_port_id = 0;
+    sai_status_t                   status;
+    sx_status_t                    sx_status;
     sx_span_analyzer_port_params_t sdk_analyzer_port_params;
     mlnx_port_config_t            *port_config = NULL;
 
     memset(&sdk_analyzer_port_params, 0, sizeof(sx_span_analyzer_port_params_t));
     SX_LOG_ENTER();
 
-    switch (sai_object_type_query(sai_analyzer_port_id)) {
-    case SAI_OBJECT_TYPE_PORT:
-        if (SAI_STATUS_SUCCESS !=
-            (status = mlnx_object_to_type(sai_analyzer_port_id, SAI_OBJECT_TYPE_PORT, &sdk_analyzer_port_id, NULL))) {
-            SX_LOG_ERR("Invalid sai analyzer port id %" PRIx64 "\n", sai_analyzer_port_id);
-            SX_LOG_EXIT();
-            return status;
-        }
-        break;
+    sdk_analyzer_port_params.cng_mng = congestion_mode;
 
-    case SAI_OBJECT_TYPE_LAG:
-        if (SAI_STATUS_SUCCESS !=
-            (status = mlnx_object_to_log_port(sai_analyzer_port_id, &sdk_analyzer_port_id))) {
-            SX_LOG_ERR("Invalid sai analyzer port id %" PRIx64 "\n", sai_analyzer_port_id);
-            SX_LOG_EXIT();
-            return status;
-        }
-        break;
+    sx_status = sx_api_span_analyzer_set(gh_sdk, SX_ACCESS_CMD_ADD, analyzer_log_port, &sdk_analyzer_port_params,
+                                         sx_mirror_session_id);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Error setting sdk analyzer port id %x on sdk mirror session id %x\n", analyzer_log_port,
+                   sx_mirror_session_id);
+        return sdk_to_sai(sx_status);
+    }
 
-    default:
+    sx_status = sx_api_span_session_state_set(gh_sdk, sx_mirror_session_id, true);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Error enabling mirror session state during setting analyzer port, sdk mirror session id: %d\n",
+                   sx_mirror_session_id);
+        return sdk_to_sai(sx_status);
+    }
+
+    status = mlnx_port_by_log_id(analyzer_log_port, &port_config);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Error getting port config from port log id 0x%x\n", analyzer_log_port);
+        return status;
+    }
+
+    port_config->is_span_analyzer_port = true;
+
+    return status;
+}
+
+/* Calls to this function should be guarded by lock */
+static sai_status_t mlnx_add_mirror_analyzer_port(_In_ sx_span_session_id_t                 sdk_mirror_obj_id,
+                                                  _In_ sai_object_id_t                      sai_analyzer_port_id,
+                                                  _In_ sai_mirror_session_congestion_mode_t congestion_mode)
+{
+    sai_status_t      status = SAI_STATUS_FAILURE;
+    uint32_t          sdk_analyzer_port_id = 0;
+    sx_span_cng_mng_t sx_congestion_mode;
+
+    SX_LOG_ENTER();
+
+    status = mlnx_object_to_log_port(sai_analyzer_port_id, &sdk_analyzer_port_id);
+    if (SAI_ERR(status)) {
         SX_LOG_ERR("Invalid sai analyzer port id %" PRIx64 "\n", sai_analyzer_port_id);
         SX_LOG_EXIT();
         return status;
-        break;
     }
 
-    sdk_analyzer_port_params.cng_mng = SX_SPAN_CNG_MNG_DISCARD;
-
-    if (SAI_STATUS_SUCCESS !=
-        (status =
-             sdk_to_sai(sx_api_span_analyzer_set(gh_sdk, SX_ACCESS_CMD_ADD, (sx_port_log_id_t)sdk_analyzer_port_id,
-                                                 &sdk_analyzer_port_params,
-                                                 (sx_span_session_id_t)sdk_mirror_obj_id)))) {
-        SX_LOG_ERR("Error setting sdk analyzer port id %x on sdk mirror obj id %x\n",
-                   sdk_analyzer_port_id,
-                   sdk_mirror_obj_id);
-        SX_LOG_EXIT();
+    status = mlnx_translate_congestion_mode_to_sdk(congestion_mode, &sx_congestion_mode);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to translate congestion mode to SDK\n");
         return status;
     }
 
-    if (SAI_STATUS_SUCCESS !=
-        (status = sdk_to_sai(sx_api_span_session_state_set(gh_sdk, (sx_span_session_id_t)sdk_mirror_obj_id, true)))) {
-        SX_LOG_ERR("Error enabling mirror session state during setting analyzer port, sdk mirror obj id: %d\n",
-                   sdk_mirror_obj_id);
-        SX_LOG_EXIT();
+    status = mlnx_add_mirror_analyzer_port_impl(sdk_mirror_obj_id, sdk_analyzer_port_id, sx_congestion_mode);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to set mirror analyzer port to SDK\n");
         return status;
     }
-
-    status = mlnx_port_by_log_id(sdk_analyzer_port_id, &port_config);
-    if (SAI_STATUS_SUCCESS != status) {
-        SX_LOG_ERR("Error getting port config from port log id 0x%x\n", sdk_analyzer_port_id);
-        SX_LOG_EXIT();
-        return status;
-    }
-    port_config->is_span_analyzer_port = true;
 
     SX_LOG_EXIT();
     return SAI_STATUS_SUCCESS;
@@ -1223,6 +1262,12 @@ static sai_status_t mlnx_mirror_session_monitor_port_set(_In_ const sai_object_k
 
     sai_db_write_lock();
 
+    if (MIRROR_CONGESTION_MODE_UNINITIALIZED(g_sai_db_ptr->mirror_congestion_mode[sdk_mirror_obj_id_u32])) {
+        SX_LOG_ERR("Invalid congestion mode\n");
+        sai_db_unlock();
+        return SAI_STATUS_FAILURE;
+    }
+
     if (SAI_STATUS_SUCCESS !=
         (status = mlnx_delete_mirror_analyzer_port((sx_span_session_id_t)sdk_mirror_obj_id_u32))) {
         sai_db_unlock();
@@ -1232,7 +1277,9 @@ static sai_status_t mlnx_mirror_session_monitor_port_set(_In_ const sai_object_k
     }
 
     if (SAI_STATUS_SUCCESS !=
-        (status = mlnx_add_mirror_analyzer_port((sx_span_session_id_t)sdk_mirror_obj_id_u32, value->oid))) {
+        (status =
+             mlnx_add_mirror_analyzer_port((sx_span_session_id_t)sdk_mirror_obj_id_u32, value->oid,
+                                           g_sai_db_ptr->mirror_congestion_mode[sdk_mirror_obj_id_u32]))) {
         sai_db_unlock();
         SX_LOG_ERR("Error adding mirror analyzer port %" PRIx64 " on sdk mirror obj id %d\n",
                    value->oid,
@@ -1980,6 +2027,93 @@ out:
     return status;
 }
 
+static sai_status_t mlnx_mirror_session_congestion_mode_set(_In_ const sai_object_key_t      *key,
+                                                            _In_ const sai_attribute_value_t *value,
+                                                            void                             *arg)
+{
+    sai_status_t      status;
+    sx_status_t       sx_status;
+    sx_port_log_id_t  analyzer_log_port;
+    sx_span_cng_mng_t sx_congestion_mode;
+    uint32_t          sx_mirror_session_id = 0;
+
+    status = mlnx_object_to_type(key->key.object_id, SAI_OBJECT_TYPE_MIRROR_SESSION, &sx_mirror_session_id, NULL);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Invalid mirror session id %" PRIx64 "\n", key->key.object_id);
+        return status;
+    }
+
+    sx_status = sx_api_span_session_analyzer_get(gh_sdk, (sx_span_session_id_t)sx_mirror_session_id,
+                                                 &analyzer_log_port);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Error getting analyzer port from sdk mirror obj id %d\n", sx_mirror_session_id);
+        return sdk_to_sai(sx_status);
+    }
+
+    sai_db_write_lock();
+
+    if (MIRROR_CONGESTION_MODE_UNINITIALIZED(g_sai_db_ptr->mirror_congestion_mode[sx_mirror_session_id])) {
+        SX_LOG_ERR("Congestion mode uninitialized\n");
+        status = SAI_STATUS_FAILURE;
+        goto out;
+    }
+
+    status = mlnx_translate_congestion_mode_to_sdk(value->u8, &sx_congestion_mode);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to translate congestion mode to SDK\n");
+        goto out;
+    }
+
+    status = mlnx_delete_mirror_analyzer_port((sx_span_session_id_t)sx_mirror_session_id);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to delete mirror analyzer port\n");
+        goto out;
+    }
+
+    status = mlnx_add_mirror_analyzer_port_impl((sx_span_session_id_t)sx_mirror_session_id, analyzer_log_port,
+                                                sx_congestion_mode);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to add mirror analyzer port\n");
+        goto out;
+    }
+
+    g_sai_db_ptr->mirror_congestion_mode[sx_mirror_session_id] = value->u8;
+out:
+    sai_db_unlock();
+    return status;
+}
+
+static sai_status_t mlnx_mirror_session_congestion_mode_get(_In_ const sai_object_key_t   *key,
+                                                            _Inout_ sai_attribute_value_t *value,
+                                                            _In_ uint32_t                  attr_index,
+                                                            _Inout_ vendor_cache_t        *cache,
+                                                            void                          *arg)
+{
+    sai_status_t status;
+    uint32_t     sx_mirror_session_id;
+
+    status = mlnx_object_to_type(key->key.object_id, SAI_OBJECT_TYPE_MIRROR_SESSION, &sx_mirror_session_id, NULL);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Invalid mirror session id %" PRIx64 "\n", key->key.object_id);
+        return status;
+    }
+
+    sai_db_read_lock();
+
+    if (MIRROR_CONGESTION_MODE_UNINITIALIZED(g_sai_db_ptr->mirror_congestion_mode[sx_mirror_session_id])) {
+        SX_LOG_ERR("Invalid mirror session - congestion mode uninitialized\n");
+        status = SAI_STATUS_FAILURE;
+        goto out;
+    }
+
+    value->u8 = g_sai_db_ptr->mirror_congestion_mode[sx_mirror_session_id];
+
+out:
+    sai_db_unlock();
+
+    return status;
+}
+
 static sai_status_t mlnx_check_mirror_single_attribute_on_create(
     _In_ bool                          is_valid_mirror_type,
     _In_ uint32_t                      attr_count,
@@ -2534,14 +2668,18 @@ static sai_status_t mlnx_create_mirror_session(_Out_ sai_object_id_t      *sai_m
     const sai_attribute_value_t *mirror_src_mac_address = NULL, *mirror_dst_mac_address = NULL;
     const sai_attribute_value_t *mirror_gre_protocol_type = NULL;
     const sai_attribute_value_t *mirror_policer = NULL;
+    const sai_attribute_value_t *congestion_mode_attr = NULL;
     sai_status_t                 status = SAI_STATUS_FAILURE, status_truncate_size =
         SAI_STATUS_FAILURE;
-    sai_status_t             status_tc = SAI_STATUS_FAILURE, status_ttl = SAI_STATUS_FAILURE;
-    sai_status_t             status_remove = SAI_STATUS_FAILURE;
-    sx_span_session_params_t sdk_mirror_obj_params;
-    sx_span_session_id_t     sdk_mirror_obj_id = 0;
-    sai_object_id_t          policer_oid = SAI_NULL_OBJECT_ID;
-    uint32_t                 policer_attr_idx;
+    sai_status_t                         status_tc = SAI_STATUS_FAILURE, status_ttl = SAI_STATUS_FAILURE;
+    sai_status_t                         status_remove = SAI_STATUS_FAILURE;
+    sx_span_session_params_t             sdk_mirror_obj_params;
+    sx_span_session_id_t                 sdk_mirror_obj_id = 0;
+    sai_object_id_t                      policer_oid = SAI_NULL_OBJECT_ID;
+    uint32_t                             policer_attr_idx;
+    uint32_t                             congestion_mode_idx;
+    sai_mirror_session_congestion_mode_t congestion_mode;
+
 
     memset(&sdk_mirror_obj_params, 0, sizeof(sx_span_session_params_t));
 
@@ -2629,8 +2767,8 @@ static sai_status_t mlnx_create_mirror_session(_Out_ sai_object_id_t      *sai_m
     if (policer_oid != SAI_NULL_OBJECT_ID) {
         status = mlnx_mirror_policer_validate(policer_oid);
         if (SAI_ERR(status)) {
-            sai_db_unlock();
-            return SAI_STATUS_INVALID_ATTR_VALUE_0 + policer_attr_idx;
+            status = SAI_STATUS_INVALID_ATTR_VALUE_0 + policer_attr_idx;
+            goto out;
         }
     }
 
@@ -2639,29 +2777,32 @@ static sai_status_t mlnx_create_mirror_session(_Out_ sai_object_id_t      *sai_m
              sdk_to_sai(sx_api_span_session_set(gh_sdk, SX_ACCESS_CMD_CREATE, &sdk_mirror_obj_params,
                                                 &sdk_mirror_obj_id)))) {
         SX_LOG_ERR("Error creating mirror session\n");
-        SX_LOG_EXIT();
-        sai_db_unlock();
-        return status;
+        goto out;
+    }
+
+    status = find_attrib_in_list(attr_count, attr_list, SAI_MIRROR_SESSION_ATTR_CONGESTION_MODE, &congestion_mode_attr,
+                                 &congestion_mode_idx);
+    if (SAI_OK(status)) {
+        congestion_mode = congestion_mode_attr->u8;
+    } else {
+        congestion_mode = SAI_MIRROR_SESSION_CONGESTION_MODE_INDEPENDENT;
     }
 
     if (SAI_STATUS_SUCCESS !=
-        (status = mlnx_add_mirror_analyzer_port(sdk_mirror_obj_id, mirror_monitor_port->oid))) {
+        (status = mlnx_add_mirror_analyzer_port(sdk_mirror_obj_id, mirror_monitor_port->oid, congestion_mode))) {
         if (SAI_STATUS_SUCCESS !=
             (status_remove =
                  sdk_to_sai(sx_api_span_session_set(gh_sdk, SX_ACCESS_CMD_DESTROY, &sdk_mirror_obj_params,
                                                     &sdk_mirror_obj_id)))) {
-            sai_db_unlock();
             SX_LOG_ERR("Error destroying mirror session, sdk mirror obj id: %d\n", sdk_mirror_obj_id);
-            SX_LOG_EXIT();
-            return status_remove;
+            status = status_remove;
+            goto out;
         }
 
-        sai_db_unlock();
         SX_LOG_ERR("Error adding mirror analyzer port %" PRIx64 " on sdk mirror obj id %d\n",
                    mirror_monitor_port->oid,
                    sdk_mirror_obj_id);
-        SX_LOG_EXIT();
-        return status;
+        goto out;
     }
 
     SX_LOG_NTC("Created sdk mirror obj id: %d\n", sdk_mirror_obj_id);
@@ -2693,21 +2834,23 @@ static sai_status_t mlnx_create_mirror_session(_Out_ sai_object_id_t      *sai_m
 
     g_sai_db_ptr->mirror_policer[sdk_mirror_obj_id].policer_oid = policer_oid;
 
-    sai_db_unlock();
-
     if (SAI_STATUS_SUCCESS !=
         (status =
              mlnx_create_object(SAI_OBJECT_TYPE_MIRROR_SESSION, (uint32_t)sdk_mirror_obj_id, NULL,
                                 sai_mirror_obj_id))) {
         SX_LOG_ERR("Error creating mirror session object\n");
-        SX_LOG_EXIT();
-        return status;
+        goto out;
     }
+
+    g_sai_db_ptr->mirror_congestion_mode[sdk_mirror_obj_id] = congestion_mode;
 
     SX_LOG_NTC("Created SAI mirror obj id: %" PRIx64 "\n", *sai_mirror_obj_id);
 
+out:
+    sai_db_unlock();
     SX_LOG_EXIT();
-    return SAI_STATUS_SUCCESS;
+
+    return status;
 }
 
 static sai_status_t mlnx_mirror_session_is_in_use(_In_ sx_span_session_id_t session,

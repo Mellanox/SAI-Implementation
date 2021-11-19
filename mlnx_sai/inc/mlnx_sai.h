@@ -2662,6 +2662,7 @@ typedef struct sai_db {
     mlnx_dump_configuration_t         dump_configuration;
     mlnx_mirror_vlan_t                erspan_vlan_header[SPAN_SESSION_MAX];
     mlnx_mirror_policer_t             mirror_policer[SPAN_SESSION_MAX];
+    int32_t                           mirror_congestion_mode[SPAN_SESSION_MAX];
     mlnx_l2mc_group_t                 l2mc_groups[MLNX_L2MC_GROUP_DB_SIZE];
     mlnx_debug_counter_trap_t         debug_counter_traps[MLNX_DEBUG_COUNTER_TRAP_DB_SIZE];
     bool                              is_bfd_module_initialized;
@@ -2673,6 +2674,7 @@ typedef struct sai_db {
     mlnx_isolation_group_t            isolation_groups[MAX_ISOLATION_GROUPS];
     mlnx_port_isolation_api_t         port_isolation_api;
     bool                              vxlan_srcport_range_enabled;
+    uint16_t                          accumed_flow_cnt_in_k;
     cl_plock_t                        port_counter_lock;
 #ifndef _WIN32
     pthread_cond_t  bulk_counter_cond;
@@ -2951,15 +2953,16 @@ sai_status_t mlnx_sched_hierarchy_foreach(mlnx_port_config_t    *port,
                                           mlnx_sched_obj_iter_t  it,
                                           mlnx_sched_iter_ctx_t *ctx);
 
-#define KV_DEVICE_MAC_ADDRESS              "DEVICE_MAC_ADDRESS"
-#define SAI_KEY_IPV4_ROUTE_TABLE_SIZE      "SAI_IPV4_ROUTE_TABLE_SIZE"
-#define SAI_KEY_IPV6_ROUTE_TABLE_SIZE      "SAI_IPV6_ROUTE_TABLE_SIZE"
-#define SAI_KEY_IPV4_NEIGHBOR_TABLE_SIZE   "SAI_IPV4_NEIGHBOR_TABLE_SIZE"
-#define SAI_KEY_IPV6_NEIGHBOR_TABLE_SIZE   "SAI_IPV6_NEIGHBOR_TABLE_SIZE"
-#define SAI_KEY_AGGREGATE_BRIDGE_DROPS     "SAI_AGGREGATE_BRIDGE_DROPS"
-#define SAI_KEY_DUMP_STORE_PATH            "SAI_DUMP_STORE_PATH"
-#define SAI_KEY_DUMP_STORE_AMOUNT          "SAI_DUMP_STORE_AMOUNT"
-#define SAI_KEY_VXLAN_SRCPORT_RANGE_ENABLE "SAI_VXLAN_SRCPORT_RANGE_ENABLE"
+#define KV_DEVICE_MAC_ADDRESS                        "DEVICE_MAC_ADDRESS"
+#define SAI_KEY_IPV4_ROUTE_TABLE_SIZE                "SAI_IPV4_ROUTE_TABLE_SIZE"
+#define SAI_KEY_IPV6_ROUTE_TABLE_SIZE                "SAI_IPV6_ROUTE_TABLE_SIZE"
+#define SAI_KEY_IPV4_NEIGHBOR_TABLE_SIZE             "SAI_IPV4_NEIGHBOR_TABLE_SIZE"
+#define SAI_KEY_IPV6_NEIGHBOR_TABLE_SIZE             "SAI_IPV6_NEIGHBOR_TABLE_SIZE"
+#define SAI_KEY_AGGREGATE_BRIDGE_DROPS               "SAI_AGGREGATE_BRIDGE_DROPS"
+#define SAI_KEY_DUMP_STORE_PATH                      "SAI_DUMP_STORE_PATH"
+#define SAI_KEY_DUMP_STORE_AMOUNT                    "SAI_DUMP_STORE_AMOUNT"
+#define SAI_KEY_VXLAN_SRCPORT_RANGE_ENABLE           "SAI_VXLAN_SRCPORT_RANGE_ENABLE"
+#define SAI_KEY_ACCUMULATED_FLOW_COUNTER_UNITS_IN_KB "SAI_ACCUMULATED_FLOW_COUNTER_MAX"
 
 #define MLNX_MIRROR_VLAN_TPID           0x8100
 #define MLNX_GRE_PROTOCOL_TYPE          0x8949
@@ -2975,6 +2978,7 @@ sai_status_t mlnx_sched_hierarchy_foreach(mlnx_port_config_t    *port,
 #define DSCP_MASK                       0xFC /* 1111 1100 */
 #define MLNX_VLAN_ETHERTYPE_ID          0
 #define MLNX_MIRROR_DEFAULT_SWITCH_PRIO 0
+#define MIRROR_CONGESTION_MODE_UNINITIALIZED(congestion_mode) ((congestion_mode) == -1)
 
 typedef enum _mirror_ip_address_type_t {
     MIRROR_SRC_IP_ADDRESS,

@@ -3008,6 +3008,7 @@ static sai_status_t mlnx_chassis_mng_stage(mlnx_sai_boot_type_t boot_type,
     sdk_init_params.flow_counter_params.flow_counter_packet_type_min_number = 0;
     sdk_init_params.flow_counter_params.flow_counter_byte_type_max_number = ACL_MAX_SX_COUNTER_BYTE_NUM;
     sdk_init_params.flow_counter_params.flow_counter_packet_type_max_number = ACL_MAX_SX_COUNTER_PACKET_NUM;
+    sdk_init_params.flow_counter_params.flow_counter_accumulated_type_max_number = g_sai_db_ptr->accumed_flow_cnt_in_k;
 
     /* ISSU: Need to cut MAX ACL groups by half, and share with ingress and egress */
     if (g_sai_db_ptr->issu_enabled) {
@@ -3102,6 +3103,8 @@ static sai_status_t mlnx_chassis_mng_stage(mlnx_sai_boot_type_t boot_type,
     if (mlnx_chip_is_spc4()) {
         sdk_init_params.router_params.max_port_router_interfaces_num = 2000;
     }
+
+    sdk_init_params.fdb_params.roaming_mac_notif_en = true;
 
     SX_LOG_INF("SDK init set start\n");
     if (SX_STATUS_SUCCESS != (status = sx_api_sdk_init_set(gh_sdk, &sdk_init_params))) {
@@ -3541,6 +3544,10 @@ static void sai_db_values_init()
     msync(g_sai_db_ptr, sizeof(*g_sai_db_ptr), MS_SYNC);
 
     g_sai_db_ptr->port_isolation_api = PORT_ISOLATION_API_NONE;
+
+    for (ii = 0; ii < SPAN_SESSION_MAX; ii++) {
+        g_sai_db_ptr->mirror_congestion_mode[ii] = -1;
+    }
 
     sai_qos_db_init();
     memset(g_sai_qos_db_ptr->wred_db, 0, sizeof(mlnx_wred_profile_t) * g_resource_limits.cos_redecn_profiles_max);
@@ -4851,7 +4858,7 @@ static sai_status_t mlnx_switch_parse_fdb_event(uint8_t                         
 
     for (from_index = 0; from_index < packet->records_num; from_index++) {
         SX_LOG_INF(
-            "FDB event received [%u/%u, %u] vlan: %4u ; mac: %02x:%02x:%02x:%02x:%02x:%02x ; log_port: (0x%08X) ; type: %s(%d)\n",
+            "FDB event received [%u/%u, %u] vlan: %4u ; mac: %02x:%02x:%02x:%02x:%02x:%02x ; log_port: (0x%08X) ; type: %s(%d); Roaming: %s\n",
             from_index + 1,
             packet->records_num,
             to_index + 1,
@@ -4864,7 +4871,8 @@ static sai_status_t mlnx_switch_parse_fdb_event(uint8_t                         
             packet->records_arr[from_index].mac_addr.ether_addr_octet[5],
             packet->records_arr[from_index].log_port,
             SX_FDB_NOTIFY_TYPE_STR(packet->records_arr[from_index].type),
-            packet->records_arr[from_index].type);
+            packet->records_arr[from_index].type,
+            packet->records_arr[from_index].is_roaming ? "Yes" : "No");
 
         port_id = SAI_NULL_OBJECT_ID;
         sx_fid = 0;
@@ -4878,7 +4886,11 @@ static sai_status_t mlnx_switch_parse_fdb_event(uint8_t                         
         switch (packet->records_arr[from_index].type) {
         case SX_FDB_NOTIFY_TYPE_NEW_MAC_LAG:
         case SX_FDB_NOTIFY_TYPE_NEW_MAC_PORT:
-            fdb_events[to_index].event_type = SAI_FDB_EVENT_LEARNED;
+            if (!packet->records_arr[from_index].is_roaming) {
+                fdb_events[to_index].event_type = SAI_FDB_EVENT_LEARNED;
+            } else {
+                fdb_events[to_index].event_type = SAI_FDB_EVENT_MOVE;
+            }
             memcpy(&mac_addr, packet->records_arr[from_index].mac_addr.ether_addr_octet, sizeof(mac_addr));
             sx_fid = packet->records_arr[from_index].fid;
             has_port = true;
@@ -6112,6 +6124,7 @@ static sai_status_t mlnx_initialize_switch(sai_object_id_t switch_id, bool *tran
     int                         system_err;
     const char                 *config_file, *boot_type_char, *aggregate_bridge_drops, *dump_path, *max_dumps;
     const char                 *vxlan_srcport_range_enabled;
+    const char                 *accumed_flow_cnt;
     mlnx_sai_boot_type_t        boot_type = 0;
     sx_router_resources_param_t resources_param;
     sx_router_general_param_t   general_param;
@@ -6251,6 +6264,13 @@ static sai_status_t mlnx_initialize_switch(sai_object_id_t switch_id, bool *tran
         g_sai_db_ptr->vxlan_srcport_range_enabled = (bool)atoi(vxlan_srcport_range_enabled);
     } else {
         g_sai_db_ptr->vxlan_srcport_range_enabled = false;
+    }
+
+    accumed_flow_cnt = g_mlnx_services.profile_get_value(g_profile_id, SAI_KEY_ACCUMULATED_FLOW_COUNTER_UNITS_IN_KB);
+    if ((NULL != accumed_flow_cnt) && (atoi(accumed_flow_cnt) > 0) && (atoi(accumed_flow_cnt) <= 200)) {
+        g_sai_db_ptr->accumed_flow_cnt_in_k = atoi(accumed_flow_cnt);
+    } else {
+        g_sai_db_ptr->accumed_flow_cnt_in_k = 0;
     }
 
     if (SAI_STATUS_SUCCESS != (sai_status = mlnx_chassis_mng_stage(boot_type,
