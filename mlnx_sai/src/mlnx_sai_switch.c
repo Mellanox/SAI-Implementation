@@ -2934,7 +2934,6 @@ static sai_status_t parse_port_info(xmlDoc *doc, xmlNode * port_node)
     port->port_map.mapping_mode = SX_PORT_MAPPING_MODE_ENABLE;
     port->port_map.module_port = module;
     port->port_map.width = width;
-    port->port_map.config_hw = FALSE;
     port->port_map.lane_bmap = 0x0;
     port->port_map.local_port = local;
 
@@ -3312,9 +3311,15 @@ static mlnx_shm_rm_array_init_info_t mlnx_shm_array_info[MLNX_SHM_RM_ARRAY_TYPE_
     [MLNX_SHM_RM_ARRAY_TYPE_COUNTER] = {sizeof(mlnx_counter_t),
                                         NULL,
                                         MLNX_COUNTERS_DB_SIZE},
-    [MLNX_SHM_RM_ARRAY_TYPE_GROUP_COUNTER] = {sizeof(mlnx_group_counter_t),
-                                              NULL,
-                                              MLNX_GROUP_COUNTERS_DB_SIZE},
+    [MLNX_SHM_RM_ARRAY_TYPE_NHG] = {sizeof(mlnx_nhg_db_entry_t),
+                                    NULL,
+                                    MLNX_NHG_DB_SIZE},
+    [MLNX_SHM_RM_ARRAY_TYPE_NHG_MEMBER] = {sizeof(mlnx_nhgm_db_entry_t),
+                                           NULL,
+                                           MLNX_NHG_MEMBER_DB_SIZE},
+    [MLNX_SHM_RM_ARRAY_TYPE_ECMP_NHG_MAP] = {sizeof(mlnx_ecmp_to_nhg_db_entry_t),
+                                             NULL,
+                                             MLNX_ECMP_TO_NHG_MAP_SIZE},
 };
 static size_t mlnx_sai_rm_db_size_get(void)
 {
@@ -6041,7 +6046,7 @@ static sai_status_t mlnx_initialize_switch(sai_object_id_t switch_id, bool *tran
         sx_vlan_cnt = 1;
         sdk_status = sx_api_vlan_set(gh_sdk, SX_ACCESS_CMD_ADD, DEFAULT_ETH_SWID, sx_vlan_id, &sx_vlan_cnt);
         if (SX_ERR(sdk_status)) {
-            SX_LOG_ERR("Error adding vlan %hu: %s\n", sx_vlan_id, SX_STATUS_MSG(sdk_status));
+            SX_LOG_ERR("Error adding vlan %hu: %s\n", sx_vlan_id[0], SX_STATUS_MSG(sdk_status));
             sai_status = sdk_to_sai(sdk_status);
             return sai_status;
         }

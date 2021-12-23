@@ -128,7 +128,6 @@ static void SAI_dump_port_print(_In_ FILE *file, _In_ mlnx_port_config_t *mlnx_p
         {"mapping module port",        19, PARAM_UINT8_E,  &curr_mlnx_port_config.port_map.module_port},
         {"mapping width",              13, PARAM_UINT8_E,  &curr_mlnx_port_config.port_map.width},
         {"mapping lane bamp",          17, PARAM_UINT8_E,  &curr_mlnx_port_config.port_map.lane_bmap},
-        {"mapping config hw",          17, PARAM_UINT8_E,  &curr_mlnx_port_config.port_map.config_hw},
         {"default tc",                 10, PARAM_UINT8_E,  &curr_mlnx_port_config.default_tc},
         {"admin state",                11, PARAM_UINT8_E,  &curr_mlnx_port_config.admin_state},
         {"is analyzer port",           16, PARAM_UINT8_E,  &curr_mlnx_port_config.is_span_analyzer_port},

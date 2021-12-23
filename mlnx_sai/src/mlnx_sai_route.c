@@ -140,28 +140,19 @@ static sai_status_t mlnx_route_handle_encap_nexthop(_In_ sai_object_id_t nh,
 {
     sai_status_t                   status;
     mlnx_encap_nexthop_db_entry_t *db_entry;
-    mlnx_shm_rm_array_idx_t        idx;
+    mlnx_shm_rm_array_idx_t        nh_idx;
 
     assert(sx_ecmp_id);
 
     sai_db_write_lock();
 
-    status = mlnx_encap_nexthop_oid_to_data(nh, &db_entry, &idx);
+    status = mlnx_encap_nexthop_oid_to_data(nh, &db_entry, &nh_idx);
     if (SAI_ERR(status)) {
         SX_LOG_ERR("Failed get data from DB.\n");
         goto out;
     }
 
-    status = mlnx_tunnel_bridge_counter_update(db_entry->data.tunnel_id,
-                                               db_entry->data.tunnel_vni,
-                                               vrf,
-                                               1);
-    if (SAI_ERR(status)) {
-        SX_LOG_ERR("Update tunnel bridge counter failed.\n");
-        goto out;
-    }
-
-    status = mlnx_encap_nexthop_counter_update(nh, vrf, 1);
+    status = mlnx_encap_nexthop_counter_update(nh_idx, vrf, 1, NH_COUNTER_TYPE_NH);
     if (SAI_ERR(status)) {
         SX_LOG_ERR("Update encap nexthop counter failed.\n");
         goto out;
@@ -225,8 +216,9 @@ static sai_status_t mlnx_fill_route_data(sx_uc_route_data_t      *route_data,
             return SAI_STATUS_INVALID_ATTR_VALUE_0 + next_hop_param_index;
         }
     } else if (SAI_OBJECT_TYPE_NEXT_HOP_GROUP == sai_object_type_query(oid)) {
-        if (SAI_STATUS_SUCCESS !=
-            (status = mlnx_object_to_type(oid, SAI_OBJECT_TYPE_NEXT_HOP_GROUP, &sdk_ecmp_id, NULL))) {
+        status = mlnx_nhg_get_ecmp(oid, route_entry->vr_id, 1, &sdk_ecmp_id);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to get ECMP from NHG.\n");
             return status;
         }
 
@@ -444,84 +436,127 @@ static sai_status_t mlnx_create_route(_In_ const sai_route_entry_t* route_entry,
     return SAI_STATUS_SUCCESS;
 }
 
-static sai_status_t mlnx_route_to_encap_nexthop_remove(_In_ sai_object_id_t vrf, _In_ sai_object_id_t nh)
+static sai_status_t mlnx_route_to_encap_nexthop_remove(_In_ sai_object_id_t nh, _In_ sai_object_id_t vrf)
 {
     sai_status_t                   status;
     mlnx_encap_nexthop_db_entry_t *db_entry;
-    mlnx_shm_rm_array_idx_t        idx;
+    mlnx_shm_rm_array_idx_t        nh_idx;
 
-    sai_db_write_lock();
-
-    status = mlnx_encap_nexthop_counter_update(nh, vrf, -1);
-    if (SAI_ERR(status)) {
-        SX_LOG_ERR("Update Encap Nexthop counter failed.\n");
-        goto out;
-    }
-
-    status = mlnx_encap_nexthop_oid_to_data(nh, &db_entry, &idx);
+    status = mlnx_encap_nexthop_oid_to_data(nh, &db_entry, &nh_idx);
     if (SAI_ERR(status)) {
         SX_LOG_ERR("Failed get data from DB.\n");
-        goto out;
-    }
-
-    status = mlnx_tunnel_bridge_counter_update(db_entry->data.tunnel_id,
-                                               db_entry->data.tunnel_vni,
-                                               vrf,
-                                               -1);
-    if (SAI_ERR(status)) {
-        SX_LOG_ERR("Failed to update Bridge counter.\n");
-        goto out;
-    }
-
-out:
-    sai_db_unlock();
-    return status;
-}
-
-static sai_status_t mlnx_route_get_vrf_and_nh(_In_ const sai_route_entry_t *route_entry,
-                                              _Out_ sai_object_id_t        *vrf,
-                                              _Out_ sai_object_id_t        *nh,
-                                              _Out_ bool                   *found)
-{
-    sai_status_t            status;
-    sx_uc_route_get_entry_t route_get_entry;
-    sx_router_id_t          vrid;
-    uint32_t                data;
-    uint16_t                use_db;
-
-    status = mlnx_get_route(route_entry, &route_get_entry, &vrid);
-    if (SAI_ERR(status)) {
         return status;
     }
 
-    if ((SX_UC_ROUTE_TYPE_NEXT_HOP != route_get_entry.route_data.type) ||
-        (SX_ROUTER_ECMP_ID_INVALID == route_get_entry.route_data.uc_route_param.ecmp_id)) {
-        return SAI_STATUS_SUCCESS;
+    status = mlnx_encap_nexthop_counter_update(nh_idx, vrf, -1, NH_COUNTER_TYPE_NH);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Update Encap Nexthop counter failed.\n");
+        return status;
     }
 
-    status = mlnx_route_next_hop_id_get_ext(route_get_entry.route_data.uc_route_param.ecmp_id,
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_route_get_encap_nh(_In_ sx_ecmp_id_t sx_ecmp_id, _Out_ sai_object_id_t *nh)
+{
+    sai_status_t status;
+    uint32_t     data;
+    uint16_t     ext;
+
+    *nh = SAI_NULL_OBJECT_ID;
+
+    status = mlnx_route_next_hop_id_get_ext(sx_ecmp_id,
                                             nh);
     if (SAI_ERR(status)) {
         return status;
     }
 
     if (SAI_OBJECT_TYPE_NEXT_HOP != sai_object_type_query(*nh)) {
+        *nh = SAI_NULL_OBJECT_ID;
         return SAI_STATUS_SUCCESS;
     }
 
-    status = mlnx_object_to_type(*nh, SAI_OBJECT_TYPE_NEXT_HOP, &data, (uint8_t*)&use_db);
+    status = mlnx_object_to_type(*nh, SAI_OBJECT_TYPE_NEXT_HOP, &data, (uint8_t*)&ext);
     if (SAI_ERR(status)) {
         return status;
     }
 
-    if (!use_db) {
+    if (!ext) {
+        *nh = SAI_NULL_OBJECT_ID;
         return SAI_STATUS_SUCCESS;
     }
 
-    *found = use_db;
-    *vrf = route_entry->vr_id;
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_route_to_nhg_remove(_In_ mlnx_shm_rm_array_idx_t nhg_idx, _In_ sai_object_id_t vrf)
+{
+    sai_status_t status;
+
+    status = mlnx_nhg_counter_update(nhg_idx,
+                                     vrf,
+                                     -1);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to decrement NHG counter.\n");
+        return status;
+    }
 
     return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_route_post_remove(_In_ sx_uc_route_get_entry_t *route_get_entry, _In_ sai_object_id_t vrf)
+{
+    sai_status_t            status = SAI_STATUS_SUCCESS;
+    sai_object_id_t         nh = SAI_NULL_OBJECT_ID;
+    mlnx_shm_rm_array_idx_t nhg_idx = {0};
+
+    assert(route_get_entry);
+
+    if ((SX_UC_ROUTE_TYPE_NEXT_HOP != route_get_entry->route_data.type) ||
+        (SX_ROUTER_ECMP_ID_INVALID == route_get_entry->route_data.uc_route_param.ecmp_id)) {
+        return SAI_STATUS_SUCCESS;
+    }
+
+    sai_db_write_lock();
+
+    status = mlnx_ecmp_to_nhg_map_entry_get(route_get_entry->route_data.uc_route_param.ecmp_id,
+                                            &nhg_idx);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to find ECMP-NHG map entry.\n");
+        goto exit;
+    }
+
+    if (!MLNX_SHM_RM_ARRAY_IDX_IS_UNINITIALIZED(nhg_idx)) {
+        status = mlnx_route_to_nhg_remove(nhg_idx,
+                                          vrf);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to remove route to NHG.\n");
+            goto exit;
+        }
+        status = SAI_STATUS_SUCCESS;
+        goto exit;
+    }
+
+    status = mlnx_route_get_encap_nh(route_get_entry->route_data.uc_route_param.ecmp_id,
+                                     &nh);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to find Encap NH.\n");
+        goto exit;
+    }
+
+    if (nh != SAI_NULL_OBJECT_ID) {
+        status = mlnx_route_to_encap_nexthop_remove(nh, vrf);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Remove route to Encap Nexthop failed.\n");
+            goto exit;
+        }
+        status = SAI_STATUS_SUCCESS;
+        goto exit;
+    }
+
+exit:
+    sai_db_unlock();
+    return status;
 }
 
 /*
@@ -539,14 +574,11 @@ static sai_status_t mlnx_route_get_vrf_and_nh(_In_ const sai_route_entry_t *rout
  */
 static sai_status_t mlnx_remove_route(_In_ const sai_route_entry_t* route_entry)
 {
-    sai_status_t    status;
-    sx_status_t     sx_status;
-    sx_ip_prefix_t  ip_prefix;
-    char            key_str[MAX_KEY_STR_LEN];
-    sx_router_id_t  vrid = DEFAULT_VRID;
-    sai_object_id_t vrf;
-    sai_object_id_t nh;
-    bool            encap_nh_found = false;
+    sai_status_t            status;
+    sx_status_t             sx_status;
+    char                    key_str[MAX_KEY_STR_LEN];
+    sx_router_id_t          vrid = DEFAULT_VRID;
+    sx_uc_route_get_entry_t route_get_entry;
 
     SX_LOG_ENTER();
 
@@ -558,31 +590,22 @@ static sai_status_t mlnx_remove_route(_In_ const sai_route_entry_t* route_entry)
     route_key_to_str(route_entry, key_str);
     SX_LOG_NTC("Remove route %s\n", key_str);
 
-    memset(&ip_prefix, 0, sizeof(ip_prefix));
-
-    status = mlnx_translate_sai_route_entry_to_sdk(route_entry, &ip_prefix, &vrid);
+    status = mlnx_get_route(route_entry, &route_get_entry, &vrid);
     if (SAI_ERR(status)) {
         return status;
     }
 
-    status = mlnx_route_get_vrf_and_nh(route_entry, &vrf, &nh, &encap_nh_found);
-    if (SAI_ERR(status)) {
-        SX_LOG_ERR("Failed to find Encap NH.\n");
-        return status;
-    }
-
-    sx_status = sx_api_router_uc_route_set(gh_sdk, SX_ACCESS_CMD_DELETE, vrid, &ip_prefix, NULL);
+    sx_status = sx_api_router_uc_route_set(gh_sdk, SX_ACCESS_CMD_DELETE, vrid, &route_get_entry.network_addr, NULL);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to remove route - %s.\n", SX_STATUS_MSG(sx_status));
         return sdk_to_sai(sx_status);
     }
 
-    if (encap_nh_found) {
-        status = mlnx_route_to_encap_nexthop_remove(vrf, nh);
-        if (SAI_ERR(status)) {
-            SX_LOG_ERR("Remove route to Encap Nexthop failed.\n");
-            return status;
-        }
+    status = mlnx_route_post_remove(&route_get_entry,
+                                    route_entry->vr_id);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Route post remove failed.\n");
+        return status;
     }
 
     SX_LOG_EXIT();
@@ -761,19 +784,34 @@ static sai_status_t mlnx_route_get_encap_nexthop(_In_ sx_ip_addr_t *ip, _Out_ sa
     db_idx.idx = (ip->addr.ipv4.s_addr & 0x00FFFF00) >> 8;
     db_idx.type = MLNX_SHM_RM_ARRAY_TYPE_NEXTHOP;
 
-    sai_db_write_lock();
     status = mlnx_encap_nexthop_oid_create(db_idx, nh);
-    sai_db_unlock();
 
     return status;
 }
 
 static sai_status_t mlnx_route_next_hop_id_get_ext(_In_ sx_ecmp_id_t ecmp, _Out_ sai_object_id_t *nh)
 {
-    sai_status_t status;
-    sx_ip_addr_t ip = {0};
+    sai_status_t            status;
+    mlnx_shm_rm_array_idx_t nhg_idx;
+    sx_ip_addr_t            ip = {0};
 
     assert(nh);
+
+    status = mlnx_ecmp_to_nhg_map_entry_get(ecmp,
+                                            &nhg_idx);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to find ECMP-NHG map entry.\n");
+        return status;
+    }
+
+    if (!MLNX_SHM_RM_ARRAY_IDX_IS_UNINITIALIZED(nhg_idx)) {
+        status = mlnx_nhg_oid_create(nhg_idx, nh);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to create NHG OID.\n");
+            return status;
+        }
+        return SAI_STATUS_SUCCESS;
+    }
 
     status = mlnx_ecmp_get_ip(ecmp, &ip);
     if (SAI_ERR(status)) {
@@ -788,7 +826,7 @@ static sai_status_t mlnx_route_next_hop_id_get_ext(_In_ sx_ecmp_id_t ecmp, _Out_
             return status;
         }
     } else {
-        status = mlnx_create_object(SAI_OBJECT_TYPE_NEXT_HOP_GROUP,
+        status = mlnx_create_object(SAI_OBJECT_TYPE_NEXT_HOP,
                                     ecmp,
                                     NULL,
                                     nh);
@@ -943,27 +981,20 @@ static sai_status_t mlnx_route_next_hop_id_set(_In_ const sai_object_key_t      
 {
     sai_status_t             status;
     const sai_route_entry_t* route_entry = &key->key.route_entry;
+    sx_uc_route_get_entry_t  old_route_get_entry;
     sx_uc_route_get_entry_t  route_get_entry;
     sx_router_id_t           vrid;
-    sai_object_id_t          vrf;
-    sai_object_id_t          nh;
-    bool                     encap_nh_found = false;
 
     SX_LOG_ENTER();
 
-    status = mlnx_get_route(route_entry, &route_get_entry, &vrid);
+    status = mlnx_get_route(route_entry, &old_route_get_entry, &vrid);
     if (SAI_ERR(status)) {
         return status;
     }
 
-    mlnx_fdb_route_action_fetch(SAI_OBJECT_TYPE_ROUTE_ENTRY, route_entry, &route_get_entry.route_data.action);
+    mlnx_fdb_route_action_fetch(SAI_OBJECT_TYPE_ROUTE_ENTRY, route_entry, &old_route_get_entry.route_data.action);
 
-    status = mlnx_route_get_vrf_and_nh(route_entry, &vrf, &nh, &encap_nh_found);
-    if (SAI_ERR(status)) {
-        SX_LOG_ERR("Failed to find Encap NH.\n");
-        return status;
-    }
-
+    route_get_entry = old_route_get_entry;
     status = mlnx_fill_route_data(&route_get_entry.route_data, value->oid, 0, route_entry);
     if (SAI_ERR(status)) {
         return status;
@@ -974,12 +1005,11 @@ static sai_status_t mlnx_route_next_hop_id_set(_In_ const sai_object_key_t      
         return status;
     }
 
-    if (encap_nh_found) {
-        status = mlnx_route_to_encap_nexthop_remove(vrf, nh);
-        if (SAI_ERR(status)) {
-            SX_LOG_ERR("Remove route to Encap Nexthop failed.\n");
-            return status;
-        }
+    status = mlnx_route_post_remove(&old_route_get_entry,
+                                    route_entry->vr_id);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Route post remove failed.\n");
+        return status;
     }
 
     SX_LOG_EXIT();

@@ -7067,7 +7067,6 @@ static sai_status_t mlnx_acl_redirect_sx_to_sai(_In_ const sx_flex_acl_flex_acti
 {
     sai_status_t        status;
     mlnx_bridge_port_t *bport = NULL;
-    sx_ecmp_id_t        sx_ecmp_id;
 
     assert(sx_action);
     assert(sai_action_data);
@@ -7081,12 +7080,7 @@ static sai_status_t mlnx_acl_redirect_sx_to_sai(_In_ const sx_flex_acl_flex_acti
         break;
 
     case SX_FLEX_ACL_ACTION_UC_ROUTE:
-        sx_ecmp_id = sx_action->fields.action_uc_route.uc_route_param.ecmp_id;
-        status = mlnx_create_object(SAI_OBJECT_TYPE_NEXT_HOP_GROUP, sx_ecmp_id, NULL,
-                                    &sai_action_data->parameter.oid);
-        if (SAI_ERR(status)) {
-            return status;
-        }
+        return SAI_STATUS_NOT_IMPLEMENTED;
         break;
 
     case SX_FLEX_ACL_ACTION_NVE_TUNNEL_ENCAP:
@@ -12076,7 +12070,7 @@ out:
         }
 
         if (region_created) {
-            sx_status = sx_api_acl_region_set(gh_sdk, SX_ACCESS_CMD_DESTROY, SX_ACL_KEY_TYPE_MAC_IPV4_FULL,
+            sx_status = sx_api_acl_region_set(gh_sdk, SX_ACCESS_CMD_DESTROY, key_handle,
                                               SX_ACL_ACTION_TYPE_BASIC, acl_table_size, &region_id);
             if (SX_STATUS_SUCCESS != sx_status) {
                 SX_LOG_ERR(" Failed to delete region ACL - %s.\n", SX_STATUS_MSG(sx_status));
@@ -12846,7 +12840,7 @@ static sai_status_t mlnx_delete_acl_table(_In_ sai_object_id_t acl_table_id)
         goto out;
     }
 
-    sx_status = sx_api_acl_region_set(gh_sdk, SX_ACCESS_CMD_DESTROY, SX_ACL_KEY_TYPE_MAC_IPV4_FULL,
+    sx_status = sx_api_acl_region_set(gh_sdk, SX_ACCESS_CMD_DESTROY, key_handle,
                                       SX_ACL_ACTION_TYPE_BASIC, region_size, &region_id);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR(" Failed to delete region ACL - %s.\n", SX_STATUS_MSG(sx_status));
@@ -16783,7 +16777,6 @@ static sai_status_t mlnx_sai_acl_redirect_action_create(_In_ sai_object_id_t    
 {
     sai_status_t      status = SAI_STATUS_SUCCESS;
     sai_object_type_t object_type;
-    sx_ecmp_id_t      sx_ecmp_id;
     sx_acl_pbs_id_t   sx_pbs_id;
 
     assert(pbs_info);
@@ -16806,14 +16799,7 @@ static sai_status_t mlnx_sai_acl_redirect_action_create(_In_ sai_object_id_t    
 
     case SAI_OBJECT_TYPE_NEXT_HOP:
     case SAI_OBJECT_TYPE_NEXT_HOP_GROUP:
-        status = mlnx_object_to_type(object_id, object_type, &sx_ecmp_id, NULL);
-        if (SAI_ERR(status)) {
-            return status;
-        }
-
-        sx_action->type = SX_FLEX_ACL_ACTION_UC_ROUTE;
-        sx_action->fields.action_uc_route.uc_route_type = SX_UC_ROUTE_TYPE_NEXT_HOP;
-        sx_action->fields.action_uc_route.uc_route_param.ecmp_id = sx_ecmp_id;
+        return SAI_STATUS_NOT_SUPPORTED;
         break;
 
     case SAI_OBJECT_TYPE_BRIDGE_PORT:

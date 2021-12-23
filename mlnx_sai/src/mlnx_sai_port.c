@@ -2478,7 +2478,7 @@ static sai_status_t mlnx_port_sai_offset_get(_In_ uint32_t speed, _Out_ uint64_t
         break;
 
     default:
-        SX_LOG_ERR("Unsupported speed [%u].\n");
+        SX_LOG_ERR("Unsupported speed [%u].\n", speed);
         return SAI_STATUS_FAILURE;
     }
     return SAI_STATUS_SUCCESS;
@@ -2585,7 +2585,8 @@ static sai_status_t mlnx_port_speeds_merge(_In_ bool                       auto_
     }
     status = mlnx_port_speed_intf_intersection(&speed_bitmap, &intf_bitmap, bitmap);
     if (SAI_ERR(status)) {
-        SX_LOG_ERR("Port [Speed[0x%08x]-Interface_Type[0x%08x]] configuration is invalid.\n", speed_bitmap,
+        SX_LOG_ERR("Port [Speed[0x%08" PRIx64 "] - Interface_Type[0x%08" PRIx64 "]] configuration is invalid.\n",
+                   speed_bitmap,
                    intf_bitmap);
         return status;
     }
@@ -2665,7 +2666,7 @@ static sai_status_t mlnx_port_update_speed_sp(_In_ sx_port_log_id_t sx_port, _In
 
     status = mlnx_port_speed_intf_bitmap_to_sx_sp(bitmap, &sx_speed);
     if (SAI_ERR(status)) {
-        SX_LOG_ERR("Failed to convert speed bitmap [%xl] to SDK.\n", bitmap);
+        SX_LOG_ERR("Failed to convert speed bitmap [%" PRIx64 "] to SDK.\n", bitmap);
         return status;
     }
 
@@ -2688,7 +2689,7 @@ static sai_status_t mlnx_port_update_speed_sp2(_In_ sx_port_log_id_t sx_port, _I
 
     status = mlnx_port_speed_intf_bitmap_to_sx_sp2(bitmap, &sx_speed);
     if (SAI_ERR(status)) {
-        SX_LOG_ERR("Failed to convert speed bitmap [%xl] to SDK.\n", bitmap);
+        SX_LOG_ERR("Failed to convert speed bitmap [%" PRIx64 "] to SDK.\n", bitmap);
         return status;
     }
 
@@ -2776,7 +2777,7 @@ static sai_status_t mlnx_port_update_speed(_In_ mlnx_port_config_t *port)
 
     status = mlnx_port_cb->update_speed(port->logical, autoneg, bitmap);
     if (SAI_ERR(status)) {
-        SX_LOG_ERR("Failed to apply speed/intf bitmap [0x%x] for port [0x%x].\n", bitmap, port->logical);
+        SX_LOG_ERR("Failed to apply speed/intf bitmap [0x%" PRIx64 "] for port[0x%x].\n", bitmap, port->logical);
         return status;
     }
 
@@ -8436,10 +8437,10 @@ sai_status_t mlnx_port_config_uninit(mlnx_port_config_t *port)
             }
         }
 
+        memset(&port_map, 0, sizeof(port_map));
         port_map.mapping_mode = SX_PORT_MAPPING_MODE_DISABLE;
         port_map.local_port = port->port_map.local_port;
         port_map.module_port = port->module;
-        port_map.config_hw = FALSE;
         port_map.lane_bmap = 0x0;
 
         if (!is_warmboot_init_stage) {
@@ -8882,7 +8883,6 @@ static sai_status_t mlnx_create_port(_Out_ sai_object_id_t     * port_id,
     port_map->mapping_mode = SX_PORT_MAPPING_MODE_ENABLE;
     port_map->module_port = father_port->module;
     port_map->width = lanes_count;
-    port_map->config_hw = FALSE;
     port_map->lane_bmap = 0x0;
 
     /* Map local lanes to the new port */

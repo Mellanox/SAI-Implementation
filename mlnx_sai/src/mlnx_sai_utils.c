@@ -727,18 +727,19 @@ sai_status_t mlnx_sai_query_stats_capability_impl(_In_ sai_object_id_t          
         return SAI_STATUS_FAILURE;
     }
 
-    if (0 == object_type_info->stats_capability.count) {
+    if (object_type_info->stats_capability.capability_fn) {
+        status = object_type_info->stats_capability.capability_fn(stats_capability);
+    } else if (0 == object_type_info->stats_capability.count) {
         stats_capability->count = 0;
     } else {
         status = mlnx_fill_saistatcapabilitylist(object_type_info->stats_capability.info,
                                                  object_type_info->stats_capability.count,
                                                  stats_capability);
-        if (SAI_ERR(status)) {
-            if (MLNX_SAI_STATUS_BUFFER_OVERFLOW_EMPTY_LIST == status) {
-                status = SAI_STATUS_BUFFER_OVERFLOW;
-            }
-            SX_LOG_EXIT();
-            return status;
+    }
+
+    if (SAI_ERR(status)) {
+        if (MLNX_SAI_STATUS_BUFFER_OVERFLOW_EMPTY_LIST == status) {
+            status = SAI_STATUS_BUFFER_OVERFLOW;
         }
     }
 
@@ -2288,6 +2289,25 @@ static sai_status_t get_dispatch_attribs_handler(_In_ uint32_t                  
 
     SX_LOG_EXIT();
     return SAI_STATUS_SUCCESS;
+}
+
+void find_attrib(_In_ uint32_t               attr_count,
+                 _In_ const sai_attribute_t *attr_list,
+                 _In_ sai_attr_id_t          attrib_id,
+                 _Out_ mlnx_sai_attr_t      *attr)
+{
+    sai_status_t status;
+
+    status = find_attrib_in_list(attr_count,
+                                 attr_list,
+                                 attrib_id,
+                                 (const sai_attribute_value_t **)&(attr->value),
+                                 &attr->index);
+    if (SAI_OK(status) && (attr->value != NULL)) {
+        attr->found = true;
+    } else {
+        attr->found = false;
+    }
 }
 
 sai_status_t find_attrib_in_list(_In_ uint32_t                       attr_count,

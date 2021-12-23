@@ -801,7 +801,7 @@ static sai_status_t sai_policer_get_packet_flags_for_policer_type(_In_ mlnx_port
 
         if (SAI_NULL_OBJECT_ID != port_config->port_policers[MLNX_PORT_POLICER_TYPE_FLOOD_INDEX]) {
             SX_LOG_DBG("removing flood traffic flags from regular storm policer\n");
-            packet_types.uc =
+            packet_types.uuc =
                 packet_types.umc = false;
         }
         if (SAI_NULL_OBJECT_ID != port_config->port_policers[MLNX_PORT_POLICER_TYPE_BROADCAST_INDEX]) {
@@ -815,7 +815,7 @@ static sai_status_t sai_policer_get_packet_flags_for_policer_type(_In_ mlnx_port
         break;
 
     case MLNX_PORT_POLICER_TYPE_FLOOD_INDEX:
-        packet_types.uc =
+        packet_types.uuc =
             packet_types.umc = true;
         break;
 
@@ -2544,7 +2544,7 @@ static sai_status_t sai_policer_remove_packets_for_type_from_all_traffic(
     }
     switch (port_policer_type_to_remove) {
     case MLNX_PORT_POLICER_TYPE_FLOOD_INDEX:
-        packet_types_out->uc =
+        packet_types_out->uuc =
             packet_types_out->umc = false;
         break;
 

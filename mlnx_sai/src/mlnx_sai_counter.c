@@ -114,7 +114,7 @@ static sai_status_t mlnx_counter_db_free(_In_ mlnx_shm_rm_array_idx_t idx)
     return mlnx_shm_rm_array_free(idx);
 }
 
-static sai_status_t mlnx_counter_oid_create(_In_ mlnx_shm_rm_array_idx_t idx, _Out_ sai_object_id_t *oid)
+sai_status_t mlnx_counter_oid_create(_In_ mlnx_shm_rm_array_idx_t idx, _Out_ sai_object_id_t *oid)
 {
     mlnx_object_id_t *mlnx_oid = (mlnx_object_id_t*)oid;
 
@@ -126,6 +126,61 @@ static sai_status_t mlnx_counter_oid_create(_In_ mlnx_shm_rm_array_idx_t idx, _O
 
     mlnx_oid->object_type = SAI_OBJECT_TYPE_COUNTER;
     mlnx_oid->id.counter_db_idx = idx;
+
+    return SAI_STATUS_SUCCESS;
+}
+
+sai_status_t mlnx_counter_oid_to_data(_In_ sai_object_id_t           oid,
+                                      _Out_ mlnx_counter_t         **counter_db_entry,
+                                      _Out_ mlnx_shm_rm_array_idx_t *idx)
+{
+    sai_status_t     status;
+    mlnx_object_id_t mlnx_oid;
+
+    assert(counter_db_entry);
+
+    status = sai_to_mlnx_object_id(SAI_OBJECT_TYPE_COUNTER, oid, &mlnx_oid);
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+    status = mlnx_counter_db_idx_to_data(mlnx_oid.id.counter_db_idx, counter_db_entry);
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+    if (idx) {
+        *idx = mlnx_oid.id.counter_db_idx;
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
+/* DB lock must be locked before calling this function */
+sai_status_t mlnx_get_sx_flow_counter_id_by_idx(_In_ mlnx_shm_rm_array_idx_t idx,
+                                                _Out_ sx_flow_counter_id_t  *sx_flow_counter)
+{
+    sai_status_t    status;
+    sx_status_t     sx_status;
+    mlnx_counter_t *counter;
+
+    status = mlnx_counter_db_idx_to_data(idx, &counter);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to get counter data\n");
+        return status;
+    }
+
+    if (counter->sx_flow_counter == SX_FLOW_COUNTER_ID_INVALID) {
+        sx_status = sx_api_flow_counter_set(gh_sdk, SX_ACCESS_CMD_CREATE, SX_FLOW_COUNTER_TYPE_PACKETS_AND_BYTES,
+                                            &counter->sx_flow_counter);
+        if (SX_ERR(sx_status)) {
+            counter->sx_flow_counter = SX_FLOW_COUNTER_ID_INVALID;
+            SX_LOG_ERR("Failed to create flow counter data - %s\n", SX_STATUS_MSG(sx_status));
+            return sdk_to_sai(sx_status);
+        }
+    }
+
+    *sx_flow_counter = counter->sx_flow_counter;
 
     return SAI_STATUS_SUCCESS;
 }
@@ -305,87 +360,10 @@ out:
     return status;
 }
 
-
-static bool group_counter_cmp(_In_ const void *elem, _In_ const void *group_id_ptr)
-{
-    const mlnx_group_counter_t *group_counter = (mlnx_group_counter_t*)elem;
-    const sx_ecmp_id_t          group_id = *((const sx_ecmp_id_t*)group_id_ptr);
-
-    return group_counter->group_id == group_id;
-}
-
-sai_status_t mlnx_get_group_flow_counter_id(sx_ecmp_id_t group_id, sx_flow_counter_id_t *flow_counter_id)
-{
-    mlnx_shm_rm_array_idx_t idx;
-    mlnx_group_counter_t   *group_counter;
-    sai_status_t            status = SAI_STATUS_SUCCESS;
-
-    SX_LOG_ENTER();
-
-    sai_db_read_lock();
-
-    status = mlnx_shm_rm_array_find(MLNX_SHM_RM_ARRAY_TYPE_GROUP_COUNTER,
-                                    &group_counter_cmp,
-                                    MLNX_SHM_RM_ARRAY_IDX_UNINITIALIZED,
-                                    &group_id,
-                                    &idx,
-                                    (void**)&group_counter);
-    if (SAI_ERR(status)) {
-        *flow_counter_id = SX_FLOW_COUNTER_ID_INVALID;
-    } else {
-        *flow_counter_id = group_counter->sx_flow_counter;
-    }
-    sai_db_unlock();
-
-    return SAI_STATUS_SUCCESS;
-}
-
-sai_status_t mlnx_set_group_flow_counter_id(sx_ecmp_id_t group_id, sx_flow_counter_id_t flow_counter_id)
-{
-    mlnx_shm_rm_array_idx_t start_idx, idx;
-    mlnx_group_counter_t   *group_counter;
-    sai_status_t            status;
-
-    SX_LOG_ENTER();
-
-    start_idx.idx = 0;
-    start_idx.type = MLNX_SHM_RM_ARRAY_TYPE_INVALID;
-
-    sai_db_write_lock();
-
-    status = mlnx_shm_rm_array_find(MLNX_SHM_RM_ARRAY_TYPE_GROUP_COUNTER, &group_counter_cmp, start_idx, &group_id,
-                                    &idx, (void**)&group_counter);
-    /* if the group is not found and flow counter is invalid no need to add new entry to the db */
-    if (SAI_ERR(status) && (flow_counter_id == SX_FLOW_COUNTER_ID_INVALID)) {
-        status = SAI_STATUS_SUCCESS;
-        goto out;
-    } /* if the group is found and flow counter is invalid - delete the entry from db */
-    else if (!SAI_ERR(status) && (flow_counter_id == SX_FLOW_COUNTER_ID_INVALID)) {
-        status = mlnx_shm_rm_array_free(idx);
-        goto out;
-    } else if (SAI_ERR(status)) {
-        status = mlnx_shm_rm_array_alloc(MLNX_SHM_RM_ARRAY_TYPE_GROUP_COUNTER, &idx, (void**)&group_counter);
-        if (SAI_ERR(status)) {
-            SX_LOG_ERR("Failed to alloc db entry\n");
-            goto out;
-        }
-    }
-
-    group_counter->group_id = group_id;
-    group_counter->sx_flow_counter = flow_counter_id;
-
-out:
-    sai_db_unlock();
-
-    return status;
-}
-
 sai_status_t mlnx_get_flow_counter_id(sai_object_id_t counter_id, sx_flow_counter_id_t *flow_counter_id)
 {
-    sai_status_t            sai_status = SAI_STATUS_SUCCESS;
-    sx_status_t             sx_api_status;
+    sai_status_t            status = SAI_STATUS_SUCCESS;
     mlnx_shm_rm_array_idx_t idx;
-    mlnx_counter_t         *counter;
     mlnx_object_id_t        mlnx_oid;
 
     SX_LOG_ENTER();
@@ -393,39 +371,27 @@ sai_status_t mlnx_get_flow_counter_id(sai_object_id_t counter_id, sx_flow_counte
     if (SAI_NULL_OBJECT_ID == counter_id) {
         *flow_counter_id = SX_FLOW_COUNTER_ID_INVALID;
         SX_LOG_NTC("SAI_NULL_OBJECT_ID counter id\n");
-        return sai_status;
+        return status;
     }
 
-    sai_status = sai_to_mlnx_object_id(SAI_OBJECT_TYPE_COUNTER, counter_id, &mlnx_oid);
-    if (SAI_ERR(sai_status)) {
+    status = sai_to_mlnx_object_id(SAI_OBJECT_TYPE_COUNTER, counter_id, &mlnx_oid);
+    if (SAI_ERR(status)) {
         SX_LOG_ERR("Failed to get mlnx oid from counter id\n");
-        return sai_status;
+        return status;
     }
     idx = mlnx_oid.id.counter_db_idx;
 
     sai_db_write_lock();
-    sai_status = mlnx_counter_db_idx_to_data(idx, &counter);
-    if (SAI_ERR(sai_status)) {
-        SX_LOG_ERR("Failed to get counter data\n");
+    status = mlnx_get_sx_flow_counter_id_by_idx(idx, flow_counter_id);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to get sx_flow_counter.\n");
         goto out;
     }
-
-    if (counter->sx_flow_counter == SX_FLOW_COUNTER_ID_INVALID) {
-        sx_api_status = sx_api_flow_counter_set(gh_sdk, SX_ACCESS_CMD_CREATE, SX_FLOW_COUNTER_TYPE_PACKETS_AND_BYTES,
-                                                &counter->sx_flow_counter);
-        if (SX_ERR(sx_api_status)) {
-            counter->sx_flow_counter = SX_FLOW_COUNTER_ID_INVALID;
-            sai_status = sdk_to_sai(sx_api_status);
-            SX_LOG_ERR("Failed to create flow counter data - %s\n", SX_STATUS_MSG(sx_api_status));
-            goto out;
-        }
-    }
-    *flow_counter_id = counter->sx_flow_counter;
 
 out:
     sai_db_unlock();
 
-    return sai_status;
+    return status;
 }
 
 static bool flow_counter_cmp(_In_ const void *elem, _In_ const void *flow_counter_ptr)

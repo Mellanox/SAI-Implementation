@@ -100,7 +100,7 @@ static sai_status_t mlnx_isolation_group_db_get_by_idx(_In_ uint32_t            
 
     *isolation_group_db_entry = &(g_sai_db_ptr->isolation_groups[isolation_group_idx]);
     if (!(*isolation_group_db_entry)->is_used) {
-        SX_LOG_ERR("Isolation group db entry at idx - %u is not initialized\n");
+        SX_LOG_ERR("Isolation group db entry at idx - %u is not initialized\n", isolation_group_idx);
         return SAI_STATUS_FAILURE;
     }
 
@@ -1002,7 +1002,7 @@ static sai_status_t mlnx_update_subscribed_ports_remove_group_member(mlnx_isolat
                                             log_port,
                                             ports_to_update,
                                             ports_to_update_count);
-        if (SX_ERR(status)) {
+        if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to delete port isolation ports from port %#0x - %s\n", log_port,
                        SX_STATUS_MSG(sx_status));
             return sdk_to_sai(sx_status);
