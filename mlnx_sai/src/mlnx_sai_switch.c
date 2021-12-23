@@ -596,6 +596,15 @@ static sai_status_t mlnx_switch_bfd_attribute_get(_In_ const sai_object_key_t   
                                                   void                          *arg);
 static sai_status_t mlnx_switch_bfd_event_handle(_In_ sx_trap_id_t event, _In_ uint64_t opaque_data);
 
+static sai_status_t mlnx_switch_tunnel_attr_get(_In_ const sai_object_key_t   *key,
+                                                _Inout_ sai_attribute_value_t *value,
+                                                _In_ uint32_t                  attr_index,
+                                                _Inout_ vendor_cache_t        *cache,
+                                                void                          *arg);
+static sai_status_t mlnx_switch_tunnel_attr_set(_In_ const sai_object_key_t      *key,
+                                                _In_ const sai_attribute_value_t *value,
+                                                void                             *arg);
+
 /* DFW feature functions */
 sai_status_t sai_dbg_do_dump(_In_ const char *dump_file_name);
 static sai_status_t mlnx_switch_dump_health_event_prepare_stage_dir(_In_ const char *stage_dir);
@@ -1253,7 +1262,45 @@ static const sai_vendor_attribute_entry_t switch_vendor_attribs[] = {
       NULL, NULL,
       NULL, NULL }
 };
-static const mlnx_attr_enum_info_t        switch_enum_info[] = {
+
+static const sai_vendor_attribute_entry_t switch_tunnel_vendor_attribs[] = {
+    { SAI_SWITCH_TUNNEL_ATTR_TUNNEL_TYPE,
+      { true, false, false, true },
+      { true, false, false, true },
+      mlnx_switch_tunnel_attr_get, (void*)SAI_SWITCH_TUNNEL_ATTR_TUNNEL_TYPE,
+      NULL, NULL },
+    { SAI_SWITCH_TUNNEL_ATTR_TUNNEL_VXLAN_UDP_SPORT_MODE,
+      { true, false, true, true },
+      { true, false, true, true },
+      mlnx_switch_tunnel_attr_get, (void*)SAI_SWITCH_TUNNEL_ATTR_TUNNEL_VXLAN_UDP_SPORT_MODE,
+      mlnx_switch_tunnel_attr_set, (void*)SAI_SWITCH_TUNNEL_ATTR_TUNNEL_VXLAN_UDP_SPORT_MODE},
+    { SAI_SWITCH_TUNNEL_ATTR_VXLAN_UDP_SPORT,
+      { true, false, true, true },
+      { true, false, true, true },
+      mlnx_switch_tunnel_attr_get, (void*)SAI_SWITCH_TUNNEL_ATTR_VXLAN_UDP_SPORT,
+      mlnx_switch_tunnel_attr_set, (void*)SAI_SWITCH_TUNNEL_ATTR_VXLAN_UDP_SPORT},
+    { SAI_SWITCH_TUNNEL_ATTR_VXLAN_UDP_SPORT_MASK,
+      { true, false, true, true },
+      { true, false, true, true },
+      mlnx_switch_tunnel_attr_get, (void*)SAI_SWITCH_TUNNEL_ATTR_VXLAN_UDP_SPORT_MASK,
+      mlnx_switch_tunnel_attr_set, (void*)SAI_SWITCH_TUNNEL_ATTR_VXLAN_UDP_SPORT_MASK},
+    { END_FUNCTIONALITY_ATTRIBS_ID,
+      { false, false, false, false },
+      { false, false, false, false },
+      NULL, NULL,
+      NULL, NULL }
+};
+
+static const mlnx_attr_enum_info_t switch_tunnel_enum_info[] = {
+    [SAI_SWITCH_TUNNEL_ATTR_TUNNEL_TYPE] = ATTR_ENUM_VALUES_LIST(
+        SAI_TUNNEL_TYPE_VXLAN),
+    [SAI_SWITCH_TUNNEL_ATTR_TUNNEL_VXLAN_UDP_SPORT_MODE] = ATTR_ENUM_VALUES_ALL()
+};
+
+const mlnx_obj_type_attrs_info_t mlnx_switch_tunnel_obj_type_info =
+{ switch_tunnel_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(switch_tunnel_enum_info), OBJ_STAT_CAP_INFO_EMPTY()};
+
+static const mlnx_attr_enum_info_t switch_enum_info[] = {
     [SAI_SWITCH_ATTR_OPER_STATUS] = ATTR_ENUM_VALUES_LIST(
         SAI_SWITCH_OPER_STATUS_UP),
     [SAI_SWITCH_ATTR_SWITCHING_MODE] = ATTR_ENUM_VALUES_ALL(),
@@ -1283,7 +1330,7 @@ static const mlnx_attr_enum_info_t        switch_enum_info[] = {
     [SAI_SWITCH_ATTR_TYPE] = ATTR_ENUM_VALUES_LIST(
         SAI_SWITCH_TYPE_NPU),
 };
-static const sai_stat_capability_t        switch_stats_capabilities[] = {
+static const sai_stat_capability_t switch_stats_capabilities[] = {
     { SAI_SWITCH_STAT_IN_CONFIGURED_DROP_REASONS_0_DROPPED_PKTS, SAI_STATS_MODE_READ | SAI_STATS_MODE_READ_AND_CLEAR },
     { SAI_SWITCH_STAT_IN_CONFIGURED_DROP_REASONS_1_DROPPED_PKTS, SAI_STATS_MODE_READ | SAI_STATS_MODE_READ_AND_CLEAR },
     { SAI_SWITCH_STAT_IN_CONFIGURED_DROP_REASONS_2_DROPPED_PKTS, SAI_STATS_MODE_READ | SAI_STATS_MODE_READ_AND_CLEAR },
@@ -1309,7 +1356,7 @@ static const sai_stat_capability_t        switch_stats_capabilities[] = {
     { SAI_SWITCH_STAT_OUT_CONFIGURED_DROP_REASONS_7_DROPPED_PKTS,
       SAI_STATS_MODE_READ | SAI_STATS_MODE_READ_AND_CLEAR },
 };
-const mlnx_obj_type_attrs_info_t          mlnx_switch_obj_type_info =
+const mlnx_obj_type_attrs_info_t   mlnx_switch_obj_type_info =
 { switch_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(switch_enum_info), OBJ_STAT_CAP_INFO(switch_stats_capabilities)};
 
 #define RDQ_ETH_DEFAULT_SIZE 4200
@@ -3500,6 +3547,7 @@ static void sai_db_values_init()
     memset(g_sai_db_ptr->mlnx_samplepacket_session, 0, sizeof(g_sai_db_ptr->mlnx_samplepacket_session));
     memset(g_sai_db_ptr->trap_group_valid, 0, sizeof(g_sai_db_ptr->trap_group_valid));
     memset(g_sai_db_ptr->isolation_groups, 0, sizeof(g_sai_db_ptr->isolation_groups));
+    memset(&g_sai_db_ptr->switch_tunnel, 0, sizeof(g_sai_db_ptr->switch_tunnel));
 
     g_sai_db_ptr->flood_actions[MLNX_FID_FLOOD_CTRL_ATTR_UC] = SAI_PACKET_ACTION_FORWARD;
     g_sai_db_ptr->flood_actions[MLNX_FID_FLOOD_CTRL_ATTR_BC] = SAI_PACKET_ACTION_FORWARD;
@@ -3643,9 +3691,15 @@ static mlnx_shm_rm_array_init_info_t mlnx_shm_array_info[MLNX_SHM_RM_ARRAY_TYPE_
     [MLNX_SHM_RM_ARRAY_TYPE_COUNTER] = {sizeof(mlnx_counter_t),
                                         NULL,
                                         MLNX_COUNTERS_DB_SIZE},
-    [MLNX_SHM_RM_ARRAY_TYPE_GROUP_COUNTER] = {sizeof(mlnx_group_counter_t),
-                                              NULL,
-                                              MLNX_GROUP_COUNTERS_DB_SIZE},
+    [MLNX_SHM_RM_ARRAY_TYPE_NHG] = {sizeof(mlnx_nhg_db_entry_t),
+                                    NULL,
+                                    MLNX_NHG_DB_SIZE},
+    [MLNX_SHM_RM_ARRAY_TYPE_NHG_MEMBER] = {sizeof(mlnx_nhgm_db_entry_t),
+                                           NULL,
+                                           MLNX_NHG_MEMBER_DB_SIZE},
+    [MLNX_SHM_RM_ARRAY_TYPE_ECMP_NHG_MAP] = {sizeof(mlnx_ecmp_to_nhg_db_entry_t),
+                                             NULL,
+                                             MLNX_ECMP_TO_NHG_MAP_SIZE},
 };
 static size_t mlnx_sai_rm_db_size_get(void)
 {
@@ -10574,6 +10628,386 @@ static sai_status_t mlnx_clear_switch_stats(_In_ sai_object_id_t      switch_id,
     return status;
 }
 
+static sai_status_t mlnx_switch_tunnel_attr_get(_In_ const sai_object_key_t   *key,
+                                                _Inout_ sai_attribute_value_t *value,
+                                                _In_ uint32_t                  attr_index,
+                                                _Inout_ vendor_cache_t        *cache,
+                                                void                          *arg)
+{
+    sai_status_t    sai_status = SAI_STATUS_FAILURE;
+    uint32_t        data = 0;
+    sai_object_id_t switch_tunnel_id = key->key.object_id;
+
+    SX_LOG_ENTER();
+
+    sai_status = mlnx_object_to_type(switch_tunnel_id, SAI_OBJECT_TYPE_SWITCH_TUNNEL, &data, NULL);
+    if (SAI_ERR(sai_status) || (data != SAI_TUNNEL_TYPE_VXLAN)) {
+        SX_LOG_ERR("Invalid sai switch tunnel obj id: 0x%" PRIx64 "\n", switch_tunnel_id);
+        SX_LOG_EXIT();
+        return sai_status;
+    }
+
+    sai_db_read_lock();
+
+    switch ((long)arg) {
+    case SAI_SWITCH_TUNNEL_ATTR_TUNNEL_TYPE:
+        value->s32 = data;
+        break;
+
+    case SAI_SWITCH_TUNNEL_ATTR_TUNNEL_VXLAN_UDP_SPORT_MODE:
+        value->s32 = g_sai_db_ptr->switch_tunnel[data].src_port_mode;
+        break;
+
+    case SAI_SWITCH_TUNNEL_ATTR_VXLAN_UDP_SPORT:
+        value->u16 = g_sai_db_ptr->switch_tunnel[data].src_port_base;
+        break;
+
+    case SAI_SWITCH_TUNNEL_ATTR_VXLAN_UDP_SPORT_MASK:
+        value->u8 = g_sai_db_ptr->switch_tunnel[data].src_port_mask;
+        break;
+
+    default:
+        SX_LOG_ERR("Unsupported VxLAN SRC port attribute %lu\n", (long)arg);
+        SX_LOG_EXIT();
+        return SAI_STATUS_FAILURE;
+    }
+
+    sai_db_unlock();
+    SX_LOG_EXIT();
+    return sai_status;
+}
+
+static sai_status_t mlnx_switch_tunnel_attr_set(_In_ const sai_object_key_t      *key,
+                                                _In_ const sai_attribute_value_t *value,
+                                                void                             *arg)
+{
+    sai_status_t    sai_status = SAI_STATUS_FAILURE;
+    sai_object_id_t switch_tunnel_id = key->key.object_id;
+    uint32_t        tunnel_type;
+    uint32_t        ii, sai_db_idx_start = 0, sai_db_idx_end = MLNX_MAX_TUNNEL_NVE;
+
+    SX_LOG_ENTER();
+
+    sai_status = mlnx_object_to_type(switch_tunnel_id, SAI_OBJECT_TYPE_SWITCH_TUNNEL, &tunnel_type, NULL);
+    if (SAI_ERR(sai_status) || (tunnel_type != SAI_TUNNEL_TYPE_VXLAN)) {
+        SX_LOG_ERR("Invalid sai switch tunnel obj id: 0x%" PRIx64 "\n", switch_tunnel_id);
+        SX_LOG_EXIT();
+        return sai_status;
+    }
+
+    sai_db_write_lock();
+
+    switch ((long)arg) {
+    case SAI_SWITCH_TUNNEL_ATTR_TUNNEL_VXLAN_UDP_SPORT_MODE:
+        g_sai_db_ptr->switch_tunnel[tunnel_type].src_port_mode = value->s32;
+        break;
+
+    case SAI_SWITCH_TUNNEL_ATTR_VXLAN_UDP_SPORT:
+        if (g_sai_db_ptr->switch_tunnel[tunnel_type].src_port_mode == SAI_TUNNEL_VXLAN_UDP_SPORT_MODE_EPHEMERAL) {
+            SX_LOG_ERR(
+                "VxLAN UDP SRC port attribute is supported only for SAI_TUNNEL_VXLAN_UDP_SPORT_MODE_USER_DEFINED src port mode\n");
+            sai_status = SAI_STATUS_FAILURE;
+            goto out;
+        }
+        if (value->u16 & (0xFF >> (8 - g_sai_db_ptr->switch_tunnel[tunnel_type].src_port_mask))) {
+            SX_LOG_ERR("Wrong VxLAN UDP SRC port base and mask combination (0x%x:0x%x)\n",
+                       value->u16, (0xFF >> (8 - g_sai_db_ptr->switch_tunnel[tunnel_type].src_port_mask)));
+            sai_status = SAI_STATUS_FAILURE;
+            goto out;
+        }
+        g_sai_db_ptr->switch_tunnel[tunnel_type].src_port_base = value->u16;
+        break;
+
+    case SAI_SWITCH_TUNNEL_ATTR_VXLAN_UDP_SPORT_MASK:
+        if (g_sai_db_ptr->switch_tunnel[tunnel_type].src_port_mode == SAI_TUNNEL_VXLAN_UDP_SPORT_MODE_EPHEMERAL) {
+            SX_LOG_ERR(
+                "VxLAN UDP SRC port mask attribute is supported only for SAI_TUNNEL_VXLAN_UDP_SPORT_MODE_USER_DEFINED src port mode\n");
+            sai_status = SAI_STATUS_FAILURE;
+            goto out;
+        }
+        if (value->u8 > 8) {
+            SX_LOG_ERR("Wrong switch tunnel VxLAN UDP SRC port mask attribute value! Supported values are [0..8].\n");
+            sai_status = SAI_STATUS_FAILURE;
+            goto out;
+        }
+        if (g_sai_db_ptr->switch_tunnel[tunnel_type].src_port_base & (0xFF >> (8 - value->u8))) {
+            SX_LOG_ERR("Wrong VxLAN UDP SRC port base and mask combination (0x%x:0x%x)\n",
+                       g_sai_db_ptr->switch_tunnel[tunnel_type].src_port_base, (0xFF >> (8 - value->u8)));
+            sai_status = SAI_STATUS_FAILURE;
+            goto out;
+        }
+        g_sai_db_ptr->switch_tunnel[tunnel_type].src_port_mask = value->u8;
+        break;
+
+    default:
+        SX_LOG_ERR("Unsupported VxLAN SRC port attribute %lu\n", (long)arg);
+        sai_status = SAI_STATUS_FAILURE;
+        goto out;
+    }
+
+    for (ii = sai_db_idx_start; ii < sai_db_idx_end; ++ii) {
+        if ((g_sai_tunnel_db_ptr->tunnel_entry_db[ii].sai_tunnel_type == SAI_TUNNEL_TYPE_VXLAN)
+            && !g_sai_tunnel_db_ptr->tunnel_entry_db[ii].init_vxlan_sport_config.is_configured) {
+            if (SAI_STATUS_SUCCESS !=
+                (sai_status =
+                     mlnx_vxlan_srcport_config_update(true, ii, g_sai_db_ptr->switch_tunnel[tunnel_type].src_port_mode,
+                                                      g_sai_db_ptr->switch_tunnel[tunnel_type].src_port_base,
+                                                      g_sai_db_ptr->switch_tunnel[tunnel_type].src_port_mask))) {
+                SX_LOG_ERR("Failed to update VxLAN tunnel UDP SRC port attributes config\n");
+                goto out;
+            }
+        }
+    }
+
+out:
+    sai_db_unlock();
+    SX_LOG_EXIT();
+    return sai_status;
+}
+
+/**
+ * @brief Create switch tunnel
+ *
+ * @param[out] switch_tunnel_id The Switch  tunnel Object ID
+ * @param[in]  switch_id The Switch Object ID
+ * @param[in]  attr_count number of attributes
+ * @param[in]  attr_list Array of attributes
+ *
+ * @return #SAI_STATUS_SUCCESS on success Failure status code on error
+ */
+static sai_status_t mlnx_create_switch_tunnel(_Out_ sai_object_id_t      *switch_tunnel_id,
+                                              _In_ sai_object_id_t        switch_id,
+                                              _In_ uint32_t               attr_count,
+                                              _In_ const sai_attribute_t *attr_list)
+{
+    sai_status_t                      sai_status;
+    const sai_attribute_value_t      *attr;
+    uint32_t                          attr_idx;
+    char                              list_str[MAX_LIST_VALUE_STR_LEN] = { 0 };
+    sai_object_id_t                   tunnel_obj_id = SAI_NULL_OBJECT_ID;
+    sai_tunnel_type_t                 tunnel_type;
+    sai_tunnel_vxlan_udp_sport_mode_t sport_mode = SAI_TUNNEL_VXLAN_UDP_SPORT_MODE_EPHEMERAL;
+    uint16_t                          sport_base = 0;
+    uint8_t                           sport_mask = 0;
+
+    SX_LOG_ENTER();
+
+    if (g_sai_db_ptr->vxlan_srcport_range_enabled) {
+        SX_LOG_ERR("Can not create switch tunnel when VxLAN SRC port range feature is enabled!\n");
+        SX_LOG_EXIT();
+        return SAI_STATUS_FAILURE;
+    }
+
+    if (SAI_STATUS_SUCCESS !=
+        (sai_status =
+             check_attribs_metadata(attr_count, attr_list, SAI_OBJECT_TYPE_SWITCH_TUNNEL, switch_tunnel_vendor_attribs,
+                                    SAI_COMMON_API_CREATE))) {
+        SX_LOG_EXIT();
+        return sai_status;
+    }
+
+    if (SAI_STATUS_SUCCESS !=
+        (sai_status =
+             sai_attr_list_to_str(attr_count, attr_list, SAI_OBJECT_TYPE_SWITCH_TUNNEL, MAX_LIST_VALUE_STR_LEN,
+                                  list_str))) {
+        SX_LOG_EXIT();
+        return sai_status;
+    }
+
+    SX_LOG_NTC("Create switch tunnel attribs, %s\n", list_str);
+
+    sai_status = find_attrib_in_list(attr_count, attr_list, SAI_SWITCH_TUNNEL_ATTR_TUNNEL_TYPE, &attr, &attr_idx);
+    assert(SAI_STATUS_SUCCESS == sai_status);
+    tunnel_type = attr->s32;
+    if (tunnel_type != SAI_TUNNEL_TYPE_VXLAN) {
+        SX_LOG_ERR("Not supported switch tunnel type (%i). \n", tunnel_type);
+        return SAI_STATUS_FAILURE;
+    }
+
+    if (g_sai_db_ptr->switch_tunnel[tunnel_type].switch_tunnel_id != SAI_NULL_OBJECT_ID) {
+        SX_LOG_ERR("Switch tunnel for selected tunnel type (%d) is already created. \n", tunnel_type);
+        return SAI_STATUS_FAILURE;
+    }
+
+    sai_status = find_attrib_in_list(attr_count,
+                                     attr_list,
+                                     SAI_SWITCH_TUNNEL_ATTR_TUNNEL_VXLAN_UDP_SPORT_MODE,
+                                     &attr,
+                                     &attr_idx);
+    if (SAI_STATUS_SUCCESS == sai_status) {
+        sport_mode = attr->s32;
+    }
+    sai_status = find_attrib_in_list(attr_count, attr_list, SAI_SWITCH_TUNNEL_ATTR_VXLAN_UDP_SPORT, &attr, &attr_idx);
+    if (SAI_STATUS_SUCCESS == sai_status) {
+        sport_base = attr->u16;
+    }
+
+    sai_status = find_attrib_in_list(attr_count,
+                                     attr_list,
+                                     SAI_SWITCH_TUNNEL_ATTR_VXLAN_UDP_SPORT_MASK,
+                                     &attr,
+                                     &attr_idx);
+    if (SAI_STATUS_SUCCESS == sai_status) {
+        if (attr->u8 > 8) {
+            SX_LOG_ERR(
+                "Wrong switch tunnel VxLAN UDP SRC port mask attribute value! Supported values are [0..8].\n");
+            return SAI_STATUS_FAILURE;
+        }
+        sport_mask = attr->u8;
+    }
+
+    if (sport_base & (0xFF >> (8 - sport_mask))) {
+        SX_LOG_ERR("Wrong VxLAN UDP SRC port base and mask combination (0x%X:0x%X)\n", sport_base,
+                   (0xFF >> (8 - sport_mask)));
+        return SAI_STATUS_FAILURE;
+    }
+
+    if (SAI_STATUS_SUCCESS !=
+        (sai_status = mlnx_create_object(SAI_OBJECT_TYPE_SWITCH_TUNNEL, tunnel_type, NULL, &tunnel_obj_id))) {
+        SX_LOG_ERR("Failed to create switch tunnel\n");
+        SX_LOG_EXIT();
+        return sai_status;
+    }
+
+    sai_db_write_lock();
+
+    uint32_t ii, sai_db_idx_start = 0, sai_db_idx_end = MLNX_MAX_TUNNEL_NVE;
+
+    for (ii = sai_db_idx_start; ii < sai_db_idx_end; ++ii) {
+        if ((g_sai_tunnel_db_ptr->tunnel_entry_db[ii].sai_tunnel_type == SAI_TUNNEL_TYPE_VXLAN)
+            && !g_sai_tunnel_db_ptr->tunnel_entry_db[ii].init_vxlan_sport_config.is_configured) {
+            g_sai_tunnel_db_ptr->tunnel_entry_db[ii].src_port_mode = sport_mode;
+            g_sai_tunnel_db_ptr->tunnel_entry_db[ii].src_port_base = sport_base;
+            g_sai_tunnel_db_ptr->tunnel_entry_db[ii].src_port_mask = sport_mask;
+            if (SAI_STATUS_SUCCESS != mlnx_vxlan_srcport_user_defined_set(ii, sport_base, sport_mask, false)) {
+                SX_LOG_ERR("Failed to create switch tunnel\n");
+                g_sai_tunnel_db_ptr->tunnel_entry_db[ii].src_port_mode = SAI_TUNNEL_VXLAN_UDP_SPORT_MODE_EPHEMERAL;
+                g_sai_tunnel_db_ptr->tunnel_entry_db[ii].src_port_base = 0;
+                g_sai_tunnel_db_ptr->tunnel_entry_db[ii].src_port_mask = 0;
+                sai_db_unlock();
+                return SAI_STATUS_FAILURE;
+            }
+        }
+    }
+
+    g_sai_db_ptr->switch_tunnel[tunnel_type].switch_tunnel_id = tunnel_obj_id;
+    g_sai_db_ptr->switch_tunnel[tunnel_type].src_port_mode = sport_mode;
+    g_sai_db_ptr->switch_tunnel[tunnel_type].src_port_base = sport_base;
+    g_sai_db_ptr->switch_tunnel[tunnel_type].src_port_mask = sport_mask;
+
+    sai_db_unlock();
+
+    *switch_tunnel_id = tunnel_obj_id;
+    SX_LOG_NTC("Created switch tunnel:0x%" PRIx64 "\n", *switch_tunnel_id);
+
+    SX_LOG_EXIT();
+    return sai_status;
+}
+
+static void switch_tunnel_key_to_str(_In_ const sai_object_id_t sai_switch_tunnel_obj_id, _Out_ char *key_str)
+{
+    uint32_t data = 0;
+
+    SX_LOG_ENTER();
+
+    if (SAI_STATUS_SUCCESS !=
+        mlnx_object_to_type(sai_switch_tunnel_obj_id, SAI_OBJECT_TYPE_SWITCH_TUNNEL, &data, NULL)) {
+        snprintf(key_str, MAX_KEY_STR_LEN, "Invalid sai switch tunnel obj ID %" PRIx64 "", sai_switch_tunnel_obj_id);
+    } else {
+        snprintf(key_str,
+                 MAX_KEY_STR_LEN,
+                 "switch tunnel ID %d",
+                 data);
+    }
+
+    SX_LOG_EXIT();
+}
+
+static sai_status_t mlnx_set_switch_tunnel_attribute(_In_ const sai_object_id_t  sai_switch_tunnel_obj_id,
+                                                     _In_ const sai_attribute_t *attr)
+{
+    const sai_object_key_t key = { .key.object_id = sai_switch_tunnel_obj_id };
+    char                   key_str[MAX_KEY_STR_LEN];
+    sai_status_t           sai_status = SAI_STATUS_FAILURE;
+
+    SX_LOG_ENTER();
+
+    switch_tunnel_key_to_str(sai_switch_tunnel_obj_id, key_str);
+    sai_status = sai_set_attribute(&key, key_str, SAI_OBJECT_TYPE_SWITCH_TUNNEL, switch_tunnel_vendor_attribs, attr);
+
+    SX_LOG_EXIT();
+    return sai_status;
+}
+
+static sai_status_t mlnx_get_switch_tunnel_attribute(_In_ const sai_object_id_t sai_switch_tunnel_obj_id,
+                                                     _In_ uint32_t              attr_count,
+                                                     _Inout_ sai_attribute_t   *attr_list)
+{
+    const sai_object_key_t key = { .key.object_id = sai_switch_tunnel_obj_id };
+    char                   key_str[MAX_KEY_STR_LEN];
+    sai_status_t           sai_status = SAI_STATUS_FAILURE;
+
+    SX_LOG_ENTER();
+
+    switch_tunnel_key_to_str(sai_switch_tunnel_obj_id, key_str);
+    sai_status =
+        sai_get_attributes(&key,
+                           key_str,
+                           SAI_OBJECT_TYPE_SWITCH_TUNNEL,
+                           switch_tunnel_vendor_attribs,
+                           attr_count,
+                           attr_list);
+
+    SX_LOG_EXIT();
+    return sai_status;
+}
+
+/**
+ * @brief Remove Switch Tunnel
+ *
+ * @param[in] switch_tunnel_id The Switch tunnel id
+ *
+ * @return #SAI_STATUS_SUCCESS on success Failure status code on error
+ */
+static sai_status_t mlnx_remove_switch_tunnel(_In_ sai_object_id_t switch_tunnel_id)
+{
+    sai_status_t sai_status = SAI_STATUS_FAILURE;
+    uint32_t     data;
+
+    SX_LOG_ENTER();
+
+    sai_status = mlnx_object_to_type(switch_tunnel_id, SAI_OBJECT_TYPE_SWITCH_TUNNEL, &data, NULL);
+    if (SAI_ERR(sai_status) || (data != SAI_TUNNEL_TYPE_VXLAN)) {
+        SX_LOG_ERR("Invalid sai switch tunnel obj id: 0x%" PRIx64 "\n", switch_tunnel_id);
+        SX_LOG_EXIT();
+        return sai_status;
+    }
+
+    uint32_t ii, sai_db_idx_start = 0, sai_db_idx_end = MLNX_MAX_TUNNEL_NVE;
+
+    for (ii = sai_db_idx_start; ii < sai_db_idx_end; ++ii) {
+        if ((g_sai_tunnel_db_ptr->tunnel_entry_db[ii].sai_tunnel_type == SAI_TUNNEL_TYPE_VXLAN)
+            && !g_sai_tunnel_db_ptr->tunnel_entry_db[ii].init_vxlan_sport_config.is_configured) {
+            if (SAI_STATUS_SUCCESS !=
+                (sai_status =
+                     mlnx_vxlan_srcport_config_update(false, ii, SAI_TUNNEL_VXLAN_UDP_SPORT_MODE_EPHEMERAL, 0, 0))) {
+                SX_LOG_ERR("Filed to update VxLAN tunnel UDP SRC port attributes config\n");
+                sai_db_unlock();
+                SX_LOG_EXIT();
+                return sai_status;
+            }
+        }
+    }
+
+    g_sai_db_ptr->switch_tunnel[data].switch_tunnel_id = SAI_NULL_OBJECT_ID;
+    g_sai_db_ptr->switch_tunnel[data].src_port_mode = SAI_TUNNEL_VXLAN_UDP_SPORT_MODE_EPHEMERAL;
+    g_sai_db_ptr->switch_tunnel[data].src_port_base = 0;
+    g_sai_db_ptr->switch_tunnel[data].src_port_mask = 0;
+
+    SX_LOG_EXIT();
+    return SAI_STATUS_SUCCESS;
+}
+
 const sai_switch_api_t mlnx_switch_api = {
     mlnx_create_switch,
     mlnx_remove_switch,
@@ -10584,8 +11018,8 @@ const sai_switch_api_t mlnx_switch_api = {
     mlnx_clear_switch_stats,
     NULL,
     NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL
+    mlnx_create_switch_tunnel,
+    mlnx_remove_switch_tunnel,
+    mlnx_set_switch_tunnel_attribute,
+    mlnx_get_switch_tunnel_attribute
 };

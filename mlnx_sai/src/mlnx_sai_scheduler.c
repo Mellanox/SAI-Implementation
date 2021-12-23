@@ -175,6 +175,15 @@ static void check_rate(uint64_t rate, bool is_min)
     }
 }
 
+static void restore_default_to_subgroup_ets(sx_cos_ets_element_config_t *ptr_ets)
+{
+    ptr_ets->min_shaper_enable = true;
+    ptr_ets->max_shaper_enable = true;
+    ptr_ets->dwrr_enable = true;
+    ptr_ets->dwrr = true;
+    ptr_ets->dwrr_weight = 12;
+}
+
 /* fix up rate value from SAI */
 static uint32_t ets_fixup_rate(uint64_t rate)
 {
@@ -340,6 +349,9 @@ static sai_status_t scheduler_to_group_apply(sai_object_id_t  scheduler_id,
         memcpy(&ets, &sched->ets, sizeof(ets));
         sai_to_sdk_rate(sched->min_rate, sched->max_rate, &ets);
     } else {
+        if (level == SX_COS_ETS_HIERARCHY_SUB_GROUP_E - 1) {
+            restore_default_to_subgroup_ets(&ets);
+        }
         sai_to_sdk_rate(0, 0, &ets);
     }
 
@@ -922,6 +934,9 @@ sai_status_t __mlnx_scheduler_to_queue_apply(sai_object_id_t   scheduler_id,
         memcpy(&ets, &sched->ets, sizeof(ets));
         sai_to_sdk_rate(sched->min_rate, sched->max_rate, &ets);
     } else {
+        if (obj->ets_type == SX_COS_ETS_HIERARCHY_SUB_GROUP_E) {
+            restore_default_to_subgroup_ets(&ets);
+        }
         sai_to_sdk_rate(0, 0, &ets);
     }
 

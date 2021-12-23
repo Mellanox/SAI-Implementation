@@ -137,6 +137,7 @@ extern const mlnx_obj_type_attrs_info_t  mlnx_hostif_packet_obj_type_info;
 extern const mlnx_obj_type_attrs_info_t  mlnx_tunnel_map_obj_type_info;
 extern const mlnx_obj_type_attrs_info_t  mlnx_tunnel_obj_type_info;
 extern const mlnx_obj_type_attrs_info_t  mlnx_tunnel_term_table_entry_type_info;
+extern const mlnx_obj_type_attrs_info_t  mlnx_switch_tunnel_obj_type_info;
 extern const mlnx_obj_type_attrs_info_t  mlnx_fdb_flush_obj_type_info;
 extern const mlnx_obj_type_attrs_info_t  mlnx_nh_group_member_obj_type_info;
 extern const mlnx_obj_type_attrs_info_t  mlnx_stp_port_obj_type_info;
@@ -196,6 +197,7 @@ static const mlnx_obj_type_attrs_info_t* mlnx_obj_types_info[] = {
     [SAI_OBJECT_TYPE_HOSTIF_PACKET] = &mlnx_hostif_packet_obj_type_info,
     [SAI_OBJECT_TYPE_TUNNEL_MAP] = &mlnx_tunnel_map_obj_type_info,
     [SAI_OBJECT_TYPE_TUNNEL] = &mlnx_tunnel_obj_type_info,
+    [SAI_OBJECT_TYPE_SWITCH_TUNNEL] = &mlnx_switch_tunnel_obj_type_info,
     [SAI_OBJECT_TYPE_TUNNEL_TERM_TABLE_ENTRY] = &mlnx_tunnel_term_table_entry_type_info,
     [SAI_OBJECT_TYPE_FDB_FLUSH] = &mlnx_fdb_flush_obj_type_info,
     [SAI_OBJECT_TYPE_NEXT_HOP_GROUP_MEMBER] = &mlnx_nh_group_member_obj_type_info,
@@ -1739,16 +1741,21 @@ static sai_status_t sai_attr_list_check_condition(_In_ const sai_attr_condition_
     assert(condition);
     assert(attr_list);
 
-    status = find_attrib_in_list(attr_count, attr_list, condition->attrid, &value, &index);
-    if (SAI_ERR(status)) {
-        *condition_value = false;
-        return SAI_STATUS_SUCCESS;
-    }
-
     cond_attr_metadata = sai_metadata_get_attr_metadata(object_type, condition->attrid);
     if (NULL == cond_attr_metadata) {
         SX_LOG_ERR("Failed to fetch meta data for attr (%d)\n", condition->attrid);
         return SAI_STATUS_UNKNOWN_ATTRIBUTE_0;
+    }
+
+    status = find_attrib_in_list(attr_count, attr_list, condition->attrid, &value, &index);
+    if (SAI_ERR(status)) {
+        if ((cond_attr_metadata->defaultvaluetype != SAI_DEFAULT_VALUE_TYPE_CONST) ||
+            (cond_attr_metadata->defaultvalue == NULL)) {
+            *condition_value = false;
+            return SAI_STATUS_SUCCESS;
+        }
+
+        value = cond_attr_metadata->defaultvalue;
     }
 
     status = sai_attribute_values_compare(&condition->condition, value, cond_attr_metadata, condition_value);
@@ -1775,7 +1782,7 @@ static sai_status_t sai_attribute_conditions_check(_In_ sai_attr_condition_type_
     assert(conditions_valid);
 
     if (0 == conditionslength) {
-        SX_LOG_ERR("Failed to validate attr conditions - conditionslength is zero\n");
+        SX_LOG_ERR("Failed to validate attr conditions - conditions length is zero\n");
         return SAI_STATUS_FAILURE;
     }
 
@@ -2285,6 +2292,25 @@ static sai_status_t get_dispatch_attribs_handler(_In_ uint32_t                  
 
     SX_LOG_EXIT();
     return SAI_STATUS_SUCCESS;
+}
+
+void find_attrib(_In_ uint32_t               attr_count,
+                 _In_ const sai_attribute_t *attr_list,
+                 _In_ sai_attr_id_t          attrib_id,
+                 _Out_ mlnx_sai_attr_t      *attr)
+{
+    sai_status_t status;
+
+    status = find_attrib_in_list(attr_count,
+                                 attr_list,
+                                 attrib_id,
+                                 (const sai_attribute_value_t **)&(attr->value),
+                                 &attr->index);
+    if (SAI_OK(status) && (attr->value != NULL)) {
+        attr->found = true;
+    } else {
+        attr->found = false;
+    }
 }
 
 sai_status_t find_attrib_in_list(_In_ uint32_t                       attr_count,
@@ -3516,7 +3542,7 @@ sai_status_t mlnx_utils_attrs_is_resource_check(_In_ sai_object_type_t      obje
     }
 
     if (!mlnx_obj_type_attr_info_get(object_type)) {
-        SX_LOG_WRN("Not implemented object type %s - vendor meta data not found\n", obj_type_info->objecttypename);
+        SX_LOG_NTC("Not implemented object type %s - vendor meta data not found\n", obj_type_info->objecttypename);
         return SAI_STATUS_NOT_IMPLEMENTED;
     }
 

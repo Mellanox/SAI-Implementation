@@ -291,6 +291,9 @@ extern const sai_isolation_group_api_t  mlnx_isolation_group_api;
 
 #define MLNX_SAI_BULK_COUNTER_COOKIE 0x0055AA11
 
+#define MLNX_COUNTER_MAX_HOSTIF_TRAPS 60
+#define MLNX_COUNTERS_DB_SIZE         1000
+
 #define mlnx_udf_db (g_sai_acl_db_ptr->udf_db)
 #define udf_db_group_ptr(index)                         \
     ((mlnx_udf_group_t*)((uint8_t*)mlnx_udf_db.groups + \
@@ -346,8 +349,10 @@ typedef enum {
     MLNX_SHM_RM_ARRAY_TYPE_GP_REG,
     MLNX_SHM_RM_ARRAY_TYPE_NEXTHOP,
     MLNX_SHM_RM_ARRAY_TYPE_COUNTER,
-    MLNX_SHM_RM_ARRAY_TYPE_GROUP_COUNTER,
-    MLNX_SHM_RM_ARRAY_TYPE_MAX = MLNX_SHM_RM_ARRAY_TYPE_GROUP_COUNTER,
+    MLNX_SHM_RM_ARRAY_TYPE_NHG,
+    MLNX_SHM_RM_ARRAY_TYPE_NHG_MEMBER,
+    MLNX_SHM_RM_ARRAY_TYPE_ECMP_NHG_MAP,
+    MLNX_SHM_RM_ARRAY_TYPE_MAX = MLNX_SHM_RM_ARRAY_TYPE_ECMP_NHG_MAP,
     MLNX_SHM_RM_ARRAY_TYPE_SIZE
 } mlnx_shm_rm_array_type_t;
 typedef sai_status_t (*mlnx_shm_rm_size_get_fn)(_Out_ size_t *size);
@@ -425,10 +430,6 @@ PACKED(struct _mlnx_object_id_t {
             uint16_t id;
         }, stp);
         PACKED(struct {
-            uint8_t group_id;
-            uint8_t nhop_id;
-        }, nhop_group_member_high);
-        PACKED(struct {
             uint16_t id;
         }, vlan);
         PACKED(struct {
@@ -470,11 +471,9 @@ PACKED(struct _mlnx_object_id_t {
         mlnx_shm_rm_array_idx_t bfd_db_idx;
         mlnx_shm_rm_array_idx_t encap_nexthop_db_idx;
         mlnx_shm_rm_array_idx_t counter_db_idx;
+        mlnx_shm_rm_array_idx_t nhg_db_idx;
+        mlnx_shm_rm_array_idx_t nhgm_db_idx;
         uint32_t isolation_group_db_idx;
-        PACKED(struct {
-            uint16_t group_id;
-            uint16_t nhop_id;
-        }, nhop_group_member_low);
         PACKED(struct {
             uint32_t db_idx;
         }, l2mc_group);
@@ -482,6 +481,12 @@ PACKED(struct _mlnx_object_id_t {
 }, );
 
 typedef struct _mlnx_object_id_t mlnx_object_id_t;
+
+typedef struct _mlnx_sai_attr_t {
+    bool                   found;
+    uint32_t               index;
+    sai_attribute_value_t *value;
+} mlnx_sai_attr_t;
 
 extern const char* sai_metadata_sai_acl_entry_attr_t_enum_values_names[];
 #define MLNX_SAI_ACL_ENTRY_ATTR_STR(attr) (sai_metadata_sai_acl_entry_attr_t_enum_values_names[attr])
@@ -716,6 +721,13 @@ bool mlnx_chip_is_spc4(void);
 bool mlnx_chip_is_spc2or3(void);
 bool mlnx_chip_is_spc2or3or4(void);
 
+typedef struct _mlnx_counter_t {
+    mlnx_shm_array_hdr_t array_hdr;
+    sx_flow_counter_id_t sx_flow_counter;
+    sai_object_id_t      hostif_trap_ids[MLNX_COUNTER_MAX_HOSTIF_TRAPS];
+    uint32_t             hostif_trap_ids_cnt;
+} mlnx_counter_t;
+
 sai_status_t sai_attribute_short_name_fetch(_In_ sai_object_type_t object_type,
                                             _In_ sai_attr_id_t     attr_id,
                                             _Out_ const char     **attr_short_name);
@@ -734,6 +746,10 @@ sai_status_t find_attrib_in_list(_In_ uint32_t                       attr_count,
                                  _In_ sai_attr_id_t                  attrib_id,
                                  _Out_ const sai_attribute_value_t **attr_value,
                                  _Out_ uint32_t                     *index);
+void find_attrib(_In_ uint32_t               attr_count,
+                 _In_ const sai_attribute_t *attr_list,
+                 _In_ sai_attr_id_t          attrib_id,
+                 _Out_ mlnx_sai_attr_t      *attr);
 sai_status_t sai_set_attribute(_In_ const sai_object_key_t             *key,
                                _In_ const char                         *key_str,
                                _In_ sai_object_type_t                   object_type,
@@ -995,6 +1011,15 @@ typedef struct _acl_index_t {
 
 sai_status_t mlnx_acl_init(void);
 sai_status_t mlnx_vxlan_srcport_acl_add(sai_object_id_t switch_id);
+sai_status_t mlnx_vxlan_udp_srcport_acl_add(uint32_t tunnel_db_idx);
+sai_status_t mlnx_vxlan_udp_srcport_acl_update(uint32_t tunnel_db_idx);
+sai_status_t mlnx_vxlan_udp_srcport_acl_remove(uint32_t tunnel_db_idx);
+sai_status_t mlnx_vxlan_srcport_config_update(bool on_create_set, uint32_t tunnel_db_idx,
+                                              sai_tunnel_vxlan_udp_sport_mode_t src_port_mode,
+                                              int32_t src_port_base, int8_t src_port_mask);
+sai_status_t mlnx_vxlan_srcport_user_defined_set(uint32_t tunnel_db_idx, int32_t sport_base,
+                                                 int8_t sport_mask, bool acl_created);
+
 sai_status_t mlnx_acl_deinit(void);
 sai_status_t mlnx_acl_disconnect(void);
 sai_status_t mlnx_acl_bind_point_set(_In_ const sai_object_key_t      *key,
@@ -1469,7 +1494,8 @@ typedef struct _mlnx_fake_nh_db_data_t {
     sx_ecmp_id_t                sx_fake_nexthop;
     sx_neigh_data_t             sx_fake_neighbor;
     sx_fdb_uc_mac_addr_params_t sx_fake_fdb;
-    int32_t                     counter;           /* 0 - entry is not initialized, any other number - ref counter */
+    int32_t                     counter;
+    int32_t                     nhgm_counter;
 } mlnx_fake_nh_db_data_t;
 
 typedef struct _mlnx_encap_nexthop_db_data_t {
@@ -1488,6 +1514,11 @@ typedef struct _mlnx_encap_nexthop_db_entry_t {
     mlnx_shm_array_hdr_t         array_hdr;
     mlnx_encap_nexthop_db_data_t data;
 } mlnx_encap_nexthop_db_entry_t;
+
+typedef enum _mlnx_nh_counter_type_t {
+    NH_COUNTER_TYPE_NH,
+    NH_COUNTER_TYPE_NHGM
+} mlnx_nh_counter_type_t;
 
 sai_status_t mlnx_encap_nexthop_oid_create(_In_ mlnx_shm_rm_array_idx_t idx,
                                            _Out_ sai_object_id_t       *oid);
@@ -1508,12 +1539,113 @@ sai_status_t mlnx_tunnel_bridge_counter_update(_In_ sai_object_id_t tunnel_id,
 sai_status_t mlnx_encap_nexthop_get_ecmp(_In_ sai_object_id_t nh,
                                          _In_ sai_object_id_t vrf,
                                          _Out_ sx_ecmp_id_t  *sx_ecmp);
-sai_status_t mlnx_encap_nexthop_counter_update(_In_ sai_object_id_t nh,
-                                               _In_ sai_object_id_t vrf,
-                                               _In_ int32_t         diff);
+sai_status_t mlnx_encap_nexthop_counter_update(_In_ mlnx_shm_rm_array_idx_t nh_idx,
+                                               _In_ sai_object_id_t         vrf,
+                                               _In_ int32_t                 diff,
+                                               _In_ mlnx_nh_counter_type_t  counter_type);
 sai_status_t mlnx_encap_nexthop_change_dmac(_In_ sai_object_id_t nh,
                                             _In_ const sai_mac_t mac,
                                             _In_ bool            store);
+sai_status_t mlnx_encap_nh_data_get(mlnx_shm_rm_array_idx_t nh_idx,
+                                    sai_object_id_t         vrf,
+                                    int32_t                 diff,
+                                    sx_next_hop_t          *sx_next_hop);
+sai_status_t mlnx_nhg_get_ecmp(_In_ sai_object_id_t nhg,
+                               _In_ sai_object_id_t vrf,
+                               _In_ int32_t         diff,
+                               _Out_ sx_ecmp_id_t  *sx_ecmp_id);
+sai_status_t mlnx_counter_oid_to_data(_In_ sai_object_id_t           oid,
+                                      _Out_ mlnx_counter_t         **counter_db_entry,
+                                      _Out_ mlnx_shm_rm_array_idx_t *idx);
+sai_status_t mlnx_counter_oid_create(_In_ mlnx_shm_rm_array_idx_t idx, _Out_ sai_object_id_t *oid);
+sai_status_t mlnx_get_sx_flow_counter_id_by_idx(_In_ mlnx_shm_rm_array_idx_t idx,
+                                                _Out_ sx_flow_counter_id_t  *sx_flow_counter);
+
+#define MLNX_NHG_DB_SIZE             (2000)
+#define MLNX_NHG_MEMBER_DB_SIZE      (MLNX_NHG_DB_SIZE * 128)
+#define MLNX_ECMP_TO_NHG_MAP_SIZE    (MLNX_NHG_DB_SIZE * NUMBER_OF_LOCAL_VNETS)
+#define MLNX_ECMP_NHG_HASHTABLE_SIZE (251)
+
+typedef enum _mlnx_nhg_type_t {
+    MLNX_NHG_TYPE_NULL       = 0,
+    MLNX_NHG_TYPE_ECMP       = 1,
+    MLNX_NHG_TYPE_FINE_GRAIN = 2,
+} mlnx_nhg_type_t;
+
+typedef enum _mlnx_nhgm_type_t {
+    MLNX_NHGM_TYPE_NULL       = 0,
+    MLNX_NHGM_TYPE_NATIVE     = 1,
+    MLNX_NHGM_TYPE_ENCAP      = 2,
+    MLNX_NHGM_TYPE_FINE_GRAIN = 3,
+} mlnx_nhgm_type_t;
+
+typedef struct _mlnx_nhg_encap_vrf_data_t {
+    sai_object_id_t associated_vrf;
+    sx_ecmp_id_t    sx_ecmp_id;
+    int32_t         refcount;
+} mlnx_nhg_encap_vrf_data_t;
+
+typedef struct _mlnx_nhg_encap_data_t {
+    mlnx_nhg_encap_vrf_data_t vrf_data[NUMBER_OF_LOCAL_VNETS];
+} mlnx_nhg_encap_data_t;
+
+typedef struct _mlnx_nhg_fine_grain_data_t {
+    uint32_t     real_size;
+    uint32_t     configured_size;
+    sx_ecmp_id_t sx_ecmp_id;
+} mlnx_nhg_fine_grain_data_t;
+
+typedef struct _mlnx_nhg_db_data_t {
+    mlnx_nhg_type_t         type;
+    mlnx_shm_rm_array_idx_t members;
+    uint32_t                members_count;
+    mlnx_shm_rm_array_idx_t flow_counter;
+    union {
+        mlnx_nhg_encap_data_t      encap;
+        mlnx_nhg_fine_grain_data_t fine_grain;
+    } data;
+} mlnx_nhg_db_data_t;
+
+typedef struct _mlnx_nhg_db_entry_t {
+    mlnx_shm_array_hdr_t array_hdr;
+    mlnx_nhg_db_data_t   data;
+} mlnx_nhg_db_entry_t;
+
+typedef struct _mlnx_nhgm_db_data_t {
+    mlnx_nhgm_type_t        type;
+    uint32_t                weight;
+    mlnx_shm_rm_array_idx_t flow_counter;
+    union {
+        mlnx_shm_rm_array_idx_t nh_idx;
+        sx_ecmp_id_t            sx_ecmp_id;
+        uint32_t                fg_id;
+    } entry;
+    mlnx_shm_rm_array_idx_t nhg_idx;
+    mlnx_shm_rm_array_idx_t next_member_idx;
+    mlnx_shm_rm_array_idx_t prev_member_idx;
+} mlnx_nhgm_db_data_t;
+
+typedef struct _mlnx_nhgm_db_entry_t {
+    mlnx_shm_array_hdr_t array_hdr;
+    mlnx_nhgm_db_data_t  data;
+} mlnx_nhgm_db_entry_t;
+
+typedef struct _mlnx_ecmp_to_nhg_db_entry_t {
+    mlnx_shm_array_hdr_t    array_hdr;
+    sx_ecmp_id_t            key;
+    mlnx_shm_rm_array_idx_t nhg_idx;
+    mlnx_shm_rm_array_idx_t next_idx;
+} mlnx_ecmp_to_nhg_db_entry_t;
+
+sai_status_t mlnx_nhg_db_entry_idx_to_data(_In_ mlnx_shm_rm_array_idx_t idx,
+                                           _Out_ mlnx_nhg_db_entry_t  **nhg_db_entry);
+sai_status_t mlnx_ecmp_to_nhg_map_entry_get(_In_ sx_ecmp_id_t              key,
+                                            _Out_ mlnx_shm_rm_array_idx_t *value);
+sai_status_t mlnx_nhg_counter_update(_In_ mlnx_shm_rm_array_idx_t nhg_idx,
+                                     _In_ sai_object_id_t         vrf,
+                                     _In_ int32_t                 diff);
+sai_status_t mlnx_nhg_oid_create(_In_ mlnx_shm_rm_array_idx_t idx,
+                                 _Out_ sai_object_id_t       *oid);
 
 #define mlnx_vlan_id_foreach(vid) \
     for (vid = SXD_VID_MIN; vid <= SXD_VID_MAX; vid++)
@@ -2208,28 +2340,67 @@ typedef struct _mlnx_tunneltable_t {
     bool                        tunnel_lazy_created;
 } mlnx_tunneltable_t;
 
+typedef struct _mlnx_vxlan_udp_sport_acl_t {
+    bool               is_acl_created;
+    sx_acl_key_type_t  key;
+    sx_acl_id_t        acl_group;
+    sx_acl_id_t        acl;
+    sx_acl_region_id_t region;
+} mlnx_vxlan_udp_sport_acl_t;
+
+typedef struct _mlnx_vxlan_udp_sport_initial_config_t {
+    bool                              is_configured;
+    sai_tunnel_vxlan_udp_sport_mode_t src_port_mode;
+    int16_t                           src_port_base;
+    int8_t                            src_port_mask;
+} mlnx_vxlan_udp_sport_initial_config_t;
+
+/*
+ *  SAI tunnel hash commands
+ */
+typedef enum _mlnx_tunnel_hash_cmd_t {
+    SAI_TUNNEL_HASH_CMD_SET_ZERO,
+    SAI_TUNNEL_HASH_CMD_CALCULATE,
+    SAI_TUNNEL_HASH_CMD_FIXED_VALUE,
+    SAI_TUNNEL_HASH_CMD_MODIFIED_HASH
+} mlnx_tunnel_hash_cmd_t;
+
 /* VXLAN: Idx from 0 to MLNX_MAX_TUNNEL_NVE-1
  * IP in IP: Idx from MLNX_MAX_TUNNEL_NVE to MAX_TUNNEL_DB_SIZE-1 */
 typedef struct _mlnx_tunnel_entry_t {
-    bool                  is_used;
-    sai_tunnel_type_t     sai_tunnel_type;
-    sx_tunnel_id_t        sx_tunnel_id_ipv4;
-    sx_tunnel_id_t        sx_tunnel_id_ipv6;
-    bool                  ipv4_created;
-    bool                  ipv6_created;
-    sx_router_interface_t sx_overlay_rif_ipv6;
-    sai_object_id_t       sai_underlay_rif;
-    sai_object_id_t       sai_tunnel_map_encap_id_array[MLNX_TUNNEL_MAP_MAX];
-    uint32_t              sai_tunnel_map_encap_cnt;
-    sai_object_id_t       sai_tunnel_map_decap_id_array[MLNX_TUNNEL_MAP_MAX];
-    uint32_t              sai_tunnel_map_decap_cnt;
-    sx_tunnel_attribute_t sx_tunnel_attr;
-    sx_tunnel_ttl_data_t  sdk_encap_ttl_data_attrib;
-    sx_tunnel_ttl_data_t  sdk_decap_ttl_data_attrib;
-    sx_tunnel_cos_data_t  sdk_encap_cos_data;
-    sx_tunnel_cos_data_t  sdk_decap_cos_data;
-    uint32_t              term_table_cnt;
+    bool                                  is_used;
+    sai_tunnel_type_t                     sai_tunnel_type;
+    sx_tunnel_id_t                        sx_tunnel_id_ipv4;
+    sx_tunnel_id_t                        sx_tunnel_id_ipv6;
+    bool                                  ipv4_created;
+    bool                                  ipv6_created;
+    sx_router_interface_t                 sx_overlay_rif_ipv6;
+    sai_object_id_t                       sai_underlay_rif;
+    sai_object_id_t                       sai_tunnel_map_encap_id_array[MLNX_TUNNEL_MAP_MAX];
+    uint32_t                              sai_tunnel_map_encap_cnt;
+    sai_object_id_t                       sai_tunnel_map_decap_id_array[MLNX_TUNNEL_MAP_MAX];
+    uint32_t                              sai_tunnel_map_decap_cnt;
+    sx_tunnel_attribute_t                 sx_tunnel_attr;
+    sx_tunnel_ttl_data_t                  sdk_encap_ttl_data_attrib;
+    sx_tunnel_ttl_data_t                  sdk_decap_ttl_data_attrib;
+    sx_tunnel_cos_data_t                  sdk_encap_cos_data;
+    sx_tunnel_cos_data_t                  sdk_decap_cos_data;
+    uint32_t                              term_table_cnt;
+    mlnx_vxlan_udp_sport_initial_config_t init_vxlan_sport_config;
+    sai_tunnel_vxlan_udp_sport_mode_t     src_port_mode;
+    int32_t                               src_port_base;
+    int8_t                                src_port_mask;
+    mlnx_vxlan_udp_sport_acl_t            vxlan_acl;
 } mlnx_tunnel_entry_t;
+
+#define MLNX_MAX_TUNNEL_TYPES_NUM SAI_TUNNEL_TYPE_MPLS + 1
+
+typedef struct _mlnx_switch_tunnel_t {
+    sai_object_id_t                   switch_tunnel_id;
+    sai_tunnel_vxlan_udp_sport_mode_t src_port_mode;
+    uint16_t                          src_port_base;
+    uint8_t                           src_port_mask;
+} mlnx_switch_tunnel_t;
 
 typedef struct _tunnel_map_t {
     bool                  in_use;
@@ -2435,29 +2606,9 @@ mlnx_platform_type_t mlnx_platform_type_get(void);
     (((SAI_SWITCH_STAT_IN_DROP_REASON_RANGE_BASE <= stat) && (stat < SAI_SWITCH_STAT_IN_DROP_REASON_RANGE_END)) || \
      ((SAI_SWITCH_STAT_OUT_DROP_REASON_RANGE_BASE <= stat) && (stat < SAI_SWITCH_STAT_OUT_DROP_REASON_RANGE_END)))
 
-#define MLNX_COUNTER_MAX_HOSTIF_TRAPS 60
-#define MLNX_COUNTERS_DB_SIZE         1000
-#define MLNX_GROUP_COUNTERS_DB_SIZE   1000
-
-typedef struct _mlnx_counter_t {
-    mlnx_shm_array_hdr_t array_hdr;
-    sx_flow_counter_id_t sx_flow_counter;
-    sai_object_id_t      hostif_trap_ids[MLNX_COUNTER_MAX_HOSTIF_TRAPS];
-    uint32_t             hostif_trap_ids_cnt;
-} mlnx_counter_t;
-
 sai_status_t mlnx_translate_flow_counter_to_sai_counter(sx_flow_counter_id_t flow_counter,
                                                         sai_object_id_t     *counter_id);
 sai_status_t mlnx_translate_trap_id_to_sai_counter(sai_object_id_t trap_id, sai_object_id_t *counter_id);
-
-typedef struct _mlnx_group_counter_t {
-    mlnx_shm_array_hdr_t array_hdr;
-    sx_ecmp_id_t         group_id;
-    sx_flow_counter_id_t sx_flow_counter;
-} mlnx_group_counter_t;
-
-sai_status_t mlnx_get_group_flow_counter_id(sx_ecmp_id_t group_id, sx_flow_counter_id_t *flow_counter_id);
-sai_status_t mlnx_set_group_flow_counter_id(sx_ecmp_id_t group_id, sx_flow_counter_id_t flow_counter_id);
 
 #define MLNX_DEBUG_COUNTER_MAX_REASONS                  \
     MAX((uint32_t)SAI_IN_DROP_REASON_ACL_EGRESS_SWITCH, \
@@ -2517,12 +2668,6 @@ typedef struct _mlnx_control_pg_buff_profile_entry {
     sx_cos_port_buffer_attr_t sx_pg_buff_reserved_attr;
     bool                      is_valid;
 } mlnx_control_pg_buff;
-
-typedef struct _mlnx_fg_ecmp_group_size_t {
-    sx_ecmp_id_t id;
-    uint32_t     real_size;
-    uint32_t     configured_size;
-} mlnx_fg_ecmp_group_size_t;
 
 #ifndef PATH_MAX
 #define PATH_MAX 256
@@ -2627,6 +2772,7 @@ typedef struct sai_db {
     sai_object_id_t                   dummy_1d_bridge_oid;
     sx_port_log_id_t                  sx_nve_log_port;
     mlnx_nve_tunnel_type_t            nve_tunnel_type;
+    mlnx_shm_rm_array_idx_t           ecmp_to_nhg_map[MLNX_ECMP_NHG_HASHTABLE_SIZE];
     bool                              is_stp_initialized;
     sx_mstp_inst_id_t                 def_stp_id;
     mlnx_mstp_inst_t                  mlnx_mstp_inst_db[SX_MSTP_INST_ID_MAX - SX_MSTP_INST_ID_MIN + 1];
@@ -2667,13 +2813,14 @@ typedef struct sai_db {
     mlnx_debug_counter_trap_t         debug_counter_traps[MLNX_DEBUG_COUNTER_TRAP_DB_SIZE];
     bool                              is_bfd_module_initialized;
     sai_mac_t                         vxlan_mac;
-    mlnx_fg_ecmp_group_size_t         ecmp_groups[FG_ECMP_MAX_GROUPS_COUNT];
     bool                              pbhash_transition;
+    uint32_t                          pbhash_gre;
     sx_acl_id_t                       vxlan_acl_id;
     mlnx_shm_pool_t                   shm_pool;
     mlnx_isolation_group_t            isolation_groups[MAX_ISOLATION_GROUPS];
     mlnx_port_isolation_api_t         port_isolation_api;
     bool                              vxlan_srcport_range_enabled;
+    mlnx_switch_tunnel_t              switch_tunnel[MLNX_MAX_TUNNEL_TYPES_NUM];
     uint16_t                          accumed_flow_cnt_in_k;
     cl_plock_t                        port_counter_lock;
 #ifndef _WIN32

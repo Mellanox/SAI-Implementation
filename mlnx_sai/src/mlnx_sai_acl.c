@@ -4323,8 +4323,7 @@ static sai_status_t mlnx_acl_field_info_data_fetch(_In_ sai_attr_id_t           
     const mlnx_acl_multi_key_field_info_t  *multi_key_field;
 
 #ifdef IS_SIMX
-    if ((SAI_ACL_ENTRY_ATTR_FIELD_INNER_DST_IPV6 == attr_id)
-        || (SAI_ACL_ENTRY_ATTR_FIELD_INNER_ETHER_TYPE == attr_id)) {
+    if (SAI_ACL_ENTRY_ATTR_FIELD_INNER_DST_IPV6 == attr_id) {
         SX_LOG_ERR("This field is not supported on Simx.\n");
         return SAI_STATUS_NOT_SUPPORTED;
     }
@@ -7610,7 +7609,6 @@ static sai_status_t mlnx_acl_redirect_sx_to_sai(_In_ const sx_flex_acl_flex_acti
 {
     sai_status_t        status;
     mlnx_bridge_port_t *bport = NULL;
-    sx_ecmp_id_t        sx_ecmp_id;
 
     assert(sx_action);
     assert(sai_action_data);
@@ -7624,12 +7622,7 @@ static sai_status_t mlnx_acl_redirect_sx_to_sai(_In_ const sx_flex_acl_flex_acti
         break;
 
     case SX_FLEX_ACL_ACTION_UC_ROUTE:
-        sx_ecmp_id = sx_action->fields.action_uc_route.uc_route_param.ecmp_id;
-        status = mlnx_create_object(SAI_OBJECT_TYPE_NEXT_HOP_GROUP, sx_ecmp_id, NULL,
-                                    &sai_action_data->parameter.oid);
-        if (SAI_ERR(status)) {
-            return status;
-        }
+        return SAI_STATUS_NOT_IMPLEMENTED;
         break;
 
     case SX_FLEX_ACL_ACTION_NVE_TUNNEL_ENCAP:
@@ -13234,13 +13227,10 @@ sai_status_t mlnx_create_acl_table(_Out_ sai_object_id_t     * acl_table_id,
     if (SAI_STATUS_SUCCESS ==
         find_attrib_in_list(attr_count, attr_list, SAI_ACL_TABLE_ATTR_FIELD_OUT_PORTS, &out_ports, &out_ports_index)) {
         if (true == out_ports->booldata) {
-/* TODO: remove when enabled on Simx */
-#ifdef IS_SIMX
-            if ((key_index > 0) && (keys[key_index - 1] == FLEX_ACL_KEY_RX_PORT_LIST)) {
-                SX_LOG_ERR("(FLEX_ACL_KEY_RX_PORT_LIST && FLEX_ACL_KEY_TX_PORT_LIST) keys are not supported on Simx.\n");
+            if ((key_index > 0) && (keys[key_index - 1] == FLEX_ACL_KEY_RX_PORT_LIST) && (mlnx_chip_is_spc4())) {
+                SX_LOG_ERR("(FLEX_ACL_KEY_RX_PORT_LIST && FLEX_ACL_KEY_TX_PORT_LIST) keys are not supported on SPC4.\n");
                 return SAI_STATUS_NOT_SUPPORTED;
             }
-#endif
             keys[key_index] = FLEX_ACL_KEY_TX_PORT_LIST;
             key_index++;
         }
@@ -16013,6 +16003,381 @@ out:
     return sdk_to_sai(status);
 }
 
+sai_status_t mlnx_init_udp_srcport_acls(uint8_t                  requested_value,
+                                        uint16_t                 rules_count,
+                                        int8_t                   src_port_mask,
+                                        sx_acl_key_type_t       *key_handle,
+                                        sx_acl_rule_offset_t    *offsets,
+                                        sx_flex_acl_flex_rule_t *rule_list)
+{
+    sx_status_t status;
+    uint32_t    num = 0;
+    uint32_t    ii;
+
+    for (ii = 0; ii < rules_count; ++ii) {
+        if (ii != requested_value) {
+            /* init ACL rule */
+            status = sx_lib_flex_acl_rule_init(*key_handle, 1, &rule_list[num]);
+            if (SX_ERR(status)) {
+                for (ii = 0; ii < num; ++ii) {
+                    mlnx_acl_flex_rule_free(&rule_list[num]);
+                }
+                SX_LOG_ERR("Failed to init ACL rule %s.\n", SX_STATUS_MSG(status));
+                return sdk_to_sai(status);
+            }
+
+            offsets[num] = num;
+
+            rule_list[num].action_list_p[0].type = SX_FLEX_ACL_ACTION_HASH;
+            rule_list[num].action_list_p[0].fields.action_hash.command = SX_ACL_ACTION_HASH_COMMAND_XOR;
+            rule_list[num].action_list_p[0].fields.action_hash.hash_value = (ii ^ requested_value) << src_port_mask;
+
+            /* ACL key */
+            if (mlnx_chip_is_spc()) {
+                rule_list[num].action_list_p[0].fields.action_hash.type = SX_ACL_ACTION_HASH_TYPE_LAG;
+                rule_list[num].key_desc_list_p[0].key_id = FLEX_ACL_KEY_LAG_HASH;
+                rule_list[num].key_desc_list_p[0].key.lag_hash = ii << src_port_mask;
+                rule_list[num].key_desc_list_p[0].mask.lag_hash = (0xFF << src_port_mask) & 0xFF;
+            } else if (mlnx_chip_is_spc2or3or4()) {
+                rule_list[num].action_list_p[0].fields.action_hash.type = SX_ACL_ACTION_HASH_TYPE_ECMP;
+                rule_list[num].key_desc_list_p[0].key_id = FLEX_ACL_KEY_ECMP_HASH;
+                rule_list[num].key_desc_list_p[0].key.ecmp_hash = ii << src_port_mask;
+                rule_list[num].key_desc_list_p[0].mask.ecmp_hash = (0xFF << src_port_mask) & 0xFF;
+            }
+
+            rule_list[num].key_desc_count = 1;
+            rule_list[num].action_count = 1;
+            rule_list[num].valid = true;
+            rule_list[num].priority = 0;
+            ++num;
+        }
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
+sai_status_t mlnx_vxlan_udp_srcport_acl_add(uint32_t tunnel_db_idx)
+{
+    sai_status_t            sai_status;
+    sx_status_t             status;
+    sx_flex_acl_flex_rule_t rule_list[256] = {MLNX_ACL_SX_FLEX_RULE_EMPTY};
+    sx_acl_rule_offset_t    offsets[256] = {0};
+    sx_acl_key_t            key;
+    sx_acl_key_type_t       key_handle;
+    sx_acl_region_id_t      region_id;
+    sx_acl_region_group_t   region_group;
+    sx_acl_id_t             acl_group, acl_id;
+    uint32_t                num = 0;
+    int8_t                  src_port_mask = 0;
+    int32_t                 src_port_base = 0;
+    uint16_t                rules_count = 0;
+    uint8_t                 src_port_base_lbs = 0;
+    uint8_t                 requested_value = 0;
+    mlnx_port_config_t     *port;
+    sx_port_log_id_t        sx_port_id;
+    uint32_t                ii;
+
+    src_port_mask = g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].src_port_mask;
+    src_port_base = g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].src_port_base;
+
+    src_port_base_lbs = src_port_base & 0xFF;
+    requested_value = src_port_base_lbs >> src_port_mask;
+
+    rules_count = 1 << (8 - src_port_mask);
+    num = rules_count - 1;
+
+    if (mlnx_chip_is_spc()) {
+        key = FLEX_ACL_KEY_LAG_HASH;
+    } else if (mlnx_chip_is_spc2or3or4()) {
+        key = FLEX_ACL_KEY_ECMP_HASH;
+    }
+
+    status = sx_api_acl_flex_key_set(gh_sdk, SX_ACCESS_CMD_CREATE, &key, 1, &key_handle);
+    if (SX_ERR(status)) {
+        SX_LOG_ERR("Failed to create key %s.\n", SX_STATUS_MSG(status));
+        return sdk_to_sai(status);
+    }
+
+    status = mlnx_init_udp_srcport_acls(requested_value, rules_count, src_port_mask, &key_handle, offsets, rule_list);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed initialize UDP src port ACL\n");
+        goto out;
+    }
+
+    /* ACL region */
+    status = sx_api_acl_region_set(gh_sdk,
+                                   SX_ACCESS_CMD_CREATE,
+                                   key_handle,
+                                   SX_ACL_ACTION_TYPE_BASIC,
+                                   num,
+                                   &region_id);
+    if (SX_ERR(status)) {
+        SX_LOG_ERR("Failed to create ACL region %s.\n", SX_STATUS_MSG(status));
+        goto out;
+    }
+
+    memset(&region_group, 0, sizeof(region_group));
+    region_group.acl_type = SX_ACL_TYPE_PACKET_TYPES_AGNOSTIC;
+    region_group.regions.acl_packet_agnostic.region = region_id;
+
+    status = sx_api_acl_set(gh_sdk,
+                            SX_ACCESS_CMD_CREATE,
+                            SX_ACL_TYPE_PACKET_TYPES_AGNOSTIC,
+                            SX_ACL_DIRECTION_EGRESS,
+                            &region_group,
+                            &acl_id);
+    if (SX_ERR(status)) {
+        SX_LOG_ERR("Failed to create ACL %s.\n", SX_STATUS_MSG(status));
+        goto out;
+    }
+
+    if (src_port_mask != 0) {
+        status = sx_api_acl_flex_rules_set(gh_sdk, SX_ACCESS_CMD_SET, region_id, offsets, rule_list, num);
+        if (SX_ERR(status)) {
+            SX_LOG_ERR("Failed to create ACL rule %s.\n", SX_STATUS_MSG(status));
+            goto out;
+        }
+    } else {
+        status = sx_api_acl_flex_rules_set(gh_sdk, SX_ACCESS_CMD_SET, region_id, offsets, rule_list, 128);
+        if (SX_ERR(status)) {
+            SX_LOG_ERR("Failed to create ACL rule %s.\n", SX_STATUS_MSG(status));
+            goto out;
+        }
+        status = sx_api_acl_flex_rules_set(gh_sdk,
+                                           SX_ACCESS_CMD_SET,
+                                           region_id,
+                                           &offsets[128],
+                                           &rule_list[128],
+                                           num - 128);
+        if (SX_ERR(status)) {
+            SX_LOG_ERR("Failed to create ACL rule %s.\n", SX_STATUS_MSG(status));
+            goto out;
+        }
+    }
+
+    /* ACL group create */
+    status = sx_api_acl_group_set(gh_sdk, SX_ACCESS_CMD_CREATE, SX_ACL_DIRECTION_EGRESS, NULL, 0, &acl_group);
+    if (SX_ERR(status)) {
+        SX_LOG_ERR("Failed to create acl group - %s.\n", SX_STATUS_MSG(status));
+        goto out;
+    }
+
+    status = sx_api_acl_group_set(gh_sdk, SX_ACCESS_CMD_SET, SX_ACL_DIRECTION_EGRESS, &acl_id, 1, &acl_group);
+    if (SX_ERR(status)) {
+        SX_LOG_ERR("Failed to create ACL group - %s.\n", SX_STATUS_MSG(status));
+        goto out;
+    }
+
+    g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].vxlan_acl.key = key_handle;
+    g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].vxlan_acl.acl = acl_id;
+    g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].vxlan_acl.region = region_id;
+    g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].vxlan_acl.acl_group = acl_group;
+    g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].vxlan_acl.is_acl_created = true;
+
+    mlnx_port_not_in_lag_foreach(port, ii) {
+        sai_status = mlnx_object_to_log_port(port->saiport, &sx_port_id);
+        if (SAI_ERR(sai_status)) {
+            SX_LOG_ERR("Failed to convert port oid %" PRIx64 " to log port\n", port->saiport);
+            goto out;
+        }
+
+        sai_status = sx_api_acl_port_bind_set(gh_sdk, SX_ACCESS_CMD_ADD, sx_port_id, acl_group);
+        if (SX_ERR(sai_status)) {
+            SX_LOG_ERR("Failed to bind VxLAN srcport ACL to port(%x). %s\n",
+                       sx_port_id, SX_STATUS_MSG(status));
+            goto out;
+        }
+    }
+out:
+    for (ii = 0; ii < num; ++ii) {
+        mlnx_acl_flex_rule_free(&rule_list[ii]);
+    }
+    return sdk_to_sai(status);
+}
+
+sai_status_t mlnx_vxlan_udp_srcport_acl_update(uint32_t tunnel_db_idx)
+{
+    sx_status_t             status;
+    sx_flex_acl_flex_rule_t rule_list[256] = {MLNX_ACL_SX_FLEX_RULE_EMPTY};
+    sx_acl_rule_offset_t    offsets[256] = {0};
+    uint32_t                num = 0;
+    int8_t                  src_port_mask = 0;
+    int32_t                 src_port_base = 0;
+    uint16_t                rules_count = 0;
+    uint8_t                 src_port_base_lbs = 0;
+    uint8_t                 requested_value = 0;
+    uint32_t                ii;
+
+    src_port_mask = g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].src_port_mask;
+    src_port_base = g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].src_port_base;
+    src_port_base_lbs = src_port_base & 0xFF;
+    requested_value = src_port_base_lbs >> src_port_mask;
+
+    rules_count = 1 << (8 - src_port_mask);
+    num = rules_count - 1;
+
+    status = mlnx_init_udp_srcport_acls(requested_value,
+                                        rules_count,
+                                        src_port_mask,
+                                        &g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].vxlan_acl.key,
+                                        offsets,
+                                        rule_list);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed initialize UDP src port ACL\n");
+        goto out;
+    }
+
+    /* ACL region */
+    sx_acl_key_type_t    key_type_old;
+    sx_acl_size_t        old_size;
+    sx_acl_action_type_t old_action_type;
+
+    status = sx_api_acl_region_get(gh_sdk,
+                                   g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].vxlan_acl.region,
+                                   &key_type_old,
+                                   &old_action_type,
+                                   &old_size);
+    if (SX_ERR(status)) {
+        SX_LOG_ERR("Failed to get ACL region prop: %s.\n", SX_STATUS_MSG(status));
+        goto out;
+    }
+
+    if (num < old_size) {
+        for (ii = old_size - 1; ii >= num; --ii) {
+            status = sx_api_acl_rule_block_move_set(gh_sdk,
+                                                    g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].vxlan_acl.region,
+                                                    ii,
+                                                    1,
+                                                    0);
+            if (SX_ERR(status)) {
+                SX_LOG_ERR("Failed to edit ACL region %s.\n", SX_STATUS_MSG(status));
+                goto out;
+            }
+        }
+    }
+
+    status = sx_api_acl_region_set(gh_sdk,
+                                   SX_ACCESS_CMD_EDIT,
+                                   g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].vxlan_acl.key,
+                                   SX_ACL_ACTION_TYPE_BASIC,
+                                   num,
+                                   &g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].vxlan_acl.region);
+    if (SX_ERR(status)) {
+        SX_LOG_ERR("Failed to edit ACL region %s.\n", SX_STATUS_MSG(status));
+        goto out;
+    }
+
+    if (src_port_mask != 0) {
+        status = sx_api_acl_flex_rules_set(gh_sdk,
+                                           SX_ACCESS_CMD_SET,
+                                           g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].vxlan_acl.region,
+                                           offsets,
+                                           rule_list,
+                                           num);
+        if (SX_ERR(status)) {
+            SX_LOG_ERR("Failed to create ACL rule %s.\n", SX_STATUS_MSG(status));
+            goto out;
+        }
+    } else {
+        status = sx_api_acl_flex_rules_set(gh_sdk,
+                                           SX_ACCESS_CMD_SET,
+                                           g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].vxlan_acl.region,
+                                           offsets,
+                                           rule_list,
+                                           128);
+        if (SX_ERR(status)) {
+            SX_LOG_ERR("Failed to create ACL rule %s.\n", SX_STATUS_MSG(status));
+            goto out;
+        }
+        status = sx_api_acl_flex_rules_set(gh_sdk,
+                                           SX_ACCESS_CMD_SET,
+                                           g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].vxlan_acl.region,
+                                           &offsets[128],
+                                           &rule_list[128],
+                                           num - 128);
+        if (SX_ERR(status)) {
+            SX_LOG_ERR("Failed to create ACL rule %s.\n", SX_STATUS_MSG(status));
+            goto out;
+        }
+    }
+
+out:
+    for (ii = 0; ii < num; ++ii) {
+        mlnx_acl_flex_rule_free(&rule_list[ii]);
+    }
+    return sdk_to_sai(status);
+}
+
+sai_status_t mlnx_vxlan_udp_srcport_acl_remove(uint32_t tunnel_db_idx)
+{
+    sx_status_t         sx_status;
+    sai_status_t        sai_status;
+    sx_status_t         status;
+    mlnx_port_config_t *port;
+    sx_port_log_id_t    sx_port_id;
+    uint32_t            ii;
+
+    if (!g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].vxlan_acl.is_acl_created) {
+        return SAI_STATUS_SUCCESS;
+    }
+
+    mlnx_port_not_in_lag_foreach(port, ii) {
+        sai_status = mlnx_object_to_log_port(port->saiport, &sx_port_id);
+        if (SAI_ERR(sai_status)) {
+            return sai_status;
+        }
+
+        status = sx_api_acl_port_bind_set(gh_sdk, SX_ACCESS_CMD_DELETE, sx_port_id,
+                                          g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].vxlan_acl.acl_group);
+        if (SX_ERR(sai_status)) {
+            SX_LOG_ERR("Failed to unbind VxLAN UDP srcport ACL from port(%x). %s\n",
+                       sx_port_id, SX_STATUS_MSG(status));
+            return sdk_to_sai(status);
+        }
+    }
+
+    sx_status = sx_api_acl_group_set(gh_sdk, SX_ACCESS_CMD_DESTROY, SX_ACL_DIRECTION_EGRESS,
+                                     NULL, 0,
+                                     &g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].vxlan_acl.acl_group);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to destroy acl group - %s.\n", SX_STATUS_MSG(sx_status));
+        return sdk_to_sai(sx_status);
+    }
+
+    sx_status = sx_api_acl_set(gh_sdk,
+                               SX_ACCESS_CMD_DESTROY,
+                               SX_ACL_TYPE_PACKET_TYPES_AGNOSTIC,
+                               SX_ACL_DIRECTION_EGRESS,
+                               NULL,
+                               &g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].vxlan_acl.acl);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to destroy acl - %s.\n", SX_STATUS_MSG(sx_status));
+        return sdk_to_sai(sx_status);
+    }
+
+    sx_status = sx_api_acl_region_set(gh_sdk,
+                                      SX_ACCESS_CMD_DESTROY,
+                                      g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].vxlan_acl.key,
+                                      SX_ACL_ACTION_TYPE_BASIC,
+                                      256,
+                                      &g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].vxlan_acl.region);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to destroy region - %s.\n", SX_STATUS_MSG(sx_status));
+        return sdk_to_sai(sx_status);
+    }
+
+    sx_status = sx_api_acl_flex_key_set(gh_sdk, SX_ACCESS_CMD_DELETE, NULL, 0,
+                                        &g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].vxlan_acl.key);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to destroy flex key - %s. \n", SX_STATUS_MSG(sx_status));
+        return sdk_to_sai(sx_status);
+    }
+
+    g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].vxlan_acl.is_acl_created = false;
+
+    return SAI_STATUS_SUCCESS;
+}
+
 static sx_api_handle_t* mlnx_acl_sx_handle_get(void)
 {
 #ifndef _WIN32
@@ -17855,7 +18220,6 @@ static sai_status_t mlnx_sai_acl_redirect_action_create(_In_ sai_object_id_t    
 {
     sai_status_t      status = SAI_STATUS_SUCCESS;
     sai_object_type_t object_type;
-    sx_ecmp_id_t      sx_ecmp_id;
     sx_acl_pbs_id_t   sx_pbs_id;
 
     assert(pbs_info);
@@ -17878,14 +18242,7 @@ static sai_status_t mlnx_sai_acl_redirect_action_create(_In_ sai_object_id_t    
 
     case SAI_OBJECT_TYPE_NEXT_HOP:
     case SAI_OBJECT_TYPE_NEXT_HOP_GROUP:
-        status = mlnx_object_to_type(object_id, object_type, &sx_ecmp_id, NULL);
-        if (SAI_ERR(status)) {
-            return status;
-        }
-
-        sx_action->type = SX_FLEX_ACL_ACTION_UC_ROUTE;
-        sx_action->fields.action_uc_route.uc_route_type = SX_UC_ROUTE_TYPE_NEXT_HOP;
-        sx_action->fields.action_uc_route.uc_route_param.ecmp_id = sx_ecmp_id;
+        return SAI_STATUS_NOT_SUPPORTED;
         break;
 
     case SAI_OBJECT_TYPE_BRIDGE_PORT:

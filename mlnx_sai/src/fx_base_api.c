@@ -67,6 +67,8 @@ limitations under the License.
 /////////////////////////////
 typedef u_int8_t uint8_t;
 
+#define FX_ACL_FLOW_COUNTER
+
 const uint32_t ENDIAN_INT = 1;
 #define is_bigendian() ( (*(char*)&ENDIAN_INT ) == 0 )
 
@@ -111,7 +113,9 @@ typedef struct acl_table {
     sx_acl_key_type_t       key_handle;
     sx_acl_key_t            *key_list;
     uint32_t                key_count;
+#ifdef FX_ACL_FLOW_COUNTER
     sx_flow_counter_id_t*   rule_counters;
+#endif
     fx_bitmap_t             valid_offsets;
     sx_acl_rule_offset_t    default_entry_offset;
     sx_acl_rule_offset_t    const_entry_offset;
@@ -445,8 +449,11 @@ sx_status_t create_acl_table(fx_handle_t handle,struct acl_table * acl_table)
         FX_LOG(SX_LOG_ERROR, "Failed to create acl: [%s]\n", SX_STATUS_MSG(rc));
         return rc;
     }
+
+#ifdef FX_ACL_FLOW_COUNTER
     // TODO remove counters after verification
     acl_table->rule_counters = (sx_flow_counter_id_t*) malloc(sizeof(sx_flow_counter_id_t)*acl_table->table_size);
+#endif
 
     alloc_bitmap(&acl_table->valid_offsets, acl_table->table_size);
 
@@ -650,8 +657,10 @@ int delete_acl(fx_handle_t handle,struct acl_table *acl_table)
   sx_status_t           rc2 = SX_STATUS_SUCCESS;
   free_bitmap(acl_table->valid_offsets);
   acl_table->valid_offsets = 0;
+#ifdef FX_ACL_FLOW_COUNTER
   free(acl_table->rule_counters);
   acl_table->rule_counters = 0;
+#endif
   sx_acl_region_group_t acl_region_group = {
               .acl_type = SX_ACL_TYPE_PACKET_TYPES_AGNOSTIC,
               .regions = {
@@ -689,9 +698,11 @@ int remove_table_entry(fx_handle_t handle, struct acl_table *acl_table, sx_acl_r
         FX_LOG(SX_LOG_ERROR, "Failed to remove rule at offset %d: [%s]\n", offset, SX_STATUS_MSG(rc1));
     }
     sx_status_t rc2 = SX_STATUS_SUCCESS;
+#ifdef FX_ACL_FLOW_COUNTER
     if (0 != acl_table->rule_counters) {
         rc2 = sx_api_flow_counter_clear_set(handle->sdk_handle, acl_table->rule_counters[offset]);
     }
+#endif
     if(rc2){
       FX_LOG(SX_LOG_ERROR, "failed to clear counter at offset %d, [%s]\n", offset, SX_STATUS_MSG(rc2));
     }
@@ -737,6 +748,7 @@ delete_p4_key(fx_handle_t handle, struct acl_table *acl_table, struct fx_custom_
   return rc1 ? rc1 : rc2;
 }
 
+#ifdef FX_ACL_FLOW_COUNTER
 /* Rule counters */
 sx_status_t
 alloc_rule_counters(fx_handle_t handle, struct acl_table *acl_table) {
@@ -766,6 +778,7 @@ void delete_rule_counters(fx_handle_t handle, struct acl_table *acl_table) {
     }
   }
 }
+#endif
 
 /* map between table_id and fx_handle table index*/
 sx_status_t get_table_index_from_id (fx_handle_t handle, const fx_table_id_t table_id, int *table_index){
@@ -784,22 +797,42 @@ sx_status_t get_sdk_action_num_from_id (const fx_action_id_t action_id, int *sdk
     /* assign number of primitives per user defined action */
 		/* ASSIGN_NUM_SDK_ACTIONS */
 		case 16778278: /* CONTROL_IN_RIF_DROP_ID */
+#ifdef FX_ACL_FLOW_COUNTER
 			*sdk_actions_count = 2;
+#else
+            *sdk_actions_count = 1;
+#endif
 			return SX_STATUS_SUCCESS;
 		case 16786535: /* CONTROL_IN_RIF_SET_METADATA_ID */
-			*sdk_actions_count = 2;
+#ifdef FX_ACL_FLOW_COUNTER
+            *sdk_actions_count = 2;
+#else
+            *sdk_actions_count = 1;
+#endif
 			return SX_STATUS_SUCCESS;
 		case 16825799: /* CONTROL_IN_RIF_TO_NEXTHOP_ID */
-			*sdk_actions_count = 2;
+#ifdef FX_ACL_FLOW_COUNTER
+            *sdk_actions_count = 2;
+#else
+            *sdk_actions_count = 1;
+#endif
 			return SX_STATUS_SUCCESS;
 		case 16812468: /* CONTROL_OUT_RIF_TUNNEL_ENCAP_ID */
-			*sdk_actions_count = 3;
+#ifdef FX_ACL_FLOW_COUNTER
+            *sdk_actions_count = 3;
+#else
+            *sdk_actions_count = 2;
+#endif
 			return SX_STATUS_SUCCESS;
 		case 16800567: /* NOACTION_ID */
 			*sdk_actions_count = 0;
 			return SX_STATUS_SUCCESS;
 		case 16841981: /* CONTROL_IN_RIF_TO_LOCAL_ID */
-			*sdk_actions_count = 2;
+#ifdef FX_ACL_FLOW_COUNTER
+            *sdk_actions_count = 2;
+#else
+            *sdk_actions_count = 1;
+#endif
 			return SX_STATUS_SUCCESS;
       default:
         FX_LOG(SX_LOG_ERROR, "Requested action id is not in the action list: %i\n", action_id);
@@ -807,6 +840,7 @@ sx_status_t get_sdk_action_num_from_id (const fx_action_id_t action_id, int *sdk
   }
 }
 
+#ifdef FX_ACL_FLOW_COUNTER
 /* These functions read/clear rule counters*/
 // TODO : need to check if counter was asgined to rule if action has hit_counters()
 // TODO :
@@ -894,6 +928,7 @@ sx_status_t fx_table_rule_counter_clear(fx_handle_t handle, fx_table_id_t table_
   }
   return rc;
 }
+#endif
 
 
 sx_status_t create_p4_table(fx_handle_t handle, struct acl_table *table, struct fx_custom_params *custom) {
@@ -903,15 +938,19 @@ sx_status_t create_p4_table(fx_handle_t handle, struct acl_table *table, struct 
   FX_LOG(SX_LOG_INFO, "Success, creating table:\n" );
   rc = create_acl_table(handle, table);
   if (rc) {return rc;}
+#ifdef FX_ACL_FLOW_COUNTER
   rc = alloc_rule_counters(handle, table);
   if (rc) {return rc;}
+#endif
   return SX_STATUS_SUCCESS;
 }
 
 sx_status_t delete_p4_table(fx_handle_t handle, struct acl_table *table, struct fx_custom_params *custom) {
     FX_LOG(SX_LOG_INFO, "Delete_p4_table\n");
     delete_all_rules(handle, table);
+#ifdef FX_ACL_FLOW_COUNTER
     delete_rule_counters(handle, table);
+#endif
     sx_status_t rc = delete_acl(handle, table);
     delete_p4_key(handle, table, custom);
     if (rc) {
@@ -1184,7 +1223,7 @@ sx_status_t fx_table_entry_offset_find(fx_handle_t handle, const fx_table_id_t t
     if (table->range_table==NULL){
         rc = sx_api_acl_flex_rules_get(handle->sdk_handle, table->region_id, &offsets[0], rules, &rules_count);
         if (rc) {
-            FX_LOG(SX_LOG_ERROR, "sx_api_acl_flex_rules_get() failed to find ACL rule: %i\n", rc);
+            FX_LOG(SX_LOG_ERROR, "sx_api_acl_flex_rules_get() failed to find ACL rule: %s\n", SX_STATUS_MSG(rc));
         }
         else if (rules_count > 0) {
             rc = sx_api_acl_flex_rules_get(handle->sdk_handle, table->region_id, &offsets[0], rules, &rules_count);
@@ -1311,6 +1350,7 @@ void fx_table_entry_print_all(fx_handle_t handle, char *buffer, size_t len) {
                         }
                     }
                 }
+#ifdef FX_ACL_FLOW_COUNTER
                 for (uint32_t j=0; j < rules[k].action_count; j++) {
                     if (rules[k].action_list_p != 0) {
                         if (c<len) {
@@ -1324,6 +1364,7 @@ void fx_table_entry_print_all(fx_handle_t handle, char *buffer, size_t len) {
                 if (c<len) {
                    c += snprintf(buffer+c,len-c, "\tbytes: %" PRIu64 " packets: %" PRIu64 "\n", bytes, packets);
                 }
+#endif
             }
         }
         free(rules);
@@ -1691,11 +1732,13 @@ bool set_action_list(fx_handle_t handle, int action_id, fx_param_list_t params, 
 				.type =  SX_FLEX_ACL_ACTION_FORWARD,
 				.fields.action_forward.action = (sx_flex_acl_forward_action_t) SX_ACL_TRAP_FORWARD_ACTION_TYPE_DISCARD,
 			};
+#ifdef FX_ACL_FLOW_COUNTER
 			// hit_counter()
 			rule->action_list_p[1] = (sx_flex_acl_flex_action_t){
 				.type =  SX_FLEX_ACL_ACTION_COUNTER,
 				.fields.action_counter.counter_id = (sx_flex_acl_forward_action_t) table->rule_counters[*offset_ptr],
 			};
+#endif
 			break;
 		};
 		case 16786535: /* CONTROL_IN_RIF_SET_METADATA_ID */
@@ -1710,11 +1753,13 @@ bool set_action_list(fx_handle_t handle, int action_id, fx_param_list_t params, 
 			uint8_t* mac = (uint8_t*)(&rule->action_list_p[0].fields.action_set_dst_mac.mac);
 			memcpy(&mac[0], params.params[0].data, 4);
 			}
+#ifdef FX_ACL_FLOW_COUNTER
 			// hit_counter()
 			rule->action_list_p[1] = (sx_flex_acl_flex_action_t){
 				.type =  SX_FLEX_ACL_ACTION_COUNTER,
 				.fields.action_counter.counter_id = (sx_flex_acl_forward_action_t) table->rule_counters[*offset_ptr],
 			};
+#endif
 			break;
 		};
 		case 16825799: /* CONTROL_IN_RIF_TO_NEXTHOP_ID */
@@ -1728,11 +1773,13 @@ bool set_action_list(fx_handle_t handle, int action_id, fx_param_list_t params, 
 			{
 			memcpy(&rule->action_list_p[0].fields.action_uc_route.uc_route_param.ecmp_id, params.params[0].data, params.params[0].len);
 			}
+#ifdef FX_ACL_FLOW_COUNTER
 			// hit_counter()
 			rule->action_list_p[1] = (sx_flex_acl_flex_action_t){
 				.type =  SX_FLEX_ACL_ACTION_COUNTER,
 				.fields.action_counter.counter_id = (sx_flex_acl_forward_action_t) table->rule_counters[*offset_ptr],
 			};
+#endif
 			break;
 		};
 		case 16812468: /* CONTROL_OUT_RIF_TUNNEL_ENCAP_ID */
@@ -1758,11 +1805,13 @@ bool set_action_list(fx_handle_t handle, int action_id, fx_param_list_t params, 
 			{
             memcpy(&rule->action_list_p[1].fields.action_nve_tunnel_encap.underlay_dip.addr.ipv4.s_addr, params.params[2].data, params.params[2].len);
 			}
+#ifdef FX_ACL_FLOW_COUNTER
 			// hit_counter()
 			rule->action_list_p[2] = (sx_flex_acl_flex_action_t){
 				.type =  SX_FLEX_ACL_ACTION_COUNTER,
 				.fields.action_counter.counter_id = (sx_flex_acl_forward_action_t) table->rule_counters[*offset_ptr],
 			};
+#endif
 			break;
 		};
 		case 16800567: /* NOACTION_ID */
@@ -1780,11 +1829,13 @@ bool set_action_list(fx_handle_t handle, int action_id, fx_param_list_t params, 
 			{
 			memcpy(&rule->action_list_p[0].fields.action_uc_route.uc_route_param.local_egress_rif, params.params[0].data, params.params[0].len);
 			}
+#ifdef FX_ACL_FLOW_COUNTER
 			// hit_counter()
 			rule->action_list_p[1] = (sx_flex_acl_flex_action_t){
 				.type =  SX_FLEX_ACL_ACTION_COUNTER,
 				.fields.action_counter.counter_id = (sx_flex_acl_forward_action_t) table->rule_counters[*offset_ptr],
 			};
+#endif
 			break;
 		};
 		case 0: /* FX_ACTION_INVALID_ID */

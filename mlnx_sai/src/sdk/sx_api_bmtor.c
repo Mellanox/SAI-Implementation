@@ -156,7 +156,7 @@ sx_status_t __sx_table_meta_tunnel_entry_delete(const sx_api_handle_t *handle,
 
     SX_LOG_ENTER();
 
-    if (priority == 0) {
+    if (priority == -1) {
         status = fx_table_entry_offset_find(*p_fx_handle,
                                             CONTROL_OUT_RIF_TABLE_META_TUNNEL_ID,
                                             *table_meta_tunnel_key_list,
