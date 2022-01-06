@@ -75,6 +75,7 @@ libsai_la_SOURCES = \
                        dbgdump/mlnx_sai_dbg_utils.c \
                        dbgdump/mlnx_sai_dbg_vlan.c \
                        dbgdump/mlnx_sai_dbg_wred.c \
+                       dbgdump/mlnx_sai_dbg_nhg_nhgm.c \
                        mlnx_sai_acl.c \
                        mlnx_sai_bfd.c \
                        mlnx_sai_bridge.c \

@@ -614,6 +614,8 @@ sai_status_t sai_dbg_generate_dump(_In_ const char *dump_file_name)
 
     SAI_dump_isolation_group(file);
 
+    SAI_dump_nhg_nhgm(file);
+
     fclose(file);
 
     memset(&dbg_info, 0, sizeof(dbg_info));

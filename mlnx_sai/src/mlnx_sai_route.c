@@ -1000,6 +1000,10 @@ static sai_status_t mlnx_route_next_hop_id_set(_In_ const sai_object_key_t      
         return status;
     }
 
+    if (old_route_get_entry.route_data.uc_route_param.ecmp_id == SX_ROUTER_ECMP_ID_INVALID) {
+        route_get_entry.route_data.action = SX_ROUTER_ACTION_FORWARD;
+    }
+
     status = mlnx_modify_route(vrid, &route_get_entry, SX_ACCESS_CMD_SET);
     if (SAI_ERR(status)) {
         return status;
