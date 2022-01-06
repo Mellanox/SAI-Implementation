@@ -669,6 +669,8 @@ sai_status_t sai_dbg_do_dump(_In_ const char *dump_file_name)
 
     SAI_dump_isolation_group(file);
 
+    SAI_dump_nhg_nhgm(file);
+
     fclose(file);
 
     /*TODO: remove when enabled on SPC4 */

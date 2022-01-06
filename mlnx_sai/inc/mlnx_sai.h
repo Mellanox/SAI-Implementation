@@ -251,7 +251,7 @@ extern const sai_isolation_group_api_t  mlnx_isolation_group_api;
 #define CPU_PORT                        0
 #define ECMP_MAX_PATHS                  64
 #define FG_ECMP_MAX_PATHS               4096
-#define FG_ECMP_MAX_GROUPS_COUNT        2000
+#define FG_ECMP_MAX_GROUPS_COUNT        (MLNX_NHG_DB_SIZE)
 #define SX_DEVICE_ID                    1
 #define DEFAULT_DEVICE_ID               255
 #define DEFAULT_VLAN                    1
@@ -1130,7 +1130,7 @@ extern const mlnx_trap_info_t mlnx_traps_info[];
 #define MAX_BRIDGE_PORTS    (MAX_VPORTS + MAX_BRIDGE_1Q_PORTS + MAX_BRIDGE_RIFS)
 #define MAX_LANES_SPC1_2    4
 #define MAX_LANES_SPC3_4    8
-#define MAX_HOSTIFS         200
+#define MAX_HOSTIFS         1000
 #define MAX_POLICERS        100
 #define MAX_TRAP_GROUPS     32
 #define MIN_SX_BRIDGE_ID    0x1000
@@ -1561,7 +1561,7 @@ sai_status_t mlnx_counter_oid_create(_In_ mlnx_shm_rm_array_idx_t idx, _Out_ sai
 sai_status_t mlnx_get_sx_flow_counter_id_by_idx(_In_ mlnx_shm_rm_array_idx_t idx,
                                                 _Out_ sx_flow_counter_id_t  *sx_flow_counter);
 
-#define MLNX_NHG_DB_SIZE             (2000)
+#define MLNX_NHG_DB_SIZE             (4000)
 #define MLNX_NHG_MEMBER_DB_SIZE      (MLNX_NHG_DB_SIZE * 128)
 #define MLNX_ECMP_TO_NHG_MAP_SIZE    (MLNX_NHG_DB_SIZE * NUMBER_OF_LOCAL_VNETS)
 #define MLNX_ECMP_NHG_HASHTABLE_SIZE (251)
@@ -3269,5 +3269,6 @@ void SAI_dump_udf(_In_ FILE *file);
 void SAI_dump_vlan(_In_ FILE *file);
 void SAI_dump_wred(_In_ FILE *file);
 void SAI_dump_gp_reg(_In_ FILE *file);
+void SAI_dump_nhg_nhgm(_In_ FILE *file);
 
 #endif /* __MLNXSAI_H_ */

@@ -428,5 +428,8 @@
     <ClCompile Include="src\mlnx_sai_issu_storage.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\dbgdump\mlnx_sai_dbg_nhg_nhgm.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>
