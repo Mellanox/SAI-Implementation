@@ -953,8 +953,18 @@ static sai_status_t mlnx_route_packet_action_set(_In_ const sai_object_key_t    
 
         mlnx_fdb_route_action_clear(SAI_OBJECT_TYPE_ROUTE_ENTRY, route_entry);
 
-        if (SAI_STATUS_SUCCESS != (status = mlnx_modify_route(vrid, &route_get_entry, SX_ACCESS_CMD_ADD))) {
+        status = mlnx_modify_route(vrid, &route_get_entry, SX_ACCESS_CMD_ADD);
+        if (SAI_ERR(status)) {
             return status;
+        }
+
+        if (((SX_ROUTER_ACTION_FORWARD == route_action) || (SX_ROUTER_ACTION_MIRROR == route_action)) &&
+            ((SAI_PACKET_ACTION_DROP == value->s32) || (SAI_PACKET_ACTION_TRAP == value->s32))) {
+            status = mlnx_route_post_remove(&route_get_entry,
+                                            route_entry->vr_id);
+            if (SAI_ERR(status)) {
+                return status;
+            }
         }
     }
 
@@ -992,17 +1002,18 @@ static sai_status_t mlnx_route_next_hop_id_set(_In_ const sai_object_key_t      
         return status;
     }
 
-    mlnx_fdb_route_action_fetch(SAI_OBJECT_TYPE_ROUTE_ENTRY, route_entry, &old_route_get_entry.route_data.action);
-
     route_get_entry = old_route_get_entry;
     status = mlnx_fill_route_data(&route_get_entry.route_data, value->oid, 0, route_entry);
     if (SAI_ERR(status)) {
         return status;
     }
 
-    if (old_route_get_entry.route_data.uc_route_param.ecmp_id == SX_ROUTER_ECMP_ID_INVALID) {
+    if ((old_route_get_entry.route_data.uc_route_param.ecmp_id == SX_ROUTER_ECMP_ID_INVALID) &&
+        (value->oid != SAI_NULL_OBJECT_ID)) {
         route_get_entry.route_data.action = SX_ROUTER_ACTION_FORWARD;
     }
+
+    mlnx_fdb_route_action_fetch(SAI_OBJECT_TYPE_ROUTE_ENTRY, route_entry, &route_get_entry.route_data.action);
 
     status = mlnx_modify_route(vrid, &route_get_entry, SX_ACCESS_CMD_SET);
     if (SAI_ERR(status)) {
