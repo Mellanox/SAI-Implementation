@@ -482,6 +482,9 @@ PACKED(struct _mlnx_object_id_t {
 
 typedef struct _mlnx_object_id_t mlnx_object_id_t;
 
+typedef sai_status_t (*mlnx_availability_get_fn)(_In_ sai_object_id_t switch_id, _In_ uint32_t attr_count,
+                                                 _In_ const sai_attribute_t *attr_list, _Out_ uint64_t *count);
+
 typedef struct _mlnx_sai_attr_t {
     bool                   found;
     uint32_t               index;
@@ -888,6 +891,7 @@ sai_status_t mlnx_route_log_set(sx_verbosity_level_t level);
 sai_status_t mlnx_router_log_set(sx_verbosity_level_t level);
 sai_status_t mlnx_switch_log_set(sx_verbosity_level_t level);
 sai_status_t mlnx_utils_log_set(sx_verbosity_level_t level);
+sai_status_t mlnx_utils_eth_log_set(sx_verbosity_level_t level);
 sai_status_t mlnx_vlan_log_set(sx_verbosity_level_t level);
 sai_status_t mlnx_acl_log_set(sx_verbosity_level_t level);
 sai_status_t mlnx_qos_map_log_set(sx_verbosity_level_t level);
@@ -911,7 +915,9 @@ sai_status_t mlnx_bfd_log_set(sx_verbosity_level_t level);
 sai_status_t mlnx_counter_log_set(sx_verbosity_level_t level);
 sai_status_t mlnx_isolation_group_log_set(sx_verbosity_level_t level);
 sai_status_t mlnx_object_log_set(sx_verbosity_level_t level);
+sai_status_t mlnx_object_eth_log_set(sx_verbosity_level_t level);
 sai_status_t mlnx_issu_storage_log_set(sx_verbosity_level_t level);
+sai_status_t mlnx_interfacequery_log_set(sx_verbosity_level_t level);
 
 sai_status_t mlnx_fill_objlist(const sai_object_id_t *data, uint32_t count, sai_object_list_t *list);
 sai_status_t mlnx_fill_u8list(const uint8_t *data, uint32_t count, sai_u8_list_t *list);
@@ -1280,6 +1286,8 @@ typedef struct _mlnx_port_config_t {
     sai_port_interface_type_t       adv_intfs[MAX_PORT_ATTR_ADV_INTFS_NUM];
     uint32_t                        adv_intfs_num;
     mlnx_port_autoneg_type_t        auto_neg;
+    acl_index_t                     ingress_acl_index;
+    acl_index_t                     egress_acl_index;
 
     /*  SAI Port can have up to MLNX_PORT_POLICER_TYPE_MAX SDK port storm
      *  policers in use internally.  For each storm item we keep type of

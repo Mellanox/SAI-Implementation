@@ -89,6 +89,7 @@ libsai_la_SOURCES = \
                        mlnx_sai_hash.c \
                        mlnx_sai_host_interface.c \
                        mlnx_sai_interfacequery.c \
+                       mlnx_sai_interfacequery_eth.c \
                        mlnx_sai_isolation_group.c \
                        mlnx_sai_lag.c \
                        mlnx_sai_l2mcgroup.c \
@@ -97,6 +98,7 @@ libsai_la_SOURCES = \
                        mlnx_sai_nexthop.c \
                        mlnx_sai_nexthopgroup.c \
                        mlnx_sai_object.c \
+                       mlnx_sai_object_eth.c \
                        mlnx_sai_policer.c \
                        mlnx_sai_port.c \
                        mlnx_sai_qosmaps.c \
@@ -112,6 +114,7 @@ libsai_la_SOURCES = \
                        mlnx_sai_tunnel.c \
                        mlnx_sai_udf.c \
                        mlnx_sai_utils.c \
+                       mlnx_sai_utils_eth.c \
                        mlnx_sai_vlan.c \
                        mlnx_sai_wred.c \
                        mlnx_sai_issu_storage.c \

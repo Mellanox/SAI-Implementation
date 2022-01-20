@@ -431,5 +431,14 @@
     <ClCompile Include="src\dbgdump\mlnx_sai_dbg_nhg_nhgm.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\mlnx_sai_utils_eth.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\mlnx_sai_object_eth.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\mlnx_sai_interfacequery_eth.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>

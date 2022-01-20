@@ -235,6 +235,7 @@
     <ClCompile Include="src\mlnx_sai_hash.c" />
     <ClCompile Include="src\mlnx_sai_host_interface.c" />
     <ClCompile Include="src\mlnx_sai_interfacequery.c" />
+    <ClCompile Include="src\mlnx_sai_interfacequery_eth.c" />
     <ClCompile Include="src\mlnx_sai_isolation_group.c" />
     <ClCompile Include="src\mlnx_sai_issu_storage.c" />
     <ClCompile Include="src\mlnx_sai_l2mcgroup.c" />
@@ -244,6 +245,7 @@
     <ClCompile Include="src\mlnx_sai_nexthop.c" />
     <ClCompile Include="src\mlnx_sai_nexthopgroup.c" />
     <ClCompile Include="src\mlnx_sai_object.c" />
+    <ClCompile Include="src\mlnx_sai_object_eth.c" />
     <ClCompile Include="src\mlnx_sai_policer.c" />
     <ClCompile Include="src\mlnx_sai_port.c" />
     <ClCompile Include="src\mlnx_sai_qosmaps.c" />
@@ -259,6 +261,7 @@
     <ClCompile Include="src\mlnx_sai_tunnel.c" />
     <ClCompile Include="src\mlnx_sai_udf.c" />
     <ClCompile Include="src\mlnx_sai_utils.c" />
+    <ClCompile Include="src\mlnx_sai_utils_eth.c" />
     <ClCompile Include="src\mlnx_sai_vlan.c" />
     <ClCompile Include="src\mlnx_sai_wred.c" />
     <ClCompile Include="src\sdk\sx_api_bmtor.c" />

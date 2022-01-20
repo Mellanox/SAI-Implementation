@@ -1014,7 +1014,8 @@ static sai_acl_bind_point_type_t mlnx_acl_bind_point_type_to_sai(_In_ mlnx_acl_b
 static sai_acl_stage_t mlnx_acl_bind_point_type_to_sai_stage(_In_ mlnx_acl_bind_point_type_t bind_point_type);
 static sai_status_t mlnx_acl_port_lag_bind_point_clear(_In_ const mlnx_port_config_t *port_config,
                                                        _In_ sai_acl_stage_t           sai_acl_stage);
-static sai_status_t mlnx_acl_port_bind_refresh(_In_ const mlnx_port_config_t *port_config);
+static sai_status_t mlnx_acl_port_bind_refresh(_In_ const mlnx_port_config_t *port_config,
+                                               _In_ acl_event_type_t          event);
 static void mlnx_acl_group_db_bind_point_remove(_In_ uint32_t               group_index,
                                                 _In_ acl_bind_point_index_t bind_point_index);
 static void mlnx_acl_group_db_bind_point_add(_In_ uint32_t group_index, _In_ acl_bind_point_index_t bind_point_index);
@@ -17217,7 +17218,7 @@ static sai_status_t mlnx_acl_port_lag_event_handle(_In_ const mlnx_port_config_t
             goto out;
         }
     } else {
-        status = mlnx_acl_port_bind_refresh(port);
+        status = mlnx_acl_port_bind_refresh(port, event);
         if (SAI_ERR(status)) {
             goto out;
         }
@@ -18698,11 +18699,12 @@ static sai_status_t mlnx_acl_port_lag_bind_point_clear(_In_ const mlnx_port_conf
     return mlnx_acl_port_lag_rif_bind_point_set(port_config->saiport, bind_point_type, acl_index);
 }
 
-static sai_status_t mlnx_acl_port_bind_refresh(_In_ const mlnx_port_config_t *port_config)
+static sai_status_t mlnx_acl_port_bind_refresh(_In_ const mlnx_port_config_t *port_config, _In_ acl_event_type_t event)
 {
     sai_status_t           status;
     acl_bind_point_t      *bind_point_port_lag;
     acl_bind_point_data_t *ingress_data, *egress_data;
+    acl_index_t            ingress_acl_index, egress_acl_index;
     uint32_t               port_index;
 
     assert(NULL != port_config);
@@ -18712,15 +18714,54 @@ static sai_status_t mlnx_acl_port_bind_refresh(_In_ const mlnx_port_config_t *po
     bind_point_port_lag = &sai_acl_db->acl_bind_points->ports_lags[port_index];
     ingress_data = &bind_point_port_lag->ingress_data;
     egress_data = &bind_point_port_lag->egress_data;
+    ingress_acl_index = port_config->ingress_acl_index;
+    egress_acl_index = port_config->egress_acl_index;
 
-    status = mlnx_acl_bind_point_sx_update(ingress_data);
-    if (SAI_ERR(status)) {
-        goto out;
+    if ((event == ACL_EVENT_TYPE_LAG_MEMBER_DEL)
+        && (ingress_acl_index.acl_object_type != SAI_OBJECT_TYPE_NULL)
+        && (((SAI_OBJECT_TYPE_ACL_TABLE == ingress_acl_index.acl_object_type) &&
+             acl_db_table(ingress_acl_index.acl_db_index).is_used)
+            || ((SAI_OBJECT_TYPE_ACL_TABLE_GROUP == ingress_acl_index.acl_object_type) &&
+                sai_acl_db->acl_groups_db[ingress_acl_index.acl_db_index].is_used))) {
+        sai_acl_db->acl_bind_points->ports_lags[port_index].ingress_data.acl_index = ingress_acl_index;
+        status = mlnx_acl_port_lag_rif_bind_point_set(port_config->saiport, MLNX_ACL_BIND_POINT_TYPE_INGRESS_PORT,
+                                                      port_config->ingress_acl_index);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to rebind ingress ACL %d %u to port 0x%x\n",
+                       ingress_acl_index.acl_object_type,
+                       ingress_acl_index.acl_db_index,
+                       port_config->logical);
+            goto out;
+        }
+    } else {
+        status = mlnx_acl_bind_point_sx_update(ingress_data);
+        if (SAI_ERR(status)) {
+            goto out;
+        }
     }
 
-    status = mlnx_acl_bind_point_sx_update(egress_data);
-    if (SAI_ERR(status)) {
-        goto out;
+    if ((event == ACL_EVENT_TYPE_LAG_MEMBER_DEL)
+        && (egress_acl_index.acl_object_type != SAI_OBJECT_TYPE_NULL)
+        && (((SAI_OBJECT_TYPE_ACL_TABLE == egress_acl_index.acl_object_type) &&
+             acl_db_table(egress_acl_index.acl_db_index).is_used)
+            || ((SAI_OBJECT_TYPE_ACL_TABLE_GROUP == egress_acl_index.acl_object_type) &&
+                sai_acl_db->acl_groups_db[egress_acl_index.acl_db_index].is_used))) {
+        sai_acl_db->acl_bind_points->ports_lags[port_index].egress_data.acl_index = egress_acl_index;
+
+        status = mlnx_acl_port_lag_rif_bind_point_set(port_config->saiport, MLNX_ACL_BIND_POINT_TYPE_EGRESS_PORT,
+                                                      port_config->egress_acl_index);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to rebind egress ACL %d %u to port 0x%x\n",
+                       egress_acl_index.acl_object_type,
+                       egress_acl_index.acl_db_index,
+                       port_config->logical);
+            goto out;
+        }
+    } else {
+        status = mlnx_acl_bind_point_sx_update(egress_data);
+        if (SAI_ERR(status)) {
+            goto out;
+        }
     }
 
 out:
@@ -19731,6 +19772,8 @@ sai_status_t mlnx_acl_bind_point_set(_In_ const sai_object_key_t      *key,
     acl_index_t                acl_index = ACL_INDEX_INVALID;
     bool                       is_warmboot_init_stage = false;
     uint32_t                   port_db_idx;
+    sx_port_log_id_t           port_id;
+    mlnx_port_config_t        *port;
 
     SX_LOG_ENTER();
 
@@ -19774,6 +19817,23 @@ sai_status_t mlnx_acl_bind_point_set(_In_ const sai_object_key_t      *key,
     if (SAI_ERR(status)) {
         SX_LOG_ERR("Failed to set ACL bind point on SAI obj %" PRIx64 "\n", key->key.object_id);
         goto out;
+    }
+
+    if (SAI_STATUS_SUCCESS == mlnx_object_to_type(key->key.object_id, SAI_OBJECT_TYPE_PORT, &port_id, NULL)) {
+        status = mlnx_port_by_log_id(port_id, &port);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed lookup port by log id %x\n", port_id);
+            goto out;
+        }
+
+        acl_bind_point_t *bind_point_port_lag;
+        uint32_t          port_index;
+        port_index = mlnx_port_idx_get(port);
+
+        bind_point_port_lag = &sai_acl_db->acl_bind_points->ports_lags[port_index];
+
+        port->ingress_acl_index = bind_point_port_lag->ingress_data.acl_index;
+        port->egress_acl_index = bind_point_port_lag->egress_data.acl_index;
     }
 
 out:

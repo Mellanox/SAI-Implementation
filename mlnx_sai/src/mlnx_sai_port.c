@@ -9724,6 +9724,7 @@ static sai_status_t mlnx_create_port(_Out_ sai_object_id_t     * port_id,
         if (SAI_ERR(status)) {
             goto out_unlock;
         }
+        new_port->ingress_acl_index = ing_acl_index;
     }
 
     if (attr_egr_acl) {
@@ -9732,6 +9733,7 @@ static sai_status_t mlnx_create_port(_Out_ sai_object_id_t     * port_id,
         if (SAI_ERR(status)) {
             goto out_unlock;
         }
+        new_port->egress_acl_index = egr_acl_index;
     }
 
     status = find_attrib_in_list(attr_count, attr_list, SAI_PORT_ATTR_SPEED, &value, &index);
