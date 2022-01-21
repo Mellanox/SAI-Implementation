@@ -19819,7 +19819,12 @@ sai_status_t mlnx_acl_bind_point_set(_In_ const sai_object_key_t      *key,
         goto out;
     }
 
-    if (SAI_STATUS_SUCCESS == mlnx_object_to_type(key->key.object_id, SAI_OBJECT_TYPE_PORT, &port_id, NULL)) {
+    if ((MLNX_ACL_BIND_POINT_TYPE_INGRESS_PORT == bind_point_type)
+        || (MLNX_ACL_BIND_POINT_TYPE_EGRESS_PORT == bind_point_type)) {
+        if (SAI_STATUS_SUCCESS != mlnx_object_to_type(key->key.object_id, SAI_OBJECT_TYPE_PORT, &port_id, NULL)) {
+            SX_LOG_ERR("Failed to convert port oid to logical port id\n");
+            goto out;
+        }
         status = mlnx_port_by_log_id(port_id, &port);
         if (SAI_ERR(status)) {
             SX_LOG_ERR("Failed lookup port by log id %x\n", port_id);
