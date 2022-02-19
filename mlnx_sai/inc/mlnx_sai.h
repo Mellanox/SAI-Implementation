@@ -224,10 +224,6 @@ extern const sai_isolation_group_api_t  mlnx_isolation_group_api;
 #define DEFAULT_RIF_MTU  1500
 
 #define DEFAULT_MULTICAST_TTL_THRESHOLD 1
-#define FIRST_PORT                      (0x10000 | (1 << 8))
-#define PORT_MAC_BITMASK_SP             (~0x3F)
-#define PORT_MAC_BITMASK_SP2_3          (~0x7F)
-#define PORT_MAC_BITMASK_SP4            (~0xFF)
 #define PORT_SPEED_800                  800000
 #define PORT_SPEED_400                  400000
 #define PORT_SPEED_200                  200000
@@ -408,6 +404,8 @@ sai_status_t mlnx_shm_rm_array_type_ptr_to_idx(_In_ mlnx_shm_rm_array_type_t  ty
                                                _In_ const void               *ptr,
                                                _Out_ mlnx_shm_rm_array_idx_t *idx);
 uint32_t mlnx_shm_rm_array_size_get(_In_ mlnx_shm_rm_array_type_t type);
+
+sx_status_t get_chip_type(enum sx_chip_types* chip_type);
 
 #define MLNX_SHM_POOL_ELEM_FX_HANDLE_SIZE 524552
 
@@ -1493,7 +1491,7 @@ sai_status_t mlnx_port_bitmap_to_speeds(_In_ const sx_port_speed_t speed_bitmap,
                                         _Out_ uint32_t            *speeds,
                                         _Inout_ uint32_t          *speeds_count);
 
-#define MAX_ENCAP_NEXTHOPS_NUMBER 4000
+#define MAX_ENCAP_NEXTHOPS_NUMBER 40000
 #define NUMBER_OF_LOCAL_VNETS     32
 
 typedef struct _mlnx_fake_nh_db_data_t {
@@ -1501,7 +1499,7 @@ typedef struct _mlnx_fake_nh_db_data_t {
     sx_ip_addr_t                sx_fake_ipaddr;
     sx_ecmp_id_t                sx_fake_nexthop;
     sx_neigh_data_t             sx_fake_neighbor;
-    sx_fdb_uc_mac_addr_params_t sx_fake_fdb;
+    sx_fdb_uc_mac_addr_params_t sx_fake_fdb; /* Used only on SPC1, see bug #2876908 */
     int32_t                     counter;
     int32_t                     nhgm_counter;
 } mlnx_fake_nh_db_data_t;
@@ -3079,7 +3077,6 @@ sai_status_t mlnx_port_wred_mirror_set_impl(_In_ sx_port_log_id_t     sx_port,
 sai_status_t mlnx_internal_acls_bind(_In_ sx_access_cmd_t   cmd,
                                      _In_ sai_object_id_t   sai_port_id,
                                      _In_ sai_object_type_t type);
-uint8_t mlnx_port_mac_mask_get(void);
 
 /* DB read lock is needed */
 sai_status_t mlnx_switch_get_mac(sx_mac_addr_t *mac);

@@ -3416,7 +3416,7 @@ static void mlnx_fg_hash_action_list_create(_In_ sx_flex_acl_action_hash_type_t 
             ++ii;
         } else {
             sx_flex_acl_action_hash_crc_mask_t  mask;
-            sx_flex_acl_action_hash_crc_field_t field = SAI_NATIVE_HASH_FIELD_NONE;
+            sx_flex_acl_action_hash_crc_field_t field;
             switch (fields_list[ii].field) {
             case SAI_NATIVE_HASH_FIELD_DST_IPV4:
                 field = SX_ACL_ACTION_HASH_FIELD_DIP;
@@ -3481,7 +3481,7 @@ static void mlnx_fg_hash_action_list_create(_In_ sx_flex_acl_action_hash_type_t 
                 break;
 
             default:
-                break;
+                continue;
             }
 
             mlnx_create_hash_action(&action_list[act_num], action_type, field, mask);

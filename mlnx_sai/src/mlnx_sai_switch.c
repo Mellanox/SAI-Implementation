@@ -2514,30 +2514,6 @@ static sai_status_t mlnx_switch_bfd_attribute_get(_In_ const sai_object_key_t   
     return SAI_STATUS_SUCCESS;
 }
 
-uint8_t mlnx_port_mac_mask_get(void)
-{
-    sx_chip_types_t chip_type = g_sai_db_ptr->sx_chip_type;
-
-    switch (chip_type) {
-    case SX_CHIP_TYPE_SPECTRUM:
-    case SX_CHIP_TYPE_SPECTRUM_A1:
-        return PORT_MAC_BITMASK_SP;
-
-    case SX_CHIP_TYPE_SPECTRUM2:
-    case SX_CHIP_TYPE_SPECTRUM3:
-        return PORT_MAC_BITMASK_SP2_3;
-
-    case SX_CHIP_TYPE_SPECTRUM4:
-        return (uint8_t)PORT_MAC_BITMASK_SP4;
-
-    default:
-        MLNX_SAI_LOG_ERR("g_sai_db_ptr->sx_chip_type = %s\n", SX_CHIP_TYPE_STR(chip_type));
-        return 0;
-    }
-
-    return 0;
-}
-
 static sai_status_t mlnx_sai_db_initialize(const char *config_file, sx_chip_types_t chip_type)
 {
     sai_status_t status = SAI_STATUS_FAILURE;
@@ -2793,7 +2769,7 @@ static sai_status_t mlnx_wait_for_sdk(const char *sdk_ready_var)
     return SAI_STATUS_SUCCESS;
 }
 
-static sx_status_t get_chip_type(enum sx_chip_types* chip_type)
+sx_status_t get_chip_type(enum sx_chip_types* chip_type)
 {
     uint16_t device_hw_revision;
     uint16_t device_id;
@@ -2853,7 +2829,7 @@ static sx_status_t get_chip_type(enum sx_chip_types* chip_type)
         break;
 
     case SXD_MGIR_HW_DEV_ID_SPECTRUM4:
-        *chip_type = SXD_CHIP_TYPE_SPECTRUM4;
+        *chip_type = SX_CHIP_TYPE_SPECTRUM4;
         break;
 
     default:
@@ -3420,11 +3396,6 @@ static sai_status_t parse_elements(xmlDoc *doc, xmlNode * a_node)
             }
             if (base_mac_addr == NULL) {
                 MLNX_SAI_LOG_ERR("Error parsing device mac address\n");
-                return SAI_STATUS_FAILURE;
-            }
-            if (base_mac_addr->ether_addr_octet[5] & (~mlnx_port_mac_mask_get())) {
-                MLNX_SAI_LOG_ERR("Device mac address must be aligned by %u %02x\n",
-                                 mlnx_port_mac_mask_get(), base_mac_addr->ether_addr_octet[5]);
                 return SAI_STATUS_FAILURE;
             }
         } else if ((!xmlStrcmp(cur_node->name, (const xmlChar*)"number-of-physical-ports"))) {
@@ -8298,29 +8269,7 @@ out:
 
 sai_status_t mlnx_switch_get_mac(sx_mac_addr_t *mac)
 {
-    mlnx_port_config_t *first_port = NULL;
-    mlnx_port_config_t *port = NULL;
-    uint32_t            port_idx;
-    sai_status_t        status;
-
-    mlnx_port_phy_foreach(port, port_idx) {
-        first_port = port;
-        break;
-    }
-
-    /* If no ports in the system, return value from DB. Otherwise, return value from SDK to verify alignment
-     * (64/128 and not full byte). */
-    if (!first_port) {
-        memcpy(mac, &g_sai_db_ptr->base_mac_addr, sizeof(*mac));
-    } else {
-        /* Use switch first port, and zero down lower 6/7 bits port part (64/128 ports) */
-        status = sx_api_port_phys_addr_get(gh_sdk, first_port->logical, mac);
-        if (SX_ERR(status)) {
-            SX_LOG_ERR("Failed to get port %x address - %s.\n", first_port->logical, SX_STATUS_MSG(status));
-            return sdk_to_sai(status);
-        }
-        mac->ether_addr_octet[5] &= mlnx_port_mac_mask_get();
-    }
+    memcpy(mac, &g_sai_db_ptr->base_mac_addr, sizeof(*mac));
 
     return SAI_STATUS_SUCCESS;
 }

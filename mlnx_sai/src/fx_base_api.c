@@ -62,12 +62,12 @@ limitations under the License.
 
 #include <complib/sx_log.h>
 
+#include <mlnx_sai.h>
+
 /////////////////////////////
 // defines
 /////////////////////////////
 typedef u_int8_t uint8_t;
-
-#define FX_ACL_FLOW_COUNTER
 
 const uint32_t ENDIAN_INT = 1;
 #define is_bigendian() ( (*(char*)&ENDIAN_INT ) == 0 )
@@ -2281,7 +2281,23 @@ void fill_custom_bytes_control_out_rif_table_meta_tunnel(struct fx_custom_params
 }
 
 sx_status_t create_control_out_rif_table_meta_tunnel(fx_handle_t handle, sx_acl_id_t* pipe_id_list, int pipe_ind  ) {
-  const uint32_t size = 4032;
+  sx_status_t sx_status;
+  sx_chip_types_t sx_chip_type = SX_CHIP_TYPE_UNKNOWN;
+  sx_status = get_chip_type(&sx_chip_type);
+  if (sx_status != SX_STATUS_SUCCESS) {
+      SX_LOG_ERR("Failed to get chip type.\n");
+      return sx_status;
+  }
+  uint32_t size;
+  switch(sx_chip_type) {
+  case SX_CHIP_TYPE_SPECTRUM:
+  case SX_CHIP_TYPE_SPECTRUM_A1:
+      size = 4000;
+    break;
+  default:
+      size = 40000;
+      break;
+  }
   const uint32_t key_count = 1;
   const int table_index = 2; // 2 is replaced by macro
   struct acl_table *table = &handle->acl_tables[table_index];
