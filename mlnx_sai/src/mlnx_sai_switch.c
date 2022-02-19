@@ -2469,7 +2469,7 @@ static sai_status_t mlnx_wait_for_sdk(const char *sdk_ready_var)
     return SAI_STATUS_SUCCESS;
 }
 
-static sx_status_t get_chip_type(enum sxd_chip_types* chip_type)
+sx_status_t get_chip_type(enum sxd_chip_types* chip_type)
 {
     uint16_t device_hw_revision;
     uint16_t device_id;

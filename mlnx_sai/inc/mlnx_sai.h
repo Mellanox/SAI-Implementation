@@ -389,6 +389,8 @@ sai_status_t mlnx_shm_rm_array_type_ptr_to_idx(_In_ mlnx_shm_rm_array_type_t  ty
                                                _Out_ mlnx_shm_rm_array_idx_t *idx);
 uint32_t mlnx_shm_rm_array_size_get(_In_ mlnx_shm_rm_array_type_t type);
 
+sx_status_t get_chip_type(enum sxd_chip_types* chip_type);
+
 #define MLNX_SHM_POOL_ELEM_FX_HANDLE_SIZE 524552
 
 typedef struct _mlnx_shm_pool_data_t {
@@ -1446,7 +1448,7 @@ sai_status_t mlnx_port_bitmap_to_speeds(_In_ const sx_port_speed_t speed_bitmap,
                                         _Out_ uint32_t            *speeds,
                                         _Inout_ uint32_t          *speeds_count);
 
-#define MAX_ENCAP_NEXTHOPS_NUMBER 4000
+#define MAX_ENCAP_NEXTHOPS_NUMBER 40000
 #define NUMBER_OF_LOCAL_VNETS     32
 
 typedef struct _mlnx_fake_nh_db_data_t {
@@ -1454,7 +1456,7 @@ typedef struct _mlnx_fake_nh_db_data_t {
     sx_ip_addr_t                sx_fake_ipaddr;
     sx_ecmp_id_t                sx_fake_nexthop;
     sx_neigh_data_t             sx_fake_neighbor;
-    sx_fdb_uc_mac_addr_params_t sx_fake_fdb;
+    sx_fdb_uc_mac_addr_params_t sx_fake_fdb; /* Used only on SPC1, see bug #2876908 */
     int32_t                     counter;
     int32_t                     nhgm_counter;
 } mlnx_fake_nh_db_data_t;

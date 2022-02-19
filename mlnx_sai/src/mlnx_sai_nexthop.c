@@ -643,12 +643,14 @@ static sai_status_t mlnx_encap_nexthop_fake_data_init(_In_ mlnx_encap_nexthop_db
         return status;
     }
 
-    status = mlnx_encap_nexthop_fake_fdb_create(br_fid,
-                                                &db_entry->data.sx_fake_mac,
-                                                &fake_data->sx_fake_fdb);
-    if (SAI_ERR(status)) {
-        SX_LOG_ERR("Failed to create fake FDB entry.\n");
-        return status;
+    if (mlnx_chip_is_spc()) {
+        status = mlnx_encap_nexthop_fake_fdb_create(br_fid,
+                                                    &db_entry->data.sx_fake_mac,
+                                                    &fake_data->sx_fake_fdb);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to create fake FDB entry.\n");
+            return status;
+        }
     }
 
     if (init_ecmp) {
@@ -702,7 +704,7 @@ static sai_status_t mlnx_encap_nexthop_fake_data_deinit_ecmp(_Inout_ mlnx_fake_n
                                        NULL,
                                        &sx_next_hop_count);
     if (SX_ERR(sx_status)) {
-        SX_LOG_ERR("Failed to destroy Next Hop.\n");
+        SX_LOG_ERR("Failed to destroy Next Hop - %s\n", SX_STATUS_MSG(sx_status));
         return sdk_to_sai(sx_status);
     }
 
@@ -738,20 +740,21 @@ static sai_status_t mlnx_encap_nexthop_fake_data_deinit(_In_ sai_object_id_t    
                                         &fake_data->sx_fake_ipaddr,
                                         &fake_data->sx_fake_neighbor);
     if (SX_ERR(sx_status)) {
-        SX_LOG_ERR("Failed to delete Neighbor.\n");
+        SX_LOG_ERR("Failed to delete Neighbor - %s\n", SX_STATUS_MSG(sx_status));
         return sdk_to_sai(sx_status);
     }
     memset(&fake_data->sx_fake_neighbor, 0, sizeof(fake_data->sx_fake_neighbor));
 
-    uint32_t macs_count = 1;
-
-    sx_status = sx_api_fdb_uc_mac_addr_set(gh_sdk, SX_ACCESS_CMD_DELETE, DEFAULT_ETH_SWID,
-                                           &fake_data->sx_fake_fdb, &macs_count);
-    if (SX_ERR(sx_status)) {
-        SX_LOG_ERR("Failed to delete Fake FDB entry.\n");
-        return sdk_to_sai(sx_status);
+    if (mlnx_chip_is_spc()) {
+        uint32_t macs_count = 1;
+        sx_status = sx_api_fdb_uc_mac_addr_set(gh_sdk, SX_ACCESS_CMD_DELETE, DEFAULT_ETH_SWID,
+                                               &fake_data->sx_fake_fdb, &macs_count);
+        if (SX_ERR(sx_status)) {
+            SX_LOG_ERR("Failed to delete Fake FDB entry - %s\n", SX_STATUS_MSG(sx_status));
+            return sdk_to_sai(sx_status);
+        }
+        memset(&fake_data->sx_fake_fdb, 0, sizeof(fake_data->sx_fake_fdb));
     }
-    memset(&fake_data->sx_fake_fdb, 0, sizeof(fake_data->sx_fake_fdb));
 
     if (total_deinit) {
         sx_status = sx_api_router_ecmp_set(gh_sdk,
@@ -760,7 +763,7 @@ static sai_status_t mlnx_encap_nexthop_fake_data_deinit(_In_ sai_object_id_t    
                                            NULL,
                                            &sx_next_hop_count);
         if (SX_ERR(sx_status)) {
-            SX_LOG_ERR("Failed to destroy Next Hop.\n");
+            SX_LOG_ERR("Failed to destroy Next Hop - %s\n", SX_STATUS_MSG(sx_status));
             return sdk_to_sai(sx_status);
         }
 

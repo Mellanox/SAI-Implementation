@@ -21,10 +21,7 @@ def OneVnetNoPeeringNegative(vrf):
                 [],
                 []) else 1)
 
-# from test_vxlan.c:
-#define TUNNEL_ROUTES    39996
-#define LOCAL_ROUTES     (40068 - TUNNEL_ROUTES)
-def FullScaleTest(ii, vrf):
+def FullScaleTest(ii, vrf, tunnel_routes_num):
     routes = []
     msai = []
     msonic = []
@@ -32,8 +29,8 @@ def FullScaleTest(ii, vrf):
     # RIF route
     routes.append("10.0.{}.0/24".format(ii))
     # Tunnel routes
-    for i in range(ii, 39996, 32):
-        routes.append("192.168.{}.{}/32".format(i / 256, i % 256))
+    for i in range(ii, tunnel_routes_num, 32):
+        routes.append("192.{}.{}.{}/32".format(168 + ((i / 0x10000) % 0x100), (i / 0x100) % 0x100, i % 0x100))
     # Local routes
     for i in range(ii, 72, 32):
         routes.append("193.184.{}.0/24".format(i % 256))
