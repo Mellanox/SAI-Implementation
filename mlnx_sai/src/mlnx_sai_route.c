@@ -770,10 +770,13 @@ static bool mlnx_is_encap_nexthop_fake_ip(_In_ sx_ip_addr_t *ip)
 {
     assert(ip);
 
-    return (ip->version == SX_IP_VERSION_IPV4) &&
-           (((ip->addr.ipv4.s_addr & 0xFF000000) >> 24) == 0) &&
-           (((ip->addr.ipv4.s_addr & 0x00FFFF00) >> 8) < MAX_ENCAP_NEXTHOPS_NUMBER) &&
-           (((ip->addr.ipv4.s_addr & 0x000000FF) < NUMBER_OF_LOCAL_VNETS));
+    if (ip->version == SX_IP_VERSION_IPV4) {
+        return ((((ip->addr.ipv4.s_addr & 0xFF000000) >> 24) == 0) &&
+                (((ip->addr.ipv4.s_addr & 0x00FFFF00) >> 8) < MAX_ENCAP_NEXTHOPS_NUMBER) &&
+                (((ip->addr.ipv4.s_addr & 0x000000FF) < NUMBER_OF_LOCAL_VNETS)));
+    }
+
+    return false;
 }
 
 static sai_status_t mlnx_route_get_encap_nexthop(_In_ sx_ip_addr_t *ip, _Out_ sai_object_id_t *nh)
@@ -781,8 +784,13 @@ static sai_status_t mlnx_route_get_encap_nexthop(_In_ sx_ip_addr_t *ip, _Out_ sa
     sai_status_t            status;
     mlnx_shm_rm_array_idx_t db_idx;
 
-    db_idx.idx = (ip->addr.ipv4.s_addr & 0x00FFFF00) >> 8;
     db_idx.type = MLNX_SHM_RM_ARRAY_TYPE_NEXTHOP;
+
+    if (ip->version == SX_IP_VERSION_IPV4) {
+        db_idx.idx = (ip->addr.ipv4.s_addr & 0x00FFFF00) >> 8;
+    } else {
+        return SAI_STATUS_FAILURE;
+    }
 
     status = mlnx_encap_nexthop_oid_create(db_idx, nh);
 

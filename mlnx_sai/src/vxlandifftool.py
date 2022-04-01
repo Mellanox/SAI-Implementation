@@ -38,7 +38,7 @@ def get_all_routes_of_vrid(vrf_oid, version):
     else:
         network_addr.version = SX_IP_VERSION_IPV6
         for i in range(0, 15):
-            uint8_t_arr_setitem(network_addr.prefix.ipv6.addr.__in6_u.__u6_addr8, i, 0)
+            uint8_t_arr_setitem(network_addr.prefix.ipv6.addr._in6_addr__in6_u._in6_addr___in6_u__u6_addr8, i, 0)
 
     sx_ip_prefix_t_p_assign(network_addr_p, network_addr)
     rc = sx_api_router_uc_route_get(handle, SX_ACCESS_CMD_GET_FIRST, vrid, network_addr_p, None, uc_route_arr, data_cnt_p)
@@ -81,4 +81,5 @@ def Diff(li1, li2):
 # Entry point of the module
 def CompareRoutes(vrid, sonic_routes):
     sdk_routes = get_all_routes_of_vrid(vrid, SX_IP_VERSION_IPV4)
+    sdk_routes += get_all_routes_of_vrid(vrid, SX_IP_VERSION_IPV6)
     return Diff(sonic_routes, sdk_routes), Diff(sdk_routes, sonic_routes)

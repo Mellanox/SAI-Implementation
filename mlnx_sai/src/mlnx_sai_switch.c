@@ -47,7 +47,7 @@
 #define __MODULE__ SAI_SWITCH
 
 #define SDK_START_CMD_STR_LEN  255
-#define MAX_BFD_SESSION_NUMBER 64
+#define MAX_BFD_SESSION_NUMBER 4096
 
 typedef struct _sai_switch_notification_t {
     sai_switch_state_change_notification_fn      on_switch_state_change;
@@ -2174,7 +2174,7 @@ static sai_status_t mlnx_switch_bfd_attribute_get(_In_ const sai_object_key_t   
 
     case SAI_SWITCH_ATTR_SUPPORTED_IPV4_BFD_SESSION_OFFLOAD_TYPE:
     case SAI_SWITCH_ATTR_SUPPORTED_IPV6_BFD_SESSION_OFFLOAD_TYPE:
-        value->u32 = SAI_BFD_SESSION_OFFLOAD_TYPE_NONE;
+        value->u32 = SAI_BFD_SESSION_OFFLOAD_TYPE_FULL;
         break;
 
     case SAI_SWITCH_ATTR_MIN_BFD_RX:
@@ -3723,35 +3723,317 @@ uint32_t mlnx_shm_rm_array_size_get(_In_ mlnx_shm_rm_array_type_t type)
     return (uint32_t)g_sai_db_ptr->array_info[type].elem_count;
 }
 
+#define MAX_IP_STR_LEN 40
+static sai_status_t mlnx_switch_bfd_packet_handle(const struct bfd_packet_event *packet)
+{
+    sai_bfd_session_state_notification_t info = {0};
+    mlnx_shm_rm_array_idx_t              bfd_session_db_index;
+    mlnx_bfd_session_db_entry_t         *bfd_data;
+    sai_status_t                         status;
+    mlnx_bfd_packet_t                   *bfd_p;
+    int                                  need_update_rx = 0;
+    char                                 dst_ip_str[MAX_IP_STR_LEN];
+    sai_bfd_session_state_t              bfd_session_state, bfd_pkt_state;
+
+    bfd_p = (mlnx_bfd_packet_t *)&packet->packet;
+
+    SX_LOG_DBG("bfd pkt local-id 0x[%x] \n", ntohl(bfd_p->my_disc));
+    SX_LOG_DBG("bfd pkt multiplier [%d] \n", bfd_p->mult);
+    bfd_pkt_state = bfd_p->flags >> 6;
+    SX_LOG_DBG("bfd pkt state [%d] \n", bfd_pkt_state);
+    SX_LOG_DBG("bfd pkt is polling [%d] \n", bfd_pkt_is_polling(bfd_p));
+    SX_LOG_DBG("bfd pkt is final [%d] \n", bfd_pkt_is_final(bfd_p));
+
+    bfd_session_db_index = *(mlnx_shm_rm_array_idx_t*)&packet->opaque_data;
+
+    sai_db_write_lock();
+    status = mlnx_shm_rm_idx_validate(bfd_session_db_index);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("BFD DB index is invalid (index=%" PRIu64 ")\n", bfd_session_db_index);
+        sai_db_unlock();
+        return SAI_STATUS_FAILURE;
+    }
+
+    status = mlnx_bfd_session_oid_create(bfd_session_db_index, &info.bfd_session_id);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("BFD OID create failed ");
+        sai_db_unlock();
+        return SAI_STATUS_FAILURE;
+    }
+
+    status = mlnx_shm_rm_array_idx_to_ptr(bfd_session_db_index, (void **)&bfd_data);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("BFD db data get failed (index=%" PRIu64 ")\n", bfd_session_db_index);
+        sai_db_unlock();
+        return SAI_STATUS_FAILURE;
+    }
+
+    SX_LOG_DBG("incoming BFD packet %x:%x.\n", ntohl(bfd_p->my_disc), ntohl(bfd_p->your_disc));
+    SX_LOG_DBG("BFD session entry found in DB %x:%x.\n",
+               bfd_data->data.local_discriminator,
+               bfd_data->data.remote_discriminator);
+    SX_LOG_DBG("bfd remote_multiplier [%d] incoming %d\n",
+               bfd_data->data.remote_multiplier, bfd_p->mult);
+    SX_LOG_DBG("bfd tx-min [%d] incoming %d\n",
+               bfd_data->data.remote_min_tx, ntohl(bfd_p->min_tx));
+    SX_LOG_DBG("bfd rx-min [%d] incoming %d\n",
+               bfd_data->data.remote_min_rx, ntohl(bfd_p->min_rx));
+    SX_LOG_DBG("bfd echo-min [%d] incoming %d\n",
+               bfd_data->data.remote_echo, ntohl(bfd_p->min_rx_echo));
+
+    if (!bfd_data->data.multihop && (packet->ttl != 255)) {
+        SX_LOG_ERR("TTL mismatch, expected 0xFF, got %u, drop packet",
+                   packet->ttl);
+        sai_db_unlock();
+        return SAI_STATUS_FAILURE;
+    }
+
+    if ((bfd_data->data.remote_multiplier != bfd_p->mult) ||
+        (bfd_data->data.remote_echo != ntohl(bfd_p->min_rx_echo)) ||
+        (bfd_data->data.remote_min_tx != ntohl(bfd_p->min_tx)) ||
+        (bfd_data->data.remote_min_rx != ntohl(bfd_p->min_rx))) {
+        need_update_rx = 1;
+        bfd_data->data.remote_multiplier = bfd_p->mult;
+        bfd_data->data.remote_min_tx = ntohl(bfd_p->min_tx);
+        bfd_data->data.remote_min_rx = ntohl(bfd_p->min_rx);
+        bfd_data->data.remote_echo = ntohl(bfd_p->min_rx_echo);
+    }
+
+    if (bfd_data->data.local_discriminator != ntohl(bfd_p->your_disc)) {
+        SX_LOG_ERR("my_disc mismatch, expected %u, got %u, drop packet",
+                   bfd_data->data.local_discriminator,
+                   ntohl(bfd_p->your_disc));
+        sai_db_unlock();
+        return SAI_STATUS_FAILURE;
+    }
+
+    if (!bfd_data->data.remote_discriminator) {
+        bfd_data->data.remote_discriminator = ntohl(bfd_p->my_disc);
+        SX_LOG_DBG("remote_disc learned %u\n",
+                   bfd_data->data.remote_discriminator);
+    } else if (bfd_data->data.remote_discriminator != ntohl(bfd_p->my_disc)) {
+        SX_LOG_ERR("remote_disc mismatch, expected %u, got %u, drop packet",
+                   bfd_data->data.remote_discriminator,
+                   ntohl(bfd_p->my_disc));
+        sai_db_unlock();
+        return SAI_STATUS_FAILURE;
+    }
+
+    status = sai_ipaddr_to_str(bfd_data->data.dst_ip,
+                               MAX_IP_STR_LEN - 1, dst_ip_str, NULL);
+    if (SAI_ERR(status)) {
+        strcpy(dst_ip_str, "-");
+    }
+
+    bfd_session_state = bfd_data->data.bfd_session_state;
+
+    if (bfd_pkt_state == SAI_BFD_SESSION_STATE_ADMIN_DOWN) {
+        SX_LOG_DBG("Peer shut down BFD manually, tx sess id is %d\n",
+                   bfd_data->data.tx_session);
+        bfd_data->data.bfd_session_state = SAI_BFD_SESSION_STATE_DOWN;
+        SX_LOG_DBG("BFD try reconnect, send Down \n");
+        SX_LOG_NTC("BFD peer [%s] is manually down\n", dst_ip_str);
+        bfd_data->data.remote_discriminator = ntohl(0);
+        status = mlnx_set_offload_bfd_tx_session(&bfd_data->data, SX_ACCESS_CMD_EDIT);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("BFD offload tx failed \n");
+            sai_db_unlock();
+            return status;
+        }
+    }
+
+    switch (bfd_session_state) {
+    case SAI_BFD_SESSION_STATE_UP:
+        if (bfd_pkt_state == SAI_BFD_SESSION_STATE_DOWN) {
+            SX_LOG_DBG("it is a down BFD packet in UP state, tx sess id is %d\n",
+                       bfd_data->data.tx_session);
+            bfd_data->data.bfd_session_state = SAI_BFD_SESSION_STATE_INIT;
+            SX_LOG_DBG("BFD reset , send INIT \n");
+            status = mlnx_set_offload_bfd_tx_session(&bfd_data->data, SX_ACCESS_CMD_EDIT);
+            if (SAI_ERR(status)) {
+                SX_LOG_ERR("BFD offload tx failed \n");
+                sai_db_unlock();
+                return status;
+            }
+        }
+        if (bfd_pkt_state == SAI_BFD_SESSION_STATE_UP) {
+            if (bfd_pkt_is_polling(bfd_p)) {
+                SX_LOG_DBG("peer is polling \n");
+                bfd_data->data.is_final = 1;
+                SX_LOG_DBG("send final to ack polling\n");
+                status = mlnx_set_offload_bfd_tx_session(&bfd_data->data, SX_ACCESS_CMD_EDIT);
+                bfd_data->data.is_final = 0;
+                status = mlnx_set_offload_bfd_tx_session(&bfd_data->data, SX_ACCESS_CMD_EDIT);
+                if (SAI_ERR(status)) {
+                    SX_LOG_ERR("BFD offload tx failed \n");
+                    sai_db_unlock();
+                    return status;
+                }
+            }
+            if (bfd_pkt_is_final(bfd_p)
+                && bfd_data->data.is_polling) {
+                SX_LOG_DBG("peer is final \n");
+                bfd_data->data.is_polling = 0;
+                status = mlnx_set_offload_bfd_tx_session(&bfd_data->data, SX_ACCESS_CMD_EDIT);
+                if (SAI_ERR(status)) {
+                    SX_LOG_ERR("BFD offload tx failed \n");
+                    sai_db_unlock();
+                    return status;
+                }
+            }
+            SX_LOG_DBG("it is a UP BFD packet in UP state, rx sess id is %d\n",
+                       bfd_data->data.rx_session);
+            if (need_update_rx) {
+                SX_LOG_DBG("need to update rx session \n");
+                status = mlnx_set_offload_bfd_rx_session(&bfd_data->data,
+                                                         bfd_session_db_index,
+                                                         SX_ACCESS_CMD_EDIT);
+                if (SAI_ERR(status)) {
+                    SX_LOG_ERR("BFD offload rx update failed \n");
+                    sai_db_unlock();
+                    return status;
+                }
+            }
+        }
+
+        SX_LOG_DBG("get packet [%d] in [%d] state \n", bfd_pkt_state, bfd_session_state);
+        break;
+
+    case SAI_BFD_SESSION_STATE_INIT:
+        if (bfd_pkt_state == SAI_BFD_SESSION_STATE_UP) {
+            SX_LOG_DBG("it is a [%s] BFD packet, tx sess id is %d\n", "UP",
+                       bfd_data->data.tx_session);
+            SX_LOG_DBG("BFD reset finish,stop sending INIT \n");
+            bfd_data->data.bfd_session_state = SAI_BFD_SESSION_STATE_UP;
+            status = mlnx_set_offload_bfd_tx_session(&bfd_data->data,
+                                                     bfd_data->data.tx_session ? SX_ACCESS_CMD_EDIT : SX_ACCESS_CMD_CREATE);
+            if (SAI_ERR(status)) {
+                SX_LOG_ERR("BFD offload tx failed \n");
+                sai_db_unlock();
+                return status;
+            }
+            SX_LOG_DBG("BFD reset finish, rewrite remote id for rx\n");
+            status = mlnx_set_offload_bfd_rx_session(&bfd_data->data,
+                                                     bfd_session_db_index,
+                                                     SX_ACCESS_CMD_EDIT);
+            if (SAI_ERR(status)) {
+                SX_LOG_ERR("BFD offload rx update failed \n");
+                sai_db_unlock();
+                return status;
+            }
+
+            info.session_state = SAI_BFD_SESSION_STATE_UP;
+            SX_LOG_NTC("BFD peer [%s] is UP\n", dst_ip_str);
+            if (g_notification_callbacks.on_bfd_session_state_change) {
+                g_notification_callbacks.on_bfd_session_state_change(1, &info);
+            }
+        } else {
+            SX_LOG_DBG("get packet [%d] in [%d] state, ignore it\n", bfd_pkt_state, bfd_session_state);
+        }
+        break;
+
+    case SAI_BFD_SESSION_STATE_DOWN:
+        if (bfd_pkt_state == SAI_BFD_SESSION_STATE_INIT) {
+            SX_LOG_DBG("it is a INIT BFD packet, tx sess id is %d\n",
+                       bfd_data->data.tx_session);
+            bfd_data->data.bfd_session_state = SAI_BFD_SESSION_STATE_UP;
+            SX_LOG_DBG("send BFD UP packet back, tx sess id is %d\n",
+                       bfd_data->data.tx_session);
+            status = mlnx_set_offload_bfd_tx_session(&bfd_data->data, SX_ACCESS_CMD_EDIT);
+            if (SAI_ERR(status)) {
+                SX_LOG_ERR("update offload tx session failed \n");
+                sai_db_unlock();
+                return status;
+            }
+            SX_LOG_DBG("expecting UP packet rx sess id is %d\n",
+                       bfd_data->data.rx_session);
+            status = mlnx_set_offload_bfd_rx_session(&bfd_data->data,
+                                                     bfd_session_db_index,
+                                                     SX_ACCESS_CMD_EDIT);
+            if (SAI_ERR(status)) {
+                SX_LOG_ERR("BFD offload rx update failed \n");
+                sai_db_unlock();
+                return status;
+            }
+            SX_LOG_NTC("BFD peer [%s] is UP\n", dst_ip_str);
+            info.session_state = SAI_BFD_SESSION_STATE_UP;
+            if (g_notification_callbacks.on_bfd_session_state_change) {
+                g_notification_callbacks.on_bfd_session_state_change(1, &info);
+            }
+        } else {
+            SX_LOG_DBG("get packet [%d] in [%d] state, ignore it\n", bfd_pkt_state, bfd_session_state);
+        }
+        break;
+
+    default:
+        SX_LOG_DBG("get packet [%d] in [%d] state, ignore it\n", bfd_pkt_state, bfd_session_state);
+        break;
+    }
+    sai_db_unlock();
+    return SAI_STATUS_SUCCESS;
+}
 
 static sai_status_t mlnx_switch_bfd_event_handle(_In_ sx_trap_id_t event, _In_ uint64_t opaque_data)
 {
     sai_bfd_session_state_notification_t info = {0};
     mlnx_shm_rm_array_idx_t              bfd_session_db_index;
     sai_status_t                         status;
+    mlnx_bfd_session_db_entry_t         *bfd_data;
 
-    assert(event == SX_TRAP_ID_BFD_TIMEOUT_EVENT ||
-           event == SX_TRAP_ID_BFD_PACKET_EVENT);
+    assert(event == SX_TRAP_ID_BFD_TIMEOUT_EVENT);
 
     bfd_session_db_index = *(mlnx_shm_rm_array_idx_t*)&opaque_data;
 
+    sai_db_write_lock();
     status = mlnx_shm_rm_idx_validate(bfd_session_db_index);
     if (SAI_ERR(status)) {
         SX_LOG_ERR("BFD DB index is invalid (opaque_data=%" PRIu64 ")\n", opaque_data);
+        sai_db_unlock();
+        return SAI_STATUS_FAILURE;
+    }
+
+    status = mlnx_shm_rm_array_idx_to_ptr(bfd_session_db_index, (void **)&bfd_data);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("BFD db data get failed (index=%" PRIu64 ")\n", bfd_session_db_index);
+        sai_db_unlock();
         return SAI_STATUS_FAILURE;
     }
 
     status = mlnx_bfd_session_oid_create(bfd_session_db_index, &info.bfd_session_id);
     if (SAI_ERR(status)) {
         SX_LOG_ERR("BFD OID create failed (opaque_data=%" PRIu64 ")\n", opaque_data);
+        sai_db_unlock();
         return SAI_STATUS_FAILURE;
     }
 
-    info.session_state = SAI_BFD_SESSION_STATE_DOWN;
-    if (g_notification_callbacks.on_bfd_session_state_change) {
-        g_notification_callbacks.on_bfd_session_state_change(1, &info);
-    }
+    if (bfd_data->data.bfd_session_state != SAI_BFD_SESSION_STATE_DOWN) {
+        char dst_ip_str[MAX_IP_STR_LEN];
+        status = sai_ipaddr_to_str(bfd_data->data.dst_ip,
+                                   MAX_IP_STR_LEN - 1, dst_ip_str, NULL);
+        if (SAI_ERR(status)) {
+            strcpy(dst_ip_str, "-");
+        }
 
+        SX_LOG_NTC("BFD peer [%s] is Down\n", dst_ip_str);
+        bfd_data->data.bfd_session_state = SAI_BFD_SESSION_STATE_DOWN;
+
+        info.session_state = SAI_BFD_SESSION_STATE_DOWN;
+        if (g_notification_callbacks.on_bfd_session_state_change) {
+            g_notification_callbacks.on_bfd_session_state_change(1, &info);
+        }
+
+        SX_LOG_DBG("send BFD DOWN packet to peer [%s]"
+                   " to reset session, tx sess id is %d\n",
+                   dst_ip_str, bfd_data->data.tx_session);
+        bfd_data->data.remote_discriminator = ntohl(0);
+        status = mlnx_set_offload_bfd_tx_session(&bfd_data->data, SX_ACCESS_CMD_EDIT);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("update offload tx session failed \n");
+            sai_db_unlock();
+            return status;
+        }
+    }
+    sai_db_unlock();
     return SAI_STATUS_SUCCESS;
 }
 
@@ -4835,10 +5117,9 @@ static void event_thread_func(void *context)
                 if (SX_TRAP_ID_BFD_PACKET_EVENT == receive_info->trap_id) {
                     const struct bfd_packet_event *event = (const struct bfd_packet_event*)p_packet;
                     if (event->opaque_data_valid) {
-                        status = mlnx_switch_bfd_event_handle(SX_TRAP_ID_BFD_PACKET_EVENT,
-                                                              event->opaque_data);
+                        status = mlnx_switch_bfd_packet_handle(event);
                         if (SAI_ERR(status)) {
-                            SX_LOG_ERR("BFD event handle failed.\n");
+                            SX_LOG_ERR("BFD packet handle failed.\n");
                         }
                     } else {
                         SX_LOG_WRN("Received BFD packet not related to any existing session.\n");
@@ -4885,7 +5166,7 @@ static void event_thread_func(void *context)
                 }
 
                 if (SX_INVALID_PORT == receive_info->source_log_port) {
-                    SX_LOG_WRN("sx_api_host_ifc_recv on callback fd returned unknown port, waiting for next packet\n");
+                    SX_LOG_INF("sx_api_host_ifc_recv on callback fd returned unknown port, waiting for next packet\n");
                     continue;
                 }
 
@@ -6937,7 +7218,7 @@ static sai_status_t mlnx_switch_aging_time_set_impl(_In_ uint32_t value)
 
     if (0 == value) {
         time = SX_FDB_AGE_TIME_MAX;
-    } else if (SX_FDB_AGE_TIME_MIN > value) {
+    } else if (SX_FDB_AGE_TIME_MIN >= value) {
         time = SX_FDB_AGE_TIME_MIN;
     } else if (SX_FDB_AGE_TIME_MAX < value) {
         time = SX_FDB_AGE_TIME_MAX;

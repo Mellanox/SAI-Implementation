@@ -57,7 +57,7 @@ typedef struct _sx_table_meta_tunnel_entry_action_data_t {
             sx_tunnel_id_t tunnel_id;
 
             /** underlay_dip value */
-            in_addr_t underlay_dip;
+            sx_ip_addr_t underlay_dip;
 
         } tunnel_encap_params;
     } data;

@@ -2249,6 +2249,7 @@ typedef struct _mlnx_bmtor_bridge_t {
     sai_object_id_t rif_oid;
     sai_object_id_t bridge_bport_oid;
     sai_object_id_t tunnel_bport_oid;
+    sai_object_id_t tunnel_id;
     sx_tunnel_id_t  sx_vxlan_tunnel_id;
     uint32_t        vni;
     uint32_t        counter;
@@ -2435,11 +2436,18 @@ typedef struct _mlnx_bfd_session_db_data_t {
     uint8_t             tos;
     uint8_t             ttl;
     uint8_t             multiplier;
+    uint8_t             remote_multiplier;
+    uint8_t             is_polling;
+    uint8_t             is_final;
     sx_bfd_session_id_t tx_session;
     sx_bfd_session_id_t rx_session;
+    uint32_t            bfd_session_state;
     uint32_t            local_discriminator;
     uint32_t            remote_discriminator;
     uint32_t            udp_src_port;
+    uint32_t            remote_min_tx;
+    uint32_t            remote_min_rx;
+    uint32_t            remote_echo;
     uint32_t            min_tx;
     uint32_t            min_rx;
     sai_ip_address_t    src_ip;
@@ -2450,6 +2458,36 @@ typedef struct _mlnx_bfd_session_db_entry_t {
     mlnx_shm_array_hdr_t       array_hdr;
     mlnx_bfd_session_db_data_t data;
 } mlnx_bfd_session_db_entry_t;
+
+PACKED(struct _mlnx_bfd_packet_t {
+    uint8_t vers_diag;        /* Version and diagnostic. */
+    uint8_t flags;        /* 2bit State field followed by flags. */
+    uint8_t mult;         /* Fault detection multiplier. */
+    uint8_t length;        /* Length of this BFD message. */
+    uint32_t my_disc;        /* My discriminator. */
+    uint32_t your_disc;        /* Your discriminator. */
+    uint32_t min_tx;        /* Desired minimum tx interval. */
+    uint32_t min_rx;        /* Required minimum rx interval. */
+    uint32_t min_rx_echo;        /* Required minimum echo rx interval. */
+}, );
+typedef struct _mlnx_bfd_packet_t mlnx_bfd_packet_t;
+#define BFD_PKT_FLAG_POLL  0x20
+#define BFD_PKT_FLAG_FINAL 0x10
+
+inline int bfd_pkt_is_polling(mlnx_bfd_packet_t* bfd_pkt)
+{
+    return bfd_pkt->flags & BFD_PKT_FLAG_POLL;
+}
+inline int bfd_pkt_is_final(mlnx_bfd_packet_t* bfd_pkt)
+{
+    return bfd_pkt->flags & BFD_PKT_FLAG_FINAL;
+}
+
+sai_status_t mlnx_set_offload_bfd_rx_session(_Inout_ mlnx_bfd_session_db_data_t *bfd_db_data,
+                                             _In_ mlnx_shm_rm_array_idx_t        bfd_session_db_index,
+                                             _In_ sx_access_cmd_t                cmd);
+sai_status_t mlnx_set_offload_bfd_tx_session(_Inout_ mlnx_bfd_session_db_data_t *bfd_db_data,
+                                             _In_ sx_access_cmd_t                cmd);
 
 typedef struct _mlnx_control_pg_buff_profile_entry {
     sx_cos_port_buffer_attr_t sx_pg_buff_reserved_attr;
@@ -2981,7 +3019,6 @@ sai_status_t mlnx_parsing_depth_increase(void);
 
 /* caller needs to guard this function with lock */
 sai_status_t mlnx_get_sai_tunnel_db_idx(_In_ sai_object_id_t sai_tunnel_id, _Out_ uint32_t *tunnel_db_idx);
-
 sai_status_t mlnx_acl_psort_thread_suspend(void);
 sai_status_t mlnx_acl_psort_thread_resume(void);
 

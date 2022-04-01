@@ -25,19 +25,6 @@
 
 #define DEFAULT_BFD_NETNS "/proc/1/net"
 
-PACKED(struct _mlnx_bfd_packet_t {
-    uint8_t vers_diag;        /* Version and diagnostic. */
-    uint8_t flags;        /* 2bit State field followed by flags. */
-    uint8_t mult;         /* Fault detection multiplier. */
-    uint8_t length;        /* Length of this BFD message. */
-    uint32_t my_disc;        /* My discriminator. */
-    uint32_t your_disc;        /* Your discriminator. */
-    uint32_t min_tx;        /* Desired minimum tx interval. */
-    uint32_t min_rx;        /* Required minimum rx interval. */
-    uint32_t min_rx_echo;        /* Required minimum echo rx interval. */
-}, );
-typedef struct _mlnx_bfd_packet_t mlnx_bfd_packet_t;
-
 static sx_verbosity_level_t LOG_VAR_NAME(__MODULE__) = SX_VERBOSITY_LEVEL_WARNING;
 static sai_status_t mlnx_get_bfd_session_stats_ext(_In_ sai_object_id_t      bfd_session_id,
                                                    _In_ uint32_t             number_of_counters,
@@ -70,7 +57,6 @@ static sai_status_t mlnx_bfd_session_db_entry_alloc(_Out_ mlnx_bfd_session_db_en
 
     return SAI_STATUS_SUCCESS;
 }
-
 
 static sai_status_t mlnx_bfd_session_db_entry_idx_to_data(_In_ mlnx_shm_rm_array_idx_t        idx,
                                                           _Out_ mlnx_bfd_session_db_entry_t **bfd_session_db_entry)
@@ -163,12 +149,9 @@ sai_status_t mlnx_bfd_session_oid_create(_In_ mlnx_shm_rm_array_idx_t idx, _Out_
     return SAI_STATUS_SUCCESS;
 }
 
-static sai_status_t mlnx_fill_sdk_bfd_params(_In_ const mlnx_bfd_session_db_data_t *bfd_db_data,
-                                             _In_ uint64_t                          opaque_data,
-                                             _Out_ mlnx_bfd_packet_t               *tx_bfd_packet,
-                                             _Out_ sx_bfd_session_params_t         *tx_params,
-                                             _Out_ mlnx_bfd_packet_t               *rx_bfd_packet,
-                                             _Out_ sx_bfd_session_params_t         *rx_params)
+static sai_status_t mlnx_fill_sdk_bfd_tx_params(_In_ const mlnx_bfd_session_db_data_t *bfd_db_data,
+                                                _Out_ mlnx_bfd_packet_t               *tx_bfd_packet,
+                                                _Out_ sx_bfd_session_params_t         *tx_params)
 {
     sai_status_t             status;
     sx_bfd_session_tx_data_t tx_data;
@@ -178,8 +161,6 @@ static sai_status_t mlnx_fill_sdk_bfd_params(_In_ const mlnx_bfd_session_db_data
     assert(bfd_db_data);
     assert(tx_bfd_packet);
     assert(tx_params);
-    assert(rx_bfd_packet);
-    assert(rx_params);
 
     status = mlnx_translate_sai_ip_address_to_sdk(&bfd_db_data->src_ip, &sdk_src_addr);
     if (SAI_ERR(status)) {
@@ -193,9 +174,9 @@ static sai_status_t mlnx_fill_sdk_bfd_params(_In_ const mlnx_bfd_session_db_data
 
     tx_bfd_packet->vers_diag = (1 << 5) |    /* BFD version */
                                (0 << 0);     /* Diag */
-    tx_bfd_packet->flags = (3 << 6) |        /* 2-bit Sta */
-                           (0 << 5) |        /* P flag */
-                           (0 << 4) |        /* F flag */
+    tx_bfd_packet->flags = ((bfd_db_data->bfd_session_state) << 6) |        /* 2-bit Sta */
+                           ((bfd_db_data->is_polling) << 5) |        /* P flag */
+                           ((bfd_db_data->is_final) << 4) |        /* F flag */
                            (0 << 3) |        /* C flag */
                            (0 << 2) |        /* A flag */
                            (0 << 1) |        /* D flag */
@@ -208,23 +189,6 @@ static sai_status_t mlnx_fill_sdk_bfd_params(_In_ const mlnx_bfd_session_db_data
     tx_bfd_packet->min_rx = htonl(bfd_db_data->min_rx);
     tx_bfd_packet->min_rx_echo = htonl(0); /* 0 - Not supported */
 
-    rx_bfd_packet->vers_diag = (1 << 5) |    /* BFD version */
-                               (0 << 0);     /* Diag */
-    rx_bfd_packet->flags = (3 << 6) |        /* 2-bit Sta */
-                           (0 << 5) |        /* P flag */
-                           (0 << 4) |        /* F flag */
-                           (0 << 3) |        /* C flag */
-                           (0 << 2) |        /* A flag */
-                           (0 << 1) |        /* D flag */
-                           (0 << 0);         /* M flag */
-    rx_bfd_packet->mult = bfd_db_data->multiplier;
-    rx_bfd_packet->length = sizeof(*rx_bfd_packet);
-    rx_bfd_packet->my_disc = htonl(bfd_db_data->remote_discriminator);
-    rx_bfd_packet->your_disc = htonl(bfd_db_data->local_discriminator);
-    rx_bfd_packet->min_tx = htonl(bfd_db_data->min_tx);
-    rx_bfd_packet->min_rx = htonl(bfd_db_data->min_rx);
-    rx_bfd_packet->min_rx_echo = htonl(0); /* 0 - Not supported */
-
     tx_params->session_data.type = SX_BFD_ASYNC_ACTIVE_TX;
     tx_data.packet_encap.encap_type = SX_BFD_UDP_OVER_IP;
     tx_data.packet_encap.encap_data.udp_over_ip.src_udp_port = bfd_db_data->udp_src_port;
@@ -233,7 +197,7 @@ static sai_status_t mlnx_fill_sdk_bfd_params(_In_ const mlnx_bfd_session_db_data
     tx_data.packet_encap.encap_data.udp_over_ip.dest_ip_addr = sdk_dst_addr;
     tx_data.packet_encap.encap_data.udp_over_ip.ttl = bfd_db_data->ttl;
     tx_data.packet_encap.encap_data.udp_over_ip.dscp = bfd_db_data->tos;
-    tx_data.interval = bfd_db_data->min_tx;
+    tx_data.interval = MAX(bfd_db_data->min_tx, bfd_db_data->remote_min_rx);
     tx_data.traffic_class = bfd_db_data->traffic_class;
     tx_params->session_data.data.tx_data = tx_data;
     tx_params->packet.packet_buffer = (uint8_t*)tx_bfd_packet;
@@ -245,8 +209,53 @@ static sai_status_t mlnx_fill_sdk_bfd_params(_In_ const mlnx_bfd_session_db_data
     memcpy(tx_params->peer.peer_data.ip_and_vrf.default_netns, DEFAULT_BFD_NETNS, sizeof(DEFAULT_BFD_NETNS));
     tx_params->bfd_pid = 0;
 
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_fill_sdk_bfd_rx_params(_In_ const mlnx_bfd_session_db_data_t *bfd_db_data,
+                                                _In_ uint64_t                          opaque_data,
+                                                _Out_ mlnx_bfd_packet_t               *rx_bfd_packet,
+                                                _Out_ sx_bfd_session_params_t         *rx_params)
+{
+    sai_status_t status;
+    sx_ip_addr_t sdk_src_addr;
+    sx_ip_addr_t sdk_dst_addr;
+
+    assert(bfd_db_data);
+    assert(rx_bfd_packet);
+    assert(rx_params);
+
+    status = mlnx_translate_sai_ip_address_to_sdk(&bfd_db_data->src_ip, &sdk_src_addr);
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+    status = mlnx_translate_sai_ip_address_to_sdk(&bfd_db_data->dst_ip, &sdk_dst_addr);
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+    rx_bfd_packet->vers_diag = (1 << 5) |    /* BFD version */
+                               (0 << 0); /* Diag */
+    rx_bfd_packet->flags = (3 << 6) |        /* 2-bit Sta */
+                           (0 << 5) | /* P flag */
+                           (0 << 4) | /* F flag */
+                           (0 << 3) | /* C flag */
+                           (0 << 2) | /* A flag */
+                           (0 << 1) | /* D flag */
+                           (0 << 0); /* M flag */
+    rx_bfd_packet->mult = bfd_db_data->remote_multiplier;
+    rx_bfd_packet->length = sizeof(*rx_bfd_packet);
+    rx_bfd_packet->my_disc = htonl(bfd_db_data->remote_discriminator);
+    rx_bfd_packet->your_disc = htonl(bfd_db_data->local_discriminator);
+    rx_bfd_packet->min_tx = htonl(bfd_db_data->remote_min_tx);
+    rx_bfd_packet->min_rx = htonl(bfd_db_data->remote_min_rx);
+    /**rx_bfd_packet->min_rx_echo = htonl(0);  0 - Not supported */
+    rx_bfd_packet->min_rx_echo = htonl(bfd_db_data->remote_echo);
+
     rx_params->session_data.type = SX_BFD_ASYNC_ACTIVE_RX;
-    rx_params->session_data.data.rx_data.interval = bfd_db_data->min_rx * bfd_db_data->multiplier;
+    rx_params->session_data.data.rx_data.interval =
+        MAX(bfd_db_data->min_rx, bfd_db_data->remote_min_tx) * bfd_db_data->remote_multiplier;
     rx_params->session_data.data.rx_data.opaque_data = opaque_data;
     rx_params->packet.packet_buffer = (uint8_t*)rx_bfd_packet;
     rx_params->packet.buffer_length = sizeof(*rx_bfd_packet);
@@ -262,61 +271,59 @@ static sai_status_t mlnx_fill_sdk_bfd_params(_In_ const mlnx_bfd_session_db_data
 
 static sai_status_t mlnx_bfd_session_destroy(_In_ mlnx_bfd_session_db_entry_t *bfd_session_db_entry)
 {
-    sx_status_t             sx_status;
+    sx_status_t             sx_status_rx = SX_STATUS_SUCCESS;
+    sx_status_t             sx_status_tx = SX_STATUS_SUCCESS;
     sx_bfd_session_params_t params = {0};
 
-    params.session_data.type = SX_BFD_ASYNC_ACTIVE_RX;
-    sx_status = sx_api_bfd_offload_set(gh_sdk,
-                                       SX_ACCESS_CMD_DESTROY,
-                                       &params,
-                                       &bfd_session_db_entry->data.rx_session);
-    if (SX_ERR(sx_status)) {
-        SX_LOG_ERR("Cannot remove RX BFD session id=%d, status=%s\n",
-                   bfd_session_db_entry->data.rx_session,
-                   SX_STATUS_MSG(sx_status));
-        return sdk_to_sai(sx_status);
+    if (bfd_session_db_entry->data.rx_session) {
+        params.session_data.type = SX_BFD_ASYNC_ACTIVE_RX;
+        sx_status_rx = sx_api_bfd_offload_set(gh_sdk,
+                                              SX_ACCESS_CMD_DESTROY,
+                                              &params,
+                                              &bfd_session_db_entry->data.rx_session);
+        if (SX_ERR(sx_status_rx)) {
+            SX_LOG_ERR("Cannot remove RX BFD session id=%d, status=%s\n",
+                       bfd_session_db_entry->data.rx_session,
+                       SX_STATUS_MSG(sx_status_rx));
+        }
     }
 
-    params.session_data.type = SX_BFD_ASYNC_ACTIVE_TX;
-    sx_status = sx_api_bfd_offload_set(gh_sdk,
-                                       SX_ACCESS_CMD_DESTROY,
-                                       &params,
-                                       &bfd_session_db_entry->data.tx_session);
-    if (SX_ERR(sx_status)) {
-        SX_LOG_ERR("Cannot remove TX BFD session id=%d, status=%s\n",
-                   bfd_session_db_entry->data.tx_session,
-                   SX_STATUS_MSG(sx_status));
-        return sdk_to_sai(sx_status);
+    if (bfd_session_db_entry->data.tx_session) {
+        params.session_data.type = SX_BFD_ASYNC_ACTIVE_TX;
+        sx_status_tx = sx_api_bfd_offload_set(gh_sdk,
+                                              SX_ACCESS_CMD_DESTROY,
+                                              &params,
+                                              &bfd_session_db_entry->data.tx_session);
+        if (SX_ERR(sx_status_tx)) {
+            SX_LOG_ERR("Cannot remove TX BFD session id=%d, status=%s\n",
+                       bfd_session_db_entry->data.tx_session,
+                       SX_STATUS_MSG(sx_status_tx));
+            return sdk_to_sai(sx_status_tx);
+        }
     }
 
-    return SAI_STATUS_SUCCESS;
+    return sdk_to_sai(sx_status_rx);
 }
 
-static sai_status_t mlnx_set_offload_bfd_session(_Inout_ mlnx_bfd_session_db_data_t *bfd_db_data,
-                                                 _In_ mlnx_shm_rm_array_idx_t        bfd_session_db_index,
-                                                 _In_ sx_access_cmd_t                cmd)
+sai_status_t mlnx_set_offload_bfd_rx_session(_Inout_ mlnx_bfd_session_db_data_t *bfd_db_data,
+                                             _In_ mlnx_shm_rm_array_idx_t        bfd_session_db_index,
+                                             _In_ sx_access_cmd_t                cmd)
 {
     sai_status_t            status;
     sx_status_t             sx_status;
-    bool                    is_rx_created = false;
     sx_bfd_init_params_t    bfd_init_params;
-    mlnx_bfd_packet_t       tx_bfd_packet = {0};
-    sx_bfd_session_params_t tx_params = {0};
     mlnx_bfd_packet_t       rx_bfd_packet = {0};
     sx_bfd_session_params_t rx_params = {0};
 
     assert(bfd_db_data);
-    assert(cmd == SX_ACCESS_CMD_CREATE ||
-           cmd == SX_ACCESS_CMD_EDIT);
+    assert(cmd == SX_ACCESS_CMD_CREATE || cmd == SX_ACCESS_CMD_EDIT);
 
-    status = mlnx_fill_sdk_bfd_params(bfd_db_data,
-                                      *(uint32_t*)&bfd_session_db_index,
-                                      &tx_bfd_packet,
-                                      &tx_params,
-                                      &rx_bfd_packet,
-                                      &rx_params);
+    status = mlnx_fill_sdk_bfd_rx_params(bfd_db_data,
+                                         *(uint32_t*)&bfd_session_db_index,
+                                         &rx_bfd_packet,
+                                         &rx_params);
     if (SAI_ERR(status)) {
-        SX_LOG_ERR("Cannot fill SDK BFD params.\n");
+        SX_LOG_ERR("Cannot fill SDK rx BFD params.\n");
         return status;
     }
 
@@ -326,7 +333,7 @@ static sai_status_t mlnx_set_offload_bfd_session(_Inout_ mlnx_bfd_session_db_dat
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Cannot init BFD module: %s.\n", SX_STATUS_MSG(sx_status));
             status = sdk_to_sai(sx_status);
-            goto out;
+            return status;
         }
         g_sai_db_ptr->is_bfd_module_initialized = true;
     }
@@ -335,24 +342,32 @@ static sai_status_t mlnx_set_offload_bfd_session(_Inout_ mlnx_bfd_session_db_dat
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Error create RX BFD session: %s.\n", SX_STATUS_MSG(sx_status));
         status = sdk_to_sai(sx_status);
-        goto out;
     }
-    is_rx_created = true;
+
+    return status;
+}
+
+sai_status_t mlnx_set_offload_bfd_tx_session(_Inout_ mlnx_bfd_session_db_data_t *bfd_db_data, _In_ sx_access_cmd_t cmd)
+{
+    sai_status_t            status;
+    sx_status_t             sx_status;
+    mlnx_bfd_packet_t       tx_bfd_packet = {0};
+    sx_bfd_session_params_t tx_params = {0};
+
+    assert(bfd_db_data);
+    assert(cmd == SX_ACCESS_CMD_CREATE || cmd == SX_ACCESS_CMD_EDIT);
+
+    status = mlnx_fill_sdk_bfd_tx_params(bfd_db_data, &tx_bfd_packet, &tx_params);
+
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Cannot fill SDK tx BFD params.\n");
+        return status;
+    }
 
     sx_status = sx_api_bfd_offload_set(gh_sdk, cmd, &tx_params, &bfd_db_data->tx_session);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Error create TX BFD session: %s.\n", SX_STATUS_MSG(sx_status));
         status = sdk_to_sai(sx_status);
-        goto out;
-    }
-
-out:
-    if (SAI_ERR(status)) {
-        if (cmd == SX_ACCESS_CMD_CREATE) {
-            if (is_rx_created) {
-                sx_api_bfd_offload_set(gh_sdk, SX_ACCESS_CMD_DESTROY, &rx_params, &bfd_db_data->rx_session);
-            }
-        }
     }
 
     return status;
@@ -696,7 +711,9 @@ static const mlnx_attr_enum_info_t        bfd_session_enum_info[] = {
     [SAI_BFD_SESSION_ATTR_BFD_ENCAPSULATION_TYPE] = ATTR_ENUM_VALUES_LIST(
         SAI_BFD_ENCAPSULATION_TYPE_NONE),
     [SAI_BFD_SESSION_ATTR_OFFLOAD_TYPE] = ATTR_ENUM_VALUES_LIST(
-        SAI_BFD_SESSION_OFFLOAD_TYPE_NONE),
+        SAI_BFD_SESSION_OFFLOAD_TYPE_NONE,
+        SAI_BFD_SESSION_OFFLOAD_TYPE_FULL,
+        SAI_BFD_SESSION_OFFLOAD_TYPE_SUSTENANCE),
 };
 static const sai_stat_capability_t        bfd_session_stats_capabilities[] = {
     { SAI_BFD_SESSION_STAT_IN_PACKETS, SAI_STATS_MODE_READ | SAI_STATS_MODE_READ_AND_CLEAR },
@@ -717,6 +734,7 @@ static sai_status_t mlnx_bfd_session_attr_get(_In_ const sai_object_key_t   *key
     sai_object_id_t              default_vr_id;
     mlnx_bfd_session_db_entry_t *bfd_session_db_entry;
     mlnx_bfd_session_db_data_t   bfd_db_data;
+    sai_bfd_session_state_t      bfd_session_state;
 
     SX_LOG_ENTER();
 
@@ -738,6 +756,7 @@ static sai_status_t mlnx_bfd_session_attr_get(_In_ const sai_object_key_t   *key
     default_vr_id = g_sai_db_ptr->default_vrid;
     bfd_db_data = bfd_session_db_entry->data;
 
+    bfd_session_state = bfd_db_data.bfd_session_state;
     sai_db_unlock();
 
     switch (arg_type) {
@@ -798,7 +817,7 @@ static sai_status_t mlnx_bfd_session_attr_get(_In_ const sai_object_key_t   *key
         break;
 
     case SAI_BFD_SESSION_ATTR_OFFLOAD_TYPE:
-        value->s32 = SAI_BFD_SESSION_OFFLOAD_TYPE_NONE;
+        value->s32 = SAI_BFD_SESSION_OFFLOAD_TYPE_FULL;
         break;
 
     case SAI_BFD_SESSION_ATTR_BFD_ENCAPSULATION_TYPE:
@@ -811,6 +830,10 @@ static sai_status_t mlnx_bfd_session_attr_get(_In_ const sai_object_key_t   *key
 
     case SAI_BFD_SESSION_ATTR_HW_LOOKUP_VALID:
         value->booldata = true;
+        break;
+
+    case SAI_BFD_SESSION_ATTR_STATE:
+        value->s32 = bfd_session_state;
         break;
 
     case SAI_BFD_SESSION_ATTR_PORT:
@@ -834,7 +857,6 @@ static sai_status_t mlnx_bfd_session_attr_get(_In_ const sai_object_key_t   *key
     case SAI_BFD_SESSION_ATTR_REMOTE_MULTIPLIER:
     case SAI_BFD_SESSION_ATTR_REMOTE_MIN_TX:
     case SAI_BFD_SESSION_ATTR_REMOTE_MIN_RX:
-    case SAI_BFD_SESSION_ATTR_STATE:
         SX_LOG_ERR("Unsupported BFD attribute type: %" PRId64 "\n", arg_type);
         SX_LOG_EXIT();
         return SAI_STATUS_ATTR_NOT_SUPPORTED_0 + attr_index;
@@ -925,6 +947,7 @@ static sai_status_t mlnx_bfd_session_attr_set(_In_ const sai_object_key_t      *
             status = SAI_STATUS_ATTR_NOT_SUPPORTED_0;
             goto out;
         }
+        bfd_db_data.is_polling = 1;
         bfd_db_data.min_tx = value->u32;
         break;
 
@@ -934,6 +957,7 @@ static sai_status_t mlnx_bfd_session_attr_set(_In_ const sai_object_key_t      *
             status = SAI_STATUS_ATTR_NOT_SUPPORTED_0;
             goto out;
         }
+        bfd_db_data.is_polling = 1;
         bfd_db_data.min_rx = value->u32;
         break;
 
@@ -979,7 +1003,8 @@ static sai_status_t mlnx_bfd_session_attr_set(_In_ const sai_object_key_t      *
         goto out;
     }
 
-    status = mlnx_set_offload_bfd_session(&bfd_db_data, bfd_session_db_index, SX_ACCESS_CMD_EDIT);
+    /** we can change only tx session**/
+    status = mlnx_set_offload_bfd_tx_session(&bfd_db_data, SX_ACCESS_CMD_EDIT);
     if (SAI_ERR(status)) {
         SX_LOG_ERR("Error edit BFD sessions.\n");
         goto out;
@@ -1019,8 +1044,7 @@ static sai_status_t mlnx_create_bfd_session(_Out_ sai_object_id_t      *bfd_sess
     sai_object_id_t              default_vr_id;
     mlnx_shm_rm_array_idx_t      bfd_session_db_index;
     mlnx_bfd_session_db_entry_t *bfd_session_db_entry = NULL;
-    mlnx_bfd_session_db_data_t   bfd_db_data;
-    bool                         is_db_filled = false;
+    mlnx_bfd_session_db_data_t   bfd_db_data = {0};
 
     SX_LOG_ENTER();
 
@@ -1029,7 +1053,6 @@ static sai_status_t mlnx_create_bfd_session(_Out_ sai_object_id_t      *bfd_sess
         SX_LOG_EXIT();
         return SAI_STATUS_INVALID_PARAMETER;
     }
-
     status = check_attribs_metadata(attr_count,
                                     attr_list,
                                     SAI_OBJECT_TYPE_BFD_SESSION,
@@ -1093,7 +1116,7 @@ static sai_status_t mlnx_create_bfd_session(_Out_ sai_object_id_t      *bfd_sess
 
     find_attrib_in_list(attr_count, attr_list, SAI_BFD_SESSION_ATTR_MIN_TX, &read_attr, &index);
     assert(read_attr);
-    bfd_db_data.min_tx = read_attr->u32;
+    bfd_db_data.remote_min_rx = bfd_db_data.min_tx = read_attr->u32;
     if (bfd_db_data.min_tx < BFD_MIN_SUPPORTED_INTERVAL) {
         SX_LOG_ERR("Minimum supported TX interval is %d.\n", BFD_MIN_SUPPORTED_INTERVAL);
         SX_LOG_EXIT();
@@ -1102,7 +1125,7 @@ static sai_status_t mlnx_create_bfd_session(_Out_ sai_object_id_t      *bfd_sess
 
     find_attrib_in_list(attr_count, attr_list, SAI_BFD_SESSION_ATTR_MIN_RX, &read_attr, &index);
     assert(read_attr);
-    bfd_db_data.min_rx = read_attr->u32;
+    bfd_db_data.remote_min_tx = bfd_db_data.min_rx = read_attr->u32;
     if (bfd_db_data.min_rx < BFD_MIN_SUPPORTED_INTERVAL) {
         SX_LOG_ERR("Minimum supported RX interval is %d.\n", BFD_MIN_SUPPORTED_INTERVAL);
         SX_LOG_EXIT();
@@ -1111,40 +1134,45 @@ static sai_status_t mlnx_create_bfd_session(_Out_ sai_object_id_t      *bfd_sess
 
     find_attrib_in_list(attr_count, attr_list, SAI_BFD_SESSION_ATTR_MULTIPLIER, &read_attr, &index);
     assert(read_attr);
-    bfd_db_data.multiplier = read_attr->u8;
+    bfd_db_data.remote_multiplier = bfd_db_data.multiplier = read_attr->u8;
 
     sai_db_write_lock();
 
     status = mlnx_bfd_session_db_entry_alloc(&bfd_session_db_entry, &bfd_session_db_index);
     if (SAI_ERR(status)) {
         SX_LOG_ERR("Cannot allocate BFD session entry in DB.\n");
-        goto out;
+        sai_db_unlock();
+        SX_LOG_EXIT();
+        return status;
     }
 
-    status = mlnx_set_offload_bfd_session(&bfd_db_data, bfd_session_db_index, SX_ACCESS_CMD_CREATE);
+    SX_LOG_DBG("BFD session entry allocated in DB %p.\n", bfd_session_db_entry);
+
+    status = mlnx_set_offload_bfd_rx_session(&bfd_db_data, bfd_session_db_index, SX_ACCESS_CMD_CREATE);
     if (SAI_ERR(status)) {
         goto out;
     }
 
-    bfd_session_db_entry->data = bfd_db_data;
-    is_db_filled = true;
+    bfd_db_data.bfd_session_state = SAI_BFD_SESSION_STATE_DOWN;
+    status = mlnx_set_offload_bfd_tx_session(&bfd_db_data, SX_ACCESS_CMD_CREATE);
+    if (SAI_ERR(status)) {
+        goto out;
+    }
 
     status = mlnx_bfd_session_oid_create(bfd_session_db_index, bfd_session_id);
     if (SAI_ERR(status)) {
         SX_LOG_ERR("Cannot create BFD session OID.\n");
         goto out;
     }
-
     SX_LOG_NTC("BFD session was created successfully (bfd_session_id=%" PRId64 ")\n", *bfd_session_id);
 
 out:
+
+    bfd_session_db_entry->data = bfd_db_data;
+
     if (SAI_ERR(status)) {
-        if (bfd_session_db_entry) {
-            if (is_db_filled) {
-                mlnx_bfd_session_destroy(bfd_session_db_entry);
-            }
-            mlnx_bfd_session_db_entry_free(bfd_session_db_index);
-        }
+        mlnx_bfd_session_destroy(bfd_session_db_entry);
+        mlnx_bfd_session_db_entry_free(bfd_session_db_index);
     }
 
     sai_db_unlock();
