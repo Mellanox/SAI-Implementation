@@ -267,7 +267,8 @@ static bool trap_counter_cmp(_In_ const void *elem, _In_ const void *trap_id_ptr
     return false;
 }
 
-sai_status_t mlnx_update_hostif_trap_counter(sai_object_id_t trap_id, sai_object_id_t counter_id)
+/*requires sai_db read lock*/
+sai_status_t mlnx_update_hostif_trap_counter_unlocked(sai_object_id_t trap_id, sai_object_id_t counter_id)
 {
     mlnx_shm_rm_array_idx_t       idx;
     mlnx_counter_t               *prev_counter, *new_counter;
@@ -275,7 +276,7 @@ sai_status_t mlnx_update_hostif_trap_counter(sai_object_id_t trap_id, sai_object
     uint32_t                      ii = 0;
     mlnx_object_id_t              mlnx_oid;
     sx_host_ifc_counters_filter_t hostif_trap_filter;
-    sx_host_ifc_counters_t        host_ifc_counters;
+    sx_host_ifc_counters_t       *host_ifc_counters;
     sx_trap_id_t                  trap_ids[MAX_SDK_TRAPS_PER_SAI_TRAP];
     uint8_t                       trap_id_count;
     sx_status_t                   sx_status;
@@ -283,9 +284,6 @@ sai_status_t mlnx_update_hostif_trap_counter(sai_object_id_t trap_id, sai_object
     SX_LOG_ENTER();
 
     memset(&hostif_trap_filter, 0, sizeof(hostif_trap_filter));
-    memset(&host_ifc_counters, 0, sizeof(host_ifc_counters));
-
-    sai_db_write_lock();
 
     status = mlnx_shm_rm_array_find(MLNX_SHM_RM_ARRAY_TYPE_COUNTER,
                                     &trap_counter_cmp,
@@ -307,33 +305,33 @@ sai_status_t mlnx_update_hostif_trap_counter(sai_object_id_t trap_id, sai_object
     if (counter_id == SAI_NULL_OBJECT_ID) {
         SX_LOG_NTC("Counter id - SAI_NULL_OBJECT_ID - unbind the counter\n");
         status = SAI_STATUS_SUCCESS;
-        goto out;
+        return status;
     }
 
     status = sai_to_mlnx_object_id(SAI_OBJECT_TYPE_COUNTER, counter_id, &mlnx_oid);
     if (SAI_ERR(status)) {
         SX_LOG_ERR("Failed to get mlnx object id\n");
-        goto out;
+        return status;
     }
     idx = mlnx_oid.id.counter_db_idx;
 
     status = mlnx_counter_db_idx_to_data(idx, &new_counter);
     if (SAI_ERR(status)) {
         SX_LOG_ERR("Failed to get counter data\n");
-        goto out;
+        return status;
     }
 
     if (new_counter->hostif_trap_ids_cnt == MLNX_COUNTER_MAX_HOSTIF_TRAPS) {
         SX_LOG_ERR("Failed to attach trap: maximum traps per counter reached\n");
         status = SAI_STATUS_FAILURE;
-        goto out;
+        return status;
     }
 
     hostif_trap_filter.counter_type = HOST_IFC_COUNTER_TYPE_TRAP_ID_E;
     status = mlnx_translate_sai_trap_to_sdk(trap_id, &trap_id_count, &trap_ids);
     if (SAI_ERR(status)) {
         SX_LOG_ERR("Failed to translate trap");
-        goto out;
+        return status;
     }
 
     for (ii = 0; ii < trap_id_count; ii++) {
@@ -341,19 +339,43 @@ sai_status_t mlnx_update_hostif_trap_counter(sai_object_id_t trap_id, sai_object
     }
     hostif_trap_filter.u_counter_type.trap_id.trap_id_filter_cnt = trap_id_count;
 
-    host_ifc_counters.trap_id_counters_cnt = trap_id_count;
-    host_ifc_counters.trap_group_counters_cnt = 0;
+    host_ifc_counters = calloc(1, sizeof(*host_ifc_counters));
+    if (!host_ifc_counters) {
+        return SAI_STATUS_FAILURE;
+    }
+
+    host_ifc_counters->trap_id_counters_cnt = trap_id_count;
+    host_ifc_counters->trap_group_counters_cnt = 0;
     sx_status = sx_api_host_ifc_counters_get(gh_sdk,
                                              SX_ACCESS_CMD_READ_CLEAR,
                                              &hostif_trap_filter,
-                                             &host_ifc_counters);
+                                             host_ifc_counters);
+    free(host_ifc_counters);
+
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to get hostif counters\n");
-        status = sdk_to_sai(sx_status);
-        goto out;
+        return sdk_to_sai(sx_status);
     }
 
     new_counter->hostif_trap_ids[new_counter->hostif_trap_ids_cnt++] = trap_id;
+
+    return SAI_STATUS_SUCCESS;
+}
+
+
+sai_status_t mlnx_update_hostif_trap_counter(sai_object_id_t trap_id, sai_object_id_t counter_id)
+{
+    sai_status_t status = SAI_STATUS_SUCCESS;
+
+    SX_LOG_ENTER();
+
+    sai_db_write_lock();
+
+    status = mlnx_update_hostif_trap_counter_unlocked(trap_id, counter_id);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to update hostif trap counter\n");
+        goto out;
+    }
 
 out:
     sai_db_unlock();
@@ -582,6 +604,7 @@ static sai_status_t sum_counter_stats(_In_ uint32_t             number_of_counte
     return SAI_STATUS_SUCCESS;
 }
 
+/*requires sai_db read lock*/
 static sai_status_t get_hostif_counter_stats(_In_ mlnx_counter_t    *counter,
                                              _In_ sx_access_cmd_t    cmd,
                                              sx_host_ifc_counters_t *host_ifc_counters)
@@ -605,7 +628,7 @@ static sai_status_t get_hostif_counter_stats(_In_ mlnx_counter_t    *counter,
     for (ii = 0; ii < counter->hostif_trap_ids_cnt; ii++) {
         status = mlnx_translate_sai_trap_to_sdk(counter->hostif_trap_ids[ii], &trap_id_count, &trap_ids);
         if (SAI_ERR(status)) {
-            SX_LOG_ERR("Failed to translate trap");
+            SX_LOG_ERR("Failed to translate trap\n");
             return status;
         }
 
@@ -629,6 +652,7 @@ static sai_status_t get_hostif_counter_stats(_In_ mlnx_counter_t    *counter,
     return SAI_STATUS_SUCCESS;
 }
 
+/*requires sai_db read lock*/
 static sai_status_t sum_hostif_counter_stats(_In_ mlnx_counter_t      *counter,
                                              _In_ uint32_t             number_of_counters,
                                              _In_ sai_stats_mode_t     mode,

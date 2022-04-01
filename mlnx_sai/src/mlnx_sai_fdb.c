@@ -759,7 +759,7 @@ static sai_status_t mlnx_fdb_port_set(_In_ const sai_object_key_t      *key,
             return status;
         }
 
-        mlnx_fdb_route_action_fetch(SAI_OBJECT_TYPE_FDB_ENTRY, fdb_entry, &new_mac_entry);
+        mlnx_fdb_action_fetch(fdb_entry, &new_mac_entry);
 
         if ((bport->port_type == SAI_BRIDGE_PORT_TYPE_1Q_ROUTER) ||
             (bport->port_type == SAI_BRIDGE_PORT_TYPE_1D_ROUTER)) {
@@ -818,7 +818,7 @@ static sai_status_t mlnx_fdb_action_set(_In_ const sai_object_key_t      *key,
 
     if ((SX_FDB_IS_PORT_REDUNDANT(old_mac_entry.entry_type, old_mac_entry.action)) &&
         ((SAI_PACKET_ACTION_FORWARD == value->s32) || (SAI_PACKET_ACTION_LOG == value->s32))) {
-        status = mlnx_fdb_route_action_save(SAI_OBJECT_TYPE_FDB_ENTRY, fdb_entry, value->s32);
+        status = mlnx_fdb_action_save(fdb_entry, value->s32);
         if (SAI_ERR(status)) {
             return status;
         }
@@ -828,7 +828,7 @@ static sai_status_t mlnx_fdb_action_set(_In_ const sai_object_key_t      *key,
             return status;
         }
 
-        mlnx_fdb_route_action_clear(SAI_OBJECT_TYPE_FDB_ENTRY, fdb_entry);
+        mlnx_fdb_action_clear(fdb_entry);
     }
 
     status = mlnx_del_mac(&old_mac_entry);

@@ -520,6 +520,10 @@ static void SAI_dump_sdk_tunnel_type_enum_to_str(_In_ sx_tunnel_type_e type, _Ou
         strcpy(str, "vxlan gpe");
         break;
 
+    case SX_TUNNEL_TYPE_NVE_VXLAN_IPV6:
+        strcpy(str, "vxlan ipv6");
+        break;
+
     case SX_TUNNEL_TYPE_NVE_GENEVE:
         strcpy(str, "geneve");
         break;

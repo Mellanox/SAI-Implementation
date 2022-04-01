@@ -323,6 +323,10 @@ typedef struct _mlnx_acl_action_ctx_t {
     sx_span_session_id_t sx_span_session;
     bool                 is_policer_action_present;
     uint32_t             set_router_usage;
+    sai_object_id_t      trap_id;
+    bool                 is_trap_set;
+    sai_packet_action_t  packet_action;
+    bool                 is_packet_action_set;
 } mlnx_acl_action_ctx_t;
 typedef sai_status_t (*mlnx_acl_action_to_sx_fn)(_In_ sai_acl_entry_attr_t action,
                                                  _In_ const sai_acl_action_data_t *action_data,
@@ -1853,11 +1857,25 @@ static sai_status_t mlnx_acl_entry_action_isolation_group_get(_In_ const sai_obj
 static sai_status_t mlnx_acl_entry_action_isolation_group_set(_In_ const sai_object_key_t      *key,
                                                               _In_ const sai_attribute_value_t *value,
                                                               void                             *arg);
+static sai_status_t mlnx_acl_entry_action_trap_get(_In_ const sai_object_key_t   *key,
+                                                   _Inout_ sai_attribute_value_t *value,
+                                                   _In_ uint32_t                  attr_index,
+                                                   _Inout_ vendor_cache_t        *cache,
+                                                   void                          *arg);
+static sai_status_t mlnx_acl_entry_action_trap_set(_In_ const sai_object_key_t      *key,
+                                                   _In_ const sai_attribute_value_t *value,
+                                                   void                             *arg);
 extern sai_status_t mlnx_fine_grained_hash_create(_In_ sai_object_id_t                hash_id,
                                                   _In_ sx_flex_acl_action_hash_type_t action_type,
                                                   _Inout_ sx_flex_acl_flex_action_t  *action_list,
                                                   _Inout_ uint32_t                   *action_num);
 extern sai_status_t gp_registers_delete(_Inout_ mlnx_sai_fg_hash_field_t *fields_list);
+
+static sai_status_t mlnx_convert_acl_action_to_sai(bool                         is_forward_action_present,
+                                                   sx_flex_acl_forward_action_t forward_action,
+                                                   bool                         is_trap_action_present,
+                                                   sx_flex_acl_trap_action_t    trap_action,
+                                                   sai_packet_action_t         *packet_action);
 
 static mlnx_acl_action_info_t mlnx_acl_action_info[] = {
     [SAI_ACL_ENTRY_ATTR_ACTION_EGRESS_BLOCK_PORT_LIST] =
@@ -1871,6 +1889,8 @@ static mlnx_acl_action_info_t mlnx_acl_action_info[] = {
                                                      mlnx_acl_action_redirect_to_sai),
     [SAI_ACL_ENTRY_ATTR_ACTION_PACKET_ACTION] =
         MLNX_ACL_ACTION_INFO_DEFINE_WITH_FNS(mlnx_acl_action_pkt_act_to_sx, mlnx_acl_action_pkt_act_to_sai),
+    [SAI_ACL_ENTRY_ATTR_ACTION_SET_USER_TRAP_ID] =
+        MLNX_ACL_ACTION_INFO_DEFINE_WITH_FNS(mlnx_acl_action_pkt_act_to_sx, NULL),
     [SAI_ACL_ENTRY_ATTR_ACTION_FLOOD] =
         MLNX_ACL_ACTION_INFO_DEFINE_INGRESS_WITH_FNS(mlnx_acl_action_flood_to_sx, mlnx_acl_action_flood_to_sai),
     [SAI_ACL_ENTRY_ATTR_ACTION_COUNTER] =
@@ -2837,10 +2857,10 @@ static const sai_vendor_attribute_entry_t acl_entry_vendor_attribs[] = {
       mlnx_acl_entry_action_isolation_group_get, NULL,
       mlnx_acl_entry_action_isolation_group_set, NULL },
     { SAI_ACL_ENTRY_ATTR_ACTION_SET_USER_TRAP_ID,
-      { false, false, false, false},
       { true, false, true, true},
-      NULL, NULL,
-      NULL, NULL },
+      { true, false, true, true},
+      mlnx_acl_entry_action_trap_get, NULL,
+      mlnx_acl_entry_action_trap_set, NULL },
     { SAI_ACL_ENTRY_ATTR_ACTION_SET_VRF,
       { true, false, true, true},
       { true, false, true, true},
@@ -4322,14 +4342,6 @@ static sai_status_t mlnx_acl_field_info_data_fetch(_In_ sai_attr_id_t           
 {
     const mlnx_acl_single_key_field_info_t *single_key_field;
     const mlnx_acl_multi_key_field_info_t  *multi_key_field;
-
-#ifdef IS_SIMX
-    if (SAI_ACL_ENTRY_ATTR_FIELD_INNER_DST_IPV6 == attr_id) {
-        SX_LOG_ERR("This field is not supported on Simx.\n");
-        return SAI_STATUS_NOT_SUPPORTED;
-    }
-#endif
-
 
     assert((sx_keys && sx_key_count) || (fields_types));
 
@@ -8371,18 +8383,29 @@ out:
     return status;
 }
 
+/* Different packet action will be set depending on the action and whether trap id bound to the acl
+ * If new action is TRAP, COPY or LOG , but current action is different action will be changed to an action that does
+ * not require trap id
+ * current action not TRAP, COPY or LOG new action TRAP - result action DROP
+ * current action not TRAP, COPY or LOG new action LOG - result action FORWARD
+ * current action not TRAP, COPY or LOG new action COPY - result action no action
+ */
 static sai_status_t mlnx_acl_entry_packet_action_set(_In_ const sai_object_key_t      *key,
                                                      _In_ const sai_attribute_value_t *value,
                                                      void                             *arg)
 {
     sai_status_t                   status;
     sx_flex_acl_flex_rule_t        flex_acl_rule = MLNX_ACL_SX_FLEX_RULE_EMPTY;
-    sai_packet_action_t            packet_action_type;
+    sai_packet_action_t            current_action, action_to_configure;
     sx_flex_acl_flex_action_type_t action_type;
     uint32_t                       flex_action_index;
     uint8_t                        trap_action_index = 0, forward_action_index = 0;
     bool                           is_trap_action_present = false, is_forward_action_present = false;
     uint32_t                       acl_table_index, acl_entry_index;
+    sai_object_id_t                current_trap = SAI_NULL_OBJECT_ID;
+    sx_trap_id_t                   sx_trap = SX_TRAP_ID_ACL_MIN;
+    const char                   * trap_name;
+    bool                           is_current_action_present, is_action_to_configure_present, is_trap_id_present;
 
     SX_LOG_ENTER();
 
@@ -8393,6 +8416,7 @@ static sai_status_t mlnx_acl_entry_packet_action_set(_In_ const sai_object_key_t
     }
 
     acl_table_write_lock(acl_table_index);
+    sai_db_write_lock();
 
     status = mlnx_acl_entry_sx_acl_rule_get(acl_table_index, acl_entry_index, &flex_acl_rule);
     if (SAI_ERR(status)) {
@@ -8416,7 +8440,55 @@ static sai_status_t mlnx_acl_entry_packet_action_set(_In_ const sai_object_key_t
         }
     }
 
-    packet_action_type = value->aclaction.parameter.s32;
+    is_trap_id_present = is_trap_action_present &&
+                         (flex_acl_rule.action_list_p[trap_action_index].fields.action_trap.action ==
+                          SX_ACL_TRAP_ACTION_TYPE_TRAP);
+
+    is_current_action_present = is_forward_action_present || is_trap_action_present;
+
+    if (is_current_action_present) {
+        status = mlnx_convert_acl_action_to_sai(is_forward_action_present,
+                                                flex_acl_rule.action_list_p[forward_action_index].fields.action_forward.action,
+                                                is_trap_action_present,
+                                                flex_acl_rule.action_list_p[trap_action_index].fields.action_trap.action,
+                                                &current_action);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to convert acl SX action to SAI packet action\n");
+            goto out;
+        }
+    }
+
+    is_action_to_configure_present = value->aclaction.enable;
+
+    if (is_action_to_configure_present) {
+        action_to_configure = value->aclaction.parameter.s32;
+
+        if ((!is_trap_id_present) && is_action_trap(action_to_configure)) {
+            status = mlnx_translate_action_to_no_trap(action_to_configure, &action_to_configure,
+                                                      &is_action_to_configure_present);
+            if (SAI_ERR(status)) {
+                SX_LOG_ERR("Failed to convert action to non-trap action\n");
+                goto out;
+            }
+        }
+    }
+
+    if ((!is_current_action_present) && (!is_action_to_configure_present)) {
+        goto out;
+    }
+
+    if ((is_current_action_present && is_action_to_configure_present) && (current_action == action_to_configure)) {
+        goto out;
+    }
+
+    if (is_trap_id_present) {
+        sx_trap = flex_acl_rule.action_list_p[trap_action_index].fields.action_trap.trap_id;
+        status = mlnx_translate_sdk_trap_to_sai(sx_trap, &trap_name, &current_trap);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to get trap id\n");
+            goto out;
+        }
+    }
 
     if (is_forward_action_present) {
         mlnx_acl_flex_rule_action_del(&flex_acl_rule, forward_action_index);
@@ -8426,10 +8498,10 @@ static sai_status_t mlnx_acl_entry_packet_action_set(_In_ const sai_object_key_t
         mlnx_acl_flex_rule_action_del(&flex_acl_rule, trap_action_index);
     }
 
-    flex_action_index = flex_acl_rule.action_count;
+    if (is_action_to_configure_present) {
+        flex_action_index = flex_acl_rule.action_count;
 
-    if (value->aclaction.enable == true) {
-        status = mlnx_acl_packet_actions_handler(packet_action_type, SX_TRAP_ID_ACL_MIN, flex_acl_rule.action_list_p,
+        status = mlnx_acl_packet_actions_handler(action_to_configure, sx_trap, flex_acl_rule.action_list_p,
                                                  &flex_action_index);
         if (SAI_ERR(status)) {
             goto out;
@@ -8443,7 +8515,16 @@ static sai_status_t mlnx_acl_entry_packet_action_set(_In_ const sai_object_key_t
         goto out;
     }
 
+    if (is_trap_id_present && ((!is_action_to_configure_present) || (!is_action_trap(action_to_configure)))) {
+        status = mlnx_trap_refcount_decrease(current_trap);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to decrease trap refcount\n");
+            goto out;
+        }
+    }
+
 out:
+    sai_db_unlock();
     acl_table_unlock(acl_table_index);
 
     mlnx_acl_flex_rule_free(&flex_acl_rule);
@@ -10281,6 +10362,248 @@ out:
     sai_db_unlock();
     return status;
 }
+/*
+ * Configured packet action may change when trap id set in following ways
+ * 1) Trap id is SAI_NULL_OBJECT_ID or action disabled
+ *   a) Current action COPY - result action no action
+ *   b) Current action LOG - result action FORWARD
+ *   c) Current action TRAP - result action DROP
+ * 2) Trap is is not SAI_NULL_OBJECT_ID
+ *   a) no current action or action is COPY_CANCEL - result action COPY
+ *   b) current action DROP or DENY- result action TRAP
+ *   c) current action FORWARD or TRANSIT - result action LOG
+ */
+static sai_status_t mlnx_acl_entry_action_trap_set(_In_ const sai_object_key_t      *key,
+                                                   _In_ const sai_attribute_value_t *value,
+                                                   void                             *arg)
+{
+    sai_status_t        status;
+    sai_packet_action_t current_action, action_to_configure;
+    uint8_t             trap_action_index = 0, forward_action_index = 0;
+    bool                is_trap_action_present = false, is_forward_action_present = false;
+    sx_trap_id_t        sdk_trap;
+    sai_object_id_t     user_trap =
+        value->aclaction.enable ? value->aclaction.parameter.oid : SAI_NULL_OBJECT_ID;
+    uint32_t                       acl_table_index, acl_entry_index;
+    sx_flex_acl_flex_rule_t        flex_acl_rule = MLNX_ACL_SX_FLEX_RULE_EMPTY;
+    uint32_t                       flex_action_index;
+    sx_flex_acl_flex_action_type_t action_type;
+    sai_object_id_t                current_trap = SAI_NULL_OBJECT_ID;
+    const char                    *trap_name;
+    bool                           is_current_action_present, is_action_to_configure_present = true,
+                                   is_trap_id_present;
+
+    SX_LOG_ENTER();
+
+    status = extract_acl_table_index_and_entry_index(key->key.object_id, &acl_table_index, &acl_entry_index);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to get acl entry 0x%" PRIx64 " table and entry index\n", key->key.object_id);
+        return status;
+    }
+
+    acl_table_write_lock(acl_table_index);
+    sai_db_write_lock();
+
+    if (user_trap != SAI_NULL_OBJECT_ID) {
+        if (!mlnx_is_hostif_user_defined_trap_valid_for_set(SAI_OBJECT_TYPE_ACL_ENTRY, user_trap)) {
+            SX_LOG_ERR("Invalid trap 0x%" PRIx64 "\n", user_trap);
+            status = SAI_STATUS_INVALID_PARAMETER;
+            goto out;
+        }
+    }
+
+    status = mlnx_acl_entry_sx_acl_rule_get(acl_table_index, acl_entry_index, &flex_acl_rule);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to get acl entry sx rule. Table index - %d, entry index - %d.\n", acl_table_index,
+                   acl_entry_index);
+        goto out;
+    }
+
+    for (flex_action_index = 0; flex_action_index < flex_acl_rule.action_count; flex_action_index++) {
+        action_type = flex_acl_rule.action_list_p[flex_action_index].type;
+        if (action_type == SX_FLEX_ACL_ACTION_TRAP) {
+            is_trap_action_present = true;
+            trap_action_index = flex_action_index;
+        }
+
+        if (action_type == SX_FLEX_ACL_ACTION_FORWARD) {
+            is_forward_action_present = true;
+            forward_action_index = flex_action_index;
+        }
+
+        if (is_forward_action_present && is_trap_action_present) {
+            break;
+        }
+    }
+
+    is_trap_id_present = is_trap_action_present &&
+                         (flex_acl_rule.action_list_p[trap_action_index].fields.action_trap.action ==
+                          SX_ACL_TRAP_ACTION_TYPE_TRAP);
+
+    is_current_action_present = is_forward_action_present || is_trap_action_present;
+    is_action_to_configure_present = is_current_action_present;
+
+    if (is_current_action_present) {
+        status = mlnx_convert_acl_action_to_sai(is_forward_action_present,
+                                                flex_acl_rule.action_list_p[forward_action_index].fields.action_forward.action,
+                                                is_trap_action_present,
+                                                flex_acl_rule.action_list_p[trap_action_index].fields.action_trap.action,
+                                                &current_action);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to convert acl SX action to SAI packet action\n");
+            goto out;
+        }
+
+        if (is_trap_id_present) {
+            status = mlnx_translate_sdk_trap_to_sai(
+                flex_acl_rule.action_list_p[trap_action_index].fields.action_trap.trap_id,
+                &trap_name, &current_trap);
+            if (SAI_ERR(status)) {
+                SX_LOG_ERR("Failed to get trap id by sx_trap %d\n",
+                           flex_acl_rule.action_list_p[trap_action_index].fields.action_trap.trap_id);
+                goto out;
+            }
+        }
+
+        action_to_configure = current_action;
+    }
+
+    if (current_trap == user_trap) {
+        goto out;
+    }
+
+    if (user_trap != SAI_NULL_OBJECT_ID) {
+        status = mlnx_get_user_defined_trap_acl_sx_trap_id(user_trap, &sdk_trap);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to get sx trap id for trap 0x%" PRIx64 "\n", user_trap);
+            goto out;
+        }
+
+        if (!is_trap_id_present) {
+            status = mlnx_translate_action_to_trap(is_current_action_present, current_action, &action_to_configure);
+            if (SAI_ERR(status)) {
+                SX_LOG_ERR("Failed to translate current action to trap action\n");
+                goto out;
+            }
+        }
+
+        is_action_to_configure_present = true;
+    } else if (is_trap_id_present) {
+        status = mlnx_translate_action_to_no_trap(current_action, &action_to_configure,
+                                                  &is_action_to_configure_present);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to translate current action %d to non-trap action\n", current_action);
+            goto out;
+        }
+    }
+
+    if (is_forward_action_present) {
+        mlnx_acl_flex_rule_action_del(&flex_acl_rule, forward_action_index);
+    }
+
+    if (is_trap_action_present) {
+        mlnx_acl_flex_rule_action_del(&flex_acl_rule, trap_action_index);
+    }
+
+    if (is_action_to_configure_present) {
+        flex_action_index = flex_acl_rule.action_count;
+
+        status = mlnx_acl_packet_actions_handler(action_to_configure, sdk_trap, flex_acl_rule.action_list_p,
+                                                 &flex_action_index);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to change acl entry action to %d\n", action_to_configure);
+            goto out;
+        }
+        flex_acl_rule.action_count = flex_action_index;
+    }
+
+    status = mlnx_acl_entry_sx_acl_rule_set(acl_table_index, acl_entry_index, &flex_acl_rule);
+    if (SAI_ERR(status)) {
+        goto out;
+    }
+
+    if (current_trap != SAI_NULL_OBJECT_ID) {
+        status = mlnx_trap_refcount_decrease(current_trap);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to decrease previous trap 0x%" PRIx64 " refcount\n", current_trap);
+            goto out;
+        }
+    }
+
+    if (user_trap != SAI_NULL_OBJECT_ID) {
+        status = mlnx_trap_refcount_increase(user_trap);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to increase new trap 0x%" PRIx64 " refcount\n", user_trap);
+            goto out;
+        }
+    }
+
+out:
+    sai_db_unlock();
+    acl_table_unlock(acl_table_index);
+    mlnx_acl_flex_rule_free(&flex_acl_rule);
+
+    SX_LOG_EXIT();
+    return status;
+}
+
+static sai_status_t mlnx_acl_entry_action_trap_get(_In_ const sai_object_key_t   *key,
+                                                   _Inout_ sai_attribute_value_t *value,
+                                                   _In_ uint32_t                  attr_index,
+                                                   _Inout_ vendor_cache_t        *cache,
+                                                   void                          *arg)
+{
+    sai_status_t                   status;
+    sx_flex_acl_flex_rule_t        flex_acl_rule = MLNX_ACL_SX_FLEX_RULE_EMPTY;
+    bool                           is_action_type_present = false;
+    sx_flex_acl_flex_action_type_t sx_action;
+    const char                    *trap_name;
+    uint32_t                       acl_table_index, acl_entry_index, action_idx;
+
+    SX_LOG_ENTER();
+
+    status = extract_acl_table_index_and_entry_index(key->key.object_id, &acl_table_index, &acl_entry_index);
+    if (SAI_STATUS_SUCCESS != status) {
+        SX_LOG_ERR("Failed to get acl entry 0x%" PRIx64 " table and entry index\n", key->key.object_id);
+        return status;
+    }
+
+    acl_table_write_lock(acl_table_index);
+    sai_db_read_lock();
+
+    status = mlnx_acl_entry_sx_acl_rule_get(acl_table_index, acl_entry_index, &flex_acl_rule);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to get acl entry sx rule. Table index - %d, entry index - %d.\n", acl_table_index,
+                   acl_entry_index);
+        goto out;
+    }
+
+    sx_action = SX_FLEX_ACL_ACTION_TRAP;
+
+    mlnx_acl_flex_rule_action_find(&flex_acl_rule, sx_action, &action_idx, &is_action_type_present);
+
+    if (is_action_type_present &&
+        (flex_acl_rule.action_list_p[action_idx].fields.action_trap.action == SX_ACL_TRAP_ACTION_TYPE_TRAP)) {
+        status = mlnx_translate_sdk_trap_to_sai(flex_acl_rule.action_list_p[action_idx].fields.action_trap.trap_id,
+                                                &trap_name, &value->aclaction.parameter.oid);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to get trap id by sx trap %d\n",
+                       flex_acl_rule.action_list_p[action_idx].fields.action_trap.trap_id);
+            goto out;
+        }
+        value->aclaction.enable = true;
+    } else {
+        value->aclaction.enable = false;
+    }
+
+out:
+    sai_db_unlock();
+    acl_table_unlock(acl_table_index);
+    mlnx_acl_flex_rule_free(&flex_acl_rule);
+
+    SX_LOG_EXIT();
+    return status;
+}
 
 static sai_status_t mlnx_acl_action_eg_block_to_sx(_In_ sai_acl_entry_attr_t         action,
                                                    _In_ const sai_acl_action_data_t *action_data,
@@ -11376,19 +11699,89 @@ static sai_status_t mlnx_acl_action_pkt_act_to_sx(_In_ sai_acl_entry_attr_t     
                                                   _Out_ sx_flex_acl_flex_action_t  *sx_action_list,
                                                   _Inout_ uint32_t                 *sx_action_count)
 {
-    sai_status_t        status;
-    sai_packet_action_t pkt_action;
+    sai_status_t status;
+    sx_trap_id_t sx_trap = SX_TRAP_ID_ACL_MIN;
 
     assert(action_data);
     assert(ctx);
     assert(sx_action_list);
     assert(sx_action_count);
 
-    pkt_action = action_data->parameter.s32;
+    if (action == SAI_ACL_ENTRY_ATTR_ACTION_SET_USER_TRAP_ID) {
+        ctx->trap_id = action_data->parameter.oid;
+        ctx->is_trap_set = true;
+    } else if (action == SAI_ACL_ENTRY_ATTR_ACTION_PACKET_ACTION) {
+        ctx->packet_action = action_data->parameter.s32;
+        ctx->is_packet_action_set = true;
+    }
 
-    status = mlnx_acl_packet_actions_handler(pkt_action, SX_TRAP_ID_ACL_MIN, sx_action_list, sx_action_count);
-    if (SAI_ERR(status)) {
-        return status;
+    if (ctx->is_packet_action_set && (ctx->is_trap_set || (!is_action_trap(ctx->packet_action)))) {
+        if (ctx->is_trap_set) {
+            status = mlnx_get_user_defined_trap_acl_sx_trap_id(ctx->trap_id, &sx_trap);
+            if (SAI_ERR(status)) {
+                SX_LOG_ERR("Failed to get sx trap id\n");
+                return status;
+            }
+
+            status = mlnx_trap_refcount_increase(ctx->trap_id);
+            if (SAI_ERR(status)) {
+                SX_LOG_ERR("Failed to increase trap refcount\n");
+                return status;
+            }
+        }
+
+        status = mlnx_acl_packet_actions_handler(ctx->packet_action, sx_trap, sx_action_list, sx_action_count);
+        if (SAI_ERR(status)) {
+            return status;
+        }
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_convert_acl_action_to_sai(bool                         is_forward_action_present,
+                                                   sx_flex_acl_forward_action_t forward_action,
+                                                   bool                         is_trap_action_present,
+                                                   sx_flex_acl_trap_action_t    trap_action,
+                                                   sai_packet_action_t         *packet_action)
+{
+    assert(packet_action);
+
+    SX_LOG_ENTER();
+
+    if ((!is_trap_action_present) && (!is_forward_action_present)) {
+        SX_LOG_ERR("No action configured\n");
+        return SAI_STATUS_INVALID_PARAMETER;
+    }
+
+    if (is_forward_action_present && !is_trap_action_present) {
+        if (forward_action == SX_ACL_TRAP_FORWARD_ACTION_TYPE_DISCARD) {
+            *packet_action = SAI_PACKET_ACTION_DROP;
+        } else if (forward_action == SX_ACL_TRAP_FORWARD_ACTION_TYPE_FORWARD) {
+            *packet_action = SAI_PACKET_ACTION_FORWARD;
+        }
+    } else if (!is_forward_action_present && is_trap_action_present) {
+        if (trap_action == SX_ACL_TRAP_ACTION_TYPE_TRAP) {
+            *packet_action = SAI_PACKET_ACTION_COPY;
+        } else if (trap_action == SX_ACL_TRAP_ACTION_TYPE_DISCARD) {
+            *packet_action = SAI_PACKET_ACTION_COPY_CANCEL;
+        }
+    }
+    /* if trap action and forward action both are present */
+    else {
+        if ((trap_action == SX_ACL_TRAP_ACTION_TYPE_TRAP) &&
+            (forward_action == SX_ACL_TRAP_FORWARD_ACTION_TYPE_FORWARD)) {
+            *packet_action = SAI_PACKET_ACTION_LOG;
+        } else if ((trap_action == SX_ACL_TRAP_ACTION_TYPE_TRAP) &&
+                   (forward_action == SX_ACL_TRAP_FORWARD_ACTION_TYPE_DISCARD)) {
+            *packet_action = SAI_PACKET_ACTION_TRAP;
+        } else if ((trap_action == SX_ACL_TRAP_ACTION_TYPE_DISCARD) &&
+                   (forward_action == SX_ACL_TRAP_FORWARD_ACTION_TYPE_DISCARD)) {
+            *packet_action = SAI_PACKET_ACTION_DENY;
+        } else if ((trap_action == SX_ACL_TRAP_ACTION_TYPE_DISCARD) &&
+                   (forward_action == SX_ACL_TRAP_FORWARD_ACTION_TYPE_FORWARD)) {
+            *packet_action = SAI_PACKET_ACTION_TRANSIT;
+        }
     }
 
     return SAI_STATUS_SUCCESS;
@@ -11402,60 +11795,39 @@ static sai_status_t mlnx_acl_action_pkt_act_to_sai(_In_ sai_acl_entry_attr_t    
                                                    _Out_ sai_acl_action_data_t        *action_data)
 {
     sai_packet_action_t          packet_action = -1;
-    sx_flex_acl_forward_action_t forward_action;
-    sx_flex_acl_trap_action_t    trap_action;
+    sx_flex_acl_forward_action_t forward_action = SX_ACL_TRAP_FORWARD_ACTION_TYPE_FORWARD;
+    sx_flex_acl_trap_action_t    trap_action = SX_ACL_TRAP_ACTION_TYPE_TRAP;
     uint32_t                     forward_action_index, trap_action_index;
     bool                         is_trap_action_present = false;
     bool                         is_forward_action_present = false;
+    sai_status_t                 status;
 
     assert(sx_rule);
     assert(entry);
     assert(action_data);
 
     mlnx_acl_flex_rule_action_find(sx_rule, SX_FLEX_ACL_ACTION_TRAP, &trap_action_index, &is_trap_action_present);
-    mlnx_acl_flex_rule_action_find(sx_rule,
-                                   SX_FLEX_ACL_ACTION_FORWARD,
-                                   &forward_action_index,
+    mlnx_acl_flex_rule_action_find(sx_rule, SX_FLEX_ACL_ACTION_FORWARD, &forward_action_index,
                                    &is_forward_action_present);
 
-    if (!is_trap_action_present && !is_forward_action_present) {
+    if ((!is_trap_action_present) && (!is_forward_action_present)) {
         action_data->enable = false;
         return SAI_STATUS_SUCCESS;
     }
 
-    if (is_forward_action_present && !is_trap_action_present) {
+    if (is_forward_action_present) {
         forward_action = sx_rule->action_list_p[forward_action_index].fields.action_forward.action;
-        if (forward_action == SX_ACL_TRAP_FORWARD_ACTION_TYPE_DISCARD) {
-            packet_action = SAI_PACKET_ACTION_DROP;
-        } else if (forward_action == SX_ACL_TRAP_FORWARD_ACTION_TYPE_FORWARD) {
-            packet_action = SAI_PACKET_ACTION_FORWARD;
-        }
-    } else if (!is_forward_action_present && is_trap_action_present) {
-        trap_action = sx_rule->action_list_p[trap_action_index].fields.action_trap.action;
-        if (trap_action == SX_ACL_TRAP_ACTION_TYPE_TRAP) {
-            packet_action = SAI_PACKET_ACTION_COPY;
-        } else if (trap_action == SX_ACL_TRAP_ACTION_TYPE_DISCARD) {
-            packet_action = SAI_PACKET_ACTION_COPY_CANCEL;
-        }
     }
-    /* if trap action and forward action both are present */
-    else {
-        trap_action = sx_rule->action_list_p[trap_action_index].fields.action_trap.action;
-        forward_action = sx_rule->action_list_p[forward_action_index].fields.action_forward.action;
 
-        if ((trap_action == SX_ACL_TRAP_ACTION_TYPE_TRAP) &&
-            (forward_action == SX_ACL_TRAP_FORWARD_ACTION_TYPE_FORWARD)) {
-            packet_action = SAI_PACKET_ACTION_LOG;
-        } else if ((trap_action == SX_ACL_TRAP_ACTION_TYPE_TRAP) &&
-                   (forward_action == SX_ACL_TRAP_FORWARD_ACTION_TYPE_DISCARD)) {
-            packet_action = SAI_PACKET_ACTION_TRAP;
-        } else if ((trap_action == SX_ACL_TRAP_ACTION_TYPE_DISCARD) &&
-                   (forward_action == SX_ACL_TRAP_FORWARD_ACTION_TYPE_DISCARD)) {
-            packet_action = SAI_PACKET_ACTION_DENY;
-        } else if ((trap_action == SX_ACL_TRAP_ACTION_TYPE_DISCARD) &&
-                   (forward_action == SX_ACL_TRAP_FORWARD_ACTION_TYPE_FORWARD)) {
-            packet_action = SAI_PACKET_ACTION_TRANSIT;
-        }
+    if (is_trap_action_present) {
+        trap_action = sx_rule->action_list_p[trap_action_index].fields.action_trap.action;
+    }
+
+    status = mlnx_convert_acl_action_to_sai(is_forward_action_present, forward_action, is_trap_action_present,
+                                            trap_action, &packet_action);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to convert acl SX action to SAI packet action\n");
+        return status;
     }
 
     action_data->enable = true;
@@ -12584,7 +12956,7 @@ sai_status_t mlnx_create_acl_entry(_Out_ sai_object_id_t     * acl_entry_id,
                                    _In_ uint32_t               attr_count,
                                    _In_ const sai_attribute_t *attr_list)
 {
-    sai_status_t                 status;
+    sai_status_t                 status, trap_status, packet_action_status;
     sx_flex_acl_flex_rule_t      flex_acl_rule = MLNX_ACL_SX_FLEX_RULE_EMPTY;
     sx_acl_rule_offset_t         sx_acl_rule_offset;
     sx_ip_addr_t                 ipaddr_data, ipaddr_mask;
@@ -12600,12 +12972,17 @@ sai_status_t mlnx_create_acl_entry(_Out_ sai_object_id_t     * acl_entry_id,
     const sai_attribute_value_t *in_port, *in_ports, *out_port, *out_ports, *ip_ident, *hash_id;
     const sai_attribute_value_t *admin_state;
     const sai_attribute_value_t *isolation_group = NULL;
+    const sai_attribute_value_t *trap_attr;
+    const sai_attribute_value_t *packet_action_attr;
+    sai_object_id_t              trap = SAI_NULL_OBJECT_ID;
+    uint32_t                     packet_action;
     mlnx_acl_port_db_refs_t      ports_refs;
     uint32_t                     table_id_index, priority_index;
     uint32_t                     in_port_index, admin_state_index, in_ports_index, ip_ident_index, hash_id_index;
     uint32_t                     out_port_index, out_ports_index;
     uint32_t                     in_port_data, out_port_data;
     uint32_t                     isolation_group_idx;
+    uint32_t                     trap_index, packet_action_index;
     uint32_t                     acl_table_index, acl_entry_index = ACL_INVALID_DB_INDEX;
     uint32_t                     key_desc_index = 0, sx_action_count = 0;
     char                         list_str[MAX_LIST_VALUE_STR_LEN];
@@ -12651,7 +13028,33 @@ sai_status_t mlnx_create_acl_entry(_Out_ sai_object_id_t     * acl_entry_id,
         return status;
     }
 
-    sai_db_read_lock();
+    packet_action_status = find_attrib_in_list(attr_count,
+                                               attr_list,
+                                               SAI_ACL_ENTRY_ATTR_ACTION_PACKET_ACTION,
+                                               &packet_action_attr,
+                                               &packet_action_index);
+    if (SAI_OK(packet_action_status)) {
+        packet_action = packet_action_attr->aclaction.parameter.s32;
+    }
+
+    trap_status = find_attrib_in_list(attr_count, attr_list, SAI_ACL_ENTRY_ATTR_ACTION_SET_USER_TRAP_ID, &trap_attr,
+                                      &trap_index);
+    if (SAI_OK(trap_status)) {
+        trap = trap_attr->aclaction.parameter.oid;
+    }
+
+    if (SAI_OK(packet_action_status) && packet_action_attr->aclaction.enable && is_action_trap(packet_action)) {
+        if (SAI_ERR(trap_status) || (!trap_attr->aclaction.enable) || (trap == SAI_NULL_OBJECT_ID)) {
+            SX_LOG_ERR("Trap packet action requires user trap\n");
+            return SAI_STATUS_MANDATORY_ATTRIBUTE_MISSING;
+        }
+    } else if (SAI_OK(trap_status) && trap_attr->aclaction.enable &&
+               (trap != SAI_NULL_OBJECT_ID)) {
+        SX_LOG_ERR("Invalid attribute user trap for non-trap packet action\n");
+        return SAI_STATUS_INVALID_ATTRIBUTE_0 + trap_index;
+    }
+
+    sai_db_write_lock();
     acl_table_write_lock(acl_table_index);
     acl_global_lock();
 
@@ -14595,6 +14998,50 @@ static sai_status_t mlnx_acl_sx_rule_mc_containers_remove(_In_ sx_flex_acl_flex_
     return SAI_STATUS_SUCCESS;
 }
 
+static sai_status_t mlnx_remove_acl_trap(uint32_t acl_entry_index, uint32_t acl_table_index)
+{
+    sai_status_t                   status;
+    sai_object_id_t                trap_id = SAI_NULL_OBJECT_ID;
+    sx_flex_acl_flex_rule_t        flex_acl_rule = MLNX_ACL_SX_FLEX_RULE_EMPTY;
+    sx_flex_acl_flex_action_type_t sx_action;
+    uint32_t                       action_idx;
+    bool                           is_action_type_present;
+    const char                   * trap_name;
+
+    SX_LOG_ENTER();
+
+
+    status = mlnx_acl_entry_sx_acl_rule_get(acl_table_index, acl_entry_index, &flex_acl_rule);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to get sx ACL entry rule\n");
+        return status;
+    }
+
+    sx_action = SX_FLEX_ACL_ACTION_TRAP;
+    mlnx_acl_flex_rule_action_find(&flex_acl_rule, sx_action, &action_idx, &is_action_type_present);
+
+    if (is_action_type_present &&
+        (flex_acl_rule.action_list_p[action_idx].fields.action_trap.action == SX_ACL_TRAP_ACTION_TYPE_TRAP)) {
+        status = mlnx_translate_sdk_trap_to_sai(flex_acl_rule.action_list_p[action_idx].fields.action_trap.trap_id,
+                                                &trap_name, &trap_id);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to get sdk trap id\n");
+            goto out;
+        }
+
+        status = mlnx_trap_refcount_decrease(trap_id);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to decrease trap refcount\n");
+            goto out;
+        }
+    }
+
+out:
+    mlnx_acl_flex_rule_free(&flex_acl_rule);
+    SX_LOG_EXIT();
+    return status;
+}
+
 static sai_status_t mlnx_delete_acl_entry_data(_In_ uint32_t table_index, _In_ uint32_t entry_index)
 {
     sai_status_t              status = SAI_STATUS_SUCCESS;
@@ -14616,6 +15063,11 @@ static sai_status_t mlnx_delete_acl_entry_data(_In_ uint32_t table_index, _In_ u
     sx_direction = mlnx_acl_table_sx_direction_get(&acl_db_table(table_index));
 
     status = mlnx_acl_entry_sx_acl_rule_get(table_index, entry_index, &sx_flex_rule);
+    if (SAI_ERR(status)) {
+        goto out;
+    }
+
+    status = mlnx_remove_acl_trap(entry_index, table_index);
     if (SAI_ERR(status)) {
         goto out;
     }

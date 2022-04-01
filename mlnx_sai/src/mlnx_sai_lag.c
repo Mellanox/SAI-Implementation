@@ -608,7 +608,7 @@ static sai_status_t validate_port(mlnx_port_config_t *lag, mlnx_port_config_t *p
     }
 
     if (port->is_span_analyzer_port) {
-        SX_LOG_ERR("SAI port %#lx is analyzer port\n", port->saiport);
+        SX_LOG_ERR("SAI port 0x%" PRIx64 " is analyzer port\n", port->saiport);
         return SAI_STATUS_OBJECT_IN_USE;
     }
 

@@ -765,7 +765,7 @@ sai_status_t mlnx_translate_sai_router_action_to_sdk(sai_int32_t         action,
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_translate_sdk_router_action_to_sai(sx_router_action_t router_action, sai_int32_t *sai_action)
+sai_status_t mlnx_translate_sdk_router_action_to_sai(sx_router_action_t router_action, sai_packet_action_t *sai_action)
 {
     if (NULL == sai_action) {
         SX_LOG_ERR("NULL sai action value\n");

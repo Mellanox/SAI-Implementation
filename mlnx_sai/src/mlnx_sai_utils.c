@@ -3287,6 +3287,34 @@ sai_status_t mlnx_fill_saistatcapabilitylist(const sai_stat_capability_t *data,
     return mlnx_fill_genericlist(sizeof(sai_stat_capability_t), (void*)data, count, (void*)list);
 }
 
+bool mlnx_ip_addr_are_equal(_In_ const sai_ip_addr_family_t family1,
+                            _In_ const sai_ip_addr_t       *addr1,
+                            _In_ const sai_ip_addr_family_t family2,
+                            _In_ const sai_ip_addr_t       *addr2)
+{
+    bool res;
+
+    if (family1 != family2) {
+        return false;
+    }
+
+    if ((NULL == addr1) && (NULL == addr2)) {
+        return true;
+    }
+
+    if ((NULL == addr1) || (NULL == addr2)) {
+        return false;
+    }
+
+    if (SAI_IP_ADDR_FAMILY_IPV4 == family1) {
+        res = addr1->ip4 == addr2->ip4;
+    } else {
+        res = !memcmp(addr1->ip6, addr2->ip6, sizeof(addr1->ip6));
+    }
+
+    return res;
+}
+
 bool mlnx_route_entries_are_equal(_In_ const sai_route_entry_t *u1, _In_ const sai_route_entry_t *u2)
 {
     if ((NULL == u1) && (NULL == u2)) {
@@ -3300,27 +3328,32 @@ bool mlnx_route_entries_are_equal(_In_ const sai_route_entry_t *u1, _In_ const s
     if (u1->vr_id != u2->vr_id) {
         return false;
     }
-    if (u1->destination.addr_family != u2->destination.addr_family) {
+
+    if (!mlnx_ip_addr_are_equal(u1->destination.addr_family, &u1->destination.addr, u2->destination.addr_family,
+                                &u2->destination.addr)) {
         return false;
     }
 
-    if (SAI_IP_ADDR_FAMILY_IPV4 == u1->destination.addr_family) {
-        if (u1->destination.addr.ip4 != u2->destination.addr.ip4) {
-            return false;
-        }
-        if (u1->destination.mask.ip4 != u2->destination.mask.ip4) {
-            return false;
-        }
-    } else {
-        if (memcmp(u1->destination.addr.ip6, u2->destination.addr.ip6, sizeof(u1->destination.addr.ip6))) {
-            return false;
-        }
-        if (memcmp(u1->destination.addr.ip6, u2->destination.addr.ip6, sizeof(u1->destination.addr.ip6))) {
-            return false;
-        }
+    return mlnx_ip_addr_are_equal(u1->destination.addr_family, &u1->destination.mask, u2->destination.addr_family,
+                                  &u2->destination.mask);
+}
+
+bool mlnx_neighbor_entries_are_equal(_In_ const sai_neighbor_entry_t *u1, _In_ const sai_neighbor_entry_t *u2)
+{
+    if ((NULL == u1) && (NULL == u2)) {
+        return true;
     }
 
-    return true;
+    if ((NULL == u1) || (NULL == u2)) {
+        return false;
+    }
+
+    if (u1->rif_id != u2->rif_id) {
+        return false;
+    }
+
+    return mlnx_ip_addr_are_equal(u1->ip_address.addr_family, &u1->ip_address.addr, u2->ip_address.addr_family,
+                                  &u2->ip_address.addr);
 }
 
 sai_status_t mlnx_attribute_value_list_size_check(_Inout_ uint32_t *out_size, _In_ uint32_t in_size)
@@ -3348,30 +3381,21 @@ sai_status_t mlnx_attribute_value_list_size_check(_Inout_ uint32_t *out_size, _I
     return status;
 }
 
-static sai_status_t mlnx_fdb_or_route_action_find(_In_ sai_object_type_t type,
-                                                  _In_ const void       *entry,
-                                                  _Out_ uint32_t        *index)
+static sai_status_t mlnx_fdb_action_find(_In_ const sai_fdb_entry_t *entry, _Out_ uint32_t *index)
 {
     uint32_t               ii;
     bool                   equal;
     const sai_fdb_entry_t *saved_fdb_entry, *targed_fdb_entry;
 
-    assert((SAI_OBJECT_TYPE_FDB_ENTRY == type) || (SAI_OBJECT_TYPE_ROUTE_ENTRY == type));
+    assert(index);
 
-    for (ii = 0; ii < g_sai_db_ptr->fdb_or_route_actions.count; ii++) {
-        if (g_sai_db_ptr->fdb_or_route_actions.actions[ii].type != type) {
-            continue;
-        }
+    for (ii = 0; ii < g_sai_db_ptr->fdb_actions.count; ii++) {
+        saved_fdb_entry = &g_sai_db_ptr->fdb_actions.actions[ii].fdb_entry;
+        targed_fdb_entry = entry;
 
-        if (SAI_OBJECT_TYPE_FDB_ENTRY == type) {
-            saved_fdb_entry = &g_sai_db_ptr->fdb_or_route_actions.actions[ii].fdb_entry;
-            targed_fdb_entry = entry;
+        equal = ((0 == memcmp(saved_fdb_entry->mac_address, targed_fdb_entry->mac_address, sizeof(sai_mac_t))) &&
+                 (saved_fdb_entry->bv_id == targed_fdb_entry->bv_id));
 
-            equal = ((0 == memcmp(saved_fdb_entry->mac_address, targed_fdb_entry->mac_address, sizeof(sai_mac_t))) &&
-                     (saved_fdb_entry->bv_id == targed_fdb_entry->bv_id));
-        } else {
-            equal = mlnx_route_entries_are_equal(&g_sai_db_ptr->fdb_or_route_actions.actions[ii].route_entry, entry);
-        }
 
         if (equal) {
             *index = ii;
@@ -3382,99 +3406,80 @@ static sai_status_t mlnx_fdb_or_route_action_find(_In_ sai_object_type_t type,
     return SAI_STATUS_ITEM_NOT_FOUND;
 }
 
-static void mlnx_fdb_or_route_action_remove(_In_ uint32_t index)
+static void mlnx_fdb_action_remove(_In_ uint32_t index)
 {
     uint32_t actions_count;
 
-    actions_count = g_sai_db_ptr->fdb_or_route_actions.count;
+    actions_count = g_sai_db_ptr->fdb_actions.count;
 
     assert((actions_count > 0) && (index < actions_count));
 
-    g_sai_db_ptr->fdb_or_route_actions.actions[index] = g_sai_db_ptr->fdb_or_route_actions.actions[actions_count - 1];
-    g_sai_db_ptr->fdb_or_route_actions.count--;
+    g_sai_db_ptr->fdb_actions.actions[index] = g_sai_db_ptr->fdb_actions.actions[actions_count - 1];
+    g_sai_db_ptr->fdb_actions.count--;
 }
 
-sai_status_t mlnx_fdb_route_action_save(_In_ sai_object_type_t   type,
-                                        _In_ const void         *entry,
-                                        _In_ sai_packet_action_t action)
+sai_status_t mlnx_fdb_action_save(_In_ const sai_fdb_entry_t *entry, _In_ sai_packet_action_t action)
 {
     sai_status_t status = SAI_STATUS_SUCCESS;
     uint32_t     ii;
 
-    assert((SAI_OBJECT_TYPE_FDB_ENTRY == type) || (SAI_OBJECT_TYPE_ROUTE_ENTRY == type));
-
     sai_db_write_lock();
 
-    status = mlnx_fdb_or_route_action_find(type, entry, &ii);
+    status = mlnx_fdb_action_find(entry, &ii);
     if (SAI_ERR(status)) {
-        if (FDB_OR_ROUTE_SAVED_ACTIONS_NUM == g_sai_db_ptr->fdb_or_route_actions.count) {
+        if (FDB_SAVED_ACTIONS_NUM == g_sai_db_ptr->fdb_actions.count) {
             SX_LOG_ERR("Failed to save action - max number of saved actions reached (%d)\n",
-                       FDB_OR_ROUTE_SAVED_ACTIONS_NUM);
+                       FDB_SAVED_ACTIONS_NUM);
             status = SAI_STATUS_INSUFFICIENT_RESOURCES;
             goto out;
         }
 
-        ii = g_sai_db_ptr->fdb_or_route_actions.count;
-        g_sai_db_ptr->fdb_or_route_actions.count++;
-
-        if (SAI_OBJECT_TYPE_FDB_ENTRY == type) {
-            g_sai_db_ptr->fdb_or_route_actions.actions[ii].fdb_entry = *(sai_fdb_entry_t*)entry;
-        } else {
-            g_sai_db_ptr->fdb_or_route_actions.actions[ii].route_entry = *(sai_route_entry_t*)entry;
-        }
-
-        g_sai_db_ptr->fdb_or_route_actions.actions[ii].type = type;
+        ii = g_sai_db_ptr->fdb_actions.count;
+        g_sai_db_ptr->fdb_actions.count++;
+        g_sai_db_ptr->fdb_actions.actions[ii].fdb_entry = *(sai_fdb_entry_t*)entry;
     }
 
-    g_sai_db_ptr->fdb_or_route_actions.actions[ii].action = action;
-    status = SAI_STATUS_SUCCESS;
+    g_sai_db_ptr->fdb_actions.actions[ii].action = action;
 
+    status = SAI_STATUS_SUCCESS;
 out:
     sai_db_unlock();
+
     return status;
 }
 
-void mlnx_fdb_route_action_clear(_In_ sai_object_type_t type, _In_ const void        *entry)
+void mlnx_fdb_action_clear(_In_ const sai_fdb_entry_t *entry)
 {
     sai_status_t status;
     uint32_t     ii;
 
-    assert((SAI_OBJECT_TYPE_FDB_ENTRY == type) || (SAI_OBJECT_TYPE_ROUTE_ENTRY == type));
-
     sai_db_write_lock();
 
-    status = mlnx_fdb_or_route_action_find(type, entry, &ii);
+    status = mlnx_fdb_action_find(entry, &ii);
     if (SAI_STATUS_SUCCESS == status) {
-        mlnx_fdb_or_route_action_remove(ii);
+        mlnx_fdb_action_remove(ii);
     }
 
     sai_db_unlock();
 }
 
-void mlnx_fdb_route_action_fetch(_In_ sai_object_type_t type,
-                                 _In_ const void       *entry,
-                                 _Out_ void            *entry_action)
+void mlnx_fdb_action_fetch(_In_ const sai_fdb_entry_t *entry, _Out_ void *entry_action)
 {
     sai_status_t        status;
     sai_packet_action_t action;
     uint32_t            ii;
 
-    assert((SAI_OBJECT_TYPE_FDB_ENTRY == type) || (SAI_OBJECT_TYPE_ROUTE_ENTRY == type));
+    assert(entry_action);
 
     sai_db_write_lock();
 
-    status = mlnx_fdb_or_route_action_find(type, entry, &ii);
+    status = mlnx_fdb_action_find(entry, &ii);
     if (SAI_STATUS_SUCCESS == status) {
-        action = g_sai_db_ptr->fdb_or_route_actions.actions[ii].action;
-        if (SAI_OBJECT_TYPE_FDB_ENTRY == type) {
-            status = mlnx_translate_sai_action_to_sdk(action, entry_action, 0);
-            assert(SAI_STATUS_SUCCESS == status);
-        } else {
-            status = mlnx_translate_sai_router_action_to_sdk(action, entry_action, 0);
-            assert(SAI_STATUS_SUCCESS == status);
-        }
+        action = g_sai_db_ptr->fdb_actions.actions[ii].action;
+        status = mlnx_translate_sai_action_to_sdk(action, entry_action, 0);
+        assert(SAI_STATUS_SUCCESS == status);
 
-        mlnx_fdb_or_route_action_remove(ii);
+        mlnx_fdb_action_remove(ii);
     }
 
     sai_db_unlock();
@@ -3520,4 +3525,154 @@ sai_status_t mlnx_reset_port_isolation_api(void)
     sai_db_unlock();
 
     return SAI_STATUS_SUCCESS;
+}
+
+sai_status_t mlnx_translate_action_to_trap(bool                 is_current_action_present,
+                                           sai_packet_action_t  action,
+                                           sai_packet_action_t *trap_action)
+{
+    assert(trap_action);
+
+    SX_LOG_ENTER();
+
+    if (!is_current_action_present) {
+        *trap_action = SAI_PACKET_ACTION_COPY;
+    } else if (is_action_trap(action)) {
+        *trap_action = action;
+    } else {
+        switch (action) {
+        case SAI_PACKET_ACTION_DROP:
+        case SAI_PACKET_ACTION_DENY:
+            *trap_action = SAI_PACKET_ACTION_TRAP;
+            break;
+
+        case SAI_PACKET_ACTION_FORWARD:
+        case SAI_PACKET_ACTION_TRANSIT:
+            *trap_action = SAI_PACKET_ACTION_LOG;
+            break;
+
+        case SAI_PACKET_ACTION_COPY_CANCEL:
+            *trap_action = SAI_PACKET_ACTION_COPY;
+            break;
+
+        default:
+            SX_LOG_ERR("Invalid action\n");
+            return SAI_STATUS_INVALID_PARAMETER;
+        }
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
+sai_status_t mlnx_translate_action_to_no_trap(sai_packet_action_t  action,
+                                              sai_packet_action_t *no_trap_action,
+                                              bool                *is_action_present)
+{
+    assert(no_trap_action);
+    assert(is_action_present);
+
+    SX_LOG_ENTER();
+
+    *is_action_present = true;
+
+    if (!is_action_trap(action)) {
+        *no_trap_action = action;
+    } else {
+        switch (action) {
+        case SAI_PACKET_ACTION_COPY_CANCEL:
+        case SAI_PACKET_ACTION_COPY:
+            *is_action_present = false;
+            break;
+
+        case SAI_PACKET_ACTION_TRANSIT:
+        case SAI_PACKET_ACTION_LOG:
+            *no_trap_action = SAI_PACKET_ACTION_FORWARD;
+            break;
+
+        case SAI_PACKET_ACTION_TRAP:
+        case SAI_PACKET_ACTION_DENY:
+            *no_trap_action = SAI_PACKET_ACTION_DROP;
+            break;
+
+        default:
+            SX_LOG_ERR("Invalid or non-trap action\n");
+            return SAI_STATUS_INVALID_PARAMETER;
+        }
+    }
+    return SAI_STATUS_SUCCESS;
+}
+
+sai_status_t mlnx_translate_action_to_no_forward(sai_packet_action_t action, sai_packet_action_t *no_forward_action)
+{
+    assert(no_forward_action);
+
+    SX_LOG_ENTER();
+
+    if (!is_action_forward(action)) {
+        *no_forward_action = action;
+    } else {
+        switch (action) {
+        case SAI_PACKET_ACTION_FORWARD:
+            *no_forward_action = SAI_PACKET_ACTION_DROP;
+            break;
+
+        case SAI_PACKET_ACTION_LOG:
+            *no_forward_action = SAI_PACKET_ACTION_TRAP;
+            break;
+
+        case SAI_PACKET_ACTION_TRANSIT:
+            *no_forward_action = SAI_PACKET_ACTION_COPY_CANCEL;
+            break;
+
+        default:
+            SX_LOG_ERR("Invalid or non-trap action\n");
+            return SAI_STATUS_INVALID_PARAMETER;
+        }
+    }
+    return SAI_STATUS_SUCCESS;
+}
+
+sai_status_t mlnx_translate_action_to_forward(sai_packet_action_t action, sai_packet_action_t *forward_action)
+{
+    assert(forward_action);
+
+    SX_LOG_ENTER();
+
+    if (is_action_forward(action)) {
+        *forward_action = action;
+    } else {
+        switch (action) {
+        case SAI_PACKET_ACTION_DROP:
+            *forward_action = SAI_PACKET_ACTION_FORWARD;
+            break;
+
+        case SAI_PACKET_ACTION_TRAP:
+        case SAI_PACKET_ACTION_COPY:
+            *forward_action = SAI_PACKET_ACTION_LOG;
+            break;
+
+        case SAI_PACKET_ACTION_DENY:
+        case SAI_PACKET_ACTION_COPY_CANCEL:
+            *forward_action = SAI_PACKET_ACTION_TRANSIT;
+            break;
+
+        default:
+            SX_LOG_ERR("Invalid action\n");
+            return SAI_STATUS_INVALID_PARAMETER;
+        }
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
+bool is_action_trap(sai_packet_action_t action)
+{
+    return (action == SAI_PACKET_ACTION_COPY) || (action == SAI_PACKET_ACTION_LOG) ||
+           (action == SAI_PACKET_ACTION_TRAP);
+}
+
+bool is_action_forward(sai_packet_action_t action)
+{
+    return (action == SAI_PACKET_ACTION_FORWARD) || (action == SAI_PACKET_ACTION_LOG) ||
+           (action == SAI_PACKET_ACTION_TRANSIT);
 }

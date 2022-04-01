@@ -2817,7 +2817,7 @@ static sai_status_t mlnx_port_speed_intf_bitmap_to_sx_sp(_In_ uint64_t          
     sx_speed->mode_50GB_KR2 = !!(bitmap & SP_50GB_KR2);
     sx_speed->mode_50GB_SR2 = !!(bitmap & SP_50GB_SR2);
     sx_speed->mode_10MB_T = !!(bitmap & SP_10MB_T);
-    sx_speed->mode_100MB_T = !!(bitmap & SP_100MB_TX);
+    sx_speed->mode_100MB_TX = !!(bitmap & SP_100MB_TX);
     sx_speed->mode_1000MB_T = !!(bitmap & SP_1000MB_T);
     sx_speed->mode_auto = !!(bitmap & SP_auto);
 
@@ -8021,7 +8021,7 @@ static sai_status_t mlnx_port_speed_convert_bitmap_to_capability(const sx_port_s
         speed_capability->mode_10MB_T = TRUE;
     }
     if (speed_bitmap & 1 << 11) {
-        speed_capability->mode_100MB_T = TRUE;
+        speed_capability->mode_100MB_TX = TRUE;
     }
     if (speed_bitmap & 1 << 12) {
         speed_capability->mode_10GB_CR = TRUE;
@@ -8151,7 +8151,7 @@ static sai_status_t mlnx_port_bitmap_to_speeds_sp(_In_ const sx_port_speed_t spe
         speeds[speeds_count_tmp++] = PORT_SPEED_1;
     }
 
-    if (sx_speed.mode_100MB_T) {
+    if (sx_speed.mode_100MB_TX) {
         speeds[speeds_count_tmp++] = PORT_SPEED_100M;
     }
 
@@ -8252,7 +8252,7 @@ static sai_status_t mlnx_port_speed_get_sp(_In_ sx_port_log_id_t sx_port,
         *admin_speed = PORT_SPEED_10;
     } else if (speed_cap.mode_1GB_CX_SGMII || speed_cap.mode_1GB_KX || speed_cap.mode_1000MB_T) {
         *admin_speed = PORT_SPEED_1;
-    } else if (speed_cap.mode_100MB_T) {
+    } else if (speed_cap.mode_100MB_TX) {
         *admin_speed = PORT_SPEED_100M;
     } else if (speed_cap.mode_10MB_T) {
         *admin_speed = PORT_SPEED_10M;
@@ -8273,7 +8273,7 @@ static sai_status_t mlnx_port_speed_get_sp(_In_ sx_port_log_id_t sx_port,
         *oper_speed = PORT_SPEED_10M;
         break;
 
-    case SX_PORT_SPEED_100MB_T:
+    case SX_PORT_SPEED_100MB_TX:
         *oper_speed = PORT_SPEED_100M;
         break;
 
@@ -8486,7 +8486,7 @@ static sai_status_t mlnx_port_supported_speeds_get_sp(_In_ sx_port_log_id_t sx_p
         speed_cap.speed_capability.mode_1000MB_T) {
         speeds[speeds_count_tmp++] = PORT_SPEED_1;
     }
-    if (speed_cap.speed_capability.mode_100MB_T) {
+    if (speed_cap.speed_capability.mode_100MB_TX) {
         speeds[speeds_count_tmp++] = PORT_SPEED_100M;
     }
     if (speed_cap.speed_capability.mode_10MB_T) {
@@ -9354,6 +9354,12 @@ sai_status_t mlnx_port_in_use_check(const mlnx_port_config_t *port)
     if (port->acl_refs > 0) {
         SX_LOG_ERR("Failed remove port oid %" PRIx64 " - is in use for %d ACL field(s)/action(s)\n",
                    port->saiport, port->acl_refs);
+        return SAI_STATUS_OBJECT_IN_USE;
+    }
+
+    if (port->hostif_table_refcount > 0) {
+        SX_LOG_ERR("Failed remove port oid %" PRIx64 " - is used for hostif table entry\n",
+                   port->saiport);
         return SAI_STATUS_OBJECT_IN_USE;
     }
 

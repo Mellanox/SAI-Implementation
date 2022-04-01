@@ -98,21 +98,11 @@ static sai_status_t mlnx_trap_mirror_session_get(_In_ const sai_object_key_t   *
                                                  _In_ uint32_t                  attr_index,
                                                  _Inout_ vendor_cache_t        *cache,
                                                  void                          *arg);
-static sai_status_t mlnx_user_defined_trap_group_get(_In_ const sai_object_key_t   *key,
-                                                     _Inout_ sai_attribute_value_t *value,
-                                                     _In_ uint32_t                  attr_index,
-                                                     _Inout_ vendor_cache_t        *cache,
-                                                     void                          *arg);
 static sai_status_t mlnx_trap_type_get(_In_ const sai_object_key_t   *key,
                                        _Inout_ sai_attribute_value_t *value,
                                        _In_ uint32_t                  attr_index,
                                        _Inout_ vendor_cache_t        *cache,
                                        void                          *arg);
-static sai_status_t mlnx_user_defined_trap_type_get(_In_ const sai_object_key_t   *key,
-                                                    _Inout_ sai_attribute_value_t *value,
-                                                    _In_ uint32_t                  attr_index,
-                                                    _Inout_ vendor_cache_t        *cache,
-                                                    void                          *arg);
 static sai_status_t mlnx_trap_action_get(_In_ const sai_object_key_t   *key,
                                          _Inout_ sai_attribute_value_t *value,
                                          _In_ uint32_t                  attr_index,
@@ -135,18 +125,25 @@ static sai_status_t mlnx_trap_mirror_session_set(_In_ const sai_object_key_t    
 static sai_status_t mlnx_trap_counter_id_set(_In_ const sai_object_key_t      *key,
                                              _In_ const sai_attribute_value_t *value,
                                              void                             *arg);
-static sai_status_t mlnx_user_defined_trap_group_set(_In_ const sai_object_key_t      *key,
-                                                     _In_ const sai_attribute_value_t *value,
-                                                     void                             *arg);
 static sai_status_t mlnx_trap_action_set(_In_ const sai_object_key_t      *key,
                                          _In_ const sai_attribute_value_t *value,
                                          void                             *arg);
-sai_status_t mlnx_trap_filter_set(uint32_t index, sai_object_list_t ports);
+static sai_status_t mlnx_trap_filter_set(uint32_t index, sai_object_list_t ports);
 static sai_status_t mlnx_table_entry_get(_In_ const sai_object_key_t   *key,
                                          _Inout_ sai_attribute_value_t *value,
                                          _In_ uint32_t                  attr_index,
                                          _Inout_ vendor_cache_t        *cache,
                                          void                          *arg);
+static sai_status_t mlnx_table_entry_channel_type_get(_In_ const sai_object_key_t   *key,
+                                                      _Inout_ sai_attribute_value_t *value,
+                                                      _In_ uint32_t                  attr_index,
+                                                      _Inout_ vendor_cache_t        *cache,
+                                                      void                          *arg);
+static sai_status_t mlnx_table_entry_hostif_get(_In_ const sai_object_key_t   *key,
+                                                _Inout_ sai_attribute_value_t *value,
+                                                _In_ uint32_t                  attr_index,
+                                                _Inout_ vendor_cache_t        *cache,
+                                                void                          *arg);
 static const sai_vendor_attribute_entry_t host_interface_vendor_attribs[] = {
     { SAI_HOSTIF_ATTR_TYPE,
       { true, false, false, true },
@@ -323,7 +320,7 @@ static const sai_vendor_attribute_entry_t user_defined_trap_vendor_attribs[] = {
     { SAI_HOSTIF_USER_DEFINED_TRAP_ATTR_TYPE,
       { true, false, false, true },
       { true, false, false, true },
-      mlnx_user_defined_trap_type_get, NULL,
+      mlnx_trap_type_get, NULL,
       NULL, NULL },
     { SAI_HOSTIF_USER_DEFINED_TRAP_ATTR_TRAP_PRIORITY,
       { false, false, false, false },
@@ -333,8 +330,8 @@ static const sai_vendor_attribute_entry_t user_defined_trap_vendor_attribs[] = {
     { SAI_HOSTIF_USER_DEFINED_TRAP_ATTR_TRAP_GROUP,
       { true, false, true, true },
       { true, false, true, true },
-      mlnx_user_defined_trap_group_get, NULL,
-      mlnx_user_defined_trap_group_set, NULL },
+      mlnx_trap_group_get, NULL,
+      mlnx_trap_group_set, NULL },
     { END_FUNCTIONALITY_ATTRIBS_ID,
       { false, false, false, false },
       { false, false, false, false },
@@ -345,7 +342,7 @@ static const mlnx_attr_enum_info_t        user_defined_trap_enum_info[] = {
     [SAI_HOSTIF_USER_DEFINED_TRAP_ATTR_TYPE] = ATTR_ENUM_VALUES_LIST(
         SAI_HOSTIF_USER_DEFINED_TRAP_TYPE_ACL,
         SAI_HOSTIF_USER_DEFINED_TRAP_TYPE_ROUTER,
-        SAI_HOSTIF_USER_DEFINED_TRAP_TYPE_NEIGH,
+        SAI_HOSTIF_USER_DEFINED_TRAP_TYPE_NEIGHBOR,
         SAI_HOSTIF_USER_DEFINED_TRAP_TYPE_FDB)
 };
 const mlnx_obj_type_attrs_info_t          mlnx_hostif_user_defined_trap_obj_type_info =
@@ -414,14 +411,14 @@ static const sai_vendor_attribute_entry_t host_table_entry_vendor_attribs[] = {
       mlnx_table_entry_get, (void*)SAI_HOSTIF_TABLE_ENTRY_ATTR_TRAP_ID,
       NULL, NULL },
     { SAI_HOSTIF_TABLE_ENTRY_ATTR_CHANNEL_TYPE,
-      { true, false, false, false },
       { true, false, false, true },
-      NULL, NULL,
+      { true, false, false, true },
+      mlnx_table_entry_channel_type_get, NULL,
       NULL, NULL },
     { SAI_HOSTIF_TABLE_ENTRY_ATTR_HOST_IF,
-      { true, false, false, false },
       { true, false, false, true },
-      NULL, NULL,
+      { true, false, false, true },
+      mlnx_table_entry_hostif_get, NULL,
       NULL, NULL },
     { END_FUNCTIONALITY_ATTRIBS_ID,
       { false, false, false, false },
@@ -433,36 +430,39 @@ static const mlnx_attr_enum_info_t        hostif_table_entry_enum_info[] = {
     [SAI_HOSTIF_TABLE_ENTRY_ATTR_TYPE] = ATTR_ENUM_VALUES_ALL(),
     [SAI_HOSTIF_TABLE_ENTRY_ATTR_CHANNEL_TYPE] = ATTR_ENUM_VALUES_ALL(),
 };
-const mlnx_obj_type_attrs_info_t          mlnx_hostif_table_entry_obj_type_info =
+
+#define HOSTMISS_TRAP_TYPE (SAI_HOSTIF_TRAP_TYPE_END + 1) /* only for internal use */
+
+const mlnx_obj_type_attrs_info_t mlnx_hostif_table_entry_obj_type_info =
 { host_table_entry_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(hostif_table_entry_enum_info), OBJ_STAT_CAP_INFO_EMPTY()};
 const mlnx_trap_info_t mlnx_traps_info[] = {
-    { SAI_HOSTIF_TRAP_TYPE_STP, 1, { SX_TRAP_ID_ETH_L2_STP }, SAI_PACKET_ACTION_DROP, "STP", MLNX_TRAP_TYPE_REGULAR,
-      MLNX_L2_TRAP },
+    { SAI_HOSTIF_TRAP_TYPE_STP, 1, { SX_TRAP_ID_ETH_L2_STP }, SAI_PACKET_ACTION_DROP, "STP",
+      SAI_OBJECT_TYPE_HOSTIF_TRAP, MLNX_L2_TRAP },
     { SAI_HOSTIF_TRAP_TYPE_LACP, 1, { SX_TRAP_ID_ETH_L2_LACP }, SAI_PACKET_ACTION_DROP, "LACP",
-      MLNX_TRAP_TYPE_REGULAR, MLNX_L2_TRAP },
+      SAI_OBJECT_TYPE_HOSTIF_TRAP, MLNX_L2_TRAP },
     { SAI_HOSTIF_TRAP_TYPE_EAPOL, 1, { SX_TRAP_ID_ETH_L2_EAPOL }, SAI_PACKET_ACTION_DROP, "EAPOL",
-      MLNX_TRAP_TYPE_REGULAR, MLNX_L2_TRAP },
+      SAI_OBJECT_TYPE_HOSTIF_TRAP, MLNX_L2_TRAP },
     { SAI_HOSTIF_TRAP_TYPE_LLDP, 1, { SX_TRAP_ID_ETH_L2_LLDP }, SAI_PACKET_ACTION_DROP, "LLDP",
-      MLNX_TRAP_TYPE_REGULAR, MLNX_L2_TRAP },
+      SAI_OBJECT_TYPE_HOSTIF_TRAP, MLNX_L2_TRAP },
     { SAI_HOSTIF_TRAP_TYPE_PVRST, 1, { SX_TRAP_ID_ETH_L2_RPVST }, SAI_PACKET_ACTION_DROP, "PVRST",
-      MLNX_TRAP_TYPE_REGULAR, MLNX_L2_TRAP },
+      SAI_OBJECT_TYPE_HOSTIF_TRAP, MLNX_L2_TRAP },
     { SAI_HOSTIF_TRAP_TYPE_IGMP_TYPE_QUERY, 1, { SX_TRAP_ID_ETH_L2_IGMP_TYPE_QUERY }, SAI_PACKET_ACTION_FORWARD,
-      "IGMP query", MLNX_TRAP_TYPE_REGULAR, MLNX_L2_TRAP },
+      "IGMP query", SAI_OBJECT_TYPE_HOSTIF_TRAP, MLNX_L2_TRAP },
     { SAI_HOSTIF_TRAP_TYPE_IGMP_TYPE_LEAVE, 1, { SX_TRAP_ID_ETH_L2_IGMP_TYPE_V2_LEAVE }, SAI_PACKET_ACTION_FORWARD,
-      "IGMP leave", MLNX_TRAP_TYPE_REGULAR, MLNX_L2_TRAP },
+      "IGMP leave", SAI_OBJECT_TYPE_HOSTIF_TRAP, MLNX_L2_TRAP },
     { SAI_HOSTIF_TRAP_TYPE_IGMP_TYPE_V1_REPORT, 1, { SX_TRAP_ID_ETH_L2_IGMP_TYPE_V1_REPORT },
       SAI_PACKET_ACTION_FORWARD,
-      "IGMP V1 report", MLNX_TRAP_TYPE_REGULAR, MLNX_L2_TRAP },
+      "IGMP V1 report", SAI_OBJECT_TYPE_HOSTIF_TRAP, MLNX_L2_TRAP },
     { SAI_HOSTIF_TRAP_TYPE_IGMP_TYPE_V2_REPORT, 1, { SX_TRAP_ID_ETH_L2_IGMP_TYPE_V2_REPORT },
       SAI_PACKET_ACTION_FORWARD,
-      "IGMP V2 report", MLNX_TRAP_TYPE_REGULAR, MLNX_L2_TRAP },
+      "IGMP V2 report", SAI_OBJECT_TYPE_HOSTIF_TRAP, MLNX_L2_TRAP },
     { SAI_HOSTIF_TRAP_TYPE_IGMP_TYPE_V3_REPORT, 1, { SX_TRAP_ID_ETH_L2_IGMP_TYPE_V3_REPORT },
       SAI_PACKET_ACTION_FORWARD,
-      "IGMP V3 report", MLNX_TRAP_TYPE_REGULAR, MLNX_L2_TRAP },
+      "IGMP V3 report", SAI_OBJECT_TYPE_HOSTIF_TRAP, MLNX_L2_TRAP },
     { SAI_HOSTIF_TRAP_TYPE_SAMPLEPACKET, 1, { SX_TRAP_ID_ETH_L2_PACKET_SAMPLING }, SAI_PACKET_ACTION_TRAP,
-      "Sample packet", MLNX_TRAP_TYPE_REGULAR, MLNX_NON_L2_TRAP },
+      "Sample packet", SAI_OBJECT_TYPE_HOSTIF_TRAP, MLNX_NON_L2_TRAP },
     { SAI_HOSTIF_TRAP_TYPE_UDLD, 1, { SX_TRAP_ID_ETH_L2_UDLD }, SAI_PACKET_ACTION_DROP, "UDLD",
-      MLNX_TRAP_TYPE_REGULAR, MLNX_L2_TRAP },
+      SAI_OBJECT_TYPE_HOSTIF_TRAP, MLNX_L2_TRAP },
     { SAI_HOSTIF_TRAP_TYPE_PTP,
       3,
       { SX_TRAP_ID_PTP_EVENT, SX_TRAP_ID_PTP_GENERAL, SX_TRAP_ID_PTP_ING_EVENT},
@@ -471,7 +471,7 @@ const mlnx_trap_info_t mlnx_traps_info[] = {
 #else
       SAI_PACKET_ACTION_DROP,
 #endif
-      "PTP", MLNX_TRAP_TYPE_REGULAR, MLNX_L2_TRAP },
+      "PTP", SAI_OBJECT_TYPE_HOSTIF_TRAP, MLNX_L2_TRAP },
     { SAI_HOSTIF_TRAP_TYPE_PTP_TX_EVENT,
       1,
       { SX_TRAP_ID_PTP_EGR_EVENT },
@@ -480,80 +480,146 @@ const mlnx_trap_info_t mlnx_traps_info[] = {
 #else
       SAI_PACKET_ACTION_DROP,
 #endif
-      "PTP TX Event", MLNX_TRAP_TYPE_REGULAR, MLNX_L2_TRAP },
+      "PTP TX Event", SAI_OBJECT_TYPE_HOSTIF_TRAP, MLNX_L2_TRAP },
     { SAI_HOSTIF_TRAP_TYPE_DHCP_L2, 1, { SX_TRAP_ID_ETH_L2_DHCP }, SAI_PACKET_ACTION_FORWARD, "L2 DHCP",
-      MLNX_TRAP_TYPE_REGULAR, MLNX_L2_TRAP },
+      SAI_OBJECT_TYPE_HOSTIF_TRAP, MLNX_L2_TRAP },
     { SAI_HOSTIF_TRAP_TYPE_DHCPV6_L2, 1, { SX_TRAP_ID_ETH_L2_DHCPV6 }, SAI_PACKET_ACTION_FORWARD, "L2 DHCPv6",
-      MLNX_TRAP_TYPE_REGULAR, MLNX_L2_TRAP },
+      SAI_OBJECT_TYPE_HOSTIF_TRAP, MLNX_L2_TRAP },
     { SAI_HOSTIF_TRAP_TYPE_ARP_REQUEST, 1, { SX_TRAP_ID_ROUTER_ARPBC }, SAI_PACKET_ACTION_FORWARD, "ARP request",
-      MLNX_TRAP_TYPE_REGULAR, MLNX_NON_L2_TRAP },
+      SAI_OBJECT_TYPE_HOSTIF_TRAP, MLNX_NON_L2_TRAP },
     { SAI_HOSTIF_TRAP_TYPE_ARP_RESPONSE, 1, { SX_TRAP_ID_ROUTER_ARPUC }, SAI_PACKET_ACTION_FORWARD, "ARP response",
-      MLNX_TRAP_TYPE_REGULAR, MLNX_NON_L2_TRAP },
+      SAI_OBJECT_TYPE_HOSTIF_TRAP, MLNX_NON_L2_TRAP },
     { SAI_HOSTIF_TRAP_TYPE_DHCP, 1, { SX_TRAP_ID_IPV4_DHCP }, SAI_PACKET_ACTION_FORWARD, "DHCP",
-      MLNX_TRAP_TYPE_REGULAR, MLNX_NON_L2_TRAP },
-    { SAI_HOSTIF_TRAP_TYPE_OSPF, 1, { SX_TRAP_ID_OSPF }, SAI_PACKET_ACTION_FORWARD, "OSPF", MLNX_TRAP_TYPE_REGULAR,
+      SAI_OBJECT_TYPE_HOSTIF_TRAP, MLNX_NON_L2_TRAP },
+    { SAI_HOSTIF_TRAP_TYPE_OSPF, 1, { SX_TRAP_ID_OSPF }, SAI_PACKET_ACTION_FORWARD, "OSPF",
+      SAI_OBJECT_TYPE_HOSTIF_TRAP,
       MLNX_NON_L2_TRAP },
     /* TODO : Allow forward on PIM */
-    { SAI_HOSTIF_TRAP_TYPE_PIM, 1, { SX_TRAP_ID_PIM }, SAI_PACKET_ACTION_DROP, "PIM", MLNX_TRAP_TYPE_REGULAR,
+    { SAI_HOSTIF_TRAP_TYPE_PIM, 1, { SX_TRAP_ID_PIM }, SAI_PACKET_ACTION_DROP, "PIM", SAI_OBJECT_TYPE_HOSTIF_TRAP,
       MLNX_NON_L2_TRAP },
-    { SAI_HOSTIF_TRAP_TYPE_VRRP, 1, { SX_TRAP_ID_VRRP }, SAI_PACKET_ACTION_FORWARD, "VRRP", MLNX_TRAP_TYPE_REGULAR,
+    { SAI_HOSTIF_TRAP_TYPE_VRRP, 1, { SX_TRAP_ID_VRRP }, SAI_PACKET_ACTION_FORWARD, "VRRP",
+      SAI_OBJECT_TYPE_HOSTIF_TRAP,
       MLNX_NON_L2_TRAP },
-    { SAI_HOSTIF_TRAP_TYPE_BGP, 1, { SX_TRAP_ID_IPV4_BGP }, SAI_PACKET_ACTION_FORWARD, "BGP", MLNX_TRAP_TYPE_REGULAR,
+    { SAI_HOSTIF_TRAP_TYPE_BGP, 1, { SX_TRAP_ID_IPV4_BGP }, SAI_PACKET_ACTION_FORWARD, "BGP",
+      SAI_OBJECT_TYPE_HOSTIF_TRAP,
       MLNX_NON_L2_TRAP },
     { SAI_HOSTIF_TRAP_TYPE_DHCPV6, 1, { SX_TRAP_ID_IPV6_DHCP }, SAI_PACKET_ACTION_FORWARD, "DHCPv6",
-      MLNX_TRAP_TYPE_REGULAR, MLNX_NON_L2_TRAP },
+      SAI_OBJECT_TYPE_HOSTIF_TRAP, MLNX_NON_L2_TRAP },
     { SAI_HOSTIF_TRAP_TYPE_OSPFV6, 1, { SX_TRAP_ID_IPV6_OSPF }, SAI_PACKET_ACTION_FORWARD, "OSPFv6",
-      MLNX_TRAP_TYPE_REGULAR, MLNX_NON_L2_TRAP },
-    { SAI_HOSTIF_TRAP_TYPE_VRRPV6, 0, { 0 }, SAI_PACKET_ACTION_FORWARD, "VRRPv6", MLNX_TRAP_TYPE_REGULAR,
+      SAI_OBJECT_TYPE_HOSTIF_TRAP, MLNX_NON_L2_TRAP },
+    { SAI_HOSTIF_TRAP_TYPE_VRRPV6, 0, { 0 }, SAI_PACKET_ACTION_FORWARD, "VRRPv6", SAI_OBJECT_TYPE_HOSTIF_TRAP,
       MLNX_NON_L2_TRAP },
     { SAI_HOSTIF_TRAP_TYPE_BGPV6, 1, { SX_TRAP_ID_IPV6_BGP }, SAI_PACKET_ACTION_FORWARD, "BGPv6",
-      MLNX_TRAP_TYPE_REGULAR, MLNX_NON_L2_TRAP },
+      SAI_OBJECT_TYPE_HOSTIF_TRAP, MLNX_NON_L2_TRAP },
     { SAI_HOSTIF_TRAP_TYPE_IPV6_NEIGHBOR_DISCOVERY, 5,
       { SX_TRAP_ID_IPV6_ROUTER_SOLICIATION, SX_TRAP_ID_IPV6_ROUTER_ADVERTISEMENT, SX_TRAP_ID_IPV6_NEIGHBOR_SOLICIATION,
         SX_TRAP_ID_IPV6_NEIGHBOR_ADVERTISEMENT, SX_TRAP_ID_IPV6_NEIGHBOR_DIRECTION },
-      SAI_PACKET_ACTION_FORWARD, "IPv6 neighbor discovery", MLNX_TRAP_TYPE_REGULAR, MLNX_NON_L2_TRAP },
+      SAI_PACKET_ACTION_FORWARD, "IPv6 neighbor discovery", SAI_OBJECT_TYPE_HOSTIF_TRAP, MLNX_NON_L2_TRAP },
     { SAI_HOSTIF_TRAP_TYPE_IPV6_MLD_V1_V2, 1, { SX_TRAP_ID_IPV6_MLD_V1_V2 }, SAI_PACKET_ACTION_FORWARD,
       "IPv6 MLD V1 V2",
-      MLNX_TRAP_TYPE_REGULAR, MLNX_L2_TRAP },
+      SAI_OBJECT_TYPE_HOSTIF_TRAP, MLNX_L2_TRAP },
     { SAI_HOSTIF_TRAP_TYPE_IPV6_MLD_V1_REPORT, 1, { SX_TRAP_ID_IPV6_MLD_V1_REPORT }, SAI_PACKET_ACTION_FORWARD,
-      "IPv6 MLD V1 report", MLNX_TRAP_TYPE_REGULAR, MLNX_L2_TRAP },
+      "IPv6 MLD V1 report", SAI_OBJECT_TYPE_HOSTIF_TRAP, MLNX_L2_TRAP },
     { SAI_HOSTIF_TRAP_TYPE_IPV6_MLD_V1_DONE, 1, { SX_TRAP_ID_IPV6_MLD_V1_DONE }, SAI_PACKET_ACTION_FORWARD,
-      "IPv6 MLD done", MLNX_TRAP_TYPE_REGULAR, MLNX_L2_TRAP },
+      "IPv6 MLD done", SAI_OBJECT_TYPE_HOSTIF_TRAP, MLNX_L2_TRAP },
     { SAI_HOSTIF_TRAP_TYPE_MLD_V2_REPORT, 1, { SX_TRAP_ID_IPV6_MLD_V2_REPORT }, SAI_PACKET_ACTION_FORWARD,
-      "IPv6 MLD V2 report", MLNX_TRAP_TYPE_REGULAR, MLNX_L2_TRAP },
+      "IPv6 MLD V2 report", SAI_OBJECT_TYPE_HOSTIF_TRAP, MLNX_L2_TRAP },
     { SAI_HOSTIF_TRAP_TYPE_IP2ME, 1, { SX_TRAP_ID_IP2ME }, SAI_PACKET_ACTION_TRAP, "IP2ME",
-      MLNX_TRAP_TYPE_REGULAR, MLNX_NON_L2_TRAP },
+      SAI_OBJECT_TYPE_HOSTIF_TRAP, MLNX_NON_L2_TRAP },
     { SAI_HOSTIF_TRAP_TYPE_SSH, 2, { SX_TRAP_ID_SSH_IPV4, SX_TRAP_ID_SSH_IPV6 }, SAI_PACKET_ACTION_TRAP, "SSH",
-      MLNX_TRAP_TYPE_REGULAR, MLNX_NON_L2_TRAP },
+      SAI_OBJECT_TYPE_HOSTIF_TRAP, MLNX_NON_L2_TRAP },
     { SAI_HOSTIF_TRAP_TYPE_SNMP, 2, { SX_TRAP_ID_SNMP_IPV4, SX_TRAP_ID_SNMP_IPV6 }, SAI_PACKET_ACTION_TRAP, "SNMP",
-      MLNX_TRAP_TYPE_REGULAR, MLNX_NON_L2_TRAP },
+      SAI_OBJECT_TYPE_HOSTIF_TRAP, MLNX_NON_L2_TRAP },
     { SAI_HOSTIF_TRAP_TYPE_L3_MTU_ERROR, 1, { SX_TRAP_ID_ETH_L3_MTUERROR }, SAI_PACKET_ACTION_TRAP, "MTU error",
-      MLNX_TRAP_TYPE_REGULAR, MLNX_NON_L2_TRAP },
+      SAI_OBJECT_TYPE_HOSTIF_TRAP, MLNX_NON_L2_TRAP },
     { SAI_HOSTIF_TRAP_TYPE_TTL_ERROR, 1, { SX_TRAP_ID_ETH_L3_TTLERROR }, SAI_PACKET_ACTION_TRAP, "TTL error",
-      MLNX_TRAP_TYPE_REGULAR, MLNX_NON_L2_TRAP },
-    { SAI_HOSTIF_TRAP_TYPE_PIPELINE_DISCARD_WRED, 0, { 0 }, SAI_PACKET_ACTION_DROP, "Discard WRED",
-      MLNX_TRAP_TYPE_REGULAR, MLNX_NON_L2_TRAP },
-    { SAI_HOSTIF_TRAP_TYPE_PIPELINE_DISCARD_ROUTER, 0, { 0 }, SAI_PACKET_ACTION_DROP, "Discard Router",
-      MLNX_TRAP_TYPE_REGULAR, MLNX_NON_L2_TRAP },
+      SAI_OBJECT_TYPE_HOSTIF_TRAP, MLNX_NON_L2_TRAP },
+    { SAI_HOSTIF_TRAP_TYPE_PIPELINE_DISCARD_WRED, 0, { 0 }, SAI_PACKET_ACTION_DROP, "Discard WRED 1",
+      SAI_OBJECT_TYPE_HOSTIF_TRAP, MLNX_NON_L2_TRAP },
+    { SAI_HOSTIF_TRAP_TYPE_PIPELINE_DISCARD_WRED, 0, { 0 }, SAI_PACKET_ACTION_DROP, "Discard WRED 2",
+      SAI_OBJECT_TYPE_HOSTIF_TRAP, MLNX_NON_L2_TRAP },
+    { SAI_HOSTIF_TRAP_TYPE_PIPELINE_DISCARD_ROUTER, 0, { 0 }, SAI_PACKET_ACTION_DROP, "Discard Router 1",
+      SAI_OBJECT_TYPE_HOSTIF_TRAP, MLNX_NON_L2_TRAP },
+    { SAI_HOSTIF_TRAP_TYPE_PIPELINE_DISCARD_ROUTER, 0, { 0 }, SAI_PACKET_ACTION_DROP, "Discard Router 2",
+      SAI_OBJECT_TYPE_HOSTIF_TRAP, MLNX_NON_L2_TRAP },
     { (sai_hostif_trap_type_t)SAI_HOSTIF_USER_DEFINED_TRAP_TYPE_ACL, 1, { SX_TRAP_ID_ACL_MIN }, SAI_PACKET_ACTION_TRAP,
-      "ACL",
-      MLNX_TRAP_TYPE_USER_DEFINED, MLNX_NON_L2_TRAP },
-    { (sai_hostif_trap_type_t)SAI_HOSTIF_USER_DEFINED_TRAP_TYPE_ROUTER, 4,
+      "ACL 1",
+      SAI_OBJECT_TYPE_HOSTIF_USER_DEFINED_TRAP, MLNX_NON_L2_TRAP },
+    { (sai_hostif_trap_type_t)SAI_HOSTIF_USER_DEFINED_TRAP_TYPE_ACL, 1, { SX_TRAP_ID_ACL_MIN + 1 },
+      SAI_PACKET_ACTION_TRAP, "ACL 2", SAI_OBJECT_TYPE_HOSTIF_USER_DEFINED_TRAP, MLNX_NON_L2_TRAP },
+    { (sai_hostif_trap_type_t)SAI_HOSTIF_USER_DEFINED_TRAP_TYPE_ACL, 1, { SX_TRAP_ID_ACL_MIN + 2 },
+      SAI_PACKET_ACTION_TRAP, "ACL 3", SAI_OBJECT_TYPE_HOSTIF_USER_DEFINED_TRAP, MLNX_NON_L2_TRAP },
+    { (sai_hostif_trap_type_t)SAI_HOSTIF_USER_DEFINED_TRAP_TYPE_ACL, 1, { SX_TRAP_ID_ACL_MIN + 3 },
+      SAI_PACKET_ACTION_TRAP,
+      "ACL 4",
+      SAI_OBJECT_TYPE_HOSTIF_USER_DEFINED_TRAP, MLNX_NON_L2_TRAP },
+    { (sai_hostif_trap_type_t)SAI_HOSTIF_USER_DEFINED_TRAP_TYPE_ACL, 1, { SX_TRAP_ID_ACL_MIN + 4 },
+      SAI_PACKET_ACTION_TRAP,
+      "ACL 5",
+      SAI_OBJECT_TYPE_HOSTIF_USER_DEFINED_TRAP, MLNX_NON_L2_TRAP },
+    { (sai_hostif_trap_type_t)SAI_HOSTIF_USER_DEFINED_TRAP_TYPE_ACL, 1, { SX_TRAP_ID_ACL_MIN + 5},
+      SAI_PACKET_ACTION_TRAP,
+      "ACL 6",
+      SAI_OBJECT_TYPE_HOSTIF_USER_DEFINED_TRAP, MLNX_NON_L2_TRAP },
+    { (sai_hostif_trap_type_t)SAI_HOSTIF_USER_DEFINED_TRAP_TYPE_ACL, 1, { SX_TRAP_ID_ACL_MIN + 6},
+      SAI_PACKET_ACTION_TRAP,
+      "ACL 7",
+      SAI_OBJECT_TYPE_HOSTIF_USER_DEFINED_TRAP, MLNX_NON_L2_TRAP },
+    { (sai_hostif_trap_type_t)SAI_HOSTIF_USER_DEFINED_TRAP_TYPE_ACL, 1, { SX_TRAP_ID_ACL_MIN + 7 },
+      SAI_PACKET_ACTION_TRAP,
+      "ACL 8",
+      SAI_OBJECT_TYPE_HOSTIF_USER_DEFINED_TRAP, MLNX_NON_L2_TRAP },
+    { (sai_hostif_trap_type_t)SAI_HOSTIF_USER_DEFINED_TRAP_TYPE_ACL, 1, { SX_TRAP_ID_ACL_MIN + 8 },
+      SAI_PACKET_ACTION_TRAP,
+      "ACL 9",
+      SAI_OBJECT_TYPE_HOSTIF_USER_DEFINED_TRAP, MLNX_NON_L2_TRAP },
+    { (sai_hostif_trap_type_t)SAI_HOSTIF_USER_DEFINED_TRAP_TYPE_ACL, 1, { SX_TRAP_ID_ACL_MIN + 9 },
+      SAI_PACKET_ACTION_TRAP,
+      "ACL 10",
+      SAI_OBJECT_TYPE_HOSTIF_USER_DEFINED_TRAP, MLNX_NON_L2_TRAP },
+    { (sai_hostif_trap_type_t)SAI_HOSTIF_USER_DEFINED_TRAP_TYPE_ACL, 1, { SX_TRAP_ID_ACL_MIN + 10 },
+      SAI_PACKET_ACTION_TRAP,
+      "ACL 11",
+      SAI_OBJECT_TYPE_HOSTIF_USER_DEFINED_TRAP, MLNX_NON_L2_TRAP },
+    { (sai_hostif_trap_type_t)SAI_HOSTIF_USER_DEFINED_TRAP_TYPE_ACL, 1, { SX_TRAP_ID_ACL_MIN + 11 },
+      SAI_PACKET_ACTION_TRAP,
+      "ACL 12",
+      SAI_OBJECT_TYPE_HOSTIF_USER_DEFINED_TRAP, MLNX_NON_L2_TRAP },
+    { (sai_hostif_trap_type_t)SAI_HOSTIF_USER_DEFINED_TRAP_TYPE_ACL, 1, { SX_TRAP_ID_ACL_MIN + 12 },
+      SAI_PACKET_ACTION_TRAP,
+      "ACL 13",
+      SAI_OBJECT_TYPE_HOSTIF_USER_DEFINED_TRAP, MLNX_NON_L2_TRAP },
+    { (sai_hostif_trap_type_t)SAI_HOSTIF_USER_DEFINED_TRAP_TYPE_ACL, 1, { SX_TRAP_ID_ACL_MIN + 13 },
+      SAI_PACKET_ACTION_TRAP,
+      "ACL 14",
+      SAI_OBJECT_TYPE_HOSTIF_USER_DEFINED_TRAP, MLNX_NON_L2_TRAP },
+    { (sai_hostif_trap_type_t)SAI_HOSTIF_USER_DEFINED_TRAP_TYPE_ACL, 1, { SX_TRAP_ID_ACL_MIN + 14 },
+      SAI_PACKET_ACTION_TRAP,
+      "ACL 15",
+      SAI_OBJECT_TYPE_HOSTIF_USER_DEFINED_TRAP, MLNX_NON_L2_TRAP },
+    { (sai_hostif_trap_type_t)SAI_HOSTIF_USER_DEFINED_TRAP_TYPE_ROUTER, 3,
       { SX_TRAP_ID_L3_UC_IP_BASE + SX_TRAP_PRIORITY_BEST_EFFORT, SX_TRAP_ID_L3_UC_IP_BASE + SX_TRAP_PRIORITY_LOW,
-        SX_TRAP_ID_L3_UC_IP_BASE + SX_TRAP_PRIORITY_MED, SX_TRAP_ID_L3_UC_IP_BASE + SX_TRAP_PRIORITY_HIGH },
-      SAI_PACKET_ACTION_TRAP, "Router", MLNX_TRAP_TYPE_USER_DEFINED, MLNX_NON_L2_TRAP },
-    { (sai_hostif_trap_type_t)SAI_HOSTIF_USER_DEFINED_TRAP_TYPE_NEIGH, 6,
+        SX_TRAP_ID_L3_UC_IP_BASE + SX_TRAP_PRIORITY_MED },
+      SAI_PACKET_ACTION_TRAP, "Router 1", SAI_OBJECT_TYPE_HOSTIF_USER_DEFINED_TRAP, MLNX_NON_L2_TRAP },
+    { (sai_hostif_trap_type_t)SAI_HOSTIF_USER_DEFINED_TRAP_TYPE_ROUTER, 1,
+      { SX_TRAP_ID_L3_UC_IP_BASE + SX_TRAP_PRIORITY_HIGH },
+      SAI_PACKET_ACTION_TRAP, "Router 2", SAI_OBJECT_TYPE_HOSTIF_USER_DEFINED_TRAP, MLNX_NON_L2_TRAP },
+    { (sai_hostif_trap_type_t)SAI_HOSTIF_USER_DEFINED_TRAP_TYPE_NEIGHBOR, 3,
       { SX_TRAP_ID_L3_NEIGH_IP_BASE + SX_TRAP_PRIORITY_BEST_EFFORT, SX_TRAP_ID_L3_NEIGH_IP_BASE + SX_TRAP_PRIORITY_LOW,
-        SX_TRAP_ID_L3_NEIGH_IP_BASE + SX_TRAP_PRIORITY_MED, SX_TRAP_ID_L3_NEIGH_IP_BASE + SX_TRAP_PRIORITY_HIGH,
-        SX_TRAP_ID_HOST_MISS_IPV4, SX_TRAP_ID_HOST_MISS_IPV6 },
-      SAI_PACKET_ACTION_TRAP, "Neigh", MLNX_TRAP_TYPE_USER_DEFINED, MLNX_NON_L2_TRAP },
-    { (sai_hostif_trap_type_t)SAI_HOSTIF_USER_DEFINED_TRAP_TYPE_FDB, 1, {SX_TRAP_ID_FDB_EVENT}, SAI_PACKET_ACTION_TRAP,
-      "FDB EVENT",
-      MLNX_TRAP_TYPE_USER_DEFINED, MLNX_NON_L2_TRAP },
+        SX_TRAP_ID_L3_NEIGH_IP_BASE + SX_TRAP_PRIORITY_MED },
+      SAI_PACKET_ACTION_TRAP, "Neigh 1", SAI_OBJECT_TYPE_HOSTIF_USER_DEFINED_TRAP, MLNX_NON_L2_TRAP },
+    { (sai_hostif_trap_type_t)SAI_HOSTIF_USER_DEFINED_TRAP_TYPE_NEIGHBOR, 1,
+      { SX_TRAP_ID_L3_NEIGH_IP_BASE + SX_TRAP_PRIORITY_HIGH },
+      SAI_PACKET_ACTION_TRAP, "Neigh", SAI_OBJECT_TYPE_HOSTIF_USER_DEFINED_TRAP, MLNX_NON_L2_TRAP },
     { SAI_HOSTIF_TRAP_TYPE_BFD, 2, { SX_TRAP_ID_BFD_IPV4, SX_TRAP_ID_BFD_IPV6 },
-      SAI_PACKET_ACTION_DROP, "BFD", MLNX_TRAP_TYPE_REGULAR, MLNX_NON_L2_TRAP},
+      SAI_PACKET_ACTION_DROP, "BFD", SAI_OBJECT_TYPE_HOSTIF_TRAP, MLNX_NON_L2_TRAP},
+    { HOSTMISS_TRAP_TYPE, 2, { SX_TRAP_ID_HOST_MISS_IPV4, SX_TRAP_ID_HOST_MISS_IPV6 },
+      SAI_PACKET_ACTION_TRAP, "Host miss", SAI_OBJECT_TYPE_HOSTIF_TRAP, MLNX_NON_L2_TRAP},
     { END_TRAP_INFO_ID, 1, { END_TRAP_INFO_ID }, 0, "", 0, MLNX_NON_L2_TRAP }
 };
+
+#define MAX_SAI_TRAPS (sizeof(mlnx_traps_info) / sizeof(*mlnx_traps_info) - 1)
+
 static sai_status_t mlnx_trap_mirror_array_drop_set(_In_ uint32_t         trap_db_idx,
                                                     _In_ sai_object_id_t *sai_mirror_oid,
                                                     _In_ uint32_t         sai_mirror_oid_count,
@@ -562,9 +628,352 @@ static sai_status_t mlnx_trap_mirror_array_drop_clear(_In_ uint32_t trap_db_idx)
 static sai_status_t mlnx_trap_mirror_db_fill(_In_ uint32_t                 trap_db_idx,
                                              _In_ const sai_object_list_t *sai_mirror_objlist);
 static sai_status_t mlnx_trap_unset(uint32_t index);
-static sai_status_t find_sai_trap_index(_In_ uint32_t         trap_id,
-                                        _In_ mlnx_trap_type_t trap_type,
-                                        _Out_ uint32_t       *index)
+static sai_status_t mlnx_trap_set(uint32_t index, sai_packet_action_t sai_action, sai_object_id_t trap_group);
+static sai_status_t mlnx_get_trap_db_index_by_oid(sai_object_id_t oid, _Out_ uint32_t *index);
+static sai_status_t mlnx_register_wildcard_channel(sx_access_cmd_t cmd, uint32_t trap_idx);
+
+/*requires sai_db read lock*/
+static sai_status_t mlnx_get_trap_db_idx_by_prio(sai_object_type_t type, sx_trap_priority_t prio, uint32_t *idx)
+{
+    uint32_t     ii, jj;
+    sx_trap_id_t trap_to_find;
+
+    assert(idx);
+
+    SX_LOG_ENTER();
+
+    assert((type == SAI_OBJECT_TYPE_ROUTE_ENTRY) || (type == SAI_OBJECT_TYPE_NEIGHBOR_ENTRY));
+
+    if (prio > SX_TRAP_PRIORITY_MAX) {
+        SX_LOG_ERR("Invalid priority %d\n", prio);
+        return SAI_STATUS_INVALID_PARAMETER;
+    }
+
+    if (type == SAI_OBJECT_TYPE_ROUTE_ENTRY) {
+        trap_to_find = SX_TRAP_ID_L3_UC_IP_BASE + prio;
+    } else {
+        trap_to_find = SX_TRAP_ID_L3_NEIGH_IP_BASE + prio;
+    }
+
+    for (ii = 0; ii < MAX_SAI_TRAPS; ii++) {
+        for (jj = 0; jj < mlnx_traps_info[ii].sdk_traps_num; jj++) {
+            if (mlnx_traps_info[ii].sdk_trap_ids[jj] == trap_to_find) {
+                if (!g_sai_db_ptr->traps_db[ii].is_used) {
+                    SX_LOG_ERR("Trap %s is not configured\n", mlnx_traps_info[ii].trap_name);
+                    return SAI_STATUS_FAILURE;
+                } else {
+                    *idx = ii;
+                    return SAI_STATUS_SUCCESS;
+                }
+            }
+        }
+    }
+
+    return SAI_STATUS_ITEM_NOT_FOUND;
+}
+
+/*requires sai_db read lock*/
+sai_status_t mlnx_trap_refcount_increase(sai_object_id_t trap)
+{
+    sai_status_t status;
+    uint32_t     trap_db_idx;
+
+    SX_LOG_ENTER();
+
+    status = mlnx_get_trap_db_index_by_oid(trap, &trap_db_idx);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to get trap index - trap id 0x%" PRIx64 "\n", trap);
+        return status;
+    }
+
+    g_sai_db_ptr->traps_db[trap_db_idx].refcount++;
+
+    return SAI_STATUS_SUCCESS;
+}
+
+/*requires sai_db read lock*/
+sai_status_t mlnx_trap_refcount_decrease(sai_object_id_t trap)
+{
+    sai_status_t status;
+    uint32_t     trap_db_idx;
+
+    SX_LOG_ENTER();
+
+    status = mlnx_get_trap_db_index_by_oid(trap, &trap_db_idx);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to get trap index - trap id 0x%" PRIx64 "\n", trap);
+        return status;
+    }
+
+    assert(g_sai_db_ptr->traps_db[trap_db_idx].refcount != 0);
+
+    g_sai_db_ptr->traps_db[trap_db_idx].refcount--;
+
+    return SAI_STATUS_SUCCESS;
+}
+
+/*requires sai_db read lock*/
+sai_status_t mlnx_trap_refcount_decrease_by_prio(sai_object_type_t obj_type, sx_trap_priority_t trap_prio)
+{
+    sai_status_t status;
+    uint32_t     trap_db_idx;
+
+    SX_LOG_ENTER();
+
+    status = mlnx_get_trap_db_idx_by_prio(obj_type, trap_prio, &trap_db_idx);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to get trap index for %s prio %d\n", SAI_TYPE_STR(obj_type), trap_prio);
+        return status;
+    }
+
+    assert(g_sai_db_ptr->traps_db[trap_db_idx].refcount != 0);
+
+    g_sai_db_ptr->traps_db[trap_db_idx].refcount--;
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_validate_user_defined_trap_by_object_type(sai_object_type_t type, uint32_t trap_db_idx)
+{
+    sai_hostif_user_defined_trap_type_t trap_type;
+
+    if (mlnx_traps_info[trap_db_idx].object_type != SAI_OBJECT_TYPE_HOSTIF_USER_DEFINED_TRAP) {
+        SX_LOG_ERR("Invalid trap type - %s\n", SAI_TYPE_STR(type));
+        return SAI_STATUS_FAILURE;
+    }
+
+    trap_type = mlnx_traps_info[trap_db_idx].trap_type;
+    if ((type == SAI_OBJECT_TYPE_ROUTE_ENTRY) && (trap_type != SAI_HOSTIF_USER_DEFINED_TRAP_TYPE_ROUTER)) {
+        SX_LOG_ERR("Invalid trap type %s for route entry object\n", SAI_TYPE_STR(type));
+        return SAI_STATUS_FAILURE;
+    }
+
+    if ((type == SAI_OBJECT_TYPE_NEIGHBOR_ENTRY) && (trap_type != SAI_HOSTIF_USER_DEFINED_TRAP_TYPE_NEIGHBOR)) {
+        SX_LOG_ERR("Invalid trap type %s for neighbor entry object\n", SAI_TYPE_STR(type));
+        return SAI_STATUS_FAILURE;
+    }
+
+    if ((type == SAI_OBJECT_TYPE_ACL_ENTRY) && (trap_type != SAI_HOSTIF_USER_DEFINED_TRAP_TYPE_ACL)) {
+        SX_LOG_ERR("Invalid trap type %s for ACL entry object\n", SAI_TYPE_STR(type));
+        return SAI_STATUS_FAILURE;
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
+/*requires sai_db read lock*/
+sai_status_t mlnx_get_user_defined_trap_acl_sx_trap_id(sai_object_id_t trap, sx_trap_id_t *sx_trap_id)
+{
+    sai_status_t status;
+    uint32_t     trap_db_idx;
+
+    SX_LOG_ENTER();
+
+    assert(sx_trap_id);
+
+    status = mlnx_get_trap_db_index_by_oid(trap, &trap_db_idx);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to get trap db index - trap id 0x%" PRIx64 "\n", trap);
+        return status;
+    }
+
+    status = mlnx_validate_user_defined_trap_by_object_type(SAI_OBJECT_TYPE_ACL_ENTRY, trap_db_idx);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Invalid trap for object type ACL entry - trap id 0x%" PRIx64 "\n", trap);
+        return status;
+    }
+
+    if (mlnx_traps_info[trap_db_idx].sdk_traps_num == 0) {
+        SX_LOG_ERR("Invalid ACL user defined trap 0x%" PRIx64 " - no sdk traps configured\n", trap);
+        return SAI_STATUS_FAILURE;
+    }
+
+    *sx_trap_id = mlnx_traps_info[trap_db_idx].sdk_trap_ids[0];
+
+    return SAI_STATUS_SUCCESS;
+}
+
+/*requires sai_db read lock*/
+sai_status_t mlnx_get_user_defined_trap_by_prio(sai_object_type_t  type,
+                                                sx_trap_priority_t prio,
+                                                sai_object_id_t   *trap_oid)
+{
+    sai_status_t status;
+    uint32_t     idx;
+
+    SX_LOG_ENTER();
+
+    assert(trap_oid);
+    assert((type == SAI_OBJECT_TYPE_ROUTE_ENTRY) || (type == SAI_OBJECT_TYPE_NEIGHBOR_ENTRY));
+
+    status = mlnx_get_trap_db_idx_by_prio(type, prio, &idx);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to get trap db index, obj type %s, priority %d\n", SAI_TYPE_STR(type), prio);
+        return status;
+    }
+
+    status = mlnx_create_object(mlnx_traps_info[idx].object_type, idx, NULL, trap_oid);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to create trap object for trap idx %d\n", idx);
+        *trap_oid = SAI_NULL_OBJECT_ID;
+        return status;
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
+/*requires sai_db read lock*/
+sai_status_t mlnx_get_user_defined_trap_prio(sai_object_type_t type, sai_object_id_t trap, sx_trap_priority_t *prio)
+{
+    uint32_t     trap_db_idx = 0;
+    sai_status_t status;
+
+    SX_LOG_ENTER();
+
+    assert(prio);
+
+    if (!mlnx_is_hostif_trap_valid(trap)) {
+        SX_LOG_ERR("Invalid trap - id 0x%" PRIx64 "\n", trap);
+        status = SAI_STATUS_INVALID_PARAMETER;
+        return status;
+    }
+
+    status = mlnx_object_to_type(trap,
+                                 SAI_OBJECT_TYPE_HOSTIF_USER_DEFINED_TRAP,
+                                 &trap_db_idx,
+                                 NULL);
+    if (SAI_STATUS_SUCCESS != status) {
+        SX_LOG_ERR("Failed to create to get trap idx from id 0x%" PRIx64 "\n", trap);
+        return status;
+    }
+
+    status = mlnx_validate_user_defined_trap_by_object_type(type, trap_db_idx);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Invalid trap for object type %s\n", SAI_TYPE_STR(type));
+        return status;
+    }
+
+    if (mlnx_traps_info[trap_db_idx].trap_type == SAI_HOSTIF_USER_DEFINED_TRAP_TYPE_ROUTER) {
+        *prio = mlnx_traps_info[trap_db_idx].sdk_trap_ids[0] - SX_TRAP_ID_L3_UC_IP_BASE;
+    } else if (mlnx_traps_info[trap_db_idx].trap_type == SAI_HOSTIF_USER_DEFINED_TRAP_TYPE_NEIGHBOR) {
+        *prio = mlnx_traps_info[trap_db_idx].sdk_trap_ids[0] - SX_TRAP_ID_L3_NEIGH_IP_BASE;
+    } else {
+        SX_LOG_ERR("Invalid trap type %s to get prio\n", mlnx_traps_info[trap_db_idx].trap_name);
+        return SAI_STATUS_INVALID_PARAMETER;
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static bool mlnx_is_hostif_trap_valid_impl(uint32_t trap_db_idx)
+{
+    if (trap_db_idx >= MAX_SAI_TRAPS) {
+        SX_LOG_ERR("Invalid trap with idx %d, max value - %d\n", trap_db_idx, MAX_SAI_TRAPS);
+        return false;
+    }
+
+    if (mlnx_traps_info[trap_db_idx].trap_type == HOSTMISS_TRAP_TYPE) {
+        SX_LOG_ERR("Idx %d is reserved for host miss traps\n", trap_db_idx);
+        return false;
+    }
+
+    if (!g_sai_db_ptr->traps_db[trap_db_idx].is_used) {
+        SX_LOG_ERR("Trap %s is not configured\n", mlnx_traps_info[trap_db_idx].trap_name);
+        return false;
+    }
+
+    if ((mlnx_traps_info[trap_db_idx].sdk_traps_num == 0) &&
+        (mlnx_traps_info[trap_db_idx].trap_type != SAI_HOSTIF_TRAP_TYPE_PIPELINE_DISCARD_WRED) &&
+        ((mlnx_traps_info[trap_db_idx].trap_type != SAI_HOSTIF_TRAP_TYPE_PIPELINE_DISCARD_ROUTER))) {
+        SX_LOG_ERR("No SDK traps matching SAI trap %s\n", mlnx_traps_info[trap_db_idx].trap_name);
+        return false;
+    }
+
+    return true;
+}
+
+bool mlnx_is_hostif_user_defined_trap_valid_for_set(sai_object_type_t obj_type, sai_object_id_t trap)
+{
+    sai_object_type_t trap_obj_type = sai_object_type_query(trap);
+    uint32_t          trap_db_idx;
+    sai_status_t      status;
+
+    if (trap_obj_type != SAI_OBJECT_TYPE_HOSTIF_USER_DEFINED_TRAP) {
+        SX_LOG_ERR("Invalid trap type - %s\n", SAI_TYPE_STR(obj_type));
+        return false;
+    }
+
+    status = mlnx_object_to_type(trap, trap_obj_type, &trap_db_idx, NULL);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to get trap db idx - trap 0x%" PRIx64 "\n", trap);
+        return false;
+    }
+
+    if (!mlnx_is_hostif_trap_valid_impl(trap_db_idx)) {
+        SX_LOG_ERR("Invalid trap - trap idx %d\n", trap_db_idx);
+        return false;
+    }
+
+    if (mlnx_traps_info[trap_db_idx].object_type != SAI_OBJECT_TYPE_HOSTIF_USER_DEFINED_TRAP) {
+        SX_LOG_ERR("Invalid trap type %s\n", SAI_TYPE_STR(mlnx_traps_info[trap_db_idx].object_type));
+        return false;
+    }
+
+    if ((mlnx_traps_info[trap_db_idx].trap_type != SAI_HOSTIF_USER_DEFINED_TRAP_TYPE_ACL) &&
+        (obj_type == SAI_OBJECT_TYPE_ACL_ENTRY)) {
+        SX_LOG_ERR("Invalid trap type %s for ACL entry\n", mlnx_traps_info[trap_db_idx].trap_name);
+        return false;
+    }
+
+    if ((mlnx_traps_info[trap_db_idx].trap_type != SAI_HOSTIF_USER_DEFINED_TRAP_TYPE_ROUTER) &&
+        (obj_type == SAI_OBJECT_TYPE_ROUTE_ENTRY)) {
+        SX_LOG_ERR("Invalid trap type %s for route entry\n", mlnx_traps_info[trap_db_idx].trap_name);
+        return false;
+    }
+
+    if ((mlnx_traps_info[trap_db_idx].trap_type != SAI_HOSTIF_USER_DEFINED_TRAP_TYPE_NEIGHBOR) &&
+        (obj_type == SAI_OBJECT_TYPE_NEIGHBOR_ENTRY)) {
+        SX_LOG_ERR("Invalid trap type %s for neighbor entry\n", mlnx_traps_info[trap_db_idx].trap_name);
+        return false;
+    }
+
+    return true;
+}
+
+/*requires sai_db read lock*/
+bool mlnx_is_hostif_trap_valid(sai_object_id_t trap)
+{
+    sai_object_type_t obj_type = sai_object_type_query(trap);
+    uint32_t          trap_db_idx;
+    sai_status_t      status;
+
+    if ((obj_type != SAI_OBJECT_TYPE_HOSTIF_TRAP) && (obj_type != SAI_OBJECT_TYPE_HOSTIF_USER_DEFINED_TRAP)) {
+        SX_LOG_ERR("Invalid trap type %s\n", SAI_TYPE_STR(obj_type));
+        return false;
+    }
+
+    status = mlnx_object_to_type(trap, obj_type, &trap_db_idx, NULL);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to get trap db idx, id 0x%" PRIx64 "\n", trap);
+        return false;
+    }
+
+    if (!mlnx_is_hostif_trap_valid_impl(trap_db_idx)) {
+        SX_LOG_ERR("Invalid trap - trap idx %d\n", trap_db_idx);
+        return false;
+    }
+
+    if (obj_type != mlnx_traps_info[trap_db_idx].object_type) {
+        SX_LOG_ERR("Invalid trap type %s\n", SAI_TYPE_STR(obj_type));
+        return false;
+    }
+
+    return true;
+}
+
+static sai_status_t mlnx_find_sai_trap_index_by_trap_type(_In_ uint32_t          trap_type,
+                                                          _In_ sai_object_type_t trap_object_type,
+                                                          _Out_ uint32_t        *index)
 {
     uint32_t curr_index;
 
@@ -575,8 +984,9 @@ static sai_status_t find_sai_trap_index(_In_ uint32_t         trap_id,
         return SAI_STATUS_INVALID_PARAMETER;
     }
 
-    for (curr_index = 0; END_TRAP_INFO_ID != mlnx_traps_info[curr_index].trap_id; curr_index++) {
-        if ((trap_id == mlnx_traps_info[curr_index].trap_id) && (trap_type == mlnx_traps_info[curr_index].trap_type)) {
+    for (curr_index = 0; END_TRAP_INFO_ID != mlnx_traps_info[curr_index].trap_type; curr_index++) {
+        if ((trap_type == mlnx_traps_info[curr_index].trap_type) &&
+            (trap_object_type == mlnx_traps_info[curr_index].object_type)) {
             *index = curr_index;
             SX_LOG_EXIT();
             return SAI_STATUS_SUCCESS;
@@ -587,53 +997,68 @@ static sai_status_t find_sai_trap_index(_In_ uint32_t         trap_id,
     return SAI_STATUS_ITEM_NOT_FOUND;
 }
 
-static sai_status_t find_sai_trap_index_by_oid(sai_object_id_t oid, _Out_ uint32_t *index)
+/*requires sai_db read lock*/
+static sai_status_t find_available_sai_trap_index(_In_ uint32_t          trap_type,
+                                                  _In_ sai_object_type_t trap_object_type,
+                                                  _Out_ uint32_t        *index)
+{
+    uint32_t curr_index;
+
+    SX_LOG_ENTER();
+
+    if (NULL == index) {
+        SX_LOG_ERR("NULL value index\n");
+        return SAI_STATUS_INVALID_PARAMETER;
+    }
+
+    for (curr_index = 0; END_TRAP_INFO_ID != mlnx_traps_info[curr_index].trap_type; curr_index++) {
+        if ((trap_type == mlnx_traps_info[curr_index].trap_type) &&
+            (trap_object_type == mlnx_traps_info[curr_index].object_type) &&
+            (!g_sai_db_ptr->traps_db[curr_index].is_used)) {
+            *index = curr_index;
+            SX_LOG_EXIT();
+            return SAI_STATUS_SUCCESS;
+        }
+    }
+
+    SX_LOG_EXIT();
+    return SAI_STATUS_ITEM_NOT_FOUND;
+}
+
+/*require sai_db read lock*/
+static sai_status_t mlnx_get_trap_db_index_by_oid(sai_object_id_t oid, _Out_ uint32_t *index)
 {
     sai_status_t      status;
     sai_object_type_t trap_type = sai_object_type_query(oid);
-    mlnx_trap_type_t  mlnx_trap_type;
-    uint32_t          trap_id;
 
     assert(index);
 
-    switch (trap_type) {
-    case SAI_OBJECT_TYPE_HOSTIF_TRAP:
-        mlnx_trap_type = MLNX_TRAP_TYPE_REGULAR;
-        break;
-
-    case SAI_OBJECT_TYPE_HOSTIF_USER_DEFINED_TRAP:
-        mlnx_trap_type = MLNX_TRAP_TYPE_USER_DEFINED;
-        break;
-
-    default:
-        SX_LOG_ERR("Invalid trap type %s\n", SAI_TYPE_STR(trap_type));
-        return SAI_STATUS_FAILURE;
+    if (!mlnx_is_hostif_trap_valid(oid)) {
+        SX_LOG_ERR("Invalid trap - id 0x%" PRIx64 "\n", oid);
+        return SAI_STATUS_INVALID_PARAMETER;
     }
 
-    status = mlnx_object_to_type(oid, trap_type, &trap_id, NULL);
+    status = mlnx_object_to_type(oid, trap_type, index, NULL);
     if (SAI_ERR(status)) {
-        SX_LOG_ERR("Failed to get trap object id data\n");
-        return status;
-    }
-
-    status = find_sai_trap_index(trap_id, mlnx_trap_type, index);
-    if (SAI_ERR(status)) {
-        SX_LOG_ERR("Failed to find trap with id %d\n", trap_id);
+        SX_LOG_ERR("Failed to get trap object id data, oid 0x%" PRIx64 "\n", oid);
         return status;
     }
 
     return SAI_STATUS_SUCCESS;
 }
 
-
+/* requires sai_db read lock */
 sai_status_t mlnx_hostif_sx_trap_is_configured(_In_ sx_trap_id_t          sx_trap,
                                                _Out_ sai_packet_action_t *action,
+                                               _Out_ bool                *is_present,
                                                _Out_ bool                *is_configured)
 {
     uint32_t trap_idx, sx_trap_idx;
 
     assert(action);
     assert(is_configured);
+    assert(is_present);
+
 
 #ifdef ACS_OS
     if (sx_trap == SX_TRAP_ID_DISCARD_ING_ROUTER_SIP_DIP) {
@@ -642,31 +1067,36 @@ sai_status_t mlnx_hostif_sx_trap_is_configured(_In_ sx_trap_id_t          sx_tra
     }
 #endif
 
-    for (trap_idx = 0; END_TRAP_INFO_ID != mlnx_traps_info[trap_idx].trap_id; trap_idx++) {
+    for (trap_idx = 0; END_TRAP_INFO_ID != mlnx_traps_info[trap_idx].trap_type; trap_idx++) {
         for (sx_trap_idx = 0; sx_trap_idx < mlnx_traps_info[trap_idx].sdk_traps_num; sx_trap_idx++) {
             if (sx_trap == mlnx_traps_info[trap_idx].sdk_trap_ids[sx_trap_idx]) {
-                *is_configured = true;
-                *action = g_sai_db_ptr->traps_db[trap_idx].action;
+                *is_present = true;
+                *is_configured = g_sai_db_ptr->traps_db[trap_idx].is_used;
+
+                if (*is_configured) {
+                    *action = g_sai_db_ptr->traps_db[trap_idx].action;
+                }
+
                 return SAI_STATUS_SUCCESS;
             }
         }
     }
 
-    *is_configured = false;
+    *is_present = false;
 
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_translate_sdk_trap_to_sai(_In_ sx_trap_id_t             sdk_trap_id,
-                                            _Out_ sai_hostif_trap_type_t *trap_id,
-                                            _Out_ const char            **trap_name,
-                                            _Out_ mlnx_trap_type_t       *trap_type)
+sai_status_t mlnx_translate_sdk_trap_to_sai(_In_ sx_trap_id_t      sdk_trap_id,
+                                            _Out_ const char     **trap_name,
+                                            _Out_ sai_object_id_t *trap_oid)
 {
-    uint32_t curr_index, curr_trap;
+    uint32_t     curr_index, curr_trap;
+    sai_status_t status;
 
     SX_LOG_ENTER();
 
-    if (NULL == trap_id) {
+    if (NULL == trap_oid) {
         SX_LOG_ERR("NULL value trap id\n");
         return SAI_STATUS_INVALID_PARAMETER;
     }
@@ -674,55 +1104,50 @@ sai_status_t mlnx_translate_sdk_trap_to_sai(_In_ sx_trap_id_t             sdk_tr
         SX_LOG_ERR("NULL value trap name\n");
         return SAI_STATUS_INVALID_PARAMETER;
     }
-    if (NULL == trap_type) {
-        SX_LOG_ERR("NULL value trap type\n");
-        return SAI_STATUS_INVALID_PARAMETER;
-    }
 
-    for (curr_index = 0; END_TRAP_INFO_ID != mlnx_traps_info[curr_index].trap_id; curr_index++) {
+    for (curr_index = 0; END_TRAP_INFO_ID != mlnx_traps_info[curr_index].trap_type; curr_index++) {
         for (curr_trap = 0; curr_trap < mlnx_traps_info[curr_index].sdk_traps_num; curr_trap++) {
             if (sdk_trap_id == mlnx_traps_info[curr_index].sdk_trap_ids[curr_trap]) {
-                *trap_id = mlnx_traps_info[curr_index].trap_id;
                 *trap_name = mlnx_traps_info[curr_index].trap_name;
-                *trap_type = mlnx_traps_info[curr_index].trap_type;
+
+                status = mlnx_create_object(mlnx_traps_info[curr_index].object_type, curr_index, NULL, trap_oid);
+                if (SAI_ERR(status)) {
+                    SX_LOG_ERR("Failed to create trap object for index %d, trap name %s\n", curr_index,
+                               mlnx_traps_info[curr_index].trap_name);
+                    *trap_oid = SAI_NULL_OBJECT_ID;
+                    return status;
+                }
+
                 SX_LOG_EXIT();
                 return SAI_STATUS_SUCCESS;
             }
         }
     }
 
+    *trap_oid = SAI_NULL_OBJECT_ID;
+
     SX_LOG_EXIT();
     return SAI_STATUS_ITEM_NOT_FOUND;
 }
 
+/* requires sai_db read lock*/
 sai_status_t mlnx_translate_sai_trap_to_sdk(_In_ sai_object_id_t trap_oid,
                                             _Out_ uint8_t       *sdk_traps_num,
                                             _Out_ sx_trap_id_t(*sx_trap_ids)[MAX_SDK_TRAPS_PER_SAI_TRAP])
 {
     sai_status_t status;
-    uint32_t     trap_type;
     uint32_t     index;
 
     assert(sx_trap_ids);
 
-    status = mlnx_object_to_type(trap_oid, SAI_OBJECT_TYPE_HOSTIF_TRAP, &trap_type, NULL);
+    status = mlnx_get_trap_db_index_by_oid(trap_oid, &index);
     if (SAI_ERR(status)) {
-        return status;
-    }
-
-    status = find_sai_trap_index(trap_type, MLNX_TRAP_TYPE_REGULAR, &index);
-    if (SAI_ERR(status)) {
-        SX_LOG_ERR("Invalid trap %x\n", trap_type);
-        return status;
-    }
-
-    if (mlnx_traps_info[index].sdk_traps_num > 0) {
-        *sdk_traps_num = mlnx_traps_info[index].sdk_traps_num;
-        memcpy(*sx_trap_ids, mlnx_traps_info[index].sdk_trap_ids, sizeof(mlnx_traps_info[index].sdk_trap_ids));
-    } else {
-        SX_LOG_ERR("SAI trap %x has no matching sdk traps\n", trap_type);
+        SX_LOG_ERR("Failed to get trap db index - trap id 0x%" PRIx64 "\n", trap_oid);
         return SAI_STATUS_INVALID_PARAMETER;
     }
+
+    *sdk_traps_num = mlnx_traps_info[index].sdk_traps_num;
+    memcpy(*sx_trap_ids, mlnx_traps_info[index].sdk_trap_ids, sizeof(mlnx_traps_info[index].sdk_trap_ids));
 
     return SAI_STATUS_SUCCESS;
 }
@@ -1095,15 +1520,15 @@ static sai_status_t mlnx_create_host_interface(_Out_ sai_object_id_t     * hif_i
 }
 
 /* requires sai_db read lock */
-static sai_status_t check_host_if_is_valid_unlocked(mlnx_object_id_t mlnx_hif)
+static sai_status_t check_hostif_is_valid_by_idx_unlocked(uint32_t hif_idx)
 {
-    if (mlnx_hif.id.u32 >= MAX_HOSTIFS) {
-        SX_LOG_ERR("Invalid Host if ID %u\n", mlnx_hif.id.u32);
+    if (hif_idx >= MAX_HOSTIFS) {
+        SX_LOG_ERR("Invalid Host if ID %u\n", hif_idx);
         return SAI_STATUS_INVALID_PARAMETER;
     }
 
-    if (!g_sai_db_ptr->hostif_db[mlnx_hif.id.u32].is_used) {
-        SX_LOG_ERR("Invalid Host if ID %u\n entry not used", mlnx_hif.id.u32);
+    if (!g_sai_db_ptr->hostif_db[hif_idx].is_used) {
+        SX_LOG_ERR("Invalid Host if ID %u\n entry not used", hif_idx);
         return SAI_STATUS_INVALID_PARAMETER;
     }
 
@@ -1115,7 +1540,7 @@ static sai_status_t check_host_if_is_valid(mlnx_object_id_t mlnx_hif)
     sai_status_t status;
 
     sai_db_read_lock();
-    status = check_host_if_is_valid_unlocked(mlnx_hif);
+    status = check_hostif_is_valid_by_idx_unlocked(mlnx_hif.id.u32);
     if (SAI_ERR(status)) {
         goto out;
     }
@@ -1161,28 +1586,29 @@ static sai_status_t mlnx_remove_host_interface(_In_ sai_object_id_t hif_id)
         return status;
     }
 
-    cl_plock_excl_acquire(&g_sai_db_ptr->p_lock);
+    sai_db_write_lock();
+
+    if (g_sai_db_ptr->hostif_db[mlnx_hif.id.u32].refcount > 0) {
+        SX_LOG_ERR("Failed to remove hostif with refcount %d - object in use\n",
+                   g_sai_db_ptr->hostif_db[mlnx_hif.id.u32].refcount);
+        status = SAI_STATUS_OBJECT_IN_USE;
+        goto out;
+    }
 
     if (SAI_HOSTIF_OBJECT_TYPE_FD == g_sai_db_ptr->hostif_db[mlnx_hif.id.u32].sub_type) {
         if (SX_STATUS_SUCCESS !=
             (status = sx_api_host_ifc_close(gh_sdk, &g_sai_db_ptr->hostif_db[mlnx_hif.id.u32].fd))) {
             SX_LOG_ERR("host ifc close fd failed - %s.\n", SX_STATUS_MSG(status));
-            cl_plock_release(&g_sai_db_ptr->p_lock);
-            return status;
+            goto out;
         }
-    } else if (SAI_HOSTIF_OBJECT_TYPE_GENETLINK == g_sai_db_ptr->hostif_db[mlnx_hif.id.u32].sub_type) {
-        cl_plock_release(&g_sai_db_ptr->p_lock);
-        return SAI_STATUS_SUCCESS;
-    } else {
+    } else if (SAI_HOSTIF_OBJECT_TYPE_GENETLINK != g_sai_db_ptr->hostif_db[mlnx_hif.id.u32].sub_type) {
         if ((SAI_HOSTIF_OBJECT_TYPE_PORT == g_sai_db_ptr->hostif_db[mlnx_hif.id.u32].sub_type) ||
             (SAI_HOSTIF_OBJECT_TYPE_LAG == g_sai_db_ptr->hostif_db[mlnx_hif.id.u32].sub_type)) {
             status = mlnx_port_idx_by_log_id(g_sai_db_ptr->hostif_db[mlnx_hif.id.u32].port_id, &port_db_idx);
             if (SAI_ERR(status)) {
-                sai_db_unlock();
                 SX_LOG_ERR("Failed to get port db idx from port id 0x%x\n",
                            g_sai_db_ptr->hostif_db[mlnx_hif.id.u32].port_id);
-                SX_LOG_EXIT();
-                return status;
+                goto out;
             }
             mlnx_ports_db[port_db_idx].has_hostif = false;
             mlnx_ports_db[port_db_idx].hostif_db_idx = 0;
@@ -1191,17 +1617,18 @@ static sai_status_t mlnx_remove_host_interface(_In_ sai_object_id_t hif_id)
         system_err = system(command);
         if (0 != system_err) {
             SX_LOG_ERR("Command \"%s\" failed\n", command);
-            cl_plock_release(&g_sai_db_ptr->p_lock);
-            return SAI_STATUS_FAILURE;
+            status = SAI_STATUS_FAILURE;
+            goto out;
         }
     }
 
     memset(&g_sai_db_ptr->hostif_db[mlnx_hif.id.u32], 0, sizeof(g_sai_db_ptr->hostif_db[mlnx_hif.id.u32]));
-    msync(g_sai_db_ptr, sizeof(*g_sai_db_ptr), MS_SYNC);
-    cl_plock_release(&g_sai_db_ptr->p_lock);
+    sai_db_sync();
+out:
+    sai_db_unlock();
 
     SX_LOG_EXIT();
-    return SAI_STATUS_SUCCESS;
+    return status;
 }
 
 /* Restores netdevs in kernel after warm boot */
@@ -1960,7 +2387,7 @@ static sai_status_t mlnx_remove_hostif_trap_group(_In_ sai_object_id_t hostif_tr
         goto out;
     }
 
-    for (trap_idx = 0; END_TRAP_INFO_ID != mlnx_traps_info[trap_idx].trap_id; trap_idx++) {
+    for (trap_idx = 0; END_TRAP_INFO_ID != mlnx_traps_info[trap_idx].trap_type; trap_idx++) {
         if (g_sai_db_ptr->traps_db[trap_idx].trap_group == hostif_trap_group_id) {
             SX_LOG_ERR("Trap group is in use for trap %u (%s)\n", trap_idx, mlnx_traps_info[trap_idx].trap_name);
             status = SAI_STATUS_OBJECT_IN_USE;
@@ -2044,33 +2471,21 @@ static sai_status_t mlnx_get_hostif_trap_group_attribute(_In_ sai_object_id_t   
                               attr_list);
 }
 
-static void trap_key_to_str(_In_ sai_object_id_t hostif_trapid, _Out_ char *key_str)
+static void trap_key_to_str(_In_ sai_object_id_t hostif_trap_id, _Out_ char *key_str)
 {
-    uint32_t trap_data, index;
+    uint32_t          index;
+    sai_object_type_t obj_type = sai_object_type_query(hostif_trap_id);
+    sai_status_t      status;
 
-    if (SAI_STATUS_SUCCESS != mlnx_object_to_type(hostif_trapid, SAI_OBJECT_TYPE_HOSTIF_TRAP, &trap_data, NULL)) {
+    if ((obj_type != SAI_OBJECT_TYPE_HOSTIF_TRAP) && ((obj_type != SAI_OBJECT_TYPE_HOSTIF_USER_DEFINED_TRAP))) {
         snprintf(key_str, MAX_KEY_STR_LEN, "Invalid trap");
     } else {
-        if (SAI_STATUS_SUCCESS == find_sai_trap_index(trap_data, MLNX_TRAP_TYPE_REGULAR, &index)) {
-            snprintf(key_str, MAX_KEY_STR_LEN, "trap %x %s", trap_data, mlnx_traps_info[index].trap_name);
+        status = mlnx_object_to_type(hostif_trap_id, obj_type, &index, NULL);
+        if (SAI_ERR(status)) {
+            snprintf(key_str, MAX_KEY_STR_LEN, "Invalid trap");
         } else {
-            snprintf(key_str, MAX_KEY_STR_LEN, "Invalid trap %x", trap_data);
-        }
-    }
-}
-
-static void user_defined_trap_key_to_str(_In_ sai_object_id_t hostif_user_defined_trapid, _Out_ char          *key_str)
-{
-    uint32_t trap_data, index;
-
-    if (SAI_STATUS_SUCCESS != mlnx_object_to_type(hostif_user_defined_trapid, SAI_OBJECT_TYPE_HOSTIF_USER_DEFINED_TRAP,
-                                                  &trap_data, NULL)) {
-        snprintf(key_str, MAX_KEY_STR_LEN, "Invalid user defined trap");
-    } else {
-        if (SAI_STATUS_SUCCESS == find_sai_trap_index(trap_data, MLNX_TRAP_TYPE_USER_DEFINED, &index)) {
-            snprintf(key_str, MAX_KEY_STR_LEN, "user defined trap %x %s", trap_data, mlnx_traps_info[index].trap_name);
-        } else {
-            snprintf(key_str, MAX_KEY_STR_LEN, "Invalid user defined trap %x", trap_data);
+            snprintf(key_str, MAX_KEY_STR_LEN, "%s %x %s oid 0x%" PRIx64 "", SAI_TYPE_STR(obj_type), index,
+                     mlnx_traps_info[index].trap_name, hostif_trap_id);
         }
     }
 }
@@ -2092,9 +2507,9 @@ sai_status_t mlnx_create_hostif_trap(_Out_ sai_object_id_t      *hostif_trap_id,
 {
     sai_status_t                 status;
     sai_status_t                 sai_status_mirror_session;
-    const sai_attribute_value_t *trap_id = NULL, *action = NULL, *exclude = NULL, *counter_id = NULL;
+    const sai_attribute_value_t *trap_type = NULL, *action = NULL, *exclude = NULL, *counter_id = NULL;
     const sai_attribute_value_t *group = NULL, *mirror_session = NULL;
-    uint32_t                     trap_id_index, action_index, exclude_index, group_index, counter_index;
+    uint32_t                     trap_type_idx, action_index, exclude_index, group_index, counter_index;
     uint32_t                     mirror_session_index;
     char                         key_str[MAX_KEY_STR_LEN];
     char                         list_str[MAX_LIST_VALUE_STR_LEN];
@@ -2122,12 +2537,22 @@ sai_status_t mlnx_create_hostif_trap(_Out_ sai_object_id_t      *hostif_trap_id,
     sai_attr_list_to_str(attr_count, attr_list, SAI_OBJECT_TYPE_HOSTIF_TRAP, MAX_LIST_VALUE_STR_LEN, list_str);
     SX_LOG_NTC("Create trap, %s\n", list_str);
 
-    status = find_attrib_in_list(attr_count, attr_list, SAI_HOSTIF_TRAP_ATTR_TRAP_TYPE, &trap_id, &trap_id_index);
+    status = find_attrib_in_list(attr_count, attr_list, SAI_HOSTIF_TRAP_ATTR_TRAP_TYPE, &trap_type, &trap_type_idx);
     assert(SAI_STATUS_SUCCESS == status);
 
-    if (SAI_STATUS_SUCCESS != (status = find_sai_trap_index(trap_id->s32, MLNX_TRAP_TYPE_REGULAR, &index))) {
-        SX_LOG_ERR("Invalid trap %x\n", trap_id->s32);
-        return SAI_STATUS_INVALID_PARAMETER;
+    sai_db_write_lock();
+
+    status = find_available_sai_trap_index(trap_type->s32, SAI_OBJECT_TYPE_HOSTIF_TRAP, &index);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("No traps of type %x available\n", trap_type->s32);
+        status = SAI_STATUS_INVALID_PARAMETER;
+        goto out;
+    }
+
+    if (g_sai_db_ptr->traps_db[index].is_used) {
+        SX_LOG_ERR("Trap %s is already configured\n", mlnx_traps_info[index].trap_name);
+        status = SAI_STATUS_ITEM_ALREADY_EXISTS;
+        goto out;
     }
 
     status = find_attrib_in_list(attr_count, attr_list, SAI_HOSTIF_TRAP_ATTR_PACKET_ACTION, &action, &action_index);
@@ -2136,18 +2561,16 @@ sai_status_t mlnx_create_hostif_trap(_Out_ sai_object_id_t      *hostif_trap_id,
     if (SAI_STATUS_SUCCESS !=
         (status =
              mlnx_translate_sai_trap_action_to_sdk(action->s32, &sx_action, 0, mlnx_traps_info[index].is_l2_trap))) {
-        return status;
+        goto out;
     }
 
     if (SAI_STATUS_SUCCESS ==
         find_attrib_in_list(attr_count, attr_list, SAI_HOSTIF_TRAP_ATTR_TRAP_GROUP, &group, &group_index)) {
         if (SAI_STATUS_SUCCESS !=
             (status = mlnx_object_to_type(group->oid, SAI_OBJECT_TYPE_HOSTIF_TRAP_GROUP, &prio, NULL))) {
-            return status;
+            goto out;
         }
     }
-
-    cl_plock_excl_acquire(&g_sai_db_ptr->p_lock);
 
     sai_status_mirror_session = find_attrib_in_list(attr_count,
                                                     attr_list,
@@ -2157,66 +2580,60 @@ sai_status_t mlnx_create_hostif_trap(_Out_ sai_object_id_t      *hostif_trap_id,
     if (SAI_STATUS_SUCCESS == sai_status_mirror_session) {
         status = mlnx_trap_mirror_array_drop_clear(index);
         if (SAI_STATUS_SUCCESS != status) {
-            cl_plock_release(&g_sai_db_ptr->p_lock);
             SX_LOG_ERR("Error clearing trap mirror array\n");
-            return status;
+            goto out;
         }
         status = mlnx_trap_mirror_array_drop_set(index,
                                                  mirror_session->objlist.list,
                                                  mirror_session->objlist.count,
                                                  is_create);
         if (SAI_STATUS_SUCCESS != status) {
-            cl_plock_release(&g_sai_db_ptr->p_lock);
             SX_LOG_ERR("Error setting trap mirror session\n");
-            return status;
+            goto out;
         }
-    }
 
-    if (SAI_STATUS_SUCCESS != sai_status_mirror_session) {
-        status = mlnx_trap_unset(index);
-        if (SAI_ERR(status)) {
-            cl_plock_release(&g_sai_db_ptr->p_lock);
-            return status;
-        }
-        if (SAI_STATUS_SUCCESS != (status = mlnx_trap_set(index, action->s32, (group) ? group->oid :
-                                                          g_sai_db_ptr->default_trap_group))) {
-            cl_plock_release(&g_sai_db_ptr->p_lock);
-            return status;
-        }
-    } else {
         status = mlnx_trap_mirror_db_fill(index, &mirror_session->objlist);
         if (SAI_STATUS_SUCCESS != status) {
-            cl_plock_release(&g_sai_db_ptr->p_lock);
             SX_LOG_ERR("Error filling trap mirror db for index %d\n", index);
-            return status;
+            goto out;
+        }
+    } else {
+        status = mlnx_trap_set(index, action->s32, (group) ? group->oid : g_sai_db_ptr->default_trap_group);
+        if (SAI_ERR(status)) {
+            goto out;
+        }
+
+        if (g_sai_db_ptr->wildcard_channel.is_in_use) {
+            status = mlnx_register_wildcard_channel(SX_ACCESS_CMD_REGISTER, index);
+            if (SAI_ERR(status)) {
+                SX_LOG_ERR("Failed to register wildcard channel for trap %s\n", mlnx_traps_info[index].trap_name);
+                goto out;
+            }
         }
     }
 
     g_sai_db_ptr->traps_db[index].action = action->s32;
     g_sai_db_ptr->traps_db[index].trap_group = (group) ? group->oid : g_sai_db_ptr->default_trap_group;
 
-    cl_plock_release(&g_sai_db_ptr->p_lock);
-
     if (SAI_STATUS_SUCCESS ==
         find_attrib_in_list(attr_count, attr_list, SAI_HOSTIF_TRAP_ATTR_EXCLUDE_PORT_LIST, &exclude, &exclude_index)) {
         if (SAI_STATUS_SUCCESS != (status = mlnx_trap_filter_set(index, exclude->objlist))) {
-            cl_plock_release(&g_sai_db_ptr->p_lock);
-            return status;
+            goto out;
         }
     }
 
     if (SAI_STATUS_SUCCESS !=
-        (status = mlnx_create_object(SAI_OBJECT_TYPE_HOSTIF_TRAP, trap_id->s32, NULL, hostif_trap_id))) {
-        SX_LOG_EXIT();
-        return status;
+        (status = mlnx_create_object(SAI_OBJECT_TYPE_HOSTIF_TRAP, index, NULL, hostif_trap_id))) {
+        goto out;
     }
+
+    g_sai_db_ptr->traps_db[index].is_used = true;
 
     status = find_attrib_in_list(attr_count, attr_list, SAI_HOSTIF_TRAP_ATTR_COUNTER_ID, &counter_id, &counter_index);
     if (!SAI_ERR(status)) {
-        status = mlnx_update_hostif_trap_counter(*hostif_trap_id, counter_id->oid);
+        status = mlnx_update_hostif_trap_counter_unlocked(*hostif_trap_id, counter_id->oid);
         if (SAI_ERR(status)) {
-            SX_LOG_EXIT();
-            return status;
+            goto out;
         }
     }
 
@@ -2224,8 +2641,11 @@ sai_status_t mlnx_create_hostif_trap(_Out_ sai_object_id_t      *hostif_trap_id,
 
     SX_LOG_NTC("Created trap %s\n", key_str);
 
+    status = SAI_STATUS_SUCCESS;
+out:
+    sai_db_unlock();
     SX_LOG_EXIT();
-    return SAI_STATUS_SUCCESS;
+    return status;
 }
 
 /**
@@ -2238,43 +2658,58 @@ sai_status_t mlnx_create_hostif_trap(_Out_ sai_object_id_t      *hostif_trap_id,
 sai_status_t mlnx_remove_hostif_trap(_In_ sai_object_id_t hostif_trap_id)
 {
     char                   key_str[MAX_KEY_STR_LEN];
-    uint32_t               trap_id, index;
+    uint32_t               index;
     sai_status_t           status;
-    sai_object_list_t      exclude;
+    sai_object_list_t      exclude = {0};
     sai_hostif_trap_type_t sai_trap_type;
 
     SX_LOG_ENTER();
     trap_key_to_str(hostif_trap_id, key_str);
     SX_LOG_NTC("Remove trap %s\n", key_str);
-    if (SAI_STATUS_SUCCESS !=
-        (status = mlnx_object_to_type(hostif_trap_id, SAI_OBJECT_TYPE_HOSTIF_TRAP, &trap_id, NULL))) {
-        SX_LOG_EXIT();
-        return status;
-    }
-
-    if (SAI_STATUS_SUCCESS != (status = find_sai_trap_index(trap_id, MLNX_TRAP_TYPE_REGULAR, &index))) {
-        SX_LOG_ERR("Invalid trap %x\n", trap_id);
-        return SAI_STATUS_INVALID_PARAMETER;
-    }
-
-    status = mlnx_update_hostif_trap_counter(hostif_trap_id, SAI_NULL_OBJECT_ID);
-    if (SAI_ERR(status)) {
-        SX_LOG_ERR("Failed to unbound counter from trap\n");
-        goto out;
-    }
 
     sai_db_write_lock();
 
-    sai_trap_type = mlnx_traps_info[index].trap_id;
+    status = mlnx_get_trap_db_index_by_oid(hostif_trap_id, &index);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to get trap db index - id 0x%" PRIx64 "\n", hostif_trap_id);
+        status = SAI_STATUS_INVALID_PARAMETER;
+        goto out;
+    }
+
+    if (g_sai_db_ptr->traps_db[index].is_used == false) {
+        SX_LOG_ERR("Failed to remove host interface trap %s - entry is not configured\n",
+                   mlnx_traps_info[index].trap_name);
+        status = SAI_STATUS_FAILURE;
+        goto out;
+    }
+
+    if (g_sai_db_ptr->traps_db[index].refcount > 0) {
+        SX_LOG_ERR("Failed to remove trap with refcount %d - trap %s is in use\n",
+                   g_sai_db_ptr->traps_db[index].refcount, mlnx_traps_info[index].trap_name);
+        status = SAI_STATUS_OBJECT_IN_USE;
+        goto out;
+    }
+
+    status = mlnx_update_hostif_trap_counter_unlocked(hostif_trap_id, SAI_NULL_OBJECT_ID);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to unbound counter from trap %s\n", mlnx_traps_info[index].trap_name);
+        goto out;
+    }
+
+    sai_trap_type = mlnx_traps_info[index].trap_type;
     if ((SAI_HOSTIF_TRAP_TYPE_PIPELINE_DISCARD_WRED != sai_trap_type) &&
         (SAI_HOSTIF_TRAP_TYPE_PIPELINE_DISCARD_ROUTER != sai_trap_type)) {
-        status = mlnx_trap_unset(index);
-        if (SAI_ERR(status)) {
-            goto out;
+        if (g_sai_db_ptr->wildcard_channel.is_in_use) {
+            status = mlnx_register_wildcard_channel(SX_ACCESS_CMD_DEREGISTER, index);
+            if (SAI_ERR(status)) {
+                SX_LOG_ERR("Failed to deregister wildcard channel for trap %s\n", mlnx_traps_info[index].trap_name);
+                goto out;
+            }
         }
 
-        if (SAI_STATUS_SUCCESS != (status = mlnx_trap_set(index, mlnx_traps_info[index].action,
-                                                          g_sai_db_ptr->default_trap_group))) {
+        status = mlnx_trap_unset(index);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to unset trap %s\n", mlnx_traps_info[index].trap_name);
             goto out;
         }
 
@@ -2292,6 +2727,8 @@ sai_status_t mlnx_remove_hostif_trap(_In_ sai_object_id_t hostif_trap_id)
 
     g_sai_db_ptr->traps_db[index].action = mlnx_traps_info[index].action;
     g_sai_db_ptr->traps_db[index].trap_group = g_sai_db_ptr->default_trap_group;
+
+    g_sai_db_ptr->traps_db[index].is_used = false;
 
 out:
     sai_db_unlock();
@@ -2370,11 +2807,12 @@ sai_status_t mlnx_create_hostif_user_defined_trap(_Out_ sai_object_id_t      *ho
                                                   _In_ const sai_attribute_t *attr_list)
 {
     sai_status_t                 status;
-    const sai_attribute_value_t *trap_id, *group = NULL;
-    uint32_t                     trap_id_index, group_index;
+    const sai_attribute_value_t *trap_type, *group_attr = NULL;
+    uint32_t                     trap_type_index, group_index;
     char                         key_str[MAX_KEY_STR_LEN];
     char                         list_str[MAX_LIST_VALUE_STR_LEN];
     uint32_t                     index, prio;
+    sai_object_id_t              trap_group;
 
     SX_LOG_ENTER();
 
@@ -2399,61 +2837,67 @@ sai_status_t mlnx_create_hostif_user_defined_trap(_Out_ sai_object_id_t      *ho
                          list_str);
     SX_LOG_NTC("Create user defined trap, %s\n", list_str);
 
+    sai_db_write_lock();
+
     status = find_attrib_in_list(attr_count,
                                  attr_list,
                                  SAI_HOSTIF_USER_DEFINED_TRAP_ATTR_TYPE,
-                                 &trap_id,
-                                 &trap_id_index);
+                                 &trap_type,
+                                 &trap_type_index);
     assert(SAI_STATUS_SUCCESS == status);
 
-    if (SAI_STATUS_SUCCESS != (status = find_sai_trap_index(trap_id->s32, MLNX_TRAP_TYPE_USER_DEFINED, &index))) {
-        SX_LOG_ERR("Invalid user defined trap %x\n", trap_id->s32);
-        return SAI_STATUS_INVALID_PARAMETER;
+    status = find_available_sai_trap_index(trap_type->s32, SAI_OBJECT_TYPE_HOSTIF_USER_DEFINED_TRAP, &index);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("No traps of type %x available\n", trap_type->s32);
+        status = SAI_STATUS_INVALID_PARAMETER;
+        goto out;
     }
 
-    if (SAI_STATUS_SUCCESS ==
-        find_attrib_in_list(attr_count, attr_list, SAI_HOSTIF_USER_DEFINED_TRAP_ATTR_TRAP_GROUP, &group,
-                            &group_index)) {
-        if (SAI_STATUS_SUCCESS !=
-            (status = mlnx_object_to_type(group->oid, SAI_OBJECT_TYPE_HOSTIF_TRAP_GROUP, &prio, NULL))) {
-            return status;
-        }
-    }
-
-    cl_plock_excl_acquire(&g_sai_db_ptr->p_lock);
-
-    if (0 < mlnx_traps_info[index].sdk_traps_num) {
-        status = mlnx_trap_unset(index);
+    status = find_attrib_in_list(attr_count, attr_list, SAI_HOSTIF_USER_DEFINED_TRAP_ATTR_TRAP_GROUP, &group_attr,
+                                 &group_index);
+    if (SAI_OK(status)) {
+        status = mlnx_object_to_type(group_attr->oid, SAI_OBJECT_TYPE_HOSTIF_TRAP_GROUP, &prio, NULL);
         if (SAI_ERR(status)) {
-            cl_plock_release(&g_sai_db_ptr->p_lock);
-            return status;
+            SX_LOG_ERR("Failed to get trap group data\n");
+            goto out;
         }
-        if (SAI_STATUS_SUCCESS !=
-            (status = mlnx_trap_set(index, g_sai_db_ptr->traps_db[index].action, (group) ? group->oid :
-                                    g_sai_db_ptr->default_trap_group))) {
-            cl_plock_release(&g_sai_db_ptr->p_lock);
-            return status;
+
+        trap_group = group_attr->oid;
+    } else {
+        trap_group = g_sai_db_ptr->default_trap_group;
+    }
+
+    status = mlnx_trap_set(index, g_sai_db_ptr->traps_db[index].action, trap_group);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to set trap SDK\n");
+        goto out;
+    }
+
+    if (g_sai_db_ptr->wildcard_channel.is_in_use) {
+        status = mlnx_register_wildcard_channel(SX_ACCESS_CMD_REGISTER, index);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to register wildcard channel for trap %s\n", mlnx_traps_info[index].trap_name);
+            goto out;
         }
     }
 
-    g_sai_db_ptr->traps_db[index].trap_group = (group) ? group->oid : g_sai_db_ptr->default_trap_group;
-
-    cl_plock_release(&g_sai_db_ptr->p_lock);
-
-    if (SAI_STATUS_SUCCESS !=
-        (status =
-             mlnx_create_object(SAI_OBJECT_TYPE_HOSTIF_USER_DEFINED_TRAP, trap_id->s32, NULL,
-                                hostif_user_defined_trap_id))) {
-        SX_LOG_EXIT();
-        return status;
+    status = mlnx_create_object(SAI_OBJECT_TYPE_HOSTIF_USER_DEFINED_TRAP, index, NULL, hostif_user_defined_trap_id);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to create trap object id\n");
+        goto out;
     }
 
-    user_defined_trap_key_to_str(*hostif_user_defined_trap_id, key_str);
+    g_sai_db_ptr->traps_db[index].trap_group = trap_group;
+    g_sai_db_ptr->traps_db[index].is_used = true;
+    trap_key_to_str(*hostif_user_defined_trap_id, key_str);
 
     SX_LOG_NTC("Created user defined trap %s\n", key_str);
 
+out:
+    sai_db_unlock();
     SX_LOG_EXIT();
-    return SAI_STATUS_SUCCESS;
+
+    return status;
 }
 
 /**
@@ -2466,44 +2910,56 @@ sai_status_t mlnx_create_hostif_user_defined_trap(_Out_ sai_object_id_t      *ho
 sai_status_t mlnx_remove_hostif_user_defined_trap(_In_ sai_object_id_t hostif_user_defined_trap_id)
 {
     char         key_str[MAX_KEY_STR_LEN];
-    uint32_t     trap_id, index;
+    uint32_t     index;
     sai_status_t status;
 
     SX_LOG_ENTER();
-    user_defined_trap_key_to_str(hostif_user_defined_trap_id, key_str);
+
+    trap_key_to_str(hostif_user_defined_trap_id, key_str);
     SX_LOG_NTC("Remove user defined trap %s\n", key_str);
-    if (SAI_STATUS_SUCCESS !=
-        (status =
-             mlnx_object_to_type(hostif_user_defined_trap_id, SAI_OBJECT_TYPE_HOSTIF_USER_DEFINED_TRAP, &trap_id,
-                                 NULL))) {
-        SX_LOG_EXIT();
-        return status;
+
+    sai_db_write_lock();
+
+    status = mlnx_get_trap_db_index_by_oid(hostif_user_defined_trap_id, &index);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to get trap db index, trap id 0x%" PRIx64 "\n", hostif_user_defined_trap_id);
+        status = SAI_STATUS_INVALID_PARAMETER;
+        goto out;
     }
 
-    if (SAI_STATUS_SUCCESS != (status = find_sai_trap_index(trap_id, MLNX_TRAP_TYPE_USER_DEFINED, &index))) {
-        SX_LOG_ERR("Invalid user defined trap %x\n", trap_id);
-        return SAI_STATUS_INVALID_PARAMETER;
+    if (g_sai_db_ptr->traps_db[index].is_used == false) {
+        SX_LOG_ERR("Failed to remove host interface trap - entry is not configured\n");
+        status = SAI_STATUS_FAILURE;
+        goto out;
     }
 
-    cl_plock_excl_acquire(&g_sai_db_ptr->p_lock);
+    if (g_sai_db_ptr->traps_db[index].refcount > 0) {
+        SX_LOG_ERR("Failed to remove trap %s with refcount %d - trap is in use\n", mlnx_traps_info[index].trap_name,
+                   g_sai_db_ptr->traps_db[index].refcount);
+        status = SAI_STATUS_OBJECT_IN_USE;
+        goto out;
+    }
+
+    if (g_sai_db_ptr->wildcard_channel.is_in_use) {
+        status = mlnx_register_wildcard_channel(SX_ACCESS_CMD_DEREGISTER, index);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to deregister wildcard channel for trap %s\n", mlnx_traps_info[index].trap_name);
+            goto out;
+        }
+    }
+
+    status = mlnx_trap_unset(index);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to unset trap %s\n", mlnx_traps_info[index].trap_name);
+        goto out;
+    }
+
     g_sai_db_ptr->traps_db[index].action = mlnx_traps_info[index].action;
     g_sai_db_ptr->traps_db[index].trap_group = g_sai_db_ptr->default_trap_group;
+    g_sai_db_ptr->traps_db[index].is_used = false;
 
-    if (0 < mlnx_traps_info[index].sdk_traps_num) {
-        status = mlnx_trap_unset(index);
-        if (SAI_ERR(status)) {
-            cl_plock_release(&g_sai_db_ptr->p_lock);
-            return status;
-        }
-        if (SAI_STATUS_SUCCESS != (status = mlnx_trap_set(index, mlnx_traps_info[index].action,
-                                                          g_sai_db_ptr->default_trap_group))) {
-            cl_plock_release(&g_sai_db_ptr->p_lock);
-            return status;
-        }
-    }
-
-    cl_plock_release(&g_sai_db_ptr->p_lock);
-
+out:
+    sai_db_unlock();
     SX_LOG_EXIT();
     return status;
 }
@@ -2529,7 +2985,7 @@ static sai_status_t mlnx_set_hostif_user_defined_trap_attribute(
 
     SX_LOG_ENTER();
 
-    user_defined_trap_key_to_str(hostif_user_defined_trap_id, key_str);
+    trap_key_to_str(hostif_user_defined_trap_id, key_str);
     return sai_set_attribute(&key,
                              key_str,
                              SAI_OBJECT_TYPE_HOSTIF_USER_DEFINED_TRAP,
@@ -2559,38 +3015,13 @@ static sai_status_t mlnx_get_hostif_user_defined_trap_attribute(_In_ sai_object_
 
     SX_LOG_ENTER();
 
-    user_defined_trap_key_to_str(hostif_user_defined_trap_id, key_str);
+    trap_key_to_str(hostif_user_defined_trap_id, key_str);
     return sai_get_attributes(&key,
                               key_str,
                               SAI_OBJECT_TYPE_HOSTIF_USER_DEFINED_TRAP,
                               user_defined_trap_vendor_attribs,
                               attr_count,
                               attr_list);
-}
-
-_Success_(return == SAI_STATUS_SUCCESS)
-static sai_status_t mlnx_trap_record_get(_In_ uint32_t         trap_id,
-                                         _In_ mlnx_trap_type_t trap_type,
-                                         _Out_ mlnx_trap_t    *trap_record)
-{
-    sai_status_t status;
-    uint32_t     index;
-
-    if (NULL == trap_record) {
-        SX_LOG_ERR("NULL value trap record\n");
-        return SAI_STATUS_INVALID_PARAMETER;
-    }
-
-    if (SAI_STATUS_SUCCESS != (status = find_sai_trap_index(trap_id, trap_type, &index))) {
-        SX_LOG_ERR("Invalid %strap %x\n", (trap_type == MLNX_TRAP_TYPE_REGULAR) ? "" : "user defined ", trap_id);
-        return status;
-    }
-
-    cl_plock_acquire(&g_sai_db_ptr->p_lock);
-    memcpy(trap_record, &g_sai_db_ptr->traps_db[index], sizeof(*trap_record));
-    cl_plock_release(&g_sai_db_ptr->p_lock);
-
-    return SAI_STATUS_SUCCESS;
 }
 
 static sai_status_t mlnx_trap_update(_In_ uint32_t            index,
@@ -2625,13 +3056,9 @@ static sai_status_t mlnx_trap_update(_In_ uint32_t            index,
         return status;
     }
 
-    if (0 == mlnx_traps_info[index].sdk_traps_num) {
-        SX_LOG_ERR("trap %s %x not supported\n", mlnx_traps_info[index].trap_name, mlnx_traps_info[index].trap_id);
-        return SAI_STATUS_NOT_SUPPORTED;
-    }
-
     for (trap_index = 0; trap_index < mlnx_traps_info[index].sdk_traps_num; trap_index++) {
-        status = mlnx_debug_counter_db_trap_action_update(mlnx_traps_info[index].sdk_trap_ids[trap_index], sai_action);
+        status = mlnx_debug_counter_db_trap_action_update(mlnx_traps_info[index].sdk_trap_ids[trap_index],
+                                                          is_set ? sai_action : SAI_PACKET_ACTION_DROP);
         if (SAI_ERR(status)) {
             return status;
         }
@@ -2653,7 +3080,7 @@ static sai_status_t mlnx_trap_update(_In_ uint32_t            index,
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_trap_set(uint32_t index, sai_packet_action_t sai_action, sai_object_id_t trap_group)
+static sai_status_t mlnx_trap_set(uint32_t index, sai_packet_action_t sai_action, sai_object_id_t trap_group)
 {
     return mlnx_trap_update(index, sai_action, trap_group, true);
 }
@@ -2666,22 +3093,16 @@ static sai_status_t mlnx_trap_unset(uint32_t index)
                             false);
 }
 
-sai_status_t mlnx_register_trap(const sx_access_cmd_t             cmd,
-                                const uint32_t                    trap_db_idx,
-                                const sx_host_ifc_register_key_t *register_key,
-                                const sx_user_channel_t          *user_channel)
+static sai_status_t mlnx_register_trap(const sx_access_cmd_t             cmd,
+                                       const uint32_t                    trap_db_idx,
+                                       const sx_host_ifc_register_key_t *register_key,
+                                       const sx_user_channel_t          *user_channel)
 {
     sx_status_t status;
     uint32_t    trap_index;
 
     assert(register_key);
     assert(user_channel);
-
-    if (mlnx_traps_info[trap_db_idx].sdk_traps_num == 0) {
-        SX_LOG_ERR("trap %s %x not supported\n", mlnx_traps_info[trap_db_idx].trap_name,
-                   mlnx_traps_info[trap_db_idx].trap_id);
-        return SAI_STATUS_NOT_SUPPORTED;
-    }
 
     for (trap_index = 0; trap_index < mlnx_traps_info[trap_db_idx].sdk_traps_num; trap_index++) {
         if (register_key->key_type == SX_HOST_IFC_REGISTER_KEY_TYPE_GLOBAL) {
@@ -2713,12 +3134,13 @@ static sai_status_t mlnx_register_all_traps(const sx_access_cmd_t             cm
 {
     uint32_t     trap_db_idx;
     sai_status_t status;
+    uint32_t     hostmiss_idx;
 
     assert(register_key);
     assert(user_channel);
 
-    for (trap_db_idx = 0; mlnx_traps_info[trap_db_idx].trap_id != END_TRAP_INFO_ID; trap_db_idx++) {
-        if (mlnx_traps_info[trap_db_idx].sdk_traps_num == 0) {
+    for (trap_db_idx = 0; mlnx_traps_info[trap_db_idx].trap_type != END_TRAP_INFO_ID; trap_db_idx++) {
+        if ((mlnx_traps_info[trap_db_idx].sdk_traps_num == 0) || (!g_sai_db_ptr->traps_db[trap_db_idx].is_used)) {
             continue;
         }
 
@@ -2728,6 +3150,35 @@ static sai_status_t mlnx_register_all_traps(const sx_access_cmd_t             cm
 
         status = mlnx_register_trap(cmd, trap_db_idx, register_key, user_channel);
         if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to register trap, trap idx - %d\n", trap_db_idx);
+            return status;
+        }
+    }
+
+    status = mlnx_find_sai_trap_index_by_trap_type(HOSTMISS_TRAP_TYPE, SAI_OBJECT_TYPE_HOSTIF_TRAP, &hostmiss_idx);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to find host miss trap index\n");
+        return status;
+    }
+
+    if (cmd == SX_ACCESS_CMD_REGISTER) {
+        status = mlnx_trap_set(hostmiss_idx, mlnx_traps_info[hostmiss_idx].action, g_sai_db_ptr->default_trap_group);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to set host miss traps SDK\n");
+            return status;
+        }
+    }
+
+    status = mlnx_register_trap(cmd, hostmiss_idx, register_key, user_channel);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to register host miss trap, trap idx - %d\n", hostmiss_idx);
+        return status;
+    }
+
+    if (cmd == SX_ACCESS_CMD_DEREGISTER) {
+        status = mlnx_trap_update(hostmiss_idx, SAI_PACKET_ACTION_TRAP, g_sai_db_ptr->default_trap_group, false);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to unset host miss traps SDK\n");
             return status;
         }
     }
@@ -2735,18 +3186,13 @@ static sai_status_t mlnx_register_all_traps(const sx_access_cmd_t             cm
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_trap_filter_set(uint32_t index, sai_object_list_t ports)
+static sai_status_t mlnx_trap_filter_set(uint32_t index, sai_object_list_t ports)
 {
     sai_status_t      status;
     uint32_t          trap_index, ii, count;
     sx_port_log_id_t *filter_list;
 
     SX_LOG_ENTER();
-
-    if (0 == mlnx_traps_info[index].sdk_traps_num) {
-        SX_LOG_ERR("trap %s %x not supported\n", mlnx_traps_info[index].trap_name, mlnx_traps_info[index].trap_id);
-        return SAI_STATUS_NOT_SUPPORTED;
-    }
 
     count = ports.count;
     filter_list = (sx_port_log_id_t*)malloc(sizeof(sx_port_log_id_t) * count);
@@ -2799,37 +3245,37 @@ static sai_status_t mlnx_trap_action_set(_In_ const sai_object_key_t      *key,
                                          void                             *arg)
 {
     sai_status_t     status;
-    uint32_t         index, trap_data;
+    uint32_t         index;
     sx_trap_action_t action;
 
     SX_LOG_ENTER();
 
+    sai_db_write_lock();
 
-    if (SAI_STATUS_SUCCESS !=
-        (status = mlnx_object_to_type(key->key.object_id, SAI_OBJECT_TYPE_HOSTIF_TRAP, &trap_data, NULL))) {
-        SX_LOG_EXIT();
-        return status;
-    }
-
-    if (SAI_STATUS_SUCCESS != (status = find_sai_trap_index(trap_data, MLNX_TRAP_TYPE_REGULAR, &index))) {
-        SX_LOG_ERR("Invalid trap %x\n", trap_data);
-        return status;
+    status = mlnx_get_trap_db_index_by_oid(key->key.object_id, &index);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to get trap DB index\n");
+        status = SAI_STATUS_INVALID_PARAMETER;
+        goto out;
     }
 
     if (SAI_STATUS_SUCCESS !=
         (status = mlnx_translate_sai_trap_action_to_sdk(value->s32, &action, 0, mlnx_traps_info[index].is_l2_trap))) {
-        return status;
+        goto out;
     }
 
-    cl_plock_excl_acquire(&g_sai_db_ptr->p_lock);
     if (SAI_STATUS_SUCCESS != (status = mlnx_trap_set(index, value->s32, g_sai_db_ptr->traps_db[index].trap_group))) {
         goto out;
     }
+
     g_sai_db_ptr->traps_db[index].action = value->s32;
 
 out:
-    msync(g_sai_db_ptr, sizeof(*g_sai_db_ptr), MS_SYNC);
-    cl_plock_release(&g_sai_db_ptr->p_lock);
+    sai_db_sync();
+    sai_db_unlock();
+
+    SX_LOG_EXIT();
+
     return status;
 }
 
@@ -2840,56 +3286,27 @@ static sai_status_t mlnx_trap_type_get(_In_ const sai_object_key_t   *key,
                                        _Inout_ vendor_cache_t        *cache,
                                        void                          *arg)
 {
-    uint32_t     trap_data, index;
+    uint32_t     index;
     sai_status_t status;
 
     SX_LOG_ENTER();
 
-    if (SAI_STATUS_SUCCESS !=
-        (status = mlnx_object_to_type(key->key.object_id, SAI_OBJECT_TYPE_HOSTIF_TRAP, &trap_data, NULL))) {
-        SX_LOG_EXIT();
-        return status;
+    sai_db_read_lock();
+
+    status = mlnx_get_trap_db_index_by_oid(key->key.object_id, &index);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to get trap DB index\n");
+        status = SAI_STATUS_INVALID_PARAMETER;
+        goto out;
     }
 
-    if (SAI_STATUS_SUCCESS != (status = find_sai_trap_index(trap_data, MLNX_TRAP_TYPE_REGULAR, &index))) {
-        SX_LOG_ERR("Invalid trap %x\n", trap_data);
-        return SAI_STATUS_INVALID_PARAMETER;
-    }
+    value->s32 = mlnx_traps_info[index].trap_type;
 
-    value->s32 = trap_data;
+out:
+    sai_db_unlock();
 
     SX_LOG_EXIT();
-    return SAI_STATUS_SUCCESS;
-}
-
-/* trap type [sai_hostif_user_defined_trap_type_t] */
-static sai_status_t mlnx_user_defined_trap_type_get(_In_ const sai_object_key_t   *key,
-                                                    _Inout_ sai_attribute_value_t *value,
-                                                    _In_ uint32_t                  attr_index,
-                                                    _Inout_ vendor_cache_t        *cache,
-                                                    void                          *arg)
-{
-    uint32_t     trap_data, index;
-    sai_status_t status;
-
-    SX_LOG_ENTER();
-
-    if (SAI_STATUS_SUCCESS !=
-        (status =
-             mlnx_object_to_type(key->key.object_id, SAI_OBJECT_TYPE_HOSTIF_USER_DEFINED_TRAP, &trap_data, NULL))) {
-        SX_LOG_EXIT();
-        return status;
-    }
-
-    if (SAI_STATUS_SUCCESS != (status = find_sai_trap_index(trap_data, MLNX_TRAP_TYPE_USER_DEFINED, &index))) {
-        SX_LOG_ERR("Invalid trap %x\n", trap_data);
-        return SAI_STATUS_INVALID_PARAMETER;
-    }
-
-    value->s32 = trap_data;
-
-    SX_LOG_EXIT();
-    return SAI_STATUS_SUCCESS;
+    return status;
 }
 
 /* trap action [sai_packet_action_t] */
@@ -2899,26 +3316,27 @@ static sai_status_t mlnx_trap_action_get(_In_ const sai_object_key_t   *key,
                                          _Inout_ vendor_cache_t        *cache,
                                          void                          *arg)
 {
-    uint32_t     trap_data;
+    uint32_t     index;
     sai_status_t status;
-    mlnx_trap_t  trap_record;
 
     SX_LOG_ENTER();
 
-    if (SAI_STATUS_SUCCESS !=
-        (status = mlnx_object_to_type(key->key.object_id, SAI_OBJECT_TYPE_HOSTIF_TRAP, &trap_data, NULL))) {
-        SX_LOG_EXIT();
-        return status;
+    sai_db_read_lock();
+
+    status = mlnx_get_trap_db_index_by_oid(key->key.object_id, &index);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to get trap DB index for trap oid 0x%" PRIx64 "\n", key->key.object_id);
+        status = SAI_STATUS_INVALID_PARAMETER;
+        goto out;
     }
 
-    if (SAI_STATUS_SUCCESS != (status = mlnx_trap_record_get(trap_data, MLNX_TRAP_TYPE_REGULAR, &trap_record))) {
-        return status;
-    }
+    value->s32 = g_sai_db_ptr->traps_db[index].action;
 
-    value->s32 = trap_record.action;
+out:
+    sai_db_unlock();
 
     SX_LOG_EXIT();
-    return SAI_STATUS_SUCCESS;
+    return status;
 }
 
 /* trap-group ID for the trap [sai_object_id_t] */
@@ -2927,27 +3345,24 @@ static sai_status_t mlnx_trap_group_set(_In_ const sai_object_key_t      *key,
                                         void                             *arg)
 {
     sai_status_t status;
-    uint32_t     index, prio, trap_data;
+    uint32_t     index, prio;
 
     SX_LOG_ENTER();
 
-    if (SAI_STATUS_SUCCESS !=
-        (status = mlnx_object_to_type(key->key.object_id, SAI_OBJECT_TYPE_HOSTIF_TRAP, &trap_data, NULL))) {
-        SX_LOG_EXIT();
-        return status;
+    sai_db_write_lock();
+
+    status = mlnx_get_trap_db_index_by_oid(key->key.object_id, &index);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to get trap DB index\n");
+        status = SAI_STATUS_INVALID_PARAMETER;
+        goto out;
     }
 
     if (SAI_STATUS_SUCCESS !=
         (status = mlnx_object_to_type(value->oid, SAI_OBJECT_TYPE_HOSTIF_TRAP_GROUP, &prio, NULL))) {
-        return status;
+        goto out;
     }
 
-    if (SAI_STATUS_SUCCESS != (status = find_sai_trap_index(trap_data, MLNX_TRAP_TYPE_REGULAR, &index))) {
-        SX_LOG_ERR("Invalid trap %x\n", trap_data);
-        return SAI_STATUS_INVALID_PARAMETER;
-    }
-
-    cl_plock_excl_acquire(&g_sai_db_ptr->p_lock);
     status = mlnx_trap_unset(index);
     if (SAI_ERR(status)) {
         goto out;
@@ -2958,8 +3373,9 @@ static sai_status_t mlnx_trap_group_set(_In_ const sai_object_key_t      *key,
     g_sai_db_ptr->traps_db[index].trap_group = value->oid;
 
 out:
-    msync(g_sai_db_ptr, sizeof(*g_sai_db_ptr), MS_SYNC);
-    cl_plock_release(&g_sai_db_ptr->p_lock);
+    sai_db_sync();
+    sai_db_unlock();
+
     return status;
 }
 
@@ -2970,26 +3386,27 @@ static sai_status_t mlnx_trap_group_get(_In_ const sai_object_key_t   *key,
                                         _Inout_ vendor_cache_t        *cache,
                                         void                          *arg)
 {
+    uint32_t     index;
     sai_status_t status;
-    mlnx_trap_t  trap_record;
-    uint32_t     trap_data;
 
     SX_LOG_ENTER();
 
-    if (SAI_STATUS_SUCCESS !=
-        (status = mlnx_object_to_type(key->key.object_id, SAI_OBJECT_TYPE_HOSTIF_TRAP, &trap_data, NULL))) {
-        SX_LOG_EXIT();
-        return status;
+    sai_db_read_lock();
+
+    status = mlnx_get_trap_db_index_by_oid(key->key.object_id, &index);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to get trap DB index\n");
+        status = SAI_STATUS_INVALID_PARAMETER;
+        goto out;
     }
 
-    if (SAI_STATUS_SUCCESS != (status = mlnx_trap_record_get(trap_data, MLNX_TRAP_TYPE_REGULAR, &trap_record))) {
-        return status;
-    }
+    value->oid = g_sai_db_ptr->traps_db[index].trap_group;
 
-    value->oid = trap_record.trap_group;
+out:
+    sai_db_unlock();
 
     SX_LOG_EXIT();
-    return SAI_STATUS_SUCCESS;
+    return status;
 }
 
 /* List of SAI ports to be excluded (disabled) from the trap generation [sai_object_list_t] */
@@ -2998,22 +3415,30 @@ static sai_status_t mlnx_trap_exclude_port_list_set(_In_ const sai_object_key_t 
                                                     void                             *arg)
 {
     sai_status_t status;
-    uint32_t     index, trap_data;
+    uint32_t     index;
 
     SX_LOG_ENTER();
 
-    if (SAI_STATUS_SUCCESS !=
-        (status = mlnx_object_to_type(key->key.object_id, SAI_OBJECT_TYPE_HOSTIF_TRAP, &trap_data, NULL))) {
-        SX_LOG_EXIT();
-        return status;
+    sai_db_read_lock();
+
+    status = mlnx_get_trap_db_index_by_oid(key->key.object_id, &index);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to get trap DB index\n");
+        status = SAI_STATUS_INVALID_PARAMETER;
+        goto out;
     }
 
-    if (SAI_STATUS_SUCCESS != (status = find_sai_trap_index(trap_data, MLNX_TRAP_TYPE_REGULAR, &index))) {
-        SX_LOG_ERR("Invalid trap %x\n", trap_data);
-        return SAI_STATUS_INVALID_PARAMETER;
+    status = mlnx_trap_filter_set(index, value->objlist);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to set trap filter\n");
+        goto out;
     }
 
-    return mlnx_trap_filter_set(index, value->objlist);
+out:
+    sai_db_unlock();
+
+    SX_LOG_EXIT();
+    return status;
 }
 
 /* This function should be guarded by lock */
@@ -3108,7 +3533,7 @@ static sai_status_t mlnx_trap_mirror_array_drop_set(_In_ uint32_t         trap_d
 {
     sai_status_t           sai_status = SAI_STATUS_FAILURE;
     sx_span_session_id_t   sx_span_session_id;
-    sai_hostif_trap_type_t trap_id;
+    sai_hostif_trap_type_t trap_type;
     uint32_t               oid_data, ii;
 
     SX_LOG_ENTER();
@@ -3118,10 +3543,10 @@ static sai_status_t mlnx_trap_mirror_array_drop_set(_In_ uint32_t         trap_d
         return SAI_STATUS_FAILURE;
     }
 
-    trap_id = mlnx_traps_info[trap_db_idx].trap_id;
+    trap_type = mlnx_traps_info[trap_db_idx].trap_type;
 
-    assert((trap_id == SAI_HOSTIF_TRAP_TYPE_PIPELINE_DISCARD_WRED) ||
-           (trap_id == SAI_HOSTIF_TRAP_TYPE_PIPELINE_DISCARD_ROUTER));
+    assert((trap_type == SAI_HOSTIF_TRAP_TYPE_PIPELINE_DISCARD_WRED) ||
+           (trap_type == SAI_HOSTIF_TRAP_TYPE_PIPELINE_DISCARD_ROUTER));
 
     for (ii = 0; ii < sai_mirror_oid_count; ii++) {
         sai_status = mlnx_object_to_type(sai_mirror_oid[ii], SAI_OBJECT_TYPE_MIRROR_SESSION, &oid_data, NULL);
@@ -3132,7 +3557,7 @@ static sai_status_t mlnx_trap_mirror_array_drop_set(_In_ uint32_t         trap_d
 
         sx_span_session_id = (sx_span_session_id_t)oid_data;
 
-        if (SAI_HOSTIF_TRAP_TYPE_PIPELINE_DISCARD_WRED == trap_id) {
+        if (SAI_HOSTIF_TRAP_TYPE_PIPELINE_DISCARD_WRED == trap_type) {
             if (is_create) {
                 sai_status = mlnx_trap_mirror_session_bind_update(sx_span_session_id, is_create);
                 if (SAI_ERR(sai_status)) {
@@ -3171,24 +3596,24 @@ static sai_status_t mlnx_trap_mirror_array_drop_clear(_In_ uint32_t trap_db_idx)
 {
     sai_status_t           sai_status = SAI_STATUS_FAILURE;
     const bool             is_create = false;
-    sai_hostif_trap_type_t trap_id;
+    sai_hostif_trap_type_t trap_type;
     sai_object_id_t       *sai_mirror_oid = NULL;
     uint32_t               sai_mirror_oid_cnt = 0;
 
     SX_LOG_ENTER();
 
-    trap_id = mlnx_traps_info[trap_db_idx].trap_id;
-    if (SAI_HOSTIF_TRAP_TYPE_PIPELINE_DISCARD_WRED == trap_id) {
+    trap_type = mlnx_traps_info[trap_db_idx].trap_type;
+    if (SAI_HOSTIF_TRAP_TYPE_PIPELINE_DISCARD_WRED == trap_type) {
         sai_mirror_oid = g_sai_db_ptr->trap_mirror_discard_wred_db.mirror_oid;
         sai_mirror_oid_cnt = g_sai_db_ptr->trap_mirror_discard_wred_db.count;
-    } else if (SAI_HOSTIF_TRAP_TYPE_PIPELINE_DISCARD_ROUTER == trap_id) {
+    } else if (SAI_HOSTIF_TRAP_TYPE_PIPELINE_DISCARD_ROUTER == trap_type) {
         sai_mirror_oid = g_sai_db_ptr->trap_mirror_discard_router_db.mirror_oid;
         sai_mirror_oid_cnt = g_sai_db_ptr->trap_mirror_discard_router_db.count;
     } else {
         SX_LOG_ERR("trap mirror session set is only supported for "
                    "SAI_HOSTIF_TRAP_TYPE_PIPELINE_DISCARD_WRED and "
                    "SAI_HOSTIF_TRAP_TYPE_PIPELINE_DISCARD_ROUTER, "
-                   "current trap type is %d\n", trap_id);
+                   "current trap type is %d\n", trap_type);
         SX_LOG_EXIT();
         return SAI_STATUS_INVALID_PARAMETER;
     }
@@ -3203,9 +3628,9 @@ static sai_status_t mlnx_trap_mirror_array_drop_clear(_In_ uint32_t trap_db_idx)
         return sai_status;
     }
 
-    if (SAI_HOSTIF_TRAP_TYPE_PIPELINE_DISCARD_WRED == trap_id) {
+    if (SAI_HOSTIF_TRAP_TYPE_PIPELINE_DISCARD_WRED == trap_type) {
         g_sai_db_ptr->trap_mirror_discard_wred_db.count = 0;
-    } else if (SAI_HOSTIF_TRAP_TYPE_PIPELINE_DISCARD_ROUTER == trap_id) {
+    } else if (SAI_HOSTIF_TRAP_TYPE_PIPELINE_DISCARD_ROUTER == trap_type) {
         g_sai_db_ptr->trap_mirror_discard_router_db.count = 0;
     }
 
@@ -3217,7 +3642,7 @@ static sai_status_t mlnx_trap_mirror_array_drop_clear(_In_ uint32_t trap_db_idx)
 static sai_status_t mlnx_trap_mirror_db_fill(_In_ uint32_t                 trap_db_idx,
                                              _In_ const sai_object_list_t *sai_mirror_objlist)
 {
-    const sai_hostif_trap_type_t trap_id = mlnx_traps_info[trap_db_idx].trap_id;
+    const sai_hostif_trap_type_t trap_type = mlnx_traps_info[trap_db_idx].trap_type;
 
     SX_LOG_ENTER();
 
@@ -3234,12 +3659,12 @@ static sai_status_t mlnx_trap_mirror_db_fill(_In_ uint32_t                 trap_
         return SAI_STATUS_FAILURE;
     }
 
-    if (SAI_HOSTIF_TRAP_TYPE_PIPELINE_DISCARD_WRED == trap_id) {
+    if (SAI_HOSTIF_TRAP_TYPE_PIPELINE_DISCARD_WRED == trap_type) {
         g_sai_db_ptr->trap_mirror_discard_wred_db.count = sai_mirror_objlist->count;
         memcpy(g_sai_db_ptr->trap_mirror_discard_wred_db.mirror_oid,
                sai_mirror_objlist->list,
                sai_mirror_objlist->count * sizeof(sai_object_id_t));
-    } else if (SAI_HOSTIF_TRAP_TYPE_PIPELINE_DISCARD_ROUTER == trap_id) {
+    } else if (SAI_HOSTIF_TRAP_TYPE_PIPELINE_DISCARD_ROUTER == trap_type) {
         g_sai_db_ptr->trap_mirror_discard_router_db.count = sai_mirror_objlist->count;
         memcpy(g_sai_db_ptr->trap_mirror_discard_router_db.mirror_oid,
                sai_mirror_objlist->list,
@@ -3248,7 +3673,7 @@ static sai_status_t mlnx_trap_mirror_db_fill(_In_ uint32_t                 trap_
         SX_LOG_ERR("trap mirror session set is only supported for "
                    "SAI_HOSTIF_TRAP_TYPE_PIPELINE_DISCARD_WRED and "
                    "SAI_HOSTIF_TRAP_TYPE_PIPELINE_DISCARD_ROUTER, "
-                   "current trap type is %d\n", trap_id);
+                   "current trap type is %d\n", trap_type);
         SX_LOG_EXIT();
         return SAI_STATUS_FAILURE;
     }
@@ -3263,48 +3688,43 @@ static sai_status_t mlnx_trap_mirror_session_set(_In_ const sai_object_key_t    
                                                  void                             *arg)
 {
     uint32_t               trap_db_idx = 0;
-    uint32_t               trap_data = 0;
     bool                   is_create = false;
-    sai_hostif_trap_type_t trap_id;
+    sai_hostif_trap_type_t trap_type;
     sai_status_t           sai_status = SAI_STATUS_FAILURE;
 
     SX_LOG_ENTER();
 
+    sai_db_write_lock();
+
+    if (!mlnx_is_hostif_trap_valid(key->key.object_id)) {
+        SX_LOG_ERR("Invalid trap\n");
+        sai_status = SAI_STATUS_INVALID_PARAMETER;
+        goto out;
+    }
+
     sai_status = mlnx_object_to_type(key->key.object_id,
                                      SAI_OBJECT_TYPE_HOSTIF_TRAP,
-                                     &trap_data,
+                                     &trap_db_idx,
                                      NULL);
     if (SAI_STATUS_SUCCESS != sai_status) {
-        SX_LOG_EXIT();
-        return sai_status;
+        goto out;
     }
 
-    sai_status = find_sai_trap_index(trap_data, MLNX_TRAP_TYPE_REGULAR, &trap_db_idx);
-    if (SAI_STATUS_SUCCESS != sai_status) {
-        SX_LOG_ERR("Invalid trap %x\n", trap_data);
-        SX_LOG_EXIT();
-        return SAI_STATUS_INVALID_PARAMETER;
-    }
-
-    trap_id = mlnx_traps_info[trap_db_idx].trap_id;
-    if ((SAI_HOSTIF_TRAP_TYPE_PIPELINE_DISCARD_WRED != trap_id)
-        && (SAI_HOSTIF_TRAP_TYPE_PIPELINE_DISCARD_ROUTER != trap_id)) {
+    trap_type = mlnx_traps_info[trap_db_idx].trap_type;
+    if ((SAI_HOSTIF_TRAP_TYPE_PIPELINE_DISCARD_WRED != trap_type)
+        && (SAI_HOSTIF_TRAP_TYPE_PIPELINE_DISCARD_ROUTER != trap_type)) {
         SX_LOG_ERR("trap mirror session set is only supported for "
                    "SAI_HOSTIF_TRAP_TYPE_PIPELINE_DISCARD_WRED and "
                    "SAI_HOSTIF_TRAP_TYPE_PIPELINE_DISCARD_ROUTER, "
-                   "current trap type is %d\n", trap_id);
-        SX_LOG_EXIT();
-        return SAI_STATUS_INVALID_PARAMETER;
+                   "current trap type is %d\n", trap_type);
+        sai_status = SAI_STATUS_INVALID_PARAMETER;
+        goto out;
     }
-
-    sai_db_write_lock();
 
     sai_status = mlnx_trap_mirror_array_drop_clear(trap_db_idx);
     if (SAI_STATUS_SUCCESS != sai_status) {
-        sai_db_unlock();
         SX_LOG_ERR("Error clearing trap mirror array\n");
-        SX_LOG_EXIT();
-        return sai_status;
+        goto out;
     }
 
     is_create = true;
@@ -3313,25 +3733,22 @@ static sai_status_t mlnx_trap_mirror_session_set(_In_ const sai_object_key_t    
                                                  value->objlist.count,
                                                  is_create);
     if (SAI_STATUS_SUCCESS != sai_status) {
-        sai_db_unlock();
         SX_LOG_ERR("Error adding mirror drop trap for trap db idx %d\n", trap_db_idx);
-        SX_LOG_EXIT();
-        return sai_status;
+        goto out;
     }
 
     sai_status = mlnx_trap_mirror_db_fill(trap_db_idx, &value->objlist);
     if (SAI_STATUS_SUCCESS != sai_status) {
-        sai_db_unlock();
         SX_LOG_ERR("Error filling trap mirror db for trap idx %d\n", trap_db_idx);
-        SX_LOG_EXIT();
-        return sai_status;
+        goto out;
     }
 
-    sai_db_unlock();
 
+out:
+    sai_db_unlock();
     SX_LOG_EXIT();
 
-    return SAI_STATUS_SUCCESS;
+    return sai_status;
 }
 
 /* mirror session for the trap [sai_object_id_t] */
@@ -3342,60 +3759,58 @@ static sai_status_t mlnx_trap_mirror_session_get(_In_ const sai_object_key_t   *
                                                  void                          *arg)
 {
     sai_status_t           sai_status = SAI_STATUS_FAILURE;
-    uint32_t               trap_db_idx, trap_data;
-    sai_hostif_trap_type_t trap_id;
+    uint32_t               trap_db_idx;
+    sai_hostif_trap_type_t trap_type;
 
     SX_LOG_ENTER();
 
+    sai_db_read_lock();
+
+    if (!mlnx_is_hostif_trap_valid(key->key.object_id)) {
+        SX_LOG_ERR("Invalid trap\n");
+        sai_status = SAI_STATUS_INVALID_PARAMETER;
+        goto out;
+    }
+
     sai_status = mlnx_object_to_type(key->key.object_id,
                                      SAI_OBJECT_TYPE_HOSTIF_TRAP,
-                                     &trap_data,
+                                     &trap_db_idx,
                                      NULL);
     if (SAI_STATUS_SUCCESS != sai_status) {
-        SX_LOG_EXIT();
-        return sai_status;
+        goto out;
     }
 
-    sai_status = find_sai_trap_index(trap_data, MLNX_TRAP_TYPE_REGULAR, &trap_db_idx);
-    if (SAI_STATUS_SUCCESS != sai_status) {
-        SX_LOG_ERR("Invalid trap %x\n", trap_data);
-        SX_LOG_EXIT();
-        return SAI_STATUS_INVALID_PARAMETER;
-    }
-
-    trap_id = mlnx_traps_info[trap_db_idx].trap_id;
-    if ((SAI_HOSTIF_TRAP_TYPE_PIPELINE_DISCARD_WRED != trap_id)
-        && (SAI_HOSTIF_TRAP_TYPE_PIPELINE_DISCARD_ROUTER != trap_id)) {
+    trap_type = mlnx_traps_info[trap_db_idx].trap_type;
+    if ((SAI_HOSTIF_TRAP_TYPE_PIPELINE_DISCARD_WRED != trap_type)
+        && (SAI_HOSTIF_TRAP_TYPE_PIPELINE_DISCARD_ROUTER != trap_type)) {
         SX_LOG_ERR("trap mirror session get is only supported for "
                    "SAI_HOSTIF_TRAP_TYPE_PIPELINE_DISCARD_WRED and "
                    "SAI_HOSTIF_TRAP_TYPE_PIPELINE_DISCARD_ROUTER, "
-                   "current trap type is %d\n", trap_id);
-        SX_LOG_EXIT();
-        return SAI_STATUS_INVALID_PARAMETER;
+                   "current trap type is %d\n", trap_type);
+        sai_status = SAI_STATUS_INVALID_PARAMETER;
+        goto out;
     }
 
-    sai_db_read_lock();
-
-    if (SAI_HOSTIF_TRAP_TYPE_PIPELINE_DISCARD_WRED == trap_id) {
+    if (SAI_HOSTIF_TRAP_TYPE_PIPELINE_DISCARD_WRED == trap_type) {
         sai_status = mlnx_fill_objlist(g_sai_db_ptr->trap_mirror_discard_wred_db.mirror_oid,
                                        g_sai_db_ptr->trap_mirror_discard_wred_db.count,
                                        &value->objlist);
-    } else if (SAI_HOSTIF_TRAP_TYPE_PIPELINE_DISCARD_ROUTER == trap_id) {
+    } else if (SAI_HOSTIF_TRAP_TYPE_PIPELINE_DISCARD_ROUTER == trap_type) {
         sai_status = mlnx_fill_objlist(g_sai_db_ptr->trap_mirror_discard_router_db.mirror_oid,
                                        g_sai_db_ptr->trap_mirror_discard_router_db.count,
                                        &value->objlist);
     }
 
     if (SAI_STATUS_SUCCESS != sai_status) {
-        sai_db_unlock();
-        SX_LOG_ERR("Error filling objlist for trap id %d\n", trap_id);
-        SX_LOG_EXIT();
-        return sai_status;
+        SX_LOG_ERR("Error filling objlist for trap id %d\n", trap_type);
+        goto out;
     }
 
+out:
     sai_db_unlock();
+    SX_LOG_EXIT();
 
-    return SAI_STATUS_SUCCESS;
+    return sai_status;
 }
 
 static sai_status_t mlnx_trap_counter_id_get(_In_ const sai_object_key_t   *key,
@@ -3419,101 +3834,27 @@ static sai_status_t mlnx_trap_counter_id_set(_In_ const sai_object_key_t      *k
                                              _In_ const sai_attribute_value_t *value,
                                              void                             *arg)
 {
-    sai_status_t sai_status = SAI_STATUS_FAILURE;
-    uint32_t     trap_db_idx, trap_data;
-
-    SX_LOG_ENTER();
-
-    sai_status = mlnx_object_to_type(key->key.object_id,
-                                     SAI_OBJECT_TYPE_HOSTIF_TRAP,
-                                     &trap_data,
-                                     NULL);
-    if (SAI_STATUS_SUCCESS != sai_status) {
-        SX_LOG_EXIT();
-        return sai_status;
-    }
-
-    sai_status = find_sai_trap_index(trap_data, MLNX_TRAP_TYPE_REGULAR, &trap_db_idx);
-    if (SAI_STATUS_SUCCESS != sai_status) {
-        SX_LOG_ERR("Invalid trap %x\n", trap_data);
-        SX_LOG_EXIT();
-        return SAI_STATUS_INVALID_PARAMETER;
-    }
-
-    return mlnx_update_hostif_trap_counter(key->key.object_id, value->oid);
-}
-
-/* trap-group ID for the trap [sai_object_id_t] */
-static sai_status_t mlnx_user_defined_trap_group_set(_In_ const sai_object_key_t      *key,
-                                                     _In_ const sai_attribute_value_t *value,
-                                                     void                             *arg)
-{
     sai_status_t status;
-    uint32_t     index, prio, trap_data;
 
     SX_LOG_ENTER();
+    sai_db_write_lock();
 
-    if (SAI_STATUS_SUCCESS !=
-        (status =
-             mlnx_object_to_type(key->key.object_id, SAI_OBJECT_TYPE_HOSTIF_USER_DEFINED_TRAP, &trap_data, NULL))) {
-        SX_LOG_EXIT();
-        return status;
+    if (!mlnx_is_hostif_trap_valid(key->key.object_id)) {
+        SX_LOG_ERR("Invalid trap oid 0x%" PRIx64 "\n", key->key.object_id);
+        status = SAI_STATUS_INVALID_PARAMETER;
+        goto out;
     }
 
-    if (SAI_STATUS_SUCCESS !=
-        (status = mlnx_object_to_type(value->oid, SAI_OBJECT_TYPE_HOSTIF_TRAP_GROUP, &prio, NULL))) {
-        return status;
-    }
-
-    if (SAI_STATUS_SUCCESS != (status = find_sai_trap_index(trap_data, MLNX_TRAP_TYPE_USER_DEFINED, &index))) {
-        SX_LOG_ERR("Invalid trap %x\n", trap_data);
-        return SAI_STATUS_INVALID_PARAMETER;
-    }
-
-    cl_plock_excl_acquire(&g_sai_db_ptr->p_lock);
-    status = mlnx_trap_unset(index);
+    status = mlnx_update_hostif_trap_counter_unlocked(key->key.object_id, value->oid);
     if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to update trap counter\n");
         goto out;
     }
-    if (SAI_STATUS_SUCCESS != (status = mlnx_trap_set(index, g_sai_db_ptr->traps_db[index].action, value->oid))) {
-        goto out;
-    }
-    g_sai_db_ptr->traps_db[index].trap_group = value->oid;
 
 out:
-    msync(g_sai_db_ptr, sizeof(*g_sai_db_ptr), MS_SYNC);
-    cl_plock_release(&g_sai_db_ptr->p_lock);
-    return status;
-}
-
-/* trap-group ID for the trap [sai_object_id_t] */
-static sai_status_t mlnx_user_defined_trap_group_get(_In_ const sai_object_key_t   *key,
-                                                     _Inout_ sai_attribute_value_t *value,
-                                                     _In_ uint32_t                  attr_index,
-                                                     _Inout_ vendor_cache_t        *cache,
-                                                     void                          *arg)
-{
-    sai_status_t status;
-    mlnx_trap_t  trap_record;
-    uint32_t     trap_data;
-
-    SX_LOG_ENTER();
-
-    if (SAI_STATUS_SUCCESS !=
-        (status =
-             mlnx_object_to_type(key->key.object_id, SAI_OBJECT_TYPE_HOSTIF_USER_DEFINED_TRAP, &trap_data, NULL))) {
-        SX_LOG_EXIT();
-        return status;
-    }
-
-    if (SAI_STATUS_SUCCESS != (status = mlnx_trap_record_get(trap_data, MLNX_TRAP_TYPE_USER_DEFINED, &trap_record))) {
-        return status;
-    }
-
-    value->oid = trap_record.trap_group;
-
+    sai_db_unlock();
     SX_LOG_EXIT();
-    return SAI_STATUS_SUCCESS;
+    return status;
 }
 
 /*need sai_db read lock*/
@@ -3523,12 +3864,10 @@ sai_status_t mlnx_get_hostif_packet_data(sx_receive_info_t *receive_info, uint32
     assert(attr_count);
     assert(attr);
 
-    sai_status_t           status;
-    sai_hostif_trap_type_t trap_id;
-    mlnx_trap_type_t       trap_type;
-    const char            *trap_name;
-    bool                   is_warmboot_init_stage = (BOOT_TYPE_WARM == g_sai_db_ptr->boot_type) &&
-                                                    (!g_sai_db_ptr->issu_end_called);
+    sai_status_t status;
+    const char  *trap_name;
+    bool         is_warmboot_init_stage = (BOOT_TYPE_WARM == g_sai_db_ptr->boot_type) &&
+                                          (!g_sai_db_ptr->issu_end_called);
 
     if (*attr_count < RECV_ATTRIBS_NUM) {
         SX_LOG_ERR("Insufficient attribute count %u %u\n", RECV_ATTRIBS_NUM, *attr_count);
@@ -3547,18 +3886,9 @@ sai_status_t mlnx_get_hostif_packet_data(sx_receive_info_t *receive_info, uint32
         return SAI_STATUS_FAILURE;
     }
 
-    status = mlnx_translate_sdk_trap_to_sai(receive_info->trap_id, &trap_id, &trap_name, &trap_type);
+    status = mlnx_translate_sdk_trap_to_sai(receive_info->trap_id, &trap_name, &attr[0].value.oid);
     if (SAI_ERR(status)) {
         SX_LOG_ERR("unknown sdk trap %u\n", receive_info->trap_id);
-        return status;
-    }
-
-    status = mlnx_create_object((trap_type == MLNX_TRAP_TYPE_REGULAR) ?
-                                SAI_OBJECT_TYPE_HOSTIF_TRAP : SAI_OBJECT_TYPE_HOSTIF_USER_DEFINED_TRAP,
-                                trap_id, NULL, &attr[0].value.oid);
-    if (SAI_ERR(status)) {
-        SX_LOG_ERR("Failed to create trap oid\n");
-        return status;
     }
 
     status = mlnx_create_object(SAI_OBJECT_TYPE_PORT, receive_info->source_log_port, NULL, &attr[1].value.oid);
@@ -3836,9 +4166,9 @@ static void host_table_entry_key_to_str(_In_ sai_object_id_t hif_id, _Out_ char 
     } else {
         snprintf(key_str,
                  MAX_KEY_STR_LEN,
-                 "host table entry %x,ind %u,%u",
+                 "host table entry %x,trap index %u, type %u",
                  mlnx_hif.id.u32,
-                 mlnx_hif.ext.trap.id,
+                 mlnx_hif.id.hostif_table_entry.trap_db_idx,
                  mlnx_hif.field.sub_type);
     }
 }
@@ -3864,7 +4194,7 @@ static sai_status_t mlnx_hostif_table_entry_fill_sx_reg_key(sai_hostif_table_ent
     case SAI_HOSTIF_TABLE_ENTRY_TYPE_LAG:
         status = mlnx_object_to_log_port(port_vlan_lag, &log_port);
         if (SAI_ERR(status)) {
-            SX_LOG_ERR("Failed to get object log_port\n");
+            SX_LOG_ERR("Failed to get object 0x%" PRIx64 " log_port\n", port_vlan_lag);
             return status;
         }
 
@@ -3875,7 +4205,7 @@ static sai_status_t mlnx_hostif_table_entry_fill_sx_reg_key(sai_hostif_table_ent
     case SAI_HOSTIF_TABLE_ENTRY_TYPE_VLAN:
         status = sai_object_to_vlan(port_vlan_lag, &vlan_id);
         if (SAI_ERR(status)) {
-            SX_LOG_ERR("Failed to get object vlan id\n");
+            SX_LOG_ERR("Failed to get object 0x%" PRIx64 " vlan id\n", port_vlan_lag);
             return status;
         }
 
@@ -3891,39 +4221,120 @@ static sai_status_t mlnx_hostif_table_entry_fill_sx_reg_key(sai_hostif_table_ent
     return SAI_STATUS_SUCCESS;
 }
 
-static sai_status_t mlnx_create_hostif_table_entry_oid(sai_hostif_table_entry_type_t table_entry_type,
-                                                       uint32_t                      trap_db_idx,
-                                                       sai_object_id_t               port_vlan_lag,
-                                                       sai_object_id_t              *oid)
+/* requires sai_db read lock*/
+static sai_status_t mlnx_hostif_table_entry_fill_sx_reg_key_by_mlnx_oid(const mlnx_object_id_t      mlnx_oid,
+                                                                        sx_host_ifc_register_key_t *register_key)
 {
-    mlnx_object_id_t mlnx_hif;
+    mlnx_port_config_t *port;
+
+    assert(register_key);
+
+    switch (mlnx_oid.field.sub_type) {
+    case SAI_HOSTIF_TABLE_ENTRY_TYPE_WILDCARD:
+    case SAI_HOSTIF_TABLE_ENTRY_TYPE_TRAP_ID:
+        register_key->key_type = SX_HOST_IFC_REGISTER_KEY_TYPE_GLOBAL;
+        break;
+
+    case SAI_HOSTIF_TABLE_ENTRY_TYPE_PORT:
+    case SAI_HOSTIF_TABLE_ENTRY_TYPE_LAG:
+        if (mlnx_oid.id.hostif_table_entry.port_vlan_db_idx > (MAX_PORTS_DB * 2)) {
+            SX_LOG_ERR("Invalid oid - port idx %d is larger than max %d\n",
+                       mlnx_oid.id.hostif_table_entry.port_vlan_db_idx, MAX_PORTS_DB * 2);
+            return SAI_STATUS_FAILURE;
+        }
+
+        port = mlnx_port_by_idx(mlnx_oid.id.hostif_table_entry.port_vlan_db_idx);
+
+        if (!port->is_present) {
+            SX_LOG_ERR("Port 0x%" PRIx64 " is not present to use for hostif table entry\n", port->saiport);
+            return SAI_STATUS_FAILURE;
+        }
+
+        register_key->key_type = SX_HOST_IFC_REGISTER_KEY_TYPE_PORT;
+        register_key->key_value.port_id = port->logical;
+        break;
+
+    case SAI_HOSTIF_TABLE_ENTRY_TYPE_VLAN:
+        register_key->key_type = SX_HOST_IFC_REGISTER_KEY_TYPE_VLAN;
+        register_key->key_value.vlan_id = mlnx_oid.id.hostif_table_entry.port_vlan_db_idx;
+        break;
+
+    default:
+        SX_LOG_ERR("Invalid hostif table entry type %d\n", mlnx_oid.field.sub_type);
+        return SAI_STATUS_INVALID_PARAMETER;
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
+/* requires sai_db read lock */
+static sai_status_t mlnx_create_hostif_table_entry_oid(sai_hostif_table_entry_type_t         table_entry_type,
+                                                       uint32_t                              trap_db_idx,
+                                                       sai_object_id_t                       port_vlan_lag,
+                                                       sai_hostif_table_entry_channel_type_t channel_type,
+                                                       sai_object_id_t                       hostif,
+                                                       sai_object_id_t                      *oid)
+{
+    mlnx_object_id_t mlnx_hif_table, mlnx_hif;
     sai_status_t     status;
-    sx_port_log_id_t log_port;
+    uint32_t         port_index;
     uint16_t         vlan_id;
+    uint32_t         max_hostif_idx;
 
-    memset(&mlnx_hif, 0, sizeof(mlnx_hif));
+    memset(&mlnx_hif_table, 0, sizeof(mlnx_hif_table));
 
-    mlnx_hif.field.sub_type = table_entry_type;
+    mlnx_hif_table.field.sub_type = table_entry_type;
 
     if ((table_entry_type == SAI_HOSTIF_TABLE_ENTRY_TYPE_PORT) ||
         (table_entry_type == SAI_HOSTIF_TABLE_ENTRY_TYPE_LAG)) {
-        status = mlnx_object_to_log_port(port_vlan_lag, &log_port);
+        status = mlnx_port_idx_by_obj_id(port_vlan_lag, &port_index);
         if (SAI_ERR(status)) {
-            SX_LOG_ERR("Failed to get object log_port\n");
+            SX_LOG_ERR("Failed to get port index for oid 0x%" PRIx64 "\n", port_vlan_lag);
             return status;
         }
-        mlnx_hif.id.u32 = log_port;
+
+        if (port_index > INT16_MAX) {
+            SX_LOG_ERR("Failed to create oid, port index %d is larger than max %d\n", port_index, INT16_MAX);
+            return SAI_STATUS_FAILURE;
+        }
+
+        mlnx_hif_table.id.hostif_table_entry.port_vlan_db_idx = (uint16_t)port_index;
     } else if (table_entry_type == SAI_HOSTIF_TABLE_ENTRY_TYPE_VLAN) {
         status = sai_object_to_vlan(port_vlan_lag, &vlan_id);
         if (SAI_ERR(status)) {
             SX_LOG_ERR("Failed to get object vlan id\n");
             return status;
         }
-        mlnx_hif.id.u32 = vlan_id;
+        mlnx_hif_table.id.hostif_table_entry.port_vlan_db_idx = vlan_id;
     }
 
-    mlnx_hif.ext.trap.id = trap_db_idx;
-    status = mlnx_object_id_to_sai(SAI_OBJECT_TYPE_HOSTIF_TABLE_ENTRY, &mlnx_hif, oid);
+    if (trap_db_idx > INT16_MAX) {
+        SX_LOG_ERR("Failed to create oid, trap index %d is larger than max %d\n", trap_db_idx, INT16_MAX);
+        return SAI_STATUS_FAILURE;
+    }
+
+    mlnx_hif_table.id.hostif_table_entry.trap_db_idx = (uint16_t)trap_db_idx;
+    mlnx_hif_table.ext.hostif_table_entry.channel_type = channel_type;
+
+    if ((channel_type == SAI_HOSTIF_TABLE_ENTRY_CHANNEL_TYPE_FD) ||
+        (channel_type == SAI_HOSTIF_TABLE_ENTRY_CHANNEL_TYPE_GENETLINK)) {
+        status = sai_to_mlnx_object_id(SAI_OBJECT_TYPE_HOSTIF, hostif, &mlnx_hif);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to translate sai object id to mlnx oid\n");
+            return status;
+        }
+
+        max_hostif_idx = 1 << (HOSTIF_TABLE_ENTRY_HOSTIF_IDX_BITS - 1);
+        if (mlnx_hif.id.u32 > max_hostif_idx) {
+            SX_LOG_ERR("Failed to create oid, hostif index %d is larger than max %d\n", mlnx_hif.id.u32,
+                       max_hostif_idx);
+            return SAI_STATUS_FAILURE;
+        }
+
+        mlnx_hif_table.ext.hostif_table_entry.hostif_db_idx = (uint16_t)mlnx_hif.id.u32;
+    }
+
+    status = mlnx_object_id_to_sai(SAI_OBJECT_TYPE_HOSTIF_TABLE_ENTRY, &mlnx_hif_table, oid);
     if (SAI_ERR(status)) {
         SX_LOG_ERR("Failed to translate mlnx_oid to sai_object_id\n");
         return status;
@@ -3933,26 +4344,18 @@ static sai_status_t mlnx_create_hostif_table_entry_oid(sai_hostif_table_entry_ty
 }
 
 /* requires sai_db read lock*/
-static sai_status_t mlnx_hostif_table_entry_fill_sx_user_channel(sai_hostif_table_entry_channel_type_t channel_type,
-                                                                 sai_object_id_t                       hostif,
-                                                                 sx_user_channel_t                    *user_channel)
+static sai_status_t mlnx_hif_table_entry_fill_user_channel_by_hif_idx(
+    sai_hostif_table_entry_channel_type_t channel_type,
+    uint32_t                              hostif_idx,
+    sx_user_channel_t                    *user_channel)
 {
-    mlnx_object_id_t mlnx_oid;
-    sai_status_t     status;
+    sai_status_t status;
 
     assert(user_channel);
 
-    memset(&mlnx_oid, 0, sizeof(mlnx_oid));
-
     if ((channel_type == SAI_HOSTIF_TABLE_ENTRY_CHANNEL_TYPE_FD) ||
         (channel_type == SAI_HOSTIF_TABLE_ENTRY_CHANNEL_TYPE_GENETLINK)) {
-        status = sai_to_mlnx_object_id(SAI_OBJECT_TYPE_HOSTIF, hostif, &mlnx_oid);
-        if (SAI_ERR(status)) {
-            SX_LOG_ERR("Failed to translate sai object id to mlnx oid\n");
-            return status;
-        }
-
-        status = check_host_if_is_valid_unlocked(mlnx_oid);
+        status = check_hostif_is_valid_by_idx_unlocked(hostif_idx);
         if (SAI_ERR(status)) {
             return status;
         }
@@ -3960,26 +4363,26 @@ static sai_status_t mlnx_hostif_table_entry_fill_sx_user_channel(sai_hostif_tabl
 
     switch (channel_type) {
     case SAI_HOSTIF_TABLE_ENTRY_CHANNEL_TYPE_FD:
-        if (g_sai_db_ptr->hostif_db[mlnx_oid.id.u32].sub_type != SAI_HOSTIF_OBJECT_TYPE_FD) {
+        if (g_sai_db_ptr->hostif_db[hostif_idx].sub_type != SAI_HOSTIF_OBJECT_TYPE_FD) {
             SX_LOG_ERR("Can't set non FD host interface type %u\n",
-                       g_sai_db_ptr->hostif_db[mlnx_oid.id.u32].sub_type);
+                       g_sai_db_ptr->hostif_db[hostif_idx].sub_type);
             return SAI_STATUS_INVALID_PARAMETER;
         }
         user_channel->type = SX_USER_CHANNEL_TYPE_FD;
-        memcpy(&user_channel->channel.fd, &g_sai_db_ptr->hostif_db[mlnx_oid.id.u32].fd,
+        memcpy(&user_channel->channel.fd, &g_sai_db_ptr->hostif_db[hostif_idx].fd,
                sizeof(user_channel->channel.fd));
         break;
 
     case SAI_HOSTIF_TABLE_ENTRY_CHANNEL_TYPE_GENETLINK:
-        if (g_sai_db_ptr->hostif_db[mlnx_oid.id.u32].sub_type != SAI_HOSTIF_OBJECT_TYPE_GENETLINK) {
+        if (g_sai_db_ptr->hostif_db[hostif_idx].sub_type != SAI_HOSTIF_OBJECT_TYPE_GENETLINK) {
             SX_LOG_ERR("Can't set non FD host interface type %u\n",
-                       g_sai_db_ptr->hostif_db[mlnx_oid.id.u32].sub_type);
+                       g_sai_db_ptr->hostif_db[hostif_idx].sub_type);
             return SAI_STATUS_INVALID_PARAMETER;
         }
 
         user_channel->type = SX_USER_CHANNEL_TYPE_PSAMPLE;
         user_channel->channel.psample_params.group_id =
-            g_sai_db_ptr->hostif_db[mlnx_oid.id.u32].psample_group.group_id;
+            g_sai_db_ptr->hostif_db[hostif_idx].psample_group.group_id;
         break;
 
     case SAI_HOSTIF_TABLE_ENTRY_CHANNEL_TYPE_CB:
@@ -4008,6 +4411,142 @@ static sai_status_t mlnx_hostif_table_entry_fill_sx_user_channel(sai_hostif_tabl
     return SAI_STATUS_SUCCESS;
 }
 
+static bool mlnx_are_register_keys_equal(sx_host_ifc_register_key_t *key1, sx_host_ifc_register_key_t *key2)
+{
+    assert(key1);
+    assert(key2);
+
+    if (key1->key_type != key2->key_type) {
+        return false;
+    }
+
+    switch (key1->key_type) {
+    case SX_HOST_IFC_REGISTER_KEY_TYPE_GLOBAL:
+        return true;
+
+    case SX_HOST_IFC_REGISTER_KEY_TYPE_PORT:
+        return key1->key_value.port_id == key2->key_value.port_id;
+
+    case SX_HOST_IFC_REGISTER_KEY_TYPE_VLAN:
+        return key1->key_value.vlan_id == key2->key_value.vlan_id;
+
+    default:
+        SX_LOG_ERR("Invalid key1 type %d\n", key1->key_type);
+        break;
+    }
+
+    return false;
+}
+
+static bool mlnx_are_user_channels_equal(sx_user_channel_t *channel1, sx_user_channel_t *channel2)
+{
+    assert(channel1);
+    assert(channel2);
+
+    if (channel1->type != channel2->type) {
+        return false;
+    }
+
+    switch (channel1->type) {
+    case SX_USER_CHANNEL_TYPE_FD:
+        return channel1->channel.fd.fd == channel2->channel.fd.fd;
+
+    case SX_USER_CHANNEL_TYPE_PSAMPLE:
+        return channel1->channel.psample_params.group_id == channel2->channel.psample_params.group_id;
+
+    case SX_USER_CHANNEL_TYPE_L3_NETDEV:
+    case SX_USER_CHANNEL_TYPE_LOG_PORT_NETDEV:
+    case SX_USER_CHANNEL_TYPE_PHY_PORT_NETDEV:
+        return true;
+
+    default:
+        SX_LOG_ERR("Invalid channel 1 type %d\n", channel1->type);
+        break;
+    }
+
+    return false;
+}
+
+static sai_status_t mlnx_is_hostif_table_key_registered(uint32_t                    trap_db_idx,
+                                                        sx_host_ifc_register_key_t *register_key,
+                                                        sx_user_channel_t          *user_channel,
+                                                        bool                       *is_registered)
+{
+    sx_status_t                      sx_status;
+    const uint32_t                   register_entry_get_count = 20;
+    sx_host_ifc_register_get_entry_t register_entries[20];
+    uint32_t                         register_entries_count = register_entry_get_count;
+    uint32_t                         ii = 0;
+
+    SX_LOG_ENTER();
+
+    assert(register_key);
+    assert(is_registered);
+
+    sx_status = sx_api_host_ifc_port_vlan_trap_id_register_get(gh_sdk, SX_ACCESS_CMD_GET_FIRST, DEFAULT_ETH_SWID,
+                                                               mlnx_traps_info[trap_db_idx].sdk_trap_ids[0],
+                                                               NULL, register_entries, &register_entries_count);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to get register entries - %s\n", SX_STATUS_MSG(sx_status));
+        return sdk_to_sai(sx_status);
+    }
+
+    while (true) {
+        for (ii = 0; ii < register_entries_count; ii++) {
+            if (!mlnx_are_register_keys_equal(&register_entries[ii].register_key, register_key)) {
+                continue;
+            }
+
+            if ((user_channel == NULL) ||
+                mlnx_are_user_channels_equal(&register_entries[ii].user_channel, user_channel)) {
+                *is_registered = true;
+                return SAI_STATUS_SUCCESS;
+            }
+        }
+
+        if (register_entries_count < register_entry_get_count) {
+            *is_registered = false;
+            break;
+        }
+
+        sx_status = sx_api_host_ifc_port_vlan_trap_id_register_get(gh_sdk, SX_ACCESS_CMD_GETNEXT,
+                                                                   DEFAULT_ETH_SWID,
+                                                                   mlnx_traps_info[trap_db_idx].sdk_trap_ids[0],
+                                                                   &register_entries[register_entries_count - 1],
+                                                                   register_entries,
+                                                                   &register_entries_count);
+        if (SX_ERR(sx_status)) {
+            SX_LOG_ERR("Failed to get register entries - %s\n", SX_STATUS_MSG(sx_status));
+            return sdk_to_sai(sx_status);
+        }
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_register_wildcard_channel(sx_access_cmd_t cmd, uint32_t trap_idx)
+{
+    sx_host_ifc_register_key_t reg_key;
+    sai_status_t               status;
+
+    SX_LOG_ENTER();
+
+    status = mlnx_hostif_table_entry_fill_sx_reg_key(SAI_HOSTIF_TABLE_ENTRY_TYPE_WILDCARD, SAI_NULL_OBJECT_ID,
+                                                     &reg_key);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to fill register key for hostif table entry\n");
+        return status;
+    }
+
+    status = mlnx_register_trap(cmd, trap_idx, &reg_key, &g_sai_db_ptr->wildcard_channel.trap_channel);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to update trap hostif table entry sx. Trap index - %d\n", trap_idx);
+        return status;
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
 /**
  * @brief Create host interface table entry
  *
@@ -4029,10 +4568,15 @@ sai_status_t mlnx_create_hostif_table_entry(_Out_ sai_object_id_t      *hif_tabl
     char                         key_str[MAX_KEY_STR_LEN];
     char                         list_str[MAX_LIST_VALUE_STR_LEN];
     uint32_t                     trap_db_index;
-    sx_host_ifc_register_key_t   sx_register_key, sx_deregister_key;
+    sx_host_ifc_register_key_t   sx_register_key;
+    bool                         is_registered;
     sai_object_id_t              port_lag_vlan_oid = SAI_NULL_OBJECT_ID;
     sai_object_id_t              hostif = SAI_NULL_OBJECT_ID;
     sx_user_channel_t            user_channel;
+    mlnx_object_id_t             mlnx_hif_oid;
+    uint16_t                     vlan_id;
+    uint32_t                     port_db_idx;
+    sai_object_type_t            obj_type;
 
     SX_LOG_ENTER();
 
@@ -4056,6 +4600,8 @@ sai_status_t mlnx_create_hostif_table_entry(_Out_ sai_object_id_t      *hif_tabl
     status = find_attrib_in_list(attr_count, attr_list, SAI_HOSTIF_TABLE_ENTRY_ATTR_TYPE, &type, &type_index);
     assert(SAI_STATUS_SUCCESS == status);
 
+    sai_db_write_lock();
+
     status = find_attrib_in_list(attr_count, attr_list, SAI_HOSTIF_TABLE_ENTRY_ATTR_TRAP_ID, &trap,
                                  &trap_attr_index);
     if (type->s32 != SAI_HOSTIF_TABLE_ENTRY_TYPE_WILDCARD) {
@@ -4063,39 +4609,71 @@ sai_status_t mlnx_create_hostif_table_entry(_Out_ sai_object_id_t      *hif_tabl
 
         if (trap->oid == SAI_NULL_OBJECT_ID) {
             SX_LOG_ERR("Trap id is SAI_NULL_OBJECT_ID\n");
-            return SAI_STATUS_INVALID_ATTR_VALUE_0 + trap_attr_index;
+            status = SAI_STATUS_INVALID_ATTR_VALUE_0 + trap_attr_index;
+            goto out;
         }
 
-        status = find_sai_trap_index_by_oid(trap->oid, &trap_db_index);
+        status = mlnx_get_trap_db_index_by_oid(trap->oid, &trap_db_index);
         if (SAI_ERR(status)) {
-            SX_LOG_ERR("Could not find trap DB index\n");
-            return status;
+            SX_LOG_ERR("Failed to get trap DB index\n");
+            status = SAI_STATUS_INVALID_PARAMETER;
+            goto out;
         }
 
         status = find_attrib_in_list(attr_count, attr_list, SAI_HOSTIF_TABLE_ENTRY_ATTR_OBJ_ID, &obj, &obj_index);
         if (type->s32 != SAI_HOSTIF_TABLE_ENTRY_TYPE_TRAP_ID) {
-            /* needs to be tested */
-            return SAI_STATUS_NOT_IMPLEMENTED;
-#if 0
             assert(SAI_OK(status));
             if (obj->oid == SAI_NULL_OBJECT_ID) {
                 SX_LOG_ERR("Object attribute is SAI_NULL_OBJECT_ID\n");
-                return SAI_STATUS_INVALID_ATTR_VALUE_0 + obj_index;
+                status = SAI_STATUS_INVALID_ATTR_VALUE_0 + obj_index;
+                goto out;
+            }
+            port_lag_vlan_oid = obj->oid;
+        } else if (SAI_OK(status)) {
+            SX_LOG_ERR("Attribute OBJECT is valid only for VLAN/LAG/PORT entries\n");
+            status = SAI_STATUS_INVALID_ATTRIBUTE_0 + obj_index;
+            goto out;
+        }
+
+        if (type->s32 == SAI_HOSTIF_TABLE_ENTRY_TYPE_VLAN) {
+            status = sai_object_to_vlan(port_lag_vlan_oid, &vlan_id);
+            if (SAI_ERR(status)) {
+                SX_LOG_ERR("Failed to get object 0x%" PRIx64 " vlan id\n", port_lag_vlan_oid);
+                goto out;
             }
 
-            port_lag_vlan_oid = obj->oid;
-#endif
-        } else {
-            if (SAI_OK(status)) {
-                SX_LOG_ERR("Attribute OBJECT is valid only for VLAN/LAG/PORT entries\n");
-                return SAI_STATUS_INVALID_ATTRIBUTE_0 + obj_index;
+            if (!mlnx_vlan_is_created(vlan_id)) {
+                SX_LOG_ERR("VLAN %d not created\n", vlan_id);
+                status = SAI_STATUS_INVALID_ATTRIBUTE_0 + obj_index;
+                goto out;
             }
         }
-    } else {
-        if (SAI_OK(status)) {
-            SX_LOG_ERR("Invalid attribute TRAP_ID for wildcard entry\n");
-            return SAI_STATUS_INVALID_ATTRIBUTE_0 + trap_attr_index;
+
+        obj_type = sai_object_type_query(port_lag_vlan_oid);
+        if ((type->s32 == SAI_HOSTIF_TABLE_ENTRY_TYPE_PORT) && (obj_type != SAI_OBJECT_TYPE_PORT)) {
+            SX_LOG_ERR("Invalid object type %s for PORT table entry\n", SAI_TYPE_STR(obj_type));
+            status = SAI_STATUS_INVALID_ATTRIBUTE_0 + obj_index;
+            goto out;
         }
+
+        if ((type->s32 == SAI_HOSTIF_TABLE_ENTRY_TYPE_LAG) && (obj_type != SAI_OBJECT_TYPE_LAG)) {
+            SX_LOG_ERR("Invalid object type %s for LAG table entry\n", SAI_TYPE_STR(obj_type));
+            status = SAI_STATUS_INVALID_ATTRIBUTE_0 + obj_index;
+            goto out;
+        }
+
+        if ((type->s32 == SAI_HOSTIF_TABLE_ENTRY_TYPE_PORT) ||
+            (type->s32 == SAI_HOSTIF_TABLE_ENTRY_TYPE_LAG)) {
+            status = mlnx_port_idx_by_obj_id(port_lag_vlan_oid, &port_db_idx);
+            if (SAI_ERR(status)) {
+                SX_LOG_ERR("Failed to get port db index for port oid 0x%" PRIx64 "\n", port_lag_vlan_oid);
+                goto out;
+            }
+        }
+    } else if (SAI_OK(status)) {
+        SX_LOG_ERR("Invalid attribute TRAP_ID for wildcard entry\n");
+        status = SAI_STATUS_INVALID_ATTRIBUTE_0 + trap_attr_index;
+        goto out;
     }
 
     status = find_attrib_in_list(attr_count,
@@ -4112,18 +4690,18 @@ sai_status_t mlnx_create_hostif_table_entry(_Out_ sai_object_id_t      *hif_tabl
 
         if (fd->oid == SAI_NULL_OBJECT_ID) {
             SX_LOG_ERR("Host interface attribute is SAI_NULL_OBJECT_ID\n");
-            return SAI_STATUS_INVALID_ATTR_VALUE_0 + fd_index;
+            status = SAI_STATUS_INVALID_ATTR_VALUE_0 + fd_index;
+            goto out;
         }
 
         hostif = fd->oid;
     } else {
         if (SAI_OK(status)) {
             SX_LOG_ERR("Redundant host interface attribute provided\n");
-            return SAI_STATUS_INVALID_ATTRIBUTE_0 + fd_index;
+            status = SAI_STATUS_INVALID_ATTRIBUTE_0 + fd_index;
+            goto out;
         }
     }
-
-    sai_db_write_lock();
 
     status = mlnx_hostif_table_entry_fill_sx_reg_key(type->s32, port_lag_vlan_oid, &sx_register_key);
     if (SAI_ERR(status)) {
@@ -4131,7 +4709,18 @@ sai_status_t mlnx_create_hostif_table_entry(_Out_ sai_object_id_t      *hif_tabl
         goto out;
     }
 
-    status = mlnx_hostif_table_entry_fill_sx_user_channel(channel->s32, hostif, &user_channel);
+    memset(&mlnx_hif_oid, 0, sizeof(mlnx_hif_oid));
+
+    if ((channel->s32 == SAI_HOSTIF_TABLE_ENTRY_CHANNEL_TYPE_FD) ||
+        (channel->s32 == SAI_HOSTIF_TABLE_ENTRY_CHANNEL_TYPE_GENETLINK)) {
+        status = sai_to_mlnx_object_id(SAI_OBJECT_TYPE_HOSTIF, hostif, &mlnx_hif_oid);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to translate sai object id 0x%" PRIx64 " to mlnx oid\n", hostif);
+            goto out;
+        }
+    }
+
+    status = mlnx_hif_table_entry_fill_user_channel_by_hif_idx(channel->s32, mlnx_hif_oid.id.u32, &user_channel);
     if (SAI_ERR(status)) {
         SX_LOG_ERR("Failed to fill sx user channel data\n");
         goto out;
@@ -4154,24 +4743,35 @@ sai_status_t mlnx_create_hostif_table_entry(_Out_ sai_object_id_t      *hif_tabl
                sizeof(g_sai_db_ptr->wildcard_channel.trap_channel));
         g_sai_db_ptr->wildcard_channel.is_in_use = true;
     } else {
-        if (g_sai_db_ptr->traps_db[trap_db_index].trap_channel.is_in_use) {
-            SX_LOG_ERR("Only one channel registration per trap is possible\n");
-            status = SAI_STATUS_NOT_SUPPORTED;
-            goto out;
-        }
-
-        if (g_sai_db_ptr->wildcard_channel.is_in_use) {
-            status = mlnx_hostif_table_entry_fill_sx_reg_key(SAI_HOSTIF_TABLE_ENTRY_TYPE_WILDCARD, SAI_NULL_OBJECT_ID,
-                                                             &sx_deregister_key);
-            if (SAI_ERR(status)) {
-                SX_LOG_ERR("Failed to fill register key for hostif table entry\n");
+        if (type->s32 == SAI_HOSTIF_TABLE_ENTRY_TYPE_TRAP_ID) {
+            if (g_sai_db_ptr->traps_db[trap_db_index].trap_channel.is_in_use) {
+                SX_LOG_ERR("Only one channel registration per trap is possible\n");
+                status = SAI_STATUS_NOT_SUPPORTED;
                 goto out;
             }
 
-            status = mlnx_register_trap(SX_ACCESS_CMD_DEREGISTER, trap_db_index, &sx_deregister_key,
-                                        &g_sai_db_ptr->wildcard_channel.trap_channel);
+            if (g_sai_db_ptr->wildcard_channel.is_in_use) {
+                status = mlnx_register_wildcard_channel(SX_ACCESS_CMD_DEREGISTER, trap_db_index);
+                if (SAI_ERR(status)) {
+                    SX_LOG_ERR("Failed to deregister wildcard channel\n");
+                    goto out;
+                }
+            }
+
+            memcpy(&g_sai_db_ptr->traps_db[trap_db_index].trap_channel.trap_channel, &user_channel,
+                   sizeof(g_sai_db_ptr->traps_db[trap_db_index].trap_channel.trap_channel));
+
+            g_sai_db_ptr->traps_db[trap_db_index].trap_channel.is_in_use = true;
+        } else {
+            status = mlnx_is_hostif_table_key_registered(trap_db_index, &sx_register_key, NULL, &is_registered);
             if (SAI_ERR(status)) {
-                SX_LOG_ERR("Failed to update trap hostif table entry sx\n");
+                SX_LOG_ERR("Failed to check whether the entry is already registered\n");
+                goto out;
+            }
+
+            if (is_registered) {
+                SX_LOG_ERR("Failed to create host interface table entry - entry already exists\n");
+                status = SAI_STATUS_FAILURE;
                 goto out;
             }
         }
@@ -4181,15 +4781,30 @@ sai_status_t mlnx_create_hostif_table_entry(_Out_ sai_object_id_t      *hif_tabl
             SX_LOG_ERR("Failed to update trap hostif table entry sx\n");
             goto out;
         }
-
-        memcpy(&g_sai_db_ptr->traps_db[trap_db_index].trap_channel.trap_channel, &user_channel,
-               sizeof(g_sai_db_ptr->traps_db[trap_db_index].trap_channel.trap_channel));
-        g_sai_db_ptr->traps_db[trap_db_index].trap_channel.is_in_use = true;
     }
 
-    status = mlnx_create_hostif_table_entry_oid(type->s32, trap_db_index, port_lag_vlan_oid, hif_table_entry);
+    status = mlnx_create_hostif_table_entry_oid(type->s32, trap_db_index, port_lag_vlan_oid, channel->s32, hostif,
+                                                hif_table_entry);
     if (SAI_ERR(status)) {
         goto out;
+    }
+
+    if (type->s32 != SAI_HOSTIF_TABLE_ENTRY_TYPE_WILDCARD) {
+        g_sai_db_ptr->traps_db[trap_db_index].refcount++;
+    }
+
+    if (type->s32 == SAI_HOSTIF_TABLE_ENTRY_TYPE_VLAN) {
+        g_sai_db_ptr->vlans_db[vlan_id].hostif_table_refcount++;
+    }
+
+    if ((type->s32 == SAI_HOSTIF_TABLE_ENTRY_TYPE_PORT) ||
+        (type->s32 == SAI_HOSTIF_TABLE_ENTRY_TYPE_LAG)) {
+        g_sai_db_ptr->ports_db[port_db_idx].hostif_table_refcount++;
+    }
+
+    if ((channel->s32 == SAI_HOSTIF_TABLE_ENTRY_CHANNEL_TYPE_FD) ||
+        (channel->s32 == SAI_HOSTIF_TABLE_ENTRY_CHANNEL_TYPE_GENETLINK)) {
+        g_sai_db_ptr->hostif_db[mlnx_hif_oid.id.u32].refcount++;
     }
 
     host_table_entry_key_to_str(*hif_table_entry, key_str);
@@ -4212,9 +4827,14 @@ out:
  */
 sai_status_t mlnx_remove_hostif_table_entry(_In_ sai_object_id_t hif_table_entry)
 {
-    char             key_str[MAX_KEY_STR_LEN];
-    sai_status_t     status;
-    mlnx_object_id_t mlnx_hif = { 0 };
+    char                          key_str[MAX_KEY_STR_LEN];
+    sai_status_t                  status;
+    mlnx_object_id_t              mlnx_hif;
+    sai_hostif_table_entry_type_t entry_type;
+    sx_host_ifc_register_key_t    sx_register_key;
+    sx_user_channel_t             user_channel;
+    uint32_t                      trap_db_index;
+    bool                          is_registered;
 
     SX_LOG_ENTER();
     host_table_entry_key_to_str(hif_table_entry, key_str);
@@ -4225,33 +4845,139 @@ sai_status_t mlnx_remove_hostif_table_entry(_In_ sai_object_id_t hif_table_entry
         return status;
     }
 
-    return SAI_STATUS_NOT_IMPLEMENTED;
+    entry_type = mlnx_hif.field.sub_type;
+    trap_db_index = mlnx_hif.id.hostif_table_entry.trap_db_idx;
 
-#if 0
-    sx_host_ifc_register_key_t reg;
-    sx_fd_t                    fd_val = { 0 };
-    uint32_t                   group_id = 0;
+    sai_db_write_lock();
 
-    if ((SAI_HOSTIF_TABLE_ENTRY_TYPE_PORT == mlnx_hif.field.sub_type) ||
-        (SAI_HOSTIF_TABLE_ENTRY_TYPE_LAG == mlnx_hif.field.sub_type)) {
-        reg.key_type = SX_HOST_IFC_REGISTER_KEY_TYPE_PORT;
-        reg.key_value.port_id = mlnx_hif.id.u32;
-    } else if (SAI_HOSTIF_TABLE_ENTRY_TYPE_VLAN == mlnx_hif.field.sub_type) {
-        reg.key_type = SX_HOST_IFC_REGISTER_KEY_TYPE_VLAN;
-        reg.key_value.vlan_id = mlnx_hif.id.u32;
+    if ((mlnx_hif.ext.hostif_table_entry.channel_type == SAI_HOSTIF_TABLE_ENTRY_CHANNEL_TYPE_FD) ||
+        (mlnx_hif.ext.hostif_table_entry.channel_type == SAI_HOSTIF_TABLE_ENTRY_CHANNEL_TYPE_GENETLINK)) {
+        if (g_sai_db_ptr->hostif_db[mlnx_hif.ext.hostif_table_entry.hostif_db_idx].refcount == 0) {
+            SX_LOG_ERR("Invalid hostif index %d in table entry oid\n", mlnx_hif.ext.hostif_table_entry.hostif_db_idx);
+            status = SAI_STATUS_FAILURE;
+            goto out;
+        }
+    }
+
+    if (entry_type == SAI_HOSTIF_TABLE_ENTRY_TYPE_VLAN) {
+        if (g_sai_db_ptr->vlans_db[mlnx_hif.id.hostif_table_entry.port_vlan_db_idx].hostif_table_refcount == 0) {
+            SX_LOG_ERR("Invalid vlan index %d in table entry oid\n", mlnx_hif.id.hostif_table_entry.port_vlan_db_idx);
+            status = SAI_STATUS_FAILURE;
+            goto out;
+        }
+    }
+
+    if ((entry_type == SAI_HOSTIF_TABLE_ENTRY_TYPE_PORT) ||
+        (entry_type == SAI_HOSTIF_TABLE_ENTRY_TYPE_LAG)) {
+        if (g_sai_db_ptr->ports_db[mlnx_hif.id.hostif_table_entry.port_vlan_db_idx].hostif_table_refcount == 0) {
+            SX_LOG_ERR("Invalid port or lag index %s in table entry oid\n",
+                       mlnx_hif.id.hostif_table_entry.port_vlan_db_idx);
+            status = SAI_STATUS_FAILURE;
+            goto out;
+        }
+    }
+
+    status = mlnx_hostif_table_entry_fill_sx_reg_key_by_mlnx_oid(mlnx_hif, &sx_register_key);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to fill trap type hostif table entry sx register key\n");
+        goto out;
+    }
+
+    if (entry_type == SAI_HOSTIF_TABLE_ENTRY_TYPE_WILDCARD) {
+        if (!g_sai_db_ptr->wildcard_channel.is_in_use) {
+            SX_LOG_ERR("No wildcard entry applied\n");
+            status = SAI_STATUS_INVALID_OBJECT_ID;
+            goto out;
+        }
+
+        status = mlnx_register_all_traps(SX_ACCESS_CMD_DEREGISTER, &sx_register_key,
+                                         &g_sai_db_ptr->wildcard_channel.trap_channel);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to update sx on remove wildcard type hostif table entry\n");
+            goto out;
+        }
+
+        g_sai_db_ptr->wildcard_channel.is_in_use = false;
     } else {
-        reg.key_type = SX_HOST_IFC_REGISTER_KEY_TYPE_GLOBAL;
+        if (g_sai_db_ptr->traps_db[trap_db_index].refcount == 0) {
+            SX_LOG_ERR("Invalid table entry\n");
+            status = SAI_STATUS_FAILURE;
+            goto out;
+        }
+
+        if (entry_type == SAI_HOSTIF_TABLE_ENTRY_TYPE_TRAP_ID) {
+            if (!g_sai_db_ptr->traps_db[trap_db_index].trap_channel.is_in_use) {
+                SX_LOG_ERR("No trap entry applied\n");
+                status = SAI_STATUS_INVALID_OBJECT_ID;
+                goto out;
+            }
+
+            status = mlnx_register_trap(SX_ACCESS_CMD_DEREGISTER, trap_db_index, &sx_register_key,
+                                        &g_sai_db_ptr->traps_db[trap_db_index].trap_channel.trap_channel);
+            if (SAI_ERR(status)) {
+                SX_LOG_ERR("Failed to deregister channel on remove trap type hostif table entry\n");
+                goto out;
+            }
+
+            if (g_sai_db_ptr->wildcard_channel.is_in_use) {
+                status = mlnx_register_wildcard_channel(SX_ACCESS_CMD_REGISTER, trap_db_index);
+                if (SAI_ERR(status)) {
+                    SX_LOG_ERR("Failed to register wildcard channel\n");
+                    goto out;
+                }
+            }
+
+            g_sai_db_ptr->traps_db[trap_db_index].trap_channel.is_in_use = false;
+        } else {
+            status = mlnx_hif_table_entry_fill_user_channel_by_hif_idx(mlnx_hif.ext.hostif_table_entry.channel_type,
+                                                                       mlnx_hif.ext.hostif_table_entry.hostif_db_idx,
+                                                                       &user_channel);
+            if (SAI_ERR(status)) {
+                SX_LOG_ERR("Failed to get sx user channel\n");
+                goto out;
+            }
+
+            status = mlnx_is_hostif_table_key_registered(trap_db_index, &sx_register_key, &user_channel,
+                                                         &is_registered);
+            if (SAI_ERR(status)) {
+                SX_LOG_ERR("Failed to check whether the entry is already registered for trap idx %d\n", trap_db_index);
+                goto out;
+            }
+
+            if (!is_registered) {
+                SX_LOG_ERR("Failed to remove table entry - entry not present in SDK for trap %d\n", trap_db_index);
+                status = SAI_STATUS_FAILURE;
+                goto out;
+            }
+
+            status = mlnx_register_trap(SX_ACCESS_CMD_DEREGISTER, trap_db_index, &sx_register_key, &user_channel);
+            if (SAI_ERR(status)) {
+                SX_LOG_ERR("Failed to deregister channel on remove hostif table entry\n");
+                goto out;
+            }
+        }
+
+        g_sai_db_ptr->traps_db[trap_db_index].refcount--;
     }
 
-    /* TODO : Store channel in DB for registration */
-    if (SAI_STATUS_SUCCESS != (status = mlnx_register_trap(SX_ACCESS_CMD_DEREGISTER, mlnx_hif.ext.trap.id,
-                                                           0, fd_val, group_id, &reg))) {
-        return status;
+    if ((mlnx_hif.ext.hostif_table_entry.channel_type == SAI_HOSTIF_TABLE_ENTRY_CHANNEL_TYPE_FD) ||
+        (mlnx_hif.ext.hostif_table_entry.channel_type == SAI_HOSTIF_TABLE_ENTRY_CHANNEL_TYPE_GENETLINK)) {
+        g_sai_db_ptr->hostif_db[mlnx_hif.ext.hostif_table_entry.hostif_db_idx].refcount--;
     }
 
-    SX_LOG_EXIT();
+    if (entry_type == SAI_HOSTIF_TABLE_ENTRY_TYPE_VLAN) {
+        g_sai_db_ptr->vlans_db[mlnx_hif.id.hostif_table_entry.port_vlan_db_idx].hostif_table_refcount--;
+    }
+
+    if ((entry_type == SAI_HOSTIF_TABLE_ENTRY_TYPE_PORT) ||
+        (entry_type == SAI_HOSTIF_TABLE_ENTRY_TYPE_LAG)) {
+        g_sai_db_ptr->ports_db[mlnx_hif.id.hostif_table_entry.port_vlan_db_idx].hostif_table_refcount--;
+    }
+
+out:
+    sai_db_unlock();
+
     return status;
-#endif
 }
 
 /**
@@ -4313,6 +5039,7 @@ static sai_status_t mlnx_table_entry_get(_In_ const sai_object_key_t   *key,
 {
     sai_status_t     status;
     mlnx_object_id_t mlnx_hif = { 0 }, vlan_obj_id = { 0 };
+    uint32_t         port_lag_vlan_idx;
 
     SX_LOG_ENTER();
 
@@ -4324,42 +5051,154 @@ static sai_status_t mlnx_table_entry_get(_In_ const sai_object_key_t   *key,
         return status;
     }
 
+    sai_db_read_lock();
+
     switch ((long)arg) {
     case SAI_HOSTIF_TABLE_ENTRY_ATTR_TYPE:
         value->s32 = mlnx_hif.field.sub_type;
         break;
 
     case SAI_HOSTIF_TABLE_ENTRY_ATTR_OBJ_ID:
+        port_lag_vlan_idx = mlnx_hif.id.hostif_table_entry.port_vlan_db_idx;
+
         switch (mlnx_hif.field.sub_type) {
         case SAI_HOSTIF_TABLE_ENTRY_TYPE_PORT:
-            return mlnx_create_object(SAI_OBJECT_TYPE_PORT, mlnx_hif.id.u32, NULL, &value->oid);
-
         case SAI_HOSTIF_TABLE_ENTRY_TYPE_LAG:
-            return mlnx_log_port_to_object(mlnx_hif.id.u32, &value->oid);
+            if (port_lag_vlan_idx >= (MAX_PORTS_DB * 2)) {
+                SX_LOG_ERR("Invalid table entry oid, port or lag index %d is larger than max %d\n", port_lag_vlan_idx,
+                           (MAX_PORTS_DB * 2) - 1);
+                status = SAI_STATUS_INVALID_OBJECT_ID;
+                goto out;
+            }
+
+            if (g_sai_db_ptr->ports_db[port_lag_vlan_idx].hostif_table_refcount == 0) {
+                SX_LOG_ERR("Invalid table entry oid, port or LAG index %d is not used for table entry\n",
+                           port_lag_vlan_idx);
+                status = SAI_STATUS_INVALID_OBJECT_ID;
+                goto out;
+            }
+
+            value->oid = g_sai_db_ptr->ports_db[port_lag_vlan_idx].saiport;
+            break;
 
         case SAI_HOSTIF_TABLE_ENTRY_TYPE_VLAN:
-            vlan_obj_id.id.vlan_id = mlnx_hif.id.u32;
-            return mlnx_object_id_to_sai(SAI_OBJECT_TYPE_VLAN, &vlan_obj_id, &value->oid);
+            if (port_lag_vlan_idx >= SXD_VID_MAX) {
+                SX_LOG_ERR("Invalid table entry oid, vlan index %s is larger than max %s\n", port_lag_vlan_idx,
+                           SXD_VID_MAX - 1);
+                status = SAI_STATUS_INVALID_OBJECT_ID;
+                goto out;
+            }
+
+            if (g_sai_db_ptr->vlans_db[port_lag_vlan_idx].hostif_table_refcount == 0) {
+                SX_LOG_ERR("Invalid table entry oid, VLAN %d is not used for table entry\n", port_lag_vlan_idx);
+                status = SAI_STATUS_INVALID_OBJECT_ID;
+                goto out;
+            }
+
+            vlan_obj_id.id.vlan_id = port_lag_vlan_idx;
+            status = mlnx_object_id_to_sai(SAI_OBJECT_TYPE_VLAN, &vlan_obj_id, &value->oid);
+            if (SAI_ERR(status)) {
+                SX_LOG_ERR("Failed to create VLAN oid for vlan idx %d\n", port_lag_vlan_idx);
+                goto out;
+            }
+            break;
 
         default:
             SX_LOG_ERR("Host table entry object ID invalid for type trap/wildcard %u\n", mlnx_hif.field.sub_type);
-            return SAI_STATUS_INVALID_ATTRIBUTE_0 + attr_index;
+            status = SAI_STATUS_INVALID_ATTRIBUTE_0 + attr_index;
+            goto out;
         }
         break;
 
     case SAI_HOSTIF_TABLE_ENTRY_ATTR_TRAP_ID:
         if (SAI_HOSTIF_TABLE_ENTRY_TYPE_WILDCARD == mlnx_hif.field.sub_type) {
             SX_LOG_ERR("Host table entry trap ID invalid for type wildcard\n");
-            return SAI_STATUS_INVALID_ATTRIBUTE_0 + attr_index;
+            status = SAI_STATUS_INVALID_ATTRIBUTE_0 + attr_index;
         } else {
-            return mlnx_create_object((MLNX_TRAP_TYPE_REGULAR == mlnx_traps_info[mlnx_hif.ext.trap.id].trap_type) ?
-                                      SAI_OBJECT_TYPE_HOSTIF_TRAP : SAI_OBJECT_TYPE_HOSTIF_USER_DEFINED_TRAP,
-                                      mlnx_traps_info[mlnx_hif.ext.trap.id].trap_id, NULL, &value->oid);
+            status = mlnx_create_object((mlnx_traps_info[mlnx_hif.id.hostif_table_entry.trap_db_idx].object_type),
+                                        mlnx_hif.id.hostif_table_entry.trap_db_idx, NULL, &value->oid);
         }
     }
 
+out:
+    sai_db_unlock();
+
     SX_LOG_EXIT();
-    return SAI_STATUS_SUCCESS;
+    return status;
+}
+
+static sai_status_t mlnx_table_entry_channel_type_get(_In_ const sai_object_key_t   *key,
+                                                      _Inout_ sai_attribute_value_t *value,
+                                                      _In_ uint32_t                  attr_index,
+                                                      _Inout_ vendor_cache_t        *cache,
+                                                      void                          *arg)
+{
+    sai_status_t     status;
+    mlnx_object_id_t mlnx_hif = { 0 };
+
+    SX_LOG_ENTER();
+
+    status = sai_to_mlnx_object_id(SAI_OBJECT_TYPE_HOSTIF_TABLE_ENTRY, key->key.object_id, &mlnx_hif);
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+    value->s32 = mlnx_hif.ext.hostif_table_entry.channel_type;
+
+    SX_LOG_EXIT();
+    return status;
+}
+
+static sai_status_t mlnx_table_entry_hostif_get(_In_ const sai_object_key_t   *key,
+                                                _Inout_ sai_attribute_value_t *value,
+                                                _In_ uint32_t                  attr_index,
+                                                _Inout_ vendor_cache_t        *cache,
+                                                void                          *arg)
+{
+    sai_status_t     status;
+    mlnx_object_id_t mlnx_hif_table = { 0 }, mlnx_hif = { 0 };
+
+    SX_LOG_ENTER();
+
+    status = sai_to_mlnx_object_id(SAI_OBJECT_TYPE_HOSTIF_TABLE_ENTRY, key->key.object_id, &mlnx_hif_table);
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+    sai_db_read_lock();
+    if ((mlnx_hif_table.ext.hostif_table_entry.channel_type != SAI_HOSTIF_TABLE_ENTRY_CHANNEL_TYPE_FD) &&
+        (mlnx_hif_table.ext.hostif_table_entry.channel_type != SAI_HOSTIF_TABLE_ENTRY_CHANNEL_TYPE_GENETLINK)) {
+        SX_LOG_ERR("Hostif get is valid only for FD and genetlink channel types\n");
+        status = SAI_STATUS_INVALID_PARAMETER;
+        goto out;
+    }
+
+    if ((mlnx_hif_table.ext.hostif_table_entry.hostif_db_idx >= MAX_HOSTIFS)) {
+        SX_LOG_ERR("Invalid hostif object id - hostif db index %d\n",
+                   mlnx_hif_table.ext.hostif_table_entry.hostif_db_idx);
+        status = SAI_STATUS_INVALID_PARAMETER;
+        goto out;
+    }
+
+    if (g_sai_db_ptr->hostif_db[mlnx_hif_table.ext.hostif_table_entry.hostif_db_idx].refcount == 0) {
+        SX_LOG_ERR("Hostif idx %d is not used for table entry\n", mlnx_hif_table.ext.hostif_table_entry.hostif_db_idx);
+        status = SAI_STATUS_INVALID_PARAMETER;
+        goto out;
+    }
+
+    mlnx_hif.id.u32 = mlnx_hif_table.ext.hostif_table_entry.hostif_db_idx;
+
+    status = mlnx_object_id_to_sai(SAI_OBJECT_TYPE_HOSTIF, &mlnx_hif, &value->oid);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to create hostif object id\n");
+        goto out;
+    }
+
+out:
+    sai_db_unlock();
+
+    SX_LOG_EXIT();
+    return status;
 }
 
 sai_status_t mlnx_host_interface_log_set(sx_verbosity_level_t level)

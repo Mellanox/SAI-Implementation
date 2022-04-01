@@ -949,6 +949,12 @@ static sai_status_t mlnx_remove_vlan(_In_ sai_object_id_t sai_vlan_id)
 
     sai_db_write_lock();
 
+    if (g_sai_db_ptr->vlans_db[vlan_id].hostif_table_refcount > 0) {
+        SX_LOG_ERR("Failed to remove VLAN - VLAN in use for hostif table entry\n");
+        status = SAI_STATUS_OBJECT_IN_USE;
+        goto out;
+    }
+
     mlnx_vlan_ports_foreach(vlan_id, port, port_idx) {
         SX_LOG_ERR("Failed to remove vlan which has vlan members\n");
         status = SAI_STATUS_OBJECT_IN_USE;

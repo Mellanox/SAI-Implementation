@@ -37,11 +37,11 @@ static sai_status_t mlnx_next_hop_attr_set(_In_ const sai_object_key_t      *key
                                            _In_ const sai_attribute_value_t *value,
                                            void                             *arg);
 static sai_status_t mlnx_meta_tunnel_entry_remove(_In_ sx_mac_addr_t *sx_fake_mac, _In_ uint32_t priority);
-static sai_status_t mlnx_meta_tunnel_entry_create(_In_ sx_mac_addr_t  *sx_fake_mac,
-                                                  _In_ sai_object_id_t tunnel_id,
-                                                  _In_ uint32_t        dip,
-                                                  _In_ const sai_mac_t dmac,
-                                                  _Out_ uint32_t      *priority);
+static sai_status_t mlnx_meta_tunnel_entry_create(_In_ sx_mac_addr_t    *sx_fake_mac,
+                                                  _In_ sai_object_id_t   tunnel_id,
+                                                  _In_ sai_ip_address_t *dip,
+                                                  _In_ const sai_mac_t   dmac,
+                                                  _Out_ uint32_t        *priority);
 static sai_status_t mlnx_next_hop_counter_set(_In_ const sai_object_key_t      *key,
                                               _In_ const sai_attribute_value_t *value,
                                               void                             *arg);
@@ -432,19 +432,14 @@ out:
     return status;
 }
 
-
 static sai_status_t mlnx_encap_nexthop_fake_ip_generate(_In_ mlnx_shm_rm_array_idx_t nh_idx,
                                                         _In_ uint32_t                fd_idx,
                                                         _Out_ sx_ip_addr_t          *fake_ip)
 {
     assert(fake_ip);
 
-    uint32_t ip = 0;
-
-    ip = (nh_idx.idx & 0x0000FFFF) << 8 | (fd_idx & 0x000000FF);
-
     fake_ip->version = SX_IP_VERSION_IPV4;
-    fake_ip->addr.ipv4.s_addr = ip;
+    fake_ip->addr.ipv4.s_addr = (nh_idx.idx & 0x0000FFFF) << 8 | (fd_idx & 0x000000FF);
 
     return SAI_STATUS_SUCCESS;
 }
@@ -543,7 +538,7 @@ static sai_status_t mlnx_encap_nexthop_init(_In_ mlnx_shm_rm_array_idx_t        
 
     status = mlnx_meta_tunnel_entry_create(&db_entry->data.sx_fake_mac,
                                            db_entry->data.tunnel_id,
-                                           db_entry->data.dst_ip.addr.ip4,
+                                           &db_entry->data.dst_ip,
                                            dmac,
                                            &db_entry->data.acl_index);
     if (SAI_ERR(status)) {
@@ -625,7 +620,9 @@ static sai_status_t mlnx_encap_nexthop_fake_data_init(_In_ mlnx_encap_nexthop_db
     sx_fid_t              br_fid;
 
     if (!reset) {
-        status = mlnx_encap_nexthop_fake_ip_generate(nh_idx, fd_idx, &fake_data->sx_fake_ipaddr);
+        status = mlnx_encap_nexthop_fake_ip_generate(nh_idx,
+                                                     fd_idx,
+                                                     &fake_data->sx_fake_ipaddr);
         if (SAI_ERR(status)) {
             SX_LOG_ERR("Failed to generate unique fake IP.\n");
             return status;
@@ -1756,11 +1753,11 @@ static sai_status_t mlnx_meta_tunnel_entry_remove(_In_ sx_mac_addr_t *sx_fake_ma
     return SAI_STATUS_SUCCESS;
 }
 
-static sai_status_t mlnx_meta_tunnel_entry_create(_In_ sx_mac_addr_t  *sx_fake_mac,
-                                                  _In_ sai_object_id_t tunnel_id,
-                                                  _In_ uint32_t        dip,
-                                                  _In_ const sai_mac_t dmac,
-                                                  _Out_ uint32_t      *priority)
+static sai_status_t mlnx_meta_tunnel_entry_create(_In_ sx_mac_addr_t    *sx_fake_mac,
+                                                  _In_ sai_object_id_t   tunnel_id,
+                                                  _In_ sai_ip_address_t *dip,
+                                                  _In_ const sai_mac_t   dmac,
+                                                  _Out_ uint32_t        *priority)
 {
     sx_status_t                              sx_status;
     sai_status_t                             status;
@@ -1768,6 +1765,7 @@ static sai_status_t mlnx_meta_tunnel_entry_create(_In_ sx_mac_addr_t  *sx_fake_m
     sx_table_meta_tunnel_entry_action_data_t action;
     sx_tunnel_id_t                           sx_tunnel_id;
     sx_mac_addr_t                            tunnel_mac;
+    sx_ip_addr_t                             sx_dip;
 
     memcpy(&key.in_rif_metadata_field, sx_fake_mac->ether_addr_octet, sizeof(key.in_rif_metadata_field));
 
@@ -1784,20 +1782,16 @@ static sai_status_t mlnx_meta_tunnel_entry_create(_In_ sx_mac_addr_t  *sx_fake_m
         memcpy(tunnel_mac.ether_addr_octet, dmac, sizeof(tunnel_mac.ether_addr_octet));
     }
 
+    status = mlnx_translate_sai_ip_address_to_sdk(dip, &sx_dip);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to convert SAI IP to SX IP.\n");
+        return status;
+    }
+
     memcpy(&action.data.tunnel_encap_params.dst_mac.ether_addr_octet, tunnel_mac.ether_addr_octet,
            sizeof(tunnel_mac.ether_addr_octet));
     action.data.tunnel_encap_params.tunnel_id = sx_tunnel_id;
-    action.data.tunnel_encap_params.underlay_dip = ntohl(dip);
-
-    SX_LOG_DBG("Create Meta Tunnel Entry [tunnel_id=0x%X, underlay_dip=0x%X, dst_mac=[%X:%X:%X:%X:%X:%X]\n",
-               action.data.tunnel_encap_params.tunnel_id,
-               action.data.tunnel_encap_params.underlay_dip,
-               action.data.tunnel_encap_params.dst_mac.ether_addr_octet[0],
-               action.data.tunnel_encap_params.dst_mac.ether_addr_octet[1],
-               action.data.tunnel_encap_params.dst_mac.ether_addr_octet[2],
-               action.data.tunnel_encap_params.dst_mac.ether_addr_octet[3],
-               action.data.tunnel_encap_params.dst_mac.ether_addr_octet[4],
-               action.data.tunnel_encap_params.dst_mac.ether_addr_octet[5]);
+    action.data.tunnel_encap_params.underlay_dip = sx_dip;
 
     sx_status = sx_api_table_meta_tunnel_entry_set(gh_sdk, SX_ACCESS_CMD_CREATE, &key, &action);
     if (SX_ERR(sx_status)) {
@@ -1830,7 +1824,7 @@ sai_status_t mlnx_encap_nexthop_change_dmac(_In_ sai_object_id_t nh, _In_ const 
     }
     status = mlnx_meta_tunnel_entry_create(&db_entry->data.sx_fake_mac,
                                            db_entry->data.tunnel_id,
-                                           db_entry->data.dst_ip.addr.ip4,
+                                           &db_entry->data.dst_ip,
                                            mac,
                                            &db_entry->data.acl_index);
     if (SAI_ERR(status)) {

@@ -1796,14 +1796,13 @@ bool set_action_list(fx_handle_t handle, int action_id, fx_param_list_t params, 
             rule->action_list_p[1] = (sx_flex_acl_flex_action_t){
 				.type =  SX_FLEX_ACL_ACTION_NVE_TUNNEL_ENCAP,
                 .fields.action_nve_tunnel_encap.tunnel_id = *(sx_tunnel_id_t*)(params.params[1].data),
-                .fields.action_nve_tunnel_encap.underlay_dip.addr.ipv4.s_addr = *(in_addr_t*)(params.params[2].data),
-                .fields.action_nve_tunnel_encap.underlay_dip.version = (sx_ip_version_t) SX_IP_VERSION_IPV4
+                .fields.action_nve_tunnel_encap.underlay_dip = *(sx_ip_addr_t*)(params.params[2].data)
 			};
 			{
             memcpy(&rule->action_list_p[1].fields.action_nve_tunnel_encap.tunnel_id, params.params[1].data, params.params[1].len);
 			}
 			{
-            memcpy(&rule->action_list_p[1].fields.action_nve_tunnel_encap.underlay_dip.addr.ipv4.s_addr, params.params[2].data, params.params[2].len);
+            memcpy(&rule->action_list_p[1].fields.action_nve_tunnel_encap.underlay_dip, params.params[2].data, params.params[2].len);
 			}
 #ifdef FX_ACL_FLOW_COUNTER
 			// hit_counter()

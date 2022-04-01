@@ -38,6 +38,7 @@ sai_status_t mlnx_policer_stats_get(_In_ sx_policer_id_t sx_policer, _In_ uint64
 sai_status_t mlnx_policer_stats_clear(_In_ sx_policer_id_t sx_policer);
 sai_status_t mlnx_hostif_sx_trap_is_configured(_In_ sx_trap_id_t          sx_trap,
                                                _Out_ sai_packet_action_t *action,
+                                               _Out_ bool                *is_present,
                                                _Out_ bool                *is_configured);
 
 static sai_status_t mlnx_debug_counter_attr_get(_In_ const sai_object_key_t   *key,
@@ -1071,28 +1072,28 @@ static sai_status_t mlnx_debug_counter_sx_trap_db_update(_In_ const mlnx_debug_c
     mlnx_shm_rm_array_idx_t    rm_idx;
     mlnx_debug_counter_trap_t *trap_db;
     sai_packet_action_t        action = SAI_PACKET_ACTION_TRAP;
-    bool                       is_configured;
+    bool                       is_configured, is_present;
 
     assert(dbg_counter);
     assert(need_to_configure);
 
-    status = mlnx_hostif_sx_trap_is_configured(sx_trap, &action, &is_configured);
+    status = mlnx_hostif_sx_trap_is_configured(sx_trap, &action, &is_present, &is_configured);
     if (SAI_ERR(status)) {
         return status;
     }
 
-    if (!is_configured) {
+    if (!is_present) {
         *need_to_configure = true;
         return SAI_STATUS_SUCCESS;
     }
-
-    *need_to_configure = (action == SAI_PACKET_ACTION_DROP);
 
     status = mlnx_debug_counter_db_find(sx_trap, &trap_db);
     if (SAI_ERR(status)) {
         SX_LOG_ERR("SX trap %u is user-configured but not found in counter db\n", sx_trap);
         return status;
     }
+
+    *need_to_configure = (!is_configured) || (action == SAI_PACKET_ACTION_DROP);
 
     trap_db->action = action;
 
