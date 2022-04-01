@@ -41,6 +41,8 @@ static sai_status_t mlnx_convert_sai_tunnel_type_to_sx_ipv6(_In_ sai_tunnel_type
 static sai_status_t mlnx_convert_sx_tunnel_type_to_sai(_In_ sx_tunnel_type_e    sx_tunnel_attr,
                                                        _Out_ sai_tunnel_type_t *sai_type);
 sai_status_t mlnx_sai_tunnel_to_sx_tunnel_id(_In_ sai_object_id_t sai_tunnel_id, _Out_ sx_tunnel_id_t *sx_tunnel_id);
+static sai_status_t mlnx_get_tunnel_type_by_tunnel_id(_In_ sai_object_id_t    tunnel_oid,
+                                                      _Out_ sx_tunnel_type_e *tunnel_type);
 static sai_status_t mlnx_sai_get_sai_rif_id(_In_ sai_object_id_t        sai_tunnel_id,
                                             _In_ tunnel_rif_type        sai_tunnel_rif_type,
                                             _In_ sx_tunnel_attribute_t *sx_tunnel_attr,
@@ -148,6 +150,14 @@ static sai_status_t mlnx_tunnel_mappers_get(_In_ const sai_object_key_t   *key,
 static sai_status_t mlnx_tunnel_mappers_set(_In_ const sai_object_key_t      *key,
                                             _In_ const sai_attribute_value_t *value,
                                             void                             *arg);
+static sai_status_t mlnx_tunnel_vxlan_udp_sport_attr_get(_In_ const sai_object_key_t   *key,
+                                                         _Inout_ sai_attribute_value_t *value,
+                                                         _In_ uint32_t                  attr_index,
+                                                         _Inout_ vendor_cache_t        *cache,
+                                                         void                          *arg);
+static sai_status_t mlnx_tunnel_vxlan_udp_sport_attr_set(_In_ const sai_object_key_t      *key,
+                                                         _In_ const sai_attribute_value_t *value,
+                                                         void                             *arg);
 static sai_status_t mlnx_tunnel_term_table_entry_vr_id_get(_In_ const sai_object_key_t   *key,
                                                            _Inout_ sai_attribute_value_t *value,
                                                            _In_ uint32_t                  attr_index,
@@ -401,6 +411,21 @@ static const sai_vendor_attribute_entry_t tunnel_vendor_attribs[] = {
       { true, false, false, true },
       mlnx_tunnel_dscp_mode_get, (void*)TUNNEL_DECAP,
       NULL, NULL },
+    { SAI_TUNNEL_ATTR_VXLAN_UDP_SPORT_MODE,
+      { true, false, true, true },
+      { true, false, true, true },
+      mlnx_tunnel_vxlan_udp_sport_attr_get, (void*)SAI_TUNNEL_ATTR_VXLAN_UDP_SPORT_MODE,
+      mlnx_tunnel_vxlan_udp_sport_attr_set, (void*)SAI_TUNNEL_ATTR_VXLAN_UDP_SPORT_MODE},
+    { SAI_TUNNEL_ATTR_VXLAN_UDP_SPORT,
+      { true, false, true, true },
+      { true, false, true, true },
+      mlnx_tunnel_vxlan_udp_sport_attr_get, (void*)SAI_TUNNEL_ATTR_VXLAN_UDP_SPORT,
+      mlnx_tunnel_vxlan_udp_sport_attr_set, (void*)SAI_TUNNEL_ATTR_VXLAN_UDP_SPORT},
+    { SAI_TUNNEL_ATTR_VXLAN_UDP_SPORT_MASK,
+      { true, false, true, true },
+      { true, false, true, true },
+      mlnx_tunnel_vxlan_udp_sport_attr_get, (void*)SAI_TUNNEL_ATTR_VXLAN_UDP_SPORT_MASK,
+      mlnx_tunnel_vxlan_udp_sport_attr_set, (void*)SAI_TUNNEL_ATTR_VXLAN_UDP_SPORT_MASK},
     { END_FUNCTIONALITY_ATTRIBS_ID,
       { false, false, false, false },
       { false, false, false, false },
@@ -422,6 +447,7 @@ static const mlnx_attr_enum_info_t        tunnel_enum_info[] = {
         SAI_TUNNEL_TTL_MODE_PIPE_MODEL),
     [SAI_TUNNEL_ATTR_DECAP_DSCP_MODE] = ATTR_ENUM_VALUES_ALL(),
     [SAI_TUNNEL_ATTR_DECAP_ECN_MODE] = ATTR_ENUM_VALUES_ALL(),
+    [SAI_TUNNEL_ATTR_VXLAN_UDP_SPORT_MODE] = ATTR_ENUM_VALUES_ALL()
 };
 static const sai_stat_capability_t        tunnel_stats_capabilities[] = {
     { SAI_TUNNEL_STAT_IN_PACKETS, SAI_STATS_MODE_READ | SAI_STATS_MODE_READ_AND_CLEAR },
@@ -557,6 +583,7 @@ sai_status_t mlnx_tunnel_availability_get(_In_ sai_object_id_t        switch_id,
         -1
     }, nve_sx_tunnel_types[] = {
         SX_TUNNEL_TYPE_NVE_VXLAN,
+        SX_TUNNEL_TYPE_NVE_VXLAN_IPV6,
         -1
     };
     sx_status_t        sx_status;
@@ -608,6 +635,7 @@ sai_status_t mlnx_tunnel_availability_get(_In_ sai_object_id_t        switch_id,
     assert(sx_tunnel_types);
 
     for (; (*sx_tunnel_types) >= 0; ++sx_tunnel_types) {
+        specific_tunnel_type_count = 0;
         memset(&sx_tunnel_filter, 0, sizeof(sx_tunnel_filter_t));
         sx_tunnel_filter.type = *sx_tunnel_types;
         sx_tunnel_filter.filter_by_type = SX_TUNNEL_KEY_FILTER_FIELD_VALID;
@@ -1323,6 +1351,7 @@ static sai_status_t mlnx_sai_get_sai_rif_id(_In_ sai_object_id_t        sai_tunn
         break;
 
     case SX_TUNNEL_TYPE_NVE_VXLAN:
+    case SX_TUNNEL_TYPE_NVE_VXLAN_IPV6:
         sai_db_read_lock();
         if (SAI_STATUS_SUCCESS !=
             (sai_status = mlnx_get_tunnel_db_entry(sai_tunnel_id,
@@ -1450,6 +1479,7 @@ static sai_status_t mlnx_tunnel_encap_src_ip_get(_In_ const sai_object_key_t   *
         break;
 
     case SX_TUNNEL_TYPE_NVE_VXLAN:
+    case SX_TUNNEL_TYPE_NVE_VXLAN_IPV6:
         memcpy(&sx_ip_addr, &sx_tunnel_attr.attributes.vxlan.encap.underlay_sip, sizeof(sx_ip_addr));
         break;
 
@@ -2031,6 +2061,7 @@ static sai_status_t mlnx_tunnel_mappers_get(_In_ const sai_object_key_t   *key,
         break;
 
     case SX_TUNNEL_TYPE_NVE_VXLAN:
+    case SX_TUNNEL_TYPE_NVE_VXLAN_IPV6:
         if (SAI_STATUS_SUCCESS !=
             (sai_status = mlnx_tunnel_vxlan_mapper_get(key->key.object_id, value, arg))) {
             SX_LOG_ERR("Error getting vxlan mapper\n");
@@ -2186,6 +2217,7 @@ static sai_status_t mlnx_tunnel_mappers_set(_In_ const sai_object_key_t      *ke
         break;
 
     case SX_TUNNEL_TYPE_NVE_VXLAN:
+    case SX_TUNNEL_TYPE_NVE_VXLAN_IPV6:
         if (SAI_STATUS_SUCCESS !=
             (sai_status = mlnx_tunnel_vxlan_mapper_set(key->key.object_id, value, arg))) {
             SX_LOG_ERR("Error setting vxlan mapper\n");
@@ -2204,6 +2236,408 @@ static sai_status_t mlnx_tunnel_mappers_set(_In_ const sai_object_key_t      *ke
 
     SX_LOG_EXIT();
     return sai_status;
+}
+
+sai_status_t mlnx_vxlan_srcport_set_hash(sx_tunnel_id_t tunnel_id, mlnx_tunnel_hash_cmd_t cmd, int32_t src_port_base)
+{
+    sai_status_t          sai_status = SAI_STATUS_SUCCESS;
+    sx_status_t           sdk_status = SX_STATUS_SUCCESS;
+    sx_tunnel_hash_data_t sx_tunnel_hash_data = {0};
+
+    switch (cmd) {
+    case SAI_TUNNEL_HASH_CMD_SET_ZERO:
+        sx_tunnel_hash_data.hash_field_type = SX_TUNNEL_HASH_FIELD_TYPE_UDP_SPORT_E;
+        sx_tunnel_hash_data.hash_cmd = SX_TUNNEL_HASH_CMD_SET_ZERO_E;
+        break;
+
+    case SAI_TUNNEL_HASH_CMD_FIXED_VALUE:
+        sx_tunnel_hash_data.hash_field_type = SX_TUNNEL_HASH_FIELD_TYPE_UDP_SPORT_E;
+        sx_tunnel_hash_data.hash_cmd = SX_TUNNEL_HASH_CMD_FIXED_VALUE_E;
+        sx_tunnel_hash_data.nve_data.nve_udp_value_msb_valid = true;
+        sx_tunnel_hash_data.nve_data.nve_udp_value_msb = src_port_base >> 8;
+        sx_tunnel_hash_data.nve_data.nve_udp_value_lsb = src_port_base & 0xFF;
+        break;
+
+    case SAI_TUNNEL_HASH_CMD_MODIFIED_HASH:
+        sx_tunnel_hash_data.hash_field_type = SX_TUNNEL_HASH_FIELD_TYPE_UDP_SPORT_E;
+        sx_tunnel_hash_data.hash_cmd = SX_TUNNEL_HASH_CMD_MODIFIED_HASH_E;
+        sx_tunnel_hash_data.nve_data.nve_udp_value_msb_valid = true;
+        sx_tunnel_hash_data.nve_data.nve_udp_value_msb = src_port_base >> 8;
+        sx_tunnel_hash_data.nve_data.nve_udp_value_lsb = src_port_base & 0xff;
+        break;
+
+    case SAI_TUNNEL_HASH_CMD_CALCULATE:
+        sx_tunnel_hash_data.hash_field_type = SX_TUNNEL_HASH_FIELD_TYPE_UDP_SPORT_E;
+        sx_tunnel_hash_data.hash_cmd = SX_TUNNEL_HASH_CMD_CALCULATE_E;
+        sx_tunnel_hash_data.nve_data.nve_udp_value_msb_valid = true;
+        sx_tunnel_hash_data.nve_data.nve_udp_value_msb = src_port_base >> 8;
+        break;
+
+    default:
+        SX_LOG_ERR("Not supported tunnel hash command!\n");
+        return SAI_STATUS_FAILURE;
+    }
+
+    sdk_status = sx_api_tunnel_hash_set(gh_sdk, tunnel_id, &sx_tunnel_hash_data);
+    if (SX_ERR(sdk_status)) {
+        sai_status = sdk_to_sai(sdk_status);
+        goto out;
+    }
+
+    return SAI_STATUS_SUCCESS;
+out:
+    SX_LOG_ERR("Error setting src port hash for sdk vxlan tunnel %x, sx status: %s\n",
+               tunnel_id, SX_STATUS_MSG(sdk_status));
+    return sai_status;
+}
+
+sai_status_t mlnx_vxlan_srcport_user_defined_set(uint32_t tunnel_db_idx,
+                                                 int32_t  sport_base,
+                                                 int8_t   sport_mask,
+                                                 bool     acl_created)
+{
+    mlnx_tunnel_hash_cmd_t cmd;
+
+    if ((sport_mask == 0) && (sport_base == 0)) {
+        cmd = SAI_TUNNEL_HASH_CMD_SET_ZERO;
+    } else if (((sport_mask == 0) && !mlnx_chip_is_spc())
+               || ((sport_mask == 0) && !(sport_base & 0xFF) && mlnx_chip_is_spc())) {
+        cmd = SAI_TUNNEL_HASH_CMD_FIXED_VALUE;
+    } else if (!mlnx_chip_is_spc()
+               && (((0x80 == (sport_base & 0xFF)) && (sport_mask == 7))
+                   || ((0xC0 == (sport_base & 0xFF)) && (sport_mask == 6))
+                   || ((0xE0 == (sport_base & 0xFF)) && (sport_mask == 5))
+                   || ((0xF0 == (sport_base & 0xFF)) && (sport_mask == 4))
+                   || ((0xF8 == (sport_base & 0xFF)) && (sport_mask == 3))
+                   || ((0xFC == (sport_base & 0xFF)) && (sport_mask == 2))
+                   || ((0xFE == (sport_base & 0xFF)) && (sport_mask == 1)))) {
+        cmd = SAI_TUNNEL_HASH_CMD_MODIFIED_HASH;
+    } else {
+        cmd = SAI_TUNNEL_HASH_CMD_CALCULATE;
+    }
+    if ((cmd != SAI_TUNNEL_HASH_CMD_CALCULATE) && acl_created) {
+        if (SAI_ERR(mlnx_vxlan_udp_srcport_acl_remove(tunnel_db_idx))) {
+            SX_LOG_ERR("Error deleting UDP VxLAN src port ACL %d \n",
+                       g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].vxlan_acl.acl_group);
+            return SAI_STATUS_FAILURE;
+        }
+    } else if (cmd == SAI_TUNNEL_HASH_CMD_CALCULATE) {
+        if (!acl_created && (sport_mask < 8)) {
+            if (SAI_ERR(mlnx_vxlan_udp_srcport_acl_add(tunnel_db_idx))) {
+                SX_LOG_ERR("Failed to add UDP VxLAN src port ACL\n");
+                return SAI_STATUS_FAILURE;
+            }
+        } else if (acl_created) {
+            if (SAI_ERR(mlnx_vxlan_udp_srcport_acl_update(tunnel_db_idx))) {
+                SX_LOG_ERR("Failed to update VxLAN src port ACL\n");
+                return SAI_STATUS_FAILURE;
+            }
+        }
+    }
+
+    if (SAI_ERR(mlnx_vxlan_srcport_set_hash(g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].sx_tunnel_id_ipv4,
+                                            cmd, sport_base))) {
+        SX_LOG_ERR("Failed to set UDP VxLAN src port 8bits hash value for sdk vxlan tunnel %x\n",
+                   g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].sx_tunnel_id_ipv4);
+        sai_db_unlock();
+        return SAI_STATUS_FAILURE;
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
+sai_status_t mlnx_vxlan_srcport_config_update(bool                              on_create_set,
+                                              uint32_t                          tunnel_db_idx,
+                                              sai_tunnel_vxlan_udp_sport_mode_t src_port_mode,
+                                              int32_t                           src_port_base,
+                                              int8_t                            src_port_mask)
+{
+    sai_status_t                      sai_status = SAI_STATUS_SUCCESS;
+    sai_tunnel_vxlan_udp_sport_mode_t sport_mode;
+    uint16_t                          sport_base;
+    uint8_t                           sport_mask;
+
+    sport_mode = g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].src_port_mode;
+    sport_base = g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].src_port_base;
+    sport_mask = g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].src_port_mask;
+
+
+    if (on_create_set && (sport_mode == src_port_mode)
+        && (sport_base == src_port_base)
+        && (sport_mask == src_port_mask)) {
+        return SAI_STATUS_SUCCESS;
+    }
+
+    if (!on_create_set) {
+        if (g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].vxlan_acl.is_acl_created) {
+            sai_status = mlnx_vxlan_udp_srcport_acl_remove(tunnel_db_idx);
+            if (SAI_ERR(sai_status)) {
+                SX_LOG_ERR("Error deleting UDP VxLAN src port ACL %d \n",
+                           g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].vxlan_acl.acl);
+                return SAI_STATUS_FAILURE;
+            }
+        }
+        if (SAI_STATUS_SUCCESS !=
+            mlnx_vxlan_srcport_set_hash(g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].sx_tunnel_id_ipv4,
+                                        SAI_TUNNEL_HASH_CMD_CALCULATE, 0xC000)) {
+            SX_LOG_ERR("Error setting VxLAN UDP SRC port mode EPHEMERAL for sdk vxlan tunnel %x\n",
+                       g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].sx_tunnel_id_ipv4);
+            return SAI_STATUS_FAILURE;
+        }
+        g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].src_port_mode = src_port_mode;
+        g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].src_port_base = 0;
+        g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].src_port_mask = 0;
+        return SAI_STATUS_SUCCESS;
+    }
+
+    g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].src_port_mode = src_port_mode;
+    g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].src_port_base = src_port_base;
+    g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].src_port_mask = src_port_mask;
+
+    if (g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].src_port_mode ==
+        SAI_TUNNEL_VXLAN_UDP_SPORT_MODE_EPHEMERAL) {
+        if (SAI_STATUS_SUCCESS !=
+            mlnx_vxlan_srcport_set_hash(g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].sx_tunnel_id_ipv4,
+                                        SAI_TUNNEL_HASH_CMD_CALCULATE, 0xC000)) {
+            SX_LOG_ERR("Error setting VxLAN UDP SRC port mode EPHEMERAL for sdk vxlan tunnel %x\n",
+                       g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].sx_tunnel_id_ipv4);
+            return SAI_STATUS_FAILURE;
+        }
+        if (g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].vxlan_acl.is_acl_created) {
+            sai_status = mlnx_vxlan_udp_srcport_acl_remove(tunnel_db_idx);
+            if (SAI_ERR(sai_status)) {
+                SX_LOG_ERR("Error deleting UDP VxLAN src port ACL %d \n",
+                           g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].vxlan_acl.acl);
+                return SAI_STATUS_FAILURE;
+            }
+        }
+        g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].src_port_base = 0;
+        g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].src_port_mask = 0;
+    } else {
+        if (SAI_STATUS_SUCCESS !=
+            mlnx_vxlan_srcport_user_defined_set(tunnel_db_idx, src_port_base, src_port_mask,
+                                                g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].vxlan_acl.
+                                                is_acl_created)) {
+            SX_LOG_ERR("Error setting VxLAN UDP SRC port mode USER_DEFINED for sdk vxlan tunnel %x\n",
+                       g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].sx_tunnel_id_ipv4);
+            return SAI_STATUS_FAILURE;
+        }
+    }
+
+    return sai_status;
+}
+
+static sai_status_t mlnx_tunnel_vxlan_udp_sport_attr_get(_In_ const sai_object_key_t   *key,
+                                                         _Inout_ sai_attribute_value_t *value,
+                                                         _In_ uint32_t                  attr_index,
+                                                         _Inout_ vendor_cache_t        *cache,
+                                                         void                          *arg)
+{
+    sx_tunnel_attribute_t sx_tunnel_attr;
+    sai_status_t          sai_status = SAI_STATUS_FAILURE;
+    sx_tunnel_id_t        sx_tunnel_id = 0;
+    uint32_t              tunnel_db_idx = 0;
+    sai_object_id_t       sai_tunnel_id = key->key.object_id;
+
+    SX_LOG_ENTER();
+
+    if (g_sai_db_ptr->vxlan_srcport_range_enabled) {
+        SX_LOG_ERR("VxLAN tunnel attributes can not be configured when VxLAN SRC port range feature is enabled!\n");
+        SX_LOG_EXIT();
+        return SAI_STATUS_FAILURE;
+    }
+
+    if (SAI_STATUS_SUCCESS !=
+        (sai_status = mlnx_get_sai_tunnel_db_idx(sai_tunnel_id, &tunnel_db_idx))) {
+        SX_LOG_ERR("Error getting sai tunnel db idx from sai tunnel id %" PRIx64 "\n", sai_tunnel_id);
+        SX_LOG_EXIT();
+        return sai_status;
+    }
+
+    SX_LOG_NTC("sai_db_write_lock\n");
+    sai_db_write_lock();
+    sai_status = mlnx_sai_get_tunnel_attribs(key->key.object_id, &sx_tunnel_attr);
+    SX_LOG_NTC("sai_db_write_unlock\n");
+    sai_db_unlock();
+
+    if (SAI_STATUS_SUCCESS != sai_status) {
+        SX_LOG_ERR("Error getting sdk tunnel attributes from sai tunnel object %" PRId64 "\n", key->key.object_id);
+        SX_LOG_EXIT();
+        return sai_status;
+    }
+
+    if (SAI_STATUS_SUCCESS !=
+        (sai_status = mlnx_sai_tunnel_to_sx_tunnel_id(key->key.object_id, &sx_tunnel_id))) {
+        SX_LOG_ERR("Failed to get sx tunnel id form sai tunnel id %" PRIx64 "\n", key->key.object_id);
+        SX_LOG_EXIT();
+        return sai_status;
+    }
+
+    if ((sx_tunnel_attr.type != SX_TUNNEL_TYPE_NVE_VXLAN) &&
+        (sx_tunnel_attr.type != SX_TUNNEL_TYPE_NVE_VXLAN_IPV6)) {
+        SX_LOG_ERR("VxLAN UDP SRC port attributes are not supported  for sx tunnel type %d\n", sx_tunnel_attr.type);
+        SX_LOG_EXIT();
+        return SAI_STATUS_FAILURE;
+    }
+
+    switch ((long)arg) {
+    case SAI_TUNNEL_ATTR_VXLAN_UDP_SPORT_MODE:
+        value->s32 = g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].src_port_mode;
+        break;
+
+    case SAI_TUNNEL_ATTR_VXLAN_UDP_SPORT:
+        if (g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].src_port_mode ==
+            SAI_TUNNEL_VXLAN_UDP_SPORT_MODE_EPHEMERAL) {
+            SX_LOG_ERR(
+                "VxLAN UDP SRC port attribute is supported only for SAI_TUNNEL_VXLAN_UDP_SPORT_MODE_USER_DEFINED src port mode\n");
+            SX_LOG_EXIT();
+            return SAI_STATUS_FAILURE;
+        }
+        value->u16 = g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].src_port_base;
+        break;
+
+    case SAI_TUNNEL_ATTR_VXLAN_UDP_SPORT_MASK:
+        if (g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].src_port_mode ==
+            SAI_TUNNEL_VXLAN_UDP_SPORT_MODE_EPHEMERAL) {
+            SX_LOG_ERR(
+                "VxLAN UDP SRC port mask attribute is supported only for SAI_TUNNEL_VXLAN_UDP_SPORT_MODE_USER_DEFINED src port mode\n");
+            SX_LOG_EXIT();
+            return SAI_STATUS_FAILURE;
+        }
+        value->u8 = g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].src_port_mask;
+        break;
+
+    default:
+        SX_LOG_ERR("Unsupported VxLAN SRC port attribute %lu\n", (long)arg);
+        SX_LOG_EXIT();
+        return SAI_STATUS_FAILURE;
+    }
+
+    SX_LOG_EXIT();
+    return sai_status;
+}
+
+static sai_status_t mlnx_tunnel_vxlan_udp_sport_attr_set(_In_ const sai_object_key_t      *key,
+                                                         _In_ const sai_attribute_value_t *value,
+                                                         void                             *arg)
+{
+    sai_status_t                      sai_status = SAI_STATUS_FAILURE;
+    uint32_t                          tunnel_db_idx = 0;
+    sai_object_id_t                   sai_tunnel_id = key->key.object_id;
+    sai_tunnel_vxlan_udp_sport_mode_t new_sport_mode;
+    int32_t                           new_sport_base;
+    int8_t                            new_sport_mask;
+
+    SX_LOG_ENTER();
+
+    if (g_sai_db_ptr->vxlan_srcport_range_enabled) {
+        SX_LOG_ERR("VxLAN tunnel attributes can not be configured when VxLAN SRC port range feature is enabled!\n");
+        SX_LOG_EXIT();
+        return SAI_STATUS_FAILURE;
+    }
+
+    new_sport_mode = g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].src_port_mode;
+    new_sport_base = g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].src_port_base;
+    new_sport_mask = g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].src_port_mask;
+
+    if (SAI_STATUS_SUCCESS !=
+        (sai_status = mlnx_get_sai_tunnel_db_idx(sai_tunnel_id, &tunnel_db_idx))) {
+        SX_LOG_ERR("Error getting sai tunnel db idx from sai tunnel id %" PRIx64 "\n", sai_tunnel_id);
+        SX_LOG_EXIT();
+        return sai_status;
+    }
+
+    sai_db_write_lock();
+
+    switch ((long)arg) {
+    case SAI_TUNNEL_ATTR_VXLAN_UDP_SPORT_MODE:
+        new_sport_mode = value->s32;
+        if (new_sport_mode == SAI_TUNNEL_VXLAN_UDP_SPORT_MODE_EPHEMERAL) {
+            new_sport_base = 0;
+            new_sport_mask = 0;
+        }
+        break;
+
+    case SAI_TUNNEL_ATTR_VXLAN_UDP_SPORT:
+        if (g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].src_port_mode ==
+            SAI_TUNNEL_VXLAN_UDP_SPORT_MODE_EPHEMERAL) {
+            SX_LOG_ERR(
+                "VxLAN UDP SRC port mask attribute is supported only for SAI_TUNNEL_VXLAN_UDP_SPORT_MODE_USER_DEFINED src port mode\n");
+            sai_status = SAI_STATUS_FAILURE;
+            goto out;
+        }
+        new_sport_base = value->u16;
+        break;
+
+    case SAI_TUNNEL_ATTR_VXLAN_UDP_SPORT_MASK:
+        if (g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].src_port_mode ==
+            SAI_TUNNEL_VXLAN_UDP_SPORT_MODE_EPHEMERAL) {
+            SX_LOG_ERR(
+                "VxLAN UDP SRC port mask attribute is supported only for SAI_TUNNEL_VXLAN_UDP_SPORT_MODE_USER_DEFINED src port mode\n");
+            sai_status = SAI_STATUS_FAILURE;
+            goto out;
+        }
+        if (value->u8 > 8) {
+            SX_LOG_ERR(
+                "Wrong VxLAN UDP SRC port mask attribute value! Supported values are [0..8].\n");
+            sai_status = SAI_STATUS_FAILURE;
+            goto out;
+        }
+        new_sport_mask = value->u8;
+        break;
+
+    default:
+        SX_LOG_ERR("Unsupported VxLAN SRC port attribute %ld\n", (int64_t)arg);
+        sai_status = SAI_STATUS_FAILURE;
+        goto out;
+    }
+
+    if (new_sport_base & (0xFF >> (8 - new_sport_mask))) {
+        SX_LOG_ERR("Wrong VxLAN UDP SRC port base and mask combination (0x%X:0x%X)\n", new_sport_base,
+                   (0xFF >> (8 - new_sport_mask)));
+        sai_status = SAI_STATUS_FAILURE;
+        goto out;
+    }
+
+    sai_status = mlnx_vxlan_srcport_config_update(true, tunnel_db_idx, new_sport_mode, new_sport_base, new_sport_mask);
+    if (SAI_STATUS_SUCCESS != sai_status) {
+        SX_LOG_ERR("Failed to set VxLAN src port mode attribute\n");
+        goto out;
+    }
+
+    g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].init_vxlan_sport_config.is_configured = true;
+    g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].init_vxlan_sport_config.src_port_mode =
+        g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].src_port_mode;
+    g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].init_vxlan_sport_config.src_port_base =
+        g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].src_port_base;
+    g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].init_vxlan_sport_config.src_port_mask =
+        g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].src_port_mask;
+
+out:
+    sai_db_unlock();
+    SX_LOG_EXIT();
+    return sai_status;
+}
+
+static sai_status_t mlnx_get_tunnel_type_by_tunnel_id(_In_ sai_object_id_t    tunnel_oid,
+                                                      _Out_ sx_tunnel_type_e *tunnel_type)
+{
+    sai_status_t status;
+    uint32_t     tunnel_db_idx;
+
+    if (!tunnel_type) {
+        SX_LOG_ERR("NULL tunnel_type\n");
+        return SAI_STATUS_INVALID_PARAMETER;
+    }
+
+    status = mlnx_get_sai_tunnel_db_idx(tunnel_oid, &tunnel_db_idx);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Error getting sai tunnel db idx from sai tunnel id %" PRIx64 "\n", tunnel_oid);
+        return status;
+    }
+
+    *tunnel_type = g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].sx_tunnel_attr.type;
+    return status;
 }
 
 static sai_status_t mlnx_convert_sai_tunnel_type_to_sx_ipv4(_In_ sai_tunnel_type_t    sai_type,
@@ -2241,7 +2675,15 @@ static sai_status_t mlnx_convert_sai_tunnel_type_to_sx_ipv4(_In_ sai_tunnel_type
         break;
 
     case SAI_TUNNEL_TYPE_VXLAN:
-        *sx_type = SX_TUNNEL_TYPE_NVE_VXLAN;
+        if (SAI_IP_ADDR_FAMILY_IPV4 == sai_outer_ip_type) {
+            *sx_type = SX_TUNNEL_TYPE_NVE_VXLAN;
+        } else if (SAI_IP_ADDR_FAMILY_IPV6 == sai_outer_ip_type) {
+            *sx_type = SX_TUNNEL_TYPE_NVE_VXLAN_IPV6;
+        } else {
+            SX_LOG_ERR("unsupported ip type:%d\n", sai_outer_ip_type);
+            SX_LOG_EXIT();
+            return SAI_STATUS_FAILURE;
+        }
         break;
 
     default:
@@ -2320,6 +2762,7 @@ static sai_status_t mlnx_convert_sx_tunnel_type_to_sai(_In_ sx_tunnel_type_e    
         break;
 
     case SX_TUNNEL_TYPE_NVE_VXLAN:
+    case SX_TUNNEL_TYPE_NVE_VXLAN_IPV6:
         *sai_type = SAI_TUNNEL_TYPE_VXLAN;
         break;
 
@@ -4457,7 +4900,6 @@ static sai_status_t mlnx_sai_fill_tunnel_map_entry(_In_ uint32_t                
         g_sai_db_ptr->nve_tunnel_type = NVE_8021D_TUNNEL;
     }
 
-    sx_tunnel_map_entry->type = SX_TUNNEL_TYPE_NVE_VXLAN;
     sx_tunnel_map_entry->params.nve.vni = vni_id;
 
     SX_LOG_EXIT();
@@ -5230,6 +5672,7 @@ static sai_status_t mlnx_sai_tunnel_map_entry_bind_tunnel_set(_In_ uint32_t tunn
     }
 
     memset(&sx_tunnel_map_entry, 0, sizeof(sx_tunnel_map_entry));
+    sx_tunnel_map_entry.type = g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_idx].sx_tunnel_attr.type;
     sai_status = mlnx_sai_fill_tunnel_map_entry(tunnel_map_entry_idx, &sx_tunnel_map_entry);
     if (SAI_ERR(sai_status)) {
         SX_LOG_ERR("Error filling tunnel map entry for tunnel map entry idx %d\n",
@@ -5387,6 +5830,7 @@ static sai_status_t mlnx_sai_tunnel_map_entry_vlan_vni_bridge_set(_In_ sai_objec
 
         if ((SAI_TUNNEL_MAP_TYPE_VNI_TO_VIRTUAL_ROUTER_ID != tunnel_map_type) &&
             (SAI_TUNNEL_MAP_TYPE_VIRTUAL_ROUTER_ID_TO_VNI != tunnel_map_type)) {
+            sx_tunnel_map_entry.type = g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_idx].sx_tunnel_attr.type;
             sai_status = mlnx_sai_fill_tunnel_map_entry(ii, &sx_tunnel_map_entry);
             if (SAI_ERR(sai_status)) {
                 SX_LOG_ERR("Error filling tunnel map entry for tunnel map entry idx %d\n",
@@ -5850,6 +6294,7 @@ static sai_status_t mlnx_create_sdk_tunnel(_In_ sai_object_id_t      sai_tunnel_
                    sai_tunnel_type, outer_ip_type);
         goto cleanup;
     }
+
     sx_tunnel_attr.type = sx_tunnel_type_ipv4;
     /* prevent creating tunnel term table using the same SAI IP in IP IPv4 tunnel */
     if (g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].ipv4_created) {
@@ -6089,17 +6534,19 @@ static sai_status_t mlnx_create_sdk_tunnel(_In_ sai_object_id_t      sai_tunnel_
             }
         }
     } else if (SAI_TUNNEL_TYPE_VXLAN == sai_tunnel_type) {
-        sx_tunnel_hash_data.hash_field_type = SX_TUNNEL_HASH_FIELD_TYPE_UDP_SPORT_E;
-        sx_tunnel_hash_data.hash_cmd = SX_TUNNEL_HASH_CMD_CALCULATE_E;
-        sdk_status = sx_api_tunnel_hash_set(gh_sdk,
-                                            sx_tunnel_id_ipv4,
-                                            &sx_tunnel_hash_data);
-        if (SX_STATUS_SUCCESS != sdk_status) {
-            sai_status = sdk_to_sai(sdk_status);
-            SX_LOG_ERR("Error setting src port hash for sdk vxlan tunnel %x, sx status: %s\n",
-                       sx_tunnel_id_ipv4,
-                       SX_STATUS_MSG(sdk_status));
-            goto cleanup;
+        if (g_sai_db_ptr->vxlan_srcport_range_enabled) {
+            sx_tunnel_hash_data.hash_field_type = SX_TUNNEL_HASH_FIELD_TYPE_UDP_SPORT_E;
+            sx_tunnel_hash_data.hash_cmd = SX_TUNNEL_HASH_CMD_CALCULATE_E;
+            sdk_status = sx_api_tunnel_hash_set(gh_sdk,
+                                                sx_tunnel_id_ipv4,
+                                                &sx_tunnel_hash_data);
+            if (SX_STATUS_SUCCESS != sdk_status) {
+                sai_status = sdk_to_sai(sdk_status);
+                SX_LOG_ERR("Error setting src port hash for sdk vxlan tunnel %x, sx status: %s\n",
+                           sx_tunnel_id_ipv4,
+                           SX_STATUS_MSG(sdk_status));
+                goto cleanup;
+            }
         }
 
         if (mlnx_chip_is_spc2or3or4()) {
@@ -6329,31 +6776,64 @@ sai_status_t mlnx_parsing_depth_increase(void)
     return SAI_STATUS_SUCCESS;
 }
 
+static sai_status_t mlnx_tunnel_apply_vxlan_sport(_In_ uint32_t tunnel_db_idx)
+{
+    sai_status_t                      status;
+    sai_tunnel_vxlan_udp_sport_mode_t sport_mode = g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].src_port_mode;
+    int32_t                           sport_base = g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].src_port_base;
+    int8_t                            sport_mask = g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].src_port_mask;
+
+    if (sport_mode == SAI_TUNNEL_VXLAN_UDP_SPORT_MODE_USER_DEFINED) {
+        status = mlnx_vxlan_srcport_user_defined_set(tunnel_db_idx, sport_base, sport_mask, false);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Error setting VxLAN UDP SRC port mode USER_DEFINED for sdk vxlan tunnel %x\n",
+                       g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].sx_tunnel_id_ipv4);
+            return status;
+        }
+    } else {
+        status = mlnx_vxlan_srcport_set_hash(g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].sx_tunnel_id_ipv4,
+                                             SAI_TUNNEL_HASH_CMD_CALCULATE, 0xC000);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Error setting VxLAN UDP SRC port mode EPHEMERAL for sdk vxlan tunnel %x\n",
+                       g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].sx_tunnel_id_ipv4);
+            return status;
+        }
+    }
+
+    return status;
+}
+
 static sai_status_t mlnx_create_tunnel(_Out_ sai_object_id_t     * sai_tunnel_obj_id,
                                        _In_ sai_object_id_t        switch_id,
                                        _In_ uint32_t               attr_count,
                                        _In_ const sai_attribute_t* attr_list)
 {
     SX_LOG_ENTER();
-    sai_status_t                 sai_status;
-    const sai_attribute_value_t *attr;
-    uint32_t                     attr_idx;
-    char                         list_str[MAX_LIST_VALUE_STR_LEN] = { 0 };
-    sx_status_t                  sdk_status;
-    sx_tunnel_attribute_t        sx_tunnel_attr;
-    sai_tunnel_type_t            sai_tunnel_type;
-    bool                         sai_db_created = false;
-    mlnx_tunnel_entry_t          mlnx_tunnel_db_entry;
-    uint32_t                     tunnel_db_idx = 0;
-    mlnx_tunnel_entry_t          sai_tunnel_db_entry;
-    sx_tunnel_ttl_data_t         sdk_encap_ttl_data_attrib;
-    sx_tunnel_ttl_data_t         sdk_decap_ttl_data_attrib;
-    sx_tunnel_cos_data_t         sdk_encap_cos_data;
-    sx_tunnel_cos_data_t         sdk_decap_cos_data;
-    sai_object_id_t              underlay_rif = SAI_NULL_OBJECT_ID;
-    sx_tunnel_general_params_t   sx_tunnel_general_params;
-    bool                         is_ipinip_decap;
-    sai_object_id_t              tunnel_obj_id = SAI_NULL_OBJECT_ID;
+    sai_status_t                      sai_status;
+    const sai_attribute_value_t      *attr;
+    uint32_t                          attr_idx;
+    char                              list_str[MAX_LIST_VALUE_STR_LEN] = { 0 };
+    sx_status_t                       sdk_status;
+    sx_tunnel_attribute_t             sx_tunnel_attr;
+    sai_tunnel_type_t                 sai_tunnel_type;
+    bool                              sai_db_created = false;
+    mlnx_tunnel_entry_t               mlnx_tunnel_db_entry;
+    uint32_t                          tunnel_db_idx = 0;
+    mlnx_tunnel_entry_t               sai_tunnel_db_entry;
+    sx_tunnel_ttl_data_t              sdk_encap_ttl_data_attrib;
+    sx_tunnel_ttl_data_t              sdk_decap_ttl_data_attrib;
+    sx_tunnel_cos_data_t              sdk_encap_cos_data;
+    sx_tunnel_cos_data_t              sdk_decap_cos_data;
+    sai_object_id_t                   underlay_rif = SAI_NULL_OBJECT_ID;
+    sx_tunnel_general_params_t        sx_tunnel_general_params;
+    sai_object_id_t                   tunnel_obj_id = SAI_NULL_OBJECT_ID;
+    sai_tunnel_vxlan_udp_sport_mode_t sport_mode = SAI_TUNNEL_VXLAN_UDP_SPORT_MODE_EPHEMERAL;
+    bool                              sport_mode_configured = false;
+    int32_t                           sport_base = -1;
+    int8_t                            sport_mask = -1;
+    sai_ip_address_t                  src_ip = {0};
+    bool                              src_ip_provided = false;
+    bool                              is_tunnel_created = false;
 
     if (SAI_STATUS_SUCCESS !=
         (sai_status =
@@ -6382,7 +6862,90 @@ static sai_status_t mlnx_create_tunnel(_Out_ sai_object_id_t     * sai_tunnel_ob
 
     sai_tunnel_type = attr->s32;
 
+    sai_status = find_attrib_in_list(attr_count, attr_list, SAI_TUNNEL_ATTR_VXLAN_UDP_SPORT_MODE, &attr, &attr_idx);
+    if (SAI_STATUS_SUCCESS == sai_status) {
+        sport_mode = attr->s32;
+        sport_mode_configured = true;
+    }
+    sai_status = find_attrib_in_list(attr_count, attr_list, SAI_TUNNEL_ATTR_VXLAN_UDP_SPORT, &attr, &attr_idx);
+    if (SAI_STATUS_SUCCESS == sai_status) {
+        sport_base = attr->u16;
+    }
+    sai_status = find_attrib_in_list(attr_count, attr_list, SAI_TUNNEL_ATTR_VXLAN_UDP_SPORT_MASK, &attr, &attr_idx);
+    if (SAI_STATUS_SUCCESS == sai_status) {
+        if (attr->u8 > 8) {
+            SX_LOG_ERR(
+                "Wrong VxLAN UDP SRC port mask attribute value! Supported values are [0..8].\n");
+            return SAI_STATUS_FAILURE;
+        }
+        sport_mask = attr->u8;
+    }
+    sai_status = find_attrib_in_list(attr_count, attr_list, SAI_TUNNEL_ATTR_ENCAP_SRC_IP, &attr, &attr_idx);
+    if (SAI_STATUS_SUCCESS == sai_status) {
+        src_ip = attr->ipaddr;
+        src_ip_provided = true;
+    }
+
+    if (g_sai_db_ptr->vxlan_srcport_range_enabled && sport_mode_configured) {
+        SX_LOG_ERR("VxLAN tunnel attributes can not be configured when VxLAN SRC port range feature is enabled!\n");
+        SX_LOG_EXIT();
+        return SAI_STATUS_FAILURE;
+    }
+
     sai_db_write_lock();
+
+    /* saving user configured VxLAN UDP SRC port attributes */
+    if (!g_sai_db_ptr->vxlan_srcport_range_enabled) {
+        if (sport_mode_configured == true) {
+            g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].init_vxlan_sport_config.is_configured = true;
+            g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].init_vxlan_sport_config.src_port_mode = sport_mode;
+            if (sport_base == -1) {
+                g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].init_vxlan_sport_config.src_port_base = 0;
+            } else {
+                g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].init_vxlan_sport_config.src_port_base = sport_base;
+            }
+
+            if (sport_mask == -1) {
+                g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].init_vxlan_sport_config.src_port_mask = 0;
+            } else {
+                g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].init_vxlan_sport_config.src_port_mask = sport_mask;
+            }
+        } else {
+            g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].init_vxlan_sport_config.is_configured = false;
+            g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].init_vxlan_sport_config.src_port_mode =
+                SAI_TUNNEL_VXLAN_UDP_SPORT_MODE_EPHEMERAL;
+            g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].init_vxlan_sport_config.src_port_base = 0;
+            g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].init_vxlan_sport_config.src_port_mask = 0;
+        }
+
+        /* if user does not configure VxLAN UDP SRC port attributes - check if switch tunnel is created */
+        if (g_sai_db_ptr->switch_tunnel[SAI_TUNNEL_TYPE_VXLAN].switch_tunnel_id != SAI_NULL_OBJECT_ID) {
+            if (!sport_mode_configured) {
+                sport_mode = g_sai_db_ptr->switch_tunnel[SAI_TUNNEL_TYPE_VXLAN].src_port_mode;
+            }
+            if (sport_mask == -1) {
+                sport_mask = g_sai_db_ptr->switch_tunnel[SAI_TUNNEL_TYPE_VXLAN].src_port_mask;
+            }
+            if (sport_base == -1) {
+                sport_base = g_sai_db_ptr->switch_tunnel[SAI_TUNNEL_TYPE_VXLAN].src_port_base;
+            }
+        } else {
+            if (sport_mask == -1) {
+                sport_mask = 0;
+            }
+            if (sport_base == -1) {
+                sport_base = 0;
+            }
+        }
+
+        if (sport_base & (0xFF >> (8 - sport_mask))) {
+            SX_LOG_ERR("Wrong VxLAN UDP SRC port base and mask combination (0x%X:0x%x)\n", sport_base,
+                       (0xFF >> (8 - sport_mask)));
+            sai_db_unlock();
+            goto cleanup;
+        }
+    }
+
     sai_status = mlnx_sai_tunnel_create_tunnel_object_id(sai_tunnel_type, &tunnel_obj_id);
     if (SAI_STATUS_SUCCESS != sai_status) {
         SX_LOG_ERR("Error create tunnel object id\n");
@@ -6450,7 +7013,7 @@ static sai_status_t mlnx_create_tunnel(_Out_ sai_object_id_t     * sai_tunnel_ob
     }
 
     sai_status = mlnx_convert_sai_tunnel_type_to_sx_ipv4(sai_tunnel_type,
-                                                         SAI_IP_ADDR_FAMILY_IPV4,
+                                                         src_ip_provided ? src_ip.addr_family : SAI_IP_ADDR_FAMILY_IPV4,
                                                          &sx_tunnel_attr.type);
     if (SAI_ERR(sai_status)) {
         SX_LOG_ERR("Error converting sai tunnel type %d and SAI ip version 4 to sx tunnel type\n",
@@ -6465,6 +7028,10 @@ static sai_status_t mlnx_create_tunnel(_Out_ sai_object_id_t     * sai_tunnel_ob
         memset(&sx_tunnel_general_params, 0, sizeof(sx_tunnel_general_params_t));
         if (g_sai_db_ptr->vxlan_srcport_range_enabled) {
             sx_tunnel_general_params.nve.encap_sport = 0xFA;
+        } else if (sport_mode == SAI_TUNNEL_VXLAN_UDP_SPORT_MODE_EPHEMERAL) {
+            sx_tunnel_general_params.nve.encap_sport = 0xC0;
+        } else {
+            sx_tunnel_general_params.nve.encap_sport = sport_base >> 8;
         }
         sdk_status = sx_api_tunnel_init_set(gh_sdk, &sx_tunnel_general_params);
         if (SX_STATUS_SUCCESS != sdk_status) {
@@ -6473,7 +7040,6 @@ static sai_status_t mlnx_create_tunnel(_Out_ sai_object_id_t     * sai_tunnel_ob
             SX_LOG_ERR("Failed to init tunnel: %s\n", SX_STATUS_MSG(sdk_status));
             goto cleanup;
         }
-
         g_sai_db_ptr->tunnel_module_initialized = true;
     }
 
@@ -6512,26 +7078,44 @@ static sai_status_t mlnx_create_tunnel(_Out_ sai_object_id_t     * sai_tunnel_ob
            &sdk_decap_cos_data,
            sizeof(sx_tunnel_cos_data_t));
 
-    is_ipinip_decap = (SX_TUNNEL_DIRECTION_DECAP == sx_tunnel_attr.direction) &&
-                      ((SAI_TUNNEL_TYPE_IPINIP == sai_tunnel_type) ||
-                       (SAI_TUNNEL_TYPE_IPINIP_GRE == sai_tunnel_type));
-
     g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].sai_tunnel_type = sai_tunnel_type;
-    /* create ipinip decap tunnel after tunnel term table is created */
-    if (!is_ipinip_decap) {
-        /* ipinip encap, or ipinip bidirection, or vxlan, create only one ipv4 sdk tunnel */
 
-        sai_status = mlnx_create_sdk_tunnel(tunnel_obj_id, SAI_IP_ADDR_FAMILY_IPV4);
+    g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].src_port_mode = sport_mode;
+
+    if (sport_mode == SAI_TUNNEL_VXLAN_UDP_SPORT_MODE_USER_DEFINED) {
+        g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].src_port_mask = sport_mask;
+        g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].src_port_base = sport_base;
+    }
+
+    /* create ipinip decap or vxlan tunnel after tunnel term table is created */
+    if ((((sai_tunnel_type == SAI_TUNNEL_TYPE_IPINIP) || (sai_tunnel_type == SAI_TUNNEL_TYPE_IPINIP_GRE)) &&
+         (SX_TUNNEL_DIRECTION_DECAP != sx_tunnel_attr.direction)) ||
+        ((sai_tunnel_type == SAI_TUNNEL_TYPE_VXLAN) && src_ip_provided)) {
+        /* ipinip encap, or ipinip bidirectional, create only one ipv4 sdk tunnel */
+        sai_status = mlnx_create_sdk_tunnel(tunnel_obj_id,
+                                            src_ip_provided ? src_ip.addr_family : SAI_IP_ADDR_FAMILY_IPV4);
         if (SAI_ERR(sai_status)) {
             SX_LOG_ERR("Error creating sdk tunnel\n");
             sai_db_unlock();
             goto cleanup;
         }
+        is_tunnel_created = true;
     }
 
     if ((SAI_TUNNEL_TYPE_IPINIP == sai_tunnel_type) ||
         (SAI_TUNNEL_TYPE_IPINIP_GRE == sai_tunnel_type)) {
         g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].sai_underlay_rif = underlay_rif;
+    }
+
+    if ((SAI_TUNNEL_TYPE_VXLAN == sai_tunnel_type) && !g_sai_db_ptr->vxlan_srcport_range_enabled) {
+        if (is_tunnel_created) {
+            sai_status = mlnx_tunnel_apply_vxlan_sport(tunnel_db_idx);
+            if (SAI_ERR(sai_status)) {
+                SX_LOG_ERR("Failed to apply VxLAN src port configuration.\n");
+                sai_db_unlock();
+                goto cleanup;
+            }
+        }
     }
 
     sai_db_unlock();
@@ -6655,7 +7239,8 @@ static sai_status_t mlnx_remove_tunnel(_In_ const sai_object_id_t sai_tunnel_obj
                 goto cleanup;
             }
         }
-    } else if (SX_TUNNEL_TYPE_NVE_VXLAN == sx_tunnel_attr.type) {
+    } else if ((SX_TUNNEL_TYPE_NVE_VXLAN == sx_tunnel_attr.type) ||
+               (SX_TUNNEL_TYPE_NVE_VXLAN_IPV6 == sx_tunnel_attr.type)) {
         if (NVE_8021Q_TUNNEL == g_sai_db_ptr->nve_tunnel_type) {
             /* currently only one vxlan tunnel can exist at the same time,
              * so it is OK to set nve log port to auto learn when this only
@@ -6697,7 +7282,8 @@ static sai_status_t mlnx_remove_tunnel(_In_ const sai_object_id_t sai_tunnel_obj
 
     if ((0 != g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].sai_tunnel_map_encap_cnt) ||
         (0 != g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].sai_tunnel_map_decap_cnt)) {
-        if (SX_TUNNEL_TYPE_NVE_VXLAN == sx_tunnel_attr.type) {
+        if ((SX_TUNNEL_TYPE_NVE_VXLAN == sx_tunnel_attr.type) ||
+            (SX_TUNNEL_TYPE_NVE_VXLAN_IPV6 == sx_tunnel_attr.type)) {
             if (SX_STATUS_SUCCESS != (sdk_status = sx_api_tunnel_map_set(
                                           gh_sdk,
                                           SX_ACCESS_CMD_DELETE_ALL,
@@ -6762,6 +7348,20 @@ static sai_status_t mlnx_remove_tunnel(_In_ const sai_object_id_t sai_tunnel_obj
         memset(g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].sai_tunnel_map_decap_id_array, 0,
                sizeof(sai_object_id_t) * MLNX_TUNNEL_MAP_MAX);
         g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].sai_tunnel_map_decap_cnt = 0;
+    }
+
+    if (g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].vxlan_acl.is_acl_created) {
+        g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].init_vxlan_sport_config.is_configured = false;
+        g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].init_vxlan_sport_config.src_port_mode =
+            SAI_TUNNEL_VXLAN_UDP_SPORT_MODE_EPHEMERAL;
+        g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].init_vxlan_sport_config.src_port_base = 0;
+        g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].init_vxlan_sport_config.src_port_mask = 0;
+        sai_status = mlnx_vxlan_udp_srcport_acl_remove(tunnel_db_idx);
+        if (SAI_ERR(sai_status)) {
+            SX_LOG_ERR("Error deleting UDP VxLAN src port ACL %u \n",
+                       g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].vxlan_acl.acl);
+            goto cleanup;
+        }
     }
 
     if (ipv4_created) {
@@ -7080,9 +7680,16 @@ static sai_status_t mlnx_create_tunnel_term_table_entry(_Out_ sai_object_id_t   
         ((SAI_TUNNEL_TYPE_IPINIP == tunneltable_tunnel_type->s32) ||
          (SAI_TUNNEL_TYPE_IPINIP_GRE == tunneltable_tunnel_type->s32));
     /* create ipinip decap tunnel after tunnel term table is created */
-    if (is_ipinip_decap) {
+    if (is_ipinip_decap ||
+        !g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].ipv4_created) {
         /* ipinip encap, or ipinip bidirection, or vxlan, create only one ipv4 sdk tunnel */
         if (0 == g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].term_table_cnt) {
+            if (g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].sai_tunnel_type == SAI_TUNNEL_TYPE_VXLAN) {
+                g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].sx_tunnel_attr.attributes.vxlan.encap.underlay_sip.
+                version =
+                    tunneltable_dst_ip->ipaddr.addr_family ==
+                    SAI_IP_ADDR_FAMILY_IPV4 ? SX_IP_VERSION_IPV4 : SX_IP_VERSION_IPV6;
+            }
             sai_status = mlnx_create_sdk_tunnel(tunneltable_tunnel_id->oid, tunneltable_dst_ip->ipaddr.addr_family);
             if (SAI_ERR(sai_status)) {
                 SX_LOG_ERR("Error creating sdk tunnel\n");
@@ -7093,6 +7700,15 @@ static sai_status_t mlnx_create_tunnel_term_table_entry(_Out_ sai_object_id_t   
         }
         tunnel_lazy_created = true;
         g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].term_table_cnt++;
+    }
+
+    if (tunnel_lazy_created && (SAI_TUNNEL_TYPE_VXLAN == tunneltable_tunnel_type->s32) &&
+        !g_sai_db_ptr->vxlan_srcport_range_enabled) {
+        sai_status = mlnx_tunnel_apply_vxlan_sport(tunnel_db_idx);
+        if (SAI_ERR(sai_status)) {
+            SX_LOG_ERR("Failed to apply VxLAN srcport configuration.\n");
+            goto cleanup;
+        }
     }
 
     if (SAI_STATUS_SUCCESS !=
@@ -7268,7 +7884,9 @@ static sai_status_t mlnx_remove_tunnel_term_table_entry(_In_ const sai_object_id
         goto cleanup;
     }
 
-    if (g_sai_tunnel_db_ptr->tunneltable_db[internal_tunneltable_idx].tunnel_lazy_created) {
+    if (g_sai_tunnel_db_ptr->tunneltable_db[internal_tunneltable_idx].tunnel_lazy_created &&
+        (g_sai_tunnel_db_ptr->tunnel_entry_db[g_sai_tunnel_db_ptr->tunneltable_db[internal_tunneltable_idx].
+                                              tunnel_db_idx].sai_tunnel_type != SAI_TUNNEL_TYPE_VXLAN)) {
         if (SAI_STATUS_SUCCESS !=
             (sai_status =
                  mlnx_convert_sx_tunnel_type_ipv4_to_ipv6(sx_tunnel_type_ipv4,
@@ -7877,7 +8495,11 @@ static sai_status_t mlnx_create_bmtor_internal_obj(_In_ sai_object_id_t       vr
         return sai_status;
     }
 
-    sx_tunnel_map_entry.type = SX_TUNNEL_TYPE_NVE_VXLAN;
+    sai_status = mlnx_get_tunnel_type_by_tunnel_id(tunnel_oid, &sx_tunnel_map_entry.type);
+    if (SAI_ERR(sai_status)) {
+        SX_LOG_ERR("Failed to get tunnel type.\n");
+        return sai_status;
+    }
     sx_tunnel_map_entry.params.nve.bridge_id = sx_bridge_id;
     sx_tunnel_map_entry.params.nve.vni = vni;
     sx_tunnel_map_entry.params.nve.direction = SX_TUNNEL_MAP_DIR_BIDIR;
@@ -7902,6 +8524,7 @@ static sai_status_t mlnx_create_bmtor_internal_obj(_In_ sai_object_id_t       vr
     bmtor_bridge_entry->rif_oid = rif_oid;
     bmtor_bridge_entry->bridge_bport_oid = bridge_bport_oid;
     bmtor_bridge_entry->tunnel_bport_oid = tunnel_bport_oid;
+    bmtor_bridge_entry->tunnel_id = tunnel_oid;
     bmtor_bridge_entry->sx_vxlan_tunnel_id = sx_tunnel_id;
     bmtor_bridge_entry->vni = vni;
     bmtor_bridge_entry->is_default = is_default;
@@ -7935,7 +8558,12 @@ static sai_status_t mlnx_remove_bmtor_internal_obj(_In_ mlnx_bmtor_bridge_t *bmt
         return sai_status;
     }
 
-    sx_tunnel_map_entry.type = SX_TUNNEL_TYPE_NVE_VXLAN;
+    sai_status = mlnx_get_tunnel_type_by_tunnel_id(bmtor_bridge_entry->tunnel_id, &sx_tunnel_map_entry.type);
+    if (SAI_ERR(sai_status)) {
+        SX_LOG_ERR("Failed to get tunnel type.\n");
+        SX_LOG_EXIT();
+        return sai_status;
+    }
     sx_tunnel_map_entry.params.nve.bridge_id = sx_bridge_id;
     sx_tunnel_map_entry.params.nve.vni = bmtor_bridge_entry->vni;
     sx_tunnel_map_entry.params.nve.direction = SX_TUNNEL_MAP_DIR_BIDIR;

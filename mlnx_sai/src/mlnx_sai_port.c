@@ -396,16 +396,17 @@ enum mlnx_speed_bitmap_sp {
     SP_50GB_CR2      = 1 << 22,
     SP_50GB_KR2      = 1 << 23,
     SP_50GB_SR2      = 1 << 24,
-    SP_10MB          = 1 << 25,
-    SP_100MB         = 1 << 26,
-    SP_auto          = 1 << 27,
-    SP_MAX           = 1 << 28,
+    SP_10MB_T        = 1 << 25,
+    SP_100MB_TX      = 1 << 26,
+    SP_1000MB_T      = 1 << 27,
+    SP_auto          = 1 << 28,
+    SP_MAX           = 1 << 29,
 };
 
 uint64_t mlnx_port_speed_bitmap_sp[MAX_NUM_PORT_SPEEDS] = {
     (0),
-    (SP_100MB),
-    (SP_1GB_CX_SGMII | SP_1GB_KX),
+    (SP_100MB_TX),
+    (SP_1GB_CX_SGMII | SP_1GB_KX | SP_1000MB_T),
     (SP_10GB_CX4_XAUI | SP_10GB_KR | SP_10GB_CR | SP_10GB_SR | SP_10GB_ER_LR | SP_10GB_KX4),
     (SP_20GB_KR2),
     (SP_25GB_CR | SP_25GB_SR | SP_25GB_KR),
@@ -416,18 +417,18 @@ uint64_t mlnx_port_speed_bitmap_sp[MAX_NUM_PORT_SPEEDS] = {
     (0),
     (0),
     (0),
-    (SP_10MB)
+    (SP_10MB_T)
 };
 
 uint64_t mlnx_port_intf_bitmap_sp[MAX_NUM_PORT_INTFS] = {
     (SP_MAX - 1),
-    (SP_10GB_CR | SP_25GB_CR | SP_10MB | SP_100MB),
+    (SP_10GB_CR | SP_25GB_CR | SP_10MB_T | SP_100MB_TX | SP_1000MB_T),
     (SP_50GB_CR2),
     (SP_40GB_CR4 | SP_100GB_CR4),
-    (SP_10GB_SR | SP_25GB_SR | SP_10MB | SP_100MB),
+    (SP_10GB_SR | SP_25GB_SR),
     (SP_50GB_SR2),
     (SP_40GB_SR4 | SP_100GB_SR4),
-    (SP_10GB_ER_LR | SP_10MB | SP_100MB),
+    (SP_10GB_ER_LR),
     (SP_40GB_LR4_ER4 | SP_100GB_LR4_ER4),
     (SP_10GB_KR | SP_25GB_KR),
     (SP_40GB_KR4 | SP_56GB_KR4 | SP_100GB_KR4),
@@ -446,18 +447,18 @@ uint64_t mlnx_port_lanes_speed_bitmask_sp[MAX_LANES_SPC3_4 + 1] = {
     (0),
     /* 1 lane */
     (SP_25GB_CR | SP_25GB_KR | SP_25GB_SR | SP_10GB_CR | SP_10GB_KR | SP_10GB_ER_LR | SP_10GB_SR | SP_1GB_CX_SGMII |
-     SP_1GB_KX | SP_10MB | SP_100MB),
+     SP_1GB_KX | SP_10MB_T | SP_100MB_TX | SP_1000MB_T),
     /* 2 lanes */
     (SP_50GB_CR2 | SP_50GB_KR2 | SP_50GB_SR2 | SP_20GB_KR2 |
      SP_25GB_CR | SP_25GB_KR | SP_25GB_SR | SP_10GB_CR | SP_10GB_KR | SP_10GB_ER_LR | SP_10GB_SR | SP_1GB_CX_SGMII |
-     SP_1GB_KX | SP_10MB | SP_100MB),
+     SP_1GB_KX | SP_10MB_T | SP_100MB_TX | SP_1000MB_T),
     (0),
     /* 4 lanes */
     (SP_100GB_CR4 | SP_100GB_KR4 | SP_100GB_LR4_ER4 | SP_100GB_SR4 | SP_56GB_KR4 | SP_56GB_KX4 | SP_40GB_CR4 |
      SP_40GB_KR4 | SP_40GB_LR4_ER4 | SP_40GB_SR4 | SP_10GB_CX4_XAUI | SP_10GB_KX4 |
      SP_50GB_CR2 | SP_50GB_KR2 | SP_50GB_SR2 | SP_20GB_KR2 |
      SP_25GB_CR | SP_25GB_KR | SP_25GB_SR | SP_10GB_CR | SP_10GB_KR | SP_10GB_ER_LR | SP_10GB_SR | SP_1GB_CX_SGMII |
-     SP_1GB_KX | SP_10MB | SP_100MB),
+     SP_1GB_KX | SP_10MB_T | SP_100MB_TX | SP_1000MB_T),
     (0),
     (0),
     (0),
@@ -2465,7 +2466,7 @@ static sai_status_t mlnx_port_attr_set(_In_ const sai_object_key_t      *key,
 {
     sai_status_t              status;
     sx_port_log_id_t          port_id;
-    mlnx_port_config_t       *port;
+    mlnx_port_config_t       *port = NULL;
     long                      attr_id = (long)arg;
     uint32_t                  old_speed = 0;
     sai_port_interface_type_t old_intf = 0;
@@ -2555,35 +2556,37 @@ static sai_status_t mlnx_port_attr_set(_In_ const sai_object_key_t      *key,
 
 out:
     if (SAI_ERR(status)) {
-        switch (attr_id) {
-        case SAI_PORT_ATTR_SPEED:
-            port->speed = old_speed;
-            break;
+        if (port) {
+            switch (attr_id) {
+            case SAI_PORT_ATTR_SPEED:
+                port->speed = old_speed;
+                break;
 
-        case SAI_PORT_ATTR_AUTO_NEG_MODE:
-            port->auto_neg = old_auto_neg;
-            break;
+            case SAI_PORT_ATTR_AUTO_NEG_MODE:
+                port->auto_neg = old_auto_neg;
+                break;
 
-        case SAI_PORT_ATTR_ADVERTISED_SPEED:
-            port->adv_speeds_num = old_adv_speeds_num;
-            for (uint32_t ii = 0; ii < port->adv_speeds_num; ++ii) {
-                port->adv_speeds[ii] = old_adv_speeds[ii];
+            case SAI_PORT_ATTR_ADVERTISED_SPEED:
+                port->adv_speeds_num = old_adv_speeds_num;
+                for (uint32_t ii = 0; ii < port->adv_speeds_num; ++ii) {
+                    port->adv_speeds[ii] = old_adv_speeds[ii];
+                }
+                break;
+
+            case SAI_PORT_ATTR_INTERFACE_TYPE:
+                port->intf = old_intf;
+                break;
+
+            case SAI_PORT_ATTR_ADVERTISED_INTERFACE_TYPE:
+                port->adv_intfs_num = old_adv_intfs_num;
+                for (uint32_t ii = 0; ii < port->adv_intfs_num; ++ii) {
+                    port->adv_intfs[ii] = old_adv_intfs[ii];
+                }
+                break;
+
+            default:
+                break;
             }
-            break;
-
-        case SAI_PORT_ATTR_INTERFACE_TYPE:
-            port->intf = old_intf;
-            break;
-
-        case SAI_PORT_ATTR_ADVERTISED_INTERFACE_TYPE:
-            port->adv_intfs_num = old_adv_intfs_num;
-            for (uint32_t ii = 0; ii < port->adv_intfs_num; ++ii) {
-                port->adv_intfs[ii] = old_adv_intfs[ii];
-            }
-            break;
-
-        default:
-            break;
         }
     }
     sai_db_unlock();
@@ -2741,6 +2744,7 @@ static sai_status_t mlnx_port_speeds_merge(_In_ bool                       auto_
                                            _In_ uint32_t                   speeds_num,
                                            _In_ sai_port_interface_type_t *intfs,
                                            _In_ uint32_t                   intfs_num,
+                                           _In_ mlnx_port_config_t        *port,
                                            _Out_ uint64_t                 *bitmap)
 {
     sai_status_t status;
@@ -2768,6 +2772,15 @@ static sai_status_t mlnx_port_speeds_merge(_In_ bool                       auto_
     if (SAI_ERR(status)) {
         SX_LOG_ERR("Port [Speed-Interface_Type] configuration doesn't match mask for %d lanes.\n", lanes_num);
         return status;
+    }
+
+    /* turn off 1GB optics on RJ45 ports on 2201, as at force, SDK considers them as 2 different speeds */
+    if ((g_sai_db_ptr->platform_type == MLNX_PLATFORM_TYPE_2201) && (port->width == 1)) {
+        *bitmap &= ~(SP_1GB_CX_SGMII | SP_1GB_KX);
+    }
+    /* turn off 1000mb_t on spc1 non RJ45 */
+    else if (mlnx_chip_is_spc()) {
+        *bitmap &= ~(SP_1000MB_T);
     }
 
     return status;
@@ -2803,8 +2816,9 @@ static sai_status_t mlnx_port_speed_intf_bitmap_to_sx_sp(_In_ uint64_t          
     sx_speed->mode_50GB_CR2 = !!(bitmap & SP_50GB_CR2);
     sx_speed->mode_50GB_KR2 = !!(bitmap & SP_50GB_KR2);
     sx_speed->mode_50GB_SR2 = !!(bitmap & SP_50GB_SR2);
-    sx_speed->mode_10MB = !!(bitmap & SP_10MB);
-    sx_speed->mode_100MB = !!(bitmap & SP_100MB);
+    sx_speed->mode_10MB_T = !!(bitmap & SP_10MB_T);
+    sx_speed->mode_100MB_TX = !!(bitmap & SP_100MB_TX);
+    sx_speed->mode_1000MB_T = !!(bitmap & SP_1000MB_T);
     sx_speed->mode_auto = !!(bitmap & SP_auto);
 
     return SAI_STATUS_SUCCESS;
@@ -3023,6 +3037,7 @@ static sai_status_t mlnx_port_update_speed(_In_ mlnx_port_config_t *port)
                                     port->port_map.width,
                                     speeds, speeds_num,
                                     intfs, intfs_num,
+                                    port,
                                     &bitmap);
     if (SAI_ERR(status)) {
         SX_LOG_ERR("Failed to merge speeds, interface types and auto_neg.\n");
@@ -8003,10 +8018,10 @@ static sai_status_t mlnx_port_speed_convert_bitmap_to_capability(const sx_port_s
         speed_capability->mode_56GB_KX4 = TRUE;
     }
     if (speed_bitmap & 1 << 10) {
-        speed_capability->mode_10MB = TRUE;
+        speed_capability->mode_10MB_T = TRUE;
     }
     if (speed_bitmap & 1 << 11) {
-        speed_capability->mode_100MB = TRUE;
+        speed_capability->mode_100MB_TX = TRUE;
     }
     if (speed_bitmap & 1 << 12) {
         speed_capability->mode_10GB_CR = TRUE;
@@ -8022,6 +8037,9 @@ static sai_status_t mlnx_port_speed_convert_bitmap_to_capability(const sx_port_s
     }
     if (speed_bitmap & 1 << 16) {
         speed_capability->mode_40GB_LR4_ER4 = TRUE;
+    }
+    if (speed_bitmap & 1 << 17) {
+        speed_capability->mode_1000MB_T = TRUE;
     }
     if (speed_bitmap & 1 << 18) {
         speed_capability->mode_50GB_SR2 = TRUE;
@@ -8128,15 +8146,16 @@ static sai_status_t mlnx_port_bitmap_to_speeds_sp(_In_ const sx_port_speed_t spe
     }
 
     if (sx_speed.mode_1GB_CX_SGMII ||
-        sx_speed.mode_1GB_KX) {
+        sx_speed.mode_1GB_KX ||
+        sx_speed.mode_1000MB_T) {
         speeds[speeds_count_tmp++] = PORT_SPEED_1;
     }
 
-    if (sx_speed.mode_100MB) {
+    if (sx_speed.mode_100MB_TX) {
         speeds[speeds_count_tmp++] = PORT_SPEED_100M;
     }
 
-    if (sx_speed.mode_10MB) {
+    if (sx_speed.mode_10MB_T) {
         speeds[speeds_count_tmp++] = PORT_SPEED_10M;
     }
 
@@ -8231,11 +8250,11 @@ static sai_status_t mlnx_port_speed_get_sp(_In_ sx_port_log_id_t sx_port,
     } else if (speed_cap.mode_10GB_KR || speed_cap.mode_10GB_KX4 || speed_cap.mode_10GB_CX4_XAUI ||
                speed_cap.mode_10GB_CR || speed_cap.mode_10GB_SR || speed_cap.mode_10GB_ER_LR) {
         *admin_speed = PORT_SPEED_10;
-    } else if (speed_cap.mode_1GB_CX_SGMII || speed_cap.mode_1GB_KX) {
+    } else if (speed_cap.mode_1GB_CX_SGMII || speed_cap.mode_1GB_KX || speed_cap.mode_1000MB_T) {
         *admin_speed = PORT_SPEED_1;
-    } else if (speed_cap.mode_100MB) {
+    } else if (speed_cap.mode_100MB_TX) {
         *admin_speed = PORT_SPEED_100M;
-    } else if (speed_cap.mode_10MB) {
+    } else if (speed_cap.mode_10MB_T) {
         *admin_speed = PORT_SPEED_10M;
     } else if (speed_cap.mode_auto) {
         *admin_speed = PORT_SPEED_MAX_SP;
@@ -8250,16 +8269,17 @@ static sai_status_t mlnx_port_speed_get_sp(_In_ sx_port_log_id_t sx_port,
         *oper_speed = PORT_SPEED_0;
         break;
 
-    case SX_PORT_SPEED_10MB:
+    case SX_PORT_SPEED_10MB_T:
         *oper_speed = PORT_SPEED_10M;
         break;
 
-    case SX_PORT_SPEED_100MB:
+    case SX_PORT_SPEED_100MB_TX:
         *oper_speed = PORT_SPEED_100M;
         break;
 
     case SX_PORT_SPEED_1GB_CX_SGMII:
     case SX_PORT_SPEED_1GB_KX:
+    case SX_PORT_SPEED_1000MB_T:
         *oper_speed = PORT_SPEED_1;
         break;
 
@@ -8462,13 +8482,14 @@ static sai_status_t mlnx_port_supported_speeds_get_sp(_In_ sx_port_log_id_t sx_p
         speed_cap.speed_capability.mode_10GB_ER_LR) {
         speeds[speeds_count_tmp++] = PORT_SPEED_10;
     }
-    if (speed_cap.speed_capability.mode_1GB_CX_SGMII || speed_cap.speed_capability.mode_1GB_KX) {
+    if (speed_cap.speed_capability.mode_1GB_CX_SGMII || speed_cap.speed_capability.mode_1GB_KX ||
+        speed_cap.speed_capability.mode_1000MB_T) {
         speeds[speeds_count_tmp++] = PORT_SPEED_1;
     }
-    if (speed_cap.speed_capability.mode_100MB) {
+    if (speed_cap.speed_capability.mode_100MB_TX) {
         speeds[speeds_count_tmp++] = PORT_SPEED_100M;
     }
-    if (speed_cap.speed_capability.mode_10MB) {
+    if (speed_cap.speed_capability.mode_10MB_T) {
         speeds[speeds_count_tmp++] = PORT_SPEED_10M;
     }
 
@@ -9336,6 +9357,12 @@ sai_status_t mlnx_port_in_use_check(const mlnx_port_config_t *port)
         return SAI_STATUS_OBJECT_IN_USE;
     }
 
+    if (port->hostif_table_refcount > 0) {
+        SX_LOG_ERR("Failed remove port oid %" PRIx64 " - is used for hostif table entry\n",
+                   port->saiport);
+        return SAI_STATUS_OBJECT_IN_USE;
+    }
+
     if (mlnx_port_is_lag(port)) {
         return SAI_STATUS_SUCCESS;
     }
@@ -9703,6 +9730,7 @@ static sai_status_t mlnx_create_port(_Out_ sai_object_id_t     * port_id,
         if (SAI_ERR(status)) {
             goto out_unlock;
         }
+        new_port->ingress_acl_index = ing_acl_index;
     }
 
     if (attr_egr_acl) {
@@ -9711,6 +9739,7 @@ static sai_status_t mlnx_create_port(_Out_ sai_object_id_t     * port_id,
         if (SAI_ERR(status)) {
             goto out_unlock;
         }
+        new_port->egress_acl_index = egr_acl_index;
     }
 
     status = find_attrib_in_list(attr_count, attr_list, SAI_PORT_ATTR_SPEED, &value, &index);
@@ -10708,6 +10737,7 @@ sai_status_t mlnx_internal_acls_bind(_In_ sx_access_cmd_t   cmd,
 {
     sai_status_t     status;
     sx_port_log_id_t sx_port_id;
+    uint32_t         ii, sai_db_idx_start = 0, sai_db_idx_end = MLNX_MAX_TUNNEL_NVE;
 
     SX_LOG_ENTER();
 
@@ -10724,6 +10754,22 @@ sai_status_t mlnx_internal_acls_bind(_In_ sx_access_cmd_t   cmd,
                        sx_port_id,
                        SX_STATUS_MSG(status));
             return sdk_to_sai(status);
+        }
+    }
+
+    for (ii = sai_db_idx_start; ii < sai_db_idx_end; ++ii) {
+        if (g_sai_tunnel_db_ptr->tunnel_entry_db[ii].vxlan_acl.is_acl_created) {
+            status = sx_api_acl_port_bind_set(gh_sdk,
+                                              cmd,
+                                              sx_port_id,
+                                              g_sai_tunnel_db_ptr->tunnel_entry_db[ii].vxlan_acl.acl_group);
+            if (SX_ERR(status)) {
+                SX_LOG_ERR("Failed to %s VxLAN srcport ACL to port(%x). %s\n",
+                           cmd == SX_ACCESS_CMD_DELETE ? "unbind" : "bind",
+                           sx_port_id,
+                           SX_STATUS_MSG(status));
+                return sdk_to_sai(status);
+            }
         }
     }
 

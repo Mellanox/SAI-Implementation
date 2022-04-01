@@ -36,6 +36,9 @@ static sai_status_t mlnx_fdb_action_set(_In_ const sai_object_key_t      *key,
 static sai_status_t mlnx_fdb_endpoint_ip_set(_In_ const sai_object_key_t      *key,
                                              _In_ const sai_attribute_value_t *value,
                                              void                             *arg);
+static sai_status_t mlnx_fdb_macmove_set(_In_ const sai_object_key_t      *key,
+                                         _In_ const sai_attribute_value_t *value,
+                                         void                             *arg);
 static sai_status_t mlnx_fdb_type_get(_In_ const sai_object_key_t   *key,
                                       _Inout_ sai_attribute_value_t *value,
                                       _In_ uint32_t                  attr_index,
@@ -56,6 +59,11 @@ static sai_status_t mlnx_fdb_endpoint_ip_get(_In_ const sai_object_key_t   *key,
                                              _In_ uint32_t                  attr_index,
                                              _Inout_ vendor_cache_t        *cache,
                                              void                          *arg);
+static sai_status_t mlnx_fdb_macmove_get(_In_ const sai_object_key_t   *key,
+                                         _Inout_ sai_attribute_value_t *value,
+                                         _In_ uint32_t                  attr_index,
+                                         _Inout_ vendor_cache_t        *cache,
+                                         void                          *arg);
 static sai_status_t mlnx_fdb_bv_id_to_sx_fid(_In_ sai_object_id_t bv_id, _Out_ sx_fid_t       *sx_fid);
 static const sai_vendor_attribute_entry_t fdb_vendor_attribs[] = {
     { SAI_FDB_ENTRY_ATTR_TYPE,
@@ -78,6 +86,11 @@ static const sai_vendor_attribute_entry_t fdb_vendor_attribs[] = {
       { true, false, true, true },
       mlnx_fdb_endpoint_ip_get, NULL,
       mlnx_fdb_endpoint_ip_set, NULL },
+    { SAI_FDB_ENTRY_ATTR_ALLOW_MAC_MOVE,
+      { true, false, true, true },
+      { true, false, true, true },
+      mlnx_fdb_macmove_get, NULL,
+      mlnx_fdb_macmove_set, NULL },
     { END_FUNCTIONALITY_ATTRIBS_ID,
       { false, false, false, false },
       { false, false, false, false },
@@ -333,6 +346,7 @@ sai_status_t mlnx_translate_sai_action_to_sdk(sai_int32_t                  actio
 }
 
 static sai_status_t mlnx_translate_sai_type_to_sdk(sai_int32_t                  type,
+                                                   bool                         allow_move,
                                                    sx_fdb_uc_mac_addr_params_t *mac_entry,
                                                    uint32_t                     param_index)
 {
@@ -342,7 +356,7 @@ static sai_status_t mlnx_translate_sai_type_to_sdk(sai_int32_t                  
         break;
 
     case SAI_FDB_ENTRY_TYPE_STATIC:
-        mac_entry->entry_type = SX_FDB_UC_STATIC;
+        mac_entry->entry_type = allow_move ? SX_FDB_UC_REMOTE : SX_FDB_UC_STATIC;
         break;
 
     default:
@@ -372,6 +386,8 @@ static sai_status_t mlnx_fdb_attrs_to_sx(_In_ const sai_attribute_value_t  *type
                                          _In_ uint32_t                      bport_attr_index,
                                          _In_ const sai_attribute_value_t  *action_attr,
                                          _In_ uint32_t                      action_index,
+                                         _In_ const sai_attribute_value_t  *allow_move_attr,
+                                         _In_ uint32_t                      allow_move_index,
                                          _In_ const sai_attribute_value_t  *ip_addr,
                                          _Out_ sx_fdb_uc_mac_addr_params_t *fdb_entry)
 {
@@ -379,11 +395,16 @@ static sai_status_t mlnx_fdb_attrs_to_sx(_In_ const sai_attribute_value_t  *type
     sai_packet_action_t packet_action;
     sx_tunnel_id_t      sx_tunnel_id;
     mlnx_bridge_port_t *bport;
+    bool                allow_move = false;
 
     assert(type_attr);
     assert(fdb_entry);
 
-    status = mlnx_translate_sai_type_to_sdk(type_attr->s32, fdb_entry, type_attr_index);
+    if (allow_move_attr) {
+        allow_move = allow_move_attr->booldata;
+    }
+
+    status = mlnx_translate_sai_type_to_sdk(type_attr->s32, allow_move, fdb_entry, type_attr_index);
     if (SAI_ERR(status)) {
         return status;
     }
@@ -392,6 +413,11 @@ static sai_status_t mlnx_fdb_attrs_to_sx(_In_ const sai_attribute_value_t  *type
         packet_action = SAI_PACKET_ACTION_FORWARD;
     } else {
         packet_action = action_attr->s32;
+    }
+
+    if (allow_move && (packet_action != SAI_PACKET_ACTION_FORWARD)) {
+        SX_LOG_ERR("Remote FDB entry can only work with Forward action\n");
+        return SAI_STATUS_INVALID_ATTR_VALUE_0 + action_index;
     }
 
     status = mlnx_translate_sai_action_to_sdk(packet_action, fdb_entry, action_index);
@@ -517,7 +543,8 @@ static sai_status_t mlnx_create_fdb_entry(_In_ const sai_fdb_entry_t* fdb_entry,
 {
     sai_status_t                 status;
     const sai_attribute_value_t *type = NULL, *action = NULL, *port = NULL, *ip_addr = NULL;
-    uint32_t                     type_index, action_index, port_index, ip_index;
+    const sai_attribute_value_t *macmove = NULL;
+    uint32_t                     type_index, action_index, port_index, ip_index, macmove_index;
     sx_fdb_uc_mac_addr_params_t  mac_entry;
     bool                         is_entry_exists = false;
     char                         key_str[MAX_KEY_STR_LEN];
@@ -547,8 +574,18 @@ static sai_status_t mlnx_create_fdb_entry(_In_ const sai_fdb_entry_t* fdb_entry,
     find_attrib_in_list(attr_count, attr_list, SAI_FDB_ENTRY_ATTR_PACKET_ACTION, &action, &action_index);
     find_attrib_in_list(attr_count, attr_list, SAI_FDB_ENTRY_ATTR_ENDPOINT_IP, &ip_addr, &ip_index);
     find_attrib_in_list(attr_count, attr_list, SAI_FDB_ENTRY_ATTR_BRIDGE_PORT_ID, &port, &port_index);
+    find_attrib_in_list(attr_count, attr_list, SAI_FDB_ENTRY_ATTR_ALLOW_MAC_MOVE, &macmove, &macmove_index);
 
-    status = mlnx_fdb_attrs_to_sx(type, type_index, port, port_index, action, action_index, ip_addr, &mac_entry);
+    status = mlnx_fdb_attrs_to_sx(type,
+                                  type_index,
+                                  port,
+                                  port_index,
+                                  action,
+                                  action_index,
+                                  macmove,
+                                  macmove_index,
+                                  ip_addr,
+                                  &mac_entry);
     if (SAI_ERR(status)) {
         goto out;
     }
@@ -565,7 +602,7 @@ static sai_status_t mlnx_create_fdb_entry(_In_ const sai_fdb_entry_t* fdb_entry,
     }
 
     if (is_entry_exists) {
-        SX_LOG_ERR("FDB Entry is already created\n");
+        SX_LOG_ERR("Static FDB Entry is already created\n");
         status = SAI_STATUS_ITEM_ALREADY_EXISTS;
         goto out;
     }
@@ -657,6 +694,7 @@ static sai_status_t mlnx_fdb_type_set(_In_ const sai_object_key_t      *key,
     sai_status_t                status;
     sx_fdb_uc_mac_addr_params_t old_mac_entry, new_mac_entry;
     const sai_fdb_entry_t      *fdb_entry = &key->key.fdb_entry;
+    bool                        roaming = false;
 
     SX_LOG_ENTER();
 
@@ -671,7 +709,7 @@ static sai_status_t mlnx_fdb_type_set(_In_ const sai_object_key_t      *key,
 
     new_mac_entry = old_mac_entry;
 
-    if (SAI_STATUS_SUCCESS != (status = mlnx_translate_sai_type_to_sdk(value->s32, &new_mac_entry, 0))) {
+    if (SAI_STATUS_SUCCESS != (status = mlnx_translate_sai_type_to_sdk(value->s32, roaming, &new_mac_entry, 0))) {
         return status;
     }
 
@@ -721,7 +759,7 @@ static sai_status_t mlnx_fdb_port_set(_In_ const sai_object_key_t      *key,
             return status;
         }
 
-        mlnx_fdb_route_action_fetch(SAI_OBJECT_TYPE_FDB_ENTRY, fdb_entry, &new_mac_entry);
+        mlnx_fdb_action_fetch(fdb_entry, &new_mac_entry);
 
         if ((bport->port_type == SAI_BRIDGE_PORT_TYPE_1Q_ROUTER) ||
             (bport->port_type == SAI_BRIDGE_PORT_TYPE_1D_ROUTER)) {
@@ -772,9 +810,15 @@ static sai_status_t mlnx_fdb_action_set(_In_ const sai_object_key_t      *key,
 
     new_mac_entry = old_mac_entry;
 
+    if (((SX_FDB_UC_AGEABLE == old_mac_entry.entry_type) || (SX_FDB_UC_REMOTE == old_mac_entry.entry_type))
+        && (SAI_PACKET_ACTION_FORWARD != value->s32)) {
+        SX_LOG_ERR("Failed to change action - Dynamic entries can only have Forward action\n");
+        return SAI_STATUS_INVALID_ATTR_VALUE_0;
+    }
+
     if ((SX_FDB_IS_PORT_REDUNDANT(old_mac_entry.entry_type, old_mac_entry.action)) &&
         ((SAI_PACKET_ACTION_FORWARD == value->s32) || (SAI_PACKET_ACTION_LOG == value->s32))) {
-        status = mlnx_fdb_route_action_save(SAI_OBJECT_TYPE_FDB_ENTRY, fdb_entry, value->s32);
+        status = mlnx_fdb_action_save(fdb_entry, value->s32);
         if (SAI_ERR(status)) {
             return status;
         }
@@ -784,7 +828,7 @@ static sai_status_t mlnx_fdb_action_set(_In_ const sai_object_key_t      *key,
             return status;
         }
 
-        mlnx_fdb_route_action_clear(SAI_OBJECT_TYPE_FDB_ENTRY, fdb_entry);
+        mlnx_fdb_action_clear(fdb_entry);
     }
 
     status = mlnx_del_mac(&old_mac_entry);
@@ -839,6 +883,60 @@ static sai_status_t mlnx_fdb_endpoint_ip_set(_In_ const sai_object_key_t      *k
     return SAI_STATUS_SUCCESS;
 }
 
+/* Set FDB entry allow_mac_move [bool] */
+static sai_status_t mlnx_fdb_macmove_set(_In_ const sai_object_key_t      *key,
+                                         _In_ const sai_attribute_value_t *value,
+                                         void                             *arg)
+{
+    sai_status_t                status;
+    sx_fdb_uc_mac_addr_params_t old_mac_entry, new_mac_entry;
+    const sai_fdb_entry_t      *fdb_entry = &key->key.fdb_entry;
+    char                        key_str[MAX_KEY_STR_LEN];
+
+    SX_LOG_ENTER();
+
+    fdb_key_to_str(fdb_entry, key_str);
+    status = mlnx_get_mac(fdb_entry, &old_mac_entry);
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+    new_mac_entry = old_mac_entry;
+
+    if ((SX_FDB_UC_STATIC != old_mac_entry.entry_type) && (SX_FDB_UC_REMOTE != old_mac_entry.entry_type)) {
+        SX_LOG_ERR("allow mac-move cannot be set to Dynamic or Invalid entries \n");
+        return SAI_STATUS_INVALID_ATTR_VALUE_0;
+    }
+
+    if ((SX_FDB_ACTION_FORWARD != old_mac_entry.action)
+        && (value->booldata == true) && (SX_FDB_UC_STATIC == old_mac_entry.entry_type)) {
+        SX_LOG_ERR("Failed to allow FDB Entry move - Dynamic entries can only have Forward action\n");
+        return SAI_STATUS_INVALID_ATTR_VALUE_0;
+    }
+
+    if ((SX_FDB_UC_REMOTE == old_mac_entry.entry_type) && (value->booldata == false)) {
+        new_mac_entry.entry_type = SX_FDB_UC_STATIC;
+    } else if ((SX_FDB_UC_STATIC == old_mac_entry.entry_type) && (value->booldata == true)) {
+        new_mac_entry.entry_type = SX_FDB_UC_REMOTE;
+    } else {
+        /*no need to change*/
+        SX_LOG_EXIT();
+        return SAI_STATUS_SUCCESS;
+    }
+
+    status = mlnx_del_mac(&old_mac_entry);
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+    status = mlnx_add_mac(&new_mac_entry);
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+    SX_LOG_EXIT();
+    return SAI_STATUS_SUCCESS;
+}
 /*
  * Routine Description:
  *    Get fdb entry attribute value
@@ -914,10 +1012,10 @@ static sai_status_t mlnx_fdb_type_get(_In_ const sai_object_key_t   *key,
 
     switch (fdb_cache->entry_type) {
     case SX_FDB_UC_STATIC:
+    case SX_FDB_UC_REMOTE:
         value->s32 = SAI_FDB_ENTRY_TYPE_STATIC;
         break;
 
-    case SX_FDB_UC_REMOTE:
     case SX_FDB_UC_AGEABLE:
         value->s32 = SAI_FDB_ENTRY_TYPE_DYNAMIC;
         break;
@@ -1043,6 +1141,40 @@ static sai_status_t mlnx_fdb_endpoint_ip_get(_In_ const sai_object_key_t   *key,
     return SAI_STATUS_SUCCESS;
 }
 
+/* Get FDB entry allow_mac_move [bool] */
+static sai_status_t mlnx_fdb_macmove_get(_In_ const sai_object_key_t   *key,
+                                         _Inout_ sai_attribute_value_t *value,
+                                         _In_ uint32_t                  attr_index,
+                                         _Inout_ vendor_cache_t        *cache,
+                                         void                          *arg)
+{
+    sai_status_t           status;
+    const sai_fdb_entry_t *fdb_entry = &key->key.fdb_entry;
+    mlnx_fdb_cache_t      *fdb_cache = &(cache->fdb_cache);
+
+    SX_LOG_ENTER();
+
+    if (SAI_STATUS_SUCCESS != (status = fill_fdb_cache(fdb_cache, fdb_entry))) {
+        return status;
+    }
+
+    switch (fdb_cache->entry_type) {
+    case SX_FDB_UC_STATIC:
+        value->booldata = false;
+        break;
+
+    case SX_FDB_UC_REMOTE:
+        value->booldata = true;
+        break;
+
+    default:
+        SX_LOG_ERR("entry type %d has no mac-move attribute\n", fdb_cache->entry_type);
+        return SAI_STATUS_FAILURE;
+    }
+
+    SX_LOG_EXIT();
+    return SAI_STATUS_SUCCESS;
+}
 /*
  * Routine Description:
  *    Remove all FDB entries by attribute set in sai_fdb_flush_attr

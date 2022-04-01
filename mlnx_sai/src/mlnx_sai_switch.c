@@ -47,7 +47,7 @@
 #define __MODULE__ SAI_SWITCH
 
 #define SDK_START_CMD_STR_LEN  255
-#define MAX_BFD_SESSION_NUMBER 64
+#define MAX_BFD_SESSION_NUMBER 4096
 
 typedef struct _sai_switch_notification_t {
     sai_switch_state_change_notification_fn      on_switch_state_change;
@@ -112,6 +112,7 @@ sx_trap_id_t mlnx_trap_ids[] = {
     SX_TRAP_ID_BFD_TIMEOUT_EVENT,
     SX_TRAP_ID_BFD_PACKET_EVENT,
     SX_TRAP_ID_BULK_COUNTER_DONE_EVENT,
+    SX_TRAP_ID_FDB_EVENT,
 };
 
 sai_status_t mlnx_hash_ecmp_sx_config_update(void);
@@ -128,7 +129,6 @@ sai_status_t mlnx_debug_counter_switch_stats_get(_In_ uint32_t             numbe
                                                  _Out_ uint64_t           *counters);
 static sai_status_t mlnx_sai_rm_db_init(void);
 static sai_status_t switch_open_traps(void);
-static sai_status_t switch_close_traps(void);
 static void event_thread_func(void *context);
 static sai_status_t sai_db_create();
 static void sai_db_values_init();
@@ -160,8 +160,6 @@ static void sai_tunnel_db_init();
 static sai_status_t sai_tunnel_db_switch_connect_init(int shmid);
 static sai_status_t mlnx_switch_fdb_record_age(_In_ const sx_fdb_notify_record_t *fdb_record);
 static sai_status_t mlnx_switch_fdb_record_check_and_age(_In_ const sx_fdb_notify_record_t *fdb_record);
-static sai_status_t mlnx_switch_restart_warm();
-static sai_status_t mlnx_switch_warm_recover(_In_ sai_object_id_t switch_id);
 static sai_status_t mlnx_switch_vxlan_udp_port_set(uint16_t udp_port);
 static sai_status_t mlnx_switch_crc_params_apply(bool init);
 sai_status_t mlnx_init_flex_parser();
@@ -595,6 +593,15 @@ static sai_status_t mlnx_switch_bfd_attribute_get(_In_ const sai_object_key_t   
                                                   _Inout_ vendor_cache_t        *cache,
                                                   void                          *arg);
 static sai_status_t mlnx_switch_bfd_event_handle(_In_ sx_trap_id_t event, _In_ uint64_t opaque_data);
+
+static sai_status_t mlnx_switch_tunnel_attr_get(_In_ const sai_object_key_t   *key,
+                                                _Inout_ sai_attribute_value_t *value,
+                                                _In_ uint32_t                  attr_index,
+                                                _Inout_ vendor_cache_t        *cache,
+                                                void                          *arg);
+static sai_status_t mlnx_switch_tunnel_attr_set(_In_ const sai_object_key_t      *key,
+                                                _In_ const sai_attribute_value_t *value,
+                                                void                             *arg);
 
 /* DFW feature functions */
 sai_status_t sai_dbg_do_dump(_In_ const char *dump_file_name);
@@ -1253,7 +1260,45 @@ static const sai_vendor_attribute_entry_t switch_vendor_attribs[] = {
       NULL, NULL,
       NULL, NULL }
 };
-static const mlnx_attr_enum_info_t        switch_enum_info[] = {
+
+static const sai_vendor_attribute_entry_t switch_tunnel_vendor_attribs[] = {
+    { SAI_SWITCH_TUNNEL_ATTR_TUNNEL_TYPE,
+      { true, false, false, true },
+      { true, false, false, true },
+      mlnx_switch_tunnel_attr_get, (void*)SAI_SWITCH_TUNNEL_ATTR_TUNNEL_TYPE,
+      NULL, NULL },
+    { SAI_SWITCH_TUNNEL_ATTR_TUNNEL_VXLAN_UDP_SPORT_MODE,
+      { true, false, true, true },
+      { true, false, true, true },
+      mlnx_switch_tunnel_attr_get, (void*)SAI_SWITCH_TUNNEL_ATTR_TUNNEL_VXLAN_UDP_SPORT_MODE,
+      mlnx_switch_tunnel_attr_set, (void*)SAI_SWITCH_TUNNEL_ATTR_TUNNEL_VXLAN_UDP_SPORT_MODE},
+    { SAI_SWITCH_TUNNEL_ATTR_VXLAN_UDP_SPORT,
+      { true, false, true, true },
+      { true, false, true, true },
+      mlnx_switch_tunnel_attr_get, (void*)SAI_SWITCH_TUNNEL_ATTR_VXLAN_UDP_SPORT,
+      mlnx_switch_tunnel_attr_set, (void*)SAI_SWITCH_TUNNEL_ATTR_VXLAN_UDP_SPORT},
+    { SAI_SWITCH_TUNNEL_ATTR_VXLAN_UDP_SPORT_MASK,
+      { true, false, true, true },
+      { true, false, true, true },
+      mlnx_switch_tunnel_attr_get, (void*)SAI_SWITCH_TUNNEL_ATTR_VXLAN_UDP_SPORT_MASK,
+      mlnx_switch_tunnel_attr_set, (void*)SAI_SWITCH_TUNNEL_ATTR_VXLAN_UDP_SPORT_MASK},
+    { END_FUNCTIONALITY_ATTRIBS_ID,
+      { false, false, false, false },
+      { false, false, false, false },
+      NULL, NULL,
+      NULL, NULL }
+};
+
+static const mlnx_attr_enum_info_t switch_tunnel_enum_info[] = {
+    [SAI_SWITCH_TUNNEL_ATTR_TUNNEL_TYPE] = ATTR_ENUM_VALUES_LIST(
+        SAI_TUNNEL_TYPE_VXLAN),
+    [SAI_SWITCH_TUNNEL_ATTR_TUNNEL_VXLAN_UDP_SPORT_MODE] = ATTR_ENUM_VALUES_ALL()
+};
+
+const mlnx_obj_type_attrs_info_t mlnx_switch_tunnel_obj_type_info =
+{ switch_tunnel_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(switch_tunnel_enum_info), OBJ_STAT_CAP_INFO_EMPTY()};
+
+static const mlnx_attr_enum_info_t switch_enum_info[] = {
     [SAI_SWITCH_ATTR_OPER_STATUS] = ATTR_ENUM_VALUES_LIST(
         SAI_SWITCH_OPER_STATUS_UP),
     [SAI_SWITCH_ATTR_SWITCHING_MODE] = ATTR_ENUM_VALUES_ALL(),
@@ -1283,7 +1328,7 @@ static const mlnx_attr_enum_info_t        switch_enum_info[] = {
     [SAI_SWITCH_ATTR_TYPE] = ATTR_ENUM_VALUES_LIST(
         SAI_SWITCH_TYPE_NPU),
 };
-static const sai_stat_capability_t        switch_stats_capabilities[] = {
+static const sai_stat_capability_t switch_stats_capabilities[] = {
     { SAI_SWITCH_STAT_IN_CONFIGURED_DROP_REASONS_0_DROPPED_PKTS, SAI_STATS_MODE_READ | SAI_STATS_MODE_READ_AND_CLEAR },
     { SAI_SWITCH_STAT_IN_CONFIGURED_DROP_REASONS_1_DROPPED_PKTS, SAI_STATS_MODE_READ | SAI_STATS_MODE_READ_AND_CLEAR },
     { SAI_SWITCH_STAT_IN_CONFIGURED_DROP_REASONS_2_DROPPED_PKTS, SAI_STATS_MODE_READ | SAI_STATS_MODE_READ_AND_CLEAR },
@@ -1309,7 +1354,7 @@ static const sai_stat_capability_t        switch_stats_capabilities[] = {
     { SAI_SWITCH_STAT_OUT_CONFIGURED_DROP_REASONS_7_DROPPED_PKTS,
       SAI_STATS_MODE_READ | SAI_STATS_MODE_READ_AND_CLEAR },
 };
-const mlnx_obj_type_attrs_info_t          mlnx_switch_obj_type_info =
+const mlnx_obj_type_attrs_info_t   mlnx_switch_obj_type_info =
 { switch_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(switch_enum_info), OBJ_STAT_CAP_INFO(switch_stats_capabilities)};
 
 #define RDQ_ETH_DEFAULT_SIZE 4200
@@ -2448,7 +2493,7 @@ static sai_status_t mlnx_switch_bfd_attribute_get(_In_ const sai_object_key_t   
 
     case SAI_SWITCH_ATTR_SUPPORTED_IPV4_BFD_SESSION_OFFLOAD_TYPE:
     case SAI_SWITCH_ATTR_SUPPORTED_IPV6_BFD_SESSION_OFFLOAD_TYPE:
-        value->u32 = SAI_BFD_SESSION_OFFLOAD_TYPE_NONE;
+        value->u32 = SAI_BFD_SESSION_OFFLOAD_TYPE_FULL;
         break;
 
     case SAI_SWITCH_ATTR_MIN_BFD_RX:
@@ -2465,30 +2510,6 @@ static sai_status_t mlnx_switch_bfd_attribute_get(_In_ const sai_object_key_t   
     SX_LOG_EXIT();
 
     return SAI_STATUS_SUCCESS;
-}
-
-uint8_t mlnx_port_mac_mask_get(void)
-{
-    sx_chip_types_t chip_type = g_sai_db_ptr->sx_chip_type;
-
-    switch (chip_type) {
-    case SX_CHIP_TYPE_SPECTRUM:
-    case SX_CHIP_TYPE_SPECTRUM_A1:
-        return PORT_MAC_BITMASK_SP;
-
-    case SX_CHIP_TYPE_SPECTRUM2:
-    case SX_CHIP_TYPE_SPECTRUM3:
-        return PORT_MAC_BITMASK_SP2_3;
-
-    case SX_CHIP_TYPE_SPECTRUM4:
-        return (uint8_t)PORT_MAC_BITMASK_SP4;
-
-    default:
-        MLNX_SAI_LOG_ERR("g_sai_db_ptr->sx_chip_type = %s\n", SX_CHIP_TYPE_STR(chip_type));
-        return 0;
-    }
-
-    return 0;
 }
 
 static sai_status_t mlnx_sai_db_initialize(const char *config_file, sx_chip_types_t chip_type)
@@ -2746,7 +2767,7 @@ static sai_status_t mlnx_wait_for_sdk(const char *sdk_ready_var)
     return SAI_STATUS_SUCCESS;
 }
 
-static sx_status_t get_chip_type(enum sx_chip_types* chip_type)
+sx_status_t get_chip_type(enum sx_chip_types* chip_type)
 {
     uint16_t device_hw_revision;
     uint16_t device_id;
@@ -2806,7 +2827,7 @@ static sx_status_t get_chip_type(enum sx_chip_types* chip_type)
         break;
 
     case SXD_MGIR_HW_DEV_ID_SPECTRUM4:
-        *chip_type = SXD_CHIP_TYPE_SPECTRUM4;
+        *chip_type = SX_CHIP_TYPE_SPECTRUM4;
         break;
 
     default:
@@ -3008,6 +3029,7 @@ static sai_status_t mlnx_chassis_mng_stage(mlnx_sai_boot_type_t boot_type,
     sdk_init_params.flow_counter_params.flow_counter_packet_type_min_number = 0;
     sdk_init_params.flow_counter_params.flow_counter_byte_type_max_number = ACL_MAX_SX_COUNTER_BYTE_NUM;
     sdk_init_params.flow_counter_params.flow_counter_packet_type_max_number = ACL_MAX_SX_COUNTER_PACKET_NUM;
+    sdk_init_params.flow_counter_params.flow_counter_accumulated_type_max_number = g_sai_db_ptr->accumed_flow_cnt_in_k;
 
     /* ISSU: Need to cut MAX ACL groups by half, and share with ingress and egress */
     if (g_sai_db_ptr->issu_enabled) {
@@ -3102,6 +3124,8 @@ static sai_status_t mlnx_chassis_mng_stage(mlnx_sai_boot_type_t boot_type,
     if (mlnx_chip_is_spc4()) {
         sdk_init_params.router_params.max_port_router_interfaces_num = 2000;
     }
+
+    sdk_init_params.fdb_params.roaming_mac_notif_en = true;
 
     SX_LOG_INF("SDK init set start\n");
     if (SX_STATUS_SUCCESS != (status = sx_api_sdk_init_set(gh_sdk, &sdk_init_params))) {
@@ -3372,11 +3396,6 @@ static sai_status_t parse_elements(xmlDoc *doc, xmlNode * a_node)
                 MLNX_SAI_LOG_ERR("Error parsing device mac address\n");
                 return SAI_STATUS_FAILURE;
             }
-            if (base_mac_addr->ether_addr_octet[5] & (~mlnx_port_mac_mask_get())) {
-                MLNX_SAI_LOG_ERR("Device mac address must be aligned by %u %02x\n",
-                                 mlnx_port_mac_mask_get(), base_mac_addr->ether_addr_octet[5]);
-                return SAI_STATUS_FAILURE;
-            }
         } else if ((!xmlStrcmp(cur_node->name, (const xmlChar*)"number-of-physical-ports"))) {
             key = xmlNodeListGetString(doc, cur_node->children, 1);
             g_sai_db_ptr->ports_number = (uint32_t)atoi((const char*)key);
@@ -3497,6 +3516,7 @@ static void sai_db_values_init()
     memset(g_sai_db_ptr->mlnx_samplepacket_session, 0, sizeof(g_sai_db_ptr->mlnx_samplepacket_session));
     memset(g_sai_db_ptr->trap_group_valid, 0, sizeof(g_sai_db_ptr->trap_group_valid));
     memset(g_sai_db_ptr->isolation_groups, 0, sizeof(g_sai_db_ptr->isolation_groups));
+    memset(&g_sai_db_ptr->switch_tunnel, 0, sizeof(g_sai_db_ptr->switch_tunnel));
 
     g_sai_db_ptr->flood_actions[MLNX_FID_FLOOD_CTRL_ATTR_UC] = SAI_PACKET_ACTION_FORWARD;
     g_sai_db_ptr->flood_actions[MLNX_FID_FLOOD_CTRL_ATTR_BC] = SAI_PACKET_ACTION_FORWARD;
@@ -3505,7 +3525,6 @@ static void sai_db_values_init()
     g_sai_db_ptr->transaction_mode_enable = false;
     g_sai_db_ptr->issu_enabled = false;
     g_sai_db_ptr->restart_warm = false;
-    g_sai_db_ptr->warm_recover = false;
     g_sai_db_ptr->issu_start_called = false;
     g_sai_db_ptr->issu_end_called = false;
     g_sai_db_ptr->fx_initialized = false;
@@ -3541,6 +3560,10 @@ static void sai_db_values_init()
     msync(g_sai_db_ptr, sizeof(*g_sai_db_ptr), MS_SYNC);
 
     g_sai_db_ptr->port_isolation_api = PORT_ISOLATION_API_NONE;
+
+    for (ii = 0; ii < SPAN_SESSION_MAX; ii++) {
+        g_sai_db_ptr->mirror_congestion_mode[ii] = -1;
+    }
 
     sai_qos_db_init();
     memset(g_sai_qos_db_ptr->wred_db, 0, sizeof(mlnx_wred_profile_t) * g_resource_limits.cos_redecn_profiles_max);
@@ -3636,9 +3659,15 @@ static mlnx_shm_rm_array_init_info_t mlnx_shm_array_info[MLNX_SHM_RM_ARRAY_TYPE_
     [MLNX_SHM_RM_ARRAY_TYPE_COUNTER] = {sizeof(mlnx_counter_t),
                                         NULL,
                                         MLNX_COUNTERS_DB_SIZE},
-    [MLNX_SHM_RM_ARRAY_TYPE_GROUP_COUNTER] = {sizeof(mlnx_group_counter_t),
-                                              NULL,
-                                              MLNX_GROUP_COUNTERS_DB_SIZE},
+    [MLNX_SHM_RM_ARRAY_TYPE_NHG] = {sizeof(mlnx_nhg_db_entry_t),
+                                    NULL,
+                                    MLNX_NHG_DB_SIZE},
+    [MLNX_SHM_RM_ARRAY_TYPE_NHG_MEMBER] = {sizeof(mlnx_nhgm_db_entry_t),
+                                           NULL,
+                                           MLNX_NHG_MEMBER_DB_SIZE},
+    [MLNX_SHM_RM_ARRAY_TYPE_ECMP_NHG_MAP] = {sizeof(mlnx_ecmp_to_nhg_db_entry_t),
+                                             NULL,
+                                             MLNX_ECMP_TO_NHG_MAP_SIZE},
 };
 static size_t mlnx_sai_rm_db_size_get(void)
 {
@@ -4046,35 +4075,317 @@ uint32_t mlnx_shm_rm_array_size_get(_In_ mlnx_shm_rm_array_type_t type)
     return (uint32_t)g_sai_db_ptr->array_info[type].elem_count;
 }
 
+#define MAX_IP_STR_LEN 40
+static sai_status_t mlnx_switch_bfd_packet_handle(const struct bfd_packet_event *packet)
+{
+    sai_bfd_session_state_notification_t info = {0};
+    mlnx_shm_rm_array_idx_t              bfd_session_db_index;
+    mlnx_bfd_session_db_entry_t         *bfd_data;
+    sai_status_t                         status;
+    mlnx_bfd_packet_t                   *bfd_p;
+    int                                  need_update_rx = 0;
+    char                                 dst_ip_str[MAX_IP_STR_LEN];
+    sai_bfd_session_state_t              bfd_session_state, bfd_pkt_state;
+
+    bfd_p = (mlnx_bfd_packet_t *)&packet->packet;
+
+    SX_LOG_DBG("bfd pkt local-id 0x[%x] \n", ntohl(bfd_p->my_disc));
+    SX_LOG_DBG("bfd pkt multiplier [%d] \n", bfd_p->mult);
+    bfd_pkt_state = bfd_p->flags >> 6;
+    SX_LOG_DBG("bfd pkt state [%d] \n", bfd_pkt_state);
+    SX_LOG_DBG("bfd pkt is polling [%d] \n", bfd_pkt_is_polling(bfd_p));
+    SX_LOG_DBG("bfd pkt is final [%d] \n", bfd_pkt_is_final(bfd_p));
+
+    bfd_session_db_index = *(mlnx_shm_rm_array_idx_t*)&packet->opaque_data;
+
+    sai_db_write_lock();
+    status = mlnx_shm_rm_idx_validate(bfd_session_db_index);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("BFD DB index is invalid (index=%" PRIu64 ")\n", bfd_session_db_index);
+        sai_db_unlock();
+        return SAI_STATUS_FAILURE;
+    }
+
+    status = mlnx_bfd_session_oid_create(bfd_session_db_index, &info.bfd_session_id);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("BFD OID create failed ");
+        sai_db_unlock();
+        return SAI_STATUS_FAILURE;
+    }
+
+    status = mlnx_shm_rm_array_idx_to_ptr(bfd_session_db_index, (void **)&bfd_data);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("BFD db data get failed (index=%" PRIu64 ")\n", bfd_session_db_index);
+        sai_db_unlock();
+        return SAI_STATUS_FAILURE;
+    }
+
+    SX_LOG_DBG("incoming BFD packet %x:%x.\n", ntohl(bfd_p->my_disc), ntohl(bfd_p->your_disc));
+    SX_LOG_DBG("BFD session entry found in DB %x:%x.\n",
+               bfd_data->data.local_discriminator,
+               bfd_data->data.remote_discriminator);
+    SX_LOG_DBG("bfd remote_multiplier [%d] incoming %d\n",
+               bfd_data->data.remote_multiplier, bfd_p->mult);
+    SX_LOG_DBG("bfd tx-min [%d] incoming %d\n",
+               bfd_data->data.remote_min_tx, ntohl(bfd_p->min_tx));
+    SX_LOG_DBG("bfd rx-min [%d] incoming %d\n",
+               bfd_data->data.remote_min_rx, ntohl(bfd_p->min_rx));
+    SX_LOG_DBG("bfd echo-min [%d] incoming %d\n",
+               bfd_data->data.remote_echo, ntohl(bfd_p->min_rx_echo));
+
+    if (!bfd_data->data.multihop && (packet->ttl != 255)) {
+        SX_LOG_ERR("TTL mismatch, expected 0xFF, got %u, drop packet",
+                   packet->ttl);
+        sai_db_unlock();
+        return SAI_STATUS_FAILURE;
+    }
+
+    if ((bfd_data->data.remote_multiplier != bfd_p->mult) ||
+        (bfd_data->data.remote_echo != ntohl(bfd_p->min_rx_echo)) ||
+        (bfd_data->data.remote_min_tx != ntohl(bfd_p->min_tx)) ||
+        (bfd_data->data.remote_min_rx != ntohl(bfd_p->min_rx))) {
+        need_update_rx = 1;
+        bfd_data->data.remote_multiplier = bfd_p->mult;
+        bfd_data->data.remote_min_tx = ntohl(bfd_p->min_tx);
+        bfd_data->data.remote_min_rx = ntohl(bfd_p->min_rx);
+        bfd_data->data.remote_echo = ntohl(bfd_p->min_rx_echo);
+    }
+
+    if (bfd_data->data.local_discriminator != ntohl(bfd_p->your_disc)) {
+        SX_LOG_ERR("my_disc mismatch, expected %u, got %u, drop packet",
+                   bfd_data->data.local_discriminator,
+                   ntohl(bfd_p->your_disc));
+        sai_db_unlock();
+        return SAI_STATUS_FAILURE;
+    }
+
+    if (!bfd_data->data.remote_discriminator) {
+        bfd_data->data.remote_discriminator = ntohl(bfd_p->my_disc);
+        SX_LOG_DBG("remote_disc learned %u\n",
+                   bfd_data->data.remote_discriminator);
+    } else if (bfd_data->data.remote_discriminator != ntohl(bfd_p->my_disc)) {
+        SX_LOG_ERR("remote_disc mismatch, expected %u, got %u, drop packet",
+                   bfd_data->data.remote_discriminator,
+                   ntohl(bfd_p->my_disc));
+        sai_db_unlock();
+        return SAI_STATUS_FAILURE;
+    }
+
+    status = sai_ipaddr_to_str(bfd_data->data.dst_ip,
+                               MAX_IP_STR_LEN - 1, dst_ip_str, NULL);
+    if (SAI_ERR(status)) {
+        strcpy(dst_ip_str, "-");
+    }
+
+    bfd_session_state = bfd_data->data.bfd_session_state;
+
+    if (bfd_pkt_state == SAI_BFD_SESSION_STATE_ADMIN_DOWN) {
+        SX_LOG_DBG("Peer shut down BFD manually, tx sess id is %d\n",
+                   bfd_data->data.tx_session);
+        bfd_data->data.bfd_session_state = SAI_BFD_SESSION_STATE_DOWN;
+        SX_LOG_DBG("BFD try reconnect, send Down \n");
+        SX_LOG_NTC("BFD peer [%s] is manually down\n", dst_ip_str);
+        bfd_data->data.remote_discriminator = ntohl(0);
+        status = mlnx_set_offload_bfd_tx_session(&bfd_data->data, SX_ACCESS_CMD_EDIT);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("BFD offload tx failed \n");
+            sai_db_unlock();
+            return status;
+        }
+    }
+
+    switch (bfd_session_state) {
+    case SAI_BFD_SESSION_STATE_UP:
+        if (bfd_pkt_state == SAI_BFD_SESSION_STATE_DOWN) {
+            SX_LOG_DBG("it is a down BFD packet in UP state, tx sess id is %d\n",
+                       bfd_data->data.tx_session);
+            bfd_data->data.bfd_session_state = SAI_BFD_SESSION_STATE_INIT;
+            SX_LOG_DBG("BFD reset , send INIT \n");
+            status = mlnx_set_offload_bfd_tx_session(&bfd_data->data, SX_ACCESS_CMD_EDIT);
+            if (SAI_ERR(status)) {
+                SX_LOG_ERR("BFD offload tx failed \n");
+                sai_db_unlock();
+                return status;
+            }
+        }
+        if (bfd_pkt_state == SAI_BFD_SESSION_STATE_UP) {
+            if (bfd_pkt_is_polling(bfd_p)) {
+                SX_LOG_DBG("peer is polling \n");
+                bfd_data->data.is_final = 1;
+                SX_LOG_DBG("send final to ack polling\n");
+                status = mlnx_set_offload_bfd_tx_session(&bfd_data->data, SX_ACCESS_CMD_EDIT);
+                bfd_data->data.is_final = 0;
+                status = mlnx_set_offload_bfd_tx_session(&bfd_data->data, SX_ACCESS_CMD_EDIT);
+                if (SAI_ERR(status)) {
+                    SX_LOG_ERR("BFD offload tx failed \n");
+                    sai_db_unlock();
+                    return status;
+                }
+            }
+            if (bfd_pkt_is_final(bfd_p)
+                && bfd_data->data.is_polling) {
+                SX_LOG_DBG("peer is final \n");
+                bfd_data->data.is_polling = 0;
+                status = mlnx_set_offload_bfd_tx_session(&bfd_data->data, SX_ACCESS_CMD_EDIT);
+                if (SAI_ERR(status)) {
+                    SX_LOG_ERR("BFD offload tx failed \n");
+                    sai_db_unlock();
+                    return status;
+                }
+            }
+            SX_LOG_DBG("it is a UP BFD packet in UP state, rx sess id is %d\n",
+                       bfd_data->data.rx_session);
+            if (need_update_rx) {
+                SX_LOG_DBG("need to update rx session \n");
+                status = mlnx_set_offload_bfd_rx_session(&bfd_data->data,
+                                                         bfd_session_db_index,
+                                                         SX_ACCESS_CMD_EDIT);
+                if (SAI_ERR(status)) {
+                    SX_LOG_ERR("BFD offload rx update failed \n");
+                    sai_db_unlock();
+                    return status;
+                }
+            }
+        }
+
+        SX_LOG_DBG("get packet [%d] in [%d] state \n", bfd_pkt_state, bfd_session_state);
+        break;
+
+    case SAI_BFD_SESSION_STATE_INIT:
+        if (bfd_pkt_state == SAI_BFD_SESSION_STATE_UP) {
+            SX_LOG_DBG("it is a [%s] BFD packet, tx sess id is %d\n", "UP",
+                       bfd_data->data.tx_session);
+            SX_LOG_DBG("BFD reset finish,stop sending INIT \n");
+            bfd_data->data.bfd_session_state = SAI_BFD_SESSION_STATE_UP;
+            status = mlnx_set_offload_bfd_tx_session(&bfd_data->data,
+                                                     bfd_data->data.tx_session ? SX_ACCESS_CMD_EDIT : SX_ACCESS_CMD_CREATE);
+            if (SAI_ERR(status)) {
+                SX_LOG_ERR("BFD offload tx failed \n");
+                sai_db_unlock();
+                return status;
+            }
+            SX_LOG_DBG("BFD reset finish, rewrite remote id for rx\n");
+            status = mlnx_set_offload_bfd_rx_session(&bfd_data->data,
+                                                     bfd_session_db_index,
+                                                     SX_ACCESS_CMD_EDIT);
+            if (SAI_ERR(status)) {
+                SX_LOG_ERR("BFD offload rx update failed \n");
+                sai_db_unlock();
+                return status;
+            }
+
+            info.session_state = SAI_BFD_SESSION_STATE_UP;
+            SX_LOG_NTC("BFD peer [%s] is UP\n", dst_ip_str);
+            if (g_notification_callbacks.on_bfd_session_state_change) {
+                g_notification_callbacks.on_bfd_session_state_change(1, &info);
+            }
+        } else {
+            SX_LOG_DBG("get packet [%d] in [%d] state, ignore it\n", bfd_pkt_state, bfd_session_state);
+        }
+        break;
+
+    case SAI_BFD_SESSION_STATE_DOWN:
+        if (bfd_pkt_state == SAI_BFD_SESSION_STATE_INIT) {
+            SX_LOG_DBG("it is a INIT BFD packet, tx sess id is %d\n",
+                       bfd_data->data.tx_session);
+            bfd_data->data.bfd_session_state = SAI_BFD_SESSION_STATE_UP;
+            SX_LOG_DBG("send BFD UP packet back, tx sess id is %d\n",
+                       bfd_data->data.tx_session);
+            status = mlnx_set_offload_bfd_tx_session(&bfd_data->data, SX_ACCESS_CMD_EDIT);
+            if (SAI_ERR(status)) {
+                SX_LOG_ERR("update offload tx session failed \n");
+                sai_db_unlock();
+                return status;
+            }
+            SX_LOG_DBG("expecting UP packet rx sess id is %d\n",
+                       bfd_data->data.rx_session);
+            status = mlnx_set_offload_bfd_rx_session(&bfd_data->data,
+                                                     bfd_session_db_index,
+                                                     SX_ACCESS_CMD_EDIT);
+            if (SAI_ERR(status)) {
+                SX_LOG_ERR("BFD offload rx update failed \n");
+                sai_db_unlock();
+                return status;
+            }
+            SX_LOG_NTC("BFD peer [%s] is UP\n", dst_ip_str);
+            info.session_state = SAI_BFD_SESSION_STATE_UP;
+            if (g_notification_callbacks.on_bfd_session_state_change) {
+                g_notification_callbacks.on_bfd_session_state_change(1, &info);
+            }
+        } else {
+            SX_LOG_DBG("get packet [%d] in [%d] state, ignore it\n", bfd_pkt_state, bfd_session_state);
+        }
+        break;
+
+    default:
+        SX_LOG_DBG("get packet [%d] in [%d] state, ignore it\n", bfd_pkt_state, bfd_session_state);
+        break;
+    }
+    sai_db_unlock();
+    return SAI_STATUS_SUCCESS;
+}
 
 static sai_status_t mlnx_switch_bfd_event_handle(_In_ sx_trap_id_t event, _In_ uint64_t opaque_data)
 {
     sai_bfd_session_state_notification_t info = {0};
     mlnx_shm_rm_array_idx_t              bfd_session_db_index;
     sai_status_t                         status;
+    mlnx_bfd_session_db_entry_t         *bfd_data;
 
-    assert(event == SX_TRAP_ID_BFD_TIMEOUT_EVENT ||
-           event == SX_TRAP_ID_BFD_PACKET_EVENT);
+    assert(event == SX_TRAP_ID_BFD_TIMEOUT_EVENT);
 
     bfd_session_db_index = *(mlnx_shm_rm_array_idx_t*)&opaque_data;
 
+    sai_db_write_lock();
     status = mlnx_shm_rm_idx_validate(bfd_session_db_index);
     if (SAI_ERR(status)) {
         SX_LOG_ERR("BFD DB index is invalid (opaque_data=%" PRIu64 ")\n", opaque_data);
+        sai_db_unlock();
+        return SAI_STATUS_FAILURE;
+    }
+
+    status = mlnx_shm_rm_array_idx_to_ptr(bfd_session_db_index, (void **)&bfd_data);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("BFD db data get failed (index=%" PRIu64 ")\n", bfd_session_db_index);
+        sai_db_unlock();
         return SAI_STATUS_FAILURE;
     }
 
     status = mlnx_bfd_session_oid_create(bfd_session_db_index, &info.bfd_session_id);
     if (SAI_ERR(status)) {
         SX_LOG_ERR("BFD OID create failed (opaque_data=%" PRIu64 ")\n", opaque_data);
+        sai_db_unlock();
         return SAI_STATUS_FAILURE;
     }
 
-    info.session_state = SAI_BFD_SESSION_STATE_DOWN;
-    if (g_notification_callbacks.on_bfd_session_state_change) {
-        g_notification_callbacks.on_bfd_session_state_change(1, &info);
-    }
+    if (bfd_data->data.bfd_session_state != SAI_BFD_SESSION_STATE_DOWN) {
+        char dst_ip_str[MAX_IP_STR_LEN];
+        status = sai_ipaddr_to_str(bfd_data->data.dst_ip,
+                                   MAX_IP_STR_LEN - 1, dst_ip_str, NULL);
+        if (SAI_ERR(status)) {
+            strcpy(dst_ip_str, "-");
+        }
 
+        SX_LOG_NTC("BFD peer [%s] is Down\n", dst_ip_str);
+        bfd_data->data.bfd_session_state = SAI_BFD_SESSION_STATE_DOWN;
+
+        info.session_state = SAI_BFD_SESSION_STATE_DOWN;
+        if (g_notification_callbacks.on_bfd_session_state_change) {
+            g_notification_callbacks.on_bfd_session_state_change(1, &info);
+        }
+
+        SX_LOG_DBG("send BFD DOWN packet to peer [%s]"
+                   " to reset session, tx sess id is %d\n",
+                   dst_ip_str, bfd_data->data.tx_session);
+        bfd_data->data.remote_discriminator = ntohl(0);
+        status = mlnx_set_offload_bfd_tx_session(&bfd_data->data, SX_ACCESS_CMD_EDIT);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("update offload tx session failed \n");
+            sai_db_unlock();
+            return status;
+        }
+    }
+    sai_db_unlock();
     return SAI_STATUS_SUCCESS;
 }
 
@@ -4851,7 +5162,7 @@ static sai_status_t mlnx_switch_parse_fdb_event(uint8_t                         
 
     for (from_index = 0; from_index < packet->records_num; from_index++) {
         SX_LOG_INF(
-            "FDB event received [%u/%u, %u] vlan: %4u ; mac: %02x:%02x:%02x:%02x:%02x:%02x ; log_port: (0x%08X) ; type: %s(%d)\n",
+            "FDB event received [%u/%u, %u] vlan: %4u ; mac: %02x:%02x:%02x:%02x:%02x:%02x ; log_port: (0x%08X) ; type: %s(%d); Roaming: %s\n",
             from_index + 1,
             packet->records_num,
             to_index + 1,
@@ -4864,7 +5175,8 @@ static sai_status_t mlnx_switch_parse_fdb_event(uint8_t                         
             packet->records_arr[from_index].mac_addr.ether_addr_octet[5],
             packet->records_arr[from_index].log_port,
             SX_FDB_NOTIFY_TYPE_STR(packet->records_arr[from_index].type),
-            packet->records_arr[from_index].type);
+            packet->records_arr[from_index].type,
+            packet->records_arr[from_index].is_roaming ? "Yes" : "No");
 
         port_id = SAI_NULL_OBJECT_ID;
         sx_fid = 0;
@@ -4878,7 +5190,11 @@ static sai_status_t mlnx_switch_parse_fdb_event(uint8_t                         
         switch (packet->records_arr[from_index].type) {
         case SX_FDB_NOTIFY_TYPE_NEW_MAC_LAG:
         case SX_FDB_NOTIFY_TYPE_NEW_MAC_PORT:
-            fdb_events[to_index].event_type = SAI_FDB_EVENT_LEARNED;
+            if (!packet->records_arr[from_index].is_roaming) {
+                fdb_events[to_index].event_type = SAI_FDB_EVENT_LEARNED;
+            } else {
+                fdb_events[to_index].event_type = SAI_FDB_EVENT_MOVE;
+            }
             memcpy(&mac_addr, packet->records_arr[from_index].mac_addr.ether_addr_octet, sizeof(mac_addr));
             sx_fid = packet->records_arr[from_index].fid;
             has_port = true;
@@ -5016,9 +5332,8 @@ static void event_thread_func(void *context)
     struct timeval                      timeout;
     sai_attribute_t                     callback_data[RECV_ATTRIBS_NUM];
     uint32_t                            attrs_num = RECV_ATTRIBS_NUM;
-    sai_hostif_trap_type_t              trap_id;
+    sai_object_id_t                     trap_oid;
     const char                         *trap_name;
-    mlnx_trap_type_t                    trap_type;
     sai_fdb_event_notification_data_t  *fdb_events = NULL;
     sai_attribute_t                    *attr_list = NULL;
     uint32_t                            event_count = 0;
@@ -5189,10 +5504,9 @@ static void event_thread_func(void *context)
                 if (SX_TRAP_ID_BFD_PACKET_EVENT == receive_info->trap_id) {
                     const struct bfd_packet_event *event = (const struct bfd_packet_event*)p_packet;
                     if (event->opaque_data_valid) {
-                        status = mlnx_switch_bfd_event_handle(SX_TRAP_ID_BFD_PACKET_EVENT,
-                                                              event->opaque_data);
+                        status = mlnx_switch_bfd_packet_handle(event);
                         if (SAI_ERR(status)) {
-                            SX_LOG_ERR("BFD event handle failed.\n");
+                            SX_LOG_ERR("BFD packet handle failed.\n");
                         }
                     } else {
                         SX_LOG_WRN("Received BFD packet not related to any existing session.\n");
@@ -5230,9 +5544,11 @@ static void event_thread_func(void *context)
                 }
 #endif
 
-                if (SAI_STATUS_SUCCESS !=
-                    (status =
-                         mlnx_translate_sdk_trap_to_sai(receive_info->trap_id, &trap_id, &trap_name, &trap_type))) {
+                if (receive_info->trap_id == SX_TRAP_ID_FDB_EVENT) {
+                    trap_name = "FDB event";
+                } else if (SAI_STATUS_SUCCESS !=
+                           (status =
+                                mlnx_translate_sdk_trap_to_sai(receive_info->trap_id, &trap_name, &trap_oid))) {
                     SX_LOG_WRN("unknown sdk trap %u, waiting for next packet\n", receive_info->trap_id);
                     continue;
                 }
@@ -6112,6 +6428,7 @@ static sai_status_t mlnx_initialize_switch(sai_object_id_t switch_id, bool *tran
     int                         system_err;
     const char                 *config_file, *boot_type_char, *aggregate_bridge_drops, *dump_path, *max_dumps;
     const char                 *vxlan_srcport_range_enabled;
+    const char                 *accumed_flow_cnt;
     mlnx_sai_boot_type_t        boot_type = 0;
     sx_router_resources_param_t resources_param;
     sx_router_general_param_t   general_param;
@@ -6251,6 +6568,13 @@ static sai_status_t mlnx_initialize_switch(sai_object_id_t switch_id, bool *tran
         g_sai_db_ptr->vxlan_srcport_range_enabled = (bool)atoi(vxlan_srcport_range_enabled);
     } else {
         g_sai_db_ptr->vxlan_srcport_range_enabled = false;
+    }
+
+    accumed_flow_cnt = g_mlnx_services.profile_get_value(g_profile_id, SAI_KEY_ACCUMULATED_FLOW_COUNTER_UNITS_IN_KB);
+    if ((NULL != accumed_flow_cnt) && (atoi(accumed_flow_cnt) > 0) && (atoi(accumed_flow_cnt) <= 200)) {
+        g_sai_db_ptr->accumed_flow_cnt_in_k = atoi(accumed_flow_cnt);
+    } else {
+        g_sai_db_ptr->accumed_flow_cnt_in_k = 0;
     }
 
     if (SAI_STATUS_SUCCESS != (sai_status = mlnx_chassis_mng_stage(boot_type,
@@ -6818,32 +7142,6 @@ static sai_status_t mlnx_create_switch(_Out_ sai_object_id_t     * switch_id,
         }
     }
 
-    sai_status = find_attrib_in_list(attr_count, attr_list, SAI_SWITCH_ATTR_RESTART_WARM, &attr_val, &attr_idx);
-    if (!SAI_ERR(sai_status)) {
-        if (attr_val->booldata) {
-            sai_status = mlnx_switch_restart_warm();
-            if (SAI_STATUS_SUCCESS != sai_status) {
-                MLNX_SAI_LOG_ERR("Error restarting warm\n");
-                sai_db_unlock();
-                return sai_status;
-            }
-        }
-        g_sai_db_ptr->restart_warm = attr_val->booldata;
-    }
-
-    sai_status = find_attrib_in_list(attr_count, attr_list, SAI_SWITCH_ATTR_WARM_RECOVER, &attr_val, &attr_idx);
-    if (!SAI_ERR(sai_status)) {
-        if (attr_val->booldata) {
-            sai_status = mlnx_switch_warm_recover(*switch_id);
-            if (SAI_STATUS_SUCCESS != sai_status) {
-                MLNX_SAI_LOG_ERR("Error warm recovering\n");
-                sai_db_unlock();
-                return sai_status;
-            }
-        }
-        g_sai_db_ptr->warm_recover = attr_val->booldata;
-    }
-
     sai_status = find_attrib_in_list(attr_count,
                                      attr_list,
                                      SAI_SWITCH_ATTR_VXLAN_DEFAULT_ROUTER_MAC,
@@ -6965,7 +7263,6 @@ static sai_status_t mlnx_create_switch(_Out_ sai_object_id_t     * switch_id,
 
 static sai_status_t switch_open_traps(void)
 {
-    uint32_t                   ii;
     sx_trap_group_attributes_t trap_group_attributes;
     sai_status_t               status;
     sx_host_ifc_register_key_t reg;
@@ -7003,32 +7300,6 @@ static sai_status_t switch_open_traps(void)
     }
     g_sai_db_ptr->callback_channel.type = SX_USER_CHANNEL_TYPE_FD;
 
-    for (ii = 0; END_TRAP_INFO_ID != mlnx_traps_info[ii].trap_id; ii++) {
-        g_sai_db_ptr->traps_db[ii].action = mlnx_traps_info[ii].action;
-        g_sai_db_ptr->traps_db[ii].trap_group = g_sai_db_ptr->default_trap_group;
-
-        if (0 == mlnx_traps_info[ii].sdk_traps_num) {
-            continue;
-        }
-
-        if (mlnx_chip_is_spc2or3or4()) {
-            if ((mlnx_traps_info[ii].trap_id == SAI_HOSTIF_TRAP_TYPE_PTP) ||
-                (mlnx_traps_info[ii].trap_id == SAI_HOSTIF_TRAP_TYPE_PTP_TX_EVENT)) {
-                continue;
-            }
-        }
-
-        if (SAI_STATUS_SUCCESS != (status = mlnx_trap_set(ii, mlnx_traps_info[ii].action,
-                                                          g_sai_db_ptr->default_trap_group))) {
-            goto out;
-        }
-
-        if (SAI_STATUS_SUCCESS != (status = mlnx_register_trap(SX_ACCESS_CMD_REGISTER, ii, &reg,
-                                                               &g_sai_db_ptr->callback_channel))) {
-            goto out;
-        }
-    }
-
 #ifdef ACS_OS
     /* Set action NOP for SIP=DIP router ingress discard to allow such traffic */
     {
@@ -7059,21 +7330,6 @@ out:
     return status;
 }
 
-static sai_status_t switch_close_traps(void)
-{
-    uint32_t ii;
-
-    for (ii = 0; END_TRAP_INFO_ID != mlnx_traps_info[ii].trap_id; ii++) {
-        if (0 == mlnx_traps_info[ii].sdk_traps_num) {
-            continue;
-        }
-
-        /* mlnx_register_trap(SX_ACCESS_CMD_DEREGISTER, ii); */
-    }
-
-    return SAI_STATUS_SUCCESS;
-}
-
 static sai_status_t mlnx_shutdown_switch(void)
 {
     sx_status_t    status;
@@ -7091,10 +7347,6 @@ static sai_status_t mlnx_shutdown_switch(void)
         if (SX_ERR(status)) {
             SX_LOG_ERR("Deinit BFD module failed\n");
         }
-    }
-
-    if (SX_STATUS_SUCCESS != (status = switch_close_traps())) {
-        SX_LOG_ERR("Close traps failed\n");
     }
 
     event_thread_asked_to_stop = true;
@@ -7303,7 +7555,7 @@ static sai_status_t mlnx_switch_aging_time_set_impl(_In_ uint32_t value)
 
     if (0 == value) {
         time = SX_FDB_AGE_TIME_MAX;
-    } else if (SX_FDB_AGE_TIME_MIN > value) {
+    } else if (SX_FDB_AGE_TIME_MIN >= value) {
         time = SX_FDB_AGE_TIME_MIN;
     } else if (SX_FDB_AGE_TIME_MAX < value) {
         time = SX_FDB_AGE_TIME_MAX;
@@ -8224,29 +8476,7 @@ out:
 
 sai_status_t mlnx_switch_get_mac(sx_mac_addr_t *mac)
 {
-    mlnx_port_config_t *first_port = NULL;
-    mlnx_port_config_t *port = NULL;
-    uint32_t            port_idx;
-    sai_status_t        status;
-
-    mlnx_port_phy_foreach(port, port_idx) {
-        first_port = port;
-        break;
-    }
-
-    /* If no ports in the system, return value from DB. Otherwise, return value from SDK to verify alignment
-     * (64/128 and not full byte). */
-    if (!first_port) {
-        memcpy(mac, &g_sai_db_ptr->base_mac_addr, sizeof(*mac));
-    } else {
-        /* Use switch first port, and zero down lower 6/7 bits port part (64/128 ports) */
-        status = sx_api_port_phys_addr_get(gh_sdk, first_port->logical, mac);
-        if (SX_ERR(status)) {
-            SX_LOG_ERR("Failed to get port %x address - %s.\n", first_port->logical, SX_STATUS_MSG(status));
-            return sdk_to_sai(status);
-        }
-        mac->ether_addr_octet[5] &= mlnx_port_mac_mask_get();
-    }
+    memcpy(mac, &g_sai_db_ptr->base_mac_addr, sizeof(*mac));
 
     return SAI_STATUS_SUCCESS;
 }
@@ -8744,199 +8974,10 @@ static sai_status_t mlnx_switch_warm_recover_get(_In_ const sai_object_key_t   *
 {
     SX_LOG_ENTER();
 
-    sai_db_read_lock();
-    value->booldata = g_sai_db_ptr->warm_recover;
-    sai_db_unlock();
+    value->booldata = false;
 
     SX_LOG_EXIT();
     return SAI_STATUS_SUCCESS;
-}
-
-/* This function needs to be guarded by write lock */
-static sai_status_t mlnx_switch_restart_warm()
-{
-    sx_host_ifc_register_key_t reg;
-    sx_status_t                sx_status = SX_STATUS_ERROR;
-    sai_status_t               sai_status = SAI_STATUS_FAILURE;
-    uint32_t                   ii;
-    sx_issu_pause_t            sx_issu_pause_param;
-    sxd_status_t               sxd_status;
-
-    SX_LOG_ENTER();
-
-    reg.key_type = SX_HOST_IFC_REGISTER_KEY_TYPE_GLOBAL;
-    for (ii = 0; END_TRAP_INFO_ID != mlnx_traps_info[ii].trap_id; ii++) {
-        if (0 == mlnx_traps_info[ii].sdk_traps_num) {
-            continue;
-        }
-
-        sai_status = mlnx_register_trap(SX_ACCESS_CMD_DEREGISTER, ii, &reg, &g_sai_db_ptr->callback_channel);
-        if (SAI_ERR(sai_status)) {
-            SX_LOG_ERR("Error unregistering trap #%d\n", ii);
-            goto out;
-        }
-    }
-
-    sai_status = mlnx_acl_psort_thread_suspend();
-    if (SAI_ERR(sai_status)) {
-        SX_LOG_ERR("Error suspending acl psort thread\n");
-        goto out;
-    }
-
-    sai_db_unlock();
-
-    event_thread_asked_to_stop = true;
-    dfw_thread_asked_to_stop = true;
-
-#ifndef _WIN32
-    pthread_join(dfw_thread.osd.id, NULL);
-    pthread_join(event_thread.osd.id, NULL);
-
-    if (0 != sem_destroy(&g_sai_db_ptr->dfw_sem)) {
-        SX_LOG_ERR("Error destroying DFW thread semaphore\n");
-    }
-#endif
-    sai_db_write_lock();
-
-    if (SXD_STATUS_SUCCESS != (sxd_status = sxd_access_reg_deinit())) {
-        SX_LOG_ERR("Access reg deinit failed.\n");
-        sai_status = SAI_STATUS_FAILURE;
-        goto out;
-    }
-
-    memset(&sx_issu_pause_param, 0, sizeof(sx_issu_pause_param));
-    sx_status = sx_api_issu_pause_set(gh_sdk, &sx_issu_pause_param);
-    if (SX_STATUS_SUCCESS != sx_status) {
-        SX_LOG_ERR("Error pausing sdk: %s\n", SX_STATUS_MSG(sx_status));
-        sai_status = sdk_to_sai(sx_status);
-        goto out;
-    }
-
-    sx_status = sx_api_close(&gh_sdk);
-    if (SX_STATUS_SUCCESS != sx_status) {
-        SX_LOG_ERR("Error closing sdk handle: %s\n", SX_STATUS_MSG(sx_status));
-        sai_status = sdk_to_sai(sx_status);
-        goto out;
-    }
-
-#ifdef CONFIG_SYSLOG
-    closelog();
-    g_log_init = false;
-#endif
-
-    sai_status = SAI_STATUS_SUCCESS;
-
-out:
-    SX_LOG_EXIT();
-    return sai_status;
-}
-
-/* This function needs to be guarded by write lock */
-static sai_status_t mlnx_switch_warm_recover(_In_ sai_object_id_t switch_id)
-{
-    sx_host_ifc_register_key_t reg;
-    sx_status_t                sx_status = SX_STATUS_ERROR;
-    sai_status_t               sai_status = SAI_STATUS_FAILURE;
-    uint32_t                   ii;
-    cl_status_t                cl_err;
-    sx_issu_resume_t           sx_issu_resume_param;
-    const bool                 warm_recover = true;
-    mlnx_sai_boot_type_t       boot_type;
-
-    SX_LOG_ENTER();
-
-    if (SX_STATUS_SUCCESS != (sx_status = sx_api_open(sai_log_cb, &gh_sdk))) {
-        MLNX_SAI_LOG_ERR("Can't open connection to SDK - %s.\n", SX_STATUS_MSG(sx_status));
-        sai_status = sdk_to_sai(sx_status);
-        goto out;
-    }
-
-    memset(&sx_issu_resume_param, 0, sizeof(sx_issu_resume_param));
-    sx_status = sx_api_issu_resume_set(gh_sdk, &sx_issu_resume_param);
-    if (SX_STATUS_SUCCESS != sx_status) {
-        SX_LOG_ERR("Error resuming sdk: %s\n", SX_STATUS_MSG(sx_status));
-        sai_status = sdk_to_sai(sx_status);
-        goto out;
-    }
-
-    boot_type = g_sai_db_ptr->boot_type;
-
-    sai_db_unlock();
-    sai_status = mlnx_resource_mng_stage(warm_recover, boot_type);
-    if (SAI_STATUS_SUCCESS != sai_status) {
-        SX_LOG_ERR("Error in resource mng stage\n");
-        sai_db_write_lock();
-        goto out;
-    }
-    sai_db_write_lock();
-
-    memset(&reg, 0, sizeof(reg));
-
-    sx_status = sx_api_host_ifc_open(gh_sdk, &g_sai_db_ptr->callback_channel.channel.fd);
-    if (SX_STATUS_SUCCESS != sx_status) {
-        SX_LOG_ERR("Error opening host ifc for fd: %s", SX_STATUS_MSG(sx_status));
-        goto out;
-    }
-
-    reg.key_type = SX_HOST_IFC_REGISTER_KEY_TYPE_GLOBAL;
-    for (ii = 0; END_TRAP_INFO_ID != mlnx_traps_info[ii].trap_id; ii++) {
-        if (0 == mlnx_traps_info[ii].sdk_traps_num) {
-            continue;
-        }
-
-        sai_status = mlnx_register_trap(SX_ACCESS_CMD_REGISTER, ii, &reg, &g_sai_db_ptr->callback_channel);
-        if (SAI_STATUS_SUCCESS != sai_status) {
-            SX_LOG_ERR("Error registering trap #%d\n", ii);
-            goto out;
-        }
-    }
-
-    sai_db_unlock();
-    sai_status = mlnx_netdev_restore();
-    if (SAI_ERR(sai_status)) {
-        SX_LOG_ERR("Failed to restore netdev\n");
-        sai_db_write_lock();
-        sai_status = SAI_STATUS_FAILURE;
-        goto out;
-    }
-
-    event_thread_asked_to_stop = false;
-    cl_err = cl_thread_init(&event_thread, event_thread_func, (const void*const)switch_id, NULL);
-    if (cl_err) {
-        SX_LOG_ERR("Failed to create event thread\n");
-        sai_db_write_lock();
-        sai_status = SAI_STATUS_FAILURE;
-        goto out;
-    }
-
-#ifndef _WIN32
-    if (0 != sem_init(&g_sai_db_ptr->dfw_sem, 1, 1)) {
-        SX_LOG_ERR("Error creating DFW thread semaphore\n");
-        goto out;
-    }
-#endif /* ifndef _WIN32 */
-
-    dfw_thread_asked_to_stop = false;
-    cl_err = cl_thread_init(&dfw_thread, mlnx_switch_dfw_thread_func, NULL, NULL);
-    if (cl_err) {
-        SX_LOG_ERR("Failed to create DFW thread\n");
-        sai_db_write_lock();
-        sai_status = SAI_STATUS_FAILURE;
-        goto out;
-    }
-
-    sai_db_write_lock();
-
-    sai_status = mlnx_acl_psort_thread_resume();
-    if (SAI_ERR(sai_status)) {
-        SX_LOG_ERR("Error resuming acl psort thread\n");
-        goto out;
-    }
-
-    sai_status = SAI_STATUS_SUCCESS;
-out:
-    SX_LOG_EXIT();
-    return sai_status;
 }
 
 /* restart warm [bool] */
@@ -8944,30 +8985,8 @@ static sai_status_t mlnx_switch_restart_warm_set(_In_ const sai_object_key_t    
                                                  _In_ const sai_attribute_value_t *value,
                                                  void                             *arg)
 {
-#ifdef ACS_OS
     /* On Sonic, check point restore is disabled. This flow is used for FFB and does nothing. */
     return SAI_STATUS_SUCCESS;
-#else
-    sai_status_t status = SAI_STATUS_FAILURE;
-
-    SX_LOG_ENTER();
-
-    sai_db_write_lock();
-    if (value->booldata) {
-        status = mlnx_switch_restart_warm();
-        if (SAI_ERR(status)) {
-            MLNX_SAI_LOG_ERR("Error restarting warm\n");
-            goto out;
-        }
-    }
-    g_sai_db_ptr->restart_warm = value->booldata;
-    status = SAI_STATUS_SUCCESS;
-
-out:
-    sai_db_unlock();
-    SX_LOG_EXIT();
-    return status;
-#endif
 }
 
 /* restart warm [bool] */
@@ -8975,25 +8994,9 @@ static sai_status_t mlnx_switch_warm_recover_set(_In_ const sai_object_key_t    
                                                  _In_ const sai_attribute_value_t *value,
                                                  void                             *arg)
 {
-    sai_status_t status = SAI_STATUS_FAILURE;
+    /* On Sonic, check point restore is disabled. This flow is used for FFB and does nothing. */
 
-    SX_LOG_ENTER();
-
-    sai_db_write_lock();
-    if (value->booldata) {
-        status = mlnx_switch_warm_recover(key->key.object_id);
-        if (SAI_ERR(status)) {
-            MLNX_SAI_LOG_ERR("Error warm recovering\n");
-            goto out;
-        }
-    }
-    g_sai_db_ptr->warm_recover = value->booldata;
-    status = SAI_STATUS_SUCCESS;
-
-out:
-    sai_db_unlock();
-    SX_LOG_EXIT();
-    return status;
+    return SAI_STATUS_SUCCESS;
 }
 
 /* LAG hashing seed  [uint32_t] */
@@ -10554,6 +10557,386 @@ static sai_status_t mlnx_clear_switch_stats(_In_ sai_object_id_t      switch_id,
     return status;
 }
 
+static sai_status_t mlnx_switch_tunnel_attr_get(_In_ const sai_object_key_t   *key,
+                                                _Inout_ sai_attribute_value_t *value,
+                                                _In_ uint32_t                  attr_index,
+                                                _Inout_ vendor_cache_t        *cache,
+                                                void                          *arg)
+{
+    sai_status_t    sai_status = SAI_STATUS_FAILURE;
+    uint32_t        data = 0;
+    sai_object_id_t switch_tunnel_id = key->key.object_id;
+
+    SX_LOG_ENTER();
+
+    sai_status = mlnx_object_to_type(switch_tunnel_id, SAI_OBJECT_TYPE_SWITCH_TUNNEL, &data, NULL);
+    if (SAI_ERR(sai_status) || (data != SAI_TUNNEL_TYPE_VXLAN)) {
+        SX_LOG_ERR("Invalid sai switch tunnel obj id: 0x%" PRIx64 "\n", switch_tunnel_id);
+        SX_LOG_EXIT();
+        return sai_status;
+    }
+
+    sai_db_read_lock();
+
+    switch ((long)arg) {
+    case SAI_SWITCH_TUNNEL_ATTR_TUNNEL_TYPE:
+        value->s32 = data;
+        break;
+
+    case SAI_SWITCH_TUNNEL_ATTR_TUNNEL_VXLAN_UDP_SPORT_MODE:
+        value->s32 = g_sai_db_ptr->switch_tunnel[data].src_port_mode;
+        break;
+
+    case SAI_SWITCH_TUNNEL_ATTR_VXLAN_UDP_SPORT:
+        value->u16 = g_sai_db_ptr->switch_tunnel[data].src_port_base;
+        break;
+
+    case SAI_SWITCH_TUNNEL_ATTR_VXLAN_UDP_SPORT_MASK:
+        value->u8 = g_sai_db_ptr->switch_tunnel[data].src_port_mask;
+        break;
+
+    default:
+        SX_LOG_ERR("Unsupported VxLAN SRC port attribute %lu\n", (long)arg);
+        SX_LOG_EXIT();
+        return SAI_STATUS_FAILURE;
+    }
+
+    sai_db_unlock();
+    SX_LOG_EXIT();
+    return sai_status;
+}
+
+static sai_status_t mlnx_switch_tunnel_attr_set(_In_ const sai_object_key_t      *key,
+                                                _In_ const sai_attribute_value_t *value,
+                                                void                             *arg)
+{
+    sai_status_t    sai_status = SAI_STATUS_FAILURE;
+    sai_object_id_t switch_tunnel_id = key->key.object_id;
+    uint32_t        tunnel_type;
+    uint32_t        ii, sai_db_idx_start = 0, sai_db_idx_end = MLNX_MAX_TUNNEL_NVE;
+
+    SX_LOG_ENTER();
+
+    sai_status = mlnx_object_to_type(switch_tunnel_id, SAI_OBJECT_TYPE_SWITCH_TUNNEL, &tunnel_type, NULL);
+    if (SAI_ERR(sai_status) || (tunnel_type != SAI_TUNNEL_TYPE_VXLAN)) {
+        SX_LOG_ERR("Invalid sai switch tunnel obj id: 0x%" PRIx64 "\n", switch_tunnel_id);
+        SX_LOG_EXIT();
+        return sai_status;
+    }
+
+    sai_db_write_lock();
+
+    switch ((long)arg) {
+    case SAI_SWITCH_TUNNEL_ATTR_TUNNEL_VXLAN_UDP_SPORT_MODE:
+        g_sai_db_ptr->switch_tunnel[tunnel_type].src_port_mode = value->s32;
+        break;
+
+    case SAI_SWITCH_TUNNEL_ATTR_VXLAN_UDP_SPORT:
+        if (g_sai_db_ptr->switch_tunnel[tunnel_type].src_port_mode == SAI_TUNNEL_VXLAN_UDP_SPORT_MODE_EPHEMERAL) {
+            SX_LOG_ERR(
+                "VxLAN UDP SRC port attribute is supported only for SAI_TUNNEL_VXLAN_UDP_SPORT_MODE_USER_DEFINED src port mode\n");
+            sai_status = SAI_STATUS_FAILURE;
+            goto out;
+        }
+        if (value->u16 & (0xFF >> (8 - g_sai_db_ptr->switch_tunnel[tunnel_type].src_port_mask))) {
+            SX_LOG_ERR("Wrong VxLAN UDP SRC port base and mask combination (0x%x:0x%x)\n",
+                       value->u16, (0xFF >> (8 - g_sai_db_ptr->switch_tunnel[tunnel_type].src_port_mask)));
+            sai_status = SAI_STATUS_FAILURE;
+            goto out;
+        }
+        g_sai_db_ptr->switch_tunnel[tunnel_type].src_port_base = value->u16;
+        break;
+
+    case SAI_SWITCH_TUNNEL_ATTR_VXLAN_UDP_SPORT_MASK:
+        if (g_sai_db_ptr->switch_tunnel[tunnel_type].src_port_mode == SAI_TUNNEL_VXLAN_UDP_SPORT_MODE_EPHEMERAL) {
+            SX_LOG_ERR(
+                "VxLAN UDP SRC port mask attribute is supported only for SAI_TUNNEL_VXLAN_UDP_SPORT_MODE_USER_DEFINED src port mode\n");
+            sai_status = SAI_STATUS_FAILURE;
+            goto out;
+        }
+        if (value->u8 > 8) {
+            SX_LOG_ERR("Wrong switch tunnel VxLAN UDP SRC port mask attribute value! Supported values are [0..8].\n");
+            sai_status = SAI_STATUS_FAILURE;
+            goto out;
+        }
+        if (g_sai_db_ptr->switch_tunnel[tunnel_type].src_port_base & (0xFF >> (8 - value->u8))) {
+            SX_LOG_ERR("Wrong VxLAN UDP SRC port base and mask combination (0x%x:0x%x)\n",
+                       g_sai_db_ptr->switch_tunnel[tunnel_type].src_port_base, (0xFF >> (8 - value->u8)));
+            sai_status = SAI_STATUS_FAILURE;
+            goto out;
+        }
+        g_sai_db_ptr->switch_tunnel[tunnel_type].src_port_mask = value->u8;
+        break;
+
+    default:
+        SX_LOG_ERR("Unsupported VxLAN SRC port attribute %lu\n", (long)arg);
+        sai_status = SAI_STATUS_FAILURE;
+        goto out;
+    }
+
+    for (ii = sai_db_idx_start; ii < sai_db_idx_end; ++ii) {
+        if ((g_sai_tunnel_db_ptr->tunnel_entry_db[ii].sai_tunnel_type == SAI_TUNNEL_TYPE_VXLAN)
+            && !g_sai_tunnel_db_ptr->tunnel_entry_db[ii].init_vxlan_sport_config.is_configured) {
+            if (SAI_STATUS_SUCCESS !=
+                (sai_status =
+                     mlnx_vxlan_srcport_config_update(true, ii, g_sai_db_ptr->switch_tunnel[tunnel_type].src_port_mode,
+                                                      g_sai_db_ptr->switch_tunnel[tunnel_type].src_port_base,
+                                                      g_sai_db_ptr->switch_tunnel[tunnel_type].src_port_mask))) {
+                SX_LOG_ERR("Failed to update VxLAN tunnel UDP SRC port attributes config\n");
+                goto out;
+            }
+        }
+    }
+
+out:
+    sai_db_unlock();
+    SX_LOG_EXIT();
+    return sai_status;
+}
+
+/**
+ * @brief Create switch tunnel
+ *
+ * @param[out] switch_tunnel_id The Switch  tunnel Object ID
+ * @param[in]  switch_id The Switch Object ID
+ * @param[in]  attr_count number of attributes
+ * @param[in]  attr_list Array of attributes
+ *
+ * @return #SAI_STATUS_SUCCESS on success Failure status code on error
+ */
+static sai_status_t mlnx_create_switch_tunnel(_Out_ sai_object_id_t      *switch_tunnel_id,
+                                              _In_ sai_object_id_t        switch_id,
+                                              _In_ uint32_t               attr_count,
+                                              _In_ const sai_attribute_t *attr_list)
+{
+    sai_status_t                      sai_status;
+    const sai_attribute_value_t      *attr;
+    uint32_t                          attr_idx;
+    char                              list_str[MAX_LIST_VALUE_STR_LEN] = { 0 };
+    sai_object_id_t                   tunnel_obj_id = SAI_NULL_OBJECT_ID;
+    sai_tunnel_type_t                 tunnel_type;
+    sai_tunnel_vxlan_udp_sport_mode_t sport_mode = SAI_TUNNEL_VXLAN_UDP_SPORT_MODE_EPHEMERAL;
+    uint16_t                          sport_base = 0;
+    uint8_t                           sport_mask = 0;
+
+    SX_LOG_ENTER();
+
+    if (g_sai_db_ptr->vxlan_srcport_range_enabled) {
+        SX_LOG_ERR("Can not create switch tunnel when VxLAN SRC port range feature is enabled!\n");
+        SX_LOG_EXIT();
+        return SAI_STATUS_FAILURE;
+    }
+
+    if (SAI_STATUS_SUCCESS !=
+        (sai_status =
+             check_attribs_metadata(attr_count, attr_list, SAI_OBJECT_TYPE_SWITCH_TUNNEL, switch_tunnel_vendor_attribs,
+                                    SAI_COMMON_API_CREATE))) {
+        SX_LOG_EXIT();
+        return sai_status;
+    }
+
+    if (SAI_STATUS_SUCCESS !=
+        (sai_status =
+             sai_attr_list_to_str(attr_count, attr_list, SAI_OBJECT_TYPE_SWITCH_TUNNEL, MAX_LIST_VALUE_STR_LEN,
+                                  list_str))) {
+        SX_LOG_EXIT();
+        return sai_status;
+    }
+
+    SX_LOG_NTC("Create switch tunnel attribs, %s\n", list_str);
+
+    sai_status = find_attrib_in_list(attr_count, attr_list, SAI_SWITCH_TUNNEL_ATTR_TUNNEL_TYPE, &attr, &attr_idx);
+    assert(SAI_STATUS_SUCCESS == sai_status);
+    tunnel_type = attr->s32;
+    if (tunnel_type != SAI_TUNNEL_TYPE_VXLAN) {
+        SX_LOG_ERR("Not supported switch tunnel type (%i). \n", tunnel_type);
+        return SAI_STATUS_FAILURE;
+    }
+
+    if (g_sai_db_ptr->switch_tunnel[tunnel_type].switch_tunnel_id != SAI_NULL_OBJECT_ID) {
+        SX_LOG_ERR("Switch tunnel for selected tunnel type (%d) is already created. \n", tunnel_type);
+        return SAI_STATUS_FAILURE;
+    }
+
+    sai_status = find_attrib_in_list(attr_count,
+                                     attr_list,
+                                     SAI_SWITCH_TUNNEL_ATTR_TUNNEL_VXLAN_UDP_SPORT_MODE,
+                                     &attr,
+                                     &attr_idx);
+    if (SAI_STATUS_SUCCESS == sai_status) {
+        sport_mode = attr->s32;
+    }
+    sai_status = find_attrib_in_list(attr_count, attr_list, SAI_SWITCH_TUNNEL_ATTR_VXLAN_UDP_SPORT, &attr, &attr_idx);
+    if (SAI_STATUS_SUCCESS == sai_status) {
+        sport_base = attr->u16;
+    }
+
+    sai_status = find_attrib_in_list(attr_count,
+                                     attr_list,
+                                     SAI_SWITCH_TUNNEL_ATTR_VXLAN_UDP_SPORT_MASK,
+                                     &attr,
+                                     &attr_idx);
+    if (SAI_STATUS_SUCCESS == sai_status) {
+        if (attr->u8 > 8) {
+            SX_LOG_ERR(
+                "Wrong switch tunnel VxLAN UDP SRC port mask attribute value! Supported values are [0..8].\n");
+            return SAI_STATUS_FAILURE;
+        }
+        sport_mask = attr->u8;
+    }
+
+    if (sport_base & (0xFF >> (8 - sport_mask))) {
+        SX_LOG_ERR("Wrong VxLAN UDP SRC port base and mask combination (0x%X:0x%X)\n", sport_base,
+                   (0xFF >> (8 - sport_mask)));
+        return SAI_STATUS_FAILURE;
+    }
+
+    if (SAI_STATUS_SUCCESS !=
+        (sai_status = mlnx_create_object(SAI_OBJECT_TYPE_SWITCH_TUNNEL, tunnel_type, NULL, &tunnel_obj_id))) {
+        SX_LOG_ERR("Failed to create switch tunnel\n");
+        SX_LOG_EXIT();
+        return sai_status;
+    }
+
+    sai_db_write_lock();
+
+    uint32_t ii, sai_db_idx_start = 0, sai_db_idx_end = MLNX_MAX_TUNNEL_NVE;
+
+    for (ii = sai_db_idx_start; ii < sai_db_idx_end; ++ii) {
+        if ((g_sai_tunnel_db_ptr->tunnel_entry_db[ii].sai_tunnel_type == SAI_TUNNEL_TYPE_VXLAN)
+            && !g_sai_tunnel_db_ptr->tunnel_entry_db[ii].init_vxlan_sport_config.is_configured) {
+            g_sai_tunnel_db_ptr->tunnel_entry_db[ii].src_port_mode = sport_mode;
+            g_sai_tunnel_db_ptr->tunnel_entry_db[ii].src_port_base = sport_base;
+            g_sai_tunnel_db_ptr->tunnel_entry_db[ii].src_port_mask = sport_mask;
+            if (SAI_STATUS_SUCCESS != mlnx_vxlan_srcport_user_defined_set(ii, sport_base, sport_mask, false)) {
+                SX_LOG_ERR("Failed to create switch tunnel\n");
+                g_sai_tunnel_db_ptr->tunnel_entry_db[ii].src_port_mode = SAI_TUNNEL_VXLAN_UDP_SPORT_MODE_EPHEMERAL;
+                g_sai_tunnel_db_ptr->tunnel_entry_db[ii].src_port_base = 0;
+                g_sai_tunnel_db_ptr->tunnel_entry_db[ii].src_port_mask = 0;
+                sai_db_unlock();
+                return SAI_STATUS_FAILURE;
+            }
+        }
+    }
+
+    g_sai_db_ptr->switch_tunnel[tunnel_type].switch_tunnel_id = tunnel_obj_id;
+    g_sai_db_ptr->switch_tunnel[tunnel_type].src_port_mode = sport_mode;
+    g_sai_db_ptr->switch_tunnel[tunnel_type].src_port_base = sport_base;
+    g_sai_db_ptr->switch_tunnel[tunnel_type].src_port_mask = sport_mask;
+
+    sai_db_unlock();
+
+    *switch_tunnel_id = tunnel_obj_id;
+    SX_LOG_NTC("Created switch tunnel:0x%" PRIx64 "\n", *switch_tunnel_id);
+
+    SX_LOG_EXIT();
+    return sai_status;
+}
+
+static void switch_tunnel_key_to_str(_In_ const sai_object_id_t sai_switch_tunnel_obj_id, _Out_ char *key_str)
+{
+    uint32_t data = 0;
+
+    SX_LOG_ENTER();
+
+    if (SAI_STATUS_SUCCESS !=
+        mlnx_object_to_type(sai_switch_tunnel_obj_id, SAI_OBJECT_TYPE_SWITCH_TUNNEL, &data, NULL)) {
+        snprintf(key_str, MAX_KEY_STR_LEN, "Invalid sai switch tunnel obj ID %" PRIx64 "", sai_switch_tunnel_obj_id);
+    } else {
+        snprintf(key_str,
+                 MAX_KEY_STR_LEN,
+                 "switch tunnel ID %d",
+                 data);
+    }
+
+    SX_LOG_EXIT();
+}
+
+static sai_status_t mlnx_set_switch_tunnel_attribute(_In_ const sai_object_id_t  sai_switch_tunnel_obj_id,
+                                                     _In_ const sai_attribute_t *attr)
+{
+    const sai_object_key_t key = { .key.object_id = sai_switch_tunnel_obj_id };
+    char                   key_str[MAX_KEY_STR_LEN];
+    sai_status_t           sai_status = SAI_STATUS_FAILURE;
+
+    SX_LOG_ENTER();
+
+    switch_tunnel_key_to_str(sai_switch_tunnel_obj_id, key_str);
+    sai_status = sai_set_attribute(&key, key_str, SAI_OBJECT_TYPE_SWITCH_TUNNEL, switch_tunnel_vendor_attribs, attr);
+
+    SX_LOG_EXIT();
+    return sai_status;
+}
+
+static sai_status_t mlnx_get_switch_tunnel_attribute(_In_ const sai_object_id_t sai_switch_tunnel_obj_id,
+                                                     _In_ uint32_t              attr_count,
+                                                     _Inout_ sai_attribute_t   *attr_list)
+{
+    const sai_object_key_t key = { .key.object_id = sai_switch_tunnel_obj_id };
+    char                   key_str[MAX_KEY_STR_LEN];
+    sai_status_t           sai_status = SAI_STATUS_FAILURE;
+
+    SX_LOG_ENTER();
+
+    switch_tunnel_key_to_str(sai_switch_tunnel_obj_id, key_str);
+    sai_status =
+        sai_get_attributes(&key,
+                           key_str,
+                           SAI_OBJECT_TYPE_SWITCH_TUNNEL,
+                           switch_tunnel_vendor_attribs,
+                           attr_count,
+                           attr_list);
+
+    SX_LOG_EXIT();
+    return sai_status;
+}
+
+/**
+ * @brief Remove Switch Tunnel
+ *
+ * @param[in] switch_tunnel_id The Switch tunnel id
+ *
+ * @return #SAI_STATUS_SUCCESS on success Failure status code on error
+ */
+static sai_status_t mlnx_remove_switch_tunnel(_In_ sai_object_id_t switch_tunnel_id)
+{
+    sai_status_t sai_status = SAI_STATUS_FAILURE;
+    uint32_t     data;
+
+    SX_LOG_ENTER();
+
+    sai_status = mlnx_object_to_type(switch_tunnel_id, SAI_OBJECT_TYPE_SWITCH_TUNNEL, &data, NULL);
+    if (SAI_ERR(sai_status) || (data != SAI_TUNNEL_TYPE_VXLAN)) {
+        SX_LOG_ERR("Invalid sai switch tunnel obj id: 0x%" PRIx64 "\n", switch_tunnel_id);
+        SX_LOG_EXIT();
+        return sai_status;
+    }
+
+    uint32_t ii, sai_db_idx_start = 0, sai_db_idx_end = MLNX_MAX_TUNNEL_NVE;
+
+    for (ii = sai_db_idx_start; ii < sai_db_idx_end; ++ii) {
+        if ((g_sai_tunnel_db_ptr->tunnel_entry_db[ii].sai_tunnel_type == SAI_TUNNEL_TYPE_VXLAN)
+            && !g_sai_tunnel_db_ptr->tunnel_entry_db[ii].init_vxlan_sport_config.is_configured) {
+            if (SAI_STATUS_SUCCESS !=
+                (sai_status =
+                     mlnx_vxlan_srcport_config_update(false, ii, SAI_TUNNEL_VXLAN_UDP_SPORT_MODE_EPHEMERAL, 0, 0))) {
+                SX_LOG_ERR("Filed to update VxLAN tunnel UDP SRC port attributes config\n");
+                sai_db_unlock();
+                SX_LOG_EXIT();
+                return sai_status;
+            }
+        }
+    }
+
+    g_sai_db_ptr->switch_tunnel[data].switch_tunnel_id = SAI_NULL_OBJECT_ID;
+    g_sai_db_ptr->switch_tunnel[data].src_port_mode = SAI_TUNNEL_VXLAN_UDP_SPORT_MODE_EPHEMERAL;
+    g_sai_db_ptr->switch_tunnel[data].src_port_base = 0;
+    g_sai_db_ptr->switch_tunnel[data].src_port_mask = 0;
+
+    SX_LOG_EXIT();
+    return SAI_STATUS_SUCCESS;
+}
+
 const sai_switch_api_t mlnx_switch_api = {
     mlnx_create_switch,
     mlnx_remove_switch,
@@ -10564,8 +10947,8 @@ const sai_switch_api_t mlnx_switch_api = {
     mlnx_clear_switch_stats,
     NULL,
     NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL
+    mlnx_create_switch_tunnel,
+    mlnx_remove_switch_tunnel,
+    mlnx_set_switch_tunnel_attribute,
+    mlnx_get_switch_tunnel_attribute
 };

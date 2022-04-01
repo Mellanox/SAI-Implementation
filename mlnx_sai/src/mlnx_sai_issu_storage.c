@@ -993,6 +993,7 @@ static sai_status_t mlnx_sai_issu_prepare_paths(const char* persistent_path)
         }
     }
     strncpy(g_issu_pbh_transition_flag_path, g_issu_gp_reg_path, MLNX_SAI_ISSU_PATH_LEN_MAX - 1);
+    g_issu_pbh_transition_flag_path[MLNX_SAI_ISSU_PATH_LEN_MAX - 1] = '\0';
 
     len = strlen(g_issu_pbh_transition_flag_path);
     size_to_cat = MLNX_SAI_ISSU_PATH_LEN_MAX - len - 1;
@@ -1019,7 +1020,7 @@ static sai_status_t mlnx_sai_issu_restore_info_spc2()
 
     sai_status = mlnx_sai_issu_storage_open(g_issu_gp_reg_path, "rb", &file_p);
     if (SAI_ERR(sai_status)) {
-        SX_LOG_WRN("ISSU persistent file does not exist\n");
+        SX_LOG_NTC("ISSU persistent file does not exist\n");
         sai_status = SAI_STATUS_SUCCESS;
         goto out;
     }
