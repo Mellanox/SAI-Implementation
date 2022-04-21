@@ -135,7 +135,9 @@ static void next_hop_group_key_to_str(_In_ sai_object_id_t next_hop_group_id, _O
         snprintf(key_str, MAX_KEY_STR_LEN, "next hop group id 0x%08X", data);
     }
 }
-
+static sai_status_t mlnx_ecmp_to_nhg_map_entry_add(_In_ sx_ecmp_id_t            key,
+                                                   _In_ mlnx_shm_rm_array_idx_t value);
+static sai_status_t mlnx_ecmp_to_nhg_map_entry_del(_In_ sx_ecmp_id_t key);
 static sai_status_t update_next_hop_data_to_ecmp_id(sx_ecmp_id_t  group,
                                                     sx_next_hop_t old_nh_data,
                                                     sx_next_hop_t new_nh_data);
@@ -551,7 +553,7 @@ static sai_status_t mlnx_nhg_type_ecmp_counter_apply(mlnx_nhg_db_entry_t *db_ent
     assert(db_entry && db_entry->data.type == MLNX_NHG_TYPE_ECMP);
 
     if (db_entry->data.members_count != 0) {
-        for (int32_t ii = 0; ii < NUMBER_OF_LOCAL_VNETS; ii++) {
+        for (int32_t ii = 0; ii < NUMBER_OF_VRF_DATA_SETS; ii++) {
             if (db_entry->data.data.encap.vrf_data[ii].refcount > 0) {
                 uint32_t        offset = 0;
                 sx_access_cmd_t cmd = sx_counter ==
@@ -651,6 +653,42 @@ static sai_status_t mlnx_nhg_flow_counter_set(mlnx_nhg_db_entry_t *db_entry, sai
     return SAI_STATUS_SUCCESS;
 }
 
+static sai_status_t mlnx_nhg_ecmp_prepare(_Inout_ mlnx_nhg_db_entry_t *db_entry, _In_ mlnx_shm_rm_array_idx_t idx)
+{
+    /* One (aka. MLNX_REGULAR_ECMP_INDEX) VRF_DATA is used to store
+     * "Regular" NHG sx_ecmp_id. It is used in ACL Action Redirect and includes
+     * all NHGM type Native. */
+
+    sx_status_t   sx_status;
+    sai_status_t  status;
+    uint32_t      ecmp_idx = MLNX_REGULAR_ECMP_INDEX;
+    sx_next_hop_t next_hops[1] = {0};
+    uint32_t      next_hop_cnt = 0;
+
+    assert(db_entry->data.type == MLNX_NHG_TYPE_ECMP);
+
+    db_entry->data.data.encap.vrf_data[ecmp_idx].associated_vrf = SAI_NULL_OBJECT_ID;
+    db_entry->data.data.encap.vrf_data[ecmp_idx].refcount = 0;
+
+    sx_status = sx_api_router_ecmp_set(gh_sdk,
+                                       SX_ACCESS_CMD_CREATE,
+                                       &db_entry->data.data.encap.vrf_data[ecmp_idx].sx_ecmp_id,
+                                       next_hops,
+                                       &next_hop_cnt);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to create ecmp - %s.\n", SX_STATUS_MSG(sx_status));
+        return sdk_to_sai(sx_status);
+    }
+
+    status = mlnx_ecmp_to_nhg_map_entry_add(db_entry->data.data.encap.vrf_data[ecmp_idx].sx_ecmp_id,
+                                            idx);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to add ECMP-NHG map entry.\n");
+        return status;
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
 
 /*
  * Routine Description:
@@ -697,7 +735,6 @@ static sai_status_t mlnx_create_next_hop_group(_Out_ sai_object_id_t      *next_
         SX_LOG_NTC("Create next hop group, %s\n", list_str);
     }
 
-
     mlnx_nhg_db_entry_t    *db_entry = NULL;
     mlnx_shm_rm_array_idx_t idx;
 
@@ -717,8 +754,6 @@ static sai_status_t mlnx_create_next_hop_group(_Out_ sai_object_id_t      *next_
             SX_LOG_ERR("Failed to allocate NHG DB entry.\n");
             goto exit;
         }
-
-        db_entry->data.type = MLNX_NHG_TYPE_ECMP;
 
         if (type.value->s32 == SAI_NEXT_HOP_GROUP_TYPE_FINE_GRAIN_ECMP) {
             db_entry->data.type = MLNX_NHG_TYPE_FINE_GRAIN;
@@ -750,6 +785,17 @@ static sai_status_t mlnx_create_next_hop_group(_Out_ sai_object_id_t      *next_
                 status = sdk_to_sai(status);
                 goto exit;
             }
+        } else if (type.value->s32 == SAI_NEXT_HOP_GROUP_TYPE_ECMP) {
+            db_entry->data.type = MLNX_NHG_TYPE_ECMP;
+
+            status = mlnx_nhg_ecmp_prepare(db_entry, idx);
+            if (SAI_ERR(status)) {
+                SX_LOG_ERR("Failed to prepare NHG type ECMP.\n");
+                goto exit;
+            }
+        } else {
+            SX_LOG_ERR("Unsupported NHG type: [%d]\n", type.value->s32);
+            goto exit;
         }
 
         if (counter.found) {
@@ -785,14 +831,34 @@ exit:
 
 static sai_status_t mlnx_nhg_ecmp_remove(_In_ mlnx_nhg_db_entry_t *db_entry)
 {
+    sx_status_t  sx_status;
+    sai_status_t status;
+    uint32_t     next_hop_cnt = 0;
+
     assert(db_entry && db_entry->data.type == MLNX_NHG_TYPE_ECMP);
 
-    for (int32_t ii = 0; ii < NUMBER_OF_LOCAL_VNETS; ii++) {
+    for (int32_t ii = 0; ii < NUMBER_OF_VRF_DATA_SETS; ii++) {
         if (db_entry->data.data.encap.vrf_data[ii].refcount > 0) {
             SX_LOG_ERR("VRF data [%d] is not empty [refcount=%d].\n", ii,
                        db_entry->data.data.encap.vrf_data[ii].refcount);
             return SAI_STATUS_FAILURE;
         }
+    }
+
+    status = mlnx_ecmp_to_nhg_map_entry_del(db_entry->data.data.encap.vrf_data[MLNX_REGULAR_ECMP_INDEX].sx_ecmp_id);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to delete ECMP-NHG map entry.\n");
+        return status;
+    }
+
+    sx_status = sx_api_router_ecmp_set(gh_sdk,
+                                       SX_ACCESS_CMD_DESTROY,
+                                       &db_entry->data.data.encap.vrf_data[MLNX_REGULAR_ECMP_INDEX].sx_ecmp_id,
+                                       NULL,
+                                       &next_hop_cnt);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to destroy ecmp - %s.\n", SX_STATUS_MSG(sx_status));
+        return sdk_to_sai(sx_status);
     }
 
     return SAI_STATUS_SUCCESS;
@@ -1246,7 +1312,7 @@ static sai_status_t mlnx_nghm_weight_set(_In_ mlnx_nhgm_db_entry_t *nhgm_db_entr
         return status;
     }
 
-    for (uint32_t ii = 0; ii < NUMBER_OF_LOCAL_VNETS; ++ii) {
+    for (uint32_t ii = 0; ii < NUMBER_OF_VRF_DATA_SETS; ++ii) {
         vrf_data = &nhg_db_entry->data.data.encap.vrf_data[ii];
         if (vrf_data->refcount > 0) {
             if (nhgm_db_entry->data.type == MLNX_NHGM_TYPE_ENCAP) {
@@ -1373,7 +1439,7 @@ static sai_status_t mlnx_nghm_counter_set(_In_ mlnx_nhgm_db_entry_t *nhgm_db_ent
                                         counter_idx);
     }
 
-    for (uint32_t ii = 0; ii < NUMBER_OF_LOCAL_VNETS; ++ii) {
+    for (uint32_t ii = 0; ii < NUMBER_OF_VRF_DATA_SETS; ++ii) {
         vrf_data = &nhg_db_entry->data.data.encap.vrf_data[ii];
         if (vrf_data->refcount > 0) {
             if (nhgm_db_entry->data.type == MLNX_NHGM_TYPE_ENCAP) {
@@ -1735,7 +1801,7 @@ static sai_status_t mlnx_nhgm_type_native_apply(mlnx_nhgm_db_entry_t *nhgm_db_en
         return status;
     }
 
-    for (int32_t ii = 0; ii < NUMBER_OF_LOCAL_VNETS; ii++) {
+    for (int32_t ii = 0; ii < NUMBER_OF_VRF_DATA_SETS; ii++) {
         vrf_data = &nhg_db_entry->data.data.encap.vrf_data[ii];
         if (vrf_data->sx_ecmp_id != 0) {
             status = apply_next_hop_data_to_ecmp_id(vrf_data->sx_ecmp_id,
@@ -1946,7 +2012,7 @@ uint32_t mlnx_ecmp_id_hash(_In_ sx_ecmp_id_t sx_ecmp_id)
     return sx_ecmp_id;
 }
 
-sai_status_t mlnx_ecmp_to_nhg_map_entry_add(_In_ sx_ecmp_id_t key, _In_ mlnx_shm_rm_array_idx_t value)
+static sai_status_t mlnx_ecmp_to_nhg_map_entry_add(_In_ sx_ecmp_id_t key, _In_ mlnx_shm_rm_array_idx_t value)
 {
     sai_status_t                 status;
     uint32_t                     index = mlnx_ecmp_id_hash(key) % MLNX_ECMP_NHG_HASHTABLE_SIZE;
@@ -1970,7 +2036,7 @@ sai_status_t mlnx_ecmp_to_nhg_map_entry_add(_In_ sx_ecmp_id_t key, _In_ mlnx_shm
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_ecmp_to_nhg_map_entry_del(_In_ sx_ecmp_id_t key)
+static sai_status_t mlnx_ecmp_to_nhg_map_entry_del(_In_ sx_ecmp_id_t key)
 {
     sai_status_t                 status;
     uint32_t                     index = mlnx_ecmp_id_hash(key) % MLNX_ECMP_NHG_HASHTABLE_SIZE;
@@ -2357,6 +2423,34 @@ sai_status_t mlnx_nhg_counter_update(_In_ mlnx_shm_rm_array_idx_t nhg_idx, _In_ 
     return SAI_STATUS_SUCCESS;
 }
 
+/* Must be guarded with a lock */
+sai_status_t mlnx_nhg_get_regular_ecmp(_In_ sai_object_id_t nhg, _Out_ sx_ecmp_id_t   *sx_ecmp_id)
+{
+    sai_status_t            status = SAI_STATUS_SUCCESS;
+    mlnx_nhg_db_entry_t    *nhg_db_entry;
+    mlnx_shm_rm_array_idx_t nhg_idx;
+
+    status = mlnx_nhg_oid_to_data(nhg, &nhg_db_entry, &nhg_idx);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to get data from DB.\n");
+        goto exit;
+    }
+
+    if (nhg_db_entry->data.type == MLNX_NHG_TYPE_ECMP) {
+        *sx_ecmp_id = nhg_db_entry->data.data.encap.vrf_data[MLNX_REGULAR_ECMP_INDEX].sx_ecmp_id;
+    } else if (nhg_db_entry->data.type == MLNX_NHG_TYPE_FINE_GRAIN) {
+        *sx_ecmp_id = nhg_db_entry->data.data.fine_grain.sx_ecmp_id;
+    } else {
+        *sx_ecmp_id = 0;
+        status = SAI_STATUS_FAILURE;
+        SX_LOG_ERR("Unexpected NHG type: [%d]\n", nhg_db_entry->data.type);
+        goto exit;
+    }
+
+exit:
+    return status;
+}
+
 sai_status_t mlnx_nhg_get_ecmp(_In_ sai_object_id_t nhg,
                                _In_ sai_object_id_t vrf,
                                _In_ int32_t         diff,
@@ -2636,9 +2730,9 @@ static sai_status_t mlnx_nhgm_type_native_remove(mlnx_nhgm_db_entry_t *nhgm_db_e
         return status;
     }
 
-    for (int32_t ii = 0; ii < NUMBER_OF_LOCAL_VNETS; ii++) {
+    for (int32_t ii = 0; ii < NUMBER_OF_VRF_DATA_SETS; ii++) {
         vrf_data = &nhg_db_entry->data.data.encap.vrf_data[ii];
-        if (vrf_data->refcount > 0) {
+        if (vrf_data->sx_ecmp_id != 0) {
             status = remove_next_hop_data_from_ecmp_id(vrf_data->sx_ecmp_id,
                                                        sx_next_hop);
             if (SAI_ERR(status)) {
@@ -2964,6 +3058,8 @@ const sai_next_hop_group_api_t mlnx_next_hop_group_api = {
     mlnx_get_next_hop_group_member_attribute,
     mlnx_create_next_hop_group_members,
     mlnx_remove_next_hop_group_members,
+    NULL,
+    NULL,
     NULL,
     NULL,
     NULL,

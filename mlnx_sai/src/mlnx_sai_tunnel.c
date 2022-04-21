@@ -9504,4 +9504,6 @@ const sai_tunnel_api_t mlnx_tunnel_api = {
     mlnx_remove_tunnel_map_entry,
     mlnx_set_tunnel_map_entry_attribute,
     mlnx_get_tunnel_map_entry_attribute,
+    NULL,
+    NULL,
 };

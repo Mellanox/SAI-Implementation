@@ -1,7 +1,7 @@
 Nvidia SAI implementation release notes
 ==========================================
 
-Release 1.21.0
+Release 1.21.1
 ---------------
 
 Current implementation is partial. 
@@ -9,7 +9,7 @@ Current implementation is partial.
 Not all the APIs that are defined were fully implemented in this release. Missing flows or implementation are noted in the code as "TODO : ..." comments.
 
 The code was tested to work on X86 for Spectrum1, Spectrum2 and Spectrum3
-The code compiles with, and was tested with, SDK version 4.5.1500.
+The code compiles with, and was tested with, SDK version 4.5.2204.
 
 As a precondition to running SAI initialize switch, SDK must not be running (If it's running, terminate it with dvs_stop.sh). 
 The application must provide one key/value pair on profile services, depending on system type :
@@ -64,6 +64,7 @@ ACL has the following limitations :
 * When using SAI_ACL_IP_TYPE_ANY, it's necessary to set at list one other field, as internally no key is used to match ANY value, and at least one key should be set for every rule
 * ACL SAI_ACL_ENTRY_ATTR_ACTION_MIRROR_INGRESS isn't supported at Egress stage. Note an exception, for SAI_ACL_BIND_POINT_TYPE_ROUTER_INTERFACE at Egress stage, only SAI_ACL_ENTRY_ATTR_ACTION_MIRROR_INGRESS can be used.
 * SAI_ACL_ENTRY_ATTR_ACTION_ADD_VLAN_PRI is supported only when paired with SAI_ACL_ENTRY_ATTR_ACTION_ADD_VLAN_ID as actions of the same ACL entry.
+* When setting next hop group as a target of ACL action redirect, traffic will be redirected only to next hop group members that are not tunnel encap next hops.
 
 IP over IP has the following limitations :
 * Set is not supported on any attribute in sai_tunnel_attr_t

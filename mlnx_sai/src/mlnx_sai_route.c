@@ -59,7 +59,6 @@ static sai_status_t mlnx_route_next_hop_id_set(_In_ const sai_object_key_t      
 static sai_status_t mlnx_get_route(const sai_route_entry_t* route_entry,
                                    sx_uc_route_get_entry_t *route_get_entry,
                                    sx_router_id_t          *vrid);
-static sai_status_t mlnx_route_next_hop_id_get_ext(_In_ sx_ecmp_id_t ecmp, _Out_ sai_object_id_t *nh);
 static sai_status_t mlnx_route_counter_id_set(_In_ const sai_object_key_t      *key,
                                               _In_ const sai_attribute_value_t *value,
                                               void                             *arg);
@@ -923,7 +922,7 @@ static sai_status_t mlnx_route_get_encap_nexthop(_In_ sx_ip_addr_t *ip, _Out_ sa
     return status;
 }
 
-static sai_status_t mlnx_route_next_hop_id_get_ext(_In_ sx_ecmp_id_t ecmp, _Out_ sai_object_id_t *nh)
+sai_status_t mlnx_route_next_hop_id_get_ext(_In_ sx_ecmp_id_t ecmp, _Out_ sai_object_id_t *nh)
 {
     sai_status_t            status;
     mlnx_shm_rm_array_idx_t nhg_idx;

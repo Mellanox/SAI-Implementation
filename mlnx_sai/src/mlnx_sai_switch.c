@@ -4966,6 +4966,18 @@ static sai_status_t mlnx_dvs_mng_stage(mlnx_sai_boot_type_t boot_type, sai_objec
         goto out;
     }
 
+    status = mlnx_descriptor_buffer_init();
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to initialize descriptor buffer\n");
+        goto out;
+    }
+
+    status = mlnx_init_buffer_pool_ids();
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to initialize buffer pool ids\n");
+        goto out;
+    }
+
     /* Need to read SDK port list twice:
      * First time: SDK port list only contains all physical ports
      * Do sx_api_port_init_set to initialize SDK ports, SDK will update LAG information
@@ -6708,10 +6720,6 @@ static sai_status_t mlnx_initialize_switch(sai_object_id_t switch_id, bool *tran
         return sdk_to_sai(sdk_status);
     }
 
-    if (SAI_STATUS_SUCCESS != (sai_status = mlnx_init_buffer_pool_ids())) {
-        return sai_status;
-    }
-
     if (SAI_STATUS_SUCCESS != (sai_status = mlnx_hash_initialize())) {
         return sai_status;
     }
@@ -7452,8 +7460,6 @@ static sai_status_t mlnx_disconnect_switch(void)
         SX_LOG_ERR("API close failed.\n");
     }
 
-    sai_fx_uninitialize();
-
     memset(&g_notification_callbacks, 0, sizeof(g_notification_callbacks));
 
     mlnx_acl_disconnect();
@@ -7467,6 +7473,17 @@ static sai_status_t mlnx_disconnect_switch(void)
         free(g_sai_acl_db_ptr);
     }
     g_sai_acl_db_ptr = NULL;
+
+    if (g_sai_tunnel_db_ptr != NULL) {
+        free(g_sai_tunnel_db_ptr);
+    }
+    g_sai_tunnel_db_ptr = NULL;
+
+    if (g_sai_buffer_db_ptr != NULL) {
+        free(g_sai_buffer_db_ptr);
+    }
+    g_sai_buffer_db_ptr = NULL;
+
 
     return sdk_to_sai(status);
 }

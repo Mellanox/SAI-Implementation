@@ -204,6 +204,11 @@ sai_status_t sai_object_type_get_availability(_In_ sai_object_id_t        switch
         return SAI_STATUS_FAILURE;
     }
 
+    if (NULL == count) {
+        SX_LOG_ERR("NULL count param\n");
+        return SAI_STATUS_INVALID_PARAMETER;
+    }
+
     if (attr_count && !attr_list) {
         SX_LOG_ERR("attr_count > 0 but attr_list is NULL\n");
         SX_LOG_EXIT();
@@ -245,6 +250,27 @@ out:
     sai_db_unlock();
     SX_LOG_EXIT();
     return status;
+}
+
+/**
+ * @brief Retrieve a SAI API version this implementation is aligned to
+ *
+ * @param[out] version Version number
+ *
+ * @return #SAI_STATUS_SUCCESS on success, failure status code on error
+ */
+sai_status_t sai_query_api_version(_Out_ sai_api_version_t *version)
+{
+    SX_LOG_ENTER();
+
+    if (NULL == version) {
+        SX_LOG_ERR("NULL version param\n");
+        return SAI_STATUS_INVALID_PARAMETER;
+    }
+
+    *version = SAI_API_VERSION;
+    SX_LOG_EXIT();
+    return SAI_STATUS_SUCCESS;
 }
 
 sai_status_t mlnx_object_log_set(sx_verbosity_level_t level)
