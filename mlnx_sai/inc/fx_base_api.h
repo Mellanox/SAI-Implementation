@@ -272,7 +272,7 @@ sx_status_t fx_get_bindable_port_list(fx_handle_t handle, sx_port_log_id_t *if_l
 
 /** @brief get a list of all bindable rifs
  * @param[in] handle - handle to api calls
- * @param[out] if_list   - array of logical port 
+ * @param[out] if_list   - array of rif
  * @param[inout] if_list_cnt - size of the if_list array
  *
  * @return sx_status_t:

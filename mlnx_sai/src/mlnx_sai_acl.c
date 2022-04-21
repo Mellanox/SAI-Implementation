@@ -7635,7 +7635,14 @@ static sai_status_t mlnx_acl_redirect_sx_to_sai(_In_ const sx_flex_acl_flex_acti
         break;
 
     case SX_FLEX_ACL_ACTION_UC_ROUTE:
-        return SAI_STATUS_NOT_IMPLEMENTED;
+        sai_db_write_lock();
+        status = mlnx_route_next_hop_id_get_ext(sx_action->fields.action_uc_route.uc_route_param.ecmp_id,
+                                                &sai_action_data->parameter.oid);
+        if (SAI_ERR(status)) {
+            sai_db_unlock();
+            return status;
+        }
+        sai_db_unlock();
         break;
 
     case SX_FLEX_ACL_ACTION_NVE_TUNNEL_ENCAP:
@@ -18673,7 +18680,10 @@ static sai_status_t mlnx_sai_acl_redirect_action_create(_In_ sai_object_id_t    
 {
     sai_status_t      status = SAI_STATUS_SUCCESS;
     sai_object_type_t object_type;
+    sx_ecmp_id_t      sx_ecmp_id;
     sx_acl_pbs_id_t   sx_pbs_id;
+    uint32_t          data;
+    uint16_t          use_db;
 
     assert(pbs_info);
     assert(sx_action);
@@ -18694,8 +18704,37 @@ static sai_status_t mlnx_sai_acl_redirect_action_create(_In_ sai_object_id_t    
         break;
 
     case SAI_OBJECT_TYPE_NEXT_HOP:
+        status = mlnx_object_to_type(object_id,
+                                     SAI_OBJECT_TYPE_NEXT_HOP,
+                                     &data,
+                                     (uint8_t*)&use_db);
+        if (SAI_ERR(status)) {
+            return status;
+        }
+
+        /* Encap NH is not supported */
+        if (use_db) {
+            return SAI_STATUS_NOT_SUPPORTED;
+        }
+
+        sx_ecmp_id = (sx_ecmp_id_t)data;
+
+        sx_action->type = SX_FLEX_ACL_ACTION_UC_ROUTE;
+        sx_action->fields.action_uc_route.uc_route_type = SX_UC_ROUTE_TYPE_NEXT_HOP;
+        sx_action->fields.action_uc_route.uc_route_param.ecmp_id = sx_ecmp_id;
+        break;
+
     case SAI_OBJECT_TYPE_NEXT_HOP_GROUP:
-        return SAI_STATUS_NOT_SUPPORTED;
+        status = mlnx_nhg_get_regular_ecmp(object_id,
+                                           &sx_ecmp_id);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to get Regular NHG sx_ecmp_id.\n");
+            return status;
+        }
+
+        sx_action->type = SX_FLEX_ACL_ACTION_UC_ROUTE;
+        sx_action->fields.action_uc_route.uc_route_type = SX_UC_ROUTE_TYPE_NEXT_HOP;
+        sx_action->fields.action_uc_route.uc_route_param.ecmp_id = sx_ecmp_id;
         break;
 
     case SAI_OBJECT_TYPE_BRIDGE_PORT:

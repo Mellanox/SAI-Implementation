@@ -64,6 +64,7 @@ ACL has the following limitations :
 * When using SAI_ACL_IP_TYPE_ANY, it's necessary to set at list one other field, as internally no key is used to match ANY value, and at least one key should be set for every rule
 * ACL SAI_ACL_ENTRY_ATTR_ACTION_MIRROR_INGRESS isn't supported at Egress stage. Note an exception, for SAI_ACL_BIND_POINT_TYPE_ROUTER_INTERFACE at Egress stage, only SAI_ACL_ENTRY_ATTR_ACTION_MIRROR_INGRESS can be used.
 * SAI_ACL_ENTRY_ATTR_ACTION_ADD_VLAN_PRI is supported only when paired with SAI_ACL_ENTRY_ATTR_ACTION_ADD_VLAN_ID as actions of the same ACL entry.
+* When setting next hop group as a target of ACL action redirect, traffic will be redirected only to next hop group members that are not tunnel encap next hops.
 
 IP over IP has the following limitations :
 * Set is not supported on any attribute in sai_tunnel_attr_t

@@ -8988,6 +8988,20 @@ sai_status_t mlnx_port_config_init(mlnx_port_config_t *port)
     port->internal_ingress_samplepacket_obj_idx = MLNX_INVALID_SAMPLEPACKET_SESSION;
     port->internal_egress_samplepacket_obj_idx = MLNX_INVALID_SAMPLEPACKET_SESSION;
 
+    if (!mlnx_port_is_lag(port)) {
+        status = mlnx_apply_descriptor_buffer_to_port(port->logical, true);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to unbind default descriptor buffer to port %x\n", port->logical);
+            return status;
+        }
+
+        status = mlnx_apply_descriptor_buffer_to_port(port->logical, false);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to bind descriptor buffer to port %x\n", port->logical);
+            return status;
+        }
+    }
+
     port->is_present = true;
 
     if (!mlnx_port_is_virt(port)) {

@@ -1498,6 +1498,8 @@ sai_status_t mlnx_port_tc_set(sx_port_log_id_t port_id, _In_ const uint8_t tc);
 sai_status_t get_buffer_profile_db_index(_In_ sai_object_id_t oid, _Out_ uint32_t* db_index);
 sai_status_t mlnx_buffer_apply(_In_ sai_object_id_t sai_buffer, _In_ sai_object_id_t to_obj_id);
 
+sai_status_t mlnx_descriptor_buffer_init();
+sai_status_t mlnx_apply_descriptor_buffer_to_port(sx_port_log_id_t port_log_id, bool remove_default_descriptor_buffer);
 sai_status_t set_mc_sp_zero(_In_ uint32_t sp);
 
 sai_status_t mlnx_wred_apply_to_queue(_In_ mlnx_port_config_t *port,
@@ -1514,15 +1516,15 @@ sai_status_t mlnx_port_bitmap_to_speeds(_In_ const sx_port_speed_t speed_bitmap,
 
 #define MAX_ENCAP_NEXTHOPS_NUMBER 40000
 #define NUMBER_OF_LOCAL_VNETS     32
+#define NUMBER_OF_VRF_DATA_SETS   ((NUMBER_OF_LOCAL_VNETS)+1)
+#define MLNX_REGULAR_ECMP_INDEX   (NUMBER_OF_LOCAL_VNETS)
 
 typedef struct _mlnx_fake_nh_db_data_t {
-    sai_object_id_t             associated_vrf;
-    sx_ip_addr_t                sx_fake_ipaddr;
-    sx_ecmp_id_t                sx_fake_nexthop;
-    sx_neigh_data_t             sx_fake_neighbor;
-    sx_fdb_uc_mac_addr_params_t sx_fake_fdb; /* Used only on SPC1, see bug #2876908 */
-    int32_t                     counter;
-    int32_t                     nhgm_counter;
+    sai_object_id_t associated_vrf;
+    sx_ip_v4_addr_t sx_fake_ip_v4_addr;
+    sx_ecmp_id_t    sx_fake_nexthop;
+    int32_t         counter;
+    int32_t         nhgm_counter;
 } mlnx_fake_nh_db_data_t;
 
 typedef struct _mlnx_encap_nexthop_db_data_t {
@@ -1587,6 +1589,8 @@ sai_status_t mlnx_counter_oid_to_data(_In_ sai_object_id_t           oid,
 sai_status_t mlnx_counter_oid_create(_In_ mlnx_shm_rm_array_idx_t idx, _Out_ sai_object_id_t *oid);
 sai_status_t mlnx_get_sx_flow_counter_id_by_idx(_In_ mlnx_shm_rm_array_idx_t idx,
                                                 _Out_ sx_flow_counter_id_t  *sx_flow_counter);
+sai_status_t mlnx_route_next_hop_id_get_ext(_In_ sx_ecmp_id_t      ecmp,
+                                            _Out_ sai_object_id_t *nh);
 
 #define MLNX_NHG_DB_SIZE             (4000)
 #define MLNX_NHG_MEMBER_DB_SIZE      (MLNX_NHG_DB_SIZE * 128)
@@ -1613,7 +1617,7 @@ typedef struct _mlnx_nhg_encap_vrf_data_t {
 } mlnx_nhg_encap_vrf_data_t;
 
 typedef struct _mlnx_nhg_encap_data_t {
-    mlnx_nhg_encap_vrf_data_t vrf_data[NUMBER_OF_LOCAL_VNETS];
+    mlnx_nhg_encap_vrf_data_t vrf_data[NUMBER_OF_LOCAL_VNETS + 1];
 } mlnx_nhg_encap_data_t;
 
 typedef struct _mlnx_nhg_fine_grain_data_t {
@@ -1673,6 +1677,11 @@ sai_status_t mlnx_nhg_counter_update(_In_ mlnx_shm_rm_array_idx_t nhg_idx,
                                      _In_ int32_t                 diff);
 sai_status_t mlnx_nhg_oid_create(_In_ mlnx_shm_rm_array_idx_t idx,
                                  _Out_ sai_object_id_t       *oid);
+sai_status_t mlnx_nhg_oid_to_data(_In_ sai_object_id_t           oid,
+                                  _Out_ mlnx_nhg_db_entry_t    **nhg_db_entry,
+                                  _Out_ mlnx_shm_rm_array_idx_t *idx);
+sai_status_t mlnx_nhg_get_regular_ecmp(_In_ sai_object_id_t nhg,
+                                       _Out_ sx_ecmp_id_t  *sx_ecmp_id);
 
 #define mlnx_vlan_id_foreach(vid) \
     for (vid = SXD_VID_MIN; vid <= SXD_VID_MAX; vid++)
@@ -2957,6 +2966,10 @@ typedef struct _mlnx_sai_buffer_pool_ids_t {
     uint32_t base_egress_user_sx_pool_id;
     uint32_t default_multicast_pool_id;
     uint32_t user_pool_step;
+    uint32_t default_descriptor_ingress_pool_id;
+    uint32_t default_descriptor_egress_pool_id;
+    uint32_t ingress_descriptor_pool_id;
+    uint32_t egress_descriptor_pool_id;
 } mlnx_sai_buffer_pool_ids_t;
 
 sai_status_t mlnx_init_buffer_pool_ids();
