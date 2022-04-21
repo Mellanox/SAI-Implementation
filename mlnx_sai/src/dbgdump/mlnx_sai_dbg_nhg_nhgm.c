@@ -176,8 +176,9 @@ static void SAI_dump_nhg_print(_In_ FILE *file, _In_ const mlnx_nhg_db_entry_t  
             encap_print = debug_nhg_encap_clmns;
             dbg_utils_print_table_headline(file, debug_nhg_encap_clmns);
 
-            for (loop = 0; loop < NUMBER_OF_LOCAL_VNETS; ++loop) {
-                if (0 < cur_nhg.data.data.encap.vrf_data[loop].refcount) {
+            for (loop = 0; loop < NUMBER_OF_VRF_DATA_SETS; ++loop) {
+                if ((cur_nhg.data.data.encap.vrf_data[loop].sx_ecmp_id != 0) ||
+                    (cur_nhg.data.data.encap.vrf_data[loop].refcount > 0)) {
                     dbg_utils_print_table_data_line(file, encap_print);
                     encap_print = debug_nhg_encap_tb_clmns;
                 }

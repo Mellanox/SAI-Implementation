@@ -7115,8 +7115,6 @@ static sai_status_t mlnx_disconnect_switch(void)
         SX_LOG_ERR("API close failed.\n");
     }
 
-    sai_fx_uninitialize();
-
     memset(&g_notification_callbacks, 0, sizeof(g_notification_callbacks));
 
     mlnx_acl_disconnect();
@@ -7130,6 +7128,17 @@ static sai_status_t mlnx_disconnect_switch(void)
         free(g_sai_acl_db_ptr);
     }
     g_sai_acl_db_ptr = NULL;
+
+    if (g_sai_tunnel_db_ptr != NULL) {
+        free(g_sai_tunnel_db_ptr);
+    }
+    g_sai_tunnel_db_ptr = NULL;
+
+    if (g_sai_buffer_db_ptr != NULL) {
+        free(g_sai_buffer_db_ptr);
+    }
+    g_sai_buffer_db_ptr = NULL;
+
 
     return sdk_to_sai(status);
 }
