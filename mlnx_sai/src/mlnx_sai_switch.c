@@ -2756,7 +2756,7 @@ static sai_status_t mlnx_chassis_mng_stage(mlnx_sai_boot_type_t boot_type,
     memcpy(&(sdk_init_params.profile), ku_profile, sizeof(struct ku_profile));
     memcpy(&(sdk_init_params.pci_profile), pci_profile, sizeof(struct sx_pci_profile));
     sdk_init_params.applibs_mask = SX_API_FLOW_COUNTER | SX_API_POLICER | SX_API_HOST_IFC | SX_API_SPAN |
-                                   SX_API_ETH_L2 | SX_API_ACL;
+                                   SX_API_ETH_L2 | SX_API_ACL | SX_API_MGMT_LIB;
     sdk_init_params.profile.chip_type = g_sai_db_ptr->sx_chip_type;
 
     issu_path = g_mlnx_services.profile_get_value(g_profile_id, SAI_KEY_WARM_BOOT_WRITE_FILE);
