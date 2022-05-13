@@ -462,7 +462,8 @@ static sai_status_t sai_dbg_run_mlxtrace(_In_ const char *dirname)
     const char *device_name = NULL;
     const char *config_cmd_line_switch = NULL;
     char        mlxtrace_ext_command_line[2 * PATH_MAX + 200];
-    int         system_err;
+
+    /*int         system_err; */
 
     if (mlnx_chip_is_spc()) {
         device_name = "mt52100_pci_cr0";
@@ -486,11 +487,11 @@ static sai_status_t sai_dbg_run_mlxtrace(_In_ const char *dirname)
              dirname,
              device_name);
 
-    system_err = system(mlxtrace_ext_command_line);
-    if (0 != system_err) {
-        SX_LOG_ERR("Failed running \"%s\".\n", mlxtrace_ext_command_line);
-        return SAI_STATUS_FAILURE;
-    }
+    /*system_err = system(mlxtrace_ext_command_line);
+     *  if (0 != system_err) {
+     *   SX_LOG_ERR("Failed running \"%s\".\n", mlxtrace_ext_command_line);
+     *   return SAI_STATUS_FAILURE;
+     *  }*/
 
     return SAI_STATUS_SUCCESS;
 }
