@@ -1,4 +1,4 @@
-mlnx-sai (1.mlnx.SAIRel1.21.1.2) unstable; urgency=low
+mlnx-sai (1.mlnx.SAIRel1.21.2.2) unstable; urgency=low
   [ MLNX ]
   * Initial release. (Closes: #XXXXXX)
 

@@ -769,22 +769,10 @@ static sai_status_t mlnx_create_next_hop_group(_Out_ sai_object_id_t      *next_
                 goto exit;
             }
 
+            db_entry->data.data.fine_grain.sx_ecmp_id = SX_ROUTER_ECMP_ID_INVALID;
+
             db_entry->data.data.fine_grain.configured_size = configured_size.value->u32;
             db_entry->data.data.fine_grain.real_size = real_size;
-
-            sx_status_t   sx_status;
-            sx_next_hop_t next_hops[1];
-            uint32_t      next_hop_cnt = 0;
-            sx_status = sx_api_router_ecmp_set(gh_sdk,
-                                               SX_ACCESS_CMD_CREATE,
-                                               &db_entry->data.data.fine_grain.sx_ecmp_id,
-                                               next_hops,
-                                               &next_hop_cnt);
-            if (SX_ERR(sx_status)) {
-                SX_LOG_ERR("Failed to create fine grain sx_ecmp_id - %s.\n", SX_STATUS_MSG(sx_status));
-                status = sdk_to_sai(status);
-                goto exit;
-            }
         } else if (type.value->s32 == SAI_NEXT_HOP_GROUP_TYPE_ECMP) {
             db_entry->data.type = MLNX_NHG_TYPE_ECMP;
 
@@ -870,6 +858,11 @@ static sai_status_t mlnx_nhg_fine_grain_remove(_In_ mlnx_nhg_db_entry_t *db_entr
     uint32_t    next_hop_cnt;
 
     assert(db_entry && db_entry->data.type == MLNX_NHG_TYPE_FINE_GRAIN);
+
+    if (SX_ROUTER_ECMP_ID_INVALID == db_entry->data.data.fine_grain.sx_ecmp_id) {
+        /*do nothing */
+        return SAI_STATUS_SUCCESS;
+    }
 
     sx_status = sx_api_router_ecmp_set(gh_sdk,
                                        SX_ACCESS_CMD_DESTROY,
@@ -1247,10 +1240,10 @@ static sai_status_t nhgm_get_flow_counter(_In_ mlnx_nhgm_db_entry_t  *nhgm_db_en
 
 static sai_status_t mlnx_nghm_next_hop_oid_set(_In_ mlnx_nhgm_db_entry_t *nhgm_db_entry, _In_ sai_object_id_t oid)
 {
-    sai_status_t         status;
-    sx_next_hop_t        next_hops[FG_ECMP_MAX_PATHS];
-    uint32_t             next_hop_count = FG_ECMP_MAX_PATHS;
-    mlnx_nhg_db_entry_t *nhg_db_entry;
+    sai_status_t           status;
+    sx_status_t            sx_status;
+    mlnx_nhg_db_entry_t   *nhg_db_entry;
+    sx_ecmp_update_entry_t edited_nhgm;
 
     if (nhgm_db_entry->data.type != MLNX_NHGM_TYPE_FINE_GRAIN) {
         SX_LOG_ERR("Failed to set next hop id - supported only for FINE_GRAIN_ECMP\n");
@@ -1266,28 +1259,26 @@ static sai_status_t mlnx_nghm_next_hop_oid_set(_In_ mlnx_nhgm_db_entry_t *nhgm_d
     sx_ecmp_id_t sx_group_id = nhg_db_entry->data.data.fine_grain.sx_ecmp_id;
     uint32_t     index = nhgm_db_entry->data.entry.fg_id;
 
-    status = sx_api_router_ecmp_get(gh_sdk, sx_group_id, next_hops, &next_hop_count);
-    if (SX_ERR(status)) {
-        SX_LOG_ERR("Failed to get ecmp - %s.\n", SX_STATUS_MSG(status));
-        return sdk_to_sai(status);
-    }
+    memset(&edited_nhgm, 0, sizeof(edited_nhgm));
 
-    status = mlnx_translate_sai_next_hop_objects(1, &oid, &next_hops[index]);
+    status = mlnx_translate_sai_next_hop_objects(1, &oid, &edited_nhgm.next_hop);
     if (SAI_ERR(status)) {
         SX_LOG_ERR("Failed to translate_sai_next_hop_objects %lu.\n", oid);
         return status;
     }
 
-    status = nhgm_get_flow_counter(nhgm_db_entry, nhg_db_entry, &next_hops[index].next_hop_data.counter_id);
+    status = nhgm_get_flow_counter(nhgm_db_entry, nhg_db_entry, &edited_nhgm.next_hop.next_hop_data.counter_id);
     if (SAI_ERR(status)) {
         SX_LOG_ERR("Failed to get flow counter.\n");
         return status;
     }
 
-    status = sx_api_router_ecmp_set(gh_sdk, SX_ACCESS_CMD_SET, &sx_group_id, next_hops, &next_hop_count);
-    if (SAI_ERR(status)) {
-        SX_LOG_ERR("Failed to set ecmp - %s.\n", SX_STATUS_MSG(status));
-        return sdk_to_sai(status);
+    edited_nhgm.next_hop_index = index;
+
+    sx_status = sx_api_router_ecmp_update_set(gh_sdk, SX_ACCESS_CMD_SET, sx_group_id, &edited_nhgm, 1);
+    if (SAI_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to update ecmp - %s.\n", SX_STATUS_MSG(sx_status));
+        return sdk_to_sai(sx_status);
     }
 
     return SAI_STATUS_SUCCESS;
@@ -1849,24 +1840,15 @@ static sai_status_t mlnx_nhgm_type_fine_grain_apply(mlnx_nhgm_db_entry_t *nhgm_d
                                                     mlnx_nhg_db_entry_t  *nhg_db_entry,
                                                     sai_object_id_t       nh)
 {
-    uint32_t             next_hop_count = FG_ECMP_MAX_PATHS;
-    sx_next_hop_t        ecmp_next_hops[FG_ECMP_MAX_PATHS];
-    sai_status_t         status;
-    sx_status_t          sx_status;
-    sx_flow_counter_id_t sx_flow_counter;
+    uint32_t               next_hop_count = 0;
+    sx_next_hop_t          ecmp_next_hops[FG_ECMP_MAX_PATHS];
+    sai_status_t           status;
+    sx_status_t            sx_status;
+    sx_flow_counter_id_t   sx_flow_counter;
+    sx_ecmp_update_entry_t edited_nhgm;
 
     assert(nhgm_db_entry && nhgm_db_entry->data.type == MLNX_NHGM_TYPE_FINE_GRAIN);
 
-    sx_status = sx_api_router_ecmp_get(gh_sdk,
-                                       nhg_db_entry->data.data.fine_grain.sx_ecmp_id,
-                                       ecmp_next_hops,
-                                       &next_hop_count);
-    if (SX_ERR(sx_status)) {
-        SX_LOG_ERR("Failed to get ecmp - %s.\n", SX_STATUS_MSG(sx_status));
-        return sdk_to_sai(sx_status);
-    }
-
-    ecmp_next_hops[nhgm_db_entry->data.entry.fg_id].next_hop_data.weight = nhgm_get_weight(nhgm_db_entry);
     status = nhgm_get_flow_counter(nhgm_db_entry,
                                    nhg_db_entry,
                                    &sx_flow_counter);
@@ -1875,7 +1857,7 @@ static sai_status_t mlnx_nhgm_type_fine_grain_apply(mlnx_nhgm_db_entry_t *nhgm_d
         return status;
     }
 
-    if (next_hop_count == 0) {
+    if (SX_ROUTER_ECMP_ID_INVALID == nhg_db_entry->data.data.fine_grain.sx_ecmp_id) {
         /* when adding the first member - fill the entire group with this element */
         for (uint32_t jj = 0; jj < nhg_db_entry->data.data.fine_grain.real_size; ++jj) {
             status = mlnx_translate_sai_next_hop_objects(1, &nh, &ecmp_next_hops[jj]);
@@ -1883,21 +1865,32 @@ static sai_status_t mlnx_nhgm_type_fine_grain_apply(mlnx_nhgm_db_entry_t *nhgm_d
                 return status;
             }
             ecmp_next_hops[jj].next_hop_data.counter_id = sx_flow_counter;
+            ecmp_next_hops[jj].next_hop_data.weight = nhgm_get_weight(nhgm_db_entry);
         }
         next_hop_count = nhg_db_entry->data.data.fine_grain.real_size;
+
+        sx_status = sx_api_router_ecmp_set(gh_sdk,
+                                           SX_ACCESS_CMD_CREATE,
+                                           &nhg_db_entry->data.data.fine_grain.sx_ecmp_id,
+                                           ecmp_next_hops,
+                                           &next_hop_count);
     } else {
-        status = mlnx_translate_sai_next_hop_objects(1, &nh, &ecmp_next_hops[nhgm_db_entry->data.entry.fg_id]);
+        memset(&edited_nhgm, 0, sizeof(edited_nhgm));
+        status = mlnx_translate_sai_next_hop_objects(1, &nh, &edited_nhgm.next_hop);
         if (SAI_ERR(status)) {
             return status;
         }
-        ecmp_next_hops[nhgm_db_entry->data.entry.fg_id].next_hop_data.counter_id = sx_flow_counter;
+        edited_nhgm.next_hop_index = nhgm_db_entry->data.entry.fg_id;
+        edited_nhgm.next_hop.next_hop_data.weight = nhgm_get_weight(nhgm_db_entry);
+        edited_nhgm.next_hop.next_hop_data.counter_id = sx_flow_counter;
+
+        sx_status = sx_api_router_ecmp_update_set(gh_sdk,
+                                                  SX_ACCESS_CMD_SET,
+                                                  nhg_db_entry->data.data.fine_grain.sx_ecmp_id,
+                                                  &edited_nhgm,
+                                                  1);
     }
 
-    sx_status = sx_api_router_ecmp_set(gh_sdk,
-                                       SX_ACCESS_CMD_SET,
-                                       &nhg_db_entry->data.data.fine_grain.sx_ecmp_id,
-                                       ecmp_next_hops,
-                                       &next_hop_count);
     if (SAI_ERR(sx_status)) {
         SX_LOG_ERR("Failed to set ecmp - %s.\n", SX_STATUS_MSG(sx_status));
         return sdk_to_sai(sx_status);
