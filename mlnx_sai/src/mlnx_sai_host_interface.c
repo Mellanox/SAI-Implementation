@@ -4567,7 +4567,7 @@ sai_status_t mlnx_create_hostif_table_entry(_Out_ sai_object_id_t      *hif_tabl
     uint32_t                     type_index, channel_index, obj_index, trap_attr_index, fd_index;
     char                         key_str[MAX_KEY_STR_LEN];
     char                         list_str[MAX_LIST_VALUE_STR_LEN];
-    uint32_t                     trap_db_index;
+    uint32_t                     trap_db_index = 0;
     sx_host_ifc_register_key_t   sx_register_key;
     bool                         is_registered;
     sai_object_id_t              port_lag_vlan_oid = SAI_NULL_OBJECT_ID;

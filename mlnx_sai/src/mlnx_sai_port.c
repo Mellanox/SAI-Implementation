@@ -441,6 +441,10 @@ uint64_t mlnx_port_intf_bitmap_sp[MAX_NUM_PORT_INTFS] = {
     (SP_10GB_CX4_XAUI | SP_10GB_KX4),
     (SP_10GB_ER_LR | SP_10GB_SR),
     (0),
+    (0),
+    (0),
+    (0),
+    (0)
 };
 
 uint64_t mlnx_port_lanes_speed_bitmask_sp[MAX_LANES_SPC3_4 + 1] = {
@@ -523,6 +527,10 @@ uint64_t mlnx_port_intf_bitmap_sp2[MAX_NUM_PORT_INTFS] = {
     (0),
     (SP2_10G),
     (0),
+    (SP2_400G | SP2_400Gx8),
+    (SP2_400G | SP2_400Gx8),
+    (SP2_400G | SP2_400Gx8),
+    (SP2_400G | SP2_400Gx8)
 };
 
 uint64_t mlnx_port_lanes_speed_bitmask_sp2[MAX_LANES_SPC3_4 + 1] = {
@@ -593,12 +601,12 @@ uint64_t mlnx_port_intf_bitmap_sp4[MAX_NUM_PORT_INTFS] = {
     (SP4_MAX - 1),
     (SP4_100M | SP4_1G | SP4_10G | SP4_25G | SP4_50Gx1 | SP4_100Gx1),
     (SP4_50Gx2 | SP4_100Gx2 | SP4_200Gx2),
-    (SP4_40G | SP4_100Gx4 | SP4_200Gx4 | SP4_400Gx4 | SP4_800Gx8),
+    (SP4_40G | SP4_100Gx4 | SP4_200Gx4 | SP4_400Gx4),
     (SP4_100M | SP4_1G | SP4_10G | SP4_25G | SP4_50Gx1 | SP4_100Gx1),
     (SP4_50Gx2 | SP4_100Gx2 | SP4_200Gx2),
-    (SP4_40G | SP4_100Gx4 | SP4_200Gx4 | SP4_400Gx4 | SP4_800Gx8),
+    (SP4_40G | SP4_100Gx4 | SP4_200Gx4 | SP4_400Gx4),
     (SP4_100M | SP4_1G | SP4_10G | SP4_25G | SP4_50Gx1 | SP4_100Gx1),
-    (SP4_40G | SP4_100Gx4 | SP4_200Gx4 | SP4_400Gx4 | SP4_800Gx8),
+    (SP4_40G | SP4_100Gx4 | SP4_200Gx4 | SP4_400Gx4),
     (SP4_100M | SP4_1G | SP4_10G | SP4_25G | SP4_50Gx1),
     (SP4_40G | SP4_100Gx4 | SP4_200Gx4 | SP4_400G),
     (SP4_100G),
@@ -610,6 +618,10 @@ uint64_t mlnx_port_intf_bitmap_sp4[MAX_NUM_PORT_INTFS] = {
     (0),
     (SP4_10G),
     (0),
+    (SP4_400Gx8 | SP4_800Gx8 | SP4_800G),
+    (SP4_400Gx8 | SP4_800Gx8 | SP4_800G),
+    (SP4_400Gx8 | SP4_800Gx8 | SP4_800G),
+    (SP4_400Gx8 | SP4_800Gx8 | SP4_800G)
 };
 
 uint64_t mlnx_port_lanes_speed_bitmask_sp4[MAX_LANES_SPC3_4 + 1] = {
@@ -1086,7 +1098,11 @@ static const mlnx_attr_enum_info_t        port_enum_info[] = {
         SAI_PORT_INTERFACE_TYPE_CAUI4,
         SAI_PORT_INTERFACE_TYPE_XAUI,
         SAI_PORT_INTERFACE_TYPE_XFI,
-        SAI_PORT_INTERFACE_TYPE_XGMII
+        SAI_PORT_INTERFACE_TYPE_XGMII,
+        SAI_PORT_INTERFACE_TYPE_CR8,
+        SAI_PORT_INTERFACE_TYPE_KR8,
+        SAI_PORT_INTERFACE_TYPE_SR8,
+        SAI_PORT_INTERFACE_TYPE_LR8
         ),
 
     [SAI_PORT_ATTR_ADVERTISED_INTERFACE_TYPE] = ATTR_ENUM_VALUES_LIST(
@@ -1109,7 +1125,11 @@ static const mlnx_attr_enum_info_t        port_enum_info[] = {
         SAI_PORT_INTERFACE_TYPE_CAUI4,
         SAI_PORT_INTERFACE_TYPE_XAUI,
         SAI_PORT_INTERFACE_TYPE_XFI,
-        SAI_PORT_INTERFACE_TYPE_XGMII
+        SAI_PORT_INTERFACE_TYPE_XGMII,
+        SAI_PORT_INTERFACE_TYPE_CR8,
+        SAI_PORT_INTERFACE_TYPE_KR8,
+        SAI_PORT_INTERFACE_TYPE_SR8,
+        SAI_PORT_INTERFACE_TYPE_LR8
         ),
 };
 static const sai_stat_capability_t        port_stats_capabilities[] = {

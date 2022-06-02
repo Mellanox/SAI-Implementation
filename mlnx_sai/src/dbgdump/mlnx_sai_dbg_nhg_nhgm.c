@@ -101,7 +101,7 @@ static void SAI_dump_nhg_type_to_str(_In_ mlnx_nhg_type_t type, _Out_ char *str)
 
     const char *name = sai_metadata_enum_sai_next_hop_group_type_t.valuesshortnames[type];
 
-    strncpy(str, name, MAX_STR_LENGTH);
+    strncpy(str, name, MAX_STR_LENGTH - 1);
     str[MAX_STR_LENGTH - 1] = '\0';
 }
 
@@ -118,7 +118,7 @@ static void SAI_dump_nhgm_type_to_str(_In_ mlnx_nhgm_type_t type, _Out_ char *st
     assert(str);
     assert(type <= MLNX_NHGM_TYPE_FINE_GRAIN);
 
-    strncpy(str, sai_next_hop_group_member_type_t_enum_values_short_names[type], MAX_STR_LENGTH);
+    strncpy(str, sai_next_hop_group_member_type_t_enum_values_short_names[type], MAX_STR_LENGTH - 1);
     str[MAX_STR_LENGTH - 1] = '\0';
 }
 

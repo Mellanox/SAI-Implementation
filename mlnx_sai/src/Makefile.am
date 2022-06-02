@@ -167,7 +167,7 @@ libsai_apiinclude_HEADERS = \
         $(top_srcdir)/inc/sai/sail2mc.h \
         $(top_srcdir)/inc/sai/sail2mcgroup.h \
         $(top_srcdir)/inc/sai/sailag.h \
-        $(top_srcdir)/inc/sai/saimacsec.h \      
+        $(top_srcdir)/inc/sai/saimacsec.h \
         $(top_srcdir)/inc/sai/saimcastfdb.h \
         $(top_srcdir)/inc/sai/saimirror.h \
         $(top_srcdir)/inc/sai/saimpls.h \
@@ -191,7 +191,7 @@ libsai_apiinclude_HEADERS = \
         $(top_srcdir)/inc/sai/saistatus.h \
         $(top_srcdir)/inc/sai/saistp.h \
         $(top_srcdir)/inc/sai/saiswitch.h \
-        $(top_srcdir)/inc/sai/saisystemport.h \		
+        $(top_srcdir)/inc/sai/saisystemport.h \
         $(top_srcdir)/inc/sai/saitam.h \
         $(top_srcdir)/inc/sai/saitunnel.h \
         $(top_srcdir)/inc/sai/saitypes.h \

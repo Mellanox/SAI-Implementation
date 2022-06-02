@@ -1226,7 +1226,7 @@ sai_status_t mlnx_vlan_port_del(uint16_t vid, mlnx_bridge_port_t *port)
     } else {
         sx_status = sx_api_vlan_ports_set(gh_sdk, SX_ACCESS_CMD_DELETE, DEFAULT_ETH_SWID, vid, &port_list, 1);
         if (SX_ERR(sx_status)) {
-            SX_LOG_ERR("Failed to add vlan ports %s.\n", SX_STATUS_MSG(sx_status));
+            SX_LOG_ERR("Failed to delete vlan ports %s.\n", SX_STATUS_MSG(sx_status));
             return sdk_to_sai(sx_status);
         }
     }

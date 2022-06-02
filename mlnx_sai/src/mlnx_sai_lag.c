@@ -402,12 +402,13 @@ out:
 static sai_status_t port_reset_vlan_params_from_port(mlnx_port_config_t *port, mlnx_port_config_t *lag)
 {
     uint16_t            vlan_count = 0;
-    mlnx_bridge_port_t *lag_bport;
+    mlnx_bridge_port_t *lag_bport, *port_bport;
     sx_port_vlans_t    *vlan_list;
     sx_status_t         sx_status;
     sai_status_t        status;
     uint16_t            vid;
     uint16_t            ii = 0;
+    sx_vlan_ports_t     port_list;
 
     /* Reset to default VLAN ingress filter */
     sx_status = sx_api_vlan_port_ingr_filter_set(gh_sdk, port->logical, SX_INGR_FILTER_ENABLE);
@@ -421,6 +422,30 @@ static sai_status_t port_reset_vlan_params_from_port(mlnx_port_config_t *port, m
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to set port pvid - %s.\n", SX_STATUS_MSG(sx_status));
         return sdk_to_sai(sx_status);
+    }
+
+    SX_LOG_INF("Try to delete port 0x%x in lag 0x%x from vlan %d.\n",
+               port->logical, lag->logical, lag->pvid_create_rif);
+    if (lag->pvid_create_rif) {
+        port_bport = 0;
+        status = mlnx_bridge_1q_port_by_log(port->logical, &port_bport);
+        if ((status != SAI_STATUS_SUCCESS) ||
+            !mlnx_vlan_port_is_set(lag->pvid_create_rif, port_bport)) {
+            memset(&port_list, 0, sizeof(port_list));
+            port_list.log_port = port->logical;
+            sx_status = sx_api_vlan_ports_set(gh_sdk,
+                                              SX_ACCESS_CMD_DELETE,
+                                              DEFAULT_ETH_SWID,
+                                              lag->pvid_create_rif,
+                                              &port_list, 1);
+            if (SX_STATUS_SUCCESS != sx_status) {
+                SX_LOG_ERR("Failed to delete port 0x%x in lag 0x%x from vlan %d - %s.\n",
+                           port->logical, lag->logical, lag->pvid_create_rif, SX_STATUS_MSG(sx_status));
+            }
+        } else {
+            SX_LOG_INF("Port 0x%x was in vlan %d before lag creating rif.\n",
+                       port->logical, port->pvid_create_rif);
+        }
     }
 
     if (!mlnx_port_is_in_bridge_1q(lag)) {

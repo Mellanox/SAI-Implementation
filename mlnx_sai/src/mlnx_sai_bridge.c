@@ -615,6 +615,34 @@ sai_status_t mlnx_bridge_oid_to_id(sai_object_id_t oid, sx_bridge_id_t *bridge_i
     return SAI_STATUS_SUCCESS;
 }
 
+
+bool mlnx_is_vxlan_tunnel_bridge_port(mlnx_bridge_port_t *port)
+{
+    return (port->port_type == SAI_BRIDGE_PORT_TYPE_TUNNEL
+            && g_sai_tunnel_db_ptr->tunnel_entry_db[port->tunnel_idx].sai_tunnel_type == SAI_TUNNEL_TYPE_VXLAN
+            && g_sai_tunnel_db_ptr->tunnel_entry_db[port->tunnel_idx].is_used);
+}
+
+bool mlnx_is_vxlan_tunnel_bport_oid(sai_object_id_t oid)
+{
+    mlnx_bridge_port_t *port;
+    sai_status_t        status;
+    bool                r_val = false;
+
+    sai_db_read_lock();
+    status = mlnx_bridge_port_by_oid(oid, &port);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to lookup bridge port by oid %" PRIx64 "\n", oid);
+        goto out;
+    }
+
+    r_val = mlnx_is_vxlan_tunnel_bridge_port(port);
+
+out:
+    sai_db_unlock();
+    return r_val;
+}
+
 sai_status_t mlnx_bridge_port_sai_to_log_port_not_locked(sai_object_id_t oid, sx_port_log_id_t *log_port)
 {
     mlnx_bridge_port_t *port;

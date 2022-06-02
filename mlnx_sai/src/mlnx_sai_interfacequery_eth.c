@@ -310,10 +310,11 @@ sai_status_t sai_log_set_eth(_In_ sai_api_t sai_api_id, sx_log_severity_t severi
  * @brief Generate dump file. The dump file may include SAI state information and vendor SDK information.
  *
  * @param[in] dump_file_name Full path for dump file
+ * @param[in] flags Flags regarding optional dump behavior
  *
- * @return #SAI_STATUS_SUCCESS on success Failure status code on error
+ * @return #SAI_STATUS_SUCCESS on success, failure status code on error
  */
-sai_status_t sai_dbg_generate_dump(_In_ const char *dump_file_name)
+sai_status_t sai_dbg_generate_dump_ext(_In_ const char *dump_file_name, _In_ int32_t flags)
 {
     sx_dbg_extra_info_t dbg_info;
     sai_status_t        sai_status = SAI_STATUS_SUCCESS;
@@ -334,6 +335,8 @@ sai_status_t sai_dbg_generate_dump(_In_ const char *dump_file_name)
     dbg_info.dev_id = SX_DEVICE_ID;
     dbg_info.force_db_refresh = true;
     dbg_info.is_async = true;
+    dbg_info.ir_dump_enable = (flags > 1) ? true : false;
+
 #ifndef _WIN32
     file_name = strdup(dump_file_name);
     strncpy(dbg_info.path, dirname(file_name), sizeof(dbg_info.path));
@@ -360,6 +363,17 @@ sai_status_t sai_dbg_generate_dump(_In_ const char *dump_file_name)
 
 out:
     return SAI_STATUS_SUCCESS;
+}
+/**
+ * @brief Generate dump file. The dump file may include SAI state information and vendor SDK information.
+ *
+ * @param[in] dump_file_name Full path for dump file
+ *
+ * @return #SAI_STATUS_SUCCESS on success Failure status code on error
+ */
+sai_status_t sai_dbg_generate_dump(_In_ const char *dump_file_name)
+{
+    return sai_dbg_generate_dump_ext(dump_file_name, 0);
 }
 
 sai_status_t sai_dbg_do_dump(_In_ const char *dump_file_name)
@@ -462,7 +476,8 @@ static sai_status_t sai_dbg_run_mlxtrace(_In_ const char *dirname)
     const char *device_name = NULL;
     const char *config_cmd_line_switch = NULL;
     char        mlxtrace_ext_command_line[2 * PATH_MAX + 200];
-    int         system_err;
+
+    /*int         system_err; */
 
     if (mlnx_chip_is_spc()) {
         device_name = "mt52100_pci_cr0";
@@ -486,11 +501,11 @@ static sai_status_t sai_dbg_run_mlxtrace(_In_ const char *dirname)
              dirname,
              device_name);
 
-    system_err = system(mlxtrace_ext_command_line);
-    if (0 != system_err) {
-        SX_LOG_ERR("Failed running \"%s\".\n", mlxtrace_ext_command_line);
-        return SAI_STATUS_FAILURE;
-    }
+    /*system_err = system(mlxtrace_ext_command_line);
+     *  if (0 != system_err) {
+     *   SX_LOG_ERR("Failed running \"%s\".\n", mlxtrace_ext_command_line);
+     *   return SAI_STATUS_FAILURE;
+     *  }*/
 
     return SAI_STATUS_SUCCESS;
 }

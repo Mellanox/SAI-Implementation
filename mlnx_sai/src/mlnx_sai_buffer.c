@@ -4538,15 +4538,201 @@ sai_status_t mlnx_sai_buffer_apply_port_buffer_profile_list(_In_ bool           
     return SAI_STATUS_SUCCESS;
 }
 
+/* db write lock is needed */
+static sai_status_t mlnx_set_default_port_buffer_settings(_In_ const sx_port_log_id_t log_port, bool is_ingress)
+{
+    sai_status_t                      status = SAI_STATUS_SUCCESS;
+    uint32_t                          ii;
+    uint32_t                          port_buff_count;
+    uint32_t                          port_buffers_type;
+    uint32_t                         *db_port_buffers = NULL;
+    uint32_t                          db_port_ind;
+    mlnx_sai_buffer_pool_attr_t       sai_pool_attr = {0};
+    sx_cos_port_shared_buffer_attr_t *sx_port_shared_buff_attrs = NULL;
+    sx_cos_port_buffer_attr_t        *sx_port_reserved_buff_attrs = NULL;
+    uint32_t                          attrs_count = 0;
+
+    SX_LOG_ENTER();
+
+    if (is_ingress) {
+        port_buffers_type = PORT_BUFF_TYPE_INGRESS;
+        port_buff_count = buffer_limits.num_ingress_pools;
+    } else {
+        port_buffers_type = PORT_BUFF_TYPE_EGRESS;
+        port_buff_count = buffer_limits.num_egress_pools;
+    }
+
+    sx_port_reserved_buff_attrs = calloc(port_buff_count, sizeof(*sx_port_reserved_buff_attrs));
+    if (sx_port_reserved_buff_attrs == NULL) {
+        return SAI_STATUS_NO_MEMORY;
+    }
+
+    sx_port_shared_buff_attrs = calloc(port_buff_count, sizeof(*sx_port_shared_buff_attrs));
+    if (sx_port_shared_buff_attrs == NULL) {
+        status = SAI_STATUS_NO_MEMORY;
+        goto out;
+    }
+
+    status = mlnx_port_idx_by_log_id(log_port, &db_port_ind);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to get port db index by log port id %#0x\n", log_port);
+        goto out;
+    }
+
+    status = mlnx_sai_get_port_buffer_index_array(db_port_ind, port_buffers_type, &db_port_buffers);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to get port buffer index array for port index %d\n", db_port_ind);
+        goto out;
+    }
+
+    for (ii = 0; ii < port_buff_count; ii++) {
+        if (db_port_buffers[ii] == SENTINEL_BUFFER_DB_ENTRY_INDEX) {
+            continue;
+        }
+
+        status = mlnx_get_sai_pool_data(g_sai_buffer_db_ptr->buffer_profiles[db_port_buffers[ii]].sai_pool,
+                                        &sai_pool_attr);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to get sai pool data for port index %d, buffer index %d\n", db_port_ind, ii);
+            goto out;
+        }
+
+        if (is_ingress) {
+            sx_port_reserved_buff_attrs[attrs_count].type = SX_COS_INGRESS_PORT_ATTR_E;
+            sx_port_reserved_buff_attrs[attrs_count].attr.ingress_port_buff_attr.pool_id = sai_pool_attr.sx_pool_id;
+            sx_port_reserved_buff_attrs[attrs_count].attr.ingress_port_buff_attr.size = 0;
+
+            sx_port_shared_buff_attrs[attrs_count].type = SX_COS_INGRESS_PORT_ATTR_E;
+            sx_port_shared_buff_attrs[attrs_count].attr.ingress_port_shared_buff_attr.pool_id =
+                sai_pool_attr.sx_pool_id;
+            sx_port_shared_buff_attrs[attrs_count].attr.ingress_port_shared_buff_attr.max.mode =
+                SX_COS_BUFFER_MAX_MODE_STATIC_E;
+            sx_port_shared_buff_attrs[attrs_count].attr.ingress_port_shared_buff_attr.max.max.size = 0;
+        } else {
+            sx_port_reserved_buff_attrs[attrs_count].type = SX_COS_EGRESS_PORT_ATTR_E;
+            sx_port_reserved_buff_attrs[attrs_count].attr.egress_port_buff_attr.pool_id = sai_pool_attr.sx_pool_id;
+            sx_port_reserved_buff_attrs[attrs_count].attr.egress_port_buff_attr.size = 0;
+
+            sx_port_shared_buff_attrs[attrs_count].type = SX_COS_EGRESS_PORT_ATTR_E;
+            sx_port_shared_buff_attrs[attrs_count].attr.egress_port_shared_buff_attr.pool_id =
+                sai_pool_attr.sx_pool_id;
+            sx_port_shared_buff_attrs[attrs_count].attr.egress_port_shared_buff_attr.max.mode =
+                SX_COS_BUFFER_MAX_MODE_STATIC_E;
+            sx_port_shared_buff_attrs[attrs_count].attr.egress_port_shared_buff_attr.max.max.size = 0;
+        }
+
+        attrs_count++;
+    }
+
+    if (attrs_count > 0) {
+        status = mlnx_sai_buffer_configure_reserved_buffers(log_port, sx_port_reserved_buff_attrs, attrs_count);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to configure buffer reserved attributes for port db idx %d\n", db_port_ind);
+            goto out;
+        }
+
+        status = mlnx_sai_buffer_configure_shared_buffers(log_port, sx_port_shared_buff_attrs, attrs_count);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to configure buffer shared attributes for port db idx %d\n", db_port_ind);
+            goto out;
+        }
+
+        for (ii = 0; ii < port_buff_count; ii++) {
+            db_port_buffers[ii] = SENTINEL_BUFFER_DB_ENTRY_INDEX;
+        }
+    }
+out:
+    if (sx_port_reserved_buff_attrs) {
+        free(sx_port_reserved_buff_attrs);
+    }
+
+    if (sx_port_shared_buff_attrs) {
+        free(sx_port_shared_buff_attrs);
+    }
+
+    SX_LOG_EXIT();
+    return status;
+}
+
+static sai_status_t mlnx_buffer_port_profile_list_set_unlocked_impl(_In_ const sx_port_log_id_t       log_port,
+                                                                    _In_ const sai_attribute_value_t *value,
+                                                                    _In_ bool                         is_ingress)
+{
+    sai_status_t     status = SAI_STATUS_SUCCESS;
+    uint32_t         db_port_ind = 0;
+    uint32_t        *db_port_buffers = NULL;
+    sai_object_id_t *buffer_profiles = NULL;
+    uint32_t         buff_count = 0;
+    uint32_t         port_buffers_type;
+
+    assert(value);
+
+    SX_LOG_ENTER();
+
+    SX_LOG_DBG("is_ingress:%d\n", is_ingress);
+
+    if (is_ingress) {
+        if (value->objlist.count > buffer_limits.num_ingress_pools) {
+            SX_LOG_ERR("Too many ingress entries specified\n");
+            SX_LOG_EXIT();
+            return SAI_STATUS_INVALID_PARAMETER;
+        }
+        port_buffers_type = PORT_BUFF_TYPE_INGRESS;
+        buff_count = buffer_limits.num_ingress_pools;
+    } else {
+        if (value->objlist.count > buffer_limits.num_egress_pools) {
+            SX_LOG_ERR("Too many egress entries specified\n");
+            SX_LOG_EXIT();
+            return SAI_STATUS_INVALID_PARAMETER;
+        }
+        port_buffers_type = PORT_BUFF_TYPE_EGRESS;
+        buff_count = buffer_limits.num_egress_pools;
+    }
+
+    status = mlnx_port_idx_by_log_id(log_port, &db_port_ind);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to get port db index by log port id %#0x\n", log_port);
+        SX_LOG_EXIT();
+        return status;
+    }
+
+    status = mlnx_sai_get_port_buffer_index_array(db_port_ind, port_buffers_type, &db_port_buffers);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to get port buffer index array for port index %d\n", db_port_ind);
+        SX_LOG_EXIT();
+        return status;
+    }
+
+    buffer_profiles = calloc(buff_count, sizeof(sai_object_id_t));
+    if (NULL == buffer_profiles) {
+        return SAI_STATUS_NO_MEMORY;
+    }
+
+    status =
+        mlnx_sai_buffer_validate_port_buffer_list_and_sort_by_pool(value, is_ingress, buff_count, buffer_profiles);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to validate and sort buffer list by pool\n");
+        goto out;
+    }
+
+    status = mlnx_sai_buffer_apply_port_buffer_profile_list(is_ingress, db_port_ind, db_port_buffers, buff_count,
+                                                            buffer_profiles);
+    if (SAI_ERR(status)) {
+        sai_qos_db_sync();
+    }
+
+out:
+    free(buffer_profiles);
+
+    SX_LOG_EXIT();
+    return status;
+}
+
 sai_status_t mlnx_buffer_port_profile_list_set_unlocked(_In_ const sai_object_id_t        port_id,
                                                         _In_ const sai_attribute_value_t *value,
                                                         _In_ bool                         is_ingress)
 {
     sai_status_t     sai_status = SAI_STATUS_SUCCESS;
-    uint32_t         db_port_ind = 0;
-    uint32_t       * db_port_buffers = NULL;
-    sai_object_id_t* buffer_profiles = NULL;
-    uint32_t         buff_count = 0;
     sx_port_log_id_t log_port = 0;
 
     SX_LOG_ENTER();
@@ -4562,65 +4748,23 @@ sai_status_t mlnx_buffer_port_profile_list_set_unlocked(_In_ const sai_object_id
     }
 
     SX_LOG_DBG("is_ingress:%d\n", is_ingress);
-    if (is_ingress) {
-        if (value->objlist.count > buffer_limits.num_ingress_pools) {
-            SX_LOG_ERR("Too many ingress entries specified\n");
-            SX_LOG_EXIT();
-            return SAI_STATUS_INVALID_PARAMETER;
-        }
-    } else {
-        if (value->objlist.count > buffer_limits.num_egress_pools) {
-            SX_LOG_ERR("Too many egress entries specified\n");
-            SX_LOG_EXIT();
-            return SAI_STATUS_INVALID_PARAMETER;
-        }
-    }
 
-    sai_status = mlnx_port_idx_by_log_id(log_port, &db_port_ind);
-    if (SAI_ERR(sai_status)) {
-        SX_LOG_EXIT();
-        return sai_status;
-    }
-    if (is_ingress) {
-        if (SAI_STATUS_SUCCESS !=
-            (sai_status =
-                 mlnx_sai_get_port_buffer_index_array(db_port_ind, PORT_BUFF_TYPE_INGRESS, &db_port_buffers))) {
+    if (value->objlist.count == 0) {
+        sai_status = mlnx_set_default_port_buffer_settings(log_port, is_ingress);
+        if (SAI_ERR(sai_status)) {
+            SX_LOG_ERR("Failed to set default port buffer profile data\n");
             return sai_status;
         }
-        buff_count = buffer_limits.num_ingress_pools;
     } else {
-        if (SAI_STATUS_SUCCESS !=
-            (sai_status =
-                 mlnx_sai_get_port_buffer_index_array(db_port_ind, PORT_BUFF_TYPE_EGRESS, &db_port_buffers))) {
+        sai_status = mlnx_buffer_port_profile_list_set_unlocked_impl(log_port, value, is_ingress);
+        if (SAI_ERR(sai_status)) {
+            SX_LOG_ERR("Failed to set port buffer profile list\n");
             return sai_status;
         }
-        buff_count = buffer_limits.num_egress_pools;
     }
-
-    buffer_profiles = calloc(buff_count, sizeof(sai_object_id_t));
-    if (NULL == buffer_profiles) {
-        SX_LOG_EXIT();
-        return SAI_STATUS_NO_MEMORY;
-    }
-
-    if (SAI_STATUS_SUCCESS !=
-        (sai_status = mlnx_sai_buffer_validate_port_buffer_list_and_sort_by_pool(value, is_ingress,
-                                                                                 buff_count,
-                                                                                 buffer_profiles))) {
-        goto out;
-    }
-
-    if (SAI_STATUS_SUCCESS == (sai_status = mlnx_sai_buffer_apply_port_buffer_profile_list(is_ingress, db_port_ind,
-                                                                                           db_port_buffers, buff_count,
-                                                                                           buffer_profiles))) {
-        sai_qos_db_sync();
-    }
-
-out:
-    free(buffer_profiles);
 
     SX_LOG_EXIT();
-    return sai_status;
+    return SAI_STATUS_SUCCESS;
 }
 
 sai_status_t mlnx_buffer_port_profile_list_set(_In_ const sai_object_id_t         port_id,
@@ -5824,6 +5968,7 @@ out:
     return sai_status;
 }
 
+
 /* db read lock is needed */
 sai_status_t mlnx_sai_buffer_update_pg9_buffer_sdk(_In_ const mlnx_port_config_t *port)
 {
@@ -5958,36 +6103,44 @@ sai_status_t mlnx_apply_descriptor_buffer_to_port(sx_port_log_id_t port_log_id, 
     port_buffer_attr[count].attr.ingress_port_buff_attr.pool_id = ingress_pool_id;
     count++;
 
-    for (pg = pg_min; pg <= pg_max; pg++) {
+    /* Do not remove default port PG and TC descriptor pool as it will be reset to
+     * the user defined descriptor pool.
+     * Keep default port ingress and egress descriptor pool removal as the consumption
+     * of default descriptor pool will not be cleared for some reason if removal is skipped. */
+    if (!remove_default_descriptor_buffer) {
+        for (pg = pg_min; pg <= pg_max; pg++) {
+            port_buffer_attr[count].type = SX_COS_PORT_BUFF_ATTR_RESERVED2_E;
+            port_buffer_attr[count].attr.ingress_port_pg_buff_attr.size = ingress_pg_buffer_size;
+            port_buffer_attr[count].attr.ingress_port_pg_buff_attr.pool_id = ingress_pool_id;
+            port_buffer_attr[count].attr.ingress_port_pg_buff_attr.pg = pg;
+            count++;
+        }
         port_buffer_attr[count].type = SX_COS_PORT_BUFF_ATTR_RESERVED2_E;
         port_buffer_attr[count].attr.ingress_port_pg_buff_attr.size = ingress_pg_buffer_size;
         port_buffer_attr[count].attr.ingress_port_pg_buff_attr.pool_id = ingress_pool_id;
-        port_buffer_attr[count].attr.ingress_port_pg_buff_attr.pg = pg;
+        port_buffer_attr[count].attr.ingress_port_pg_buff_attr.pg = pg_control;
         count++;
     }
-    port_buffer_attr[count].type = SX_COS_PORT_BUFF_ATTR_RESERVED2_E;
-    port_buffer_attr[count].attr.ingress_port_pg_buff_attr.size = ingress_pg_buffer_size;
-    port_buffer_attr[count].attr.ingress_port_pg_buff_attr.pool_id = ingress_pool_id;
-    port_buffer_attr[count].attr.ingress_port_pg_buff_attr.pg = pg_control;
-    count++;
 
     port_buffer_attr[count].type = SX_COS_PORT_BUFF_ATTR_RESERVED3_E;
     port_buffer_attr[count].attr.egress_port_buff_attr.size = egress_buffer_size;
     port_buffer_attr[count].attr.egress_port_buff_attr.pool_id = egress_pool_id;
     count++;
 
-    for (tc = tc_min; tc <= tc_max; tc++) {
+    if (!remove_default_descriptor_buffer) {
+        for (tc = tc_min; tc <= tc_max; tc++) {
+            port_buffer_attr[count].type = SX_COS_PORT_BUFF_ATTR_RESERVED4_E;
+            port_buffer_attr[count].attr.egress_port_tc_buff_attr.size = egress_tc_buffer_size;
+            port_buffer_attr[count].attr.egress_port_tc_buff_attr.pool_id = egress_pool_id;
+            port_buffer_attr[count].attr.egress_port_tc_buff_attr.tc = tc;
+            count++;
+        }
         port_buffer_attr[count].type = SX_COS_PORT_BUFF_ATTR_RESERVED4_E;
         port_buffer_attr[count].attr.egress_port_tc_buff_attr.size = egress_tc_buffer_size;
         port_buffer_attr[count].attr.egress_port_tc_buff_attr.pool_id = egress_pool_id;
-        port_buffer_attr[count].attr.egress_port_tc_buff_attr.tc = tc;
+        port_buffer_attr[count].attr.egress_port_tc_buff_attr.tc = tc_control;
         count++;
     }
-    port_buffer_attr[count].type = SX_COS_PORT_BUFF_ATTR_RESERVED4_E;
-    port_buffer_attr[count].attr.egress_port_tc_buff_attr.size = egress_tc_buffer_size;
-    port_buffer_attr[count].attr.egress_port_tc_buff_attr.pool_id = egress_pool_id;
-    port_buffer_attr[count].attr.egress_port_tc_buff_attr.tc = tc_control;
-    count++;
 
     sx_status = sx_api_cos_port_buff_type_set(gh_sdk, sx_cmd, port_log_id,
                                               port_buffer_attr, count);
@@ -6006,23 +6159,26 @@ sai_status_t mlnx_apply_descriptor_buffer_to_port(sx_port_log_id_t port_log_id, 
     port_shared_buffer_attr[count].attr.ingress_port_shared_buff_attr.pool_id = ingress_pool_id;
     count++;
 
-    for (pg = pg_min; pg <= pg_max; pg++) {
+    if (!remove_default_descriptor_buffer) {
+        for (pg = pg_min; pg <= pg_max; pg++) {
+            port_shared_buffer_attr[count].type = SX_COS_PORT_BUFF_ATTR_RESERVED2_E;
+            port_shared_buffer_attr[count].attr.ingress_port_pg_shared_buff_attr.max.mode =
+                SX_COS_BUFFER_MAX_MODE_DYNAMIC_E;
+            port_shared_buffer_attr[count].attr.ingress_port_pg_shared_buff_attr.max.max.alpha =
+                is_spc1_a1_and_later ? SX_COS_PORT_BUFF_ALPHA_8_E : SX_COS_PORT_BUFF_ALPHA_INFINITY_E;
+            port_shared_buffer_attr[count].attr.ingress_port_pg_shared_buff_attr.pool_id = ingress_pool_id;
+            port_shared_buffer_attr[count].attr.ingress_port_pg_shared_buff_attr.pg = pg;
+            count++;
+        }
         port_shared_buffer_attr[count].type = SX_COS_PORT_BUFF_ATTR_RESERVED2_E;
         port_shared_buffer_attr[count].attr.ingress_port_pg_shared_buff_attr.max.mode =
             SX_COS_BUFFER_MAX_MODE_DYNAMIC_E;
         port_shared_buffer_attr[count].attr.ingress_port_pg_shared_buff_attr.max.max.alpha =
             is_spc1_a1_and_later ? SX_COS_PORT_BUFF_ALPHA_8_E : SX_COS_PORT_BUFF_ALPHA_INFINITY_E;
         port_shared_buffer_attr[count].attr.ingress_port_pg_shared_buff_attr.pool_id = ingress_pool_id;
-        port_shared_buffer_attr[count].attr.ingress_port_pg_shared_buff_attr.pg = pg;
+        port_shared_buffer_attr[count].attr.ingress_port_pg_shared_buff_attr.pg = pg_control;
         count++;
     }
-    port_shared_buffer_attr[count].type = SX_COS_PORT_BUFF_ATTR_RESERVED2_E;
-    port_shared_buffer_attr[count].attr.ingress_port_pg_shared_buff_attr.max.mode = SX_COS_BUFFER_MAX_MODE_DYNAMIC_E;
-    port_shared_buffer_attr[count].attr.ingress_port_pg_shared_buff_attr.max.max.alpha =
-        is_spc1_a1_and_later ? SX_COS_PORT_BUFF_ALPHA_8_E : SX_COS_PORT_BUFF_ALPHA_INFINITY_E;
-    port_shared_buffer_attr[count].attr.ingress_port_pg_shared_buff_attr.pool_id = ingress_pool_id;
-    port_shared_buffer_attr[count].attr.ingress_port_pg_shared_buff_attr.pg = pg_control;
-    count++;
 
     port_shared_buffer_attr[count].type = SX_COS_PORT_BUFF_ATTR_RESERVED3_E;
     port_shared_buffer_attr[count].attr.egress_port_shared_buff_attr.max.mode = SX_COS_BUFFER_MAX_MODE_DYNAMIC_E;
@@ -6030,23 +6186,26 @@ sai_status_t mlnx_apply_descriptor_buffer_to_port(sx_port_log_id_t port_log_id, 
     port_shared_buffer_attr[count].attr.egress_port_shared_buff_attr.pool_id = egress_pool_id;
     count++;
 
-    for (tc = tc_min; tc <= tc_max; tc++) {
+    if (!remove_default_descriptor_buffer) {
+        for (tc = tc_min; tc <= tc_max; tc++) {
+            port_shared_buffer_attr[count].type = SX_COS_PORT_BUFF_ATTR_RESERVED4_E;
+            port_shared_buffer_attr[count].attr.egress_port_tc_shared_buff_attr.max.mode =
+                SX_COS_BUFFER_MAX_MODE_DYNAMIC_E;
+            port_shared_buffer_attr[count].attr.egress_port_tc_shared_buff_attr.max.max.alpha =
+                SX_COS_PORT_BUFF_ALPHA_INFINITY_E;
+            port_shared_buffer_attr[count].attr.egress_port_tc_shared_buff_attr.pool_id = egress_pool_id;
+            port_shared_buffer_attr[count].attr.egress_port_tc_shared_buff_attr.tc = tc;
+            count++;
+        }
         port_shared_buffer_attr[count].type = SX_COS_PORT_BUFF_ATTR_RESERVED4_E;
         port_shared_buffer_attr[count].attr.egress_port_tc_shared_buff_attr.max.mode =
             SX_COS_BUFFER_MAX_MODE_DYNAMIC_E;
         port_shared_buffer_attr[count].attr.egress_port_tc_shared_buff_attr.max.max.alpha =
             SX_COS_PORT_BUFF_ALPHA_INFINITY_E;
         port_shared_buffer_attr[count].attr.egress_port_tc_shared_buff_attr.pool_id = egress_pool_id;
-        port_shared_buffer_attr[count].attr.egress_port_tc_shared_buff_attr.tc = tc;
+        port_shared_buffer_attr[count].attr.egress_port_tc_shared_buff_attr.tc = tc_control;
         count++;
     }
-    port_shared_buffer_attr[count].type = SX_COS_PORT_BUFF_ATTR_RESERVED4_E;
-    port_shared_buffer_attr[count].attr.egress_port_tc_shared_buff_attr.max.mode = SX_COS_BUFFER_MAX_MODE_DYNAMIC_E;
-    port_shared_buffer_attr[count].attr.egress_port_tc_shared_buff_attr.max.max.alpha =
-        SX_COS_PORT_BUFF_ALPHA_INFINITY_E;
-    port_shared_buffer_attr[count].attr.egress_port_tc_shared_buff_attr.pool_id = egress_pool_id;
-    port_shared_buffer_attr[count].attr.egress_port_tc_shared_buff_attr.tc = tc_control;
-    count++;
 
     sx_status = sx_api_cos_port_shared_buff_type_set(gh_sdk, sx_cmd, port_log_id,
                                                      port_shared_buffer_attr, count);

@@ -1217,9 +1217,15 @@ static sai_status_t mlnx_flush_fdb_entries(_In_ sai_object_id_t        switch_id
                                  &port, &port_index))) {
         port_found = true;
 
-        status = mlnx_bridge_port_sai_to_log_port(port->oid, &port_id);
-        if (SAI_ERR(status)) {
-            return status;
+        if (mlnx_is_vxlan_tunnel_bport_oid(port->oid)) {
+            sai_db_read_lock();
+            port_id = g_sai_db_ptr->sx_nve_log_port;
+            sai_db_unlock();
+        } else {
+            status = mlnx_bridge_port_sai_to_log_port(port->oid, &port_id);
+            if (SAI_ERR(status)) {
+                return status;
+            }
         }
     }
 

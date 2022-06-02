@@ -669,8 +669,9 @@ typedef struct _mlnx_obj_type_attrs_info_t {
     9, 8, 7, 6, 5, 4, 3, 2, 1, 0
 #else
 #define EXPAND(x) x
-#define PP_NARG(...) \
-    EXPAND(_xPP_NARGS_IMPL(__VA_ARGS__, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0))
+#define PP_NARG(...)                                                                                                    \
+    EXPAND(_xPP_NARGS_IMPL(__VA_ARGS__, 30, 29, 28, 27, 26, 25, 25, 23, 22, 21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, \
+                           10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0))
 #define _xPP_NARGS_IMPL(x1,  \
                         x2,  \
                         x3,  \
@@ -691,9 +692,19 @@ typedef struct _mlnx_obj_type_attrs_info_t {
                         x18, \
                         x19, \
                         x20, \
+                        x21, \
+                        x22, \
+                        x23, \
+                        x24, \
+                        x25, \
+                        x26, \
+                        x27, \
+                        x28, \
+                        x29, \
+                        x30, \
                         N,   \
                         ...) N
-#endif
+#endif /* ifndef _WIN32 */
 #define ATTR_ARR_LEN(...) PP_NARG(__VA_ARGS__)
 
 #define ATTR_ENUM_VALUES_LIST(...)                                \
@@ -1324,6 +1335,7 @@ typedef struct _mlnx_port_config_t {
     uint32_t               start_queues_index;
     mlnx_sched_hierarchy_t sched_hierarchy;
     uint16_t               rifs;
+    sx_vid_t               pvid_create_rif;
     bool                   lossless_pg[MAX_PG];
     uint16_t               acl_refs;
     /* For ISSU, need to keep all LAG attributes in SAI port DB
@@ -1433,6 +1445,9 @@ sai_status_t mlnx_bridge_port_by_tunnel_id(sx_tunnel_id_t sx_tunnel, mlnx_bridge
 sai_status_t mlnx_bridge_rif_add(sx_router_id_t vrf_id, mlnx_bridge_rif_t **rif);
 sai_status_t mlnx_bridge_rif_del(mlnx_bridge_rif_t *rif);
 sai_status_t mlnx_bridge_rif_by_idx(uint32_t idx, mlnx_bridge_rif_t **rif);
+bool mlnx_is_vxlan_tunnel_bport_oid(sai_object_id_t oid);
+bool mlnx_is_vxlan_tunnel_bridge_port(mlnx_bridge_port_t *port);
+
 sai_status_t mlnx_rif_oid_create(_In_ mlnx_rif_type_t          rif_type,
                                  _In_ const mlnx_bridge_rif_t *bridge_rif,
                                  _In_ mlnx_shm_rm_array_idx_t  idx,
@@ -3358,5 +3373,8 @@ void SAI_dump_vlan(_In_ FILE *file);
 void SAI_dump_wred(_In_ FILE *file);
 void SAI_dump_gp_reg(_In_ FILE *file);
 void SAI_dump_nhg_nhgm(_In_ FILE *file);
+
+sai_status_t sai_dbg_generate_dump_ext(_In_ const char *dump_file_name,
+                                       _In_ int32_t     flags);
 
 #endif /* __MLNXSAI_H_ */
