@@ -1221,6 +1221,13 @@ static sai_status_t mlnx_acl_packet_vlan_field_to_sx(_In_ sai_acl_entry_attr_t  
                                                      _Out_ sx_flex_acl_key_desc_t     *sx_keys,
                                                      _Inout_ uint32_t                 *sx_key_count,
                                                      _Inout_ mlnx_acl_field_type_t    *field_type);
+static sai_status_t mlnx_acl_tc_field_to_sx(_In_ sai_acl_entry_attr_t         attr_id,
+                                            _In_ const sai_attribute_value_t *value,
+                                            _In_ uint32_t                     attr_index,
+                                            _In_ uint32_t                     table_index,
+                                            _Out_ sx_flex_acl_key_desc_t     *sx_keys,
+                                            _Inout_ uint32_t                 *sx_key_count,
+                                            _Inout_ mlnx_acl_field_type_t    *field_type);
 static sai_status_t mlnx_acl_tos_field_to_sx(_In_ sai_acl_entry_attr_t         attr_id,
                                              _In_ const sai_attribute_value_t *value,
                                              _In_ uint32_t                     attr_index,
@@ -4793,6 +4800,13 @@ static sai_status_t mlnx_acl_entry_field_to_sx_update(_In_ sai_acl_entry_attr_t 
         }
         break;
 
+    case SAI_ACL_ENTRY_ATTR_FIELD_TC:
+        status = mlnx_acl_tc_field_to_sx(attr_id, value, attr_index, table_index, sx_keys, sx_key_count, field_type);
+        if (SAI_ERR(status)) {
+            return status;
+        }
+        break;
+
     case SAI_ACL_ENTRY_ATTR_FIELD_TOS:
         status = mlnx_acl_tos_field_to_sx(attr_id, value, attr_index, table_index, sx_keys, sx_key_count, field_type);
         if (SAI_ERR(status)) {
@@ -5066,6 +5080,30 @@ static sai_status_t mlnx_acl_packet_vlan_field_to_sx(_In_ sai_acl_entry_attr_t  
         SX_LOG_ERR("Invalid type of packet vlan (%d)\n", packet_vlan);
         return SAI_STATUS_INVALID_ATTR_VALUE_0 + attr_index;
     }
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_acl_tc_field_to_sx(_In_ sai_acl_entry_attr_t         attr_id,
+                                            _In_ const sai_attribute_value_t *value,
+                                            _In_ uint32_t                     attr_index,
+                                            _In_ uint32_t                     table_index,
+                                            _Out_ sx_flex_acl_key_desc_t     *sx_keys,
+                                            _Inout_ uint32_t                 *sx_key_count,
+                                            _Inout_ mlnx_acl_field_type_t    *field_type)
+{
+    assert(SAI_ACL_ENTRY_ATTR_FIELD_TC == attr_id);
+
+    if (!value->aclfield.enable) {
+        return SAI_STATUS_SUCCESS;
+    }
+
+    sx_keys[*sx_key_count].key_id = FLEX_ACL_KEY_SWITCH_PRIO;
+    sx_keys[*sx_key_count].key.switch_prio = value->aclfield.data.u8;
+    sx_keys[*sx_key_count].mask.switch_prio = !!(value->aclfield.mask.u8);
+    (*sx_key_count)++;
+
+    *field_type = MLNX_ACL_FIELD_TYPE_EMPTY;
 
     return SAI_STATUS_SUCCESS;
 }
