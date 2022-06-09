@@ -185,7 +185,8 @@ static sai_status_t mlnx_tunnel_stats_get(_In_ sai_object_id_t      tunnel_id,
                                           _In_ const sai_stat_id_t *counter_ids,
                                           _In_ bool                 clear,
                                           _Out_ uint64_t           *counters);
-
+static bool is_underlay_rif_used_by_other_tunnels(_In_ uint32_t              tunnel_db_idx,
+                                                  _In_ sx_router_interface_t sx_rif);
 /* is_implemented: create, remove, set, get
  *   is_supported: create, remove, set, get
  */
@@ -6308,14 +6309,18 @@ static sai_status_t mlnx_remove_sdk_ipinip_tunnel(_In_ uint32_t tunnel_db_idx)
                 goto cleanup;
             }
             if (mlnx_chip_is_spc2or3()) {
-                if (SX_STATUS_SUCCESS !=
-                    (sdk_status =
-                         sx_api_router_interface_state_set(gh_sdk, sx_tunnel_attr.attributes.ipinip_p2p.underlay_rif,
-                                                           &rif_state))) {
-                    SX_LOG_ERR("Failed to set underlay router interface state to down - %s.\n",
-                               SX_STATUS_MSG(sdk_status));
-                    sai_status = sdk_to_sai(sdk_status);
-                    goto cleanup;
+                if (!is_underlay_rif_used_by_other_tunnels(tunnel_db_idx,
+                                                           sx_tunnel_attr.attributes.ipinip_p2p.underlay_rif)) {
+                    if (SX_STATUS_SUCCESS !=
+                        (sdk_status =
+                             sx_api_router_interface_state_set(gh_sdk,
+                                                               sx_tunnel_attr.attributes.ipinip_p2p.underlay_rif,
+                                                               &rif_state))) {
+                        SX_LOG_ERR("Failed to set underlay router interface state to down - %s.\n",
+                                   SX_STATUS_MSG(sdk_status));
+                        sai_status = sdk_to_sai(sdk_status);
+                        goto cleanup;
+                    }
                 }
             }
             if (SX_STATUS_SUCCESS !=
@@ -6603,6 +6608,43 @@ cleanup:
     return SAI_STATUS_FAILURE;
 }
 
+static bool is_underlay_rif_used_by_other_tunnels(_In_ uint32_t tunnel_db_idx, _In_ sx_router_interface_t sx_rif)
+{
+    assert(g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].is_used);
+
+
+    for (uint32_t ii = 0; ii < MAX_TUNNEL_DB_SIZE; ii++) {
+        if (ii == tunnel_db_idx) {
+            continue;
+        }
+        if (!g_sai_tunnel_db_ptr->tunnel_entry_db[ii].is_used) {
+            continue;
+        }
+
+        if ((SX_TUNNEL_TYPE_IPINIP_P2P_IPV4_IN_GRE == g_sai_tunnel_db_ptr->tunnel_entry_db[ii].sx_tunnel_attr.type) ||
+            (SX_TUNNEL_TYPE_IPINIP_P2P_IPV4_IN_IPV4 == g_sai_tunnel_db_ptr->tunnel_entry_db[ii].sx_tunnel_attr.type)) {
+            if (g_sai_tunnel_db_ptr->tunnel_entry_db[ii].sx_tunnel_attr.attributes.ipinip_p2p.underlay_rif == sx_rif) {
+                return true;
+            }
+        }
+
+        if ((SX_TUNNEL_TYPE_NVE_VXLAN == g_sai_tunnel_db_ptr->tunnel_entry_db[ii].sx_tunnel_attr.type) ||
+            (SX_TUNNEL_TYPE_NVE_VXLAN_IPV6 == g_sai_tunnel_db_ptr->tunnel_entry_db[ii].sx_tunnel_attr.type)) {
+            if (g_sai_tunnel_db_ptr->tunnel_entry_db[ii].sx_tunnel_attr.attributes.vxlan.encap.underlay_rif ==
+                sx_rif) {
+                return true;
+            }
+
+            if (g_sai_tunnel_db_ptr->tunnel_entry_db[ii].sx_tunnel_attr.attributes.vxlan.decap.underlay_rif ==
+                sx_rif) {
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
 static sai_status_t mlnx_remove_tunnel(_In_ const sai_object_id_t sai_tunnel_obj_id)
 {
     sai_status_t                sai_status = SAI_STATUS_FAILURE;
@@ -6673,14 +6715,18 @@ static sai_status_t mlnx_remove_tunnel(_In_ const sai_object_id_t sai_tunnel_obj
                 goto cleanup;
             }
             if (mlnx_chip_is_spc2or3()) {
-                if (SX_STATUS_SUCCESS !=
-                    (sdk_status =
-                         sx_api_router_interface_state_set(gh_sdk, sx_tunnel_attr.attributes.ipinip_p2p.underlay_rif,
-                                                           &rif_state))) {
-                    SX_LOG_ERR("Failed to set underlay router interface state to down - %s.\n",
-                               SX_STATUS_MSG(sdk_status));
-                    sai_status = sdk_to_sai(sdk_status);
-                    goto cleanup;
+                if (!is_underlay_rif_used_by_other_tunnels(tunnel_db_idx,
+                                                           sx_tunnel_attr.attributes.ipinip_p2p.underlay_rif)) {
+                    if (SX_STATUS_SUCCESS !=
+                        (sdk_status =
+                             sx_api_router_interface_state_set(gh_sdk,
+                                                               sx_tunnel_attr.attributes.ipinip_p2p.underlay_rif,
+                                                               &rif_state))) {
+                        SX_LOG_ERR("Failed to set underlay router interface state to down - %s.\n",
+                                   SX_STATUS_MSG(sdk_status));
+                        sai_status = sdk_to_sai(sdk_status);
+                        goto cleanup;
+                    }
                 }
             }
         }
@@ -6713,24 +6759,30 @@ static sai_status_t mlnx_remove_tunnel(_In_ const sai_object_id_t sai_tunnel_obj
         g_sai_db_ptr->nve_tunnel_type = NVE_TUNNEL_UNKNOWN;
 
         if (mlnx_chip_is_spc2or3()) {
-            if (SX_STATUS_SUCCESS !=
-                (sdk_status =
-                     sx_api_router_interface_state_set(gh_sdk, sx_tunnel_attr.attributes.vxlan.encap.underlay_rif,
-                                                       &rif_state))) {
-                SX_LOG_ERR("Failed to set underlay router interface state to down - %s.\n",
-                           SX_STATUS_MSG(sdk_status));
-                sai_status = sdk_to_sai(sdk_status);
-                goto cleanup;
+            if (!is_underlay_rif_used_by_other_tunnels(tunnel_db_idx,
+                                                       sx_tunnel_attr.attributes.vxlan.encap.underlay_rif)) {
+                if (SX_STATUS_SUCCESS !=
+                    (sdk_status =
+                         sx_api_router_interface_state_set(gh_sdk, sx_tunnel_attr.attributes.vxlan.encap.underlay_rif,
+                                                           &rif_state))) {
+                    SX_LOG_ERR("Failed to set underlay router interface state to down - %s.\n",
+                               SX_STATUS_MSG(sdk_status));
+                    sai_status = sdk_to_sai(sdk_status);
+                    goto cleanup;
+                }
             }
 
-            if (SX_STATUS_SUCCESS !=
-                (sdk_status =
-                     sx_api_router_interface_state_set(gh_sdk, sx_tunnel_attr.attributes.vxlan.decap.underlay_rif,
-                                                       &rif_state))) {
-                SX_LOG_ERR("Failed to set underlay router interface state to down - %s.\n",
-                           SX_STATUS_MSG(sdk_status));
-                sai_status = sdk_to_sai(sdk_status);
-                goto cleanup;
+            if (!is_underlay_rif_used_by_other_tunnels(tunnel_db_idx,
+                                                       sx_tunnel_attr.attributes.vxlan.decap.underlay_rif)) {
+                if (SX_STATUS_SUCCESS !=
+                    (sdk_status =
+                         sx_api_router_interface_state_set(gh_sdk, sx_tunnel_attr.attributes.vxlan.decap.underlay_rif,
+                                                           &rif_state))) {
+                    SX_LOG_ERR("Failed to set underlay router interface state to down - %s.\n",
+                               SX_STATUS_MSG(sdk_status));
+                    sai_status = sdk_to_sai(sdk_status);
+                    goto cleanup;
+                }
             }
         }
     }
