@@ -4184,13 +4184,17 @@ static sai_status_t mlnx_switch_bfd_packet_handle(const struct bfd_packet_event 
                    bfd_data->data.tx_session);
         bfd_data->data.bfd_session_state = SAI_BFD_SESSION_STATE_DOWN;
         SX_LOG_DBG("BFD try reconnect, send Down \n");
-        SX_LOG_NTC("BFD peer [%s] is manually down\n", dst_ip_str);
         bfd_data->data.remote_discriminator = ntohl(0);
         status = mlnx_set_offload_bfd_tx_session(&bfd_data->data, SX_ACCESS_CMD_EDIT);
         if (SAI_ERR(status)) {
             SX_LOG_ERR("BFD offload tx failed \n");
             sai_db_unlock();
             return status;
+        }
+        info.session_state = SAI_BFD_SESSION_STATE_ADMIN_DOWN;
+        SX_LOG_NTC("Notify: BFD peer [%s] is manually down\n", dst_ip_str);
+        if (g_notification_callbacks.on_bfd_session_state_change) {
+            g_notification_callbacks.on_bfd_session_state_change(1, &info);
         }
     }
 
