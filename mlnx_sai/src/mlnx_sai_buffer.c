@@ -5869,6 +5869,9 @@ sai_status_t mlnx_descriptor_buffer_init()
     const buffer_units_t epool_size = 96;
     const buffer_units_t tc_max = 16;
     const buffer_units_t size_per_tc = 5;
+    const buffer_units_t rx_reserved_per_port = ipool_size + pg_max * size_per_pg;
+    const buffer_units_t tx_reserved_per_port = epool_size + tc_max * size_per_tc;
+    const buffer_units_t total_reserved = MAX_PORTS * (rx_reserved_per_port + tx_reserved_per_port);
 
     SX_LOG_ENTER();
 
@@ -5879,8 +5882,7 @@ sai_status_t mlnx_descriptor_buffer_init()
      * SPC3: 204800, max ports: 128
      * SPC4: 220000, max ports: 258
      * for each port, reserve 5 for ipool, 1 for each PG (total 8 PGs) */
-    ingress_descriptor_pool_attr.pool_size = g_resource_limits.shared_buff_def_ing_desc_pool_size - MAX_PORTS *
-                                             (ipool_size + pg_max * size_per_pg);
+    ingress_descriptor_pool_attr.pool_size = g_resource_limits.shared_buff_def_ing_desc_pool_size - total_reserved;
     ingress_descriptor_pool_attr.mode = SX_COS_BUFFER_MAX_MODE_DYNAMIC_E;
     ingress_descriptor_pool_attr.buffer_type = SX_COS_BUFFER_RESERVED1_E;
     ingress_descriptor_pool_attr.infinite_size = false;
@@ -5903,8 +5905,7 @@ sai_status_t mlnx_descriptor_buffer_init()
      * SPC3: 204800, max ports: 128
      * SPC4: 220000, max ports: 258
      * for each port, reserve 96 for epool, 5 for each PG (total 16 PGs) */
-    egress_descriptor_pool_attr.pool_size = g_resource_limits.shared_buff_def_egr_desc_pool_size - MAX_PORTS *
-                                            (epool_size + tc_max * size_per_tc);
+    egress_descriptor_pool_attr.pool_size = g_resource_limits.shared_buff_def_egr_desc_pool_size - total_reserved;
     egress_descriptor_pool_attr.mode = SX_COS_BUFFER_MAX_MODE_DYNAMIC_E;
     egress_descriptor_pool_attr.buffer_type = SX_COS_BUFFER_RESERVED1_E;
     egress_descriptor_pool_attr.infinite_size = false;
