@@ -8037,7 +8037,8 @@ static sai_status_t mlnx_remove_bmtor_internal_obj(_In_ mlnx_bmtor_bridge_t *bmt
 
     sai_status = mlnx_bridge_oid_to_id(bmtor_bridge_entry->bridge_oid, &sx_bridge_id);
     if (SAI_ERR(sai_status)) {
-        SX_LOG_ERR("Failed to obtain sx bridge id from SAI bridge oid %" PRIx64 "\n", bmtor_bridge_entry->bridge_oid);
+        SX_LOG_ERR("Failed to obtain sx bridge id from SAI bridge oid 0x%" PRIx64 "\n",
+                   bmtor_bridge_entry->bridge_oid);
         SX_LOG_EXIT();
         return sai_status;
     }
@@ -8058,7 +8059,7 @@ static sai_status_t mlnx_remove_bmtor_internal_obj(_In_ mlnx_bmtor_bridge_t *bmt
                                        sx_tunnel_map_entry_cnt);
     if (SX_STATUS_SUCCESS != sdk_status) {
         sai_status = sdk_to_sai(sdk_status);
-        SX_LOG_ERR("Error deleting tunnel map for tunnel %x with bridge %x, vni %d, sx status %s\n",
+        SX_LOG_ERR("Error deleting tunnel map for tunnel 0x%x with bridge 0x%x, vni %d, sx status %s\n",
                    bmtor_bridge_entry->sx_vxlan_tunnel_id,
                    sx_bridge_id,
                    bmtor_bridge_entry->vni,
@@ -8069,28 +8070,28 @@ static sai_status_t mlnx_remove_bmtor_internal_obj(_In_ mlnx_bmtor_bridge_t *bmt
 
     sai_status = mlnx_bridge_api.remove_bridge_port(bmtor_bridge_entry->tunnel_bport_oid);
     if (SAI_ERR(sai_status)) {
-        SX_LOG_ERR("Failed to remove SAI tunnel bridge port %" PRIx64 "\n", bmtor_bridge_entry->tunnel_bport_oid);
+        SX_LOG_ERR("Failed to remove SAI tunnel bridge port 0x%" PRIx64 "\n", bmtor_bridge_entry->tunnel_bport_oid);
         SX_LOG_EXIT();
         return sai_status;
     }
 
     sai_status = mlnx_bridge_api.remove_bridge_port(bmtor_bridge_entry->bridge_bport_oid);
     if (SAI_ERR(sai_status)) {
-        SX_LOG_ERR("Failed to remove SAI bridge port %" PRIx64 "\n", bmtor_bridge_entry->bridge_bport_oid);
+        SX_LOG_ERR("Failed to remove SAI bridge port 0x%" PRIx64 "\n", bmtor_bridge_entry->bridge_bport_oid);
         SX_LOG_EXIT();
         return sai_status;
     }
 
     sai_status = mlnx_router_interface_api.remove_router_interface(bmtor_bridge_entry->rif_oid);
     if (SAI_ERR(sai_status)) {
-        SX_LOG_ERR("Failed to remove SAI rif %" PRIx64 "\n", bmtor_bridge_entry->rif_oid);
+        SX_LOG_ERR("Failed to remove SAI rif 0x%" PRIx64 "\n", bmtor_bridge_entry->rif_oid);
         SX_LOG_EXIT();
         return sai_status;
     }
 
     sai_status = mlnx_bridge_api.remove_bridge(bmtor_bridge_entry->bridge_oid);
     if (SAI_ERR(sai_status)) {
-        SX_LOG_ERR("Failed to remove SAI bridge %" PRIx64 "\n", bmtor_bridge_entry->bridge_oid);
+        SX_LOG_ERR("Failed to remove SAI bridge 0x%" PRIx64 "\n", bmtor_bridge_entry->bridge_oid);
         SX_LOG_EXIT();
         return sai_status;
     }
@@ -8648,6 +8649,7 @@ sai_status_t mlnx_tunnel_bridge_counter_update(_In_ sai_object_id_t tunnel_id,
                 vrf,
                 vni,
                 tunnel_id);
+            sai_db_write_lock();
             SX_LOG_EXIT();
             return sai_status;
         }
@@ -8705,6 +8707,7 @@ sai_status_t mlnx_tunnel_bridge_counter_update(_In_ sai_object_id_t tunnel_id,
         if (SAI_ERR(sai_status)) {
             SX_LOG_ERR("Error removing bmtor internal obj\n");
             SX_LOG_EXIT();
+            sai_db_write_lock();
             return sai_status;
         }
 

@@ -494,7 +494,8 @@ static sai_status_t mlnx_route_to_nhg_remove(_In_ mlnx_shm_rm_array_idx_t nhg_id
 
     status = mlnx_nhg_counter_update(nhg_idx,
                                      vrf,
-                                     -1);
+                                     -1,
+                                     false);
     if (SAI_ERR(status)) {
         SX_LOG_ERR("Failed to decrement NHG counter.\n");
         return status;

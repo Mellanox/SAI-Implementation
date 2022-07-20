@@ -1638,6 +1638,24 @@ sai_status_t mlnx_wred_mirror_port_event(_In_ sx_port_log_id_t port_log_id, _In_
     return SAI_STATUS_SUCCESS;
 }
 
+uint64_t mlnx_fec_mode_speeds_sp[3][20] = {
+    { SX_PORT_PHY_SPEED_1GB, SX_PORT_PHY_SPEED_10GB, SX_PORT_PHY_SPEED_25GB, SX_PORT_PHY_SPEED_40GB,
+      SX_PORT_PHY_SPEED_50GB, SX_PORT_PHY_SPEED_100GB, SX_PORT_PHY_SPEED_MAX + 1 },
+    { SX_PORT_PHY_SPEED_25GB, SX_PORT_PHY_SPEED_50GB, SX_PORT_PHY_SPEED_100GB,
+      SX_PORT_PHY_SPEED_MAX + 1 },
+    { SX_PORT_PHY_SPEED_10GB, SX_PORT_PHY_SPEED_25GB, SX_PORT_PHY_SPEED_40GB, SX_PORT_PHY_SPEED_50GB,
+      SX_PORT_PHY_SPEED_56GB, SX_PORT_PHY_SPEED_MAX + 1 },
+};
+
+uint64_t mlnx_fec_mode_speeds_sp2[3][20] = {
+    { SX_PORT_PHY_SPEED_1GB, SX_PORT_PHY_SPEED_10GB, SX_PORT_PHY_SPEED_25GB, SX_PORT_PHY_SPEED_40GB,
+      SX_PORT_PHY_SPEED_50GB, SX_PORT_PHY_SPEED_100GB, SX_PORT_PHY_SPEED_MAX + 1 },
+    { SX_PORT_PHY_SPEED_25GB, SX_PORT_PHY_SPEED_50GB, SX_PORT_PHY_SPEED_50GB_1X, SX_PORT_PHY_SPEED_100GB,
+      SX_PORT_PHY_SPEED_100GB_2X, SX_PORT_PHY_SPEED_200GB, SX_PORT_PHY_SPEED_400GB_8X, SX_PORT_PHY_SPEED_MAX + 1 },
+    { SX_PORT_PHY_SPEED_10GB, SX_PORT_PHY_SPEED_25GB, SX_PORT_PHY_SPEED_40GB, SX_PORT_PHY_SPEED_50GB,
+      SX_PORT_PHY_SPEED_56GB, SX_PORT_PHY_SPEED_MAX + 1 },
+};
+
 sai_status_t mlnx_port_fec_set_impl(sx_port_log_id_t port_log_id, int32_t value)
 {
     sx_status_t         status;
@@ -1664,8 +1682,11 @@ sai_status_t mlnx_port_fec_set_impl(sx_port_log_id_t port_log_id, int32_t value)
         return SAI_STATUS_INVALID_ATTR_VALUE_0;
     }
 
-    /* FEC settings are valid for 25G, 50G, 100G, not for 10G and 40G */
-    for (speed = SX_PORT_PHY_SPEED_25GB; speed <= SX_PORT_PHY_SPEED_100GB; speed++) {
+    uint64_t(*fec_mode_speeds)[20] =
+        mlnx_chip_is_spc() ? mlnx_fec_mode_speeds_sp : mlnx_fec_mode_speeds_sp2;
+
+    for (int32_t ii = 0; fec_mode_speeds[value][ii] != (SX_PORT_PHY_SPEED_MAX + 1); ii++) {
+        speed = fec_mode_speeds[value][ii];
         status = sx_api_port_phy_mode_set(gh_sdk, port_log_id, speed, mode);
         if (SX_ERR(status)) {
             SX_LOG_ERR("Failed to set fec mode speed %d - %s.\n", speed, SX_STATUS_MSG(status));
@@ -3119,7 +3140,7 @@ static sai_status_t mlnx_port_fec_get(_In_ const sai_object_key_t   *key,
         return status;
     }
 
-    status = sx_api_port_phy_mode_get(gh_sdk, port_id, SX_PORT_PHY_SPEED_100GB, &admin, &oper);
+    status = sx_api_port_phy_mode_get(gh_sdk, port_id, SX_PORT_PHY_SPEED_50GB, &admin, &oper);
     if (status != SAI_STATUS_SUCCESS) {
         SX_LOG_ERR("Failed to get phy mode - %s\n", SX_STATUS_MSG(status));
         return sdk_to_sai(status);

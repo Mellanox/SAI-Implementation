@@ -1544,6 +1544,13 @@ typedef enum _mlnx_nhgm_type_t {
     MLNX_NHGM_TYPE_FINE_GRAIN = 3,
 } mlnx_nhgm_type_t;
 
+typedef enum _mlnx_nhgm_state_t {
+    MLNX_NHGM_STATE_INVALID     = 0,
+    MLNX_NHGM_STATE_ALLOCATED   = 1,
+    MLNX_NHGM_STATE_TO_REMOVE   = 2,
+    MLNX_NHGM_STATE_INITIALIZED = 3,
+} mlnx_nhgm_state_t;
+
 typedef struct _mlnx_nhg_encap_vrf_data_t {
     sai_object_id_t associated_vrf;
     sx_ecmp_id_t    sx_ecmp_id;
@@ -1576,14 +1583,20 @@ typedef struct _mlnx_nhg_db_entry_t {
     mlnx_nhg_db_data_t   data;
 } mlnx_nhg_db_entry_t;
 
+typedef struct _mlnx_nhgm_fg_data_t {
+    uint32_t        id;
+    sai_object_id_t nh;
+} mlnx_nhgm_fg_data_t;
+
 typedef struct _mlnx_nhgm_db_data_t {
     mlnx_nhgm_type_t        type;
+    mlnx_nhgm_state_t       state;
     uint32_t                weight;
     mlnx_shm_rm_array_idx_t flow_counter;
     union {
         mlnx_shm_rm_array_idx_t nh_idx;
         sx_ecmp_id_t            sx_ecmp_id;
-        uint32_t                fg_id;
+        mlnx_nhgm_fg_data_t     fg;
     } entry;
     mlnx_shm_rm_array_idx_t nhg_idx;
     mlnx_shm_rm_array_idx_t next_member_idx;
@@ -1608,7 +1621,8 @@ sai_status_t mlnx_ecmp_to_nhg_map_entry_get(_In_ sx_ecmp_id_t              key,
                                             _Out_ mlnx_shm_rm_array_idx_t *value);
 sai_status_t mlnx_nhg_counter_update(_In_ mlnx_shm_rm_array_idx_t nhg_idx,
                                      _In_ sai_object_id_t         vrf,
-                                     _In_ int32_t                 diff);
+                                     _In_ int32_t                 diff,
+                                     _In_ bool                    bulk_oprtation);
 sai_status_t mlnx_nhg_oid_create(_In_ mlnx_shm_rm_array_idx_t idx,
                                  _Out_ sai_object_id_t       *oid);
 sai_status_t mlnx_nhg_oid_to_data(_In_ sai_object_id_t           oid,

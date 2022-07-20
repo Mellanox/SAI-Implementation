@@ -3361,7 +3361,7 @@ static sai_status_t sai_db_create()
     cl_err = cl_shm_create(SAI_PATH, &shmid);
     if (cl_err) {
         if (errno == EEXIST) { /* one retry is allowed */
-            MLNX_SAI_LOG_ERR("Shared memory of the SAI already exists, destroying it and re-creating\n");
+            MLNX_SAI_LOG_NTC("Shared memory of the SAI already exists, destroying it and re-creating\n");
             cl_shm_destroy(SAI_PATH);
             cl_err = cl_shm_create(SAI_PATH, &shmid);
         }
@@ -3732,6 +3732,7 @@ static sai_status_t mlnx_switch_bfd_packet_handle(const struct bfd_packet_event 
     sai_status_t                         status;
     mlnx_bfd_packet_t                   *bfd_p;
     int                                  need_update_rx = 0;
+    bool                                 negotiation = false;
     char                                 dst_ip_str[MAX_IP_STR_LEN];
     sai_bfd_session_state_t              bfd_session_state, bfd_pkt_state;
 
@@ -3781,11 +3782,45 @@ static sai_status_t mlnx_switch_bfd_packet_handle(const struct bfd_packet_event 
     SX_LOG_DBG("bfd echo-min [%d] incoming %d\n",
                bfd_data->data.remote_echo, ntohl(bfd_p->min_rx_echo));
 
+    status = sai_ipaddr_to_str(bfd_data->data.dst_ip,
+                               MAX_IP_STR_LEN - 1, dst_ip_str, NULL);
+    if (SAI_ERR(status)) {
+        strcpy(dst_ip_str, "-");
+    }
+
     if (!bfd_data->data.multihop && (packet->ttl != 255)) {
-        SX_LOG_ERR("TTL mismatch, expected 0xFF, got %u, drop packet",
-                   packet->ttl);
+        SX_LOG_NTC("TTL mismatch, expected 0xFF, got %u, drop packet from %s\n",
+                   packet->ttl, dst_ip_str);
         sai_db_unlock();
-        return SAI_STATUS_FAILURE;
+        return SAI_STATUS_SUCCESS;
+    }
+
+    if (!bfd_p->your_disc) {
+        SX_LOG_NTC("Negotiation begin: send my disc %d to %s\n",
+                   bfd_data->data.local_discriminator, dst_ip_str);
+        bfd_data->data.remote_discriminator = ntohl(bfd_p->my_disc);
+        SX_LOG_DBG("remote_disc learned %u\n",
+                   bfd_data->data.remote_discriminator);
+        negotiation = !!(bfd_data->data.remote_discriminator);
+    } else if (bfd_data->data.local_discriminator != ntohl(bfd_p->your_disc)) {
+        SX_LOG_NTC("my_disc mismatch, expected %u, got %u, drop packet from %s\n",
+                   bfd_data->data.local_discriminator,
+                   ntohl(bfd_p->your_disc), dst_ip_str);
+        sai_db_unlock();
+        return SAI_STATUS_SUCCESS;
+    }
+
+    if (!bfd_data->data.remote_discriminator) {
+        bfd_data->data.remote_discriminator = ntohl(bfd_p->my_disc);
+        SX_LOG_DBG("remote_disc learned %u\n",
+                   bfd_data->data.remote_discriminator);
+        negotiation = !!(bfd_data->data.remote_discriminator);
+    } else if (bfd_data->data.remote_discriminator != ntohl(bfd_p->my_disc)) {
+        SX_LOG_NTC("remote_disc mismatch, expected %u, got %u, drop packet from %s\n",
+                   bfd_data->data.remote_discriminator,
+                   ntohl(bfd_p->my_disc), dst_ip_str);
+        sai_db_unlock();
+        return SAI_STATUS_SUCCESS;
     }
 
     if ((bfd_data->data.remote_multiplier != bfd_p->mult) ||
@@ -3797,32 +3832,6 @@ static sai_status_t mlnx_switch_bfd_packet_handle(const struct bfd_packet_event 
         bfd_data->data.remote_min_tx = ntohl(bfd_p->min_tx);
         bfd_data->data.remote_min_rx = ntohl(bfd_p->min_rx);
         bfd_data->data.remote_echo = ntohl(bfd_p->min_rx_echo);
-    }
-
-    if (bfd_data->data.local_discriminator != ntohl(bfd_p->your_disc)) {
-        SX_LOG_ERR("my_disc mismatch, expected %u, got %u, drop packet",
-                   bfd_data->data.local_discriminator,
-                   ntohl(bfd_p->your_disc));
-        sai_db_unlock();
-        return SAI_STATUS_FAILURE;
-    }
-
-    if (!bfd_data->data.remote_discriminator) {
-        bfd_data->data.remote_discriminator = ntohl(bfd_p->my_disc);
-        SX_LOG_DBG("remote_disc learned %u\n",
-                   bfd_data->data.remote_discriminator);
-    } else if (bfd_data->data.remote_discriminator != ntohl(bfd_p->my_disc)) {
-        SX_LOG_ERR("remote_disc mismatch, expected %u, got %u, drop packet",
-                   bfd_data->data.remote_discriminator,
-                   ntohl(bfd_p->my_disc));
-        sai_db_unlock();
-        return SAI_STATUS_FAILURE;
-    }
-
-    status = sai_ipaddr_to_str(bfd_data->data.dst_ip,
-                               MAX_IP_STR_LEN - 1, dst_ip_str, NULL);
-    if (SAI_ERR(status)) {
-        strcpy(dst_ip_str, "-");
     }
 
     bfd_session_state = bfd_data->data.bfd_session_state;
@@ -3963,6 +3972,17 @@ static sai_status_t mlnx_switch_bfd_packet_handle(const struct bfd_packet_event 
             info.session_state = SAI_BFD_SESSION_STATE_UP;
             if (g_notification_callbacks.on_bfd_session_state_change) {
                 g_notification_callbacks.on_bfd_session_state_change(1, &info);
+            }
+        } else if (negotiation
+                   && (bfd_pkt_state == SAI_BFD_SESSION_STATE_DOWN)) {
+            SX_LOG_NTC("get negotiation packet [%d] in [%d] state, need to update tx\n",
+                       bfd_pkt_state, bfd_session_state);
+            bfd_data->data.bfd_session_state = SAI_BFD_SESSION_STATE_INIT;
+            status = mlnx_set_offload_bfd_tx_session(&bfd_data->data, SX_ACCESS_CMD_EDIT);
+            if (SAI_ERR(status)) {
+                SX_LOG_ERR("update offload tx session failed \n");
+                sai_db_unlock();
+                return status;
             }
         } else {
             SX_LOG_DBG("get packet [%d] in [%d] state, ignore it\n", bfd_pkt_state, bfd_session_state);

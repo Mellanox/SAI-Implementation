@@ -868,7 +868,9 @@ sai_status_t mlnx_encap_nh_data_get(mlnx_shm_rm_array_idx_t nh_idx,
 
     status = mlnx_encap_nexthop_get_nh_data(nh_idx, vrf, sx_next_hop);
     if (SAI_ERR(status)) {
-        SX_LOG_ERR("Failed to get NH data.\n");
+        SX_LOG_ERR("Failed to get NH data [NH_idx=%u, VRF=0x%lX]\n",
+                   nh_idx.idx,
+                   vrf);
         return status;
     }
 
@@ -886,10 +888,10 @@ sai_status_t mlnx_encap_nh_data_get(mlnx_shm_rm_array_idx_t nh_idx,
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t mlnx_encap_nexthop_counter_update(mlnx_shm_rm_array_idx_t nh_idx,
-                                               sai_object_id_t         vrf,
-                                               int32_t                 diff,
-                                               mlnx_nh_counter_type_t  counter_type)
+sai_status_t mlnx_encap_nexthop_counter_update(_In_ mlnx_shm_rm_array_idx_t nh_idx,
+                                               _In_ sai_object_id_t         vrf,
+                                               _In_ int32_t                 diff,
+                                               _In_ mlnx_nh_counter_type_t  counter_type)
 {
     sai_status_t                   status;
     mlnx_encap_nexthop_db_entry_t *db_entry;
@@ -906,7 +908,6 @@ sai_status_t mlnx_encap_nexthop_counter_update(mlnx_shm_rm_array_idx_t nh_idx,
     SX_LOG_ENTER();
 
     if (diff == 0) {
-        SX_LOG_NTC("Diff is zero");
         status = SAI_STATUS_SUCCESS;
         goto out;
     }
@@ -1070,6 +1071,7 @@ sai_status_t mlnx_encap_nexthop_counter_update(mlnx_shm_rm_array_idx_t nh_idx,
             goto out;
         }
     }
+
     if (diff < 0) {
         status = mlnx_tunnel_bridge_counter_update(db_entry->data.tunnel_id,
                                                    db_entry->data.tunnel_vni,
