@@ -26,6 +26,9 @@
 static sx_verbosity_level_t LOG_VAR_NAME(__MODULE__) = SX_VERBOSITY_LEVEL_WARNING;
 
 typedef sai_status_t (*queue_profile_setter_t) (sai_object_id_t profile_id, sai_object_id_t queue_id);
+typedef struct _mlnx_sai_queue_list {
+    uint8_t queues[16];
+} mlnx_sai_queue_list;
 
 static sai_status_t mlnx_queue_config_set(_In_ const sai_object_key_t      *key,
                                           _In_ const sai_attribute_value_t *value,
@@ -59,6 +62,13 @@ static sai_status_t mlnx_queue_parent_sched_node_set(_In_ const sai_object_key_t
                                                      _In_ const sai_attribute_value_t *value,
                                                      void                             *arg);
 static sai_status_t mlnx_queue_stats_capa_list_get(sai_stat_capability_list_t* capa_list);
+sai_status_t mlnx_sai_bulk_queue_stats_clear(_In_ sai_object_id_t         switch_id,
+                                             _In_ uint32_t                object_count,
+                                             _In_ const sai_object_key_t *object_key,
+                                             _In_ uint32_t                number_of_counters,
+                                             _In_ const sai_stat_id_t    *counter_ids,
+                                             _In_ sx_access_cmd_t         cmd,
+                                             _Inout_ sai_status_t        *object_statuses);
 
 static const sai_vendor_attribute_entry_t queue_vendor_attribs[] = {
     { SAI_QUEUE_ATTR_TYPE,
@@ -134,10 +144,18 @@ static const sai_stat_capability_t queue_stats_capabilities_spc12[] = {
     { SAI_QUEUE_STAT_BYTES, SAI_STATS_MODE_READ | SAI_STATS_MODE_READ_AND_CLEAR },
     { SAI_QUEUE_STAT_DROPPED_PACKETS, SAI_STATS_MODE_READ | SAI_STATS_MODE_READ_AND_CLEAR },
     { SAI_QUEUE_STAT_WRED_DROPPED_PACKETS, SAI_STATS_MODE_READ | SAI_STATS_MODE_READ_AND_CLEAR },
-    { SAI_QUEUE_STAT_CURR_OCCUPANCY_BYTES, SAI_STATS_MODE_READ | SAI_STATS_MODE_READ_AND_CLEAR },
-    { SAI_QUEUE_STAT_WATERMARK_BYTES, SAI_STATS_MODE_READ | SAI_STATS_MODE_READ_AND_CLEAR },
-    { SAI_QUEUE_STAT_SHARED_CURR_OCCUPANCY_BYTES, SAI_STATS_MODE_READ | SAI_STATS_MODE_READ_AND_CLEAR },
-    { SAI_QUEUE_STAT_SHARED_WATERMARK_BYTES, SAI_STATS_MODE_READ | SAI_STATS_MODE_READ_AND_CLEAR },
+    { SAI_QUEUE_STAT_CURR_OCCUPANCY_BYTES,
+      SAI_STATS_MODE_READ | SAI_STATS_MODE_READ_AND_CLEAR | SAI_STATS_MODE_BULK_READ |
+      SAI_STATS_MODE_BULK_READ_AND_CLEAR | SAI_STATS_MODE_BULK_CLEAR },
+    { SAI_QUEUE_STAT_WATERMARK_BYTES,
+      SAI_STATS_MODE_READ | SAI_STATS_MODE_READ_AND_CLEAR | SAI_STATS_MODE_BULK_READ |
+      SAI_STATS_MODE_BULK_READ_AND_CLEAR | SAI_STATS_MODE_BULK_CLEAR },
+    { SAI_QUEUE_STAT_SHARED_CURR_OCCUPANCY_BYTES,
+      SAI_STATS_MODE_READ | SAI_STATS_MODE_READ_AND_CLEAR | SAI_STATS_MODE_BULK_READ |
+      SAI_STATS_MODE_BULK_READ_AND_CLEAR | SAI_STATS_MODE_BULK_CLEAR },
+    { SAI_QUEUE_STAT_SHARED_WATERMARK_BYTES,
+      SAI_STATS_MODE_READ | SAI_STATS_MODE_READ_AND_CLEAR | SAI_STATS_MODE_BULK_READ |
+      SAI_STATS_MODE_BULK_READ_AND_CLEAR | SAI_STATS_MODE_BULK_CLEAR },
 };
 
 const mlnx_obj_type_attrs_info_t mlnx_queue_obj_type_info = {queue_vendor_attribs,
@@ -553,6 +571,156 @@ static sai_status_t mlnx_get_queue_attribute(_In_ sai_object_id_t     queue_id,
     return sai_status;
 }
 
+sai_status_t mlnx_sai_fill_queue_counter_value(sai_stat_id_t                  counter_id,
+                                               uint64_t                      *counter,
+                                               sx_port_log_id_t               port_num,
+                                               uint8_t                        queue_num,
+                                               sx_access_cmd_t                cmd,
+                                               const sx_port_traffic_cntr_t  *tc_cnts,
+                                               const sx_cos_buff_statistic_t *buff_cnts)
+{
+    assert(counter);
+    assert(tc_cnts || buff_cnts);
+
+    sai_status_t                  status;
+    sai_object_id_t               curr_wred_id;
+    sx_cos_redecn_port_counters_t sx_cnt;
+    mlnx_qos_queue_config_t      *queue_cfg = NULL;
+    uint32_t                      db_buffer_profile_index;
+
+    switch (counter_id) {
+    case SAI_QUEUE_STAT_DROPPED_BYTES:
+    case SAI_QUEUE_STAT_GREEN_PACKETS:
+    case SAI_QUEUE_STAT_GREEN_BYTES:
+    case SAI_QUEUE_STAT_GREEN_DROPPED_PACKETS:
+    case SAI_QUEUE_STAT_GREEN_DROPPED_BYTES:
+    case SAI_QUEUE_STAT_YELLOW_PACKETS:
+    case SAI_QUEUE_STAT_YELLOW_BYTES:
+    case SAI_QUEUE_STAT_YELLOW_DROPPED_PACKETS:
+    case SAI_QUEUE_STAT_YELLOW_DROPPED_BYTES:
+    case SAI_QUEUE_STAT_RED_PACKETS:
+    case SAI_QUEUE_STAT_RED_BYTES:
+    case SAI_QUEUE_STAT_RED_DROPPED_PACKETS:
+    case SAI_QUEUE_STAT_RED_DROPPED_BYTES:
+    case SAI_QUEUE_STAT_GREEN_WRED_DROPPED_PACKETS:
+    case SAI_QUEUE_STAT_GREEN_WRED_DROPPED_BYTES:
+    case SAI_QUEUE_STAT_YELLOW_WRED_DROPPED_PACKETS:
+    case SAI_QUEUE_STAT_YELLOW_WRED_DROPPED_BYTES:
+    case SAI_QUEUE_STAT_RED_WRED_DROPPED_PACKETS:
+    case SAI_QUEUE_STAT_RED_WRED_DROPPED_BYTES:
+    case SAI_QUEUE_STAT_WRED_DROPPED_BYTES:
+    case SAI_QUEUE_STAT_GREEN_WRED_ECN_MARKED_PACKETS:
+    case SAI_QUEUE_STAT_GREEN_WRED_ECN_MARKED_BYTES:
+    case SAI_QUEUE_STAT_YELLOW_WRED_ECN_MARKED_PACKETS:
+    case SAI_QUEUE_STAT_YELLOW_WRED_ECN_MARKED_BYTES:
+    case SAI_QUEUE_STAT_RED_WRED_ECN_MARKED_PACKETS:
+    case SAI_QUEUE_STAT_RED_WRED_ECN_MARKED_BYTES:
+    case SAI_QUEUE_STAT_WRED_ECN_MARKED_BYTES:
+        SX_LOG_INF("Queue counter %d set item not supported\n", counter_id);
+        return SAI_STATUS_ATTR_NOT_SUPPORTED_0;
+
+    case SAI_QUEUE_STAT_PACKETS:
+        assert(tc_cnts);
+        *counter = tc_cnts->tx_frames;
+        break;
+
+    case SAI_QUEUE_STAT_BYTES:
+        assert(tc_cnts);
+        *counter = tc_cnts->tx_octet;
+        break;
+
+    case SAI_QUEUE_STAT_DROPPED_PACKETS:
+        assert(tc_cnts);
+        *counter = tc_cnts->tx_no_buffer_discard_uc;
+        break;
+
+    case SAI_QUEUE_STAT_WRED_DROPPED_PACKETS:
+        assert(tc_cnts);
+        *counter = tc_cnts->tx_wred_discard;
+        break;
+
+    case SAI_QUEUE_STAT_WRED_ECN_MARKED_PACKETS:
+        *counter = 0;
+
+        sai_db_read_lock();
+        if (SAI_STATUS_SUCCESS !=
+            (status = mlnx_queue_cfg_lookup(port_num, queue_num, &queue_cfg))) {
+            sai_db_unlock();
+            return status;
+        }
+
+        curr_wred_id = queue_cfg->wred_id;
+        if (SAI_NULL_OBJECT_ID != curr_wred_id) {
+            if (SX_STATUS_SUCCESS !=
+                (status = sx_api_cos_redecn_counters_get(gh_sdk, cmd, port_num, &sx_cnt))) {
+                SX_LOG_ERR("Failed to get redecn counters - %s.\n", SX_STATUS_MSG(status));
+                sai_db_unlock();
+                return sdk_to_sai(status);
+            }
+            *counter = sx_cnt.tc_ecn_marked_packets[queue_num];
+        }
+
+        sai_db_unlock();
+        break;
+
+    case SAI_QUEUE_STAT_CURR_OCCUPANCY_BYTES:
+        assert(buff_cnts);
+        *counter = (uint64_t)buff_cnts->curr_occupancy *
+                   g_resource_limits.shared_buff_buffer_unit_size;
+        break;
+
+    case SAI_QUEUE_STAT_WATERMARK_BYTES:
+        assert(buff_cnts);
+        *counter = (uint64_t)buff_cnts->watermark *
+                   g_resource_limits.shared_buff_buffer_unit_size;
+        break;
+
+    case SAI_QUEUE_STAT_SHARED_CURR_OCCUPANCY_BYTES:
+        assert(buff_cnts);
+        *counter = (uint64_t)buff_cnts->curr_occupancy *
+                   g_resource_limits.shared_buff_buffer_unit_size;
+
+    /* Falls through. */
+    case SAI_QUEUE_STAT_SHARED_WATERMARK_BYTES:
+        assert(buff_cnts);
+        if (counter_id != SAI_QUEUE_STAT_SHARED_CURR_OCCUPANCY_BYTES) {
+            *counter = (uint64_t)buff_cnts->watermark *
+                       g_resource_limits.shared_buff_buffer_unit_size;
+        }
+
+        sai_db_read_lock();
+        if (SAI_STATUS_SUCCESS !=
+            (status = mlnx_queue_cfg_lookup(port_num, queue_num, &queue_cfg))) {
+            SX_LOG_EXIT();
+            sai_db_unlock();
+            return status;
+        }
+
+        if (SAI_NULL_OBJECT_ID != queue_cfg->buffer_id) {
+            if (SAI_STATUS_SUCCESS !=
+                (status = get_buffer_profile_db_index(queue_cfg->buffer_id, &db_buffer_profile_index))) {
+                SX_LOG_EXIT();
+                sai_db_unlock();
+                return status;
+            }
+
+            if (*counter >= g_sai_buffer_db_ptr->buffer_profiles[db_buffer_profile_index].reserved_size) {
+                *counter -= g_sai_buffer_db_ptr->buffer_profiles[db_buffer_profile_index].reserved_size;
+            } else {
+                *counter = 0;
+            }
+        }
+        sai_db_unlock();
+        break;
+
+    default:
+        SX_LOG_ERR("Invalid queue counter %d\n", counter_id);
+        return SAI_STATUS_INVALID_PARAMETER;
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
 /**
  * @brief Get queue statistics counters extended.
  *
@@ -583,10 +751,6 @@ sai_status_t mlnx_get_queue_statistics_ext(_In_ sai_object_id_t      queue_id,
     sx_port_traffic_cntr_t           tc_cnts = { 0 };
     sx_port_cntr_perf_t              perf_cnts;
     bool                             tc_cnts_needed = false, occupancy_stats_needed = false;
-    sai_object_id_t                  curr_wred_id;
-    sx_cos_redecn_port_counters_t    sx_cnt;
-    mlnx_qos_queue_config_t         *queue_cfg = NULL;
-    uint32_t                         db_buffer_profile_index;
     sx_access_cmd_t                  cmd;
 
     SX_LOG_ENTER();
@@ -730,128 +894,16 @@ sai_status_t mlnx_get_queue_statistics_ext(_In_ sai_object_id_t      queue_id,
     }
 
     for (ii = 0; ii < number_of_counters; ii++) {
-        switch (counter_ids[ii]) {
-        case SAI_QUEUE_STAT_DROPPED_BYTES:
-        case SAI_QUEUE_STAT_GREEN_PACKETS:
-        case SAI_QUEUE_STAT_GREEN_BYTES:
-        case SAI_QUEUE_STAT_GREEN_DROPPED_PACKETS:
-        case SAI_QUEUE_STAT_GREEN_DROPPED_BYTES:
-        case SAI_QUEUE_STAT_YELLOW_PACKETS:
-        case SAI_QUEUE_STAT_YELLOW_BYTES:
-        case SAI_QUEUE_STAT_YELLOW_DROPPED_PACKETS:
-        case SAI_QUEUE_STAT_YELLOW_DROPPED_BYTES:
-        case SAI_QUEUE_STAT_RED_PACKETS:
-        case SAI_QUEUE_STAT_RED_BYTES:
-        case SAI_QUEUE_STAT_RED_DROPPED_PACKETS:
-        case SAI_QUEUE_STAT_RED_DROPPED_BYTES:
-        case SAI_QUEUE_STAT_GREEN_WRED_DROPPED_PACKETS:
-        case SAI_QUEUE_STAT_GREEN_WRED_DROPPED_BYTES:
-        case SAI_QUEUE_STAT_YELLOW_WRED_DROPPED_PACKETS:
-        case SAI_QUEUE_STAT_YELLOW_WRED_DROPPED_BYTES:
-        case SAI_QUEUE_STAT_RED_WRED_DROPPED_PACKETS:
-        case SAI_QUEUE_STAT_RED_WRED_DROPPED_BYTES:
-        case SAI_QUEUE_STAT_WRED_DROPPED_BYTES:
-        case SAI_QUEUE_STAT_GREEN_WRED_ECN_MARKED_PACKETS:
-        case SAI_QUEUE_STAT_GREEN_WRED_ECN_MARKED_BYTES:
-        case SAI_QUEUE_STAT_YELLOW_WRED_ECN_MARKED_PACKETS:
-        case SAI_QUEUE_STAT_YELLOW_WRED_ECN_MARKED_BYTES:
-        case SAI_QUEUE_STAT_RED_WRED_ECN_MARKED_PACKETS:
-        case SAI_QUEUE_STAT_RED_WRED_ECN_MARKED_BYTES:
-        case SAI_QUEUE_STAT_WRED_ECN_MARKED_BYTES:
-            SX_LOG_INF("Queue counter %d set item %u not supported\n", counter_ids[ii], ii);
-            return SAI_STATUS_ATTR_NOT_SUPPORTED_0;
-
-        case SAI_QUEUE_STAT_PACKETS:
-            counters[ii] = tc_cnts.tx_frames;
-            break;
-
-        case SAI_QUEUE_STAT_BYTES:
-            counters[ii] = tc_cnts.tx_octet;
-            break;
-
-        case SAI_QUEUE_STAT_DROPPED_PACKETS:
-            counters[ii] = tc_cnts.tx_no_buffer_discard_uc;
-            break;
-
-        case SAI_QUEUE_STAT_WRED_DROPPED_PACKETS:
-            counters[ii] = tc_cnts.tx_wred_discard;
-            break;
-
-        case SAI_QUEUE_STAT_WRED_ECN_MARKED_PACKETS:
-            counters[ii] = 0;
-
-            sai_db_read_lock();
-            if (SAI_STATUS_SUCCESS !=
-                (status = mlnx_queue_cfg_lookup(port_num, queue_num, &queue_cfg))) {
-                sai_db_unlock();
-                SX_LOG_EXIT();
-                return status;
-            }
-
-            curr_wred_id = queue_cfg->wred_id;
-            if (SAI_NULL_OBJECT_ID != curr_wred_id) {
-                if (SX_STATUS_SUCCESS !=
-                    (status = sx_api_cos_redecn_counters_get(gh_sdk, cmd, port_num, &sx_cnt))) {
-                    SX_LOG_ERR("Failed to get redecn counters - %s.\n", SX_STATUS_MSG(status));
-                    sai_db_unlock();
-                    SX_LOG_EXIT();
-                    return sdk_to_sai(status);
-                }
-                counters[ii] = sx_cnt.tc_ecn_marked_packets[queue_num];
-            }
-
-            sai_db_unlock();
-            break;
-
-        case SAI_QUEUE_STAT_CURR_OCCUPANCY_BYTES:
-            counters[ii] = (uint64_t)occupancy_stats.statistics.curr_occupancy *
-                           g_resource_limits.shared_buff_buffer_unit_size;
-            break;
-
-        case SAI_QUEUE_STAT_WATERMARK_BYTES:
-            counters[ii] = (uint64_t)occupancy_stats.statistics.watermark *
-                           g_resource_limits.shared_buff_buffer_unit_size;
-            break;
-
-        case SAI_QUEUE_STAT_SHARED_CURR_OCCUPANCY_BYTES:
-            counters[ii] = (uint64_t)occupancy_stats.statistics.curr_occupancy *
-                           g_resource_limits.shared_buff_buffer_unit_size;
-
-        /* Falls through. */
-        case SAI_QUEUE_STAT_SHARED_WATERMARK_BYTES:
-            if (counter_ids[ii] != SAI_QUEUE_STAT_SHARED_CURR_OCCUPANCY_BYTES) {
-                counters[ii] = (uint64_t)occupancy_stats.statistics.watermark *
-                               g_resource_limits.shared_buff_buffer_unit_size;
-            }
-
-            sai_db_read_lock();
-            if (SAI_STATUS_SUCCESS !=
-                (status = mlnx_queue_cfg_lookup(port_num, queue_num, &queue_cfg))) {
-                SX_LOG_EXIT();
-                sai_db_unlock();
-                return status;
-            }
-
-            if (SAI_NULL_OBJECT_ID != queue_cfg->buffer_id) {
-                if (SAI_STATUS_SUCCESS !=
-                    (status = get_buffer_profile_db_index(queue_cfg->buffer_id, &db_buffer_profile_index))) {
-                    SX_LOG_EXIT();
-                    sai_db_unlock();
-                    return status;
-                }
-
-                if (counters[ii] >= g_sai_buffer_db_ptr->buffer_profiles[db_buffer_profile_index].reserved_size) {
-                    counters[ii] -= g_sai_buffer_db_ptr->buffer_profiles[db_buffer_profile_index].reserved_size;
-                } else {
-                    counters[ii] = 0;
-                }
-            }
-            sai_db_unlock();
-            break;
-
-        default:
-            SX_LOG_ERR("Invalid queue counter %d\n", counter_ids[ii]);
-            return SAI_STATUS_INVALID_PARAMETER;
+        status = mlnx_sai_fill_queue_counter_value(
+            counter_ids[ii],
+            &counters[ii],
+            port_num,
+            queue_num,
+            cmd,
+            &tc_cnts,
+            &occupancy_stats.statistics);
+        if (SX_STATUS_SUCCESS != status) {
+            return status;
         }
     }
 
@@ -990,6 +1042,279 @@ static sai_status_t mlnx_clear_queue_stats(_In_ sai_object_id_t      queue_id,
 
     SX_LOG_EXIT();
     return SAI_STATUS_SUCCESS;
+}
+
+sai_status_t mlnx_sai_bulk_queue_stats_get(_In_ sai_object_id_t         switch_id,
+                                           _In_ uint32_t                object_count,
+                                           _In_ const sai_object_key_t *object_key,
+                                           _In_ uint32_t                number_of_counters,
+                                           _In_ const sai_stat_id_t    *counter_ids,
+                                           _In_ sx_access_cmd_t         cmd,
+                                           _Inout_ sai_status_t        *object_statuses,
+                                           _Out_ uint64_t              *counters)
+{
+    sai_status_t              status;
+    sai_status_t              single_status;
+    bool                      any_error = false;
+    sai_bulk_counter_stats    stats[MAX_PORTS_DB] = {0};
+    uint32_t                  stats_count = 0;
+    int                       stats_index = 0;
+    sx_status_t               sx_status = -1;
+    sx_bulk_cntr_buffer_key_t bulk_read_key = {0};
+    sx_bulk_cntr_buffer_t     bulk_read_buff = {0};
+    sx_bulk_cntr_read_key_t   key_get = {0};
+    sx_port_log_id_t          port_num;
+    uint8_t                   ext_data[EXTENDED_DATA_SIZE] = {0};
+    uint8_t                   queue_num = 0;
+    uint32_t                  counter_index;
+
+    SX_LOG_ENTER();
+
+    for (uint32_t ii = 0; ii < number_of_counters; ii++) {
+        switch (counter_ids[ii]) {
+        case SAI_QUEUE_STAT_CURR_OCCUPANCY_BYTES:
+        case SAI_QUEUE_STAT_WATERMARK_BYTES:
+        case SAI_QUEUE_STAT_SHARED_CURR_OCCUPANCY_BYTES:
+        case SAI_QUEUE_STAT_SHARED_WATERMARK_BYTES:
+            break;
+
+        default:
+            SX_LOG_INF("Not all queue statistic IDs are implemented for bulk read: %d\n", counter_ids[ii]);
+            SX_LOG_EXIT();
+            return SAI_STATUS_NOT_IMPLEMENTED;
+        }
+    }
+
+    /* For stats related to watermark and occupancy, the SDK bulk key type shall be
+     * shared_buffer key; for other queue stats, the SDK bulk key type shall be port_key.
+     * Currently, we only support bulk counter for watermark and occupancy related stats.
+     */
+
+    bulk_read_key.type = SX_BULK_CNTR_KEY_TYPE_SHARED_BUFFER_E;
+    bulk_read_key.key.shared_buffer_key.type = SX_BULK_CNTR_SHARED_BUFFER_CURRENT_E;
+
+    /* Cannot use SX_ACCESS_CMD_READ_CLEAR here because it will clear all queue/pg
+     * stats.
+     */
+
+    status = mlnx_prepare_bulk_counter_read(MLNX_BULK_TYPE_SHARED_BUFFER,
+                                            SX_ACCESS_CMD_READ,
+                                            &bulk_read_key,
+                                            &bulk_read_buff);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to prepare bulk counter for queue stats.\n");
+        SX_LOG_EXIT();
+        return status;
+    }
+
+    key_get.type = SX_BULK_CNTR_KEY_TYPE_SHARED_BUFFER_E;
+    key_get.key.shared_buffer_key.type = SX_BULK_CNTR_SHARED_BUFFER_PORT_ATTR_E;
+
+    for (uint32_t ii = 0; ii < object_count; ii++) {
+        if (SAI_STATUS_SUCCESS !=
+            mlnx_object_to_type(object_key[ii].key.object_id, SAI_OBJECT_TYPE_QUEUE, &port_num, ext_data)) {
+            object_statuses[ii] = SAI_STATUS_INVALID_PARAMETER;
+            any_error = true;
+            continue;
+        }
+
+        queue_num = ext_data[0];
+        if (queue_num > g_resource_limits.cos_port_ets_traffic_class_max) {
+            SX_LOG_ERR("Invalid queue num %u - exceed maximum %u\n", queue_num,
+                       g_resource_limits.cos_port_ets_traffic_class_max);
+            object_statuses[ii] = SAI_STATUS_INVALID_PARAMETER;
+            any_error = true;
+            continue;
+        }
+
+        if (queue_num >= RM_API_COS_TRAFFIC_CLASS_NUM) {
+            SX_LOG_INF("Bulk counter not supported for queue num greater than %d\n",
+                       RM_API_COS_TRAFFIC_CLASS_NUM);
+            object_statuses[ii] = SAI_STATUS_NOT_SUPPORTED;
+            any_error = true;
+            continue;
+        }
+
+        /* Assume SAI user fill object in following order: */
+        /* port 0 queue 0, port 0 queue 1 ... port 0 queue 7, port 1 queue 0, port 1 queue 1... */
+        /* In that case, here use reverse search for better performance */
+        for (stats_index = stats_count - 1; stats_index >= 0; stats_index--) {
+            if (stats[stats_index].port_num == port_num) {
+                break;
+            }
+        }
+
+        if (stats_index < 0) {
+            /* new port, read all queue stats for this port */
+            stats_index = stats_count++;
+            stats[stats_index].port_num = port_num;
+            stats[stats_index].status = SAI_STATUS_SUCCESS;
+            key_get.key.shared_buffer_key.attr.log_port = port_num;
+            sx_status = sx_api_bulk_counter_transaction_get(gh_sdk,
+                                                            &key_get,
+                                                            &bulk_read_buff,
+                                                            &(stats[stats_index].data));
+            if (SX_ERR(sx_status)) {
+                SX_LOG_ERR("Failed to bulk read queue counters: %s.\n", SX_STATUS_MSG(sx_status));
+                stats[stats_index].status = sdk_to_sai(sx_status);
+                any_error = true;
+            }
+        }
+
+        if (stats[stats_index].status != SAI_STATUS_SUCCESS) {
+            object_statuses[ii] = stats[stats_index].status;
+            continue;
+        }
+
+        single_status = SAI_STATUS_SUCCESS;
+        for (uint32_t kk = 0; kk < number_of_counters; kk++) {
+            counter_index = ii * number_of_counters + kk;
+
+            single_status = mlnx_sai_fill_queue_counter_value(
+                counter_ids[kk],
+                &counters[counter_index],
+                port_num,
+                queue_num,
+                cmd,
+                NULL,
+                &stats[stats_index].data.data.shared_buffer_counters.port_p->port_tc[queue_num]);
+
+            if (single_status != SAI_STATUS_SUCCESS) {
+                any_error = true;
+                break;
+            }
+        }
+
+        object_statuses[ii] = single_status;
+    }
+
+    status = mlnx_deallocate_sx_bulk_buffer(&bulk_read_buff);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to deallocate SDK buffer.\n");
+        SX_LOG_EXIT();
+        return status;
+    }
+
+    SX_LOG_EXIT();
+    if (any_error) {
+        return SAI_STATUS_FAILURE;
+    }
+
+    if (cmd == SX_ACCESS_CMD_READ_CLEAR) {
+        return mlnx_sai_bulk_queue_stats_clear(
+            switch_id,
+            object_count,
+            object_key,
+            number_of_counters,
+            counter_ids,
+            SX_ACCESS_CMD_READ_CLEAR,
+            object_statuses);
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
+sai_status_t mlnx_sai_bulk_queue_stats_clear(_In_ sai_object_id_t         switch_id,
+                                             _In_ uint32_t                object_count,
+                                             _In_ const sai_object_key_t *object_key,
+                                             _In_ uint32_t                number_of_counters,
+                                             _In_ const sai_stat_id_t    *counter_ids,
+                                             _In_ sx_access_cmd_t         cmd,
+                                             _Inout_ sai_status_t        *object_statuses)
+{
+    sx_status_t                      sx_status = -1;
+    sx_port_statistic_usage_params_t stats_usages[MAX_PORTS_DB] = {0};
+    sx_port_log_id_t                 port_num;
+    sx_port_log_id_t                 log_port_list[MAX_PORTS_DB] = {0};
+    uint32_t                         port_count = 0;
+    int                              port_index = 0;
+    uint32_t                         usage_cnt = object_count;
+    bool                             any_error = false;
+    uint8_t                          ext_data[EXTENDED_DATA_SIZE] = {0};
+    uint8_t                          queue_num = 0;
+    mlnx_sai_queue_list              port_queues[MAX_PORTS_DB] = {0};
+    sx_port_occupancy_statistics_t  *stats = NULL;
+
+    SX_LOG_ENTER();
+
+    for (uint32_t ii = 0; ii < number_of_counters; ii++) {
+        switch (counter_ids[ii]) {
+        case SAI_QUEUE_STAT_CURR_OCCUPANCY_BYTES:
+        case SAI_QUEUE_STAT_WATERMARK_BYTES:
+        case SAI_QUEUE_STAT_SHARED_CURR_OCCUPANCY_BYTES:
+        case SAI_QUEUE_STAT_SHARED_WATERMARK_BYTES:
+            break;
+
+        default:
+            SX_LOG_INF("Not all queue statistic IDs are implemented for bulk clear: %u\n", counter_ids[ii]);
+            SX_LOG_EXIT();
+            return SAI_STATUS_NOT_IMPLEMENTED;
+        }
+    }
+
+    stats = calloc(object_count, sizeof(sx_port_occupancy_statistics_t));
+    if (NULL == stats) {
+        SX_LOG_ERR("Failed to allocate memory for stats\n");
+        return SAI_STATUS_NO_MEMORY;
+    }
+
+    /* SDK bulk clear will clear all PG/queue/buffer statistic. So, we have to use non bulk API here. */
+    for (uint32_t ii = 0; ii < object_count; ii++) {
+        if (SAI_STATUS_SUCCESS !=
+            mlnx_object_to_type(object_key[ii].key.object_id, SAI_OBJECT_TYPE_QUEUE, &port_num, ext_data)) {
+            object_statuses[ii] = SAI_STATUS_INVALID_PARAMETER;
+            any_error = true;
+            continue;
+        }
+
+        queue_num = ext_data[0];
+        if (queue_num > g_resource_limits.cos_port_ets_traffic_class_max) {
+            SX_LOG_ERR("Invalid queue num %u - exceed maximum %u\n", queue_num,
+                       g_resource_limits.cos_port_ets_traffic_class_max);
+            object_statuses[ii] = SAI_STATUS_INVALID_PARAMETER;
+            any_error = true;
+            continue;
+        }
+
+        if (queue_num >= RM_API_COS_TRAFFIC_CLASS_NUM) {
+            SX_LOG_INF("Bulk counter not supported for queue num greater than %d\n",
+                       RM_API_COS_TRAFFIC_CLASS_NUM);
+            object_statuses[ii] = SAI_STATUS_NOT_SUPPORTED;
+            any_error = true;
+            continue;
+        }
+
+        for (port_index = port_count - 1; port_index >= 0; port_index--) {
+            if (log_port_list[port_index] == port_num) {
+                break;
+            }
+        }
+
+        /* New port */
+        if (port_index < 0) {
+            port_index = port_count++;
+            stats_usages[port_index].port_cnt = 1;
+            log_port_list[port_index] = port_num;
+            stats_usages[port_index].log_port_list_p = &log_port_list[port_index];
+            stats_usages[port_index].sx_port_params.port_params_type = SX_COS_EGRESS_PORT_TRAFFIC_CLASS_ATTR_E;
+            stats_usages[port_index].sx_port_params.port_params_cnt = 0;
+            stats_usages[port_index].sx_port_params.port_param.port_tc_list_p = &port_queues[port_index].queues[0];
+        }
+
+        stats_usages[port_index].sx_port_params.port_param.port_tc_list_p[stats_usages[port_index].sx_port_params.
+                                                                          port_params_cnt++] = queue_num;
+    }
+
+    if (SX_STATUS_SUCCESS !=
+        (sx_status = sx_api_cos_port_buff_type_statistic_get(gh_sdk, cmd, &stats_usages[0], port_count,
+                                                             stats, &usage_cnt))) {
+        SX_LOG_ERR("Failed to bulk clear queue statistics - %s.\n", SX_STATUS_MSG(sx_status));
+        any_error = true;
+    }
+
+    free(stats);
+    SX_LOG_EXIT();
+    return any_error ? SAI_STATUS_FAILURE : SAI_STATUS_SUCCESS;
 }
 
 /* QoS DB lock is required */

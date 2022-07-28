@@ -376,7 +376,7 @@ void check_attr_by_object_type()
 
             /*
              * For Switch Attribute we have crossed > 300 with Vendor extension
-             * for SAIv1.8.0 so increasing threshold.
+             * for SAI v1.8.0 so increasing threshold.
              */
 
             META_ASSERT_TRUE(index < 300, "object defines > 300 attributes, metadata bug?");
@@ -642,6 +642,7 @@ void check_attr_object_type_provided(
         case SAI_ATTR_VALUE_TYPE_INT32:
         case SAI_ATTR_VALUE_TYPE_INT8_LIST:
         case SAI_ATTR_VALUE_TYPE_UINT8_LIST:
+        case SAI_ATTR_VALUE_TYPE_UINT16_LIST:
         case SAI_ATTR_VALUE_TYPE_INT32_LIST:
         case SAI_ATTR_VALUE_TYPE_UINT8:
         case SAI_ATTR_VALUE_TYPE_UINT16:
@@ -655,6 +656,7 @@ void check_attr_object_type_provided(
         case SAI_ATTR_VALUE_TYPE_PRBS_RX_STATE:
         case SAI_ATTR_VALUE_TYPE_CHARDATA:
         case SAI_ATTR_VALUE_TYPE_UINT32_RANGE:
+        case SAI_ATTR_VALUE_TYPE_UINT16_RANGE_LIST:
         case SAI_ATTR_VALUE_TYPE_UINT32_LIST:
         case SAI_ATTR_VALUE_TYPE_QOS_MAP_LIST:
         case SAI_ATTR_VALUE_TYPE_MAP_LIST:
@@ -1002,6 +1004,15 @@ void check_attr_default_required(
 
             META_MD_ASSERT_FAIL(md, "default value list is needed on this attr value type but list is NULL");
 
+        case SAI_ATTR_VALUE_TYPE_UINT16_LIST:
+
+            if (md->defaultvaluetype == SAI_DEFAULT_VALUE_TYPE_EMPTY_LIST)
+            {
+                break;
+            }
+
+            META_MD_ASSERT_FAIL(md, "default value list is needed on this attr value type but list is NULL");
+
         case SAI_ATTR_VALUE_TYPE_POINTER:
 
             /*
@@ -1146,6 +1157,7 @@ void check_attr_default_value_type(
                 case SAI_ATTR_VALUE_TYPE_UINT32_LIST:
                 case SAI_ATTR_VALUE_TYPE_INT32_LIST:
                 case SAI_ATTR_VALUE_TYPE_UINT8_LIST:
+                case SAI_ATTR_VALUE_TYPE_UINT16_LIST:
                 case SAI_ATTR_VALUE_TYPE_INT8_LIST:
                 case SAI_ATTR_VALUE_TYPE_OBJECT_LIST:
                 case SAI_ATTR_VALUE_TYPE_ACL_FIELD_DATA_OBJECT_LIST:
@@ -1205,7 +1217,7 @@ void check_attr_default_value_type(
             if (md->objecttype != SAI_OBJECT_TYPE_SWITCH)
             {
                 /*
-                 * This can be later relaxed to be set on PORTs since they have
+                 * This can be later relaxed to be set on ports since they have
                  * by default queues created.
                  */
 
@@ -1743,6 +1755,7 @@ void check_attr_allow_flags(
 
             case SAI_ATTR_VALUE_TYPE_INT8_LIST:
             case SAI_ATTR_VALUE_TYPE_UINT8_LIST:
+            case SAI_ATTR_VALUE_TYPE_UINT16_LIST:
             case SAI_ATTR_VALUE_TYPE_INT32_LIST:
             case SAI_ATTR_VALUE_TYPE_VLAN_LIST:
             case SAI_ATTR_VALUE_TYPE_UINT32_LIST:
@@ -2586,6 +2599,7 @@ void check_attr_is_primitive(
         case SAI_ATTR_VALUE_TYPE_MAP_LIST:
         case SAI_ATTR_VALUE_TYPE_UINT32_LIST:
         case SAI_ATTR_VALUE_TYPE_UINT8_LIST:
+        case SAI_ATTR_VALUE_TYPE_UINT16_LIST:
         case SAI_ATTR_VALUE_TYPE_VLAN_LIST:
         case SAI_ATTR_VALUE_TYPE_ACL_CAPABILITY:
         case SAI_ATTR_VALUE_TYPE_ACL_RESOURCE_LIST:
@@ -2595,6 +2609,7 @@ void check_attr_is_primitive(
         case SAI_ATTR_VALUE_TYPE_PORT_EYE_VALUES_LIST:
         case SAI_ATTR_VALUE_TYPE_SYSTEM_PORT_CONFIG_LIST:
         case SAI_ATTR_VALUE_TYPE_PORT_ERR_STATUS_LIST:
+        case SAI_ATTR_VALUE_TYPE_UINT16_RANGE_LIST:
 
             if (md->isprimitive)
             {
@@ -5365,7 +5380,7 @@ void check_object_type_extension_max_value()
     /*
      * It can be handy for vendors to encode object type value on single byte
      * in every object it for easy object identification. We assume that we
-     * will have no more than 255 object types on SAI right now.
+     * will have no more than 255 objects types on SAI right now.
      */
 
     META_ASSERT_TRUE(SAI_OBJECT_TYPE_EXTENSIONS_MAX < 256, "max object type can be 255 to be encoded on single byte");

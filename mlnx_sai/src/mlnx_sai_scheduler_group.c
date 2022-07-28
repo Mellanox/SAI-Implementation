@@ -119,10 +119,6 @@ static const sai_vendor_attribute_entry_t sched_group_vendor_attribs[] = {
 };
 const mlnx_obj_type_attrs_info_t          mlnx_sched_group_obj_type_info =
 { sched_group_vendor_attribs, OBJ_ATTRS_ENUMS_INFO_EMPTY(), OBJ_STAT_CAP_INFO_EMPTY()};
-static mlnx_sched_obj_t * group_get(mlnx_port_config_t *port, uint8_t level, uint8_t index)
-{
-    return &port->sched_hierarchy.groups[level][index];
-}
 
 static sx_cos_ets_element_config_t * sched_obj_to_ets(mlnx_sched_obj_t *obj, sx_cos_ets_element_config_t *ets)
 {
@@ -535,6 +531,12 @@ static sai_status_t mlnx_sched_group_profile_get(_In_ const sai_object_key_t   *
     if (SAI_ERR(status)) {
         goto out;
     }
+    if (mlnx_port_is_sai_lag_member(port)) {
+        status = mlnx_port_fetch_lag_if_lag_member(&port);
+        if (SAI_ERR(status)) {
+            goto out;
+        }
+    }
 
     value->oid = group_get(port, level, index)->scheduler_id;
 
@@ -692,6 +694,7 @@ static mlnx_iter_ret_t sched_obj_reset(mlnx_port_config_t *port, mlnx_sched_obj_
 {
     mlnx_sched_iter_ctx_t *ctx = arg;
     sai_object_id_t        group_id;
+    sx_port_log_id_t       port_id;
 
     assert(ctx != NULL);
 
@@ -717,7 +720,12 @@ static mlnx_iter_ret_t sched_obj_reset(mlnx_port_config_t *port, mlnx_sched_obj_
     obj->parent_id = SAI_NULL_OBJECT_ID;
     port->sched_hierarchy.groups_count[obj->level]--;
 
-    ctx->sai_status = mlnx_sched_objlist_to_ets_update(port->logical, obj, 1);
+    if (mlnx_port_is_lag_member(port)) {
+        port_id = mlnx_port_get_lag_id(port);
+    } else {
+        port_id = port->logical;
+    }
+    ctx->sai_status = mlnx_sched_objlist_to_ets_update(port_id, obj, 1);
     if (SAI_ERR(ctx->sai_status)) {
         return ITER_STOP;
     }
@@ -1294,11 +1302,20 @@ static sai_status_t sched_group_add_or_del_child_list(sai_object_id_t       pare
 
     sch_child.parent_id = parent_id;
 
+    if (mlnx_port_is_lag_member(port)) {
+        port_id = mlnx_port_get_lag_id(port);
+    }
     status = mlnx_sched_objlist_to_ets_update(port_id, &sch_child, 1);
     if (SAI_ERR(status)) {
         goto out;
     }
 
+    if (mlnx_port_is_sai_lag_member(port)) {
+        status = mlnx_port_fetch_lag_if_lag_member(&port);
+        if (SAI_ERR(status)) {
+            goto out;
+        }
+    }
     status = mlnx_sched_objlist_to_hierarchy_update(port, &sch_child, 1);
     if (SAI_ERR(status)) {
         SX_LOG_ERR("Failed to update sched group hierarchy on log port id 0x%x\n",

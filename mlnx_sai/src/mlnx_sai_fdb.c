@@ -171,7 +171,9 @@ static sai_status_t mlnx_add_or_del_mac(sx_fdb_uc_mac_addr_params_t *mac_entry, 
         SX_LOG_EXIT();
         return SAI_STATUS_SUCCESS;
     }
-    if (mac_entry->entry_type == SX_FDB_UC_AGEABLE) {
+
+    if ((mac_entry->entry_type == SX_FDB_UC_AGEABLE)
+        || (mac_entry->entry_type == SX_FDB_UC_REMOTE)) {
         SX_LOG_EXIT();
         return SAI_STATUS_SUCCESS;
     }
@@ -1217,9 +1219,15 @@ static sai_status_t mlnx_flush_fdb_entries(_In_ sai_object_id_t        switch_id
                                  &port, &port_index))) {
         port_found = true;
 
-        status = mlnx_bridge_port_sai_to_log_port(port->oid, &port_id);
-        if (SAI_ERR(status)) {
-            return status;
+        if (mlnx_is_vxlan_tunnel_bport_oid(port->oid)) {
+            sai_db_read_lock();
+            port_id = g_sai_db_ptr->sx_nve_log_port;
+            sai_db_unlock();
+        } else {
+            status = mlnx_bridge_port_sai_to_log_port(port->oid, &port_id);
+            if (SAI_ERR(status)) {
+                return status;
+            }
         }
     }
 

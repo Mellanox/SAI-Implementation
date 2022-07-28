@@ -25,9 +25,8 @@
 extern "C"{
 #endif
 
-// Spectrum 1 specific HW limit
-#define PORT_NUM 32
-#define RIF_NUM 400 // TODO: max output for sdk_rif_iter_get
+#define RIF_NUM 8000 // SPC4 limit
+#define PORT_NUM 258 // SPC4 limit
 #define DEV_ID  1
 // #define ACL_SIZE 100
 #define NUM_OF_TC 8

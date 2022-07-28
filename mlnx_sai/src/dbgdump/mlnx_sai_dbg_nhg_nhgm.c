@@ -101,7 +101,7 @@ static void SAI_dump_nhg_type_to_str(_In_ mlnx_nhg_type_t type, _Out_ char *str)
 
     const char *name = sai_metadata_enum_sai_next_hop_group_type_t.valuesshortnames[type];
 
-    strncpy(str, name, MAX_STR_LENGTH);
+    strncpy(str, name, MAX_STR_LENGTH - 1);
     str[MAX_STR_LENGTH - 1] = '\0';
 }
 
@@ -118,7 +118,7 @@ static void SAI_dump_nhgm_type_to_str(_In_ mlnx_nhgm_type_t type, _Out_ char *st
     assert(str);
     assert(type <= MLNX_NHGM_TYPE_FINE_GRAIN);
 
-    strncpy(str, sai_next_hop_group_member_type_t_enum_values_short_names[type], MAX_STR_LENGTH);
+    strncpy(str, sai_next_hop_group_member_type_t_enum_values_short_names[type], MAX_STR_LENGTH - 1);
     str[MAX_STR_LENGTH - 1] = '\0';
 }
 
@@ -178,8 +178,9 @@ static void SAI_dump_nhg_print(_In_ FILE *file, _In_ const mlnx_nhg_db_entry_t  
             encap_print = debug_nhg_encap_clmns;
             dbg_utils_print_table_headline(file, debug_nhg_encap_clmns);
 
-            for (loop = 0; loop < NUMBER_OF_LOCAL_VNETS; ++loop) {
-                if (0 < cur_nhg.data.data.encap.vrf_data[loop].refcount) {
+            for (loop = 0; loop < NUMBER_OF_VRF_DATA_SETS; ++loop) {
+                if ((cur_nhg.data.data.encap.vrf_data[loop].sx_ecmp_id != 0) ||
+                    (cur_nhg.data.data.encap.vrf_data[loop].refcount > 0)) {
                     dbg_utils_print_table_data_line(file, encap_print);
                     encap_print = debug_nhg_encap_tb_clmns;
                 }
@@ -238,7 +239,7 @@ static void SAI_dump_nhgm_print(_In_ FILE *file, _In_ const mlnx_nhgm_db_entry_t
             break;
 
         case MLNX_NHGM_TYPE_FINE_GRAIN:
-            table_data = &cur_nhgm.data.entry.fg_id;
+            table_data = &cur_nhgm.data.entry.fg.id;
             break;
 
         default:

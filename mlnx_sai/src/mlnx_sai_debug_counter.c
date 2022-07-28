@@ -746,6 +746,7 @@ static sai_status_t mlnx_debug_counter_drop_reasons_to_sdk(_In_ const mlnx_drop_
     int32_t                                    drop_reason;
     uint32_t                                   drop_reason_idx;
     uint32_t                                   traps_added = 0;
+    uint32_t                                   ii, jj;
 
     assert(info);
     assert(drop_reasons);
@@ -765,6 +766,17 @@ static sai_status_t mlnx_debug_counter_drop_reasons_to_sdk(_In_ const mlnx_drop_
         memcpy(&sx_traps[traps_added], reason_info->trap_list.list, sizeof(sx_trap_id_t) *
                reason_info->trap_list.count);
         traps_added += reason_info->trap_list.count;
+    }
+
+    /* delete duplicates */
+    for (ii = 0; ii < traps_added; ii++) {
+        for (jj = ii + 1; jj < traps_added; jj++) {
+            if (sx_traps[ii] == sx_traps[jj]) {
+                sx_traps[jj] = sx_traps[traps_added - 1];
+                traps_added--;
+                break;
+            }
+        }
     }
 
     if (traps_added > *sx_traps_count) {
@@ -1345,6 +1357,7 @@ static sai_status_t mlnx_debug_counter_sx_init(_In_ mlnx_debug_counter_t *dbg_co
 
     /* Policer */
     policer_attrs.is_host_ifc_policer = true;
+    policer_attrs.is_span_session_policer = false;
     policer_attrs.rate_type = SX_POLICER_RATE_TYPE_SINGLE_RATE_E;
     policer_attrs.red_action = SX_POLICER_ACTION_DISCARD;
     policer_attrs.cbs = 4;

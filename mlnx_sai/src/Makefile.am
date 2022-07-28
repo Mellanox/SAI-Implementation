@@ -35,22 +35,27 @@ dist_data_DATA = sai_1710.xml \
                  sai_2700.xml \
                  sai_2700split.xml \
                  sai_2700_8x50g_28x100g.xml \
+                 sai_2700_56ports.xml \
                  sai_2740.xml \
                  sai_3420.xml \
                  sai_3700.xml \
                  sai_37001G.xml \
+                 sai_3700_56ports.xml \
                  sai_3800.xml \
                  sai_380050G.xml \
                  sai_3800_pb_hash.xml \
+                 sai_3800_120ports.xml \
                  sai_4410.xml \
                  sai_4600.xml \
                  sai_4600C.xml \
+                 sai_4600C_120ports.xml \
                  sai_4700.xml \
                  sai_4800.xml \
                  sai_4700_pld.xml \
                  sai_4700_pld_4.xml \
                  sai_4700_1G.xml \
                  sai_4700_100G.xml \
+                 sai_4700_56ports.xml \
                  sai_5600.xml
 
 libsai_la_DEPENDENCIES =
@@ -167,7 +172,7 @@ libsai_apiinclude_HEADERS = \
         $(top_srcdir)/inc/sai/sail2mc.h \
         $(top_srcdir)/inc/sai/sail2mcgroup.h \
         $(top_srcdir)/inc/sai/sailag.h \
-        $(top_srcdir)/inc/sai/saimacsec.h \      
+        $(top_srcdir)/inc/sai/saimacsec.h \
         $(top_srcdir)/inc/sai/saimcastfdb.h \
         $(top_srcdir)/inc/sai/saimirror.h \
         $(top_srcdir)/inc/sai/saimpls.h \
@@ -191,7 +196,7 @@ libsai_apiinclude_HEADERS = \
         $(top_srcdir)/inc/sai/saistatus.h \
         $(top_srcdir)/inc/sai/saistp.h \
         $(top_srcdir)/inc/sai/saiswitch.h \
-        $(top_srcdir)/inc/sai/saisystemport.h \		
+        $(top_srcdir)/inc/sai/saisystemport.h \
         $(top_srcdir)/inc/sai/saitam.h \
         $(top_srcdir)/inc/sai/saitunnel.h \
         $(top_srcdir)/inc/sai/saitypes.h \

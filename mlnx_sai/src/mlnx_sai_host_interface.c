@@ -868,7 +868,7 @@ sai_status_t mlnx_get_user_defined_trap_prio(sai_object_type_t type, sai_object_
 static bool mlnx_is_hostif_trap_valid_impl(uint32_t trap_db_idx)
 {
     if (trap_db_idx >= MAX_SAI_TRAPS) {
-        SX_LOG_ERR("Invalid trap with idx %d, max value - %d\n", trap_db_idx, MAX_SAI_TRAPS);
+        SX_LOG_ERR("Invalid trap with idx %u, max value - %zu\n", trap_db_idx, MAX_SAI_TRAPS);
         return false;
     }
 
@@ -4567,7 +4567,7 @@ sai_status_t mlnx_create_hostif_table_entry(_Out_ sai_object_id_t      *hif_tabl
     uint32_t                     type_index, channel_index, obj_index, trap_attr_index, fd_index;
     char                         key_str[MAX_KEY_STR_LEN];
     char                         list_str[MAX_LIST_VALUE_STR_LEN];
-    uint32_t                     trap_db_index;
+    uint32_t                     trap_db_index = 0;
     sx_host_ifc_register_key_t   sx_register_key;
     bool                         is_registered;
     sai_object_id_t              port_lag_vlan_oid = SAI_NULL_OBJECT_ID;
@@ -4870,7 +4870,7 @@ sai_status_t mlnx_remove_hostif_table_entry(_In_ sai_object_id_t hif_table_entry
     if ((entry_type == SAI_HOSTIF_TABLE_ENTRY_TYPE_PORT) ||
         (entry_type == SAI_HOSTIF_TABLE_ENTRY_TYPE_LAG)) {
         if (g_sai_db_ptr->ports_db[mlnx_hif.id.hostif_table_entry.port_vlan_db_idx].hostif_table_refcount == 0) {
-            SX_LOG_ERR("Invalid port or lag index %s in table entry oid\n",
+            SX_LOG_ERR("Invalid port or lag index %u in table entry oid\n",
                        mlnx_hif.id.hostif_table_entry.port_vlan_db_idx);
             status = SAI_STATUS_FAILURE;
             goto out;
@@ -5083,7 +5083,7 @@ static sai_status_t mlnx_table_entry_get(_In_ const sai_object_key_t   *key,
 
         case SAI_HOSTIF_TABLE_ENTRY_TYPE_VLAN:
             if (port_lag_vlan_idx >= SXD_VID_MAX) {
-                SX_LOG_ERR("Invalid table entry oid, vlan index %s is larger than max %s\n", port_lag_vlan_idx,
+                SX_LOG_ERR("Invalid table entry oid, vlan index %u is larger than max %u\n", port_lag_vlan_idx,
                            SXD_VID_MAX - 1);
                 status = SAI_STATUS_INVALID_OBJECT_ID;
                 goto out;

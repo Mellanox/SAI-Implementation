@@ -1221,6 +1221,13 @@ static sai_status_t mlnx_acl_packet_vlan_field_to_sx(_In_ sai_acl_entry_attr_t  
                                                      _Out_ sx_flex_acl_key_desc_t     *sx_keys,
                                                      _Inout_ uint32_t                 *sx_key_count,
                                                      _Inout_ mlnx_acl_field_type_t    *field_type);
+static sai_status_t mlnx_acl_tc_field_to_sx(_In_ sai_acl_entry_attr_t         attr_id,
+                                            _In_ const sai_attribute_value_t *value,
+                                            _In_ uint32_t                     attr_index,
+                                            _In_ uint32_t                     table_index,
+                                            _Out_ sx_flex_acl_key_desc_t     *sx_keys,
+                                            _Inout_ uint32_t                 *sx_key_count,
+                                            _Inout_ mlnx_acl_field_type_t    *field_type);
 static sai_status_t mlnx_acl_tos_field_to_sx(_In_ sai_acl_entry_attr_t         attr_id,
                                              _In_ const sai_attribute_value_t *value,
                                              _In_ uint32_t                     attr_index,
@@ -4793,6 +4800,13 @@ static sai_status_t mlnx_acl_entry_field_to_sx_update(_In_ sai_acl_entry_attr_t 
         }
         break;
 
+    case SAI_ACL_ENTRY_ATTR_FIELD_TC:
+        status = mlnx_acl_tc_field_to_sx(attr_id, value, attr_index, table_index, sx_keys, sx_key_count, field_type);
+        if (SAI_ERR(status)) {
+            return status;
+        }
+        break;
+
     case SAI_ACL_ENTRY_ATTR_FIELD_TOS:
         status = mlnx_acl_tos_field_to_sx(attr_id, value, attr_index, table_index, sx_keys, sx_key_count, field_type);
         if (SAI_ERR(status)) {
@@ -5066,6 +5080,30 @@ static sai_status_t mlnx_acl_packet_vlan_field_to_sx(_In_ sai_acl_entry_attr_t  
         SX_LOG_ERR("Invalid type of packet vlan (%d)\n", packet_vlan);
         return SAI_STATUS_INVALID_ATTR_VALUE_0 + attr_index;
     }
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_acl_tc_field_to_sx(_In_ sai_acl_entry_attr_t         attr_id,
+                                            _In_ const sai_attribute_value_t *value,
+                                            _In_ uint32_t                     attr_index,
+                                            _In_ uint32_t                     table_index,
+                                            _Out_ sx_flex_acl_key_desc_t     *sx_keys,
+                                            _Inout_ uint32_t                 *sx_key_count,
+                                            _Inout_ mlnx_acl_field_type_t    *field_type)
+{
+    assert(SAI_ACL_ENTRY_ATTR_FIELD_TC == attr_id);
+
+    if (!value->aclfield.enable) {
+        return SAI_STATUS_SUCCESS;
+    }
+
+    sx_keys[*sx_key_count].key_id = FLEX_ACL_KEY_SWITCH_PRIO;
+    sx_keys[*sx_key_count].key.switch_prio = value->aclfield.data.u8;
+    sx_keys[*sx_key_count].mask.switch_prio = !!(value->aclfield.mask.u8);
+    (*sx_key_count)++;
+
+    *field_type = MLNX_ACL_FIELD_TYPE_EMPTY;
 
     return SAI_STATUS_SUCCESS;
 }
@@ -7635,7 +7673,14 @@ static sai_status_t mlnx_acl_redirect_sx_to_sai(_In_ const sx_flex_acl_flex_acti
         break;
 
     case SX_FLEX_ACL_ACTION_UC_ROUTE:
-        return SAI_STATUS_NOT_IMPLEMENTED;
+        sai_db_write_lock();
+        status = mlnx_route_next_hop_id_get_ext(sx_action->fields.action_uc_route.uc_route_param.ecmp_id,
+                                                &sai_action_data->parameter.oid);
+        if (SAI_ERR(status)) {
+            sai_db_unlock();
+            return status;
+        }
+        sai_db_unlock();
         break;
 
     case SX_FLEX_ACL_ACTION_NVE_TUNNEL_ENCAP:
@@ -8201,7 +8246,8 @@ out:
 
 static sai_status_t mlnx_acl_mirror_config_validate(_In_ const sx_flex_acl_flex_rule_t *sx_rule,
                                                     _In_ sx_flex_acl_flex_action_type_t sx_mirror_action_type,
-                                                    _In_ sx_span_session_id_t           db_session)
+                                                    _In_ sx_span_session_id_t           db_session,
+                                                    _In_ bool                           is_mirroring_stopped)
 {
     const mlnx_mirror_policer_t *mirror_policer = NULL;
     sx_span_session_id_t         sx_rule_session;
@@ -8210,7 +8256,8 @@ static sai_status_t mlnx_acl_mirror_config_validate(_In_ const sx_flex_acl_flex_
 
     assert(sx_rule);
     assert((sx_mirror_action_type == SX_FLEX_ACL_ACTION_MIRROR) ||
-           (sx_mirror_action_type == SX_FLEX_ACL_ACTION_EGRESS_MIRROR));
+           (sx_mirror_action_type == SX_FLEX_ACL_ACTION_EGRESS_MIRROR) ||
+           (sx_mirror_action_type == SX_FLEX_ACL_ACTION_MIRROR_SAMPLER));
 
     if (MLNX_ACL_SX_SPAN_SESSION_IS_VALID(db_session)) {
         if (SPAN_SESSION_MAX <= db_session) {
@@ -8232,17 +8279,23 @@ static sai_status_t mlnx_acl_mirror_config_validate(_In_ const sx_flex_acl_flex_
 
         if (sx_mirror_action_type == SX_FLEX_ACL_ACTION_MIRROR) {
             sx_rule_session = sx_rule->action_list_p[action_idx].fields.action_mirror.session_id;
-        } else { /* SX_FLEX_ACL_ACTION_EGRESS_MIRROR */
+        } else if (sx_mirror_action_type == SX_FLEX_ACL_ACTION_EGRESS_MIRROR) {
             sx_rule_session = sx_rule->action_list_p[action_idx].fields.action_egress_mirror.session_id;
+        } else { /* SX_FLEX_ACL_ACTION_MIRROR_SAMPLER */
+            sx_rule_session = sx_rule->action_list_p[action_idx].fields.action_mirror_sampler.session_id;
         }
 
         if (db_session != sx_rule_session) {
             SX_LOG_ERR("Span session in ACL db %d != span session in flex rule %d\n", db_session, sx_rule_session);
             return SAI_STATUS_FAILURE;
         }
-    } else {
-        if ((MLNX_ACL_SX_SPAN_SESSION_IS_VALID(db_session)) &&
-            (mirror_policer->policer_oid == SAI_NULL_OBJECT_ID)) {
+    } else if (MLNX_ACL_SX_SPAN_SESSION_IS_VALID(db_session)) {
+        if ((!mlnx_chip_is_spc()) && (!is_mirroring_stopped)) {
+            SX_LOG_ERR("SX Action mirror is not present, but value in SAI DB is valid\n");
+            return SAI_STATUS_FAILURE;
+        }
+
+        if (mlnx_chip_is_spc() && (mirror_policer->policer_oid == SAI_NULL_OBJECT_ID)) {
             SX_LOG_ERR("SX Action mirror is not present, but value in SAI DB is valid and policer is NULL\n");
             return SAI_STATUS_FAILURE;
         }
@@ -8772,7 +8825,7 @@ static sai_status_t mlnx_acl_entry_action_policer_check_allowed(_In_ sx_span_ses
 
     mirror_policer = &g_sai_db_ptr->mirror_policer[entry_span_session];
 
-    if (mirror_policer->policer_oid != SAI_NULL_OBJECT_ID) {
+    if ((mirror_policer->policer_oid != SAI_NULL_OBJECT_ID) && mlnx_chip_is_spc()) {
         SX_LOG_ERR("Cannot use ACTION_SET_POLICER in ACL Entry that has ACTION_SET_MIRROR with policer\n");
         return SAI_STATUS_FAILURE;
     }
@@ -8868,6 +8921,7 @@ static sai_status_t mlnx_acl_entry_action_set(_In_ const sai_object_key_t      *
 
             status = mlnx_sai_get_or_create_regular_sx_policer_for_bind(
                 value->aclaction.parameter.oid,
+                false,
                 false,
                 &flex_acl_rule.action_list_p[flex_action_index].fields.
                 action_policer.policer_id);
@@ -11122,8 +11176,10 @@ static sai_status_t mlnx_acl_mirror_policer_extra_actions_add(_Out_ sx_flex_acl_
         return SAI_STATUS_SUCCESS;
     }
 
-    status = mlnx_sai_get_or_create_mirror_sx_policer_for_bind(mirror_policer->policer_oid, &sx_policer_id);
+    status = mlnx_sai_get_or_create_acl_mirror_sx_policer_for_bind(mirror_policer->policer_oid, &sx_policer_id);
     if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to get or create sx mirror policer. Policer id 0x%" PRIx64 "\n",
+                   mirror_policer->policer_oid);
         return status;
     }
 
@@ -11135,6 +11191,7 @@ static sai_status_t mlnx_acl_mirror_policer_extra_actions_add(_Out_ sx_flex_acl_
     if (!extra_acl->is_acl_created) {
         status = mlnx_acl_mirror_acl_create(extra_acl, sx_direction, sx_span_session);
         if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to create extra policer mirror acl for span session %d\n", sx_span_session);
             return status;
         }
     }
@@ -11169,7 +11226,8 @@ static sai_status_t mlnx_acl_mirror_policer_extra_action_del(_In_ sx_flex_acl_fl
 static sai_status_t mlnx_acl_entry_mirror_action_bind(_Out_ sx_flex_acl_flex_action_t *sx_action_list,
                                                       _Inout_ uint32_t                *action_count,
                                                       _In_ sx_acl_direction_t          sx_direction,
-                                                      _In_ sx_span_session_id_t        sx_span_session)
+                                                      _In_ sx_span_session_id_t        sx_span_session,
+                                                      _In_ uint32_t                    sample_rate)
 {
     sai_status_t                   status;
     const mlnx_mirror_policer_t   *mirror_policer;
@@ -11183,20 +11241,24 @@ static sai_status_t mlnx_acl_entry_mirror_action_bind(_Out_ sx_flex_acl_flex_act
     sx_mirror_action = mlnx_acl_mirror_sx_direction_to_sx_action(sx_direction);
 
     /* Regular ACTION_MIRROR */
-    if (mirror_policer->policer_oid == SAI_NULL_OBJECT_ID) {
-        sx_action_list[*action_count].type = sx_mirror_action;
-
-        if (sx_mirror_action == SX_FLEX_ACL_ACTION_MIRROR) {
+    if ((mirror_policer->policer_oid == SAI_NULL_OBJECT_ID) || mlnx_chip_is_spc2or3or4()) {
+        if (sample_rate != MLNX_MIRROR_SAMPLE_RATE_DISABLE_SAMPLING) {
+            sx_mirror_action = SX_FLEX_ACL_ACTION_MIRROR_SAMPLER;
+            sx_action_list[*action_count].fields.action_mirror_sampler.session_id = sx_span_session;
+            sx_action_list[*action_count].fields.action_mirror_sampler.mirror_probability_rate = sample_rate;
+        } else if (sx_mirror_action == SX_FLEX_ACL_ACTION_MIRROR) {
             sx_action_list[*action_count].fields.action_mirror.session_id = sx_span_session;
         } else { /* SX_FLEX_ACL_ACTION_EGRESS_MIRROR */
             sx_action_list[*action_count].fields.action_egress_mirror.session_id = sx_span_session;
         }
+        sx_action_list[*action_count].type = sx_mirror_action;
 
         (*action_count)++;
     } else {
         status =
             mlnx_acl_mirror_policer_extra_actions_add(sx_action_list, action_count, sx_direction, sx_span_session);
         if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to add policer extra actions for mirror session %d\n", sx_span_session);
             return status;
         }
     }
@@ -11219,11 +11281,19 @@ static sai_status_t mlnx_acl_entry_mirror_action_unbind(_In_ sx_flex_acl_flex_ru
     mlnx_acl_flex_rule_action_find(sx_rule, sx_mirror_action, &mirror_action_idx, &is_mirror_action_present);
     if (is_mirror_action_present) {
         mlnx_acl_flex_rule_action_del(sx_rule, mirror_action_idx);
+    } else {
+        mlnx_acl_flex_rule_action_find(sx_rule, SX_FLEX_ACL_ACTION_MIRROR_SAMPLER, &mirror_action_idx,
+                                       &is_mirror_action_present);
+        if (is_mirror_action_present) {
+            mlnx_acl_flex_rule_action_del(sx_rule, mirror_action_idx);
+        }
     }
 
-    status = mlnx_acl_mirror_policer_extra_action_del(sx_rule);
-    if (SAI_ERR(status)) {
-        return status;
+    if (mlnx_chip_is_spc()) {
+        status = mlnx_acl_mirror_policer_extra_action_del(sx_rule);
+        if (SAI_ERR(status)) {
+            return status;
+        }
     }
 
     return SAI_STATUS_SUCCESS;
@@ -11278,6 +11348,7 @@ static sai_status_t mlnx_acl_entry_action_mirror_set(_In_ const sai_object_key_t
     sx_span_session_id_t           current_session_id = MLNX_ACL_SX_SPAN_SESSION_INVALID;
     sx_span_session_id_t           new_session_id = MLNX_ACL_SX_SPAN_SESSION_INVALID;
     sx_flex_acl_flex_rule_t        flex_acl_rule = MLNX_ACL_SX_FLEX_RULE_EMPTY;
+    uint32_t                       new_sample_rate, current_sample_rate;
 
     SX_LOG_ENTER();
 
@@ -11343,7 +11414,13 @@ static sai_status_t mlnx_acl_entry_action_mirror_set(_In_ const sai_object_key_t
         goto out;
     }
 
-    status = mlnx_acl_mirror_config_validate(&flex_acl_rule, sx_action_type, current_session_id);
+    current_sample_rate = g_sai_db_ptr->mirror_sample_rate[current_session_id];
+    if (current_sample_rate != MLNX_MIRROR_SAMPLE_RATE_DISABLE_SAMPLING) {
+        sx_action_type = SX_FLEX_ACL_ACTION_MIRROR_SAMPLER;
+    }
+
+    status = mlnx_acl_mirror_config_validate(&flex_acl_rule, sx_action_type, current_session_id,
+                                             current_sample_rate == MLNX_MIRROR_SAMPLE_RATE_STOP_MIRRORING);
     if (SAI_ERR(status)) {
         goto out;
     }
@@ -11361,11 +11438,15 @@ static sai_status_t mlnx_acl_entry_action_mirror_set(_In_ const sai_object_key_t
         }
     }
 
-    if (MLNX_ACL_SX_SPAN_SESSION_IS_VALID(new_session_id)) {
+    new_sample_rate = g_sai_db_ptr->mirror_sample_rate[new_session_id];
+
+    if (MLNX_ACL_SX_SPAN_SESSION_IS_VALID(new_session_id) &&
+        (new_sample_rate != MLNX_MIRROR_SAMPLE_RATE_STOP_MIRRORING)) {
         status = mlnx_acl_entry_mirror_action_bind(flex_acl_rule.action_list_p,
                                                    &flex_acl_rule.action_count,
                                                    sx_direction,
-                                                   new_session_id);
+                                                   new_session_id,
+                                                   new_sample_rate);
         if (SAI_ERR(status)) {
             SX_LOG_ERR("Failed to add new action mirror\n");
             goto out;
@@ -11609,8 +11690,11 @@ static sai_status_t mlnx_acl_entry_mirror_action_policer_update(_In_ uint32_t ta
     status = mlnx_acl_entry_mirror_action_bind(sx_rule.action_list_p,
                                                &sx_rule.action_count,
                                                sx_direction,
-                                               sx_span_session);
+                                               sx_span_session,
+                                               MLNX_MIRROR_SAMPLE_RATE_DISABLE_SAMPLING);
     if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to bind mirror session %d for acl entry idx %d, table idx %d\n", sx_span_session, entry_idx,
+                   table_idx);
         goto out;
     }
 
@@ -11647,6 +11731,92 @@ sai_status_t mlnx_acl_mirror_action_policer_update(_In_ sx_span_session_id_t sx_
                 return status;
             }
         }
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
+typedef struct _mlnx_acl_sample_rate_update_param_t {
+    sx_span_session_id_t sx_span_session;
+    uint32_t             sample_rate;
+} mlnx_acl_sample_rate_update_param_t;
+
+static sai_status_t mlnx_acl_entry_mirror_sample_rate_update(_In_ uint32_t table_idx,
+                                                             _In_ uint32_t entry_idx,
+                                                             _In_ void    *opaque)
+{
+    sai_status_t                         status;
+    mlnx_acl_sample_rate_update_param_t *param;
+    sx_acl_direction_t                   sx_direction;
+    sx_flex_acl_flex_rule_t              sx_rule = MLNX_ACL_SX_FLEX_RULE_EMPTY;
+
+    SX_LOG_ENTER();
+
+    assert(acl_table_index_check_range(table_idx));
+    assert(acl_entry_index_check_range(entry_idx));
+    assert(opaque);
+
+    param = (mlnx_acl_sample_rate_update_param_t *)(opaque);
+
+    assert(param->sx_span_session < SPAN_SESSION_MAX);
+
+    if (acl_db_entry(entry_idx).sx_span_session != param->sx_span_session) {
+        return SAI_STATUS_NOT_EXECUTED;
+    }
+
+    sx_direction = mlnx_acl_table_sx_direction_get(&acl_db_table(table_idx));
+
+    status = mlnx_acl_entry_sx_acl_rule_get(table_idx, entry_idx, &sx_rule);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to get flex rule for acl entry idx %d, table idx %d\n", entry_idx, table_idx);
+        return status;
+    }
+
+    status = mlnx_acl_entry_mirror_action_unbind(&sx_rule, sx_direction);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to unbind mirror action for acl entry idx %d, table idx %d\n", entry_idx, table_idx);
+        goto out;
+    }
+
+    if (param->sample_rate != MLNX_MIRROR_SAMPLE_RATE_STOP_MIRRORING) {
+        status = mlnx_acl_entry_mirror_action_bind(sx_rule.action_list_p,
+                                                   &sx_rule.action_count,
+                                                   sx_direction,
+                                                   param->sx_span_session,
+                                                   param->sample_rate);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to bind mirror action with mirror session %d for acl entry idx %d, table idx %d\n",
+                       param->sx_span_session, entry_idx, table_idx);
+            goto out;
+        }
+    }
+
+    status = mlnx_acl_entry_sx_acl_rule_set(table_idx, entry_idx, &sx_rule);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to update flex rule for acl entry idx %d, table idx %d\n", entry_idx, table_idx);
+        goto out;
+    }
+
+out:
+    mlnx_acl_flex_rule_free(&sx_rule);
+    return status;
+}
+
+sai_status_t mlnx_acl_mirror_action_sample_rate_update(_In_ sx_span_session_id_t sx_span_session_id,
+                                                       uint32_t                  sample_rate)
+{
+    sai_status_t                        status;
+    mlnx_acl_sample_rate_update_param_t param;
+
+    SX_LOG_ENTER();
+
+    param.sx_span_session = sx_span_session_id;
+    param.sample_rate = sample_rate;
+
+    status = mlnx_acl_db_entries_foreach(mlnx_acl_entry_mirror_sample_rate_update, (void*)&param);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to change ACL entries sample rate for span session %d\n", sx_span_session_id);
+        return status;
     }
 
     return SAI_STATUS_SUCCESS;
@@ -11914,6 +12084,7 @@ static sai_status_t mlnx_acl_action_mirror_to_sx(_In_ sai_acl_entry_attr_t      
     uint32_t           session_id;
     sai_acl_stage_t    action_stage;
     sx_acl_direction_t table_sx_direction;
+    uint32_t           sample_rate;
 
     assert((action == SAI_ACL_ENTRY_ATTR_ACTION_MIRROR_INGRESS) ||
            (action == SAI_ACL_ENTRY_ATTR_ACTION_MIRROR_EGRESS));
@@ -11952,10 +12123,14 @@ static sai_status_t mlnx_acl_action_mirror_to_sx(_In_ sai_acl_entry_attr_t      
         }
     }
 
-    status = mlnx_acl_entry_mirror_action_bind(sx_action_list, sx_action_count, table_sx_direction, session_id);
-    if (SAI_ERR(status)) {
-        SX_LOG_ERR("Failed to add new action mirror\n");
-        return status;
+    sample_rate = g_sai_db_ptr->mirror_sample_rate[session_id];
+    if (sample_rate != MLNX_MIRROR_SAMPLE_RATE_STOP_MIRRORING) {
+        status = mlnx_acl_entry_mirror_action_bind(sx_action_list, sx_action_count, table_sx_direction, session_id,
+                                                   sample_rate);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to add new action mirror\n");
+            return status;
+        }
     }
 
     ctx->sx_span_session = session_id;
@@ -11975,6 +12150,7 @@ static sai_status_t mlnx_acl_action_mirror_to_sai(_In_ sai_acl_entry_attr_t     
     sai_acl_stage_t                action_stage;
     sx_acl_direction_t             sx_direction;
     sx_flex_acl_flex_action_type_t sx_action_type;
+    uint32_t                       sample_rate;
 
     assert((SAI_ACL_ENTRY_ATTR_ACTION_MIRROR_INGRESS == action) ||
            (SAI_ACL_ENTRY_ATTR_ACTION_MIRROR_EGRESS == action));
@@ -11982,6 +12158,8 @@ static sai_status_t mlnx_acl_action_mirror_to_sai(_In_ sai_acl_entry_attr_t     
     assert(entry);
     assert(table);
     assert(action_data);
+
+    sample_rate = g_sai_db_ptr->mirror_sample_rate[entry->sx_span_session];
 
     switch (action) {
     case SAI_ACL_ENTRY_ATTR_ACTION_MIRROR_INGRESS:
@@ -11998,6 +12176,10 @@ static sai_status_t mlnx_acl_action_mirror_to_sai(_In_ sai_acl_entry_attr_t     
         return SAI_STATUS_FAILURE;
     }
 
+    if (sample_rate != MLNX_MIRROR_SAMPLE_RATE_DISABLE_SAMPLING) {
+        sx_action_type = SX_FLEX_ACL_ACTION_MIRROR_SAMPLER;
+    }
+
     sx_direction = mlnx_acl_table_sx_direction_get(table);
 
     if ((table->stage != action_stage) && (sx_direction != SX_ACL_DIRECTION_RIF_EGRESS)) {
@@ -12007,7 +12189,8 @@ static sai_status_t mlnx_acl_action_mirror_to_sai(_In_ sai_acl_entry_attr_t     
         return SAI_STATUS_INVALID_ATTRIBUTE_0 + attr_index;
     }
 
-    status = mlnx_acl_mirror_config_validate(sx_rule, sx_action_type, entry->sx_span_session);
+    status = mlnx_acl_mirror_config_validate(sx_rule, sx_action_type, entry->sx_span_session,
+                                             sample_rate == MLNX_MIRROR_SAMPLE_RATE_STOP_MIRRORING);
     if (SAI_ERR(status)) {
         return status;
     }
@@ -12050,6 +12233,7 @@ static sai_status_t mlnx_acl_action_policer_to_sx(_In_ sai_acl_entry_attr_t     
     }
 
     status = mlnx_sai_get_or_create_regular_sx_policer_for_bind(action_data->parameter.oid,
+                                                                false,
                                                                 false,
                                                                 &sx_action_list[*sx_action_count].fields.action_policer.policer_id);
     if (SAI_ERR(status)) {
@@ -18673,7 +18857,10 @@ static sai_status_t mlnx_sai_acl_redirect_action_create(_In_ sai_object_id_t    
 {
     sai_status_t      status = SAI_STATUS_SUCCESS;
     sai_object_type_t object_type;
+    sx_ecmp_id_t      sx_ecmp_id;
     sx_acl_pbs_id_t   sx_pbs_id;
+    uint32_t          data;
+    uint16_t          use_db;
 
     assert(pbs_info);
     assert(sx_action);
@@ -18694,8 +18881,37 @@ static sai_status_t mlnx_sai_acl_redirect_action_create(_In_ sai_object_id_t    
         break;
 
     case SAI_OBJECT_TYPE_NEXT_HOP:
+        status = mlnx_object_to_type(object_id,
+                                     SAI_OBJECT_TYPE_NEXT_HOP,
+                                     &data,
+                                     (uint8_t*)&use_db);
+        if (SAI_ERR(status)) {
+            return status;
+        }
+
+        /* Encap NH is not supported */
+        if (use_db) {
+            return SAI_STATUS_NOT_SUPPORTED;
+        }
+
+        sx_ecmp_id = (sx_ecmp_id_t)data;
+
+        sx_action->type = SX_FLEX_ACL_ACTION_UC_ROUTE;
+        sx_action->fields.action_uc_route.uc_route_type = SX_UC_ROUTE_TYPE_NEXT_HOP;
+        sx_action->fields.action_uc_route.uc_route_param.ecmp_id = sx_ecmp_id;
+        break;
+
     case SAI_OBJECT_TYPE_NEXT_HOP_GROUP:
-        return SAI_STATUS_NOT_SUPPORTED;
+        status = mlnx_nhg_get_regular_ecmp(object_id,
+                                           &sx_ecmp_id);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to get Regular NHG sx_ecmp_id.\n");
+            return status;
+        }
+
+        sx_action->type = SX_FLEX_ACL_ACTION_UC_ROUTE;
+        sx_action->fields.action_uc_route.uc_route_type = SX_UC_ROUTE_TYPE_NEXT_HOP;
+        sx_action->fields.action_uc_route.uc_route_param.ecmp_id = sx_ecmp_id;
         break;
 
     case SAI_OBJECT_TYPE_BRIDGE_PORT:

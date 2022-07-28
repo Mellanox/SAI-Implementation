@@ -806,10 +806,13 @@ sai_status_t mlnx_translate_sai_stats_mode_to_sdk(sai_stats_mode_t sai_mode, sx_
 
     switch (sai_mode) {
     case SAI_STATS_MODE_READ:
+    case SAI_STATS_MODE_BULK_READ:
         *sdk_mode = SX_ACCESS_CMD_READ;
         break;
 
     case SAI_STATS_MODE_READ_AND_CLEAR:
+    case SAI_STATS_MODE_BULK_READ_AND_CLEAR:
+    case SAI_STATS_MODE_BULK_CLEAR:
         *sdk_mode = SX_ACCESS_CMD_READ_CLEAR;
         break;
 

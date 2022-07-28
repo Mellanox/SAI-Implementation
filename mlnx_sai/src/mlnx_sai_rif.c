@@ -58,9 +58,6 @@ static sai_status_t mlnx_rif_attrib_get(_In_ const sai_object_key_t   *key,
 static sai_status_t mlnx_rif_attrib_set(_In_ const sai_object_key_t      *key,
                                         _In_ const sai_attribute_value_t *value,
                                         void                             *arg);
-static sai_status_t mlnx_rif_loopback_action_sai_to_sx(_In_ const sai_attribute_value_t *loopback_action,
-                                                       _In_ uint32_t                     attr_index,
-                                                       _Out_ sx_interface_attributes_t  *intf_attribs);
 static const sai_vendor_attribute_entry_t rif_vendor_attribs[] = {
     { SAI_ROUTER_INTERFACE_ATTR_VIRTUAL_ROUTER_ID,
       { true, false, false, true },
@@ -824,6 +821,19 @@ static sai_status_t mlnx_create_router_interface(_Out_ sai_object_id_t      *rif
         if (SAI_ERR(status)) {
             goto out;
         }
+        if (SAI_ROUTER_INTERFACE_TYPE_PORT == type->s32) {
+            status = mlnx_port_by_log_id(sx_port_id, &port_cfg);
+            if (SAI_ERR(status)) {
+                goto out;
+            }
+            status = sx_api_vlan_port_pvid_get(gh_sdk, port_cfg->logical, &port_cfg->pvid_create_rif);
+            if (SX_ERR(status)) {
+                SX_LOG_ERR("Failed to get %x pvid - %s.\n", port_cfg->logical, SX_STATUS_MSG(status));
+                status = sdk_to_sai(status);
+                goto out;
+            }
+            SX_LOG_INF("Record the pvid %d of port 0x%x\n", port_cfg->pvid_create_rif, sx_port_id);
+        }
 
         rif_db_data->sx_data.rif_id = sdk_rif_id;
         rif_db_data->sx_data.counter = sx_counter;
@@ -955,6 +965,9 @@ static sai_status_t mlnx_remove_router_interface(_In_ sai_object_id_t rif_id)
     char                        key_str[MAX_KEY_STR_LEN];
     mlnx_port_config_t         *port_cfg;
     bool                        is_port_or_sub_port = false, is_created;
+    mlnx_bridge_port_t         *bport;
+    sx_vid_t                    pvid;
+    sx_vlan_ports_t             port_list;
 
     SX_LOG_ENTER();
 
@@ -996,6 +1009,45 @@ static sai_status_t mlnx_remove_router_interface(_In_ sai_object_id_t rif_id)
         if (SX_L2_INTERFACE_TYPE_PORT_VLAN == intf_params.type) {
             is_port_or_sub_port = true;
             sx_port_id = intf_params.ifc.port_vlan.port;
+            status = mlnx_port_by_log_id(sx_port_id, &port_cfg);
+            if (SAI_ERR(status)) {
+                goto out;
+            }
+            status = sx_api_vlan_port_pvid_get(gh_sdk, port_cfg->logical, &pvid);
+            if (SX_ERR(status)) {
+                SX_LOG_ERR("Failed to get %x pvid - %s.\n", port_cfg->logical, SX_STATUS_MSG(status));
+                status = sdk_to_sai(status);
+                goto out;
+            }
+            SX_LOG_INF("Port/lag 0x%x pvid_create_rif %d, current pvid %d\n",
+                       port_cfg->logical, port_cfg->pvid_create_rif, pvid);
+            /* handle case of pvid change on router port
+             * sdk tries to remove router port from current pvid
+             * if pvid of router port has changed, need to remove router port
+             * from the original pvid the time it was created, as sdk added it to
+             * that vlan on creation
+             */
+            if (port_cfg->pvid_create_rif != pvid) {
+                bport = 0;
+                status = mlnx_bridge_1q_port_by_log(port_cfg->logical, &bport);
+                if ((status != SAI_STATUS_SUCCESS) || !mlnx_vlan_port_is_set(port_cfg->pvid_create_rif, bport)) {
+                    memset(&port_list, 0, sizeof(port_list));
+                    port_list.log_port = port_cfg->logical;
+                    status = sx_api_vlan_ports_set(gh_sdk,
+                                                   SX_ACCESS_CMD_DELETE,
+                                                   DEFAULT_ETH_SWID,
+                                                   port_cfg->pvid_create_rif,
+                                                   &port_list, 1);
+                    if (SX_STATUS_SUCCESS != status) {
+                        SX_LOG_ERR("Failed to delete port/lag 0x%x from vlan %d, current pvid %d - %s\n",
+                                   port_cfg->logical, port_cfg->pvid_create_rif, pvid, SX_STATUS_MSG(status));
+                    }
+                } else {
+                    SX_LOG_INF("Port/lag 0x%x was in vlan %d before creating rif.\n",
+                               port_cfg->logical, port_cfg->pvid_create_rif);
+                }
+            }
+            port_cfg->pvid_create_rif = 0;
         }
 
         if (SX_L2_INTERFACE_TYPE_VPORT == intf_params.type) {
@@ -1116,9 +1168,9 @@ static sai_status_t mlnx_get_router_interface_attribute(_In_ sai_object_id_t    
                               attr_list);
 }
 
-static sai_status_t mlnx_rif_loopback_action_sai_to_sx(_In_ const sai_attribute_value_t *loopback_action,
-                                                       _In_ uint32_t                     attr_index,
-                                                       _Out_ sx_interface_attributes_t  *intf_attribs)
+sai_status_t mlnx_rif_loopback_action_sai_to_sx(_In_ const sai_attribute_value_t *loopback_action,
+                                                _In_ uint32_t                     attr_index,
+                                                _Out_ sx_interface_attributes_t  *intf_attribs)
 {
     assert(loopback_action);
     assert(intf_attribs);
@@ -1187,14 +1239,14 @@ static sai_status_t mlnx_rif_attr_to_sdk(sai_router_interface_attr_t  attr,
     return SAI_STATUS_SUCCESS;
 }
 
-static sai_status_t mlnx_rif_sx_attrs_get(_In_ sai_object_id_t                rif_oid,
-                                          _In_ bool                           is_admin_state,
-                                          _Out_ mlnx_rif_type_t              *rif_type,
-                                          _Out_ bool                         *is_created,
-                                          _Out_ mlnx_rif_sx_data_t          **sx_data,
-                                          _Out_ sx_router_interface_state_t **rif_state,
-                                          _Out_ sx_router_interface_param_t **intf_params,
-                                          _Out_ sx_interface_attributes_t   **intf_attribs)
+sai_status_t mlnx_rif_sx_attrs_get(_In_ sai_object_id_t                rif_oid,
+                                   _In_ bool                           is_admin_state,
+                                   _Out_ mlnx_rif_type_t              *rif_type,
+                                   _Out_ bool                         *is_created,
+                                   _Out_ mlnx_rif_sx_data_t          **sx_data,
+                                   _Out_ sx_router_interface_state_t **rif_state,
+                                   _Out_ sx_router_interface_param_t **intf_params,
+                                   _Out_ sx_interface_attributes_t   **intf_attribs)
 {
     sx_status_t             sx_status;
     sai_status_t            status;

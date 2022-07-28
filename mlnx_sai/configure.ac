@@ -73,6 +73,26 @@ if test "x$simx" = xyes; then
   AC_DEFINE(IS_SIMX, 1, [Notify that device is simix])
 fi
 
+AC_ARG_ENABLE([maxrifs],
+  [AS_HELP_STRING([--enable-maxrifs],
+  [Notify that SPC4 max RIFs feature is enabled])],
+  [maxrifs=$enableval],
+  [maxrifs=no])
+
+if test "x$maxrifs" = xyes; then
+  AC_DEFINE(SPC4_MAX_RIFS, 1, [Notify that SPC4 max RIFs feature is enabled])
+fi
+
+AC_ARG_ENABLE([maxlags],
+  [AS_HELP_STRING([--enable-maxlags],
+  [Notify that SPC4 max LAGs feature is enabled])],
+  [maxlags=$enableval],
+  [maxlags=no])
+
+if test "x$maxlags" = xyes; then
+  AC_DEFINE(SPC4_MAX_LAGS_CONFIG, 1, [Notify that SPC4 max LAGs feature is enabled])
+fi
+
 dnl Define an input config option to control complib path
 AC_ARG_WITH(sxcomplib,
 [  --with-sxcomplib=<dir> define SwitchX compatibility library directory],
@@ -132,7 +152,7 @@ dnl Define an ELDK5 xml2 la libdir setting work around condition
 AM_CONDITIONAL(XML2_ELDK5_LA_WA, test x`echo $with_xml2 | grep powerpc-4xx` != x)
 
 
-CFLAGS_SAI_INTERFACE_COMMON="-Wall -Wswitch -Wunused -Werror -fPIC -fno-strict-aliasing -Wextra -Wunused -Wno-unused-parameter -Wdate-time -D_FORTIFY_SOURCE=2 -fstack-protector-strong -Wformat -Werror=format-security"
+CFLAGS_SAI_INTERFACE_COMMON="-Wall -Wswitch -Wunused -Werror -fPIC -fno-strict-aliasing -Wextra -Wno-unused-parameter -Wdate-time -D_FORTIFY_SOURCE=2 -fstack-protector-strong -Wformat -Werror=format-security -Wno-psabi"
 AC_SUBST(CFLAGS_SAI_INTERFACE_COMMON)
 
 dnl Create the following Makefiles
