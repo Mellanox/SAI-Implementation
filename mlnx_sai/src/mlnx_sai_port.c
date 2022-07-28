@@ -2239,13 +2239,36 @@ static sai_status_t mlnx_port_supported_fec_mode_get(_In_ const sai_object_key_t
                                                      _Inout_ vendor_cache_t        *cache,
                                                      void                          *arg)
 {
-    int32_t      modes[] = { SAI_PORT_FEC_MODE_NONE, SAI_PORT_FEC_MODE_RS, SAI_PORT_FEC_MODE_FC };
-    sai_status_t status;
+    int32_t             modes[] = { SAI_PORT_FEC_MODE_NONE, SAI_PORT_FEC_MODE_RS, SAI_PORT_FEC_MODE_FC };
+    sai_status_t        status;
+    sx_port_log_id_t    port_id;
+    mlnx_port_config_t *port;
 
     SX_LOG_ENTER();
 
-    status = mlnx_fill_s32list(modes, sizeof(modes) / sizeof(modes[0]), &value->s32list);
+    sai_db_read_lock();
 
+    status = mlnx_object_to_type(key->key.object_id, SAI_OBJECT_TYPE_PORT, &port_id, NULL);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to convert port oid to logical port id\n");
+        goto out;
+    }
+
+    status = mlnx_port_by_log_id(port_id, &port);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to lookup port by log id %x\n", port_id);
+        goto out;
+    }
+
+    /* RJ45 ports on 2201 #1-#48 don't support fec */
+    if ((g_sai_db_ptr->platform_type == MLNX_PLATFORM_TYPE_2201) && (port->module < 48)) {
+        value->s32list.count = 0;
+    } else {
+        status = mlnx_fill_s32list(modes, sizeof(modes) / sizeof(modes[0]), &value->s32list);
+    }
+
+out:
+    sai_db_unlock();
     SX_LOG_EXIT();
     return status;
 }
@@ -2794,8 +2817,8 @@ static sai_status_t mlnx_port_speeds_merge(_In_ bool                       auto_
         return status;
     }
 
-    /* turn off 1GB optics on RJ45 ports on 2201, as at force, SDK considers them as 2 different speeds */
-    if ((g_sai_db_ptr->platform_type == MLNX_PLATFORM_TYPE_2201) && (port->width == 1)) {
+    /* turn off 1GB optics on RJ45 ports on 2201 #1-#48, as at force, SDK considers them as 2 different speeds */
+    if ((g_sai_db_ptr->platform_type == MLNX_PLATFORM_TYPE_2201) && (port->module < 48)) {
         *bitmap &= ~(SP_1GB_CX_SGMII | SP_1GB_KX);
     }
     /* turn off 1000mb_t on spc1 non RJ45 */
@@ -3071,85 +3094,6 @@ static sai_status_t mlnx_port_update_speed(_In_ mlnx_port_config_t *port)
     }
 
     return status;
-}
-
-
-sai_status_t mlnx_bulk_counter_init(void)
-{
-    SX_LOG_ENTER();
-
-#ifndef _WIN32
-    pthread_condattr_t  cond_attr;
-    pthread_mutexattr_t mutex_attr;
-
-    g_sai_db_ptr->bulk_read_done_status = -1;
-
-    if (0 != cl_plock_init_pshared(&g_sai_db_ptr->port_counter_lock)) {
-        SX_LOG_ERR("Failed to init port_counter_lock for bulk counter\n");
-        return SAI_STATUS_NO_MEMORY;
-    }
-
-    if (0 != pthread_condattr_init(&cond_attr)) {
-        SX_LOG_ERR("Failed to init condition variable attribute for bulk counter\n");
-        return SAI_STATUS_NO_MEMORY;
-    }
-
-    if (0 != pthread_mutexattr_init(&mutex_attr)) {
-        SX_LOG_ERR("Failed to init condition variable attribute for bulk counter\n");
-        return SAI_STATUS_NO_MEMORY;
-    }
-
-    if (0 != pthread_mutexattr_setpshared(&mutex_attr, PTHREAD_PROCESS_SHARED)) {
-        SX_LOG_ERR("Failed to set condition variable attribute for bulk counter - %s\n", strerror(errno));
-        return SAI_STATUS_NO_MEMORY;
-    }
-
-    if (0 != pthread_condattr_setpshared(&cond_attr, PTHREAD_PROCESS_SHARED)) {
-        SX_LOG_ERR("Failed to set condition variable attribute for bulk counter - %s\n", strerror(errno));
-        return SAI_STATUS_FAILURE;
-    }
-
-    if (0 != pthread_mutex_init(&g_sai_db_ptr->bulk_counter_mutex, &mutex_attr)) {
-        SX_LOG_ERR("Failed to init mutex for bulk counter - %s\n", strerror(errno));
-        return SAI_STATUS_FAILURE;
-    }
-
-    if (0 != pthread_cond_init(&g_sai_db_ptr->bulk_counter_cond, &cond_attr)) {
-        SX_LOG_ERR("Failed to init condition variable for bulk counter - %s\n", strerror(errno));
-        return SAI_STATUS_FAILURE;
-    }
-
-    if (0 != pthread_mutexattr_destroy(&mutex_attr)) {
-        SX_LOG_ERR("Failed to destroy mutex attribute for bulk counter\n");
-        return SAI_STATUS_FAILURE;
-    }
-
-    if (0 != pthread_condattr_destroy(&cond_attr)) {
-        SX_LOG_ERR("Failed to destroy condition variable attribute for bulk counter\n");
-        return SAI_STATUS_FAILURE;
-    }
-
-#endif /* ifndef _WIN32 */
-
-    return SAI_STATUS_SUCCESS;
-}
-
-sai_status_t mlnx_bulk_counter_deinit(void)
-{
-#ifndef _WIN32
-    if (0 != pthread_mutex_destroy(&g_sai_db_ptr->bulk_counter_mutex)) {
-        SX_LOG_ERR("Failed to destroy bulk counter mutex\n");
-        return SAI_STATUS_FAILURE;
-    }
-
-    if (0 != pthread_cond_destroy(&g_sai_db_ptr->bulk_counter_cond)) {
-        SX_LOG_ERR("Failed to destroy bulk counter cond\n");
-        return SAI_STATUS_FAILURE;
-    }
-
-    cl_plock_destroy(&g_sai_db_ptr->port_counter_lock);
-#endif /* _WIN32 */
-    return SAI_STATUS_SUCCESS;
 }
 
 /* Port/LAG VLAN ID [sai_vlan_id_t]
@@ -5530,6 +5474,12 @@ static sai_status_t mlnx_port_sched_groups_num_get(_In_ const sai_object_key_t  
             goto out;
         }
 
+        if (mlnx_port_is_sai_lag_member(port)) {
+            status = mlnx_port_fetch_lag_if_lag_member(&port);
+            if (SAI_ERR(status)) {
+                goto out;
+            }
+        }
         value->u32 = sched_groups_count(port);
     }
 
@@ -5568,6 +5518,12 @@ static sai_status_t mlnx_port_sched_groups_list_get(_In_ const sai_object_key_t 
         if (SAI_ERR(status)) {
             goto out;
         }
+        if (mlnx_port_is_sai_lag_member(port)) {
+            status = mlnx_port_fetch_lag_if_lag_member(&port);
+            if (SAI_ERR(status)) {
+                goto out;
+            }
+        }
 
         count = sched_groups_count(port);
 
@@ -5582,14 +5538,14 @@ static sai_status_t mlnx_port_sched_groups_list_get(_In_ const sai_object_key_t 
             uint8_t count = MAX_SCHED_CHILD_GROUPS;
             uint8_t ii;
 
-            for (ii = 0; ii < count; ii++, idx++) {
+            for (ii = 0; ii < count; ii++) {
                 sai_status_t status;
 
                 if (!port->sched_hierarchy.groups[lvl][ii].is_used) {
                     continue;
                 }
 
-                status = mlnx_create_sched_group(port_id, lvl, ii, &groups[idx]);
+                status = mlnx_create_sched_group(port_id, lvl, ii, &groups[idx++]);
                 if (SAI_ERR(status)) {
                     goto out;
                 }
@@ -5745,95 +5701,6 @@ sai_status_t mlnx_convert_counter_types_bitmap_to_sx_bulk_read(_In_ sai_object_i
     }
 
     return SAI_STATUS_SUCCESS;
-}
-
-sai_status_t mlnx_port_stats_allocate_sx_bulk_buffer(_In_ sx_bulk_cntr_buffer_key_t *bulk_read_key,
-                                                     _Out_ sx_bulk_cntr_buffer_t    *bulk_read_buff)
-{
-    assert(bulk_read_key);
-    assert(bulk_read_buff);
-
-    sx_status_t sx_status;
-
-    bulk_read_buff->cookie = MLNX_SAI_BULK_COUNTER_COOKIE;
-
-    sx_status = sx_api_bulk_counter_buffer_set(gh_sdk,
-                                               SX_ACCESS_CMD_CREATE,
-                                               bulk_read_key,
-                                               bulk_read_buff);
-
-    if (SX_ERR(sx_status)) {
-        SX_LOG_ERR("Failed to create buffer: %s.\n", SX_STATUS_MSG(sx_status));
-        return sdk_to_sai(sx_status);
-    }
-
-    return sdk_to_sai(sx_status);
-}
-
-sai_status_t mlnx_port_stats_deallocate_sx_bulk_buffer(_In_ sx_bulk_cntr_buffer_t *bulk_read_buff)
-{
-    assert(bulk_read_buff);
-    sx_status_t sx_status;
-
-    sx_status = sx_api_bulk_counter_buffer_set(gh_sdk,
-                                               SX_ACCESS_CMD_DESTROY,
-                                               NULL,
-                                               bulk_read_buff);
-    if (SX_ERR(sx_status)) {
-        SX_LOG_ERR("Failed to destroy buffer: %s.\n", SX_STATUS_MSG(sx_status));
-        return sdk_to_sai(sx_status);
-    }
-
-    return sdk_to_sai(sx_status);
-}
-
-sai_status_t mlnx_port_stats_init_async_bulk_read(_In_ sx_access_cmd_t cmd, _In_ sx_bulk_cntr_buffer_t *bulk_read_buff)
-{
-    assert(bulk_read_buff);
-    sx_status_t sx_status;
-
-    sx_status = sx_api_bulk_counter_transaction_set(gh_sdk,
-                                                    cmd,
-                                                    bulk_read_buff);
-    if (SX_ERR(sx_status)) {
-        SX_LOG_ERR("Failed to start bulk read operation: %s.\n", SX_STATUS_MSG(sx_status));
-        return sdk_to_sai(sx_status);
-    }
-
-    return sdk_to_sai(sx_status);
-}
-
-sai_status_t mlnx_port_stats_wait_for_bulk_read_event()
-{
-#ifndef _WIN32
-    sai_status_t    status = SAI_STATUS_SUCCESS;
-    int             retval = 0;
-    struct timespec time = {0};
-
-    bulk_counter_cond_mutex_lock();
-    clock_gettime(CLOCK_REALTIME, &time);
-    time.tv_sec += 1;
-    while (-1 == g_sai_db_ptr->bulk_read_done_status) {
-        retval = pthread_cond_timedwait(&g_sai_db_ptr->bulk_counter_cond, &g_sai_db_ptr->bulk_counter_mutex, &time);
-        if (retval != 0) {
-            SX_LOG_ERR("Failed to wait for an event: %s.\n", strerror(retval));
-            status = SAI_STATUS_FAILURE;
-            goto out;
-        }
-    }
-    if (g_sai_db_ptr->bulk_read_done_status != SX_BULK_CNTR_DONE_STATUS_OK) {
-        SX_LOG_ERR("Bulk read event status is not OK [%d].\n", g_sai_db_ptr->bulk_read_done_status);
-        status = SAI_STATUS_FAILURE;
-        goto out;
-    }
-
-out:
-    g_sai_db_ptr->bulk_read_done_status = -1;
-    bulk_counter_cond_mutex_unlock();
-    return status;
-#else
-    return 0;
-#endif
 }
 
 sai_status_t mlnx_port_stats_bulk_read(_In_ sai_object_id_t          port_id,
@@ -6762,32 +6629,14 @@ sai_status_t mlnx_get_port_stats_ext(_In_ sai_object_id_t      port_id,
             return status;
         }
 
-        sai_db_read_lock();
-        port_counter_lock();
-        if (g_sai_db_ptr->issu_start_called) {
-            sai_db_unlock();
-            status = SAI_STATUS_OBJECT_IN_USE;
-            goto out;
-        }
-        sai_db_unlock();
-
-        status = mlnx_port_stats_allocate_sx_bulk_buffer(&bulk_read_key,
-                                                         &bulk_read_buff);
+        status = mlnx_prepare_bulk_counter_read(MLNX_BULK_TYPE_PORT,
+                                                cmd,
+                                                &bulk_read_key,
+                                                &bulk_read_buff);
         if (SAI_ERR(status)) {
-            SX_LOG_ERR("Failed to allocate SDK buffer.\n");
-            goto out;
-        }
-
-        status = mlnx_port_stats_init_async_bulk_read(cmd,
-                                                      &bulk_read_buff);
-        if (SAI_ERR(status)) {
-            SX_LOG_ERR("Failed to initialize async bulk counters read.\n");
-            goto out;
-        }
-
-        status = mlnx_port_stats_wait_for_bulk_read_event();
-        if (SAI_ERR(status)) {
-            SX_LOG_ERR("Failed to wait for bulk counter read event.\n");
+            /* no need deallocate buffer, mlnx_prepare_bulk_counter_read shall do it */
+            /* if any error occurs */
+            SX_LOG_ERR("Failed to prepare bulk counter for port stats.\n");
             goto out;
         }
     }
@@ -6802,21 +6651,16 @@ sai_status_t mlnx_get_port_stats_ext(_In_ sai_object_id_t      port_id,
                                        counters);
     if (SAI_ERR(status)) {
         SX_LOG_ERR("Failed to read bulk counters.\n");
-        goto out;
     }
 
     if (bulk_required) {
-        status = mlnx_port_stats_deallocate_sx_bulk_buffer(&bulk_read_buff);
+        status = mlnx_deallocate_sx_bulk_buffer(&bulk_read_buff);
         if (SAI_ERR(status)) {
             SX_LOG_ERR("Failed to deallocate SDK buffer.\n");
-            goto out;
         }
     }
 
 out:
-    if (bulk_required) {
-        port_counter_unlock();
-    }
     return status;
 }
 

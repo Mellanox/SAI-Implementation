@@ -135,6 +135,7 @@ static const mlnx_attr_enum_info_t        bridge_enum_info[] = {
     [SAI_BRIDGE_ATTR_UNKNOWN_UNICAST_FLOOD_CONTROL_TYPE] = ATTR_ENUM_VALUES_LIST(
         SAI_BRIDGE_FLOOD_CONTROL_TYPE_SUB_PORTS,
         SAI_BRIDGE_FLOOD_CONTROL_TYPE_L2MC_GROUP,
+        SAI_BRIDGE_FLOOD_CONTROL_TYPE_COMBINED,
         SAI_BRIDGE_FLOOD_CONTROL_TYPE_NONE),
     [SAI_BRIDGE_ATTR_UNKNOWN_MULTICAST_FLOOD_CONTROL_TYPE] = ATTR_ENUM_VALUES_LIST(
         SAI_BRIDGE_FLOOD_CONTROL_TYPE_SUB_PORTS,
@@ -143,6 +144,7 @@ static const mlnx_attr_enum_info_t        bridge_enum_info[] = {
     [SAI_BRIDGE_ATTR_BROADCAST_FLOOD_CONTROL_TYPE] = ATTR_ENUM_VALUES_LIST(
         SAI_BRIDGE_FLOOD_CONTROL_TYPE_SUB_PORTS,
         SAI_BRIDGE_FLOOD_CONTROL_TYPE_L2MC_GROUP,
+        SAI_BRIDGE_FLOOD_CONTROL_TYPE_COMBINED,
         SAI_BRIDGE_FLOOD_CONTROL_TYPE_NONE),
 };
 const mlnx_obj_type_attrs_info_t          mlnx_bridge_obj_type_info =
@@ -1185,7 +1187,7 @@ sai_status_t mlnx_bridge_availability_get(_In_ sai_object_id_t        switch_id,
 
 static mlnx_fid_flood_ctrl_type_t mlnx_bridge_flood_type_to_fid_type(_In_ sai_bridge_flood_control_type_t type)
 {
-    assert(type <= SAI_BRIDGE_FLOOD_CONTROL_TYPE_L2MC_GROUP);
+    assert(type <= SAI_BRIDGE_FLOOD_CONTROL_TYPE_COMBINED);
 
     return (mlnx_fid_flood_ctrl_type_t)(type);
 }
@@ -1230,7 +1232,7 @@ static mlnx_fid_flood_ctrl_attr_t mlnx_bridge_flood_ctrl_group_attr_to_fid_attr(
 
 static sai_bridge_flood_control_type_t mlnx_fid_flood_type_to_bridge_type(_In_ mlnx_fid_flood_ctrl_type_t type)
 {
-    assert(type <= MLNX_FID_FLOOD_TYPE_L2MC_GROUP);
+    assert(type <= MLNX_FID_FLOOD_TYPE_COMBINED);
 
     return (sai_bridge_flood_control_type_t)(type);
 }
@@ -1544,6 +1546,7 @@ static sai_status_t mlnx_create_bridge(_Out_ sai_object_id_t     * bridge_id,
     uint32_t                     attr_idx, max_learned_addresses_index;
     mlnx_shm_rm_array_idx_t      bridge_db_idx;
     sai_status_t                 status;
+    mlnx_fid_flood_ctrl_type_t   flood_control_type;
 
     SX_LOG_ENTER();
 
@@ -1606,13 +1609,22 @@ static sai_status_t mlnx_create_bridge(_Out_ sai_object_id_t     * bridge_id,
     find_attrib_in_list(attr_count, attr_list, SAI_BRIDGE_ATTR_UNKNOWN_UNICAST_FLOOD_CONTROL_TYPE, &attr_val,
                         &attr_idx);
     if (attr_val) {
-        bridge->flood_data.types[MLNX_FID_FLOOD_CTRL_ATTR_UC].type = mlnx_bridge_flood_type_to_fid_type(attr_val->s32);
+        flood_control_type = mlnx_bridge_flood_type_to_fid_type(attr_val->s32);
+        status = mlnx_fid_flood_ctrl_type_set(bridge->sx_bridge_id,
+                                              MLNX_FID_FLOOD_CTRL_ATTR_UC,
+                                              &bridge->flood_data.types[MLNX_FID_FLOOD_CTRL_ATTR_UC],
+                                              flood_control_type);
+        if (SAI_ERR(status)) {
+            goto out;
+        }
     }
 
     find_attrib_in_list(attr_count, attr_list, SAI_BRIDGE_ATTR_UNKNOWN_UNICAST_FLOOD_GROUP, &attr_val, &attr_idx);
     if (attr_val) {
-        status = mlnx_l2mc_group_oid_to_db_idx(attr_val->oid,
-                                               &bridge->flood_data.types[MLNX_FID_FLOOD_CTRL_ATTR_UC].l2mc_db_idx);
+        status = mlnx_fid_flood_ctrl_l2mc_group_set(bridge->sx_bridge_id,
+                                                    MLNX_FID_FLOOD_CTRL_ATTR_UC,
+                                                    &bridge->flood_data.types[MLNX_FID_FLOOD_CTRL_ATTR_UC],
+                                                    attr_val->oid);
         if (SAI_ERR(status)) {
             goto out;
         }
@@ -1636,21 +1648,32 @@ static sai_status_t mlnx_create_bridge(_Out_ sai_object_id_t     * bridge_id,
         }
     }
 
-    find_attrib_in_list(attr_count, attr_list, SAI_BRIDGE_ATTR_BROADCAST_FLOOD_CONTROL_TYPE, &attr_val, &attr_idx);
-    if (attr_val) {
-        bridge->flood_data.types[MLNX_FID_FLOOD_CTRL_ATTR_BC].type = mlnx_bridge_flood_type_to_fid_type(attr_val->s32);
+    if (MLNX_L2MC_GROUP_DB_IDX_IS_VALID(bridge->flood_data.types[MLNX_FID_FLOOD_CTRL_ATTR_MC].l2mc_db_idx)) {
+        mlnx_l2mc_group_flood_ctrl_ref_inc(bridge->flood_data.types[MLNX_FID_FLOOD_CTRL_ATTR_MC].l2mc_db_idx);
     }
 
-    find_attrib_in_list(attr_count, attr_list, SAI_BRIDGE_ATTR_BROADCAST_FLOOD_GROUP, &attr_val, &attr_idx);
+    find_attrib_in_list(attr_count, attr_list, SAI_BRIDGE_ATTR_BROADCAST_FLOOD_CONTROL_TYPE, &attr_val, &attr_idx);
     if (attr_val) {
-        status = mlnx_l2mc_group_oid_to_db_idx(attr_val->oid,
-                                               &bridge->flood_data.types[MLNX_FID_FLOOD_CTRL_ATTR_BC].l2mc_db_idx);
+        flood_control_type = mlnx_bridge_flood_type_to_fid_type(attr_val->s32);
+        status = mlnx_fid_flood_ctrl_type_set(bridge->sx_bridge_id,
+                                              MLNX_FID_FLOOD_CTRL_ATTR_BC,
+                                              &bridge->flood_data.types[MLNX_FID_FLOOD_CTRL_ATTR_BC],
+                                              flood_control_type);
         if (SAI_ERR(status)) {
             goto out;
         }
     }
 
-    mlnx_fid_flood_ctrl_l2mc_group_refs_inc(&bridge->flood_data);
+    find_attrib_in_list(attr_count, attr_list, SAI_BRIDGE_ATTR_BROADCAST_FLOOD_GROUP, &attr_val, &attr_idx);
+    if (attr_val) {
+        status = mlnx_fid_flood_ctrl_l2mc_group_set(bridge->sx_bridge_id,
+                                                    MLNX_FID_FLOOD_CTRL_ATTR_BC,
+                                                    &bridge->flood_data.types[MLNX_FID_FLOOD_CTRL_ATTR_BC],
+                                                    attr_val->oid);
+        if (SAI_ERR(status)) {
+            goto out;
+        }
+    }
 
     status = find_attrib_in_list(attr_count, attr_list, SAI_BRIDGE_ATTR_LEARN_DISABLE, &attr_val, &attr_idx);
     if (!SAI_ERR(status)) {
@@ -1769,7 +1792,27 @@ static sai_status_t mlnx_remove_bridge(_In_ sai_object_id_t bridge_id)
         goto out;
     }
 
-    mlnx_fid_flood_ctrl_l2mc_group_refs_dec(&bridge->flood_data);
+    status = mlnx_fid_flood_ctrl_l2mc_group_set(bridge->sx_bridge_id,
+                                                MLNX_FID_FLOOD_CTRL_ATTR_UC,
+                                                &bridge->flood_data.types[MLNX_FID_FLOOD_CTRL_ATTR_UC],
+                                                SAI_NULL_OBJECT_ID);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to unmap UC l2mc group from bridge %lx\n", bridge->sx_bridge_id);
+        goto out;
+    }
+
+    status = mlnx_fid_flood_ctrl_l2mc_group_set(bridge->sx_bridge_id,
+                                                MLNX_FID_FLOOD_CTRL_ATTR_BC,
+                                                &bridge->flood_data.types[MLNX_FID_FLOOD_CTRL_ATTR_BC],
+                                                SAI_NULL_OBJECT_ID);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to unmap BC l2mc group from bridge %lx\n", bridge->sx_bridge_id);
+        goto out;
+    }
+
+    if (MLNX_L2MC_GROUP_DB_IDX_IS_VALID(bridge->flood_data.types[MLNX_FID_FLOOD_CTRL_ATTR_MC].l2mc_db_idx)) {
+        mlnx_l2mc_group_flood_ctrl_ref_dec(bridge->flood_data.types[MLNX_FID_FLOOD_CTRL_ATTR_MC].l2mc_db_idx);
+    }
 
     status = mlnx_bridge_db_free(idx, bridge);
     if (SAI_ERR(status)) {

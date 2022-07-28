@@ -58,6 +58,22 @@ typedef struct _sai_switch_notification_t {
     sai_bfd_session_state_change_notification_fn on_bfd_session_state_change;
 } sai_switch_notification_t;
 
+typedef enum kvd_advanced_keys {
+    IPV4_ROUTE_SIZE = 0,
+    IPV6_ROUTE_SIZE,
+    IPV4_NEIGH_SIZE,
+    IPV6_NEIGH_SIZE,
+    NUMBER_OF_KEYS
+} kvd_advanced_keys_t;
+
+typedef struct kvd_key_definition {
+    bool     is_user_defined;
+    bool     size_defined;
+    bool     max_defined;
+    bool     min_defined;
+    uint32_t defined_size;
+} kvd_key_definition_t;
+
 static sx_verbosity_level_t LOG_VAR_NAME(__MODULE__) = SX_VERBOSITY_LEVEL_WARNING;
 sx_api_handle_t                  gh_sdk = 0;
 static sai_switch_notification_t g_notification_callbacks;
@@ -612,6 +628,15 @@ static sai_status_t mlnx_switch_dump_health_event_move_dumps_from_stage_dir(_In_
 static sai_status_t mlnx_switch_health_event_handle(_In_ sx_event_health_notification_t *event);
 static sai_status_t mlnx_switch_rearm_dfw(_In_ sx_api_handle_t api_handle);
 static void mlnx_switch_dfw_thread_func(_In_ void *context);
+
+static inline int bfd_pkt_is_polling(mlnx_bfd_packet_t* bfd_pkt)
+{
+    return bfd_pkt->flags & BFD_PKT_FLAG_POLL;
+}
+static inline int bfd_pkt_is_final(mlnx_bfd_packet_t* bfd_pkt)
+{
+    return bfd_pkt->flags & BFD_PKT_FLAG_FINAL;
+}
 
 static const sai_vendor_attribute_entry_t switch_vendor_attribs[] = {
     { SAI_SWITCH_ATTR_PORT_NUMBER,
@@ -1314,11 +1339,13 @@ static const mlnx_attr_enum_info_t switch_enum_info[] = {
     [SAI_SWITCH_ATTR_ECMP_DEFAULT_HASH_ALGORITHM] = ATTR_ENUM_VALUES_LIST(
         SAI_HASH_ALGORITHM_XOR,
         SAI_HASH_ALGORITHM_CRC,
-        SAI_HASH_ALGORITHM_RANDOM),
+        SAI_HASH_ALGORITHM_RANDOM,
+        SAI_HASH_ALGORITHM_CRC_CCITT),
     [SAI_SWITCH_ATTR_LAG_DEFAULT_HASH_ALGORITHM] = ATTR_ENUM_VALUES_LIST(
         SAI_HASH_ALGORITHM_XOR,
         SAI_HASH_ALGORITHM_CRC,
-        SAI_HASH_ALGORITHM_RANDOM),
+        SAI_HASH_ALGORITHM_RANDOM,
+        SAI_HASH_ALGORITHM_CRC_CCITT),
     [SAI_SWITCH_ATTR_SUPPORTED_IPV4_BFD_SESSION_OFFLOAD_TYPE] = ATTR_ENUM_VALUES_LIST(
         SAI_BFD_SESSION_OFFLOAD_TYPE_NONE),
     [SAI_SWITCH_ATTR_SUPPORTED_IPV6_BFD_SESSION_OFFLOAD_TYPE] = ATTR_ENUM_VALUES_LIST(
@@ -2307,7 +2334,11 @@ struct ku_profile single_part_eth_device_profile_spectrum4 = {
                                          * bits 33-63 - reserved; */
     .set_mask_64_127 = 0,               /* reserved */
     .max_vepa_channels = 0,             /* reserved */
-    .max_lag = 0,                       /* reserved */
+#ifdef SPC4_MAX_LAGS_CONFIG
+    .max_lag = 256,
+#else
+    .max_lag = 0,
+#endif
     .max_port_per_lag = 0,              /* reserved */
     .max_mid = 0,                       /* value is calculated during init with RM values */
     .max_pgt = 0,                       /* reserved */
@@ -3014,7 +3045,11 @@ static sai_status_t mlnx_chassis_mng_stage(mlnx_sai_boot_type_t boot_type,
 
     sdk_init_params.vlan_params.def_vid = SX_VLAN_DEFAULT_VID;
     sdk_init_params.vlan_params.max_swid_id = 0;
+#ifdef SPC4_MAX_RIFS
+    sdk_init_params.vlan_params.num_of_active_vlans = 3000;
+#else
     sdk_init_params.vlan_params.num_of_active_vlans = MAX_VLANS;
+#endif
 
     sdk_init_params.fdb_params.max_mc_group = SX_FDB_MAX_MC_GROUPS;
     sdk_init_params.fdb_params.flood_mode = FLOOD_PER_VLAN;
@@ -3120,10 +3155,14 @@ static sai_status_t mlnx_chassis_mng_stage(mlnx_sai_boot_type_t boot_type,
         return SAI_STATUS_FAILURE;
     }
 
+#ifdef SPC4_MAX_RIFS
+    sdk_init_params.router_params.max_port_router_interfaces_num = 4000;
+#else
     /* Limited due to FID allocation issue on SPC4 */
     if (mlnx_chip_is_spc4()) {
         sdk_init_params.router_params.max_port_router_interfaces_num = 2000;
     }
+#endif
 
     sdk_init_params.fdb_params.roaming_mac_notif_en = true;
 
@@ -3563,6 +3602,7 @@ static void sai_db_values_init()
 
     for (ii = 0; ii < SPAN_SESSION_MAX; ii++) {
         g_sai_db_ptr->mirror_congestion_mode[ii] = -1;
+        g_sai_db_ptr->mirror_sample_rate[ii] = 1;
     }
 
     sai_qos_db_init();
@@ -3709,7 +3749,7 @@ static sai_status_t sai_db_create()
     cl_err = cl_shm_create(SAI_PATH, &shmid);
     if (cl_err) {
         if (errno == EEXIST) { /* one retry is allowed */
-            MLNX_SAI_LOG_ERR("Shared memory of the SAI already exists, destroying it and re-creating\n");
+            MLNX_SAI_LOG_NTC("Shared memory of the SAI already exists, destroying it and re-creating\n");
             cl_shm_destroy(SAI_PATH);
             cl_err = cl_shm_create(SAI_PATH, &shmid);
         }
@@ -4084,6 +4124,7 @@ static sai_status_t mlnx_switch_bfd_packet_handle(const struct bfd_packet_event 
     sai_status_t                         status;
     mlnx_bfd_packet_t                   *bfd_p;
     int                                  need_update_rx = 0;
+    bool                                 negotiation = false;
     char                                 dst_ip_str[MAX_IP_STR_LEN];
     sai_bfd_session_state_t              bfd_session_state, bfd_pkt_state;
 
@@ -4101,21 +4142,19 @@ static sai_status_t mlnx_switch_bfd_packet_handle(const struct bfd_packet_event 
     sai_db_write_lock();
     status = mlnx_shm_rm_idx_validate(bfd_session_db_index);
     if (SAI_ERR(status)) {
-        SX_LOG_ERR("BFD DB index is invalid (index=%" PRIu64 ")\n", bfd_session_db_index);
         sai_db_unlock();
         return SAI_STATUS_FAILURE;
     }
 
     status = mlnx_bfd_session_oid_create(bfd_session_db_index, &info.bfd_session_id);
     if (SAI_ERR(status)) {
-        SX_LOG_ERR("BFD OID create failed ");
+        SX_LOG_ERR("BFD OID create failed\n");
         sai_db_unlock();
         return SAI_STATUS_FAILURE;
     }
 
     status = mlnx_shm_rm_array_idx_to_ptr(bfd_session_db_index, (void **)&bfd_data);
     if (SAI_ERR(status)) {
-        SX_LOG_ERR("BFD db data get failed (index=%" PRIu64 ")\n", bfd_session_db_index);
         sai_db_unlock();
         return SAI_STATUS_FAILURE;
     }
@@ -4133,11 +4172,45 @@ static sai_status_t mlnx_switch_bfd_packet_handle(const struct bfd_packet_event 
     SX_LOG_DBG("bfd echo-min [%d] incoming %d\n",
                bfd_data->data.remote_echo, ntohl(bfd_p->min_rx_echo));
 
+    status = sai_ipaddr_to_str(bfd_data->data.dst_ip,
+                               MAX_IP_STR_LEN - 1, dst_ip_str, NULL);
+    if (SAI_ERR(status)) {
+        strcpy(dst_ip_str, "-");
+    }
+
     if (!bfd_data->data.multihop && (packet->ttl != 255)) {
-        SX_LOG_ERR("TTL mismatch, expected 0xFF, got %u, drop packet",
-                   packet->ttl);
+        SX_LOG_NTC("TTL mismatch, expected 0xFF, got %u, drop packet from %s\n",
+                   packet->ttl, dst_ip_str);
         sai_db_unlock();
-        return SAI_STATUS_FAILURE;
+        return SAI_STATUS_SUCCESS;
+    }
+
+    if (!bfd_p->your_disc) {
+        SX_LOG_NTC("Negotiation begin: send my disc %d to %s\n",
+                   bfd_data->data.local_discriminator, dst_ip_str);
+        bfd_data->data.remote_discriminator = ntohl(bfd_p->my_disc);
+        SX_LOG_DBG("remote_disc learned %u\n",
+                   bfd_data->data.remote_discriminator);
+        negotiation = !!(bfd_data->data.remote_discriminator);
+    } else if (bfd_data->data.local_discriminator != ntohl(bfd_p->your_disc)) {
+        SX_LOG_NTC("my_disc mismatch, expected %u, got %u, drop packet from %s\n",
+                   bfd_data->data.local_discriminator,
+                   ntohl(bfd_p->your_disc), dst_ip_str);
+        sai_db_unlock();
+        return SAI_STATUS_SUCCESS;
+    }
+
+    if (!bfd_data->data.remote_discriminator) {
+        bfd_data->data.remote_discriminator = ntohl(bfd_p->my_disc);
+        SX_LOG_DBG("remote_disc learned %u\n",
+                   bfd_data->data.remote_discriminator);
+        negotiation = !!(bfd_data->data.remote_discriminator);
+    } else if (bfd_data->data.remote_discriminator != ntohl(bfd_p->my_disc)) {
+        SX_LOG_NTC("remote_disc mismatch, expected %u, got %u, drop packet from %s\n",
+                   bfd_data->data.remote_discriminator,
+                   ntohl(bfd_p->my_disc), dst_ip_str);
+        sai_db_unlock();
+        return SAI_STATUS_SUCCESS;
     }
 
     if ((bfd_data->data.remote_multiplier != bfd_p->mult) ||
@@ -4151,32 +4224,6 @@ static sai_status_t mlnx_switch_bfd_packet_handle(const struct bfd_packet_event 
         bfd_data->data.remote_echo = ntohl(bfd_p->min_rx_echo);
     }
 
-    if (bfd_data->data.local_discriminator != ntohl(bfd_p->your_disc)) {
-        SX_LOG_ERR("my_disc mismatch, expected %u, got %u, drop packet",
-                   bfd_data->data.local_discriminator,
-                   ntohl(bfd_p->your_disc));
-        sai_db_unlock();
-        return SAI_STATUS_FAILURE;
-    }
-
-    if (!bfd_data->data.remote_discriminator) {
-        bfd_data->data.remote_discriminator = ntohl(bfd_p->my_disc);
-        SX_LOG_DBG("remote_disc learned %u\n",
-                   bfd_data->data.remote_discriminator);
-    } else if (bfd_data->data.remote_discriminator != ntohl(bfd_p->my_disc)) {
-        SX_LOG_ERR("remote_disc mismatch, expected %u, got %u, drop packet",
-                   bfd_data->data.remote_discriminator,
-                   ntohl(bfd_p->my_disc));
-        sai_db_unlock();
-        return SAI_STATUS_FAILURE;
-    }
-
-    status = sai_ipaddr_to_str(bfd_data->data.dst_ip,
-                               MAX_IP_STR_LEN - 1, dst_ip_str, NULL);
-    if (SAI_ERR(status)) {
-        strcpy(dst_ip_str, "-");
-    }
-
     bfd_session_state = bfd_data->data.bfd_session_state;
 
     if (bfd_pkt_state == SAI_BFD_SESSION_STATE_ADMIN_DOWN) {
@@ -4184,13 +4231,17 @@ static sai_status_t mlnx_switch_bfd_packet_handle(const struct bfd_packet_event 
                    bfd_data->data.tx_session);
         bfd_data->data.bfd_session_state = SAI_BFD_SESSION_STATE_DOWN;
         SX_LOG_DBG("BFD try reconnect, send Down \n");
-        SX_LOG_NTC("BFD peer [%s] is manually down\n", dst_ip_str);
         bfd_data->data.remote_discriminator = ntohl(0);
         status = mlnx_set_offload_bfd_tx_session(&bfd_data->data, SX_ACCESS_CMD_EDIT);
         if (SAI_ERR(status)) {
             SX_LOG_ERR("BFD offload tx failed \n");
             sai_db_unlock();
             return status;
+        }
+        info.session_state = SAI_BFD_SESSION_STATE_ADMIN_DOWN;
+        SX_LOG_NTC("Notify: BFD peer [%s] is manually down\n", dst_ip_str);
+        if (g_notification_callbacks.on_bfd_session_state_change) {
+            g_notification_callbacks.on_bfd_session_state_change(1, &info);
         }
     }
 
@@ -4312,6 +4363,17 @@ static sai_status_t mlnx_switch_bfd_packet_handle(const struct bfd_packet_event 
             if (g_notification_callbacks.on_bfd_session_state_change) {
                 g_notification_callbacks.on_bfd_session_state_change(1, &info);
             }
+        } else if (negotiation
+                   && (bfd_pkt_state == SAI_BFD_SESSION_STATE_DOWN)) {
+            SX_LOG_NTC("get negotiation packet [%d] in [%d] state, need to update tx\n",
+                       bfd_pkt_state, bfd_session_state);
+            bfd_data->data.bfd_session_state = SAI_BFD_SESSION_STATE_INIT;
+            status = mlnx_set_offload_bfd_tx_session(&bfd_data->data, SX_ACCESS_CMD_EDIT);
+            if (SAI_ERR(status)) {
+                SX_LOG_ERR("update offload tx session failed \n");
+                sai_db_unlock();
+                return status;
+            }
         } else {
             SX_LOG_DBG("get packet [%d] in [%d] state, ignore it\n", bfd_pkt_state, bfd_session_state);
         }
@@ -4346,7 +4408,7 @@ static sai_status_t mlnx_switch_bfd_event_handle(_In_ sx_trap_id_t event, _In_ u
 
     status = mlnx_shm_rm_array_idx_to_ptr(bfd_session_db_index, (void **)&bfd_data);
     if (SAI_ERR(status)) {
-        SX_LOG_ERR("BFD db data get failed (index=%" PRIu64 ")\n", bfd_session_db_index);
+        SX_LOG_ERR("BFD db data get failed (opaque_data=%" PRIu64 ")\n", opaque_data);
         sai_db_unlock();
         return SAI_STATUS_FAILURE;
     }
@@ -5537,21 +5599,10 @@ static void event_thread_func(void *context)
 
 #ifndef _WIN32
                 if (SX_TRAP_ID_BULK_COUNTER_DONE_EVENT == receive_info->trap_id) {
-                    SX_LOG_DBG("Got BULK_COUNTER_DONE_EVENT!\n");
-                    bulk_counter_cond_mutex_lock();
-                    if (receive_info->event_info.bulk_cntr_done_info.cookie != MLNX_SAI_BULK_COUNTER_COOKIE) {
-                        SX_LOG_DBG("Got an event with unexpected cookie [0x%x]. Skipping.\n",
-                                   receive_info->event_info.bulk_cntr_done_info.cookie);
-                        bulk_counter_cond_mutex_unlock();
-                        continue;
-                    }
-                    g_sai_db_ptr->bulk_read_done_status = receive_info->event_info.bulk_cntr_done_info.status;
-                    if (0 != pthread_cond_signal(&g_sai_db_ptr->bulk_counter_cond)) {
-                        SX_LOG_ERR("Failed to signal condition variable to wake up bulk counter thread\n");
-                        bulk_counter_cond_mutex_unlock();
-                        continue;
-                    }
-                    bulk_counter_cond_mutex_unlock();
+                    SX_LOG_DBG("Got BULK_COUNTER_DONE_EVENT with cookie %u!\n",
+                               receive_info->event_info.bulk_cntr_done_info.cookie);
+                    mlnx_notify_bulk_counter_readable(receive_info->event_info.bulk_cntr_done_info.cookie,
+                                                      receive_info->event_info.bulk_cntr_done_info.status);
                     continue;
                 }
 #endif
@@ -6282,18 +6333,85 @@ static sai_status_t mlnx_sai_rm_initialize(const char *config_file)
     return SAI_STATUS_SUCCESS;
 }
 
+static sai_status_t validate_kvd_keys(const char           *key_size,
+                                      const char           *key_min_size,
+                                      const char           *key_max_size,
+                                      kvd_key_definition_t *key_changes)
+{
+    if ((key_size != NULL) &&
+        ((key_min_size != NULL) || (key_max_size != NULL))) {
+        MLNX_SAI_LOG_ERR("Configurations are invalid. %s, %s, %s"
+                         "Either configure SIZE or MIN/MAX size\n", key_size, key_min_size, key_max_size);
+        return SAI_STATUS_INVALID_ATTRIBUTE_0;
+    }
+    uint32_t key_num;
+
+    if (key_size != NULL) {
+        key_changes->is_user_defined = true;
+        key_changes->size_defined = true;
+
+        key_num = (uint32_t)atoi(key_size);
+        if (key_num) {
+            key_changes->defined_size = key_num;
+        } else {
+            key_changes->is_user_defined = false;
+        }
+    } else {
+        if (key_min_size != NULL) {
+            key_changes->is_user_defined = true;
+            key_changes->min_defined = true;
+
+            key_num = (uint32_t)atoi(key_min_size);
+            if (key_num) {
+                key_changes->defined_size = key_num;
+            } else {
+                key_changes->is_user_defined = false;
+            }
+        }
+        if (key_max_size != NULL) {
+            key_changes->is_user_defined = true;
+            key_changes->max_defined = true;
+            key_num = (uint32_t)atoi(key_max_size);
+            if (key_num) {
+                key_changes->defined_size = key_num;
+            } else {
+                key_changes->is_user_defined = false;
+            }
+        }
+
+        if ((key_min_size != NULL) && (key_max_size != NULL)) {
+            if ((uint32_t)atoi(key_max_size) < (uint32_t)atoi(key_min_size)) {
+                MLNX_SAI_LOG_ERR("Configurations are invalid. MAX size %s "
+                                 "should be bigger than MIN size %s\n", key_max_size, key_min_size);
+                return SAI_STATUS_FAILURE;
+            }
+        }
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
 static sai_status_t mlnx_kvd_table_size_update(sx_api_profile_t *ku_profile)
 {
-    const char *fdb_table_size, *route_table_size, *ipv4_route_table_size, *ipv6_route_table_size;
-    const char *neighbor_table_size, *ipv4_neigh_table_size, *ipv6_neigh_table_size;
-    uint32_t    kvd_table_size, hash_single_size, hash_double_size;
-    uint32_t    fdb_num = 0;
-    uint32_t    routes_num = 0, ipv4_routes_num = 0, ipv6_routes_num = 0;
-    uint32_t    neighbors_num = 0, ipv4_neighbors_num = 0, ipv6_neighbors_num = 0;
-    bool        update_profile = false;
+    const char *fdb_table_size, *route_table_size, *ipv4_route_table_size,
+               *ipv6_route_table_size;
+    const char *neighbor_table_size, *ipv4_neigh_table_size,
+               *ipv6_neigh_table_size;
+    const char *ipv4_route_table_size_min, *ipv4_route_table_size_max,
+               *ipv6_route_table_size_min, *ipv6_route_table_size_max;
+    const char *ipv4_neigh_table_size_min, *ipv4_neigh_table_size_max,
+               *ipv6_neigh_table_size_min, *ipv6_neigh_table_size_max;
+    uint32_t             kvd_table_size, hash_single_size, hash_double_size;
+    uint32_t             fdb_num = 0;
+    uint32_t             routes_num = 0, ipv4_routes_num = 0, ipv6_routes_num = 0;
+    uint32_t             neighbors_num = 0, ipv4_neighbors_num = 0, ipv6_neighbors_num = 0;
+    bool                 update_profile = false;
+    kvd_key_definition_t keys_definition[NUMBER_OF_KEYS];
 
-    kvd_table_size = ku_profile->kvd_hash_single_size + ku_profile->kvd_hash_double_size +
-                     ku_profile->kvd_linear_size;
+    memset(keys_definition, 0, NUMBER_OF_KEYS * sizeof(kvd_key_definition_t));
+
+    kvd_table_size = ku_profile->kvd_hash_single_size
+                     + ku_profile->kvd_hash_double_size + ku_profile->kvd_linear_size;
     hash_single_size = ku_profile->kvd_hash_single_size;
     hash_double_size = ku_profile->kvd_hash_double_size;
 
@@ -6303,9 +6421,22 @@ static sai_status_t mlnx_kvd_table_size_update(sx_api_profile_t *ku_profile)
     g_sai_db_ptr->route_table_size = hash_single_size;
     g_sai_db_ptr->neighbor_table_size = hash_single_size;
     g_sai_db_ptr->ipv4_route_table_size = 0;
+    g_sai_db_ptr->ipv4_route_table_size_min = 0;
+    g_sai_db_ptr->ipv4_route_table_size_max = 0;
     g_sai_db_ptr->ipv6_route_table_size = 0;
+    g_sai_db_ptr->ipv6_route_table_size_min = 0;
+    g_sai_db_ptr->ipv6_route_table_size_max = 0;
     g_sai_db_ptr->ipv4_neighbor_table_size = 0;
+    g_sai_db_ptr->ipv4_neighbor_table_size_min = 0;
+    g_sai_db_ptr->ipv4_neighbor_table_size_max = 0;
     g_sai_db_ptr->ipv6_neighbor_table_size = 0;
+    g_sai_db_ptr->ipv6_neighbor_table_size_min = 0;
+    g_sai_db_ptr->ipv6_neighbor_table_size_max = 0;
+    g_sai_db_ptr->is_ipv4_route_size = false;
+    g_sai_db_ptr->is_ipv6_route_size = false;
+    g_sai_db_ptr->is_ipv4_neigh_size = false;
+    g_sai_db_ptr->is_ipv6_neigh_size = false;
+
     fdb_table_size = g_mlnx_services.profile_get_value(g_profile_id, SAI_KEY_FDB_TABLE_SIZE);
     route_table_size = g_mlnx_services.profile_get_value(g_profile_id,
                                                          SAI_KEY_L3_ROUTE_TABLE_SIZE);
@@ -6319,6 +6450,40 @@ static sai_status_t mlnx_kvd_table_size_update(sx_api_profile_t *ku_profile)
                                                               SAI_KEY_IPV4_NEIGHBOR_TABLE_SIZE);
     ipv6_neigh_table_size = g_mlnx_services.profile_get_value(g_profile_id,
                                                               SAI_KEY_IPV6_NEIGHBOR_TABLE_SIZE);
+
+    ipv4_route_table_size_min = g_mlnx_services.profile_get_value(g_profile_id,
+                                                                  SAI_KEY_IPV4_ROUTE_TABLE_SIZE_MIN);
+    ipv4_route_table_size_max = g_mlnx_services.profile_get_value(g_profile_id,
+                                                                  SAI_KEY_IPV4_ROUTE_TABLE_SIZE_MAX);
+    ipv6_route_table_size_min = g_mlnx_services.profile_get_value(g_profile_id,
+                                                                  SAI_KEY_IPV6_ROUTE_TABLE_SIZE_MIN);
+    ipv6_route_table_size_max = g_mlnx_services.profile_get_value(g_profile_id,
+                                                                  SAI_KEY_IPV6_ROUTE_TABLE_SIZE_MAX);
+
+    ipv4_neigh_table_size_min = g_mlnx_services.profile_get_value(g_profile_id,
+                                                                  SAI_KEY_IPV4_NEIGHBOR_TABLE_SIZE_MIN);
+    ipv4_neigh_table_size_max = g_mlnx_services.profile_get_value(g_profile_id,
+                                                                  SAI_KEY_IPV4_NEIGHBOR_TABLE_SIZE_MAX);
+    ipv6_neigh_table_size_min = g_mlnx_services.profile_get_value(g_profile_id,
+                                                                  SAI_KEY_IPV6_NEIGHBOR_TABLE_SIZE_MIN);
+    ipv6_neigh_table_size_max = g_mlnx_services.profile_get_value(g_profile_id,
+                                                                  SAI_KEY_IPV6_NEIGHBOR_TABLE_SIZE_MAX);
+
+    if ((SAI_STATUS_SUCCESS != validate_kvd_keys(ipv4_route_table_size,
+                                                 ipv4_route_table_size_min, ipv4_route_table_size_max,
+                                                 &keys_definition[IPV4_ROUTE_SIZE])) ||
+        (SAI_STATUS_SUCCESS != validate_kvd_keys(ipv6_route_table_size,
+                                                 ipv6_route_table_size_min, ipv6_route_table_size_max,
+                                                 &keys_definition[IPV6_ROUTE_SIZE])) ||
+        (SAI_STATUS_SUCCESS != validate_kvd_keys(ipv4_neigh_table_size,
+                                                 ipv4_neigh_table_size_min, ipv4_neigh_table_size_max,
+                                                 &keys_definition[IPV4_NEIGH_SIZE])) ||
+        (SAI_STATUS_SUCCESS != validate_kvd_keys(ipv6_neigh_table_size,
+                                                 ipv6_neigh_table_size_min, ipv6_neigh_table_size_max,
+                                                 &keys_definition[IPV6_NEIGH_SIZE]))) {
+        return SAI_STATUS_FAILURE;
+    }
+
 
     if (NULL != fdb_table_size) {
         fdb_num = (uint32_t)atoi(fdb_table_size);
@@ -6337,24 +6502,94 @@ static sai_status_t mlnx_kvd_table_size_update(sx_api_profile_t *ku_profile)
             g_sai_db_ptr->route_table_size = routes_num;
             g_sai_db_ptr->ipv4_route_table_size = routes_num;
             g_sai_db_ptr->ipv6_route_table_size = routes_num;
+            g_sai_db_ptr->is_ipv4_route_size = true;
+            g_sai_db_ptr->is_ipv6_route_size = true;
         }
     } else {
-        if (NULL != ipv4_route_table_size) {
-            ipv4_routes_num = (uint32_t)atoi(ipv4_route_table_size);
-            MLNX_SAI_LOG_NTC("Setting initial IPv4 route table size %u\n", ipv4_routes_num);
-            if (ipv4_routes_num) {
-                g_sai_db_ptr->ipv4_route_table_size = ipv4_routes_num;
+        /* ipv4 route */
+        if (keys_definition[IPV4_ROUTE_SIZE].is_user_defined) {
+            kvd_key_definition_t ipv4_route_changes = keys_definition[IPV4_ROUTE_SIZE];
+            /* regular SIZE update */
+            if (ipv4_route_changes.size_defined) {
+                ipv4_routes_num = (uint32_t)atoi(ipv4_route_table_size);
+                MLNX_SAI_LOG_NTC("Setting initial IPv4 route table size %u\n",
+                                 ipv4_routes_num);
+                if (ipv4_routes_num) {
+                    g_sai_db_ptr->is_ipv4_route_size = true;
+                }
+            } else {
+                /* MIN/MAX/Both update */
+                if (ipv4_route_changes.min_defined) {
+                    ipv4_routes_num = (uint32_t)atoi(ipv4_route_table_size_min);
+                    MLNX_SAI_LOG_NTC("Setting initial IPv4 route MIN table size %u\n",
+                                     ipv4_routes_num);
+                    if (ipv4_routes_num) {
+                        g_sai_db_ptr->ipv4_route_table_size_min = ipv4_routes_num;
+                    }
+                }
+                if (ipv4_route_changes.max_defined) {
+                    ipv4_routes_num = (uint32_t)atoi(ipv4_route_table_size_max);
+                    MLNX_SAI_LOG_NTC("Setting initial IPv4 route MAX table size %u\n",
+                                     ipv4_routes_num);
+                    if (ipv4_routes_num) {
+                        g_sai_db_ptr->ipv4_route_table_size_max = ipv4_routes_num;
+                    }
+                }
             }
+            /* we will anyway update the regular table size in order to */
+            /* calculate the resources limit */
+            g_sai_db_ptr->ipv4_route_table_size = ipv4_route_changes.defined_size;
         }
-        if (NULL != ipv6_route_table_size) {
-            ipv6_routes_num = (uint32_t)atoi(ipv6_route_table_size);
-            MLNX_SAI_LOG_NTC("Setting initial IPv6 route table size %u\n", ipv6_routes_num);
-            if (ipv6_routes_num) {
-                g_sai_db_ptr->ipv6_route_table_size = ipv6_routes_num;
+
+        /* ipv6 route */
+        if (keys_definition[IPV6_ROUTE_SIZE].is_user_defined) {
+            kvd_key_definition_t ipv6_route_changes = keys_definition[IPV6_ROUTE_SIZE];
+            /* regular SIZE update */
+            if (ipv6_route_changes.size_defined) {
+                ipv6_routes_num = (uint32_t)atoi(ipv6_route_table_size);
+                MLNX_SAI_LOG_NTC("Setting initial IPv6 route table size %u\n",
+                                 ipv6_routes_num);
+                if (ipv6_routes_num) {
+                    g_sai_db_ptr->is_ipv6_route_size = true;
+                }
+            } else {
+                /* MIN/MAX/Both update */
+                if (ipv6_route_changes.min_defined) {
+                    ipv6_routes_num = (uint32_t)atoi(ipv6_route_table_size_min);
+                    MLNX_SAI_LOG_NTC("Setting initial IPv6 route MIN table size %u\n",
+                                     ipv6_routes_num);
+                    if (ipv6_routes_num) {
+                        g_sai_db_ptr->ipv6_route_table_size_min = ipv6_routes_num;
+                    }
+                }
+                if (ipv6_route_changes.max_defined) {
+                    ipv6_routes_num = (uint32_t)atoi(ipv6_route_table_size_max);
+                    MLNX_SAI_LOG_NTC("Setting initial IPv6 route MAX table size %u\n",
+                                     ipv6_routes_num);
+                    if (ipv6_routes_num) {
+                        g_sai_db_ptr->ipv6_route_table_size_max = ipv6_routes_num;
+                    }
+                }
             }
+            g_sai_db_ptr->ipv6_route_table_size = ipv6_route_changes.defined_size;
         }
-        if (ipv4_route_table_size && ipv6_route_table_size) {
-            g_sai_db_ptr->route_table_size = g_sai_db_ptr->ipv4_route_table_size + g_sai_db_ptr->ipv6_route_table_size;
+        /* If both ipv4 & ipv6 route keys changed, take the biggest updated size */
+        /* the biggest updated will be SIZE, MAX, MIN by this order */
+        if (keys_definition[IPV4_ROUTE_SIZE].is_user_defined &&
+            keys_definition[IPV6_ROUTE_SIZE].is_user_defined) {
+            /* If both ipv4 & ipv6 route keys changed, but in one of them only MIN is defined, */
+            /* the MAX should be unlimited. Hence, route_table_size will be unlimited. */
+
+            if ((keys_definition[IPV4_ROUTE_SIZE].min_defined &&
+                 !keys_definition[IPV4_ROUTE_SIZE].max_defined) ||
+                (keys_definition[IPV6_ROUTE_SIZE].min_defined &&
+                 keys_definition[IPV6_ROUTE_SIZE].max_defined)) {
+                g_sai_db_ptr->route_table_size = ku_profile->kvd_hash_single_size +
+                                                 ku_profile->kvd_hash_double_size;
+            } else {
+                g_sai_db_ptr->route_table_size = keys_definition[IPV4_ROUTE_SIZE].defined_size
+                                                 + keys_definition[IPV6_ROUTE_SIZE].defined_size;
+            }
         }
     }
 
@@ -6365,25 +6600,92 @@ static sai_status_t mlnx_kvd_table_size_update(sx_api_profile_t *ku_profile)
             g_sai_db_ptr->neighbor_table_size = neighbors_num;
             g_sai_db_ptr->ipv4_neighbor_table_size = neighbors_num;
             g_sai_db_ptr->ipv6_neighbor_table_size = neighbors_num;
+            g_sai_db_ptr->is_ipv4_neigh_size = true;
+            g_sai_db_ptr->is_ipv6_neigh_size = true;
         }
     } else {
-        if (NULL != ipv4_neigh_table_size) {
-            ipv4_neighbors_num = (uint32_t)atoi(ipv4_neigh_table_size);
-            MLNX_SAI_LOG_NTC("Setting initial IPv4 neighbor table size %u\n", ipv4_neighbors_num);
-            if (ipv4_neighbors_num) {
-                g_sai_db_ptr->ipv4_neighbor_table_size = ipv4_neighbors_num;
+        /* ipv4 neighbor */
+        if (keys_definition[IPV4_NEIGH_SIZE].is_user_defined) {
+            kvd_key_definition_t ipv4_neigh_changes = keys_definition[IPV4_NEIGH_SIZE];
+            /* regular SIZE update */
+            if (ipv4_neigh_changes.size_defined) {
+                ipv4_neighbors_num = (uint32_t)atoi(ipv4_neigh_table_size);
+                MLNX_SAI_LOG_NTC("Setting initial IPv4 neighbor table size %u\n",
+                                 ipv4_neighbors_num);
+                if (ipv4_neighbors_num) {
+                    g_sai_db_ptr->is_ipv4_neigh_size = true;
+                }
+            } else {
+                /* MIN/MAX/Both update */
+                if (ipv4_neigh_changes.min_defined) {
+                    ipv4_neighbors_num = (uint32_t)atoi(ipv4_neigh_table_size_min);
+                    MLNX_SAI_LOG_NTC("Setting initial IPv4 neighbor MIN table size %u\n",
+                                     ipv4_neighbors_num);
+                    if (ipv4_neighbors_num) {
+                        g_sai_db_ptr->ipv4_neighbor_table_size_min = ipv4_neighbors_num;
+                    }
+                }
+                if (ipv4_neigh_changes.max_defined) {
+                    ipv4_neighbors_num = (uint32_t)atoi(ipv4_neigh_table_size_max);
+                    MLNX_SAI_LOG_NTC("Setting initial IPv4 neighbor MAX table size %u\n",
+                                     ipv4_neighbors_num);
+                    if (ipv4_neighbors_num) {
+                        g_sai_db_ptr->ipv4_neighbor_table_size_max = ipv4_neighbors_num;
+                    }
+                }
             }
+            g_sai_db_ptr->ipv4_neighbor_table_size = ipv4_neigh_changes.defined_size;
         }
-        if (NULL != ipv6_neigh_table_size) {
-            ipv6_neighbors_num = (uint32_t)atoi(ipv6_neigh_table_size);
-            MLNX_SAI_LOG_NTC("Setting initial IPv6 neighbor table size %u\n", ipv6_neighbors_num);
-            if (ipv6_neighbors_num) {
-                g_sai_db_ptr->ipv6_neighbor_table_size = ipv6_neighbors_num;
+
+        /* ipv6 neighbor */
+        if (keys_definition[IPV6_NEIGH_SIZE].is_user_defined) {
+            kvd_key_definition_t ipv6_neigh_changes = keys_definition[IPV6_NEIGH_SIZE];
+            /* regular SIZE update */
+            if (ipv6_neigh_changes.size_defined) {
+                ipv6_neighbors_num = (uint32_t)atoi(ipv6_neigh_table_size);
+                MLNX_SAI_LOG_NTC("Setting initial IPv6 neighbor table size %u\n",
+                                 ipv6_neighbors_num);
+                if (ipv6_neighbors_num) {
+                    g_sai_db_ptr->is_ipv6_neigh_size = true;
+                }
+            } else {
+                /* MIN/MAX/Both update */
+                if (ipv6_neigh_changes.min_defined) {
+                    ipv6_neighbors_num = (uint32_t)atoi(ipv6_neigh_table_size_min);
+                    MLNX_SAI_LOG_NTC("Setting initial IPv6 neighbor MIN table size %u\n",
+                                     ipv6_neighbors_num);
+                    if (ipv6_neighbors_num) {
+                        g_sai_db_ptr->ipv6_neighbor_table_size_min = ipv6_neighbors_num;
+                    }
+                }
+                if (ipv6_neigh_changes.max_defined) {
+                    ipv6_neighbors_num = (uint32_t)atoi(ipv6_neigh_table_size_max);
+                    MLNX_SAI_LOG_NTC("Setting initial IPv6 neighbor MAX table size %u\n",
+                                     ipv6_neighbors_num);
+                    if (ipv6_neighbors_num) {
+                        g_sai_db_ptr->ipv6_neighbor_table_size_max = ipv6_neighbors_num;
+                    }
+                }
             }
+            g_sai_db_ptr->ipv6_neighbor_table_size = ipv6_neigh_changes.defined_size;
         }
-        if (ipv4_neigh_table_size && ipv6_neigh_table_size) {
-            g_sai_db_ptr->neighbor_table_size = g_sai_db_ptr->ipv4_neighbor_table_size +
-                                                g_sai_db_ptr->ipv6_neighbor_table_size;
+
+        if (keys_definition[IPV4_NEIGH_SIZE].is_user_defined &&
+            keys_definition[IPV6_NEIGH_SIZE].is_user_defined) {
+            /* If both ipv4 & ipv6 neigh keys changed, but in one of them only MIN is defined, */
+            /* the MAX should be unlimited. Hence, route_table_size will be unlimited. */
+
+            if ((keys_definition[IPV4_NEIGH_SIZE].min_defined &&
+                 !keys_definition[IPV4_NEIGH_SIZE].max_defined) ||
+                (keys_definition[IPV6_NEIGH_SIZE].min_defined &&
+                 keys_definition[IPV6_NEIGH_SIZE].max_defined)) {
+                g_sai_db_ptr->neighbor_table_size = ku_profile->kvd_hash_single_size +
+                                                    ku_profile->kvd_hash_double_size;
+            } else {
+                g_sai_db_ptr->neighbor_table_size =
+                    keys_definition[IPV4_NEIGH_SIZE].defined_size +
+                    keys_definition[IPV6_NEIGH_SIZE].defined_size;
+            }
         }
     }
 
@@ -6393,12 +6695,17 @@ static sai_status_t mlnx_kvd_table_size_update(sx_api_profile_t *ku_profile)
         hash_double_size = (routes_num + neighbors_num) * 2;
         update_profile = true;
     } else {
-        if (fdb_num && ipv4_routes_num && ipv4_neighbors_num) {
-            hash_single_size = fdb_num + ipv4_routes_num + ipv4_neighbors_num;
+        if (fdb_num && keys_definition[IPV4_ROUTE_SIZE].is_user_defined &&
+            keys_definition[IPV4_NEIGH_SIZE].is_user_defined) {
+            hash_single_size = fdb_num +
+                               keys_definition[IPV4_ROUTE_SIZE].defined_size +
+                               keys_definition[IPV4_NEIGH_SIZE].defined_size;
             update_profile = true;
         }
-        if (ipv6_routes_num && ipv6_neighbors_num) {
-            hash_double_size = (ipv6_routes_num + ipv6_neighbors_num) * 2;
+        if (keys_definition[IPV6_ROUTE_SIZE].is_user_defined &&
+            keys_definition[IPV6_NEIGH_SIZE].is_user_defined) {
+            hash_double_size = (keys_definition[IPV6_ROUTE_SIZE].defined_size +
+                                keys_definition[IPV6_NEIGH_SIZE].defined_size) * 2;
             update_profile = true;
         }
     }
@@ -6641,15 +6948,53 @@ static sai_status_t mlnx_initialize_switch(sai_object_id_t switch_id, bool *tran
         resources_param.max_router_interfaces = g_resource_limits.router_rifs_max;
     }
 
-    resources_param.min_ipv4_uc_route_entries = g_sai_db_ptr->ipv4_route_table_size;
-    resources_param.min_ipv6_uc_route_entries = g_sai_db_ptr->ipv6_route_table_size;
-    resources_param.max_ipv4_uc_route_entries = g_sai_db_ptr->ipv4_route_table_size;
-    resources_param.max_ipv6_uc_route_entries = g_sai_db_ptr->ipv6_route_table_size;
+    if (g_sai_db_ptr->is_ipv4_route_size) {
+        resources_param.min_ipv4_uc_route_entries = g_sai_db_ptr
+                                                    ->ipv4_route_table_size;
+        resources_param.max_ipv4_uc_route_entries = g_sai_db_ptr
+                                                    ->ipv4_route_table_size;
+    } else {
+        resources_param.min_ipv4_uc_route_entries = g_sai_db_ptr
+                                                    ->ipv4_route_table_size_min;
+        resources_param.max_ipv4_uc_route_entries = g_sai_db_ptr
+                                                    ->ipv4_route_table_size_max;
+    }
 
-    resources_param.min_ipv4_neighbor_entries = g_sai_db_ptr->ipv4_neighbor_table_size;
-    resources_param.min_ipv6_neighbor_entries = g_sai_db_ptr->ipv6_neighbor_table_size;
-    resources_param.max_ipv4_neighbor_entries = g_sai_db_ptr->ipv4_neighbor_table_size;
-    resources_param.max_ipv6_neighbor_entries = g_sai_db_ptr->ipv6_neighbor_table_size;
+    if (g_sai_db_ptr->is_ipv6_route_size) {
+        resources_param.min_ipv6_uc_route_entries = g_sai_db_ptr
+                                                    ->ipv6_route_table_size;
+        resources_param.max_ipv6_uc_route_entries = g_sai_db_ptr
+                                                    ->ipv6_route_table_size;
+    } else {
+        resources_param.min_ipv6_uc_route_entries = g_sai_db_ptr
+                                                    ->ipv6_route_table_size_min;
+        resources_param.max_ipv6_uc_route_entries = g_sai_db_ptr
+                                                    ->ipv6_route_table_size_max;
+    }
+
+    if (g_sai_db_ptr->is_ipv4_neigh_size) {
+        resources_param.min_ipv4_neighbor_entries = g_sai_db_ptr
+                                                    ->ipv4_neighbor_table_size;
+        resources_param.max_ipv4_neighbor_entries = g_sai_db_ptr
+                                                    ->ipv4_neighbor_table_size;
+    } else {
+        resources_param.min_ipv4_neighbor_entries = g_sai_db_ptr
+                                                    ->ipv4_neighbor_table_size_min;
+        resources_param.max_ipv4_neighbor_entries = g_sai_db_ptr
+                                                    ->ipv4_neighbor_table_size_max;
+    }
+
+    if (g_sai_db_ptr->is_ipv6_neigh_size) {
+        resources_param.min_ipv6_neighbor_entries = g_sai_db_ptr
+                                                    ->ipv6_neighbor_table_size;
+        resources_param.max_ipv6_neighbor_entries = g_sai_db_ptr
+                                                    ->ipv6_neighbor_table_size;
+    } else {
+        resources_param.min_ipv6_neighbor_entries = g_sai_db_ptr
+                                                    ->ipv6_neighbor_table_size_min;
+        resources_param.max_ipv6_neighbor_entries = g_sai_db_ptr
+                                                    ->ipv6_neighbor_table_size_max;
+    }
 
     resources_param.min_ipv4_mc_route_entries = 0;
     resources_param.min_ipv6_mc_route_entries = 0;
@@ -6692,6 +7037,7 @@ static sai_status_t mlnx_initialize_switch(sai_object_id_t switch_id, bool *tran
     /* Update route/neighbor table size to default value if no setting in profile.
      * SDK counts v4 and v6 on same HW table KVD HASH, so init for available resource
      * checking to same value. */
+
     if (g_sai_db_ptr->ipv4_route_table_size == 0) {
         g_sai_db_ptr->ipv4_route_table_size = ku_profile->kvd_hash_single_size;
     }
@@ -6731,7 +7077,7 @@ static sai_status_t mlnx_initialize_switch(sai_object_id_t switch_id, bool *tran
 
     sai_status = mlnx_bulk_counter_init();
     if (SAI_ERR(sai_status)) {
-        SX_LOG_ERR("Failed to init bulk counter sync mechanism.\n");
+        SX_LOG_ERR("Failed to init bulk counter info.\n");
         return sai_status;
     }
 
@@ -7738,7 +8084,7 @@ static sai_status_t mlnx_switch_ecmp_hash_param_set_impl(_In_ long attr_id, _In_
         break;
 
     case SAI_SWITCH_ATTR_ECMP_DEFAULT_HASH_ALGORITHM:
-        port_hash_param->ecmp_hash_type = (sx_router_ecmp_hash_type_t)value->s32;
+        port_hash_param->ecmp_hash_type = ecmp_hash_type_sai_2_sx(value->s32);
         break;
 
     case SAI_SWITCH_ATTR_ECMP_DEFAULT_SYMMETRIC_HASH:
@@ -7824,7 +8170,7 @@ static sai_status_t mlnx_switch_lag_hash_attr_set_impl(_In_ long attr_id, _In_ c
         break;
 
     case SAI_SWITCH_ATTR_LAG_DEFAULT_HASH_ALGORITHM:
-        lag_hash_params->lag_hash_type = (sx_lag_hash_type_t)value->s32;
+        lag_hash_params->lag_hash_type = lag_hash_type_sai_2_sx(value->s32);
         break;
 
     case SAI_SWITCH_ATTR_LAG_DEFAULT_SYMMETRIC_HASH:
@@ -8609,7 +8955,7 @@ static sai_status_t mlnx_switch_ecmp_hash_param_get(_In_ const sai_object_key_t 
         break;
 
     case SAI_SWITCH_ATTR_ECMP_DEFAULT_HASH_ALGORITHM:
-        value->s32 = (sai_hash_algorithm_t)port_hash_param->ecmp_hash_type;
+        value->s32 = ecmp_hash_type_sx_2_sai(port_hash_param->ecmp_hash_type);
         break;
 
     case SAI_SWITCH_ATTR_ECMP_DEFAULT_SYMMETRIC_HASH:
@@ -9044,7 +9390,7 @@ static sai_status_t mlnx_switch_lag_hash_attr_get(_In_ const sai_object_key_t   
         break;
 
     case SAI_SWITCH_ATTR_LAG_DEFAULT_HASH_ALGORITHM:
-        value->s32 = (sai_hash_algorithm_t)lag_hash_params->lag_hash_type;
+        value->s32 = lag_hash_type_sx_2_sai(lag_hash_params->lag_hash_type);
         break;
 
     case SAI_SWITCH_ATTR_LAG_DEFAULT_SYMMETRIC_HASH:
@@ -9674,14 +10020,16 @@ static sai_status_t mlnx_switch_pre_shutdown_set(_In_ const sai_object_key_t    
         }
 
         sai_db_write_lock();
-        port_counter_lock();
+        mlnx_exhaust_bulk_counter_trasaction_sem();
+
         sx_status = sx_api_issu_start_set(gh_sdk);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to start issu %s.\n", SX_STATUS_MSG(sx_status));
         } else {
             g_sai_db_ptr->issu_start_called = true;
         }
-        port_counter_unlock();
+
+        mlnx_fillup_bulk_counter_trasaction_sem();
         sai_db_unlock();
     }
 

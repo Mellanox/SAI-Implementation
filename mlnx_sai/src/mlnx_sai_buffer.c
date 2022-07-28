@@ -244,6 +244,13 @@ static sai_status_t mlnx_sai_buffer_construct_pg0_buffer_attr(_In_ const mlnx_po
 static sai_status_t mlnx_sai_buffer_construct_pg9_buffers_attrs(_In_ const mlnx_port_config_t     *port,
                                                                 _Inout_ sx_cos_port_buffer_attr_t *pgs_buff_reserved_attr_arr,
                                                                 _Inout_ uint32_t                  *buff_attr_count);
+sai_status_t mlnx_sai_bulk_ingress_priority_group_stats_clear(_In_ sai_object_id_t         switch_id,
+                                                              _In_ uint32_t                object_count,
+                                                              _In_ const sai_object_key_t *object_key,
+                                                              _In_ uint32_t                number_of_counters,
+                                                              _In_ const sai_stat_id_t    *counter_ids,
+                                                              _In_ sx_access_cmd_t         cmd,
+                                                              _Inout_ sai_status_t        *object_statuses);
 static const sai_vendor_attribute_entry_t pg_vendor_attribs[] = {
     {
         SAI_INGRESS_PRIORITY_GROUP_ATTR_BUFFER_PROFILE,
@@ -275,14 +282,24 @@ static const sai_vendor_attribute_entry_t pg_vendor_attribs[] = {
 static const sai_stat_capability_t        pg_stats_capabilies[] = {
     { SAI_INGRESS_PRIORITY_GROUP_STAT_PACKETS, SAI_STATS_MODE_READ | SAI_STATS_MODE_READ_AND_CLEAR },
     { SAI_INGRESS_PRIORITY_GROUP_STAT_BYTES, SAI_STATS_MODE_READ | SAI_STATS_MODE_READ_AND_CLEAR },
-    { SAI_INGRESS_PRIORITY_GROUP_STAT_CURR_OCCUPANCY_BYTES, SAI_STATS_MODE_READ | SAI_STATS_MODE_READ_AND_CLEAR },
+    { SAI_INGRESS_PRIORITY_GROUP_STAT_CURR_OCCUPANCY_BYTES,
+      SAI_STATS_MODE_READ | SAI_STATS_MODE_READ_AND_CLEAR | SAI_STATS_MODE_BULK_READ |
+      SAI_STATS_MODE_BULK_READ_AND_CLEAR | SAI_STATS_MODE_BULK_CLEAR },
     { SAI_INGRESS_PRIORITY_GROUP_STAT_SHARED_CURR_OCCUPANCY_BYTES,
-      SAI_STATS_MODE_READ | SAI_STATS_MODE_READ_AND_CLEAR },
-    { SAI_INGRESS_PRIORITY_GROUP_STAT_WATERMARK_BYTES, SAI_STATS_MODE_READ | SAI_STATS_MODE_READ_AND_CLEAR },
-    { SAI_INGRESS_PRIORITY_GROUP_STAT_SHARED_WATERMARK_BYTES, SAI_STATS_MODE_READ | SAI_STATS_MODE_READ_AND_CLEAR },
+      SAI_STATS_MODE_READ | SAI_STATS_MODE_READ_AND_CLEAR | SAI_STATS_MODE_BULK_READ |
+      SAI_STATS_MODE_BULK_READ_AND_CLEAR | SAI_STATS_MODE_BULK_CLEAR },
+    { SAI_INGRESS_PRIORITY_GROUP_STAT_WATERMARK_BYTES,
+      SAI_STATS_MODE_READ | SAI_STATS_MODE_READ_AND_CLEAR | SAI_STATS_MODE_BULK_READ |
+      SAI_STATS_MODE_BULK_READ_AND_CLEAR | SAI_STATS_MODE_BULK_CLEAR },
+    { SAI_INGRESS_PRIORITY_GROUP_STAT_SHARED_WATERMARK_BYTES,
+      SAI_STATS_MODE_READ | SAI_STATS_MODE_READ_AND_CLEAR | SAI_STATS_MODE_BULK_READ |
+      SAI_STATS_MODE_BULK_READ_AND_CLEAR | SAI_STATS_MODE_BULK_CLEAR },
     { SAI_INGRESS_PRIORITY_GROUP_STAT_XOFF_ROOM_CURR_OCCUPANCY_BYTES,
-      SAI_STATS_MODE_READ | SAI_STATS_MODE_READ_AND_CLEAR },
-    { SAI_INGRESS_PRIORITY_GROUP_STAT_XOFF_ROOM_WATERMARK_BYTES, SAI_STATS_MODE_READ | SAI_STATS_MODE_READ_AND_CLEAR },
+      SAI_STATS_MODE_READ | SAI_STATS_MODE_READ_AND_CLEAR | SAI_STATS_MODE_BULK_READ |
+      SAI_STATS_MODE_BULK_READ_AND_CLEAR | SAI_STATS_MODE_BULK_CLEAR },
+    { SAI_INGRESS_PRIORITY_GROUP_STAT_XOFF_ROOM_WATERMARK_BYTES,
+      SAI_STATS_MODE_READ | SAI_STATS_MODE_READ_AND_CLEAR | SAI_STATS_MODE_BULK_READ |
+      SAI_STATS_MODE_BULK_READ_AND_CLEAR | SAI_STATS_MODE_BULK_CLEAR },
     { SAI_INGRESS_PRIORITY_GROUP_STAT_DROPPED_PACKETS, SAI_STATS_MODE_READ | SAI_STATS_MODE_READ_AND_CLEAR },
 };
 const mlnx_obj_type_attrs_info_t          mlnx_ingress_pg_obj_type_info =
@@ -5079,6 +5096,101 @@ bail:
     return sai_status;
 }
 
+sai_status_t mlnx_sai_fill_pg_counter_value(sai_stat_id_t                  counter_id,
+                                            uint64_t                      *counter,
+                                            uint32_t                       db_port_index,
+                                            uint32_t                       pg_ind,
+                                            const sx_port_cntr_buff_t     *pg_cnts,
+                                            const sx_cos_buff_statistic_t *buff_cnts,
+                                            const sx_cos_buff_statistic_t *headroom_cnts)
+{
+    assert(counter);
+    assert(pg_cnts || buff_cnts);
+
+    sai_status_t                        status;
+    uint32_t                            buff_ind;
+    uint32_t                            stat_tmp;
+    uint32_t                           *port_pg_profile_refs = NULL;
+    mlnx_sai_db_buffer_profile_entry_t *buff_db_entry = NULL;
+
+    switch (counter_id) {
+    case SAI_INGRESS_PRIORITY_GROUP_STAT_PACKETS:
+        assert(pg_cnts);
+        *counter = pg_cnts->rx_frames;
+        break;
+
+    case SAI_INGRESS_PRIORITY_GROUP_STAT_BYTES:
+        assert(pg_cnts);
+        *counter = pg_cnts->rx_octet;
+        break;
+
+    case SAI_INGRESS_PRIORITY_GROUP_STAT_DROPPED_PACKETS:
+        assert(pg_cnts);
+        /* On SPC, shared buffer discards is always 0 */
+        *counter = pg_cnts->rx_buffer_discard + pg_cnts->rx_shared_buffer_discard;
+        break;
+
+    case SAI_INGRESS_PRIORITY_GROUP_STAT_CURR_OCCUPANCY_BYTES:
+    case SAI_INGRESS_PRIORITY_GROUP_STAT_SHARED_CURR_OCCUPANCY_BYTES:
+        assert(buff_cnts);
+        *counter = mlnx_cells_to_bytes(buff_cnts->curr_occupancy);
+        break;
+
+    case SAI_INGRESS_PRIORITY_GROUP_STAT_SHARED_WATERMARK_BYTES:
+    case SAI_INGRESS_PRIORITY_GROUP_STAT_WATERMARK_BYTES:
+        assert(buff_cnts);
+        *counter = mlnx_cells_to_bytes(buff_cnts->watermark);
+        break;
+
+    case SAI_INGRESS_PRIORITY_GROUP_STAT_XOFF_ROOM_CURR_OCCUPANCY_BYTES:
+    /** fall through */
+    case SAI_INGRESS_PRIORITY_GROUP_STAT_XOFF_ROOM_WATERMARK_BYTES:
+        assert(headroom_cnts);
+        *counter = 0;
+
+        cl_plock_acquire(&g_sai_db_ptr->p_lock);
+        if (SAI_STATUS_SUCCESS !=
+            (status =
+                 mlnx_sai_get_port_buffer_index_array(db_port_index, PORT_BUFF_TYPE_PG, &port_pg_profile_refs))) {
+            cl_plock_release(&g_sai_db_ptr->p_lock);
+            SX_LOG_EXIT();
+            return status;
+        }
+        buff_ind = port_pg_profile_refs[pg_ind];
+        stat_tmp =
+            (counter_id == SAI_INGRESS_PRIORITY_GROUP_STAT_XOFF_ROOM_CURR_OCCUPANCY_BYTES) ?
+            mlnx_cells_to_bytes(headroom_cnts->curr_occupancy) :
+            mlnx_cells_to_bytes(headroom_cnts->watermark);
+
+        if (SENTINEL_BUFFER_DB_ENTRY_INDEX != buff_ind) {
+            buff_db_entry = &g_sai_buffer_db_ptr->buffer_profiles[buff_ind];
+            /* only relevant to lossless when either xon/xoff isn't 0. lossy is 0 */
+            if ((buff_db_entry->xon != 0) || (buff_db_entry->xoff != 0)) {
+                if ((buff_db_entry->xon != 0) && (buff_db_entry->xoff != 0) &&
+                    (g_sai_buffer_db_ptr->shp_ipool_map->is_shp_created) &&
+                    (g_sai_buffer_db_ptr->shp_ipool_map->sai_pool_id == buff_db_entry->sai_pool)) {
+                    /* maximum consumption is returned only the xoff part */
+                    /* when shared headroom is enabled and pg buffer is lossless then pg.xoff == pg.xon */
+                    if (stat_tmp > buff_db_entry->xon) {
+                        *counter = stat_tmp - buff_db_entry->xon;
+                    }
+                    /* watermark is from xoff threshold. xoff threshold is available bytes in reserved buffer */
+                } else if (stat_tmp > buff_db_entry->reserved_size - buff_db_entry->xoff) {
+                    *counter = stat_tmp + buff_db_entry->xoff - buff_db_entry->reserved_size;
+                }
+            }
+        }
+        cl_plock_release(&g_sai_db_ptr->p_lock);
+        break;
+
+    default:
+        SX_LOG_ERR("Invalid PG stat counter id:%d\n", counter_id);
+        return SAI_STATUS_INVALID_PARAMETER;
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
 sai_status_t mlnx_sai_get_ingress_priority_group_stats_ext(_In_ sai_object_id_t      ingress_priority_group_id,
                                                            _In_ uint32_t             number_of_counters,
                                                            _In_ const sai_stat_id_t *counter_ids,
@@ -5086,19 +5198,16 @@ sai_status_t mlnx_sai_get_ingress_priority_group_stats_ext(_In_ sai_object_id_t 
                                                            _Out_ uint64_t           *counters)
 {
     sai_status_t                     sai_status;
-    uint32_t                         db_port_index, pg_ind, buff_ind;
+    uint32_t                         db_port_index, pg_ind;
     sx_port_statistic_usage_params_t stats_usages[2] = {0};
     sx_port_occupancy_statistics_t   stats[2] = {0};
     uint32_t                         usage_cnt = 1;
     uint32_t                         ii;
-    uint32_t                         stat_tmp;
     char                             key_str[MAX_KEY_STR_LEN];
     sx_port_cntr_buff_t              pg_cnts = { 0 };
     bool                             pg_cnts_needed = false, occupancy_stats_needed = false,
                                      headroom_occupancy_stats_needed = false;
-    uint32_t                           *port_pg_profile_refs = NULL;
-    mlnx_sai_db_buffer_profile_entry_t *buff_db_entry = NULL;
-    sx_access_cmd_t                     cmd;
+    sx_access_cmd_t cmd;
 
     SX_LOG_ENTER();
     pg_key_to_str(ingress_priority_group_id, key_str);
@@ -5204,74 +5313,17 @@ sai_status_t mlnx_sai_get_ingress_priority_group_stats_ext(_In_ sai_object_id_t 
     }
 
     for (ii = 0; ii < number_of_counters; ii++) {
-        switch (counter_ids[ii]) {
-        case SAI_INGRESS_PRIORITY_GROUP_STAT_PACKETS:
-            counters[ii] = pg_cnts.rx_frames;
-            break;
-
-        case SAI_INGRESS_PRIORITY_GROUP_STAT_BYTES:
-            counters[ii] = pg_cnts.rx_octet;
-            break;
-
-        case SAI_INGRESS_PRIORITY_GROUP_STAT_DROPPED_PACKETS:
-            /* On SPC, shared buffer discards is always 0 */
-            counters[ii] = pg_cnts.rx_buffer_discard + pg_cnts.rx_shared_buffer_discard;
-            break;
-
-        case SAI_INGRESS_PRIORITY_GROUP_STAT_CURR_OCCUPANCY_BYTES:
-        case SAI_INGRESS_PRIORITY_GROUP_STAT_SHARED_CURR_OCCUPANCY_BYTES:
-            counters[ii] = mlnx_cells_to_bytes(stats[0].statistics.curr_occupancy);
-            break;
-
-        case SAI_INGRESS_PRIORITY_GROUP_STAT_SHARED_WATERMARK_BYTES:
-        case SAI_INGRESS_PRIORITY_GROUP_STAT_WATERMARK_BYTES:
-            counters[ii] = mlnx_cells_to_bytes(stats[0].statistics.watermark);
-            break;
-
-        case SAI_INGRESS_PRIORITY_GROUP_STAT_XOFF_ROOM_CURR_OCCUPANCY_BYTES:
-        /** fall through */
-        case SAI_INGRESS_PRIORITY_GROUP_STAT_XOFF_ROOM_WATERMARK_BYTES:
-            counters[ii] = 0;
-
-            cl_plock_acquire(&g_sai_db_ptr->p_lock);
-            if (SAI_STATUS_SUCCESS !=
-                (sai_status =
-                     mlnx_sai_get_port_buffer_index_array(db_port_index, PORT_BUFF_TYPE_PG, &port_pg_profile_refs))) {
-                cl_plock_release(&g_sai_db_ptr->p_lock);
-                SX_LOG_EXIT();
-                return sai_status;
-            }
-            buff_ind = port_pg_profile_refs[pg_ind];
-            stat_tmp =
-                (counter_ids[ii] == SAI_INGRESS_PRIORITY_GROUP_STAT_XOFF_ROOM_CURR_OCCUPANCY_BYTES) ?
-                mlnx_cells_to_bytes(stats[1].statistics.curr_occupancy) :
-                mlnx_cells_to_bytes(stats[1].statistics.watermark);
-
-            if (SENTINEL_BUFFER_DB_ENTRY_INDEX != buff_ind) {
-                buff_db_entry = &g_sai_buffer_db_ptr->buffer_profiles[buff_ind];
-                /* only relevant to loseless when either xon/xoff isn't 0. lossy is 0 */
-                if ((buff_db_entry->xon != 0) || (buff_db_entry->xoff != 0)) {
-                    if ((buff_db_entry->xon != 0) && (buff_db_entry->xoff != 0) &&
-                        (g_sai_buffer_db_ptr->shp_ipool_map->is_shp_created) &&
-                        (g_sai_buffer_db_ptr->shp_ipool_map->sai_pool_id == buff_db_entry->sai_pool)) {
-                        /* maximum consumption is returned only the xoff part */
-                        /* when shared headroom is enabled and pg buffer is lossless then pg.xoff == pg.xon */
-                        if (stat_tmp > buff_db_entry->xon) {
-                            counters[ii] = stat_tmp - buff_db_entry->xon;
-                        }
-                        /* watermark is from xoff threshold. xoff threshold is available bytes in reserved buffer */
-                    } else if (stat_tmp > buff_db_entry->reserved_size - buff_db_entry->xoff) {
-                        counters[ii] = stat_tmp + buff_db_entry->xoff - buff_db_entry->reserved_size;
-                    }
-                }
-            }
-            cl_plock_release(&g_sai_db_ptr->p_lock);
-            break;
-
-        default:
-            SX_LOG_ERR("Invalid PG stat counter id:%d\n", counter_ids[ii]);
+        sai_status = mlnx_sai_fill_pg_counter_value(
+            counter_ids[ii],
+            &counters[ii],
+            db_port_index,
+            pg_ind,
+            &pg_cnts,
+            &stats[0].statistics,
+            &stats[1].statistics);
+        if (SAI_ERR(sai_status)) {
             SX_LOG_EXIT();
-            return SAI_STATUS_INVALID_PARAMETER;
+            return sai_status;
         }
     }
     SX_LOG_EXIT();
@@ -5386,6 +5438,401 @@ static sai_status_t mlnx_sai_clear_ingress_priority_group_stats(_In_ sai_object_
 
     SX_LOG_EXIT();
     return SAI_STATUS_SUCCESS;
+}
+
+sai_status_t mlnx_sai_bulk_ingress_priority_group_stats_get(_In_ sai_object_id_t         switch_id,
+                                                            _In_ uint32_t                object_count,
+                                                            _In_ const sai_object_key_t *object_key,
+                                                            _In_ uint32_t                number_of_counters,
+                                                            _In_ const sai_stat_id_t    *counter_ids,
+                                                            _In_ sx_access_cmd_t         cmd,
+                                                            _Inout_ sai_status_t        *object_statuses,
+                                                            _Out_ uint64_t              *counters)
+{
+    sai_status_t              status = SAI_STATUS_SUCCESS;
+    sai_status_t              single_status;
+    bool                      any_error = false;
+    bool                      occupancy_stats_needed = false, headroom_stats_needed = false;
+    sai_bulk_counter_stats    occupancy_stats[MAX_PORTS_DB] = {0};
+    sai_bulk_counter_stats    headroom_stats[MAX_PORTS_DB] = {0};
+    uint32_t                  stats_count = 0, stats_index = 0;
+    sx_status_t               sx_status = -1;
+    sx_bulk_cntr_buffer_key_t occupancy_buffer_key = {0};
+    sx_bulk_cntr_buffer_key_t headroom_buffer_key = {0};
+    sx_bulk_cntr_buffer_t     occupancy_buff = {0};
+    sx_bulk_cntr_buffer_t     headroom_buff = {0};
+    sx_bulk_cntr_read_key_t   occupancy_read_key = {0};
+    sx_bulk_cntr_read_key_t   headroom_read_key = {0};
+    sx_port_log_id_t          port_list[MAX_PORTS_DB] = {0};
+    uint32_t                  port_count = 0;
+    int                       port_index = 0;
+    mlnx_port_config_t       *port;
+    uint32_t                  counter_index;
+    uint32_t                 *port_index_per_pgs = NULL;           /* port index in port_list for each input object */
+    uint32_t                 *db_port_index_per_pgs = NULL;           /* db port index for each input object */
+    uint32_t                 *pgs = NULL;           /* pg index for each input object */
+
+    SX_LOG_ENTER();
+
+    for (uint32_t ii = 0; ii < number_of_counters; ii++) {
+        switch (counter_ids[ii]) {
+        case SAI_INGRESS_PRIORITY_GROUP_STAT_CURR_OCCUPANCY_BYTES:
+        case SAI_INGRESS_PRIORITY_GROUP_STAT_SHARED_CURR_OCCUPANCY_BYTES:
+        case SAI_INGRESS_PRIORITY_GROUP_STAT_WATERMARK_BYTES:
+        case SAI_INGRESS_PRIORITY_GROUP_STAT_SHARED_WATERMARK_BYTES:
+            occupancy_stats_needed = true;
+            break;
+
+        case SAI_INGRESS_PRIORITY_GROUP_STAT_XOFF_ROOM_CURR_OCCUPANCY_BYTES:
+        case SAI_INGRESS_PRIORITY_GROUP_STAT_XOFF_ROOM_WATERMARK_BYTES:
+            headroom_stats_needed = true;
+            break;
+
+        default:
+            SX_LOG_INF("Not all pg statistic IDs are implemented in bulk read: %d\n", counter_ids[ii]);
+            SX_LOG_EXIT();
+            return SAI_STATUS_NOT_IMPLEMENTED;
+        }
+    }
+
+    memset(object_statuses, 0, sizeof(sai_status_t) * object_count);
+    port_index_per_pgs = calloc(object_count, sizeof(uint32_t));
+    if (NULL == port_index_per_pgs) {
+        SX_LOG_ERR("Failed to allocate memory for port_index_per_pgs\n");
+        return SAI_STATUS_NO_MEMORY;
+    }
+
+    db_port_index_per_pgs = calloc(object_count, sizeof(uint32_t));
+    if (NULL == db_port_index_per_pgs) {
+        SX_LOG_ERR("Failed to allocate memory for db_port_index_per_pgs\n");
+        status = SAI_STATUS_NO_MEMORY;
+        goto free_arrays;
+    }
+
+    pgs = calloc(object_count, sizeof(uint32_t));
+    if (NULL == pgs) {
+        SX_LOG_ERR("Failed to allocate memory for pgs\n");
+        status = SAI_STATUS_NO_MEMORY;
+        goto free_arrays;
+    }
+
+    for (uint32_t ii = 0; ii < object_count; ii++) {
+        if (SAI_STATUS_SUCCESS !=
+            (status = get_pg_data(object_key[ii].key.object_id, &db_port_index_per_pgs[ii], &pgs[ii]))) {
+            object_statuses[ii] = SAI_STATUS_INVALID_PARAMETER;
+            any_error = true;
+            continue;
+        }
+
+        port = mlnx_port_by_idx(db_port_index_per_pgs[ii]);
+        for (port_index = port_count - 1; port_index >= 0; port_index--) {
+            if (port_list[port_index] == port->logical) {
+                break;
+            }
+        }
+
+        if (port_index < 0) {
+            port_index = port_count++;
+            port_list[port_index] = port->logical;
+            headroom_buffer_key.key.headroom_key.port_list[port_index] = port->logical;
+        }
+
+        port_index_per_pgs[ii] = port_index;
+    }
+
+    if (port_count == 0) {
+        SX_LOG_ERR("No valid pg found\n");
+        status = SAI_STATUS_INVALID_PARAMETER;
+        goto free_arrays;
+    }
+
+    if (occupancy_stats_needed) {
+        occupancy_buffer_key.type = SX_BULK_CNTR_KEY_TYPE_SHARED_BUFFER_E;
+        occupancy_buffer_key.key.shared_buffer_key.type = SX_BULK_CNTR_SHARED_BUFFER_CURRENT_E;
+        status = mlnx_prepare_bulk_counter_read(MLNX_BULK_TYPE_SHARED_BUFFER,
+                                                SX_ACCESS_CMD_READ,
+                                                &occupancy_buffer_key,
+                                                &occupancy_buff);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to prepare bulk counter for pg occupancy stats: %d.\n", status);
+            any_error = true;
+            goto free_occupancy_buff;
+        }
+    }
+
+    if (headroom_stats_needed) {
+        headroom_buffer_key.type = SX_BULK_CNTR_KEY_TYPE_HEADROOM_E;
+        headroom_buffer_key.key.headroom_key.port_list_cnt = port_count;
+        status = mlnx_prepare_bulk_counter_read(MLNX_BULK_TYPE_HEADROOM,
+                                                SX_ACCESS_CMD_READ,
+                                                &headroom_buffer_key,
+                                                &headroom_buff);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to prepare bulk counter for pg headroom stats: %d.\n", status);
+            any_error = true;
+            goto free_headroom_buff;
+        }
+    }
+
+
+    occupancy_read_key.type = SX_BULK_CNTR_KEY_TYPE_SHARED_BUFFER_E;
+    occupancy_read_key.key.shared_buffer_key.type = SX_BULK_CNTR_SHARED_BUFFER_PORT_ATTR_E;
+    headroom_read_key.type = SX_BULK_CNTR_KEY_TYPE_HEADROOM_E;
+
+    for (uint32_t ii = 0; ii < object_count; ii++) {
+        stats_index = port_index_per_pgs[ii];
+        if (stats_index >= stats_count) {
+            ++stats_count;
+            if (occupancy_stats_needed) {
+                occupancy_stats[stats_index].port_num = port_list[stats_index];
+                occupancy_stats[stats_index].status = SAI_STATUS_SUCCESS;
+                occupancy_read_key.key.shared_buffer_key.attr.log_port = occupancy_stats[stats_index].port_num;
+                sx_status = sx_api_bulk_counter_transaction_get(gh_sdk,
+                                                                &occupancy_read_key,
+                                                                &occupancy_buff,
+                                                                &(occupancy_stats[stats_index].data));
+                if (SX_ERR(sx_status)) {
+                    SX_LOG_ERR("Failed to bulk read pg occupancy counters: %s.\n", SX_STATUS_MSG(sx_status));
+                    occupancy_stats[stats_index].status = sdk_to_sai(sx_status);
+                    any_error = true;
+                }
+            }
+
+            if (headroom_stats_needed) {
+                headroom_stats[stats_index].port_num = port_list[stats_index];
+                headroom_stats[stats_index].status = SAI_STATUS_SUCCESS;
+                headroom_read_key.key.headroom_key.log_port = headroom_stats[stats_index].port_num;
+                sx_status = sx_api_bulk_counter_transaction_get(gh_sdk,
+                                                                &headroom_read_key,
+                                                                &headroom_buff,
+                                                                &(headroom_stats[stats_index].data));
+                if (SX_ERR(sx_status)) {
+                    SX_LOG_ERR("Failed to bulk read pg headroom counters: %s.\n", SX_STATUS_MSG(sx_status));
+                    headroom_stats[stats_index].status = sdk_to_sai(sx_status);
+                    any_error = true;
+                }
+            }
+        }
+
+        if (object_statuses[ii] != SAI_STATUS_SUCCESS) {
+            continue;
+        }
+
+        if (occupancy_stats_needed && (occupancy_stats[stats_index].status != SAI_STATUS_SUCCESS)) {
+            object_statuses[ii] = occupancy_stats[stats_index].status;
+            continue;
+        }
+
+        if (headroom_stats_needed && (headroom_stats[stats_index].status != SAI_STATUS_SUCCESS)) {
+            object_statuses[ii] = headroom_stats[stats_index].status;
+            continue;
+        }
+
+        single_status = SAI_STATUS_SUCCESS;
+        for (uint32_t kk = 0; kk < number_of_counters; kk++) {
+            counter_index = ii * number_of_counters + kk;
+            single_status = mlnx_sai_fill_pg_counter_value(
+                counter_ids[kk],
+                &counters[counter_index],
+                db_port_index_per_pgs[ii],
+                pgs[ii],
+                NULL,
+                &occupancy_stats[stats_index].data.data.shared_buffer_counters.port_p->port_pg[pgs[ii]],
+                &headroom_stats[stats_index].data.data.headroom_counters.headroom_p->port_pg[pgs[ii]].statistics);
+
+            if (single_status != SAI_STATUS_SUCCESS) {
+                any_error = true;
+                break;
+            }
+        }
+        object_statuses[ii] = single_status;
+    }
+
+free_headroom_buff:
+    if (headroom_stats_needed) {
+        status = mlnx_deallocate_sx_bulk_buffer(&headroom_buff);
+        if (SAI_ERR(status)) {
+            any_error = true;
+            SX_LOG_ERR("Failed to deallocate SDK headroom buffer: %d.\n", status);
+        }
+    }
+
+free_occupancy_buff:
+    if (occupancy_stats_needed) {
+        status = mlnx_deallocate_sx_bulk_buffer(&occupancy_buff);
+        if (SAI_ERR(status)) {
+            any_error = true;
+            SX_LOG_ERR("Failed to deallocate SDK occupancy buffer: %d.\n", status);
+        }
+    }
+
+free_arrays:
+    if (NULL != pgs) {
+        free(pgs);
+    }
+    if (NULL != db_port_index_per_pgs) {
+        free(db_port_index_per_pgs);
+    }
+    if (NULL != port_index_per_pgs) {
+        free(port_index_per_pgs);
+    }
+
+    SX_LOG_EXIT();
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+    if (any_error) {
+        return SAI_STATUS_FAILURE;
+    }
+
+    if (cmd == SX_ACCESS_CMD_READ_CLEAR) {
+        return mlnx_sai_bulk_ingress_priority_group_stats_clear(
+            switch_id,
+            object_count,
+            object_key,
+            number_of_counters,
+            counter_ids,
+            cmd,
+            object_statuses);
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
+sai_status_t mlnx_sai_bulk_ingress_priority_group_stats_clear(_In_ sai_object_id_t         switch_id,
+                                                              _In_ uint32_t                object_count,
+                                                              _In_ const sai_object_key_t *object_key,
+                                                              _In_ uint32_t                number_of_counters,
+                                                              _In_ const sai_stat_id_t    *counter_ids,
+                                                              _In_ sx_access_cmd_t         cmd,
+                                                              _Inout_ sai_status_t        *object_statuses)
+{
+    sai_status_t                     status;
+    sx_status_t                      sx_status = -1;
+    sx_port_statistic_usage_params_t occupancy_stats_usages[MAX_PORTS_DB] = {0};
+    sx_port_statistic_usage_params_t headroom_stats_usages[MAX_PORTS_DB] = {0};
+    sx_port_log_id_t                 port_num;
+    sx_port_log_id_t                 log_port_list[MAX_PORTS_DB] = {0};
+    mlnx_port_config_t              *port;
+    uint32_t                         db_port_index, pg_ind;
+    uint32_t                         port_count = 0;
+    int                              port_index = 0;
+    uint32_t                         usage_cnt = object_count;
+    bool                             any_error = false;
+    bool                             occupancy_stats_needed = false, headroom_occupancy_stats_needed = false;
+    sx_port_occupancy_statistics_t  *stats = NULL;
+    uint32_t                         port_to_pgs[MAX_PORTS_DB][8] = {0};
+
+    SX_LOG_ENTER();
+
+    for (uint32_t ii = 0; ii < number_of_counters; ii++) {
+        switch (counter_ids[ii]) {
+        case SAI_INGRESS_PRIORITY_GROUP_STAT_CURR_OCCUPANCY_BYTES:
+        case SAI_INGRESS_PRIORITY_GROUP_STAT_SHARED_CURR_OCCUPANCY_BYTES:
+        case SAI_INGRESS_PRIORITY_GROUP_STAT_WATERMARK_BYTES:
+        case SAI_INGRESS_PRIORITY_GROUP_STAT_SHARED_WATERMARK_BYTES:
+            occupancy_stats_needed = true;
+            break;
+
+        case SAI_INGRESS_PRIORITY_GROUP_STAT_XOFF_ROOM_WATERMARK_BYTES:
+        case SAI_INGRESS_PRIORITY_GROUP_STAT_XOFF_ROOM_CURR_OCCUPANCY_BYTES:
+            headroom_occupancy_stats_needed = true;
+            break;
+
+        default:
+            SX_LOG_INF("Not all pg statistic IDs are implemented for bulk clear: %u\n", counter_ids[ii]);
+            SX_LOG_EXIT();
+            return SAI_STATUS_NOT_IMPLEMENTED;
+        }
+    }
+
+    stats = calloc(object_count, sizeof(sx_port_occupancy_statistics_t));
+    if (NULL == stats) {
+        SX_LOG_ERR("Failed to allocate memory for stats\n");
+        return SAI_STATUS_NO_MEMORY;
+    }
+    /* SDK bulk clear will clear all PG/queue/buffer statistic. So, we have to use non bulk API here. */
+    for (uint32_t ii = 0; ii < object_count; ii++) {
+        if (SAI_STATUS_SUCCESS != (status = get_pg_data(object_key[ii].key.object_id, &db_port_index, &pg_ind))) {
+            object_statuses[ii] = SAI_STATUS_INVALID_PARAMETER;
+            any_error = true;
+            continue;
+        }
+
+        port = mlnx_port_by_idx(db_port_index);
+        port_num = port->logical;
+
+        for (port_index = port_count - 1; port_index >= 0; port_index--) {
+            if (log_port_list[port_index] == port_num) {
+                break;
+            }
+        }
+
+        /* New port */
+        if (port_index < 0) {
+            port_index = port_count++;
+            log_port_list[port_index] = port_num;
+            if (occupancy_stats_needed) {
+                occupancy_stats_usages[port_index].port_cnt = 1;
+                occupancy_stats_usages[port_index].log_port_list_p = &log_port_list[port_index];
+                occupancy_stats_usages[port_index].sx_port_params.port_params_type =
+                    SX_COS_INGRESS_PORT_PRIORITY_GROUP_ATTR_E;
+                occupancy_stats_usages[port_index].sx_port_params.port_params_cnt = 0;
+                occupancy_stats_usages[port_index].sx_port_params.port_param.port_pg_list_p =
+                    &(port_to_pgs[port_index][0]);
+            }
+
+            if (headroom_occupancy_stats_needed) {
+                headroom_stats_usages[port_index].port_cnt = 1;
+                headroom_stats_usages[port_index].log_port_list_p = &log_port_list[port_index];
+                headroom_stats_usages[port_index].sx_port_params.port_params_type =
+                    SX_COS_INGRESS_PORT_PRIORITY_GROUP_HEADROOM_ATTR_E;
+                headroom_stats_usages[port_index].sx_port_params.port_params_cnt = 0;
+                headroom_stats_usages[port_index].sx_port_params.port_param.port_pg_list_p =
+                    &(port_to_pgs[port_index][0]);
+            }
+        }
+
+        if (occupancy_stats_needed) {
+            occupancy_stats_usages[port_index].sx_port_params.port_param.port_pg_list_p[occupancy_stats_usages[
+                                                                                            port_index].sx_port_params.
+                                                                                        port_params_cnt++] = pg_ind;
+        }
+
+        if (headroom_occupancy_stats_needed) {
+            headroom_stats_usages[port_index].sx_port_params.port_param.port_pg_list_p[headroom_stats_usages[port_index
+                                                                                       ].sx_port_params.port_params_cnt
+                                                                                       ++] = pg_ind;
+        }
+    }
+
+    if (occupancy_stats_needed) {
+        if (SX_STATUS_SUCCESS !=
+            (sx_status = sx_api_cos_port_buff_type_statistic_get(gh_sdk, cmd, &occupancy_stats_usages[0], port_count,
+                                                                 stats, &usage_cnt))) {
+            free(stats);
+            SX_LOG_ERR("Failed to bulk clear pg occupancy statistics - %s.\n", SX_STATUS_MSG(sx_status));
+            SX_LOG_EXIT();
+            return sdk_to_sai(sx_status);
+        }
+    }
+
+    if (headroom_occupancy_stats_needed) {
+        usage_cnt = object_count;
+        if (SX_STATUS_SUCCESS !=
+            (sx_status = sx_api_cos_port_buff_type_statistic_get(gh_sdk, cmd, &headroom_stats_usages[0], port_count,
+                                                                 stats, &usage_cnt))) {
+            free(stats);
+            SX_LOG_ERR("Failed to bulk clear pg headroom occupancy statistics - %s.\n", SX_STATUS_MSG(sx_status));
+            SX_LOG_EXIT();
+            return sdk_to_sai(sx_status);
+        }
+    }
+
+    free(stats);
+    SX_LOG_EXIT();
+    return any_error ? SAI_STATUS_FAILURE : SAI_STATUS_SUCCESS;
 }
 
 sai_status_t mlnx_buffer_apply(_In_ sai_object_id_t sai_buffer, _In_ sai_object_id_t to_obj_id)
@@ -6014,6 +6461,9 @@ sai_status_t mlnx_descriptor_buffer_init()
     const buffer_units_t epool_size = 96;
     const buffer_units_t tc_max = 16;
     const buffer_units_t size_per_tc = 5;
+    const buffer_units_t rx_reserved_per_port = ipool_size + pg_max * size_per_pg;
+    const buffer_units_t tx_reserved_per_port = epool_size + tc_max * size_per_tc;
+    const buffer_units_t total_reserved = MAX_PORTS * (rx_reserved_per_port + tx_reserved_per_port);
 
     SX_LOG_ENTER();
 
@@ -6024,8 +6474,7 @@ sai_status_t mlnx_descriptor_buffer_init()
      * SPC3: 204800, max ports: 128
      * SPC4: 220000, max ports: 258
      * for each port, reserve 5 for ipool, 1 for each PG (total 8 PGs) */
-    ingress_descriptor_pool_attr.pool_size = g_resource_limits.shared_buff_def_ing_desc_pool_size - MAX_PORTS *
-                                             (ipool_size + pg_max * size_per_pg);
+    ingress_descriptor_pool_attr.pool_size = g_resource_limits.shared_buff_def_ing_desc_pool_size - total_reserved;
     ingress_descriptor_pool_attr.mode = SX_COS_BUFFER_MAX_MODE_DYNAMIC_E;
     ingress_descriptor_pool_attr.buffer_type = SX_COS_BUFFER_RESERVED1_E;
     ingress_descriptor_pool_attr.infinite_size = false;
@@ -6048,8 +6497,7 @@ sai_status_t mlnx_descriptor_buffer_init()
      * SPC3: 204800, max ports: 128
      * SPC4: 220000, max ports: 258
      * for each port, reserve 96 for epool, 5 for each PG (total 16 PGs) */
-    egress_descriptor_pool_attr.pool_size = g_resource_limits.shared_buff_def_egr_desc_pool_size - MAX_PORTS *
-                                            (epool_size + tc_max * size_per_tc);
+    egress_descriptor_pool_attr.pool_size = g_resource_limits.shared_buff_def_egr_desc_pool_size - total_reserved;
     egress_descriptor_pool_attr.mode = SX_COS_BUFFER_MAX_MODE_DYNAMIC_E;
     egress_descriptor_pool_attr.buffer_type = SX_COS_BUFFER_RESERVED1_E;
     egress_descriptor_pool_attr.infinite_size = false;

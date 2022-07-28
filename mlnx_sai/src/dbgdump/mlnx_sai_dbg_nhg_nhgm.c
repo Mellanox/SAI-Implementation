@@ -239,7 +239,7 @@ static void SAI_dump_nhgm_print(_In_ FILE *file, _In_ const mlnx_nhgm_db_entry_t
             break;
 
         case MLNX_NHGM_TYPE_FINE_GRAIN:
-            table_data = &cur_nhgm.data.entry.fg_id;
+            table_data = &cur_nhgm.data.entry.fg.id;
             break;
 
         default:

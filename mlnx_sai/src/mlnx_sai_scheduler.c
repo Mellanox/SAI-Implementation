@@ -896,10 +896,12 @@ sai_status_t mlnx_scheduler_to_group_apply(sai_object_id_t scheduler_id, sai_obj
     if (SAI_ERR(status)) {
         return status;
     }
+
+    /* For ISSU, only apply the changes to SDK LAG, keep the SAI db change on port level,
+     * because SAI LAG db may not exist during ISSU when the port is added to SDK LAG */
     if (mlnx_port_is_lag_member(port)) {
         port_id = mlnx_port_get_lag_id(port);
     }
-
     status = scheduler_to_group_apply(scheduler_id, port_id, level, index);
     if (SAI_ERR(status)) {
         return status;
@@ -908,6 +910,12 @@ sai_status_t mlnx_scheduler_to_group_apply(sai_object_id_t scheduler_id, sai_obj
     SX_LOG_DBG("Set scheduler profile id %" PRIx64 " on group at port %x level %u index %u\n",
                scheduler_id, port_id, level, index);
 
+    if (mlnx_port_is_sai_lag_member(port)) {
+        status = mlnx_port_fetch_lag_if_lag_member(&port);
+        if (SAI_ERR(status)) {
+            return status;
+        }
+    }
     port->sched_hierarchy.groups[level][index].scheduler_id = scheduler_id;
     return status;
 }
@@ -1000,6 +1008,27 @@ sai_status_t mlnx_scheduler_to_queue_apply(sai_object_id_t scheduler_id, sai_obj
 
 out:
     return status;
+}
+
+sai_status_t mlnx_scheduler_port_hierarchy_db_clear(_In_ mlnx_port_config_t *port)
+{
+    mlnx_sched_obj_t        *obj;
+    mlnx_qos_queue_config_t *queue_cfg;
+    uint32_t                 lvl, ii;
+
+    for (lvl = 0; lvl < MAX_SCHED_LEVELS; lvl++) {
+        for (ii = 0; ii < MAX_SCHED_CHILD_GROUPS; ii++) {
+            obj = group_get(port, lvl, ii);
+            obj->scheduler_id = SAI_NULL_OBJECT_ID;
+        }
+        port->sched_hierarchy.groups_count[lvl] = 0;
+    }
+
+    port_queues_foreach(port, queue_cfg, ii) {
+        queue_cfg->sched_obj.scheduler_id = SAI_NULL_OBJECT_ID;
+    }
+
+    return SAI_STATUS_SUCCESS;
 }
 
 /**

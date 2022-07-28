@@ -58,9 +58,6 @@ static sai_status_t mlnx_rif_attrib_get(_In_ const sai_object_key_t   *key,
 static sai_status_t mlnx_rif_attrib_set(_In_ const sai_object_key_t      *key,
                                         _In_ const sai_attribute_value_t *value,
                                         void                             *arg);
-static sai_status_t mlnx_rif_loopback_action_sai_to_sx(_In_ const sai_attribute_value_t *loopback_action,
-                                                       _In_ uint32_t                     attr_index,
-                                                       _Out_ sx_interface_attributes_t  *intf_attribs);
 static const sai_vendor_attribute_entry_t rif_vendor_attribs[] = {
     { SAI_ROUTER_INTERFACE_ATTR_VIRTUAL_ROUTER_ID,
       { true, false, false, true },
@@ -1171,9 +1168,9 @@ static sai_status_t mlnx_get_router_interface_attribute(_In_ sai_object_id_t    
                               attr_list);
 }
 
-static sai_status_t mlnx_rif_loopback_action_sai_to_sx(_In_ const sai_attribute_value_t *loopback_action,
-                                                       _In_ uint32_t                     attr_index,
-                                                       _Out_ sx_interface_attributes_t  *intf_attribs)
+sai_status_t mlnx_rif_loopback_action_sai_to_sx(_In_ const sai_attribute_value_t *loopback_action,
+                                                _In_ uint32_t                     attr_index,
+                                                _Out_ sx_interface_attributes_t  *intf_attribs)
 {
     assert(loopback_action);
     assert(intf_attribs);
@@ -1242,14 +1239,14 @@ static sai_status_t mlnx_rif_attr_to_sdk(sai_router_interface_attr_t  attr,
     return SAI_STATUS_SUCCESS;
 }
 
-static sai_status_t mlnx_rif_sx_attrs_get(_In_ sai_object_id_t                rif_oid,
-                                          _In_ bool                           is_admin_state,
-                                          _Out_ mlnx_rif_type_t              *rif_type,
-                                          _Out_ bool                         *is_created,
-                                          _Out_ mlnx_rif_sx_data_t          **sx_data,
-                                          _Out_ sx_router_interface_state_t **rif_state,
-                                          _Out_ sx_router_interface_param_t **intf_params,
-                                          _Out_ sx_interface_attributes_t   **intf_attribs)
+sai_status_t mlnx_rif_sx_attrs_get(_In_ sai_object_id_t                rif_oid,
+                                   _In_ bool                           is_admin_state,
+                                   _Out_ mlnx_rif_type_t              *rif_type,
+                                   _Out_ bool                         *is_created,
+                                   _Out_ mlnx_rif_sx_data_t          **sx_data,
+                                   _Out_ sx_router_interface_state_t **rif_state,
+                                   _Out_ sx_router_interface_param_t **intf_params,
+                                   _Out_ sx_interface_attributes_t   **intf_attribs)
 {
     sx_status_t             sx_status;
     sai_status_t            status;

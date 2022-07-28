@@ -158,6 +158,14 @@ static sai_status_t mlnx_tunnel_vxlan_udp_sport_attr_get(_In_ const sai_object_k
 static sai_status_t mlnx_tunnel_vxlan_udp_sport_attr_set(_In_ const sai_object_key_t      *key,
                                                          _In_ const sai_attribute_value_t *value,
                                                          void                             *arg);
+static sai_status_t mlnx_tunnel_loopback_packet_action_get(_In_ const sai_object_key_t   *key,
+                                                           _Inout_ sai_attribute_value_t *value,
+                                                           _In_ uint32_t                  attr_index,
+                                                           _Inout_ vendor_cache_t        *cache,
+                                                           void                          *arg);
+static sai_status_t mlnx_tunnel_loopback_packet_action_set(_In_ const sai_object_key_t      *key,
+                                                           _In_ const sai_attribute_value_t *value,
+                                                           void                             *arg);
 static sai_status_t mlnx_tunnel_term_table_entry_vr_id_get(_In_ const sai_object_key_t   *key,
                                                            _Inout_ sai_attribute_value_t *value,
                                                            _In_ uint32_t                  attr_index,
@@ -427,6 +435,11 @@ static const sai_vendor_attribute_entry_t tunnel_vendor_attribs[] = {
       { true, false, true, true },
       mlnx_tunnel_vxlan_udp_sport_attr_get, (void*)SAI_TUNNEL_ATTR_VXLAN_UDP_SPORT_MASK,
       mlnx_tunnel_vxlan_udp_sport_attr_set, (void*)SAI_TUNNEL_ATTR_VXLAN_UDP_SPORT_MASK},
+    { SAI_TUNNEL_ATTR_LOOPBACK_PACKET_ACTION,
+      { true, false, true, true },
+      { true, false, true, true },
+      mlnx_tunnel_loopback_packet_action_get, NULL,
+      mlnx_tunnel_loopback_packet_action_set, NULL},
     { END_FUNCTIONALITY_ATTRIBS_ID,
       { false, false, false, false },
       { false, false, false, false },
@@ -448,7 +461,9 @@ static const mlnx_attr_enum_info_t        tunnel_enum_info[] = {
         SAI_TUNNEL_TTL_MODE_PIPE_MODEL),
     [SAI_TUNNEL_ATTR_DECAP_DSCP_MODE] = ATTR_ENUM_VALUES_ALL(),
     [SAI_TUNNEL_ATTR_DECAP_ECN_MODE] = ATTR_ENUM_VALUES_ALL(),
-    [SAI_TUNNEL_ATTR_VXLAN_UDP_SPORT_MODE] = ATTR_ENUM_VALUES_ALL()
+    [SAI_TUNNEL_ATTR_VXLAN_UDP_SPORT_MODE] = ATTR_ENUM_VALUES_ALL(),
+    [SAI_TUNNEL_ATTR_LOOPBACK_PACKET_ACTION] = ATTR_ENUM_VALUES_LIST(
+        SAI_PACKET_ACTION_DROP),
 };
 static const sai_stat_capability_t        tunnel_stats_capabilities[] = {
     { SAI_TUNNEL_STAT_IN_PACKETS, SAI_STATS_MODE_READ | SAI_STATS_MODE_READ_AND_CLEAR },
@@ -2620,6 +2635,129 @@ out:
     return sai_status;
 }
 
+static sai_status_t mlnx_tunnel_loopback_packet_action_get(_In_ const sai_object_key_t   *key,
+                                                           _Inout_ sai_attribute_value_t *value,
+                                                           _In_ uint32_t                  attr_index,
+                                                           _Inout_ vendor_cache_t        *cache,
+                                                           void                          *arg)
+{
+    sai_status_t                status = SAI_STATUS_FAILURE;
+    sai_object_id_t             rif_oid = SAI_NULL_OBJECT_ID;
+    sx_tunnel_attribute_t       sx_tunnel_attr = {0};
+    sx_router_interface_state_t rif_state, *rif_state_ptr = &rif_state;
+    sx_router_interface_param_t intf_params, *intf_params_ptr = &intf_params;
+    sx_interface_attributes_t   intf_attribs, *intf_attribs_ptr = &intf_attribs;
+    mlnx_rif_sx_data_t         *sx_data;
+    mlnx_rif_type_t             rif_type;
+    bool                        is_created;
+
+    SX_LOG_ENTER();
+
+    sai_db_write_lock();
+
+    status = mlnx_sai_get_tunnel_attribs(key->key.object_id, &sx_tunnel_attr);
+
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Error getting tunnel attributes\n");
+        goto exit;
+    }
+
+    status = mlnx_sai_get_sai_rif_id(key->key.object_id, MLNX_TUNNEL_OVERLAY, &sx_tunnel_attr, &rif_oid);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Error getting sai rif id\n");
+        goto exit;
+    }
+
+    status = mlnx_rif_sx_attrs_get(rif_oid,
+                                   false,
+                                   &rif_type,
+                                   &is_created,
+                                   &sx_data,
+                                   &rif_state_ptr,
+                                   &intf_params_ptr,
+                                   &intf_attribs_ptr);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed getting RIF attributes.\n");
+        goto exit;
+    }
+
+    value->s32 = intf_attribs_ptr->loopback_enable ? SAI_PACKET_ACTION_FORWARD : SAI_PACKET_ACTION_DROP;
+
+exit:
+    sai_db_unlock();
+    SX_LOG_EXIT();
+    return status;
+}
+
+static sai_status_t mlnx_tunnel_loopback_packet_action_set(_In_ const sai_object_key_t      *key,
+                                                           _In_ const sai_attribute_value_t *value,
+                                                           void                             *arg)
+{
+    sai_status_t                status = SAI_STATUS_FAILURE;
+    sx_status_t                 sx_status = SX_STATUS_ERROR;
+    sai_object_id_t             rif_oid = SAI_NULL_OBJECT_ID;
+    sx_tunnel_attribute_t       sx_tunnel_attr = {0};
+    sx_router_interface_state_t rif_state, *rif_state_ptr = &rif_state;
+    sx_router_interface_param_t intf_params, *intf_params_ptr = &intf_params;
+    sx_interface_attributes_t   intf_attribs, *intf_attribs_ptr = &intf_attribs;
+    mlnx_rif_sx_data_t         *sx_data;
+    mlnx_rif_type_t             rif_type;
+    bool                        is_created;
+
+    SX_LOG_ENTER();
+
+    sai_db_write_lock();
+
+    status = mlnx_sai_get_tunnel_attribs(key->key.object_id, &sx_tunnel_attr);
+
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Error getting tunnel attributes\n");
+        goto exit;
+    }
+
+    status = mlnx_sai_get_sai_rif_id(key->key.object_id, MLNX_TUNNEL_OVERLAY, &sx_tunnel_attr, &rif_oid);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Error getting sai rif id\n");
+        goto exit;
+    }
+
+    status = mlnx_rif_sx_attrs_get(rif_oid,
+                                   false,
+                                   &rif_type,
+                                   &is_created,
+                                   &sx_data,
+                                   &rif_state_ptr,
+                                   &intf_params_ptr,
+                                   &intf_attribs_ptr);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed getting RIF attributes.\n");
+        goto exit;
+    }
+
+    status = mlnx_rif_loopback_action_sai_to_sx(value, 0, intf_attribs_ptr);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to convert loopback action.\n");
+        goto exit;
+    }
+
+    sx_status = sx_api_router_interface_set(gh_sdk,
+                                            SX_ACCESS_CMD_EDIT,
+                                            sx_data->vrf_id,
+                                            intf_params_ptr,
+                                            intf_attribs_ptr,
+                                            &sx_data->rif_id);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to set router interface - %s.\n", SX_STATUS_MSG(sx_status));
+        status = sdk_to_sai(sx_status);
+        goto exit;
+    }
+
+exit:
+    sai_db_unlock();
+    SX_LOG_EXIT();
+    return status;
+}
+
 static sai_status_t mlnx_get_tunnel_type_by_tunnel_id(_In_ sai_object_id_t    tunnel_oid,
                                                       _Out_ sx_tunnel_type_e *tunnel_type)
 {
@@ -3677,7 +3815,10 @@ static sai_status_t mlnx_sdk_fill_tunnel_ttl_data(_In_ uint32_t               at
     } else if (sdk_encap_ttl_data_attrib->ttl_cmd == SX_TUNNEL_TTL_CMD_SET_E) {
         /* According to SAI spec and meta data check, TTL Val is mandatory for Pipe mode.
          * We only get here for VXLAN encap, where the default (non-spec) value is pipe,
-         * without necessity to supply the TTL value */
+         * without necessity to supply the TTL value
+         * For COPY command, the application can't supply TTL Val using SAI API
+         * The value should remain as 0, and SDK will use default for non IP packets
+         * where value can't be copied on encap, as discussed in #3135761 */
         SX_LOG_NTC("ttl val is not specified, using default value 255\n");
         sdk_encap_ttl_data_attrib->ttl_value = 255;
     }
@@ -4323,184 +4464,217 @@ static sai_status_t mlnx_sdk_fill_ipinip_p2p_attrib(_In_ uint32_t               
                                                     _Out_ sai_object_id_t                  *underlay_rif,
                                                     _Out_ mlnx_tunnel_entry_t              *mlnx_tunnel_db_entry)
 {
-    sai_status_t                 sai_status = SAI_STATUS_FAILURE;
-    sx_status_t                  sdk_status = SX_STATUS_ERROR;
-    sx_router_interface_t        sx_rif;
-    const sai_attribute_value_t *attr;
-    uint32_t                     attr_idx;
-    sx_router_id_t               sdk_vrid;
-    sx_router_interface_param_t  sdk_intf_params;
-    sx_interface_attributes_t    sdk_intf_attribs;
-    uint32_t                     ii = 0;
-
-    SX_LOG_ENTER();
-    if (SAI_STATUS_SUCCESS ==
-        (sai_status =
-             find_attrib_in_list(attr_count, attr_list, SAI_TUNNEL_ATTR_OVERLAY_INTERFACE, &attr, &attr_idx))) {
-        if (SAI_STATUS_SUCCESS != (sai_status = mlnx_rif_oid_to_sdk_rif_id(attr->oid, &sx_rif))) {
-            SX_LOG_EXIT();
-            return SAI_STATUS_INVALID_ATTR_VALUE_0 + attr_idx;
-        }
-        if (SX_STATUS_SUCCESS !=
-            (sdk_status =
-                 sx_api_router_interface_get(gh_sdk, sx_rif, &sdk_vrid, &sdk_intf_params, &sdk_intf_attribs))) {
-            sai_status = sdk_to_sai(sdk_status);
-            SX_LOG_ERR("Error getting sdk rif info from sdk rif id %d, sx status: %s\n", sx_rif,
-                       SX_STATUS_MSG(sdk_status));
-            SX_LOG_EXIT();
-            return SAI_STATUS_INVALID_ATTR_VALUE_0 + attr_idx;
-        }
-
-        if (SX_L2_INTERFACE_TYPE_LOOPBACK != sdk_intf_params.type) {
-            SX_LOG_ERR("Error: expecting loopback rif, but get type %d, SAI rif oid %" PRIx64 ", sdk rif id %d\n",
-                       sdk_intf_params.type, attr->oid, sx_rif);
-            SX_LOG_EXIT();
-            return SAI_STATUS_INVALID_ATTR_VALUE_0 + attr_idx;
-        }
-
-        for (ii = 0; ii < MAX_TUNNEL_DB_SIZE; ii++) {
-            /* overlay_rif is initialized to 0 in SAI tunnel db.
-             * Adding (ii !- tunnel_db_idx) to allow the case that overlay rif id ('sx_rif' here) happens to be 0 */
-            if (g_sai_tunnel_db_ptr->tunnel_entry_db[ii].is_used && (ii != tunnel_db_idx)) {
-                if (sx_rif ==
-                    g_sai_tunnel_db_ptr->tunnel_entry_db[ii].sx_tunnel_attr.attributes.ipinip_p2p.overlay_rif) {
-                    SX_LOG_ERR("Error: overlay rif is already used by tunnel db idx %d\n", ii);
-                    SX_LOG_EXIT();
-                    return SAI_STATUS_INVALID_ATTR_VALUE_0 + attr_idx;
-                }
-            }
-        }
-
-        sdk_ipinip_p2p_attrib->overlay_rif = sx_rif;
-    } else {
-        SX_LOG_ERR("overlay interface should be specified on creating ip in ip type tunnel\n");
-        SX_LOG_EXIT();
-        return SAI_STATUS_INVALID_ATTR_VALUE_0 + attr_idx;
-    }
-
-    if (SAI_STATUS_SUCCESS ==
-        (sai_status =
-             find_attrib_in_list(attr_count, attr_list, SAI_TUNNEL_ATTR_UNDERLAY_INTERFACE, &attr, &attr_idx))) {
-        if (SAI_STATUS_SUCCESS !=
-            (sai_status = mlnx_rif_oid_to_sdk_rif_id(attr->oid, &sx_rif))) {
-            SX_LOG_EXIT();
-            return SAI_STATUS_INVALID_ATTR_VALUE_0 + attr_idx;
-        }
-
-        if (SX_STATUS_SUCCESS !=
-            (sdk_status =
-                 sx_api_router_interface_get(gh_sdk, sx_rif, &sdk_vrid, &sdk_intf_params, &sdk_intf_attribs))) {
-            sai_status = sdk_to_sai(sdk_status);
-            SX_LOG_ERR("Error getting sdk rif info from sdk rif id %d, sx status: %s\n", sx_rif,
-                       SX_STATUS_MSG(sdk_status));
-            SX_LOG_EXIT();
-            return SAI_STATUS_INVALID_ATTR_VALUE_0 + attr_idx;
-        }
-
-        if (SX_L2_INTERFACE_TYPE_LOOPBACK != sdk_intf_params.type) {
-            SX_LOG_ERR("Error: expecting loopback rif, but get type %d, SAI rif oid %" PRIx64 ", sdk rif id %d\n",
-                       sdk_intf_params.type, attr->oid, sx_rif);
-            SX_LOG_EXIT();
-            return SAI_STATUS_INVALID_ATTR_VALUE_0 + attr_idx;
-        }
-
-        mlnx_tunnel_fill_ulay_domain_rif(sx_rif,
-                                         sdk_vrid,
-                                         &sdk_ipinip_p2p_attrib->underlay_rif,
-                                         &sdk_ipinip_p2p_attrib->encap.underlay_vrid,
-                                         &sdk_ipinip_p2p_attrib->underlay_domain_type);
-
-        *underlay_rif = attr->oid;
-    } else {
-        SX_LOG_ERR("underlay interface should be specified on creating ip in ip type tunnel\n");
-        SX_LOG_EXIT();
-        return SAI_STATUS_INVALID_ATTR_VALUE_0 + attr_idx;
-    }
-
-    if (SAI_STATUS_SUCCESS ==
-        (sai_status = find_attrib_in_list(attr_count, attr_list, SAI_TUNNEL_ATTR_PEER_MODE, &attr, &attr_idx))) {
-        if (SAI_TUNNEL_PEER_MODE_P2MP != attr->s32) {
-            SX_LOG_ERR("Only P2MP mode is supported for tunnel peer mode\n");
-            SX_LOG_EXIT();
-            return SAI_STATUS_INVALID_ATTR_VALUE_0 + attr_idx;
-        }
-    }
-
-    if (SAI_STATUS_SUCCESS ==
-        (sai_status = find_attrib_in_list(attr_count, attr_list, SAI_TUNNEL_ATTR_ENCAP_SRC_IP, &attr, &attr_idx))) {
-        if (SAI_STATUS_SUCCESS !=
-            (sai_status = mlnx_translate_sai_ip_address_to_sdk(&attr->ipaddr,
-                                                               &sdk_ipinip_p2p_attrib->encap.underlay_sip))) {
-            SX_LOG_ERR("Error setting src ip on creating tunnel table\n");
-            SX_LOG_EXIT();
-            return sai_status;
-        }
-        *has_encap_attr = true;
-    }
-
-    if (SAI_STATUS_SUCCESS !=
-        (sai_status = mlnx_sdk_fill_tunnel_ttl_data(attr_count,
-                                                    attr_list,
-                                                    sai_tunnel_type,
-                                                    sdk_encap_ttl_data_attrib,
-                                                    sdk_decap_ttl_data_attrib,
-                                                    has_encap_attr,
-                                                    has_decap_attr))) {
-        SX_LOG_ERR("Error fill sdk tunnel ttl data\n");
-        SX_LOG_EXIT();
-        return sai_status;
-    }
-
-    if (SAI_STATUS_SUCCESS !=
-        (sai_status = mlnx_sdk_fill_tunnel_cos_data(attr_count,
-                                                    attr_list,
-                                                    sai_tunnel_type,
-                                                    mlnx_tunnel_db_entry,
-                                                    sdk_encap_cos_data,
-                                                    sdk_decap_cos_data,
-                                                    has_encap_attr,
-                                                    has_decap_attr))) {
-        SX_LOG_ERR("Error fill sdk tunnel cos data\n");
-        SX_LOG_EXIT();
-        return sai_status;
-    }
+    sai_status_t                return_status = SAI_STATUS_SUCCESS;
+    sai_status_t                status = SAI_STATUS_FAILURE;
+    sx_status_t                 sx_status = SX_STATUS_ERROR;
+    sx_router_interface_t       sx_rif;
+    mlnx_sai_attr_t             mlnx_attr;
+    sx_router_id_t              sdk_vrid;
+    sx_router_interface_param_t sdk_intf_params;
+    sx_interface_attributes_t   sdk_intf_attribs;
+    uint32_t                    ii = 0;
 
     assert((SAI_TUNNEL_TYPE_IPINIP == sai_tunnel_type) ||
            (SAI_TUNNEL_TYPE_IPINIP_GRE == sai_tunnel_type));
 
+    SX_LOG_ENTER();
+    find_attrib(attr_count, attr_list, SAI_TUNNEL_ATTR_OVERLAY_INTERFACE, &mlnx_attr);
+    if (!mlnx_attr.found) {
+        SX_LOG_ERR("overlay interface should be specified on creating ip in ip type tunnel\n");
+        return_status = SAI_STATUS_INVALID_ATTR_VALUE_0 + mlnx_attr.index;
+        goto exit;
+    }
+
+    status = mlnx_rif_oid_to_sdk_rif_id(mlnx_attr.value->oid, &sx_rif);
+    if (SAI_ERR(status)) {
+        return_status = SAI_STATUS_INVALID_ATTR_VALUE_0 + mlnx_attr.index;
+        goto exit;
+    }
+
+    sx_status = sx_api_router_interface_get(gh_sdk,
+                                            sx_rif,
+                                            &sdk_vrid,
+                                            &sdk_intf_params,
+                                            &sdk_intf_attribs);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Error getting sdk rif info from sdk rif id %d, sx status: %s\n", sx_rif,
+                   SX_STATUS_MSG(sx_status));
+        return_status = SAI_STATUS_INVALID_ATTR_VALUE_0 + mlnx_attr.index;
+        goto exit;
+    }
+
+    if (SX_L2_INTERFACE_TYPE_LOOPBACK != sdk_intf_params.type) {
+        SX_LOG_ERR("Error: expecting loopback rif, but get type %d, SAI rif oid %" PRIx64 ", sdk rif id %d\n",
+                   sdk_intf_params.type, mlnx_attr.value->oid, sx_rif);
+        return_status = SAI_STATUS_INVALID_ATTR_VALUE_0 + mlnx_attr.index;
+        goto exit;
+    }
+
+    find_attrib(attr_count, attr_list, SAI_TUNNEL_ATTR_LOOPBACK_PACKET_ACTION, &mlnx_attr);
+    if (mlnx_attr.found) {
+        status = mlnx_rif_loopback_action_sai_to_sx(mlnx_attr.value,
+                                                    mlnx_attr.index,
+                                                    &sdk_intf_attribs);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to convert packet action.\n");
+            return_status = SAI_STATUS_INVALID_ATTR_VALUE_0 + mlnx_attr.index;
+            goto exit;
+        }
+    } else {
+        /* Default value is DROP for backward compatibility */
+        sai_attribute_value_t value;
+        value.s32 = SAI_PACKET_ACTION_DROP;
+        status = mlnx_rif_loopback_action_sai_to_sx(&value,
+                                                    0,
+                                                    &sdk_intf_attribs);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to convert packet action.\n");
+            return_status = SAI_STATUS_FAILURE;
+            goto exit;
+        }
+    }
+
+    sx_status = sx_api_router_interface_set(gh_sdk,
+                                            SX_ACCESS_CMD_EDIT,
+                                            sdk_vrid,
+                                            &sdk_intf_params,
+                                            &sdk_intf_attribs,
+                                            &sx_rif);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to set router interface - %s.\n", SX_STATUS_MSG(sx_status));
+        return_status = sdk_to_sai(sx_status);
+        goto exit;
+    }
+
+    for (ii = 0; ii < MAX_TUNNEL_DB_SIZE; ii++) {
+        /* overlay_rif is initialized to 0 in SAI tunnel db.
+         * Adding (ii !- tunnel_db_idx) to allow the case that overlay rif id ('sx_rif' here) happens to be 0 */
+        if (g_sai_tunnel_db_ptr->tunnel_entry_db[ii].is_used && (ii != tunnel_db_idx)) {
+            if (sx_rif ==
+                g_sai_tunnel_db_ptr->tunnel_entry_db[ii].sx_tunnel_attr.attributes.ipinip_p2p.overlay_rif) {
+                SX_LOG_ERR("Error: overlay rif is already used by tunnel db idx %d\n", ii);
+                return_status = SAI_STATUS_INVALID_ATTR_VALUE_0 + mlnx_attr.index;
+                goto exit;
+            }
+        }
+    }
+
+    sdk_ipinip_p2p_attrib->overlay_rif = sx_rif;
+
+    find_attrib(attr_count, attr_list, SAI_TUNNEL_ATTR_UNDERLAY_INTERFACE, &mlnx_attr);
+    if (!mlnx_attr.found) {
+        SX_LOG_ERR("underlay interface should be specified on creating ip in ip type tunnel\n");
+        return_status = SAI_STATUS_INVALID_ATTR_VALUE_0 + mlnx_attr.index;
+        goto exit;
+    }
+
+    status = mlnx_rif_oid_to_sdk_rif_id(mlnx_attr.value->oid, &sx_rif);
+    if (SAI_ERR(status)) {
+        return_status = SAI_STATUS_INVALID_ATTR_VALUE_0 + mlnx_attr.index;
+        goto exit;
+    }
+
+    sx_status = sx_api_router_interface_get(gh_sdk, sx_rif, &sdk_vrid, &sdk_intf_params, &sdk_intf_attribs);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Error getting sdk rif info from sdk rif id %d, sx status: %s\n", sx_rif,
+                   SX_STATUS_MSG(sx_status));
+        return_status = SAI_STATUS_INVALID_ATTR_VALUE_0 + mlnx_attr.index;
+        goto exit;
+    }
+
+    if (SX_L2_INTERFACE_TYPE_LOOPBACK != sdk_intf_params.type) {
+        SX_LOG_ERR("Error: expecting loopback rif, but get type %d, SAI rif oid %" PRIx64 ", sdk rif id %d\n",
+                   sdk_intf_params.type, mlnx_attr.value->oid, sx_rif);
+        return_status = SAI_STATUS_INVALID_ATTR_VALUE_0 + mlnx_attr.index;
+        goto exit;
+    }
+
+    mlnx_tunnel_fill_ulay_domain_rif(sx_rif,
+                                     sdk_vrid,
+                                     &sdk_ipinip_p2p_attrib->underlay_rif,
+                                     &sdk_ipinip_p2p_attrib->encap.underlay_vrid,
+                                     &sdk_ipinip_p2p_attrib->underlay_domain_type);
+
+    *underlay_rif = mlnx_attr.value->oid;
+
+    find_attrib(attr_count, attr_list, SAI_TUNNEL_ATTR_PEER_MODE, &mlnx_attr);
+    if (mlnx_attr.found) {
+        if (SAI_TUNNEL_PEER_MODE_P2MP != mlnx_attr.value->s32) {
+            SX_LOG_ERR("Only P2MP mode is supported for tunnel peer mode\n");
+            return_status = SAI_STATUS_INVALID_ATTR_VALUE_0 + mlnx_attr.index;
+            goto exit;
+        }
+    }
+
+    find_attrib(attr_count, attr_list, SAI_TUNNEL_ATTR_ENCAP_SRC_IP, &mlnx_attr);
+    if (mlnx_attr.found) {
+        status = mlnx_translate_sai_ip_address_to_sdk(&mlnx_attr.value->ipaddr,
+                                                      &sdk_ipinip_p2p_attrib->encap.underlay_sip);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Error setting src ip on creating tunnel table\n");
+            return_status = SAI_STATUS_INVALID_ATTR_VALUE_0 + mlnx_attr.index;
+            goto exit;
+        }
+        *has_encap_attr = true;
+    }
+
+    status = mlnx_sdk_fill_tunnel_ttl_data(attr_count,
+                                           attr_list,
+                                           sai_tunnel_type,
+                                           sdk_encap_ttl_data_attrib,
+                                           sdk_decap_ttl_data_attrib,
+                                           has_encap_attr,
+                                           has_decap_attr);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Error fill sdk tunnel ttl data\n");
+        return_status = status;
+        goto exit;
+    }
+
+    status = mlnx_sdk_fill_tunnel_cos_data(attr_count,
+                                           attr_list,
+                                           sai_tunnel_type,
+                                           mlnx_tunnel_db_entry,
+                                           sdk_encap_cos_data,
+                                           sdk_decap_cos_data,
+                                           has_encap_attr,
+                                           has_decap_attr);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Error fill sdk tunnel cos data\n");
+        return_status = status;
+        goto exit;
+    }
+
     if (SAI_TUNNEL_TYPE_IPINIP == sai_tunnel_type) {
-        sai_status = find_attrib_in_list(attr_count, attr_list, SAI_TUNNEL_ATTR_ENCAP_GRE_KEY_VALID, &attr, &attr_idx);
-        if (SAI_STATUS_SUCCESS == sai_status) {
+        find_attrib(attr_count, attr_list, SAI_TUNNEL_ATTR_ENCAP_GRE_KEY_VALID, &mlnx_attr);
+        if (mlnx_attr.found) {
             SX_LOG_ERR("encap gre key valid are only supported for ip in ip gre on create\n");
-            SX_LOG_EXIT();
-            return SAI_STATUS_NOT_SUPPORTED;
+            return_status = SAI_STATUS_NOT_SUPPORTED;
+            goto exit;
         }
 
-        sai_status = find_attrib_in_list(attr_count, attr_list, SAI_TUNNEL_ATTR_ENCAP_GRE_KEY, &attr, &attr_idx);
-        if (SAI_STATUS_SUCCESS == sai_status) {
+        find_attrib(attr_count, attr_list, SAI_TUNNEL_ATTR_ENCAP_GRE_KEY, &mlnx_attr);
+        if (mlnx_attr.found) {
             SX_LOG_ERR("encap gre key are only supported for ip in ip gre on create\n");
-            SX_LOG_EXIT();
-            return SAI_STATUS_NOT_SUPPORTED;
+            return_status = SAI_STATUS_NOT_SUPPORTED;
+            goto exit;
         }
     } else if (SAI_TUNNEL_TYPE_IPINIP_GRE == sai_tunnel_type) {
         sdk_ipinip_p2p_attrib->decap.gre_check_key = false;
 
-        if (SAI_STATUS_SUCCESS ==
-            (sai_status =
-                 find_attrib_in_list(attr_count, attr_list, SAI_TUNNEL_ATTR_ENCAP_GRE_KEY_VALID, &attr, &attr_idx))) {
-            if (attr->booldata) {
+        find_attrib(attr_count, attr_list, SAI_TUNNEL_ATTR_ENCAP_GRE_KEY_VALID, &mlnx_attr);
+        if (mlnx_attr.found) {
+            if (mlnx_attr.value->booldata) {
                 sdk_ipinip_p2p_attrib->encap.gre_mode = SX_TUNNEL_IPINIP_GRE_MODE_ENABLED_WITH_KEY;
 
-                if (SAI_STATUS_SUCCESS ==
-                    (sai_status =
-                         find_attrib_in_list(attr_count, attr_list, SAI_TUNNEL_ATTR_ENCAP_GRE_KEY, &attr,
-                                             &attr_idx))) {
-                    sdk_ipinip_p2p_attrib->encap.gre_key = attr->u32;
-                } else {
+                find_attrib(attr_count, attr_list, SAI_TUNNEL_ATTR_ENCAP_GRE_KEY, &mlnx_attr);
+                if (!mlnx_attr.found) {
                     SX_LOG_ERR("gre key is missing when encap gre key valid is set to true\n");
-                    SX_LOG_EXIT();
-                    return SAI_STATUS_FAILURE;
+                    return_status = SAI_STATUS_FAILURE;
+                    goto exit;
                 }
+
+                sdk_ipinip_p2p_attrib->encap.gre_key = mlnx_attr.value->u32;
             } else {
                 sdk_ipinip_p2p_attrib->encap.gre_mode = SX_TUNNEL_IPINIP_GRE_MODE_ENABLED;
                 sdk_ipinip_p2p_attrib->encap.gre_key = 0;
@@ -4509,8 +4683,9 @@ static sai_status_t mlnx_sdk_fill_ipinip_p2p_attrib(_In_ uint32_t               
         }
     }
 
+exit:
     SX_LOG_EXIT();
-    return SAI_STATUS_SUCCESS;
+    return return_status;
 }
 
 static sai_status_t mlnx_sai_fill_sx_ipinip_p2p_tunnel_data(_In_ uint32_t                tunnel_db_idx,
@@ -8605,7 +8780,8 @@ static sai_status_t mlnx_remove_bmtor_internal_obj(_In_ mlnx_bmtor_bridge_t *bmt
 
     sai_status = mlnx_bridge_oid_to_id(bmtor_bridge_entry->bridge_oid, &sx_bridge_id);
     if (SAI_ERR(sai_status)) {
-        SX_LOG_ERR("Failed to obtain sx bridge id from SAI bridge oid %" PRIx64 "\n", bmtor_bridge_entry->bridge_oid);
+        SX_LOG_ERR("Failed to obtain sx bridge id from SAI bridge oid 0x%" PRIx64 "\n",
+                   bmtor_bridge_entry->bridge_oid);
         SX_LOG_EXIT();
         return sai_status;
     }
@@ -8626,7 +8802,7 @@ static sai_status_t mlnx_remove_bmtor_internal_obj(_In_ mlnx_bmtor_bridge_t *bmt
                                        sx_tunnel_map_entry_cnt);
     if (SX_STATUS_SUCCESS != sdk_status) {
         sai_status = sdk_to_sai(sdk_status);
-        SX_LOG_ERR("Error deleting tunnel map for tunnel %x with bridge %x, vni %d, sx status %s\n",
+        SX_LOG_ERR("Error deleting tunnel map for tunnel 0x%x with bridge 0x%x, vni %d, sx status %s\n",
                    bmtor_bridge_entry->sx_vxlan_tunnel_id,
                    sx_bridge_id,
                    bmtor_bridge_entry->vni,
@@ -8637,28 +8813,28 @@ static sai_status_t mlnx_remove_bmtor_internal_obj(_In_ mlnx_bmtor_bridge_t *bmt
 
     sai_status = mlnx_bridge_api.remove_bridge_port(bmtor_bridge_entry->tunnel_bport_oid);
     if (SAI_ERR(sai_status)) {
-        SX_LOG_ERR("Failed to remove SAI tunnel bridge port %" PRIx64 "\n", bmtor_bridge_entry->tunnel_bport_oid);
+        SX_LOG_ERR("Failed to remove SAI tunnel bridge port 0x%" PRIx64 "\n", bmtor_bridge_entry->tunnel_bport_oid);
         SX_LOG_EXIT();
         return sai_status;
     }
 
     sai_status = mlnx_bridge_api.remove_bridge_port(bmtor_bridge_entry->bridge_bport_oid);
     if (SAI_ERR(sai_status)) {
-        SX_LOG_ERR("Failed to remove SAI bridge port %" PRIx64 "\n", bmtor_bridge_entry->bridge_bport_oid);
+        SX_LOG_ERR("Failed to remove SAI bridge port 0x%" PRIx64 "\n", bmtor_bridge_entry->bridge_bport_oid);
         SX_LOG_EXIT();
         return sai_status;
     }
 
     sai_status = mlnx_router_interface_api.remove_router_interface(bmtor_bridge_entry->rif_oid);
     if (SAI_ERR(sai_status)) {
-        SX_LOG_ERR("Failed to remove SAI rif %" PRIx64 "\n", bmtor_bridge_entry->rif_oid);
+        SX_LOG_ERR("Failed to remove SAI rif 0x%" PRIx64 "\n", bmtor_bridge_entry->rif_oid);
         SX_LOG_EXIT();
         return sai_status;
     }
 
     sai_status = mlnx_bridge_api.remove_bridge(bmtor_bridge_entry->bridge_oid);
     if (SAI_ERR(sai_status)) {
-        SX_LOG_ERR("Failed to remove SAI bridge %" PRIx64 "\n", bmtor_bridge_entry->bridge_oid);
+        SX_LOG_ERR("Failed to remove SAI bridge 0x%" PRIx64 "\n", bmtor_bridge_entry->bridge_oid);
         SX_LOG_EXIT();
         return sai_status;
     }
@@ -9216,6 +9392,7 @@ sai_status_t mlnx_tunnel_bridge_counter_update(_In_ sai_object_id_t tunnel_id,
                 vrf,
                 vni,
                 tunnel_id);
+            sai_db_write_lock();
             SX_LOG_EXIT();
             return sai_status;
         }
@@ -9273,6 +9450,7 @@ sai_status_t mlnx_tunnel_bridge_counter_update(_In_ sai_object_id_t tunnel_id,
         if (SAI_ERR(sai_status)) {
             SX_LOG_ERR("Error removing bmtor internal obj\n");
             SX_LOG_EXIT();
+            sai_db_write_lock();
             return sai_status;
         }
 

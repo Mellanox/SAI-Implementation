@@ -1,7 +1,7 @@
 Nvidia SAI implementation release notes
 ==========================================
 
-Release 1.21.1
+Release 1.22.0
 ---------------
 
 Current implementation is partial. 
@@ -9,7 +9,7 @@ Current implementation is partial.
 Not all the APIs that are defined were fully implemented in this release. Missing flows or implementation are noted in the code as "TODO : ..." comments.
 
 The code was tested to work on X86 for Spectrum1, Spectrum2 and Spectrum3
-The code compiles with, and was tested with, SDK version 4.5.2204.
+The code compiles with, and was tested with, SDK version 4.5.3106.
 
 As a precondition to running SAI initialize switch, SDK must not be running (If it's running, terminate it with dvs_stop.sh). 
 The application must provide one key/value pair on profile services, depending on system type :
@@ -81,12 +81,16 @@ IP over IP has the following limitations :
         i.	Encap: no decap attributes (start with SAI_TUNNEL_ATTR_ENCAP_) are configured during tunnel creation
         ii.	Decap: no encap attributes (start with SAI_TUNNEL_ATTR_DECAP_) are configured during tunnel creation
         iii.	Symmetry: Both encap and decap attributes are configured during tunnel creation
+* Only drop is supported for SAI_TUNNEL_ATTR_LOOPBACK_PACKET_ACTION
 
 VXLAN has the following limitations :
 * Only SAI_TUNNEL_TTL_PIPE_MODEL is supported for SAI_TUNNEL_ATTR_DECAP_TTL_MODE
 * Only SAI_TUNNEL_TTL_PIPE_MODEL is supported for SAI_TUNNEL_ATTR_ENCAP_TTL_MODE on Spectrum1. Spectrum2 and onwards support also SAI_TUNNEL_TTL_MODE_UNIFORM_MODEL
 * When creating VXLAN tunnel without SAI_TUNNEL_ATTR_ENCAP_SRC_IP, it is not possible to create tunnel map entries before tunnel term entries are created 
 		
+SAI_VLAN_ATTR_UNKNOWN_UNICAST_FLOOD_CONTROL_TYPE, SAI_VLAN_ATTR_BROADCAST_FLOOD_CONTROL_TYPE should be the same for specific VLAN as far as remote endpoints configuration. If different settings are made for remote endpoints configuration, the later setting wins
+Same for SAI_BRIDGE_ATTR_UNKNOWN_UNICAST_FLOOD_CONTROL_TYPE, SAI_BRIDGE_ATTR_BROADCAST_FLOOD_CONTROL_TYPE for specific bridge
+
 In case WRED profile has WRED enabled for at least one color and ECN mark mode enabled for at least one color, the enabled colors for WRED and ECN must be the same (For example, can't have SAI_WRED_ATTR_GREEN_ENABLE=true and SAI_WRED_ATTR_ECN_MARK_MODE=SAI_ECN_MARK_MODE_YELLOW)
 Clearing queue stats for specific counters always clears all available counters
 Clearing SAI_QUEUE_STAT_WRED_ECN_MARKED_PACKETS for a single queue ECN marked packets clears all the port queues ECN marked packets
@@ -107,7 +111,8 @@ UDF has the following limitations :
 When using 3 mirror sessions, it is not possible to edit a session. As a WA, remove and re-create it. It is possible to edit a session when using 1 or 2 sessions.
 When working with WRED discards mirroring, it has to be configured last after regular mirror sessions, as with WRED discard mirroring all ports which are not analyzer ports of any session, are set as monitor port, and analyzer and monitor behavior for port is mutually exclusive.
 Mirror policer should be single rate two color (mode = STORM_CONTROL or mode = SR_TCM with PBS = 0).
-Mirror policer only works for a mirror session that is used as SAI_ACL_ENTRY_ATTR_ACTION_MIRROR_INGRESS or SAI_ACL_ENTRY_ATTR_ACTION_MIRROR_EGRESS. It doesn't have effect on other traffic that is mirrored by the session from non ACL binding (such as port binding).
+On Spectrum1, Mirror policer only works for a mirror session that is used as SAI_ACL_ENTRY_ATTR_ACTION_MIRROR_INGRESS or SAI_ACL_ENTRY_ATTR_ACTION_MIRROR_EGRESS. It doesn't have effect on other traffic that is mirrored by the session from non ACL binding (such as port binding).
+Mirror sample rate is supported only for Spectrum2+, and only works for a mirror session that is used as SAI_ACL_ENTRY_ATTR_ACTION_MIRROR_INGRESS or SAI_ACL_ENTRY_ATTR_ACTION_MIRROR_EGRESS. It doesn't have effect on other traffic that is mirrored by the session from non ACL binding (such as port binding).
 For packets matching ACL entry with mirror action and mirror policer, the color will be set to green after the ACL.
 When working with router discards mirroring, it is not possible to use WJH tool with extended discard traps.
 
@@ -131,3 +136,4 @@ Generic counters has the following limitations :
 * Get counter attribute for nexthop group member returns last applied counter - both group and member counter could be possible
 * Next hop group member counter is not updated when updating the counter of the base next hop
 
+Hash algorithm CRC CCITT is not supported on SPC1, it is supported on SPC2 onwards.

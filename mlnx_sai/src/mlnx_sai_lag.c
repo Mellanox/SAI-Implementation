@@ -27,13 +27,14 @@ typedef enum port_params_ {
     PORT_PARAMS_QOS          = 1 << 0,
     PORT_PARAMS_QUEUE        = 1 << 1,
     PORT_PARAMS_MIRROR       = 1 << 2,
-    PORT_PARAMS_FOR_LAG      = PORT_PARAMS_QOS | PORT_PARAMS_QUEUE | PORT_PARAMS_MIRROR,
     PORT_PARAMS_FLOOD        = 1 << 3,
     PORT_PARAMS_VLAN         = 1 << 4,
     PORT_PARAMS_SFLOW        = 1 << 5,
     PORT_PARAMS_POLICER      = 1 << 6,
     PORT_PARAMS_LEARN_MODE   = 1 << 7,
     PORT_PARAMS_EGRESS_BLOCK = 1 << 8,
+    PORT_PARAMS_ETS_GROUP    = 1 << 9,
+    PORT_PARAMS_FOR_LAG      = PORT_PARAMS_QOS | PORT_PARAMS_QUEUE | PORT_PARAMS_MIRROR | PORT_PARAMS_ETS_GROUP,
 } port_params_t;
 
 static sx_verbosity_level_t LOG_VAR_NAME(__MODULE__) = SX_VERBOSITY_LEVEL_WARNING;
@@ -186,12 +187,6 @@ static sai_status_t mlnx_port_params_clone(mlnx_port_config_t *to, mlnx_port_con
 
     /* QoS */
     if (clone & PORT_PARAMS_QOS) {
-        max_ets_count = MAX_ETS_ELEMENTS;
-        ets = (sx_cos_ets_element_config_t*)malloc(sizeof(sx_cos_ets_element_config_t) * max_ets_count);
-        if (!ets) {
-            return SAI_STATUS_NO_MEMORY;
-        }
-
         status = sx_api_cos_port_default_prio_get(gh_sdk, from->logical, &prio);
         if (SX_ERR(status)) {
             SX_LOG_ERR("Failed to get port's default traffic class - %s\n", SX_STATUS_MSG(status));
@@ -209,13 +204,6 @@ static sai_status_t mlnx_port_params_clone(mlnx_port_config_t *to, mlnx_port_con
         status = sx_api_cos_port_rewrite_enable_get(gh_sdk, from->logical, &rewrite_enable);
         if (SX_ERR(status)) {
             SX_LOG_ERR("Failed to get dscp rewrite enable - %s\n", SX_STATUS_MSG(status));
-            status = sdk_to_sai(status);
-            goto out;
-        }
-
-        status = sx_api_cos_port_ets_element_get(gh_sdk, from->logical, ets, &max_ets_count);
-        if (SX_ERR(status)) {
-            SX_LOG_ERR("Failed get ETS list - %s\n", SX_STATUS_MSG(status));
             status = sdk_to_sai(status);
             goto out;
         }
@@ -258,14 +246,6 @@ static sai_status_t mlnx_port_params_clone(mlnx_port_config_t *to, mlnx_port_con
             goto out;
         }
 
-        status = sx_api_cos_port_ets_element_set(gh_sdk, SX_ACCESS_CMD_EDIT,
-                                                 to->logical, ets, max_ets_count);
-        if (SX_ERR(status)) {
-            SX_LOG_ERR("Failed to update ETS elements on LAG port id 0x%x - %s\n", to->logical, SX_STATUS_MSG(status));
-            status = sdk_to_sai(status);
-            goto out;
-        }
-
         status = sx_api_cos_port_trust_set(gh_sdk, to->logical, trust_level);
         if (SX_ERR(status)) {
             SX_LOG_ERR("Failed to set trust level for LAG %x - %s\n", to->logical, SX_STATUS_MSG(status));
@@ -275,9 +255,35 @@ static sai_status_t mlnx_port_params_clone(mlnx_port_config_t *to, mlnx_port_con
 
         /* Copy for the LAG actually, it needs when one of the profiles (Scheduler, QoS) will be changed
          * so the LAG will be updated with new changes */
-        memcpy(&to->sched_hierarchy, &from->sched_hierarchy, sizeof(to->sched_hierarchy));
         memcpy(to->qos_maps, from->qos_maps, sizeof(to->qos_maps));
         from->scheduler_id = to->scheduler_id;
+    }
+    /* ets group/subgroup */
+    if (clone & PORT_PARAMS_ETS_GROUP) {
+        max_ets_count = MAX_ETS_ELEMENTS;
+        ets = (sx_cos_ets_element_config_t*)malloc(sizeof(sx_cos_ets_element_config_t) * max_ets_count);
+        if (!ets) {
+            return SAI_STATUS_NO_MEMORY;
+        }
+
+        status = sx_api_cos_port_ets_element_get(gh_sdk, from->logical, ets, &max_ets_count);
+        if (SX_ERR(status)) {
+            SX_LOG_ERR("Failed get ETS list - %s\n", SX_STATUS_MSG(status));
+            status = sdk_to_sai(status);
+            goto out;
+        }
+
+        status = sx_api_cos_port_ets_element_set(gh_sdk, SX_ACCESS_CMD_EDIT,
+                                                 to->logical, ets, max_ets_count);
+        if (SX_ERR(status)) {
+            SX_LOG_ERR("Failed to update ETS elements on LAG port id 0x%x - %s\n", to->logical, SX_STATUS_MSG(status));
+            status = sdk_to_sai(status);
+            goto out;
+        }
+
+        /* Copy for the LAG actually, it needs when one of the profiles (Scheduler, QoS) will be changed
+         * so the LAG will be updated with new changes */
+        memcpy(&to->sched_hierarchy, &from->sched_hierarchy, sizeof(to->sched_hierarchy));
     }
     /* WRED and scheduler */
     if (clone & PORT_PARAMS_QUEUE) {
@@ -541,7 +547,7 @@ static sai_status_t remove_port_from_lag(sx_port_log_id_t lag_id, sx_port_log_id
 
     /* Do re-apply for port params which were removed by us before add to the LAG */
     status = mlnx_port_params_clone(port, lag, PORT_PARAMS_QUEUE | PORT_PARAMS_MIRROR | PORT_PARAMS_SFLOW |
-                                    PORT_PARAMS_POLICER | PORT_PARAMS_EGRESS_BLOCK);
+                                    PORT_PARAMS_POLICER | PORT_PARAMS_EGRESS_BLOCK | PORT_PARAMS_ETS_GROUP);
     if (SAI_ERR(status)) {
         return status;
     }
@@ -1481,6 +1487,9 @@ static sai_status_t mlnx_create_lag_member(_Out_ sai_object_id_t     * lag_membe
             memcpy(&(lag_queue_cfg->sched_obj), &(port_queue_cfg->sched_obj),
                    sizeof(lag_queue_cfg->sched_obj));
         }
+        /* copy ets group/subgroup */
+        memcpy(&lag->sched_hierarchy, &port->sched_hierarchy, sizeof(lag->sched_hierarchy));
+        port->scheduler_id = lag->scheduler_id;
         memcpy(mlnx_ports_db[lag_db_idx].port_policers,
                port->port_policers,
                sizeof(port->port_policers));
@@ -1528,6 +1537,11 @@ static sai_status_t mlnx_create_lag_member(_Out_ sai_object_id_t     * lag_membe
         }
 
         status = mlnx_port_egress_block_clear(port->logical);
+        if (SAI_ERR(status)) {
+            goto out;
+        }
+
+        status = mlnx_scheduler_port_hierarchy_db_clear(port);
         if (SAI_ERR(status)) {
             goto out;
         }

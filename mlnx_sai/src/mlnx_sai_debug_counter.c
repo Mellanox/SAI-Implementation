@@ -1357,6 +1357,7 @@ static sai_status_t mlnx_debug_counter_sx_init(_In_ mlnx_debug_counter_t *dbg_co
 
     /* Policer */
     policer_attrs.is_host_ifc_policer = true;
+    policer_attrs.is_span_session_policer = false;
     policer_attrs.rate_type = SX_POLICER_RATE_TYPE_SINGLE_RATE_E;
     policer_attrs.red_action = SX_POLICER_ACTION_DISCARD;
     policer_attrs.cbs = 4;

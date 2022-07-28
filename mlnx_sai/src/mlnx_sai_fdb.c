@@ -171,7 +171,9 @@ static sai_status_t mlnx_add_or_del_mac(sx_fdb_uc_mac_addr_params_t *mac_entry, 
         SX_LOG_EXIT();
         return SAI_STATUS_SUCCESS;
     }
-    if (mac_entry->entry_type == SX_FDB_UC_AGEABLE) {
+
+    if ((mac_entry->entry_type == SX_FDB_UC_AGEABLE)
+        || (mac_entry->entry_type == SX_FDB_UC_REMOTE)) {
         SX_LOG_EXIT();
         return SAI_STATUS_SUCCESS;
     }
