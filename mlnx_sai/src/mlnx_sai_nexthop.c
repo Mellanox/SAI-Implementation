@@ -640,7 +640,7 @@ static sai_status_t mlnx_encap_nexthop_fake_data_init(_In_ mlnx_encap_nexthop_db
                                             &br_rif,
                                             &br_fid);
     if (SAI_ERR(status)) {
-        SX_LOG_ERR("Failed to get Bridge and RIF. [Tunnel=0x%X, VNI=%d, VRF=0x%lX]\n",
+        SX_LOG_ERR("Failed to get Bridge and RIF. [Tunnel=0x%lX, VNI=%d, VRF=0x%lX]\n",
                    db_entry->data.tunnel_id, vni, fake_data->associated_vrf);
         return status;
     }

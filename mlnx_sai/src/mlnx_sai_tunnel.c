@@ -6098,7 +6098,19 @@ static sai_status_t mlnx_sai_tunnel_map_vlan_vni_bridge_set(_In_ sai_object_id_t
     if (TUNNEL_ENCAP == sai_tunnel_map_direction) {
         switch (mlnx_tunnel_map.tunnel_map_type) {
         case SAI_TUNNEL_MAP_TYPE_VLAN_ID_TO_VNI:
+            if (NVE_8021D_TUNNEL == g_sai_db_ptr->nve_tunnel_type) {
+                SX_LOG_ERR("802.1Q tunnel map cannot be applied with 802.1D tunnel map at the same time\n");
+                return SAI_STATUS_FAILURE;
+            }
+            g_sai_db_ptr->nve_tunnel_type = NVE_8021Q_TUNNEL;
+            break;
+
         case SAI_TUNNEL_MAP_TYPE_BRIDGE_IF_TO_VNI:
+            if (NVE_8021Q_TUNNEL == g_sai_db_ptr->nve_tunnel_type) {
+                SX_LOG_ERR("802.1Q tunnel map cannot be applied with 802.1D tunnel map at the same time\n");
+                return SAI_STATUS_FAILURE;
+            }
+            g_sai_db_ptr->nve_tunnel_type = NVE_8021D_TUNNEL;
             break;
 
         case SAI_TUNNEL_MAP_TYPE_OECN_TO_UECN:
@@ -6123,7 +6135,19 @@ static sai_status_t mlnx_sai_tunnel_map_vlan_vni_bridge_set(_In_ sai_object_id_t
     } else if (TUNNEL_DECAP == sai_tunnel_map_direction) {
         switch (mlnx_tunnel_map.tunnel_map_type) {
         case SAI_TUNNEL_MAP_TYPE_VNI_TO_VLAN_ID:
+            if (NVE_8021D_TUNNEL == g_sai_db_ptr->nve_tunnel_type) {
+                SX_LOG_ERR("802.1Q tunnel map cannot be applied with 802.1D tunnel map at the same time\n");
+                return SAI_STATUS_FAILURE;
+            }
+            g_sai_db_ptr->nve_tunnel_type = NVE_8021Q_TUNNEL;
+            break;
+
         case SAI_TUNNEL_MAP_TYPE_VNI_TO_BRIDGE_IF:
+            if (NVE_8021Q_TUNNEL == g_sai_db_ptr->nve_tunnel_type) {
+                SX_LOG_ERR("802.1Q tunnel map cannot be applied with 802.1D tunnel map at the same time\n");
+                return SAI_STATUS_FAILURE;
+            }
+            g_sai_db_ptr->nve_tunnel_type = NVE_8021D_TUNNEL;
             break;
 
         case SAI_TUNNEL_MAP_TYPE_UECN_OECN_TO_OECN:
@@ -6627,19 +6651,15 @@ static sai_status_t mlnx_create_sdk_tunnel(_In_ sai_object_id_t      sai_tunnel_
             goto cleanup;
         }
 
-        if (NVE_8021Q_TUNNEL == g_sai_db_ptr->nve_tunnel_type) {
-            /* currently only one vxlan tunnel can exist at the same time,
-             * so it is OK to set nve log port to do not learn when this only
-             * vxlan tunnel is created */
-            sdk_status = sx_api_fdb_port_learn_mode_set(gh_sdk,
-                                                        g_sai_db_ptr->sx_nve_log_port,
-                                                        SX_FDB_LEARN_MODE_DONT_LEARN);
-            if (SX_STATUS_SUCCESS != sdk_status) {
-                sai_status = sdk_to_sai(sdk_status);
-                SX_LOG_ERR("Error setting nve log port learn mode to dont learn: %s\n",
-                           SX_STATUS_MSG(sdk_status));
-                goto cleanup;
-            }
+
+        sdk_status = sx_api_fdb_port_learn_mode_set(gh_sdk,
+                                                    g_sai_db_ptr->sx_nve_log_port,
+                                                    SX_FDB_LEARN_MODE_DONT_LEARN);
+        if (SX_STATUS_SUCCESS != sdk_status) {
+            sai_status = sdk_to_sai(sdk_status);
+            SX_LOG_ERR("Error setting nve log port learn mode to don't learn: %s\n",
+                       SX_STATUS_MSG(sdk_status));
+            goto cleanup;
         }
     } else {
         for (ii = 0; ii < g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].sai_tunnel_map_encap_cnt; ii++) {
@@ -7462,10 +7482,7 @@ static sai_status_t mlnx_remove_tunnel(_In_ const sai_object_id_t sai_tunnel_obj
         }
     } else if ((SX_TUNNEL_TYPE_NVE_VXLAN == sx_tunnel_attr.type) ||
                (SX_TUNNEL_TYPE_NVE_VXLAN_IPV6 == sx_tunnel_attr.type)) {
-        if (NVE_8021Q_TUNNEL == g_sai_db_ptr->nve_tunnel_type) {
-            /* currently only one vxlan tunnel can exist at the same time,
-             * so it is OK to set nve log port to auto learn when this only
-             * vxlan tunnel is removed */
+        if (g_sai_db_ptr->nve_tunnel_type != NVE_TUNNEL_UNKNOWN) {
             sdk_status = sx_api_fdb_port_learn_mode_set(gh_sdk,
                                                         g_sai_db_ptr->sx_nve_log_port,
                                                         SX_FDB_LEARN_MODE_AUTO_LEARN);
@@ -7475,8 +7492,8 @@ static sai_status_t mlnx_remove_tunnel(_In_ const sai_object_id_t sai_tunnel_obj
                            SX_STATUS_MSG(sdk_status));
                 goto cleanup;
             }
+            g_sai_db_ptr->nve_tunnel_type = NVE_TUNNEL_UNKNOWN;
         }
-        g_sai_db_ptr->nve_tunnel_type = NVE_TUNNEL_UNKNOWN;
 
         if (mlnx_chip_is_spc2or3or4()) {
             if (!is_underlay_rif_used_by_other_tunnels(tunnel_db_idx,
