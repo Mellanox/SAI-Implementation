@@ -288,10 +288,6 @@ static sai_status_t mlnx_port_params_clone(mlnx_port_config_t *to, mlnx_port_con
     /* WRED and scheduler */
     if (clone & PORT_PARAMS_QUEUE) {
         port_queues_foreach(from, queue_cfg, ii) {
-            if (ii >= RM_API_COS_TRAFFIC_CLASS_NUM) {
-                continue;
-            }
-
             SX_LOG_DBG("Cloning scheduler from %x to %x, qi %d, scheduler %lx\n",
                        from->logical,
                        to->logical,
@@ -310,10 +306,6 @@ static sai_status_t mlnx_port_params_clone(mlnx_port_config_t *to, mlnx_port_con
         }
 
         port_queues_foreach(from, queue_cfg, ii) {
-            if (ii >= RM_API_COS_TRAFFIC_CLASS_NUM) {
-                continue;
-            }
-
             SX_LOG_DBG("Cloning WRED from %x to %x, qi %d, wred %lx\n",
                        from->logical,
                        to->logical,
@@ -1472,9 +1464,6 @@ static sai_status_t mlnx_create_lag_member(_Out_ sai_object_id_t     * lag_membe
         /* During ISSU, WRED has already been applied on LAG via promotion,
          * thus only copy WRED id to LAG queue cfg */
         port_queues_foreach(port, port_queue_cfg, ii) {
-            if (ii >= RM_API_COS_TRAFFIC_CLASS_NUM) {
-                continue;
-            }
             status = mlnx_queue_cfg_lookup(mlnx_ports_db[lag_db_idx].logical,
                                            ii,
                                            &lag_queue_cfg);
@@ -1726,10 +1715,6 @@ static sai_status_t mlnx_remove_lag_member(_In_ sai_object_id_t lag_member_id)
         uint32_t                 ii;
 
         port_queues_foreach(lag_config, queue, ii) {
-            if (ii >= RM_API_COS_TRAFFIC_CLASS_NUM) {
-                continue;
-            }
-
             status = mlnx_wred_apply_to_queue(lag_config, ii, SAI_NULL_OBJECT_ID);
             if (SAI_ERR(status)) {
                 goto out;

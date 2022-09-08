@@ -2202,10 +2202,10 @@ sai_status_t mlnx_bulk_statuses_print(_In_ const char         *object_type_str,
     return SAI_STATUS_SUCCESS;
 }
 
-static sai_status_t sai_ipv4_to_str(_In_ sai_ip4_t value,
-                                    _In_ uint32_t  max_length,
-                                    _Out_ char    *value_str,
-                                    _Out_opt_ int *chars_written)
+sai_status_t sai_ipv4_to_str(_In_ sai_ip4_t value,
+                             _In_ uint32_t  max_length,
+                             _Out_ char    *value_str,
+                             _Out_opt_ int *chars_written)
 {
     inet_ntop(AF_INET, &value, value_str, max_length);
 
@@ -2216,10 +2216,10 @@ static sai_status_t sai_ipv4_to_str(_In_ sai_ip4_t value,
     return SAI_STATUS_SUCCESS;
 }
 
-static sai_status_t sai_ipv6_to_str(_In_ sai_ip6_t value,
-                                    _In_ uint32_t  max_length,
-                                    _Out_ char    *value_str,
-                                    _Out_opt_ int *chars_written)
+sai_status_t sai_ipv6_to_str(_In_ sai_ip6_t value,
+                             _In_ uint32_t  max_length,
+                             _Out_ char    *value_str,
+                             _Out_opt_ int *chars_written)
 {
     inet_ntop(AF_INET6, value, value_str, max_length);
 

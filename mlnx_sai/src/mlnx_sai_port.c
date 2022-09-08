@@ -6614,12 +6614,6 @@ sai_status_t mlnx_get_port_stats_ext(_In_ sai_object_id_t      port_id,
 
     bulk_required = mlnx_is_bulk_required(counter_types);
 
-/* TODO: remove when enabled on Simx */
-#ifdef IS_SIMX
-    SX_LOG_ERR("Bulk counters are not supported on Simx.\n");
-    return SAI_STATUS_NOT_SUPPORTED;
-#endif
-
     if (bulk_required) {
         status = mlnx_convert_counter_types_bitmap_to_sx_bulk_read(port_id,
                                                                    counter_types,

@@ -2669,6 +2669,42 @@ void mlnx_fid_flood_ctrl_l2mc_group_refs_dec(_In_ const mlnx_fid_flood_data_t *d
     }
 }
 
+uint32_t mlnx_fid_uc_bc_flood_ctrl_l2mc_group(_In_ sx_fid_t                      sx_fid,
+                                              _In_ sx_flood_control_type_t       sx_flood_type,
+                                              _Out_ mlnx_fid_flood_type_data_t **flood_ctrl_data)
+{
+    mlnx_fid_flood_ctrl_attr_t flood_ctrl_attr;
+    mlnx_bridge_t             *bridge;
+    sai_bridge_attr_t          fid_attr;
+    sai_vlan_attr_t            vlan_attr;
+
+    if (MIN_SX_BRIDGE_ID <= sx_fid) {
+        fid_attr = sx_flood_type == SX_FLOOD_CONTROL_TYPE_BROADCAST_E ?
+                   SAI_BRIDGE_ATTR_UNKNOWN_UNICAST_FLOOD_GROUP :
+                   SAI_BRIDGE_ATTR_BROADCAST_FLOOD_GROUP;
+        bridge = mlnx_bridge_1d_by_db_idx(sx_fid - MIN_SX_BRIDGE_ID);
+        if ((!bridge) || (!bridge->array_hdr.is_used)) {
+            SX_LOG_ERR("Bridge %d is removed or not created yet\n", sx_fid);
+            return SAI_STATUS_FAILURE;
+        }
+        flood_ctrl_attr = mlnx_bridge_flood_ctrl_group_attr_to_fid_attr(fid_attr);
+        *flood_ctrl_data = &bridge->flood_data.types[flood_ctrl_attr];
+    } else {
+        vlan_attr = sx_flood_type == SX_FLOOD_CONTROL_TYPE_BROADCAST_E ?
+                    SAI_VLAN_ATTR_UNKNOWN_UNICAST_FLOOD_GROUP :
+                    SAI_VLAN_ATTR_BROADCAST_FLOOD_GROUP;
+        flood_ctrl_attr = mlnx_vlan_flood_ctrl_group_attr_to_fid_attr(vlan_attr);
+        *flood_ctrl_data = &mlnx_vlan_db_get_vlan(sx_fid)->flood_data.types[flood_ctrl_attr];
+    }
+
+    if (MLNX_FID_FLOOD_TYPE_COMBINED < (*flood_ctrl_data)->type) {
+        SX_LOG_ERR("Failed to get flood data for %u fid\n", sx_fid);
+        return SAI_STATUS_FAILURE;
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
 static sai_status_t mlnx_fid_uc_bc_flood_ctrl_apply(_In_ sx_fid_t                          sx_fid,
                                                     _In_ sx_flood_control_type_t           sx_flood_type,
                                                     _In_ const sx_port_log_id_t           *sx_fid_ports,
@@ -2680,9 +2716,11 @@ static sai_status_t mlnx_fid_uc_bc_flood_ctrl_apply(_In_ sx_fid_t               
     sx_status_t          sx_status;
     sx_port_log_id_t     sx_l2mc_ports[MAX_BRIDGE_1Q_PORTS] = {0}, ports_to_block[MAX_BRIDGE_1Q_PORTS] = {0};
     uint32_t             l2mc_ports_count = MAX_BRIDGE_1Q_PORTS, ports_to_block_count, ii, jj;
-    sx_mc_container_id_t flood_vector = SX_MC_CONTAINER_ID_INVALID;
-    bool                 block_port;
-    sx_access_cmd_t      sx_cmd;
+    sx_mc_container_id_t flood_vector = SX_MC_CONTAINER_ID_INVALID,
+                         flood_vector_sdk = SX_MC_CONTAINER_ID_INVALID;
+    mlnx_fid_flood_type_data_t *flood_ctrl_data;
+    bool                        block_port;
+    sx_access_cmd_t             sx_cmd = SX_ACCESS_CMD_NONE;
 
     assert(sx_fid_ports);
     assert(flood_data);
@@ -2766,10 +2804,6 @@ static sai_status_t mlnx_fid_uc_bc_flood_ctrl_apply(_In_ sx_fid_t               
     }
 
     /* Remote endpoints */
-    if ((NULL != prev_flood_data) && (flood_data->l2mc_db_idx == prev_flood_data->l2mc_db_idx)) {
-        return SAI_STATUS_SUCCESS;
-    }
-
     if (MLNX_L2MC_GROUP_DB_IDX_IS_VALID(flood_data->l2mc_db_idx)) {
         if ((flood_data->type == MLNX_FID_FLOOD_TYPE_L2MC_GROUP) ||
             (flood_data->type == MLNX_FID_FLOOD_TYPE_COMBINED)) {
@@ -2781,6 +2815,38 @@ static sai_status_t mlnx_fid_uc_bc_flood_ctrl_apply(_In_ sx_fid_t               
     } else if ((NULL != prev_flood_data) && MLNX_L2MC_GROUP_DB_IDX_IS_VALID(prev_flood_data->l2mc_db_idx)) {
         sx_cmd = SX_ACCESS_CMD_DELETE;
         flood_vector = l2mc_group_db(prev_flood_data->l2mc_db_idx).mc_container_tunnels;
+    }
+
+    /* When try delete container from SDK check that another one is not valid */
+    if (SX_ACCESS_CMD_DELETE == sx_cmd) {
+        status = mlnx_fid_uc_bc_flood_ctrl_l2mc_group(sx_fid, sx_flood_type, &flood_ctrl_data);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to get flood data for fid %u.\n", sx_fid);
+            return status;
+        }
+
+        if ((flood_ctrl_data->type == MLNX_FID_FLOOD_TYPE_L2MC_GROUP) ||
+            (flood_ctrl_data->type == MLNX_FID_FLOOD_TYPE_COMBINED)) {
+            if (MLNX_L2MC_GROUP_DB_IDX_IS_VALID(flood_ctrl_data->l2mc_db_idx)) {
+                sx_cmd = SX_ACCESS_CMD_SET;
+                flood_vector = l2mc_group_db(flood_ctrl_data->l2mc_db_idx).mc_container_tunnels;
+            }
+        }
+    }
+
+    if (SX_ACCESS_CMD_DELETE == sx_cmd) {
+        sx_status = sx_api_fdb_flood_get(gh_sdk, DEFAULT_ETH_SWID, sx_fid, &flood_vector_sdk);
+        if (SX_ERR(sx_status) && (SX_STATUS_ENTRY_NOT_BOUND != sx_status)) {
+            SX_LOG_ERR("Failed to get mc container from SDK for fid %u - %s.\n",
+                       sx_fid,
+                       SX_STATUS_MSG(sx_status));
+            return SAI_STATUS_FAILURE;
+        }
+
+        if ((SX_STATUS_ENTRY_NOT_BOUND == sx_status) || (SX_MC_CONTAINER_ID_INVALID == flood_vector_sdk)) {
+            /* On SDK level flood container already empty*/
+            return SAI_STATUS_SUCCESS;
+        }
     }
 
     if (SX_MC_CONTAINER_ID_CHECK_RANGE(flood_vector)) {

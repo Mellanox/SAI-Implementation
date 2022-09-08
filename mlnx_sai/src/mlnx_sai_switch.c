@@ -3552,6 +3552,9 @@ static void sai_db_values_init()
     g_sai_db_ptr->switch_default_tc = 0;
     memset(g_sai_db_ptr->policers_db, 0, sizeof(g_sai_db_ptr->policers_db));
     memset(g_sai_db_ptr->port_pg9_defaults, 0, sizeof(g_sai_db_ptr->port_pg9_defaults));
+    memset(&g_sai_db_ptr->port_queue_defaults, 0, sizeof(g_sai_db_ptr->port_queue_defaults));
+    memset(&g_sai_db_ptr->port_pg0_defaults, 0, sizeof(g_sai_db_ptr->port_pg0_defaults));
+
     memset(g_sai_db_ptr->mlnx_samplepacket_session, 0, sizeof(g_sai_db_ptr->mlnx_samplepacket_session));
     memset(g_sai_db_ptr->trap_group_valid, 0, sizeof(g_sai_db_ptr->trap_group_valid));
     memset(g_sai_db_ptr->isolation_groups, 0, sizeof(g_sai_db_ptr->isolation_groups));
@@ -3577,8 +3580,6 @@ static void sai_db_values_init()
     g_sai_db_ptr->port_parsing_depth_set_for_tunnel = false;
 
     g_sai_db_ptr->is_bfd_module_initialized = false;
-
-    g_sai_db_ptr->nve_tunnel_type = NVE_TUNNEL_UNKNOWN;
 
     g_sai_db_ptr->crc_check_enable = true;
     g_sai_db_ptr->crc_recalc_enable = true;
@@ -4474,6 +4475,8 @@ static sai_status_t mlnx_switch_dump_health_event_prepare_stage_dir(_In_ const c
 
 static void mlnx_switch_dump_health_event_fill_metadata(_In_ FILE *stream, _In_ sx_event_health_notification_t *event)
 {
+    sx_event_health_ecc_data_t *ecc_data = NULL;
+
     dbg_utils_print_module_header(stream, "SDK health event metadata");
 
     dbg_utils_print_field(stream, "Device ID:", &event->device_id, PARAM_UINT8_E);
@@ -4481,6 +4484,26 @@ static void mlnx_switch_dump_health_event_fill_metadata(_In_ FILE *stream, _In_ 
     dbg_utils_print_field(stream, "Cause:", sx_health_cause_str(event->cause), PARAM_STRING_E);
     dbg_utils_print_field(stream, "Was debug started:", &event->was_debug_started, PARAM_BOOL_E);
     dbg_utils_print_field(stream, "IRISC ID:", &event->irisc_id, PARAM_UINT8_E);
+
+    if (event->cause == SX_HEALTH_CAUSE_ECC_E) {
+        ecc_data = &event->data.ecc_data;
+        dbg_utils_print_field(stream, "ECC slot index:", &ecc_data->slot_index, PARAM_UINT16_E);
+        dbg_utils_print_field(stream, "ECC device index:", &ecc_data->device_index, PARAM_UINT16_E);
+        switch (event->severity) {
+        case SX_HEALTH_SEVERITY_FATAL_E:
+            dbg_utils_print_field(stream, "ECC uncorrected:",
+                                  &ecc_data->ecc_stats.ecc_uncorrected, PARAM_UINT32_E);
+            break;
+
+        case SX_HEALTH_SEVERITY_NOTICE_E:
+            dbg_utils_print_field(stream, "ECC corrected:",
+                                  &ecc_data->ecc_stats.ecc_corrected, PARAM_UINT32_E);
+            break;
+
+        default:
+            SX_LOG_ERR("Unexpected event severity - %s\n", sx_health_severity_str(event->severity));
+        }
+    }
 }
 
 static sai_status_t mlnx_switch_dump_health_event_remove_extra_dumps(_In_ const char *path, _In_ int limit)
@@ -4576,6 +4599,7 @@ static sai_status_t mlnx_switch_health_event_handle(_In_ sx_event_health_notific
     sai_status_t                     sai_status = SAI_STATUS_SUCCESS;
     sx_status_t                      sdk_status = SX_STATUS_SUCCESS;
     sx_dbg_extra_info_t              dbg_info;
+    sx_event_health_ecc_data_t      *ecc_data = NULL;
 
     if (NULL == (d = opendir(dump_conf->path))) {
         SX_LOG_ERR("Directory for dumps is not exists, skip\n");
@@ -4651,6 +4675,33 @@ static sai_status_t mlnx_switch_health_event_handle(_In_ sx_event_health_notific
 
     /* This should be syslog message */
     SX_LOG(event_log_level, "Health event happened, severity %s, cause %s\n", event_severity_str, event_cause_str);
+
+    if (event->cause == SX_HEALTH_CAUSE_ECC_E) {
+        ecc_data = &event->data.ecc_data;
+        switch (event->severity) {
+        case SX_HEALTH_SEVERITY_FATAL_E:
+            event_log_level = SX_LOG_ERROR;
+            SX_LOG(event_log_level,
+                   "ECC uncorrected stats updated, slot index %u, device index %u, ECC uncorrected counter %u\n",
+                   ecc_data->slot_index,
+                   ecc_data->device_index,
+                   ecc_data->ecc_stats.ecc_uncorrected);
+            break;
+
+        case SX_HEALTH_SEVERITY_NOTICE_E:
+            event_log_level = SX_LOG_NOTICE;
+            SX_LOG(event_log_level,
+                   "ECC corrected stats updated, slot index %u, device index %u, ECC corrected counter %u\n",
+                   ecc_data->slot_index,
+                   ecc_data->device_index,
+                   ecc_data->ecc_stats.ecc_corrected);
+            break;
+
+        default:
+            SX_LOG_ERR("Unexpected ECC event severity - %s\n", event_severity_str);
+            return SAI_STATUS_FAILURE;
+        }
+    }
 #endif /* ifndef _WIN32 */
 
     return SAI_STATUS_SUCCESS;
@@ -5577,13 +5628,34 @@ static void event_thread_func(void *context)
 
                 if (SX_TRAP_ID_BFD_PACKET_EVENT == receive_info->trap_id) {
                     const struct bfd_packet_event *event = (const struct bfd_packet_event*)p_packet;
+                    unsigned short                 ip_family = event->peer_addr.peer_in.sin_family;
+                    unsigned short                 port = 0;
+                    char                           ip[INET6_ADDRSTRLEN] = "\0";
+                    switch (ip_family) {
+                    case AF_INET:
+                        sai_ipv4_to_str(((struct bfd_packet_event *)event)->peer_addr.peer_in.sin_addr.s_addr,
+                                        INET_ADDRSTRLEN, ip, NULL);
+                        port = event->peer_addr.peer_in.sin_port;
+                        break;
+
+                    case AF_INET6:
+                        sai_ipv6_to_str(((struct bfd_packet_event *)event)->peer_addr.peer_in6.sin6_addr.s6_addr,
+                                        INET6_ADDRSTRLEN, ip, NULL);
+                        port = event->peer_addr.peer_in6.sin6_port;
+                        break;
+
+                    default:
+                        SX_LOG_WRN("Received BFD packet with ip-family %u.\n", ip_family);
+                        continue;
+                    }
+
                     if (event->opaque_data_valid) {
                         status = mlnx_switch_bfd_packet_handle(event);
                         if (SAI_ERR(status)) {
-                            SX_LOG_ERR("BFD packet handle failed.\n");
+                            SX_LOG_ERR("BFD packet from %s:%u handle failed.\n", ip, port);
                         }
                     } else {
-                        SX_LOG_WRN("Received BFD packet not related to any existing session.\n");
+                        SX_LOG_NTC("Received BFD packet from %s:%u, not related to any existing session.\n", ip, port);
                     }
                     continue;
                 }

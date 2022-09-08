@@ -1211,7 +1211,7 @@ static mlnx_fid_flood_ctrl_attr_t mlnx_bridge_flood_ctrl_attr_to_fid_attr(_In_ s
     }
 }
 
-static mlnx_fid_flood_ctrl_attr_t mlnx_bridge_flood_ctrl_group_attr_to_fid_attr(_In_ sai_bridge_attr_t attr)
+mlnx_fid_flood_ctrl_attr_t mlnx_bridge_flood_ctrl_group_attr_to_fid_attr(_In_ sai_bridge_attr_t attr)
 {
     switch (attr) {
     case SAI_BRIDGE_ATTR_UNKNOWN_UNICAST_FLOOD_GROUP:

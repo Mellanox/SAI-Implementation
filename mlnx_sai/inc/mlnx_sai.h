@@ -603,8 +603,10 @@ typedef struct mlnx_bridge_port_ {
     mlnx_acl_pbs_entry_t   pbs_entry;
     uint32_t               l2mc_group_ref;
 } mlnx_bridge_port_t;
+
 typedef sai_status_t (*sai_attribute_set_fn)(_In_ const sai_object_key_t *key, _In_ const sai_attribute_value_t *value,
                                              void *arg);
+
 typedef struct _mlnx_fdb_cache_t {
     sx_port_id_t               log_port;    /**< Logical port */
     sx_fdb_uc_mac_entry_type_t entry_type;  /**< FDB Entry Type */
@@ -612,9 +614,11 @@ typedef struct _mlnx_fdb_cache_t {
     sx_ip_addr_t               endpoint_ip;
     bool                       fdb_cache_set;
 } mlnx_fdb_cache_t;
+
 typedef union {
     mlnx_fdb_cache_t fdb_cache;
 } vendor_cache_t;
+
 typedef sai_status_t (*sai_attribute_get_fn)(_In_ const sai_object_key_t *key, _Inout_ sai_attribute_value_t *value,
                                              _In_ uint32_t attr_index, _Inout_ vendor_cache_t *cache, void *arg);
 typedef struct _sai_vendor_attribute_entry_t {
@@ -938,6 +942,14 @@ sai_status_t sai_attr_list_to_str(_In_ uint32_t               attr_count,
                                   _In_ uint32_t               max_length,
                                   _Out_ char                 *list_str);
 sai_status_t sai_ipprefix_to_str(_In_ sai_ip_prefix_t value, _In_ uint32_t max_length, _Out_ char *value_str);
+sai_status_t sai_ipv4_to_str(_In_ sai_ip4_t value,
+                             _In_ uint32_t  max_length,
+                             _Out_ char    *value_str,
+                             _Out_opt_ int *chars_written);
+sai_status_t sai_ipv6_to_str(_In_ sai_ip6_t value,
+                             _In_ uint32_t  max_length,
+                             _Out_ char    *value_str,
+                             _Out_opt_ int *chars_written);
 sai_status_t sai_ipaddr_to_str(_In_ sai_ip_address_t value,
                                _In_ uint32_t         max_length,
                                _Out_ char           *value_str,
@@ -984,6 +996,10 @@ bool mlnx_ip_addr_are_equal(_In_ const sai_ip_addr_family_t family1,
                             _In_ const sai_ip_addr_t       *addr1,
                             _In_ const sai_ip_addr_family_t family2,
                             _In_ const sai_ip_addr_t       *addr2);
+
+bool mlnx_is_valid_ip_address(const sai_ip_address_t *sai_addr);
+bool sdk_is_valid_ip_address(const sx_ip_addr_t *sdk_addr);
+
 bool mlnx_route_entries_are_equal(_In_ const sai_route_entry_t *u1, _In_ const sai_route_entry_t *u2);
 bool mlnx_neighbor_entries_are_equal(_In_ const sai_neighbor_entry_t *u1, _In_ const sai_neighbor_entry_t *u2);
 
@@ -1403,7 +1419,7 @@ typedef enum _mlnx_port_autoneg_type_t {
 } mlnx_port_autoneg_type_t;
 
 typedef struct _mlnx_port_config_t {
-    uint8_t                         index;
+    uint16_t                        index;
     uint32_t                        module;
     uint32_t                        width;
     mlnx_port_breakout_capability_t breakout_modes;
@@ -1538,6 +1554,7 @@ sai_status_t mlnx_bridge_init(void);
 sx_bridge_id_t mlnx_bridge_default_1q(void);
 sai_object_id_t mlnx_bridge_default_1q_oid(void);
 mlnx_bridge_t* mlnx_bridge_1d_by_db_idx(_In_ uint32_t db_idx);
+mlnx_fid_flood_ctrl_attr_t mlnx_bridge_flood_ctrl_group_attr_to_fid_attr(_In_ sai_bridge_attr_t attr);
 sai_status_t mlnx_bridge_sx_ports_get(_In_ sx_bridge_id_t     sx_bridge,
                                       _Out_ sx_port_log_id_t *sx_ports,
                                       _Inout_ uint32_t       *ports_count);
@@ -2641,12 +2658,6 @@ typedef struct _tunnel_map_entry_t {
     tunnel_map_entry_pair_info_t pair_per_vxlan_array[MAX_VXLAN_TUNNEL];
 } mlnx_tunnel_map_entry_t;
 
-typedef enum _nve_tunnel_type_t {
-    NVE_8021Q_TUNNEL,
-    NVE_8021D_TUNNEL,
-    NVE_TUNNEL_UNKNOWN
-} mlnx_nve_tunnel_type_t;
-
 typedef struct _mlnx_bmtor_bridge_t {
     bool            in_use;
     bool            is_default;
@@ -2909,6 +2920,12 @@ typedef struct _mlnx_control_pg_buff_profile_entry {
     bool                      is_valid;
 } mlnx_control_pg_buff;
 
+typedef struct _mlnx_buffer_attrs_t {
+    sx_cos_port_buffer_attr_t        sx_reserved_attr;
+    sx_cos_port_shared_buffer_attr_t sx_shared_attr;
+    bool                             is_valid;
+} mlnx_buffer_attrs_t;
+
 #ifndef PATH_MAX
 #define PATH_MAX 256
 #endif /* PATH_MAX */
@@ -3000,6 +3017,8 @@ typedef struct sai_db {
     mlnx_policer_db_entry_t policers_db[MAX_POLICERS];
     /* control priority group default values configured by sdk */
     mlnx_control_pg_buff              port_pg9_defaults[MAX_PG9_VAL_NUMBER];
+    mlnx_buffer_attrs_t               port_queue_defaults;
+    mlnx_buffer_attrs_t               port_pg0_defaults;
     mlnx_hash_obj_t                   hash_list[SAI_HASH_MAX_OBJ_COUNT];
     sai_object_id_t                   oper_hash_list[SAI_HASH_MAX_OBJ_ID];
     sx_router_ecmp_port_hash_params_t port_ecmp_hash_params;
@@ -3011,7 +3030,6 @@ typedef struct sai_db {
     sai_object_id_t                   default_1q_bridge_oid;
     sai_object_id_t                   dummy_1d_bridge_oid;
     sx_port_log_id_t                  sx_nve_log_port;
-    mlnx_nve_tunnel_type_t            nve_tunnel_type;
     mlnx_shm_rm_array_idx_t           ecmp_to_nhg_map[MLNX_ECMP_NHG_HASHTABLE_SIZE];
     bool                              is_stp_initialized;
     sx_mstp_inst_id_t                 def_stp_id;
@@ -3202,7 +3220,7 @@ typedef struct _sai_buffer_db_t {
      *  so user would be able to use it. However on the first user request to create a pool all
      *  existing buffer configuration will be deleted.
      *  This item will be set initially to 0, and after first create pool request will be set to true.
-     *  Once set to true, it cannot be modified.
+     *  When all pools are removed the flag is 0 again and default configuration is applied
      */
     bool *pool_allocation;
 
