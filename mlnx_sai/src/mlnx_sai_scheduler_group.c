@@ -382,7 +382,7 @@ static sai_status_t mlnx_sched_group_child_list_get(_In_ const sai_object_key_t 
     sai_status_t          status;
     uint32_t              count = 0;
     uint8_t               idx;
-    uint8_t               lvl;
+    uint8_t               lvl, lvl_tmp;
     uint32_t              i, is_lag_member = 0;
 
     status = mlnx_sched_group_parse_id(key->key.object_id, &port_id, &lvl, &idx);
@@ -430,13 +430,24 @@ static sai_status_t mlnx_sched_group_child_list_get(_In_ const sai_object_key_t 
     }
     if (is_lag_member) {
         for (i = 0; i < child_list.count; i++) {
-            status = mlnx_sched_group_parse_id(child_list.list[i], &lag_id, &lvl, &idx);
-            if (status != SAI_STATUS_SUCCESS) {
-                goto out;
-            }
-            status = mlnx_create_sched_group(port_id, lvl, idx, &child_list.list[i]);
-            if (status != SAI_STATUS_SUCCESS) {
-                goto out;
+            if (lvl == 0) {
+                status = mlnx_sched_group_parse_id(child_list.list[i], &lag_id, &lvl_tmp, &idx);
+                if (status != SAI_STATUS_SUCCESS) {
+                    goto out;
+                }
+                status = mlnx_create_sched_group(port_id, lvl_tmp, idx, &child_list.list[i]);
+                if (status != SAI_STATUS_SUCCESS) {
+                    goto out;
+                }
+            } else {
+                status = mlnx_queue_parse_id(child_list.list[i], &lag_id, &idx);
+                if (status != SAI_STATUS_SUCCESS) {
+                    goto out;
+                }
+                status = mlnx_create_queue_object(port_id, idx, &child_list.list[i]);
+                if (status != SAI_STATUS_SUCCESS) {
+                    goto out;
+                }
             }
         }
     }

@@ -73,6 +73,16 @@ if test "x$simx" = xyes; then
   AC_DEFINE(IS_SIMX, 1, [Notify that device is simix])
 fi
 
+AC_ARG_ENABLE([pld],
+  [AS_HELP_STRING([--enable-pld],
+  [Notify that device is PLD])],
+  [pld=$enableval],
+  [pld=no])
+
+if test "x$pld" = xyes; then
+  AC_DEFINE(IS_PLD, 1, [Notify that device is PLD])
+fi
+
 AC_ARG_ENABLE([maxrifs],
   [AS_HELP_STRING([--enable-maxrifs],
   [Notify that SPC4 max RIFs feature is enabled])],

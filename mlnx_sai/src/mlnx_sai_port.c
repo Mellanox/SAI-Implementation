@@ -4400,6 +4400,19 @@ static sai_status_t db_port_qos_map_id_set(_In_ const sai_object_id_t port_id,
         return status;
     }
 
+    /* Check if we can delegate applying QoS map to the LAG, in case of
+     * SDK does not support applying it on LAG but to the port only */
+    if ((qos_map_type != SAI_QOS_MAP_TYPE_TC_TO_PRIORITY_GROUP) &&
+        (qos_map_type != SAI_QOS_MAP_TYPE_PFC_PRIORITY_TO_PRIORITY_GROUP)) {
+        if (mlnx_port_is_lag_member(port)) {
+            status = mlnx_port_by_log_id(port->lag_id, &port);
+            if (SAI_ERR(status)) {
+                SX_LOG_ERR("Failed lookup port config by log id %x\n", port->lag_id);
+                return status;
+            }
+        }
+    }
+
     port->qos_maps[qos_map_type] = qos_map_id;
     return SAI_STATUS_SUCCESS;
 }

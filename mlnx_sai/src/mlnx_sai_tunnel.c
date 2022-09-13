@@ -56,7 +56,8 @@ static sai_status_t mlnx_sai_create_vxlan_tunnel_map_list(_In_ sai_object_id_t  
                                                           _In_ sx_access_cmd_t       cmd);
 static sai_status_t mlnx_tunnel_map_entry_set_bmtor_obj(_In_ uint32_t tunnel_map_entry_idx,
                                                         _In_ uint32_t tunnel_idx,
-                                                        _In_ bool     is_add);
+                                                        _In_ bool     is_add,
+                                                        _In_ bool     remove_vrf_vni_map);
 static sai_status_t mlnx_tunnel_map_attr_type_get(_In_ const sai_object_key_t   *key,
                                                   _Inout_ sai_attribute_value_t *value,
                                                   _In_ uint32_t                  attr_index,
@@ -5620,7 +5621,8 @@ static sai_status_t mlnx_sai_tunnel_map_entry_clear_vxlan_bind_info(_In_ uint32_
             if (is_vrf_vni_entry) {
                 sai_status = mlnx_tunnel_map_entry_set_bmtor_obj(jj,
                                                                  tunnel_idx,
-                                                                 is_add);
+                                                                 is_add,
+                                                                 false);
                 if (SAI_ERR(sai_status)) {
                     SX_LOG_ERR("Error setting bmtor obj using tunnel map entry idx %d and tunnel idx %d, is add: %d\n",
                                jj, tunnel_idx, is_add);
@@ -5664,7 +5666,8 @@ static sai_status_t mlnx_sai_tunnel_map_entry_clear_vxlan_bind_info(_In_ uint32_
             if (is_vrf_vni_entry) {
                 sai_status = mlnx_tunnel_map_entry_set_bmtor_obj(jj,
                                                                  tunnel_idx,
-                                                                 is_add);
+                                                                 is_add,
+                                                                 false);
                 if (SAI_ERR(sai_status)) {
                     SX_LOG_ERR("Error setting bmtor obj using tunnel map entry idx %d and tunnel idx %d, is add: %d\n",
                                jj, tunnel_idx, is_add);
@@ -5778,7 +5781,8 @@ static sai_status_t mlnx_sai_tunnel_map_entry_bind_vxlan_set(_In_ uint32_t      
         } else {
             sai_status = mlnx_tunnel_map_entry_set_bmtor_obj(tunnel_map_entry_idx,
                                                              tunnel_idx,
-                                                             is_add);
+                                                             is_add,
+                                                             true);
             if (SAI_ERR(sai_status)) {
                 SX_LOG_ERR("Error setting bmtor obj using tunnel map entry idx %d and tunnel idx %x, is add: %d\n",
                            tunnel_map_entry_idx, tunnel_idx, is_add);
@@ -8733,7 +8737,8 @@ static sai_status_t mlnx_create_bmtor_internal_obj(_In_ sai_object_id_t       vr
     return SAI_STATUS_SUCCESS;
 }
 
-static sai_status_t mlnx_remove_bmtor_internal_obj(_In_ mlnx_bmtor_bridge_t *bmtor_bridge_entry)
+static sai_status_t mlnx_remove_bmtor_internal_obj(_In_ mlnx_bmtor_bridge_t *bmtor_bridge_entry,
+                                                   _In_ bool                 remove_vrf_vni_map)
 {
     sai_status_t          sai_status;
     sx_bridge_id_t        sx_bridge_id;
@@ -8757,29 +8762,31 @@ static sai_status_t mlnx_remove_bmtor_internal_obj(_In_ mlnx_bmtor_bridge_t *bmt
         return sai_status;
     }
 
-    sai_status = mlnx_get_tunnel_type_by_tunnel_id(bmtor_bridge_entry->tunnel_id, &sx_tunnel_map_entry.type);
-    if (SAI_ERR(sai_status)) {
-        SX_LOG_ERR("Failed to get tunnel type.\n");
-        SX_LOG_EXIT();
-        return sai_status;
-    }
-    sx_tunnel_map_entry.params.nve.bridge_id = sx_bridge_id;
-    sx_tunnel_map_entry.params.nve.vni = bmtor_bridge_entry->vni;
-    sx_tunnel_map_entry.params.nve.direction = SX_TUNNEL_MAP_DIR_BIDIR;
-    sdk_status = sx_api_tunnel_map_set(gh_sdk,
-                                       SX_ACCESS_CMD_DELETE,
-                                       bmtor_bridge_entry->sx_vxlan_tunnel_id,
-                                       &sx_tunnel_map_entry,
-                                       sx_tunnel_map_entry_cnt);
-    if (SX_STATUS_SUCCESS != sdk_status) {
-        sai_status = sdk_to_sai(sdk_status);
-        SX_LOG_ERR("Error deleting tunnel map for tunnel 0x%x with bridge 0x%x, vni %d, sx status %s\n",
-                   bmtor_bridge_entry->sx_vxlan_tunnel_id,
-                   sx_bridge_id,
-                   bmtor_bridge_entry->vni,
-                   SX_STATUS_MSG(sdk_status));
-        SX_LOG_EXIT();
-        return sai_status;
+    if (remove_vrf_vni_map) {
+        sai_status = mlnx_get_tunnel_type_by_tunnel_id(bmtor_bridge_entry->tunnel_id, &sx_tunnel_map_entry.type);
+        if (SAI_ERR(sai_status)) {
+            SX_LOG_ERR("Failed to get tunnel type.\n");
+            SX_LOG_EXIT();
+            return sai_status;
+        }
+        sx_tunnel_map_entry.params.nve.bridge_id = sx_bridge_id;
+        sx_tunnel_map_entry.params.nve.vni = bmtor_bridge_entry->vni;
+        sx_tunnel_map_entry.params.nve.direction = SX_TUNNEL_MAP_DIR_BIDIR;
+        sdk_status = sx_api_tunnel_map_set(gh_sdk,
+                                           SX_ACCESS_CMD_DELETE,
+                                           bmtor_bridge_entry->sx_vxlan_tunnel_id,
+                                           &sx_tunnel_map_entry,
+                                           sx_tunnel_map_entry_cnt);
+        if (SX_STATUS_SUCCESS != sdk_status) {
+            sai_status = sdk_to_sai(sdk_status);
+            SX_LOG_ERR("Error deleting tunnel map for tunnel 0x%x with bridge 0x%x, vni %d, sx status %s\n",
+                       bmtor_bridge_entry->sx_vxlan_tunnel_id,
+                       sx_bridge_id,
+                       bmtor_bridge_entry->vni,
+                       SX_STATUS_MSG(sdk_status));
+            SX_LOG_EXIT();
+            return sai_status;
+        }
     }
 
     sai_status = mlnx_bridge_api.remove_bridge_port(bmtor_bridge_entry->tunnel_bport_oid);
@@ -8817,7 +8824,8 @@ static sai_status_t mlnx_remove_bmtor_internal_obj(_In_ mlnx_bmtor_bridge_t *bmt
 /* This function needs to be guarded by lock */
 static sai_status_t mlnx_tunnel_map_entry_set_bmtor_obj(_In_ uint32_t tunnel_map_entry_idx,
                                                         _In_ uint32_t tunnel_idx,
-                                                        _In_ bool     is_add)
+                                                        _In_ bool     is_add,
+                                                        _In_ bool     remove_vrf_vni_map)
 {
     sai_status_t        sai_status;
     sai_object_id_t     vrf_oid, tunnel_oid;
@@ -8910,7 +8918,7 @@ static sai_status_t mlnx_tunnel_map_entry_set_bmtor_obj(_In_ uint32_t tunnel_map
 
         sai_db_unlock();
 
-        sai_status = mlnx_remove_bmtor_internal_obj(&bmtor_bridge_entry);
+        sai_status = mlnx_remove_bmtor_internal_obj(&bmtor_bridge_entry, remove_vrf_vni_map);
         if (SAI_ERR(sai_status)) {
             sai_db_write_lock();
             SX_LOG_ERR(
@@ -9417,7 +9425,7 @@ sai_status_t mlnx_tunnel_bridge_counter_update(_In_ sai_object_id_t tunnel_id,
 
         sai_db_unlock();
 
-        sai_status = mlnx_remove_bmtor_internal_obj(&bmtor_bridge_entry);
+        sai_status = mlnx_remove_bmtor_internal_obj(&bmtor_bridge_entry, true);
         if (SAI_ERR(sai_status)) {
             SX_LOG_ERR("Error removing bmtor internal obj\n");
             SX_LOG_EXIT();

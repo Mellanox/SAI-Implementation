@@ -538,8 +538,11 @@ static sai_status_t remove_port_from_lag(sx_port_log_id_t lag_id, sx_port_log_id
     }
 
     /* Do re-apply for port params which were removed by us before add to the LAG */
-    status = mlnx_port_params_clone(port, lag, PORT_PARAMS_QUEUE | PORT_PARAMS_MIRROR | PORT_PARAMS_SFLOW |
-                                    PORT_PARAMS_POLICER | PORT_PARAMS_EGRESS_BLOCK | PORT_PARAMS_ETS_GROUP);
+    status = mlnx_port_params_clone(port,
+                                    lag,
+                                    PORT_PARAMS_QUEUE | PORT_PARAMS_MIRROR | PORT_PARAMS_SFLOW |
+                                    PORT_PARAMS_POLICER | PORT_PARAMS_EGRESS_BLOCK | PORT_PARAMS_ETS_GROUP |
+                                    PORT_PARAMS_QOS);
     if (SAI_ERR(status)) {
         return status;
     }
