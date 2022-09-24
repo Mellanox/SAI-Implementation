@@ -3342,6 +3342,10 @@ sai_status_t mlnx_internal_acls_bind(_In_ sx_access_cmd_t   cmd,
                                      _In_ sai_object_id_t   sai_port_id,
                                      _In_ sai_object_type_t type);
 
+sai_status_t sai_policer_attr_set(_In_ const sai_object_key_t* key,
+                                  _In_ sai_attribute_t         sai_attr,
+                                  _In_ char                  * attr_name);
+
 /* DB read lock is needed */
 sai_status_t mlnx_switch_get_mac(sx_mac_addr_t *mac);
 

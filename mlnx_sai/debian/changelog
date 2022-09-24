@@ -1,5 +1,5 @@
-mlnx-sai (1.mlnx.SAIBuild2205.22.1.6) unstable; urgency=low
+mlnx-sai (1.mlnx.SAIBuild2205.22.1.19) unstable; urgency=low
   [ MLNX ]
-  * Initial release. (1.mlnx.SAIBuild2205.22.1.6)
+  * Initial release. (1.mlnx.SAIBuild2205.22.1.19)
 
  -- Adir Atias <adira@mellanox.com>  Thu, 10 Oct 2015 14:54:17 +0300
