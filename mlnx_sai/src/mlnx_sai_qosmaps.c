@@ -754,7 +754,7 @@ static sai_status_t mlnx_create_qos_map(_Out_ sai_object_id_t     * qos_map_id,
     SX_LOG_ENTER();
 
     if (NULL == qos_map_id) {
-        SX_LOG_ERR("NULL qos map id param\n");
+        SX_LOG_ERR("NULL QoS map id param\n");
         return SAI_STATUS_INVALID_PARAMETER;
     }
 
@@ -762,13 +762,13 @@ static sai_status_t mlnx_create_qos_map(_Out_ sai_object_id_t     * qos_map_id,
                                     qos_map_vendor_attribs,
                                     SAI_COMMON_API_CREATE);
 
-    if (status != SAI_STATUS_SUCCESS) {
+    if (SAI_ERR(status)) {
         SX_LOG_ERR("Failed attribs check\n");
         return status;
     }
 
     sai_attr_list_to_str(attr_count, attr_list, SAI_OBJECT_TYPE_QOS_MAP, MAX_LIST_VALUE_STR_LEN, list_str);
-    SX_LOG_NTC("Create qos map, %s\n", list_str);
+    SX_LOG_NTC("Create QoS map, %s\n", list_str);
 
     status = find_attrib_in_list(attr_count, attr_list, SAI_QOS_MAP_ATTR_TYPE,
                                  &type, &type_index);
@@ -778,8 +778,8 @@ static sai_status_t mlnx_create_qos_map(_Out_ sai_object_id_t     * qos_map_id,
     sai_db_write_lock();
 
     status = db_qos_map_alloc(&new_id);
-    if (status != SAI_STATUS_SUCCESS) {
-        SX_LOG_ERR("Failed to alloc qos map\n");
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to allocate QoS map\n");
         goto out;
     }
 
@@ -790,15 +790,15 @@ static sai_status_t mlnx_create_qos_map(_Out_ sai_object_id_t     * qos_map_id,
                                  &list, &list_index);
 
     status = db_qos_map_fill_params(qos_map, status == SAI_STATUS_SUCCESS ? &list->qosmap : NULL);
-    if (status != SAI_STATUS_SUCCESS) {
-        SX_LOG_ERR("Failed to fill new qos map params\n");
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to fill new QoS map params\n");
         db_qos_map_free(new_id);
         goto out;
     }
 
     status = mlnx_create_object(SAI_OBJECT_TYPE_QOS_MAP, new_id, NULL, qos_map_id);
-    if (status != SAI_STATUS_SUCCESS) {
-        SX_LOG_ERR("Failed create mlnx object id\n");
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to create mlnx object id\n");
         db_qos_map_free(new_id);
         goto out;
     }
@@ -807,10 +807,9 @@ static sai_status_t mlnx_create_qos_map(_Out_ sai_object_id_t     * qos_map_id,
         sai_qos_map_to_str(&list->qosmap, type->u32, MAX_VALUE_STR_LEN, value_str);
     }
 
-    SX_LOG_NTC("Created qos map id %" PRIx64 ", %s\n", *qos_map_id, value_str);
+    SX_LOG_NTC("Created QoS map id 0x%" PRIx64 ", [DB:%u] %s\n", *qos_map_id, new_id, value_str);
 
 out:
-    sai_db_sync();
     sai_db_unlock();
     SX_LOG_EXIT();
     return status;
@@ -836,43 +835,41 @@ static sai_status_t mlnx_remove_qos_map(_In_ sai_object_id_t qos_map_id)
 
     status = mlnx_object_to_type(qos_map_id, SAI_OBJECT_TYPE_QOS_MAP, &del_id, NULL);
     if (status != SAI_STATUS_SUCCESS) {
-        SX_LOG_ERR("Invalid qos map id\n");
+        SX_LOG_ERR("Invalid QoS map OID [0x%lX]\n", qos_map_id);
         return status;
     }
 
     sai_db_write_lock();
 
     status = mlnx_qos_map_get_by_id(qos_map_id, &qos_map);
-    if (status != SAI_STATUS_SUCCESS) {
+    if (SAI_ERR(status)) {
         goto out;
     }
 
     if (g_sai_db_ptr->switch_qos_maps[qos_map->type]) {
         status = SAI_STATUS_OBJECT_IN_USE;
-        SX_LOG_ERR("QoS map is already in use by switch\n");
+        SX_LOG_ERR("QoS map [DB:%u] is still in use by switch\n", del_id);
         goto out;
     }
 
     mlnx_port_foreach(port, port_idx) {
         if (port->qos_maps[qos_map->type] == del_id) {
             status = SAI_STATUS_OBJECT_IN_USE;
-            SX_LOG_ERR("QoS map is already in use by port %" PRIx64 "\n", port->saiport);
+            SX_LOG_ERR("QoS map [DB:%u] is still in use by port %" PRIx64 "\n", del_id, port->saiport);
             goto out;
         }
     }
 
     status = db_qos_map_free(del_id);
-    if (status != SAI_STATUS_SUCCESS) {
-        SX_LOG_ERR("Failed to remove qos map id=%u\n", del_id);
-    } else {
-        sai_db_sync();
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to remove QoS map [DB:%u]\n", del_id);
     }
 
 out:
     sai_db_unlock();
 
-    if (status == SAI_STATUS_SUCCESS) {
-        SX_LOG_NTC("Removed QoS map id=%" PRIx64 "\n", qos_map_id);
+    if (SAI_OK(status)) {
+        SX_LOG_NTC("Removed QoS map OID=%" PRIx64 "\n", qos_map_id);
     }
 
     SX_LOG_EXIT();

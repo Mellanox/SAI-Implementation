@@ -11,6 +11,9 @@
         <!-- Number of ports in the following port list -->
         <number-of-physical-ports>32</number-of-physical-ports>
 
+        <!-- per-port IP counter enable -->
+        <per-port-ip-counter-enabled>0</per-port-ip-counter-enabled>
+
         <!-- List of ports in the device -->
         <ports-list>
             <port-info>

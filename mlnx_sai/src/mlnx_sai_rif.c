@@ -391,7 +391,7 @@ static sai_status_t mlnx_rif_oid_data_fetch(_In_ sai_object_id_t             rif
     return SAI_STATUS_SUCCESS;
 }
 
-static sai_status_t mlnx_rif_oid_counter_get(_In_ sai_object_id_t rif_oid, _Out_ sx_router_counter_id_t *sx_counter)
+sai_status_t mlnx_rif_oid_counter_get(_In_ sai_object_id_t rif_oid, _Out_ sx_router_counter_id_t *sx_counter)
 {
     sai_status_t        status;
     mlnx_rif_sx_data_t *sx_data;

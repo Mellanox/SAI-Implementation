@@ -760,7 +760,11 @@ sai_status_t mlnx_wait_for_bulk_read_event(_In_ sai_bulk_counter_event_t *event)
 #ifndef _WIN32
     bulk_context_cond_mutex_lock(event->mutex);
     clock_gettime(CLOCK_REALTIME, &time);
+#ifdef IS_PLD
+    time.tv_sec += 2000;
+#else
     time.tv_sec += 1;
+#endif
     while (-1 == event->read_done) {
         retval = pthread_cond_timedwait(&event->cond, &event->mutex, &time);
         if (retval != 0) {

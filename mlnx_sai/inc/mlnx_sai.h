@@ -856,6 +856,7 @@ bool mlnx_chip_is_spc3(void);
 bool mlnx_chip_is_spc4(void);
 bool mlnx_chip_is_spc2or3(void);
 bool mlnx_chip_is_spc2or3or4(void);
+bool mlnx_chip_is_spc1or2or3(void);
 
 typedef struct _mlnx_counter_t {
     mlnx_shm_array_hdr_t array_hdr;
@@ -1159,7 +1160,6 @@ typedef struct _acl_index_t {
 } acl_index_t;
 
 sai_status_t mlnx_acl_init(void);
-sai_status_t mlnx_vxlan_srcport_acl_add(sai_object_id_t switch_id);
 sai_status_t mlnx_vxlan_udp_srcport_acl_add(uint32_t tunnel_db_idx);
 sai_status_t mlnx_vxlan_udp_srcport_acl_update(uint32_t tunnel_db_idx);
 sai_status_t mlnx_vxlan_udp_srcport_acl_remove(uint32_t tunnel_db_idx);
@@ -1583,6 +1583,7 @@ sai_status_t mlnx_rif_oid_create(_In_ mlnx_rif_type_t          rif_type,
                                  _In_ mlnx_shm_rm_array_idx_t  idx,
                                  _Out_ sai_object_id_t        *rif_oid);
 sai_status_t mlnx_rif_sx_to_sai_oid(_In_ sx_router_interface_t sx_rif_id, _Out_ sai_object_id_t      *oid);
+sai_status_t mlnx_rif_oid_counter_get(_In_ sai_object_id_t rif_oid, _Out_ sx_router_counter_id_t *sx_counter);
 sai_status_t mlnx_rif_oid_to_bridge_rif(_In_ sai_object_id_t rif_oid, _Out_ uint32_t *bridge_rif_idx);
 sai_status_t mlnx_rif_oid_to_sdk_rif_id(sai_object_id_t rif_oid, sx_router_interface_t *sdk_rif_id);
 sai_status_t mlnx_rif_sx_init(_In_ sx_router_id_t                     sx_router,
@@ -2275,6 +2276,101 @@ typedef struct _acl_group_db_t {
     acl_group_member_t         members[];
 } acl_group_db_t;
 
+typedef struct {
+    sx_acl_id_t             group_id;
+    sx_acl_group_priority_t priority;
+} perport_ipcnt_group_data_t;
+
+typedef struct {
+    perport_ipcnt_group_data_t ingress_group;
+    perport_ipcnt_group_data_t egress_group;
+} perport_ipcnt_group_t;
+
+enum {
+    /* below is ingress direction */
+    PERPORT_IPCNT_IN_FIRST_INDEX = 0,
+    /* SAI_PORT_STAT_IP_IN_UCAST_PKTS */
+    PERPORT_IPCNT_IN_IP_UCAST = PERPORT_IPCNT_IN_FIRST_INDEX,
+    /* SAI_PORT_STAT_IP_IN_NON_UCAST_PKTS */
+    PERPORT_IPCNT_IN_IP_NON_UCAST = 1,
+    /* SAI_PORT_STAT_IPV6_IN_UCAST_PKTS */
+    PERPORT_IPCNT_IN_IP6_UCAST = 2,
+    /* SAI_PORT_STAT_IPV6_IN_NON_UCAST_PKTS */
+    PERPORT_IPCNT_IN_IP6_NON_UCAST = 3,
+    /* above is ingress direction */
+    PERPORT_IPCNT_IN_LAST_INDEX = PERPORT_IPCNT_IN_IP6_NON_UCAST,
+    /* below is egress direction */
+    PERPORT_IPCNT_OUT_FIRST_INDEX = 4,
+    /* SAI_PORT_STAT_IP_OUT_UCAST_PKTS */
+    PERPORT_IPCNT_OUT_IP_UCAST = PERPORT_IPCNT_OUT_FIRST_INDEX,
+    /* SAI_PORT_STAT_IP_OUT_NON_UCAST_PKTS */
+    PERPORT_IPCNT_OUT_IP_NON_UCAST = 5,
+    /* SAI_PORT_STAT_IPV6_OUT_UCAST_PKTS */
+    PERPORT_IPCNT_OUT_IP6_UCAST = 6,
+    /* SAI_PORT_STAT_IPV6_OUT_NON_UCAST_PKTS */
+    PERPORT_IPCNT_OUT_IP6_NON_UCAST = 7,
+    /* above is egress direction */
+    PERPORT_IPCNT_OUT_LAST_INDEX = PERPORT_IPCNT_OUT_IP6_NON_UCAST,
+
+    PERPORT_IPCNT_NUMBER_IN_PORT = 8,
+};
+
+#define sai_2_ppipcnt_port_index(sai_port_index) ((sai_port_index) + 1)
+#define ppipcnt_2_sai_port_index(ppipcnt_pindex) ((ppipcnt_pindex) - 1)
+
+/* offset_2_port is to record the corresponding port_index,
+ * and the port_index start from 1, use sai_2_ppipcnt_port_index
+ * to set and ppipcnt_2_sai_port_index to get, 0 means invalid */
+typedef struct {
+    sx_acl_key_type_t    key_handle;
+    sx_acl_region_id_t   region_id;
+    sx_acl_id_t          acl_id;
+    sx_acl_size_t        current_size;
+    sx_acl_rule_offset_t free_space;
+    uint16_t             offset_2_port[MAX_PORTS_DB];
+} perport_ipcnt_table_data_t;
+
+#define PERPORT_IPCNT_LAG_TABLE_SIZE 16
+typedef struct {
+    uint32_t                   size_delta;
+    perport_ipcnt_table_data_t ingress_table;
+    perport_ipcnt_table_data_t ingress_lag_table;
+    perport_ipcnt_table_data_t egress_table;
+} perport_ipcnt_table_t;
+
+enum {
+    PERPORT_IPCNT_KEY_L3_TYPE = 0,
+    PERPORT_IPCNT_KEY_DMAC_UC = 1,
+    PERPORT_IPCNT_KEY_PORT    = 2,
+    PERPORT_IPCNT_KEY_MAX,
+};
+
+typedef struct {
+    sx_acl_rule_offset_t entry_id[PERPORT_IPCNT_NUMBER_IN_PORT];
+    /* counter_pool_idx start from 1 */
+    uint16_t             counter_pool_idx;
+    uint8_t              perport_ipcnt_flag;
+    uint8_t              reserved;
+    sx_mc_container_id_t port_list_id;
+} perport_ipcnt_entry_t;
+
+#define PERPORT_IPCNT_COUNTER_RESIZE 32
+/* port_index indicate which port is using this pool, it start from 1
+ * use sai_2_ppipcnt_port_index to set and
+ * ppipcnt_2_sai_port_index to get, 0 means invalid */
+typedef struct {
+    uint8_t              is_used;
+    uint8_t              reserved;
+    uint16_t             port_index;
+    sx_flow_counter_id_t ip_counters[PERPORT_IPCNT_NUMBER_IN_PORT];
+} perport_ipcnt_pool_data_t;
+
+typedef struct {
+    uint16_t                  current_size;
+    uint16_t                  reserved;
+    perport_ipcnt_pool_data_t pool_data[MAX_PORTS_DB];
+} perport_ipcnt_pool_t;
+
 typedef struct _mlnx_acl_db_t {
     uint8_t              *db_base_ptr;
     acl_table_db_t       *acl_table_db;
@@ -2282,10 +2378,15 @@ typedef struct _mlnx_acl_db_t {
     acl_setting_tbl_t    *acl_settings_tbl;
     acl_pbs_map_entry_t  *acl_pbs_map_db;
     acl_bind_points_db_t *acl_bind_points;
-    acl_group_db_t       *acl_groups_db;
-    acl_vlan_group_t     *acl_vlan_groups_db;
-    acl_group_bound_to_t *acl_group_bound_to_db;
-    mlnx_udf_db_t         udf_db;
+    /* do not access directly as contains dynamic part, use sai_acl_db_group_ptr */
+    acl_group_db_t        *acl_groups_db;
+    acl_vlan_group_t      *acl_vlan_groups_db;
+    acl_group_bound_to_t  *acl_group_bound_to_db;
+    mlnx_udf_db_t          udf_db;
+    perport_ipcnt_group_t *perport_ipcnt_group;
+    perport_ipcnt_table_t *perport_ipcnt_table;
+    perport_ipcnt_entry_t *perport_ipcnt_entry;
+    perport_ipcnt_pool_t  *perport_ipcnt_pool;
 } mlnx_acl_db_t;
 
 sai_status_t mlnx_acl_port_lag_event_handle_locked(_In_ const mlnx_port_config_t *port, _In_ acl_event_type_t event);
@@ -2442,6 +2543,37 @@ sai_status_t mlnx_gp_reg_db_alloc_first_free(_Out_ mlnx_gp_reg_db_t       **gp_r
                                              _In_ mlnx_gp_reg_usage_t       reg_usage);
 sai_status_t mlnx_gp_reg_db_free(_In_ mlnx_shm_rm_array_idx_t idx);
 
+typedef enum {
+    INTERNAL_ACL_OP_ADD_PORT,
+    INTERNAL_ACL_OP_DEL_PORT,
+    INTERNAL_ACL_OP_ADD_LAG,
+    INTERNAL_ACL_OP_DEL_LAG,
+    INTERNAL_ACL_OP_ADD_PORT_TO_LAG,
+    INTERNAL_ACL_OP_DEL_PORT_FROM_LAG,
+} internal_acl_op_types;
+
+#define round_up_perport_ipcnt_counter_num(bulk_num, flow_counter_num)          \
+    do {                                                                        \
+        bulk_num = (flow_counter_num <= 16) ? 16 : (                            \
+            (flow_counter_num <= 32) ? 32 : (                                   \
+                (flow_counter_num <= 64) ? 64 : (                               \
+                    (flow_counter_num <= 128) ? 128 : (                         \
+                        (flow_counter_num <= 256) ? 256 : (                     \
+                            (flow_counter_num <= 512) ? 512 : (                 \
+                                (flow_counter_num <= 1024) ? 1024 : 2048)))))); \
+    } while(0)
+
+bool mlnx_perport_ipcnt_is_enable_nolock(void);
+bool mlnx_perport_ipcnt_is_enable(void);
+void perport_ipcnt_get_counter_pool_data(_In_ uint32_t                     pool_data_index,
+                                         _Out_ perport_ipcnt_pool_data_t **pool_data);
+void perport_ipcnt_get_counter_base_id(_In_ uint32_t               pool_data_index,
+                                       _Out_ sx_flow_counter_id_t *counter_id);
+sai_status_t mlnx_perport_ipcnt_get_counter_base_id_by_port(_In_ sai_object_id_t        port_id,
+                                                            _Out_ sx_flow_counter_id_t *counter_id);
+sai_status_t mlnx_perport_ipcnt_init(_In_ uint32_t port_number);
+sai_status_t mlnx_perport_ipcnt_ops(_In_ sx_port_log_id_t port_id, _In_ uint16_t port_index, _In_ uint32_t op_type);
+
 sai_status_t mlnx_udf_db_udf_group_size_get(uint32_t *db_size);
 sai_status_t mlnx_sai_udf_get_issu_udf_info(_In_ uint32_t                    group_db_index,
                                             _Out_ mlnx_issu_gp_reg_udf_info *udf_info);
@@ -2591,8 +2723,13 @@ typedef struct _mlnx_tunnel_entry_t {
     sx_tunnel_id_t                        sx_tunnel_id_ipv6;
     bool                                  ipv4_created;
     bool                                  ipv6_created;
+    bool                                  is_main_tunnel;
     sx_router_interface_t                 sx_overlay_rif_ipv6;
     sai_object_id_t                       sai_underlay_rif;
+    bool                                  is_tunnel_p2p;
+    uint16_t                              ipip_tunnel_p2p_refcnt;
+    sai_ip_address_t                      sai_underlay_sip;
+    sai_ip_address_t                      sai_underlay_dip;
     sai_object_id_t                       sai_tunnel_map_encap_id_array[MLNX_TUNNEL_MAP_MAX];
     uint32_t                              sai_tunnel_map_encap_cnt;
     sai_object_id_t                       sai_tunnel_map_decap_id_array[MLNX_TUNNEL_MAP_MAX];
@@ -2610,7 +2747,9 @@ typedef struct _mlnx_tunnel_entry_t {
     mlnx_vxlan_udp_sport_acl_t            vxlan_acl;
 } mlnx_tunnel_entry_t;
 
-#define MLNX_MAX_TUNNEL_TYPES_NUM SAI_TUNNEL_TYPE_MPLS + 1
+#define MLNX_MAX_TUNNEL_TYPES_NUM  SAI_TUNNEL_TYPE_MPLS + 1
+#define TUNNEL_IPIP_P2P_OVERLAY_IF sx_tunnel_attr.attributes.ipinip_p2p.overlay_rif
+#define TUNNEL_IPIP_P2P_UIF        sx_tunnel_attr.attributes.ipinip_p2p.underlay_rif
 
 typedef struct _mlnx_switch_tunnel_t {
     sai_object_id_t                   switch_tunnel_id;
@@ -2998,6 +3137,7 @@ typedef struct sai_db {
     uint32_t           ports_number;
     uint32_t           ports_configured;
     uint32_t           max_ipinip_ipv6_loopback_rifs;
+    bool               perport_ipcnt_enable;
     mlnx_port_config_t ports_db[MAX_PORTS_DB * 2];
     mlnx_bridge_port_t bridge_ports_db[MAX_BRIDGE_PORTS];
     uint32_t           non_1q_bports_created; /* to optimize mlnx_bridge_non1q_port_foreach */
@@ -3090,7 +3230,6 @@ typedef struct sai_db {
     mlnx_shm_pool_t                   shm_pool;
     mlnx_isolation_group_t            isolation_groups[MAX_ISOLATION_GROUPS];
     mlnx_port_isolation_api_t         port_isolation_api;
-    bool                              vxlan_srcport_range_enabled;
     mlnx_switch_tunnel_t              switch_tunnel[MLNX_MAX_TUNNEL_TYPES_NUM];
     uint16_t                          accumed_flow_cnt_in_k;
 #ifndef _WIN32
@@ -3338,9 +3477,8 @@ sai_status_t mlnx_wred_mirror_port_event(_In_ sx_port_log_id_t port_log_id, _In_
 sai_status_t mlnx_port_wred_mirror_set_impl(_In_ sx_port_log_id_t     sx_port,
                                             _In_ sx_span_session_id_t sx_session,
                                             _In_ bool                 is_add);
-sai_status_t mlnx_internal_acls_bind(_In_ sx_access_cmd_t   cmd,
-                                     _In_ sai_object_id_t   sai_port_id,
-                                     _In_ sai_object_type_t type);
+sai_status_t mlnx_internal_acls_bind(_In_ internal_acl_op_types op_type,
+                                     _In_ sai_object_id_t       sai_port_id);
 
 sai_status_t sai_policer_attr_set(_In_ const sai_object_key_t* key,
                                   _In_ sai_attribute_t         sai_attr,
@@ -3348,6 +3486,8 @@ sai_status_t sai_policer_attr_set(_In_ const sai_object_key_t* key,
 
 /* DB read lock is needed */
 sai_status_t mlnx_switch_get_mac(sx_mac_addr_t *mac);
+
+sai_status_t mlnx_port_qos_params_clear(_In_ mlnx_port_config_t *port);
 
 /* DB read lock is needed */
 sai_status_t __mlnx_scheduler_to_queue_apply(sai_object_id_t   scheduler_id,
@@ -3389,7 +3529,6 @@ sai_status_t mlnx_sched_hierarchy_foreach(mlnx_port_config_t    *port,
 #define SAI_KEY_AGGREGATE_BRIDGE_DROPS               "SAI_AGGREGATE_BRIDGE_DROPS"
 #define SAI_KEY_DUMP_STORE_PATH                      "SAI_DUMP_STORE_PATH"
 #define SAI_KEY_DUMP_STORE_AMOUNT                    "SAI_DUMP_STORE_AMOUNT"
-#define SAI_KEY_VXLAN_SRCPORT_RANGE_ENABLE           "SAI_VXLAN_SRCPORT_RANGE_ENABLE"
 #define SAI_KEY_ACCUMULATED_FLOW_COUNTER_UNITS_IN_KB "SAI_ACCUMULATED_FLOW_COUNTER_MAX"
 
 #define MLNX_MIRROR_VLAN_TPID           0x8100

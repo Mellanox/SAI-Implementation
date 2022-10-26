@@ -2924,6 +2924,18 @@ bool mlnx_chip_is_spc2or3or4(void)
            (chip_type == SX_CHIP_TYPE_SPECTRUM4);
 }
 
+bool mlnx_chip_is_spc1or2or3(void)
+{
+    sx_chip_types_t chip_type = g_sai_db_ptr->sx_chip_type;
+
+    assert(chip_type != SX_CHIP_TYPE_UNKNOWN);
+
+    return (chip_type == SX_CHIP_TYPE_SPECTRUM) ||
+           (chip_type == SX_CHIP_TYPE_SPECTRUM_A1) ||
+           (chip_type == SX_CHIP_TYPE_SPECTRUM2) ||
+           (chip_type == SX_CHIP_TYPE_SPECTRUM3);
+}
+
 mlnx_platform_type_t mlnx_platform_type_get(void)
 {
     return g_sai_db_ptr->platform_type;
@@ -3309,6 +3321,13 @@ static sai_status_t parse_port_info(xmlDoc *doc, xmlNode * port_node)
         port->port_map.lane_bmap |= 1 << ii;
     }
 
+    for (ii = 0; ii < g_sai_db_ptr->ports_configured; ii++) {
+        if (g_sai_db_ptr->ports_db[ii].module == module) {
+            port->port_map.lane_bmap = port->port_map.lane_bmap << g_sai_db_ptr->ports_db[ii].width;
+            break;
+        }
+    }
+
     g_sai_db_ptr->ports_configured++;
 
     MLNX_SAI_LOG_NTC("Port %u {local=%u module=%u width=%u lanes=0x%x breakout-modes=%u split=%u, port-speed=%u}\n",
@@ -3458,6 +3477,11 @@ static sai_status_t parse_elements(xmlDoc *doc, xmlNode * a_node)
             MLNX_SAI_LOG_NTC("issu enabled: %u\n", g_sai_db_ptr->issu_enabled);
             /* divide ACL resources by half for FFB */
             g_sai_db_ptr->acl_divider = g_sai_db_ptr->issu_enabled ? 2 : 1;
+            xmlFree(key);
+        } else if ((!xmlStrcmp(cur_node->name, (const xmlChar*)"per-port-ip-counter-enabled"))) {
+            key = xmlNodeListGetString(doc, cur_node->children, 1);
+            g_sai_db_ptr->perport_ipcnt_enable = (uint32_t)atoi((const char*)key);
+            MLNX_SAI_LOG_NTC("per-port IP counter enabled: %u\n", g_sai_db_ptr->perport_ipcnt_enable);
             xmlFree(key);
         } else {
             /* parse all children of current element */
@@ -6067,7 +6091,11 @@ static uint32_t sai_acl_db_size_get()
             sizeof(acl_vlan_group_t) * ACL_VLAN_GROUP_COUNT) +
            ((sizeof(acl_group_bound_to_t) + (sizeof(acl_bind_point_index_t) * SAI_ACL_MAX_BIND_POINT_BOUND))
             * ACL_GROUP_NUMBER / g_sai_db_ptr->acl_divider) +
-           sai_udf_db_size_get();
+           sai_udf_db_size_get() +
+           sizeof(perport_ipcnt_group_t) +
+           sizeof(perport_ipcnt_table_t) +
+           sizeof(perport_ipcnt_entry_t) * MAX_PORTS_DB +
+           sizeof(perport_ipcnt_pool_t);
 }
 
 static uint32_t sai_udf_db_size_get()
@@ -6107,6 +6135,15 @@ static void sai_acl_db_init()
                                                                       sizeof(acl_vlan_group_t) * ACL_VLAN_GROUP_COUNT);
 
     sai_udf_db_init();
+    g_sai_acl_db_ptr->perport_ipcnt_group =
+        (perport_ipcnt_group_t *)((uint8_t*)g_sai_acl_db_ptr->udf_db.matches + MLNX_UDF_DB_MATCHES_SIZE);
+    g_sai_acl_db_ptr->perport_ipcnt_table =
+        (perport_ipcnt_table_t*)((uint8_t*)g_sai_acl_db_ptr->perport_ipcnt_group + sizeof(perport_ipcnt_group_t));
+    g_sai_acl_db_ptr->perport_ipcnt_entry =
+        (perport_ipcnt_entry_t*)((uint8_t*)g_sai_acl_db_ptr->perport_ipcnt_table + sizeof(perport_ipcnt_table_t));
+    g_sai_acl_db_ptr->perport_ipcnt_pool =
+        (perport_ipcnt_pool_t*)((uint8_t*)g_sai_acl_db_ptr->perport_ipcnt_entry + sizeof(perport_ipcnt_entry_t) *
+                                MAX_PORTS_DB);
 }
 
 static void sai_udf_db_init()
@@ -6818,7 +6855,6 @@ static sai_status_t mlnx_initialize_switch(sai_object_id_t switch_id, bool *tran
 {
     int                         system_err;
     const char                 *config_file, *boot_type_char, *aggregate_bridge_drops, *dump_path, *max_dumps;
-    const char                 *vxlan_srcport_range_enabled;
     const char                 *accumed_flow_cnt;
     mlnx_sai_boot_type_t        boot_type = 0;
     sx_router_resources_param_t resources_param;
@@ -6954,13 +6990,6 @@ static sai_status_t mlnx_initialize_switch(sai_object_id_t switch_id, bool *tran
         g_sai_db_ptr->aggregate_bridge_drops = false;
     }
 
-    vxlan_srcport_range_enabled = g_mlnx_services.profile_get_value(g_profile_id, SAI_KEY_VXLAN_SRCPORT_RANGE_ENABLE);
-    if (NULL != vxlan_srcport_range_enabled) {
-        g_sai_db_ptr->vxlan_srcport_range_enabled = (bool)atoi(vxlan_srcport_range_enabled);
-    } else {
-        g_sai_db_ptr->vxlan_srcport_range_enabled = false;
-    }
-
     accumed_flow_cnt = g_mlnx_services.profile_get_value(g_profile_id, SAI_KEY_ACCUMULATED_FLOW_COUNTER_UNITS_IN_KB);
     if ((NULL != accumed_flow_cnt) && (atoi(accumed_flow_cnt) > 0) && (atoi(accumed_flow_cnt) <= 200)) {
         g_sai_db_ptr->accumed_flow_cnt_in_k = atoi(accumed_flow_cnt);
@@ -6976,6 +7005,13 @@ static sai_status_t mlnx_initialize_switch(sai_object_id_t switch_id, bool *tran
 
     if (SAI_STATUS_SUCCESS != (sai_status = mlnx_sai_issu_init_impl(g_profile_id, boot_type))) {
         return sai_status;
+    }
+
+    /* initialize the per-port IP counter */
+    if (mlnx_perport_ipcnt_is_enable_nolock()) {
+        if (SAI_STATUS_SUCCESS != (sai_status = mlnx_perport_ipcnt_init(g_sai_db_ptr->ports_number))) {
+            return sai_status;
+        }
     }
 
     if (SAI_STATUS_SUCCESS != (sai_status = mlnx_dvs_mng_stage(boot_type, switch_id))) {
@@ -7208,13 +7244,6 @@ static sai_status_t mlnx_initialize_switch(sai_object_id_t switch_id, bool *tran
         return sai_status;
     }
 
-    if (g_sai_db_ptr->vxlan_srcport_range_enabled) {
-        if (SAI_STATUS_SUCCESS != (sai_status = mlnx_vxlan_srcport_acl_add(switch_id))) {
-            MLNX_SAI_LOG_ERR("Failed to ADD VxLAN srcport ACL to DB\n");
-            return sai_status;
-        }
-    }
-
     is_warmboot_init_stage = (BOOT_TYPE_WARM == g_sai_db_ptr->boot_type) &&
                              (!g_sai_db_ptr->issu_end_called);
     mlnx_port_phy_foreach(port, ii) {
@@ -7225,9 +7254,7 @@ static sai_status_t mlnx_initialize_switch(sai_object_id_t switch_id, bool *tran
         /* Does not allow bind ACLs to LAG member on warm boot init */
         if (!is_warmboot_init_stage || (0 == port->before_issu_lag_id)) {
             if (SAI_STATUS_SUCCESS !=
-                (sai_status = mlnx_internal_acls_bind(SX_ACCESS_CMD_ADD, port->saiport, mlnx_port_is_lag(
-                                                          port) ? SAI_OBJECT_TYPE_LAG :
-                                                      SAI_OBJECT_TYPE_PORT))) {
+                (sai_status = mlnx_internal_acls_bind(INTERNAL_ACL_OP_ADD_PORT, port->saiport))) {
                 MLNX_SAI_LOG_ERR("Failed to bind internal ACLs to port %x \n", port->logical);
                 return sai_status;
             }
@@ -11157,12 +11184,6 @@ static sai_status_t mlnx_create_switch_tunnel(_Out_ sai_object_id_t      *switch
     uint8_t                           sport_mask = 0;
 
     SX_LOG_ENTER();
-
-    if (g_sai_db_ptr->vxlan_srcport_range_enabled) {
-        SX_LOG_ERR("Can not create switch tunnel when VxLAN SRC port range feature is enabled!\n");
-        SX_LOG_EXIT();
-        return SAI_STATUS_FAILURE;
-    }
 
     if (SAI_STATUS_SUCCESS !=
         (sai_status =

@@ -368,6 +368,7 @@ enum counter_type {
     CNT_REDECN  = 1 << 7,
     CNT_BUFF    = 1 << 8,
     CNT_TC      = 1 << 9,
+    CNT_IP      = 1 << 10,
 };
 
 enum mlnx_speed_bitmap_sp {
@@ -1864,9 +1865,9 @@ static sai_status_t mlnx_port_fec_set(_In_ const sai_object_key_t      *key,
     sx_port_log_id_t port_id;
 
 /*TODO: remove when fixed */
-#ifdef IS_SIMX
-    /* FEC is not supported on Simx */
-    SX_LOG_ERR("FEC is not supported on Simx.\n");
+#if defined IS_PLD || defined IS_SIMX
+    /* FEC is not supported on Simx/PLD */
+    SX_LOG_ERR("FEC is not supported on Simx/PLD.\n");
     return SAI_STATUS_NOT_SUPPORTED;
 #endif
 
@@ -3425,9 +3426,9 @@ static sai_status_t mlnx_port_fec_get(_In_ const sai_object_key_t   *key,
     sx_port_phy_mode_t admin, oper;
 
 /*TODO: remove when fixed */
-#ifdef IS_SIMX
-    /* FEC is not supported on Simx */
-    SX_LOG_ERR("FEC is not supported on Simx.\n");
+#if defined IS_PLD || defined IS_SIMX
+    /* FEC is not supported on Simx/PLD */
+    SX_LOG_ERR("FEC is not supported on Simx/PLD.\n");
     return SAI_STATUS_NOT_SUPPORTED;
 #endif
 
@@ -4400,20 +4401,24 @@ static sai_status_t db_port_qos_map_id_set(_In_ const sai_object_id_t port_id,
         return status;
     }
 
-    /* Check if we can delegate applying QoS map to the LAG, in case of
-     * SDK does not support applying it on LAG but to the port only */
-    if ((qos_map_type != SAI_QOS_MAP_TYPE_TC_TO_PRIORITY_GROUP) &&
-        (qos_map_type != SAI_QOS_MAP_TYPE_PFC_PRIORITY_TO_PRIORITY_GROUP)) {
-        if (mlnx_port_is_lag_member(port)) {
-            status = mlnx_port_by_log_id(port->lag_id, &port);
-            if (SAI_ERR(status)) {
-                SX_LOG_ERR("Failed lookup port config by log id %x\n", port->lag_id);
-                return status;
-            }
+    if (mlnx_port_is_lag_member(port)) {
+        status = mlnx_port_by_log_id(port->lag_id, &port);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed lookup port config by log id %x\n", port->lag_id);
+            return status;
         }
     }
 
     port->qos_maps[qos_map_type] = qos_map_id;
+    return SAI_STATUS_SUCCESS;
+}
+
+sai_status_t mlnx_port_qos_params_clear(_In_ mlnx_port_config_t *port_config)
+{
+    assert(port_config);
+
+    memset(port_config->qos_maps, 0, sizeof(port_config->qos_maps));
+
     return SAI_STATUS_SUCCESS;
 }
 
@@ -4906,8 +4911,13 @@ sai_status_t mlnx_port_qos_map_apply(_In_ const sai_object_id_t    port,
 
     /* Check if we can delegate applying QoS map to the LAG, in case of
      * SDK does not support applying it on LAG but to the port only */
-    if ((qos_map_type != SAI_QOS_MAP_TYPE_TC_TO_PRIORITY_GROUP) &&
-        (qos_map_type != SAI_QOS_MAP_TYPE_PFC_PRIORITY_TO_PRIORITY_GROUP)) {
+    if ((qos_map_type == SAI_QOS_MAP_TYPE_TC_TO_PRIORITY_GROUP) ||
+        (qos_map_type == SAI_QOS_MAP_TYPE_PFC_PRIORITY_TO_PRIORITY_GROUP)) {
+        if (mlnx_port_is_lag(port_cfg)) {
+            /* Nothing to be done for LAG */
+            return SAI_STATUS_SUCCESS;
+        }
+    } else {
         /* in case the port is a LAG member - delegate QoS settings to the LAG */
         if (mlnx_port_is_lag_member(port_cfg)) {
             port_id = mlnx_port_get_lag_id(port_cfg);
@@ -5644,14 +5654,17 @@ static void port_key_to_str(_In_ sai_object_id_t port_id, _Out_ char *key_str)
 
 sai_status_t mlnx_convert_counter_types_bitmap_to_sx_bulk_read(_In_ sai_object_id_t             port_id,
                                                                _In_ uint64_t                    counter_types,
-                                                               _Out_ sx_bulk_cntr_buffer_key_t *bulk_read_key)
+                                                               _Out_ sx_bulk_cntr_buffer_key_t *port_bulk_read_key,
+                                                               _Out_ sx_bulk_cntr_buffer_key_t *flow_bulk_read_key)
 {
-    sai_status_t     status;
-    sx_port_log_id_t sx_log_port;
+    sai_status_t         status;
+    sx_port_log_id_t     sx_log_port;
+    sx_flow_counter_id_t base_counter_id;
 
-    assert(bulk_read_key);
+    assert(port_bulk_read_key);
+    assert(flow_bulk_read_key);
 
-    memset(bulk_read_key, 0, sizeof(*bulk_read_key));
+    memset(port_bulk_read_key, 0, sizeof(*port_bulk_read_key));
 
     status = mlnx_object_to_type(port_id, SAI_OBJECT_TYPE_PORT, &sx_log_port, NULL);
     if (SAI_ERR(status)) {
@@ -5659,18 +5672,18 @@ sai_status_t mlnx_convert_counter_types_bitmap_to_sx_bulk_read(_In_ sai_object_i
         return status;
     }
 
-    bulk_read_key->type = SX_BULK_CNTR_KEY_TYPE_PORT_E;
-    bulk_read_key->key.port_key.port_list_cnt = 1;
-    bulk_read_key->key.port_key.port_list[0] = sx_log_port;
+    port_bulk_read_key->type = SX_BULK_CNTR_KEY_TYPE_PORT_E;
+    port_bulk_read_key->key.port_key.port_list_cnt = 1;
+    port_bulk_read_key->key.port_key.port_list[0] = sx_log_port;
 
     if (counter_types & CNT_2863) {
-        bulk_read_key->key.port_key.grp_bitmap |= SX_BULK_CNTR_PORT_GRP_RFC_2863_E;
+        port_bulk_read_key->key.port_key.grp_bitmap |= SX_BULK_CNTR_PORT_GRP_RFC_2863_E;
     }
     if (counter_types & CNT_2819) {
-        bulk_read_key->key.port_key.grp_bitmap |= SX_BULK_CNTR_PORT_GRP_RFC_2819_E;
+        port_bulk_read_key->key.port_key.grp_bitmap |= SX_BULK_CNTR_PORT_GRP_RFC_2819_E;
     }
     if (counter_types & CNT_3635) {
-        bulk_read_key->key.port_key.grp_bitmap |= SX_BULK_CNTR_PORT_GRP_RFC_3635_E;
+        port_bulk_read_key->key.port_key.grp_bitmap |= SX_BULK_CNTR_PORT_GRP_RFC_3635_E;
     }
     if (counter_types & CNT_PRIO) {
         sx_cos_ieee_prio_t prio_list[] = {
@@ -5683,34 +5696,51 @@ sai_status_t mlnx_convert_counter_types_bitmap_to_sx_bulk_read(_In_ sai_object_i
             SX_PORT_PRIO_ID_6,
             SX_PORT_PRIO_ID_7,
         };
-        bulk_read_key->key.port_key.prio_id_list_cnt = sizeof(prio_list) / sizeof(*prio_list);
-        memcpy(bulk_read_key->key.port_key.prio_id_list, prio_list, sizeof(prio_list));
-        bulk_read_key->key.port_key.grp_bitmap |= SX_BULK_CNTR_PORT_GRP_PRIO_E;
+        port_bulk_read_key->key.port_key.prio_id_list_cnt = sizeof(prio_list) / sizeof(*prio_list);
+        memcpy(port_bulk_read_key->key.port_key.prio_id_list, prio_list, sizeof(prio_list));
+        port_bulk_read_key->key.port_key.grp_bitmap |= SX_BULK_CNTR_PORT_GRP_PRIO_E;
     }
     if (counter_types & CNT_TC) {
         sx_port_tc_id_t tc_list[] = {
             0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15
         };
-        bulk_read_key->key.port_key.tc_id_list_cnt = sizeof(tc_list) / sizeof(*tc_list);
-        memcpy(bulk_read_key->key.port_key.tc_id_list, tc_list, sizeof(tc_list));
-        bulk_read_key->key.port_key.grp_bitmap |= SX_BULK_CNTR_PORT_GRP_TC_E;
+        port_bulk_read_key->key.port_key.tc_id_list_cnt = sizeof(tc_list) / sizeof(*tc_list);
+        memcpy(port_bulk_read_key->key.port_key.tc_id_list, tc_list, sizeof(tc_list));
+        port_bulk_read_key->key.port_key.grp_bitmap |= SX_BULK_CNTR_PORT_GRP_TC_E;
     }
     if (counter_types & CNT_BUFF) {
         sx_cos_priority_group_t pg_list[] = {
             0, 1, 2, 3, 4, 5, 6, 7
         };
-        bulk_read_key->key.port_key.prio_group_list_cnt = sizeof(pg_list) / sizeof(*pg_list);
-        memcpy(bulk_read_key->key.port_key.prio_group_list, pg_list, sizeof(pg_list));
-        bulk_read_key->key.port_key.grp_bitmap |= SX_BULK_CNTR_PORT_GRP_BUFF_E;
+        port_bulk_read_key->key.port_key.prio_group_list_cnt = sizeof(pg_list) / sizeof(*pg_list);
+        memcpy(port_bulk_read_key->key.port_key.prio_group_list, pg_list, sizeof(pg_list));
+        port_bulk_read_key->key.port_key.grp_bitmap |= SX_BULK_CNTR_PORT_GRP_BUFF_E;
     }
     if (counter_types & CNT_PERF) {
-        bulk_read_key->key.port_key.grp_bitmap |= SX_BULK_CNTR_PORT_GRP_PERF_E;
+        port_bulk_read_key->key.port_key.grp_bitmap |= SX_BULK_CNTR_PORT_GRP_PERF_E;
     }
     if (counter_types & CNT_DISCARD) {
-        bulk_read_key->key.port_key.grp_bitmap |= SX_BULK_CNTR_PORT_GRP_DISCARD_E;
+        port_bulk_read_key->key.port_key.grp_bitmap |= SX_BULK_CNTR_PORT_GRP_DISCARD_E;
     }
     if (counter_types & CNT_802) {
-        bulk_read_key->key.port_key.grp_bitmap |= SX_BULK_CNTR_PORT_GRP_IEEE_802_DOT_3_E;
+        port_bulk_read_key->key.port_key.grp_bitmap |= SX_BULK_CNTR_PORT_GRP_IEEE_802_DOT_3_E;
+    }
+
+    if (counter_types & CNT_IP) {
+        if (mlnx_perport_ipcnt_is_enable()) {
+            status = mlnx_perport_ipcnt_get_counter_base_id_by_port(port_id, &base_counter_id);
+            if (SAI_ERR(status)) {
+                SX_LOG_ERR("Failed to get per-port IP counter for port 0x%x.\n", sx_log_port);
+                return status;
+            }
+
+            flow_bulk_read_key->type = SX_BULK_CNTR_KEY_TYPE_FLOW_E;
+            flow_bulk_read_key->key.flow_key.base_counter_id = base_counter_id;
+            flow_bulk_read_key->key.flow_key.num_of_counters = PERPORT_IPCNT_NUMBER_IN_PORT;
+        } else {
+            SX_LOG_ERR("The per-port IP counter is not enabled.\n");
+            return SAI_STATUS_UNINITIALIZED;
+        }
     }
 
     return SAI_STATUS_SUCCESS;
@@ -5722,12 +5752,14 @@ sai_status_t mlnx_port_stats_bulk_read(_In_ sai_object_id_t          port_id,
                                        _In_ uint32_t                 number_of_counters,
                                        _In_ const sai_stat_id_t     *counter_ids,
                                        _In_ sx_bulk_cntr_read_key_t *key_get,
-                                       _In_ sx_bulk_cntr_buffer_t   *bulk_buff,
+                                       _In_ sx_bulk_cntr_buffer_t   *bulk_buff_port,
+                                       _In_ sx_bulk_cntr_buffer_t   *bulk_buff_flow,
                                        _Out_ uint64_t               *counters)
 {
     sx_status_t                              sx_status = -1;
     sx_bulk_cntr_data_t                      counter_bulk = {0};
-    sx_bulk_cntr_read_key_t                  bulk_read_key = {0};
+    sx_bulk_cntr_read_key_t                  bulk_read_key_port = {0};
+    sx_bulk_cntr_read_key_t                  bulk_read_key_flow = {0};
     sai_status_t                             status = SAI_STATUS_FAILURE;
     sx_port_log_id_t                         sx_log_port = 0;
     sx_port_cntr_rfc_2863_t                  cnts_2863 = {0};
@@ -5740,14 +5772,17 @@ sai_status_t mlnx_port_stats_bulk_read(_In_ sai_object_id_t          port_id,
     sx_cos_redecn_port_counters_t            cnts_redecn = {0};
     sx_port_cntr_discard_t                   cnts_discard = {0};
     sx_port_cntr_perf_t                      cnts_perf = {0};
+    sx_flow_counter_set_t                    cnts_ip[PERPORT_IPCNT_NUMBER_IN_PORT] = {0};
     const mlnx_sai_buffer_resource_limits_t *buffer_limits = mlnx_sai_get_buffer_resource_limits();
+    sx_flow_counter_id_t                     base_counter_id;
 
     assert(counter_ids);
     assert(key_get);
-    assert(bulk_buff);
+    assert(bulk_buff_port);
+    assert(bulk_buff_flow);
     assert(counters);
 
-    memset(&bulk_read_key, 0, sizeof(bulk_read_key));
+    memset(&bulk_read_key_port, 0, sizeof(bulk_read_key_port));
 
     status = mlnx_object_to_type(port_id, SAI_OBJECT_TYPE_PORT, &sx_log_port, NULL);
     if (SAI_ERR(status)) {
@@ -5755,14 +5790,14 @@ sai_status_t mlnx_port_stats_bulk_read(_In_ sai_object_id_t          port_id,
         return status;
     }
 
-    bulk_read_key.type = SX_BULK_CNTR_KEY_TYPE_PORT_E;
-    bulk_read_key.key.port_key.log_port = sx_log_port;
+    bulk_read_key_port.type = SX_BULK_CNTR_KEY_TYPE_PORT_E;
+    bulk_read_key_port.key.port_key.log_port = sx_log_port;
 
     if (counter_types & CNT_2863) {
-        bulk_read_key.key.port_key.grp = SX_BULK_CNTR_PORT_GRP_RFC_2863_E;
+        bulk_read_key_port.key.port_key.grp = SX_BULK_CNTR_PORT_GRP_RFC_2863_E;
         sx_status = sx_api_bulk_counter_transaction_get(gh_sdk,
-                                                        &bulk_read_key,
-                                                        bulk_buff,
+                                                        &bulk_read_key_port,
+                                                        bulk_buff_port,
                                                         &counter_bulk);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to read RFC2863 counters: %s.\n", SX_STATUS_MSG(sx_status));
@@ -5771,10 +5806,10 @@ sai_status_t mlnx_port_stats_bulk_read(_In_ sai_object_id_t          port_id,
         memcpy(&cnts_2863, counter_bulk.data.port_counters.port_cntr_rfc_2863_p, sizeof(cnts_2863));
     }
     if (counter_types & CNT_2819) {
-        bulk_read_key.key.port_key.grp = SX_BULK_CNTR_PORT_GRP_RFC_2819_E;
+        bulk_read_key_port.key.port_key.grp = SX_BULK_CNTR_PORT_GRP_RFC_2819_E;
         sx_status = sx_api_bulk_counter_transaction_get(gh_sdk,
-                                                        &bulk_read_key,
-                                                        bulk_buff,
+                                                        &bulk_read_key_port,
+                                                        bulk_buff_port,
                                                         &counter_bulk);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to read RFC2819 counters: %s.\n", SX_STATUS_MSG(sx_status));
@@ -5783,10 +5818,10 @@ sai_status_t mlnx_port_stats_bulk_read(_In_ sai_object_id_t          port_id,
         memcpy(&cnts_2819, counter_bulk.data.port_counters.port_cntr_rfc_2819_p, sizeof(cnts_2819));
     }
     if (counter_types & CNT_3635) {
-        bulk_read_key.key.port_key.grp = SX_BULK_CNTR_PORT_GRP_RFC_3635_E;
+        bulk_read_key_port.key.port_key.grp = SX_BULK_CNTR_PORT_GRP_RFC_3635_E;
         sx_status = sx_api_bulk_counter_transaction_get(gh_sdk,
-                                                        &bulk_read_key,
-                                                        bulk_buff,
+                                                        &bulk_read_key_port,
+                                                        bulk_buff_port,
                                                         &counter_bulk);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to read RFC3635 counters: %s.\n", SX_STATUS_MSG(sx_status));
@@ -5796,9 +5831,12 @@ sai_status_t mlnx_port_stats_bulk_read(_In_ sai_object_id_t          port_id,
     }
     if (counter_types & CNT_PRIO) {
         for (int ii = 0; ii < 8; ii++) {
-            bulk_read_key.key.port_key.grp = SX_BULK_CNTR_PORT_GRP_PRIO_E;
-            bulk_read_key.key.port_key.grp_ex_param.prio_id = SX_PORT_PRIO_ID_0 + ii;
-            sx_status = sx_api_bulk_counter_transaction_get(gh_sdk, &bulk_read_key, bulk_buff, &counter_bulk);
+            bulk_read_key_port.key.port_key.grp = SX_BULK_CNTR_PORT_GRP_PRIO_E;
+            bulk_read_key_port.key.port_key.grp_ex_param.prio_id = SX_PORT_PRIO_ID_0 + ii;
+            sx_status = sx_api_bulk_counter_transaction_get(gh_sdk,
+                                                            &bulk_read_key_port,
+                                                            bulk_buff_port,
+                                                            &counter_bulk);
             if (SX_ERR(sx_status)) {
                 SX_LOG_ERR("Failed to read PRIO[%d] counters: %s.\n", ii, SX_STATUS_MSG(sx_status));
                 return sdk_to_sai(sx_status);
@@ -5808,9 +5846,12 @@ sai_status_t mlnx_port_stats_bulk_read(_In_ sai_object_id_t          port_id,
     }
     if (counter_types & CNT_TC) {
         for (uint32_t ii = 0; ii < g_resource_limits.cos_port_ets_traffic_class_max; ++ii) {
-            bulk_read_key.key.port_key.grp = SX_BULK_CNTR_PORT_GRP_TC_E;
-            bulk_read_key.key.port_key.grp_ex_param.tc_id = ii;
-            sx_status = sx_api_bulk_counter_transaction_get(gh_sdk, &bulk_read_key, bulk_buff, &counter_bulk);
+            bulk_read_key_port.key.port_key.grp = SX_BULK_CNTR_PORT_GRP_TC_E;
+            bulk_read_key_port.key.port_key.grp_ex_param.tc_id = ii;
+            sx_status = sx_api_bulk_counter_transaction_get(gh_sdk,
+                                                            &bulk_read_key_port,
+                                                            bulk_buff_port,
+                                                            &counter_bulk);
             if (SX_ERR(sx_status)) {
                 SX_LOG_ERR("Failed to read TC[%u] counters: %s.\n", ii, SX_STATUS_MSG(sx_status));
                 return sdk_to_sai(sx_status);
@@ -5820,9 +5861,12 @@ sai_status_t mlnx_port_stats_bulk_read(_In_ sai_object_id_t          port_id,
     }
     if (counter_types & CNT_BUFF) {
         for (uint32_t ii = 0; ii < buffer_limits->num_port_pg_buff; ++ii) {
-            bulk_read_key.key.port_key.grp = SX_BULK_CNTR_PORT_GRP_BUFF_E;
-            bulk_read_key.key.port_key.grp_ex_param.prio_group = ii;
-            sx_status = sx_api_bulk_counter_transaction_get(gh_sdk, &bulk_read_key, bulk_buff, &counter_bulk);
+            bulk_read_key_port.key.port_key.grp = SX_BULK_CNTR_PORT_GRP_BUFF_E;
+            bulk_read_key_port.key.port_key.grp_ex_param.prio_group = ii;
+            sx_status = sx_api_bulk_counter_transaction_get(gh_sdk,
+                                                            &bulk_read_key_port,
+                                                            bulk_buff_port,
+                                                            &counter_bulk);
             if (SX_ERR(sx_status)) {
                 SX_LOG_ERR("Failed to read BUFF[%u] counters: %s.\n", ii, SX_STATUS_MSG(sx_status));
                 return sdk_to_sai(sx_status);
@@ -5831,10 +5875,10 @@ sai_status_t mlnx_port_stats_bulk_read(_In_ sai_object_id_t          port_id,
         }
     }
     if (counter_types & CNT_PERF) {
-        bulk_read_key.key.port_key.grp = SX_BULK_CNTR_PORT_GRP_PERF_E;
+        bulk_read_key_port.key.port_key.grp = SX_BULK_CNTR_PORT_GRP_PERF_E;
         sx_status = sx_api_bulk_counter_transaction_get(gh_sdk,
-                                                        &bulk_read_key,
-                                                        bulk_buff,
+                                                        &bulk_read_key_port,
+                                                        bulk_buff_port,
                                                         &counter_bulk);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to read PERF counters: %s.\n", SX_STATUS_MSG(sx_status));
@@ -5843,10 +5887,10 @@ sai_status_t mlnx_port_stats_bulk_read(_In_ sai_object_id_t          port_id,
         memcpy(&cnts_perf, counter_bulk.data.port_counters.port_cntr_perf_p, sizeof(cnts_perf));
     }
     if (counter_types & CNT_DISCARD) {
-        bulk_read_key.key.port_key.grp = SX_BULK_CNTR_PORT_GRP_DISCARD_E;
+        bulk_read_key_port.key.port_key.grp = SX_BULK_CNTR_PORT_GRP_DISCARD_E;
         sx_status = sx_api_bulk_counter_transaction_get(gh_sdk,
-                                                        &bulk_read_key,
-                                                        bulk_buff,
+                                                        &bulk_read_key_port,
+                                                        bulk_buff_port,
                                                         &counter_bulk);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to read DISCARD counters: %s.\n", SX_STATUS_MSG(sx_status));
@@ -5855,10 +5899,10 @@ sai_status_t mlnx_port_stats_bulk_read(_In_ sai_object_id_t          port_id,
         memcpy(&cnts_discard, counter_bulk.data.port_counters.port_cntr_discard_p, sizeof(cnts_discard));
     }
     if (counter_types & CNT_802) {
-        bulk_read_key.key.port_key.grp = SX_BULK_CNTR_PORT_GRP_IEEE_802_DOT_3_E;
+        bulk_read_key_port.key.port_key.grp = SX_BULK_CNTR_PORT_GRP_IEEE_802_DOT_3_E;
         sx_status = sx_api_bulk_counter_transaction_get(gh_sdk,
-                                                        &bulk_read_key,
-                                                        bulk_buff,
+                                                        &bulk_read_key_port,
+                                                        bulk_buff_port,
                                                         &counter_bulk);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to read IEEE802 counters: %s.\n", SX_STATUS_MSG(sx_status));
@@ -5889,6 +5933,25 @@ sai_status_t mlnx_port_stats_bulk_read(_In_ sai_object_id_t          port_id,
             SX_LOG_ERR("Failed to get port redecn counters - %s.\n", SX_STATUS_MSG(status));
             return sdk_to_sai(status);
         }
+    }
+    if (counter_types & CNT_IP) {
+        status = mlnx_perport_ipcnt_get_counter_base_id_by_port(port_id, &base_counter_id);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to get per-port IP counter for port 0x%x.\n", sx_log_port);
+            return status;
+        }
+        bulk_read_key_flow.type = SX_BULK_CNTR_KEY_TYPE_FLOW_E;
+        bulk_read_key_flow.key.flow_key.cntr_id = base_counter_id;
+
+        sx_status = sx_api_bulk_counter_transaction_get(gh_sdk,
+                                                        &bulk_read_key_flow,
+                                                        bulk_buff_flow,
+                                                        &counter_bulk);
+        if (SX_ERR(sx_status)) {
+            SX_LOG_ERR("Failed to read IP counters: %s.\n", SX_STATUS_MSG(sx_status));
+            return sdk_to_sai(sx_status);
+        }
+        memcpy(cnts_ip, counter_bulk.data.flow_counters.flow_cntr_p, sizeof(cnts_ip));
     }
 
     for (uint32_t ii = 0; ii < number_of_counters; ii++) {
@@ -6264,25 +6327,9 @@ sai_status_t mlnx_port_stats_bulk_read(_In_ sai_object_id_t          port_id,
         case SAI_PORT_STAT_PFC_7_TX_PAUSE_DURATION:
         case SAI_PORT_STAT_IF_OUT_QLEN:
         case SAI_PORT_STAT_ETHER_STATS_PKTS_9217_TO_16383_OCTETS:
-        case SAI_PORT_STAT_IP_IN_RECEIVES:
-        case SAI_PORT_STAT_IP_IN_OCTETS:
-        case SAI_PORT_STAT_IP_IN_UCAST_PKTS:
-        case SAI_PORT_STAT_IP_IN_NON_UCAST_PKTS:
         case SAI_PORT_STAT_IP_IN_DISCARDS:
-        case SAI_PORT_STAT_IP_OUT_OCTETS:
-        case SAI_PORT_STAT_IP_OUT_UCAST_PKTS:
-        case SAI_PORT_STAT_IP_OUT_NON_UCAST_PKTS:
         case SAI_PORT_STAT_IP_OUT_DISCARDS:
-        case SAI_PORT_STAT_IPV6_IN_RECEIVES:
-        case SAI_PORT_STAT_IPV6_IN_OCTETS:
-        case SAI_PORT_STAT_IPV6_IN_UCAST_PKTS:
-        case SAI_PORT_STAT_IPV6_IN_NON_UCAST_PKTS:
-        case SAI_PORT_STAT_IPV6_IN_MCAST_PKTS:
         case SAI_PORT_STAT_IPV6_IN_DISCARDS:
-        case SAI_PORT_STAT_IPV6_OUT_OCTETS:
-        case SAI_PORT_STAT_IPV6_OUT_UCAST_PKTS:
-        case SAI_PORT_STAT_IPV6_OUT_NON_UCAST_PKTS:
-        case SAI_PORT_STAT_IPV6_OUT_MCAST_PKTS:
         case SAI_PORT_STAT_IPV6_OUT_DISCARDS:
         case SAI_PORT_STAT_ETHER_IN_PKTS_9217_TO_16383_OCTETS:
         case SAI_PORT_STAT_ETHER_OUT_PKTS_9217_TO_16383_OCTETS:
@@ -6309,6 +6356,70 @@ sai_status_t mlnx_port_stats_bulk_read(_In_ sai_object_id_t          port_id,
             SX_LOG_INF("Port counter %d set item %u not implemented\n", counter_ids[ii], ii);
             return SAI_STATUS_NOT_IMPLEMENTED;
 
+        case SAI_PORT_STAT_IP_IN_RECEIVES:
+            counters[ii] = cnts_ip[PERPORT_IPCNT_IN_IP_UCAST].flow_counter_packets +
+                           cnts_ip[PERPORT_IPCNT_IN_IP_NON_UCAST].flow_counter_packets;
+            break;
+
+        case SAI_PORT_STAT_IP_IN_OCTETS:
+            counters[ii] = cnts_ip[PERPORT_IPCNT_IN_IP_UCAST].flow_counter_bytes +
+                           cnts_ip[PERPORT_IPCNT_IN_IP_NON_UCAST].flow_counter_bytes;
+            break;
+
+        case SAI_PORT_STAT_IP_IN_UCAST_PKTS:
+            counters[ii] = cnts_ip[PERPORT_IPCNT_IN_IP_UCAST].flow_counter_packets;
+            break;
+
+        case SAI_PORT_STAT_IP_IN_NON_UCAST_PKTS:
+            counters[ii] = cnts_ip[PERPORT_IPCNT_IN_IP_NON_UCAST].flow_counter_packets;
+            break;
+
+        case SAI_PORT_STAT_IP_OUT_OCTETS:
+            counters[ii] = cnts_ip[PERPORT_IPCNT_OUT_IP_UCAST].flow_counter_bytes +
+                           cnts_ip[PERPORT_IPCNT_OUT_IP_NON_UCAST].flow_counter_bytes;
+            break;
+
+        case SAI_PORT_STAT_IP_OUT_UCAST_PKTS:
+            counters[ii] = cnts_ip[PERPORT_IPCNT_OUT_IP_UCAST].flow_counter_packets;
+            break;
+
+        case SAI_PORT_STAT_IP_OUT_NON_UCAST_PKTS:
+            counters[ii] = cnts_ip[PERPORT_IPCNT_OUT_IP_NON_UCAST].flow_counter_packets;
+            break;
+
+        case SAI_PORT_STAT_IPV6_IN_RECEIVES:
+            counters[ii] = cnts_ip[PERPORT_IPCNT_IN_IP6_UCAST].flow_counter_packets +
+                           cnts_ip[PERPORT_IPCNT_IN_IP6_NON_UCAST].flow_counter_packets;
+            break;
+
+        case SAI_PORT_STAT_IPV6_IN_OCTETS:
+            counters[ii] = cnts_ip[PERPORT_IPCNT_IN_IP6_UCAST].flow_counter_bytes +
+                           cnts_ip[PERPORT_IPCNT_IN_IP6_NON_UCAST].flow_counter_bytes;
+            break;
+
+        case SAI_PORT_STAT_IPV6_IN_UCAST_PKTS:
+            counters[ii] = cnts_ip[PERPORT_IPCNT_IN_IP6_UCAST].flow_counter_packets;
+            break;
+
+        case SAI_PORT_STAT_IPV6_IN_NON_UCAST_PKTS:
+        case SAI_PORT_STAT_IPV6_IN_MCAST_PKTS:
+            counters[ii] = cnts_ip[PERPORT_IPCNT_IN_IP6_NON_UCAST].flow_counter_packets;
+            break;
+
+        case SAI_PORT_STAT_IPV6_OUT_OCTETS:
+            counters[ii] = cnts_ip[PERPORT_IPCNT_OUT_IP6_UCAST].flow_counter_bytes +
+                           cnts_ip[PERPORT_IPCNT_OUT_IP6_NON_UCAST].flow_counter_bytes;
+            break;
+
+        case SAI_PORT_STAT_IPV6_OUT_UCAST_PKTS:
+            counters[ii] = cnts_ip[PERPORT_IPCNT_OUT_IP6_UCAST].flow_counter_packets;
+            break;
+
+        case SAI_PORT_STAT_IPV6_OUT_NON_UCAST_PKTS:
+        case SAI_PORT_STAT_IPV6_OUT_MCAST_PKTS:
+            counters[ii] = cnts_ip[PERPORT_IPCNT_OUT_IP6_NON_UCAST].flow_counter_packets;
+            break;
+
         default:
             SX_LOG_ERR("Invalid port counter %d\n", counter_ids[ii]);
             return SAI_STATUS_INVALID_PARAMETER;
@@ -6318,17 +6429,20 @@ sai_status_t mlnx_port_stats_bulk_read(_In_ sai_object_id_t          port_id,
     return SAI_STATUS_SUCCESS;
 }
 
-static bool mlnx_is_bulk_required(_In_ uint64_t counter_types)
+static void mlnx_is_bulk_required(_In_ uint64_t counter_types,
+                                  _Out_ bool   *bulk_required_port,
+                                  _Out_ bool   *bulk_required_flow)
 {
-    return (counter_types & CNT_802) ||
-           (counter_types & CNT_2819) ||
-           (counter_types & CNT_2863) ||
-           (counter_types & CNT_3635) ||
-           (counter_types & CNT_BUFF) ||
-           (counter_types & CNT_DISCARD) ||
-           (counter_types & CNT_PERF) ||
-           (counter_types & CNT_PRIO) ||
-           (counter_types & CNT_TC);
+    *bulk_required_port = (counter_types & CNT_802) ||
+                          (counter_types & CNT_2819) ||
+                          (counter_types & CNT_2863) ||
+                          (counter_types & CNT_3635) ||
+                          (counter_types & CNT_BUFF) ||
+                          (counter_types & CNT_DISCARD) ||
+                          (counter_types & CNT_PERF) ||
+                          (counter_types & CNT_PRIO) ||
+                          (counter_types & CNT_TC);
+    *bulk_required_flow = (counter_types & CNT_IP);
 }
 
 static sai_status_t mlnx_convert_sai_stats_to_bitmap(_In_ uint32_t             number_of_counters,
@@ -6504,6 +6618,25 @@ static sai_status_t mlnx_convert_sai_stats_to_bitmap(_In_ uint32_t             n
         case SAI_PORT_STAT_ETHER_TX_OVERSIZE_PKTS:
             break;
 
+        case SAI_PORT_STAT_IP_IN_RECEIVES:
+        case SAI_PORT_STAT_IP_IN_OCTETS:
+        case SAI_PORT_STAT_IP_IN_UCAST_PKTS:
+        case SAI_PORT_STAT_IP_IN_NON_UCAST_PKTS:
+        case SAI_PORT_STAT_IP_OUT_OCTETS:
+        case SAI_PORT_STAT_IP_OUT_UCAST_PKTS:
+        case SAI_PORT_STAT_IP_OUT_NON_UCAST_PKTS:
+        case SAI_PORT_STAT_IPV6_IN_RECEIVES:
+        case SAI_PORT_STAT_IPV6_IN_OCTETS:
+        case SAI_PORT_STAT_IPV6_IN_UCAST_PKTS:
+        case SAI_PORT_STAT_IPV6_IN_NON_UCAST_PKTS:
+        case SAI_PORT_STAT_IPV6_IN_MCAST_PKTS:
+        case SAI_PORT_STAT_IPV6_OUT_OCTETS:
+        case SAI_PORT_STAT_IPV6_OUT_UCAST_PKTS:
+        case SAI_PORT_STAT_IPV6_OUT_NON_UCAST_PKTS:
+        case SAI_PORT_STAT_IPV6_OUT_MCAST_PKTS:
+            *counter_types |= CNT_IP;
+            break;
+
         default:
             status = SAI_STATUS_INVALID_PARAMETER;
             SX_LOG_INF("Port counter %d set item %u not implemented\n", counter_ids[ii], ii);
@@ -6588,13 +6721,13 @@ sai_status_t mlnx_get_port_stats_ext(_In_ sai_object_id_t      port_id,
                                      _Out_ uint64_t           *counters)
 {
     sai_status_t              status = SAI_STATUS_FAILURE;
-    sx_bulk_cntr_buffer_key_t bulk_read_key = {0};
-    sx_bulk_cntr_buffer_t     bulk_read_buff = {0};
+    sx_bulk_cntr_buffer_key_t bulk_read_key = {0}, bulk_read_key_flow = {0};
+    sx_bulk_cntr_buffer_t     bulk_read_buff = {0}, bulk_read_buff_flow = {0};
     sx_bulk_cntr_read_key_t   key_get = {0};
     uint64_t                  counter_types = 0;
     sx_access_cmd_t           cmd;
     char                      key_str[MAX_KEY_STR_LEN];
-    bool                      bulk_required = false;
+    bool                      bulk_required_port = false, bulk_required_flow = false;
 
     SX_LOG_ENTER();
 
@@ -6625,26 +6758,43 @@ sai_status_t mlnx_get_port_stats_ext(_In_ sai_object_id_t      port_id,
         return status;
     }
 
-    bulk_required = mlnx_is_bulk_required(counter_types);
+    mlnx_is_bulk_required(counter_types, &bulk_required_port, &bulk_required_flow);
 
-    if (bulk_required) {
+    if (bulk_required_port || bulk_required_flow) {
         status = mlnx_convert_counter_types_bitmap_to_sx_bulk_read(port_id,
                                                                    counter_types,
-                                                                   &bulk_read_key);
+                                                                   &bulk_read_key,
+                                                                   &bulk_read_key_flow);
         if (SAI_ERR(status)) {
             SX_LOG_ERR("Failed to convert counter IDs to SDK.\n");
             return status;
         }
 
-        status = mlnx_prepare_bulk_counter_read(MLNX_BULK_TYPE_PORT,
-                                                cmd,
-                                                &bulk_read_key,
-                                                &bulk_read_buff);
-        if (SAI_ERR(status)) {
-            /* no need deallocate buffer, mlnx_prepare_bulk_counter_read shall do it */
-            /* if any error occurs */
-            SX_LOG_ERR("Failed to prepare bulk counter for port stats.\n");
-            goto out;
+        if (bulk_required_port) {
+            status = mlnx_prepare_bulk_counter_read(MLNX_BULK_TYPE_PORT,
+                                                    cmd,
+                                                    &bulk_read_key,
+                                                    &bulk_read_buff);
+            if (SAI_ERR(status)) {
+                /* no need deallocate buffer, mlnx_prepare_bulk_counter_read shall do it */
+                /* if any error occurs */
+                SX_LOG_ERR("Failed to prepare bulk counter for port stats.\n");
+                goto out;
+            }
+        }
+
+        if (bulk_required_flow) {
+            status = mlnx_prepare_bulk_counter_read(MLNX_BULK_TYPE_FLOW,
+                                                    cmd,
+                                                    &bulk_read_key_flow,
+                                                    &bulk_read_buff_flow);
+            if (SAI_ERR(status)) {
+                /* no need deallocate buffer, mlnx_prepare_bulk_counter_read shall do it */
+                /* if any error occurs */
+                SX_LOG_ERR("Failed to prepare bulk counter for port stats.\n");
+                /* to free port type counter */
+                goto out2;
+            }
         }
     }
 
@@ -6655,15 +6805,28 @@ sai_status_t mlnx_get_port_stats_ext(_In_ sai_object_id_t      port_id,
                                        counter_ids,
                                        &key_get,
                                        &bulk_read_buff,
+                                       &bulk_read_buff_flow,
                                        counters);
     if (SAI_ERR(status)) {
         SX_LOG_ERR("Failed to read bulk counters.\n");
     }
 
-    if (bulk_required) {
-        status = mlnx_deallocate_sx_bulk_buffer(&bulk_read_buff);
+    if (bulk_required_flow) {
+        status = mlnx_deallocate_sx_bulk_buffer(&bulk_read_buff_flow);
         if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to deallocate SDK flow buffer.\n");
+        }
+    }
+
+out2:
+    if (bulk_required_port) {
+        sai_status_t status2;
+        status2 = mlnx_deallocate_sx_bulk_buffer(&bulk_read_buff);
+        if (SAI_ERR(status2)) {
             SX_LOG_ERR("Failed to deallocate SDK buffer.\n");
+        }
+        if (!SAI_ERR(status)) {
+            status = status2;
         }
     }
 
@@ -9016,6 +9179,7 @@ sai_status_t mlnx_port_config_uninit(mlnx_port_config_t *port)
     sx_status_t              sx_status;
     sx_vid_t                 pvid;
     bool                     is_internal_acls_rollback_needed = false;
+    internal_acl_op_types    op_type;
     const bool               is_warmboot_init_stage = (BOOT_TYPE_WARM == g_sai_db_ptr->boot_type) &&
                                                       (!g_sai_db_ptr->issu_end_called);
 
@@ -9065,10 +9229,10 @@ sai_status_t mlnx_port_config_uninit(mlnx_port_config_t *port)
         }
     }
     if (!is_warmboot_init_stage) {
-        status = mlnx_internal_acls_bind(SX_ACCESS_CMD_DELETE, port->saiport, mlnx_port_is_lag(
-                                             port) ? SAI_OBJECT_TYPE_LAG : SAI_OBJECT_TYPE_PORT);
+        op_type = mlnx_port_is_lag(port) ? INTERNAL_ACL_OP_DEL_LAG : INTERNAL_ACL_OP_DEL_PORT;
+        status = mlnx_internal_acls_bind(op_type, port->saiport);
         if (SAI_ERR(status)) {
-            SX_LOG_ERR("Failed to unbind PB hash ACL from port 0x%x\n", port->logical);
+            SX_LOG_ERR("Failed to unbind internal ACLs to port 0x%x\n", port->logical);
             return status;
         }
         is_internal_acls_rollback_needed = true;
@@ -9162,8 +9326,8 @@ sai_status_t mlnx_port_config_uninit(mlnx_port_config_t *port)
 out:
     if (SAI_ERR(status)) {
         if (is_internal_acls_rollback_needed) {
-            mlnx_internal_acls_bind(SX_ACCESS_CMD_ADD, port->saiport, mlnx_port_is_lag(
-                                        port) ? SAI_OBJECT_TYPE_LAG : SAI_OBJECT_TYPE_PORT);
+            op_type = mlnx_port_is_lag(port) ? INTERNAL_ACL_OP_ADD_LAG : INTERNAL_ACL_OP_ADD_PORT;
+            mlnx_internal_acls_bind(op_type, port->saiport);
         }
     }
     return status;
@@ -9324,8 +9488,11 @@ static uint32_t mlnx_platform_num_local_ports_in_4x_get(void)
 
 static uint32_t mlnx_platform_num_local_ports_in_8x_get(void)
 {
-    if (mlnx_chip_is_spc4()) {
-        return 8;
+    /* SPC2 non gearbox is step 8 all the rest 4 */
+    if (mlnx_chip_is_spc2()) {
+        if (g_sai_db_ptr->platform_type != MLNX_PLATFORM_TYPE_3800) {
+            return 8;
+        }
     }
 
     return 4;
@@ -9438,8 +9605,8 @@ static sai_status_t mlnx_create_port(_Out_ sai_object_id_t     * port_id,
     const sai_attribute_value_t *isolation_group = NULL;
     const sai_attribute_value_t *value = NULL;
 
-/* TODO : FEC is not supported on Simx, add when ready */
-#ifndef IS_SIMX
+/* TODO : FEC is not supported on Simx/PLD(main model), add when ready */
+#if !defined IS_PLD && !defined IS_SIMX
     uint32_t                     fec_index;
     const sai_attribute_value_t *fec;
 #endif
@@ -9587,11 +9754,12 @@ static sai_status_t mlnx_create_port(_Out_ sai_object_id_t     * port_id,
     if (SAI_ERR(status)) {
         goto out_unlock;
     }
+    g_sai_db_ptr->ports_number++;
 
     /* If split port is already a LAG member, do not apply hash config to the split port,
      * because hash config has already been applied to LAG */
     if (!is_warmboot_init_stage || (0 == new_port->before_issu_lag_id)) {
-        status = mlnx_internal_acls_bind(SX_ACCESS_CMD_ADD, new_port->saiport, SAI_OBJECT_TYPE_PORT);
+        status = mlnx_internal_acls_bind(INTERNAL_ACL_OP_ADD_PORT, new_port->saiport);
         if (SAI_ERR(status)) {
             SX_LOG_ERR("Failed to bind internal ACLs to port 0x%x\n", new_port->logical);
             goto out_unlock;
@@ -9989,8 +10157,8 @@ static sai_status_t mlnx_create_port(_Out_ sai_object_id_t     * port_id,
             goto out_unlock;
         }
     }
-/* TODO : FEC is not supported on Simx, add when ready */
-#ifndef IS_SIMX
+/* TODO : FEC is not supported on Simx/PLD(main model), add when ready */
+#if !defined IS_PLD && !defined IS_SIMX
     status = find_attrib_in_list(attr_count, attr_list, SAI_PORT_ATTR_FEC_MODE, &fec, &fec_index);
     if (status == SAI_STATUS_SUCCESS) {
         status = mlnx_port_fec_set_impl(new_port->logical, fec->s32);
@@ -10054,7 +10222,6 @@ static sai_status_t mlnx_create_port(_Out_ sai_object_id_t     * port_id,
                new_port->saiport, new_port->port_map.local_port, port_map->width,
                port_map->module_port, port_map->lane_bmap);
 
-    g_sai_db_ptr->ports_number++;
     *port_id = new_port->saiport;
     status = SAI_STATUS_SUCCESS;
 
@@ -10607,59 +10774,82 @@ static sai_status_t mlnx_clear_port_pool_stats(_In_ sai_object_id_t      port_po
 }
 
 /**
- * @brief Bind/unbind internal ACLs VxLAN srcport
- *        to the port.
+ * @brief Bind/unbind internal ACLs
+ * 1. for the per-port IP counter
+ * 2. for the VxLAN srcport
  *
- * @param[in] cmd         Bind/Unbind command
+ * @param[in] op_type     Operation type
  * @param[in] sx_port_id  Port id
- * @param[in] types       Object type(port/LAG)
  *
  * @return #SAI_STATUS_SUCCESS on success, failure status code on error
  */
-sai_status_t mlnx_internal_acls_bind(_In_ sx_access_cmd_t   cmd,
-                                     _In_ sai_object_id_t   sai_port_id,
-                                     _In_ sai_object_type_t type)
+sai_status_t mlnx_internal_acls_bind(_In_ internal_acl_op_types op_type, _In_ sai_object_id_t sai_port_id)
 {
-    sai_status_t     status;
-    sx_port_log_id_t sx_port_id;
-    uint32_t         ii, sai_db_idx_start = 0, sai_db_idx_end = MLNX_MAX_TUNNEL_NVE;
+    sai_status_t        sai_status;
+    sx_status_t         sx_status;
+    sx_port_log_id_t    sx_port_id;
+    mlnx_port_config_t *port_cfg;
+    uint32_t            ii, sai_db_idx_start = 0, sai_db_idx_end = MLNX_MAX_TUNNEL_NVE;
+    sx_access_cmd_t     cmd;
+
+    assert(op_type == INTERNAL_ACL_OP_ADD_PORT ||
+           op_type == INTERNAL_ACL_OP_DEL_PORT ||
+           op_type == INTERNAL_ACL_OP_ADD_LAG ||
+           op_type == INTERNAL_ACL_OP_DEL_LAG ||
+           op_type == INTERNAL_ACL_OP_ADD_PORT_TO_LAG ||
+           op_type == INTERNAL_ACL_OP_DEL_PORT_FROM_LAG);
 
     SX_LOG_ENTER();
 
-    status = mlnx_object_to_log_port(sai_port_id, &sx_port_id);
-    if (SAI_ERR(status)) {
-        return status;
+    sai_status = mlnx_port_by_obj_id(sai_port_id, &port_cfg);
+    if (SAI_ERR(sai_status)) {
+        goto out;
+    }
+    sx_port_id = port_cfg->logical;
+
+    /* for per-port IP counter */
+    if (mlnx_perport_ipcnt_is_enable_nolock()) {
+        sai_status = mlnx_perport_ipcnt_ops(sx_port_id, port_cfg->index, op_type);
+        if (SAI_ERR(sai_status)) {
+            goto out;
+        }
+    } else {
+        SX_LOG_NTC("The per-port IP counter is not enabled.\n");
     }
 
-    if (g_sai_db_ptr->vxlan_srcport_range_enabled) {
-        status = sx_api_acl_port_bind_set(gh_sdk, cmd, sx_port_id, g_sai_db_ptr->vxlan_acl_id);
-        if (SX_ERR(status)) {
-            SX_LOG_ERR("Failed to %s VxLAN srcport ACL to port(%x). %s\n",
-                       cmd == SX_ACCESS_CMD_DELETE ? "unbind" : "bind",
-                       sx_port_id,
-                       SX_STATUS_MSG(status));
-            return sdk_to_sai(status);
-        }
+    /* for VxLAN srcport */
+    if ((op_type == INTERNAL_ACL_OP_ADD_PORT) ||
+        (op_type == INTERNAL_ACL_OP_ADD_LAG) ||
+        (op_type == INTERNAL_ACL_OP_DEL_PORT_FROM_LAG)) {
+        cmd = SX_ACCESS_CMD_ADD;
+    } else {
+        /* INTERNAL_ACL_OP_DEL_PORT
+         * INTERNAL_ACL_OP_DEL_LAG
+         * INTERNAL_ACL_OP_ADD_PORT_TO_LAG
+         */
+        cmd = SX_ACCESS_CMD_DELETE;
     }
 
     for (ii = sai_db_idx_start; ii < sai_db_idx_end; ++ii) {
         if (g_sai_tunnel_db_ptr->tunnel_entry_db[ii].vxlan_acl.is_acl_created) {
-            status = sx_api_acl_port_bind_set(gh_sdk,
-                                              cmd,
-                                              sx_port_id,
-                                              g_sai_tunnel_db_ptr->tunnel_entry_db[ii].vxlan_acl.acl_group);
-            if (SX_ERR(status)) {
+            sx_status = sx_api_acl_port_bind_set(gh_sdk,
+                                                 cmd,
+                                                 sx_port_id,
+                                                 g_sai_tunnel_db_ptr->tunnel_entry_db[ii].vxlan_acl.acl_group);
+            if (SX_ERR(sx_status)) {
                 SX_LOG_ERR("Failed to %s VxLAN srcport ACL to port(%x). %s\n",
                            cmd == SX_ACCESS_CMD_DELETE ? "unbind" : "bind",
                            sx_port_id,
-                           SX_STATUS_MSG(status));
-                return sdk_to_sai(status);
+                           SX_STATUS_MSG(sx_status));
+                sai_status = sdk_to_sai(sx_status);
+                goto out;
             }
         }
     }
 
+out:
     SX_LOG_EXIT();
-    return SAI_STATUS_SUCCESS;
+    return sai_status;
 }
 
 const sai_port_api_t mlnx_port_api = {

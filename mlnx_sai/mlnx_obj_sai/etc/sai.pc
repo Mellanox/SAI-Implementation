@@ -1,0 +1,10 @@
+prefix=/usr
+exec_prefix=${prefix}
+libdir=${exec_prefix}/lib
+includedir=${prefix}/include
+
+Name: SAI
+Description: SAI API provider
+Version: 3.0.0000
+Libs: -L${libdir} -lsai 
+Cflags: -I${includedir}/sai
