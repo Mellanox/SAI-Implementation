@@ -51,10 +51,6 @@
 #undef  __MODULE__
 #define __MODULE__ SAI_POLICER
 
-#define policer_db_cl_plock_excl_acquire(lock)         \
-    {SX_LOG_DBG("policer_db_cl_plock_excl_acquire\n"); \
-     cl_plock_excl_acquire(lock); }
-#define policer_db_cl_plock_release(lock) {SX_LOG_DBG("policer_db_cl_plock_release\n"); cl_plock_release(lock); }
 #define IR_UNITS 1000
 
 sai_status_t mlnx_sai_unbind_policer_from_trap_group(_In_ sai_object_id_t sai_object_id);
@@ -159,9 +155,6 @@ static sai_status_t sai_policer_red_packet_action_get(_In_ const sai_object_key_
                                                       _In_ uint32_t                  attr_index,
                                                       _Inout_ vendor_cache_t        *cache,
                                                       void                          *arg);
-static sai_status_t sai_policer_attr_set(_In_ const sai_object_key_t* key,
-                                         _In_ sai_attribute_t         sai_attr,
-                                         _In_ char                  * attr_name);
 static sai_status_t sai_policer_color_source_set(_In_ const sai_object_key_t      *key,
                                                  _In_ const sai_attribute_value_t *value,
                                                  void                             *arg);
@@ -406,7 +399,7 @@ static sai_status_t sai_policer_get_sx_attribs_internal(_In_ const sai_object_ke
     }
 
     if (lock_db_access) {
-        policer_db_cl_plock_excl_acquire(&g_sai_db_ptr->p_lock);
+        sai_db_write_lock();
     }
 
     if (SAI_STATUS_SUCCESS !=
@@ -418,7 +411,7 @@ static sai_status_t sai_policer_get_sx_attribs_internal(_In_ const sai_object_ke
     }
 
     if (lock_db_access) {
-        policer_db_cl_plock_release(&g_sai_db_ptr->p_lock);
+        sai_db_unlock();
     }
 
     SX_LOG_EXIT();
@@ -1014,81 +1007,65 @@ static sai_status_t sai_policer_commit_changes(_In_ sai_object_id_t sai_policer)
     return sai_status;
 }
 
-static sai_status_t sai_policer_attr_set(_In_ const sai_object_key_t* key,
-                                         _In_ sai_attribute_t         sai_attr,
-                                         _In_ char                  * attr_name)
+sai_status_t sai_policer_attr_set(_In_ const sai_object_key_t* key,
+                                  _In_ sai_attribute_t         sai_attr,
+                                  _In_ char                  * attr_name)
 {
-    sai_status_t            sai_status;
+    sai_status_t            status = SAI_STATUS_SUCCESS;
     sx_policer_attributes_t sx_policer_attribs;
-    sai_object_type_t       obj_type;
     bool                    is_used_for_mirror = false;
 
     SX_LOG_ENTER();
 
     memset(&sx_policer_attribs, 0, sizeof(sx_policer_attribs));
 
-    obj_type = sai_object_type_query(key->key.object_id);
-    if (SAI_OBJECT_TYPE_POLICER != obj_type) {
-        SX_LOG_ERR("Unexpected obect type:%s, expected policer.\n", SAI_TYPE_STR(obj_type));
-        SX_LOG_EXIT();
-        return SAI_STATUS_INVALID_PARAMETER;
+    if (SAI_OBJECT_TYPE_POLICER != sai_object_type_query(key->key.object_id)) {
+        SX_LOG_ERR("Unexpected object type:%s, expected policer.\n",
+                   SAI_TYPE_STR(sai_object_type_query(key->key.object_id)));
+        goto out;
     }
 
-    policer_db_cl_plock_excl_acquire(&g_sai_db_ptr->p_lock);
-
-    if (SAI_STATUS_SUCCESS !=
-        (sai_status = sai_policer_get_sx_attribs_internal(key, &sx_policer_attribs, false))) {
+    status = sai_policer_get_sx_attribs_internal(key, &sx_policer_attribs, false);
+    if (SAI_ERR(status)) {
         SX_LOG_ERR("Failed to obtain attribute value.\n");
-        policer_db_cl_plock_release(&g_sai_db_ptr->p_lock);
-        SX_LOG_EXIT();
-        return sai_status;
+        goto out;
     }
 
-    if (SAI_STATUS_SUCCESS !=
-        (sai_status = fill_policer_data(false, 1, &sai_attr, &sx_policer_attribs))) {
-        policer_db_cl_plock_release(&g_sai_db_ptr->p_lock);
-        SX_LOG_EXIT();
-        return sai_status;
+    status = fill_policer_data(false, 1, &sai_attr, &sx_policer_attribs);
+    if (SAI_ERR(status)) {
+        goto out;
     }
 
-    sai_status = mlnx_mirror_policer_is_used(key->key.object_id, &is_used_for_mirror);
-    if (SAI_ERR(sai_status)) {
-        policer_db_cl_plock_release(&g_sai_db_ptr->p_lock);
-        SX_LOG_EXIT();
-        return sai_status;
+    status = mlnx_mirror_policer_is_used(key->key.object_id, &is_used_for_mirror);
+    if (SAI_ERR(status)) {
+        goto out;
     }
 
     if (is_used_for_mirror) {
-        sai_status = mlnx_mirror_policer_sx_attrs_validate(&sx_policer_attribs);
-        if (SAI_ERR(sai_status)) {
-            policer_db_cl_plock_release(&g_sai_db_ptr->p_lock);
-            SX_LOG_EXIT();
-            return sai_status;
+        status = mlnx_mirror_policer_sx_attrs_validate(&sx_policer_attribs);
+        if (SAI_ERR(status)) {
+            goto out;
         }
     }
 
-    if (SAI_STATUS_SUCCESS !=
-        (sai_status = db_write_sai_policer_attribs(key->key.object_id, &(sx_policer_attribs)))) {
+    status = db_write_sai_policer_attribs(key->key.object_id, &(sx_policer_attribs));
+    if (SAI_ERR(status)) {
         SX_LOG_ERR("Failed to change attribute for policer:0x%" PRIx64 ", attribute: %s.\n", key->key.object_id,
                    attr_name);
-        policer_db_cl_plock_release(&g_sai_db_ptr->p_lock);
-        SX_LOG_EXIT();
-        return sai_status;
+        goto out;
     }
 
-    if (SAI_STATUS_SUCCESS != (sai_status = sai_policer_commit_changes(key->key.object_id))) {
+    status = sai_policer_commit_changes(key->key.object_id);
+    if (SAI_ERR(status)) {
         SX_LOG_ERR("Failed to commit policer changes for sai_policer:0x%" PRIx64 ", attribute: %s.\n",
                    key->key.object_id,
                    attr_name);
-        policer_db_cl_plock_release(&g_sai_db_ptr->p_lock);
-        SX_LOG_EXIT();
-        return sai_status;
+        goto out;
     }
 
-    msync(g_sai_db_ptr, sizeof(*g_sai_db_ptr), MS_SYNC);
-    policer_db_cl_plock_release(&g_sai_db_ptr->p_lock);
+out:
     SX_LOG_EXIT();
-    return SAI_STATUS_SUCCESS;
+    return status;
 }
 
 
@@ -1104,9 +1081,11 @@ static sai_status_t sai_policer_attr_set_wrapper(_In_ const sai_object_key_t    
     UNREFERENCED_PARAMETER(arg);
 
     SX_LOG_ENTER();
+    sai_db_write_lock();
     sai_attr.id = attr_id;
     sai_attr.value = *value;
     sai_status = sai_policer_attr_set(key, sai_attr, attr_name);
+    sai_db_unlock();
     SX_LOG_DBG("Result of setting %s:%d\n", attr_name, sai_status);
     SX_LOG_EXIT();
 
@@ -2183,7 +2162,7 @@ static sai_status_t mlnx_sai_remove_policer(_In_ sai_object_id_t sai_policer_id)
     policer_key_to_str(sai_policer_id, key_str);
     SX_LOG_NTC("Remove policer %s,:0x%" PRIx64 "\n", key_str, sai_policer_id);
 
-    policer_db_cl_plock_excl_acquire(&g_sai_db_ptr->p_lock);
+    sai_db_write_lock();
 
     if (SAI_STATUS_SUCCESS != (sai_status = db_get_sai_policer_data(sai_policer_id, &policer_db_data))) {
         SX_LOG_ERR("Failed to obtain policer db data for sai policer:0x%" PRIx64 "\n", sai_policer_id);
@@ -2270,8 +2249,7 @@ static sai_status_t mlnx_sai_remove_policer(_In_ sai_object_id_t sai_policer_id)
     }
 
 exit:
-    msync(g_sai_db_ptr, sizeof(*g_sai_db_ptr), MS_SYNC);
-    policer_db_cl_plock_release(&g_sai_db_ptr->p_lock);
+    sai_db_unlock();
     SX_LOG_EXIT();
     return sai_status;
 }
@@ -2373,27 +2351,24 @@ static sai_status_t mlnx_do_policer_stats(_In_ sai_object_id_t      policer_id,
     policer_counters_clear.clear_violation_counter = true;
     if (number_of_counters != 1) {
         SX_LOG_ERR("Only 1 counter is supported. policer:0x%" PRIx64 ".\n", policer_id);
-        sai_status = SAI_STATUS_INVALID_PARAMETER;
-        goto exit;
+        return SAI_STATUS_INVALID_PARAMETER;
     }
     if (NULL == counter_ids) {
         SX_LOG_ERR("NULL counter_ids. policer:0x%" PRIx64 ".\n", policer_id);
-        sai_status = SAI_STATUS_INVALID_PARAMETER;
-        goto exit;
+        return SAI_STATUS_INVALID_PARAMETER;
     }
     /* SDK supports only dropped packets. */
     if (SAI_POLICER_STAT_PACKETS != counter_ids[0]) {
         SX_LOG_NTC("Only SAI_POLICER_STAT_PACKETS are supported. policer:0x%" PRIx64 ".\n", policer_id);
-        sai_status = SAI_STATUS_ATTR_NOT_SUPPORTED_0;
-        goto exit;
+        return SAI_STATUS_ATTR_NOT_SUPPORTED_0;
     }
     if ((!is_clear) && (NULL == counters)) {
         SX_LOG_ERR("NULL out counters array. policer:0x%" PRIx64 ".\n", policer_id);
-        sai_status = SAI_STATUS_INVALID_PARAMETER;
-        goto exit;
+        return SAI_STATUS_INVALID_PARAMETER;
     }
 
-    policer_db_cl_plock_excl_acquire(&g_sai_db_ptr->p_lock);
+    sai_db_write_lock();
+
     if (SAI_STATUS_SUCCESS != (sai_status = db_get_sai_policer_data(policer_id, &policer_entry))) {
         goto exit;
     }
@@ -2511,7 +2486,7 @@ static sai_status_t mlnx_do_policer_stats(_In_ sai_object_id_t      policer_id,
     }
 
 exit:
-    policer_db_cl_plock_release(&g_sai_db_ptr->p_lock);
+    sai_db_unlock();
     SX_LOG_EXIT();
     return sai_status;
 }

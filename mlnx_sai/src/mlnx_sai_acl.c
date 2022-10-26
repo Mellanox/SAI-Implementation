@@ -3032,7 +3032,7 @@ const mlnx_obj_type_attrs_info_t          mlnx_acl_table_group_mem_obj_type_info
 acl_group_db_t* sai_acl_db_group_ptr(_In_ uint32_t group_index)
 {
     return (acl_group_db_t*)((uint8_t*)sai_acl_db->acl_groups_db +
-                             (sizeof(acl_group_db_t) + sizeof(uint32_t) * ACL_GROUP_SIZE) * group_index);
+                             (sizeof(acl_group_db_t) + sizeof(acl_group_member_t) * ACL_GROUP_SIZE) * group_index);
 }
 
 acl_group_bound_to_t* sai_acl_db_group_bount_to(_In_ uint32_t group_index)
@@ -16529,117 +16529,6 @@ static sai_status_t mlnx_acl_table_optimize(_In_ uint32_t table_db_idx)
     return SAI_STATUS_SUCCESS;
 }
 
-
-sai_status_t mlnx_vxlan_srcport_acl_add(sai_object_id_t switch_id)
-{
-    sx_status_t               status;
-    sx_flex_acl_flex_action_t action;
-    sx_flex_acl_key_desc_t    key_desc;
-    sx_acl_key_t              key;
-    sx_acl_key_type_t         key_handle;
-    sx_flex_acl_flex_rule_t   rule = MLNX_ACL_SX_FLEX_RULE_EMPTY;
-    sx_acl_region_id_t        region_id;
-    sx_acl_region_group_t     region_group;
-    sx_acl_id_t               acl_group, acl_id;
-    sx_acl_rule_offset_t      offset[] = {0};
-
-
-    action.type = SX_FLEX_ACL_ACTION_HASH;
-    action.fields.action_hash.command = SX_ACL_ACTION_HASH_COMMAND_XOR;
-    action.fields.action_hash.hash_value = 1 << 7;
-    if (mlnx_chip_is_spc()) {
-        action.fields.action_hash.type = SX_ACL_ACTION_HASH_TYPE_LAG;
-    } else if (mlnx_chip_is_spc2or3or4()) {
-        action.fields.action_hash.type = SX_ACL_ACTION_HASH_TYPE_ECMP;
-    }
-
-    /* ACL key */
-    if (mlnx_chip_is_spc()) {
-        key_desc.key_id = FLEX_ACL_KEY_LAG_HASH;
-        key_desc.key.lag_hash = 0;
-        key_desc.mask.lag_hash = 1 << 7;
-        key = FLEX_ACL_KEY_LAG_HASH;
-    } else if (mlnx_chip_is_spc2or3or4()) {
-        key_desc.key_id = FLEX_ACL_KEY_ECMP_HASH;
-        key_desc.key.ecmp_hash = 0;
-        key_desc.mask.ecmp_hash = 1 << 7;
-        key = FLEX_ACL_KEY_ECMP_HASH;
-    }
-
-    status = sx_api_acl_flex_key_set(gh_sdk, SX_ACCESS_CMD_CREATE, &key, 1, &key_handle);
-    if (SX_ERR(status)) {
-        SX_LOG_ERR("Failed to create key %s.\n", SX_STATUS_MSG(status));
-        return sdk_to_sai(status);
-    }
-
-    /* ACL region */
-    status = sx_api_acl_region_set(gh_sdk,
-                                   SX_ACCESS_CMD_CREATE,
-                                   key_handle,
-                                   SX_ACL_ACTION_TYPE_BASIC,
-                                   1,
-                                   &region_id);
-    if (SX_ERR(status)) {
-        SX_LOG_ERR("Failed to create ACL region %s.\n", SX_STATUS_MSG(status));
-        return sdk_to_sai(status);
-    }
-
-    memset(&region_group, 0, sizeof(region_group));
-    region_group.acl_type = SX_ACL_TYPE_PACKET_TYPES_AGNOSTIC;
-    region_group.regions.acl_packet_agnostic.region = region_id;
-
-    status = sx_api_acl_set(gh_sdk,
-                            SX_ACCESS_CMD_CREATE,
-                            SX_ACL_TYPE_PACKET_TYPES_AGNOSTIC,
-                            SX_ACL_DIRECTION_EGRESS,
-                            &region_group,
-                            &acl_id);
-    if (SX_ERR(status)) {
-        SX_LOG_ERR("Failed to create ACL %s.\n", SX_STATUS_MSG(status));
-        return sdk_to_sai(status);
-    }
-
-    /* create ACL rule */
-    status = sx_lib_flex_acl_rule_init(key_handle, 1, &rule);
-    if (SX_ERR(status)) {
-        SX_LOG_ERR("Failed to init ACL rule %s.\n", SX_STATUS_MSG(status));
-        return sdk_to_sai(status);
-    }
-
-    memcpy(rule.key_desc_list_p, &key_desc, sizeof(*rule.key_desc_list_p));
-    rule.key_desc_count = 1;
-    memcpy(rule.action_list_p, &action, sizeof(*rule.action_list_p));
-    rule.action_count = 1;
-    rule.valid = true;
-    rule.priority = 10;
-
-    status = sx_api_acl_flex_rules_set(gh_sdk, SX_ACCESS_CMD_SET, region_id, offset, &rule, 1);
-    if (SX_ERR(status)) {
-        SX_LOG_ERR("Failed to create ACL rule %s.\n", SX_STATUS_MSG(status));
-        goto out;
-    }
-
-    /* ACL group create */
-    status = sx_api_acl_group_set(gh_sdk, SX_ACCESS_CMD_CREATE, SX_ACL_DIRECTION_EGRESS, NULL, 0, &acl_group);
-    if (SX_ERR(status)) {
-        SX_LOG_ERR("Failed to create acl group - %s.\n", SX_STATUS_MSG(status));
-        goto out;
-    }
-
-
-    status = sx_api_acl_group_set(gh_sdk, SX_ACCESS_CMD_SET, SX_ACL_DIRECTION_EGRESS, &acl_id, 1, &acl_group);
-    if (SX_ERR(status)) {
-        SX_LOG_ERR("Failed to create ACL group - %s.\n", SX_STATUS_MSG(status));
-        goto out;
-    }
-
-    g_sai_db_ptr->vxlan_acl_id = acl_group;
-
-out:
-    mlnx_acl_flex_rule_free(&rule);
-    return sdk_to_sai(status);
-}
-
 sai_status_t mlnx_init_udp_srcport_acls(uint8_t                  requested_value,
                                         uint16_t                 rules_count,
                                         int8_t                   src_port_mask,
@@ -19390,7 +19279,7 @@ static sai_status_t mlnx_acl_port_bind_refresh(_In_ const mlnx_port_config_t *po
         && (((SAI_OBJECT_TYPE_ACL_TABLE == ingress_acl_index.acl_object_type) &&
              acl_db_table(ingress_acl_index.acl_db_index).is_used)
             || ((SAI_OBJECT_TYPE_ACL_TABLE_GROUP == ingress_acl_index.acl_object_type) &&
-                sai_acl_db->acl_groups_db[ingress_acl_index.acl_db_index].is_used))) {
+                sai_acl_db_group_ptr(ingress_acl_index.acl_db_index)->is_used))) {
         sai_acl_db->acl_bind_points->ports_lags[port_index].ingress_data.acl_index = ingress_acl_index;
         status = mlnx_acl_port_lag_rif_bind_point_set(port_config->saiport, MLNX_ACL_BIND_POINT_TYPE_INGRESS_PORT,
                                                       port_config->ingress_acl_index);
@@ -19413,7 +19302,7 @@ static sai_status_t mlnx_acl_port_bind_refresh(_In_ const mlnx_port_config_t *po
         && (((SAI_OBJECT_TYPE_ACL_TABLE == egress_acl_index.acl_object_type) &&
              acl_db_table(egress_acl_index.acl_db_index).is_used)
             || ((SAI_OBJECT_TYPE_ACL_TABLE_GROUP == egress_acl_index.acl_object_type) &&
-                sai_acl_db->acl_groups_db[egress_acl_index.acl_db_index].is_used))) {
+                sai_acl_db_group_ptr(egress_acl_index.acl_db_index)->is_used))) {
         sai_acl_db->acl_bind_points->ports_lags[port_index].egress_data.acl_index = egress_acl_index;
 
         status = mlnx_acl_port_lag_rif_bind_point_set(port_config->saiport, MLNX_ACL_BIND_POINT_TYPE_EGRESS_PORT,
@@ -22381,6 +22270,1239 @@ sai_status_t mlnx_gp_reg_db_free(_In_ mlnx_shm_rm_array_idx_t idx)
     gp_reg_db_data->gp_usage = GP_REG_USED_NONE;
 
     return mlnx_shm_rm_array_free(idx);
+}
+
+bool mlnx_perport_ipcnt_is_enable_nolock(void)
+{
+    return g_sai_db_ptr->perport_ipcnt_enable;
+}
+
+bool mlnx_perport_ipcnt_is_enable(void)
+{
+    uint32_t enable;
+
+    sai_db_read_lock();
+    enable = g_sai_db_ptr->perport_ipcnt_enable;
+    sai_db_unlock();
+
+    return enable;
+}
+
+static void fill_in_perport_ipcnt_pool(sx_flow_counter_id_t base_id, uint32_t counter_num)
+{
+    uint32_t                   ii, jj, port_num, start_idx;
+    perport_ipcnt_pool_t      *pool;
+    perport_ipcnt_pool_data_t *pool_data;
+
+    assert(counter_num % PERPORT_IPCNT_NUMBER_IN_PORT == 0);
+
+    port_num = counter_num / PERPORT_IPCNT_NUMBER_IN_PORT;
+    pool = g_sai_acl_db_ptr->perport_ipcnt_pool;
+    start_idx = pool->current_size;
+
+    for (ii = 0; ii < port_num; ii++) {
+        pool_data = &pool->pool_data[start_idx + ii];
+        for (jj = 0; jj < PERPORT_IPCNT_NUMBER_IN_PORT; jj++) {
+            pool_data->ip_counters[jj] = base_id + ii * PERPORT_IPCNT_NUMBER_IN_PORT + jj;
+        }
+    }
+    pool->current_size += port_num;
+
+    return;
+}
+
+static sai_status_t perport_ipcnt_init_counter(_In_ uint32_t port_number)
+{
+    sx_status_t                 sx_status;
+    uint32_t                    flow_counter_num = port_number * PERPORT_IPCNT_NUMBER_IN_PORT;
+    uint32_t                    bulk_num;
+    sx_flow_counter_bulk_attr_t attr;
+    sx_flow_counter_bulk_data_t counter_data;
+
+    assert(port_number >= 1 && port_number <= MAX_PORTS_DB);
+
+    round_up_perport_ipcnt_counter_num(bulk_num, flow_counter_num);
+
+    attr.counter_type = SX_FLOW_COUNTER_TYPE_PACKETS_AND_BYTES;
+    attr.counter_num = bulk_num;
+    sx_status = sx_api_flow_counter_bulk_set(gh_sdk, SX_ACCESS_CMD_CREATE, attr, &counter_data);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Error allocating per-port IP counter pool for %d(%d) ports: %s\n",
+                   port_number, bulk_num, SX_STATUS_MSG(sx_status));
+        return sdk_to_sai(sx_status);
+    }
+
+    fill_in_perport_ipcnt_pool(counter_data.base_counter_id, bulk_num);
+
+    return SAI_STATUS_SUCCESS;
+}
+
+void perport_ipcnt_get_counter_pool_data(_In_ uint32_t pool_data_index, _Out_ perport_ipcnt_pool_data_t **pool_data)
+{
+    assert(pool_data);
+    *pool_data = &g_sai_acl_db_ptr->perport_ipcnt_pool->pool_data[pool_data_index - 1];
+}
+
+void perport_ipcnt_get_counter_base_id(_In_ uint32_t pool_data_index, _Out_ sx_flow_counter_id_t *counter_id)
+{
+    perport_ipcnt_pool_data_t *pool_data;
+
+    assert(counter_id);
+    perport_ipcnt_get_counter_pool_data(pool_data_index, &pool_data);
+
+    *counter_id = pool_data->ip_counters[0];
+}
+
+sai_status_t mlnx_perport_ipcnt_get_counter_base_id_by_port(_In_ sai_object_id_t        port_id,
+                                                            _Out_ sx_flow_counter_id_t *counter_id)
+{
+    sai_status_t           status;
+    uint32_t               port_index;
+    perport_ipcnt_entry_t *entry;
+
+    if (!mlnx_perport_ipcnt_is_enable()) {
+        return SAI_STATUS_UNINITIALIZED;
+    }
+
+    sai_db_read_lock();
+    status = mlnx_port_idx_by_obj_id(port_id, &port_index);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to get log port index.\n");
+        goto out;
+    }
+
+    entry = &g_sai_acl_db_ptr->perport_ipcnt_entry[port_index];
+    if (entry->perport_ipcnt_flag) {
+        perport_ipcnt_get_counter_base_id(entry->counter_pool_idx, counter_id);
+    } else {
+        status = SAI_STATUS_ITEM_NOT_FOUND;
+        *counter_id = SX_FLOW_COUNTER_ID_INVALID;
+    }
+
+out:
+    sai_db_unlock();
+    return status;
+}
+
+static sai_status_t perport_ipcnt_request_counter(_In_ uint16_t port_index, _Out_ uint32_t *pool_data_index)
+{
+    uint32_t                   ii, resize;
+    perport_ipcnt_pool_t      *pool;
+    perport_ipcnt_pool_data_t *pool_data;
+    sai_status_t               status;
+
+    assert(pool_data_index != NULL);
+    assert(port_index < MAX_PORTS_DB);
+
+    pool = g_sai_acl_db_ptr->perport_ipcnt_pool;
+
+    for (ii = 0; ii < pool->current_size; ii++) {
+        pool_data = &pool->pool_data[ii];
+        if (!pool_data->is_used) {
+            pool_data->is_used = 1;
+            pool_data->port_index = sai_2_ppipcnt_port_index(port_index);
+            *pool_data_index = ii + 1;
+            return SAI_STATUS_SUCCESS;
+        }
+    }
+
+    assert(pool->current_size < MAX_PORTS_DB);
+
+    resize = (pool->current_size + PERPORT_IPCNT_COUNTER_RESIZE > MAX_PORTS_DB) ?
+             (MAX_PORTS_DB - pool->current_size) : PERPORT_IPCNT_COUNTER_RESIZE;
+    status = perport_ipcnt_init_counter(resize);
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+    pool_data = &pool->pool_data[ii];
+    pool_data->is_used = 1;
+    pool_data->port_index = sai_2_ppipcnt_port_index(port_index);
+    *pool_data_index = ii + 1;
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t perport_ipcnt_free_counter(_In_ uint32_t pool_data_index)
+{
+    perport_ipcnt_pool_data_t *pool_data;
+
+    assert(pool_data_index < MAX_PORTS_DB);
+
+    perport_ipcnt_get_counter_pool_data(pool_data_index, &pool_data);
+    pool_data->is_used = 0;
+    pool_data->port_index = 0;
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t perport_ipcnt_create_table(uint32_t            debug_index,
+                                               sx_acl_key_t       *key,
+                                               sx_acl_size_t       size,
+                                               sx_acl_direction_t  direction,
+                                               sx_acl_key_type_t  *key_handle,
+                                               sx_acl_region_id_t *region_id,
+                                               sx_acl_id_t        *acl_id)
+{
+    sx_status_t           sx_status;
+    sx_acl_region_group_t region_group;
+
+    sx_status = sx_api_acl_flex_key_set(gh_sdk,
+                                        SX_ACCESS_CMD_CREATE,
+                                        key,
+                                        PERPORT_IPCNT_KEY_MAX,
+                                        key_handle);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to create per-port IP counter flex key %d %s.\n",
+                   debug_index, SX_STATUS_MSG(sx_status));
+        return sdk_to_sai(sx_status);
+    }
+
+    sx_status = sx_api_acl_region_set(gh_sdk,
+                                      SX_ACCESS_CMD_CREATE,
+                                      *key_handle,
+                                      SX_ACL_ACTION_TYPE_BASIC,
+                                      size,
+                                      region_id);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to create per-port IP counter region %d(%d) %s.\n",
+                   debug_index, size, SX_STATUS_MSG(sx_status));
+        (void)sx_api_acl_flex_key_set(gh_sdk, SX_ACCESS_CMD_DELETE, NULL, 0, key_handle);
+        return sdk_to_sai(sx_status);
+    }
+
+    memset(&region_group, 0, sizeof(region_group));
+    region_group.acl_type = SX_ACL_TYPE_PACKET_TYPES_AGNOSTIC;
+    region_group.regions.acl_packet_agnostic.region = *region_id;
+    sx_status = sx_api_acl_set(gh_sdk,
+                               SX_ACCESS_CMD_CREATE,
+                               SX_ACL_TYPE_PACKET_TYPES_AGNOSTIC,
+                               direction,
+                               &region_group,
+                               acl_id);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to create per-port IP counter acl %d %s.\n",
+                   debug_index, SX_STATUS_MSG(sx_status));
+        (void)sx_api_acl_flex_key_set(gh_sdk, SX_ACCESS_CMD_DELETE, NULL, 0, key_handle);
+        (void)sx_api_acl_region_set(gh_sdk,
+                                    SX_ACCESS_CMD_DESTROY,
+                                    *key_handle,
+                                    SX_ACL_ACTION_TYPE_BASIC,
+                                    size,
+                                    region_id);
+        return sdk_to_sai(sx_status);
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t perport_ipcnt_delete_table(uint32_t            debug_index,
+                                               sx_acl_size_t       size,
+                                               sx_acl_direction_t  direction,
+                                               sx_acl_key_type_t  *key_handle,
+                                               sx_acl_region_id_t *region_id,
+                                               sx_acl_id_t        *acl_id)
+{
+    sx_status_t sx_status;
+
+    sx_status = sx_api_acl_set(gh_sdk,
+                               SX_ACCESS_CMD_DESTROY,
+                               SX_ACL_TYPE_PACKET_TYPES_AGNOSTIC,
+                               direction,
+                               NULL,
+                               acl_id);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to destroy per-port IP counter acl %d %s.\n",
+                   debug_index, SX_STATUS_MSG(sx_status));
+        return sdk_to_sai(sx_status);
+    }
+
+    sx_status = sx_api_acl_region_set(gh_sdk,
+                                      SX_ACCESS_CMD_DESTROY,
+                                      *key_handle,
+                                      SX_ACL_ACTION_TYPE_BASIC,
+                                      size,
+                                      region_id);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to destroy per-port IP counter region %d %s.\n",
+                   debug_index, SX_STATUS_MSG(sx_status));
+        return sdk_to_sai(sx_status);
+    }
+
+    sx_status = sx_api_acl_flex_key_set(gh_sdk, SX_ACCESS_CMD_DELETE, NULL, 0, key_handle);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to destroy per-port IP counter flex key %d %s.\n",
+                   debug_index, SX_STATUS_MSG(sx_status));
+        return sdk_to_sai(sx_status);
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
+sai_status_t mlnx_perport_ipcnt_init(_In_ uint32_t port_number)
+{
+    sx_status_t               sx_status;
+    sai_status_t              sai_status;
+    sx_acl_key_t              key[PERPORT_IPCNT_KEY_MAX];
+    sx_acl_key_type_t         key_handle[3];
+    sx_acl_region_id_t        region_id[3];
+    sx_acl_size_t             size, size_lag;
+    sx_acl_id_t               acl_group[2], acl_id[3];
+    sx_acl_group_attributes_t group_attr;
+    uint32_t                  rollback = -1, debug_index;
+
+    enum {
+        ROLLBACK_NOTHING = 0,
+        ROLLBACK_DELETE_TABLE_INGRESS,
+        ROLLBACK_DELETE_TABLE_INGRESS_LAG,
+        ROLLBACK_DELETE_TABLE_EGRESS,
+        ROLLBACK_DELETE_GROUP_INGRESS,
+        ROLLBACK_DELETE_GROUP_EGRESS,
+    };
+
+    assert(port_number > 0);
+    size = port_number * 4;
+
+    /* create 3 per-port IP counter acl table, in spc1/2/3 two acl tables will
+     * be created for non-lag and lag member port, in spc4 only 1 acl table will
+     * be created */
+    /* acl table #1 for ingress non-lag port */
+    key[PERPORT_IPCNT_KEY_L3_TYPE] = FLEX_ACL_KEY_L3_TYPE;
+    key[PERPORT_IPCNT_KEY_DMAC_UC] = FLEX_ACL_KEY_DMAC;
+    key[PERPORT_IPCNT_KEY_PORT] = FLEX_ACL_KEY_SRC_PORT;
+    debug_index = 1;
+    sai_status = perport_ipcnt_create_table(debug_index, key, size,
+                                            SX_ACL_DIRECTION_INGRESS,
+                                            &key_handle[0],
+                                            &region_id[0],
+                                            &acl_id[0]);
+    if (SAI_ERR(sai_status)) {
+        rollback = ROLLBACK_NOTHING;
+        goto out;
+    }
+
+    if (mlnx_chip_is_spc1or2or3()) {
+        /* acl table #2 for ingress lag port, not exist in spc4 */
+        key[PERPORT_IPCNT_KEY_PORT] = FLEX_ACL_KEY_RX_PORT_LIST;
+        size_lag = PERPORT_IPCNT_LAG_TABLE_SIZE;
+        debug_index = 2;
+        sai_status = perport_ipcnt_create_table(debug_index, key, size_lag,
+                                                SX_ACL_DIRECTION_INGRESS,
+                                                &key_handle[1],
+                                                &region_id[1],
+                                                &acl_id[1]);
+        if (SAI_ERR(sai_status)) {
+            rollback = ROLLBACK_DELETE_TABLE_INGRESS;
+            goto out;
+        }
+    } else {
+        key_handle[1] = 0;
+        region_id[1] = 0;
+        acl_id[1] = 0;
+        size_lag = 0;
+    }
+
+    /* acl table #3 for egress non-lag and lag member port */
+    key[PERPORT_IPCNT_KEY_PORT] = FLEX_ACL_KEY_DST_PORT;
+    debug_index = 3;
+    sai_status = perport_ipcnt_create_table(debug_index, key, size,
+                                            SX_ACL_DIRECTION_EGRESS,
+                                            &key_handle[2],
+                                            &region_id[2],
+                                            &acl_id[2]);
+    if (SAI_ERR(sai_status)) {
+        rollback = ROLLBACK_DELETE_TABLE_INGRESS_LAG;
+        goto out;
+    }
+
+    /* create 2 per-port IP counter acl table group */
+    /* acl table group #1 for ingress */
+    sx_status = sx_api_acl_group_set(gh_sdk, SX_ACCESS_CMD_CREATE, SX_ACL_DIRECTION_INGRESS, NULL, 0, &acl_group[0]);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to create per-port IP counter acl group1 %s.\n", SX_STATUS_MSG(sx_status));
+        rollback = ROLLBACK_DELETE_TABLE_EGRESS;
+        sai_status = sdk_to_sai(sx_status);
+        goto out;
+    }
+    /* add acl_id and acl_id2(if any) to acl group */
+    if (mlnx_chip_is_spc1or2or3()) {
+        sx_status = sx_api_acl_group_set(gh_sdk,
+                                         SX_ACCESS_CMD_SET,
+                                         SX_ACL_DIRECTION_INGRESS,
+                                         acl_id,
+                                         2,
+                                         &acl_group[0]);
+        if (SX_ERR(sx_status)) {
+            SX_LOG_ERR("Failed to add per-port IP counter acl2 to group1 %s.\n", SX_STATUS_MSG(sx_status));
+            rollback = ROLLBACK_DELETE_GROUP_INGRESS;
+            sai_status = sdk_to_sai(sx_status);
+            goto out;
+        }
+    } else {
+        sx_status = sx_api_acl_group_set(gh_sdk,
+                                         SX_ACCESS_CMD_SET,
+                                         SX_ACL_DIRECTION_INGRESS,
+                                         acl_id,
+                                         1,
+                                         &acl_group[0]);
+        if (SX_ERR(sx_status)) {
+            SX_LOG_ERR("Failed to add per-port IP counter acl1 to group1 %s.\n", SX_STATUS_MSG(sx_status));
+            rollback = ROLLBACK_DELETE_GROUP_INGRESS;
+            sai_status = sdk_to_sai(sx_status);
+            goto out;
+        }
+    }
+    /* set the group to highest priority */
+    group_attr.priority = FLEX_ACL_GROUP_PRIORITY_MAX;
+    group_attr.acl_group_desc.acl_name_str_len = 0;
+    sx_status = sx_api_acl_group_attributes_set(gh_sdk, SX_ACCESS_CMD_SET, acl_group[0], &group_attr);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to set per-port IP counter group1 priority %s.\n", SX_STATUS_MSG(sx_status));
+        rollback = ROLLBACK_DELETE_GROUP_INGRESS;
+        sai_status = sdk_to_sai(sx_status);
+        goto out;
+    }
+
+    /* acl table group #2 for egress */
+    sx_status = sx_api_acl_group_set(gh_sdk, SX_ACCESS_CMD_CREATE, SX_ACL_DIRECTION_EGRESS, NULL, 0, &acl_group[1]);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to create per-port IP counter acl group2 %s.\n", SX_STATUS_MSG(sx_status));
+        rollback = ROLLBACK_DELETE_GROUP_INGRESS;
+        sai_status = sdk_to_sai(sx_status);
+        goto out;
+    }
+    /* add acl_id3 to acl group */
+    sx_status = sx_api_acl_group_set(gh_sdk, SX_ACCESS_CMD_SET, SX_ACL_DIRECTION_EGRESS, &acl_id[2], 1, &acl_group[1]);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to add per-port IP counter acl3 to group2 %s.\n", SX_STATUS_MSG(sx_status));
+        rollback = ROLLBACK_DELETE_GROUP_EGRESS;
+        sai_status = sdk_to_sai(sx_status);
+        goto out;
+    }
+    /* set the group to highest priority */
+    sx_status = sx_api_acl_group_attributes_set(gh_sdk, SX_ACCESS_CMD_SET, acl_group[1], &group_attr);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to set per-port IP counter group2 priority %s.\n", SX_STATUS_MSG(sx_status));
+        rollback = ROLLBACK_DELETE_GROUP_EGRESS;
+        sai_status = sdk_to_sai(sx_status);
+        goto out;
+    }
+
+    /* initialize the acl counter */
+    sai_status = perport_ipcnt_init_counter(g_sai_db_ptr->ports_number);
+    if (SAI_ERR(sai_status)) {
+        rollback = ROLLBACK_DELETE_GROUP_EGRESS;
+        goto out;
+    }
+
+    /* record the 2 acl group */
+    g_sai_acl_db_ptr->perport_ipcnt_group->ingress_group.group_id = acl_group[0];
+    g_sai_acl_db_ptr->perport_ipcnt_group->ingress_group.priority = group_attr.priority;
+    g_sai_acl_db_ptr->perport_ipcnt_group->egress_group.group_id = acl_group[1];
+    g_sai_acl_db_ptr->perport_ipcnt_group->egress_group.priority = group_attr.priority;
+
+    /* record the 1st acl table */
+    g_sai_acl_db_ptr->perport_ipcnt_table->ingress_table.key_handle = key_handle[0];
+    g_sai_acl_db_ptr->perport_ipcnt_table->ingress_table.region_id = region_id[0];
+    g_sai_acl_db_ptr->perport_ipcnt_table->ingress_table.acl_id = acl_id[0];
+    g_sai_acl_db_ptr->perport_ipcnt_table->ingress_table.current_size = size;
+    /* record the 2nd acl table (if any) */
+    g_sai_acl_db_ptr->perport_ipcnt_table->ingress_lag_table.key_handle = key_handle[1];
+    g_sai_acl_db_ptr->perport_ipcnt_table->ingress_lag_table.region_id = region_id[1];
+    g_sai_acl_db_ptr->perport_ipcnt_table->ingress_lag_table.acl_id = acl_id[1];
+    g_sai_acl_db_ptr->perport_ipcnt_table->ingress_lag_table.current_size = size_lag;
+    /* record the 3rd acl table */
+    g_sai_acl_db_ptr->perport_ipcnt_table->egress_table.key_handle = key_handle[2];
+    g_sai_acl_db_ptr->perport_ipcnt_table->egress_table.region_id = region_id[2];
+    g_sai_acl_db_ptr->perport_ipcnt_table->egress_table.acl_id = acl_id[2];
+    g_sai_acl_db_ptr->perport_ipcnt_table->egress_table.current_size = size;
+
+    /* set the size_delta 16 in spc1, 32 in spc2/3/4 */
+    g_sai_acl_db_ptr->perport_ipcnt_table->size_delta = mlnx_chip_is_spc() ? 16 : 32;
+
+    SX_LOG_NTC("The per-port IP counter initialized successfully.\n");
+    return SAI_STATUS_SUCCESS;
+
+out:
+    switch (rollback) {
+    case ROLLBACK_DELETE_GROUP_EGRESS:
+        /* already error case, no need to check return code */
+        (void)sx_api_acl_group_set(gh_sdk, SX_ACCESS_CMD_DESTROY, SX_ACL_DIRECTION_EGRESS, NULL, 0, &acl_group[1]);
+    /* Falls through. */
+
+    case ROLLBACK_DELETE_GROUP_INGRESS:
+        (void)sx_api_acl_group_set(gh_sdk, SX_ACCESS_CMD_DESTROY, SX_ACL_DIRECTION_INGRESS, NULL, 0, &acl_group[0]);
+    /* Falls through. */
+
+    case ROLLBACK_DELETE_TABLE_EGRESS:
+        debug_index = 3;
+        (void)perport_ipcnt_delete_table(debug_index, size,
+                                         SX_ACL_DIRECTION_EGRESS,
+                                         &key_handle[2],
+                                         &region_id[2],
+                                         &acl_id[2]);
+    /* Falls through. */
+
+    case ROLLBACK_DELETE_TABLE_INGRESS_LAG:
+        if (mlnx_chip_is_spc1or2or3()) {
+            debug_index = 2;
+            (void)perport_ipcnt_delete_table(debug_index, size_lag,
+                                             SX_ACL_DIRECTION_INGRESS,
+                                             &key_handle[1],
+                                             &region_id[1],
+                                             &acl_id[1]);
+        }
+    /* Falls through. */
+
+    case ROLLBACK_DELETE_TABLE_INGRESS:
+        debug_index = 1;
+        (void)perport_ipcnt_delete_table(debug_index, size,
+                                         SX_ACL_DIRECTION_INGRESS,
+                                         &key_handle[0],
+                                         &region_id[0],
+                                         &acl_id[0]);
+    /* Falls through. */
+
+    case ROLLBACK_NOTHING:
+        break;
+    }
+
+    return sai_status;
+}
+
+static sai_status_t perport_ipcnt_port_create_rule(sx_acl_region_id_t    region_id,
+                                                   sx_acl_key_type_t     key_handle,
+                                                   sx_acl_rule_offset_t *offset,
+                                                   sx_flow_counter_id_t  counter_id,
+                                                   sx_flex_acl_l3_type_t l3_type,
+                                                   bool                  dmac_is_uc,
+                                                   bool                  is_ingress,
+                                                   sx_port_log_id_t      port_id,
+                                                   bool                  need_port_list,
+                                                   sx_mc_container_id_t  port_list_id)
+{
+    sx_status_t               sx_status;
+    sx_flex_acl_flex_rule_t   rule = MLNX_ACL_SX_FLEX_RULE_EMPTY;
+    sx_flex_acl_flex_action_t action;
+    sx_flex_acl_key_desc_t    key_desc[PERPORT_IPCNT_KEY_MAX] = {0};
+
+    action.type = SX_FLEX_ACL_ACTION_COUNTER;
+    action.fields.action_counter.counter_id = counter_id;
+    key_desc[PERPORT_IPCNT_KEY_L3_TYPE].key_id = FLEX_ACL_KEY_L3_TYPE;
+    key_desc[PERPORT_IPCNT_KEY_L3_TYPE].key.l3_type = l3_type;
+    key_desc[PERPORT_IPCNT_KEY_L3_TYPE].mask.l3_type = true;
+    key_desc[PERPORT_IPCNT_KEY_DMAC_UC].key_id = FLEX_ACL_KEY_DMAC;
+    *((uint8_t *)&key_desc[PERPORT_IPCNT_KEY_DMAC_UC].key.dmac) = dmac_is_uc ? 0x0 : 0x1;
+    *((uint8_t *)&key_desc[PERPORT_IPCNT_KEY_DMAC_UC].mask.dmac) = 0x1;
+    if (is_ingress) {
+        if (need_port_list) {
+            key_desc[PERPORT_IPCNT_KEY_PORT].key_id = FLEX_ACL_KEY_RX_PORT_LIST;
+            key_desc[PERPORT_IPCNT_KEY_PORT].key.rx_port_list.match_type = SX_ACL_PORT_LIST_MATCH_POSITIVE;
+            key_desc[PERPORT_IPCNT_KEY_PORT].key.rx_port_list.mc_container_id = port_list_id;
+            key_desc[PERPORT_IPCNT_KEY_PORT].mask.rx_port_list = true;
+        } else {
+            key_desc[PERPORT_IPCNT_KEY_PORT].key_id = FLEX_ACL_KEY_SRC_PORT;
+            key_desc[PERPORT_IPCNT_KEY_PORT].key.src_port = port_id;
+            key_desc[PERPORT_IPCNT_KEY_PORT].mask.src_port = true;
+        }
+    } else {
+        key_desc[PERPORT_IPCNT_KEY_PORT].key_id = FLEX_ACL_KEY_DST_PORT;
+        key_desc[PERPORT_IPCNT_KEY_PORT].key.dst_port = port_id;
+        key_desc[PERPORT_IPCNT_KEY_PORT].mask.dst_port = true;
+    }
+    sx_status = sx_lib_flex_acl_rule_init(key_handle, 1, &rule);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to init per-port IP counter ACL rule %s.\n", SX_STATUS_MSG(sx_status));
+        return sdk_to_sai(sx_status);
+    }
+
+    memcpy(rule.key_desc_list_p, &key_desc, sizeof(key_desc));
+    rule.key_desc_count = PERPORT_IPCNT_KEY_MAX;
+    memcpy(rule.action_list_p, &action, sizeof(*rule.action_list_p));
+    rule.action_count = 1;
+    rule.valid = true;
+    rule.priority = 0;
+    sx_status = sx_api_acl_flex_rules_set(gh_sdk, SX_ACCESS_CMD_SET, region_id, offset, &rule, 1);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to add per-port IP counter ACL rule %s.\n", SX_STATUS_MSG(sx_status));
+        goto out;
+    }
+out:
+    mlnx_acl_flex_rule_free(&rule);
+    return sdk_to_sai(sx_status);
+}
+
+static sai_status_t perport_ipcnt_port_delete_rule(sx_acl_region_id_t    region_id,
+                                                   sx_acl_rule_offset_t *offset,
+                                                   uint32_t              num)
+{
+    sx_status_t sx_status;
+
+    sx_status = sx_api_acl_flex_rules_set(gh_sdk,
+                                          SX_ACCESS_CMD_DELETE,
+                                          region_id,
+                                          offset,
+                                          NULL,
+                                          num);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to delete per-port IP counter ACL rule %d(%d) %s.\n",
+                   region_id, *offset, SX_STATUS_MSG(sx_status));
+        return sdk_to_sai(sx_status);
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t perport_ipcnt_table_size_adjust(perport_ipcnt_table_data_t *table, uint32_t increase)
+{
+    sx_status_t   sx_status;
+    sx_acl_size_t new_size;
+    uint32_t      delta = g_sai_acl_db_ptr->perport_ipcnt_table->size_delta;
+
+    new_size = increase ? (table->current_size + delta) : (table->current_size - delta);
+    sx_status = sx_api_acl_region_set(gh_sdk, SX_ACCESS_CMD_EDIT, table->key_handle,
+                                      SX_ACL_ACTION_TYPE_BASIC, new_size, &table->region_id);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to %s size per-port IP counter region %d %d->%d %s.\n",
+                   increase ? "increase" : "decrease", table->region_id,
+                   table->current_size, new_size, SX_STATUS_MSG(sx_status));
+        return sdk_to_sai(sx_status);
+    }
+    table->current_size = new_size;
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_perport_ipcnt_bind(_In_ sx_port_log_id_t id, _In_ bool is_lag)
+{
+    sx_status_t sx_status;
+    sx_acl_id_t group_id_ingress, group_id_egress;
+
+    group_id_ingress = g_sai_acl_db_ptr->perport_ipcnt_group->ingress_group.group_id;
+    group_id_egress = g_sai_acl_db_ptr->perport_ipcnt_group->egress_group.group_id;
+    /* bind the ingress */
+    sx_status = sx_api_acl_port_bind_set(gh_sdk, SX_ACCESS_CMD_ADD, id, group_id_ingress);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to bind %s 0x%x to per-port IP counter ACL ingress group 0x%x %s.\n",
+                   is_lag ? "lag" : "port", id, group_id_ingress, SX_STATUS_MSG(sx_status));
+        goto out;
+    }
+    /* bind the egress */
+    sx_status = sx_api_acl_port_bind_set(gh_sdk, SX_ACCESS_CMD_ADD, id, group_id_egress);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to bind %s 0x%x to per-port IP counter ACL egress group 0x%x %s.\n",
+                   is_lag ? "lag" : "port", id, group_id_egress, SX_STATUS_MSG(sx_status));
+        /* already error case, no need to check return code */
+        (void)sx_api_acl_port_bind_set(gh_sdk, SX_ACCESS_CMD_DELETE, id, group_id_ingress);
+        goto out;
+    }
+
+out:
+    return sdk_to_sai(sx_status);
+}
+
+static sai_status_t mlnx_perport_ipcnt_unbind(_In_ sx_port_log_id_t id, _In_ bool is_lag)
+{
+    sx_status_t sx_status;
+    sx_acl_id_t group_id_ingress, group_id_egress;
+
+    group_id_ingress = g_sai_acl_db_ptr->perport_ipcnt_group->ingress_group.group_id;
+    group_id_egress = g_sai_acl_db_ptr->perport_ipcnt_group->egress_group.group_id;
+    /* unbind the port/lag from ingress and egress */
+    sx_status = sx_api_acl_port_bind_set(gh_sdk, SX_ACCESS_CMD_DELETE, id, group_id_ingress);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to unbind %s 0x%x per-port IP counter ACL ingress group 0x%x %s.\n",
+                   is_lag ? "lag" : "port", id, group_id_ingress, SX_STATUS_MSG(sx_status));
+        goto out;
+    }
+    sx_status = sx_api_acl_port_bind_set(gh_sdk, SX_ACCESS_CMD_DELETE, id, group_id_egress);
+    if (SX_ERR(sx_status)) {
+        (void)sx_api_acl_port_bind_set(gh_sdk, SX_ACCESS_CMD_ADD, id, group_id_ingress);
+        SX_LOG_ERR("Failed to unbind %s 0x%x per-port IP counter ACL egress group 0x%x %s.\n",
+                   is_lag ? "lag" : "port", id, group_id_egress, SX_STATUS_MSG(sx_status));
+        goto out;
+    }
+
+out:
+    return sdk_to_sai(sx_status);
+}
+static sai_status_t perport_ipcnt_port_add_rules(_In_ sx_port_log_id_t port_id,
+                                                 _In_ uint16_t         port_index,
+                                                 _In_ uint32_t         op_type)
+{
+    sai_status_t                status;
+    uint32_t                    port_list_id, pool_data_idx, need_rollback = -1;
+    bool                        need_port_list;
+    sx_flow_counter_id_t        base_counter_id;
+    sx_acl_key_type_t           key_handle_ingress, key_handle_egress;
+    sx_acl_region_id_t          region_id_ingress, region_id_egress;
+    sx_acl_rule_offset_t        offset_ingress, offset_egress;
+    perport_ipcnt_table_data_t *table_ingress, *table_egress;
+    perport_ipcnt_entry_t      *entry;
+
+    assert((op_type == INTERNAL_ACL_OP_ADD_PORT) ||
+           (op_type == INTERNAL_ACL_OP_ADD_PORT_TO_LAG) ||
+           (op_type == INTERNAL_ACL_OP_DEL_PORT_FROM_LAG));
+
+    /* 1. request 8 counters from pool or reuse the original */
+    if (op_type == INTERNAL_ACL_OP_ADD_PORT) {
+        status = perport_ipcnt_request_counter(port_index, &pool_data_idx);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to request per-port IP counter for port 0x%x.\n", port_id);
+            goto exit;
+        }
+    } else {
+        pool_data_idx = g_sai_acl_db_ptr->perport_ipcnt_entry[port_index].counter_pool_idx;
+        assert(pool_data_idx);
+    }
+    perport_ipcnt_get_counter_base_id(pool_data_idx, &base_counter_id);
+
+    /* 2. increase the table size if needed */
+    if ((op_type == INTERNAL_ACL_OP_ADD_PORT_TO_LAG) &&
+        (mlnx_chip_is_spc1or2or3())) {
+        table_ingress = &g_sai_acl_db_ptr->perport_ipcnt_table->ingress_lag_table;
+        need_port_list = true;
+    } else {
+        table_ingress = &g_sai_acl_db_ptr->perport_ipcnt_table->ingress_table;
+        need_port_list = false;
+    }
+    key_handle_ingress = table_ingress->key_handle;
+    region_id_ingress = table_ingress->region_id;
+    offset_ingress = table_ingress->free_space;
+    /* 2.1 increase ingress table size if needed */
+    if (offset_ingress + 4 > table_ingress->current_size) {
+        status = perport_ipcnt_table_size_adjust(table_ingress, 1);
+        if (SAI_ERR(status)) {
+            goto port_list_out;
+        }
+    }
+
+    table_egress = &g_sai_acl_db_ptr->perport_ipcnt_table->egress_table;
+    key_handle_egress = table_egress->key_handle;
+    region_id_egress = table_egress->region_id;
+    offset_egress = table_egress->free_space;
+    /* 2.2 increase ingress table size if needed */
+    if (offset_egress + 4 > table_egress->current_size) {
+        status = perport_ipcnt_table_size_adjust(table_egress, 1);
+        if (SAI_ERR(status)) {
+            /* if failed, do not rollback the size of ingress table,
+             * we'd better not to adjust the region size too often,
+             * and size_delta is not a big number, so not a big waste */
+            goto port_list_out;
+        }
+    }
+
+    /* 3. create 8 acl rules */
+    /* create a port list if needed */
+    if (need_port_list) {
+        status = mlnx_acl_sx_mc_container_create_by_log_port(&port_id, 1, &port_list_id);
+        if (SAI_ERR(status)) {
+            goto port_list_out;
+        }
+    } else {
+        port_list_id = 0;
+    }
+    entry = &g_sai_acl_db_ptr->perport_ipcnt_entry[port_index];
+    /* 3.1 for SAI_PORT_STAT_IP_IN_UCAST_PKTS */
+    status = perport_ipcnt_port_create_rule(region_id_ingress, key_handle_ingress, &offset_ingress,
+                                            base_counter_id + PERPORT_IPCNT_IN_IP_UCAST,
+                                            SX_ACL_L3_TYPE_IPV4, true, true, port_id,
+                                            need_port_list, port_list_id);
+    if (SAI_ERR(status)) {
+        need_rollback = PERPORT_IPCNT_IN_IP_UCAST;
+        goto rollback_rule;
+    }
+    entry->entry_id[PERPORT_IPCNT_IN_IP_UCAST] = offset_ingress;
+
+    /* 3.2 for SAI_PORT_STAT_IP_IN_NON_UCAST_PKTS */
+    offset_ingress++;
+    status = perport_ipcnt_port_create_rule(region_id_ingress, key_handle_ingress, &offset_ingress,
+                                            base_counter_id + PERPORT_IPCNT_IN_IP_NON_UCAST,
+                                            SX_ACL_L3_TYPE_IPV4, false, true, port_id,
+                                            need_port_list, port_list_id);
+    if (SAI_ERR(status)) {
+        need_rollback = PERPORT_IPCNT_IN_IP_NON_UCAST;
+        goto rollback_rule;
+    }
+    entry->entry_id[PERPORT_IPCNT_IN_IP_NON_UCAST] = offset_ingress;
+
+    /* 3.3 for SAI_PORT_STAT_IPV6_IN_UCAST_PKTS */
+    offset_ingress++;
+    status = perport_ipcnt_port_create_rule(region_id_ingress, key_handle_ingress, &offset_ingress,
+                                            base_counter_id + PERPORT_IPCNT_IN_IP6_UCAST,
+                                            SX_ACL_L3_TYPE_IPV6, true, true, port_id,
+                                            need_port_list, port_list_id);
+    if (SAI_ERR(status)) {
+        need_rollback = PERPORT_IPCNT_IN_IP6_UCAST;
+        goto rollback_rule;
+    }
+    entry->entry_id[PERPORT_IPCNT_IN_IP6_UCAST] = offset_ingress;
+
+    /* 3.4 for SAI_PORT_STAT_IPV6_IN_MCAST_PKTS */
+    offset_ingress++;
+    status = perport_ipcnt_port_create_rule(region_id_ingress, key_handle_ingress, &offset_ingress,
+                                            base_counter_id + PERPORT_IPCNT_IN_IP6_NON_UCAST,
+                                            SX_ACL_L3_TYPE_IPV6, false, true, port_id,
+                                            need_port_list, port_list_id);
+    if (SAI_ERR(status)) {
+        need_rollback = PERPORT_IPCNT_IN_IP6_NON_UCAST;
+        goto rollback_rule;
+    }
+    entry->entry_id[PERPORT_IPCNT_IN_IP6_NON_UCAST] = offset_ingress;
+
+    /* egress direction do not need create new acl rule unless
+     * it is creating a new port */
+    if ((op_type == INTERNAL_ACL_OP_ADD_PORT_TO_LAG) ||
+        (op_type == INTERNAL_ACL_OP_DEL_PORT_FROM_LAG)) {
+        goto binding;
+    }
+
+    /* 3.5 for SAI_PORT_STAT_IP_OUT_UCAST_PKTS */
+    status = perport_ipcnt_port_create_rule(region_id_egress, key_handle_egress, &offset_egress,
+                                            base_counter_id + PERPORT_IPCNT_OUT_IP_UCAST,
+                                            SX_ACL_L3_TYPE_IPV4, true, false, port_id,
+                                            need_port_list, port_list_id);
+    if (SAI_ERR(status)) {
+        need_rollback = PERPORT_IPCNT_OUT_IP_UCAST;
+        goto rollback_rule;
+    }
+    entry->entry_id[PERPORT_IPCNT_OUT_IP_UCAST] = offset_egress;
+
+    /* 3.6 for SAI_PORT_STAT_IP_OUT_NON_UCAST_PKTS */
+    offset_egress++;
+    status = perport_ipcnt_port_create_rule(region_id_egress, key_handle_egress, &offset_egress,
+                                            base_counter_id + PERPORT_IPCNT_OUT_IP_NON_UCAST,
+                                            SX_ACL_L3_TYPE_IPV4, false, false, port_id,
+                                            need_port_list, port_list_id);
+    if (SAI_ERR(status)) {
+        need_rollback = PERPORT_IPCNT_OUT_IP_NON_UCAST;
+        goto rollback_rule;
+    }
+    entry->entry_id[PERPORT_IPCNT_OUT_IP_NON_UCAST] = offset_egress;
+
+    /* 3.7 for SAI_PORT_STAT_IPV6_OUT_UCAST_PKTS */
+    offset_egress++;
+    status = perport_ipcnt_port_create_rule(region_id_egress, key_handle_egress, &offset_egress,
+                                            base_counter_id + PERPORT_IPCNT_OUT_IP6_UCAST,
+                                            SX_ACL_L3_TYPE_IPV6, true, false, port_id,
+                                            need_port_list, port_list_id);
+    if (SAI_ERR(status)) {
+        need_rollback = PERPORT_IPCNT_OUT_IP6_UCAST;
+        goto rollback_rule;
+    }
+    entry->entry_id[PERPORT_IPCNT_OUT_IP6_UCAST] = offset_egress;
+
+    /* 3.8 for SAI_PORT_STAT_IPV6_OUT_MCAST_PKTS */
+    offset_egress++;
+    status = perport_ipcnt_port_create_rule(region_id_egress, key_handle_egress, &offset_egress,
+                                            base_counter_id + PERPORT_IPCNT_OUT_IP6_NON_UCAST,
+                                            SX_ACL_L3_TYPE_IPV6, false, false, port_id,
+                                            need_port_list, port_list_id);
+    if (SAI_ERR(status)) {
+        need_rollback = PERPORT_IPCNT_OUT_IP6_NON_UCAST;
+        goto rollback_rule;
+    }
+    entry->entry_id[PERPORT_IPCNT_OUT_IP6_NON_UCAST] = offset_egress;
+
+binding:
+    if ((op_type == INTERNAL_ACL_OP_ADD_PORT_TO_LAG) ||
+        (op_type == INTERNAL_ACL_OP_DEL_PORT_FROM_LAG)) {
+        need_rollback = PERPORT_IPCNT_OUT_IP_UCAST;
+    } else {
+        need_rollback = PERPORT_IPCNT_NUMBER_IN_PORT;
+    }
+    if ((op_type == INTERNAL_ACL_OP_ADD_PORT) ||
+        (op_type == INTERNAL_ACL_OP_DEL_PORT_FROM_LAG)) {
+        /* 4. do the bind */
+        status = mlnx_perport_ipcnt_bind(port_id, 0);
+        if (SAI_ERR(status)) {
+            goto rollback_rule;
+        }
+    }
+
+    /* update per-port IP counter db */
+    assert(offset_ingress / 4 < MAX_PORTS_DB);
+    assert(offset_egress / 4 < MAX_PORTS_DB);
+    table_ingress->offset_2_port[offset_ingress / 4] = sai_2_ppipcnt_port_index(port_index);
+    table_ingress->free_space = offset_ingress + 1;
+    if (op_type == INTERNAL_ACL_OP_ADD_PORT) {
+        /* the egress table need to be updated only when adding a new port */
+        table_egress->offset_2_port[offset_egress / 4] = sai_2_ppipcnt_port_index(port_index);
+        table_egress->free_space = offset_egress + 1;
+    }
+    entry->counter_pool_idx = pool_data_idx;
+    entry->perport_ipcnt_flag = 1;
+    entry->port_list_id = port_list_id;
+
+    goto exit;
+
+rollback_rule:
+    switch (need_rollback) {
+    case PERPORT_IPCNT_NUMBER_IN_PORT:
+        offset_egress--;
+        perport_ipcnt_port_delete_rule(region_id_egress, &offset_egress, 1);
+        entry->entry_id[PERPORT_IPCNT_OUT_IP6_NON_UCAST] = 0;
+    /* Falls through. */
+
+    case PERPORT_IPCNT_OUT_IP6_NON_UCAST:
+        offset_egress--;
+        perport_ipcnt_port_delete_rule(region_id_egress, &offset_egress, 1);
+        entry->entry_id[PERPORT_IPCNT_OUT_IP6_UCAST] = 0;
+    /* Falls through. */
+
+    case PERPORT_IPCNT_OUT_IP6_UCAST:
+        offset_egress--;
+        perport_ipcnt_port_delete_rule(region_id_egress, &offset_egress, 1);
+        entry->entry_id[PERPORT_IPCNT_OUT_IP_NON_UCAST] = 0;
+    /* Falls through. */
+
+    case PERPORT_IPCNT_OUT_IP_NON_UCAST:
+        offset_egress--;
+        perport_ipcnt_port_delete_rule(region_id_egress, &offset_egress, 1);
+        entry->entry_id[PERPORT_IPCNT_OUT_IP_UCAST] = 0;
+    /* Falls through. */
+
+    case PERPORT_IPCNT_OUT_IP_UCAST:
+        offset_ingress--;
+        perport_ipcnt_port_delete_rule(region_id_ingress, &offset_ingress, 1);
+        entry->entry_id[PERPORT_IPCNT_IN_IP6_NON_UCAST] = 0;
+    /* Falls through. */
+
+    case PERPORT_IPCNT_IN_IP6_NON_UCAST:
+        offset_ingress--;
+        perport_ipcnt_port_delete_rule(region_id_ingress, &offset_ingress, 1);
+        entry->entry_id[PERPORT_IPCNT_IN_IP6_UCAST] = 0;
+    /* Falls through. */
+
+    case PERPORT_IPCNT_IN_IP6_UCAST:
+        offset_ingress--;
+        perport_ipcnt_port_delete_rule(region_id_ingress, &offset_ingress, 1);
+        entry->entry_id[PERPORT_IPCNT_IN_IP_NON_UCAST] = 0;
+    /* Falls through. */
+
+    case PERPORT_IPCNT_IN_IP_NON_UCAST:
+        offset_ingress--;
+        perport_ipcnt_port_delete_rule(region_id_ingress, &offset_ingress, 1);
+        entry->entry_id[PERPORT_IPCNT_IN_IP_UCAST] = 0;
+    /* Falls through. */
+
+    case PERPORT_IPCNT_IN_IP_UCAST:
+        if (need_port_list) {
+            mlnx_acl_sx_mc_container_remove(port_list_id);
+        }
+        break;
+    }
+
+port_list_out:
+    if (op_type == INTERNAL_ACL_OP_ADD_PORT) {
+        perport_ipcnt_free_counter(pool_data_idx);
+    }
+
+exit:
+    return status;
+}
+
+static sai_status_t mlnx_perport_ipcnt_add_port(_In_ sx_port_log_id_t port_id, _In_ uint16_t port_index)
+{
+    return perport_ipcnt_port_add_rules(port_id, port_index, INTERNAL_ACL_OP_ADD_PORT);
+}
+
+static sai_status_t mlnx_perport_ipcnt_add_lag(_In_ sx_port_log_id_t lag_id)
+{
+    /* no need to create acl entry since no lag member yet, just do the bind */
+    return mlnx_perport_ipcnt_bind(lag_id, 1);
+}
+
+static sai_status_t mlnx_perport_ipcnt_del_lag(_In_ sx_port_log_id_t lag_id)
+{
+    /* all lag member should be removed in mlnx_lag_remove_all_ports, just do the unbind */
+    return mlnx_perport_ipcnt_unbind(lag_id, 1);
+}
+
+static sai_status_t perport_ipcnt_port_del_rules(_In_ sx_port_log_id_t port_id,
+                                                 _In_ uint16_t         port_index,
+                                                 _In_ uint32_t         op_type)
+{
+    sai_status_t                status;
+    sx_status_t                 sx_status;
+    perport_ipcnt_table_data_t *table_ingress, *table_egress;
+    sx_acl_region_id_t          region_ingress, region_egress;
+    perport_ipcnt_entry_t      *entry, *entry_old;
+    sx_acl_rule_offset_t        offset_old, offset_new, last_offset;
+    uint16_t                    port_old;
+    uint32_t                    ii;
+
+    assert((op_type == INTERNAL_ACL_OP_DEL_PORT_FROM_LAG) ||
+           (op_type == INTERNAL_ACL_OP_DEL_PORT) ||
+           (op_type == INTERNAL_ACL_OP_ADD_PORT_TO_LAG));
+
+    if (op_type == INTERNAL_ACL_OP_DEL_PORT_FROM_LAG) {
+        table_ingress = &g_sai_acl_db_ptr->perport_ipcnt_table->ingress_lag_table;
+        region_ingress = table_ingress->region_id;
+    } else {
+        table_ingress = &g_sai_acl_db_ptr->perport_ipcnt_table->ingress_table;
+        region_ingress = table_ingress->region_id;
+    }
+
+    table_egress = &g_sai_acl_db_ptr->perport_ipcnt_table->egress_table;
+    region_egress = table_egress->region_id;
+
+    if ((op_type == INTERNAL_ACL_OP_DEL_PORT) ||
+        (op_type == INTERNAL_ACL_OP_ADD_PORT_TO_LAG)) {
+        /* unbind the port from ingress and egress */
+        status = mlnx_perport_ipcnt_unbind(port_id, 0);
+        if (SAI_ERR(status)) {
+            return status;
+        }
+    }
+
+    entry = &g_sai_acl_db_ptr->perport_ipcnt_entry[port_index];
+
+    /* delete the 4 ingress acl entry */
+    status = perport_ipcnt_port_delete_rule(region_ingress, &entry->entry_id[PERPORT_IPCNT_IN_IP_UCAST], 4);
+    if (SAI_ERR(status)) {
+        return status;
+    }
+    /* move the last 4 acl entry to the hole if needed */
+    if ((table_ingress->free_space > 4) &&
+        /* if the deleted entry is the last one, no need to move */
+        (entry->entry_id[PERPORT_IPCNT_IN_LAST_INDEX] != table_ingress->free_space - 1)) {
+        offset_new = entry->entry_id[PERPORT_IPCNT_IN_FIRST_INDEX];
+        assert(offset_new / 4 < MAX_PORTS_DB);
+
+        assert(table_ingress->free_space % 4 == 0);
+        last_offset = table_ingress->free_space - 1;
+        assert(last_offset / 4 < MAX_PORTS_DB);
+
+        port_old = table_ingress->offset_2_port[last_offset / 4];
+        port_old = ppipcnt_2_sai_port_index(port_old);
+        entry_old = &g_sai_acl_db_ptr->perport_ipcnt_entry[port_old];
+        offset_old = entry_old->entry_id[PERPORT_IPCNT_IN_FIRST_INDEX];
+        sx_status = sx_api_acl_rule_block_move_set(gh_sdk, region_ingress, offset_old, 4, offset_new);
+        if (SX_ERR(sx_status)) {
+            SX_LOG_ERR("Failed to move per-port IP counter ACL rule ingress %d(0x%x)->%d(0x%x) %s.\n",
+                       offset_old, port_old, offset_new, port_index, SX_STATUS_MSG(sx_status));
+            return sdk_to_sai(sx_status);
+        } else {
+            assert(offset_new / 4 < MAX_PORTS_DB);
+            /* update the port's entry's offset */
+            entry_old->entry_id[PERPORT_IPCNT_IN_IP_UCAST] = offset_new;
+            entry_old->entry_id[PERPORT_IPCNT_IN_IP_NON_UCAST] = offset_new + 1;
+            entry_old->entry_id[PERPORT_IPCNT_IN_IP6_UCAST] = offset_new + 2;
+            entry_old->entry_id[PERPORT_IPCNT_IN_IP6_NON_UCAST] = offset_new + 3;
+            /* update the table's offset-to-port index mapping */
+            table_ingress->offset_2_port[offset_new / 4] = sai_2_ppipcnt_port_index(port_old);
+            table_ingress->offset_2_port[offset_old / 4] = 0;
+            table_ingress->free_space -= 4;
+        }
+    } else {
+        /* if the last one, no need to move, decrease the available offset */
+        table_ingress->free_space -= 4;
+        /* update the offset_2_port */
+        offset_new = entry->entry_id[PERPORT_IPCNT_IN_FIRST_INDEX];
+        assert(offset_new / 4 < MAX_PORTS_DB);
+        table_ingress->offset_2_port[offset_new / 4] = 0;
+    }
+    /* try to decrease the table size */
+    if (table_ingress->current_size - table_ingress->free_space >
+        g_sai_acl_db_ptr->perport_ipcnt_table->size_delta) {
+        /* it is not critical if decreasing the table size failed, just
+         * log the error but not rollback the previous operations */
+        status = perport_ipcnt_table_size_adjust(table_ingress, 0);
+        if (SAI_ERR(status)) {
+            return status;
+        }
+    }
+
+    for (ii = PERPORT_IPCNT_IN_FIRST_INDEX; ii <= PERPORT_IPCNT_IN_LAST_INDEX; ii++) {
+        entry->entry_id[ii] = 0;
+    }
+    /* for egress direction, there is only 1 acl table, we can use the same acl rules,
+     * no need to delete all the old acl rules and create new ones
+     */
+    if ((op_type == INTERNAL_ACL_OP_DEL_PORT_FROM_LAG) ||
+        (op_type == INTERNAL_ACL_OP_ADD_PORT_TO_LAG)) {
+        return SAI_STATUS_SUCCESS;
+    }
+
+    /* delete the 4 egress acl entry */
+    status = perport_ipcnt_port_delete_rule(region_egress, &entry->entry_id[PERPORT_IPCNT_OUT_IP_UCAST], 4);
+    if (SAI_ERR(status)) {
+        return status;
+    }
+    if ((table_egress->free_space > 4) &&
+        /* if the deleted entry is the last one, no need to move */
+        (entry->entry_id[PERPORT_IPCNT_OUT_LAST_INDEX] != table_egress->free_space - 1)) {
+        offset_new = entry->entry_id[PERPORT_IPCNT_OUT_FIRST_INDEX];
+        assert(offset_new / 4 < MAX_PORTS_DB);
+
+        assert(table_egress->free_space % 4 == 0);
+        last_offset = table_egress->free_space - 1;
+        assert(last_offset / 4 < MAX_PORTS_DB);
+
+        port_old = table_egress->offset_2_port[last_offset / 4];
+        port_old = ppipcnt_2_sai_port_index(port_old);
+        entry_old = &g_sai_acl_db_ptr->perport_ipcnt_entry[port_old];
+        offset_old = entry_old->entry_id[PERPORT_IPCNT_OUT_FIRST_INDEX];
+        sx_status = sx_api_acl_rule_block_move_set(gh_sdk, region_egress, offset_old, 4, offset_new);
+        if (SX_ERR(sx_status)) {
+            SX_LOG_ERR("Failed to move per-port IP counter ACL rule egress %d(0x%x)->%d(0x%x) %s.\n",
+                       offset_old, port_old, offset_new, port_index, SX_STATUS_MSG(sx_status));
+            return sdk_to_sai(sx_status);
+        } else {
+            assert(offset_new / 4 < MAX_PORTS_DB);
+            /* update the port's entry's offset */
+            entry_old->entry_id[PERPORT_IPCNT_OUT_IP_UCAST] = offset_new;
+            entry_old->entry_id[PERPORT_IPCNT_OUT_IP_NON_UCAST] = offset_new + 1;
+            entry_old->entry_id[PERPORT_IPCNT_OUT_IP6_UCAST] = offset_new + 2;
+            entry_old->entry_id[PERPORT_IPCNT_OUT_IP6_NON_UCAST] = offset_new + 3;
+            /* update the table's offset-to-port index mapping */
+            table_egress->offset_2_port[offset_new / 4] = sai_2_ppipcnt_port_index(port_old);
+            table_egress->offset_2_port[offset_old / 4] = 0;
+            table_egress->free_space -= 4;
+        }
+    } else {
+        /* if the last one, no need to move, just decrease the available offset */
+        table_egress->free_space -= 4;
+        /* update the offset_2_port */
+        offset_new = entry->entry_id[PERPORT_IPCNT_OUT_FIRST_INDEX];
+        assert(offset_new / 4 < MAX_PORTS_DB);
+        table_egress->offset_2_port[offset_new / 4] = 0;
+    }
+    /* try to decrease the table size */
+    if (table_egress->current_size - table_egress->free_space >
+        g_sai_acl_db_ptr->perport_ipcnt_table->size_delta) {
+        /* it is not critical if decreasing the table size failed, just
+         * log the error but not rollback the previous operations */
+        status = perport_ipcnt_table_size_adjust(table_egress, 0);
+        if (SX_ERR(sx_status)) {
+            return status;
+        }
+    }
+
+    for (ii = PERPORT_IPCNT_OUT_FIRST_INDEX; ii < PERPORT_IPCNT_NUMBER_IN_PORT; ii++) {
+        entry->entry_id[ii] = 0;
+    }
+    entry->perport_ipcnt_flag = 0;
+
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_perport_ipcnt_add_port_to_lag(_In_ sx_port_log_id_t port_id, _In_ uint16_t port_index)
+{
+    sai_status_t status;
+
+    if (!mlnx_chip_is_spc1or2or3()) {
+        /* in spc4, we just unbind the port since the lag have been bound */
+        mlnx_perport_ipcnt_unbind(port_id, 0);
+        return SAI_STATUS_SUCCESS;
+    }
+
+    status = perport_ipcnt_port_del_rules(port_id,
+                                          port_index,
+                                          INTERNAL_ACL_OP_ADD_PORT_TO_LAG);
+    if (SAI_ERR(status)) {
+        goto out;
+    }
+    status = perport_ipcnt_port_add_rules(port_id,
+                                          port_index,
+                                          INTERNAL_ACL_OP_ADD_PORT_TO_LAG);
+    if (SAI_ERR(status)) {
+        perport_ipcnt_port_add_rules(port_id, port_index, INTERNAL_ACL_OP_DEL_PORT_FROM_LAG);
+    }
+out:
+    return status;
+}
+
+static sai_status_t mlnx_perport_ipcnt_del_port_from_lag(_In_ sx_port_log_id_t port_id, _In_ uint16_t port_index)
+{
+    sai_status_t status;
+
+    if (!mlnx_chip_is_spc1or2or3()) {
+        /* in spc4, we just bind the port */
+        mlnx_perport_ipcnt_bind(port_id, 0);
+        return SAI_STATUS_SUCCESS;
+    }
+
+    status = perport_ipcnt_port_del_rules(port_id, port_index, INTERNAL_ACL_OP_DEL_PORT_FROM_LAG);
+    if (SAI_ERR(status)) {
+        goto out;
+    }
+    status = perport_ipcnt_port_add_rules(port_id, port_index, INTERNAL_ACL_OP_DEL_PORT_FROM_LAG);
+    if (SAI_ERR(status)) {
+        perport_ipcnt_port_add_rules(port_id, port_index, INTERNAL_ACL_OP_ADD_PORT_TO_LAG);
+    }
+out:
+    return status;
+}
+
+static sai_status_t mlnx_perport_ipcnt_del_port(_In_ sx_port_log_id_t port_id, _In_ uint16_t port_index)
+{
+    sai_status_t           status;
+    perport_ipcnt_entry_t *entry;
+
+    status = perport_ipcnt_port_del_rules(port_id, port_index, INTERNAL_ACL_OP_DEL_PORT);
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+    entry = &g_sai_acl_db_ptr->perport_ipcnt_entry[port_index];
+    perport_ipcnt_free_counter(entry->counter_pool_idx);
+    entry->counter_pool_idx = 0;
+
+    return SAI_STATUS_SUCCESS;
+}
+
+sai_status_t mlnx_perport_ipcnt_ops(_In_ sx_port_log_id_t port_id, _In_ uint16_t port_index, _In_ uint32_t op_type)
+{
+    sai_status_t status;
+
+    switch (op_type) {
+    case INTERNAL_ACL_OP_ADD_PORT:
+        status = mlnx_perport_ipcnt_add_port(port_id, port_index);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to add per-port IP counter for port 0x%x\n", port_id);
+        }
+        break;
+
+    case INTERNAL_ACL_OP_DEL_PORT:
+        status = mlnx_perport_ipcnt_del_port(port_id, port_index);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to del per-port IP counter for port 0x%x\n", port_id);
+        }
+        break;
+
+    case INTERNAL_ACL_OP_ADD_LAG:
+        status = mlnx_perport_ipcnt_add_lag(port_id);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to add per-port IP counter for lag 0x%x\n", port_id);
+        }
+        break;
+
+    case INTERNAL_ACL_OP_DEL_LAG:
+        status = mlnx_perport_ipcnt_del_lag(port_id);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to del per-port IP counter for lag 0x%x\n", port_id);
+        }
+        break;
+
+    case INTERNAL_ACL_OP_ADD_PORT_TO_LAG:
+        status = mlnx_perport_ipcnt_add_port_to_lag(port_id, port_index);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to add port 0x%x to lag for per-port IP counter\n", port_id);
+        }
+        break;
+
+    case INTERNAL_ACL_OP_DEL_PORT_FROM_LAG:
+        status = mlnx_perport_ipcnt_del_port_from_lag(port_id, port_index);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to remove port 0x%x from lag for per-port IP counter\n", port_id);
+        }
+        break;
+
+    default:
+        assert(0);
+    }
+
+    return status;
 }
 
 const sai_acl_api_t mlnx_acl_api = {

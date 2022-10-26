@@ -65,6 +65,8 @@ static sai_status_t mlnx_fdb_macmove_get(_In_ const sai_object_key_t   *key,
                                          _Inout_ vendor_cache_t        *cache,
                                          void                          *arg);
 static sai_status_t mlnx_fdb_bv_id_to_sx_fid(_In_ sai_object_id_t bv_id, _Out_ sx_fid_t       *sx_fid);
+static sai_status_t mlnx_bridge_port_translate_to_sdk(mlnx_bridge_port_t          *bport,
+                                                      sx_fdb_uc_mac_addr_params_t *fdb_entry);
 static const sai_vendor_attribute_entry_t fdb_vendor_attribs[] = {
     { SAI_FDB_ENTRY_ATTR_TYPE,
       { true, false, true, true },
@@ -395,8 +397,11 @@ static sai_status_t mlnx_fdb_attrs_to_sx(_In_ const sai_attribute_value_t  *type
 {
     sai_status_t        status = SAI_STATUS_SUCCESS;
     sai_packet_action_t packet_action;
-    sx_tunnel_id_t      sx_tunnel_id;
     mlnx_bridge_port_t *bport;
+    sai_ip_address_t    default_ip_addr = {
+        .addr_family = SAI_IP_ADDR_FAMILY_IPV4,
+        .addr = {.ip4 = ntohl(0)}
+    };
     bool                allow_move = false;
 
     assert(type_attr);
@@ -427,6 +432,13 @@ static sai_status_t mlnx_fdb_attrs_to_sx(_In_ const sai_attribute_value_t  *type
         return status;
     }
 
+    status = mlnx_translate_sai_ip_address_to_sdk(
+        ip_addr ? &ip_addr->ipaddr : &default_ip_addr,
+        &fdb_entry->dest.next_hop.next_hop_key.next_hop_key_entry.ip_tunnel.underlay_dip);
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
     if (!bport_attr || (SAI_NULL_OBJECT_ID == bport_attr->oid)) {
         if (false == SX_FDB_IS_PORT_REDUNDANT(fdb_entry->entry_type, fdb_entry->action)) {
             SX_LOG_NTC("Failed to create FDB Entry - action (%d) needs a port id attribute\n", packet_action);
@@ -445,6 +457,26 @@ static sai_status_t mlnx_fdb_attrs_to_sx(_In_ const sai_attribute_value_t  *type
         goto out;
     }
 
+    status = mlnx_bridge_port_translate_to_sdk(bport, fdb_entry);
+    if (status == SAI_STATUS_INVALID_ATTR_VALUE_0) {
+        status += bport_attr_index;
+    }
+
+out:
+    sai_db_unlock();
+    return status;
+}
+
+static sai_status_t mlnx_bridge_port_translate_to_sdk(mlnx_bridge_port_t          *bport,
+                                                      sx_fdb_uc_mac_addr_params_t *fdb_entry)
+{
+    sai_status_t     status = SAI_STATUS_SUCCESS;
+    sx_tunnel_id_t   sx_tunnel_id;
+    sai_ip_address_t default_ip_addr = {
+        .addr_family = SAI_IP_ADDR_FAMILY_IPV4,
+        .addr = {.ip4 = ntohl(0)}
+    };
+
     switch (bport->port_type) {
     case SAI_BRIDGE_PORT_TYPE_PORT:
     case SAI_BRIDGE_PORT_TYPE_SUB_PORT:
@@ -453,45 +485,43 @@ static sai_status_t mlnx_fdb_attrs_to_sx(_In_ const sai_attribute_value_t  *type
 
     case SAI_BRIDGE_PORT_TYPE_1D_ROUTER:
     case SAI_BRIDGE_PORT_TYPE_1Q_ROUTER:
-        if (packet_action != SAI_PACKET_ACTION_FORWARD) {
+        if ((fdb_entry->action != SX_FDB_ACTION_FORWARD)
+            && (fdb_entry->action != SX_FDB_ACTION_FORWARD_TO_ROUTER)) {
             SX_LOG_ERR("Bridge port type 1D/1Q router is only valid for SAI_PACKET_ACTION_FORWARD\n");
-            status = SAI_STATUS_INVALID_ATTR_VALUE_0 + bport_attr_index;
-            goto out;
+            status = SAI_STATUS_INVALID_ATTR_VALUE_0;
+            return status;
         }
         fdb_entry->action = SX_FDB_ACTION_FORWARD_TO_ROUTER;
         break;
 
     case SAI_BRIDGE_PORT_TYPE_TUNNEL:
-        if (!ip_addr) {
-            SX_LOG_ERR("Invalid bridge port type %d, SAI_BRIDGE_PORT_TYPE_TUNNEL "
-                       "is only supported when endpoint ip is passed\n", bport->port_type);
-            status = SAI_STATUS_INVALID_ATTR_VALUE_0 + bport_attr_index;
-            goto out;
+        if (!sdk_is_valid_ip_address(&fdb_entry->dest.next_hop.next_hop_key.next_hop_key_entry.ip_tunnel.underlay_dip))
+        {
+            /** default endpoint ip is 0.0.0.0 */
+            status = mlnx_translate_sai_ip_address_to_sdk(&default_ip_addr,
+                                                          &fdb_entry->dest.next_hop.next_hop_key.next_hop_key_entry.ip_tunnel.underlay_dip);
+            if (status != SAI_STATUS_SUCCESS) {
+                return status;
+            }
         }
 
         sx_tunnel_id =
             g_sai_tunnel_db_ptr->tunnel_entry_db[bport->tunnel_idx].sx_tunnel_id_ipv4;
-        fdb_entry->dest_type =
-            SX_FDB_UC_MAC_ADDR_DEST_TYPE_NEXT_HOP;
+
+        if (mlnx_is_vxlan_tunnel_bridge_port(bport)) {
+            fdb_entry->log_port = g_sai_db_ptr->sx_nve_log_port;
+        }
+
+        fdb_entry->dest_type = SX_FDB_UC_MAC_ADDR_DEST_TYPE_NEXT_HOP;
         fdb_entry->dest.next_hop.next_hop_key.type = SX_NEXT_HOP_TYPE_TUNNEL_ENCAP;
         fdb_entry->dest.next_hop.next_hop_key.next_hop_key_entry.ip_tunnel.tunnel_id = sx_tunnel_id;
-        status =
-            mlnx_translate_sai_ip_address_to_sdk(&ip_addr->ipaddr,
-                                                 &fdb_entry->dest.next_hop.next_hop_key.next_hop_key_entry.ip_tunnel.underlay_dip);
-        if (SAI_ERR(status)) {
-            SX_LOG_ERR("Error translating sai ip to sdk ip\n");
-            goto out;
-        }
         break;
 
     default:
         SX_LOG_ERR("Unsupported type of bridge port - %d\n", bport->port_type);
         status = SAI_STATUS_FAILURE;
-        goto out;
+        return status;
     }
-
-out:
-    sai_db_unlock();
     return status;
 }
 
@@ -748,36 +778,27 @@ static sai_status_t mlnx_fdb_port_set(_In_ const sai_object_key_t      *key,
 
     new_mac_entry = old_mac_entry;
 
+    mlnx_fdb_action_fetch(fdb_entry, &new_mac_entry);
+
     if (SAI_NULL_OBJECT_ID == value->oid) {
         if (SX_FDB_ACTION_TRAP != old_mac_entry.action) {
             new_mac_entry.action = SX_FDB_ACTION_DISCARD;
         }
-
         new_mac_entry.log_port = 0;
     } else {
+        sai_db_read_lock();
         status = mlnx_bridge_port_by_oid(value->oid, &bport);
         if (SAI_ERR(status)) {
             SX_LOG_ERR("Failed to lookup bridge port by oid %" PRIx64 "\n", value->oid);
+            sai_db_unlock();
             return status;
         }
-
-        mlnx_fdb_action_fetch(fdb_entry, &new_mac_entry);
-
-        if ((bport->port_type == SAI_BRIDGE_PORT_TYPE_1Q_ROUTER) ||
-            (bport->port_type == SAI_BRIDGE_PORT_TYPE_1D_ROUTER)) {
-            if ((new_mac_entry.action != SX_FDB_ACTION_FORWARD) &&
-                (new_mac_entry.action != SX_FDB_ACTION_FORWARD_TO_ROUTER)) {
-                SX_LOG_ERR("Failed to update bridge port id - 1Q/1D router is only supported for SAI_PACKET_ACTION_FORWARD. "
-                           "Current sx action is %d\n",
-                           new_mac_entry.action);
-                return SAI_STATUS_FAILURE;
-            }
-
-            new_mac_entry.action = SX_FDB_ACTION_FORWARD_TO_ROUTER;
-            new_mac_entry.log_port = SX_INVALID_PORT;
-        } else {
-            new_mac_entry.log_port = bport->logical;
+        status = mlnx_bridge_port_translate_to_sdk(bport, &new_mac_entry);
+        if (SAI_ERR(status)) {
+            sai_db_unlock();
+            return status;
         }
+        sai_db_unlock();
     }
 
     status = mlnx_del_mac(&old_mac_entry);

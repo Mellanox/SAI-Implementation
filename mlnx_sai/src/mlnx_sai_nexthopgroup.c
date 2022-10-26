@@ -1692,7 +1692,7 @@ static sai_status_t get_next_hop_data_from_encap_nhgm(_In_ mlnx_nhgm_db_entry_t 
                                     sx_next_hop);
     if (SAI_ERR(status)) {
         SX_LOG_ERR("Failed to get next hop data [NH_idx=%u, VRF=0x%lX, create=%d, refcount=%d]\n",
-                   nhgm_db_entry->data.entry.nh_idx,
+                   nhgm_db_entry->data.entry.nh_idx.idx,
                    vrf_data->associated_vrf,
                    create,
                    create ? vrf_data->refcount : 0);
@@ -3078,7 +3078,7 @@ static sai_status_t mlnx_nhgm_parse_attrs(_Out_ mlnx_nhgm_db_entry_t   **nhgm_db
                                     next_hop_group_member_vendor_attribs,
                                     SAI_COMMON_API_CREATE);
     if (SAI_ERR(status)) {
-        SX_LOG_ERR("Failed attribs check [attr_count=%u, attr_list=0x%lX]\n", attr_count, attr_list);
+        SX_LOG_ERR("Failed attribs check\n");
         return status;
     }
 

@@ -41,6 +41,7 @@ dist_data_DATA = sai_1710.xml \
                  sai_3700.xml \
                  sai_37001G.xml \
                  sai_3700_56ports.xml \
+                 sai_3700_perport_ip_counter.xml \
                  sai_3800.xml \
                  sai_380050G.xml \
                  sai_3800_pb_hash.xml \

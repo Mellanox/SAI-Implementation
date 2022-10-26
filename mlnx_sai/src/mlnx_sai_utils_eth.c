@@ -327,17 +327,32 @@ sai_status_t sdk_to_sai(sx_status_t status)
     }
 }
 
+bool sdk_is_valid_ip_address(const sx_ip_addr_t *sdk_addr)
+{
+    return (sdk_addr->version == SX_IP_VERSION_IPV4 || sdk_addr->version == SX_IP_VERSION_IPV6);
+}
+
+bool mlnx_is_valid_ip_address(const sai_ip_address_t *sai_addr)
+{
+    return ((SAI_IP_ADDR_FAMILY_IPV4 == sai_addr->addr_family)
+            || (SAI_IP_ADDR_FAMILY_IPV6 == sai_addr->addr_family));
+}
+
 _Success_(return == SAI_STATUS_SUCCESS)
 sai_status_t mlnx_translate_sai_ip_address_to_sdk(_In_ const sai_ip_address_t *sai_addr, _Out_ sx_ip_addr_t *sdk_addr)
 {
     int       ii;
     uint32_t *from, *to;
 
+    if (!mlnx_is_valid_ip_address(sai_addr)) {
+        SX_LOG_ERR("Invalid addr family %d\n", sai_addr->addr_family);
+        return SAI_STATUS_INVALID_PARAMETER;
+    }
     if (SAI_IP_ADDR_FAMILY_IPV4 == sai_addr->addr_family) {
         /* SDK IPv4 is in host order, while SAI is in network order */
         sdk_addr->version = SX_IP_VERSION_IPV4;
         sdk_addr->addr.ipv4.s_addr = ntohl(sai_addr->addr.ip4);
-    } else if (SAI_IP_ADDR_FAMILY_IPV6 == sai_addr->addr_family) {
+    } else {
         /* SDK IPv6 is 4*uint32. Each uint32 is in host order. Between uint32s there is network byte order */
         sdk_addr->version = SX_IP_VERSION_IPV6;
         from = (uint32_t*)sai_addr->addr.ip6;
@@ -346,11 +361,7 @@ sai_status_t mlnx_translate_sai_ip_address_to_sdk(_In_ const sai_ip_address_t *s
         for (ii = 0; ii < 4; ii++) {
             to[ii] = ntohl(from[ii]);
         }
-    } else {
-        SX_LOG_ERR("Invalid addr family %d\n", sai_addr->addr_family);
-        return SAI_STATUS_INVALID_PARAMETER;
     }
-
     return SAI_STATUS_SUCCESS;
 }
 
@@ -360,10 +371,15 @@ sai_status_t mlnx_translate_sdk_ip_address_to_sai(_In_ const sx_ip_addr_t *sdk_a
     int       ii;
     uint32_t *from, *to;
 
+    if (!sdk_is_valid_ip_address(sdk_addr)) {
+        SX_LOG_ERR("Invalid addr family %d\n", sdk_addr->version);
+        return SAI_STATUS_INVALID_PARAMETER;
+    }
+
     if (SX_IP_VERSION_IPV4 == sdk_addr->version) {
         sai_addr->addr_family = SAI_IP_ADDR_FAMILY_IPV4;
         sai_addr->addr.ip4 = htonl(sdk_addr->addr.ipv4.s_addr);
-    } else if (SX_IP_VERSION_IPV6 == sdk_addr->version) {
+    } else {
         sai_addr->addr_family = SAI_IP_ADDR_FAMILY_IPV6;
         from = (uint32_t*)sdk_addr->addr.ipv6.s6_addr32;
         to = (uint32_t*)sai_addr->addr.ip6;
@@ -371,9 +387,6 @@ sai_status_t mlnx_translate_sdk_ip_address_to_sai(_In_ const sx_ip_addr_t *sdk_a
         for (ii = 0; ii < 4; ii++) {
             to[ii] = htonl(from[ii]);
         }
-    } else {
-        SX_LOG_ERR("Invalid addr family %d\n", sdk_addr->version);
-        return SAI_STATUS_INVALID_PARAMETER;
     }
 
     return SAI_STATUS_SUCCESS;

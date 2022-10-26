@@ -186,11 +186,25 @@ const mlnx_obj_type_attrs_info_t   mlnx_fg_hash_field_obj_type_info = {
 };
 
 static const mlnx_attr_enum_info_t hash_enum_info[] = {
-    [SAI_HASH_ATTR_NATIVE_HASH_FIELD_LIST] = ATTR_ENUM_VALUES_ALL(),
+    [SAI_HASH_ATTR_NATIVE_HASH_FIELD_LIST] = ATTR_ENUM_VALUES_LIST(
+        SAI_NATIVE_HASH_FIELD_SRC_IP,
+        SAI_NATIVE_HASH_FIELD_DST_IP,
+        SAI_NATIVE_HASH_FIELD_INNER_SRC_IP,
+        SAI_NATIVE_HASH_FIELD_INNER_DST_IP,
+        SAI_NATIVE_HASH_FIELD_VLAN_ID,
+        SAI_NATIVE_HASH_FIELD_IP_PROTOCOL,
+        SAI_NATIVE_HASH_FIELD_ETHERTYPE,
+        SAI_NATIVE_HASH_FIELD_L4_SRC_PORT,
+        SAI_NATIVE_HASH_FIELD_L4_DST_PORT,
+        SAI_NATIVE_HASH_FIELD_SRC_MAC,
+        SAI_NATIVE_HASH_FIELD_DST_MAC,
+        SAI_NATIVE_HASH_FIELD_IN_PORT,
+        )
 };
 const mlnx_obj_type_attrs_info_t   mlnx_hash_obj_type_info = {
     hash_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(hash_enum_info), OBJ_STAT_CAP_INFO_EMPTY()
 };
+
 static void hash_key_to_str(_In_ sai_object_id_t hash_id, _Out_ char *key_str)
 {
     uint32_t hash_data = 0;

@@ -391,7 +391,7 @@ static sai_status_t mlnx_rif_oid_data_fetch(_In_ sai_object_id_t             rif
     return SAI_STATUS_SUCCESS;
 }
 
-static sai_status_t mlnx_rif_oid_counter_get(_In_ sai_object_id_t rif_oid, _Out_ sx_router_counter_id_t *sx_counter)
+sai_status_t mlnx_rif_oid_counter_get(_In_ sai_object_id_t rif_oid, _Out_ sx_router_counter_id_t *sx_counter)
 {
     sai_status_t        status;
     mlnx_rif_sx_data_t *sx_data;
@@ -463,7 +463,10 @@ sai_status_t mlnx_rif_sx_init(_In_ sx_router_id_t                     vrf_id,
                               _Out_ sx_router_counter_id_t           *sx_counter)
 {
     sai_status_t status;
-    sx_status_t  sx_status;
+    sx_status_t  sx_status, out_status;
+    bool         rif_created = false;
+    bool         counter_created = false;
+    bool         binded = false;
 
     assert(sx_rif_id);
     assert(sx_counter);
@@ -473,28 +476,61 @@ sai_status_t mlnx_rif_sx_init(_In_ sx_router_id_t                     vrf_id,
         SX_LOG_ERR("Failed to create router interface - %s.\n", SX_STATUS_MSG(sx_status));
         return sdk_to_sai(sx_status);
     }
+    rif_created = true;
 
     sx_status = sx_api_router_counter_set(gh_sdk, SX_ACCESS_CMD_CREATE, sx_counter);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to create router counter - %s\n", SX_STATUS_MSG(sx_status));
-        return sdk_to_sai(sx_status);
+        goto out;
     }
+    counter_created = true;
 
     sx_status = sx_api_router_interface_counter_bind_set(gh_sdk, SX_ACCESS_CMD_BIND, *sx_counter, *sx_rif_id);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to bind router counter %d to rif %d - %s\n", *sx_counter, *sx_rif_id,
                    SX_STATUS_MSG(sx_status));
-        return sdk_to_sai(sx_status);
+        goto out;
     }
+    binded = true;
 
     status = mlnx_bmtor_rif_event_add(*sx_rif_id);
     if (SAI_ERR(status)) {
-        return status;
+        goto out;
     }
 
     SX_LOG_DBG("Created sx rif %d and counter %d\n", *sx_rif_id, *sx_counter);
 
     return SAI_STATUS_SUCCESS;
+out:
+
+    if (binded) {
+        sx_status = sx_api_router_interface_counter_bind_set(gh_sdk, SX_ACCESS_CMD_UNBIND, *sx_counter, *sx_rif_id);
+        if (SX_ERR(sx_status)) {
+            SX_LOG_ERR("Failed to unbind router counter %d to rif %d - %s\n", *sx_counter, *sx_rif_id,
+                       SX_STATUS_MSG(sx_status));
+        }
+    }
+
+    if (counter_created) {
+        out_status = sx_api_router_counter_set(gh_sdk, SX_ACCESS_CMD_DESTROY, sx_counter);
+        if (SX_ERR(out_status)) {
+            SX_LOG_ERR("Failed to destroy router counter - %s\n", SX_STATUS_MSG(out_status));
+        }
+    }
+
+    if (rif_created) {
+        out_status = sx_api_router_interface_set(gh_sdk,
+                                                 SX_ACCESS_CMD_DELETE,
+                                                 vrf_id,
+                                                 intf_params,
+                                                 intf_attribs,
+                                                 sx_rif_id);
+        if (SX_ERR(out_status)) {
+            SX_LOG_ERR("Failed to remove router interface - %s.\n", SX_STATUS_MSG(out_status));
+        }
+    }
+
+    return sdk_to_sai(sx_status);
 }
 
 sai_status_t mlnx_rif_sx_deinit(_In_ mlnx_rif_sx_data_t *sx_data)

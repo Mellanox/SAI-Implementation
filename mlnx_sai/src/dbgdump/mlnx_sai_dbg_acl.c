@@ -21,15 +21,19 @@
 
 acl_group_db_t* sai_acl_db_group_ptr(_In_ uint32_t group_index);
 acl_group_bound_to_t* sai_acl_db_group_bount_to(_In_ uint32_t group_index);
-static void SAI_dump_acl_getdb(_In_ uint32_t               acl_group_number,
-                               _Out_ acl_table_db_t       *acl_table_db,
-                               _Out_ acl_entry_db_t       *acl_entry_db,
-                               _Out_ acl_setting_tbl_t    *acl_settings_tbl,
-                               _Out_ acl_pbs_map_entry_t  *acl_pbs_map_db,
-                               _Out_ acl_bind_points_db_t *acl_bind_points,
-                               _Out_ acl_group_db_t       *acl_group_db,
-                               _Out_ acl_vlan_group_t     *acl_vlan_group,
-                               _Out_ acl_group_bound_to_t *acl_group_bound_to)
+static void SAI_dump_acl_getdb(_In_ uint32_t                acl_group_number,
+                               _Out_ acl_table_db_t        *acl_table_db,
+                               _Out_ acl_entry_db_t        *acl_entry_db,
+                               _Out_ acl_setting_tbl_t     *acl_settings_tbl,
+                               _Out_ acl_pbs_map_entry_t   *acl_pbs_map_db,
+                               _Out_ acl_bind_points_db_t  *acl_bind_points,
+                               _Out_ acl_group_db_t        *acl_group_db,
+                               _Out_ acl_vlan_group_t      *acl_vlan_group,
+                               _Out_ acl_group_bound_to_t  *acl_group_bound_to,
+                               _Out_ perport_ipcnt_group_t *perport_ipcnt_group,
+                               _Out_ perport_ipcnt_table_t *perport_ipcnt_table,
+                               _Out_ perport_ipcnt_entry_t *perport_ipcnt_entry,
+                               _Out_ perport_ipcnt_pool_t  *perport_ipcnt_pool)
 {
     assert(NULL != acl_table_db);
     assert(NULL != acl_entry_db);
@@ -39,6 +43,10 @@ static void SAI_dump_acl_getdb(_In_ uint32_t               acl_group_number,
     assert(NULL != acl_group_db);
     assert(NULL != acl_vlan_group);
     assert(NULL != acl_group_bound_to);
+    assert(NULL != perport_ipcnt_group);
+    assert(NULL != perport_ipcnt_table);
+    assert(NULL != perport_ipcnt_entry);
+    assert(NULL != perport_ipcnt_pool);
     assert(NULL != g_sai_acl_db_ptr);
 
     acl_global_lock();
@@ -78,6 +86,25 @@ static void SAI_dump_acl_getdb(_In_ uint32_t               acl_group_number,
            * acl_group_number);
 
     acl_global_unlock();
+
+    /* per-port IP counter use sai db lock */
+    sai_db_read_lock();
+    memcpy(perport_ipcnt_group,
+           g_sai_acl_db_ptr->perport_ipcnt_group,
+           sizeof(perport_ipcnt_group_t));
+
+    memcpy(perport_ipcnt_table,
+           g_sai_acl_db_ptr->perport_ipcnt_table,
+           sizeof(perport_ipcnt_table_t));
+
+    memcpy(perport_ipcnt_entry,
+           g_sai_acl_db_ptr->perport_ipcnt_entry,
+           sizeof(perport_ipcnt_entry_t) * MAX_PORTS_DB);
+
+    memcpy(perport_ipcnt_pool,
+           g_sai_acl_db_ptr->perport_ipcnt_pool,
+           sizeof(perport_ipcnt_pool_t));
+    sai_db_unlock();
 }
 
 static void SAI_dump_acl_stage_enum_to_str(_In_ sai_acl_stage_t stage_type, _Out_ char *str)
@@ -679,17 +706,172 @@ static void SAI_dump_acl_vlan_groups_db_print(_In_ FILE *file, _In_ acl_vlan_gro
     }
 }
 
+static void SAI_dump_acl_perport_ipcnt_group_print(_In_ FILE *file, _In_ perport_ipcnt_group_t *group)
+{
+    perport_ipcnt_group_data_t group_data;
+    dbg_utils_table_columns_t  perport_ipcnt_group_clmns[] = {
+        {"group id",   9,  PARAM_UINT32_E, &group_data.group_id},
+        {"priority",   9,  PARAM_UINT32_E, &group_data.priority},
+        {NULL,         0,  0,              NULL}
+    };
+
+    assert(NULL != group);
+
+    dbg_utils_print_general_header(file, "Per-Port IP Counter Groups");
+
+    dbg_utils_print_secondary_header(file, "Ingress Group");
+    memcpy(&group_data, &group->ingress_group, sizeof(perport_ipcnt_group_data_t));
+    dbg_utils_print_table_headline(file, perport_ipcnt_group_clmns);
+    dbg_utils_print_table_data_line(file, perport_ipcnt_group_clmns);
+
+    dbg_utils_print_secondary_header(file, "Egress Group");
+    memcpy(&group_data, &group->egress_group, sizeof(perport_ipcnt_group_data_t));
+    dbg_utils_print_table_headline(file, perport_ipcnt_group_clmns);
+    dbg_utils_print_table_data_line(file, perport_ipcnt_group_clmns);
+}
+
+static void SAI_dump_acl_perport_ipcnt_table_data_print(_In_ FILE *file, perport_ipcnt_table_data_t *table_data)
+{
+    uint32_t                  ii, port_idx;
+    dbg_utils_table_columns_t perport_ipcnt_table_clmns[] = {
+        {"key type id",   12,  PARAM_UINT32_E, &table_data->key_handle},
+        {"region id",     10,  PARAM_UINT32_E, &table_data->region_id},
+        {"acl id",        7,   PARAM_UINT32_E, &table_data->acl_id},
+        {"current size",  13,  PARAM_UINT32_E, &table_data->current_size},
+        {"free space",    11,  PARAM_UINT32_E, &table_data->free_space},
+        {NULL,            0,   0,              NULL}
+    };
+    dbg_utils_table_columns_t offset_2_port_clmns[] = {
+        {"offset id",                 10,  PARAM_UINT32_E, &ii},
+        {"port index(start from 1)",  25,  PARAM_UINT16_E, &port_idx},
+        {NULL,                        0,   0,              NULL}
+    };
+
+    dbg_utils_print_table_headline(file, perport_ipcnt_table_clmns);
+    dbg_utils_print_table_data_line(file, perport_ipcnt_table_clmns);
+    dbg_utils_print_secondary_header(file, "offset_2_port map");
+    dbg_utils_print_table_headline(file, offset_2_port_clmns);
+    for (ii = 0; ii < (table_data->current_size / 4); ii++) {
+        port_idx = table_data->offset_2_port[ii];
+        dbg_utils_print_table_data_line(file, offset_2_port_clmns);
+    }
+}
+
+static void SAI_dump_acl_perport_ipcnt_table_print(_In_ FILE *file, _In_ perport_ipcnt_table_t *table)
+{
+    perport_ipcnt_table_data_t *table_data;
+
+    assert(NULL != table);
+
+    dbg_utils_print_general_header(file, "Per-Port IP Counter Tables");
+    dbg_utils_print_secondary_header(file, "table size_delta %d", table->size_delta);
+
+    dbg_utils_print_secondary_header(file, "Ingress Table");
+    table_data = &table->ingress_table;
+    SAI_dump_acl_perport_ipcnt_table_data_print(file, table_data);
+
+    if (mlnx_chip_is_spc1or2or3()) {
+        dbg_utils_print_secondary_header(file, "Ingress Lag Table");
+        table_data = &table->ingress_lag_table;
+        SAI_dump_acl_perport_ipcnt_table_data_print(file, table_data);
+    }
+
+    dbg_utils_print_secondary_header(file, "Egress Table");
+    table_data = &table->egress_table;
+    SAI_dump_acl_perport_ipcnt_table_data_print(file, table_data);
+}
+
+static void SAI_dump_acl_perport_ipcnt_entry_print(_In_ FILE *file, _In_ perport_ipcnt_entry_t *entries)
+{
+    uint32_t                  ii;
+    char                      entry_id_str[LINE_LENGTH] = {0};
+    perport_ipcnt_entry_t     entry;
+    dbg_utils_table_columns_t perport_ipcnt_entry_clmns[] = {
+        {"port index",           11,  PARAM_UINT32_E, &ii},
+        {"entry id",             40,  PARAM_STRING_E, entry_id_str},
+        {"counter pool index",   19,  PARAM_UINT16_E, &entry.counter_pool_idx},
+        {"flag",                 5,   PARAM_UINT8_E,  &entry.perport_ipcnt_flag},
+        {"port list id",         13,  PARAM_UINT32_E, &entry.port_list_id},
+        {NULL,                   0,   0,              NULL}
+    };
+    mlnx_port_config_t       *port;
+
+    assert(NULL != entries);
+
+    dbg_utils_print_general_header(file, "Per-Port IP Counter Entries");
+    sai_db_read_lock();
+    dbg_utils_print_table_headline(file, perport_ipcnt_entry_clmns);
+    for (ii = 0; ii < MAX_PORTS_DB; ii++) {
+        port = mlnx_port_by_idx(ii);
+        if (!port->is_present) {
+            continue;
+        }
+        memcpy(&entry, entries + ii, sizeof(perport_ipcnt_entry_t));
+        snprintf(entry_id_str, sizeof(entry_id_str), "%d,%d,%d,%d,%d,%d,%d,%d",
+                 entry.entry_id[PERPORT_IPCNT_IN_IP_UCAST],
+                 entry.entry_id[PERPORT_IPCNT_IN_IP_NON_UCAST],
+                 entry.entry_id[PERPORT_IPCNT_IN_IP6_UCAST],
+                 entry.entry_id[PERPORT_IPCNT_IN_IP6_NON_UCAST],
+                 entry.entry_id[PERPORT_IPCNT_OUT_IP_UCAST],
+                 entry.entry_id[PERPORT_IPCNT_OUT_IP_NON_UCAST],
+                 entry.entry_id[PERPORT_IPCNT_OUT_IP6_UCAST],
+                 entry.entry_id[PERPORT_IPCNT_OUT_IP6_NON_UCAST]);
+
+        dbg_utils_print_table_data_line(file, perport_ipcnt_entry_clmns);
+    }
+    sai_db_unlock();
+}
+
+static void SAI_dump_acl_perport_ipcnt_pool_print(_In_ FILE *file, _In_ perport_ipcnt_pool_t *pool)
+{
+    uint32_t                  ii, size;
+    char                      counter_id_str[LINE_LENGTH] = {0};
+    perport_ipcnt_pool_data_t pool_data;
+    dbg_utils_table_columns_t perport_ipcnt_pool_data_clmns[] = {
+        {"index",                      6,   PARAM_UINT32_E, &ii},
+        {"used",                       5,   PARAM_UINT8_E,  &pool_data.is_used},
+        {"port index(start from 1)",   25,  PARAM_UINT16_E, &pool_data.port_index},
+        {"counter id",                 48,  PARAM_STRING_E,  counter_id_str},
+        {NULL,                         0,   0,              NULL}
+    };
+
+    assert(NULL != pool);
+
+    dbg_utils_print_general_header(file, "Per-Port IP Counter Pool");
+    size = pool->current_size;
+    dbg_utils_print_secondary_header(file, "pool size %d", size);
+
+    dbg_utils_print_table_headline(file, perport_ipcnt_pool_data_clmns);
+    for (ii = 0; ii < size; ii++) {
+        memcpy(&pool_data, &pool->pool_data[ii], sizeof(perport_ipcnt_pool_data_t));
+        snprintf(counter_id_str, sizeof(counter_id_str), "%d,%d,%d,%d,%d,%d,%d,%d",
+                 pool_data.ip_counters[PERPORT_IPCNT_IN_IP_UCAST],
+                 pool_data.ip_counters[PERPORT_IPCNT_IN_IP_NON_UCAST],
+                 pool_data.ip_counters[PERPORT_IPCNT_IN_IP6_UCAST],
+                 pool_data.ip_counters[PERPORT_IPCNT_IN_IP6_NON_UCAST],
+                 pool_data.ip_counters[PERPORT_IPCNT_OUT_IP_UCAST],
+                 pool_data.ip_counters[PERPORT_IPCNT_OUT_IP_NON_UCAST],
+                 pool_data.ip_counters[PERPORT_IPCNT_OUT_IP6_UCAST],
+                 pool_data.ip_counters[PERPORT_IPCNT_OUT_IP6_NON_UCAST]);
+
+        dbg_utils_print_table_data_line(file, perport_ipcnt_pool_data_clmns);
+    }
+}
 
 void SAI_dump_acl(_In_ FILE *file)
 {
-    acl_table_db_t       *acl_table_db = NULL;
-    acl_entry_db_t       *acl_entry_db = NULL;
-    acl_setting_tbl_t    *acl_settings_tbl = NULL;
-    acl_pbs_map_entry_t  *acl_pbs_map_db = NULL;
-    acl_bind_points_db_t *acl_bind_points = NULL;
-    acl_group_db_t       *acl_group_db = NULL;
-    acl_vlan_group_t     *acl_vlan_group = NULL;
-    acl_group_bound_to_t *acl_group_bound_to = NULL;
+    acl_table_db_t        *acl_table_db = NULL;
+    acl_entry_db_t        *acl_entry_db = NULL;
+    acl_setting_tbl_t     *acl_settings_tbl = NULL;
+    acl_pbs_map_entry_t   *acl_pbs_map_db = NULL;
+    acl_bind_points_db_t  *acl_bind_points = NULL;
+    acl_group_db_t        *acl_group_db = NULL;
+    acl_vlan_group_t      *acl_vlan_group = NULL;
+    acl_group_bound_to_t  *acl_group_bound_to = NULL;
+    perport_ipcnt_group_t *perport_ipcnt_group = NULL;
+    perport_ipcnt_table_t *perport_ipcnt_table = NULL;
+    perport_ipcnt_entry_t *perport_ipcnt_entry = NULL;
+    perport_ipcnt_pool_t  *perport_ipcnt_pool = NULL;
 
     sai_db_read_lock();
     const uint32_t acl_divider = g_sai_db_ptr->acl_divider;
@@ -710,10 +892,16 @@ void SAI_dump_acl(_In_ FILE *file)
     acl_group_bound_to = (acl_group_bound_to_t*)calloc(acl_group_number, sizeof(acl_group_bound_to_t) +
                                                        (sizeof(acl_bind_point_index_t) *
                                                         SAI_ACL_MAX_BIND_POINT_BOUND));
+    perport_ipcnt_group = (perport_ipcnt_group_t *)calloc(1, sizeof(perport_ipcnt_group_t));
+    perport_ipcnt_table = (perport_ipcnt_table_t *)calloc(1, sizeof(perport_ipcnt_table_t));
+    perport_ipcnt_entry = (perport_ipcnt_entry_t *)calloc(MAX_PORTS_DB, sizeof(perport_ipcnt_entry_t));
+    perport_ipcnt_pool = (perport_ipcnt_pool_t  *)calloc(1, sizeof(perport_ipcnt_pool_t));
 
     if ((!acl_table_db) || (!acl_entry_db) ||
         (!acl_settings_tbl) || (!acl_pbs_map_db) || (!acl_bind_points) ||
-        (!acl_group_db) || (!acl_vlan_group) || !(acl_group_bound_to)) {
+        (!acl_group_db) || (!acl_vlan_group) || !(acl_group_bound_to) ||
+        (!perport_ipcnt_group) || (!perport_ipcnt_table) ||
+        (!perport_ipcnt_entry) || (!perport_ipcnt_pool)) {
         goto cleanup;
     }
 
@@ -725,13 +913,17 @@ void SAI_dump_acl(_In_ FILE *file)
                        acl_bind_points,
                        acl_group_db,
                        acl_vlan_group,
-                       acl_group_bound_to);
+                       acl_group_bound_to,
+                       perport_ipcnt_group,
+                       perport_ipcnt_table,
+                       perport_ipcnt_entry,
+                       perport_ipcnt_pool);
 
     dbg_utils_print_module_header(file, "SAI ACL");
 
     if (false == acl_settings_tbl->lazy_initialized) {
         dbg_utils_print_general_header(file, "SAI ACL DB is not initialized\n");
-        goto cleanup;
+        goto print_perport_ipcnt;
     }
 
     SAI_dump_acl_table_print(file, acl_table_db);
@@ -742,6 +934,17 @@ void SAI_dump_acl(_In_ FILE *file)
     SAI_dump_acl_groups_db_print(file, acl_group_db, acl_group_bound_to, acl_group_number);
     SAI_dump_acl_vlan_groups_db_print(file, acl_vlan_group);
 
+print_perport_ipcnt:
+    if (false == mlnx_perport_ipcnt_is_enable()) {
+        dbg_utils_print_general_header(file, "SAI Per-port IP counter is not enabled\n");
+        goto cleanup;
+    }
+
+    SAI_dump_acl_perport_ipcnt_group_print(file, perport_ipcnt_group);
+    SAI_dump_acl_perport_ipcnt_table_print(file, perport_ipcnt_table);
+    SAI_dump_acl_perport_ipcnt_entry_print(file, perport_ipcnt_entry);
+    SAI_dump_acl_perport_ipcnt_pool_print(file, perport_ipcnt_pool);
+
 cleanup:
     free(acl_table_db);
     free(acl_entry_db);
@@ -751,4 +954,8 @@ cleanup:
     free(acl_group_db);
     free(acl_vlan_group);
     free(acl_group_bound_to);
+    free(perport_ipcnt_group);
+    free(perport_ipcnt_table);
+    free(perport_ipcnt_entry);
+    free(perport_ipcnt_pool);
 }

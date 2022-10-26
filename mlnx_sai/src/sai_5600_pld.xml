@@ -1,0 +1,51 @@
+<?xml version="1.0"?>
+<root>
+    <platform_info type="5600">
+
+        <!-- Device MAC address  -->
+        <device-mac-address>00:02:03:04:05:00</device-mac-address>
+
+        <!-- ISSU enabled -->
+        <issu-enabled>1</issu-enabled>
+
+        <!-- Number of ports in the following port list -->
+        <number-of-physical-ports>4</number-of-physical-ports>
+
+        <!-- List of ports in the device -->
+        <ports-list>
+            <port-info>
+                <local-port>57</local-port>
+                <width>4</width>
+                <module>45</module>
+                <breakout-modes>3</breakout-modes>
+                <port-speed>2147485184</port-speed>
+            </port-info>
+            <port-info>
+                <local-port>59</local-port>
+                <width>4</width>
+                <module>45</module>
+                <breakout-modes>3</breakout-modes>
+                <port-speed>2147485184</port-speed>
+            </port-info>
+            <port-info>
+                <local-port>61</local-port>
+                <width>4</width>
+                <module>44</module>
+
+                <!-- 0 none, 1=2, 2=4, 3=2,4 -->
+                <breakout-modes>3</breakout-modes>
+
+                <!-- (BITMASK) 2 - 1Gb , 16 - 10Gb , 32 - 40Gb , 384 - 50Gb , 1536 - 100Gb , 4096 - 200Gb -->
+                <port-speed>2147485184</port-speed>
+            </port-info>
+            <port-info>
+                <local-port>63</local-port>
+                <width>4</width>
+                <module>44</module>
+                <breakout-modes>3</breakout-modes>
+                <port-speed>2147485184</port-speed>
+            </port-info>
+        </ports-list>
+    </platform_info>
+</root>
+

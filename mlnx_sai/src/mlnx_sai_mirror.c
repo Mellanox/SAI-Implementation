@@ -385,6 +385,55 @@ static sai_status_t mlnx_mirror_policer_validate(_In_ sai_object_id_t policer_oi
         return status;
     }
 
+    /* TODO: Temporary hack for the Sonic release
+     * Refer to "Bug SW #3177465" for more information */
+    if (mlnx_chip_is_spc2or3or4()) {
+        sai_object_key_t key = { .key.object_id = policer_oid };
+        sai_attribute_t  attr;
+
+        if (policer->sx_policer_attr.color_aware != false) {
+            attr.id = SAI_POLICER_ATTR_COLOR_SOURCE;
+            attr.value.s32 = SAI_POLICER_COLOR_SOURCE_BLIND;
+            status = sai_policer_attr_set(&key,
+                                          attr,
+                                          "SAI_POLICER_ATTR_COLOR_SOURCE");
+            if (SAI_ERR(status)) {
+                SX_LOG_ERR("Failed to set mirror policer 0x%X color blind.\n", policer_oid);
+                return status;
+            }
+            SX_LOG_NTC("Set mirror policer 0x%X COLOR BLIND.\n", policer_oid);
+        }
+        assert(policer->sx_policer_attr.color_aware == false);
+
+        if (policer->sx_policer_attr.rate_type != SX_POLICER_RATE_TYPE_SINGLE_RATE_E) {
+            attr.id = SAI_POLICER_ATTR_MODE;
+            attr.value.s32 = SAI_POLICER_MODE_SR_TCM;
+            status = sai_policer_attr_set(&key,
+                                          attr,
+                                          "SAI_POLICER_ATTR_MODE");
+            if (SAI_ERR(status)) {
+                SX_LOG_ERR("Failed to set mirror policer 0x%X single rate mode.\n", policer_oid);
+                return status;
+            }
+            SX_LOG_NTC("Set mirror policer 0x%X mode SINGLE RATE.\n", policer_oid);
+        }
+        assert(policer->sx_policer_attr.rate_type == SX_POLICER_RATE_TYPE_SINGLE_RATE_E);
+
+        if (policer->sx_policer_attr.red_action != SX_POLICER_ACTION_DISCARD) {
+            attr.id = SAI_POLICER_ATTR_RED_PACKET_ACTION;
+            attr.value.s32 = SAI_PACKET_ACTION_DROP;
+            status = sai_policer_attr_set(&key,
+                                          attr,
+                                          "SAI_POLICER_ATTR_RED_PACKET_ACTION");
+            if (SAI_ERR(status)) {
+                SX_LOG_ERR("Failed to set mirror policer 0x%X red drop.\n", policer_oid);
+                return status;
+            }
+            SX_LOG_NTC("Set mirror policer 0x%X RED DROP.\n", policer_oid);
+        }
+        assert(policer->sx_policer_attr.red_action == SX_POLICER_ACTION_DISCARD);
+    }
+
     return mlnx_mirror_policer_sx_attrs_validate(&policer->sx_policer_attr);
 }
 

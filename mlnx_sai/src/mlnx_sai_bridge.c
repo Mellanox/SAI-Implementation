@@ -1211,7 +1211,7 @@ static mlnx_fid_flood_ctrl_attr_t mlnx_bridge_flood_ctrl_attr_to_fid_attr(_In_ s
     }
 }
 
-static mlnx_fid_flood_ctrl_attr_t mlnx_bridge_flood_ctrl_group_attr_to_fid_attr(_In_ sai_bridge_attr_t attr)
+mlnx_fid_flood_ctrl_attr_t mlnx_bridge_flood_ctrl_group_attr_to_fid_attr(_In_ sai_bridge_attr_t attr)
 {
     switch (attr) {
     case SAI_BRIDGE_ATTR_UNKNOWN_UNICAST_FLOOD_GROUP:
@@ -1797,7 +1797,7 @@ static sai_status_t mlnx_remove_bridge(_In_ sai_object_id_t bridge_id)
                                                 &bridge->flood_data.types[MLNX_FID_FLOOD_CTRL_ATTR_UC],
                                                 SAI_NULL_OBJECT_ID);
     if (SAI_ERR(status)) {
-        SX_LOG_ERR("Failed to unmap UC l2mc group from bridge %lx\n", bridge->sx_bridge_id);
+        SX_LOG_ERR("Failed to unmap UC l2mc group from bridge %x\n", bridge->sx_bridge_id);
         goto out;
     }
 
@@ -1806,7 +1806,7 @@ static sai_status_t mlnx_remove_bridge(_In_ sai_object_id_t bridge_id)
                                                 &bridge->flood_data.types[MLNX_FID_FLOOD_CTRL_ATTR_BC],
                                                 SAI_NULL_OBJECT_ID);
     if (SAI_ERR(status)) {
-        SX_LOG_ERR("Failed to unmap BC l2mc group from bridge %lx\n", bridge->sx_bridge_id);
+        SX_LOG_ERR("Failed to unmap BC l2mc group from bridge %x\n", bridge->sx_bridge_id);
         goto out;
     }
 

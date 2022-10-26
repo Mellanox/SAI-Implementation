@@ -2924,6 +2924,18 @@ bool mlnx_chip_is_spc2or3or4(void)
            (chip_type == SX_CHIP_TYPE_SPECTRUM4);
 }
 
+bool mlnx_chip_is_spc1or2or3(void)
+{
+    sx_chip_types_t chip_type = g_sai_db_ptr->sx_chip_type;
+
+    assert(chip_type != SX_CHIP_TYPE_UNKNOWN);
+
+    return (chip_type == SX_CHIP_TYPE_SPECTRUM) ||
+           (chip_type == SX_CHIP_TYPE_SPECTRUM_A1) ||
+           (chip_type == SX_CHIP_TYPE_SPECTRUM2) ||
+           (chip_type == SX_CHIP_TYPE_SPECTRUM3);
+}
+
 mlnx_platform_type_t mlnx_platform_type_get(void)
 {
     return g_sai_db_ptr->platform_type;
@@ -3309,6 +3321,13 @@ static sai_status_t parse_port_info(xmlDoc *doc, xmlNode * port_node)
         port->port_map.lane_bmap |= 1 << ii;
     }
 
+    for (ii = 0; ii < g_sai_db_ptr->ports_configured; ii++) {
+        if (g_sai_db_ptr->ports_db[ii].module == module) {
+            port->port_map.lane_bmap = port->port_map.lane_bmap << g_sai_db_ptr->ports_db[ii].width;
+            break;
+        }
+    }
+
     g_sai_db_ptr->ports_configured++;
 
     MLNX_SAI_LOG_NTC("Port %u {local=%u module=%u width=%u lanes=0x%x breakout-modes=%u split=%u, port-speed=%u}\n",
@@ -3459,6 +3478,11 @@ static sai_status_t parse_elements(xmlDoc *doc, xmlNode * a_node)
             /* divide ACL resources by half for FFB */
             g_sai_db_ptr->acl_divider = g_sai_db_ptr->issu_enabled ? 2 : 1;
             xmlFree(key);
+        } else if ((!xmlStrcmp(cur_node->name, (const xmlChar*)"per-port-ip-counter-enabled"))) {
+            key = xmlNodeListGetString(doc, cur_node->children, 1);
+            g_sai_db_ptr->perport_ipcnt_enable = (uint32_t)atoi((const char*)key);
+            MLNX_SAI_LOG_NTC("per-port IP counter enabled: %u\n", g_sai_db_ptr->perport_ipcnt_enable);
+            xmlFree(key);
         } else {
             /* parse all children of current element */
             if (SAI_STATUS_SUCCESS != (status = parse_elements(doc, cur_node->children))) {
@@ -3552,6 +3576,9 @@ static void sai_db_values_init()
     g_sai_db_ptr->switch_default_tc = 0;
     memset(g_sai_db_ptr->policers_db, 0, sizeof(g_sai_db_ptr->policers_db));
     memset(g_sai_db_ptr->port_pg9_defaults, 0, sizeof(g_sai_db_ptr->port_pg9_defaults));
+    memset(&g_sai_db_ptr->port_queue_defaults, 0, sizeof(g_sai_db_ptr->port_queue_defaults));
+    memset(&g_sai_db_ptr->port_pg0_defaults, 0, sizeof(g_sai_db_ptr->port_pg0_defaults));
+
     memset(g_sai_db_ptr->mlnx_samplepacket_session, 0, sizeof(g_sai_db_ptr->mlnx_samplepacket_session));
     memset(g_sai_db_ptr->trap_group_valid, 0, sizeof(g_sai_db_ptr->trap_group_valid));
     memset(g_sai_db_ptr->isolation_groups, 0, sizeof(g_sai_db_ptr->isolation_groups));
@@ -3577,8 +3604,6 @@ static void sai_db_values_init()
     g_sai_db_ptr->port_parsing_depth_set_for_tunnel = false;
 
     g_sai_db_ptr->is_bfd_module_initialized = false;
-
-    g_sai_db_ptr->nve_tunnel_type = NVE_TUNNEL_UNKNOWN;
 
     g_sai_db_ptr->crc_check_enable = true;
     g_sai_db_ptr->crc_recalc_enable = true;
@@ -4474,6 +4499,8 @@ static sai_status_t mlnx_switch_dump_health_event_prepare_stage_dir(_In_ const c
 
 static void mlnx_switch_dump_health_event_fill_metadata(_In_ FILE *stream, _In_ sx_event_health_notification_t *event)
 {
+    sx_event_health_ecc_data_t *ecc_data = NULL;
+
     dbg_utils_print_module_header(stream, "SDK health event metadata");
 
     dbg_utils_print_field(stream, "Device ID:", &event->device_id, PARAM_UINT8_E);
@@ -4481,6 +4508,26 @@ static void mlnx_switch_dump_health_event_fill_metadata(_In_ FILE *stream, _In_ 
     dbg_utils_print_field(stream, "Cause:", sx_health_cause_str(event->cause), PARAM_STRING_E);
     dbg_utils_print_field(stream, "Was debug started:", &event->was_debug_started, PARAM_BOOL_E);
     dbg_utils_print_field(stream, "IRISC ID:", &event->irisc_id, PARAM_UINT8_E);
+
+    if (event->cause == SX_HEALTH_CAUSE_ECC_E) {
+        ecc_data = &event->data.ecc_data;
+        dbg_utils_print_field(stream, "ECC slot index:", &ecc_data->slot_index, PARAM_UINT16_E);
+        dbg_utils_print_field(stream, "ECC device index:", &ecc_data->device_index, PARAM_UINT16_E);
+        switch (event->severity) {
+        case SX_HEALTH_SEVERITY_FATAL_E:
+            dbg_utils_print_field(stream, "ECC uncorrected:",
+                                  &ecc_data->ecc_stats.ecc_uncorrected, PARAM_UINT32_E);
+            break;
+
+        case SX_HEALTH_SEVERITY_NOTICE_E:
+            dbg_utils_print_field(stream, "ECC corrected:",
+                                  &ecc_data->ecc_stats.ecc_corrected, PARAM_UINT32_E);
+            break;
+
+        default:
+            SX_LOG_ERR("Unexpected event severity - %s\n", sx_health_severity_str(event->severity));
+        }
+    }
 }
 
 static sai_status_t mlnx_switch_dump_health_event_remove_extra_dumps(_In_ const char *path, _In_ int limit)
@@ -4576,6 +4623,7 @@ static sai_status_t mlnx_switch_health_event_handle(_In_ sx_event_health_notific
     sai_status_t                     sai_status = SAI_STATUS_SUCCESS;
     sx_status_t                      sdk_status = SX_STATUS_SUCCESS;
     sx_dbg_extra_info_t              dbg_info;
+    sx_event_health_ecc_data_t      *ecc_data = NULL;
 
     if (NULL == (d = opendir(dump_conf->path))) {
         SX_LOG_ERR("Directory for dumps is not exists, skip\n");
@@ -4651,6 +4699,33 @@ static sai_status_t mlnx_switch_health_event_handle(_In_ sx_event_health_notific
 
     /* This should be syslog message */
     SX_LOG(event_log_level, "Health event happened, severity %s, cause %s\n", event_severity_str, event_cause_str);
+
+    if (event->cause == SX_HEALTH_CAUSE_ECC_E) {
+        ecc_data = &event->data.ecc_data;
+        switch (event->severity) {
+        case SX_HEALTH_SEVERITY_FATAL_E:
+            event_log_level = SX_LOG_ERROR;
+            SX_LOG(event_log_level,
+                   "ECC uncorrected stats updated, slot index %u, device index %u, ECC uncorrected counter %u\n",
+                   ecc_data->slot_index,
+                   ecc_data->device_index,
+                   ecc_data->ecc_stats.ecc_uncorrected);
+            break;
+
+        case SX_HEALTH_SEVERITY_NOTICE_E:
+            event_log_level = SX_LOG_NOTICE;
+            SX_LOG(event_log_level,
+                   "ECC corrected stats updated, slot index %u, device index %u, ECC corrected counter %u\n",
+                   ecc_data->slot_index,
+                   ecc_data->device_index,
+                   ecc_data->ecc_stats.ecc_corrected);
+            break;
+
+        default:
+            SX_LOG_ERR("Unexpected ECC event severity - %s\n", event_severity_str);
+            return SAI_STATUS_FAILURE;
+        }
+    }
 #endif /* ifndef _WIN32 */
 
     return SAI_STATUS_SUCCESS;
@@ -5577,13 +5652,34 @@ static void event_thread_func(void *context)
 
                 if (SX_TRAP_ID_BFD_PACKET_EVENT == receive_info->trap_id) {
                     const struct bfd_packet_event *event = (const struct bfd_packet_event*)p_packet;
+                    unsigned short                 ip_family = event->peer_addr.peer_in.sin_family;
+                    unsigned short                 port = 0;
+                    char                           ip[INET6_ADDRSTRLEN] = "\0";
+                    switch (ip_family) {
+                    case AF_INET:
+                        sai_ipv4_to_str(((struct bfd_packet_event *)event)->peer_addr.peer_in.sin_addr.s_addr,
+                                        INET_ADDRSTRLEN, ip, NULL);
+                        port = event->peer_addr.peer_in.sin_port;
+                        break;
+
+                    case AF_INET6:
+                        sai_ipv6_to_str(((struct bfd_packet_event *)event)->peer_addr.peer_in6.sin6_addr.s6_addr,
+                                        INET6_ADDRSTRLEN, ip, NULL);
+                        port = event->peer_addr.peer_in6.sin6_port;
+                        break;
+
+                    default:
+                        SX_LOG_WRN("Received BFD packet with ip-family %u.\n", ip_family);
+                        continue;
+                    }
+
                     if (event->opaque_data_valid) {
                         status = mlnx_switch_bfd_packet_handle(event);
                         if (SAI_ERR(status)) {
-                            SX_LOG_ERR("BFD packet handle failed.\n");
+                            SX_LOG_ERR("BFD packet from %s:%u handle failed.\n", ip, port);
                         }
                     } else {
-                        SX_LOG_WRN("Received BFD packet not related to any existing session.\n");
+                        SX_LOG_NTC("Received BFD packet from %s:%u, not related to any existing session.\n", ip, port);
                     }
                     continue;
                 }
@@ -5995,7 +6091,11 @@ static uint32_t sai_acl_db_size_get()
             sizeof(acl_vlan_group_t) * ACL_VLAN_GROUP_COUNT) +
            ((sizeof(acl_group_bound_to_t) + (sizeof(acl_bind_point_index_t) * SAI_ACL_MAX_BIND_POINT_BOUND))
             * ACL_GROUP_NUMBER / g_sai_db_ptr->acl_divider) +
-           sai_udf_db_size_get();
+           sai_udf_db_size_get() +
+           sizeof(perport_ipcnt_group_t) +
+           sizeof(perport_ipcnt_table_t) +
+           sizeof(perport_ipcnt_entry_t) * MAX_PORTS_DB +
+           sizeof(perport_ipcnt_pool_t);
 }
 
 static uint32_t sai_udf_db_size_get()
@@ -6035,6 +6135,15 @@ static void sai_acl_db_init()
                                                                       sizeof(acl_vlan_group_t) * ACL_VLAN_GROUP_COUNT);
 
     sai_udf_db_init();
+    g_sai_acl_db_ptr->perport_ipcnt_group =
+        (perport_ipcnt_group_t *)((uint8_t*)g_sai_acl_db_ptr->udf_db.matches + MLNX_UDF_DB_MATCHES_SIZE);
+    g_sai_acl_db_ptr->perport_ipcnt_table =
+        (perport_ipcnt_table_t*)((uint8_t*)g_sai_acl_db_ptr->perport_ipcnt_group + sizeof(perport_ipcnt_group_t));
+    g_sai_acl_db_ptr->perport_ipcnt_entry =
+        (perport_ipcnt_entry_t*)((uint8_t*)g_sai_acl_db_ptr->perport_ipcnt_table + sizeof(perport_ipcnt_table_t));
+    g_sai_acl_db_ptr->perport_ipcnt_pool =
+        (perport_ipcnt_pool_t*)((uint8_t*)g_sai_acl_db_ptr->perport_ipcnt_entry + sizeof(perport_ipcnt_entry_t) *
+                                MAX_PORTS_DB);
 }
 
 static void sai_udf_db_init()
@@ -6746,7 +6855,6 @@ static sai_status_t mlnx_initialize_switch(sai_object_id_t switch_id, bool *tran
 {
     int                         system_err;
     const char                 *config_file, *boot_type_char, *aggregate_bridge_drops, *dump_path, *max_dumps;
-    const char                 *vxlan_srcport_range_enabled;
     const char                 *accumed_flow_cnt;
     mlnx_sai_boot_type_t        boot_type = 0;
     sx_router_resources_param_t resources_param;
@@ -6882,13 +6990,6 @@ static sai_status_t mlnx_initialize_switch(sai_object_id_t switch_id, bool *tran
         g_sai_db_ptr->aggregate_bridge_drops = false;
     }
 
-    vxlan_srcport_range_enabled = g_mlnx_services.profile_get_value(g_profile_id, SAI_KEY_VXLAN_SRCPORT_RANGE_ENABLE);
-    if (NULL != vxlan_srcport_range_enabled) {
-        g_sai_db_ptr->vxlan_srcport_range_enabled = (bool)atoi(vxlan_srcport_range_enabled);
-    } else {
-        g_sai_db_ptr->vxlan_srcport_range_enabled = false;
-    }
-
     accumed_flow_cnt = g_mlnx_services.profile_get_value(g_profile_id, SAI_KEY_ACCUMULATED_FLOW_COUNTER_UNITS_IN_KB);
     if ((NULL != accumed_flow_cnt) && (atoi(accumed_flow_cnt) > 0) && (atoi(accumed_flow_cnt) <= 200)) {
         g_sai_db_ptr->accumed_flow_cnt_in_k = atoi(accumed_flow_cnt);
@@ -6904,6 +7005,13 @@ static sai_status_t mlnx_initialize_switch(sai_object_id_t switch_id, bool *tran
 
     if (SAI_STATUS_SUCCESS != (sai_status = mlnx_sai_issu_init_impl(g_profile_id, boot_type))) {
         return sai_status;
+    }
+
+    /* initialize the per-port IP counter */
+    if (mlnx_perport_ipcnt_is_enable_nolock()) {
+        if (SAI_STATUS_SUCCESS != (sai_status = mlnx_perport_ipcnt_init(g_sai_db_ptr->ports_number))) {
+            return sai_status;
+        }
     }
 
     if (SAI_STATUS_SUCCESS != (sai_status = mlnx_dvs_mng_stage(boot_type, switch_id))) {
@@ -7136,13 +7244,6 @@ static sai_status_t mlnx_initialize_switch(sai_object_id_t switch_id, bool *tran
         return sai_status;
     }
 
-    if (g_sai_db_ptr->vxlan_srcport_range_enabled) {
-        if (SAI_STATUS_SUCCESS != (sai_status = mlnx_vxlan_srcport_acl_add(switch_id))) {
-            MLNX_SAI_LOG_ERR("Failed to ADD VxLAN srcport ACL to DB\n");
-            return sai_status;
-        }
-    }
-
     is_warmboot_init_stage = (BOOT_TYPE_WARM == g_sai_db_ptr->boot_type) &&
                              (!g_sai_db_ptr->issu_end_called);
     mlnx_port_phy_foreach(port, ii) {
@@ -7153,9 +7254,7 @@ static sai_status_t mlnx_initialize_switch(sai_object_id_t switch_id, bool *tran
         /* Does not allow bind ACLs to LAG member on warm boot init */
         if (!is_warmboot_init_stage || (0 == port->before_issu_lag_id)) {
             if (SAI_STATUS_SUCCESS !=
-                (sai_status = mlnx_internal_acls_bind(SX_ACCESS_CMD_ADD, port->saiport, mlnx_port_is_lag(
-                                                          port) ? SAI_OBJECT_TYPE_LAG :
-                                                      SAI_OBJECT_TYPE_PORT))) {
+                (sai_status = mlnx_internal_acls_bind(INTERNAL_ACL_OP_ADD_PORT, port->saiport))) {
                 MLNX_SAI_LOG_ERR("Failed to bind internal ACLs to port %x \n", port->logical);
                 return sai_status;
             }
@@ -11085,12 +11184,6 @@ static sai_status_t mlnx_create_switch_tunnel(_Out_ sai_object_id_t      *switch
     uint8_t                           sport_mask = 0;
 
     SX_LOG_ENTER();
-
-    if (g_sai_db_ptr->vxlan_srcport_range_enabled) {
-        SX_LOG_ERR("Can not create switch tunnel when VxLAN SRC port range feature is enabled!\n");
-        SX_LOG_EXIT();
-        return SAI_STATUS_FAILURE;
-    }
 
     if (SAI_STATUS_SUCCESS !=
         (sai_status =
