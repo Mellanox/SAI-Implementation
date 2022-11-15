@@ -637,37 +637,17 @@ static sai_status_t mlnx_hash_obj_native_fields_validate(mlnx_switch_usage_hash_
         case SAI_NATIVE_HASH_FIELD_DST_MAC:
         case SAI_NATIVE_HASH_FIELD_IN_PORT:
         case SAI_NATIVE_HASH_FIELD_VLAN_ID:
-            /* valid for all */
-            break;
-
         case SAI_NATIVE_HASH_FIELD_SRC_IP:
         case SAI_NATIVE_HASH_FIELD_DST_IP:
         case SAI_NATIVE_HASH_FIELD_IP_PROTOCOL:
         case SAI_NATIVE_HASH_FIELD_L4_SRC_PORT:
         case SAI_NATIVE_HASH_FIELD_L4_DST_PORT:
-            /* valid for IP and IPinIP */
-/*
- *           if ((hash_oper_id == SAI_HASH_ECMP_ID) ||
- *               (hash_oper_id == SAI_HASH_LAG_ID)) {
- *               status = SAI_STATUS_FAILURE;
- *               SX_LOG_ERR("Invalid native field %d for object %u.\n", field, hash_oper_id);
- *           }
- */
-            break;
-
         case SAI_NATIVE_HASH_FIELD_INNER_SRC_IP:
         case SAI_NATIVE_HASH_FIELD_INNER_DST_IP:
-            /* valid for IPinIP*/
-            if ((hash_oper_id != SAI_HASH_ECMP_IPINIP_ID) &&
-                (hash_oper_id != SAI_HASH_LAG_IPINIP_ID) &&
-                (hash_oper_id != SAI_HASH_ECMP_IP6_ID)) {
-                status = SAI_STATUS_FAILURE;
-                SX_LOG_ERR("Invalid native field %d for object %u.\n", field, hash_oper_id);
-            }
             break;
 
         default:
-            SX_LOG_ERR("Invalid native filed value %d.\n", field);
+            SX_LOG_ERR("Invalid native field value %d.\n", field);
             return SAI_STATUS_INVALID_ATTR_VALUE_0;
         }
     }

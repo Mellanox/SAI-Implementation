@@ -100,6 +100,7 @@ mlnx_sai_interfacequery_eth.lo: \
  /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saiisolationgroup.h \
  /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saidebugcounter.h \
  /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saimymac.h \
+ /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saigenericprogrammable.h \
  /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saiversion.h \
  /usr/include/errno.h /usr/include/x86_64-linux-gnu/bits/errno.h \
  /usr/include/linux/errno.h /usr/include/x86_64-linux-gnu/asm/errno.h \
@@ -487,6 +488,7 @@ mlnx_sai_interfacequery_eth.lo: \
 /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saiisolationgroup.h:
 /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saidebugcounter.h:
 /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saimymac.h:
+/home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saigenericprogrammable.h:
 /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saiversion.h:
 /usr/include/errno.h:
 /usr/include/x86_64-linux-gnu/bits/errno.h:

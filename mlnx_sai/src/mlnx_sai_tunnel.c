@@ -1474,8 +1474,19 @@ static sai_status_t mlnx_tunnel_peer_mode_get(_In_ const sai_object_key_t   *key
 {
     SX_LOG_ENTER();
 
-    value->s32 = SAI_TUNNEL_PEER_MODE_P2MP;
+    sai_status_t sai_status = SAI_STATUS_FAILURE;
+    uint32_t     tunnel_db_idx;
 
+    sai_db_read_lock();
+    if ((sai_status = mlnx_get_sai_tunnel_db_idx(key->key.object_id, &tunnel_db_idx))) {
+        sai_db_unlock();
+        SX_LOG_ERR("Error getting sdk tunnel attributes from sai tunnel object %" PRIx64 "\n", key->key.object_id);
+        SX_LOG_EXIT();
+        return sai_status;
+    }
+    value->s32 = g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].is_tunnel_p2p ?
+                 SAI_TUNNEL_PEER_MODE_P2P : SAI_TUNNEL_PEER_MODE_P2MP;
+    sai_db_unlock();
     SX_LOG_EXIT();
     return SAI_STATUS_SUCCESS;
 }
@@ -3889,7 +3900,6 @@ static sai_status_t mlnx_sdk_fill_tunnel_ttl_data(_In_ uint32_t               at
             return SAI_STATUS_NOT_SUPPORTED;
             break;
         }
-        *has_decap_attr = true;
     } else {
         SX_LOG_WRN("TTL uniform model is not supported, using default settings in switch\n");
         sdk_decap_ttl_data_attrib->ttl_cmd = SX_TUNNEL_TTL_CMD_SET_E;
@@ -4263,12 +4273,6 @@ static sai_status_t mlnx_sdk_fill_tunnel_cos_data(_In_ uint32_t               at
     }
 
     sai_status = find_attrib_in_list(attr_count, attr_list, SAI_TUNNEL_ATTR_DECAP_DSCP_MODE, &attr, &attr_idx);
-    if (is_ipinip && (SAI_STATUS_SUCCESS != sai_status)) {
-        SX_LOG_ERR(
-            "Failed to obtain required attribute SAI_TUNNEL_ATTR_DECAP_DSCP_MODE for SAI_TUNNEL_TYPEIPINIP or SAI_TUNNEL_TYPE_IPINIP_GRE tunnel type\n");
-        SX_LOG_EXIT();
-        return sai_status;
-    }
     if (SAI_STATUS_SUCCESS == sai_status) {
         switch (attr->s32) {
         case SAI_TUNNEL_DSCP_MODE_UNIFORM_MODEL:
@@ -4523,15 +4527,15 @@ static sai_status_t mlnx_sdk_fill_ipinip_p2p_attrib(_In_ uint32_t               
 
     find_attrib(attr_count, attr_list, SAI_TUNNEL_ATTR_ENCAP_SRC_IP, &mlnx_attr);
     if (mlnx_attr.found) {
-        status = mlnx_translate_sai_ip_address_to_sdk(&mlnx_attr.value->ipaddr,
-                                                      &sdk_ipinip_p2p_attrib->encap.underlay_sip);
-        if (SAI_ERR(status)) {
-            SX_LOG_ERR("Error setting src ip on creating tunnel table\n");
-            return_status = SAI_STATUS_INVALID_ATTR_VALUE_0 + mlnx_attr.index;
-            goto exit;
-        }
         src_ip = mlnx_attr.value->ipaddr;
         *has_encap_attr = true;
+    }
+    status = mlnx_translate_sai_ip_address_to_sdk(&src_ip,
+                                                  &sdk_ipinip_p2p_attrib->encap.underlay_sip);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Error setting src ip on creating tunnel table\n");
+        return_status = SAI_STATUS_INVALID_ATTR_VALUE_0 + mlnx_attr.index;
+        goto exit;
     }
 
     if (SAI_STATUS_SUCCESS ==
@@ -4553,7 +4557,7 @@ static sai_status_t mlnx_sdk_fill_ipinip_p2p_attrib(_In_ uint32_t               
             }
 
             if (!ip_valid_for_p2p_tunnel) {
-                SX_LOG_ERR("no dst-ip/or one of (dst-ip,src-ip) is ZERO on creating P2P tunnel \n");
+                SX_LOG_ERR("no dst-ip/or both (dst-ip,src-ip) are ZEROs on creating P2P tunnel \n");
                 SX_LOG_EXIT();
                 return SAI_STATUS_INVALID_ATTR_VALUE_0 + attr_idx;
             }
@@ -10102,4 +10106,6 @@ const sai_tunnel_api_t mlnx_tunnel_api = {
     mlnx_get_tunnel_map_entry_attribute,
     NULL,
     NULL,
+    NULL,
+    NULL
 };

@@ -151,6 +151,7 @@ extern const sai_enum_metadata_t sai_metadata_enum_sai_fdb_event_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_fdb_flush_attr_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_fdb_flush_entry_type_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_fine_grained_hash_field_attr_t;
+extern const sai_enum_metadata_t sai_metadata_enum_sai_generic_programmable_attr_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_hash_algorithm_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_hash_attr_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_hostif_attr_t;
@@ -232,6 +233,7 @@ extern const sai_enum_metadata_t sai_metadata_enum_sai_next_hop_group_member_con
 extern const sai_enum_metadata_t sai_metadata_enum_sai_next_hop_group_member_observed_role_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_next_hop_group_type_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_next_hop_type_t;
+extern const sai_enum_metadata_t sai_metadata_enum_sai_object_stage_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_object_type_extensions_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_object_type_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_out_drop_reason_t;
@@ -384,7 +386,7 @@ extern const size_t sai_metadata_attr_by_object_type_count;
 
 /* Define SAI_OBJECT_TYPE_EXTENSIONS_MAX */
 
-#define SAI_OBJECT_TYPE_EXTENSIONS_MAX ((sai_object_type_t)105)
+#define SAI_OBJECT_TYPE_EXTENSIONS_MAX ((sai_object_type_t)106)
 
 /* Define SAI_METADATA_MAX_CONDITIONS_LEN */
 
@@ -652,6 +654,9 @@ extern const char* sai_metadata_get_next_hop_group_type_name(
 
 extern const char* sai_metadata_get_next_hop_type_name(
     _In_ sai_next_hop_type_t value);
+
+extern const char* sai_metadata_get_object_stage_name(
+    _In_ sai_object_stage_t value);
 
 extern const char* sai_metadata_get_object_type_extensions_name(
     _In_ sai_object_type_extensions_t value);
@@ -965,6 +970,7 @@ extern sai_counter_api_t *sai_metadata_sai_counter_api;
 extern sai_debug_counter_api_t *sai_metadata_sai_debug_counter_api;
 extern sai_dtel_api_t *sai_metadata_sai_dtel_api;
 extern sai_fdb_api_t *sai_metadata_sai_fdb_api;
+extern sai_generic_programmable_api_t *sai_metadata_sai_generic_programmable_api;
 extern sai_hash_api_t *sai_metadata_sai_hash_api;
 extern sai_hostif_api_t *sai_metadata_sai_hostif_api;
 extern sai_ipmc_api_t *sai_metadata_sai_ipmc_api;
@@ -1053,12 +1059,13 @@ typedef struct _sai_apis_t {
     sai_system_port_api_t* system_port_api;
     sai_my_mac_api_t* my_mac_api;
     sai_ipsec_api_t* ipsec_api;
+    sai_generic_programmable_api_t* generic_programmable_api;
     sai_bmtor_api_t* bmtor_api;
 } sai_apis_t;
 
 /* Define SAI_API_EXTENSIONS_MAX */
 
-#define SAI_API_EXTENSIONS_MAX ((sai_api_t)48)
+#define SAI_API_EXTENSIONS_MAX ((sai_api_t)49)
 
 /* Global SAI API declarations */
 
@@ -1154,6 +1161,13 @@ typedef sai_status_t (*sai_query_attribute_enum_values_capability_fn) (
     _In_ sai_attr_id_t attr_id,
     _Inout_ sai_s32_list_t *enum_values_capability);
 
+typedef sai_status_t (*sai_query_object_stage_fn) (
+    _In_ sai_object_id_t switch_id,
+    _In_ sai_object_type_t object_type,
+    _In_ uint32_t attr_count,
+    _In_ const sai_attribute_t *attr_list,
+    _Out_ sai_object_stage_t *stage);
+
 typedef sai_status_t (*sai_query_stats_capability_fn) (
     _In_ sai_object_id_t switch_id,
     _In_ sai_object_type_t object_type,
@@ -1186,6 +1200,7 @@ typedef struct _sai_global_apis_t {
     sai_query_api_version_fn query_api_version;
     sai_query_attribute_capability_fn query_attribute_capability;
     sai_query_attribute_enum_values_capability_fn query_attribute_enum_values_capability;
+    sai_query_object_stage_fn query_object_stage;
     sai_query_stats_capability_fn query_stats_capability;
     sai_switch_id_query_fn switch_id_query;
     sai_tam_telemetry_get_data_fn tam_telemetry_get_data;
@@ -1208,10 +1223,21 @@ typedef enum _sai_global_api_type_t {
     SAI_GLOBAL_API_TYPE_QUERY_API_VERSION,
     SAI_GLOBAL_API_TYPE_QUERY_ATTRIBUTE_CAPABILITY,
     SAI_GLOBAL_API_TYPE_QUERY_ATTRIBUTE_ENUM_VALUES_CAPABILITY,
+    SAI_GLOBAL_API_TYPE_QUERY_OBJECT_STAGE,
     SAI_GLOBAL_API_TYPE_QUERY_STATS_CAPABILITY,
     SAI_GLOBAL_API_TYPE_SWITCH_ID_QUERY,
     SAI_GLOBAL_API_TYPE_TAM_TELEMETRY_GET_DATA,
 } sai_global_api_type_t;
+
+/* sai_global_api_type_t metadata */
+
+extern const sai_enum_metadata_t sai_metadata_enum_sai_global_api_type_t;
+
+/* Get sai_global_api_type_t helper method */
+
+extern const char* sai_metadata_get_global_api_type_name(
+    _In_ sai_global_api_type_t value);
+
 
 /* SAI API query */
 
@@ -1322,6 +1348,7 @@ extern const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYP
 extern const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_IPSEC;
 extern const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_IPSEC_PORT;
 extern const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_IPSEC_SA;
+extern const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_GENERIC_PROGRAMMABLE;
 extern const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_TABLE_BITMAP_CLASSIFICATION_ENTRY;
 extern const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_TABLE_BITMAP_ROUTER_ENTRY;
 extern const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_TABLE_META_TUNNEL_ENTRY;
@@ -1628,6 +1655,10 @@ extern int sai_serialize_fdb_flush_entry_type(
     _Out_ char *buffer,
     _In_ sai_fdb_flush_entry_type_t fdb_flush_entry_type);
 
+extern int sai_serialize_global_api_type(
+    _Out_ char *buffer,
+    _In_ sai_global_api_type_t global_api_type);
+
 extern int sai_serialize_hash_algorithm(
     _Out_ char *buffer,
     _In_ sai_hash_algorithm_t hash_algorithm);
@@ -1799,6 +1830,10 @@ extern int sai_serialize_next_hop_group_type(
 extern int sai_serialize_next_hop_type(
     _Out_ char *buffer,
     _In_ sai_next_hop_type_t next_hop_type);
+
+extern int sai_serialize_object_stage(
+    _Out_ char *buffer,
+    _In_ sai_object_stage_t object_stage);
 
 extern int sai_serialize_object_type_extensions(
     _Out_ char *buffer,
@@ -2268,9 +2303,17 @@ extern int sai_serialize_ipsec_sa_status_notification(
     _Out_ char *buf,
     _In_ const sai_ipsec_sa_status_notification_t *ipsec_sa_status_notification);
 
+extern int sai_serialize_json(
+    _Out_ char *buf,
+    _In_ const sai_json_t *json);
+
 extern int sai_serialize_l2mc_entry(
     _Out_ char *buf,
     _In_ const sai_l2mc_entry_t *l2mc_entry);
+
+extern int sai_serialize_latch_status(
+    _Out_ char *buf,
+    _In_ const sai_latch_status_t *latch_status);
 
 extern int sai_serialize_map_list(
     _Out_ char *buf,
@@ -2336,6 +2379,14 @@ extern int sai_serialize_port_eye_values_list(
 extern int sai_serialize_port_lane_eye_values(
     _Out_ char *buf,
     _In_ const sai_port_lane_eye_values_t *port_lane_eye_values);
+
+extern int sai_serialize_port_lane_latch_status_list(
+    _Out_ char *buf,
+    _In_ const sai_port_lane_latch_status_list_t *port_lane_latch_status_list);
+
+extern int sai_serialize_port_lane_latch_status(
+    _Out_ char *buf,
+    _In_ const sai_port_lane_latch_status_t *port_lane_latch_status);
 
 extern int sai_serialize_port_oper_status_notification(
     _Out_ char *buf,
@@ -2706,6 +2757,10 @@ extern int sai_deserialize_fdb_flush_entry_type(
     _In_ const char *buffer,
     _Out_ sai_fdb_flush_entry_type_t *fdb_flush_entry_type);
 
+extern int sai_deserialize_global_api_type(
+    _In_ const char *buffer,
+    _Out_ sai_global_api_type_t *global_api_type);
+
 extern int sai_deserialize_hash_algorithm(
     _In_ const char *buffer,
     _Out_ sai_hash_algorithm_t *hash_algorithm);
@@ -2877,6 +2932,10 @@ extern int sai_deserialize_next_hop_group_type(
 extern int sai_deserialize_next_hop_type(
     _In_ const char *buffer,
     _Out_ sai_next_hop_type_t *next_hop_type);
+
+extern int sai_deserialize_object_stage(
+    _In_ const char *buffer,
+    _Out_ sai_object_stage_t *object_stage);
 
 extern int sai_deserialize_object_type_extensions(
     _In_ const char *buffer,
@@ -3346,9 +3405,17 @@ extern int sai_deserialize_ipsec_sa_status_notification(
     _In_ const char *buf,
     _Out_ sai_ipsec_sa_status_notification_t *ipsec_sa_status_notification);
 
+extern int sai_deserialize_json(
+    _In_ const char *buf,
+    _Out_ sai_json_t *json);
+
 extern int sai_deserialize_l2mc_entry(
     _In_ const char *buf,
     _Out_ sai_l2mc_entry_t *l2mc_entry);
+
+extern int sai_deserialize_latch_status(
+    _In_ const char *buf,
+    _Out_ sai_latch_status_t *latch_status);
 
 extern int sai_deserialize_map_list(
     _In_ const char *buf,
@@ -3414,6 +3481,14 @@ extern int sai_deserialize_port_eye_values_list(
 extern int sai_deserialize_port_lane_eye_values(
     _In_ const char *buf,
     _Out_ sai_port_lane_eye_values_t *port_lane_eye_values);
+
+extern int sai_deserialize_port_lane_latch_status_list(
+    _In_ const char *buf,
+    _Out_ sai_port_lane_latch_status_list_t *port_lane_latch_status_list);
+
+extern int sai_deserialize_port_lane_latch_status(
+    _In_ const char *buf,
+    _Out_ sai_port_lane_latch_status_t *port_lane_latch_status);
 
 extern int sai_deserialize_port_oper_status_notification(
     _In_ const char *buf,

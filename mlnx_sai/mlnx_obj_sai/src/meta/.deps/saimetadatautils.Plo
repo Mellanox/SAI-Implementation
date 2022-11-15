@@ -115,6 +115,7 @@ meta/saimetadatautils.lo: \
  /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saiisolationgroup.h \
  /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saidebugcounter.h \
  /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saimymac.h \
+ /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saigenericprogrammable.h \
  /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saiversion.h \
  /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/meta/saimetadatautils.h \
  /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/meta/saimetadatatypes.h \
@@ -245,6 +246,7 @@ meta/saimetadatautils.lo: \
 /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saiisolationgroup.h:
 /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saidebugcounter.h:
 /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saimymac.h:
+/home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saigenericprogrammable.h:
 /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saiversion.h:
 /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/meta/saimetadatautils.h:
 /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/meta/saimetadatatypes.h:

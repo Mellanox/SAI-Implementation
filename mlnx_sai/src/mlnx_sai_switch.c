@@ -11408,5 +11408,7 @@ const sai_switch_api_t mlnx_switch_api = {
     mlnx_create_switch_tunnel,
     mlnx_remove_switch_tunnel,
     mlnx_set_switch_tunnel_attribute,
-    mlnx_get_switch_tunnel_attribute
+    mlnx_get_switch_tunnel_attribute,
+    NULL,
+    NULL
 };

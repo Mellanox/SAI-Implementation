@@ -164,6 +164,7 @@ libsai_apiinclude_HEADERS = \
         $(top_srcdir)/inc/sai/saidebugcounter.h \
         $(top_srcdir)/inc/sai/saidtel.h \
         $(top_srcdir)/inc/sai/saifdb.h \
+        $(top_srcdir)/inc/sai/saigenericprogrammable.h \
         $(top_srcdir)/inc/sai/saihash.h \
         $(top_srcdir)/inc/sai/saihostif.h \
         $(top_srcdir)/inc/sai/saiipmc.h \
