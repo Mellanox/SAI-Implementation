@@ -381,9 +381,15 @@ sai_status_t mlnx_sai_query_attribute_enum_values_capability_impl(_In_ sai_objec
     if (!is_implemented) {
         enum_values_capability->count = 0;
     } else {
-        status = mlnx_attr_enum_supported_values_get(attr_metadata,
-                                                     &obj_type_attr_info->enums_info,
-                                                     enum_values_capability);
+        /* TODO : Remove when per tunnel type query is supported #3253194, currently P2P causes issues with EVPN at Sonic */
+        if ((SAI_OBJECT_TYPE_TUNNEL == object_type) && (SAI_TUNNEL_ATTR_PEER_MODE == attr_id)) {
+            const int32_t cap[] = { SAI_TUNNEL_PEER_MODE_P2MP };
+            status = mlnx_fill_s32list(cap, 1, enum_values_capability);
+        } else {
+            status = mlnx_attr_enum_supported_values_get(attr_metadata,
+                                                         &obj_type_attr_info->enums_info,
+                                                         enum_values_capability);
+        }
         if (SAI_ERR(status)) {
             if (MLNX_SAI_STATUS_BUFFER_OVERFLOW_EMPTY_LIST == status) {
                 status = SAI_STATUS_BUFFER_OVERFLOW;

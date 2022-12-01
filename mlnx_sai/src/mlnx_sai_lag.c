@@ -170,6 +170,12 @@ static void lag_member_key_to_str(_In_ sai_object_id_t lag_member_id, _Out_ char
     }
 }
 
+static inline bool is_vlan_flood_config_block_all(uint16_t vid, mlnx_fid_flood_ctrl_attr_t flood_type)
+{
+    return g_sai_db_ptr->flood_actions[flood_type] == SAI_PACKET_ACTION_DROP ||
+           mlnx_vlan_db_get_vlan(vid)->flood_data.types[flood_type].type == MLNX_FID_FLOOD_TYPE_NONE;
+}
+
 static sai_status_t mlnx_port_params_clone(mlnx_port_config_t *to, mlnx_port_config_t *from, port_params_t clone)
 {
     sai_status_t                 status = SAI_STATUS_SUCCESS;
@@ -382,6 +388,50 @@ static sai_status_t mlnx_port_params_clone(mlnx_port_config_t *to, mlnx_port_con
 
         SX_LOG_DBG("Cloned fdb learn mode %s from port [%x] to port [%x]\n", SX_LEARN_MODE_MSG(sx_fdb_learn_mode),
                    from->logical, to->logical);
+    }
+
+    if (clone & PORT_PARAMS_FLOOD) {
+        uint16_t            vlan_count = 0, vid;
+        mlnx_bridge_port_t *lag_bport;
+        sx_status_t         sx_status;
+        if (SAI_OK(mlnx_bridge_1q_port_by_log(from->logical, &lag_bport))) {
+            vlan_count = lag_bport->vlans;
+            /* assign flood ctrl to port from VLANs on the LAG */
+            if (vlan_count) {
+                mlnx_vlan_id_foreach(vid) {
+                    if (!mlnx_vlan_port_is_set(vid, lag_bport)) {
+                        continue;
+                    }
+
+                    if (is_vlan_flood_config_block_all(vid, MLNX_FID_FLOOD_CTRL_ATTR_UC)) {
+                        sx_status = sx_api_fdb_flood_control_set(gh_sdk,
+                                                                 SX_ACCESS_CMD_ADD_PORTS,
+                                                                 DEFAULT_ETH_SWID,
+                                                                 vid,
+                                                                 SX_FLOOD_CONTROL_TYPE_UNICAST_E,
+                                                                 1,
+                                                                 &to->logical);
+                        if (SX_ERR(sx_status)) {
+                            return sdk_to_sai(sx_status);
+                        }
+                    }
+
+                    if (is_vlan_flood_config_block_all(vid, MLNX_FID_FLOOD_CTRL_ATTR_BC)) {
+                        sx_status = sx_api_fdb_flood_control_set(gh_sdk,
+                                                                 SX_ACCESS_CMD_ADD_PORTS,
+                                                                 DEFAULT_ETH_SWID,
+                                                                 vid,
+                                                                 SX_FLOOD_CONTROL_TYPE_BROADCAST_E,
+                                                                 1,
+                                                                 &to->logical);
+                        if (SX_ERR(sx_status)) {
+                            return sdk_to_sai(sx_status);
+                        }
+                    }
+                }
+                SX_LOG_DBG("Cloned flood-ctrl from LAG [%x] to port [%x]\n", from->logical, to->logical);
+            }
+        }
     }
 
     if ((clone & PORT_PARAMS_EGRESS_BLOCK) && is_egress_block_in_use()) {
@@ -1509,7 +1559,9 @@ static sai_status_t mlnx_create_lag_member(_Out_ sai_object_id_t     * lag_membe
             goto out;
         }
 
-        status = mlnx_port_params_clone(port, lag, PORT_PARAMS_VLAN | PORT_PARAMS_LEARN_MODE);
+        status = mlnx_port_params_clone(port,
+                                        lag,
+                                        PORT_PARAMS_VLAN | PORT_PARAMS_LEARN_MODE | PORT_PARAMS_FLOOD);
         if (SAI_ERR(status)) {
             goto out;
         }

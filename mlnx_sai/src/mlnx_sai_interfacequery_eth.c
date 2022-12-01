@@ -344,7 +344,8 @@ sai_status_t sai_dbg_generate_dump_ext(_In_ const char *dump_file_name, _In_ int
     free(file_name);
 #endif
 #define FW_DUMPS 3
-    for (uint32_t ii = 0; ii < FW_DUMPS; ii++) {
+    /* wait till dump completion also on last dump as command would otherwise return while the last dump is still being written */
+    for (uint32_t ii = 0; ii <= FW_DUMPS; ii++) {
 #ifndef _WIN32
         if (clock_gettime(CLOCK_REALTIME, &timeout) == -1) {
             SX_LOG_ERR("Failed to get current time - %s\n", strerror(errno));
@@ -355,9 +356,15 @@ sai_status_t sai_dbg_generate_dump_ext(_In_ const char *dump_file_name, _In_ int
             SX_LOG_ERR("Failed to lock DFW semaphore - %s\n", strerror(errno));
             goto out;
         }
+        /* since we are waiting N+1 times and posting N completions, need to post on last cycle */
+        if (ii == FW_DUMPS) {
+            sem_post(&g_sai_db_ptr->dfw_sem);
+        }
 #endif
-        if (SX_STATUS_SUCCESS != (sdk_status = sx_api_dbg_generate_dump_extra(gh_sdk, &dbg_info))) {
-            MLNX_SAI_LOG_ERR("Error generating extended sdk dump, sx status: %s\n", SX_STATUS_MSG(sdk_status));
+        if (ii != FW_DUMPS) {
+            if (SX_STATUS_SUCCESS != (sdk_status = sx_api_dbg_generate_dump_extra(gh_sdk, &dbg_info))) {
+                MLNX_SAI_LOG_ERR("Error generating extended sdk dump, sx status: %s\n", SX_STATUS_MSG(sdk_status));
+            }
         }
     }
 
