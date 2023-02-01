@@ -6,6 +6,7 @@ apt-get --yes install graphviz
 apt-get --yes install doxygen
 apt-get --yes install libxml-simple-perl
 apt-get --yes install aspell
+apt-get --yes install aspell-en
 apt-get --yes install dos2unix
 apt-get --yes install g++
 apt-get --yes install libevent-dev

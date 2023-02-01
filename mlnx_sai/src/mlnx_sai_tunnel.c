@@ -210,6 +210,41 @@ static sai_status_t mlnx_tunnel_stats_get(_In_ sai_object_id_t      tunnel_id,
 static bool is_underlay_rif_used_by_other_tunnels(_In_ uint32_t              tunnel_db_idx,
                                                   _In_ sx_router_interface_t sx_rif);
 static int32_t mlnx_search_main_tunnel_ipinip_p2p(uint32_t db_idx);
+static sai_status_t mlnx_tunnel_encap_qos_tc_and_color_to_dscp_get(_In_ const sai_object_key_t   *key,
+                                                                   _Inout_ sai_attribute_value_t *value,
+                                                                   _In_ uint32_t                  attr_index,
+                                                                   _Inout_ vendor_cache_t        *cache,
+                                                                   void                          *arg);
+static sai_status_t mlnx_tunnel_encap_qos_tc_to_queue_get(_In_ const sai_object_key_t   *key,
+                                                          _Inout_ sai_attribute_value_t *value,
+                                                          _In_ uint32_t                  attr_index,
+                                                          _Inout_ vendor_cache_t        *cache,
+                                                          void                          *arg);
+static sai_status_t mlnx_tunnel_decap_qos_dscp_to_tc_get(_In_ const sai_object_key_t   *key,
+                                                         _Inout_ sai_attribute_value_t *value,
+                                                         _In_ uint32_t                  attr_index,
+                                                         _Inout_ vendor_cache_t        *cache,
+                                                         void                          *arg);
+static sai_status_t mlnx_tunnel_decap_qos_tc_to_priority_group_get(_In_ const sai_object_key_t   *key,
+                                                                   _Inout_ sai_attribute_value_t *value,
+                                                                   _In_ uint32_t                  attr_index,
+                                                                   _Inout_ vendor_cache_t        *cache,
+                                                                   void                          *arg);
+static sai_status_t mlnx_tunnel_calculate_tc_mapping(_In_ sai_object_id_t       port_map_oid,
+                                                     _In_ sai_object_id_t       tunnel_map_oid,
+                                                     _In_ sai_qos_map_type_t    qos_map_type,
+                                                     _Out_ mlnx_tc_remapping_t *tc_remapping);
+static sai_status_t mlnx_tunnel_set_effective_qos(_In_ sai_qos_map_type_t qos_map_type,
+                                                  _Out_ bool             *qos_map_is_consist,
+                                                  _Out_ bool             *qos_map_changed);
+static sai_status_t mlnx_tunnel_on_qos_attribute_update(_In_ uint32_t               attr_count,
+                                                        _In_ const sai_attribute_t *attr_list,
+                                                        _In_ mlnx_tunnel_entry_t   *mlnx_tunnel_db_entry,
+                                                        _Out_ sx_tunnel_cos_data_t *sdk_encap_cos_data);
+static sai_status_t mlnx_tunnel_enable_dscp_remapping(void);
+static sai_status_t mlnx_tunnel_dscp_remapping_on_tunnel_remove(_In_ bool     is_decap,
+                                                                _In_ uint32_t tunnel_db_idx);
+
 /* is_implemented: create, remove, set, get
  *   is_supported: create, remove, set, get
  */
@@ -452,6 +487,26 @@ static const sai_vendor_attribute_entry_t tunnel_vendor_attribs[] = {
       { true, false, true, true },
       mlnx_tunnel_loopback_packet_action_get, NULL,
       mlnx_tunnel_loopback_packet_action_set, NULL},
+    { SAI_TUNNEL_ATTR_ENCAP_QOS_TC_AND_COLOR_TO_DSCP_MAP,
+      { true, false, false, true },
+      { true, false, false, true },
+      mlnx_tunnel_encap_qos_tc_and_color_to_dscp_get, (void*)TUNNEL_ENCAP,
+      NULL, NULL},
+    { SAI_TUNNEL_ATTR_ENCAP_QOS_TC_TO_QUEUE_MAP,
+      { true, false, false, true },
+      { true, false, false, true },
+      mlnx_tunnel_encap_qos_tc_to_queue_get, (void*)TUNNEL_ENCAP,
+      NULL, NULL},
+    { SAI_TUNNEL_ATTR_DECAP_QOS_DSCP_TO_TC_MAP,
+      { true, false, false, true },
+      { true, false, false, true },
+      mlnx_tunnel_decap_qos_dscp_to_tc_get, (void*)TUNNEL_DECAP,
+      NULL, NULL},
+    { SAI_TUNNEL_ATTR_DECAP_QOS_TC_TO_PRIORITY_GROUP_MAP,
+      { true, false, false, true },
+      { true, false, false, true },
+      mlnx_tunnel_decap_qos_tc_to_priority_group_get, (void*)TUNNEL_DECAP,
+      NULL, NULL},
     { END_FUNCTIONALITY_ATTRIBS_ID,
       { false, false, false, false },
       { false, false, false, false },
@@ -532,6 +587,9 @@ static const mlnx_attr_enum_info_t        tunnel_term_table_entry_enum_info[] = 
 const mlnx_obj_type_attrs_info_t          mlnx_tunnel_term_table_entry_type_info =
 { tunnel_term_table_entry_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(tunnel_term_table_entry_enum_info),
   OBJ_STAT_CAP_INFO_EMPTY()};
+
+bool g_dscp_remapping_enabled;
+
 static void tunnel_map_key_to_str(_In_ const sai_object_id_t sai_tunnel_map_obj_id, _Out_ char *key_str)
 {
     uint32_t internal_tunnel_map_obj_id = 0;
@@ -1474,8 +1532,19 @@ static sai_status_t mlnx_tunnel_peer_mode_get(_In_ const sai_object_key_t   *key
 {
     SX_LOG_ENTER();
 
-    value->s32 = SAI_TUNNEL_PEER_MODE_P2MP;
+    sai_status_t sai_status = SAI_STATUS_FAILURE;
+    uint32_t     tunnel_db_idx;
 
+    sai_db_read_lock();
+    if ((sai_status = mlnx_get_sai_tunnel_db_idx(key->key.object_id, &tunnel_db_idx))) {
+        sai_db_unlock();
+        SX_LOG_ERR("Error getting sdk tunnel attributes from sai tunnel object %" PRIx64 "\n", key->key.object_id);
+        SX_LOG_EXIT();
+        return sai_status;
+    }
+    value->s32 = g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].is_tunnel_p2p ?
+                 SAI_TUNNEL_PEER_MODE_P2P : SAI_TUNNEL_PEER_MODE_P2MP;
+    sai_db_unlock();
     SX_LOG_EXIT();
     return SAI_STATUS_SUCCESS;
 }
@@ -2671,6 +2740,135 @@ out:
     sai_db_unlock();
     SX_LOG_EXIT();
     return sai_status;
+}
+
+static sai_status_t mlnx_tunnel_encap_qos_tc_and_color_to_dscp_get(_In_ const sai_object_key_t   *key,
+                                                                   _Inout_ sai_attribute_value_t *value,
+                                                                   _In_ uint32_t                  attr_index,
+                                                                   _Inout_ vendor_cache_t        *cache,
+                                                                   void                          *arg)
+{
+    sai_status_t sai_status = SAI_STATUS_FAILURE;
+    uint32_t     tunnel_db_idx;
+
+    SX_LOG_ENTER();
+
+    if (TUNNEL_ENCAP != (long)arg) {
+        SX_LOG_ERR("Error getting encap qos tc to dscp map from sai tunnel object %" PRIx64 "\n", key->key.object_id);
+        SX_LOG_EXIT();
+        return sai_status;
+    }
+
+    sai_db_read_lock();
+    sai_status = mlnx_get_sai_tunnel_db_idx(key->key.object_id, &tunnel_db_idx);
+    if (SAI_ERR(sai_status)) {
+        sai_db_unlock();
+        SX_LOG_ERR("Error getting sdk tunnel attributes from sai tunnel object %" PRIx64 "\n", key->key.object_id);
+        SX_LOG_EXIT();
+        return sai_status;
+    }
+    value->oid = g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].encap_qos_tc_and_color_to_dscp_map;
+
+    sai_db_unlock();
+    SX_LOG_EXIT();
+    return SAI_STATUS_SUCCESS;
+}
+
+
+static sai_status_t mlnx_tunnel_encap_qos_tc_to_queue_get(_In_ const sai_object_key_t   *key,
+                                                          _Inout_ sai_attribute_value_t *value,
+                                                          _In_ uint32_t                  attr_index,
+                                                          _Inout_ vendor_cache_t        *cache,
+                                                          void                          *arg)
+{
+    sai_status_t sai_status = SAI_STATUS_FAILURE;
+    uint32_t     tunnel_db_idx;
+
+    SX_LOG_ENTER();
+
+    if (TUNNEL_ENCAP != (long)arg) {
+        SX_LOG_ERR("Error getting encap qos tc to queue map from sai tunnel object %" PRIx64 "\n", key->key.object_id);
+        SX_LOG_EXIT();
+        return sai_status;
+    }
+
+    sai_db_read_lock();
+    sai_status = mlnx_get_sai_tunnel_db_idx(key->key.object_id, &tunnel_db_idx);
+    if (SAI_ERR(sai_status)) {
+        sai_db_unlock();
+        SX_LOG_ERR("Error getting sdk tunnel attributes from sai tunnel object %" PRIx64 "\n", key->key.object_id);
+        SX_LOG_EXIT();
+        return sai_status;
+    }
+    value->oid = g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].encap_qos_tc_to_queue_map;
+
+    sai_db_unlock();
+    SX_LOG_EXIT();
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_tunnel_decap_qos_dscp_to_tc_get(_In_ const sai_object_key_t   *key,
+                                                         _Inout_ sai_attribute_value_t *value,
+                                                         _In_ uint32_t                  attr_index,
+                                                         _Inout_ vendor_cache_t        *cache,
+                                                         void                          *arg)
+{
+    sai_status_t sai_status = SAI_STATUS_FAILURE;
+    uint32_t     tunnel_db_idx;
+
+    SX_LOG_ENTER();
+
+    if (TUNNEL_DECAP != (long)arg) {
+        SX_LOG_ERR("Error getting decap qos dscp to tc map from sai tunnel object %" PRIx64 "\n", key->key.object_id);
+        SX_LOG_EXIT();
+        return sai_status;
+    }
+
+    sai_db_read_lock();
+    sai_status = mlnx_get_sai_tunnel_db_idx(key->key.object_id, &tunnel_db_idx);
+    if (SAI_ERR(sai_status)) {
+        sai_db_unlock();
+        SX_LOG_ERR("Error getting sdk tunnel attributes from sai tunnel object %" PRIx64 "\n", key->key.object_id);
+        SX_LOG_EXIT();
+        return sai_status;
+    }
+    value->oid = g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].decap_qos_dscp_to_tc_map;
+
+    sai_db_unlock();
+    SX_LOG_EXIT();
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_tunnel_decap_qos_tc_to_priority_group_get(_In_ const sai_object_key_t   *key,
+                                                                   _Inout_ sai_attribute_value_t *value,
+                                                                   _In_ uint32_t                  attr_index,
+                                                                   _Inout_ vendor_cache_t        *cache,
+                                                                   void                          *arg)
+{
+    sai_status_t sai_status = SAI_STATUS_FAILURE;
+    uint32_t     tunnel_db_idx;
+
+    SX_LOG_ENTER();
+
+    if (TUNNEL_DECAP != (long)arg) {
+        SX_LOG_ERR("Error getting decap qos tc to pg map from sai tunnel object %" PRIx64 "\n", key->key.object_id);
+        SX_LOG_EXIT();
+        return sai_status;
+    }
+
+    sai_db_read_lock();
+    sai_status = mlnx_get_sai_tunnel_db_idx(key->key.object_id, &tunnel_db_idx);
+    if (SAI_ERR(sai_status)) {
+        sai_db_unlock();
+        SX_LOG_ERR("Error getting sdk tunnel attributes from sai tunnel object %" PRIx64 "\n", key->key.object_id);
+        SX_LOG_EXIT();
+        return sai_status;
+    }
+    value->oid = g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].decap_qos_tc_to_priority_group_map;
+
+    sai_db_unlock();
+    SX_LOG_EXIT();
+    return SAI_STATUS_SUCCESS;
 }
 
 static sai_status_t mlnx_tunnel_loopback_packet_action_get(_In_ const sai_object_key_t   *key,
@@ -3889,7 +4087,6 @@ static sai_status_t mlnx_sdk_fill_tunnel_ttl_data(_In_ uint32_t               at
             return SAI_STATUS_NOT_SUPPORTED;
             break;
         }
-        *has_decap_attr = true;
     } else {
         SX_LOG_WRN("TTL uniform model is not supported, using default settings in switch\n");
         sdk_decap_ttl_data_attrib->ttl_cmd = SX_TUNNEL_TTL_CMD_SET_E;
@@ -4249,9 +4446,7 @@ static sai_status_t mlnx_sdk_fill_tunnel_cos_data(_In_ uint32_t               at
             break;
 
         case SX_COS_DSCP_ACTION_SET_E:
-            SX_LOG_ERR("Missing encap DSCP value for encap dscp pipe model\n");
-            SX_LOG_EXIT();
-            return SAI_STATUS_FAILURE;
+            sdk_encap_cos_data->dscp_value = 0;
             break;
 
         default:
@@ -4263,12 +4458,6 @@ static sai_status_t mlnx_sdk_fill_tunnel_cos_data(_In_ uint32_t               at
     }
 
     sai_status = find_attrib_in_list(attr_count, attr_list, SAI_TUNNEL_ATTR_DECAP_DSCP_MODE, &attr, &attr_idx);
-    if (is_ipinip && (SAI_STATUS_SUCCESS != sai_status)) {
-        SX_LOG_ERR(
-            "Failed to obtain required attribute SAI_TUNNEL_ATTR_DECAP_DSCP_MODE for SAI_TUNNEL_TYPEIPINIP or SAI_TUNNEL_TYPE_IPINIP_GRE tunnel type\n");
-        SX_LOG_EXIT();
-        return sai_status;
-    }
     if (SAI_STATUS_SUCCESS == sai_status) {
         switch (attr->s32) {
         case SAI_TUNNEL_DSCP_MODE_UNIFORM_MODEL:
@@ -4483,6 +4672,16 @@ static sai_status_t mlnx_sdk_fill_tunnel_cos_data(_In_ uint32_t               at
         }
     }
 
+    if (is_ipinip && g_dscp_remapping_enabled) {
+        sai_status = mlnx_tunnel_on_qos_attribute_update(attr_count, attr_list,
+                                                         mlnx_tunnel_db_entry, sdk_encap_cos_data);
+        if (SAI_ERR(sai_status)) {
+            SX_LOG_ERR("Error handling tunnel qos attributes\n");
+            SX_LOG_EXIT();
+            return sai_status;
+        }
+    }
+
     SX_LOG_EXIT();
     return SAI_STATUS_SUCCESS;
 }
@@ -4523,15 +4722,15 @@ static sai_status_t mlnx_sdk_fill_ipinip_p2p_attrib(_In_ uint32_t               
 
     find_attrib(attr_count, attr_list, SAI_TUNNEL_ATTR_ENCAP_SRC_IP, &mlnx_attr);
     if (mlnx_attr.found) {
-        status = mlnx_translate_sai_ip_address_to_sdk(&mlnx_attr.value->ipaddr,
-                                                      &sdk_ipinip_p2p_attrib->encap.underlay_sip);
-        if (SAI_ERR(status)) {
-            SX_LOG_ERR("Error setting src ip on creating tunnel table\n");
-            return_status = SAI_STATUS_INVALID_ATTR_VALUE_0 + mlnx_attr.index;
-            goto exit;
-        }
         src_ip = mlnx_attr.value->ipaddr;
         *has_encap_attr = true;
+    }
+    status = mlnx_translate_sai_ip_address_to_sdk(&src_ip,
+                                                  &sdk_ipinip_p2p_attrib->encap.underlay_sip);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Error setting src ip on creating tunnel table\n");
+        return_status = SAI_STATUS_INVALID_ATTR_VALUE_0 + mlnx_attr.index;
+        goto exit;
     }
 
     if (SAI_STATUS_SUCCESS ==
@@ -4553,7 +4752,7 @@ static sai_status_t mlnx_sdk_fill_ipinip_p2p_attrib(_In_ uint32_t               
             }
 
             if (!ip_valid_for_p2p_tunnel) {
-                SX_LOG_ERR("no dst-ip/or one of (dst-ip,src-ip) is ZERO on creating P2P tunnel \n");
+                SX_LOG_ERR("no dst-ip/or both (dst-ip,src-ip) are ZEROs on creating P2P tunnel \n");
                 SX_LOG_EXIT();
                 return SAI_STATUS_INVALID_ATTR_VALUE_0 + attr_idx;
             }
@@ -4575,7 +4774,7 @@ static sai_status_t mlnx_sdk_fill_ipinip_p2p_attrib(_In_ uint32_t               
                 g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].is_main_tunnel = false;
                 g_sai_tunnel_db_ptr->tunnel_entry_db[ii].ipip_tunnel_p2p_refcnt++;
                 *main_tunnel_found = true;
-                SX_LOG_DBG("found ip-in-ip P2P tunnel, just return \n");
+                SX_LOG_NTC("found ip-in-ip P2P tunnel, just return \n");
                 return SAI_STATUS_SUCCESS;
             }
         }
@@ -4591,6 +4790,7 @@ static sai_status_t mlnx_sdk_fill_ipinip_p2p_attrib(_In_ uint32_t               
     status = mlnx_rif_oid_to_sdk_rif_id(mlnx_attr.value->oid, &sx_rif);
     if (SAI_ERR(status)) {
         return_status = SAI_STATUS_INVALID_ATTR_VALUE_0 + mlnx_attr.index;
+        SX_LOG_ERR("mlnx_rif_oid_to_sdk_rif_id error, oid %" PRIx64 "\n", mlnx_attr.value->oid);
         goto exit;
     }
 
@@ -4675,6 +4875,7 @@ static sai_status_t mlnx_sdk_fill_ipinip_p2p_attrib(_In_ uint32_t               
 
     status = mlnx_rif_oid_to_sdk_rif_id(mlnx_attr.value->oid, &sx_rif);
     if (SAI_ERR(status)) {
+        SX_LOG_ERR("mlnx_rif_oid_to_sdk_rif_id error, oid %" PRIx64 "\n", mlnx_attr.value->oid);
         return_status = SAI_STATUS_INVALID_ATTR_VALUE_0 + mlnx_attr.index;
         goto exit;
     }
@@ -6504,6 +6705,15 @@ static sai_status_t mlnx_fill_tunnel_db(_In_ sai_object_id_t      sai_tunnel_obj
         return SAI_STATUS_FAILURE;
     }
 
+    g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].encap_qos_tc_and_color_to_dscp_map
+        = mlnx_tunnel_db_entry->encap_qos_tc_and_color_to_dscp_map;
+    g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].encap_qos_tc_to_queue_map
+        = mlnx_tunnel_db_entry->encap_qos_tc_to_queue_map;
+    g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].decap_qos_dscp_to_tc_map
+        = mlnx_tunnel_db_entry->decap_qos_dscp_to_tc_map;
+    g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].decap_qos_tc_to_priority_group_map
+        = mlnx_tunnel_db_entry->decap_qos_tc_to_priority_group_map;
+
     SX_LOG_EXIT();
     return SAI_STATUS_SUCCESS;
 }
@@ -7574,6 +7784,7 @@ static sai_status_t mlnx_remove_tunnel(_In_ const sai_object_id_t sai_tunnel_obj
     sx_router_interface_param_t sx_ifc;
     sx_interface_attributes_t   sx_ifc_attr;
     bool                        need_to_keep_sdk_tunnel = false;
+    bool                        is_ipinip;
 
     SX_LOG_ENTER();
 
@@ -7600,6 +7811,10 @@ static sai_status_t mlnx_remove_tunnel(_In_ const sai_object_id_t sai_tunnel_obj
         goto cleanup;
     }
 
+    SX_LOG_NTC("Tunnel removing, tc2dscp: %" PRIx64 ", tc2queue: %" PRIx64 "\n",
+               g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].encap_qos_tc_and_color_to_dscp_map,
+               g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].encap_qos_tc_to_queue_map);
+
     sx_tunnel_id = g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].sx_tunnel_id_ipv4;
     sx_overlay_rif_ipv6 = g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].sx_overlay_rif_ipv6;
     ipv4_created = g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].ipv4_created;
@@ -7607,6 +7822,7 @@ static sai_status_t mlnx_remove_tunnel(_In_ const sai_object_id_t sai_tunnel_obj
     ip_created = ipv4_created || ipv6_created;
     ipinip_tunnel_main = g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].is_main_tunnel;
     sx_tunnel_attr = g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].sx_tunnel_attr;
+    is_ipinip = mlnx_tunnel_type_ipinip(g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].sai_tunnel_type);
     is_decap =
         (SX_TUNNEL_DIRECTION_DECAP == g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].sx_tunnel_attr.direction);
     /*find the main tunnel*/
@@ -7845,6 +8061,16 @@ static sai_status_t mlnx_remove_tunnel(_In_ const sai_object_id_t sai_tunnel_obj
             goto cleanup;
         }
     }
+
+    if (is_ipinip && mlnx_tunnel_dscp_remapping_enabled()) {
+        sai_status = mlnx_tunnel_dscp_remapping_on_tunnel_remove(is_decap, tunnel_db_idx);
+        if (SAI_ERR(sai_status)) {
+            SX_LOG_ERR("Failed to handle tunnel remove for dscp remapping, is decap %s, tunnel db idx %u\n",
+                       is_decap ? "true" : "false", tunnel_db_idx);
+            goto cleanup;
+        }
+    }
+
     memset(&g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx], 0, sizeof(mlnx_tunnel_entry_t));
 
     SX_LOG_NTC("removed tunnel:0x%" PRIx64 "\n", sai_tunnel_obj_id);
@@ -10080,6 +10306,540 @@ static sai_status_t mlnx_clear_tunnel_stats(_In_ sai_object_id_t      tunnel_id,
     return status;
 }
 
+bool mlnx_tunnel_dscp_remapping_enabled(void)
+{
+    return (g_dscp_remapping_enabled &&
+            g_sai_tunnel_db_ptr->dscp_remapping_db->dscp_remapping_enabled);
+}
+
+static sai_status_t mlnx_tunnel_set_effective_qos(_In_ sai_qos_map_type_t qos_map_type,
+                                                  _Out_ bool             *qos_map_is_consist,
+                                                  _Out_ bool             *qos_map_changed)
+{
+    sai_object_id_t  local_effective_qos_mapping = SAI_NULL_OBJECT_ID;
+    bool             found_first_used = false;
+    bool             local_qos_map_is_consist = true;
+    bool             local_qos_changed = false;
+    port_qos_db_t   *port_qos_db;
+    sai_object_id_t *db_qos_map_list;
+    sai_object_id_t *db_effective_qos_map;
+    uint32_t         ii;
+    sai_status_t     status = SAI_STATUS_SUCCESS;
+
+    SX_LOG_ENTER();
+
+    assert(SAI_QOS_MAP_TYPE_TC_TO_QUEUE == qos_map_type ||
+           SAI_QOS_MAP_TYPE_TC_TO_PRIORITY_GROUP == qos_map_type);
+
+    port_qos_db = &g_sai_tunnel_db_ptr->dscp_remapping_db->port_qos_db;
+    if (SAI_QOS_MAP_TYPE_TC_TO_QUEUE == qos_map_type) {
+        db_qos_map_list = &port_qos_db->uplink_tc_to_queue_mapping[0];
+        db_effective_qos_map = &port_qos_db->effective_tc_to_queue_mapping;
+    } else {
+        db_qos_map_list = &port_qos_db->uplink_tc_to_pg_mapping[0];
+        db_effective_qos_map = &port_qos_db->effective_tc_to_pg_mapping;
+    }
+
+    for (ii = 0; ii < MAX_UPLINK_PORTS; ii++) {
+        if (port_qos_db->uplink_port_list_in_use[ii]) {
+            if (!found_first_used) {
+                local_effective_qos_mapping = db_qos_map_list[ii];
+                found_first_used = true;
+            } else if (local_effective_qos_mapping != db_qos_map_list[ii]) {
+                local_qos_map_is_consist = false;
+                local_effective_qos_mapping = SAI_NULL_OBJECT_ID;
+                break;
+            }
+        }
+    }
+
+    if (local_effective_qos_mapping != *db_effective_qos_map) {
+        SX_LOG_NTC("Effective qos map changed, new oid=%" PRIx64 ", old oid=%" PRIx64 ", type %u.\n",
+                   local_effective_qos_mapping, *db_effective_qos_map, qos_map_type);
+        local_qos_changed = true;
+        *db_effective_qos_map = local_effective_qos_mapping;
+    }
+
+    if (NULL != qos_map_is_consist) {
+        *qos_map_is_consist = local_qos_map_is_consist;
+    }
+
+    if (NULL != qos_map_changed) {
+        *qos_map_changed = local_qos_changed;
+    }
+
+    SX_LOG_EXIT();
+    return status;
+}
+
+static sai_status_t mlnx_tunnel_calculate_tc_mapping(_In_ sai_object_id_t       port_map_oid,
+                                                     _In_ sai_object_id_t       tunnel_map_oid,
+                                                     _In_ sai_qos_map_type_t    qos_map_type,
+                                                     _Out_ mlnx_tc_remapping_t *tc_remapping)
+{
+    uint32_t          ii, jj;
+    mlnx_qos_map_t   *port_qos_map = NULL;
+    mlnx_qos_map_t   *tunnel_qos_map = NULL;
+    sai_status_t      status = SAI_STATUS_SUCCESS;
+    sx_cos_priority_t port_tc, tunnel_tc;
+    bool              is_same_target = false;
+    bool              need_remapping;
+
+    SX_LOG_ENTER();
+
+    assert(SAI_QOS_MAP_TYPE_TC_TO_QUEUE == qos_map_type ||
+           SAI_QOS_MAP_TYPE_TC_TO_PRIORITY_GROUP == qos_map_type);
+
+    if (NULL != tc_remapping) {
+        memset(tc_remapping, 0, sizeof(*tc_remapping));
+    }
+
+    if ((SAI_NULL_OBJECT_ID == port_map_oid) || (SAI_NULL_OBJECT_ID == tunnel_map_oid)) {
+        /* this is a valid case, do not set error status */
+        goto out;
+    }
+
+    status = mlnx_qos_map_get_by_id(port_map_oid, &port_qos_map);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Invalid qos_map_id from port qos map oid=%" PRIx64 ".\n", port_map_oid);
+        goto out;
+    }
+
+    status = mlnx_qos_map_get_by_id(tunnel_map_oid, &tunnel_qos_map);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Invalid qos_map_id from tunnel qos map oid=%" PRIx64 ".\n", tunnel_map_oid);
+        goto out;
+    }
+
+    for (jj = 0; jj < tunnel_qos_map->count; jj++) {
+        tunnel_tc = tunnel_qos_map->from.prio_color[jj].priority;
+        need_remapping = true;
+        for (ii = 0; ii < port_qos_map->count; ii++) {
+            port_tc = port_qos_map->from.prio_color[ii].priority;
+            if (port_tc == tunnel_tc) {
+                if (SAI_QOS_MAP_TYPE_TC_TO_QUEUE == qos_map_type) {
+                    is_same_target = (tunnel_qos_map->to.queue[jj] == port_qos_map->to.queue[ii]);
+                } else {
+                    is_same_target = (tunnel_qos_map->to.pg[jj] == port_qos_map->to.pg[ii]);
+                }
+                if (is_same_target) {
+                    need_remapping = false;
+                }
+                break;
+            }
+        }
+        /* Special rule for tc->pg mapping: None since 1-to-many map found */
+        if (SAI_QOS_MAP_TYPE_TC_TO_PRIORITY_GROUP == qos_map_type) {
+            for (ii = 0; ii < tunnel_qos_map->count; ii++) {
+                if ((ii != jj) && (tunnel_qos_map->to.pg[ii] == tunnel_qos_map->to.pg[jj])) {
+                    need_remapping = false;
+                    break;
+                }
+            }
+        }
+        if (need_remapping) {
+            for (ii = 0; ii < port_qos_map->count; ii++) {
+                port_tc = port_qos_map->from.prio_color[ii].priority;
+                if (SAI_QOS_MAP_TYPE_TC_TO_QUEUE == qos_map_type) {
+                    is_same_target = (tunnel_qos_map->to.queue[jj] == port_qos_map->to.queue[ii]);
+                    if (is_same_target && (NULL != tc_remapping) && (tc_remapping->count < MLNX_QOS_MAP_CODES_MAX)) {
+                        tc_remapping->from.prio_color[tc_remapping->count].priority = tunnel_tc;
+                        tc_remapping->to.prio_color[tc_remapping->count].priority = port_tc;
+                        tc_remapping->count++;
+                        break;
+                    }
+                } else {
+                    is_same_target = (tunnel_qos_map->to.pg[jj] == port_qos_map->to.pg[ii]);
+                    if (is_same_target && (NULL != tc_remapping) && (tc_remapping->count < MLNX_QOS_MAP_CODES_MAX)) {
+                        /* for tc->pg mapping, from is port tc, to is tunnel tc */
+                        tc_remapping->to.prio_color[tc_remapping->count].priority = tunnel_tc;
+                        tc_remapping->from.prio_color[tc_remapping->count].priority = port_tc;
+                        tc_remapping->count++;
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+out:
+    SX_LOG_EXIT();
+    return status;
+}
+
+sai_status_t mlnx_tunnel_update_dscp_remapping_acl_rules(void)
+{
+    bool                 qos_map_changed;
+    bool                 qos_map_is_consist;
+    port_qos_db_t       *port_qos_db;
+    tunnel_qos_data_t   *tunnel_qos_data;
+    mlnx_tc_remapping_t *tc_map;
+    sai_status_t         status;
+
+    SX_LOG_ENTER();
+
+    port_qos_db = &g_sai_tunnel_db_ptr->dscp_remapping_db->port_qos_db;
+    tunnel_qos_data = &g_sai_tunnel_db_ptr->dscp_remapping_db->tunnel_qos_data;
+
+    tc_map = &g_sai_tunnel_db_ptr->dscp_remapping_db->remapping_acl_data[DSCP_REMAPPING_TUNNEL_TYPE_ENCAP].tc_map;
+    if (SAI_NULL_OBJECT_ID != tunnel_qos_data->encap_tc_to_queue_mapping) {
+        status = mlnx_tunnel_set_effective_qos(SAI_QOS_MAP_TYPE_TC_TO_QUEUE, &qos_map_is_consist, &qos_map_changed);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to set effective qos for tc to queue.\n");
+            goto out;
+        }
+        if (qos_map_is_consist && qos_map_changed) {
+            status = mlnx_tunnel_calculate_tc_mapping(port_qos_db->effective_tc_to_queue_mapping,
+                                                      tunnel_qos_data->encap_tc_to_queue_mapping,
+                                                      SAI_QOS_MAP_TYPE_TC_TO_QUEUE,
+                                                      tc_map);
+            if (SAI_ERR(status)) {
+                SX_LOG_ERR("Failed to calculate tc mapping for encap.\n");
+                goto out;
+            }
+            SX_LOG_NTC("DSCP remapping tc to queue map changed, re-calculate %u ACL rules for encap.\n",
+                       tc_map->count);
+            status = mlnx_acl_update_dscp_remapping_rules(tc_map, DSCP_REMAPPING_TUNNEL_TYPE_ENCAP);
+            if (SAI_ERR(status)) {
+                SX_LOG_ERR("Failed to update dscp remapping acl rules for encap.\n");
+                goto out;
+            }
+        }
+    } else if (0 != tc_map->count) {
+        SX_LOG_NTC("DSCP remapping clear ACL rules for encap.\n");
+        memset(tc_map, 0, sizeof(*tc_map));
+        status = mlnx_acl_update_dscp_remapping_rules(tc_map, DSCP_REMAPPING_TUNNEL_TYPE_ENCAP);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to update dscp remapping acl rules for encap.\n");
+            goto out;
+        }
+    }
+
+    tc_map = &g_sai_tunnel_db_ptr->dscp_remapping_db->remapping_acl_data[DSCP_REMAPPING_TUNNEL_TYPE_DECAP].tc_map;
+    if (SAI_NULL_OBJECT_ID != tunnel_qos_data->decap_tc_to_pg_mapping) {
+        status = mlnx_tunnel_set_effective_qos(SAI_QOS_MAP_TYPE_TC_TO_PRIORITY_GROUP,
+                                               &qos_map_is_consist,
+                                               &qos_map_changed);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to set effective qos for tc to pg.\n");
+            goto out;
+        }
+        if (qos_map_is_consist && qos_map_changed) {
+            status = mlnx_tunnel_calculate_tc_mapping(port_qos_db->effective_tc_to_pg_mapping,
+                                                      tunnel_qos_data->decap_tc_to_pg_mapping,
+                                                      SAI_QOS_MAP_TYPE_TC_TO_PRIORITY_GROUP,
+                                                      tc_map);
+            if (SAI_ERR(status)) {
+                SX_LOG_ERR("Failed to calculate tc mapping for decap.\n");
+                goto out;
+            }
+            SX_LOG_NTC("DSCP remapping tc to pg map changed, re-calculate %u ACL rules for decap.\n", tc_map->count);
+            status = mlnx_acl_update_dscp_remapping_rules(tc_map, DSCP_REMAPPING_TUNNEL_TYPE_DECAP);
+            if (SAI_ERR(status)) {
+                SX_LOG_ERR("Failed to update dscp remapping acl rules for decap.\n");
+                goto out;
+            }
+        }
+    } else if (0 != tc_map->count) {
+        SX_LOG_NTC("DSCP remapping clear ACL rules for decap.\n");
+        memset(tc_map, 0, sizeof(*tc_map));
+        status = mlnx_acl_update_dscp_remapping_rules(tc_map, DSCP_REMAPPING_TUNNEL_TYPE_DECAP);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to update dscp remapping acl rules for decap.\n");
+            goto out;
+        }
+    }
+
+out:
+    SX_LOG_EXIT();
+    return status;
+}
+
+static sai_status_t mlnx_tunnel_enable_dscp_remapping(void)
+{
+    sai_status_t status = SAI_STATUS_SUCCESS;
+
+    SX_LOG_ENTER();
+
+    g_sai_tunnel_db_ptr->dscp_remapping_db->dscp_remapping_enabled = true;
+    status = mlnx_port_dscp_remapping_uplink_list_init();
+    if (SAI_ERR(status)) {
+        goto out;
+    }
+    status = mlnx_acl_dscp_remapping_acl_data_init();
+    if (SAI_ERR(status)) {
+        goto out;
+    }
+
+out:
+    SX_LOG_EXIT();
+    return status;
+}
+
+static sai_status_t mlnx_tunnel_on_qos_attribute_update(_In_ uint32_t               attr_count,
+                                                        _In_ const sai_attribute_t *attr_list,
+                                                        _In_ mlnx_tunnel_entry_t   *mlnx_tunnel_db_entry,
+                                                        _Out_ sx_tunnel_cos_data_t *sdk_encap_cos_data)
+{
+    tunnel_qos_data_t           *tunnel_qos_data;
+    bool                         has_encap_qos_tc_and_color_to_dscp_map = false;
+    bool                         has_encap_qos_tc_to_queue_map = false;
+    bool                         has_decap_qos_dscp_to_tc_map = false;
+    bool                         has_decap_qos_tc_to_priority_group_map = false;
+    bool                         is_pipe_mode = false;
+    const sai_attribute_value_t *attr;
+    uint32_t                     attr_idx;
+    sai_status_t                 sai_status;
+    mlnx_sai_attr_t              mlnx_attr;
+
+    SX_LOG_ENTER();
+
+    sai_status = find_attrib_in_list(attr_count,
+                                     attr_list,
+                                     SAI_TUNNEL_ATTR_ENCAP_QOS_TC_AND_COLOR_TO_DSCP_MAP,
+                                     &attr,
+                                     &attr_idx);
+    if (SAI_STATUS_SUCCESS == sai_status) {
+        SX_LOG_INF("find SAI_TUNNEL_ATTR_ENCAP_QOS_TC_AND_COLOR_TO_DSCP_MAP, oid %" PRIx64 ".\n", attr->oid);
+        has_encap_qos_tc_and_color_to_dscp_map = true;
+        mlnx_tunnel_db_entry->encap_qos_tc_and_color_to_dscp_map = attr->oid;
+        sdk_encap_cos_data->dscp_rewrite = SX_COS_DSCP_REWRITE_ENABLE_E;
+        sdk_encap_cos_data->dscp_action = SX_COS_DSCP_ACTION_SET_E;
+    }
+
+    sai_status =
+        find_attrib_in_list(attr_count, attr_list, SAI_TUNNEL_ATTR_ENCAP_QOS_TC_TO_QUEUE_MAP, &attr, &attr_idx);
+    if (SAI_STATUS_SUCCESS == sai_status) {
+        SX_LOG_INF("find SAI_TUNNEL_ATTR_ENCAP_QOS_TC_TO_QUEUE_MAP, oid %" PRIx64 ".\n", attr->oid);
+        has_encap_qos_tc_to_queue_map = true;
+        mlnx_tunnel_db_entry->encap_qos_tc_to_queue_map = attr->oid;
+    }
+
+    if ((has_encap_qos_tc_and_color_to_dscp_map && !has_encap_qos_tc_to_queue_map) ||
+        (!has_encap_qos_tc_and_color_to_dscp_map && has_encap_qos_tc_to_queue_map)) {
+        SX_LOG_ERR("Error encap qos tc to dscp and tc to queue must be set together.\n");
+        sai_status = SAI_STATUS_INVALID_PARAMETER;
+        goto out;
+    }
+
+    sai_status = find_attrib_in_list(attr_count, attr_list, SAI_TUNNEL_ATTR_ENCAP_DSCP_MODE, &attr, &attr_idx);
+    if (SAI_STATUS_SUCCESS == sai_status) {
+        SX_LOG_INF("find SAI_TUNNEL_ATTR_ENCAP_DSCP_MODE, mode %u.\n", attr->s32);
+        if (SAI_TUNNEL_DSCP_MODE_PIPE_MODEL == attr->s32) {
+            is_pipe_mode = true;
+        }
+    }
+
+    sai_status =
+        find_attrib_in_list(attr_count, attr_list, SAI_TUNNEL_ATTR_DECAP_QOS_DSCP_TO_TC_MAP, &attr, &attr_idx);
+    if (SAI_STATUS_SUCCESS == sai_status) {
+        SX_LOG_INF("find SAI_TUNNEL_ATTR_DECAP_QOS_DSCP_TO_TC_MAP, oid %" PRIx64 ".\n", attr->oid);
+        has_decap_qos_dscp_to_tc_map = true;
+        mlnx_tunnel_db_entry->decap_qos_dscp_to_tc_map = attr->oid;
+    }
+
+    sai_status = find_attrib_in_list(attr_count,
+                                     attr_list,
+                                     SAI_TUNNEL_ATTR_DECAP_QOS_TC_TO_PRIORITY_GROUP_MAP,
+                                     &attr,
+                                     &attr_idx);
+    if (SAI_STATUS_SUCCESS == sai_status) {
+        SX_LOG_INF("find SAI_TUNNEL_ATTR_DECAP_QOS_TC_TO_PRIORITY_GROUP_MAP, oid %" PRIx64 ".\n", attr->oid);
+        has_decap_qos_tc_to_priority_group_map = true;
+        mlnx_tunnel_db_entry->decap_qos_tc_to_priority_group_map = attr->oid;
+    }
+
+    if ((has_decap_qos_dscp_to_tc_map && !has_decap_qos_tc_to_priority_group_map) ||
+        (!has_decap_qos_dscp_to_tc_map && has_decap_qos_tc_to_priority_group_map)) {
+        SX_LOG_ERR("Error decap qos dscp to tc and tc to pg must be set together.\n");
+        sai_status = SAI_STATUS_INVALID_PARAMETER;
+        goto out;
+    }
+
+    tunnel_qos_data = &g_sai_tunnel_db_ptr->dscp_remapping_db->tunnel_qos_data;
+    if (has_encap_qos_tc_and_color_to_dscp_map && has_encap_qos_tc_to_queue_map) {
+        if ((tunnel_qos_data->encap_tc_to_queue_mapping != SAI_NULL_OBJECT_ID) ||
+            (tunnel_qos_data->encap_tc_to_dscp_mapping != SAI_NULL_OBJECT_ID)) {
+            SX_LOG_ERR("Error: only one encapsulate tunnel with qos attributes is supported.\n");
+            sai_status = SAI_STATUS_INVALID_PARAMETER;
+            goto out;
+        }
+        if (!is_pipe_mode) {
+            SX_LOG_ERR("Error: the encap dscp mode must be pipe model for encapsulate tunnel with qos attributes.\n");
+            sai_status = SAI_STATUS_INVALID_PARAMETER;
+            goto out;
+        }
+        find_attrib(attr_count, attr_list, SAI_TUNNEL_ATTR_OVERLAY_INTERFACE, &mlnx_attr);
+        tunnel_qos_data->encap_rif_oid = mlnx_attr.value->oid;
+        tunnel_qos_data->encap_tc_to_dscp_mapping = mlnx_tunnel_db_entry->encap_qos_tc_and_color_to_dscp_map;
+        tunnel_qos_data->encap_tc_to_queue_mapping = mlnx_tunnel_db_entry->encap_qos_tc_to_queue_map;
+        if (!mlnx_tunnel_dscp_remapping_enabled()) {
+            SX_LOG_NTC("Encap tunnel qos attribute enabling dscp remapping.\n");
+            sai_status = mlnx_tunnel_enable_dscp_remapping();
+            if (SAI_ERR(sai_status)) {
+                SX_LOG_ERR("Failed to enable dscp remapping from encap tunnel.\n");
+                goto out;
+            }
+        } else {
+            sai_status = mlnx_acl_bind_dscp_remapping(DSCP_REMAPPING_TUNNEL_TYPE_ENCAP);
+            if (SAI_ERR(sai_status)) {
+                SX_LOG_ERR("Failed to bind dscp remapping for encap.\n");
+                goto out;
+            }
+        }
+        sai_status = mlnx_port_do_dscp_rewriting_for_all_uplink_ports();
+        if (SAI_ERR(sai_status)) {
+            SX_LOG_ERR("Failed to init dscp remapping rewriting list.\n");
+            goto out;
+        }
+        sai_status = mlnx_tunnel_update_dscp_remapping_acl_rules();
+        if (SAI_ERR(sai_status)) {
+            SX_LOG_ERR("Failed to update dscp remapping acl data.\n");
+            goto out;
+        }
+    }
+
+    if (has_decap_qos_dscp_to_tc_map && has_decap_qos_tc_to_priority_group_map) {
+        if ((tunnel_qos_data->decap_dscp_to_tc_mapping != SAI_NULL_OBJECT_ID) ||
+            (tunnel_qos_data->decap_tc_to_pg_mapping != SAI_NULL_OBJECT_ID)) {
+            SX_LOG_ERR("Error: only one decap tunnel with qos attributes is supported.\n");
+            sai_status = SAI_STATUS_INVALID_PARAMETER;
+            goto out;
+        }
+        find_attrib(attr_count, attr_list, SAI_TUNNEL_ATTR_OVERLAY_INTERFACE, &mlnx_attr);
+        tunnel_qos_data->decap_rif_oid = mlnx_attr.value->oid;
+        tunnel_qos_data->decap_dscp_to_tc_mapping = mlnx_tunnel_db_entry->decap_qos_dscp_to_tc_map;
+        tunnel_qos_data->decap_tc_to_pg_mapping = mlnx_tunnel_db_entry->decap_qos_tc_to_priority_group_map;
+        if (!mlnx_tunnel_dscp_remapping_enabled()) {
+            sai_status = mlnx_tunnel_enable_dscp_remapping();
+            if (SAI_ERR(sai_status)) {
+                SX_LOG_ERR("Failed to enable dscp remapping from decap tunnel.\n");
+                goto out;
+            }
+        } else {
+            sai_status = mlnx_acl_bind_dscp_remapping(DSCP_REMAPPING_TUNNEL_TYPE_DECAP);
+            if (SAI_ERR(sai_status)) {
+                SX_LOG_ERR("Failed to bind dscp remapping for encap.\n");
+                goto out;
+            }
+        }
+        sai_status = mlnx_tunnel_update_dscp_remapping_acl_rules();
+        if (SAI_ERR(sai_status)) {
+            SX_LOG_ERR("Failed to update dscp remapping acl data.\n");
+            goto out;
+        }
+    }
+    sai_status = SAI_STATUS_SUCCESS;
+
+out:
+    SX_LOG_EXIT();
+    return sai_status;
+}
+
+static sai_status_t mlnx_tunnel_dscp_remapping_on_tunnel_remove(_In_ bool is_decap, _In_ uint32_t tunnel_db_idx)
+{
+    tunnel_qos_data_t   *tunnel_qos_data = &g_sai_tunnel_db_ptr->dscp_remapping_db->tunnel_qos_data;
+    mlnx_tunnel_entry_t *tunnel_db_entry = &g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx];
+    sai_status_t         status = SAI_STATUS_SUCCESS;
+
+    SX_LOG_ENTER();
+
+    if (is_decap && (SAI_NULL_OBJECT_ID != tunnel_db_entry->decap_qos_dscp_to_tc_map) &&
+        (SAI_NULL_OBJECT_ID != tunnel_db_entry->decap_qos_tc_to_priority_group_map)) {
+        SX_LOG_NTC("Dscp remapping decap tunnel remove.\n");
+        tunnel_db_entry->decap_qos_dscp_to_tc_map = SAI_NULL_OBJECT_ID;
+        tunnel_db_entry->decap_qos_tc_to_priority_group_map = SAI_NULL_OBJECT_ID;
+        tunnel_qos_data->decap_rif_oid = SAI_NULL_OBJECT_ID;
+        tunnel_qos_data->decap_dscp_to_tc_mapping = SAI_NULL_OBJECT_ID;
+        tunnel_qos_data->decap_tc_to_pg_mapping = SAI_NULL_OBJECT_ID;
+        status = mlnx_tunnel_update_dscp_remapping_acl_rules();
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to update dscp remapping acl data.\n");
+            goto out;
+        }
+        status = mlnx_acl_unbind_dscp_remapping(DSCP_REMAPPING_TUNNEL_TYPE_DECAP);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to unbind decap dscp remapping ACL.\n");
+            goto out;
+        }
+    }
+
+    if (!is_decap && (SAI_NULL_OBJECT_ID != tunnel_db_entry->encap_qos_tc_and_color_to_dscp_map) &&
+        (SAI_NULL_OBJECT_ID != tunnel_db_entry->encap_qos_tc_to_queue_map)) {
+        SX_LOG_NTC("Dscp remapping encap tunnel remove.\n");
+        tunnel_db_entry->encap_qos_tc_and_color_to_dscp_map = SAI_NULL_OBJECT_ID;
+        tunnel_db_entry->encap_qos_tc_to_queue_map = SAI_NULL_OBJECT_ID;
+        tunnel_qos_data->encap_rif_oid = SAI_NULL_OBJECT_ID;
+        tunnel_qos_data->encap_tc_to_dscp_mapping = SAI_NULL_OBJECT_ID;
+        tunnel_qos_data->encap_tc_to_queue_mapping = SAI_NULL_OBJECT_ID;
+        status = mlnx_tunnel_update_dscp_remapping_acl_rules();
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to update dscp remapping acl data.\n");
+            goto out;
+        }
+        status = mlnx_acl_unbind_dscp_remapping(DSCP_REMAPPING_TUNNEL_TYPE_ENCAP);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to unbind encap dscp remapping.\n");
+            goto out;
+        }
+        status = mlnx_port_undo_dscp_rewriting_for_all_uplink_ports();
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to clear dscp remapping rewriting list.\n");
+            goto out;
+        }
+    }
+
+    if ((SAI_NULL_OBJECT_ID == tunnel_qos_data->encap_rif_oid) &&
+        (SAI_NULL_OBJECT_ID == tunnel_qos_data->decap_rif_oid)) {
+        mlnx_port_dscp_remapping_uplink_list_clear();
+        status = mlnx_acl_dscp_remapping_acl_data_clear();
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to clear dscp remapping acl data.\n");
+            goto out;
+        }
+        g_sai_tunnel_db_ptr->dscp_remapping_db->dscp_remapping_enabled = false;
+        SX_LOG_NTC("Dscp remapping disabled.\n");
+    }
+
+out:
+    SX_LOG_EXIT();
+    return status;
+}
+
+sai_status_t mlnx_debug_set_dscp_remapping_for_ptf(_In_ const char* value)
+{
+    uint32_t             idx;
+    mlnx_tunnel_entry_t *tun;
+    sai_status_t         sai_status = SAI_STATUS_SUCCESS;
+
+    assert(NULL != value);
+    sai_db_write_lock();
+    for (idx = 0; idx < MAX_TUNNEL_DB_SIZE; idx++) {
+        tun = &g_sai_tunnel_db_ptr->tunnel_entry_db[idx];
+        if (tun->is_used &&
+            ((SAI_NULL_OBJECT_ID != tun->encap_qos_tc_and_color_to_dscp_map) ||
+             (SAI_NULL_OBJECT_ID != tun->encap_qos_tc_to_queue_map) ||
+             (SAI_NULL_OBJECT_ID != tun->decap_qos_dscp_to_tc_map) ||
+             (SAI_NULL_OBJECT_ID != tun->decap_qos_tc_to_priority_group_map))) {
+            SX_LOG_ERR("DSCP remapping can only be enable/disable in clean state.\n");
+            sai_status = SAI_STATUS_INVALID_PARAMETER;
+            goto out;
+        }
+    }
+
+    if (atoi(value) > 0) {
+        SX_LOG_NTC("DSCP remapping is enabled on live.\n");
+        g_dscp_remapping_enabled = true;
+    } else {
+        SX_LOG_NTC("DSCP remapping is disabled on live.\n");
+        g_dscp_remapping_enabled = false;
+    }
+
+out:
+    sai_db_unlock();
+    return sai_status;
+}
+
 const sai_tunnel_api_t mlnx_tunnel_api = {
     mlnx_create_tunnel_map,
     mlnx_remove_tunnel_map,
@@ -10102,4 +10862,6 @@ const sai_tunnel_api_t mlnx_tunnel_api = {
     mlnx_get_tunnel_map_entry_attribute,
     NULL,
     NULL,
+    NULL,
+    NULL
 };

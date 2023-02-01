@@ -918,5 +918,9 @@ const sai_neighbor_api_t mlnx_neighbor_api = {
     mlnx_remove_neighbor_entry,
     mlnx_set_neighbor_attribute,
     mlnx_get_neighbor_attribute,
-    mlnx_remove_all_neighbor_entries
+    mlnx_remove_all_neighbor_entries,
+    NULL,
+    NULL,
+    NULL,
+    NULL
 };

@@ -99,6 +99,7 @@ mlnx_sai_isolation_group.lo: \
  /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saiisolationgroup.h \
  /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saidebugcounter.h \
  /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saimymac.h \
+ /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saigenericprogrammable.h \
  /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saiversion.h \
  /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai_windows.h \
  /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/mlnx_sai.h \
@@ -476,6 +477,7 @@ mlnx_sai_isolation_group.lo: \
 /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saiisolationgroup.h:
 /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saidebugcounter.h:
 /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saimymac.h:
+/home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saigenericprogrammable.h:
 /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saiversion.h:
 /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai_windows.h:
 /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/mlnx_sai.h:

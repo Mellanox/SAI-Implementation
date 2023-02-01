@@ -355,6 +355,22 @@ static sai_status_t mlnx_port_update_speed_sp2(_In_ sx_port_log_id_t sx_port,
 static sai_status_t mlnx_port_update_speed_sp4(_In_ sx_port_log_id_t sx_port,
                                                _In_ bool             auto_neg,
                                                _In_ uint64_t         bitmap);
+static sai_status_t mlnx_port_dscp_remapping_uplink_detect(_In_ sx_port_log_id_t port_id,
+                                                           _Out_ bool           *should_be_uplink_port);
+static sai_status_t mlnx_port_lossless_buffer_count_get(_In_ sx_port_log_id_t port_id,
+                                                        _Out_ uint32_t       *number_of_lossless_buffer);
+static sai_status_t mlnx_port_tc_to_queue_update_for_dscp_remapping(_In_ sx_port_log_id_t port_id,
+                                                                    _In_ sai_object_id_t  tc_to_queue_mapping_oid);
+static sai_status_t mlnx_port_tc_to_pg_update_for_dscp_remapping(_In_ sx_port_log_id_t port_id,
+                                                                 _In_ sai_object_id_t  tc_to_pg_mapping_oid);
+static sai_status_t mlnx_port_do_dscp_rewriting(_In_ sx_port_log_id_t port_id,
+                                                _In_ uint32_t         index);
+static sai_status_t mlnx_port_remove_port_from_dscp_remapping_uplink_list(_In_ sx_port_log_id_t port_id);
+static sai_status_t mlnx_port_add_port_to_dscp_remapping_uplink_list(_In_ sx_port_log_id_t port_id,
+                                                                     _Out_ uint32_t       *index);
+static sai_status_t mlnx_port_undo_dscp_rewriting(_In_ sx_port_log_id_t port_id,
+                                                  _In_ uint32_t         index);
+static bool mlnx_port_is_in_uplink_list(_In_ sx_port_log_id_t port_id);
 
 
 enum counter_type {
@@ -4648,6 +4664,12 @@ static sai_status_t mlnx_port_qos_map_assign_tc_color_to_dscp(sx_port_log_id_t p
 {
     sx_status_t status;
 
+    if (mlnx_tunnel_dscp_remapping_enabled() && mlnx_port_is_tc_to_dscp_rewrite_done(port_id)) {
+        SX_LOG_NTC("Skip set tc to dscp map for port id %x as it is rewrote by dscp remapping.\n",
+                   port_id);
+        return SAI_STATUS_SUCCESS;
+    }
+
     status = sx_api_cos_port_prio_to_dscp_rewrite_set(gh_sdk,
                                                       port_id,
                                                       qos_map->from.prio_color,
@@ -4985,6 +5007,9 @@ sai_status_t mlnx_port_qos_map_apply(_In_ const sai_object_id_t    port,
 
     case SAI_QOS_MAP_TYPE_TC_TO_QUEUE:
         status = mlnx_port_qos_map_assign_tc_to_queue(port_id, qos_map);
+        if ((SAI_STATUS_SUCCESS == status) && mlnx_tunnel_dscp_remapping_enabled()) {
+            status = mlnx_port_tc_to_queue_update_for_dscp_remapping(port_id, qos_map_id);
+        }
         break;
 
     case SAI_QOS_MAP_TYPE_TC_AND_COLOR_TO_DSCP:
@@ -4998,6 +5023,9 @@ sai_status_t mlnx_port_qos_map_apply(_In_ const sai_object_id_t    port,
     case SAI_QOS_MAP_TYPE_TC_TO_PRIORITY_GROUP:
         if (is_map_enabled) {
             status = mlnx_port_qos_map_assign_tc_to_pg(port_id, qos_map);
+            if ((SAI_STATUS_SUCCESS == status) && mlnx_tunnel_dscp_remapping_enabled()) {
+                status = mlnx_port_tc_to_pg_update_for_dscp_remapping(port_id, qos_map_id);
+            }
         }
         break;
 
@@ -10850,6 +10878,610 @@ sai_status_t mlnx_internal_acls_bind(_In_ internal_acl_op_types op_type, _In_ sa
 out:
     SX_LOG_EXIT();
     return sai_status;
+}
+
+sai_status_t mlnx_port_get_qos_map_id_by_log_port(_In_ sx_port_log_id_t   port_id,
+                                                  _In_ sai_qos_map_type_t qos_map_type,
+                                                  _Out_ sai_object_id_t  *oid)
+{
+    mlnx_port_config_t *port;
+    sai_status_t        status;
+    uint32_t            qos_map_id;
+
+
+    if (mlnx_log_port_is_cpu(port_id)) {
+        *oid = SAI_NULL_OBJECT_ID;
+        return SAI_STATUS_SUCCESS;
+    }
+
+    status = mlnx_port_by_log_id(port_id, &port);
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+    qos_map_id = port->qos_maps[qos_map_type];
+    if (!qos_map_id) {
+        *oid = SAI_NULL_OBJECT_ID;
+        return SAI_STATUS_SUCCESS;
+    }
+
+    return mlnx_create_object(SAI_OBJECT_TYPE_QOS_MAP, qos_map_id, NULL, oid);
+}
+
+static sai_status_t mlnx_port_lossless_buffer_count_get(_In_ sx_port_log_id_t port_id,
+                                                        _Out_ uint32_t       *number_of_lossless_buffer)
+{
+    uint32_t                            local_number_of_lossless_buffer = 0;
+    uint32_t                            db_port_index;
+    sai_status_t                        sai_status = SAI_STATUS_SUCCESS;
+    uint8_t                             port_pg_ind = 0;
+    uint32_t                           *port_pg_profile_refs = NULL;
+    uint32_t                            db_buffer_profile_index = 0;
+    bool                                is_buffer_lossless;
+    mlnx_sai_db_buffer_profile_entry_t *buff_db_entry;
+
+    SX_LOG_ENTER();
+
+    if (!mlnx_log_port_is_cpu(port_id)) {
+        sai_status = mlnx_port_idx_by_log_id(port_id, &db_port_index);
+        if (SAI_ERR(sai_status)) {
+            SX_LOG_DBG("Failed to get port index for port id %x, set lossless buffer number 0.\n", port_id);
+            sai_status = SAI_STATUS_SUCCESS;
+            goto out;
+        }
+        sai_status = mlnx_sai_get_port_buffer_index_array(db_port_index, PORT_BUFF_TYPE_PG, &port_pg_profile_refs);
+        if (SAI_ERR(sai_status)) {
+            SX_LOG_DBG("Failed to get port buffer index array for port db index %x, set lossless buffer number 0.\n",
+                       db_port_index);
+            sai_status = SAI_STATUS_SUCCESS;
+            goto out;
+        }
+        for (port_pg_ind = 0; port_pg_ind < mlnx_sai_get_buffer_resource_limits()->num_port_pg_buff; port_pg_ind++) {
+            db_buffer_profile_index = port_pg_profile_refs[port_pg_ind];
+            if (SENTINEL_BUFFER_DB_ENTRY_INDEX == db_buffer_profile_index) {
+                continue;
+            }
+            buff_db_entry = &g_sai_buffer_db_ptr->buffer_profiles[db_buffer_profile_index];
+            is_buffer_lossless = ((0 != buff_db_entry->xoff) && (0 != buff_db_entry->xon));
+            if (is_buffer_lossless) {
+                local_number_of_lossless_buffer++;
+            }
+        }
+    }
+
+out:
+    if (number_of_lossless_buffer != NULL) {
+        *number_of_lossless_buffer = local_number_of_lossless_buffer;
+        SX_LOG_DBG("Get lossless buffer number %u for port id %x.\n",
+                   local_number_of_lossless_buffer,
+                   port_id);
+    }
+
+    SX_LOG_EXIT();
+    return sai_status;
+}
+
+static sai_status_t mlnx_port_dscp_remapping_uplink_detect(_In_ sx_port_log_id_t port_id,
+                                                           _Out_ bool           *should_be_uplink_port)
+{
+    sai_status_t sai_status = SAI_STATUS_SUCCESS;
+    uint32_t     number_of_lossless_buffer = 0;
+    bool         local_should_be_uplink_port;
+
+    SX_LOG_ENTER();
+
+    sai_status = mlnx_port_lossless_buffer_count_get(port_id, &number_of_lossless_buffer);
+    if (SAI_ERR(sai_status)) {
+        SX_LOG_ERR("Failed to get port lossless buffer number for port id %x.\n", port_id);
+        goto out;
+    }
+    local_should_be_uplink_port = (UPLINK_LOSSLESS_PG_COUNT == number_of_lossless_buffer);
+    if (should_be_uplink_port != NULL) {
+        *should_be_uplink_port = local_should_be_uplink_port;
+        SX_LOG_DBG("Port id %x is dscp remapping uplink: %s.\n", port_id, local_should_be_uplink_port ? "Yes" : "No");
+    }
+
+out:
+    SX_LOG_EXIT();
+    return sai_status;
+}
+
+static sai_status_t mlnx_port_add_port_to_dscp_remapping_uplink_list(_In_ sx_port_log_id_t port_id,
+                                                                     _Out_ uint32_t       *index)
+{
+    uint32_t            ii = 0;
+    port_qos_db_t      *port_qos_db;
+    sai_status_t        status = SAI_STATUS_SUCCESS;
+    sai_object_id_t     tc_to_pg_mapping_oid;
+    sai_object_id_t     tc_to_queue_mapping_oid;
+    mlnx_port_config_t *port_cfg;
+    sx_port_log_id_t    port_or_lag_id;
+
+    SX_LOG_ENTER();
+
+    port_qos_db = &g_sai_tunnel_db_ptr->dscp_remapping_db->port_qos_db;
+
+    for (ii = 0; ii < MAX_UPLINK_PORTS; ii++) {
+        if (port_qos_db->uplink_port_list_in_use[ii] &&
+            (port_qos_db->uplink_port_list[ii] == port_id)) {
+            goto out;
+        }
+    }
+
+    status = mlnx_port_by_log_id(port_id, &port_cfg);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed lookup port config by log id %x.\n", port_id);
+        goto out;
+    }
+    if (mlnx_port_is_lag_member(port_cfg)) {
+        port_or_lag_id = mlnx_port_get_lag_id(port_cfg);
+    } else {
+        port_or_lag_id = port_id;
+    }
+
+    status = mlnx_port_get_qos_map_id_by_log_port(port_or_lag_id,
+                                                  SAI_QOS_MAP_TYPE_TC_TO_PRIORITY_GROUP,
+                                                  &tc_to_pg_mapping_oid);
+    if (SAI_ERR(status)) {
+        tc_to_pg_mapping_oid = SAI_NULL_OBJECT_ID;
+    }
+
+    status = mlnx_port_get_qos_map_id_by_log_port(port_or_lag_id,
+                                                  SAI_QOS_MAP_TYPE_TC_TO_QUEUE,
+                                                  &tc_to_queue_mapping_oid);
+    if (SAI_ERR(status)) {
+        tc_to_queue_mapping_oid = SAI_NULL_OBJECT_ID;
+    }
+
+    for (ii = 0; ii < MAX_UPLINK_PORTS; ii++) {
+        if (!port_qos_db->uplink_port_list_in_use[ii]) {
+            port_qos_db->uplink_port_list_in_use[ii] = true;
+            port_qos_db->uplink_port_list[ii] = port_id;
+            port_qos_db->uplink_tc_to_pg_mapping[ii] = tc_to_pg_mapping_oid;
+            port_qos_db->uplink_tc_to_queue_mapping[ii] = tc_to_queue_mapping_oid;
+            status = SAI_STATUS_SUCCESS;
+            if (index) {
+                *index = ii;
+            }
+            goto out;
+        }
+    }
+
+    status = SAI_STATUS_TABLE_FULL;
+
+out:
+    SX_LOG_EXIT();
+    return status;
+}
+
+static sai_status_t mlnx_port_remove_port_from_dscp_remapping_uplink_list(_In_ sx_port_log_id_t port_id)
+{
+    uint32_t       ii;
+    port_qos_db_t *port_qos_db;
+    sai_status_t   status = SAI_STATUS_SUCCESS;
+
+    SX_LOG_ENTER();
+
+    port_qos_db = &g_sai_tunnel_db_ptr->dscp_remapping_db->port_qos_db;
+    for (ii = 0; ii < MAX_UPLINK_PORTS; ii++) {
+        if (port_qos_db->uplink_port_list_in_use[ii] && (port_qos_db->uplink_port_list[ii] == port_id)) {
+            port_qos_db->uplink_port_list_in_use[ii] = false;
+            port_qos_db->uplink_port_list[ii] = SX_INVALID_PORT;
+            port_qos_db->uplink_tc_to_pg_mapping[ii] = SAI_NULL_OBJECT_ID;
+            port_qos_db->uplink_tc_to_queue_mapping[ii] = SAI_NULL_OBJECT_ID;
+            status = mlnx_port_undo_dscp_rewriting(port_id, ii);
+            goto out;
+        }
+    }
+    status = SAI_STATUS_ITEM_NOT_FOUND;
+
+out:
+    SX_LOG_EXIT();
+    return status;
+}
+
+static sai_status_t mlnx_port_do_dscp_rewriting(_In_ sx_port_log_id_t port_id, _In_ uint32_t index)
+{
+    port_qos_db_t      *port_qos_db;
+    sai_status_t        status = SAI_STATUS_SUCCESS;
+    tunnel_qos_data_t  *tunnel_qos_data;
+    mlnx_port_config_t *port_cfg;
+
+    SX_LOG_ENTER();
+
+    tunnel_qos_data = &g_sai_tunnel_db_ptr->dscp_remapping_db->tunnel_qos_data;
+    if (SAI_NULL_OBJECT_ID == tunnel_qos_data->encap_tc_to_dscp_mapping) {
+        goto out;
+    }
+
+    port_qos_db = &g_sai_tunnel_db_ptr->dscp_remapping_db->port_qos_db;
+    if (port_qos_db->uplink_port_rewrite_done[index]) {
+        goto out;
+    }
+
+    status = mlnx_port_by_log_id(port_id, &port_cfg);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed lookup port config by log id %x.\n", port_id);
+        goto out;
+    }
+
+    /* Apply will be effect on LAG if port is a LAG member */
+    status = mlnx_port_qos_map_apply(port_cfg->saiport,
+                                     tunnel_qos_data->encap_tc_to_dscp_mapping,
+                                     SAI_QOS_MAP_TYPE_TC_AND_COLOR_TO_DSCP);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to rewrite tc to dscp mapping for port id %x.\n", port_id);
+        goto out;
+    }
+
+    port_qos_db->uplink_port_rewrite_done[index] = true;
+
+out:
+    SX_LOG_EXIT();
+    return status;
+}
+
+static sai_status_t mlnx_port_undo_dscp_rewriting(_In_ sx_port_log_id_t port_id, _In_ uint32_t index)
+{
+    uint32_t            qos_map_id;
+    sai_object_id_t     qos_map_oid;
+    sai_status_t        status = SAI_STATUS_SUCCESS;
+    port_qos_db_t      *port_qos_db;
+    mlnx_port_config_t *port_cfg;
+    mlnx_port_config_t *lag_cfg;
+    sx_port_log_id_t    lag_id;
+
+    SX_LOG_ENTER();
+
+    status = mlnx_port_by_log_id(port_id, &port_cfg);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed lookup port config by log id %x.\n", port_id);
+        goto out;
+    }
+
+    port_qos_db = &g_sai_tunnel_db_ptr->dscp_remapping_db->port_qos_db;
+    port_qos_db->uplink_port_rewrite_done[index] = false;
+
+    if (mlnx_port_is_lag_member(port_cfg)) {
+        /* Only resume the qos for the last uplink port in the LAG */
+        lag_id = mlnx_port_get_lag_id(port_cfg);
+        if (mlnx_port_is_tc_to_dscp_rewrite_done(lag_id)) {
+            SX_LOG_NTC("Skip undo dscp rewriting for log id %x because it's not the last lag member.\n", port_id);
+            goto out;
+        } else {
+            status = mlnx_port_by_log_id(lag_id, &lag_cfg);
+            if (SAI_ERR(status)) {
+                SX_LOG_ERR("Failed lookup lag config by log id %x.\n", lag_id);
+                goto out;
+            }
+            qos_map_id = lag_cfg->qos_maps[SAI_QOS_MAP_TYPE_TC_AND_COLOR_TO_DSCP];
+        }
+    } else {
+        qos_map_id = port_cfg->qos_maps[SAI_QOS_MAP_TYPE_TC_AND_COLOR_TO_DSCP];
+    }
+
+    if (!qos_map_id) {
+        qos_map_oid = SAI_NULL_OBJECT_ID;
+    } else {
+        status = mlnx_create_object(SAI_OBJECT_TYPE_QOS_MAP, qos_map_id, NULL, &qos_map_oid);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to create oid from tc to queue map id %x.\n", qos_map_id);
+            goto out;
+        }
+    }
+
+    status = mlnx_port_qos_map_apply(port_cfg->saiport, qos_map_oid, SAI_QOS_MAP_TYPE_TC_AND_COLOR_TO_DSCP);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to recover tc to dscp mapping for port id %x.\n", port_id);
+    }
+
+out:
+    SX_LOG_EXIT();
+    return status;
+}
+
+static bool mlnx_port_is_in_uplink_list(_In_ sx_port_log_id_t port_id)
+{
+    uint32_t       ii = 0;
+    port_qos_db_t *port_qos_db;
+    bool           is_found = false;
+
+    SX_LOG_ENTER();
+
+    port_qos_db = &g_sai_tunnel_db_ptr->dscp_remapping_db->port_qos_db;
+    for (ii = 0; ii < MAX_UPLINK_PORTS; ii++) {
+        if (port_qos_db->uplink_port_list_in_use[ii] && (port_qos_db->uplink_port_list[ii] == port_id)) {
+            is_found = true;
+            goto out;
+        }
+    }
+
+out:
+    SX_LOG_EXIT();
+    return is_found;
+}
+
+sai_status_t mlnx_port_on_dscp_remapping_uplink_update(_In_ sx_port_log_id_t port_id)
+{
+    sai_status_t status = SAI_STATUS_SUCCESS;
+    bool         should_be_uplink_port = false;
+    bool         is_uplink_port;
+    uint32_t     index;
+
+    SX_LOG_ENTER();
+
+    status = mlnx_port_dscp_remapping_uplink_detect(port_id, &should_be_uplink_port);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to detect uplink for port id %x.\n", port_id);
+        goto out;
+    }
+
+    is_uplink_port = mlnx_port_is_in_uplink_list(port_id);
+
+    if (should_be_uplink_port && !is_uplink_port) {
+        SX_LOG_NTC("Add uplink port for port id %x.\n", port_id);
+        status = mlnx_port_add_port_to_dscp_remapping_uplink_list(port_id, &index);
+        if (SAI_ERR(status)) {
+            goto out;
+        }
+        status = mlnx_port_do_dscp_rewriting(port_id, index);
+        if (SAI_ERR(status)) {
+            goto out;
+        }
+        status = mlnx_tunnel_update_dscp_remapping_acl_rules();
+        if (SAI_ERR(status)) {
+            goto out;
+        }
+    } else if (!should_be_uplink_port && is_uplink_port) {
+        SX_LOG_NTC("Delete uplink port for port id %x.\n", port_id);
+        status = mlnx_port_remove_port_from_dscp_remapping_uplink_list(port_id);
+        if (SAI_ERR(status)) {
+            goto out;
+        }
+        status = mlnx_tunnel_update_dscp_remapping_acl_rules();
+        if (SAI_ERR(status)) {
+            goto out;
+        }
+    }
+
+out:
+    SX_LOG_EXIT();
+    return status;
+}
+
+bool mlnx_port_is_tc_to_dscp_rewrite_done(_In_ sx_port_log_id_t port_id)
+{
+    bool                is_rewrite_done = false;
+    port_qos_db_t      *port_qos_db;
+    uint32_t            ii = 0;
+    mlnx_port_config_t *port_cfg;
+    mlnx_port_config_t *loop_port_cfg;
+    sai_status_t        status = SAI_STATUS_SUCCESS;
+
+    SX_LOG_ENTER();
+
+    port_qos_db = &g_sai_tunnel_db_ptr->dscp_remapping_db->port_qos_db;
+    status = mlnx_port_by_log_id(port_id, &port_cfg);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed lookup port config by log id %x.\n", port_id);
+        goto out;
+    }
+
+    if (mlnx_port_is_lag(port_cfg)) {
+        for (ii = 0; ii < MAX_UPLINK_PORTS; ii++) {
+            if (port_qos_db->uplink_port_list_in_use[ii]) {
+                status = mlnx_port_by_log_id(port_qos_db->uplink_port_list[ii], &loop_port_cfg);
+                if (SAI_ERR(status)) {
+                    SX_LOG_ERR("Failed lookup port config by log id %x.\n", port_id);
+                    continue;
+                }
+                if (mlnx_port_is_lag_member(loop_port_cfg) && (port_id == mlnx_port_get_lag_id(loop_port_cfg)) &&
+                    port_qos_db->uplink_port_rewrite_done[ii]) {
+                    is_rewrite_done = true;
+                    break;
+                }
+            }
+        }
+    } else {
+        for (ii = 0; ii < MAX_UPLINK_PORTS; ii++) {
+            if (port_qos_db->uplink_port_list_in_use[ii] &&
+                port_qos_db->uplink_port_rewrite_done[ii] &&
+                (port_qos_db->uplink_port_list[ii] == port_id)) {
+                is_rewrite_done = true;
+                break;
+            }
+        }
+    }
+
+out:
+    SX_LOG_EXIT();
+    return is_rewrite_done;
+}
+
+sai_status_t mlnx_port_dscp_remapping_uplink_list_init(void)
+{
+    uint32_t            ii;
+    bool                should_be_uplink_port = false;
+    sai_status_t        status = SAI_STATUS_SUCCESS;
+    uint32_t            uplink_index;
+    mlnx_port_config_t *port;
+
+
+    SX_LOG_ENTER();
+
+    mlnx_port_phy_foreach(port, ii) {
+        status = mlnx_port_dscp_remapping_uplink_detect(port->logical, &should_be_uplink_port);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to detect uplink for port id %x.\n", port->logical);
+            goto out;
+        }
+        if (should_be_uplink_port) {
+            SX_LOG_NTC("Add uplink port for port id %x in uplink list init.\n", port->logical);
+            status = mlnx_port_add_port_to_dscp_remapping_uplink_list(port->logical, &uplink_index);
+            if (SAI_ERR(status)) {
+                SX_LOG_ERR("Failed to add uplink for port id %x.\n", port->logical);
+                goto out;
+            }
+        }
+    }
+
+out:
+    SX_LOG_EXIT();
+    return status;
+}
+
+void mlnx_port_dscp_remapping_uplink_list_clear(void)
+{
+    uint32_t       ii;
+    port_qos_db_t *port_qos_db;
+
+    port_qos_db = &g_sai_tunnel_db_ptr->dscp_remapping_db->port_qos_db;
+    for (ii = 0; ii < MAX_UPLINK_PORTS; ii++) {
+        if (port_qos_db->uplink_port_list_in_use[ii]) {
+            port_qos_db->uplink_port_list_in_use[ii] = false;
+            port_qos_db->uplink_port_list[ii] = SX_INVALID_PORT;
+            port_qos_db->uplink_tc_to_pg_mapping[ii] = SAI_NULL_OBJECT_ID;
+            port_qos_db->uplink_tc_to_queue_mapping[ii] = SAI_NULL_OBJECT_ID;
+        }
+    }
+
+    port_qos_db->effective_tc_to_pg_mapping = SAI_NULL_OBJECT_ID;
+    port_qos_db->effective_tc_to_queue_mapping = SAI_NULL_OBJECT_ID;
+}
+
+sai_status_t mlnx_port_do_dscp_rewriting_for_all_uplink_ports(void)
+{
+    uint32_t       ii;
+    port_qos_db_t *port_qos_db;
+    sai_status_t   status = SAI_STATUS_SUCCESS;
+
+    SX_LOG_ENTER();
+
+    port_qos_db = &g_sai_tunnel_db_ptr->dscp_remapping_db->port_qos_db;
+    for (ii = 0; ii < MAX_UPLINK_PORTS; ii++) {
+        if (port_qos_db->uplink_port_list_in_use[ii]) {
+            status = mlnx_port_do_dscp_rewriting(port_qos_db->uplink_port_list[ii], ii);
+            if (SAI_ERR(status)) {
+                goto out;
+            }
+        }
+    }
+
+out:
+    SX_LOG_EXIT();
+    return status;
+}
+
+sai_status_t mlnx_port_undo_dscp_rewriting_for_all_uplink_ports(void)
+{
+    uint32_t       ii;
+    port_qos_db_t *port_qos_db;
+    sai_status_t   status = SAI_STATUS_SUCCESS;
+
+    SX_LOG_ENTER();
+
+    port_qos_db = &g_sai_tunnel_db_ptr->dscp_remapping_db->port_qos_db;
+    for (ii = 0; ii < MAX_UPLINK_PORTS; ii++) {
+        if (port_qos_db->uplink_port_list_in_use[ii] && port_qos_db->uplink_port_rewrite_done[ii]) {
+            status = mlnx_port_undo_dscp_rewriting(port_qos_db->uplink_port_list[ii], ii);
+            if (SAI_ERR(status)) {
+                SX_LOG_ERR("Failed to undo dscp rewriting for port id %x, ii %u.\n",
+                           port_qos_db->uplink_port_list[ii], ii);
+                goto out;
+            }
+        }
+    }
+
+out:
+    SX_LOG_EXIT();
+    return status;
+}
+
+static sai_status_t mlnx_port_tc_to_queue_update_for_dscp_remapping(_In_ sx_port_log_id_t port_id,
+                                                                    _In_ sai_object_id_t  tc_to_queue_mapping_oid)
+{
+    port_qos_db_t      *port_qos_db;
+    uint32_t            ii = 0;
+    mlnx_port_config_t *port_cfg;
+    mlnx_port_config_t *loop_port_cfg;
+    bool                is_lag_member_update = false;
+    sai_status_t        status = SAI_STATUS_SUCCESS;
+
+    SX_LOG_ENTER();
+
+    port_qos_db = &g_sai_tunnel_db_ptr->dscp_remapping_db->port_qos_db;
+
+    status = mlnx_port_by_log_id(port_id, &port_cfg);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed lookup port config by log id %x.\n", port_id);
+        goto out;
+    }
+
+    SX_LOG_INF("QoS map (tc->queue) updated for port id %x, is lag %s.\n", port_id,
+               mlnx_port_is_lag(port_cfg) ? "true" : "false");
+
+    if (mlnx_port_is_lag(port_cfg)) {
+        for (ii = 0; ii < MAX_UPLINK_PORTS; ii++) {
+            if (port_qos_db->uplink_port_list_in_use[ii]) {
+                status = mlnx_port_by_log_id(port_qos_db->uplink_port_list[ii], &loop_port_cfg);
+                if (SAI_ERR(status)) {
+                    SX_LOG_ERR("Failed lookup port config by log id %x.\n", port_id);
+                    goto out;
+                }
+                if (mlnx_port_is_lag_member(loop_port_cfg) && (port_id == mlnx_port_get_lag_id(loop_port_cfg))) {
+                    port_qos_db->uplink_tc_to_queue_mapping[ii] = tc_to_queue_mapping_oid;
+                    is_lag_member_update = true;
+                }
+            }
+        }
+        if (is_lag_member_update) {
+            status = mlnx_tunnel_update_dscp_remapping_acl_rules();
+            if (SAI_ERR(status)) {
+                goto out;
+            }
+        }
+    } else {
+        for (ii = 0; ii < MAX_UPLINK_PORTS; ii++) {
+            if (port_qos_db->uplink_port_list_in_use[ii] && (port_qos_db->uplink_port_list[ii] == port_id)) {
+                port_qos_db->uplink_tc_to_queue_mapping[ii] = tc_to_queue_mapping_oid;
+                status = mlnx_tunnel_update_dscp_remapping_acl_rules();
+                if (SAI_ERR(status)) {
+                    goto out;
+                }
+                break;
+            }
+        }
+    }
+
+out:
+    SX_LOG_EXIT();
+    return status;
+}
+
+static sai_status_t mlnx_port_tc_to_pg_update_for_dscp_remapping(_In_ sx_port_log_id_t port_id,
+                                                                 _In_ sai_object_id_t  tc_to_pg_mapping_oid)
+{
+    port_qos_db_t *port_qos_db;
+    uint32_t       ii;
+    sai_status_t   status = SAI_STATUS_SUCCESS;
+
+    SX_LOG_ENTER();
+
+    port_qos_db = &g_sai_tunnel_db_ptr->dscp_remapping_db->port_qos_db;
+    for (ii = 0; ii < MAX_UPLINK_PORTS; ii++) {
+        if (port_qos_db->uplink_port_list_in_use[ii] && (port_qos_db->uplink_port_list[ii] == port_id)) {
+            port_qos_db->uplink_tc_to_pg_mapping[ii] = tc_to_pg_mapping_oid;
+            status = mlnx_tunnel_update_dscp_remapping_acl_rules();
+            if (SAI_ERR(status)) {
+                goto out;
+            }
+            break;
+        }
+    }
+
+out:
+    SX_LOG_EXIT();
+    return status;
 }
 
 const sai_port_api_t mlnx_port_api = {

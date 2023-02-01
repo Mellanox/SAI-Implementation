@@ -100,6 +100,7 @@ mlnx_sai_interfacequery_eth.lo: \
  /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saiisolationgroup.h \
  /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saidebugcounter.h \
  /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saimymac.h \
+ /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saigenericprogrammable.h \
  /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saiversion.h \
  /usr/include/errno.h /usr/include/x86_64-linux-gnu/bits/errno.h \
  /usr/include/linux/errno.h /usr/include/x86_64-linux-gnu/asm/errno.h \
@@ -383,7 +384,12 @@ mlnx_sai_interfacequery_eth.lo: \
  /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/meta/saimetadatalogger.h \
  /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/meta/saiserialize.h \
  /usr/include/sx/utils/dbg_utils.h /usr/include/sx/utils/sx_json.h \
- /usr/include/sx/utils/cJSON.h /usr/include/libgen.h
+ /usr/include/sx/utils/cJSON.h /usr/include/libgen.h \
+ /usr/include/dirent.h /usr/include/x86_64-linux-gnu/bits/dirent.h \
+ /usr/include/x86_64-linux-gnu/bits/posix1_lim.h \
+ /usr/include/x86_64-linux-gnu/bits/local_lim.h \
+ /usr/include/linux/limits.h \
+ /usr/include/x86_64-linux-gnu/bits/dirent_ext.h
 /usr/include/stdc-predef.h:
 /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai_windows.h:
 /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/sai.h:
@@ -487,6 +493,7 @@ mlnx_sai_interfacequery_eth.lo: \
 /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saiisolationgroup.h:
 /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saidebugcounter.h:
 /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saimymac.h:
+/home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saigenericprogrammable.h:
 /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saiversion.h:
 /usr/include/errno.h:
 /usr/include/x86_64-linux-gnu/bits/errno.h:
@@ -836,3 +843,9 @@ mlnx_sai_interfacequery_eth.lo: \
 /usr/include/sx/utils/sx_json.h:
 /usr/include/sx/utils/cJSON.h:
 /usr/include/libgen.h:
+/usr/include/dirent.h:
+/usr/include/x86_64-linux-gnu/bits/dirent.h:
+/usr/include/x86_64-linux-gnu/bits/posix1_lim.h:
+/usr/include/x86_64-linux-gnu/bits/local_lim.h:
+/usr/include/linux/limits.h:
+/usr/include/x86_64-linux-gnu/bits/dirent_ext.h:

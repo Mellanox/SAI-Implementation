@@ -3258,6 +3258,16 @@ static sai_status_t mlnx_create_bridge_port(_Out_ sai_object_id_t     * bridge_p
             goto out;
         }
 
+        if (mlnx_rif_is_additional_mac_supported() && bridge_rif->mac_data.additional_mac_is_used) {
+            sx_status = sx_api_router_interface_mac_set(gh_sdk, SX_ACCESS_CMD_ADD, bridge_rif->sx_data.rif_id,
+                                                        &bridge_rif->mac_data.additional_mac_addr, 1);
+            if (SX_ERR(sx_status)) {
+                SX_LOG_ERR("Failed to set additional MAC - %s.\n", SX_STATUS_MSG(sx_status));
+                status = sdk_to_sai(status);
+                goto out;
+            }
+        }
+
         sx_status = sx_api_router_interface_state_set(gh_sdk, bridge_rif->sx_data.rif_id, &bridge_rif->intf_state);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to set bridge router interface state - %s.\n", SX_STATUS_MSG(sx_status));

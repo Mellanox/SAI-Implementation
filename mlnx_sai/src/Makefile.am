@@ -1,6 +1,6 @@
 # Makefile.am -- Process this file with automake to produce Makefile.in
 
-INCLUDES = -I$(top_srcdir) -I$(top_srcdir)/include -I$(srcdir) \
+AM_CPPFLAGS = -I$(top_srcdir) -I$(top_srcdir)/include -I$(srcdir) \
            -I$(srcdir)/../inc -I$(srcdir)/../inc/sai -I$(srcdir)/../inc/experimental -I$(srcdir)/../inc/sdk \
            -I$(APP_LIB_PATH)/include \
            -I$(XML2_LIB_PATH)/include/libxml2 \
@@ -57,7 +57,8 @@ dist_data_DATA = sai_1710.xml \
                  sai_4700_1G.xml \
                  sai_4700_100G.xml \
                  sai_4700_56ports.xml \
-                 sai_5600.xml
+                 sai_5600.xml \
+                 sai_5600_33ports.xml
 
 libsai_la_DEPENDENCIES =
 
@@ -139,6 +140,9 @@ libfx_base_la_SOURCES = \
 
 libfx_base_la_CFLAGS = --std=gnu99 -Wno-sign-compare -Wno-vla -Wno-missing-field-initializers
 
+CFLAGS += $(CFLAGS_ASAN)
+LDFLAGS += $(LDFLAGS_ASAN)
+
 libsx_fx_sdk_la_CFLAGS = --std=gnu99 -Wno-sign-compare -Wno-vla -Wno-missing-field-initializers
 libsx_fx_sdk_la_SOURCES = sdk/sx_api_bmtor.c
 libsx_fx_sdk_la_LIBADD = -L$(APP_LIB_PATH) -ldl libfx_base.la
@@ -164,6 +168,7 @@ libsai_apiinclude_HEADERS = \
         $(top_srcdir)/inc/sai/saidebugcounter.h \
         $(top_srcdir)/inc/sai/saidtel.h \
         $(top_srcdir)/inc/sai/saifdb.h \
+        $(top_srcdir)/inc/sai/saigenericprogrammable.h \
         $(top_srcdir)/inc/sai/saihash.h \
         $(top_srcdir)/inc/sai/saihostif.h \
         $(top_srcdir)/inc/sai/saiipmc.h \

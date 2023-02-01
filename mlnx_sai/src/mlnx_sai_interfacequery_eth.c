@@ -24,6 +24,7 @@
 #include <sx/utils/dbg_utils.h>
 #ifndef _WIN32
 #include <libgen.h>
+#include <dirent.h>
 #endif
 
 #undef  __MODULE__
@@ -344,7 +345,8 @@ sai_status_t sai_dbg_generate_dump_ext(_In_ const char *dump_file_name, _In_ int
     free(file_name);
 #endif
 #define FW_DUMPS 3
-    for (uint32_t ii = 0; ii < FW_DUMPS; ii++) {
+    /* wait till dump completion also on last dump as command would otherwise return while the last dump is still being written */
+    for (uint32_t ii = 0; ii <= FW_DUMPS; ii++) {
 #ifndef _WIN32
         if (clock_gettime(CLOCK_REALTIME, &timeout) == -1) {
             SX_LOG_ERR("Failed to get current time - %s\n", strerror(errno));
@@ -355,9 +357,15 @@ sai_status_t sai_dbg_generate_dump_ext(_In_ const char *dump_file_name, _In_ int
             SX_LOG_ERR("Failed to lock DFW semaphore - %s\n", strerror(errno));
             goto out;
         }
+        /* since we are waiting N+1 times and posting N completions, need to post on last cycle */
+        if (ii == FW_DUMPS) {
+            sem_post(&g_sai_db_ptr->dfw_sem);
+        }
 #endif
-        if (SX_STATUS_SUCCESS != (sdk_status = sx_api_dbg_generate_dump_extra(gh_sdk, &dbg_info))) {
-            MLNX_SAI_LOG_ERR("Error generating extended sdk dump, sx status: %s\n", SX_STATUS_MSG(sdk_status));
+        if (ii != FW_DUMPS) {
+            if (SX_STATUS_SUCCESS != (sdk_status = sx_api_dbg_generate_dump_extra(gh_sdk, &dbg_info))) {
+                MLNX_SAI_LOG_ERR("Error generating extended sdk dump, sx status: %s\n", SX_STATUS_MSG(sdk_status));
+            }
         }
     }
 
@@ -451,13 +459,9 @@ sai_status_t sai_dbg_do_dump(_In_ const char *dump_file_name)
 
     fclose(file);
 
-    /*TODO: remove when enabled on SPC4 */
-    if (mlnx_chip_is_spc4()) {
-        return SAI_STATUS_SUCCESS;
-    }
 #ifndef _WIN32
     file_name = strdup(dump_file_name);
-    strncpy(dump_directory, dirname(file_name), sizeof(dump_directory));
+    snprintf(dump_directory, sizeof(dump_directory), "%s", dirname(file_name));
     dump_directory[sizeof(dump_directory) - 1] = 0;
     sai_status = sai_dbg_run_mlxtrace(dump_directory);
     if (SAI_ERR(sai_status)) {
@@ -472,24 +476,42 @@ sai_status_t sai_dbg_do_dump(_In_ const char *dump_file_name)
 static sai_status_t sai_dbg_run_mlxtrace(_In_ const char *dirname)
 {
     const char mlxtrace_ext_command_line_fmt[] =
-        "mlxtrace_ext -d /dev/mst/%s %s -m MEM -a OB_GW -n -o %s/%s_mlxtrace.trc >/dev/null 2>&1";
-    const char *device_name = NULL;
-    const char *config_cmd_line_switch = NULL;
-    char        mlxtrace_ext_command_line[2 * PATH_MAX + 200];
+        "mlxtrace_ext -d /dev/mst/%s %s %s%s -m MEM -a OB_GW -n -o %s/%s_mlxtrace.trc >/dev/null 2>&1";
+    const char                      *device_name = NULL;
+    const char                      *config_file_name = NULL;
+    char                             mlxtrace_ext_command_line[2 * PATH_MAX + 200];
+    int                              system_err;
+    const mlnx_dump_configuration_t *dump_conf = &g_sai_db_ptr->dump_configuration;
+    bool                             config_file_needed = false;
 
-    /*int         system_err; */
+    if ((mlnx_chip_is_spc2()) || (mlnx_chip_is_spc3())) {
+        config_file_needed = true;
+    }
+
+    if (config_file_needed) {
+#ifndef _WIN32
+        DIR *d = opendir(dump_conf->mft_cfg_path);
+        if (NULL == d) {
+            return SAI_STATUS_SUCCESS;
+        } else {
+            closedir(d);
+        }
+#endif
+    }
 
     if (mlnx_chip_is_spc()) {
         device_name = "mt52100_pci_cr0";
-        config_cmd_line_switch = "";
     } else if (mlnx_chip_is_spc2()) {
         device_name = "mt53100_pci_cr0";
-        config_cmd_line_switch = "-c /etc/mft/fwtrace_cfg/mlxtrace_spectrum2_itrace.cfg.ext";
+        config_file_name = "/mlxtrace_spectrum2_itrace.cfg.ext";
     } else if (mlnx_chip_is_spc3()) {
         device_name = "mt53104_pci_cr0";
-        config_cmd_line_switch = "-c /etc/mft/fwtrace_cfg/mlxtrace_spectrum3_itrace.cfg.ext";
+        config_file_name = "/mlxtrace_spectrum3_itrace.cfg.ext";
+    } else if (mlnx_chip_is_spc4()) {
+        /* TODO : replace with secure tool for SPC4 */
+        return SAI_STATUS_SUCCESS;
     } else {
-        SX_LOG_ERR("Chip type is not one of valid: SPC1, SPC2, SPC3\n");
+        SX_LOG_ERR("Chip type is not one of valid: SPC1, SPC2, SPC3, SPC4\n");
         return SAI_STATUS_FAILURE;
     }
 
@@ -497,15 +519,17 @@ static sai_status_t sai_dbg_run_mlxtrace(_In_ const char *dirname)
              sizeof(mlxtrace_ext_command_line),
              mlxtrace_ext_command_line_fmt,
              device_name,
-             config_cmd_line_switch,
+             (config_file_needed) ? "-c" : "",
+             (config_file_needed) ? dump_conf->mft_cfg_path : "",
+             (config_file_needed) ? config_file_name : "",
              dirname,
              device_name);
 
-    /*system_err = system(mlxtrace_ext_command_line);
-     *  if (0 != system_err) {
-     *   SX_LOG_ERR("Failed running \"%s\".\n", mlxtrace_ext_command_line);
-     *   return SAI_STATUS_FAILURE;
-     *  }*/
+    system_err = system(mlxtrace_ext_command_line);
+    if (0 != system_err) {
+        SX_LOG_ERR("Failed running \"%s\".\n", mlxtrace_ext_command_line);
+        return SAI_STATUS_FAILURE;
+    }
 
     return SAI_STATUS_SUCCESS;
 }

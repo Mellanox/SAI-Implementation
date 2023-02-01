@@ -459,6 +459,16 @@
         }
         return status;
     }
+    sai_status_t sai_get_generic_programmable_api(sai_generic_programmable_api_t* out)
+    {
+        sai_generic_programmable_api_t* api;
+        sai_status_t status = sai_api_query((sai_api_t)SAI_API_GENERIC_PROGRAMMABLE, (void**)&api);
+        if (status == SAI_STATUS_SUCCESS)
+        {
+            *out = *api;
+        }
+        return status;
+    }
     sai_status_t sai_get_bmtor_api(sai_bmtor_api_t* out)
     {
         sai_bmtor_api_t* api;
@@ -516,6 +526,7 @@ sai_status_t sai_get_macsec_api(sai_macsec_api_t* out);
 sai_status_t sai_get_system_port_api(sai_system_port_api_t* out);
 sai_status_t sai_get_my_mac_api(sai_my_mac_api_t* out);
 sai_status_t sai_get_ipsec_api(sai_ipsec_api_t* out);
+sai_status_t sai_get_generic_programmable_api(sai_generic_programmable_api_t* out);
 sai_status_t sai_get_bmtor_api(sai_bmtor_api_t* out);
 %include "saitypes.h"
 typedef struct _sai_switch_api_t {
@@ -532,6 +543,8 @@ typedef struct _sai_switch_api_t {
     sai_status_t remove_switch_tunnel(_In_ sai_object_id_t switch_tunnel_id);
     sai_status_t set_switch_tunnel_attribute(_In_ sai_object_id_t switch_tunnel_id, _In_ const sai_attribute_t *attr);
     sai_status_t get_switch_tunnel_attribute(_In_ sai_object_id_t switch_tunnel_id, _In_ uint32_t attr_count, _Inout_ sai_attribute_t *attr_list);
+    sai_status_t switch_mdio_cl22_read(_In_ sai_object_id_t switch_id, _In_ uint32_t device_addr, _In_ uint32_t start_reg_addr, _In_ uint32_t number_of_registers, _Out_ uint32_t *reg_val);
+    sai_status_t switch_mdio_cl22_write(_In_ sai_object_id_t switch_id, _In_ uint32_t device_addr, _In_ uint32_t start_reg_addr, _In_ uint32_t number_of_registers, _In_ const uint32_t *reg_val);
 } sai_switch_api_t;
 
 typedef struct _sai_port_api_t {
@@ -632,8 +645,8 @@ typedef struct _sai_next_hop_group_api_t {
     sai_status_t remove_next_hop_group_map(_In_ sai_object_id_t next_hop_group_map_id);
     sai_status_t set_next_hop_group_map_attribute(_In_ sai_object_id_t next_hop_group_map_id, _In_ const sai_attribute_t *attr);
     sai_status_t get_next_hop_group_map_attribute(_In_ sai_object_id_t next_hop_group_map_id, _In_ uint32_t attr_count, _Inout_ sai_attribute_t *attr_list);
-    sai_status_t get_next_hop_group_members_attribute(_In_ uint32_t object_count, _In_ const sai_object_id_t *object_id, _In_ const uint32_t *attr_count, _Inout_ sai_attribute_t **attr_list, _In_ sai_bulk_op_error_mode_t mode, _Out_ sai_status_t *object_statuses);
     sai_status_t set_next_hop_group_members_attribute(_In_ uint32_t object_count, _In_ const sai_object_id_t *object_id, _In_ const sai_attribute_t *attr_list, _In_ sai_bulk_op_error_mode_t mode, _Out_ sai_status_t *object_statuses);
+    sai_status_t get_next_hop_group_members_attribute(_In_ uint32_t object_count, _In_ const sai_object_id_t *object_id, _In_ const uint32_t *attr_count, _Inout_ sai_attribute_t **attr_list, _In_ sai_bulk_op_error_mode_t mode, _Out_ sai_status_t *object_statuses);
 } sai_next_hop_group_api_t;
 
 typedef struct _sai_router_interface_api_t {
@@ -652,6 +665,10 @@ typedef struct _sai_neighbor_api_t {
     sai_status_t set_neighbor_entry_attribute(_In_ const sai_neighbor_entry_t *neighbor_entry, _In_ const sai_attribute_t *attr);
     sai_status_t get_neighbor_entry_attribute(_In_ const sai_neighbor_entry_t *neighbor_entry, _In_ uint32_t attr_count, _Inout_ sai_attribute_t *attr_list);
     sai_status_t remove_all_neighbor_entries(_In_ sai_object_id_t switch_id);
+    sai_status_t create_neighbor_entries(_In_ uint32_t object_count, _In_ const sai_neighbor_entry_t *neighbor_entry, _In_ const uint32_t *attr_count, _In_ const sai_attribute_t **attr_list, _In_ sai_bulk_op_error_mode_t mode, _Out_ sai_status_t *object_statuses);
+    sai_status_t remove_neighbor_entries(_In_ uint32_t object_count, _In_ const sai_neighbor_entry_t *neighbor_entry, _In_ sai_bulk_op_error_mode_t mode, _Out_ sai_status_t *object_statuses);
+    sai_status_t set_neighbor_entries_attribute(_In_ uint32_t object_count, _In_ const sai_neighbor_entry_t *neighbor_entry, _In_ const sai_attribute_t *attr_list, _In_ sai_bulk_op_error_mode_t mode, _Out_ sai_status_t *object_statuses);
+    sai_status_t get_neighbor_entries_attribute(_In_ uint32_t object_count, _In_ const sai_neighbor_entry_t *neighbor_entry, _In_ const uint32_t *attr_count, _Inout_ sai_attribute_t **attr_list, _In_ sai_bulk_op_error_mode_t mode, _Out_ sai_status_t *object_statuses);
 } sai_neighbor_api_t;
 
 typedef struct _sai_acl_api_t {
@@ -863,8 +880,10 @@ typedef struct _sai_tunnel_api_t {
     sai_status_t remove_tunnel_map_entry(_In_ sai_object_id_t tunnel_map_entry_id);
     sai_status_t set_tunnel_map_entry_attribute(_In_ sai_object_id_t tunnel_map_entry_id, _In_ const sai_attribute_t *attr);
     sai_status_t get_tunnel_map_entry_attribute(_In_ sai_object_id_t tunnel_map_entry_id, _In_ uint32_t attr_count, _Inout_ sai_attribute_t *attr_list);
-    sai_status_t get_tunnels_attribute(_In_ uint32_t object_count, _In_ const sai_object_id_t *object_id, _In_ const uint32_t *attr_count, _Inout_ sai_attribute_t **attr_list, _In_ sai_bulk_op_error_mode_t mode, _Out_ sai_status_t *object_statuses);
+    sai_status_t create_tunnels(_In_ sai_object_id_t switch_id, _In_ uint32_t object_count, _In_ const uint32_t *attr_count, _In_ const sai_attribute_t **attr_list, _In_ sai_bulk_op_error_mode_t mode, _Out_ sai_object_id_t *object_id, _Out_ sai_status_t *object_statuses);
+    sai_status_t remove_tunnels(_In_ uint32_t object_count, _In_ const sai_object_id_t *object_id, _In_ sai_bulk_op_error_mode_t mode, _Out_ sai_status_t *object_statuses);
     sai_status_t set_tunnels_attribute(_In_ uint32_t object_count, _In_ const sai_object_id_t *object_id, _In_ const sai_attribute_t *attr_list, _In_ sai_bulk_op_error_mode_t mode, _Out_ sai_status_t *object_statuses);
+    sai_status_t get_tunnels_attribute(_In_ uint32_t object_count, _In_ const sai_object_id_t *object_id, _In_ const uint32_t *attr_count, _Inout_ sai_attribute_t **attr_list, _In_ sai_bulk_op_error_mode_t mode, _Out_ sai_status_t *object_statuses);
 } sai_tunnel_api_t;
 
 typedef struct _sai_l2mc_api_t {
@@ -1159,6 +1178,13 @@ typedef struct _sai_ipsec_api_t {
     sai_status_t clear_ipsec_sa_stats(_In_ sai_object_id_t ipsec_sa_id, _In_ uint32_t number_of_counters, _In_ const sai_stat_id_t *counter_ids);
 } sai_ipsec_api_t;
 
+typedef struct _sai_generic_programmable_api_t {
+    sai_status_t create_generic_programmable(_Out_ sai_object_id_t *generic_programmable_id, _In_ sai_object_id_t switch_id, _In_ uint32_t attr_count, _In_ const sai_attribute_t *attr_list);
+    sai_status_t remove_generic_programmable(_In_ sai_object_id_t generic_programmable_id);
+    sai_status_t set_generic_programmable_attribute(_In_ sai_object_id_t generic_programmable_id, _In_ const sai_attribute_t *attr);
+    sai_status_t get_generic_programmable_attribute(_In_ sai_object_id_t generic_programmable_id, _In_ uint32_t attr_count, _Inout_ sai_attribute_t *attr_list);
+} sai_generic_programmable_api_t;
+
 typedef struct _sai_bmtor_api_t {
     sai_status_t create_table_bitmap_classification_entry(_Out_ sai_object_id_t *table_bitmap_classification_entry_id, _In_ sai_object_id_t switch_id, _In_ uint32_t attr_count, _In_ const sai_attribute_t *attr_list);
     sai_status_t remove_table_bitmap_classification_entry(_In_ sai_object_id_t table_bitmap_classification_entry_id);
@@ -1229,6 +1255,7 @@ typedef struct _sai_bmtor_api_t {
 %ignore sai_system_port_api_t;
 %ignore sai_my_mac_api_t;
 %ignore sai_ipsec_api_t;
+%ignore sai_generic_programmable_api_t;
 %ignore sai_bmtor_api_t;
 %include "sai.h"
 %include "saiacl.h"
@@ -1241,6 +1268,7 @@ typedef struct _sai_bmtor_api_t {
 %include "saiexperimentalbmtor.h"
 %include "saiextensions.h"
 %include "saifdb.h"
+%include "saigenericprogrammable.h"
 %include "saihash.h"
 %include "saihostif.h"
 %include "saiipmc.h"
