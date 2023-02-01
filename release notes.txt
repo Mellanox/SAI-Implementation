@@ -1,13 +1,13 @@
 Nvidia SAI implementation release notes
 ==========================================
 
-Release 1.23.0
----------------
+Release 1.23.1
+----------------
 
 Current implementation is partial. Not all the APIs that are defined were fully implemented in this release. 
 
 The code was tested to work on X86 and ARM for Spectrum1, Spectrum2, Spectrum3 and Spectrum4
-The code compiles with, and was tested with, SDK version 4.5.4012.
+The code compiles with, and was tested with, SDK version 4.5.5008.
 
 As a precondition to running SAI initialize switch, SDK must not be running (If it's running, terminate it with dvs_stop.sh). 
 The application must provide one key/value pair on profile services, depending on system type :

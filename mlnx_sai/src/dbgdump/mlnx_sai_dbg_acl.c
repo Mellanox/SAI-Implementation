@@ -205,6 +205,7 @@ static void SAI_dump_acl_table_print(_In_ FILE *file, _In_ acl_table_db_t *acl_t
         {"wrap group sx id",  16, PARAM_UINT32_E, &curr_acl_table_db.wrapping_group.sx_group_id},
         {"def_rules_offset",  16, PARAM_UINT16_E, &curr_acl_table_db.def_rules_offset},
         {"def_rule_key",      16, PARAM_UINT32_E, &curr_acl_table_db.def_rule_key},
+        {"aeth_syndrome",     14, PARAM_UINT8_E, &curr_acl_table_db.is_aeth_syndrome_used},
         {NULL,                0,  0,              NULL}
     };
     dbg_utils_table_columns_t range_types_clmns[] = {
@@ -311,6 +312,7 @@ static void SAI_dump_acl_bind_point_type_enum_to_str(_In_ sai_acl_bind_point_typ
 static void SAI_dump_acl_entry_print(_In_ FILE *file, _In_ acl_entry_db_t *acl_entry_db)
 {
     uint32_t                  ii = 0;
+    uint8_t                   rule_cnt = 0;
     sai_object_id_t           obj_id = SAI_NULL_OBJECT_ID;
     acl_entry_db_t            curr_acl_entry_db;
     dbg_utils_table_columns_t acl_entry_clmns[] = {
@@ -318,6 +320,7 @@ static void SAI_dump_acl_entry_print(_In_ FILE *file, _In_ acl_entry_db_t *acl_e
         {"db idx",               11, PARAM_UINT32_E, &ii},
         {"offset",               6,  PARAM_UINT16_E, &curr_acl_entry_db.offset},
         {"sx prio",              13, PARAM_UINT16_E, &curr_acl_entry_db.sx_prio},
+        {"rule cnt",             9,  PARAM_UINT8_E,  &rule_cnt},
         {NULL,                   0,  0,              NULL}
     };
 
@@ -332,6 +335,7 @@ static void SAI_dump_acl_entry_print(_In_ FILE *file, _In_ acl_entry_db_t *acl_e
     for (ii = 0; ii < ACL_ENTRY_DB_SIZE; ii++) {
         if (acl_entry_db[ii].is_used) {
             memcpy(&curr_acl_entry_db, &acl_entry_db[ii], sizeof(acl_entry_db_t));
+            rule_cnt = curr_acl_entry_db.rule_cnt;
 
             if (SAI_STATUS_SUCCESS !=
                 mlnx_create_object(SAI_OBJECT_TYPE_ACL_ENTRY, ii, NULL, &obj_id)) {
@@ -353,7 +357,12 @@ static void SAI_dump_acl_settings_tbl_print(_In_ FILE *file, _In_ acl_setting_tb
         {"psort_thread_stop_flag",       7,  PARAM_UINT8_E,   &curr_acl_setting_tbl.psort_thread_stop_flag},
         {"rpc_thread_stop_flag",         7,  PARAM_UINT8_E,   &curr_acl_setting_tbl.rpc_thread_stop_flag},
         {"psort_thread_suspended",       7,  PARAM_UINT8_E,   &curr_acl_setting_tbl.psort_thread_suspended},
-        {"port lists count",             16, PARAM_UINT32_E, &curr_acl_setting_tbl.port_lists_count},
+        {"port lists count",             16, PARAM_UINT32_E,  &curr_acl_setting_tbl.port_lists_count},
+        {"aeth_syndrome RC",             16, PARAM_UINT32_E,
+         &curr_acl_setting_tbl.aeth_syndrome_keys.sx_keys[KEY_RC]},
+        {"aeth_syndrome RD",             16, PARAM_UINT32_E,
+         &curr_acl_setting_tbl.aeth_syndrome_keys.sx_keys[KEY_RD]},
+        {"aeth_syndrome refs",           18, PARAM_UINT32_E,  &curr_acl_setting_tbl.aeth_syndrome_keys.refs},
         {NULL,                           0,  0,              NULL}
     };
 
