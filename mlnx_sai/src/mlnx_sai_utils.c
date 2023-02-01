@@ -3682,3 +3682,11 @@ bool is_action_forward(sai_packet_action_t action)
     return (action == SAI_PACKET_ACTION_FORWARD) || (action == SAI_PACKET_ACTION_LOG) ||
            (action == SAI_PACKET_ACTION_TRANSIT);
 }
+
+uint64_t time_ms_get(void)
+{
+    struct timeval tv;
+
+    gettimeofday(&tv, NULL);
+    return tv.tv_sec * 1000 + tv.tv_usec / 1000;
+}

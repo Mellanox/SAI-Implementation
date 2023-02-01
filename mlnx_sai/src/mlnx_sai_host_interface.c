@@ -1047,6 +1047,22 @@ static sai_status_t mlnx_get_trap_db_index_by_oid(sai_object_id_t oid, _Out_ uin
     return SAI_STATUS_SUCCESS;
 }
 
+sai_status_t mlnx_get_trap_db_index_by_sx_trap(_In_ sx_trap_id_t sx_trap, _Out_ uint32_t   *index)
+{
+    assert(index);
+
+    for (uint32_t trap_idx = 0; END_TRAP_INFO_ID != mlnx_traps_info[trap_idx].trap_type; trap_idx++) {
+        for (uint32_t sx_trap_idx = 0; sx_trap_idx < mlnx_traps_info[trap_idx].sdk_traps_num; sx_trap_idx++) {
+            if (sx_trap == mlnx_traps_info[trap_idx].sdk_trap_ids[sx_trap_idx]) {
+                *index = trap_idx;
+                return SAI_STATUS_SUCCESS;
+            }
+        }
+    }
+
+    return SAI_STATUS_ITEM_NOT_FOUND;
+}
+
 /* requires sai_db read lock */
 sai_status_t mlnx_hostif_sx_trap_is_configured(_In_ sx_trap_id_t          sx_trap,
                                                _Out_ sai_packet_action_t *action,
@@ -3339,6 +3355,29 @@ out:
     return status;
 }
 
+sai_status_t mlnx_trap_reset_group_impl(_In_ uint32_t trap_db_index, _In_ sai_object_id_t trap_group)
+{
+    sai_status_t status;
+
+    status = mlnx_trap_unset(trap_db_index);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to unset trap at index [%u].\n", trap_db_index);
+        return status;
+    }
+
+    status = mlnx_trap_set(trap_db_index,
+                           g_sai_db_ptr->traps_db[trap_db_index].action,
+                           trap_group);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to unset trap at index [%u].\n", trap_db_index);
+        return status;
+    }
+
+    g_sai_db_ptr->traps_db[trap_db_index].trap_group = trap_group;
+
+    return SAI_STATUS_SUCCESS;
+}
+
 /* trap-group ID for the trap [sai_object_id_t] */
 static sai_status_t mlnx_trap_group_set(_In_ const sai_object_key_t      *key,
                                         _In_ const sai_attribute_value_t *value,
@@ -3363,14 +3402,11 @@ static sai_status_t mlnx_trap_group_set(_In_ const sai_object_key_t      *key,
         goto out;
     }
 
-    status = mlnx_trap_unset(index);
+    status = mlnx_trap_reset_group_impl(index, value->oid);
     if (SAI_ERR(status)) {
+        SX_LOG_ERR("Reset trap_group failed.\n");
         goto out;
     }
-    if (SAI_STATUS_SUCCESS != (status = mlnx_trap_set(index, g_sai_db_ptr->traps_db[index].action, value->oid))) {
-        goto out;
-    }
-    g_sai_db_ptr->traps_db[index].trap_group = value->oid;
 
 out:
     sai_db_sync();
