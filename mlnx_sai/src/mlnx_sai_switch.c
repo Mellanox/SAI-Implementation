@@ -145,6 +145,7 @@ sai_status_t mlnx_debug_counter_switch_stats_get(_In_ uint32_t             numbe
                                                  _Out_ uint64_t           *counters);
 static sai_status_t mlnx_sai_rm_db_init(void);
 static sai_status_t switch_open_traps(void);
+static void* calloc_wrapper(size_t nitems, size_t size);
 static void event_thread_func(void *context);
 static sai_status_t sai_db_create();
 static void sai_db_values_init();
@@ -3034,7 +3035,6 @@ static sai_status_t mlnx_chassis_mng_stage(mlnx_sai_boot_type_t boot_type,
         MLNX_SAI_LOG_ERR("Can't open connection to SDK - %s.\n", SX_STATUS_MSG(status));
         return sdk_to_sai(status);
     }
-
     log_verbosity_target_attr.verbosity_target = SX_LOG_VERBOSITY_BOTH;
     log_verbosity_target_attr.enable = 1;
     if (SX_STATUS_SUCCESS !=
@@ -3629,6 +3629,9 @@ static void sai_db_values_init()
         g_sai_db_ptr->mirror_congestion_mode[ii] = -1;
         g_sai_db_ptr->mirror_sample_rate[ii] = 1;
     }
+
+    g_sai_db_ptr->rif_mac_range_ref_counter = 0;
+    memset(&g_sai_db_ptr->rif_mac_range_addr, 0, sizeof(g_sai_db_ptr->rif_mac_range_addr));
 
     sai_qos_db_init();
     memset(g_sai_qos_db_ptr->wred_db, 0, sizeof(mlnx_wred_profile_t) * g_resource_limits.cos_redecn_profiles_max);
@@ -4748,6 +4751,12 @@ static sai_status_t mlnx_switch_rearm_dfw(_In_ sx_api_handle_t api_handle)
     return SAI_STATUS_SUCCESS;
 }
 
+/* WARNING: DO NOT USE THIS WRAPPER FUNCTION FOR MEMORY ALLOCATION */
+static void* calloc_wrapper(size_t nitems, size_t size)
+{
+    return calloc(nitems, size);
+}
+
 static void mlnx_switch_dfw_thread_func(_In_ void *context)
 {
     sx_api_handle_t                 api_handle = SX_API_INVALID_HANDLE;
@@ -4783,14 +4792,14 @@ static void mlnx_switch_dfw_thread_func(_In_ void *context)
         goto out;
     }
 
-    receive_info = (sx_receive_info_t*)calloc(1, sizeof(*receive_info));
+    receive_info = (sx_receive_info_t*)calloc_wrapper(1, sizeof(*receive_info));
     if (NULL == receive_info) {
         SX_LOG_ERR("Can't allocate receive_info memory\n");
         status = SX_STATUS_NO_MEMORY;
         goto out;
     }
 
-    p_packet = (uint8_t*)malloc(sizeof(*p_packet) * SX_HOST_EVENT_BUFFER_SIZE_MAX);
+    p_packet = (uint8_t*)calloc_wrapper(SX_HOST_EVENT_BUFFER_SIZE_MAX, sizeof(*p_packet));
     if (NULL == p_packet) {
         SX_LOG_ERR("Can't allocate packet memory\n");
         status = SX_STATUS_NO_MEMORY;
@@ -5292,24 +5301,24 @@ static sai_status_t mlnx_switch_parse_fdb_event(uint8_t                         
                                                 uint32_t                          *event_count,
                                                 sai_attribute_t                   *attr_list)
 {
-    uint32_t                    from_index, to_index = 0;
-    sx_fdb_notify_data_t       *packet = (sx_fdb_notify_data_t*)p_packet;
-    sx_fid_t                    sx_fid;
-    sai_attribute_t            *attr_ptr = attr_list;
-    sai_status_t                status = SAI_STATUS_SUCCESS;
-    sx_fdb_uc_mac_addr_params_t mac_entry;
-    sai_object_id_t             port_id = SAI_NULL_OBJECT_ID;
-    sai_mac_t                   mac_addr;
-    sai_object_id_t             switch_id;
-    mlnx_object_id_t            mlnx_switch_id = { 0 };
-    bool                        has_port;
-    mlnx_bridge_port_t         *bridge_port;
+    sai_status_t          status = SAI_STATUS_SUCCESS;
+    sai_object_id_t       switch_id = SAI_NULL_OBJECT_ID;
+    uint32_t              to_index = 0;
+    sx_fdb_notify_data_t *packet = (sx_fdb_notify_data_t*)p_packet;
+    sai_attribute_t      *attr_ptr = attr_list;
 
     /* hard coded single switch instance */
-    mlnx_switch_id.id.is_created = true;
-    mlnx_object_id_to_sai(SAI_OBJECT_TYPE_SWITCH, &mlnx_switch_id, &switch_id);
+    {
+        mlnx_object_id_t mlnx_switch_id = { 0 };
+        mlnx_switch_id.id.is_created = true;
+        mlnx_object_id_to_sai(SAI_OBJECT_TYPE_SWITCH, &mlnx_switch_id, &switch_id);
+    }
 
-    for (from_index = 0; from_index < packet->records_num; from_index++) {
+    for (uint32_t from_index = 0; from_index < packet->records_num; from_index++) {
+        sai_object_id_t port_id = SAI_NULL_OBJECT_ID;
+        bool            has_port = false;
+        bool            has_fid = false;
+
         SX_LOG_INF(
             "FDB event received [%u/%u, %u] vlan: %4u ; mac: %02x:%02x:%02x:%02x:%02x:%02x ; log_port: (0x%08X) ; type: %s(%d); Roaming: %s\n",
             from_index + 1,
@@ -5327,12 +5336,7 @@ static sai_status_t mlnx_switch_parse_fdb_event(uint8_t                         
             packet->records_arr[from_index].type,
             packet->records_arr[from_index].is_roaming ? "Yes" : "No");
 
-        port_id = SAI_NULL_OBJECT_ID;
-        sx_fid = 0;
-        memset(mac_addr, 0, sizeof(mac_addr));
         memset(&fdb_events[to_index], 0, sizeof(fdb_events[to_index]));
-        memset(&mac_entry, 0, sizeof(mac_entry));
-        has_port = false;
 
         mlnx_switch_fdb_record_check_and_age(&packet->records_arr[from_index]);
 
@@ -5344,17 +5348,21 @@ static sai_status_t mlnx_switch_parse_fdb_event(uint8_t                         
             } else {
                 fdb_events[to_index].event_type = SAI_FDB_EVENT_MOVE;
             }
-            memcpy(&mac_addr, packet->records_arr[from_index].mac_addr.ether_addr_octet, sizeof(mac_addr));
-            sx_fid = packet->records_arr[from_index].fid;
+            memcpy(&fdb_events[to_index].fdb_entry.mac_address,
+                   packet->records_arr[from_index].mac_addr.ether_addr_octet,
+                   sizeof(fdb_events[to_index].fdb_entry.mac_address));
             has_port = true;
+            has_fid = true;
             break;
 
         case SX_FDB_NOTIFY_TYPE_AGED_MAC_LAG:
         case SX_FDB_NOTIFY_TYPE_AGED_MAC_PORT:
             fdb_events[to_index].event_type = SAI_FDB_EVENT_AGED;
-            memcpy(&mac_addr, packet->records_arr[from_index].mac_addr.ether_addr_octet, sizeof(mac_addr));
-            sx_fid = packet->records_arr[from_index].fid;
+            memcpy(&fdb_events[to_index].fdb_entry.mac_address,
+                   packet->records_arr[from_index].mac_addr.ether_addr_octet,
+                   sizeof(fdb_events[to_index].fdb_entry.mac_address));
             has_port = true;
+            has_fid = true;
             break;
 
         case SX_FDB_NOTIFY_TYPE_FLUSH_ALL:
@@ -5374,7 +5382,7 @@ static sai_status_t mlnx_switch_parse_fdb_event(uint8_t                         
 
         case SX_FDB_NOTIFY_TYPE_FLUSH_FID:
             fdb_events[to_index].event_type = SAI_FDB_EVENT_FLUSHED;
-            sx_fid = packet->records_arr[from_index].fid;
+            has_fid = true;
             break;
 
         default:
@@ -5384,9 +5392,6 @@ static sai_status_t mlnx_switch_parse_fdb_event(uint8_t                         
                        SX_FDB_NOTIFY_TYPE_STR(packet->records_arr[from_index].type));
             continue;
         }
-
-        memcpy(&fdb_events[to_index].fdb_entry.mac_address, mac_addr,
-               sizeof(fdb_events[to_index].fdb_entry.mac_address));
 
         if (has_port) {
             /*
@@ -5404,39 +5409,23 @@ static sai_status_t mlnx_switch_parse_fdb_event(uint8_t                         
         }
 
         fdb_events[to_index].fdb_entry.bv_id = SAI_NULL_OBJECT_ID;
-        if (sx_fid > 0) {
+
+        if (has_fid) {
             if (packet->records_arr[from_index].fid < MIN_SX_BRIDGE_ID) {
-                status = mlnx_vlan_oid_create(sx_fid, &fdb_events[to_index].fdb_entry.bv_id);
+                status = mlnx_vlan_oid_create(packet->records_arr[from_index].fid,
+                                              &fdb_events[to_index].fdb_entry.bv_id);
                 if (SAI_ERR(status)) {
-                    SX_LOG_ERR("Failed to convert sx fid to bv_id [%u/%u, %u]\n",
+                    SX_LOG_ERR("Failed to convert sx fid to bv_id (VLAN) [%u/%u, %u]\n",
                                from_index + 1, packet->records_num, to_index + 1);
                     continue;
                 }
             } else {
-                status = mlnx_create_bridge_1d_object(sx_fid, &fdb_events[to_index].fdb_entry.bv_id);
+                status = mlnx_create_bridge_1d_object(packet->records_arr[from_index].fid,
+                                                      &fdb_events[to_index].fdb_entry.bv_id);
                 if (SAI_ERR(status)) {
-                    SX_LOG_ERR("Failed to convert sx fid to bv_id [%u/%u, %u]\n",
+                    SX_LOG_ERR("Failed to convert sx fid to bv_id (BRIDGE) [%u/%u, %u]\n",
                                from_index + 1, packet->records_num, to_index + 1);
                     continue;
-                }
-            }
-        } else {
-            if (SAI_NULL_OBJECT_ID != port_id) {
-                /*
-                 * If entry has bridge port, extract the bridge out of the bridge port.
-                 */
-                if (SAI_STATUS_SUCCESS == mlnx_bridge_port_by_oid(port_id, &bridge_port)) {
-                    if (bridge_port->bridge_id == mlnx_bridge_default_1q()) {
-                        fdb_events[to_index].fdb_entry.bv_id = mlnx_bridge_default_1q_oid();
-                    } else {
-                        status = mlnx_create_bridge_1d_object(bridge_port->bridge_id,
-                                                              &fdb_events[to_index].fdb_entry.bv_id);
-                        if (SAI_ERR(status)) {
-                            SX_LOG_ERR("Failed to convert port bridge id to bv_id [%u/%u, %u]\n",
-                                       from_index + 1, packet->records_num, to_index + 1);
-                            continue;
-                        }
-                    }
                 }
             }
         }
@@ -5444,23 +5433,30 @@ static sai_status_t mlnx_switch_parse_fdb_event(uint8_t                         
         fdb_events[to_index].fdb_entry.switch_id = switch_id;
 
         fdb_events[to_index].attr = attr_ptr;
-        fdb_events[to_index].attr_count = FDB_NOTIF_ATTRIBS_NUM;
+        fdb_events[to_index].attr_count = 0;
 
-        attr_ptr->id = SAI_FDB_ENTRY_ATTR_BRIDGE_PORT_ID;
-        attr_ptr->value.oid = port_id;
-        ++attr_ptr;
+        if (has_port) {
+            attr_ptr->id = SAI_FDB_ENTRY_ATTR_BRIDGE_PORT_ID;
+            attr_ptr->value.oid = port_id;
+            ++attr_ptr;
+            fdb_events[to_index].attr_count++;
+        }
 
         attr_ptr->id = SAI_FDB_ENTRY_ATTR_TYPE;
         attr_ptr->value.s32 = SAI_FDB_ENTRY_TYPE_DYNAMIC;
         ++attr_ptr;
+        fdb_events[to_index].attr_count++;
 
         attr_ptr->id = SAI_FDB_ENTRY_ATTR_PACKET_ACTION;
         attr_ptr->value.s32 = SAI_PACKET_ACTION_FORWARD;
         ++attr_ptr;
+        fdb_events[to_index].attr_count++;
 
         ++to_index;
     }
+
     *event_count = to_index;
+
     return SAI_STATUS_SUCCESS;
 }
 
@@ -5515,14 +5511,14 @@ static void event_thread_func(void *context)
         goto out;
     }
 
-    receive_info = (sx_receive_info_t*)calloc(1, sizeof(*receive_info));
+    receive_info = (sx_receive_info_t*)calloc_wrapper(1, sizeof(*receive_info));
     if (NULL == receive_info) {
         SX_LOG_ERR("Can't allocate receive_info memory\n");
         status = SX_STATUS_NO_MEMORY;
         goto out;
     }
 
-    p_packet = (uint8_t*)malloc(sizeof(*p_packet) * MAX_PACKET_SIZE);
+    p_packet = (uint8_t*)calloc_wrapper(MAX_PACKET_SIZE, sizeof(*p_packet));
     if (NULL == p_packet) {
         SX_LOG_ERR("Can't allocate packet memory\n");
         status = SX_STATUS_ERROR;
@@ -5530,14 +5526,15 @@ static void event_thread_func(void *context)
     }
     SX_LOG_NTC("Event packet buffer size %u\n", MAX_PACKET_SIZE);
 
-    fdb_events = calloc(SX_FDB_NOTIFY_SIZE_MAX, sizeof(sai_fdb_event_notification_data_t));
+
+    fdb_events = calloc_wrapper(SX_FDB_NOTIFY_SIZE_MAX, sizeof(sai_fdb_event_notification_data_t));
     if (NULL == fdb_events) {
         SX_LOG_ERR("Can't allocate memory for fdb events\n");
         status = SX_STATUS_ERROR;
         goto out;
     }
 
-    attr_list = calloc(SX_FDB_NOTIFY_SIZE_MAX * FDB_NOTIF_ATTRIBS_NUM, sizeof(sai_attribute_t));
+    attr_list = calloc_wrapper(SX_FDB_NOTIFY_SIZE_MAX * FDB_NOTIF_ATTRIBS_NUM, sizeof(sai_attribute_t));
     if (NULL == attr_list) {
         SX_LOG_ERR("Can't allocate memory for attribute list\n");
         status = SX_STATUS_ERROR;
@@ -6244,7 +6241,8 @@ static uint32_t sai_tunnel_db_size_get()
             sizeof(mlnx_tunnel_entry_t) * MAX_TUNNEL_DB_SIZE +
             sizeof(mlnx_tunnel_map_t) * MLNX_TUNNEL_MAP_MAX +
             sizeof(mlnx_tunnel_map_entry_t) * MLNX_TUNNEL_MAP_ENTRY_MAX +
-            sizeof(mlnx_bmtor_bridge_t) * MLNX_BMTOR_BRIDGE_MAX);
+            sizeof(mlnx_bmtor_bridge_t) * MLNX_BMTOR_BRIDGE_MAX +
+            sizeof(mlnx_dscp_remapping_t));
 }
 
 static void sai_tunnel_db_init()
@@ -6266,6 +6264,11 @@ static void sai_tunnel_db_init()
         (mlnx_bmtor_bridge_t*)((uint8_t*)g_sai_tunnel_db_ptr->tunnel_map_entry_db +
                                sizeof(mlnx_tunnel_map_entry_t) *
                                MLNX_TUNNEL_MAP_ENTRY_MAX);
+
+    g_sai_tunnel_db_ptr->dscp_remapping_db =
+        (mlnx_dscp_remapping_t*)((uint8_t*)g_sai_tunnel_db_ptr->bmtor_bridge_db +
+                                 sizeof(mlnx_bmtor_bridge_t) *
+                                 MLNX_BMTOR_BRIDGE_MAX);
 }
 
 static sai_status_t sai_tunnel_db_create()
@@ -6853,9 +6856,10 @@ static sai_status_t mlnx_kvd_table_size_update(sx_api_profile_t *ku_profile)
 
 static sai_status_t mlnx_initialize_switch(sai_object_id_t switch_id, bool *transaction_mode_enable)
 {
-    int                         system_err;
-    const char                 *config_file, *boot_type_char, *aggregate_bridge_drops, *dump_path, *max_dumps;
-    const char                 *accumed_flow_cnt;
+    int         system_err;
+    const char *config_file, *boot_type_char, *aggregate_bridge_drops, *dump_path, *max_dumps,
+               *mft_cfg_path;
+    const char                 *accumed_flow_cnt, *dscp_remapping_enabled;
     mlnx_sai_boot_type_t        boot_type = 0;
     sx_router_resources_param_t resources_param;
     sx_router_general_param_t   general_param;
@@ -6876,6 +6880,7 @@ static sai_status_t mlnx_initialize_switch(sai_object_id_t switch_id, bool *tran
     sxd_status_t                sxd_ret = SXD_STATUS_SUCCESS;
     mlnx_port_config_t         *port;
     bool                        is_warmboot_init_stage;
+    const char                 *additional_mac_enabled;
 
     memset(&span_init_params, 0, sizeof(sx_span_init_params_t));
 
@@ -6971,6 +6976,13 @@ static sai_status_t mlnx_initialize_switch(sai_object_id_t switch_id, bool *tran
     if (NULL != dump_path) {
         strncpy(g_sai_db_ptr->dump_configuration.path, dump_path, sizeof(g_sai_db_ptr->dump_configuration.path));
         g_sai_db_ptr->dump_configuration.path[SX_API_DUMP_PATH_LEN_LIMIT - 1] = 0;
+    }
+
+    mft_cfg_path = g_mlnx_services.profile_get_value(g_profile_id, SAI_KEY_DUMP_MFT_CFG_PATH);
+    if (NULL != mft_cfg_path) {
+        strncpy(g_sai_db_ptr->dump_configuration.mft_cfg_path, mft_cfg_path,
+                sizeof(g_sai_db_ptr->dump_configuration.mft_cfg_path));
+        g_sai_db_ptr->dump_configuration.mft_cfg_path[SX_API_DUMP_PATH_LEN_LIMIT - 1] = 0;
     }
 
     max_dumps = g_mlnx_services.profile_get_value(g_profile_id, SAI_KEY_DUMP_STORE_AMOUNT);
@@ -7259,6 +7271,22 @@ static sai_status_t mlnx_initialize_switch(sai_object_id_t switch_id, bool *tran
                 return sai_status;
             }
         }
+    }
+
+    dscp_remapping_enabled = g_mlnx_services.profile_get_value(g_profile_id, SAI_KEY_DSCP_REMAPPING_ENABLED);
+    if ((NULL != dscp_remapping_enabled) && (atoi(dscp_remapping_enabled) > 0)) {
+        SX_LOG_NTC("DSCP remapping is enabled.\n");
+        g_dscp_remapping_enabled = true;
+    } else {
+        g_dscp_remapping_enabled = false;
+    }
+
+    additional_mac_enabled = g_mlnx_services.profile_get_value(g_profile_id, SAI_KEY_ADDITIONAL_MAC_ENABLED);
+    if ((NULL != additional_mac_enabled) && (atoi(additional_mac_enabled) > 0)) {
+        SX_LOG_NTC("Additional MAC supporting is enabled.\n");
+        g_additional_mac_enabled = true;
+    } else {
+        g_additional_mac_enabled = false;
     }
 
     return SAI_STATUS_SUCCESS;
@@ -7814,6 +7842,7 @@ static sai_status_t mlnx_shutdown_switch(void)
     if (0 != sem_destroy(&g_sai_db_ptr->dfw_sem)) {
         SX_LOG_ERR("Error destroying DFW thread semaphore\n");
     }
+
 #endif
 
     /* reset value for next run if process isn't closed */
@@ -11393,6 +11422,25 @@ static sai_status_t mlnx_remove_switch_tunnel(_In_ sai_object_id_t switch_tunnel
 
     SX_LOG_EXIT();
     return SAI_STATUS_SUCCESS;
+}
+
+/*  Debug function used for PTF test only. This function allows PTF cases set the kv which
+ *   are defined in SAI profile. However, there may be logic difference between setting the kv
+ *   in switch init and in live state. For example, the feature may need some init when
+ *   enabled, and some clean up when disabled. It's the duty of feature and PTF test case
+ *   owner to make sure the logic is correct. */
+sai_status_t mlnx_debug_set_profile_key_value_for_ptf(_In_ const char *key, _In_ const char* value)
+{
+    assert(NULL != key && NULL != value);
+    SX_LOG_NTC("Setting SAI profile key:%s, value:%s on live.\n", key, value);
+
+    if (0 == memcmp(SAI_KEY_DSCP_REMAPPING_ENABLED, key, sizeof(SAI_KEY_DSCP_REMAPPING_ENABLED))) {
+        return mlnx_debug_set_dscp_remapping_for_ptf(value);
+    } else if (0 == memcmp(SAI_KEY_ADDITIONAL_MAC_ENABLED, key, sizeof(SAI_KEY_ADDITIONAL_MAC_ENABLED))) {
+        return mlnx_debug_set_additional_mac_for_ptf(value);
+    } else {
+        return SAI_STATUS_NOT_SUPPORTED;
+    }
 }
 
 const sai_switch_api_t mlnx_switch_api = {

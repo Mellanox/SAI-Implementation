@@ -1,6 +1,6 @@
 # Makefile.am -- Process this file with automake to produce Makefile.in
 
-INCLUDES = -I$(top_srcdir) -I$(top_srcdir)/include -I$(srcdir) \
+AM_CPPFLAGS = -I$(top_srcdir) -I$(top_srcdir)/include -I$(srcdir) \
            -I$(srcdir)/../inc -I$(srcdir)/../inc/sai -I$(srcdir)/../inc/experimental -I$(srcdir)/../inc/sdk \
            -I$(APP_LIB_PATH)/include \
            -I$(XML2_LIB_PATH)/include/libxml2 \
@@ -138,6 +138,9 @@ libfx_base_la_SOURCES = \
                        fx_parser.c
 
 libfx_base_la_CFLAGS = --std=gnu99 -Wno-sign-compare -Wno-vla -Wno-missing-field-initializers
+
+CFLAGS += $(CFLAGS_ASAN)
+LDFLAGS += $(LDFLAGS_ASAN)
 
 libsx_fx_sdk_la_CFLAGS = --std=gnu99 -Wno-sign-compare -Wno-vla -Wno-missing-field-initializers
 libsx_fx_sdk_la_SOURCES = sdk/sx_api_bmtor.c

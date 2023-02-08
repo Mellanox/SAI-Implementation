@@ -988,7 +988,6 @@ out:
 
 static sai_status_t mlnx_debug_counter_trap_action_handle(_In_ const mlnx_debug_counter_t *dbg_counter,
                                                           _In_ sx_trap_id_t                sx_trap,
-                                                          _In_ sai_packet_action_t         old_action,
                                                           _In_ sai_packet_action_t         new_action)
 {
     sx_status_t             sx_status;
@@ -996,26 +995,15 @@ static sai_status_t mlnx_debug_counter_trap_action_handle(_In_ const mlnx_debug_
     sx_host_ifc_trap_attr_t trap_attr;
     sx_access_cmd_t         cmd;
     sx_trap_action_t        sx_action;
-    bool                    update = false;
 
     assert(dbg_counter);
 
-    if ((old_action != SAI_PACKET_ACTION_DROP) &&
-        (new_action == SAI_PACKET_ACTION_DROP)) {
+    if (new_action == SAI_PACKET_ACTION_DROP) {
         cmd = SX_ACCESS_CMD_SET;
         sx_action = SX_TRAP_ACTION_EXCEPTION_TRAP;
-        update = true;
-    }
-
-    if ((old_action == SAI_PACKET_ACTION_DROP) &&
-        (new_action != SAI_PACKET_ACTION_DROP)) {
+    } else {
         cmd = SX_ACCESS_CMD_UNSET;
         sx_action = SX_TRAP_ACTION_SET_FW_DEFAULT;
-        update = true;
-    }
-
-    if (!update) {
-        return SAI_STATUS_SUCCESS;
     }
 
     memset(&trap_key, 0, sizeof(trap_key));
@@ -1065,7 +1053,7 @@ sai_status_t mlnx_debug_counter_db_trap_action_update(_In_ sx_trap_id_t sx_trap,
         return SAI_STATUS_FAILURE;
     }
 
-    status = mlnx_debug_counter_trap_action_handle(dbg_counter, sx_trap, trap_db->action, action);
+    status = mlnx_debug_counter_trap_action_handle(dbg_counter, sx_trap, action);
     if (SAI_ERR(status)) {
         return status;
     }
@@ -1173,6 +1161,21 @@ static sai_status_t mlnx_debug_counter_sx_trap_group_update(_In_ const mlnx_debu
         trap_key.trap_key_attr.trap_id = sx_traps[trap_idx];
         trap_attr.attr.trap_id_attr.trap_group = sx_trap_group;
         trap_attr.attr.trap_id_attr.trap_action = action;
+
+        if (!set) {
+            uint32_t trap_db_index = 0;
+            status = mlnx_get_trap_db_index_by_sx_trap(sx_traps[trap_idx], &trap_db_index);
+            if (SAI_OK(status) && g_sai_db_ptr->traps_db[trap_db_index].is_used) {
+                status = mlnx_trap_reset_group_impl(trap_db_index,
+                                                    g_sai_db_ptr->traps_db[trap_db_index].trap_group);
+                if (SAI_ERR(status)) {
+                    SX_LOG_ERR("Failed to reset trap_group at index [%u]\n", trap_db_index);
+                    return status;
+                }
+                SX_LOG_INF("Reset the trap_group back to [OID:0x%lX] while disabling debug counter.\n",
+                           g_sai_db_ptr->traps_db[trap_db_index].trap_group);
+            }
+        }
 
         sx_status = sx_api_host_ifc_trap_id_ext_set(gh_sdk, cmd, &trap_key, &trap_attr);
         if (SX_ERR(sx_status)) {

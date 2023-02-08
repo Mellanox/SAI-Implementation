@@ -1384,6 +1384,25 @@ static sai_status_t mlnx_acl_entry_udf_data_to_key_descr_list_spc2(_In_ const sa
                                                                    _In_ uint32_t                    custom_byte_count,
                                                                    _Out_ sx_flex_acl_key_desc_t    *key_desc,
                                                                    _Inout_ uint32_t                *key_desc_count);
+static sai_status_t mlnx_acl_create_dscp_remapping_rule(_In_ sx_acl_region_id_t    region_id,
+                                                        _In_ sx_acl_key_type_t     key_handle,
+                                                        _In_ sx_acl_rule_offset_t *offset,
+                                                        _In_ sx_cos_priority_t     from_tc,
+                                                        _In_ sx_cos_priority_t     to_tc);
+static sai_status_t mlnx_acl_remove_dscp_remapping_rule(_In_ sx_acl_region_id_t    region_id,
+                                                        _In_ sx_acl_rule_offset_t *offset,
+                                                        _In_ uint32_t              num);
+static sai_status_t mlnx_acl_create_dscp_remapping_table(_In_ sx_acl_key_t       *key,
+                                                         _In_ sx_acl_size_t       size,
+                                                         _In_ sx_acl_direction_t  direction,
+                                                         _In_ sx_acl_key_type_t  *key_handle,
+                                                         _In_ sx_acl_region_id_t *region_id,
+                                                         _In_ sx_acl_id_t        *acl_id);
+static sai_status_t mlnx_acl_delete_dscp_remapping_table(_In_ sx_acl_size_t       size,
+                                                         _In_ sx_acl_direction_t  direction,
+                                                         _In_ sx_acl_key_type_t  *key_handle,
+                                                         _In_ sx_acl_region_id_t *region_id,
+                                                         _In_ sx_acl_id_t        *acl_id);
 
 static const mlnx_acl_cb_list_t               mlnx_acl_cb_sp = {
     mlnx_acl_table_init_sp,
@@ -23502,6 +23521,423 @@ sai_status_t mlnx_perport_ipcnt_ops(_In_ sx_port_log_id_t port_id, _In_ uint16_t
         assert(0);
     }
 
+    return status;
+}
+
+sai_status_t mlnx_acl_bind_dscp_remapping(_In_ mlnx_dscp_remapping_tunnel_type_t tunnel_type)
+{
+    sx_status_t           sx_status;
+    sai_object_id_t       tunnel_overlay_rif;
+    sai_status_t          status = SAI_STATUS_SUCCESS;
+    sx_router_interface_t rif_id;
+    remapping_acl_data_t *acl_entry;
+
+    SX_LOG_ENTER();
+
+    if (DSCP_REMAPPING_TUNNEL_TYPE_ENCAP == tunnel_type) {
+        tunnel_overlay_rif = g_sai_tunnel_db_ptr->dscp_remapping_db->tunnel_qos_data.encap_rif_oid;
+    } else {
+        tunnel_overlay_rif = g_sai_tunnel_db_ptr->dscp_remapping_db->tunnel_qos_data.decap_rif_oid;
+    }
+
+    if (SAI_NULL_OBJECT_ID == tunnel_overlay_rif) {
+        /* It's a valid case when init ACL data before the tunnel_type tunnel is created */
+        SX_LOG_DBG("Init ACL data before tunnel type %u is created.\n", tunnel_type);
+        goto out;
+    }
+
+    acl_entry = &g_sai_tunnel_db_ptr->dscp_remapping_db->remapping_acl_data[tunnel_type];
+    if (SAI_NULL_OBJECT_ID == acl_entry->acl_binding_rif) {
+        acl_entry->acl_binding_rif = tunnel_overlay_rif;
+        status = mlnx_rif_oid_to_sdk_rif_id(tunnel_overlay_rif, &rif_id);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to get rif id for overlay rif %" PRIx64 ", tunnel type %u.\n",
+                       tunnel_overlay_rif, tunnel_type);
+            goto out;
+        }
+
+        if (ACL_RIF_COUNT <= rif_id) {
+            SX_LOG_ERR("rif id [%d] exceeds range (0, %d)", rif_id, ACL_RIF_COUNT);
+            status = SAI_STATUS_INVALID_PARAMETER;
+            goto out;
+        }
+
+        SX_LOG_NTC("Bind dscp remapping ACL to overlay rif %" PRIx64 ", rif id %u, tunnel type %u.\n",
+                   tunnel_overlay_rif, rif_id, tunnel_type);
+        sx_status = sx_api_acl_rif_bind_set(gh_sdk, SX_ACCESS_CMD_ADD, rif_id, acl_entry->group_id);
+        if (SX_ERR(sx_status)) {
+            SX_LOG_ERR("Failed to bind dscp remapping ACL group %" PRIx64 " to overlay rif id %" PRIx64 ","
+                       " tunnel type %u :%s.\n", acl_entry->group_id, rif_id, tunnel_type, SX_STATUS_MSG(sx_status));
+            status = sdk_to_sai(sx_status);
+            goto out;
+        }
+    }
+
+out:
+    SX_LOG_EXIT();
+    return status;
+}
+
+sai_status_t mlnx_acl_unbind_dscp_remapping(_In_ mlnx_dscp_remapping_tunnel_type_t tunnel_type)
+{
+    sx_status_t           sx_status;
+    sai_object_id_t       tunnel_overlay_rif;
+    sai_status_t          status = SAI_STATUS_SUCCESS;
+    sx_router_interface_t rif_id;
+    remapping_acl_data_t *acl_entry;
+
+    SX_LOG_ENTER();
+
+    if (DSCP_REMAPPING_TUNNEL_TYPE_ENCAP == tunnel_type) {
+        tunnel_overlay_rif = g_sai_tunnel_db_ptr->dscp_remapping_db->tunnel_qos_data.encap_rif_oid;
+    } else {
+        tunnel_overlay_rif = g_sai_tunnel_db_ptr->dscp_remapping_db->tunnel_qos_data.decap_rif_oid;
+    }
+
+    assert(SAI_NULL_OBJECT_ID == tunnel_overlay_rif);
+
+    acl_entry = &g_sai_tunnel_db_ptr->dscp_remapping_db->remapping_acl_data[tunnel_type];
+    if (SAI_NULL_OBJECT_ID != acl_entry->acl_binding_rif) {
+        status = mlnx_rif_oid_to_sdk_rif_id(acl_entry->acl_binding_rif, &rif_id);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to get rif id for overlay rif %" PRIx64 ", tunnel type %u.\n",
+                       acl_entry->acl_binding_rif, tunnel_type);
+            goto out;
+        }
+        SX_LOG_NTC("Unbind dscp remapping ACL to overlay rif %" PRIx64 ", rif id %u, tunnel type %u.\n",
+                   acl_entry->acl_binding_rif, rif_id, tunnel_type);
+        sx_status = sx_api_acl_rif_bind_set(gh_sdk, SX_ACCESS_CMD_DELETE, rif_id, acl_entry->group_id);
+        if (SX_ERR(sx_status)) {
+            SX_LOG_ERR("Failed to unbind dscp remapping ACL group %" PRIx64 " from overlay rif id %u,"
+                       " tunnel type %u :%s.\n", acl_entry->group_id, rif_id, tunnel_type, SX_STATUS_MSG(sx_status));
+            status = sdk_to_sai(sx_status);
+            goto out;
+        }
+        acl_entry->acl_binding_rif = SAI_NULL_OBJECT_ID;
+    }
+
+out:
+    SX_LOG_EXIT();
+    return status;
+}
+
+static sai_status_t mlnx_acl_create_dscp_remapping_rule(_In_ sx_acl_region_id_t    region_id,
+                                                        _In_ sx_acl_key_type_t     key_handle,
+                                                        _In_ sx_acl_rule_offset_t *offset,
+                                                        _In_ sx_cos_priority_t     from_tc,
+                                                        _In_ sx_cos_priority_t     to_tc)
+{
+    sx_status_t               sx_status;
+    sx_flex_acl_flex_rule_t   rule = MLNX_ACL_SX_FLEX_RULE_EMPTY;
+    sx_flex_acl_flex_action_t action;
+    sx_flex_acl_key_desc_t    key_desc;
+
+    SX_LOG_ENTER();
+
+    action.type = SX_FLEX_ACL_ACTION_SET_PRIO;
+    action.fields.action_set_prio.prio_val = to_tc;
+    key_desc.key_id = FLEX_ACL_KEY_SWITCH_PRIO;
+    key_desc.key.switch_prio = from_tc;
+    key_desc.mask.switch_prio = true;
+
+    sx_status = sx_lib_flex_acl_rule_init(key_handle, 1, &rule);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to init dscp remapping ACL rule %s.\n", SX_STATUS_MSG(sx_status));
+        return sdk_to_sai(sx_status);
+    }
+
+    memcpy(rule.key_desc_list_p, &key_desc, sizeof(key_desc));
+    rule.key_desc_count = 1;
+    memcpy(rule.action_list_p, &action, sizeof(*rule.action_list_p));
+    rule.action_count = 1;
+    rule.valid = true;
+    rule.priority = 0;
+    sx_status = sx_api_acl_flex_rules_set(gh_sdk, SX_ACCESS_CMD_SET, region_id, offset, &rule, 1);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to add dscp remapping ACL rule %s.\n", SX_STATUS_MSG(sx_status));
+        goto out;
+    }
+
+out:
+    SX_LOG_EXIT();
+    mlnx_acl_flex_rule_free(&rule);
+    return sdk_to_sai(sx_status);
+}
+
+static sai_status_t mlnx_acl_remove_dscp_remapping_rule(_In_ sx_acl_region_id_t    region_id,
+                                                        _In_ sx_acl_rule_offset_t *offset,
+                                                        _In_ uint32_t              num)
+{
+    sx_status_t sx_status;
+
+    SX_LOG_ENTER();
+
+    sx_status = sx_api_acl_flex_rules_set(gh_sdk,
+                                          SX_ACCESS_CMD_DELETE,
+                                          region_id,
+                                          offset,
+                                          NULL,
+                                          num);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to delete dscp remapping ACL rule %d(%d) %s.\n",
+                   region_id, *offset, SX_STATUS_MSG(sx_status));
+        SX_LOG_EXIT();
+        return sdk_to_sai(sx_status);
+    }
+
+    SX_LOG_EXIT();
+    return SAI_STATUS_SUCCESS;
+}
+
+static sai_status_t mlnx_acl_create_dscp_remapping_table(_In_ sx_acl_key_t       *key,
+                                                         _In_ sx_acl_size_t       size,
+                                                         _In_ sx_acl_direction_t  direction,
+                                                         _In_ sx_acl_key_type_t  *key_handle,
+                                                         _In_ sx_acl_region_id_t *region_id,
+                                                         _In_ sx_acl_id_t        *acl_id)
+{
+    sx_status_t           sx_status;
+    sx_acl_region_group_t region_group;
+
+    SX_LOG_ENTER();
+
+    sx_status = sx_api_acl_flex_key_set(gh_sdk, SX_ACCESS_CMD_CREATE, key, 1, key_handle);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to create dscp remapping flex key %s.\n", SX_STATUS_MSG(sx_status));
+        goto out;
+    }
+
+    sx_status = sx_api_acl_region_set(gh_sdk, SX_ACCESS_CMD_CREATE, *key_handle,
+                                      SX_ACL_ACTION_TYPE_BASIC, size, region_id);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to create dscp remapping size %d %s.\n", size, SX_STATUS_MSG(sx_status));
+        (void)sx_api_acl_flex_key_set(gh_sdk, SX_ACCESS_CMD_DELETE, NULL, 0, key_handle);
+        goto out;
+    }
+
+    memset(&region_group, 0, sizeof(region_group));
+    region_group.acl_type = SX_ACL_TYPE_PACKET_TYPES_AGNOSTIC;
+    region_group.regions.acl_packet_agnostic.region = *region_id;
+    sx_status = sx_api_acl_set(gh_sdk,
+                               SX_ACCESS_CMD_CREATE,
+                               SX_ACL_TYPE_PACKET_TYPES_AGNOSTIC,
+                               direction,
+                               &region_group,
+                               acl_id);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to create dscp remapping acl %s.\n", SX_STATUS_MSG(sx_status));
+        (void)sx_api_acl_flex_key_set(gh_sdk, SX_ACCESS_CMD_DELETE, NULL, 0, key_handle);
+        (void)sx_api_acl_region_set(gh_sdk,
+                                    SX_ACCESS_CMD_DESTROY,
+                                    *key_handle,
+                                    SX_ACL_ACTION_TYPE_BASIC,
+                                    size,
+                                    region_id);
+        goto out;
+    }
+
+out:
+    SX_LOG_EXIT();
+    if (SX_ERR(sx_status)) {
+        return sdk_to_sai(sx_status);
+    } else {
+        return SAI_STATUS_SUCCESS;
+    }
+}
+
+static sai_status_t mlnx_acl_delete_dscp_remapping_table(_In_ sx_acl_size_t       size,
+                                                         _In_ sx_acl_direction_t  direction,
+                                                         _In_ sx_acl_key_type_t  *key_handle,
+                                                         _In_ sx_acl_region_id_t *region_id,
+                                                         _In_ sx_acl_id_t        *acl_id)
+{
+    sx_status_t sx_status;
+
+    SX_LOG_ENTER();
+
+    sx_status = sx_api_acl_set(gh_sdk,
+                               SX_ACCESS_CMD_DESTROY,
+                               SX_ACL_TYPE_PACKET_TYPES_AGNOSTIC,
+                               direction,
+                               NULL,
+                               acl_id);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to destroy dscp remapping acl %s.\n", SX_STATUS_MSG(sx_status));
+        goto out;
+    }
+
+    sx_status = sx_api_acl_region_set(gh_sdk,
+                                      SX_ACCESS_CMD_DESTROY,
+                                      *key_handle,
+                                      SX_ACL_ACTION_TYPE_BASIC,
+                                      size,
+                                      region_id);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to destroy dscp remapping region %s.\n", SX_STATUS_MSG(sx_status));
+        goto out;
+    }
+
+    sx_status = sx_api_acl_flex_key_set(gh_sdk, SX_ACCESS_CMD_DELETE, NULL, 0, key_handle);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to destroy dscp remapping flex key %s.\n", SX_STATUS_MSG(sx_status));
+        goto out;
+    }
+
+out:
+    SX_LOG_EXIT();
+    if (SX_ERR(sx_status)) {
+        return sdk_to_sai(sx_status);
+    } else {
+        return SAI_STATUS_SUCCESS;
+    }
+}
+
+sai_status_t mlnx_acl_dscp_remapping_acl_data_init(void)
+{
+    sx_acl_key_type_t    *key_handle_db;
+    sx_acl_region_id_t   *region_id_db;
+    sx_acl_id_t          *acl_id_db;
+    sx_acl_id_t          *acl_group_id_db;
+    sx_acl_key_t          key = FLEX_ACL_KEY_SWITCH_PRIO;
+    remapping_acl_data_t *remapping_acl_data;
+    sx_status_t           sx_status;
+    sai_status_t          status = SAI_STATUS_SUCCESS;
+    uint32_t              ii;
+    sx_acl_direction_t    direction;
+
+    SX_LOG_ENTER();
+
+    for (ii = 0; ii < DSCP_REMAPPING_TUNNEL_TYPE_MAX; ii++) {
+        remapping_acl_data = &g_sai_tunnel_db_ptr->dscp_remapping_db->remapping_acl_data[ii];
+        key_handle_db = &remapping_acl_data->key_handle;
+        region_id_db = &remapping_acl_data->region_id;
+        acl_id_db = &remapping_acl_data->acl_id;
+        acl_group_id_db = &remapping_acl_data->group_id;
+        if (DSCP_REMAPPING_TUNNEL_TYPE_ENCAP == ii) {
+            direction = SX_ACL_DIRECTION_RIF_EGRESS;
+        } else {
+            direction = SX_ACL_DIRECTION_RIF_INGRESS;
+        }
+        status = mlnx_acl_create_dscp_remapping_table(&key, MAX_DSCP_REMAPPING_ACL_RULE, direction,
+                                                      key_handle_db, region_id_db, acl_id_db);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to create dscp remapping acl table, tunnel type %u.\n", ii);
+            goto out;
+        }
+
+        sx_status = sx_api_acl_group_set(gh_sdk, SX_ACCESS_CMD_CREATE, direction, NULL, 0, acl_group_id_db);
+        if (SX_ERR(sx_status)) {
+            SX_LOG_ERR("Failed to create dscp remapping acl group, tunnel type %u: %s.\n",
+                       ii, SX_STATUS_MSG(sx_status));
+            status = sdk_to_sai(sx_status);
+            goto out_remove_acl_table;
+        }
+
+        sx_status = sx_api_acl_group_set(gh_sdk, SX_ACCESS_CMD_SET, direction, acl_id_db, 1, acl_group_id_db);
+        if (SX_ERR(sx_status)) {
+            SX_LOG_ERR("Failed to add acl to group, tunnel type %u: %s.\n", ii, SX_STATUS_MSG(sx_status));
+            status = sdk_to_sai(sx_status);
+            goto out_remove_acl_group;
+        }
+
+        status = mlnx_acl_bind_dscp_remapping(ii);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to bind group to overlay rif, tunnel type %u.\n", ii);
+            goto out_remove_acl_group;
+        }
+    }
+    goto out;
+
+out_remove_acl_group:
+    (void)sx_api_acl_group_set(gh_sdk, SX_ACCESS_CMD_DESTROY, direction, NULL, 0, acl_group_id_db);
+out_remove_acl_table:
+    (void)mlnx_acl_delete_dscp_remapping_table(MAX_DSCP_REMAPPING_ACL_RULE, direction,
+                                               key_handle_db, region_id_db, acl_id_db);
+out:
+    SX_LOG_EXIT();
+    return status;
+}
+
+sai_status_t mlnx_acl_dscp_remapping_acl_data_clear(void)
+{
+    mlnx_tc_remapping_t   tc_remapping = {0};
+    remapping_acl_data_t *remapping_acl_data;
+    uint32_t              ii;
+    sx_status_t           sx_status;
+    sai_status_t          status = SAI_STATUS_SUCCESS;
+    sx_acl_direction_t    direction;
+
+    SX_LOG_ENTER();
+
+    for (ii = 0; ii < DSCP_REMAPPING_TUNNEL_TYPE_MAX; ii++) {
+        remapping_acl_data = &g_sai_tunnel_db_ptr->dscp_remapping_db->remapping_acl_data[ii];
+        if (DSCP_REMAPPING_TUNNEL_TYPE_ENCAP == ii) {
+            direction = SX_ACL_DIRECTION_RIF_EGRESS;
+        } else {
+            direction = SX_ACL_DIRECTION_RIF_INGRESS;
+        }
+
+        sx_status = sx_api_acl_group_set(gh_sdk, SX_ACCESS_CMD_DESTROY, direction,
+                                         NULL, 0, &remapping_acl_data->group_id);
+        if (SX_ERR(sx_status)) {
+            SX_LOG_ERR("Failed to destroy sx group (%x), tunnel type %u : %s.\n",
+                       remapping_acl_data->group_id, ii, SX_STATUS_MSG(sx_status));
+            status = sdk_to_sai(sx_status);
+            goto out;
+        }
+
+        mlnx_acl_update_dscp_remapping_rules(&tc_remapping, ii);
+
+        status = mlnx_acl_delete_dscp_remapping_table(MAX_DSCP_REMAPPING_ACL_RULE, direction,
+                                                      &remapping_acl_data->key_handle,
+                                                      &remapping_acl_data->region_id,
+                                                      &remapping_acl_data->acl_id);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to delete dscp remapping table, tunnel type %u.\n", ii);
+            goto out;
+        }
+        memset(remapping_acl_data, 0, sizeof(*remapping_acl_data));
+    }
+
+out:
+    SX_LOG_EXIT();
+    return status;
+}
+
+sai_status_t mlnx_acl_update_dscp_remapping_rules(_In_ mlnx_tc_remapping_t              *tc_remapping,
+                                                  _In_ mlnx_dscp_remapping_tunnel_type_t tunnel_type)
+{
+    sx_acl_region_id_t   *region_id_db;
+    sx_acl_key_type_t    *key_handle_db;
+    sx_acl_rule_offset_t *acl_rule_id_db;
+    uint8_t              *acl_rule_count_db;
+    remapping_acl_data_t *remapping_acl_data;
+    uint32_t              ii;
+    sai_status_t          status = SAI_STATUS_SUCCESS;
+
+    SX_LOG_ENTER();
+
+    remapping_acl_data = &g_sai_tunnel_db_ptr->dscp_remapping_db->remapping_acl_data[tunnel_type];
+    acl_rule_id_db = &remapping_acl_data->acl_rule_id[0];
+    acl_rule_count_db = &remapping_acl_data->acl_rule_count;
+    region_id_db = &remapping_acl_data->region_id;
+    key_handle_db = &remapping_acl_data->key_handle;
+
+    for (ii = 0; ii < *acl_rule_count_db; ii++) {
+        mlnx_acl_remove_dscp_remapping_rule(*region_id_db, &acl_rule_id_db[ii], 1);
+        acl_rule_id_db[ii] = 0;
+    }
+    *acl_rule_count_db = 0;
+    for (ii = 0; ii < tc_remapping->count; ii++) {
+        acl_rule_id_db[ii] = ii + 1;
+        mlnx_acl_create_dscp_remapping_rule(*region_id_db, *key_handle_db, &acl_rule_id_db[ii],
+                                            tc_remapping->from.prio_color[ii].priority,
+                                            tc_remapping->to.prio_color[ii].priority);
+        (*acl_rule_count_db)++;
+        SX_LOG_NTC("Created ACL rule number %u, from tc %u to tc %u.\n",
+                   ii, tc_remapping->from.prio_color[ii].priority, tc_remapping->to.prio_color[ii].priority);
+    }
+    SX_LOG_EXIT();
     return status;
 }
 

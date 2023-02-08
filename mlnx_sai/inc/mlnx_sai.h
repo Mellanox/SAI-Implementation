@@ -537,9 +537,6 @@ typedef struct _mlnx_sai_attr_t {
     sai_attribute_value_t *value;
 } mlnx_sai_attr_t;
 
-extern const char* sai_metadata_sai_acl_entry_attr_t_enum_values_names[];
-#define MLNX_SAI_ACL_ENTRY_ATTR_STR(attr) (sai_metadata_sai_acl_entry_attr_t_enum_values_names[attr])
-
 #define SAI_TYPE_CHECK_RANGE(type) ((sai_object_type_extensions_t)type < SAI_OBJECT_TYPE_EXTENSIONS_RANGE_END)
 extern const char* sai_metadata_sai_object_type_t_enum_values_short_names[];
 #define SAI_TYPE_STR(type)                                                                      \
@@ -565,10 +562,17 @@ typedef struct _mlnx_rif_sx_data_t {
     sx_router_id_t         vrf_id;
     sx_router_counter_id_t counter;
 } mlnx_rif_sx_data_t;
+typedef struct _mlnx_rif_mac_data_t {
+    bool          additional_mac_is_used;
+    sx_mac_addr_t additional_mac_addr;
+} mlnx_rif_mac_data_t;
 typedef struct _mlnx_rif_db_t {
     mlnx_shm_array_hdr_t mlnx_array;
     mlnx_rif_sx_data_t   sx_data;
+    mlnx_rif_mac_data_t  mac_data;
 } mlnx_rif_db_t;
+
+extern bool g_additional_mac_enabled;
 
 sai_status_t mlnx_bmtor_rif_event_add(_In_ sx_router_interface_t sx_rif);
 sai_status_t mlnx_bmtor_rif_event_del(_In_ sx_router_interface_t sx_rif);
@@ -585,6 +589,7 @@ typedef struct mlnx_bridge_rif_ {
     bool                        is_used;
     mlnx_rif_sx_data_t          sx_data;
     uint32_t                    index;
+    mlnx_rif_mac_data_t         mac_data;
 } mlnx_bridge_rif_t;
 typedef struct mlnx_bridge_port_ {
     uint32_t               index;
@@ -1603,6 +1608,10 @@ sai_status_t mlnx_rif_sx_attrs_get(_In_ sai_object_id_t                rif_oid,
                                    _Out_ sx_router_interface_state_t **rif_state,
                                    _Out_ sx_router_interface_param_t **intf_params,
                                    _Out_ sx_interface_attributes_t   **intf_attribs);
+bool mlnx_rif_is_additional_mac_supported(void);
+sai_status_t mlnx_rif_oid_to_mac_data(_In_ sai_object_id_t        rif_oid,
+                                      _Out_ mlnx_rif_mac_data_t **rif_mac_data);
+sai_status_t mlnx_debug_set_additional_mac_for_ptf(_In_ const char* value);
 sai_status_t mlnx_bridge_sx_vport_create(_In_ sx_port_log_id_t           sx_port,
                                          _In_ sx_vlan_id_t               sx_vlan_id,
                                          _In_ sx_untagged_member_state_t sx_tagging_mode,
@@ -2681,6 +2690,9 @@ typedef struct _mlnx_samplepacket_t {
 #define MAX_IPINIP_TUNNEL             256
 #define MAX_VXLAN_TUNNEL              1
 #define MAX_TUNNEL                    257
+#define MAX_UPLINK_PORTS              40    /* Max number of supported uplink ports in dscp remapping */
+#define MAX_DSCP_REMAPPING_ACL_RULE   8     /* Max ACL rule number for encap and decap in dscp remapping */
+#define UPLINK_LOSSLESS_PG_COUNT      4     /* The lossless pg count for uplink port in dscp remapping */
 
 typedef struct _mlnx_tunneltable_t {
     bool                        in_use;
@@ -2745,6 +2757,10 @@ typedef struct _mlnx_tunnel_entry_t {
     int32_t                               src_port_base;
     int8_t                                src_port_mask;
     mlnx_vxlan_udp_sport_acl_t            vxlan_acl;
+    sai_object_id_t                       encap_qos_tc_and_color_to_dscp_map;
+    sai_object_id_t                       encap_qos_tc_to_queue_map;
+    sai_object_id_t                       decap_qos_dscp_to_tc_map;
+    sai_object_id_t                       decap_qos_tc_to_priority_group_map;
 } mlnx_tunnel_entry_t;
 
 #define MLNX_MAX_TUNNEL_TYPES_NUM  SAI_TUNNEL_TYPE_MPLS + 1
@@ -2811,6 +2827,55 @@ typedef struct _mlnx_bmtor_bridge_t {
     uint32_t        counter;
 } mlnx_bmtor_bridge_t;
 
+typedef struct _mlnx_tc_remapping_t {
+    mlnx_qos_map_params_t from;
+    mlnx_qos_map_params_t to;
+    uint8_t               count;
+} mlnx_tc_remapping_t;
+
+typedef enum _mlnx_dscp_remapping_tunnel_type_t {
+    DSCP_REMAPPING_TUNNEL_TYPE_ENCAP,
+    DSCP_REMAPPING_TUNNEL_TYPE_DECAP,
+    DSCP_REMAPPING_TUNNEL_TYPE_MAX
+} mlnx_dscp_remapping_tunnel_type_t;
+
+typedef struct _tunnel_qos_data_t {
+    sai_object_id_t encap_tc_to_dscp_mapping;
+    sai_object_id_t encap_tc_to_queue_mapping;
+    sai_object_id_t encap_rif_oid;
+    sai_object_id_t decap_dscp_to_tc_mapping;
+    sai_object_id_t decap_tc_to_pg_mapping;
+    sai_object_id_t decap_rif_oid;
+} tunnel_qos_data_t;
+
+typedef struct _port_qos_db_t {
+    sai_object_id_t  effective_tc_to_pg_mapping;
+    sai_object_id_t  effective_tc_to_queue_mapping;
+    sx_port_log_id_t uplink_port_list[MAX_UPLINK_PORTS];
+    sai_object_id_t  uplink_tc_to_pg_mapping[MAX_UPLINK_PORTS];
+    sai_object_id_t  uplink_tc_to_queue_mapping[MAX_UPLINK_PORTS];
+    bool             uplink_port_list_in_use[MAX_UPLINK_PORTS];
+    bool             uplink_port_rewrite_done[MAX_UPLINK_PORTS];
+} port_qos_db_t;
+
+typedef struct _remapping_acl_data_t {
+    sai_object_id_t      acl_binding_rif;
+    sx_acl_id_t          group_id;
+    sx_acl_key_type_t    key_handle;
+    sx_acl_region_id_t   region_id;
+    sx_acl_id_t          acl_id;
+    sx_acl_rule_offset_t acl_rule_id[MLNX_QOS_MAP_CODES_MAX];
+    uint8_t              acl_rule_count;
+    mlnx_tc_remapping_t  tc_map;
+} remapping_acl_data_t;
+
+typedef struct _mlnx_dscp_remapping_t {
+    bool                 dscp_remapping_enabled;
+    tunnel_qos_data_t    tunnel_qos_data;
+    port_qos_db_t        port_qos_db;
+    remapping_acl_data_t remapping_acl_data[DSCP_REMAPPING_TUNNEL_TYPE_MAX];
+} mlnx_dscp_remapping_t;
+
 typedef struct sai_tunnel_db {
     void                    *db_base_ptr;
     mlnx_tunneltable_t      *tunneltable_db;
@@ -2818,10 +2883,31 @@ typedef struct sai_tunnel_db {
     mlnx_tunnel_map_t       *tunnel_map_db;
     mlnx_tunnel_map_entry_t *tunnel_map_entry_db;
     mlnx_bmtor_bridge_t     *bmtor_bridge_db;
+    mlnx_dscp_remapping_t   *dscp_remapping_db;
 } sai_tunnel_db_t;
 
 extern sai_tunnel_db_t *g_sai_tunnel_db_ptr;
 extern uint32_t         g_sai_tunnel_db_size;
+extern bool             g_dscp_remapping_enabled;
+
+bool mlnx_tunnel_dscp_remapping_enabled(void);
+sai_status_t mlnx_debug_set_dscp_remapping_for_ptf(_In_ const char* value);
+sai_status_t mlnx_tunnel_update_dscp_remapping_acl_rules(void);
+sai_status_t mlnx_acl_dscp_remapping_acl_data_init(void);
+sai_status_t mlnx_acl_dscp_remapping_acl_data_clear(void);
+sai_status_t mlnx_acl_update_dscp_remapping_rules(_In_ mlnx_tc_remapping_t              *tc_remapping,
+                                                  _In_ mlnx_dscp_remapping_tunnel_type_t tunnel_type);
+sai_status_t mlnx_acl_bind_dscp_remapping(_In_ mlnx_dscp_remapping_tunnel_type_t tunnel_type);
+sai_status_t mlnx_acl_unbind_dscp_remapping(_In_ mlnx_dscp_remapping_tunnel_type_t tunnel_type);
+sai_status_t mlnx_port_on_dscp_remapping_uplink_update(_In_ sx_port_log_id_t port_id);
+sai_status_t mlnx_port_dscp_remapping_uplink_list_init(void);
+void mlnx_port_dscp_remapping_uplink_list_clear(void);
+sai_status_t mlnx_port_do_dscp_rewriting_for_all_uplink_ports(void);
+sai_status_t mlnx_port_undo_dscp_rewriting_for_all_uplink_ports(void);
+bool mlnx_port_is_tc_to_dscp_rewrite_done(_In_ sx_port_log_id_t port_id);
+sai_status_t mlnx_port_get_qos_map_id_by_log_port(_In_ sx_port_log_id_t   port_id,
+                                                  _In_ sai_qos_map_type_t qos_map_type,
+                                                  _Out_ sai_object_id_t  *oid);
 
 typedef struct _fdb_action_t {
     sai_fdb_entry_t     fdb_entry;
@@ -2997,6 +3083,11 @@ sai_status_t mlnx_debug_counter_db_init(void);
 sai_status_t mlnx_debug_counter_db_trap_action_update(_In_ sx_trap_id_t        sx_trap,
                                                       _In_ sai_packet_action_t action);
 
+sai_status_t mlnx_get_trap_db_index_by_sx_trap(_In_ sx_trap_id_t sx_trap,
+                                               _Out_ uint32_t   *index);
+sai_status_t mlnx_trap_reset_group_impl(_In_ uint32_t        trap_db_index,
+                                        _In_ sai_object_id_t trap_group);
+
 #define MLNX_BFD_STAT_ID_RANGE_CHECK(stat)                                                      \
     ((SAI_BFD_SESSION_STAT_IN_PACKETS == stat) || (stat == SAI_BFD_SESSION_STAT_OUT_PACKETS) || \
      (stat == SAI_BFD_SESSION_STAT_DROP_PACKETS))
@@ -3071,6 +3162,7 @@ typedef struct _mlnx_buffer_attrs_t {
 
 typedef struct _mlnx_dump_configuration_t {
     char     path[SX_API_DUMP_PATH_LEN_LIMIT];
+    char     mft_cfg_path[SX_API_DUMP_PATH_LEN_LIMIT];
     uint32_t max_events_to_store;
 } mlnx_dump_configuration_t;
 
@@ -3239,6 +3331,8 @@ typedef struct sai_db {
     sai_bulk_counter_info_t  bulk_counter_info;
     mlnx_sai_fg_hash_field_t fg_hash_fields[MLNX_SAI_FG_HASH_FIELDS_MAX_COUNT];
     bool                     is_issu_gp_reg_restore;
+    uint32_t                 rif_mac_range_ref_counter;
+    sx_mac_addr_t            rif_mac_range_addr;
     /* must be last element, followed by dynamic arrays */
     mlnx_shm_rm_array_info_t array_info[MLNX_SHM_RM_ARRAY_TYPE_SIZE];
 } sai_db_t;
@@ -3529,7 +3623,10 @@ sai_status_t mlnx_sched_hierarchy_foreach(mlnx_port_config_t    *port,
 #define SAI_KEY_AGGREGATE_BRIDGE_DROPS               "SAI_AGGREGATE_BRIDGE_DROPS"
 #define SAI_KEY_DUMP_STORE_PATH                      "SAI_DUMP_STORE_PATH"
 #define SAI_KEY_DUMP_STORE_AMOUNT                    "SAI_DUMP_STORE_AMOUNT"
+#define SAI_KEY_DUMP_MFT_CFG_PATH                    "SAI_DUMP_MFT_CFG_PATH"
 #define SAI_KEY_ACCUMULATED_FLOW_COUNTER_UNITS_IN_KB "SAI_ACCUMULATED_FLOW_COUNTER_MAX"
+#define SAI_KEY_DSCP_REMAPPING_ENABLED               "SAI_DSCP_REMAPPING_ENABLED"
+#define SAI_KEY_ADDITIONAL_MAC_ENABLED               "SAI_ADDITIONAL_MAC_ENABLED"
 
 #define MLNX_MIRROR_VLAN_TPID           0x8100
 #define MLNX_GRE_PROTOCOL_TYPE          0x8949

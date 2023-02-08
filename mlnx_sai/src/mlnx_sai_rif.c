@@ -24,6 +24,18 @@
 #undef  __MODULE__
 #define __MODULE__ SAI_RIF
 
+/* Length of MAC address in bits */
+#define MAC_ADDRESS_LEN_BITS (6 * 8)
+
+/* Initial value used to create MAC prefix bit mask */
+#define MAC_PREFIX_INITIAL_MASK UINT64_C(0xffffffffffffffff)
+
+/* Clear N least significant bits */
+#define CLEAR_LSB(var, bits) ((var >> bits) << bits)
+
+/* Get MAC address prefix value of N first bits */
+#define MAC_PREFIX_GET(mac, size) (CLEAR_LSB(MAC_PREFIX_INITIAL_MASK, (MAC_ADDRESS_LEN_BITS - size)) & mac)
+
 static sai_status_t check_attrs_port_type(_In_ const sai_object_key_t *key,
                                           _In_ uint32_t                count,
                                           _In_ const sai_attribute_t  *attrs)
@@ -48,6 +60,8 @@ static sai_status_t check_attrs_port_type(_In_ const sai_object_key_t *key,
 
     return SAI_STATUS_SUCCESS;
 }
+
+bool g_additional_mac_enabled;
 
 static sx_verbosity_level_t LOG_VAR_NAME(__MODULE__) = SX_VERBOSITY_LEVEL_WARNING;
 static sai_status_t mlnx_rif_attrib_get(_In_ const sai_object_key_t   *key,
@@ -258,6 +272,7 @@ static sai_status_t mlnx_rif_db_free(_In_ mlnx_shm_rm_array_idx_t idx)
     }
 
     memset(&rif_db_data->sx_data, 0, sizeof(rif_db_data->sx_data));
+    memset(&rif_db_data->mac_data, 0, sizeof(rif_db_data->mac_data));
 
     return mlnx_shm_rm_array_free(idx);
 }
@@ -321,6 +336,46 @@ sai_status_t mlnx_rif_sx_to_sai_oid(_In_ sx_router_interface_t sx_rif_id, _Out_ 
     SX_LOG_ERR("Failed to find rif %d in SAI DB\n", sx_rif_id);
 
     return SAI_STATUS_FAILURE;
+}
+
+sai_status_t mlnx_rif_oid_to_mac_data(_In_ sai_object_id_t rif_oid, _Out_ mlnx_rif_mac_data_t       **rif_mac_data)
+{
+    sai_status_t       status;
+    mlnx_object_id_t   mlnx_rif_obj = {0};
+    mlnx_bridge_rif_t *br_rif = NULL;
+    mlnx_rif_db_t     *rif_db = NULL;
+
+    status = sai_to_mlnx_object_id(SAI_OBJECT_TYPE_ROUTER_INTERFACE, rif_oid, &mlnx_rif_obj);
+    if (SAI_ERR(status)) {
+        return status;
+    }
+
+    if (mlnx_rif_obj.field.sub_type > MLNX_RIF_TYPE_BRIDGE) {
+        SX_LOG_ERR("Invalid rif sub type - %d\n", mlnx_rif_obj.field.sub_type);
+        return SAI_STATUS_INVALID_OBJECT_ID;
+    }
+
+    if (mlnx_rif_obj.field.sub_type == MLNX_RIF_TYPE_DEFAULT) {
+        status = mlnx_rif_db_idx_to_data(mlnx_rif_obj.id.rif_db_idx, &rif_db);
+        if (SAI_ERR(status)) {
+            return status;
+        }
+
+        if (rif_mac_data) {
+            *rif_mac_data = &rif_db->mac_data;
+        }
+    } else { /* SAI_ROUTER_INTERFACE_TYPE_BRIDGE */
+        status = mlnx_bridge_rif_by_idx(mlnx_rif_obj.id.bridge_rif_idx, &br_rif);
+        if (SAI_ERR(status)) {
+            SX_LOG_ERR("Failed to lookup mlnx bridge rif entry by idx %u\n", mlnx_rif_obj.id.bridge_rif_idx);
+            return status;
+        }
+        if (rif_mac_data) {
+            *rif_mac_data = &br_rif->mac_data;
+        }
+    }
+
+    return SAI_STATUS_SUCCESS;
 }
 
 static sai_status_t mlnx_rif_oid_data_fetch(_In_ sai_object_id_t             rif_oid,
@@ -456,6 +511,46 @@ sai_status_t mlnx_rif_oid_to_sdk_rif_id(_In_ sai_object_id_t rif_oid, _Out_ sx_r
     return SAI_STATUS_SUCCESS;
 }
 
+bool mlnx_rif_is_additional_mac_supported(void)
+{
+    return (g_additional_mac_enabled && mlnx_chip_is_spc());
+}
+
+static bool mlnx_rif_check_additional_mac(_In_ const void *mac)
+{
+    sx_mac_addr_t input_mac;
+    uint64_t      base_mac_addr_64 = 0;
+    uint64_t      base_mac_prefix = 0;
+    uint64_t      in_mac_addr_64 = 0;
+    uint64_t      in_mac_prefix = 0;
+
+    SX_LOG_ENTER();
+    assert(NULL != mac);
+
+    if (0 == g_sai_db_ptr->rif_mac_range_ref_counter) {
+        return false;
+    }
+
+    memcpy(&input_mac, mac, sizeof(input_mac));
+    base_mac_addr_64 = SX_MAC_TO_U64(g_sai_db_ptr->rif_mac_range_addr);
+    base_mac_prefix = MAC_PREFIX_GET(base_mac_addr_64, g_resource_limits.router_mac_prefix_size);
+    in_mac_addr_64 = SX_MAC_TO_U64(input_mac);
+    in_mac_prefix = MAC_PREFIX_GET(in_mac_addr_64, g_resource_limits.router_mac_prefix_size);
+
+    return (in_mac_prefix != base_mac_prefix);
+}
+
+static sai_status_t mlnx_rif_get_mac_in_profile_range(sx_mac_addr_t *mac)
+{
+    assert(NULL != mac);
+    if (0 != g_sai_db_ptr->rif_mac_range_ref_counter) {
+        memcpy(mac, &g_sai_db_ptr->rif_mac_range_addr, sizeof(*mac));
+    } else {
+        return mlnx_switch_get_mac(mac);
+    }
+    return SAI_STATUS_SUCCESS;
+}
+
 sai_status_t mlnx_rif_sx_init(_In_ sx_router_id_t                     vrf_id,
                               _In_ const sx_router_interface_param_t *intf_params,
                               _In_ const sx_interface_attributes_t   *intf_attribs,
@@ -467,9 +562,24 @@ sai_status_t mlnx_rif_sx_init(_In_ sx_router_id_t                     vrf_id,
     bool         rif_created = false;
     bool         counter_created = false;
     bool         binded = false;
+    bool         rif_mac_range_ref_updated = false;
 
     assert(sx_rif_id);
     assert(sx_counter);
+
+    if (mlnx_rif_is_additional_mac_supported() && (intf_params->type != SX_L2_INTERFACE_TYPE_LOOPBACK)) {
+        if (0 == g_sai_db_ptr->rif_mac_range_ref_counter) {
+            memcpy(&g_sai_db_ptr->rif_mac_range_addr, &intf_attribs->mac_addr,
+                   sizeof(g_sai_db_ptr->rif_mac_range_addr));
+        } else {
+            if (mlnx_rif_check_additional_mac(&intf_attribs->mac_addr)) {
+                SX_LOG_ERR("Should not use additional mac in creating rif.\n");
+                return SAI_STATUS_FAILURE;
+            }
+        }
+        g_sai_db_ptr->rif_mac_range_ref_counter++;
+        rif_mac_range_ref_updated = true;
+    }
 
     sx_status = sx_api_router_interface_set(gh_sdk, SX_ACCESS_CMD_ADD, vrf_id, intf_params, intf_attribs, sx_rif_id);
     if (SX_ERR(sx_status)) {
@@ -530,13 +640,30 @@ out:
         }
     }
 
+    if (mlnx_rif_is_additional_mac_supported() && rif_mac_range_ref_updated) {
+        assert(0 != g_sai_db_ptr->rif_mac_range_ref_counter);
+        g_sai_db_ptr->rif_mac_range_ref_counter--;
+        if (0 == g_sai_db_ptr->rif_mac_range_ref_counter) {
+            memset(&g_sai_db_ptr->rif_mac_range_addr, 0, sizeof(g_sai_db_ptr->rif_mac_range_addr));
+        }
+    }
+
     return sdk_to_sai(sx_status);
 }
 
 sai_status_t mlnx_rif_sx_deinit(_In_ mlnx_rif_sx_data_t *sx_data)
 {
-    sai_status_t status;
-    sx_status_t  sx_status;
+    sai_status_t                status;
+    sx_status_t                 sx_status;
+    sx_router_interface_param_t intf_params;
+    sx_interface_attributes_t   intf_attribs;
+    sx_router_id_t              vrid;
+
+    sx_status = sx_api_router_interface_get(gh_sdk, sx_data->rif_id, &vrid, &intf_params, &intf_attribs);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to get router interface - %s.\n", SX_STATUS_MSG(sx_status));
+        return sdk_to_sai(sx_status);
+    }
 
     sx_status = sx_api_router_interface_counter_bind_set(gh_sdk,
                                                          SX_ACCESS_CMD_UNBIND,
@@ -564,6 +691,14 @@ sai_status_t mlnx_rif_sx_deinit(_In_ mlnx_rif_sx_data_t *sx_data)
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to delete router interface - %s.\n", SX_STATUS_MSG(sx_status));
         return sdk_to_sai(sx_status);
+    }
+
+    if (mlnx_rif_is_additional_mac_supported() && (intf_params.type != SX_L2_INTERFACE_TYPE_LOOPBACK)) {
+        assert(0 != g_sai_db_ptr->rif_mac_range_ref_counter);
+        g_sai_db_ptr->rif_mac_range_ref_counter--;
+        if (0 == g_sai_db_ptr->rif_mac_range_ref_counter) {
+            memset(&g_sai_db_ptr->rif_mac_range_addr, 0, sizeof(g_sai_db_ptr->rif_mac_range_addr));
+        }
     }
 
     SX_LOG_DBG("Removed sx rif %d and counter %d\n", sx_data->rif_id, sx_data->counter);
@@ -615,6 +750,8 @@ static sai_status_t mlnx_create_router_interface(_Out_ sai_object_id_t      *rif
     const sai_attribute_value_t *attr_egr_acl = NULL;
     acl_index_t                  ing_acl_index = ACL_INDEX_INVALID, egr_acl_index = ACL_INDEX_INVALID;
     mlnx_object_id_t             vlan_obj;
+    bool                         has_additional_mac = false;
+    sx_mac_addr_t                additional_mac;
 
     SX_LOG_ENTER();
 
@@ -781,12 +918,36 @@ static sai_status_t mlnx_create_router_interface(_Out_ sai_object_id_t      *rif
             status = SAI_STATUS_INVALID_ATTRIBUTE_0 + mac_index;
             goto out;
         }
-        memcpy(&intf_attribs.mac_addr, mac->mac, sizeof(intf_attribs.mac_addr));
+
+        if (mlnx_rif_is_additional_mac_supported()) {
+            has_additional_mac = mlnx_rif_check_additional_mac(&mac->mac);
+            if (has_additional_mac) {
+                /* Get default mac from profile range */
+                SX_LOG_DBG("Create with additional MAC\n");
+                status = mlnx_rif_get_mac_in_profile_range(&intf_attribs.mac_addr);
+                if (SAI_ERR(status)) {
+                    goto out;
+                }
+                memcpy(&additional_mac, mac->mac, sizeof(additional_mac));
+            } else {
+                memcpy(&intf_attribs.mac_addr, mac->mac, sizeof(intf_attribs.mac_addr));
+            }
+        } else {
+            memcpy(&intf_attribs.mac_addr, mac->mac, sizeof(intf_attribs.mac_addr));
+        }
     } else {
-        /* Get default mac from switch object */
-        status = mlnx_switch_get_mac(&intf_attribs.mac_addr);
-        if (SAI_ERR(status)) {
-            goto out;
+        if (mlnx_rif_is_additional_mac_supported()) {
+            /* get mac from the profile range */
+            status = mlnx_rif_get_mac_in_profile_range(&intf_attribs.mac_addr);
+            if (SAI_ERR(status)) {
+                goto out;
+            }
+        } else {
+            /* Get default mac from switch object */
+            status = mlnx_switch_get_mac(&intf_attribs.mac_addr);
+            if (SAI_ERR(status)) {
+                goto out;
+            }
         }
     }
 
@@ -871,6 +1032,19 @@ static sai_status_t mlnx_create_router_interface(_Out_ sai_object_id_t      *rif
             SX_LOG_INF("Record the pvid %d of port 0x%x\n", port_cfg->pvid_create_rif, sx_port_id);
         }
 
+        if (mlnx_rif_is_additional_mac_supported() && has_additional_mac) {
+            sx_status = sx_api_router_interface_mac_set(gh_sdk, SX_ACCESS_CMD_ADD, sdk_rif_id, &additional_mac, 1);
+            if (SX_ERR(sx_status)) {
+                SX_LOG_ERR("Failed to set additional MAC - %s.\n", SX_STATUS_MSG(sx_status));
+                status = sdk_to_sai(status);
+                goto out;
+            }
+
+            rif_db_data->mac_data.additional_mac_is_used = has_additional_mac;
+            memcpy(&rif_db_data->mac_data.additional_mac_addr, &additional_mac,
+                   sizeof(rif_db_data->mac_data.additional_mac_addr));
+        }
+
         rif_db_data->sx_data.rif_id = sdk_rif_id;
         rif_db_data->sx_data.counter = sx_counter;
         rif_db_data->sx_data.vrf_id = vrid_data;
@@ -927,6 +1101,12 @@ static sai_status_t mlnx_create_router_interface(_Out_ sai_object_id_t      *rif
         memcpy(&br_rif->intf_attribs, &intf_attribs, sizeof(br_rif->intf_attribs));
         memcpy(&br_rif->intf_params, &intf_params, sizeof(br_rif->intf_params));
         memcpy(&br_rif->intf_state, &rif_state, sizeof(br_rif->intf_state));
+
+        br_rif->mac_data.additional_mac_is_used = has_additional_mac;
+        if (has_additional_mac) {
+            memcpy(&br_rif->mac_data.additional_mac_addr, &additional_mac,
+                   sizeof(br_rif->mac_data.additional_mac_addr));
+        }
     }
 
     status = mlnx_rif_oid_create(rif_type, br_rif, db_idx, rif_id);
@@ -1226,7 +1406,8 @@ static sai_status_t mlnx_rif_attr_to_sdk(sai_router_interface_attr_t  attr,
                                          const sai_attribute_value_t *value,
                                          sx_interface_attributes_t   *intf_attribs,
                                          sx_router_interface_param_t *intf_params,
-                                         sx_router_interface_state_t *rif_state)
+                                         sx_router_interface_state_t *rif_state,
+                                         bool                        *has_additional_mac)
 {
     sai_status_t status;
 
@@ -1242,7 +1423,24 @@ static sai_status_t mlnx_rif_attr_to_sdk(sai_router_interface_attr_t  attr,
             SX_LOG_EXIT();
             return SAI_STATUS_INVALID_PARAMETER;
         }
-        memcpy(&intf_attribs->mac_addr, value->mac, sizeof(intf_attribs->mac_addr));
+        if (mlnx_rif_is_additional_mac_supported()) {
+            assert(NULL != has_additional_mac);
+            *has_additional_mac = mlnx_rif_check_additional_mac(&value->mac);
+            if (*has_additional_mac) {
+                /* Get default mac from profile range */
+                SX_LOG_DBG("Set additional MAC\n");
+                status = mlnx_rif_get_mac_in_profile_range(&intf_attribs->mac_addr);
+                if (SAI_ERR(status)) {
+                    SX_LOG_ERR("Failed to get mac from profile range.\n");
+                    SX_LOG_EXIT();
+                    return status;
+                }
+            } else {
+                memcpy(&intf_attribs->mac_addr, value->mac, sizeof(intf_attribs->mac_addr));
+            }
+        } else {
+            memcpy(&intf_attribs->mac_addr, value->mac, sizeof(intf_attribs->mac_addr));
+        }
         break;
 
     case SAI_ROUTER_INTERFACE_ATTR_ADMIN_V4_STATE:
@@ -1334,6 +1532,7 @@ sai_status_t mlnx_rif_sx_attrs_get(_In_ sai_object_id_t                rif_oid,
 /* Admin State V4, V6 [bool] */
 /* Multicast V4 V6 enable [bool]*/
 /* Multicast enabling is currently not supported */
+#define RIF_SEC_MAC_MAX 100
 static sai_status_t mlnx_rif_attrib_set(_In_ const sai_object_key_t      *key,
                                         _In_ const sai_attribute_value_t *value,
                                         void                             *arg)
@@ -1350,6 +1549,11 @@ static sai_status_t mlnx_rif_attrib_set(_In_ const sai_object_key_t      *key,
     mlnx_rif_type_t             rif_type;
     bool                        is_created;
     sai_router_interface_attr_t attr = (sai_router_interface_attr_t)arg;
+    bool                        has_additional_mac;
+    sx_mac_addr_t               additional_mac;
+    sx_mac_addr_t               mac_addr_arr[RIF_SEC_MAC_MAX];
+    uint32_t                    mac_addr_num = RIF_SEC_MAC_MAX;
+    mlnx_rif_mac_data_t        *rif_mac_data;
 
     SX_LOG_ENTER();
 
@@ -1373,7 +1577,7 @@ static sai_status_t mlnx_rif_attrib_set(_In_ const sai_object_key_t      *key,
         goto out;
     }
 
-    status = mlnx_rif_attr_to_sdk(attr, value, intf_attribs_ptr, intf_params_ptr, rif_state_ptr);
+    status = mlnx_rif_attr_to_sdk(attr, value, intf_attribs_ptr, intf_params_ptr, rif_state_ptr, &has_additional_mac);
     if (SAI_ERR(status)) {
         SX_LOG_ERR("Failed to convert rif params from SAI attr\n");
         goto out;
@@ -1390,16 +1594,54 @@ static sai_status_t mlnx_rif_attrib_set(_In_ const sai_object_key_t      *key,
             goto out;
         }
     } else {
-        sx_status = sx_api_router_interface_set(gh_sdk,
-                                                SX_ACCESS_CMD_EDIT,
-                                                vrid,
-                                                intf_params_ptr,
-                                                intf_attribs_ptr,
-                                                &rif_id);
-        if (SX_ERR(sx_status)) {
-            SX_LOG_ERR("Failed to set router interface - %s.\n", SX_STATUS_MSG(sx_status));
-            status = sdk_to_sai(sx_status);
-            goto out;
+        if (mlnx_rif_is_additional_mac_supported() && has_additional_mac) {
+            status = mlnx_rif_oid_to_mac_data(key->key.object_id, &rif_mac_data);
+            if (SAI_ERR(status)) {
+                SX_LOG_ERR("Failed to get mac data.\n");
+                goto out;
+            }
+            rif_mac_data->additional_mac_is_used = has_additional_mac;
+
+            sx_status = sx_api_router_interface_mac_get(gh_sdk, rif_id, mac_addr_arr, &mac_addr_num);
+            if (SX_ERR(sx_status)) {
+                SX_LOG_ERR("Failed to get additional MAC - %s.\n", SX_STATUS_MSG(sx_status));
+                status = sdk_to_sai(sx_status);
+                goto out;
+            }
+            if (mac_addr_num > 1) {
+                SX_LOG_ERR("Got more than one additional MAC.\n");
+                status = SAI_STATUS_FAILURE;
+                goto out;
+            }
+            if (1 == mac_addr_num) {
+                sx_status = sx_api_router_interface_mac_set(gh_sdk, SX_ACCESS_CMD_DELETE, rif_id, &mac_addr_arr[0], 1);
+                if (SX_ERR(sx_status)) {
+                    SX_LOG_ERR("Failed to delete old additional MAC - %s.\n", SX_STATUS_MSG(sx_status));
+                    status = sdk_to_sai(sx_status);
+                    goto out;
+                }
+                memset(&rif_mac_data->additional_mac_addr, 0, sizeof(rif_mac_data->additional_mac_addr));
+            }
+            memcpy(&additional_mac, value->mac, sizeof(additional_mac));
+            sx_status = sx_api_router_interface_mac_set(gh_sdk, SX_ACCESS_CMD_ADD, rif_id, &additional_mac, 1);
+            if (SX_ERR(sx_status)) {
+                SX_LOG_ERR("Failed to set new additional MAC - %s.\n", SX_STATUS_MSG(sx_status));
+                status = sdk_to_sai(sx_status);
+                goto out;
+            }
+            memcpy(&rif_mac_data->additional_mac_addr, &additional_mac, sizeof(rif_mac_data->additional_mac_addr));
+        } else {
+            sx_status = sx_api_router_interface_set(gh_sdk,
+                                                    SX_ACCESS_CMD_EDIT,
+                                                    vrid,
+                                                    intf_params_ptr,
+                                                    intf_attribs_ptr,
+                                                    &rif_id);
+            if (SX_ERR(sx_status)) {
+                SX_LOG_ERR("Failed to set router interface - %s.\n", SX_STATUS_MSG(sx_status));
+                status = sdk_to_sai(sx_status);
+                goto out;
+            }
         }
     }
 
@@ -1796,6 +2038,46 @@ sai_status_t mlnx_rif_log_set(sx_verbosity_level_t level)
     LOG_VAR_NAME(__MODULE__) = level;
 
     return SAI_STATUS_SUCCESS;
+}
+
+sai_status_t mlnx_debug_set_additional_mac_for_ptf(_In_ const char* value)
+{
+    sai_status_t sai_status = SAI_STATUS_SUCCESS;
+    uint32_t     rifs_exists;
+    sx_status_t  sx_status;
+
+    assert(NULL != value);
+
+    if (!mlnx_chip_is_spc()) {
+        SX_LOG_NTC("Additional mac is only supported by SPC1.\n");
+        return SAI_STATUS_NOT_SUPPORTED;
+    }
+
+    sai_db_write_lock();
+    sx_status = sx_api_router_interface_iter_get(gh_sdk, SX_ACCESS_CMD_GET, NULL, NULL, NULL, &rifs_exists);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to get count of router interfaces - %s\n", SX_STATUS_MSG(sx_status));
+        sai_status = sdk_to_sai(sx_status);
+        goto out;
+    }
+
+    if (0 != rifs_exists) {
+        SX_LOG_ERR("Additional mac can only be enable/disable in clean state.\n");
+        sai_status = SAI_STATUS_INVALID_PARAMETER;
+        goto out;
+    }
+
+    if (atoi(value) > 0) {
+        SX_LOG_NTC("Additional mac is enabled on live.\n");
+        g_additional_mac_enabled = true;
+    } else {
+        SX_LOG_NTC("Additional mac is disabled on live.\n");
+        g_additional_mac_enabled = false;
+    }
+
+out:
+    sai_db_unlock();
+    return sai_status;
 }
 
 const sai_router_interface_api_t mlnx_router_interface_api = {

@@ -1278,6 +1278,7 @@ static sai_status_t pg_profile_set(uint32_t db_port_index, uint32_t port_pg_ind,
     mlnx_sai_db_buffer_profile_entry_t buff_db_entry;
     mlnx_sai_buffer_pool_attr_t        sai_pool_attr;
     uint32_t                         * port_pg_profile_refs = NULL;
+    sx_port_log_id_t                   sx_port_id;
 
     SX_LOG_ENTER();
 
@@ -1343,6 +1344,15 @@ static sai_status_t pg_profile_set(uint32_t db_port_index, uint32_t port_pg_ind,
         port_pg_profile_refs[port_pg_ind] = input_db_buffer_profile_index;
         SX_LOG_DBG("Logging newly set buffer profile\n");
         log_sai_buffer_profile_db_entry(input_db_buffer_profile_index);
+    }
+
+    sx_port_id = g_sai_db_ptr->ports_db[db_port_index].logical;
+    if (mlnx_tunnel_dscp_remapping_enabled()) {
+        sai_status = mlnx_port_on_dscp_remapping_uplink_update(sx_port_id);
+        if (SAI_ERR(sai_status)) {
+            SX_LOG_ERR("Failed to handle dscp remapping for port index %d pg index %d\n", db_port_index, port_pg_ind);
+            goto out;
+        }
     }
 
 out:

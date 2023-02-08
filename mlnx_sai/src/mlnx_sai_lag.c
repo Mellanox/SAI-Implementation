@@ -228,6 +228,18 @@ static sai_status_t mlnx_port_params_clone(mlnx_port_config_t *to, mlnx_port_con
                 oid = SAI_NULL_OBJECT_ID;
             }
 
+            if (mlnx_tunnel_dscp_remapping_enabled() && (SAI_QOS_MAP_TYPE_TC_AND_COLOR_TO_DSCP == ii) &&
+                mlnx_port_is_tc_to_dscp_rewrite_done(from->logical)) {
+                oid = g_sai_tunnel_db_ptr->dscp_remapping_db->tunnel_qos_data.encap_tc_to_dscp_mapping;
+                SX_LOG_INF(
+                    "Copy dscp map from port %u (is lag %u) to port %u, (is lag %u), using tunnel tc to dscp map oid %" PRIx64 ".\n",
+                    from->logical,
+                    mlnx_port_is_lag(from),
+                    to->logical,
+                    mlnx_port_is_lag(to),
+                    oid);
+            }
+
             status = mlnx_port_qos_map_apply(to->saiport, oid, ii);
             if (SAI_ERR(status)) {
                 SX_LOG_ERR("Failed to update port 0x%x with QoS map %" PRIx64 "\n", to->logical, oid);

@@ -831,8 +831,13 @@ static sai_status_t mlnx_hash_convert_ecmp_sai_field_to_sx(const sai_attribute_v
             break;
 
         case SAI_NATIVE_HASH_FIELD_IP_PROTOCOL:
-            fields_list[(*fields_count)++] = SX_ROUTER_ECMP_HASH_OUTER_IPV4_PROTOCOL;
-            enable_ipv4 = true;
+            if (is_ipv6) {
+                fields_list[(*fields_count)++] = SX_ROUTER_ECMP_HASH_OUTER_IPV6_NEXT_HEADER;
+            } else {
+                fields_list[(*fields_count)++] = SX_ROUTER_ECMP_HASH_OUTER_IPV4_PROTOCOL;
+
+                enable_ipv4 = true;
+            }
             break;
 
         case SAI_NATIVE_HASH_FIELD_ETHERTYPE:
