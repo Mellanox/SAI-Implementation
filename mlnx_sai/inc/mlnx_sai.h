@@ -1004,6 +1004,7 @@ bool mlnx_ip_addr_are_equal(_In_ const sai_ip_addr_family_t family1,
                             _In_ const sai_ip_addr_t       *addr2);
 
 bool mlnx_is_valid_ip_address(const sai_ip_address_t *sai_addr);
+bool mlnx_is_ip_zero(const sai_ip_address_t *sai_addr);
 bool sdk_is_valid_ip_address(const sx_ip_addr_t *sdk_addr);
 
 bool mlnx_route_entries_are_equal(_In_ const sai_route_entry_t *u1, _In_ const sai_route_entry_t *u2);

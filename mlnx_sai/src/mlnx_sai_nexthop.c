@@ -1236,12 +1236,16 @@ static sai_status_t mlnx_create_next_hop(_Out_ sai_object_id_t      *next_hop_id
         if (SAI_NEXT_HOP_TYPE_TUNNEL_ENCAP == type_attr->s32) {
             is_tunnel_underlay_dst_ip_need = true;
         } else if (SAI_NEXT_HOP_TYPE_IP == type_attr->s32) {
-            SX_LOG_ERR("Missing next hop ip on create when next hop type is ip or tunnel encap\n");
+            SX_LOG_ERR("Missing next hop ip on create when next hop type is ip\n");
             SX_LOG_EXIT();
             return SAI_STATUS_MANDATORY_ATTRIBUTE_MISSING;
         }
     } else {
         ip = &ip_attr->ipaddr;
+        if ((SAI_NEXT_HOP_TYPE_TUNNEL_ENCAP == type_attr->s32) && (mlnx_is_ip_zero(ip))) {
+            SX_LOG_DBG("NULL next hop ip for create tunnel next hop\n");
+            is_tunnel_underlay_dst_ip_need = true;
+        }
         if ((SAI_IP_ADDR_FAMILY_IPV4 != ip_attr->ipaddr.addr_family) &&
             (SAI_IP_ADDR_FAMILY_IPV6 != ip_attr->ipaddr.addr_family)) {
             SX_LOG_ERR("Invalid next hop ip address %d family on create\n", ip_attr->ipaddr.addr_family);
@@ -1307,8 +1311,11 @@ static sai_status_t mlnx_create_next_hop(_Out_ sai_object_id_t      *next_hop_id
 
     if ((SAI_NEXT_HOP_TYPE_TUNNEL_ENCAP != type_attr->s32) || is_tunnel_ipinip) {
         if (is_tunnel_underlay_dst_ip_need) {
+            char ip_str[MAX_KEY_STR_LEN];
             sai_db_read_lock();
             ip = &g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].sai_underlay_dip;
+            sai_ipaddr_to_str(*ip, MAX_KEY_STR_LEN - 1, ip_str, NULL);
+            SX_LOG_DBG("Get P2P ip tunnel dst ip - %s from db.\n", ip_str);
             sai_db_unlock();
         }
 
