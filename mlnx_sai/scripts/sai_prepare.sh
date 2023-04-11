@@ -25,13 +25,13 @@ chmod 777 /usr/include/
 cd /var
 git clone https://github.com/davidjamesca/ctypesgen
 cd ctypesgen
-git checkout 3d2d9803339503d2988382aa861b47a6a4872c32
-git apply /auto/mswg/release/sx_mlnx_os/sai/ctypesgen_patch.patch
-python setup.py install &>/dev/null
+git checkout 1.1.1
+python3.9 setup.py install &>/dev/null
 cd ..
 
-sudo dpkg -i --force-overwrite /auto/mswg/release/sx_mlnx_os/sai/thrift_0.9.2-1_linux7-64.deb
-pip install thrift
+sudo dpkg -i --force-overwrite /auto/mswg/release/sx_mlnx_os/sai/thrift_0.17.0-1_linux7-64.deb
+pip3.9 install thrift
+patch /usr/lib/python3.9/site-packages/thrift/compat.py < /auto/mswg/release/sx_mlnx_os/sai/thrift_patch.patch
 
 wget https://github.com/nanomsg/nanomsg/archive/refs/tags/1.0.0.tar.gz
 tar -xvf 1.0.0.tar.gz
@@ -48,8 +48,8 @@ ldconfig
 
 git clone https://github.com/nanomsg/nnpy.git
 cd nnpy
-sudo pip2 install .
+sudo pip3 install .
 cd ..
-sudo pip2 install psutil
-sudo pip2 install cffi
-sudo pip2 install --upgrade cffi
+sudo pip3 install psutil
+sudo pip3 install cffi
+sudo pip3 install --upgrade cffi

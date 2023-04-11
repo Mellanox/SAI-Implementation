@@ -4713,7 +4713,7 @@ static sai_status_t mlnx_sdk_fill_ipinip_p2p_attrib(_In_ uint32_t               
     uint32_t                     ii = 0;
     const sai_attribute_value_t *attr;
     uint32_t                     attr_idx;
-    sai_ip_address_t             src_ip = {0}, null_ip = {0};
+    sai_ip_address_t             src_ip = {0};
     bool                         ip_valid_for_p2p_tunnel = false;
 
     assert(mlnx_tunnel_type_ipinip(sai_tunnel_type));
@@ -4747,8 +4747,7 @@ static sai_status_t mlnx_sdk_fill_ipinip_p2p_attrib(_In_ uint32_t               
                                                           SAI_TUNNEL_ATTR_ENCAP_DST_IP,
                                                           &attr,
                                                           &attr_idx)) {
-                ip_valid_for_p2p_tunnel = (memcmp(&src_ip, &null_ip, sizeof(src_ip)))
-                                          && (memcmp(&attr->ipaddr, &null_ip, sizeof(src_ip)));
+                ip_valid_for_p2p_tunnel = !(mlnx_is_ip_zero(&src_ip) && mlnx_is_ip_zero(&attr->ipaddr));
             }
 
             if (!ip_valid_for_p2p_tunnel) {
@@ -6789,6 +6788,7 @@ static sai_status_t mlnx_create_sdk_tunnel(_In_ sai_object_id_t      sai_tunnel_
                    sai_tunnel_type, outer_ip_type);
         goto cleanup;
     }
+    SX_LOG_DBG("To create tunnel type:%u \n", sx_tunnel_type_ipv4);
 
     sx_tunnel_attr.type = sx_tunnel_type_ipv4;
     /* prevent creating tunnel term table using the same SAI IP in IP IPv4 tunnel */
@@ -9140,7 +9140,9 @@ static sai_status_t mlnx_create_bmtor_internal_obj(_In_ sai_object_id_t       vr
     attr[1].value.s32 = SAI_ROUTER_INTERFACE_TYPE_BRIDGE;
     attr[2].id = SAI_ROUTER_INTERFACE_ATTR_BRIDGE_ID;
     attr[2].value.oid = bridge_oid;
-    sai_status = mlnx_router_interface_api.create_router_interface(&rif_oid, switch_oid, 3, attr);
+    attr[3].id = SAI_ROUTER_INTERFACE_ATTR_MTU;
+    attr[3].value.u32 = SX_PORT_MTU_MAX;
+    sai_status = mlnx_router_interface_api.create_router_interface(&rif_oid, switch_oid, 4, attr);
     if (SAI_ERR(sai_status)) {
         SX_LOG_ERR("Failed to create SAI rif\n");
         SX_LOG_EXIT();

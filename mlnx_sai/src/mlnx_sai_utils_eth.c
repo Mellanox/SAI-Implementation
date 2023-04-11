@@ -332,6 +332,20 @@ bool sdk_is_valid_ip_address(const sx_ip_addr_t *sdk_addr)
     return (sdk_addr->version == SX_IP_VERSION_IPV4 || sdk_addr->version == SX_IP_VERSION_IPV6);
 }
 
+bool mlnx_is_ip_zero(const sai_ip_address_t *sai_addr)
+{
+    uint32_t *v6;
+
+    v6 = (uint32_t*)sai_addr->addr.ip6;
+    return ((SAI_IP_ADDR_FAMILY_IPV4 == sai_addr->addr_family
+             && 0 == ntohl(sai_addr->addr.ip4))
+            || (SAI_IP_ADDR_FAMILY_IPV6 == sai_addr->addr_family
+                && 0 == ntohl(v6[0])
+                && 0 == ntohl(v6[1])
+                && 0 == ntohl(v6[2])
+                && 0 == ntohl(v6[3])));
+}
+
 bool mlnx_is_valid_ip_address(const sai_ip_address_t *sai_addr)
 {
     return ((SAI_IP_ADDR_FAMILY_IPV4 == sai_addr->addr_family)

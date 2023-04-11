@@ -1007,6 +1007,7 @@ bool mlnx_ip_addr_are_equal(_In_ const sai_ip_addr_family_t family1,
                             _In_ const sai_ip_addr_t       *addr2);
 
 bool mlnx_is_valid_ip_address(const sai_ip_address_t *sai_addr);
+bool mlnx_is_ip_zero(const sai_ip_address_t *sai_addr);
 bool sdk_is_valid_ip_address(const sx_ip_addr_t *sdk_addr);
 
 bool mlnx_route_entries_are_equal(_In_ const sai_route_entry_t *u1, _In_ const sai_route_entry_t *u2);
@@ -3384,6 +3385,7 @@ typedef struct sai_db {
     bool                     is_issu_gp_reg_restore;
     uint32_t                 rif_mac_range_ref_counter;
     sx_mac_addr_t            rif_mac_range_addr;
+    bool                     reduced_rif_counter_enable;
     /* must be last element, followed by dynamic arrays */
     mlnx_shm_rm_array_info_t array_info[MLNX_SHM_RM_ARRAY_TYPE_SIZE];
 } sai_db_t;
@@ -3678,6 +3680,7 @@ sai_status_t mlnx_sched_hierarchy_foreach(mlnx_port_config_t    *port,
 #define SAI_KEY_ACCUMULATED_FLOW_COUNTER_UNITS_IN_KB "SAI_ACCUMULATED_FLOW_COUNTER_MAX"
 #define SAI_KEY_DSCP_REMAPPING_ENABLED               "SAI_DSCP_REMAPPING_ENABLED"
 #define SAI_KEY_ADDITIONAL_MAC_ENABLED               "SAI_ADDITIONAL_MAC_ENABLED"
+#define SAI_KEY_REDUCED_RIF_COUNTER_ENABLED          "SAI_REDUCED_RIF_COUNTER_ENABLED"
 
 #define MLNX_MIRROR_VLAN_TPID           0x8100
 #define MLNX_GRE_PROTOCOL_TYPE          0x8949
