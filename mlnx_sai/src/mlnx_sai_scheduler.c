@@ -81,8 +81,14 @@ static const mlnx_attr_enum_info_t        sched_enum_info[] = {
     [SAI_SCHEDULER_ATTR_METER_TYPE] = ATTR_ENUM_VALUES_LIST(
         SAI_METER_TYPE_BYTES, SAI_METER_TYPE_PACKETS)
 };
-const mlnx_obj_type_attrs_info_t          mlnx_scheduler_obj_type_info =
-{ sched_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(sched_enum_info), OBJ_STAT_CAP_INFO_EMPTY()};
+static size_t scheduler_info_print(_In_ const sai_object_key_t *key, _Out_ char *str, _In_ size_t max_len)
+{
+    mlnx_object_id_t mlnx_oid = *(mlnx_object_id_t*)&key->key.object_id;
+
+    return snprintf(str, max_len, "[sched_db[%u]]", mlnx_oid.id.u32);
+}
+const mlnx_obj_type_attrs_info_t mlnx_scheduler_obj_type_info =
+{ sched_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(sched_enum_info), OBJ_STAT_CAP_INFO_EMPTY(), scheduler_info_print};
 static sai_status_t sched_db_entry_get(sai_object_id_t oid, mlnx_sched_profile_t **sched)
 {
     sai_status_t status;
@@ -247,7 +253,7 @@ static sai_status_t ets_element_update(sx_port_log_id_t port_log_id, sx_cos_ets_
         return SAI_STATUS_NO_MEMORY;
     }
 
-    status = sx_api_cos_port_ets_element_get(gh_sdk, port_log_id, ets_list, &max_ets_count);
+    status = sx_api_cos_port_ets_element_get(get_sdk_handle(), port_log_id, ets_list, &max_ets_count);
     if (status != SX_STATUS_SUCCESS) {
         SX_LOG_ERR("Failed get ETS list - %s\n", SX_STATUS_MSG(status));
         status = sdk_to_sai(status);
@@ -264,7 +270,7 @@ static sai_status_t ets_element_update(sx_port_log_id_t port_log_id, sx_cos_ets_
 
     ets_element_dump(port_log_id, ets);
 
-    status = sx_api_cos_port_ets_element_set(gh_sdk, SX_ACCESS_CMD_EDIT,
+    status = sx_api_cos_port_ets_element_set(get_sdk_handle(), SX_ACCESS_CMD_EDIT,
                                              port_log_id, ets, 1);
 
     if (status != SX_STATUS_SUCCESS) {
@@ -503,8 +509,8 @@ sai_status_t mlnx_scheduler_log_set(sx_verbosity_level_t level)
 {
     LOG_VAR_NAME(__MODULE__) = level;
 
-    if (gh_sdk) {
-        return sdk_to_sai(sx_api_cos_log_verbosity_level_set(gh_sdk,
+    if (get_sdk_handle()) {
+        return sdk_to_sai(sx_api_cos_log_verbosity_level_set(get_sdk_handle(),
                                                              SX_LOG_VERBOSITY_BOTH, level, level));
     }
 
@@ -531,26 +537,14 @@ static sai_status_t mlnx_create_scheduler_profile(_Out_ sai_object_id_t      *sc
     sai_status_t                 status;
     uint32_t                     index;
     uint32_t                     ii;
-    char                         list_str[MAX_LIST_VALUE_STR_LEN];
 
     SX_LOG_ENTER();
 
-    if (NULL == scheduler_id) {
-        SX_LOG_ERR("NULL scheduler id param\n");
-        return SAI_STATUS_INVALID_PARAMETER;
-    }
-
-    status = check_attribs_metadata(attr_count, attr_list, SAI_OBJECT_TYPE_SCHEDULER,
-                                    sched_vendor_attribs,
-                                    SAI_COMMON_API_CREATE);
-
-    if (status != SAI_STATUS_SUCCESS) {
-        SX_LOG_ERR("Failed attribs check\n");
+    status = check_attribs_on_create(attr_count, attr_list, SAI_OBJECT_TYPE_SCHEDULER, scheduler_id);
+    if (SAI_ERR(status)) {
         return status;
     }
-
-    sai_attr_list_to_str(attr_count, attr_list, SAI_OBJECT_TYPE_SCHEDULER, MAX_LIST_VALUE_STR_LEN, list_str);
-    SX_LOG_NTC("Create scheduler, %s\n", list_str);
+    MLNX_LOG_ATTRS(attr_count, attr_list, SAI_OBJECT_TYPE_SCHEDULER);
 
     /* Set default values */
     sched.ets.max_shaper_rate = 0;
@@ -664,7 +658,8 @@ static sai_status_t mlnx_create_scheduler_profile(_Out_ sai_object_id_t      *sc
     sai_qos_db_sync();
     sai_qos_db_unlock();
 
-    SX_LOG_NTC("Created scheduler id=%" PRIx64 "\n", *scheduler_id);
+    MLNX_LOG_OID_CREATED(*scheduler_id);
+
     SX_LOG_EXIT();
     return SAI_STATUS_SUCCESS;
 }
@@ -701,6 +696,8 @@ static sai_status_t mlnx_remove_scheduler_profile(_In_ sai_object_id_t scheduler
 
     SX_LOG_ENTER();
 
+    MLNX_LOG_OID_REMOVE(scheduler_id);
+
     sai_qos_db_write_lock();
 
     status = sched_db_entry_get(scheduler_id, &sched);
@@ -733,27 +730,8 @@ out:
 
     sai_qos_db_unlock();
 
-    if (status == SAI_STATUS_SUCCESS) {
-        SX_LOG_NTC("Removed scheduler id=%" PRIx64 "\n", scheduler_id);
-    }
-
     SX_LOG_EXIT();
     return status;
-}
-
-static void mlnx_sched_key_to_str(_In_ sai_object_id_t qos_map_id, _Out_ char *key_str)
-{
-    sai_status_t sai_status;
-    uint32_t     id;
-
-    sai_status = mlnx_object_to_type(qos_map_id, SAI_OBJECT_TYPE_SCHEDULER,
-                                     &id, NULL);
-
-    if (sai_status != SAI_STATUS_SUCCESS) {
-        snprintf(key_str, MAX_KEY_STR_LEN, "Invalid scheduler id");
-    } else {
-        snprintf(key_str, MAX_KEY_STR_LEN, "scheduler id %u", id);
-    }
 }
 
 /**
@@ -768,12 +746,8 @@ static void mlnx_sched_key_to_str(_In_ sai_object_id_t qos_map_id, _Out_ char *k
 static sai_status_t mlnx_set_scheduler_attribute(_In_ sai_object_id_t scheduler_id, _In_ const sai_attribute_t *attr)
 {
     const sai_object_key_t key = { .key.object_id = scheduler_id };
-    char                   key_str[MAX_KEY_STR_LEN];
 
-    SX_LOG_ENTER();
-
-    mlnx_sched_key_to_str(scheduler_id, key_str);
-    return sai_set_attribute(&key, key_str, SAI_OBJECT_TYPE_SCHEDULER, sched_vendor_attribs, attr);
+    return sai_set_attribute(&key, SAI_OBJECT_TYPE_SCHEDULER, attr);
 }
 
 /**
@@ -792,13 +766,8 @@ static sai_status_t mlnx_get_scheduler_attribute(_In_ sai_object_id_t     schedu
                                                  _Inout_ sai_attribute_t *attr_list)
 {
     const sai_object_key_t key = { .key.object_id = scheduler_id };
-    char                   key_str[MAX_KEY_STR_LEN];
 
-    SX_LOG_ENTER();
-
-    mlnx_sched_key_to_str(scheduler_id, key_str);
-    return sai_get_attributes(&key, key_str, SAI_OBJECT_TYPE_SCHEDULER,
-                              sched_vendor_attribs, attr_count, attr_list);
+    return sai_get_attributes(&key, SAI_OBJECT_TYPE_SCHEDULER, attr_count, attr_list);
 }
 
 sai_status_t mlnx_scheduler_to_port_apply_unlocked(sai_object_id_t scheduler_id, sai_object_id_t port_id)

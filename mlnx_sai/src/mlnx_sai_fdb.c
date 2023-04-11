@@ -111,8 +111,19 @@ static const mlnx_attr_enum_info_t        fdb_entry_enum_info[] = {
         SAI_PACKET_ACTION_DROP
         )
 };
-const mlnx_obj_type_attrs_info_t          mlnx_fdb_entry_obj_type_info =
-{ fdb_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(fdb_entry_enum_info), OBJ_STAT_CAP_INFO_EMPTY()};
+static size_t fdb_entry_info_print(_In_ const sai_object_key_t *key, _Out_ char *str, _In_ size_t max_len)
+{
+    return snprintf(str, max_len, "[%02x:%02x:%02x:%02x:%02x:%02x] [BV_ID:0x%lX]",
+                    key->key.fdb_entry.mac_address[0],
+                    key->key.fdb_entry.mac_address[1],
+                    key->key.fdb_entry.mac_address[2],
+                    key->key.fdb_entry.mac_address[3],
+                    key->key.fdb_entry.mac_address[4],
+                    key->key.fdb_entry.mac_address[5],
+                    key->key.fdb_entry.bv_id);
+}
+const mlnx_obj_type_attrs_info_t mlnx_fdb_entry_obj_type_info =
+{ fdb_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(fdb_entry_enum_info), OBJ_STAT_CAP_INFO_EMPTY(), fdb_entry_info_print};
 static const sai_vendor_attribute_entry_t fdb_flush_vendor_attribs[] = {
     { SAI_FDB_FLUSH_ATTR_BRIDGE_PORT_ID,
       { true, false, false, false },
@@ -140,19 +151,20 @@ static const mlnx_attr_enum_info_t        fdb_flush_enum_info[] = {
         SAI_FDB_FLUSH_ENTRY_TYPE_DYNAMIC)
 };
 const mlnx_obj_type_attrs_info_t          mlnx_fdb_flush_obj_type_info =
-{ fdb_flush_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(fdb_flush_enum_info), OBJ_STAT_CAP_INFO_EMPTY()};
+{ fdb_flush_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(fdb_flush_enum_info), OBJ_STAT_CAP_INFO_EMPTY(), NULL};
 static sai_status_t mlnx_add_or_del_mac(sx_fdb_uc_mac_addr_params_t *mac_entry, sx_access_cmd_t cmd)
 {
     uint32_t            entries_count = 1;
     const char         *cmd_name = cmd == SX_ACCESS_CMD_ADD ? "add" : "del";
-    sx_status_t         status;
+    sai_status_t        status;
+    sx_status_t         sx_status;
     mlnx_bridge_port_t *port;
 
     SX_LOG_ENTER();
 
-    status = sx_api_fdb_uc_mac_addr_set(gh_sdk, cmd, DEFAULT_ETH_SWID, mac_entry, &entries_count);
-    if (SX_ERR(status)) {
-        SX_LOG_ERR("Failed to %s %d fdb entries %s.\n", cmd_name, entries_count, SX_STATUS_MSG(status));
+    sx_status = sx_api_fdb_uc_mac_addr_set(get_sdk_handle(), cmd, DEFAULT_ETH_SWID, mac_entry, &entries_count);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to %s %d fdb entries %s.\n", cmd_name, entries_count, SX_STATUS_MSG(sx_status));
         SX_LOG_ERR("[%02x:%02x:%02x:%02x:%02x:%02x], vlan %d, log port 0x%x, entry type %u, action %u, dest type %u\n",
                    mac_entry->mac_addr.ether_addr_octet[0],
                    mac_entry->mac_addr.ether_addr_octet[1],
@@ -165,7 +177,7 @@ static sai_status_t mlnx_add_or_del_mac(sx_fdb_uc_mac_addr_params_t *mac_entry, 
                    mac_entry->entry_type,
                    mac_entry->action,
                    mac_entry->dest_type);
-        return sdk_to_sai(status);
+        return sdk_to_sai(sx_status);
     }
 
     /* Check if this entry is CPU port related */
@@ -277,7 +289,8 @@ static sai_status_t mlnx_get_mac(const sai_fdb_entry_t *fdb_entry, sx_fdb_uc_mac
     uint32_t                    entries_count = 1;
     sx_fdb_uc_mac_addr_params_t mac_key;
     sx_fdb_uc_key_filter_t      filter;
-    sx_status_t                 status;
+    sai_status_t                status;
+    sx_status_t                 sx_status;
 
     SX_LOG_ENTER();
 
@@ -289,12 +302,17 @@ static sai_status_t mlnx_get_mac(const sai_fdb_entry_t *fdb_entry, sx_fdb_uc_mac
 
     memset(&filter, 0, sizeof(filter));
 
-    if (SX_STATUS_SUCCESS !=
-        (status =
-             sx_api_fdb_uc_mac_addr_get(gh_sdk, DEFAULT_ETH_SWID, SX_ACCESS_CMD_GET, SX_FDB_UC_ALL, &mac_key, &filter,
-                                        mac_entry, &entries_count))) {
-        SX_LOG_ERR("Failed to get %d fdb entries %s.\n", entries_count, SX_STATUS_MSG(status));
-        return sdk_to_sai(status);
+    sx_status = sx_api_fdb_uc_mac_addr_get(get_sdk_handle(),
+                                           DEFAULT_ETH_SWID,
+                                           SX_ACCESS_CMD_GET,
+                                           SX_FDB_UC_ALL,
+                                           &mac_key,
+                                           &filter,
+                                           mac_entry,
+                                           &entries_count);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to get %d fdb entries %s.\n", entries_count, SX_STATUS_MSG(sx_status));
+        return sdk_to_sai(sx_status);
     }
 
     SX_LOG_EXIT();
@@ -369,19 +387,6 @@ static sai_status_t mlnx_translate_sai_type_to_sdk(sai_int32_t                  
     }
 
     return SAI_STATUS_SUCCESS;
-}
-
-static void fdb_key_to_str(_In_ const sai_fdb_entry_t* fdb_entry, _Out_ char *key_str)
-{
-    snprintf(key_str, MAX_KEY_STR_LEN, "fdb entry mac [%02x:%02x:%02x:%02x:%02x:%02x] bv_id %lx (%s)",
-             fdb_entry->mac_address[0],
-             fdb_entry->mac_address[1],
-             fdb_entry->mac_address[2],
-             fdb_entry->mac_address[3],
-             fdb_entry->mac_address[4],
-             fdb_entry->mac_address[5],
-             fdb_entry->bv_id,
-             SAI_TYPE_STR(sai_object_type_query(fdb_entry->bv_id)));
 }
 
 static sai_status_t mlnx_fdb_attrs_to_sx(_In_ const sai_attribute_value_t  *type_attr,
@@ -539,7 +544,7 @@ static sai_status_t mlnx_fdb_check_static_entry_exists(_In_ const sx_fdb_uc_mac_
     memset(&filter, 0, sizeof(filter));
     memset(&existing_fdb_entry, 0, sizeof(existing_fdb_entry));
 
-    sx_status = sx_api_fdb_uc_mac_addr_get(gh_sdk, DEFAULT_ETH_SWID, SX_ACCESS_CMD_GET, SX_FDB_UC_STATIC,
+    sx_status = sx_api_fdb_uc_mac_addr_get(get_sdk_handle(), DEFAULT_ETH_SWID, SX_ACCESS_CMD_GET, SX_FDB_UC_STATIC,
                                            fdb_entry, &filter, &existing_fdb_entry, &entries_count);
     if (SX_ERR(sx_status)) {
         if (SX_STATUS_ENTRY_NOT_FOUND == sx_status) {
@@ -579,8 +584,6 @@ static sai_status_t mlnx_create_fdb_entry(_In_ const sai_fdb_entry_t* fdb_entry,
     uint32_t                     type_index, action_index, port_index, ip_index, macmove_index;
     sx_fdb_uc_mac_addr_params_t  mac_entry;
     bool                         is_entry_exists = false;
-    char                         key_str[MAX_KEY_STR_LEN];
-    char                         list_str[MAX_LIST_VALUE_STR_LEN];
 
     SX_LOG_ENTER();
 
@@ -589,18 +592,12 @@ static sai_status_t mlnx_create_fdb_entry(_In_ const sai_fdb_entry_t* fdb_entry,
         return SAI_STATUS_INVALID_PARAMETER;
     }
 
-    if (SAI_STATUS_SUCCESS !=
-        (status =
-             check_attribs_metadata(attr_count, attr_list, SAI_OBJECT_TYPE_FDB_ENTRY, fdb_vendor_attribs,
-                                    SAI_COMMON_API_CREATE))) {
-        SX_LOG_ERR("Failed attribs check\n");
+    status = check_attribs_on_create_without_oid(attr_count, attr_list, SAI_OBJECT_TYPE_FDB_ENTRY);
+    if (SAI_ERR(status)) {
         return status;
     }
 
-    fdb_key_to_str(fdb_entry, key_str);
-    sai_attr_list_to_str(attr_count, attr_list, SAI_OBJECT_TYPE_FDB_ENTRY, MAX_LIST_VALUE_STR_LEN, list_str);
-    SX_LOG_NTC("Create FDB entry %s\n", key_str);
-    SX_LOG_NTC("Attribs %s\n", list_str);
+    MLNX_LOG_ATTRS(attr_count, attr_list, SAI_OBJECT_TYPE_FDB_ENTRY);
 
     find_attrib_in_list(attr_count, attr_list, SAI_FDB_ENTRY_ATTR_TYPE, &type, &type_index);
     find_attrib_in_list(attr_count, attr_list, SAI_FDB_ENTRY_ATTR_PACKET_ACTION, &action, &action_index);
@@ -644,7 +641,7 @@ static sai_status_t mlnx_create_fdb_entry(_In_ const sai_fdb_entry_t* fdb_entry,
         goto out;
     }
 
-    SX_LOG_NTC("Created FDB entry %s\n", key_str);
+    MLNX_LOG_KEY_CREATED(SX_LOG_NOTICE, fdb_entry, SAI_OBJECT_TYPE_FDB_ENTRY);
 
 out:
     SX_LOG_EXIT();
@@ -666,7 +663,6 @@ static sai_status_t mlnx_remove_fdb_entry(_In_ const sai_fdb_entry_t* fdb_entry)
 {
     sx_fdb_uc_mac_addr_params_t mac_entry;
     sai_status_t                status;
-    char                        key_str[MAX_KEY_STR_LEN];
 
     SX_LOG_ENTER();
 
@@ -676,8 +672,7 @@ static sai_status_t mlnx_remove_fdb_entry(_In_ const sai_fdb_entry_t* fdb_entry)
         return SAI_STATUS_INVALID_PARAMETER;
     }
 
-    fdb_key_to_str(fdb_entry, key_str);
-    SX_LOG_NTC("Remove FDB entry %s\n", key_str);
+    MLNX_LOG_KEY_REMOVE(SX_LOG_NOTICE, fdb_entry, SAI_OBJECT_TYPE_FDB_ENTRY);
 
     status = mlnx_get_n_delete_mac(fdb_entry, &mac_entry);
     if (SAI_ERR(status)) {
@@ -700,22 +695,18 @@ out:
  *    SAI_STATUS_SUCCESS on success
  *    Failure status code on error
  */
-static sai_status_t mlnx_set_fdb_entry_attribute(_In_ const sai_fdb_entry_t* fdb_entry,
+static sai_status_t mlnx_set_fdb_entry_attribute(_In_ const sai_fdb_entry_t *fdb_entry,
                                                  _In_ const sai_attribute_t *attr)
 {
     sai_object_key_t key;
-    char             key_str[MAX_KEY_STR_LEN];
 
-    SX_LOG_ENTER();
-
-    if (NULL == fdb_entry) {
-        SX_LOG_ERR("NULL fdb entry param\n");
-        return SAI_STATUS_INVALID_PARAMETER;
+    if (!fdb_entry) {
+        SX_LOG_ERR("Entry is NULL.\n");
+        return SAI_STATUS_FAILURE;
     }
-    memcpy(&key.key.fdb_entry, fdb_entry, sizeof(*fdb_entry));
 
-    fdb_key_to_str(fdb_entry, key_str);
-    return sai_set_attribute(&key, key_str, SAI_OBJECT_TYPE_FDB_ENTRY, fdb_vendor_attribs, attr);
+    memcpy(&key.key.fdb_entry, fdb_entry, sizeof(*fdb_entry));
+    return sai_set_attribute(&key, SAI_OBJECT_TYPE_FDB_ENTRY, attr);
 }
 
 /* Set FDB entry type [sai_fdb_entry_type_t] */
@@ -914,11 +905,9 @@ static sai_status_t mlnx_fdb_macmove_set(_In_ const sai_object_key_t      *key,
     sai_status_t                status;
     sx_fdb_uc_mac_addr_params_t old_mac_entry, new_mac_entry;
     const sai_fdb_entry_t      *fdb_entry = &key->key.fdb_entry;
-    char                        key_str[MAX_KEY_STR_LEN];
 
     SX_LOG_ENTER();
 
-    fdb_key_to_str(fdb_entry, key_str);
     status = mlnx_get_mac(fdb_entry, &old_mac_entry);
     if (SAI_ERR(status)) {
         return status;
@@ -973,23 +962,19 @@ static sai_status_t mlnx_fdb_macmove_set(_In_ const sai_object_key_t      *key,
  *    SAI_STATUS_SUCCESS on success
  *    Failure status code on error
  */
-static sai_status_t mlnx_get_fdb_entry_attribute(_In_ const sai_fdb_entry_t* fdb_entry,
+static sai_status_t mlnx_get_fdb_entry_attribute(_In_ const sai_fdb_entry_t *fdb_entry,
                                                  _In_ uint32_t               attr_count,
                                                  _Inout_ sai_attribute_t    *attr_list)
 {
     sai_object_key_t key;
-    char             key_str[MAX_KEY_STR_LEN];
 
-    SX_LOG_ENTER();
-
-    if (NULL == fdb_entry) {
-        SX_LOG_ERR("NULL fdb entry param\n");
-        return SAI_STATUS_INVALID_PARAMETER;
+    if (!fdb_entry) {
+        SX_LOG_ERR("Entry is NULL.\n");
+        return SAI_STATUS_FAILURE;
     }
-    memcpy(&key.key.fdb_entry, fdb_entry, sizeof(*fdb_entry));
 
-    fdb_key_to_str(fdb_entry, key_str);
-    return sai_get_attributes(&key, key_str, SAI_OBJECT_TYPE_FDB_ENTRY, fdb_vendor_attribs, attr_count, attr_list);
+    memcpy(&key.key.fdb_entry, fdb_entry, sizeof(*fdb_entry));
+    return sai_get_attributes(&key, SAI_OBJECT_TYPE_FDB_ENTRY, attr_count, attr_list);
 }
 
 static sai_status_t fill_fdb_cache(mlnx_fdb_cache_t *fdb_cache, const sai_fdb_entry_t *fdb_entry)
@@ -1214,25 +1199,22 @@ static sai_status_t mlnx_flush_fdb_entries(_In_ sai_object_id_t        switch_id
                                            _In_ uint32_t               attr_count,
                                            _In_ const sai_attribute_t *attr_list)
 {
-    sx_status_t                  status;
+    sai_status_t                 status;
+    sx_status_t                  sx_status;
     const sai_attribute_value_t *port, *bv_id, *type;
     uint32_t                     port_index, bv_id_index, type_index;
     bool                         port_found = false, bv_id_found = false;
     sx_port_log_id_t             port_id;
     sx_fid_t                     sx_fid;
-    char                         list_str[MAX_LIST_VALUE_STR_LEN];
 
     SX_LOG_ENTER();
 
-    status = check_attribs_metadata(attr_count, attr_list, SAI_OBJECT_TYPE_FDB_FLUSH, fdb_flush_vendor_attribs,
-                                    SAI_COMMON_API_CREATE);
+    status = check_attribs_on_create_without_oid(attr_count, attr_list, SAI_OBJECT_TYPE_FDB_FLUSH);
     if (SAI_ERR(status)) {
-        SX_LOG_ERR("Failed attribs check\n");
         return status;
     }
 
-    sai_attr_list_to_str(attr_count, attr_list, SAI_OBJECT_TYPE_FDB_FLUSH, MAX_LIST_VALUE_STR_LEN, list_str);
-    SX_LOG_NTC("Flush fdb, %s\n", list_str);
+    MLNX_LOG_ATTRS(attr_count, attr_list, SAI_OBJECT_TYPE_FDB_FLUSH);
 
     if (SAI_STATUS_SUCCESS ==
         (status =
@@ -1279,24 +1261,28 @@ static sai_status_t mlnx_flush_fdb_entries(_In_ sai_object_id_t        switch_id
 
     /* Mellanox implementation flushes only dynamic entries. Static entries should be deleted with entry remove */
     if ((!port_found) && (!bv_id_found)) {
-        if (SX_STATUS_SUCCESS != (status = sx_api_fdb_uc_flush_all_set(gh_sdk, DEFAULT_ETH_SWID))) {
-            SX_LOG_ERR("Failed to flush all fdb entries - %s.\n", SX_STATUS_MSG(status));
-            return sdk_to_sai(status);
+        sx_status = sx_api_fdb_uc_flush_all_set(get_sdk_handle(), DEFAULT_ETH_SWID);
+        if (SX_ERR(sx_status)) {
+            SX_LOG_ERR("Failed to flush all fdb entries - %s.\n", SX_STATUS_MSG(sx_status));
+            return sdk_to_sai(sx_status);
         }
     } else if ((port_found) && (bv_id_found)) {
-        if (SX_STATUS_SUCCESS != (status = sx_api_fdb_uc_flush_port_fid_set(gh_sdk, port_id, sx_fid))) {
-            SX_LOG_ERR("Failed to flush port vlan fdb entries - %s.\n", SX_STATUS_MSG(status));
-            return sdk_to_sai(status);
+        sx_status = sx_api_fdb_uc_flush_port_fid_set(get_sdk_handle(), port_id, sx_fid);
+        if (SX_ERR(sx_status)) {
+            SX_LOG_ERR("Failed to flush port vlan fdb entries - %s.\n", SX_STATUS_MSG(sx_status));
+            return sdk_to_sai(sx_status);
         }
     } else if (port_found) {
-        if (SX_STATUS_SUCCESS != (status = sx_api_fdb_uc_flush_port_set(gh_sdk, port_id))) {
-            SX_LOG_ERR("Failed to flush port fdb entries - %s.\n", SX_STATUS_MSG(status));
-            return sdk_to_sai(status);
+        sx_status = sx_api_fdb_uc_flush_port_set(get_sdk_handle(), port_id);
+        if (SX_ERR(sx_status)) {
+            SX_LOG_ERR("Failed to flush port fdb entries - %s.\n", SX_STATUS_MSG(sx_status));
+            return sdk_to_sai(sx_status);
         }
     } else if (bv_id_found) {
-        if (SX_STATUS_SUCCESS != (status = sx_api_fdb_uc_flush_fid_set(gh_sdk, DEFAULT_ETH_SWID, sx_fid))) {
-            SX_LOG_ERR("Failed to flush vlan fdb entries - %s.\n", SX_STATUS_MSG(status));
-            return sdk_to_sai(status);
+        sx_status = sx_api_fdb_uc_flush_fid_set(get_sdk_handle(), DEFAULT_ETH_SWID, sx_fid);
+        if (SX_ERR(sx_status)) {
+            SX_LOG_ERR("Failed to flush vlan fdb entries - %s.\n", SX_STATUS_MSG(sx_status));
+            return sdk_to_sai(sx_status);
         }
     }
 
@@ -1308,8 +1294,8 @@ sai_status_t mlnx_fdb_log_set(sx_verbosity_level_t level)
 {
     LOG_VAR_NAME(__MODULE__) = level;
 
-    if (gh_sdk) {
-        return sdk_to_sai(sx_api_fdb_log_verbosity_level_set(gh_sdk, SX_LOG_VERBOSITY_BOTH, level, level));
+    if (get_sdk_handle()) {
+        return sdk_to_sai(sx_api_fdb_log_verbosity_level_set(get_sdk_handle(), SX_LOG_VERBOSITY_BOTH, level, level));
     } else {
         return SAI_STATUS_SUCCESS;
     }

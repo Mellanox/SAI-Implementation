@@ -25,7 +25,7 @@
 
 static sx_verbosity_level_t LOG_VAR_NAME(__MODULE__) = SX_VERBOSITY_LEVEL_WARNING;
 sai_service_method_table_t g_mlnx_services;
-static bool                g_initialized = false;
+bool                       g_initialized = false;
 
 typedef struct mlnx_log_lavel_preinit {
     bool            is_set;
@@ -82,6 +82,43 @@ sai_status_t sai_api_initialize(_In_ uint64_t flags, _In_ const sai_service_meth
         return SAI_STATUS_INVALID_PARAMETER;
     }
 
+    if (0 != pthread_key_create(&pthread_sdk_handle_key, NULL)) {
+        MLNX_SAI_LOG_ERR("Failed to init pthread_key\n");
+        return SAI_STATUS_INSUFFICIENT_RESOURCES;
+    }
+
+    if (0 != pthread_setspecific(pthread_sdk_handle_key, NULL)) {
+        MLNX_SAI_LOG_ERR("Failed to set pthread_sdk_handle_key value\n");
+        return SAI_STATUS_FAILURE;
+    }
+
+    if (0 != pthread_key_create(&pthread_number_of_connections_to_the_sdk_in_current_thread, NULL)) {
+        MLNX_SAI_LOG_ERR("Failed to init pthread_number_of_connections_to_the_sdk_in_current_thread\n");
+        return SAI_STATUS_INSUFFICIENT_RESOURCES;
+    }
+
+    if (0 != pthread_setspecific(pthread_number_of_connections_to_the_sdk_in_current_thread, NULL)) {
+        MLNX_SAI_LOG_ERR("Failed to set pthread_number_of_connections_to_the_sdk_in_current_thread value\n");
+        return SAI_STATUS_FAILURE;
+    }
+
+    pthread_mutexattr_t mutex_attr;
+
+    if (0 != pthread_mutexattr_init(&mutex_attr)) {
+        SX_LOG_ERR("Failed to init mutex attribute\n");
+        return SAI_STATUS_NO_MEMORY;
+    }
+
+    if (0 != pthread_mutex_init(&init_deinit_mutex, &mutex_attr)) {
+        SX_LOG_ERR("Failed to init mutex\n");
+        return SAI_STATUS_FAILURE;
+    }
+
+    if (0 != pthread_mutexattr_destroy(&mutex_attr)) {
+        SX_LOG_ERR("Failed to destroy mutex attribute\n");
+        return SAI_STATUS_FAILURE;
+    }
+
     g_initialized = true;
 
     return SAI_STATUS_SUCCESS;
@@ -130,6 +167,19 @@ sai_status_t sai_api_query(_In_ sai_api_t sai_api_id, _Out_ void** api_method_ta
 sai_status_t sai_api_uninitialize(void)
 {
     memset(&g_mlnx_services, 0, sizeof(g_mlnx_services));
+
+    if (0 != pthread_key_delete(pthread_sdk_handle_key)) {
+        SX_LOG_ERR("Failed to delete pthread_key\n");
+    }
+
+    if (0 != pthread_key_delete(pthread_number_of_connections_to_the_sdk_in_current_thread)) {
+        SX_LOG_ERR("Failed to delete pthread_key\n");
+    }
+
+    if (0 != pthread_mutex_destroy(&init_deinit_mutex)) {
+        SX_LOG_ERR("Failed to destroy mutex\n");
+    }
+
     g_initialized = false;
 
     return SAI_STATUS_SUCCESS;
@@ -138,7 +188,7 @@ sai_status_t sai_api_uninitialize(void)
 static sai_status_t sai_log_level_save(_In_ sai_api_t sai_api_id, _In_ sai_log_level_t log_level)
 {
     /* no need to save when sdk is initialized */
-    if (gh_sdk) {
+    if (get_sdk_handle()) {
         return SAI_STATUS_SUCCESS;
     }
 
@@ -253,12 +303,12 @@ sai_object_type_t sai_object_type_query(_In_ sai_object_id_t sai_object_id)
 {
     sai_object_type_t type = ((mlnx_object_id_t*)&sai_object_id)->object_type;
 
-    if (SAI_TYPE_CHECK_RANGE(type)) {
-        return type;
-    } else {
-        MLNX_SAI_LOG_ERR("Unknown type %d", type);
+    if (!SAI_TYPE_CHECK_RANGE(type)) {
+        MLNX_SAI_LOG_ERR("Unknown type %d\n", type);
         return SAI_OBJECT_TYPE_NULL;
     }
+
+    return type;
 }
 
 /**

@@ -709,6 +709,7 @@ void check_attr_object_type_provided(
         case SAI_ATTR_VALUE_TYPE_SYSTEM_PORT_CONFIG_LIST:
         case SAI_ATTR_VALUE_TYPE_FABRIC_PORT_REACHABILITY:
         case SAI_ATTR_VALUE_TYPE_PORT_ERR_STATUS_LIST:
+        case SAI_ATTR_VALUE_TYPE_IP_PREFIX_LIST:
 
             if (md->allowedobjecttypes != NULL)
             {
@@ -1908,6 +1909,14 @@ void check_attr_acl_fields(
 
             }
 
+            if (md->objecttype == SAI_OBJECT_TYPE_ACL_TABLE &&
+                    md->attrid >= SAI_ACL_TABLE_ATTR_FIELD_VALID_BITS_START &&
+                    md->attrid  <= SAI_ACL_TABLE_ATTR_FIELD_VALID_BITS_END)
+            {
+                break;
+
+            }
+
             if (md->objecttype == SAI_OBJECT_TYPE_UDF_MATCH)
             {
                 /*
@@ -2080,22 +2089,19 @@ void check_attr_acl_conditions(
 
     /*
      * Purpose of this check is to find out if there is any condition in
-     * attributes that depends on acl entry object field or actions since such
+     * attributes that depends on acl entry object actions since such
      * dependency has no sense.
      */
 
     if (md->objecttype == SAI_OBJECT_TYPE_ACL_TABLE)
     {
-        check_condition_in_range(md, md->validonlylength, md->validonly,
-                SAI_ACL_TABLE_ATTR_FIELD_START, SAI_ACL_TABLE_ATTR_FIELD_END);
-
         check_condition_in_range(md, md->conditionslength, md->conditions,
                 SAI_ACL_TABLE_ATTR_FIELD_START, SAI_ACL_TABLE_ATTR_FIELD_END);
 
         if (md->attrid >= SAI_ACL_TABLE_ATTR_FIELD_START &&
                 md->attrid >= SAI_ACL_TABLE_ATTR_FIELD_END)
         {
-            if (md->conditionslength != 0 || md->validonlylength != 0)
+            if (md->conditionslength != 0)
             {
                 META_MD_ASSERT_FAIL(md, "acl table field has conditions, not allowed");
             }
@@ -2623,6 +2629,7 @@ void check_attr_is_primitive(
         case SAI_ATTR_VALUE_TYPE_UINT16_RANGE_LIST:
         case SAI_ATTR_VALUE_TYPE_PORT_LANE_LATCH_STATUS_LIST:
         case SAI_ATTR_VALUE_TYPE_JSON:
+        case SAI_ATTR_VALUE_TYPE_IP_PREFIX_LIST:
 
             if (md->isprimitive)
             {
@@ -3832,6 +3839,14 @@ void check_objects_for_loops_recursive(
         }
 
         /* skip known loops */
+
+        if (m->objecttype == SAI_OBJECT_TYPE_SRV6_SIDLIST)
+        {
+            if (m->attrid == SAI_SRV6_SIDLIST_ATTR_NEXT_HOP_ID)
+            {
+                continue;
+            }
+        }
 
         if (m->objecttype == SAI_OBJECT_TYPE_PORT)
         {

@@ -277,7 +277,7 @@ static sai_status_t mlnx_bfd_session_destroy(_In_ mlnx_bfd_session_db_entry_t *b
 
     if (bfd_session_db_entry->data.rx_session) {
         params.session_data.type = SX_BFD_ASYNC_ACTIVE_RX;
-        sx_status_rx = sx_api_bfd_offload_set(gh_sdk,
+        sx_status_rx = sx_api_bfd_offload_set(get_sdk_handle(),
                                               SX_ACCESS_CMD_DESTROY,
                                               &params,
                                               &bfd_session_db_entry->data.rx_session);
@@ -290,7 +290,7 @@ static sai_status_t mlnx_bfd_session_destroy(_In_ mlnx_bfd_session_db_entry_t *b
 
     if (bfd_session_db_entry->data.tx_session) {
         params.session_data.type = SX_BFD_ASYNC_ACTIVE_TX;
-        sx_status_tx = sx_api_bfd_offload_set(gh_sdk,
+        sx_status_tx = sx_api_bfd_offload_set(get_sdk_handle(),
                                               SX_ACCESS_CMD_DESTROY,
                                               &params,
                                               &bfd_session_db_entry->data.tx_session);
@@ -329,7 +329,7 @@ sai_status_t mlnx_set_offload_bfd_rx_session(_Inout_ mlnx_bfd_session_db_data_t 
 
     if (!g_sai_db_ptr->is_bfd_module_initialized) {
         memset(&bfd_init_params, 0, sizeof(bfd_init_params));
-        sx_status = sx_api_bfd_init_set(gh_sdk, &bfd_init_params);
+        sx_status = sx_api_bfd_init_set(get_sdk_handle(), &bfd_init_params);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Cannot init BFD module: %s.\n", SX_STATUS_MSG(sx_status));
             status = sdk_to_sai(sx_status);
@@ -338,7 +338,7 @@ sai_status_t mlnx_set_offload_bfd_rx_session(_Inout_ mlnx_bfd_session_db_data_t 
         g_sai_db_ptr->is_bfd_module_initialized = true;
     }
 
-    sx_status = sx_api_bfd_offload_set(gh_sdk, cmd, &rx_params, &bfd_db_data->rx_session);
+    sx_status = sx_api_bfd_offload_set(get_sdk_handle(), cmd, &rx_params, &bfd_db_data->rx_session);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Error create RX BFD session: %s.\n", SX_STATUS_MSG(sx_status));
         status = sdk_to_sai(sx_status);
@@ -365,7 +365,7 @@ sai_status_t mlnx_set_offload_bfd_tx_session(_Inout_ mlnx_bfd_session_db_data_t 
         return status;
     }
 
-    sx_status = sx_api_bfd_offload_set(gh_sdk, cmd, &tx_params, &bfd_db_data->tx_session);
+    sx_status = sx_api_bfd_offload_set(get_sdk_handle(), cmd, &tx_params, &bfd_db_data->tx_session);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Error create TX BFD session: %s.\n", SX_STATUS_MSG(sx_status));
         status = sdk_to_sai(sx_status);
@@ -390,7 +390,7 @@ static sai_status_t mlnx_bfd_session_counter_stats_get(_In_ mlnx_bfd_session_db_
 
     switch (stat) {
     case SAI_BFD_SESSION_STAT_IN_PACKETS:
-        sx_status = sx_api_bfd_offload_get_stats(gh_sdk,
+        sx_status = sx_api_bfd_offload_get_stats(get_sdk_handle(),
                                                  cmd,
                                                  SX_BFD_ASYNC_ACTIVE_RX,
                                                  &bfd_db_data->rx_session,
@@ -403,7 +403,7 @@ static sai_status_t mlnx_bfd_session_counter_stats_get(_In_ mlnx_bfd_session_db_
         break;
 
     case SAI_BFD_SESSION_STAT_OUT_PACKETS:
-        sx_status = sx_api_bfd_offload_get_stats(gh_sdk,
+        sx_status = sx_api_bfd_offload_get_stats(get_sdk_handle(),
                                                  cmd,
                                                  SX_BFD_ASYNC_ACTIVE_TX,
                                                  &bfd_db_data->tx_session,
@@ -416,7 +416,7 @@ static sai_status_t mlnx_bfd_session_counter_stats_get(_In_ mlnx_bfd_session_db_
         break;
 
     case SAI_BFD_SESSION_STAT_DROP_PACKETS:
-        sx_status = sx_api_bfd_offload_get_stats(gh_sdk,
+        sx_status = sx_api_bfd_offload_get_stats(get_sdk_handle(),
                                                  cmd,
                                                  SX_BFD_ASYNC_ACTIVE_RX,
                                                  &bfd_db_data->rx_session,
@@ -480,21 +480,6 @@ sai_status_t mlnx_bfd_session_stats_get(_In_ sai_object_id_t      bfd_session_id
     }
 
     return SAI_STATUS_SUCCESS;
-}
-
-static void bfd_key_to_str(_In_ const sai_object_id_t bfd_session_id, _Out_ char *key_str)
-{
-    uint32_t data = 0;
-
-    SX_LOG_ENTER();
-
-    if (SAI_STATUS_SUCCESS != mlnx_object_to_type(bfd_session_id, SAI_OBJECT_TYPE_BFD_SESSION, &data, NULL)) {
-        snprintf(key_str, MAX_KEY_STR_LEN, "Invalid sai BFD obj ID %" PRId64 ".", bfd_session_id);
-    } else {
-        snprintf(key_str, MAX_KEY_STR_LEN, "BFD obj idx %d", (int32_t)data);
-    }
-
-    SX_LOG_EXIT();
 }
 
 /* is_implemented: create, remove, set, get
@@ -722,8 +707,15 @@ static const sai_stat_capability_t        bfd_session_stats_capabilities[] = {
     { SAI_BFD_SESSION_STAT_OUT_PACKETS, SAI_STATS_MODE_READ | SAI_STATS_MODE_READ_AND_CLEAR },
     { SAI_BFD_SESSION_STAT_DROP_PACKETS, SAI_STATS_MODE_READ | SAI_STATS_MODE_READ_AND_CLEAR },
 };
-const mlnx_obj_type_attrs_info_t          mlnx_bfd_session_obj_type_info =
-{ bfd_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(bfd_session_enum_info), OBJ_STAT_CAP_INFO(bfd_session_stats_capabilities)};
+static size_t bfd_info_print(_In_ const sai_object_key_t *key, _Out_ char *str, _In_ size_t max_len)
+{
+    mlnx_object_id_t mlnx_oid = *(mlnx_object_id_t*)&key->key.object_id;
+
+    return snprintf(str, max_len, "[ID:%u]", mlnx_oid.id.bfd_db_idx.idx);
+}
+const mlnx_obj_type_attrs_info_t mlnx_bfd_session_obj_type_info =
+{ bfd_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(bfd_session_enum_info), OBJ_STAT_CAP_INFO(bfd_session_stats_capabilities),
+  bfd_info_print};
 static sai_status_t mlnx_bfd_session_attr_get(_In_ const sai_object_key_t   *key,
                                               _Inout_ sai_attribute_value_t *value,
                                               _In_ uint32_t                  attr_index,
@@ -1040,7 +1032,6 @@ static sai_status_t mlnx_create_bfd_session(_Out_ sai_object_id_t      *bfd_sess
                                             _In_ const sai_attribute_t *attr_list)
 {
     const sai_attribute_value_t *read_attr = NULL;
-    char                         list_str[MAX_LIST_VALUE_STR_LEN];
     sai_status_t                 status;
     uint32_t                     index;
     sai_object_id_t              default_vr_id;
@@ -1050,24 +1041,11 @@ static sai_status_t mlnx_create_bfd_session(_Out_ sai_object_id_t      *bfd_sess
 
     SX_LOG_ENTER();
 
-    if (NULL == bfd_session_id) {
-        SX_LOG_ERR("NULL bfd_session_id param.\n");
-        SX_LOG_EXIT();
-        return SAI_STATUS_INVALID_PARAMETER;
-    }
-    status = check_attribs_metadata(attr_count,
-                                    attr_list,
-                                    SAI_OBJECT_TYPE_BFD_SESSION,
-                                    bfd_vendor_attribs,
-                                    SAI_COMMON_API_CREATE);
+    status = check_attribs_on_create(attr_count, attr_list, SAI_OBJECT_TYPE_BFD_SESSION, bfd_session_id);
     if (SAI_ERR(status)) {
-        SX_LOG_ERR("Failed attribs check\n");
-        SX_LOG_EXIT();
         return status;
     }
-
-    sai_attr_list_to_str(attr_count, attr_list, SAI_OBJECT_TYPE_BFD_SESSION, MAX_LIST_VALUE_STR_LEN, list_str);
-    SX_LOG_NTC("Create BFD session object\nAttribs: %s\n", list_str);
+    MLNX_LOG_ATTRS(attr_count, attr_list, SAI_OBJECT_TYPE_BFD_SESSION);
 
     find_attrib_in_list(attr_count, attr_list, SAI_BFD_SESSION_ATTR_VIRTUAL_ROUTER, &read_attr, &index);
     assert(read_attr);
@@ -1166,7 +1144,8 @@ static sai_status_t mlnx_create_bfd_session(_Out_ sai_object_id_t      *bfd_sess
         SX_LOG_ERR("Cannot create BFD session OID.\n");
         goto out;
     }
-    SX_LOG_NTC("BFD session was created successfully (bfd_session_id=%" PRId64 ")\n", *bfd_session_id);
+
+    MLNX_LOG_OID_CREATED(*bfd_session_id);
 
 out:
 
@@ -1198,12 +1177,10 @@ static sai_status_t mlnx_remove_bfd_session(_In_ sai_object_id_t bfd_session_id)
     sai_status_t                 status;
     mlnx_bfd_session_db_entry_t *bfd_session_db_entry;
     mlnx_shm_rm_array_idx_t      idx;
-    char                         key_str[MAX_KEY_STR_LEN];
 
     SX_LOG_ENTER();
 
-    bfd_key_to_str(bfd_session_id, key_str);
-    SX_LOG_NTC("Remove %s\n", key_str);
+    MLNX_LOG_OID_REMOVE(bfd_session_id);
 
     sai_db_write_lock();
 
@@ -1245,12 +1222,8 @@ static sai_status_t mlnx_set_bfd_session_attribute(_In_ sai_object_id_t        b
                                                    _In_ const sai_attribute_t *attr)
 {
     const sai_object_key_t key = { .key.object_id = bfd_session_id };
-    char                   key_str[MAX_KEY_STR_LEN];
 
-    SX_LOG_ENTER();
-
-    bfd_key_to_str(bfd_session_id, key_str);
-    return sai_set_attribute(&key, key_str, SAI_OBJECT_TYPE_BFD_SESSION, bfd_vendor_attribs, attr);
+    return sai_set_attribute(&key, SAI_OBJECT_TYPE_BFD_SESSION, attr);
 }
 
 /*
@@ -1271,12 +1244,8 @@ static sai_status_t mlnx_get_bfd_session_attribute(_In_ sai_object_id_t     bfd_
                                                    _Inout_ sai_attribute_t *attr_list)
 {
     const sai_object_key_t key = { .key.object_id = bfd_session_id };
-    char                   key_str[MAX_KEY_STR_LEN];
 
-    SX_LOG_ENTER();
-
-    bfd_key_to_str(bfd_session_id, key_str);
-    return sai_get_attributes(&key, key_str, SAI_OBJECT_TYPE_BFD_SESSION, bfd_vendor_attribs, attr_count, attr_list);
+    return sai_get_attributes(&key, SAI_OBJECT_TYPE_BFD_SESSION, attr_count, attr_list);
 }
 
 /*
@@ -1421,8 +1390,8 @@ sai_status_t mlnx_bfd_log_set(sx_verbosity_level_t level)
 {
     LOG_VAR_NAME(__MODULE__) = level;
 
-    if (gh_sdk) {
-        return sdk_to_sai(sx_api_bfd_log_verbosity_level_set(gh_sdk, SX_LOG_VERBOSITY_BOTH, level, level));
+    if (get_sdk_handle()) {
+        return sdk_to_sai(sx_api_bfd_log_verbosity_level_set(get_sdk_handle(), SX_LOG_VERBOSITY_BOTH, level, level));
     }
     return SAI_STATUS_SUCCESS;
 }

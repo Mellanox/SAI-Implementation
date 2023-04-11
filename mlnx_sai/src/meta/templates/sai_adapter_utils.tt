@@ -7,6 +7,12 @@ from collections import Counter
 from functools import wraps
 [% END -%]
 
+[%- BLOCK invocation_logger_imports %]
+import inspect 
+import logging
+from functools import wraps
+[% END -%]
+
 [%- ######################################################################## -%]
 
 [%- ######################################################################## -%]
@@ -16,6 +22,13 @@ from functools import wraps
 # dev utils
 
 [% PROCESS instance_counter %]
+[% END -%]
+
+[%- BLOCK invocation_logger %]
+
+# invocation_logger
+
+[% PROCESS invocation_logger_func %]
 [% END -%]
 
 [%- ######################################################################## -%]
@@ -161,12 +174,50 @@ instance_counter.removed = defaultdict(Counter)
 instance_counter.not_removed = defaultdict(Counter)
 [%- END -%]
 
+
+[%- BLOCK invocation_logger_func -%]
+def invocation_logger(func):
+    """
+    SAI interface invocation logger.
+    Use it to log all the invocated method in this sai_adapater.
+    """
+    @wraps(func) 
+    def inner_logger(*args, **kwargs):
+ 
+        args_name = inspect.getargspec(func)[0]
+
+        args_dict = dict(zip(args_name, args))
+        args_dict.update(kwargs)
+        args_dict = { key:str(value) for (key,value) in args_dict.items()}
+        logging.info("sai_adapter_invoke func:[{}] args: [{}]".format(func.__name__, args_dict))
+
+        args_values = args_dict.values()
+
+        retval = func(*args, **kwargs)
+        # Base on some vendor's requirement, 
+        # need to convert all the values in the dict to a string
+        retDict = eval(repr(retval))
+        if type(retDict) is dict:
+            retDict = { key:str(value) for (key,value) in retDict.items()}
+            logging.info("sai_adapter_return func:[{}] retval:[{}]".format(func.__name__, retDict))
+        else:
+            logging.info("sai_adapter_return func:[{}] retval:[{}]".format(func.__name__, repr(retval)))
+        return retval
+ 
+    return inner_logger
+[%- END -%]
+
 [%- ######################################################################## -%]
 
 [%- ######################################################################## -%]
 
 [%- BLOCK decorate_method %]
 @instance_counter("[% function.object %]", "[% function.operation %]"[% IF dev_utils.match('log') %], log=True[% END %][% IF dev_utils.match('zero') %], zero=True[% END %])
+[%- END -%]
+
+
+[%- BLOCK decorate_invocation_logger %]
+@invocation_logger
 [%- END -%]
 
 [%- ######################################################################## -%]

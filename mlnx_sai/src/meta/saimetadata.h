@@ -100,8 +100,14 @@ extern const sai_enum_metadata_t sai_metadata_enum_sai_acl_table_attr_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_acl_table_group_attr_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_acl_table_group_member_attr_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_acl_table_group_type_t;
+extern const sai_enum_metadata_t sai_metadata_enum_sai_acl_table_match_type_t;
+extern const sai_enum_metadata_t sai_metadata_enum_sai_acl_table_supported_match_type_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_api_extensions_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_api_t;
+extern const sai_enum_metadata_t sai_metadata_enum_sai_ars_attr_t;
+extern const sai_enum_metadata_t sai_metadata_enum_sai_ars_mode_t;
+extern const sai_enum_metadata_t sai_metadata_enum_sai_ars_profile_algo_t;
+extern const sai_enum_metadata_t sai_metadata_enum_sai_ars_profile_attr_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_attr_condition_type_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_attr_flags_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_attr_value_type_t;
@@ -132,10 +138,17 @@ extern const sai_enum_metadata_t sai_metadata_enum_sai_condition_operator_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_counter_attr_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_counter_stat_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_counter_type_t;
+extern const sai_enum_metadata_t sai_metadata_enum_sai_dash_acl_group_attr_t;
+extern const sai_enum_metadata_t sai_metadata_enum_sai_dash_acl_rule_action_t;
+extern const sai_enum_metadata_t sai_metadata_enum_sai_dash_acl_rule_attr_t;
+extern const sai_enum_metadata_t sai_metadata_enum_sai_dash_direction_t;
+extern const sai_enum_metadata_t sai_metadata_enum_sai_dash_encapsulation_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_debug_counter_attr_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_debug_counter_bind_method_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_debug_counter_type_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_default_value_type_t;
+extern const sai_enum_metadata_t sai_metadata_enum_sai_direction_lookup_entry_action_t;
+extern const sai_enum_metadata_t sai_metadata_enum_sai_direction_lookup_entry_attr_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_dtel_attr_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_dtel_event_attr_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_dtel_event_type_t;
@@ -143,6 +156,8 @@ extern const sai_enum_metadata_t sai_metadata_enum_sai_dtel_int_session_attr_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_dtel_queue_report_attr_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_dtel_report_session_attr_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_ecn_mark_mode_t;
+extern const sai_enum_metadata_t sai_metadata_enum_sai_eni_attr_t;
+extern const sai_enum_metadata_t sai_metadata_enum_sai_eni_ether_address_map_entry_attr_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_enum_flags_type_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_erspan_encapsulation_type_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_fdb_entry_attr_t;
@@ -168,6 +183,8 @@ extern const sai_enum_metadata_t sai_metadata_enum_sai_hostif_user_defined_trap_
 extern const sai_enum_metadata_t sai_metadata_enum_sai_hostif_user_defined_trap_type_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_hostif_vlan_tag_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_in_drop_reason_t;
+extern const sai_enum_metadata_t sai_metadata_enum_sai_inbound_routing_entry_action_t;
+extern const sai_enum_metadata_t sai_metadata_enum_sai_inbound_routing_entry_attr_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_ingress_priority_group_attr_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_ingress_priority_group_stat_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_inseg_entry_attr_t;
@@ -237,9 +254,14 @@ extern const sai_enum_metadata_t sai_metadata_enum_sai_object_stage_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_object_type_extensions_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_object_type_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_out_drop_reason_t;
+extern const sai_enum_metadata_t sai_metadata_enum_sai_outbound_ca_to_pa_entry_attr_t;
+extern const sai_enum_metadata_t sai_metadata_enum_sai_outbound_routing_entry_action_t;
+extern const sai_enum_metadata_t sai_metadata_enum_sai_outbound_routing_entry_attr_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_outseg_exp_mode_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_outseg_ttl_mode_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_outseg_type_t;
+extern const sai_enum_metadata_t sai_metadata_enum_sai_pa_validation_entry_action_t;
+extern const sai_enum_metadata_t sai_metadata_enum_sai_pa_validation_entry_attr_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_packet_action_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_packet_color_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_packet_vlan_t;
@@ -296,6 +318,7 @@ extern const sai_enum_metadata_t sai_metadata_enum_sai_scheduler_attr_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_scheduler_group_attr_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_scheduling_type_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_srv6_sidlist_attr_t;
+extern const sai_enum_metadata_t sai_metadata_enum_sai_srv6_sidlist_stat_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_srv6_sidlist_type_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_stats_mode_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_status_t;
@@ -308,6 +331,7 @@ extern const sai_enum_metadata_t sai_metadata_enum_sai_switch_failover_config_mo
 extern const sai_enum_metadata_t sai_metadata_enum_sai_switch_firmware_load_method_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_switch_firmware_load_type_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_switch_hardware_access_bus_t;
+extern const sai_enum_metadata_t sai_metadata_enum_sai_switch_hostif_oper_status_update_mode_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_switch_mcast_snooping_capability_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_switch_oper_status_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_switch_restart_type_t;
@@ -369,6 +393,8 @@ extern const sai_enum_metadata_t sai_metadata_enum_sai_udf_base_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_udf_group_attr_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_udf_group_type_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_udf_match_attr_t;
+extern const sai_enum_metadata_t sai_metadata_enum_sai_vip_entry_action_t;
+extern const sai_enum_metadata_t sai_metadata_enum_sai_vip_entry_attr_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_virtual_router_attr_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_vlan_attr_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_vlan_flood_control_type_t;
@@ -376,6 +402,7 @@ extern const sai_enum_metadata_t sai_metadata_enum_sai_vlan_mcast_lookup_key_typ
 extern const sai_enum_metadata_t sai_metadata_enum_sai_vlan_member_attr_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_vlan_stat_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_vlan_tagging_mode_t;
+extern const sai_enum_metadata_t sai_metadata_enum_sai_vnet_attr_t;
 extern const sai_enum_metadata_t sai_metadata_enum_sai_wred_attr_t;
 extern const sai_enum_metadata_t* const sai_metadata_all_enums[];
 extern const size_t sai_metadata_all_enums_count;
@@ -386,7 +413,7 @@ extern const size_t sai_metadata_attr_by_object_type_count;
 
 /* Define SAI_OBJECT_TYPE_EXTENSIONS_MAX */
 
-#define SAI_OBJECT_TYPE_EXTENSIONS_MAX ((sai_object_type_t)106)
+#define SAI_OBJECT_TYPE_EXTENSIONS_MAX ((sai_object_type_t)119)
 
 /* Define SAI_METADATA_MAX_CONDITIONS_LEN */
 
@@ -418,11 +445,23 @@ extern const char* sai_metadata_get_acl_stage_name(
 extern const char* sai_metadata_get_acl_table_group_type_name(
     _In_ sai_acl_table_group_type_t value);
 
+extern const char* sai_metadata_get_acl_table_match_type_name(
+    _In_ sai_acl_table_match_type_t value);
+
+extern const char* sai_metadata_get_acl_table_supported_match_type_name(
+    _In_ sai_acl_table_supported_match_type_t value);
+
 extern const char* sai_metadata_get_api_extensions_name(
     _In_ sai_api_extensions_t value);
 
 extern const char* sai_metadata_get_api_name(
     _In_ sai_api_t value);
+
+extern const char* sai_metadata_get_ars_mode_name(
+    _In_ sai_ars_mode_t value);
+
+extern const char* sai_metadata_get_ars_profile_algo_name(
+    _In_ sai_ars_profile_algo_t value);
 
 extern const char* sai_metadata_get_attr_condition_type_name(
     _In_ sai_attr_condition_type_t value);
@@ -496,6 +535,15 @@ extern const char* sai_metadata_get_counter_stat_name(
 extern const char* sai_metadata_get_counter_type_name(
     _In_ sai_counter_type_t value);
 
+extern const char* sai_metadata_get_dash_acl_rule_action_name(
+    _In_ sai_dash_acl_rule_action_t value);
+
+extern const char* sai_metadata_get_dash_direction_name(
+    _In_ sai_dash_direction_t value);
+
+extern const char* sai_metadata_get_dash_encapsulation_name(
+    _In_ sai_dash_encapsulation_t value);
+
 extern const char* sai_metadata_get_debug_counter_bind_method_name(
     _In_ sai_debug_counter_bind_method_t value);
 
@@ -504,6 +552,9 @@ extern const char* sai_metadata_get_debug_counter_type_name(
 
 extern const char* sai_metadata_get_default_value_type_name(
     _In_ sai_default_value_type_t value);
+
+extern const char* sai_metadata_get_direction_lookup_entry_action_name(
+    _In_ sai_direction_lookup_entry_action_t value);
 
 extern const char* sai_metadata_get_dtel_event_type_name(
     _In_ sai_dtel_event_type_t value);
@@ -552,6 +603,9 @@ extern const char* sai_metadata_get_hostif_vlan_tag_name(
 
 extern const char* sai_metadata_get_in_drop_reason_name(
     _In_ sai_in_drop_reason_t value);
+
+extern const char* sai_metadata_get_inbound_routing_entry_action_name(
+    _In_ sai_inbound_routing_entry_action_t value);
 
 extern const char* sai_metadata_get_ingress_priority_group_stat_name(
     _In_ sai_ingress_priority_group_stat_t value);
@@ -667,6 +721,9 @@ extern const char* sai_metadata_get_object_type_name(
 extern const char* sai_metadata_get_out_drop_reason_name(
     _In_ sai_out_drop_reason_t value);
 
+extern const char* sai_metadata_get_outbound_routing_entry_action_name(
+    _In_ sai_outbound_routing_entry_action_t value);
+
 extern const char* sai_metadata_get_outseg_exp_mode_name(
     _In_ sai_outseg_exp_mode_t value);
 
@@ -675,6 +732,9 @@ extern const char* sai_metadata_get_outseg_ttl_mode_name(
 
 extern const char* sai_metadata_get_outseg_type_name(
     _In_ sai_outseg_type_t value);
+
+extern const char* sai_metadata_get_pa_validation_entry_action_name(
+    _In_ sai_pa_validation_entry_action_t value);
 
 extern const char* sai_metadata_get_packet_action_name(
     _In_ sai_packet_action_t value);
@@ -799,6 +859,9 @@ extern const char* sai_metadata_get_samplepacket_type_name(
 extern const char* sai_metadata_get_scheduling_type_name(
     _In_ sai_scheduling_type_t value);
 
+extern const char* sai_metadata_get_srv6_sidlist_stat_name(
+    _In_ sai_srv6_sidlist_stat_t value);
+
 extern const char* sai_metadata_get_srv6_sidlist_type_name(
     _In_ sai_srv6_sidlist_type_t value);
 
@@ -822,6 +885,9 @@ extern const char* sai_metadata_get_switch_firmware_load_type_name(
 
 extern const char* sai_metadata_get_switch_hardware_access_bus_name(
     _In_ sai_switch_hardware_access_bus_t value);
+
+extern const char* sai_metadata_get_switch_hostif_oper_status_update_mode_name(
+    _In_ sai_switch_hostif_oper_status_update_mode_t value);
 
 extern const char* sai_metadata_get_switch_mcast_snooping_capability_name(
     _In_ sai_switch_mcast_snooping_capability_t value);
@@ -937,6 +1003,9 @@ extern const char* sai_metadata_get_udf_base_name(
 extern const char* sai_metadata_get_udf_group_type_name(
     _In_ sai_udf_group_type_t value);
 
+extern const char* sai_metadata_get_vip_entry_action_name(
+    _In_ sai_vip_entry_action_t value);
+
 extern const char* sai_metadata_get_vlan_flood_control_type_name(
     _In_ sai_vlan_flood_control_type_t value);
 
@@ -962,11 +1031,22 @@ extern const sai_struct_member_info_t* const sai_metadata_struct_members_sai_que
 /* Global SAI API declarations */
 
 extern sai_acl_api_t *sai_metadata_sai_acl_api;
+extern sai_ars_api_t *sai_metadata_sai_ars_api;
+extern sai_ars_profile_api_t *sai_metadata_sai_ars_profile_api;
 extern sai_bfd_api_t *sai_metadata_sai_bfd_api;
 extern sai_bmtor_api_t *sai_metadata_sai_bmtor_api;
 extern sai_bridge_api_t *sai_metadata_sai_bridge_api;
 extern sai_buffer_api_t *sai_metadata_sai_buffer_api;
 extern sai_counter_api_t *sai_metadata_sai_counter_api;
+extern sai_dash_acl_api_t *sai_metadata_sai_dash_acl_api;
+extern sai_dash_direction_lookup_api_t *sai_metadata_sai_dash_direction_lookup_api;
+extern sai_dash_eni_api_t *sai_metadata_sai_dash_eni_api;
+extern sai_dash_inbound_routing_api_t *sai_metadata_sai_dash_inbound_routing_api;
+extern sai_dash_outbound_ca_to_pa_api_t *sai_metadata_sai_dash_outbound_ca_to_pa_api;
+extern sai_dash_outbound_routing_api_t *sai_metadata_sai_dash_outbound_routing_api;
+extern sai_dash_pa_validation_api_t *sai_metadata_sai_dash_pa_validation_api;
+extern sai_dash_vip_api_t *sai_metadata_sai_dash_vip_api;
+extern sai_dash_vnet_api_t *sai_metadata_sai_dash_vnet_api;
 extern sai_debug_counter_api_t *sai_metadata_sai_debug_counter_api;
 extern sai_dtel_api_t *sai_metadata_sai_dtel_api;
 extern sai_fdb_api_t *sai_metadata_sai_fdb_api;
@@ -1060,12 +1140,23 @@ typedef struct _sai_apis_t {
     sai_my_mac_api_t* my_mac_api;
     sai_ipsec_api_t* ipsec_api;
     sai_generic_programmable_api_t* generic_programmable_api;
+    sai_ars_api_t* ars_api;
+    sai_ars_profile_api_t* ars_profile_api;
     sai_bmtor_api_t* bmtor_api;
+    sai_dash_acl_api_t* dash_acl_api;
+    sai_dash_direction_lookup_api_t* dash_direction_lookup_api;
+    sai_dash_eni_api_t* dash_eni_api;
+    sai_dash_inbound_routing_api_t* dash_inbound_routing_api;
+    sai_dash_outbound_ca_to_pa_api_t* dash_outbound_ca_to_pa_api;
+    sai_dash_outbound_routing_api_t* dash_outbound_routing_api;
+    sai_dash_vnet_api_t* dash_vnet_api;
+    sai_dash_pa_validation_api_t* dash_pa_validation_api;
+    sai_dash_vip_api_t* dash_vip_api;
 } sai_apis_t;
 
 /* Define SAI_API_EXTENSIONS_MAX */
 
-#define SAI_API_EXTENSIONS_MAX ((sai_api_t)49)
+#define SAI_API_EXTENSIONS_MAX ((sai_api_t)60)
 
 /* Global SAI API declarations */
 
@@ -1349,9 +1440,22 @@ extern const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYP
 extern const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_IPSEC_PORT;
 extern const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_IPSEC_SA;
 extern const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_GENERIC_PROGRAMMABLE;
+extern const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_ARS_PROFILE;
+extern const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_ARS;
 extern const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_TABLE_BITMAP_CLASSIFICATION_ENTRY;
 extern const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_TABLE_BITMAP_ROUTER_ENTRY;
 extern const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_TABLE_META_TUNNEL_ENTRY;
+extern const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_DASH_ACL_GROUP;
+extern const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_DASH_ACL_RULE;
+extern const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_DIRECTION_LOOKUP_ENTRY;
+extern const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_ENI_ETHER_ADDRESS_MAP_ENTRY;
+extern const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_ENI;
+extern const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_INBOUND_ROUTING_ENTRY;
+extern const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_OUTBOUND_CA_TO_PA_ENTRY;
+extern const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_OUTBOUND_ROUTING_ENTRY;
+extern const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_VNET;
+extern const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_PA_VALIDATION_ENTRY;
+extern const sai_object_type_info_t sai_metadata_object_type_info_SAI_OBJECT_TYPE_VIP_ENTRY;
 
 /* Object infos table */
 
@@ -1511,6 +1615,14 @@ extern int sai_serialize_acl_table_group_type(
     _Out_ char *buffer,
     _In_ sai_acl_table_group_type_t acl_table_group_type);
 
+extern int sai_serialize_acl_table_match_type(
+    _Out_ char *buffer,
+    _In_ sai_acl_table_match_type_t acl_table_match_type);
+
+extern int sai_serialize_acl_table_supported_match_type(
+    _Out_ char *buffer,
+    _In_ sai_acl_table_supported_match_type_t acl_table_supported_match_type);
+
 extern int sai_serialize_api_extensions(
     _Out_ char *buffer,
     _In_ sai_api_extensions_t api_extensions);
@@ -1518,6 +1630,14 @@ extern int sai_serialize_api_extensions(
 extern int sai_serialize_api(
     _Out_ char *buffer,
     _In_ sai_api_t api);
+
+extern int sai_serialize_ars_mode(
+    _Out_ char *buffer,
+    _In_ sai_ars_mode_t ars_mode);
+
+extern int sai_serialize_ars_profile_algo(
+    _Out_ char *buffer,
+    _In_ sai_ars_profile_algo_t ars_profile_algo);
 
 extern int sai_serialize_attr_condition_type(
     _Out_ char *buffer,
@@ -1615,6 +1735,18 @@ extern int sai_serialize_counter_type(
     _Out_ char *buffer,
     _In_ sai_counter_type_t counter_type);
 
+extern int sai_serialize_dash_acl_rule_action(
+    _Out_ char *buffer,
+    _In_ sai_dash_acl_rule_action_t dash_acl_rule_action);
+
+extern int sai_serialize_dash_direction(
+    _Out_ char *buffer,
+    _In_ sai_dash_direction_t dash_direction);
+
+extern int sai_serialize_dash_encapsulation(
+    _Out_ char *buffer,
+    _In_ sai_dash_encapsulation_t dash_encapsulation);
+
 extern int sai_serialize_debug_counter_bind_method(
     _Out_ char *buffer,
     _In_ sai_debug_counter_bind_method_t debug_counter_bind_method);
@@ -1626,6 +1758,10 @@ extern int sai_serialize_debug_counter_type(
 extern int sai_serialize_default_value_type(
     _Out_ char *buffer,
     _In_ sai_default_value_type_t default_value_type);
+
+extern int sai_serialize_direction_lookup_entry_action(
+    _Out_ char *buffer,
+    _In_ sai_direction_lookup_entry_action_t direction_lookup_entry_action);
 
 extern int sai_serialize_dtel_event_type(
     _Out_ char *buffer,
@@ -1694,6 +1830,10 @@ extern int sai_serialize_hostif_vlan_tag(
 extern int sai_serialize_in_drop_reason(
     _Out_ char *buffer,
     _In_ sai_in_drop_reason_t in_drop_reason);
+
+extern int sai_serialize_inbound_routing_entry_action(
+    _Out_ char *buffer,
+    _In_ sai_inbound_routing_entry_action_t inbound_routing_entry_action);
 
 extern int sai_serialize_ingress_priority_group_stat(
     _Out_ char *buffer,
@@ -1847,6 +1987,10 @@ extern int sai_serialize_out_drop_reason(
     _Out_ char *buffer,
     _In_ sai_out_drop_reason_t out_drop_reason);
 
+extern int sai_serialize_outbound_routing_entry_action(
+    _Out_ char *buffer,
+    _In_ sai_outbound_routing_entry_action_t outbound_routing_entry_action);
+
 extern int sai_serialize_outseg_exp_mode(
     _Out_ char *buffer,
     _In_ sai_outseg_exp_mode_t outseg_exp_mode);
@@ -1858,6 +2002,10 @@ extern int sai_serialize_outseg_ttl_mode(
 extern int sai_serialize_outseg_type(
     _Out_ char *buffer,
     _In_ sai_outseg_type_t outseg_type);
+
+extern int sai_serialize_pa_validation_entry_action(
+    _Out_ char *buffer,
+    _In_ sai_pa_validation_entry_action_t pa_validation_entry_action);
 
 extern int sai_serialize_packet_action(
     _Out_ char *buffer,
@@ -2023,6 +2171,10 @@ extern int sai_serialize_scheduling_type(
     _Out_ char *buffer,
     _In_ sai_scheduling_type_t scheduling_type);
 
+extern int sai_serialize_srv6_sidlist_stat(
+    _Out_ char *buffer,
+    _In_ sai_srv6_sidlist_stat_t srv6_sidlist_stat);
+
 extern int sai_serialize_srv6_sidlist_type(
     _Out_ char *buffer,
     _In_ sai_srv6_sidlist_type_t srv6_sidlist_type);
@@ -2058,6 +2210,10 @@ extern int sai_serialize_switch_firmware_load_type(
 extern int sai_serialize_switch_hardware_access_bus(
     _Out_ char *buffer,
     _In_ sai_switch_hardware_access_bus_t switch_hardware_access_bus);
+
+extern int sai_serialize_switch_hostif_oper_status_update_mode(
+    _Out_ char *buffer,
+    _In_ sai_switch_hostif_oper_status_update_mode_t switch_hostif_oper_status_update_mode);
 
 extern int sai_serialize_switch_mcast_snooping_capability(
     _Out_ char *buffer,
@@ -2219,6 +2375,10 @@ extern int sai_serialize_udf_group_type(
     _Out_ char *buffer,
     _In_ sai_udf_group_type_t udf_group_type);
 
+extern int sai_serialize_vip_entry_action(
+    _Out_ char *buffer,
+    _In_ sai_vip_entry_action_t vip_entry_action);
+
 extern int sai_serialize_vlan_flood_control_type(
     _Out_ char *buffer,
     _In_ sai_vlan_flood_control_type_t vlan_flood_control_type);
@@ -2271,6 +2431,14 @@ extern int sai_serialize_bfd_session_state_notification(
     _Out_ char *buf,
     _In_ const sai_bfd_session_state_notification_t *bfd_session_state_notification);
 
+extern int sai_serialize_direction_lookup_entry(
+    _Out_ char *buf,
+    _In_ const sai_direction_lookup_entry_t *direction_lookup_entry);
+
+extern int sai_serialize_eni_ether_address_map_entry(
+    _Out_ char *buf,
+    _In_ const sai_eni_ether_address_map_entry_t *eni_ether_address_map_entry);
+
 extern int sai_serialize_fabric_port_reachability(
     _Out_ char *buf,
     _In_ const sai_fabric_port_reachability_t *fabric_port_reachability);
@@ -2287,6 +2455,10 @@ extern int sai_serialize_hmac(
     _Out_ char *buf,
     _In_ const sai_hmac_t *hmac);
 
+extern int sai_serialize_inbound_routing_entry(
+    _Out_ char *buf,
+    _In_ const sai_inbound_routing_entry_t *inbound_routing_entry);
+
 extern int sai_serialize_inseg_entry(
     _Out_ char *buf,
     _In_ const sai_inseg_entry_t *inseg_entry);
@@ -2294,6 +2466,10 @@ extern int sai_serialize_inseg_entry(
 extern int sai_serialize_ip_address_list(
     _Out_ char *buf,
     _In_ const sai_ip_address_list_t *ip_address_list);
+
+extern int sai_serialize_ip_prefix_list(
+    _Out_ char *buf,
+    _In_ const sai_ip_prefix_list_t *ip_prefix_list);
 
 extern int sai_serialize_ipmc_entry(
     _Out_ char *buf,
@@ -2367,6 +2543,18 @@ extern int sai_serialize_object_list(
 extern int sai_serialize_object_meta_key(
     _Out_ char *buf,
     _In_ const sai_object_meta_key_t *object_meta_key);
+
+extern int sai_serialize_outbound_ca_to_pa_entry(
+    _Out_ char *buf,
+    _In_ const sai_outbound_ca_to_pa_entry_t *outbound_ca_to_pa_entry);
+
+extern int sai_serialize_outbound_routing_entry(
+    _Out_ char *buf,
+    _In_ const sai_outbound_routing_entry_t *outbound_routing_entry);
+
+extern int sai_serialize_pa_validation_entry(
+    _Out_ char *buf,
+    _In_ const sai_pa_validation_entry_t *pa_validation_entry);
 
 extern int sai_serialize_port_err_status_list(
     _Out_ char *buf,
@@ -2487,6 +2675,10 @@ extern int sai_serialize_u32_range(
 extern int sai_serialize_u8_list(
     _Out_ char *buf,
     _In_ const sai_u8_list_t *u8_list);
+
+extern int sai_serialize_vip_entry(
+    _Out_ char *buf,
+    _In_ const sai_vip_entry_t *vip_entry);
 
 extern int sai_serialize_vlan_list(
     _Out_ char *buf,
@@ -2613,6 +2805,14 @@ extern int sai_deserialize_acl_table_group_type(
     _In_ const char *buffer,
     _Out_ sai_acl_table_group_type_t *acl_table_group_type);
 
+extern int sai_deserialize_acl_table_match_type(
+    _In_ const char *buffer,
+    _Out_ sai_acl_table_match_type_t *acl_table_match_type);
+
+extern int sai_deserialize_acl_table_supported_match_type(
+    _In_ const char *buffer,
+    _Out_ sai_acl_table_supported_match_type_t *acl_table_supported_match_type);
+
 extern int sai_deserialize_api_extensions(
     _In_ const char *buffer,
     _Out_ sai_api_extensions_t *api_extensions);
@@ -2620,6 +2820,14 @@ extern int sai_deserialize_api_extensions(
 extern int sai_deserialize_api(
     _In_ const char *buffer,
     _Out_ sai_api_t *api);
+
+extern int sai_deserialize_ars_mode(
+    _In_ const char *buffer,
+    _Out_ sai_ars_mode_t *ars_mode);
+
+extern int sai_deserialize_ars_profile_algo(
+    _In_ const char *buffer,
+    _Out_ sai_ars_profile_algo_t *ars_profile_algo);
 
 extern int sai_deserialize_attr_condition_type(
     _In_ const char *buffer,
@@ -2717,6 +2925,18 @@ extern int sai_deserialize_counter_type(
     _In_ const char *buffer,
     _Out_ sai_counter_type_t *counter_type);
 
+extern int sai_deserialize_dash_acl_rule_action(
+    _In_ const char *buffer,
+    _Out_ sai_dash_acl_rule_action_t *dash_acl_rule_action);
+
+extern int sai_deserialize_dash_direction(
+    _In_ const char *buffer,
+    _Out_ sai_dash_direction_t *dash_direction);
+
+extern int sai_deserialize_dash_encapsulation(
+    _In_ const char *buffer,
+    _Out_ sai_dash_encapsulation_t *dash_encapsulation);
+
 extern int sai_deserialize_debug_counter_bind_method(
     _In_ const char *buffer,
     _Out_ sai_debug_counter_bind_method_t *debug_counter_bind_method);
@@ -2728,6 +2948,10 @@ extern int sai_deserialize_debug_counter_type(
 extern int sai_deserialize_default_value_type(
     _In_ const char *buffer,
     _Out_ sai_default_value_type_t *default_value_type);
+
+extern int sai_deserialize_direction_lookup_entry_action(
+    _In_ const char *buffer,
+    _Out_ sai_direction_lookup_entry_action_t *direction_lookup_entry_action);
 
 extern int sai_deserialize_dtel_event_type(
     _In_ const char *buffer,
@@ -2796,6 +3020,10 @@ extern int sai_deserialize_hostif_vlan_tag(
 extern int sai_deserialize_in_drop_reason(
     _In_ const char *buffer,
     _Out_ sai_in_drop_reason_t *in_drop_reason);
+
+extern int sai_deserialize_inbound_routing_entry_action(
+    _In_ const char *buffer,
+    _Out_ sai_inbound_routing_entry_action_t *inbound_routing_entry_action);
 
 extern int sai_deserialize_ingress_priority_group_stat(
     _In_ const char *buffer,
@@ -2949,6 +3177,10 @@ extern int sai_deserialize_out_drop_reason(
     _In_ const char *buffer,
     _Out_ sai_out_drop_reason_t *out_drop_reason);
 
+extern int sai_deserialize_outbound_routing_entry_action(
+    _In_ const char *buffer,
+    _Out_ sai_outbound_routing_entry_action_t *outbound_routing_entry_action);
+
 extern int sai_deserialize_outseg_exp_mode(
     _In_ const char *buffer,
     _Out_ sai_outseg_exp_mode_t *outseg_exp_mode);
@@ -2960,6 +3192,10 @@ extern int sai_deserialize_outseg_ttl_mode(
 extern int sai_deserialize_outseg_type(
     _In_ const char *buffer,
     _Out_ sai_outseg_type_t *outseg_type);
+
+extern int sai_deserialize_pa_validation_entry_action(
+    _In_ const char *buffer,
+    _Out_ sai_pa_validation_entry_action_t *pa_validation_entry_action);
 
 extern int sai_deserialize_packet_action(
     _In_ const char *buffer,
@@ -3125,6 +3361,10 @@ extern int sai_deserialize_scheduling_type(
     _In_ const char *buffer,
     _Out_ sai_scheduling_type_t *scheduling_type);
 
+extern int sai_deserialize_srv6_sidlist_stat(
+    _In_ const char *buffer,
+    _Out_ sai_srv6_sidlist_stat_t *srv6_sidlist_stat);
+
 extern int sai_deserialize_srv6_sidlist_type(
     _In_ const char *buffer,
     _Out_ sai_srv6_sidlist_type_t *srv6_sidlist_type);
@@ -3160,6 +3400,10 @@ extern int sai_deserialize_switch_firmware_load_type(
 extern int sai_deserialize_switch_hardware_access_bus(
     _In_ const char *buffer,
     _Out_ sai_switch_hardware_access_bus_t *switch_hardware_access_bus);
+
+extern int sai_deserialize_switch_hostif_oper_status_update_mode(
+    _In_ const char *buffer,
+    _Out_ sai_switch_hostif_oper_status_update_mode_t *switch_hostif_oper_status_update_mode);
 
 extern int sai_deserialize_switch_mcast_snooping_capability(
     _In_ const char *buffer,
@@ -3321,6 +3565,10 @@ extern int sai_deserialize_udf_group_type(
     _In_ const char *buffer,
     _Out_ sai_udf_group_type_t *udf_group_type);
 
+extern int sai_deserialize_vip_entry_action(
+    _In_ const char *buffer,
+    _Out_ sai_vip_entry_action_t *vip_entry_action);
+
 extern int sai_deserialize_vlan_flood_control_type(
     _In_ const char *buffer,
     _Out_ sai_vlan_flood_control_type_t *vlan_flood_control_type);
@@ -3373,6 +3621,14 @@ extern int sai_deserialize_bfd_session_state_notification(
     _In_ const char *buf,
     _Out_ sai_bfd_session_state_notification_t *bfd_session_state_notification);
 
+extern int sai_deserialize_direction_lookup_entry(
+    _In_ const char *buf,
+    _Out_ sai_direction_lookup_entry_t *direction_lookup_entry);
+
+extern int sai_deserialize_eni_ether_address_map_entry(
+    _In_ const char *buf,
+    _Out_ sai_eni_ether_address_map_entry_t *eni_ether_address_map_entry);
+
 extern int sai_deserialize_fabric_port_reachability(
     _In_ const char *buf,
     _Out_ sai_fabric_port_reachability_t *fabric_port_reachability);
@@ -3389,6 +3645,10 @@ extern int sai_deserialize_hmac(
     _In_ const char *buf,
     _Out_ sai_hmac_t *hmac);
 
+extern int sai_deserialize_inbound_routing_entry(
+    _In_ const char *buf,
+    _Out_ sai_inbound_routing_entry_t *inbound_routing_entry);
+
 extern int sai_deserialize_inseg_entry(
     _In_ const char *buf,
     _Out_ sai_inseg_entry_t *inseg_entry);
@@ -3396,6 +3656,10 @@ extern int sai_deserialize_inseg_entry(
 extern int sai_deserialize_ip_address_list(
     _In_ const char *buf,
     _Out_ sai_ip_address_list_t *ip_address_list);
+
+extern int sai_deserialize_ip_prefix_list(
+    _In_ const char *buf,
+    _Out_ sai_ip_prefix_list_t *ip_prefix_list);
 
 extern int sai_deserialize_ipmc_entry(
     _In_ const char *buf,
@@ -3469,6 +3733,18 @@ extern int sai_deserialize_object_list(
 extern int sai_deserialize_object_meta_key(
     _In_ const char *buf,
     _Out_ sai_object_meta_key_t *object_meta_key);
+
+extern int sai_deserialize_outbound_ca_to_pa_entry(
+    _In_ const char *buf,
+    _Out_ sai_outbound_ca_to_pa_entry_t *outbound_ca_to_pa_entry);
+
+extern int sai_deserialize_outbound_routing_entry(
+    _In_ const char *buf,
+    _Out_ sai_outbound_routing_entry_t *outbound_routing_entry);
+
+extern int sai_deserialize_pa_validation_entry(
+    _In_ const char *buf,
+    _Out_ sai_pa_validation_entry_t *pa_validation_entry);
 
 extern int sai_deserialize_port_err_status_list(
     _In_ const char *buf,
@@ -3589,6 +3865,10 @@ extern int sai_deserialize_u32_range(
 extern int sai_deserialize_u8_list(
     _In_ const char *buf,
     _Out_ sai_u8_list_t *u8_list);
+
+extern int sai_deserialize_vip_entry(
+    _In_ const char *buf,
+    _Out_ sai_vip_entry_t *vip_entry);
 
 extern int sai_deserialize_vlan_list(
     _In_ const char *buf,

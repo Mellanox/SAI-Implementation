@@ -58,12 +58,14 @@ dist_data_DATA = sai_1710.xml \
                  sai_4700_100G.xml \
                  sai_4700_56ports.xml \
                  sai_5600.xml \
-                 sai_5600_33ports.xml
+                 sai_5600_33ports.xml \
+                 ar_config_example.xml
 
 libsai_la_DEPENDENCIES =
 
 libsai_la_SOURCES = \
                        dbgdump/mlnx_sai_dbg_acl.c \
+                       dbgdump/mlnx_sai_dbg_adaptive_routing.c \
                        dbgdump/mlnx_sai_dbg_bridge.c \
                        dbgdump/mlnx_sai_dbg_bfd.c \
                        dbgdump/mlnx_sai_dbg_buffer.c \
@@ -161,6 +163,8 @@ libsai_apiincludedir = $(includedir)/sai
 libsai_apiinclude_HEADERS = \
         $(top_srcdir)/inc/sai/sai.h \
         $(top_srcdir)/inc/sai/saiacl.h \
+        $(top_srcdir)/inc/sai/saiars.h \
+        $(top_srcdir)/inc/sai/saiarsprofile.h \
         $(top_srcdir)/inc/sai/saibfd.h \
         $(top_srcdir)/inc/sai/saibridge.h \
         $(top_srcdir)/inc/sai/saibuffer.h \
@@ -213,6 +217,15 @@ libsai_apiinclude_HEADERS = \
         $(top_srcdir)/inc/sai/saiwred.h \
 		\
         $(top_srcdir)/inc/experimental/saiexperimentalbmtor.h \
+        $(top_srcdir)/inc/experimental/saiexperimentaldashacl.h \
+        $(top_srcdir)/inc/experimental/saiexperimentaldashdirectionlookup.h \
+        $(top_srcdir)/inc/experimental/saiexperimentaldasheni.h \
+        $(top_srcdir)/inc/experimental/saiexperimentaldashinboundrouting.h \
+        $(top_srcdir)/inc/experimental/saiexperimentaldashoutboundcatopa.h \
+        $(top_srcdir)/inc/experimental/saiexperimentaldashoutboundrouting.h \
+        $(top_srcdir)/inc/experimental/saiexperimentaldashpavalidation.h \
+        $(top_srcdir)/inc/experimental/saiexperimentaldashvip.h \
+        $(top_srcdir)/inc/experimental/saiexperimentaldashvnet.h \
         $(top_srcdir)/inc/experimental/saiextensions.h \
         $(top_srcdir)/inc/experimental/saiswitchextensions.h \
         $(top_srcdir)/inc/experimental/saitypesextensions.h \

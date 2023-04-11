@@ -50,8 +50,14 @@ static const sai_vendor_attribute_entry_t l2mcgroup_vendor_attribs[] = {
       NULL, NULL,
       NULL, NULL }
 };
-const mlnx_obj_type_attrs_info_t          mlnx_l2mcgroup_obj_type_info =
-{ l2mcgroup_vendor_attribs, OBJ_ATTRS_ENUMS_INFO_EMPTY(), OBJ_STAT_CAP_INFO_EMPTY()};
+static size_t l2mcgroup_info_print(_In_ const sai_object_key_t *key, _Out_ char *str, _In_ size_t max_len)
+{
+    mlnx_object_id_t mlnx_oid = *(mlnx_object_id_t*)&key->key.object_id;
+
+    return snprintf(str, max_len, "[l2mc_groups[%u]]", mlnx_oid.id.l2mc_group.db_idx);
+}
+const mlnx_obj_type_attrs_info_t mlnx_l2mcgroup_obj_type_info =
+{ l2mcgroup_vendor_attribs, OBJ_ATTRS_ENUMS_INFO_EMPTY(), OBJ_STAT_CAP_INFO_EMPTY(), l2mcgroup_info_print};
 static const sai_vendor_attribute_entry_t l2mcgroup_member_vendor_attribs[] = {
     { SAI_L2MC_GROUP_MEMBER_ATTR_L2MC_GROUP_ID,
       {true, false, false, true},
@@ -74,42 +80,16 @@ static const sai_vendor_attribute_entry_t l2mcgroup_member_vendor_attribs[] = {
       NULL, NULL,
       NULL, NULL }
 };
-const mlnx_obj_type_attrs_info_t          mlnx_l2mcgroup_member_obj_type_info =
-{ l2mcgroup_member_vendor_attribs, OBJ_ATTRS_ENUMS_INFO_EMPTY(), OBJ_STAT_CAP_INFO_EMPTY()};
-static void l2mcgroup_key_to_str(_In_ sai_object_id_t object_id, _Out_ char           *key_str)
+static size_t l2mcgroup_member_info_print(_In_ const sai_object_key_t *key, _Out_ char *str, _In_ size_t max_len)
 {
-    mlnx_object_id_t *moid = (mlnx_object_id_t*)&object_id;
+    mlnx_object_id_t mlnx_oid = *(mlnx_object_id_t*)&key->key.object_id;
 
-    if (SAI_OBJECT_TYPE_L2MC_GROUP != moid->object_type) {
-        snprintf(key_str, MAX_KEY_STR_LEN, "invalid %s", SAI_TYPE_STR(moid->object_type));
-    } else {
-        snprintf(key_str, MAX_KEY_STR_LEN, "%s %x", SAI_TYPE_STR(moid->object_type), moid->id.l2mc_group.db_idx);
-    }
+    return snprintf(str, max_len, "[l2mc_groups[%u], l2mc_group_members[%u]]",
+                    mlnx_oid.id.l2mc_group.db_idx, mlnx_oid.ext.l2mc_group_member.db_idx);
 }
-
-static void l2mcgroup_member_key_to_str(_In_ sai_object_id_t object_id, _Out_ char *key_str)
-{
-    mlnx_object_id_t *moid = (mlnx_object_id_t*)&object_id;
-    uint16_t          group_db_idx, group_member_db_idx;
-
-    if (SAI_OBJECT_TYPE_L2MC_GROUP_MEMBER != moid->object_type) {
-        snprintf(key_str, MAX_KEY_STR_LEN, "invalid %s", SAI_TYPE_STR(moid->object_type));
-    } else {
-        group_db_idx = moid->id.l2mc_group.db_idx;
-        group_member_db_idx = moid->ext.l2mc_group_member.db_idx;
-        if (!MLNX_L2MC_GROUP_MEMBER_DB_IDX_IS_VALID(group_member_db_idx)) {
-            snprintf(key_str, MAX_KEY_STR_LEN, "%s (group %x, unknown)", SAI_TYPE_STR(moid->object_type),
-                     group_db_idx);
-        } else {
-            snprintf(key_str,
-                     MAX_KEY_STR_LEN,
-                     "%s (group %x, bridge port %d)",
-                     SAI_TYPE_STR(moid->object_type),
-                     group_db_idx,
-                     l2mc_group_member_db(group_member_db_idx).bport_db_idx);
-        }
-    }
-}
+const mlnx_obj_type_attrs_info_t mlnx_l2mcgroup_member_obj_type_info =
+{ l2mcgroup_member_vendor_attribs, OBJ_ATTRS_ENUMS_INFO_EMPTY(), OBJ_STAT_CAP_INFO_EMPTY(),
+  l2mcgroup_member_info_print};
 
 static sai_status_t mlnx_l2mc_group_db_alloc(_Out_ mlnx_l2mc_group_t **l2mc_group)
 {
@@ -143,7 +123,7 @@ static sai_status_t mlnx_l2mc_group_init(_In_ mlnx_l2mc_group_t *l2mc_group)
     memset(&sx_mc_container_attributes, 0, sizeof(sx_mc_container_attributes));
     sx_mc_container_attributes.type = SX_MC_CONTAINER_TYPE_PORT;
 
-    sx_status = sx_api_mc_container_set(gh_sdk,
+    sx_status = sx_api_mc_container_set(get_sdk_handle(),
                                         SX_ACCESS_CMD_CREATE,
                                         &sx_mc_container_id,
                                         NULL,
@@ -170,7 +150,7 @@ static sai_status_t mlnx_l2mc_group_deinit(_In_ mlnx_l2mc_group_t *l2mc_group)
     memset(&sx_mc_container_attributes, 0, sizeof(sx_mc_container_attributes));
 
     if (SX_MC_CONTAINER_ID_CHECK_RANGE(l2mc_group->mc_container_tunnels)) {
-        sx_status = sx_api_mc_container_set(gh_sdk,
+        sx_status = sx_api_mc_container_set(get_sdk_handle(),
                                             SX_ACCESS_CMD_DESTROY,
                                             &l2mc_group->mc_container_tunnels,
                                             NULL,
@@ -186,7 +166,7 @@ static sai_status_t mlnx_l2mc_group_deinit(_In_ mlnx_l2mc_group_t *l2mc_group)
     }
 
     if (SX_MC_CONTAINER_ID_CHECK_RANGE(l2mc_group->mc_container_ports)) {
-        sx_status = sx_api_mc_container_set(gh_sdk,
+        sx_status = sx_api_mc_container_set(get_sdk_handle(),
                                             SX_ACCESS_CMD_DESTROY,
                                             &l2mc_group->mc_container_ports,
                                             NULL,
@@ -364,7 +344,7 @@ sai_status_t mlnx_l2mc_group_sx_ports_get(_In_ const mlnx_l2mc_group_t *l2mc_gro
         goto out;
     }
 
-    sx_status = sx_api_mc_container_get(gh_sdk,
+    sx_status = sx_api_mc_container_get(get_sdk_handle(),
                                         SX_ACCESS_CMD_GET,
                                         l2mc_group->mc_container_ports,
                                         sx_next_hops,
@@ -447,7 +427,7 @@ sai_status_t mlnx_l2mc_group_pbs_use(_In_ mlnx_l2mc_group_t *l2mc_group)
         sx_pbs_entry.port_num = bports_count;
         sx_pbs_entry.log_ports = sx_ports;
 
-        sx_status = sx_api_acl_policy_based_switching_set(gh_sdk, SX_ACCESS_CMD_ADD, DEFAULT_ETH_SWID,
+        sx_status = sx_api_acl_policy_based_switching_set(get_sdk_handle(), SX_ACCESS_CMD_ADD, DEFAULT_ETH_SWID,
                                                           &sx_pbs_entry, &pbs_entry->pbs_id);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to create pbs - %s\n", SX_STATUS_MSG(sx_status));
@@ -508,7 +488,7 @@ static sai_status_t mlnx_l2mc_group_is_in_use(_In_ mlnx_l2mc_group_t *l2mc_group
 
     if (SX_MC_CONTAINER_ID_CHECK_RANGE(l2mc_group->mc_container_tunnels)) {
         memset(&sx_mc_container_attributes, 0, sizeof(sx_mc_container_attributes));
-        sx_status = sx_api_mc_container_get(gh_sdk,
+        sx_status = sx_api_mc_container_get(get_sdk_handle(),
                                             SX_ACCESS_CMD_GET,
                                             l2mc_group->mc_container_tunnels,
                                             NULL,
@@ -523,7 +503,7 @@ static sai_status_t mlnx_l2mc_group_is_in_use(_In_ mlnx_l2mc_group_t *l2mc_group
     }
 
     memset(&sx_mc_container_attributes, 0, sizeof(sx_mc_container_attributes));
-    sx_status = sx_api_mc_container_get(gh_sdk,
+    sx_status = sx_api_mc_container_get(get_sdk_handle(),
                                         SX_ACCESS_CMD_GET,
                                         l2mc_group->mc_container_ports,
                                         NULL,
@@ -642,7 +622,7 @@ static sai_status_t mlnx_l2mc_sx_container_ports_update(_In_ mlnx_l2mc_group_t  
     sx_mc_next_hop.type = SX_MC_NEXT_HOP_TYPE_LOG_PORT;
     sx_mc_next_hop.data.log_port = bport->logical;
 
-    sx_status = sx_api_mc_container_set(gh_sdk,
+    sx_status = sx_api_mc_container_set(get_sdk_handle(),
                                         sx_cmd,
                                         &l2mc_group->mc_container_ports,
                                         &sx_mc_next_hop,
@@ -724,7 +704,7 @@ static sai_status_t mlnx_l2mc_sx_container_tunnels_update(_In_ mlnx_l2mc_group_t
     if (add && !SX_MC_CONTAINER_ID_CHECK_RANGE(l2mc_group->mc_container_tunnels)) {
         memset(&sx_mc_container_attributes, 0, sizeof(sx_mc_container_attributes));
         sx_mc_container_attributes.type = SX_MC_CONTAINER_TYPE_VLAN_UNAWARE;
-        sx_status = sx_api_mc_container_set(gh_sdk,
+        sx_status = sx_api_mc_container_set(get_sdk_handle(),
                                             SX_ACCESS_CMD_CREATE,
                                             &sx_mc_container_id,
                                             NULL,
@@ -742,7 +722,7 @@ static sai_status_t mlnx_l2mc_sx_container_tunnels_update(_In_ mlnx_l2mc_group_t
     }
 
     sx_mc_next_hop.data.tunnel_ip.tunnel_id = sx_tunnel_id;
-    sx_status = sx_api_mc_container_set(gh_sdk,
+    sx_status = sx_api_mc_container_set(get_sdk_handle(),
                                         sx_cmd,
                                         &l2mc_group->mc_container_tunnels,
                                         &sx_mc_next_hop,
@@ -785,7 +765,11 @@ static sai_status_t mlnx_l2mc_sx_pbs_update(_In_ mlnx_l2mc_group_t        *l2mc_
     sx_pbs_entry.port_num = 1;
     sx_pbs_entry.log_ports = &sx_port;
 
-    sx_status = sx_api_acl_policy_based_switching_set(gh_sdk, sx_cmd, DEFAULT_ETH_SWID, &sx_pbs_entry, &sx_pbs);
+    sx_status = sx_api_acl_policy_based_switching_set(get_sdk_handle(),
+                                                      sx_cmd,
+                                                      DEFAULT_ETH_SWID,
+                                                      &sx_pbs_entry,
+                                                      &sx_pbs);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to %s port %x to pbs %x - %s\n", SX_ACCESS_CMD_STR(sx_cmd), sx_port, sx_pbs,
                    SX_STATUS_MSG(sx_status));
@@ -829,7 +813,7 @@ static sai_status_t mlnx_l2mc_group_fid_uc_bc_flood_ctrl_update(_In_ const mlnx_
 
         if (port_in_fid) {
             sx_cmd = (add) ? SX_ACCESS_CMD_DELETE_PORTS : SX_ACCESS_CMD_ADD_PORTS;
-            sx_status = sx_api_fdb_flood_control_set(gh_sdk,
+            sx_status = sx_api_fdb_flood_control_set(get_sdk_handle(),
                                                      sx_cmd,
                                                      DEFAULT_ETH_SWID,
                                                      sx_fid,
@@ -847,7 +831,11 @@ static sai_status_t mlnx_l2mc_group_fid_uc_bc_flood_ctrl_update(_In_ const mlnx_
         }
     } else {
         sx_cmd = (add) ? SX_ACCESS_CMD_SET : SX_ACCESS_CMD_DELETE;
-        sx_status = sx_api_fdb_flood_set(gh_sdk, sx_cmd, DEFAULT_ETH_SWID, sx_fid, l2mc_group->mc_container_tunnels);
+        sx_status = sx_api_fdb_flood_set(get_sdk_handle(),
+                                         sx_cmd,
+                                         DEFAULT_ETH_SWID,
+                                         sx_fid,
+                                         l2mc_group->mc_container_tunnels);
 
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to %s ports to fid %u flood set - %s.\n",
@@ -879,7 +867,7 @@ static sai_status_t mlnx_l2mc_group_flood_ctrl_mc_refresh(_In_ const mlnx_l2mc_g
         return status;
     }
 
-    sx_status = sx_api_fdb_unreg_mc_flood_ports_set(gh_sdk, DEFAULT_ETH_SWID, sx_fid, sx_ports, ports_count);
+    sx_status = sx_api_fdb_unreg_mc_flood_ports_set(get_sdk_handle(), DEFAULT_ETH_SWID, sx_fid, sx_ports, ports_count);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to set unreg fdb flood port list for fid %u - %s.\n", sx_fid, SX_STATUS_MSG(sx_status));
         return sdk_to_sai(sx_status);
@@ -1132,31 +1120,14 @@ static sai_status_t mlnx_create_l2mc_group(_Out_ sai_object_id_t      *l2mc_grou
 {
     sai_status_t       status;
     mlnx_l2mc_group_t *l2mc_group;
-    char               list_str[MAX_LIST_VALUE_STR_LEN] = {0};
-    char               key_str[MAX_KEY_STR_LEN] = {0};
 
     SX_LOG_ENTER();
 
-    if (NULL == l2mc_group_id) {
-        SX_LOG_ERR("NULL l2mc_group_id id param.\n");
-        SX_LOG_EXIT();
-        return SAI_STATUS_INVALID_PARAMETER;
-    }
-
-    status = check_attribs_metadata(attr_count,
-                                    attr_list,
-                                    SAI_OBJECT_TYPE_L2MC_GROUP,
-                                    l2mcgroup_vendor_attribs,
-                                    SAI_COMMON_API_CREATE);
+    status = check_attribs_on_create(attr_count, attr_list, SAI_OBJECT_TYPE_L2MC_GROUP, l2mc_group_id);
     if (SAI_ERR(status)) {
-        SX_LOG_ERR("Failed attribs check.\n");
-        SX_LOG_EXIT();
         return status;
     }
-
-    sai_attr_list_to_str(attr_count, attr_list, SAI_OBJECT_TYPE_L2MC_GROUP, MAX_LIST_VALUE_STR_LEN, list_str);
-    SX_LOG_NTC("Create L2 MC group object.\n");
-    SX_LOG_NTC("Attribs %s.\n", list_str);
+    MLNX_LOG_ATTRS(attr_count, attr_list, SAI_OBJECT_TYPE_L2MC_GROUP);
 
     sai_db_write_lock();
 
@@ -1176,8 +1147,7 @@ static sai_status_t mlnx_create_l2mc_group(_Out_ sai_object_id_t      *l2mc_grou
         goto out;
     }
 
-    l2mcgroup_key_to_str(*l2mc_group_id, key_str);
-    SX_LOG_NTC("Created %s. Object id [%lx]\n", key_str, *l2mc_group_id);
+    MLNX_LOG_OID_CREATED(*l2mc_group_id);
 
 out:
     sai_db_unlock();
@@ -1196,13 +1166,11 @@ static sai_status_t mlnx_remove_l2mc_group(_In_ sai_object_id_t l2mc_group_id)
 {
     sai_status_t       status;
     mlnx_l2mc_group_t *l2mc_group;
-    char               key_str[MAX_KEY_STR_LEN] = {0};
     bool               is_in_use = true;
 
     SX_LOG_ENTER();
 
-    l2mcgroup_key_to_str(l2mc_group_id, key_str);
-    SX_LOG_NTC("Remove %s.\n", key_str);
+    MLNX_LOG_OID_REMOVE(l2mc_group_id);
 
     sai_db_write_lock();
 
@@ -1307,17 +1275,8 @@ static sai_status_t mlnx_get_l2mc_group_attribute(_In_ sai_object_id_t     l2mc_
                                                   _Inout_ sai_attribute_t *attr_list)
 {
     const sai_object_key_t key = { .key.object_id = l2mc_group_id };
-    char                   key_str[MAX_KEY_STR_LEN];
 
-    SX_LOG_ENTER();
-
-    l2mcgroup_key_to_str(l2mc_group_id, key_str);
-    return sai_get_attributes(&key,
-                              key_str,
-                              SAI_OBJECT_TYPE_L2MC_GROUP,
-                              l2mcgroup_vendor_attribs,
-                              attr_count,
-                              attr_list);
+    return sai_get_attributes(&key, SAI_OBJECT_TYPE_L2MC_GROUP, attr_count, attr_list);
 }
 
 /**
@@ -1341,31 +1300,14 @@ static sai_status_t mlnx_create_l2mc_group_member(_Out_ sai_object_id_t      *l2
     mlnx_l2mc_group_member_t    *l2mc_group_member = NULL;
     mlnx_bridge_port_t          *bport;
     uint32_t                     attr_index;
-    char                         list_str[MAX_LIST_VALUE_STR_LEN] = {0};
-    char                         key_str[MAX_KEY_STR_LEN] = {0};
 
     SX_LOG_ENTER();
 
-    if (NULL == l2mc_group_member_id) {
-        SX_LOG_ERR("NULL l2mc_group_member_id id param.\n");
-        SX_LOG_EXIT();
-        return SAI_STATUS_INVALID_PARAMETER;
-    }
-
-    status = check_attribs_metadata(attr_count,
-                                    attr_list,
-                                    SAI_OBJECT_TYPE_L2MC_GROUP_MEMBER,
-                                    l2mcgroup_member_vendor_attribs,
-                                    SAI_COMMON_API_CREATE);
+    status = check_attribs_on_create(attr_count, attr_list, SAI_OBJECT_TYPE_L2MC_GROUP_MEMBER, l2mc_group_member_id);
     if (SAI_ERR(status)) {
-        SX_LOG_ERR("Failed attribs check.\n");
-        SX_LOG_EXIT();
         return status;
     }
-
-    sai_attr_list_to_str(attr_count, attr_list, SAI_OBJECT_TYPE_L2MC_GROUP_MEMBER, MAX_LIST_VALUE_STR_LEN, list_str);
-    SX_LOG_NTC("Create L2 MC group member object.\n");
-    SX_LOG_NTC("Attribs %s.\n", list_str);
+    MLNX_LOG_ATTRS(attr_count, attr_list, SAI_OBJECT_TYPE_L2MC_GROUP_MEMBER);
 
     find_attrib_in_list(attr_count, attr_list, SAI_L2MC_GROUP_MEMBER_ATTR_L2MC_GROUP_ID, &attr_group_id, &attr_index);
     assert(attr_group_id);
@@ -1429,8 +1371,7 @@ static sai_status_t mlnx_create_l2mc_group_member(_Out_ sai_object_id_t      *l2
         goto out;
     }
 
-    l2mcgroup_member_key_to_str(*l2mc_group_member_id, key_str);
-    SX_LOG_NTC("Created %s. Object id [%lx]\n", key_str, *l2mc_group_member_id);
+    MLNX_LOG_OID_CREATED(*l2mc_group_member_id);
 
 out:
     if (SAI_ERR(status) && (NULL != l2mc_group_member)) {
@@ -1453,12 +1394,10 @@ static sai_status_t mlnx_remove_l2mc_group_member(_In_ sai_object_id_t l2mc_grou
     sai_status_t              status;
     mlnx_l2mc_group_member_t *l2mc_group_member;
     mlnx_l2mc_group_t        *l2mc_group;
-    char                      key_str[MAX_KEY_STR_LEN] = {0};
 
     SX_LOG_ENTER();
 
-    l2mcgroup_member_key_to_str(l2mc_group_member_id, key_str);
-    SX_LOG_NTC("Remove %s.\n", key_str);
+    MLNX_LOG_OID_REMOVE(l2mc_group_member_id);
 
     sai_db_write_lock();
 
@@ -1555,21 +1494,17 @@ static sai_status_t mlnx_get_l2mc_group_member_attribute(_In_ sai_object_id_t   
                                                          _Inout_ sai_attribute_t *attr_list)
 {
     const sai_object_key_t key = { .key.object_id = l2mc_group_member_id };
-    char                   key_str[MAX_KEY_STR_LEN];
 
-    SX_LOG_ENTER();
-
-    l2mcgroup_member_key_to_str(l2mc_group_member_id, key_str);
-    return sai_get_attributes(&key, key_str, SAI_OBJECT_TYPE_L2MC_GROUP_MEMBER,
-                              l2mcgroup_member_vendor_attribs, attr_count, attr_list);
+    return sai_get_attributes(&key, SAI_OBJECT_TYPE_L2MC_GROUP_MEMBER, attr_count, attr_list);
 }
 
 sai_status_t mlnx_l2mc_group_log_set(sx_verbosity_level_t level)
 {
     LOG_VAR_NAME(__MODULE__) = level;
 
-    if (gh_sdk) {
-        return sdk_to_sai(sx_api_mc_container_log_verbosity_level_set(gh_sdk, SX_LOG_VERBOSITY_BOTH, level, level));
+    if (get_sdk_handle()) {
+        return sdk_to_sai(sx_api_mc_container_log_verbosity_level_set(get_sdk_handle(), SX_LOG_VERBOSITY_BOTH, level,
+                                                                      level));
     } else {
         return SAI_STATUS_SUCCESS;
     }

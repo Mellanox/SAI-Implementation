@@ -1,0 +1,49 @@
+<?xml version="1.0"?>
+<root>
+        <profile>
+                <mode>free</mode> <!-- free/time-bound/random/sticky-free -->
+                <congestion-threshold-low>10</congestion-threshold-low>
+                <congestion-threshold-medium>40</congestion-threshold-medium>
+                <congestion-threshold-high>70</congestion-threshold-high>
+                <bind-time>50</bind-time> <!-- optional, might be missing if mode != time-bound -->
+                <free-threshold>1</free-threshold>
+                <busy-threshold>3</busy-threshold>
+                <elephant-flow>1</elephant-flow> <!-- 1/0 for true/false  -->
+                <shaper-from-enabled>1</shaper-from-enabled>
+                <shaper-from>100</shaper-from> <!-- might be missing in case from_shaper_is_enabled is false -->
+                <shaper-to-enabled>1</shaper-to-enabled>
+                <shaper-to>100</shaper-to> <!-- might be missing to_shaper_is_enabled is false -->
+                <ecmp-size>64</ecmp-size>
+        </profile>
+        <ports>
+                <port-info>
+                        <lanes-list>
+                                <lane>0</lane>
+                                <lane>1</lane>
+                                <lane>2</lane>
+                                <lane>3</lane>
+                        </lanes-list>
+                        <link-utilization>70</link-utilization>
+                </port-info>
+                <port-info>
+                        <lanes-list>
+                                <lane>4</lane>
+                                <lane>5</lane>
+                        </lanes-list>
+                        <link-utilization>60</link-utilization>
+                </port-info>
+                <port-info>
+                        <lanes-list>
+                                <lane>0</lane>
+                                <lane>1</lane>
+                        </lanes-list>
+                        <link-utilization>50</link-utilization>
+                </port-info>
+                <port-info>
+                        <lanes-list>
+                                <lane>0</lane>
+                        </lanes-list>
+                        <link-utilization>40</link-utilization>
+                </port-info>
+        </ports>
+</root>

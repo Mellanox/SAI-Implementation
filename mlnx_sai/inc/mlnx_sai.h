@@ -43,6 +43,7 @@
 #include <sx/sdk/sx_api_topo.h>
 #include <sx/sdk/sx_api_tunnel.h>
 #include <sx/sdk/sx_api_vlan.h>
+#include <sx/sdk/sx_api_adaptive_routing.h>
 #include <sx/sdk/sx_lib_flex_acl.h>
 #include <sx/sdk/sx_lib_host_ifc.h>
 #include <sx/sdk/sx_api_register.h>
@@ -133,7 +134,7 @@ inline static char * mlnx_severity_to_syslog(sx_log_severity_t severity)
 
 #define MLNX_SAI_LOG(level, fmt, ...)                                                \
     do {                                                                             \
-        if (gh_sdk) {                                                                \
+        if (get_sdk_handle()) {                                                      \
             SX_LOG(level, fmt, ## __VA_ARGS__);                                      \
         } else {                                                                     \
             sx_verbosity_level_t __verbosity_level = 0;                              \
@@ -178,10 +179,19 @@ int msync(void *addr, size_t length, int flags);
 #define MS_SYNC    4
 #endif
 
+extern bool g_initialized;
+
+extern pthread_mutex_t init_deinit_mutex;
+
 extern uint64_t test_sx_api_init_set_ms;
 uint64_t time_ms_get(void);
 
-extern sx_api_handle_t            gh_sdk;
+extern pthread_key_t pthread_sdk_handle_key;
+extern pthread_key_t pthread_number_of_connections_to_the_sdk_in_current_thread;
+sai_status_t open_sdk(sx_log_cb_t sai_log_cb);
+sai_status_t close_sdk();
+sx_api_handle_t get_sdk_handle();
+
 extern sai_service_method_table_t g_mlnx_services;
 extern rm_resources_t             g_resource_limits;
 extern sx_log_cb_t                sai_log_cb;
@@ -704,20 +714,20 @@ typedef struct _mlnx_obj_type_stats_capability_infos_t {
     uint32_t                           count;
     mlnx_attr_stats_capability_info_fn capability_fn;
 } mlnx_obj_type_stats_capability_info_t;
+typedef size_t (*key_printer_fn)(const sai_object_key_t *, char *, size_t);
 typedef struct _mlnx_obj_type_attrs_info_t {
     const sai_vendor_attribute_entry_t         *vendor_data;
     const mlnx_obj_type_attrs_enums_info_t      enums_info;
     const mlnx_obj_type_stats_capability_info_t stats_capability;
+    key_printer_fn                              printer;
 } mlnx_obj_type_attrs_info_t;
 
-#define bulk_context_cond_mutex_lock(mutex)                           \
-    do { if (pthread_mutex_lock(&mutex) != 0) {                       \
-             /*SX_LOG_ERR("Failed to lock bulk counter mutex\n");*/ } \
+#define mutex_lock(mutex)                                                                         \
+    do { if (0 != pthread_mutex_lock(&mutex)) { SX_LOG_ERR("Failed to lock mutex.\n"); exit(1); } \
     } while (0)
 
-#define bulk_context_cond_mutex_unlock(mutex)                           \
-    do { if (pthread_mutex_unlock(&mutex) != 0) {                       \
-             /*SX_LOG_ERR("Failed to unlock bulk counter mutex\n");*/ } \
+#define mutex_unlock(mutex)                                                                           \
+    do { if (0 != pthread_mutex_unlock(&mutex)) { SX_LOG_ERR("Failed to unlock mutex.\n"); exit(1); } \
     } while (0)
 
 typedef struct _sai_bulk_counter_event {
@@ -881,6 +891,13 @@ sai_status_t check_port_type_attr(const sai_object_id_t *ports,
                                   attr_port_type_check_t check,
                                   sai_attr_id_t          attr_id,
                                   uint32_t               idx);
+sai_status_t check_attribs_on_create_without_oid(_In_ uint32_t               attr_count,
+                                                 _In_ const sai_attribute_t *attr_list,
+                                                 _In_ sai_object_type_t      object_type);
+sai_status_t check_attribs_on_create(_In_ uint32_t               attr_count,
+                                     _In_ const sai_attribute_t *attr_list,
+                                     _In_ sai_object_type_t      object_type,
+                                     _In_ sai_object_id_t       *oid);
 sai_status_t check_attribs_metadata(_In_ uint32_t                            attr_count,
                                     _In_ const sai_attribute_t              *attr_list,
                                     _In_ sai_object_type_t                   object_type,
@@ -895,17 +912,13 @@ void find_attrib(_In_ uint32_t               attr_count,
                  _In_ const sai_attribute_t *attr_list,
                  _In_ sai_attr_id_t          attrib_id,
                  _Out_ mlnx_sai_attr_t      *attr);
-sai_status_t sai_set_attribute(_In_ const sai_object_key_t             *key,
-                               _In_ const char                         *key_str,
-                               _In_ sai_object_type_t                   object_type,
-                               _In_ const sai_vendor_attribute_entry_t *functionality_vendor_attr,
-                               _In_ const sai_attribute_t              *attr);
-sai_status_t sai_get_attributes(_In_ const sai_object_key_t             *key,
-                                _In_ const char                         *key_str,
-                                _In_ sai_object_type_t                   object_type,
-                                _In_ const sai_vendor_attribute_entry_t *functionality_vendor_attr,
-                                _In_ uint32_t                            attr_count,
-                                _Inout_ sai_attribute_t                 *attr_list);
+sai_status_t sai_set_attribute(_In_ const sai_object_key_t *key,
+                               _In_ sai_object_type_t       object_type,
+                               _In_ const sai_attribute_t  *attr);
+sai_status_t sai_get_attributes(_In_ const sai_object_key_t *key,
+                                _In_ sai_object_type_t       object_type,
+                                _In_ uint32_t                attr_count,
+                                _Inout_ sai_attribute_t     *attr_list);
 sai_status_t mlnx_bulk_attrs_validate(_In_ uint32_t                 object_count,
                                       _In_ const uint32_t          *attr_count,
                                       _In_ const sai_attribute_t  **attr_list_for_create,
@@ -941,7 +954,7 @@ sai_status_t mlnx_sai_query_stats_capability_impl(_In_ sai_object_id_t          
                                                   _In_ sai_object_type_t              object_type,
                                                   _Inout_ sai_stat_capability_list_t *stats_capability);
 
-#define MAX_KEY_STR_LEN        100
+#define MAX_KEY_STR_LEN        150
 #define MAX_VALUE_STR_LEN      100
 #define MAX_LIST_VALUE_STR_LEN 1000
 
@@ -1007,6 +1020,7 @@ bool mlnx_ip_addr_are_equal(_In_ const sai_ip_addr_family_t family1,
                             _In_ const sai_ip_addr_t       *addr2);
 
 bool mlnx_is_valid_ip_address(const sai_ip_address_t *sai_addr);
+bool mlnx_is_ip_zero(const sai_ip_address_t *sai_addr);
 bool sdk_is_valid_ip_address(const sx_ip_addr_t *sdk_addr);
 
 bool mlnx_route_entries_are_equal(_In_ const sai_route_entry_t *u1, _In_ const sai_route_entry_t *u2);
@@ -1755,6 +1769,8 @@ sai_status_t mlnx_encap_nh_data_get(mlnx_shm_rm_array_idx_t nh_idx,
                                     sai_object_id_t         vrf,
                                     int32_t                 diff,
                                     sx_next_hop_t          *sx_next_hop);
+sai_status_t mlnx_get_ecmp_attr(_In_ const sx_ecmp_id_t     ecmp_id,
+                                _Out_ sx_ecmp_attributes_t *sx_ecmp_attr);
 sai_status_t mlnx_nhg_get_ecmp(_In_ sai_object_id_t nhg,
                                _In_ sai_object_id_t vrf,
                                _In_ int32_t         diff,
@@ -3272,6 +3288,67 @@ typedef enum _mlnx_port_isolation_api {
 
 sai_status_t mlnx_validate_port_isolation_api(mlnx_port_isolation_api_t port_isolation_api);
 sai_status_t mlnx_reset_port_isolation_api(void);
+bool mlnx_rif_is_ar_enabled(_In_ sai_object_id_t rif_id);
+sai_status_t mlnx_port_ar_link_util_percentage_to_kbps(_In_ sx_port_log_id_t port_id,
+                                                       _In_ uint32_t         percentage_number,
+                                                       _Out_ uint32_t       *link_util);
+sai_status_t mlnx_port_get_ar_link_util_kbps(_In_ sx_port_log_id_t port_id, _Out_ uint32_t  *link_util);
+bool mlnx_find_ar_port_by_id(_In_ sx_port_log_id_t port_id,
+                             _Out_ uint32_t       *index,
+                             _Out_ uint32_t       *link_util_percentage);
+
+typedef struct _ar_port_data_t {
+    uint32_t         lane_count;
+    uint32_t         lane_list[MAX_LANES_SPC3_4];
+    sx_port_log_id_t port_id;
+    uint32_t         link_util_percentage;
+} ar_port_data_t;
+
+typedef struct _mlnx_ar_db_data_t {
+    sx_ar_profile_key_t               profile_key;
+    sx_ar_profile_attr_t              profile_attr;
+    sx_ar_classifier_action_t         default_classifier_action;
+    sx_ar_classifier_id_e             classifier_id;
+    sx_ar_classifier_attr_t           classifier_attr;
+    sx_ar_classifier_action_t         classifier_action;
+    sx_ar_congestion_threshold_attr_t congestion_threshold;
+    sx_ar_shaper_attr_t               shaper_attr;
+    uint32_t                          ar_port_count;
+    uint32_t                          ar_ecmp_size;
+    ar_port_data_t                    ar_port_list[MAX_PORTS_DB];
+} mlnx_ar_db_data_t;
+
+typedef struct _sai_optional_u32_t {
+    uint32_t val;
+    bool     enabled;
+} sai_optional_u32_t;
+
+typedef struct _sai_optional_bool_t {
+    bool val;
+    bool enabled;
+} sai_optional_bool_t;
+
+typedef struct _ar_xml_port_data_t {
+    sai_optional_u32_t lane_list[MAX_LANES_SPC3_4];
+    sai_optional_u32_t link_util_percentage;
+} ar_xml_port_data_t;
+
+typedef struct _ar_config_data_t {
+    sai_optional_u32_t  mode;
+    sai_optional_u32_t  congestion_thresh_lo;
+    sai_optional_u32_t  congestion_thresh_med;
+    sai_optional_u32_t  congestion_thresh_hi;
+    sai_optional_u32_t  bind_time;
+    sai_optional_u32_t  free_threshold;
+    sai_optional_u32_t  busy_threshold;
+    sai_optional_bool_t only_elephant_en;
+    sai_optional_bool_t from_shaper_is_enable;
+    sai_optional_u32_t  shaper_rate_from;
+    sai_optional_bool_t to_shaper_is_enable;
+    sai_optional_u32_t  shaper_rate_to;
+    sai_optional_u32_t  ar_ecmp_size;
+    ar_xml_port_data_t  port_list[MAX_PORTS_DB];
+} ar_config_data_t;
 
 typedef struct sai_db {
     cl_plock_t         p_lock;
@@ -3334,8 +3411,6 @@ typedef struct sai_db {
     bool                              crc_check_enable;
     bool                              crc_recalc_enable;
     mlnx_platform_type_t              platform_type;
-    bool                              fx_initialized;
-    bool                              fx_pipe_created;
     bool                              flex_parser_initialized;
     uint32_t                          fdb_table_size;
     uint32_t                          route_table_size;
@@ -3384,6 +3459,8 @@ typedef struct sai_db {
     bool                     is_issu_gp_reg_restore;
     uint32_t                 rif_mac_range_ref_counter;
     sx_mac_addr_t            rif_mac_range_addr;
+    bool                     reduced_rif_counter_enable;
+    mlnx_ar_db_data_t        ar_db;
     /* must be last element, followed by dynamic arrays */
     mlnx_shm_rm_array_info_t array_info[MLNX_SHM_RM_ARRAY_TYPE_SIZE];
 } sai_db_t;
@@ -3678,6 +3755,8 @@ sai_status_t mlnx_sched_hierarchy_foreach(mlnx_port_config_t    *port,
 #define SAI_KEY_ACCUMULATED_FLOW_COUNTER_UNITS_IN_KB "SAI_ACCUMULATED_FLOW_COUNTER_MAX"
 #define SAI_KEY_DSCP_REMAPPING_ENABLED               "SAI_DSCP_REMAPPING_ENABLED"
 #define SAI_KEY_ADDITIONAL_MAC_ENABLED               "SAI_ADDITIONAL_MAC_ENABLED"
+#define SAI_KEY_REDUCED_RIF_COUNTER_ENABLED          "SAI_REDUCED_RIF_COUNTER_ENABLED"
+#define SAI_KEY_ADAPTIVE_ROUTING_CONFIG_FILE         "SAI_ADAPTIVE_ROUTING_CONFIG_FILE"
 
 #define MLNX_MIRROR_VLAN_TPID           0x8100
 #define MLNX_GRE_PROTOCOL_TYPE          0x8949
@@ -3830,6 +3909,7 @@ void SAI_dump_isolation_group(_In_ FILE *file);
 void SAI_dump_mirror(_In_ FILE *file);
 void SAI_dump_policer(_In_ FILE *file);
 void SAI_dump_port(_In_ FILE *file);
+void SAI_dump_ar(_In_ FILE *file);
 void SAI_dump_qosmaps(_In_ FILE *file);
 void SAI_dump_queue(_In_ FILE *file);
 void SAI_dump_samplepacket(_In_ FILE *file);
@@ -3844,5 +3924,52 @@ void SAI_dump_nhg_nhgm(_In_ FILE *file);
 
 sai_status_t sai_dbg_generate_dump_ext(_In_ const char *dump_file_name,
                                        _In_ int32_t     flags);
+
+size_t oid_n_to_str(_In_ sai_object_id_t oid,
+                    _In_ size_t          len,
+                    _Out_ char          *str);
+void oid_to_str(_In_ sai_object_id_t oid,
+                _Out_ char          *str);
+size_t key_n_to_str(_In_ const sai_object_key_t *key,
+                    _In_ sai_object_type_t       object_type,
+                    _In_ size_t                  len,
+                    _Out_ char                  *str);
+void key_to_str(_In_ const sai_object_key_t *key,
+                _In_ sai_object_type_t       object_type,
+                _Out_ char                  *str);
+
+#define MLNX_LOG_KEY(log_level, str, key, object_type)                   \
+    do {                                                                 \
+        char key_str[MAX_KEY_STR_LEN] = {0};                             \
+        key_to_str((const sai_object_key_t *)key, object_type, key_str); \
+        SX_LOG(log_level, "%s %s\n", str, key_str);                      \
+    } while (false)
+#define MLNX_LOG_KEY_CREATED(log_level, key, object_type) MLNX_LOG_KEY(log_level, "Created", key, object_type)
+#define MLNX_LOG_KEY_REMOVE(log_level, key, object_type)  MLNX_LOG_KEY(log_level, "Remove", key, object_type)
+#define MLNX_LOG_OID(str, oid)               \
+    do {                                     \
+        char oid_str[MAX_KEY_STR_LEN] = {0}; \
+        oid_to_str(oid, oid_str);            \
+        SX_LOG_NTC("%s %s\n", str, oid_str); \
+    } while (false)
+#define MLNX_LOG_OID_CREATED(oid) MLNX_LOG_OID("Created", oid)
+#define MLNX_LOG_OID_REMOVE(oid)  MLNX_LOG_OID("Remove", oid)
+
+#define MLNX_LOG_ATTRS_VERBOSITY(log_level, attr_count, attr_list, object_type)                     \
+    do {                                                                                            \
+        char list_str[MAX_LIST_VALUE_STR_LEN] = {0};                                                \
+        sai_attr_list_to_str(attr_count, attr_list, object_type, MAX_LIST_VALUE_STR_LEN, list_str); \
+        SX_LOG(log_level, "Create %s: %s\n", SAI_TYPE_STR(object_type), list_str);                  \
+    } while (false)
+#define MLNX_LOG_ATTRS(attr_count, attr_list, object_type) \
+    MLNX_LOG_ATTRS_VERBOSITY(SX_LOG_NOTICE,                \
+                             attr_count,                   \
+                             attr_list,                    \
+                             object_type)
+
+bool u32_list_equal(_In_ const uint32_t *list1,
+                    _In_ uint32_t        list1_count,
+                    _In_ const uint32_t *list2,
+                    _In_ uint32_t        list2_count);
 
 #endif /* __MLNXSAI_H_ */

@@ -117,8 +117,15 @@ static const sai_vendor_attribute_entry_t sched_group_vendor_attribs[] = {
       NULL, NULL,
       NULL, NULL }
 };
-const mlnx_obj_type_attrs_info_t          mlnx_sched_group_obj_type_info =
-{ sched_group_vendor_attribs, OBJ_ATTRS_ENUMS_INFO_EMPTY(), OBJ_STAT_CAP_INFO_EMPTY()};
+static size_t scheduler_group_info_print(_In_ const sai_object_key_t *key, _Out_ char *str, _In_ size_t max_len)
+{
+    mlnx_object_id_t mlnx_oid = *(mlnx_object_id_t*)&key->key.object_id;
+
+    return snprintf(str, max_len, "[log_port:0x%X, sched_hierarchy.groups[%u][%u]",
+                    mlnx_oid.id.u32, mlnx_oid.ext.bytes[0], mlnx_oid.ext.bytes[1]);
+}
+const mlnx_obj_type_attrs_info_t mlnx_sched_group_obj_type_info =
+{ sched_group_vendor_attribs, OBJ_ATTRS_ENUMS_INFO_EMPTY(), OBJ_STAT_CAP_INFO_EMPTY(), scheduler_group_info_print};
 
 static sx_cos_ets_element_config_t * sched_obj_to_ets(mlnx_sched_obj_t *obj, sx_cos_ets_element_config_t *ets)
 {
@@ -244,7 +251,7 @@ static sai_status_t ets_list_load(sx_port_log_id_t port_id, sx_cos_ets_element_c
         return SAI_STATUS_NO_MEMORY;
     }
 
-    status = sx_api_cos_port_ets_element_get(gh_sdk, port_id, *ets, &max_ets_count);
+    status = sx_api_cos_port_ets_element_get(get_sdk_handle(), port_id, *ets, &max_ets_count);
     if (status != SX_STATUS_SUCCESS) {
         SX_LOG_ERR("Failed get ETS list - %s\n", SX_STATUS_MSG(status));
     }
@@ -256,21 +263,6 @@ static sai_status_t ets_list_load(sx_port_log_id_t port_id, sx_cos_ets_element_c
     }
 
     return status;
-}
-
-static void mlnx_sched_group_key_to_str(_In_ sai_object_id_t group_id, _Out_ char *key_str)
-{
-    sx_port_log_id_t port_id;
-    sai_status_t     status;
-    uint8_t          index,   level;
-
-    status = mlnx_sched_group_parse_id(group_id, &port_id, &level, &index);
-    if (SAI_ERR(status)) {
-        snprintf(key_str, MAX_KEY_STR_LEN, "Invalid scheduler group id");
-        return;
-    }
-
-    snprintf(key_str, MAX_KEY_STR_LEN, "scheduler group id %x:%u:%u", port_id, level, index);
 }
 
 static mlnx_iter_ret_t groups_child_counter(mlnx_port_config_t *port, mlnx_sched_obj_t *obj, void *arg)
@@ -717,7 +709,7 @@ static sai_status_t mlnx_sched_objlist_to_ets_update(sx_port_log_id_t  port_id,
                    ets->element_index);
     }
 
-    sx_status = sx_api_cos_port_ets_element_set(gh_sdk, SX_ACCESS_CMD_EDIT,
+    sx_status = sx_api_cos_port_ets_element_set(get_sdk_handle(), SX_ACCESS_CMD_EDIT,
                                                 port_id, ets_list, MAX_ETS_ELEMENTS);
 
     status = sdk_to_sai(sx_status);
@@ -827,21 +819,14 @@ static sai_status_t mlnx_create_scheduler_group(_Out_ sai_object_id_t      *sche
     sai_object_id_t              parent_group_id = SAI_NULL_OBJECT_ID;
     sai_object_id_t              scheduler_id = SAI_NULL_OBJECT_ID;
     mlnx_sched_obj_t            *sched_obj = NULL;
-    char                         list_str[MAX_LIST_VALUE_STR_LEN];
 
     SX_LOG_ENTER();
 
-    status = check_attribs_metadata(attr_count, attr_list, SAI_OBJECT_TYPE_SCHEDULER_GROUP,
-                                    sched_group_vendor_attribs,
-                                    SAI_COMMON_API_CREATE);
-
+    status = check_attribs_on_create(attr_count, attr_list, SAI_OBJECT_TYPE_SCHEDULER_GROUP, scheduler_group_id);
     if (SAI_ERR(status)) {
-        SX_LOG_ERR("Failed attribs check\n");
         return status;
     }
-
-    sai_attr_list_to_str(attr_count, attr_list, SAI_OBJECT_TYPE_SCHEDULER_GROUP, MAX_LIST_VALUE_STR_LEN, list_str);
-    SX_LOG_NTC("Create scheduler group, %s\n", list_str);
+    MLNX_LOG_ATTRS(attr_count, attr_list, SAI_OBJECT_TYPE_SCHEDULER_GROUP);
 
     /* Handle SAI_SCHEDULER_GROUP_ATTR_PORT_ID */
     status = find_attrib_in_list(attr_count, attr_list, SAI_SCHEDULER_GROUP_ATTR_PORT_ID,
@@ -962,8 +947,8 @@ static sai_status_t mlnx_create_scheduler_group(_Out_ sai_object_id_t      *sche
 
     port->sched_hierarchy.groups_count[level]++;
 
-    SX_LOG_NTC("Created scheduler group %" PRIx64 " at port %x level %u index %u\n",
-               *scheduler_group_id, port_id, sched_obj->level, sched_obj->index);
+    MLNX_LOG_OID_CREATED(*scheduler_group_id);
+
 out:
     sai_qos_db_sync();
     sai_qos_db_unlock();
@@ -1000,6 +985,8 @@ static sai_status_t mlnx_remove_scheduler_group(_In_ sai_object_id_t scheduler_g
     mlnx_sched_obj_t     *group;
 
     SX_LOG_ENTER();
+
+    MLNX_LOG_OID_REMOVE(scheduler_group_id);
 
     status = mlnx_sched_group_parse_id(scheduler_group_id, &port_id, &level, &index);
     if (SAI_ERR(status)) {
@@ -1051,8 +1038,6 @@ static sai_status_t mlnx_remove_scheduler_group(_In_ sai_object_id_t scheduler_g
 
     port->sched_hierarchy.groups_count[level]--;
 
-    SX_LOG_NTC("Removed scheduler group on log port id %x level %u index %u\n",
-               port_id, level, index);
 out:
     sai_qos_db_sync();
     sai_qos_db_unlock();
@@ -1073,16 +1058,8 @@ static sai_status_t mlnx_set_scheduler_group_attribute(_In_ sai_object_id_t     
                                                        _In_ const sai_attribute_t *attr)
 {
     const sai_object_key_t key = { .key.object_id = scheduler_group_id };
-    char                   key_str[MAX_KEY_STR_LEN];
-    sai_status_t           status;
 
-    SX_LOG_ENTER();
-
-    mlnx_sched_group_key_to_str(scheduler_group_id, key_str);
-    status = sai_set_attribute(&key, key_str, SAI_OBJECT_TYPE_SCHEDULER_GROUP,
-                               sched_group_vendor_attribs, attr);
-    SX_LOG_EXIT();
-    return status;
+    return sai_set_attribute(&key, SAI_OBJECT_TYPE_SCHEDULER_GROUP, attr);
 }
 
 /**
@@ -1101,16 +1078,8 @@ static sai_status_t mlnx_get_scheduler_group_attribute(_In_ sai_object_id_t     
                                                        _Inout_ sai_attribute_t *attr_list)
 {
     const sai_object_key_t key = { .key.object_id = scheduler_group_id };
-    char                   key_str[MAX_KEY_STR_LEN];
-    sai_status_t           status;
 
-    SX_LOG_ENTER();
-
-    mlnx_sched_group_key_to_str(scheduler_group_id, key_str);
-    status = sai_get_attributes(&key, key_str, SAI_OBJECT_TYPE_SCHEDULER_GROUP,
-                                sched_group_vendor_attribs, attr_count, attr_list);
-    SX_LOG_EXIT();
-    return status;
+    return sai_get_attributes(&key, SAI_OBJECT_TYPE_SCHEDULER_GROUP, attr_count, attr_list);
 }
 
 /* DB read lock is needed */
@@ -1424,8 +1393,8 @@ sai_status_t mlnx_scheduler_group_log_set(sx_verbosity_level_t level)
 {
     LOG_VAR_NAME(__MODULE__) = level;
 
-    if (gh_sdk) {
-        return sdk_to_sai(sx_api_cos_log_verbosity_level_set(gh_sdk,
+    if (get_sdk_handle()) {
+        return sdk_to_sai(sx_api_cos_log_verbosity_level_set(get_sdk_handle(),
                                                              SX_LOG_VERBOSITY_BOTH, level, level));
     }
 
@@ -1473,7 +1442,7 @@ sai_status_t mlnx_sched_group_port_init(mlnx_port_config_t *port, bool is_warmbo
             }
 
             if (!is_warmboot_init_stage) {
-                status = sx_api_cos_port_ets_element_set(gh_sdk, SX_ACCESS_CMD_EDIT,
+                status = sx_api_cos_port_ets_element_set(get_sdk_handle(), SX_ACCESS_CMD_EDIT,
                                                          port->logical,
                                                          sched_obj_to_ets(obj, ets),
                                                          1);
@@ -1511,7 +1480,7 @@ sai_status_t mlnx_sched_group_port_init(mlnx_port_config_t *port, bool is_warmbo
         }
 
         if (!is_warmboot_init_stage) {
-            status = sx_api_cos_port_ets_element_set(gh_sdk, SX_ACCESS_CMD_EDIT,
+            status = sx_api_cos_port_ets_element_set(get_sdk_handle(), SX_ACCESS_CMD_EDIT,
                                                      port->logical,
                                                      sched_obj_to_ets(&queue->sched_obj, ets),
                                                      1);

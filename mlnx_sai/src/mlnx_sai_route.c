@@ -101,15 +101,12 @@ static const mlnx_attr_enum_info_t        route_enum_info[] = {
         SAI_PACKET_ACTION_LOG,
         SAI_PACKET_ACTION_DROP)
 };
-const mlnx_obj_type_attrs_info_t          mlnx_route_obj_type_info =
-{ route_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(route_enum_info), OBJ_STAT_CAP_INFO_EMPTY()};
-static void route_key_to_str(_In_ const sai_route_entry_t* route_entry, _Out_ char *key_str)
+static size_t route_entry_info_print(_In_ const sai_object_key_t *key, _Out_ char *str, _In_ size_t max_len)
 {
-    int res;
-
-    res = snprintf(key_str, MAX_KEY_STR_LEN, "route ");
-    sai_ipprefix_to_str(route_entry->destination, MAX_KEY_STR_LEN - res, key_str + res);
+    return sai_ipprefix_to_str(key->key.route_entry.destination, max_len, str);
 }
+const mlnx_obj_type_attrs_info_t mlnx_route_obj_type_info =
+{ route_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(route_enum_info), OBJ_STAT_CAP_INFO_EMPTY(), route_entry_info_print};
 
 _Success_(return == SAI_STATUS_SUCCESS)
 static sai_status_t mlnx_translate_sai_route_entry_to_sdk(_In_ const sai_route_entry_t *route_entry,
@@ -206,7 +203,7 @@ static sai_status_t mlnx_fill_route_data(sx_uc_route_data_t      *route_data,
         sdk_next_hop_cnt = 1;
         memset(&sdk_next_hop, 0, sizeof(sdk_next_hop));
         if (SX_STATUS_SUCCESS !=
-            (status = sx_api_router_ecmp_get(gh_sdk, sdk_ecmp_id, &sdk_next_hop, &sdk_next_hop_cnt))) {
+            (status = sx_api_router_ecmp_get(get_sdk_handle(), sdk_ecmp_id, &sdk_next_hop, &sdk_next_hop_cnt))) {
             SX_LOG_ERR("Failed to get ecmp - %s.\n", SX_STATUS_MSG(status));
             return sdk_to_sai(status);
         }
@@ -257,7 +254,6 @@ static sai_status_t mlnx_fill_route_data(sx_uc_route_data_t      *route_data,
 }
 
 static sai_status_t mlnx_route_attr_to_sx_data(_In_ const sai_route_entry_t *route_entry,
-                                               _In_ const char              *key_str,
                                                _In_ uint32_t                 attr_count,
                                                _In_ const sai_attribute_t   *attr_list,
                                                _Out_ sx_ip_prefix_t         *sx_ip_prefix,
@@ -268,7 +264,6 @@ static sai_status_t mlnx_route_attr_to_sx_data(_In_ const sai_route_entry_t *rou
     const sai_attribute_value_t *action, *next_hop, *trap;
     sai_object_id_t              next_hop_oid;
     uint32_t                     action_index, next_hop_index, trap_index;
-    char                         list_str[MAX_LIST_VALUE_STR_LEN];
     bool                         next_hop_id_found = false;
     sx_log_severity_t            log_level = SX_LOG_NOTICE;
     int32_t                      packet_action;
@@ -282,20 +277,22 @@ static sai_status_t mlnx_route_attr_to_sx_data(_In_ const sai_route_entry_t *rou
         return SAI_STATUS_INVALID_PARAMETER;
     }
 
-    status = check_attribs_metadata(attr_count, attr_list, SAI_OBJECT_TYPE_ROUTE_ENTRY, route_vendor_attribs,
-                                    SAI_COMMON_API_CREATE);
+    status = check_attribs_on_create_without_oid(attr_count, attr_list, SAI_OBJECT_TYPE_ROUTE_ENTRY);
     if (SAI_ERR(status)) {
-        SX_LOG_ERR("Failed attribs check\n");
         return status;
     }
 
-    sai_attr_list_to_str(attr_count, attr_list, SAI_OBJECT_TYPE_ROUTE_ENTRY, MAX_LIST_VALUE_STR_LEN, list_str);
     /* lower log level for route created often in Sonic */
 #ifdef ACS_OS
     log_level = SX_LOG_INFO;
 #endif
-    SX_LOG(log_level, "Create route %s\n", key_str);
-    SX_LOG(log_level, "Attribs %s\n", list_str);
+    MLNX_LOG_ATTRS_VERBOSITY(log_level, attr_count, attr_list, SAI_OBJECT_TYPE_ROUTE_ENTRY);
+
+    status = mlnx_translate_sai_route_entry_to_sdk(route_entry, sx_ip_prefix, sx_vrid);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to translate SAI to SDK route entry.\n");
+        return status;
+    }
 
     sx_route_data->action = SX_ROUTER_ACTION_FORWARD;
 
@@ -363,11 +360,7 @@ static sai_status_t mlnx_route_attr_to_sx_data(_In_ const sai_route_entry_t *rou
 
     status = mlnx_fill_route_data(sx_route_data, next_hop_oid, next_hop_index, route_entry);
     if (SAI_ERR(status)) {
-        return status;
-    }
-
-    status = mlnx_translate_sai_route_entry_to_sdk(route_entry, sx_ip_prefix, sx_vrid);
-    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to fill route data.\n");
         return status;
     }
 
@@ -389,9 +382,13 @@ static sai_status_t mlnx_route_change_counter(sx_router_id_t  vrid,
             return status;
         }
 
-        sx_status = sx_api_router_uc_route_counter_bind_set(gh_sdk, SX_ACCESS_CMD_BIND, vrid, ip_prefix, flow_counter);
+        sx_status = sx_api_router_uc_route_counter_bind_set(get_sdk_handle(),
+                                                            SX_ACCESS_CMD_BIND,
+                                                            vrid,
+                                                            ip_prefix,
+                                                            flow_counter);
     } else {
-        sx_status = sx_api_router_uc_route_counter_bind_set(gh_sdk, SX_ACCESS_CMD_UNBIND, vrid, ip_prefix,
+        sx_status = sx_api_router_uc_route_counter_bind_set(get_sdk_handle(), SX_ACCESS_CMD_UNBIND, vrid, ip_prefix,
                                                             SX_FLOW_COUNTER_ID_INVALID);
     }
 
@@ -428,7 +425,6 @@ static sai_status_t mlnx_create_route(_In_ const sai_route_entry_t* route_entry,
     sx_ip_prefix_t               ip_prefix;
     sx_router_id_t               vrid = DEFAULT_VRID;
     sx_uc_route_data_t           route_data;
-    char                         key_str[MAX_KEY_STR_LEN];
     sx_log_severity_t            log_level = SX_LOG_NOTICE;
     const sai_attribute_value_t *counter = NULL;
     uint32_t                     counter_index;
@@ -438,15 +434,13 @@ static sai_status_t mlnx_create_route(_In_ const sai_route_entry_t* route_entry,
     memset(&ip_prefix, 0, sizeof(ip_prefix));
     memset(&route_data, 0, sizeof(route_data));
 
-    route_key_to_str(route_entry, key_str);
-
-    status = mlnx_route_attr_to_sx_data(route_entry, key_str, attr_count, attr_list, &ip_prefix, &vrid, &route_data);
+    status = mlnx_route_attr_to_sx_data(route_entry, attr_count, attr_list, &ip_prefix, &vrid, &route_data);
     if (SAI_ERR(status)) {
         SX_LOG_EXIT();
         return status;
     }
 
-    sx_status = sx_api_router_uc_route_set(gh_sdk, SX_ACCESS_CMD_ADD, vrid, &ip_prefix, &route_data);
+    sx_status = sx_api_router_uc_route_set(get_sdk_handle(), SX_ACCESS_CMD_ADD, vrid, &ip_prefix, &route_data);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to set route - %s.\n", SX_STATUS_MSG(sx_status));
         SX_LOG_EXIT();
@@ -467,7 +461,7 @@ static sai_status_t mlnx_create_route(_In_ const sai_route_entry_t* route_entry,
     log_level = SX_LOG_INFO;
 #endif
 
-    SX_LOG(log_level, "Created route %s\n", key_str);
+    MLNX_LOG_KEY_CREATED(log_level, route_entry, SAI_OBJECT_TYPE_ROUTE_ENTRY);
 
     SX_LOG_EXIT();
     return SAI_STATUS_SUCCESS;
@@ -650,7 +644,6 @@ static sai_status_t mlnx_remove_route(_In_ const sai_route_entry_t* route_entry)
 {
     sai_status_t            status;
     sx_status_t             sx_status;
-    char                    key_str[MAX_KEY_STR_LEN];
     sx_router_id_t          vrid = DEFAULT_VRID;
     sx_uc_route_get_entry_t route_get_entry;
 
@@ -661,15 +654,18 @@ static sai_status_t mlnx_remove_route(_In_ const sai_route_entry_t* route_entry)
         return SAI_STATUS_INVALID_PARAMETER;
     }
 
-    route_key_to_str(route_entry, key_str);
-    SX_LOG_NTC("Remove route %s\n", key_str);
+    MLNX_LOG_KEY_REMOVE(SX_LOG_NOTICE, route_entry, SAI_OBJECT_TYPE_ROUTE_ENTRY);
 
     status = mlnx_get_route(route_entry, &route_get_entry, &vrid);
     if (SAI_ERR(status)) {
         return status;
     }
 
-    sx_status = sx_api_router_uc_route_set(gh_sdk, SX_ACCESS_CMD_DELETE, vrid, &route_get_entry.network_addr, NULL);
+    sx_status = sx_api_router_uc_route_set(get_sdk_handle(),
+                                           SX_ACCESS_CMD_DELETE,
+                                           vrid,
+                                           &route_get_entry.network_addr,
+                                           NULL);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to remove route - %s.\n", SX_STATUS_MSG(sx_status));
         return sdk_to_sai(sx_status);
@@ -712,18 +708,14 @@ static sai_status_t mlnx_set_route_attribute(_In_ const sai_route_entry_t* route
                                              _In_ const sai_attribute_t   *attr)
 {
     sai_object_key_t key;
-    char             key_str[MAX_KEY_STR_LEN];
 
-    SX_LOG_ENTER();
-
-    if (NULL == route_entry) {
-        SX_LOG_ERR("NULL route_entry param\n");
-        return SAI_STATUS_INVALID_PARAMETER;
+    if (!route_entry) {
+        SX_LOG_ERR("Entry is NULL.\n");
+        return SAI_STATUS_FAILURE;
     }
-    memcpy(&key.key.route_entry, route_entry, sizeof(*route_entry));
 
-    route_key_to_str(route_entry, key_str);
-    return sai_set_attribute(&key, key_str, SAI_OBJECT_TYPE_ROUTE_ENTRY, route_vendor_attribs, attr);
+    memcpy(&key.key.route_entry, route_entry, sizeof(*route_entry));
+    return sai_set_attribute(&key, SAI_OBJECT_TYPE_ROUTE_ENTRY, attr);
 }
 
 /*
@@ -744,18 +736,14 @@ static sai_status_t mlnx_get_route_attribute(_In_ const sai_route_entry_t* route
                                              _Inout_ sai_attribute_t      *attr_list)
 {
     sai_object_key_t key;
-    char             key_str[MAX_KEY_STR_LEN];
 
-    SX_LOG_ENTER();
-
-    if (NULL == route_entry) {
-        SX_LOG_ERR("NULL route_entry param\n");
-        return SAI_STATUS_INVALID_PARAMETER;
+    if (!route_entry) {
+        SX_LOG_ERR("Entry is NULL.\n");
+        return SAI_STATUS_FAILURE;
     }
-    memcpy(&key.key.route_entry, route_entry, sizeof(*route_entry));
 
-    route_key_to_str(route_entry, key_str);
-    return sai_get_attributes(&key, key_str, SAI_OBJECT_TYPE_ROUTE_ENTRY, route_vendor_attribs, attr_count, attr_list);
+    memcpy(&key.key.route_entry, route_entry, sizeof(*route_entry));
+    return sai_get_attributes(&key, SAI_OBJECT_TYPE_ROUTE_ENTRY, attr_count, attr_list);
 }
 
 static sai_status_t mlnx_get_route(const sai_route_entry_t* route_entry,
@@ -779,7 +767,7 @@ static sai_status_t mlnx_get_route(const sai_route_entry_t* route_entry,
 
     if (SX_STATUS_SUCCESS !=
         (status =
-             sx_api_router_uc_route_get(gh_sdk, SX_ACCESS_CMD_GET, *vrid, &ip_prefix, &filter,
+             sx_api_router_uc_route_get(get_sdk_handle(), SX_ACCESS_CMD_GET, *vrid, &ip_prefix, &filter,
                                         route_get_entry, &entries_count))) {
         SX_LOG_ERR("Failed to get %d route entries %s.\n", entries_count, SX_STATUS_MSG(status));
         return sdk_to_sai(status);
@@ -874,7 +862,7 @@ static sai_status_t mlnx_ecmp_get_ip(_In_ sx_ecmp_id_t sdk_ecmp_id, _Out_ sx_ip_
     assert(ip);
 
     sdk_next_hop_cnt = 1;
-    sx_status = sx_api_router_ecmp_get(gh_sdk, sdk_ecmp_id, &sdk_next_hop, &sdk_next_hop_cnt);
+    sx_status = sx_api_router_ecmp_get(get_sdk_handle(), sdk_ecmp_id, &sdk_next_hop, &sdk_next_hop_cnt);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to get ecmp - %s.\n", SX_STATUS_MSG(sx_status));
         return sdk_to_sai(sx_status);
@@ -1035,7 +1023,7 @@ static sai_status_t mlnx_modify_route(sx_router_id_t           vrid,
     /* Delete and Add for action/priority, or Set for next hops changes */
     if (SX_ACCESS_CMD_ADD == cmd) {
         if (SX_STATUS_SUCCESS !=
-            (status = sx_api_router_uc_route_set(gh_sdk, SX_ACCESS_CMD_DELETE, vrid,
+            (status = sx_api_router_uc_route_set(get_sdk_handle(), SX_ACCESS_CMD_DELETE, vrid,
                                                  &route_get_entry->network_addr, &route_get_entry->route_data))) {
             SX_LOG_ERR("Failed to delete route - %s.\n", SX_STATUS_MSG(status));
             return sdk_to_sai(status);
@@ -1043,7 +1031,7 @@ static sai_status_t mlnx_modify_route(sx_router_id_t           vrid,
     }
 
     if (SX_STATUS_SUCCESS !=
-        (status = sx_api_router_uc_route_set(gh_sdk, cmd, vrid,
+        (status = sx_api_router_uc_route_set(get_sdk_handle(), cmd, vrid,
                                              &route_get_entry->network_addr, &route_get_entry->route_data))) {
         SX_LOG_ERR("Failed to set route - %s.\n", SX_STATUS_MSG(status));
         return sdk_to_sai(status);
@@ -1394,7 +1382,10 @@ static sai_status_t mlnx_route_counter_id_get(_In_ const sai_object_key_t   *key
         return status;
     }
 
-    sx_status = sx_api_router_uc_route_counter_bind_get(gh_sdk, vrid, &route_get_entry.network_addr, &flow_counter);
+    sx_status = sx_api_router_uc_route_counter_bind_get(get_sdk_handle(),
+                                                        vrid,
+                                                        &route_get_entry.network_addr,
+                                                        &flow_counter);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to get route counter - %s\n", SX_STATUS_MSG(sx_status));
         return sdk_to_sai(sx_status);
@@ -1597,12 +1588,13 @@ static sai_status_t mlnx_bulk_get_route_entry_attribute(_In_ uint32_t           
 
 static sai_status_t mlnx_bmtor_rif_event(_In_ sx_router_interface_t sx_rif, bool is_add)
 {
-    sai_status_t status;
-    sx_status_t  sx_status;
-    fx_handle_t *p_fx_handle = NULL;
+    sx_status_t     sx_status;
+    fx_handle_t    *p_fx_handle = NULL;
+    sx_api_handle_t sx_handle = get_sdk_handle();
 
     /* Check if initialized */
-    if (SX_STATUS_SUCCESS != (status = sdk_to_sai(fx_default_handle_get(&p_fx_handle, &gh_sdk, 0)))) {
+    sx_status = fx_default_handle_get(&p_fx_handle, &sx_handle, 0);
+    if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failure in obtaining the default fx_handle\n");
         return SAI_STATUS_FAILURE;
     }

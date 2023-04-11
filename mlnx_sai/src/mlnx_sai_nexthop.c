@@ -93,20 +93,18 @@ static const mlnx_attr_enum_info_t        next_hop_enum_info[] = {
         SAI_NEXT_HOP_TYPE_TUNNEL_ENCAP
         ),
 };
-const mlnx_obj_type_attrs_info_t          mlnx_next_hop_obj_type_info =
-{ next_hop_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(next_hop_enum_info), OBJ_STAT_CAP_INFO_EMPTY()};
-static void next_hop_key_to_str(_In_ sai_object_id_t next_hop_id, _Out_ char *key_str)
+static size_t next_hop_info_print(_In_ const sai_object_key_t *key, _Out_ char *str, _In_ size_t max_len)
 {
-    uint32_t nexthop_data;
-    uint16_t ext;
+    mlnx_object_id_t mlnx_oid = *(mlnx_object_id_t*)&key->key.object_id;
 
-    if (SAI_STATUS_SUCCESS !=
-        mlnx_object_to_type(next_hop_id, SAI_OBJECT_TYPE_NEXT_HOP, &nexthop_data, (uint8_t*)&ext)) {
-        snprintf(key_str, MAX_KEY_STR_LEN, "invalid next hop id");
-    } else {
-        snprintf(key_str, MAX_KEY_STR_LEN, "next hop id %u, ext %u", nexthop_data, ext);
+    if (mlnx_oid.ext.bytes[0] || mlnx_oid.ext.bytes[1]) {
+        return snprintf(str, max_len, "[ID:%u]", mlnx_oid.id.encap_nexthop_db_idx.idx);
     }
+
+    return snprintf(str, max_len, "[ecmp:0x%u]", mlnx_oid.id.u32);
 }
+const mlnx_obj_type_attrs_info_t mlnx_next_hop_obj_type_info =
+{ next_hop_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(next_hop_enum_info), OBJ_STAT_CAP_INFO_EMPTY(), next_hop_info_print};
 
 static sai_status_t mlnx_encap_nexthop_db_entry_alloc(_Out_ mlnx_encap_nexthop_db_entry_t **encap_nexthop_db_entry,
                                                       _Out_ mlnx_shm_rm_array_idx_t        *idx)
@@ -478,7 +476,7 @@ static sai_status_t mlnx_encap_nexthop_fake_nexthop_create(_In_ sx_router_interf
     sx_next_hop.next_hop_data.action = SX_ROUTER_ACTION_FORWARD;
     sx_next_hop.next_hop_data.counter_id = flow_counter;
 
-    sx_status = sx_api_router_ecmp_set(gh_sdk,
+    sx_status = sx_api_router_ecmp_set(get_sdk_handle(),
                                        cmd,
                                        nh_id,
                                        &sx_next_hop,
@@ -505,7 +503,7 @@ static sai_status_t mlnx_encap_nexthop_fake_neighbor_create(_In_ sx_router_inter
     sx_neigh_data.is_software_only = true;
     memcpy(&sx_neigh_data.mac_addr, fake_mac, sizeof(sx_neigh_data.mac_addr));
 
-    sx_status = sx_api_router_neigh_set(gh_sdk,
+    sx_status = sx_api_router_neigh_set(get_sdk_handle(),
                                         SX_ACCESS_CMD_ADD,
                                         br_rif,
                                         fake_ip_addr,
@@ -599,7 +597,7 @@ static sai_status_t mlnx_encap_nexthop_fake_fdb_create(_In_ sx_fid_t br_fid, _In
     sx_mac_entry.entry_type = SX_FDB_UC_STATIC;
     sx_mac_entry.action = SX_FDB_ACTION_FORWARD_TO_ROUTER;
 
-    sx_status = sx_api_fdb_uc_mac_addr_set(gh_sdk, SX_ACCESS_CMD_ADD, DEFAULT_ETH_SWID,
+    sx_status = sx_api_fdb_uc_mac_addr_set(get_sdk_handle(), SX_ACCESS_CMD_ADD, DEFAULT_ETH_SWID,
                                            &sx_mac_entry, &macs_count);
     if (SX_ERR(sx_status)) {
         return sdk_to_sai(sx_status);
@@ -699,7 +697,7 @@ static sai_status_t mlnx_encap_nexthop_fake_data_deinit_ecmp(_Inout_ mlnx_fake_n
     sx_status_t sx_status;
     uint32_t    sx_next_hop_count = 1;
 
-    sx_status = sx_api_router_ecmp_set(gh_sdk,
+    sx_status = sx_api_router_ecmp_set(get_sdk_handle(),
                                        SX_ACCESS_CMD_DESTROY,
                                        &fake_data->sx_fake_nexthop,
                                        NULL,
@@ -746,7 +744,7 @@ static sai_status_t mlnx_encap_nexthop_fake_data_deinit(_In_ sai_object_id_t    
     sx_neigh_data.is_software_only = true;
     memcpy(&sx_neigh_data.mac_addr, fake_mac, sizeof(sx_neigh_data.mac_addr));
 
-    sx_status = sx_api_router_neigh_set(gh_sdk,
+    sx_status = sx_api_router_neigh_set(get_sdk_handle(),
                                         SX_ACCESS_CMD_DELETE,
                                         br_rif,
                                         &fake_ip,
@@ -766,7 +764,7 @@ static sai_status_t mlnx_encap_nexthop_fake_data_deinit(_In_ sai_object_id_t    
         sx_mac_entry.entry_type = SX_FDB_UC_STATIC;
         sx_mac_entry.action = SX_FDB_ACTION_FORWARD_TO_ROUTER;
 
-        sx_status = sx_api_fdb_uc_mac_addr_set(gh_sdk, SX_ACCESS_CMD_DELETE, DEFAULT_ETH_SWID,
+        sx_status = sx_api_fdb_uc_mac_addr_set(get_sdk_handle(), SX_ACCESS_CMD_DELETE, DEFAULT_ETH_SWID,
                                                &sx_mac_entry, &macs_count);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to delete Fake FDB entry - %s\n", SX_STATUS_MSG(sx_status));
@@ -775,7 +773,7 @@ static sai_status_t mlnx_encap_nexthop_fake_data_deinit(_In_ sai_object_id_t    
     }
 
     if (total_deinit) {
-        sx_status = sx_api_router_ecmp_set(gh_sdk,
+        sx_status = sx_api_router_ecmp_set(get_sdk_handle(),
                                            SX_ACCESS_CMD_DESTROY,
                                            &fake_data->sx_fake_nexthop,
                                            NULL,
@@ -1154,8 +1152,8 @@ static sai_status_t mlnx_create_next_hop(_Out_ sai_object_id_t      *next_hop_id
                                          _In_ uint32_t               attr_count,
                                          _In_ const sai_attribute_t *attr_list)
 {
-    sai_status_t                 sai_status;
-    sx_status_t                  sdk_status;
+    sai_status_t                 status;
+    sx_status_t                  sx_status;
     const sai_attribute_value_t *type_attr = NULL, *ip_attr = NULL, *rif_attr = NULL, *tunnel_id_attr = NULL;
     const sai_attribute_value_t *counter_id_attr, *attr;
     const sai_ip_address_t      *ip = NULL;
@@ -1164,8 +1162,6 @@ static sai_status_t mlnx_create_next_hop(_Out_ sai_object_id_t      *next_hop_id
     const sai_object_id_t       *counter_id = NULL;
     uint32_t                     idx = 0, type_idx = 0, ip_idx = 0, tunnel_id_idx = 0, counter_id_idx = 0;
     uint32_t                     index;
-    char                         list_str[MAX_LIST_VALUE_STR_LEN];
-    char                         key_str[MAX_KEY_STR_LEN];
     sx_next_hop_t                sdk_next_hop;
     sx_ecmp_id_t                 sdk_ecmp_id;
     uint32_t                     next_hop_cnt;
@@ -1179,27 +1175,15 @@ static sai_status_t mlnx_create_next_hop(_Out_ sai_object_id_t      *next_hop_id
 
     memset(&sdk_next_hop, 0, sizeof(sdk_next_hop));
 
-    if (NULL == next_hop_id) {
-        SX_LOG_ERR("NULL next hop id param\n");
-        SX_LOG_EXIT();
-        return SAI_STATUS_INVALID_PARAMETER;
+    status = check_attribs_on_create(attr_count, attr_list, SAI_OBJECT_TYPE_NEXT_HOP, next_hop_id);
+    if (SAI_ERR(status)) {
+        return status;
     }
+    MLNX_LOG_ATTRS(attr_count, attr_list, SAI_OBJECT_TYPE_NEXT_HOP);
 
-    if (SAI_STATUS_SUCCESS !=
-        (sai_status =
-             check_attribs_metadata(attr_count, attr_list, SAI_OBJECT_TYPE_NEXT_HOP, next_hop_vendor_attribs,
-                                    SAI_COMMON_API_CREATE))) {
-        SX_LOG_ERR("Failed attribs check\n");
-        SX_LOG_EXIT();
-        return sai_status;
-    }
+    status = find_attrib_in_list(attr_count, attr_list, SAI_NEXT_HOP_ATTR_TYPE, &type_attr, &type_idx);
 
-    sai_attr_list_to_str(attr_count, attr_list, SAI_OBJECT_TYPE_NEXT_HOP, MAX_LIST_VALUE_STR_LEN, list_str);
-    SX_LOG_NTC("Create next hop, %s\n", list_str);
-
-    sai_status = find_attrib_in_list(attr_count, attr_list, SAI_NEXT_HOP_ATTR_TYPE, &type_attr, &type_idx);
-
-    assert(SAI_STATUS_SUCCESS == sai_status);
+    assert(SAI_STATUS_SUCCESS == status);
 
     switch (type_attr->s32) {
     case SAI_NEXT_HOP_TYPE_IP:
@@ -1214,13 +1198,13 @@ static sai_status_t mlnx_create_next_hop(_Out_ sai_object_id_t      *next_hop_id
         break;
     }
 
-    sai_status = find_attrib_in_list(attr_count, attr_list, SAI_NEXT_HOP_ATTR_ROUTER_INTERFACE_ID, &rif_attr, &idx);
+    status = find_attrib_in_list(attr_count, attr_list, SAI_NEXT_HOP_ATTR_ROUTER_INTERFACE_ID, &rif_attr, &idx);
 
-    if ((SAI_NEXT_HOP_TYPE_TUNNEL_ENCAP == type_attr->s32) && (SAI_STATUS_SUCCESS == sai_status)) {
+    if ((SAI_NEXT_HOP_TYPE_TUNNEL_ENCAP == type_attr->s32) && (SAI_STATUS_SUCCESS == status)) {
         SX_LOG_ERR("Rif is not valid for tunnel encap next hop\n");
         SX_LOG_EXIT();
         return SAI_STATUS_INVALID_ATTRIBUTE_0 + idx;
-    } else if ((SAI_NEXT_HOP_TYPE_TUNNEL_ENCAP != type_attr->s32) && (SAI_STATUS_SUCCESS != sai_status)) {
+    } else if ((SAI_NEXT_HOP_TYPE_TUNNEL_ENCAP != type_attr->s32) && (SAI_STATUS_SUCCESS != status)) {
         SX_LOG_ERR("Missing rif for next hop ip type and mpls type\n");
         SX_LOG_EXIT();
         return SAI_STATUS_MANDATORY_ATTRIBUTE_MISSING;
@@ -1232,16 +1216,20 @@ static sai_status_t mlnx_create_next_hop(_Out_ sai_object_id_t      *next_hop_id
 
     /* does MPLS need IP ? */
     if (SAI_STATUS_SUCCESS !=
-        (sai_status = find_attrib_in_list(attr_count, attr_list, SAI_NEXT_HOP_ATTR_IP, &ip_attr, &ip_idx))) {
+        (status = find_attrib_in_list(attr_count, attr_list, SAI_NEXT_HOP_ATTR_IP, &ip_attr, &ip_idx))) {
         if (SAI_NEXT_HOP_TYPE_TUNNEL_ENCAP == type_attr->s32) {
             is_tunnel_underlay_dst_ip_need = true;
         } else if (SAI_NEXT_HOP_TYPE_IP == type_attr->s32) {
-            SX_LOG_ERR("Missing next hop ip on create when next hop type is ip or tunnel encap\n");
+            SX_LOG_ERR("Missing next hop ip on create when next hop type is ip\n");
             SX_LOG_EXIT();
             return SAI_STATUS_MANDATORY_ATTRIBUTE_MISSING;
         }
     } else {
         ip = &ip_attr->ipaddr;
+        if ((SAI_NEXT_HOP_TYPE_TUNNEL_ENCAP == type_attr->s32) && (mlnx_is_ip_zero(ip))) {
+            SX_LOG_DBG("NULL next hop ip for create tunnel next hop\n");
+            is_tunnel_underlay_dst_ip_need = true;
+        }
         if ((SAI_IP_ADDR_FAMILY_IPV4 != ip_attr->ipaddr.addr_family) &&
             (SAI_IP_ADDR_FAMILY_IPV6 != ip_attr->ipaddr.addr_family)) {
             SX_LOG_ERR("Invalid next hop ip address %d family on create\n", ip_attr->ipaddr.addr_family);
@@ -1251,7 +1239,7 @@ static sai_status_t mlnx_create_next_hop(_Out_ sai_object_id_t      *next_hop_id
     }
 
     if (SAI_STATUS_SUCCESS !=
-        (sai_status =
+        (status =
              find_attrib_in_list(attr_count, attr_list, SAI_NEXT_HOP_ATTR_TUNNEL_ID, &tunnel_id_attr,
                                  &tunnel_id_idx))) {
         tunnel_id = NULL;
@@ -1272,7 +1260,7 @@ static sai_status_t mlnx_create_next_hop(_Out_ sai_object_id_t      *next_hop_id
 
     if (SAI_NEXT_HOP_TYPE_TUNNEL_ENCAP == type_attr->s32) {
         if (SAI_STATUS_SUCCESS !=
-            (sai_status = mlnx_get_sai_tunnel_db_idx(*tunnel_id, &tunnel_db_idx))) {
+            (status = mlnx_get_sai_tunnel_db_idx(*tunnel_id, &tunnel_db_idx))) {
             SX_LOG_ERR("Not able to get SAI tunnel db idx from tunnel id: %" PRIx64 "\n", *tunnel_id);
             SX_LOG_EXIT();
             return SAI_STATUS_INVALID_ATTRIBUTE_0 + tunnel_id_idx;
@@ -1299,42 +1287,46 @@ static sai_status_t mlnx_create_next_hop(_Out_ sai_object_id_t      *next_hop_id
         sai_db_unlock();
     }
 
-    sai_status = find_attrib_in_list(attr_count, attr_list, SAI_NEXT_HOP_ATTR_COUNTER_ID, &counter_id_attr,
-                                     &counter_id_idx);
-    if (!SAI_ERR(sai_status)) {
+    status = find_attrib_in_list(attr_count, attr_list, SAI_NEXT_HOP_ATTR_COUNTER_ID, &counter_id_attr,
+                                 &counter_id_idx);
+    if (!SAI_ERR(status)) {
         counter_id = &counter_id_attr->oid;
     }
 
     if ((SAI_NEXT_HOP_TYPE_TUNNEL_ENCAP != type_attr->s32) || is_tunnel_ipinip) {
         if (is_tunnel_underlay_dst_ip_need) {
+            char ip_str[MAX_KEY_STR_LEN];
             sai_db_read_lock();
             ip = &g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].sai_underlay_dip;
+            sai_ipaddr_to_str(*ip, MAX_KEY_STR_LEN - 1, ip_str, NULL);
+            SX_LOG_DBG("Get P2P ip tunnel dst ip - %s from db.\n", ip_str);
             sai_db_unlock();
         }
 
-        sai_status = mlnx_translate_sai_next_hop_to_sdk(type_attr->s32,
-                                                        ip,
-                                                        rif_id, tunnel_id, counter_id,
-                                                        &sdk_next_hop);
-        if (SAI_ERR(sai_status)) {
+        status = mlnx_translate_sai_next_hop_to_sdk(type_attr->s32,
+                                                    ip,
+                                                    rif_id, tunnel_id, counter_id,
+                                                    &sdk_next_hop);
+        if (SAI_ERR(status)) {
             SX_LOG_EXIT();
-            return sai_status;
+            return status;
         }
 
         next_hop_cnt = 1;
 
         if (SX_STATUS_SUCCESS !=
-            (sdk_status =
-                 sx_api_router_ecmp_set(gh_sdk, SX_ACCESS_CMD_CREATE, &sdk_ecmp_id, &sdk_next_hop, &next_hop_cnt))) {
-            SX_LOG_ERR("Failed to create ecmp - %s.\n", SX_STATUS_MSG(sdk_status));
+            (sx_status =
+                 sx_api_router_ecmp_set(get_sdk_handle(), SX_ACCESS_CMD_CREATE, &sdk_ecmp_id, &sdk_next_hop,
+                                        &next_hop_cnt))) {
+            SX_LOG_ERR("Failed to create ecmp - %s.\n", SX_STATUS_MSG(sx_status));
             SX_LOG_EXIT();
-            return sdk_to_sai(sdk_status);
+            return sdk_to_sai(sx_status);
         }
 
         if (SAI_STATUS_SUCCESS !=
-            (sai_status = mlnx_create_object(SAI_OBJECT_TYPE_NEXT_HOP, sdk_ecmp_id, NULL, next_hop_id))) {
+            (status = mlnx_create_object(SAI_OBJECT_TYPE_NEXT_HOP, sdk_ecmp_id, NULL, next_hop_id))) {
             SX_LOG_EXIT();
-            return sai_status;
+            return status;
         }
     }
 
@@ -1346,31 +1338,31 @@ static sai_status_t mlnx_create_next_hop(_Out_ sai_object_id_t      *next_hop_id
         uint32_t                       vni = 0;
 
         memset(tunnel_mac, 0, sizeof(tunnel_mac));
-        sai_status = find_attrib_in_list(attr_count, attr_list, SAI_NEXT_HOP_ATTR_TUNNEL_MAC, &attr, &index);
-        if (SAI_STATUS_SUCCESS == sai_status) {
+        status = find_attrib_in_list(attr_count, attr_list, SAI_NEXT_HOP_ATTR_TUNNEL_MAC, &attr, &index);
+        if (SAI_STATUS_SUCCESS == status) {
             memcpy(tunnel_mac, attr->mac, sizeof(attr->mac));
         }
 
         if (counter_id) {
-            sai_status = mlnx_get_flow_counter_id(*counter_id, &flow_counter_id);
-            if (SAI_ERR(sai_status)) {
+            status = mlnx_get_flow_counter_id(*counter_id, &flow_counter_id);
+            if (SAI_ERR(status)) {
                 SX_LOG_ERR("Failed to get flow counter id from counters DB.\n");
-                return sai_status;
+                return status;
             }
         }
 
-        sai_status = find_attrib_in_list(attr_count, attr_list, SAI_NEXT_HOP_ATTR_TUNNEL_VNI, &attr, &index);
-        if (SAI_STATUS_SUCCESS == sai_status) {
+        status = find_attrib_in_list(attr_count, attr_list, SAI_NEXT_HOP_ATTR_TUNNEL_VNI, &attr, &index);
+        if (SAI_STATUS_SUCCESS == status) {
             vni = attr->u32;
         }
 
         sai_db_write_lock();
 
-        sai_status = mlnx_encap_nexthop_db_entry_alloc(&db_entry, &idx);
-        if (SAI_ERR(sai_status)) {
+        status = mlnx_encap_nexthop_db_entry_alloc(&db_entry, &idx);
+        if (SAI_ERR(status)) {
             SX_LOG_ERR("Failed to allocate Encap Nexthop DB entry.\n");
             sai_db_unlock();
-            return sai_status;
+            return status;
         }
 
         memcpy(db_entry->data.tunnel_mac, tunnel_mac, sizeof(tunnel_mac));
@@ -1379,19 +1371,18 @@ static sai_status_t mlnx_create_next_hop(_Out_ sai_object_id_t      *next_hop_id
         db_entry->data.tunnel_vni = vni;
         db_entry->data.flow_counter = flow_counter_id;
 
-        sai_status = mlnx_encap_nexthop_oid_create(idx, next_hop_id);
-        if (SAI_ERR(sai_status)) {
+        status = mlnx_encap_nexthop_oid_create(idx, next_hop_id);
+        if (SAI_ERR(status)) {
             mlnx_encap_nexthop_db_entry_free(idx); /* don't care about status */
             SX_LOG_ERR("Failed to create Encap Nexthop OID.\n");
             sai_db_unlock();
-            return sai_status;
+            return status;
         }
 
         sai_db_unlock();
     }
 
-    next_hop_key_to_str(*next_hop_id, key_str);
-    SX_LOG_NTC("Created next hop %s\n", key_str);
+    MLNX_LOG_OID_CREATED(*next_hop_id);
 
     SX_LOG_EXIT();
     return SAI_STATUS_SUCCESS;
@@ -1415,13 +1406,11 @@ static sai_status_t mlnx_remove_next_hop(_In_ sai_object_id_t next_hop_id)
     sx_ecmp_id_t sdk_ecmp_id;
     uint32_t     data;
     uint16_t     use_db;
-    char         key_str[MAX_KEY_STR_LEN];
     uint32_t     next_hop_cnt = 0;
 
     SX_LOG_ENTER();
 
-    next_hop_key_to_str(next_hop_id, key_str);
-    SX_LOG_NTC("Remove next hop %s\n", key_str);
+    MLNX_LOG_OID_REMOVE(next_hop_id);
 
     status = mlnx_object_to_type(next_hop_id, SAI_OBJECT_TYPE_NEXT_HOP, &data, (uint8_t*)&use_db);
     if (SAI_ERR(status)) {
@@ -1456,7 +1445,7 @@ static sai_status_t mlnx_remove_next_hop(_In_ sai_object_id_t next_hop_id)
         }
     } else {
         sdk_ecmp_id = (sx_ecmp_id_t)data;
-        sx_status = sx_api_router_ecmp_set(gh_sdk, SX_ACCESS_CMD_DESTROY, &sdk_ecmp_id, NULL, &next_hop_cnt);
+        sx_status = sx_api_router_ecmp_set(get_sdk_handle(), SX_ACCESS_CMD_DESTROY, &sdk_ecmp_id, NULL, &next_hop_cnt);
         if (SAI_ERR(sx_status)) {
             SX_LOG_ERR("Failed to destroy ecmp - %s.\n", SX_STATUS_MSG(sx_status));
             status = sdk_to_sai(sx_status);
@@ -1485,12 +1474,8 @@ out:
 static sai_status_t mlnx_set_next_hop_attribute(_In_ sai_object_id_t next_hop_id, _In_ const sai_attribute_t *attr)
 {
     const sai_object_key_t key = { .key.object_id = next_hop_id };
-    char                   key_str[MAX_KEY_STR_LEN];
 
-    SX_LOG_ENTER();
-
-    next_hop_key_to_str(next_hop_id, key_str);
-    return sai_set_attribute(&key, key_str, SAI_OBJECT_TYPE_NEXT_HOP, next_hop_vendor_attribs, attr);
+    return sai_set_attribute(&key, SAI_OBJECT_TYPE_NEXT_HOP, attr);
 }
 
 
@@ -1512,12 +1497,8 @@ static sai_status_t mlnx_get_next_hop_attribute(_In_ sai_object_id_t     next_ho
                                                 _Inout_ sai_attribute_t *attr_list)
 {
     const sai_object_key_t key = { .key.object_id = next_hop_id };
-    char                   key_str[MAX_KEY_STR_LEN];
 
-    SX_LOG_ENTER();
-
-    next_hop_key_to_str(next_hop_id, key_str);
-    return sai_get_attributes(&key, key_str, SAI_OBJECT_TYPE_NEXT_HOP, next_hop_vendor_attribs, attr_count, attr_list);
+    return sai_get_attributes(&key, SAI_OBJECT_TYPE_NEXT_HOP, attr_count, attr_list);
 }
 
 /* Next hop entry type [sai_next_hop_type_t] */
@@ -1595,7 +1576,7 @@ static sai_status_t mlnx_next_hop_attr_get(_In_ const sai_object_key_t   *key,
     } else {
         sdk_ecmp_id = (sx_ecmp_id_t)data;
         sdk_next_hop_cnt = 1;
-        sx_status = sx_api_router_ecmp_get(gh_sdk, sdk_ecmp_id, &sdk_next_hop, &sdk_next_hop_cnt);
+        sx_status = sx_api_router_ecmp_get(get_sdk_handle(), sdk_ecmp_id, &sdk_next_hop, &sdk_next_hop_cnt);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to get ecmp - %s.\n", SX_STATUS_MSG(sx_status));
             return sdk_to_sai(sx_status);
@@ -1748,14 +1729,14 @@ static sai_status_t mlnx_next_hop_counter_set(_In_ const sai_object_key_t      *
         }
     } else {
         sdk_ecmp_id = data;
-        sx_status = sx_api_router_ecmp_get(gh_sdk, sdk_ecmp_id, &sdk_next_hop, &sdk_next_hop_cnt);
+        sx_status = sx_api_router_ecmp_get(get_sdk_handle(), sdk_ecmp_id, &sdk_next_hop, &sdk_next_hop_cnt);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to get ecmp - %s.\n", SX_STATUS_MSG(sx_status));
             return sdk_to_sai(status);
         }
 
         sdk_next_hop.next_hop_data.counter_id = counter_id;
-        sx_status = sx_api_router_ecmp_set(gh_sdk,
+        sx_status = sx_api_router_ecmp_set(get_sdk_handle(),
                                            SX_ACCESS_CMD_SET,
                                            &sdk_ecmp_id,
                                            &sdk_next_hop,
@@ -1778,7 +1759,7 @@ static sai_status_t mlnx_meta_tunnel_entry_remove(_In_ sx_mac_addr_t *sx_fake_ma
     memcpy(&key.in_rif_metadata_field, sx_fake_mac->ether_addr_octet, sizeof(key.in_rif_metadata_field));
     key.priority = priority;
 
-    sx_status = sx_api_table_meta_tunnel_entry_set(gh_sdk, SX_ACCESS_CMD_DELETE, &key, NULL);
+    sx_status = sx_api_table_meta_tunnel_entry_set(get_sdk_handle(), SX_ACCESS_CMD_DELETE, &key, NULL);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to remove meta tunnel entry - %s\n", SX_STATUS_MSG(sx_status));
         return sdk_to_sai(sx_status);
@@ -1827,7 +1808,7 @@ static sai_status_t mlnx_meta_tunnel_entry_create(_In_ sx_mac_addr_t    *sx_fake
     action.data.tunnel_encap_params.tunnel_id = sx_tunnel_id;
     action.data.tunnel_encap_params.underlay_dip = sx_dip;
 
-    sx_status = sx_api_table_meta_tunnel_entry_set(gh_sdk, SX_ACCESS_CMD_CREATE, &key, &action);
+    sx_status = sx_api_table_meta_tunnel_entry_set(get_sdk_handle(), SX_ACCESS_CMD_CREATE, &key, &action);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to create meta tunnel entry - %s\n", SX_STATUS_MSG(sx_status));
         return sdk_to_sai(sx_status);

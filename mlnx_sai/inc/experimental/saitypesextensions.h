@@ -42,11 +42,53 @@ typedef enum _sai_object_type_extensions_t
 
     SAI_OBJECT_TYPE_TABLE_META_TUNNEL_ENTRY,
 
+    SAI_OBJECT_TYPE_DASH_ACL_GROUP,
+
+    SAI_OBJECT_TYPE_DASH_ACL_RULE,
+
+    SAI_OBJECT_TYPE_DIRECTION_LOOKUP_ENTRY,
+
+    SAI_OBJECT_TYPE_ENI_ETHER_ADDRESS_MAP_ENTRY,
+
+    SAI_OBJECT_TYPE_ENI,
+
+    SAI_OBJECT_TYPE_INBOUND_ROUTING_ENTRY,
+
+    SAI_OBJECT_TYPE_OUTBOUND_CA_TO_PA_ENTRY,
+
+    SAI_OBJECT_TYPE_OUTBOUND_ROUTING_ENTRY,
+
+    SAI_OBJECT_TYPE_VNET,
+
+    SAI_OBJECT_TYPE_PA_VALIDATION_ENTRY,
+
+    SAI_OBJECT_TYPE_VIP_ENTRY,
+
     /* Add new experimental object types above this line */
 
     SAI_OBJECT_TYPE_EXTENSIONS_RANGE_END
 
 } sai_object_type_extensions_t;
+
+typedef enum _sai_dash_direction_t
+{
+    SAI_DASH_DIRECTION_INVALID,
+
+    SAI_DASH_DIRECTION_OUTBOUND,
+
+    SAI_DASH_DIRECTION_INBOUND,
+
+} sai_dash_direction_t;
+
+typedef enum _sai_dash_encapsulation_t
+{
+    SAI_DASH_ENCAPSULATION_INVALID,
+
+    SAI_DASH_ENCAPSULATION_VXLAN,
+
+    SAI_DASH_ENCAPSULATION_NVGRE,
+
+} sai_dash_encapsulation_t;
 
 #endif /* __SAITYPESEXTENSIONS_H_ */
 

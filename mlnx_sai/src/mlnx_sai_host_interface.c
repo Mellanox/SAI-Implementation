@@ -194,8 +194,14 @@ static const mlnx_attr_enum_info_t        hostif_enum_info[] = {
         ),
     [SAI_HOSTIF_ATTR_VLAN_TAG] = ATTR_ENUM_VALUES_ALL(),
 };
-const mlnx_obj_type_attrs_info_t          mlnx_hostif_obj_type_info =
-{ host_interface_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(hostif_enum_info), OBJ_STAT_CAP_INFO_EMPTY()};
+static size_t hostif_info_print(_In_ const sai_object_key_t *key, _Out_ char *str, _In_ size_t max_len)
+{
+    mlnx_object_id_t mlnx_oid = *(mlnx_object_id_t*)&key->key.object_id;
+
+    return snprintf(str, max_len, "[hostif_db[%u]]", mlnx_oid.id.u32);
+}
+const mlnx_obj_type_attrs_info_t mlnx_hostif_obj_type_info =
+{ host_interface_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(hostif_enum_info), OBJ_STAT_CAP_INFO_EMPTY(), hostif_info_print};
 static const sai_vendor_attribute_entry_t trap_group_vendor_attribs[] = {
     { SAI_HOSTIF_TRAP_GROUP_ATTR_ADMIN_STATE,
       { true, false, true, true },
@@ -218,8 +224,14 @@ static const sai_vendor_attribute_entry_t trap_group_vendor_attribs[] = {
       NULL, NULL,
       NULL, NULL }
 };
-const mlnx_obj_type_attrs_info_t          mlnx_hostif_trap_group_obj_type_info =
-{ trap_group_vendor_attribs, OBJ_ATTRS_ENUMS_INFO_EMPTY(), OBJ_STAT_CAP_INFO_EMPTY()};
+static size_t hostif_trap_group_info_print(_In_ const sai_object_key_t *key, _Out_ char *str, _In_ size_t max_len)
+{
+    mlnx_object_id_t mlnx_oid = *(mlnx_object_id_t*)&key->key.object_id;
+
+    return snprintf(str, max_len, "[trap_group_valid[%u]]", mlnx_oid.id.u32);
+}
+const mlnx_obj_type_attrs_info_t mlnx_hostif_trap_group_obj_type_info =
+{ trap_group_vendor_attribs, OBJ_ATTRS_ENUMS_INFO_EMPTY(), OBJ_STAT_CAP_INFO_EMPTY(), hostif_trap_group_info_print};
 static const sai_vendor_attribute_entry_t trap_vendor_attribs[] = {
     { SAI_HOSTIF_TRAP_ATTR_TRAP_TYPE,
       { true, false, false, true },
@@ -314,8 +326,15 @@ static const mlnx_attr_enum_info_t        hostif_trap_enum_info[] = {
         SAI_PACKET_ACTION_DROP
         )
 };
-const mlnx_obj_type_attrs_info_t          mlnx_hostif_trap_obj_type_info =
-{ trap_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(hostif_trap_enum_info), OBJ_STAT_CAP_INFO_EMPTY()};
+static size_t trap_info_print(_In_ const sai_object_key_t *key, _Out_ char *str, _In_ size_t max_len)
+{
+    mlnx_object_id_t mlnx_oid = *(mlnx_object_id_t*)&key->key.object_id;
+
+    return snprintf(str, max_len, "[mlnx_traps_info[%u], name:%s]", mlnx_oid.id.u32,
+                    mlnx_traps_info[mlnx_oid.id.u32].trap_name);
+}
+const mlnx_obj_type_attrs_info_t mlnx_hostif_trap_obj_type_info =
+{ trap_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(hostif_trap_enum_info), OBJ_STAT_CAP_INFO_EMPTY(), trap_info_print};
 static const sai_vendor_attribute_entry_t user_defined_trap_vendor_attribs[] = {
     { SAI_HOSTIF_USER_DEFINED_TRAP_ATTR_TYPE,
       { true, false, false, true },
@@ -346,7 +365,8 @@ static const mlnx_attr_enum_info_t        user_defined_trap_enum_info[] = {
         SAI_HOSTIF_USER_DEFINED_TRAP_TYPE_FDB)
 };
 const mlnx_obj_type_attrs_info_t          mlnx_hostif_user_defined_trap_obj_type_info =
-{ user_defined_trap_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(user_defined_trap_enum_info), OBJ_STAT_CAP_INFO_EMPTY()};
+{ user_defined_trap_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(user_defined_trap_enum_info), OBJ_STAT_CAP_INFO_EMPTY(),
+  trap_info_print};
 static const sai_vendor_attribute_entry_t host_interface_packet_vendor_attribs[] = {
     { SAI_HOSTIF_PACKET_ATTR_HOSTIF_TRAP_ID,
       { false, false, false, true },
@@ -393,7 +413,8 @@ static const mlnx_attr_enum_info_t        hostif_packet_enum_info[] = {
     [SAI_HOSTIF_PACKET_ATTR_HOSTIF_TX_TYPE] = ATTR_ENUM_VALUES_ALL()
 };
 const mlnx_obj_type_attrs_info_t          mlnx_hostif_packet_obj_type_info =
-{ host_interface_packet_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(hostif_packet_enum_info), OBJ_STAT_CAP_INFO_EMPTY()};
+{ host_interface_packet_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(hostif_packet_enum_info), OBJ_STAT_CAP_INFO_EMPTY(),
+  NULL};
 static const sai_vendor_attribute_entry_t host_table_entry_vendor_attribs[] = {
     { SAI_HOSTIF_TABLE_ENTRY_ATTR_TYPE,
       { true, false, false, true },
@@ -433,8 +454,17 @@ static const mlnx_attr_enum_info_t        hostif_table_entry_enum_info[] = {
 
 #define HOSTMISS_TRAP_TYPE (SAI_HOSTIF_TRAP_TYPE_END + 1) /* only for internal use */
 
+static size_t hostif_table_entry_info_print(_In_ const sai_object_key_t *key, _Out_ char *str, _In_ size_t max_len)
+{
+    mlnx_object_id_t mlnx_oid = *(mlnx_object_id_t*)&key->key.object_id;
+
+    return snprintf(str, max_len, "[hostif_db[%u], trap_db[%u], type:%u]",
+                    mlnx_oid.id.u32, mlnx_oid.id.hostif_table_entry.trap_db_idx, mlnx_oid.field.sub_type);
+}
+
 const mlnx_obj_type_attrs_info_t mlnx_hostif_table_entry_obj_type_info =
-{ host_table_entry_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(hostif_table_entry_enum_info), OBJ_STAT_CAP_INFO_EMPTY()};
+{ host_table_entry_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(hostif_table_entry_enum_info), OBJ_STAT_CAP_INFO_EMPTY(),
+  hostif_table_entry_info_print};
 const mlnx_trap_info_t mlnx_traps_info[] = {
     { SAI_HOSTIF_TRAP_TYPE_STP, 1, { SX_TRAP_ID_ETH_L2_STP }, SAI_PACKET_ACTION_DROP, "STP",
       SAI_OBJECT_TYPE_HOSTIF_TRAP, MLNX_L2_TRAP },
@@ -1168,19 +1198,6 @@ sai_status_t mlnx_translate_sai_trap_to_sdk(_In_ sai_object_id_t trap_oid,
     return SAI_STATUS_SUCCESS;
 }
 
-static void host_interface_key_to_str(_In_ sai_object_id_t hif_id, _Out_ char *key_str)
-{
-    mlnx_object_id_t mlnx_hif = {0};
-    sai_status_t     status;
-
-    status = sai_to_mlnx_object_id(SAI_OBJECT_TYPE_HOSTIF, hif_id, &mlnx_hif);
-    if (SAI_ERR(status)) {
-        snprintf(key_str, MAX_KEY_STR_LEN, "invalid host interface");
-    } else {
-        snprintf(key_str, MAX_KEY_STR_LEN, "host interface %u", mlnx_hif.id.u32);
-    }
-}
-
 /* Creates netdev. Called under read/write lock */
 static sai_status_t create_netdev(uint32_t index)
 {
@@ -1302,31 +1319,20 @@ static sai_status_t mlnx_create_host_interface(_Out_ sai_object_id_t     * hif_i
                                                _In_ const sai_attribute_t *attr_list)
 {
     sai_status_t                 status;
+    sx_status_t                  sx_status;
     const sai_attribute_value_t *type, *rif_port, *name, *mcgrp_name;
     uint32_t                     type_index, rif_port_index, name_index, mcgrp_name_index, rif_port_data;
-    char                         key_str[MAX_KEY_STR_LEN];
-    char                         list_str[MAX_LIST_VALUE_STR_LEN];
     uint32_t                     ii;
     uint32_t                     port_db_idx;
     mlnx_object_id_t             mlnx_hif = {0};
 
     SX_LOG_ENTER();
 
-    if (NULL == hif_id) {
-        SX_LOG_ERR("NULL host interface ID param\n");
-        return SAI_STATUS_INVALID_PARAMETER;
-    }
-
-    if (SAI_STATUS_SUCCESS !=
-        (status =
-             check_attribs_metadata(attr_count, attr_list, SAI_OBJECT_TYPE_HOSTIF, host_interface_vendor_attribs,
-                                    SAI_COMMON_API_CREATE))) {
-        SX_LOG_ERR("Failed attribs check\n");
+    status = check_attribs_on_create(attr_count, attr_list, SAI_OBJECT_TYPE_HOSTIF, hif_id);
+    if (SAI_ERR(status)) {
         return status;
     }
-
-    sai_attr_list_to_str(attr_count, attr_list, SAI_OBJECT_TYPE_HOSTIF, MAX_LIST_VALUE_STR_LEN, list_str);
-    SX_LOG_NTC("Create host interface, %s\n", list_str);
+    MLNX_LOG_ATTRS(attr_count, attr_list, SAI_OBJECT_TYPE_HOSTIF);
 
     status = find_attrib_in_list(attr_count, attr_list, SAI_HOSTIF_ATTR_TYPE, &type, &type_index);
     assert(SAI_STATUS_SUCCESS == status);
@@ -1444,10 +1450,11 @@ static sai_status_t mlnx_create_host_interface(_Out_ sai_object_id_t     * hif_i
             return SAI_STATUS_INVALID_ATTRIBUTE_0 + name_index;
         }
 
-        if (SX_STATUS_SUCCESS != (status = sx_api_host_ifc_open(gh_sdk, &g_sai_db_ptr->hostif_db[ii].fd))) {
-            SX_LOG_ERR("host ifc open fd failed - %s.\n", SX_STATUS_MSG(status));
+        sx_status = sx_api_host_ifc_open(get_sdk_handle(), &g_sai_db_ptr->hostif_db[ii].fd);
+        if (SX_ERR(sx_status)) {
+            SX_LOG_ERR("host ifc open fd failed - %s.\n", SX_STATUS_MSG(sx_status));
             cl_plock_release(&g_sai_db_ptr->p_lock);
-            return status;
+            return sdk_to_sai(sx_status);
         }
 
         g_sai_db_ptr->hostif_db[ii].sub_type = SAI_HOSTIF_OBJECT_TYPE_FD;
@@ -1528,8 +1535,7 @@ static sai_status_t mlnx_create_host_interface(_Out_ sai_object_id_t     * hif_i
         return status;
     }
 
-    host_interface_key_to_str(*hif_id, key_str);
-    SX_LOG_NTC("Created host interface %s\n", key_str);
+    MLNX_LOG_OID_CREATED(*hif_id);
 
     SX_LOG_EXIT();
     return SAI_STATUS_SUCCESS;
@@ -1580,17 +1586,16 @@ out:
  */
 static sai_status_t mlnx_remove_host_interface(_In_ sai_object_id_t hif_id)
 {
-    char             key_str[MAX_KEY_STR_LEN];
     int              system_err;
     char             command[100];
     mlnx_object_id_t mlnx_hif;
     uint32_t         port_db_idx;
     sai_status_t     status;
+    sx_status_t      sx_status;
 
     SX_LOG_ENTER();
 
-    host_interface_key_to_str(hif_id, key_str);
-    SX_LOG_NTC("Remove host interface %s\n", key_str);
+    MLNX_LOG_OID_REMOVE(hif_id);
 
     status = sai_to_mlnx_object_id(SAI_OBJECT_TYPE_HOSTIF, hif_id, &mlnx_hif);
     if (SAI_ERR(status)) {
@@ -1612,9 +1617,10 @@ static sai_status_t mlnx_remove_host_interface(_In_ sai_object_id_t hif_id)
     }
 
     if (SAI_HOSTIF_OBJECT_TYPE_FD == g_sai_db_ptr->hostif_db[mlnx_hif.id.u32].sub_type) {
-        if (SX_STATUS_SUCCESS !=
-            (status = sx_api_host_ifc_close(gh_sdk, &g_sai_db_ptr->hostif_db[mlnx_hif.id.u32].fd))) {
-            SX_LOG_ERR("host ifc close fd failed - %s.\n", SX_STATUS_MSG(status));
+        sx_status = sx_api_host_ifc_close(get_sdk_handle(), &g_sai_db_ptr->hostif_db[mlnx_hif.id.u32].fd);
+        if (SX_ERR(sx_status)) {
+            SX_LOG_ERR("host ifc close fd failed - %s.\n", SX_STATUS_MSG(sx_status));
+            status = sdk_to_sai(sx_status);
             goto out;
         }
     } else if (SAI_HOSTIF_OBJECT_TYPE_GENETLINK != g_sai_db_ptr->hostif_db[mlnx_hif.id.u32].sub_type) {
@@ -1689,12 +1695,8 @@ sai_status_t mlnx_netdev_restore(void)
 static sai_status_t mlnx_set_host_interface_attribute(_In_ sai_object_id_t hif_id, _In_ const sai_attribute_t *attr)
 {
     const sai_object_key_t key = { .key.object_id = hif_id };
-    char                   key_str[MAX_KEY_STR_LEN];
 
-    SX_LOG_ENTER();
-
-    host_interface_key_to_str(hif_id, key_str);
-    return sai_set_attribute(&key, key_str, SAI_OBJECT_TYPE_HOSTIF, host_interface_vendor_attribs, attr);
+    return sai_set_attribute(&key, SAI_OBJECT_TYPE_HOSTIF, attr);
 }
 
 /*
@@ -1715,17 +1717,8 @@ static sai_status_t mlnx_get_host_interface_attribute(_In_ sai_object_id_t     h
                                                       _Inout_ sai_attribute_t *attr_list)
 {
     const sai_object_key_t key = { .key.object_id = hif_id };
-    char                   key_str[MAX_KEY_STR_LEN];
 
-    SX_LOG_ENTER();
-
-    host_interface_key_to_str(hif_id, key_str);
-    return sai_get_attributes(&key,
-                              key_str,
-                              SAI_OBJECT_TYPE_HOSTIF,
-                              host_interface_vendor_attribs,
-                              attr_count,
-                              attr_list);
+    return sai_get_attributes(&key, SAI_OBJECT_TYPE_HOSTIF, attr_count, attr_list);
 }
 
 /* Type [sai_host_interface_type_t] */
@@ -1972,6 +1965,7 @@ static sai_status_t mlnx_trap_group_queue_set(_In_ const sai_object_key_t      *
                                               void                             *arg)
 {
     sai_status_t               status;
+    sx_status_t                sx_status;
     uint32_t                   group_id;
     sx_trap_group_attributes_t trap_group_attributes;
 
@@ -1983,18 +1977,20 @@ static sai_status_t mlnx_trap_group_queue_set(_In_ const sai_object_key_t      *
         return status;
     }
 
-    if (SAI_STATUS_SUCCESS != (status = sx_api_host_ifc_trap_group_get(gh_sdk, DEFAULT_ETH_SWID,
-                                                                       group_id, &trap_group_attributes))) {
-        SX_LOG_ERR("Failed to sx_api_host_ifc_trap_group_get %s\n", SX_STATUS_MSG(status));
-        return sdk_to_sai(status);
+    sx_status = sx_api_host_ifc_trap_group_get(get_sdk_handle(), DEFAULT_ETH_SWID,
+                                               group_id, &trap_group_attributes);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to sx_api_host_ifc_trap_group_get %s\n", SX_STATUS_MSG(sx_status));
+        return sdk_to_sai(sx_status);
     }
 
     trap_group_attributes.prio = (value->u32 > SX_TRAP_PRIORITY_HIGH) ? SX_TRAP_PRIORITY_HIGH : value->u32;
 
-    if (SAI_STATUS_SUCCESS != (status = sx_api_host_ifc_trap_group_ext_set(gh_sdk, SX_ACCESS_CMD_SET, DEFAULT_ETH_SWID,
-                                                                           group_id, &trap_group_attributes))) {
-        SX_LOG_ERR("Failed to sx_api_host_ifc_trap_group_ext_set %s\n", SX_STATUS_MSG(status));
-        return sdk_to_sai(status);
+    sx_status = sx_api_host_ifc_trap_group_ext_set(get_sdk_handle(), SX_ACCESS_CMD_SET, DEFAULT_ETH_SWID,
+                                                   group_id, &trap_group_attributes);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to sx_api_host_ifc_trap_group_ext_set %s\n", SX_STATUS_MSG(sx_status));
+        return sdk_to_sai(sx_status);
     }
 
     SX_LOG_EXIT();
@@ -2009,6 +2005,7 @@ static sai_status_t mlnx_trap_group_queue_get(_In_ const sai_object_key_t   *key
                                               void                          *arg)
 {
     sai_status_t               status;
+    sx_status_t                sx_status;
     uint32_t                   group_id;
     sx_trap_group_attributes_t trap_group_attributes;
 
@@ -2020,10 +2017,11 @@ static sai_status_t mlnx_trap_group_queue_get(_In_ const sai_object_key_t   *key
         return status;
     }
 
-    if (SAI_STATUS_SUCCESS != (status = sx_api_host_ifc_trap_group_get(gh_sdk, DEFAULT_ETH_SWID,
-                                                                       group_id, &trap_group_attributes))) {
-        SX_LOG_ERR("Failed to sx_api_host_ifc_trap_group_get %s\n", SX_STATUS_MSG(status));
-        return sdk_to_sai(status);
+    sx_status = sx_api_host_ifc_trap_group_get(get_sdk_handle(), DEFAULT_ETH_SWID,
+                                               group_id, &trap_group_attributes);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to sx_api_host_ifc_trap_group_get %s\n", SX_STATUS_MSG(sx_status));
+        return sdk_to_sai(sx_status);
     }
 
     value->u32 = trap_group_attributes.prio;
@@ -2056,7 +2054,7 @@ static sai_status_t mlnx_trap_group_policer_get(_In_ const sai_object_key_t   *k
     }
 
     if (SX_STATUS_SUCCESS !=
-        (sx_status = sx_api_host_ifc_policer_bind_get(gh_sdk,
+        (sx_status = sx_api_host_ifc_policer_bind_get(get_sdk_handle(),
                                                       DEFAULT_ETH_SWID,
                                                       group_id,
                                                       &sx_policer_id))) {
@@ -2160,7 +2158,7 @@ sai_status_t mlnx_sai_unbind_policer_from_trap_group(_In_ sai_object_id_t sai_tr
     }
 
     if (SX_STATUS_SUCCESS !=
-        (sx_status = sx_api_host_ifc_policer_bind_get(gh_sdk,
+        (sx_status = sx_api_host_ifc_policer_bind_get(get_sdk_handle(),
                                                       DEFAULT_ETH_SWID,
                                                       group_id,
                                                       &sx_policer))) {
@@ -2177,7 +2175,7 @@ sai_status_t mlnx_sai_unbind_policer_from_trap_group(_In_ sai_object_id_t sai_tr
 
     if (SX_STATUS_SUCCESS != (
             sx_status = sx_api_host_ifc_policer_bind_set(
-                gh_sdk,
+                get_sdk_handle(),
                 SX_ACCESS_CMD_UNBIND,
                 DEFAULT_ETH_SWID,
                 group_id,
@@ -2246,17 +2244,6 @@ sai_status_t mlnx_hostif_trap_group_free(_In_ sx_trap_group_t trap_group)
     return SAI_STATUS_SUCCESS;
 }
 
-static void trap_group_key_to_str(_In_ sai_object_id_t group_id, _Out_ char *key_str)
-{
-    uint32_t group_data;
-
-    if (SAI_STATUS_SUCCESS != mlnx_object_to_type(group_id, SAI_OBJECT_TYPE_HOSTIF_TRAP_GROUP, &group_data, NULL)) {
-        snprintf(key_str, MAX_KEY_STR_LEN, "Invalid trap group");
-    } else {
-        snprintf(key_str, MAX_KEY_STR_LEN, "Trap group %u", group_data);
-    }
-}
-
 /*
  * Routine Description:
  *    Create host interface trap group
@@ -2276,10 +2263,9 @@ static sai_status_t mlnx_create_hostif_trap_group(_Out_ sai_object_id_t      *ho
                                                   _In_ const sai_attribute_t *attr_list)
 {
     sai_status_t                 status;
+    sx_status_t                  sx_status;
     const sai_attribute_value_t *prio;
     uint32_t                     prio_index;
-    char                         key_str[MAX_KEY_STR_LEN];
-    char                         list_str[MAX_LIST_VALUE_STR_LEN];
     sx_trap_group_attributes_t   trap_group_attributes;
     uint32_t                     policer_attr_index = 0;
     const sai_attribute_value_t *policer_id_attr = NULL;
@@ -2289,22 +2275,11 @@ static sai_status_t mlnx_create_hostif_trap_group(_Out_ sai_object_id_t      *ho
 
     memset(&trap_group_attributes, 0, sizeof(trap_group_attributes));
 
-    if (NULL == hostif_trap_group_id) {
-        SX_LOG_ERR("NULL host interface trap group ID param\n");
-        return SAI_STATUS_INVALID_PARAMETER;
-    }
-
-    if (SAI_STATUS_SUCCESS !=
-        (status =
-             check_attribs_metadata(attr_count, attr_list, SAI_OBJECT_TYPE_HOSTIF_TRAP_GROUP,
-                                    trap_group_vendor_attribs,
-                                    SAI_COMMON_API_CREATE))) {
-        SX_LOG_ERR("Failed attribs check\n");
+    status = check_attribs_on_create(attr_count, attr_list, SAI_OBJECT_TYPE_HOSTIF_TRAP_GROUP, hostif_trap_group_id);
+    if (SAI_ERR(status)) {
         return status;
     }
-
-    sai_attr_list_to_str(attr_count, attr_list, SAI_OBJECT_TYPE_HOSTIF_TRAP_GROUP, MAX_LIST_VALUE_STR_LEN, list_str);
-    SX_LOG_NTC("Create trap group, %s\n", list_str);
+    MLNX_LOG_ATTRS(attr_count, attr_list, SAI_OBJECT_TYPE_HOSTIF_TRAP_GROUP);
 
     trap_group_attributes.truncate_mode = SX_TRUNCATE_MODE_DISABLE;
     trap_group_attributes.truncate_size = 0;
@@ -2322,10 +2297,11 @@ static sai_status_t mlnx_create_hostif_trap_group(_Out_ sai_object_id_t      *ho
         goto out;
     }
 
-    if (SAI_STATUS_SUCCESS != (status = sx_api_host_ifc_trap_group_ext_set(gh_sdk, SX_ACCESS_CMD_SET, DEFAULT_ETH_SWID,
-                                                                           group_id, &trap_group_attributes))) {
-        SX_LOG_ERR("Failed to sx_api_host_ifc_trap_group_ext_set %s\n", SX_STATUS_MSG(status));
-        status = sdk_to_sai(status);
+    sx_status = sx_api_host_ifc_trap_group_ext_set(get_sdk_handle(), SX_ACCESS_CMD_SET, DEFAULT_ETH_SWID,
+                                                   group_id, &trap_group_attributes);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to sx_api_host_ifc_trap_group_ext_set %s\n", SX_STATUS_MSG(sx_status));
+        status = sdk_to_sai(sx_status);
         goto out;
     }
 
@@ -2333,8 +2309,6 @@ static sai_status_t mlnx_create_hostif_trap_group(_Out_ sai_object_id_t      *ho
         (status = mlnx_create_object(SAI_OBJECT_TYPE_HOSTIF_TRAP_GROUP, group_id, NULL, hostif_trap_group_id))) {
         goto out;
     }
-
-    trap_group_key_to_str(*hostif_trap_group_id, key_str);
 
     if (SAI_STATUS_SUCCESS ==
         find_attrib_in_list(attr_count, attr_list, SAI_HOSTIF_TRAP_GROUP_ATTR_POLICER, &policer_id_attr,
@@ -2350,8 +2324,7 @@ static sai_status_t mlnx_create_hostif_trap_group(_Out_ sai_object_id_t      *ho
         }
     }
 
-
-    SX_LOG_NTC("Created trap group %s\n", key_str);
+    MLNX_LOG_OID_CREATED(*hostif_trap_group_id);
 
 out:
     sai_db_unlock();
@@ -2374,13 +2347,13 @@ out:
 static sai_status_t mlnx_remove_hostif_trap_group(_In_ sai_object_id_t hostif_trap_group_id)
 {
     sx_status_t  sx_status;
-    char         key_str[MAX_KEY_STR_LEN];
     uint32_t     group_id, trap_idx;
     sai_status_t status;
 
     SX_LOG_ENTER();
-    trap_group_key_to_str(hostif_trap_group_id, key_str);
-    SX_LOG_NTC("Remove trap group %s\n", key_str);
+
+    MLNX_LOG_OID_REMOVE(hostif_trap_group_id);
+
     if (SAI_STATUS_SUCCESS !=
         (status = mlnx_object_to_type(hostif_trap_group_id, SAI_OBJECT_TYPE_HOSTIF_TRAP_GROUP, &group_id, NULL))) {
         SX_LOG_EXIT();
@@ -2416,7 +2389,11 @@ static sai_status_t mlnx_remove_hostif_trap_group(_In_ sai_object_id_t hostif_tr
         goto out;
     }
 
-    sx_status = sx_api_host_ifc_trap_group_ext_set(gh_sdk, SX_ACCESS_CMD_UNSET, DEFAULT_ETH_SWID, group_id, NULL);
+    sx_status = sx_api_host_ifc_trap_group_ext_set(get_sdk_handle(),
+                                                   SX_ACCESS_CMD_UNSET,
+                                                   DEFAULT_ETH_SWID,
+                                                   group_id,
+                                                   NULL);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to unset sx trap group %d - %s\n", group_id, SX_STATUS_MSG(sx_status));
         status = sdk_to_sai(sx_status);
@@ -2447,12 +2424,8 @@ static sai_status_t mlnx_set_hostif_trap_group_attribute(_In_ sai_object_id_t   
                                                          _In_ const sai_attribute_t *attr)
 {
     const sai_object_key_t key = { .key.object_id = hostif_trap_group_id };
-    char                   key_str[MAX_KEY_STR_LEN];
 
-    SX_LOG_ENTER();
-
-    trap_group_key_to_str(hostif_trap_group_id, key_str);
-    return sai_set_attribute(&key, key_str, SAI_OBJECT_TYPE_HOSTIF_TRAP_GROUP, trap_group_vendor_attribs, attr);
+    return sai_set_attribute(&key, SAI_OBJECT_TYPE_HOSTIF_TRAP_GROUP, attr);
 }
 
 /*
@@ -2474,36 +2447,8 @@ static sai_status_t mlnx_get_hostif_trap_group_attribute(_In_ sai_object_id_t   
                                                          _Inout_ sai_attribute_t *attr_list)
 {
     const sai_object_key_t key = { .key.object_id = hostif_trap_group_id };
-    char                   key_str[MAX_KEY_STR_LEN];
 
-    SX_LOG_ENTER();
-
-    trap_group_key_to_str(hostif_trap_group_id, key_str);
-    return sai_get_attributes(&key,
-                              key_str,
-                              SAI_OBJECT_TYPE_HOSTIF_TRAP_GROUP,
-                              trap_group_vendor_attribs,
-                              attr_count,
-                              attr_list);
-}
-
-static void trap_key_to_str(_In_ sai_object_id_t hostif_trap_id, _Out_ char *key_str)
-{
-    uint32_t          index;
-    sai_object_type_t obj_type = sai_object_type_query(hostif_trap_id);
-    sai_status_t      status;
-
-    if ((obj_type != SAI_OBJECT_TYPE_HOSTIF_TRAP) && ((obj_type != SAI_OBJECT_TYPE_HOSTIF_USER_DEFINED_TRAP))) {
-        snprintf(key_str, MAX_KEY_STR_LEN, "Invalid trap");
-    } else {
-        status = mlnx_object_to_type(hostif_trap_id, obj_type, &index, NULL);
-        if (SAI_ERR(status)) {
-            snprintf(key_str, MAX_KEY_STR_LEN, "Invalid trap");
-        } else {
-            snprintf(key_str, MAX_KEY_STR_LEN, "%s %x %s oid 0x%" PRIx64 "", SAI_TYPE_STR(obj_type), index,
-                     mlnx_traps_info[index].trap_name, hostif_trap_id);
-        }
-    }
+    return sai_get_attributes(&key, SAI_OBJECT_TYPE_HOSTIF_TRAP_GROUP, attr_count, attr_list);
 }
 
 /**
@@ -2527,31 +2472,18 @@ sai_status_t mlnx_create_hostif_trap(_Out_ sai_object_id_t      *hostif_trap_id,
     const sai_attribute_value_t *group = NULL, *mirror_session = NULL;
     uint32_t                     trap_type_idx, action_index, exclude_index, group_index, counter_index;
     uint32_t                     mirror_session_index;
-    char                         key_str[MAX_KEY_STR_LEN];
-    char                         list_str[MAX_LIST_VALUE_STR_LEN];
     uint32_t                     index, prio;
     sx_trap_action_t             sx_action;
     const bool                   is_create = true;
 
     SX_LOG_ENTER();
 
-    if (NULL == hostif_trap_id) {
-        SX_LOG_ERR("NULL host interface trap ID param\n");
-        return SAI_STATUS_INVALID_PARAMETER;
-    }
-
-    if (SAI_STATUS_SUCCESS !=
-        (status =
-             check_attribs_metadata(attr_count, attr_list, SAI_OBJECT_TYPE_HOSTIF_TRAP, trap_vendor_attribs,
-                                    SAI_COMMON_API_CREATE))) {
-        SX_LOG_ERR("Failed attribs check\n");
+    /* In Mellanox platform, trap group queue defines the trap priority */
+    status = check_attribs_on_create(attr_count, attr_list, SAI_OBJECT_TYPE_HOSTIF_TRAP, hostif_trap_id);
+    if (SAI_ERR(status)) {
         return status;
     }
-
-    /* In Mellanox platform, trap group queue defines the trap priority */
-
-    sai_attr_list_to_str(attr_count, attr_list, SAI_OBJECT_TYPE_HOSTIF_TRAP, MAX_LIST_VALUE_STR_LEN, list_str);
-    SX_LOG_NTC("Create trap, %s\n", list_str);
+    MLNX_LOG_ATTRS(attr_count, attr_list, SAI_OBJECT_TYPE_HOSTIF_TRAP);
 
     status = find_attrib_in_list(attr_count, attr_list, SAI_HOSTIF_TRAP_ATTR_TRAP_TYPE, &trap_type, &trap_type_idx);
     assert(SAI_STATUS_SUCCESS == status);
@@ -2653,9 +2585,7 @@ sai_status_t mlnx_create_hostif_trap(_Out_ sai_object_id_t      *hostif_trap_id,
         }
     }
 
-    trap_key_to_str(*hostif_trap_id, key_str);
-
-    SX_LOG_NTC("Created trap %s\n", key_str);
+    MLNX_LOG_OID_CREATED(*hostif_trap_id);
 
     status = SAI_STATUS_SUCCESS;
 out:
@@ -2673,15 +2603,14 @@ out:
  */
 sai_status_t mlnx_remove_hostif_trap(_In_ sai_object_id_t hostif_trap_id)
 {
-    char                   key_str[MAX_KEY_STR_LEN];
     uint32_t               index;
     sai_status_t           status;
     sai_object_list_t      exclude = {0};
     sai_hostif_trap_type_t sai_trap_type;
 
     SX_LOG_ENTER();
-    trap_key_to_str(hostif_trap_id, key_str);
-    SX_LOG_NTC("Remove trap %s\n", key_str);
+
+    MLNX_LOG_OID_REMOVE(hostif_trap_id);
 
     sai_db_write_lock();
 
@@ -2768,12 +2697,8 @@ static sai_status_t mlnx_set_hostif_trap_attribute(_In_ sai_object_id_t        h
                                                    _In_ const sai_attribute_t *attr)
 {
     const sai_object_key_t key = { .key.object_id = hostif_trap_id };
-    char                   key_str[MAX_KEY_STR_LEN];
 
-    SX_LOG_ENTER();
-
-    trap_key_to_str(hostif_trap_id, key_str);
-    return sai_set_attribute(&key, key_str, SAI_OBJECT_TYPE_HOSTIF_TRAP, trap_vendor_attribs, attr);
+    return sai_set_attribute(&key, SAI_OBJECT_TYPE_HOSTIF_TRAP, attr);
 }
 
 /*
@@ -2794,17 +2719,8 @@ static sai_status_t mlnx_get_hostif_trap_attribute(_In_ sai_object_id_t     host
                                                    _Inout_ sai_attribute_t *attr_list)
 {
     const sai_object_key_t key = { .key.object_id = hostif_trap_id };
-    char                   key_str[MAX_KEY_STR_LEN];
 
-    SX_LOG_ENTER();
-
-    trap_key_to_str(hostif_trap_id, key_str);
-    return sai_get_attributes(&key,
-                              key_str,
-                              SAI_OBJECT_TYPE_HOSTIF_TRAP,
-                              trap_vendor_attribs,
-                              attr_count,
-                              attr_list);
+    return sai_get_attributes(&key, SAI_OBJECT_TYPE_HOSTIF_TRAP, attr_count, attr_list);
 }
 
 /**
@@ -2825,33 +2741,19 @@ sai_status_t mlnx_create_hostif_user_defined_trap(_Out_ sai_object_id_t      *ho
     sai_status_t                 status;
     const sai_attribute_value_t *trap_type, *group_attr = NULL;
     uint32_t                     trap_type_index, group_index;
-    char                         key_str[MAX_KEY_STR_LEN];
-    char                         list_str[MAX_LIST_VALUE_STR_LEN];
     uint32_t                     index, prio;
     sai_object_id_t              trap_group;
 
     SX_LOG_ENTER();
 
-    if (NULL == hostif_user_defined_trap_id) {
-        SX_LOG_ERR("NULL host interface user defined trap ID param\n");
-        return SAI_STATUS_INVALID_PARAMETER;
-    }
-
-    if (SAI_STATUS_SUCCESS !=
-        (status =
-             check_attribs_metadata(attr_count, attr_list, SAI_OBJECT_TYPE_HOSTIF_USER_DEFINED_TRAP,
-                                    user_defined_trap_vendor_attribs,
-                                    SAI_COMMON_API_CREATE))) {
-        SX_LOG_ERR("Failed attribs check\n");
+    status = check_attribs_on_create(attr_count,
+                                     attr_list,
+                                     SAI_OBJECT_TYPE_HOSTIF_USER_DEFINED_TRAP,
+                                     hostif_user_defined_trap_id);
+    if (SAI_ERR(status)) {
         return status;
     }
-
-    sai_attr_list_to_str(attr_count,
-                         attr_list,
-                         SAI_OBJECT_TYPE_HOSTIF_USER_DEFINED_TRAP,
-                         MAX_LIST_VALUE_STR_LEN,
-                         list_str);
-    SX_LOG_NTC("Create user defined trap, %s\n", list_str);
+    MLNX_LOG_ATTRS(attr_count, attr_list, SAI_OBJECT_TYPE_HOSTIF_USER_DEFINED_TRAP);
 
     sai_db_write_lock();
 
@@ -2905,9 +2807,8 @@ sai_status_t mlnx_create_hostif_user_defined_trap(_Out_ sai_object_id_t      *ho
 
     g_sai_db_ptr->traps_db[index].trap_group = trap_group;
     g_sai_db_ptr->traps_db[index].is_used = true;
-    trap_key_to_str(*hostif_user_defined_trap_id, key_str);
 
-    SX_LOG_NTC("Created user defined trap %s\n", key_str);
+    MLNX_LOG_OID_CREATED(*hostif_user_defined_trap_id);
 
 out:
     sai_db_unlock();
@@ -2925,14 +2826,12 @@ out:
  */
 sai_status_t mlnx_remove_hostif_user_defined_trap(_In_ sai_object_id_t hostif_user_defined_trap_id)
 {
-    char         key_str[MAX_KEY_STR_LEN];
     uint32_t     index;
     sai_status_t status;
 
     SX_LOG_ENTER();
 
-    trap_key_to_str(hostif_user_defined_trap_id, key_str);
-    SX_LOG_NTC("Remove user defined trap %s\n", key_str);
+    MLNX_LOG_OID_REMOVE(hostif_user_defined_trap_id);
 
     sai_db_write_lock();
 
@@ -2997,16 +2896,8 @@ static sai_status_t mlnx_set_hostif_user_defined_trap_attribute(
     _In_ const sai_attribute_t *attr)
 {
     const sai_object_key_t key = { .key.object_id = hostif_user_defined_trap_id };
-    char                   key_str[MAX_KEY_STR_LEN];
 
-    SX_LOG_ENTER();
-
-    trap_key_to_str(hostif_user_defined_trap_id, key_str);
-    return sai_set_attribute(&key,
-                             key_str,
-                             SAI_OBJECT_TYPE_HOSTIF_USER_DEFINED_TRAP,
-                             user_defined_trap_vendor_attribs,
-                             attr);
+    return sai_set_attribute(&key, SAI_OBJECT_TYPE_HOSTIF_USER_DEFINED_TRAP, attr);
 }
 
 /*
@@ -3027,17 +2918,8 @@ static sai_status_t mlnx_get_hostif_user_defined_trap_attribute(_In_ sai_object_
                                                                 _Inout_ sai_attribute_t *attr_list)
 {
     const sai_object_key_t key = { .key.object_id = hostif_user_defined_trap_id };
-    char                   key_str[MAX_KEY_STR_LEN];
 
-    SX_LOG_ENTER();
-
-    trap_key_to_str(hostif_user_defined_trap_id, key_str);
-    return sai_get_attributes(&key,
-                              key_str,
-                              SAI_OBJECT_TYPE_HOSTIF_USER_DEFINED_TRAP,
-                              user_defined_trap_vendor_attribs,
-                              attr_count,
-                              attr_list);
+    return sai_get_attributes(&key, SAI_OBJECT_TYPE_HOSTIF_USER_DEFINED_TRAP, attr_count, attr_list);
 }
 
 static sai_status_t mlnx_trap_update(_In_ uint32_t            index,
@@ -3084,7 +2966,7 @@ static sai_status_t mlnx_trap_update(_In_ uint32_t            index,
         trap_attr.attr.trap_id_attr.trap_group = prio;
         trap_attr.attr.trap_id_attr.trap_action = action;
 
-        sx_status = sx_api_host_ifc_trap_id_ext_set(gh_sdk, cmd, &trap_key, &trap_attr);
+        sx_status = sx_api_host_ifc_trap_id_ext_set(get_sdk_handle(), cmd, &trap_key, &trap_attr);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to %s for index %u trap %u/%u=%u, error is %s\n", SX_ACCESS_CMD_STR(cmd),
                        index, trap_index + 1, mlnx_traps_info[index].sdk_traps_num,
@@ -3114,7 +2996,7 @@ static sai_status_t mlnx_register_trap(const sx_access_cmd_t             cmd,
                                        const sx_host_ifc_register_key_t *register_key,
                                        const sx_user_channel_t          *user_channel)
 {
-    sx_status_t status;
+    sx_status_t sx_status;
     uint32_t    trap_index;
 
     assert(register_key);
@@ -3122,21 +3004,21 @@ static sai_status_t mlnx_register_trap(const sx_access_cmd_t             cmd,
 
     for (trap_index = 0; trap_index < mlnx_traps_info[trap_db_idx].sdk_traps_num; trap_index++) {
         if (register_key->key_type == SX_HOST_IFC_REGISTER_KEY_TYPE_GLOBAL) {
-            status = sx_api_host_ifc_trap_id_register_set(gh_sdk, cmd, DEFAULT_ETH_SWID,
-                                                          mlnx_traps_info[trap_db_idx].sdk_trap_ids[trap_index],
-                                                          user_channel);
+            sx_status = sx_api_host_ifc_trap_id_register_set(get_sdk_handle(), cmd, DEFAULT_ETH_SWID,
+                                                             mlnx_traps_info[trap_db_idx].sdk_trap_ids[trap_index],
+                                                             user_channel);
         } else {
-            status = sx_api_host_ifc_port_vlan_trap_id_register_set(
-                gh_sdk, cmd, DEFAULT_ETH_SWID, mlnx_traps_info[trap_db_idx].sdk_trap_ids[trap_index],
+            sx_status = sx_api_host_ifc_port_vlan_trap_id_register_set(
+                get_sdk_handle(), cmd, DEFAULT_ETH_SWID, mlnx_traps_info[trap_db_idx].sdk_trap_ids[trap_index],
                 register_key, user_channel);
         }
 
-        if (SX_ERR(status)) {
+        if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to %s for index %u trap %u/%u=%u, error is %s\n",
                        (SX_ACCESS_CMD_DEREGISTER == cmd) ? "deregister" : "register",
                        trap_db_idx, trap_index + 1, mlnx_traps_info[trap_db_idx].sdk_traps_num,
-                       mlnx_traps_info[trap_db_idx].sdk_trap_ids[trap_index], SX_STATUS_MSG(status));
-            return sdk_to_sai(status);
+                       mlnx_traps_info[trap_db_idx].sdk_trap_ids[trap_index], SX_STATUS_MSG(sx_status));
+            return sdk_to_sai(sx_status);
         }
     }
 
@@ -3205,6 +3087,7 @@ static sai_status_t mlnx_register_all_traps(const sx_access_cmd_t             cm
 static sai_status_t mlnx_trap_filter_set(uint32_t index, sai_object_list_t ports)
 {
     sai_status_t      status;
+    sx_status_t       sx_status;
     uint32_t          trap_index, ii, count;
     sx_port_log_id_t *filter_list;
 
@@ -3227,26 +3110,28 @@ static sai_status_t mlnx_trap_filter_set(uint32_t index, sai_object_list_t ports
     }
 
     for (trap_index = 0; trap_index < mlnx_traps_info[index].sdk_traps_num; trap_index++) {
-        if (SAI_STATUS_SUCCESS != (status = sx_api_host_ifc_trap_filter_set(gh_sdk,
-                                                                            SX_ACCESS_CMD_DELETE_ALL, DEFAULT_ETH_SWID,
-                                                                            mlnx_traps_info[index].sdk_trap_ids[
-                                                                                trap_index], NULL, NULL))) {
+        sx_status = sx_api_host_ifc_trap_filter_set(get_sdk_handle(),
+                                                    SX_ACCESS_CMD_DELETE_ALL, DEFAULT_ETH_SWID,
+                                                    mlnx_traps_info[index].sdk_trap_ids[
+                                                        trap_index], NULL, NULL);
+        if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to clear filter list for index %u trap %u/%u=%u, error is %s\n",
                        index, trap_index + 1, mlnx_traps_info[index].sdk_traps_num,
-                       mlnx_traps_info[index].sdk_trap_ids[trap_index], SX_STATUS_MSG(status));
+                       mlnx_traps_info[index].sdk_trap_ids[trap_index], SX_STATUS_MSG(sx_status));
             free(filter_list);
-            return sdk_to_sai(status);
+            return sdk_to_sai(sx_status);
         }
 
-        if (SAI_STATUS_SUCCESS != (status = sx_api_host_ifc_trap_filter_set(gh_sdk,
-                                                                            SX_ACCESS_CMD_ADD, DEFAULT_ETH_SWID,
-                                                                            mlnx_traps_info[index].sdk_trap_ids[
-                                                                                trap_index], filter_list, &count))) {
+        sx_status = sx_api_host_ifc_trap_filter_set(get_sdk_handle(),
+                                                    SX_ACCESS_CMD_ADD, DEFAULT_ETH_SWID,
+                                                    mlnx_traps_info[index].sdk_trap_ids[
+                                                        trap_index], filter_list, &count);
+        if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to set filter list for index %u trap %u/%u=%u, error is %s\n",
                        index, trap_index + 1, mlnx_traps_info[index].sdk_traps_num,
-                       mlnx_traps_info[index].sdk_trap_ids[trap_index], SX_STATUS_MSG(status));
+                       mlnx_traps_info[index].sdk_trap_ids[trap_index], SX_STATUS_MSG(sx_status));
             free(filter_list);
-            return sdk_to_sai(status);
+            return sdk_to_sai(sx_status);
         }
     }
 
@@ -3518,7 +3403,7 @@ static sai_status_t mlnx_trap_mirror_drop_by_router_set(_In_ sx_span_session_id_
     SX_LOG_ENTER();
 
     memset(&drop_mirroring_attr_p, 0, sizeof(drop_mirroring_attr_p));
-    sx_status = sx_api_span_drop_mirror_set(gh_sdk, cmd, span_session_id,
+    sx_status = sx_api_span_drop_mirror_set(get_sdk_handle(), cmd, span_session_id,
                                             &drop_mirroring_attr_p,
                                             &drop_reason_list_p,
                                             drop_reason_cnt);
@@ -3552,7 +3437,7 @@ static sai_status_t mlnx_trap_mirror_session_bind_update(_In_ sx_span_session_id
     key.type = SX_SPAN_MIRROR_BIND_ING_WRED_E;
     attr.span_session_id = sx_session;
 
-    sx_status = sx_api_span_mirror_bind_set(gh_sdk, bind_cmd, &key, &attr);
+    sx_status = sx_api_span_mirror_bind_set(get_sdk_handle(), bind_cmd, &key, &attr);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to bind WRED mirroring to mirror session %x - %s\n", sx_session, SX_STATUS_MSG(sx_status));
         return sdk_to_sai(sx_status);
@@ -4067,7 +3952,6 @@ static sai_status_t mlnx_send_hostif_packet(_In_ sai_object_id_t        hif_id,
                                             _In_ uint32_t               attr_count,
                                             _In_ const sai_attribute_t *attr_list)
 {
-    char                         list_str[MAX_LIST_VALUE_STR_LEN];
     uint32_t                     type_index, port_index, prio_index;
     const sai_attribute_value_t *type, *port, *prio_attr;
     uint32_t                     port_data;
@@ -4077,16 +3961,11 @@ static sai_status_t mlnx_send_hostif_packet(_In_ sai_object_id_t        hif_id,
 
     memset(&fd, 0, sizeof(fd));
 
-    status = check_attribs_metadata(attr_count, attr_list, SAI_OBJECT_TYPE_HOSTIF_PACKET,
-                                    host_interface_packet_vendor_attribs,
-                                    SAI_COMMON_API_CREATE);
+    status = check_attribs_on_create_without_oid(attr_count, attr_list, SAI_OBJECT_TYPE_HOSTIF_PACKET);
     if (SAI_ERR(status)) {
-        SX_LOG_ERR("Failed attribs check\n");
         return status;
     }
-
-    sai_attr_list_to_str(attr_count, attr_list, SAI_OBJECT_TYPE_HOSTIF_PACKET, MAX_LIST_VALUE_STR_LEN, list_str);
-    SX_LOG_NTC("send packet, %s\n", list_str);
+    MLNX_LOG_ATTRS(attr_count, attr_list, SAI_OBJECT_TYPE_HOSTIF_PACKET);
 
     status = find_attrib_in_list(attr_count, attr_list, SAI_HOSTIF_PACKET_ATTR_HOSTIF_TX_TYPE, &type, &type_index);
     assert(SAI_STATUS_SUCCESS == status);
@@ -4189,24 +4068,6 @@ sai_status_t mlnx_hostif_trap_group_availability_get(_In_ sai_object_id_t       
 
     *count = (uint64_t)mlnx_hostif_trap_group_db_free_entries_count();
     return SAI_STATUS_SUCCESS;
-}
-
-static void host_table_entry_key_to_str(_In_ sai_object_id_t hif_id, _Out_ char *key_str)
-{
-    mlnx_object_id_t mlnx_hif = { 0 };
-    sai_status_t     status;
-
-    status = sai_to_mlnx_object_id(SAI_OBJECT_TYPE_HOSTIF_TABLE_ENTRY, hif_id, &mlnx_hif);
-    if (SAI_ERR(status)) {
-        snprintf(key_str, MAX_KEY_STR_LEN, "invalid host table entry");
-    } else {
-        snprintf(key_str,
-                 MAX_KEY_STR_LEN,
-                 "host table entry %x,trap index %u, type %u",
-                 mlnx_hif.id.u32,
-                 mlnx_hif.id.hostif_table_entry.trap_db_idx,
-                 mlnx_hif.field.sub_type);
-    }
 }
 
 /* require sai_db read lock */
@@ -4519,9 +4380,13 @@ static sai_status_t mlnx_is_hostif_table_key_registered(uint32_t                
     assert(register_key);
     assert(is_registered);
 
-    sx_status = sx_api_host_ifc_port_vlan_trap_id_register_get(gh_sdk, SX_ACCESS_CMD_GET_FIRST, DEFAULT_ETH_SWID,
+    sx_status = sx_api_host_ifc_port_vlan_trap_id_register_get(get_sdk_handle(),
+                                                               SX_ACCESS_CMD_GET_FIRST,
+                                                               DEFAULT_ETH_SWID,
                                                                mlnx_traps_info[trap_db_idx].sdk_trap_ids[0],
-                                                               NULL, register_entries, &register_entries_count);
+                                                               NULL,
+                                                               register_entries,
+                                                               &register_entries_count);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to get register entries - %s\n", SX_STATUS_MSG(sx_status));
         return sdk_to_sai(sx_status);
@@ -4545,7 +4410,7 @@ static sai_status_t mlnx_is_hostif_table_key_registered(uint32_t                
             break;
         }
 
-        sx_status = sx_api_host_ifc_port_vlan_trap_id_register_get(gh_sdk, SX_ACCESS_CMD_GETNEXT,
+        sx_status = sx_api_host_ifc_port_vlan_trap_id_register_get(get_sdk_handle(), SX_ACCESS_CMD_GETNEXT,
                                                                    DEFAULT_ETH_SWID,
                                                                    mlnx_traps_info[trap_db_idx].sdk_trap_ids[0],
                                                                    &register_entries[register_entries_count - 1],
@@ -4601,8 +4466,6 @@ sai_status_t mlnx_create_hostif_table_entry(_Out_ sai_object_id_t      *hif_tabl
     sai_status_t                 status;
     const sai_attribute_value_t *type, *channel, *obj, *trap, *fd;
     uint32_t                     type_index, channel_index, obj_index, trap_attr_index, fd_index;
-    char                         key_str[MAX_KEY_STR_LEN];
-    char                         list_str[MAX_LIST_VALUE_STR_LEN];
     uint32_t                     trap_db_index = 0;
     sx_host_ifc_register_key_t   sx_register_key;
     bool                         is_registered;
@@ -4618,20 +4481,11 @@ sai_status_t mlnx_create_hostif_table_entry(_Out_ sai_object_id_t      *hif_tabl
 
     memset(&sx_register_key, 0, sizeof(sx_register_key));
 
-    if (NULL == hif_table_entry) {
-        SX_LOG_ERR("NULL host interface table entry param\n");
-        return SAI_STATUS_INVALID_PARAMETER;
-    }
-
-    status = check_attribs_metadata(attr_count, attr_list, SAI_OBJECT_TYPE_HOSTIF_TABLE_ENTRY,
-                                    host_table_entry_vendor_attribs, SAI_COMMON_API_CREATE);
+    status = check_attribs_on_create(attr_count, attr_list, SAI_OBJECT_TYPE_HOSTIF_TABLE_ENTRY, hif_table_entry);
     if (SAI_ERR(status)) {
-        SX_LOG_ERR("Failed attribs check\n");
         return status;
     }
-
-    sai_attr_list_to_str(attr_count, attr_list, SAI_OBJECT_TYPE_HOSTIF_TABLE_ENTRY, MAX_LIST_VALUE_STR_LEN, list_str);
-    SX_LOG_NTC("Create host table entry, %s\n", list_str);
+    MLNX_LOG_ATTRS(attr_count, attr_list, SAI_OBJECT_TYPE_HOSTIF_TABLE_ENTRY);
 
     status = find_attrib_in_list(attr_count, attr_list, SAI_HOSTIF_TABLE_ENTRY_ATTR_TYPE, &type, &type_index);
     assert(SAI_STATUS_SUCCESS == status);
@@ -4843,9 +4697,7 @@ sai_status_t mlnx_create_hostif_table_entry(_Out_ sai_object_id_t      *hif_tabl
         g_sai_db_ptr->hostif_db[mlnx_hif_oid.id.u32].refcount++;
     }
 
-    host_table_entry_key_to_str(*hif_table_entry, key_str);
-
-    SX_LOG_NTC("Created host table entry %s\n", key_str);
+    MLNX_LOG_OID_CREATED(*hif_table_entry);
 
 out:
     sai_db_unlock();
@@ -4863,7 +4715,6 @@ out:
  */
 sai_status_t mlnx_remove_hostif_table_entry(_In_ sai_object_id_t hif_table_entry)
 {
-    char                          key_str[MAX_KEY_STR_LEN];
     sai_status_t                  status;
     mlnx_object_id_t              mlnx_hif;
     sai_hostif_table_entry_type_t entry_type;
@@ -4873,8 +4724,7 @@ sai_status_t mlnx_remove_hostif_table_entry(_In_ sai_object_id_t hif_table_entry
     bool                          is_registered;
 
     SX_LOG_ENTER();
-    host_table_entry_key_to_str(hif_table_entry, key_str);
-    SX_LOG_NTC("Remove host table entry %s\n", key_str);
+    MLNX_LOG_OID_REMOVE(hif_table_entry);
 
     status = sai_to_mlnx_object_id(SAI_OBJECT_TYPE_HOSTIF_TABLE_ENTRY, hif_table_entry, &mlnx_hif);
     if (SAI_ERR(status)) {
@@ -5028,12 +4878,8 @@ sai_status_t mlnx_set_hostif_table_entry_attribute(_In_ sai_object_id_t        h
                                                    _In_ const sai_attribute_t *attr)
 {
     const sai_object_key_t key = { .key.object_id = hif_table_entry };
-    char                   key_str[MAX_KEY_STR_LEN];
 
-    SX_LOG_ENTER();
-
-    host_table_entry_key_to_str(hif_table_entry, key_str);
-    return sai_set_attribute(&key, key_str, SAI_OBJECT_TYPE_HOSTIF_TABLE_ENTRY, host_table_entry_vendor_attribs, attr);
+    return sai_set_attribute(&key, SAI_OBJECT_TYPE_HOSTIF_TABLE_ENTRY, attr);
 }
 
 /**
@@ -5050,17 +4896,8 @@ sai_status_t mlnx_get_hostif_table_entry_attribute(_In_ sai_object_id_t     hif_
                                                    _Inout_ sai_attribute_t *attr_list)
 {
     const sai_object_key_t key = { .key.object_id = hif_table_entry };
-    char                   key_str[MAX_KEY_STR_LEN];
 
-    SX_LOG_ENTER();
-
-    host_table_entry_key_to_str(hif_table_entry, key_str);
-    return sai_get_attributes(&key,
-                              key_str,
-                              SAI_OBJECT_TYPE_HOSTIF_TABLE_ENTRY,
-                              host_table_entry_vendor_attribs,
-                              attr_count,
-                              attr_list);
+    return sai_get_attributes(&key, SAI_OBJECT_TYPE_HOSTIF_TABLE_ENTRY, attr_count, attr_list);
 }
 
 /* Host interface table entry type (sai_hostif_table_entry_type_t)
@@ -5241,8 +5078,9 @@ sai_status_t mlnx_host_interface_log_set(sx_verbosity_level_t level)
 {
     LOG_VAR_NAME(__MODULE__) = level;
 
-    if (gh_sdk) {
-        return sdk_to_sai(sx_api_host_ifc_log_verbosity_level_set(gh_sdk, SX_LOG_VERBOSITY_BOTH, level, level));
+    if (get_sdk_handle()) {
+        return sdk_to_sai(sx_api_host_ifc_log_verbosity_level_set(
+                              get_sdk_handle(), SX_LOG_VERBOSITY_BOTH, level, level));
     } else {
         return SAI_STATUS_SUCCESS;
     }

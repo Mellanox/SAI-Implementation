@@ -469,10 +469,120 @@
         }
         return status;
     }
+    sai_status_t sai_get_ars_api(sai_ars_api_t* out)
+    {
+        sai_ars_api_t* api;
+        sai_status_t status = sai_api_query((sai_api_t)SAI_API_ARS, (void**)&api);
+        if (status == SAI_STATUS_SUCCESS)
+        {
+            *out = *api;
+        }
+        return status;
+    }
+    sai_status_t sai_get_ars_profile_api(sai_ars_profile_api_t* out)
+    {
+        sai_ars_profile_api_t* api;
+        sai_status_t status = sai_api_query((sai_api_t)SAI_API_ARS_PROFILE, (void**)&api);
+        if (status == SAI_STATUS_SUCCESS)
+        {
+            *out = *api;
+        }
+        return status;
+    }
     sai_status_t sai_get_bmtor_api(sai_bmtor_api_t* out)
     {
         sai_bmtor_api_t* api;
         sai_status_t status = sai_api_query((sai_api_t)SAI_API_BMTOR, (void**)&api);
+        if (status == SAI_STATUS_SUCCESS)
+        {
+            *out = *api;
+        }
+        return status;
+    }
+    sai_status_t sai_get_dash_acl_api(sai_dash_acl_api_t* out)
+    {
+        sai_dash_acl_api_t* api;
+        sai_status_t status = sai_api_query((sai_api_t)SAI_API_DASH_ACL, (void**)&api);
+        if (status == SAI_STATUS_SUCCESS)
+        {
+            *out = *api;
+        }
+        return status;
+    }
+    sai_status_t sai_get_dash_direction_lookup_api(sai_dash_direction_lookup_api_t* out)
+    {
+        sai_dash_direction_lookup_api_t* api;
+        sai_status_t status = sai_api_query((sai_api_t)SAI_API_DASH_DIRECTION_LOOKUP, (void**)&api);
+        if (status == SAI_STATUS_SUCCESS)
+        {
+            *out = *api;
+        }
+        return status;
+    }
+    sai_status_t sai_get_dash_eni_api(sai_dash_eni_api_t* out)
+    {
+        sai_dash_eni_api_t* api;
+        sai_status_t status = sai_api_query((sai_api_t)SAI_API_DASH_ENI, (void**)&api);
+        if (status == SAI_STATUS_SUCCESS)
+        {
+            *out = *api;
+        }
+        return status;
+    }
+    sai_status_t sai_get_dash_inbound_routing_api(sai_dash_inbound_routing_api_t* out)
+    {
+        sai_dash_inbound_routing_api_t* api;
+        sai_status_t status = sai_api_query((sai_api_t)SAI_API_DASH_INBOUND_ROUTING, (void**)&api);
+        if (status == SAI_STATUS_SUCCESS)
+        {
+            *out = *api;
+        }
+        return status;
+    }
+    sai_status_t sai_get_dash_outbound_ca_to_pa_api(sai_dash_outbound_ca_to_pa_api_t* out)
+    {
+        sai_dash_outbound_ca_to_pa_api_t* api;
+        sai_status_t status = sai_api_query((sai_api_t)SAI_API_DASH_OUTBOUND_CA_TO_PA, (void**)&api);
+        if (status == SAI_STATUS_SUCCESS)
+        {
+            *out = *api;
+        }
+        return status;
+    }
+    sai_status_t sai_get_dash_outbound_routing_api(sai_dash_outbound_routing_api_t* out)
+    {
+        sai_dash_outbound_routing_api_t* api;
+        sai_status_t status = sai_api_query((sai_api_t)SAI_API_DASH_OUTBOUND_ROUTING, (void**)&api);
+        if (status == SAI_STATUS_SUCCESS)
+        {
+            *out = *api;
+        }
+        return status;
+    }
+    sai_status_t sai_get_dash_vnet_api(sai_dash_vnet_api_t* out)
+    {
+        sai_dash_vnet_api_t* api;
+        sai_status_t status = sai_api_query((sai_api_t)SAI_API_DASH_VNET, (void**)&api);
+        if (status == SAI_STATUS_SUCCESS)
+        {
+            *out = *api;
+        }
+        return status;
+    }
+    sai_status_t sai_get_dash_pa_validation_api(sai_dash_pa_validation_api_t* out)
+    {
+        sai_dash_pa_validation_api_t* api;
+        sai_status_t status = sai_api_query((sai_api_t)SAI_API_DASH_PA_VALIDATION, (void**)&api);
+        if (status == SAI_STATUS_SUCCESS)
+        {
+            *out = *api;
+        }
+        return status;
+    }
+    sai_status_t sai_get_dash_vip_api(sai_dash_vip_api_t* out)
+    {
+        sai_dash_vip_api_t* api;
+        sai_status_t status = sai_api_query((sai_api_t)SAI_API_DASH_VIP, (void**)&api);
         if (status == SAI_STATUS_SUCCESS)
         {
             *out = *api;
@@ -527,7 +637,18 @@ sai_status_t sai_get_system_port_api(sai_system_port_api_t* out);
 sai_status_t sai_get_my_mac_api(sai_my_mac_api_t* out);
 sai_status_t sai_get_ipsec_api(sai_ipsec_api_t* out);
 sai_status_t sai_get_generic_programmable_api(sai_generic_programmable_api_t* out);
+sai_status_t sai_get_ars_api(sai_ars_api_t* out);
+sai_status_t sai_get_ars_profile_api(sai_ars_profile_api_t* out);
 sai_status_t sai_get_bmtor_api(sai_bmtor_api_t* out);
+sai_status_t sai_get_dash_acl_api(sai_dash_acl_api_t* out);
+sai_status_t sai_get_dash_direction_lookup_api(sai_dash_direction_lookup_api_t* out);
+sai_status_t sai_get_dash_eni_api(sai_dash_eni_api_t* out);
+sai_status_t sai_get_dash_inbound_routing_api(sai_dash_inbound_routing_api_t* out);
+sai_status_t sai_get_dash_outbound_ca_to_pa_api(sai_dash_outbound_ca_to_pa_api_t* out);
+sai_status_t sai_get_dash_outbound_routing_api(sai_dash_outbound_routing_api_t* out);
+sai_status_t sai_get_dash_vnet_api(sai_dash_vnet_api_t* out);
+sai_status_t sai_get_dash_pa_validation_api(sai_dash_pa_validation_api_t* out);
+sai_status_t sai_get_dash_vip_api(sai_dash_vip_api_t* out);
 %include "saitypes.h"
 typedef struct _sai_switch_api_t {
     sai_status_t create_switch(_Out_ sai_object_id_t *switch_id, _In_ uint32_t attr_count, _In_ const sai_attribute_t *attr_list);
@@ -1011,6 +1132,9 @@ typedef struct _sai_srv6_api_t {
     sai_status_t get_srv6_sidlist_attribute(_In_ sai_object_id_t srv6_sidlist_id, _In_ uint32_t attr_count, _Inout_ sai_attribute_t *attr_list);
     sai_status_t create_srv6_sidlists(_In_ sai_object_id_t switch_id, _In_ uint32_t object_count, _In_ const uint32_t *attr_count, _In_ const sai_attribute_t **attr_list, _In_ sai_bulk_op_error_mode_t mode, _Out_ sai_object_id_t *object_id, _Out_ sai_status_t *object_statuses);
     sai_status_t remove_srv6_sidlists(_In_ uint32_t object_count, _In_ const sai_object_id_t *object_id, _In_ sai_bulk_op_error_mode_t mode, _Out_ sai_status_t *object_statuses);
+    sai_status_t get_srv6_sidlist_stats(_In_ sai_object_id_t srv6_sidlist_id, _In_ uint32_t number_of_counters, _In_ const sai_stat_id_t *counter_ids, _Out_ uint64_t *counters);
+    sai_status_t get_srv6_sidlist_stats_ext(_In_ sai_object_id_t srv6_sidlist_id, _In_ uint32_t number_of_counters, _In_ const sai_stat_id_t *counter_ids, _In_ sai_stats_mode_t mode, _Out_ uint64_t *counters);
+    sai_status_t clear_srv6_sidlist_stats(_In_ sai_object_id_t srv6_sidlist_id, _In_ uint32_t number_of_counters, _In_ const sai_stat_id_t *counter_ids);
     sai_status_t create_my_sid_entry(_In_ const sai_my_sid_entry_t *my_sid_entry, _In_ uint32_t attr_count, _In_ const sai_attribute_t *attr_list);
     sai_status_t remove_my_sid_entry(_In_ const sai_my_sid_entry_t *my_sid_entry);
     sai_status_t set_my_sid_entry_attribute(_In_ const sai_my_sid_entry_t *my_sid_entry, _In_ const sai_attribute_t *attr);
@@ -1185,6 +1309,20 @@ typedef struct _sai_generic_programmable_api_t {
     sai_status_t get_generic_programmable_attribute(_In_ sai_object_id_t generic_programmable_id, _In_ uint32_t attr_count, _Inout_ sai_attribute_t *attr_list);
 } sai_generic_programmable_api_t;
 
+typedef struct _sai_ars_api_t {
+    sai_status_t create_ars(_Out_ sai_object_id_t *ars_id, _In_ sai_object_id_t switch_id, _In_ uint32_t attr_count, _In_ const sai_attribute_t *attr_list);
+    sai_status_t remove_ars(_In_ sai_object_id_t ars_id);
+    sai_status_t set_ars_attribute(_In_ sai_object_id_t ars_id, _In_ const sai_attribute_t *attr);
+    sai_status_t get_ars_attribute(_In_ sai_object_id_t ars_id, _In_ uint32_t attr_count, _Inout_ sai_attribute_t *attr_list);
+} sai_ars_api_t;
+
+typedef struct _sai_ars_profile_api_t {
+    sai_status_t create_ars_profile(_Out_ sai_object_id_t *ars_profile_id, _In_ sai_object_id_t switch_id, _In_ uint32_t attr_count, _In_ const sai_attribute_t *attr_list);
+    sai_status_t remove_ars_profile(_In_ sai_object_id_t ars_profile_id);
+    sai_status_t set_ars_profile_attribute(_In_ sai_object_id_t ars_profile_id, _In_ const sai_attribute_t *attr);
+    sai_status_t get_ars_profile_attribute(_In_ sai_object_id_t ars_profile_id, _In_ uint32_t attr_count, _Inout_ sai_attribute_t *attr_list);
+} sai_ars_profile_api_t;
+
 typedef struct _sai_bmtor_api_t {
     sai_status_t create_table_bitmap_classification_entry(_Out_ sai_object_id_t *table_bitmap_classification_entry_id, _In_ sai_object_id_t switch_id, _In_ uint32_t attr_count, _In_ const sai_attribute_t *attr_list);
     sai_status_t remove_table_bitmap_classification_entry(_In_ sai_object_id_t table_bitmap_classification_entry_id);
@@ -1208,6 +1346,99 @@ typedef struct _sai_bmtor_api_t {
     sai_status_t get_table_meta_tunnel_entry_stats_ext(_In_ sai_object_id_t table_meta_tunnel_entry_id, _In_ uint32_t number_of_counters, _In_ const sai_stat_id_t *counter_ids, _In_ sai_stats_mode_t mode, _Out_ uint64_t *counters);
     sai_status_t clear_table_meta_tunnel_entry_stats(_In_ sai_object_id_t table_meta_tunnel_entry_id, _In_ uint32_t number_of_counters, _In_ const sai_stat_id_t *counter_ids);
 } sai_bmtor_api_t;
+
+typedef struct _sai_dash_acl_api_t {
+    sai_status_t create_dash_acl_group(_Out_ sai_object_id_t *dash_acl_group_id, _In_ sai_object_id_t switch_id, _In_ uint32_t attr_count, _In_ const sai_attribute_t *attr_list);
+    sai_status_t remove_dash_acl_group(_In_ sai_object_id_t dash_acl_group_id);
+    sai_status_t set_dash_acl_group_attribute(_In_ sai_object_id_t dash_acl_group_id, _In_ const sai_attribute_t *attr);
+    sai_status_t get_dash_acl_group_attribute(_In_ sai_object_id_t dash_acl_group_id, _In_ uint32_t attr_count, _Inout_ sai_attribute_t *attr_list);
+    sai_status_t create_dash_acl_groups(_In_ sai_object_id_t switch_id, _In_ uint32_t object_count, _In_ const uint32_t *attr_count, _In_ const sai_attribute_t **attr_list, _In_ sai_bulk_op_error_mode_t mode, _Out_ sai_object_id_t *object_id, _Out_ sai_status_t *object_statuses);
+    sai_status_t remove_dash_acl_groups(_In_ uint32_t object_count, _In_ const sai_object_id_t *object_id, _In_ sai_bulk_op_error_mode_t mode, _Out_ sai_status_t *object_statuses);
+    sai_status_t create_dash_acl_rule(_Out_ sai_object_id_t *dash_acl_rule_id, _In_ sai_object_id_t switch_id, _In_ uint32_t attr_count, _In_ const sai_attribute_t *attr_list);
+    sai_status_t remove_dash_acl_rule(_In_ sai_object_id_t dash_acl_rule_id);
+    sai_status_t set_dash_acl_rule_attribute(_In_ sai_object_id_t dash_acl_rule_id, _In_ const sai_attribute_t *attr);
+    sai_status_t get_dash_acl_rule_attribute(_In_ sai_object_id_t dash_acl_rule_id, _In_ uint32_t attr_count, _Inout_ sai_attribute_t *attr_list);
+    sai_status_t create_dash_acl_rules(_In_ sai_object_id_t switch_id, _In_ uint32_t object_count, _In_ const uint32_t *attr_count, _In_ const sai_attribute_t **attr_list, _In_ sai_bulk_op_error_mode_t mode, _Out_ sai_object_id_t *object_id, _Out_ sai_status_t *object_statuses);
+    sai_status_t remove_dash_acl_rules(_In_ uint32_t object_count, _In_ const sai_object_id_t *object_id, _In_ sai_bulk_op_error_mode_t mode, _Out_ sai_status_t *object_statuses);
+} sai_dash_acl_api_t;
+
+typedef struct _sai_dash_direction_lookup_api_t {
+    sai_status_t create_direction_lookup_entry(_In_ const sai_direction_lookup_entry_t *direction_lookup_entry, _In_ uint32_t attr_count, _In_ const sai_attribute_t *attr_list);
+    sai_status_t remove_direction_lookup_entry(_In_ const sai_direction_lookup_entry_t *direction_lookup_entry);
+    sai_status_t set_direction_lookup_entry_attribute(_In_ const sai_direction_lookup_entry_t *direction_lookup_entry, _In_ const sai_attribute_t *attr);
+    sai_status_t get_direction_lookup_entry_attribute(_In_ const sai_direction_lookup_entry_t *direction_lookup_entry, _In_ uint32_t attr_count, _Inout_ sai_attribute_t *attr_list);
+    sai_status_t create_direction_lookup_entries(_In_ uint32_t object_count, _In_ const sai_direction_lookup_entry_t *direction_lookup_entry, _In_ const uint32_t *attr_count, _In_ const sai_attribute_t **attr_list, _In_ sai_bulk_op_error_mode_t mode, _Out_ sai_status_t *object_statuses);
+    sai_status_t remove_direction_lookup_entries(_In_ uint32_t object_count, _In_ const sai_direction_lookup_entry_t *direction_lookup_entry, _In_ sai_bulk_op_error_mode_t mode, _Out_ sai_status_t *object_statuses);
+} sai_dash_direction_lookup_api_t;
+
+typedef struct _sai_dash_eni_api_t {
+    sai_status_t create_eni_ether_address_map_entry(_In_ const sai_eni_ether_address_map_entry_t *eni_ether_address_map_entry, _In_ uint32_t attr_count, _In_ const sai_attribute_t *attr_list);
+    sai_status_t remove_eni_ether_address_map_entry(_In_ const sai_eni_ether_address_map_entry_t *eni_ether_address_map_entry);
+    sai_status_t set_eni_ether_address_map_entry_attribute(_In_ const sai_eni_ether_address_map_entry_t *eni_ether_address_map_entry, _In_ const sai_attribute_t *attr);
+    sai_status_t get_eni_ether_address_map_entry_attribute(_In_ const sai_eni_ether_address_map_entry_t *eni_ether_address_map_entry, _In_ uint32_t attr_count, _Inout_ sai_attribute_t *attr_list);
+    sai_status_t create_eni_ether_address_map_entries(_In_ uint32_t object_count, _In_ const sai_eni_ether_address_map_entry_t *eni_ether_address_map_entry, _In_ const uint32_t *attr_count, _In_ const sai_attribute_t **attr_list, _In_ sai_bulk_op_error_mode_t mode, _Out_ sai_status_t *object_statuses);
+    sai_status_t remove_eni_ether_address_map_entries(_In_ uint32_t object_count, _In_ const sai_eni_ether_address_map_entry_t *eni_ether_address_map_entry, _In_ sai_bulk_op_error_mode_t mode, _Out_ sai_status_t *object_statuses);
+    sai_status_t create_eni(_Out_ sai_object_id_t *eni_id, _In_ sai_object_id_t switch_id, _In_ uint32_t attr_count, _In_ const sai_attribute_t *attr_list);
+    sai_status_t remove_eni(_In_ sai_object_id_t eni_id);
+    sai_status_t set_eni_attribute(_In_ sai_object_id_t eni_id, _In_ const sai_attribute_t *attr);
+    sai_status_t get_eni_attribute(_In_ sai_object_id_t eni_id, _In_ uint32_t attr_count, _Inout_ sai_attribute_t *attr_list);
+    sai_status_t create_enis(_In_ sai_object_id_t switch_id, _In_ uint32_t object_count, _In_ const uint32_t *attr_count, _In_ const sai_attribute_t **attr_list, _In_ sai_bulk_op_error_mode_t mode, _Out_ sai_object_id_t *object_id, _Out_ sai_status_t *object_statuses);
+    sai_status_t remove_enis(_In_ uint32_t object_count, _In_ const sai_object_id_t *object_id, _In_ sai_bulk_op_error_mode_t mode, _Out_ sai_status_t *object_statuses);
+} sai_dash_eni_api_t;
+
+typedef struct _sai_dash_inbound_routing_api_t {
+    sai_status_t create_inbound_routing_entry(_In_ const sai_inbound_routing_entry_t *inbound_routing_entry, _In_ uint32_t attr_count, _In_ const sai_attribute_t *attr_list);
+    sai_status_t remove_inbound_routing_entry(_In_ const sai_inbound_routing_entry_t *inbound_routing_entry);
+    sai_status_t set_inbound_routing_entry_attribute(_In_ const sai_inbound_routing_entry_t *inbound_routing_entry, _In_ const sai_attribute_t *attr);
+    sai_status_t get_inbound_routing_entry_attribute(_In_ const sai_inbound_routing_entry_t *inbound_routing_entry, _In_ uint32_t attr_count, _Inout_ sai_attribute_t *attr_list);
+    sai_status_t create_inbound_routing_entries(_In_ uint32_t object_count, _In_ const sai_inbound_routing_entry_t *inbound_routing_entry, _In_ const uint32_t *attr_count, _In_ const sai_attribute_t **attr_list, _In_ sai_bulk_op_error_mode_t mode, _Out_ sai_status_t *object_statuses);
+    sai_status_t remove_inbound_routing_entries(_In_ uint32_t object_count, _In_ const sai_inbound_routing_entry_t *inbound_routing_entry, _In_ sai_bulk_op_error_mode_t mode, _Out_ sai_status_t *object_statuses);
+} sai_dash_inbound_routing_api_t;
+
+typedef struct _sai_dash_outbound_ca_to_pa_api_t {
+    sai_status_t create_outbound_ca_to_pa_entry(_In_ const sai_outbound_ca_to_pa_entry_t *outbound_ca_to_pa_entry, _In_ uint32_t attr_count, _In_ const sai_attribute_t *attr_list);
+    sai_status_t remove_outbound_ca_to_pa_entry(_In_ const sai_outbound_ca_to_pa_entry_t *outbound_ca_to_pa_entry);
+    sai_status_t set_outbound_ca_to_pa_entry_attribute(_In_ const sai_outbound_ca_to_pa_entry_t *outbound_ca_to_pa_entry, _In_ const sai_attribute_t *attr);
+    sai_status_t get_outbound_ca_to_pa_entry_attribute(_In_ const sai_outbound_ca_to_pa_entry_t *outbound_ca_to_pa_entry, _In_ uint32_t attr_count, _Inout_ sai_attribute_t *attr_list);
+    sai_status_t create_outbound_ca_to_pa_entries(_In_ uint32_t object_count, _In_ const sai_outbound_ca_to_pa_entry_t *outbound_ca_to_pa_entry, _In_ const uint32_t *attr_count, _In_ const sai_attribute_t **attr_list, _In_ sai_bulk_op_error_mode_t mode, _Out_ sai_status_t *object_statuses);
+    sai_status_t remove_outbound_ca_to_pa_entries(_In_ uint32_t object_count, _In_ const sai_outbound_ca_to_pa_entry_t *outbound_ca_to_pa_entry, _In_ sai_bulk_op_error_mode_t mode, _Out_ sai_status_t *object_statuses);
+} sai_dash_outbound_ca_to_pa_api_t;
+
+typedef struct _sai_dash_outbound_routing_api_t {
+    sai_status_t create_outbound_routing_entry(_In_ const sai_outbound_routing_entry_t *outbound_routing_entry, _In_ uint32_t attr_count, _In_ const sai_attribute_t *attr_list);
+    sai_status_t remove_outbound_routing_entry(_In_ const sai_outbound_routing_entry_t *outbound_routing_entry);
+    sai_status_t set_outbound_routing_entry_attribute(_In_ const sai_outbound_routing_entry_t *outbound_routing_entry, _In_ const sai_attribute_t *attr);
+    sai_status_t get_outbound_routing_entry_attribute(_In_ const sai_outbound_routing_entry_t *outbound_routing_entry, _In_ uint32_t attr_count, _Inout_ sai_attribute_t *attr_list);
+    sai_status_t create_outbound_routing_entries(_In_ uint32_t object_count, _In_ const sai_outbound_routing_entry_t *outbound_routing_entry, _In_ const uint32_t *attr_count, _In_ const sai_attribute_t **attr_list, _In_ sai_bulk_op_error_mode_t mode, _Out_ sai_status_t *object_statuses);
+    sai_status_t remove_outbound_routing_entries(_In_ uint32_t object_count, _In_ const sai_outbound_routing_entry_t *outbound_routing_entry, _In_ sai_bulk_op_error_mode_t mode, _Out_ sai_status_t *object_statuses);
+} sai_dash_outbound_routing_api_t;
+
+typedef struct _sai_dash_vnet_api_t {
+    sai_status_t create_vnet(_Out_ sai_object_id_t *vnet_id, _In_ sai_object_id_t switch_id, _In_ uint32_t attr_count, _In_ const sai_attribute_t *attr_list);
+    sai_status_t remove_vnet(_In_ sai_object_id_t vnet_id);
+    sai_status_t set_vnet_attribute(_In_ sai_object_id_t vnet_id, _In_ const sai_attribute_t *attr);
+    sai_status_t get_vnet_attribute(_In_ sai_object_id_t vnet_id, _In_ uint32_t attr_count, _Inout_ sai_attribute_t *attr_list);
+    sai_status_t create_vnets(_In_ sai_object_id_t switch_id, _In_ uint32_t object_count, _In_ const uint32_t *attr_count, _In_ const sai_attribute_t **attr_list, _In_ sai_bulk_op_error_mode_t mode, _Out_ sai_object_id_t *object_id, _Out_ sai_status_t *object_statuses);
+    sai_status_t remove_vnets(_In_ uint32_t object_count, _In_ const sai_object_id_t *object_id, _In_ sai_bulk_op_error_mode_t mode, _Out_ sai_status_t *object_statuses);
+} sai_dash_vnet_api_t;
+
+typedef struct _sai_dash_pa_validation_api_t {
+    sai_status_t create_pa_validation_entry(_In_ const sai_pa_validation_entry_t *pa_validation_entry, _In_ uint32_t attr_count, _In_ const sai_attribute_t *attr_list);
+    sai_status_t remove_pa_validation_entry(_In_ const sai_pa_validation_entry_t *pa_validation_entry);
+    sai_status_t set_pa_validation_entry_attribute(_In_ const sai_pa_validation_entry_t *pa_validation_entry, _In_ const sai_attribute_t *attr);
+    sai_status_t get_pa_validation_entry_attribute(_In_ const sai_pa_validation_entry_t *pa_validation_entry, _In_ uint32_t attr_count, _Inout_ sai_attribute_t *attr_list);
+    sai_status_t create_pa_validation_entries(_In_ uint32_t object_count, _In_ const sai_pa_validation_entry_t *pa_validation_entry, _In_ const uint32_t *attr_count, _In_ const sai_attribute_t **attr_list, _In_ sai_bulk_op_error_mode_t mode, _Out_ sai_status_t *object_statuses);
+    sai_status_t remove_pa_validation_entries(_In_ uint32_t object_count, _In_ const sai_pa_validation_entry_t *pa_validation_entry, _In_ sai_bulk_op_error_mode_t mode, _Out_ sai_status_t *object_statuses);
+} sai_dash_pa_validation_api_t;
+
+typedef struct _sai_dash_vip_api_t {
+    sai_status_t create_vip_entry(_In_ const sai_vip_entry_t *vip_entry, _In_ uint32_t attr_count, _In_ const sai_attribute_t *attr_list);
+    sai_status_t remove_vip_entry(_In_ const sai_vip_entry_t *vip_entry);
+    sai_status_t set_vip_entry_attribute(_In_ const sai_vip_entry_t *vip_entry, _In_ const sai_attribute_t *attr);
+    sai_status_t get_vip_entry_attribute(_In_ const sai_vip_entry_t *vip_entry, _In_ uint32_t attr_count, _Inout_ sai_attribute_t *attr_list);
+    sai_status_t create_vip_entries(_In_ uint32_t object_count, _In_ const sai_vip_entry_t *vip_entry, _In_ const uint32_t *attr_count, _In_ const sai_attribute_t **attr_list, _In_ sai_bulk_op_error_mode_t mode, _Out_ sai_status_t *object_statuses);
+    sai_status_t remove_vip_entries(_In_ uint32_t object_count, _In_ const sai_vip_entry_t *vip_entry, _In_ sai_bulk_op_error_mode_t mode, _Out_ sai_status_t *object_statuses);
+} sai_dash_vip_api_t;
 
 %ignore sai_switch_api_t;
 %ignore sai_port_api_t;
@@ -1256,9 +1487,22 @@ typedef struct _sai_bmtor_api_t {
 %ignore sai_my_mac_api_t;
 %ignore sai_ipsec_api_t;
 %ignore sai_generic_programmable_api_t;
+%ignore sai_ars_api_t;
+%ignore sai_ars_profile_api_t;
 %ignore sai_bmtor_api_t;
+%ignore sai_dash_acl_api_t;
+%ignore sai_dash_direction_lookup_api_t;
+%ignore sai_dash_eni_api_t;
+%ignore sai_dash_inbound_routing_api_t;
+%ignore sai_dash_outbound_ca_to_pa_api_t;
+%ignore sai_dash_outbound_routing_api_t;
+%ignore sai_dash_vnet_api_t;
+%ignore sai_dash_pa_validation_api_t;
+%ignore sai_dash_vip_api_t;
 %include "sai.h"
 %include "saiacl.h"
+%include "saiars.h"
+%include "saiarsprofile.h"
 %include "saibfd.h"
 %include "saibridge.h"
 %include "saibuffer.h"
@@ -1266,6 +1510,15 @@ typedef struct _sai_bmtor_api_t {
 %include "saidebugcounter.h"
 %include "saidtel.h"
 %include "saiexperimentalbmtor.h"
+%include "saiexperimentaldashacl.h"
+%include "saiexperimentaldashdirectionlookup.h"
+%include "saiexperimentaldasheni.h"
+%include "saiexperimentaldashinboundrouting.h"
+%include "saiexperimentaldashoutboundcatopa.h"
+%include "saiexperimentaldashoutboundrouting.h"
+%include "saiexperimentaldashpavalidation.h"
+%include "saiexperimentaldashvip.h"
+%include "saiexperimentaldashvnet.h"
 %include "saiextensions.h"
 %include "saifdb.h"
 %include "saigenericprogrammable.h"

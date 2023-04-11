@@ -581,6 +581,33 @@ typedef enum _sai_switch_tunnel_attr_t
 } sai_switch_tunnel_attr_t;
 
 /**
+ * @brief Attribute data for SAI_SWITCH_ATTR_HOSTIF_OPER_STATUS_UPDATE_MODE.
+ */
+typedef enum _sai_switch_hostif_oper_status_update_mode_t
+{
+    /**
+     * @brief Application mode.
+     *
+     * In this mode, operational status of hostif must be updated by application
+     * using hostif API with SAI_HOSTIF_ATTR_OPER_STATUS attribute. SAI adapter
+     * should not update the hostif operational status internally.
+     * When a host interface is created, application must update the operational
+     * status if required and should not rely on SAI adapter to update it.
+     */
+    SAI_SWITCH_HOSTIF_OPER_STATUS_UPDATE_MODE_APPLICATION = 0,
+
+    /**
+     * @brief SAI adapter mode.
+     *
+     * In this mode, operational status of hostif is updated internally by SAI
+     * adapter. Update of hostif operational status by application using hostif
+     * API with SAI_HOSTIF_ATTR_OPER_STATUS is ignored.
+     */
+    SAI_SWITCH_HOSTIF_OPER_STATUS_UPDATE_MODE_SAI_ADAPTER = 1,
+
+} sai_switch_hostif_oper_status_update_mode_t;
+
+/**
  * @brief Attribute Id in sai_set_switch_attribute() and
  * sai_get_switch_attribute() calls.
  */
@@ -2777,6 +2804,76 @@ typedef enum _sai_switch_attr_t
     SAI_SWITCH_ATTR_ECMP_MEMBER_COUNT,
 
     /**
+     * @brief Adaptive routing and switching quality map
+     *
+     * @type sai_object_id_t
+     * @flags CREATE_AND_SET
+     * @objects SAI_OBJECT_TYPE_ARS_PROFILE
+     * @allownull true
+     * @default SAI_NULL_OBJECT_ID
+     */
+    SAI_SWITCH_ATTR_ARS_PROFILE,
+
+    /**
+     * @brief Post Ingress ACL stage.
+     *
+     * @type sai_acl_capability_t
+     * @flags READ_ONLY
+     */
+    SAI_SWITCH_ATTR_ACL_STAGE_POST_INGRESS,
+
+    /**
+     * @brief Enable or disable credit watchdog
+     *
+     * Credit Watchdog can be enabled or disabled using this attribute for VOQ based system
+     *
+     * @type bool
+     * @flags CREATE_AND_SET
+     * @default true
+     * @validonly SAI_SWITCH_ATTR_TYPE == SAI_SWITCH_TYPE_VOQ
+     */
+    SAI_SWITCH_ATTR_CREDIT_WD,
+
+    /**
+     * @brief Credit watchdog threshold timer in milliseconds
+     * Value must be within 10ms - 1000ms range
+     * Queue is set to delete state and all packets in queue are deleted after the timer expiry
+     *
+     * @type sai_uint32_t
+     * @flags CREATE_AND_SET
+     * @default 500
+     * @validonly SAI_SWITCH_ATTR_TYPE == SAI_SWITCH_TYPE_VOQ
+     */
+    SAI_SWITCH_ATTR_CREDIT_WD_TIMER,
+
+    /**
+     * @brief Fabric chassis isolation setting.
+     *
+     * true: Trigger the switch isolate process
+     * false: Undo the isolation operation.
+     * This attribute is for Fabric Chassis only
+     * If this attribute is set to true, it overrides port level isolation setting.
+     *
+     * @type bool
+     * @flags CREATE_AND_SET
+     * @default false
+     * @validonly SAI_SWITCH_ATTR_TYPE == SAI_SWITCH_TYPE_FABRIC
+     */
+    SAI_SWITCH_ATTR_SWITCH_ISOLATE,
+
+    /**
+     * @brief Set hostif operational status update mode.
+     *
+     * This will set layer responsible for updating the operational status of
+     * hostif.
+     *
+     * @type sai_switch_hostif_oper_status_update_mode_t
+     * @flags CREATE_AND_SET
+     * @default SAI_SWITCH_HOSTIF_OPER_STATUS_UPDATE_MODE_APPLICATION
+     */
+    SAI_SWITCH_ATTR_HOSTIF_OPER_STATUS_UPDATE_MODE,
+
+    /**
      * @brief End of attributes
      */
     SAI_SWITCH_ATTR_END,
@@ -2870,6 +2967,9 @@ typedef enum _sai_switch_stat_t
 
     /** Discards not counted in other switch stat type [switch | fabric] */
     SAI_SWITCH_STAT_GLOBAL_DROP,
+
+    /** Get integrity discards [fabric] */
+    SAI_SWITCH_STAT_PACKET_INTEGRITY_DROP,
 
     /** Switch stat fabric drop reasons range end */
     SAI_SWITCH_STAT_FABRIC_DROP_REASON_RANGE_END = 0x00003fff,

@@ -46,8 +46,7 @@ extern const sai_u32_list_t              mlnx_sai_hostif_table_valid_obj_types[]
 extern const sai_u32_list_t              mlnx_sai_tunnel_valid_obj_types[];
 extern const sai_u32_list_t              mlnx_sai_acl_entry_valid_obj_types[];
 extern const sai_u32_list_t              mlnx_sai_valid_obj_types[SAI_OBJECT_TYPE_EXTENSIONS_RANGE_END];
-extern const mlnx_obj_type_attrs_info_t* mlnx_obj_types_info[];
-extern const uint32_t                    mlnx_obj_types_info_arr_size;
+extern const mlnx_obj_type_attrs_info_t* mlnx_obj_types_info[SAI_OBJECT_TYPE_MAX];
 static sai_status_t sai_vendor_attr_index_find(_In_ const sai_attr_id_t                 attr_id,
                                                _In_ const sai_vendor_attribute_entry_t *vendor_attr,
                                                _Out_ uint32_t                          *index);
@@ -150,7 +149,7 @@ static sx_verbosity_level_t LOG_VAR_NAME(__MODULE__) = SX_VERBOSITY_LEVEL_WARNIN
 
 static const mlnx_obj_type_attrs_info_t* mlnx_obj_type_attr_info_get(_In_ sai_object_type_t object_type)
 {
-    if (mlnx_obj_types_info_arr_size <= (uint32_t)object_type) {
+    if (SAI_OBJECT_TYPE_MAX <= (uint32_t)object_type) {
         return NULL;
     }
 
@@ -434,19 +433,17 @@ sai_status_t mlnx_sai_query_stats_capability_impl(_In_ sai_object_id_t          
 
     object_type_info = mlnx_obj_type_attr_info_get(object_type);
     if (NULL == object_type_info) {
-        SX_LOG_ERR("Failed to get object type info for object type - %d\n", object_type);
-        SX_LOG_EXIT();
-        return SAI_STATUS_FAILURE;
-    }
-
-    if (object_type_info->stats_capability.capability_fn) {
-        status = object_type_info->stats_capability.capability_fn(stats_capability);
-    } else if (0 == object_type_info->stats_capability.count) {
         stats_capability->count = 0;
     } else {
-        status = mlnx_fill_saistatcapabilitylist(object_type_info->stats_capability.info,
-                                                 object_type_info->stats_capability.count,
-                                                 stats_capability);
+        if (object_type_info->stats_capability.capability_fn) {
+            status = object_type_info->stats_capability.capability_fn(stats_capability);
+        } else if (0 == object_type_info->stats_capability.count) {
+            stats_capability->count = 0;
+        } else {
+            status = mlnx_fill_saistatcapabilitylist(object_type_info->stats_capability.info,
+                                                     object_type_info->stats_capability.count,
+                                                     stats_capability);
+        }
     }
 
     if (SAI_ERR(status)) {
@@ -1607,6 +1604,50 @@ static const sai_attr_metadata_t* mlnx_sai_attr_metadata_get_impl(_In_ sai_objec
     return sai_metadata_get_attr_metadata(object_type, attr_id);
 }
 
+sai_status_t check_attribs_on_create_without_oid(_In_ uint32_t               attr_count,
+                                                 _In_ const sai_attribute_t *attr_list,
+                                                 _In_ sai_object_type_t      object_type)
+{
+    sai_status_t status;
+
+    if ((object_type >= SAI_OBJECT_TYPE_MAX) || (object_type < 0)) {
+        SX_LOG_ERR("Unsupported object_type [%d]\n", object_type);
+        return SAI_STATUS_FAILURE;
+    }
+
+    if (!mlnx_obj_types_info[object_type]) {
+        SX_LOG_ERR("Missing mlnx_obj_types_info[%s]\n", SAI_TYPE_STR(object_type));
+        return SAI_STATUS_FAILURE;
+    }
+
+    if (!mlnx_obj_types_info[object_type]->vendor_data) {
+        SX_LOG_ERR("Missing vendor_data for %s\n", SAI_TYPE_STR(object_type));
+        return SAI_STATUS_FAILURE;
+    }
+    const sai_vendor_attribute_entry_t *vendor_data = mlnx_obj_types_info[object_type]->vendor_data;
+
+    status = check_attribs_metadata(attr_count, attr_list, object_type, vendor_data, SAI_COMMON_API_CREATE);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed attributes check\n");
+        return status;
+    }
+
+    return SAI_STATUS_SUCCESS;
+}
+
+sai_status_t check_attribs_on_create(_In_ uint32_t               attr_count,
+                                     _In_ const sai_attribute_t *attr_list,
+                                     _In_ sai_object_type_t      object_type,
+                                     _In_ sai_object_id_t       *oid)
+{
+    if (!oid) {
+        SX_LOG_ERR("NULL OID\n");
+        return SAI_STATUS_INVALID_PARAMETER;
+    }
+
+    return check_attribs_on_create_without_oid(attr_count, attr_list, object_type);
+}
+
 sai_status_t check_attribs_metadata(_In_ uint32_t                            attr_count,
                                     _In_ const sai_attribute_t              *attr_list,
                                     _In_ sai_object_type_t                   object_type,
@@ -2011,73 +2052,111 @@ sai_status_t find_attrib_in_list(_In_ uint32_t                       attr_count,
     return SAI_STATUS_ITEM_NOT_FOUND;
 }
 
-sai_status_t sai_set_attribute(_In_ const sai_object_key_t             *key,
-                               _In_ const char                         *key_str,
-                               _In_ sai_object_type_t                   object_type,
-                               _In_ const sai_vendor_attribute_entry_t *functionality_vendor_attr,
-                               _In_ const sai_attribute_t              *attr)
+sai_status_t sai_set_attribute(_In_ const sai_object_key_t *key,
+                               _In_ sai_object_type_t       object_type,
+                               _In_ const sai_attribute_t  *attr)
 {
     sai_status_t status;
+    char         key_str[MAX_KEY_STR_LEN];
 
-    SX_LOG_ENTER();
+    if (!key) {
+        SX_LOG_ERR("Key is NULL");
+        return SAI_STATUS_FAILURE;
+    }
 
-    if (SAI_STATUS_SUCCESS !=
-        (status =
-             check_attribs_metadata(1, attr, object_type, functionality_vendor_attr, SAI_COMMON_API_SET))) {
-        SX_LOG((((SAI_STATUS_ATTR_NOT_IMPLEMENTED_0 == status) || (SAI_STATUS_ATTR_NOT_SUPPORTED_0 == status)) ?
-                SX_LOG_WARNING : SX_LOG_ERROR),
-               "Failed attribs check, key:%s\n", key_str);
-        SX_LOG_EXIT();
+    if ((object_type >= SAI_OBJECT_TYPE_MAX) || (object_type < 0)) {
+        SX_LOG_ERR("Unsupported object_type [%d]\n", object_type);
+        return SAI_STATUS_FAILURE;
+    }
+
+    if (!mlnx_obj_types_info[object_type]) {
+        SX_LOG_ERR("Missing mlnx_obj_types_info[%s]\n", SAI_TYPE_STR(object_type));
+        return SAI_STATUS_FAILURE;
+    }
+
+    if (!mlnx_obj_types_info[object_type]->vendor_data) {
+        SX_LOG_ERR("Missing vendor_data for %s\n", SAI_TYPE_STR(object_type));
+        return SAI_STATUS_FAILURE;
+    }
+
+    const sai_vendor_attribute_entry_t *vendor_data = mlnx_obj_types_info[object_type]->vendor_data;
+
+    key_to_str(key, object_type, key_str);
+
+    status = check_attribs_metadata(1, attr, object_type, vendor_data, SAI_COMMON_API_SET);
+    if (SAI_ERR(status)) {
+        uint32_t log_level = SX_LOG_ERROR;
+        if ((status == SAI_STATUS_ATTR_NOT_IMPLEMENTED_0) ||
+            (status == SAI_STATUS_ATTR_NOT_SUPPORTED_0)) {
+            log_level = SX_LOG_WARNING;
+        }
+        SX_LOG(log_level, "Failed attributes check, key: %s\n", key_str);
         return status;
     }
 
-    if (SAI_STATUS_SUCCESS !=
-        (status = set_dispatch_attrib_handler(attr, object_type, functionality_vendor_attr, key, key_str))) {
-        SX_LOG_ERR("Failed set attrib dispatch\n");
-        SX_LOG_EXIT();
+    status = set_dispatch_attrib_handler(attr, object_type, vendor_data, key, key_str);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to set the attribute.\n");
         return status;
     }
 
-    SX_LOG_EXIT();
     return SAI_STATUS_SUCCESS;
 }
 
-sai_status_t sai_get_attributes(_In_ const sai_object_key_t             *key,
-                                _In_ const char                         *key_str,
-                                _In_ sai_object_type_t                   object_type,
-                                _In_ const sai_vendor_attribute_entry_t *functionality_vendor_attr,
-                                _In_ uint32_t                            attr_count,
-                                _Inout_ sai_attribute_t                 *attr_list)
+sai_status_t sai_get_attributes(_In_ const sai_object_key_t *key,
+                                _In_ sai_object_type_t       object_type,
+                                _In_ uint32_t                attr_count,
+                                _Inout_ sai_attribute_t     *attr_list)
 {
     sai_status_t status;
+    char         key_str[MAX_KEY_STR_LEN];
 
-    SX_LOG_ENTER();
+    if (!key) {
+        SX_LOG_ERR("Key is NULL");
+        return SAI_STATUS_FAILURE;
+    }
 
-    if (SAI_STATUS_SUCCESS !=
-        (status =
-             check_attribs_metadata(attr_count, attr_list, object_type, functionality_vendor_attr,
-                                    SAI_COMMON_API_GET))) {
-        SX_LOG((((SAI_STATUS_IS_ATTR_NOT_IMPLEMENTED(status)) || (SAI_STATUS_IS_ATTR_NOT_SUPPORTED(status))) ?
-                SX_LOG_WARNING : SX_LOG_ERROR),
-               "Failed attribs check, key:%s\n", key_str);
-        SX_LOG_EXIT();
+    if ((object_type >= SAI_OBJECT_TYPE_MAX) || (object_type < 0)) {
+        SX_LOG_ERR("Unsupported object_type [%d]\n", object_type);
+        return SAI_STATUS_FAILURE;
+    }
+
+    if (!mlnx_obj_types_info[object_type]) {
+        SX_LOG_ERR("Missing mlnx_obj_types_info[%s]\n", SAI_TYPE_STR(object_type));
+        return SAI_STATUS_FAILURE;
+    }
+
+    if (!mlnx_obj_types_info[object_type]->vendor_data) {
+        SX_LOG_ERR("Missing vendor_data for %s\n", SAI_TYPE_STR(object_type));
+        return SAI_STATUS_FAILURE;
+    }
+
+    const sai_vendor_attribute_entry_t *vendor_data = mlnx_obj_types_info[object_type]->vendor_data;
+
+    key_to_str(key, object_type, key_str);
+
+
+    status = check_attribs_metadata(attr_count, attr_list, object_type, vendor_data, SAI_COMMON_API_GET);
+    if (SAI_ERR(status)) {
+        uint32_t log_level = SX_LOG_ERROR;
+        if ((status == SAI_STATUS_ATTR_NOT_IMPLEMENTED_0) ||
+            (status == SAI_STATUS_ATTR_NOT_SUPPORTED_0)) {
+            log_level = SX_LOG_WARNING;
+        }
+        SX_LOG(log_level, "Failed attributes check, key: %s\n", key_str);
         return status;
     }
 
-    if (SAI_STATUS_SUCCESS !=
-        (status =
-             get_dispatch_attribs_handler(attr_count, attr_list, object_type, functionality_vendor_attr, key,
-                                          key_str))) {
+    status = get_dispatch_attribs_handler(attr_count, attr_list, object_type, vendor_data, key, key_str);
+    if (SAI_ERR(status)) {
         if (MLNX_SAI_STATUS_BUFFER_OVERFLOW_EMPTY_LIST == status) {
             status = SAI_STATUS_BUFFER_OVERFLOW;
         } else {
-            SX_LOG_ERR("Failed attribs dispatch\n");
+            SX_LOG_ERR("Failed to get attribute\n");
         }
-        SX_LOG_EXIT();
         return status;
     }
 
-    SX_LOG_EXIT();
     return SAI_STATUS_SUCCESS;
 }
 
@@ -2545,7 +2624,7 @@ static sai_status_t sai_value_to_str(_In_ sai_attribute_value_t value,
         break;
 
     case SAI_ATTR_VALUE_TYPE_OBJECT_ID:
-        sai_oid_to_str(value.oid, 0, max_length, value_str);
+        oid_n_to_str(value.oid, max_length, value_str);
         break;
 
     case SAI_ATTR_VALUE_TYPE_OBJECT_LIST:
@@ -2567,8 +2646,10 @@ static sai_status_t sai_value_to_str(_In_ sai_attribute_value_t value,
         if (SAI_ATTR_VALUE_TYPE_ACL_CAPABILITY == type) {
             pos += snprintf(value_str,
                             max_length,
-                            "%s.",
-                            MLNX_UTILS_BOOL_TO_STR(value.aclcapability.is_action_list_mandatory));
+                            "%s.%d.%s.",
+                            MLNX_UTILS_BOOL_TO_STR(value.aclcapability.is_action_list_mandatory),
+                            value.aclcapability.supported_match_type,
+                            MLNX_UTILS_BOOL_TO_STR(value.aclcapability.is_non_contiguous_bits_exact_match_supported));
         }
         if ((SAI_ATTR_VALUE_TYPE_ACL_FIELD_DATA_OBJECT_LIST == type) ||
             (SAI_ATTR_VALUE_TYPE_ACL_FIELD_DATA_UINT8_LIST == type)) {
@@ -2604,7 +2685,7 @@ static sai_status_t sai_value_to_str(_In_ sai_attribute_value_t value,
 
         for (ii = 0; ii < count; ii++) {
             if (SAI_ATTR_VALUE_TYPE_OBJECT_LIST == type) {
-                pos += snprintf(value_str + pos, max_length - pos, " %" PRIx64, value.objlist.list[ii]);
+                pos += snprintf(value_str + pos, max_length - pos, " 0x%" PRIX64, value.objlist.list[ii]);
             } else if (SAI_ATTR_VALUE_TYPE_UINT8_LIST == type) {
                 pos += snprintf(value_str + pos, max_length - pos, " %u", value.u8list.list[ii]);
             } else if (SAI_ATTR_VALUE_TYPE_INT8_LIST == type) {
@@ -3153,8 +3234,19 @@ sai_status_t sai_to_mlnx_object_id(sai_object_type_t type, sai_object_id_t objec
         return SAI_STATUS_INVALID_PARAMETER;
     }
 
+    if ((uint32_t)type >= SAI_OBJECT_TYPE_MAX) {
+        SX_LOG_ERR("Unsupported object type: %d\n", type);
+        return SAI_STATUS_FAILURE;
+    }
+
+    if ((uint32_t)mlnx_sai_oid->object_type >= SAI_OBJECT_TYPE_MAX) {
+        SX_LOG_ERR("OID has unsupported type: %d\n", mlnx_sai_oid->object_type);
+        return SAI_STATUS_FAILURE;
+    }
+
     if (mlnx_sai_oid->object_type != type) {
-        SX_LOG_ERR("Invalid object type %u expected %u\n", mlnx_sai_oid->object_type, type);
+        SX_LOG_ERR("Invalid object type [%s] expected [%s]\n", SAI_TYPE_STR(mlnx_sai_oid->object_type),
+                   SAI_TYPE_STR(type));
         return SAI_STATUS_INVALID_OBJECT_TYPE;
     }
 
@@ -3689,4 +3781,95 @@ uint64_t time_ms_get(void)
 
     gettimeofday(&tv, NULL);
     return tv.tv_sec * 1000 + tv.tv_usec / 1000;
+}
+
+size_t oid_n_to_str(_In_ sai_object_id_t oid, _In_ size_t len, _Out_ char *str)
+{
+    sai_object_key_t  key = { .key.object_id = oid };
+    sai_object_type_t object_type = sai_object_type_query(oid);
+
+    return key_n_to_str(&key, object_type, len, str);
+}
+
+void oid_to_str(_In_ sai_object_id_t oid, _Out_ char *str)
+{
+    oid_n_to_str(oid, MAX_KEY_STR_LEN, str);
+}
+
+bool is_match_key_object_type(_In_ sai_object_type_t object_type)
+{
+    switch (object_type) {
+    case SAI_OBJECT_TYPE_FDB_ENTRY:
+    case SAI_OBJECT_TYPE_NEIGHBOR_ENTRY:
+    case SAI_OBJECT_TYPE_ROUTE_ENTRY:
+    case SAI_OBJECT_TYPE_MCAST_FDB_ENTRY:
+    case SAI_OBJECT_TYPE_L2MC_ENTRY:
+    case SAI_OBJECT_TYPE_IPMC_ENTRY:
+    case SAI_OBJECT_TYPE_INSEG_ENTRY:
+    case SAI_OBJECT_TYPE_NAT_ENTRY:
+    case SAI_OBJECT_TYPE_MY_SID_ENTRY:
+        return true;
+
+    default:
+        break;
+    }
+
+    return false;
+}
+
+void key_to_str(_In_ const sai_object_key_t *key, _In_ sai_object_type_t object_type, _Out_ char *str)
+{
+    key_n_to_str(key, object_type, MAX_KEY_STR_LEN, str);
+}
+
+size_t key_n_to_str(_In_ const sai_object_key_t *key,
+                    _In_ sai_object_type_t       object_type,
+                    _In_ size_t                  len,
+                    _Out_ char                  *str)
+{
+    size_t written_chars = 0;
+
+    assert(str);
+    if ((object_type >= SAI_OBJECT_TYPE_MAX) || (object_type < 0)) {
+        return snprintf(str, len, "<invalid>");
+    }
+
+    written_chars = snprintf(str, len, "%s ", SAI_TYPE_STR(object_type));
+    len -= written_chars;
+    str += written_chars;
+
+    if (!is_match_key_object_type(object_type)) {
+        written_chars = snprintf(str, len, "[OID:0x%lX] ", key->key.object_id);
+        len -= written_chars;
+        str += written_chars;
+    }
+
+    if (mlnx_obj_types_info[object_type] && mlnx_obj_types_info[object_type]->printer) {
+        written_chars = mlnx_obj_types_info[object_type]->printer(key, str, len);
+        len -= written_chars;
+        str += written_chars;
+    }
+
+    return written_chars;
+}
+
+bool u32_list_equal(_In_ const uint32_t *list1,
+                    _In_ uint32_t        list1_count,
+                    _In_ const uint32_t *list2,
+                    _In_ uint32_t        list2_count)
+{
+    assert(NULL != list1);
+    assert(NULL != list2);
+
+    if (list1_count != list2_count) {
+        return false;
+    }
+
+    for (uint32_t ii = 0; ii < list1_count; ii++) {
+        if (list1[ii] != list2[ii]) {
+            return false;
+        }
+    }
+
+    return true;
 }

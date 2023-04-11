@@ -257,8 +257,14 @@ static const mlnx_attr_enum_info_t        vlan_enum_info[] = {
         SAI_VLAN_FLOOD_CONTROL_TYPE_L2MC_GROUP,
         SAI_VLAN_FLOOD_CONTROL_TYPE_COMBINED)
 };
-const mlnx_obj_type_attrs_info_t          mlnx_vlan_obj_type_info =
-{ vlan_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(vlan_enum_info), OBJ_STAT_CAP_INFO_EMPTY()};
+static size_t vlan_info_print(_In_ const sai_object_key_t *key, _Out_ char *str, _In_ size_t max_len)
+{
+    mlnx_object_id_t mlnx_oid = *(mlnx_object_id_t*)&key->key.object_id;
+
+    return snprintf(str, max_len, "[vlan:%u]", mlnx_oid.id.vlan_id);
+}
+const mlnx_obj_type_attrs_info_t mlnx_vlan_obj_type_info =
+{ vlan_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(vlan_enum_info), OBJ_STAT_CAP_INFO_EMPTY(), vlan_info_print};
 static const sai_vendor_attribute_entry_t vlan_member_vendor_attribs[] = {
     { SAI_VLAN_MEMBER_ATTR_VLAN_ID,
       { true, false, false, true },
@@ -284,12 +290,16 @@ static const sai_vendor_attribute_entry_t vlan_member_vendor_attribs[] = {
 static const mlnx_attr_enum_info_t        vlan_member_enum_info[] = {
     [SAI_VLAN_MEMBER_ATTR_VLAN_TAGGING_MODE] = ATTR_ENUM_VALUES_ALL()
 };
-const mlnx_obj_type_attrs_info_t          mlnx_vlan_member_obj_type_info =
-{ vlan_member_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(vlan_member_enum_info), OBJ_STAT_CAP_INFO_EMPTY()};
-static void vlan_key_to_str(_In_ sai_vlan_id_t vlan_id, _Out_ char *key_str)
+static size_t vlan_member_info_print(_In_ const sai_object_key_t *key, _Out_ char *str, _In_ size_t max_len)
 {
-    snprintf(key_str, MAX_KEY_STR_LEN, "vlan %u", vlan_id);
+    mlnx_object_id_t mlnx_oid = *(mlnx_object_id_t*)&key->key.object_id;
+
+    return snprintf(str, max_len, "[bridge_ports_db[%u], vlan:%u]",
+                    mlnx_oid.id.u32, (((uint16_t)mlnx_oid.ext.bytes[1]) << 8 | mlnx_oid.ext.bytes[0]));
 }
+const mlnx_obj_type_attrs_info_t mlnx_vlan_member_obj_type_info =
+{ vlan_member_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(vlan_member_enum_info), OBJ_STAT_CAP_INFO_EMPTY(),
+  vlan_member_info_print};
 
 sai_status_t mlnx_max_learned_addresses_value_validate(_In_ uint32_t limit, _In_ uint32_t attr_index)
 {
@@ -310,7 +320,7 @@ sai_status_t mlnx_vlan_bridge_max_learned_addresses_set(_In_ sx_vid_t sx_vid, _I
     /* Conversion from SAI to SDK for disabled limit */
     sx_limit = MLNX_FDB_LIMIT_SAI_TO_SX(limit);
 
-    sx_status = sx_api_fdb_uc_limit_fid_set(gh_sdk, SX_ACCESS_CMD_SET, DEFAULT_ETH_SWID, sx_vid, sx_limit);
+    sx_status = sx_api_fdb_uc_limit_fid_set(get_sdk_handle(), SX_ACCESS_CMD_SET, DEFAULT_ETH_SWID, sx_vid, sx_limit);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to set learning limit - %s.\n", SX_STATUS_MSG(sx_status));
         return sdk_to_sai(sx_status);
@@ -326,7 +336,7 @@ sai_status_t mlnx_vlan_bridge_max_learned_addresses_get(_In_ sx_vid_t sx_vid, _I
 
     assert(limit);
 
-    sx_status = sx_api_fdb_uc_limit_fid_get(gh_sdk, DEFAULT_ETH_SWID, sx_vid, &sx_limit);
+    sx_status = sx_api_fdb_uc_limit_fid_get(get_sdk_handle(), DEFAULT_ETH_SWID, sx_vid, &sx_limit);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to get learning limit - %s.\n", SX_STATUS_MSG(sx_status));
         return sdk_to_sai(sx_status);
@@ -442,7 +452,7 @@ static sai_status_t mlnx_vlan_learn_get(_In_ const sai_object_key_t   *key,
     }
 
     if (SX_STATUS_SUCCESS !=
-        (status = sx_api_fdb_fid_learn_mode_get(gh_sdk, DEFAULT_ETH_SWID, vlan_id, &mode))) {
+        (status = sx_api_fdb_fid_learn_mode_get(get_sdk_handle(), DEFAULT_ETH_SWID, vlan_id, &mode))) {
         SX_LOG_ERR("Failed to get learn mode %s.\n", SX_STATUS_MSG(status));
         status = sdk_to_sai(status);
         goto out;
@@ -481,7 +491,7 @@ static sai_status_t mlnx_vlan_learn_set(_In_ const sai_object_key_t      *key,
     }
 
     if (SX_STATUS_SUCCESS !=
-        (status = sx_api_fdb_fid_learn_mode_set(gh_sdk, DEFAULT_ETH_SWID, vlan_id, mode))) {
+        (status = sx_api_fdb_fid_learn_mode_set(get_sdk_handle(), DEFAULT_ETH_SWID, vlan_id, mode))) {
         SX_LOG_ERR("Failed to set learn mode %s.\n", SX_STATUS_MSG(status));
         status = sdk_to_sai(status);
         goto out;
@@ -666,19 +676,8 @@ out:
 static sai_status_t mlnx_set_vlan_attribute(_In_ sai_object_id_t vlan_id, _In_ const sai_attribute_t *attr)
 {
     const sai_object_key_t key = { .key.object_id = vlan_id };
-    char                   key_str[MAX_KEY_STR_LEN];
-    uint16_t               vid;
-    sai_status_t           status;
 
-    SX_LOG_ENTER();
-
-    status = sai_object_to_vlan(vlan_id, &vid);
-    if (SAI_ERR(status)) {
-        return status;
-    }
-
-    vlan_key_to_str(vid, key_str);
-    return sai_set_attribute(&key, key_str, SAI_OBJECT_TYPE_VLAN, vlan_vendor_attribs, attr);
+    return sai_set_attribute(&key, SAI_OBJECT_TYPE_VLAN, attr);
 }
 
 
@@ -700,19 +699,8 @@ static sai_status_t mlnx_get_vlan_attribute(_In_ sai_object_id_t     vlan_id,
                                             _Inout_ sai_attribute_t *attr_list)
 {
     const sai_object_key_t key = { .key.object_id = vlan_id };
-    char                   key_str[MAX_KEY_STR_LEN];
-    uint16_t               vid;
-    sai_status_t           status;
 
-    SX_LOG_ENTER();
-
-    status = sai_object_to_vlan(vlan_id, &vid);
-    if (SAI_ERR(status)) {
-        return status;
-    }
-
-    vlan_key_to_str(vid, key_str);
-    return sai_get_attributes(&key, key_str, SAI_OBJECT_TYPE_VLAN, vlan_vendor_attribs, attr_count, attr_list);
+    return sai_get_attributes(&key, SAI_OBJECT_TYPE_VLAN, attr_count, attr_list);
 }
 
 /**
@@ -729,7 +717,6 @@ sai_status_t mlnx_create_vlan(_Out_ sai_object_id_t      *sai_vlan_id,
                               _In_ uint32_t               attr_count,
                               _In_ const sai_attribute_t *attr_list)
 {
-    char                         list_str[MAX_LIST_VALUE_STR_LEN];
     const sai_attribute_value_t *vid = NULL, *stp = NULL, *learn = NULL, *max_learned_addresses = NULL, *attr_value =
         NULL;
     uint32_t                     vid_index, stp_index, learn_index, max_learned_addresses_index, attr_index;
@@ -748,14 +735,11 @@ sai_status_t mlnx_create_vlan(_Out_ sai_object_id_t      *sai_vlan_id,
 
     SX_LOG_ENTER();
 
-    status = check_attribs_metadata(attr_count, attr_list, SAI_OBJECT_TYPE_VLAN, vlan_vendor_attribs,
-                                    SAI_COMMON_API_CREATE);
+    status = check_attribs_on_create(attr_count, attr_list, SAI_OBJECT_TYPE_VLAN, sai_vlan_id);
     if (SAI_ERR(status)) {
         return status;
     }
-
-    sai_attr_list_to_str(attr_count, attr_list, SAI_OBJECT_TYPE_VLAN, MAX_LIST_VALUE_STR_LEN, list_str);
-    SX_LOG_NTC("Create VLAN, %s\n", list_str);
+    MLNX_LOG_ATTRS(attr_count, attr_list, SAI_OBJECT_TYPE_VLAN);
 
     status = find_attrib_in_list(attr_count, attr_list, SAI_VLAN_ATTR_VLAN_ID, &vid, &vid_index);
     assert(SAI_STATUS_SUCCESS == status);
@@ -799,7 +783,7 @@ sai_status_t mlnx_create_vlan(_Out_ sai_object_id_t      *sai_vlan_id,
 
     if (BOOT_TYPE_WARM != g_sai_db_ptr->boot_type) {
         sx_vlan_id = vid->u16;
-        sdk_status = sx_api_vlan_set(gh_sdk, SX_ACCESS_CMD_ADD, DEFAULT_ETH_SWID, &sx_vlan_id, &sx_vlan_cnt);
+        sdk_status = sx_api_vlan_set(get_sdk_handle(), SX_ACCESS_CMD_ADD, DEFAULT_ETH_SWID, &sx_vlan_id, &sx_vlan_cnt);
         if (SX_ERR(sdk_status)) {
             SX_LOG_ERR("Error adding vlan %d: %s\n", sx_vlan_id, SX_STATUS_MSG(sdk_status));
             status = sdk_to_sai(sdk_status);
@@ -925,7 +909,8 @@ sai_status_t mlnx_create_vlan(_Out_ sai_object_id_t      *sai_vlan_id,
 
     status = SAI_STATUS_SUCCESS;
     *sai_vlan_id = vlan_oid;
-    SX_LOG_NTC("Created vlan oid %" PRIx64 "\n", vlan_oid);
+
+    MLNX_LOG_OID_CREATED(*sai_vlan_id);
 
 out:
     acl_global_unlock();
@@ -947,7 +932,6 @@ out:
  */
 static sai_status_t mlnx_remove_vlan(_In_ sai_object_id_t sai_vlan_id)
 {
-    char                key_str[MAX_KEY_STR_LEN];
     mlnx_bridge_port_t *port;
     uint16_t            vlan_id;
     sai_status_t        status;
@@ -963,8 +947,7 @@ static sai_status_t mlnx_remove_vlan(_In_ sai_object_id_t sai_vlan_id)
         return status;
     }
 
-    vlan_key_to_str(vlan_id, key_str);
-    SX_LOG_NTC("Remove %s\n", key_str);
+    MLNX_LOG_OID_REMOVE(sai_vlan_id);
 
     /* check if specified VLAN does exist */
     status = validate_vlan(vlan_id);
@@ -1038,7 +1021,11 @@ static sai_status_t mlnx_remove_vlan(_In_ sai_object_id_t sai_vlan_id)
 
     if (BOOT_TYPE_WARM != g_sai_db_ptr->boot_type) {
         sx_vlan_id = vlan_id;
-        sdk_status = sx_api_vlan_set(gh_sdk, SX_ACCESS_CMD_DELETE, DEFAULT_ETH_SWID, &sx_vlan_id, &sx_vlan_cnt);
+        sdk_status = sx_api_vlan_set(get_sdk_handle(),
+                                     SX_ACCESS_CMD_DELETE,
+                                     DEFAULT_ETH_SWID,
+                                     &sx_vlan_id,
+                                     &sx_vlan_cnt);
         if (SX_ERR(sdk_status)) {
             SX_LOG_ERR("Error deletin vlan %d: %s\n", sx_vlan_id, SX_STATUS_MSG(sdk_status));
             status = sdk_to_sai(sdk_status);
@@ -1137,18 +1124,6 @@ static sai_status_t mlnx_clear_vlan_stats(_In_ sai_object_id_t      sai_vlan_id,
     return SAI_STATUS_NOT_IMPLEMENTED;
 }
 
-static void vlan_member_key_to_str(_In_ sai_object_id_t vlan_member_id, _Out_ char *key_str)
-{
-    mlnx_bridge_port_t *port;
-    uint16_t            vlan;
-
-    if (SAI_STATUS_SUCCESS != mlnx_vlan_member_oid_to_vlan_port(vlan_member_id, &vlan, &port)) {
-        snprintf(key_str, MAX_KEY_STR_LEN, "Invalid vlan member");
-    } else {
-        snprintf(key_str, MAX_KEY_STR_LEN, "Vlan member port %x vlan %u", port->logical, vlan);
-    }
-}
-
 bool mlnx_vlan_port_is_set(uint16_t vid, const mlnx_bridge_port_t *port)
 {
     return array_bit_test(g_sai_db_ptr->vlans_db[vid - 1].ports_map, port->index);
@@ -1233,13 +1208,13 @@ sai_status_t mlnx_vlan_port_add(uint16_t vid, sai_vlan_tagging_mode_t mode, mlnx
     if (SAI_ERR(status)) {
         return status;
     }
-    sx_status = sx_api_vlan_ports_set(gh_sdk, SX_ACCESS_CMD_ADD, DEFAULT_ETH_SWID, vid, &vlan_port_list, 1);
+    sx_status = sx_api_vlan_ports_set(get_sdk_handle(), SX_ACCESS_CMD_ADD, DEFAULT_ETH_SWID, vid, &vlan_port_list, 1);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to add vlan ports %s.\n", SX_STATUS_MSG(sx_status));
         return sdk_to_sai(sx_status);
     }
 
-    sx_status = sx_api_vlan_port_prio_tagged_set(gh_sdk, port->logical, sx_prio_tagging);
+    sx_status = sx_api_vlan_port_prio_tagged_set(get_sdk_handle(), port->logical, sx_prio_tagging);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to set prio tagging state to port %x - %s.\n", port->logical, SX_STATUS_MSG(sx_status));
         return sdk_to_sai(sx_status);
@@ -1273,7 +1248,8 @@ sai_status_t mlnx_vlan_port_del(uint16_t vid, mlnx_bridge_port_t *port)
         }
         port_config->issu_remove_default_vid = true;
     } else {
-        sx_status = sx_api_vlan_ports_set(gh_sdk, SX_ACCESS_CMD_DELETE, DEFAULT_ETH_SWID, vid, &port_list, 1);
+        sx_status =
+            sx_api_vlan_ports_set(get_sdk_handle(), SX_ACCESS_CMD_DELETE, DEFAULT_ETH_SWID, vid, &port_list, 1);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to delete vlan ports %s.\n", SX_STATUS_MSG(sx_status));
             return sdk_to_sai(sx_status);
@@ -1301,8 +1277,6 @@ static sai_status_t mlnx_create_vlan_member(_Out_ sai_object_id_t     * vlan_mem
     uint32_t                     vid_index, port_index, tagging_index;
     sai_vlan_tagging_mode_t      mode = SAI_VLAN_TAGGING_MODE_UNTAGGED;
     uint8_t                      extended_data[EXTENDED_DATA_SIZE];
-    char                         key_str[MAX_KEY_STR_LEN];
-    char                         list_str[MAX_LIST_VALUE_STR_LEN];
     sx_port_log_id_t             log_port;
     mlnx_bridge_port_t          *bridge_port_cfg;
     mlnx_port_config_t          *port_config;
@@ -1313,21 +1287,11 @@ static sai_status_t mlnx_create_vlan_member(_Out_ sai_object_id_t     * vlan_mem
 
     memset(extended_data, 0, sizeof(extended_data));
 
-    if (NULL == vlan_member_id) {
-        SX_LOG_ERR("NULL vlan member ID param\n");
-        return SAI_STATUS_INVALID_PARAMETER;
-    }
-
-    if (SAI_STATUS_SUCCESS !=
-        (status =
-             check_attribs_metadata(attr_count, attr_list, SAI_OBJECT_TYPE_VLAN_MEMBER, vlan_member_vendor_attribs,
-                                    SAI_COMMON_API_CREATE))) {
-        SX_LOG_ERR("Failed attribs check\n");
+    status = check_attribs_on_create(attr_count, attr_list, SAI_OBJECT_TYPE_VLAN_MEMBER, vlan_member_id);
+    if (SAI_ERR(status)) {
         return status;
     }
-
-    sai_attr_list_to_str(attr_count, attr_list, SAI_OBJECT_TYPE_VLAN_MEMBER, MAX_LIST_VALUE_STR_LEN, list_str);
-    SX_LOG_NTC("Create vlan member, %s\n", list_str);
+    MLNX_LOG_ATTRS(attr_count, attr_list, SAI_OBJECT_TYPE_VLAN_MEMBER);
 
     status = find_attrib_in_list(attr_count, attr_list, SAI_VLAN_MEMBER_ATTR_VLAN_ID, &vid, &vid_index);
     assert(SAI_STATUS_SUCCESS == status);
@@ -1385,8 +1349,7 @@ static sai_status_t mlnx_create_vlan_member(_Out_ sai_object_id_t     * vlan_mem
         goto out;
     }
 
-    vlan_member_key_to_str(*vlan_member_id, key_str);
-    SX_LOG_NTC("Created vlan member %s\n", key_str);
+    MLNX_LOG_OID_CREATED(*vlan_member_id);
 
 out:
     sai_db_unlock();
@@ -1402,15 +1365,13 @@ out:
  */
 static sai_status_t mlnx_remove_vlan_member(_In_ sai_object_id_t vlan_member_id)
 {
-    char                key_str[MAX_KEY_STR_LEN];
     sai_status_t        status;
     mlnx_bridge_port_t *port;
     uint16_t            vlan;
 
     SX_LOG_ENTER();
 
-    vlan_member_key_to_str(vlan_member_id, key_str);
-    SX_LOG_NTC("Remove vlan member interface %s\n", key_str);
+    MLNX_LOG_OID_REMOVE(vlan_member_id);
 
     sai_db_write_lock();
 
@@ -1518,13 +1479,10 @@ static sai_status_t mlnx_vlan_member_bulk_attrs_parse(_In_ const sai_attribute_t
         return SAI_STATUS_INVALID_PARAMETER;
     }
 
-    status = check_attribs_metadata(attr_count, attr_list, SAI_OBJECT_TYPE_VLAN_MEMBER, vlan_member_vendor_attribs,
-                                    SAI_COMMON_API_CREATE);
+    status = check_attribs_on_create_without_oid(attr_count, attr_list, SAI_OBJECT_TYPE_VLAN_MEMBER);
     if (SAI_ERR(status)) {
-        SX_LOG_ERR("Failed attribs check\n");
         return status;
     }
-
     memset(vlan_member_data, 0, sizeof(*vlan_member_data));
 
     status = find_attrib_in_list(attr_count, attr_list, SAI_VLAN_MEMBER_ATTR_VLAN_ID, &attr_value, &attr_index);
@@ -1739,7 +1697,7 @@ static sai_status_t mlnx_vlan_member_bulk_prio_tagging_state_set(uint32_t bport_
     sx_prio_tagging_state = mlnx_vlan_member_bulk_data.prio_tag_data.ports[bport_index].prio_tagging;
     sx_port = g_sai_db_ptr->bridge_ports_db[bport_index].logical;
 
-    sx_status = sx_api_vlan_port_prio_tagged_set(gh_sdk, sx_port, sx_prio_tagging_state);
+    sx_status = sx_api_vlan_port_prio_tagged_set(get_sdk_handle(), sx_port, sx_prio_tagging_state);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to set prio tagging state to port %x - %s.\n", sx_port, SX_STATUS_MSG(sx_status));
         return sdk_to_sai(sx_status);
@@ -1834,7 +1792,7 @@ static sai_status_t mlnx_vlan_member_bulk_port_to_vlans_apply(_In_ uint32_t     
     sx_port_log_id = g_sai_db_ptr->bridge_ports_db[port_index].logical;
     sx_cmd = create ? SX_ACCESS_CMD_ADD : SX_ACCESS_CMD_DELETE;
 
-    sx_status = sx_api_vlan_port_multi_vlan_set(gh_sdk, sx_cmd, sx_port_log_id, sx_port_vlans, vlan_count);
+    sx_status = sx_api_vlan_port_multi_vlan_set(get_sdk_handle(), sx_cmd, sx_port_log_id, sx_port_vlans, vlan_count);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to add a port %x to %d VLAN%c - %s\n", sx_port_log_id, vlan_count, (vlan_count) ? 's' : ' ',
                    SX_STATUS_MSG(sx_status));
@@ -1908,7 +1866,7 @@ static sai_status_t mlnx_vlan_member_bulk_vlan_to_ports_apply(_In_ uint32_t     
 
     sx_cmd = create ? SX_ACCESS_CMD_ADD : SX_ACCESS_CMD_DELETE;
 
-    sx_status = sx_api_vlan_ports_set(gh_sdk, sx_cmd, DEFAULT_ETH_SWID, vlan_id, sx_vlan_ports, port_count);
+    sx_status = sx_api_vlan_ports_set(get_sdk_handle(), sx_cmd, DEFAULT_ETH_SWID, vlan_id, sx_vlan_ports, port_count);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to set VLAN %d to %d port%c - %s\n", vlan_id, port_count, (port_count) ? 's' : ' ',
                    SX_STATUS_MSG(sx_status));
@@ -2190,12 +2148,8 @@ static sai_status_t mlnx_set_vlan_member_attribute(_In_ sai_object_id_t        v
                                                    _In_ const sai_attribute_t *attr)
 {
     const sai_object_key_t key = { .key.object_id = vlan_member_id };
-    char                   key_str[MAX_KEY_STR_LEN];
 
-    SX_LOG_ENTER();
-
-    vlan_member_key_to_str(vlan_member_id, key_str);
-    return sai_set_attribute(&key, key_str, SAI_OBJECT_TYPE_VLAN_MEMBER, vlan_member_vendor_attribs, attr);
+    return sai_set_attribute(&key, SAI_OBJECT_TYPE_VLAN_MEMBER, attr);
 }
 
 /*
@@ -2211,17 +2165,8 @@ static sai_status_t mlnx_get_vlan_member_attribute(_In_ sai_object_id_t     vlan
                                                    _Inout_ sai_attribute_t *attr_list)
 {
     const sai_object_key_t key = { .key.object_id = vlan_member_id };
-    char                   key_str[MAX_KEY_STR_LEN];
 
-    SX_LOG_ENTER();
-
-    vlan_member_key_to_str(vlan_member_id, key_str);
-    return sai_get_attributes(&key,
-                              key_str,
-                              SAI_OBJECT_TYPE_VLAN_MEMBER,
-                              vlan_member_vendor_attribs,
-                              attr_count,
-                              attr_list);
+    return sai_get_attributes(&key, SAI_OBJECT_TYPE_VLAN_MEMBER, attr_count, attr_list);
 }
 
 /* VLAN ID [sai_vlan_t] */
@@ -2302,19 +2247,21 @@ static sai_status_t mlnx_vlan_member_tagging_set(_In_ const sai_object_key_t    
 
     if (SX_STATUS_SUCCESS !=
         (sx_status =
-             sx_api_vlan_ports_set(gh_sdk, SX_ACCESS_CMD_DELETE, DEFAULT_ETH_SWID, vlan, &sx_vlan_port_list, 1))) {
+             sx_api_vlan_ports_set(get_sdk_handle(), SX_ACCESS_CMD_DELETE, DEFAULT_ETH_SWID, vlan, &sx_vlan_port_list,
+                                   1))) {
         SX_LOG_ERR("Failed to delete vlan ports %s.\n", SX_STATUS_MSG(sx_status));
         return sdk_to_sai(sx_status);
     }
 
     if (SX_STATUS_SUCCESS !=
         (sx_status =
-             sx_api_vlan_ports_set(gh_sdk, SX_ACCESS_CMD_ADD, DEFAULT_ETH_SWID, vlan, &sx_vlan_port_list, 1))) {
+             sx_api_vlan_ports_set(get_sdk_handle(), SX_ACCESS_CMD_ADD, DEFAULT_ETH_SWID, vlan, &sx_vlan_port_list,
+                                   1))) {
         SX_LOG_ERR("Failed to delete vlan ports %s.\n", SX_STATUS_MSG(sx_status));
         return sdk_to_sai(sx_status);
     }
 
-    sx_status = sx_api_vlan_port_prio_tagged_set(gh_sdk, port->logical, sx_prio_tagging);
+    sx_status = sx_api_vlan_port_prio_tagged_set(get_sdk_handle(), port->logical, sx_prio_tagging);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to set prio tagging state to port %x - %s.\n", port->logical, SX_STATUS_MSG(sx_status));
         return sdk_to_sai(sx_status);
@@ -2344,7 +2291,7 @@ static sai_status_t mlnx_vlan_member_tagging_get(_In_ const sai_object_key_t   *
         goto out;
     }
 
-    sx_status = sx_api_vlan_port_prio_tagged_get(gh_sdk, port->logical, &sx_prio_tagging_state);
+    sx_status = sx_api_vlan_port_prio_tagged_get(get_sdk_handle(), port->logical, &sx_prio_tagging_state);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to get prio tagging state for port %x - %s.\n", port->logical, SX_STATUS_MSG(sx_status));
         status = sdk_to_sai(sx_status);
@@ -2381,7 +2328,11 @@ sai_status_t mlnx_vlan_log_port_tagging_get(_In_ sx_port_log_id_t             sx
 
     memset(sx_vlan_port_list, 0, sizeof(sx_vlan_port_list));
 
-    sx_status = sx_api_vlan_ports_get(gh_sdk, DEFAULT_ETH_SWID, sx_vlan_id, sx_vlan_port_list, &vlan_ports_count);
+    sx_status = sx_api_vlan_ports_get(get_sdk_handle(),
+                                      DEFAULT_ETH_SWID,
+                                      sx_vlan_id,
+                                      sx_vlan_port_list,
+                                      &vlan_ports_count);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to get vlan members for vlan %d - %s\n", sx_vlan_id, SX_STATUS_MSG(sx_status));
         return sdk_to_sai(sx_status);
@@ -2417,7 +2368,7 @@ sai_status_t mlnx_vlan_list_stp_bind(_In_ const sx_vlan_id_t *vlan_ids,
     }
 
     if (mlnx_stp_is_initialized()) {
-        sx_status = sx_api_mstp_inst_vlan_list_set(gh_sdk, SX_ACCESS_CMD_ADD, DEFAULT_ETH_SWID,
+        sx_status = sx_api_mstp_inst_vlan_list_set(get_sdk_handle(), SX_ACCESS_CMD_ADD, DEFAULT_ETH_SWID,
                                                    sx_stp_id, vlan_ids, vlan_count);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to set STP to vlan %s.\n", SX_STATUS_MSG(sx_status));
@@ -2456,7 +2407,7 @@ sai_status_t mlnx_vlan_stp_unbind(sai_vlan_id_t vlan_id)
 
     if (mlnx_stp_is_initialized()) {
         SX_LOG_DBG("Unmapping VLAN [%u] from STP [%u]\n", vlan_id, sx_stp_id_curr);
-        status = sx_api_mstp_inst_vlan_list_set(gh_sdk, SX_ACCESS_CMD_DELETE, DEFAULT_ETH_SWID,
+        status = sx_api_mstp_inst_vlan_list_set(get_sdk_handle(), SX_ACCESS_CMD_DELETE, DEFAULT_ETH_SWID,
                                                 sx_stp_id_curr, &vlan_id, 1);
         if (SX_ERR(status)) {
             SX_LOG_ERR("Failed to unmap VLAN [%u] from STP [%u]\n", vlan_id, sx_stp_id_curr);
@@ -2728,7 +2679,7 @@ static sai_status_t mlnx_fid_uc_bc_flood_ctrl_apply(_In_ sx_fid_t               
 
     /* Local ports */
     if ((flood_data->type == MLNX_FID_FLOOD_TYPE_ALL) || (flood_data->type == MLNX_FID_FLOOD_TYPE_COMBINED)) {
-        sx_status = sx_api_fdb_flood_control_set(gh_sdk, SX_ACCESS_CMD_DELETE_ALL_PORTS,
+        sx_status = sx_api_fdb_flood_control_set(get_sdk_handle(), SX_ACCESS_CMD_DELETE_ALL_PORTS,
                                                  DEFAULT_ETH_SWID, sx_fid, sx_flood_type,
                                                  0, NULL);
         if (SX_ERR(sx_status)) {
@@ -2741,7 +2692,7 @@ static sai_status_t mlnx_fid_uc_bc_flood_ctrl_apply(_In_ sx_fid_t               
 
     if (flood_data->type == MLNX_FID_FLOOD_TYPE_NONE) {
         if (fid_ports_count > 0) {
-            sx_status = sx_api_fdb_flood_control_set(gh_sdk, SX_ACCESS_CMD_ADD_PORTS,
+            sx_status = sx_api_fdb_flood_control_set(get_sdk_handle(), SX_ACCESS_CMD_ADD_PORTS,
                                                      DEFAULT_ETH_SWID, sx_fid, sx_flood_type,
                                                      fid_ports_count, sx_fid_ports);
             if (SX_ERR(sx_status)) {
@@ -2792,7 +2743,7 @@ static sai_status_t mlnx_fid_uc_bc_flood_ctrl_apply(_In_ sx_fid_t               
                    "MLNX_FID_FLOOD_TYPE_L2MC_GROUP");
 
         if (ports_to_block_count > 0) {
-            sx_status = sx_api_fdb_flood_control_set(gh_sdk, SX_ACCESS_CMD_ADD_PORTS,
+            sx_status = sx_api_fdb_flood_control_set(get_sdk_handle(), SX_ACCESS_CMD_ADD_PORTS,
                                                      DEFAULT_ETH_SWID, sx_fid, sx_flood_type,
                                                      ports_to_block_count, ports_to_block);
             if (SX_ERR(sx_status)) {
@@ -2835,7 +2786,7 @@ static sai_status_t mlnx_fid_uc_bc_flood_ctrl_apply(_In_ sx_fid_t               
     }
 
     if (SX_ACCESS_CMD_DELETE == sx_cmd) {
-        sx_status = sx_api_fdb_flood_get(gh_sdk, DEFAULT_ETH_SWID, sx_fid, &flood_vector_sdk);
+        sx_status = sx_api_fdb_flood_get(get_sdk_handle(), DEFAULT_ETH_SWID, sx_fid, &flood_vector_sdk);
         if (SX_ERR(sx_status) && (SX_STATUS_ENTRY_NOT_BOUND != sx_status)) {
             SX_LOG_ERR("Failed to get mc container from SDK for fid %u - %s.\n",
                        sx_fid,
@@ -2850,7 +2801,7 @@ static sai_status_t mlnx_fid_uc_bc_flood_ctrl_apply(_In_ sx_fid_t               
     }
 
     if (SX_MC_CONTAINER_ID_CHECK_RANGE(flood_vector)) {
-        sx_status = sx_api_fdb_flood_set(gh_sdk, sx_cmd, DEFAULT_ETH_SWID, sx_fid, flood_vector);
+        sx_status = sx_api_fdb_flood_set(get_sdk_handle(), sx_cmd, DEFAULT_ETH_SWID, sx_fid, flood_vector);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to %s flood vector for fid %u - %s.\n",
                        SX_ACCESS_CMD_STR(sx_cmd),
@@ -2878,14 +2829,21 @@ static sai_status_t mlnx_fid_mc_flood_ctrl_apply(_In_ sx_fid_t                  
     assert(data->type <= MLNX_FID_FLOOD_TYPE_L2MC_GROUP);
 
     if (data->type == MLNX_FID_FLOOD_TYPE_ALL) {
-        sx_status = sx_api_fdb_unreg_mc_flood_mode_set(gh_sdk, DEFAULT_ETH_SWID, sx_fid, SX_FDB_UNREG_MC_FLOOD);
+        sx_status = sx_api_fdb_unreg_mc_flood_mode_set(get_sdk_handle(),
+                                                       DEFAULT_ETH_SWID,
+                                                       sx_fid,
+                                                       SX_FDB_UNREG_MC_FLOOD);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to set fdb unreg mc flood mode for fid %u - %s.\n", sx_fid, SX_STATUS_MSG(sx_status));
             return sdk_to_sai(sx_status);
         }
 
         sx_status =
-            sx_api_fdb_unreg_mc_flood_ports_set(gh_sdk, DEFAULT_ETH_SWID, sx_fid, sx_fid_ports, fid_ports_count);
+            sx_api_fdb_unreg_mc_flood_ports_set(get_sdk_handle(),
+                                                DEFAULT_ETH_SWID,
+                                                sx_fid,
+                                                sx_fid_ports,
+                                                fid_ports_count);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to set fdb unreg mc flood port list for fid %u - %s.\n", sx_fid, SX_STATUS_MSG(
                            sx_status));
@@ -2894,13 +2852,16 @@ static sai_status_t mlnx_fid_mc_flood_ctrl_apply(_In_ sx_fid_t                  
     }
 
     if (data->type == MLNX_FID_FLOOD_TYPE_NONE) {
-        sx_status = sx_api_fdb_unreg_mc_flood_mode_set(gh_sdk, DEFAULT_ETH_SWID, sx_fid, SX_FDB_UNREG_MC_PRUNE);
+        sx_status = sx_api_fdb_unreg_mc_flood_mode_set(get_sdk_handle(),
+                                                       DEFAULT_ETH_SWID,
+                                                       sx_fid,
+                                                       SX_FDB_UNREG_MC_PRUNE);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to set fdb unreg mc flood mode for fid %u - %s.\n", sx_fid, SX_STATUS_MSG(sx_status));
             return sdk_to_sai(sx_status);
         }
 
-        sx_status = sx_api_fdb_unreg_mc_flood_ports_set(gh_sdk, DEFAULT_ETH_SWID, sx_fid, NULL, 0);
+        sx_status = sx_api_fdb_unreg_mc_flood_ports_set(get_sdk_handle(), DEFAULT_ETH_SWID, sx_fid, NULL, 0);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to clear fdb unreg mc flood port list for fid %u - %s.\n", sx_fid,
                        SX_STATUS_MSG(sx_status));
@@ -2919,13 +2880,16 @@ static sai_status_t mlnx_fid_mc_flood_ctrl_apply(_In_ sx_fid_t                  
             l2mc_ports_count = 0;
         }
 
-        sx_status = sx_api_fdb_unreg_mc_flood_mode_set(gh_sdk, DEFAULT_ETH_SWID, sx_fid, SX_FDB_UNREG_MC_PRUNE);
+        sx_status = sx_api_fdb_unreg_mc_flood_mode_set(get_sdk_handle(),
+                                                       DEFAULT_ETH_SWID,
+                                                       sx_fid,
+                                                       SX_FDB_UNREG_MC_PRUNE);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to set fdb unreg mc flood mode for fid %u - %s.\n", sx_fid, SX_STATUS_MSG(sx_status));
             return sdk_to_sai(sx_status);
         }
 
-        sx_status = sx_api_fdb_unreg_mc_flood_ports_set(gh_sdk,
+        sx_status = sx_api_fdb_unreg_mc_flood_ports_set(get_sdk_handle(),
                                                         DEFAULT_ETH_SWID,
                                                         sx_fid,
                                                         sx_l2mc_ports,
@@ -2960,8 +2924,13 @@ static sai_status_t mlnx_fid_flood_ctrl_update_prepare(_In_ sx_fid_t            
 
         sx_flood_control_type = (attr == MLNX_FID_FLOOD_CTRL_ATTR_UC) ? SX_FLOOD_CONTROL_TYPE_UNICAST_E :
                                 SX_FLOOD_CONTROL_TYPE_BROADCAST_E;
-        sx_status = sx_api_fdb_flood_control_set(gh_sdk, SX_ACCESS_CMD_DELETE_ALL_PORTS, DEFAULT_ETH_SWID, sx_fid,
-                                                 sx_flood_control_type, 0, NULL);
+        sx_status = sx_api_fdb_flood_control_set(get_sdk_handle(),
+                                                 SX_ACCESS_CMD_DELETE_ALL_PORTS,
+                                                 DEFAULT_ETH_SWID,
+                                                 sx_fid,
+                                                 sx_flood_control_type,
+                                                 0,
+                                                 NULL);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to delete fdb flood list for fid %u - %s.\n", sx_fid, SX_STATUS_MSG(sx_status));
             return sdk_to_sai(sx_status);
@@ -3158,7 +3127,7 @@ static sai_status_t mlnx_fid_flood_ctrl_uc_bc_port_event_handle(_In_ sx_fid_t   
 
     if (data->type == MLNX_FID_FLOOD_TYPE_NONE) {
         sx_cmd = (event == MLNX_PORT_EVENT_ADD) ? SX_ACCESS_CMD_ADD_PORTS : SX_ACCESS_CMD_DELETE_PORTS;
-        sx_status = sx_api_fdb_flood_control_set(gh_sdk, sx_cmd, DEFAULT_ETH_SWID, sx_fid, sx_flood_type,
+        sx_status = sx_api_fdb_flood_control_set(get_sdk_handle(), sx_cmd, DEFAULT_ETH_SWID, sx_fid, sx_flood_type,
                                                  sx_ports_count, sx_ports);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to add ports to fid %u flood control - %s.\n", sx_fid, SX_STATUS_MSG(sx_status));
@@ -3203,7 +3172,7 @@ static sai_status_t mlnx_fid_flood_ctrl_uc_bc_port_event_handle(_In_ sx_fid_t   
                    ports_to_update_count, ports_to_update[0], sx_fid, "MLNX_FID_FLOOD_TYPE_L2MC_GROUP event");
 
         if (ports_to_update_count > 0) {
-            sx_status = sx_api_fdb_flood_control_set(gh_sdk, sx_cmd,
+            sx_status = sx_api_fdb_flood_control_set(get_sdk_handle(), sx_cmd,
                                                      DEFAULT_ETH_SWID, sx_fid, sx_flood_type,
                                                      ports_to_update_count, ports_to_update);
             if (SX_ERR(sx_status)) {
@@ -3530,7 +3499,7 @@ sai_status_t mlnx_fid_flood_ctrl_clear(_In_ sx_fid_t sx_fid)
 {
     sx_status_t sx_status;
 
-    sx_status = sx_api_fdb_flood_control_set(gh_sdk, SX_ACCESS_CMD_DELETE_ALL_PORTS,
+    sx_status = sx_api_fdb_flood_control_set(get_sdk_handle(), SX_ACCESS_CMD_DELETE_ALL_PORTS,
                                              DEFAULT_ETH_SWID, sx_fid, SX_FLOOD_CONTROL_TYPE_UNICAST_E,
                                              0, NULL);
     if (SX_ERR(sx_status)) {
@@ -3538,7 +3507,7 @@ sai_status_t mlnx_fid_flood_ctrl_clear(_In_ sx_fid_t sx_fid)
         return sdk_to_sai(sx_status);
     }
 
-    sx_status = sx_api_fdb_flood_control_set(gh_sdk, SX_ACCESS_CMD_DELETE_ALL_PORTS,
+    sx_status = sx_api_fdb_flood_control_set(get_sdk_handle(), SX_ACCESS_CMD_DELETE_ALL_PORTS,
                                              DEFAULT_ETH_SWID, sx_fid, SX_FLOOD_CONTROL_TYPE_BROADCAST_E,
                                              0, NULL);
     if (SX_ERR(sx_status)) {
@@ -3546,13 +3515,13 @@ sai_status_t mlnx_fid_flood_ctrl_clear(_In_ sx_fid_t sx_fid)
         return sdk_to_sai(sx_status);
     }
 
-    sx_status = sx_api_fdb_unreg_mc_flood_mode_set(gh_sdk, DEFAULT_ETH_SWID, sx_fid, SX_FDB_UNREG_MC_PRUNE);
+    sx_status = sx_api_fdb_unreg_mc_flood_mode_set(get_sdk_handle(), DEFAULT_ETH_SWID, sx_fid, SX_FDB_UNREG_MC_PRUNE);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to set fdb unreg mc flood mode for fid %u - %s.\n", sx_fid, SX_STATUS_MSG(sx_status));
         return sdk_to_sai(sx_status);
     }
 
-    sx_status = sx_api_fdb_unreg_mc_flood_ports_set(gh_sdk, DEFAULT_ETH_SWID, sx_fid, NULL, 0);
+    sx_status = sx_api_fdb_unreg_mc_flood_ports_set(get_sdk_handle(), DEFAULT_ETH_SWID, sx_fid, NULL, 0);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to clear fdb unreg mc flood port list for fid %u - %s.\n", sx_fid,
                    SX_STATUS_MSG(sx_status));
@@ -3566,8 +3535,8 @@ sai_status_t mlnx_vlan_log_set(sx_verbosity_level_t level)
 {
     LOG_VAR_NAME(__MODULE__) = level;
 
-    if (gh_sdk) {
-        return sdk_to_sai(sx_api_vlan_log_verbosity_level_set(gh_sdk, SX_LOG_VERBOSITY_BOTH, level, level));
+    if (get_sdk_handle()) {
+        return sdk_to_sai(sx_api_vlan_log_verbosity_level_set(get_sdk_handle(), SX_LOG_VERBOSITY_BOTH, level, level));
     } else {
         return SAI_STATUS_SUCCESS;
     }

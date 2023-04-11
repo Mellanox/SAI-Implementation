@@ -290,7 +290,9 @@ libfx_base_la-fx_base_api.lo: \
  /usr/include/sx/sdk/sx_api_issu.h /usr/include/sx/sdk/sx_api_lag.h \
  /usr/include/sx/sdk/sx_api_mc_container.h \
  /usr/include/sx/sdk/sx_api_mstp.h /usr/include/sx/sdk/sx_api_policer.h \
- /usr/include/sx/sdk/sx_api_topo.h /usr/include/sx/sdk/sx_api_register.h \
+ /usr/include/sx/sdk/sx_api_topo.h \
+ /usr/include/sx/sdk/sx_api_adaptive_routing.h \
+ /usr/include/sx/sdk/sx_api_register.h \
  /usr/include/sx/sxd/sxd_access_register.h /usr/include/sx/sxd/sxd_emad.h \
  /usr/include/sx/sxd/sxd_emad_data.h \
  /usr/include/sx/sxd/sxd_emad_cos_data.h \
@@ -341,6 +343,8 @@ libfx_base_la-fx_base_api.lo: \
  /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/sai.h \
  /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saiacl.h \
  /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saitypes.h \
+ /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saiars.h \
+ /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saiarsprofile.h \
  /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saibridge.h \
  /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saibuffer.h \
  /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saicounter.h \
@@ -370,6 +374,15 @@ libfx_base_la-fx_base_api.lo: \
  /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saimpls.h \
  /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/sainat.h \
  /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saisrv6.h \
+ /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/experimental/saiexperimentaldashvip.h \
+ /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/experimental/saiexperimentaldashpavalidation.h \
+ /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/experimental/saiexperimentaldashvnet.h \
+ /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/experimental/saiexperimentaldashoutboundrouting.h \
+ /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/experimental/saiexperimentaldashoutboundcatopa.h \
+ /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/experimental/saiexperimentaldashinboundrouting.h \
+ /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/experimental/saiexperimentaldasheni.h \
+ /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/experimental/saiexperimentaldashdirectionlookup.h \
+ /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/experimental/saiexperimentaldashacl.h \
  /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/experimental/saiexperimentalbmtor.h \
  /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saipolicer.h \
  /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saiport.h \
@@ -404,6 +417,15 @@ libfx_base_la-fx_base_api.lo: \
  /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/experimental/saiextensions.h \
  /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/experimental/saitypesextensions.h \
  /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/experimental/saiswitchextensions.h \
+ /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/experimental/saiexperimentaldashvip.h \
+ /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/experimental/saiexperimentaldashpavalidation.h \
+ /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/experimental/saiexperimentaldashvnet.h \
+ /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/experimental/saiexperimentaldashoutboundrouting.h \
+ /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/experimental/saiexperimentaldashoutboundcatopa.h \
+ /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/experimental/saiexperimentaldashinboundrouting.h \
+ /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/experimental/saiexperimentaldasheni.h \
+ /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/experimental/saiexperimentaldashdirectionlookup.h \
+ /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/experimental/saiexperimentaldashacl.h \
  /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/experimental/saiexperimentalbmtor.h \
  ../config.h
 /usr/include/stdc-predef.h:
@@ -752,6 +774,7 @@ libfx_base_la-fx_base_api.lo: \
 /usr/include/sx/sdk/sx_api_mstp.h:
 /usr/include/sx/sdk/sx_api_policer.h:
 /usr/include/sx/sdk/sx_api_topo.h:
+/usr/include/sx/sdk/sx_api_adaptive_routing.h:
 /usr/include/sx/sdk/sx_api_register.h:
 /usr/include/sx/sxd/sxd_access_register.h:
 /usr/include/sx/sxd/sxd_emad.h:
@@ -813,6 +836,8 @@ libfx_base_la-fx_base_api.lo: \
 /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/sai.h:
 /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saiacl.h:
 /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saitypes.h:
+/home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saiars.h:
+/home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saiarsprofile.h:
 /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saibridge.h:
 /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saibuffer.h:
 /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saicounter.h:
@@ -842,6 +867,15 @@ libfx_base_la-fx_base_api.lo: \
 /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saimpls.h:
 /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/sainat.h:
 /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saisrv6.h:
+/home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/experimental/saiexperimentaldashvip.h:
+/home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/experimental/saiexperimentaldashpavalidation.h:
+/home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/experimental/saiexperimentaldashvnet.h:
+/home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/experimental/saiexperimentaldashoutboundrouting.h:
+/home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/experimental/saiexperimentaldashoutboundcatopa.h:
+/home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/experimental/saiexperimentaldashinboundrouting.h:
+/home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/experimental/saiexperimentaldasheni.h:
+/home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/experimental/saiexperimentaldashdirectionlookup.h:
+/home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/experimental/saiexperimentaldashacl.h:
 /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/experimental/saiexperimentalbmtor.h:
 /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saipolicer.h:
 /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/sai/saiport.h:
@@ -876,5 +910,14 @@ libfx_base_la-fx_base_api.lo: \
 /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/experimental/saiextensions.h:
 /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/experimental/saitypesextensions.h:
 /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/experimental/saiswitchextensions.h:
+/home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/experimental/saiexperimentaldashvip.h:
+/home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/experimental/saiexperimentaldashpavalidation.h:
+/home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/experimental/saiexperimentaldashvnet.h:
+/home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/experimental/saiexperimentaldashoutboundrouting.h:
+/home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/experimental/saiexperimentaldashoutboundcatopa.h:
+/home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/experimental/saiexperimentaldashinboundrouting.h:
+/home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/experimental/saiexperimentaldasheni.h:
+/home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/experimental/saiexperimentaldashdirectionlookup.h:
+/home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/experimental/saiexperimentaldashacl.h:
 /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/experimental/saiexperimentalbmtor.h:
 ../config.h:

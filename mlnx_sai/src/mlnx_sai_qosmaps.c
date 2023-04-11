@@ -67,8 +67,14 @@ static const mlnx_attr_enum_info_t        qos_map_enum_info[] = {
         SAI_QOS_MAP_TYPE_PFC_PRIORITY_TO_PRIORITY_GROUP,
         SAI_QOS_MAP_TYPE_PFC_PRIORITY_TO_QUEUE),
 };
-const mlnx_obj_type_attrs_info_t          mlnx_qos_map_obj_type_info =
-{ qos_map_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(qos_map_enum_info), OBJ_STAT_CAP_INFO_EMPTY()};
+static size_t qos_map_info_print(_In_ const sai_object_key_t *key, _Out_ char *str, _In_ size_t max_len)
+{
+    mlnx_object_id_t mlnx_oid = *(mlnx_object_id_t*)&key->key.object_id;
+
+    return snprintf(str, max_len, "[qos_maps_db[%u]]", mlnx_oid.id.u32);
+}
+const mlnx_obj_type_attrs_info_t mlnx_qos_map_obj_type_info =
+{ qos_map_vendor_attribs, OBJ_ATTRS_ENUMS_INFO(qos_map_enum_info), OBJ_STAT_CAP_INFO_EMPTY(), qos_map_info_print};
 /* db read lock is needed */
 static mlnx_qos_map_t * db_qos_map_get(uint32_t id)
 {
@@ -432,6 +438,12 @@ sai_status_t mlnx_qos_map_set_default(_Inout_ mlnx_qos_map_t *qos_map)
         for (ii = 0; ii < qos_map->count; ii++) {
             qos_map->from.pfc[ii] = ii;
         }
+    } else if (qos_map->type == SAI_QOS_MAP_TYPE_PFC_PRIORITY_TO_QUEUE) {
+        qos_map->count = SXD_COS_PORT_PRIO_MAX + 1;
+
+        for (ii = 0; ii < qos_map->count; ii++) {
+            qos_map->from.pfc[ii] = ii;
+        }
     } else if ((qos_map->type == SAI_QOS_MAP_TYPE_TC_AND_COLOR_TO_DSCP) ||
                (qos_map->type == SAI_QOS_MAP_TYPE_TC_AND_COLOR_TO_DOT1P)) {
         uint32_t index = 0;
@@ -517,22 +529,6 @@ static sai_status_t db_qos_map_fill_params(mlnx_qos_map_t *qos_map, const sai_qo
 
     return status;
 }
-
-static void qos_map_key_to_str(_In_ sai_object_id_t qos_map_id, _Out_ char *key_str)
-{
-    sai_status_t sai_status;
-    uint32_t     id;
-
-    sai_status = mlnx_object_to_type(qos_map_id, SAI_OBJECT_TYPE_QOS_MAP,
-                                     &id, NULL);
-
-    if (sai_status != SAI_STATUS_SUCCESS) {
-        snprintf(key_str, MAX_KEY_STR_LEN, "Invalid qos map id");
-    } else {
-        snprintf(key_str, MAX_KEY_STR_LEN, "qos map id %u", id);
-    }
-}
-
 
 /** Qos Map type [sai_qos_map_type_t] (MANDATORY_ON_CREATE|CREATE_ONLY) */
 static sai_status_t mlnx_qos_map_type_get(_In_ const sai_object_key_t   *key,
@@ -719,8 +715,8 @@ sai_status_t mlnx_qos_map_log_set(sx_verbosity_level_t level)
 {
     LOG_VAR_NAME(__MODULE__) = level;
 
-    if (gh_sdk) {
-        return sdk_to_sai(sx_api_cos_log_verbosity_level_set(gh_sdk, SX_LOG_VERBOSITY_BOTH, level, level));
+    if (get_sdk_handle()) {
+        return sdk_to_sai(sx_api_cos_log_verbosity_level_set(get_sdk_handle(), SX_LOG_VERBOSITY_BOTH, level, level));
     }
 
     return SAI_STATUS_SUCCESS;
@@ -743,7 +739,6 @@ static sai_status_t mlnx_create_qos_map(_Out_ sai_object_id_t     * qos_map_id,
 {
     const sai_attribute_value_t *type, *list = NULL;
     char                         value_str[MAX_VALUE_STR_LEN];
-    char                         list_str[MAX_LIST_VALUE_STR_LEN];
     uint32_t                     type_index, list_index;
     mlnx_qos_map_t              *qos_map;
     sai_status_t                 status;
@@ -753,22 +748,11 @@ static sai_status_t mlnx_create_qos_map(_Out_ sai_object_id_t     * qos_map_id,
 
     SX_LOG_ENTER();
 
-    if (NULL == qos_map_id) {
-        SX_LOG_ERR("NULL QoS map id param\n");
-        return SAI_STATUS_INVALID_PARAMETER;
-    }
-
-    status = check_attribs_metadata(attr_count, attr_list, SAI_OBJECT_TYPE_QOS_MAP,
-                                    qos_map_vendor_attribs,
-                                    SAI_COMMON_API_CREATE);
-
+    status = check_attribs_on_create(attr_count, attr_list, SAI_OBJECT_TYPE_QOS_MAP, qos_map_id);
     if (SAI_ERR(status)) {
-        SX_LOG_ERR("Failed attribs check\n");
         return status;
     }
-
-    sai_attr_list_to_str(attr_count, attr_list, SAI_OBJECT_TYPE_QOS_MAP, MAX_LIST_VALUE_STR_LEN, list_str);
-    SX_LOG_NTC("Create QoS map, %s\n", list_str);
+    MLNX_LOG_ATTRS(attr_count, attr_list, SAI_OBJECT_TYPE_QOS_MAP);
 
     status = find_attrib_in_list(attr_count, attr_list, SAI_QOS_MAP_ATTR_TYPE,
                                  &type, &type_index);
@@ -888,12 +872,8 @@ out:
 static sai_status_t mlnx_set_qos_map_attribute(_In_ sai_object_id_t qos_map_id, _In_ const sai_attribute_t *attr)
 {
     const sai_object_key_t key = { .key.object_id = qos_map_id };
-    char                   key_str[MAX_KEY_STR_LEN];
 
-    SX_LOG_ENTER();
-
-    qos_map_key_to_str(qos_map_id, key_str);
-    return sai_set_attribute(&key, key_str, SAI_OBJECT_TYPE_QOS_MAP, qos_map_vendor_attribs, attr);
+    return sai_set_attribute(&key, SAI_OBJECT_TYPE_QOS_MAP, attr);
 }
 
 /**
@@ -911,13 +891,8 @@ static sai_status_t mlnx_get_qos_map_attribute(_In_ sai_object_id_t     qos_map_
                                                _Inout_ sai_attribute_t *attr_list)
 {
     const sai_object_key_t key = { .key.object_id = qos_map_id };
-    char                   key_str[MAX_KEY_STR_LEN];
 
-    SX_LOG_ENTER();
-
-    qos_map_key_to_str(qos_map_id, key_str);
-    return sai_get_attributes(&key, key_str, SAI_OBJECT_TYPE_QOS_MAP,
-                              qos_map_vendor_attribs, attr_count, attr_list);
+    return sai_get_attributes(&key, SAI_OBJECT_TYPE_QOS_MAP, attr_count, attr_list);
 }
 
 /**

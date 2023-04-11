@@ -85,8 +85,14 @@ static const sai_vendor_attribute_entry_t lag_vendor_attribs[] = {
       NULL, NULL,
       NULL, NULL }
 };
-const mlnx_obj_type_attrs_info_t          mlnx_lag_obj_type_info =
-{ lag_vendor_attribs, OBJ_ATTRS_ENUMS_INFO_EMPTY(), OBJ_STAT_CAP_INFO_EMPTY()};
+static size_t lag_info_print(_In_ const sai_object_key_t *key, _Out_ char *str, _In_ size_t max_len)
+{
+    mlnx_object_id_t mlnx_oid = *(mlnx_object_id_t*)&key->key.object_id;
+
+    return snprintf(str, max_len, "[ports_db[%u]]", mlnx_oid.id.u32);
+}
+const mlnx_obj_type_attrs_info_t mlnx_lag_obj_type_info =
+{ lag_vendor_attribs, OBJ_ATTRS_ENUMS_INFO_EMPTY(), OBJ_STAT_CAP_INFO_EMPTY(), lag_info_print};
 static sai_status_t mlnx_lag_member_lag_id_get(_In_ const sai_object_key_t   *key,
                                                _Inout_ sai_attribute_value_t *value,
                                                _In_ uint32_t                  attr_index,
@@ -140,35 +146,16 @@ static const sai_vendor_attribute_entry_t lag_member_vendor_attribs[] = {
       NULL, NULL,
       NULL, NULL }
 };
-const mlnx_obj_type_attrs_info_t          mlnx_lag_member_obj_type_info =
-{ lag_member_vendor_attribs, OBJ_ATTRS_ENUMS_INFO_EMPTY(), OBJ_STAT_CAP_INFO_EMPTY()};
-static void lag_key_to_str(_In_ sai_object_id_t lag_id, _Out_ char *key_str)
+static size_t lag_member_info_print(_In_ const sai_object_key_t *key, _Out_ char *str, _In_ size_t max_len)
 {
-    uint32_t lagid;
+    mlnx_object_id_t mlnx_oid = *(mlnx_object_id_t*)&key->key.object_id;
 
-    if (SAI_STATUS_SUCCESS != mlnx_object_to_type(lag_id, SAI_OBJECT_TYPE_LAG, &lagid, NULL)) {
-        snprintf(key_str, MAX_KEY_STR_LEN, "Invalid LAG");
-    } else {
-        snprintf(key_str, MAX_KEY_STR_LEN, "LAG %x", lagid);
-    }
+    return snprintf(str, max_len, "[log_port:0x%X, lag_log_id:0x%X]",
+                    mlnx_oid.id.log_port_id,
+                    mlnx_oid.ext.lag.lag_id);
 }
-
-static void lag_member_key_to_str(_In_ sai_object_id_t lag_member_id, _Out_ char *key_str)
-{
-    mlnx_object_id_t mlnx_lag_member = {0};
-    sai_status_t     status;
-
-    status = sai_to_mlnx_object_id(SAI_OBJECT_TYPE_LAG_MEMBER, lag_member_id, &mlnx_lag_member);
-    if (SAI_ERR(status)) {
-        snprintf(key_str, MAX_KEY_STR_LEN, "Invalid LAG Member");
-    } else {
-        snprintf(key_str,
-                 MAX_KEY_STR_LEN,
-                 "LAG member (%x,%x)",
-                 mlnx_lag_member.id.log_port_id,
-                 mlnx_lag_member.ext.lag.lag_id);
-    }
-}
+const mlnx_obj_type_attrs_info_t mlnx_lag_member_obj_type_info =
+{ lag_member_vendor_attribs, OBJ_ATTRS_ENUMS_INFO_EMPTY(), OBJ_STAT_CAP_INFO_EMPTY(), lag_member_info_print};
 
 static inline bool is_vlan_flood_config_block_all(uint16_t vid, mlnx_fid_flood_ctrl_attr_t flood_type)
 {
@@ -188,7 +175,7 @@ static sai_status_t mlnx_port_params_clone(mlnx_port_config_t *to, mlnx_port_con
         sx_cos_trust_level_t    trust_level;
         uint8_t                 prio;
 
-        sx_status = sx_api_cos_port_default_prio_get(gh_sdk, from->logical, &prio);
+        sx_status = sx_api_cos_port_default_prio_get(get_sdk_handle(), from->logical, &prio);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to get default traffic class from port 0x%X- %s\n", from->logical,
                        SX_STATUS_MSG(sx_status));
@@ -196,14 +183,14 @@ static sai_status_t mlnx_port_params_clone(mlnx_port_config_t *to, mlnx_port_con
             goto out;
         }
 
-        sx_status = sx_api_cos_port_trust_get(gh_sdk, from->logical, &trust_level);
+        sx_status = sx_api_cos_port_trust_get(get_sdk_handle(), from->logical, &trust_level);
         if (SX_ERR(status)) {
             SX_LOG_ERR("Failed to get trust level from port 0x%X - %s\n", from->logical, SX_STATUS_MSG(sx_status));
             status = sdk_to_sai(sx_status);
             goto out;
         }
 
-        sx_status = sx_api_cos_port_rewrite_enable_get(gh_sdk, from->logical, &rewrite_enable);
+        sx_status = sx_api_cos_port_rewrite_enable_get(get_sdk_handle(), from->logical, &rewrite_enable);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to get dscp rewrite enable from port 0x%X - %s\n", from->logical,
                        SX_STATUS_MSG(sx_status));
@@ -247,7 +234,7 @@ static sai_status_t mlnx_port_params_clone(mlnx_port_config_t *to, mlnx_port_con
             }
         }
 
-        sx_status = sx_api_cos_port_default_prio_set(gh_sdk, to->logical, prio);
+        sx_status = sx_api_cos_port_default_prio_set(get_sdk_handle(), to->logical, prio);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to set port's default prio(%u) to port 0x%X - %s\n", prio, to->logical,
                        SX_STATUS_MSG(sx_status));
@@ -255,14 +242,14 @@ static sai_status_t mlnx_port_params_clone(mlnx_port_config_t *to, mlnx_port_con
             goto out;
         }
 
-        sx_status = sx_api_cos_port_rewrite_enable_set(gh_sdk, to->logical, rewrite_enable);
+        sx_status = sx_api_cos_port_rewrite_enable_set(get_sdk_handle(), to->logical, rewrite_enable);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to set dscp rewrite enable to port 0x%X - %s\n", to->logical, SX_STATUS_MSG(sx_status));
             status = sdk_to_sai(sx_status);
             goto out;
         }
 
-        sx_status = sx_api_cos_port_trust_set(gh_sdk, to->logical, trust_level);
+        sx_status = sx_api_cos_port_trust_set(get_sdk_handle(), to->logical, trust_level);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to set trust level for port 0x%X - %s\n", to->logical, SX_STATUS_MSG(sx_status));
             status = sdk_to_sai(sx_status);
@@ -280,14 +267,14 @@ static sai_status_t mlnx_port_params_clone(mlnx_port_config_t *to, mlnx_port_con
             return SAI_STATUS_NO_MEMORY;
         }
 
-        sx_status = sx_api_cos_port_ets_element_get(gh_sdk, from->logical, ets, &max_ets_count);
+        sx_status = sx_api_cos_port_ets_element_get(get_sdk_handle(), from->logical, ets, &max_ets_count);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed get ETS list - %s\n", SX_STATUS_MSG(sx_status));
             status = sdk_to_sai(sx_status);
             goto out;
         }
 
-        sx_status = sx_api_cos_port_ets_element_set(gh_sdk, SX_ACCESS_CMD_EDIT,
+        sx_status = sx_api_cos_port_ets_element_set(get_sdk_handle(), SX_ACCESS_CMD_EDIT,
                                                     to->logical, ets, max_ets_count);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to update ETS elements on LAG port id 0x%x - %s\n",
@@ -349,7 +336,7 @@ static sai_status_t mlnx_port_params_clone(mlnx_port_config_t *to, mlnx_port_con
         sx_ingr_filter_mode_t mode;
 
         /* Align VLAN ingress filter */
-        sx_status = sx_api_vlan_port_ingr_filter_get(gh_sdk, from->logical, &mode);
+        sx_status = sx_api_vlan_port_ingr_filter_get(get_sdk_handle(), from->logical, &mode);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Port ingress filter get for port oid %" PRIx64 " failed - %s\n",
                        from->saiport, SX_STATUS_MSG(sx_status));
@@ -357,7 +344,7 @@ static sai_status_t mlnx_port_params_clone(mlnx_port_config_t *to, mlnx_port_con
             goto out;
         }
 
-        sx_status = sx_api_vlan_port_ingr_filter_set(gh_sdk, to->logical, mode);
+        sx_status = sx_api_vlan_port_ingr_filter_set(get_sdk_handle(), to->logical, mode);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Port ingress filter set for port oid %" PRIx64 " failed - %s\n",
                        to->saiport, SX_STATUS_MSG(sx_status));
@@ -383,14 +370,14 @@ static sai_status_t mlnx_port_params_clone(mlnx_port_config_t *to, mlnx_port_con
     if (clone & PORT_PARAMS_LEARN_MODE) {
         sx_fdb_learn_mode_t sx_fdb_learn_mode;
 
-        sx_status = sx_api_fdb_port_learn_mode_get(gh_sdk, from->logical, &sx_fdb_learn_mode);
+        sx_status = sx_api_fdb_port_learn_mode_get(get_sdk_handle(), from->logical, &sx_fdb_learn_mode);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to get port [%x] learning mode - %s.\n", from->logical, SX_STATUS_MSG(sx_status));
             status = sdk_to_sai(sx_status);
             goto out;
         }
 
-        sx_status = sx_api_fdb_port_learn_mode_set(gh_sdk, to->logical, sx_fdb_learn_mode);
+        sx_status = sx_api_fdb_port_learn_mode_set(get_sdk_handle(), to->logical, sx_fdb_learn_mode);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to set port [%x] learning mode %s - %s.\n", to->logical,
                        SX_LEARN_MODE_MSG(sx_fdb_learn_mode), SX_STATUS_MSG(sx_status));
@@ -416,7 +403,7 @@ static sai_status_t mlnx_port_params_clone(mlnx_port_config_t *to, mlnx_port_con
                     }
 
                     if (is_vlan_flood_config_block_all(vid, MLNX_FID_FLOOD_CTRL_ATTR_UC)) {
-                        sx_status = sx_api_fdb_flood_control_set(gh_sdk,
+                        sx_status = sx_api_fdb_flood_control_set(get_sdk_handle(),
                                                                  SX_ACCESS_CMD_ADD_PORTS,
                                                                  DEFAULT_ETH_SWID,
                                                                  vid,
@@ -429,7 +416,7 @@ static sai_status_t mlnx_port_params_clone(mlnx_port_config_t *to, mlnx_port_con
                     }
 
                     if (is_vlan_flood_config_block_all(vid, MLNX_FID_FLOOD_CTRL_ATTR_BC)) {
-                        sx_status = sx_api_fdb_flood_control_set(gh_sdk,
+                        sx_status = sx_api_fdb_flood_control_set(get_sdk_handle(),
                                                                  SX_ACCESS_CMD_ADD_PORTS,
                                                                  DEFAULT_ETH_SWID,
                                                                  vid,
@@ -473,14 +460,14 @@ static sai_status_t port_reset_vlan_params_from_port(mlnx_port_config_t *port, m
     sx_vlan_ports_t     port_list;
 
     /* Reset to default VLAN ingress filter */
-    sx_status = sx_api_vlan_port_ingr_filter_set(gh_sdk, port->logical, SX_INGR_FILTER_ENABLE);
+    sx_status = sx_api_vlan_port_ingr_filter_set(get_sdk_handle(), port->logical, SX_INGR_FILTER_ENABLE);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Port ingress filter set %x failed - %s\n", port->logical, SX_STATUS_MSG(sx_status));
         return sdk_to_sai(sx_status);
     }
 
     /* Reset port PVID to default VLAN=1 */
-    sx_status = sx_api_vlan_port_pvid_set(gh_sdk, SX_ACCESS_CMD_ADD, port->logical, DEFAULT_VLAN);
+    sx_status = sx_api_vlan_port_pvid_set(get_sdk_handle(), SX_ACCESS_CMD_ADD, port->logical, DEFAULT_VLAN);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to set port pvid - %s.\n", SX_STATUS_MSG(sx_status));
         return sdk_to_sai(sx_status);
@@ -495,7 +482,7 @@ static sai_status_t port_reset_vlan_params_from_port(mlnx_port_config_t *port, m
             !mlnx_vlan_port_is_set(lag->pvid_create_rif, port_bport)) {
             memset(&port_list, 0, sizeof(port_list));
             port_list.log_port = port->logical;
-            sx_status = sx_api_vlan_ports_set(gh_sdk,
+            sx_status = sx_api_vlan_ports_set(get_sdk_handle(),
                                               SX_ACCESS_CMD_DELETE,
                                               DEFAULT_ETH_SWID,
                                               lag->pvid_create_rif,
@@ -545,7 +532,11 @@ static sai_status_t port_reset_vlan_params_from_port(mlnx_port_config_t *port, m
         }
 
         sx_status =
-            sx_api_vlan_port_multi_vlan_set(gh_sdk, SX_ACCESS_CMD_DELETE, port->logical, vlan_list, vlan_count);
+            sx_api_vlan_port_multi_vlan_set(get_sdk_handle(),
+                                            SX_ACCESS_CMD_DELETE,
+                                            port->logical,
+                                            vlan_list,
+                                            vlan_count);
         free(vlan_list);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to delete vlans from port oid %" PRIx64 " - %s.\n",
@@ -574,7 +565,7 @@ static sai_status_t remove_port_from_lag(sx_port_log_id_t lag_id, sx_port_log_id
         return status;
     }
 
-    sx_status = sx_api_lag_port_group_set(gh_sdk, SX_ACCESS_CMD_DELETE, DEFAULT_ETH_SWID,
+    sx_status = sx_api_lag_port_group_set(get_sdk_handle(), SX_ACCESS_CMD_DELETE, DEFAULT_ETH_SWID,
                                           &lag_id, &port_id, 1);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed remove port log id %x from LAG log id %x - %s\n", port_id, lag_id,
@@ -595,7 +586,7 @@ static sai_status_t remove_port_from_lag(sx_port_log_id_t lag_id, sx_port_log_id
         return status;
     }
 
-    sx_status = sx_api_fdb_port_learn_mode_set(gh_sdk, port_id, SX_FDB_LEARN_MODE_AUTO_LEARN);
+    sx_status = sx_api_fdb_port_learn_mode_set(get_sdk_handle(), port_id, SX_FDB_LEARN_MODE_AUTO_LEARN);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to set port learning mode - %s\n", SX_STATUS_MSG(sx_status));
         return sdk_to_sai(sx_status);
@@ -638,7 +629,7 @@ static sai_status_t mlnx_lag_remove_all_ports(sai_object_id_t lag_oid)
         return status;
     }
 
-    sx_status = sx_api_lag_port_group_get(gh_sdk, DEFAULT_ETH_SWID, lag_id, NULL, &port_cnt);
+    sx_status = sx_api_lag_port_group_get(get_sdk_handle(), DEFAULT_ETH_SWID, lag_id, NULL, &port_cnt);
     if (SX_ERR(sx_status)) {
         return sdk_to_sai(sx_status);
     }
@@ -652,7 +643,7 @@ static sai_status_t mlnx_lag_remove_all_ports(sai_object_id_t lag_oid)
         return SAI_STATUS_NO_MEMORY;
     }
 
-    sx_status = sx_api_lag_port_group_get(gh_sdk, DEFAULT_ETH_SWID, lag_id, port_list, &port_cnt);
+    sx_status = sx_api_lag_port_group_get(get_sdk_handle(), DEFAULT_ETH_SWID, lag_id, port_list, &port_cnt);
     if (SX_ERR(sx_status)) {
         status = sdk_to_sai(sx_status);
         goto out;
@@ -741,7 +732,7 @@ static sai_status_t mlnx_lag_port_list_get(_In_ const sai_object_key_t   *key,
             }
         }
     } else if (SX_STATUS_SUCCESS !=
-               (sx_status = sx_api_lag_port_group_get(gh_sdk, DEFAULT_ETH_SWID,
+               (sx_status = sx_api_lag_port_group_get(get_sdk_handle(), DEFAULT_ETH_SWID,
                                                       lag_log_port_id, NULL, &log_port_cnt))) {
         return sdk_to_sai(sx_status);
     }
@@ -767,7 +758,7 @@ static sai_status_t mlnx_lag_port_list_get(_In_ const sai_object_key_t   *key,
         }
         if (!is_warmboot_init_stage) {
             if (SX_STATUS_SUCCESS !=
-                (sx_status = sx_api_lag_port_group_get(gh_sdk, DEFAULT_ETH_SWID,
+                (sx_status = sx_api_lag_port_group_get(get_sdk_handle(), DEFAULT_ETH_SWID,
                                                        lag_log_port_id, log_port_list, &log_port_cnt))) {
                 free(log_port_list);
                 return sdk_to_sai(sx_status);
@@ -872,7 +863,7 @@ static sai_status_t mlnx_lag_member_egress_disable_get(_In_ const sai_object_key
 
     if (SX_STATUS_SUCCESS !=
         (sx_status =
-             sx_api_lag_port_distributor_get(gh_sdk, lag_log_port_id, mlnx_lag_member.id.log_port_id,
+             sx_api_lag_port_distributor_get(get_sdk_handle(), lag_log_port_id, mlnx_lag_member.id.log_port_id,
                                              &distributor_mode))) {
         return sdk_to_sai(sx_status);
     }
@@ -906,7 +897,7 @@ static sai_status_t mlnx_lag_member_egress_disable_set(_In_ const sai_object_key
 
     if (SX_STATUS_SUCCESS !=
         (sx_status = sx_api_lag_port_distributor_set
-                         (gh_sdk, lag_log_port_id, mlnx_lag_member.id.log_port_id,
+                         (get_sdk_handle(), lag_log_port_id, mlnx_lag_member.id.log_port_id,
                          value->booldata ? DISTRIBUTOR_DISABLE : DISTRIBUTOR_ENABLE))) {
         return sdk_to_sai(sx_status);
     }
@@ -937,7 +928,7 @@ static sai_status_t mlnx_lag_member_ingress_disable_get(_In_ const sai_object_ke
 
     if (SX_STATUS_SUCCESS !=
         (sx_status =
-             sx_api_lag_port_collector_get(gh_sdk, lag_log_port_id, mlnx_lag_member.id.log_port_id,
+             sx_api_lag_port_collector_get(get_sdk_handle(), lag_log_port_id, mlnx_lag_member.id.log_port_id,
                                            &collector_mode))) {
         return sdk_to_sai(sx_status);
     }
@@ -971,7 +962,7 @@ static sai_status_t mlnx_lag_member_ingress_disable_set(_In_ const sai_object_ke
 
     if (SX_STATUS_SUCCESS !=
         (sx_status = sx_api_lag_port_collector_set
-                         (gh_sdk, lag_log_port_id, mlnx_lag_member.id.log_port_id,
+                         (get_sdk_handle(), lag_log_port_id, mlnx_lag_member.id.log_port_id,
                          value->booldata ? COLLECTOR_DISABLE : COLLECTOR_ENABLE))) {
         return sdk_to_sai(sx_status);
     }
@@ -1042,7 +1033,10 @@ static sai_status_t mlnx_apply_lag_attributes(mlnx_port_config_t *lag,
     }
 
     if (lag->issu_lag_attr.lag_pvid_changed) {
-        sx_status = sx_api_vlan_port_pvid_set(gh_sdk, SX_ACCESS_CMD_ADD, lag->logical, lag->issu_lag_attr.lag_pvid);
+        sx_status = sx_api_vlan_port_pvid_set(get_sdk_handle(),
+                                              SX_ACCESS_CMD_ADD,
+                                              lag->logical,
+                                              lag->issu_lag_attr.lag_pvid);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to set pvid %d to LAG %x - %s\n", lag->issu_lag_attr.lag_pvid, lag->logical,
                        SX_STATUS_MSG(sx_status));
@@ -1053,7 +1047,9 @@ static sai_status_t mlnx_apply_lag_attributes(mlnx_port_config_t *lag,
 
     if (lag->issu_lag_attr.lag_default_vlan_priority_changed) {
         sx_status =
-            sx_api_cos_port_default_prio_set(gh_sdk, lag->logical, lag->issu_lag_attr.lag_default_vlan_priority);
+            sx_api_cos_port_default_prio_set(get_sdk_handle(),
+                                             lag->logical,
+                                             lag->issu_lag_attr.lag_default_vlan_priority);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to set LAG %x default prio - %s.\n", lag->logical, SX_STATUS_MSG(sx_status));
             sai_status = sdk_to_sai(sx_status);
@@ -1073,7 +1069,7 @@ static sai_status_t mlnx_apply_lag_attributes(mlnx_port_config_t *lag,
             accptd_frm_types.allow_untagged = !(lag->issu_lag_attr.lag_drop_untagged);
         }
 
-        sx_status = sx_api_vlan_port_accptd_frm_types_set(gh_sdk, lag->logical, &accptd_frm_types);
+        sx_status = sx_api_vlan_port_accptd_frm_types_set(get_sdk_handle(), lag->logical, &accptd_frm_types);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to set LAG %x accepted frame types - %s.\n", lag->logical, SX_STATUS_MSG(sx_status));
             sai_status = sdk_to_sai(sx_status);
@@ -1098,8 +1094,6 @@ static sai_status_t mlnx_create_lag(_Out_ sai_object_id_t     * lag_id,
 {
     sai_status_t                 status;
     sx_status_t                  sx_status;
-    char                         list_str[MAX_LIST_VALUE_STR_LEN];
-    char                         key_str[MAX_KEY_STR_LEN];
     const sai_attribute_value_t *attr_ing_acl = NULL;
     const sai_attribute_value_t *attr_egr_acl = NULL;
     const sai_attribute_value_t *attr_pvid = NULL;
@@ -1119,20 +1113,11 @@ static sai_status_t mlnx_create_lag(_Out_ sai_object_id_t     * lag_id,
 
     SX_LOG_ENTER();
 
-    if (NULL == lag_id) {
-        SX_LOG_ERR("NULL lag id param\n");
-        return SAI_STATUS_INVALID_PARAMETER;
-    }
-
-    status = check_attribs_metadata(attr_count, attr_list, SAI_OBJECT_TYPE_LAG, lag_vendor_attribs,
-                                    SAI_COMMON_API_CREATE);
+    status = check_attribs_on_create(attr_count, attr_list, SAI_OBJECT_TYPE_LAG, lag_id);
     if (SAI_ERR(status)) {
-        SX_LOG_ERR("Failed attribs check\n");
         return status;
     }
-
-    sai_attr_list_to_str(attr_count, attr_list, SAI_OBJECT_TYPE_LAG, MAX_LIST_VALUE_STR_LEN, list_str);
-    SX_LOG_NTC("Create lag, %s\n", list_str);
+    MLNX_LOG_ATTRS(attr_count, attr_list, SAI_OBJECT_TYPE_LAG);
 
     sai_db_write_lock();
     acl_global_lock();
@@ -1178,7 +1163,7 @@ static sai_status_t mlnx_create_lag(_Out_ sai_object_id_t     * lag_id,
     find_attrib_in_list(attr_count, attr_list, SAI_LAG_ATTR_DROP_TAGGED, &attr_drop_tagged, &attr_drop_tagged_index);
 
     if (!is_warmboot_init_stage) {
-        sx_status = sx_api_lag_port_group_set(gh_sdk, SX_ACCESS_CMD_CREATE, DEFAULT_ETH_SWID,
+        sx_status = sx_api_lag_port_group_set(get_sdk_handle(), SX_ACCESS_CMD_CREATE, DEFAULT_ETH_SWID,
                                               &lag_log_port_id, NULL, 0);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed create LAG %s.\n", SX_STATUS_MSG(sx_status));
@@ -1217,8 +1202,7 @@ static sai_status_t mlnx_create_lag(_Out_ sai_object_id_t     * lag_id,
         goto out;
     }
 
-    lag_key_to_str(*lag_id, key_str);
-    SX_LOG_NTC("Created %s\n", key_str);
+    MLNX_LOG_OID_CREATED(*lag_id);
 
     if (!is_warmboot_init_stage) {
         status = mlnx_port_add(lag, true);
@@ -1282,7 +1266,12 @@ out:
         }
 
         if (lag_log_port_id) {
-            sx_api_lag_port_group_set(gh_sdk, SX_ACCESS_CMD_DESTROY, DEFAULT_ETH_SWID, &lag_log_port_id, NULL, 0);
+            sx_api_lag_port_group_set(get_sdk_handle(),
+                                      SX_ACCESS_CMD_DESTROY,
+                                      DEFAULT_ETH_SWID,
+                                      &lag_log_port_id,
+                                      NULL,
+                                      0);
         }
     }
 
@@ -1297,12 +1286,10 @@ static sai_status_t mlnx_remove_lag(_In_ sai_object_id_t lag_id)
     sx_status_t         sx_status;
     sai_status_t        status;
     mlnx_port_config_t *lag;
-    char                key_str[MAX_KEY_STR_LEN];
 
     SX_LOG_ENTER();
 
-    lag_key_to_str(lag_id, key_str);
-    SX_LOG_NTC("Remove %s\n", key_str);
+    MLNX_LOG_OID_REMOVE(lag_id);
 
     status = mlnx_object_to_log_port(lag_id, &lag_log_port_id);
     if (SAI_ERR(status)) {
@@ -1335,7 +1322,7 @@ static sai_status_t mlnx_remove_lag(_In_ sai_object_id_t lag_id)
         goto out;
     }
 
-    sx_status = sx_api_lag_port_group_set(gh_sdk, SX_ACCESS_CMD_DESTROY, DEFAULT_ETH_SWID,
+    sx_status = sx_api_lag_port_group_set(get_sdk_handle(), SX_ACCESS_CMD_DESTROY, DEFAULT_ETH_SWID,
                                           &lag_log_port_id, NULL, 0);
     if (SX_ERR(sx_status)) {
         status = sdk_to_sai(sx_status);
@@ -1350,12 +1337,8 @@ out:
 static sai_status_t mlnx_set_lag_attribute(_In_ sai_object_id_t lag_id, _In_ const sai_attribute_t *attr)
 {
     const sai_object_key_t key = { .key.object_id = lag_id };
-    char                   key_str[MAX_KEY_STR_LEN];
 
-    SX_LOG_ENTER();
-
-    lag_key_to_str(lag_id, key_str);
-    return sai_set_attribute(&key, key_str, SAI_OBJECT_TYPE_LAG, lag_vendor_attribs, attr);
+    return sai_set_attribute(&key, SAI_OBJECT_TYPE_LAG, attr);
 }
 
 static sai_status_t mlnx_get_lag_attribute(_In_ sai_object_id_t     lag_id,
@@ -1363,12 +1346,8 @@ static sai_status_t mlnx_get_lag_attribute(_In_ sai_object_id_t     lag_id,
                                            _Inout_ sai_attribute_t *attr_list)
 {
     const sai_object_key_t key = { .key.object_id = lag_id };
-    char                   key_str[MAX_KEY_STR_LEN];
 
-    SX_LOG_ENTER();
-
-    lag_key_to_str(lag_id, key_str);
-    return sai_get_attributes(&key, key_str, SAI_OBJECT_TYPE_LAG, lag_vendor_attribs, attr_count, attr_list);
+    return sai_get_attributes(&key, SAI_OBJECT_TYPE_LAG, attr_count, attr_list);
 }
 
 static sai_status_t mlnx_create_lag_member(_Out_ sai_object_id_t     * lag_member_id,
@@ -1381,8 +1360,6 @@ static sai_status_t mlnx_create_lag_member(_Out_ sai_object_id_t     * lag_membe
     const sai_attribute_value_t *attr_lag_id, *attr_port_id, *attr_egress_disable, *attr_ingress_disable;
     sai_object_id_t              lag_oid, port_oid;
     uint32_t                     index;
-    char                         list_str[MAX_LIST_VALUE_STR_LEN];
-    char                         key_str[MAX_KEY_STR_LEN];
     sx_port_log_id_t             lag_id;
     uint32_t                     lag_db_idx;
     sx_port_log_id_t             port_id;
@@ -1404,20 +1381,11 @@ static sai_status_t mlnx_create_lag_member(_Out_ sai_object_id_t     * lag_membe
 
     SX_LOG_ENTER();
 
-    if (NULL == lag_member_id) {
-        SX_LOG_ERR("NULL lag member id param\n");
-        return SAI_STATUS_INVALID_PARAMETER;
-    }
-
-    status = check_attribs_metadata(attr_count, attr_list, SAI_OBJECT_TYPE_LAG_MEMBER, lag_member_vendor_attribs,
-                                    SAI_COMMON_API_CREATE);
+    status = check_attribs_on_create(attr_count, attr_list, SAI_OBJECT_TYPE_LAG_MEMBER, lag_member_id);
     if (SAI_ERR(status)) {
-        SX_LOG_ERR("Failed attribs check\n");
         return status;
     }
-
-    sai_attr_list_to_str(attr_count, attr_list, SAI_OBJECT_TYPE_LAG_MEMBER, MAX_LIST_VALUE_STR_LEN, list_str);
-    SX_LOG_NTC("Create lag member, %s\n", list_str);
+    MLNX_LOG_ATTRS(attr_count, attr_list, SAI_OBJECT_TYPE_LAG_MEMBER);
 
     status = find_attrib_in_list(attr_count, attr_list, SAI_LAG_MEMBER_ATTR_LAG_ID, &attr_lag_id, &index);
     if (SAI_ERR(status)) {
@@ -1557,7 +1525,7 @@ static sai_status_t mlnx_create_lag_member(_Out_ sai_object_id_t     * lag_membe
         port->internal_egress_samplepacket_obj_idx = MLNX_INVALID_SAMPLEPACKET_SESSION;
     }
 
-    sx_status = sx_api_lag_port_group_get(gh_sdk, DEFAULT_ETH_SWID, lag->logical, NULL, &port_cnt);
+    sx_status = sx_api_lag_port_group_get(get_sdk_handle(), DEFAULT_ETH_SWID, lag->logical, NULL, &port_cnt);
     if (SAI_ERR(status = sdk_to_sai(sx_status))) {
         goto out;
     }
@@ -1642,19 +1610,20 @@ static sai_status_t mlnx_create_lag_member(_Out_ sai_object_id_t     * lag_membe
     }
 
     if (!is_warmboot_init_stage) {
-        sx_status = sx_api_lag_port_group_set(gh_sdk, SX_ACCESS_CMD_ADD, DEFAULT_ETH_SWID,
+        sx_status = sx_api_lag_port_group_set(get_sdk_handle(), SX_ACCESS_CMD_ADD, DEFAULT_ETH_SWID,
                                               &lag->logical, &port->logical, 1);
-        if (SAI_ERR(status = sdk_to_sai(sx_status))) {
+        if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to add lag port %s.\n", SX_STATUS_MSG(sx_status));
+            status = sdk_to_sai(sx_status);
             goto out;
         }
     }
 
-    sx_status = sx_api_lag_port_collector_set(gh_sdk, lag->logical, port->logical, collect_mode);
+    sx_status = sx_api_lag_port_collector_set(get_sdk_handle(), lag->logical, port->logical, collect_mode);
     if (SAI_ERR(status = sdk_to_sai(sx_status))) {
         goto out;
     }
-    sx_status = sx_api_lag_port_distributor_set(gh_sdk, lag->logical, port->logical, dist_mode);
+    sx_status = sx_api_lag_port_distributor_set(get_sdk_handle(), lag->logical, port->logical, dist_mode);
     if (SAI_ERR(status = sdk_to_sai(sx_status))) {
         goto out;
     }
@@ -1671,8 +1640,7 @@ static sai_status_t mlnx_create_lag_member(_Out_ sai_object_id_t     * lag_membe
         goto out;
     }
 
-    lag_member_key_to_str(*lag_member_id, key_str);
-    SX_LOG_NTC("Created %s\n", key_str);
+    MLNX_LOG_OID_CREATED(*lag_member_id);
 
 out:
     if (SAI_ERR(status)) {
@@ -1725,12 +1693,10 @@ static sai_status_t mlnx_remove_lag_member(_In_ sai_object_id_t lag_member_id)
     mlnx_port_config_t *port_config;
     mlnx_port_config_t *lag_config;
     sx_status_t         sx_status;
-    char                key_str[MAX_KEY_STR_LEN];
 
     SX_LOG_ENTER();
 
-    lag_member_key_to_str(lag_member_id, key_str);
-    SX_LOG_NTC("Remove %s\n", key_str);
+    MLNX_LOG_OID_REMOVE(lag_member_id);
 
     status = sai_to_mlnx_object_id(SAI_OBJECT_TYPE_LAG_MEMBER, lag_member_id, &mlnx_lag_member);
     if (SAI_ERR(status)) {
@@ -1762,7 +1728,7 @@ static sai_status_t mlnx_remove_lag_member(_In_ sai_object_id_t lag_member_id)
         goto out;
     }
 
-    sx_status = sx_api_lag_port_group_get(gh_sdk, DEFAULT_ETH_SWID, lag_log_port_id, NULL, &members_count);
+    sx_status = sx_api_lag_port_group_get(get_sdk_handle(), DEFAULT_ETH_SWID, lag_log_port_id, NULL, &members_count);
     if (SX_ERR(sx_status)) {
         status = sdk_to_sai(sx_status);
         goto out;
@@ -1836,12 +1802,8 @@ out:
 static sai_status_t mlnx_set_lag_member_attribute(_In_ sai_object_id_t lag_member_id, _In_ const sai_attribute_t *attr)
 {
     const sai_object_key_t key = { .key.object_id = lag_member_id };
-    char                   key_str[MAX_KEY_STR_LEN];
 
-    SX_LOG_ENTER();
-
-    lag_member_key_to_str(lag_member_id, key_str);
-    return sai_set_attribute(&key, key_str, SAI_OBJECT_TYPE_LAG_MEMBER, lag_member_vendor_attribs, attr);
+    return sai_set_attribute(&key, SAI_OBJECT_TYPE_LAG_MEMBER, attr);
 }
 
 static sai_status_t mlnx_get_lag_member_attribute(_In_ sai_object_id_t     lag_member_id,
@@ -1849,17 +1811,8 @@ static sai_status_t mlnx_get_lag_member_attribute(_In_ sai_object_id_t     lag_m
                                                   _Inout_ sai_attribute_t *attr_list)
 {
     const sai_object_key_t key = { .key.object_id = lag_member_id };
-    char                   key_str[MAX_KEY_STR_LEN];
 
-    SX_LOG_ENTER();
-
-    lag_member_key_to_str(lag_member_id, key_str);
-    return sai_get_attributes(&key,
-                              key_str,
-                              SAI_OBJECT_TYPE_LAG_MEMBER,
-                              lag_member_vendor_attribs,
-                              attr_count,
-                              attr_list);
+    return sai_get_attributes(&key, SAI_OBJECT_TYPE_LAG_MEMBER, attr_count, attr_list);
 }
 
 /**
@@ -1914,8 +1867,8 @@ sai_status_t mlnx_lag_log_set(sx_verbosity_level_t level)
 {
     LOG_VAR_NAME(__MODULE__) = level;
 
-    if (gh_sdk) {
-        return sdk_to_sai(sx_api_lag_log_verbosity_level_set(gh_sdk, SX_LOG_VERBOSITY_BOTH, level, level));
+    if (get_sdk_handle()) {
+        return sdk_to_sai(sx_api_lag_log_verbosity_level_set(get_sdk_handle(), SX_LOG_VERBOSITY_BOTH, level, level));
     } else {
         return SAI_STATUS_SUCCESS;
     }

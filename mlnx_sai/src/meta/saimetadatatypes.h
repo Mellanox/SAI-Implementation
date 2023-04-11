@@ -465,6 +465,11 @@ typedef enum _sai_attr_value_type_t
      * @brief Attribute value is a json.
      */
     SAI_ATTR_VALUE_TYPE_JSON,
+
+    /**
+     * @brief Attribute value is IP prefix list.
+     */
+    SAI_ATTR_VALUE_TYPE_IP_PREFIX_LIST,
 } sai_attr_value_type_t;
 
 /**
@@ -1137,6 +1142,13 @@ typedef struct _sai_attr_metadata_t
      * default value is present.
      */
     bool                                        isaclaction;
+
+    /**
+     * @brief Determines whether attribute is ACL mask
+     *
+     * Can only be set for ACL table mask
+     */
+    bool                                        isaclmask;
 
     /**
      * @brief Determines whether attribute is mandatory on create

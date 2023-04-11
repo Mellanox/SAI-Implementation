@@ -292,43 +292,6 @@ sx_status_t fx_table_entry_const_set(fx_handle_t handle, struct acl_table *table
 //    return SX_STATUS_SUCCESS;
 //}
 
-static bool        fx_sdk_opened_in_fx = false;
-
-sx_status_t fx_close_sdk(fx_handle_t handle)
-{
-    sx_status_t sx_status;
-
-    if (fx_sdk_opened_in_fx) {
-        sx_status = sx_api_close(&handle->sdk_handle);
-        if (SX_ERR(sx_status)) {
-           FX_LOG(SX_LOG_ERROR, "SDK API sx_api_close failed: [%s]\n", SX_STATUS_MSG(sx_status));
-           return sx_status;
-        }
-    }
-
-    fx_sdk_opened_in_fx = false;
-
-    return SX_STATUS_SUCCESS;
-}
-
-sx_status_t fx_open_sdk(fx_handle_t *handle, const sx_api_handle_t *sx_handle)
-{
-    sx_status_t sx_status = SX_STATUS_SUCCESS;
-
-    if (!sx_handle) {
-        sx_status = sx_api_open(NULL, &(*handle)->sdk_handle);
-        if (SX_ERR(sx_status)) {
-            return sx_status;
-        }
-        fx_sdk_opened_in_fx = true;
-    } else {
-        (*handle)->sdk_handle = *sx_handle;
-        fx_sdk_opened_in_fx = false;
-    }
-
-    return sx_status;
-}
-
 /* Open spectrum SDK */
 sx_status_t
 fx_init(fx_handle_t *handle, const sx_api_handle_t *sx_handle)
@@ -341,13 +304,8 @@ fx_init(fx_handle_t *handle, const sx_api_handle_t *sx_handle)
 
     memset(*handle, 0, sizeof (fx_handle));
     (*handle)->config_fd = -1;
+    (*handle)->sdk_handle = *sx_handle;
 
-    FX_LOG(SX_LOG_NOTICE, "Opening SDK...\n");
-    rc = fx_open_sdk(handle, sx_handle);
-    if (rc) {
-        FX_LOG(SX_LOG_ERROR, "SDK API sx_api_open failed: [%s]\n", SX_STATUS_MSG(rc));
-        return rc;
-    }
     rc = fx_actions_init(*handle);
     if (rc) {
       FX_LOG(SX_LOG_ERROR, "FX INIT actions failed: [%s]\n", SX_STATUS_MSG(rc));
@@ -378,11 +336,6 @@ sx_status_t fx_deinit(fx_handle_t handle) {
     if (rc) {
       FX_LOG(SX_LOG_ERROR, "FX DEINIT actions failed: [%s]\n", SX_STATUS_MSG(rc));
     }
-    rc = fx_close_sdk(handle);
-    if (SX_ERR(rc)) {
-        FX_LOG(SX_LOG_ERROR, "SDK API sx_api_close failed: [%s]\n", SX_STATUS_MSG(rc));
-    }
-
     memset(handle, 0, sizeof(fx_handle));
     handle->config_fd = -1;
     free(handle);
@@ -3108,14 +3061,8 @@ sx_status_t fx_default_handle_get(fx_handle_t **handle, const sx_api_handle_t *s
 
     if (fx_default_initialized || !do_init)
     {
-        /* Switch connect case */
-        if (sx_handle && fx_default_handle && (fx_default_handle->sdk_handle != *sx_handle)) {
-            FX_LOG(SX_LOG_NOTICE, "Reopen FX SDK handle [0x%lX -> 0x%lX].\n", fx_default_handle->sdk_handle, *sx_handle);
-            sx_status = fx_open_sdk(&fx_default_handle, sx_handle);
-            if (SX_ERR(sx_status)) {
-                SX_LOG_ERR("Failed to open new SDK - %s\n", SX_STATUS_MSG(sx_status));
-                goto out;
-            }
+        if (fx_default_handle) {
+            fx_default_handle->sdk_handle = *sx_handle;
         }
         *handle = &fx_default_handle;
         sx_status = SX_STATUS_SUCCESS;

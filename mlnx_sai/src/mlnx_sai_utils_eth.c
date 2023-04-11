@@ -138,7 +138,7 @@ extern const mlnx_obj_type_attrs_info_t mlnx_counter_obj_type_info;
 extern const mlnx_obj_type_attrs_info_t mlnx_isolation_group_obj_type_info;
 extern const mlnx_obj_type_attrs_info_t mlnx_isolation_group_member_obj_type_info;
 extern const mlnx_obj_type_attrs_info_t mlnx_fg_hash_field_obj_type_info;
-const mlnx_obj_type_attrs_info_t      * mlnx_obj_types_info[] = {
+const mlnx_obj_type_attrs_info_t      * mlnx_obj_types_info[SAI_OBJECT_TYPE_MAX] = {
     [SAI_OBJECT_TYPE_PORT] = &mlnx_port_obj_type_info,
     [SAI_OBJECT_TYPE_LAG] = &mlnx_lag_obj_type_info,
     [SAI_OBJECT_TYPE_VIRTUAL_ROUTER] = &mlnx_router_obj_type_info,
@@ -200,7 +200,6 @@ const mlnx_obj_type_attrs_info_t      * mlnx_obj_types_info[] = {
     [SAI_OBJECT_TYPE_ISOLATION_GROUP_MEMBER] = &mlnx_isolation_group_member_obj_type_info,
     [SAI_OBJECT_TYPE_FINE_GRAINED_HASH_FIELD] = &mlnx_fg_hash_field_obj_type_info,
 };
-const uint32_t                          mlnx_obj_types_info_arr_size = ARRAY_SIZE(mlnx_obj_types_info);
 
 static sx_verbosity_level_t LOG_VAR_NAME(__MODULE__) = SX_VERBOSITY_LEVEL_WARNING;
 
@@ -330,6 +329,20 @@ sai_status_t sdk_to_sai(sx_status_t status)
 bool sdk_is_valid_ip_address(const sx_ip_addr_t *sdk_addr)
 {
     return (sdk_addr->version == SX_IP_VERSION_IPV4 || sdk_addr->version == SX_IP_VERSION_IPV6);
+}
+
+bool mlnx_is_ip_zero(const sai_ip_address_t *sai_addr)
+{
+    uint32_t *v6;
+
+    v6 = (uint32_t*)sai_addr->addr.ip6;
+    return ((SAI_IP_ADDR_FAMILY_IPV4 == sai_addr->addr_family
+             && 0 == ntohl(sai_addr->addr.ip4))
+            || (SAI_IP_ADDR_FAMILY_IPV6 == sai_addr->addr_family
+                && 0 == ntohl(v6[0])
+                && 0 == ntohl(v6[1])
+                && 0 == ntohl(v6[2])
+                && 0 == ntohl(v6[3])));
 }
 
 bool mlnx_is_valid_ip_address(const sai_ip_address_t *sai_addr)
@@ -618,7 +631,7 @@ sai_status_t mlnx_get_switch_log_ports_not_in_lag(const sx_port_log_id_t *exclud
     }
 
     if (is_warmboot_init_stage) {
-        sx_status = sx_api_port_swid_port_list_get(gh_sdk, DEFAULT_ETH_SWID, log_port_list, &log_port_count);
+        sx_status = sx_api_port_swid_port_list_get(get_sdk_handle(), DEFAULT_ETH_SWID, log_port_list, &log_port_count);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Error getting switch port list: %s\n",
                        SX_STATUS_MSG(sx_status));
