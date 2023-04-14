@@ -23,7 +23,7 @@
 
 #undef  __MODULE__
 #define __MODULE__ SAI_PORT
-
+/* Shgia */
 static sx_verbosity_level_t LOG_VAR_NAME(__MODULE__) = SX_VERBOSITY_LEVEL_WARNING;
 sai_status_t mlnx_sai_port_hw_lanes_get(_In_ sx_port_log_id_t *port_id, _Inout_ sai_attribute_value_t *value);
 extern uint32_t mlnx_cells_to_bytes(uint32_t cells);
@@ -8892,7 +8892,7 @@ sai_status_t mlnx_port_config_init_mandatory(mlnx_port_config_t *port)
 
         status = sx_api_port_init_set(gh_sdk, port->logical);
         if (SX_ERR(status)) {
-            SX_LOG_ERR("Port init set %x failed - %s\n", port->logical, SX_STATUS_MSG(status));
+            SX_LOG_ERR("Port init set 0x%lX failed - %s\n", port->logical, SX_STATUS_MSG(status));
             return sdk_to_sai(status);
         }
 

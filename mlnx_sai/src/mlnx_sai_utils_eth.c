@@ -321,6 +321,12 @@ sai_status_t sdk_to_sai(sx_status_t status)
     case SX_STATUS_SXD_RETURNED_NON_ZERO:
         return SAI_STATUS_FAILURE;
 
+    case SX_STATUS_FW_INIT_FAILURE:
+        return SAI_STATUS_FAILURE;
+
+    case SX_STATUS_DEVICE_UNRECOVERABLE:
+        return SAI_STATUS_FAILURE;
+
     default:
         SX_LOG_NTC("Unexpected status code %d, mapping to failure\n", status);
         return SAI_STATUS_FAILURE;

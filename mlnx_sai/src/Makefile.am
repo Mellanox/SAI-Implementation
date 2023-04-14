@@ -58,7 +58,9 @@ dist_data_DATA = sai_1710.xml \
                  sai_4700_100G.xml \
                  sai_4700_56ports.xml \
                  sai_5600.xml \
-                 sai_5600_33ports.xml
+                 sai_5600_33ports.xml \
+                 sai_5600_8_bu.xml \
+                 sai_5600_8_split_bu.xml
 
 libsai_la_DEPENDENCIES =
 

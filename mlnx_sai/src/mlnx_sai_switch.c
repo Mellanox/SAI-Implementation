@@ -4922,11 +4922,6 @@ static void mlnx_switch_dfw_thread_func(_In_ void *context)
         goto out;
     }
 
-    status = sx_api_dbg_fatal_failure_detection_set(api_handle, SX_ACCESS_CMD_ENABLE, NULL);
-    if (SX_ERR(status)) {
-        goto out;
-    }
-
     while (!dfw_thread_asked_to_stop) {
         FD_ZERO(&descr_set);
         FD_SET(callback_channel.channel.fd.fd, &descr_set);
@@ -5038,29 +5033,46 @@ sai_status_t mlnx_get_health_check_counter(uint32_t *counter)
 
 static void monitor_sdk_thread_func(void *context)
 {
+    sx_api_handle_t api_handle = SX_API_INVALID_HANDLE;
     uint32_t        running_counter = 0;
     uint32_t        check_counter = 0;
     const uint32_t  pause_to_wait_in_ms = 2500;
-    sai_status_t    sai_status;
+    sai_status_t    status;
     sai_object_id_t switch_id = (sai_object_id_t)context;
+    sx_status_t     sx_status = SX_STATUS_SUCCESS;
+    bool            failure_detection_set_called = false;
 
     SX_LOG_NTC("Start monitoring SDK\n");
 
-    sai_status = mlnx_get_health_check_counter(&running_counter);
-
-    if (SAI_ERR(sai_status)) {
+    if (SX_STATUS_SUCCESS != (status = sx_api_open(sai_log_cb, &api_handle))) {
+        MLNX_SAI_LOG_ERR("Can't open connection to SDK - %s.\n", SX_STATUS_MSG(status));
         goto out;
     }
 
     while (!sdk_monitor_asked_to_stop) {
+        if ((BOOT_TYPE_WARM == g_sai_db_ptr->boot_type) && (!g_sai_db_ptr->issu_end_called)) {
+            cl_thread_suspend(pause_to_wait_in_ms);
+            if (sdk_monitor_asked_to_stop) {
+                break;
+            }
+            continue;
+        }
+
+        if (!failure_detection_set_called) {
+            sx_status = sx_api_dbg_fatal_failure_detection_set(api_handle, SX_ACCESS_CMD_ENABLE, NULL);
+            if (SX_ERR(sx_status)) {
+                goto out;
+            }
+            failure_detection_set_called = true;
+        }
+
         cl_thread_suspend(pause_to_wait_in_ms);
         if (sdk_monitor_asked_to_stop) {
             break;
         }
 
-        sai_status = mlnx_get_health_check_counter(&check_counter);
-
-        if (SAI_ERR(sai_status)) {
+        status = mlnx_get_health_check_counter(&check_counter);
+        if (SAI_ERR(status)) {
             goto out;
         }
 
@@ -5071,8 +5083,8 @@ static void monitor_sdk_thread_func(void *context)
             event.severity = SX_HEALTH_SEVERITY_FATAL_E;
             event.cause = SX_HEALTH_CAUSE_CATAS_E;
 
-            sai_status = mlnx_switch_health_event_handle(&event, switch_id);
-            if (SAI_ERR(sai_status)) {
+            status = mlnx_switch_health_event_handle(&event, switch_id);
+            if (SAI_ERR(status)) {
                 SX_LOG_ERR("FATAL non-increasing counter event handle failed.\n");
             }
             goto out;
@@ -5082,6 +5094,12 @@ static void monitor_sdk_thread_func(void *context)
 
 out:
     SX_LOG_NTC("Closing monitor SDK thread\n");
+
+    if (SX_API_INVALID_HANDLE != api_handle) {
+        if (SX_STATUS_SUCCESS != (status = sx_api_close(&api_handle))) {
+            SX_LOG_ERR("API close failed.\n");
+        }
+    }
 }
 
 static sai_status_t mlnx_dvs_mng_stage(mlnx_sai_boot_type_t boot_type, sai_object_id_t switch_id)
@@ -7233,18 +7251,6 @@ static sai_status_t mlnx_initialize_switch(sai_object_id_t switch_id, bool *tran
     }
 #endif /* ifndef _WIN32 */
 
-    cl_err = cl_thread_init(&dfw_thread, mlnx_switch_dfw_thread_func, (const void*const)switch_id, NULL);
-    if (cl_err) {
-        SX_LOG_ERR("Failed to create DFW thread\n");
-        return SAI_STATUS_FAILURE;
-    }
-
-    cl_err = cl_thread_init(&sdk_monitor_thread, monitor_sdk_thread_func, (const void*const)switch_id, NULL);
-    if (cl_err) {
-        SX_LOG_ERR("Failed to create monitor SDK thread\n");
-        return SAI_STATUS_FAILURE;
-    }
-
     /* init router model */
     memset(&resources_param, 0, sizeof(resources_param));
     memset(&general_param, 0, sizeof(general_param));
@@ -7479,6 +7485,18 @@ static sai_status_t mlnx_initialize_switch(sai_object_id_t switch_id, bool *tran
         g_additional_mac_enabled = true;
     } else {
         g_additional_mac_enabled = false;
+    }
+
+    cl_err = cl_thread_init(&dfw_thread, mlnx_switch_dfw_thread_func, (const void*const)switch_id, NULL);
+    if (cl_err) {
+        SX_LOG_ERR("Failed to create DFW thread\n");
+        return SAI_STATUS_FAILURE;
+    }
+
+    cl_err = cl_thread_init(&sdk_monitor_thread, monitor_sdk_thread_func, (const void*const)switch_id, NULL);
+    if (cl_err) {
+        SX_LOG_ERR("Failed to create monitor SDK thread\n");
+        return SAI_STATUS_FAILURE;
     }
 
     return SAI_STATUS_SUCCESS;

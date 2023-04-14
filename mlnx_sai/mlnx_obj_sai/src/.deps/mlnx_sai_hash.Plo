@@ -251,6 +251,7 @@ mlnx_sai_hash.lo: \
  /usr/include/sx/sdk/auto_headers/sx_macsec_auto.h \
  /usr/include/sx/sdk/sx_event.h \
  /usr/include/sx/sdk/auto_headers/sx_event_auto.h \
+ /usr/include/sx/sdk/auto_headers/sx_truncation_profile_auto.h \
  /usr/include/sx/sdk/sx_bfd.h \
  /usr/include/sx/sdk/auto_headers/sx_bfd_auto.h \
  /usr/include/sx/sxd/sx_bfd_ctrl_cmds.h /usr/include/sx/sdk/sx_event_id.h \
@@ -258,7 +259,8 @@ mlnx_sai_hash.lo: \
  /usr/include/sx/sdk/auto_headers/sx_tele_auto.h \
  /usr/include/sx/sdk/sx_dbg.h \
  /usr/include/sx/sdk/auto_headers/sx_dbg_auto.h \
- /usr/include/sx/sdk/sx_tunnel.h \
+ /usr/include/sx/sdk/sx_tunnel.h /usr/include/sx/sdk/sx_flex_parser.h \
+ /usr/include/sx/sdk/auto_headers/sx_flex_parser_auto.h \
  /usr/include/sx/sdk/auto_headers/sx_tunnel_auto.h \
  /usr/include/sx/sdk/sx_mgmt.h \
  /usr/include/sx/sdk/auto_headers/sx_mgmt_auto.h \
@@ -282,8 +284,6 @@ mlnx_sai_hash.lo: \
  /usr/include/sx/sdk/auto_headers/sx_mc_container_auto.h \
  /usr/include/sx/sdk/sx_gc.h \
  /usr/include/sx/sdk/auto_headers/sx_gc_auto.h \
- /usr/include/sx/sdk/sx_flex_parser.h \
- /usr/include/sx/sdk/auto_headers/sx_flex_parser_auto.h \
  /usr/include/sx/sdk/sx_flex_pm.h \
  /usr/include/sx/sdk/auto_headers/sx_flex_pm_auto.h \
  /usr/include/sx/sdk/sx_fid_manager.h \
@@ -664,6 +664,7 @@ mlnx_sai_hash.lo: \
 /usr/include/sx/sdk/auto_headers/sx_macsec_auto.h:
 /usr/include/sx/sdk/sx_event.h:
 /usr/include/sx/sdk/auto_headers/sx_event_auto.h:
+/usr/include/sx/sdk/auto_headers/sx_truncation_profile_auto.h:
 /usr/include/sx/sdk/sx_bfd.h:
 /usr/include/sx/sdk/auto_headers/sx_bfd_auto.h:
 /usr/include/sx/sxd/sx_bfd_ctrl_cmds.h:
@@ -673,6 +674,8 @@ mlnx_sai_hash.lo: \
 /usr/include/sx/sdk/sx_dbg.h:
 /usr/include/sx/sdk/auto_headers/sx_dbg_auto.h:
 /usr/include/sx/sdk/sx_tunnel.h:
+/usr/include/sx/sdk/sx_flex_parser.h:
+/usr/include/sx/sdk/auto_headers/sx_flex_parser_auto.h:
 /usr/include/sx/sdk/auto_headers/sx_tunnel_auto.h:
 /usr/include/sx/sdk/sx_mgmt.h:
 /usr/include/sx/sdk/auto_headers/sx_mgmt_auto.h:
@@ -697,8 +700,6 @@ mlnx_sai_hash.lo: \
 /usr/include/sx/sdk/auto_headers/sx_mc_container_auto.h:
 /usr/include/sx/sdk/sx_gc.h:
 /usr/include/sx/sdk/auto_headers/sx_gc_auto.h:
-/usr/include/sx/sdk/sx_flex_parser.h:
-/usr/include/sx/sdk/auto_headers/sx_flex_parser_auto.h:
 /usr/include/sx/sdk/sx_flex_pm.h:
 /usr/include/sx/sdk/auto_headers/sx_flex_pm_auto.h:
 /usr/include/sx/sdk/sx_fid_manager.h:

@@ -18862,7 +18862,7 @@ static sai_status_t mlnx_acl_pbs_map_sai_ports_get(_In_ mlnx_acl_pbs_map_idx_t p
             return SAI_STATUS_BUFFER_OVERFLOW;
         }
 
-        port = mlnx_port_by_idx((uint8_t)acl_pbs_map_idx_to_port_idx(pbs_map_idx));
+        port = mlnx_port_by_idx(acl_pbs_map_idx_to_port_idx(pbs_map_idx));
 
         ports[0] = port->saiport;
         *ports_count = 1;

@@ -251,6 +251,7 @@ mlnx_sai_host_interface.lo: \
  /usr/include/sx/sdk/auto_headers/sx_macsec_auto.h \
  /usr/include/sx/sdk/sx_event.h \
  /usr/include/sx/sdk/auto_headers/sx_event_auto.h \
+ /usr/include/sx/sdk/auto_headers/sx_truncation_profile_auto.h \
  /usr/include/sx/sdk/sx_bfd.h \
  /usr/include/sx/sdk/auto_headers/sx_bfd_auto.h \
  /usr/include/sx/sxd/sx_bfd_ctrl_cmds.h /usr/include/sx/sdk/sx_event_id.h \
@@ -258,7 +259,8 @@ mlnx_sai_host_interface.lo: \
  /usr/include/sx/sdk/auto_headers/sx_tele_auto.h \
  /usr/include/sx/sdk/sx_dbg.h \
  /usr/include/sx/sdk/auto_headers/sx_dbg_auto.h \
- /usr/include/sx/sdk/sx_tunnel.h \
+ /usr/include/sx/sdk/sx_tunnel.h /usr/include/sx/sdk/sx_flex_parser.h \
+ /usr/include/sx/sdk/auto_headers/sx_flex_parser_auto.h \
  /usr/include/sx/sdk/auto_headers/sx_tunnel_auto.h \
  /usr/include/sx/sdk/sx_mgmt.h \
  /usr/include/sx/sdk/auto_headers/sx_mgmt_auto.h \
@@ -282,8 +284,6 @@ mlnx_sai_host_interface.lo: \
  /usr/include/sx/sdk/auto_headers/sx_mc_container_auto.h \
  /usr/include/sx/sdk/sx_gc.h \
  /usr/include/sx/sdk/auto_headers/sx_gc_auto.h \
- /usr/include/sx/sdk/sx_flex_parser.h \
- /usr/include/sx/sdk/auto_headers/sx_flex_parser_auto.h \
  /usr/include/sx/sdk/sx_flex_pm.h \
  /usr/include/sx/sdk/auto_headers/sx_flex_pm_auto.h \
  /usr/include/sx/sdk/sx_fid_manager.h \
@@ -376,7 +376,7 @@ mlnx_sai_host_interface.lo: \
  /home/jenkins/agent/workspace/sai_build/sai_interface/mlnx_sai/src/../inc/experimental/saiexperimentalbmtor.h \
  ../config.h /usr/include/net/if.h \
  /usr/include/libnl3/netlink/genl/ctrl.h \
- /usr/include/libnl3/netlink/netlink.h \
+ /usr/include/libnl3/netlink/netlink.h /usr/include/poll.h \
  /usr/include/x86_64-linux-gnu/sys/poll.h \
  /usr/include/x86_64-linux-gnu/bits/poll.h \
  /usr/include/x86_64-linux-gnu/bits/poll2.h /usr/include/netdb.h \
@@ -387,11 +387,8 @@ mlnx_sai_host_interface.lo: \
  /usr/include/linux/if_link.h /usr/include/linux/if_addr.h \
  /usr/include/linux/neighbour.h /usr/include/linux/genetlink.h \
  /usr/include/linux/netfilter/nfnetlink.h \
- /usr/include/linux/netfilter/nfnetlink_compat.h /usr/include/linux/tcp.h \
- /usr/include/x86_64-linux-gnu/asm/byteorder.h \
- /usr/include/linux/byteorder/little_endian.h /usr/include/linux/swab.h \
- /usr/include/x86_64-linux-gnu/asm/swab.h \
- /usr/include/libnl3/netlink/version.h \
+ /usr/include/linux/netfilter/nfnetlink_compat.h \
+ /usr/include/netinet/tcp.h /usr/include/libnl3/netlink/version.h \
  /usr/include/libnl3/netlink/errno.h /usr/include/libnl3/netlink/types.h \
  /usr/include/libnl3/netlink/handlers.h \
  /usr/include/libnl3/netlink/netlink-kernel.h \
@@ -689,6 +686,7 @@ mlnx_sai_host_interface.lo: \
 /usr/include/sx/sdk/auto_headers/sx_macsec_auto.h:
 /usr/include/sx/sdk/sx_event.h:
 /usr/include/sx/sdk/auto_headers/sx_event_auto.h:
+/usr/include/sx/sdk/auto_headers/sx_truncation_profile_auto.h:
 /usr/include/sx/sdk/sx_bfd.h:
 /usr/include/sx/sdk/auto_headers/sx_bfd_auto.h:
 /usr/include/sx/sxd/sx_bfd_ctrl_cmds.h:
@@ -698,6 +696,8 @@ mlnx_sai_host_interface.lo: \
 /usr/include/sx/sdk/sx_dbg.h:
 /usr/include/sx/sdk/auto_headers/sx_dbg_auto.h:
 /usr/include/sx/sdk/sx_tunnel.h:
+/usr/include/sx/sdk/sx_flex_parser.h:
+/usr/include/sx/sdk/auto_headers/sx_flex_parser_auto.h:
 /usr/include/sx/sdk/auto_headers/sx_tunnel_auto.h:
 /usr/include/sx/sdk/sx_mgmt.h:
 /usr/include/sx/sdk/auto_headers/sx_mgmt_auto.h:
@@ -722,8 +722,6 @@ mlnx_sai_host_interface.lo: \
 /usr/include/sx/sdk/auto_headers/sx_mc_container_auto.h:
 /usr/include/sx/sdk/sx_gc.h:
 /usr/include/sx/sdk/auto_headers/sx_gc_auto.h:
-/usr/include/sx/sdk/sx_flex_parser.h:
-/usr/include/sx/sdk/auto_headers/sx_flex_parser_auto.h:
 /usr/include/sx/sdk/sx_flex_pm.h:
 /usr/include/sx/sdk/auto_headers/sx_flex_pm_auto.h:
 /usr/include/sx/sdk/sx_fid_manager.h:
@@ -841,6 +839,7 @@ mlnx_sai_host_interface.lo: \
 /usr/include/net/if.h:
 /usr/include/libnl3/netlink/genl/ctrl.h:
 /usr/include/libnl3/netlink/netlink.h:
+/usr/include/poll.h:
 /usr/include/x86_64-linux-gnu/sys/poll.h:
 /usr/include/x86_64-linux-gnu/bits/poll.h:
 /usr/include/x86_64-linux-gnu/bits/poll2.h:
@@ -858,11 +857,7 @@ mlnx_sai_host_interface.lo: \
 /usr/include/linux/genetlink.h:
 /usr/include/linux/netfilter/nfnetlink.h:
 /usr/include/linux/netfilter/nfnetlink_compat.h:
-/usr/include/linux/tcp.h:
-/usr/include/x86_64-linux-gnu/asm/byteorder.h:
-/usr/include/linux/byteorder/little_endian.h:
-/usr/include/linux/swab.h:
-/usr/include/x86_64-linux-gnu/asm/swab.h:
+/usr/include/netinet/tcp.h:
 /usr/include/libnl3/netlink/version.h:
 /usr/include/libnl3/netlink/errno.h:
 /usr/include/libnl3/netlink/types.h:
