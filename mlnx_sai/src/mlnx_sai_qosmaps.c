@@ -438,12 +438,6 @@ sai_status_t mlnx_qos_map_set_default(_Inout_ mlnx_qos_map_t *qos_map)
         for (ii = 0; ii < qos_map->count; ii++) {
             qos_map->from.pfc[ii] = ii;
         }
-    } else if (qos_map->type == SAI_QOS_MAP_TYPE_PFC_PRIORITY_TO_QUEUE) {
-        qos_map->count = SXD_COS_PORT_PRIO_MAX + 1;
-
-        for (ii = 0; ii < qos_map->count; ii++) {
-            qos_map->from.pfc[ii] = ii;
-        }
     } else if ((qos_map->type == SAI_QOS_MAP_TYPE_TC_AND_COLOR_TO_DSCP) ||
                (qos_map->type == SAI_QOS_MAP_TYPE_TC_AND_COLOR_TO_DOT1P)) {
         uint32_t index = 0;
@@ -715,8 +709,8 @@ sai_status_t mlnx_qos_map_log_set(sx_verbosity_level_t level)
 {
     LOG_VAR_NAME(__MODULE__) = level;
 
-    if (get_sdk_handle()) {
-        return sdk_to_sai(sx_api_cos_log_verbosity_level_set(get_sdk_handle(), SX_LOG_VERBOSITY_BOTH, level, level));
+    if (gh_sdk) {
+        return sdk_to_sai(sx_api_cos_log_verbosity_level_set(gh_sdk, SX_LOG_VERBOSITY_BOTH, level, level));
     }
 
     return SAI_STATUS_SUCCESS;

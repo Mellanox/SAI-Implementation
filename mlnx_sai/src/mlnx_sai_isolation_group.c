@@ -737,7 +737,7 @@ static sai_status_t mlnx_isolation_group_add_member(sai_object_id_t isolation_gr
     }
 
     if (isolation_group_entry->subscribed_ports_count > 0) {
-        sx_status = sx_api_port_isolate_set(get_sdk_handle(), SX_ACCESS_CMD_ADD, log_port,
+        sx_status = sx_api_port_isolate_set(gh_sdk, SX_ACCESS_CMD_ADD, log_port,
                                             isolation_group_entry->subscribed_ports,
                                             isolation_group_entry->subscribed_ports_count);
         if (SX_ERR(sx_status)) {
@@ -846,7 +846,7 @@ static sai_status_t mlnx_create_isolation_group_member(_Out_ sai_object_id_t    
     status = mlnx_port_or_bridge_port_to_log_port(member_object_attr->oid, &log_port);
     if (SAI_ERR(status)) {
         SX_LOG_ERR("Failed to get port object log port\n");
-        goto out;
+        return status;
     }
 
     status = mlnx_create_isolation_group_member_oid(isolation_group_member_id, group_attr->oid, log_port);
@@ -945,7 +945,7 @@ static sai_status_t mlnx_update_subscribed_ports_remove_group_member(mlnx_isolat
     }
 
     if (ports_to_update_count > 0) {
-        sx_status = sx_api_port_isolate_set(get_sdk_handle(),
+        sx_status = sx_api_port_isolate_set(gh_sdk,
                                             SX_ACCESS_CMD_DELETE,
                                             log_port,
                                             ports_to_update,
@@ -1147,7 +1147,7 @@ static sai_status_t mlnx_update_lag_isolation_group_remove_lag_member(mlnx_isola
         }
 
         for (ii = 0; ii < ports_count; ii++) {
-            sx_status = sx_api_port_isolate_set(get_sdk_handle(), SX_ACCESS_CMD_DELETE, ports_to_delete_lag_from[ii],
+            sx_status = sx_api_port_isolate_set(gh_sdk, SX_ACCESS_CMD_DELETE, ports_to_delete_lag_from[ii],
                                                 &log_port, 1);
             if (SX_ERR(sx_status)) {
                 SX_LOG_ERR("Failed to set sx port isolation group - %s\n", SX_STATUS_MSG(sx_status));
@@ -1210,7 +1210,7 @@ static sai_status_t mlnx_unsubscribe_port_from_isolation_group_impl(mlnx_isolati
     }
 
     for (ii = 0; ii < isolation_group_entry->members_count; ii++) {
-        sx_status = sx_api_port_isolate_set(get_sdk_handle(), SX_ACCESS_CMD_DELETE, isolation_group_entry->members[ii],
+        sx_status = sx_api_port_isolate_set(gh_sdk, SX_ACCESS_CMD_DELETE, isolation_group_entry->members[ii],
                                             &log_port, 1);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to set sx port isolation group - %s\n", SX_STATUS_MSG(sx_status));
@@ -1277,10 +1277,7 @@ static sai_status_t mlnx_subscribe_port_to_isolation_group_impl(mlnx_isolation_g
     }
 
     for (ii = 0; ii < isolation_group_entry->members_count; ii++) {
-        sx_status = sx_api_port_isolate_set(get_sdk_handle(),
-                                            SX_ACCESS_CMD_ADD,
-                                            isolation_group_entry->members[ii],
-                                            &log_port,
+        sx_status = sx_api_port_isolate_set(gh_sdk, SX_ACCESS_CMD_ADD, isolation_group_entry->members[ii], &log_port,
                                             1);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to set sx port isolation group - %s\n", SX_STATUS_MSG(sx_status));

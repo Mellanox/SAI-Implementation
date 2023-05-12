@@ -785,18 +785,13 @@ static sai_status_t mlnx_bridge_sx_vport_set(_In_ sx_port_log_id_t           sx_
      * It can happen when port is in the vlan but vport is not created/removed
      */
     if (is_create) {
-        sx_status = sx_api_port_vport_set(get_sdk_handle(), SX_ACCESS_CMD_ADD, sx_port, sx_vlan_id, sx_vport);
+        sx_status = sx_api_port_vport_set(gh_sdk, SX_ACCESS_CMD_ADD, sx_port, sx_vlan_id, sx_vport);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to create vport {%x : %d} - %s\n", sx_port, sx_vlan_id, SX_STATUS_MSG(sx_status));
             return sdk_to_sai(sx_status);
         }
 
-        sx_status = sx_api_vlan_ports_set(get_sdk_handle(),
-                                          SX_ACCESS_CMD_ADD,
-                                          DEFAULT_ETH_SWID,
-                                          sx_vlan_id,
-                                          &vlan_port_list,
-                                          1);
+        sx_status = sx_api_vlan_ports_set(gh_sdk, SX_ACCESS_CMD_ADD, DEFAULT_ETH_SWID, sx_vlan_id, &vlan_port_list, 1);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to add port %x to vlan %d - %s\n", sx_port, sx_vlan_id, SX_STATUS_MSG(sx_status));
             return sdk_to_sai(sx_status);
@@ -804,7 +799,7 @@ static sai_status_t mlnx_bridge_sx_vport_set(_In_ sx_port_log_id_t           sx_
 
         SX_LOG_DBG("Create vport {%x : %d}\n", sx_port, sx_vlan_id);
     } else {
-        sx_status = sx_api_vlan_ports_set(get_sdk_handle(),
+        sx_status = sx_api_vlan_ports_set(gh_sdk,
                                           SX_ACCESS_CMD_DELETE,
                                           DEFAULT_ETH_SWID,
                                           sx_vlan_id,
@@ -815,7 +810,7 @@ static sai_status_t mlnx_bridge_sx_vport_set(_In_ sx_port_log_id_t           sx_
             return sdk_to_sai(sx_status);
         }
 
-        sx_status = sx_api_port_vport_set(get_sdk_handle(), SX_ACCESS_CMD_DELETE, sx_port, sx_vlan_id, sx_vport);
+        sx_status = sx_api_port_vport_set(gh_sdk, SX_ACCESS_CMD_DELETE, sx_port, sx_vlan_id, sx_vport);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to delete vport {%x : %d} - %s\n", sx_port, sx_vlan_id, SX_STATUS_MSG(sx_status));
             return sdk_to_sai(sx_status);
@@ -1114,7 +1109,7 @@ static sai_status_t mlnx_bridge_learn_disable_get(_In_ const sai_object_key_t   
     }
 
     if (SX_STATUS_SUCCESS !=
-        (status = sx_api_fdb_fid_learn_mode_get(get_sdk_handle(), DEFAULT_ETH_SWID, sx_bridge_id, &mode))) {
+        (status = sx_api_fdb_fid_learn_mode_get(gh_sdk, DEFAULT_ETH_SWID, sx_bridge_id, &mode))) {
         SX_LOG_ERR("Failed to get learn mode %s.\n", SX_STATUS_MSG(status));
         status = sdk_to_sai(status);
         goto out;
@@ -1133,7 +1128,7 @@ out:
 
 static sai_status_t mlnx_bridge_learn_disable_set_impl(_In_ sx_bridge_id_t sx_bridge_id, _In_ bool learn_disable)
 {
-    sx_status_t         sx_status;
+    sx_status_t         status;
     sx_fdb_learn_mode_t mode;
 
     if (learn_disable) {
@@ -1142,13 +1137,15 @@ static sai_status_t mlnx_bridge_learn_disable_set_impl(_In_ sx_bridge_id_t sx_br
         mode = SX_FDB_LEARN_MODE_AUTO_LEARN;
     }
 
-    sx_status = sx_api_fdb_fid_learn_mode_set(get_sdk_handle(), DEFAULT_ETH_SWID, sx_bridge_id, mode);
-    if (SX_ERR(sx_status)) {
-        SX_LOG_ERR("Failed to set learn mode %s.\n", SX_STATUS_MSG(sx_status));
-        return sdk_to_sai(sx_status);
+    if (SX_STATUS_SUCCESS !=
+        (status = sx_api_fdb_fid_learn_mode_set(gh_sdk, DEFAULT_ETH_SWID, sx_bridge_id, mode))) {
+        SX_LOG_ERR("Failed to set learn mode %s.\n", SX_STATUS_MSG(status));
+        status = sdk_to_sai(status);
+        goto out;
     }
 
-    return SAI_STATUS_SUCCESS;
+out:
+    return status;
 }
 
 /**
@@ -1188,7 +1185,7 @@ sai_status_t mlnx_bridge_availability_get(_In_ sai_object_id_t        switch_id,
 
     assert(count);
 
-    sx_status = sx_api_bridge_iter_get(get_sdk_handle(), SX_ACCESS_CMD_GET, 0, NULL, NULL, &bridge_existing);
+    sx_status = sx_api_bridge_iter_get(gh_sdk, SX_ACCESS_CMD_GET, 0, NULL, NULL, &bridge_existing);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to get count of 802.1D bridges - %s\n", SX_STATUS_MSG(sx_status));
         return sdk_to_sai(sx_status);
@@ -1788,7 +1785,7 @@ static sai_status_t mlnx_remove_bridge(_In_ sai_object_id_t bridge_id)
         goto out;
     }
 
-    sx_status = sx_api_bridge_set(get_sdk_handle(), SX_ACCESS_CMD_DESTROY, &bridge->sx_bridge_id);
+    sx_status = sx_api_bridge_set(gh_sdk, SX_ACCESS_CMD_DESTROY, &bridge->sx_bridge_id);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to remove .1D bridge - %s\n", SX_STATUS_MSG(sx_status));
         status = sdk_to_sai(sx_status);
@@ -2170,7 +2167,7 @@ static sai_status_t mlnx_bridge_port_bridge_id_set(_In_ const sai_object_key_t  
     if (port->port_type == SAI_BRIDGE_PORT_TYPE_SUB_PORT) {
         /* Vport admin state needs to be down before deleting from a bridge */
         if (port->admin_state) {
-            sx_status = sx_api_port_state_set(get_sdk_handle(), port->logical, SX_PORT_ADMIN_STATUS_DOWN);
+            sx_status = sx_api_port_state_set(gh_sdk, port->logical, SX_PORT_ADMIN_STATUS_DOWN);
             if (SX_ERR(sx_status)) {
                 SX_LOG_ERR("Failed to set vport %x admin state down - %s.\n", port->logical, SX_STATUS_MSG(sx_status));
                 status = sdk_to_sai(sx_status);
@@ -2178,7 +2175,7 @@ static sai_status_t mlnx_bridge_port_bridge_id_set(_In_ const sai_object_key_t  
             }
         }
 
-        sx_status = sx_api_bridge_vport_set(get_sdk_handle(), SX_ACCESS_CMD_DELETE, port->bridge_id, port->logical);
+        sx_status = sx_api_bridge_vport_set(gh_sdk, SX_ACCESS_CMD_DELETE, port->bridge_id, port->logical);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to del vport %x from bridge %x - %s\n", port->logical, port->bridge_id,
                        SX_STATUS_MSG(sx_status));
@@ -2186,7 +2183,7 @@ static sai_status_t mlnx_bridge_port_bridge_id_set(_In_ const sai_object_key_t  
             goto out;
         }
 
-        sx_status = sx_api_bridge_vport_set(get_sdk_handle(), SX_ACCESS_CMD_ADD, sx_bridge_id, port->logical);
+        sx_status = sx_api_bridge_vport_set(gh_sdk, SX_ACCESS_CMD_ADD, sx_bridge_id, port->logical);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to add vport %x to bridge %x - %s\n", port->logical, sx_bridge_id,
                        SX_STATUS_MSG(sx_status));
@@ -2195,7 +2192,7 @@ static sai_status_t mlnx_bridge_port_bridge_id_set(_In_ const sai_object_key_t  
         }
 
         if (port->admin_state) {
-            sx_status = sx_api_port_state_set(get_sdk_handle(), port->logical, SX_PORT_ADMIN_STATUS_UP);
+            sx_status = sx_api_port_state_set(gh_sdk, port->logical, SX_PORT_ADMIN_STATUS_UP);
             if (SX_ERR(sx_status)) {
                 SX_LOG_ERR("Failed to set vport %x admin state up - %s.\n", port->logical, SX_STATUS_MSG(sx_status));
                 status = sdk_to_sai(sx_status);
@@ -2213,7 +2210,7 @@ static sai_status_t mlnx_bridge_port_bridge_id_set(_In_ const sai_object_key_t  
 
         br_rif->intf_params.ifc.bridge.bridge = sx_bridge_id;
 
-        sx_status = sx_api_router_interface_set(get_sdk_handle(), SX_ACCESS_CMD_EDIT, br_rif->sx_data.vrf_id,
+        sx_status = sx_api_router_interface_set(gh_sdk, SX_ACCESS_CMD_EDIT, br_rif->sx_data.vrf_id,
                                                 &br_rif->intf_params, &br_rif->intf_attribs, &br_rif->sx_data.rif_id);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to set router interface - %s.\n", SX_STATUS_MSG(sx_status));
@@ -2260,7 +2257,7 @@ static sai_status_t mlnx_bridge_port_fdb_learning_mode_get(_In_ const sai_object
         return status;
     }
 
-    sx_status = sx_api_fdb_port_learn_mode_get(get_sdk_handle(), log_port, &learn_mode);
+    sx_status = sx_api_fdb_port_learn_mode_get(gh_sdk, log_port, &learn_mode);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to get port learning mode - %s.\n", SX_STATUS_MSG(sx_status));
         return sdk_to_sai(sx_status);
@@ -2337,7 +2334,7 @@ static sai_status_t mlnx_bridge_port_fdb_learning_mode_set(_In_ const sai_object
         return status;
     }
 
-    sx_status = sx_api_fdb_port_learn_mode_set(get_sdk_handle(), port_id, learn_mode);
+    sx_status = sx_api_fdb_port_learn_mode_set(gh_sdk, port_id, learn_mode);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to set port %x learning mode - %s.\n", port_id, SX_STATUS_MSG(sx_status));
         return sdk_to_sai(sx_status);
@@ -2372,7 +2369,7 @@ static sai_status_t mlnx_bridge_port_max_learned_addresses_get(_In_ const sai_ob
         goto out;
     }
 
-    sx_status = sx_api_fdb_uc_limit_port_get(get_sdk_handle(), sx_log_port_id, &sx_limit);
+    sx_status = sx_api_fdb_uc_limit_port_get(gh_sdk, sx_log_port_id, &sx_limit);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to get FDB learning limit for port %x - %s\n", sx_log_port_id, SX_STATUS_MSG(sx_status));
         status = sdk_to_sai(status);
@@ -2393,7 +2390,7 @@ static sai_status_t mlnx_port_max_learned_addresses_set(_In_ sx_port_log_id_t sx
 
     sx_limit = MLNX_FDB_LIMIT_SAI_TO_SX(limit);
 
-    sx_status = sx_api_fdb_uc_limit_port_set(get_sdk_handle(), SX_ACCESS_CMD_SET, sx_port, sx_limit);
+    sx_status = sx_api_fdb_uc_limit_port_set(gh_sdk, SX_ACCESS_CMD_SET, sx_port, sx_limit);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to set FDB learning limit for port %x - %s\n", sx_port, SX_STATUS_MSG(sx_status));
         return sdk_to_sai(sx_status);
@@ -2575,12 +2572,7 @@ static sai_status_t mlnx_bridge_port_tagging_mode_set(_In_ const sai_object_key_
     sx_vlan_ports.is_untagged = sx_tagging_mode;
     sx_vlan_ports.log_port = bport->parent;
 
-    sx_status = sx_api_vlan_ports_set(get_sdk_handle(),
-                                      SX_ACCESS_CMD_ADD,
-                                      DEFAULT_ETH_SWID,
-                                      bport->vlan_id,
-                                      &sx_vlan_ports,
-                                      1);
+    sx_status = sx_api_vlan_ports_set(gh_sdk, SX_ACCESS_CMD_ADD, DEFAULT_ETH_SWID, bport->vlan_id, &sx_vlan_ports, 1);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to set sub-port (%x) {%x : %d} tagging mode to %d - %s\n", bport->logical,
                    bport->parent, bport->vlan_id, value->s32, SX_STATUS_MSG(sx_status));
@@ -2620,7 +2612,7 @@ static sai_status_t mlnx_bridge_port_ingr_filter_get(_In_ const sai_object_key_t
         goto out;
     }
 
-    sx_status = sx_api_vlan_port_ingr_filter_get(get_sdk_handle(), bport->logical, &sx_ingr_filter_mode);
+    sx_status = sx_api_vlan_port_ingr_filter_get(gh_sdk, bport->logical, &sx_ingr_filter_mode);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to get port %x ingress filter - %s.\n", bport->logical, SX_STATUS_MSG(status));
         status = sdk_to_sai(status);
@@ -2660,7 +2652,7 @@ static sai_status_t mlnx_bridge_port_ingr_filter_set(_In_ const sai_object_key_t
 
     sx_ingr_filter_mode = value->booldata ? SX_INGR_FILTER_ENABLE : SX_INGR_FILTER_DISABLE;
 
-    sx_status = sx_api_vlan_port_ingr_filter_set(get_sdk_handle(), bport->logical, sx_ingr_filter_mode);
+    sx_status = sx_api_vlan_port_ingr_filter_set(gh_sdk, bport->logical, sx_ingr_filter_mode);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to set port %x ingress filter - %s.\n", bport->logical, SX_STATUS_MSG(sx_status));
         status = sdk_to_sai(sx_status);
@@ -2773,7 +2765,7 @@ static sai_status_t mlnx_sai_bridge_modify_1q_port_1d_mode_internal(_In_ mlnx_br
         }
 
         if (SX_STATUS_SUCCESS !=
-            (sx_status = sx_api_bridge_vport_set(get_sdk_handle(), SX_ACCESS_CMD_DELETE, sx_bridge_id, sx_vport_id))) {
+            (sx_status = sx_api_bridge_vport_set(gh_sdk, SX_ACCESS_CMD_DELETE, sx_bridge_id, sx_vport_id))) {
             SX_LOG_ERR("Failed to del vport %x from bridge %x - %s\n", sx_vport_id, sx_bridge_id,
                        SX_STATUS_MSG(sx_status));
             sai_status = sdk_to_sai(sx_status);
@@ -2782,7 +2774,7 @@ static sai_status_t mlnx_sai_bridge_modify_1q_port_1d_mode_internal(_In_ mlnx_br
 
         if (SX_STATUS_SUCCESS !=
             (sx_status =
-                 sx_api_port_vport_set(get_sdk_handle(), SX_ACCESS_CMD_DELETE, sx_port_id, MLNX_SAI_DUMMY_1D_VLAN_ID,
+                 sx_api_port_vport_set(gh_sdk, SX_ACCESS_CMD_DELETE, sx_port_id, MLNX_SAI_DUMMY_1D_VLAN_ID,
                                        &sx_vport_id))) {
             SX_LOG_ERR("Failed to delete vport {%x : %d} - %s\n", sx_port_id, MLNX_SAI_DUMMY_1D_VLAN_ID,
                        SX_STATUS_MSG(sx_status));
@@ -2800,7 +2792,7 @@ static sai_status_t mlnx_sai_bridge_modify_1q_port_1d_mode_internal(_In_ mlnx_br
 
         if (SX_STATUS_SUCCESS !=
             (sx_status =
-                 sx_api_port_vport_set(get_sdk_handle(), SX_ACCESS_CMD_ADD, sx_port_id, MLNX_SAI_DUMMY_1D_VLAN_ID,
+                 sx_api_port_vport_set(gh_sdk, SX_ACCESS_CMD_ADD, sx_port_id, MLNX_SAI_DUMMY_1D_VLAN_ID,
                                        &sx_vport_id))) {
             SX_LOG_ERR("Failed to create vport {%x : %d} - %s\n", sx_port_id, MLNX_SAI_DUMMY_1D_VLAN_ID,
                        SX_STATUS_MSG(sx_status));
@@ -2809,14 +2801,14 @@ static sai_status_t mlnx_sai_bridge_modify_1q_port_1d_mode_internal(_In_ mlnx_br
         }
 
         if (SX_STATUS_SUCCESS !=
-            (sx_status = sx_api_port_state_set(get_sdk_handle(), sx_vport_id, SX_PORT_ADMIN_STATUS_DOWN))) {
+            (sx_status = sx_api_port_state_set(gh_sdk, sx_vport_id, SX_PORT_ADMIN_STATUS_DOWN))) {
             SX_LOG_ERR("Failed to set vport %x admin state down - %s.\n", sx_vport_id, SX_STATUS_MSG(sx_status));
             sai_status = sdk_to_sai(sx_status);
             goto out;
         }
 
         if (SX_STATUS_SUCCESS !=
-            (sx_status = sx_api_bridge_vport_set(get_sdk_handle(), SX_ACCESS_CMD_ADD, sx_bridge_id, sx_vport_id))) {
+            (sx_status = sx_api_bridge_vport_set(gh_sdk, SX_ACCESS_CMD_ADD, sx_bridge_id, sx_vport_id))) {
             SX_LOG_ERR("Failed to add vport %x to bridge %x - %s\n",
                        sx_vport_id,
                        sx_bridge_id,
@@ -2859,7 +2851,7 @@ static sai_status_t mlnx_bridge_port_admin_state_set_internal(_In_ mlnx_bridge_p
         sx_port_id = bridge_port->logical;
 
         if (SX_STATUS_SUCCESS !=
-            (sx_status = sx_api_port_state_set(get_sdk_handle(),
+            (sx_status = sx_api_port_state_set(gh_sdk,
                                                sx_port_id,
                                                is_up ? SX_PORT_ADMIN_STATUS_UP : SX_PORT_ADMIN_STATUS_DOWN))) {
             SX_LOG_ERR("Failed to set port admin state - %s.\n", SX_STATUS_MSG(sx_status));
@@ -2914,7 +2906,7 @@ sai_status_t mlnx_bridge_port_availability_get(_In_ sai_object_id_t        switc
         }
     }
 
-    sx_status = sx_api_rm_free_entries_by_type_get(get_sdk_handle(), table_type, &bports_left_2);
+    sx_status = sx_api_rm_free_entries_by_type_get(gh_sdk, table_type, &bports_left_2);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to get a number of free resources for sx table %d - %s\n", table_type,
                    SX_STATUS_MSG(sx_status));
@@ -3075,7 +3067,7 @@ static sai_status_t mlnx_create_bridge_port(_Out_ sai_object_id_t     * bridge_p
         if (ingress_filter) {
             sx_ingr_filter_mode = ingress_filter->booldata ? SX_INGR_FILTER_ENABLE : SX_INGR_FILTER_DISABLE;
 
-            sx_status = sx_api_vlan_port_ingr_filter_set(get_sdk_handle(), log_port, sx_ingr_filter_mode);
+            sx_status = sx_api_vlan_port_ingr_filter_set(gh_sdk, log_port, sx_ingr_filter_mode);
             if (SX_ERR(sx_status)) {
                 SX_LOG_ERR("Failed to set port %x ingress filter - %s.\n", log_port, SX_STATUS_MSG(sx_status));
                 status = sdk_to_sai(sx_status);
@@ -3147,7 +3139,7 @@ static sai_status_t mlnx_create_bridge_port(_Out_ sai_object_id_t     * bridge_p
             goto out;
         }
 
-        sx_status = sx_api_bridge_vport_set(get_sdk_handle(), SX_ACCESS_CMD_ADD, bridge_id, vport_id);
+        sx_status = sx_api_bridge_vport_set(gh_sdk, SX_ACCESS_CMD_ADD, bridge_id, vport_id);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to add vport %x to bridge %x - %s\n", vport_id, bridge_id, SX_STATUS_MSG(sx_status));
             status = sdk_to_sai(sx_status);
@@ -3228,11 +3220,8 @@ static sai_status_t mlnx_create_bridge_port(_Out_ sai_object_id_t     * bridge_p
         }
 
         if (mlnx_rif_is_additional_mac_supported() && bridge_rif->mac_data.additional_mac_is_used) {
-            sx_status = sx_api_router_interface_mac_set(get_sdk_handle(),
-                                                        SX_ACCESS_CMD_ADD,
-                                                        bridge_rif->sx_data.rif_id,
-                                                        &bridge_rif->mac_data.additional_mac_addr,
-                                                        1);
+            sx_status = sx_api_router_interface_mac_set(gh_sdk, SX_ACCESS_CMD_ADD, bridge_rif->sx_data.rif_id,
+                                                        &bridge_rif->mac_data.additional_mac_addr, 1);
             if (SX_ERR(sx_status)) {
                 SX_LOG_ERR("Failed to set additional MAC - %s.\n", SX_STATUS_MSG(sx_status));
                 status = sdk_to_sai(status);
@@ -3240,9 +3229,7 @@ static sai_status_t mlnx_create_bridge_port(_Out_ sai_object_id_t     * bridge_p
             }
         }
 
-        sx_status = sx_api_router_interface_state_set(get_sdk_handle(),
-                                                      bridge_rif->sx_data.rif_id,
-                                                      &bridge_rif->intf_state);
+        sx_status = sx_api_router_interface_state_set(gh_sdk, bridge_rif->sx_data.rif_id, &bridge_rif->intf_state);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to set bridge router interface state - %s.\n", SX_STATUS_MSG(sx_status));
             status = sdk_to_sai(sx_status);
@@ -3279,7 +3266,7 @@ static sai_status_t mlnx_create_bridge_port(_Out_ sai_object_id_t     * bridge_p
             goto out;
         }
 
-        sx_status = sx_api_fdb_port_learn_mode_set(get_sdk_handle(), bridge_port->logical, sx_learn_mode);
+        sx_status = sx_api_fdb_port_learn_mode_set(gh_sdk, bridge_port->logical, sx_learn_mode);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to set port %x learning mode - %s.\n", bridge_port->logical, SX_STATUS_MSG(sx_status));
             status = sdk_to_sai(sx_status);
@@ -3315,7 +3302,7 @@ out:
             mlnx_bridge_port_del(bridge_port);
         }
         if (vport_id) {
-            sx_api_port_vport_set(get_sdk_handle(), SX_ACCESS_CMD_DELETE, log_port, vlan_id, &vport_id);
+            sx_api_port_vport_set(gh_sdk, SX_ACCESS_CMD_DELETE, log_port, vlan_id, &vport_id);
         }
     }
 
@@ -3427,7 +3414,7 @@ static sai_status_t mlnx_remove_bridge_port(_In_ sai_object_id_t bridge_port_id)
         break;
 
     case SAI_BRIDGE_PORT_TYPE_SUB_PORT:
-        sx_status = sx_api_bridge_vport_set(get_sdk_handle(), SX_ACCESS_CMD_DELETE, port->bridge_id, port->logical);
+        sx_status = sx_api_bridge_vport_set(gh_sdk, SX_ACCESS_CMD_DELETE, port->bridge_id, port->logical);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to del vport %x from bridge %x - %s\n", port->logical, port->bridge_id,
                        SX_STATUS_MSG(sx_status));
@@ -3526,9 +3513,8 @@ sai_status_t mlnx_bridge_log_set(sx_verbosity_level_t level)
 {
     LOG_VAR_NAME(__MODULE__) = level;
 
-    if (get_sdk_handle()) {
-        return sdk_to_sai(sx_api_bridge_log_verbosity_level_set(get_sdk_handle(), SX_LOG_VERBOSITY_BOTH, level,
-                                                                level));
+    if (gh_sdk) {
+        return sdk_to_sai(sx_api_bridge_log_verbosity_level_set(gh_sdk, SX_LOG_VERBOSITY_BOTH, level, level));
     } else {
         return SAI_STATUS_SUCCESS;
     }
@@ -3543,7 +3529,7 @@ static sai_status_t mlnx_sdk_bridge_create(_Out_ sx_bridge_id_t *sx_bridge_id)
 
     SX_LOG_ENTER();
 
-    sx_status = sx_api_bridge_set(get_sdk_handle(), SX_ACCESS_CMD_CREATE, sx_bridge_id);
+    sx_status = sx_api_bridge_set(gh_sdk, SX_ACCESS_CMD_CREATE, sx_bridge_id);
     if (SX_ERR(sx_status)) {
         sai_status = sdk_to_sai(sx_status);
         SX_LOG_ERR("Failed to create bridge - %s\n", SX_STATUS_MSG(sx_status));
@@ -3553,6 +3539,17 @@ static sai_status_t mlnx_sdk_bridge_create(_Out_ sx_bridge_id_t *sx_bridge_id)
 
     memset(&vlan_attrib_p, 0, sizeof(vlan_attrib_p));
     vlan_attrib_p.flood_to_router = true;
+
+    if (g_sai_db_ptr->fx_initialized) {
+        sx_status = sx_api_vlan_attrib_set(gh_sdk, *sx_bridge_id, &vlan_attrib_p);
+        if (SX_ERR(sx_status)) {
+            sai_status = sdk_to_sai(sx_status);
+            SX_LOG_ERR("Error setting vlan attribute for fid %d: %s\n",
+                       *sx_bridge_id, SX_STATUS_MSG(sx_status));
+            SX_LOG_EXIT();
+            return sai_status;
+        }
+    }
 
     SX_LOG_EXIT();
     return SAI_STATUS_SUCCESS;
@@ -3746,7 +3743,7 @@ sai_status_t mlnx_get_bridge_port_stats_ext(_In_ sai_object_id_t      bridge_por
     /*
      * SDK doesn't support counters for VPORT, so the only supported bridge port type is SAI_BRIDGE_PORT_TYPE_PORT
      */
-    sx_status = sx_api_port_counter_rfc_2863_get(get_sdk_handle(), cmd, bport->logical, &cntr_rfc_2863);
+    sx_status = sx_api_port_counter_rfc_2863_get(gh_sdk, cmd, bport->logical, &cntr_rfc_2863);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to get port [%x] rfc 2863 counters - %s.\n", bport->logical, SX_STATUS_MSG(sx_status));
         status = sdk_to_sai(sx_status);

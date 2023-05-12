@@ -235,19 +235,17 @@ sai_status_t mlnx_nhg_db_entry_idx_to_data(_In_ mlnx_shm_rm_array_idx_t idx, _Ou
     sai_status_t status;
     void        *data;
 
-    assert(nhg_db_entry);
-
     status = mlnx_shm_rm_array_idx_to_ptr(idx, &data);
     if (SAI_ERR(status)) {
         return status;
     }
 
-    if (!((mlnx_nhg_db_entry_t*)data)->array_hdr.is_used) {
+    *nhg_db_entry = (mlnx_nhg_db_entry_t*)data;
+
+    if (!(*nhg_db_entry)->array_hdr.is_used) {
         SX_LOG_ERR("NHG DB entry at index %u is removed or not created yet.\n", idx.idx);
         return SAI_STATUS_FAILURE;
     }
-
-    *nhg_db_entry = (mlnx_nhg_db_entry_t*)data;
 
     return SAI_STATUS_SUCCESS;
 }
@@ -375,12 +373,12 @@ sai_status_t mlnx_nhgm_db_entry_idx_to_data(_In_ mlnx_shm_rm_array_idx_t idx,
         return status;
     }
 
-    if (!((mlnx_nhgm_db_entry_t*)data)->array_hdr.is_used) {
+    *nhgm_db_entry = (mlnx_nhgm_db_entry_t*)data;
+
+    if (!(*nhgm_db_entry)->array_hdr.is_used) {
         SX_LOG_ERR("nhgm DB entry at index %u is removed or not created yet.\n", idx.idx);
         return SAI_STATUS_FAILURE;
     }
-
-    *nhgm_db_entry = (mlnx_nhgm_db_entry_t*)data;
 
     return SAI_STATUS_SUCCESS;
 }
@@ -457,12 +455,12 @@ sai_status_t mlnx_nhgm_oid_create(_In_ mlnx_shm_rm_array_idx_t idx, _Out_ sai_ob
 static sai_status_t mlnx_sdk_nhop_by_ecmp_id_get(sx_ecmp_id_t sdk_ecmp_id, sx_next_hop_t *sx_next_hop)
 {
     uint32_t    sdk_next_hop_cnt = 1;
-    sx_status_t sx_status;
+    sx_status_t status;
 
-    sx_status = sx_api_router_ecmp_get(get_sdk_handle(), sdk_ecmp_id, sx_next_hop, &sdk_next_hop_cnt);
-    if (SX_ERR(sx_status)) {
-        SX_LOG_ERR("Failed to get ecmp - %s id %u\n", SX_STATUS_MSG(sx_status), sdk_ecmp_id);
-        return sdk_to_sai(sx_status);
+    status = sx_api_router_ecmp_get(gh_sdk, sdk_ecmp_id, sx_next_hop, &sdk_next_hop_cnt);
+    if (SX_ERR(status)) {
+        SX_LOG_ERR("Failed to get ecmp - %s id %u\n", SX_STATUS_MSG(status), sdk_ecmp_id);
+        return sdk_to_sai(status);
     }
 
     if (1 != sdk_next_hop_cnt) {
@@ -566,107 +564,6 @@ static sai_status_t mlnx_fg_ecmp_size_configured_to_real(_In_ uint32_t configure
     return SAI_STATUS_INSUFFICIENT_RESOURCES;
 }
 
-static bool mlnx_is_ar_nexthop(sx_next_hop_t* sx_next_hop)
-{
-    sx_router_id_t              vrid;
-    sx_router_interface_param_t intf_params;
-    sx_interface_attributes_t   intf_attribs;
-    sx_status_t                 sx_status;
-
-    if (sx_next_hop->next_hop_key.type == SX_NEXT_HOP_TYPE_IP) {
-        sx_status = sx_api_router_interface_get(get_sdk_handle(),
-                                                sx_next_hop->next_hop_key.next_hop_key_entry.ip_next_hop.rif,
-                                                &vrid,
-                                                &intf_params,
-                                                &intf_attribs);
-        if (SX_ERR(sx_status)) {
-            SX_LOG_ERR("Failed to get router interface - %s.\n", SX_STATUS_MSG(sx_status));
-            return false;
-        }
-        return (SX_L2_INTERFACE_TYPE_ADAPTIVE_ROUTING == intf_params.type);
-    }
-    return false;
-}
-
-sai_status_t mlnx_get_ecmp_attr(_In_ const sx_ecmp_id_t ecmp_id, _Out_ sx_ecmp_attributes_t *sx_ecmp_attr)
-{
-    sx_status_t sx_status;
-
-    assert(NULL != sx_ecmp_attr);
-
-    sx_status = sx_api_router_ecmp_attributes_get(get_sdk_handle(), ecmp_id, sx_ecmp_attr);
-    if (SX_ERR(sx_status)) {
-        SX_LOG_ERR("Failed to set router ecmp attributes - %s.\n", SX_STATUS_MSG(sx_status));
-        return sdk_to_sai(sx_status);
-    }
-    return SAI_STATUS_SUCCESS;
-}
-
-static sai_status_t mlnx_set_ar_ecmp_attr(const sx_ecmp_id_t ecmp_id, uint32_t ecmp_group_size)
-{
-    sx_status_t          sx_status;
-    sx_ecmp_attributes_t sx_ecmp_attr = {0};
-
-    SX_LOG_DBG("set ar router ecmp attributes - ecmp id[%u] type[%u] size[%u].\n",
-               ecmp_id,
-               SX_ECMP_TYPE_ADAPTIVE_E,
-               ecmp_group_size);
-    sx_ecmp_attr.ecmp_type = SX_ECMP_TYPE_ADAPTIVE_E;
-    sx_ecmp_attr.group_size = ecmp_group_size;
-    sx_status = sx_api_router_ecmp_attributes_set(get_sdk_handle(), ecmp_id, &sx_ecmp_attr);
-    if (SX_ERR(sx_status)) {
-        SX_LOG_ERR("Failed to set router ecmp attributes - %s.\n", SX_STATUS_MSG(sx_status));
-        return sdk_to_sai(sx_status);
-    }
-    return SAI_STATUS_SUCCESS;
-}
-
-/* Check if an ecmp container is ar enabled. If yes, set the ar attr. */
-static sai_status_t mlnx_check_and_set_ar_ecmp(const sx_ecmp_id_t ecmp_id,
-                                               sx_next_hop_t     *next_hops,
-                                               uint32_t           next_hops_count)
-{
-    sx_status_t        sx_status;
-    sai_status_t       status;
-    uint32_t           sdk_next_hop_cnt = 0;
-    uint32_t           ar_next_hop_cnt = 0;
-    mlnx_ar_db_data_t *ar_data = &g_sai_db_ptr->ar_db;
-
-    assert(NULL != next_hops);
-
-    /* Skip checking for empty next hop list */
-    if (0 == next_hops_count) {
-        return SAI_STATUS_SUCCESS;
-    }
-
-    /* Skip checking if there are existing next hops in ecmp */
-    sx_status = sx_api_router_ecmp_get(get_sdk_handle(), ecmp_id, NULL, &sdk_next_hop_cnt);
-    if (SX_ERR(sx_status)) {
-        SX_LOG_ERR("Failed to get ecmp - %s.\n", SX_STATUS_MSG(sx_status));
-        return sdk_to_sai(sx_status);
-    }
-    if (0 != sdk_next_hop_cnt) {
-        return SAI_STATUS_SUCCESS;
-    }
-
-    for (uint32_t ii = 0; ii < next_hops_count; ii++) {
-        if (mlnx_is_ar_nexthop(&next_hops[ii])) {
-            ar_next_hop_cnt++;
-        }
-    }
-
-    if (ar_next_hop_cnt == next_hops_count) {
-        /* All next hops are AR enabled */
-        status = mlnx_set_ar_ecmp_attr(ecmp_id, ar_data->ar_ecmp_size);
-        if (SAI_ERR(status)) {
-            SX_LOG_ERR("Failed to set router ecmp to adaptive routing.\n");
-            return status;
-        }
-    }
-
-    return SAI_STATUS_SUCCESS;
-}
-
 static sai_status_t mlnx_nhg_type_ecmp_counter_apply(mlnx_nhg_db_entry_t *db_entry, sx_flow_counter_id_t sx_counter)
 {
     sx_status_t sx_status;
@@ -680,7 +577,7 @@ static sai_status_t mlnx_nhg_type_ecmp_counter_apply(mlnx_nhg_db_entry_t *db_ent
                 sx_access_cmd_t cmd = sx_counter ==
                                       SX_FLOW_COUNTER_ID_INVALID ? SX_ACCESS_CMD_UNBIND : SX_ACCESS_CMD_BIND;
 
-                sx_status = sx_api_router_ecmp_counter_bind_set(get_sdk_handle(),
+                sx_status = sx_api_router_ecmp_counter_bind_set(gh_sdk,
                                                                 cmd,
                                                                 db_entry->data.data.encap.vrf_data[ii].sx_ecmp_id,
                                                                 &sx_counter,
@@ -708,7 +605,7 @@ static sai_status_t mlnx_nhg_type_fine_grain_counter_apply(mlnx_nhg_db_entry_t *
         uint32_t        offset = 0;
         sx_access_cmd_t cmd = sx_counter == SX_FLOW_COUNTER_ID_INVALID ? SX_ACCESS_CMD_UNBIND : SX_ACCESS_CMD_BIND;
 
-        sx_status = sx_api_router_ecmp_counter_bind_set(get_sdk_handle(),
+        sx_status = sx_api_router_ecmp_counter_bind_set(gh_sdk,
                                                         cmd,
                                                         db_entry->data.data.fine_grain.sx_ecmp_id,
                                                         &sx_counter,
@@ -791,7 +688,7 @@ static sai_status_t mlnx_nhg_ecmp_prepare(_Inout_ mlnx_nhg_db_entry_t *db_entry,
     db_entry->data.data.encap.vrf_data[ecmp_idx].associated_vrf = SAI_NULL_OBJECT_ID;
     db_entry->data.data.encap.vrf_data[ecmp_idx].refcount = 0;
 
-    sx_status = sx_api_router_ecmp_set(get_sdk_handle(),
+    sx_status = sx_api_router_ecmp_set(gh_sdk,
                                        SX_ACCESS_CMD_CREATE,
                                        &db_entry->data.data.encap.vrf_data[ecmp_idx].sx_ecmp_id,
                                        next_hops,
@@ -944,7 +841,7 @@ static sai_status_t mlnx_nhg_ecmp_remove(_In_ mlnx_nhg_db_entry_t *db_entry)
         return status;
     }
 
-    sx_status = sx_api_router_ecmp_set(get_sdk_handle(),
+    sx_status = sx_api_router_ecmp_set(gh_sdk,
                                        SX_ACCESS_CMD_DESTROY,
                                        &db_entry->data.data.encap.vrf_data[MLNX_REGULAR_ECMP_INDEX].sx_ecmp_id,
                                        NULL,
@@ -969,7 +866,7 @@ static sai_status_t mlnx_nhg_fine_grain_remove(_In_ mlnx_nhg_db_entry_t *db_entr
         return SAI_STATUS_SUCCESS;
     }
 
-    sx_status = sx_api_router_ecmp_set(get_sdk_handle(),
+    sx_status = sx_api_router_ecmp_set(gh_sdk,
                                        SX_ACCESS_CMD_DESTROY,
                                        &db_entry->data.data.fine_grain.sx_ecmp_id,
                                        NULL,
@@ -1287,6 +1184,7 @@ static sai_status_t get_nhg_from_nhgm(_In_ mlnx_nhgm_db_entry_t  *nhgm_db_entry,
     return SAI_STATUS_SUCCESS;
 }
 
+
 static uint32_t nhgm_get_weight(_In_ mlnx_nhgm_db_entry_t *nhgm_db_entry)
 {
     assert(nhgm_db_entry);
@@ -1364,7 +1262,7 @@ static sai_status_t mlnx_nghm_next_hop_oid_set(_In_ mlnx_nhgm_db_entry_t *nhgm_d
 
     edited_nhgm.next_hop_index = index;
 
-    sx_status = sx_api_router_ecmp_update_set(get_sdk_handle(), SX_ACCESS_CMD_SET, sx_group_id, &edited_nhgm, 1);
+    sx_status = sx_api_router_ecmp_update_set(gh_sdk, SX_ACCESS_CMD_SET, sx_group_id, &edited_nhgm, 1);
     if (SAI_ERR(sx_status)) {
         SX_LOG_ERR("Failed to update ecmp - %s.\n", SX_STATUS_MSG(sx_status));
         return sdk_to_sai(sx_status);
@@ -1455,7 +1353,7 @@ static sai_status_t mlnx_nhgm_fg_counter_set(_Inout_ mlnx_nhgm_db_entry_t *nhgm_
         }
     }
 
-    sx_status = sx_api_router_ecmp_get(get_sdk_handle(),
+    sx_status = sx_api_router_ecmp_get(gh_sdk,
                                        nhg_db_entry->data.data.fine_grain.sx_ecmp_id,
                                        next_hops,
                                        &next_hop_count);
@@ -1466,14 +1364,14 @@ static sai_status_t mlnx_nhgm_fg_counter_set(_Inout_ mlnx_nhgm_db_entry_t *nhgm_
 
     next_hops[nhgm_db_entry->data.entry.fg.id].next_hop_data.counter_id = sx_flow_counter;
 
-    sx_status = sx_api_router_ecmp_set(get_sdk_handle(),
-                                       SX_ACCESS_CMD_SET,
-                                       &nhg_db_entry->data.data.fine_grain.sx_ecmp_id,
-                                       next_hops,
-                                       &next_hop_count);
-    if (SX_ERR(sx_status)) {
-        SX_LOG_ERR("Failed to set ecmp - %s.\n", SX_STATUS_MSG(sx_status));
-        return sdk_to_sai(sx_status);
+    status = sx_api_router_ecmp_set(gh_sdk,
+                                    SX_ACCESS_CMD_SET,
+                                    &nhg_db_entry->data.data.fine_grain.sx_ecmp_id,
+                                    next_hops,
+                                    &next_hop_count);
+    if (SAI_ERR(status)) {
+        SX_LOG_ERR("Failed to set ecmp - %s.\n", SX_STATUS_MSG(status));
+        return sdk_to_sai(status);
     }
 
     nhgm_db_entry->data.flow_counter = counter_idx;
@@ -1735,7 +1633,7 @@ static sai_status_t apply_next_hop_data_to_ecmp_id(sx_ecmp_id_t group, sx_next_h
     uint32_t      next_hop_count = FG_ECMP_MAX_PATHS;
     sx_next_hop_t ecmp_next_hops[FG_ECMP_MAX_PATHS];
 
-    sx_status = sx_api_router_ecmp_get(get_sdk_handle(), group, ecmp_next_hops, &next_hop_count);
+    sx_status = sx_api_router_ecmp_get(gh_sdk, group, ecmp_next_hops, &next_hop_count);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to get ecmp - %s.\n", SX_STATUS_MSG(sx_status));
         return sdk_to_sai(sx_status);
@@ -1743,7 +1641,7 @@ static sai_status_t apply_next_hop_data_to_ecmp_id(sx_ecmp_id_t group, sx_next_h
 
     ecmp_next_hops[next_hop_count++] = nh_data;
 
-    sx_status = sx_api_router_ecmp_set(get_sdk_handle(), SX_ACCESS_CMD_SET, &group, ecmp_next_hops, &next_hop_count);
+    sx_status = sx_api_router_ecmp_set(gh_sdk, SX_ACCESS_CMD_SET, &group, ecmp_next_hops, &next_hop_count);
     if (SAI_ERR(sx_status)) {
         SX_LOG_ERR("Failed to set ecmp - %s.\n", SX_STATUS_MSG(sx_status));
         return sdk_to_sai(sx_status);
@@ -1888,12 +1786,6 @@ static sai_status_t mlnx_nhgm_type_native_apply(mlnx_nhgm_db_entry_t *nhgm_db_en
     for (uint32_t ii = 0; ii < NUMBER_OF_VRF_DATA_SETS; ii++) {
         vrf_data = &nhg_db_entry->data.data.encap.vrf_data[ii];
         if (vrf_data->sx_ecmp_id != 0) {
-            status = mlnx_check_and_set_ar_ecmp(vrf_data->sx_ecmp_id, &sx_next_hop, 1);
-            if (SAI_ERR(status)) {
-                SX_LOG_ERR("Failed to check ar for sx_ecmp_id. [index = %d]\n", ii);
-                return status;
-            }
-
             status = apply_next_hop_data_to_ecmp_id(vrf_data->sx_ecmp_id,
                                                     sx_next_hop);
             if (SAI_ERR(status)) {
@@ -1992,7 +1884,7 @@ static sai_status_t mlnx_nhgm_type_fine_grain_apply(mlnx_nhgm_db_entry_t *nhgm_d
             SX_LOG_ERR("Failed to int FG group.\n");
             return status;
         }
-        sx_status = sx_api_router_ecmp_set(get_sdk_handle(),
+        sx_status = sx_api_router_ecmp_set(gh_sdk,
                                            SX_ACCESS_CMD_CREATE,
                                            &nhg_db_entry->data.data.fine_grain.sx_ecmp_id,
                                            next_hops,
@@ -2019,7 +1911,7 @@ static sai_status_t mlnx_nhgm_type_fine_grain_apply(mlnx_nhgm_db_entry_t *nhgm_d
         edited_nhgm.next_hop.next_hop_data.weight = nhgm_get_weight(nhgm_db_entry);
         edited_nhgm.next_hop.next_hop_data.counter_id = sx_flow_counter;
 
-        sx_status = sx_api_router_ecmp_update_set(get_sdk_handle(),
+        sx_status = sx_api_router_ecmp_update_set(gh_sdk,
                                                   SX_ACCESS_CMD_SET,
                                                   nhg_db_entry->data.data.fine_grain.sx_ecmp_id,
                                                   &edited_nhgm,
@@ -2059,7 +1951,7 @@ static sai_status_t mlnx_nhgm_type_fine_grain_bulk_apply(mlnx_nhg_db_entry_t *nh
             return status;
         }
     } else {
-        sx_status = sx_api_router_ecmp_get(get_sdk_handle(),
+        sx_status = sx_api_router_ecmp_get(gh_sdk,
                                            nhg_db_entry->data.data.fine_grain.sx_ecmp_id,
                                            next_hops,
                                            &next_hop_count);
@@ -2115,7 +2007,7 @@ static sai_status_t mlnx_nhgm_type_fine_grain_bulk_apply(mlnx_nhg_db_entry_t *nh
     sx_access_cmd_t cmd = nhg_db_entry->data.data.fine_grain.sx_ecmp_id == SX_ROUTER_ECMP_ID_INVALID ?
                           SX_ACCESS_CMD_CREATE : SX_ACCESS_CMD_SET;
 
-    sx_status = sx_api_router_ecmp_set(get_sdk_handle(),
+    sx_status = sx_api_router_ecmp_set(gh_sdk,
                                        cmd,
                                        &nhg_db_entry->data.data.fine_grain.sx_ecmp_id,
                                        next_hops,
@@ -2239,6 +2131,7 @@ static sai_status_t mlnx_ecmp_to_nhg_map_entry_add(_In_ sx_ecmp_id_t key, _In_ m
     uint32_t                     index = mlnx_ecmp_id_hash(key) % MLNX_ECMP_NHG_HASHTABLE_SIZE;
     mlnx_ecmp_to_nhg_db_entry_t *db_entry;
     mlnx_shm_rm_array_idx_t      idx;
+
 
     status = mlnx_ecmp_to_nhg_db_entry_alloc(&db_entry,
                                              &idx);
@@ -2418,6 +2311,7 @@ static sai_status_t mlnx_nhg_nh_data_get(_In_ mlnx_nhg_db_entry_t *nhg_db_entry,
                 return status;
             }
 
+
             *next_hops_count += 1;
         }
 
@@ -2436,9 +2330,6 @@ static sai_status_t mlnx_nhg_create_ecmp(_In_ mlnx_shm_rm_array_idx_t nhg_idx,
     mlnx_nhg_encap_vrf_data_t *vrf_data = NULL;
     uint32_t                   next_hops_count = FG_ECMP_MAX_PATHS;
     sx_next_hop_t              next_hops[FG_ECMP_MAX_PATHS];
-    uint32_t                   ar_next_hop_cnt = 0;
-    sx_next_hop_t              empty_next_hops[1] = {0};
-    uint32_t                   zero_next_hop_cnt = 0;
 
     assert(nhg_db_entry);
 
@@ -2461,48 +2352,14 @@ static sai_status_t mlnx_nhg_create_ecmp(_In_ mlnx_shm_rm_array_idx_t nhg_idx,
         return status;
     }
 
-    for (uint32_t ii = 0; ii < next_hops_count; ii++) {
-        if (mlnx_is_ar_nexthop(&next_hops[ii])) {
-            ar_next_hop_cnt++;
-        }
-    }
-
-    if ((0 != ar_next_hop_cnt) && (ar_next_hop_cnt == next_hops_count)) {
-        /* AR ecmp cannot be created together with next hops */
-        sx_status = sx_api_router_ecmp_set(get_sdk_handle(),
-                                           SX_ACCESS_CMD_CREATE,
-                                           &vrf_data->sx_ecmp_id,
-                                           empty_next_hops,
-                                           &zero_next_hop_cnt);
-        if (SX_ERR(sx_status)) {
-            SX_LOG_ERR("Failed to set ecmp - %s.\n", SX_STATUS_MSG(sx_status));
-            return sdk_to_sai(sx_status);
-        }
-
-        status = mlnx_set_ar_ecmp_attr(vrf_data->sx_ecmp_id, g_sai_db_ptr->ar_db.ar_ecmp_size);
-        if (SAI_ERR(status)) {
-            SX_LOG_ERR("Failed to set router ecmp to adaptive routing.\n");
-            return status;
-        }
-        sx_status = sx_api_router_ecmp_set(get_sdk_handle(),
-                                           SX_ACCESS_CMD_SET,
-                                           &vrf_data->sx_ecmp_id,
-                                           next_hops,
-                                           &next_hops_count);
-        if (SX_ERR(sx_status)) {
-            SX_LOG_ERR("Failed to set ecmp - %s.\n", SX_STATUS_MSG(sx_status));
-            return sdk_to_sai(sx_status);
-        }
-    } else {
-        sx_status = sx_api_router_ecmp_set(get_sdk_handle(),
-                                           SX_ACCESS_CMD_CREATE,
-                                           &vrf_data->sx_ecmp_id,
-                                           next_hops,
-                                           &next_hops_count);
-        if (SX_ERR(sx_status)) {
-            SX_LOG_ERR("Failed to set ecmp - %s.\n", SX_STATUS_MSG(sx_status));
-            return sdk_to_sai(sx_status);
-        }
+    sx_status = sx_api_router_ecmp_set(gh_sdk,
+                                       SX_ACCESS_CMD_CREATE,
+                                       &vrf_data->sx_ecmp_id,
+                                       next_hops,
+                                       &next_hops_count);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to set ecmp - %s.\n", SX_STATUS_MSG(sx_status));
+        return sdk_to_sai(sx_status);
     }
 
     status = mlnx_ecmp_to_nhg_map_entry_add(vrf_data->sx_ecmp_id,
@@ -2548,7 +2405,7 @@ static sai_status_t mlnx_nhg_remove_ecmp(_In_ mlnx_nhg_db_entry_t *nhg_db_entry,
         return status;
     }
 
-    sx_status = sx_api_router_ecmp_set(get_sdk_handle(),
+    sx_status = sx_api_router_ecmp_set(gh_sdk,
                                        SX_ACCESS_CMD_DESTROY,
                                        &vrf_data->sx_ecmp_id,
                                        NULL,
@@ -2789,34 +2646,6 @@ exit:
     return status;
 }
 
-static sai_status_t mlnx_clean_up_nhgm_on_create_failed(mlnx_nhgm_db_entry_t   *nhgm_db_entry,
-                                                        mlnx_shm_rm_array_idx_t nhgm_idx)
-{
-    sai_status_t         status = SAI_STATUS_SUCCESS;
-    mlnx_nhg_db_entry_t *nhg_db_entry;
-
-    sai_db_write_lock();
-    if (NULL == nhgm_db_entry) {
-        goto exit;
-    }
-
-    status = get_nhg_from_nhgm(nhgm_db_entry, &nhg_db_entry);
-    if (SAI_ERR(status)) {
-        SX_LOG_ERR("Failed to get NHG DB entry.\n");
-        goto exit;
-    }
-
-    status = unlink_nhgm_from_nhg(nhgm_idx, nhgm_db_entry, nhg_db_entry);
-    if (SAI_ERR(status)) {
-        SX_LOG_ERR("Failed to unlink NHGM from NHG.\n");
-        goto exit;
-    }
-
-exit:
-    sai_db_unlock();
-    return status;
-}
-
 /**
  * @brief Create next hop group member
  *
@@ -2881,9 +2710,6 @@ static sai_status_t mlnx_create_next_hop_group_member(_Out_ sai_object_id_t     
     }
 
 exit:
-    if (SAI_ERR(status)) {
-        mlnx_clean_up_nhgm_on_create_failed(nhgm_db_entry, nhgm_idx);
-    }
     SX_LOG_EXIT();
     return status;
 }
@@ -2898,7 +2724,7 @@ static sai_status_t update_next_hop_data_to_ecmp_id(sx_ecmp_id_t  group,
     sx_next_hop_t ecmp_next_hops[FG_ECMP_MAX_PATHS];
     uint32_t      ii = 0;
 
-    sx_status = sx_api_router_ecmp_get(get_sdk_handle(), group, ecmp_next_hops, &next_hop_count);
+    sx_status = sx_api_router_ecmp_get(gh_sdk, group, ecmp_next_hops, &next_hop_count);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to get ecmp - %s.\n", SX_STATUS_MSG(sx_status));
         return sdk_to_sai(sx_status);
@@ -2911,7 +2737,7 @@ static sai_status_t update_next_hop_data_to_ecmp_id(sx_ecmp_id_t  group,
 
     ecmp_next_hops[ii] = new_nh_data;
 
-    sx_status = sx_api_router_ecmp_set(get_sdk_handle(), SX_ACCESS_CMD_SET, &group, ecmp_next_hops, &next_hop_count);
+    sx_status = sx_api_router_ecmp_set(gh_sdk, SX_ACCESS_CMD_SET, &group, ecmp_next_hops, &next_hop_count);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to set ecmp - %s.\n", SX_STATUS_MSG(sx_status));
         return sdk_to_sai(sx_status);
@@ -2928,7 +2754,7 @@ static sai_status_t remove_next_hop_data_from_ecmp_id(sx_ecmp_id_t group, sx_nex
     sx_next_hop_t ecmp_next_hops[FG_ECMP_MAX_PATHS];
     uint32_t      ii = 0;
 
-    sx_status = sx_api_router_ecmp_get(get_sdk_handle(), group, ecmp_next_hops, &next_hop_count);
+    sx_status = sx_api_router_ecmp_get(gh_sdk, group, ecmp_next_hops, &next_hop_count);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to get ecmp - %s.\n", SX_STATUS_MSG(sx_status));
         return sdk_to_sai(sx_status);
@@ -2940,7 +2766,7 @@ static sai_status_t remove_next_hop_data_from_ecmp_id(sx_ecmp_id_t group, sx_nex
     }
     ecmp_next_hops[ii] = ecmp_next_hops[--next_hop_count];
 
-    sx_status = sx_api_router_ecmp_set(get_sdk_handle(), SX_ACCESS_CMD_SET, &group, ecmp_next_hops, &next_hop_count);
+    sx_status = sx_api_router_ecmp_set(gh_sdk, SX_ACCESS_CMD_SET, &group, ecmp_next_hops, &next_hop_count);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to set ecmp - %s.\n", SX_STATUS_MSG(sx_status));
         return sdk_to_sai(sx_status);
@@ -3256,7 +3082,6 @@ static sai_status_t mlnx_nhgm_parse_attrs(_Out_ mlnx_nhgm_db_entry_t   **nhgm_db
         (*nhgm_db_entry)->data.flow_counter = counter_idx;
     }
 
-    /* coverity[remediation] */
     status = link_nhgm_to_nhg(*nhgm_idx, *nhgm_db_entry, nhg_db_entry);
     if (SAI_ERR(status)) {
         SX_LOG_ERR("Failed to link NHGM to NHG.\n");
@@ -3378,15 +3203,7 @@ static sai_status_t mlnx_nhg_apply_bulk_members(_In_ sai_object_id_t nhg_oid)
                     return status;
                 }
 
-                status = mlnx_check_and_set_ar_ecmp(nhg_db_entry->data.data.encap.vrf_data[ii].sx_ecmp_id,
-                                                    next_hops,
-                                                    next_hops_count);
-                if (SAI_ERR(status)) {
-                    SX_LOG_ERR("Failed to check ar for sx_ecmp_id. [index = %d]\n", ii);
-                    return status;
-                }
-
-                sx_status = sx_api_router_ecmp_set(get_sdk_handle(),
+                sx_status = sx_api_router_ecmp_set(gh_sdk,
                                                    SX_ACCESS_CMD_SET,
                                                    &nhg_db_entry->data.data.encap.vrf_data[ii].sx_ecmp_id,
                                                    next_hops,
@@ -3408,15 +3225,7 @@ static sai_status_t mlnx_nhg_apply_bulk_members(_In_ sai_object_id_t nhg_oid)
             return status;
         }
 
-        status = mlnx_check_and_set_ar_ecmp(nhg_db_entry->data.data.encap.vrf_data[MLNX_REGULAR_ECMP_INDEX].sx_ecmp_id,
-                                            next_hops,
-                                            next_hops_count);
-        if (SAI_ERR(status)) {
-            SX_LOG_ERR("Failed to check ar for sx_ecmp_id. [index = %d]\n", MLNX_REGULAR_ECMP_INDEX);
-            return status;
-        }
-
-        sx_status = sx_api_router_ecmp_set(get_sdk_handle(),
+        sx_status = sx_api_router_ecmp_set(gh_sdk,
                                            SX_ACCESS_CMD_SET,
                                            &nhg_db_entry->data.data.encap.vrf_data[MLNX_REGULAR_ECMP_INDEX].sx_ecmp_id,
                                            next_hops,

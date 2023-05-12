@@ -694,7 +694,7 @@ sai_status_t mlnx_tunnel_availability_get(_In_ sai_object_id_t        switch_id,
         sx_tunnel_filter.filter_by_type = SX_TUNNEL_KEY_FILTER_FIELD_VALID;
         sx_tunnel_filter.filter_by_direction = SX_TUNNEL_KEY_FILTER_FIELD_NOT_VALID;
 
-        sx_status = sx_api_tunnel_iter_get(get_sdk_handle(),
+        sx_status = sx_api_tunnel_iter_get(gh_sdk,
                                            SX_ACCESS_CMD_GET,
                                            0,
                                            &sx_tunnel_filter,
@@ -757,7 +757,7 @@ sai_status_t mlnx_tunnel_term_table_entry_availability_get(_In_ sai_object_id_t 
         return SAI_STATUS_ATTR_NOT_SUPPORTED_0;
     }
 
-    sx_status = sx_api_rm_free_entries_by_type_get(get_sdk_handle(), table_type, &available_entries);
+    sx_status = sx_api_rm_free_entries_by_type_get(gh_sdk, table_type, &available_entries);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to get a number of free resources for sx table %d - %s\n", table_type,
                    SX_STATUS_MSG(sx_status));
@@ -2357,7 +2357,7 @@ sai_status_t mlnx_vxlan_srcport_set_hash(sx_tunnel_id_t tunnel_id, mlnx_tunnel_h
         return SAI_STATUS_FAILURE;
     }
 
-    sdk_status = sx_api_tunnel_hash_set(get_sdk_handle(), tunnel_id, &sx_tunnel_hash_data);
+    sdk_status = sx_api_tunnel_hash_set(gh_sdk, tunnel_id, &sx_tunnel_hash_data);
     if (SX_ERR(sdk_status)) {
         sai_status = sdk_to_sai(sdk_status);
         goto out;
@@ -2920,7 +2920,7 @@ static sai_status_t mlnx_tunnel_loopback_packet_action_set(_In_ const sai_object
         goto exit;
     }
 
-    sx_status = sx_api_router_interface_set(get_sdk_handle(),
+    sx_status = sx_api_router_interface_set(gh_sdk,
                                             SX_ACCESS_CMD_EDIT,
                                             sx_data->vrf_id,
                                             intf_params_ptr,
@@ -3461,8 +3461,7 @@ static sai_status_t mlnx_tunnel_term_table_entry_tunnel_id_get(_In_ const sai_ob
     }
 
     if (SX_STATUS_SUCCESS !=
-        (sdk_status =
-             sx_api_tunnel_decap_rules_get(get_sdk_handle(), &sdk_tunnel_decap_key, &sdk_tunnel_decap_data))) {
+        (sdk_status = sx_api_tunnel_decap_rules_get(gh_sdk, &sdk_tunnel_decap_key, &sdk_tunnel_decap_data))) {
         sai_status = sdk_to_sai(sdk_status);
         SX_LOG_ERR("Error getting tunnel id from sai tunnel table entry id %" PRIx64 ", sx status %s\n",
                    key->key.object_id,
@@ -3895,8 +3894,7 @@ static sai_status_t mlnx_sai_get_sx_vrid_from_sx_rif(_In_ sx_router_interface_t 
 
     if (SX_STATUS_SUCCESS !=
         (sdk_status =
-             sx_api_router_interface_get(get_sdk_handle(), sdk_rif_id, sdk_vrid, &sdk_intf_params,
-                                         &sdk_intf_attribs))) {
+             sx_api_router_interface_get(gh_sdk, sdk_rif_id, sdk_vrid, &sdk_intf_params, &sdk_intf_attribs))) {
         sai_status = sdk_to_sai(sdk_status);
         SX_LOG_ERR("Error getting sdk vrid from sdk rif id %d, sx status: %s\n", sdk_rif_id,
                    SX_STATUS_MSG(sdk_status));
@@ -4732,7 +4730,7 @@ static sai_status_t mlnx_sdk_fill_ipinip_p2p_attrib(_In_ uint32_t               
         goto exit;
     }
 
-    sx_status = sx_api_router_interface_get(get_sdk_handle(),
+    sx_status = sx_api_router_interface_get(gh_sdk,
                                             sx_rif,
                                             &sdk_vrid,
                                             &sdk_intf_params,
@@ -4775,7 +4773,7 @@ static sai_status_t mlnx_sdk_fill_ipinip_p2p_attrib(_In_ uint32_t               
         }
     }
 
-    sx_status = sx_api_router_interface_set(get_sdk_handle(),
+    sx_status = sx_api_router_interface_set(gh_sdk,
                                             SX_ACCESS_CMD_EDIT,
                                             sdk_vrid,
                                             &sdk_intf_params,
@@ -4818,7 +4816,7 @@ static sai_status_t mlnx_sdk_fill_ipinip_p2p_attrib(_In_ uint32_t               
         goto exit;
     }
 
-    sx_status = sx_api_router_interface_get(get_sdk_handle(), sx_rif, &sdk_vrid, &sdk_intf_params, &sdk_intf_attribs);
+    sx_status = sx_api_router_interface_get(gh_sdk, sx_rif, &sdk_vrid, &sdk_intf_params, &sdk_intf_attribs);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Error getting sdk rif info from sdk rif id %d, sx status: %s\n", sx_rif,
                    SX_STATUS_MSG(sx_status));
@@ -5376,7 +5374,7 @@ static sai_status_t mlnx_tunnel_map_entry_ecn_bind_set(_In_ uint32_t tunnel_map_
             }
             if ((SX_TUNNEL_DIRECTION_ENCAP == mlnx_tunnel_db_entry.sx_tunnel_attr.direction) ||
                 (SX_TUNNEL_DIRECTION_SYMMETRIC == mlnx_tunnel_db_entry.sx_tunnel_attr.direction)) {
-                if (SX_STATUS_SUCCESS != (sdk_status = sx_api_tunnel_cos_set(get_sdk_handle(),
+                if (SX_STATUS_SUCCESS != (sdk_status = sx_api_tunnel_cos_set(gh_sdk,
                                                                              sx_tunnel_id_ipv4,
                                                                              &sdk_encap_cos_data))) {
                     sai_status = sdk_to_sai(sdk_status);
@@ -5389,7 +5387,7 @@ static sai_status_t mlnx_tunnel_map_entry_ecn_bind_set(_In_ uint32_t tunnel_map_
 
             if ((SX_TUNNEL_DIRECTION_DECAP == mlnx_tunnel_db_entry.sx_tunnel_attr.direction) ||
                 (SX_TUNNEL_DIRECTION_SYMMETRIC == mlnx_tunnel_db_entry.sx_tunnel_attr.direction)) {
-                if (SX_STATUS_SUCCESS != (sdk_status = sx_api_tunnel_cos_set(get_sdk_handle(),
+                if (SX_STATUS_SUCCESS != (sdk_status = sx_api_tunnel_cos_set(gh_sdk,
                                                                              sx_tunnel_id_ipv4,
                                                                              &sdk_decap_cos_data))) {
                     sai_status = sdk_to_sai(sdk_status);
@@ -5403,7 +5401,7 @@ static sai_status_t mlnx_tunnel_map_entry_ecn_bind_set(_In_ uint32_t tunnel_map_
         if (g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_idx].ipv6_created) {
             if ((SX_TUNNEL_DIRECTION_ENCAP == mlnx_tunnel_db_entry.sx_tunnel_attr.direction) ||
                 (SX_TUNNEL_DIRECTION_SYMMETRIC == mlnx_tunnel_db_entry.sx_tunnel_attr.direction)) {
-                if (SX_STATUS_SUCCESS != (sdk_status = sx_api_tunnel_cos_set(get_sdk_handle(),
+                if (SX_STATUS_SUCCESS != (sdk_status = sx_api_tunnel_cos_set(gh_sdk,
                                                                              sx_tunnel_id_ipv6,
                                                                              &sdk_encap_cos_data))) {
                     sai_status = sdk_to_sai(sdk_status);
@@ -5416,7 +5414,7 @@ static sai_status_t mlnx_tunnel_map_entry_ecn_bind_set(_In_ uint32_t tunnel_map_
 
             if ((SX_TUNNEL_DIRECTION_DECAP == mlnx_tunnel_db_entry.sx_tunnel_attr.direction) ||
                 (SX_TUNNEL_DIRECTION_SYMMETRIC == mlnx_tunnel_db_entry.sx_tunnel_attr.direction)) {
-                if (SX_STATUS_SUCCESS != (sdk_status = sx_api_tunnel_cos_set(get_sdk_handle(),
+                if (SX_STATUS_SUCCESS != (sdk_status = sx_api_tunnel_cos_set(gh_sdk,
                                                                              sx_tunnel_id_ipv6,
                                                                              &sdk_decap_cos_data))) {
                     sai_status = sdk_to_sai(sdk_status);
@@ -5998,7 +5996,7 @@ static sai_status_t mlnx_sai_tunnel_map_entry_bind_vxlan_set(_In_ uint32_t      
         if ((SAI_TUNNEL_MAP_TYPE_VNI_TO_VIRTUAL_ROUTER_ID != tunnel_map_type) &&
             (SAI_TUNNEL_MAP_TYPE_VIRTUAL_ROUTER_ID_TO_VNI != tunnel_map_type)) {
             if (SX_STATUS_SUCCESS !=
-                (sdk_status = sx_api_tunnel_map_set(get_sdk_handle(),
+                (sdk_status = sx_api_tunnel_map_set(gh_sdk,
                                                     cmd,
                                                     sx_tunnel_id_ipv4,
                                                     sx_tunnel_map_entry,
@@ -6751,7 +6749,7 @@ static sai_status_t mlnx_create_sdk_tunnel(_In_ sai_object_id_t      sai_tunnel_
 
     g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].sx_tunnel_attr.type = sx_tunnel_type_ipv4;
 
-    if (SX_STATUS_SUCCESS != (sdk_status = sx_api_tunnel_set(get_sdk_handle(),
+    if (SX_STATUS_SUCCESS != (sdk_status = sx_api_tunnel_set(gh_sdk,
                                                              SX_ACCESS_CMD_CREATE,
                                                              &sx_tunnel_attr,
                                                              &sx_tunnel_id_ipv4))) {
@@ -6782,7 +6780,7 @@ static sai_status_t mlnx_create_sdk_tunnel(_In_ sai_object_id_t      sai_tunnel_
         && mlnx_tunnel_type_ipinip(sai_tunnel_type)) {
         sx_overlay_rif_ipv4 = sx_tunnel_attr.attributes.ipinip_p2p.overlay_rif;
 
-        sdk_status = sx_api_router_interface_get(get_sdk_handle(), sx_overlay_rif_ipv4,
+        sdk_status = sx_api_router_interface_get(gh_sdk, sx_overlay_rif_ipv4,
                                                  &sx_vrid, &sx_ifc, &sx_ifc_attr);
         if (SX_STATUS_SUCCESS != sdk_status) {
             SX_LOG_ERR("Error getting ipv4 overlay sdk rif %d: %s\n",
@@ -6790,7 +6788,7 @@ static sai_status_t mlnx_create_sdk_tunnel(_In_ sai_object_id_t      sai_tunnel_
             goto cleanup;
         }
 
-        sdk_status = sx_api_router_interface_set(get_sdk_handle(), SX_ACCESS_CMD_ADD, sx_vrid,
+        sdk_status = sx_api_router_interface_set(gh_sdk, SX_ACCESS_CMD_ADD, sx_vrid,
                                                  &sx_ifc, &sx_ifc_attr, &sx_overlay_rif_ipv6);
         if (SX_STATUS_SUCCESS != sdk_status) {
             SX_LOG_ERR("Error setting ipv6 overlay sdk rif: %s\n", SX_STATUS_MSG(sdk_status));
@@ -6810,7 +6808,7 @@ static sai_status_t mlnx_create_sdk_tunnel(_In_ sai_object_id_t      sai_tunnel_
         sx_tunnel_attr.type = sx_tunnel_type_ipv6;
 
         if (SX_STATUS_SUCCESS !=
-            (sdk_status = sx_api_tunnel_set(get_sdk_handle(), SX_ACCESS_CMD_CREATE,
+            (sdk_status = sx_api_tunnel_set(gh_sdk, SX_ACCESS_CMD_CREATE,
                                             &sx_tunnel_attr,
                                             &sx_tunnel_id_ipv6))) {
             sai_status = sdk_to_sai(sdk_status);
@@ -6824,7 +6822,7 @@ static sai_status_t mlnx_create_sdk_tunnel(_In_ sai_object_id_t      sai_tunnel_
 
         if ((SX_TUNNEL_DIRECTION_ENCAP == sx_tunnel_attr.direction) ||
             (SX_TUNNEL_DIRECTION_SYMMETRIC == sx_tunnel_attr.direction)) {
-            if (SX_STATUS_SUCCESS != (sdk_status = sx_api_tunnel_cos_set(get_sdk_handle(),
+            if (SX_STATUS_SUCCESS != (sdk_status = sx_api_tunnel_cos_set(gh_sdk,
                                                                          sx_tunnel_id_ipv6,
                                                                          &sdk_encap_cos_data))) {
                 sai_status = sdk_to_sai(sdk_status);
@@ -6835,7 +6833,7 @@ static sai_status_t mlnx_create_sdk_tunnel(_In_ sai_object_id_t      sai_tunnel_
 
         if ((SX_TUNNEL_DIRECTION_DECAP == sx_tunnel_attr.direction) ||
             (SX_TUNNEL_DIRECTION_SYMMETRIC == sx_tunnel_attr.direction)) {
-            if (SX_STATUS_SUCCESS != (sdk_status = sx_api_tunnel_cos_set(get_sdk_handle(),
+            if (SX_STATUS_SUCCESS != (sdk_status = sx_api_tunnel_cos_set(gh_sdk,
                                                                          sx_tunnel_id_ipv6,
                                                                          &sdk_decap_cos_data))) {
                 sai_status = sdk_to_sai(sdk_status);
@@ -6847,7 +6845,7 @@ static sai_status_t mlnx_create_sdk_tunnel(_In_ sai_object_id_t      sai_tunnel_
 
     if ((SX_TUNNEL_DIRECTION_ENCAP == sx_tunnel_attr.direction) ||
         (SX_TUNNEL_DIRECTION_SYMMETRIC == sx_tunnel_attr.direction)) {
-        if (SX_STATUS_SUCCESS != (sdk_status = sx_api_tunnel_cos_set(get_sdk_handle(),
+        if (SX_STATUS_SUCCESS != (sdk_status = sx_api_tunnel_cos_set(gh_sdk,
                                                                      sx_tunnel_id_ipv4,
                                                                      &sdk_encap_cos_data))) {
             sai_status = sdk_to_sai(sdk_status);
@@ -6857,7 +6855,7 @@ static sai_status_t mlnx_create_sdk_tunnel(_In_ sai_object_id_t      sai_tunnel_
         /* TTL setting is shared with all SDK tunnels of the same type (IP in IP or VXLAN,
          * regardless of IPv4 or IPv6),
          * thus only need to set on IPv4 tunnel */
-        if (SX_STATUS_SUCCESS != (sdk_status = sx_api_tunnel_ttl_set(get_sdk_handle(),
+        if (SX_STATUS_SUCCESS != (sdk_status = sx_api_tunnel_ttl_set(gh_sdk,
                                                                      sx_tunnel_id_ipv4,
                                                                      &sdk_encap_ttl_data_attrib))) {
             sai_status = sdk_to_sai(sdk_status);
@@ -6868,7 +6866,7 @@ static sai_status_t mlnx_create_sdk_tunnel(_In_ sai_object_id_t      sai_tunnel_
 
     if ((SX_TUNNEL_DIRECTION_DECAP == sx_tunnel_attr.direction) ||
         (SX_TUNNEL_DIRECTION_SYMMETRIC == sx_tunnel_attr.direction)) {
-        if (SX_STATUS_SUCCESS != (sdk_status = sx_api_tunnel_cos_set(get_sdk_handle(),
+        if (SX_STATUS_SUCCESS != (sdk_status = sx_api_tunnel_cos_set(gh_sdk,
                                                                      sx_tunnel_id_ipv4,
                                                                      &sdk_decap_cos_data))) {
             sai_status = sdk_to_sai(sdk_status);
@@ -6877,7 +6875,7 @@ static sai_status_t mlnx_create_sdk_tunnel(_In_ sai_object_id_t      sai_tunnel_
         }
         /* Setting decap ttl is not allowed in current SDK
          * Current behavior is pipe model for decap in SDK */
-        /*if (SX_STATUS_SUCCESS != (sdk_status = sx_api_tunnel_ttl_set(get_sdk_handle(),
+        /*if (SX_STATUS_SUCCESS != (sdk_status = sx_api_tunnel_ttl_set(gh_sdk,
          *                                                            sx_tunnel_id_ipv4,
          *                                                            &sdk_decap_ttl_data_attrib))) {
          *   sai_status = sdk_to_sai(sdk_status);
@@ -6911,7 +6909,7 @@ static sai_status_t mlnx_create_sdk_tunnel(_In_ sai_object_id_t      sai_tunnel_
         }
 
         /* Arch spec: learning must be disabled on nve_log_port */
-        sdk_status = sx_api_fdb_port_learn_mode_set(get_sdk_handle(),
+        sdk_status = sx_api_fdb_port_learn_mode_set(gh_sdk,
                                                     g_sai_db_ptr->sx_nve_log_port,
                                                     SX_FDB_LEARN_MODE_DONT_LEARN);
         if (SX_ERR(sdk_status)) {
@@ -6957,7 +6955,7 @@ static sai_status_t mlnx_create_sdk_tunnel(_In_ sai_object_id_t      sai_tunnel_
     if (mlnx_tunnel_type_ipinip(sai_tunnel_type)) {
         if (SX_STATUS_SUCCESS !=
             (sdk_status =
-                 sx_api_router_interface_state_set(get_sdk_handle(), sx_tunnel_attr.attributes.ipinip_p2p.overlay_rif,
+                 sx_api_router_interface_state_set(gh_sdk, sx_tunnel_attr.attributes.ipinip_p2p.overlay_rif,
                                                    &rif_state))) {
             SX_LOG_ERR("Failed to set overlay router interface %d state - %s.\n",
                        sx_tunnel_attr.attributes.ipinip_p2p.overlay_rif,
@@ -6968,8 +6966,7 @@ static sai_status_t mlnx_create_sdk_tunnel(_In_ sai_object_id_t      sai_tunnel_
         if (mlnx_chip_is_spc2or3or4()) {
             if (SX_STATUS_SUCCESS !=
                 (sdk_status =
-                     sx_api_router_interface_state_set(get_sdk_handle(),
-                                                       sx_tunnel_attr.attributes.ipinip_p2p.underlay_rif,
+                     sx_api_router_interface_state_set(gh_sdk, sx_tunnel_attr.attributes.ipinip_p2p.underlay_rif,
                                                        &rif_state))) {
                 SX_LOG_ERR("Failed to set underlay router interface %d state - %s.\n",
                            sx_tunnel_attr.attributes.ipinip_p2p.underlay_rif,
@@ -6979,7 +6976,7 @@ static sai_status_t mlnx_create_sdk_tunnel(_In_ sai_object_id_t      sai_tunnel_
             }
         }
         if (sdk_tunnel_ipv6_created) {
-            sdk_status = sx_api_router_interface_state_set(get_sdk_handle(), sx_overlay_rif_ipv6,
+            sdk_status = sx_api_router_interface_state_set(gh_sdk, sx_overlay_rif_ipv6,
                                                            &rif_state);
             if (SX_STATUS_SUCCESS != sdk_status) {
                 SX_LOG_ERR("Failed to set ipv6 overlay router interface %d state - %s.\n",
@@ -6992,8 +6989,7 @@ static sai_status_t mlnx_create_sdk_tunnel(_In_ sai_object_id_t      sai_tunnel_
         if (mlnx_chip_is_spc2or3or4()) {
             if (SX_STATUS_SUCCESS !=
                 (sdk_status =
-                     sx_api_router_interface_state_set(get_sdk_handle(),
-                                                       sx_tunnel_attr.attributes.vxlan.encap.underlay_rif,
+                     sx_api_router_interface_state_set(gh_sdk, sx_tunnel_attr.attributes.vxlan.encap.underlay_rif,
                                                        &rif_state))) {
                 SX_LOG_ERR("Failed to set underlay router interface %d state - %s.\n",
                            sx_tunnel_attr.attributes.vxlan.encap.underlay_rif,
@@ -7003,8 +6999,7 @@ static sai_status_t mlnx_create_sdk_tunnel(_In_ sai_object_id_t      sai_tunnel_
             }
             if (SX_STATUS_SUCCESS !=
                 (sdk_status =
-                     sx_api_router_interface_state_set(get_sdk_handle(),
-                                                       sx_tunnel_attr.attributes.vxlan.decap.underlay_rif,
+                     sx_api_router_interface_state_set(gh_sdk, sx_tunnel_attr.attributes.vxlan.decap.underlay_rif,
                                                        &rif_state))) {
                 SX_LOG_ERR("Failed to set underlay router interface %d state - %s.\n",
                            sx_tunnel_attr.attributes.vxlan.decap.underlay_rif,
@@ -7034,7 +7029,7 @@ cleanup:
     if (sdk_tunnel_map_created) {
         if (SX_STATUS_SUCCESS !=
             (sdk_status =
-                 sx_api_tunnel_map_set(get_sdk_handle(),
+                 sx_api_tunnel_map_set(gh_sdk,
                                        SX_ACCESS_CMD_DELETE_ALL,
                                        sx_tunnel_id_ipv4,
                                        sx_tunnel_map_entry,
@@ -7053,7 +7048,7 @@ cleanup:
 
     if (sdk_tunnel_ipv6_created) {
         if (SX_STATUS_SUCCESS !=
-            (sdk_status = sx_api_tunnel_set(get_sdk_handle(),
+            (sdk_status = sx_api_tunnel_set(gh_sdk,
                                             SX_ACCESS_CMD_DESTROY,
                                             &sx_tunnel_attr,
                                             &sx_tunnel_id_ipv6))) {
@@ -7062,7 +7057,7 @@ cleanup:
                            sdk_status));
         }
 
-        sdk_status = sx_api_router_interface_set(get_sdk_handle(), SX_ACCESS_CMD_DELETE, sx_vrid,
+        sdk_status = sx_api_router_interface_set(gh_sdk, SX_ACCESS_CMD_DELETE, sx_vrid,
                                                  &sx_ifc, &sx_ifc_attr, &sx_overlay_rif_ipv6);
         if (SX_STATUS_SUCCESS != sdk_status) {
             SX_LOG_ERR("Error setting ipv6 overlay sdk rif: %s\n", SX_STATUS_MSG(sdk_status));
@@ -7075,7 +7070,7 @@ cleanup:
 
     if (sdk_tunnel_ipv4_created) {
         if (SX_STATUS_SUCCESS !=
-            (sdk_status = sx_api_tunnel_set(get_sdk_handle(),
+            (sdk_status = sx_api_tunnel_set(gh_sdk,
                                             SX_ACCESS_CMD_DESTROY,
                                             &sx_tunnel_attr,
                                             &sx_tunnel_id_ipv4))) {
@@ -7113,7 +7108,7 @@ static sai_status_t mlnx_remove_sdk_ipinip_tunnel(_In_ uint32_t tunnel_db_idx)
         rif_state.ipv4_enable = false;
         rif_state.ipv6_enable = false;
         if (g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].ipv6_created) {
-            sdk_status = sx_api_router_interface_get(get_sdk_handle(), sx_overlay_rif_ipv6,
+            sdk_status = sx_api_router_interface_get(gh_sdk, sx_overlay_rif_ipv6,
                                                      &sx_vrid, &sx_ifc, &sx_ifc_attr);
             if (SX_STATUS_SUCCESS != sdk_status) {
                 SX_LOG_ERR("Error getting ipv6 overlay sdk rif %d: %s\n",
@@ -7124,14 +7119,14 @@ static sai_status_t mlnx_remove_sdk_ipinip_tunnel(_In_ uint32_t tunnel_db_idx)
 
             if (SX_STATUS_SUCCESS !=
                 (sdk_status =
-                     sx_api_router_interface_state_set(get_sdk_handle(), sx_overlay_rif_ipv6,
+                     sx_api_router_interface_state_set(gh_sdk, sx_overlay_rif_ipv6,
                                                        &rif_state))) {
                 SX_LOG_ERR("Failed to set overlay router interface state to down - %s.\n", SX_STATUS_MSG(sdk_status));
                 sai_status = sdk_to_sai(sdk_status);
                 goto cleanup;
             }
             if (SX_STATUS_SUCCESS !=
-                (sdk_status = sx_api_tunnel_set(get_sdk_handle(),
+                (sdk_status = sx_api_tunnel_set(gh_sdk,
                                                 SX_ACCESS_CMD_DESTROY,
                                                 &sx_tunnel_attr,
                                                 &g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].sx_tunnel_id_ipv6)))
@@ -7143,7 +7138,7 @@ static sai_status_t mlnx_remove_sdk_ipinip_tunnel(_In_ uint32_t tunnel_db_idx)
                 goto cleanup;
             }
 
-            sdk_status = sx_api_router_interface_set(get_sdk_handle(), SX_ACCESS_CMD_DELETE, sx_vrid,
+            sdk_status = sx_api_router_interface_set(gh_sdk, SX_ACCESS_CMD_DELETE, sx_vrid,
                                                      &sx_ifc, &sx_ifc_attr, &sx_overlay_rif_ipv6);
             if (SX_STATUS_SUCCESS != sdk_status) {
                 SX_LOG_ERR("Error setting ipv6 overlay sdk rif: %s\n", SX_STATUS_MSG(sdk_status));
@@ -7157,8 +7152,7 @@ static sai_status_t mlnx_remove_sdk_ipinip_tunnel(_In_ uint32_t tunnel_db_idx)
         if (g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].ipv4_created) {
             if (SX_STATUS_SUCCESS !=
                 (sdk_status =
-                     sx_api_router_interface_state_set(get_sdk_handle(),
-                                                       sx_tunnel_attr.attributes.ipinip_p2p.overlay_rif,
+                     sx_api_router_interface_state_set(gh_sdk, sx_tunnel_attr.attributes.ipinip_p2p.overlay_rif,
                                                        &rif_state))) {
                 SX_LOG_ERR("Failed to set overlay router interface state to down - %s.\n", SX_STATUS_MSG(sdk_status));
                 sai_status = sdk_to_sai(sdk_status);
@@ -7169,7 +7163,7 @@ static sai_status_t mlnx_remove_sdk_ipinip_tunnel(_In_ uint32_t tunnel_db_idx)
                                                            sx_tunnel_attr.attributes.ipinip_p2p.underlay_rif)) {
                     if (SX_STATUS_SUCCESS !=
                         (sdk_status =
-                             sx_api_router_interface_state_set(get_sdk_handle(),
+                             sx_api_router_interface_state_set(gh_sdk,
                                                                sx_tunnel_attr.attributes.ipinip_p2p.underlay_rif,
                                                                &rif_state))) {
                         SX_LOG_ERR("Failed to set underlay router interface state to down - %s.\n",
@@ -7180,7 +7174,7 @@ static sai_status_t mlnx_remove_sdk_ipinip_tunnel(_In_ uint32_t tunnel_db_idx)
                 }
             }
             if (SX_STATUS_SUCCESS !=
-                (sdk_status = sx_api_tunnel_set(get_sdk_handle(),
+                (sdk_status = sx_api_tunnel_set(gh_sdk,
                                                 SX_ACCESS_CMD_DESTROY,
                                                 &sx_tunnel_attr,
                                                 &g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].sx_tunnel_id_ipv4)))
@@ -7211,7 +7205,7 @@ sai_status_t mlnx_parsing_depth_increase(void)
         return SAI_STATUS_SUCCESS;
     }
 
-    sx_status = sx_api_port_parsing_depth_set(get_sdk_handle(), parsing_depth);
+    sx_status = sx_api_port_parsing_depth_set(gh_sdk, parsing_depth);
     if (SX_ERR(sx_status)) {
         SX_LOG_WRN("Warning: not able to set port parsing depth: %s\n", SX_STATUS_MSG(sx_status));
         return sdk_to_sai(sx_status);
@@ -7472,8 +7466,7 @@ static sai_status_t mlnx_create_tunnel(_Out_ sai_object_id_t     * sai_tunnel_ob
         } else {
             sx_tunnel_general_params.nve.encap_sport = sport_base >> 8;
         }
-
-        sx_status = sx_api_tunnel_init_set(get_sdk_handle(), &sx_tunnel_general_params);
+        sx_status = sx_api_tunnel_init_set(gh_sdk, &sx_tunnel_general_params);
         if (SX_STATUS_SUCCESS != sx_status) {
             sai_db_unlock();
             status = sdk_to_sai(sx_status);
@@ -7817,8 +7810,7 @@ static sai_status_t mlnx_remove_tunnel(_In_ const sai_object_id_t sai_tunnel_obj
                        sx_tunnel_attr.attributes.ipinip_p2p.overlay_rif);
             if (SX_STATUS_SUCCESS !=
                 (sdk_status =
-                     sx_api_router_interface_state_set(get_sdk_handle(),
-                                                       sx_tunnel_attr.attributes.ipinip_p2p.overlay_rif,
+                     sx_api_router_interface_state_set(gh_sdk, sx_tunnel_attr.attributes.ipinip_p2p.overlay_rif,
                                                        &rif_state))) {
                 SX_LOG_ERR("Failed to set overlay router interface state to down - %s.\n", SX_STATUS_MSG(sdk_status));
                 sai_status = sdk_to_sai(sdk_status);
@@ -7829,7 +7821,7 @@ static sai_status_t mlnx_remove_tunnel(_In_ const sai_object_id_t sai_tunnel_obj
                                                            sx_tunnel_attr.attributes.ipinip_p2p.underlay_rif)) {
                     if (SX_STATUS_SUCCESS !=
                         (sdk_status =
-                             sx_api_router_interface_state_set(get_sdk_handle(),
+                             sx_api_router_interface_state_set(gh_sdk,
                                                                sx_tunnel_attr.attributes.ipinip_p2p.underlay_rif,
                                                                &rif_state))) {
                         SX_LOG_ERR("Failed to set underlay router interface state to down - %s.\n",
@@ -7843,7 +7835,7 @@ static sai_status_t mlnx_remove_tunnel(_In_ const sai_object_id_t sai_tunnel_obj
         if (ipv6_created) {
             if (SX_STATUS_SUCCESS !=
                 (sdk_status =
-                     sx_api_router_interface_state_set(get_sdk_handle(), sx_overlay_rif_ipv6,
+                     sx_api_router_interface_state_set(gh_sdk, sx_overlay_rif_ipv6,
                                                        &rif_state))) {
                 SX_LOG_ERR("Failed to set overlay router interface state to down - %s.\n", SX_STATUS_MSG(sdk_status));
                 sai_status = sdk_to_sai(sdk_status);
@@ -7857,8 +7849,7 @@ static sai_status_t mlnx_remove_tunnel(_In_ const sai_object_id_t sai_tunnel_obj
                                                        sx_tunnel_attr.attributes.vxlan.encap.underlay_rif)) {
                 if (SX_STATUS_SUCCESS !=
                     (sdk_status =
-                         sx_api_router_interface_state_set(get_sdk_handle(),
-                                                           sx_tunnel_attr.attributes.vxlan.encap.underlay_rif,
+                         sx_api_router_interface_state_set(gh_sdk, sx_tunnel_attr.attributes.vxlan.encap.underlay_rif,
                                                            &rif_state))) {
                     SX_LOG_ERR("Failed to set underlay router interface state to down - %s.\n",
                                SX_STATUS_MSG(sdk_status));
@@ -7871,8 +7862,7 @@ static sai_status_t mlnx_remove_tunnel(_In_ const sai_object_id_t sai_tunnel_obj
                                                        sx_tunnel_attr.attributes.vxlan.decap.underlay_rif)) {
                 if (SX_STATUS_SUCCESS !=
                     (sdk_status =
-                         sx_api_router_interface_state_set(get_sdk_handle(),
-                                                           sx_tunnel_attr.attributes.vxlan.decap.underlay_rif,
+                         sx_api_router_interface_state_set(gh_sdk, sx_tunnel_attr.attributes.vxlan.decap.underlay_rif,
                                                            &rif_state))) {
                     SX_LOG_ERR("Failed to set underlay router interface state to down - %s.\n",
                                SX_STATUS_MSG(sdk_status));
@@ -7888,7 +7878,7 @@ static sai_status_t mlnx_remove_tunnel(_In_ const sai_object_id_t sai_tunnel_obj
         if ((SX_TUNNEL_TYPE_NVE_VXLAN == sx_tunnel_attr.type) ||
             (SX_TUNNEL_TYPE_NVE_VXLAN_IPV6 == sx_tunnel_attr.type)) {
             if (SX_STATUS_SUCCESS != (sdk_status = sx_api_tunnel_map_set(
-                                          get_sdk_handle(),
+                                          gh_sdk,
                                           SX_ACCESS_CMD_DELETE_ALL,
                                           sx_tunnel_id,
                                           &sx_tunnel_map_entry,
@@ -7970,7 +7960,7 @@ static sai_status_t mlnx_remove_tunnel(_In_ const sai_object_id_t sai_tunnel_obj
     if ((ipv4_created)
         && (!(need_to_keep_sdk_tunnel && mlnx_is_tunnel_ipinip_p2p(&sx_tunnel_attr)))) {
         if (SX_STATUS_SUCCESS != (sdk_status = sx_api_tunnel_set(
-                                      get_sdk_handle(),
+                                      gh_sdk,
                                       SX_ACCESS_CMD_DESTROY,
                                       &sx_tunnel_attr,
                                       &sx_tunnel_id))) {
@@ -7984,7 +7974,7 @@ static sai_status_t mlnx_remove_tunnel(_In_ const sai_object_id_t sai_tunnel_obj
         && (!(need_to_keep_sdk_tunnel && mlnx_is_tunnel_ipinip_p2p(&sx_tunnel_attr)))) {
         sx_tunnel_id = g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].sx_tunnel_id_ipv6;
         if (SX_STATUS_SUCCESS != (sdk_status = sx_api_tunnel_set(
-                                      get_sdk_handle(),
+                                      gh_sdk,
                                       SX_ACCESS_CMD_DESTROY,
                                       &sx_tunnel_attr,
                                       &sx_tunnel_id))) {
@@ -7992,7 +7982,7 @@ static sai_status_t mlnx_remove_tunnel(_In_ const sai_object_id_t sai_tunnel_obj
             SX_LOG_ERR("Error destroying sx tunnel id %d, sx status: %s\n", sx_tunnel_id, SX_STATUS_MSG(sdk_status));
             goto cleanup;
         }
-        sdk_status = sx_api_router_interface_set(get_sdk_handle(), SX_ACCESS_CMD_DELETE, sx_vrid,
+        sdk_status = sx_api_router_interface_set(gh_sdk, SX_ACCESS_CMD_DELETE, sx_vrid,
                                                  &sx_ifc, &sx_ifc_attr, &sx_overlay_rif_ipv6);
         if (SX_STATUS_SUCCESS != sdk_status) {
             sai_status = sdk_to_sai(sdk_status);
@@ -8321,7 +8311,7 @@ static sai_status_t mlnx_create_tunnel_term_table_entry(_Out_ sai_object_id_t   
     }
 
     if (SX_STATUS_SUCCESS !=
-        (sdk_status = sx_api_tunnel_decap_rules_set(get_sdk_handle(), SX_ACCESS_CMD_CREATE,
+        (sdk_status = sx_api_tunnel_decap_rules_set(gh_sdk, SX_ACCESS_CMD_CREATE,
                                                     &sdk_tunnel_decap_key,
                                                     &sdk_tunnel_decap_data))) {
         sai_status = sdk_to_sai(sdk_status);
@@ -8344,7 +8334,7 @@ static sai_status_t mlnx_create_tunnel_term_table_entry(_Out_ sai_object_id_t   
         sx_tunnel_id_ipv6 = g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].sx_tunnel_id_ipv6;
         sdk_tunnel_decap_data.tunnel_id = sx_tunnel_id_ipv6;
         if (SX_STATUS_SUCCESS !=
-            (sdk_status = sx_api_tunnel_decap_rules_set(get_sdk_handle(), SX_ACCESS_CMD_CREATE,
+            (sdk_status = sx_api_tunnel_decap_rules_set(gh_sdk, SX_ACCESS_CMD_CREATE,
                                                         &sdk_tunnel_decap_key,
                                                         &sdk_tunnel_decap_data))) {
             sai_status = sdk_to_sai(sdk_status);
@@ -8405,7 +8395,7 @@ cleanup:
         sdk_tunnel_decap_key.tunnel_type = sx_tunnel_type_ipv4;
         sdk_tunnel_decap_data.tunnel_id = sx_tunnel_id_ipv4;
         if (SX_STATUS_SUCCESS !=
-            (sdk_status = sx_api_tunnel_decap_rules_set(get_sdk_handle(), SX_ACCESS_CMD_DESTROY,
+            (sdk_status = sx_api_tunnel_decap_rules_set(gh_sdk, SX_ACCESS_CMD_DESTROY,
                                                         &sdk_tunnel_decap_key,
                                                         &sdk_tunnel_decap_data))) {
             sai_status = sdk_to_sai(sdk_status);
@@ -8416,7 +8406,7 @@ cleanup:
         sdk_tunnel_decap_key.tunnel_type = sx_tunnel_type_ipv6;
         sdk_tunnel_decap_data.tunnel_id = sx_tunnel_id_ipv6;
         if (SX_STATUS_SUCCESS !=
-            (sdk_status = sx_api_tunnel_decap_rules_set(get_sdk_handle(), SX_ACCESS_CMD_DESTROY,
+            (sdk_status = sx_api_tunnel_decap_rules_set(gh_sdk, SX_ACCESS_CMD_DESTROY,
                                                         &sdk_tunnel_decap_key,
                                                         &sdk_tunnel_decap_data))) {
             sai_status = sdk_to_sai(sdk_status);
@@ -8477,7 +8467,7 @@ static sai_status_t mlnx_remove_tunnel_term_table_entry(_In_ const sai_object_id
     sx_tunnel_type_ipv4 = sdk_tunnel_decap_key.tunnel_type;
 
     if (SX_STATUS_SUCCESS !=
-        (sdk_status = sx_api_tunnel_decap_rules_set(get_sdk_handle(), SX_ACCESS_CMD_DESTROY,
+        (sdk_status = sx_api_tunnel_decap_rules_set(gh_sdk, SX_ACCESS_CMD_DESTROY,
                                                     &sdk_tunnel_decap_key,
                                                     &sdk_tunnel_decap_data))) {
         sai_status = sdk_to_sai(sdk_status);
@@ -8500,7 +8490,7 @@ static sai_status_t mlnx_remove_tunnel_term_table_entry(_In_ const sai_object_id
         sdk_tunnel_decap_data.tunnel_id = g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].sx_tunnel_id_ipv6;
 
         if (SX_STATUS_SUCCESS !=
-            (sdk_status = sx_api_tunnel_decap_rules_set(get_sdk_handle(), SX_ACCESS_CMD_DESTROY,
+            (sdk_status = sx_api_tunnel_decap_rules_set(gh_sdk, SX_ACCESS_CMD_DESTROY,
                                                         &sdk_tunnel_decap_key,
                                                         &sdk_tunnel_decap_data))) {
             sai_status = sdk_to_sai(sdk_status);
@@ -8987,7 +8977,7 @@ static sai_status_t mlnx_create_bmtor_internal_obj(_In_ sai_object_id_t       vr
     } else {
         vlan_attrib_p.flood_to_router = false;
     }
-    sdk_status = sx_api_vlan_attrib_set(get_sdk_handle(), sx_bridge_id, &vlan_attrib_p);
+    sdk_status = sx_api_vlan_attrib_set(gh_sdk, sx_bridge_id, &vlan_attrib_p);
     if (SX_ERR(sdk_status)) {
         sai_status = sdk_to_sai(sdk_status);
         SX_LOG_ERR("Error setting vlan attribute for fid %d: %s\n",
@@ -9058,7 +9048,7 @@ static sai_status_t mlnx_create_bmtor_internal_obj(_In_ sai_object_id_t       vr
     sx_tunnel_map_entry.params.nve.bridge_id = sx_bridge_id;
     sx_tunnel_map_entry.params.nve.vni = vni;
     sx_tunnel_map_entry.params.nve.direction = SX_TUNNEL_MAP_DIR_BIDIR;
-    sdk_status = sx_api_tunnel_map_set(get_sdk_handle(),
+    sdk_status = sx_api_tunnel_map_set(gh_sdk,
                                        SX_ACCESS_CMD_ADD,
                                        sx_tunnel_id,
                                        &sx_tunnel_map_entry,
@@ -9125,7 +9115,7 @@ static sai_status_t mlnx_remove_bmtor_internal_obj(_In_ mlnx_bmtor_bridge_t *bmt
         sx_tunnel_map_entry.params.nve.bridge_id = sx_bridge_id;
         sx_tunnel_map_entry.params.nve.vni = bmtor_bridge_entry->vni;
         sx_tunnel_map_entry.params.nve.direction = SX_TUNNEL_MAP_DIR_BIDIR;
-        sdk_status = sx_api_tunnel_map_set(get_sdk_handle(),
+        sdk_status = sx_api_tunnel_map_set(gh_sdk,
                                            SX_ACCESS_CMD_DELETE,
                                            bmtor_bridge_entry->sx_vxlan_tunnel_id,
                                            &sx_tunnel_map_entry,
@@ -9836,9 +9826,8 @@ sai_status_t mlnx_tunnel_log_set(sx_verbosity_level_t level)
 {
     LOG_VAR_NAME(__MODULE__) = level;
 
-    if (get_sdk_handle()) {
-        return sdk_to_sai(sx_api_tunnel_log_verbosity_level_set(get_sdk_handle(), SX_LOG_VERBOSITY_BOTH, level,
-                                                                level));
+    if (gh_sdk) {
+        return sdk_to_sai(sx_api_tunnel_log_verbosity_level_set(gh_sdk, SX_LOG_VERBOSITY_BOTH, level, level));
     } else {
         return SAI_STATUS_SUCCESS;
     }
@@ -9867,7 +9856,7 @@ static sai_status_t mlnx_tunnel_stats_get_spc1(_In_ sai_object_id_t      tunnel_
 
     sai_db_unlock();
 
-    sx_status = sx_api_tunnel_counter_get(get_sdk_handle(), sx_cmd, sx_tunnel_id, &sx_tunnel_counter);
+    sx_status = sx_api_tunnel_counter_get(gh_sdk, sx_cmd, sx_tunnel_id, &sx_tunnel_counter);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to %s sx tunnel %u counter - %s\n", SX_ACCESS_CMD_STR(sx_cmd), sx_tunnel_id,
                    SX_STATUS_MSG(sx_status));
@@ -9936,7 +9925,7 @@ static sai_status_t mlnx_tunnel_stats_get_spc2(_In_ sai_object_id_t        tunne
         return status;
     }
 
-    sx_status = sx_api_router_counter_get(get_sdk_handle(), sx_cmd, sx_counter, &sx_counter_set);
+    sx_status = sx_api_router_counter_get(gh_sdk, sx_cmd, sx_counter, &sx_counter_set);
     if (SX_ERR(sx_status)) {
         sai_db_unlock();
         SX_LOG_ERR("Failed to %s sx counter %d - %s\n", SX_ACCESS_CMD_STR(sx_cmd), sx_counter,

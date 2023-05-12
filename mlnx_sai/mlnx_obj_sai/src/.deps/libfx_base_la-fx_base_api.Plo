@@ -290,9 +290,7 @@ libfx_base_la-fx_base_api.lo: \
  /usr/include/sx/sdk/sx_api_issu.h /usr/include/sx/sdk/sx_api_lag.h \
  /usr/include/sx/sdk/sx_api_mc_container.h \
  /usr/include/sx/sdk/sx_api_mstp.h /usr/include/sx/sdk/sx_api_policer.h \
- /usr/include/sx/sdk/sx_api_topo.h \
- /usr/include/sx/sdk/sx_api_adaptive_routing.h \
- /usr/include/sx/sdk/sx_api_register.h \
+ /usr/include/sx/sdk/sx_api_topo.h /usr/include/sx/sdk/sx_api_register.h \
  /usr/include/sx/sxd/sxd_access_register.h /usr/include/sx/sxd/sxd_emad.h \
  /usr/include/sx/sxd/sxd_emad_data.h \
  /usr/include/sx/sxd/sxd_emad_cos_data.h \
@@ -774,7 +772,6 @@ libfx_base_la-fx_base_api.lo: \
 /usr/include/sx/sdk/sx_api_mstp.h:
 /usr/include/sx/sdk/sx_api_policer.h:
 /usr/include/sx/sdk/sx_api_topo.h:
-/usr/include/sx/sdk/sx_api_adaptive_routing.h:
 /usr/include/sx/sdk/sx_api_register.h:
 /usr/include/sx/sxd/sxd_access_register.h:
 /usr/include/sx/sxd/sxd_emad.h:

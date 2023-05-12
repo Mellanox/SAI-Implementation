@@ -395,6 +395,7 @@ static sx_verbosity_level_t LOG_VAR_NAME(__MODULE__) = SX_VERBOSITY_LEVEL_WARNIN
 static cl_thread_t psort_thread;
 static cl_thread_t rpc_thread;
 #ifndef _WIN32
+static pthread_key_t      pthread_sx_handle_key;
 static mqd_t              psort_opt_queue_client = ACL_QUEUE_INVALID_HANDLE;
 static struct sockaddr_un rpc_sv_sockaddr;
 #endif
@@ -664,9 +665,9 @@ sai_status_t mlnx_acl_log_set(sx_verbosity_level_t level)
 {
     LOG_VAR_NAME(__MODULE__) = level;
 
-    if (get_sdk_handle()) {
-        sx_api_flow_counter_log_verbosity_level_set(get_sdk_handle(), SX_LOG_VERBOSITY_BOTH, level, level);
-        return sdk_to_sai(sx_api_acl_log_verbosity_level_set(get_sdk_handle(), SX_LOG_VERBOSITY_BOTH, level, level));
+    if (gh_sdk) {
+        sx_api_flow_counter_log_verbosity_level_set(gh_sdk, SX_LOG_VERBOSITY_BOTH, level, level);
+        return sdk_to_sai(sx_api_acl_log_verbosity_level_set(gh_sdk, SX_LOG_VERBOSITY_BOTH, level, level));
     } else {
         return SAI_STATUS_SUCCESS;
     }
@@ -3262,6 +3263,11 @@ sai_status_t mlnx_acl_deinit(void)
         SX_LOG_ERR("Failed to destroy cond_mutex\n");
         return SAI_STATUS_FAILURE;
     }
+
+    if (0 != pthread_key_delete(pthread_sx_handle_key)) {
+        SX_LOG_ERR("Failed to delete pthread_key\n");
+        return SAI_STATUS_FAILURE;
+    }
 #endif /* _WIN32 */
 
     SX_LOG_EXIT();
@@ -3827,7 +3833,7 @@ static sai_status_t mlnx_acl_dynamic_table_max_entries_get(_In_ uint32_t acl_tab
 
     memset(&key_attr, 0, sizeof(key_attr));
 
-    sx_status = sx_api_acl_flex_key_attr_get(get_sdk_handle(), acl_db_table(acl_table_id).key_type, &key_attr);
+    sx_status = sx_api_acl_flex_key_attr_get(gh_sdk, acl_db_table(acl_table_id).key_type, &key_attr);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to get ACL key attr - %s\n", SX_STATUS_MSG(sx_status));
         return sdk_to_sai(sx_status);
@@ -3852,7 +3858,7 @@ static sai_status_t mlnx_acl_dynamic_table_max_entries_get(_In_ uint32_t acl_tab
         return SAI_STATUS_FAILURE;
     }
 
-    sx_status = sx_api_rm_free_entries_by_type_get(get_sdk_handle(), table_type, entries);
+    sx_status = sx_api_rm_free_entries_by_type_get(gh_sdk, table_type, entries);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to get a number of free entries for ACL Table [%d] - %s\n",
                    acl_table_id, SX_STATUS_MSG(sx_status));
@@ -3921,7 +3927,7 @@ static sai_status_t mlnx_acl_table_available_counters_get_impl(_Out_ uint32_t *a
 
     assert(available_counters);
 
-    sx_status = sx_api_rm_free_entries_by_type_get(get_sdk_handle(), RM_SDK_TABLE_TYPE_FLOW_COUNTER_E, &free_counters);
+    sx_status = sx_api_rm_free_entries_by_type_get(gh_sdk, RM_SDK_TABLE_TYPE_FLOW_COUNTER_E, &free_counters);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to get a number of free flow counters - %s\n", SX_STATUS_MSG(sx_status));
         return sdk_to_sai(sx_status);
@@ -4018,7 +4024,7 @@ static sai_status_t mlnx_acl_sx_mc_container_set_impl(_In_ sx_access_cmd_t      
 
     sx_mc_container_attributes.type = SX_MC_CONTAINER_TYPE_PORT;
 
-    sx_status = sx_api_mc_container_set(get_sdk_handle(), sx_cmd, sx_mc_container_id,
+    sx_status = sx_api_mc_container_set(gh_sdk, sx_cmd, sx_mc_container_id,
                                         sx_mc_next_hops, log_port_count, &sx_mc_container_attributes);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to %s sx_mc_container - %s\n", SX_ACCESS_CMD_STR(sx_cmd), SX_STATUS_MSG(sx_status));
@@ -4115,7 +4121,7 @@ static sai_status_t mlnx_acl_sx_mc_container_sx_ports_get(_In_ sx_mc_container_i
         return SAI_STATUS_NO_MEMORY;
     }
 
-    sx_status = sx_api_mc_container_get(get_sdk_handle(), SX_ACCESS_CMD_GET, sx_mc_container_id,
+    sx_status = sx_api_mc_container_get(gh_sdk, SX_ACCESS_CMD_GET, sx_mc_container_id,
                                         sx_mc_next_hops, &sx_mc_hext_hop_count, &sx_mc_container_attributes);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to get sx_mc_container (%d) next hops -%s\n", sx_mc_container_id, SX_STATUS_MSG(sx_status));
@@ -4249,7 +4255,7 @@ static sai_status_t mlnx_acl_sx_mc_container_remove(_In_ sx_mc_container_id_t sx
         return SAI_STATUS_SUCCESS;
     }
 
-    sx_status = sx_api_mc_container_set(get_sdk_handle(), SX_ACCESS_CMD_DESTROY, &sx_mc_container_id, NULL, 0, NULL);
+    sx_status = sx_api_mc_container_set(gh_sdk, SX_ACCESS_CMD_DESTROY, &sx_mc_container_id, NULL, 0, NULL);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to destroy sx_mc_container - %s\n", SX_STATUS_MSG(sx_status));
         return sdk_to_sai(sx_status);
@@ -4456,7 +4462,7 @@ static sai_status_t mlnx_acl_table_is_entry_field_supported(_In_ uint32_t       
 
     key_handle = acl_db_table(acl_table_index).key_type;
 
-    sx_status = sx_api_acl_flex_key_get(get_sdk_handle(), key_handle, table_keys, &table_key_count);
+    sx_status = sx_api_acl_flex_key_get(gh_sdk, key_handle, table_keys, &table_key_count);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR(" Failed to get flex acl key in SDK - %s \n", SX_STATUS_MSG(sx_status));
         return sdk_to_sai(sx_status);
@@ -5994,7 +6000,7 @@ static sai_status_t mlnx_acl_entry_sx_acl_rule_get(_In_ uint32_t                
     }
 
     rule_count = 1;
-    sx_status = sx_api_acl_flex_rules_get(get_sdk_handle(), region_id, &rule_offset, flex_acl_rule_p, &rule_count);
+    sx_status = sx_api_acl_flex_rules_get(gh_sdk, region_id, &rule_offset, flex_acl_rule_p, &rule_count);
     if (SX_STATUS_SUCCESS != sx_status) {
         SX_LOG_ERR("Failed to get rules from region - %s\n", SX_STATUS_MSG(sx_status));
         status = sdk_to_sai(sx_status);
@@ -11313,7 +11319,7 @@ static sai_status_t mlnx_acl_mirror_acl_create(_In_ mlnx_mirror_policer_acl_t *a
     action_type = mlnx_acl_mirror_sx_direction_to_sx_action(sx_direction);
     keys[0] = FLEX_ACL_KEY_COLOR;
 
-    sx_status = sx_api_acl_flex_key_set(get_sdk_handle(), SX_ACCESS_CMD_CREATE, keys, 1, &key_handle);
+    sx_status = sx_api_acl_flex_key_set(gh_sdk, SX_ACCESS_CMD_CREATE, keys, 1, &key_handle);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR(" Failed to create flex key - %s. \n", SX_STATUS_MSG(sx_status));
         return sdk_to_sai(sx_status);
@@ -11321,7 +11327,7 @@ static sai_status_t mlnx_acl_mirror_acl_create(_In_ mlnx_mirror_policer_acl_t *a
 
     acl->key = key_handle;
 
-    sx_status = sx_api_acl_region_set(get_sdk_handle(), SX_ACCESS_CMD_CREATE, key_handle,
+    sx_status = sx_api_acl_region_set(gh_sdk, SX_ACCESS_CMD_CREATE, key_handle,
                                       SX_ACL_ACTION_TYPE_BASIC, 2, &region_id);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to create region - %s.\n", SX_STATUS_MSG(sx_status));
@@ -11334,7 +11340,7 @@ static sai_status_t mlnx_acl_mirror_acl_create(_In_ mlnx_mirror_policer_acl_t *a
     region_group.acl_type = SX_ACL_TYPE_PACKET_TYPES_AGNOSTIC;
     region_group.regions.acl_packet_agnostic.region = region_id;
 
-    sx_status = sx_api_acl_set(get_sdk_handle(),
+    sx_status = sx_api_acl_set(gh_sdk,
                                SX_ACCESS_CMD_CREATE,
                                SX_ACL_TYPE_PACKET_TYPES_AGNOSTIC,
                                sx_direction,
@@ -11347,13 +11353,13 @@ static sai_status_t mlnx_acl_mirror_acl_create(_In_ mlnx_mirror_policer_acl_t *a
 
     acl->acl = acl_id;
 
-    sx_status = sx_api_acl_group_set(get_sdk_handle(), SX_ACCESS_CMD_CREATE, sx_direction, NULL, 0, &acl_group);
+    sx_status = sx_api_acl_group_set(gh_sdk, SX_ACCESS_CMD_CREATE, sx_direction, NULL, 0, &acl_group);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to create acl group - %s.\n", SX_STATUS_MSG(sx_status));
         return sdk_to_sai(sx_status);
     }
 
-    sx_status = sx_api_acl_group_set(get_sdk_handle(), SX_ACCESS_CMD_SET, sx_direction, &acl_id, 1, &acl_group);
+    sx_status = sx_api_acl_group_set(gh_sdk, SX_ACCESS_CMD_SET, sx_direction, &acl_id, 1, &acl_group);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to create acl group - %s.\n", SX_STATUS_MSG(sx_status));
         return sdk_to_sai(sx_status);
@@ -11392,7 +11398,7 @@ static sai_status_t mlnx_acl_mirror_acl_create(_In_ mlnx_mirror_policer_acl_t *a
     rules[1].action_list_p[0].fields.action_set_color.color_val = SX_ACL_FLEX_COLOR_GREEN;
     rules[1].action_count = 1;
 
-    sx_status = sx_api_acl_flex_rules_set(get_sdk_handle(), SX_ACCESS_CMD_SET, region_id, offsets, rules, 2);
+    sx_status = sx_api_acl_flex_rules_set(gh_sdk, SX_ACCESS_CMD_SET, region_id, offsets, rules, 2);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to set acl rule - %s\n", SX_STATUS_MSG(sx_status));
         return sdk_to_sai(sx_status);
@@ -11420,13 +11426,13 @@ static sai_status_t mlnx_acl_mirror_acl_remove(_In_ mlnx_mirror_policer_acl_t *a
         return SAI_STATUS_SUCCESS;
     }
 
-    sx_status = sx_api_acl_group_set(get_sdk_handle(), SX_ACCESS_CMD_DESTROY, sx_direction, NULL, 0, &acl->acl_group);
+    sx_status = sx_api_acl_group_set(gh_sdk, SX_ACCESS_CMD_DESTROY, sx_direction, NULL, 0, &acl->acl_group);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to create acl group - %s.\n", SX_STATUS_MSG(sx_status));
         return sdk_to_sai(sx_status);
     }
 
-    sx_status = sx_api_acl_set(get_sdk_handle(),
+    sx_status = sx_api_acl_set(gh_sdk,
                                SX_ACCESS_CMD_DESTROY,
                                SX_ACL_TYPE_PACKET_TYPES_AGNOSTIC,
                                sx_direction,
@@ -11437,14 +11443,14 @@ static sai_status_t mlnx_acl_mirror_acl_remove(_In_ mlnx_mirror_policer_acl_t *a
         return sdk_to_sai(sx_status);
     }
 
-    sx_status = sx_api_acl_region_set(get_sdk_handle(), SX_ACCESS_CMD_DESTROY, acl->key,
+    sx_status = sx_api_acl_region_set(gh_sdk, SX_ACCESS_CMD_DESTROY, acl->key,
                                       SX_ACL_ACTION_TYPE_BASIC, 1, &acl->region);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to destroy region - %s.\n", SX_STATUS_MSG(sx_status));
         return sdk_to_sai(sx_status);
     }
 
-    sx_status = sx_api_acl_flex_key_set(get_sdk_handle(), SX_ACCESS_CMD_DELETE, NULL, 0, &acl->key);
+    sx_status = sx_api_acl_flex_key_set(gh_sdk, SX_ACCESS_CMD_DELETE, NULL, 0, &acl->key);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to destroy flex key - %s. \n", SX_STATUS_MSG(sx_status));
         return sdk_to_sai(sx_status);
@@ -14348,7 +14354,7 @@ sai_status_t mlnx_create_acl_table(_Out_ sai_object_id_t     * acl_table_id,
     }
 
     key_count = key_index;
-    sx_status = sx_api_acl_flex_key_set(get_sdk_handle(), SX_ACCESS_CMD_CREATE, keys, key_count, &key_handle);
+    sx_status = sx_api_acl_flex_key_set(gh_sdk, SX_ACCESS_CMD_CREATE, keys, key_count, &key_handle);
     if (SX_STATUS_SUCCESS != sx_status) {
         SX_LOG_ERR(" Failed to create flex key - %s. \n", SX_STATUS_MSG(sx_status));
         status = sdk_to_sai(sx_status);
@@ -14358,7 +14364,7 @@ sai_status_t mlnx_create_acl_table(_Out_ sai_object_id_t     * acl_table_id,
 
     sx_region_size = ACL_TABLE_SIZE_TO_SX_REG_SIZE(acl_table_size);
 
-    sx_status = sx_api_acl_region_set(get_sdk_handle(), SX_ACCESS_CMD_CREATE, key_handle,
+    sx_status = sx_api_acl_region_set(gh_sdk, SX_ACCESS_CMD_CREATE, key_handle,
                                       action_type, sx_region_size, &region_id);
     if (SX_STATUS_SUCCESS != sx_status) {
         SX_LOG_ERR("Failed to create region - %s.\n", SX_STATUS_MSG(sx_status));
@@ -14371,12 +14377,7 @@ sai_status_t mlnx_create_acl_table(_Out_ sai_object_id_t     * acl_table_id,
     region_group.acl_type = acl_type;
     region_group.regions.acl_packet_agnostic.region = region_id;
 
-    sx_status = sx_api_acl_set(get_sdk_handle(),
-                               SX_ACCESS_CMD_CREATE,
-                               acl_type,
-                               sx_acl_direction,
-                               &region_group,
-                               &acl_id);
+    sx_status = sx_api_acl_set(gh_sdk, SX_ACCESS_CMD_CREATE, acl_type, sx_acl_direction, &region_group, &acl_id);
     if (SX_STATUS_SUCCESS != sx_status) {
         SX_LOG_ERR("Failed to create acl table - %s.\n", SX_STATUS_MSG(sx_status));
         status = sdk_to_sai(sx_status);
@@ -14454,7 +14455,7 @@ out:
         }
 
         if (acl_created) {
-            sx_status = sx_api_acl_set(get_sdk_handle(), SX_ACCESS_CMD_DESTROY, acl_type,
+            sx_status = sx_api_acl_set(gh_sdk, SX_ACCESS_CMD_DESTROY, acl_type,
                                        sx_acl_direction, &region_group, &acl_id);
             if (SX_STATUS_SUCCESS != sx_status) {
                 SX_LOG_ERR("Failed to destroy ACL - %s.\n", SX_STATUS_MSG(sx_status));
@@ -14462,7 +14463,7 @@ out:
         }
 
         if (region_created) {
-            sx_status = sx_api_acl_region_set(get_sdk_handle(), SX_ACCESS_CMD_DESTROY, key_handle,
+            sx_status = sx_api_acl_region_set(gh_sdk, SX_ACCESS_CMD_DESTROY, key_handle,
                                               SX_ACL_ACTION_TYPE_BASIC, acl_table_size, &region_id);
             if (SX_STATUS_SUCCESS != sx_status) {
                 SX_LOG_ERR(" Failed to delete region ACL - %s.\n", SX_STATUS_MSG(sx_status));
@@ -14470,7 +14471,7 @@ out:
         }
 
         if (key_created) {
-            sx_status = sx_api_acl_flex_key_set(get_sdk_handle(), SX_ACCESS_CMD_DELETE, keys, key_count, &key_handle);
+            sx_status = sx_api_acl_flex_key_set(gh_sdk, SX_ACCESS_CMD_DELETE, keys, key_count, &key_handle);
             if (SX_STATUS_SUCCESS != sx_status) {
                 SX_LOG_ERR(" Failed to delete flex keys - %s. \n", SX_STATUS_MSG(sx_status));
             }
@@ -14651,7 +14652,7 @@ static sai_status_t mlnx_acl_counter_set(_In_ const sai_object_key_t      *key,
     }
 
     if (value->u64 == 0) {
-        if (SX_STATUS_SUCCESS != (sx_status = sx_api_flow_counter_clear_set(get_sdk_handle(), sx_counter_id))) {
+        if (SX_STATUS_SUCCESS != (sx_status = sx_api_flow_counter_clear_set(gh_sdk, sx_counter_id))) {
             SX_LOG_ERR("Failed to clear counter: [%d] - %s \n", sx_counter_id, SX_STATUS_MSG(sx_status));
             status = sdk_to_sai(sx_status);
             goto out;
@@ -14686,7 +14687,7 @@ static sai_status_t mlnx_acl_counter_get(_In_ const sai_object_key_t   *key,
         goto out;
     }
 
-    sx_status = sx_api_flow_counter_get(get_sdk_handle(), SX_ACCESS_CMD_READ, counter_id, &counter_value);
+    sx_status = sx_api_flow_counter_get(gh_sdk, SX_ACCESS_CMD_READ, counter_id, &counter_value);
     if (SX_STATUS_SUCCESS != sx_status) {
         SX_LOG_ERR(" Failure to get counter in SDK - %s \n", SX_STATUS_MSG(sx_status));
         status = sdk_to_sai(sx_status);
@@ -14890,7 +14891,7 @@ static sai_status_t mlnx_create_acl_counter(_Out_ sai_object_id_t      *acl_coun
         counter_type = SX_FLOW_COUNTER_TYPE_PACKETS;
     }
 
-    sx_status = sx_api_flow_counter_set(get_sdk_handle(), SX_ACCESS_CMD_CREATE, counter_type, &sx_counter_id);
+    sx_status = sx_api_flow_counter_set(gh_sdk, SX_ACCESS_CMD_CREATE, counter_type, &sx_counter_id);
     if (SX_STATUS_SUCCESS != sx_status) {
         SX_LOG_ERR("Failure to create Counter - %s.\n", SX_STATUS_MSG(sx_status));
         status = sdk_to_sai(sx_status);
@@ -14913,7 +14914,7 @@ static sai_status_t mlnx_create_acl_counter(_Out_ sai_object_id_t      *acl_coun
 out:
     if (SAI_STATUS_SUCCESS != status) {
         if (SX_FLOW_COUNTER_ID_INVALID != sx_counter_id) {
-            sx_status = sx_api_flow_counter_set(get_sdk_handle(), SX_ACCESS_CMD_DESTROY, 0, &sx_counter_id);
+            sx_status = sx_api_flow_counter_set(gh_sdk, SX_ACCESS_CMD_DESTROY, 0, &sx_counter_id);
             if (SX_STATUS_SUCCESS != sx_status) {
                 SX_LOG_ERR("Failed delete counter - %s.\n", SX_STATUS_MSG(sx_status));
             }
@@ -15166,7 +15167,7 @@ static sai_status_t mlnx_delete_acl_table(_In_ sai_object_id_t acl_table_id)
     region_group.acl_type = acl_type;
     region_group.regions.acl_packet_agnostic.region = region_id;
 
-    sx_status = sx_api_acl_set(get_sdk_handle(), SX_ACCESS_CMD_DESTROY, SX_ACL_TYPE_PACKET_TYPES_AGNOSTIC,
+    sx_status = sx_api_acl_set(gh_sdk, SX_ACCESS_CMD_DESTROY, SX_ACL_TYPE_PACKET_TYPES_AGNOSTIC,
                                acl_direction, &region_group, &sx_acl_id);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to destroy ACL - %s.\n", SX_STATUS_MSG(sx_status));
@@ -15174,7 +15175,7 @@ static sai_status_t mlnx_delete_acl_table(_In_ sai_object_id_t acl_table_id)
         goto out;
     }
 
-    sx_status = sx_api_acl_region_set(get_sdk_handle(), SX_ACCESS_CMD_DESTROY, key_handle,
+    sx_status = sx_api_acl_region_set(gh_sdk, SX_ACCESS_CMD_DESTROY, key_handle,
                                       SX_ACL_ACTION_TYPE_BASIC, region_size, &region_id);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR(" Failed to delete region ACL - %s.\n", SX_STATUS_MSG(sx_status));
@@ -15182,7 +15183,7 @@ static sai_status_t mlnx_delete_acl_table(_In_ sai_object_id_t acl_table_id)
         goto out;
     }
 
-    sx_status = sx_api_acl_flex_key_set(get_sdk_handle(), SX_ACCESS_CMD_DELETE, NULL, 0, &key_handle);
+    sx_status = sx_api_acl_flex_key_set(gh_sdk, SX_ACCESS_CMD_DELETE, NULL, 0, &key_handle);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR(" Failed to delete flex keys - %s. \n", SX_STATUS_MSG(sx_status));
         status = sdk_to_sai(sx_status);
@@ -15282,7 +15283,7 @@ static sai_status_t mlnx_delete_acl_counter(_In_ sai_object_id_t acl_counter_id)
     }
 
     if (SAI_STATUS_SUCCESS !=
-        (sx_status = sx_api_flow_counter_set(get_sdk_handle(), SX_ACCESS_CMD_DESTROY, counter_type, &sx_counter_id))) {
+        (sx_status = sx_api_flow_counter_set(gh_sdk, SX_ACCESS_CMD_DESTROY, counter_type, &sx_counter_id))) {
         SX_LOG_ERR("Failed delete counter - %s.\n", SX_STATUS_MSG(sx_status));
         status = sdk_to_sai(sx_status);
         goto out;
@@ -15456,12 +15457,7 @@ static sai_status_t mlnx_acl_entry_sx_acl_rule_set(_In_ uint32_t                
     sx_region_id = acl_db_table(acl_table_index).region_id;
     sx_rule_offset = acl_db_entry(acl_entry_index).offset;
 
-    sx_status = sx_api_acl_flex_rules_set(get_sdk_handle(),
-                                          SX_ACCESS_CMD_SET,
-                                          sx_region_id,
-                                          &sx_rule_offset,
-                                          sx_flex_rule,
-                                          1);
+    sx_status = sx_api_acl_flex_rules_set(gh_sdk, SX_ACCESS_CMD_SET, sx_region_id, &sx_rule_offset, sx_flex_rule, 1);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to set ACL rule - %s.\n", SX_STATUS_MSG(sx_status));
         return sdk_to_sai(sx_status);
@@ -15485,7 +15481,7 @@ static sai_status_t mlnx_acl_flex_rule_delete(_In_ uint32_t                 acl_
 
     sx_rule->valid = false;
 
-    sx_status = sx_api_acl_flex_rules_set(get_sdk_handle(),
+    sx_status = sx_api_acl_flex_rules_set(gh_sdk,
                                           SX_ACCESS_CMD_DELETE,
                                           sx_region_id,
                                           &sx_acl_rule_offset,
@@ -16461,7 +16457,7 @@ static sai_status_t mlnx_acl_entry_prio_set_sp(_In_ uint32_t table_db_idx,
                old_rule_offset,
                new_rule_offset);
 
-    sx_status = sx_api_acl_rule_block_move_set(get_sdk_handle(), region_id, old_rule_offset, 1, new_rule_offset);
+    sx_status = sx_api_acl_rule_block_move_set(gh_sdk, region_id, old_rule_offset, 1, new_rule_offset);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to move rule block - %s\n", SX_STATUS_MSG(sx_status));
         return status;
@@ -16931,6 +16927,11 @@ sai_status_t mlnx_acl_init(void)
         return SAI_STATUS_FAILURE;
     }
 
+    if (0 != pthread_key_create(&pthread_sx_handle_key, NULL)) {
+        SX_LOG_ERR("Failed to init pthread_key for ACL\n");
+        return SAI_STATUS_INSUFFICIENT_RESOURCES;
+    }
+
     if (CL_SUCCESS != cl_thread_init(&rpc_thread, mlnx_acl_rpc_thread, NULL, NULL)) {
         SX_LOG_ERR("Failed to init acl req thread\n");
         return SAI_STATUS_FAILURE;
@@ -17059,7 +17060,7 @@ sai_status_t mlnx_vxlan_udp_srcport_acl_add(uint32_t tunnel_db_idx)
         key = FLEX_ACL_KEY_ECMP_HASH;
     }
 
-    status = sx_api_acl_flex_key_set(get_sdk_handle(), SX_ACCESS_CMD_CREATE, &key, 1, &key_handle);
+    status = sx_api_acl_flex_key_set(gh_sdk, SX_ACCESS_CMD_CREATE, &key, 1, &key_handle);
     if (SX_ERR(status)) {
         SX_LOG_ERR("Failed to create key %s.\n", SX_STATUS_MSG(status));
         return sdk_to_sai(status);
@@ -17072,7 +17073,7 @@ sai_status_t mlnx_vxlan_udp_srcport_acl_add(uint32_t tunnel_db_idx)
     }
 
     /* ACL region */
-    status = sx_api_acl_region_set(get_sdk_handle(),
+    status = sx_api_acl_region_set(gh_sdk,
                                    SX_ACCESS_CMD_CREATE,
                                    key_handle,
                                    SX_ACL_ACTION_TYPE_BASIC,
@@ -17087,7 +17088,7 @@ sai_status_t mlnx_vxlan_udp_srcport_acl_add(uint32_t tunnel_db_idx)
     region_group.acl_type = SX_ACL_TYPE_PACKET_TYPES_AGNOSTIC;
     region_group.regions.acl_packet_agnostic.region = region_id;
 
-    status = sx_api_acl_set(get_sdk_handle(),
+    status = sx_api_acl_set(gh_sdk,
                             SX_ACCESS_CMD_CREATE,
                             SX_ACL_TYPE_PACKET_TYPES_AGNOSTIC,
                             SX_ACL_DIRECTION_EGRESS,
@@ -17099,18 +17100,18 @@ sai_status_t mlnx_vxlan_udp_srcport_acl_add(uint32_t tunnel_db_idx)
     }
 
     if (src_port_mask != 0) {
-        status = sx_api_acl_flex_rules_set(get_sdk_handle(), SX_ACCESS_CMD_SET, region_id, offsets, rule_list, num);
+        status = sx_api_acl_flex_rules_set(gh_sdk, SX_ACCESS_CMD_SET, region_id, offsets, rule_list, num);
         if (SX_ERR(status)) {
             SX_LOG_ERR("Failed to create ACL rule %s.\n", SX_STATUS_MSG(status));
             goto out;
         }
     } else {
-        status = sx_api_acl_flex_rules_set(get_sdk_handle(), SX_ACCESS_CMD_SET, region_id, offsets, rule_list, 128);
+        status = sx_api_acl_flex_rules_set(gh_sdk, SX_ACCESS_CMD_SET, region_id, offsets, rule_list, 128);
         if (SX_ERR(status)) {
             SX_LOG_ERR("Failed to create ACL rule %s.\n", SX_STATUS_MSG(status));
             goto out;
         }
-        status = sx_api_acl_flex_rules_set(get_sdk_handle(),
+        status = sx_api_acl_flex_rules_set(gh_sdk,
                                            SX_ACCESS_CMD_SET,
                                            region_id,
                                            &offsets[128],
@@ -17123,15 +17124,13 @@ sai_status_t mlnx_vxlan_udp_srcport_acl_add(uint32_t tunnel_db_idx)
     }
 
     /* ACL group create */
-    status =
-        sx_api_acl_group_set(get_sdk_handle(), SX_ACCESS_CMD_CREATE, SX_ACL_DIRECTION_EGRESS, NULL, 0, &acl_group);
+    status = sx_api_acl_group_set(gh_sdk, SX_ACCESS_CMD_CREATE, SX_ACL_DIRECTION_EGRESS, NULL, 0, &acl_group);
     if (SX_ERR(status)) {
         SX_LOG_ERR("Failed to create acl group - %s.\n", SX_STATUS_MSG(status));
         goto out;
     }
 
-    status =
-        sx_api_acl_group_set(get_sdk_handle(), SX_ACCESS_CMD_SET, SX_ACL_DIRECTION_EGRESS, &acl_id, 1, &acl_group);
+    status = sx_api_acl_group_set(gh_sdk, SX_ACCESS_CMD_SET, SX_ACL_DIRECTION_EGRESS, &acl_id, 1, &acl_group);
     if (SX_ERR(status)) {
         SX_LOG_ERR("Failed to create ACL group - %s.\n", SX_STATUS_MSG(status));
         goto out;
@@ -17150,7 +17149,7 @@ sai_status_t mlnx_vxlan_udp_srcport_acl_add(uint32_t tunnel_db_idx)
             goto out;
         }
 
-        sai_status = sx_api_acl_port_bind_set(get_sdk_handle(), SX_ACCESS_CMD_ADD, sx_port_id, acl_group);
+        sai_status = sx_api_acl_port_bind_set(gh_sdk, SX_ACCESS_CMD_ADD, sx_port_id, acl_group);
         if (SX_ERR(sai_status)) {
             SX_LOG_ERR("Failed to bind VxLAN srcport ACL to port(%x). %s\n",
                        sx_port_id, SX_STATUS_MSG(status));
@@ -17201,7 +17200,7 @@ sai_status_t mlnx_vxlan_udp_srcport_acl_update(uint32_t tunnel_db_idx)
     sx_acl_size_t        old_size;
     sx_acl_action_type_t old_action_type;
 
-    status = sx_api_acl_region_get(get_sdk_handle(),
+    status = sx_api_acl_region_get(gh_sdk,
                                    g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].vxlan_acl.region,
                                    &key_type_old,
                                    &old_action_type,
@@ -17213,12 +17212,11 @@ sai_status_t mlnx_vxlan_udp_srcport_acl_update(uint32_t tunnel_db_idx)
 
     if (num < old_size) {
         for (ii = old_size - 1; ii >= num; --ii) {
-            status = sx_api_acl_rule_block_move_set(
-                get_sdk_handle(),
-                g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].vxlan_acl.region,
-                ii,
-                1,
-                0);
+            status = sx_api_acl_rule_block_move_set(gh_sdk,
+                                                    g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].vxlan_acl.region,
+                                                    ii,
+                                                    1,
+                                                    0);
             if (SX_ERR(status)) {
                 SX_LOG_ERR("Failed to edit ACL region %s.\n", SX_STATUS_MSG(status));
                 goto out;
@@ -17226,7 +17224,7 @@ sai_status_t mlnx_vxlan_udp_srcport_acl_update(uint32_t tunnel_db_idx)
         }
     }
 
-    status = sx_api_acl_region_set(get_sdk_handle(),
+    status = sx_api_acl_region_set(gh_sdk,
                                    SX_ACCESS_CMD_EDIT,
                                    g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].vxlan_acl.key,
                                    SX_ACL_ACTION_TYPE_BASIC,
@@ -17238,7 +17236,7 @@ sai_status_t mlnx_vxlan_udp_srcport_acl_update(uint32_t tunnel_db_idx)
     }
 
     if (src_port_mask != 0) {
-        status = sx_api_acl_flex_rules_set(get_sdk_handle(),
+        status = sx_api_acl_flex_rules_set(gh_sdk,
                                            SX_ACCESS_CMD_SET,
                                            g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].vxlan_acl.region,
                                            offsets,
@@ -17249,7 +17247,7 @@ sai_status_t mlnx_vxlan_udp_srcport_acl_update(uint32_t tunnel_db_idx)
             goto out;
         }
     } else {
-        status = sx_api_acl_flex_rules_set(get_sdk_handle(),
+        status = sx_api_acl_flex_rules_set(gh_sdk,
                                            SX_ACCESS_CMD_SET,
                                            g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].vxlan_acl.region,
                                            offsets,
@@ -17259,7 +17257,7 @@ sai_status_t mlnx_vxlan_udp_srcport_acl_update(uint32_t tunnel_db_idx)
             SX_LOG_ERR("Failed to create ACL rule %s.\n", SX_STATUS_MSG(status));
             goto out;
         }
-        status = sx_api_acl_flex_rules_set(get_sdk_handle(),
+        status = sx_api_acl_flex_rules_set(gh_sdk,
                                            SX_ACCESS_CMD_SET,
                                            g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].vxlan_acl.region,
                                            &offsets[128],
@@ -17297,7 +17295,7 @@ sai_status_t mlnx_vxlan_udp_srcport_acl_remove(uint32_t tunnel_db_idx)
             return sai_status;
         }
 
-        status = sx_api_acl_port_bind_set(get_sdk_handle(), SX_ACCESS_CMD_DELETE, sx_port_id,
+        status = sx_api_acl_port_bind_set(gh_sdk, SX_ACCESS_CMD_DELETE, sx_port_id,
                                           g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].vxlan_acl.acl_group);
         if (SX_ERR(sai_status)) {
             SX_LOG_ERR("Failed to unbind VxLAN UDP srcport ACL from port(%x). %s\n",
@@ -17306,7 +17304,7 @@ sai_status_t mlnx_vxlan_udp_srcport_acl_remove(uint32_t tunnel_db_idx)
         }
     }
 
-    sx_status = sx_api_acl_group_set(get_sdk_handle(), SX_ACCESS_CMD_DESTROY, SX_ACL_DIRECTION_EGRESS,
+    sx_status = sx_api_acl_group_set(gh_sdk, SX_ACCESS_CMD_DESTROY, SX_ACL_DIRECTION_EGRESS,
                                      NULL, 0,
                                      &g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].vxlan_acl.acl_group);
     if (SX_ERR(sx_status)) {
@@ -17314,7 +17312,7 @@ sai_status_t mlnx_vxlan_udp_srcport_acl_remove(uint32_t tunnel_db_idx)
         return sdk_to_sai(sx_status);
     }
 
-    sx_status = sx_api_acl_set(get_sdk_handle(),
+    sx_status = sx_api_acl_set(gh_sdk,
                                SX_ACCESS_CMD_DESTROY,
                                SX_ACL_TYPE_PACKET_TYPES_AGNOSTIC,
                                SX_ACL_DIRECTION_EGRESS,
@@ -17325,7 +17323,7 @@ sai_status_t mlnx_vxlan_udp_srcport_acl_remove(uint32_t tunnel_db_idx)
         return sdk_to_sai(sx_status);
     }
 
-    sx_status = sx_api_acl_region_set(get_sdk_handle(),
+    sx_status = sx_api_acl_region_set(gh_sdk,
                                       SX_ACCESS_CMD_DESTROY,
                                       g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].vxlan_acl.key,
                                       SX_ACL_ACTION_TYPE_BASIC,
@@ -17336,7 +17334,7 @@ sai_status_t mlnx_vxlan_udp_srcport_acl_remove(uint32_t tunnel_db_idx)
         return sdk_to_sai(sx_status);
     }
 
-    sx_status = sx_api_acl_flex_key_set(get_sdk_handle(), SX_ACCESS_CMD_DELETE, NULL, 0,
+    sx_status = sx_api_acl_flex_key_set(gh_sdk, SX_ACCESS_CMD_DELETE, NULL, 0,
                                         &g_sai_tunnel_db_ptr->tunnel_entry_db[tunnel_db_idx].vxlan_acl.key);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to destroy flex key - %s. \n", SX_STATUS_MSG(sx_status));
@@ -17348,16 +17346,32 @@ sai_status_t mlnx_vxlan_udp_srcport_acl_remove(uint32_t tunnel_db_idx)
     return SAI_STATUS_SUCCESS;
 }
 
+static sx_api_handle_t* mlnx_acl_sx_handle_get(void)
+{
+#ifndef _WIN32
+    sx_api_handle_t *handle;
+
+    handle = pthread_getspecific(pthread_sx_handle_key);
+    if (handle) {
+        return handle;
+    }
+#endif /* _WIN32 */
+    return &gh_sdk;
+}
+
 static sai_status_t mlnx_acl_table_size_increase(_In_ uint32_t table_index)
 {
     sai_status_t       status;
     sx_status_t        sx_status;
+    sx_api_handle_t   *sx_api_handle = NULL;
     sx_acl_key_type_t  key_type;
     sx_acl_region_id_t region_id;
     sx_acl_size_t      old_size, new_size;
     uint32_t           delta;
 
     assert(acl_table_index_check_range(table_index));
+
+    sx_api_handle = mlnx_acl_sx_handle_get();
 
     region_id = acl_db_table(table_index).region_id;
     key_type = acl_db_table(table_index).key_type;
@@ -17374,7 +17388,7 @@ static sai_status_t mlnx_acl_table_size_increase(_In_ uint32_t table_index)
     SX_LOG_DBG("Resizing table %u: [%u, %u]\n", table_index,
                ACL_SX_REG_SIZE_TO_TABLE_SIZE(old_size), ACL_SX_REG_SIZE_TO_TABLE_SIZE(new_size));
 
-    sx_status = sx_api_acl_region_set(get_sdk_handle(), SX_ACCESS_CMD_EDIT, key_type,
+    sx_status = sx_api_acl_region_set(*sx_api_handle, SX_ACCESS_CMD_EDIT, key_type,
                                       SX_ACL_ACTION_TYPE_BASIC, new_size, &region_id);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to resize a region[%u] - %s.\n", region_id, SX_STATUS_MSG(sx_status));
@@ -17395,6 +17409,7 @@ static sai_status_t mlnx_acl_table_size_decrease(_In_ uint32_t table_index)
 {
     sai_status_t       status = SAI_STATUS_SUCCESS;
     sx_status_t        sx_status;
+    sx_api_handle_t   *sx_api_handle = NULL;
     sx_acl_key_type_t  key_type;
     sx_acl_region_id_t region_id;
     sx_acl_size_t      new_size, old_size;
@@ -17404,6 +17419,8 @@ static sai_status_t mlnx_acl_table_size_decrease(_In_ uint32_t table_index)
     if (!acl_db_table(table_index).is_dynamic_sized) {
         return SAI_STATUS_SUCCESS;
     }
+
+    sx_api_handle = mlnx_acl_sx_handle_get();
 
     region_id = acl_db_table(table_index).region_id;
     key_type = acl_db_table(table_index).key_type;
@@ -17423,7 +17440,7 @@ static sai_status_t mlnx_acl_table_size_decrease(_In_ uint32_t table_index)
         return status;
     }
 
-    sx_status = sx_api_acl_region_set(get_sdk_handle(), SX_ACCESS_CMD_EDIT, key_type, SX_ACL_ACTION_TYPE_BASIC,
+    sx_status = sx_api_acl_region_set(*sx_api_handle, SX_ACCESS_CMD_EDIT, key_type, SX_ACL_ACTION_TYPE_BASIC,
                                       new_size, &region_id);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to resize a region[%d] - %s.\n", table_index, SX_STATUS_MSG(sx_status));
@@ -17439,12 +17456,15 @@ static sai_status_t mlnx_acl_sx_rule_offset_update(_In_ const psort_shift_param_
                                                    _In_ uint32_t                   acl_table_index)
 {
     sx_status_t          sx_status;
+    sx_api_handle_t     *sx_api_handle = NULL;
     sx_acl_region_id_t   region_id;
     sx_acl_rule_offset_t old_offset;
     sx_acl_rule_offset_t new_offset;
     uint32_t             acl_entry_index;
 
     SX_LOG_ENTER();
+
+    sx_api_handle = mlnx_acl_sx_handle_get();
 
     region_id = acl_db_table(acl_table_index).region_id;
     acl_entry_index = (uint32_t)shift_param->key;
@@ -17480,7 +17500,7 @@ static sai_status_t mlnx_acl_sx_rule_offset_update(_In_ const psort_shift_param_
     SX_LOG_DBG("Moving ACL table %u entry idx %u: %u -> %u %s\n", acl_table_index, acl_entry_index,
                old_offset, new_offset, (ACL_INVALID_DB_INDEX == acl_entry_index) ? "(default rule)" : " ");
 
-    sx_status = sx_api_acl_rule_block_move_set(get_sdk_handle(), region_id, old_offset, 1, new_offset);
+    sx_status = sx_api_acl_rule_block_move_set(*sx_api_handle, region_id, old_offset, 1, new_offset);
     if (SX_STATUS_SUCCESS != sx_status) {
         SX_LOG_ERR("Failed to move rule block\n");
         goto out;
@@ -17661,9 +17681,11 @@ static void mlnx_acl_psort_queue_drain(void)
 static void psort_background_thread(void *arg)
 {
 #ifndef _WIN32
-    sai_status_t         status;
+    sx_status_t          sx_status;
+    sx_api_handle_t      psort_sx_api;
     mqd_t                bg_mq;
     struct timespec      tm;
+    int                  pthread_status;
     uint32_t             mq_message;
     uint32_t             last_used_table;
     bool                 timeout = false;
@@ -17687,9 +17709,15 @@ wait_restart:
         return;
     }
 
-    status = open_sdk(sai_log_cb);
-    if (SAI_ERR(status)) {
-        SX_LOG_ERR("Failed to open SDK.\n");
+    sx_status = sx_api_open(sai_log_cb, &psort_sx_api);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to open sx_api_handle_t for pSort thread - %s.\n", SX_STATUS_MSG(sx_status));
+        return;
+    }
+
+    pthread_status = pthread_setspecific(pthread_sx_handle_key, &psort_sx_api);
+    if (0 != pthread_status) {
+        SX_LOG_ERR("Failed to set pthread_sx_handle_key value - %s\n", strerror(pthread_status));
         return;
     }
 
@@ -17760,9 +17788,9 @@ wait_restart:
         }
     }
 
-    status = close_sdk();
-    if (SAI_ERR(status)) {
-        SX_LOG_ERR("Failed to close SDK.\n");
+    sx_status = sx_api_close(&psort_sx_api);
+    if (SX_ERR(sx_status)) {
+        SX_LOG_ERR("Failed to close sx_api_handle_t for pSort thread - %s\n", SX_STATUS_MSG(sx_status));
     }
 
     if (0 != mq_close(bg_mq)) {
@@ -18137,11 +18165,7 @@ static sai_status_t mlnx_acl_port_lag_event_handle(_In_ const mlnx_port_config_t
 
         sx_pbs_id = acl_db_flood_pbs().pbs_id;
 
-        sx_status = sx_api_acl_policy_based_switching_set(get_sdk_handle(),
-                                                          sx_port_cmd,
-                                                          sx_swid_id,
-                                                          &sx_pbs_entry,
-                                                          &sx_pbs_id);
+        sx_status = sx_api_acl_policy_based_switching_set(gh_sdk, sx_port_cmd, sx_swid_id, &sx_pbs_entry, &sx_pbs_id);
         if (SX_STATUS_SUCCESS != sx_status) {
             SX_LOG_ERR("Failed to update ACL Flood PBS Entry %s.\n", SX_STATUS_MSG(sx_status));
             status = sdk_to_sai(sx_status);
@@ -18483,7 +18507,7 @@ static sai_status_t mlnx_acl_pbs_entry_port_init_or_use(_In_ mlnx_acl_pbs_entry_
     sx_pbs_entry.log_ports = sx_ports;
 
     sx_status =
-        sx_api_acl_policy_based_switching_set(get_sdk_handle(),
+        sx_api_acl_policy_based_switching_set(gh_sdk,
                                               SX_ACCESS_CMD_ADD,
                                               DEFAULT_ETH_SWID,
                                               &sx_pbs_entry,
@@ -18611,7 +18635,7 @@ static sai_status_t mlnx_acl_flood_pbs_create_or_get(_Out_ sx_acl_pbs_id_t     *
         sx_pbs_entry.port_num = port_count;
         sx_pbs_entry.log_ports = sx_port_ids;
 
-        sx_status = sx_api_acl_policy_based_switching_set(get_sdk_handle(), SX_ACCESS_CMD_ADD, swid_id,
+        sx_status = sx_api_acl_policy_based_switching_set(gh_sdk, SX_ACCESS_CMD_ADD, swid_id,
                                                           &sx_pbs_entry, sx_pbs_id);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to create Flood PBS %s.\n", SX_STATUS_MSG(sx_status));
@@ -18657,11 +18681,7 @@ static sai_status_t mlnx_acl_pbs_info_delete(_In_ mlnx_acl_pbs_info_t pbs_info)
 
     if (pbs_entry->ref_counter == 0) {
         sx_status =
-            sx_api_acl_policy_based_switching_set(get_sdk_handle(),
-                                                  SX_ACCESS_CMD_DELETE,
-                                                  swid,
-                                                  NULL,
-                                                  &pbs_entry->pbs_id);
+            sx_api_acl_policy_based_switching_set(gh_sdk, SX_ACCESS_CMD_DELETE, swid, NULL, &pbs_entry->pbs_id);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to delete PBS Entry %d (index %d) -  %s.\n",
                        pbs_entry->pbs_id, pbs_info.idx, SX_STATUS_MSG(sx_status));
@@ -18860,7 +18880,7 @@ static sai_status_t mlnx_acl_range_attr_get_spc(_In_ sx_acl_port_range_id_t  sx_
 
     memset(&sx_port_range_entry, 0, sizeof(sx_port_range_entry));
 
-    sx_status = sx_api_acl_l4_port_range_get(get_sdk_handle(), sx_range_id, &sx_port_range_entry);
+    sx_status = sx_api_acl_l4_port_range_get(gh_sdk, sx_range_id, &sx_port_range_entry);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to get range attributes - %s", SX_STATUS_MSG(sx_status));
         return sdk_to_sai(sx_status);
@@ -18913,7 +18933,7 @@ static sai_status_t mlnx_acl_range_attr_get_spc2(_In_ sx_acl_port_range_id_t  sx
 
     memset(&sx_acl_range_entry, 0, sizeof(sx_acl_range_entry));
 
-    sx_status = sx_api_acl_range_get(get_sdk_handle(), sx_range_id, &sx_acl_range_entry);
+    sx_status = sx_api_acl_range_get(gh_sdk, sx_range_id, &sx_acl_range_entry);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to get range attributes - %s", SX_STATUS_MSG(sx_status));
         return sdk_to_sai(sx_status);
@@ -19797,7 +19817,7 @@ static sai_status_t mlnx_acl_bind_point_sx_group_remove(_In_ acl_bind_point_data
         goto out;
     }
 
-    sx_status = sx_api_acl_group_set(get_sdk_handle(), SX_ACCESS_CMD_DESTROY, sx_direction, NULL, 0, &sx_group);
+    sx_status = sx_api_acl_group_set(gh_sdk, SX_ACCESS_CMD_DESTROY, sx_direction, NULL, 0, &sx_group);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to delete sx group [%x]\n", bind_point_data->sx_group);
         status = sdk_to_sai(sx_status);
@@ -19836,7 +19856,7 @@ static sai_status_t mlnx_acl_bind_point_group_sx_set(_In_ acl_bind_point_data_t 
     }
 
     if (false == bind_point_data->is_sx_group_created) {
-        sx_status = sx_api_acl_group_set(get_sdk_handle(), SX_ACCESS_CMD_CREATE, sx_direction, NULL, 0,
+        sx_status = sx_api_acl_group_set(gh_sdk, SX_ACCESS_CMD_CREATE, sx_direction, NULL, 0,
                                          &bind_point_data->sx_group);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to create sx group\n");
@@ -19863,7 +19883,7 @@ static sai_status_t mlnx_acl_bind_point_group_sx_set(_In_ acl_bind_point_data_t 
             sx_acls[ii] = acl_db_table(group_members[ii].table_index).table_id;
         }
 
-        sx_status = sx_api_acl_group_set(get_sdk_handle(), SX_ACCESS_CMD_SET, sx_direction,
+        sx_status = sx_api_acl_group_set(gh_sdk, SX_ACCESS_CMD_SET, sx_direction,
                                          sx_acls, sx_acl_count, &bind_point_data->sx_group);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to update sx group (%x) - %s\n", bind_point_data->sx_group,
@@ -19875,7 +19895,7 @@ static sai_status_t mlnx_acl_bind_point_group_sx_set(_In_ acl_bind_point_data_t 
         head_table_index = acl_group->members[0].table_index;
         sx_head_acl = acl_db_table(head_table_index).table_id;
 
-        sx_status = sx_api_acl_group_set(get_sdk_handle(), SX_ACCESS_CMD_SET, sx_direction,
+        sx_status = sx_api_acl_group_set(gh_sdk, SX_ACCESS_CMD_SET, sx_direction,
                                          &sx_head_acl, 1, &bind_point_data->sx_group);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to update sx group (%x) - %s\n", bind_point_data->sx_group,
@@ -19911,7 +19931,7 @@ static sai_status_t mlnx_acl_bind_point_table_sx_set(_In_ acl_bind_point_data_t 
     sx_direction = bind_point_data->target_data.sx_direction;
 
     if (false == bind_point_data->is_sx_group_created) {
-        sx_status = sx_api_acl_group_set(get_sdk_handle(), SX_ACCESS_CMD_CREATE, sx_direction, NULL, 0,
+        sx_status = sx_api_acl_group_set(gh_sdk, SX_ACCESS_CMD_CREATE, sx_direction, NULL, 0,
                                          &bind_point_data->sx_group);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to create sx group\n");
@@ -19920,7 +19940,7 @@ static sai_status_t mlnx_acl_bind_point_table_sx_set(_In_ acl_bind_point_data_t 
 
         bind_point_data->is_sx_group_created = true;
 
-        sx_status = sx_api_acl_group_set(get_sdk_handle(), SX_ACCESS_CMD_SET, sx_direction,
+        sx_status = sx_api_acl_group_set(gh_sdk, SX_ACCESS_CMD_SET, sx_direction,
                                          &sx_acl_id, 1, &bind_point_data->sx_group);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to update sx group (%x)\n", bind_point_data->sx_group);
@@ -19932,7 +19952,7 @@ static sai_status_t mlnx_acl_bind_point_table_sx_set(_In_ acl_bind_point_data_t 
             return status;
         }
     } else {
-        sx_status = sx_api_acl_group_set(get_sdk_handle(), SX_ACCESS_CMD_SET, sx_direction,
+        sx_status = sx_api_acl_group_set(gh_sdk, SX_ACCESS_CMD_SET, sx_direction,
                                          &sx_acl_id, 1, &bind_point_data->sx_group);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to update sx group (%x)\n", bind_point_data->sx_group);
@@ -20304,7 +20324,7 @@ static sai_status_t mlnx_acl_bind_point_port_bind_set(_In_ sx_access_cmd_t      
     sx_port_id = bind_point_data->target_data.sx_port;
     sx_group_id = bind_point_data->sx_group;
 
-    sx_status = sx_api_acl_port_bind_set(get_sdk_handle(), sx_cmd, sx_port_id, sx_group_id);
+    sx_status = sx_api_acl_port_bind_set(gh_sdk, sx_cmd, sx_port_id, sx_group_id);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to %s sx group [%x] on port [%x]\n", SX_ACCESS_CMD_STR(sx_cmd), sx_group_id, sx_port_id);
         return sdk_to_sai(sx_status);
@@ -20326,7 +20346,7 @@ static sai_status_t mlnx_acl_bind_point_rif_bind_set(_In_ sx_access_cmd_t       
     sx_rif_id = bind_point_data->target_data.rif;
     sx_group_id = bind_point_data->sx_group;
 
-    sx_status = sx_api_acl_rif_bind_set(get_sdk_handle(), sx_cmd, sx_rif_id, sx_group_id);
+    sx_status = sx_api_acl_rif_bind_set(gh_sdk, sx_cmd, sx_rif_id, sx_group_id);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to %s sx group [%x] on rif [%x]\n", SX_ACCESS_CMD_STR(sx_cmd), sx_group_id, sx_rif_id);
         return sdk_to_sai(sx_status);
@@ -20348,7 +20368,7 @@ static sai_status_t mlnx_acl_bind_point_vlan_bind_set(_In_ sx_access_cmd_t      
     sx_vlan_group = bind_point_data->target_data.vlan_group;
     sx_group_id = bind_point_data->sx_group;
 
-    sx_status = sx_api_acl_vlan_group_bind_set(get_sdk_handle(), sx_cmd, sx_vlan_group, sx_group_id);
+    sx_status = sx_api_acl_vlan_group_bind_set(gh_sdk, sx_cmd, sx_vlan_group, sx_group_id);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to %s sx group [%x] on vlan group [%d]", SX_ACCESS_CMD_STR(
                        sx_cmd), sx_group_id, sx_vlan_group);
@@ -20564,7 +20584,7 @@ static sai_status_t mlnx_acl_vlan_group_create_or_get(_In_ sx_vlan_id_t       sx
     if (0 == acl_db_vlan_group(index).vlan_count) {
         assert(false == acl_db_vlan_group(index).bind_data.is_object_set);
 
-        sx_status = sx_api_acl_vlan_group_map_set(get_sdk_handle(), SX_ACCESS_CMD_CREATE, sx_swid_id, NULL, 0,
+        sx_status = sx_api_acl_vlan_group_map_set(gh_sdk, SX_ACCESS_CMD_CREATE, sx_swid_id, NULL, 0,
                                                   &acl_db_vlan_group(index).sx_vlan_group);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to create sx vlan group - %s\n", SX_STATUS_MSG(sx_status));
@@ -20586,7 +20606,7 @@ static sai_status_t mlnx_acl_vlan_group_create_or_get(_In_ sx_vlan_id_t       sx
         }
     }
 
-    sx_status = sx_api_acl_vlan_group_map_set(get_sdk_handle(), SX_ACCESS_CMD_ADD, sx_swid_id, &sx_vlan_id, 1,
+    sx_status = sx_api_acl_vlan_group_map_set(gh_sdk, SX_ACCESS_CMD_ADD, sx_swid_id, &sx_vlan_id, 1,
                                               &acl_db_vlan_group(index).sx_vlan_group);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to add vlan [%d] to vlan group [%d] - %s\n", sx_vlan_id,
@@ -20617,12 +20637,7 @@ static sai_status_t mlnx_acl_vlan_group_remove(_In_ sx_vlan_id_t sx_vlan_id, _In
     vlan_group = acl_db_vlan_group(vlan_group_index).sx_vlan_group;
     bind_point_data = &acl_db_vlan_group(vlan_group_index).bind_data;
 
-    sx_status = sx_api_acl_vlan_group_map_set(get_sdk_handle(),
-                                              SX_ACCESS_CMD_DELETE,
-                                              sx_swid_id,
-                                              &sx_vlan_id,
-                                              1,
-                                              &vlan_group);
+    sx_status = sx_api_acl_vlan_group_map_set(gh_sdk, SX_ACCESS_CMD_DELETE, sx_swid_id, &sx_vlan_id, 1, &vlan_group);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to remove vlan [%d] from vlan group [%d] - %s\n", sx_vlan_id, vlan_group,
                    SX_STATUS_MSG(sx_status));
@@ -20638,7 +20653,7 @@ static sai_status_t mlnx_acl_vlan_group_remove(_In_ sx_vlan_id_t sx_vlan_id, _In
             goto out;
         }
 
-        sx_status = sx_api_acl_vlan_group_map_set(get_sdk_handle(), SX_ACCESS_CMD_DESTROY, sx_swid_id, NULL, 0,
+        sx_status = sx_api_acl_vlan_group_map_set(gh_sdk, SX_ACCESS_CMD_DESTROY, sx_swid_id, NULL, 0,
                                                   &acl_db_vlan_group(vlan_group_index).sx_vlan_group);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to destroy sx vlan group - %s\n", SX_STATUS_MSG(sx_status));
@@ -20995,14 +21010,13 @@ static sai_status_t mlnx_acl_wrapping_group_create(_In_ uint32_t table_index)
     sx_acl_direction = acl_sai_stage_to_sx_dir(acl_db_table(table_index).stage);
     sx_acl_id = acl_db_table(table_index).table_id;
 
-    sx_status = sx_api_acl_group_set(get_sdk_handle(), SX_ACCESS_CMD_CREATE, sx_acl_direction, NULL, 0, &sx_group_id);
+    sx_status = sx_api_acl_group_set(gh_sdk, SX_ACCESS_CMD_CREATE, sx_acl_direction, NULL, 0, &sx_group_id);
     if (SX_STATUS_SUCCESS != sx_status) {
         SX_LOG_ERR("Failed to create sx wrapping group - %s\n", SX_STATUS_MSG(sx_status));
         return sdk_to_sai(sx_status);
     }
 
-    sx_status =
-        sx_api_acl_group_set(get_sdk_handle(), SX_ACCESS_CMD_SET, sx_acl_direction, &sx_acl_id, 1, &sx_group_id);
+    sx_status = sx_api_acl_group_set(gh_sdk, SX_ACCESS_CMD_SET, sx_acl_direction, &sx_acl_id, 1, &sx_group_id);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to update sx group (%x) - %s\n", sx_group_id, SX_STATUS_MSG(sx_status));
         return sdk_to_sai(sx_status);
@@ -21031,7 +21045,7 @@ static sai_status_t mlnx_acl_wrapping_group_delete(_In_ uint32_t table_index)
     sx_group_id = acl_db_table(table_index).wrapping_group.sx_group_id;
     sx_acl_direction = acl_sai_stage_to_sx_dir(acl_db_table(table_index).stage);
 
-    sx_status = sx_api_acl_group_set(get_sdk_handle(), SX_ACCESS_CMD_DESTROY, sx_acl_direction, NULL, 0, &sx_group_id);
+    sx_status = sx_api_acl_group_set(gh_sdk, SX_ACCESS_CMD_DESTROY, sx_acl_direction, NULL, 0, &sx_group_id);
     if (SX_STATUS_SUCCESS != sx_status) {
         SX_LOG_ERR("Failed to remove sx wrapping group - %s\n", SX_STATUS_MSG(sx_status));
         return sdk_to_sai(sx_status);
@@ -21058,7 +21072,7 @@ static sai_status_t mlnx_acl_def_rule_port_list_fill(_In_ sx_acl_key_t sx_key, _
 
         sx_mc_container_attributes.type = SX_MC_CONTAINER_TYPE_PORT;
 
-        sx_status = sx_api_mc_container_set(get_sdk_handle(),
+        sx_status = sx_api_mc_container_set(gh_sdk,
                                             SX_ACCESS_CMD_CREATE,
                                             &def_mc_container->mc_container,
                                             NULL,
@@ -21212,12 +21226,7 @@ static sai_status_t mlnx_acl_table_set_def_rule(_In_ uint32_t src_table_index, _
         default_rule.action_list_p[0].fields.action_goto.acl_group_id = sx_target_group_id;
     }
 
-    sx_status = sx_api_acl_flex_rules_set(get_sdk_handle(),
-                                          SX_ACCESS_CMD_SET,
-                                          region_id,
-                                          &rule_offset,
-                                          &default_rule,
-                                          1);
+    sx_status = sx_api_acl_flex_rules_set(gh_sdk, SX_ACCESS_CMD_SET, region_id, &rule_offset, &default_rule, 1);
     if (SX_STATUS_SUCCESS != sx_status) {
         SX_LOG_ERR("Failed to set ACL rule - %s.\n", SX_STATUS_MSG(sx_status));
         status = sdk_to_sai(sx_status);
@@ -21843,7 +21852,7 @@ static sai_status_t mlnx_acl_range_create_spc(_In_ sai_acl_range_type_t     type
     sx_port_range_entry.port_range_min = range->min;
     sx_port_range_entry.port_range_max = range->max;
 
-    sx_status = sx_api_acl_l4_port_range_set(get_sdk_handle(), SX_ACCESS_CMD_ADD, &sx_port_range_entry, sx_range_id);
+    sx_status = sx_api_acl_l4_port_range_set(gh_sdk, SX_ACCESS_CMD_ADD, &sx_port_range_entry, sx_range_id);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to create range %s.\n", SX_STATUS_MSG(sx_status));
         return sdk_to_sai(sx_status);
@@ -21899,7 +21908,7 @@ static sai_status_t mlnx_acl_range_create_spc2(_In_ sai_acl_range_type_t     typ
     sx_acl_range_entry.range_limits.min = range->min;
     sx_acl_range_entry.range_limits.max = range->max;
 
-    sx_status = sx_api_acl_range_set(get_sdk_handle(), SX_ACCESS_CMD_ADD, &sx_acl_range_entry, sx_range_id);
+    sx_status = sx_api_acl_range_set(gh_sdk, SX_ACCESS_CMD_ADD, &sx_acl_range_entry, sx_range_id);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to create range %s.\n", SX_STATUS_MSG(sx_status));
         return sdk_to_sai(sx_status);
@@ -21915,8 +21924,7 @@ static sai_status_t mlnx_acl_range_remove_spc(_In_ sx_acl_port_range_id_t sx_ran
 
     memset(&sx_port_range_entry, 0, sizeof(sx_port_range_entry));
 
-    sx_status =
-        sx_api_acl_l4_port_range_set(get_sdk_handle(), SX_ACCESS_CMD_DELETE, &sx_port_range_entry, &sx_range_id);
+    sx_status = sx_api_acl_l4_port_range_set(gh_sdk, SX_ACCESS_CMD_DELETE, &sx_port_range_entry, &sx_range_id);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to delete range %s.\n", SX_STATUS_MSG(sx_status));
         return sdk_to_sai(sx_status);
@@ -21932,7 +21940,7 @@ static sai_status_t mlnx_acl_range_remove_spc2(_In_ sx_acl_port_range_id_t sx_ra
 
     memset(&sx_acl_range_entry, 0, sizeof(sx_acl_range_entry));
 
-    sx_status = sx_api_acl_range_set(get_sdk_handle(), SX_ACCESS_CMD_DELETE, &sx_acl_range_entry, &sx_range_id);
+    sx_status = sx_api_acl_range_set(gh_sdk, SX_ACCESS_CMD_DELETE, &sx_acl_range_entry, &sx_range_id);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to delete range %s.\n", SX_STATUS_MSG(sx_status));
         return sdk_to_sai(sx_status);
@@ -22114,13 +22122,13 @@ static sai_status_t mlnx_create_acl_table_group(_Out_ sai_object_id_t      *acl_
 
     SX_LOG_ENTER();
 
+    acl_global_lock();
+
     status = check_attribs_on_create(attr_count, attr_list, SAI_OBJECT_TYPE_ACL_TABLE_GROUP, acl_table_group_id);
     if (SAI_ERR(status)) {
         return status;
     }
     MLNX_LOG_ATTRS(attr_count, attr_list, SAI_OBJECT_TYPE_ACL_TABLE_GROUP);
-
-    acl_global_lock();
 
     group_type = SAI_ACL_TABLE_GROUP_TYPE_SEQUENTIAL;
 
@@ -22676,7 +22684,7 @@ static sai_status_t perport_ipcnt_init_counter(_In_ uint32_t port_number)
 
     attr.counter_type = SX_FLOW_COUNTER_TYPE_PACKETS_AND_BYTES;
     attr.counter_num = bulk_num;
-    sx_status = sx_api_flow_counter_bulk_set(get_sdk_handle(), SX_ACCESS_CMD_CREATE, attr, &counter_data);
+    sx_status = sx_api_flow_counter_bulk_set(gh_sdk, SX_ACCESS_CMD_CREATE, attr, &counter_data);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Error allocating per-port IP counter pool for %d(%d) ports: %s\n",
                    port_number, bulk_num, SX_STATUS_MSG(sx_status));
@@ -22796,7 +22804,7 @@ static sai_status_t perport_ipcnt_create_table(uint32_t            debug_index,
     sx_status_t           sx_status;
     sx_acl_region_group_t region_group;
 
-    sx_status = sx_api_acl_flex_key_set(get_sdk_handle(),
+    sx_status = sx_api_acl_flex_key_set(gh_sdk,
                                         SX_ACCESS_CMD_CREATE,
                                         key,
                                         PERPORT_IPCNT_KEY_MAX,
@@ -22807,7 +22815,7 @@ static sai_status_t perport_ipcnt_create_table(uint32_t            debug_index,
         return sdk_to_sai(sx_status);
     }
 
-    sx_status = sx_api_acl_region_set(get_sdk_handle(),
+    sx_status = sx_api_acl_region_set(gh_sdk,
                                       SX_ACCESS_CMD_CREATE,
                                       *key_handle,
                                       SX_ACL_ACTION_TYPE_BASIC,
@@ -22816,14 +22824,14 @@ static sai_status_t perport_ipcnt_create_table(uint32_t            debug_index,
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to create per-port IP counter region %d(%d) %s.\n",
                    debug_index, size, SX_STATUS_MSG(sx_status));
-        (void)sx_api_acl_flex_key_set(get_sdk_handle(), SX_ACCESS_CMD_DELETE, NULL, 0, key_handle);
+        (void)sx_api_acl_flex_key_set(gh_sdk, SX_ACCESS_CMD_DELETE, NULL, 0, key_handle);
         return sdk_to_sai(sx_status);
     }
 
     memset(&region_group, 0, sizeof(region_group));
     region_group.acl_type = SX_ACL_TYPE_PACKET_TYPES_AGNOSTIC;
     region_group.regions.acl_packet_agnostic.region = *region_id;
-    sx_status = sx_api_acl_set(get_sdk_handle(),
+    sx_status = sx_api_acl_set(gh_sdk,
                                SX_ACCESS_CMD_CREATE,
                                SX_ACL_TYPE_PACKET_TYPES_AGNOSTIC,
                                direction,
@@ -22832,8 +22840,8 @@ static sai_status_t perport_ipcnt_create_table(uint32_t            debug_index,
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to create per-port IP counter acl %d %s.\n",
                    debug_index, SX_STATUS_MSG(sx_status));
-        (void)sx_api_acl_flex_key_set(get_sdk_handle(), SX_ACCESS_CMD_DELETE, NULL, 0, key_handle);
-        (void)sx_api_acl_region_set(get_sdk_handle(),
+        (void)sx_api_acl_flex_key_set(gh_sdk, SX_ACCESS_CMD_DELETE, NULL, 0, key_handle);
+        (void)sx_api_acl_region_set(gh_sdk,
                                     SX_ACCESS_CMD_DESTROY,
                                     *key_handle,
                                     SX_ACL_ACTION_TYPE_BASIC,
@@ -22854,7 +22862,7 @@ static sai_status_t perport_ipcnt_delete_table(uint32_t            debug_index,
 {
     sx_status_t sx_status;
 
-    sx_status = sx_api_acl_set(get_sdk_handle(),
+    sx_status = sx_api_acl_set(gh_sdk,
                                SX_ACCESS_CMD_DESTROY,
                                SX_ACL_TYPE_PACKET_TYPES_AGNOSTIC,
                                direction,
@@ -22866,7 +22874,7 @@ static sai_status_t perport_ipcnt_delete_table(uint32_t            debug_index,
         return sdk_to_sai(sx_status);
     }
 
-    sx_status = sx_api_acl_region_set(get_sdk_handle(),
+    sx_status = sx_api_acl_region_set(gh_sdk,
                                       SX_ACCESS_CMD_DESTROY,
                                       *key_handle,
                                       SX_ACL_ACTION_TYPE_BASIC,
@@ -22878,7 +22886,7 @@ static sai_status_t perport_ipcnt_delete_table(uint32_t            debug_index,
         return sdk_to_sai(sx_status);
     }
 
-    sx_status = sx_api_acl_flex_key_set(get_sdk_handle(), SX_ACCESS_CMD_DELETE, NULL, 0, key_handle);
+    sx_status = sx_api_acl_flex_key_set(gh_sdk, SX_ACCESS_CMD_DELETE, NULL, 0, key_handle);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to destroy per-port IP counter flex key %d %s.\n",
                    debug_index, SX_STATUS_MSG(sx_status));
@@ -22966,12 +22974,7 @@ sai_status_t mlnx_perport_ipcnt_init(_In_ uint32_t port_number)
 
     /* create 2 per-port IP counter acl table group */
     /* acl table group #1 for ingress */
-    sx_status = sx_api_acl_group_set(get_sdk_handle(),
-                                     SX_ACCESS_CMD_CREATE,
-                                     SX_ACL_DIRECTION_INGRESS,
-                                     NULL,
-                                     0,
-                                     &acl_group[0]);
+    sx_status = sx_api_acl_group_set(gh_sdk, SX_ACCESS_CMD_CREATE, SX_ACL_DIRECTION_INGRESS, NULL, 0, &acl_group[0]);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to create per-port IP counter acl group1 %s.\n", SX_STATUS_MSG(sx_status));
         rollback = ROLLBACK_DELETE_TABLE_EGRESS;
@@ -22980,7 +22983,7 @@ sai_status_t mlnx_perport_ipcnt_init(_In_ uint32_t port_number)
     }
     /* add acl_id and acl_id2(if any) to acl group */
     if (mlnx_chip_is_spc1or2or3()) {
-        sx_status = sx_api_acl_group_set(get_sdk_handle(),
+        sx_status = sx_api_acl_group_set(gh_sdk,
                                          SX_ACCESS_CMD_SET,
                                          SX_ACL_DIRECTION_INGRESS,
                                          acl_id,
@@ -22993,7 +22996,7 @@ sai_status_t mlnx_perport_ipcnt_init(_In_ uint32_t port_number)
             goto out;
         }
     } else {
-        sx_status = sx_api_acl_group_set(get_sdk_handle(),
+        sx_status = sx_api_acl_group_set(gh_sdk,
                                          SX_ACCESS_CMD_SET,
                                          SX_ACL_DIRECTION_INGRESS,
                                          acl_id,
@@ -23009,7 +23012,7 @@ sai_status_t mlnx_perport_ipcnt_init(_In_ uint32_t port_number)
     /* set the group to highest priority */
     group_attr.priority = FLEX_ACL_GROUP_PRIORITY_MAX;
     group_attr.acl_group_desc.acl_name_str_len = 0;
-    sx_status = sx_api_acl_group_attributes_set(get_sdk_handle(), SX_ACCESS_CMD_SET, acl_group[0], &group_attr);
+    sx_status = sx_api_acl_group_attributes_set(gh_sdk, SX_ACCESS_CMD_SET, acl_group[0], &group_attr);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to set per-port IP counter group1 priority %s.\n", SX_STATUS_MSG(sx_status));
         rollback = ROLLBACK_DELETE_GROUP_INGRESS;
@@ -23018,12 +23021,7 @@ sai_status_t mlnx_perport_ipcnt_init(_In_ uint32_t port_number)
     }
 
     /* acl table group #2 for egress */
-    sx_status = sx_api_acl_group_set(get_sdk_handle(),
-                                     SX_ACCESS_CMD_CREATE,
-                                     SX_ACL_DIRECTION_EGRESS,
-                                     NULL,
-                                     0,
-                                     &acl_group[1]);
+    sx_status = sx_api_acl_group_set(gh_sdk, SX_ACCESS_CMD_CREATE, SX_ACL_DIRECTION_EGRESS, NULL, 0, &acl_group[1]);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to create per-port IP counter acl group2 %s.\n", SX_STATUS_MSG(sx_status));
         rollback = ROLLBACK_DELETE_GROUP_INGRESS;
@@ -23031,12 +23029,7 @@ sai_status_t mlnx_perport_ipcnt_init(_In_ uint32_t port_number)
         goto out;
     }
     /* add acl_id3 to acl group */
-    sx_status = sx_api_acl_group_set(get_sdk_handle(),
-                                     SX_ACCESS_CMD_SET,
-                                     SX_ACL_DIRECTION_EGRESS,
-                                     &acl_id[2],
-                                     1,
-                                     &acl_group[1]);
+    sx_status = sx_api_acl_group_set(gh_sdk, SX_ACCESS_CMD_SET, SX_ACL_DIRECTION_EGRESS, &acl_id[2], 1, &acl_group[1]);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to add per-port IP counter acl3 to group2 %s.\n", SX_STATUS_MSG(sx_status));
         rollback = ROLLBACK_DELETE_GROUP_EGRESS;
@@ -23044,7 +23037,7 @@ sai_status_t mlnx_perport_ipcnt_init(_In_ uint32_t port_number)
         goto out;
     }
     /* set the group to highest priority */
-    sx_status = sx_api_acl_group_attributes_set(get_sdk_handle(), SX_ACCESS_CMD_SET, acl_group[1], &group_attr);
+    sx_status = sx_api_acl_group_attributes_set(gh_sdk, SX_ACCESS_CMD_SET, acl_group[1], &group_attr);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to set per-port IP counter group2 priority %s.\n", SX_STATUS_MSG(sx_status));
         rollback = ROLLBACK_DELETE_GROUP_EGRESS;
@@ -23091,21 +23084,11 @@ out:
     switch (rollback) {
     case ROLLBACK_DELETE_GROUP_EGRESS:
         /* already error case, no need to check return code */
-        (void)sx_api_acl_group_set(get_sdk_handle(),
-                                   SX_ACCESS_CMD_DESTROY,
-                                   SX_ACL_DIRECTION_EGRESS,
-                                   NULL,
-                                   0,
-                                   &acl_group[1]);
+        (void)sx_api_acl_group_set(gh_sdk, SX_ACCESS_CMD_DESTROY, SX_ACL_DIRECTION_EGRESS, NULL, 0, &acl_group[1]);
     /* Falls through. */
 
     case ROLLBACK_DELETE_GROUP_INGRESS:
-        (void)sx_api_acl_group_set(get_sdk_handle(),
-                                   SX_ACCESS_CMD_DESTROY,
-                                   SX_ACL_DIRECTION_INGRESS,
-                                   NULL,
-                                   0,
-                                   &acl_group[0]);
+        (void)sx_api_acl_group_set(gh_sdk, SX_ACCESS_CMD_DESTROY, SX_ACL_DIRECTION_INGRESS, NULL, 0, &acl_group[0]);
     /* Falls through. */
 
     case ROLLBACK_DELETE_TABLE_EGRESS:
@@ -23196,7 +23179,7 @@ static sai_status_t perport_ipcnt_port_create_rule(sx_acl_region_id_t    region_
     rule.action_count = 1;
     rule.valid = true;
     rule.priority = 0;
-    sx_status = sx_api_acl_flex_rules_set(get_sdk_handle(), SX_ACCESS_CMD_SET, region_id, offset, &rule, 1);
+    sx_status = sx_api_acl_flex_rules_set(gh_sdk, SX_ACCESS_CMD_SET, region_id, offset, &rule, 1);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to add per-port IP counter ACL rule %s.\n", SX_STATUS_MSG(sx_status));
         goto out;
@@ -23212,7 +23195,7 @@ static sai_status_t perport_ipcnt_port_delete_rule(sx_acl_region_id_t    region_
 {
     sx_status_t sx_status;
 
-    sx_status = sx_api_acl_flex_rules_set(get_sdk_handle(),
+    sx_status = sx_api_acl_flex_rules_set(gh_sdk,
                                           SX_ACCESS_CMD_DELETE,
                                           region_id,
                                           offset,
@@ -23234,7 +23217,7 @@ static sai_status_t perport_ipcnt_table_size_adjust(perport_ipcnt_table_data_t *
     uint32_t      delta = g_sai_acl_db_ptr->perport_ipcnt_table->size_delta;
 
     new_size = increase ? (table->current_size + delta) : (table->current_size - delta);
-    sx_status = sx_api_acl_region_set(get_sdk_handle(), SX_ACCESS_CMD_EDIT, table->key_handle,
+    sx_status = sx_api_acl_region_set(gh_sdk, SX_ACCESS_CMD_EDIT, table->key_handle,
                                       SX_ACL_ACTION_TYPE_BASIC, new_size, &table->region_id);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to %s size per-port IP counter region %d %d->%d %s.\n",
@@ -23255,19 +23238,19 @@ static sai_status_t mlnx_perport_ipcnt_bind(_In_ sx_port_log_id_t id, _In_ bool 
     group_id_ingress = g_sai_acl_db_ptr->perport_ipcnt_group->ingress_group.group_id;
     group_id_egress = g_sai_acl_db_ptr->perport_ipcnt_group->egress_group.group_id;
     /* bind the ingress */
-    sx_status = sx_api_acl_port_bind_set(get_sdk_handle(), SX_ACCESS_CMD_ADD, id, group_id_ingress);
+    sx_status = sx_api_acl_port_bind_set(gh_sdk, SX_ACCESS_CMD_ADD, id, group_id_ingress);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to bind %s 0x%x to per-port IP counter ACL ingress group 0x%x %s.\n",
                    is_lag ? "lag" : "port", id, group_id_ingress, SX_STATUS_MSG(sx_status));
         goto out;
     }
     /* bind the egress */
-    sx_status = sx_api_acl_port_bind_set(get_sdk_handle(), SX_ACCESS_CMD_ADD, id, group_id_egress);
+    sx_status = sx_api_acl_port_bind_set(gh_sdk, SX_ACCESS_CMD_ADD, id, group_id_egress);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to bind %s 0x%x to per-port IP counter ACL egress group 0x%x %s.\n",
                    is_lag ? "lag" : "port", id, group_id_egress, SX_STATUS_MSG(sx_status));
         /* already error case, no need to check return code */
-        (void)sx_api_acl_port_bind_set(get_sdk_handle(), SX_ACCESS_CMD_DELETE, id, group_id_ingress);
+        (void)sx_api_acl_port_bind_set(gh_sdk, SX_ACCESS_CMD_DELETE, id, group_id_ingress);
         goto out;
     }
 
@@ -23283,15 +23266,15 @@ static sai_status_t mlnx_perport_ipcnt_unbind(_In_ sx_port_log_id_t id, _In_ boo
     group_id_ingress = g_sai_acl_db_ptr->perport_ipcnt_group->ingress_group.group_id;
     group_id_egress = g_sai_acl_db_ptr->perport_ipcnt_group->egress_group.group_id;
     /* unbind the port/lag from ingress and egress */
-    sx_status = sx_api_acl_port_bind_set(get_sdk_handle(), SX_ACCESS_CMD_DELETE, id, group_id_ingress);
+    sx_status = sx_api_acl_port_bind_set(gh_sdk, SX_ACCESS_CMD_DELETE, id, group_id_ingress);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to unbind %s 0x%x per-port IP counter ACL ingress group 0x%x %s.\n",
                    is_lag ? "lag" : "port", id, group_id_ingress, SX_STATUS_MSG(sx_status));
         goto out;
     }
-    sx_status = sx_api_acl_port_bind_set(get_sdk_handle(), SX_ACCESS_CMD_DELETE, id, group_id_egress);
+    sx_status = sx_api_acl_port_bind_set(gh_sdk, SX_ACCESS_CMD_DELETE, id, group_id_egress);
     if (SX_ERR(sx_status)) {
-        (void)sx_api_acl_port_bind_set(get_sdk_handle(), SX_ACCESS_CMD_ADD, id, group_id_ingress);
+        (void)sx_api_acl_port_bind_set(gh_sdk, SX_ACCESS_CMD_ADD, id, group_id_ingress);
         SX_LOG_ERR("Failed to unbind %s 0x%x per-port IP counter ACL egress group 0x%x %s.\n",
                    is_lag ? "lag" : "port", id, group_id_egress, SX_STATUS_MSG(sx_status));
         goto out;
@@ -23652,7 +23635,7 @@ static sai_status_t perport_ipcnt_port_del_rules(_In_ sx_port_log_id_t port_id,
         port_old = ppipcnt_2_sai_port_index(port_old);
         entry_old = &g_sai_acl_db_ptr->perport_ipcnt_entry[port_old];
         offset_old = entry_old->entry_id[PERPORT_IPCNT_IN_FIRST_INDEX];
-        sx_status = sx_api_acl_rule_block_move_set(get_sdk_handle(), region_ingress, offset_old, 4, offset_new);
+        sx_status = sx_api_acl_rule_block_move_set(gh_sdk, region_ingress, offset_old, 4, offset_new);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to move per-port IP counter ACL rule ingress %d(0x%x)->%d(0x%x) %s.\n",
                        offset_old, port_old, offset_new, port_index, SX_STATUS_MSG(sx_status));
@@ -23718,7 +23701,7 @@ static sai_status_t perport_ipcnt_port_del_rules(_In_ sx_port_log_id_t port_id,
         port_old = ppipcnt_2_sai_port_index(port_old);
         entry_old = &g_sai_acl_db_ptr->perport_ipcnt_entry[port_old];
         offset_old = entry_old->entry_id[PERPORT_IPCNT_OUT_FIRST_INDEX];
-        sx_status = sx_api_acl_rule_block_move_set(get_sdk_handle(), region_egress, offset_old, 4, offset_new);
+        sx_status = sx_api_acl_rule_block_move_set(gh_sdk, region_egress, offset_old, 4, offset_new);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to move per-port IP counter ACL rule egress %d(0x%x)->%d(0x%x) %s.\n",
                        offset_old, port_old, offset_new, port_index, SX_STATUS_MSG(sx_status));
@@ -24236,7 +24219,7 @@ static sai_status_t mlnx_acl_flex_rules_set_helper(_In_ sx_access_cmd_t         
     while (ii < rules_count) {
         set_rules_num = MIN(g_resource_limits.acl_rules_block_max, rules_count - ii);
 
-        sx_status = sx_api_acl_flex_rules_set(get_sdk_handle(), cmd, region_id,
+        sx_status = sx_api_acl_flex_rules_set(gh_sdk, cmd, region_id,
                                               &offsets_list_p[ii], &rules_list_p[ii], set_rules_num);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to set ACL rule - %s.\n", SX_STATUS_MSG(sx_status));
@@ -25015,7 +24998,7 @@ sai_status_t mlnx_acl_bind_dscp_remapping(_In_ mlnx_dscp_remapping_tunnel_type_t
 
         SX_LOG_NTC("Bind dscp remapping ACL to overlay rif %" PRIx64 ", rif id %u, tunnel type %u.\n",
                    tunnel_overlay_rif, rif_id, tunnel_type);
-        sx_status = sx_api_acl_rif_bind_set(get_sdk_handle(), SX_ACCESS_CMD_ADD, rif_id, acl_entry->group_id);
+        sx_status = sx_api_acl_rif_bind_set(gh_sdk, SX_ACCESS_CMD_ADD, rif_id, acl_entry->group_id);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to bind dscp remapping ACL group %" PRIx64 " to overlay rif id %" PRIx64 ","
                        " tunnel type %u :%s.\n", acl_entry->group_id, rif_id, tunnel_type, SX_STATUS_MSG(sx_status));
@@ -25057,7 +25040,7 @@ sai_status_t mlnx_acl_unbind_dscp_remapping(_In_ mlnx_dscp_remapping_tunnel_type
         }
         SX_LOG_NTC("Unbind dscp remapping ACL to overlay rif %" PRIx64 ", rif id %u, tunnel type %u.\n",
                    acl_entry->acl_binding_rif, rif_id, tunnel_type);
-        sx_status = sx_api_acl_rif_bind_set(get_sdk_handle(), SX_ACCESS_CMD_DELETE, rif_id, acl_entry->group_id);
+        sx_status = sx_api_acl_rif_bind_set(gh_sdk, SX_ACCESS_CMD_DELETE, rif_id, acl_entry->group_id);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to unbind dscp remapping ACL group %" PRIx64 " from overlay rif id %u,"
                        " tunnel type %u :%s.\n", acl_entry->group_id, rif_id, tunnel_type, SX_STATUS_MSG(sx_status));
@@ -25103,7 +25086,7 @@ static sai_status_t mlnx_acl_create_dscp_remapping_rule(_In_ sx_acl_region_id_t 
     rule.action_count = 1;
     rule.valid = true;
     rule.priority = 0;
-    sx_status = sx_api_acl_flex_rules_set(get_sdk_handle(), SX_ACCESS_CMD_SET, region_id, offset, &rule, 1);
+    sx_status = sx_api_acl_flex_rules_set(gh_sdk, SX_ACCESS_CMD_SET, region_id, offset, &rule, 1);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to add dscp remapping ACL rule %s.\n", SX_STATUS_MSG(sx_status));
         goto out;
@@ -25123,7 +25106,7 @@ static sai_status_t mlnx_acl_remove_dscp_remapping_rule(_In_ sx_acl_region_id_t 
 
     SX_LOG_ENTER();
 
-    sx_status = sx_api_acl_flex_rules_set(get_sdk_handle(),
+    sx_status = sx_api_acl_flex_rules_set(gh_sdk,
                                           SX_ACCESS_CMD_DELETE,
                                           region_id,
                                           offset,
@@ -25152,24 +25135,24 @@ static sai_status_t mlnx_acl_create_dscp_remapping_table(_In_ sx_acl_key_t      
 
     SX_LOG_ENTER();
 
-    sx_status = sx_api_acl_flex_key_set(get_sdk_handle(), SX_ACCESS_CMD_CREATE, key, 1, key_handle);
+    sx_status = sx_api_acl_flex_key_set(gh_sdk, SX_ACCESS_CMD_CREATE, key, 1, key_handle);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to create dscp remapping flex key %s.\n", SX_STATUS_MSG(sx_status));
         goto out;
     }
 
-    sx_status = sx_api_acl_region_set(get_sdk_handle(), SX_ACCESS_CMD_CREATE, *key_handle,
+    sx_status = sx_api_acl_region_set(gh_sdk, SX_ACCESS_CMD_CREATE, *key_handle,
                                       SX_ACL_ACTION_TYPE_BASIC, size, region_id);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to create dscp remapping size %d %s.\n", size, SX_STATUS_MSG(sx_status));
-        (void)sx_api_acl_flex_key_set(get_sdk_handle(), SX_ACCESS_CMD_DELETE, NULL, 0, key_handle);
+        (void)sx_api_acl_flex_key_set(gh_sdk, SX_ACCESS_CMD_DELETE, NULL, 0, key_handle);
         goto out;
     }
 
     memset(&region_group, 0, sizeof(region_group));
     region_group.acl_type = SX_ACL_TYPE_PACKET_TYPES_AGNOSTIC;
     region_group.regions.acl_packet_agnostic.region = *region_id;
-    sx_status = sx_api_acl_set(get_sdk_handle(),
+    sx_status = sx_api_acl_set(gh_sdk,
                                SX_ACCESS_CMD_CREATE,
                                SX_ACL_TYPE_PACKET_TYPES_AGNOSTIC,
                                direction,
@@ -25177,8 +25160,8 @@ static sai_status_t mlnx_acl_create_dscp_remapping_table(_In_ sx_acl_key_t      
                                acl_id);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to create dscp remapping acl %s.\n", SX_STATUS_MSG(sx_status));
-        (void)sx_api_acl_flex_key_set(get_sdk_handle(), SX_ACCESS_CMD_DELETE, NULL, 0, key_handle);
-        (void)sx_api_acl_region_set(get_sdk_handle(),
+        (void)sx_api_acl_flex_key_set(gh_sdk, SX_ACCESS_CMD_DELETE, NULL, 0, key_handle);
+        (void)sx_api_acl_region_set(gh_sdk,
                                     SX_ACCESS_CMD_DESTROY,
                                     *key_handle,
                                     SX_ACL_ACTION_TYPE_BASIC,
@@ -25206,7 +25189,7 @@ static sai_status_t mlnx_acl_delete_dscp_remapping_table(_In_ sx_acl_size_t     
 
     SX_LOG_ENTER();
 
-    sx_status = sx_api_acl_set(get_sdk_handle(),
+    sx_status = sx_api_acl_set(gh_sdk,
                                SX_ACCESS_CMD_DESTROY,
                                SX_ACL_TYPE_PACKET_TYPES_AGNOSTIC,
                                direction,
@@ -25217,7 +25200,7 @@ static sai_status_t mlnx_acl_delete_dscp_remapping_table(_In_ sx_acl_size_t     
         goto out;
     }
 
-    sx_status = sx_api_acl_region_set(get_sdk_handle(),
+    sx_status = sx_api_acl_region_set(gh_sdk,
                                       SX_ACCESS_CMD_DESTROY,
                                       *key_handle,
                                       SX_ACL_ACTION_TYPE_BASIC,
@@ -25228,7 +25211,7 @@ static sai_status_t mlnx_acl_delete_dscp_remapping_table(_In_ sx_acl_size_t     
         goto out;
     }
 
-    sx_status = sx_api_acl_flex_key_set(get_sdk_handle(), SX_ACCESS_CMD_DELETE, NULL, 0, key_handle);
+    sx_status = sx_api_acl_flex_key_set(gh_sdk, SX_ACCESS_CMD_DELETE, NULL, 0, key_handle);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to destroy dscp remapping flex key %s.\n", SX_STATUS_MSG(sx_status));
         goto out;
@@ -25276,7 +25259,7 @@ sai_status_t mlnx_acl_dscp_remapping_acl_data_init(void)
             goto out;
         }
 
-        sx_status = sx_api_acl_group_set(get_sdk_handle(), SX_ACCESS_CMD_CREATE, direction, NULL, 0, acl_group_id_db);
+        sx_status = sx_api_acl_group_set(gh_sdk, SX_ACCESS_CMD_CREATE, direction, NULL, 0, acl_group_id_db);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to create dscp remapping acl group, tunnel type %u: %s.\n",
                        ii, SX_STATUS_MSG(sx_status));
@@ -25284,8 +25267,7 @@ sai_status_t mlnx_acl_dscp_remapping_acl_data_init(void)
             goto out_remove_acl_table;
         }
 
-        sx_status =
-            sx_api_acl_group_set(get_sdk_handle(), SX_ACCESS_CMD_SET, direction, acl_id_db, 1, acl_group_id_db);
+        sx_status = sx_api_acl_group_set(gh_sdk, SX_ACCESS_CMD_SET, direction, acl_id_db, 1, acl_group_id_db);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to add acl to group, tunnel type %u: %s.\n", ii, SX_STATUS_MSG(sx_status));
             status = sdk_to_sai(sx_status);
@@ -25301,7 +25283,7 @@ sai_status_t mlnx_acl_dscp_remapping_acl_data_init(void)
     goto out;
 
 out_remove_acl_group:
-    (void)sx_api_acl_group_set(get_sdk_handle(), SX_ACCESS_CMD_DESTROY, direction, NULL, 0, acl_group_id_db);
+    (void)sx_api_acl_group_set(gh_sdk, SX_ACCESS_CMD_DESTROY, direction, NULL, 0, acl_group_id_db);
 out_remove_acl_table:
     (void)mlnx_acl_delete_dscp_remapping_table(MAX_DSCP_REMAPPING_ACL_RULE, direction,
                                                key_handle_db, region_id_db, acl_id_db);
@@ -25329,7 +25311,7 @@ sai_status_t mlnx_acl_dscp_remapping_acl_data_clear(void)
             direction = SX_ACL_DIRECTION_RIF_INGRESS;
         }
 
-        sx_status = sx_api_acl_group_set(get_sdk_handle(), SX_ACCESS_CMD_DESTROY, direction,
+        sx_status = sx_api_acl_group_set(gh_sdk, SX_ACCESS_CMD_DESTROY, direction,
                                          NULL, 0, &remapping_acl_data->group_id);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to destroy sx group (%x), tunnel type %u : %s.\n",

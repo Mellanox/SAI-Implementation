@@ -251,7 +251,7 @@ static sai_status_t ets_list_load(sx_port_log_id_t port_id, sx_cos_ets_element_c
         return SAI_STATUS_NO_MEMORY;
     }
 
-    status = sx_api_cos_port_ets_element_get(get_sdk_handle(), port_id, *ets, &max_ets_count);
+    status = sx_api_cos_port_ets_element_get(gh_sdk, port_id, *ets, &max_ets_count);
     if (status != SX_STATUS_SUCCESS) {
         SX_LOG_ERR("Failed get ETS list - %s\n", SX_STATUS_MSG(status));
     }
@@ -709,7 +709,7 @@ static sai_status_t mlnx_sched_objlist_to_ets_update(sx_port_log_id_t  port_id,
                    ets->element_index);
     }
 
-    sx_status = sx_api_cos_port_ets_element_set(get_sdk_handle(), SX_ACCESS_CMD_EDIT,
+    sx_status = sx_api_cos_port_ets_element_set(gh_sdk, SX_ACCESS_CMD_EDIT,
                                                 port_id, ets_list, MAX_ETS_ELEMENTS);
 
     status = sdk_to_sai(sx_status);
@@ -1393,8 +1393,8 @@ sai_status_t mlnx_scheduler_group_log_set(sx_verbosity_level_t level)
 {
     LOG_VAR_NAME(__MODULE__) = level;
 
-    if (get_sdk_handle()) {
-        return sdk_to_sai(sx_api_cos_log_verbosity_level_set(get_sdk_handle(),
+    if (gh_sdk) {
+        return sdk_to_sai(sx_api_cos_log_verbosity_level_set(gh_sdk,
                                                              SX_LOG_VERBOSITY_BOTH, level, level));
     }
 
@@ -1442,7 +1442,7 @@ sai_status_t mlnx_sched_group_port_init(mlnx_port_config_t *port, bool is_warmbo
             }
 
             if (!is_warmboot_init_stage) {
-                status = sx_api_cos_port_ets_element_set(get_sdk_handle(), SX_ACCESS_CMD_EDIT,
+                status = sx_api_cos_port_ets_element_set(gh_sdk, SX_ACCESS_CMD_EDIT,
                                                          port->logical,
                                                          sched_obj_to_ets(obj, ets),
                                                          1);
@@ -1480,7 +1480,7 @@ sai_status_t mlnx_sched_group_port_init(mlnx_port_config_t *port, bool is_warmbo
         }
 
         if (!is_warmboot_init_stage) {
-            status = sx_api_cos_port_ets_element_set(get_sdk_handle(), SX_ACCESS_CMD_EDIT,
+            status = sx_api_cos_port_ets_element_set(gh_sdk, SX_ACCESS_CMD_EDIT,
                                                      port->logical,
                                                      sched_obj_to_ets(&queue->sched_obj, ets),
                                                      1);

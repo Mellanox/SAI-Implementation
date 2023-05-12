@@ -450,7 +450,7 @@ static sai_status_t mlnx_wred_bind_sxwred_to_port(sx_port_log_id_t          port
     memset(&bind_param, 0, sizeof(bind_param));
     bind_param.tc_profile = profile_id;
 
-    sx_status = sx_api_cos_redecn_profile_tc_bind_set(get_sdk_handle(), port, cmd,
+    sx_status = sx_api_cos_redecn_profile_tc_bind_set(gh_sdk, port, cmd,
                                                       tc_list, tc_count,
                                                       flow_type, &bind_param);
     tc_list_to_str(tc_list, tc_count, buf);
@@ -685,7 +685,7 @@ static sai_status_t mlnx_wred_ecn_enable_set(sx_port_log_id_t        port,
     SX_LOG_INF("Set ecn_enabled (%d), red_enabled (%d) for port 0%x tc = %s\n",
                ecn_enable, red_enable, port, buf);
 
-    sx_status = sx_api_cos_redecn_tc_enable_set(get_sdk_handle(), port, tc_list, tc_count, &ecn_param);
+    sx_status = sx_api_cos_redecn_tc_enable_set(gh_sdk, port, tc_list, tc_count, &ecn_param);
     if (SX_STATUS_SUCCESS != sx_status) {
         SX_LOG_ERR("Failed to set redecn tc enable params - %s\n", SX_STATUS_MSG(sx_status));
     }
@@ -883,7 +883,7 @@ static sai_status_t mlnx_wred_remove_profile(sai_object_id_t         wred_id,
     }
 
     /* remove profile */
-    sx_status = sx_api_cos_redecn_profile_set(get_sdk_handle(), SX_ACCESS_CMD_DELETE,
+    sx_status = sx_api_cos_redecn_profile_set(gh_sdk, SX_ACCESS_CMD_DELETE,
                                               &redecn_attr, &profile_id);
     if (SX_STATUS_SUCCESS != sx_status) {
         SX_LOG_ERR("Failed to remove profile - %s\n", SX_STATUS_MSG(sx_status));
@@ -937,7 +937,7 @@ static sai_status_t mlnx_wred_redecn_create_default_profile(sai_object_id_t     
         assert(0);
     }
 
-    sx_status = sx_api_cos_redecn_profile_set(get_sdk_handle(), SX_ACCESS_CMD_ADD, &redecn_attr, profile);
+    sx_status = sx_api_cos_redecn_profile_set(gh_sdk, SX_ACCESS_CMD_ADD, &redecn_attr, profile);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to create redecn %s profile - %s\n", color, SX_STATUS_MSG(sx_status));
         return sdk_to_sai(sx_status);
@@ -946,7 +946,7 @@ static sai_status_t mlnx_wred_redecn_create_default_profile(sai_object_id_t     
     status = mlnx_wred_db_set(wred_id, wred_profile);
     if (SAI_ERR(status)) {
         SX_LOG_ERR("Failed to update WRED %" PRIx64 "profile\n", wred_id);
-        sx_api_cos_redecn_profile_set(get_sdk_handle(), SX_ACCESS_CMD_DELETE,
+        sx_api_cos_redecn_profile_set(gh_sdk, SX_ACCESS_CMD_DELETE,
                                       &redecn_attr, profile);
     }
 
@@ -1010,7 +1010,7 @@ static sai_status_t mlnx_wred_attr_getter(_In_ const sai_object_key_t   *key,
     }
 
     if (SAI_INVALID_PROFILE_ID != sx_profile) {
-        sx_status = sx_api_cos_redecn_profile_get(get_sdk_handle(), sx_profile, &redecn_attr);
+        sx_status = sx_api_cos_redecn_profile_get(gh_sdk, sx_profile, &redecn_attr);
         if (SX_STATUS_SUCCESS != sx_status) {
             SX_LOG_ERR("Failed to get attr - %s\n", SX_STATUS_MSG(sx_status));
             return sdk_to_sai(sx_status);
@@ -1132,7 +1132,7 @@ static sai_status_t mlnx_wred_attr_setter(_In_ const sai_object_key_t      *key,
         }
     }
 
-    sx_status = sx_api_cos_redecn_profile_get(get_sdk_handle(), *profile, &redecn_attr);
+    sx_status = sx_api_cos_redecn_profile_get(gh_sdk, *profile, &redecn_attr);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to get profile attr - %s\n", SX_STATUS_MSG(sx_status));
         status = sdk_to_sai(sx_status);
@@ -1176,7 +1176,7 @@ static sai_status_t mlnx_wred_attr_setter(_In_ const sai_object_key_t      *key,
         }
     }
 
-    sx_status = sx_api_cos_redecn_profile_set(get_sdk_handle(), SX_ACCESS_CMD_EDIT, &redecn_attr, profile);
+    sx_status = sx_api_cos_redecn_profile_set(gh_sdk, SX_ACCESS_CMD_EDIT, &redecn_attr, profile);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to set profile attr - %s\n", SX_STATUS_MSG(sx_status));
         status = sdk_to_sai(sx_status);
@@ -1457,7 +1457,7 @@ static sai_status_t mlnx_wred_sx_weight_validate(sai_object_id_t wred_id, uint8_
      * as currently configured in system.
      */
     if (((count == 1) && (wred_last != wred_id)) || (count > 1)) {
-        sx_status = sx_api_cos_redecn_general_param_get(get_sdk_handle(), &redecn_global);
+        sx_status = sx_api_cos_redecn_general_param_get(gh_sdk, &redecn_global);
         if (SX_STATUS_SUCCESS == sx_status) {
             if (redecn_global.weight != mlnx_wred_weight_to_sx(weight_val)) {
                 SX_LOG_ERR("Invalid weight, all profiles must have same weight value %u\n",
@@ -1482,13 +1482,13 @@ static sai_status_t mlnx_wred_sx_weight_set(uint8_t weight_val)
 
     memset(&redecn_global, 0, sizeof(redecn_global));
 
-    sx_status = sx_api_cos_redecn_general_param_get(get_sdk_handle(), &redecn_global);
+    sx_status = sx_api_cos_redecn_general_param_get(gh_sdk, &redecn_global);
     if (SX_STATUS_SUCCESS != sx_status) {
         SX_LOG_ERR("Failed to get redecn global config - %s.\n", SX_STATUS_MSG(sx_status));
     } else if (redecn_global.weight != sx_weight) {
         redecn_global.weight = sx_weight;
 
-        sx_status = sx_api_cos_redecn_general_param_set(get_sdk_handle(), &redecn_global);
+        sx_status = sx_api_cos_redecn_general_param_set(gh_sdk, &redecn_global);
         if (SX_STATUS_SUCCESS != sx_status) {
             SX_LOG_ERR("Failed to set redecn global config - %s.\n", SX_STATUS_MSG(sx_status));
         }
@@ -1508,7 +1508,7 @@ sai_status_t mlnx_wred_init()
     redecn_global.source_congestion_detection_only = false;
     redecn_global.weight = mlnx_wred_weight_to_sx(DEFAULT_WEIGHT_VAL);
 
-    sx_status = sx_api_cos_redecn_general_param_set(get_sdk_handle(), &redecn_global);
+    sx_status = sx_api_cos_redecn_general_param_set(gh_sdk, &redecn_global);
     if (SX_STATUS_SUCCESS != sx_status) {
         SX_LOG_ERR("Failed to set redecn global config - %s.\n", SX_STATUS_MSG(sx_status));
     }
@@ -1576,7 +1576,7 @@ static sai_status_t mlnx_wred_weight_get(_In_ const sai_object_key_t   *key,
         return status;
     }
 
-    status = sx_api_cos_redecn_general_param_get(get_sdk_handle(), &redecn_global);
+    status = sx_api_cos_redecn_general_param_get(gh_sdk, &redecn_global);
     if (SX_STATUS_SUCCESS != status) {
         SX_LOG_ERR("Failed to get redecn global config - %s\n", SX_STATUS_MSG(status));
         return sdk_to_sai(status);
@@ -1865,9 +1865,8 @@ sai_status_t mlnx_wred_log_set(sx_verbosity_level_t level)
 {
     LOG_VAR_NAME(__MODULE__) = level;
 
-    if (get_sdk_handle()) {
-        return sdk_to_sai(sx_api_cos_redecn_log_verbosity_level_set(get_sdk_handle(), SX_LOG_VERBOSITY_BOTH, level,
-                                                                    level));
+    if (gh_sdk) {
+        return sdk_to_sai(sx_api_cos_redecn_log_verbosity_level_set(gh_sdk, SX_LOG_VERBOSITY_BOTH, level, level));
     } else {
         return SAI_STATUS_SUCCESS;
     }
@@ -1924,15 +1923,15 @@ static void mlnx_wred_cleanup_profiles(mlnx_wred_profile_t *wred_profile_p)
     memset(&redecn_attr, 0, sizeof(redecn_attr));
 
     if (wred_profile_p->green_profile_id != SAI_INVALID_PROFILE_ID) {
-        sx_api_cos_redecn_profile_set(get_sdk_handle(), SX_ACCESS_CMD_DELETE,
+        sx_api_cos_redecn_profile_set(gh_sdk, SX_ACCESS_CMD_DELETE,
                                       &redecn_attr, &wred_profile_p->green_profile_id);
     }
     if (wred_profile_p->yellow_profile_id != SAI_INVALID_PROFILE_ID) {
-        sx_api_cos_redecn_profile_set(get_sdk_handle(), SX_ACCESS_CMD_DELETE,
+        sx_api_cos_redecn_profile_set(gh_sdk, SX_ACCESS_CMD_DELETE,
                                       &redecn_attr, &wred_profile_p->yellow_profile_id);
     }
     if (wred_profile_p->red_profile_id != SAI_INVALID_PROFILE_ID) {
-        sx_api_cos_redecn_profile_set(get_sdk_handle(), SX_ACCESS_CMD_DELETE,
+        sx_api_cos_redecn_profile_set(gh_sdk, SX_ACCESS_CMD_DELETE,
                                       &redecn_attr, &wred_profile_p->red_profile_id);
     }
 }
@@ -2231,7 +2230,7 @@ static sai_status_t mlnx_create_wred_profile(_Out_ sai_object_id_t      *wred_id
 
     /* Create new SAI WRED profile */
     if (green_enabled) {
-        sx_status = sx_api_cos_redecn_profile_set(get_sdk_handle(), SX_ACCESS_CMD_ADD,
+        sx_status = sx_api_cos_redecn_profile_set(gh_sdk, SX_ACCESS_CMD_ADD,
                                                   &redecn_attr_green, &wred_profile.green_profile_id);
         if (SX_STATUS_SUCCESS != sx_status) {
             SX_LOG_ERR("Failed to create redecn green profile - %s\n", SX_STATUS_MSG(sx_status));
@@ -2241,7 +2240,7 @@ static sai_status_t mlnx_create_wred_profile(_Out_ sai_object_id_t      *wred_id
     }
 
     if (yellow_enabled) {
-        sx_status = sx_api_cos_redecn_profile_set(get_sdk_handle(), SX_ACCESS_CMD_ADD,
+        sx_status = sx_api_cos_redecn_profile_set(gh_sdk, SX_ACCESS_CMD_ADD,
                                                   &redecn_attr_yellow, &wred_profile.yellow_profile_id);
         if (SX_STATUS_SUCCESS != sx_status) {
             SX_LOG_ERR("Failed to create redecn yellow profile - %s\n", SX_STATUS_MSG(sx_status));
@@ -2255,7 +2254,7 @@ static sai_status_t mlnx_create_wred_profile(_Out_ sai_object_id_t      *wred_id
     }
 
     if (red_enabled) {
-        sx_status = sx_api_cos_redecn_profile_set(get_sdk_handle(), SX_ACCESS_CMD_ADD,
+        sx_status = sx_api_cos_redecn_profile_set(gh_sdk, SX_ACCESS_CMD_ADD,
                                                   &redecn_attr_red, &wred_profile.red_profile_id);
         if (SX_STATUS_SUCCESS != sx_status) {
             SX_LOG_ERR("Failed to create redecn red profile - %s\n", SX_STATUS_MSG(sx_status));

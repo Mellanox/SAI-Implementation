@@ -253,7 +253,7 @@ static sai_status_t ets_element_update(sx_port_log_id_t port_log_id, sx_cos_ets_
         return SAI_STATUS_NO_MEMORY;
     }
 
-    status = sx_api_cos_port_ets_element_get(get_sdk_handle(), port_log_id, ets_list, &max_ets_count);
+    status = sx_api_cos_port_ets_element_get(gh_sdk, port_log_id, ets_list, &max_ets_count);
     if (status != SX_STATUS_SUCCESS) {
         SX_LOG_ERR("Failed get ETS list - %s\n", SX_STATUS_MSG(status));
         status = sdk_to_sai(status);
@@ -270,7 +270,7 @@ static sai_status_t ets_element_update(sx_port_log_id_t port_log_id, sx_cos_ets_
 
     ets_element_dump(port_log_id, ets);
 
-    status = sx_api_cos_port_ets_element_set(get_sdk_handle(), SX_ACCESS_CMD_EDIT,
+    status = sx_api_cos_port_ets_element_set(gh_sdk, SX_ACCESS_CMD_EDIT,
                                              port_log_id, ets, 1);
 
     if (status != SX_STATUS_SUCCESS) {
@@ -509,8 +509,8 @@ sai_status_t mlnx_scheduler_log_set(sx_verbosity_level_t level)
 {
     LOG_VAR_NAME(__MODULE__) = level;
 
-    if (get_sdk_handle()) {
-        return sdk_to_sai(sx_api_cos_log_verbosity_level_set(get_sdk_handle(),
+    if (gh_sdk) {
+        return sdk_to_sai(sx_api_cos_log_verbosity_level_set(gh_sdk,
                                                              SX_LOG_VERBOSITY_BOTH, level, level));
     }
 

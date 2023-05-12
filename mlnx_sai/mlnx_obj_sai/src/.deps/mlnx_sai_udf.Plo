@@ -319,7 +319,6 @@ mlnx_sai_udf.lo: \
  /usr/include/sx/sdk/sx_api_port.h /usr/include/sx/sdk/sx_api_router.h \
  /usr/include/sx/sdk/sx_api_span.h /usr/include/sx/sdk/sx_api_topo.h \
  /usr/include/sx/sdk/sx_api_tunnel.h /usr/include/sx/sdk/sx_api_vlan.h \
- /usr/include/sx/sdk/sx_api_adaptive_routing.h \
  /usr/include/sx/sdk/sx_lib_flex_acl.h /usr/include/sx/sdk/sx_flex_acl.h \
  /usr/include/sx/sdk/auto_headers/sx_flex_acl_auto.h \
  /usr/include/sx/sdk/sx_lib_host_ifc.h \
@@ -765,7 +764,6 @@ mlnx_sai_udf.lo: \
 /usr/include/sx/sdk/sx_api_topo.h:
 /usr/include/sx/sdk/sx_api_tunnel.h:
 /usr/include/sx/sdk/sx_api_vlan.h:
-/usr/include/sx/sdk/sx_api_adaptive_routing.h:
 /usr/include/sx/sdk/sx_lib_flex_acl.h:
 /usr/include/sx/sdk/sx_flex_acl.h:
 /usr/include/sx/sdk/auto_headers/sx_flex_acl_auto.h:

@@ -123,7 +123,7 @@ static sai_status_t mlnx_l2mc_group_init(_In_ mlnx_l2mc_group_t *l2mc_group)
     memset(&sx_mc_container_attributes, 0, sizeof(sx_mc_container_attributes));
     sx_mc_container_attributes.type = SX_MC_CONTAINER_TYPE_PORT;
 
-    sx_status = sx_api_mc_container_set(get_sdk_handle(),
+    sx_status = sx_api_mc_container_set(gh_sdk,
                                         SX_ACCESS_CMD_CREATE,
                                         &sx_mc_container_id,
                                         NULL,
@@ -150,7 +150,7 @@ static sai_status_t mlnx_l2mc_group_deinit(_In_ mlnx_l2mc_group_t *l2mc_group)
     memset(&sx_mc_container_attributes, 0, sizeof(sx_mc_container_attributes));
 
     if (SX_MC_CONTAINER_ID_CHECK_RANGE(l2mc_group->mc_container_tunnels)) {
-        sx_status = sx_api_mc_container_set(get_sdk_handle(),
+        sx_status = sx_api_mc_container_set(gh_sdk,
                                             SX_ACCESS_CMD_DESTROY,
                                             &l2mc_group->mc_container_tunnels,
                                             NULL,
@@ -166,7 +166,7 @@ static sai_status_t mlnx_l2mc_group_deinit(_In_ mlnx_l2mc_group_t *l2mc_group)
     }
 
     if (SX_MC_CONTAINER_ID_CHECK_RANGE(l2mc_group->mc_container_ports)) {
-        sx_status = sx_api_mc_container_set(get_sdk_handle(),
+        sx_status = sx_api_mc_container_set(gh_sdk,
                                             SX_ACCESS_CMD_DESTROY,
                                             &l2mc_group->mc_container_ports,
                                             NULL,
@@ -344,7 +344,7 @@ sai_status_t mlnx_l2mc_group_sx_ports_get(_In_ const mlnx_l2mc_group_t *l2mc_gro
         goto out;
     }
 
-    sx_status = sx_api_mc_container_get(get_sdk_handle(),
+    sx_status = sx_api_mc_container_get(gh_sdk,
                                         SX_ACCESS_CMD_GET,
                                         l2mc_group->mc_container_ports,
                                         sx_next_hops,
@@ -427,7 +427,7 @@ sai_status_t mlnx_l2mc_group_pbs_use(_In_ mlnx_l2mc_group_t *l2mc_group)
         sx_pbs_entry.port_num = bports_count;
         sx_pbs_entry.log_ports = sx_ports;
 
-        sx_status = sx_api_acl_policy_based_switching_set(get_sdk_handle(), SX_ACCESS_CMD_ADD, DEFAULT_ETH_SWID,
+        sx_status = sx_api_acl_policy_based_switching_set(gh_sdk, SX_ACCESS_CMD_ADD, DEFAULT_ETH_SWID,
                                                           &sx_pbs_entry, &pbs_entry->pbs_id);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to create pbs - %s\n", SX_STATUS_MSG(sx_status));
@@ -488,7 +488,7 @@ static sai_status_t mlnx_l2mc_group_is_in_use(_In_ mlnx_l2mc_group_t *l2mc_group
 
     if (SX_MC_CONTAINER_ID_CHECK_RANGE(l2mc_group->mc_container_tunnels)) {
         memset(&sx_mc_container_attributes, 0, sizeof(sx_mc_container_attributes));
-        sx_status = sx_api_mc_container_get(get_sdk_handle(),
+        sx_status = sx_api_mc_container_get(gh_sdk,
                                             SX_ACCESS_CMD_GET,
                                             l2mc_group->mc_container_tunnels,
                                             NULL,
@@ -503,7 +503,7 @@ static sai_status_t mlnx_l2mc_group_is_in_use(_In_ mlnx_l2mc_group_t *l2mc_group
     }
 
     memset(&sx_mc_container_attributes, 0, sizeof(sx_mc_container_attributes));
-    sx_status = sx_api_mc_container_get(get_sdk_handle(),
+    sx_status = sx_api_mc_container_get(gh_sdk,
                                         SX_ACCESS_CMD_GET,
                                         l2mc_group->mc_container_ports,
                                         NULL,
@@ -622,7 +622,7 @@ static sai_status_t mlnx_l2mc_sx_container_ports_update(_In_ mlnx_l2mc_group_t  
     sx_mc_next_hop.type = SX_MC_NEXT_HOP_TYPE_LOG_PORT;
     sx_mc_next_hop.data.log_port = bport->logical;
 
-    sx_status = sx_api_mc_container_set(get_sdk_handle(),
+    sx_status = sx_api_mc_container_set(gh_sdk,
                                         sx_cmd,
                                         &l2mc_group->mc_container_ports,
                                         &sx_mc_next_hop,
@@ -704,7 +704,7 @@ static sai_status_t mlnx_l2mc_sx_container_tunnels_update(_In_ mlnx_l2mc_group_t
     if (add && !SX_MC_CONTAINER_ID_CHECK_RANGE(l2mc_group->mc_container_tunnels)) {
         memset(&sx_mc_container_attributes, 0, sizeof(sx_mc_container_attributes));
         sx_mc_container_attributes.type = SX_MC_CONTAINER_TYPE_VLAN_UNAWARE;
-        sx_status = sx_api_mc_container_set(get_sdk_handle(),
+        sx_status = sx_api_mc_container_set(gh_sdk,
                                             SX_ACCESS_CMD_CREATE,
                                             &sx_mc_container_id,
                                             NULL,
@@ -722,7 +722,7 @@ static sai_status_t mlnx_l2mc_sx_container_tunnels_update(_In_ mlnx_l2mc_group_t
     }
 
     sx_mc_next_hop.data.tunnel_ip.tunnel_id = sx_tunnel_id;
-    sx_status = sx_api_mc_container_set(get_sdk_handle(),
+    sx_status = sx_api_mc_container_set(gh_sdk,
                                         sx_cmd,
                                         &l2mc_group->mc_container_tunnels,
                                         &sx_mc_next_hop,
@@ -765,11 +765,7 @@ static sai_status_t mlnx_l2mc_sx_pbs_update(_In_ mlnx_l2mc_group_t        *l2mc_
     sx_pbs_entry.port_num = 1;
     sx_pbs_entry.log_ports = &sx_port;
 
-    sx_status = sx_api_acl_policy_based_switching_set(get_sdk_handle(),
-                                                      sx_cmd,
-                                                      DEFAULT_ETH_SWID,
-                                                      &sx_pbs_entry,
-                                                      &sx_pbs);
+    sx_status = sx_api_acl_policy_based_switching_set(gh_sdk, sx_cmd, DEFAULT_ETH_SWID, &sx_pbs_entry, &sx_pbs);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to %s port %x to pbs %x - %s\n", SX_ACCESS_CMD_STR(sx_cmd), sx_port, sx_pbs,
                    SX_STATUS_MSG(sx_status));
@@ -813,7 +809,7 @@ static sai_status_t mlnx_l2mc_group_fid_uc_bc_flood_ctrl_update(_In_ const mlnx_
 
         if (port_in_fid) {
             sx_cmd = (add) ? SX_ACCESS_CMD_DELETE_PORTS : SX_ACCESS_CMD_ADD_PORTS;
-            sx_status = sx_api_fdb_flood_control_set(get_sdk_handle(),
+            sx_status = sx_api_fdb_flood_control_set(gh_sdk,
                                                      sx_cmd,
                                                      DEFAULT_ETH_SWID,
                                                      sx_fid,
@@ -831,11 +827,7 @@ static sai_status_t mlnx_l2mc_group_fid_uc_bc_flood_ctrl_update(_In_ const mlnx_
         }
     } else {
         sx_cmd = (add) ? SX_ACCESS_CMD_SET : SX_ACCESS_CMD_DELETE;
-        sx_status = sx_api_fdb_flood_set(get_sdk_handle(),
-                                         sx_cmd,
-                                         DEFAULT_ETH_SWID,
-                                         sx_fid,
-                                         l2mc_group->mc_container_tunnels);
+        sx_status = sx_api_fdb_flood_set(gh_sdk, sx_cmd, DEFAULT_ETH_SWID, sx_fid, l2mc_group->mc_container_tunnels);
 
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to %s ports to fid %u flood set - %s.\n",
@@ -867,7 +859,7 @@ static sai_status_t mlnx_l2mc_group_flood_ctrl_mc_refresh(_In_ const mlnx_l2mc_g
         return status;
     }
 
-    sx_status = sx_api_fdb_unreg_mc_flood_ports_set(get_sdk_handle(), DEFAULT_ETH_SWID, sx_fid, sx_ports, ports_count);
+    sx_status = sx_api_fdb_unreg_mc_flood_ports_set(gh_sdk, DEFAULT_ETH_SWID, sx_fid, sx_ports, ports_count);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to set unreg fdb flood port list for fid %u - %s.\n", sx_fid, SX_STATUS_MSG(sx_status));
         return sdk_to_sai(sx_status);
@@ -1502,9 +1494,8 @@ sai_status_t mlnx_l2mc_group_log_set(sx_verbosity_level_t level)
 {
     LOG_VAR_NAME(__MODULE__) = level;
 
-    if (get_sdk_handle()) {
-        return sdk_to_sai(sx_api_mc_container_log_verbosity_level_set(get_sdk_handle(), SX_LOG_VERBOSITY_BOTH, level,
-                                                                      level));
+    if (gh_sdk) {
+        return sdk_to_sai(sx_api_mc_container_log_verbosity_level_set(gh_sdk, SX_LOG_VERBOSITY_BOTH, level, level));
     } else {
         return SAI_STATUS_SUCCESS;
     }

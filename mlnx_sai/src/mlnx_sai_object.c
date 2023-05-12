@@ -203,7 +203,7 @@ sai_status_t sai_object_type_get_availability(_In_ sai_object_id_t        switch
 
     SX_LOG_ENTER();
 
-    if (!get_sdk_handle()) {
+    if (!gh_sdk) {
         MLNX_SAI_LOG_ERR("Can't get object type availability before creating a switch\n");
         return SAI_STATUS_FAILURE;
     }
@@ -288,7 +288,7 @@ sai_status_t sai_bulk_object_get_stats(_In_ sai_object_id_t         switch_id,
 
     SX_LOG_ENTER();
 
-    if (!get_sdk_handle()) {
+    if (!gh_sdk) {
         MLNX_SAI_LOG_ERR("Can't get object stats before creating a switch\n");
         status = SAI_STATUS_FAILURE;
         goto out;
@@ -400,7 +400,7 @@ sai_status_t sai_bulk_object_clear_stats(_In_ sai_object_id_t         switch_id,
 
     SX_LOG_ENTER();
 
-    if (!get_sdk_handle()) {
+    if (!gh_sdk) {
         MLNX_SAI_LOG_ERR("Can't clear object stats before creating a switch\n");
         status = SAI_STATUS_FAILURE;
         goto out;
@@ -685,7 +685,7 @@ sai_status_t mlnx_notify_bulk_counter_readable(_In_ uint32_t cookie, _In_ int32_
     }
 
     if (event) {
-        mutex_lock(event->mutex);
+        bulk_context_cond_mutex_lock(event->mutex);
         event->read_done = read_status;
         if (0 != pthread_cond_signal(&event->cond)) {
             SX_LOG_ERR("Failed to signal condition variable to wake up bulk counter thread\n");
@@ -694,7 +694,7 @@ sai_status_t mlnx_notify_bulk_counter_readable(_In_ uint32_t cookie, _In_ int32_
             status = SAI_STATUS_SUCCESS;
         }
 
-        mutex_unlock(event->mutex);
+        bulk_context_cond_mutex_unlock(event->mutex);
     } else {
         /* Timeout transaction, just ignore it. */
         status = SAI_STATUS_SUCCESS;
@@ -713,7 +713,7 @@ sai_status_t mlnx_allocate_sx_bulk_buffer(_In_ sx_bulk_cntr_buffer_key_t *bulk_r
 
     sx_status_t sx_status;
 
-    sx_status = sx_api_bulk_counter_buffer_set(get_sdk_handle(),
+    sx_status = sx_api_bulk_counter_buffer_set(gh_sdk,
                                                SX_ACCESS_CMD_CREATE,
                                                bulk_read_key,
                                                bulk_read_buff);
@@ -732,7 +732,7 @@ sai_status_t mlnx_deallocate_sx_bulk_buffer(_In_ sx_bulk_cntr_buffer_t *bulk_rea
 
     sx_status_t sx_status;
 
-    sx_status = sx_api_bulk_counter_buffer_set(get_sdk_handle(),
+    sx_status = sx_api_bulk_counter_buffer_set(gh_sdk,
                                                SX_ACCESS_CMD_DESTROY,
                                                NULL,
                                                bulk_read_buff);
@@ -750,7 +750,7 @@ sai_status_t mlnx_set_async_bulk_read(_In_ sx_access_cmd_t cmd, _In_ sx_bulk_cnt
 
     sx_status_t sx_status;
 
-    sx_status = sx_api_bulk_counter_transaction_set(get_sdk_handle(),
+    sx_status = sx_api_bulk_counter_transaction_set(gh_sdk,
                                                     cmd,
                                                     bulk_read_buff);
     if (SX_ERR(sx_status)) {
@@ -770,7 +770,7 @@ sai_status_t mlnx_wait_for_bulk_read_event(_In_ sai_bulk_counter_event_t *event)
     struct timespec time = {0};
 
 #ifndef _WIN32
-    mutex_lock(event->mutex);
+    bulk_context_cond_mutex_lock(event->mutex);
     clock_gettime(CLOCK_REALTIME, &time);
 #ifdef IS_PLD
     time.tv_sec += 2000;
@@ -792,7 +792,7 @@ sai_status_t mlnx_wait_for_bulk_read_event(_In_ sai_bulk_counter_event_t *event)
     }
 
 out:
-    mutex_unlock(event->mutex);
+    bulk_context_cond_mutex_unlock(event->mutex);
 #endif
     return status;
 }

@@ -3852,24 +3852,3 @@ size_t key_n_to_str(_In_ const sai_object_key_t *key,
 
     return written_chars;
 }
-
-bool u32_list_equal(_In_ const uint32_t *list1,
-                    _In_ uint32_t        list1_count,
-                    _In_ const uint32_t *list2,
-                    _In_ uint32_t        list2_count)
-{
-    assert(NULL != list1);
-    assert(NULL != list2);
-
-    if (list1_count != list2_count) {
-        return false;
-    }
-
-    for (uint32_t ii = 0; ii < list1_count; ii++) {
-        if (list1[ii] != list2[ii]) {
-            return false;
-        }
-    }
-
-    return true;
-}

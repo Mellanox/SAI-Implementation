@@ -309,7 +309,7 @@ sai_status_t mlnx_mirror_availability_get(_In_ sai_object_id_t        switch_id,
 
     span_sessions_max = g_resource_limits.span_session_id_max_internal + 1;
     sx_status =
-        sx_api_span_session_iter_get(get_sdk_handle(), SX_ACCESS_CMD_GET, NULL, NULL, NULL, &span_sessions_exists);
+        sx_api_span_session_iter_get(gh_sdk, SX_ACCESS_CMD_GET, NULL, NULL, NULL, &span_sessions_exists);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to get count of SPAN sessions - %s\n", SX_STATUS_MSG(sx_status));
         return sdk_to_sai(sx_status);
@@ -442,8 +442,7 @@ static sai_status_t mlnx_get_sdk_mirror_obj_params(_In_ sai_object_id_t         
     }
 
     if (SAI_STATUS_SUCCESS !=
-        (status =
-             (sdk_to_sai(sx_api_span_session_get(get_sdk_handle(), sdk_mirror_obj_id_u32, sdk_mirror_obj_params))))) {
+        (status = (sdk_to_sai(sx_api_span_session_get(gh_sdk, sdk_mirror_obj_id_u32, sdk_mirror_obj_params))))) {
         SX_LOG_ERR("Error getting span session from sdk mirror session id %d\n", sdk_mirror_obj_id_u32);
         SX_LOG_EXIT();
         return status;
@@ -519,9 +518,7 @@ static sai_status_t mlnx_mirror_session_monitor_port_get(_In_ const sai_object_k
     }
 
     if (SAI_STATUS_SUCCESS !=
-        (status =
-             (sdk_to_sai(sx_api_span_session_analyzer_get(get_sdk_handle(), sdk_mirror_obj_id,
-                                                          &sdk_analyzer_port_id))))) {
+        (status = (sdk_to_sai(sx_api_span_session_analyzer_get(gh_sdk, sdk_mirror_obj_id, &sdk_analyzer_port_id))))) {
         SX_LOG_ERR("Error getting analyzer port from sdk mirror obj id %d\n", sdk_mirror_obj_id);
         SX_LOG_EXIT();
         return status;
@@ -1192,15 +1189,14 @@ static sai_status_t mlnx_delete_mirror_analyzer_port(_In_ sx_span_session_id_t s
     SX_LOG_ENTER();
 
     if (SAI_STATUS_SUCCESS !=
-        (status =
-             sdk_to_sai(sx_api_span_session_analyzer_get(get_sdk_handle(), sdk_mirror_obj_id, &sdk_analyzer_port)))) {
+        (status = sdk_to_sai(sx_api_span_session_analyzer_get(gh_sdk, sdk_mirror_obj_id, &sdk_analyzer_port)))) {
         SX_LOG_ERR("Error getting analyzer port from sdk mirror obj id: %d\n", sdk_mirror_obj_id);
         SX_LOG_EXIT();
         return status;
     }
 
     if (SAI_STATUS_SUCCESS !=
-        (status = sdk_to_sai(sx_api_span_session_state_set(get_sdk_handle(), sdk_mirror_obj_id, false)))) {
+        (status = sdk_to_sai(sx_api_span_session_state_set(gh_sdk, sdk_mirror_obj_id, false)))) {
         SX_LOG_ERR("Error disabling mirror session state during setting sdk analyzer port, sdk mirror obj id: %d\n",
                    sdk_mirror_obj_id);
         SX_LOG_EXIT();
@@ -1211,7 +1207,7 @@ static sai_status_t mlnx_delete_mirror_analyzer_port(_In_ sx_span_session_id_t s
 
     if (SAI_STATUS_SUCCESS !=
         (status =
-             sdk_to_sai(sx_api_span_analyzer_set(get_sdk_handle(), SX_ACCESS_CMD_DELETE, sdk_analyzer_port,
+             sdk_to_sai(sx_api_span_analyzer_set(gh_sdk, SX_ACCESS_CMD_DELETE, sdk_analyzer_port,
                                                  &sdk_analyzer_port_params,
                                                  sdk_mirror_obj_id)))) {
         SX_LOG_ERR("Error deleting sdk analyzer port %d for sdk mirror obj id: %d\n",
@@ -1248,10 +1244,7 @@ static sai_status_t mlnx_add_mirror_analyzer_port_impl(_In_ sx_span_session_id_t
 
     sdk_analyzer_port_params.cng_mng = congestion_mode;
 
-    sx_status = sx_api_span_analyzer_set(get_sdk_handle(),
-                                         SX_ACCESS_CMD_ADD,
-                                         analyzer_log_port,
-                                         &sdk_analyzer_port_params,
+    sx_status = sx_api_span_analyzer_set(gh_sdk, SX_ACCESS_CMD_ADD, analyzer_log_port, &sdk_analyzer_port_params,
                                          sx_mirror_session_id);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Error setting sdk analyzer port id %x on sdk mirror session id %x\n", analyzer_log_port,
@@ -1259,7 +1252,7 @@ static sai_status_t mlnx_add_mirror_analyzer_port_impl(_In_ sx_span_session_id_t
         return sdk_to_sai(sx_status);
     }
 
-    sx_status = sx_api_span_session_state_set(get_sdk_handle(), sx_mirror_session_id, true);
+    sx_status = sx_api_span_session_state_set(gh_sdk, sx_mirror_session_id, true);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Error enabling mirror session state during setting analyzer port, sdk mirror session id: %d\n",
                    sx_mirror_session_id);
@@ -1391,7 +1384,7 @@ static sai_status_t mlnx_mirror_session_truncate_size_set(_In_ const sai_object_
 
     if (SAI_STATUS_SUCCESS !=
         (status =
-             sdk_to_sai(sx_api_span_session_set(get_sdk_handle(), SX_ACCESS_CMD_EDIT, &sdk_mirror_obj_params,
+             sdk_to_sai(sx_api_span_session_set(gh_sdk, SX_ACCESS_CMD_EDIT, &sdk_mirror_obj_params,
                                                 &sdk_mirror_obj_id)))) {
         SX_LOG_ERR("Error setting span session for sdk mirror obj id %d\n", sdk_mirror_obj_id);
         SX_LOG_EXIT();
@@ -1442,7 +1435,7 @@ static sai_status_t mlnx_mirror_session_tc_set(_In_ const sai_object_key_t      
 
     if (SAI_STATUS_SUCCESS !=
         (status =
-             sdk_to_sai(sx_api_span_session_set(get_sdk_handle(), SX_ACCESS_CMD_EDIT, &sdk_mirror_obj_params,
+             sdk_to_sai(sx_api_span_session_set(gh_sdk, SX_ACCESS_CMD_EDIT, &sdk_mirror_obj_params,
                                                 &sdk_mirror_obj_id)))) {
         SX_LOG_ERR("Error setting span session for sdk mirror obj id %d\n", sdk_mirror_obj_id);
         SX_LOG_EXIT();
@@ -1563,7 +1556,7 @@ static sai_status_t mlnx_mirror_session_vlan_id_set(_In_ const sai_object_key_t 
 
     if (SAI_STATUS_SUCCESS !=
         (status =
-             sdk_to_sai(sx_api_span_session_set(get_sdk_handle(), SX_ACCESS_CMD_EDIT, &sdk_mirror_obj_params,
+             sdk_to_sai(sx_api_span_session_set(gh_sdk, SX_ACCESS_CMD_EDIT, &sdk_mirror_obj_params,
                                                 &sdk_mirror_obj_id)))) {
         SX_LOG_ERR("Error setting span session for sdk mirror obj id %d\n", sdk_mirror_obj_id);
         SX_LOG_EXIT();
@@ -1627,7 +1620,7 @@ static sai_status_t mlnx_mirror_session_vlan_pri_set(_In_ const sai_object_key_t
 
     if (SAI_STATUS_SUCCESS !=
         (status =
-             sdk_to_sai(sx_api_span_session_set(get_sdk_handle(), SX_ACCESS_CMD_EDIT, &sdk_mirror_obj_params,
+             sdk_to_sai(sx_api_span_session_set(gh_sdk, SX_ACCESS_CMD_EDIT, &sdk_mirror_obj_params,
                                                 &sdk_mirror_obj_id)))) {
         SX_LOG_ERR("Error setting span session for sdk mirror obj id %d\n", sdk_mirror_obj_id);
         SX_LOG_EXIT();
@@ -1691,7 +1684,7 @@ static sai_status_t mlnx_mirror_session_vlan_cfi_set(_In_ const sai_object_key_t
 
     if (SAI_STATUS_SUCCESS !=
         (status =
-             sdk_to_sai(sx_api_span_session_set(get_sdk_handle(), SX_ACCESS_CMD_EDIT, &sdk_mirror_obj_params,
+             sdk_to_sai(sx_api_span_session_set(gh_sdk, SX_ACCESS_CMD_EDIT, &sdk_mirror_obj_params,
                                                 &sdk_mirror_obj_id)))) {
         SX_LOG_ERR("Error setting span session for sai mirror obj id %d\n", sdk_mirror_obj_id);
         SX_LOG_EXIT();
@@ -1764,7 +1757,7 @@ static sai_status_t mlnx_mirror_session_vlan_header_valid_set(_In_ const sai_obj
 
     if (SAI_STATUS_SUCCESS !=
         (status =
-             sdk_to_sai(sx_api_span_session_set(get_sdk_handle(), SX_ACCESS_CMD_EDIT, &sdk_mirror_obj_params,
+             sdk_to_sai(sx_api_span_session_set(gh_sdk, SX_ACCESS_CMD_EDIT, &sdk_mirror_obj_params,
                                                 &sdk_mirror_obj_id)))) {
         SX_LOG_ERR("Error setting span session for sai mirror obj id %d\n", sdk_mirror_obj_id);
         SX_LOG_EXIT();
@@ -1811,7 +1804,7 @@ static sai_status_t mlnx_mirror_session_tos_set(_In_ const sai_object_key_t     
 
     if (SAI_STATUS_SUCCESS !=
         (status =
-             sdk_to_sai(sx_api_span_session_set(get_sdk_handle(), SX_ACCESS_CMD_EDIT, &sdk_mirror_obj_params,
+             sdk_to_sai(sx_api_span_session_set(gh_sdk, SX_ACCESS_CMD_EDIT, &sdk_mirror_obj_params,
                                                 &sdk_mirror_obj_id)))) {
         SX_LOG_ERR("Error setting span session for sdk mirror session id %d\n", sdk_mirror_obj_id);
         SX_LOG_EXIT();
@@ -1853,7 +1846,7 @@ static sai_status_t mlnx_mirror_session_ttl_set(_In_ const sai_object_key_t     
 
     if (SAI_STATUS_SUCCESS !=
         (status =
-             sdk_to_sai(sx_api_span_session_set(get_sdk_handle(), SX_ACCESS_CMD_EDIT, &sdk_mirror_obj_params,
+             sdk_to_sai(sx_api_span_session_set(gh_sdk, SX_ACCESS_CMD_EDIT, &sdk_mirror_obj_params,
                                                 &sdk_mirror_obj_id)))) {
         SX_LOG_ERR("Error setting span session for sdk mirror session id %d\n", sdk_mirror_obj_id);
         SX_LOG_EXIT();
@@ -1944,7 +1937,7 @@ static sai_status_t mlnx_mirror_session_ip_address_set(_In_ const sai_object_key
 
     if (SAI_STATUS_SUCCESS !=
         (status =
-             sdk_to_sai(sx_api_span_session_set(get_sdk_handle(), SX_ACCESS_CMD_EDIT, &sdk_mirror_obj_params,
+             sdk_to_sai(sx_api_span_session_set(gh_sdk, SX_ACCESS_CMD_EDIT, &sdk_mirror_obj_params,
                                                 &sdk_mirror_obj_id)))) {
         SX_LOG_ERR("Error setting span session for sdk mirror obj id %d\n", sdk_mirror_obj_id);
         SX_LOG_EXIT();
@@ -1995,7 +1988,7 @@ static sai_status_t mlnx_mirror_session_mac_address_set(_In_ const sai_object_ke
 
     if (SAI_STATUS_SUCCESS !=
         (status =
-             sdk_to_sai(sx_api_span_session_set(get_sdk_handle(), SX_ACCESS_CMD_EDIT, &sdk_mirror_obj_params,
+             sdk_to_sai(sx_api_span_session_set(gh_sdk, SX_ACCESS_CMD_EDIT, &sdk_mirror_obj_params,
                                                 &sdk_mirror_obj_id)))) {
         SX_LOG_ERR("Error setting span session for sdk mirror obj id %d\n", sdk_mirror_obj_id);
         SX_LOG_EXIT();
@@ -2124,7 +2117,7 @@ static sai_status_t mlnx_mirror_session_congestion_mode_set(_In_ const sai_objec
         return status;
     }
 
-    sx_status = sx_api_span_session_analyzer_get(get_sdk_handle(), (sx_span_session_id_t)sx_mirror_session_id,
+    sx_status = sx_api_span_session_analyzer_get(gh_sdk, (sx_span_session_id_t)sx_mirror_session_id,
                                                  &analyzer_log_port);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Error getting analyzer port from sdk mirror obj id %d\n", sx_mirror_session_id);
@@ -2837,7 +2830,6 @@ static sai_status_t mlnx_create_mirror_session(_Out_ sai_object_id_t      *sai_m
         SAI_STATUS_FAILURE;
     sai_status_t                         status_tc = SAI_STATUS_FAILURE, status_ttl = SAI_STATUS_FAILURE;
     sai_status_t                         status_remove = SAI_STATUS_FAILURE;
-    sx_status_t                          sx_status;
     sx_span_session_params_t             sdk_mirror_obj_params;
     sx_span_session_id_t                 sdk_mirror_obj_id = 0;
     bool                                 is_span_session_created = false, is_port_analyzer_added = false;
@@ -2940,13 +2932,10 @@ static sai_status_t mlnx_create_mirror_session(_Out_ sai_object_id_t      *sai_m
         }
     }
 
-    sx_status = sx_api_span_session_set(get_sdk_handle(),
-                                        SX_ACCESS_CMD_CREATE,
-                                        &sdk_mirror_obj_params,
-                                        &sdk_mirror_obj_id);
-    if (SX_ERR(sx_status)) {
-        SX_LOG_ERR("Error creating mirror session - %s\n", SX_STATUS_MSG(sx_status));
-        status = sdk_to_sai(sx_status);
+    status = sx_api_span_session_set(gh_sdk, SX_ACCESS_CMD_CREATE, &sdk_mirror_obj_params, &sdk_mirror_obj_id);
+    if (SX_ERR(status)) {
+        SX_LOG_ERR("Error creating mirror session - %s\n", SX_STATUS_MSG(status));
+        status = sdk_to_sai(status);
         goto out;
     }
     is_span_session_created = true;
@@ -3063,9 +3052,8 @@ out:
         }
 
         if (is_span_session_created) {
-            status_remove =
-                sdk_to_sai(sx_api_span_session_set(get_sdk_handle(), SX_ACCESS_CMD_DESTROY, &sdk_mirror_obj_params,
-                                                   &sdk_mirror_obj_id));
+            status_remove = sdk_to_sai(sx_api_span_session_set(gh_sdk, SX_ACCESS_CMD_DESTROY, &sdk_mirror_obj_params,
+                                                               &sdk_mirror_obj_id));
             if (SAI_ERR(status_remove)) {
                 SX_LOG_ERR("Error destroying mirror session, sdk mirror obj id: %d, SAI status code - %d\n",
                            sdk_mirror_obj_id, status_remove);
@@ -3177,7 +3165,7 @@ static sai_status_t mlnx_remove_mirror_session(_In_ const sai_object_id_t sai_mi
 
     if (SAI_STATUS_SUCCESS !=
         (status =
-             sdk_to_sai(sx_api_span_session_set(get_sdk_handle(), SX_ACCESS_CMD_DESTROY, &sdk_mirror_obj_params,
+             sdk_to_sai(sx_api_span_session_set(gh_sdk, SX_ACCESS_CMD_DESTROY, &sdk_mirror_obj_params,
                                                 &sdk_mirror_obj_id)))) {
         SX_LOG_ERR("Error destroying mirror session, sdk mirror obj id: %d\n", sdk_mirror_obj_id);
         SX_LOG_EXIT();
@@ -3209,8 +3197,8 @@ sai_status_t mlnx_mirror_log_set(sx_verbosity_level_t level)
 {
     LOG_VAR_NAME(__MODULE__) = level;
 
-    if (get_sdk_handle()) {
-        return sdk_to_sai(sx_api_span_log_verbosity_level_set(get_sdk_handle(), SX_LOG_VERBOSITY_BOTH, level, level));
+    if (gh_sdk) {
+        return sdk_to_sai(sx_api_span_log_verbosity_level_set(gh_sdk, SX_LOG_VERBOSITY_BOTH, level, level));
     } else {
         return SAI_STATUS_SUCCESS;
     }

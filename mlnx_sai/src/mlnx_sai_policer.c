@@ -879,7 +879,7 @@ static sai_status_t sai_policer_commit_changes_to_port_bindings(sai_object_id_t 
                 if (SX_STATUS_SUCCESS !=
                     (sx_status =
                          storm_policer_functions.sx_api_port_storm_control_set_p(
-                             get_sdk_handle(),
+                             gh_sdk,
                              SX_ACCESS_CMD_EDIT,
                              port_config->logical,
                              storm_control_ind, &storm_ctrl_params))) {
@@ -922,7 +922,7 @@ static sai_status_t sai_policer_commit_changes(_In_ sai_object_id_t sai_policer)
         policer_entry->sx_policer_attr.is_span_session_policer = false;
 
         if (SX_STATUS_SUCCESS !=
-            (sx_status = sx_api_policer_set(get_sdk_handle(),
+            (sx_status = sx_api_policer_set(gh_sdk,
                                             SX_ACCESS_CMD_EDIT,
                                             &(policer_entry->sx_policer_attr),
                                             &(policer_entry->sx_policer_id_acl))
@@ -946,7 +946,7 @@ static sai_status_t sai_policer_commit_changes(_In_ sai_object_id_t sai_policer)
         policer_entry->sx_policer_attr.is_span_session_policer = false;
 
         if (SX_STATUS_SUCCESS !=
-            (sx_status = sx_api_policer_set(get_sdk_handle(),
+            (sx_status = sx_api_policer_set(gh_sdk,
                                             SX_ACCESS_CMD_EDIT,
                                             &(policer_entry->sx_policer_attr),
                                             &(policer_entry->sx_policer_id_trap))
@@ -977,7 +977,7 @@ static sai_status_t sai_policer_commit_changes(_In_ sai_object_id_t sai_policer)
         }
 
         if (SX_STATUS_SUCCESS !=
-            (sx_status = sx_api_policer_set(get_sdk_handle(),
+            (sx_status = sx_api_policer_set(gh_sdk,
                                             SX_ACCESS_CMD_EDIT,
                                             &(policer_attrs_for_mirror),
                                             &(policer_entry->sx_policer_id_acl_mirror))
@@ -999,7 +999,7 @@ static sai_status_t sai_policer_commit_changes(_In_ sai_object_id_t sai_policer)
         policer_entry->sx_policer_attr.is_host_ifc_policer = false;
         policer_entry->sx_policer_attr.is_span_session_policer = true;
 
-        sx_status = sx_api_policer_set(get_sdk_handle(), SX_ACCESS_CMD_EDIT, &(policer_entry->sx_policer_attr),
+        sx_status = sx_api_policer_set(gh_sdk, SX_ACCESS_CMD_EDIT, &(policer_entry->sx_policer_attr),
                                        &(policer_entry->sx_policer_id_span_session));
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to commit for span mirror sx policer0x%" PRIx64 ". sai_policer:0x%" PRIx64 "."
@@ -2015,8 +2015,12 @@ static sai_status_t mlnx_sai_create_policer(_Out_ sai_object_id_t      *policer_
 {
     sai_status_t            status;
     sai_object_id_t         sai_policer = SAI_NULL_OBJECT_ID;
-    sx_policer_attributes_t sai_policer_attr = {0};
+    sx_policer_attributes_t sai_policer_attr;
     uint32_t                sai_policer_db_index = 0;
+
+    SX_LOG_ENTER();
+
+    memset(&sai_policer_attr, 0, sizeof(sai_policer_attr));
 
     status = check_attribs_on_create(attr_count, attr_list, SAI_OBJECT_TYPE_POLICER, policer_id);
     if (SAI_ERR(status)) {
@@ -2024,31 +2028,37 @@ static sai_status_t mlnx_sai_create_policer(_Out_ sai_object_id_t      *policer_
     }
     MLNX_LOG_ATTRS(attr_count, attr_list, SAI_OBJECT_TYPE_POLICER);
 
-    status = fill_policer_data(true, attr_count, attr_list, &sai_policer_attr);
-    if (SAI_ERR(status)) {
+    if (SAI_STATUS_SUCCESS !=
+        (status = fill_policer_data(true, attr_count, attr_list, &sai_policer_attr))) {
         SX_LOG_NTC("Initializing policer data failed\n");
+        SX_LOG_EXIT();
         return status;
     }
 
     sai_db_write_lock();
 
-    status = db_init_sai_policer_data(&sai_policer_attr, &sai_policer_db_index);
-    if (SAI_ERR(status)) {
+    if (SAI_STATUS_SUCCESS !=
+        (status = db_init_sai_policer_data(&sai_policer_attr, &sai_policer_db_index))) {
         SX_LOG_NTC("Failed processing policer initialization data\n");
-        goto out;
+        SX_LOG_EXIT();
+        return status;
     }
 
-    status = mlnx_create_object(SAI_OBJECT_TYPE_POLICER, sai_policer_db_index, NULL, &sai_policer);
-    if (SAI_ERR(status)) {
+    if (SAI_STATUS_SUCCESS !=
+        (status = mlnx_create_object(SAI_OBJECT_TYPE_POLICER, sai_policer_db_index, NULL, &sai_policer))) {
         db_remove_sai_policer_data(sai_policer_db_index);
-        goto out;
+        sai_db_unlock();
+        SX_LOG_EXIT();
+        return status;
     }
+
+    sai_db_unlock();
 
     *policer_id = sai_policer;
     MLNX_LOG_OID_CREATED(*policer_id);
 
-out:
-    sai_db_unlock();
+    SX_LOG_EXIT();
+
     return status;
 }
 
@@ -2135,7 +2145,7 @@ static sai_status_t mlnx_sai_remove_policer(_In_ sai_object_id_t sai_policer_id)
     if (policer_db_data->sx_policer_id_acl != SX_POLICER_ID_INVALID) {
         policer_attr.is_host_ifc_policer = false;
         policer_attr.is_span_session_policer = false;
-        if (SX_STATUS_SUCCESS != (sx_status = sx_api_policer_set(get_sdk_handle(),
+        if (SX_STATUS_SUCCESS != (sx_status = sx_api_policer_set(gh_sdk,
                                                                  SX_ACCESS_CMD_DESTROY,
                                                                  &policer_attr,
                                                                  &policer_db_data->sx_policer_id_acl))) {
@@ -2150,7 +2160,7 @@ static sai_status_t mlnx_sai_remove_policer(_In_ sai_object_id_t sai_policer_id)
     if (policer_db_data->sx_policer_id_trap != SX_POLICER_ID_INVALID) {
         policer_attr.is_host_ifc_policer = true;
         policer_attr.is_span_session_policer = false;
-        if (SX_STATUS_SUCCESS != (sx_status = sx_api_policer_set(get_sdk_handle(),
+        if (SX_STATUS_SUCCESS != (sx_status = sx_api_policer_set(gh_sdk,
                                                                  SX_ACCESS_CMD_DESTROY,
                                                                  &policer_attr,
                                                                  &policer_db_data->sx_policer_id_trap))) {
@@ -2165,7 +2175,7 @@ static sai_status_t mlnx_sai_remove_policer(_In_ sai_object_id_t sai_policer_id)
     if (policer_db_data->sx_policer_id_acl_mirror != SX_POLICER_ID_INVALID) {
         policer_attr.is_host_ifc_policer = false;
         policer_attr.is_span_session_policer = false;
-        if (SX_STATUS_SUCCESS != (sx_status = sx_api_policer_set(get_sdk_handle(),
+        if (SX_STATUS_SUCCESS != (sx_status = sx_api_policer_set(gh_sdk,
                                                                  SX_ACCESS_CMD_DESTROY,
                                                                  &policer_attr,
                                                                  &policer_db_data->sx_policer_id_acl_mirror))) {
@@ -2180,7 +2190,7 @@ static sai_status_t mlnx_sai_remove_policer(_In_ sai_object_id_t sai_policer_id)
     if (policer_db_data->sx_policer_id_span_session != SX_POLICER_ID_INVALID) {
         policer_attr.is_host_ifc_policer = false;
         policer_attr.is_span_session_policer = true;
-        sx_status = sx_api_policer_set(get_sdk_handle(), SX_ACCESS_CMD_DESTROY, &policer_attr,
+        sx_status = sx_api_policer_set(gh_sdk, SX_ACCESS_CMD_DESTROY, &policer_attr,
                                        &policer_db_data->sx_policer_id_span_session);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to destroy acl SX policer:0x%" PRIx64 ". error message:%s.\n",
@@ -2236,7 +2246,7 @@ sai_status_t mlnx_policer_stats_clear(_In_ sx_policer_id_t sx_policer)
     memset(&policer_counters_clear, 0, sizeof(policer_counters_clear));
 
     policer_counters_clear.clear_violation_counter = true;
-    sx_status = sx_api_policer_counters_clear_set(get_sdk_handle(),
+    sx_status = sx_api_policer_counters_clear_set(gh_sdk,
                                                   sx_policer,
                                                   &policer_counters_clear);
     if (SX_ERR(sx_status)) {
@@ -2259,7 +2269,7 @@ sai_status_t mlnx_policer_stats_get(_In_ sx_policer_id_t sx_policer, _In_ uint64
 
     memset(&policer_counters, 0, sizeof(policer_counters));
 
-    sx_status = sx_api_policer_counters_get(get_sdk_handle(), sx_policer, &policer_counters);
+    sx_status = sx_api_policer_counters_get(gh_sdk, sx_policer, &policer_counters);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to get sx policer %lu counter - %s\n", sx_policer, SX_STATUS_MSG(sx_status));
         return sdk_to_sai(sx_status);
@@ -2383,7 +2393,7 @@ static sai_status_t mlnx_do_policer_stats(_In_ sai_object_id_t      policer_id,
             if (policer_id == port_config->port_policers[packet_type_ind]) {
                 if (is_clear) {
                     if (SX_STATUS_SUCCESS != (sx_status =
-                                                  sx_api_port_storm_control_counters_clear_set(get_sdk_handle(),
+                                                  sx_api_port_storm_control_counters_clear_set(gh_sdk,
                                                                                                port_config->logical,
                                                                                                packet_type_ind,
                                                                                                &policer_counters_clear)))
@@ -2400,7 +2410,7 @@ static sai_status_t mlnx_do_policer_stats(_In_ sai_object_id_t      policer_id,
                     }
                 } else {
                     if (SX_STATUS_SUCCESS != (sx_status =
-                                                  sx_api_port_storm_control_counters_get(get_sdk_handle(),
+                                                  sx_api_port_storm_control_counters_get(gh_sdk,
                                                                                          port_config->logical,
                                                                                          packet_type_ind,
                                                                                          &policer_counters))) {
@@ -2478,9 +2488,8 @@ sai_status_t mlnx_sai_clear_policer_stats(_In_ sai_object_id_t      policer_id,
 sai_status_t mlnx_policer_log_set(sx_verbosity_level_t level)
 {
     LOG_VAR_NAME(__MODULE__) = level;
-    if (get_sdk_handle()) {
-        return sdk_to_sai(sx_api_policer_log_verbosity_level_set(get_sdk_handle(), SX_LOG_VERBOSITY_BOTH, level,
-                                                                 level));
+    if (gh_sdk) {
+        return sdk_to_sai(sx_api_policer_log_verbosity_level_set(gh_sdk, SX_LOG_VERBOSITY_BOTH, level, level));
     } else {
         return SAI_STATUS_SUCCESS;
     }
@@ -2579,7 +2588,7 @@ static sai_status_t sai_policer_apply_packet_types_to_all_traffic_policer(_In_ m
     if (SX_STATUS_SUCCESS !=
         (sx_status =
              storm_policer_functions.sx_api_port_storm_control_set_p(
-                 get_sdk_handle(),
+                 gh_sdk,
                  SX_ACCESS_CMD_EDIT,
                  port_id,
                  MLNX_PORT_POLICER_TYPE_REGULAR_INDEX,
@@ -2679,7 +2688,7 @@ static sai_status_t setup_storm_item(_In_ sai_object_id_t        sai_policer,
 
     if (SX_STATUS_SUCCESS !=
         (sx_status = storm_policer_functions.sx_api_port_storm_control_set_p(
-             get_sdk_handle(),
+             gh_sdk,
              SX_ACCESS_CMD_ADD,
              port_id,
              port_policer_type,
@@ -2846,7 +2855,7 @@ sai_status_t mlnx_sai_unbind_policer_from_port(_In_ sai_object_id_t           sa
 
     if (SX_STATUS_SUCCESS !=
         (sx_status =
-             storm_policer_functions.sx_api_port_storm_control_set_p(get_sdk_handle(), SX_ACCESS_CMD_DELETE,
+             storm_policer_functions.sx_api_port_storm_control_set_p(gh_sdk, SX_ACCESS_CMD_DELETE,
                                                                      port_id,
                                                                      bind_params->port_policer_type,
                                                                      &storm_ctrl_params))) {
@@ -2926,7 +2935,7 @@ static sai_status_t mlnx_sai_get_or_create_sx_policer_for_bind(_In_ sai_object_i
 
     if (SX_POLICER_ID_INVALID == *new_sx_policer) {
         if (SX_STATUS_SUCCESS !=
-            (sx_status = sx_api_policer_set(get_sdk_handle(),
+            (sx_status = sx_api_policer_set(gh_sdk,
                                             SX_ACCESS_CMD_CREATE,
                                             &policer_attr,
                                             new_sx_policer))) {
@@ -3016,10 +3025,7 @@ sai_status_t mlnx_sai_get_or_create_acl_mirror_sx_policer_for_bind(_In_ sai_obje
             sx_policer_attrs_fixed.red_action = SX_POLICER_ACTION_FORWARD_SET_RED_COLOR;
         }
 
-        sx_status = sx_api_policer_set(get_sdk_handle(),
-                                       SX_ACCESS_CMD_CREATE,
-                                       &sx_policer_attrs_fixed,
-                                       sx_mirror_policer);
+        sx_status = sx_api_policer_set(gh_sdk, SX_ACCESS_CMD_CREATE, &sx_policer_attrs_fixed, sx_mirror_policer);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to create policer for mirror session - %s.\n", SX_STATUS_MSG(sx_status));
             return sdk_to_sai(sx_status);
@@ -3058,7 +3064,7 @@ static sai_status_t mlnx_sai_bind_policer_to_trap_group(_In_ sai_object_id_t sai
 
     if (SX_STATUS_SUCCESS != (
             sx_status = sx_api_host_ifc_policer_bind_set(
-                get_sdk_handle(),
+                gh_sdk,
                 SX_ACCESS_CMD_BIND,
                 DEFAULT_ETH_SWID,
                 group_id,
@@ -3106,10 +3112,7 @@ sai_status_t mlnx_sai_update_span_session_policer(_In_ sx_span_session_id_t span
             return sai_status;
         }
 
-        sx_status = sx_api_span_session_policer_bind_set(get_sdk_handle(),
-                                                         SX_ACCESS_CMD_UNBIND,
-                                                         span_session_id,
-                                                         sx_policer);
+        sx_status = sx_api_span_session_policer_bind_set(gh_sdk, SX_ACCESS_CMD_UNBIND, span_session_id, sx_policer);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Policer unbind failed - %s\n", SX_STATUS_MSG(sx_status));
             sai_status = sdk_to_sai(sx_status);
@@ -3126,10 +3129,7 @@ sai_status_t mlnx_sai_update_span_session_policer(_In_ sx_span_session_id_t span
             return sai_status;
         }
 
-        sx_status = sx_api_span_session_policer_bind_set(get_sdk_handle(),
-                                                         SX_ACCESS_CMD_BIND,
-                                                         span_session_id,
-                                                         sx_policer);
+        sx_status = sx_api_span_session_policer_bind_set(gh_sdk, SX_ACCESS_CMD_BIND, span_session_id, sx_policer);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Policer bind failed - %s\n", SX_STATUS_MSG(sx_status));
             sai_status = sdk_to_sai(sx_status);

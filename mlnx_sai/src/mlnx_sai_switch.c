@@ -51,10 +51,6 @@
 
 uint64_t test_sx_api_init_set_ms;
 
-pthread_mutex_t init_deinit_mutex;
-uint32_t        number_of_active_threads = 0;
-bool            is_main_thread = false;
-
 typedef struct _sai_switch_notification_t {
     sai_switch_state_change_notification_fn      on_switch_state_change;
     sai_fdb_event_notification_fn                on_fdb_event;
@@ -81,7 +77,7 @@ typedef struct kvd_key_definition {
 } kvd_key_definition_t;
 
 static sx_verbosity_level_t LOG_VAR_NAME(__MODULE__) = SX_VERBOSITY_LEVEL_WARNING;
-
+sx_api_handle_t                  gh_sdk = 0;
 static sai_switch_notification_t g_notification_callbacks;
 static sai_switch_profile_id_t   g_profile_id;
 rm_resources_t                   g_resource_limits;
@@ -106,94 +102,6 @@ static uint32_t                  g_mlnx_shm_rm_size = 0;
 #ifndef _WIN32
 pthread_mutex_t generate_dump_mutex;
 #endif
-
-pthread_key_t pthread_sdk_handle_key;
-pthread_key_t pthread_number_of_connections_to_the_sdk_in_current_thread;
-
-int64_t get_number_of_sdk_connections()
-{
-    return (int64_t)pthread_getspecific(pthread_number_of_connections_to_the_sdk_in_current_thread);
-}
-
-void change_number_of_sdk_connections(int64_t diff)
-{
-    int64_t number_of_connections;
-
-    number_of_connections = get_number_of_sdk_connections() + diff;
-
-    assert(pthread_setspecific(pthread_number_of_connections_to_the_sdk_in_current_thread,
-                               (void *)number_of_connections) == 0);
-}
-
-
-sai_status_t open_sdk(sx_log_cb_t sai_log_cb)
-{
-    sx_api_handle_t sx_handle = get_sdk_handle();
-    sx_status_t     sx_status;
-    int             pthread_status;
-
-    if (get_number_of_sdk_connections()) {
-        SX_LOG_DBG("SDK is already opened.\n");
-        change_number_of_sdk_connections(1);
-        return SAI_STATUS_ITEM_ALREADY_EXISTS;
-    }
-
-    sx_status = sx_api_open(sai_log_cb, &sx_handle);
-    if (SX_ERR(sx_status)) {
-        MLNX_SAI_LOG_ERR("Failed to open sx_api_handle_t - %s.\n", SX_STATUS_MSG(sx_status));
-        return sdk_to_sai(sx_status);
-    }
-
-    pthread_status = pthread_setspecific(pthread_sdk_handle_key, (void *)sx_handle);
-    if (0 != pthread_status) {
-        MLNX_SAI_LOG_ERR("Failed to set pthread_sdk_handle_key value - %s\n", strerror(pthread_status));
-        return SAI_STATUS_FAILURE;
-    }
-
-    change_number_of_sdk_connections(1);
-
-    return SAI_STATUS_SUCCESS;
-}
-
-sx_api_handle_t get_sdk_handle()
-{
-    sx_api_handle_t sx_handle;
-
-    sx_handle = (sx_api_handle_t)pthread_getspecific(pthread_sdk_handle_key);
-    if (!sx_handle) {
-        return SX_API_INVALID_HANDLE;
-    }
-
-    return sx_handle;
-}
-
-sai_status_t close_sdk()
-{
-    sx_api_handle_t sx_handle = get_sdk_handle();
-    sx_status_t     sx_status;
-    int             pthread_status;
-
-    change_number_of_sdk_connections(-1);
-
-    if (get_number_of_sdk_connections()) {
-        SX_LOG_DBG("There are still open SDK connections.\n");
-        return SAI_STATUS_SUCCESS;
-    }
-
-    sx_status = sx_api_close(&sx_handle);
-    if (SX_ERR(sx_status)) {
-        SX_LOG_ERR("API close failed.\n");
-        return sdk_to_sai(sx_status);
-    }
-
-    pthread_status = pthread_setspecific(pthread_sdk_handle_key, (void *)SX_API_INVALID_HANDLE);
-    if (0 != pthread_status) {
-        MLNX_SAI_LOG_ERR("Failed to set pthread_sdk_handle_key value - %s\n", strerror(pthread_status));
-        return SAI_STATUS_FAILURE;
-    }
-
-    return SAI_STATUS_SUCCESS;
-}
 
 void log_cb(sx_log_severity_t severity, const char *module_name, char *msg);
 void log_pause_cb(void);
@@ -248,19 +156,13 @@ static void* calloc_wrapper(size_t nitems, size_t size);
 static void event_thread_func(void *context);
 static sai_status_t sai_db_create();
 static void sai_db_values_init();
-static sai_status_t sai_db_switch_connect_init();
-static sai_status_t sai_all_db_switch_connect_init();
-static sai_status_t sai_sdk_switch_connect_init();
-static sai_status_t sai_resource_limits_switch_connect_init();
-static sai_status_t mlnx_cb_table_init(void);
 static sai_status_t mlnx_parse_config(const char *config_file);
 static uint32_t sai_qos_db_size_get();
 static void sai_qos_db_init();
-static sai_status_t sai_qos_db_switch_connect_init();
 static sai_status_t sai_qos_db_unload(boolean_t erase_db);
 static sai_status_t sai_qos_db_create();
 static void sai_buffer_db_values_init();
-static sai_status_t sai_buffer_db_switch_connect_init();
+static sai_status_t sai_buffer_db_switch_connect_init(int shmid);
 static void sai_buffer_db_data_reset();
 static uint32_t sai_buffer_db_size_get();
 static void sai_buffer_db_pointers_init();
@@ -271,7 +173,7 @@ static uint32_t sai_acl_db_pbs_map_size_get();
 static uint32_t sai_acl_db_size_get();
 static sai_status_t sai_acl_db_create();
 static void sai_acl_db_init();
-static sai_status_t sai_acl_db_switch_connect_init();
+static sai_status_t sai_acl_db_switch_connect_init(int shmid);
 static sai_status_t sai_acl_db_unload(boolean_t erase_db);
 static uint32_t sai_udf_db_size_get();
 static void sai_udf_db_init();
@@ -279,7 +181,7 @@ static sai_status_t sai_tunnel_db_unload(boolean_t erase_db);
 static sai_status_t sai_tunnel_db_create();
 static uint32_t sai_tunnel_db_size_get();
 static void sai_tunnel_db_init();
-static sai_status_t sai_tunnel_db_switch_connect_init();
+static sai_status_t sai_tunnel_db_switch_connect_init(int shmid);
 static sai_status_t mlnx_switch_fdb_record_age(_In_ const sx_fdb_notify_record_t *fdb_record);
 static sai_status_t mlnx_switch_fdb_record_check_and_age(_In_ const sx_fdb_notify_record_t *fdb_record);
 static sai_status_t mlnx_switch_vxlan_udp_port_set(uint16_t udp_port);
@@ -733,12 +635,9 @@ static sai_status_t mlnx_switch_dump_health_event_remove_extra_dumps(_In_ const 
 static sai_status_t mlnx_switch_dump_health_event_move_dumps_from_stage_dir(_In_ const char *stage_dir);
 static sai_status_t mlnx_switch_health_event_handle(_In_ sx_event_health_notification_t *event,
                                                     _In_ sai_object_id_t                 switch_id);
-static sai_status_t mlnx_switch_rearm_dfw();
+static sai_status_t mlnx_switch_rearm_dfw(_In_ sx_api_handle_t api_handle);
 static void mlnx_switch_dfw_thread_func(_In_ void *context);
 static void monitor_sdk_thread_func(_In_ void *context);
-static sai_status_t mlnx_ar_init(void);
-static sai_status_t mlnx_parse_ar_config(_In_ const char *ar_config_file, _Out_ ar_config_data_t *ar_config_data);
-static sai_status_t apply_ar_config_data(_In_ ar_config_data_t *ar_config_data);
 
 static inline int bfd_pkt_is_polling(mlnx_bfd_packet_t* bfd_pkt)
 {
@@ -2699,30 +2598,6 @@ static sai_status_t mlnx_sai_db_initialize(const char *config_file, sx_chip_type
         return status;
     }
 
-    if (!mlnx_chip_is_spc()) {
-        const char *ar_config_file = g_mlnx_services.profile_get_value(g_profile_id,
-                                                                       SAI_KEY_ADAPTIVE_ROUTING_CONFIG_FILE);
-        if (NULL == ar_config_file) {
-            SX_LOG_NTC("Adaptive routing config file is not set.\n");
-        } else if (0 != access(ar_config_file, F_OK)) {
-            SX_LOG_ERR("Adaptive routing config file %s does not exist.\n", ar_config_file);
-        } else {
-            /* coverity[stack_use_local_overflow] */
-            ar_config_data_t ar_config_data = {0};
-            SX_LOG_NTC("Parsing adaptive routing config file %s.\n", ar_config_file);
-            status = mlnx_parse_ar_config(ar_config_file, &ar_config_data);
-            if (SAI_ERR(status)) {
-                SX_LOG_ERR("Failed to parse adaptive routing config file:[%s].\n", ar_config_file);
-                return status;
-            }
-            status = apply_ar_config_data(&ar_config_data);
-            if (SAI_ERR(status)) {
-                SX_LOG_ERR("Failed to apply adaptive routing config file:[%s].\n", ar_config_file);
-                return status;
-            }
-        }
-    }
-
     return SAI_STATUS_SUCCESS;
 }
 
@@ -2760,6 +2635,12 @@ static sai_status_t mlnx_resource_mng_stage(bool warm_recover, mlnx_sai_boot_typ
     sxd_ret = sxd_dpt_set_access_control(SX_DEVICE_ID, READ_WRITE);
     if (SXD_CHECK_FAIL(sxd_ret)) {
         MLNX_SAI_LOG_ERR("Failed to set dpt access control - %s.\n", SXD_STATUS_MSG(sxd_ret));
+        return SAI_STATUS_FAILURE;
+    }
+
+    sxd_ret = sxd_access_reg_init(0, sai_log_cb, LOG_VAR_NAME(__MODULE__));
+    if (SXD_CHECK_FAIL(sxd_ret)) {
+        MLNX_SAI_LOG_ERR("Failed to init access reg - %s.\n", SXD_STATUS_MSG(sxd_ret));
         return SAI_STATUS_FAILURE;
     }
 
@@ -3219,16 +3100,15 @@ static sai_status_t mlnx_chassis_mng_stage(mlnx_sai_boot_type_t boot_type,
 
     memset(&sdk_init_params, 0, sizeof(sdk_init_params));
 
-    status = open_sdk(sai_log_cb);
-    if (SAI_ERR(status)) {
-        MLNX_SAI_LOG_ERR("Can't open connection to SDK.\n");
-        return status;
+    /* Open an handle */
+    if (SX_STATUS_SUCCESS != (status = sx_api_open(sai_log_cb, &gh_sdk))) {
+        MLNX_SAI_LOG_ERR("Can't open connection to SDK - %s.\n", SX_STATUS_MSG(status));
+        return sdk_to_sai(status);
     }
-
     log_verbosity_target_attr.verbosity_target = SX_LOG_VERBOSITY_BOTH;
     log_verbosity_target_attr.enable = 1;
     if (SX_STATUS_SUCCESS !=
-        (status = sx_api_system_log_enter_func_severity_set(get_sdk_handle(), &log_verbosity_target_attr))) {
+        (status = sx_api_system_log_enter_func_severity_set(gh_sdk, &log_verbosity_target_attr))) {
         SX_LOG_ERR("Set system log func severity failed - %s.\n", SX_STATUS_MSG(status));
         return sdk_to_sai(status);
     }
@@ -3374,7 +3254,7 @@ static sai_status_t mlnx_chassis_mng_stage(mlnx_sai_boot_type_t boot_type,
 
     SX_LOG_INF("SDK init set start\n");
     test_sx_api_init_set_ms = time_ms_get();
-    if (SX_STATUS_SUCCESS != (status = sx_api_sdk_init_set(get_sdk_handle(), &sdk_init_params))) {
+    if (SX_STATUS_SUCCESS != (status = sx_api_sdk_init_set(gh_sdk, &sdk_init_params))) {
         SX_LOG_ERR("Failed to initialize SDK (%s)\n", SX_STATUS_MSG(status));
         return sdk_to_sai(status);
     }
@@ -3385,7 +3265,7 @@ static sai_status_t mlnx_chassis_mng_stage(mlnx_sai_boot_type_t boot_type,
     if (transaction_mode_enable) {
         transaction_mode_cmd = SX_ACCESS_CMD_ENABLE;
         if (SX_STATUS_SUCCESS !=
-            (status = sx_api_transaction_mode_set(get_sdk_handle(), transaction_mode_cmd))) {
+            (status = sx_api_transaction_mode_set(gh_sdk, transaction_mode_cmd))) {
             MLNX_SAI_LOG_ERR("Failed to set transaction mode to %d: %s\n", transaction_mode_cmd,
                              SX_STATUS_MSG(status));
             return sdk_to_sai(status);
@@ -3731,258 +3611,6 @@ static sai_status_t mlnx_parse_config(const char *config_file)
 
     return status;
 }
-
-static void parse_ar_element_bool(xmlDoc *doc, xmlNode *node, bool *value)
-{
-    xmlChar *key;
-
-    assert(NULL != value);
-
-    key = xmlNodeListGetString(doc, node->children, 1);
-    if ((!xmlStrcmp(key, (const xmlChar*)"1"))) {
-        *value = true;
-    } else {
-        *value = false;
-    }
-
-    xmlFree(key);
-}
-
-
-static sai_status_t parse_ar_port(_In_ xmlDoc            *doc,
-                                  _In_ xmlNode           *port_node,
-                                  _In_ uint32_t           port_number,
-                                  _Out_ ar_config_data_t *ar_config_data)
-{
-    sai_status_t        status = SAI_STATUS_SUCCESS;
-    xmlChar            *key;
-    xmlNode            *lane_node;
-    xmlNode            *node;
-    ar_xml_port_data_t *ar_port;
-    uint32_t            lane_count = 0;
-
-    assert(NULL != ar_config_data);
-    ar_port = &ar_config_data->port_list[port_number];
-    for (node = port_node->children; node != NULL; node = node->next) {
-        if ((!xmlStrcmp(node->name, (const xmlChar*)"lanes-list"))) {
-            for (lane_node = node->children; lane_node != NULL; lane_node = lane_node->next) {
-                if ((!xmlStrcmp(lane_node->name, (const xmlChar*)"lane"))) {
-                    if (lane_count >= MAX_LANES_SPC3_4) {
-                        MLNX_SAI_LOG_ERR("Lane count exceeds max number.\n");
-                        return SAI_STATUS_INVALID_PARAMETER;
-                    }
-                    key = xmlNodeListGetString(doc, lane_node->children, 1);
-                    ar_port->lane_list[lane_count].val = (uint32_t)atoi((const char *)key);
-                    ar_port->lane_list[lane_count].enabled = true;
-                    lane_count++;
-                    xmlFree(key);
-                }
-            }
-        } else if ((!xmlStrcmp(node->name, (const xmlChar*)"link-utilization"))) {
-            key = xmlNodeListGetString(doc, node->children, 1);
-            ar_port->link_util_percentage.val = (uint32_t)atoi((const char *)key);
-            ar_port->link_util_percentage.enabled = true;
-            xmlFree(key);
-        }
-    }
-
-    if (0 == lane_count) {
-        MLNX_SAI_LOG_ERR("Config of port number %u has no lane.\n", port_number);
-        return SAI_STATUS_INVALID_PARAMETER;
-    }
-
-    MLNX_SAI_LOG_NTC("Adaptive routing port %u {lane_length=%u, start_lane=%u, link-utilization=%u}.\n",
-                     port_number, lane_count, ar_port->lane_list[0].val, ar_port->link_util_percentage.val);
-    return status;
-}
-
-static sai_status_t parse_ar_elements(_In_ xmlDoc *doc, _In_ xmlNode *a_node, _Out_ ar_config_data_t *ar_config_data)
-{
-    xmlNode     *cur_node, *ports_node, *profile_node;
-    xmlChar     *key = NULL;
-    sai_status_t status = SAI_STATUS_SUCCESS;
-    uint32_t     port_count = 0;
-
-    /* parse all siblings of current element */
-    for (cur_node = a_node; cur_node != NULL; cur_node = cur_node->next) {
-        if ((!xmlStrcmp(cur_node->name, (const xmlChar*)"ports"))) {
-            for (ports_node = cur_node->children; ports_node != NULL; ports_node = ports_node->next) {
-                if ((!xmlStrcmp(ports_node->name, (const xmlChar*)"port-info"))) {
-                    if (port_count >= MAX_PORTS_DB) {
-                        MLNX_SAI_LOG_ERR("Port count exceeds max number.\n");
-                        return SAI_STATUS_INVALID_PARAMETER;
-                    }
-                    status = parse_ar_port(doc, ports_node, port_count, ar_config_data);
-                    if (SAI_ERR(status)) {
-                        return status;
-                    }
-                    port_count++;
-                }
-            }
-        } else if ((!xmlStrcmp(cur_node->name, (const xmlChar*)"profile"))) {
-            for (profile_node = cur_node->children; profile_node != NULL; profile_node = profile_node->next) {
-                if ((!xmlStrcmp(profile_node->name, (const xmlChar*)"mode"))) {
-                    key = xmlNodeListGetString(doc, profile_node->children, 1);
-                    if ((!xmlStrcmp(key, (const xmlChar*)"free"))) {
-                        ar_config_data->mode.val = SX_AR_PROFILE_MODE_FREE_E;
-                    } else if ((!xmlStrcmp(key, (const xmlChar*)"time-bound"))) {
-                        ar_config_data->mode.val = SX_AR_PROFILE_MODE_TIME_BOUND_E;
-                    } else if ((!xmlStrcmp(key, (const xmlChar*)"random"))) {
-                        ar_config_data->mode.val = SX_AR_PROFILE_MODE_RANDOM_E;
-                    } else if ((!xmlStrcmp(key, (const xmlChar*)"sticky-free"))) {
-                        ar_config_data->mode.val = SX_AR_PROFILE_MODE_STICKY_FREE_E;
-                    } else {
-                        MLNX_SAI_LOG_ERR("Unknown mode: %s.\n", (const char*)key);
-                        return SAI_STATUS_INVALID_PARAMETER;
-                    }
-                    ar_config_data->mode.enabled = true;
-                } else if ((!xmlStrcmp(profile_node->name, (const xmlChar*)"congestion-threshold-low"))) {
-                    key = xmlNodeListGetString(doc, profile_node->children, 1);
-                    ar_config_data->congestion_thresh_lo.val = (uint32_t)atoi((const char*)key);
-                    ar_config_data->congestion_thresh_lo.enabled = true;
-                } else if ((!xmlStrcmp(profile_node->name, (const xmlChar*)"congestion-threshold-medium"))) {
-                    key = xmlNodeListGetString(doc, profile_node->children, 1);
-                    ar_config_data->congestion_thresh_med.val = (uint32_t)atoi((const char*)key);
-                    ar_config_data->congestion_thresh_med.enabled = true;
-                } else if ((!xmlStrcmp(profile_node->name, (const xmlChar*)"congestion-threshold-high"))) {
-                    key = xmlNodeListGetString(doc, profile_node->children, 1);
-                    ar_config_data->congestion_thresh_hi.val = (uint32_t)atoi((const char*)key);
-                    ar_config_data->congestion_thresh_hi.enabled = true;
-                } else if ((!xmlStrcmp(profile_node->name, (const xmlChar*)"bind-time"))) {
-                    key = xmlNodeListGetString(doc, profile_node->children, 1);
-                    ar_config_data->bind_time.val = (uint32_t)atoi((const char*)key);
-                    ar_config_data->bind_time.enabled = true;
-                } else if ((!xmlStrcmp(profile_node->name, (const xmlChar*)"free-threshold"))) {
-                    key = xmlNodeListGetString(doc, profile_node->children, 1);
-                    ar_config_data->free_threshold.val = (sx_ar_grade_t)atoi((const char*)key);
-                    ar_config_data->free_threshold.enabled = true;
-                } else if ((!xmlStrcmp(profile_node->name, (const xmlChar*)"busy-threshold"))) {
-                    key = xmlNodeListGetString(doc, profile_node->children, 1);
-                    ar_config_data->busy_threshold.val = (sx_ar_grade_t)atoi((const char*)key);
-                    ar_config_data->busy_threshold.enabled = true;
-                } else if ((!xmlStrcmp(profile_node->name, (const xmlChar*)"elephant-flow"))) {
-                    parse_ar_element_bool(doc, profile_node, &ar_config_data->only_elephant_en.val);
-                    ar_config_data->only_elephant_en.enabled = true;
-                } else if ((!xmlStrcmp(profile_node->name, (const xmlChar*)"shaper-from-enabled"))) {
-                    parse_ar_element_bool(doc, profile_node, &ar_config_data->from_shaper_is_enable.val);
-                    ar_config_data->from_shaper_is_enable.enabled = true;
-                } else if ((!xmlStrcmp(profile_node->name, (const xmlChar*)"shaper-from"))) {
-                    key = xmlNodeListGetString(doc, profile_node->children, 1);
-                    ar_config_data->shaper_rate_from.val = (sx_ar_shaper_rate_t)atoi((const char*)key);
-                    ar_config_data->shaper_rate_from.enabled = true;
-                } else if ((!xmlStrcmp(profile_node->name, (const xmlChar*)"shaper-to-enabled"))) {
-                    parse_ar_element_bool(doc, profile_node, &ar_config_data->to_shaper_is_enable.val);
-                    ar_config_data->to_shaper_is_enable.enabled = true;
-                } else if ((!xmlStrcmp(profile_node->name, (const xmlChar*)"shaper-to"))) {
-                    key = xmlNodeListGetString(doc, profile_node->children, 1);
-                    ar_config_data->shaper_rate_to.val = (sx_ar_shaper_rate_t)atoi((const char*)key);
-                    ar_config_data->shaper_rate_to.enabled = true;
-                } else if ((!xmlStrcmp(profile_node->name, (const xmlChar*)"ecmp-size"))) {
-                    key = xmlNodeListGetString(doc, profile_node->children, 1);
-                    ar_config_data->ar_ecmp_size.val = (sx_ar_shaper_rate_t)atoi((const char*)key);
-                    ar_config_data->ar_ecmp_size.enabled = true;
-                }
-
-                if (NULL != key) {
-                    xmlFree(key);
-                    key = NULL;
-                }
-            }
-        } else {
-            /* parse all children of current element */
-            status = parse_ar_elements(doc, cur_node->children, ar_config_data);
-            if (SAI_ERR(status)) {
-                return status;
-            }
-        }
-    }
-
-    return status;
-}
-
-static sai_status_t apply_ar_config_data(_In_ ar_config_data_t *ar_config_data)
-{
-    mlnx_ar_db_data_t  *ar_data;
-    ar_xml_port_data_t *xml_ar_port;
-    ar_port_data_t     *db_ar_port;
-
-    assert(NULL != ar_config_data);
-    sai_db_write_lock();
-    ar_data = &g_sai_db_ptr->ar_db;
-
-    /* apply ar port config */
-    ar_data->ar_port_count = 0;
-    for (uint32_t ii = 0; ii < MAX_PORTS_DB; ii++) {
-        xml_ar_port = &ar_config_data->port_list[ii];
-        if (xml_ar_port->link_util_percentage.enabled) {
-            ar_data->ar_port_count++;
-            db_ar_port = &ar_data->ar_port_list[ii];
-            db_ar_port->link_util_percentage = xml_ar_port->link_util_percentage.val;
-            db_ar_port->port_id = SX_INVALID_PORT;
-            db_ar_port->lane_count = 0;
-            for (uint32_t jj = 0; jj < MAX_LANES_SPC3_4; jj++) {
-                if (xml_ar_port->lane_list[jj].enabled) {
-                    db_ar_port->lane_list[jj] = xml_ar_port->lane_list[jj].val;
-                    db_ar_port->lane_count++;
-                } else {
-                    break;
-                }
-            }
-        } else {
-            break;
-        }
-    }
-
-    /* apply hard code ar global config */
-    ar_data->profile_key.profile = SX_AR_PROFILE_0_E;
-    ar_data->default_classifier_action.ar_flow_classification = SX_AR_CLASSIFIER_ACTION_STATIC_E;
-    ar_data->classifier_id = SX_AR_CLASSIFIER_INDEX_0_E;
-    ar_data->classifier_attr.key.l4 = SX_AR_CLASSIFIER_L4_ROCEv2_E;
-    ar_data->classifier_attr.key.bth_ar = SX_AR_IN_BTH_HEADER_ON_E;
-    ar_data->classifier_action.ar_flow_classification = SX_AR_CLASSIFIER_ACTION_PROFILE0_E;
-
-    /* apply ar global config get from ar_config.xml */
-    ar_data->congestion_threshold.port_threshold.congestion_thresh_lo = ar_config_data->congestion_thresh_lo.val;
-    ar_data->congestion_threshold.port_threshold.congestion_thresh_med = ar_config_data->congestion_thresh_med.val;
-    ar_data->congestion_threshold.port_threshold.congestion_thresh_hi = ar_config_data->congestion_thresh_hi.val;
-    ar_data->profile_attr.mode = ar_config_data->mode.val;
-    ar_data->profile_attr.profile_threshold.free_threshold = ar_config_data->free_threshold.val;
-    ar_data->profile_attr.profile_threshold.busy_threshold = ar_config_data->busy_threshold.val;
-    ar_data->profile_attr.only_elephant_en = ar_config_data->only_elephant_en.val;
-    ar_data->profile_attr.shaper_attr_filter.from_shaper_is_enable = ar_config_data->from_shaper_is_enable.val;
-    ar_data->profile_attr.shaper_attr_filter.to_shaper_is_enable = ar_config_data->to_shaper_is_enable.val;
-    ar_data->profile_attr.bind_time = ar_config_data->bind_time.val;
-    ar_data->shaper_attr.shaper_rate_from = ar_config_data->shaper_rate_from.val;
-    ar_data->shaper_attr.shaper_rate_to = ar_config_data->shaper_rate_to.val;
-    ar_data->ar_ecmp_size = ar_config_data->ar_ecmp_size.val;
-
-    sai_db_unlock();
-    return SAI_STATUS_SUCCESS;
-}
-
-static sai_status_t mlnx_parse_ar_config(_In_ const char *ar_config_file, _Out_ ar_config_data_t *ar_config_data)
-{
-    xmlDoc      *doc = NULL;
-    xmlNode     *root_element = NULL;
-    sai_status_t status;
-
-    assert(NULL != ar_config_file);
-
-    LIBXML_TEST_VERSION;
-
-    doc = xmlReadFile(ar_config_file, NULL, 0);
-    if (doc == NULL) {
-        MLNX_SAI_LOG_ERR("could not parse ar config file %s\n", ar_config_file);
-        return SAI_STATUS_FAILURE;
-    }
-    root_element = xmlDocGetRootElement(doc);
-    status = parse_ar_elements(doc, root_element->children, ar_config_data);
-
-    xmlFreeDoc(doc);
-    xmlCleanupParser();
-
-    return status;
-}
 #else /* ifndef _WIN32 */
 static sai_status_t mlnx_parse_config(const char *config_file)
 {
@@ -4040,6 +3668,7 @@ static void sai_db_values_init()
     g_sai_db_ptr->restart_warm = false;
     g_sai_db_ptr->issu_start_called = false;
     g_sai_db_ptr->issu_end_called = false;
+    g_sai_db_ptr->fx_initialized = false;
     g_sai_db_ptr->flex_parser_initialized = false;
     g_sai_db_ptr->boot_type = 0;
     g_sai_db_ptr->acl_divider = 1;
@@ -4097,8 +3726,6 @@ static void sai_db_values_init()
     }
 
     mlnx_vlan_db_create_vlan(DEFAULT_VLAN);
-
-    memset(&g_sai_db_ptr->ar_db, 0, sizeof(g_sai_db_ptr->ar_db));
 
     sai_qos_db_sync();
     cl_plock_release(&g_sai_db_ptr->p_lock);
@@ -4516,7 +4143,7 @@ sai_status_t mlnx_shm_rm_array_find(_In_ mlnx_shm_rm_array_type_t  type,
     return SAI_STATUS_FAILURE;
 }
 
-sai_status_t mlnx_shm_rm_array_idx_to_ptr(_In_ mlnx_shm_rm_array_idx_t idx, _Out_ void **elem)
+sai_status_t mlnx_shm_rm_array_idx_to_ptr(_In_ mlnx_shm_rm_array_idx_t idx, _Out_ void                   **elem)
 {
     mlnx_shm_array_hdr_t *array_hdr;
     sai_status_t          status;
@@ -5082,7 +4709,7 @@ static sai_status_t mlnx_switch_generate_dump(_In_ sx_event_health_notification_
     FILE                            *dump_file = NULL;
     char                             dump_file_name[SX_API_DUMP_PATH_LEN_LIMIT + PATH_MAX + 20];
     char                             dump_stage_dir[SX_API_DUMP_PATH_LEN_LIMIT + PATH_MAX + 1];
-    sx_status_t                      sx_status = SX_STATUS_SUCCESS;
+    sx_status_t                      sdk_status = SX_STATUS_SUCCESS;
     sx_dbg_extra_info_t              dbg_info;
 
     if (0 != pthread_mutex_lock(&generate_dump_mutex)) {
@@ -5140,9 +4767,9 @@ static sai_status_t mlnx_switch_generate_dump(_In_ sx_event_health_notification_
     /*Generating dump */
 #define FW_DUMPS 3
     for (uint32_t ii = 0; ii < FW_DUMPS; ii++) {
-        sx_status = sx_api_dbg_generate_dump_extra(get_sdk_handle(), &dbg_info);
-        if (SX_ERR(sx_status)) {
-            MLNX_SAI_LOG_ERR("Error generating extended sdk dump, sx status: %s\n", SX_STATUS_MSG(sx_status));
+        sdk_status = sx_api_dbg_generate_dump_extra(gh_sdk, &dbg_info);
+        if (SX_STATUS_SUCCESS != sdk_status) {
+            MLNX_SAI_LOG_ERR("Error generating extended sdk dump, sx status: %s\n", SX_STATUS_MSG(sdk_status));
         }
     }
 #undef FW_DUMPS
@@ -5232,7 +4859,7 @@ static sai_status_t mlnx_switch_health_event_handle(_In_ sx_event_health_notific
     return SAI_STATUS_SUCCESS;
 }
 
-static sai_status_t mlnx_switch_rearm_dfw()
+static sai_status_t mlnx_switch_rearm_dfw(_In_ sx_api_handle_t api_handle)
 {
     sx_dbg_control_params_t dbg_params;
     sx_status_t             status;
@@ -5241,7 +4868,7 @@ static sai_status_t mlnx_switch_rearm_dfw()
     dbg_params.fw_fatal_event_config.fw_fatal_event_enable = TRUE;
     dbg_params.fw_fatal_event_config.auto_extraction_policy = SX_DBG_POLICY_NO_AUTO_DEBUG_EXTRACTION_E;
     dbg_params.dev_id = SX_DEVICE_ID;
-    if (SX_STATUS_SUCCESS != (status = sx_api_fw_dbg_control_set(get_sdk_handle(), SX_ACCESS_CMD_SET, &dbg_params))) {
+    if (SX_STATUS_SUCCESS != (status = sx_api_fw_dbg_control_set(api_handle, SX_ACCESS_CMD_SET, &dbg_params))) {
         SX_LOG_ERR("sx_api_dfw_dbg_control_set failed for dev id %d", dbg_params.dev_id);
         return SAI_STATUS_FAILURE;
     }
@@ -5257,6 +4884,7 @@ static void* calloc_wrapper(size_t nitems, size_t size)
 
 static void mlnx_switch_dfw_thread_func(_In_ void *context)
 {
+    sx_api_handle_t                 api_handle = SX_API_INVALID_HANDLE;
     sx_event_health_notification_t *event = NULL;
     sx_user_channel_t               callback_channel;
     uint8_t                        *p_packet = NULL;
@@ -5271,19 +4899,18 @@ static void mlnx_switch_dfw_thread_func(_In_ void *context)
 
     memset(&callback_channel, 0, sizeof(callback_channel));
 
-    sai_status = open_sdk(sai_log_cb);
-    if (SAI_ERR(sai_status)) {
-        MLNX_SAI_LOG_ERR("Can't open connection to SDK.\n");
+    if (SX_STATUS_SUCCESS != (status = sx_api_open(sai_log_cb, &api_handle))) {
+        MLNX_SAI_LOG_ERR("Can't open connection to SDK - %s.\n", SX_STATUS_MSG(status));
         goto out;
     }
 
-    if (SX_STATUS_SUCCESS != (status = sx_api_host_ifc_open(get_sdk_handle(), &callback_channel.channel.fd))) {
+    if (SX_STATUS_SUCCESS != (status = sx_api_host_ifc_open(api_handle, &callback_channel.channel.fd))) {
         SX_LOG_ERR("host ifc open port fd failed - %s.\n", SX_STATUS_MSG(status));
         goto out;
     }
 
     callback_channel.type = SX_USER_CHANNEL_TYPE_FD;
-    if (SX_STATUS_SUCCESS != (status = sx_api_host_ifc_trap_id_register_set(get_sdk_handle(), SX_ACCESS_CMD_REGISTER,
+    if (SX_STATUS_SUCCESS != (status = sx_api_host_ifc_trap_id_register_set(api_handle, SX_ACCESS_CMD_REGISTER,
                                                                             DEFAULT_ETH_SWID,
                                                                             SX_TRAP_ID_SDK_HEALTH_EVENT,
                                                                             &callback_channel))) {
@@ -5306,7 +4933,7 @@ static void mlnx_switch_dfw_thread_func(_In_ void *context)
     }
     SX_LOG_NTC("DFW packet buffer size %u\n", SX_HOST_EVENT_BUFFER_SIZE_MAX);
 
-    sai_status = mlnx_switch_rearm_dfw();
+    sai_status = mlnx_switch_rearm_dfw(api_handle);
     if (SAI_ERR(sai_status)) {
         goto out;
     }
@@ -5369,7 +4996,7 @@ static void mlnx_switch_dfw_thread_func(_In_ void *context)
                      * considered unstable */
                     if ((event->severity == SX_HEALTH_SEVERITY_WARN_E) ||
                         (event->severity == SX_HEALTH_SEVERITY_NOTICE_E)) {
-                        if (SAI_STATUS_SUCCESS != (sai_status = mlnx_switch_rearm_dfw())) {
+                        if (SAI_STATUS_SUCCESS != (sai_status = mlnx_switch_rearm_dfw(api_handle))) {
                             goto out;
                         }
                     }
@@ -5381,13 +5008,14 @@ static void mlnx_switch_dfw_thread_func(_In_ void *context)
 out:
     SX_LOG_NTC("Closing DFW thread - %s.\n", SX_STATUS_MSG(status));
 
-    if (SX_STATUS_SUCCESS != (status = sx_api_host_ifc_close(get_sdk_handle(), &callback_channel.channel.fd))) {
+    if (SX_STATUS_SUCCESS != (status = sx_api_host_ifc_close(api_handle, &callback_channel.channel.fd))) {
         SX_LOG_ERR("host ifc close port fd failed - %s.\n", SX_STATUS_MSG(status));
     }
 
-    sai_status = close_sdk();
-    if (SAI_ERR(sai_status)) {
-        SX_LOG_ERR("API close failed.\n");
+    if (SX_API_INVALID_HANDLE != api_handle) {
+        if (SX_STATUS_SUCCESS != (status = sx_api_close(&api_handle))) {
+            SX_LOG_ERR("API close failed.\n");
+        }
     }
 
     if (NULL != p_packet) {
@@ -5421,25 +5049,25 @@ sai_status_t mlnx_get_health_check_counter(uint32_t *counter)
 
 static void monitor_sdk_thread_func(void *context)
 {
-    const uint32_t  SLEEP_INTERVAL_IN_MS = 2500;
-    sai_status_t    status;
+    sx_api_handle_t api_handle = SX_API_INVALID_HANDLE;
     uint32_t        running_counter = 0;
     uint32_t        check_counter = 0;
+    const uint32_t  pause_to_wait_in_ms = 2500;
+    sai_status_t    status;
     sai_object_id_t switch_id = (sai_object_id_t)context;
     sx_status_t     sx_status = SX_STATUS_SUCCESS;
     bool            failure_detection_set_called = false;
 
     SX_LOG_NTC("Start monitoring SDK\n");
 
-    status = open_sdk(sai_log_cb);
-    if (SAI_ERR(status)) {
-        MLNX_SAI_LOG_ERR("Can't open connection to SDK.\n");
-        return;
+    if (SX_STATUS_SUCCESS != (status = sx_api_open(sai_log_cb, &api_handle))) {
+        MLNX_SAI_LOG_ERR("Can't open connection to SDK - %s.\n", SX_STATUS_MSG(status));
+        goto out;
     }
 
     while (!sdk_monitor_asked_to_stop) {
         if ((BOOT_TYPE_WARM == g_sai_db_ptr->boot_type) && (!g_sai_db_ptr->issu_end_called)) {
-            cl_thread_suspend(SLEEP_INTERVAL_IN_MS);
+            cl_thread_suspend(pause_to_wait_in_ms);
             if (sdk_monitor_asked_to_stop) {
                 break;
             }
@@ -5447,14 +5075,14 @@ static void monitor_sdk_thread_func(void *context)
         }
 
         if (!failure_detection_set_called) {
-            sx_status = sx_api_dbg_fatal_failure_detection_set(get_sdk_handle(), SX_ACCESS_CMD_ENABLE, NULL);
+            sx_status = sx_api_dbg_fatal_failure_detection_set(api_handle, SX_ACCESS_CMD_ENABLE, NULL);
             if (SX_ERR(sx_status)) {
                 goto out;
             }
             failure_detection_set_called = true;
         }
 
-        cl_thread_suspend(SLEEP_INTERVAL_IN_MS);
+        cl_thread_suspend(pause_to_wait_in_ms);
         if (sdk_monitor_asked_to_stop) {
             break;
         }
@@ -5482,9 +5110,11 @@ static void monitor_sdk_thread_func(void *context)
 
 out:
     SX_LOG_NTC("Closing monitor SDK thread\n");
-    status = close_sdk();
-    if (SAI_ERR(status)) {
-        SX_LOG_ERR("Failed to close SDK.\n");
+
+    if (SX_API_INVALID_HANDLE != api_handle) {
+        if (SX_STATUS_SUCCESS != (status = sx_api_close(&api_handle))) {
+            SX_LOG_ERR("API close failed.\n");
+        }
     }
 }
 
@@ -5506,7 +5136,7 @@ static sai_status_t mlnx_dvs_mng_stage(mlnx_sai_boot_type_t boot_type, sai_objec
 
     cl_plock_excl_acquire(&g_sai_db_ptr->p_lock);
 
-    if (SX_STATUS_SUCCESS != (status = sx_api_port_swid_set(get_sdk_handle(), SX_ACCESS_CMD_ADD, DEFAULT_ETH_SWID))) {
+    if (SX_STATUS_SUCCESS != (status = sx_api_port_swid_set(gh_sdk, SX_ACCESS_CMD_ADD, DEFAULT_ETH_SWID))) {
         SX_LOG_ERR("Port swid set failed - %s.\n", SX_STATUS_MSG(status));
         status = sdk_to_sai(status);
         goto out;
@@ -5583,7 +5213,7 @@ static sai_status_t mlnx_dvs_mng_stage(mlnx_sai_boot_type_t boot_type, sai_objec
     port_attributes_p[nve_port_idx].port_mapping.mapping_mode = SX_PORT_MAPPING_MODE_DISABLE;
     ports_to_map++;
 
-    status = sx_api_port_device_set(get_sdk_handle(), SX_ACCESS_CMD_ADD, SX_DEVICE_ID, &g_sai_db_ptr->base_mac_addr,
+    status = sx_api_port_device_set(gh_sdk, SX_ACCESS_CMD_ADD, SX_DEVICE_ID, &g_sai_db_ptr->base_mac_addr,
                                     port_attributes_p, ports_to_map);
 
     if (SX_ERR(status)) {
@@ -5617,14 +5247,14 @@ static sai_status_t mlnx_dvs_mng_stage(mlnx_sai_boot_type_t boot_type, sai_objec
         }
     }
 
-    if (SX_STATUS_SUCCESS != (status = sx_api_topo_device_set(get_sdk_handle(), SX_ACCESS_CMD_ADD, &dev_info))) {
+    if (SX_STATUS_SUCCESS != (status = sx_api_topo_device_set(gh_sdk, SX_ACCESS_CMD_ADD, &dev_info))) {
         SX_LOG_ERR("topo device add failed - %s.\n", SX_STATUS_MSG(status));
         status = sdk_to_sai(status);
         goto out;
     }
 
     if (is_warmboot) {
-        if (SX_STATUS_SUCCESS != (status = sx_api_fdb_uc_flush_all_set(get_sdk_handle(), DEFAULT_ETH_SWID))) {
+        if (SX_STATUS_SUCCESS != (status = sx_api_fdb_uc_flush_all_set(gh_sdk, DEFAULT_ETH_SWID))) {
             SX_LOG_ERR("fdb uc flush all failed - %s.\n", SX_STATUS_MSG(status));
             status = sdk_to_sai(status);
             goto out;
@@ -5638,7 +5268,7 @@ static sai_status_t mlnx_dvs_mng_stage(mlnx_sai_boot_type_t boot_type, sai_objec
         }
     }
 
-    if (SX_STATUS_SUCCESS != (status = sx_api_topo_device_set(get_sdk_handle(), SX_ACCESS_CMD_READY, &dev_info))) {
+    if (SX_STATUS_SUCCESS != (status = sx_api_topo_device_set(gh_sdk, SX_ACCESS_CMD_READY, &dev_info))) {
         SX_LOG_ERR("topo device set ready failed - %s.\n", SX_STATUS_MSG(status));
         status = sdk_to_sai(status);
         goto out;
@@ -5661,7 +5291,7 @@ static sai_status_t mlnx_dvs_mng_stage(mlnx_sai_boot_type_t boot_type, sai_objec
     }
 
     if (!is_warmboot) {
-        sx_status = sx_api_port_mapping_set(get_sdk_handle(), log_ports, port_mapping, ports_to_map);
+        sx_status = sx_api_port_mapping_set(gh_sdk, log_ports, port_mapping, ports_to_map);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to unmap ports - %s\n", SX_STATUS_MSG(sx_status));
             status = sdk_to_sai(sx_status);
@@ -5680,7 +5310,7 @@ static sai_status_t mlnx_dvs_mng_stage(mlnx_sai_boot_type_t boot_type, sai_objec
     }
 
     if (!is_warmboot) {
-        sx_status = sx_api_port_mapping_set(get_sdk_handle(), log_ports, port_mapping, ports_to_map);
+        sx_status = sx_api_port_mapping_set(gh_sdk, log_ports, port_mapping, ports_to_map);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to map ports - %s\n", SX_STATUS_MSG(sx_status));
             status = sdk_to_sai(sx_status);
@@ -5827,11 +5457,7 @@ static sai_status_t mlnx_switch_fdb_record_age(_In_ const sx_fdb_notify_record_t
 
     entries_count = 1;
 
-    sx_status = sx_api_fdb_uc_mac_addr_set(get_sdk_handle(),
-                                           SX_ACCESS_CMD_DELETE,
-                                           DEFAULT_ETH_SWID,
-                                           &mac_entry,
-                                           &entries_count);
+    sx_status = sx_api_fdb_uc_mac_addr_set(gh_sdk, SX_ACCESS_CMD_DELETE, DEFAULT_ETH_SWID, &mac_entry, &entries_count);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to age fdb entry - %s.\n", SX_STATUS_MSG(sx_status));
         return sdk_to_sai(sx_status);
@@ -5867,7 +5493,7 @@ static sai_status_t mlnx_switch_fdb_record_check_and_age(_In_ const sx_fdb_notif
 
     sx_port_id = fdb_record->log_port;
 
-    sx_status = sx_api_fdb_port_learn_mode_get(get_sdk_handle(), sx_port_id, &sx_fdb_learn_mode);
+    sx_status = sx_api_fdb_port_learn_mode_get(gh_sdk, sx_port_id, &sx_fdb_learn_mode);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to get port %x learn mode - %s\n", sx_port_id, SX_STATUS_MSG(sx_status));
         return sdk_to_sai(sx_status);
@@ -6059,6 +5685,7 @@ static void event_thread_func(void *context)
 #define MAX_PACKET_SIZE MAX(g_resource_limits.port_mtu_max, SX_HOST_EVENT_BUFFER_SIZE_MAX)
 
     sx_status_t                         status;
+    sx_api_handle_t                     api_handle;
     sx_user_channel_t                   port_channel, callback_channel;
     fd_set                              descr_set;
     int                                 ret_val;
@@ -6075,10 +5702,6 @@ static void event_thread_func(void *context)
     sai_fdb_event_notification_data_t  *fdb_events = NULL;
     sai_attribute_t                    *attr_list = NULL;
     uint32_t                            event_count = 0;
-    sai_status_t                        sai_status;
-    sx_ar_link_utilization_attr_t       link_util_attr = {0};
-    bool                                is_ar_port;
-    uint32_t                            link_util_percentage;
 
 #ifdef ACS_OS
     bool           transaction_mode_enable = false;
@@ -6095,16 +5718,15 @@ static void event_thread_func(void *context)
     gettimeofday(&time_init, NULL);
 #endif
 
-    status = open_sdk(sai_log_cb);
-    if (SAI_ERR(status)) {
-        MLNX_SAI_LOG_ERR("Can't open connection to SDK.\n");
+    if (SX_STATUS_SUCCESS != (status = sx_api_open(sai_log_cb, &api_handle))) {
+        MLNX_SAI_LOG_ERR("Can't open connection to SDK - %s.\n", SX_STATUS_MSG(status));
         if (g_notification_callbacks.on_switch_shutdown_request) {
             g_notification_callbacks.on_switch_shutdown_request(switch_id);
         }
         return;
     }
 
-    if (SX_STATUS_SUCCESS != (status = sx_api_host_ifc_open(get_sdk_handle(), &port_channel.channel.fd))) {
+    if (SX_STATUS_SUCCESS != (status = sx_api_host_ifc_open(api_handle, &port_channel.channel.fd))) {
         SX_LOG_ERR("host ifc open port fd failed - %s.\n", SX_STATUS_MSG(status));
         goto out;
     }
@@ -6140,19 +5762,19 @@ static void event_thread_func(void *context)
     }
 
     port_channel.type = SX_USER_CHANNEL_TYPE_FD;
-    if (SX_STATUS_SUCCESS != (status = sx_api_host_ifc_trap_id_register_set(get_sdk_handle(), SX_ACCESS_CMD_REGISTER,
+    if (SX_STATUS_SUCCESS != (status = sx_api_host_ifc_trap_id_register_set(api_handle, SX_ACCESS_CMD_REGISTER,
                                                                             DEFAULT_ETH_SWID, SX_TRAP_ID_PUDE,
                                                                             &port_channel))) {
         SX_LOG_ERR("host ifc trap register PUDE failed - %s.\n", SX_STATUS_MSG(status));
         goto out;
     }
 
-    sai_db_read_lock();
+    cl_plock_acquire(&g_sai_db_ptr->p_lock);
     memcpy(&callback_channel, &g_sai_db_ptr->callback_channel, sizeof(callback_channel));
-    sai_db_unlock();
+    cl_plock_release(&g_sai_db_ptr->p_lock);
 
     for (uint32_t ii = 0; ii < (sizeof(mlnx_trap_ids) / sizeof(*mlnx_trap_ids)); ii++) {
-        status = sx_api_host_ifc_trap_id_register_set(get_sdk_handle(), SX_ACCESS_CMD_REGISTER,
+        status = sx_api_host_ifc_trap_id_register_set(api_handle, SX_ACCESS_CMD_REGISTER,
                                                       DEFAULT_ETH_SWID,
                                                       mlnx_trap_ids[ii],
                                                       &callback_channel);
@@ -6179,7 +5801,7 @@ static void event_thread_func(void *context)
                 transaction_mode_enable = g_sai_db_ptr->transaction_mode_enable;
                 if (transaction_mode_enable) {
                     if (SX_STATUS_SUCCESS !=
-                        (status = sx_api_transaction_mode_set(get_sdk_handle(), SX_ACCESS_CMD_DISABLE))) {
+                        (status = sx_api_transaction_mode_set(gh_sdk, SX_ACCESS_CMD_DISABLE))) {
                         MLNX_SAI_LOG_ERR("Failed to set transaction mode to disable: %s\n",
                                          SX_STATUS_MSG(status));
                         cl_plock_release(&g_sai_db_ptr->p_lock);
@@ -6229,36 +5851,6 @@ static void event_thread_func(void *context)
                 }
                 SX_LOG_NTC("Port %x changed state to %s\n", receive_info->event_info.pude.log_port,
                            (SX_PORT_OPER_STATUS_UP == receive_info->event_info.pude.oper_state) ? "up" : "down");
-                if (SX_PORT_OPER_STATUS_UP == receive_info->event_info.pude.oper_state) {
-                    sai_db_read_lock();
-                    is_ar_port = mlnx_find_ar_port_by_id(receive_info->event_info.pude.log_port,
-                                                         NULL,
-                                                         &link_util_percentage);
-                    sai_db_unlock();
-                    if (is_ar_port) {
-                        sai_status = mlnx_port_ar_link_util_percentage_to_kbps(receive_info->event_info.pude.log_port,
-                                                                               link_util_percentage,
-                                                                               &link_util_attr.link_utilization_threshold);
-                        if (SAI_ERR(sai_status)) {
-                            SX_LOG_ERR("Failed to get link utilization threshold for ar port log id 0x%x.\n",
-                                       receive_info->event_info.pude.log_port);
-                            goto out;
-                        }
-
-                        status = sx_api_ar_link_utilization_threshold_set(get_sdk_handle(),
-                                                                          SX_ACCESS_CMD_SET,
-                                                                          receive_info->event_info.pude.log_port,
-                                                                          &link_util_attr);
-                        if (SX_ERR(status)) {
-                            SX_LOG_ERR("Failed to set link utilization threshold to port log id 0x%x - %s\n",
-                                       receive_info->event_info.pude.log_port, SX_STATUS_MSG(status));
-                            goto out;
-                        }
-                        SX_LOG_NTC("Set port 0x%x ar link utilization threshold to %u\n",
-                                   receive_info->event_info.pude.log_port,
-                                   link_util_attr.link_utilization_threshold);
-                    }
-                }
 
                 if (g_notification_callbacks.on_port_state_change) {
                     g_notification_callbacks.on_port_state_change(1, &port_data);
@@ -6340,10 +5932,9 @@ static void event_thread_func(void *context)
                 if (SX_TRAP_ID_FDB_EVENT == receive_info->trap_id) {
                     SX_LOG_INF("Received trap %s sdk %u\n", trap_name, receive_info->trap_id);
 
-                    status = mlnx_switch_parse_fdb_event(p_packet, receive_info,
-                                                         fdb_events, &event_count,
-                                                         attr_list);
-                    if (SAI_ERR(status)) {
+                    if (SAI_STATUS_SUCCESS != (status = mlnx_switch_parse_fdb_event(p_packet, receive_info,
+                                                                                    fdb_events, &event_count,
+                                                                                    attr_list))) {
                         continue;
                     }
 
@@ -6393,12 +5984,12 @@ out:
         }
     }
 
-    if (SX_STATUS_SUCCESS != (status = sx_api_host_ifc_close(get_sdk_handle(), &port_channel.channel.fd))) {
+    if (SX_STATUS_SUCCESS != (status = sx_api_host_ifc_close(api_handle, &port_channel.channel.fd))) {
         SX_LOG_ERR("host ifc close port fd failed - %s.\n", SX_STATUS_MSG(status));
     }
 
     cl_plock_excl_acquire(&g_sai_db_ptr->p_lock);
-    if (SX_STATUS_SUCCESS != (status = sx_api_host_ifc_close(get_sdk_handle(), &callback_channel.channel.fd))) {
+    if (SX_STATUS_SUCCESS != (status = sx_api_host_ifc_close(api_handle, &callback_channel.channel.fd))) {
         SX_LOG_ERR("host ifc close callback fd failed - %s.\n", SX_STATUS_MSG(status));
     }
     memset(&g_sai_db_ptr->callback_channel, 0, sizeof(g_sai_db_ptr->callback_channel));
@@ -6419,7 +6010,7 @@ out:
 
     free(receive_info);
 
-    if (SAI_ERR(close_sdk())) {
+    if (SX_STATUS_SUCCESS != (status = sx_api_close(&api_handle))) {
         SX_LOG_ERR("API close failed.\n");
     }
 }
@@ -6524,181 +6115,6 @@ static sai_status_t sai_qos_db_create()
     return SAI_STATUS_SUCCESS;
 }
 
-static sai_status_t sai_sdk_switch_connect_init()
-{
-    sai_status_t                   status;
-    sx_status_t                    sx_status;
-    sx_log_verbosity_target_attr_t log_verbosity_target_attr = { 0 };
-
-    status = open_sdk(sai_log_cb);
-    if (status == SAI_STATUS_ITEM_ALREADY_EXISTS) {
-        SX_LOG_DBG("Connection to the SDK is already open.\n");
-        return SAI_STATUS_SUCCESS;
-    }
-    if (SAI_ERR(status)) {
-        MLNX_SAI_LOG_ERR("Can't open connection to SDK.\n");
-        return status;
-    }
-
-    sx_status = sx_api_system_log_verbosity_level_set(get_sdk_handle(),
-                                                      SX_LOG_VERBOSITY_TARGET_API,
-                                                      LOG_VAR_NAME(__MODULE__),
-                                                      LOG_VAR_NAME(__MODULE__));
-    if (SX_ERR(sx_status)) {
-        SX_LOG_ERR("Set system log verbosity failed - %s.\n", SX_STATUS_MSG(sx_status));
-        return sdk_to_sai(sx_status);
-    }
-
-    log_verbosity_target_attr.verbosity_target = SX_LOG_VERBOSITY_TARGET_API;
-    log_verbosity_target_attr.enable = 1;
-    sx_status = sx_api_system_log_enter_func_severity_set(get_sdk_handle(),
-                                                          &log_verbosity_target_attr);
-    if (SX_ERR(sx_status)) {
-        SX_LOG_ERR("Set system log func severity failed - %s.\n", SX_STATUS_MSG(sx_status));
-        return sdk_to_sai(sx_status);
-    }
-    sx_log_funcs_severity_set(true);
-
-    return SAI_STATUS_SUCCESS;
-}
-
-static sai_status_t sai_all_db_switch_connect_init()
-{
-    sai_status_t status;
-
-    if (!g_sai_db_ptr) {
-        status = sai_db_switch_connect_init();
-        if (SAI_ERR(status)) {
-            SX_LOG_ERR("Failed to init SAI DB on switch connect\n");
-            return status;
-        }
-    }
-
-    if (!g_sai_qos_db_ptr) {
-        status = sai_qos_db_switch_connect_init();
-        if (SAI_ERR(status)) {
-            SX_LOG_ERR("Failed to init SAI QOS DB on switch connect\n");
-            return status;
-        }
-    }
-
-    if (!g_sai_acl_db_ptr) {
-        status = sai_acl_db_switch_connect_init();
-        if (SAI_ERR(status)) {
-            SX_LOG_ERR("Failed to map SAI ACL db on switch connect\n");
-            return status;
-        }
-    }
-
-    if (!g_sai_tunnel_db_ptr) {
-        status = sai_tunnel_db_switch_connect_init();
-        if (SAI_ERR(status)) {
-            SX_LOG_ERR("Failed to map SAI Tunnel db on switch connect\n");
-            return status;
-        }
-    }
-
-    if (!g_sai_buffer_db_ptr) {
-        status = sai_buffer_db_switch_connect_init();
-        if (SAI_ERR(status)) {
-            SX_LOG_ERR("Failed to map SAI buffer db on switch connect\n");
-            return status;
-        }
-    }
-
-    status = sai_resource_limits_switch_connect_init();
-    if (SAI_ERR(status)) {
-        SX_LOG_ERR("Failed to init resource limits on switch connect\n");
-        return status;
-    }
-
-    status = mlnx_cb_table_init();
-    if (SAI_ERR(status)) {
-        SX_LOG_ERR("Failed to init callback table on switch connect\n");
-        return status;
-    }
-
-    return SAI_STATUS_SUCCESS;
-}
-
-static sai_status_t sai_resource_limits_switch_connect_init()
-{
-    sx_status_t     sx_status;
-    sx_chip_types_t chip_type;
-
-    sx_status = get_chip_type(&chip_type);
-    if (SX_ERR(sx_status)) {
-        SX_LOG_ERR("Failed to get chip type\n");
-        return SAI_STATUS_FAILURE;
-    }
-
-    sx_status = rm_chip_limits_get(chip_type, &g_resource_limits);
-    if (SX_ERR(sx_status)) {
-        SX_LOG_ERR("Failed to get chip resources - %s.\n", SX_STATUS_MSG(sx_status));
-        return sdk_to_sai(sx_status);
-    }
-
-    return SAI_STATUS_SUCCESS;
-}
-
-static sai_status_t sai_qos_db_switch_connect_init()
-{
-    int shmid;
-    int err;
-
-    err = cl_shm_open(SAI_QOS_PATH, &shmid);
-    if (err) {
-        SX_LOG_ERR("Failed to open shared memory of SAI QOS DB %s\n", strerror(errno));
-        return SAI_STATUS_NO_MEMORY;
-    }
-
-    g_sai_qos_db_size = sai_qos_db_size_get();
-    g_sai_qos_db_ptr = malloc(sizeof(*g_sai_qos_db_ptr));
-    if (g_sai_qos_db_ptr == NULL) {
-        SX_LOG_ERR("Failed to allocate SAI QoS DB structure\n");
-        return SAI_STATUS_NO_MEMORY;
-    }
-
-    g_sai_qos_db_ptr->db_base_ptr = mmap(NULL, g_sai_qos_db_size, PROT_READ | PROT_WRITE, MAP_SHARED, shmid, 0);
-    if (g_sai_qos_db_ptr->db_base_ptr == MAP_FAILED) {
-        SX_LOG_ERR("Failed to map the shared memory of the SAI QOS DB\n");
-        g_sai_qos_db_ptr->db_base_ptr = NULL;
-        return SAI_STATUS_NO_MEMORY;
-    }
-
-    sai_qos_db_init();
-
-    return SAI_STATUS_SUCCESS;
-}
-
-static sai_status_t sai_db_switch_connect_init()
-{
-    int err;
-    int shmid;
-
-    g_mlnx_shm_rm_size = (uint32_t)mlnx_sai_rm_db_size_get();
-
-    err = cl_shm_open(SAI_PATH, &shmid);
-    if (err) {
-        SX_LOG_ERR("Failed to open shared memory of SAI DB %s\n", strerror(errno));
-        return SAI_STATUS_NO_MEMORY;
-    }
-
-    g_sai_db_ptr = mmap(NULL,
-                        sizeof(*g_sai_db_ptr) + g_mlnx_shm_rm_size,
-                        PROT_READ | PROT_WRITE,
-                        MAP_SHARED,
-                        shmid,
-                        0);
-    if (g_sai_db_ptr == MAP_FAILED) {
-        SX_LOG_ERR("Failed to map the shared memory of the SAI DB\n");
-        g_sai_db_ptr = NULL;
-        return SAI_STATUS_NO_MEMORY;
-    }
-
-    return SAI_STATUS_SUCCESS;
-}
-
 /* NOTE:  g_sai_db_ptr->ports_number must be initializes before calling this method*/
 static void sai_buffer_db_values_init()
 {
@@ -6708,18 +6124,8 @@ static void sai_buffer_db_values_init()
     cl_plock_release(&g_sai_db_ptr->p_lock);
 }
 
-static sai_status_t sai_buffer_db_switch_connect_init()
+static sai_status_t sai_buffer_db_switch_connect_init(int shmid)
 {
-    sai_status_t status;
-    int          shmid;
-    int          err;
-
-    err = cl_shm_open(SAI_BUFFER_PATH, &shmid);
-    if (err) {
-        SX_LOG_ERR("Failed to open shared memory of SAI Buffers DB %s\n", strerror(errno));
-        return SAI_STATUS_NO_MEMORY;
-    }
-
     init_buffer_resource_limits();
     g_sai_buffer_db_size = sai_buffer_db_size_get();
     g_sai_buffer_db_ptr = malloc(sizeof(*g_sai_buffer_db_ptr));
@@ -6736,13 +6142,6 @@ static sai_status_t sai_buffer_db_switch_connect_init()
     }
     sai_buffer_db_pointers_init();
     msync(g_sai_buffer_db_ptr, g_sai_buffer_db_size, MS_SYNC);
-
-    status = mlnx_init_buffer_pool_ids();
-    if (SAI_ERR(status)) {
-        SX_LOG_ERR("Failed to init buffer pool ids on switch connect\n");
-        return status;
-    }
-
     return SAI_STATUS_SUCCESS;
 }
 
@@ -7165,17 +6564,8 @@ static sai_status_t sai_tunnel_db_unload(boolean_t erase_db)
     return status;
 }
 
-static sai_status_t sai_tunnel_db_switch_connect_init()
+static sai_status_t sai_tunnel_db_switch_connect_init(int shmid)
 {
-    int shmid;
-    int err;
-
-    err = cl_shm_open(SAI_TUNNEL_PATH, &shmid);
-    if (err) {
-        SX_LOG_ERR("Failed to open shared memory of SAI Tunnel DB %s\n", strerror(errno));
-        return SAI_STATUS_NO_MEMORY;
-    }
-
     g_sai_tunnel_db_size = sai_tunnel_db_size_get();
     g_sai_tunnel_db_ptr = malloc(sizeof(*g_sai_tunnel_db_ptr));
     if (g_sai_tunnel_db_ptr == NULL) {
@@ -7195,17 +6585,8 @@ static sai_status_t sai_tunnel_db_switch_connect_init()
     return SAI_STATUS_SUCCESS;
 }
 
-static sai_status_t sai_acl_db_switch_connect_init()
+static sai_status_t sai_acl_db_switch_connect_init(int shmid)
 {
-    int shmid;
-    int err;
-
-    err = cl_shm_open(SAI_ACL_PATH, &shmid);
-    if (err) {
-        SX_LOG_ERR("Failed to open shared memory of SAI ACL DB %s\n", strerror(errno));
-        return SAI_STATUS_NO_MEMORY;
-    }
-
     g_sai_acl_db_size = sai_acl_db_size_get();
     g_sai_acl_db_ptr = malloc(sizeof(*g_sai_acl_db_ptr));
     if (g_sai_acl_db_ptr == NULL) {
@@ -7693,60 +7074,6 @@ static sai_status_t mlnx_kvd_table_size_update(sx_api_profile_t *ku_profile)
     return SAI_STATUS_SUCCESS;
 }
 
-static sai_status_t mlnx_ar_init(void)
-{
-    sx_status_t         sx_status;
-    mlnx_ar_db_data_t  *ar_data = &g_sai_db_ptr->ar_db;
-    sx_ar_init_params_t init_params = {0};
-
-    sx_status = sx_api_ar_init_set(get_sdk_handle(), &init_params);
-    if (SX_ERR(sx_status)) {
-        SX_LOG_ERR("Failed to initiate adaptive routing - %s.\n", SX_STATUS_MSG(sx_status));
-        return sdk_to_sai(sx_status);
-    }
-
-    sx_status = sx_api_ar_profile_set(get_sdk_handle(),
-                                      SX_ACCESS_CMD_SET,
-                                      &ar_data->profile_key,
-                                      &ar_data->profile_attr);
-    if (SX_ERR(sx_status)) {
-        SX_LOG_ERR("Failed to set adaptive routing profile - %s.\n", SX_STATUS_MSG(sx_status));
-        return sdk_to_sai(sx_status);
-    }
-
-    sx_status = sx_api_ar_default_classification_set(get_sdk_handle(),
-                                                     SX_ACCESS_CMD_SET,
-                                                     &ar_data->default_classifier_action);
-    if (SX_ERR(sx_status)) {
-        SX_LOG_ERR("Failed to set adaptive routing default classifier action - %s.\n", SX_STATUS_MSG(sx_status));
-        return sdk_to_sai(sx_status);
-    }
-
-    sx_status = sx_api_ar_classifier_set(get_sdk_handle(), SX_ACCESS_CMD_SET,
-                                         ar_data->classifier_id,
-                                         &ar_data->classifier_attr,
-                                         &ar_data->classifier_action);
-    if (SX_ERR(sx_status)) {
-        SX_LOG_ERR("Failed to set adaptive routing classifier - %s.\n", SX_STATUS_MSG(sx_status));
-        return sdk_to_sai(sx_status);
-    }
-
-    sx_status =
-        sx_api_ar_congestion_threshold_set(get_sdk_handle(), SX_ACCESS_CMD_SET, &ar_data->congestion_threshold);
-    if (SX_ERR(sx_status)) {
-        SX_LOG_ERR("Failed to set adaptive routing congestion threshold - %s.\n", SX_STATUS_MSG(sx_status));
-        return sdk_to_sai(sx_status);
-    }
-
-    sx_status = sx_api_ar_shaper_rate_set(get_sdk_handle(), SX_ACCESS_CMD_SET, &ar_data->shaper_attr);
-    if (SX_ERR(sx_status)) {
-        SX_LOG_ERR("Failed to set adaptive routing shaper rate - %s.\n", SX_STATUS_MSG(sx_status));
-        return sdk_to_sai(sx_status);
-    }
-
-    return SAI_STATUS_SUCCESS;
-}
-
 static sai_status_t mlnx_initialize_switch(sai_object_id_t switch_id, bool *transaction_mode_enable)
 {
     int         system_err;
@@ -8045,14 +7372,12 @@ static sai_status_t mlnx_initialize_switch(sai_object_id_t switch_id, bool *tran
     router_attr.uc_default_rule_action = SX_ROUTER_ACTION_DROP;
     router_attr.mc_default_rule_action = SX_ROUTER_ACTION_DROP;
 
-    if (SX_STATUS_SUCCESS !=
-        (sdk_status = sx_api_router_init_set(get_sdk_handle(), &general_param, &resources_param))) {
+    if (SX_STATUS_SUCCESS != (sdk_status = sx_api_router_init_set(gh_sdk, &general_param, &resources_param))) {
         SX_LOG_ERR("Router init failed - %s.\n", SX_STATUS_MSG(sdk_status));
         return sdk_to_sai(sdk_status);
     }
 
-    if (SX_STATUS_SUCCESS !=
-        (sdk_status = sx_api_router_set(get_sdk_handle(), SX_ACCESS_CMD_ADD, &router_attr, &vrid))) {
+    if (SX_STATUS_SUCCESS != (sdk_status = sx_api_router_set(gh_sdk, SX_ACCESS_CMD_ADD, &router_attr, &vrid))) {
         SX_LOG_ERR("Failed to add default router - %s.\n", SX_STATUS_MSG(sdk_status));
         return sdk_to_sai(sdk_status);
     }
@@ -8084,7 +7409,7 @@ static sai_status_t mlnx_initialize_switch(sai_object_id_t switch_id, bool *tran
 
     /* Set default aging time - 0 (disabled) */
     if (SX_STATUS_SUCCESS !=
-        (sdk_status = sx_api_fdb_age_time_set(get_sdk_handle(), DEFAULT_ETH_SWID, SX_FDB_AGE_TIME_MAX))) {
+        (sdk_status = sx_api_fdb_age_time_set(gh_sdk, DEFAULT_ETH_SWID, SX_FDB_AGE_TIME_MAX))) {
         SX_LOG_ERR("Failed to set fdb age time - %s.\n", SX_STATUS_MSG(sdk_status));
         return sdk_to_sai(sdk_status);
     }
@@ -8107,7 +7432,7 @@ static sai_status_t mlnx_initialize_switch(sai_object_id_t switch_id, bool *tran
     span_init_params.version = SX_SPAN_MIRROR_HEADER_VERSION_1;
 
     if (SX_STATUS_SUCCESS !=
-        (sdk_status = sx_api_span_init_set(get_sdk_handle(), &span_init_params))) {
+        (sdk_status = sx_api_span_init_set(gh_sdk, &span_init_params))) {
         SX_LOG_ERR("Failed to init SPAN: %s\n", SX_STATUS_MSG(sdk_status));
         return sdk_to_sai(sdk_status);
     }
@@ -8115,7 +7440,7 @@ static sai_status_t mlnx_initialize_switch(sai_object_id_t switch_id, bool *tran
     if (BOOT_TYPE_WARM != boot_type) {
         sx_vlan_id[0] = DEFAULT_VLAN;
         sx_vlan_cnt = 1;
-        sdk_status = sx_api_vlan_set(get_sdk_handle(), SX_ACCESS_CMD_ADD, DEFAULT_ETH_SWID, sx_vlan_id, &sx_vlan_cnt);
+        sdk_status = sx_api_vlan_set(gh_sdk, SX_ACCESS_CMD_ADD, DEFAULT_ETH_SWID, sx_vlan_id, &sx_vlan_cnt);
         if (SX_ERR(sdk_status)) {
             SX_LOG_ERR("Error adding vlan %hu: %s\n", sx_vlan_id[0], SX_STATUS_MSG(sdk_status));
             sai_status = sdk_to_sai(sdk_status);
@@ -8133,7 +7458,7 @@ static sai_status_t mlnx_initialize_switch(sai_object_id_t switch_id, bool *tran
             return SAI_STATUS_FAILURE;
         }
 
-        sdk_status = sx_api_vlan_set(get_sdk_handle(), SX_ACCESS_CMD_ADD, DEFAULT_ETH_SWID, sx_vlan_id, &sx_vlan_cnt);
+        sdk_status = sx_api_vlan_set(gh_sdk, SX_ACCESS_CMD_ADD, DEFAULT_ETH_SWID, sx_vlan_id, &sx_vlan_cnt);
         if (SX_ERR(sdk_status)) {
             SX_LOG_ERR("Error adding %d vlans: %s\n", sx_vlan_cnt, SX_STATUS_MSG(sdk_status));
             sai_status = sdk_to_sai(sdk_status);
@@ -8192,16 +7517,6 @@ static sai_status_t mlnx_initialize_switch(sai_object_id_t switch_id, bool *tran
         g_additional_mac_enabled = false;
     }
 
-    if ((0 == g_sai_db_ptr->ar_db.ar_port_count) || mlnx_chip_is_spc()) {
-        MLNX_SAI_LOG_NTC("Adaptive routing is not enabled.\n");
-    } else {
-        sai_status = mlnx_ar_init();
-        if (SAI_ERR(sai_status)) {
-            return sai_status;
-        }
-        MLNX_SAI_LOG_NTC("Adaptive routing init done.\n");
-    }
-
     cl_err = cl_thread_init(&dfw_thread, mlnx_switch_dfw_thread_func, (const void*const)switch_id, NULL);
     if (cl_err) {
         SX_LOG_ERR("Failed to create DFW thread\n");
@@ -8229,13 +7544,13 @@ sai_status_t mlnx_init_flex_parser()
     memset(&flex_parser_param, 0, sizeof(sx_flex_parser_param_t));
 
     if (SX_STATUS_SUCCESS !=
-        (sdk_status = sx_api_flex_parser_init_set(get_sdk_handle(), &flex_parser_param))) {
+        (sdk_status = sx_api_flex_parser_init_set(gh_sdk, &flex_parser_param))) {
         SX_LOG_ERR("Failed to init flex parser: %s\n", SX_STATUS_MSG(sdk_status));
         return sdk_to_sai(sdk_status);
     }
 
     if (SX_STATUS_SUCCESS !=
-        (sdk_status = sx_api_flex_parser_log_verbosity_level_set(get_sdk_handle(),
+        (sdk_status = sx_api_flex_parser_log_verbosity_level_set(gh_sdk,
                                                                  SX_LOG_VERBOSITY_BOTH,
                                                                  LOG_VAR_NAME(__MODULE__),
                                                                  LOG_VAR_NAME(__MODULE__)))) {
@@ -8249,31 +7564,145 @@ sai_status_t mlnx_init_flex_parser()
 
 static sai_status_t mlnx_connect_switch(sai_object_id_t switch_id)
 {
-    sai_status_t status;
+    int                            err, shmid;
+    sx_chip_types_t                chip_type;
+    sx_status_t                    status;
+    sxd_status_t                   sxd_status;
+    sx_log_verbosity_target_attr_t log_verbosity_target_attr = { 0 };
 
-    mutex_lock(init_deinit_mutex);
+    /* Open an handle if not done already on init for init agent */
+    if (0 == gh_sdk) {
+        if (SX_STATUS_SUCCESS != (status = sx_api_open(sai_log_cb, &gh_sdk))) {
+            MLNX_SAI_LOG_ERR("Can't open connection to SDK - %s.\n", SX_STATUS_MSG(status));
+            return sdk_to_sai(status);
+        }
 
-    status = sai_sdk_switch_connect_init();
-    if (SAI_ERR(status)) {
-        SX_LOG_ERR("Failed to init SDK on switch connect\n");
-        goto out;
-    }
+        if (SX_STATUS_SUCCESS != (status = sx_api_system_log_verbosity_level_set(gh_sdk,
+                                                                                 SX_LOG_VERBOSITY_TARGET_API,
+                                                                                 LOG_VAR_NAME(__MODULE__),
+                                                                                 LOG_VAR_NAME(__MODULE__)))) {
+            SX_LOG_ERR("Set system log verbosity failed - %s.\n", SX_STATUS_MSG(status));
+            return sdk_to_sai(status);
+        }
 
-    if (number_of_active_threads == 0) {
-        status = sai_all_db_switch_connect_init();
+        log_verbosity_target_attr.verbosity_target = SX_LOG_VERBOSITY_TARGET_API;
+        log_verbosity_target_attr.enable = 1;
+        if (SX_STATUS_SUCCESS !=
+            (status = sx_api_system_log_enter_func_severity_set(gh_sdk, &log_verbosity_target_attr))) {
+            SX_LOG_ERR("Set system log func severity failed - %s.\n", SX_STATUS_MSG(status));
+            return sdk_to_sai(status);
+        }
+        sx_log_funcs_severity_set(true);
+
+        status = get_chip_type(&chip_type);
+        if (SX_ERR(status)) {
+            SX_LOG_ERR("get_chip_type failed\n");
+            return SAI_STATUS_FAILURE;
+        }
+
+        status = rm_chip_limits_get(chip_type, &g_resource_limits);
+        if (SX_ERR(status)) {
+            SX_LOG_ERR("Failed to get chip resources - %s.\n", SX_STATUS_MSG(status));
+            return sdk_to_sai(status);
+        }
+
+        g_mlnx_shm_rm_size = (uint32_t)mlnx_sai_rm_db_size_get();
+
+        err = cl_shm_open(SAI_PATH, &shmid);
+        if (err) {
+            SX_LOG_ERR("Failed to open shared memory of SAI DB %s\n", strerror(errno));
+            return SAI_STATUS_NO_MEMORY;
+        }
+
+        g_sai_db_ptr = mmap(NULL,
+                            sizeof(*g_sai_db_ptr) + g_mlnx_shm_rm_size,
+                            PROT_READ | PROT_WRITE,
+                            MAP_SHARED,
+                            shmid,
+                            0);
+        if (g_sai_db_ptr == MAP_FAILED) {
+            SX_LOG_ERR("Failed to map the shared memory of the SAI DB\n");
+            g_sai_db_ptr = NULL;
+            return SAI_STATUS_NO_MEMORY;
+        }
+
+        err = cl_shm_open(SAI_QOS_PATH, &shmid);
+        if (err) {
+            SX_LOG_ERR("Failed to open shared memory of SAI QOS DB %s\n", strerror(errno));
+            return SAI_STATUS_NO_MEMORY;
+        }
+
+        g_sai_qos_db_size = sai_qos_db_size_get();
+        g_sai_qos_db_ptr = malloc(sizeof(*g_sai_qos_db_ptr));
+        if (g_sai_qos_db_ptr == NULL) {
+            SX_LOG_ERR("Failed to allocate SAI QoS DB structure\n");
+            return SAI_STATUS_NO_MEMORY;
+        }
+
+        g_sai_qos_db_ptr->db_base_ptr = mmap(NULL, g_sai_qos_db_size, PROT_READ | PROT_WRITE, MAP_SHARED, shmid, 0);
+        if (g_sai_qos_db_ptr->db_base_ptr == MAP_FAILED) {
+            SX_LOG_ERR("Failed to map the shared memory of the SAI QOS DB\n");
+            g_sai_qos_db_ptr->db_base_ptr = NULL;
+            return SAI_STATUS_NO_MEMORY;
+        }
+
+        sai_qos_db_init();
+
+        err = cl_shm_open(SAI_BUFFER_PATH, &shmid);
+        if (err) {
+            SX_LOG_ERR("Failed to open shared memory of SAI Buffers DB %s\n", strerror(errno));
+            return SAI_STATUS_NO_MEMORY;
+        }
+
+        status = sai_buffer_db_switch_connect_init(shmid);
+        if (SAI_STATUS_SUCCESS != status) {
+            SX_LOG_ERR("Failed to map SAI buffer db on switch connect\n");
+            return status;
+        }
+
+        err = cl_shm_open(SAI_ACL_PATH, &shmid);
+        if (err) {
+            SX_LOG_ERR("Failed to open shared memory of SAI ACL DB %s\n", strerror(errno));
+            return SAI_STATUS_NO_MEMORY;
+        }
+
+        status = sai_acl_db_switch_connect_init(shmid);
+        if (SAI_STATUS_SUCCESS != status) {
+            SX_LOG_ERR("Failed to map SAI ACL db on switch connect\n");
+            return status;
+        }
+
+        err = cl_shm_open(SAI_TUNNEL_PATH, &shmid);
+        if (err) {
+            SX_LOG_ERR("Failed to open shared memory of SAI Tunnel DB %s\n", strerror(errno));
+            return SAI_STATUS_NO_MEMORY;
+        }
+
+        status = sai_tunnel_db_switch_connect_init(shmid);
+        if (SAI_STATUS_SUCCESS != status) {
+            SX_LOG_ERR("Failed to map SAI Tunnel db on switch connect\n");
+            return status;
+        }
+
+        if (SAI_STATUS_SUCCESS != (status = mlnx_init_buffer_pool_ids())) {
+            return status;
+        }
+
+        status = mlnx_cb_table_init();
         if (SAI_ERR(status)) {
-            SX_LOG_ERR("Failed to init all SAI DBs on switch connect\n");
-            goto out;
+            return status;
+        }
+
+        sxd_status = sxd_access_reg_init(0, sai_log_cb, LOG_VAR_NAME(__MODULE__));
+        if (SXD_CHECK_FAIL(sxd_status)) {
+            SX_LOG_ERR("Failed to init access reg - %s.\n", SXD_STATUS_MSG(sxd_status));
+            return SAI_STATUS_FAILURE;
         }
     }
 
-    number_of_active_threads++;
+    SX_LOG_NTC("Connect switch\n");
 
-    SX_LOG_NTC("Connect switch, number of active threads: %u\n", number_of_active_threads);
-
-out:
-    mutex_unlock(init_deinit_mutex);
-    return status;
+    return SAI_STATUS_SUCCESS;
 }
 
 /**
@@ -8298,6 +7727,11 @@ static sai_status_t mlnx_create_switch(_Out_ sai_object_id_t     * switch_id,
     sai_status_t                 status;
     uint32_t                     attr_idx;
     bool                         transaction_mode_enable = false, crc_check_enable = true, crc_recalc_enable = true;
+
+    if (NULL == switch_id) {
+        MLNX_SAI_LOG_ERR("NULL switch_id id param\n");
+        return SAI_STATUS_INVALID_PARAMETER;
+    }
 
     status = check_attribs_on_create(attr_count, attr_list, SAI_OBJECT_TYPE_SWITCH, switch_id);
     if (SAI_ERR(status)) {
@@ -8391,14 +7825,7 @@ static sai_status_t mlnx_create_switch(_Out_ sai_object_id_t     * switch_id,
         g_uninit_data_plane_on_removal = attr_val->booldata;
     }
     if (mlnx_switch_id.id.is_created) {
-        mutex_lock(init_deinit_mutex);
         status = mlnx_initialize_switch(*switch_id, &transaction_mode_enable);
-        if (SAI_OK(status)) {
-            number_of_active_threads++;
-            is_main_thread = true;
-            SX_LOG_NTC("Switch initialized, number of active threads: %u\n", number_of_active_threads);
-        }
-        mutex_unlock(init_deinit_mutex);
     } else {
         status = mlnx_connect_switch(*switch_id);
     }
@@ -8563,7 +7990,7 @@ static sai_status_t switch_open_traps(void)
     trap_group_attributes.prio = DEFAULT_TRAP_GROUP_PRIO;
     reg.key_type = SX_HOST_IFC_REGISTER_KEY_TYPE_GLOBAL;
 
-    if (SAI_STATUS_SUCCESS != (status = sx_api_host_ifc_trap_group_ext_set(get_sdk_handle(),
+    if (SAI_STATUS_SUCCESS != (status = sx_api_host_ifc_trap_group_ext_set(gh_sdk,
                                                                            SX_ACCESS_CMD_SET,
                                                                            DEFAULT_ETH_SWID,
                                                                            DEFAULT_TRAP_GROUP_ID,
@@ -8582,8 +8009,7 @@ static sai_status_t switch_open_traps(void)
         goto out;
     }
 
-    if (SX_STATUS_SUCCESS !=
-        (status = sx_api_host_ifc_open(get_sdk_handle(), &g_sai_db_ptr->callback_channel.channel.fd))) {
+    if (SX_STATUS_SUCCESS != (status = sx_api_host_ifc_open(gh_sdk, &g_sai_db_ptr->callback_channel.channel.fd))) {
         SX_LOG_ERR("host ifc open callback fd failed - %s.\n", SX_STATUS_MSG(status));
         status = sdk_to_sai(status);
         goto out;
@@ -8605,7 +8031,7 @@ static sai_status_t switch_open_traps(void)
         trap_attr.attr.trap_id_attr.trap_group = DEFAULT_TRAP_GROUP_ID;
         trap_attr.attr.trap_id_attr.trap_action = SX_TRAP_ACTION_IGNORE;
 
-        sx_status = sx_api_host_ifc_trap_id_ext_set(get_sdk_handle(), SX_ACCESS_CMD_SET, &trap_key, &trap_attr);
+        sx_status = sx_api_host_ifc_trap_id_ext_set(gh_sdk, SX_ACCESS_CMD_SET, &trap_key, &trap_attr);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to set SIP_DIP trap action to IGNORE %s\n", SX_STATUS_MSG(sx_status));
             status = sdk_to_sai(sx_status);
@@ -8620,8 +8046,25 @@ out:
     return status;
 }
 
-static sai_status_t stop_threads(void)
+static sai_status_t mlnx_shutdown_switch(void)
 {
+    sx_status_t    status;
+    sxd_status_t   sxd_status;
+    int            system_err;
+    sx_router_id_t vrid;
+    uint32_t       data;
+
+    SX_LOG_ENTER();
+
+    SX_LOG_NTC("Shutdown switch\n");
+
+    if (g_sai_db_ptr->is_bfd_module_initialized) {
+        status = sx_api_bfd_deinit_set(gh_sdk);
+        if (SX_ERR(status)) {
+            SX_LOG_ERR("Deinit BFD module failed\n");
+        }
+    }
+
     event_thread_asked_to_stop = true;
     dfw_thread_asked_to_stop = true;
     sdk_monitor_asked_to_stop = true;
@@ -8634,7 +8077,6 @@ static sai_status_t stop_threads(void)
 
     if (0 != sem_destroy(&g_sai_db_ptr->dfw_sem)) {
         SX_LOG_ERR("Error destroying DFW thread semaphore\n");
-        return SAI_STATUS_FAILURE;
     }
 
 #endif
@@ -8644,117 +8086,20 @@ static sai_status_t stop_threads(void)
     dfw_thread_asked_to_stop = false;
     sdk_monitor_asked_to_stop = false;
 
-    return SAI_STATUS_SUCCESS;
-}
-
-static sai_status_t mlnx_router_module_deinit(void)
-{
-    sai_status_t status;
-    sx_status_t  sx_status;
-    uint32_t     data;
-
-    status = mlnx_object_to_type(g_sai_db_ptr->default_vrid, SAI_OBJECT_TYPE_VIRTUAL_ROUTER, &data, NULL);
-    if (SAI_OK(status)) {
-        sx_router_id_t vrid = (sx_router_id_t)data;
-
-        sx_status = sx_api_router_set(get_sdk_handle(), SX_ACCESS_CMD_DELETE, NULL, &vrid);
-        if (SX_ERR(sx_status)) {
-            SX_LOG_ERR("Failed to delete default router - %s.\n", SX_STATUS_MSG(sx_status));
-            return sdk_to_sai(sx_status);
-        }
-    }
-
-    sx_status = sx_api_router_deinit_set(get_sdk_handle());
-    if (SX_ERR(sx_status)) {
-        SX_LOG_ERR("Router deinit failed.\n");
-        return sdk_to_sai(sx_status);
-    }
-
-    return SAI_STATUS_SUCCESS;
-}
-
-static sai_status_t mlnx_sdk_finish(void)
-{
-    sai_status_t status;
-    sxd_status_t sxd_status;
-    int          system_err;
-
-    sxd_status = sxd_access_reg_init(0, sai_log_cb, LOG_VAR_NAME(__MODULE__));
-    if (SXD_CHECK_FAIL(sxd_status)) {
-        SX_LOG_ERR("Failed to init access reg - %s.\n", SXD_STATUS_MSG(sxd_status));
-        return SAI_STATUS_FAILURE;
-    }
-
-    sxd_status = sxd_access_reg_deinit();
-    if (sxd_status != SXD_STATUS_SUCCESS) {
-        SX_LOG_ERR("Access reg deinit failed.\n");
-        return sdk_to_sai(sxd_status_to_sx_status(sxd_status));
-    }
-
-    sxd_status = sxd_dpt_deinit();
-    if (sxd_status != SXD_STATUS_SUCCESS) {
-        SX_LOG_ERR("DPT deinit failed.\n");
-        return sdk_to_sai(sxd_status_to_sx_status(sxd_status));
-    }
-
-    status = close_sdk();
-    if (SAI_ERR(status)) {
-        SX_LOG_ERR("API close failed.\n");
-        return status;
-    }
-
-#ifdef SDK_VALGRIND
-    char *command = "killall -w memcheck-amd64-";
-#else
-    char *command = "killall -w sx_sdk";
-#endif
-
-    system_err = system(command);
-    if (0 != system_err) {
-        MLNX_SAI_LOG_ERR("%s failed.\n", command);
-        return SAI_STATUS_FAILURE;
-    }
-
-#if (!defined ACS_OS) || (defined ACS_OS_NO_DOCKERS)
-    system_err = system("/etc/init.d/sxdkernel stop");
-    if (0 != system_err) {
-        MLNX_SAI_LOG_ERR("Failed running sxdkernel stop.\n");
-        return SAI_STATUS_FAILURE;
-    }
-#endif
-
-    return SAI_STATUS_SUCCESS;
-}
-
-static sai_status_t mlnx_shutdown_switch(void)
-{
-    sai_status_t status;
-    sx_status_t  sx_status;
-
-    if (g_sai_db_ptr->is_bfd_module_initialized) {
-        sx_status = sx_api_bfd_deinit_set(get_sdk_handle());
-        if (SX_ERR(sx_status)) {
-            SX_LOG_ERR("Deinit BFD module failed\n");
-        }
-    }
-
-    status = stop_threads();
-    if (SAI_ERR(status)) {
-        SX_LOG_ERR("Failed to stop threads.\n");
-    }
-
-    status = sai_fx_uninitialize();
-    if (SAI_ERR(status)) {
+    if (SAI_STATUS_SUCCESS != (status = sai_fx_uninitialize())) {
         SX_LOG_ERR("FX deinit failed.\n");
     }
 
-    status = mlnx_router_module_deinit();
-    if (SAI_ERR(status)) {
-        SX_LOG_ERR("Failed to deinit router.\n");
+    if (SAI_STATUS_SUCCESS ==
+        mlnx_object_to_type(g_sai_db_ptr->default_vrid, SAI_OBJECT_TYPE_VIRTUAL_ROUTER, &data, NULL)) {
+        vrid = (sx_router_id_t)data;
+
+        if (SX_STATUS_SUCCESS != (status = sx_api_router_set(gh_sdk, SX_ACCESS_CMD_DELETE, NULL, &vrid))) {
+            SX_LOG_ERR("Failed to delete default router - %s.\n", SX_STATUS_MSG(status));
+        }
     }
 
-    status = mlnx_acl_deinit();
-    if (SX_ERR(status)) {
+    if (SAI_STATUS_SUCCESS != (status = mlnx_acl_deinit())) {
         SX_LOG_ERR("ACL DB deinit failed.\n");
     }
 
@@ -8769,51 +8114,89 @@ static sai_status_t mlnx_shutdown_switch(void)
     sai_tunnel_db_unload(true);
     sai_db_unload(true);
 
-    status = mlnx_sdk_finish();
-    if (SAI_ERR(status)) {
-        SX_LOG_ERR("Failed to finish SDK.\n");
+    if (SX_STATUS_SUCCESS != (status = sx_api_router_deinit_set(gh_sdk))) {
+        SX_LOG_ERR("Router deinit failed.\n");
+    }
+
+    if (SXD_STATUS_SUCCESS != (sxd_status = sxd_access_reg_deinit())) {
+        SX_LOG_ERR("Access reg deinit failed.\n");
+    }
+
+    if (SXD_STATUS_SUCCESS != (sxd_status = sxd_dpt_deinit())) {
+        SX_LOG_ERR("DPT deinit failed.\n");
+    }
+
+    if (SX_STATUS_SUCCESS != (status = sx_api_close(&gh_sdk))) {
+        SX_LOG_ERR("API close failed.\n");
     }
 
     memset(&g_notification_callbacks, 0, sizeof(g_notification_callbacks));
+#ifdef SDK_VALGRIND
+    system_err = system("killall -w memcheck-amd64-");
+#else
+    system_err = system("killall -w sx_sdk");
+#endif
 
-    mutex_lock(init_deinit_mutex);
-    is_main_thread = false;
-    number_of_active_threads--;
-    SX_LOG_NTC("Shutdown switch, number of active threads: %u\n", number_of_active_threads);
-    mutex_unlock(init_deinit_mutex);
+    if (0 != system_err) {
+#ifdef SDK_VALGRIND
+        MLNX_SAI_LOG_ERR("killall -w memcheck-amd64- failed.\n");
+#else
+        MLNX_SAI_LOG_ERR("killall -w sx_sdk failed.\n");
+#endif
+    }
 
-    return SAI_STATUS_SUCCESS;
+#if (!defined ACS_OS) || (defined ACS_OS_NO_DOCKERS)
+    system_err = system("/etc/init.d/sxdkernel stop");
+    if (0 != system_err) {
+        MLNX_SAI_LOG_ERR("Failed running sxdkernel stop.\n");
+    }
+#endif
+
+    SX_LOG_EXIT();
+
+    return sdk_to_sai(status);
 }
 
 static sai_status_t mlnx_disconnect_switch(void)
 {
-    sai_status_t status = SAI_STATUS_SUCCESS;
+    sx_status_t status;
 
-    mutex_lock(init_deinit_mutex);
-    number_of_active_threads--;
+    SX_LOG_NTC("Disconnect switch\n");
 
-    if ((number_of_active_threads == 0) && !is_main_thread) {
-        status = mlnx_acl_disconnect();
-
-        sai_qos_db_unload(false);
-        sai_buffer_db_unload(false);
-        sai_acl_db_unload(false);
-        sai_tunnel_db_unload(false);
-        sai_db_unload(false);
+    if (SXD_STATUS_SUCCESS != sxd_access_reg_deinit()) {
+        SX_LOG_ERR("Access reg deinit failed.\n");
     }
 
-    if (SAI_ERR(close_sdk())) {
+    if (SX_STATUS_SUCCESS != (status = sx_api_close(&gh_sdk))) {
         SX_LOG_ERR("API close failed.\n");
-        status = SAI_STATUS_FAILURE;
     }
 
     memset(&g_notification_callbacks, 0, sizeof(g_notification_callbacks));
 
-    SX_LOG_NTC("Disconnect switch, number of active threads: %u\n", number_of_active_threads);
+    mlnx_acl_disconnect();
 
-    mutex_unlock(init_deinit_mutex);
+    if (g_sai_qos_db_ptr != NULL) {
+        free(g_sai_qos_db_ptr);
+    }
+    g_sai_qos_db_ptr = NULL;
 
-    return status;
+    if (g_sai_acl_db_ptr != NULL) {
+        free(g_sai_acl_db_ptr);
+    }
+    g_sai_acl_db_ptr = NULL;
+
+    if (g_sai_tunnel_db_ptr != NULL) {
+        free(g_sai_tunnel_db_ptr);
+    }
+    g_sai_tunnel_db_ptr = NULL;
+
+    if (g_sai_buffer_db_ptr != NULL) {
+        free(g_sai_buffer_db_ptr);
+    }
+    g_sai_buffer_db_ptr = NULL;
+
+
+    return sdk_to_sai(status);
 }
 
 /**
@@ -8857,7 +8240,7 @@ static sai_status_t mlnx_switch_mode_set_impl(_In_ sai_switch_switching_mode_t s
     sai_db_write_lock();
     mlnx_port_not_in_lag_foreach(port, ii) {
         if (SX_STATUS_SUCCESS !=
-            (status = sx_api_port_forwarding_mode_set(get_sdk_handle(), port->logical, mode))) {
+            (status = sx_api_port_forwarding_mode_set(gh_sdk, port->logical, mode))) {
             SX_LOG_ERR("Failed to set forwarding mode - %s %x %u.\n", SX_STATUS_MSG(status), port->logical, ii);
             status = sdk_to_sai(status);
             goto out;
@@ -8903,7 +8286,7 @@ static sai_status_t mlnx_switch_aging_time_set_impl(_In_ uint32_t value)
     }
 
     if (SX_STATUS_SUCCESS !=
-        (status = sx_api_fdb_age_time_set(get_sdk_handle(), DEFAULT_ETH_SWID, time))) {
+        (status = sx_api_fdb_age_time_set(gh_sdk, DEFAULT_ETH_SWID, time))) {
         SX_LOG_ERR("Failed to set fdb age time - %s.\n", SX_STATUS_MSG(status));
         return sdk_to_sai(status);
     }
@@ -9419,24 +8802,11 @@ static sai_status_t mlnx_switch_max_temp_get(_In_ const sai_object_key_t   *key,
     reg_meta.dev_id = SX_DEVICE_ID;
     reg_meta.swid = DEFAULT_ETH_SWID;
 
-    sxd_status = sxd_access_reg_init(0, sai_log_cb, LOG_VAR_NAME(__MODULE__));
-    if (SXD_CHECK_FAIL(sxd_status)) {
-        MLNX_SAI_LOG_ERR("Failed to init access reg - %s.\n", SXD_STATUS_MSG(sxd_status));
+    sxd_status = sxd_access_reg_mtmp(&tmp_reg, &reg_meta, 1, NULL, NULL);
+    if (sxd_status) {
+        SX_LOG_ERR("Access_mtmp_reg failed with status (%s:%d)\n", SXD_STATUS_MSG(sxd_status), sxd_status);
         return SAI_STATUS_FAILURE;
     }
-
-    sxd_status = sxd_access_reg_mtmp(&tmp_reg, &reg_meta, 1, NULL, NULL);
-    if (SXD_CHECK_FAIL(sxd_status)) {
-        MLNX_SAI_LOG_ERR("Access_mtmp_reg failed with status (%s:%d)\n", SXD_STATUS_MSG(sxd_status), sxd_status);
-        return sdk_to_sai(sxd_status_to_sx_status(sxd_status));
-    }
-
-    sxd_status = sxd_access_reg_deinit();
-    if (SXD_CHECK_FAIL(sxd_status)) {
-        MLNX_SAI_LOG_ERR("Access reg deinit failed - %s\n", SXD_STATUS_MSG(sxd_status));
-        return sdk_to_sai(sxd_status_to_sx_status(sxd_status));
-    }
-
     if (((int16_t)tmp_reg.temperature) < 0) {
         tmp = (0xFFFF + ((int16_t)tmp_reg.temperature) + 1);
     } else {
@@ -9872,7 +9242,7 @@ static sai_status_t mlnx_switch_aging_time_get(_In_ const sai_object_key_t   *ke
 
     SX_LOG_ENTER();
 
-    if (SX_STATUS_SUCCESS != (status = sx_api_fdb_age_time_get(get_sdk_handle(), DEFAULT_ETH_SWID, &age_time))) {
+    if (SX_STATUS_SUCCESS != (status = sx_api_fdb_age_time_get(gh_sdk, DEFAULT_ETH_SWID, &age_time))) {
         SX_LOG_ERR("Failed to get fdb age time - %s.\n", SX_STATUS_MSG(status));
         return sdk_to_sai(status);
     }
@@ -10440,7 +9810,7 @@ static sai_status_t mlnx_switch_available_get_impl(_In_ sai_switch_attr_t attr_i
         assert(false);
     }
 
-    sx_status = sx_api_rm_free_entries_by_type_get(get_sdk_handle(), table_type, &free_entries);
+    sx_status = sx_api_rm_free_entries_by_type_get(gh_sdk, table_type, &free_entries);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to get a number of free resources for sx table %d - %s\n",
                    table_type, SX_STATUS_MSG(sx_status));
@@ -10502,7 +9872,7 @@ static sai_status_t mlnx_switch_acl_available_get(_In_ const sai_object_key_t   
         sx_rm_table_type = RM_SDK_TABLE_TYPE_ACL_GROUPS_E;
     }
 
-    sx_status = sx_api_rm_free_entries_by_type_get(get_sdk_handle(), sx_rm_table_type, &free_acls);
+    sx_status = sx_api_rm_free_entries_by_type_get(gh_sdk, sx_rm_table_type, &free_acls);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to get a number of free resources for sx table %d - %s\n",
                    sx_rm_table_type, SX_STATUS_MSG(sx_status));
@@ -10633,7 +10003,7 @@ static sai_status_t mlnx_switch_availability_acl_get_common(_In_ sai_object_type
         sx_table_type = RM_SDK_TABLE_TYPE_ACL_GROUPS_E;
     }
 
-    sx_status = sx_api_rm_free_entries_by_type_get(get_sdk_handle(), sx_table_type, &free_acls);
+    sx_status = sx_api_rm_free_entries_by_type_get(gh_sdk, sx_table_type, &free_acls);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to get a number of free resources for sx table %d - %s\n", sx_table_type,
                    SX_STATUS_MSG(sx_status));
@@ -10818,7 +10188,7 @@ sai_status_t mlnx_switch_stp_availability_get(_In_ sai_object_id_t        switch
 
     stp_max = SX_MSTP_INST_ID_MAX - SX_MSTP_INST_ID_MIN + 1;
 
-    sx_status = sx_api_mstp_inst_iter_get(get_sdk_handle(), SX_ACCESS_CMD_GET, swid_id, 0, NULL, NULL, &stp_exists);
+    sx_status = sx_api_mstp_inst_iter_get(gh_sdk, SX_ACCESS_CMD_GET, swid_id, 0, NULL, NULL, &stp_exists);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to get count of STP instances - %s\n", SX_STATUS_MSG(sx_status));
         return sdk_to_sai(sx_status);
@@ -10982,7 +10352,7 @@ static sai_status_t mlnx_switch_pre_shutdown_set(_In_ const sai_object_key_t    
         boot_type = g_sai_db_ptr->boot_type;
 
         /*disabling fatal failure detection on ISSU */
-        sx_status = sx_api_dbg_fatal_failure_detection_set(get_sdk_handle(), SX_ACCESS_CMD_DISABLE, NULL);
+        sx_status = sx_api_dbg_fatal_failure_detection_set(gh_sdk, SX_ACCESS_CMD_DISABLE, NULL);
         if (SX_ERR(sx_status)) {
             sai_db_unlock();
             SX_LOG_ERR("Error disabling fatal failure detection: %s\n", SX_STATUS_MSG(sx_status));
@@ -11008,7 +10378,7 @@ static sai_status_t mlnx_switch_pre_shutdown_set(_In_ const sai_object_key_t    
                     vlan_cnt++;
                 }
             }
-            sx_status = sx_api_vlan_set(get_sdk_handle(), SX_ACCESS_CMD_ADD, DEFAULT_ETH_SWID, vlan_list, &vlan_cnt);
+            sx_status = sx_api_vlan_set(gh_sdk, SX_ACCESS_CMD_ADD, DEFAULT_ETH_SWID, vlan_list, &vlan_cnt);
             if (SX_ERR(sx_status)) {
                 SX_LOG_ERR("Error adding %d vlans: %s\n", vlan_cnt, SX_STATUS_MSG(sx_status));
                 SX_LOG_EXIT();
@@ -11019,7 +10389,7 @@ static sai_status_t mlnx_switch_pre_shutdown_set(_In_ const sai_object_key_t    
         sai_db_write_lock();
         mlnx_exhaust_bulk_counter_trasaction_sem();
 
-        sx_status = sx_api_issu_start_set(get_sdk_handle());
+        sx_status = sx_api_issu_start_set(gh_sdk);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to start issu %s.\n", SX_STATUS_MSG(sx_status));
         } else {
@@ -11116,14 +10486,14 @@ sai_status_t mlnx_switch_log_set(sx_verbosity_level_t level)
 
     LOG_VAR_NAME(__MODULE__) = level;
 
-    if (get_sdk_handle()) {
-        status = sx_api_issu_log_verbosity_level_set(get_sdk_handle(), SX_LOG_VERBOSITY_BOTH, level, level);
+    if (gh_sdk) {
+        status = sx_api_issu_log_verbosity_level_set(gh_sdk, SX_LOG_VERBOSITY_BOTH, level, level);
         if (SX_ERR(status)) {
             MLNX_SAI_LOG_ERR("Set issu log verbosity failed - %s.\n", SX_STATUS_MSG(status));
             return sdk_to_sai(status);
         }
 
-        return sdk_to_sai(sx_api_topo_log_verbosity_level_set(get_sdk_handle(), SX_LOG_VERBOSITY_BOTH, level, level));
+        return sdk_to_sai(sx_api_topo_log_verbosity_level_set(gh_sdk, SX_LOG_VERBOSITY_BOTH, level, level));
     } else {
         return SAI_STATUS_SUCCESS;
     }
@@ -11407,7 +10777,7 @@ static sai_status_t mlnx_switch_transaction_mode_set(_In_ const sai_object_key_t
             g_sai_db_ptr->pbhash_transition = false;
         }
 
-        sdk_status = sx_api_issu_end_set(get_sdk_handle());
+        sdk_status = sx_api_issu_end_set(gh_sdk);
         if (SX_STATUS_SUCCESS != sdk_status) {
             SX_LOG_ERR("Failed to end issu\n");
             sai_status = sdk_to_sai(sdk_status);
@@ -11421,7 +10791,7 @@ static sai_status_t mlnx_switch_transaction_mode_set(_In_ const sai_object_key_t
             if ((port->issu_remove_default_vid) && (!port->rifs) && (!mlnx_port_is_lag_member(port))) {
                 memset(&port_list, 0, sizeof(port_list));
                 port_list.log_port = port->logical;
-                sx_status = sx_api_vlan_ports_set(get_sdk_handle(),
+                sx_status = sx_api_vlan_ports_set(gh_sdk,
                                                   SX_ACCESS_CMD_DELETE,
                                                   DEFAULT_ETH_SWID,
                                                   DEFAULT_VLAN,
@@ -11448,7 +10818,7 @@ static sai_status_t mlnx_switch_transaction_mode_set(_In_ const sai_object_key_t
     }
 
     if (SX_STATUS_SUCCESS !=
-        (sdk_status = sx_api_transaction_mode_set(get_sdk_handle(), transaction_mode_cmd))) {
+        (sdk_status = sx_api_transaction_mode_set(gh_sdk, transaction_mode_cmd))) {
         SX_LOG_ERR("Failed to set transaction mode to %d: %s\n", transaction_mode_cmd, SX_STATUS_MSG(sdk_status));
         sai_status = sdk_to_sai(sdk_status);
         goto out;
@@ -11528,7 +10898,7 @@ static sai_status_t mlnx_switch_vxlan_udp_port_set(uint16_t udp_port)
     to.encap_level = SX_FLEX_PARSER_ENCAP_OUTER_E;
     to.transition_value = udp_port;
 
-    sdk_status = sx_api_flex_parser_transition_set(get_sdk_handle(), SX_ACCESS_CMD_SET, from, to);
+    sdk_status = sx_api_flex_parser_transition_set(gh_sdk, SX_ACCESS_CMD_SET, from, to);
     if (SX_STATUS_SUCCESS != sdk_status) {
         SX_LOG_ERR("Failed to set vxlan default port: %s\n", SX_STATUS_MSG(sdk_status));
         SX_LOG_EXIT();
@@ -11583,7 +10953,7 @@ static sai_status_t mlnx_switch_vxlan_default_port_get(_In_ const sai_object_key
     curr_ph.hdr_data.parser_hdr_fixed = SX_FLEX_PARSER_HEADER_UDP_E;
 
     /* UDP to VXLAN is always first transition */
-    sdk_status = sx_api_flex_parser_transition_get(get_sdk_handle(), curr_ph, &next_trans_p, &next_trans_cnt);
+    sdk_status = sx_api_flex_parser_transition_get(gh_sdk, curr_ph, &next_trans_p, &next_trans_cnt);
     if ((SX_STATUS_SUCCESS != sdk_status) || (1 != next_trans_cnt)) {
         SX_LOG_ERR("Failed to get vxlan default port: %s %u\n", SX_STATUS_MSG(sdk_status), next_trans_cnt);
         SX_LOG_EXIT();

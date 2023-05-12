@@ -514,7 +514,7 @@ static sai_status_t mlnx_debug_counter_trap_group_stats_get(_In_ sx_trap_group_t
     cntrs->trap_group_counters_cnt = 1;
     cmd = clear ? SX_ACCESS_CMD_READ_CLEAR : SX_ACCESS_CMD_READ;
 
-    sx_status = sx_api_host_ifc_counters_get(get_sdk_handle(), cmd, &filter, cntrs);
+    sx_status = sx_api_host_ifc_counters_get(gh_sdk, cmd, &filter, cntrs);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("failed to sx_api_host_ifc_counters_get() - %s\n", SX_STATUS_MSG(sx_status));
         free(cntrs);
@@ -964,7 +964,7 @@ static sai_status_t mlnx_debug_counter_update_sdk_global_acl_drop_trap_config_if
     }
 
     if (is_update) {
-        sx_status = sx_api_acl_global_attributes_set(get_sdk_handle(), SX_ACCESS_CMD_SET, acl_attrs);
+        sx_status = sx_api_acl_global_attributes_set(gh_sdk, SX_ACCESS_CMD_SET, acl_attrs);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to %s global acl drop trap - %s \n",
                        acl_attrs.disable_acl_drop_trap ? "disable" : "enable",
@@ -1005,7 +1005,7 @@ static sai_status_t mlnx_debug_counter_trap_action_handle(_In_ const mlnx_debug_
     trap_attr.attr.trap_id_attr.trap_group = dbg_counter->sx_trap_group;
     trap_attr.attr.trap_id_attr.trap_action = sx_action;
 
-    sx_status = sx_api_host_ifc_trap_id_ext_set(get_sdk_handle(), cmd, &trap_key, &trap_attr);
+    sx_status = sx_api_host_ifc_trap_id_ext_set(gh_sdk, cmd, &trap_key, &trap_attr);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to %s trap %u from group %u- %s\n", SX_ACCESS_CMD_STR(cmd),
                    sx_trap, dbg_counter->sx_trap_group, SX_STATUS_MSG(sx_status));
@@ -1168,7 +1168,7 @@ static sai_status_t mlnx_debug_counter_sx_trap_group_update(_In_ const mlnx_debu
             }
         }
 
-        sx_status = sx_api_host_ifc_trap_id_ext_set(get_sdk_handle(), cmd, &trap_key, &trap_attr);
+        sx_status = sx_api_host_ifc_trap_id_ext_set(gh_sdk, cmd, &trap_key, &trap_attr);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to %s trap %u from group %u- %s\n", SX_ACCESS_CMD_STR(cmd),
                        sx_traps[trap_idx], sx_trap_group, SX_STATUS_MSG(sx_status));
@@ -1364,7 +1364,7 @@ static sai_status_t mlnx_debug_counter_sx_init(_In_ mlnx_debug_counter_t *dbg_co
 
     sx_policer = &g_sai_db_ptr->policers_db[*policer_db_idx].sx_policer_id_trap;
 
-    sx_status = sx_api_policer_set(get_sdk_handle(), SX_ACCESS_CMD_CREATE, &policer_attrs, sx_policer);
+    sx_status = sx_api_policer_set(gh_sdk, SX_ACCESS_CMD_CREATE, &policer_attrs, sx_policer);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to create sx policer - %s\n", SX_STATUS_MSG(sx_status));
         status = sdk_to_sai(sx_status);
@@ -1382,7 +1382,7 @@ static sai_status_t mlnx_debug_counter_sx_init(_In_ mlnx_debug_counter_t *dbg_co
     trap_group_attributes.truncate_size = 0;
     trap_group_attributes.control_type = SX_CONTROL_TYPE_DEFAULT;
 
-    sx_status = sx_api_host_ifc_trap_group_ext_set(get_sdk_handle(), SX_ACCESS_CMD_SET, DEFAULT_ETH_SWID,
+    sx_status = sx_api_host_ifc_trap_group_ext_set(gh_sdk, SX_ACCESS_CMD_SET, DEFAULT_ETH_SWID,
                                                    *sx_trap_group, &trap_group_attributes);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to set trap group %u - %s\n", *sx_trap_group, SX_STATUS_MSG(sx_status));
@@ -1391,7 +1391,7 @@ static sai_status_t mlnx_debug_counter_sx_init(_In_ mlnx_debug_counter_t *dbg_co
     }
     is_trap_group_set = true;
 
-    sx_status = sx_api_host_ifc_policer_bind_set(get_sdk_handle(), SX_ACCESS_CMD_BIND, DEFAULT_ETH_SWID,
+    sx_status = sx_api_host_ifc_policer_bind_set(gh_sdk, SX_ACCESS_CMD_BIND, DEFAULT_ETH_SWID,
                                                  *sx_trap_group, *sx_policer);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to bind sx policer %lu to trap group %u - %s\n",
@@ -1417,19 +1417,19 @@ static sai_status_t mlnx_debug_counter_sx_init(_In_ mlnx_debug_counter_t *dbg_co
 out:
     if (SAI_ERR(status)) {
         if (is_policer_bound) {
-            sx_api_host_ifc_policer_bind_set(get_sdk_handle(), SX_ACCESS_CMD_UNBIND, DEFAULT_ETH_SWID,
+            sx_api_host_ifc_policer_bind_set(gh_sdk, SX_ACCESS_CMD_UNBIND, DEFAULT_ETH_SWID,
                                              *sx_trap_group, *sx_policer);
         }
 
         if (is_trap_group_set) {
-            sx_api_host_ifc_trap_group_ext_set(get_sdk_handle(), SX_ACCESS_CMD_UNSET, DEFAULT_ETH_SWID,
+            sx_api_host_ifc_trap_group_ext_set(gh_sdk, SX_ACCESS_CMD_UNSET, DEFAULT_ETH_SWID,
                                                *sx_trap_group, NULL);
         }
 
         mlnx_hostif_trap_group_free(*sx_trap_group);
 
         if (sx_policer && (*sx_policer != SX_POLICER_ID_INVALID)) {
-            sx_status = sx_api_policer_set(get_sdk_handle(), SX_ACCESS_CMD_DESTROY, NULL, sx_policer);
+            sx_status = sx_api_policer_set(gh_sdk, SX_ACCESS_CMD_DESTROY, NULL, sx_policer);
             if (SX_ERR(sx_status)) {
                 SX_LOG_ERR("Failed to destroy a policer %lu on cleanup\n", *sx_policer);
             }
@@ -1504,7 +1504,7 @@ static sai_status_t mlnx_debug_counter_sx_uninit(_In_ const mlnx_debug_counter_t
 
     /* Policer */
     sx_policer = g_sai_db_ptr->policers_db[dbg_counter->policer_db_idx].sx_policer_id_trap;
-    sx_status = sx_api_host_ifc_policer_bind_set(get_sdk_handle(), SX_ACCESS_CMD_UNBIND, DEFAULT_ETH_SWID,
+    sx_status = sx_api_host_ifc_policer_bind_set(gh_sdk, SX_ACCESS_CMD_UNBIND, DEFAULT_ETH_SWID,
                                                  dbg_counter->sx_trap_group, sx_policer);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to unbind sx policer %lu from trap group %u - %s\n",
@@ -1517,7 +1517,7 @@ static sai_status_t mlnx_debug_counter_sx_uninit(_In_ const mlnx_debug_counter_t
         return status;
     }
 
-    sx_status = sx_api_policer_set(get_sdk_handle(), SX_ACCESS_CMD_DESTROY, NULL, &sx_policer);
+    sx_status = sx_api_policer_set(gh_sdk, SX_ACCESS_CMD_DESTROY, NULL, &sx_policer);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to destroy sx policer - %s\n", SX_STATUS_MSG(sx_status));
         return sdk_to_sai(sx_status);
@@ -1526,7 +1526,7 @@ static sai_status_t mlnx_debug_counter_sx_uninit(_In_ const mlnx_debug_counter_t
     db_reset_policer_entry(dbg_counter->policer_db_idx);
 
     /* Trap group */
-    sx_status = sx_api_host_ifc_trap_group_ext_set(get_sdk_handle(), SX_ACCESS_CMD_UNSET, DEFAULT_ETH_SWID,
+    sx_status = sx_api_host_ifc_trap_group_ext_set(gh_sdk, SX_ACCESS_CMD_UNSET, DEFAULT_ETH_SWID,
                                                    dbg_counter->sx_trap_group, NULL);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to remove trap group %u - %s\n", dbg_counter->sx_trap_group, SX_STATUS_MSG(status));
@@ -1679,7 +1679,7 @@ static sai_status_t mlnx_debug_counter_create_impl(_In_ sai_debug_counter_type_t
 
     if ((SAI_DEBUG_COUNTER_TYPE_SWITCH_IN_DROP_REASONS == dbg_counter->type) &&
         dbg_counter->drop_reasons[SAI_IN_DROP_REASON_ACL_ANY]) {
-        sx_status = sx_api_acl_global_attributes_set(get_sdk_handle(), SX_ACCESS_CMD_SET, acl_attrs);
+        sx_status = sx_api_acl_global_attributes_set(gh_sdk, SX_ACCESS_CMD_SET, acl_attrs);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to enable global acl drop trap - %s \n", SX_STATUS_MSG(sx_status));
             status = sdk_to_sai(sx_status);
@@ -1764,7 +1764,7 @@ static sai_status_t mlnx_remove_debug_counter(_In_ sai_object_id_t debug_counter
 
     if ((SAI_DEBUG_COUNTER_TYPE_SWITCH_IN_DROP_REASONS == dbg_counter->type) &&
         dbg_counter->drop_reasons[SAI_IN_DROP_REASON_ACL_ANY]) {
-        sx_status = sx_api_acl_global_attributes_set(get_sdk_handle(), SX_ACCESS_CMD_SET, acl_attrs);
+        sx_status = sx_api_acl_global_attributes_set(gh_sdk, SX_ACCESS_CMD_SET, acl_attrs);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to disable global acl drop trap - %s \n", SX_STATUS_MSG(sx_status));
             status = sdk_to_sai(sx_status);

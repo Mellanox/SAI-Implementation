@@ -277,7 +277,7 @@ static sai_status_t mlnx_bfd_session_destroy(_In_ mlnx_bfd_session_db_entry_t *b
 
     if (bfd_session_db_entry->data.rx_session) {
         params.session_data.type = SX_BFD_ASYNC_ACTIVE_RX;
-        sx_status_rx = sx_api_bfd_offload_set(get_sdk_handle(),
+        sx_status_rx = sx_api_bfd_offload_set(gh_sdk,
                                               SX_ACCESS_CMD_DESTROY,
                                               &params,
                                               &bfd_session_db_entry->data.rx_session);
@@ -290,7 +290,7 @@ static sai_status_t mlnx_bfd_session_destroy(_In_ mlnx_bfd_session_db_entry_t *b
 
     if (bfd_session_db_entry->data.tx_session) {
         params.session_data.type = SX_BFD_ASYNC_ACTIVE_TX;
-        sx_status_tx = sx_api_bfd_offload_set(get_sdk_handle(),
+        sx_status_tx = sx_api_bfd_offload_set(gh_sdk,
                                               SX_ACCESS_CMD_DESTROY,
                                               &params,
                                               &bfd_session_db_entry->data.tx_session);
@@ -329,7 +329,7 @@ sai_status_t mlnx_set_offload_bfd_rx_session(_Inout_ mlnx_bfd_session_db_data_t 
 
     if (!g_sai_db_ptr->is_bfd_module_initialized) {
         memset(&bfd_init_params, 0, sizeof(bfd_init_params));
-        sx_status = sx_api_bfd_init_set(get_sdk_handle(), &bfd_init_params);
+        sx_status = sx_api_bfd_init_set(gh_sdk, &bfd_init_params);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Cannot init BFD module: %s.\n", SX_STATUS_MSG(sx_status));
             status = sdk_to_sai(sx_status);
@@ -338,7 +338,7 @@ sai_status_t mlnx_set_offload_bfd_rx_session(_Inout_ mlnx_bfd_session_db_data_t 
         g_sai_db_ptr->is_bfd_module_initialized = true;
     }
 
-    sx_status = sx_api_bfd_offload_set(get_sdk_handle(), cmd, &rx_params, &bfd_db_data->rx_session);
+    sx_status = sx_api_bfd_offload_set(gh_sdk, cmd, &rx_params, &bfd_db_data->rx_session);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Error create RX BFD session: %s.\n", SX_STATUS_MSG(sx_status));
         status = sdk_to_sai(sx_status);
@@ -365,7 +365,7 @@ sai_status_t mlnx_set_offload_bfd_tx_session(_Inout_ mlnx_bfd_session_db_data_t 
         return status;
     }
 
-    sx_status = sx_api_bfd_offload_set(get_sdk_handle(), cmd, &tx_params, &bfd_db_data->tx_session);
+    sx_status = sx_api_bfd_offload_set(gh_sdk, cmd, &tx_params, &bfd_db_data->tx_session);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Error create TX BFD session: %s.\n", SX_STATUS_MSG(sx_status));
         status = sdk_to_sai(sx_status);
@@ -390,7 +390,7 @@ static sai_status_t mlnx_bfd_session_counter_stats_get(_In_ mlnx_bfd_session_db_
 
     switch (stat) {
     case SAI_BFD_SESSION_STAT_IN_PACKETS:
-        sx_status = sx_api_bfd_offload_get_stats(get_sdk_handle(),
+        sx_status = sx_api_bfd_offload_get_stats(gh_sdk,
                                                  cmd,
                                                  SX_BFD_ASYNC_ACTIVE_RX,
                                                  &bfd_db_data->rx_session,
@@ -403,7 +403,7 @@ static sai_status_t mlnx_bfd_session_counter_stats_get(_In_ mlnx_bfd_session_db_
         break;
 
     case SAI_BFD_SESSION_STAT_OUT_PACKETS:
-        sx_status = sx_api_bfd_offload_get_stats(get_sdk_handle(),
+        sx_status = sx_api_bfd_offload_get_stats(gh_sdk,
                                                  cmd,
                                                  SX_BFD_ASYNC_ACTIVE_TX,
                                                  &bfd_db_data->tx_session,
@@ -416,7 +416,7 @@ static sai_status_t mlnx_bfd_session_counter_stats_get(_In_ mlnx_bfd_session_db_
         break;
 
     case SAI_BFD_SESSION_STAT_DROP_PACKETS:
-        sx_status = sx_api_bfd_offload_get_stats(get_sdk_handle(),
+        sx_status = sx_api_bfd_offload_get_stats(gh_sdk,
                                                  cmd,
                                                  SX_BFD_ASYNC_ACTIVE_RX,
                                                  &bfd_db_data->rx_session,
@@ -1390,8 +1390,8 @@ sai_status_t mlnx_bfd_log_set(sx_verbosity_level_t level)
 {
     LOG_VAR_NAME(__MODULE__) = level;
 
-    if (get_sdk_handle()) {
-        return sdk_to_sai(sx_api_bfd_log_verbosity_level_set(get_sdk_handle(), SX_LOG_VERBOSITY_BOTH, level, level));
+    if (gh_sdk) {
+        return sdk_to_sai(sx_api_bfd_log_verbosity_level_set(gh_sdk, SX_LOG_VERBOSITY_BOTH, level, level));
     }
     return SAI_STATUS_SUCCESS;
 }

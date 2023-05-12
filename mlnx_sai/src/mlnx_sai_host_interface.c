@@ -1319,7 +1319,6 @@ static sai_status_t mlnx_create_host_interface(_Out_ sai_object_id_t     * hif_i
                                                _In_ const sai_attribute_t *attr_list)
 {
     sai_status_t                 status;
-    sx_status_t                  sx_status;
     const sai_attribute_value_t *type, *rif_port, *name, *mcgrp_name;
     uint32_t                     type_index, rif_port_index, name_index, mcgrp_name_index, rif_port_data;
     uint32_t                     ii;
@@ -1450,11 +1449,10 @@ static sai_status_t mlnx_create_host_interface(_Out_ sai_object_id_t     * hif_i
             return SAI_STATUS_INVALID_ATTRIBUTE_0 + name_index;
         }
 
-        sx_status = sx_api_host_ifc_open(get_sdk_handle(), &g_sai_db_ptr->hostif_db[ii].fd);
-        if (SX_ERR(sx_status)) {
-            SX_LOG_ERR("host ifc open fd failed - %s.\n", SX_STATUS_MSG(sx_status));
+        if (SX_STATUS_SUCCESS != (status = sx_api_host_ifc_open(gh_sdk, &g_sai_db_ptr->hostif_db[ii].fd))) {
+            SX_LOG_ERR("host ifc open fd failed - %s.\n", SX_STATUS_MSG(status));
             cl_plock_release(&g_sai_db_ptr->p_lock);
-            return sdk_to_sai(sx_status);
+            return status;
         }
 
         g_sai_db_ptr->hostif_db[ii].sub_type = SAI_HOSTIF_OBJECT_TYPE_FD;
@@ -1591,7 +1589,6 @@ static sai_status_t mlnx_remove_host_interface(_In_ sai_object_id_t hif_id)
     mlnx_object_id_t mlnx_hif;
     uint32_t         port_db_idx;
     sai_status_t     status;
-    sx_status_t      sx_status;
 
     SX_LOG_ENTER();
 
@@ -1617,10 +1614,9 @@ static sai_status_t mlnx_remove_host_interface(_In_ sai_object_id_t hif_id)
     }
 
     if (SAI_HOSTIF_OBJECT_TYPE_FD == g_sai_db_ptr->hostif_db[mlnx_hif.id.u32].sub_type) {
-        sx_status = sx_api_host_ifc_close(get_sdk_handle(), &g_sai_db_ptr->hostif_db[mlnx_hif.id.u32].fd);
-        if (SX_ERR(sx_status)) {
-            SX_LOG_ERR("host ifc close fd failed - %s.\n", SX_STATUS_MSG(sx_status));
-            status = sdk_to_sai(sx_status);
+        if (SX_STATUS_SUCCESS !=
+            (status = sx_api_host_ifc_close(gh_sdk, &g_sai_db_ptr->hostif_db[mlnx_hif.id.u32].fd))) {
+            SX_LOG_ERR("host ifc close fd failed - %s.\n", SX_STATUS_MSG(status));
             goto out;
         }
     } else if (SAI_HOSTIF_OBJECT_TYPE_GENETLINK != g_sai_db_ptr->hostif_db[mlnx_hif.id.u32].sub_type) {
@@ -1965,7 +1961,6 @@ static sai_status_t mlnx_trap_group_queue_set(_In_ const sai_object_key_t      *
                                               void                             *arg)
 {
     sai_status_t               status;
-    sx_status_t                sx_status;
     uint32_t                   group_id;
     sx_trap_group_attributes_t trap_group_attributes;
 
@@ -1977,20 +1972,18 @@ static sai_status_t mlnx_trap_group_queue_set(_In_ const sai_object_key_t      *
         return status;
     }
 
-    sx_status = sx_api_host_ifc_trap_group_get(get_sdk_handle(), DEFAULT_ETH_SWID,
-                                               group_id, &trap_group_attributes);
-    if (SX_ERR(sx_status)) {
-        SX_LOG_ERR("Failed to sx_api_host_ifc_trap_group_get %s\n", SX_STATUS_MSG(sx_status));
-        return sdk_to_sai(sx_status);
+    if (SAI_STATUS_SUCCESS != (status = sx_api_host_ifc_trap_group_get(gh_sdk, DEFAULT_ETH_SWID,
+                                                                       group_id, &trap_group_attributes))) {
+        SX_LOG_ERR("Failed to sx_api_host_ifc_trap_group_get %s\n", SX_STATUS_MSG(status));
+        return sdk_to_sai(status);
     }
 
     trap_group_attributes.prio = (value->u32 > SX_TRAP_PRIORITY_HIGH) ? SX_TRAP_PRIORITY_HIGH : value->u32;
 
-    sx_status = sx_api_host_ifc_trap_group_ext_set(get_sdk_handle(), SX_ACCESS_CMD_SET, DEFAULT_ETH_SWID,
-                                                   group_id, &trap_group_attributes);
-    if (SX_ERR(sx_status)) {
-        SX_LOG_ERR("Failed to sx_api_host_ifc_trap_group_ext_set %s\n", SX_STATUS_MSG(sx_status));
-        return sdk_to_sai(sx_status);
+    if (SAI_STATUS_SUCCESS != (status = sx_api_host_ifc_trap_group_ext_set(gh_sdk, SX_ACCESS_CMD_SET, DEFAULT_ETH_SWID,
+                                                                           group_id, &trap_group_attributes))) {
+        SX_LOG_ERR("Failed to sx_api_host_ifc_trap_group_ext_set %s\n", SX_STATUS_MSG(status));
+        return sdk_to_sai(status);
     }
 
     SX_LOG_EXIT();
@@ -2005,7 +1998,6 @@ static sai_status_t mlnx_trap_group_queue_get(_In_ const sai_object_key_t   *key
                                               void                          *arg)
 {
     sai_status_t               status;
-    sx_status_t                sx_status;
     uint32_t                   group_id;
     sx_trap_group_attributes_t trap_group_attributes;
 
@@ -2017,11 +2009,10 @@ static sai_status_t mlnx_trap_group_queue_get(_In_ const sai_object_key_t   *key
         return status;
     }
 
-    sx_status = sx_api_host_ifc_trap_group_get(get_sdk_handle(), DEFAULT_ETH_SWID,
-                                               group_id, &trap_group_attributes);
-    if (SX_ERR(sx_status)) {
-        SX_LOG_ERR("Failed to sx_api_host_ifc_trap_group_get %s\n", SX_STATUS_MSG(sx_status));
-        return sdk_to_sai(sx_status);
+    if (SAI_STATUS_SUCCESS != (status = sx_api_host_ifc_trap_group_get(gh_sdk, DEFAULT_ETH_SWID,
+                                                                       group_id, &trap_group_attributes))) {
+        SX_LOG_ERR("Failed to sx_api_host_ifc_trap_group_get %s\n", SX_STATUS_MSG(status));
+        return sdk_to_sai(status);
     }
 
     value->u32 = trap_group_attributes.prio;
@@ -2054,7 +2045,7 @@ static sai_status_t mlnx_trap_group_policer_get(_In_ const sai_object_key_t   *k
     }
 
     if (SX_STATUS_SUCCESS !=
-        (sx_status = sx_api_host_ifc_policer_bind_get(get_sdk_handle(),
+        (sx_status = sx_api_host_ifc_policer_bind_get(gh_sdk,
                                                       DEFAULT_ETH_SWID,
                                                       group_id,
                                                       &sx_policer_id))) {
@@ -2158,7 +2149,7 @@ sai_status_t mlnx_sai_unbind_policer_from_trap_group(_In_ sai_object_id_t sai_tr
     }
 
     if (SX_STATUS_SUCCESS !=
-        (sx_status = sx_api_host_ifc_policer_bind_get(get_sdk_handle(),
+        (sx_status = sx_api_host_ifc_policer_bind_get(gh_sdk,
                                                       DEFAULT_ETH_SWID,
                                                       group_id,
                                                       &sx_policer))) {
@@ -2175,7 +2166,7 @@ sai_status_t mlnx_sai_unbind_policer_from_trap_group(_In_ sai_object_id_t sai_tr
 
     if (SX_STATUS_SUCCESS != (
             sx_status = sx_api_host_ifc_policer_bind_set(
-                get_sdk_handle(),
+                gh_sdk,
                 SX_ACCESS_CMD_UNBIND,
                 DEFAULT_ETH_SWID,
                 group_id,
@@ -2263,7 +2254,6 @@ static sai_status_t mlnx_create_hostif_trap_group(_Out_ sai_object_id_t      *ho
                                                   _In_ const sai_attribute_t *attr_list)
 {
     sai_status_t                 status;
-    sx_status_t                  sx_status;
     const sai_attribute_value_t *prio;
     uint32_t                     prio_index;
     sx_trap_group_attributes_t   trap_group_attributes;
@@ -2297,11 +2287,10 @@ static sai_status_t mlnx_create_hostif_trap_group(_Out_ sai_object_id_t      *ho
         goto out;
     }
 
-    sx_status = sx_api_host_ifc_trap_group_ext_set(get_sdk_handle(), SX_ACCESS_CMD_SET, DEFAULT_ETH_SWID,
-                                                   group_id, &trap_group_attributes);
-    if (SX_ERR(sx_status)) {
-        SX_LOG_ERR("Failed to sx_api_host_ifc_trap_group_ext_set %s\n", SX_STATUS_MSG(sx_status));
-        status = sdk_to_sai(sx_status);
+    if (SAI_STATUS_SUCCESS != (status = sx_api_host_ifc_trap_group_ext_set(gh_sdk, SX_ACCESS_CMD_SET, DEFAULT_ETH_SWID,
+                                                                           group_id, &trap_group_attributes))) {
+        SX_LOG_ERR("Failed to sx_api_host_ifc_trap_group_ext_set %s\n", SX_STATUS_MSG(status));
+        status = sdk_to_sai(status);
         goto out;
     }
 
@@ -2389,11 +2378,7 @@ static sai_status_t mlnx_remove_hostif_trap_group(_In_ sai_object_id_t hostif_tr
         goto out;
     }
 
-    sx_status = sx_api_host_ifc_trap_group_ext_set(get_sdk_handle(),
-                                                   SX_ACCESS_CMD_UNSET,
-                                                   DEFAULT_ETH_SWID,
-                                                   group_id,
-                                                   NULL);
+    sx_status = sx_api_host_ifc_trap_group_ext_set(gh_sdk, SX_ACCESS_CMD_UNSET, DEFAULT_ETH_SWID, group_id, NULL);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to unset sx trap group %d - %s\n", group_id, SX_STATUS_MSG(sx_status));
         status = sdk_to_sai(sx_status);
@@ -2966,7 +2951,7 @@ static sai_status_t mlnx_trap_update(_In_ uint32_t            index,
         trap_attr.attr.trap_id_attr.trap_group = prio;
         trap_attr.attr.trap_id_attr.trap_action = action;
 
-        sx_status = sx_api_host_ifc_trap_id_ext_set(get_sdk_handle(), cmd, &trap_key, &trap_attr);
+        sx_status = sx_api_host_ifc_trap_id_ext_set(gh_sdk, cmd, &trap_key, &trap_attr);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to %s for index %u trap %u/%u=%u, error is %s\n", SX_ACCESS_CMD_STR(cmd),
                        index, trap_index + 1, mlnx_traps_info[index].sdk_traps_num,
@@ -2996,7 +2981,7 @@ static sai_status_t mlnx_register_trap(const sx_access_cmd_t             cmd,
                                        const sx_host_ifc_register_key_t *register_key,
                                        const sx_user_channel_t          *user_channel)
 {
-    sx_status_t sx_status;
+    sx_status_t status;
     uint32_t    trap_index;
 
     assert(register_key);
@@ -3004,21 +2989,21 @@ static sai_status_t mlnx_register_trap(const sx_access_cmd_t             cmd,
 
     for (trap_index = 0; trap_index < mlnx_traps_info[trap_db_idx].sdk_traps_num; trap_index++) {
         if (register_key->key_type == SX_HOST_IFC_REGISTER_KEY_TYPE_GLOBAL) {
-            sx_status = sx_api_host_ifc_trap_id_register_set(get_sdk_handle(), cmd, DEFAULT_ETH_SWID,
-                                                             mlnx_traps_info[trap_db_idx].sdk_trap_ids[trap_index],
-                                                             user_channel);
+            status = sx_api_host_ifc_trap_id_register_set(gh_sdk, cmd, DEFAULT_ETH_SWID,
+                                                          mlnx_traps_info[trap_db_idx].sdk_trap_ids[trap_index],
+                                                          user_channel);
         } else {
-            sx_status = sx_api_host_ifc_port_vlan_trap_id_register_set(
-                get_sdk_handle(), cmd, DEFAULT_ETH_SWID, mlnx_traps_info[trap_db_idx].sdk_trap_ids[trap_index],
+            status = sx_api_host_ifc_port_vlan_trap_id_register_set(
+                gh_sdk, cmd, DEFAULT_ETH_SWID, mlnx_traps_info[trap_db_idx].sdk_trap_ids[trap_index],
                 register_key, user_channel);
         }
 
-        if (SX_ERR(sx_status)) {
+        if (SX_ERR(status)) {
             SX_LOG_ERR("Failed to %s for index %u trap %u/%u=%u, error is %s\n",
                        (SX_ACCESS_CMD_DEREGISTER == cmd) ? "deregister" : "register",
                        trap_db_idx, trap_index + 1, mlnx_traps_info[trap_db_idx].sdk_traps_num,
-                       mlnx_traps_info[trap_db_idx].sdk_trap_ids[trap_index], SX_STATUS_MSG(sx_status));
-            return sdk_to_sai(sx_status);
+                       mlnx_traps_info[trap_db_idx].sdk_trap_ids[trap_index], SX_STATUS_MSG(status));
+            return sdk_to_sai(status);
         }
     }
 
@@ -3087,7 +3072,6 @@ static sai_status_t mlnx_register_all_traps(const sx_access_cmd_t             cm
 static sai_status_t mlnx_trap_filter_set(uint32_t index, sai_object_list_t ports)
 {
     sai_status_t      status;
-    sx_status_t       sx_status;
     uint32_t          trap_index, ii, count;
     sx_port_log_id_t *filter_list;
 
@@ -3110,28 +3094,26 @@ static sai_status_t mlnx_trap_filter_set(uint32_t index, sai_object_list_t ports
     }
 
     for (trap_index = 0; trap_index < mlnx_traps_info[index].sdk_traps_num; trap_index++) {
-        sx_status = sx_api_host_ifc_trap_filter_set(get_sdk_handle(),
-                                                    SX_ACCESS_CMD_DELETE_ALL, DEFAULT_ETH_SWID,
-                                                    mlnx_traps_info[index].sdk_trap_ids[
-                                                        trap_index], NULL, NULL);
-        if (SX_ERR(sx_status)) {
+        if (SAI_STATUS_SUCCESS != (status = sx_api_host_ifc_trap_filter_set(gh_sdk,
+                                                                            SX_ACCESS_CMD_DELETE_ALL, DEFAULT_ETH_SWID,
+                                                                            mlnx_traps_info[index].sdk_trap_ids[
+                                                                                trap_index], NULL, NULL))) {
             SX_LOG_ERR("Failed to clear filter list for index %u trap %u/%u=%u, error is %s\n",
                        index, trap_index + 1, mlnx_traps_info[index].sdk_traps_num,
-                       mlnx_traps_info[index].sdk_trap_ids[trap_index], SX_STATUS_MSG(sx_status));
+                       mlnx_traps_info[index].sdk_trap_ids[trap_index], SX_STATUS_MSG(status));
             free(filter_list);
-            return sdk_to_sai(sx_status);
+            return sdk_to_sai(status);
         }
 
-        sx_status = sx_api_host_ifc_trap_filter_set(get_sdk_handle(),
-                                                    SX_ACCESS_CMD_ADD, DEFAULT_ETH_SWID,
-                                                    mlnx_traps_info[index].sdk_trap_ids[
-                                                        trap_index], filter_list, &count);
-        if (SX_ERR(sx_status)) {
+        if (SAI_STATUS_SUCCESS != (status = sx_api_host_ifc_trap_filter_set(gh_sdk,
+                                                                            SX_ACCESS_CMD_ADD, DEFAULT_ETH_SWID,
+                                                                            mlnx_traps_info[index].sdk_trap_ids[
+                                                                                trap_index], filter_list, &count))) {
             SX_LOG_ERR("Failed to set filter list for index %u trap %u/%u=%u, error is %s\n",
                        index, trap_index + 1, mlnx_traps_info[index].sdk_traps_num,
-                       mlnx_traps_info[index].sdk_trap_ids[trap_index], SX_STATUS_MSG(sx_status));
+                       mlnx_traps_info[index].sdk_trap_ids[trap_index], SX_STATUS_MSG(status));
             free(filter_list);
-            return sdk_to_sai(sx_status);
+            return sdk_to_sai(status);
         }
     }
 
@@ -3403,7 +3385,7 @@ static sai_status_t mlnx_trap_mirror_drop_by_router_set(_In_ sx_span_session_id_
     SX_LOG_ENTER();
 
     memset(&drop_mirroring_attr_p, 0, sizeof(drop_mirroring_attr_p));
-    sx_status = sx_api_span_drop_mirror_set(get_sdk_handle(), cmd, span_session_id,
+    sx_status = sx_api_span_drop_mirror_set(gh_sdk, cmd, span_session_id,
                                             &drop_mirroring_attr_p,
                                             &drop_reason_list_p,
                                             drop_reason_cnt);
@@ -3437,7 +3419,7 @@ static sai_status_t mlnx_trap_mirror_session_bind_update(_In_ sx_span_session_id
     key.type = SX_SPAN_MIRROR_BIND_ING_WRED_E;
     attr.span_session_id = sx_session;
 
-    sx_status = sx_api_span_mirror_bind_set(get_sdk_handle(), bind_cmd, &key, &attr);
+    sx_status = sx_api_span_mirror_bind_set(gh_sdk, bind_cmd, &key, &attr);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to bind WRED mirroring to mirror session %x - %s\n", sx_session, SX_STATUS_MSG(sx_status));
         return sdk_to_sai(sx_status);
@@ -4380,13 +4362,9 @@ static sai_status_t mlnx_is_hostif_table_key_registered(uint32_t                
     assert(register_key);
     assert(is_registered);
 
-    sx_status = sx_api_host_ifc_port_vlan_trap_id_register_get(get_sdk_handle(),
-                                                               SX_ACCESS_CMD_GET_FIRST,
-                                                               DEFAULT_ETH_SWID,
+    sx_status = sx_api_host_ifc_port_vlan_trap_id_register_get(gh_sdk, SX_ACCESS_CMD_GET_FIRST, DEFAULT_ETH_SWID,
                                                                mlnx_traps_info[trap_db_idx].sdk_trap_ids[0],
-                                                               NULL,
-                                                               register_entries,
-                                                               &register_entries_count);
+                                                               NULL, register_entries, &register_entries_count);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to get register entries - %s\n", SX_STATUS_MSG(sx_status));
         return sdk_to_sai(sx_status);
@@ -4410,7 +4388,7 @@ static sai_status_t mlnx_is_hostif_table_key_registered(uint32_t                
             break;
         }
 
-        sx_status = sx_api_host_ifc_port_vlan_trap_id_register_get(get_sdk_handle(), SX_ACCESS_CMD_GETNEXT,
+        sx_status = sx_api_host_ifc_port_vlan_trap_id_register_get(gh_sdk, SX_ACCESS_CMD_GETNEXT,
                                                                    DEFAULT_ETH_SWID,
                                                                    mlnx_traps_info[trap_db_idx].sdk_trap_ids[0],
                                                                    &register_entries[register_entries_count - 1],
@@ -5078,9 +5056,8 @@ sai_status_t mlnx_host_interface_log_set(sx_verbosity_level_t level)
 {
     LOG_VAR_NAME(__MODULE__) = level;
 
-    if (get_sdk_handle()) {
-        return sdk_to_sai(sx_api_host_ifc_log_verbosity_level_set(
-                              get_sdk_handle(), SX_LOG_VERBOSITY_BOTH, level, level));
+    if (gh_sdk) {
+        return sdk_to_sai(sx_api_host_ifc_log_verbosity_level_set(gh_sdk, SX_LOG_VERBOSITY_BOTH, level, level));
     } else {
         return SAI_STATUS_SUCCESS;
     }

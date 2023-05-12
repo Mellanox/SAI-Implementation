@@ -212,7 +212,7 @@ static sai_status_t mlnx_create_stp(_Out_ sai_object_id_t      *sai_stp_id,
 
     SX_LOG_DBG("Create new STP instance [%u]\n", sx_stp_id);
 
-    status = sx_api_mstp_inst_set(get_sdk_handle(), SX_ACCESS_CMD_ADD,
+    status = sx_api_mstp_inst_set(gh_sdk, SX_ACCESS_CMD_ADD,
                                   DEFAULT_ETH_SWID, sx_stp_id);
     if (SX_ERR(status)) {
         SX_LOG_ERR("%s\n", SX_STATUS_MSG(status));
@@ -277,7 +277,7 @@ static sai_status_t mlnx_remove_stp(_In_ sai_object_id_t sai_stp_id)
     }
 
     /* check for VLANs associated */
-    status = sx_api_mstp_inst_vlan_list_get(get_sdk_handle(), DEFAULT_ETH_SWID, sx_stp_id, NULL, &vlan_cnt);
+    status = sx_api_mstp_inst_vlan_list_get(gh_sdk, DEFAULT_ETH_SWID, sx_stp_id, NULL, &vlan_cnt);
     if (SX_ERR(status)) {
         SX_LOG_ERR("%s\n", SX_STATUS_MSG(status));
         return sdk_to_sai(status);
@@ -287,7 +287,7 @@ static sai_status_t mlnx_remove_stp(_In_ sai_object_id_t sai_stp_id)
     }
 
     /* remove STP instance */
-    status = sx_api_mstp_inst_set(get_sdk_handle(), SX_ACCESS_CMD_DELETE, DEFAULT_ETH_SWID, sx_stp_id);
+    status = sx_api_mstp_inst_set(gh_sdk, SX_ACCESS_CMD_DELETE, DEFAULT_ETH_SWID, sx_stp_id);
     if (SX_ERR(status)) {
         SX_LOG_ERR("%s\n", SX_STATUS_MSG(status));
         return sdk_to_sai(status);
@@ -838,18 +838,14 @@ static sai_status_t mlnx_stp_port_state_get(_In_ const sai_object_key_t   *key,
     sai_db_read_lock();
 
     if (mlnx_stp_is_initialized()) {
-        sx_status = sx_api_mstp_inst_port_state_get(get_sdk_handle(),
-                                                    DEFAULT_ETH_SWID,
-                                                    sx_mstp_inst,
-                                                    sx_port,
-                                                    &sx_port_state);
+        sx_status = sx_api_mstp_inst_port_state_get(gh_sdk, DEFAULT_ETH_SWID, sx_mstp_inst, sx_port, &sx_port_state);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to get port [%x] mstp state - %s\n", sx_port, SX_STATUS_MSG(sx_status));
             status = sdk_to_sai(sx_status);
             goto out;
         }
     } else {
-        sx_status = sx_api_rstp_port_state_get(get_sdk_handle(), sx_port, &sx_port_state);
+        sx_status = sx_api_rstp_port_state_get(gh_sdk, sx_port, &sx_port_state);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to get port [%x] rstp state - %s\n", sx_port, SX_STATUS_MSG(sx_status));
             status = sdk_to_sai(sx_status);
@@ -1014,7 +1010,7 @@ sai_status_t mlnx_stp_initialize()
     /* Fetch rstp state for each port so we can apply it after setting mstp mode to SX_MSTP_MODE_MSTP */
     mlnx_bridge_1q_port_foreach(bport, ii) {
         if (bport->port_type == SAI_BRIDGE_PORT_TYPE_PORT) {
-            sx_status = sx_api_rstp_port_state_get(get_sdk_handle(), bport->logical, &ports_states[ii]);
+            sx_status = sx_api_rstp_port_state_get(gh_sdk, bport->logical, &ports_states[ii]);
             if (SX_ERR(sx_status)) {
                 SX_LOG_ERR("Failed to get rstp status for port %x - %s\n", bport->logical,
                            SX_STATUS_MSG(sx_status));
@@ -1025,7 +1021,7 @@ sai_status_t mlnx_stp_initialize()
     }
 
     /* set MSTP mode */
-    sx_status = sx_api_mstp_mode_set(get_sdk_handle(), DEFAULT_ETH_SWID, SX_MSTP_MODE_MSTP);
+    sx_status = sx_api_mstp_mode_set(gh_sdk, DEFAULT_ETH_SWID, SX_MSTP_MODE_MSTP);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("%s\n", SX_STATUS_MSG(sx_status));
         status = sdk_to_sai(sx_status);
@@ -1033,8 +1029,7 @@ sai_status_t mlnx_stp_initialize()
     }
 
     /* Create default STP instance */
-    sx_status =
-        sx_api_mstp_inst_set(get_sdk_handle(), SX_ACCESS_CMD_ADD, DEFAULT_ETH_SWID, mlnx_stp_get_default_stp());
+    sx_status = sx_api_mstp_inst_set(gh_sdk, SX_ACCESS_CMD_ADD, DEFAULT_ETH_SWID, mlnx_stp_get_default_stp());
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("%s\n", SX_STATUS_MSG(sx_status));
         status = sdk_to_sai(sx_status);
@@ -1058,7 +1053,7 @@ sai_status_t mlnx_stp_initialize()
 
     mlnx_bridge_1q_port_foreach(bport, ii) {
         if (bport->port_type == SAI_BRIDGE_PORT_TYPE_PORT) {
-            sx_status = sx_api_mstp_inst_port_state_set(get_sdk_handle(), DEFAULT_ETH_SWID, mlnx_stp_get_default_stp(),
+            sx_status = sx_api_mstp_inst_port_state_set(gh_sdk, DEFAULT_ETH_SWID, mlnx_stp_get_default_stp(),
                                                         bport->logical, ports_states[ii]);
             if (SX_ERR(sx_status)) {
                 SX_LOG_ERR("Port mstp state set %x failed - %s\n", bport->logical, SX_STATUS_MSG(sx_status));
@@ -1080,7 +1075,7 @@ sai_status_t mlnx_stp_port_state_set_impl(_In_ sx_port_log_id_t          port,
     sx_status_t sx_status;
 
     if (mlnx_stp_is_initialized()) {
-        sx_status = sx_api_mstp_inst_port_state_set(get_sdk_handle(), DEFAULT_ETH_SWID, mstp_instance, port, state);
+        sx_status = sx_api_mstp_inst_port_state_set(gh_sdk, DEFAULT_ETH_SWID, mstp_instance, port, state);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to set mstp instance [%d] port [%x] state (%u) - %s\n",
                        mstp_instance,
@@ -1090,7 +1085,7 @@ sai_status_t mlnx_stp_port_state_set_impl(_In_ sx_port_log_id_t          port,
             return sdk_to_sai(sx_status);
         }
     } else {
-        sx_status = sx_api_rstp_port_state_set(get_sdk_handle(), port, state);
+        sx_status = sx_api_rstp_port_state_set(gh_sdk, port, state);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to set rstp port [%x] state (%u) - %s\n", port, state, SX_STATUS_MSG(sx_status));
             return sdk_to_sai(sx_status);
@@ -1104,8 +1099,8 @@ sai_status_t mlnx_stp_log_set(sx_verbosity_level_t level)
 {
     LOG_VAR_NAME(__MODULE__) = level;
 
-    if (get_sdk_handle()) {
-        return sdk_to_sai(sx_api_mstp_log_verbosity_level_set(get_sdk_handle(), SX_LOG_VERBOSITY_BOTH,
+    if (gh_sdk) {
+        return sdk_to_sai(sx_api_mstp_log_verbosity_level_set(gh_sdk, SX_LOG_VERBOSITY_BOTH,
                                                               level, level));
     } else {
         return SAI_STATUS_SUCCESS;

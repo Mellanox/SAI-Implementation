@@ -206,8 +206,8 @@ sai_status_t mlnx_queue_log_set(sx_verbosity_level_t level)
 {
     LOG_VAR_NAME(__MODULE__) = level;
 
-    if (get_sdk_handle()) {
-        return sdk_to_sai(sx_api_cos_log_verbosity_level_set(get_sdk_handle(), SX_LOG_VERBOSITY_BOTH, level, level));
+    if (gh_sdk) {
+        return sdk_to_sai(sx_api_cos_log_verbosity_level_set(gh_sdk, SX_LOG_VERBOSITY_BOTH, level, level));
     } else {
         return SAI_STATUS_SUCCESS;
     }
@@ -399,7 +399,7 @@ static sai_status_t mlnx_queue_type_get(_In_ const sai_object_key_t   *key,
         return SAI_STATUS_INVALID_PARAMETER;
     }
 
-    sx_status = sx_api_cos_port_tc_mcaware_get(get_sdk_handle(), port_num, &mc_aware);
+    sx_status = sx_api_cos_port_tc_mcaware_get(gh_sdk, port_num, &mc_aware);
     if (SX_STATUS_SUCCESS != sx_status) {
         SX_LOG_ERR("Failed to get MC status for the port 0x%x - %s\n", port_num, SX_STATUS_MSG(sx_status));
         return sdk_to_sai(sx_status);
@@ -634,7 +634,7 @@ sai_status_t mlnx_sai_fill_queue_counter_value(sai_stat_id_t                  co
         curr_wred_id = queue_cfg->wred_id;
         if (SAI_NULL_OBJECT_ID != curr_wred_id) {
             if (SX_STATUS_SUCCESS !=
-                (status = sx_api_cos_redecn_counters_get(get_sdk_handle(), cmd, port_num, &sx_cnt))) {
+                (status = sx_api_cos_redecn_counters_get(gh_sdk, cmd, port_num, &sx_cnt))) {
                 SX_LOG_ERR("Failed to get redecn counters - %s.\n", SX_STATUS_MSG(status));
                 sai_db_unlock();
                 return sdk_to_sai(status);
@@ -766,7 +766,7 @@ sai_status_t mlnx_get_queue_statistics_ext(_In_ sai_object_id_t      queue_id,
     }
     /* TODO : change to > g_resource_limits.cos_port_ets_traffic_class_max when sdk is updated to use rm */
     if (queue_num >= RM_API_COS_TRAFFIC_CLASS_NUM) {
-        status = sx_api_port_counter_perf_get(get_sdk_handle(), cmd,
+        status = sx_api_port_counter_perf_get(gh_sdk, cmd,
                                               port_num,
                                               port_prio_id,
                                               &perf_cnts);
@@ -853,7 +853,7 @@ sai_status_t mlnx_get_queue_statistics_ext(_In_ sai_object_id_t      queue_id,
 
     if (tc_cnts_needed) {
         if (SX_STATUS_SUCCESS !=
-            (status = sx_api_port_counter_tc_get(get_sdk_handle(), cmd, port_num, queue_num, &tc_cnts))) {
+            (status = sx_api_port_counter_tc_get(gh_sdk, cmd, port_num, queue_num, &tc_cnts))) {
             SX_LOG_ERR("Failed to get port tc counters - %s.\n", SX_STATUS_MSG(status));
             return sdk_to_sai(status);
         }
@@ -868,7 +868,7 @@ sai_status_t mlnx_get_queue_statistics_ext(_In_ sai_object_id_t      queue_id,
         stats_usage.sx_port_params.port_param.port_tc_list_p = &queue_num;
 
         if (SX_STATUS_SUCCESS !=
-            (status = sx_api_cos_port_buff_type_statistic_get(get_sdk_handle(), cmd, &stats_usage, 1,
+            (status = sx_api_cos_port_buff_type_statistic_get(gh_sdk, cmd, &stats_usage, 1,
                                                               &occupancy_stats, &usage_cnt))) {
             SX_LOG_ERR("Failed to get port buff statistics - %s.\n", SX_STATUS_MSG(status));
             return sdk_to_sai(status);
@@ -960,7 +960,7 @@ static sai_status_t mlnx_clear_queue_stats(_In_ sai_object_id_t      queue_id,
     }
     /* TODO : change to > g_resource_limits.cos_port_ets_traffic_class_max when sdk is updated to use rm */
     if (queue_num >= RM_API_COS_TRAFFIC_CLASS_NUM) {
-        status = sx_api_port_counter_perf_get(get_sdk_handle(), SX_ACCESS_CMD_READ_CLEAR,
+        status = sx_api_port_counter_perf_get(gh_sdk, SX_ACCESS_CMD_READ_CLEAR,
                                               port_num, port_prio_id, &perf_cnts);
         if (SX_STATUS_SUCCESS != status) {
             SX_LOG_ERR("Error clearing port counter perf for port 0x%x\n", port_num);
@@ -987,8 +987,7 @@ static sai_status_t mlnx_clear_queue_stats(_In_ sai_object_id_t      queue_id,
 
         case SAI_QUEUE_STAT_WRED_ECN_MARKED_PACKETS:
             if (SX_STATUS_SUCCESS !=
-                (status =
-                     sx_api_cos_redecn_counters_get(get_sdk_handle(), SX_ACCESS_CMD_READ_CLEAR, port_num, &sx_cnt))) {
+                (status = sx_api_cos_redecn_counters_get(gh_sdk, SX_ACCESS_CMD_READ_CLEAR, port_num, &sx_cnt))) {
                 SX_LOG_ERR("Failed to clear redecn counters - %s.\n", SX_STATUS_MSG(status));
                 return sdk_to_sai(status);
             }
@@ -1001,9 +1000,7 @@ static sai_status_t mlnx_clear_queue_stats(_In_ sai_object_id_t      queue_id,
 
     if (tc_cnts_needed) {
         if (SX_STATUS_SUCCESS !=
-            (status =
-                 sx_api_port_counter_tc_get(get_sdk_handle(), SX_ACCESS_CMD_READ_CLEAR, port_num, queue_num,
-                                            &tc_cnts))) {
+            (status = sx_api_port_counter_tc_get(gh_sdk, SX_ACCESS_CMD_READ_CLEAR, port_num, queue_num, &tc_cnts))) {
             SX_LOG_ERR("Failed to get clear port tc counters - %s.\n", SX_STATUS_MSG(status));
             return sdk_to_sai(status);
         }
@@ -1018,9 +1015,8 @@ static sai_status_t mlnx_clear_queue_stats(_In_ sai_object_id_t      queue_id,
         stats_usage.sx_port_params.port_param.port_tc_list_p = &queue_num;
 
         if (SX_STATUS_SUCCESS !=
-            (status =
-                 sx_api_cos_port_buff_type_statistic_get(get_sdk_handle(), SX_ACCESS_CMD_READ_CLEAR, &stats_usage, 1,
-                                                         &occupancy_stats, &usage_cnt))) {
+            (status = sx_api_cos_port_buff_type_statistic_get(gh_sdk, SX_ACCESS_CMD_READ_CLEAR, &stats_usage, 1,
+                                                              &occupancy_stats, &usage_cnt))) {
             SX_LOG_ERR("Failed to get clear port buff statistics - %s.\n", SX_STATUS_MSG(status));
             return sdk_to_sai(status);
         }
@@ -1136,7 +1132,7 @@ sai_status_t mlnx_sai_bulk_queue_stats_get(_In_ sai_object_id_t         switch_i
             stats[stats_index].port_num = port_num;
             stats[stats_index].status = SAI_STATUS_SUCCESS;
             key_get.key.shared_buffer_key.attr.log_port = port_num;
-            sx_status = sx_api_bulk_counter_transaction_get(get_sdk_handle(),
+            sx_status = sx_api_bulk_counter_transaction_get(gh_sdk,
                                                             &key_get,
                                                             &bulk_read_buff,
                                                             &(stats[stats_index].data));
@@ -1292,7 +1288,7 @@ sai_status_t mlnx_sai_bulk_queue_stats_clear(_In_ sai_object_id_t         switch
     }
 
     if (SX_STATUS_SUCCESS !=
-        (sx_status = sx_api_cos_port_buff_type_statistic_get(get_sdk_handle(), cmd, &stats_usages[0], port_count,
+        (sx_status = sx_api_cos_port_buff_type_statistic_get(gh_sdk, cmd, &stats_usages[0], port_count,
                                                              stats, &usage_cnt))) {
         SX_LOG_ERR("Failed to bulk clear queue statistics - %s.\n", SX_STATUS_MSG(sx_status));
         any_error = true;

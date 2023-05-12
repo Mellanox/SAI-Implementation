@@ -378,7 +378,7 @@ sai_status_t mlnx_custom_bytes_set(_In_ sx_access_cmd_t                         
 
     bytes_count = length;
 
-    sx_status = sx_api_acl_custom_bytes_set(get_sdk_handle(), cmd, attrs, keys, &bytes_count);
+    sx_status = sx_api_acl_custom_bytes_set(gh_sdk, cmd, attrs, keys, &bytes_count);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to %s sx acl custom bytes set - %s\n", SX_ACCESS_CMD_STR(cmd),
                    SX_STATUS_MSG(sx_status));
@@ -389,8 +389,7 @@ sai_status_t mlnx_custom_bytes_set(_In_ sx_access_cmd_t                         
         if (bytes_count != length) {
             SX_LOG_ERR("Failed to create enough custom bytes. Created (%d), needed (%d)\n", bytes_count, length);
 
-            sx_status =
-                sx_api_acl_custom_bytes_set(get_sdk_handle(), SX_ACCESS_CMD_DESTROY, attrs, keys, &bytes_count);
+            sx_status = sx_api_acl_custom_bytes_set(gh_sdk, SX_ACCESS_CMD_DESTROY, attrs, keys, &bytes_count);
             if (SX_ERR(sx_status)) {
                 SX_LOG_ERR("Failed to perform a rollback (destroy sx custom bytes)\n");
             }
@@ -2095,8 +2094,8 @@ sai_status_t mlnx_udf_log_set(sx_verbosity_level_t level)
 {
     LOG_VAR_NAME(__MODULE__) = level;
 
-    if (get_sdk_handle()) {
-        return sdk_to_sai(sx_api_acl_log_verbosity_level_set(get_sdk_handle(), SX_LOG_VERBOSITY_BOTH, level, level));
+    if (gh_sdk) {
+        return sdk_to_sai(sx_api_acl_log_verbosity_level_set(gh_sdk, SX_LOG_VERBOSITY_BOTH, level, level));
     } else {
         return SAI_STATUS_SUCCESS;
     }
@@ -2159,7 +2158,7 @@ sai_status_t mlnx_udf_group_sx_reg_ext_point_set_spc2(_In_ sx_access_cmd_t      
 
     if (SX_STATUS_SUCCESS !=
         (sx_status = sx_api_flex_parser_reg_ext_point_set
-                         (get_sdk_handle(), cmd, register_key, ext_point_list, &point_cnt))) {
+                         (gh_sdk, cmd, register_key, ext_point_list, &point_cnt))) {
         SX_LOG_ERR("Failed to %s extraction points for register %s.\n",
                    (SX_ACCESS_CMD_SET == cmd) ? "SET" : "UNSET",
                    SX_STATUS_MSG(sx_status));
@@ -2192,7 +2191,7 @@ static sai_status_t mlnx_udf_group_sx_reg_ext_points_get_spc2(_In_ sx_gp_registe
 
     if (SX_STATUS_SUCCESS !=
         (sx_status = sx_api_flex_parser_reg_ext_point_get
-                         (get_sdk_handle(), register_key, ext_point_list, ext_point_cnt))) {
+                         (gh_sdk, register_key, ext_point_list, ext_point_cnt))) {
         SX_LOG_ERR("Failed to get extraction points for register %s.\n",
                    SX_STATUS_MSG(sx_status));
         sai_status = sdk_to_sai(sx_status);
@@ -2230,7 +2229,7 @@ sai_status_t mlnx_udf_group_sx_gp_registers_create_destroy_spc2(_In_ sx_access_c
 
     if (SX_STATUS_SUCCESS !=
         (sx_status = sx_api_register_set
-                         (get_sdk_handle(), cmd, register_keys_list, &reg_ids_count))) {
+                         (gh_sdk, cmd, register_keys_list, &reg_ids_count))) {
         SX_LOG_ERR("Failed to %s gp register %s.\n",
                    (SX_ACCESS_CMD_CREATE == cmd) ? "CREATE" : "DESTROY",
                    SX_STATUS_MSG(sx_status));

@@ -476,7 +476,7 @@ static sai_status_t mlnx_encap_nexthop_fake_nexthop_create(_In_ sx_router_interf
     sx_next_hop.next_hop_data.action = SX_ROUTER_ACTION_FORWARD;
     sx_next_hop.next_hop_data.counter_id = flow_counter;
 
-    sx_status = sx_api_router_ecmp_set(get_sdk_handle(),
+    sx_status = sx_api_router_ecmp_set(gh_sdk,
                                        cmd,
                                        nh_id,
                                        &sx_next_hop,
@@ -503,7 +503,7 @@ static sai_status_t mlnx_encap_nexthop_fake_neighbor_create(_In_ sx_router_inter
     sx_neigh_data.is_software_only = true;
     memcpy(&sx_neigh_data.mac_addr, fake_mac, sizeof(sx_neigh_data.mac_addr));
 
-    sx_status = sx_api_router_neigh_set(get_sdk_handle(),
+    sx_status = sx_api_router_neigh_set(gh_sdk,
                                         SX_ACCESS_CMD_ADD,
                                         br_rif,
                                         fake_ip_addr,
@@ -597,7 +597,7 @@ static sai_status_t mlnx_encap_nexthop_fake_fdb_create(_In_ sx_fid_t br_fid, _In
     sx_mac_entry.entry_type = SX_FDB_UC_STATIC;
     sx_mac_entry.action = SX_FDB_ACTION_FORWARD_TO_ROUTER;
 
-    sx_status = sx_api_fdb_uc_mac_addr_set(get_sdk_handle(), SX_ACCESS_CMD_ADD, DEFAULT_ETH_SWID,
+    sx_status = sx_api_fdb_uc_mac_addr_set(gh_sdk, SX_ACCESS_CMD_ADD, DEFAULT_ETH_SWID,
                                            &sx_mac_entry, &macs_count);
     if (SX_ERR(sx_status)) {
         return sdk_to_sai(sx_status);
@@ -697,7 +697,7 @@ static sai_status_t mlnx_encap_nexthop_fake_data_deinit_ecmp(_Inout_ mlnx_fake_n
     sx_status_t sx_status;
     uint32_t    sx_next_hop_count = 1;
 
-    sx_status = sx_api_router_ecmp_set(get_sdk_handle(),
+    sx_status = sx_api_router_ecmp_set(gh_sdk,
                                        SX_ACCESS_CMD_DESTROY,
                                        &fake_data->sx_fake_nexthop,
                                        NULL,
@@ -744,7 +744,7 @@ static sai_status_t mlnx_encap_nexthop_fake_data_deinit(_In_ sai_object_id_t    
     sx_neigh_data.is_software_only = true;
     memcpy(&sx_neigh_data.mac_addr, fake_mac, sizeof(sx_neigh_data.mac_addr));
 
-    sx_status = sx_api_router_neigh_set(get_sdk_handle(),
+    sx_status = sx_api_router_neigh_set(gh_sdk,
                                         SX_ACCESS_CMD_DELETE,
                                         br_rif,
                                         &fake_ip,
@@ -764,7 +764,7 @@ static sai_status_t mlnx_encap_nexthop_fake_data_deinit(_In_ sai_object_id_t    
         sx_mac_entry.entry_type = SX_FDB_UC_STATIC;
         sx_mac_entry.action = SX_FDB_ACTION_FORWARD_TO_ROUTER;
 
-        sx_status = sx_api_fdb_uc_mac_addr_set(get_sdk_handle(), SX_ACCESS_CMD_DELETE, DEFAULT_ETH_SWID,
+        sx_status = sx_api_fdb_uc_mac_addr_set(gh_sdk, SX_ACCESS_CMD_DELETE, DEFAULT_ETH_SWID,
                                                &sx_mac_entry, &macs_count);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to delete Fake FDB entry - %s\n", SX_STATUS_MSG(sx_status));
@@ -773,7 +773,7 @@ static sai_status_t mlnx_encap_nexthop_fake_data_deinit(_In_ sai_object_id_t    
     }
 
     if (total_deinit) {
-        sx_status = sx_api_router_ecmp_set(get_sdk_handle(),
+        sx_status = sx_api_router_ecmp_set(gh_sdk,
                                            SX_ACCESS_CMD_DESTROY,
                                            &fake_data->sx_fake_nexthop,
                                            NULL,
@@ -1316,8 +1316,7 @@ static sai_status_t mlnx_create_next_hop(_Out_ sai_object_id_t      *next_hop_id
 
         if (SX_STATUS_SUCCESS !=
             (sx_status =
-                 sx_api_router_ecmp_set(get_sdk_handle(), SX_ACCESS_CMD_CREATE, &sdk_ecmp_id, &sdk_next_hop,
-                                        &next_hop_cnt))) {
+                 sx_api_router_ecmp_set(gh_sdk, SX_ACCESS_CMD_CREATE, &sdk_ecmp_id, &sdk_next_hop, &next_hop_cnt))) {
             SX_LOG_ERR("Failed to create ecmp - %s.\n", SX_STATUS_MSG(sx_status));
             SX_LOG_EXIT();
             return sdk_to_sai(sx_status);
@@ -1445,7 +1444,7 @@ static sai_status_t mlnx_remove_next_hop(_In_ sai_object_id_t next_hop_id)
         }
     } else {
         sdk_ecmp_id = (sx_ecmp_id_t)data;
-        sx_status = sx_api_router_ecmp_set(get_sdk_handle(), SX_ACCESS_CMD_DESTROY, &sdk_ecmp_id, NULL, &next_hop_cnt);
+        sx_status = sx_api_router_ecmp_set(gh_sdk, SX_ACCESS_CMD_DESTROY, &sdk_ecmp_id, NULL, &next_hop_cnt);
         if (SAI_ERR(sx_status)) {
             SX_LOG_ERR("Failed to destroy ecmp - %s.\n", SX_STATUS_MSG(sx_status));
             status = sdk_to_sai(sx_status);
@@ -1576,7 +1575,7 @@ static sai_status_t mlnx_next_hop_attr_get(_In_ const sai_object_key_t   *key,
     } else {
         sdk_ecmp_id = (sx_ecmp_id_t)data;
         sdk_next_hop_cnt = 1;
-        sx_status = sx_api_router_ecmp_get(get_sdk_handle(), sdk_ecmp_id, &sdk_next_hop, &sdk_next_hop_cnt);
+        sx_status = sx_api_router_ecmp_get(gh_sdk, sdk_ecmp_id, &sdk_next_hop, &sdk_next_hop_cnt);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to get ecmp - %s.\n", SX_STATUS_MSG(sx_status));
             return sdk_to_sai(sx_status);
@@ -1729,14 +1728,14 @@ static sai_status_t mlnx_next_hop_counter_set(_In_ const sai_object_key_t      *
         }
     } else {
         sdk_ecmp_id = data;
-        sx_status = sx_api_router_ecmp_get(get_sdk_handle(), sdk_ecmp_id, &sdk_next_hop, &sdk_next_hop_cnt);
+        sx_status = sx_api_router_ecmp_get(gh_sdk, sdk_ecmp_id, &sdk_next_hop, &sdk_next_hop_cnt);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to get ecmp - %s.\n", SX_STATUS_MSG(sx_status));
             return sdk_to_sai(status);
         }
 
         sdk_next_hop.next_hop_data.counter_id = counter_id;
-        sx_status = sx_api_router_ecmp_set(get_sdk_handle(),
+        sx_status = sx_api_router_ecmp_set(gh_sdk,
                                            SX_ACCESS_CMD_SET,
                                            &sdk_ecmp_id,
                                            &sdk_next_hop,
@@ -1759,7 +1758,7 @@ static sai_status_t mlnx_meta_tunnel_entry_remove(_In_ sx_mac_addr_t *sx_fake_ma
     memcpy(&key.in_rif_metadata_field, sx_fake_mac->ether_addr_octet, sizeof(key.in_rif_metadata_field));
     key.priority = priority;
 
-    sx_status = sx_api_table_meta_tunnel_entry_set(get_sdk_handle(), SX_ACCESS_CMD_DELETE, &key, NULL);
+    sx_status = sx_api_table_meta_tunnel_entry_set(gh_sdk, SX_ACCESS_CMD_DELETE, &key, NULL);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to remove meta tunnel entry - %s\n", SX_STATUS_MSG(sx_status));
         return sdk_to_sai(sx_status);
@@ -1808,7 +1807,7 @@ static sai_status_t mlnx_meta_tunnel_entry_create(_In_ sx_mac_addr_t    *sx_fake
     action.data.tunnel_encap_params.tunnel_id = sx_tunnel_id;
     action.data.tunnel_encap_params.underlay_dip = sx_dip;
 
-    sx_status = sx_api_table_meta_tunnel_entry_set(get_sdk_handle(), SX_ACCESS_CMD_CREATE, &key, &action);
+    sx_status = sx_api_table_meta_tunnel_entry_set(gh_sdk, SX_ACCESS_CMD_CREATE, &key, &action);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to create meta tunnel entry - %s\n", SX_STATUS_MSG(sx_status));
         return sdk_to_sai(sx_status);

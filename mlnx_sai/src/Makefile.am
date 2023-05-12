@@ -58,14 +58,12 @@ dist_data_DATA = sai_1710.xml \
                  sai_4700_100G.xml \
                  sai_4700_56ports.xml \
                  sai_5600.xml \
-                 sai_5600_33ports.xml \
-                 ar_config_example.xml
+                 sai_5600_33ports.xml
 
 libsai_la_DEPENDENCIES =
 
 libsai_la_SOURCES = \
                        dbgdump/mlnx_sai_dbg_acl.c \
-                       dbgdump/mlnx_sai_dbg_adaptive_routing.c \
                        dbgdump/mlnx_sai_dbg_bridge.c \
                        dbgdump/mlnx_sai_dbg_bfd.c \
                        dbgdump/mlnx_sai_dbg_buffer.c \

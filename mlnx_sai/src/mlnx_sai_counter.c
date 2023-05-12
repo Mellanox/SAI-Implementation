@@ -29,9 +29,8 @@ sai_status_t mlnx_counter_log_set(sx_verbosity_level_t level)
 {
     LOG_VAR_NAME(__MODULE__) = level;
 
-    if (get_sdk_handle()) {
-        return sdk_to_sai(sx_api_flow_counter_log_verbosity_level_set(get_sdk_handle(), SX_LOG_VERBOSITY_BOTH, level,
-                                                                      level));
+    if (gh_sdk) {
+        return sdk_to_sai(sx_api_flow_counter_log_verbosity_level_set(gh_sdk, SX_LOG_VERBOSITY_BOTH, level, level));
     }
     return SAI_STATUS_SUCCESS;
 }
@@ -83,7 +82,7 @@ static sai_status_t mlnx_counter_db_idx_to_data(_In_ mlnx_shm_rm_array_idx_t idx
 static sai_status_t mlnx_counter_db_free(_In_ mlnx_shm_rm_array_idx_t idx)
 {
     sai_status_t    status;
-    sx_status_t     sx_status;
+    sx_status_t     sx_api_status;
     mlnx_counter_t *counter;
 
     SX_LOG_ENTER();
@@ -104,13 +103,11 @@ static sai_status_t mlnx_counter_db_free(_In_ mlnx_shm_rm_array_idx_t idx)
     }
 
     if (counter->sx_flow_counter != SX_FLOW_COUNTER_ID_INVALID) {
-        sx_status = sx_api_flow_counter_set(get_sdk_handle(),
-                                            SX_ACCESS_CMD_DESTROY,
-                                            SX_FLOW_COUNTER_TYPE_PACKETS_AND_BYTES,
-                                            &counter->sx_flow_counter);
-        if (SX_ERR(sx_status)) {
+        sx_api_status = sx_api_flow_counter_set(gh_sdk, SX_ACCESS_CMD_DESTROY, SX_FLOW_COUNTER_TYPE_PACKETS_AND_BYTES,
+                                                &counter->sx_flow_counter);
+        if (SX_ERR(sx_api_status)) {
             SX_LOG_ERR("Flow counter delete error\n");
-            return sdk_to_sai(sx_status);
+            return sdk_to_sai(sx_api_status);
         }
     }
 
@@ -174,9 +171,7 @@ sai_status_t mlnx_get_sx_flow_counter_id_by_idx(_In_ mlnx_shm_rm_array_idx_t idx
     }
 
     if (counter->sx_flow_counter == SX_FLOW_COUNTER_ID_INVALID) {
-        sx_status = sx_api_flow_counter_set(get_sdk_handle(),
-                                            SX_ACCESS_CMD_CREATE,
-                                            SX_FLOW_COUNTER_TYPE_PACKETS_AND_BYTES,
+        sx_status = sx_api_flow_counter_set(gh_sdk, SX_ACCESS_CMD_CREATE, SX_FLOW_COUNTER_TYPE_PACKETS_AND_BYTES,
                                             &counter->sx_flow_counter);
         if (SX_ERR(sx_status)) {
             counter->sx_flow_counter = SX_FLOW_COUNTER_ID_INVALID;
@@ -346,7 +341,7 @@ sai_status_t mlnx_update_hostif_trap_counter_unlocked(sai_object_id_t trap_id, s
 
     host_ifc_counters->trap_id_counters_cnt = trap_id_count;
     host_ifc_counters->trap_group_counters_cnt = 0;
-    sx_status = sx_api_host_ifc_counters_get(get_sdk_handle(),
+    sx_status = sx_api_host_ifc_counters_get(gh_sdk,
                                              SX_ACCESS_CMD_READ_CLEAR,
                                              &hostif_trap_filter,
                                              host_ifc_counters);
@@ -624,7 +619,7 @@ static sai_status_t get_hostif_counter_stats(_In_ mlnx_counter_t    *counter,
     hostif_trap_filter.u_counter_type.trap_id.trap_id_filter_cnt = kk;
     host_ifc_counters->trap_id_counters_cnt = kk;
     host_ifc_counters->trap_group_counters_cnt = 0;
-    sx_status = sx_api_host_ifc_counters_get(get_sdk_handle(),
+    sx_status = sx_api_host_ifc_counters_get(gh_sdk,
                                              cmd,
                                              &hostif_trap_filter,
                                              host_ifc_counters);
@@ -714,14 +709,14 @@ static sai_status_t sum_flow_counter_stats(_In_ mlnx_counter_t      *counter,
         return SAI_STATUS_INVALID_PARAMETER;
     }
 
-    sx_status = sx_api_flow_counter_get(get_sdk_handle(), cmd, counter->sx_flow_counter, &sx_flow_counter_set);
+    sx_status = sx_api_flow_counter_get(gh_sdk, cmd, counter->sx_flow_counter, &sx_flow_counter_set);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to query flow counter\n");
         return sdk_to_sai(sx_status);
     }
 
     if (mode == SAI_STATS_MODE_READ_AND_CLEAR) {
-        sx_status = sx_api_flow_counter_clear_set(get_sdk_handle(), counter->sx_flow_counter);
+        sx_status = sx_api_flow_counter_clear_set(gh_sdk, counter->sx_flow_counter);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to clear flow counter\n");
             return sdk_to_sai(sx_status);
@@ -835,7 +830,7 @@ static sai_status_t mlnx_clear_counter_stats(_In_ sai_object_id_t      counter_i
     }
 
     if (counter->sx_flow_counter != SX_FLOW_COUNTER_ID_INVALID) {
-        sx_status = sx_api_flow_counter_clear_set(get_sdk_handle(), counter->sx_flow_counter);
+        sx_status = sx_api_flow_counter_clear_set(gh_sdk, counter->sx_flow_counter);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to clear flow counter\n");
             sai_status = sdk_to_sai(sx_status);

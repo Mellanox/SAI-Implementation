@@ -631,7 +631,7 @@ sai_status_t mlnx_get_switch_log_ports_not_in_lag(const sx_port_log_id_t *exclud
     }
 
     if (is_warmboot_init_stage) {
-        sx_status = sx_api_port_swid_port_list_get(get_sdk_handle(), DEFAULT_ETH_SWID, log_port_list, &log_port_count);
+        sx_status = sx_api_port_swid_port_list_get(gh_sdk, DEFAULT_ETH_SWID, log_port_list, &log_port_count);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Error getting switch port list: %s\n",
                        SX_STATUS_MSG(sx_status));

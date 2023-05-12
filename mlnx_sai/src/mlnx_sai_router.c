@@ -89,7 +89,7 @@ sai_status_t mlnx_virtual_router_availability_get(_In_ sai_object_id_t        sw
         routers_max = g_resource_limits.router_vrid_max / 2;
     }
 
-    sx_status = sx_api_router_vrid_iter_get(get_sdk_handle(), SX_ACCESS_CMD_GET, 0, NULL, NULL, &routers_exists);
+    sx_status = sx_api_router_vrid_iter_get(gh_sdk, SX_ACCESS_CMD_GET, 0, NULL, NULL, &routers_exists);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to get count of virtual routers - %s\n", SX_STATUS_MSG(sx_status));
         return sdk_to_sai(sx_status);
@@ -163,7 +163,7 @@ static sai_status_t mlnx_router_admin_get(_In_ const sai_object_key_t   *key,
     }
     vrid = (sx_router_id_t)data;
 
-    if (SX_STATUS_SUCCESS != (status = sx_api_router_get(get_sdk_handle(), vrid, &router_attr))) {
+    if (SX_STATUS_SUCCESS != (status = sx_api_router_get(gh_sdk, vrid, &router_attr))) {
         SX_LOG_ERR("Failed to get router - %s.\n", SX_STATUS_MSG(status));
         return sdk_to_sai(status);
     }
@@ -198,7 +198,7 @@ static sai_status_t mlnx_router_admin_set(_In_ const sai_object_key_t      *key,
 
     vrid = (sx_router_id_t)data;
     memset(&router_attr, 0, sizeof(router_attr));
-    status = sx_api_router_get(get_sdk_handle(), vrid, &router_attr);
+    status = sx_api_router_get(gh_sdk, vrid, &router_attr);
 
     if (SX_STATUS_SUCCESS != status) {
         SX_LOG_ERR("Failed to get router - %s.\n", SX_STATUS_MSG(status));
@@ -211,7 +211,7 @@ static sai_status_t mlnx_router_admin_set(_In_ const sai_object_key_t      *key,
         router_attr.ipv6_enable = value->booldata;
     }
 
-    status = sx_api_router_set(get_sdk_handle(), SX_ACCESS_CMD_EDIT, &router_attr, &vrid);
+    status = sx_api_router_set(gh_sdk, SX_ACCESS_CMD_EDIT, &router_attr, &vrid);
     if (SX_STATUS_SUCCESS != status) {
         SX_LOG_ERR("Failed to set router - %s.\n", SX_STATUS_MSG(status));
         return sdk_to_sai(status);
@@ -276,7 +276,7 @@ static sai_status_t mlnx_create_virtual_router(_Out_ sai_object_id_t      *vr_id
         router_attr.ipv6_enable = adminv6->booldata;
     }
 
-    if (SX_STATUS_SUCCESS != (status = sx_api_router_set(get_sdk_handle(), SX_ACCESS_CMD_ADD, &router_attr, &vrid))) {
+    if (SX_STATUS_SUCCESS != (status = sx_api_router_set(gh_sdk, SX_ACCESS_CMD_ADD, &router_attr, &vrid))) {
         SX_LOG_ERR("Failed to add router - %s.\n", SX_STATUS_MSG(status));
         return sdk_to_sai(status);
     }
@@ -325,7 +325,7 @@ static sai_status_t mlnx_remove_virtual_router(_In_ sai_object_id_t vr_id)
     }
     cl_plock_release(&g_sai_db_ptr->p_lock);
 
-    if (SX_STATUS_SUCCESS != (status = sx_api_router_set(get_sdk_handle(), SX_ACCESS_CMD_DELETE, NULL, &vrid))) {
+    if (SX_STATUS_SUCCESS != (status = sx_api_router_set(gh_sdk, SX_ACCESS_CMD_DELETE, NULL, &vrid))) {
         SX_LOG_ERR("Failed to delete router - %s.\n", SX_STATUS_MSG(status));
         return sdk_to_sai(status);
     }
@@ -338,9 +338,8 @@ sai_status_t mlnx_router_log_set(sx_verbosity_level_t level)
 {
     LOG_VAR_NAME(__MODULE__) = level;
 
-    if (get_sdk_handle()) {
-        return sdk_to_sai(sx_api_router_log_verbosity_level_set(get_sdk_handle(), SX_LOG_VERBOSITY_BOTH, level,
-                                                                level));
+    if (gh_sdk) {
+        return sdk_to_sai(sx_api_router_log_verbosity_level_set(gh_sdk, SX_LOG_VERBOSITY_BOTH, level, level));
     } else {
         return SAI_STATUS_SUCCESS;
     }

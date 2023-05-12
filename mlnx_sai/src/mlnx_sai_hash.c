@@ -908,7 +908,6 @@ static sai_status_t mlnx_hash_convert_ecmp_sai_field_to_sx(const sai_attribute_v
 static sai_status_t mlnx_hash_ecmp_cfg_apply_on_port(_In_ sx_port_log_id_t port_log_id)
 {
     sai_status_t                       status;
-    sx_status_t                        sx_status;
     sx_router_ecmp_port_hash_params_t  port_hash_param;
     sx_router_ecmp_hash_field_enable_t hash_enable_list[FIELDS_ENABLES_NUM] = {0};
     sx_router_ecmp_hash_field_t        hash_field_list[FIELDS_NUM] = {0};
@@ -925,17 +924,12 @@ static sai_status_t mlnx_hash_ecmp_cfg_apply_on_port(_In_ sx_port_log_id_t port_
         return status;
     }
 
-    sx_status = sx_api_router_ecmp_port_hash_params_set(get_sdk_handle(),
-                                                        SX_ACCESS_CMD_SET,
-                                                        port_log_id,
-                                                        &port_hash_param,
-                                                        hash_enable_list,
-                                                        enable_count,
-                                                        hash_field_list,
-                                                        field_count);
-    if (SX_ERR(sx_status)) {
+    status = sx_api_router_ecmp_port_hash_params_set(gh_sdk, SX_ACCESS_CMD_SET, port_log_id, &port_hash_param,
+                                                     hash_enable_list, enable_count,
+                                                     hash_field_list, field_count);
+    if (SX_ERR(status)) {
         SX_LOG_ERR("Failed to set ECMP hash params for port %x.\n", port_log_id);
-        return sdk_to_sai(sx_status);
+        return sdk_to_sai(status);
     }
 
     return SAI_STATUS_SUCCESS;
@@ -958,14 +952,9 @@ static sai_status_t mlnx_hash_lag_cfg_apply_on_port(_In_ sx_port_log_id_t port_l
         return status;
     }
 
-    sx_status = sx_api_lag_port_hash_flow_params_set(get_sdk_handle(),
-                                                     SX_ACCESS_CMD_SET,
-                                                     port_log_id,
-                                                     &lag_hash_params,
-                                                     hash_enable_list,
-                                                     enable_count,
-                                                     hash_field_list,
-                                                     field_count);
+    sx_status = sx_api_lag_port_hash_flow_params_set(gh_sdk, SX_ACCESS_CMD_SET, port_log_id, &lag_hash_params,
+                                                     hash_enable_list, enable_count,
+                                                     hash_field_list, field_count);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to set LAG hash params for LAG %x, - %s\n", port_log_id, SX_STATUS_MSG(sx_status));
         return sdk_to_sai(sx_status);
@@ -1010,7 +999,7 @@ static sai_status_t mlnx_hash_ecmp_hash_params_apply_to_ports(
 
     mlnx_port_not_in_lag_foreach(port, ii) {
         if (!is_warmboot_init_stage || (port->sdk_port_added && port->logical)) {
-            sx_status = sx_api_router_ecmp_port_hash_params_set(get_sdk_handle(), SX_ACCESS_CMD_SET, port->logical,
+            sx_status = sx_api_router_ecmp_port_hash_params_set(gh_sdk, SX_ACCESS_CMD_SET, port->logical,
                                                                 port_hash_param,
                                                                 hash_enable_list, enable_count,
                                                                 hash_field_list, field_count);
@@ -1045,7 +1034,7 @@ static sai_status_t mlnx_hash_lag_params_apply_to_ports(_In_ const sx_lag_port_h
 
     mlnx_port_not_in_lag_foreach(port, ii) {
         if (!is_warmboot_init_stage || (port->sdk_port_added && port->logical)) {
-            sx_status = sx_api_lag_port_hash_flow_params_set(get_sdk_handle(), SX_ACCESS_CMD_SET, port->logical,
+            sx_status = sx_api_lag_port_hash_flow_params_set(gh_sdk, SX_ACCESS_CMD_SET, port->logical,
                                                              lag_hash_params, enable_list, enable_count,
                                                              field_list, field_count);
             if (SX_ERR(sx_status)) {
@@ -1882,28 +1871,24 @@ static sai_status_t mlnx_create_hash(_Out_ sai_object_id_t     * hash_id,
         uint32_t hash_index = 0;
 
         if (SAI_STATUS_SUCCESS != mlnx_object_to_type(*hash_id, SAI_OBJECT_TYPE_HASH, &hash_index, NULL)) {
-            status = SAI_STATUS_FAILURE;
-            goto out;
+            return SAI_STATUS_FAILURE;
         }
 
         if (g_sai_db_ptr->hash_list[hash_index].udf_group_mask || g_sai_db_ptr->hash_list[hash_index].field_mask) {
             MLNX_SAI_LOG_ERR(
                 "Can not add fine grain hash field list - already configured native hash field list or UDF group list\n");
-            status = SAI_STATUS_FAILURE;
-            goto out;
+            return SAI_STATUS_FAILURE;
         }
 
         if (fg_fields_list->objlist.count > MLNX_SAI_FG_HASH_FIELDS_MAX_COUNT) {
             MLNX_SAI_LOG_ERR("Maximum supported hash fields list members count is = %u\n",
                              MLNX_SAI_FG_HASH_FIELDS_MAX_COUNT);
-            status = SAI_STATUS_FAILURE;
-            goto out;
+            return SAI_STATUS_FAILURE;
         }
         for (uint32_t ind = 0; ind < fg_fields_list->objlist.count; ind++) {
             if (SAI_NULL_OBJECT_ID == fg_fields_list->objlist.list[ind]) {
                 MLNX_SAI_LOG_ERR("NULL object in the fg fields list! ind = %u\n", ind);
-                status = SAI_STATUS_INVALID_OBJECT_ID;
-                goto out;
+                return SAI_STATUS_INVALID_OBJECT_ID;
             }
 
             status = mlnx_object_to_type(fg_fields_list->objlist.list[ind],
@@ -1911,8 +1896,7 @@ static sai_status_t mlnx_create_hash(_Out_ sai_object_id_t     * hash_id,
                                          &field_index,
                                          NULL);
             if (SAI_ERR(status)) {
-                status = SAI_STATUS_INVALID_OBJECT_ID;
-                goto out;
+                return SAI_STATUS_INVALID_OBJECT_ID;
             }
             fg_fields[ind] = g_sai_db_ptr->fg_hash_fields[field_index];
         }
@@ -2676,7 +2660,7 @@ static sai_status_t ipv4_reg_allocate(_Inout_ mlnx_sai_fg_hash_field_t *field,
         reg_key.type = SX_REGISTER_KEY_TYPE_GENERAL_PURPOSE_E;
         reg_key.key.gp_reg.reg_id = db_idx.idx;
 
-        if (SX_ERR(sx_status = sx_api_register_set(get_sdk_handle(), SX_ACCESS_CMD_CREATE, &reg_key, &reg_key_cnt))) {
+        if (SX_ERR(sx_status = sx_api_register_set(gh_sdk, SX_ACCESS_CMD_CREATE, &reg_key, &reg_key_cnt))) {
             SX_LOG_ERR("Failed to create register %s.\n", SX_STATUS_MSG(status));
             return sdk_to_sai(sx_status);
         }
@@ -2709,7 +2693,7 @@ static sai_status_t ipv4_reg_allocate(_Inout_ mlnx_sai_fg_hash_field_t *field,
                 extraction_point_list[1].offset = 36;
             }
         }
-        sx_status = sx_api_flex_parser_reg_ext_point_set(get_sdk_handle(),
+        sx_status = sx_api_flex_parser_reg_ext_point_set(gh_sdk,
                                                          SX_ACCESS_CMD_SET,
                                                          reg_key,
                                                          extraction_point_list,
@@ -2748,7 +2732,7 @@ static sai_status_t ipv4_reg_allocate(_Inout_ mlnx_sai_fg_hash_field_t *field,
         reg_key.type = SX_REGISTER_KEY_TYPE_GENERAL_PURPOSE_E;
         reg_key.key.gp_reg.reg_id = db_idx.idx;
 
-        if (SX_ERR(sx_status = sx_api_register_set(get_sdk_handle(), SX_ACCESS_CMD_CREATE, &reg_key, &reg_key_cnt))) {
+        if (SX_ERR(sx_status = sx_api_register_set(gh_sdk, SX_ACCESS_CMD_CREATE, &reg_key, &reg_key_cnt))) {
             SX_LOG_ERR("Failed to create register %s.\n", SX_STATUS_MSG(sx_status));
             return sdk_to_sai(sx_status);
         }
@@ -2781,7 +2765,7 @@ static sai_status_t ipv4_reg_allocate(_Inout_ mlnx_sai_fg_hash_field_t *field,
                 extraction_point_list[1].offset = 38;
             }
         }
-        sx_status = sx_api_flex_parser_reg_ext_point_set(get_sdk_handle(),
+        sx_status = sx_api_flex_parser_reg_ext_point_set(gh_sdk,
                                                          SX_ACCESS_CMD_SET,
                                                          reg_key,
                                                          extraction_point_list,
@@ -2851,12 +2835,10 @@ static sai_status_t ipv6_reg_allocate(_Inout_ mlnx_sai_fg_hash_field_t *field,
                 reg_key.type = SX_REGISTER_KEY_TYPE_GENERAL_PURPOSE_E;
                 reg_key.key.gp_reg.reg_id = db_idx.idx;
 
-                sx_status = sx_api_register_set(get_sdk_handle(), SX_ACCESS_CMD_CREATE, &reg_key, &reg_key_cnt);
-                if (SX_ERR(sx_status)) {
+                if (SAI_ERR(sx_status = sx_api_register_set(gh_sdk, SX_ACCESS_CMD_CREATE, &reg_key, &reg_key_cnt))) {
                     SX_LOG_ERR("Failed to create register %s.\n", SX_STATUS_MSG(sx_status));
                     return sdk_to_sai(sx_status);
                 }
-
                 ext_point_cnt = 1;
                 if (field->field == SAI_NATIVE_HASH_FIELD_SRC_IPV6) {
                     extraction_point_list[0].type = SX_EXTRACTION_POINT_TYPE_IPV6_START_OF_HEADER_E;
@@ -2871,7 +2853,7 @@ static sai_status_t ipv6_reg_allocate(_Inout_ mlnx_sai_fg_hash_field_t *field,
                     extraction_point_list[0].type = SX_EXTRACTION_POINT_TYPE_INNER_IPV6_START_OF_HEADER_E;
                     extraction_point_list[0].offset = 24 + jj;
                 }
-                sx_status = sx_api_flex_parser_reg_ext_point_set(get_sdk_handle(),
+                sx_status = sx_api_flex_parser_reg_ext_point_set(gh_sdk,
                                                                  SX_ACCESS_CMD_SET,
                                                                  reg_key,
                                                                  extraction_point_list,
@@ -2941,7 +2923,7 @@ static sai_status_t l4_reg_allocate(_Inout_ mlnx_sai_fg_hash_field_t *field,
     reg_key.key.gp_reg.reg_id = db_idx.idx;
 
     if (SX_ERR(sx_status =
-                   sx_api_register_set(get_sdk_handle(), SX_ACCESS_CMD_CREATE, &reg_key, &reg_key_cnt))) {
+                   sx_api_register_set(gh_sdk, SX_ACCESS_CMD_CREATE, &reg_key, &reg_key_cnt))) {
         SX_LOG_ERR("Failed to create register %s.\n", SX_STATUS_MSG(sx_status));
         status = sdk_to_sai(sx_status);
         goto out;
@@ -2969,7 +2951,7 @@ static sai_status_t l4_reg_allocate(_Inout_ mlnx_sai_fg_hash_field_t *field,
         extraction_point_list[1].type = SX_EXTRACTION_POINT_TYPE_INNER_UDP_HEADER_E;
         extraction_point_list[1].offset = 2;
     }
-    sx_status = sx_api_flex_parser_reg_ext_point_set(get_sdk_handle(),
+    sx_status = sx_api_flex_parser_reg_ext_point_set(gh_sdk,
                                                      SX_ACCESS_CMD_SET,
                                                      reg_key,
                                                      extraction_point_list,
@@ -3118,7 +3100,7 @@ sai_status_t gp_registers_delete(_Inout_ mlnx_sai_fg_hash_field_t *fields_list)
             for (; start <= end; ++start) {
                 for (uint32_t jj = 0; jj < MLNX_SAI_FG_HASH_FIELD_SHM_RM_ARRAY_MAX_COUNT; ++jj) {
                     if (!MLNX_SHM_RM_ARRAY_IDX_IS_UNINITIALIZED(fields_list[start].shm_rm_array_idx[jj])) {
-                        sx_status = sx_api_flex_parser_reg_ext_point_set(get_sdk_handle(),
+                        sx_status = sx_api_flex_parser_reg_ext_point_set(gh_sdk,
                                                                          SX_ACCESS_CMD_UNSET,
                                                                          fields_list[start].reg_id[jj],
                                                                          NULL,
@@ -3129,11 +3111,11 @@ sai_status_t gp_registers_delete(_Inout_ mlnx_sai_fg_hash_field_t *fields_list)
                             status = sdk_to_sai(sx_status);
                             goto out;
                         }
-                        sx_status = sx_api_register_set(get_sdk_handle(), SX_ACCESS_CMD_DESTROY,
-                                                        &fields_list[start].reg_id[jj],
-                                                        &reg_key_cnt);
-                        if (SX_ERR(sx_status)) {
-                            SX_LOG_ERR("Failed to delete register %s.\n", SX_STATUS_MSG(sx_status));
+                        if (SAI_ERR(sx_status =
+                                        sx_api_register_set(gh_sdk, SX_ACCESS_CMD_DESTROY,
+                                                            &fields_list[start].reg_id[jj],
+                                                            &reg_key_cnt))) {
+                            SX_LOG_ERR("Failed to delete register %s.\n", SX_STATUS_MSG(status));
                             status = sdk_to_sai(sx_status);
                             goto out;
                         }

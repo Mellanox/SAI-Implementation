@@ -318,17 +318,17 @@ sai_status_t sai_log_set_eth(_In_ sai_api_t sai_api_id, sx_log_severity_t severi
 sai_status_t sai_dbg_generate_dump_ext(_In_ const char *dump_file_name, _In_ int32_t flags)
 {
     sx_dbg_extra_info_t dbg_info;
-    sai_status_t        status = SAI_STATUS_SUCCESS;
-    sx_status_t         sx_status = SX_STATUS_ERROR;
+    sai_status_t        sai_status = SAI_STATUS_SUCCESS;
+    sx_status_t         sdk_status = SX_STATUS_ERROR;
 
 #ifndef _WIN32
     char           *file_name = NULL;
     struct timespec timeout;
 #endif
 
-    status = sai_dbg_do_dump(dump_file_name);
-    if (SAI_ERR(status)) {
-        return status;
+    sai_status = sai_dbg_do_dump(dump_file_name);
+    if (SAI_ERR(sai_status)) {
+        return sai_status;
     }
 
     /* Start async sx_api_dbg_generate_dump_extra */
@@ -363,8 +363,8 @@ sai_status_t sai_dbg_generate_dump_ext(_In_ const char *dump_file_name, _In_ int
         }
 #endif
         if (ii != FW_DUMPS) {
-            if (SX_STATUS_SUCCESS != (sx_status = sx_api_dbg_generate_dump_extra(get_sdk_handle(), &dbg_info))) {
-                MLNX_SAI_LOG_ERR("Error generating extended sdk dump, sx status: %s\n", SX_STATUS_MSG(sx_status));
+            if (SX_STATUS_SUCCESS != (sdk_status = sx_api_dbg_generate_dump_extra(gh_sdk, &dbg_info))) {
+                MLNX_SAI_LOG_ERR("Error generating extended sdk dump, sx status: %s\n", SX_STATUS_MSG(sdk_status));
             }
         }
     }
@@ -387,7 +387,7 @@ sai_status_t sai_dbg_generate_dump(_In_ const char *dump_file_name)
 sai_status_t sai_dbg_do_dump(_In_ const char *dump_file_name)
 {
     FILE       *file = NULL;
-    sx_status_t sx_status = SX_STATUS_ERROR;
+    sx_status_t sdk_status = SX_STATUS_ERROR;
     char        dump_directory[SX_API_DUMP_PATH_LEN_LIMIT + 1];
 
 #ifndef _WIN32
@@ -395,19 +395,13 @@ sai_status_t sai_dbg_do_dump(_In_ const char *dump_file_name)
     char        *file_name = NULL;
 #endif
 
-    if (!g_initialized) {
-        MLNX_SAI_LOG_ERR("SAI API is not initialized.\n");
+    if (!gh_sdk) {
+        MLNX_SAI_LOG_ERR("Can't generate debug dump before creating switch\n");
         return SAI_STATUS_FAILURE;
     }
 
-    if (get_sdk_handle() == SX_API_INVALID_HANDLE) {
-        MLNX_SAI_LOG_ERR("SDK handle is not initialized.\n");
-        return SAI_STATUS_FAILURE;
-    }
-
-    sx_status = sx_api_dbg_generate_dump(get_sdk_handle(), dump_file_name);
-    if (SX_ERR(sx_status)) {
-        MLNX_SAI_LOG_ERR("Error generating sdk dump, sx status: %s\n", SX_STATUS_MSG(sx_status));
+    if (SX_STATUS_SUCCESS != (sdk_status = sx_api_dbg_generate_dump(gh_sdk, dump_file_name))) {
+        MLNX_SAI_LOG_ERR("Error generating sdk dump, sx status: %s\n", SX_STATUS_MSG(sdk_status));
     }
 
     file = fopen(dump_file_name, "a");
@@ -434,8 +428,6 @@ sai_status_t sai_dbg_do_dump(_In_ const char *dump_file_name)
     SAI_dump_policer(file);
 
     SAI_dump_port(file);
-
-    SAI_dump_ar(file);
 
     SAI_dump_qosmaps(file);
 

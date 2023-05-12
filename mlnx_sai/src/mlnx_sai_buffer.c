@@ -502,14 +502,13 @@ sai_status_t mlnx_init_buffer_pool_ids()
     sx_cos_pool_attr_t pool_attr;
     uint32_t           found = 0;
 
-    if (SX_STATUS_SUCCESS != (sx_status = sx_api_cos_pools_list_get(get_sdk_handle(), &pool_num, pools))) {
+    if (SX_STATUS_SUCCESS != (sx_status = sx_api_cos_pools_list_get(gh_sdk, &pool_num, pools))) {
         SX_LOG_ERR("Failed to get sx pool list, %s.\n", SX_STATUS_MSG(sx_status));
         SX_LOG_EXIT();
         return sdk_to_sai(sx_status);
     }
     for (ii = 0; ii < pool_num; ii++) {
-        if (SX_STATUS_SUCCESS !=
-            (sx_status = sx_api_cos_shared_buff_pool_get(get_sdk_handle(), pools[ii], &pool_attr))) {
+        if (SX_STATUS_SUCCESS != (sx_status = sx_api_cos_shared_buff_pool_get(gh_sdk, pools[ii], &pool_attr))) {
             SX_LOG_ERR("Failed to get pool %u attr, %s.\n", pools[ii], SX_STATUS_MSG(sx_status));
             SX_LOG_EXIT();
             return sdk_to_sai(sx_status);
@@ -717,8 +716,8 @@ static void free_affected_items(_Out_ mlnx_affect_port_buff_items_t* affected_it
 sai_status_t mlnx_sai_buffer_log_set(_In_ sx_verbosity_level_t level)
 {
     LOG_VAR_NAME(__MODULE__) = level;
-    if (get_sdk_handle()) {
-        return sdk_to_sai(sx_api_cos_log_verbosity_level_set(get_sdk_handle(), SX_LOG_VERBOSITY_BOTH, level, level));
+    if (gh_sdk) {
+        return sdk_to_sai(sx_api_cos_log_verbosity_level_set(gh_sdk, SX_LOG_VERBOSITY_BOTH, level, level));
     } else {
         return SAI_STATUS_SUCCESS;
     }
@@ -1746,8 +1745,7 @@ sai_status_t mlnx_get_sai_pool_data(_In_ sai_object_id_t sai_pool, _Out_ mlnx_sa
         (sai_status = mlnx_object_to_type(sai_pool, SAI_OBJECT_TYPE_BUFFER_POOL, &sx_pool_id_local, NULL))) {
         goto bail;
     }
-    if (SX_STATUS_SUCCESS !=
-        (sx_status = sx_api_cos_shared_buff_pool_get(get_sdk_handle(), sx_pool_id_local,  &sx_pool_attr))) {
+    if (SX_STATUS_SUCCESS != (sx_status = sx_api_cos_shared_buff_pool_get(gh_sdk, sx_pool_id_local,  &sx_pool_attr))) {
         SX_LOG_ERR("Failed to get sx pool settings, sx_status:%d, message %s.\n", sx_status, SX_STATUS_MSG(sx_status));
         sai_status = sdk_to_sai(sx_status);
         goto bail;
@@ -1944,15 +1942,14 @@ static sai_status_t mlnx_save_port_default_buffers_config()
 
     /* get default queue config from first valid port*/
     mlnx_port_foreach(port, ii) {
-        sx_status = sx_api_cos_port_buff_type_get(get_sdk_handle(), port->logical, sx_reserved_attr, &buffer_count);
+        sx_status = sx_api_cos_port_buff_type_get(gh_sdk, port->logical, sx_reserved_attr, &buffer_count);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to get queue default reserved configuration for port index %d queue index 0,"
                        " sx status - %s\n", ii, SX_STATUS_MSG(sx_status));
             return sdk_to_sai(sx_status);
         }
 
-        sx_status =
-            sx_api_cos_port_shared_buff_type_get(get_sdk_handle(), port->logical, sx_shared_attr, &buffer_count);
+        sx_status = sx_api_cos_port_shared_buff_type_get(gh_sdk, port->logical, sx_shared_attr, &buffer_count);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to get queue default shared configuration for port index %d queue index 0,"
                        " sx status - %s\n", ii, SX_STATUS_MSG(sx_status));
@@ -2437,7 +2434,7 @@ static sai_status_t mlnx_sai_buffer_create_pool_hw(_In_ sx_cos_pool_attr_t *sx_p
     SX_LOG_ENTER();
 
     if (SX_STATUS_SUCCESS !=
-        (sx_status = sx_api_cos_shared_buff_pool_set(get_sdk_handle(), SX_ACCESS_CMD_CREATE,
+        (sx_status = sx_api_cos_shared_buff_pool_set(gh_sdk, SX_ACCESS_CMD_CREATE,
                                                      sx_pool_attr, sx_shp_pool_id))) {
         SX_LOG_ERR("Pool creation failed. sx_status:%d, message %s.\n", sx_status, SX_STATUS_MSG(sx_status));
         sai_status = sdk_to_sai(sx_status);
@@ -2503,7 +2500,7 @@ static sai_status_t mlnx_sai_buffer_remove_pool_hw(_In_ sx_cos_pool_attr_t *sx_p
     SX_LOG_ENTER();
 
     if (SX_STATUS_SUCCESS !=
-        (sx_status = sx_api_cos_shared_buff_pool_set(get_sdk_handle(), SX_ACCESS_CMD_DESTROY, sx_pool_attr,
+        (sx_status = sx_api_cos_shared_buff_pool_set(gh_sdk, SX_ACCESS_CMD_DESTROY, sx_pool_attr,
                                                      sx_pool_id))) {
         SX_LOG_ERR("Failed to destroy sx pool, sx_status:%d, message %s.\n", sx_status, SX_STATUS_MSG(sx_status));
         sai_status = sdk_to_sai(sx_status);
@@ -2652,7 +2649,7 @@ sai_status_t mlnx_sai_set_pool_size_attr(_In_ const sai_object_key_t      * key,
         goto bail;
     }
     if (SX_STATUS_SUCCESS !=
-        (sx_status = sx_api_cos_shared_buff_pool_get(get_sdk_handle(), sx_pool_id,  &sx_pool_attr))) {
+        (sx_status = sx_api_cos_shared_buff_pool_get(gh_sdk, sx_pool_id,  &sx_pool_attr))) {
         SX_LOG_ERR("Failed to get sx pool settings, sx_status:%d, message %s.\n", sx_status, SX_STATUS_MSG(sx_status));
         sai_status = sdk_to_sai(sx_status);
         goto bail;
@@ -2661,8 +2658,7 @@ sai_status_t mlnx_sai_set_pool_size_attr(_In_ const sai_object_key_t      * key,
     sx_pool_attr.pool_size = bytes_to_mlnx_cells((uint32_t)value->u64);
     SX_LOG_DBG("Input bytes:%lu Size to set:%d\n", value->u64, sx_pool_attr.pool_size);
     if (SX_STATUS_SUCCESS !=
-        (sx_status =
-             sx_api_cos_shared_buff_pool_set(get_sdk_handle(), SX_ACCESS_CMD_EDIT, &sx_pool_attr, &sx_pool_id))) {
+        (sx_status = sx_api_cos_shared_buff_pool_set(gh_sdk, SX_ACCESS_CMD_EDIT, &sx_pool_attr, &sx_pool_id))) {
         SX_LOG_ERR("Failed to change sx pool size, sx_status:%d, message %s.\n", sx_status, SX_STATUS_MSG(sx_status));
         sai_status = sdk_to_sai(sx_status);
         goto bail;
@@ -2778,7 +2774,7 @@ static sai_status_t mlnx_sai_buffer_compute_shared_size(_In_ sai_object_id_t    
         memset(sx_port_reserved_buff_attr_arr, 0, arr_length * sizeof(sx_port_reserved_buff_attr_arr[0]));
         get_count = arr_length;
         if (SX_STATUS_SUCCESS !=
-            (sx_status = sx_api_cos_port_buff_type_get(get_sdk_handle(), port->logical, sx_port_reserved_buff_attr_arr,
+            (sx_status = sx_api_cos_port_buff_type_get(gh_sdk, port->logical, sx_port_reserved_buff_attr_arr,
                                                        &get_count))) {
             SX_LOG_ERR(
                 "Failed to get bindings for reserved buffers. port[%d].logical:%x, number of items:%d sx_status:%d, message %s\n",
@@ -2860,7 +2856,7 @@ static sai_status_t mlnx_sai_buffer_compute_shared_size(_In_ sai_object_id_t    
 
     memset(sx_port_reserved_buff_attr_arr, 0, arr_length * sizeof(sx_port_reserved_buff_attr_arr[0]));
     get_count = arr_length;
-    if (SX_STATUS_SUCCESS != (sx_status = sx_api_cos_port_buff_type_get(get_sdk_handle(), mc_port_logical,
+    if (SX_STATUS_SUCCESS != (sx_status = sx_api_cos_port_buff_type_get(gh_sdk, mc_port_logical,
                                                                         sx_port_reserved_buff_attr_arr, &get_count))) {
         SX_LOG_ERR(
             "Failed to get bindings for MC reserved buffers. MC logical:%x, number of items:%d sx_status:%d, message %s\n",
@@ -3959,7 +3955,7 @@ sai_status_t set_mc_sp_zero(_In_ uint32_t sp)
     }
 
     if (SX_STATUS_SUCCESS !=
-        (sx_status = sx_api_cos_port_buff_type_get(get_sdk_handle(),
+        (sx_status = sx_api_cos_port_buff_type_get(gh_sdk,
                                                    mc_port_log_id,
                                                    sx_port_reserved_buff_attr_array,
                                                    &attr_count))) {
@@ -3969,7 +3965,7 @@ sai_status_t set_mc_sp_zero(_In_ uint32_t sp)
     }
 
     if (SX_STATUS_SUCCESS !=
-        (sx_status = sx_api_cos_port_shared_buff_type_get(get_sdk_handle(),
+        (sx_status = sx_api_cos_port_shared_buff_type_get(gh_sdk,
                                                           mc_port_log_id,
                                                           sx_port_shared_buff_attr_array,
                                                           &attr_count))) {
@@ -4055,7 +4051,7 @@ static sai_status_t mlnx_sai_buffer_apply_buffer_to_pg(_In_ uint32_t            
     }
 
 #ifdef ACS_OS
-    sx_status = sx_api_cos_port_prio_buff_map_get(get_sdk_handle(), sx_port_id, &prio_buff);
+    sx_status = sx_api_cos_port_prio_buff_map_get(gh_sdk, sx_port_id, &prio_buff);
     if (SX_STATUS_SUCCESS != sx_status) {
         SX_LOG_ERR("Error getting cos port prio buff map for sx port id 0x%x, sx error message: %s\n",
                    sx_port_id,
@@ -5101,7 +5097,7 @@ sai_status_t mlnx_sai_get_buffer_pool_stats_ext(_In_ sai_object_id_t      buffer
     sai_db_unlock();
     is_locked = false;
 
-    if (SX_STATUS_SUCCESS != (sx_status = sx_api_cos_pool_statistic_get(get_sdk_handle(), cmd,
+    if (SX_STATUS_SUCCESS != (sx_status = sx_api_cos_pool_statistic_get(gh_sdk, cmd,
                                                                         &sai_pool_attr.sx_pool_id, 1,
                                                                         &occupancy_stats))) {
         SX_LOG_ERR("Failed to get pool stat counters - error:%s.\n", SX_STATUS_MSG(sai_status));
@@ -5111,7 +5107,7 @@ sai_status_t mlnx_sai_get_buffer_pool_stats_ext(_In_ sai_object_id_t      buffer
 
     if (sai_pool_attr.is_shp_mapped) {
         /* make sdk request in any case when there is association between iPool and SHP */
-        if (SX_STATUS_SUCCESS != (sx_status = sx_api_cos_pool_statistic_get(get_sdk_handle(), cmd,
+        if (SX_STATUS_SUCCESS != (sx_status = sx_api_cos_pool_statistic_get(gh_sdk, cmd,
                                                                             &sai_shp_pool_attr.sx_pool_id, 1,
                                                                             &occupancy_stats_shp))) {
             SX_LOG_ERR("Failed to get shp pool stat counters - error:%s.\n", SX_STATUS_MSG(sai_status));
@@ -5242,7 +5238,7 @@ sai_status_t mlnx_clear_buffer_pool_stats(_In_ sai_object_id_t      pool_id,
         pool_ids[1] = shp_sai_pool_attr.sx_pool_id;
     }
 
-    if (SX_STATUS_SUCCESS != (sx_status = sx_api_cos_pool_statistic_get(get_sdk_handle(), SX_ACCESS_CMD_READ_CLEAR,
+    if (SX_STATUS_SUCCESS != (sx_status = sx_api_cos_pool_statistic_get(gh_sdk, SX_ACCESS_CMD_READ_CLEAR,
                                                                         pool_ids, pool_ids_count,
                                                                         occupancy_stats))) {
         SX_LOG_ERR("Failed to get pool stat counters - error:%s.\n", SX_STATUS_MSG(sx_status));
@@ -5361,12 +5357,12 @@ sai_status_t mlnx_sai_get_ingress_priority_group_stats_ext(_In_ sai_object_id_t 
                                                            _In_ sai_stats_mode_t     mode,
                                                            _Out_ uint64_t           *counters)
 {
-    sai_status_t                     status;
-    sx_status_t                      sx_status;
+    sai_status_t                     sai_status;
     uint32_t                         db_port_index, pg_ind;
     sx_port_statistic_usage_params_t stats_usages[2] = {0};
     sx_port_occupancy_statistics_t   stats[2] = {0};
     uint32_t                         usage_cnt = 1;
+    uint32_t                         ii;
     char                             key_str[MAX_KEY_STR_LEN];
     sx_port_cntr_buff_t              pg_cnts = { 0 };
     bool                             pg_cnts_needed = false, occupancy_stats_needed = false,
@@ -5392,15 +5388,15 @@ sai_status_t mlnx_sai_get_ingress_priority_group_stats_ext(_In_ sai_object_id_t 
         return SAI_STATUS_INVALID_PARAMETER;
     }
     if (SAI_STATUS_SUCCESS !=
-        (status = mlnx_translate_sai_stats_mode_to_sdk(mode, &cmd))) {
-        return status;
+        (sai_status = mlnx_translate_sai_stats_mode_to_sdk(mode, &cmd))) {
+        return sai_status;
     }
-    if (SAI_STATUS_SUCCESS != (status = get_pg_data(ingress_priority_group_id, &db_port_index, &pg_ind))) {
+    if (SAI_STATUS_SUCCESS != (sai_status = get_pg_data(ingress_priority_group_id, &db_port_index, &pg_ind))) {
         SX_LOG_EXIT();
-        return status;
+        return sai_status;
     }
 
-    for (uint32_t ii = 0; ii < number_of_counters; ii++) {
+    for (ii = 0; ii < number_of_counters; ii++) {
         switch (counter_ids[ii]) {
         case SAI_INGRESS_PRIORITY_GROUP_STAT_PACKETS:
         case SAI_INGRESS_PRIORITY_GROUP_STAT_BYTES:
@@ -5426,12 +5422,13 @@ sai_status_t mlnx_sai_get_ingress_priority_group_stats_ext(_In_ sai_object_id_t 
     }
 
     if (pg_cnts_needed) {
-        sx_status = sx_api_port_counter_buff_get(get_sdk_handle(), cmd,
-                                                 g_sai_db_ptr->ports_db[db_port_index].logical,
-                                                 pg_ind, &pg_cnts);
-        if (SX_ERR(sx_status)) {
-            SX_LOG_ERR("Failed to get port pg counters - %s.\n", SX_STATUS_MSG(sx_status));
-            return sdk_to_sai(sx_status);
+        if (SX_STATUS_SUCCESS !=
+            (sai_status =
+                 sx_api_port_counter_buff_get(gh_sdk, cmd,
+                                              g_sai_db_ptr->ports_db[db_port_index].logical,
+                                              pg_ind, &pg_cnts))) {
+            SX_LOG_ERR("Failed to get port pg counters - %s.\n", SX_STATUS_MSG(sai_status));
+            return sdk_to_sai(sai_status);
         }
     }
 
@@ -5450,33 +5447,33 @@ sai_status_t mlnx_sai_get_ingress_priority_group_stats_ext(_In_ sai_object_id_t 
 
     if (occupancy_stats_needed && headroom_occupancy_stats_needed) {
         usage_cnt = 2;
-        sx_status = sx_api_cos_port_buff_type_statistic_get(get_sdk_handle(), cmd, stats_usages, 2,
-                                                            stats, &usage_cnt);
-        if (SX_ERR(sx_status)) {
-            SX_LOG_ERR("Failed to get PG stat counters - %s.\n", SX_STATUS_MSG(sx_status));
-            return sdk_to_sai(sx_status);
+        sai_status = sx_api_cos_port_buff_type_statistic_get(gh_sdk, cmd, stats_usages, 2,
+                                                             stats, &usage_cnt);
+        if (SAI_ERR(sai_status)) {
+            SX_LOG_ERR("Failed to get PG stat counters - %s.\n", SX_STATUS_MSG(sai_status));
+            return sdk_to_sai(sai_status);
         }
     } else {
         if (occupancy_stats_needed) {
-            sx_status = sx_api_cos_port_buff_type_statistic_get(get_sdk_handle(), cmd, &stats_usages[0], 1,
-                                                                &stats[0], &usage_cnt);
-            if (SX_ERR(sx_status)) {
-                SX_LOG_ERR("Failed to get PG stat counters - %s.\n", SX_STATUS_MSG(sx_status));
-                return sdk_to_sai(sx_status);
+            sai_status = sx_api_cos_port_buff_type_statistic_get(gh_sdk, cmd, &stats_usages[0], 1,
+                                                                 &stats[0], &usage_cnt);
+            if (SAI_ERR(sai_status)) {
+                SX_LOG_ERR("Failed to get PG stat counters - %s.\n", SX_STATUS_MSG(sai_status));
+                return sdk_to_sai(sai_status);
             }
         }
         if (headroom_occupancy_stats_needed) {
-            sx_status = sx_api_cos_port_buff_type_statistic_get(get_sdk_handle(), cmd, &stats_usages[1], 1,
-                                                                &stats[1], &usage_cnt);
-            if (SX_ERR(sx_status)) {
-                SX_LOG_ERR("Failed to get PG headroom stat counters - %s.\n", SX_STATUS_MSG(sx_status));
-                return sdk_to_sai(sx_status);
+            sai_status = sx_api_cos_port_buff_type_statistic_get(gh_sdk, cmd, &stats_usages[1], 1,
+                                                                 &stats[1], &usage_cnt);
+            if (SAI_ERR(sai_status)) {
+                SX_LOG_ERR("Failed to get PG headroom stat counters - %s.\n", SX_STATUS_MSG(sai_status));
+                return sdk_to_sai(sai_status);
             }
         }
     }
 
-    for (uint32_t ii = 0; ii < number_of_counters; ii++) {
-        status = mlnx_sai_fill_pg_counter_value(
+    for (ii = 0; ii < number_of_counters; ii++) {
+        sai_status = mlnx_sai_fill_pg_counter_value(
             counter_ids[ii],
             &counters[ii],
             db_port_index,
@@ -5484,9 +5481,9 @@ sai_status_t mlnx_sai_get_ingress_priority_group_stats_ext(_In_ sai_object_id_t 
             &pg_cnts,
             &stats[0].statistics,
             &stats[1].statistics);
-        if (SAI_ERR(status)) {
+        if (SAI_ERR(sai_status)) {
             SX_LOG_EXIT();
-            return status;
+            return sai_status;
         }
     }
     SX_LOG_EXIT();
@@ -5509,8 +5506,7 @@ static sai_status_t mlnx_sai_clear_ingress_priority_group_stats(_In_ sai_object_
                                                                 _In_ uint32_t             number_of_counters,
                                                                 _In_ const sai_stat_id_t *counter_ids)
 {
-    sai_status_t                     status;
-    sx_status_t                      sx_status;
+    sai_status_t                     sai_status;
     sx_port_statistic_usage_params_t stats_usage;
     char                             key_str[MAX_KEY_STR_LEN];
     uint32_t                         db_port_index, pg_ind;
@@ -5525,10 +5521,9 @@ static sai_status_t mlnx_sai_clear_ingress_priority_group_stats(_In_ sai_object_
     oid_to_str(ingress_pg_id, key_str);
     SX_LOG_DBG("Clear stats %s\n", key_str);
 
-    status = get_pg_data(ingress_pg_id, &db_port_index, &pg_ind);
-    if (SAI_ERR(status)) {
+    if (SAI_STATUS_SUCCESS != (sai_status = get_pg_data(ingress_pg_id, &db_port_index, &pg_ind))) {
         SX_LOG_EXIT();
-        return status;
+        return sai_status;
     }
 
     for (ii = 0; ii < number_of_counters; ii++) {
@@ -5557,12 +5552,13 @@ static sai_status_t mlnx_sai_clear_ingress_priority_group_stats(_In_ sai_object_
     }
 
     if (pg_cnts_needed) {
-        sx_status = sx_api_port_counter_buff_get(get_sdk_handle(), SX_ACCESS_CMD_READ_CLEAR,
-                                                 g_sai_db_ptr->ports_db[db_port_index].logical,
-                                                 pg_ind, &pg_cnts);
-        if (SX_ERR(sx_status)) {
-            SX_LOG_ERR("Failed to get port pg counters - %s.\n", SX_STATUS_MSG(sx_status));
-            return sdk_to_sai(sx_status);
+        if (SX_STATUS_SUCCESS !=
+            (sai_status =
+                 sx_api_port_counter_buff_get(gh_sdk, SX_ACCESS_CMD_READ_CLEAR,
+                                              g_sai_db_ptr->ports_db[db_port_index].logical,
+                                              pg_ind, &pg_cnts))) {
+            SX_LOG_ERR("Failed to get port pg counters - %s.\n", SX_STATUS_MSG(sai_status));
+            return sdk_to_sai(sai_status);
         }
     }
 
@@ -5574,16 +5570,12 @@ static sai_status_t mlnx_sai_clear_ingress_priority_group_stats(_In_ sai_object_
         stats_usage.sx_port_params.port_params_cnt = 1;
         stats_usage.sx_port_params.port_param.port_pg_list_p = &pg_ind;
 
-        sx_status = sx_api_cos_port_buff_type_statistic_get(get_sdk_handle(),
-                                                            SX_ACCESS_CMD_READ_CLEAR,
-                                                            &stats_usage,
-                                                            1,
-                                                            &occupancy_stats,
-                                                            &usage_cnt);
-        if (SX_ERR(sx_status)) {
-            SX_LOG_ERR("Failed to clear PG stat counters - %s.\n", SX_STATUS_MSG(sx_status));
+        if (SX_STATUS_SUCCESS !=
+            (sai_status = sx_api_cos_port_buff_type_statistic_get(gh_sdk, SX_ACCESS_CMD_READ_CLEAR, &stats_usage, 1,
+                                                                  &occupancy_stats, &usage_cnt))) {
+            SX_LOG_ERR("Failed to clear PG stat counters - %s.\n", SX_STATUS_MSG(sai_status));
             SX_LOG_EXIT();
-            return sdk_to_sai(sx_status);
+            return sdk_to_sai(sai_status);
         }
     }
 
@@ -5595,16 +5587,12 @@ static sai_status_t mlnx_sai_clear_ingress_priority_group_stats(_In_ sai_object_
         stats_usage.sx_port_params.port_params_cnt = 1;
         stats_usage.sx_port_params.port_param.port_pg_list_p = &pg_ind;
 
-        sx_status = sx_api_cos_port_buff_type_statistic_get(get_sdk_handle(),
-                                                            SX_ACCESS_CMD_READ_CLEAR,
-                                                            &stats_usage,
-                                                            1,
-                                                            &occupancy_stats,
-                                                            &usage_cnt);
-        if (SX_ERR(sx_status)) {
-            SX_LOG_ERR("Failed to clear PG headroom stat counters - %s.\n", SX_STATUS_MSG(sx_status));
+        if (SX_STATUS_SUCCESS !=
+            (sai_status = sx_api_cos_port_buff_type_statistic_get(gh_sdk, SX_ACCESS_CMD_READ_CLEAR, &stats_usage, 1,
+                                                                  &occupancy_stats, &usage_cnt))) {
+            SX_LOG_ERR("Failed to clear PG headroom stat counters - %s.\n", SX_STATUS_MSG(sai_status));
             SX_LOG_EXIT();
-            return sdk_to_sai(sx_status);
+            return sdk_to_sai(sai_status);
         }
     }
 
@@ -5759,7 +5747,7 @@ sai_status_t mlnx_sai_bulk_ingress_priority_group_stats_get(_In_ sai_object_id_t
                 occupancy_stats[stats_index].port_num = port_list[stats_index];
                 occupancy_stats[stats_index].status = SAI_STATUS_SUCCESS;
                 occupancy_read_key.key.shared_buffer_key.attr.log_port = occupancy_stats[stats_index].port_num;
-                sx_status = sx_api_bulk_counter_transaction_get(get_sdk_handle(),
+                sx_status = sx_api_bulk_counter_transaction_get(gh_sdk,
                                                                 &occupancy_read_key,
                                                                 &occupancy_buff,
                                                                 &(occupancy_stats[stats_index].data));
@@ -5774,7 +5762,7 @@ sai_status_t mlnx_sai_bulk_ingress_priority_group_stats_get(_In_ sai_object_id_t
                 headroom_stats[stats_index].port_num = port_list[stats_index];
                 headroom_stats[stats_index].status = SAI_STATUS_SUCCESS;
                 headroom_read_key.key.headroom_key.log_port = headroom_stats[stats_index].port_num;
-                sx_status = sx_api_bulk_counter_transaction_get(get_sdk_handle(),
+                sx_status = sx_api_bulk_counter_transaction_get(gh_sdk,
                                                                 &headroom_read_key,
                                                                 &headroom_buff,
                                                                 &(headroom_stats[stats_index].data));
@@ -5981,9 +5969,8 @@ sai_status_t mlnx_sai_bulk_ingress_priority_group_stats_clear(_In_ sai_object_id
 
     if (occupancy_stats_needed) {
         if (SX_STATUS_SUCCESS !=
-            (sx_status =
-                 sx_api_cos_port_buff_type_statistic_get(get_sdk_handle(), cmd, &occupancy_stats_usages[0], port_count,
-                                                         stats, &usage_cnt))) {
+            (sx_status = sx_api_cos_port_buff_type_statistic_get(gh_sdk, cmd, &occupancy_stats_usages[0], port_count,
+                                                                 stats, &usage_cnt))) {
             free(stats);
             SX_LOG_ERR("Failed to bulk clear pg occupancy statistics - %s.\n", SX_STATUS_MSG(sx_status));
             SX_LOG_EXIT();
@@ -5994,9 +5981,8 @@ sai_status_t mlnx_sai_bulk_ingress_priority_group_stats_clear(_In_ sai_object_id
     if (headroom_occupancy_stats_needed) {
         usage_cnt = object_count;
         if (SX_STATUS_SUCCESS !=
-            (sx_status =
-                 sx_api_cos_port_buff_type_statistic_get(get_sdk_handle(), cmd, &headroom_stats_usages[0], port_count,
-                                                         stats, &usage_cnt))) {
+            (sx_status = sx_api_cos_port_buff_type_statistic_get(gh_sdk, cmd, &headroom_stats_usages[0], port_count,
+                                                                 stats, &usage_cnt))) {
             free(stats);
             SX_LOG_ERR("Failed to bulk clear pg headroom occupancy statistics - %s.\n", SX_STATUS_MSG(sx_status));
             SX_LOG_EXIT();
@@ -6099,7 +6085,7 @@ static sai_status_t mlnx_sai_buffer_configure_reserved_buffers(_In_ sx_port_log_
 
     SX_LOG_ENTER();
 
-    sx_status = sx_api_cos_port_buff_type_set(get_sdk_handle(), SX_ACCESS_CMD_SET, logical_port,
+    sx_status = sx_api_cos_port_buff_type_set(gh_sdk, SX_ACCESS_CMD_SET, logical_port,
                                               sx_port_reserved_buff_attr_arr, count);
     if (SX_STATUS_SUCCESS != sx_status) {
         SX_LOG_ERR(
@@ -6129,7 +6115,7 @@ static sai_status_t mlnx_sai_buffer_configure_shared_buffers(_In_ sx_port_log_id
     sx_status_t sx_status;
 
     SX_LOG_ENTER();
-    sx_status = sx_api_cos_port_shared_buff_type_set(get_sdk_handle(), SX_ACCESS_CMD_SET, logical_port,
+    sx_status = sx_api_cos_port_shared_buff_type_set(gh_sdk, SX_ACCESS_CMD_SET, logical_port,
                                                      sx_port_shared_buff_attr_arr, count);
     if (SX_STATUS_SUCCESS != sx_status) {
         SX_LOG_ERR(
@@ -6567,11 +6553,10 @@ sai_status_t mlnx_sai_buffer_update_db_control_pg9_buff_profile_if_required(_In_
         g_sai_db_ptr->port_pg9_defaults[pg9_profile_idx].sx_pg_buff_reserved_attr.attr.ingress_port_pg_buff_attr.pg =
             PG9_PORT_IDX;
 
-        sx_status = sx_api_cos_port_buff_type_get(
-            get_sdk_handle(),
-            port->logical,
-            &g_sai_db_ptr->port_pg9_defaults[pg9_profile_idx].sx_pg_buff_reserved_attr,
-            &buff_attr_count);
+        sx_status = sx_api_cos_port_buff_type_get(gh_sdk,
+                                                  port->logical,
+                                                  &g_sai_db_ptr->port_pg9_defaults[pg9_profile_idx].sx_pg_buff_reserved_attr,
+                                                  &buff_attr_count);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to get pg9 buffer reserved info sx_status:%d, message %s.\n", sx_status,
                        SX_STATUS_MSG(sx_status));
@@ -6652,7 +6637,7 @@ sai_status_t mlnx_descriptor_buffer_init()
     ingress_descriptor_pool_attr.infinite_size = false;
     ingress_descriptor_pool_attr.pool_info = SX_COS_POOL_INFO_DEFAULT_DESCRIPTOR_INGRESS_E;
 
-    sx_status = sx_api_cos_shared_buff_pool_set(get_sdk_handle(), SX_ACCESS_CMD_CREATE,
+    sx_status = sx_api_cos_shared_buff_pool_set(gh_sdk, SX_ACCESS_CMD_CREATE,
                                                 &ingress_descriptor_pool_attr,
                                                 &ingress_descriptor_pool_id);
     if (SX_ERR(sx_status)) {
@@ -6675,7 +6660,7 @@ sai_status_t mlnx_descriptor_buffer_init()
     egress_descriptor_pool_attr.infinite_size = false;
     egress_descriptor_pool_attr.pool_info = SX_COS_POOL_INFO_DEFAULT_DESCRIPTOR_EGRESS_E;
 
-    sx_status = sx_api_cos_shared_buff_pool_set(get_sdk_handle(), SX_ACCESS_CMD_CREATE,
+    sx_status = sx_api_cos_shared_buff_pool_set(gh_sdk, SX_ACCESS_CMD_CREATE,
                                                 &egress_descriptor_pool_attr,
                                                 &egress_descriptor_pool_id);
     if (SX_ERR(sx_status)) {
@@ -6762,7 +6747,7 @@ sai_status_t mlnx_apply_descriptor_buffer_to_port(sx_port_log_id_t port_log_id, 
         count++;
     }
 
-    sx_status = sx_api_cos_port_buff_type_set(get_sdk_handle(), sx_cmd, port_log_id,
+    sx_status = sx_api_cos_port_buff_type_set(gh_sdk, sx_cmd, port_log_id,
                                               port_buffer_attr, count);
     if (SX_ERR(sx_status)) {
         sai_status = sdk_to_sai(sx_status);
@@ -6827,7 +6812,7 @@ sai_status_t mlnx_apply_descriptor_buffer_to_port(sx_port_log_id_t port_log_id, 
         count++;
     }
 
-    sx_status = sx_api_cos_port_shared_buff_type_set(get_sdk_handle(), sx_cmd, port_log_id,
+    sx_status = sx_api_cos_port_shared_buff_type_set(gh_sdk, sx_cmd, port_log_id,
                                                      port_shared_buffer_attr, count);
     if (SX_ERR(sx_status)) {
         sai_status = sdk_to_sai(sx_status);

@@ -101,7 +101,7 @@ static sai_status_t mlnx_samplepacket_sample_rate_validate(_In_ const uint32_t i
         if (internal_samplepacket_obj_idx == port_config->internal_ingress_samplepacket_obj_idx) {
             if (SAI_STATUS_SUCCESS !=
                 (status =
-                     (sdk_to_sai(sx_api_port_sflow_get(get_sdk_handle(), port_config->logical, &sdk_sflow_params))))) {
+                     (sdk_to_sai(sx_api_port_sflow_get(gh_sdk, port_config->logical, &sdk_sflow_params))))) {
                 SX_LOG_ERR("Error getting sflow params for sdk port id %d with internal samplepacket obj id %d\n",
                            port_config->logical,
                            internal_samplepacket_obj_idx);
@@ -338,7 +338,7 @@ static sai_status_t mlnx_samplepacket_sample_rate_set(_In_ const sai_object_key_
 
             if (SAI_STATUS_SUCCESS !=
                 (status =
-                     (sdk_to_sai(sx_api_port_sflow_set(get_sdk_handle(), SX_ACCESS_CMD_EDIT,
+                     (sdk_to_sai(sx_api_port_sflow_set(gh_sdk, SX_ACCESS_CMD_EDIT,
                                                        port_config->logical,
                                                        &sdk_sflow_params))))) {
                 SX_LOG_ERR("Error updating sflow params for sdk port id %d with internal samplepacket obj idx %d\n",

@@ -185,7 +185,7 @@ sai_status_t mlnx_rif_availability_get(_In_ sai_object_id_t        switch_id,
         rifs_max = g_resource_limits.router_rifs_max / 2;
     }
 
-    sx_status = sx_api_router_interface_iter_get(get_sdk_handle(), SX_ACCESS_CMD_GET, NULL, NULL, NULL, &rifs_exists);
+    sx_status = sx_api_router_interface_iter_get(gh_sdk, SX_ACCESS_CMD_GET, NULL, NULL, NULL, &rifs_exists);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to get count of router interfaces - %s\n", SX_STATUS_MSG(sx_status));
         return sdk_to_sai(sx_status);
@@ -548,27 +548,21 @@ sai_status_t mlnx_rif_sx_init(_In_ sx_router_id_t                     vrf_id,
         rif_mac_range_ref_updated = true;
     }
 
-    sx_status = sx_api_router_interface_set(get_sdk_handle(),
-                                            SX_ACCESS_CMD_ADD,
-                                            vrf_id,
-                                            intf_params,
-                                            intf_attribs,
-                                            sx_rif_id);
+    sx_status = sx_api_router_interface_set(gh_sdk, SX_ACCESS_CMD_ADD, vrf_id, intf_params, intf_attribs, sx_rif_id);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to create router interface - %s.\n", SX_STATUS_MSG(sx_status));
         return sdk_to_sai(sx_status);
     }
     rif_created = true;
 
-    sx_status = sx_api_router_counter_set(get_sdk_handle(), SX_ACCESS_CMD_CREATE, sx_counter);
+    sx_status = sx_api_router_counter_set(gh_sdk, SX_ACCESS_CMD_CREATE, sx_counter);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to create router counter - %s\n", SX_STATUS_MSG(sx_status));
         goto out;
     }
     counter_created = true;
 
-    sx_status =
-        sx_api_router_interface_counter_bind_set(get_sdk_handle(), SX_ACCESS_CMD_BIND, *sx_counter, *sx_rif_id);
+    sx_status = sx_api_router_interface_counter_bind_set(gh_sdk, SX_ACCESS_CMD_BIND, *sx_counter, *sx_rif_id);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to bind router counter %d to rif %d - %s\n", *sx_counter, *sx_rif_id,
                    SX_STATUS_MSG(sx_status));
@@ -587,10 +581,7 @@ sai_status_t mlnx_rif_sx_init(_In_ sx_router_id_t                     vrf_id,
 out:
 
     if (binded) {
-        sx_status = sx_api_router_interface_counter_bind_set(get_sdk_handle(),
-                                                             SX_ACCESS_CMD_UNBIND,
-                                                             *sx_counter,
-                                                             *sx_rif_id);
+        sx_status = sx_api_router_interface_counter_bind_set(gh_sdk, SX_ACCESS_CMD_UNBIND, *sx_counter, *sx_rif_id);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to unbind router counter %d to rif %d - %s\n", *sx_counter, *sx_rif_id,
                        SX_STATUS_MSG(sx_status));
@@ -598,14 +589,14 @@ out:
     }
 
     if (counter_created) {
-        out_status = sx_api_router_counter_set(get_sdk_handle(), SX_ACCESS_CMD_DESTROY, sx_counter);
+        out_status = sx_api_router_counter_set(gh_sdk, SX_ACCESS_CMD_DESTROY, sx_counter);
         if (SX_ERR(out_status)) {
             SX_LOG_ERR("Failed to destroy router counter - %s\n", SX_STATUS_MSG(out_status));
         }
     }
 
     if (rif_created) {
-        out_status = sx_api_router_interface_set(get_sdk_handle(),
+        out_status = sx_api_router_interface_set(gh_sdk,
                                                  SX_ACCESS_CMD_DELETE,
                                                  vrf_id,
                                                  intf_params,
@@ -635,13 +626,13 @@ sai_status_t mlnx_rif_sx_deinit(_In_ mlnx_rif_sx_data_t *sx_data)
     sx_interface_attributes_t   intf_attribs;
     sx_router_id_t              vrid;
 
-    sx_status = sx_api_router_interface_get(get_sdk_handle(), sx_data->rif_id, &vrid, &intf_params, &intf_attribs);
+    sx_status = sx_api_router_interface_get(gh_sdk, sx_data->rif_id, &vrid, &intf_params, &intf_attribs);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to get router interface - %s.\n", SX_STATUS_MSG(sx_status));
         return sdk_to_sai(sx_status);
     }
 
-    sx_status = sx_api_router_interface_counter_bind_set(get_sdk_handle(),
+    sx_status = sx_api_router_interface_counter_bind_set(gh_sdk,
                                                          SX_ACCESS_CMD_UNBIND,
                                                          sx_data->counter,
                                                          sx_data->rif_id);
@@ -651,7 +642,7 @@ sai_status_t mlnx_rif_sx_deinit(_In_ mlnx_rif_sx_data_t *sx_data)
         return sdk_to_sai(sx_status);
     }
 
-    sx_status = sx_api_router_counter_set(get_sdk_handle(), SX_ACCESS_CMD_DESTROY, &sx_data->counter);
+    sx_status = sx_api_router_counter_set(gh_sdk, SX_ACCESS_CMD_DESTROY, &sx_data->counter);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to remove router counter %d - %s\n", sx_data->counter, SX_STATUS_MSG(sx_status));
         return sdk_to_sai(sx_status);
@@ -663,12 +654,7 @@ sai_status_t mlnx_rif_sx_deinit(_In_ mlnx_rif_sx_data_t *sx_data)
     }
 
     sx_status =
-        sx_api_router_interface_set(get_sdk_handle(),
-                                    SX_ACCESS_CMD_DELETE,
-                                    sx_data->vrf_id,
-                                    NULL,
-                                    NULL,
-                                    &sx_data->rif_id);
+        sx_api_router_interface_set(gh_sdk, SX_ACCESS_CMD_DELETE, sx_data->vrf_id, NULL, NULL, &sx_data->rif_id);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to delete router interface - %s.\n", SX_STATUS_MSG(sx_status));
         return sdk_to_sai(sx_status);
@@ -731,7 +717,6 @@ static sai_status_t mlnx_create_router_interface(_Out_ sai_object_id_t      *rif
     mlnx_object_id_t             vlan_obj;
     bool                         has_additional_mac = false;
     sx_mac_addr_t                additional_mac;
-    bool                         is_ar_rif = false;
 
     SX_LOG_ENTER();
 
@@ -809,31 +794,9 @@ static sai_status_t mlnx_create_router_interface(_Out_ sai_object_id_t      *rif
             return SAI_STATUS_INVALID_ATTRIBUTE_0 + port_index;
         }
 
-        sai_db_read_lock();
-        is_ar_rif = mlnx_find_ar_port_by_id(sx_port_id, NULL, NULL);
-        sai_db_unlock();
-
-        if (is_ar_rif) {
-            SX_LOG_NTC("Creating rif based on adaptive routing enabled port log id %x.\n", sx_port_id);
-            status = mlnx_bridge_sx_vport_create(sx_port_id, SX_VLAN_DEFAULT_VID, SX_UNTAGGED_MEMBER, &sx_vport_id);
-            if (SAI_ERR(status)) {
-                SX_LOG_EXIT();
-                return status;
-            }
-            sx_status = sx_api_port_state_set(get_sdk_handle(), sx_vport_id, SX_PORT_ADMIN_STATUS_UP);
-            if (SX_ERR(sx_status)) {
-                SX_LOG_ERR("Failed to set port admin state - %s.\n", SX_STATUS_MSG(sx_status));
-                SX_LOG_EXIT();
-                return sdk_to_sai(sx_status);
-            }
-
-            intf_params.type = SX_L2_INTERFACE_TYPE_ADAPTIVE_ROUTING;
-            intf_params.ifc.adaptive_routing.vport = sx_vport_id;
-        } else {
-            intf_params.type = SX_L2_INTERFACE_TYPE_PORT_VLAN;
-            intf_params.ifc.port_vlan.port = sx_port_id;
-            intf_params.ifc.port_vlan.vlan = 0;
-        }
+        intf_params.type = SX_L2_INTERFACE_TYPE_PORT_VLAN;
+        intf_params.ifc.port_vlan.port = sx_port_id;
+        intf_params.ifc.port_vlan.vlan = 0;
     } else if (SAI_ROUTER_INTERFACE_TYPE_LOOPBACK == type->s32) {
         if (port) {
             SX_LOG_ERR("Invalid attribute port id for loopback rif on create\n");
@@ -866,7 +829,7 @@ static sai_status_t mlnx_create_router_interface(_Out_ sai_object_id_t      *rif
             return status;
         }
 
-        sx_status = sx_api_port_state_set(get_sdk_handle(), sx_vport_id, SX_PORT_ADMIN_STATUS_UP);
+        sx_status = sx_api_port_state_set(gh_sdk, sx_vport_id, SX_PORT_ADMIN_STATUS_UP);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to set port admin state - %s.\n", SX_STATUS_MSG(sx_status));
             SX_LOG_EXIT();
@@ -989,7 +952,7 @@ static sai_status_t mlnx_create_router_interface(_Out_ sai_object_id_t      *rif
      * as all neighbors always egress through the router port. Otherwise FDB events for router port generate
      * unsupported VID mode error. TODO : should be internal in SDK, clean this afterwards */
     if ((SAI_ROUTER_INTERFACE_TYPE_PORT == type->s32) || (SAI_ROUTER_INTERFACE_TYPE_SUB_PORT == type->s32)) {
-        status = sx_api_fdb_port_learn_mode_set(get_sdk_handle(), sx_port_id, SX_FDB_LEARN_MODE_DONT_LEARN);
+        status = sx_api_fdb_port_learn_mode_set(gh_sdk, sx_port_id, SX_FDB_LEARN_MODE_DONT_LEARN);
         if (SX_ERR(status)) {
             SX_LOG_ERR("Failed to set port learning mode disable for router port - %s.\n", SX_STATUS_MSG(status));
             status = sdk_to_sai(status);
@@ -1014,7 +977,7 @@ static sai_status_t mlnx_create_router_interface(_Out_ sai_object_id_t      *rif
             if (SAI_ERR(status)) {
                 goto out;
             }
-            status = sx_api_vlan_port_pvid_get(get_sdk_handle(), port_cfg->logical, &port_cfg->pvid_create_rif);
+            status = sx_api_vlan_port_pvid_get(gh_sdk, port_cfg->logical, &port_cfg->pvid_create_rif);
             if (SX_ERR(status)) {
                 SX_LOG_ERR("Failed to get %x pvid - %s.\n", port_cfg->logical, SX_STATUS_MSG(status));
                 status = sdk_to_sai(status);
@@ -1024,11 +987,7 @@ static sai_status_t mlnx_create_router_interface(_Out_ sai_object_id_t      *rif
         }
 
         if (mlnx_rif_is_additional_mac_supported() && has_additional_mac) {
-            sx_status = sx_api_router_interface_mac_set(get_sdk_handle(),
-                                                        SX_ACCESS_CMD_ADD,
-                                                        sdk_rif_id,
-                                                        &additional_mac,
-                                                        1);
+            sx_status = sx_api_router_interface_mac_set(gh_sdk, SX_ACCESS_CMD_ADD, sdk_rif_id, &additional_mac, 1);
             if (SX_ERR(sx_status)) {
                 SX_LOG_ERR("Failed to set additional MAC - %s.\n", SX_STATUS_MSG(sx_status));
                 status = sdk_to_sai(status);
@@ -1079,8 +1038,7 @@ static sai_status_t mlnx_create_router_interface(_Out_ sai_object_id_t      *rif
         rif_state.ipv6_mc_enable = false;
     }
     if ((SAI_ROUTER_INTERFACE_TYPE_LOOPBACK != type->s32) && (SAI_ROUTER_INTERFACE_TYPE_BRIDGE != type->s32)) {
-        if (SX_STATUS_SUCCESS !=
-            (status = sx_api_router_interface_state_set(get_sdk_handle(), sdk_rif_id, &rif_state))) {
+        if (SX_STATUS_SUCCESS != (status = sx_api_router_interface_state_set(gh_sdk, sdk_rif_id, &rif_state))) {
             SX_LOG_ERR("Failed to set router interface state - %s.\n", SX_STATUS_MSG(status));
             status = sdk_to_sai(status);
             goto out;
@@ -1167,8 +1125,7 @@ static sai_status_t mlnx_remove_router_interface(_In_ sai_object_id_t rif_id)
     sx_interface_attributes_t   intf_attribs;
     sx_port_log_id_t            sx_port_id, sx_vport_id;
     sx_vlan_id_t                sx_vlan_id;
-    sx_status_t                 sx_status;
-    sai_status_t                status;
+    sx_status_t                 status;
     mlnx_rif_type_t             rif_type;
     uint32_t                    bridge_rif_idx;
     mlnx_shm_rm_array_idx_t     rif_db_idx = MLNX_SHM_RM_ARRAY_IDX_UNINITIALIZED;
@@ -1197,11 +1154,12 @@ static sai_status_t mlnx_remove_router_interface(_In_ sai_object_id_t rif_id)
             goto out;
         }
 
-        sx_status = sx_api_router_interface_get(get_sdk_handle(), sx_data->rif_id, &sx_data->vrf_id, &intf_params,
-                                                &intf_attribs);
-        if (SX_ERR(sx_status)) {
-            SX_LOG_ERR("Failed to get router interface - %s.\n", SX_STATUS_MSG(sx_status));
-            status = sdk_to_sai(sx_status);
+        if (SX_STATUS_SUCCESS !=
+            (status =
+                 sx_api_router_interface_get(gh_sdk, sx_data->rif_id, &sx_data->vrf_id, &intf_params,
+                                             &intf_attribs))) {
+            SX_LOG_ERR("Failed to get router interface - %s.\n", SX_STATUS_MSG(status));
+            status = sdk_to_sai(status);
             goto out;
         }
 
@@ -1222,10 +1180,10 @@ static sai_status_t mlnx_remove_router_interface(_In_ sai_object_id_t rif_id)
             if (SAI_ERR(status)) {
                 goto out;
             }
-            sx_status = sx_api_vlan_port_pvid_get(get_sdk_handle(), port_cfg->logical, &pvid);
-            if (SX_ERR(sx_status)) {
-                SX_LOG_ERR("Failed to get %x pvid - %s.\n", port_cfg->logical, SX_STATUS_MSG(sx_status));
-                status = sdk_to_sai(sx_status);
+            status = sx_api_vlan_port_pvid_get(gh_sdk, port_cfg->logical, &pvid);
+            if (SX_ERR(status)) {
+                SX_LOG_ERR("Failed to get %x pvid - %s.\n", port_cfg->logical, SX_STATUS_MSG(status));
+                status = sdk_to_sai(status);
                 goto out;
             }
             SX_LOG_INF("Port/lag 0x%x pvid_create_rif %d, current pvid %d\n",
@@ -1242,14 +1200,14 @@ static sai_status_t mlnx_remove_router_interface(_In_ sai_object_id_t rif_id)
                 if ((status != SAI_STATUS_SUCCESS) || !mlnx_vlan_port_is_set(port_cfg->pvid_create_rif, bport)) {
                     memset(&port_list, 0, sizeof(port_list));
                     port_list.log_port = port_cfg->logical;
-                    sx_status = sx_api_vlan_ports_set(get_sdk_handle(),
-                                                      SX_ACCESS_CMD_DELETE,
-                                                      DEFAULT_ETH_SWID,
-                                                      port_cfg->pvid_create_rif,
-                                                      &port_list, 1);
-                    if (SX_ERR(sx_status)) {
+                    status = sx_api_vlan_ports_set(gh_sdk,
+                                                   SX_ACCESS_CMD_DELETE,
+                                                   DEFAULT_ETH_SWID,
+                                                   port_cfg->pvid_create_rif,
+                                                   &port_list, 1);
+                    if (SX_STATUS_SUCCESS != status) {
                         SX_LOG_ERR("Failed to delete port/lag 0x%x from vlan %d, current pvid %d - %s\n",
-                                   port_cfg->logical, port_cfg->pvid_create_rif, pvid, SX_STATUS_MSG(sx_status));
+                                   port_cfg->logical, port_cfg->pvid_create_rif, pvid, SX_STATUS_MSG(status));
                     }
                 } else {
                     SX_LOG_INF("Port/lag 0x%x was in vlan %d before creating rif.\n",
@@ -1263,47 +1221,25 @@ static sai_status_t mlnx_remove_router_interface(_In_ sai_object_id_t rif_id)
             is_port_or_sub_port = true;
             sx_vport_id = intf_params.ifc.vport.vport;
 
-            sx_status = sx_api_port_vport_base_get(get_sdk_handle(), sx_vport_id, &sx_vlan_id, &sx_port_id);
-            if (SX_ERR(sx_status)) {
-                SX_LOG_ERR("Failed to get base port and vlan for vport %x - %s\n",
-                           sx_vport_id,
-                           SX_STATUS_MSG(sx_status));
-                status = sdk_to_sai(sx_status);
+            status = sx_api_port_vport_base_get(gh_sdk, sx_vport_id, &sx_vlan_id, &sx_port_id);
+            if (SX_ERR(status)) {
+                SX_LOG_ERR("Failed to get base port and vlan for vport %x - %s\n", sx_vport_id, SX_STATUS_MSG(status));
+                status = sdk_to_sai(status);
                 goto out;
             }
 
             status = mlnx_bridge_sx_vport_delete(sx_port_id, sx_vlan_id, sx_vport_id);
             if (SAI_ERR(status)) {
-                goto out;
-            }
-        }
-
-        if (SX_L2_INTERFACE_TYPE_ADAPTIVE_ROUTING == intf_params.type) {
-            is_port_or_sub_port = true;
-            sx_vport_id = intf_params.ifc.adaptive_routing.vport;
-
-            sx_status = sx_api_port_vport_base_get(get_sdk_handle(), sx_vport_id, &sx_vlan_id, &sx_port_id);
-            if (SX_ERR(sx_status)) {
-                SX_LOG_ERR("Failed to get base port and vlan for vport %x - %s\n",
-                           sx_vport_id,
-                           SX_STATUS_MSG(sx_status));
-                status = sdk_to_sai(sx_status);
-                goto out;
-            }
-
-            status = mlnx_bridge_sx_vport_delete(sx_port_id, sx_vlan_id, sx_vport_id);
-            if (SAI_ERR(status)) {
-                SX_LOG_ERR("Failed to delete vport 0x%x\n", sx_vport_id);
                 goto out;
             }
         }
 
         if (is_port_or_sub_port) {
-            sx_status = sx_api_fdb_port_learn_mode_set(get_sdk_handle(), sx_port_id, SX_FDB_LEARN_MODE_AUTO_LEARN);
-            if (SX_ERR(sx_status)) {
+            status = sx_api_fdb_port_learn_mode_set(gh_sdk, sx_port_id, SX_FDB_LEARN_MODE_AUTO_LEARN);
+            if (SX_ERR(status)) {
                 SX_LOG_ERR("Failed to set port learning mode auto for removed router port - %s.\n",
-                           SX_STATUS_MSG(sx_status));
-                status = sdk_to_sai(sx_status);
+                           SX_STATUS_MSG(status));
+                status = sdk_to_sai(status);
                 goto out;
             }
 
@@ -1506,13 +1442,13 @@ sai_status_t mlnx_rif_sx_attrs_get(_In_ sai_object_id_t                rif_oid,
         *intf_attribs = &br_rif->intf_attribs;
     } else {
         if (is_admin_state) {
-            sx_status = sx_api_router_interface_state_get(get_sdk_handle(), rif_id, *rif_state);
+            sx_status = sx_api_router_interface_state_get(gh_sdk, rif_id, *rif_state);
             if (SX_ERR(sx_status)) {
                 SX_LOG_ERR("Failed to get router interface state - %s.\n", SX_STATUS_MSG(sx_status));
                 return sdk_to_sai(sx_status);
             }
         } else {
-            sx_status = sx_api_router_interface_get(get_sdk_handle(), rif_id, &vrid, *intf_params, *intf_attribs);
+            sx_status = sx_api_router_interface_get(gh_sdk, rif_id, &vrid, *intf_params, *intf_attribs);
             if (SX_ERR(sx_status)) {
                 SX_LOG_ERR("Failed to get router interface - %s.\n", SX_STATUS_MSG(sx_status));
                 return sdk_to_sai(sx_status);
@@ -1583,7 +1519,7 @@ static sai_status_t mlnx_rif_attrib_set(_In_ const sai_object_key_t      *key,
     vrid = sx_data->vrf_id;
 
     if (is_admin_state) {
-        sx_status = sx_api_router_interface_state_set(get_sdk_handle(), rif_id, rif_state_ptr);
+        sx_status = sx_api_router_interface_state_set(gh_sdk, rif_id, rif_state_ptr);
         if (SX_ERR(sx_status)) {
             SX_LOG_ERR("Failed to set router interface state - %s.\n", SX_STATUS_MSG(sx_status));
             status = sdk_to_sai(sx_status);
@@ -1598,7 +1534,7 @@ static sai_status_t mlnx_rif_attrib_set(_In_ const sai_object_key_t      *key,
             }
             rif_mac_data->additional_mac_is_used = has_additional_mac;
 
-            sx_status = sx_api_router_interface_mac_get(get_sdk_handle(), rif_id, mac_addr_arr, &mac_addr_num);
+            sx_status = sx_api_router_interface_mac_get(gh_sdk, rif_id, mac_addr_arr, &mac_addr_num);
             if (SX_ERR(sx_status)) {
                 SX_LOG_ERR("Failed to get additional MAC - %s.\n", SX_STATUS_MSG(sx_status));
                 status = sdk_to_sai(sx_status);
@@ -1610,11 +1546,7 @@ static sai_status_t mlnx_rif_attrib_set(_In_ const sai_object_key_t      *key,
                 goto out;
             }
             if (1 == mac_addr_num) {
-                sx_status = sx_api_router_interface_mac_set(get_sdk_handle(),
-                                                            SX_ACCESS_CMD_DELETE,
-                                                            rif_id,
-                                                            &mac_addr_arr[0],
-                                                            1);
+                sx_status = sx_api_router_interface_mac_set(gh_sdk, SX_ACCESS_CMD_DELETE, rif_id, &mac_addr_arr[0], 1);
                 if (SX_ERR(sx_status)) {
                     SX_LOG_ERR("Failed to delete old additional MAC - %s.\n", SX_STATUS_MSG(sx_status));
                     status = sdk_to_sai(sx_status);
@@ -1623,8 +1555,7 @@ static sai_status_t mlnx_rif_attrib_set(_In_ const sai_object_key_t      *key,
                 memset(&rif_mac_data->additional_mac_addr, 0, sizeof(rif_mac_data->additional_mac_addr));
             }
             memcpy(&additional_mac, value->mac, sizeof(additional_mac));
-            sx_status =
-                sx_api_router_interface_mac_set(get_sdk_handle(), SX_ACCESS_CMD_ADD, rif_id, &additional_mac, 1);
+            sx_status = sx_api_router_interface_mac_set(gh_sdk, SX_ACCESS_CMD_ADD, rif_id, &additional_mac, 1);
             if (SX_ERR(sx_status)) {
                 SX_LOG_ERR("Failed to set new additional MAC - %s.\n", SX_STATUS_MSG(sx_status));
                 status = sdk_to_sai(sx_status);
@@ -1632,7 +1563,7 @@ static sai_status_t mlnx_rif_attrib_set(_In_ const sai_object_key_t      *key,
             }
             memcpy(&rif_mac_data->additional_mac_addr, &additional_mac, sizeof(rif_mac_data->additional_mac_addr));
         } else {
-            sx_status = sx_api_router_interface_set(get_sdk_handle(),
+            sx_status = sx_api_router_interface_set(gh_sdk,
                                                     SX_ACCESS_CMD_EDIT,
                                                     vrid,
                                                     intf_params_ptr,
@@ -1699,10 +1630,7 @@ static sai_status_t mlnx_rif_attrib_get(_In_ const sai_object_key_t   *key,
     sai_db_unlock();
 
     if (SX_L2_INTERFACE_TYPE_VPORT == intf_params_ptr->type) {
-        status = sx_api_port_vport_base_get(get_sdk_handle(),
-                                            intf_params_ptr->ifc.vport.vport,
-                                            &sx_vlan_id,
-                                            &sx_port_id);
+        status = sx_api_port_vport_base_get(gh_sdk, intf_params_ptr->ifc.vport.vport, &sx_vlan_id, &sx_port_id);
         if (SX_ERR(status)) {
             SX_LOG_ERR("Failed to get base port and vlan for vport %x - %s\n",
                        intf_params_ptr->ifc.vport.vport,
@@ -1886,7 +1814,7 @@ static sai_status_t mlnx_get_router_interface_stats_ext(_In_ sai_object_id_t    
         return status;
     }
 
-    sx_status = sx_api_router_counter_get(get_sdk_handle(), sx_cmd, sx_counter, &sx_counter_set);
+    sx_status = sx_api_router_counter_get(gh_sdk, sx_cmd, sx_counter, &sx_counter_set);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to %s sx counter %d - %s\n", SX_ACCESS_CMD_STR(sx_cmd), sx_counter,
                    SX_STATUS_MSG(sx_status));
@@ -2022,7 +1950,7 @@ static sai_status_t mlnx_clear_router_interface_stats(_In_ sai_object_id_t      
         goto out;
     }
 
-    sx_status = sx_api_router_counter_clear_set(get_sdk_handle(), sx_counter, false);
+    sx_status = sx_api_router_counter_clear_set(gh_sdk, sx_counter, false);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to clear sx counter %d - %s\n", sx_counter, SX_STATUS_MSG(sx_status));
         status = sdk_to_sai(sx_status);
@@ -2056,7 +1984,7 @@ sai_status_t mlnx_debug_set_additional_mac_for_ptf(_In_ const char* value)
     }
 
     sai_db_write_lock();
-    sx_status = sx_api_router_interface_iter_get(get_sdk_handle(), SX_ACCESS_CMD_GET, NULL, NULL, NULL, &rifs_exists);
+    sx_status = sx_api_router_interface_iter_get(gh_sdk, SX_ACCESS_CMD_GET, NULL, NULL, NULL, &rifs_exists);
     if (SX_ERR(sx_status)) {
         SX_LOG_ERR("Failed to get count of router interfaces - %s\n", SX_STATUS_MSG(sx_status));
         sai_status = sdk_to_sai(sx_status);
@@ -2080,38 +2008,6 @@ sai_status_t mlnx_debug_set_additional_mac_for_ptf(_In_ const char* value)
 out:
     sai_db_unlock();
     return sai_status;
-}
-
-bool mlnx_rif_is_ar_enabled(_In_ sai_object_id_t rif_id)
-{
-    mlnx_rif_type_t             rif_type;
-    sai_status_t                status;
-    sx_status_t                 sx_status;
-    mlnx_rif_sx_data_t         *sx_data;
-    sx_router_interface_param_t intf_params;
-    sx_interface_attributes_t   intf_attribs;
-
-    status = mlnx_rif_oid_data_fetch(rif_id, &rif_type, NULL, NULL, &sx_data, NULL);
-    if (SAI_ERR(status)) {
-        SX_LOG_ERR("Failed to fetch rif oid data from rif id - %" PRIx64 ".\n", rif_id);
-        return false;
-    }
-
-    if (rif_type == MLNX_RIF_TYPE_DEFAULT) {
-        sx_status = sx_api_router_interface_get(get_sdk_handle(), sx_data->rif_id, &sx_data->vrf_id, &intf_params,
-                                                &intf_attribs);
-        if (SX_ERR(sx_status)) {
-            SX_LOG_ERR("Failed to get router interface - %s.\n", SX_STATUS_MSG(sx_status));
-            status = sdk_to_sai(sx_status);
-            return false;
-        }
-
-        if (SX_L2_INTERFACE_TYPE_ADAPTIVE_ROUTING == intf_params.type) {
-            return true;
-        }
-    }
-
-    return false;
 }
 
 const sai_router_interface_api_t mlnx_router_interface_api = {
