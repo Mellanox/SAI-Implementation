@@ -1,5 +1,0 @@
-mlnx-sai (1.mlnx.SAIBuild2211.24.0.21) unstable; urgency=low
-  [ MLNX ]
-  * Initial release. (1.mlnx.SAIBuild2211.24.0.21)
-
- -- Adir Atias <adira@mellanox.com>  Thu, 10 Oct 2015 14:54:17 +0300

@@ -1,0 +1,138 @@
+Nvidia SAI implementation release notes
+==========================================
+
+Release 1.23.1
+----------------
+
+Current implementation is partial. Not all the APIs that are defined were fully implemented in this release. 
+
+The code was tested to work on X86 and ARM for Spectrum1, Spectrum2, Spectrum3 and Spectrum4
+The code compiles with, and was tested with, SDK version 4.5.5008.
+
+As a precondition to running SAI initialize switch, SDK must not be running (If it's running, terminate it with dvs_stop.sh). 
+The application must provide one key/value pair on profile services, depending on system type :
+"config_file=/usr/share/sai_2700.xml" / 
+"config_file=/usr/share/sai_2410.xml" / 
+"config_file=/usr/share/sai_2420.xml" / 
+"config_file=/usr/share/sai_2100.xml" /
+"config_file=/usr/share/sai_2010.xml" /
+"config_file=/usr/share/sai_2201.xml" /
+"config_file=/usr/share/sai_3420.xml" /
+"config_file=/usr/share/sai_3700.xml" /
+"config_file=/usr/share/sai_3800.xml" /
+"config_file=/usr/share/sai_4410.xml" /
+"config_file=/usr/share/sai_4600.xml" /
+"config_file=/usr/share/sai_4600C.xml" /
+"config_file=/usr/share/sai_4700.xml" /
+"config_file=/usr/share/sai_5600.xml" .
+On shutdown switch, SAI will perform all the necessary clean up and terminate the SDK.
+
+The following functions / attributes are not supported / implemented :
+* SAI_NEXT_HOP_ATTR_ROUTER_INTERFACE_ID get in router interface API
+* SAI_PORT_ATTR_FDB_LEARNING_LIMIT_VIOLATION in port API
+* Port advertised and remote advertised attributes
+* Only the mandatory set of attributes are accepted on Create port
+* IP/IPv6 counters, SAI_PORT_STAT_IF_IN_VLAN_DISCARDS, SAI_PORT_STAT_IF_OUT_QLEN, SAI_PORT_STAT_ETHER_RX_OVERSIZE_PKTS, SAI_PORT_STAT_ETHER_TX_OVERSIZE_PKTS, SAI_PORT_STAT_ETHER_STATS_TX_NO_ERRORS, SAI_PORT_STAT_ETHER_STATS_RX_NO_ERRORS, Port EEE counters, Port PFC ON2OFF counters, clear port stats for specific counters, in port counters API
+* Port ether stats/in/out packets 4K-9K counters count only packets 4K-8K
+* SAI_ROUTE_ATTR_NEXT_HOP_GROUP_ID get in route API
+* SAI_VIRTUAL_ROUTER_ATTR_ADMIN_V4_STATE set, 
+SAI_VIRTUAL_ROUTER_ATTR_ADMIN_V6_STATE set, SAI_VIRTUAL_ROUTER_ATTR_SRC_MAC_ADDRESS, 
+SAI_VIRTUAL_ROUTER_ATTR_VIOLATION_TTL1_ACTION, SAI_VIRTUAL_ROUTER_ATTR_VIOLATION_IP_OPTIONS in router API
+* SAI_SWITCH_ATTR_FDB_TABLE_SIZE, SAI_SWITCH_ATTR_BCAST_CPU_FLOOD_ENABLE, SAI_SWITCH_ATTR_MCAST_CPU_FLOOD_ENABLE, SAI_SWITCH_ATTR_VIOLATION_TTL1_ACTION get, SAI_SWITCH_ATTR_SRC_MAC_ADDRESS set, SAI_SWITCH_ATTR_MAX_LEARNED_ADDRESSES, SAI_SWITCH_ATTR_FDB_MULTICAST_MISS_ACTION set in switch API
+* SAI_BRIDGE_ATTR_MAX_LEARNED_ADDRESSES is implemented for .1D bridges but not for the .1Q bridge
+* vlan counters API
+* notification callbacks - switch shutdown request
+* SAI_INGRESS_PRIORITY_GROUP_STAT_PACKETS, SAI_INGRESS_PRIORITY_GROUP_STAT_BYTES in buffer API
+* saiobject.h query objects functions
+* bulk functions
+* Sample packet is supported only on ingress traffic to port, at profile mode (exclusive instance per port). Netflow mode (shared, aggregated traffic), Egress traffic on port (SAI_PORT_ATTR_EGRESS_SAMPLEPACKET_ENABLE) and ACL ingress/egress (SAI_ACL_ENTRY_ATTR_ACTION_INGRESS_SAMPLEPACKET_ENABLE, SAI_ACL_ENTRY_ATTR_ACTION_EGRESS_SAMPLEPACKET_ENABLE) are not supported.
+
+ACL has the following limitations :
+* Not all match keys / actions are supported
+* Vlan ranges not implemented
+* Supporting 16 ACL ranges objects (8 when issu is enabled)
+* ACL Switch bind points SAI_SWITCH_ATTR_DEFAULT_INGRESS_ACL_LIST, SAI_SWITCH_ATTR_DEFAULT_EGRESS_ACL_LIST are not implemented
+* ACL table can only be a member of a single sequential ACL group. ACL table can only be a member in multiple groups if all these groups are parallel.
+* ACL VLAN bind point only works for ingress stage, SAI_VLAN_ATTR_EGRESS_ACL isn't supported
+* VLAN matching on egress RIF or egress Port is supported for Vlan interfaces (802.1Q) and for Port-vlan interfaces. It’s not supported for bridge interfaces (802.1D). Vlan matching not supported when there is no RIF attached to the port. 
+* ACL should be applied on LAG and not on member ports of a LAG
+* ACL egress block list action can be applied only on egress stage, not on ingress stage
+* ACL field out port doesn't support LAG
+* ACL field in port doesn't support LAG member ports (Spectrum1, 2, 3)
+* ACL IP_TYPE field supports the following values : SAI_ACL_IP_TYPE_ANY, SAI_ACL_IP_TYPE_ARP, SAI_ACL_IP_TYPE_IP, SAI_ACL_IP_TYPE_IPV4ANY, SAI_ACL_IP_TYPE_IPV6ANY, SAI_ACL_IP_TYPE_NON_IP
+* When using SAI_ACL_IP_TYPE_ANY, it's necessary to set at list one other field, as internally no key is used to match ANY value, and at least one key should be set for every rule
+* ACL SAI_ACL_ENTRY_ATTR_ACTION_MIRROR_INGRESS isn't supported at Egress stage. Note an exception, for SAI_ACL_BIND_POINT_TYPE_ROUTER_INTERFACE at Egress stage, only SAI_ACL_ENTRY_ATTR_ACTION_MIRROR_INGRESS can be used.
+* SAI_ACL_ENTRY_ATTR_ACTION_ADD_VLAN_PRI is supported only when paired with SAI_ACL_ENTRY_ATTR_ACTION_ADD_VLAN_ID as actions of the same ACL entry.
+* When setting next hop group as a target of ACL action redirect, traffic will be redirected only to next hop group members that are not tunnel encap next hops.
+* SAI_ACL_ENTRY_ATTR_FIELD_TC supports only boolean mask, either exact match or match all
+
+IP over IP has the following limitations :
+* Set is not supported on any attribute in sai_tunnel_attr_t
+* SAI_TUNNEL_ATTR_DECAP_MAPPERS is not able to be created or set
+* Only SAI_TUNNEL_TTL_PIPE_MODEL is supported for SAI_TUNNEL_ATTR_DECAP_TTL_MODE
+* Only SAI_TUNNEL_IPINIP and SAI_TUNNEL_IPINIP_GRE are supported for SAI_TUNNEL_ATTR_TYPE and SAI_TUNNEL_TERM_TABLE_ENTRY_ATTR_TUNNEL_TYPE on create
+* get_tunnel_attribute function will fail when trying to get the following values from a tunnel created without any encap attributes
+  a.	SAI_TUNNEL_ATTR_ENCAP_DSCP_MODE
+  b.	SAI_TUNNEL_ATTR_ENCAP_DSCP_VAL
+* Currently DSCP mode, DSCP value and ECN mode are shared between the same type of tunnels. Change DSCP mode, DSCP value and ECN mode will affect all the tunnels of the same type. Tunnels are considered ‘the same type’ if both the following conditions are satisfied
+  a.	SAI_TUNNEL_ATTR_TYPE has the same value
+  b.	Tunnel direction has the same value. Direction has 3 types: encap, decap and symmetry
+        i.	Encap: no decap attributes (start with SAI_TUNNEL_ATTR_ENCAP_) are configured during tunnel creation
+        ii.	Decap: no encap attributes (start with SAI_TUNNEL_ATTR_DECAP_) are configured during tunnel creation
+        iii.	Symmetry: Both encap and decap attributes are configured during tunnel creation
+* Only drop is supported for SAI_TUNNEL_ATTR_LOOPBACK_PACKET_ACTION
+
+VXLAN has the following limitations :
+* Only SAI_TUNNEL_TTL_PIPE_MODEL is supported for SAI_TUNNEL_ATTR_DECAP_TTL_MODE
+* Only SAI_TUNNEL_TTL_PIPE_MODEL is supported for SAI_TUNNEL_ATTR_ENCAP_TTL_MODE on Spectrum1. Spectrum2 and onwards support also SAI_TUNNEL_TTL_MODE_UNIFORM_MODEL
+* When creating VXLAN tunnel without SAI_TUNNEL_ATTR_ENCAP_SRC_IP, it is not possible to create tunnel map entries before tunnel term entries are created 
+		
+SAI_VLAN_ATTR_UNKNOWN_UNICAST_FLOOD_CONTROL_TYPE, SAI_VLAN_ATTR_BROADCAST_FLOOD_CONTROL_TYPE should be the same for specific VLAN as far as remote endpoints configuration. If either UC or BC has a flood group which contains remote endpoints, and the second traffic type (BC or UC respectively) has a configuration without remote endpoints, flooding for both UC and BC to remote endpoints will occur according to the first traffic type. If both UC and BC have a flood group which contains remote endpoints, and the remote endpoints differ, the configuration done later setting takes effect.
+Same for SAI_BRIDGE_ATTR_UNKNOWN_UNICAST_FLOOD_CONTROL_TYPE, SAI_BRIDGE_ATTR_BROADCAST_FLOOD_CONTROL_TYPE for specific bridge
+
+In case WRED profile has WRED enabled for at least one color and ECN mark mode enabled for at least one color, the enabled colors for WRED and ECN must be the same (For example, can't have SAI_WRED_ATTR_GREEN_ENABLE=true and SAI_WRED_ATTR_ECN_MARK_MODE=SAI_ECN_MARK_MODE_YELLOW)
+Clearing queue stats for specific counters always clears all available counters
+Clearing SAI_QUEUE_STAT_WRED_ECN_MARKED_PACKETS for a single queue ECN marked packets clears all the port queues ECN marked packets
+Host interface user defined traps support a single instance of each user defined trap.
+Host interface wildcard table entry overwrites the configured channel value for all traps at the time of the creation, there is no priority implemented. WA - first create wildcard entry and then specific entries.
+
+UDF has the following limitations :
+* UDF Match:
+  a. Only L2 matches which can be ARP/IPv4/IPv6 ethertype or empty are supported
+  b. Empty match is only supported for SAI_UDF_BASE_L2
+  c. Non-empty matches (ARP/IPv4/IPv6) are only supported for SAI_UDF_BASE_L3
+* UDF Base:
+  a. If L2 – Support only one UDF in the UDF group
+  b. If L3 – Support up to 3 UDFs in the UDF group. UDF matches should be unique within the UDF group
+* UDF Group - Empty UDF group cannot be used as hash or ACL attribute. In addition, it is not allowed to remove the last UDF from the UDF group if it is in use
+* ECMP hash distribution is inferior when using UDF with hash type CRC. WA : When using UDF for ECMP hash, use hash type XOR.
+
+When using all available  mirror sessions (3 SPC1, 8 SPC2+), it is not possible to edit a session. As a WA, remove and re-create the session with new values. It is possible to edit a session when using less than maximum available sessions (1 or 2 on SPC1, 1-7 on SPC2+).
+When working with WRED discards mirroring, it has to be configured last after regular mirror sessions, as with WRED discard mirroring all ports which are not analyzer ports of any session, are set as monitor port, and analyzer and monitor behavior for port is mutually exclusive.
+Mirror policer should be single rate two color (mode = STORM_CONTROL or mode = SR_TCM with PBS = 0).
+On Spectrum1, Mirror policer only works for a mirror session that is used as SAI_ACL_ENTRY_ATTR_ACTION_MIRROR_INGRESS or SAI_ACL_ENTRY_ATTR_ACTION_MIRROR_EGRESS. It doesn't have effect on other traffic that is mirrored by the session from non ACL binding (such as port binding).
+Mirror sample rate is supported only for Spectrum2+, and only works for a mirror session that is used as SAI_ACL_ENTRY_ATTR_ACTION_MIRROR_INGRESS or SAI_ACL_ENTRY_ATTR_ACTION_MIRROR_EGRESS. It doesn't have effect on other traffic that is mirrored by the session from non ACL binding (such as port binding).
+For packets matching ACL entry with mirror action and mirror policer, the color will be set to green after the ACL.
+When working with router discards mirroring, it is not possible to use WJH tool with extended discard traps.
+
+Switch Prio (SAI TC) <-> IEEE PFC is a global property, therefor when setting different PFC->PG on different ports last value overrides.
+
+Debug counters don’t work correctly with WJH, and vice-versa, as the 2 features configurations conflicts.
+A specific drop reason can only exist in a single counter.
+When enabling ACL drops debug counter, the dropped packets will not be counted by SDK ingress/egress policy engine discard counters.
+
+ISSU 1 second is not supported with SDK 4.3.23** and newer.
+ISSU hitless does not support empty LAG with no members.
+It is not possible to create bridge port over empty LAG during ISSU. WA : Create at least one LAG member, then create bridge port over the LAG.
+
+Resource monitoring has the following limitations :
+* SAI_SWITCH_ATTR_AVAILABLE_IPV6_ROUTE_ENTRY measures only IPv6 routes with prefix < 64 on Spectrum1 and free space on single KVD hash.
+* SAI_ACL_TABLE_ATTR_AVAILABLE_ACL_ENTRY is not accurate on Spectrum2.
+
+Generic counters has the following limitations : 
+* Host interface traped packet/bytes values are cleared whenever setting SAI_HOSTIF_TRAP_ATTR_COUNTER_ID
+* When setting nexthop group and next hop group members counter, the later one set "wins"
+* Get counter attribute for nexthop group member returns last applied counter - both group and member counter could be possible
+* Next hop group member counter is not updated when updating the counter of the base next hop
+
+Hash algorithm CRC CCITT is not supported on SPC1, it is supported on SPC2 onwards.
